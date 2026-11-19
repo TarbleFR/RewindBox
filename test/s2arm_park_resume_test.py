@@ -159,7 +159,8 @@ check('self.parkedGameId = nil;' in ended[:400], 'an end (or a failed resume) le
 
 service = (ROOT / 'lib/services/s2arm_internal_service.dart').read_text()
 check("final parked = (now['parkedGameId'] ?? '').toString().toUpperCase();" in service and
-      "(detected['gid'] ?? '').toString().toUpperCase() != parked" in service, 'Dart lets only the parked game launch again')
+      "detectedGid != parked && detectedGid != retry" in service and "now['retryGameId']" in service,
+      'Dart lets only the parked game or the interrupted unconfigured game launch again' )
 
 for failure in failures:
     print('FAIL ' + failure)

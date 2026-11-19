@@ -1,0 +1,436 @@
+diff --git a/graphics/nvn/gfx/nvn/rb_reference.inc b/graphics/nvn/gfx/nvn/rb_reference.inc
+index c01ab93..721d0da 100644
+--- a/graphics/nvn/gfx/nvn/rb_reference.inc
++++ b/graphics/nvn/gfx/nvn/rb_reference.inc
+@@ -2,9 +2,10 @@
+ // The same renderer that will draw owns the Metal device, compiler and workers.
+ typedef int (*rb_stage_cancel)(void *);
+ typedef int (*rb_stage_inflate)(const void *, size_t, void **, size_t *, size_t);
++typedef int (*rb_reference_spill)(const void *,size_t,int,uint64_t,rb_stage_cancel,void *,uint64_t *);
+ typedef void (*rb_stage_progress)(void *, uint64_t, uint64_t);
+ extern int rb_prepare_stage_inputs(const char *, const char *, const char *, rb_stage_cancel, void *,
+-                                   uint64_t [8], rb_stage_inflate, rb_stage_progress) __attribute__((weak_import));
++                                   uint64_t [8], rb_stage_inflate, rb_stage_progress,rb_reference_spill) __attribute__((weak_import));
+ struct rb_reference_target { const char *vs, *fs, *archive, *recipe; };
+ static const struct rb_reference_target rb_mkw_targets[] = {
+ #include "rb_reference_mkw.inc"
+@@ -82,7 +83,7 @@ static void rb_ref_progress(void *opaque, uint64_t done, uint64_t total) {
+ }
+ __attribute__((visibility("default"))) int s2a_rb_guest_prepare_graphics(
+         const char *gid, const char *build, const char *data, const char *wire, rb_stage_cancel cancel,
+-        void *ctx, uint64_t stats[8], rb_stage_inflate inflate, rb_stage_progress progress) { @autoreleasepool {
++        void *ctx, uint64_t stats[8], rb_stage_inflate inflate, rb_stage_progress progress,rb_reference_spill spill) { @autoreleasepool {
+     if (stats) memset(stats,0,8*sizeof *stats);
+     if (!gid || !build || strcasecmp(gid,"0400C3F00006E000") || strcasecmp(build,rb_ref_build) ||
+         strcmp(DMSH_CHAIN,"0be3f28548fd") || sizeof(pso_skey)!=432) return 2;
+@@ -95,7 +96,7 @@ __attribute__((visibility("default"))) int s2a_rb_guest_prepare_graphics(
+     struct rb_ref_callbacks callbacks = {cancel,progress,ctx};
+     int status = rb_ref_materialize(dir,sources,rb_mkw_targets,sizeof rb_mkw_targets/sizeof *rb_mkw_targets,rb_ref_checkpoint,&callbacks);
+     if (status) return status;
+-    return rb_prepare_stage_inputs(data,wire,rb_ref_manifest(dir).fileSystemRepresentation,rb_ref_checkpoint,&callbacks,stats,inflate,rb_ref_progress);
++    return rb_prepare_stage_inputs(data,wire,rb_ref_manifest(dir).fileSystemRepresentation,rb_ref_checkpoint,&callbacks,stats,inflate,rb_ref_progress,spill);
+ } }
+ 
+ @interface RBReferenceProof : NSObject {
+diff --git a/graphics/nvn/host/rb_local_stage.h b/graphics/nvn/host/rb_local_stage.h
+index 6605d10..e98ebfe 100644
+--- a/graphics/nvn/host/rb_local_stage.h
++++ b/graphics/nvn/host/rb_local_stage.h
+@@ -4,12 +4,16 @@
+ #include "rb_stage_input.h"
+ 
+ typedef int (*rb_inflate_fn)(const void *, size_t, void **, size_t *, size_t);
++typedef int (*rb_stage_spill_fn)(const void *,size_t,int,uint64_t,int (*)(void *),void *,uint64_t *);
+ typedef struct {
+     int (*cancel)(void *);
+     void (*stage)(void *, const uint8_t *, unsigned, const uint8_t *, unsigned, int);
+     void *ctx;
+     rb_inflate_fn inflate;
+-    unsigned unsupported;
++    rb_stage_spill_fn spill;
++    const char *scratch;
++    uint64_t disk_budget;
++    unsigned unsupported, malformed, limited, io_errors, spooled;
+     size_t budget;
+ } rb_local_scan;
+ 
+@@ -113,6 +117,7 @@ bad:
+ }
+ 
+ static void rb_scan_blob(rb_local_scan *s, const uint8_t *b, size_t n, unsigned depth);
++#include "rb_stage_spill.h"
+ static uint16_t rb_arc16(const uint8_t *p,int little) {
+     return little ? (uint16_t)(p[0]|(p[1]<<8)) : (uint16_t)((p[0]<<8)|p[1]);
+ }
+@@ -120,33 +125,41 @@ static uint32_t rb_arc32(const uint8_t *p,int little) {
+     return little ? rb_u32(p) : __builtin_bswap32(rb_u32(p));
+ }
+ static void rb_scan_sarc(rb_local_scan *s,const uint8_t *b,size_t n,unsigned depth) {
+-    if (n<0x20 || (b[6]!=0xff && b[6]!=0xfe) || b[7]!=(uint8_t)(b[6]^1u)) return;
++    if (n<0x20 || (b[6]!=0xff && b[6]!=0xfe) || b[7]!=(uint8_t)(b[6]^1u)) { s->malformed++; return; }
+     int little = b[6]==0xff;
+     unsigned h=rb_arc16(b+4,little), size=rb_arc32(b+8,little), data=rb_arc32(b+12,little);
+-    if (size>n || data>size || !rb_span(data,h,12) || memcmp(b+h,"SFAT",4)) return;
++    if (size>n || data>size || !rb_span(data,h,12) || memcmp(b+h,"SFAT",4)) { s->malformed++; return; }
+     unsigned nodes=h+rb_arc16(b+h+4,little), count=rb_arc16(b+h+6,little);
+-    if (!rb_span(data,nodes,16ull*count)) return;
++    if (!rb_span(data,nodes,16ull*count)) { s->malformed++; return; }
+     for (unsigned i=0; i<count && !rb_scan_interrupted(s); ++i) {
+         const uint8_t *r=b+nodes+16*i;
+         unsigned a=rb_arc32(r+8,little), end=rb_arc32(r+12,little);
+-        if (a<end && end<=size-data) rb_scan_blob(s,b+data+a,end-a,depth+1);
++        if (end<a || end>size-data) { s->malformed++; continue; }
++        if (end>a) rb_scan_blob(s,b+data+a,end-a,depth+1);
+     }
+ }
+ 
+ static void rb_scan_blob(rb_local_scan *s, const uint8_t *b, size_t n, unsigned depth) {
+     if (n<4 || rb_scan_interrupted(s)) return;
+-    if (depth>6) { s->unsupported++; return; }
++    if (depth>6) { s->limited++; return; }
+     if (!memcmp(b,"SARC",4)) { rb_scan_sarc(s,b,n,depth); return; }
+     uint32_t magic=rb_u32(b);
+     if (magic==0xfd2fb528 || !memcmp(b,"Yaz0",4)) {
+         void *d=NULL; size_t size=0;
+-        int ok=magic==0xfd2fb528 ? s->inflate && s->inflate(b,n,&d,&size,s->budget) :
+-                                   rb_yaz0(b,n,&d,&size,s->budget);
+-        if (ok && size<=s->budget) {
++        size_t small=s->budget<(4u<<20)?s->budget:(4u<<20);
++        int ok=magic==0xfd2fb528 ? n<=small && s->inflate && s->inflate(b,n,&d,&size,small) :
++                                   rb_yaz0(b,n,&d,&size,small);
++        if (ok && size<=small) {
+             s->budget-=size;
+             rb_scan_blob(s,d,size,depth+1);
+             s->budget+=size;
+-        } else ++s->unsupported;
++        } else {
++            int rc=rb_stage_spill(s,b,n,depth,magic==0xfd2fb528);
++            if (rc==0) s->malformed++;
++            else if (rc==-2) s->limited++;
++            else if (rc==-3) s->unsupported++;
++            else if (rc==-4) s->io_errors++;
++        }
+         free(d); return;
+     }
+     if (n>=16 && magic==DSH_IN_MAGIC) {
+diff --git a/graphics/nvn/host/rb_prepare_stages.inc b/graphics/nvn/host/rb_prepare_stages.inc
+index 70bba5e..de1b991 100644
+--- a/graphics/nvn/host/rb_prepare_stages.inc
++++ b/graphics/nvn/host/rb_prepare_stages.inc
+@@ -126,20 +126,20 @@ static int rb_resource_name(const char *p) {
+ static unsigned rb_resource_scan(rb_local_scan *scan,NSString *root,const char *rel,uint64_t expected) {
+     NSString *path=[root stringByAppendingPathComponent:@(rel)];
+     int fd=open(path.fileSystemRepresentation,O_RDONLY|O_NONBLOCK);
+-    if (fd<0) return 1;
++    if (fd<0) { scan->io_errors++; return 1; }
+     struct stat st;
+     if (fstat(fd,&st) || !S_ISREG(st.st_mode) || (uint64_t)st.st_size!=expected || expected>SIZE_MAX) {
+-        close(fd); return 1;
++        close(fd); scan->io_errors++; return 1;
+     }
+     if (expected<4) { close(fd); return 0; }
+     void *map=mmap(NULL,(size_t)expected,PROT_READ,MAP_PRIVATE,fd,0);
+     close(fd);
+-    if (map==MAP_FAILED) return 1;
++    if (map==MAP_FAILED) { if (errno==ENOMEM) scan->limited++; else scan->io_errors++; return 1; }
+     madvise(map,(size_t)expected,MADV_SEQUENTIAL);
+-    scan->unsupported=0;
++    uint64_t before=(uint64_t)scan->unsupported+scan->malformed+scan->limited+scan->io_errors;
+     rb_scan_blob(scan,map,(size_t)expected,0);
+     munmap(map,(size_t)expected);
+-    return scan->unsupported;
++    return before!=(uint64_t)scan->unsupported+scan->malformed+scan->limited+scan->io_errors;
+ }
+ 
+ static void rb_row_digest(const char *row,size_t n,char hex[65]) {
+@@ -205,7 +205,7 @@ static int rb_stage_assets(NSString *game,NSString *wire,rb_local_scan *scan,rb_
+         unsigned long long bytes=strtoull(sep+1,&end_size,10);
+         if (end_size==sep+1 || *end_size) { rc=-1; break; }
+         off_t offset=ftello(idx);
+-        int valid=0,matches=0;
++        int valid=0,matches=0; unsigned prior[4]={0};
+         uint64_t count=0;
+         if (reuse && fgets(rec,RB_STAGE_ROW,idx)) {
+             char *first=strchr(rec,'\t'), *keys=first?strchr(first+1,'\t'):NULL;
+@@ -217,8 +217,12 @@ static int rb_stage_assets(NSString *game,NSString *wire,rb_local_scan *scan,rb_
+                     char actual[65]; rb_row_digest(rec,(size_t)(digest-rec),actual);
+                     *digest=0; *first=0; *keys++=0;
+                     valid=!strcmp(digest+1,actual) && !strcmp(rec,sha) && !strcmp(first+1,item);
+-                    if (valid && *keys=='!') matches=b->need.count>0;
+-                    else if (valid) {
++                    if (valid && *keys=='!') {
++                        char *sep=strchr(keys,'|');
++                        if (!sep || sscanf(keys,"!%u,%u,%u,%u",prior,prior+1,prior+2,prior+3)!=4) valid=0;
++                        else { keys=sep+1; matches=b->need.count && (prior[2] || prior[3]); }
++                    }
++                    if (valid) {
+                         char *id;
+                         while ((id=strsep(&keys,",")) && *id) {
+                             count++;
+@@ -236,12 +240,22 @@ static int rb_stage_assets(NSString *game,NSString *wire,rb_local_scan *scan,rb_
+         if (!valid || matches) {
+             __attribute__((objc_precise_lifetime)) NSMutableOrderedSet *ids=[NSMutableOrderedSet orderedSet];
+             b->in_asset=ids; b->overflow=0;
++            unsigned before[]={scan->unsupported,scan->malformed,scan->limited,scan->io_errors};
+             unsigned skipped=rb_resource_scan(scan,itemRoot,item,bytes);
++            if (b->overflow) { scan->limited++; skipped=1; }
+             b->in_asset=nil;
+             if (b->cancelled || b->write_error) { rc=b->cancelled?1:-1; break; }
+             scanned++; if (skipped) limited++;
++            if (valid && !skipped && (prior[0] || prior[1] || prior[2] || prior[3])) {
++                // A former disk/I/O limit cleared. Replace the incomplete index
++                // row and reindex its suffix in manifest order.
++                if (fseeko(idx,offset,SEEK_SET) || ftruncate(fileno(idx),offset)) { rc=-1; break; }
++                valid=reuse=0;
++            }
+             if (!valid) {
+-                NSString *text=b->overflow || skipped ? @"!" : [ids.array componentsJoinedByString:@","];
++                NSString *text=[ids.array componentsJoinedByString:@","];
++                if (skipped) text=[NSString stringWithFormat:@"!%u,%u,%u,%u|%@",scan->unsupported-before[0],
++                    scan->malformed-before[1],scan->limited-before[2],scan->io_errors-before[3],text];
+                 int len=snprintf(rec,RB_STAGE_ROW,"%s\t%s\t%s",sha,item,text.UTF8String);
+                 char hash[65];
+                 if (len<0 || len>=RB_STAGE_ROW-67) { rc=-1; break; }
+@@ -249,6 +263,10 @@ static int rb_stage_assets(NSString *game,NSString *wire,rb_local_scan *scan,rb_
+                 if (fprintf(idx,"%s\t%s\n",rec,hash)<0) { rc=-1; break; }
+                 count=ids.count;
+             }
++        } else {
++            scan->unsupported+=prior[0]; scan->malformed+=prior[1];
++            scan->limited+=prior[2]; scan->io_errors+=prior[3];
++            if (prior[0] || prior[1] || prior[2] || prior[3]) limited++;
+         }
+         *candidates+=count; indexed++;
+         if (progress && !(indexed%32)) progress(b->ctx,(uint64_t)ftello(manifest),(uint64_t)st.st_size);
+@@ -259,6 +277,8 @@ static int rb_stage_assets(NSString *game,NSString *wire,rb_local_scan *scan,rb_
+     free(rec); if (fclose(idx)) rc=-1;
+     fclose(manifest);
+     if (!rc && progress) progress(b->ctx,(uint64_t)st.st_size,(uint64_t)st.st_size);
++    LOG("RewindBox: local resource decodes: %u spooled, %u unavailable dictionary, %u corrupt, %u disk/window/depth limits, %u I/O errors",
++        scan->spooled,scan->unsupported,scan->malformed,scan->limited,scan->io_errors);
+     LOG("RewindBox: local NVN2 index: %llu assets, %llu scanned, %llu with unreadable or unsupported content",indexed,scanned,limited);
+     return rc;
+ }
+@@ -267,7 +287,7 @@ static int rb_stage_assets(NSString *game,NSString *wire,rb_local_scan *scan,rb_
+ 
+ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const char *profile,int (*cancel)(void *),
+                                   void *ctx,uint64_t stats[8],rb_inflate_fn inflate,
+-                                  void (*progress)(void *,uint64_t,uint64_t)) {
++                                  void (*progress)(void *,uint64_t,uint64_t),rb_stage_spill_fn spill) {
+     NSString *wire=@(wire_path), *out=[wire stringByAppendingPathComponent:@"shaders"];
+     if (![NSFileManager.defaultManager createDirectoryAtPath:out withIntermediateDirectories:YES attributes:nil error:NULL]) return -1;
+     NSMutableOrderedSet *targets=[NSMutableOrderedSet orderedSet];
+@@ -279,7 +299,8 @@ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const c
+     NSMutableSet *current=[NSMutableSet set], *legacy=[NSMutableSet set];
+     __attribute__((objc_precise_lifetime)) NSMutableSet *need=[NSMutableSet set], *found=[NSMutableSet set];
+     rb_stage_batch batch={.need=need,.found=found,.out=out.fileSystemRepresentation,.cancel=cancel,.ctx=ctx};
+-    rb_local_scan scan={.cancel=rb_batch_cancel,.stage=rb_local_found,.ctx=&batch,.inflate=inflate,.budget=64u<<20};
++    rb_local_scan scan={.cancel=rb_batch_cancel,.stage=rb_local_found,.ctx=&batch,.inflate=inflate,.budget=8u<<20,
++                        .spill=spill,.scratch=wire_path,.disk_budget=2ull<<30};
+     NSString *bundled=[[@(game) stringByAppendingPathComponent:@"shaders/direct"] stringByAppendingPathComponent:@"b-" DMSH_CHAIN];
+     NSMutableSet *from_dump=[NSMutableSet set];
+     stats[0]=targets.count;
+@@ -306,6 +327,7 @@ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const c
+     if (progress) progress(ctx,0,0);
+     int rc=rb_stage_assets(@(game),wire,&scan,&batch,&stats[7],progress);
+     if (rc) return rc;
++    BOOL incomplete=scan.unsupported || scan.malformed || scan.limited || scan.io_errors;
+     NSMutableString *report=[NSMutableString stringWithString:@"key\tprevious_source\tinput\ttranslation\n"];
+     uint64_t old_kept=0,old_found=0,old_missing=0,done=0;
+     uint64_t priority_made=0,priority_reused=0,priority_no_input=0,priority_failed=0;
+@@ -313,7 +335,7 @@ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const c
+         if (rb_batch_cancel(&batch)) return 1;
+         BOOL ready=[current containsObject:key], recovered=[found containsObject:key], missing=[need containsObject:key];
+         BOOL old=[legacy containsObject:key]; if (old) { if (missing) old_missing++; else if (recovered) old_found++; else old_kept++; }
+-        NSString *result=ready ? @"current" : @"missing";
++        NSString *result=ready ? @"current" : incomplete ? @"not-located-in-partial-scan" : @"missing";
+         if (!ready && missing) stats[4]++;
+         if (!ready && recovered) stats[3]++;
+         BOOL rebuild=[priority containsObject:key] && ![packed_only containsObject:key];
+@@ -343,7 +365,10 @@ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const c
+         if (progress) progress(ctx,++done,targets.count);
+     } }
+     if (![report writeToFile:[wire stringByAppendingPathComponent:@"stage-recovery.tsv"] atomically:YES encoding:NSUTF8StringEncoding error:NULL]) return -1;
+-    LOG("RewindBox: previously translated but stale: kept input %llu, recovered from local assets or dumps %llu, still missing %llu",old_kept,old_found,old_missing);
++    LOG("RewindBox: previously translated but stale: kept input %llu, recovered from local assets or dumps %llu, not located in inspected resources %llu",old_kept,old_found,old_missing);
++    NSDictionary *coverage=@{@"spooled":@(scan.spooled),@"unavailableDictionary":@(scan.unsupported),@"corrupt":@(scan.malformed),
++        @"resourceLimits":@(scan.limited),@"ioErrors":@(scan.io_errors),@"unlocatedRequestedKeys":@(stats[4])};
++    if (![coverage writeToFile:[wire stringByAppendingPathComponent:@"stage-scan-coverage.plist"] atomically:YES]) return -1;
+     LOG("RewindBox: priority stage inputs: %llu newly retranslated, %llu generation checkpoints reused, %llu compatible sources preserved without input, %llu failed",
+         priority_made,priority_reused,priority_no_input,priority_failed);
+     return priority_failed ? -1 : 0;
+@@ -352,14 +377,14 @@ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const c
+ // Explicit game root for NativeAOT's facts/pair tables before configure. The
+ // caller owns the guest launch lock. Restore the process environment on all exits.
+ int rb_prepare_stage_inputs(const char *game,const char *wire,const char *profile,int (*cancel)(void *),void *ctx,
+-                            uint64_t stats[8],rb_inflate_fn inflate,void (*progress)(void *,uint64_t,uint64_t)) {
++                            uint64_t stats[8],rb_inflate_fn inflate,void (*progress)(void *,uint64_t,uint64_t),rb_stage_spill_fn spill) {
+     if (!game || !*game || !wire || !*wire || !stats) return -1;
+     memset(stats,0,8*sizeof *stats);
+     const char *old=getenv("S2A_GAME_DATA");
+     char *saved=old?strdup(old):NULL;
+     if ((old && !saved) || setenv("S2A_GAME_DATA",game,1)) { free(saved); return -1; }
+     int rc=-1;
+-    @try { @autoreleasepool { rc=rb_prepare_stage_batch(game,wire,profile,cancel,ctx,stats,inflate,progress); } }
++    @try { @autoreleasepool { rc=rb_prepare_stage_batch(game,wire,profile,cancel,ctx,stats,inflate,progress,spill); } }
+     @finally { if (saved) setenv("S2A_GAME_DATA",saved,1); else unsetenv("S2A_GAME_DATA"); free(saved); }
+     return rc;
+ }
+diff --git a/graphics/nvn/host/rb_stage_spill.h b/graphics/nvn/host/rb_stage_spill.h
+new file mode 100644
+index 0000000..6a36079
+--- /dev/null
++++ b/graphics/nvn/host/rb_stage_spill.h
+@@ -0,0 +1,76 @@
++// Temporary decoding of large resources. Both the active chain of scratch
++// mappings and each individual write have an enforced disk quota.
++#include <sys/mman.h>
++#if defined(__APPLE__)
++#include <sys/mount.h>
++#else
++#include <sys/statfs.h>
++#endif
++
++static int rb_spill_error(void) { return errno==ENOSPC || errno==EDQUOT ? -2 : -4; }
++
++static int rb_yaz0_fd(const uint8_t *b,size_t n,int fd,uint64_t limit,rb_local_scan *s,uint64_t *decoded) {
++    if (n<16) return 0;
++    uint32_t total=__builtin_bswap32(rb_u32(b+4));
++    if (!total) return 0;
++    if (total>limit) return -2;
++    uint8_t history[4096], output[65536];
++    size_t at=16,done=0,used=0;
++    while (done<total) {
++        if (at>=n) return 0;
++        unsigned flags=b[at++];
++        for (unsigned bit=128;bit && done<total;bit>>=1) {
++            if (at>=n) return 0;
++            unsigned count=1,distance=0,value=0;
++            if (flags&bit) value=b[at++];
++            else {
++                if (n-at<2) return 0;
++                unsigned v=b[at++]; distance=((v&15)<<8)+b[at++]+1; count=v>>4;
++                if (!count) { if (at>=n) return 0; count=b[at++]+18; } else count+=2;
++                if (distance>done || count>total-done) return 0;
++            }
++            while (count--) {
++                uint8_t next=distance?history[(done-distance)&4095]:(uint8_t)value;
++                history[done++&4095]=next; output[used++]=next;
++                if (used==sizeof output) {
++                    if (rb_scan_interrupted(s)) return -1;
++                    if (!rb_stage_write(fd,output,used)) return rb_spill_error();
++                    used=0;
++                }
++            }
++        }
++    }
++    if (used && !rb_stage_write(fd,output,used)) return rb_spill_error();
++    *decoded=done; return 1;
++}
++
++static int rb_stage_spill(rb_local_scan *s,const uint8_t *b,size_t n,unsigned depth,int zstd) {
++    if (!s->scratch || !s->disk_budget || (zstd && !s->spill)) return -2;
++    char tmp[1200];
++    if (snprintf(tmp,sizeof tmp,"%s/.stage-inflate-XXXXXX",s->scratch)>=(int)sizeof tmp) return -4;
++    int fd=mkstemp(tmp);
++    if (fd<0) return rb_spill_error();
++    if (unlink(tmp)) { close(fd); return -4; } // a terminated process cannot strand disk space
++    int rc=-4; uint64_t bytes=0;
++    struct statfs fs;
++    if (fstatfs(fd,&fs)) goto done;
++    uint64_t free_disk=(uint64_t)fs.f_bavail*(uint64_t)fs.f_bsize;
++    const uint64_t reserve=256ull<<20;
++    if (free_disk<=reserve) { rc=-2; goto done; }
++    uint64_t limit=s->disk_budget<free_disk-reserve ? s->disk_budget:free_disk-reserve;
++    if (rb_scan_interrupted(s)) { rc=-1; goto done; }
++    rc=zstd?s->spill(b,n,fd,limit,s->cancel,s->ctx,&bytes):rb_yaz0_fd(b,n,fd,limit,s,&bytes);
++    if (rc==1) {
++        if (!bytes || bytes>limit || bytes>SIZE_MAX) { rc=-2; goto done; }
++        void *mapped=mmap(NULL,(size_t)bytes,PROT_READ,MAP_PRIVATE,fd,0);
++        if (mapped==MAP_FAILED) { rc=errno==ENOMEM?-2:-4; goto done; }
++        madvise(mapped,(size_t)bytes,MADV_SEQUENTIAL);
++        s->disk_budget-=bytes; s->spooled++;
++        rb_scan_blob(s,mapped,(size_t)bytes,depth+1);
++        s->disk_budget+=bytes;
++        munmap(mapped,(size_t)bytes);
++    }
++done:
++    close(fd);
++    return rc;
++}
+diff --git a/graphics/nvn/tests/rb_reference_gpu.inc b/graphics/nvn/tests/rb_reference_gpu.inc
+index 0160f6b..36d2145 100644
+--- a/graphics/nvn/tests/rb_reference_gpu.inc
++++ b/graphics/nvn/tests/rb_reference_gpu.inc
+@@ -81,7 +81,7 @@ static void reference_check(NSString *root,NSString *mode) {
+     }
+     if (missing) target[1].archive="0000000000000000000000000000000000000000";
+     uint64_t stats[8];
+-    GPU_CHECK(s2a_rb_guest_prepare_graphics("0400C3F00006E000","wrong",NULL,NULL,NULL,NULL,stats,NULL,NULL)==2);
++    GPU_CHECK(s2a_rb_guest_prepare_graphics("0400C3F00006E000","wrong",NULL,NULL,NULL,NULL,stats,NULL,NULL,NULL)==2);
+     GPU_CHECK(!rb_ref_materialize(root,@[record],target,2,NULL,NULL));
+     GPU_CHECK(![NSFileManager.defaultManager fileExistsAtPath:[root stringByAppendingPathComponent:@"pso_user.tsv"]]);
+     if (refused) {
+diff --git a/graphics/nvn/tests/t_dsh_stats.c b/graphics/nvn/tests/t_dsh_stats.c
+index f367260..e8a7ae9 100644
+--- a/graphics/nvn/tests/t_dsh_stats.c
++++ b/graphics/nvn/tests/t_dsh_stats.c
+@@ -346,9 +346,10 @@ int main(int argc, char **argv) {
+         native_dsh=dlopen(argv[5],RTLD_NOW|RTLD_LOCAL);
+         void *codec=dlopen(argv[6],RTLD_NOW|RTLD_LOCAL);
+         rb_inflate_fn inflate=codec ? (rb_inflate_fn)dlsym(codec,"rb_s2arm_shader_inflate") : NULL;
+-        check(native_dsh && inflate && dlsym(native_dsh,"s2a_dsh_compile"));
++        rb_stage_spill_fn spill=codec ? (rb_stage_spill_fn)dlsym(codec,"rb_s2arm_shader_inflate_fd") : NULL;
++        check(native_dsh && inflate && spill && dlsym(native_dsh,"s2a_dsh_compile"));
+         uint64_t counts[8];
+-        int rc=rb_prepare_stage_inputs(argv[2],argv[3],argv[4],rb_test_receipt_ready,argv[3],counts,inflate,NULL);
++        int rc=rb_prepare_stage_inputs(argv[2],argv[3],argv[4],rb_test_receipt_ready,argv[3],counts,inflate,NULL,spill);
+         for (unsigned i=0;i<8;i++) printf("%s%llu",i ? " " : "STAGES ",(unsigned long long)counts[i]);
+         puts("");
+         return rc;
+diff --git a/graphics/nvn/tests/t_rb_local_stage.c b/graphics/nvn/tests/t_rb_local_stage.c
+index 03de9bc..176dc20 100644
+--- a/graphics/nvn/tests/t_rb_local_stage.c
++++ b/graphics/nvn/tests/t_rb_local_stage.c
+@@ -30,8 +30,28 @@ static void control(uint8_t *p,uint32_t own) {
+ static void one(rb_local_scan *s,uint8_t *p,size_t len) {
+     seen=0; rb_scan_blob(s,p,len,0); assert(seen==1);
+ }
+-int main(void) {
+-    rb_local_scan scan={.stage=candidate,.budget=64u<<20};
++#ifdef RB_STAGE_STREAM_FIXTURE
++extern int rb_s2arm_shader_inflate(const void *,size_t,void **,size_t *,size_t);
++extern int rb_s2arm_shader_inflate_fd(const void *,size_t,int,uint64_t,int (*)(void *),void *,uint64_t *);
++static int stream_case(const char *path,const char *hex) {
++    rb_local_scan scan={.stage=candidate,.budget=8u<<20,.scratch="/tmp",.disk_budget=2ull<<30,
++        .inflate=rb_s2arm_shader_inflate,.spill=rb_s2arm_shader_inflate_fd};
++    for (int i=0;i<8;i++) { char pair[3]={hex[2*i],hex[2*i+1],0};desired[i]=(uint8_t)strtoul(pair,NULL,16); }
++    int fd=open(path,O_RDONLY);struct stat st;assert(fd>=0 && !fstat(fd,&st) && st.st_size>0);
++    void *bytes=mmap(NULL,st.st_size,PROT_READ,MAP_PRIVATE,fd,0);assert(bytes!=MAP_FAILED);close(fd);
++    rb_scan_blob(&scan,bytes,(size_t)st.st_size,0);
++    assert(seen==1 && scan.spooled==1 && !scan.unsupported && !scan.malformed && !scan.io_errors && !scan.limited);
++    munmap(bytes,(size_t)st.st_size);
++    puts("PASS exact stage from a >64 MiB streamed game file");return 0;
++}
++#endif
++int main(int argc,char **argv) {
++#ifdef RB_STAGE_STREAM_FIXTURE
++    if (argc==3 && strlen(argv[2])==16) return stream_case(argv[1],argv[2]);
++#else
++    (void)argc; (void)argv;
++#endif
++    rb_local_scan scan={.stage=candidate,.budget=8u<<20,.scratch="/tmp",.disk_budget=2ull<<30};
+     uint8_t d[2048]={0};
+     memcpy(d,"BNSH",4);memcpy(d+0x60,"grsc",4);put32(d+0x7c,1);put64(d+0x80,0x100);
+     put64(d+0x110,0x140);put64(d+0x140+8+4*8,0x200);
+@@ -62,7 +82,9 @@ int main(void) {
+     put32(d+4,0);seen=0;rb_scan_blob(&scan,d,16+0xd8+256,0);assert(!seen);
+     // An invalid Yaz0 back-reference cannot read before the start of output.
+     memset(d,0,sizeof d);memcpy(d,"Yaz0",4);d[7]=8;seen=0;
+-    rb_scan_blob(&scan,d,18,0);assert(!seen && scan.unsupported);
++    rb_scan_blob(&scan,d,18,0);assert(!seen && scan.malformed);
++    unsigned malformed=scan.malformed;
++    memset(d,0,sizeof d);memcpy(d,"SARC",4);rb_scan_blob(&scan,d,8,0);assert(scan.malformed==malformed+1);
+     puts("PASS exact NVN2 identities in BNSH, BAHS, NDSR, bare programs, S2Arm BTCD/SIN1, out-of-range pointers, truncated records and invalid Yaz0");
+     return 0;
+ }

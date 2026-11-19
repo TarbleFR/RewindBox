@@ -84,7 +84,17 @@ static BOOL genID(id value) {
   }
   NSString *build = hex((const unsigned char *)header.bytes + 0x40, 16);
   if (![build isEqual:kKartBuild]) return nil;  // the reference belongs to this exact executable
-  NSString *content = fileDigest([root stringByAppendingPathComponent:@"unpack.tsv"]);
+  NSString *metadata = fileDigest([root stringByAppendingPathComponent:@"unpack.tsv"]);
+  NSString *pack = [gameDir stringByAppendingPathComponent:@"pack"];
+  NSString *applied = [NSString stringWithContentsOfFile:[pack stringByAppendingPathComponent:@".applied"]
+                                                 encoding:NSASCIIStringEncoding error:NULL];
+  NSDictionary *manifest = json([pack stringByAppendingPathComponent:@"manifest.json"]);
+  // The pack writer hashes the complete per-file SHA inventory. Its two
+  // independently published receipts must agree; no RomFS rescan at launch.
+  if (!metadata || !genID(applied) || ![manifest[@"index_sha256"] isEqual:applied]) {
+    problem(error, @"The prepared pack content identity is missing or inconsistent."); return nil;
+  }
+  NSString *content = [NSString stringWithFormat:@"%@:%@", metadata, applied];
   NSString *machine = systemValue("hw.machine"), *os = systemValue("kern.osversion");
   if (!content || !chain.length || !machine || !os) {
     problem(error, @"Missing graphics cache compatibility identity."); return nil;
@@ -251,14 +261,110 @@ static BOOL genID(id value) {
   }
   return inventory;
 }
+// These engine-generated tables contain identifiers, descriptors and
+// recovery results. Shader bytes, archive binaries and paths stay in Library.
+static NSData *evidenceTable(NSString *path) {
+  BOOL coverage = [path.lastPathComponent isEqual:@"stage-scan-coverage.plist"];
+  const off_t limit = coverage ? 8192 : 512 * 1024;
+  int fd = open(path.fileSystemRepresentation, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK);
+  if (fd < 0) return nil;
+  struct stat st;
+  if (fstat(fd, &st) || !S_ISREG(st.st_mode) || st.st_size <= 0 || st.st_size > limit) { close(fd); return nil; }
+  NSMutableData *data = [NSMutableData dataWithLength:(NSUInteger)st.st_size];
+  unsigned char *bytes = data.mutableBytes;
+  size_t have = 0;
+  while (have < data.length) {
+    ssize_t n = read(fd, bytes + have, data.length - have);
+    if (n < 0 && errno == EINTR) continue;
+    if (n <= 0) { close(fd); return nil; }
+    have += (size_t)n;
+  }
+  unsigned char extra; ssize_t tail = read(fd,&extra,1); close(fd);
+  if (tail) return nil;
+  if (coverage) {
+    // The scan writes six counts. Encode only those values, including when
+    // Foundation represents the source dictionary as a binary plist.
+    id object = [NSPropertyListSerialization propertyListWithData:data options:NSPropertyListImmutable format:NULL error:NULL];
+    if (![object isKindOfClass:NSDictionary.class]) return nil;
+    NSMutableDictionary *counts = [NSMutableDictionary dictionary];
+    for (NSString *key in @[@"spooled", @"unavailableDictionary", @"corrupt", @"resourceLimits", @"ioErrors", @"unlocatedRequestedKeys"]) {
+      id value = object[key];
+      if (![value isKindOfClass:NSNumber.class] || [value longLongValue] < 0) return nil;
+      counts[key] = @([value unsignedLongLongValue]);
+    }
+    return [NSPropertyListSerialization dataWithPropertyList:counts format:NSPropertyListXMLFormat_v1_0 options:0 error:NULL];
+  }
+  if (![[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]) return nil;
+  for (NSUInteger i=0; i<have; ++i)
+    if (bytes[i] < 32 && bytes[i] != '\t' && bytes[i] != '\n' && bytes[i] != '\r') return nil;
+  return data;
+}
+- (BOOL)writeEvidenceToDirectory:(NSString *)gameDiagnostics session:(NSString *)session phase:(NSString *)phase {
+  BOOL verified = [phase isEqual:@"verified"] || [phase isEqual:@"reused"];
+  BOOL inputs = verified || [phase isEqual:@"inputs"] || [phase isEqual:@"resumed"];
+  if (!inputs && ![phase isEqual:@"starting"] && ![phase isEqual:@"incomplete"] && ![phase isEqual:@"interrupted"]) return NO;
+  if (![[NSUUID alloc] initWithUUIDString:session] || ![gameDiagnostics.lastPathComponent isEqual:_gid]) return NO;
+  NSFileManager *fm = NSFileManager.defaultManager;
+  NSString *root = [gameDiagnostics stringByAppendingPathComponent:@"preparation"];
+  NSString *dir = [root stringByAppendingPathComponent:session], *receipt = [dir stringByAppendingPathComponent:@"identity.json"];
+  if (![fm createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:NULL]) return NO;
+  NSDictionary *previous = json(receipt);
+  if (previous && (![previous[@"generation"] isEqual:_slot] || ![previous[@"gid"] isEqual:_gid] ||
+      ![previous[@"session"] isEqual:session] || ![previous[@"gameBuild"] isEqual:_buildID])) return NO;
+  NSMutableDictionary *copied = [previous[@"files"] isKindOfClass:NSDictionary.class] ? [previous[@"files"] mutableCopy] : [NSMutableDictionary dictionary];
+  NSMutableArray *missing = [NSMutableArray array];
+  NSArray *tables = !inputs ? @[] : verified ? @[@"stage-recovery.tsv",@"stage-scan-coverage.plist",@"pso_reference.tsv",@"pso_reference.archives.tsv"]
+                                              : @[@"stage-recovery.tsv",@"stage-scan-coverage.plist",@"pso_reference.tsv"];
+  for (NSString *name in tables) {
+    NSData *data = evidenceTable([_wire stringByAppendingPathComponent:name]);
+    if (!data) { [missing addObject:name]; continue; }
+    NSString *out = [dir stringByAppendingPathComponent:name];
+    if (![data writeToFile:out options:NSDataWritingAtomic error:NULL]) return NO;
+    copied[name] = @{@"bytes":@(data.length), @"sha256":digest(data)};
+  }
+  NSDictionary *info = @{@"gid":_gid, @"gameBuild":_buildID, @"generation":_slot, @"session":session,
+    @"graphicsRevision":_identity[@"revision"], @"appBuild":NSBundle.mainBundle.infoDictionary[@"CFBundleVersion"] ?: @"-",
+    @"phase":phase, @"files":copied, @"unavailable":missing, @"capturedAt":@([NSDate date].timeIntervalSince1970)};
+  if (!atomicJSON(info, receipt, NULL)) return NO;
+  if (!previous) {
+    // Preserve the four most recent sessions for this game, at up to three
+    // 512 KiB tables and six scan counters each. Only remove our exports.
+    NSMutableDictionary<NSString *,NSNumber *> *older = [NSMutableDictionary dictionary];
+    for (NSString *other in [fm contentsOfDirectoryAtPath:root error:NULL]) {
+      if ([other isEqual:session] || ![[NSUUID alloc] initWithUUIDString:other]) continue;
+      NSString *path = [[root stringByAppendingPathComponent:other] stringByAppendingPathComponent:@"identity.json"];
+      NSDictionary *record = json(path);
+      if ([record[@"gid"] isEqual:_gid] && [record[@"session"] isEqual:other] &&
+          [record[@"capturedAt"] isKindOfClass:NSNumber.class]) older[other] = record[@"capturedAt"];
+    }
+    NSArray *ordered = [older keysSortedByValueUsingSelector:@selector(compare:)];
+    for (NSUInteger i=0; i+3 < ordered.count; ++i)
+      [fm removeItemAtPath:[root stringByAppendingPathComponent:ordered[i]] error:NULL];
+  }
+  return YES;
+}
 - (BOOL)activateWithGPU:(const uint64_t *)s error:(NSError **)error {
-  if (!s[0] || s[0] != s[1] || !s[2] || s[2] != s[3] || s[2] != s[4] || s[5])
+  if (!s[0] || s[0] != s[1] || !s[2] || s[2] != s[3] || s[2] != s[4])
     return problem(error, @"The complete GPU profile has not passed strict archive verification.");
   NSDictionary *outputs = [self outputsForCount:s[4]];
   if (!outputs) return problem(error, @"The verified pipeline files are missing or incomplete.");
   _active = atomicJSON(@{@"generation":_generation, @"slot":_slot, @"identity":_identity, @"gid":_gid, @"build":_buildID,
-                      @"chain":_identity[@"chain"], @"stages":@(s[1]), @"pipelines":@(s[4]), @"outputs":outputs},
+                      @"chain":_identity[@"chain"], @"stages":@(s[1]), @"pipelines":@(s[4]), @"deferredRecipes":@(s[5]), @"outputs":outputs},
                     [_base stringByAppendingPathComponent:@"active.json"], error);
   return _active;
 }
+@end
+
+@implementation S2ArmGraphicsRetry {
+  NSArray<NSString *> *_paths;
+  void *_engine;
+}
+- (instancetype)initWithEngine:(void *)engine game:(NSString *)gid paths:(NSArray<NSString *> *)paths {
+  if ((self = [super init])) { _gid = [gid copy]; _paths = [paths copy]; _engine = engine; }
+  return self;
+}
+- (void *)engineForGame:(NSString *)gid paths:(NSArray<NSString *> *)paths {
+  return _engine && [_gid isEqual:gid] && [_paths isEqual:paths] ? _engine : NULL;
+}
+- (void)consume { _engine = NULL; }
 @end

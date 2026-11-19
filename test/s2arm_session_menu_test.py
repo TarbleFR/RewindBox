@@ -123,14 +123,19 @@ class Bridge(unittest.TestCase):
         self.assertLess(prepare, PLUGIN.index('rb_s2arm_engine_mark_loading();', launch))
         self.assertLess(prepare, PLUGIN.index('dlopen(enginePath', launch))
         start = PLUGIN.index('startRc = start(error, sizeof error);', launch)
-        attach = PLUGIN.index('else [self attachSessionMenuTo:vc stop:stop];', launch)
+        menu = re.compile(r'\}\s*else\s*\{?\s*\[self attachSessionMenuTo:vc stop:stop\];')
+        on_start = menu.search(PLUGIN, start)
+        self.assertIsNotNone(on_start)
+        attach = on_start.start()
         self.assertLess(start, attach, 'the menu is attached only after a successful start')
         # The resume of a parked game (patch 0010): settings changed meanwhile apply, the menu follows a successful resume.
         resume = PLUGIN.index('- (NSDictionary *)resumeParkedGame:')
         body = PLUGIN[resume:PLUGIN.index('static NSDictionary *launchFail(', resume)]
         self.assertLess(body.index('S2ArmSettingsPrepareLaunch();'), body.index('resumeRc = resume(error, sizeof error);'))
         self.assertLess(body.index('self.parkedGameId = nil;\n                           resumeRc ='), body.index('resumeRc = resume(error, sizeof error);'))
-        self.assertLess(body.index('resumeRc = resume(error, sizeof error);'), body.index('} else [self attachSessionMenuTo:vc stop:stop];'))
+        on_resume = menu.search(body)
+        self.assertIsNotNone(on_resume)
+        self.assertLess(body.index('resumeRc = resume(error, sizeof error);'), on_resume.start())
         self.assertIn('dlsym(engine, S2A_RB_GUEST_STOP)', PLUGIN)
 
     def test_the_session_end_closes_the_game_view_first(self):

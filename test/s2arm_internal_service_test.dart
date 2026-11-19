@@ -903,6 +903,48 @@ void main() {
       expect(calls, isNot(contains('detectExport')), reason: 'nothing is parked: refused before reading the export');
     });
 
+    test('retrying an interrupted graphics launch admits only the same unconfigured game', () async {
+      S2ArmInternalService.availabilityForTesting = const S2ArmRuntimeAvailability(S2ArmRuntimeState.ready);
+      var retryId = '';
+      var selected = gid;
+      var engineLoaded = false;
+      final calls = <String>[];
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls.add(call.method);
+        switch (call.method) {
+          case 'status':
+            return {'available': true, 'engineLoaded': engineLoaded, 'retryGameId': retryId};
+          case 'detectExport':
+            return {'success': true, 'exportDir': '/export', 'gid': selected};
+          case 'prepareGame':
+            return {'success': true, 'gid': gid, 'reused': true,
+                    'imagesPath': '/i', 'moduleDir': '/m', 'gameData': '/g', 'docs': '/d'};
+          case 'launchGame':
+            if (!engineLoaded) {
+              engineLoaded = true;
+              retryId = gid;
+              return {'success': false, 'error': 'cancelled'};
+            }
+            retryId = '';
+            await messenger.handlePlatformMessage(channel.name,
+              channel.codec.encodeMethodCall(const MethodCall('sessionEnded', {'code': 0, 'reason': 'quit'})), (_) {});
+            return {'success': true, 'gid': gid, 'stage': 'running'};
+        }
+        return null;
+      });
+      expect((await S2ArmInternalService.launch('/export', pairingFilePath: '/pair')).error, 'cancelled');
+      expect(calls, containsAllInOrder(['status', 'detectExport', 'prepareGame', 'launchGame']));
+      calls.clear();
+      selected = '0100AAAA00000000';
+      expect((await S2ArmInternalService.launch('/export', pairingFilePath: '/pair')).error, 'engineRestartRequired');
+      expect(calls, isNot(contains('prepareGame')));
+      selected = gid;
+      calls.clear();
+      expect((await S2ArmInternalService.launch('/export', pairingFilePath: '/pair')).success, isTrue);
+      expect(calls, containsAllInOrder(['status', 'detectExport', 'prepareGame', 'launchGame']));
+      expect((await S2ArmInternalService.launch('/export', pairingFilePath: '/pair')).error, 'engineRestartRequired');
+    });
+
     test('the native refusal of the Switch 1 engine keeps its own code up to the message', () async {
       S2ArmInternalService.availabilityForTesting = const S2ArmRuntimeAvailability(S2ArmRuntimeState.ready);
       // The Switch 1 engine loaded between the status check and the native launch: the plugin answers itself.

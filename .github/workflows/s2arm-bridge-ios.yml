@@ -11,6 +11,7 @@ name: S2Arm engine bridge (iOS compile)
       - .github/workflows/s2arm-bridge-ios.yml
       - packages/s2arm_engine_bridge/**
       - build-utils/s2arm/engine/patches/**
+      - build-utils/s2arm/engine/README.md
       - lib/l10n/switch2_settings_locale.dart
       - test/s2arm_park_resume_test.py
       - test/s2arm_store_bench_test.py
@@ -35,13 +36,14 @@ concurrency:
   cancel-in-progress: true
 jobs:
   compile:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.ref != 'refs/heads/Claude' || contains(github.event.head_commit.message, '[s2arm-bridge]') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.ref != 'refs/heads/Claude' || contains(github.event.head_commit.message, '[s2arm-bridge]') || contains(github.event.head_commit.message, '[s2arm-check-delivery]') }}
     runs-on: macos-15
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          ref: ${{ contains(github.event.head_commit.message, '[s2arm-check-delivery]') && github.event.before || github.sha }}
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.47.2'
@@ -70,11 +72,12 @@ jobs:
           nm -gU build/s2arm-bridge/S2ArmSettings.m.o | grep -q '_S2ArmSettingsSnapshot'
           nm -gU build/s2arm-bridge/S2ArmSessionMenu.m.o | grep -q 'OBJC_CLASS_\$_S2ArmSessionMenu'
       - name: Upgrade, interrupt and reopen a prepared graphics generation
-        if: contains(github.event.head_commit.message, '[s2arm-first-race]')
+        if: contains(github.event.head_commit.message, '[s2arm-first-race]') || contains(github.event.head_commit.message, '[s2arm-check-delivery]')
         run: |
           bash test/s2arm_graphics_generation_host.sh
           flutter pub get
           flutter test test/s2arm_prepare_dialog_test.dart --plain-name 'a reused game reports its separate graphics preparation and progress'
+          flutter test test/s2arm_internal_service_test.dart --plain-name 'retrying an interrupted graphics launch admits only the same unconfigured game'
       - name: Bridge and in-game menu contracts
         if: github.event_name == 'workflow_dispatch' || github.ref != 'refs/heads/Claude'
         run: |

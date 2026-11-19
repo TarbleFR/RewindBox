@@ -31,6 +31,17 @@ static BOOL stage(S2ArmGraphicsGeneration *g) {
   return [g stage:^BOOL { return NO; } progress:^(NSUInteger count) { (void)count; } error:NULL];
 }
 int main(void) { @autoreleasepool {
+  int engineMarker = 0;
+  NSArray *launchPaths = @[@"/images",@"/module",@"/pack",@"/docs",@"slot-a"];
+  S2ArmGraphicsRetry *retry = [[S2ArmGraphicsRetry alloc] initWithEngine:&engineMarker game:gid paths:launchPaths];
+  CHECK([retry engineForGame:gid paths:launchPaths] == &engineMarker);
+  CHECK([retry engineForGame:@"0100AAAA00000000" paths:launchPaths] == NULL);
+  for (NSUInteger i=0; i<launchPaths.count; ++i) {
+    NSMutableArray *changed = [launchPaths mutableCopy]; changed[i] = @"/other";
+    CHECK([retry engineForGame:gid paths:changed] == NULL);
+  }
+  [retry consume]; // consumed before the first call to guest configure
+  CHECK([retry engineForGame:gid paths:launchPaths] == NULL);
   NSString *dir = child(NSTemporaryDirectory(), NSUUID.UUID.UUIDString);
   NSString *legacy = child(child(dir, @"docs/wire"), gid);
   NSString *marker = @"graphics/active.json";
@@ -43,7 +54,22 @@ int main(void) { @autoreleasepool {
   const unsigned char idBytes[16] = {0x9e,0x24,0x44,0x38,0xc3,0xd8,0xef,0x1c,0x70,0x3a,0x6a,0x85,0xef,0x99,0xc4,0xf0};
   memcpy(header + 0x40, idBytes, sizeof idBytes);
   CHECK([[NSData dataWithBytes:header length:sizeof header] writeToFile:child(root,@"exefs/main") atomically:YES]);
-  CHECK([S2ArmGraphicsGeneration planForGame:gid directory:dir root:root chain:chain reused:YES error:NULL] != nil);
+  NSString *id1 = [@"a" stringByPaddingToLength:64 withString:@"a" startingAtIndex:0];
+  NSString *id2 = [@"b" stringByPaddingToLength:64 withString:@"b" startingAtIndex:0];
+  put(dir,@"pack/.applied",id1);
+  put(dir,@"pack/manifest.json",[NSString stringWithFormat:@"{\"index_sha256\":\"%@\"}",id1]);
+  S2ArmGraphicsGeneration *pack1 = [S2ArmGraphicsGeneration planForGame:gid directory:dir root:root chain:chain reused:YES error:NULL];
+  CHECK(pack1 && stage(pack1));
+  put(dir,@"pack/.applied",id2);
+  CHECK(![S2ArmGraphicsGeneration planForGame:gid directory:dir root:root chain:chain reused:YES error:NULL]);
+  put(dir,@"pack/manifest.json",[NSString stringWithFormat:@"{\"index_sha256\":\"%@\"}",id2]);
+  S2ArmGraphicsGeneration *pack2 = [S2ArmGraphicsGeneration planForGame:gid directory:dir root:root chain:chain reused:YES error:NULL];
+  CHECK(pack2 && ![pack1.wire isEqual:pack2.wire]);
+  // Reconstructing the original pack reopens its existing pending slot.
+  put(dir,@"pack/.applied",id1);
+  put(dir,@"pack/manifest.json",[NSString stringWithFormat:@"{\"index_sha256\":\"%@\"}",id1]);
+  S2ArmGraphicsGeneration *pack1Again = [S2ArmGraphicsGeneration planForGame:gid directory:dir root:root chain:chain reused:YES error:NULL];
+  CHECK([pack1Again.wire isEqual:pack1.wire]);
   CHECK([S2ArmGraphicsGeneration planForGame:@"0100000000000000" directory:dir root:root chain:chain reused:YES error:NULL] == nil);
   header[0x40] ^= 1;
   CHECK([[NSData dataWithBytes:header length:sizeof header] writeToFile:child(root,@"exefs/main") atomically:YES]);
@@ -69,7 +95,7 @@ int main(void) { @autoreleasepool {
   put(resumed.wire, @"shaders/0123456789abcdef_b.metal", @"new translation");
   CHECK(stage(plan(dir)) && [readText(resumed.wire,@"shaders/0123456789abcdef_b.metal") isEqual:@"new translation"]);
   put(resumed.wire, @"pso_reference.tsv", @"S\t0123456789abcdef_b\t0\n");
-  const uint64_t partial[] = {1,1,1,1,0,0}, valid[] = {1,1,1,1,1,0};
+  const uint64_t partial[] = {1,1,1,1,0,12}, valid[] = {1,1,1,1,1,12};
   CHECK(![resumed activateWithGPU:partial error:NULL] && ![resumed activateWithGPU:valid error:NULL]);
   CHECK(!readText(dir, marker));
   put(resumed.wire, @"pso_reference.archives.tsv", rows);
@@ -95,6 +121,34 @@ int main(void) { @autoreleasepool {
   put(replacement.wire, child(@"pipelines",batch), @"archive fixture");
   put(replacement.wire, @"shaders/0123456789abcdef_b.metal", @"damaged source");
   CHECK(!plan(dir).active);
+  NSString *diagnostics = child(child(dir,@"Diagnostics"),gid), *session = NSUUID.UUID.UUIDString;
+  NSString *out = child(child(diagnostics,@"preparation"),session);
+  put(replacement.wire,@"stage-recovery.tsv",@"stage\tcurrent\n");
+  NSDictionary *scan = @{@"spooled":@3, @"unavailableDictionary":@1, @"corrupt":@2, @"resourceLimits":@4,
+    @"ioErrors":@0, @"unlocatedRequestedKeys":@7, @"unexpectedPath":@"/never-export-this"};
+  NSData *binary = [NSPropertyListSerialization dataWithPropertyList:scan format:NSPropertyListBinaryFormat_v1_0 options:0 error:NULL];
+  CHECK([binary writeToFile:child(replacement.wire,@"stage-scan-coverage.plist") atomically:YES]);
+  CHECK([replacement writeEvidenceToDirectory:diagnostics session:session phase:@"starting"]);
+  CHECK(!readText(out,@"pso_reference.tsv"));
+  CHECK([replacement writeEvidenceToDirectory:diagnostics session:session phase:@"inputs"]);
+  CHECK([readText(out,@"stage-recovery.tsv") isEqual:@"stage\tcurrent\n"]);
+  CHECK(!readText(out,@"pso_reference.archives.tsv"));
+  CHECK([replacement writeEvidenceToDirectory:diagnostics session:session phase:@"verified"]);
+  NSDictionary *proof = [NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:child(out,@"identity.json")] options:0 error:NULL];
+  CHECK([proof[@"session"] isEqual:session] && [proof[@"generation"] isEqual:replacement.wire.lastPathComponent] &&
+        [proof[@"gid"] isEqual:gid] && [proof[@"gameBuild"] isEqual:build] && [proof[@"files"] count] == 4);
+  NSData *coverageData = [NSData dataWithContentsOfFile:child(out,@"stage-scan-coverage.plist")];
+  NSDictionary *coverage = [NSPropertyListSerialization propertyListWithData:coverageData options:0 format:NULL error:NULL];
+  CHECK(coverage.count == 6 && [coverage[@"unlocatedRequestedKeys"] isEqual:@7] && !coverage[@"unexpectedPath"]);
+  CHECK(![first writeEvidenceToDirectory:diagnostics session:session phase:@"reused"]);
+  CHECK(![replacement writeEvidenceToDirectory:child(dir,@"different-game") session:session phase:@"reused"]);
+  CHECK(![NSFileManager.defaultManager fileExistsAtPath:child(out,child(@"shaders",@"0123456789abcdef_b.metal"))]);
+  NSString *secondSession = NSUUID.UUID.UUIDString;
+  put(replacement.wire,@"stage-recovery.tsv",[@"x" stringByPaddingToLength:512*1024+1 withString:@"x" startingAtIndex:0]);
+  CHECK([replacement writeEvidenceToDirectory:diagnostics session:secondSession phase:@"resumed"]);
+  NSString *second = child(child(diagnostics,@"preparation"),secondSession);
+  CHECK(!readText(second,@"stage-recovery.tsv") && !readText(second,@"pso_reference.archives.tsv"));
+  CHECK([readText(out,@"stage-recovery.tsv") isEqual:@"stage\tcurrent\n"]);
   CHECK([readText(legacy,@"shaders/0123456789abcdef_b.metal") isEqual:@"source"]);
   CHECK([readText(dir,@"save/profile") isEqual:@"save"] && [readText(dir,@"defaults") isEqual:@"settings"]);
   CHECK([NSFileManager.defaultManager removeItemAtPath:dir error:NULL]);

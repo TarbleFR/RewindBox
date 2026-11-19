@@ -3,7 +3,6 @@
 import argparse
 import hashlib
 from pathlib import Path
-import shutil
 import subprocess
 
 
@@ -19,14 +18,21 @@ def main():
     args = parser.parse_args()
     header = args.output_tree / HEADER
     header.parent.mkdir(parents=True)
-    shutil.copyfile(args.source_tree / HEADER, header)
-    # 0128 and 0129 may already be present elsewhere in the source tree.
-    # No production checkout or neighboring fixture is changed.
-    subprocess.run(
-        ["git", "apply", "--no-index", "--reverse", f"--include={HEADER}", args.patch_0127.resolve()],
-        cwd=args.output_tree,
-        check=True,
-    )
+    # HEAD in the producer is pristine pinned S2Arm. Replay only the writer's
+    # own changes before 0127. Later production changes must never enter the
+    # counterfactual, even when they also edit this header.
+    header.write_bytes(subprocess.check_output(
+        ["git", "-C", str(args.source_tree), "show", f"HEAD:{HEADER}"]
+    ))
+    for patch in sorted(args.patch_0127.parent.glob("*.patch")):
+        if patch.name >= args.patch_0127.name:
+            break
+        if f"+++ b/{HEADER}".encode() not in patch.read_bytes().splitlines():
+            continue
+        subprocess.run(
+            ["git", "apply", "--no-index", f"--include={HEADER}", patch.resolve()],
+            cwd=args.output_tree, check=True,
+        )
     original = header.read_bytes()
     if hashlib.sha256(original).hexdigest() != SHA256_793:
         raise RuntimeError("Reconstructed writer differs from the pinned IPA 793 header")

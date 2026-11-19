@@ -524,11 +524,11 @@ static NSString *preparationCodeIdentity(const char **kind, long long *engineRun
   *engineRun = [run isKindOfClass:NSNumber.class] ? ((NSNumber *)run).longLongValue : 0;
   if (isLowerHex(library, 64) && isLowerHex(commit, 40)) {
     *kind = "pin";
-    // The 795 library adds a bounded shader decompression entry point. Its CPU
+    // The 795 library adds bounded memory and streaming shader decompression. Its CPU
     // unpack/rewrite/pack outputs are compatible with 794. Bind the exception
     // to this pair of archive hashes so that any subsequent library change
     // still invalidates the CPU preparation unless reviewed separately.
-    if ([library isEqual:@"d0ea5d735cdc0fd8e32a76257b5f86039648dc19206afff805ef5c6ed4a10414"])
+    if ([library isEqual:@"80ed6cd43bdc67fa1936f5ec130f29ffb309c1ad41d39ab068dfc16f76f53b4c"])
       library = @"1c0969b69e5502a27b72d8946f3698cca850089237d7a04282dc94d99191cde5";
     return [NSString stringWithFormat:@"prepare %@ steps %@ s2arm %@", library, kPreparedSteps, commit];
   }

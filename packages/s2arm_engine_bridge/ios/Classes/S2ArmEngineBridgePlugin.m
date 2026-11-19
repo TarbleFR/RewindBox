@@ -67,6 +67,21 @@ static void S2ArmLogSaveImport(NSString *folder);
 // inside Library, which Files does not show. A copy goes to Documents/Diagnostics/S2Arm/engine/<gid>/ at each app start
 // and at each session end, so that the player can send it: Mario Kart World on IPA 731 stalled 10 minutes in the
 // engine, and nothing of the engine's own account could be read.
+static NSString *S2ArmEngineDiagnosticsDirectory(NSString *documents, NSString *gid) {
+  return [[documents stringByAppendingPathComponent:@"Diagnostics/S2Arm/engine"] stringByAppendingPathComponent:gid];
+}
+
+static void S2ArmExportGraphicsEvidence(S2ArmGraphicsGeneration *generation, NSString *session, NSString *phase) {
+  if (!generation || !session) return;
+  NSString *documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+  if (!documents.length) return;
+  BOOL copied = [generation writeEvidenceToDirectory:S2ArmEngineDiagnosticsDirectory(documents, generation.gid)
+                                              session:session phase:phase];
+  s2arm_journal("graphicsEvidence", copied ? "recorded" : "unavailable",
+                "\"gid\":\"%s\",\"session\":\"%s\",\"generation\":\"%s\",\"phase\":\"%s\"",
+                generation.gid.UTF8String, session.UTF8String, generation.wire.lastPathComponent.UTF8String, phase.UTF8String);
+}
+
 static void S2ArmExportEngineLogs(void) {
   NSFileManager *files = NSFileManager.defaultManager;
   NSString *documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
@@ -104,7 +119,7 @@ static void S2ArmExportRunningEngineLog(NSString *gid) {
   if (!gid.length || !documents.length || !library.length || [gid containsString:@"/"]) return;
   NSString *source = [[[library stringByAppendingPathComponent:gid] stringByAppendingPathComponent:@"docs"] stringByAppendingPathComponent:@"host.log"];
   if (![files fileExistsAtPath:source]) return;
-  NSString *out = [[documents stringByAppendingPathComponent:@"Diagnostics/S2Arm/engine"] stringByAppendingPathComponent:gid];
+  NSString *out = S2ArmEngineDiagnosticsDirectory(documents, gid);
   [files createDirectoryAtPath:out withIntermediateDirectories:YES attributes:nil error:nil];
   NSString *target = [out stringByAppendingPathComponent:@"host.log"];
   [files removeItemAtPath:target error:nil];
@@ -127,6 +142,8 @@ static NSString *S2ArmEnginePath(void) {
 @property(atomic, strong, nullable) S2ArmGamePreparation *activePreparation;
 @property(nonatomic, strong) S2ArmGraphicsGeneration *graphicsGeneration; // serial workQueue
 @property(nonatomic) BOOL graphicsReady;
+@property(atomic, copy) NSString *graphicsSession;
+@property(atomic, strong) S2ArmGraphicsRetry *graphicsRetry;
 @property(atomic) BOOL graphicsCancelled;
 @property(nonatomic, strong) NSCondition *graphicsPause;
 @property(nonatomic) BOOL graphicsBackground; // guarded by graphicsPause
@@ -369,6 +386,7 @@ static NSString *S2ArmEnginePath(void) {
     @"melonxCoreLoaded" : @(S2ArmMeloNXCoreLoaded()),
     @"engineLoaded" : @(engineLoaded),
     @"parkedGameId" : self.parkedGameId ?: @"",
+    @"retryGameId" : self.graphicsRetry.gid ?: @"",
     @"journalLines" : @(s2arm_journal_lines()),
   };
 }
@@ -431,6 +449,8 @@ static NSString *S2ArmEnginePath(void) {
     result(@{@"success" : @NO, @"error" : S2ArmErrorInvalidArguments});
     return;
   }
+  NSArray *graphicsPaths = @[images, moduleDir, gameData, docs, self.graphicsGeneration.wire ?: @""];
+  void *retryEngine = NULL;
   BOOL resume = NO;
   @synchronized(self) {
     if (self.launchInProgress) {   // first: a second tap while a launch or a resume runs is "busy", not "restart"
@@ -444,11 +464,13 @@ static NSString *S2ArmEnginePath(void) {
     if (self.engineLoaded || rb_s2arm_engine_loaded() != 0) {
       // Patch 0010: the game Quit parked resumes in this process; any other Switch 2 game still needs a new process.
       resume = self.parkedGameId && [self.parkedGameId caseInsensitiveCompare:gid] == NSOrderedSame;
-      if (!resume) {
+      retryEngine = [self.graphicsRetry engineForGame:gid paths:graphicsPaths];
+      if (!resume && !retryEngine) {
         result(@{@"success" : @NO, @"error" : @"engineRestartRequired", @"diagnostic" : @"A Switch 2 game already ran in this process."});
         return;
       }
     }
+    if (retryEngine) self.graphicsCancelled = NO;
     self.launchInProgress = YES;
   }
   self.menuStrings = menuStrings;
@@ -474,7 +496,8 @@ static NSString *S2ArmEnginePath(void) {
     else unsetenv("S2A_RB_DISPLAY_TITLE");
     if (resume) S2ArmPrepareSaveFolder(saveFolder, docs);
     NSDictionary *report = resume ? [self resumeParkedGame:gid]
-                                  : [self runLaunchWithGid:gid images:images moduleDir:moduleDir gameData:gameData docs:docs pairing:pairing];
+                                  : [self runLaunchWithGid:gid images:images moduleDir:moduleDir gameData:gameData docs:docs pairing:pairing
+                                            retryEngine:retryEngine paths:graphicsPaths];
     dispatch_async(dispatch_get_main_queue(), ^{
       if (![report[@"success"] boolValue]) {
         self.runningGameId = nil;
@@ -498,7 +521,14 @@ static NSString *S2ArmEnginePath(void) {
     self.parkedGameId = nil;
     return launchFail(@"engineRestartRequired", @"resume", @"The engine has no parked session to resume.");
   }
-  if (self.graphicsGeneration && self.graphicsReady) unsetenv("S2A_RB_PREPARE_PROFILE");
+  if (self.graphicsGeneration) {
+    self.graphicsSession = NSUUID.UUID.UUIDString;
+    S2ArmExportGraphicsEvidence(self.graphicsGeneration, self.graphicsSession, self.graphicsReady ? @"reused" : @"resumed");
+  }
+  if (self.graphicsGeneration && self.graphicsReady) {
+    unsetenv("S2A_RB_PREPARE_PROFILE");
+    unsetenv("S2A_RB_GPU_GENERATION");
+  }
   S2ArmSettingsPrepareLaunch();   // settings changed while parked apply now (the rebuild reloads the graphics settings)
   [self applyStoredFrameRateLimit];   // patch 0078: S2A_FPS was read once, at this process's first game start
   __block UIViewController *vc = nil;
@@ -585,6 +615,7 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
     [label.widthAnchor constraintLessThanOrEqualToAnchor:view.safeAreaLayoutGuide.widthAnchor],
     [label.heightAnchor constraintGreaterThanOrEqualToConstant:44]]];
   self.graphicsOverlay = label;
+  NSString *session = self.graphicsSession;
   __weak S2ArmEngineBridgePlugin *weak = self;
   self.graphicsMonitor = [NSTimer scheduledTimerWithTimeInterval:0.2 repeats:YES block:^(NSTimer *timer) {
     S2ArmEngineBridgePlugin *plugin = weak; if (!plugin) { [timer invalidate]; return; }
@@ -599,8 +630,9 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
       NSError *failure = nil;
       BOOL ready = rc == 1 && [generation activateWithGPU:counts error:&failure];
       plugin.graphicsReady = ready;
+      S2ArmExportGraphicsEvidence(generation, session, ready ? @"verified" : @"incomplete");
       s2arm_journal("graphics", ready ? "activated" : "incomplete",
-                    "\"stages\":%llu,\"requestedStages\":%llu,\"strictPSO\":%llu,\"requestedPSO\":%llu,\"missingRecipes\":%llu",
+                    "\"stages\":%llu,\"requestedStages\":%llu,\"strictPSO\":%llu,\"requestedPSO\":%llu,\"deferredRecipes\":%llu",
                     (unsigned long long)counts[1], (unsigned long long)counts[0], (unsigned long long)counts[4],
                     (unsigned long long)counts[2], (unsigned long long)counts[5]);
       dispatch_async(dispatch_get_main_queue(), ^{
@@ -621,7 +653,9 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
                          moduleDir:(NSString *)moduleDir
                           gameData:(NSString *)gameData
                               docs:(NSString *)docs
-                           pairing:(NSString *)pairing {
+                           pairing:(NSString *)pairing
+                       retryEngine:(void *)retryEngine
+                             paths:(NSArray<NSString *> *)graphicsPaths {
   s2arm_journal("launch", "begin", "\"gid\":\"%s\"", gid.UTF8String);
   NSString *enginePath = S2ArmEnginePath();
   if (enginePath.length == 0 || ![NSFileManager.defaultManager fileExistsAtPath:enginePath]) {
@@ -637,36 +671,8 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
                 plan.boot_code_blocks, (unsigned long long)plan.boot_code_bytes, plan.later_code_blocks);
 
   BOOL universal = S2ArmRequiresCoreHandshake();
-  if (universal) {
-    NSDictionary *jit = [self attachHelperWithPairing:pairing];
-    if (![jit[@"success"] boolValue]) return jit;
-  } else {
-    // Below iOS 26 the helper's classic attach/detach (not wired in v1) leaves CS_DEBUGGED; here the process must already be
-    // JIT-enabled. The whole device path so far is iOS 26+ (study § 6.4), so this branch is a guard, not a tested route.
-    if (!S2ArmHostHasGetTaskAllow() || !S2ArmHostIsDebugged()) {
-      return launchFail(@"jitUnavailable", @"jit", @"Below iOS 26 the process must already be JIT-enabled.");
-    }
-  }
-  s2arm_code_begin(universal);
-
-  if (universal) {
-    // Prove the debugger round-trip before the dlopen, as the RPCS3 loader does at the Core boundary.
-    uint64_t nonce = self.jitSession.probeNonce;
-    if (s2arm_code_probe(nonce) != nonce + 1) {
-      [self.jitSession close];
-      self.jitSession = nil;
-      return launchFail(@"jitUnavailable", @"jitProbe", @"The debugger did not answer the nonce probe.");
-    }
-    s2arm_journal("jitProbe", "passed", NULL);
-    // The spare pool covers code the game loads after the detach (later NROs): command 1 cannot run once detached.
-    // It also covers the boot code: if the boot is not served before the deadline, the helper detaches anyway and the
-    // engine's first request must still find pages. Mario Kart World on IPA 731 asked for main's 42 MB right after a
-    // forced detach, and a 16 MB pool ended the session (pool exhausted, code 134).
-    uint64_t pool = plan.boot_code_bytes + plan.later_code_bytes + (16ull << 20);
-    if (s2arm_code_prepare_pool(pool) != 0) {
-      s2arm_journal("pool", "skipped", "\"bytes\":%llu", (unsigned long long)pool);   // launch still proceeds; later NROs may fail
-    }
-  }
+  NSDictionary *jit = [self prepareGuestExecutionWithPairing:pairing universal:universal];
+  if (jit) return jit;
 
   // Environment the engine's main sets, then the flag before the dlopen, then the dlopen (RTLD_NOW | RTLD_GLOBAL).
   setenv("DOTNET_GCSegmentSize", kGcSegmentSize.UTF8String, 0);
@@ -727,14 +733,15 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
   S2ArmSettingsPrepareLaunch();   // the game language, and the engine's brief overlay that the in-game menu shows or hides
   S2ArmGuestFileSpace();          // the free space the engine wants for the guest memory files (S2A_GUEST_FILE_MIN_FREE_MB)
   S2ArmPrepareSaveFolder(self.saveFolder, docs);   // the save folder the player sees in Files (S2A_SAVE_FOLDER)
-  rb_s2arm_engine_mark_loading();
-  self.engineLoaded = YES;   // from here the engine lives in this process: no second launch, even if the dlopen fails
-  s2arm_journal("dlopen", "begin", NULL);
-  void *engine = dlopen(enginePath.fileSystemRepresentation, RTLD_NOW | RTLD_GLOBAL);
+  void *engine = retryEngine;
   if (!engine) {
-    return launchFail(@"engineLoadFailed", @"dlopen", @(dlerror() ?: "dlopen failed"));
-  }
-  s2arm_journal("dlopen", "passed", NULL);
+    rb_s2arm_engine_mark_loading();
+    self.engineLoaded = YES;   // exclusive for this process, including pre-configure retry
+    s2arm_journal("dlopen", "begin", NULL);
+    engine = dlopen(enginePath.fileSystemRepresentation, RTLD_NOW | RTLD_GLOBAL);
+    if (!engine) return launchFail(@"engineLoadFailed", @"dlopen", @(dlerror() ?: "dlopen failed"));
+    s2arm_journal("dlopen", "passed", NULL);
+  } else s2arm_journal("graphics", "reusedUnconfiguredEngine", NULL);
 
   s2a_rb_guest_configure_fn configure = (s2a_rb_guest_configure_fn)dlsym(engine, S2A_RB_GUEST_CONFIGURE);
   s2a_rb_guest_make_view_controller_fn makeVC = (s2a_rb_guest_make_view_controller_fn)dlsym(engine, S2A_RB_GUEST_MAKE_VIEW_CONTROLLER);
@@ -750,6 +757,8 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
   if (generation) {
     if (![generation.gid isEqual:gid] || ![generation.gameDir isEqual:docs.stringByDeletingLastPathComponent])
       return launchFail(S2ArmErrorPrepareFailed, @"graphics", @"The planned graphics generation belongs to another game.");
+    self.graphicsSession = NSUUID.UUID.UUIDString;
+    S2ArmExportGraphicsEvidence(generation, self.graphicsSession, pendingGPU ? @"starting" : @"reused");
     if (pendingGPU) {
       s2arm_graphics_prepare_fn prepare = (s2arm_graphics_prepare_fn)dlsym(engine, S2ARM_GRAPHICS_PREPARE);
       graphicsStatus = (s2arm_graphics_status_fn)dlsym(engine, S2ARM_GRAPHICS_STATUS);
@@ -757,19 +766,46 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
       uint64_t stages[8] = {0}; self.graphicsLastProgress = 0;
       int rc = prepare(gid.UTF8String, generation.buildID.UTF8String, gameData.fileSystemRepresentation,
                        generation.wire.fileSystemRepresentation, graphicsCancelled, (__bridge void *)self, stages,
-                       rb_s2arm_shader_inflate, graphicsProgress);
+                       rb_s2arm_shader_inflate, graphicsProgress, rb_s2arm_shader_inflate_fd);
       s2arm_journal("graphics", "stageInputs", "\"result\":%d,\"wanted\":%llu,\"recovered\":%llu,\"missing\":%llu,\"translated\":%llu,\"refused\":%llu",
                     rc, (unsigned long long)stages[0], (unsigned long long)stages[3], (unsigned long long)stages[4],
                     (unsigned long long)stages[5], (unsigned long long)stages[6]);
-      if (rc) return launchFail(rc == 1 ? S2ArmErrorCancelled : S2ArmErrorPrepareFailed, @"graphics",
-                                @"Graphics preparation stopped before rendering. Its checkpoints were retained.");
+      S2ArmExportGraphicsEvidence(generation, self.graphicsSession, rc ? @"interrupted" : @"inputs");
+      if (rc) {
+        // No guest session or code pages have been created. End this helper
+        // transaction; a retry must pass the normal attach and probe again.
+        if (universal) [self finishGraphicsRetryHandshake];
+        self.graphicsRetry = [[S2ArmGraphicsRetry alloc] initWithEngine:engine game:gid paths:graphicsPaths];
+        return launchFail(rc == 1 ? S2ArmErrorCancelled : S2ArmErrorPrepareFailed, @"graphics",
+                          @"Graphics preparation stopped before rendering. Its checkpoints were retained.");
+      }
     }
     NSString *profile = [generation.wire stringByAppendingPathComponent:@"pso_reference.tsv"];
     if (setenv("DM_MSL_FALLBACK", [generation.wire stringByAppendingPathComponent:@"shaders"].fileSystemRepresentation, 1) ||
         setenv("DM_PSO_USER", [generation.wire stringByAppendingPathComponent:@"pso_user.tsv"].fileSystemRepresentation, 1) ||
-        (pendingGPU ? setenv("S2A_RB_PREPARE_PROFILE", profile.fileSystemRepresentation, 1) : unsetenv("S2A_RB_PREPARE_PROFILE")))
+        (pendingGPU ? setenv("S2A_RB_PREPARE_PROFILE", profile.fileSystemRepresentation, 1) : unsetenv("S2A_RB_PREPARE_PROFILE")) ||
+        (pendingGPU ? setenv("S2A_RB_GPU_GENERATION", generation.wire.lastPathComponent.fileSystemRepresentation, 1) : unsetenv("S2A_RB_GPU_GENERATION")))
       return launchFail(S2ArmErrorPrepareFailed, @"graphics", @"Could not select the graphics cache.");
     s2arm_journal("graphics", pendingGPU ? "staged" : "verifiedGeneration", NULL);
+  }
+
+  if (pendingGPU && universal && (self.jitSession.finished || !S2ArmHostHasLiveDebugger())) {
+    // A long local scan or a foreground/background interval may outlast the
+    // helper. Renew the normal handshake before requesting any code pages.
+    [self finishGraphicsRetryHandshake];
+    self.graphicsRetry = [[S2ArmGraphicsRetry alloc] initWithEngine:engine game:gid paths:graphicsPaths];
+    jit = [self prepareGuestExecutionWithPairing:pairing universal:universal];
+    if (jit) return jit;
+  }
+  if (universal) {
+    // The spare pool covers code the game loads after the detach (later NROs): command 1 cannot run once detached.
+    // It also covers the boot code: if the boot is not served before the deadline, the helper detaches anyway and the
+    // engine's first request must still find pages. Mario Kart World on IPA 731 asked for main's 42 MB right after a
+    // forced detach, and a 16 MB pool ended the session (pool exhausted, code 134).
+    uint64_t pool = plan.boot_code_bytes + plan.later_code_bytes + (16ull << 20);
+    if (s2arm_code_prepare_pool(pool) != 0) {
+      s2arm_journal("pool", "skipped", "\"bytes\":%llu", (unsigned long long)pool);   // launch still proceeds; later NROs may fail
+    }
   }
 
   s2a_rb_guest_config config = {0};
@@ -788,6 +824,8 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
   config.session_parked = s2arm_session_parked;   // patch 0010: Quit parks the session; the same game can resume
   config.parked_context = (__bridge void *)self;
   char configError[600] = "";
+  [self.graphicsRetry consume];
+  self.graphicsRetry = nil;   // even a failed configure is not replayable
   s2arm_journal("configure", "begin", NULL);
   if (configure(&config, configError, sizeof configError) != 0) {
     return launchFail(@"engineConfigureFailed", @"configure", @(configError));
@@ -857,6 +895,43 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
     usleep(50000);
   }
   s2arm_code_detach();
+  [self finishHelperSession];
+}
+
+// A nil result means the existing platform-specific preflight has succeeded.
+- (NSDictionary *)prepareGuestExecutionWithPairing:(NSString *)pairing universal:(BOOL)universal {
+  if (universal) {
+    NSDictionary *jit = [self attachHelperWithPairing:pairing];
+    if (![jit[@"success"] boolValue]) return jit;
+  } else {
+    // Below iOS 26 the helper's classic attach/detach (not wired in v1) leaves CS_DEBUGGED; here the process must already be
+    // JIT-enabled. The whole device path so far is iOS 26+ (study § 6.4), so this branch is a guard, not a tested route.
+    if (!S2ArmHostHasGetTaskAllow() || !S2ArmHostIsDebugged()) {
+      return launchFail(@"jitUnavailable", @"jit", @"Below iOS 26 the process must already be JIT-enabled.");
+    }
+  }
+  s2arm_code_begin(universal);
+
+  if (universal) {
+    // Prove the debugger round-trip before the dlopen, as the RPCS3 loader does at the Core boundary.
+    uint64_t nonce = self.jitSession.probeNonce;
+    if (s2arm_code_probe(nonce) != nonce + 1) {
+      [self.jitSession close];
+      self.jitSession = nil;
+      return launchFail(@"jitUnavailable", @"jitProbe", @"The debugger did not answer the nonce probe.");
+    }
+    s2arm_journal("jitProbe", "passed", NULL);
+  }
+  return nil;
+}
+
+- (void)finishGraphicsRetryHandshake {
+  S2ArmJitSession *session = self.jitSession;
+  if (!session.finished && session.attached && S2ArmHostHasLiveDebugger()) s2arm_code_detach();
+  [self finishHelperSession];
+}
+
+- (void)finishHelperSession {
   S2ArmJitSession *session = self.jitSession;
   if (session) {
     BOOL completed = [session waitUntilFinished:kCompletionTimeout];

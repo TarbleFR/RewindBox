@@ -708,7 +708,7 @@ List<String> s2armPreparationLines(Locale locale, S2ArmImportProgress? value) {
     'code': 'prepStepCode',
     'caps': 'prepStepCaps',
     'direct': 'prepStepDirect',
-    'graphics': 'prepStepDirect',
+    'graphics': 'graphicsRebuild',
     'module': 'prepStepModule',
     'pack': 'prepStepPack',
   };

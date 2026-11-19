@@ -103,6 +103,7 @@ pre134="$case_dir/pre134"
 mkdir -p "$pre134/graphics" "$pre134/runtime"
 cp -R graphics/nvn "$pre134/graphics/"
 cp -R runtime/include "$pre134/runtime/"
+git -C "$pre134" apply -R --include='graphics/nvn/host/*' --include='graphics/nvn/tests/t_dsh_stats.c' "$tests"/../patches/0136-*.patch
 git -C "$pre134" apply -R --include='graphics/nvn/host/*' "$tests"/../patches/0134-*.patch
 xcrun --sdk macosx clang -x objective-c -std=gnu11 -fblocks -pthread -framework Foundation \
   "$pre134/graphics/nvn/tests/t_dsh_stats.c" -o "$case_dir/dsh-before-priority"

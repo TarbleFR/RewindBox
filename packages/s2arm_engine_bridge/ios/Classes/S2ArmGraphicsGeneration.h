@@ -16,6 +16,18 @@ NS_ASSUME_NONNULL_BEGIN
                           content:(NSString *)content chain:(NSString *)chain hardware:(NSString *)hardware
                           osBuild:(NSString *)osBuild reuseLegacy:(BOOL)reuseLegacy;
 - (BOOL)stage:(BOOL (^)(void))cancel progress:(void (^)(NSUInteger files))progress error:(NSError **)error;
+/// Export the named phase's bounded diagnostic tables to this game's visible
+/// diagnostics folder. Each new guest session has its own UUID and inventory.
+- (BOOL)writeEvidenceToDirectory:(NSString *)gameDiagnostics session:(NSString *)session phase:(NSString *)phase;
 - (BOOL)activateWithGPU:(const uint64_t *)stats error:(NSError **)error;
+@end
+/// Only an interrupted pre-configure launch can lend its already open engine
+/// to the same game, directories and pending graphics generation. Access to the
+/// object is serialized by the bridge's launch gate and work queue.
+@interface S2ArmGraphicsRetry : NSObject
+@property(nonatomic, readonly) NSString *gid;
+- (instancetype)initWithEngine:(void *)engine game:(NSString *)gid paths:(NSArray<NSString *> *)paths;
+- (nullable void *)engineForGame:(NSString *)gid paths:(NSArray<NSString *> *)paths;
+- (void)consume;
 @end
 NS_ASSUME_NONNULL_END

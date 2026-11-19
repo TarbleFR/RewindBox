@@ -123,6 +123,7 @@ jobs:
           set -eu
           xcrun clang -std=c11 -O2 -Wall -Wextra -Werror "$RUNNER_TEMP/s2arm/graphics/nvn/tests/t_rb_submit_gap.c" -o "$RUNNER_TEMP/submit-gap"
           "$RUNNER_TEMP/submit-gap"
+          python3 -B test/s2arm_shader_session_metrics_test.py
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'

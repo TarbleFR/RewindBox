@@ -1088,10 +1088,12 @@ abstract final class S2ArmInternalService {
       }
       // One Switch 2 game per process, except the game the player quit: the engine parked it and it resumes (patch 0010).
       final parked = (now['parkedGameId'] ?? '').toString().toUpperCase();
-      if (flag(now['engineLoaded']) && parked.isEmpty) return const S2ArmLaunchOutcome.failure('engineRestartRequired');
+      final retry = (now['retryGameId'] ?? '').toString().toUpperCase();
+      if (flag(now['engineLoaded']) && parked.isEmpty && retry.isEmpty) return const S2ArmLaunchOutcome.failure('engineRestartRequired');
       final detected = await detectExport(exportFolder);
       if (detected['success'] != true) return S2ArmLaunchOutcome.failure((detected['code'] ?? 'notExportFolder').toString());
-      if (flag(now['engineLoaded']) && (detected['gid'] ?? '').toString().toUpperCase() != parked) {
+      final detectedGid = (detected['gid'] ?? '').toString().toUpperCase();
+      if (flag(now['engineLoaded']) && detectedGid != parked && detectedGid != retry) {
         return const S2ArmLaunchOutcome.failure('engineRestartRequired');
       }
       final detectedFolder = (detected['exportDir'] ?? exportFolder).toString();
@@ -1119,7 +1121,7 @@ abstract final class S2ArmInternalService {
         'pairingFilePath': pairingFilePath,
         'uiLocale': uiLocale,
         'menuStrings': Switch2SettingsLocale.menuStrings(uiLocale),
-        'graphicsLabel': Switch2LibraryLocale.forLocale(graphicsLocale, 'prepStepDirect'),
+        'graphicsLabel': Switch2LibraryLocale.forLocale(graphicsLocale, 'graphicsRebuild'),
         'graphicsIncomplete': Switch2LibraryLocale.forLocale(graphicsLocale, 'graphicsIncomplete'),
         if (saveFolder != null) 'saveFolder': saveFolder.path,
       });

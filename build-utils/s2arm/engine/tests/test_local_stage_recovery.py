@@ -9,6 +9,7 @@ import hashlib
 import importlib.util
 from pathlib import Path
 import struct
+import plistlib
 import os
 import shutil
 import subprocess
@@ -40,6 +41,32 @@ def archive(blob):
     # though the payload is intentionally incompressible for the test.
     return (bytes.fromhex('28b52ffd60')+struct.pack('<H',len(frame)-256)
             +(len(frame)*8+1).to_bytes(3,'little')+frame)
+
+def large_resources(program):
+    """Two legal resources with one real program and >64 MiB decoded payload."""
+    size=(65<<20)+len(program)
+    frame=bytearray(bytes.fromhex('28b52ffd8050')+size.to_bytes(4,'little'))
+    frame.extend((len(program)*8).to_bytes(3,'little')+program)
+    rest=size-len(program)
+    while rest:
+        n=min(rest,128<<10); rest-=n
+        frame.extend((n*8+2+(not rest)).to_bytes(3,'little')+b'\x00')
+    yaz=bytearray(b'Yaz0'+size.to_bytes(4,'big')+bytes(8))
+    prefix=program+bytes(8-len(program)%8)
+    for i in range(0,len(prefix),8):
+        yaz.extend(b'\xff'+prefix[i:i+8])
+    remain=size-len(prefix)
+    while remain:
+        ops=bytearray(); flags=0
+        for j in range(8):
+            if not remain: break
+            n=min(remain,273)
+            if n>=18: ops.extend([0,0,n-18])
+            elif n>=3: ops.extend([(n-2)<<4,0])
+            else: flags|=128>>j; ops.append(0); n=1
+            remain-=n
+        yaz.append(flags);yaz.extend(ops)
+    return bytes(frame),bytes(yaz)
 
 def run(tool,game,wire,profile,dsh,decoder):
     cp=subprocess.run([str(tool),'--rb-local-stages',str(game),str(wire),str(profile),str(dsh),str(decoder)],
@@ -139,4 +166,24 @@ def main():
         assert run(a.tool,no_assets,candidate,listed,a.dsh,a.decoder)==(1,1,0,0,0,0,0,0)
         assert live.read_bytes()==marker and 'preserved-no-input' in (candidate/'stage-recovery.tsv').read_text()
         print('GREEN NativeAOT retranslated one compatible priority stage, resumed before publication, emitted exact pixels; missing inputs and nonpriority MSL preserved')
+        spill_game=base/'bigpack'; sr=spill_game/'romfs';sr.mkdir(parents=True)
+        shutil.copytree(facts,spill_game/'shaders'/'direct')
+        big_z,big_y=large_resources(glslc(ctl,code))
+        (sr/'first-entry.zs').write_bytes(big_z)
+        (sr/'second-entry.szs').write_bytes(big_y)
+        (sr/'bad.zs').write_bytes(bytes.fromhex('28b52ffd0000'))
+        (sr/'dict.zs').write_bytes(big_z[:4]+b'\x81\x50\x07'+big_z[6:])
+        (sr/'quota.zs').write_bytes(big_z[:6]+(3<<30).to_bytes(4,'little')+big_z[10:])
+        (spill_game/'index.tsv').write_text(''.join(fmt(f) for f in sorted(sr.iterdir())))
+        big_wire=base/'large-wire';big_wire.mkdir()
+        big_profile=big_wire/'pso_reference.tsv'
+        big_profile.write_text(f'S\t{key}_b\t1\nS\t{other}_b\t1\n')
+        counts=run(a.tool,spill_game,big_wire,big_profile,a.dsh,a.decoder)
+        assert counts==(2,0,0,1,1,1,0,2),counts
+        cov=plistlib.loads((big_wire/'stage-scan-coverage.plist').read_bytes())
+        assert (cov['spooled'],cov['unavailableDictionary'],cov['corrupt'],cov['resourceLimits'],cov['ioErrors'])==(2,1,1,1,0),cov
+        assert 'not-located-in-partial-scan' in (big_wire/'stage-recovery.tsv').read_text()
+        assert not list(big_wire.glob('.stage-inflate-*'))
+        assert subprocess.check_output([str(a.pixel),str(big_wire/'shaders'/msl.name)],text=True).strip()==rgba
+        print('PASS second process read the true large zstd/Yaz0 stage through the production decoder, strict coverage reasons and exact pixel '+rgba)
 if __name__=='__main__': main()

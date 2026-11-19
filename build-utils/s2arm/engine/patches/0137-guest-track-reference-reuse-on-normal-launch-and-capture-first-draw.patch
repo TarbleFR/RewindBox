@@ -1,0 +1,231 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 5619534..cf410a9 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -12024,6 +12024,7 @@ static void rb_trace_used(id ps, const pso_key *k, NvShader *vs, NvShader *fs);
+ static char g_pso_why[200];
+ // Submit-thread only: pso_get_ (normal/GS final draw) and tess_draw are the two
+ // callers. Background prewarm builds descriptors directly, without this state.
++static void rb_ref_capture_recipe(const pso_skey *sk, const char *hex);
+ static uint8_t g_pso_color_round;
+ #define PSO_WHY(...) snprintf(g_pso_why, sizeof g_pso_why, __VA_ARGS__)
+ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvShader *vs) {
+@@ -12124,6 +12125,7 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+     if (!ps) { char hint[200]; MLOG("【红】 failed to create render pipeline (vertex %s fragment %s): %s%s", vs->key, fs ? fs->key : "-", e.localizedDescription.UTF8String, pso_fout_hint(fs, g_pass.cfmt, hint, sizeof hint));
+                hm_put_id(&g_pso_fail, &k, NSNull.null); return nil; }
+     if (!ms_fn) { pso_skey sk; char shex[sizeof sk * 2 + 1]; pso_skey_from(&k, vs, fs, g_pso_lmap != NULL, g_pso_lmap ? &g_pso_fz : NULL, &sk); pso_skey_hex(&sk, shex);
++        rb_ref_capture_recipe(&sk,shex);
+         // Full exact recipes from slow first-use waits allow a later pack to
+         // resolve the observed archive digest without the personal manifest.
+         if (first_use_ns >= RB_PSO_HOT_MS * 1000000ull && !g_pso_lmap && !g_pso_fsfn) {
+@@ -12148,7 +12150,7 @@ static NSString *warm_key(const char *s, size_t n) {
+ // shaders, so one worker builds them one after the other). The tasks keep the lists' order (a pair at its first line). shader_load shares successful objects and in-flight loads
+ // with prefetch and runtime, without negatively caching failures. After the upstream reference implementation (MIT) warm_parse / warm_task
+ #include "rb_reference.inc"
+-@interface WarmTask : NSObject { @public RBReferenceProof *reference; int kind, stage, fc; uint32_t pad; NSString *key, *vkey, *fkey, *tkey; NSMutableArray<NSData *> *rs; } @end   // fc: a C line's sampler-emulation bits this GPU runs (#800, warm_parse)
++@interface WarmTask : NSObject { @public RBReferenceProof *reference; NSString *referenceIdentity; int kind, stage, fc; uint32_t pad; NSString *key, *vkey, *fkey, *tkey; NSMutableArray<NSData *> *rs; } @end   // fc: a C line's sampler-emulation bits this GPU runs (#800, warm_parse)
+ @implementation WarmTask @end
+ static _Atomic long g_warm_done;   // lines done (the prepare step's progress)
+ static _Atomic int g_wp_phase, g_wp_why, g_wp_play; static _Atomic long g_wp_total; static _Atomic uint64_t g_wp_t0;
+@@ -12488,7 +12490,7 @@ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines)
+     NSMutableArray<WarmTask *> *priority = hot.count ? [NSMutableArray array] : nil;
+     NSMutableSet<NSString *> *seen = [NSMutableSet set], *stale = [NSMutableSet set]; long n = 0;
+     NSString *referencePath=rb_ref_path();
+-    BOOL referenceList=referencePath!=nil || [paths.firstObject.lastPathComponent isEqual:@"pso_reference.tsv"];
++    NSString *referenceList=referencePath ?: ([paths.firstObject.lastPathComponent isEqual:@"pso_reference.tsv"] ? paths.firstObject : nil);
+     NSMutableArray *referenceTasks=[NSMutableArray array];
+     for (NSString *path in paths) {
+         NSString *txt = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+@@ -12528,7 +12530,9 @@ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines)
+                 // A previously deferred recipe encountered in play already lives in
+                 // pso_user.tsv. Promote its actual row next launch without modifying
+                 // the host's sealed profile or inventing a new cache.
+-                if (required || (referenceList && rb_ref_later_recipe(t->vkey,t->fkey,&sk))) [referenceTasks addObject:t];
++                if ([path isEqual:referenceList]) t->referenceIdentity=par_hash(&sk,sizeof sk);
++                else if (referenceList) t->referenceIdentity=rb_ref_later_recipe(vkey,fkey,&sk);
++                if (t->referenceIdentity) [referenceTasks addObject:t];
+                 else if (priority.count < RB_PSO_HOT_LIMIT && [hot containsObject:line]) [priority addObject:t];
+                 else [tasks addObject:t];
+             } else if ([c[0] isEqualToString:@"M"] && c.count >= 4) {   // a task / mesh pipeline (nvn_geometry.inc mtk_record): the mesh shader in the vertex place, then the task shader key ("-": none) and the padded variant's mask
+@@ -12565,9 +12569,6 @@ static _Atomic(uint8_t) *g_wu_claim; static long g_wu_n;                // 每
+ static _Atomic long g_wu_remaining;
+ static _Atomic uint64_t g_wu_bumped, g_wu_taken;                        // 放进急件的行数 / 由急件路领走编的行数
+ #include "rb_pso_transitions.inc"
+-// The two exact identities first observed at frame 4815 share a fragment.
+-static const char *const rb_ref_late_vs[]={"2524467d394b8e2e","c5984a7abe090de0"};
+-static const char *const rb_ref_late_ak[]={"ba2073dfd3a104a3130bc7ab5212f7ff77144f32","69097fd97c7b8882373adb1caa67c2ad72f64765"};
+ static _Atomic long g_ref_late_rows[2];
+ static _Atomic unsigned g_ref_late_live, g_ref_late_hints;
+ static void rb_ref_stage_hint(const char *raw) {
+@@ -12703,7 +12704,7 @@ static void warm_task_(WarmTask *t) {
+             g_warm_done++;
+             if (!ps) { MLOG("【红】 background render pipeline creation failed: %s", e.localizedDescription.UTF8String); continue; }
+             WarmItem *item = [WarmItem new]; item->kind = 1; item->transition = g_rb_picked_hint; item->vs_key = t->vkey; item->fs_key = t->fkey; item->vs = vs; item->fs = fs; item->fsfn = fsfn; item->pso = k; item->object = ps;
+-            if (rb_ref_pipeline(t->reference,akey,descriptor)) item->referenceKey=akey;
++            if (rb_ref_pipeline(t->reference,akey,descriptor) || [akey isEqual:t->referenceIdentity]) item->referenceKey=akey;
+             warm_enqueue(item); g_warm_rps++;
+         }
+     }
+@@ -18423,6 +18424,7 @@ static void warm_claim(void) {
+                 if (item->referenceKey) {
+                     const void *raw=(__bridge const void *)item->object;
+                     hm_put_id(&g_rb_seed_objects,&raw,item->referenceKey);
++                    rb_ref_keep_bound_recipe(item);
+                 }
+                 if (item->transition) {
+                     const void *raw = (__bridge const void *)item->object;
+diff --git a/graphics/nvn/gfx/nvn/rb_reference.inc b/graphics/nvn/gfx/nvn/rb_reference.inc
+index 721d0da..57e2b79 100644
+--- a/graphics/nvn/gfx/nvn/rb_reference.inc
++++ b/graphics/nvn/gfx/nvn/rb_reference.inc
+@@ -267,17 +267,51 @@ static void rb_ref_task_done(RBReferenceProof *proof) {
+     if (proof && atomic_fetch_sub(&proof->remaining,1)==1) rb_ref_verify(proof);
+ }
+ 
+-static BOOL rb_ref_later_recipe(NSString *vs,NSString *fs,const pso_skey *sk) {
++static NSString *rb_ref_later_recipe(NSString *vs,NSString *fs,const pso_skey *sk) {
+     for (size_t i=0;i<sizeof rb_mkw_targets/sizeof *rb_mkw_targets;i++) {
+         const struct rb_reference_target *target=&rb_mkw_targets[i];
+         if (target->recipe || strcmp(vs.UTF8String,target->vs) || strcmp(fs.UTF8String,target->fs)) continue;
+-        if ([par_hash(sk,sizeof *sk) isEqual:@(target->archive)]) return YES;
++        NSString *identity=par_hash(sk,sizeof *sk);
++        if ([identity isEqual:@(target->archive)]) return identity;
++    }
++    return nil;
++}
++// Submit thread. Capture each complete target only once per process even when
++// first use runs under the wait threshold or the general slow log quota is full.
++static const char *const rb_ref_late_vs[]={"2524467d394b8e2e","c5984a7abe090de0"};
++static const char *const rb_ref_late_ak[]={"ba2073dfd3a104a3130bc7ab5212f7ff77144f32","69097fd97c7b8882373adb1caa67c2ad72f64765"};
++static unsigned g_ref_captured;
++static NSData *g_ref_bound_recipes[2];
++static BOOL rb_ref_emit_recipe(const pso_skey *sk, const char *hex, int slot, NSString *expected, unsigned *seen) {
++    if ((*seen & (1u<<slot)) || ![par_hash(sk,sizeof *sk) isEqual:expected]) return NO;
++    *seen |= 1u<<slot;
++    char local[2*sizeof *sk+1];
++    if (!hex) { pso_skey_hex(sk,local); hex=local; }
++    MLOG("RewindBox reference target recipe frame %llu %s R\t%s",
++         (unsigned long long)atomic_load(&g_cur_frame),expected.UTF8String,hex);
++    return YES;
++}
++static void rb_ref_capture_recipe(const pso_skey *sk, const char *hex) {
++    if (g_ref_captured==3 || strcmp(sk->fs,"eb4884ca0964a92f_b")) return;
++    for (int i=0;i<2;i++) if (!strncmp(sk->vs,rb_ref_late_vs[i],16))
++        rb_ref_emit_recipe(sk,hex,i,@(rb_ref_late_ak[i]),&g_ref_captured);
++}
++static void rb_ref_keep_bound_recipe(WarmItem *item) {
++    if (g_ref_captured==3) return;
++    for (int i=0;i<2;i++) if (!(g_ref_captured & (1u<<i)) && [item->referenceKey isEqual:@(rb_ref_late_ak[i])]) {
++        pso_skey sk; pso_skey_from(&item->pso,item->vs,item->fs,0,NULL,&sk);
++        g_ref_bound_recipes[i]=[NSData dataWithBytes:&sk length:sizeof sk];
+     }
+-    return NO;
+ }
+ static void rb_ref_bound(id ps) {
+     const void *raw=(__bridge const void *)ps;
+     NSString *digest=CFBridgingRelease(nvn_hm_del(&g_rb_seed_objects,&raw));
++    if (digest && g_ref_captured!=3) for (int i=0;i<2;i++) {
++        NSData *recipe=g_ref_bound_recipes[i]; if (recipe && [digest isEqual:@(rb_ref_late_ak[i])]) {
++            rb_ref_capture_recipe(recipe.bytes,NULL);
++            g_ref_bound_recipes[i]=nil;
++        }
++    }
+     if (digest) MLOG("RewindBox reference: encoder bound exact prewarmed PSO %s at frame %llu",
+                      digest.UTF8String,(unsigned long long)atomic_load(&g_cur_frame));
+ }
+diff --git a/graphics/nvn/tests/rb_reference_gpu.inc b/graphics/nvn/tests/rb_reference_gpu.inc
+index 36d2145..171d550 100644
+--- a/graphics/nvn/tests/rb_reference_gpu.inc
++++ b/graphics/nvn/tests/rb_reference_gpu.inc
+@@ -59,6 +59,7 @@ static void reference_collect(NSString *root) {
+     // Keep the old archives: the migration must rebuild these two copied targets once.
+ }
+ static void reference_check(NSString *root,NSString *mode) {
++    BOOL active=[mode isEqual:@"active"];
+     BOOL missing=[mode isEqual:@"missing"], refused=[mode isEqual:@"refused"], replay=[mode isEqual:@"replay"];
+     BOOL interrupted=[mode isEqual:@"interrupt"], resumed=[mode isEqual:@"resume"];
+     reference_pause_mode=interrupted?2:[mode isEqual:@"empty"]?1:0;
+@@ -82,16 +83,33 @@ static void reference_check(NSString *root,NSString *mode) {
+     if (missing) target[1].archive="0000000000000000000000000000000000000000";
+     uint64_t stats[8];
+     GPU_CHECK(s2a_rb_guest_prepare_graphics("0400C3F00006E000","wrong",NULL,NULL,NULL,NULL,stats,NULL,NULL,NULL)==2);
+-    GPU_CHECK(!rb_ref_materialize(root,@[record],target,2,NULL,NULL));
++    if (active) GPU_CHECK([NSFileManager.defaultManager fileExistsAtPath:rb_ref_manifest(root)]);
++    else GPU_CHECK(!rb_ref_materialize(root,@[record],target,2,NULL,NULL));
+     GPU_CHECK(![NSFileManager.defaultManager fileExistsAtPath:[root stringByAppendingPathComponent:@"pso_user.tsv"]]);
+     if (refused) {
+         NSString *dir=[root stringByAppendingPathComponent:@"translation"];
+         GPU_CHECK([NSFileManager.defaultManager removeItemAtPath:[dir stringByAppendingPathComponent:[reference_vertex_b stringByAppendingPathExtension:@"metal"]] error:nil]);
+     }
+-    setenv("S2A_RB_PREPARE_PROFILE",rb_ref_manifest(root).fileSystemRepresentation,1);
++    if (active) {
++        setenv("RB_TEST_GAME_BUILD",rb_ref_build,1); unsetenv("S2A_RB_PREPARE_PROFILE");
++        unsetenv("S2A_RB_GPU_GENERATION");
++    } else setenv("S2A_RB_PREPARE_PROFILE",rb_ref_manifest(root).fileSystemRepresentation,1);
+     reference_boot(root);
+     while (atomic_load(&g_warm_running)) usleep(1000);
+     uint64_t gpu[6];
++    if (active) {
++        GPU_CHECK(!s2a_rb_guest_prepare_gpu_status(gpu) && !g_ref);
++        GPU_CHECK(!atomic_load(&g_par_reference_created) && atomic_load(&g_par_hits)>=2 && !atomic_load(&g_par_misses));
++        NSMutableDictionary *warmed=[NSMutableDictionary dictionary];
++        for (WarmItem *w in g_warm_items) if (w->referenceKey && [w->referenceKey isEqual:digests[w->vs_key]])
++            warmed[w->vs_key]=w->object;
++        GPU_CHECK(warmed.count==2);
++        warm_claim(); GPU_CHECK(g_rb_seed_objects.n==2);
++        demand_vertex_and_draw(vertices[0],ST_A,warmed[vertices[0]]); GPU_CHECK(g_rb_seed_objects.n==1);
++        demand_vertex_and_draw(vertices[1],ST_A,warmed[vertices[1]]); GPU_CHECK(!g_rb_seed_objects.n);
++        GPU_CHECK(!nvn_be_request_stop() && !nvn_be_shutdown_session());
++        puts("PASS active generation, 2 exact archived PSOs bound on normal launch, no migration, correct pixels"); return;
++    }
+     GPU_CHECK(s2a_rb_guest_prepare_gpu_status(gpu)==(refused || interrupted ? -1 : 1));
+     if (interrupted) {
+         GPU_CHECK(reference_pause_state==2 && gpu[4]==1);
+@@ -146,13 +164,20 @@ static int reference_test_main(int argc,char **argv) { @autoreleasepool {
+     for (size_t i=0;i<count;i++) if (rb_mkw_targets[i].recipe) {
+         pso_skey sk; GPU_CHECK(!pso_skey_parse(rb_mkw_targets[i].recipe,&sk));
+         GPU_CHECK([par_hash(&sk,sizeof sk) isEqual:@(rb_mkw_targets[i].archive)]);
+-        GPU_CHECK([real containsString:[NSString stringWithFormat:@"R\t%s\n",rb_mkw_targets[i].recipe]]); ++exact;
++        GPU_CHECK(([real containsString:[NSString stringWithFormat:@"R\t%s\n",rb_mkw_targets[i].recipe]]));
++        if (!exact) {
++            unsigned witnessed=0;
++            GPU_CHECK(!rb_ref_emit_recipe(&sk,NULL,0,@"wrong",&witnessed) && !witnessed);
++            GPU_CHECK(rb_ref_emit_recipe(&sk,NULL,0,@(rb_mkw_targets[i].archive),&witnessed) && witnessed==1);
++            GPU_CHECK(!rb_ref_emit_recipe(&sk,NULL,0,@(rb_mkw_targets[i].archive),&witnessed));
++        }
++        ++exact;
+     }
+     GPU_CHECK(exact>=12);
+     printf("PASS %lu game-derived complete 432-byte recipes match captured archive identities without personal history\n",(unsigned long)exact);
+     GPU_CHECK([NSFileManager.defaultManager removeItemAtPath:rb_ref_manifest(root) error:nil]);
+     GPU_CHECK(!reference_child(argv[0],root,"collect"));
+-    for (NSString *mode in @[@"empty",@"replay",@"missing",@"interrupt",@"resume",@"refused"]) {
++    for (NSString *mode in @[@"empty",@"replay",@"active",@"missing",@"interrupt",@"resume",@"refused"]) {
+         [NSFileManager.defaultManager removeItemAtPath:[root stringByAppendingPathComponent:@"pso_user.tsv"] error:nil];
+         GPU_CHECK(!reference_child(argv[0],root,(char *)mode.UTF8String));
+     }
+diff --git a/graphics/nvn/tests/t_nvn_warmbump.m b/graphics/nvn/tests/t_nvn_warmbump.m
+index 20e9377..a454da6 100644
+--- a/graphics/nvn/tests/t_nvn_warmbump.m
++++ b/graphics/nvn/tests/t_nvn_warmbump.m
+@@ -3,6 +3,7 @@
+ //   ① 什么都不插：按清单顺序 0 1 2 3 4 5，之后 -1
+ //   ② 先插 c|z → 先领 2 3，再顺序 0；此时再插 c|z 不重复入队（已领）；插 e|v → 下一个领 5；之后顺序 1 4，顺序路走到 5 时跳过（已领），然后 -1
+ //   ③ 插一对清单里没有的、或片元为空的 → 不改顺序；收尾（warm_urgent_end）后再插 → 不入队
++#include <stdint.h>
+ #include <sched.h>
+ static void rb_test_reservation(int result);
+ #define RB_SPEC_TEST_RESERVATION(result) rb_test_reservation(result)
+@@ -12,9 +13,12 @@ static void reference_test_pause(int reason);
+ #define RB_REF_TEST_PAUSE(r) reference_test_pause(r)
+ static void transition_test_before_pick(void);
+ #define RB_TEST_BEFORE_WARM_PICK transition_test_before_pick
++#define s2a_nvn_game_id rb_reference_test_game_id
+ #define s2a_main_build_id rb_transition_test_game_build
+ #include "../gfx/nvn/nvn_mtl.m"
+ #undef s2a_main_build_id
++#undef s2a_nvn_game_id
++const char *rb_reference_test_game_id(void) { return "0400C3F00006E000"; }
+ #include "rb_pso_transition_gpu.inc"
+ @interface RBTestEncoder : NSObject
+ @property (nonatomic, strong) id bound;

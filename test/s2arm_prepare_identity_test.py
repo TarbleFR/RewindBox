@@ -126,7 +126,7 @@ check('dladdr' not in prep and 'S2ArmCodeIdentity' not in prep and not (PKG / 'S
 # The 795 preparation archive adds bounded zstd for the graphics warmer. Its
 # CPU image/pack outputs have the 794 format. No unreviewed producer inherits
 # that canonical hash. Source commit, export, data, chain and steps remain keyed.
-check(ordered(identity, 'if ([library isEqual:@"d0ea5d735cdc0fd8e32a76257b5f86039648dc19206afff805ef5c6ed4a10414"])',
+check(ordered(identity, 'if ([library isEqual:@"80ed6cd43bdc67fa1936f5ec130f29ffb309c1ad41d39ab068dfc16f76f53b4c"])',
               'library = @"1c0969b69e5502a27b72d8946f3698cca850089237d7a04282dc94d99191cde5";',
               'return [NSString stringWithFormat:@"prepare %@ steps %@ s2arm %@", library, kPreparedSteps, commit];'),
       'only the reviewed 795 library is canonicalized to its CPU-compatible 794 preparation hash')

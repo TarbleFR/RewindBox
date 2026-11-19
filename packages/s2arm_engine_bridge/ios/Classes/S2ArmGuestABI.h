@@ -50,9 +50,10 @@ typedef int (*s2a_rb_guest_set_fps_limit_fn)(int fps);   // patch 0078: 0 or 24â
 // The title profile is processed on the host work queue before game start. GPU
 // status comes from strict probes in the game's own NVN renderer.
 typedef int (*s2arm_graphics_inflate_fn)(const void *, size_t, void **, size_t *, size_t);
+typedef int (*s2arm_graphics_spill_fn)(const void *, size_t, int, uint64_t, int (*)(void *), void *, uint64_t *);
 typedef int (*s2arm_graphics_prepare_fn)(const char *gid, const char *build_id, const char *game_data,
     const char *wire, int (*cancel)(void *), void *context, uint64_t stats[8], s2arm_graphics_inflate_fn inflate,
-    void (*progress)(void *, uint64_t, uint64_t));
+    void (*progress)(void *, uint64_t, uint64_t), s2arm_graphics_spill_fn spill);
 typedef int (*s2arm_graphics_status_fn)(uint64_t stats[6]);
 #define S2ARM_GRAPHICS_PREPARE "s2a_rb_guest_prepare_graphics"
 #define S2ARM_GRAPHICS_STATUS "s2a_rb_guest_prepare_gpu_status"

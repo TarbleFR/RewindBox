@@ -61,8 +61,8 @@ void main() {
         step: 'graphics', phase: 'copy', unitsDone: 64, unitsTotal: 0);
     const inputs = S2ArmImportProgress(name: 'graphics', index: 6, count: 7, done: 500, total: 1000,
         step: 'graphics', phase: 'inputs', unitsDone: 8, unitsTotal: 16);
-    expect(s2armPreparationLines(fr, copy), ['Préparation graphique', '64 fichiers parcourus']);
-    expect(s2armPreparationLines(fr, inputs), ['Préparation graphique', '8 / 16']);
+    expect(s2armPreparationLines(fr, copy), ['Reconstruction des shaders et des pipelines graphiques', '64 fichiers parcourus']);
+    expect(s2armPreparationLines(fr, inputs), ['Reconstruction des shaders et des pipelines graphiques', '8 / 16']);
     expect(S2ArmInternalService.preparationOverall('graphics', .5), .5);
     expect(Switch2LibraryLocale.forLocale(fr, 'graphicsIncomplete'), 'Préparation graphique incomplète');
   });
