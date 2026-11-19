@@ -43,6 +43,8 @@ def summarize(host, captures, first, last):
     long_frames, waits, footprint, thermal = {}, [], [], {}
     archive = None
     missing = None
+    shared_library_count = None
+    completed_predictions, active_prediction, governor = [], None, []
     with host.open(encoding="utf-8", errors="replace") as lines:
         for line in lines:
             m = re.search(r"\[longframe\] frame (\d+) \(([\d.]+) s\) whole frame ([\d.]+) ms", line)
@@ -65,6 +67,23 @@ def summarize(host, captures, first, last):
             m = re.search(r"(\d+) lines left out for (\d+) keys with no current translation and no kept stage bytes", line)
             if m:
                 missing = {"rows": int(m[1]), "keys": int(m[2])}
+            m = re.search(r"existing Metal source library reused for another shader identity: (\d+)", line)
+            if m:
+                shared_library_count = int(m[1])
+            m = re.search(r"PSO transitions: (\d+) first-used, (\d+) promoted, (\d+) published, (\d+) warmed Metal objects bound, (\d+) published but unused", line)
+            if m:
+                fields = ("firstUsed", "promoted", "published", "bound", "publishedUnused")
+                completed_predictions.append(dict(zip(fields, map(int, m.groups()))))
+                active_prediction = None
+            m = re.search(r"PSO transitions: (\d+) promoted, (\d+) warmed Metal objects bound", line)
+            if m:
+                active_prediction = {"promoted": int(m[1]), "bound": int(m[2])}
+            m = re.search(r"speculative shader work (held|on one worker|back on every worker): (.*?) \(thermal state (\d+), (-?\d+) MB left .*?Low Power Mode (\d+); (\d+) changes", line)
+            if m:
+                levels = {"held": "HOLD", "on one worker": "ONE", "back on every worker": "RUN"}
+                governor.append({"change": int(m[6]), "level": levels[m[1]], "reason": m[2],
+                                 "appleThermalState": int(m[3]), "headroomMiB": int(m[4]) if int(m[4]) >= 0 else None,
+                                 "lowPowerMode": bool(int(m[5]))})
     available = [row for row in long_frames.values() if row is not None]
     sums = [round(sum(col), 2) for col in zip(*available)]
     return {"frameSignatureIntervals": sig, "selectedLoggedFrames": {
@@ -74,7 +93,11 @@ def summarize(host, captures, first, last):
         "detailedPSOWaits": len(waits), "loggedPSOQueueWaitMs": round(sum(waits), 2) if waits else None,
         "maxSampledFootprintMiB": max(footprint, default=None),
         "thermalSamplesByState": {k: {"count": len(v), "firstFrame": min(v)} for k, v in thermal.items()}},
-        "sessionPrewarm": {"archive": archive, "unreconstructible": missing}}
+        "sessionPrewarm": {"archive": archive, "unreconstructible": missing},
+        "wholeLog": {"lastReportedSourceLibraryReuses": shared_library_count,
+                     "completedPredictionSessions": completed_predictions,
+                     "lastUnfinishedPredictionSample": active_prediction,
+                     "loggedGovernorChanges": governor}}
 
 
 def main():
