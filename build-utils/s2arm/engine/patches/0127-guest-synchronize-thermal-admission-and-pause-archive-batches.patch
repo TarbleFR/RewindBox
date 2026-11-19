@@ -56,7 +56,7 @@ index a5eab9c..374d384 100644
      for (;;) {
          uint64_t ticket = atomic_load(&g_spec_gate.epoch);
 diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
-index bacbce8..c6e1f94 100644
+index bacbce8..1d5c81c 100644
 --- a/graphics/nvn/gfx/nvn/pso_archive.h
 +++ b/graphics/nvn/gfx/nvn/pso_archive.h
 @@ -109,6 +109,25 @@ static int par_ga_lock(void) {
@@ -151,7 +151,7 @@ index bacbce8..c6e1f94 100644
 +        MLOG("【红】 pipeline archive: cannot persist %s (%lu keys, %s/%ld): %s", path.lastPathComponent.UTF8String,
 +             (unsigned long)n, e.domain.UTF8String ?: "-", (long)e.code, e.localizedDescription.UTF8String ?: "rename or index failed");
 +}
-+static NSUInteger par_write_batch_try(NSArray<NSArray *> *items, RBArchiveSerialization **retry_out) {
++static NSUInteger par_write_batch_try(NSArray<NSArray *> *items, RBArchiveSerialization *__strong *retry_out) {
 +    NSMutableIndexSet *skip = [NSMutableIndexSet indexSet];
      NSMutableSet<NSString *> *seen = g_rb_archive_coalesce ? [NSMutableSet set] : nil;
      pthread_mutex_lock(&g_par_mu);
