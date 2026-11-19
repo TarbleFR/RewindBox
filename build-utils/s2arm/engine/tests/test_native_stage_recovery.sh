@@ -80,7 +80,7 @@ import re
 import sys
 from pathlib import Path
 source = Path(sys.argv[1]).read_bytes()
-entry = re.search(rb"(?m)^[ \t]*fragment\b[^;{}]*?\bmain0\s*\([^;{}]*\)[^;{}]*\{", source)
+entry = re.search(rb"(?m)^[ \t]*(?:\[\[[^\n]*?\]\][ \t]*)*fragment\b[^;{}]*?\bmain0\s*\([^;{}]*\)[^;{}]*\{", source)
 if entry is None or entry.end() >= len(source):
     raise SystemExit("missing main0 fragment definition in the published translation")
 Path(sys.argv[2]).write_bytes(source[:entry.end()])

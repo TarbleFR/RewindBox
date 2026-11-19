@@ -6,6 +6,7 @@ name: S2Arm engine (iOS) build check
 # runners and records what the engine is made of (images, sizes, exported and undefined symbols),
 # for the common IPA's authenticated engine pin. No game, key or Nintendo file is used.
 # Claude pushes require [s2arm-engine] to compile or [s2arm-pin ...] to pin;
+# [s2arm-shader-checks] alone runs the host suites while developing their fixtures.
 # A follow-up [s2arm-check-delivery] push checks out the exact preceding private IPA
 # commit. It reruns the GPU fixtures without building or publishing a second engine.
 'on':
@@ -27,14 +28,15 @@ concurrency:
   cancel-in-progress: false
 jobs:
   engine:
-    if: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (contains(github.event.head_commit.message, '[s2arm-engine]') || contains(github.event.head_commit.message, '[s2arm-check-delivery]')))) && !contains(github.event.head_commit.message, '[s2arm-pin ') }}
+    if: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (contains(github.event.head_commit.message, '[s2arm-engine]') || contains(github.event.head_commit.message, '[s2arm-check-delivery]') || contains(github.event.head_commit.message, '[s2arm-shader-checks]')))) && !contains(github.event.head_commit.message, '[s2arm-pin ') }}
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(contains(github.event.head_commit.message, '[s2arm-check-delivery]') && '["macos-26"]' || '["macos-26","macos-15"]') }}
+        os: ${{ fromJSON((contains(github.event.head_commit.message, '[s2arm-check-delivery]') || (contains(github.event.head_commit.message, '[s2arm-shader-checks]') && !contains(github.event.head_commit.message, '[s2arm-engine]'))) && '["macos-26"]' || '["macos-26","macos-15"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     env:
+      TEST_ONLY: ${{ (contains(github.event.head_commit.message, '[s2arm-check-delivery]') || (contains(github.event.head_commit.message, '[s2arm-shader-checks]') && !contains(github.event.head_commit.message, '[s2arm-engine]'))) && 'yes' || 'no' }}
       CHECK_DELIVERY: ${{ contains(github.event.head_commit.message, '[s2arm-check-delivery]') && 'yes' || 'no' }}
     steps:
       - uses: actions/checkout@v4
@@ -99,6 +101,8 @@ jobs:
             echo "S2Arm pins: $(grep -E '^(IPHONEOS_DEPLOYMENT_TARGET|IPHONEOS_SDK_MAJOR)=' "$RUNNER_TEMP/s2arm/tools/toolchain.env" | tr '\n' ' ')"
           } | tee -a proof/inputs.txt
       - name: Check adaptive shader cache changes
+        id: adaptive_shader_checks
+        continue-on-error: true
         if: matrix.os == 'macos-26' && (contains(github.event.head_commit.message, '[s2arm-shader-checks]') || env.CHECK_DELIVERY == 'yes')
         run: |
           set -euo pipefail
@@ -153,12 +157,17 @@ jobs:
           git apply "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/tracked-metal-device.patch"
           make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" \
             build/tests/t_nvn_shader_flight build/tests/t_nvn_warmbump
-          build/tests/t_nvn_warmbump
-          build/tests/t_nvn_warmbump --transition-gpu
-          build/tests/t_nvn_shader_flight
-          bash "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/test_native_stage_recovery.sh" "$PWD" "$RUNNER_TEMP/t_dsh_stats"
+          status=0
+          build/tests/t_nvn_warmbump || status=1
+          build/tests/t_nvn_warmbump --transition-gpu || status=1
+          build/tests/t_nvn_shader_flight || status=1
+          bash "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/test_native_stage_recovery.sh" "$PWD" "$RUNNER_TEMP/t_dsh_stats" || status=1
+          exit "$status"
+      - name: Require all adaptive cache checks to pass
+        if: ${{ !cancelled() && steps.adaptive_shader_checks.outcome == 'failure' }}
+        run: exit 1
       - name: Build S2Arm's iOS engine with no game (make ios)
-        if: env.CHECK_DELIVERY != 'yes'
+        if: env.TEST_ONLY != 'yes'
         working-directory: ${{ runner.temp }}/s2arm
         env:
           S2A_DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
@@ -190,7 +199,7 @@ jobs:
           done
           exit $status
       - name: Inventory the engine (images, sizes, symbols)
-        if: always() && env.CHECK_DELIVERY != 'yes'
+        if: always() && env.TEST_ONLY != 'yes'
         working-directory: ${{ runner.temp }}/s2arm
         shell: bash --noprofile --norc {0}
         run: |
@@ -238,7 +247,7 @@ jobs:
         env:
           S2A_RUN_ROOT: ${{ runner.temp }}/s2arm-run
       - name: Check the guest entry points of the framework (patches 0003-0010)
-        if: env.CHECK_DELIVERY != 'yes'
+        if: env.TEST_ONLY != 'yes'
         # RewindBox dlopens the framework and looks these up with dlsym; die() finds s2a_rb_guest_fatal by name.
         # rb_s2arm_engine_loaded belongs to RewindBox's host plugin and must not come from the framework.
         # In a guest the engine reads its own Info.plist (patch 0009): S2ACommit is its build identity (diagnostics, dguard.c).
@@ -295,7 +304,7 @@ jobs:
           if [ -n "$chain" ] && [ "$shipped" = "$chain" ]; then note "ok   S2ArmDirectChain.txt $shipped"; else note "FAIL S2ArmDirectChain.txt '$shipped', expected DMSH_CHAIN '$chain'"; status=1; fi
           exit $status
       - name: Inventory the code the engine keeps per licensed component (blocking)
-        if: env.CHECK_DELIVERY != 'yes'
+        if: env.TEST_ONLY != 'yes'
         # main's rule (11 Nov): a component with kept code ships its licence text, one with none is recorded as absent.
         # Managed: symbols of the services library per package assembly; native: the final link's map. --check fails
         # when a package with kept code has no licence entry or a linked archive matches no rule (kept_code_inventory.py);
@@ -325,13 +334,13 @@ jobs:
           fi
           exit $status
       - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
-        if: success() && env.CHECK_DELIVERY != 'yes' && steps.sources-cache.outputs.cache-hit != 'true'
+        if: success() && env.TEST_ONLY != 'yes' && steps.sources-cache.outputs.cache-hit != 'true'
         continue-on-error: true
         with:
           path: ${{ runner.temp }}/s2arm-build-cache/sources
           key: s2arm-sources-v1-${{ hashFiles('tools/s2arm_prototype/pin.json') }}
       - name: Collect the engine's licence and notice texts from its pinned sources
-        if: env.CHECK_DELIVERY != 'yes'
+        if: env.TEST_ONLY != 'yes'
         # For the legal bundle of the test IPA (Legal/S2Arm, docs/s2arm-legal-notices.md): S2Arm's LICENSE, NOTICE and
         # THIRD_PARTY_LICENSES.md and the licence texts of the third parties that reach the iPhone, read from the pinned
         # commit (git objects, not the patched tree), from the source archives this build fetched (checked against the
@@ -350,7 +359,7 @@ jobs:
         # Producer side of the test line's delivery wiring (contract): S2ArmEngine.framework.zip and NS2Pro.framework.zip
         # (ditto -c -k --keepParent, symlinks kept), the collected licences/ (license-sources.json and its texts) and
         # s2arm-engine-identity.json, which records the licences' manifest, uploaded below as s2arm-engine-framework-<sha>.
-        if: success() && matrix.os == 'macos-26' && env.CHECK_DELIVERY != 'yes'
+        if: success() && matrix.os == 'macos-26' && env.TEST_ONLY != 'yes'
         working-directory: ${{ runner.temp }}/s2arm
         shell: bash --noprofile --norc {0}
         env:
@@ -407,7 +416,7 @@ jobs:
           cat "$out/s2arm-engine-identity.json"
           cp "$out/s2arm-engine-identity.json" "$GITHUB_WORKSPACE/proof/"
       - name: Upload the guest frameworks for RewindBox's delivery (macos-26 only)
-        if: success() && matrix.os == 'macos-26' && env.CHECK_DELIVERY != 'yes'
+        if: success() && matrix.os == 'macos-26' && env.TEST_ONLY != 'yes'
         uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: s2arm-engine-framework-${{ github.sha }}
