@@ -25,12 +25,12 @@ if "$work/archive-test" --probe; then
         exit 1
     fi
     sh "$engine/graphics/nvn/tests/t_rb_archive_relaunch.sh" "$work/archive-test"
-    mkdir "$work/resume" "$work/close"
     result=0
-    for mode in resume close; do
-        "$work/archive-test" --held "$work/$mode" "$mode" || result=1
+    for mode in resume close shared retry fail expire-retry; do
+        mkdir "$work/$mode"
+        "$work/archive-test" --held "$work/$mode" "$mode" write || result=1
         # A miss in one process stays a failure even if the other probe succeeds.
-        "$work/archive-test" --held "$work/$mode" replay || result=1
+        "$work/archive-test" --held "$work/$mode" "$mode" replay || result=1
     done
     for tier in hold one expire; do
         mkdir "$work/$tier"

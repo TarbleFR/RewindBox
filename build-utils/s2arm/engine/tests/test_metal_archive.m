@@ -27,6 +27,10 @@ static int rb_spec_level(void) { return atomic_load(&g_spec_gate.level); }
 static int rb_spec_may(int w) { return rb_spec_worker_allowed(rb_spec_level(), w); }
 static int rb_spec_take(int worker, int *lease) { return *lease = rb_spec_admit(&g_spec_gate, worker); }
 static void rb_spec_done(int *lease) { rb_spec_release(&g_spec_gate, lease); }
+static unsigned serializations, refuse_serializations;
+static int expire_on_refusal;
+static BOOL serialize_fixture(id<MTLBinaryArchive> archive, NSURL *url, NSError **error);
+#define RB_ARCHIVE_TEST_SERIALIZE(a, url, e) serialize_fixture(a, url, e)
 static void after_descriptor(NSString *key);
 #define RB_ARCHIVE_TEST_AFTER_DESCRIPTOR(key) after_descriptor(key)
 static NSString *pso_user_path(void) {
@@ -44,6 +48,17 @@ static const int control_793 = 0;
 #include "pso_archive.h"
 #include "rb_archive_relaunch.inc"
 
+static BOOL serialize_fixture(id<MTLBinaryArchive> archive, NSURL *url, NSError **error) {
+    ++serializations;
+    if (!refuse_serializations) return [archive serializeToURL:url error:error];
+    --refuse_serializations;
+    if (expire_on_refusal) {
+        REQUIRE(atomic_load(&g_par_close_until));
+        atomic_store(&g_par_close_until, bp_now());
+    }
+    *error = [NSError errorWithDomain:@"RBFixtureMetalSerialization" code:1 userInfo:nil];
+    return NO;
+}
 enum { INTERRUPT_AT = 7 };
 static dispatch_semaphore_t at_boundary, release_writer;
 static NSMutableArray<NSString *> *attempts;
@@ -76,13 +91,15 @@ static void test_mid_batch(const char *directory, const char *mode) {
     rb_spec_publish(&g_spec_gate, RB_SPEC_HOLD);
     NSMutableArray *keys = [NSMutableArray array], *entries = [NSMutableArray array];
     NSMutableString *source = [NSMutableString stringWithString:@"#include <metal_stdlib>\nusing namespace metal;\n"];
+    unsigned variant = control_793 ? 0 : closing ? 3 : one ? 2 : 1;
     for (unsigned i = 0; i < PAR_BATCH; i++)
-        [source appendFormat:@"kernel void k%u(device uint *p [[buffer(0)]]) { *p = %uu; }\n", i, i + 1];
+        [source appendFormat:@"kernel void b%u_k%u(device uint *p [[buffer(0)]]) { *p = %uu; }\n",
+            variant, i, variant * PAR_BATCH + i + 1];
     NSError *err = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:source options:nil error:&err]; REQUIRE(lib);
     attempts = [NSMutableArray array];
     at_boundary = dispatch_semaphore_create(0); release_writer = dispatch_semaphore_create(0);
     for (unsigned i = 0; i < PAR_BATCH; i++) {
-        NSString *function = [NSString stringWithFormat:@"k%u", i];
+        NSString *function = [NSString stringWithFormat:@"b%u_k%u", variant, i];
         NSString *key = [@"c" stringByAppendingString:par_hash(function.UTF8String, strlen(function.UTF8String))];
         MTLComputePipelineDescriptor *desc = [MTLComputePipelineDescriptor new];
         desc.computeFunction = [lib newFunctionWithName:function];
@@ -134,8 +151,16 @@ static void test_mid_batch(const char *directory, const char *mode) {
     printf("PASS %s after descriptor %u/%u, %lu exact strict hits; no duplicate/start after deadline\n",
            mode, INTERRUPT_AT, (unsigned)PAR_BATCH, (unsigned long)finished);
 }
-static void test_held_writer(const char *directory, const char *mode) {
-    int closing = !strcmp(mode, "close"), replay = !strcmp(mode, "replay");
+static void test_held_writer(const char *directory, const char *mode, int replay) {
+    int resume = !strcmp(mode, "resume"), shared = !strcmp(mode, "shared");
+    int retry = !strcmp(mode, "retry"), failed = !strcmp(mode, "fail"), expired = !strcmp(mode, "expire-retry");
+    REQUIRE(resume || shared || retry || failed || expired || !strcmp(mode, "close"));
+    // "shared" starts with an empty application archive and uses exactly the
+    // successful resume scenario's kernel and key in this new process. Each
+    // independent scenario's replay uses exactly its own original descriptor.
+    NSString *entry = resume || shared ? @"held" : expired ? @"held_expire_retry" : [@"held_" stringByAppendingString:@(mode)];
+    uint32_t expected = resume || shared ? 1 : retry ? 29 : failed ? 31 : expired ? 37 : 17;
+    if (!replay) { refuse_serializations = failed ? 2 : retry || expired; expire_on_refusal = expired; }
     g_dev = MTLCreateSystemDefaultDevice();
     REQUIRE(g_dev);
     NSString *path = [@(directory) stringByAppendingPathComponent:@"pso_user.tsv"];
@@ -143,13 +168,13 @@ static void test_held_writer(const char *directory, const char *mode) {
     par_open_dir();
     REQUIRE(g_par_on);
     NSError *error = nil;
-    id<MTLLibrary> lib = [g_dev newLibraryWithSource:
-        @"#include <metal_stdlib>\nusing namespace metal; kernel void held(device uint *v [[buffer(0)]]) { *v = 1; }"
-        options:nil error:&error];
+    NSString *source = [NSString stringWithFormat:@"#include <metal_stdlib>\nusing namespace metal; "
+        "kernel void %@(device uint *v [[buffer(0)]]) { *v = %uu; }", entry, expected];
+    id<MTLLibrary> lib = [g_dev newLibraryWithSource:source options:nil error:&error];
     REQUIRE(lib);
-    id<MTLFunction> function = [lib newFunctionWithName:@"held"];
+    id<MTLFunction> function = [lib newFunctionWithName:entry];
     REQUIRE(function);
-    NSString *key = [@"c" stringByAppendingString:par_hash("held", 4)];
+    NSString *key = [@"c" stringByAppendingString:par_hash(entry.UTF8String, strlen(entry.UTF8String))];
     if (!replay) {
         // Exercise the production sequence: the first draw builds an exact PSO,
         // and par_compute then submits its descriptor to the deferred writer.
@@ -169,16 +194,33 @@ static void test_held_writer(const char *directory, const char *mode) {
             if (!pending) sched_yield();
         } while (!pending && bp_now() < timeout);
         REQUIRE(pending);
-        if (closing) par_begin_close();
+        if (!resume) par_begin_close();
         else rb_spec_publish(&g_spec_gate, RB_SPEC_RUN);
         struct timespec deadline;
         clock_gettime(CLOCK_REALTIME, &deadline);
         deadline.tv_sec += 30;
         REQUIRE(!par_wait_idle(&deadline));
-        REQUIRE(atomic_load(&g_par_written) == 1 && !g_par_pending_keys.count);
+        REQUIRE(!g_par_pending_keys.count && !g_par_todo.count);
+#ifndef RB_ARCHIVE_TEST_793_CONTROL
+        if (retry || failed || expired) {
+            REQUIRE(serializations == (expired ? 1 : 2) && atomic_load(&g_par_serialize_retries) == (unsigned)!expired);
+        }
+#endif
+        REQUIRE(atomic_load(&g_par_written) == (failed || expired ? 0 : 1));
     }
     // New descriptor, same entry and configuration, like the next call to par_compute.
     id<MTLBinaryArchive> archive = par_archive_for(key);
+    if (failed || expired) {
+        REQUIRE(!archive && !g_par_bmap[key] && ![g_par_have containsObject:key]);
+        // No application archive or index may claim this failed descriptor.
+        id<MTLBinaryArchive> empty = [g_dev newBinaryArchiveWithDescriptor:[MTLBinaryArchiveDescriptor new] error:&error];
+        REQUIRE(empty);
+        MTLComputePipelineDescriptor *missing = [MTLComputePipelineDescriptor new];
+        missing.computeFunction = function; missing.binaryArchives = @[empty];
+        REQUIRE(![g_dev newComputePipelineStateWithDescriptor:missing options:MTLPipelineOptionFailOnBinaryArchiveMiss reflection:nil error:&error]);
+        printf("PASS %s terminal archive miss, replay=%d\n", mode, replay);
+        return;
+    }
     REQUIRE(archive);
     MTLComputePipelineDescriptor *probe = [MTLComputePipelineDescriptor new];
     probe.computeFunction = function;
@@ -206,15 +248,15 @@ static void test_held_writer(const char *directory, const char *mode) {
     [enc endEncoding];
     [cmd commit];
     [cmd waitUntilCompleted];
-    REQUIRE(cmd.status == MTLCommandBufferStatusCompleted && *(uint32_t *)output.contents == 1);
-    printf("PASS deferred writer mode=%s strict compute hit, output=1\n", mode);
+    REQUIRE(cmd.status == MTLCommandBufferStatusCompleted && *(uint32_t *)output.contents == expected);
+    printf("PASS deferred writer mode=%s replay=%d strict compute hit, output=%u\n", mode, replay, expected);
 }
 int main(int argc, char **argv) { @autoreleasepool {
     if (argc == 2 && !strcmp(argv[1], "--probe")) return MTLCreateSystemDefaultDevice() ? 0 : 77;
     if (argc == 4 && !strcmp(argv[1], "--relaunch") && (!strcmp(argv[3], "cold") || !strcmp(argv[3], "warm")))
         return rb_archive_relaunch(argv[2], !strcmp(argv[3], "warm"));
-    if (argc == 4 && !strcmp(argv[1], "--held") && (!strcmp(argv[3], "resume") || !strcmp(argv[3], "close") || !strcmp(argv[3], "replay"))) {
-        test_held_writer(argv[2], argv[3]);
+    if (argc == 5 && !strcmp(argv[1], "--held") && (!strcmp(argv[4], "write") || !strcmp(argv[4], "replay"))) {
+        test_held_writer(argv[2], argv[3], !strcmp(argv[4], "replay"));
         return 0;
     }
     if (argc == 4 && !strcmp(argv[1], "--mid-batch")) { test_mid_batch(argv[2], argv[3]); return 0; }
