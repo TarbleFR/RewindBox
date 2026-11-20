@@ -1,0 +1,165 @@
+Count long Metal presentations overlapping a foreground upload that found absent file-backed pages, separately from PSO scopes. Preserve missing coverage and the all-cause upper bound.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -107,6 +107,8 @@
+ 
+ static id<MTLDevice> g_dev;
+ // RewindBox 0171: observation only; one hook per presented frame, never per draw.
++// 弱链接[host,ios,nvntest]：s2a_rb_bench_storage_wait
++extern void s2a_rb_bench_storage_wait(uint64_t,uint64_t,uint64_t) __attribute__((weak_import));
+ // 弱链接[host,ios,nvntest]：s2a_rb_bench_pipeline_wait
+ extern void s2a_rb_bench_pipeline_wait(uint64_t,uint64_t,uint64_t) __attribute__((weak_import));
+ // 弱链接[host,ios,nvntest]：s2a_rb_bench_generation (optional iOS benchmark observer)
+@@ -5248,6 +5250,7 @@
+             if ((bits && !selected[i]) || (v[i] & MINCORE_INCORE)) { i++; continue; }
+             size_t end = MIN(m, ((i / RB_WN_RUN) + 1) * RB_WN_RUN), j = i + 1;
+             while (j < end && (!bits || selected[j]) && !(v[j] & MINCORE_INCORE)) j++;
++            if (demand && rb_ra_wait_gen) rb_ra_saw_absent=YES;
+             if (adv) {
+                 if (rb_ra_source && rb_gov_on()) rb_ra_advise(c+i*pg,j-i,pg,rb_ra_source);
+                 else (void)madvise((void *)(c + i * pg), (j - i) * pg, MADV_WILLNEED); atomic_fetch_add_explicit(&g_wn_runs, 1, memory_order_relaxed); }
+@@ -5733,9 +5736,10 @@
+ int nvn_sparse_since(const void *pool, uint64_t a, uint64_t n, uint64_t gen, uint64_t stamp); void nvn_sparse_protect(const void *pool, uint64_t a, uint64_t n); int nvn_sparse_mapped(const void *pool, uint64_t a, uint64_t n);
+ static id<MTLTexture> pkg_upload(const tex_t *t, uint64_t *stamp, id<MTLTexture> reuse, uint64_t **ph, uint32_t *nph, BOOL first) {   // reuse: a texture of the same description, idle on the GPU, to upload into instead of a new one; ph / nph: per-page hashes (NvPkg), or NULL
+     struct timespec a, b; clock_gettime(CLOCK_MONOTONIC, &a);
++    uint64_t storageStart=rb_ra_wait_start(!g_tex_peek);
+     BOOL observed=rb_ra_begin(!g_tex_peek);
+     id<MTLTexture> r = pkg_upload_(t, stamp, reuse, ph, nph, first);
+-    rb_ra_finish(observed,r!=nil);
++    rb_ra_finish(observed,r!=nil);rb_ra_wait_end(storageStart);
+     clock_gettime(CLOCK_MONOTONIC, &b); uint64_t d_ = (uint64_t)((b.tv_sec - a.tv_sec) * 1000000000ll + b.tv_nsec - a.tv_nsec);
+     atomic_fetch_add(&g_upload_ns, d_); g_up_total_ns += d_;
+     return r;
+@@ -7453,9 +7457,10 @@
+ //   The Witcher 3 (11-04, Kaer Morhen): a new full-chain ASTC texture takes levels 1 on by CopyTextureToTexture from the old one, then the CPU writes level 0 from the file; uploaded
+ //   whole, levels 1 on were the zeros of guest memory, decoded as the ASTC error colour (magenta foliage in the distance)
+ static int pkg_upload_rects(const tex_t *t, id<MTLTexture> mt, const rect_list *L) {
++    uint64_t storageStart=rb_ra_wait_start(!g_tex_peek);
+     BOOL observed=rb_ra_begin(!g_tex_peek);
+     int result=pkg_upload_rects_body(t,mt,L);
+-    rb_ra_finish(observed,result==0);
++    rb_ra_finish(observed,result==0);rb_ra_wait_end(storageStart);
+     return result;
+ }
+ typedef struct { const tex_t *t; __unsafe_unretained id<MTLTexture> from, to; uint64_t rects; } carry_ctx;
+diff --git a/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc b/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc
+--- a/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc
++++ b/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc
+@@ -12,7 +12,20 @@
+ static _Atomic uint64_t rb_ra_sequence=1;
+ static _Atomic unsigned rb_ra_open;
+ static _Thread_local unsigned rb_ra_source;
+-static _Thread_local BOOL rb_ra_spec_upload;
++static _Thread_local BOOL rb_ra_spec_upload, rb_ra_saw_absent;
++static _Thread_local uint64_t rb_ra_wait_gen;
++static uint64_t rb_ra_wait_start(BOOL required) {
++    if (!required || rb_ra_spec_upload || !on_sub_thread() || !rb_gov_on() || !s2a_rb_bench_generation ||
++        !s2a_rb_bench_storage_wait || rb_ra_wait_gen) return 0;
++    rb_ra_wait_gen=s2a_rb_bench_generation();
++    rb_ra_saw_absent=NO;
++    return rb_ra_wait_gen ? clock_gettime_nsec_np(CLOCK_UPTIME_RAW) : 0;
++}
++static void rb_ra_wait_end(uint64_t start) {
++    if (!start) return;
++    if (rb_ra_saw_absent) s2a_rb_bench_storage_wait(rb_ra_wait_gen,start,clock_gettime_nsec_np(CLOCK_UPTIME_RAW));
++    rb_ra_wait_gen=0;rb_ra_saw_absent=NO;
++}
+ typedef struct { uint32_t slot; uint64_t seq; BOOL resident; } rb_ra_candidate;
+ typedef struct { uint64_t token; unsigned count; rb_ra_candidate page[(RA_LANES-1)*RA_TRIAL]; } rb_ra_read;
+ static _Thread_local rb_ra_read rb_ra_thread;
+diff --git a/ios/rb_benchmark.m b/ios/rb_benchmark.m
+--- a/ios/rb_benchmark.m
++++ b/ios/rb_benchmark.m
+@@ -86,6 +86,18 @@
+     if (generation==g_rb.generation && (g_rb.state==RB_RUNNING || g_rb.state==RB_DRAINING) && end>start) {
+         if (rb_wait_count<sizeof rb_waits/sizeof *rb_waits) rb_waits[rb_wait_count++]=(rb_pipeline_wait){start,end};
+         else rb_wait_overflow=YES;
++    }
++    pthread_mutex_unlock(&g_rb_lock);
++}
++static rb_pipeline_wait rb_storage_waits[16384];
++static size_t rb_storage_count;
++static BOOL rb_storage_overflow;
++void s2a_rb_bench_storage_wait(uint64_t generation,uint64_t start,uint64_t end) {
++    pthread_mutex_lock(&g_rb_lock);
++    if (generation==g_rb.generation && (g_rb.state==RB_RUNNING || g_rb.state==RB_DRAINING) && end>start) {
++        if (rb_storage_count<sizeof rb_storage_waits/sizeof *rb_storage_waits)
++            rb_storage_waits[rb_storage_count++]=(rb_pipeline_wait){start,end};
++        else rb_storage_overflow=YES;
+     }
+     pthread_mutex_unlock(&g_rb_lock);
+ }
+@@ -450,28 +462,29 @@
+     const rb_pipeline_wait *x=a,*y=b;
+     return (x->start>y->start)-(x->start<y->start);
+ }
+-static NSDictionary *rb_pipeline_gaps(const rb_run *run) {
++static NSDictionary *rb_pipeline_gaps(const rb_run *run,rb_pipeline_wait *waits,size_t count,BOOL overflow,uint64_t *overlapCount) {
+     size_t n=run->display_n;
+     if (!n) return nil;
+     qsort(run->display,n,sizeof *run->display,rb_u64_cmp);
+-    qsort(rb_waits,rb_wait_count,sizeof *rb_waits,rb_wait_cmp);
+-    size_t j=0; uint64_t matched=0,all=0,prev=run->display[0];
++    qsort(waits,count,sizeof *waits,rb_wait_cmp);
++    size_t j=0; uint64_t matched=0,longCount=0,all=0,prev=run->display[0];
+     for (size_t i=1;i<n;i++) {
+         uint64_t end=run->display[i],gap=end-prev;
+         if (gap>100000000) {
+             all+=gap;
+-            while (j<rb_wait_count && rb_waits[j].end<=prev) j++;
+-            if (j<rb_wait_count && rb_waits[j].start<end) matched+=gap;
++            while (j<count && waits[j].end<=prev) j++;
++            if (j<count && waits[j].start<end) { matched+=gap;longCount++; }
+         }
+         prev=end;
+     }
+     // The true duration of each boundary frame is unknown. Charge every
+     // nanosecond inside the window on both boundaries to the upper bound.
+     uint64_t edges=run->display[0]-run->start_ns+run->end_ns-prev;
++    if (overlapCount) *overlapCount=longCount;
+     return @{@"complete_long_display_ns":@(all),@"boundary_exposure_ns":@(edges),
+-        @"all_causes_upper_bound_ns":@(all+edges),@"wait_scopes":@(rb_wait_count),
+-        @"wait_overflow":rb_bool(rb_wait_overflow),
+-        @"overlapping_long_display_ns":rb_value(!rb_wait_overflow,matched)};
++        @"all_causes_upper_bound_ns":@(all+edges),@"wait_scopes":@(count),
++        @"wait_overflow":rb_bool(overflow),
++        @"overlapping_long_display_ns":rb_value(!overflow,matched)};
+ }
+ static NSDictionary *rb_frame_stats(uint64_t *timestamps, size_t n, uint64_t start, uint64_t end, int unique) {
+     if (n) qsort(timestamps,n,sizeof *timestamps,rb_u64_cmp);
+@@ -613,7 +626,10 @@
+     pthread_mutex_unlock(&g_rb_lock);
+     if (g_rb_timer) { dispatch_source_cancel(g_rb_timer); g_rb_timer = nil; }
+     NSDictionary *frame = rb_frame_stats(run.frame,run.frame_n,run.start_ns,run.end_ns,0);
+-    NSDictionary *pipeline = run.base.pso_valid ? rb_pipeline_gaps(&run) : nil;
++    NSDictionary *pipeline = run.base.pso_valid ? rb_pipeline_gaps(&run,rb_waits,rb_wait_count,rb_wait_overflow,NULL) : nil;
++    uint64_t storageLong=0;
++    NSDictionary *storage=run.base.tex_valid && run.base.tex.aheadValid ?
++        rb_pipeline_gaps(&run,rb_storage_waits,rb_storage_count,rb_storage_overflow,&storageLong) : nil;
+     NSDictionary *display = rb_frame_stats(run.display,run.display_n,run.start_ns,run.end_ns,1);
+     rb_sample last = run.sample_n ? run.samples[run.sample_n - 1] : run.base;
+     NSDictionary *protocol = @{@"schema":@1,@"protocol_id":RB_PROTOCOL,@"duration_seconds":@(RB_SECONDS),
+@@ -653,6 +669,12 @@
+         @"report_path":NSNull.null} mutableCopy];
+     char docs[4096]; int dn = s2a_container_docs(docs,sizeof docs);
+     if (pipeline) summary[@"pipeline_display"]=pipeline;
++    if (storage) {
++        NSMutableDictionary *s=[storage mutableCopy];
++        s[@"overlapping_long_display_count"]=rb_value(!rb_storage_overflow,storageLong);
++        s[@"scope"]=@"demand upload that observed an absent file-backed page";
++        summary[@"storage_display"]=s;
++    }
+     NSString *path = nil; NSError *writeError = nil;
+     NSString *relative = [@"Diagnostics/S2Arm/benchmarks" stringByAppendingPathComponent:[identifier stringByAppendingPathExtension:@"json"]];
+     if (dn > 0 && (size_t)dn < sizeof docs) {
+@@ -795,7 +817,7 @@
+         pthread_mutex_unlock(&g_rb_lock); return rb_abort_start(generation,frames,display,timer,why,-8);
+     }
+     memset(&g_rb,0,sizeof g_rb); g_rb.generation = generation; g_rb.engine_generation = engine_generation;
+-    rb_wait_count=0; rb_wait_overflow=NO;
++    rb_wait_count=0; rb_wait_overflow=NO;rb_storage_count=0;rb_storage_overflow=NO;
+     g_rb.frame = frames; g_rb.display = display; g_rb.state = RB_PREPARING;
+     g_rb.start_ns = start; g_rb.deadline_ns = start + RB_SECONDS * RB_NS; g_rb.next_sample_ns = start + 10 * RB_NS;
+     g_rb.mode_at_ns = g_rb.thermal_at_ns = start; g_rb.last_game_mode = g_rb.last_sent_mode = 3;

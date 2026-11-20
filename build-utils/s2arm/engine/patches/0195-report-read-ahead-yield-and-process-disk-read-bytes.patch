@@ -1,0 +1,103 @@
+Publish the per-source cohort counters in private benchmark samples and measured process disk bytes in the continuous ten-minute companion.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -20862,6 +20862,15 @@
+     if (!rb_tex_budget_on() || !out) return -1;
+     memset(out, 0, sizeof *out);
+     out->budget = atomic_load(&rb_texture_budget);
++    if (rb_gov_on()) {
++        os_unfair_lock_lock(&rb_ra_lock);
++        for (unsigned i=1;i<RA_LANES;i++) {
++            rb_ra_lane *l=&rb_ra_lanes[i];uint64_t *a=out->ahead[i-1];
++            a[0]=l->issued;a[1]=l->hit;a[2]=l->absent;a[3]=l->expired;a[4]=l->duplicate;
++            a[5]=l->refused;a[6]=l->level;a[7]=l->stopped;a[8]=l->cohorts;
++        }
++        os_unfair_lock_unlock(&rb_ra_lock);out->aheadValid=1;
++    }
+     out->volatileBytes = atomic_load(&rb_tex_volatile_bytes);
+     out->full = atomic_load(&rb_tex_full); out->partial = atomic_load(&rb_tex_partial);
+     out->evictionUploads = atomic_load(&rb_cold_repeat);
+diff --git a/ios/rb_benchmark.m b/ios/rb_benchmark.m
+--- a/ios/rb_benchmark.m
++++ b/ios/rb_benchmark.m
+@@ -252,6 +252,18 @@
+     NSMutableDictionary *out = [memory mutableCopy];
+     if (s->tex_valid) {
+         const rb_texture_stats *t = &s->tex;
++        if (t->aheadValid) {
++            NSArray *names=@[@"registration",@"pool_neighbour",@"recorded_bind"];
++            NSMutableDictionary *ahead=[NSMutableDictionary dictionary];
++            for (unsigned i=0;i<3;i++) {
++                const uint64_t *a=t->ahead[i];
++                ahead[names[i]]=@{@"issued_pages":@(a[0]),@"used_resident_pages":@(a[1]),
++                    @"absent_at_demand_pages":@(a[2]),@"unused_expired_pages":@(a[3]),
++                    @"duplicate_suppressed":@(a[4]),@"unissued":@(a[5]),@"window_divisor":@(1u<<a[6]),
++                    @"session_disabled":@(a[7]!=0),@"closed_cohorts":@(a[8])};
++            }
++            out[@"read_ahead"]=ahead;
++        }
+         out[@"texture_cache"] = @{
+             @"cache_budget_bytes":@(t->budget), @"residency_root_texture_bytes":rb_value(t->residencyValid, t->residentTextures),
+             @"residency_heap_bytes":rb_value(t->residencyValid, t->residentHeaps), @"unpublished_volatile_bytes":@(t->volatileBytes),
+diff --git a/ios/rb_long_paging.inc b/ios/rb_long_paging.inc
+--- a/ios/rb_long_paging.inc
++++ b/ios/rb_long_paging.inc
+@@ -1,10 +1,10 @@
+ // SPDX-License-Identifier: Apache-2.0
+ // An independently identified companion to the existing 180-second score.
+ // Read only cumulative OS counters; no guest pages or GPU resources are touched.
+-typedef struct { uint64_t time, pages, system, ticks; unsigned cores; } rb_long_sample;
++typedef struct { uint64_t time, pages, readBytes, system, ticks; unsigned cores; } rb_long_sample;
+ static BOOL rb_long_read(rb_long_sample *s) {
+-    uint64_t written, readBytes, logical;
+-    if (!s2a_disk_io || s2a_disk_io(&written,&readBytes,&s->pages,&logical)) return NO;
++    uint64_t written, logical;
++    if (!s2a_disk_io || s2a_disk_io(&written,&s->readBytes,&s->pages,&logical)) return NO;
+     mach_port_t host = mach_host_self();
+     processor_info_array_t data = NULL;
+     natural_t count = 0; mach_msg_type_number_t words = 0;
+@@ -44,6 +44,7 @@
+     NSMutableArray *rows = [NSMutableArray array], *cpu = [NSMutableArray array];
+     __block unsigned step = 0;
+     __block uint64_t first = 0, last = 0;
++    const uint64_t baseReads=prev.readBytes;
+     dispatch_queue_t q = dispatch_queue_create("rb.benchmark.paging",dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,QOS_CLASS_UTILITY,0));
+     __block dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER,0,0,q);
+     if (!timer) { atomic_store(&rb_long_busy,false); return; }
+@@ -53,13 +54,13 @@
+             uint64_t deadline = start + (uint64_t)(step+1)*10*NSEC_PER_SEC;
+             if (atomic_load(&rb_long_interrupt)!=interrupt || !rb_engine_running(engine)) reason=@"session_or_conditions_changed";
+             else if (!rb_long_read(&cur) || cur.cores != prev.cores || cur.time <= prev.time ||
+-                     cur.pages < prev.pages || cur.ticks <= prev.ticks || cur.system < prev.system ||
++                     cur.readBytes < prev.readBytes || cur.pages < prev.pages || cur.ticks <= prev.ticks || cur.system < prev.system ||
+                      cur.system-prev.system > cur.ticks-prev.ticks) reason=@"counter_discontinuity";
+             else if ((cur.time>deadline ? cur.time-deadline : deadline-cur.time) > NSEC_PER_SEC) reason=@"sample_outside_tolerance";
+             if (!reason) {
+                 const uint64_t pages=cur.pages-prev.pages, sys=cur.system-prev.system, ticks=cur.ticks-prev.ticks;
+                 NSNumber *percent = @(100.0*(double)sys/(double)ticks);
+-                [rows addObject:@{@"start_ns":@(prev.time),@"end_ns":@(cur.time),@"process_pageins":@(pages),
++                [rows addObject:@{@"start_ns":@(prev.time),@"end_ns":@(cur.time),@"process_pageins":@(pages),@"process_disk_read_bytes":@(cur.readBytes-prev.readBytes),
+                                  @"machine_system_ticks":@(sys),@"machine_total_ticks":@(ticks)}];
+                 [cpu addObject:percent];
+                 if (step<18) first += pages;
+@@ -73,6 +74,7 @@
+             else {
+                 NSArray *sorted = [cpu sortedArrayUsingSelector:@selector(compare:)];
+                 double median = ([sorted[29] doubleValue]+[sorted[30] doubleValue])*0.5;
++                report[@"process_disk_read_bytes"]=@(cur.readBytes-baseReads);
+                 report[@"first_180s_process_pageins"]=@(first); report[@"last_180s_process_pageins"]=@(last);
+                 report[@"pagein_ratio"]=first ? @(last/(double)first) : NSNull.null;
+                 report[@"median_machine_system_cpu_pct"]=@(median);
+diff --git a/runtime/include/rb_texture_stats.h b/runtime/include/rb_texture_stats.h
+--- a/runtime/include/rb_texture_stats.h
++++ b/runtime/include/rb_texture_stats.h
+@@ -6,5 +6,6 @@
+     uint64_t censusTextures, censusHeaps, censusNs;
+     uint64_t full, partial, evictionUploads, evictionGuestBytes, changedOrUnknown;
+     uint64_t evicted, madeVolatile, purged, sparesEvicted, stagingBytes;
+-    int residencyValid;
++    uint64_t ahead[3][9];
++    int aheadValid, residencyValid;
+ } rb_texture_stats;

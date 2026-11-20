@@ -1,0 +1,292 @@
+Count distinct previously absent host pages accepted by the pager. Credit a page once after a successful demanded upload that found it resident, excluding speculative uploads and descriptor probes.
+
+diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+--- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
++++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+@@ -429,7 +429,8 @@
+         }
+ 
+         private static readonly bool MeasureHeap =
+-            OperatingSystem.IsIOS() && Environment.GetEnvironmentVariable("S2A_RB_MEM_GOV") != "0" &&
++            OperatingSystem.IsIOS() && Environment.GetEnvironmentVariable("S2A_RB_PREFETCH_ADAPT") != "0" &&
++            Environment.GetEnvironmentVariable("S2A_RB_MEM_GOV") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_TEX_BUDGET") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_PSO_CAP") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_HEAP_TRIM") != "0" &&
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -5216,6 +5216,8 @@
+ }
+ // The host pages of [p, p + n) not in memory (with bits: only those holding a page of bits), asked to be read ahead (MADV_WILLNEED) in runs; returns how many there were, RB_WN_NONE
+ //   when the span is not looked at. One window and far check for the span, then mincore by 64 host pages, skipping those that hold no selected page
++#include "rb_read_ahead_feedback.inc"
++static int g_tex_peek;
+ static uint64_t rb_wn_(const void *p, uint64_t n, const tex_t *t, const uint64_t *bits, long np, int demand) {
+     if (!n || !p) return 0;
+     if (n > RB_WN_MAX) return RB_WN_NONE;
+@@ -5241,11 +5243,14 @@
+             continue;
+         }
+         if (demand) probed_pages += m;
++        if (rb_gov_on() && (demand || bits)) rb_ra_observe(c,pg,m,v,bits ? selected : NULL);
+         for (size_t i = 0; i < m;) {
+             if ((bits && !selected[i]) || (v[i] & MINCORE_INCORE)) { i++; continue; }
+             size_t end = MIN(m, ((i / RB_WN_RUN) + 1) * RB_WN_RUN), j = i + 1;
+             while (j < end && (!bits || selected[j]) && !(v[j] & MINCORE_INCORE)) j++;
+-            if (adv) { (void)madvise((void *)(c + i * pg), (j - i) * pg, MADV_WILLNEED); atomic_fetch_add_explicit(&g_wn_runs, 1, memory_order_relaxed); }
++            if (adv) {
++                if (rb_ra_source && rb_gov_on()) rb_ra_advise(c+i*pg,j-i,pg,rb_ra_source);
++                else (void)madvise((void *)(c + i * pg), (j - i) * pg, MADV_WILLNEED); atomic_fetch_add_explicit(&g_wn_runs, 1, memory_order_relaxed); }
+             absent += j - i; i = j;
+         }
+         c += m * pg;
+@@ -5259,7 +5264,7 @@
+ }
+ // Called only by optional readers. The demand probe has its own rb_wn_demand path.
+ static _Atomic uint64_t rb_gov_prefetch_inflight, rb_gov_prefetch_skipped;
+-static uint64_t rb_wn(const void *p, uint64_t n) {
++static uint64_t rb_wn(const void *p, uint64_t n, unsigned source) {
+     if (!rb_gov_on()) return rb_wn_(p, n, NULL, NULL, 0, 0);
+     rb_gov_sample(0);
+     uint64_t limit = rb_gov_quota(RB_GOV_PREFETCH);
+@@ -5270,7 +5275,9 @@
+             return RB_WN_NONE;
+         }
+     } while (!atomic_compare_exchange_weak(&rb_gov_prefetch_inflight,&old,old+n));
++    unsigned prior=rb_ra_source; rb_ra_source=source;
+     uint64_t probed = rb_wn_(p,n,NULL,NULL,0,0);
++    rb_ra_source=prior;
+     atomic_fetch_sub(&rb_gov_prefetch_inflight,n);
+     return probed;
+ }
+@@ -5393,7 +5400,7 @@
+                 memory_order_relaxed, memory_order_relaxed);
+             atomic_fetch_add_explicit(&g_pf_stale, 1, memory_order_relaxed);
+         } else {
+-            uint64_t k = rb_wn(p, n);
++            uint64_t k = rb_wn(p, n, RA_REGISTER);
+             atomic_fetch_add_explicit(&g_pf_pages, k == RB_WN_NONE ? 0 : k, memory_order_relaxed);
+         }
+         atomic_fetch_sub_explicit(&g_pf_pend, (int64_t)n, memory_order_relaxed);
+@@ -5553,7 +5560,7 @@
+                 atomic_fetch_add_explicit(&g_pa_cup_skipped_bytes, n, memory_order_relaxed);
+             } else {
+                 // The window stays mapped even when the guest releases its pool.
+-                uint64_t k = rb_wn(p, n);
++                uint64_t k = rb_wn(p, n, RA_NEIGHBOUR);
+                 if (k == RB_WN_NONE) atomic_fetch_add_explicit(&g_pa_unseen, 1, memory_order_relaxed);
+                 else atomic_fetch_add_explicit(&g_pa_pages, k, memory_order_relaxed);
+             }
+@@ -5721,7 +5728,9 @@
+ int nvn_sparse_since(const void *pool, uint64_t a, uint64_t n, uint64_t gen, uint64_t stamp); void nvn_sparse_protect(const void *pool, uint64_t a, uint64_t n); int nvn_sparse_mapped(const void *pool, uint64_t a, uint64_t n);
+ static id<MTLTexture> pkg_upload(const tex_t *t, uint64_t *stamp, id<MTLTexture> reuse, uint64_t **ph, uint32_t *nph, BOOL first) {   // reuse: a texture of the same description, idle on the GPU, to upload into instead of a new one; ph / nph: per-page hashes (NvPkg), or NULL
+     struct timespec a, b; clock_gettime(CLOCK_MONOTONIC, &a);
++    BOOL observed=rb_ra_begin(!g_tex_peek);
+     id<MTLTexture> r = pkg_upload_(t, stamp, reuse, ph, nph, first);
++    rb_ra_finish(observed,r!=nil);
+     clock_gettime(CLOCK_MONOTONIC, &b); uint64_t d_ = (uint64_t)((b.tv_sec - a.tv_sec) * 1000000000ll + b.tv_nsec - a.tv_nsec);
+     atomic_fetch_add(&g_upload_ns, d_); g_up_total_ns += d_;
+     return r;
+@@ -7405,7 +7414,7 @@
+     rect_list *L = u; if (L->n == L->cap) { int nc = L->cap ? 2 * L->cap : 16; up_rect *nr = realloc(L->r, (size_t)nc * sizeof *nr); if (!nr) return; L->r = nr; L->cap = nc; }
+     L->r[L->n++] = (up_rect){level, layer, x, y, w, h};
+ }
+-static int pkg_upload_rects(const tex_t *t, id<MTLTexture> mt, const rect_list *L) {   // 0 = done
++static int pkg_upload_rects_body(const tex_t *t, id<MTLTexture> mt, const rect_list *L) {   // 0 = done
+     int bw, bh, bpb = nvn_fmt_bpb(t->d.format, &bw, &bh); if (!bpb) return 1;
+     { uint32_t upf; int ubpp; if (fmt_unpack(t->d.format, &upf, &ubpp)) return 1; }   // stored in another format (fmt_unpack): the caller re-uploads it whole
+     uint8_t *rb = rb_pkg_bytes(t, 1);   // RewindBox (patch 0016): a level is read whole below; as pkg_upload_, from a copy when the storage cannot all be read
+@@ -7438,6 +7447,12 @@
+ //   TextureGroup: a CPU write synchronizes the subresources it touched again, those the GPU modified keep the GPU's content.
+ //   The Witcher 3 (11-04, Kaer Morhen): a new full-chain ASTC texture takes levels 1 on by CopyTextureToTexture from the old one, then the CPU writes level 0 from the file; uploaded
+ //   whole, levels 1 on were the zeros of guest memory, decoded as the ASTC error colour (magenta foliage in the distance)
++static int pkg_upload_rects(const tex_t *t, id<MTLTexture> mt, const rect_list *L) {
++    BOOL observed=rb_ra_begin(!g_tex_peek);
++    int result=pkg_upload_rects_body(t,mt,L);
++    rb_ra_finish(observed,result==0);
++    return result;
++}
+ typedef struct { const tex_t *t; __unsafe_unretained id<MTLTexture> from, to; uint64_t rects; } carry_ctx;
+ static void carry_rect(void *u, unsigned level, unsigned layer, uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
+     carry_ctx *c = u; int d3 = c->t->d.target == 2; uint32_t z = d3 ? MAX(c->t->d.depth >> level, 1u) : 1;
+@@ -17453,6 +17468,7 @@
+ // never share a snapshot, even with the same shape (10-27 #570 follow-up, xy0v0 ae42eb856: two same-format same-size attachments read the second one's copy); kept across draws
+ static void rb_tex_budget_maintain(void) {
+     uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    if (rb_gov_on()) rb_ra_sweep(frame,NO);
+     static unsigned applied;
+     unsigned plan = rb_gov_on() ? atomic_load(&rb_gov_plan) : 0;
+     if (plan == applied && rb_texture_sample_frame != UINT64_MAX && frame >= rb_texture_sample_frame &&
+diff --git a/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc b/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc
+new file mode 100644
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc
+@@ -0,0 +1,124 @@
++// SPDX-License-Identifier: Apache-2.0
++// One entry per host page for which the kernel accepted speculative advice.
++// Direct-map collisions suppress optional work. They never replace an unresolved page.
++enum { RA_REGISTER=1, RA_NEIGHBOUR, RA_BIND, RA_LANES=4, RA_SLOTS=8192, RA_TRIAL=256 };
++static const char *const rb_ra_names[RA_LANES]={"none","registration","pool-neighbour","recorded-bind"};
++typedef struct { uintptr_t address; uint64_t seq, observer; unsigned owner; BOOL pending, raced; } rb_ra_page;
++typedef struct { uint64_t issued, hit, absent, expired, duplicate, refused;
++    uint64_t firstFrame, cohorts; unsigned pending, opened, resolved, successes, level; BOOL stopped; } rb_ra_lane;
++static rb_ra_page rb_ra_pages[RA_SLOTS];
++static rb_ra_lane rb_ra_lanes[RA_LANES];
++static os_unfair_lock rb_ra_lock=OS_UNFAIR_LOCK_INIT;
++static _Atomic uint64_t rb_ra_sequence=1;
++static _Atomic unsigned rb_ra_open;
++static _Thread_local unsigned rb_ra_source;
++static _Thread_local BOOL rb_ra_spec_upload;
++typedef struct { uint32_t slot; uint64_t seq; BOOL resident; } rb_ra_candidate;
++typedef struct { uint64_t token; unsigned count; rb_ra_candidate page[(RA_LANES-1)*RA_TRIAL]; } rb_ra_read;
++static _Thread_local rb_ra_read rb_ra_thread;
++static unsigned rb_ra_slot(uintptr_t a,uintptr_t pg) { return (unsigned)((a/pg) % RA_SLOTS); }
++static void rb_ra_done(rb_ra_page *p,int outcome) {
++    rb_ra_lane *l=&rb_ra_lanes[p->owner];
++    l->resolved++;
++    if (outcome>0) { l->hit++; l->successes++; }
++    else if (!outcome) l->absent++; else l->expired++;
++    p->owner=0; p->observer=0; atomic_fetch_sub_explicit(&rb_ra_open,1,memory_order_relaxed);
++}
++// Called at most once per cohort deadline or completion from the submission owner.
++static void rb_ra_sweep(uint64_t frame,BOOL end) {
++    static uint64_t last;
++    if (!end && frame>=last && frame-last<30) return;
++    last=end ? 0 : frame;
++    os_unfair_lock_lock(&rb_ra_lock);
++    for (unsigned owner=1;owner<RA_LANES;owner++) {
++        rb_ra_lane *l=&rb_ra_lanes[owner];
++        if (!l->opened || l->pending) continue;
++        BOOL expired=end || (frame>=l->firstFrame && frame-l->firstFrame>=300);
++        if (!expired && (l->opened<RA_TRIAL || l->resolved<l->opened)) continue;
++        if (expired) for (unsigned i=0;i<RA_SLOTS;i++) if (rb_ra_pages[i].owner==owner) rb_ra_done(&rb_ra_pages[i],-1);
++        unsigned total=l->opened,hits=l->successes;
++        l->cohorts++;
++        MLOG("[RB-READ-AHEAD] source=%s closed=%u useful=%u fraction=%.4f level=%u stopped=%u issued_pages=%llu useful_pages=%llu absent_at_use=%llu unused_expired=%llu duplicate_suppressed=%llu unissued=%llu",
++            rb_ra_names[owner],total,hits,(double)hits/total,l->level,(unsigned)l->stopped,
++            (unsigned long long)l->issued,(unsigned long long)l->hit,(unsigned long long)l->absent,
++            (unsigned long long)l->expired,(unsigned long long)l->duplicate,(unsigned long long)l->refused);
++        l->opened=l->resolved=l->successes=0;
++    }
++    if (end) { memset(rb_ra_pages,0,sizeof rb_ra_pages);memset(rb_ra_lanes,0,sizeof rb_ra_lanes);atomic_store(&rb_ra_open,0); }
++    os_unfair_lock_unlock(&rb_ra_lock);
++}
++static unsigned rb_ra_scale(unsigned owner) {
++    if (!rb_gov_on()) return 1;
++    if (!rb_gov_quota(RB_GOV_PREFETCH)) return 0;
++    os_unfair_lock_lock(&rb_ra_lock); rb_ra_lane *l=&rb_ra_lanes[owner];
++    unsigned scale=l->stopped || l->opened+l->pending>=RA_TRIAL ? 0 : 1u<<l->level;
++    os_unfair_lock_unlock(&rb_ra_lock);return scale;
++}
++// The input run consists exclusively of file-backed pages found absent by mincore.
++// Split around outstanding hints and charge only pages accepted by madvise.
++static void rb_ra_advise(uintptr_t a,size_t pages,size_t pg,unsigned source) {
++    if (!rb_gov_quota(RB_GOV_PREFETCH)) return;
++    size_t i=0;
++    while (i<pages) {
++        os_unfair_lock_lock(&rb_ra_lock);
++        rb_ra_lane *l=&rb_ra_lanes[source];
++        unsigned quota=RA_TRIAL-l->opened-l->pending;
++        if (l->stopped || !quota || !rb_gov_quota(RB_GOV_PREFETCH)) { os_unfair_lock_unlock(&rb_ra_lock); break; }
++        rb_ra_page *p=&rb_ra_pages[rb_ra_slot(a+i*pg,pg)];
++        if (p->owner) {
++            if (p->address==a+i*pg) l->duplicate++; else l->refused++;
++            os_unfair_lock_unlock(&rb_ra_lock); i++; continue;
++        }
++        size_t n=1;
++        while (i+n<pages && n<quota && !rb_ra_pages[rb_ra_slot(a+(i+n)*pg,pg)].owner) n++;
++        uint64_t seq=atomic_fetch_add(&rb_ra_sequence,1);
++        for (size_t j=0;j<n;j++) {
++            uintptr_t addr=a+(i+j)*pg;
++            rb_ra_pages[rb_ra_slot(addr,pg)]=(rb_ra_page){.address=addr,.seq=seq,.owner=source,.pending=YES};
++        }
++        l->pending+=(unsigned)n;atomic_fetch_add(&rb_ra_open,(unsigned)n);
++        os_unfair_lock_unlock(&rb_ra_lock);
++        BOOL ok=rb_gov_quota(RB_GOV_PREFETCH) && !madvise((void *)(a+i*pg),n*pg,MADV_WILLNEED);
++        os_unfair_lock_lock(&rb_ra_lock);
++        for (size_t j=0;j<n;j++) {
++            p=&rb_ra_pages[rb_ra_slot(a+(i+j)*pg,pg)];
++            if (p->seq!=seq || !p->pending || p->owner!=source) continue;
++            l->pending--;p->pending=NO;
++            if (ok) {
++                if (!l->opened) l->firstFrame=atomic_load(&g_cur_frame);
++                l->opened++;l->issued++;
++                if (p->raced) rb_ra_done(p,0);
++            } else { l->refused++;p->owner=0;atomic_fetch_sub(&rb_ra_open,1); }
++        }
++        os_unfair_lock_unlock(&rb_ra_lock);i+=n;
++    }
++}
++static BOOL rb_ra_begin(BOOL demand) {
++    if (!rb_gov_on() || !demand || rb_ra_spec_upload || rb_ra_thread.token || !atomic_load(&rb_ra_open)) return NO;
++    rb_ra_thread.token=atomic_fetch_add(&rb_ra_sequence,1);rb_ra_thread.count=0;return YES;
++}
++static void rb_ra_observe(uintptr_t a,uintptr_t pg,size_t n,const char *resident,const char *selected) {
++    rb_ra_read *r=&rb_ra_thread;
++    if (!r->token || !atomic_load_explicit(&rb_ra_open,memory_order_relaxed)) return;
++    os_unfair_lock_lock(&rb_ra_lock);
++    for (size_t i=0;i<n;i++) {
++        if (selected && !selected[i]) continue;
++        uintptr_t addr=a+i*pg;unsigned slot=rb_ra_slot(addr,pg);rb_ra_page *p=&rb_ra_pages[slot];
++        if (p->owner && p->address==addr && p->pending) { p->raced=YES; continue; }
++        if (!p->owner || p->address!=addr || p->observer || r->count>=sizeof r->page/sizeof r->page[0]) continue;
++        p->observer=r->token;
++        r->page[r->count++]=(rb_ra_candidate){slot,p->seq,(resident[i]&MINCORE_INCORE)!=0};
++    }
++    os_unfair_lock_unlock(&rb_ra_lock);
++}
++static void rb_ra_finish(BOOL started,BOOL success) {
++    if (!started) return;
++    rb_ra_read *r=&rb_ra_thread;
++    os_unfair_lock_lock(&rb_ra_lock);
++    for (unsigned i=0;i<r->count;i++) {
++        rb_ra_candidate c=r->page[i];rb_ra_page *p=&rb_ra_pages[c.slot];
++        if (!p->owner || p->seq!=c.seq || p->observer!=r->token) continue;
++        if (success) rb_ra_done(p,c.resident); else p->observer=0;
++    }
++    os_unfair_lock_unlock(&rb_ra_lock);r->count=0;r->token=0;
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+--- a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
++++ b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+@@ -61,7 +61,7 @@
+     }
+     if (mem && bytes <= RB_TX_PAGE_FRAME - g_tx_page.work_bytes) {
+         g_tx_page.work_bytes += bytes;
+-        uint64_t pages = rb_wn(mem, bytes);
++        uint64_t pages = rb_wn(mem, bytes, RA_BIND);
+         if (pages != RB_WN_NONE && pages) {
+             g_tx_page.pages += pages;
+             uint64_t n = ++g_tx_page.refreshed;
+@@ -202,7 +202,9 @@
+             if (isolate && (!rb_cold_room(t) || !rb_span_readable((uintptr_t)t->mem, t->L.size))) continue;
+             rb_capture_registration = h.id;
+             rb_capturing_upload = isolate;
++            rb_ra_spec_upload=YES;
+             id<MTLTexture> prepared = tex_mtl_(t);
++            rb_ra_spec_upload=NO;
+             rb_capturing_upload = NO;
+             if (prepared) {
+                 g_tx_ahead.bytes += t->L.size;
+@@ -221,6 +223,7 @@
+ }
+ 
+ static void rb_tx_reset(void) {
++    if (rb_gov_on()) rb_ra_sweep(atomic_load(&g_cur_frame),YES);
+     // The page queue has already drained with the other window readers.
+     g_tx_page.post_frame = g_tx_page.work_frame = g_tx_page.work_bytes = 0;
+     g_tx_page.pending = g_tx_page.posted = 0;
+diff --git a/runtime/include/rb_heap.h b/runtime/include/rb_heap.h
+--- a/runtime/include/rb_heap.h
++++ b/runtime/include/rb_heap.h
+@@ -16,7 +16,8 @@
+     int v = atomic_load_explicit(&mode, memory_order_relaxed);
+     if (!v) {
+         const char *env = getenv("S2A_RB_MEM_GOV");
+-        v = env && !strcmp(env, "0") ? -1 : 1;
++        const char *adapt = getenv("S2A_RB_PREFETCH_ADAPT");
++        v = (env && !strcmp(env, "0")) || (adapt && !strcmp(adapt, "0")) ? -1 : 1;
+         atomic_store_explicit(&mode, v, memory_order_relaxed);
+     }
+     return v > 0;

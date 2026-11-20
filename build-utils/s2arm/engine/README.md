@@ -302,3 +302,15 @@ Set `S2A_RB_TEX_BUDGET=0` before launch to restore the 803 paths, including the 
 Set `S2A_RB_MEM_GOV=0` before launch for the 803 paths. Existing emergency GPU and allocator releases still observe their safety fences. [Quota policy and device acceptance](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md#pagination-sur-dix-minutes).
 
 The [806 delivery receipt](../../../docs/evidence/rewind806/delivery.json) records the privately decrypted and verified package (97 native images, 10 bundles). Device data against 803 are pending.
+
+### Adaptive file-backed read-ahead, patches 0192–0196
+
+| Patch | Change |
+| --- | --- |
+| 0192 | Track formerly absent host pages for which optional pager advice succeeded. Keep one owner per outstanding page and suppress duplicate advice. Record a hit only after a real full or partial upload succeeds and found the page resident before issuing demand advice. |
+| 0193 | Evaluate closed cohorts separately for registration, pool neighbours and recorded binds. At 50% usefulness or below, shrink the applicable window or admission quota. Stop the source for the session on zero hits, or on another failed cohort at the smallest window. Memory pressure closes optional admission. |
+| 0194 | Bypass the additional speculative whole-texture GPU upload on the recorded-bind path. The measured page hint and demanded upload remain separate. |
+| 0195 | Include per-source counters in benchmark memory samples and process disk-read byte deltas in the ten-minute companion. |
+| 0196 | Report counts and durations of long presentations that overlap a demanded upload with an observed missing file-backed page. Preserve overflow and missing-presentation information. |
+
+`S2A_RB_POOL_AHEAD=0` still disables only neighbour lookahead. `S2A_RB_PREFETCH_ADAPT=0` restores the 803 execution paths for the candidate at launch. [Counter definitions, evidence and device criteria](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md#rendement-de-la-lecture-anticipée).

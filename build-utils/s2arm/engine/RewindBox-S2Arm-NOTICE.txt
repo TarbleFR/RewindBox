@@ -50,6 +50,10 @@ RewindBox patches 0186 through 0191 coordinate optional prefetch, staging, textu
 using iOS process headroom and memory-pressure events. The private benchmark can observe a continuous
 ten-minute session. S2A_RB_MEM_GOV=0 restores the IPA 803 policies.
 
+RewindBox patches 0192 through 0196 measure actual demand for file-backed texture read-ahead, reduce
+speculation with poor yield and correlate demand-page misses with long display intervals.
+S2A_RB_PREFETCH_ADAPT=0 selects the IPA 803 paths. S2A_RB_POOL_AHEAD=0 keeps neighbour lookahead off.
+
 The engine also contains third-party code; S2Arm's own table of it is S2Arm/THIRD_PARTY_LICENSES.md. The exact
 licence and notice texts of the components that reach this application are in the folders beside this file. Each is
 listed in license-sources.json with its origin (a file of that S2Arm commit, a source archive the engine build fetched

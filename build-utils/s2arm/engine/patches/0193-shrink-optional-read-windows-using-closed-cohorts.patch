@@ -1,0 +1,62 @@
+Halve the neighbour window and reduce registration or bind admission when at most half the cohort proves useful. Suspend an unproductive source for the remainder of the session. Respect the original pool-ahead kill switch.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -5357,7 +5357,9 @@
+     if (!t->has_layout && !tex_cpu_written(t->serial)) return;   // a GPU texture (see above)
+     if (tex_get(t->serial)) return;   // made already
+     const uint64_t n = t->L.size;
+-    const int64_t queue_limit = rb_gov_on() ? MIN(rb_pf_pending(),(int64_t)(rb_gov_quota(RB_GOV_PREFETCH) / 2)) : rb_pf_pending();
++    unsigned scale=rb_ra_scale(RA_REGISTER);
++    if (!scale) return;
++    const int64_t queue_limit = rb_gov_on() ? MIN(rb_pf_pending(),(int64_t)(rb_gov_quota(RB_GOV_PREFETCH) / (2*scale))) : rb_pf_pending();
+     int64_t pending = atomic_load_explicit(&g_pf_pend, memory_order_relaxed);
+     do {
+         if (pending + (int64_t)n > queue_limit) {
+@@ -5583,7 +5585,10 @@
+     uint64_t wb = 0, ws = 0; s2a_window_get(&wb, &ws);
+     uintptr_t plo = (uintptr_t)t->pool->mem, phi = plo + (uintptr_t)t->pool->size, a = (uintptr_t)t->mem, e = a + (uintptr_t)t->L.size;
+     if (!ws || a < plo || e > phi || plo < wb || phi > wb + ws) return;   // storage outside its pool, or a pool outside the window: its own pages only
+-    uintptr_t lo = a - plo > RB_PA_BEHIND ? a - RB_PA_BEHIND : plo, hi = phi - e > RB_PA_AHEAD ? e + RB_PA_AHEAD : phi, pm = ((uintptr_t)1 << RB_PA_SHIFT) - 1, rlo = 0, rhi = 0;
++    unsigned scale=rb_ra_scale(RA_NEIGHBOUR);
++    if (!scale) return;
++    uintptr_t behind=RB_PA_BEHIND/scale, ahead=RB_PA_AHEAD/scale;
++    uintptr_t lo = a - plo > behind ? a - behind : plo, hi = phi - e > ahead ? e + ahead : phi, pm = ((uintptr_t)1 << RB_PA_SHIFT) - 1, rlo = 0, rhi = 0;
+     uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed), lowm = ((uint64_t)1 << 40) - 1, ft = (f & 0xffffff) << 40; uint32_t fs = (uint32_t)f + 1;
+     static dispatch_once_t once;
+     dispatch_once(&once, ^{ g_rb_pool_ahead_q = dispatch_queue_create("rb.pool.ahead", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_DEFAULT, 0)); });
+diff --git a/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc b/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc
+--- a/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc
++++ b/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc
+@@ -37,6 +37,9 @@
+         if (!expired && (l->opened<RA_TRIAL || l->resolved<l->opened)) continue;
+         if (expired) for (unsigned i=0;i<RA_SLOTS;i++) if (rb_ra_pages[i].owner==owner) rb_ra_done(&rb_ra_pages[i],-1);
+         unsigned total=l->opened,hits=l->successes;
++        if (!end && 2u*hits<=total) {
++            if (!hits || l->level>=2) l->stopped=YES; else l->level++;
++        }
+         l->cohorts++;
+         MLOG("[RB-READ-AHEAD] source=%s closed=%u useful=%u fraction=%.4f level=%u stopped=%u issued_pages=%llu useful_pages=%llu absent_at_use=%llu unused_expired=%llu duplicate_suppressed=%llu unissued=%llu",
+             rb_ra_names[owner],total,hits,(double)hits/total,l->level,(unsigned)l->stopped,
+diff --git a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+--- a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
++++ b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+@@ -94,6 +94,8 @@
+ }
+ void nvn_be_record_texture_pages(uint32_t id_) {
+     if (rb_tex_budget_on() && !rb_page_hints_allowed()) return;
++    unsigned scale=rb_ra_scale(RA_BIND);
++    if (!scale) return;
+     if (id_ >= (1u << 20) || !rb_course_exact() || !rb_park_compat() || !rb_pf_on() || !rb_wn_on() ||
+         dm_gfx_session_stopping() || nvn_be_stopping() || atomic_load(&g_fu_waiting)) return;
+     uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
+@@ -103,7 +105,7 @@
+     if (!serial || atomic_load_explicit(recent, memory_order_relaxed) == serial ||
+         pthread_mutex_trylock(&g_tx_page.lock)) return;
+     if (frame != g_tx_page.post_frame) { g_tx_page.post_frame = frame; g_tx_page.posted = 0; }
+-    if (g_tx_page.pending < RB_TX_PAGE_HINTS && g_tx_page.posted < RB_TX_PAGE_HINTS &&
++    if (g_tx_page.pending < RB_TX_PAGE_HINTS && g_tx_page.posted < RB_TX_PAGE_HINTS/scale &&
+         atomic_load_explicit(recent, memory_order_relaxed) != serial) {
+         static dispatch_once_t once;
+         dispatch_once(&once, ^{ g_tx_page_queue = dispatch_queue_create("rb.texture.bind.pages",

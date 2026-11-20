@@ -1,0 +1,15 @@
+Omit the second speculative whole-texture upload from the adaptive candidate. Actual replay and the independently measured optional page hint remain available.
+
+diff --git a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+--- a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
++++ b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+@@ -125,6 +125,9 @@
+ 
+ void nvn_be_record_texture_hint(uint32_t id_) {
+     nvn_be_record_texture_pages(id_);
++    // Keep the recorded page hint when admitted. A second full GPU upload
++    // before replay has no verified on-device benefit against 803.
++    if (rb_gov_on()) return;
+     if (rb_tex_budget_on() && !rb_upload_ahead_allowed()) return;
+     if (id_ >= (1u << 20)) return;
+     uint64_t serial = atomic_load_explicit(&g_tser[id_], memory_order_relaxed);
