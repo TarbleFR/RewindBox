@@ -1,0 +1,80 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -5039,6 +5039,7 @@
+ // nominal, 32 MiB in fair and 16 MiB in serious/critical. Rejected spans stay eligible and
+ // the upload still requests its own pages. Set S2A_RB_POOL_QUEUE_BUDGET=0 for patch 0089 alone.
+ static _Atomic uint64_t g_pa_pending, g_pa_pending_peak, g_pa_throttled;
++static _Atomic uint64_t g_pa_cup_held, g_pa_cup_skipped_bytes;
+ static int rb_pa_queue_budget_on(void) {
+     static dispatch_once_t once;
+     static int enabled;
+@@ -5157,14 +5158,21 @@
+            !atomic_compare_exchange_weak_explicit(&g_pa_pending_peak, &peak, count, memory_order_relaxed, memory_order_relaxed)) {}
+     return 1;
+ }
+-static void rb_pa_post(dispatch_queue_t q, uintptr_t lo, uintptr_t hi, uintptr_t a, uintptr_t e, int bounded) {
++static void rb_pa_post(dispatch_queue_t q, uintptr_t lo, uintptr_t hi, uintptr_t a, uintptr_t e, int bounded, int cup) {
+     for (int i = 0; i < 2; i++) {
+         uintptr_t l = i ? MAX(lo, e) : lo, h = i ? hi : MIN(hi, a);
+         if (h <= l) continue;
+         const void *p = (const void *)l; uint64_t n = (uint64_t)(h - l);
+         atomic_fetch_add_explicit(&g_pa_runs, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_pa_bytes, n, memory_order_relaxed);
+-        dispatch_async(q, ^{ uint64_t k = rb_wn(p, n);   // the window stays mapped: a pool the game let go since is still the window's memory (madvise and mincore change nothing there)
+-            if (k == RB_WN_NONE) atomic_fetch_add_explicit(&g_pa_unseen, 1, memory_order_relaxed); else atomic_fetch_add_explicit(&g_pa_pages, k, memory_order_relaxed);
++        dispatch_async(q, ^{
++            if (cup && (dm_gfx_session_stopping() || !rb_spec_may(0))) {
++                atomic_fetch_add_explicit(&g_pa_cup_skipped_bytes, n, memory_order_relaxed);
++            } else {
++                // The window stays mapped even when the guest releases its pool.
++                uint64_t k = rb_wn(p, n);
++                if (k == RB_WN_NONE) atomic_fetch_add_explicit(&g_pa_unseen, 1, memory_order_relaxed);
++                else atomic_fetch_add_explicit(&g_pa_pages, k, memory_order_relaxed);
++            }
+             if (bounded) atomic_fetch_sub_explicit(&g_pa_pending, n, memory_order_relaxed);
+         });
+     }
+@@ -5173,6 +5181,14 @@
+     if (rb_park_compat() && dm_gfx_session_stopping()) return;
+     if (!rb_pa_on() || !rb_wn_on() || !s2a_window_get || !t->pool || !t->pool->mem || !t->pool->size || !t->mem || !t->L.size) return;
+     if (t->pool->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL) return;   // read through its page table (pkg_upload_ asks nothing there)
++    // IPA 796 issued another 600 MiB of neighbour hints between frames 10500
++    // and 11400 at serious thermal pressure. The upload already requested its
++    // own pages. Hold only the neighbouring work under the shared governor.
++    int cup = rb_course_exact();
++    if (cup && !rb_spec_may(0)) {
++        atomic_fetch_add_explicit(&g_pa_cup_held, 1, memory_order_relaxed);
++        return;
++    }
+     uint64_t wb = 0, ws = 0; s2a_window_get(&wb, &ws);
+     uintptr_t plo = (uintptr_t)t->pool->mem, phi = plo + (uintptr_t)t->pool->size, a = (uintptr_t)t->mem, e = a + (uintptr_t)t->L.size;
+     if (!ws || a < plo || e > phi || plo < wb || phi > wb + ws) return;   // storage outside its pool, or a pool outside the window: its own pages only
+@@ -5203,13 +5219,13 @@
+             } while (!atomic_compare_exchange_weak_explicit(&g_pa_budget, &o, nw, memory_order_relaxed, memory_order_relaxed));
+             if (ask < 0 && bounded) atomic_fetch_sub_explicit(&g_pa_pending, extra, memory_order_relaxed);
+         }
+-        if (ask == 1) { atomic_store_explicit(slot, fs, memory_order_relaxed); if (rhi > rlo && rhi == s) rhi = x; else { if (rhi > rlo) rb_pa_post(g_rb_pool_ahead_q, rlo, rhi, a, e, bounded); rlo = s; rhi = x; } continue; }
+-        if (rhi > rlo) rb_pa_post(g_rb_pool_ahead_q, rlo, rhi, a, e, bounded);
++        if (ask == 1) { atomic_store_explicit(slot, fs, memory_order_relaxed); if (rhi > rlo && rhi == s) rhi = x; else { if (rhi > rlo) rb_pa_post(g_rb_pool_ahead_q, rlo, rhi, a, e, bounded, cup); rlo = s; rhi = x; } continue; }
++        if (rhi > rlo) rb_pa_post(g_rb_pool_ahead_q, rlo, rhi, a, e, bounded, cup);
+         rlo = rhi = 0;
+         if (ask == -2) { atomic_fetch_add_explicit(&g_pa_throttled, 1, memory_order_relaxed); return; }
+         if (ask < 0) { atomic_fetch_add_explicit(&g_pa_over, 1, memory_order_relaxed); return; }   // the frame's budget is spent: the rest is left to the uploads' own asks
+     }
+-    if (rhi > rlo) rb_pa_post(g_rb_pool_ahead_q, rlo, rhi, a, e, bounded);
++    if (rhi > rlo) rb_pa_post(g_rb_pool_ahead_q, rlo, rhi, a, e, bounded, cup);
+ }
+ // hle_nvn.c's long-frame line: pages texture reads found not in memory since the last call, those in pools without CPU access (L16: what a private backing of such pools could
+ //   save), and the reads not looked at (not wholly in the window's files); all -1 where the window is not in files (s2a_guest_fd), where nothing is looked at
+@@ -5254,6 +5270,11 @@
+              frame, (unsigned long long)(atomic_load_explicit(&g_pa_pending, memory_order_relaxed) >> 20),
+              (unsigned long long)(atomic_load_explicit(&g_pa_pending_peak, memory_order_relaxed) >> 20),
+              (unsigned long long)atomic_load_explicit(&g_pa_throttled, memory_order_relaxed));
++    uint64_t held = atomic_exchange_explicit(&g_pa_cup_held, 0, memory_order_relaxed);
++    uint64_t skipped = atomic_exchange_explicit(&g_pa_cup_skipped_bytes, 0, memory_order_relaxed);
++    if (held || skipped)
++        MLOG("RewindBox Cup pool read-ahead frame=%llu held_requests=%llu cancelled_queued_bytes=%llu",
++             frame, (unsigned long long)held, (unsigned long long)skipped);
+ }
+ // RewindBox (patch 0016): whether a texture's storage, as the host may read it, holds page for page the bytes of its last upload (ph, as pkg_upload_ took
+ //   them). Only for storage that cannot all be read (0 otherwise: readable storage is left to what it had before). No write-tracked pool holds such storage

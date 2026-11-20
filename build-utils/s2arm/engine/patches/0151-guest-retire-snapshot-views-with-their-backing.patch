@@ -1,0 +1,97 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -16671,12 +16671,29 @@
+ }
+ static uint64_t g_fb_pin;   // ⓪ pinned-level views (fb_prepare)
+ static uint64_t g_fb_l1, g_fb_l1b, g_fb_l2, g_fb_l3;   // hits per layer ① narrowed view ② read memory as it was ③ pass ended first (④ = g_fb_count, a snapshot); see fb_prepare
++enum { FB_VIEW_SLOTS = 8 };
++static __strong id<MTLTexture> g_fb_view[FB_VIEW_SLOTS];
++static __unsafe_unretained id<MTLTexture> g_fb_view_base[FB_VIEW_SLOTS];
++static NSUInteger g_fb_view_range[FB_VIEW_SLOTS][4];
++static MTLPixelFormat g_fb_view_pf[FB_VIEW_SLOTS];
++static MTLTextureSwizzleChannels g_fb_view_sw[FB_VIEW_SLOTS];
++static unsigned g_fb_view_next;
+ static id<MTLTexture> fb_narrow_view(id<MTLTexture> base, id<MTLTexture> t, MTLTextureType vt, NSUInteger tl, NSUInteger n, NSUInteger slice, NSUInteger nsl) {   // levels tl..tl+n-1, slices slice..slice+nsl-1 (0 = t's) of base as type vt, t's format / swizzle; eight kept (the view holds base, so the key stays valid)
+-    static __strong id<MTLTexture> pool[8]; static __unsafe_unretained id<MTLTexture> pbase[8]; static NSUInteger pkey[8][4]; static MTLPixelFormat ppf[8]; static MTLTextureSwizzleChannels psw[8]; static int next;
+     MTLTextureSwizzleChannels sw = t.swizzle; MTLPixelFormat pf = t.pixelFormat; MTLTextureType tt = vt; NSUInteger ns = nsl ? nsl : t.textureType == MTLTextureType2DArray ? t.arrayLength : 1;
+-    for (int i = 0; i < 8; i++) if (pool[i] && pbase[i] == base && pkey[i][0] == tl && pkey[i][1] == n && pkey[i][2] == slice && pkey[i][3] == (ns << 4 | tt) && ppf[i] == pf && !memcmp(&psw[i], &sw, sizeof sw)) return pool[i];
++    NSUInteger range[4] = {tl, n, slice, ns << 4 | tt};
++    for (unsigned i = 0; i < FB_VIEW_SLOTS; i++) {
++        if (g_fb_view[i] && g_fb_view_base[i] == base && g_fb_view_pf[i] == pf &&
++            !memcmp(g_fb_view_range[i], range, sizeof range) && !memcmp(&g_fb_view_sw[i], &sw, sizeof sw)) return g_fb_view[i];
++    }
+     id<MTLTexture> v = [base newTextureViewWithPixelFormat:pf textureType:tt levels:NSMakeRange(tl, n) slices:NSMakeRange(slice, ns) swizzle:sw]; if (!v) return nil;
+-    if (pool[next]) defer_obj_unref(pool[next]); pool[next] = v; pbase[next] = base; pkey[next][0] = tl; pkey[next][1] = n; pkey[next][2] = slice; pkey[next][3] = ns << 4 | tt; ppf[next] = pf; psw[next] = sw; next = (next + 1) & 7;
++    unsigned slot = g_fb_view_next;
++    if (g_fb_view[slot]) defer_obj_unref(g_fb_view[slot]);
++    g_fb_view[slot] = v;
++    g_fb_view_base[slot] = base;
++    memcpy(g_fb_view_range[slot], range, sizeof range);
++    g_fb_view_pf[slot] = pf;
++    g_fb_view_sw[slot] = sw;
++    g_fb_view_next = (slot + 1) % FB_VIEW_SLOTS;
+     return v;
+ }
+ // RewindBox (patch 0107): IPA 785 copied up to 1,881 feedback snapshots (1,713.2 MiB) per 300 frames,
+@@ -16709,6 +16726,14 @@
+                  uint64_t tick, held, budget, made, taken, out, press, swept, seen; int n; } snp_pool_t;   // key: type, format, width, height, levels, slices; seen: g_rb_press at the last look (review)
+ static snp_pool_t g_snp_depth = {.budget = 96ull << 20}, g_snp_color = {.budget = 48ull << 20};
+ static void snp_drop(snp_pool_t *p, int i, int press) {   // entry i goes, released once the submissions that used it are done
++    // A cached view owns its base. Retire that reference with the same fence
++    // so dropped snapshots really leave their pool's memory budget.
++    for (unsigned v = 0; v < FB_VIEW_SLOTS; v++) {
++        if (g_fb_view_base[v] != p->t[i]) continue;
++        defer_obj_unref(g_fb_view[v]);
++        g_fb_view[v] = nil;
++        g_fb_view_base[v] = nil;
++    }
+     defer_obj_release(p->t[i]); p->held -= p->bytes[i]; if (press) p->press++; else p->out++;
+     int l = --p->n; p->t[i] = p->t[l]; p->used[i] = p->used[l]; p->draw[i] = p->draw[l]; p->frame[i] = p->frame[l]; p->bytes[i] = p->bytes[l]; memmove(p->key[i], p->key[l], sizeof p->key[i]); p->t[l] = nil;
+ }
+@@ -16909,6 +16934,7 @@
+ //   holds the valid copy is g_dsnap's business as before (one copy at a time; the same shape gave the same texture already). S2A_RB_SNAP_POOL=0 keeps one
+ enum { DSNAP_POOL = 6 };
+ static uint64_t g_dsnap_made, g_dsnap_reused;
++static uint64_t g_rb_depth_direct;
+ static id<MTLTexture> dsnap_storage(MTLPixelFormat pf, NSUInteger bw, NSUInteger bh, NSUInteger tl, NSUInteger nl) {
+     static __strong id<MTLTexture> pool[DSNAP_POOL]; static uint64_t used[DSNAP_POOL], tick;
+     NSUInteger w = mip_extent(bw, tl), h = mip_extent(bh, tl); int n = snap_pool_on() ? DSNAP_POOL : 1, at = 0;
+@@ -16970,6 +16996,14 @@
+     g_ghost_cap = NGHOST; atomic_store(&g_snp_give, 0); atomic_store(&g_snp_sweep, 0);   // review
+     atomic_store(&g_rb_low_until, 0);   // RewindBox (patch 0071): g_cur_frame starts again at 0 with the next session (nvn_session.inc): this session's low state must not hold it
+     pthread_mutex_unlock(&g_smu);
++    // Every view retains its base, including guest attachments and snapshots.
++    // The backend has drained its work, so park must release these as well.
++    for (unsigned i = 0; i < FB_VIEW_SLOTS; i++) {
++        g_fb_view[i] = nil;
++        g_fb_view_base[i] = nil;
++    }
++    g_fb_view_next = 0;
++    g_rb_depth_direct = 0;
+     snp_pool_t *sp[2] = {&g_snp_depth, &g_snp_color};
+     for (int k = 0; k < 2; k++) { while (sp[k]->n) { int i = --sp[k]->n; res_remove(sp[k]->t[i]); sp[k]->t[i] = nil; } sp[k]->held = 0; }
+     dsnap_stale(); g_dsnap.use = nil;
+@@ -17017,7 +17051,21 @@
+             for (NSUInteger l = 0; l < nl; l++) { NSUInteger w = mip_extent(base.width, tl + l), h = mip_extent(base.height, tl + l);
+                 enc_b_copy_texture(e, base, ts, tl + l, MTLOriginMake(0, 0, 0), MTLSizeMake(w, h, 1), snap, 0, l, MTLOriginMake(0, 0, 0));   // the view's own layer (audit P2-247: was layer 0)
+                 g_fb_bytes += (uint64_t)w * h * (uint64_t)MAX(mtl_pf_bytes(base.pixelFormat), 1u); }
+-            id<MTLTexture> use = fb_narrow_view(snap, t, MTLTextureType2D, 0, nl, 0, 1);
++            id<MTLTexture> use = nil;
++            // IPA 796 took 1,938 depth snapshots in 300 frames at 1x. If the
++            // snapshot already has the full sampled view's exact descriptor,
++            // bind it directly. Keep the ordered copy and all aspect views.
++            if (rb_course_exact() && rb_fb_direct_snap_on() && t.pixelFormat == snap.pixelFormat &&
++                t.width == snap.width && t.height == snap.height && nl == snap.mipmapLevelCount) {
++                MTLTextureSwizzleChannels sw = t.swizzle;
++                if (sw.red == MTLTextureSwizzleRed && sw.green == MTLTextureSwizzleGreen &&
++                    sw.blue == MTLTextureSwizzleBlue && sw.alpha == MTLTextureSwizzleAlpha) {
++                    use = snap;
++                    uint64_t n = ++g_rb_depth_direct;
++                    if (!(n & (n - 1))) MLOG("RewindBox: exact depth snapshot bound directly %llu times", (unsigned long long)n);
++                }
++            }
++            if (!use) use = fb_narrow_view(snap, t, MTLTextureType2D, 0, nl, 0, 1);
+             if (!use) { RED_ONCE(180, "same-pass depth sampling: cannot create the snapshot view (format %lu); left as is", (unsigned long)t.pixelFormat); continue; }
+             if (g_fb_use[g_fb_n] && g_fb_use[g_fb_n] != use) defer_obj_unref(g_fb_use[g_fb_n]);
+             g_fb_src[g_fb_n] = t; g_fb_use[g_fb_n] = use; g_fb_rid[g_fb_n] = use.gpuResourceID._impl; g_fb_n++; g_fb_hits++; g_fb_count++; g_fb_depth++;

@@ -1,0 +1,139 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index cf67d8e..2bcee60 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -2628,7 +2628,8 @@ static void gpu_hang_inject(void) {
+ // the middle one's GPU-written words differ. A capture (cap_end) writes the ring to frames.txt in its folder. S2A_RB_FSIG=0 turns the records off.
+ // Cost: three multiplies and a few stores a draw on the replaying thread, a memory read a GPU-written word in the completion handler. Not measured on a device
+ typedef struct { _Atomic uint64_t frame; uint64_t hash; _Atomic uint64_t ghash, gsum, ts0, ts1; uint32_t draws, ind, mdi, mesh, skipped, passes, pieces, disp, texnew, taken, w, h, gwords, dur, rcn, rcoff, rcunk, rcclr, rcdrw; uint64_t rchash;
+-                 uint32_t dead, fresh; _Atomic uint64_t khash, bhash; _Atomic uint32_t wzero, binz, mdxn, mdxdiff, wlate; uint32_t wlost, wextra, wmoved, plost, pextra, pmoved; uint64_t svs, sfs; } fsig_t;   // frame: its number + 1 (0 = empty); dur (patch 0061): microseconds from its first replayed command to the next frame's; dead to sfs: RewindBox (patch 0067), see fsig_snap_write; wlate (RewindBox (patch 0067), integration review): fsig_wlate
++                 uint32_t dead, fresh; _Atomic uint64_t khash, bhash; _Atomic uint32_t wzero, binz, mdxn, mdxdiff, wlate; uint32_t wlost, wextra, wmoved, plost, pextra, pmoved; uint64_t svs, sfs; uint8_t has_detail; } fsig_t;   // frame: its number + 1 (0 = empty); dur (patch 0061): microseconds from its first replayed command to the next frame's; dead to sfs: RewindBox (patch 0067), see fsig_snap_write; wlate (RewindBox (patch 0067), integration review): fsig_wlate
++static int fsig_capture_active(void);
+ static void rb_auto_probe(uint64_t f, uint32_t dur_us, uint32_t draws);   // RewindBox (patch 0061), defined with the frame capture
+ enum { FSIG_N = 1024, FSIG_ADDR = 2048 };
+ static fsig_t g_fsig[FSIG_N];
+@@ -2642,6 +2643,14 @@ static uint64_t g_fsig_late[4];   // RewindBox (patch 0067): frames whose word t
+ static _Atomic uint64_t g_mdxchk_all, g_mdxchk_diff;   // RewindBox (patch 0067): multi-draw counts checked (mdx_run), and those the GPU read otherwise later in the piece
+ static _Atomic int g_fsig_said_mdb;   // RewindBox (patch 0067): the line listing a multi-draw's base instances, once a process
+ static int fsig_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_FSIG"); v = !(e && !strcmp(e, "0")); } return v; }
++static int fsig_full_requested(void) {
++    static int value = -1;   // replay thread; the launch environment is fixed here
++    if (value < 0) {
++        const char *mode = getenv("S2A_RB_FSIG");
++        value = mode && !strcmp(mode, "1");
++    }
++    return value;
++}
+ static int rb_env_on(const char *name) { const char *e = getenv(name); return !(e && !strcmp(e, "0")); }   // RewindBox (patch 0067): a switch that '0' turns off, read once by each of these
+ static int fsig_id_on(void) { static int v = -1; if (v < 0) v = rb_env_on("S2A_RB_FSIG_ID"); return v; }   // RewindBox (patch 0067): words and passes told by what they are (fpd_wmatch, fpd_pmatch, fpd_wper, fpd_pper)
+ static int fsig_base_on(void) { static int v = -1; if (v < 0) v = rb_env_on("S2A_RB_FSIG_BASE"); return v; }   // RewindBox (patch 0067): indirect records' base instance and base vertex read back
+@@ -3120,7 +3129,9 @@ static void fsig_window(uint64_t f) {
+     static uint32_t span[W]; uint32_t nsp = 0;   // the replaying thread only
+     uint64_t bnz = 0, wz = 0, dead = 0, fresh = 0, wl = 0, we = 0, wm = 0, pl = 0, pe = 0, pm = 0;   // RewindBox (patch 0067)
+     uint64_t lp = 0, lw[3] = {0}; uint32_t lf = 0, lt = 0;   // RewindBox (patch 0067): integration review, pieces read late (wlate) and the frames that have any; frames whose word tests were read late (fsig_wlate), their indirect draws missing, alone, jumping
++    unsigned detailed = 0;
+     for (uint64_t g = f - 3 - W; g < f - 3; g++) { fsig_t *c = fsig_at(g); if (!c || !c->w) continue;
++        detailed += c->has_detail;
+         n++; made += c->texnew; taken += c->taken; pieces += c->pieces; cond += c->rcn; coff += c->rcoff; cclr += c->rcclr;
+         bnz += atomic_load(&c->binz); wz += atomic_load(&c->wzero); dead += c->dead; fresh += c->fresh; pl += c->plost; pe += c->pextra; pm += c->pmoved;   // RewindBox (patch 0067)
+         uint32_t cl = atomic_load(&c->wlate); lp += cl; lf += cl != 0;   // RewindBox (patch 0067): integration review, words read late apart (fsig_wlate)
+@@ -3135,6 +3146,12 @@ static void fsig_window(uint64_t f) {
+     }
+     if (!n) return;
+     for (uint32_t i = 1; i < nsp; i++) { uint32_t v = span[i]; uint32_t j = i; while (j && span[j - 1] > v) { span[j] = span[j - 1]; j--; } span[j] = v; }   // 300 values at most
++    if (detailed < n) {
++        MLOG("RewindBox: frame signatures up to frame %llu: %u scene frames from %ux%u to %ux%u; "
++             "%.1f pieces per frame; detailed comparisons requested in %u of %u scene frames",
++             (unsigned long long)f, n, wmin, hmin, wmax, hmax, (double)pieces / n, detailed, n);
++        return;
++    }
+     MLOG("RewindBox: frame signatures up to frame %llu: %u frames drew a scene, from %ux%u to %ux%u in %d%s sizes, another size than the frame before in %u; shared textures made %.1f a frame and %.1f evicted over their storage, "
+          "%.1f pieces a frame; GPU time the game read from its timestamp reports: p10 %.2f / p50 %.2f / p90 %.2f ms over %u frames; frames with another draw list than the two around them %llu, with other GPU-written words %llu (so far)",
+          (unsigned long long)f, n, wmin, hmin, wmax, hmax, ns, over ? " or more" : "", changes, (double)made / n, (double)taken / n, (double)pieces / n,
+@@ -3163,8 +3180,14 @@ static fsig_t *fsig_cur(void) {   // the record of the frame being replayed, for
+         static uint64_t t_prev; uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW); fsig_t *pr = f ? fsig_at(f - 1) : NULL;   // RewindBox (patch 0061): the frame before this one is whole
+         if (pr && t_prev) pr->dur = (uint32_t)MIN((now - t_prev) / 1000, (uint64_t)UINT32_MAX);
+         t_prev = now;
+-        fpd_open(f);   // RewindBox (patch 0063)
+-        atomic_store(&c->frame, f + 1); g_fsig_frames++; fsig_judge(f);
++        // Keep draw totals and complete interval data. Detailed comparisons and GPU-word
++        // readbacks belong to captures or an explicit diagnostic run on this profile.
++        int full = !rb_course_exact() || fsig_full_requested() || fsig_capture_active();
++        c->has_detail = full;
++        if (full) fpd_open(f);
++        atomic_store(&c->frame, f + 1);
++        g_fsig_frames++;
++        if (full) fsig_judge(f);
+         if (f % 300 == 0) fsig_window(f);
+         rb_auto_probe(f, pr ? pr->dur : 0, pr ? pr->draws : 0);
+     }
+@@ -3176,10 +3199,20 @@ static fsig_t *fsig_cur(void) {   // the record of the frame being replayed, for
+ //   count's: its first draw's, 0 not known); di the draw's place in the frame's detail (-1: not kept). Its frame goes with it: a piece replayed across a frame's start (g_cur_frame
+ //   set by the present path) numbers its words in two frames, and the handler keeps each in its own (review of this patch: they were dropped)
+ static void fsig_word(fsig_t *c, uint64_t addr, int kind, int di, uint64_t rec) {
+-    if (g_fsig_naddr < FSIG_ADDR) { g_fsig_seq[g_fsig_naddr] = c->gwords; g_fsig_wx[g_fsig_naddr] = (fsig_wx){rec, atomic_load_explicit(&g_cur_frame, memory_order_relaxed), 0, (uint8_t)kind}; g_fsig_addr[g_fsig_naddr++] = addr; }
+-    { fpd_t *d = fpd_at(atomic_load_explicit(&g_cur_frame, memory_order_relaxed));   // RewindBox (patch 0067): the word's address and draw, to tell it in another frame (fpd_wmatch)
+-      if (d && c->gwords < FSIG_ADDR) { atomic_store_explicit(&d->waddr[c->gwords], addr, memory_order_relaxed); d->wdraw[c->gwords] = (uint16_t)(di >= 0 ? di : 0xffff); d->nw = c->gwords + 1;
+-          if (di >= 0) d->d[di].word = (uint16_t)c->gwords; } }
++    uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    fpd_t *d = fpd_at(frame);
++    if (!d) return;
++    if (g_fsig_naddr < FSIG_ADDR) {
++        g_fsig_seq[g_fsig_naddr] = c->gwords;
++        g_fsig_wx[g_fsig_naddr] = (fsig_wx){rec, frame, 0, (uint8_t)kind};
++        g_fsig_addr[g_fsig_naddr++] = addr;
++    }
++    if (c->gwords < FSIG_ADDR) {
++        atomic_store_explicit(&d->waddr[c->gwords], addr, memory_order_relaxed);
++        d->wdraw[c->gwords] = (uint16_t)(di >= 0 ? di : 0xffff);
++        d->nw = c->gwords + 1;
++        if (di >= 0) d->d[di].word = (uint16_t)c->gwords;
++    }
+     c->gwords++;
+ }
+ // RewindBox (patch 0067): the textures the draw being encoded samples (encode_args_, the replaying thread), until fsig_draw takes them; fb_prepare starts each draw's
+@@ -3433,7 +3466,15 @@ enum { MDXCHK_PIECE = 64, MDXCHK_SLOTS = 2048 };   // slots in pairs (seen, afte
+ typedef struct { uint64_t cnt, frame; const volatile uint32_t *seen, *after; uint32_t aoff; int next; } rb_mdxchk;
+ static rb_mdxchk g_mdxchk[MDXCHK_PIECE]; static int g_mdxchk_n;
+ static id<MTLBuffer> g_mdxchk_buf;   // the slots, CPU-visible (mdx_run makes it)
+-static int rb_mdxchk_on(void) { static int v = -1; if (v < 0) v = rb_env_on("S2A_RB_MDX_CHECK"); return v; }
++static int rb_mdxchk_on(void) {
++    const char *mode = getenv("S2A_RB_MDX_CHECK");
++    // This optional check uses an extra blit and full barrier after a replay piece.
++    // Its kernel has the same masking rule, but the extra readback is diagnostic.
++    int enabled = mode ? strcmp(mode, "0") != 0 : !rb_course_exact() || fsig_full_requested();
++    if (rb_course_exact())
++        MLOG("RewindBox cup indirect-count verification %s (S2A_RB_MDX_CHECK)", enabled ? "enabled" : "disabled");
++    return enabled;
++}
+ static void mdxchk_after(void) {   // nvn_be_sub_commit (the replaying thread), once the piece's passes are ended: each count with no later check copied after all of the piece's work (blit: a full barrier)
+     id e = nil;
+     for (int i = 0; i < g_mdxchk_n; i++) { void *mb; uint64_t mo, mg; if (g_mdxchk[i].next >= 0 || !g_mdxchk_buf || !mtl_gpu_addr(g_mdxchk[i].cnt, 4, &mb, &mo, &mg)) continue;
+@@ -20485,6 +20526,11 @@ static int ap_period_on(void) { static int v = -1; if (v < 0) v = rb_env_on("S2A
+ //   (review of this patch: the dump was dropped, and a copy early in the next session took the old frames as the newest). S2A_RB_SCREEN_REC=0: neither lines nor folder
+ enum { RB_REC_LAG = 8 };
+ static _Atomic uint64_t g_rec_f0, g_rec_ns0, g_rec_want, g_rec_from, g_rec_from_ns, g_rec_to_ns;   // the recording's first frame + 1 and time; a stop's dump waiting (its last frame + 1), and its first frame + 1 and both times
++static int fsig_capture_active(void) {
++    return cap_all() || atomic_load_explicit(&g_cap_req, memory_order_relaxed) ||
++           atomic_load_explicit(&g_rec_f0, memory_order_relaxed) ||
++           atomic_load_explicit(&g_rec_want, memory_order_relaxed);
++}
+ static int rb_rec_on(void) { static int v = -1; if (v < 0) v = rb_env_on("S2A_RB_SCREEN_REC"); return v; }
+ void nvn_be_rb_screen_capture(int on) {   // any thread, at any time, before the back end starts too (frame 0): atomics and a log line
+     if (!rb_rec_on()) return;
+@@ -20560,9 +20606,12 @@ static void cap_reset(void) {   // session end (nvn_session.inc): a capture left
+                      (double)(s0 - g_t0_ns) / 1e9, (double)(ns - g_t0_ns) / 1e9);
+             MLOG("RewindBox: screen recording: the session ends while it goes on; its frames so far go to profiles/<time>-rec/frames.txt");
+             fsig_dump(NULL, note, "screen recording"); }
+-        if (rb_rec_on()) {   // the copies above are taken; the next session numbers its frames from 0, and a copy taken in its first FSIG_N frames took this one's higher numbers for the newest
+-            for (int i = 0; i < FSIG_N; i++) atomic_store(&g_fsig[i].frame, 0);
+-            for (int i = 0; i < FPD_FRAMES; i++) atomic_store(&g_fpd[i].frame, 0); } }
++    }
++    // Replay and GPU feedback are drained. Frame numbers restart at zero even
++    // when screen recording was disabled, so no prior detail may match again.
++    for (int i = 0; i < FSIG_N; i++) atomic_store(&g_fsig[i].frame, 0);
++    for (int i = 0; i < FPD_FRAMES; i++) atomic_store(&g_fpd[i].frame, 0);
++    g_fsig_naddr = 0;
+     g_cap_snap = 0; g_cap_dir[0] = 0;
+     [g_cap_tex removeAllObjects]; [g_cap_tex_seen removeAllObjects]; g_cap_tex_over = g_cap_tex_kind = 0;   // RewindBox (patch 0048; 0049: the counts)
+     [g_cap_keys removeAllObjects];   // RewindBox (patch 0051)
