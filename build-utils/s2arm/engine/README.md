@@ -274,4 +274,4 @@ Set `S2A_RB_PSO_CAP=0` before launch for the 803 policy, including the 804 heap 
 
 The [verified 180-patch iOS build](../../../docs/evidence/s2arm-fluidity-803/engine180-build.json) records the engine fingerprint and the two successful macOS jobs. On-device results are pending.
 
-The [private 805 transport receipt](../../../docs/evidence/rewind805/transport.json) records the four verified encrypted pieces and the independent checks still pending for the installable IPA and the device.
+The [805 delivery receipt](../../../docs/evidence/rewind805/delivery.json) records the private build decrypted with the maintainer’s reusable recipient and verified against the signing receipt (97 native images, 10 bundles). The [earlier encrypted transport](../../../docs/evidence/rewind805/transport.json) remains documented. Device measurements against 803 are pending.

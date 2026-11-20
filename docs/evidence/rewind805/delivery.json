@@ -1,0 +1,173 @@
+{
+ "schema": 1,
+ "build": 805,
+ "version": "0.0.8",
+ "result": "delivered-and-verified",
+ "deliveryType": "private",
+ "recipe": {
+  "workflow": ".github/workflows/standard-delivery.yml",
+  "manifest": "build-utils/delivery/805.json",
+  "manifestSHA256": "e819c074fdf40959fae13e15d4c100974de3a7b75642b0b5132342deb23dc957"
+ },
+ "execution": {
+  "source": "3f2bffa8a0a31bd44bdf0ac0b19929c9b5cafa38",
+  "tree": "b58fb39904966c28a68ee5cd269d12dc78cebdd7",
+  "run": 44825625217,
+  "attempt": 1,
+  "branch": "Claude",
+  "jobs": {
+   "application": {
+    "id": 136598457869,
+    "conclusion": "success",
+    "started": "2026-11-20T22:05:22Z",
+    "completed": "2026-11-20T22:27:28Z"
+   },
+   "flutter": {
+    "id": 136598460133,
+    "conclusion": "skipped",
+    "started": "2026-11-20T22:05:20Z",
+    "completed": "2026-11-20T22:05:19Z"
+   },
+   "native": {
+    "id": 136598459957,
+    "conclusion": "skipped",
+    "started": "2026-11-20T22:05:20Z",
+    "completed": "2026-11-20T22:05:19Z"
+   },
+   "preflight": {
+    "id": 136597361092,
+    "conclusion": "success",
+    "started": "2026-11-20T22:03:08Z",
+    "completed": "2026-11-20T22:05:19Z"
+   },
+   "republish": {
+    "id": 136598457920,
+    "conclusion": "success",
+    "started": "2026-11-20T22:05:21Z",
+    "completed": "2026-11-20T22:07:44Z"
+   }
+  },
+  "runConclusion": "success",
+  "startedUTC": "2026-11-20T22:03:06Z",
+  "completedUTC": "2026-11-20T22:27:29Z"
+ },
+ "baseline": {
+  "build": 804,
+  "source": "5f8fc02a57e97fbf36a97588d30c0190f4c9eca4",
+  "ipaSHA256": "eedf87f8fb75698cad30e405a9d7318861fc77202157a71f085943f2d4690763"
+ },
+ "ipa": {
+  "name": "RewindBox-805.ipa",
+  "producerName": "RewindBox-Build805-3f2bffa8a0a31bd44bdf0ac0b19929c9b5cafa38-cold.ipa",
+  "bytes": 333569089,
+  "sha256": "29755b0ab068adc4f13c57f5b70d247bb2a76b430ca5984404e9e1eb1de859c5"
+ },
+ "delta": {
+  "freezeCommit": "0adccfa6776795fd84c153ad757d408d4fff146b",
+  "effectiveDigest": "90d81494e5fe4c0642a1a6c06c4b0ff7bb46651b20905dd50792616826ac8a35",
+  "reviewedCommits": [
+   "e23850bcb9026449ab53201dca8c8948fa88c688",
+   "80f4c5d6cd02f6bc690ca759a72af9a98231cf32",
+   "5bc7fa9089c3224e8a3300116dec36fd55ad1938",
+   "b72b0a915a0163d04005c833eddeb64d5c5b489a"
+  ],
+  "sourceOnly": [
+   {
+    "commit": "f51385d99a5e876fa9f89c9e968778576ad7f6e5",
+    "targetBuild": 806
+   }
+  ],
+  "promotedCommits": [],
+  "restoredPaths": 242
+ },
+ "components": {
+  "rpcs3": {
+   "mode": "replace"
+  },
+  "melonx": {
+   "mode": "replace"
+  },
+  "dolphin": {
+   "mode": "retain"
+  },
+  "armsx2": {
+   "mode": "retain"
+  },
+  "libretro": {
+   "mode": "retain-archive"
+  },
+  "melonx-dependencies": {
+   "mode": "retain-archive"
+  },
+  "melonx-upstream": {
+   "mode": "pinned-source"
+  },
+  "stikjit": {
+   "mode": "pinned-source"
+  },
+  "donor": {
+   "mode": "pinned-release"
+  },
+  "xenia": {
+   "mode": "pinned-engine"
+  },
+  "s2arm": {
+   "mode": "pinned-engine"
+  }
+ },
+ "verification": {
+  "result": "passed-offline-checks",
+  "nativeImageCount": 97,
+  "bundles": 10,
+  "imagesChangedFromBase": [
+   "Frameworks/S2ArmEngine.framework/S2ArmEngine",
+   "Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+   "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+   "Runner"
+  ],
+  "offlineValidators": {
+   "melonx": 0,
+   "neoplay": 0,
+   "shaders": 0,
+   "legal": 0,
+   "no-kartpad": 0,
+   "no-dusklight": 0
+  },
+  "signerReceiptIPASHA256Matched": true,
+  "cryptographicSignatureVerificationPerformedOffline": false
+ },
+ "testEvidence": {
+  "testsRun": {
+   "flutter": "not-run",
+   "native": "not-run",
+   "delivery-contract": "fresh"
+  },
+  "testsExecutedInThisRun": [
+   "delivery-contract"
+  ],
+  "deliveryContractJob": 136597361092
+ },
+ "limits": {
+  "physicalDeviceTested": false,
+  "gameplayTested": false,
+  "fpsGainProven": false,
+  "appleProvisioningVerified": false,
+  "directAppleInstallationReady": false
+ },
+ "privateRecipientKeyDeletedAfterVerifiedDelivery": false,
+ "proofFiles": {
+  "api/artifacts.json": "05d674e2d3e76ea74d6011539c8d1513d5bfdb9a79fc9a577a1d3e17b267c469",
+  "api/jobs.json": "7501c7283310546b7a84646a1d8376d8d09a51bfc1cbb52d90219410764bedd3",
+  "api/run-attempt.json": "de0838cfe66ce12455fe5ee9e7db59edb6f8cfcb852a08f8c9eb2ae715bac4cc",
+  "download805-verification.json": "44307e9b67ba9da33fcdb22d3049839e028a40520075e967091d7bc7fad00ba2",
+  "environment.json": "e6c0dd847de0986fec54a740c54477fab8a00cb97df7f8b1bd6ca8cb8e9a8cdf",
+  "observed-timings.json": "4df312970c759ab64a2344dbd1fc17f0f4c7d62d42f0ae87d11fd2888ad20e98",
+  "signature.json": "c24688220400fbba8102b69ceef7f7cb80b98483b16bbc68171155b3a1d22b49",
+  "signed-payload-identity.json": "b5443644e89251d345133009f94be51be62136c5ed4276d71a38f2bce0f8c7c6",
+  "standard-embedded.json": "c8068eedea27483f860c5a25153a3bf5996e569f09a0483d15d3da1a9ed3e5aa",
+  "standard-ipa-validation.json": "fdd826d285c28f129760713e4c866d86fe40d12e706f94c81b6addcb7db49609",
+  "standard-tests.json": "ffd1e8feacc6e71de791cafbbbb311ab2fea96920e5b84a35bb13eab89a3a80c",
+  "transport.json": "4d4650c7e4ecb0cb3a9644ad9943686e3553680d00ae45776006e5ffaf3a47d1",
+  "version-validation.json": "b20a03ba3a31db7c6e154359a04397bc05cdeb62b21a3a102ee3ab4196baf260"
+ }
+}
