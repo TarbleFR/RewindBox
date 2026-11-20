@@ -1,0 +1,633 @@
+{
+  "schema": 1,
+  "scope": "Read-only static comparison of the libretro_internal_bridge framework in delivered IPA802/803; no compilation, test, execution or private-key access.",
+  "classification": "linker_generated_objc_dispatch_stub_selection_equivalent_plus_uuid_and_signature",
+  "verdict": "No application-code or application-data change identified. This is not byte-identical and not UUID/signature-only: linker-generated executable stubs select two byte-identical GOT bindings to the same objc_msgSend import.",
+  "git_revisions": {
+    "802": "ffdb82c37d6dd8e1763a1263fca28eb424fb5e30",
+    "803": "c5422386b72ec4ea88b010dab3826075ee7e79f8"
+  },
+  "zip_entry": "Payload/NeoStation.app/Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
+  "images": [
+    {
+      "path": "/workspace/scratch/c42a7edd1474/private802/offline/delivery/RewindBox-Build802-ffdb82c37d6dd8e1763a1263fca28eb424fb5e30-cold.ipa",
+      "size": 2159024,
+      "sha256": "1a1380376c8c497ee3e0214c7ac0b7f52147c0050a81d20f83822508f65f51a9",
+      "header": [
+        4277009103,
+        16777228,
+        0,
+        6,
+        46,
+        5592,
+        1048709,
+        0
+      ],
+      "uuid": "ebcee8b5-2d7d-3539-8caa-142d99880f1d",
+      "uuid_offset": 3120,
+      "signature_offset": 2124128,
+      "signature_size": 34896
+    },
+    {
+      "path": "/workspace/scratch/c42a7edd1474/private803/offline/delivery/RewindBox-Build803-c5422386b72ec4ea88b010dab3826075ee7e79f8-cold.ipa",
+      "size": 2159024,
+      "sha256": "a805890397722f241c57589731edd639d013aca5c881fceb03e40ae79bdcca54",
+      "header": [
+        4277009103,
+        16777228,
+        0,
+        6,
+        46,
+        5592,
+        1048709,
+        0
+      ],
+      "uuid": "818ac84f-85e1-36d3-a535-3d0100f087b8",
+      "uuid_offset": 3120,
+      "signature_offset": 2124128,
+      "signature_size": 34896
+    }
+  ],
+  "layout_identical": true,
+  "mach_header_identical": true,
+  "load_commands_changed": [
+    "LC_UUID"
+  ],
+  "section_count": 32,
+  "section_contents_unchanged_count": 30,
+  "sections": [
+    {
+      "name": "__TEXT,__text",
+      "address": 16384,
+      "offset": 16384,
+      "size": 832092,
+      "alignment_power": 2,
+      "flags": "0x80000400",
+      "zero_fill": false,
+      "sha256_802": "024ccbd9ff3ee33d4ed3e2d984e8845af29f45470b412c2610c18048c66711e2",
+      "sha256_803": "024ccbd9ff3ee33d4ed3e2d984e8845af29f45470b412c2610c18048c66711e2",
+      "identical": true
+    },
+    {
+      "name": "__TEXT,__stubs",
+      "address": 848476,
+      "offset": 848476,
+      "size": 3864,
+      "alignment_power": 2,
+      "flags": "0x80000408",
+      "zero_fill": false,
+      "sha256_802": "d9409be91a90100e813e366b8244e4e3955f82db3389f9a755fa192ddaaddf25",
+      "sha256_803": "9a7da23598cd6c684ab460c63fdddb389469542e3e5ff0a3fb789a498c07957d",
+      "identical": false
+    },
+    {
+      "name": "__TEXT,__objc_stubs",
+      "address": 852352,
+      "offset": 852352,
+      "size": 65824,
+      "alignment_power": 5,
+      "flags": "0x80000400",
+      "zero_fill": false,
+      "sha256_802": "d91aebd20cc50fc54bf20ea988acb63898d3701c5ed26bf961e30520daea7264",
+      "sha256_803": "9543bb344490459e0c326400cad8d1ba090c3a845c3ac4734a0e86151f71c6d5",
+      "identical": false
+    },
+    {
+      "name": "__TEXT,__objc_methlist",
+      "address": 918176,
+      "offset": 918176,
+      "size": 23604,
+      "alignment_power": 3,
+      "flags": "0x0",
+      "zero_fill": false,
+      "sha256_802": "a4f3cfac2577adfc1094d58118a46b3ccfc4373f92bd4977c1231344bdea44b8",
+      "sha256_803": "a4f3cfac2577adfc1094d58118a46b3ccfc4373f92bd4977c1231344bdea44b8",
+      "identical": true
+    },
+    {
+      "name": "__TEXT,__const",
+      "address": 941792,
+      "offset": 941792,
+      "size": 4529,
+      "alignment_power": 4,
+      "flags": "0x0",
+      "zero_fill": false,
+      "sha256_802": "4d15cf4c7ee13a85f3dd27d42f0b306b9a43591ba71ba6b268f9a42c05264437",
+      "sha256_803": "4d15cf4c7ee13a85f3dd27d42f0b306b9a43591ba71ba6b268f9a42c05264437",
+      "identical": true
+    },
+    {
+      "name": "__TEXT,__cstring",
+      "address": 946321,
+      "offset": 946321,
+      "size": 96738,
+      "alignment_power": 0,
+      "flags": "0x2",
+      "zero_fill": false,
+      "sha256_802": "632e6b7300707dfdafb155c633b5dfd245bf84ce297f40ce753872683e48b2f9",
+      "sha256_803": "632e6b7300707dfdafb155c633b5dfd245bf84ce297f40ce753872683e48b2f9",
+      "identical": true
+    },
+    {
+      "name": "__TEXT,__objc_classname",
+      "address": 1043059,
+      "offset": 1043059,
+      "size": 2227,
+      "alignment_power": 0,
+      "flags": "0x2",
+      "zero_fill": false,
+      "sha256_802": "1fb291d5a7508cb61c0ca9fe1e378294a9799329ae66e82026b321311b13189a",
+      "sha256_803": "1fb291d5a7508cb61c0ca9fe1e378294a9799329ae66e82026b321311b13189a",
+      "identical": true
+    },
+    {
+      "name": "__TEXT,__objc_methname",
+      "address": 1045286,
+      "offset": 1045286,
+      "size": 68562,
+      "alignment_power": 0,
+      "flags": "0x2",
+      "zero_fill": false,
+      "sha256_802": "1c67ec149ff7a63d99e0d2e5f6db329d48b44dab898e5b7ca79498a800b774b5",
+      "sha256_803": "1c67ec149ff7a63d99e0d2e5f6db329d48b44dab898e5b7ca79498a800b774b5",
+      "identical": true
+    },
+    {
+      "name": "__TEXT,__objc_methtype",
+      "address": 1113848,
+      "offset": 1113848,
+      "size": 16494,
+      "alignment_power": 0,
+      "flags": "0x2",
+      "zero_fill": false,
+      "sha256_802": "ae03bac1b22357f9e92cfffae816e4fe465c32f51191cdad453981b497f7dd20",
+      "sha256_803": "ae03bac1b22357f9e92cfffae816e4fe465c32f51191cdad453981b497f7dd20",
+      "identical": true
+    },
+    {
+      "name": "__TEXT,__gcc_except_tab",
+      "address": 1130344,
+      "offset": 1130344,
+      "size": 14476,
+      "alignment_power": 2,
+      "flags": "0x0",
+      "zero_fill": false,
+      "sha256_802": "4564fab7dd2469e0d21ccc41e2aead8a1c3efb280d4b2f243f5879621ff62a08",
+      "sha256_803": "4564fab7dd2469e0d21ccc41e2aead8a1c3efb280d4b2f243f5879621ff62a08",
+      "identical": true
+    },
+    {
+      "name": "__TEXT,__ustring",
+      "address": 1144820,
+      "offset": 1144820,
+      "size": 1276,
+      "alignment_power": 1,
+      "flags": "0x0",
+      "zero_fill": false,
+      "sha256_802": "d364f58dc4a3064c126db178bc77dbfacb8c5feee563ff05d1e62a0e15b43f09",
+      "sha256_803": "d364f58dc4a3064c126db178bc77dbfacb8c5feee563ff05d1e62a0e15b43f09",
+      "identical": true
+    },
+    {
+      "name": "__TEXT,__unwind_info",
+      "address": 1146096,
+      "offset": 1146096,
+      "size": 9256,
+      "alignment_power": 2,
+      "flags": "0x0",
+      "zero_fill": false,
+      "sha256_802": "ce5bb8ac601bf247f10299a6b56b340308a66ebd13c7a3e0321aef9670f16bb6",
+      "sha256_803": "ce5bb8ac601bf247f10299a6b56b340308a66ebd13c7a3e0321aef9670f16bb6",
+      "identical": true
+    },
+    {
+      "name": "__TEXT,__eh_frame",
+      "address": 1155352,
+      "offset": 1155352,
+      "size": 116,
+      "alignment_power": 3,
+      "flags": "0x6800000b",
+      "zero_fill": false,
+      "sha256_802": "1c5047ac247af80585a6497197b615ecce0d9f0d1014ba080a0791cbfacbb2c3",
+      "sha256_803": "1c5047ac247af80585a6497197b615ecce0d9f0d1014ba080a0791cbfacbb2c3",
+      "identical": true
+    },
+    {
+      "name": "__DATA_CONST,__got",
+      "address": 1163264,
+      "offset": 1163264,
+      "size": 4040,
+      "alignment_power": 3,
+      "flags": "0x6",
+      "zero_fill": false,
+      "sha256_802": "cda48041564a321d34a3cc0d170b946ecf92fe47e44a4bc22be67067c04e45a0",
+      "sha256_803": "cda48041564a321d34a3cc0d170b946ecf92fe47e44a4bc22be67067c04e45a0",
+      "identical": true
+    },
+    {
+      "name": "__DATA_CONST,__const",
+      "address": 1167304,
+      "offset": 1167304,
+      "size": 31752,
+      "alignment_power": 3,
+      "flags": "0x0",
+      "zero_fill": false,
+      "sha256_802": "bfb0a2f9b742c3c1fe4b289b180de17e778b4731eaa6054088ec0b9dcb4eaa10",
+      "sha256_803": "bfb0a2f9b742c3c1fe4b289b180de17e778b4731eaa6054088ec0b9dcb4eaa10",
+      "identical": true
+    },
+    {
+      "name": "__DATA_CONST,__cfstring",
+      "address": 1199056,
+      "offset": 1199056,
+      "size": 65632,
+      "alignment_power": 3,
+      "flags": "0x0",
+      "zero_fill": false,
+      "sha256_802": "c7d238efc6c1f01acc7c6f1f29a79ce5993dbad173e673937929b12eb1f4a0ba",
+      "sha256_803": "c7d238efc6c1f01acc7c6f1f29a79ce5993dbad173e673937929b12eb1f4a0ba",
+      "identical": true
+    },
+    {
+      "name": "__DATA_CONST,__objc_classlist",
+      "address": 1264688,
+      "offset": 1264688,
+      "size": 608,
+      "alignment_power": 3,
+      "flags": "0x10000000",
+      "zero_fill": false,
+      "sha256_802": "c0b31e1304f4e13c6929304952e01e41f77628d37e1b904a300cd05f2d277af7",
+      "sha256_803": "c0b31e1304f4e13c6929304952e01e41f77628d37e1b904a300cd05f2d277af7",
+      "identical": true
+    },
+    {
+      "name": "__DATA_CONST,__objc_nlclslist",
+      "address": 1265296,
+      "offset": 1265296,
+      "size": 8,
+      "alignment_power": 3,
+      "flags": "0x10000000",
+      "zero_fill": false,
+      "sha256_802": "9863697d4c9064046d4ffcce9a44f871e3c5b77d414fe4673ae4b3af3f498429",
+      "sha256_803": "9863697d4c9064046d4ffcce9a44f871e3c5b77d414fe4673ae4b3af3f498429",
+      "identical": true
+    },
+    {
+      "name": "__DATA_CONST,__objc_protolist",
+      "address": 1265304,
+      "offset": 1265304,
+      "size": 112,
+      "alignment_power": 3,
+      "flags": "0x0",
+      "zero_fill": false,
+      "sha256_802": "a8786fa518b992a5a0ed5bb2b53a92b7881f1d43f7ec58a7e8cef7d61c322c49",
+      "sha256_803": "a8786fa518b992a5a0ed5bb2b53a92b7881f1d43f7ec58a7e8cef7d61c322c49",
+      "identical": true
+    },
+    {
+      "name": "__DATA_CONST,__objc_imageinfo",
+      "address": 1265416,
+      "offset": 1265416,
+      "size": 8,
+      "alignment_power": 2,
+      "flags": "0x0",
+      "zero_fill": false,
+      "sha256_802": "94039884329d3732c577860f40d0dfdf883ff89dac332f87216e692c08892fa2",
+      "sha256_803": "94039884329d3732c577860f40d0dfdf883ff89dac332f87216e692c08892fa2",
+      "identical": true
+    },
+    {
+      "name": "__DATA_CONST,__objc_superrefs",
+      "address": 1265424,
+      "offset": 1265424,
+      "size": 344,
+      "alignment_power": 3,
+      "flags": "0x0",
+      "zero_fill": false,
+      "sha256_802": "5a0a1bc3824945c81bca75e63ec0352da87049194c8836581e31bb833b48db3d",
+      "sha256_803": "5a0a1bc3824945c81bca75e63ec0352da87049194c8836581e31bb833b48db3d",
+      "identical": true
+    },
+    {
+      "name": "__DATA_CONST,__objc_arraydata",
+      "address": 1265768,
+      "offset": 1265768,
+      "size": 12512,
+      "alignment_power": 3,
+      "flags": "0x0",
+      "zero_fill": false,
+      "sha256_802": "e7c0dd1e15fdff34d4c302c11329c27c201a7a90c2d0ad74a4b60b23277269cf",
+      "sha256_803": "e7c0dd1e15fdff34d4c302c11329c27c201a7a90c2d0ad74a4b60b23277269cf",
+      "identical": true
+    },
+    {
+      "name": "__DATA_CONST,__objc_dictobj",
+      "address": 1278280,
+      "offset": 1278280,
+      "size": 1840,
+      "alignment_power": 3,
+      "flags": "0x0",
+      "zero_fill": false,
+      "sha256_802": "634f7de69b2bd69e973cde668fcf47a6327702755dafe121b432bc8a8cc3d745",
+      "sha256_803": "634f7de69b2bd69e973cde668fcf47a6327702755dafe121b432bc8a8cc3d745",
+      "identical": true
+    },
+    {
+      "name": "__DATA_CONST,__objc_arrayobj",
+      "address": 1280120,
+      "offset": 1280120,
+      "size": 5712,
+      "alignment_power": 3,
+      "flags": "0x0",
+      "zero_fill": false,
+      "sha256_802": "a9a3516458814c1e573f17d9d94394567a160160fd03fe6ebdefabc6151e287b",
+      "sha256_803": "a9a3516458814c1e573f17d9d94394567a160160fd03fe6ebdefabc6151e287b",
+      "identical": true
+    },
+    {
+      "name": "__DATA_CONST,__objc_intobj",
+      "address": 1285832,
+      "offset": 1285832,
+      "size": 1584,
+      "alignment_power": 3,
+      "flags": "0x0",
+      "zero_fill": false,
+      "sha256_802": "489006b353566bfa0edbf9c0fc91f87728b75ff59185396d5853f62bd586685f",
+      "sha256_803": "489006b353566bfa0edbf9c0fc91f87728b75ff59185396d5853f62bd586685f",
+      "identical": true
+    },
+    {
+      "name": "__DATA,__objc_const",
+      "address": 1294336,
+      "offset": 1294336,
+      "size": 53232,
+      "alignment_power": 3,
+      "flags": "0x0",
+      "zero_fill": false,
+      "sha256_802": "bff386cb2332fb526dc35baf013440db67356cb558790fea23b5ac5f589e5ef9",
+      "sha256_803": "bff386cb2332fb526dc35baf013440db67356cb558790fea23b5ac5f589e5ef9",
+      "identical": true
+    },
+    {
+      "name": "__DATA,__objc_selrefs",
+      "address": 1347568,
+      "offset": 1347568,
+      "size": 18112,
+      "alignment_power": 3,
+      "flags": "0x10000005",
+      "zero_fill": false,
+      "sha256_802": "6890b04f3291f26079d266608635a68be9966772d0d13ce049fc8420444dfafe",
+      "sha256_803": "6890b04f3291f26079d266608635a68be9966772d0d13ce049fc8420444dfafe",
+      "identical": true
+    },
+    {
+      "name": "__DATA,__objc_ivar",
+      "address": 1365680,
+      "offset": 1365680,
+      "size": 3916,
+      "alignment_power": 2,
+      "flags": "0x0",
+      "zero_fill": false,
+      "sha256_802": "5c17747b65cbc598565aba6d9e305d9480ae32ba6345a30d26c0e9e6ac3cf8c8",
+      "sha256_803": "5c17747b65cbc598565aba6d9e305d9480ae32ba6345a30d26c0e9e6ac3cf8c8",
+      "identical": true
+    },
+    {
+      "name": "__DATA,__objc_data",
+      "address": 1369600,
+      "offset": 1369600,
+      "size": 6080,
+      "alignment_power": 3,
+      "flags": "0x0",
+      "zero_fill": false,
+      "sha256_802": "7405650024ce846e4d08ea0d7ad4acb126cdb1a3a00cccb452d7da5e55cac3b3",
+      "sha256_803": "7405650024ce846e4d08ea0d7ad4acb126cdb1a3a00cccb452d7da5e55cac3b3",
+      "identical": true
+    },
+    {
+      "name": "__DATA,__data",
+      "address": 1375680,
+      "offset": 1375680,
+      "size": 1368,
+      "alignment_power": 3,
+      "flags": "0x0",
+      "zero_fill": false,
+      "sha256_802": "b1d3eb30bb38f67f1cc3b88b95b183fc98706d212f28358fe53e79590d8746ed",
+      "sha256_803": "b1d3eb30bb38f67f1cc3b88b95b183fc98706d212f28358fe53e79590d8746ed",
+      "identical": true
+    },
+    {
+      "name": "__DATA,__bss",
+      "address": 1377048,
+      "offset": 0,
+      "size": 920,
+      "alignment_power": 3,
+      "flags": "0x1",
+      "zero_fill": true,
+      "sha256_802": null,
+      "sha256_803": null,
+      "identical": true
+    },
+    {
+      "name": "__DATA,__common",
+      "address": 1377968,
+      "offset": 0,
+      "size": 24,
+      "alignment_power": 3,
+      "flags": "0x1",
+      "zero_fill": true,
+      "sha256_802": null,
+      "sha256_803": null,
+      "identical": true
+    }
+  ],
+  "application_text": {
+    "section": "__TEXT,__text",
+    "size": 832092,
+    "identical": true,
+    "sha256": "024ccbd9ff3ee33d4ed3e2d984e8845af29f45470b412c2610c18048c66711e2"
+  },
+  "changed_instruction_count": 2058,
+  "changed_instruction_patterns": [
+    {
+      "section": "__TEXT,__stubs",
+      "instruction_802": "0xf9447e10",
+      "instruction_803": "0xf9448210",
+      "got_target_802": "0x11c8f8",
+      "got_target_803": "0x11c900",
+      "count": 1,
+      "decoded": "LDR X16, [X16, #imm12_scaled_by_8]"
+    },
+    {
+      "section": "__TEXT,__objc_stubs",
+      "instruction_802": "0xf9448210",
+      "instruction_803": "0xf9447e10",
+      "got_target_802": "0x11c900",
+      "got_target_803": "0x11c8f8",
+      "count": 2057,
+      "decoded": "LDR X16, [X16, #imm12_scaled_by_8]"
+    }
+  ],
+  "got_bindings": [
+    {
+      "target_address": "0x11c8f8",
+      "file_offset": 1165560,
+      "raw_pointer": "0x801000000000011f",
+      "pointer_format": 6,
+      "bind": true,
+      "import_ordinal": 287,
+      "pointer_addend": 0,
+      "symbol": "_objc_msgSend",
+      "indirect_symbol_index": 22145,
+      "symbol_n_desc": "0x1900",
+      "import_name": "_objc_msgSend",
+      "weak_import": false,
+      "library_ordinal": 25,
+      "library": "/usr/lib/libobjc.A.dylib"
+    },
+    {
+      "target_address": "0x11c900",
+      "file_offset": 1165568,
+      "raw_pointer": "0x801000000000011f",
+      "pointer_format": 6,
+      "bind": true,
+      "import_ordinal": 287,
+      "pointer_addend": 0,
+      "symbol": "_objc_msgSend",
+      "indirect_symbol_index": 22145,
+      "symbol_n_desc": "0x1900",
+      "import_name": "_objc_msgSend",
+      "weak_import": false,
+      "library_ordinal": 25,
+      "library": "/usr/lib/libobjc.A.dylib"
+    }
+  ],
+  "all_changed_loads_resolved_to_identical_binding": true,
+  "linkedit_before_signature": {
+    "offset": 1392640,
+    "size": 731488,
+    "identical": true,
+    "sha256": "2a5ddd3a6ae80d869d26a887546573661f4d6c5136272f3f7fa9b40a862a1a6d"
+  },
+  "linkedit_blobs": [
+    {
+      "name": "dyld_chained_fixups",
+      "offset": 1392640,
+      "size": 13920,
+      "identical": true,
+      "sha256": "ea896a3e0b97804fd6c2b26d4a1f075cd13f40cb53648c532467f97564b8c4ca"
+    },
+    {
+      "name": "dyld_exports_trie",
+      "offset": 1406560,
+      "size": 18160,
+      "identical": true,
+      "sha256": "3d50ac6cda83795cae7ea31da959479b8c9746fd0eb0738ce4893945af084f01"
+    },
+    {
+      "name": "function_starts",
+      "offset": 1424720,
+      "size": 4536,
+      "identical": true,
+      "sha256": "9b6d5afa52cf8711be74892aa7b8ac5acb35aea0ad15a92726451979f341cd8d"
+    },
+    {
+      "name": "data_in_code",
+      "offset": 1429256,
+      "size": 0,
+      "identical": true,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "different_byte_count": 2680,
+  "different_bytes_by_class": {
+    "LC_UUID": 16,
+    "equivalent_objc_dispatch_stub_loads": 2058,
+    "LC_CODE_SIGNATURE_blob": 606
+  },
+  "semantic_normalization": {
+    "method": "Zero LC_UUID payload and complete LC_CODE_SIGNATURE blob; canonicalize only the 2058 verified changed LDRs to the lower identical objc_msgSend GOT entry. No other bytes are normalized.",
+    "identical": true,
+    "sha256": "c7f53a1ff4a18f0175d7bf564a25cbf27533262940302de4d2a85184f7c204d9",
+    "unexplained_bytes": 0
+  },
+  "source_and_build_inputs": [
+    {
+      "path": "packages/libretro_internal_bridge",
+      "git_entry_802": "040000 tree 4b2986e01f8299dd044dce7ede37a9ad5e86a659\tpackages/libretro_internal_bridge",
+      "git_entry_803": "040000 tree 4b2986e01f8299dd044dce7ede37a9ad5e86a659\tpackages/libretro_internal_bridge",
+      "identical": true
+    },
+    {
+      "path": "packages/achievement_translation",
+      "git_entry_802": "040000 tree 2e6e713ab4e1f23b209266b61685d2e8ec388155\tpackages/achievement_translation",
+      "git_entry_803": "040000 tree 2e6e713ab4e1f23b209266b61685d2e8ec388155\tpackages/achievement_translation",
+      "identical": true
+    },
+    {
+      "path": "packages/retro_achievements_session",
+      "git_entry_802": "040000 tree d9361e63f59767d463d9cda9a5b2c77b526e27ff\tpackages/retro_achievements_session",
+      "git_entry_803": "040000 tree d9361e63f59767d463d9cda9a5b2c77b526e27ff\tpackages/retro_achievements_session",
+      "identical": true
+    },
+    {
+      "path": "packages/external_display",
+      "git_entry_802": "040000 tree 978bb0912a04f021dd2dd9348f4b54ea5740b2be\tpackages/external_display",
+      "git_entry_803": "040000 tree 978bb0912a04f021dd2dd9348f4b54ea5740b2be\tpackages/external_display",
+      "identical": true
+    },
+    {
+      "path": "packages/neo_shader_kit",
+      "git_entry_802": "040000 tree 5ede95d587255db14dfc45273e2ba86679d97e18\tpackages/neo_shader_kit",
+      "git_entry_803": "040000 tree 5ede95d587255db14dfc45273e2ba86679d97e18\tpackages/neo_shader_kit",
+      "identical": true
+    },
+    {
+      "path": "packages/neo_cheat_catalog",
+      "git_entry_802": "040000 tree 95ffb3bb62768d54d36201e9886ad95a4b2635a4\tpackages/neo_cheat_catalog",
+      "git_entry_803": "040000 tree 95ffb3bb62768d54d36201e9886ad95a4b2635a4\tpackages/neo_cheat_catalog",
+      "identical": true
+    },
+    {
+      "path": "ios/Podfile",
+      "git_entry_802": null,
+      "git_entry_803": null,
+      "identical": true
+    },
+    {
+      "path": "ios/Podfile.lock",
+      "git_entry_802": null,
+      "git_entry_803": null,
+      "identical": true
+    },
+    {
+      "path": "pubspec.yaml",
+      "git_entry_802": "100644 blob becd9bcee8237922ea233253e89c0c147710a9e6\tpubspec.yaml",
+      "git_entry_803": "100644 blob becd9bcee8237922ea233253e89c0c147710a9e6\tpubspec.yaml",
+      "identical": true
+    },
+    {
+      "path": "pubspec.lock",
+      "git_entry_802": "100644 blob 719ea3b6767c10e60209e144a4e7793520a88b54\tpubspec.lock",
+      "git_entry_803": "100644 blob 719ea3b6767c10e60209e144a4e7793520a88b54\tpubspec.lock",
+      "identical": true
+    },
+    {
+      "path": ".github/workflows/s2arm-delivery.yml",
+      "git_entry_802": "100644 blob e004cc960a9212f1e4c58ac4cf336bc39c7bc14b\t.github/workflows/s2arm-delivery.yml",
+      "git_entry_803": "100644 blob e004cc960a9212f1e4c58ac4cf336bc39c7bc14b\t.github/workflows/s2arm-delivery.yml",
+      "identical": true
+    },
+    {
+      "path": "build-utils/libretro",
+      "git_entry_802": "040000 tree 9a40f4b2c3726582b492f6aa2c3f9a3a852a2f21\tbuild-utils/libretro",
+      "git_entry_803": "040000 tree 9a40f4b2c3726582b492f6aa2c3f9a3a852a2f21\tbuild-utils/libretro",
+      "identical": true
+    }
+  ],
+  "limits": [
+    "Static byte and relocation analysis, not a device execution result.",
+    "No cryptographic signature revalidation performed here; the existing IPA verification receipt remains authoritative.",
+    "The original linker invocation/order is not reconstructed; the duplicate GOT-entry selection is demonstrated by the outputs."
+  ]
+}

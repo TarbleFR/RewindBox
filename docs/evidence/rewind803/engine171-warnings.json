@@ -1,0 +1,626 @@
+{
+  "schema": 1,
+  "source": "342f534efc856eedeba9b085df291757bc942d41",
+  "run": 44772035018,
+  "baselineSource": "819e675aa6d5930b3d6104b5076639ab4c25117e",
+  "baselineRun": 44759330364,
+  "patchSHA256": {
+    "170": "68713db19cf04143b6b5765c21106cec8587f4eef6915aae2f950887a4d24a9f",
+    "171": "34f6887cbd40a8a75087c916b2abcba39486b4b8b41cf727ba2146c55363360b"
+  },
+  "sourceAddedFiles": {
+    "170": {
+      "runtime/src/caps.c": 12,
+      "runtime/include/caps.h": 3
+    },
+    "171": {
+      "compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs": 94,
+      "compat/tree/src/Ryujinx.Audio/Renderer/Dsp/AudioProcessor.cs": 7,
+      "graphics/nvn/gfx/nvn/hle_nvn.c": 10,
+      "graphics/nvn/gfx/nvn/nvn_mtl.m": 25,
+      "ios/app.m": 31,
+      "ios/rb_benchmark.h": 73,
+      "ios/rb_benchmark.m": 772,
+      "ios/rb_vm_audit.h": 37,
+      "ios/rb_vm_audit.m": 649,
+      "ios/settings.m": 3,
+      "runtime/src/caps.c": 5,
+      "runtime/src/loader.c": 1,
+      "runtime/src/rb_guest.c": 6,
+      "runtime/src/thread.c": 1,
+      "services/aot/Compose.cs": 33
+    }
+  },
+  "result": "no-new-compiler-or-infrastructure-warning-and-abi-gates-passed",
+  "records": [
+    {
+      "schema": 1,
+      "source": "342f534efc856eedeba9b085df291757bc942d41",
+      "run": 44772035018,
+      "job": 136411913395,
+      "platform": "macos-26",
+      "jobConclusion": "success",
+      "baselineSource": "819e675aa6d5930b3d6104b5076639ab4c25117e",
+      "baselineRun": 44759330364,
+      "baselineJob": 136367361516,
+      "compilerWarnings": [
+        {
+          "raw": "2026-11-20T16:31:29.2931740Z ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "path": null,
+          "line": null,
+          "column": null,
+          "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:34.4272650Z ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+            "path": null,
+            "line": null,
+            "column": null,
+            "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false
+        },
+        {
+          "raw": "2026-11-20T16:31:29.3061130Z ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "path": null,
+          "line": null,
+          "column": null,
+          "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:34.4531090Z ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+            "path": null,
+            "line": null,
+            "column": null,
+            "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false
+        },
+        {
+          "raw": "2026-11-20T16:31:29.3176280Z ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "path": null,
+          "line": null,
+          "column": null,
+          "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:34.4697360Z ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+            "path": null,
+            "line": null,
+            "column": null,
+            "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false
+        },
+        {
+          "raw": "2026-11-20T16:31:29.3182440Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:18904:15: warning: comparison of distinct pointer types ('id<MTL4RenderCommandEncoder>' and 'id<MTLRenderCommandEncoder>') [-Wcompare-distinct-pointer-types]",
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 18904,
+          "column": 15,
+          "diagnostic": "warning: comparison of distinct pointer types ('id<MTL4RenderCommandEncoder>' and 'id<MTLRenderCommandEncoder>') [-Wcompare-distinct-pointer-types]",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:34.4717250Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:18888:15: warning: comparison of distinct pointer types ('id<MTL4RenderCommandEncoder>' and 'id<MTLRenderCommandEncoder>') [-Wcompare-distinct-pointer-types]",
+            "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+            "line": 18888,
+            "column": 15,
+            "diagnostic": "warning: comparison of distinct pointer types ('id<MTL4RenderCommandEncoder>' and 'id<MTLRenderCommandEncoder>') [-Wcompare-distinct-pointer-types]"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false,
+          "sourceLine170": "    if (g_enc != en) { static int again; if (again < 2) { again++; draw(dw, di); again--; return; } RED_ONCE(136, \"a draw's binding ended its render pass again on the retry; the draw is skipped\"); return; }",
+          "sourceLine171": "    if (g_enc != en) { static int again; if (again < 2) { again++; draw(dw, di); again--; return; } RED_ONCE(136, \"a draw's binding ended its render pass again on the retry; the draw is skipped\"); return; }",
+          "sameSourceLine": true,
+          "lineOffset": 16
+        },
+        {
+          "raw": "2026-11-20T16:31:29.3185610Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:18923:82: warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 18923,
+          "column": 82,
+          "diagnostic": "warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:34.4730350Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:18907:82: warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+            "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+            "line": 18907,
+            "column": 82,
+            "diagnostic": "warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false,
+          "sourceLine170": "            if (g_vis_cur >= 0 && g_enc_vis != g_vis_cur + 1) { enc_r_visibility(en, MTLVisibilityResultModeCounting, (NSUInteger)g_vis_cur * 8); g_enc_vis = g_vis_cur + 1; }",
+          "sourceLine171": "            if (g_vis_cur >= 0 && g_enc_vis != g_vis_cur + 1) { enc_r_visibility(en, MTLVisibilityResultModeCounting, (NSUInteger)g_vis_cur * 8); g_enc_vis = g_vis_cur + 1; }",
+          "sameSourceLine": true,
+          "lineOffset": 16
+        },
+        {
+          "raw": "2026-11-20T16:31:29.3581640Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:18985:37: warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 18985,
+          "column": 37,
+          "diagnostic": "warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:34.4741410Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:18969:37: warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+            "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+            "line": 18969,
+            "column": 37,
+            "diagnostic": "warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false,
+          "sourceLine170": "        enc_r_draw_indexed_indirect(en, mp, MTLIndexTypeUInt32, g_geo_indices, g_geo_index_bytes, g_geo_args); g_pass_geo++;",
+          "sourceLine171": "        enc_r_draw_indexed_indirect(en, mp, MTLIndexTypeUInt32, g_geo_indices, g_geo_index_bytes, g_geo_args); g_pass_geo++;",
+          "sameSourceLine": true,
+          "lineOffset": 16
+        },
+        {
+          "raw": "2026-11-20T16:31:29.3594780Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:18988:62: warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 18988,
+          "column": 62,
+          "diagnostic": "warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:34.4758240Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:18972:62: warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+            "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+            "line": 18972,
+            "column": 62,
+            "diagnostic": "warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false,
+          "sourceLine170": "    if (dw && dw->tfc) { if (g_tfd_args) enc_r_draw_indirect(en, mp, g_tfd_args); return; }   // DrawTransformFeedback: the arguments tfd_args made (nvn_geometry.inc)",
+          "sourceLine171": "    if (dw && dw->tfc) { if (g_tfd_args) enc_r_draw_indirect(en, mp, g_tfd_args); return; }   // DrawTransformFeedback: the arguments tfd_args made (nvn_geometry.inc)",
+          "sameSourceLine": true,
+          "lineOffset": 16
+        },
+        {
+          "raw": "2026-11-20T16:31:29.3603380Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:20475:15: warning: 'MTLPixelFormatPVRTC_RGB_2BPP' is deprecated: first deprecated in iOS 18.0 - Usage of ASTC/ETC2/BC formats is recommended instead. [-Wdeprecated-declarations]",
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 20475,
+          "column": 15,
+          "diagnostic": "warning: 'MTLPixelFormatPVRTC_RGB_2BPP' is deprecated: first deprecated in iOS 18.0 - Usage of ASTC/ETC2/BC formats is recommended instead. [-Wdeprecated-declarations]",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:34.4775310Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:20459:15: warning: 'MTLPixelFormatPVRTC_RGB_2BPP' is deprecated: first deprecated in iOS 18.0 - Usage of ASTC/ETC2/BC formats is recommended instead. [-Wdeprecated-declarations]",
+            "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+            "line": 20459,
+            "column": 15,
+            "diagnostic": "warning: 'MTLPixelFormatPVRTC_RGB_2BPP' is deprecated: first deprecated in iOS 18.0 - Usage of ASTC/ETC2/BC formats is recommended instead. [-Wdeprecated-declarations]"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false,
+          "sourceLine170": "    if (pf >= MTLPixelFormatPVRTC_RGB_2BPP && pf <= MTLPixelFormatEAC_RG11Snorm) return MD_PVRTC_ETC;",
+          "sourceLine171": "    if (pf >= MTLPixelFormatPVRTC_RGB_2BPP && pf <= MTLPixelFormatEAC_RG11Snorm) return MD_PVRTC_ETC;",
+          "sameSourceLine": true,
+          "lineOffset": 16
+        },
+        {
+          "raw": "2026-11-20T16:31:29.3613150Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/../../../metal/fit_judge.h:199:51: warning: '&&' within '||' [-Wlogical-op-parentheses]",
+          "path": "graphics/metal/fit_judge.h",
+          "line": 199,
+          "column": 51,
+          "diagnostic": "warning: '&&' within '||' [-Wlogical-op-parentheses]",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:34.4795150Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/../../../metal/fit_judge.h:199:51: warning: '&&' within '||' [-Wlogical-op-parentheses]",
+            "path": "graphics/metal/fit_judge.h",
+            "line": 199,
+            "column": 51,
+            "diagnostic": "warning: '&&' within '||' [-Wlogical-op-parentheses]"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false,
+          "sourceLine170": "        int c = l || rr, pil = c && (g >= 2 || lb && rb) ? g : 0;",
+          "sourceLine171": "        int c = l || rr, pil = c && (g >= 2 || lb && rb) ? g : 0;",
+          "sameSourceLine": true,
+          "lineOffset": 0
+        },
+        {
+          "raw": "2026-11-20T16:31:29.3617810Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/../../../metal/fit_judge.h:236:78: warning: '&&' within '||' [-Wlogical-op-parentheses]",
+          "path": "graphics/metal/fit_judge.h",
+          "line": 236,
+          "column": 78,
+          "diagnostic": "warning: '&&' within '||' [-Wlogical-op-parentheses]",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:34.4819300Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/../../../metal/fit_judge.h:236:78: warning: '&&' within '||' [-Wlogical-op-parentheses]",
+            "path": "graphics/metal/fit_judge.h",
+            "line": 236,
+            "column": 78,
+            "diagnostic": "warning: '&&' within '||' [-Wlogical-op-parentheses]"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false,
+          "sourceLine170": "        int t = tb && ti, b = bb && bi, c = t || b, pil = c && (g >= 2 || tb && bb) ? g : 0;",
+          "sourceLine171": "        int t = tb && ti, b = bb && bi, c = t || b, pil = c && (g >= 2 || tb && bb) ? g : 0;",
+          "sameSourceLine": true,
+          "lineOffset": 0
+        },
+        {
+          "raw": "2026-11-20T16:31:29.3636000Z runtime/src/svc_mem.c:1333:26: warning: unused variable 'g_phys_retry' [-Wunused-variable]",
+          "path": "runtime/src/svc_mem.c",
+          "line": 1333,
+          "column": 26,
+          "diagnostic": "warning: unused variable 'g_phys_retry' [-Wunused-variable]",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:34.4853900Z runtime/src/svc_mem.c:1333:26: warning: unused variable 'g_phys_retry' [-Wunused-variable]",
+            "path": "runtime/src/svc_mem.c",
+            "line": 1333,
+            "column": 26,
+            "diagnostic": "warning: unused variable 'g_phys_retry' [-Wunused-variable]"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false,
+          "sourceLine170": "static _Thread_local int g_phys_retry;",
+          "sourceLine171": "static _Thread_local int g_phys_retry;",
+          "sameSourceLine": true,
+          "lineOffset": 0
+        },
+        {
+          "raw": "2026-11-20T16:31:29.3895760Z ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "path": null,
+          "line": null,
+          "column": null,
+          "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:34.4965840Z ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+            "path": null,
+            "line": null,
+            "column": null,
+            "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false
+        }
+      ],
+      "infrastructureWarnings": [
+        {
+          "raw": "2026-11-20T16:32:13.1426800Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830, actions/checkout@v4, actions/setup-dotnet@v4, actions/setup-python@v5, actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+          "classification": "pre-existing",
+          "baselineRaw": "2026-11-20T15:21:37.2639180Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830, actions/checkout@v4, actions/setup-dotnet@v4, actions/setup-python@v5, actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/"
+        }
+      ],
+      "compilerErrors": [],
+      "exportToolSummary": "2026-11-20T16:31:29.3065170Z export_list: 147 of 5569 exports kept (5422 hidden, 807 of them glslang)",
+      "actualAbiExports": [
+        "2026-11-20T16:31:51.2656730Z ok   exported _s2a_rb_guest_benchmark",
+        "2026-11-20T16:31:51.2703710Z ok   exported _s2a_rb_bench_managed_snapshot",
+        "2026-11-20T16:31:51.2752800Z ok   exported _s2a_rb_bench_managed_active"
+      ],
+      "gates": [
+        {
+          "name": "Test the exported symbol list tool",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Build S2Arm's iOS engine with no game (make ios)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17
+        },
+        {
+          "name": "Inventory the engine (images, sizes, symbols)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18
+        },
+        {
+          "name": "Check the guest entry points of the framework (patches 0003-0010)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19
+        }
+      ],
+      "logSHA256": "54c25a1e6f1d19344ca3762162620710742700056093ecf7cda0e1e87c3e0af9",
+      "baselineLogSHA256": "c978181e3d4dd2c09a4cdb61037df55ef2d6e3738b788d0cd8f19e14c944061f",
+      "scope": "Completed producer job log; original gates observed, no new test or compilation performed."
+    },
+    {
+      "schema": 1,
+      "source": "342f534efc856eedeba9b085df291757bc942d41",
+      "run": 44772035018,
+      "job": 136411912842,
+      "platform": "macos-15",
+      "jobConclusion": "success",
+      "baselineSource": "819e675aa6d5930b3d6104b5076639ab4c25117e",
+      "baselineRun": 44759330364,
+      "baselineJob": 136367362302,
+      "compilerWarnings": [
+        {
+          "raw": "2026-11-20T16:32:58.4289310Z ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "path": null,
+          "line": null,
+          "column": null,
+          "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:11.8723800Z ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+            "path": null,
+            "line": null,
+            "column": null,
+            "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false
+        },
+        {
+          "raw": "2026-11-20T16:32:58.4475560Z ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "path": null,
+          "line": null,
+          "column": null,
+          "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:11.8974850Z ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+            "path": null,
+            "line": null,
+            "column": null,
+            "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false
+        },
+        {
+          "raw": "2026-11-20T16:32:58.4558810Z ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "path": null,
+          "line": null,
+          "column": null,
+          "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:11.9077120Z ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+            "path": null,
+            "line": null,
+            "column": null,
+            "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false
+        },
+        {
+          "raw": "2026-11-20T16:32:58.4593350Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:18904:15: warning: comparison of distinct pointer types ('id<MTL4RenderCommandEncoder>' and 'id<MTLRenderCommandEncoder>') [-Wcompare-distinct-pointer-types]",
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 18904,
+          "column": 15,
+          "diagnostic": "warning: comparison of distinct pointer types ('id<MTL4RenderCommandEncoder>' and 'id<MTLRenderCommandEncoder>') [-Wcompare-distinct-pointer-types]",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:11.9090650Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:18888:15: warning: comparison of distinct pointer types ('id<MTL4RenderCommandEncoder>' and 'id<MTLRenderCommandEncoder>') [-Wcompare-distinct-pointer-types]",
+            "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+            "line": 18888,
+            "column": 15,
+            "diagnostic": "warning: comparison of distinct pointer types ('id<MTL4RenderCommandEncoder>' and 'id<MTLRenderCommandEncoder>') [-Wcompare-distinct-pointer-types]"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false,
+          "sourceLine170": "    if (g_enc != en) { static int again; if (again < 2) { again++; draw(dw, di); again--; return; } RED_ONCE(136, \"a draw's binding ended its render pass again on the retry; the draw is skipped\"); return; }",
+          "sourceLine171": "    if (g_enc != en) { static int again; if (again < 2) { again++; draw(dw, di); again--; return; } RED_ONCE(136, \"a draw's binding ended its render pass again on the retry; the draw is skipped\"); return; }",
+          "sameSourceLine": true,
+          "lineOffset": 16
+        },
+        {
+          "raw": "2026-11-20T16:32:58.4603250Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:18923:82: warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 18923,
+          "column": 82,
+          "diagnostic": "warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:11.9097240Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:18907:82: warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+            "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+            "line": 18907,
+            "column": 82,
+            "diagnostic": "warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false,
+          "sourceLine170": "            if (g_vis_cur >= 0 && g_enc_vis != g_vis_cur + 1) { enc_r_visibility(en, MTLVisibilityResultModeCounting, (NSUInteger)g_vis_cur * 8); g_enc_vis = g_vis_cur + 1; }",
+          "sourceLine171": "            if (g_vis_cur >= 0 && g_enc_vis != g_vis_cur + 1) { enc_r_visibility(en, MTLVisibilityResultModeCounting, (NSUInteger)g_vis_cur * 8); g_enc_vis = g_vis_cur + 1; }",
+          "sameSourceLine": true,
+          "lineOffset": 16
+        },
+        {
+          "raw": "2026-11-20T16:32:58.4644750Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:18985:37: warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 18985,
+          "column": 37,
+          "diagnostic": "warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:11.9111010Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:18969:37: warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+            "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+            "line": 18969,
+            "column": 37,
+            "diagnostic": "warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false,
+          "sourceLine170": "        enc_r_draw_indexed_indirect(en, mp, MTLIndexTypeUInt32, g_geo_indices, g_geo_index_bytes, g_geo_args); g_pass_geo++;",
+          "sourceLine171": "        enc_r_draw_indexed_indirect(en, mp, MTLIndexTypeUInt32, g_geo_indices, g_geo_index_bytes, g_geo_args); g_pass_geo++;",
+          "sameSourceLine": true,
+          "lineOffset": 16
+        },
+        {
+          "raw": "2026-11-20T16:32:58.4679030Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:18988:62: warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 18988,
+          "column": 62,
+          "diagnostic": "warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:11.9131400Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:18972:62: warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+            "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+            "line": 18972,
+            "column": 62,
+            "diagnostic": "warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false,
+          "sourceLine170": "    if (dw && dw->tfc) { if (g_tfd_args) enc_r_draw_indirect(en, mp, g_tfd_args); return; }   // DrawTransformFeedback: the arguments tfd_args made (nvn_geometry.inc)",
+          "sourceLine171": "    if (dw && dw->tfc) { if (g_tfd_args) enc_r_draw_indirect(en, mp, g_tfd_args); return; }   // DrawTransformFeedback: the arguments tfd_args made (nvn_geometry.inc)",
+          "sameSourceLine": true,
+          "lineOffset": 16
+        },
+        {
+          "raw": "2026-11-20T16:32:58.4697590Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:20475:15: warning: 'MTLPixelFormatPVRTC_RGB_2BPP' is deprecated: first deprecated in iOS 18.0 - Usage of ASTC/ETC2/BC formats is recommended instead. [-Wdeprecated-declarations]",
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 20475,
+          "column": 15,
+          "diagnostic": "warning: 'MTLPixelFormatPVRTC_RGB_2BPP' is deprecated: first deprecated in iOS 18.0 - Usage of ASTC/ETC2/BC formats is recommended instead. [-Wdeprecated-declarations]",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:11.9144000Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/nvn_mtl.m:20459:15: warning: 'MTLPixelFormatPVRTC_RGB_2BPP' is deprecated: first deprecated in iOS 18.0 - Usage of ASTC/ETC2/BC formats is recommended instead. [-Wdeprecated-declarations]",
+            "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+            "line": 20459,
+            "column": 15,
+            "diagnostic": "warning: 'MTLPixelFormatPVRTC_RGB_2BPP' is deprecated: first deprecated in iOS 18.0 - Usage of ASTC/ETC2/BC formats is recommended instead. [-Wdeprecated-declarations]"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false,
+          "sourceLine170": "    if (pf >= MTLPixelFormatPVRTC_RGB_2BPP && pf <= MTLPixelFormatEAC_RG11Snorm) return MD_PVRTC_ETC;",
+          "sourceLine171": "    if (pf >= MTLPixelFormatPVRTC_RGB_2BPP && pf <= MTLPixelFormatEAC_RG11Snorm) return MD_PVRTC_ETC;",
+          "sameSourceLine": true,
+          "lineOffset": 16
+        },
+        {
+          "raw": "2026-11-20T16:32:58.4711540Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/../../../metal/fit_judge.h:199:51: warning: '&&' within '||' [-Wlogical-op-parentheses]",
+          "path": "graphics/metal/fit_judge.h",
+          "line": 199,
+          "column": 51,
+          "diagnostic": "warning: '&&' within '||' [-Wlogical-op-parentheses]",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:11.9168390Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/../../../metal/fit_judge.h:199:51: warning: '&&' within '||' [-Wlogical-op-parentheses]",
+            "path": "graphics/metal/fit_judge.h",
+            "line": 199,
+            "column": 51,
+            "diagnostic": "warning: '&&' within '||' [-Wlogical-op-parentheses]"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false,
+          "sourceLine170": "        int c = l || rr, pil = c && (g >= 2 || lb && rb) ? g : 0;",
+          "sourceLine171": "        int c = l || rr, pil = c && (g >= 2 || lb && rb) ? g : 0;",
+          "sameSourceLine": true,
+          "lineOffset": 0
+        },
+        {
+          "raw": "2026-11-20T16:32:58.4735470Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/../../../metal/fit_judge.h:236:78: warning: '&&' within '||' [-Wlogical-op-parentheses]",
+          "path": "graphics/metal/fit_judge.h",
+          "line": 236,
+          "column": 78,
+          "diagnostic": "warning: '&&' within '||' [-Wlogical-op-parentheses]",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:11.9181370Z /Users/runner/work/_temp/s2arm/graphics/nvn/gfx/nvn/../../../metal/fit_judge.h:236:78: warning: '&&' within '||' [-Wlogical-op-parentheses]",
+            "path": "graphics/metal/fit_judge.h",
+            "line": 236,
+            "column": 78,
+            "diagnostic": "warning: '&&' within '||' [-Wlogical-op-parentheses]"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false,
+          "sourceLine170": "        int t = tb && ti, b = bb && bi, c = t || b, pil = c && (g >= 2 || tb && bb) ? g : 0;",
+          "sourceLine171": "        int t = tb && ti, b = bb && bi, c = t || b, pil = c && (g >= 2 || tb && bb) ? g : 0;",
+          "sameSourceLine": true,
+          "lineOffset": 0
+        },
+        {
+          "raw": "2026-11-20T16:32:58.4755640Z runtime/src/svc_mem.c:1333:26: warning: unused variable 'g_phys_retry' [-Wunused-variable]",
+          "path": "runtime/src/svc_mem.c",
+          "line": 1333,
+          "column": 26,
+          "diagnostic": "warning: unused variable 'g_phys_retry' [-Wunused-variable]",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:11.9249390Z runtime/src/svc_mem.c:1333:26: warning: unused variable 'g_phys_retry' [-Wunused-variable]",
+            "path": "runtime/src/svc_mem.c",
+            "line": 1333,
+            "column": 26,
+            "diagnostic": "warning: unused variable 'g_phys_retry' [-Wunused-variable]"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false,
+          "sourceLine170": "static _Thread_local int g_phys_retry;",
+          "sourceLine171": "static _Thread_local int g_phys_retry;",
+          "sameSourceLine": true,
+          "lineOffset": 0
+        },
+        {
+          "raw": "2026-11-20T16:32:58.4888460Z ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "path": null,
+          "line": null,
+          "column": null,
+          "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "classification": "pre-existing",
+          "baseline": {
+            "raw": "2026-11-20T15:20:11.9322020Z ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+            "path": null,
+            "line": null,
+            "column": null,
+            "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'"
+          },
+          "onAdded0171": false,
+          "inFileModified0170": false
+        }
+      ],
+      "infrastructureWarnings": [
+        {
+          "raw": "2026-11-20T16:33:52.3279830Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830, actions/checkout@v4, actions/setup-dotnet@v4, actions/setup-python@v5, actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+          "classification": "pre-existing",
+          "baselineRaw": "2026-11-20T15:21:09.6059020Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830, actions/checkout@v4, actions/setup-dotnet@v4, actions/setup-python@v5, actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/"
+        }
+      ],
+      "compilerErrors": [],
+      "exportToolSummary": "2026-11-20T16:32:58.4480670Z export_list: 147 of 5569 exports kept (5422 hidden, 807 of them glslang)",
+      "actualAbiExports": [
+        "2026-11-20T16:33:31.1403610Z ok   exported _s2a_rb_guest_benchmark",
+        "2026-11-20T16:33:31.1473900Z ok   exported _s2a_rb_bench_managed_snapshot",
+        "2026-11-20T16:33:31.1558300Z ok   exported _s2a_rb_bench_managed_active"
+      ],
+      "gates": [
+        {
+          "name": "Test the exported symbol list tool",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Build S2Arm's iOS engine with no game (make ios)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17
+        },
+        {
+          "name": "Inventory the engine (images, sizes, symbols)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18
+        },
+        {
+          "name": "Check the guest entry points of the framework (patches 0003-0010)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19
+        }
+      ],
+      "logSHA256": "4090720121dd6eb7aa2cc19a9c78d99f48811fd4e0244c58c4542886ab181ddb",
+      "baselineLogSHA256": "1211ec8edd7caa4638203f02584bcd80922d930e44801fb903b8cd3b2b2ee27f",
+      "scope": "Completed producer job log; original gates observed, no new test or compilation performed."
+    }
+  ],
+  "limits": [
+    "Compiler and linker diagnostics only; no device or gameplay execution.",
+    "The failed diagnostic printed inside the export-tool negative test is expected fixture output; the four tests and final framework exports passed.",
+    "Host Runner compilation occurs in the application job, not the engine producer."
+  ]
+}

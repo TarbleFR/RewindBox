@@ -1,0 +1,73 @@
+{
+  "flutter": {
+    "result": "not-run",
+    "evidenceMode": "not-run",
+    "kind": "flutter",
+    "execution": {
+      "source": "c5422386b72ec4ea88b010dab3826075ee7e79f8",
+      "tree": "c3d61a2fc9469969462574d4f3f57e633e6d3b08",
+      "run": 44775472323,
+      "attempt": 1
+    },
+    "job": 136425258820,
+    "commands": [],
+    "reason": "Compile and integrate the latest S2Arm cadence and reproducible observation batch with the authenticated Nextendo SSBU Core. Retain mandatory source/component contract, ABI, signature and downloaded IPA checks. Deep suites not run; physical iPhone comparisons remain unavailable.",
+    "fullRegressionSuiteExecuted": false
+  },
+  "native": {
+    "result": "not-run",
+    "evidenceMode": "not-run",
+    "kind": "native",
+    "execution": {
+      "source": "c5422386b72ec4ea88b010dab3826075ee7e79f8",
+      "tree": "c3d61a2fc9469969462574d4f3f57e633e6d3b08",
+      "run": 44775472323,
+      "attempt": 1
+    },
+    "job": 136425258074,
+    "commands": [],
+    "reason": "Compile and integrate the latest S2Arm cadence and reproducible observation batch with the authenticated Nextendo SSBU Core. Retain mandatory source/component contract, ABI, signature and downloaded IPA checks. Deep suites not run; physical iPhone comparisons remain unavailable.",
+    "fullRegressionSuiteExecuted": false
+  },
+  "deliveryContract": {
+    "result": "authenticated",
+    "evidenceMode": "fresh",
+    "command": "python3 -B test/standard_delivery_contract_test.py",
+    "rerunInThisRun": true,
+    "job": 136423992238,
+    "artifact": 14649009242,
+    "archiveSHA256": "75ca1b14b7c2a108b925030049a971ff2a87cf3faaa35873f81d7bf0861670d1",
+    "logSHA256": "193287bedecf8d88b976ec4e6002a26e0b8a0fb784e4b76a1596693452df5161",
+    "execution": {
+      "source": "c5422386b72ec4ea88b010dab3826075ee7e79f8",
+      "tree": "c3d61a2fc9469969462574d4f3f57e633e6d3b08",
+      "run": 44775472323,
+      "attempt": 1
+    }
+  },
+  "testsExecutedInThisRun": [
+    "delivery-contract"
+  ],
+  "testsRun": {
+    "flutter": {
+      "mode": "not-run",
+      "run": 44775472323,
+      "attempt": 1,
+      "job": 136425258820,
+      "source": "c5422386b72ec4ea88b010dab3826075ee7e79f8"
+    },
+    "native": {
+      "mode": "not-run",
+      "run": 44775472323,
+      "attempt": 1,
+      "job": 136425258074,
+      "source": "c5422386b72ec4ea88b010dab3826075ee7e79f8"
+    },
+    "delivery-contract": {
+      "mode": "fresh",
+      "run": 44775472323,
+      "attempt": 1,
+      "job": 136423992238
+    }
+  }
+}
