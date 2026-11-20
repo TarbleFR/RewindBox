@@ -1,0 +1,10 @@
+scenario,reuse_percent,trial,original_ns_per_call,candidate_ns_per_call,ratio,hit_count,resolve_count,off_count,checksum_equal
+collision,100,0,11.42159,6.48422,0.567717,0,0,0,1
+collision,100,1,6.96602,9.04560,1.298532,0,0,0,1
+collision,100,2,6.62270,5.68523,0.858447,0,0,0,1
+collision,100,3,10.57472,6.39496,0.604740,0,0,0,1
+collision,100,4,9.16176,10.32372,1.126827,0,0,0,1
+collision,100,5,6.47583,7.35359,1.135544,0,0,0,1
+collision,100,6,7.12528,7.29866,1.024333,0,0,0,1
+collision,100,7,7.68032,7.64217,0.995033,0,0,0,1
+collision,100,8,8.08754,7.40967,0.916183,0,0,0,1

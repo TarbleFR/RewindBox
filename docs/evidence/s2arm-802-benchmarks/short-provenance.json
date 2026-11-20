@@ -1,0 +1,21 @@
+{
+  "source": "fc0017a965edf0afaf3f472d86dfc2f525791bb4",
+  "run": 44745877482,
+  "job": 136320916653,
+  "artifact": 14633456091,
+  "artifactSha256": "8c741078ba12c9f50c46957e4fc60a91861df39c0f556e5e5d7bd9daf76c79f9",
+  "physicalIPhone": false,
+  "physicalGPU": false,
+  "files": {
+    "short-cpu-environment.json": "95da29e1b966221567bb6aff5afe5bc8966224876308dc7b27b579ad6c354a5d",
+    "short-rid-direct.csv": "eca714047a6cdff9a5328d2b3d4769559aa862d1b514c7ae6af918793e107b40",
+    "guarded-coreml-results-320x180.json.gz": "f296f31b41446aeb04b67d208e93a0ed155c7229470455ec29040df2e65ab606",
+    "guarded-coreml-results-960x540.json.gz": "216a3b1d8c83327fdff2fed78cff482e5ee36c761fe27d669f66f74d35d84598"
+  },
+  "sourceFiles": {
+    "guarded-coreml-results-320x180.json": "d40f0555fa43e9d4b75ddf0b5bc82b57be0024701c4078010e35d6b3ab4a9e5b",
+    "guarded-coreml-results-960x540.json": "753d646d4f699c6fe7b9ffdebd9b3586bc743576c74f668648e2194dc4c0127c",
+    "short-cpu-environment.json": "95da29e1b966221567bb6aff5afe5bc8966224876308dc7b27b579ad6c354a5d",
+    "short-rid-direct.csv": "eca714047a6cdff9a5328d2b3d4769559aa862d1b514c7ae6af918793e107b40"
+  }
+}
