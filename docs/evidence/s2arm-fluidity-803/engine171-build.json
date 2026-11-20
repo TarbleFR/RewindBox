@@ -1,0 +1,52 @@
+{
+  "source": "342f534efc856eedeba9b085df291757bc942d41",
+  "run": 44772035018,
+  "patches": 171,
+  "patch171": {
+    "name": "0171-generic-benchmark-and-post-window-memory-attribution.patch",
+    "sha256": "34f6887cbd40a8a75087c916b2abcba39486b4b8b41cf727ba2146c55363360b"
+  },
+  "engineFingerprint": "81a41783ae749aaa15b7488ad61e128d2f9fea678649c79f97c80e24845e1f68",
+  "NS2ProFingerprint": "8a3320df120185bf7f88c4b46ee9ca6293fb1c10a869f38485bf02ed7ee88654",
+  "directShaderChain": "0be3f28548fd",
+  "directShaderChainMatches802": true,
+  "licenses": {
+    "path": "Legal/S2Arm",
+    "manifest": "license-sources.json",
+    "sha256": "74d15175177ee2e8b0dd50add26477e7babd140c398c33c0eefdf2281c46fc56",
+    "files": 36
+  },
+  "schema": 1,
+  "attempt": 1,
+  "result": "compiled-authenticated",
+  "jobs": [
+    {
+      "id": 136411913395,
+      "platform": "macos-26",
+      "conclusion": "success",
+      "compilerWarnings": 12,
+      "warningsOnAddedLines": 0
+    },
+    {
+      "id": 136411912842,
+      "platform": "macos-15",
+      "conclusion": "success",
+      "compilerWarnings": 12,
+      "warningsOnAddedLines": 0
+    }
+  ],
+  "artifact": {
+    "id": 14650050035,
+    "name": "s2arm-engine-framework-342f534efc856eedeba9b085df291757bc942d41",
+    "bytes": 25030194,
+    "sha256": "e39495062103f22ee0681ce6f84a52763a874a60cdce23f7125fa21a7f5889bb"
+  },
+  "pinSha256": "c40929a245391183c485b7d1859810ee6283548069266204572d384704fd960b",
+  "requiredBenchmarkExports": [
+    "s2a_rb_guest_benchmark",
+    "s2a_rb_bench_managed_snapshot",
+    "s2a_rb_bench_managed_active"
+  ],
+  "physicalDeviceTested": false,
+  "fpsGainProven": false
+}
