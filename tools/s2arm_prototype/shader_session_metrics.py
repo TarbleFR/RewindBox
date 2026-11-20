@@ -57,6 +57,8 @@ GUEST_WAIT_FIELDS = {
     "signaled_handle": lambda v: int(v, 16), "last_waker_guest": int,
 }
 UPLOAD_FLUSH_FIELDS = dict.fromkeys(("boundary", "capacity", "isolated", "batch_limit", "pieces"), int)
+STAGING_FIELDS = dict.fromkeys(("bytes", "completed_idle_excess_bytes", "swept",
+                               "swept_excess_bytes", "recreated", "regrown"), int)
 GPU_PASS = re.compile(r"\[gpuprof\] F(\d+)\s+\d+\s+([\d.]+) us (render pass|compute / copy)(.*)")
 MEMORY_WINDOW = re.compile(
     r"memory up to frame (\d+): resident (\d+) MB, .*?texture re-uploads (\d+) in total, "
@@ -250,7 +252,7 @@ def summarize(host, captures, first, last, *, session=None, segments=(), journal
     long_frames, waits, footprint, thermal, memory = {}, [], [], {}, {}
     slow_logged = {100: 0, 200: 0, 500: 0}
     full_windows, gap_rows, reference_binds = [], {}, []
-    visible_windows, deadlines, guest_waits, upload_flushes = {}, {}, {}, {}
+    visible_windows, deadlines, guest_waits, upload_flushes, staging = {}, {}, {}, {}, {}
     gpu_passes = []
     course_windows = {}
     slow_frames_by_asset = {}
@@ -296,6 +298,7 @@ def summarize(host, captures, first, last, *, session=None, segments=(), journal
             for prefix, fields, target in (
                 ("RewindBox guest wait frame=", GUEST_WAIT_FIELDS, guest_waits),
                 ("RewindBox upload flush frame=", UPLOAD_FLUSH_FIELDS, upload_flushes),
+                ("RewindBox staging window frame=", STAGING_FIELDS, staging),
             ):
                 _, match, remainder = line.partition(prefix)
                 if match:
@@ -412,6 +415,7 @@ def summarize(host, captures, first, last, *, session=None, segments=(), journal
         ],
         "guestWaitDetails": guest_waits,
         "uploadFlushReasons": upload_flushes,
+        "stagingWindows": [{"frame": frame, **row} for frame, row in sorted(staging.items())],
         "gpuPassProfile": gpu_pass_summary(gpu_passes),
         "frameSignatureIntervals": sig, "completeHostWindows": intervals, "referenceBinds": reference_binds,
         "selectedLoggedFrames": {"rowsOverMs": slow_logged, "submitGaps": gap_rows,

@@ -20,13 +20,12 @@ Objectif : 60 FPS constants sans saccades à 1×. Périmètre initial : Mario Ka
 | S — Stabilité prolongée, mémoire et chauffe | 15 % | 25 % | Corrections présentes ; session prolongée et absence de régression à valider. |
 
 Calcul conservé d’une version à l’autre : somme(note × poids) / 100, arrondie au multiple de 5 le plus proche ; ici 54,25 → 55 %. Toute révision des notes exige une preuve ou une justification explicite ; une régression peut les faire baisser. Un changement de périmètre ou de pondération ouvre une série distincte.
-
 ```mermaid
 xychart-beta
     title "S2Arm : avancement estimé par mise à jour"
-    x-axis "IPA ou commit moteur" ["799", "0155", "pont iOS", "0156", "0157", "0158", "0159", "0160", "0161", "0162", "0163", "0164"]
+    x-axis "IPA ou commit moteur" ["799", "0155", "pont iOS", "0156", "0157", "0158", "0159", "0160", "0161", "0162", "0163", "0164", "0165"]
     y-axis "Maturité estimée (%)" 0 --> 100
-    bar [55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55]
+    bar [55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55]
 ```
 
 | Date | IPA / source | I / R / C / P / S (%) | Global estimé | Évolution et preuve / mesure sur appareil |
@@ -43,6 +42,7 @@ xychart-beta
 | 2026-11-20 | [Moteur 0162](https://github.com/TarbleFR/RewindBox/commit/3aae8ed4e30d9e4a9deebeac3cb5170849ef6cbf) | 90 / 60 / 65 / 35 / 25 | 55 % | La préparation de référence peut démarrer un pipeline exact déjà requis au premier plan. Un élément facultatif promu hors de ce préfixe reste soumis au plafond thermique. [Banc des files et mesures](evidence/s2arm-799-frame-stalls.md#réveil-des-workers-et-chauffe-après-0160). [Compilation macOS 15 et 26 réussie](https://github.com/TarbleFR/RewindBox/actions/runs/44719352785), les 162 empreintes et les frameworks iOS arm64 concordent. Validation iPhone en attente. |
 | 2026-11-20 | [Moteur 0163](https://github.com/TarbleFR/RewindBox/commit/8eb3af9023298ac69c2966eefedca59715d03a5c) | 90 / 60 / 65 / 35 / 25 | 55 % | [Banc de 300 images et 1 683 recherches par image](evidence/s2arm-799-frame-stalls.md#débit-en-course-après-0162) : 36 à 81 % de recherches évitées selon les invalidations simulées. Regroupement de premiers transferts compatibles et mesure des échéances visibles. [Compilation macOS 15 et 26 réussie](https://github.com/TarbleFR/RewindBox/actions/runs/44725883644). Cadence à 1× sur iPhone à mesurer. |
 | 2026-11-20 | Moteur 0164 | 90 / 60 / 65 / 35 / 25 | 55 % | Marge iOS de zéro reconnue, écriture bornée de l’historique et export RAM aux étapes de la session. Mesure sur iPhone en attente. |
+| 2026-11-20 | Moteur 0165 | 90 / 60 / 65 / 35 / 25 | 55 % | Sous pression, récupération bornée des tampons Metal surdimensionnés après confirmation de fin du lot. Bilan des réallocations et des retransferts à mesurer. |
 
 **Mesures de référence, à conserver séparément de l’estimation :** [IPA 795](evidence/rewind796/profile-observations-795.json), 26,886 FPS moteur sur 9 145 intervalles sans lacune dans la plage observée (≈ 5 min 40 s), 213 >100 ms dont 36 >500 ms ; [ancien moteur 0001–0089](evidence/s2arm-ipa783-device-2026-11-18.md), 60 FPS sur 526 intervalles (≈ 8,8 s), scène non identifiée ; [IPA 786](evidence/s2arm-ipa786-device-2026-11-18.md), deux fenêtres à l’affichage à 23,9 / 22,5 FPS et GPU médian à 33,38 / 35,03 ms ; [IPA 794](evidence/s2arm-first-race-795.md), pic échantillonné de 5 175 Mio. Parcours, caches et réglages non uniformisés : aucun gain avant/après attribuable à partir de ces seuls relevés.
 

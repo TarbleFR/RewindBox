@@ -1,0 +1,86 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index bb06df1..dcf8d37 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4715,11 +4715,13 @@ static void up_flush_cause(unsigned reason) {
+     [g_up_texs removeAllObjects];
+ }
+ 
++static void rb_up_slots_maint(unsigned next);
+ static void up_begin(void) {
+     up_owner_check("up_begin");
+     if (g_up_cb && g_up_keep_bytes < UP_KEEP_CAP) return;
+     if (g_up_cb) { up_flush_cause(UP_CAPACITY); g_up_cap_flushes++; }
+     unsigned slot = g_up_seq++ % (unsigned)rb_up_n();   // RewindBox (patch 0082): rb_up_n() slots
++    rb_up_slots_maint(slot);
+     // With deferred encoding (nvn_rec.h, on by default on iPhone) the batch that last used this slot may still be a commit record in this thread's open block: the GPU has not seen it,
+     // so waiting for it to finish never ends. Hand everything recorded to the encode thread first, as every other wait for the GPU does. Textures deswizzled on the CPU (a sparse
+     // virtual pool's, read through its page table) are one batch each, so four in a row within one submission got here: Monster Hunter Rise stopped at frame 721 for 45 s
+@@ -4776,6 +4778,47 @@ static int rb_up_pressure_trim_on(void) {
+     return enabled;
+ }
+ static uint64_t g_up_pressure_trims, g_up_pressure_trim_bytes;
++static unsigned g_rb_up_swept_slots;
++static uint64_t g_rb_up_swept, g_rb_up_swept_bytes, g_rb_up_recreated, g_rb_up_regrown;
++
++// The upload owner alone changes the slot array. A completion clears busy
++// after its buffers retire. The upcoming slot is left to up_alloc, which
++// can judge its actual request. Limit maintenance to one idle slot per check.
++static void rb_up_slots_maint(unsigned next) {
++    static uint64_t last_check = UINT64_MAX, last_report = UINT64_MAX;
++    uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    if (frame == last_check || (frame > last_check && frame - last_check < 60)) return;
++    last_check = frame;
++    if (!rb_course_exact()) return;
++    uint64_t total = 0, idle_excess = 0, largest = 0;
++    unsigned candidate = next;
++    for (unsigned i = 0; i < (unsigned)rb_up_n(); ++i) {
++        uint64_t bytes = g_up_slot_blk[i].length;
++        total += bytes;
++        uint64_t recent = g_up_slot_big[i];
++        if (bytes <= UP_SLOT_BLOCK || frame <= recent || frame - recent <= RB_UP_TRIM_FRAMES / 2 ||
++            atomic_load(&g_up_alloc_busy[i])) continue;
++        uint64_t excess = bytes - UP_SLOT_BLOCK;
++        idle_excess += excess;
++        if (i != next && excess > largest) { largest = excess; candidate = i; }
++    }
++    if (largest && rb_up_trim_on() && rb_up_pressure_trim_on() && rb_mem_low()) {
++        id<MTLBuffer> released = g_up_slot_blk[candidate];
++        g_up_slot_blk[candidate] = nil;
++        res_remove(released);
++        g_rb_up_swept_slots |= 1u << candidate;
++        g_rb_up_swept++;
++        g_rb_up_swept_bytes += largest;
++    }
++    if (last_report == UINT64_MAX || frame / 300 != last_report / 300) {
++        last_report = frame;
++        MLOG("RewindBox staging window frame=%llu bytes=%llu completed_idle_excess_bytes=%llu "
++             "swept=%llu swept_excess_bytes=%llu recreated=%llu regrown=%llu",
++             (unsigned long long)frame, (unsigned long long)total, (unsigned long long)idle_excess,
++             (unsigned long long)g_rb_up_swept, (unsigned long long)g_rb_up_swept_bytes,
++             (unsigned long long)g_rb_up_recreated, (unsigned long long)g_rb_up_regrown);
++    }
++}
+ static id<MTLBuffer> up_alloc(size_t n, size_t *off) {
+     size_t need = (n + 255u) & ~((size_t)255u);
+     if (!g_up_block && need <= UP_BLOCK_SIZE) {   // first allocation of the batch: the slot's own block, grown to the next power of two that holds it (a movie frame re-uploaded every frame, 8 MB in Link's Awakening)
+@@ -4804,7 +4847,18 @@ static id<MTLBuffer> up_alloc(size_t n, size_t *off) {
+                 defer_obj_release(*sb); *sb = nil;
+             }
+         }
+-        if (!*sb) { *sb = [g_dev newBufferWithLength:want options:MTLResourceStorageModePrivate]; if (!*sb) MDIE("failed to create the swizzled-upload staging block %#zx", want); res_add(*sb); g_up_blocks_new++; }
++        if (!*sb) {
++            *sb = [g_dev newBufferWithLength:want options:MTLResourceStorageModePrivate];
++            if (!*sb) MDIE("failed to create the swizzled-upload staging block %#zx", want);
++            res_add(*sb);
++            g_up_blocks_new++;
++            unsigned slot_bit = 1u << g_up_cur_slot;
++            if (g_rb_up_swept_slots & slot_bit) {
++                g_rb_up_swept_slots &= ~slot_bit;
++                g_rb_up_recreated++;
++                g_rb_up_regrown += want > UP_SLOT_BLOCK;
++            }
++        }
+         g_up_block = *sb; g_up_block_size = (*sb).length; g_up_block_off = 0;
+     }
+     if (!g_up_block || g_up_block_off + need > g_up_block_size) {
