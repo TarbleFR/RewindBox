@@ -61,6 +61,7 @@ class _NextendoDialogState extends State<NextendoDialog> {
 
   Future<void> _load() async {
     try {
+      await NextendoOnlinePlay.restoreSmashTls();
       await NextendoServers.refresh();
       unawaited(NextendoCatalogStore.current().then((catalog) {
         if (mounted) {
@@ -152,13 +153,16 @@ class _NextendoDialogState extends State<NextendoDialog> {
     if (!mounted) return;
     final known = const {'unknown', 'disabled', 'suspended', 'unverified', 'discord_unlinked', 'elsewhere'}.contains(status.reason);
     final missing = _missing(config);
+    final smashTlsRefused = NextendoOnlinePlay.lastSmashTls == 'refused';
     setState(() {
-      _messageIsError = !status.allowed || missing != null;
+      _messageIsError = !status.allowed || missing != null || smashTlsRefused;
       _message = !status.allowed
           ? _text(known ? 'nextendoReason_${status.reason}' : 'nextendoReason_other', {'detail': status.reason})
-          : missing == null
-          ? _text('nextendoAllowedReady')
-          : _text('nextendoAllowedNotReady', {'cause': missing});
+          : missing != null
+          ? _text('nextendoAllowedNotReady', {'cause': missing})
+          : smashTlsRefused
+          ? _text('nextendoSmashTlsRejected')
+          : _text('nextendoAllowedReady');
     });
   });
 

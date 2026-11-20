@@ -1,1 +1,3 @@
 [Preuves techniques conservées](https://github.com/TarbleFR/RewindBox/blob/1a734455b8162ed70c7cf8e7a7fc76f85e5af69e/docs/AI_TASK_BOARD.md) : causes, essais, résultats et limites ; vérifier les anciens statuts, sans réactiver leurs procédures. Consignes actuelles : [AGENTS.md](../AGENTS.md).
+
+20 novembre — [SSBU / Nextendo, IPA 796](evidence/nextendo-ssbu-ipa785-2026-11-18.md#nouvel-essai-du-20-novembre-2026--ipa-796) : refus TLS de nom d’hôte confirmé sur iPhone ; conservation et affichage du refus après redémarrage corrigés dans les sources. Accès au matchmaking toujours non rétabli ; certificat du serveur à vérifier avec Nextendo. Contrôles du commit en attente, pas de nouvelle IPA.

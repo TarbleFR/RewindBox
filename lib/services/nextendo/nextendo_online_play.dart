@@ -54,8 +54,41 @@ class NextendoLaunchOnline {
 
 /// Decides, at each Switch launch, whether the game starts with online play.
 abstract final class NextendoOnlinePlay {
-  // Only the actual guest handshake updates this, never the route probes.
-  static String? lastSmashTls;
+  // Only the actual guest handshake updates this, never the route probes or
+  // the account check. Keep its result across app restarts: signing in and
+  // resolving an address cannot clear a failed game-server handshake.
+  static const _smashTlsKey = 'rewindbox.nextendo.lastSmashTls';
+  static String? _lastSmashTls;
+  static Future<void> _smashTlsWrite = Future<void>.value();
+  static String? get lastSmashTls => _lastSmashTls;
+  static set lastSmashTls(String? value) {
+    if (value == null || (value != 'accepted' && value != 'refused')) return;
+    _lastSmashTls = value;
+    // Serialize writes so a delayed refusal cannot overwrite a later success.
+    // No token, account identity, server address or certificate is stored.
+    _smashTlsWrite = _smashTlsWrite.then((_) async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_smashTlsKey, value);
+      } on Object {
+        // Storage failure must not interrupt the game's diagnostic callback.
+      }
+    });
+  }
+
+  static Future<void> restoreSmashTls() async {
+    if (_lastSmashTls != null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_smashTlsKey);
+      if (saved == 'accepted' || saved == 'refused') {
+        // A live handshake received while reading preferences takes priority.
+        _lastSmashTls ??= saved;
+      }
+    } on Object {
+      // The next guest handshake still updates the in-memory result.
+    }
+  }
 
   static const _enabledKey = 'rewindbox.nextendo.onlinePlay';
   static const _retail = ['.nsp', '.xci'];
