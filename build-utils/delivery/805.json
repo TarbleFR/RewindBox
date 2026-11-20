@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 805,
   "status": "frozen",
-  "note": "Private Metal PSO candidate over IPA 804. Device comparison uses IPA 803. Reuse the verified 798/804 transport recipient. No device result is available.",
+  "note": "Private redelivery of IPA 805, using the persistent RewindBox delivery recipient. Product sources and pinned engines match the original 805.",
   "base": {
     "source": "5f8fc02a57e97fbf36a97588d30c0190f4c9eca4",
     "tree": "d0af25c33066916cb6db26fc91a578f9917d40a0",
@@ -1268,8 +1268,8 @@
     "awaitMinutes": 75
   },
   "recipient": {
-    "path": "build-utils/delivery-798-nextendo-recipient.pem",
-    "sha256": "42fd4866b7608950986f7fe9dfe75f75abf14a25c61215a1774716d66e1b4936"
+    "path": "build-utils/delivery-rewindbox-recipient.pem",
+    "sha256": "e69038be1c51d6c2e89283996fd0b185635b8ed5924a824f82dc00e8fd09cff2"
   },
   "republish": [
     "rpcs3-core",
