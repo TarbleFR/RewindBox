@@ -1,0 +1,1053 @@
+{
+  "schema": "rewindbox.cadence-evidence.v1",
+  "anonymization": "No private container paths, session UUIDs, PIDs, guest addresses or raw log lines.",
+  "sources": {
+    "journalSha256": "4c385e5b63fcf8e37dce0dcbe6f4640bcbbf51646a00563b75c77553c06bf810",
+    "existingAnalyzerSha256": "cec252d0d4a11fa926e743aff6d459437020befb8e9015436c5a68fef531c64f",
+    "summaryScriptSha256": "94024e80cdd1afa8f405aeb55e2eff647ffa8fdc7b3633359e514bf816250efa"
+  },
+  "sessions": {
+    "mkw802": {
+      "identity": {
+        "gid": "0400C3F00006E000",
+        "hostSha256": "e5bc90b0757ed660c05edbc1f2387486cd422834b58b50a74369d3564bd9d738",
+        "engineRun": 44746620489,
+        "journalPrepareLine": 5972,
+        "prepareAtUTC": "2026-11-20T14:39:44.713Z",
+        "appBuild": 802,
+        "identitySha256": "8ae2f8e2979308d811502f74d2e9eac9aab68e4b12cde59f558a8112aff099f7",
+        "gameBuild": "9e244438c3d8ef1c703a6a85ef99c4f0",
+        "appBuildEvidence": "capture identity.json"
+      },
+      "presentModeEvidence": [
+        {
+          "line": 367,
+          "refreshHz": 60,
+          "mode": "display"
+        }
+      ],
+      "fps60EnabledSourceLines": [
+        37
+      ],
+      "holdSourceLines": {
+        "count": 536,
+        "first": {
+          "line": 5017,
+          "from": 1,
+          "to": 2,
+          "frame": 0
+        },
+        "last": {
+          "line": 16134,
+          "from": 2,
+          "to": 1,
+          "frame": 6412
+        }
+      },
+      "displayLinkHeldTicksTotal": 0,
+      "completeMotorWindows": {
+        "first": 1,
+        "last": 6300,
+        "samples": 6300,
+        "missingWithinObservedSpan": 0,
+        "averageFPS": 34.239,
+        "over100Ms": 69,
+        "over200Ms": 18,
+        "over500Ms": 6
+      },
+      "display": {
+        "windows": 21,
+        "byRequestedPeriodMs": {
+          "16.67": {
+            "measuredIntervals": 4883,
+            "lateIntervals": 1877,
+            "discarded": 27,
+            "missingIntervals": 18
+          },
+          "33.33": {
+            "measuredIntervals": 1337,
+            "lateIntervals": 688,
+            "discarded": 12,
+            "missingIntervals": 13
+          }
+        },
+        "allInterval2Windows": 1,
+        "allInterval2WindowsOver33FPS": 0,
+        "coveredSeconds": 172.899206,
+        "missedSlots": 2944,
+        "longestLateRun": 221,
+        "lateWithGPUBeforeDerivedDeadline": 1817,
+        "deadlineLimit": "Derived from previous display and adjacent guest holds; not the requested drawable deadline."
+      },
+      "audio": {
+        "reports": 19,
+        "sumReportedGapMs": 138.5,
+        "nonzeroReports": [
+          {
+            "line": 3949,
+            "gapSamples": 5875,
+            "gapMs": 122.4
+          },
+          {
+            "line": 7642,
+            "gapSamples": 772,
+            "gapMs": 16.1
+          }
+        ]
+      },
+      "gpuTimeout": {
+        "observed": false,
+        "sourceLines": []
+      },
+      "limits": [
+        "FPS is not simulation speed.",
+        "No synchronized circuit/scene labels.",
+        "No causal before/after comparison across app versions.",
+        "Display and motor windows differ because of delayed callbacks.",
+        "CPU/GPU overlap; do not add their times."
+      ],
+      "journalEndEvidence": [],
+      "waitWakeTiming": {
+        "samples": 61,
+        "wakeSelectionToReturnMedianMs": 0.007,
+        "wakeSelectionToReturnMaxMs": 0.011,
+        "longestMeasuredWait": {
+          "frame": 3972,
+          "line": 12532,
+          "untilWakeSelectionMs": 714.582,
+          "wakeSelectionToReturnMs": 0.006
+        },
+        "limit": "Bounded sampled diagnostics, not a complete census; producer work not identified."
+      },
+      "longframeWaitsFromFrame2046": {
+        "rows": 461,
+        "limit": "Longframe-biased sample, not all frames; not a synchronized driving segment.",
+        "milliseconds": {
+          "displayLink": {
+            "sum": 25.0,
+            "max": 11.0,
+            "positiveRows": 5
+          },
+          "presentQueue": {
+            "sum": 0.0,
+            "max": 0.0,
+            "positiveRows": 0
+          },
+          "drawable": {
+            "sum": 0.0,
+            "max": 0.0,
+            "positiveRows": 0
+          },
+          "gpuFence": {
+            "sum": 0.0,
+            "max": 0.0,
+            "positiveRows": 0
+          },
+          "encodeThread": {
+            "sum": 331.9,
+            "max": 7.5,
+            "positiveRows": 461
+          },
+          "uploadSlots": {
+            "sum": 0.0,
+            "max": 0.0,
+            "positiveRows": 0
+          }
+        }
+      },
+      "cup": {
+        "first": 1,
+        "last": 6400,
+        "missingWithinObservedSpan": 0,
+        "reportedDroppedRows": 0,
+        "total": {
+          "samples": 6400,
+          "intervalNs": 186110951541,
+          "averageFPS": 34.388,
+          "p95Ms": 53.136584,
+          "p99Ms": 101.898583,
+          "over100Ms": 69,
+          "over200Ms": 18,
+          "over500Ms": 6,
+          "psoWaitMs": 446.254,
+          "sharedLibraryWaitMs": 898.93,
+          "translationWaitMs": 0.0,
+          "translationMs": 0.0,
+          "mslCompiles": 0,
+          "mslMs": 0.0,
+          "textureUploadBytes": 2805851237,
+          "textureUploadCpuMs": 3894.363,
+          "textureGpuCompletedMs": 613.666,
+          "textureGpuCompletedValidBatches": 3334,
+          "textureGpuCompletedUnavailableBatches": 0
+        },
+        "byAssetHint": {
+          "unknown": {
+            "samples": 3,
+            "intervalNs": 124064125,
+            "averageFPS": 24.181,
+            "p95Ms": 85.903125,
+            "p99Ms": 85.903125,
+            "over100Ms": 0,
+            "over200Ms": 0,
+            "over500Ms": 0,
+            "psoWaitMs": 0.0,
+            "sharedLibraryWaitMs": 0.0,
+            "translationWaitMs": 0.0,
+            "translationMs": 0.0,
+            "mslCompiles": 0,
+            "mslMs": 0.0,
+            "textureUploadBytes": 29585848,
+            "textureUploadCpuMs": 41.603,
+            "textureGpuCompletedMs": 3.41,
+            "textureGpuCompletedValidBatches": 6,
+            "textureGpuCompletedUnavailableBatches": 0
+          },
+          "selection_asset": {
+            "samples": 1900,
+            "intervalNs": 42309383000,
+            "averageFPS": 44.907,
+            "p95Ms": 31.63425,
+            "p99Ms": 91.20325,
+            "over100Ms": 18,
+            "over200Ms": 9,
+            "over500Ms": 3,
+            "psoWaitMs": 446.254,
+            "sharedLibraryWaitMs": 898.93,
+            "translationWaitMs": 0.0,
+            "translationMs": 0.0,
+            "mslCompiles": 0,
+            "mslMs": 0.0,
+            "textureUploadBytes": 1629503993,
+            "textureUploadCpuMs": 1500.929,
+            "textureGpuCompletedMs": 369.005,
+            "textureGpuCompletedValidBatches": 1943,
+            "textureGpuCompletedUnavailableBatches": 0
+          },
+          "DesertHills_A_00[Game03]": {
+            "samples": 142,
+            "intervalNs": 3248023208,
+            "averageFPS": 43.719,
+            "p95Ms": 41.666083,
+            "p99Ms": 263.609792,
+            "over100Ms": 4,
+            "over200Ms": 2,
+            "over500Ms": 0,
+            "psoWaitMs": 0.0,
+            "sharedLibraryWaitMs": 0.0,
+            "translationWaitMs": 0.0,
+            "translationMs": 0.0,
+            "mslCompiles": 0,
+            "mslMs": 0.0,
+            "textureUploadBytes": 45191171,
+            "textureUploadCpuMs": 115.034,
+            "textureGpuCompletedMs": 9.387,
+            "textureGpuCompletedValidBatches": 20,
+            "textureGpuCompletedUnavailableBatches": 0
+          },
+          "race_sequence_asset": {
+            "samples": 4355,
+            "intervalNs": 140429481208,
+            "averageFPS": 31.012,
+            "p95Ms": 55.370833,
+            "p99Ms": 101.852041,
+            "over100Ms": 47,
+            "over200Ms": 7,
+            "over500Ms": 3,
+            "psoWaitMs": 0.0,
+            "sharedLibraryWaitMs": 0.0,
+            "translationWaitMs": 0.0,
+            "translationMs": 0.0,
+            "mslCompiles": 0,
+            "mslMs": 0.0,
+            "textureUploadBytes": 1101570225,
+            "textureUploadCpuMs": 2236.797,
+            "textureGpuCompletedMs": 231.864,
+            "textureGpuCompletedValidBatches": 1365,
+            "textureGpuCompletedUnavailableBatches": 0
+          }
+        }
+      },
+      "requestedIntervalFrameCounts": {
+        "1": 5289,
+        "2": 1111
+      },
+      "selectedWindows": [
+        {
+          "frame": 2700,
+          "motorP50Ms": 28.29,
+          "motorP95Ms": 44.25,
+          "gpuP50Ms": 12.22,
+          "gpuP95Ms": 15.58,
+          "thermalState": 1.0,
+          "motorP50MsSourceLine": 10379,
+          "motorP99Ms": 103.55,
+          "motorP99MsSourceLine": 10381,
+          "displayP99Ms": 100.009,
+          "displayP99MsSourceLine": 10383,
+          "displayFPS": 32.33,
+          "displayTimestamps": 299,
+          "displayFPSSourceLine": 10385,
+          "submitCPUms": 10.82,
+          "drawsPerFrame": 2034.0,
+          "submitCPUmsSourceLine": 10396,
+          "firstFrame": 2401,
+          "samples": 300,
+          "durationNs": 9258916792,
+          "motorFPS": 32.40119840575839,
+          "over100Ms": 3,
+          "over200Ms": 0,
+          "over500Ms": 0,
+          "intervalSourceLine": 10406,
+          "displayMissingTimestamps": 0,
+          "displayByRequestedMs": {
+            "16.67": {
+              "measuredIntervals": 254,
+              "lateIntervals": 179,
+              "discarded": 1,
+              "missingIntervals": 0
+            },
+            "33.33": {
+              "measuredIntervals": 44,
+              "lateIntervals": 5,
+              "discarded": 0,
+              "missingIntervals": 1
+            }
+          },
+          "displayP95Ms": 50.004,
+          "displayMeasuredIntervals": 298,
+          "displayCoveredSeconds": 9.184176,
+          "displayLateIntervals": 184,
+          "displayLongestLateRun": 12,
+          "lateGPUBeforeDerivedDeadline": 170
+        },
+        {
+          "frame": 3300,
+          "motorP50Ms": 23.97,
+          "motorP95Ms": 33.73,
+          "gpuP50Ms": 10.99,
+          "gpuP95Ms": 15.1,
+          "thermalState": 1.0,
+          "motorP50MsSourceLine": 11347,
+          "motorP99Ms": 95.17,
+          "motorP99MsSourceLine": 11349,
+          "displayP99Ms": 66.673,
+          "displayP99MsSourceLine": 11351,
+          "displayFPS": 38.12,
+          "displayTimestamps": 299,
+          "displayFPSSourceLine": 11353,
+          "submitCPUms": 6.125,
+          "drawsPerFrame": 1221.0,
+          "submitCPUmsSourceLine": 11364,
+          "firstFrame": 3001,
+          "samples": 300,
+          "durationNs": 7823297667,
+          "motorFPS": 38.34700055776364,
+          "over100Ms": 1,
+          "over200Ms": 0,
+          "over500Ms": 0,
+          "intervalSourceLine": 11375,
+          "displayMissingTimestamps": 0,
+          "displayByRequestedMs": {
+            "16.67": {
+              "measuredIntervals": 248,
+              "lateIntervals": 123,
+              "discarded": 1,
+              "missingIntervals": 1
+            },
+            "33.33": {
+              "measuredIntervals": 50,
+              "lateIntervals": 4,
+              "discarded": 0,
+              "missingIntervals": 0
+            }
+          },
+          "displayP95Ms": 33.336,
+          "displayMeasuredIntervals": 298,
+          "displayCoveredSeconds": 7.800716,
+          "displayLateIntervals": 127,
+          "displayLongestLateRun": 4,
+          "lateGPUBeforeDerivedDeadline": 119
+        },
+        {
+          "frame": 3900,
+          "motorP50Ms": 45.86,
+          "motorP95Ms": 57.45,
+          "gpuP50Ms": 34.71,
+          "gpuP95Ms": 39.73,
+          "thermalState": 1.0,
+          "motorP50MsSourceLine": 12391,
+          "motorP99Ms": 95.42,
+          "motorP99MsSourceLine": 12393,
+          "displayP99Ms": 100.009,
+          "displayP99MsSourceLine": 12395,
+          "displayFPS": 21.58,
+          "displayTimestamps": 300,
+          "displayFPSSourceLine": 12397,
+          "submitCPUms": 7.117,
+          "drawsPerFrame": 1706.0,
+          "submitCPUmsSourceLine": 12408,
+          "firstFrame": 3601,
+          "samples": 300,
+          "durationNs": 14028987000,
+          "motorFPS": 21.384295245266106,
+          "over100Ms": 2,
+          "over200Ms": 0,
+          "over500Ms": 0,
+          "intervalSourceLine": 12419,
+          "displayMissingTimestamps": 0,
+          "displayByRequestedMs": {
+            "16.67": {
+              "measuredIntervals": 0,
+              "lateIntervals": 0,
+              "discarded": 0,
+              "missingIntervals": 0
+            },
+            "33.33": {
+              "measuredIntervals": 300,
+              "lateIntervals": 248,
+              "discarded": 0,
+              "missingIntervals": 0
+            }
+          },
+          "displayP95Ms": 58.339,
+          "displayMeasuredIntervals": 300,
+          "displayCoveredSeconds": 13.892942,
+          "displayLateIntervals": 248,
+          "displayLongestLateRun": 54,
+          "lateGPUBeforeDerivedDeadline": 34
+        },
+        {
+          "frame": 4800,
+          "motorP50Ms": 25.15,
+          "motorP95Ms": 33.73,
+          "gpuP50Ms": 11.0,
+          "gpuP95Ms": 15.46,
+          "thermalState": 1.0,
+          "motorP50MsSourceLine": 13712,
+          "motorP99Ms": 104.62,
+          "motorP99MsSourceLine": 13714,
+          "displayP99Ms": 116.677,
+          "displayP99MsSourceLine": 13716,
+          "displayFPS": 36.534,
+          "displayTimestamps": 300,
+          "displayFPSSourceLine": 13718,
+          "submitCPUms": 6.737,
+          "drawsPerFrame": 1185.0,
+          "submitCPUmsSourceLine": 13729,
+          "firstFrame": 4501,
+          "samples": 300,
+          "durationNs": 8043070792,
+          "motorFPS": 37.29918681039007,
+          "over100Ms": 3,
+          "over200Ms": 0,
+          "over500Ms": 0,
+          "intervalSourceLine": 13739,
+          "displayMissingTimestamps": 0,
+          "displayByRequestedMs": {
+            "16.67": {
+              "measuredIntervals": 273,
+              "lateIntervals": 153,
+              "discarded": 0,
+              "missingIntervals": 0
+            },
+            "33.33": {
+              "measuredIntervals": 27,
+              "lateIntervals": 0,
+              "discarded": 0,
+              "missingIntervals": 0
+            }
+          },
+          "displayP95Ms": 33.336,
+          "displayMeasuredIntervals": 300,
+          "displayCoveredSeconds": 8.217421,
+          "displayLateIntervals": 153,
+          "displayLongestLateRun": 4,
+          "lateGPUBeforeDerivedDeadline": 146
+        },
+        {
+          "frame": 6000,
+          "motorP50Ms": 29.95,
+          "motorP95Ms": 43.61,
+          "gpuP50Ms": 13.05,
+          "gpuP95Ms": 18.49,
+          "thermalState": 1.0,
+          "motorP50MsSourceLine": 15515,
+          "motorP99Ms": 90.93,
+          "motorP99MsSourceLine": 15517,
+          "displayP99Ms": 66.673,
+          "displayP99MsSourceLine": 15519,
+          "displayFPS": 31.699,
+          "displayTimestamps": 299,
+          "displayFPSSourceLine": 15521,
+          "submitCPUms": 10.825,
+          "drawsPerFrame": 2140.0,
+          "submitCPUmsSourceLine": 15532,
+          "firstFrame": 5701,
+          "samples": 300,
+          "durationNs": 9657169875,
+          "motorFPS": 31.065001846620202,
+          "over100Ms": 2,
+          "over200Ms": 0,
+          "over500Ms": 0,
+          "intervalSourceLine": 15543,
+          "displayMissingTimestamps": 0,
+          "displayByRequestedMs": {
+            "16.67": {
+              "measuredIntervals": 254,
+              "lateIntervals": 192,
+              "discarded": 1,
+              "missingIntervals": 1
+            },
+            "33.33": {
+              "measuredIntervals": 44,
+              "lateIntervals": 6,
+              "discarded": 0,
+              "missingIntervals": 0
+            }
+          },
+          "displayP95Ms": 50.005,
+          "displayMeasuredIntervals": 298,
+          "displayCoveredSeconds": 9.367527,
+          "displayLateIntervals": 198,
+          "displayLongestLateRun": 10,
+          "lateGPUBeforeDerivedDeadline": 174
+        },
+        {
+          "frame": 6300,
+          "motorP50Ms": 49.6,
+          "motorP95Ms": 64.55,
+          "gpuP50Ms": 39.58,
+          "gpuP95Ms": 44.19,
+          "thermalState": 1.0,
+          "motorP50MsSourceLine": 15923,
+          "motorP99Ms": 69.63,
+          "motorP99MsSourceLine": 15925,
+          "displayP99Ms": 83.341,
+          "displayP99MsSourceLine": 15927,
+          "displayFPS": 22.037,
+          "displayTimestamps": 300,
+          "displayFPSSourceLine": 15929,
+          "submitCPUms": 6.225,
+          "drawsPerFrame": 1770.0,
+          "submitCPUmsSourceLine": 15940,
+          "firstFrame": 6001,
+          "samples": 300,
+          "durationNs": 13279023667,
+          "motorFPS": 22.59202238983403,
+          "over100Ms": 0,
+          "over200Ms": 0,
+          "over500Ms": 0,
+          "intervalSourceLine": 15950,
+          "displayMissingTimestamps": 0,
+          "displayByRequestedMs": {
+            "16.67": {
+              "measuredIntervals": 63,
+              "lateIntervals": 10,
+              "discarded": 0,
+              "missingIntervals": 0
+            },
+            "33.33": {
+              "measuredIntervals": 237,
+              "lateIntervals": 223,
+              "discarded": 0,
+              "missingIntervals": 0
+            }
+          },
+          "displayP95Ms": 66.673,
+          "displayMeasuredIntervals": 300,
+          "displayCoveredSeconds": 13.617917,
+          "displayLateIntervals": 233,
+          "displayLongestLateRun": 221,
+          "lateGPUBeforeDerivedDeadline": 14
+        }
+      ]
+    },
+    "unidentifiedTitle801": {
+      "identity": {
+        "gid": "04007EF01F8AE000",
+        "hostSha256": "56bcadd447c17d18f1c2ee490e1c27a35bc2522b6fbf958ad509fb0b5eeac40d",
+        "engineRun": 44729718541,
+        "journalPrepareLine": 5929,
+        "prepareAtUTC": "2026-11-20T12:56:38.296Z",
+        "engineDeliveredInAppBuild": 801,
+        "deliveryReceiptSha256": "4522a20ede4cfaaaca59a3983f629c610e57b3705b0a587ceea987cb9721d84f",
+        "appBuildEvidence": "engineRun matches verified delivery receipt; no per-session appBuild field",
+        "commercialGameName": null,
+        "commercialNameEvidence": "Not present in supplied captures; Fire Emblem association unverified"
+      },
+      "presentModeEvidence": [
+        {
+          "line": 314,
+          "refreshHz": 60,
+          "mode": "display"
+        }
+      ],
+      "fps60EnabledSourceLines": [
+        34
+      ],
+      "holdSourceLines": [
+        {
+          "line": 1225,
+          "from": 1,
+          "to": 2,
+          "frame": 7
+        }
+      ],
+      "displayLinkHeldTicksTotal": 0,
+      "completeMotorWindows": {
+        "first": 1,
+        "last": 23700,
+        "samples": 23700,
+        "missingWithinObservedSpan": 0,
+        "averageFPS": 36.226,
+        "over100Ms": 41,
+        "over200Ms": 23,
+        "over500Ms": 6
+      },
+      "display": {
+        "windows": 79,
+        "byRequestedPeriodMs": {
+          "16.67": {
+            "measuredIntervals": 4,
+            "lateIntervals": 0,
+            "discarded": 0,
+            "missingIntervals": 1
+          },
+          "33.33": {
+            "measuredIntervals": 23564,
+            "lateIntervals": 2516,
+            "discarded": 68,
+            "missingIntervals": 52
+          }
+        },
+        "allInterval2Windows": 78,
+        "allInterval2WindowsOver33FPS": 29
+      },
+      "audio": {
+        "reports": 67,
+        "sumReportedGapMs": 115.2,
+        "nonzeroReports": [
+          {
+            "line": 1290,
+            "gapSamples": 5049,
+            "gapMs": 105.2
+          },
+          {
+            "line": 2249,
+            "gapSamples": 46,
+            "gapMs": 1.0
+          },
+          {
+            "line": 4638,
+            "gapSamples": 100,
+            "gapMs": 2.1
+          },
+          {
+            "line": 6404,
+            "gapSamples": 330,
+            "gapMs": 6.9
+          }
+        ]
+      },
+      "gpuTimeout": {
+        "observed": true,
+        "sourceLines": [
+          6408,
+          6409,
+          6413,
+          6414,
+          6416,
+          6417
+        ]
+      },
+      "limits": [
+        "FPS is not simulation speed.",
+        "No synchronized circuit/scene labels.",
+        "No causal before/after comparison across app versions.",
+        "Display and motor windows differ because of delayed callbacks.",
+        "CPU/GPU overlap; do not add their times."
+      ],
+      "journalEndEvidence": [
+        {
+          "line": 5969,
+          "t": "2026-11-20T13:07:52.744Z",
+          "step": "sessionEnded",
+          "status": "failed",
+          "code": 86
+        },
+        {
+          "line": 5970,
+          "t": "2026-11-20T13:07:52.791Z",
+          "step": "gameView",
+          "status": "closed",
+          "footprintMiB": 2968,
+          "headroomMiB": 3687,
+          "thermal": 2
+        }
+      ],
+      "stableInterval2Example": {
+        "frame": 6000,
+        "motorP50Ms": 16.69,
+        "motorP95Ms": 17.21,
+        "gpuP50Ms": 8.05,
+        "gpuP95Ms": 13.35,
+        "thermalState": 1.0,
+        "motorP50MsSourceLine": 2590,
+        "motorP99Ms": 17.5,
+        "motorP99MsSourceLine": 2592,
+        "displayP99Ms": 16.67,
+        "displayP99MsSourceLine": 2594,
+        "displayFPS": 59.795,
+        "displayTimestamps": 300,
+        "displayFPSSourceLine": 2595,
+        "submitCPUms": 1.908,
+        "drawsPerFrame": 390.0,
+        "submitCPUmsSourceLine": 2603,
+        "firstFrame": 5701,
+        "samples": 300,
+        "durationNs": 4999455208,
+        "motorFPS": 60.006538216393594,
+        "over100Ms": 0,
+        "over200Ms": 0,
+        "over500Ms": 0,
+        "intervalSourceLine": 2615,
+        "displayMissingTimestamps": 0,
+        "displayByRequestedMs": {
+          "16.67": {
+            "measuredIntervals": 0,
+            "lateIntervals": 0,
+            "discarded": 0,
+            "missingIntervals": 0
+          },
+          "33.33": {
+            "measuredIntervals": 300,
+            "lateIntervals": 0,
+            "discarded": 0,
+            "missingIntervals": 0
+          }
+        },
+        "requestedInterval": 2,
+        "requestedCadenceMs": 33.333333333333336,
+        "displayP95Ms": null,
+        "displayDurationSeconds": null,
+        "displayDurationLimit": "Exact display-covered duration and p95 unavailable in engine 801; do not substitute motor duration.",
+        "sceneEvidence": "300 scene frames at 960x540, 390 draws/frame (host 2603 and 2612); scene not identified",
+        "percentileLimit": "p50/p95/p99 are rounded engine summaries, not recomputed raw quantiles."
+      },
+      "selectedWindows": [
+        {
+          "frame": 900,
+          "motorP50Ms": 16.67,
+          "motorP95Ms": 16.7,
+          "gpuP50Ms": 1.83,
+          "gpuP95Ms": 2.76,
+          "thermalState": 0.0,
+          "motorP50MsSourceLine": 1323,
+          "motorP99Ms": 16.82,
+          "motorP99MsSourceLine": 1325,
+          "displayP99Ms": 16.67,
+          "displayP99MsSourceLine": 1327,
+          "displayFPS": 59.994,
+          "displayTimestamps": 300,
+          "displayFPSSourceLine": 1328,
+          "submitCPUms": 0.106,
+          "drawsPerFrame": 3.0,
+          "submitCPUmsSourceLine": 1336,
+          "firstFrame": 601,
+          "samples": 300,
+          "durationNs": 5000486083,
+          "motorFPS": 59.994167571008916,
+          "over100Ms": 0,
+          "over200Ms": 0,
+          "over500Ms": 0,
+          "intervalSourceLine": 1343,
+          "displayMissingTimestamps": 0,
+          "displayByRequestedMs": {
+            "16.67": {
+              "measuredIntervals": 0,
+              "lateIntervals": 0,
+              "discarded": 0,
+              "missingIntervals": 0
+            },
+            "33.33": {
+              "measuredIntervals": 300,
+              "lateIntervals": 0,
+              "discarded": 0,
+              "missingIntervals": 0
+            }
+          }
+        },
+        {
+          "frame": 3600,
+          "motorP50Ms": 16.86,
+          "motorP95Ms": 21.39,
+          "gpuP50Ms": 12.35,
+          "gpuP95Ms": 20.28,
+          "thermalState": 0.0,
+          "motorP50MsSourceLine": 2210,
+          "motorP99Ms": 27.61,
+          "motorP99MsSourceLine": 2212,
+          "displayP99Ms": 33.34,
+          "displayP99MsSourceLine": 2214,
+          "displayFPS": 49.633,
+          "displayTimestamps": 298,
+          "displayFPSSourceLine": 2215,
+          "submitCPUms": 2.858,
+          "drawsPerFrame": 817.0,
+          "submitCPUmsSourceLine": 2223,
+          "firstFrame": 3301,
+          "samples": 300,
+          "durationNs": 5971154959,
+          "motorFPS": 50.24153653018604,
+          "over100Ms": 1,
+          "over200Ms": 1,
+          "over500Ms": 1,
+          "intervalSourceLine": 2235,
+          "displayMissingTimestamps": 0,
+          "displayByRequestedMs": {
+            "16.67": {
+              "measuredIntervals": 0,
+              "lateIntervals": 0,
+              "discarded": 0,
+              "missingIntervals": 0
+            },
+            "33.33": {
+              "measuredIntervals": 297,
+              "lateIntervals": 1,
+              "discarded": 2,
+              "missingIntervals": 1
+            }
+          }
+        },
+        {
+          "frame": 6000,
+          "motorP50Ms": 16.69,
+          "motorP95Ms": 17.21,
+          "gpuP50Ms": 8.05,
+          "gpuP95Ms": 13.35,
+          "thermalState": 1.0,
+          "motorP50MsSourceLine": 2590,
+          "motorP99Ms": 17.5,
+          "motorP99MsSourceLine": 2592,
+          "displayP99Ms": 16.67,
+          "displayP99MsSourceLine": 2594,
+          "displayFPS": 59.795,
+          "displayTimestamps": 300,
+          "displayFPSSourceLine": 2595,
+          "submitCPUms": 1.908,
+          "drawsPerFrame": 390.0,
+          "submitCPUmsSourceLine": 2603,
+          "firstFrame": 5701,
+          "samples": 300,
+          "durationNs": 4999455208,
+          "motorFPS": 60.006538216393594,
+          "over100Ms": 0,
+          "over200Ms": 0,
+          "over500Ms": 0,
+          "intervalSourceLine": 2615,
+          "displayMissingTimestamps": 0,
+          "displayByRequestedMs": {
+            "16.67": {
+              "measuredIntervals": 0,
+              "lateIntervals": 0,
+              "discarded": 0,
+              "missingIntervals": 0
+            },
+            "33.33": {
+              "measuredIntervals": 300,
+              "lateIntervals": 0,
+              "discarded": 0,
+              "missingIntervals": 0
+            }
+          },
+          "requestedInterval": 2,
+          "requestedCadenceMs": 33.333333333333336,
+          "displayP95Ms": null,
+          "displayDurationSeconds": null,
+          "displayDurationLimit": "Exact display-covered duration and p95 unavailable in engine 801; do not substitute motor duration.",
+          "sceneEvidence": "300 scene frames at 960x540, 390 draws/frame (host 2603 and 2612); scene not identified",
+          "percentileLimit": "p50/p95/p99 are rounded engine summaries, not recomputed raw quantiles."
+        },
+        {
+          "frame": 8100,
+          "motorP50Ms": 16.85,
+          "motorP95Ms": 21.07,
+          "gpuP50Ms": 12.49,
+          "gpuP95Ms": 18.63,
+          "thermalState": 1.0,
+          "motorP50MsSourceLine": 3133,
+          "motorP99Ms": 29.12,
+          "motorP99MsSourceLine": 3135,
+          "displayP99Ms": 33.34,
+          "displayP99MsSourceLine": 3137,
+          "displayFPS": 56.544,
+          "displayTimestamps": 296,
+          "displayFPSSourceLine": 3138,
+          "submitCPUms": 2.878,
+          "drawsPerFrame": 875.0,
+          "submitCPUmsSourceLine": 3146,
+          "firstFrame": 7801,
+          "samples": 300,
+          "durationNs": 5235105292,
+          "motorFPS": 57.30543766874059,
+          "over100Ms": 0,
+          "over200Ms": 0,
+          "over500Ms": 0,
+          "intervalSourceLine": 3156,
+          "displayMissingTimestamps": 0,
+          "displayByRequestedMs": {
+            "16.67": {
+              "measuredIntervals": 0,
+              "lateIntervals": 0,
+              "discarded": 0,
+              "missingIntervals": 0
+            },
+            "33.33": {
+              "measuredIntervals": 292,
+              "lateIntervals": 1,
+              "discarded": 4,
+              "missingIntervals": 4
+            }
+          }
+        },
+        {
+          "frame": 9000,
+          "motorP50Ms": 32.93,
+          "motorP95Ms": 49.43,
+          "gpuP50Ms": 32.58,
+          "gpuP95Ms": 48.99,
+          "thermalState": 1.0,
+          "motorP50MsSourceLine": 3343,
+          "motorP99Ms": 54.48,
+          "motorP99MsSourceLine": 3345,
+          "displayP99Ms": 58.34,
+          "displayP99MsSourceLine": 3347,
+          "displayFPS": 29.239,
+          "displayTimestamps": 300,
+          "displayFPSSourceLine": 3348,
+          "submitCPUms": 6.472,
+          "drawsPerFrame": 1166.0,
+          "submitCPUmsSourceLine": 3356,
+          "firstFrame": 8701,
+          "samples": 300,
+          "durationNs": 10309514833,
+          "motorFPS": 29.09933249620264,
+          "over100Ms": 0,
+          "over200Ms": 0,
+          "over500Ms": 0,
+          "intervalSourceLine": 3366,
+          "displayMissingTimestamps": 0,
+          "displayByRequestedMs": {
+            "16.67": {
+              "measuredIntervals": 0,
+              "lateIntervals": 0,
+              "discarded": 0,
+              "missingIntervals": 0
+            },
+            "33.33": {
+              "measuredIntervals": 300,
+              "lateIntervals": 79,
+              "discarded": 0,
+              "missingIntervals": 0
+            }
+          }
+        },
+        {
+          "frame": 12000,
+          "motorP50Ms": 31.26,
+          "motorP95Ms": 38.85,
+          "gpuP50Ms": 31.05,
+          "gpuP95Ms": 38.53,
+          "thermalState": 1.0,
+          "motorP50MsSourceLine": 4132,
+          "motorP99Ms": 39.9,
+          "motorP99MsSourceLine": 4134,
+          "displayP99Ms": 50.0,
+          "displayP99MsSourceLine": 4136,
+          "displayFPS": 30.928,
+          "displayTimestamps": 300,
+          "displayFPSSourceLine": 4137,
+          "submitCPUms": 7.311,
+          "drawsPerFrame": 1674.0,
+          "submitCPUmsSourceLine": 4145,
+          "firstFrame": 11701,
+          "samples": 300,
+          "durationNs": 9629534708,
+          "motorFPS": 31.154153248003436,
+          "over100Ms": 0,
+          "over200Ms": 0,
+          "over500Ms": 0,
+          "intervalSourceLine": 4155,
+          "displayMissingTimestamps": 0,
+          "displayByRequestedMs": {
+            "16.67": {
+              "measuredIntervals": 0,
+              "lateIntervals": 0,
+              "discarded": 0,
+              "missingIntervals": 0
+            },
+            "33.33": {
+              "measuredIntervals": 300,
+              "lateIntervals": 31,
+              "discarded": 0,
+              "missingIntervals": 0
+            }
+          }
+        },
+        {
+          "frame": 23700,
+          "motorP50Ms": 34.04,
+          "motorP95Ms": 39.57,
+          "gpuP50Ms": 33.73,
+          "gpuP95Ms": 39.35,
+          "thermalState": 2.0,
+          "motorP50MsSourceLine": 6323,
+          "motorP99Ms": 43.25,
+          "motorP99MsSourceLine": 6325,
+          "displayP99Ms": 50.0,
+          "displayP99MsSourceLine": 6327,
+          "displayFPS": 29.798,
+          "displayTimestamps": 300,
+          "displayFPSSourceLine": 6328,
+          "submitCPUms": 6.253,
+          "drawsPerFrame": 1282.0,
+          "submitCPUmsSourceLine": 6336,
+          "firstFrame": 23401,
+          "samples": 300,
+          "durationNs": 10043142000,
+          "motorFPS": 29.871129971078773,
+          "over100Ms": 0,
+          "over200Ms": 0,
+          "over500Ms": 0,
+          "intervalSourceLine": 6346,
+          "displayMissingTimestamps": 0,
+          "displayByRequestedMs": {
+            "16.67": {
+              "measuredIntervals": 0,
+              "lateIntervals": 0,
+              "discarded": 0,
+              "missingIntervals": 0
+            },
+            "33.33": {
+              "measuredIntervals": 300,
+              "lateIntervals": 46,
+              "discarded": 0,
+              "missingIntervals": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "conclusion": {
+    "demonstrated": "Generic display mode presents faster than requested guest interval 2.",
+    "notDemonstrated": [
+      "Exact 1.25x simulation speed",
+      "An A/B FPS gain from 801 to 802",
+      "Every late frame caused by presentation",
+      "GPU timeout caused by pacing"
+    ],
+    "scope": "Correct the uncompensated generic fps60 override; preserve GPU barriers and producer dependencies."
+  }
+}

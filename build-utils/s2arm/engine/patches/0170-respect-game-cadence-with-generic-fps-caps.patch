@@ -1,0 +1,75 @@
+# RewindBox: generic prepared capabilities do not prove speed-correct 60 FPS.
+# Preserve explicit profiles, frame-step patches, patch caps and user overrides.
+diff --git a/runtime/src/caps.c b/runtime/src/caps.c
+--- a/runtime/src/caps.c
++++ b/runtime/src/caps.c
+@@ -10,8 +10,11 @@
+ // 清单里 fps60 / fps60_display 的值（-1 = 没读到）：只记下来，读的时候判（审计 P1-80：原先 fps60_display 写 DM_PRESENT_INTERVAL=display 进进程环境，
+ //   图形层见到这个变量就不再套 60 帧开关，设置里关 60 帧再进程内重启仍每个显示节拍出一帧；环境变量只留给启动时显式指定的人）
+ static int g_caps_fps60 = -1, g_caps_fps60_display;
+-// 本局要不要放开出图间隔的「来源」（不含开关；开关由 s2a_present_fps60_gate 按当局 S2A_FPS60 套）：清单 fps60_display 1（引擎通用全引擎档：没有帧率表 / 社区补丁 / Unity·UE 推导的款），
+-//   或清单 fps60 0、玩家在设置页手动开了（ios/settings.m 写 S2A_FPS60=1，清单那行因此没改环境）
++// RewindBox: a generic fps60_display capability is not evidence that simulation
++// speed is independent of presentation. Keep the game's interval unless the
++// profile/frame-step code or an explicit patch/override supplies a separate source.
++// Preserve explicit patch caps and manual opt-in over a disabled capability (0 + env 1).
++// The per-session S2A_FPS60 switch is still applied by s2a_present_fps60_gate.
+ int s2a_fps60_display_source(void) {
+     if (g_caps_fps60_display) return 1;
+     const char *e = getenv("S2A_FPS60");
+@@ -35,7 +38,7 @@
+ }
+ 
+ // 一行能力：src = "能力清单" / "补丁" / "补丁例外"
+-static void apply_cap(const char *cap, const char *v, const char *why, const char *src) {
++static void apply_cap(const char *cap, const char *v, const char *why, const char *src, int explicit_patch) {
+         // 值：1 = 开、0 = 显式关（发布包：fps60 / 满屏缺省开，强信号才写 0，pack/gen_caps.sh → tools/caps_policy.py）；别的值不认、跳过。已设的环境变量优先、不覆盖：
+         //   启动环境（调度 A/B）与用户设置（ios/settings.m 先于本函数写）都压过清单（审计 #854 F-caps-beats-settings：清单先写，设置里关 60 帧 / 宽屏不生效）
+         // widen → S2A_WIDEN_CAPS（1 = 满屏开、不看 verified.tsv 名单；0 = 按 16:9），排在用户宽屏设置之后（widen.c widen_verified）；
+@@ -55,10 +58,12 @@
+             const char *ab = getenv("S2A_FPS_AB");
+             if (v[0] == '0' && ab && !strcmp(ab, "1") && !getenv("DM_PRESENT_INTERVAL")) { caps_setenv("DM_PRESENT_INTERVAL", "display"); LOG("%s：普查同局 A/B 模式，60 帧没开的款放开出图间隔待测（平时仍按原帧率，见 fps.c 降档原因 3）", src); }
+         }
+-        // fps60_display 1（引擎通用全引擎档，pack/gen_caps.sh）：只记下来，图形层每局按 60 帧开关读时判（s2a_fps60_display_source + game_profile.h）
++        // Accept legacy prepared modules without turning their generic flag into
++        // a presentation override. No module/cache rewrite or global FPS-off is needed.
+         else if (!strcmp(cap, "fps60_display")) {
+-            g_caps_fps60_display = v[0] == '1';
++            g_caps_fps60_display = v[0] == '1' && explicit_patch;
+             if (g_caps_fps60_display) LOG("%s：60 帧开着时放开出图间隔（每局按 60 帧开关判）原因：%s", src, why);
++            else if (v[0] == '1') LOG("[RewindBox] generic fps60_display ignored: no explicit speed-corrected source; game cadence unless a profile or override applies (%s: %s)", src, why);
+         }
+         // gyro / haptics / direct：Settings.bundle 已缺省开，无需环境变量
+         // （direct 由出包期 S2A_DUAL 决定，手柄 / 马达 / 陀螺仪 / 快捷菜单代码内置）
+@@ -68,7 +73,7 @@
+ static void patch_cap(const char *cap, const char *val, const char *why, int except) {
+     if (patch_has(cap)) return;   // [except] 先到：同键 [caps] 不能压过强信号
+     if (g_npkeys < 16) snprintf(g_pkeys[g_npkeys++], sizeof g_pkeys[0], "%s", cap);
+-    apply_cap(cap, val, why, except ? "补丁例外" : "补丁");
++    apply_cap(cap, val, why, except ? "补丁例外" : "补丁", 1);
+ }
+ 
+ void s2a_caps_apply(const char *dir) {
+@@ -87,7 +92,7 @@
+         if (sscanf(line, "%63s %63s", cap, val) != 2) continue;
+         if (strcmp(val, "1") && strcmp(val, "0")) continue;
+         if (patch_has(cap)) { LOG("能力清单：%s 由补丁定，包内这行（%s）不用", cap, val); continue; }
+-        apply_cap(cap, val[0] == '1' ? "1" : "0", why, "能力清单");
++        apply_cap(cap, val[0] == '1' ? "1" : "0", why, "能力清单", 0);
+     }
+     fclose(f);
+ }
+diff --git a/runtime/include/caps.h b/runtime/include/caps.h
+--- a/runtime/include/caps.h
++++ b/runtime/include/caps.h
+@@ -12,7 +12,9 @@
+ void s2a_caps_apply(const char *dir);
+ // 进程内重启前调（ios/settings.m s2a_ios_reload_graphics_settings）：撤掉本清单写进进程环境、值没被别处改过的变量，清掉读到的清单值；之后调用方按「设置 → 清单」重放（审计 P1-80）
+ void s2a_caps_reset(void);
+-// 本局放开出图间隔的来源（清单 fps60_display 1，或清单 fps60 0 而设置页手动开了 S2A_FPS60=1）；开关不在这里套（graphics/nvn/host/game_profile.h DM_GAME_PRESENT_DISPLAY）
++// RewindBox: an explicit patch cap or the manual opt-in (caps fps60 0 + S2A_FPS60=1).
++// Generic fps60_display is not a speed-corrected source; profile and frame-step
++// sources remain independent. The switch is applied by DM_GAME_PRESENT_DISPLAY.
+ int s2a_fps60_display_source(void);
+ 
+ #endif
