@@ -1,0 +1,74 @@
+Budget completed upload-ring storage and batch staging, preserving every active batch and allowing one large required upload to complete.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3921,7 +3921,8 @@
+     atomic_store(&g_rb_low_until, f + RB_PRESS_HOLD);
+ }
+ static int rb_mem_low(void);
+-static void rb_gov_before_submit(void) { if (rb_gov_on()) (void)rb_mem_low(); }
++static void rb_gov_trim_uploads(void);
++static void rb_gov_before_submit(void) { if (rb_gov_on()) { (void)rb_mem_low(); rb_gov_trim_uploads(); } }
+ static int rb_mem_low(void) {
+     static dispatch_once_t once;
+     dispatch_once(&once, ^{ g_rb_press_src = dispatch_source_create(DISPATCH_SOURCE_TYPE_MEMORYPRESSURE, 0, DISPATCH_MEMORYPRESSURE_WARN | DISPATCH_MEMORYPRESSURE_CRITICAL, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
+@@ -4822,7 +4823,9 @@
+ static void rb_up_slots_maint(unsigned next);
+ static void up_begin(void) {
+     up_owner_check("up_begin");
+-    if (g_up_cb && g_up_keep_bytes < UP_KEEP_CAP) return;
++    uint64_t keep = UP_KEEP_CAP;
++    if (rb_gov_on()) keep = MIN(keep, MAX((uint64_t)UP_SLOT_BLOCK, rb_gov_quota(RB_GOV_UPLOAD) / MAX(1,rb_up_n())));
++    if (g_up_cb && g_up_keep_bytes < keep) return;
+     if (g_up_cb) { up_flush_cause(UP_CAPACITY); g_up_cap_flushes++; }
+     unsigned slot = g_up_seq++ % (unsigned)rb_up_n();   // RewindBox (patch 0082): rb_up_n() slots
+     rb_up_slots_maint(slot);
+@@ -4888,6 +4891,29 @@
+ // The upload owner alone changes the slot array. A completion clears busy
+ // after its buffers retire. The upcoming slot is left to up_alloc, which
+ // can judge its actual request. Limit maintenance to one idle slot per check.
++// Only the submit/upload owner visits slot pointers; a GPU completion only
++// clears busy. The open batch and all busy slots keep their original ownership.
++static void rb_gov_trim_uploads(void) {
++    if (!rb_gov_on() || !on_sub_thread()) return;
++    static unsigned observed;
++    static uint64_t last = UINT64_MAX;
++    unsigned plan = atomic_load(&rb_gov_plan);
++    uint64_t frame = atomic_load(&g_cur_frame);
++    if (observed == plan && frame == last) return;
++    uint64_t cap = rb_gov_share(plan,RB_GOV_UPLOAD), held = 0, freed = 0;
++    for (unsigned i = 0; i < (unsigned)rb_up_n(); ++i) held += g_up_slot_blk[i].length;
++    for (unsigned i = 0; held > cap && i < (unsigned)rb_up_n(); ++i) {
++        if ((g_up_cb && i == g_up_cur_slot) || atomic_load(&g_up_alloc_busy[i])) continue;
++        id<MTLBuffer> buf = g_up_slot_blk[i];
++        if (!buf) continue;
++        held -= buf.length; freed += buf.length;
++        g_up_slot_blk[i] = nil;
++        res_remove(buf);
++    }
++    if (observed != plan) MLOG("[RB-MEM-GOV] owner=upload cap_bytes=%llu slot_bytes=%llu retired_bytes=%llu",
++        (unsigned long long)cap,(unsigned long long)held,(unsigned long long)freed);
++    observed = plan; last = frame;
++}
+ static void rb_up_slots_maint(unsigned next) {
+     static uint64_t last_check = UINT64_MAX, last_report = UINT64_MAX;
+     uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
+@@ -4925,7 +4951,8 @@
+ }
+ static id<MTLBuffer> up_alloc(size_t n, size_t *off) {
+     size_t need = (n + 255u) & ~((size_t)255u);
+-    if (!g_up_block && need <= UP_BLOCK_SIZE) {   // first allocation of the batch: the slot's own block, grown to the next power of two that holds it (a movie frame re-uploaded every frame, 8 MB in Link's Awakening)
++    uint64_t retainPerSlot = rb_gov_on() ? rb_gov_quota(RB_GOV_UPLOAD)/(unsigned)rb_up_n() : UINT64_MAX;
++    if (!g_up_block && need <= UP_BLOCK_SIZE && MAX(need,(size_t)UP_SLOT_BLOCK) <= retainPerSlot) {   // first allocation of the batch: the slot's own block, grown to the next power of two that holds it (a movie frame re-uploaded every frame, 8 MB in Link's Awakening)
+         __strong id<MTLBuffer> *sb = &g_up_slot_blk[g_up_cur_slot];
+         size_t want = UP_SLOT_BLOCK; while (want < need) want <<= 1;
+         uint64_t rb_fr = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);   // RewindBox (patch 0089)
+@@ -4973,6 +5000,7 @@
+         g_up_blocks_new++; if (g_up_block) { g_up_swaps++; g_up_swap_bytes += g_up_block_size; if (!g_up_old) g_up_old = [NSHashTable weakObjectsHashTable]; [g_up_old addObject:g_up_block]; static int leak = -1; if (leak < 0) leak = getenv("DM_TEST_UP_LEAK") != NULL;   // test switch DM_TEST_UP_LEAK=1: do not retire the old block, as before the fix (for comparison, to measure the leak)
+             if (!leak && g_up_block != g_up_slot_blk[g_up_cur_slot]) up_keep_add(g_up_block); }   // the slot's block is not retired: it stays for the slot's later batches
+         g_up_block_size = n > UP_BLOCK_SIZE ? need : UP_BLOCK_SIZE;
++        if (rb_gov_on()) g_up_block_size = MAX(need, MIN(g_up_block_size, MAX((uint64_t)UP_SLOT_BLOCK,retainPerSlot)));
+         g_up_block = [g_dev newBufferWithLength:g_up_block_size options:MTLResourceStorageModePrivate];
+         if (!g_up_block) MDIE("failed to create the swizzled-upload staging block %#zx", g_up_block_size);
+         res_add(g_up_block);

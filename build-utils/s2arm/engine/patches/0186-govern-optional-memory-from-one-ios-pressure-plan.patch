@@ -1,0 +1,158 @@
+Publish four optional memory quotas from one headroom sample and dispatch memory-pressure source. Hold recovery until headroom stabilizes.
+
+diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+--- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
++++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+@@ -429,7 +429,8 @@
+         }
+ 
+         private static readonly bool MeasureHeap =
+-            OperatingSystem.IsIOS() && Environment.GetEnvironmentVariable("S2A_RB_TEX_BUDGET") != "0" &&
++            OperatingSystem.IsIOS() && Environment.GetEnvironmentVariable("S2A_RB_MEM_GOV") != "0" &&
++            Environment.GetEnvironmentVariable("S2A_RB_TEX_BUDGET") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_PSO_CAP") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_HEAP_TRIM") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_HEAP_LEDGER") != "0";
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -101,6 +101,7 @@
+ static void warm_claim(void);
+ static void rb_pso_maintain(void);
+ static void rb_tex_budget_maintain(void);
++static void rb_gov_before_submit(void);
+ static void rb_ref_stage_hint(const char *raw);
+ static void warm_bump(const char *vk, const char *fk);   // 游戏登记着色器程序时把预热清单里这对着色器的管线提到队头（warm_pick）
+ 
+@@ -1359,6 +1360,7 @@
+     g_sub_thread = pthread_self(); atomic_store(&g_sub_thread_set, 1);
+     atomic_store(&g_last_commit_error, 0);
+     g_sub_pool = objc_autoreleasePoolPush();
++    rb_gov_before_submit();
+     if (rb_tex_budget_on()) rb_tex_budget_maintain();
+     if (rb_pso_cap_on()) rb_pso_maintain();
+     main_barrier_reset(); g_cb = rec_cb_new();
+@@ -3898,6 +3900,7 @@
+ }
+ #endif
+ 
++#include "rb_memory_governor.inc"
+ // RewindBox (patch 0071): memory pressure for this patch's reuse pools (shared textures below, snapshot storage with fb_prepare, the finalized-texture ring): a warning or critical
+ //   event from the system (a dispatch source) or, on iOS, less than RB_REUSE_ROOM_MB left before the process limit (os_proc_available_memory, read once a frame; unavailable distinguished from zero)
+ //   makes them keep nothing new and let go what they keep. Any thread
+@@ -3917,15 +3920,18 @@
+     else if (event) atomic_fetch_add(&g_rb_press, 1);   // an event inside one: let go again
+     atomic_store(&g_rb_low_until, f + RB_PRESS_HOLD);
+ }
++static int rb_mem_low(void);
++static void rb_gov_before_submit(void) { if (rb_gov_on()) (void)rb_mem_low(); }
+ static int rb_mem_low(void) {
+     static dispatch_once_t once;
+     dispatch_once(&once, ^{ g_rb_press_src = dispatch_source_create(DISPATCH_SOURCE_TYPE_MEMORYPRESSURE, 0, DISPATCH_MEMORYPRESSURE_WARN | DISPATCH_MEMORYPRESSURE_CRITICAL, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
+-        if (g_rb_press_src) { dispatch_source_set_event_handler(g_rb_press_src, ^{ rb_low_from(atomic_load_explicit(&g_cur_frame, memory_order_relaxed), 1); rb_press_release(); if (rb_heap_on()) rb_heap_pressure_relief(); }); dispatch_resume(g_rb_press_src); } });
++        if (g_rb_press_src) { dispatch_source_set_event_handler(g_rb_press_src, ^{ if (rb_gov_on()) rb_gov_sample(dispatch_source_get_data(g_rb_press_src)); rb_low_from(atomic_load_explicit(&g_cur_frame, memory_order_relaxed), 1); rb_press_release(); if (rb_heap_on()) rb_heap_pressure_relief(); }); dispatch_resume(g_rb_press_src); } });
+     uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
+ #if TARGET_OS_IPHONE
+     static _Atomic uint64_t looked = UINT64_MAX;
++    if (rb_gov_on()) rb_gov_sample(0);
+     if (atomic_exchange(&looked, f) != f) {   // the headroom once a frame
+-        if (rb_ios_headroom() < ((uint64_t)RB_REUSE_ROOM_MB << 20)) rb_low_from(f, 0); }
++        if ((rb_gov_on() ? atomic_load(&rb_gov_room) : rb_ios_headroom()) < ((uint64_t)RB_REUSE_ROOM_MB << 20)) rb_low_from(f, 0); }
+ #endif
+     return f < atomic_load(&g_rb_low_until);
+ }
+diff --git a/graphics/nvn/gfx/nvn/rb_memory_governor.inc b/graphics/nvn/gfx/nvn/rb_memory_governor.inc
+new file mode 100644
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_memory_governor.inc
+@@ -0,0 +1,57 @@
++// SPDX-License-Identifier: Apache-2.0
++// One published word contains the tier and total MiB. All four quotas derive
++// from that word, so a pressure callback never publishes a partial allocation.
++enum { RB_GOV_PREFETCH, RB_GOV_UPLOAD, RB_GOV_TEXTURE, RB_GOV_PIPELINE };
++enum { RB_GOV_NORMAL, RB_GOV_WARN, RB_GOV_CRITICAL };
++static _Atomic unsigned rb_gov_plan = (128u << 2) | RB_GOV_WARN;
++static _Atomic uint64_t rb_gov_next, rb_gov_room = UINT64_MAX;
++static pthread_mutex_t rb_gov_mu = PTHREAD_MUTEX_INITIALIZER;
++static uint64_t rb_gov_warn_until, rb_gov_critical_until, rb_gov_recover_since;
++static int rb_gov_on(void) { return rb_tex_budget_on() && rb_pso_cap_on(); }
++static uint64_t rb_gov_share(unsigned plan, unsigned owner) {
++    static const unsigned weights[][4] = {{4,4,7,1},{0,3,12,1},{0,2,13,1}};
++    return ((uint64_t)(plan >> 2) << 20) / 16 * weights[plan & 3u][owner];
++}
++static uint64_t rb_gov_quota(unsigned owner) {
++    return rb_gov_share(atomic_load_explicit(&rb_gov_plan,memory_order_acquire),owner);
++}
++static void rb_gov_sample(unsigned long event) {
++#if TARGET_OS_IPHONE
++    uint64_t now = bp_now();
++    if (!event && now < atomic_load_explicit(&rb_gov_next,memory_order_relaxed)) return;
++    pthread_mutex_lock(&rb_gov_mu);
++    now = bp_now();
++    if (!event && now < atomic_load(&rb_gov_next)) { pthread_mutex_unlock(&rb_gov_mu); return; }
++    atomic_store(&rb_gov_next,now + 500 * NSEC_PER_MSEC);
++    uint64_t room = rb_ios_headroom();
++    atomic_store(&rb_gov_room,room);
++    if (event & DISPATCH_MEMORYPRESSURE_CRITICAL) rb_gov_critical_until = now + 15ull*NSEC_PER_SEC;
++    if (event & (DISPATCH_MEMORYPRESSURE_CRITICAL | DISPATCH_MEMORYPRESSURE_WARN))
++        rb_gov_warn_until = now + 30ull*NSEC_PER_SEC;
++    unsigned old = atomic_load(&rb_gov_plan), tier = RB_GOV_NORMAL;
++    if (now < rb_gov_critical_until || room <= (768ull << 20)) tier = RB_GOV_CRITICAL;
++    else if (now < rb_gov_warn_until || room == UINT64_MAX || room <= (2048ull << 20)) tier = RB_GOV_WARN;
++    unsigned before = old & 3u;
++    if (tier < before) {
++        uint64_t floor = before == RB_GOV_CRITICAL ? (1024ull << 20) : (2304ull << 20);
++        if (room == UINT64_MAX || room < floor) rb_gov_recover_since = 0;
++        else if (!rb_gov_recover_since) rb_gov_recover_since = now;
++        if (!rb_gov_recover_since || now - rb_gov_recover_since < 10ull*NSEC_PER_SEC) tier = before;
++    } else rb_gov_recover_since = 0;
++    if (tier != before) rb_gov_recover_since = 0;
++    unsigned ceiling = tier == RB_GOV_NORMAL ? 512 : tier == RB_GOV_WARN ? 128 : 32;
++    unsigned mib = room == UINT64_MAX ? 64 : (unsigned)MIN((uint64_t)ceiling,MAX(16ull,(room >> 20)/8));
++    mib = MIN(ceiling,(mib / 16) * 16);
++    unsigned plan = (mib << 2) | tier;
++    atomic_store_explicit(&rb_gov_plan,plan,memory_order_release);
++    if (event || plan != old) MLOG("[RB-MEM-GOV] owner=prefetch optional_reads=%s budget_bytes=%llu",
++        tier == RB_GOV_NORMAL ? "admitted" : "held", (unsigned long long)rb_gov_share(plan,RB_GOV_PREFETCH));
++    if (event || plan != old) MLOG("[RB-MEM-GOV] tier=%u event=%lu headroom_MiB=%lld total_MiB=%u ordered_quotas_bytes prefetch=%llu upload=%llu texture=%llu pipeline=%llu",
++        tier,event,room == UINT64_MAX ? -1ll : (long long)(room >> 20),mib,
++        (unsigned long long)rb_gov_share(plan,0),(unsigned long long)rb_gov_share(plan,1),
++        (unsigned long long)rb_gov_share(plan,2),(unsigned long long)rb_gov_share(plan,3));
++    pthread_mutex_unlock(&rb_gov_mu);
++#else
++    (void)event;
++#endif
++}
+diff --git a/runtime/include/rb_heap.h b/runtime/include/rb_heap.h
+--- a/runtime/include/rb_heap.h
++++ b/runtime/include/rb_heap.h
+@@ -10,6 +10,20 @@
+ #endif
+ 
+ // Process launch switches. Pointers stay in their original allocator and ABI.
++static inline int rb_mem_gov_switch(void) {
++#if defined(__APPLE__) && TARGET_OS_IOS
++    static _Atomic int mode;
++    int v = atomic_load_explicit(&mode, memory_order_relaxed);
++    if (!v) {
++        const char *env = getenv("S2A_RB_MEM_GOV");
++        v = env && !strcmp(env, "0") ? -1 : 1;
++        atomic_store_explicit(&mode, v, memory_order_relaxed);
++    }
++    return v > 0;
++#else
++    return 0;
++#endif
++}
+ static inline int rb_tex_budget_on(void)
+ {
+ #if defined(__APPLE__) && TARGET_OS_IOS
+@@ -17,7 +31,7 @@
+     int mode = atomic_load_explicit(&cached, memory_order_relaxed);
+     if (!mode) {
+         const char *e = getenv("S2A_RB_TEX_BUDGET");
+-        mode = e && !strcmp(e, "0") ? -1 : 1;
++        mode = !rb_mem_gov_switch() || (e && !strcmp(e, "0")) ? -1 : 1;
+         atomic_store_explicit(&cached, mode, memory_order_relaxed);
+     }
+     return mode > 0;

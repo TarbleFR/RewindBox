@@ -287,3 +287,16 @@ The [805 delivery receipt](../../../docs/evidence/rewind805/delivery.json) recor
 | 0185 | Independent candidate controls for GPU upload-ahead (0132) and host page hints (0149/0160) allow same-build comparisons. |
 
 Set `S2A_RB_TEX_BUDGET=0` before launch to restore the 803 paths, including the heap and PSO policies. See the [historical attribution and device criteria](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md#textures-metal).
+
+### Long-session paging, patches 0186–0191
+
+| Patch | Effect |
+| --- | --- |
+| 0186 | Sample iOS process headroom at most twice per second under normal operation. The existing memory-pressure source overrides that schedule. Publish one total and four quotas atomically. Recovery requires sustained headroom. |
+| 0187 | Split queued page-hint capacity between texture registration and pool lookahead. Both queues and bind-page hints recheck the same admission cap at execution. Stop optional prefetch on warning or critical pressure. |
+| 0188 | Reduce staging retention and the upload batch limit. At a submission boundary drop completed idle slot buffers above quota. A demanded upload can exceed the retention allowance until its GPU work completes. |
+| 0189 | Give the renderer’s rebuildable texture caches the texture share of the central budget. React to a new plan at the next submission, including changes between normal 30-frame sweeps. |
+| 0190 | Budget optional PSO warming by measured shallow bytes and an independent count limit. Shorten the idle age of eligible archive-backed pipelines under pressure. Keep foreground builds and fence retirement. |
+| 0191 | Starting a comparable benchmark also begins a private ten-minute paging companion. It records 60 deltas from process page-ins and system/all-core CPU ticks, and independently identifies an incomplete session. |
+
+Set `S2A_RB_MEM_GOV=0` before launch for the 803 paths. Existing emergency GPU and allocator releases still observe their safety fences. [Quota policy and device acceptance](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md#pagination-sur-dix-minutes).

@@ -1,0 +1,91 @@
+Restrict queued and executing optional readers and pause speculative preparation on pressure. Existing demanded reads remain available.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -5229,7 +5229,23 @@
+     }
+     return absent;
+ }
+-static uint64_t rb_wn(const void *p, uint64_t n) { return rb_wn_(p, n, NULL, NULL, 0, 0); }
++// Called only by optional readers. The demand probe has its own rb_wn_demand path.
++static _Atomic uint64_t rb_gov_prefetch_inflight, rb_gov_prefetch_skipped;
++static uint64_t rb_wn(const void *p, uint64_t n) {
++    if (!rb_gov_on()) return rb_wn_(p, n, NULL, NULL, 0, 0);
++    rb_gov_sample(0);
++    uint64_t limit = rb_gov_quota(RB_GOV_PREFETCH);
++    uint64_t old = atomic_load(&rb_gov_prefetch_inflight);
++    do {
++        if (old > limit || n > limit - old) {
++            atomic_fetch_add_explicit(&rb_gov_prefetch_skipped,n,memory_order_relaxed);
++            return RB_WN_NONE;
++        }
++    } while (!atomic_compare_exchange_weak(&rb_gov_prefetch_inflight,&old,old+n));
++    uint64_t probed = rb_wn_(p,n,NULL,NULL,0,0);
++    atomic_fetch_sub(&rb_gov_prefetch_inflight,n);
++    return probed;
++}
+ static uint64_t rb_wn_demand(const void *p, uint64_t n) { return rb_wn_(p, n, NULL, NULL, 0, 1); }
+ static void rb_wn_note(const tex_t *t, uint64_t absent) {   // what a read of t's storage found (rb_wn), for the counts; reads t->pool as tex_mtl_ does (its callers' thread)
+     if (absent == RB_WN_NONE) { atomic_fetch_add_explicit(&g_wn_frame_unseen, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_wn_tot_unseen, 1, memory_order_relaxed); return; }
+@@ -5306,7 +5322,7 @@
+     if (!t->has_layout && !tex_cpu_written(t->serial)) return;   // a GPU texture (see above)
+     if (tex_get(t->serial)) return;   // made already
+     const uint64_t n = t->L.size;
+-    const int64_t queue_limit = rb_pf_pending();
++    const int64_t queue_limit = rb_gov_on() ? MIN(rb_pf_pending(),(int64_t)(rb_gov_quota(RB_GOV_PREFETCH) / 2)) : rb_pf_pending();
+     int64_t pending = atomic_load_explicit(&g_pf_pend, memory_order_relaxed);
+     do {
+         if (pending + (int64_t)n > queue_limit) {
+@@ -5429,16 +5445,17 @@
+     return (uint64_t)x << 20;
+ }
+ static int rb_spec_level(void) {
+-    if (!rb_spec_on()) return RB_SPEC_RUN;
++    if (!rb_spec_on() && !rb_gov_on()) return RB_SPEC_RUN;
+     uint64_t now = bp_now(), prev = atomic_load_explicit(&g_spec_sampled, memory_order_relaxed);
+     if ((!prev || (now > prev && now - prev >= 500000000ull)) && atomic_compare_exchange_strong_explicit(&g_spec_sampled, &prev, now, memory_order_relaxed, memory_order_relaxed)) {
+         NSProcessInfo *pi = NSProcessInfo.processInfo; int th = rb_cached_thermal(), low = pi.isLowPowerModeEnabled ? 1 : 0;
+         uint64_t av = UINT64_MAX;
+ #if TARGET_OS_IPHONE
+-        av = rb_ios_headroom();
++        if (rb_gov_on()) { rb_gov_sample(0); av = atomic_load(&rb_gov_room); } else av = rb_ios_headroom();
+ #endif
+         _Static_assert(NSProcessInfoThermalStateFair == 1 && NSProcessInfoThermalStateSerious == 2, "thermal states");
+-        int why = rb_spec_reason(th, low, av, rb_spec_min_free());
++        int why = rb_spec_on() ? rb_spec_reason(th, low, av, rb_spec_min_free()) : RB_SPEC_CLEAR;
++        if (rb_gov_on() && !rb_gov_quota(RB_GOV_PREFETCH) && why != RB_SPEC_HOT) why = RB_SPEC_LOW_MEMORY;
+         if (why != RB_SPEC_HOT && now < atomic_load(&g_spec_pressure_until)) why = RB_SPEC_LOW_MEMORY;
+         if (why == RB_SPEC_HOT) atomic_store_explicit(&g_spec_last_hot, now, memory_order_relaxed);
+         why = rb_spec_recovery(why, now, atomic_load_explicit(&g_spec_last_hot, memory_order_relaxed));
+@@ -5535,8 +5552,9 @@
+     uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed), lowm = ((uint64_t)1 << 40) - 1, ft = (f & 0xffffff) << 40; uint32_t fs = (uint32_t)f + 1;
+     static dispatch_once_t once;
+     dispatch_once(&once, ^{ g_rb_pool_ahead_q = dispatch_queue_create("rb.pool.ahead", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_DEFAULT, 0)); });
+-    int bounded = rb_pa_queue_budget_on();
++    int bounded = rb_gov_on() || rb_pa_queue_budget_on();
+     uint64_t limit = bounded ? rb_pa_queue_limit() : 0;
++    if (rb_gov_on()) { limit = MIN(limit,rb_gov_quota(RB_GOV_PREFETCH)/2); if (!limit) return; }
+     atomic_fetch_add_explicit(&g_pa_tex, 1, memory_order_relaxed);
+     for (uintptr_t c = (uintptr_t)wb + ((lo - (uintptr_t)wb) & ~pm); c < hi; c += pm + 1) {
+         uintptr_t s = MAX(c, lo), x = MIN(c + pm + 1, hi);
+diff --git a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+--- a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
++++ b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+@@ -34,7 +34,7 @@
+         g_tx_page.work_frame = frame;
+         g_tx_page.work_bytes = 0;
+ #if TARGET_OS_IPHONE
+-        g_tx_page.enough_room = os_proc_available_memory() >= (UINT64_C(2) << 30);
++        g_tx_page.enough_room = rb_gov_on() ? rb_gov_quota(RB_GOV_PREFETCH) != 0 : os_proc_available_memory() >= (UINT64_C(2) << 30);
+ #else
+         g_tx_page.enough_room = 1;
+ #endif
+@@ -183,6 +183,7 @@
+     return safe;
+ }
+ void nvn_be_advance_texture(void) {
++    if (rb_gov_on() && !rb_gov_quota(RB_GOV_PREFETCH)) return;
+     if (!atomic_load_explicit(&g_tx_ahead.pending, memory_order_relaxed) ||
+         !on_sub_thread() || dm_gfx_session_stopping() || g_cb || g_up_cb || atomic_load(&g_fu_waiting) ||
+         g_tx_ahead.bytes >= RB_TX_SESSION || atomic_load(&g_up_pending)) return;

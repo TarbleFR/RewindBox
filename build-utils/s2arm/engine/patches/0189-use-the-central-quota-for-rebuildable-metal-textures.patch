@@ -1,0 +1,32 @@
+Apply a pressure generation immediately on the submit owner, retaining the existing texture data and fence safeguards.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -17447,12 +17447,23 @@
+ // never share a snapshot, even with the same shape (10-27 #570 follow-up, xy0v0 ae42eb856: two same-format same-size attachments read the second one's copy); kept across draws
+ static void rb_tex_budget_maintain(void) {
+     uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
+-    if (rb_texture_sample_frame != UINT64_MAX && frame >= rb_texture_sample_frame &&
++    static unsigned applied;
++    unsigned plan = rb_gov_on() ? atomic_load(&rb_gov_plan) : 0;
++    if (plan == applied && rb_texture_sample_frame != UINT64_MAX && frame >= rb_texture_sample_frame &&
+         frame - rb_texture_sample_frame < 30) return;
+     rb_texture_sample_frame = frame;
+ #if TARGET_OS_IPHONE
+-    uint64_t room = rb_ios_headroom();
+-    uint64_t budget = room == UINT64_MAX ? (192ull << 20) : MIN(256ull << 20, MAX(32ull << 20, room / 6));
++    uint64_t budget;
++    if (rb_gov_on()) {
++        budget = rb_gov_share(plan,RB_GOV_TEXTURE);
++        if (plan != applied) MLOG("[RB-MEM-GOV] owner=texture cap_bytes=%llu depth_bytes=%llu colour_bytes=%llu spare_bytes=%llu speculative_bytes=%llu",
++            (unsigned long long)budget,(unsigned long long)g_snp_depth.held,(unsigned long long)g_snp_color.held,
++            (unsigned long long)rb_spare_held,(unsigned long long)rb_cold_held);
++    } else {
++        uint64_t room = rb_ios_headroom();
++        budget = room == UINT64_MAX ? (192ull << 20) : MIN(256ull << 20, MAX(32ull << 20, room / 6));
++    }
++    applied = plan;
+     atomic_store_explicit(&rb_texture_budget, budget, memory_order_relaxed);
+ #endif
+     rb_spare_tend(frame);

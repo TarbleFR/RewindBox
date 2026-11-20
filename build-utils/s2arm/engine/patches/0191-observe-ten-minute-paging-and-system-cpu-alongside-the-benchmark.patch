@@ -1,0 +1,145 @@
+Write a private 60-interval companion to the normal benchmark. Measure process page-ins and whole-machine system CPU without extending or weakening the existing score.
+
+diff --git a/ios/rb_benchmark.m b/ios/rb_benchmark.m
+--- a/ios/rb_benchmark.m
++++ b/ios/rb_benchmark.m
+@@ -9,6 +9,8 @@
+ #include <math.h>
+ #include <pthread.h>
+ #include <stdatomic.h>
++#include <stdbool.h>
++#include <mach/processor_info.h>
+ #include <stddef.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -195,7 +197,10 @@
+     }
+     pthread_mutex_unlock(&g_rb_lock);
+ }
++static _Atomic bool rb_long_busy;
++static _Atomic uint64_t rb_long_interrupt;
+ void s2a_rb_bench_invalidate(const char *reason) {
++    if (atomic_load(&rb_long_busy)) atomic_fetch_add(&rb_long_interrupt,1);
+     if (!s2a_rb_bench_generation()) return;
+     @autoreleasepool {
+         NSString *why = reason ? [[NSString alloc] initWithBytes:reason length:strnlen(reason, 256) encoding:NSUTF8StringEncoding] : nil;
+@@ -515,6 +520,7 @@
+     pthread_mutex_unlock(&g_rb_lock);
+ }
+ void s2a_rb_bench_end(const char *reason) {
++    if (atomic_load(&rb_long_busy)) atomic_fetch_add(&rb_long_interrupt,1);
+     if (reason && (!strcmp(reason,"stop_requested") || !strcmp(reason,"session_ended") || !strcmp(reason,"session_parked")))
+         atomic_store(&g_rb_stopped_engine,s2a_session_generation());
+     atomic_fetch_add(&g_rb_end_serial,1);
+@@ -700,6 +706,8 @@
+     pthread_mutex_unlock(&g_rb_lock);
+     free(frames); free(display); return code;
+ }
++#include "../runtime/include/rb_heap.h"
++#include "rb_long_paging.inc"
+ static int rb_start(const char *json) {
+     if (![NSThread isMainThread]) return -4;
+     if (!json || strnlen(json,16385) > 16384) return -3;
+@@ -820,6 +828,7 @@
+         @"duration_target_s":@(RB_SECONDS),@"start_ns":@(start),@"metadata":g_rb_metadata,@"initial_conditions":conditions,
+         @"comparable":rb_bool(!reasons.count),@"reasons":reasons};
+     rb_log(begin);
++    if (rb_pso_cap_on() && !reasons.count) rb_long_start(identifier,engine_generation,start);
+     return 0;
+ }
+ __attribute__((visibility("default"), used))
+diff --git a/ios/rb_long_paging.inc b/ios/rb_long_paging.inc
+new file mode 100644
+--- /dev/null
++++ b/ios/rb_long_paging.inc
+@@ -0,0 +1,90 @@
++// SPDX-License-Identifier: Apache-2.0
++// An independently identified companion to the existing 180-second score.
++// Read only cumulative OS counters; no guest pages or GPU resources are touched.
++typedef struct { uint64_t time, pages, system, ticks; unsigned cores; } rb_long_sample;
++static BOOL rb_long_read(rb_long_sample *s) {
++    uint64_t written, readBytes, logical;
++    if (!s2a_disk_io || s2a_disk_io(&written,&readBytes,&s->pages,&logical)) return NO;
++    mach_port_t host = mach_host_self();
++    processor_info_array_t data = NULL;
++    natural_t count = 0; mach_msg_type_number_t words = 0;
++    kern_return_t result = host_processor_info(host,PROCESSOR_CPU_LOAD_INFO,&count,&data,&words);
++    mach_port_deallocate(mach_task_self(),host);
++    BOOL ok = result == KERN_SUCCESS && data && count &&
++              (size_t)words >= (size_t)count * CPU_STATE_MAX;
++    if (ok) for (unsigned i = 0; i < count; ++i) {
++        processor_cpu_load_info_t cpu = (processor_cpu_load_info_t)data + i;
++        s->system += cpu->cpu_ticks[CPU_STATE_SYSTEM];
++        for (unsigned j = 0; j < CPU_STATE_MAX; ++j) s->ticks += cpu->cpu_ticks[j];
++    }
++    if (data) vm_deallocate(mach_task_self(),(vm_address_t)data,(vm_size_t)words*sizeof(integer_t));
++    s->cores = count; s->time = rb_now();
++    return ok;
++}
++static void rb_long_write(NSDictionary *report, NSString *identifier) {
++    char docs[4096]; int n = s2a_container_docs(docs,sizeof docs);
++    if (n <= 0 || (size_t)n >= sizeof docs) return;
++    NSString *dir = [@(docs) stringByAppendingPathComponent:@"Diagnostics/S2Arm/benchmarks"];
++    NSError *err = nil;
++    NSString *name = [identifier stringByAppendingString:@"-paging-600s.json"];
++    NSData *json = [NSJSONSerialization dataWithJSONObject:report options:0 error:&err];
++    if (json && [NSFileManager.defaultManager createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:&err])
++        [json writeToFile:[dir stringByAppendingPathComponent:name] options:NSDataWritingAtomic error:&err];
++    if (err) NSLog(@"[RB-MEM-GOV] ten-minute report write failed: %@",err.localizedDescription);
++}
++static void rb_long_start(NSString *identifier,unsigned engine,uint64_t start) {
++    uint64_t interrupt = atomic_load(&rb_long_interrupt);
++    bool expected = false;
++    if (!atomic_compare_exchange_strong(&rb_long_busy,&expected,true)) return;
++    __block rb_long_sample prev = {0};
++    if (!rb_long_read(&prev) || prev.time < start || prev.time - start > NSEC_PER_SEC) {
++        rb_long_write(@{@"benchmark_id":identifier,@"complete":@NO,@"reason":@"baseline_unavailable_or_late"},identifier);
++        atomic_store(&rb_long_busy,false); return;
++    }
++    NSMutableArray *rows = [NSMutableArray array], *cpu = [NSMutableArray array];
++    __block unsigned step = 0;
++    __block uint64_t first = 0, last = 0;
++    dispatch_queue_t q = dispatch_queue_create("rb.benchmark.paging",dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,QOS_CLASS_UTILITY,0));
++    __block dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER,0,0,q);
++    if (!timer) { atomic_store(&rb_long_busy,false); return; }
++    dispatch_source_set_event_handler(timer,^{
++        @autoreleasepool {
++            rb_long_sample cur = {0}; NSString *reason = nil;
++            uint64_t deadline = start + (uint64_t)(step+1)*10*NSEC_PER_SEC;
++            if (atomic_load(&rb_long_interrupt)!=interrupt || !rb_engine_running(engine)) reason=@"session_or_conditions_changed";
++            else if (!rb_long_read(&cur) || cur.cores != prev.cores || cur.time <= prev.time ||
++                     cur.pages < prev.pages || cur.ticks <= prev.ticks || cur.system < prev.system ||
++                     cur.system-prev.system > cur.ticks-prev.ticks) reason=@"counter_discontinuity";
++            else if ((cur.time>deadline ? cur.time-deadline : deadline-cur.time) > NSEC_PER_SEC) reason=@"sample_outside_tolerance";
++            if (!reason) {
++                const uint64_t pages=cur.pages-prev.pages, sys=cur.system-prev.system, ticks=cur.ticks-prev.ticks;
++                NSNumber *percent = @(100.0*(double)sys/(double)ticks);
++                [rows addObject:@{@"start_ns":@(prev.time),@"end_ns":@(cur.time),@"process_pageins":@(pages),
++                                 @"machine_system_ticks":@(sys),@"machine_total_ticks":@(ticks)}];
++                [cpu addObject:percent];
++                if (step<18) first += pages;
++                if (step>=42) last += pages;
++                ++step; prev=cur;
++            }
++            if (!reason && step<60) return;
++            NSMutableDictionary *report = [@{@"schema":@1,@"benchmark_id":identifier,@"engine_generation":@(engine),
++                @"complete":@(!reason),@"start_ns":@(start),@"intervals":rows} mutableCopy];
++            if (reason) report[@"reason"]=reason;
++            else {
++                NSArray *sorted = [cpu sortedArrayUsingSelector:@selector(compare:)];
++                double median = ([sorted[29] doubleValue]+[sorted[30] doubleValue])*0.5;
++                report[@"first_180s_process_pageins"]=@(first); report[@"last_180s_process_pageins"]=@(last);
++                report[@"pagein_ratio"]=first ? @(last/(double)first) : NSNull.null;
++                report[@"median_machine_system_cpu_pct"]=@(median);
++                report[@"within_paging_limit"]=@(last <= first || last-first <= first/2);
++                report[@"within_cpu_limit"]=@(median < 25.0);
++            }
++            rb_long_write(report,identifier);
++            dispatch_source_cancel(timer); timer=nil; atomic_store(&rb_long_busy,false);
++        }
++    });
++    uint64_t now = rb_now(), next = start+10ull*NSEC_PER_SEC;
++    dispatch_source_set_timer(timer,dispatch_time(DISPATCH_TIME_NOW,next>now ? (int64_t)(next-now) : 0),
++                              10ull*NSEC_PER_SEC,10ull*NSEC_PER_MSEC);
++    dispatch_resume(timer);
++}
