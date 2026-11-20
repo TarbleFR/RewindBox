@@ -1,0 +1,270 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index a5f1544..494bea9 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -5138,14 +5138,17 @@ static int rb_pa_queue_budget_on(void) {
+     });
+     return enabled;
+ }
+-static uint64_t rb_pa_queue_limit(void) {
++static int rb_cached_thermal(void) {
+     static _Atomic uint64_t sampled;
+     static _Atomic int thermal;
+     uint64_t now = bp_now(), previous = atomic_load_explicit(&sampled, memory_order_relaxed);
+-    if ((!previous || now - previous >= 500000000ull) &&
++    if ((!previous || (now > previous && now - previous >= 500000000ull)) &&
+         atomic_compare_exchange_strong_explicit(&sampled, &previous, now, memory_order_relaxed, memory_order_relaxed))
+         atomic_store_explicit(&thermal, (int)NSProcessInfo.processInfo.thermalState, memory_order_relaxed);
+-    int state = atomic_load_explicit(&thermal, memory_order_relaxed);
++    return atomic_load_explicit(&thermal, memory_order_relaxed);
++}
++static uint64_t rb_pa_queue_limit(void) {
++    int state = rb_cached_thermal();
+     return (uint64_t)(state >= 2 ? 16 : state == 1 ? 32 : 64) << 20;
+ }
+ 
+@@ -5179,7 +5182,7 @@ static int rb_spec_level(void) {
+     if (!rb_spec_on()) return RB_SPEC_RUN;
+     uint64_t now = bp_now(), prev = atomic_load_explicit(&g_spec_sampled, memory_order_relaxed);
+     if ((!prev || (now > prev && now - prev >= 500000000ull)) && atomic_compare_exchange_strong_explicit(&g_spec_sampled, &prev, now, memory_order_relaxed, memory_order_relaxed)) {
+-        NSProcessInfo *pi = NSProcessInfo.processInfo; int th = (int)pi.thermalState, low = pi.isLowPowerModeEnabled ? 1 : 0;
++        NSProcessInfo *pi = NSProcessInfo.processInfo; int th = rb_cached_thermal(), low = pi.isLowPowerModeEnabled ? 1 : 0;
+         uint64_t av = UINT64_MAX;
+ #if TARGET_OS_IPHONE
+         static _Atomic int saw_positive;
+diff --git a/graphics/nvn/gfx/nvn/nvn_rec.h b/graphics/nvn/gfx/nvn/nvn_rec.h
+index 4d9844d..c1525b6 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rec.h
++++ b/graphics/nvn/gfx/nvn/nvn_rec.h
+@@ -58,8 +58,16 @@ static void rb_rt_start(int who) {
+     if (!rb_rt_us()) { atomic_store(&g_rb_rt_st[who], 4); return; }
+     rb_rt_set(who, nvn_be_fps_target());
+ }
++static int rb_cached_thermal(void);
++static _Atomic int g_ubc_thermal;
++static inline int ubc_spin_budget(int state, int worker) {
++    if (state >= 2) return 0;
++    if (state == 1) return worker ? 128 : 32;
++    return worker ? 2000 : 200;
++}
+ static void rb_rt_tick(int who, uint64_t *last) {   // after a stretch of work, at most twice a second
+     uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW); if (now - *last < 500000000ull) return; *last = now;
++    if (who == 1) atomic_store_explicit(&g_ubc_thermal, rb_cached_thermal(), memory_order_relaxed);
+     int st = atomic_load(&g_rb_rt_st[who]); if (st != 1 && st != 2) return;
+     int hz = nvn_be_fps_target();
+     if (st == 2 || hz != atomic_load(&g_rb_rt_hz[who])) rb_rt_set(who, hz); else rb_rt_look(who);
+@@ -70,9 +78,10 @@ static void *ubc_thread(void *arg) {
+     for (uint64_t t = 0;;) {
+         uint64_t h = atomic_load_explicit(&g_ubc_head, memory_order_acquire);
+         if (t == h) {
+-            for (int spin = 0; spin < 2000 && t == h; spin++) h = atomic_load_explicit(&g_ubc_head, memory_order_acquire);   // a submission queues copies in bursts: stay awake a moment
++            const int spins = ubc_spin_budget(atomic_load_explicit(&g_ubc_thermal, memory_order_relaxed), 1);
++            for (int spin = 0; spin < spins && t == h; spin++) h = atomic_load_explicit(&g_ubc_head, memory_order_acquire);   // a submission queues copies in bursts: stay awake a moment
+             if (t == h) { pthread_mutex_lock(&g_ubc_mu); atomic_store(&g_ubc_sleeping, 1);
+-                while ((h = atomic_load_explicit(&g_ubc_head, memory_order_acquire)) == t) pthread_cond_wait(&g_ubc_cv, &g_ubc_mu);
++                while ((h = atomic_load_explicit(&g_ubc_head, memory_order_seq_cst)) == t) pthread_cond_wait(&g_ubc_cv, &g_ubc_mu);
+                 atomic_store(&g_ubc_sleeping, 0); pthread_mutex_unlock(&g_ubc_mu); }
+         }
+         for (; t < h; t++) { const ubc_op *o = &g_ubc[t % UBC_N]; memcpy(o->d, o->s, o->n); }
+@@ -86,9 +95,9 @@ static void *ubc_thread(void *arg) {
+ // Wait until the first seq ops are made
+ static void ubc_wait(uint64_t seq) {
+     if (atomic_load_explicit(&g_ubc_done, memory_order_acquire) >= seq) return;
+-    for (int spin = 0; spin < 200; spin++) {   // a short spin first: most waits are a copy or two away
++    const int spins = ubc_spin_budget(atomic_load_explicit(&g_ubc_thermal, memory_order_relaxed), 0);
++    for (int spin = 0; spin < spins; spin++) {   // a short spin first: most waits are a copy or two away
+         if (atomic_load_explicit(&g_ubc_done, memory_order_acquire) >= seq) return;
+-        if (atomic_load(&g_ubc_sleeping)) { pthread_mutex_lock(&g_ubc_mu); pthread_cond_signal(&g_ubc_cv); pthread_mutex_unlock(&g_ubc_mu); }
+         __builtin_arm_yield();
+     }
+     // then sleep until the worker reports progress (it broadcasts under g_ubc_mu after each batch whenever someone waits; the check below is under the same mutex: no lost wake-up)
+@@ -106,7 +115,9 @@ static uint64_t ubc_push(void *d, const void *s, size_t n) {
+     uint64_t h = atomic_load_explicit(&g_ubc_head, memory_order_relaxed);
+     if (h - atomic_load_explicit(&g_ubc_done, memory_order_acquire) >= UBC_N) ubc_wait(h - UBC_N + 1);
+     g_ubc[h % UBC_N] = (ubc_op){d, s, n};
+-    atomic_store_explicit(&g_ubc_head, h + 1, memory_order_release);
++    // Pair the seq_cst publication and sleeping flag read with the worker's
++    // flag store and head recheck: it sees the work or the producer signals it.
++    atomic_store_explicit(&g_ubc_head, h + 1, memory_order_seq_cst);
+     if (atomic_load(&g_ubc_sleeping)) { pthread_mutex_lock(&g_ubc_mu); pthread_cond_signal(&g_ubc_cv); pthread_mutex_unlock(&g_ubc_mu); }
+     return h + 1;
+ }
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index e9582f4..4d6ecf4 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -148,7 +148,9 @@ typedef struct thr {
+     uint64_t *svc_regs; uint64_t svc_pc;   // 当前系统调用的门帧与原 svc 指令地址
+     uint64_t tsd;                      // 本宿主线程 TSD 基址：别的线程据此读本线程的 K18 / KTLS / KTLR 槽
+     void *tlr;                         // ThreadLocalRegion（窗口 TLS/IO 区，svc_mem.c 分配）
+-    const uint32_t *wh; int wn;        // WaitSynchronization 在等的句柄数组与个数（现场导出用）
++    uintptr_t sync_objects[64]; // resolved under G before blocking, compared without dereferencing
++    uint32_t sync_handles[64];
++    int wn;        // WaitSynchronization 在等的句柄数组与个数（现场导出用）
+     _Atomic int preempt_req;           // 时钟抢占：宿主区被请求让核（下次 svc_exit 的 core_acquire 处自然让）
+     _Atomic int preempting;            // 时钟抢占：已被看门狗发信号、让核未完（看门狗不重复发）
+     _Atomic int restoring;             // 时钟抢占（方案 d）：tramp 已让核、等二次信号覆盖 mcontext 回原
+@@ -426,7 +428,27 @@ static void wake(thr_t *t, int64_t res) {
+             me->peer = (peer_wait_t){t->handle, t->id, atomic_load_explicit(&t->nsvc_all, memory_order_relaxed)};
+     }
+ }
+-static void wake_sync_waiters(void) { for (thr_t *w = g_wait; w; ) { thr_t *n = w->next; if (w->wkind == 4) wake(w, -1); w = n; } }
++// A normal wake asks the waiter to re-check its own predicates under G.
++static void wake_sync_waiters(const void *object, uint32_t closed_handle) {
++#ifndef S2A_UNIT_TEST
++    const int replay_order = s2a_det_mode() != 0;
++    if (replay_order && closed_handle) return; // retain the recorded wake sequence
++#else
++    const int replay_order = 0;
++#endif
++    for (thr_t *w = g_wait, *next; w; w = next) {
++        next = w->next; // wake unlinks the waiter
++        if (w->wkind != 4) continue;
++        if (replay_order) { wake(w, -1); continue; }
++        for (int i = 0; i < w->wn; ++i) {
++            if (closed_handle ? w->sync_handles[i] == closed_handle :
++                                w->sync_objects[i] == (uintptr_t)object) {
++                wake(w, -1);
++                break;
++            }
++        }
++    }
++}
+ // S2A_WAIT_TRACE=1（缺省关，热路径只多一次原子读）：等待方逐线程记「等待期间我的键 / 地址被发过几次信号」。
+ //   键表（g_cvl）是 1024 格直映哈希，键一多就互相覆盖，「从没被发过信号」可能是撞掉的记录；逐线程计数不撞。
+ //   只算挂上之后的信号（block 里清零），所以「等了 10 秒、期间 0 次」= 真没人发，而不是记录被覆盖
+@@ -944,7 +966,7 @@ static void thread_exit(thr_t *t) {
+     core_release(t);   // 0x0A 里 svc_exit 会重取核：退出前放开，否则带着核退出、同核线程永远等（S2A_CORES 单测抓到）
+     s2a_cs_thread_exit(t->handle);
+     glock();
+-    t->exited = 1; wake_sync_waiters();
++    t->exited = 1; wake_sync_waiters(t, 0);
+     for (int i = 0; i < 5; i++) atomic_fetch_add_explicit(&g_gw[i], t->gw_n[i], memory_order_relaxed);   // RewindBox (patch 0074): under G with exited = 1, so s2a_yield_stat_log counts it once
+     pthread_setspecific(g_keythr, NULL);
+     void *tlr = t->tlr; t->tlr = NULL; void *hstk = t->hstk;
+@@ -988,7 +1010,7 @@ static void thread_exit(thr_t *t) {
+ #endif
+     sw_xstack_thread_fini();
+     glock();
+-    t->exited = 1; wake_sync_waiters();
++    t->exited = 1; wake_sync_waiters(t, 0);
+     pthread_setspecific(g_keythr, NULL);
+     if (t->closed) thr_free(t);
+     pthread_mutex_unlock(&G);
+@@ -1985,9 +2007,11 @@ int s2a_guest_frozen(void) { return atomic_load(&g_frz); }   // ap_host.c 出图
+ void s2a_guest_freeze(int on) { glock(); atomic_store(&g_frz, on ? 1 : 0); if (!on) pthread_cond_broadcast(&g_pause_cv); pthread_mutex_unlock(&G); }
+ 
+ // ---------- 同步对象 ----------
+-static int sig_obj(uint32_t h, int *bad) {   // 1 = 已触发（持 G）
++static int sig_obj(uint32_t h, int *bad, uintptr_t *object) {   // 1 = 已触发（持 G）
++    *object = 0;
+     if (h == S2A_H_CUR_THREAD) return 0;
+     int i = h_idx(h); if (!i) { *bad = 1; return 0; }
++    *object = (uintptr_t)g_h[i].obj;
+     switch (g_h[i].kind) {
+     case S2A_OBJ_THREAD: return ((thr_t *)g_h[i].obj)->exited;
+     case S2A_OBJ_EVENT_R: { event_t *e = g_h[i].obj;
+@@ -2050,12 +2074,18 @@ static void sleep_hist(int64_t ns) { atomic_fetch_add_explicit(&g_sl_hist[ns < 1
+ __attribute__((weak)) int dm_thermal_now(void) { return -1; }   // strong in ios/app.m and runtime/src/host_main.c; the same weak default as fps.c and qladder_host.c (-1 without them)
+ static _Atomic int g_yb_hot; static _Atomic uint64_t g_yb_hot_at, g_yb_hot_sleeps;
+ static int rb_yield_hot(uint64_t now) {
+-    static int on = -1;
+-    if (on < 0) { const char *e = getenv("S2A_RB_YIELD_THERMAL"); on = !(e && !strcmp(e, "0"));
+-        LOG("RewindBox (patch 0087): the yields' backoff %s (S2A_RB_YIELD_THERMAL)", on ? "starts after 50 µs of a round while the thermal state is serious or critical" : "keeps its start under heat"); }
++    static _Atomic int setting = -1;
++    int on = atomic_load_explicit(&setting, memory_order_relaxed);
++    if (on < 0) {
++        const char *e = getenv("S2A_RB_YIELD_THERMAL");
++        on = !(e && !strcmp(e, "0"));
++        int unset = -1;
++        if (atomic_compare_exchange_strong_explicit(&setting, &unset, on, memory_order_relaxed, memory_order_relaxed))
++            LOG("RewindBox: thermal yield backoff %s", on ? "enabled" : "disabled");
++    }
+     if (!on) return 0;
+     uint64_t at = atomic_load(&g_yb_hot_at);
+-    if ((at && now - at < 500000000ull) || !atomic_compare_exchange_strong(&g_yb_hot_at, &at, now)) return atomic_load(&g_yb_hot);
++    if ((at && (now <= at || now - at < 500000000ull)) || !atomic_compare_exchange_strong(&g_yb_hot_at, &at, now)) return atomic_load(&g_yb_hot);
+     int st = dm_thermal_now(), hot = st >= 2;
+     if (atomic_exchange(&g_yb_hot, hot) != hot)
+         LOG("RewindBox (patch 0087): thermal state %d: the yields' backoff starts after %lld µs of a round (%llu backoff sleeps while hot so far)", st,
+@@ -2579,6 +2609,7 @@ static uint32_t close_handle(uint32_t h) {   // 不持 G 进来
+     int i = h_idx(h); uint32_t kind = i ? g_h[i].kind : 0; uint64_t cookie = i ? g_h[i].cookie : 0;
+     if (!i) { pthread_mutex_unlock(&G); return R_BAD_HANDLE; }
+     void *o = g_h[i].obj, *cm = NULL; h_free(i);
++    if (kind == S2A_OBJ_EVENT_R || kind == S2A_OBJ_THREAD) wake_sync_waiters(NULL, h);
+     switch (kind) {
+     case S2A_OBJ_EVENT_R: case S2A_OBJ_EVENT_W: if (--((event_t *)o)->refs == 0) { if (((event_t *)o)->did) evmap_del(o); free(o); } break;
+     case S2A_OBJ_TMEM: break;   // 放锁后还回源再释放：还回取 svc_mem 的锁，那边持锁时会来取 G（s2a_tmem_get）
+@@ -3015,7 +3046,7 @@ static int svc_thread_impl(thr_t *me, int num, uint64_t *regs) {
+         if (e && !e->did && s2a_det_in_turn()) ev_expose(e);
+ #endif
+         if (!e) r = (num == 0x17 && h_obj(h, S2A_OBJ_THREAD)) ? R_BAD_STATE : R_BAD_HANDLE;
+-        else if (num == 0x11) { e->signaled = 1; wait_diag_event_locked(e, 1); wake_sync_waiters(); }
++        else if (num == 0x11) { e->signaled = 1; wait_diag_event_locked(e, 1); wake_sync_waiters(e, 0); }
+         else if (num == 0x17 && !e->signaled) r = R_BAD_STATE;
+         else { e->signaled = 0; wait_diag_event_locked(e, 0); }
+         pthread_mutex_unlock(&G);
+@@ -3025,13 +3056,14 @@ static int svc_thread_impl(thr_t *me, int num, uint64_t *regs) {
+         const uint32_t *hs = (const uint32_t *)regs[1]; int n = (int)regs[2]; int64_t ns = (int64_t)regs[3];
+         int64_t deadline = ns > 0 ? now_mono_ns() + ns : 0, r; int idx = -1;
+         if (n < 0 || n > 64) { regs[0] = 0xEE01; return 1; }   // OutOfRange（Horizon 上限 64）
+-        glock(); me->wh = hs; me->wn = n;
++        glock(); me->wn = n;
+         for (;;) {
+             if (me->cancel) { me->cancel = 0; r = R_CANCELLED; break; }
+             int bad = 0;
+             for (int i = 0; i < n && idx < 0; i++) {
+                 uint32_t handle = hs[i];
+-                if (sig_obj(handle, &bad)) {
++                me->sync_handles[i] = handle;
++                if (sig_obj(handle, &bad, &me->sync_objects[i])) {
+                     idx = i;
+ #if defined(__APPLE__)
+                     me->mkw_signaled_handle = handle;
+@@ -3160,11 +3192,11 @@ int s2a_det_host_event(uint32_t id, int op);   // det.c：确定性档下宿主
+ #endif
+ void s2a_det_apply_host(uint32_t did, int op) {
+     glock(); event_t *e = evmap_get(did);
+-    if (e) { e->signaled = op; wait_diag_event_locked(e, op); if (op) wake_sync_waiters(); }
++    if (e) { e->signaled = op; wait_diag_event_locked(e, op); if (op) wake_sync_waiters(e, 0); }
+     pthread_mutex_unlock(&G);
+     if (!e) { static _Atomic int miss; if (atomic_fetch_add(&miss, 1) < 8) LOG("【红】确定性：宿主改事件 对象号 %#x 查不到（重放时异步建的事件编号与记录不同？）", did); }
+ }
+-void s2a_event_signal(uint64_t ev) { if (!ev) return; event_t *e = (event_t *)(uintptr_t)ev; DET_HOST(e, 1); glock(); e->signaled = 1; wait_diag_event_locked(e, 1); wake_sync_waiters(); pthread_mutex_unlock(&G); }
++void s2a_event_signal(uint64_t ev) { if (!ev) return; event_t *e = (event_t *)(uintptr_t)ev; DET_HOST(e, 1); glock(); e->signaled = 1; wait_diag_event_locked(e, 1); wake_sync_waiters(e, 0); pthread_mutex_unlock(&G); }
+ void s2a_event_clear(uint64_t ev) { if (!ev) return; event_t *e = (event_t *)(uintptr_t)ev; DET_HOST(e, 0); glock(); e->signaled = 0; wait_diag_event_locked(e, 0); pthread_mutex_unlock(&G); }
+ void s2a_event_retain(uint64_t ev) { if (!ev) return; glock(); ((event_t *)(uintptr_t)ev)->refs++; pthread_mutex_unlock(&G); }
+ void s2a_event_release(uint64_t ev) { if (!ev) return; glock(); event_t *e = (event_t *)(uintptr_t)ev; if (--e->refs == 0) {
+@@ -3495,8 +3527,8 @@ void s2a_thread_dump(void) {
+         if (t->wkind == 4 && t->wn > 0) {   // 在等哪些句柄：种类 + cookie（C# 对象 / 事件号）——事件一直不来时据此找是哪个服务的
+             static const char *const kn[] = {"无", "线程", "事件读", "事件写", "会话", "共享内存", "传输内存", "端口", "C#", "进程"};
+             char b[512]; size_t k = 0;
+-            for (int j = 0; j < t->wn && j < 16 && k < sizeof b - 64; j++) { int i = h_idx(t->wh[j]); unsigned kd = i ? g_h[i].kind : 0;
+-                k += (size_t)snprintf(b + k, sizeof b - k, " %#x=%s%s", t->wh[j], kd < 10 ? kn[kd] : "?", i && kd == S2A_OBJ_EVENT_R && ((event_t *)g_h[i].obj)->signaled ? "(已触发)" : ""); }
++            for (int j = 0; j < t->wn && j < 16 && k < sizeof b - 64; j++) { int i = h_idx(t->sync_handles[j]); unsigned kd = i ? g_h[i].kind : 0;
++                k += (size_t)snprintf(b + k, sizeof b - k, " %#x=%s%s", t->sync_handles[j], kd < 10 ? kn[kd] : "?", i && kd == S2A_OBJ_EVENT_R && ((event_t *)g_h[i].obj)->signaled ? "(已触发)" : ""); }
+             LOG("    等同步句柄 %d 个：%s", t->wn, b);
+         }
+     }
+diff --git a/runtime/src/thread_wait_diag.inc b/runtime/src/thread_wait_diag.inc
+index cc336a5..cd60f41 100644
+--- a/runtime/src/thread_wait_diag.inc
++++ b/runtime/src/thread_wait_diag.inc
+@@ -122,7 +122,7 @@ static void wait_diag_wake_locked(thr_t *t, int64_t result) {
+     r->source_tid=from ? from->id : 0; r->source_svc=g_wd_source_svc;
+     r->result=result; r->kind=t->wkind;
+ }
+-// wake_sync_waiters 唤醒所有同步等待者；这里只记录精确匹配事件。
++// Record the matching event separately from rechecks on close or deterministic replay.
+ // 没有 WD_EVENT 的 WD_WAKE 仅表示要求重新检查对象集合。
+ static void wait_diag_event_locked(event_t *e, int state) {
+     if (!wait_diag_on()) return;
+@@ -132,7 +132,7 @@ static void wait_diag_event_locked(event_t *e, int state) {
+     for (thr_t *t=g_wait; t; t=t->next) {
+         if (!t->trace_wait || t->wkind != 4) continue;
+         for (int j=0; j<t->wn && j<64; ++j) {
+-            int i=h_idx(t->wh[j]);
++            int i=h_idx(t->sync_handles[j]);
+             if (!i || g_h[i].kind != S2A_OBJ_EVENT_R || g_h[i].obj != e) continue;
+             wait_diag_record_t *r=wait_diag_add_locked(t, WD_EVENT); if (!r) return;
+             thr_t *from=pthread_getspecific(g_keythr);
