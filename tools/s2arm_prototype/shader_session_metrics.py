@@ -44,6 +44,33 @@ GAP_FIELDS = {
 }
 
 
+VISIBLE_WINDOW = re.compile(
+    r"displayed window up to frame (\d+): observed (-?[\d.]+) fps, (\d+) visible timestamps, (\d+) unavailable")
+DISPLAY_DEADLINES = re.compile(
+    r"displayed deadlines up to frame (\d+): "
+    r"16\.67 ms known (\d+) late (\d+) discarded (\d+) missing (\d+); "
+    r"33\.33 ms known (\d+) late (\d+) discarded (\d+) missing (\d+)")
+DEADLINE_FIELDS = ("measuredIntervals", "lateIntervals", "discarded", "missingIntervals")
+GUEST_WAIT_FIELDS = {
+    "ns": int, "svc": lambda v: int(v, 16), "key_or_list": lambda v: int(v, 16),
+    "guest_thread": int, "guest_pc": lambda v: int(v, 16), "result": lambda v: int(v, 16),
+    "signaled_handle": lambda v: int(v, 16), "last_waker_guest": int,
+}
+UPLOAD_FLUSH_FIELDS = dict.fromkeys(("boundary", "capacity", "isolated", "batch_limit", "pieces"), int)
+GPU_PASS = re.compile(r"\[gpuprof\] F(\d+)\s+\d+\s+([\d.]+) us (render pass|compute / copy)(.*)")
+
+
+def gpu_pass_summary(samples):
+    return {
+        "sampledPasses": len(samples),
+        "exclusiveMsByKind": {
+            kind: round(sum(row["us"] for row in samples if row["kind"] == kind) / 1000, 3)
+            for kind in ("render pass", "compute / copy")
+        },
+        "slowestPasses": sorted(samples, key=lambda row: row["us"], reverse=True)[:12],
+    }
+
+
 def metric_row(text, fields):
     frame, *cells = text.split()
     values = dict(cell.split("=", 1) for cell in cells)
@@ -190,6 +217,8 @@ def summarize(host, captures, first, last, *, session=None, segments=()):
     long_frames, waits, footprint, thermal = {}, [], [], {}
     slow_logged = {100: 0, 200: 0, 500: 0}
     full_windows, gap_rows, reference_binds = [], {}, []
+    visible_windows, deadlines, guest_waits, upload_flushes = {}, {}, {}, {}
+    gpu_passes = []
     course_windows = {}
     slow_frames_by_asset = {}
     seen_slow_frames = set()
@@ -220,6 +249,29 @@ def summarize(host, captures, first, last, *, session=None, segments=()):
                     if row.get("interval_ns", 1) <= 0:
                         raise ValueError("Cup frame intervals must be positive.")
                     table[frame] = row
+            m = VISIBLE_WINDOW.search(line)
+            if m and selected(int(m[1])):
+                frame, rate, count, unknown = int(m[1]), float(m[2]), int(m[3]), int(m[4])
+                visible_windows[frame] = {"frame": frame, "observedFPS": rate if rate > 0 else None,
+                                          "timestampCount": count, "missingTimestamps": unknown}
+            m = DISPLAY_DEADLINES.search(line)
+            if m and selected(int(m[1])):
+                values = list(map(int, m.groups()))
+                deadlines[values[0]] = {
+                    band: dict(zip(DEADLINE_FIELDS, values[index:index + 4]))
+                    for band, index in (("16.67", 1), ("33.33", 5))}
+            for prefix, fields, target in (
+                ("RewindBox guest wait frame=", GUEST_WAIT_FIELDS, guest_waits),
+                ("RewindBox upload flush frame=", UPLOAD_FLUSH_FIELDS, upload_flushes),
+            ):
+                _, match, remainder = line.partition(prefix)
+                if match:
+                    frame, row = metric_row(remainder, fields)
+                    if selected(frame):
+                        target[frame] = row
+            m = GPU_PASS.search(line)
+            if m and selected(int(m[1])):
+                gpu_passes.append({"frame": int(m[1]), "us": float(m[2]), "kind": m[3], "detail": m[4].strip()})
             loss = re.search(r"RewindBox cup metrics missing_rows=(\d+)", line)
             if loss:
                 lost_cup_rows += int(loss[1])
@@ -305,6 +357,14 @@ def summarize(host, captures, first, last, *, session=None, segments=()):
                      "averageFPS": round(n * 1e9 / ns, 3), "over100Ms": s100, "over200Ms": s200, "over500Ms": s500}
     return {"session": engine_session or session, "cupFrames": cup_metrics(cup_rows, cup_gap_rows, segments, lost_cup_rows),
         "courseAssetWindows": course_totals(course_windows), "slowFramesByAsset": slow_frames_by_asset,
+        "displayedWindows": [
+            {**visible_windows.get(frame, {"frame": frame, "observedFPS": None}),
+             "deadlinesByRequestedMs": deadlines.get(frame)}
+            for frame in sorted(visible_windows.keys() | deadlines.keys())
+        ],
+        "guestWaitDetails": guest_waits,
+        "uploadFlushReasons": upload_flushes,
+        "gpuPassProfile": gpu_pass_summary(gpu_passes),
         "frameSignatureIntervals": sig, "completeHostWindows": intervals, "referenceBinds": reference_binds,
         "selectedLoggedFrames": {"rowsOverMs": slow_logged, "submitGaps": gap_rows,
         "longFrameRows": len(long_frames), "rowsWithCompilerBreakdown": len(available),
