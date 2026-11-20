@@ -1,0 +1,84 @@
+{
+  "build": 805,
+  "source": "2b13607c570eb019da09d636e2df87c301fc42ec",
+  "run": 44817282451,
+  "attempt": 1,
+  "workflowConclusion": "success",
+  "jobs": {
+    "preflight": {
+      "id": 136568759543,
+      "conclusion": "success"
+    },
+    "application": {
+      "id": 136569916110,
+      "conclusion": "success"
+    },
+    "republish": {
+      "id": 136569916119,
+      "conclusion": "success"
+    },
+    "native": {
+      "id": 136569918592,
+      "conclusion": "skipped"
+    },
+    "flutter": {
+      "id": 136569919487,
+      "conclusion": "skipped"
+    }
+  },
+  "engine": "a15dc93a7f6f0109d64de85aa9ad7ce821c9f37f207a922a70d9666c5371e18a",
+  "recipientPublicFileSHA256": "42fd4866b7608950986f7fe9dfe75f75abf14a25c61215a1774716d66e1b4936",
+  "payloadBytes": 334418976,
+  "encryptedPayloadSHA256": "e2bc13c582d75ffea2e3b145f59ee4cb6d71134d291543231c9fd72731cc2a72",
+  "apiMetadataSHA256": {
+    "run-attempt.json": "1ef7d740abe4c8500b57f41e0738ae1b2996607e4995600cbc18261021c8cfcb",
+    "jobs.json": "e715f596e86b11b0930a3dc26b0715605dcdf333d42591fb235f9ee71836c30a",
+    "artifacts.json": "6ce1002e70fdd35c27ce6ef11e09c900e0c96c19219e24b81a1e61c31e4c7801"
+  },
+  "parts": [
+    {
+      "index": 0,
+      "name": "RewindBox-Build805-2b13607c570eb019da09d636e2df87c301fc42ec-attempt1-cold-part00",
+      "artifactId": 14671217587,
+      "zipBytes": 83607022,
+      "zipSHA256": "3e65a7120332911719131e8f6915046518938d85bec1c4da01afd8c988b48515",
+      "bytes": 83604744,
+      "sha256": "99171d54fe55d05636dd9d1990a23f00acef5e50c7e205c0c76f6ad798eea722"
+    },
+    {
+      "index": 1,
+      "name": "RewindBox-Build805-2b13607c570eb019da09d636e2df87c301fc42ec-attempt1-cold-part01",
+      "artifactId": 14671062648,
+      "zipBytes": 83607022,
+      "zipSHA256": "19bcd992181f526406ecb5bee3d5e58952c7b6b54098c7da7880559a94654f84",
+      "bytes": 83604744,
+      "sha256": "6e5c549d06fb315482d7e6cba5c449f655adc8867a3c5b4a181855c2af4561b9"
+    },
+    {
+      "index": 2,
+      "name": "RewindBox-Build805-2b13607c570eb019da09d636e2df87c301fc42ec-attempt1-cold-part02",
+      "artifactId": 14670982803,
+      "zipBytes": 83607022,
+      "zipSHA256": "d5c6fc98ad70e97ded5f18cd7fe01ef9f1cfb2bc8462ecba6f82dfc7d210cbe5",
+      "bytes": 83604744,
+      "sha256": "ac3a5d7a76ac1bf22225489d43c80d47feb6f24042cdd4aea28a93480bd7edc0"
+    },
+    {
+      "index": 3,
+      "name": "RewindBox-Build805-2b13607c570eb019da09d636e2df87c301fc42ec-attempt1-cold-part03",
+      "artifactId": 14671902648,
+      "zipBytes": 83607022,
+      "zipSHA256": "3ea7cec83dc809619afe5462c88ef88de813cb25d2aa7161c81cc5fb65e316dc",
+      "bytes": 83604744,
+      "sha256": "4d72eef0da1ff553f280661ae37e78f72e0bb99f10642ce69f2d1bf51672fd25"
+    }
+  ],
+  "privateKeyUsedHere": false,
+  "offlineIPAVerified": false,
+  "deviceWindows": 0,
+  "privateTransportFile": {
+    "name": "RewindBox-805-transport.zip",
+    "bytes": 334498893,
+    "sha256": "8f8a0230b983f26fa356947647a2179c96fdbbb6ef69247f1bc31a9c107e1ad3"
+  }
+}

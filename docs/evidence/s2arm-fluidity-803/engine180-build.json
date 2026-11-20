@@ -56,7 +56,7 @@
   "exportsComparedAgainstSource": "6bdf6fec6850dc4cb4218cf0ae6bd4b25b2a1a14",
   "ns2proUnchangedFrom804": true,
   "noticeMatchesSource": true,
-  "privateDelivery": "pending",
+  "privateDelivery": "encrypted-transport-verified",
   "validDeviceWindows": 0,
   "observedPerformance": null,
   "diagnostics": {
@@ -65,5 +65,13 @@
     "newCompilerOrLinkerWarningTexts": 0,
     "normalizedWarningMultisetsEqual": true,
     "compilerErrorLines": 0
+  },
+  "transportEvidence": "../rewind805/transport.json",
+  "pinVerification": {
+    "commit": "b72b0a915a0163d04005c833eddeb64d5c5b489a",
+    "run": 44816718062,
+    "job": 136566828624,
+    "result": "success",
+    "regeneratedSHA256": "c1d4ce01d4f3db222537637bd2718f195fa43625eb516954b6061682647527fd"
   }
 }

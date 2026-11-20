@@ -273,3 +273,5 @@ checks. A compiled candidate is not evidence of a device memory or frame-time ga
 Set `S2A_RB_PSO_CAP=0` before launch for the 803 policy, including the 804 heap switch. Set `S2A_RB_HEAP_TRIM=0` alone to isolate the pipeline changes on the 803 heap policy. Player archives stay on disk. See the [comparison criteria](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md#pipelines-metal-vivants).
 
 The [verified 180-patch iOS build](../../../docs/evidence/s2arm-fluidity-803/engine180-build.json) records the engine fingerprint and the two successful macOS jobs. On-device results are pending.
+
+The [private 805 transport receipt](../../../docs/evidence/rewind805/transport.json) records the four verified encrypted pieces and the independent checks still pending for the installable IPA and the device.
