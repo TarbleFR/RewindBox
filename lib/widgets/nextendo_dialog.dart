@@ -187,11 +187,13 @@ class _NextendoDialogState extends State<NextendoDialog> {
       if (accepted != true || !mounted) return;
     }
     await NextendoOnlinePlay.setSmashPrivateTlsEnabled(value);
-    if (mounted) setState(() {
-      _smashPrivateTls = value;
-      _messageIsError = false;
-      _message = _text('nextendoOnlinePlayHint');
-    });
+    if (mounted) {
+      setState(() {
+        _smashPrivateTls = value;
+        _messageIsError = false;
+        _message = _text('nextendoOnlinePlayHint');
+      });
+    }
   });
 
   Widget _status(bool? ok, String text, [String? action]) {
