@@ -1,0 +1,138 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3171,6 +3171,8 @@
+ __attribute__((weak)) void dm_thread_lv_stats(uint64_t out[2][2][2]) { memset(out, 0, 8 * sizeof(uint64_t)); }   // nvn_rec.h：编码 / 上屏线程按性能档；没有 Metal 后端（单测 / 安卓）为 0
+ __attribute__((weak)) void dm_rb_rt_stats(int st[2], int pri[2]) { st[0] = st[1] = pri[0] = pri[1] = 0; }   // RewindBox (patch 0073): nvn_rec.h, the encode / uniform copy threads' policy
+ __attribute__((weak)) void nvn_be_race_costs(uint64_t v[4]) { memset(v,0,4*sizeof *v); }
++__attribute__((weak)) void nvn_be_rb_bind_stats(uint64_t v[11]) { memset(v,0,11*sizeof *v); }
++__attribute__((weak)) void nvn_be_rb_push_stats(uint64_t v[2]) { memset(v,0,2*sizeof *v); }
+ __attribute__((weak)) void nvn_be_rb73_stats(uint64_t v[10]) { memset(v, 0, 10 * sizeof *v); }   // RewindBox (patch 0073): nvn_mtl.m, the encoding counts
+ __attribute__((weak)) void dm_yield_top(char *out, size_t n) { if (n) snprintf(out, n, "-"); }   // hle_thread.c: the threads that yielded most since the last call; none in graphics unit tests
+ __attribute__((weak)) void dm_thread_cpu(char *out, size_t n, double secs) { (void)secs; if (n) snprintf(out, n, "-"); }   // hle_thread.c: guest-thread CPU by Switch priority band since the last call
+@@ -3320,18 +3322,34 @@
+ // with the frame step at 2 vsyncs every frame stays 33.3 ms, which is not a dropped frame
+ static uint8_t g_hold_ring[16], g_game_hold_ring[16];
+ static unsigned g_display_known[2], g_display_late[2], g_display_lost[2], g_display_missing[2];
++// Ordered presented callbacks are sampled eight presents late. Keep a streak
++// across summary windows, but never bridge a missing timestamp or a new session.
++static uint64_t g_display_run, g_display_max_run, g_display_run2, g_display_run3, g_display_run5;
++static uint64_t g_display_missed_slots;
++static double g_display_covered_s;
++static unsigned g_display_gpu_known, g_display_gpu_early_late, g_display_trace_lines;
+ static void rb_display_deadline(uint64_t n, double actual, double prev) {
+     unsigned hold = g_game_hold_ring[n % 16];
+     unsigned prior_hold = g_game_hold_ring[(n - 1) % 16];
+     if (prior_hold > hold) hold = prior_hold;
+-    if (hold < 1 || hold > 2) return;
++    if (hold < 1 || hold > 2) { g_display_run = 0; return; }
+     unsigned i = hold - 1;
+-    if (actual < 0) g_display_lost[i]++;
+-    else if (actual <= 0 || prev <= 0 || actual <= prev) g_display_missing[i]++;
++    if (actual < 0) { g_display_lost[i]++; g_display_run = 0; }
++    else if (actual <= 0 || prev <= 0 || actual <= prev) { g_display_missing[i]++; g_display_run = 0; }
+     else {
+         g_display_known[i]++;
++        double dt = (actual - prev) * 1e3, period = hold * 1000.0 / 60;
++        g_display_covered_s += actual - prev;
+         // A tenth of a millisecond absorbs timestamp rounding at one vblank.
+-        if ((actual - prev) * 1e3 > hold * 1000.0 / 60 + 0.1) g_display_late[i]++;
++        if (dt > period + 0.1) {
++            g_display_late[i]++;
++            g_display_missed_slots += (uint64_t)ceil((dt - 0.1) / period) - 1;
++            g_display_run++;
++            if (g_display_run > g_display_max_run) g_display_max_run = g_display_run;
++            g_display_run2 += g_display_run == 2;
++            g_display_run3 += g_display_run == 3;
++            g_display_run5 += g_display_run == 5;
++        } else g_display_run = 0;
+     }
+ }
+ static double pres_expect_ms(uint64_t n) {   // the interval between presents n - 1 and n shows frame n - 1: the display link holds it for its own present's hold, the Mac pacer spaces present n by n's, so the larger of the two
+@@ -3484,6 +3502,8 @@
+       task_vm_info_data_t vi; mach_msg_type_number_t vc = TASK_VM_INFO_COUNT; double fp = task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&vi, &vc) == KERN_SUCCESS ? vi.phys_footprint / 1048576.0 : -1;
+       double br = dm_brightness_now();   // footprint / brightness are carried on the on-screen present row: does not depend on the tick-entry observation gate (camp runs have it too)
+       if (k) { qsort(v, k, sizeof *v, dcmp); LOG("[nvn] on-screen up to frame %llu: %u frames, dropped %u (discarded %u), p99 %.2f ms; footprint %.0f MiB; brightness %.2f; thermal %d", frame, k + discard, drop, discard, v[(k * 99) / 100 < k ? (k * 99) / 100 : k - 1], fp, br, dm_thermal_now()); }
++      if (k) LOG("[nvn] displayed distribution up to frame %llu: p50 %.3f p95 %.3f p99 %.3f ms; known %u",
++                 frame, v[k / 2], v[(k * 95) / 100], v[(k * 99) / 100], k);
+       if (g_visible_count || g_visible_unknown)
+           LOG("[nvn] displayed window up to frame %llu: observed %.3f fps, %u visible timestamps, %u unavailable",
+               frame, g_visible_count > 1 && g_visible_last > g_visible_first ? (g_visible_count-1)/(g_visible_last-g_visible_first) : -1.0,
+@@ -3491,6 +3511,19 @@
+       LOG("[nvn] displayed deadlines up to frame %llu: 16.67 ms known %u late %u discarded %u missing %u; 33.33 ms known %u late %u discarded %u missing %u",
+            frame,g_display_known[0],g_display_late[0],g_display_lost[0],g_display_missing[0],
+            g_display_known[1],g_display_late[1],g_display_lost[1],g_display_missing[1]);
++      LOG("[nvn] displayed streaks up to frame %llu: covered %.6f s, missed slots %llu (%.3f/min), late intervals %u (%.3f/min), max run %llu, ongoing %llu, runs reaching 2/3/5 %llu/%llu/%llu; missing and discarded break runs",
++          frame, g_display_covered_s, (unsigned long long)g_display_missed_slots,
++          g_display_covered_s > 0 ? 60.0 * g_display_missed_slots / g_display_covered_s : -1.0,
++          g_display_late[0] + g_display_late[1],
++          g_display_covered_s > 0 ? 60.0 * (g_display_late[0] + g_display_late[1]) / g_display_covered_s : -1.0,
++          (unsigned long long)g_display_max_run, (unsigned long long)g_display_run,
++          (unsigned long long)g_display_run2, (unsigned long long)g_display_run3, (unsigned long long)g_display_run5);
++      LOG("[nvn] displayed GPU deadlines up to frame %llu: paired %u, late with GPU ending before interval-derived deadline %u; this is not a requested drawable deadline",
++          frame, g_display_gpu_known, g_display_gpu_early_late);
++      g_display_gpu_known = g_display_gpu_early_late = g_display_trace_lines = 0;
++      g_display_max_run = g_display_run;
++      g_display_run2 = g_display_run3 = g_display_run5 = g_display_missed_slots = 0;
++      g_display_covered_s = 0;
+       memset(g_display_known,0,sizeof g_display_known); memset(g_display_late,0,sizeof g_display_late);
+       memset(g_display_lost,0,sizeof g_display_lost); memset(g_display_missing,0,sizeof g_display_missing);
+       g_visible_first = g_visible_last = 0;
+@@ -3500,6 +3533,17 @@
+           frame,(unsigned long long)(counts[0]-previous[0]),(unsigned long long)(counts[1]-previous[1]),
+           (unsigned long long)(counts[2]-previous[2]),(unsigned long long)(counts[3]-previous[3]));
+       memcpy(previous, counts, sizeof previous); }
++    { static uint64_t previous[2]; uint64_t counts[2]; nvn_be_rb_push_stats(counts);
++      LOG("[nvn] push constants up to frame %llu: identical kept %llu, changed or uncached %llu",
++          frame, (unsigned long long)(counts[0] - previous[0]), (unsigned long long)(counts[1] - previous[1]));
++      memcpy(previous, counts, sizeof previous); }
++    { static uint64_t previous[11]; uint64_t counts[11], d[11]; nvn_be_rb_bind_stats(counts);
++      for (int k = 0; k < 11; k++) d[k] = counts[k] - previous[k];
++      LOG("[nvn] binding cache up to frame %llu: UBO reused %llu, resolved %llu, uncacheable %llu, disabled %llu; sampled calls hit/miss/off %llu/%llu/%llu; sampled ns hit/miss/off %llu/%llu/%llu; view resource IDs reused %llu",
++          frame,(unsigned long long)d[0],(unsigned long long)d[1],(unsigned long long)d[2],(unsigned long long)d[3],
++          (unsigned long long)d[4],(unsigned long long)d[6],(unsigned long long)d[8],
++          (unsigned long long)d[5],(unsigned long long)d[7],(unsigned long long)d[9],(unsigned long long)d[10]);
++      memcpy(previous,counts,sizeof previous); }
+     power_line(frame);
+     { static uint64_t prev[4], pf; uint64_t v[4]; nvn_be_vbuf_stats(&v[0], &v[1], &v[2], &v[3]);
+       if (pf && frame > pf) { double nf = (double)(frame - pf);
+@@ -4105,6 +4149,8 @@
+     static uint64_t prev_slot; if (prev_slot && period) trow(f, "@display_ms", (slot - prev_slot) / 1e6); prev_slot = slot;   // display interval between two adjacent frames on screen (this is the one to look at for dropped frames)
+     // Actual presentation interval (windowed mode): taken 8 presents late (the presented callback has arrived by then), as the difference between the n-th and the (n−1)-th; −1 = discarded
+     if (o->presents <= 9) {
++        g_display_run = g_display_max_run = g_display_run2 = g_display_run3 = g_display_run5 = g_display_missed_slots = 0;
++        g_display_covered_s = 0;
+         g_visible_count=g_visible_unknown=0; g_visible_first=g_visible_last=0;
+         memset(g_display_known,0,sizeof g_display_known); memset(g_display_late,0,sizeof g_display_late);
+         memset(g_display_lost,0,sizeof g_display_lost); memset(g_display_missing,0,sizeof g_display_missing);
+@@ -4116,6 +4162,20 @@
+         } else if (a_ >= 0) g_visible_unknown++;
+         if (a_ < 0) trow(f - 8, "@presented_ms", -1); else if (a_ > 0 && b_ > 0) trow(f - 8, "@presented_ms", (a_ - b_) * 1e3);
+         rb_display_deadline(n, a_, b_);
++        if (f >= 8 && a_ > b_ && b_ > 0) {
++            unsigned hold = g_game_hold_ring[n % 16], prior = g_game_hold_ring[(n - 1) % 16];
++            if (prior > hold) hold = prior;
++            uint64_t gpu0, gpu1;
++            if (hold >= 1 && hold <= 2 && nvn_be_gpu_span(f - 8, &gpu0, &gpu1)) {
++                double deadline = b_ + hold / 60.0, end = gpu1 / 1e9;
++                g_display_gpu_known++;
++                int late = a_ > deadline + 0.0001;
++                g_display_gpu_early_late += late && end <= deadline;
++                if (late && g_display_trace_lines++ < 8)
++                    LOG("[nvn] displayed trace frame=%llu present=%llu gpu_start_s=%.9f gpu_end_s=%.9f previous_s=%.9f displayed_s=%.9f interval_deadline_s=%.9f hold=%u",
++                        f - 8, n, gpu0 / 1e9, end, b_, a_, deadline, hold);
++            }
++        }
+         g_pres_exp[g_presn % TWIN] = g_pres_exp_last = pres_expect_ms(n);
+         g_pres_iv[g_presn++ % TWIN] = a_ < 0 ? -1 : (a_ > 0 && b_ > 0 ? (a_ - b_) * 1e3 : 0);
+         { double iv_ = a_ < 0 ? -1 : (a_ > 0 && b_ > 0 ? (a_ - b_) * 1e3 : 0); nvn_be_ub_present(iv_); }   // same-process alternating measurement (DM_NVN_UB) tallies on-screen present intervals per phase; when off it is just one atomic read
+@@ -5557,6 +5617,9 @@
+     if (g_frame) rb_report_intervals(g_frame - 1);
+     rb_last_present = 0;
+     g_frame = 0; g_hz = -1; g_display_mode = 0; g_game_itv = 1;
++    g_display_run = g_display_max_run = g_display_run2 = g_display_run3 = g_display_run5 = g_display_missed_slots = 0;
++    g_display_covered_s = 0;
++    g_display_gpu_known = g_display_gpu_early_late = g_display_trace_lines = 0;
+     // 当前设备指向上一局游戏内存里的设备结构：那片内存随会话撤掉，新局 nvnDeviceInitialize 读它的标记就 SIGBUS（11-06 索尼克×夏特切到序号 1，
+     //   h_nvnDeviceInitialize+0x44 读 g_cur_dev 0x75c61bf928）。同程序进程内重启同理，新局重新登记
+     atomic_store(&g_cur_dev, NULL);

@@ -1,0 +1,247 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1024,6 +1024,81 @@
+     if (!ok) ok = xq_addr_want(addr, len, buf, off, gpu, avail);
+     return ok;
+ }
++// Repeated CBUF binds need the same immutable pool-address metadata. Content,
++// deferred-update shadows, widening and bounds are still resolved on every draw.
++// No strong references: ordinary resident pools retain their existing lifetime.
++static uint64_t bp_now(void);
++static int rb_course_exact(void);
++static uint64_t rb_push_same, rb_push_changed;
++static _Atomic uint64_t rb_bind_published[11], rb_push_published[2];
++static uint64_t rb_ubo_addr_hits, rb_ubo_addr_resolves, rb_ubo_addr_uncached, rb_ubo_addr_off;
++static uint64_t rb_ubo_addr_calls, rb_ubo_addr_samples[3], rb_ubo_addr_ns[3], rb_view_rid_reused;
++static int rb_ubo_addr_on(void) {
++    static int mode = -2;
++    if (mode == -2) { const char *v = getenv("S2A_RB_UBO_BIND_CACHE"); mode = v ? strcmp(v, "0") != 0 : -1; }
++    return mode < 0 ? rb_course_exact() : mode;
++}
++static void rb_ubo_addr_sample(int bin, uint64_t start, int sampled) {
++    if (!sampled) return;
++    rb_ubo_addr_ns[bin] += bp_now() - start;
++    rb_ubo_addr_samples[bin]++;
++}
++static int rb_ubo_addr(int stage, int slot, uint64_t addr, uint64_t want,
++                       void **buf, uint64_t *off, uint64_t *gpu, uint64_t *avail) {
++    typedef struct { uint64_t addr, want, gen, off, gpu, avail; void *buf; } entry;
++    static entry cache[6][16]; // submit thread only; g_pool_gen also changes at teardown
++    // Select before classifying a hit, miss or disabled-path call. No clock read
++    // on the other 255 calls; report sample counts, not an asserted device gain.
++    int sampled = (++rb_ubo_addr_calls & 255u) == 0;
++    uint64_t start = sampled ? bp_now() : 0;
++    if (!rb_ubo_addr_on() || (unsigned)stage >= 6 || (unsigned)slot >= 16) {
++        int ok = gpu_addr_want(addr, 1, want, buf, off, gpu, avail);
++        rb_ubo_addr_off++; rb_ubo_addr_sample(2, start, sampled); return ok;
++    }
++    // Normalize every call: a GPU VA remap must never reuse its former CPU range.
++    addr = nvn_ga2ca(addr);
++    uint64_t gen = atomic_load_explicit(&g_pool_gen, memory_order_acquire);
++    entry *c = &cache[stage][slot];
++    if (c->gen == gen && c->addr == addr && c->want == want) {
++        *buf = c->buf; *off = c->off; *gpu = c->gpu; *avail = c->avail;
++        rb_ubo_addr_hits++; rb_ubo_addr_sample(0, start, sampled); return 1;
++    }
++    rb_ubo_addr_resolves++;
++    // nvn_ga2ca is idempotent: CPU ranges inside its GVA window are refused by
++    // gva_alloc. The ordinary lookup keeps every sparse/parked-piece fallback.
++    int ok = gpu_addr_want(addr, 1, want, buf, off, gpu, avail);
++    const pc_ent *p = ok ? pc_get(addr, 1) : NULL;
++    // Parked-piece xq_addr_want results have another lifetime and are not cached.
++    // A resident pc_get result must agree with every returned address/bounds byte.
++    if (p && atomic_load_explicit(&g_pool_gen, memory_order_acquire) == gen &&
++        (__bridge void *)p->buf == *buf && addr - p->base == *off &&
++        p->gpu + *off == *gpu && pool_buf_end(p->hi) - addr == *avail) {
++        *c = (entry){addr, want, gen, *off, *gpu, *avail, *buf};
++    } else { c->gen = 0; rb_ubo_addr_uncached++; }
++    rb_ubo_addr_sample(1, start, sampled); return ok;
++}
++// Publish on the submit thread; readers never race hot-path increments. Values
++// are cumulative diagnostic counters, not an atomic per-frame timing snapshot.
++static void rb_bind_publish(void) {
++    uint64_t v[11] = {rb_ubo_addr_hits, rb_ubo_addr_resolves, rb_ubo_addr_uncached, rb_ubo_addr_off};
++    for (int k = 0; k < 3; k++) { v[4 + 2*k] = rb_ubo_addr_samples[k]; v[5 + 2*k] = rb_ubo_addr_ns[k]; }
++    v[10] = rb_view_rid_reused;
++    for (int k = 0; k < 11; k++) atomic_store_explicit(&rb_bind_published[k], v[k], memory_order_relaxed);
++    atomic_store_explicit(&rb_push_published[0], rb_push_same, memory_order_relaxed);
++    atomic_store_explicit(&rb_push_published[1], rb_push_changed, memory_order_relaxed);
++}
++void nvn_be_rb_bind_stats(uint64_t v[11]) {
++    for (int k = 0; k < 11; k++) v[k] = atomic_load_explicit(&rb_bind_published[k], memory_order_relaxed);
++}
++void nvn_be_rb_push_stats(uint64_t v[2]) {
++    for (int k = 0; k < 2; k++) v[k] = atomic_load_explicit(&rb_push_published[k], memory_order_relaxed);
++}
++static int rb_view_rid_on(void) {
++    static int mode = -2;
++    if (mode == -2) { const char *v = getenv("S2A_RB_VIEW_RID_REUSE"); mode = v ? strcmp(v, "0") != 0 : -1; }
++    return mode < 0 ? rb_course_exact() : mode;
++}
++
+ static inline int gpu_addr_avail(uint64_t addr, uint64_t len, void **buf, uint64_t *off, uint64_t *gpu, uint64_t *avail) { return gpu_addr_want(addr, len, len, buf, off, gpu, avail); }
+ int mtl_gpu_addr(uint64_t addr, uint64_t len, void **buf, uint64_t *off, uint64_t *gpu) { uint64_t avail; return gpu_addr_avail(addr, len, buf, off, gpu, &avail); }
+ 
+@@ -1481,10 +1556,18 @@
+ // RewindBox (patch 0054): frames asked for at run time. A frame capture asks for the GPU time of every encoder of a few frames a little later (cap_end): the first frame not before
+ //   g_rb_gp_req, once no report is under way, and the five after it (a report re-arms at the next frame, so two or three of them are measured). The lines are DM_NVN_GPUPROF's
+ static _Atomic long g_rb_gp_req = -1;
++static _Atomic long g_rb_race_gp_req = -1; // One GPU-only frame, never suspends a guest thread.
+ static int gp_active(void) {
+     long rq = atomic_load_explicit(&g_rb_gp_req, memory_order_relaxed);
+     if (__builtin_expect(rq >= 0, 0)) { long f = (long)atomic_load(&g_cur_frame);
+         if (f >= rq && atomic_load(&g_gp_state) == 0) { atomic_store(&g_rb_gp_req, -1); g_gp_f0 = f + 1; g_gp_f1 = f + 6; } }
++    long light = atomic_load_explicit(&g_rb_race_gp_req, memory_order_relaxed);
++    if (__builtin_expect(light >= 0 && rq < 0, 0)) {
++        long f = (long)atomic_load(&g_cur_frame);
++        if (f >= light && f > g_gp_f1 && atomic_load(&g_gp_state) == 0) {
++            atomic_store(&g_rb_race_gp_req, -1); g_gp_f0 = g_gp_f1 = f + 1;
++        }
++    }
+     if (__builtin_expect(g_gp_f0 == -1, 1)) return 0;
+     if (g_gp_f0 == -2) { const char *e = getenv("DM_NVN_GPUPROF"); g_gp_f0 = e ? atol(e) : -1; g_gp_f1 = e && strchr(e, '-') ? atol(strchr(e, '-') + 1) : g_gp_f0;
+         if (g_gp_f0 < 0) return 0; }
+@@ -3495,6 +3578,7 @@
+     lc_land();   // clears still waiting (the command list ends with them)
+     defer_fallback();   // Deferred merged pass: at the end of the submission there are still P draws not replayed (the normal path never gets here)
+     rp_flush(); ubd_land();
++    rb_bind_publish();
+     rt_keep_state();   // bound descriptors outlive the command records consumed by this submission
+     if (g_mdxchk_n) mdxchk_after();   // RewindBox (patch 0067): the multi-draw counts checked, as the GPU has them after the piece's work
+     g_ts_pend = -1;   // nothing after it: the last segment's end is the command buffer's own (rep_ticks)
+@@ -10964,7 +11048,12 @@
+     // RewindBox (patch 0031): a placement sparse view also needs its pool's mappings unmoved (treg_sp_fresh)
+     if (tid >= 0 && tid < g_ntreg && g_treg[tid].ok && g_treg[tid].view && g_treg[tid].view_ser == g_ser_gen && (!g_treg[tid].view_pkg || g_treg[tid].view_dirty == nvn_dirty_now() || g_treg[tid].view_ep == g_pkg_epoch)
+         && (!g_treg[tid].view_sp || treg_sp_fresh(&g_treg[tid]))) { if (out) *out = g_treg[tid].view; return g_treg[tid].view_rid; }
+-    id<MTLTexture> t = tex_by_id(tid); if (out) *out = (__bridge void *)t; return t ? t.gpuResourceID._impl : 0;
++    id<MTLTexture> t = tex_by_id(tid); if (out) *out = (__bridge void *)t;
++    // tex_by_id already records the immutable resource ID under this same g_rmu.
++    if (rb_view_rid_on() && t && tid >= 0 && tid < g_ntreg && g_treg[tid].view == (__bridge void *)t) {
++        rb_view_rid_reused++; return g_treg[tid].view_rid;
++    }
++    return t ? t.gpuResourceID._impl : 0;
+ }
+ // Buffer textures of a format the host expands (nvn_fmt_expanded: three-component RGB8 / 16 / 32, *_UI2F / *_I2F, RGB10A2 signed): Metal has no such texture buffer format,
+ //   so they bound the dummy (Warriors Abyss 11-01: "buffer texture format 0x22 not mapped"; an effect read zeros). At the binding the elements are expanded (nvn_fmt_expand, the
+@@ -14411,6 +14500,11 @@
+ static uint64_t zero_bank_gpu(void) { static uint64_t gpu; if (!gpu) gpu = zero_bank().gpuAddress; return gpu; }
+ // NVN2 push-constant slot (S.push, c[24 + slot]) as the GPU reads it: one copy in the frame scratch per push, made by the first draw that reads it and reused by the
+ //   following ones until the next push into the slot or the next scratch generation (g_arena_gen: a cut segment's blocks are reused). A slot never pushed reads 0
++static int rb_push_same_on(void) {
++    static int mode = -2;
++    if (mode == -2) { const char *v = getenv("S2A_RB_PUSH_SAME"); mode = v ? strcmp(v, "0") != 0 : -1; }
++    return mode < 0 ? rb_course_exact() : mode;
++}
+ static uint64_t g_push_seq;
+ static struct { uint64_t ver, gen, gpu; } g_push_copy[2][NVN2_PUSH_SLOTS];
+ static uint64_t push_gpu(int c, int slot) {
+@@ -14745,7 +14839,7 @@
+         if (b->kind == NVN_RB_CBUF) {
+             const p_bind_buf *u = reg < 16 ? &S.ubo[nvn_stage][reg] : NULL;
+             void *mb; uint64_t mo, gpu, pav;
+-            if (!u || !u->addr || !gpu_addr_want(u->addr, 1, u->size, &mb, &mo, &gpu, &pav)) {   // reads 0 (the all-zero bank), as an unbound texture slot does, instead of through a null pointer
++            if (!u || !u->addr || !rb_ubo_addr(nvn_stage, reg, u->addr, u->size, &mb, &mo, &gpu, &pav)) {   // reads 0 (the all-zero bank), as an unbound texture slot does, instead of through a null pointer
+                 RED_ONCE(16, "stage %d cb%d has no uniform buffer bound", nvn_stage, reg); slots[aid] = zero_bank_gpu(); USE(zero_bank(), MTLResourceUsageRead); continue; }
+             uint64_t ul = cb_len(sh, reg, u->size);   // what the shader can read of it
+             // S2Arm widen: the rewritten copy replaces the binding (compute: wd_dispatch). Checked first: the deferred-update shadow below used to be built for it and then thrown away,
+@@ -15470,7 +15564,13 @@
+         case OP_PUSH_CONST: case OP_PUSH_CONST_PTR: { const p_push_const *pc = a; int c = pc->compute ? 1 : 0;
+             const void *src = op == OP_PUSH_CONST ? (const void *)(pc + 1) : (const void *)(uintptr_t)((const p_push_const_ptr *)a)->data;
+             if (pc->offset + pc->size > NVN2_PUSH_BYTES || !src) break;
+-            memcpy(S.push[c][pc->slot & (NVN2_PUSH_SLOTS - 1)] + pc->offset, src, pc->size); S.push_ver[c][pc->slot & (NVN2_PUSH_SLOTS - 1)] = ++g_push_seq;
++            uint8_t *dst = S.push[c][pc->slot & (NVN2_PUSH_SLOTS - 1)] + pc->offset;
++            // A deferred push is read now, exactly as before. Identical bytes do
++            // not change its GPU copy or any stage's arguments. Version numbers
++            // only identify content; compute-indirect destinations stay separate.
++            if (rb_push_same_on() && !memcmp(dst, src, pc->size)) { rb_push_same++; break; }
++            memcpy(dst, src, pc->size); S.push_ver[c][pc->slot & (NVN2_PUSH_SLOTS - 1)] = ++g_push_seq;
++            rb_push_changed++;
+             if (c) g_args_dirty[5] = 1; else memset(g_args_dirty, 1, 5);
+             break; }
+         case OP_SET_TEX_POOL: case OP_SET_SAMP_POOL: { int tex = op == OP_SET_TEX_POOL, b = nvn_dpool_base(((const p_set_pool *)a)->pool, tex);
+@@ -20991,10 +21091,56 @@
+     uint64_t w = atomic_load(&g_rec_want); if (!w || f < w - 1 + RB_REC_LAG || !atomic_compare_exchange_strong(&g_rec_want, &w, 0)) return;
+     rec_write(w);
+ }
++// 801 had no contemporaneous pass profile: its CPU-suspending auto sampler is
++// deliberately disabled. This separate bounded probe uses the existing relaxed
++// GPU timestamps for one frame only, without any extra fence or CPU sampling.
++// Take an initial slow 3D window, a later GPU-cost regime change, and a hot run
++// after twenty minutes. The asset/circuit is deliberately not guessed here.
++static struct {
++    uint32_t duration[120], draws[120], gpu[120];
++    uint8_t valid[120];
++    uint64_t count, duration_sum, draws_sum, gpu_sum, started, last;
++    unsigned valid_sum, taken;
++    double baseline_gpu;
++} g_race_probe;
++static void rb_race_gpu_probe(uint64_t f, uint32_t dur_us, uint32_t draws) {
++    static int enabled = -1;
++    if (enabled < 0) enabled = rb_env_on("S2A_RB_RACE_GPU_PROBE");
++    if (!enabled || !rb_course_exact() || !dur_us) return;
++    unsigned k = (unsigned)(g_race_probe.count++ % 120);
++    double ms = f > 4 ? nvn_be_gpu_ms(f - 4) : -1;
++    uint32_t gpu = ms >= 0 ? (uint32_t)MIN(ms * 1000.0, 1e9) : 0;
++    g_race_probe.duration_sum += dur_us; g_race_probe.duration_sum -= g_race_probe.duration[k];
++    g_race_probe.draws_sum += draws; g_race_probe.draws_sum -= g_race_probe.draws[k];
++    g_race_probe.gpu_sum += gpu; g_race_probe.gpu_sum -= g_race_probe.gpu[k];
++    g_race_probe.valid_sum += ms >= 0; g_race_probe.valid_sum -= g_race_probe.valid[k];
++    g_race_probe.duration[k] = dur_us; g_race_probe.draws[k] = draws;
++    g_race_probe.gpu[k] = gpu; g_race_probe.valid[k] = ms >= 0;
++    if (g_race_probe.count < 120 || f < 1200 || f % 120 || g_race_probe.taken >= 3 ||
++        g_race_probe.draws_sum / 120 < 800 || g_race_probe.valid_sum < 60) return;
++    uint64_t now = now_ns();
++    if (!g_race_probe.started) g_race_probe.started = now;
++    double period = 1e6 * nvn_fps_period(1.0 / nvn_be_fps_target());
++    if (g_race_probe.duration_sum / 120.0 < period * 1.2) return;
++    if (g_race_probe.last && now - g_race_probe.last < 30000000000ull) return;
++    double gm = (double)g_race_probe.gpu_sum / g_race_probe.valid_sum;
++    const char *reason = !g_race_probe.taken ? "baseline slow 3D window" :
++        g_race_probe.taken == 1 && gm > g_race_probe.baseline_gpu * 1.6 ? "GPU duration regime change" :
++        now - g_race_probe.started >= 1200000000000ull ? "twenty-minute slow 3D window" : NULL;
++    if (!reason || g_cap_dir[0] || atomic_load(&g_cap_req) || atomic_load(&g_rb_gp_req) >= 0 ||
++        atomic_load(&g_gp_state) != 0 || (long)f <= g_gp_f1) return;
++    if (!g_race_probe.taken) g_race_probe.baseline_gpu = gm;
++    g_race_probe.taken++; g_race_probe.last = now;
++    atomic_store(&g_rb_race_gp_req, (long)f + 1);
++    MLOG("RewindBox GPU-only probe %u/3 request_frame=%llu reason=%s frame_mean_ms=%.3f gpu_mean_ms=%.3f draws_mean=%llu; one frame, no thread suspension; S2A_RB_RACE_GPU_PROBE=0 disables",
++         g_race_probe.taken, (unsigned long long)f, reason, g_race_probe.duration_sum / 120000.0,
++         gm / 1000.0, (unsigned long long)(g_race_probe.draws_sum / 120));
++}
+ static void rb_auto_probe(uint64_t f, uint32_t dur_us, uint32_t draws) {   // the replaying thread, at each frame's first replayed command (fsig_cur): dur_us / draws are the frame before f's
+     static uint32_t rd[AP_RING], rn[AP_RING]; static uint64_t sd, sn, at, last_ns; static int filled, taken;
+     static uint32_t rg[AP_RING], nl, nv; static uint8_t rl[AP_RING], rv[AP_RING]; static uint64_t sg;   // RewindBox (patch 0067): GPU microseconds (rg, sg over the nv frames known), frames over 1.5 periods (nl)
+     rec_serve(f);   // RewindBox (patch 0067)
++    rb_race_gpu_probe(f, dur_us, draws);
+     if (g_ap_dump_at && f >= g_ap_dump_at) { g_ap_dump_at = 0; fsig_dump(g_ap_dir, g_ap_note, "automatic measurement"); g_ap_dir[0] = 0; }   // RewindBox (patch 0067): copied here, written on a background queue
+     if (!ap_on() || !dur_us) return;
+     unsigned k = (unsigned)(at++ % AP_RING); sd += dur_us; sd -= rd[k]; sn += draws; sn -= rn[k]; rd[k] = dur_us; rn[k] = draws; if (filled < AP_RING) filled++;
+@@ -21030,6 +21176,13 @@
+          (unsigned long long)(sn / AP_RING), cpu ? "A CPU profile of 4 s with the waiting threads starts now (cpuprof.txt)" : "No CPU profile (one is running, or no memory for its table)", (unsigned long long)f + 30, apn ? apn + 1 : g_ap_dir);
+ }
+ static void cap_reset(void) {   // session end (nvn_session.inc): a capture left unfinished stops there, its directory keeps what it has
++    memset(&g_race_probe, 0, sizeof g_race_probe);
++    atomic_store(&g_rb_race_gp_req, -1);
++    // The session drain has completed GPU feedback before resetting frame zero.
++    // Never carry a previous session's requested frame range into its successor.
++    atomic_store(&g_rb_gp_req, -1); atomic_store(&g_gp_state, 0);
++    atomic_store(&g_gp_rearm_frame, UINT64_MAX);
++    g_gp_f0 = -2; g_gp_f1 = 0; g_gp_cur = -1; g_gp_n = g_gp_drop = 0; g_gp_enc = nil;
+     atomic_store(&g_cap_req, 0);
+     g_ap_dump_at = 0; g_ap_dir[0] = 0;   // RewindBox (patch 0061)
+     if (g_cap_dir[0]) { MLOG("RewindBox: frame capture into %s stopped by the end of the session", g_cap_dir); g_pd_a0 = -2; }
+@@ -22270,11 +22423,11 @@
+                 @"kernel void rb_probe(device float *o [[buffer(0)]], uint i [[thread_position_in_grid]]) {\n"
+                 @"    float a = float(i) * 1e-6f, b = 1.0f;\n"
+                 @"    for (int k = 0; k < 2048; k++) { b = fma(b, 0.99991f, a); a = fma(a, 1.00007f, b * 1e-7f); }\n"
+-                @"    o[i & 1023u] = a + b;\n}\n" options:nil error:&er];
++                @"    o[i] = a + b;\n}\n" options:nil error:&er];
+             id<MTLFunction> fn = [lib newFunctionWithName:@"rb_probe"];
+             id<MTLComputePipelineState> pso = fn ? [g_dev newComputePipelineStateWithFunction:fn error:&er] : nil;
+             id<MTLCommandQueue> q = pso ? [g_dev newCommandQueue] : nil;
+-            id<MTLBuffer> b = q ? [g_dev newBufferWithLength:4096 options:MTLResourceStorageModeShared] : nil;
++            id<MTLBuffer> b = q ? [g_dev newBufferWithLength:16384 * sizeof(float) options:MTLResourceStorageModeShared] : nil;
+             if (!b) { MLOG("【黄】 RewindBox: the GPU probe could not be made (%s); the timing line says not measured", er ? er.localizedDescription.UTF8String : "no queue or buffer"); atomic_store(&g_probe_state, -1); return; }
+             g_probe_pso = pso; g_probe_q = q; g_probe_buf = b; atomic_store_explicit(&g_probe_state, 2, memory_order_release);
+         });

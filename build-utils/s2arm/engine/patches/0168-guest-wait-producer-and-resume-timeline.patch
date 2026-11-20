@@ -1,0 +1,188 @@
+diff --git a/runtime/src/gate.c b/runtime/src/gate.c
+--- a/runtime/src/gate.c
++++ b/runtime/src/gate.c
+@@ -105,6 +105,7 @@
+     LOG("未实现系统调用：%s", k ? b : " 无");
+ }
+ 
++void s2a_svc_frame(uint64_t pc);                         // thread.c: record the original PC before any dispatcher can return
+ int svc_thread(int num, uint64_t *regs);                    // thread.c：线程 / 同步，1 = 已处理
+ int svc_mem(int num, uint64_t *regs, uint64_t orig);        // svc_mem.c：内存 / 信息 / 计时 / 调试，1 = 已处理
+ void s2a_svc_ctx_fill(s2a_svc_ctx *c, int num, uint64_t *regs);   // thread.c：当前线程句柄、TLR、会话 cookie
+@@ -187,6 +188,7 @@
+     if (atomic_load_explicit(&g_park, memory_order_relaxed)) park_forever();
+     t_svc_n++; t_svc_last = num;
+     if ((unsigned)num < 0x80) atomic_fetch_add_explicit(&g_svc_cnt[num], 1, memory_order_relaxed);
++    s2a_svc_frame(orig);
+     if (svc_thread(num, regs)) return regs[0];
+ #ifdef __ANDROID__
+     s2a_android_memory_svc_enter(num, regs);
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -140,8 +140,14 @@
+     _Atomic int in_svc;                // 此刻在系统调用里（含阻塞在等待里）
+     _Atomic int pause; int pmach;
+ #if defined(__APPLE__)
+-    _Atomic int mkw_wait_active;
++    _Atomic int mkw_wait_active, mkw_presenter;
+     _Atomic uint64_t mkw_last_waker;
++    // Diagnostic values only. No retained waker pointer; wake() publishes these
++    // before woke, and only for a thread observed calling QueuePresentTexture.
++    _Atomic uint64_t mkw_wake_ns, mkw_wake_count;
++    _Atomic uint64_t mkw_waker_entry, mkw_waker_pc, mkw_waker_lr, mkw_waker_svc;
++    _Atomic uint64_t mkw_waker_mask;
++    _Atomic int mkw_waker_prio, mkw_waker_in_svc;
+     uint32_t mkw_signaled_handle;
+     arm_thread_state64_t pst; arm_neon_state64_t pns;
+ #endif   // SetThreadActivity：在系统调用里的在出入口挂起；在游戏代码里的 Mach 挂起
+@@ -397,12 +403,26 @@
+ #else
+ static void wq_flush(void) {}
+ #endif
++static int64_t now_mono_ns(void);
+ static void wake(thr_t *t, int64_t res) {
+     wait_diag_wake_locked(t, res);
+ #if defined(__APPLE__)
+     if (atomic_load_explicit(&t->mkw_wait_active, memory_order_relaxed)) {
+         thr_t *w = thread_current_or_null();
+         atomic_store_explicit(&t->mkw_last_waker, w ? w->id : 0, memory_order_relaxed);
++        if (atomic_load_explicit(&t->mkw_presenter, memory_order_relaxed)) {
++            // Selection under G is earlier than a possibly deferred wake syscall.
++            // This is NOT the kernel's runnable timestamp.
++            atomic_store_explicit(&t->mkw_wake_ns, (uint64_t)now_mono_ns(), memory_order_relaxed);
++            atomic_fetch_add_explicit(&t->mkw_wake_count, 1, memory_order_relaxed);
++            atomic_store_explicit(&t->mkw_waker_entry, w ? w->entry : 0, memory_order_relaxed);
++            atomic_store_explicit(&t->mkw_waker_pc, w ? w->svc_pc : 0, memory_order_relaxed);
++            atomic_store_explicit(&t->mkw_waker_lr, w ? w->last_lr : 0, memory_order_relaxed);
++            atomic_store_explicit(&t->mkw_waker_svc, w ? (uint64_t)w->last_svc : 0, memory_order_relaxed);
++            atomic_store_explicit(&t->mkw_waker_mask, w ? w->mask : 0, memory_order_relaxed);
++            atomic_store_explicit(&t->mkw_waker_prio, w ? w->prio : -1, memory_order_relaxed);
++            atomic_store_explicit(&t->mkw_waker_in_svc, w ? atomic_load_explicit(&w->in_svc, memory_order_relaxed) : 0, memory_order_relaxed);
++        }
+     }
+ #endif
+     if (wt_on()) { thr_t *w = thread_current_or_null(); uint64_t n = thread_clock(); t->tr_wake_t = n; t->tr_waker = w ? w->id : 0; if (w && w != t) w->tr_lastwake_t = n; }
+@@ -2694,11 +2714,52 @@
+ }
+ #if defined(__APPLE__)
+ extern int s2a_rb_mkw_measure(void) __attribute__((weak_import));
++extern uint64_t dm_nvn_frame_count(void) __attribute__((weak_import));
+ static _Thread_local uint64_t t_mkw_guest_wait_ns;
+ static _Thread_local uint64_t t_mkw_longest[8]; // ns, SVC, key/list, guest thread, PC, result, resolved handle, last waking guest thread
++static _Thread_local struct {
++    uint64_t start_ns, selected_ns, impl_return_ns, svc_return_ns, wake_count;
++    uint64_t waiter_entry, waiter_lr, waker_entry, waker_pc, waker_lr, waker_svc, waker_mask;
++    int waker_prio, waker_in_svc;
++} t_mkw_wait_path;
++static _Thread_local uint64_t t_mkw_log_window, t_mkw_log_skipped;
++static _Thread_local unsigned t_mkw_log_count;
++static _Atomic unsigned g_mkw_wait_logs;
++// At most four slow records per ten seconds on the presenting thread, 512 per
++// session. No thread suspension, stack walk, allocation, or additional G lock.
++static void mkw_wait_path_log(void) {
++    if (t_mkw_longest[0] < 50000000 || !t_mkw_wait_path.start_ns) return;
++    uint64_t now = (uint64_t)now_mono_ns();
++    if (now - t_mkw_log_window >= 10000000000ull) { t_mkw_log_window = now; t_mkw_log_count = 0; }
++    if (t_mkw_log_count >= 4 || atomic_load_explicit(&g_mkw_wait_logs, memory_order_relaxed) >= 512) { t_mkw_log_skipped++; return; }
++    unsigned n = atomic_fetch_add_explicit(&g_mkw_wait_logs, 1, memory_order_relaxed);
++    if (n >= 512) { t_mkw_log_skipped++; return; }
++    t_mkw_log_count++;
++    const char *session = getenv("S2A_RB_CUP_SESSION");
++    uint64_t wake = t_mkw_wait_path.selected_ns, ret = t_mkw_wait_path.impl_return_ns;
++    int known = wake >= t_mkw_wait_path.start_ns && wake <= ret && wake != 0;
++    LOG("[rb-mkw-wait-path] session=%.64s sample=%u limit=512 frame=%llu svc=%#llx key=%#llx guest=%llu pc=%#llx lr=%#llx entry=%#llx result=%#llx resolved=%#llx "
++        "start_ns=%llu wake_selected_ns=%llu impl_return_ns=%llu svc_return_ns=%llu wake_count=%llu until_selection_ms=%.3f selection_to_impl_ms=%.3f impl_to_svc_ms=%.3f "
++        "waker=%llu waker_entry=%#llx waker_pc=%#llx waker_lr=%#llx waker_svc=%#llx waker_in_svc=%d waker_prio=%d waker_mask=%#llx suppressed=%llu",
++        session ? session : "unknown", n + 1, (unsigned long long)(dm_nvn_frame_count ? dm_nvn_frame_count() : 0),
++        (unsigned long long)t_mkw_longest[1], (unsigned long long)t_mkw_longest[2], (unsigned long long)t_mkw_longest[3],
++        (unsigned long long)t_mkw_longest[4], (unsigned long long)t_mkw_wait_path.waiter_lr, (unsigned long long)t_mkw_wait_path.waiter_entry,
++        (unsigned long long)t_mkw_longest[5], (unsigned long long)t_mkw_longest[6],
++        (unsigned long long)t_mkw_wait_path.start_ns, (unsigned long long)wake, (unsigned long long)ret,
++        (unsigned long long)t_mkw_wait_path.svc_return_ns, (unsigned long long)t_mkw_wait_path.wake_count,
++        known ? (wake - t_mkw_wait_path.start_ns) / 1e6 : -1.0, known ? (ret - wake) / 1e6 : -1.0,
++        t_mkw_wait_path.svc_return_ns >= ret ? (t_mkw_wait_path.svc_return_ns - ret) / 1e6 : -1.0,
++        (unsigned long long)t_mkw_longest[7], (unsigned long long)t_mkw_wait_path.waker_entry, (unsigned long long)t_mkw_wait_path.waker_pc,
++        (unsigned long long)t_mkw_wait_path.waker_lr, (unsigned long long)t_mkw_wait_path.waker_svc, t_mkw_wait_path.waker_in_svc, t_mkw_wait_path.waker_prio,
++        (unsigned long long)t_mkw_wait_path.waker_mask, (unsigned long long)t_mkw_log_skipped);
++    t_mkw_log_skipped = 0;
++}
+ uint64_t s2a_rb_mkw_wait_detail_take(uint64_t out[8]) {
+-    if (out) memcpy(out,t_mkw_longest,sizeof t_mkw_longest);
++    thr_t *me = thread_current_or_null();
++    if (me) atomic_store_explicit(&me->mkw_presenter, 1, memory_order_relaxed);
++    if (out) { memcpy(out,t_mkw_longest,sizeof t_mkw_longest); mkw_wait_path_log(); }
+     memset(t_mkw_longest,0,sizeof t_mkw_longest);
++    memset(&t_mkw_wait_path,0,sizeof t_mkw_wait_path);
+     uint64_t ns=t_mkw_guest_wait_ns;
+     t_mkw_guest_wait_ns=0;
+     return ns;
+@@ -2739,7 +2800,13 @@
+     const int sync_call = num==0x18 || num==0x1A || num==0x1C || num==0x34;
+     const uint64_t mkw_wait_start = sync_call && s2a_rb_mkw_measure && s2a_rb_mkw_measure() ? now_mono_ns() : 0;
+     uint64_t object = mkw_wait_start ? regs[num == 0x34 ? 0 : 1] : 0;
++    const int mkw_path = mkw_wait_start && atomic_load_explicit(&me->mkw_presenter, memory_order_relaxed);
++    int mkw_longest_saved = 0;
+     if (mkw_wait_start) {
++        if (mkw_path) {
++            atomic_store_explicit(&me->mkw_wake_ns, 0, memory_order_relaxed);
++            atomic_store_explicit(&me->mkw_wake_count, 0, memory_order_relaxed);
++        }
+         me->mkw_signaled_handle=0;
+         atomic_store_explicit(&me->mkw_last_waker,0,memory_order_relaxed);
+         atomic_store_explicit(&me->mkw_wait_active,1,memory_order_relaxed);
+@@ -2748,7 +2815,7 @@
+     int r = svc_thread_impl(me, num, regs);
+ #if defined(__APPLE__)
+     if (mkw_wait_start) {
+-        uint64_t elapsed = now_mono_ns()-mkw_wait_start;
++        uint64_t impl_return_ns = (uint64_t)now_mono_ns(), elapsed = impl_return_ns-mkw_wait_start;
+         atomic_store_explicit(&me->mkw_wait_active,0,memory_order_relaxed);
+         t_mkw_guest_wait_ns += elapsed;
+         if (elapsed > t_mkw_longest[0]) {
+@@ -2756,6 +2823,25 @@
+             t_mkw_longest[3]=me->id; t_mkw_longest[4]=me->svc_pc;
+             t_mkw_longest[5]=regs[0]; t_mkw_longest[6]=me->mkw_signaled_handle;
+             t_mkw_longest[7]=atomic_load_explicit(&me->mkw_last_waker,memory_order_relaxed);
++            memset(&t_mkw_wait_path, 0, sizeof t_mkw_wait_path);
++            if (mkw_path) {
++                mkw_longest_saved = 1;
++                t_mkw_wait_path.start_ns = mkw_wait_start;
++                t_mkw_wait_path.impl_return_ns = impl_return_ns;
++                t_mkw_wait_path.waiter_entry = me->entry;
++                t_mkw_wait_path.waiter_lr = regs[30];
++                t_mkw_wait_path.selected_ns = atomic_load_explicit(&me->mkw_wake_ns, memory_order_relaxed);
++                t_mkw_wait_path.wake_count = atomic_load_explicit(&me->mkw_wake_count, memory_order_relaxed);
++                if (t_mkw_wait_path.selected_ns) {
++                    t_mkw_wait_path.waker_entry = atomic_load_explicit(&me->mkw_waker_entry, memory_order_relaxed);
++                    t_mkw_wait_path.waker_pc = atomic_load_explicit(&me->mkw_waker_pc, memory_order_relaxed);
++                    t_mkw_wait_path.waker_lr = atomic_load_explicit(&me->mkw_waker_lr, memory_order_relaxed);
++                    t_mkw_wait_path.waker_svc = atomic_load_explicit(&me->mkw_waker_svc, memory_order_relaxed);
++                    t_mkw_wait_path.waker_mask = atomic_load_explicit(&me->mkw_waker_mask, memory_order_relaxed);
++                    t_mkw_wait_path.waker_prio = atomic_load_explicit(&me->mkw_waker_prio, memory_order_relaxed);
++                    t_mkw_wait_path.waker_in_svc = atomic_load_explicit(&me->mkw_waker_in_svc, memory_order_relaxed);
++                }
++            }
+         }
+     }
+     if (wq && !--t_wq_on) wq_flush();
+@@ -2767,6 +2853,11 @@
+     }
+     if (me->peer.handle) peer_yield(me);
+     svc_exit(me);
++#if defined(__APPLE__)
++    // Includes deferred-wake flushing, peer_yield and virtual-core acquisition;
++    // keep the historical SVC-implementation duration in t_mkw_longest intact.
++    if (mkw_longest_saved) t_mkw_wait_path.svc_return_ns = (uint64_t)now_mono_ns();
++#endif
+     if (me->wake_t && (num == 0x1A || num == 0x1C)) lockwake_note(num == 0x1C, thread_clock() - me->wake_t);   // 诊断：唤醒 → 回到游戏的交接延迟
+     return r;
+ }
+@@ -3348,6 +3439,7 @@
+         free(sm);
+     }
+     g_wait = NULL; g_next_id = 0x51; g_wseq = 0;
++    atomic_store_explicit(&g_mkw_wait_logs, 0, memory_order_relaxed);
+     g_h_peak = 0; memset(g_kpeak, 0, sizeof g_kpeak);
+     memset(g_evmap, 0, sizeof g_evmap); memset(g_cvl, 0, sizeof g_cvl);
+     memset(g_pinned_core, 0, sizeof g_pinned_core);

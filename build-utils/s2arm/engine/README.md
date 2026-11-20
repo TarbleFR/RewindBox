@@ -186,3 +186,16 @@ The relaunch, controller handoff and thermal effect still need an iPhone run.
 IPA 795 uses graphics revision 1 for the supported Mario Kart World build. The checks on the exact delivery source cover the legacy-cache migration, interrupt and resume, the foreground reference pipelines, pixel readback and deferred texture transfers. Delivery source `81e4b8963c1c749d76f5220cdbb3fa49c233c914`.
 
 Patch 0154 reads saved draw recipes directly, recovers a validated history prefix at a truncated EOF and releases the saved dictionary on shutdown. The Metal and first-draw checks on this source passed in [run 44659775244](https://github.com/TarbleFR/RewindBox/actions/runs/44659775244).
+
+
+### Race performance follow-up, patches 0166–0168
+
+The [801 analysis](../../../docs/evidence/s2arm-801-driving-analysis.md) separates persistent low throughput from first uploads and guest waits. No iPhone gain is claimed before a new device measurement.
+
+| Patch | Change and limits |
+| --- | --- |
+| 0166 | MKW exact profile: cache resident UBO address metadata by stage/slot/address/requested size/pool generation; reuse the immutable Metal ID of the same texture view; compare deferred push bytes at replay before dirtying arguments. Independent switches: S2A_RB_UBO_BIND_CACHE, S2A_RB_VIEW_RID_REUSE, S2A_RB_PUSH_SAME. All content/shadow/bounds and arena-generation checks remain. Counters published once per submission, sampled lookup timing 1/256. Up to three one-frame GPU-only captures on sustained slow 3D windows, at least 30 seconds apart; no CPU sampling. Diagnostic kernel overlapping writes fixed; capture state reset after session drain. |
+| 0167 | Display p50/p95/p99, known interval coverage, missed slots and consecutive-late streaks; unknown/discarded samples break streaks. Pair GPU completion and actual presentation, at most eight lines per 300 frames. Deadlines inferred from adjacent requested intervals, not claimed absolute drawable deadlines. Binding cost counters. |
+| 0168 | Record actual SVC frame before thread dispatch. Split presenter wait into start, wake selection, implementation return and SVC return; include producer entry/PC/LR/SVC and wake count. At most four waits >=50 ms per ten seconds and 512 per session. No extra wait lock, wake or suspension. Selection-to-return is not kernel runnable latency. |
+
+Resolution, shaders, pacing, cache formats and the 192 MiB texture budget are unchanged. The first counter window after a session restart may include a prior unreported tail; use subsequent complete windows for attribution.
