@@ -1,0 +1,253 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 1315fd8..a5f1544 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4555,6 +4555,9 @@ static NSMutableArray *g_up_keep;
+ // up_begin flushes the batch once it holds UP_KEEP_CAP: between two texture uploads, where every recorded copy is complete; the upload commits before the open submission, so order is kept
+ #define UP_KEEP_CAP (256ull << 20)
+ static uint64_t g_up_keep_bytes; static uint64_t g_up_cap_flushes;
++enum { RB_CPU_UPLOAD_BLOCK = 256 * 1024, RB_CPU_UPLOAD_BATCH = 2 * 1024 * 1024 };
++static id<MTLBuffer> g_cpu_upload_block;
++static NSUInteger g_cpu_upload_next;
+ static void up_keep_add(id<MTLBuffer> b) { if (!g_up_keep) g_up_keep = [NSMutableArray array]; [g_up_keep addObject:b]; g_up_keep_bytes += b.length; }
+ 
+ 
+@@ -4642,6 +4645,8 @@ static void up_flush(void) {
+     if (g_m3) rec_commit_m3(cb, o, nil, 0, 0);
+     else { [cb endCommandBuffer]; rec_commit_upload(cb, o); }
+     g_up_cb = nil; g_up_block = nil; g_up_block_off = g_up_block_size = 0;   // the block and the kept staging are retired by the upload's completion above
++    g_cpu_upload_block = nil;
++    g_cpu_upload_next = 0;
+     [g_up_keep removeAllObjects]; g_up_keep_bytes = 0;
+     up_diag();
+     g_nup_blits = 0; g_nup_decs = 0;
+@@ -4659,17 +4664,12 @@ static void up_begin(void) {
+     if (atomic_load(&g_up_alloc_busy[slot])) rec_drain();
+     up_wait_zero(&g_up_alloc_busy[slot]);
+     atomic_store(&g_up_alloc_busy[slot], 1); g_up_cur_slot = slot;
+-    if (g_m3) {   // no allocator; the copies get a blit encoder at flush, so this batch's GPU deswizzles need their own compute encoder opened here
++    if (g_m3) {
+         g_up_cb = m3_cb();
+-        if (g_nvn_deswz_gpu) { id e3 = [g_up_cb computeCommandEncoder]; m3_wait(e3, 0, 0); g_up_ce = e3; }
+-    }
+-    else {
++    } else {
+         [g_up_alloc4[slot] reset];
+         g_up_cb = [g_dev newCommandBuffer];
+         [g_up_cb beginCommandBufferWithAllocator:g_up_alloc4[slot]];
+-        g_up_ce = [g_up_cb computeCommandEncoder];
+-        enc_full_barrier_begin(g_up_ce);
+-        enc_c_table(g_up_ce, g_up_ct);
+     }
+     if (!g_up_texs) g_up_texs = [NSMutableArray array];
+     if (!g_up_keep) g_up_keep = [NSMutableArray array];
+@@ -5043,6 +5043,8 @@ static int rb_park_compat(void) {
+     });
+     return enabled;
+ }
++static int rb_spec_may(int worker);
++static _Atomic uint64_t g_pf_stale, g_pf_peak;
+ static void rb_pf_post(const tex_t *t) {   // any thread holding none of g_rmu, g_smu, g_cpu_tex_mu (tex_get takes g_smu, tex_cpu_written g_cpu_tex_mu)
+     if (rb_park_compat() && dm_gfx_session_stopping()) return;
+     if (!t || !t->mem || !t->L.size || t->L.size > RB_PF_MAX_TEX || !t->serial || !rb_pf_on() || !rb_wn_on()) return;
+@@ -5051,17 +5053,55 @@ static void rb_pf_post(const tex_t *t) {   // any thread holding none of g_rmu,
+     if (atomic_load_explicit(&g_pf_recent[slot], memory_order_relaxed) == key) return;   // asked lately
+     if (!t->has_layout && !tex_cpu_written(t->serial)) return;   // a GPU texture (see above)
+     if (tex_get(t->serial)) return;   // made already
+-    uint64_t n = t->L.size, lowm = ((uint64_t)1 << 40) - 1, f = (atomic_load_explicit(&g_cur_frame, memory_order_relaxed) & 0xffffff) << 40, o = atomic_load_explicit(&g_pf_budget, memory_order_relaxed), nw;
+-    do { uint64_t used = (o & ~lowm) == f ? o & lowm : 0;   // another frame's count: this frame starts at 0
+-         if (used + n > rb_pf_frame() || atomic_load_explicit(&g_pf_pend, memory_order_relaxed) + (int64_t)n > rb_pf_pending()) { atomic_fetch_add_explicit(&g_pf_dropped, 1, memory_order_relaxed); return; }   // RewindBox (patch 0080): rb_pf_frame / rb_pf_pending
+-         nw = f | (used + n);
+-    } while (!atomic_compare_exchange_weak_explicit(&g_pf_budget, &o, nw, memory_order_relaxed, memory_order_relaxed));
+-    atomic_store_explicit(&g_pf_recent[slot], key, memory_order_relaxed);   // only once asked: one left above is asked again at its next registration
+-    atomic_fetch_add_explicit(&g_pf_pend, (int64_t)n, memory_order_relaxed); atomic_fetch_add_explicit(&g_pf_posted, 1, memory_order_relaxed);
++    const uint64_t n = t->L.size;
++    const int64_t queue_limit = rb_pf_pending();
++    int64_t pending = atomic_load_explicit(&g_pf_pend, memory_order_relaxed);
++    do {
++        if (pending + (int64_t)n > queue_limit) {
++            atomic_fetch_add_explicit(&g_pf_dropped, 1, memory_order_relaxed);
++            return;
++        }
++    } while (!atomic_compare_exchange_weak_explicit(&g_pf_pend, &pending, pending + (int64_t)n,
++                 memory_order_relaxed, memory_order_relaxed));
++
++    const uint64_t low_mask = (1ull << 40) - 1, frame_limit = rb_pf_frame();
++    uint64_t budget = atomic_load_explicit(&g_pf_budget, memory_order_relaxed);
++    uint64_t frame;
++    for (;;) {
++        // Refresh the frame on retry so a delayed registrar cannot rewind a newer budget.
++        frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++        uint64_t epoch = (frame & 0xffffff) << 40;
++        uint64_t used = (budget & ~low_mask) == epoch ? budget & low_mask : 0;
++        if (used + n > frame_limit) {
++            atomic_fetch_sub_explicit(&g_pf_pend, (int64_t)n, memory_order_relaxed);
++            atomic_fetch_add_explicit(&g_pf_dropped, 1, memory_order_relaxed);
++            return;
++        }
++        if (atomic_compare_exchange_weak_explicit(&g_pf_budget, &budget, epoch | (used + n),
++                memory_order_relaxed, memory_order_relaxed)) break;
++    }
++    uint64_t reserved = (uint64_t)pending + n, peak = atomic_load_explicit(&g_pf_peak,memory_order_relaxed);
++    while (peak < reserved && !atomic_compare_exchange_weak_explicit(&g_pf_peak,&peak,reserved,
++                               memory_order_relaxed,memory_order_relaxed)) {}
++    atomic_store_explicit(&g_pf_recent[slot], key, memory_order_relaxed);
++    atomic_fetch_add_explicit(&g_pf_posted, 1, memory_order_relaxed);
+     static dispatch_once_t once;
+     dispatch_once(&once, ^{ g_rb_tex_ahead_q = dispatch_queue_create("rb.tex.readahead", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_DEFAULT, 0)); });
+     const void *p = t->mem;
+-    dispatch_async(g_rb_tex_ahead_q, ^{ uint64_t k = rb_wn(p, n); atomic_fetch_add_explicit(&g_pf_pages, k == RB_WN_NONE ? 0 : k, memory_order_relaxed); atomic_fetch_sub_explicit(&g_pf_pend, (int64_t)n, memory_order_relaxed); });
++    const int cup = rb_course_exact();
++    dispatch_async(g_rb_tex_ahead_q, ^{
++        uint64_t now = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++        if (cup && (dm_gfx_session_stopping() || (now - frame > 2 && !rb_spec_may(0)))) {
++            uint64_t expected = key;
++            atomic_compare_exchange_strong_explicit(&g_pf_recent[slot], &expected, 0,
++                memory_order_relaxed, memory_order_relaxed);
++            atomic_fetch_add_explicit(&g_pf_stale, 1, memory_order_relaxed);
++        } else {
++            uint64_t k = rb_wn(p, n);
++            atomic_fetch_add_explicit(&g_pf_pages, k == RB_WN_NONE ? 0 : k, memory_order_relaxed);
++        }
++        atomic_fetch_sub_explicit(&g_pf_pend, (int64_t)n, memory_order_relaxed);
++    });
+ }
+ // RewindBox (patch 0089): the pool around a texture whose upload found pages of its storage not in memory is asked ahead too. IPA 779 (Mario Kart World, iPhone17,2, races):
+ //   a scene's first uploads took 136-550 ms on the submit thread (f2751: 520 textures, 97 MB, 549.8 ms, 4,164 host pages not in memory; f5467: 139, 49.6 MB, 416.6 ms, 3,518;
+@@ -5304,10 +5344,12 @@ static void rb_wn_line(unsigned long long frame) {   // every 300 frames (nvn_be
+     uint64_t pg = (uint64_t)getpagesize();
+     MLOG("RewindBox: texture storage read ahead up to frame %llu%s: uploads and checks found %llu host pages not in memory (%llu MB; %llu of them in pools without CPU access) and asked them in %llu runs over %llu spans, "
+          "%llu reads not looked at (not wholly in the window's files); at registration %llu textures asked ahead (%llu pages not in memory), %llu left to their upload (over %llu MB a frame or %lld MB queued); "
+-         "most such pages by GB of the window: %s",
++         "most such pages by GB of the window: %s; registration queue peak %llu MiB, stale hints skipped %llu",
+          frame, rb_wn_on() ? "" : " (read-ahead off, pages only counted)", (unsigned long long)tot, (unsigned long long)(tot * pg >> 20), (unsigned long long)atomic_load(&g_wn_tot_noacc),
+          (unsigned long long)atomic_load(&g_wn_runs), (unsigned long long)atomic_load(&g_wn_calls), (unsigned long long)unseen, (unsigned long long)posted, (unsigned long long)atomic_load(&g_pf_pages),
+-         (unsigned long long)dropped, (unsigned long long)(rb_pf_frame() >> 20), (long long)(rb_pf_pending() >> 20), o ? g : "none");
++         (unsigned long long)dropped, (unsigned long long)(rb_pf_frame() >> 20), (long long)(rb_pf_pending() >> 20), o ? g : "none",
++         (unsigned long long)(atomic_load_explicit(&g_pf_peak,memory_order_relaxed) >> 20),
++         (unsigned long long)atomic_load_explicit(&g_pf_stale,memory_order_relaxed));
+     uint64_t pt = atomic_load(&g_pa_tex);   // RewindBox (patch 0089): the pool read-ahead's totals (rb_pool_ahead)
+     if (pt) MLOG("RewindBox: pool read-ahead up to frame %llu (patch 0089%s): %llu uploads found pages not in memory and asked around them in their pool, %llu spans of %llu MB asked ahead "
+                  "(%llu host pages not in memory there, %llu MB), %llu times the frame's %llu MB were spent, %llu spans not looked at (not wholly in the window's files)",
+@@ -5854,6 +5896,13 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+         // The batch was opened above (up_begin): opening it again here could flush it at UP_KEEP_CAP and retire upsrc before the copies that read it
+         size_t stg_off;
+         id<MTLBuffer> stg = up_alloc(gdec ? (ctotal ? ctotal : 16) : total ? total : 16, &stg_off);
++        if (!g_up_ce) {
++            g_up_ce = [g_up_cb computeCommandEncoder];
++            if (g_up_ce) {
++                if (g_m3) m3_wait(g_up_ce, 0, 0);
++                else { enc_full_barrier_begin(g_up_ce); enc_c_table(g_up_ce, g_up_ct); }
++            }
++        }
+         size_t off = 0; int enc_ok = g_up_ce != nil, nb0 = g_nup_blits, nd0 = g_nup_decs;
+         for (unsigned l = 0; enc_ok && l < d.mipmapLevelCount; l++) {
+             uint32_t w = MAX(t->d.width >> l, 1u), h = MAX(t->d.height >> l, 1u), z = t->d.target == 2 ? MAX(t->d.depth >> l, 1u) : 1;
+@@ -5903,7 +5952,25 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+     if (rb) src = rb;   // RewindBox (patch 0016): what the game does not hold reads 0, as a sparse pool's unmapped pages do
+     up_begin();
+     // RewindBox (patch 0020): one staging buffer up to RB_UP_PIECE, as before; a larger one, or one Metal refuses, goes in pieces (rb_up_pieces)
+-    id<MTLBuffer> stg = total <= RB_UP_PIECE ? [g_dev newBufferWithLength:total ? total : 16 options:MTLResourceStorageModeShared] : nil;
++    // Only batch first uploads with an open main submission. Re-uploads can target
++    // a resource already in use. Standalone work and large allocations keep their flush.
++    BOOL small = rb_course_exact() && on_sub_thread() && g_cb && mt != reuse &&
++                 total > 0 && total <= RB_CPU_UPLOAD_BLOCK / 4;
++    NSUInteger start = 0;
++    id<MTLBuffer> stg = nil;
++    if (small) {
++        start = (g_cpu_upload_next + 255u) & ~(NSUInteger)255u;
++        if (!g_cpu_upload_block || start + total > g_cpu_upload_block.length) {
++            g_cpu_upload_block = [g_dev newBufferWithLength:RB_CPU_UPLOAD_BLOCK options:MTLResourceStorageModeShared];
++            start = 0;
++            if (g_cpu_upload_block) { res_add(g_cpu_upload_block); up_keep_add(g_cpu_upload_block); }
++        }
++        stg = g_cpu_upload_block;
++        if (stg) g_cpu_upload_next = start + total;
++    }
++    BOOL pooled = stg != nil;
++    if (!stg && total <= RB_UP_PIECE)
++        stg = [g_dev newBufferWithLength:total ? total : 16 options:MTLResourceStorageModeShared];
+     if (!stg) {
+         uint64_t k = ++g_rb_up_split_n;
+         if (k <= 8 || !(k & (k - 1))) {
+@@ -5929,8 +5996,8 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+         }
+         return mt;
+     }
+-    res_add(stg); up_keep_add(stg);
+-    size_t off = 0;
++    if (!pooled) { res_add(stg); up_keep_add(stg); }
++    size_t off = start;
+     int zb = zblock_on() && t->d.format >= 0x79 && t->d.format <= 0x94; if (zb) { g_zb_ser = t->serial; g_zb_n = (int)MIN(d.mipmapLevelCount, 16u); memset(g_zb, 0, sizeof g_zb); memset(g_zb_tot, 0, sizeof g_zb_tot); }
+     uint8_t *cb = NULL;  // Later mip levels never exceed level zero.
+     for (unsigned l = 0; l < d.mipmapLevelCount; l++) {
+@@ -5960,7 +6027,9 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+     }
+     free(cb);
+     free(part); free(rb);
+-    up_flush();
++    if (pooled) [g_up_texs addObject:mt]; // queued blits hold unretained destinations until flush
++    if (!pooled || g_up_keep_bytes >= RB_CPU_UPLOAD_BATCH || g_nup_blits >= 256)
++        up_flush();
+     return mt;
+ }
+ // Zero newly created non-packaged textures: a new Metal texture's content is undefined, while a freshly mapped memory pool on the Switch reads as 0. Games depend on it: SMBW's fountain water surface uses a 512×1 RGBA16F wave texture
+diff --git a/services/S2A.Services/Application.cs b/services/S2A.Services/Application.cs
+index b352b40..a8e9a7c 100644
+--- a/services/S2A.Services/Application.cs
++++ b/services/S2A.Services/Application.cs
+@@ -302,6 +302,7 @@ namespace S2A.Services
+         protected override Result DoRead(out long bytesRead, long offset, Span<byte> destination, in ReadOption option)
+         {
+             FileStream stream = null;
++            FileStream evicted = null;
+ 
+             lock (_lock)
+             {
+@@ -334,7 +335,7 @@ namespace S2A.Services
+                 {
+                     if (_stream == null)
+                     {
+-                        EvictOne();
++                        evicted = DetachIdleFile();
+                         _stream = opened;
+                         _node = _lru.AddFirst(this);
+                         opened = null;
+@@ -353,6 +354,7 @@ namespace S2A.Services
+ 
+             try
+             {
++                evicted?.Dispose();
+                 S2ATestBeforeRead?.Invoke(_path);
+                 int n = (int)Math.Max(0, Math.Min(destination.Length, _size - offset));
+ 
+@@ -481,11 +483,11 @@ namespace S2A.Services
+         }
+ 
+         // 满了关最久没用、且没人正在读的那个（都在读就暂时超出上限）
+-        private static void EvictOne()
++        private static FileStream DetachIdleFile()
+         {
+             if (_lru.Count < MaxOpen)
+             {
+-                return;
++                return null;
+             }
+ 
+             for (LinkedListNode<LazyHostFile> n = _lru.Last; n != null; n = n.Previous)
+@@ -495,12 +497,13 @@ namespace S2A.Services
+                 if (old._busy == 0)
+                 {
+                     _lru.Remove(n);
+-                    old._stream.Dispose();
++                    FileStream detached = old._stream;
+                     old._stream = null;
+                     old._node = null;
+-                    return;
++                    return detached;
+                 }
+             }
++            return null;
+         }
+ 
+         protected override Result DoGetSize(out long size)
