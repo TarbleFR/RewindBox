@@ -34,6 +34,7 @@ class _NextendoDialogState extends State<NextendoDialog> {
   bool _catalogLoaded = false;
   NextendoAccount? _account;
   bool _online = true;
+  bool _smashPrivateTls = false;
   bool? _engine; // null while the engine binary is checked
   bool _busy = false;
   String? _message;
@@ -74,6 +75,7 @@ class _NextendoDialogState extends State<NextendoDialog> {
       final config = await NextendoConfig.load();
       final account = config.canSignIn ? await _service.restore(config) : null;
       final online = await NextendoOnlinePlay.enabled();
+      final smashPrivateTls = await NextendoOnlinePlay.smashPrivateTlsEnabled();
       unawaited((widget.engineSupported ?? NextendoEngineSupport.supported)().then((supported) {
         if (mounted) setState(() => _engine = supported);
       }, onError: (Object _) {
@@ -84,6 +86,7 @@ class _NextendoDialogState extends State<NextendoDialog> {
         _config = config;
         _account = account;
         _online = online;
+        _smashPrivateTls = smashPrivateTls;
         _clientId.text = config.clientId;
         _server.text = config.serverAddress;
         _nat.text = config.natAddress;
@@ -162,7 +165,32 @@ class _NextendoDialogState extends State<NextendoDialog> {
           ? _text('nextendoAllowedNotReady', {'cause': missing})
           : smashTlsRefused
           ? _text('nextendoSmashTlsRejected')
+          : NextendoOnlinePlay.lastSmashTls == 'compatibility'
+          ? _text('nextendoSmashTlsCompatibility')
           : _text('nextendoAllowedReady');
+    });
+  });
+
+  Future<void> _setSmashPrivateTls(bool value) => _run(() async {
+    if (value) {
+      final accepted = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(_text('nextendoSmashPrivateTls')),
+          content: Text(_text('nextendoSmashPrivateTlsWarning')),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: Text(_text('cancel'))),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(_text('nextendoSmashPrivateTlsAccept'))),
+          ],
+        ),
+      );
+      if (accepted != true || !mounted) return;
+    }
+    await NextendoOnlinePlay.setSmashPrivateTlsEnabled(value);
+    if (mounted) setState(() {
+      _smashPrivateTls = value;
+      _messageIsError = false;
+      _message = _text('nextendoOnlinePlayHint');
     });
   });
 
@@ -234,6 +262,13 @@ class _NextendoDialogState extends State<NextendoDialog> {
         _status(false, _text('nextendoStatusServersMissing'), _text('nextendoActionServers')),
       if (NextendoOnlinePlay.lastSmashTls == 'refused')
         _status(false, _text('nextendoSmashTlsRejected')),
+      if (NextendoOnlinePlay.lastSmashTls == 'compatibility')
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: const Icon(Icons.info_outline),
+          title: Text(_text('nextendoSmashTlsCompatibility')),
+        ),
       if (_engine == null)
         _status(null, _text('nextendoStatusEngineChecking'))
       else if (_engine!)
@@ -256,6 +291,16 @@ class _NextendoDialogState extends State<NextendoDialog> {
                 },
         );
       }),
+      if (_smashPrivateTls || NextendoOnlinePlay.lastSmashTls != null)
+        SwitchListTile(
+          key: const ValueKey('nextendo-smash-private-tls'),
+          contentPadding: EdgeInsets.zero,
+          title: Text(_text('nextendoSmashPrivateTls')),
+          subtitle: Text(_text('nextendoSmashPrivateTlsHint')),
+          value: _smashPrivateTls,
+          onChanged: _busy || (!_smashPrivateTls && (_engine != true || !config.serverResolved))
+              ? null : _setSmashPrivateTls,
+        ),
       Wrap(
         spacing: 8,
         children: [

@@ -97,6 +97,10 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     /// acceptedVersions: at most 16 printable ASCII strings of at most 32 characters. Values are never journaled.
     static func onlineRequest(_ online:[String:Any], token:String, pid:Int64, server:String, nat:String, root:URL? = nil) -> [String:Any] {
         var request:[String:Any] = ["nexToken":token,"pid":NSNumber(value:pid),"serverAddress":server,"natAddress":nat]
+        if online["smashPrivateTls"] as? Bool == true, online["titleId"] as? String == "01006a800016e000" {
+            request["smashPrivateTls"] = true
+            request["titleId"] = "01006a800016e000"
+        }
         if let addresses = online["smashDnsAddresses"] as? [String], (2...4).contains(addresses.count),
            addresses.first == server, addresses.allSatisfy({ $0.utf8.count <= 15 }) {
             request["smashDnsAddresses"] = addresses

@@ -30,8 +30,9 @@ Edits, each guarded by EmbeddedOnline.Enabled:
                                        refuses it, as the guide says of third-party builds.
   SslManagedSocketConnection.cs        TLS to one of the two configured addresses: ALPN http/1.1 (h2 on NPLN hosts),
                                        the name last redirected there as SNI when the game gave none, and a chain to
-                                       one of Nextendo's published roots naming the host; any other connection keeps
-                                       the system's validation.
+                                       one of Nextendo's published roots naming the host. Explicit SSBU consent allows
+                                       its legacy private certificate only on that session's game address and NEX ports;
+                                       all other connections keep their existing validation.
 
 Known limits: Animal Crossing's BAAS user id, signed NPLN patches, BCAT data, the signed game catalog and the
 /api/nex-session heartbeat are not handled; nothing keeps a UDP NAT mapping alive during peer-to-peer set-up. Not
@@ -186,8 +187,9 @@ TLS_NEW = '''            StartSslOperation();
 
             // RewindBox (adapt_nextendo_online): one of the two servers online play is configured with. ALPN http/1.1
             // (NEX over WebSocket; h2 on NPLN hosts), the name last redirected to that address as SNI when the game gave
-            // none (a reverse lookup would name the server, not the game's host), and only a chain to one of
-            // Nextendo's published roots that names the host. A refused or failed handshake is the game's connection
+            // none (a reverse lookup would name the server, not the game's host), and the scoped certificate policy.
+            // The default requires Nextendo's published roots and the host name; SSBU's explicit private-certificate
+            // consent is bound to this session and destination. A refused or failed handshake is the game's connection
             // error, never an exception through the service (only the host name is logged). Every other connection
             // takes the original handshake below.
             IPAddress onlinePeer = Socket.RemoteEndPoint?.Address;
@@ -211,7 +213,7 @@ TLS_NEW = '''            StartSslOperation();
                         EnabledSslProtocols = TranslateSslVersion(_sslVersion),
                         ApplicationProtocols = Ryujinx.HLE.EmbeddedOnline.ApplicationProtocols(onlineHost),
                         CertificateRevocationCheckMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck,
-                        RemoteCertificateValidationCallback = Ryujinx.HLE.EmbeddedOnline.ValidateServerCertificate,
+                        RemoteCertificateValidationCallback = Ryujinx.HLE.EmbeddedOnline.CertificateValidator(onlinePeer, Socket.RemoteEndPoint.Port),
                     };
                     _stream = new SslStream(new NetworkStream(((DefaultSocket)((ManagedSocket)Socket).Socket).BaseSocket, false), false);
                     _stream.AuthenticateAsClient(onlineOptions);

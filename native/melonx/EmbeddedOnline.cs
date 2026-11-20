@@ -30,7 +30,8 @@ namespace Ryujinx.HLE
     ///     nnex (the game token);
     ///   - TLS to one of the two addresses offers ALPN http/1.1 (h2 on NPLN hosts), sends the last host name redirected
     ///     there as SNI when the game gave none, and accepts only a chain to one of Nextendo's published roots that
-    ///     names the host;
+    ///     names the host. An explicitly consented SSBU session may instead accept the legacy private NEX certificate
+    ///     on its configured game address; this is reported as unverified compatibility, never verified TLS;
     ///   - a refused or failed TLS handshake, to those addresses or any other host, is the game's connection error
     ///     (ConnectionAbort, also for a later read or write), never an exception through the service.
     /// RewindBox (adapt_nextendo_data), optional parts of the request: the host's folder of the launched title's BCAT data
@@ -59,6 +60,7 @@ namespace Ryujinx.HLE
             public Task<IPAddress> SmashSelection;
             public volatile IPAddress SmashServer;
             public int SmashTlsState;
+            public bool SmashPrivateTls;
             public readonly Dictionary<IPAddress, string> Resolved = new();
             public string BcatDirectory; // adapt_nextendo_data
             public long? Nsa; // adapt_nextendo_data
@@ -71,6 +73,7 @@ namespace Ryujinx.HLE
         public const int MaxVersionLength = 32; // adapt_nextendo_data
 
         private const string SmashHost = "g23380901-lp1.s.n.srv.nintendo.net";
+        private const string SmashTitle = "01006a800016e000";
 
         private static volatile Settings _settings; // the running session's
         private static volatile Settings _pending; // the host's last request, for the next session
@@ -238,7 +241,7 @@ zdAq1CTeFUrJ6r/siw==
             Settings settings = _pending;
             if (settings?.SmashCandidates is { Length: > 1 } candidates)
             {
-                settings.SmashSelection = Task.Run(() => SelectSmashServer(candidates));
+                settings.SmashSelection = Task.Run(() => SelectSmashServer(candidates, settings.SmashPrivateTls));
             }
             _settings = settings;
             _pending = null;
@@ -282,6 +285,8 @@ zdAq1CTeFUrJ6r/siw==
             {
                 NexToken = token, Pid = pid, Server = server, Nat = nat,
                 SmashCandidates = SmashCandidates(root, server, nat),
+                SmashPrivateTls = Text(root, "titleId") == SmashTitle &&
+                    root.TryGetProperty("smashPrivateTls", out JsonElement consent) && consent.ValueKind == JsonValueKind.True,
                 BcatDirectory = BcatDirectory(root), Nsa = Nsa(root), AcceptedVersions = AcceptedVersions(root),
             };
             return true;
@@ -304,11 +309,11 @@ zdAq1CTeFUrJ6r/siw==
         }
 
         // No application data is sent. Start during guest startup and bound the whole race, including slow peers.
-        private static async Task<IPAddress> SelectSmashServer(IPAddress[] candidates)
+        private static async Task<IPAddress> SelectSmashServer(IPAddress[] candidates, bool privateTls)
         {
             using CancellationTokenSource deadline = new(TimeSpan.FromSeconds(2));
             List<Task<IPAddress>> probes = new(candidates.Length);
-            foreach (IPAddress address in candidates) probes.Add(VerifySmashRoute(address, deadline.Token));
+            foreach (IPAddress address in candidates) probes.Add(VerifySmashRoute(address, privateTls, deadline.Token));
             try
             {
                 while (probes.Count != 0)
@@ -327,7 +332,7 @@ zdAq1CTeFUrJ6r/siw==
             }
         }
 
-        private static async Task<IPAddress> VerifySmashRoute(IPAddress address, CancellationToken stop)
+        private static async Task<IPAddress> VerifySmashRoute(IPAddress address, bool privateTls, CancellationToken stop)
         {
             try
             {
@@ -339,7 +344,8 @@ zdAq1CTeFUrJ6r/siw==
                     TargetHost = SmashHost,
                     ApplicationProtocols = [SslApplicationProtocol.Http11],
                     RemoteCertificateValidationCallback = (_, cert, chain, _) =>
-                        CertificateFailure(cert, chain, SmashHost, RootsForTests ?? TrustedRoots(), localChainOnly: true) == null,
+                        CertificateFailure(cert, chain, SmashHost, RootsForTests ?? TrustedRoots(), localChainOnly: true) == null ||
+                        (privateTls && IsLegacySmashCertificate(cert)),
                 }, stop).ConfigureAwait(false);
                 return address;
             }
@@ -537,26 +543,64 @@ zdAq1CTeFUrJ6r/siw==
             return [npln ? SslApplicationProtocol.Http2 : SslApplicationProtocol.Http11];
         }
 
-        /// <summary>The TLS validation of a connection to a configured server (RemoteCertificateValidationCallback).</summary>
+        /// <summary>Bind the optional SSBU exception to this session and this socket's actual destination.</summary>
+        public static RemoteCertificateValidationCallback CertificateValidator(IPAddress peer, int port)
+        {
+            Settings settings = _settings;
+            if (peer?.IsIPv4MappedToIPv6 == true) peer = peer.MapToIPv4();
+            // The published SSBU auth and secure NEX ports. No NAT, arbitrary IP, account API or other title.
+            bool privateRoute = settings?.SmashPrivateTls == true && peer != null && (port == 443 || port == 60005) &&
+                !peer.Equals(settings.Nat) && (peer.Equals(settings.Server) || peer.Equals(settings.SmashServer));
+            return (sender, certificate, chain, errors) =>
+                ValidateServerCertificate(sender, certificate, chain, errors, settings, privateRoute);
+        }
+
+        /// <summary>Strict validation when no session/socket scope is supplied.</summary>
         public static bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors errors)
+            => ValidateServerCertificate(sender, certificate, chain, errors, _settings, false);
+
+        private static bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain,
+            SslPolicyErrors errors, Settings settings, bool privateRoute)
         {
             string host = (sender as SslStream)?.TargetHostName;
             string failure = CertificateFailure(certificate, chain, host, RootsForTests ?? TrustedRoots());
             bool valid = failure == null;
-            Settings settings = _settings;
-            if (settings != null && string.Equals(host, SmashHost, StringComparison.OrdinalIgnoreCase))
+            bool smash = string.Equals(host, SmashHost, StringComparison.OrdinalIgnoreCase);
+            bool compatibility = !valid && privateRoute && ReferenceEquals(settings, _settings) && smash &&
+                IsLegacySmashCertificate(certificate);
+            if (settings != null && ReferenceEquals(settings, _settings) && smash)
             {
-                int state = valid ? 1 : 2;
+                int state = valid ? 1 : compatibility ? 3 : 2;
                 if (Interlocked.Exchange(ref settings.SmashTlsState, state) != state)
-                    Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("smashTls", valid ? "accepted" : "refused", detail: failure ?? "verified");
+                    Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("smashTls", valid ? "accepted" : compatibility ? "compatibility" : "refused",
+                        detail: compatibility ? "unverified-private-certificate" : failure ?? "verified");
             }
-            if (!valid)
+            if (!valid && !compatibility)
             {
                 Logger.Warning?.Print(LogClass.ServiceSsl,
                     $"Online play: certificate refused for '{host}' (reason: {failure}).");
             }
 
-            return valid;
+            return valid || compatibility;
+        }
+
+        // This identifies the legacy certificate format, NOT the server's identity. Only the explicitly consented,
+        // socket-scoped SSBU route can use it. Never add this certificate to a trust store or learn a persistent pin
+        // from an unverified connection. Missing, expired, renamed or SAN-bearing certificates keep the strict path.
+        private static bool IsLegacySmashCertificate(X509Certificate certificate)
+        {
+            if (certificate == null) return false;
+            try
+            {
+                using X509Certificate2 leaf = new(certificate);
+                DateTime now = DateTime.UtcNow;
+                if (leaf.Subject != "CN=nintendo-private-server" || !leaf.SubjectName.RawData.AsSpan().SequenceEqual(leaf.IssuerName.RawData) ||
+                    now < leaf.NotBefore.ToUniversalTime() || now > leaf.NotAfter.ToUniversalTime()) return false;
+                foreach (X509Extension extension in leaf.Extensions)
+                    if (extension.Oid?.Value == "2.5.29.17") return false;
+                return true;
+            }
+            catch (Exception) { return false; }
         }
 
         /// <summary>A chain from the certificate to one of the roots, with the host named by the leaf.</summary>

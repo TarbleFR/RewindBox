@@ -75,7 +75,7 @@ abstract final class MelonxInternalService {
         final event = Map<String, dynamic>.from(call.arguments as Map);
         if (event['stage'] == 'smashTls') {
           final state = event['status'];
-          if (state == 'accepted' || state == 'refused') {
+          if (state == 'accepted' || state == 'refused' || state == 'compatibility') {
             NextendoOnlinePlay.lastSmashTls = state as String;
           }
         }
