@@ -42,9 +42,9 @@ Aller jusqu’au résultat demandé, sans élargir la mission.
 
 ## 5. Garder les preuves utiles
 
-- Conserver causes, pistes réfutées, résultats et limites dans les preuves techniques et l’historique.
-- Consulter les archives au besoin ; vérifier leurs statuts sans réactiver leurs procédures.
+- Conserver causes, pistes réfutées, résultats et limites dans les preuves techniques et l’historique ; consulter les archives au besoin, vérifier leurs statuts sans réactiver leurs procédures.
 - Préserver données utilisateur, rendu, synchronisation, compatibilité, crédits et licences.
 - Distinguer corrigé, testé, compilé, livré et observé sur appareil ; aucun gain non mesuré.
 - Une compilation réussie ne prouve pas que le jeu fonctionne sur iPhone.
+- À chaque mise à jour de S2Arm, actualiser le [suivi graphique](docs/AI_TASK_BOARD.md#s2arm) dans le même lot : jalons pondérés, historique daté par IPA ou commit moteur, graphique et mesures sourcées ; conserver les anciens points, distinguer estimation et FPS mesurés, signaler « non mesuré » et ne jamais augmenter la note pour une compilation seule.
 - Bilan court : changement, vérification, résultat et éventuel blocage.
