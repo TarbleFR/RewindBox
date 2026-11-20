@@ -1,0 +1,197 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 8060708..6f2205a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -12659,10 +12659,9 @@ void nvn_be_prog_bound(const prog_t *p) {   // a game thread recording the first
+ // recipes intentionally deferred by migration, so when a later guest bind
+ // supplies both real libraries the existing lookahead lanes can take them.
+ static NSMutableDictionary<NSString *,NSMutableArray<NSData *> *> *g_recovered_rows; // g_warm_lock
+-static void rb_recovered_index(NSString *text) {
+-    if (![text containsString:@"# deferred-native\t"]) return;
++static void rb_recovered_index(NSArray<NSString *> *rows) {
+     NSMutableDictionary *pairs=[NSMutableDictionary dictionary];
+-    for (NSString *line in [text componentsSeparatedByString:@"\n"]) {
++    for (NSString *line in rows) {
+         if (![line hasPrefix:@"# deferred-native\t"]) continue;
+         pso_skey sk; const char *hex=line.UTF8String+sizeof("# deferred-native\t")-1;
+         if (strlen(hex)!=sizeof(sk)*2 || pso_skey_parse(hex,&sk) || sk.merged || sk.fz || sk.k.fc) continue;
+@@ -12725,18 +12724,22 @@ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines)
+         }
+     }
+     for (NSString *path in lists) {
+-        NSString *txt=[path isEqual:historyList] ? [history.allKeys componentsJoinedByString:@"\n"] :
+-            [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+-        RBReferenceProof *reference=[path isEqual:referencePath] ? rb_ref_open(path,txt) : nil;
++        BOOL fromHistory=[path isEqual:historyList];
++        NSString *txt=fromHistory ? nil : [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
++        NSArray<NSString *> *manifestRows=[txt componentsSeparatedByString:@"\n"];
++        RBReferenceProof *reference=[path isEqual:referencePath] ? rb_ref_open(path,manifestRows) : nil;
+         if (txt.length && [path isEqual:referenceList])
+             atomic_store_explicit(&g_course_exact,1,memory_order_relaxed);
+         BOOL externalList=referenceList && [path isEqual:[referenceList.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pso_external.tsv"]];
+-        if (externalList) rb_recovered_index(txt);
+-        if (!txt) { if (reference) rb_ref_abort(); MLOG("【红】 cannot read prewarm list: %s", path.UTF8String); continue; }
+-        { unsigned long nl = 0; for (NSString *l in [txt componentsSeparatedByString:@"\n"]) nl += l.length && ![l hasPrefix:@"#"];
+-          MLOG("pipeline prewarm list %s: %lu lines", path.UTF8String, nl); }   // Diagnostics: how many lines each manifest gave (when a device warms up 0, shows which one was missing)
++        if (!fromHistory && !txt) { if (reference) rb_ref_abort(); MLOG("【红】 cannot read prewarm list: %s", path.UTF8String); continue; }
++        if (externalList && [txt containsString:@"# deferred-native\t"]) rb_recovered_index(manifestRows);
++        unsigned long count=fromHistory ? history.count : 0;
++        for (NSString *row in manifestRows) count+=row.length && ![row hasPrefix:@"#"];
++        MLOG("pipeline prewarm list %s: %lu lines",path.UTF8String,count);
++        // Dictionary enumeration yields recipe keys without allocating an array or a joined manifest.
++        id<NSFastEnumeration> rows=fromHistory ? (id<NSFastEnumeration>)history : manifestRows;
+         BOOL tagged=NO; unsigned cupOrdinal=0;
+-        for (NSString *line in [txt componentsSeparatedByString:@"\n"]) {
++        for (NSString *line in rows) {
+             if (externalList && [line isEqual:@"# rb-kart-cup-row-v1"]) { tagged=YES; continue; }
+             uint8_t rank=tagged && cupOrdinal<128 && [line hasPrefix:@"R\t"] ? (uint8_t)++cupOrdinal : 0;
+             tagged=NO;
+diff --git a/graphics/nvn/gfx/nvn/rb_draw_history.inc b/graphics/nvn/gfx/nvn/rb_draw_history.inc
+index b264776..66412c1 100644
+--- a/graphics/nvn/gfx/nvn/rb_draw_history.inc
++++ b/graphics/nvn/gfx/nvn/rb_draw_history.inc
+@@ -66,9 +66,10 @@ static BOOL rb_draw_preferred(const rb_draw_record *a,const rb_draw_record *b) {
+     if (a->wait_ns!=b->wait_ns) return a->wait_ns>b->wait_ns;
+     return !*b->cue && *a->cue;
+ }
+-// Called only off the submit thread. An unreadable established file is left
+-// intact and retried, so a storage failure cannot erase earlier discoveries.
+-static NSDictionary<NSString *,NSData *> *rb_draw_read(NSString *path) {
++// Called only off the submit thread. Recover a validated prefix before a
++// truncated EOF; preserve existing validation rules for complete snapshots.
++static NSDictionary<NSString *,NSData *> *rb_draw_read(NSString *path,BOOL *truncated) {
++    if (truncated) *truncated=NO;
+     NSMutableDictionary *out=[NSMutableDictionary dictionary];
+     if (!path) return out;
+     FILE *f=fopen(path.fileSystemRepresentation,"rb");
+@@ -76,17 +77,31 @@ static NSDictionary<NSString *,NSData *> *rb_draw_read(NSString *path) {
+     const uint64_t expected[]={0x5242574244524157ull,RB_DRAW_VERSION,sizeof(rb_draw_history_entry)};
+     uint64_t header[3];
+     BOOL ok=fread(header,sizeof header,1,f)==1 && !memcmp(header,expected,sizeof header);
++    BOOL partial=NO, prefixValid=YES;
+     rb_draw_history_entry entry;
+     while (ok) {
+         size_t n=fread(&entry,1,sizeof entry,f);
+-        if (!n) { ok=feof(f) && !ferror(f); break; }
+-        if (n!=sizeof entry || out.count>=RB_DRAW_LIMIT) { ok=NO; break; }
++        if (n!=sizeof entry) {
++            partial=n!=0;
++            ok=feof(f) && !ferror(f) && (!partial || prefixValid);
++            break;
++        }
++        if (out.count>=RB_DRAW_LIMIT) { ok=NO; break; }
+         if (!rb_draw_valid(&entry.first) || !rb_draw_valid(&entry.preferred) ||
+             memcmp(&entry.first.recipe,&entry.preferred.recipe,sizeof entry.first.recipe) ||
+-            strcmp(entry.first.task,entry.preferred.task) || entry.first.pad!=entry.preferred.pad) continue;
+-        out[rb_draw_line(&entry.first)]=[NSData dataWithBytes:&entry length:sizeof entry];
++            strcmp(entry.first.task,entry.preferred.task) || entry.first.pad!=entry.preferred.pad) {
++            prefixValid=NO;
++            continue;
++        }
++        NSString *line=rb_draw_line(&entry.first);
++        if (out[line]) prefixValid=NO;
++        out[line]=[NSData dataWithBytes:&entry length:sizeof entry];
++    }
++    if (fclose(f)) ok=NO;
++    if (ok && partial) {
++        if (truncated) *truncated=YES;
++        MLOG("RewindBox cup pipeline history: recovered %lu complete recipes before a truncated EOF",(unsigned long)out.count);
+     }
+-    fclose(f);
+     return ok ? out : nil;
+ }
+ static void rb_draw_merge(NSMutableDictionary<NSString *,NSData *> *out,NSString *line,const rb_draw_record *r) {
+@@ -103,7 +118,7 @@ static void rb_draw_merge(NSMutableDictionary<NSString *,NSData *> *out,NSString
+     out[line]=[NSData dataWithBytes:&entry length:sizeof entry];
+ }
+ static void rb_draw_write(NSString *path,NSArray<NSData *> *batch) {
+-    if (!path) return;
++    if (!path || (!batch.count && !g_rb_draw_unsaved[path].count)) return;
+     if (!g_rb_draw_unsaved) g_rb_draw_unsaved=[NSMutableDictionary dictionary];
+     NSMutableDictionary *pending=g_rb_draw_unsaved[path];
+     if (!pending) pending=g_rb_draw_unsaved[path]=[NSMutableDictionary dictionary];
+@@ -118,9 +133,10 @@ static void rb_draw_write(NSString *path,NSArray<NSData *> *batch) {
+             (unsigned long long)r->frame,identity.UTF8String,session,*r->task?"mesh":"render",r->recipe.vs,r->recipe.fs,r->task,
+             r->phase?"startup":"unknown",*r->cue?r->cue:"unknown",(unsigned long long)r->wait_ns,r->prepared?"prepared":"demand");
+     }
+-    if (!pending.count) return;
++    if (!pending.count) { [g_rb_draw_unsaved removeObjectForKey:path]; return; }
++    BOOL truncated=NO;
+     NSDictionary *previous=[g_rb_draw_loaded_path isEqual:path] ? g_rb_draw_loaded : nil;
+-    if (!previous) previous=rb_draw_read(path);
++    if (!previous) previous=rb_draw_read(path,&truncated);
+     if (!previous) {
+         MLOG("RewindBox cup pipeline history: previous checkpoint unavailable; observed variants retained in memory");
+         return;
+@@ -132,7 +148,7 @@ static void rb_draw_write(NSString *path,NSArray<NSData *> *batch) {
+         rb_draw_merge(merged,line,&entry->first);
+         rb_draw_merge(merged,line,&entry->preferred);
+     }];
+-    if ([merged isEqual:previous]) { [g_rb_draw_unsaved removeObjectForKey:path]; return; }
++    if (!truncated && [merged isEqual:previous]) { [g_rb_draw_unsaved removeObjectForKey:path]; return; }
+     const uint64_t header[]={0x5242574244524157ull,RB_DRAW_VERSION,sizeof(rb_draw_history_entry)};
+     NSMutableData *output=[NSMutableData dataWithCapacity:sizeof header+merged.count*sizeof(rb_draw_history_entry)];
+     [output appendBytes:header length:sizeof header];
+@@ -146,19 +162,23 @@ static void rb_draw_write(NSString *path,NSArray<NSData *> *batch) {
+ }
+ static NSDictionary<NSString *,NSData *> *rb_draw_warm_history(void) {
+     if (!rb_course_enabled()) return nil;
+-    if (!rb_draw_path()) return nil;
+-    return rb_draw_read(rb_draw_path());
++    NSString *path=rb_draw_path();
++    return path ? rb_draw_read(path,NULL) : nil;
+ }
+ static void rb_draw_flush(BOOL drain) {
+     NSString *path=rb_draw_path();
+-    if (!path) return;
++    if (!path && !drain) return;
+     os_unfair_lock_lock(&g_rb_draw_batch_lock);
+     NSArray<NSData *> *batch=g_rb_draw_batch;
+     g_rb_draw_batch=nil;
+     os_unfair_lock_unlock(&g_rb_draw_batch_lock);
+     if (!batch.count && !drain) return;
+     void (^write)(void)=^{ @autoreleasepool { rb_draw_write(path,batch); } };
+-    if (drain) dispatch_sync(rb_draw_io(),write);
++    if (drain) dispatch_sync(rb_draw_io(),^{
++        write();
++        g_rb_draw_loaded=nil;
++        g_rb_draw_loaded_path=nil;
++    });
+     else dispatch_async(rb_draw_io(),write);
+ }
+ static BOOL rb_draw_remember(id ps,const pso_skey *recipe,const char *task,uint32_t pad,uint64_t wait,BOOL prepared) {
+diff --git a/graphics/nvn/gfx/nvn/rb_reference.inc b/graphics/nvn/gfx/nvn/rb_reference.inc
+index 5476ddd..d338efd 100644
+--- a/graphics/nvn/gfx/nvn/rb_reference.inc
++++ b/graphics/nvn/gfx/nvn/rb_reference.inc
+@@ -136,7 +136,7 @@ static NSString *rb_ref_path(void) {
+     return env && *env ? @(env) : nil;
+ }
+ // Called during warm_parse only for the explicitly selected reference manifest.
+-static RBReferenceProof *rb_ref_open(NSString *path, NSString *text) {
++static RBReferenceProof *rb_ref_open(NSString *path, NSArray<NSString *> *rows) {
+     RBReferenceProof *proof = [RBReferenceProof new]; proof->path = path;
+     proof->stages = [NSMutableSet set]; proof->renders = [NSMutableSet set];
+     proof->descriptors = [NSMutableDictionary dictionary];
+@@ -155,7 +155,7 @@ static RBReferenceProof *rb_ref_open(NSString *path, NSString *text) {
+             }
+         }
+     }
+-    for (NSString *line in [text componentsSeparatedByString:@"\n"]) {
++    for (NSString *line in rows) {
+         if ([line hasPrefix:@"# missing\t"]) { ++proof->counts[5]; continue; }
+         pso_skey sk;
+         if (rb_ref_row(line,&sk)) {
+diff --git a/graphics/nvn/tests/rb_reference_gpu.inc b/graphics/nvn/tests/rb_reference_gpu.inc
+index bb2595b..249db98 100644
+--- a/graphics/nvn/tests/rb_reference_gpu.inc
++++ b/graphics/nvn/tests/rb_reference_gpu.inc
+@@ -262,7 +262,7 @@ static void rb_external_confirmed_absence_test(NSString *root) {
+         GPU_CHECK([strict containsString:good] && [strict containsString:recipe]==(mode!=0) && [strict containsString:missing]==(mode==0));
+         GPU_CHECK([progressive containsString:recipe]==(mode==0) && [stats[@"deferredNativeMissingInput"] unsignedIntValue]==(mode==0));
+         if (!mode) {
+-            rb_recovered_index(progressive);
++            rb_recovered_index([progressive componentsSeparatedByString:@"\n"]);
+             GPU_CHECK(atomic_load(&g_recovered_pairs)==1);
+         }
+     }
