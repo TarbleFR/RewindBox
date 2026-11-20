@@ -590,6 +590,7 @@ zdAq1CTeFUrJ6r/siw==
             private readonly Action<string, string> _journal;
             private readonly object _gate = new();
             private readonly byte[] _buffer = new byte[16 * 1024];
+            private readonly CancellationTokenSource _stop = new();
             private Task<int> _pending;
             private int _offset, _count;
             private bool _eof, _disposed;
@@ -609,7 +610,7 @@ zdAq1CTeFUrJ6r/siw==
                 if (_count != 0 || _eof) return HOS.Services.Ssl.ResultCode.Success;
                 try
                 {
-                    _pending ??= _stream.ReadAsync(_buffer.AsMemory()).AsTask();
+                    _pending ??= _stream.ReadAsync(_buffer.AsMemory(), _stop.Token).AsTask();
                     if (!_pending.IsCompleted) return HOS.Services.Ssl.ResultCode.WouldBlock;
                     _count = _pending.GetAwaiter().GetResult();
                     _pending = null;
@@ -673,12 +674,13 @@ zdAq1CTeFUrJ6r/siw==
                     if (_disposed) return;
                     _disposed = true;
                     _journal("closed", $"readBytes={_readBytes}; writtenBytes={_writtenBytes}");
-                    // Dispose cancels an outstanding read. Observe its eventual failure without waiting on
-                    // the network or reusing its buffer in another session.
+                    // The TLS service borrows a duplicated BSD descriptor. Disposing its NetworkStream
+                    // does not close a socket still owned by the game: explicitly cancel the pending read.
                     if (_pending != null)
                         _ = _pending.ContinueWith(task => { _ = task.Exception; }, CancellationToken.None,
                             TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
-                    _stream.Dispose();
+                    try { _stop.Cancel(); }
+                    finally { _stream.Dispose(); _stop.Dispose(); }
                 }
             }
         }
