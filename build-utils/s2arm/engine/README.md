@@ -300,3 +300,5 @@ Set `S2A_RB_TEX_BUDGET=0` before launch to restore the 803 paths, including the 
 | 0191 | Starting a comparable benchmark also begins a private ten-minute paging companion. It records 60 deltas from process page-ins and system/all-core CPU ticks, and independently identifies an incomplete session. |
 
 Set `S2A_RB_MEM_GOV=0` before launch for the 803 paths. Existing emergency GPU and allocator releases still observe their safety fences. [Quota policy and device acceptance](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md#pagination-sur-dix-minutes).
+
+The [806 delivery receipt](../../../docs/evidence/rewind806/delivery.json) records the privately decrypted and verified package (97 native images, 10 bundles). Device data against 803 are pending.
