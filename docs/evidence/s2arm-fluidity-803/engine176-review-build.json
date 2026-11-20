@@ -71,6 +71,31 @@
   "deviceWindows": 0,
   "candidateIPA": "not delivered",
   "pinCheck": {
-    "status": "pending"
+    "source": "b47339a9cc67ab18656507aab453a3e6e75b1c95",
+    "run": 44793831852,
+    "job": 136488097903,
+    "conclusion": "success",
+    "generatedPinMatchesCommittedBytes": true,
+    "sha256": "e7a2a8fb48779d95ceb971250559bcf13088dd2858fa8134bd4f6d370eedd3e3"
+  },
+  "candidatePreparation": {
+    "build": 804,
+    "status": "prepared-not-frozen-not-triggered",
+    "source": "b47339a9cc67ab18656507aab453a3e6e75b1c95",
+    "baseImagesVerified": 97,
+    "manifestSchemaErrors": [],
+    "unclassifiedProductCommits": [],
+    "sourceConflicts": [],
+    "missingDeclaredCommits": [],
+    "effectiveDigest": "6853c07c42e378307af8a55562ae3215af1ed1d57d529dcc57e67c7b21dd6022",
+    "privateOrPublicKeysGenerated": false,
+    "transportKeyInGit": false,
+    "engineSource": "f956b7d84b03c23f8ecb9ff500c7965a2ff25807",
+    "enginePinSHA256": "e7a2a8fb48779d95ceb971250559bcf13088dd2858fa8134bd4f6d370eedd3e3",
+    "remaining": [
+      "maintainer decision on the mandatory public encryption recipient",
+      "normal contract and freeze, CI IPA build, download verification and private handoff",
+      "three valid device benchmark windows per version"
+    ]
   }
 }
