@@ -1,0 +1,63 @@
+{
+  "source": "6bdf6fec6850dc4cb4218cf0ae6bd4b25b2a1a14",
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "run": 44787696848,
+  "attempt": 1,
+  "branch": "Claude",
+  "xcode": "Xcode 26.6",
+  "patchesVerified": 176,
+  "patchDelta": [
+    {
+      "name": "0172-periodic-malloc-zone-ledger.patch",
+      "sha256": "675408a94d383544d7e272ae77847b8631aff9fc1ed3969afb3156c63bf4dd25"
+    },
+    {
+      "name": "0173-account-for-host-heap-owners.patch",
+      "sha256": "ca2b381fd0468d1b76c256686c8967bd614852842a568d229556e1f68f83bd0e"
+    },
+    {
+      "name": "0174-bound-open-pipeline-archives-by-recency.patch",
+      "sha256": "2e94568855f70655c37915400a65cfccaf0a3149e8b2cc109e4acb5f9139acd7"
+    },
+    {
+      "name": "0175-free-retired-loader-translation-tables.patch",
+      "sha256": "661824d52246b14341d13dc1fa993dd86287105b8ed065d64154b5e3e0b14224"
+    },
+    {
+      "name": "0176-relieve-host-zones-on-memory-pressure.patch",
+      "sha256": "d86297059bdf2ba398b85d6bcb26098ad5352ee130cdbb32472f64e97db840a7"
+    }
+  ],
+  "engineFingerprint": "2502673e69f91c2e9e265d532c4da9158319a5b7a0b657c7004e028056750e27",
+  "artifact": {
+    "artifact": 14656561215,
+    "name": "s2arm-engine-framework-6bdf6fec6850dc4cb4218cf0ae6bd4b25b2a1a14",
+    "bytes": 25040623,
+    "sha256": "a0dd80e79059e9f44f33f2ee8eb3febd7a3a76c5cce4a0cd284ade286ce1681f"
+  },
+  "jobs": [
+    {
+      "platform": "macos-15",
+      "id": 136466810851,
+      "result": "success"
+    },
+    {
+      "platform": "macos-26",
+      "id": 136466811593,
+      "result": "success"
+    }
+  ],
+  "compilerAndLinkerWarnings": {
+    "perPlatform": 12,
+    "messagesAndCountsMatch803IgnoringLineNumbers": true
+  },
+  "directShaderChain": "0be3f28548fd",
+  "unchangedFrom803": [
+    "prepare producer",
+    "sysdata producer",
+    "NS2Pro payload fingerprint",
+    "direct shader chain"
+  ],
+  "deviceWindows": 0,
+  "candidateIPA": "not delivered"
+}

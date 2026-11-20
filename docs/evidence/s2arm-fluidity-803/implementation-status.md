@@ -66,8 +66,8 @@ Le cache des archives ouvertes gardait les objets et des alias de lot jusqu’à
 | Étape | État du lot |
 | --- | --- |
 | Corrigé dans les sources | Relevé malloc par minute, propriétaires, plafond LRU, libération des tables du chargeur au retrait et restitution à malloc sur alerte. Repli global au lancement avec `S2A_RB_HEAP_TRIM=0`. |
-| Compilé pour iOS | À confirmer par le producteur de ce lot. |
-| IPA privée livrée | À confirmer après vérification de l’IPA contenant ce moteur. |
+| Compilé pour iOS | Réussi sur macOS 15 et 26. [Run 44787696848](https://github.com/TarbleFR/RewindBox/actions/runs/44787696848), [empreinte du framework et vérifications](engine176-build.json). Les 176 patchs, leurs empreintes et les trois archives productrices ont été vérifiés. Les 12 avertissements compilateur/éditeur de liens par plateforme ont les mêmes messages et occurrences que dans la 803. |
+| IPA privée livrée | En attente. La recette exige une clé publique de transport épinglée. La clé privée correspondante de la 803 a été supprimée après vérification, selon son reçu. |
 | Observé sur appareil | Aucune fenêtre candidate disponible. Objectif non validé. |
 
 Pour statuer, conserver trois fenêtres valides de 180 s **par version**. Utiliser le même circuit nommé, le même appareil et le même état de cache chaud, avec refroidissement et ordre alterné, selon le [protocole](../../s2arm-benchmark-protocol.md). Pour chaque fenêtre, associer le parcours VM post-score complet à son identifiant et convertir les pages comprimées du tag 2 avec la taille de page déclarée. Comparer les médianes des relevés par version et les médianes des débits de page-ins du processus ramenés à 10 s. Publier aussi les valeurs individuelles, le p95 affiché et les images affichées >100 ms/min. Acceptation : baisse du tag 2 d’au moins 250 000 000 octets, baisse de la médiane des page-ins, sans hausse des deux métriques de temps d’image. Un tag manquant, une couverture manquante ou une fenêtre invalide laisse le résultat en attente.
