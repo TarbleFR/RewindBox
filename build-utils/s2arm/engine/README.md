@@ -184,3 +184,5 @@ and the Dart checks passed in [run 44246340217](https://github.com/TarbleFR/Rewi
 The relaunch, controller handoff and thermal effect still need an iPhone run.
 
 IPA 795 uses graphics revision 1 for the supported Mario Kart World build. The checks on the exact delivery source cover the legacy-cache migration, interrupt and resume, the foreground reference pipelines, pixel readback and deferred texture transfers. Delivery source `81e4b8963c1c749d76f5220cdbb3fa49c233c914`.
+
+Patch 0154 reads saved draw recipes directly, recovers a validated history prefix at a truncated EOF and releases the saved dictionary on shutdown. The Metal and first-draw checks on this source passed in [run 44659775244](https://github.com/TarbleFR/RewindBox/actions/runs/44659775244).
