@@ -244,13 +244,13 @@ les IPA de test ne se compilent que dans `TarbleFR/RewindBox` ; ailleurs, seule 
    manifeste gelé avec le sujet `[ipa-delivery:<N>] …` (la balise ouvre le sujet) (pas de `[skip ci]`). Un sujet sans balise ne
    lance rien.
 5. **Après le run** : télécharger les 4 pièces et les métadonnées API, lancer
-   `build-utils/verify_downloaded_delivery.py` (clé privée hors Git). **Avant de supprimer la clé**, copier
+   `build-utils/verify_downloaded_delivery.py` (clé privée hors Git). Après vérification, copier
    depuis le dossier déchiffré vers `docs/evidence/rewind<N>/` les huit reçus `signed-payload-identity.json`,
    `signature.json`, `standard-embedded.json`, `standard-ipa-validation.json`, `standard-tests.json`,
    `version-validation.json`, `environment.json` et `observed-timings.json`. Puis
    `standard_delivery.py record <N> --run <ID> --verification … --api …` écrit
    `docs/evidence/rewind<N>/delivery.json` au schéma 610 ; depuis la 719 il refuse d'écrire un reçu sans
-   l'inventaire signé des images (règle § 3.8). Supprimer la clé privée.
+   l'inventaire signé des images (règle § 3.8). Pour les IPA de test du mainteneur à partir de la relivraison 805, réutiliser le destinataire public `build-utils/delivery-rewindbox-recipient.pem`. Le mainteneur autorise le déchiffrement des livraisons suivantes avec sa clé permanente conservée dans ses fichiers privés. Vérifier la correspondance des clés et ne supprimer que les copies temporaires. Les clés jetables des autres destinataires suivent leur procédure de suppression.
 6. **Relance** : ne changer que la recette ; pour réutiliser un groupe, passer `tests.<groupe>.mode`
    à `reuse` avec ses épingles (source, run, job, artefact, empreinte) et regeler.
 7. **Commandes des groupes** (depuis la 718) : une commande n'est exécutée qu'une fois par groupe
