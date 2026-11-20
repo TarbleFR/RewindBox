@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "7e6443e71cabbcdb54f38868d5506ff2de1bc5d254318d7ef5e03ef2cc2de854",
+  "packagedFingerprint": "ca67182a1acc5fb42ba2c9c27eaebdb831420113dabfe0053f25be355cb7d3b4",
   "producers": {
     "engine": {
-      "run": 44832243329,
+      "run": 44835148239,
       "attempt": 1,
-      "artifact": 14678160236,
-      "name": "s2arm-engine-framework-68d726832298085bb850ad85fb368c47e7d82f95",
-      "bytes": 25049149,
-      "sha256": "6351e5de621252cf1cd1e6f49121cd5d5bbd5d4f5162b355f84a6b330f753a3f",
-      "headSha": "68d726832298085bb850ad85fb368c47e7d82f95",
+      "artifact": 14679750093,
+      "name": "s2arm-engine-framework-94c277b5dd872ea05cae4934826396f745b90e53",
+      "bytes": 25057788,
+      "sha256": "9caa15502197d2a2aeec2d90fd3d6fdd4e23dc8a5939eae3f9049ddc59114d1e",
+      "headSha": "94c277b5dd872ea05cae4934826396f745b90e53",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-20T23:03:01Z",
+      "expiresAt": "2026-12-20T23:25:58Z",
       "members": {
-        "S2ArmEngine.framework.zip": "ae8518ab3a78648bd1fc7127a419394a1aa61bae9704f8c27173d9817a0d2171",
-        "NS2Pro.framework.zip": "90abb09816ff5cc1493eece8fa1c4b01bdc58803727d934f028990d9ec19f79b"
+        "S2ArmEngine.framework.zip": "49cb3049703ccc089e286e17d75cdeabdb40e263abb484f7ce091f7a13af32c4",
+        "NS2Pro.framework.zip": "8e207785e2bc300347da0c5c066143ce2b196c6abccefe11a00f494fd30e7a4e"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "6351e5de621252cf1cd1e6f49121cd5d5bbd5d4f5162b355f84a6b330f753a3f",
+    "engine": "9caa15502197d2a2aeec2d90fd3d6fdd4e23dc8a5939eae3f9049ddc59114d1e",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "c7661456b6e1e910975ba350f85ddb665bb915eb08191ab1a5fed57ffb256dd3",
-      "bytes": 114693648,
-      "fingerprint": "7e6443e71cabbcdb54f38868d5506ff2de1bc5d254318d7ef5e03ef2cc2de854"
+      "sha256": "abfb77c77d23d8d167d696377ad65e81461340ad0324084431bf637d2cc88df8",
+      "bytes": 114711456,
+      "fingerprint": "ca67182a1acc5fb42ba2c9c27eaebdb831420113dabfe0053f25be355cb7d3b4"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 44832243329,
+      "run": 44835148239,
       "attempt": 1,
-      "head_sha": "68d726832298085bb850ad85fb368c47e7d82f95",
+      "head_sha": "94c277b5dd872ea05cae4934826396f745b90e53",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -870,22 +870,46 @@
         {
           "name": "0185-isolate-recorded-texture-upload-and-page-hints.patch",
           "sha256": "c6e1fae5869a9cc0a95655f5ddd66e30d5f15179b92568ced1956079daa4f81f"
+        },
+        {
+          "name": "0186-govern-optional-memory-from-one-ios-pressure-plan.patch",
+          "sha256": "2c69862daee0c3180258063ef619471fc040e432e7d210d69aff0dd7b5752577"
+        },
+        {
+          "name": "0187-admit-speculative-page-reads-against-the-governor.patch",
+          "sha256": "2e044a8b97f46092e46543c53984125c6450f9aba23db004fb8e0444e562fe4f"
+        },
+        {
+          "name": "0188-limit-reusable-upload-staging-without-stalling-demand.patch",
+          "sha256": "134a56d2b0dc444023948516ef9f29e806273723b1196fc090f6fb7ebd483f24"
+        },
+        {
+          "name": "0189-use-the-central-quota-for-rebuildable-metal-textures.patch",
+          "sha256": "29da9fa23f5f3cbd3c722143510eb60055b3bf0d8d72c3aec4fdcb0f9553bbf6"
+        },
+        {
+          "name": "0190-limit-speculative-pipelines-and-retire-cold-archive-hits.patch",
+          "sha256": "f9c8143373848509c3a6c6c44961641ad17c879ee6f53dfd6768a970c6502e4e"
+        },
+        {
+          "name": "0191-observe-ten-minute-paging-and-system-cpu-alongside-the-benchmark.patch",
+          "sha256": "e53a790fafb8ac4029e04434cc04525dee7425f86ec20bc81184859eebcc77f7"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "ae8518ab3a78648bd1fc7127a419394a1aa61bae9704f8c27173d9817a0d2171",
-        "NS2Pro.framework.zip": "90abb09816ff5cc1493eece8fa1c4b01bdc58803727d934f028990d9ec19f79b"
+        "S2ArmEngine.framework.zip": "49cb3049703ccc089e286e17d75cdeabdb40e263abb484f7ce091f7a13af32c4",
+        "NS2Pro.framework.zip": "8e207785e2bc300347da0c5c066143ce2b196c6abccefe11a00f494fd30e7a4e"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
-        "sha256": "b593b85e2207a4051d3c34512771e0471ca717d579a45eced186bdeca7fea24a",
+        "sha256": "6fc7b4b54e998858d914828590f60310cb6c2f84622ca6acaf9780d518682daf",
         "files": 36
       }
     },
     "licenses": {
       "path": "Legal/S2Arm",
       "manifest": "license-sources.json",
-      "sha256": "b593b85e2207a4051d3c34512771e0471ca717d579a45eced186bdeca7fea24a",
+      "sha256": "6fc7b4b54e998858d914828590f60310cb6c2f84622ca6acaf9780d518682daf",
       "files": 36
     },
     "preparePatches": [

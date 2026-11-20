@@ -1,0 +1,70 @@
+{
+  "source": "94c277b5dd872ea05cae4934826396f745b90e53",
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "run": 44835148239,
+  "attempt": 1,
+  "xcode": "Xcode 26.6",
+  "jobs": [
+    {
+      "platform": "macos-26",
+      "id": 136629528406,
+      "result": "success"
+    },
+    {
+      "platform": "macos-15",
+      "id": 136629529448,
+      "result": "success"
+    }
+  ],
+  "patchesVerified": 191,
+  "first185UnchangedFrom806": true,
+  "patchDelta": [
+    {
+      "name": "0186-govern-optional-memory-from-one-ios-pressure-plan.patch",
+      "sha256": "2c69862daee0c3180258063ef619471fc040e432e7d210d69aff0dd7b5752577"
+    },
+    {
+      "name": "0187-admit-speculative-page-reads-against-the-governor.patch",
+      "sha256": "2e044a8b97f46092e46543c53984125c6450f9aba23db004fb8e0444e562fe4f"
+    },
+    {
+      "name": "0188-limit-reusable-upload-staging-without-stalling-demand.patch",
+      "sha256": "134a56d2b0dc444023948516ef9f29e806273723b1196fc090f6fb7ebd483f24"
+    },
+    {
+      "name": "0189-use-the-central-quota-for-rebuildable-metal-textures.patch",
+      "sha256": "29da9fa23f5f3cbd3c722143510eb60055b3bf0d8d72c3aec4fdcb0f9553bbf6"
+    },
+    {
+      "name": "0190-limit-speculative-pipelines-and-retire-cold-archive-hits.patch",
+      "sha256": "f9c8143373848509c3a6c6c44961641ad17c879ee6f53dfd6768a970c6502e4e"
+    },
+    {
+      "name": "0191-observe-ten-minute-paging-and-system-cpu-alongside-the-benchmark.patch",
+      "sha256": "e53a790fafb8ac4029e04434cc04525dee7425f86ec20bc81184859eebcc77f7"
+    }
+  ],
+  "engineFingerprint": "ca67182a1acc5fb42ba2c9c27eaebdb831420113dabfe0053f25be355cb7d3b4",
+  "pinSha256": "95ebf3a05fbd2397943e914ff9ade32ab7c8559498ccfdb14f5e5ab200b5a101",
+  "artifact": {
+    "run": 44835148239,
+    "attempt": 1,
+    "artifact": 14679750093,
+    "name": "s2arm-engine-framework-94c277b5dd872ea05cae4934826396f745b90e53",
+    "bytes": 25057788,
+    "sha256": "9caa15502197d2a2aeec2d90fd3d6fdd4e23dc8a5939eae3f9049ddc59114d1e",
+    "headSha": "94c277b5dd872ea05cae4934826396f745b90e53",
+    "headBranch": "Claude",
+    "expiresAt": "2026-12-20T23:25:58Z"
+  },
+  "prepareRun": 44555747908,
+  "sysdataRun": 43038032448,
+  "directShaderChain": "0be3f28548fd",
+  "exportListUnchanged": true,
+  "exportsComparedAgainstSource": "68d726832298085bb850ad85fb368c47e7d82f95",
+  "ns2proUnchangedFrom806": true,
+  "noticeMatchesSource": true,
+  "privateDelivery": "pending",
+  "validDeviceWindows": 0,
+  "observedPerformance": null
+}
