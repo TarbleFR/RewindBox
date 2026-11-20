@@ -1099,8 +1099,7 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
     context[@"settings"] = settings;
     self.benchmarkContext = context;
     self.sessionMenu.benchmarkContext = context;
-    typedef int (*BenchmarkFn)(int, const char *, char *, size_t);
-    BenchmarkFn benchmark = (BenchmarkFn)dlsym(RTLD_DEFAULT, "s2a_rb_guest_benchmark");
+    s2a_rb_guest_benchmark_fn benchmark = (s2a_rb_guest_benchmark_fn)dlsym(RTLD_DEFAULT, S2A_RB_GUEST_BENCHMARK);
     if (benchmark) (void)benchmark(3, NULL, NULL, 0);
   }
   s2arm_journal("frameRate", rc == 0 ? "now" : "nextStart", "\"fps\":%d,\"rc\":%d", fps, rc);

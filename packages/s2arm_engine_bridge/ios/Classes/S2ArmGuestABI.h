@@ -37,6 +37,7 @@ typedef int (*s2a_rb_guest_parked_fn)(void);                        // patch 001
 typedef void *(*s2a_rb_guest_view_controller_fn)(void);             // patch 0010: the parked game's view controller (main thread)
 typedef int (*s2a_rb_guest_resume_fn)(char *error, size_t error_size);   // patch 0010 (main thread, view in a window)
 typedef int (*s2a_rb_guest_set_fps_limit_fn)(int fps);   // patch 0078: 0 or 24â€“1000; 0 = in effect from the next frame, -1 refused, -2 off
+typedef int (*s2a_rb_guest_benchmark_fn)(int command, const char *metadata_json, char *out, size_t cap); // patch 0171, optional
 
 #define S2A_RB_GUEST_CONFIGURE "s2a_rb_guest_configure"
 #define S2A_RB_GUEST_MAKE_VIEW_CONTROLLER "s2a_rb_guest_make_view_controller"
@@ -46,6 +47,7 @@ typedef int (*s2a_rb_guest_set_fps_limit_fn)(int fps);   // patch 0078: 0 or 24â
 #define S2A_RB_GUEST_VIEW_CONTROLLER "s2a_rb_guest_view_controller"
 #define S2A_RB_GUEST_RESUME "s2a_rb_guest_resume"
 #define S2A_RB_GUEST_SET_FPS_LIMIT "s2a_rb_guest_set_fps_limit"   // patch 0078: absent in engines before it
+#define S2A_RB_GUEST_BENCHMARK "s2a_rb_guest_benchmark"           // patch 0171: status/start/end/invalidate
 
 // The title profile is processed on the host work queue before game start. GPU
 // status comes from strict probes in the game's own NVN renderer.

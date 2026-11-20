@@ -1,6 +1,7 @@
 // RewindBox's in-game menu for the Switch 2 engine. See S2ArmSessionMenu.h.
 #import "S2ArmSessionMenu.h"
 #import "S2ArmSettings.h"
+#import "S2ArmGuestABI.h"
 
 #import <GameController/GameController.h>
 #import <dlfcn.h>
@@ -212,8 +213,7 @@ static UIView *FindView(UIView *view, NSString *identifier) {
 - (void)showMenu {
   // An overlay changes the measured scenario. Keep the game running and retain
   // the partial evidence, but never silently compare this window with a clean one.
-  typedef int (*BenchmarkFn)(int, const char *, char *, size_t);
-  BenchmarkFn benchmark = (BenchmarkFn)dlsym(RTLD_DEFAULT, "s2a_rb_guest_benchmark");
+  s2a_rb_guest_benchmark_fn benchmark = (s2a_rb_guest_benchmark_fn)dlsym(RTLD_DEFAULT, S2A_RB_GUEST_BENCHMARK);
   if (benchmark) (void)benchmark(3, NULL, NULL, 0);
   UIAlertController *sheet = [UIAlertController alertControllerWithTitle:[self text:@"menu.title"]
                                                                  message:nil
@@ -244,8 +244,7 @@ static UIView *FindView(UIView *view, NSString *identifier) {
 #pragma mark - reproducible benchmark (optional engine entry point)
 
 - (NSDictionary *)benchmarkStatus {
-  typedef int (*BenchmarkFn)(int, const char *, char *, size_t);
-  BenchmarkFn benchmark = (BenchmarkFn)dlsym(RTLD_DEFAULT, "s2a_rb_guest_benchmark");
+  s2a_rb_guest_benchmark_fn benchmark = (s2a_rb_guest_benchmark_fn)dlsym(RTLD_DEFAULT, S2A_RB_GUEST_BENCHMARK);
   if (!benchmark) return @{};
   char output[32768] = {0};
   if (benchmark(0, NULL, output, sizeof output) != 0) return @{};
@@ -306,8 +305,7 @@ static UIView *FindView(UIView *view, NSString *identifier) {
     void (^start)(void) = ^{
       S2ArmSessionMenu *current = weakSelf;
       if (!current || current.stopping || !current.viewController.view.window) return;
-      typedef int (*BenchmarkFn)(int, const char *, char *, size_t);
-      BenchmarkFn benchmark = (BenchmarkFn)dlsym(RTLD_DEFAULT, "s2a_rb_guest_benchmark");
+      s2a_rb_guest_benchmark_fn benchmark = (s2a_rb_guest_benchmark_fn)dlsym(RTLD_DEFAULT, S2A_RB_GUEST_BENCHMARK);
       if (!json || !benchmark || benchmark(1, json.UTF8String, NULL, 0) != 0) {
         [current benchmarkMessage:[current text:@"menu.benchmarkFailed"]];
       } else {

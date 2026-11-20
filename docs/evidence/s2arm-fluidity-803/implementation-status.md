@@ -13,6 +13,8 @@ Le contrôle existant `tools/weak_link_decl.py check` a d’abord signalé trois
 
 Les revues indépendantes couvrent les familles, les crochets de présentation, les métadonnées host, la mémoire et la concurrence du collecteur. Elles ont notamment corrigé l’identité amont confondue avec le moteur patché, les préférences confondues avec les réglages actifs, les rappels de minuterie périmés et l’arrêt pendant l’initialisation du banc. La lecture VM utilise l’API iOS déjà employée par le moteur, avec des adresses de 64 bits.
 
+Le premier run 0171 (44771503834) a refusé l’interface avant compilation : le nouvel appel du banc n’était pas déclaré dans `S2ArmGuestABI.h`. La déclaration partagée est ajoutée et employée par le menu et le pont. Les deux fournisseurs NativeAOT restent des symboles internes recherchés par le collecteur ; leur conservation est exigée et la CI vérifie leur présence dans le framework final. Le contrôle d’exports existant n’est pas modifié ni contourné.
+
 L’analyseur de comparaison a été appliqué à deux exports privés existants : [comparaison refusée](legacy-comparison-refused.json), car aucun ne porte les marqueurs du protocole. Aucune différence de performance n’est produite. Il ne s’agit ni d’un banc synthétique ni d’un test d’exécution du moteur.
 
 ## Statut avant CI

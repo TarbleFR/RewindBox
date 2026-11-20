@@ -49,9 +49,7 @@ GUEST_ENTRY_POINTS = ('s2a_rb_guest_prepare_graphics', 's2a_rb_guest_prepare_gpu
                       # patch 0078: the in-game menu changes the frame-rate limit during play (S2ArmEngineBridgePlugin.m applyLiveSetting)
                       's2a_rb_guest_set_fps_limit',
                       # patch 0171: optional host benchmark UI, no guest ABI struct change
-                      's2a_rb_guest_benchmark',
-                      # The benchmark requires these NativeAOT POD providers.
-                      's2a_rb_bench_managed_snapshot', 's2a_rb_bench_managed_active')
+                      's2a_rb_guest_benchmark')
 IDENTIFIER = re.compile(rb'[A-Za-z_][A-Za-z0-9_$.]{1,255}')
 UTF16_IDENTIFIER = re.compile(rb'(?:[A-Za-z_]\x00)(?:[A-Za-z0-9_$.]\x00){1,255}')
 # A run of UTF-16LE identifier characters whose last character's high byte is not looked at (see the module text)
@@ -64,7 +62,10 @@ SOURCE_LOOKUPS = (('services', '.cs', re.compile(r'(?:Try)?GetExport\s*\([^,()]+
 # Looked up by name and needed for the game to work: kept or the tool refuses (when the unrestricted link exports them)
 REQUIRED = ('s2a_vpad_read', 's2a_vpad_read_ex', 's2a_vpad_read_touch', 's2a_vpad_touch_wanted', 's2a_vpad_touch_configured',
             's2a_pad_wait', 's2a_pad_wake', 's2a_pad_now_us', 's2a_pad_record_commit', 's2a_pad_get_latency',
-            's2a_guest_tick_hz', 's2a_tail_map', 's2a_tail_unmap', 's2a_tail_has')
+            's2a_guest_tick_hz', 's2a_tail_map', 's2a_tail_unmap', 's2a_tail_has',
+            # Patch 0171: internal NativeAOT providers looked up by the native collector;
+            # the workflow also requires their presence in the final framework.
+            's2a_rb_bench_managed_snapshot', 's2a_rb_bench_managed_active')
 REFUSED_IN_KEPT = re.compile(r'glslang', re.IGNORECASE)
 
 
