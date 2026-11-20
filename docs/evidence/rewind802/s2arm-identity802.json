@@ -1,0 +1,53 @@
+{
+  "build": 802,
+  "appSourceSha": "ffdb82c37d6dd8e1763a1263fca28eb424fb5e30",
+  "appRun": 44749830555,
+  "bundleIdentifier": "com.neogamelab.neostation",
+  "ipa": {
+    "filename": "RewindBox-802.ipa",
+    "bytes": 333507064,
+    "sha256": "d81aa29bf2045727dc568ecade3874c2407ff9f685bf0ed7353858570e1bf8c2"
+  },
+  "engine": {
+    "producerSourceSha": "355273cc089ad414dedb0e6b0628999851bdf012",
+    "upstreamSourceSha": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+    "run": 44746620489,
+    "artifact": 14633558337,
+    "patchesVerified": 169,
+    "signedMachOSha256": "0af43c7e52cb33634aa0463f952cac974d10d15b90a65c79e47e40cf3b93239e",
+    "payloadFingerprint": "d179339f144913f263315265e8084dab2116ea6a51970a80c766227a0cdd5fcf",
+    "machOUUID": "1DA393F7-2281-391F-9B24-590F3535733C",
+    "producerMachOSha256": "32b9f934d1d6595330cbe46dca00eda6441b8399f04fcec23763ed1434f7e1cd",
+    "pinSha256": "3a754e7ec2eb3a10c8f81f8a2992ba7d72fb0c3d159cc45ef2f174bcd3b0b082",
+    "sourceIdentityMatchesPin": true
+  },
+  "physicalDeviceTested": false,
+  "bundleIdentifiers": {
+    "Info.plist": "com.neogamelab.neostation",
+    "PlugIns/ARMSX2JITHelper.appex/Info.plist": "com.neogamelab.neostation.armsx2jithelper",
+    "PlugIns/DolphinJITHelper.appex/Info.plist": "com.neogamelab.neostation.dolphinjithelper",
+    "PlugIns/MeloNXJITHelper.appex/Info.plist": "com.neogamelab.neostation.melonxjithelper",
+    "PlugIns/MeloNXRamDonor.appex/Info.plist": "com.neogamelab.neostation.melonxramdonor",
+    "PlugIns/NeoSwapDonor.appex/Info.plist": "com.neogamelab.neostation.neoswapdonor",
+    "PlugIns/NeoSwapPageRelay.appex/Info.plist": "com.neogamelab.neostation.NeoSwapPageRelay",
+    "PlugIns/RPCS3JITHelper.appex/Info.plist": "com.neogamelab.neostation.rpcs3jithelper",
+    "PlugIns/S2ArmJITHelper.appex/Info.plist": "com.neogamelab.neostation.s2armjithelper",
+    "PlugIns/XeniaJITHelper.appex/Info.plist": "com.neogamelab.neostation.xeniajithelper"
+  },
+  "bundleIdentifiersMatchBuild801": true,
+  "compatiblePreparation": {
+    "prepareProducerUnchanged": true,
+    "preparePatchSeriesUnchanged": true,
+    "sysdataProducerUnchanged": true,
+    "NS2ProFingerprintUnchanged": true,
+    "directShaderChain": "0be3f28548fd",
+    "directShaderChainUnchanged": true
+  },
+  "signature": {
+    "installationMethod": "SideStore re-signing",
+    "engineSignature": "adhoc",
+    "verifiedByCIReceipt": true,
+    "cryptographicVerificationPerformedHere": false,
+    "appleProvisioningVerified": false
+  }
+}
