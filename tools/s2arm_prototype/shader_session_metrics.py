@@ -58,6 +58,39 @@ GUEST_WAIT_FIELDS = {
 }
 UPLOAD_FLUSH_FIELDS = dict.fromkeys(("boundary", "capacity", "isolated", "batch_limit", "pieces"), int)
 GPU_PASS = re.compile(r"\[gpuprof\] F(\d+)\s+\d+\s+([\d.]+) us (render pass|compute / copy)(.*)")
+MEMORY_WINDOW = re.compile(
+    r"memory up to frame (\d+): resident (\d+) MB, .*?texture re-uploads (\d+) in total, "
+    r".*?headroom to the system memory limit (?:(\d+) MB|none)")
+SCREEN_MEMORY = re.compile(r"on-screen up to frame (\d+): .*?footprint (-?\d+) MiB; .*?thermal (-?\d+)")
+
+
+def memory_lifecycle(journal, session):
+    result = {"returnToMenu": None, "relaunch": None}
+    if not (journal and session):
+        return result
+    gid = None
+    with journal.open(encoding="utf-8", errors="replace") as lines:
+        for line in lines:
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            current = row.get("session")
+            if not isinstance(current, str) or not current:
+                continue
+            event = row.get("step"), row.get("status")
+            point = {key: row.get(key) for key in
+                     ("t", "pid", "seq", "session", "parked", "footprintMiB", "headroomMiB", "thermal")}
+            if not isinstance(point["footprintMiB"], int) or point["footprintMiB"] < 0:
+                point["footprintMiB"] = None
+            if event == ("gameView", "closed") and current.casefold() == session.casefold():
+                gid = row.get("gid")
+                result["returnToMenu"] = point
+            elif (gid and row.get("gid") == gid and current.casefold() != session.casefold()
+                  and event in {("start", "passed"), ("resume", "passed")}):
+                result["relaunch"] = point
+                break
+    return result
 
 
 def gpu_pass_summary(samples):
@@ -181,7 +214,7 @@ def course_totals(windows):
         totals["texture_gpu_completed_ms"] = None  # Legacy feedback mixes invalid and valid timestamps.
     return {"completeIntervalsByAsset": by_asset, "incompleteWindows": first_incomplete}
 
-def summarize(host, captures, first, last, *, session=None, segments=()):
+def summarize(host, captures, first, last, *, session=None, segments=(), journal=None):
     def selected(frame):
         return first <= frame <= last
 
@@ -214,7 +247,7 @@ def summarize(host, captures, first, last, *, session=None, segments=()):
                    **{f"over{ms}Ms": sum(t > ms * 1000 for t in spans) for ms in (100, 200, 500)},
                    pipelineSkippedDraws=sum(n for _, n, _ in frames.values()))
 
-    long_frames, waits, footprint, thermal = {}, [], [], {}
+    long_frames, waits, footprint, thermal, memory = {}, [], [], {}, {}
     slow_logged = {100: 0, 200: 0, 500: 0}
     full_windows, gap_rows, reference_binds = [], {}, []
     visible_windows, deadlines, guest_waits, upload_flushes = {}, {}, {}, {}
@@ -320,10 +353,23 @@ def summarize(host, captures, first, last, *, session=None, segments=()):
             m = re.search(r"first-use wait #\d+ frame (\d+): .*?waited for the queued compile ([\d.]+) ms", line)
             if m and selected(int(m[1])):
                 waits.append(float(m[2]))
-            m = re.search(r"on-screen up to frame (\d+): .*?footprint (\d+) MiB; .*?thermal (\d+)", line)
+            m = MEMORY_WINDOW.search(line)
             if m and selected(int(m[1])):
-                footprint.append(int(m[2]))
-                thermal.setdefault(m[3], []).append(int(m[1]))
+                frame, resident, uploads = map(int, m.groups()[:3])
+                point = memory.setdefault(frame, {"frame": frame})
+                point.setdefault("footprintMiB", resident)
+                point["headroomMiB"] = int(m[4]) if m[4] is not None else None
+                point["textureReuploadsTotal"] = uploads
+            m = SCREEN_MEMORY.search(line)
+            if m and selected(int(m[1])):
+                frame, resident, state = map(int, m.groups())
+                point = memory.setdefault(frame, {"frame": frame})
+                if resident >= 0:
+                    footprint.append(resident)
+                    point["footprintMiB"] = resident
+                if state >= 0:
+                    thermal.setdefault(m[3], []).append(frame)
+                    point["thermal"] = state
             m = re.search(r"pipeline archive after the prewarm: (\d+) builds from the archive, (\d+) compiled", line)
             if m:
                 archive = {"strictHits": int(m[1]), "fallbackBuildRequests": int(m[2])}
@@ -355,6 +401,8 @@ def summarize(host, captures, first, last, *, session=None, segments=()):
         intervals = {"first": full_windows[0][0], "last": full_windows[-1][1], "samples": n,
                      "missingWithinObservedSpan": full_windows[-1][1] - full_windows[0][0] + 1 - n,
                      "averageFPS": round(n * 1e9 / ns, 3), "over100Ms": s100, "over200Ms": s200, "over500Ms": s500}
+    memory_points = [memory[f] for f in sorted(memory)]
+    sampled = [p for p in memory_points if "footprintMiB" in p]
     return {"session": engine_session or session, "cupFrames": cup_metrics(cup_rows, cup_gap_rows, segments, lost_cup_rows),
         "courseAssetWindows": course_totals(course_windows), "slowFramesByAsset": slow_frames_by_asset,
         "displayedWindows": [
@@ -373,6 +421,13 @@ def summarize(host, captures, first, last, *, session=None, segments=()):
         "detailedPSOWaits": len(waits), "loggedPSOQueueWaitMs": round(sum(waits), 2) if waits else None,
         "maxSampledFootprintMiB": max(footprint, default=None),
         "thermalSamplesByState": {k: {"count": len(v), "firstFrame": min(v)} for k, v in thermal.items()}},
+        "memory": {
+            "samples": memory_points,
+            "peak": max(sampled, key=lambda p: p["footprintMiB"], default=None),
+            "first": sampled[0] if sampled else None,
+            "last": sampled[-1] if sampled else None,
+            **memory_lifecycle(journal, engine_session or session),
+        },
         "sessionPrewarm": {"archive": archive, "unreconstructible": missing},
         "wholeLog": {"lastReportedSourceLibraryReuses": shared_library_count,
                      "completedPredictionSessions": completed_predictions,
@@ -388,12 +443,13 @@ def main():
     parser.add_argument("--last", type=int, default=2**63-1, help="last frame, inclusive")
     parser.add_argument("--session", help="Graphics session UUID from the capture journal")
     parser.add_argument("--segments", type=Path, help="JSON object with session and synchronized, confirmed segments")
+    parser.add_argument("--journal", type=Path, help="Bridge JSONL with physical-memory snapshots at menu and relaunch")
     args = parser.parse_args()
     if args.first > args.last:
         parser.error("--first must precede --last")
     segments = checked_segments(args.segments, args.session) if args.segments else ()
     print(json.dumps(summarize(args.host, args.captures, args.first, args.last,
-                              session=args.session, segments=segments), indent=2))
+                              session=args.session, segments=segments, journal=args.journal), indent=2))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,157 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 0c250a6..bb06df1 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3849,8 +3849,23 @@ static void rb_alias_dead_note(uint64_t ser, const alias_key *k, const alias_key
+          "its content gone (frame %llu, %llu such textures so far)", (unsigned long long)ser, k->d.width, k->d.height, k->d.depth, k->d.format, (unsigned long long)(kl.size >> 10), (unsigned long long)k->off,
+          nk->d.width, nk->d.height, nk->d.depth, nk->d.format, (unsigned long long)(nl.size >> 10), (unsigned long long)nk->off, (unsigned long long)atomic_load_explicit(&g_cur_frame, memory_order_relaxed), (unsigned long long)n);
+ }
++#include "rb_spec_gate.h"
++#if TARGET_OS_IPHONE
++static uint64_t rb_ios_headroom(void) {
++    static dispatch_once_t once;
++    static int app;
++    static _Atomic int saw_positive;
++    dispatch_once(&once, ^{
++        app = [NSBundle.mainBundle.bundlePath.pathExtension isEqualToString:@"app"];
++    });
++    size_t bytes = os_proc_available_memory();
++    if (bytes) atomic_store_explicit(&saw_positive, 1, memory_order_relaxed);
++    return rb_spec_headroom(bytes, app || atomic_load_explicit(&saw_positive, memory_order_relaxed));
++}
++#endif
++
+ // RewindBox (patch 0071): memory pressure for this patch's reuse pools (shared textures below, snapshot storage with fb_prepare, the finalized-texture ring): a warning or critical
+-//   event from the system (a dispatch source) or, on iOS, less than RB_REUSE_ROOM_MB left before the process limit (os_proc_available_memory, read once a frame; 0 = no limit known)
++//   event from the system (a dispatch source) or, on iOS, less than RB_REUSE_ROOM_MB left before the process limit (os_proc_available_memory, read once a frame; unavailable distinguished from zero)
+ //   makes them keep nothing new and let go what they keep. Any thread
+ //   Review of 0071: the low state lasted one frame and only whichever pool looked in that frame saw an event, so in a steady scene, parked or in the background nothing was let go.
+ //   Now the low state holds RB_PRESS_HOLD frames after an event or low headroom (rb_low_from); each start of one and each event moves g_rb_press, which every pool compares
+@@ -3875,7 +3890,7 @@ static int rb_mem_low(void) {
+ #if TARGET_OS_IPHONE
+     static _Atomic uint64_t looked = UINT64_MAX;
+     if (atomic_exchange(&looked, f) != f) {   // the headroom once a frame
+-        size_t av = os_proc_available_memory(); if (av && av < ((size_t)RB_REUSE_ROOM_MB << 20)) rb_low_from(f, 0); }
++        if (rb_ios_headroom() < ((uint64_t)RB_REUSE_ROOM_MB << 20)) rb_low_from(f, 0); }
+ #endif
+     return f < atomic_load(&g_rb_low_until);
+ }
+@@ -5238,7 +5253,6 @@ static uint64_t rb_pa_queue_limit(void) {
+ //   never waits for this governor. Every background prewarm row (including a promoted one), the retranslation
+ //   pass and the archive writer use the same run/one/hold tiers. Resume on one lane during thermal recovery.
+ //   S2A_RB_SPEC_GOVERN=0 restores the previous pace.
+-#include "rb_spec_gate.h"
+ static rb_spec_gate g_spec_gate = RB_SPEC_GATE_INITIALIZER;
+ int nvn_be_stopping(void);
+ static _Atomic uint64_t g_spec_sampled, g_spec_changes, g_spec_parks, g_spec_parked_ns;
+@@ -5263,14 +5277,7 @@ static int rb_spec_level(void) {
+         NSProcessInfo *pi = NSProcessInfo.processInfo; int th = rb_cached_thermal(), low = pi.isLowPowerModeEnabled ? 1 : 0;
+         uint64_t av = UINT64_MAX;
+ #if TARGET_OS_IPHONE
+-        static _Atomic int saw_positive;
+-        size_t reading = os_proc_available_memory();
+-        if (reading) atomic_store(&saw_positive, 1);
+-        // App bundles (including the private IPA) can report zero after exceeding
+-        // their limit. A non-app host with no prior positive reading reports
+-        // unknown. Either situation is resampled by parked workers.
+-        av = rb_spec_headroom(reading, atomic_load(&saw_positive) ||
+-                              [NSBundle.mainBundle.bundlePath.pathExtension isEqualToString:@"app"]);
++        av = rb_ios_headroom();
+ #endif
+         _Static_assert(NSProcessInfoThermalStateFair == 1 && NSProcessInfoThermalStateSerious == 2, "thermal states");
+         int why = rb_spec_reason(th, low, av, rb_spec_min_free());
+@@ -7721,7 +7728,8 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+     // os_proc_available_memory: how far this process is from being terminated by the system for memory, iOS only; the Mac writes "none". On a phone, a crash with no log is most likely this number reaching 0
+     char avail[32] = "none";
+ #if TARGET_OS_IPHONE
+-    snprintf(avail, sizeof avail, "%llu MB", (unsigned long long)(os_proc_available_memory() >> 20));
++    uint64_t headroom = rb_ios_headroom();
++    if (headroom != UINT64_MAX) snprintf(avail, sizeof avail, "%llu MB", (unsigned long long)(headroom >> 20));
+ #endif
+     MLOG("memory up to frame %llu: resident %llu MB, GPU allocated %llu MB, deferred-release queue %lu, residency set %lu, serial objects %u, memory pools %d (resident %d; peak %d / tracking table capacity %d; freed but alive %lu, %llu MB), shared textures %u, %llu MB (%u of them unreferenced, %llu MB, GPU-written %llu MB; textures by serial %llu MB; evicted with pools %llu, on storage takeover %llu (live objects that lost theirs %llu), unreferenced released %llu, %llu MB (never GPU-written %llu, storage rewritten since %llu, for the low-region ledger %llu) in total), texture re-uploads %llu in total, per-frame arena blocks created %llu in total (%llu MB; segments cut for scratch %llu, waits for a block %llu), finalized textures still referenced %u (small table, %llu put in total, %llu held to the end of their submission past it, %llu resolved to shared textures without it); headroom to the system memory limit %s", frame, rss_mb, gpu, nd, nr, ns, live, pres, peak, cap, dead_n, dead_mb, ashared, (unsigned long long)(ash_b >> 20), aorph, (unsigned long long)(aorph_b >> 20), (unsigned long long)(aorph_w >> 20), (unsigned long long)(ser_b >> 20), (unsigned long long)g_alias_evicted, (unsigned long long)g_alias_taken, (unsigned long long)g_alias_dead, (unsigned long long)(g_alias_orph_cache + g_alias_orph_rw + g_alias_orph_valve), (unsigned long long)((g_alias_orph_cache_b + g_alias_orph_rw_b + g_alias_orph_valve_b) >> 20), (unsigned long long)g_alias_orph_cache, (unsigned long long)g_alias_orph_rw, (unsigned long long)g_alias_orph_valve, (unsigned long long)g_pkg_reuploads, (unsigned long long)g_arena_made, (unsigned long long)(arena_bytes() >> 20), (unsigned long long)g_arena_cuts, (unsigned long long)arena_waits(), nghost, (unsigned long long)ghost_puts, (unsigned long long)ghost_kept, (unsigned long long)ghost_shared, avail);   // RewindBox (patch 0067): g_alias_dead, live objects that lost their texture (EM5)
+     {   // What the memory pools put in the residency set (on a phone: wired), and the uploads read from pools that hold only textures without putting them there (up_tex_src)
+diff --git a/graphics/nvn/gfx/nvn/rb_draw_history.inc b/graphics/nvn/gfx/nvn/rb_draw_history.inc
+index fa2e5ba..91a3f16 100644
+--- a/graphics/nvn/gfx/nvn/rb_draw_history.inc
++++ b/graphics/nvn/gfx/nvn/rb_draw_history.inc
+@@ -1,5 +1,6 @@
+ // Cup profile observations are separate from the sealed configuration and from
+ // render caches. Only an encoded Metal draw publishes a replayable recipe.
++#include "rb_draw_store.h"
+ enum { RB_DRAW_VERSION=1, RB_DRAW_LIMIT=16384, RB_DRAW_BATCH=192, RB_DRAW_FLUSH_FRAMES=120, RB_DRAW_CUE_FRAMES=600 };
+ typedef struct {
+     pso_skey recipe;
+@@ -153,10 +154,18 @@ static void rb_draw_write(NSString *path,NSArray<NSData *> *batch) {
+     }];
+     if (!truncated && [merged isEqual:previous]) { [g_rb_draw_unsaved removeObjectForKey:path]; return; }
+     const uint64_t header[]={0x5242574244524157ull,RB_DRAW_VERSION,sizeof(rb_draw_history_entry)};
+-    NSMutableData *output=[NSMutableData dataWithCapacity:sizeof header+merged.count*sizeof(rb_draw_history_entry)];
+-    [output appendBytes:header length:sizeof header];
+-    for (NSData *data in merged.objectEnumerator) [output appendData:data];
+-    if ([output writeToFile:path options:NSDataWritingAtomic error:nil]) {
++    char buffer[RB_DRAW_IO_BYTES], *temporary;
++    const char *destination = path.fileSystemRepresentation;
++    FILE *file = rb_draw_file_open(destination, &temporary, buffer);
++    BOOL saved = NO;
++    if (file) {
++        BOOL ok = fwrite(header, sizeof header, 1, file) == 1;
++        for (NSData *data in merged.objectEnumerator) {
++            if (!ok || fwrite(data.bytes, data.length, 1, file) != 1) { ok = NO; break; }
++        }
++        saved = rb_draw_file_finish(file, temporary, destination, ok);
++    }
++    if (saved) {
+         g_rb_draw_loaded_path=path; g_rb_draw_loaded=merged;
+         [g_rb_draw_unsaved removeObjectForKey:path];
+     } else {
+diff --git a/graphics/nvn/gfx/nvn/rb_draw_store.h b/graphics/nvn/gfx/nvn/rb_draw_store.h
+new file mode 100644
+index 0000000..c17d29f
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_draw_store.h
+@@ -0,0 +1,45 @@
++#ifndef RB_DRAW_STORE_H
++#define RB_DRAW_STORE_H
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <unistd.h>
++
++enum { RB_DRAW_IO_BYTES = 64 * 1024 };
++
++// The supplied buffer lives through close. A same-directory temporary keeps
++// the prior checkpoint intact until all new bytes can be atomically installed.
++static inline FILE *rb_draw_file_open(const char *path, char **temporary, char *buffer) {
++    const char suffix[] = ".XXXXXX";
++    size_t length = strlen(path);
++    *temporary = malloc(length + sizeof suffix);
++    if (!*temporary) return NULL;
++    memcpy(*temporary, path, length);
++    memcpy(*temporary + length, suffix, sizeof suffix);
++    int fd = mkstemp(*temporary);
++    if (fd >= 0) {
++        FILE *file = fdopen(fd, "wb");
++        if (file) {
++            if (!setvbuf(file, buffer, _IOFBF, RB_DRAW_IO_BYTES)) return file;
++            fclose(file);
++        } else {
++            close(fd);
++        }
++        unlink(*temporary);
++    }
++    free(*temporary);
++    *temporary = NULL;
++    return NULL;
++}
++
++static inline int rb_draw_file_finish(FILE *file, char *temporary, const char *path, int ok) {
++    if (ok) ok = !fflush(file) && !fsync(fileno(file));
++    if (fclose(file)) ok = 0;
++    if (ok) ok = !rename(temporary, path);
++    if (!ok) unlink(temporary);
++    free(temporary);
++    return ok;
++}
++
++#endif

@@ -16,6 +16,8 @@
 #import <UIKit/UIKit.h>
 #import <dlfcn.h>
 #import <errno.h>
+#import <mach/mach.h>
+#import <os/proc.h>
 #import <sys/clonefile.h>
 #import <sys/mount.h>
 
@@ -31,6 +33,18 @@ static uint64_t const kBootQuiesceNs = 2000000000ull;   // 2 s with no hook acti
 
 static void s2arm_session_ended(int code, const char *reason, void *context);
 static void s2arm_session_parked(const char *reason, void *context);
+
+static void S2ArmJournalSessionMemory(const char *step, const char *status, NSString *gid,
+                                     NSString *session, BOOL parked) {
+  task_vm_info_data_t info;
+  mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
+  long long footprint = task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&info, &count) == KERN_SUCCESS
+      ? (long long)(info.phys_footprint >> 20) : -1;
+  s2arm_journal(step, status,
+                "\"gid\":\"%s\",\"session\":\"%s\",\"parked\":%s,\"footprintMiB\":%lld,\"headroomMiB\":%zu,\"thermal\":%ld",
+                (gid ?: @"").UTF8String, (session ?: @"").UTF8String, parked ? "true" : "false",
+                footprint, os_proc_available_memory() >> 20, (long)NSProcessInfo.processInfo.thermalState);
+}
 
 // The free space the engine wants before it puts the guest memory in files (S2Arm vawin.c guest_file_map reads
 // S2A_GUEST_FILE_MIN_FREE_MB, 12288 MB when unset). The engine measures it with statfs, which counts none of the space iOS
@@ -605,7 +619,7 @@ static NSString *S2ArmEnginePath(void) {
   });
   dispatch_semaphore_wait(done, DISPATCH_TIME_FOREVER);
   if (resumeRc != 0) return launchFail(@"engineStartFailed", @"resume", resumeError);
-  s2arm_journal("resume", "passed", NULL);
+  S2ArmJournalSessionMemory("resume", "passed", gid, self.graphicsSession, YES);
   return @{@"success" : @YES, @"gid" : gid, @"stage" : @"running", @"resumed" : @YES};
 }
 
@@ -909,7 +923,7 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
   });
   dispatch_semaphore_wait(done, DISPATCH_TIME_FOREVER);
   if (startRc != 0) return launchFail(@"engineStartFailed", @"start", startError);
-  s2arm_journal("start", "passed", NULL);
+  S2ArmJournalSessionMemory("start", "passed", gid, self.graphicsSession, NO);
 
   if (universal) [self detachAfterBootServed:&plan];
   s2arm_code_stats finalStats;
@@ -1163,7 +1177,7 @@ static void s2arm_session_parked(const char *reason, void *context) {
       self.menuStrings = nil;
       if (saveFolder) dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ S2ArmLogSaveImport(saveFolder); });
       S2ArmPreparationGameRunning(NO);
-      s2arm_journal("gameView", "closed", "\"parked\":true");
+      S2ArmJournalSessionMemory("gameView", "closed", gid, self.graphicsSession, YES);
       dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ S2ArmExportRunningEngineLog(gid); });
       [self.channel invokeMethod:@"sessionEnded" arguments:@{@"code" : @(S2A_RB_ENDED_NORMAL), @"reason" : why, @"parked" : @YES}];
     }];
@@ -1177,6 +1191,7 @@ static void s2arm_session_ended(int code, const char *reason, void *context) {
   dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ S2ArmExportEngineLogs(); });
   NSString *why = reason ? @(reason) : @"";
   dispatch_async(dispatch_get_main_queue(), ^{
+    NSString *gid = self.runningGameId;
     [self closeSessionViewWithCompletion:^{
       self.runningGameId = nil;
       NSString *saveFolder = self.saveFolder;
@@ -1184,7 +1199,7 @@ static void s2arm_session_ended(int code, const char *reason, void *context) {
       self.menuStrings = nil;
       if (saveFolder) dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ S2ArmLogSaveImport(saveFolder); });
       S2ArmPreparationGameRunning(NO);
-      s2arm_journal("gameView", "closed", "\"parked\":false");
+      S2ArmJournalSessionMemory("gameView", "closed", gid, self.graphicsSession, NO);
       [self.channel invokeMethod:@"sessionEnded" arguments:@{@"code" : @(code), @"reason" : why}];
     }];
   });
