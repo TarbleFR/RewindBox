@@ -1,0 +1,210 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 18c367c..4e0fa8a 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -1949,13 +1949,17 @@ NVN(nvnCommandBufferIsRecording, NVNboolean, const NVNcommandBuffer *c) { return
+ // command takes; the record keeps that address (BIND_TEX1_AT) and replay reads the handle from it (nvn_obj.h bind_rec). In a host-lent window there is no such word
+ // Non-Metal backends do not schedule texture uploads on the CPU.
+ __attribute__((weak)) void nvn_be_record_texture_hint(uint32_t id_) { (void)id_; }
++__attribute__((weak)) void nvn_be_record_texture_pages(uint32_t id_) { (void)id_; }
+ __attribute__((weak)) void nvn_be_advance_texture(void) {}
+ static void rec_bind_tex1(cmd_t *o, int32_t st, int32_t slot, uint64_t h, int32_t tb, int32_t sb, int cb_ok) { st = nvn2_stage_host(st);
+     uint8_t *p = cmd_alloc_cb(o, OP_BIND_TEX1, 8 + sizeof(p_bind_tex1) + 8, cb_ok);
+     uintptr_t g = o->rec && !o->gvirt ? o->gcur - dev_bytes(OP_BIND_TEX1, 0) + 0x10 : 0;
+     p_bind_tex1 r = {st, slot | (g ? BIND_TEX1_AT : 0), h, tb, sb}; uint64_t ga = g;
+     memcpy(p + 8, &r, sizeof r); memcpy(p + 8 + sizeof r, &ga, 8);
+-    if (g) memcpy((void *)g, &h, 8);
++    if (g) {
++        memcpy((void *)g, &h, 8);
++        nvn_be_record_texture_pages((uint32_t)(h & 0xfffff) + (uint32_t)tb);
++    }
+     else nvn_be_record_texture_hint((uint32_t)(h & 0xfffff) + (uint32_t)tb);
+ }
+ // Copy: the recording's records are copied into this buffer now (NVN: the caller may reuse the source memory right after the call); its JUMPs are followed, its END is not
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index c0c6977..9b84687 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9487,6 +9487,10 @@ static NvShader *shader_load_submit(NSString *pc, int stage, int layer, int dept
+     else g_bp_lib_ns += wait_ns;
+     g_bp_lib_wait_ns += wait_ns;
+     if (wait_ns) atomic_fetch_add_explicit(&g_course_library_wait_ns,wait_ns,memory_order_relaxed);
++    if (wait_ns >= 8000000 && rb_course_exact())
++        MLOG("RewindBox shared shader dependency frame=%llu shader=%s stage=%d layer=%d depth_zero=%d wait_ns=%llu ready=%d",
++             (unsigned long long)atomic_load_explicit(&g_cur_frame, memory_order_relaxed),
++             pc.UTF8String, stage, layer, depth_zero, (unsigned long long)wait_ns, shader != nil);
+     return shader;
+ }
+ // RewindBox (patch 0069): the long-frame line's counters (hle_nvn.c lf_rec): translations on the submit thread and their ms, waits for one in flight and their ms (dsh_miss.inc
+@@ -12528,7 +12532,14 @@ void nvn_be_prog_bound(const prog_t *p) {   // a game thread recording the first
+         if (!packed) dm_shader_keep_known(md, hx, code, ctl);   // RewindBox (patch 0100): this device's translations only
+         os_unfair_lock_lock(&g_shader_lock); int have = g_shcache[shader_identity([k stringByAppendingString:@"_b"], st, 0, dz)] != nil; os_unfair_lock_unlock(&g_shader_lock);
+         if (!have) {
+-            if (rb_bound_exact_on()) shader_prefetch(k, st, stage_depth_moded(st) && dz);
++            // The 796's frame 1834 yielded an exact pipeline for this pair.
++            // Load its stages at the recorded bind if foreground preparation
++            // did not produce this shader identity for the current depth mode.
++            const BOOL launchDependency = (st == 0 && !strcmp(hx, "75b0a189d13f7c32")) ||
++                                          (st == 1 && !strcmp(hx, "cb89a2ea73e04933"));
++            if (launchDependency && rb_course_exact() && rb_spec_level() == RB_SPEC_RUN)
++                mtl_shader_ahead_load(hx, stage.UTF8String);
++            else if (rb_bound_exact_on()) shader_prefetch(k, st, stage_depth_moded(st) && dz);
+             else nvn_be_shader_prefetch(md);
+             atomic_fetch_add_explicit(&g_rb_bound_pre, 1, memory_order_relaxed);
+         }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index a7036ab..3ecb4bf 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -96,6 +96,7 @@ int nvn_be_shutdown_session(void) {
+         dispatch_group_t reads = dispatch_group_create();
+         if (g_rb_tex_ahead_q) dispatch_group_async(reads, g_rb_tex_ahead_q, ^{});
+         if (g_rb_pool_ahead_q) dispatch_group_async(reads, g_rb_pool_ahead_q, ^{});
++        if (g_tx_page_queue) dispatch_group_async(reads, g_tx_page_queue, ^{});
+         uint64_t begin = now_ns();
+         if (dispatch_group_wait(reads, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC))) {
+             MLOG("RewindBox (patch 0097): guest read-ahead did not drain");
+diff --git a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+index 18710df..722cbf2 100644
+--- a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
++++ b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+@@ -13,7 +13,95 @@ static struct {
+     unsigned in_frame;
+ } g_tx_ahead = {.lock = PTHREAD_MUTEX_INITIALIZER};
+
++// Texture registration can precede the actual draw by thousands of frames.
++// Refresh clean host file pages near a recorded bind. A guest-editable bind
++// can also give a page hint, but only replay can decide what to upload.
++enum { RB_TX_PAGE_HINTS = 32, RB_TX_PAGE_ITEM = 1024 * 1024, RB_TX_PAGE_FRAME = 8 * RB_TX_PAGE_ITEM };
++static dispatch_queue_t g_tx_page_queue;
++static struct {
++    pthread_mutex_t lock;
++    unsigned pending, posted;
++    uint64_t post_frame, work_frame, work_bytes, pages, refreshed;
++    int enough_room;
++    _Atomic uint64_t recent[2048];
++} g_tx_page = {.lock = PTHREAD_MUTEX_INITIALIZER};
++
++static void rb_tx_page_run(uint32_t id_, uint64_t serial, uint64_t posted_frame) {
++    uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    if (frame - posted_frame > 2 || dm_gfx_session_stopping() || rb_mem_low() ||
++        nvn_be_stopping() || atomic_load(&g_fu_waiting)) return;
++    if (frame != g_tx_page.work_frame) {
++        g_tx_page.work_frame = frame;
++        g_tx_page.work_bytes = 0;
++#if TARGET_OS_IPHONE
++        g_tx_page.enough_room = os_proc_available_memory() >= (UINT64_C(2) << 30);
++#else
++        g_tx_page.enough_room = 1;
++#endif
++    }
++    if (!g_tx_page.enough_room || g_tx_page.work_bytes >= RB_TX_PAGE_FRAME) return;
++    int lease = 0;
++    if (!rb_spec_take(0, &lease)) return;
++    const void *mem = NULL;
++    uint64_t bytes = 0;
++    if (!pthread_mutex_trylock(&g_rmu)) {
++        if (id_ < (unsigned)g_ntreg) {
++            const treg_t *r = &g_treg[id_];
++            const tex_t *t = &r->t;
++            if (r->ok && !r->gone && t->serial == serial && t->has_layout && t->mem &&
++                !t->d.flags && t->L.size && t->L.size <= RB_TX_PAGE_ITEM && !pthread_mutex_trylock(&g_smu)) {
++                if (nvn_hm_get(&g_tex_live, &serial) && !nvn_hm_get(&g_by_serial, &serial)) {
++                    mem = t->mem;
++                    bytes = t->L.size;
++                }
++                pthread_mutex_unlock(&g_smu);
++            }
++        }
++        pthread_mutex_unlock(&g_rmu);
++    }
++    if (mem && bytes <= RB_TX_PAGE_FRAME - g_tx_page.work_bytes) {
++        g_tx_page.work_bytes += bytes;
++        uint64_t pages = rb_wn(mem, bytes);
++        if (pages != RB_WN_NONE && pages) {
++            g_tx_page.pages += pages;
++            uint64_t n = ++g_tx_page.refreshed;
++            if (!(n & (n - 1))) MLOG("RewindBox texture bind page hints frame=%llu textures=%llu absent_host_pages=%llu",
++                 (unsigned long long)frame, (unsigned long long)n, (unsigned long long)g_tx_page.pages);
++        }
++    }
++    rb_spec_done(&lease);
++}
++
++void nvn_be_record_texture_pages(uint32_t id_) {
++    if (id_ >= (1u << 20) || !rb_course_exact() || !rb_park_compat() || !rb_pf_on() || !rb_wn_on() ||
++        dm_gfx_session_stopping() || nvn_be_stopping() || atomic_load(&g_fu_waiting)) return;
++    uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    if (!frame) return;
++    uint64_t serial = atomic_load_explicit(&g_tser[id_], memory_order_acquire);
++    _Atomic uint64_t *recent = &g_tx_page.recent[id_ % 2048];
++    if (!serial || atomic_load_explicit(recent, memory_order_relaxed) == serial ||
++        pthread_mutex_trylock(&g_tx_page.lock)) return;
++    if (frame != g_tx_page.post_frame) { g_tx_page.post_frame = frame; g_tx_page.posted = 0; }
++    if (g_tx_page.pending < RB_TX_PAGE_HINTS && g_tx_page.posted < RB_TX_PAGE_HINTS &&
++        atomic_load_explicit(recent, memory_order_relaxed) != serial) {
++        static dispatch_once_t once;
++        dispatch_once(&once, ^{ g_tx_page_queue = dispatch_queue_create("rb.texture.bind.pages",
++            dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_DEFAULT, 0)); });
++        atomic_store_explicit(recent, serial, memory_order_relaxed);
++        ++g_tx_page.pending;
++        ++g_tx_page.posted;
++        dispatch_async(g_tx_page_queue, ^{ @autoreleasepool {
++            rb_tx_page_run(id_, serial, frame);
++            pthread_mutex_lock(&g_tx_page.lock);
++            --g_tx_page.pending;
++            pthread_mutex_unlock(&g_tx_page.lock);
++        } });
++    }
++    pthread_mutex_unlock(&g_tx_page.lock);
++}
++
+ void nvn_be_record_texture_hint(uint32_t id_) {
++    nvn_be_record_texture_pages(id_);
+     if (id_ >= (1u << 20)) return;
+     uint64_t serial = atomic_load_explicit(&g_tser[id_], memory_order_relaxed);
+     _Atomic uint64_t *recent = &g_tx_ahead.recent[id_ % 2048];
+@@ -90,6 +178,12 @@ void nvn_be_advance_texture(void) {
+ }
+
+ static void rb_tx_reset(void) {
++    // The page queue has already drained with the other window readers.
++    g_tx_page.post_frame = g_tx_page.work_frame = g_tx_page.work_bytes = 0;
++    g_tx_page.pending = g_tx_page.posted = 0;
++    g_tx_page.pages = g_tx_page.refreshed = 0;
++    g_tx_page.enough_room = 0;
++    for (unsigned i = 0; i < 2048; ++i) atomic_store(&g_tx_page.recent[i], 0);
+     pthread_mutex_lock(&g_tx_ahead.lock);
+     g_tx_ahead.head = g_tx_ahead.count = g_tx_ahead.in_frame = 0;
+     g_tx_ahead.bytes = g_tx_ahead.made = g_tx_ahead.frame = 0;
+diff --git a/graphics/nvn/host/rb_priority_stage.inc b/graphics/nvn/host/rb_priority_stage.inc
+index 82dc3f7..e7e187d 100644
+--- a/graphics/nvn/host/rb_priority_stage.inc
++++ b/graphics/nvn/host/rb_priority_stage.inc
+@@ -59,16 +59,22 @@ static int rb_priority_stage(NSString *key,NSString *wire,NSString *out,rb_stage
+     const char *xfp=dsh_xfp();
+     if (!xfp || !*xfp) return 0;
+     char hex[65]; rb_row_digest((const char *)input,(size_t)h[2]+h[3],hex);
+-    NSDictionary *identity=@{@"input":@(hex),@"xfp":@(xfp),@"chain":@DMSH_CHAIN,@"stage":@(h[1]),
+-                             @"generation":wire.lastPathComponent};
++    NSDictionary *identity=@{@"input":@(hex),@"xfp":@(xfp),@"chain":@DMSH_CHAIN,@"stage":@(h[1])};
+     NSFileManager *fm=NSFileManager.defaultManager;
+     NSString *root=[wire stringByAppendingPathComponent:@"priority-stages-v1"];
+     NSString *dir=[root stringByAppendingPathComponent:key], *receipt=[dir stringByAppendingPathComponent:@"receipt.plist"];
+     NSDictionary *meta=[NSDictionary dictionaryWithContentsOfFile:receipt];
++    // The staging directory owns the generation. Receipts copied from a
++    // compatible generation remain valid for these exact input bytes and tools.
++    id previous=meta[@"identity"];
++    NSMutableDictionary *saved=[previous isKindOfClass:NSDictionary.class] ? [previous mutableCopy] : nil;
++    [saved removeObjectForKey:@"generation"];
+     NSDictionary *files=nil;
+-    if ([meta[@"identity"] isEqual:identity]) {
++    if ([saved isEqual:identity]) {
+         files=rb_stage_product_files(dir,key);
+-        if (![meta[@"files"] isEqual:files]) files=nil;
++        int stage=-1;
++        if (![meta[@"files"] isEqual:files] ||
++            !dsh_current_stage(dir.fileSystemRepresentation,key.UTF8String,&stage) || stage!=(int)h[1]) files=nil;
+     }
+     if (!files) {
+         NSString *tmp=[root stringByAppendingPathComponent:[key stringByAppendingString:@".work"]];

@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
-"""Summarize one iPhone session. Supply frame signatures from the same session only."""
+"""Summarize one iPhone session. Supply frame signatures from the same session only.
+
+Optional confirmed ranges are a JSON object with session and segments keys. Each
+entry in segments has first, last, phase, and an optional circuit name. Use the
+frame numbers from a synchronized capture. Asset hints never label a circuit.
+"""
 import argparse
+from collections import defaultdict
 import json
 import math
 from pathlib import Path
@@ -22,6 +28,107 @@ SLOW_LINE = re.compile(
     + " ".join(key + r"=(\d+\.\d+)" for key in SLOW_TIMES) + r"\s*$")
 
 
+CUP_FRAME = "RewindBox cup frame="
+CUP_GAP = "RewindBox cup gap frame="
+FRAME_FIELDS = {
+    "interval_ns": int, "asset_hint": str, "pso_wait_ns": int, "library_wait_ns": int,
+    "xlate_ms": float, "xlate_wait_ms": float, "msl_count": int, "msl_ms": float,
+    "texture_bytes": int, "texture_cpu_ms": float, "texture_gpu_completed_ms": float,
+    "gpu_valid": int, "gpu_unavailable": int,
+}
+GAP_FIELDS = {
+    "outside_ns": int, "longest_ns": int, "romfs_read_calls": int,
+    "romfs_read_bytes": int, "romfs_read_ns": int, "present_guest_wait_ns": int,
+    "process_read_mib": float, "present_thread_ms": float, "vm_decompressed_pages": int,
+    "guest_decompress": str,
+}
+
+
+def metric_row(text, fields):
+    frame, *cells = text.split()
+    values = dict(cell.split("=", 1) for cell in cells)
+    return int(frame), {key: convert(values[key]) for key, convert in fields.items()}
+
+
+def group_metrics(rows):
+    intervals = sorted(row["interval_ns"] for row in rows)
+    valid = sum(row["gpu_valid"] for row in rows)
+    unavailable = sum(row["gpu_unavailable"] for row in rows)
+    return {
+        "samples": len(rows),
+        "intervalNs": sum(intervals),
+        "averageFPS": round(len(rows) * 1e9 / sum(intervals), 3),
+        "p95Ms": intervals[math.ceil(0.95 * len(rows)) - 1] / 1e6,
+        **{f"over{ms}Ms": sum(ns > ms * 1_000_000 for ns in intervals) for ms in (100, 200, 500)},
+        "psoWaitMs": round(sum(row["pso_wait_ns"] for row in rows) / 1e6, 3),
+        "sharedLibraryWaitMs": round(sum(row["library_wait_ns"] for row in rows) / 1e6, 3),
+        "translationWaitMs": round(sum(row["xlate_wait_ms"] for row in rows), 3),
+        "translationMs": round(sum(row["xlate_ms"] for row in rows), 3),
+        "mslCompiles": sum(row["msl_count"] for row in rows),
+        "mslMs": round(sum(row["msl_ms"] for row in rows), 3),
+        "textureUploadBytes": sum(row["texture_bytes"] for row in rows),
+        "textureUploadCpuMs": round(sum(row["texture_cpu_ms"] for row in rows), 3),
+        "textureGpuCompletedMs": round(sum(row["texture_gpu_completed_ms"] for row in rows), 3) if valid else None,
+        "textureGpuCompletedValidBatches": valid,
+        "textureGpuCompletedUnavailableBatches": unavailable,
+    }
+
+
+def cup_metrics(rows, gap_rows, segments, lost_rows):
+    if not rows:
+        return None
+    groups = defaultdict(list)
+    ranges = iter(segments)
+    current = next(ranges, None)
+    named = 0
+    for frame, row in sorted(rows.items()):
+        # The interval ending on a segment's first frame crosses a boundary.
+        while current and frame > current["last"]:
+            current = next(ranges, None)
+        if current and current["first"] < frame <= current["last"]:
+            circuit, phase = current.get("circuit"), current["phase"]
+            named += circuit is not None
+        else:
+            circuit, phase = None, "unknown"
+        groups[circuit, phase].append(row)
+    first, last = min(rows), max(rows)
+    return {
+        "first": first,
+        "last": last,
+        "missingWithinObservedSpan": last - first + 1 - len(rows),
+        "reportedDroppedRows": lost_rows,
+        "namedCircuitSamples": named,
+        "total": group_metrics(list(rows.values())),
+        "byCircuitAndPhase": [
+            {"circuit": circuit, "phase": phase, **group_metrics(samples)}
+            for (circuit, phase), samples in groups.items()
+        ],
+        "slowFrameCpuGaps": [
+            {"frame": frame, "assetHint": rows[frame]["asset_hint"],
+             **{key: None if value in (-1, "unavailable") else value for key, value in row.items()}}
+            for frame, row in sorted(gap_rows.items()) if frame in rows
+        ],
+    }
+
+
+def checked_segments(path, session):
+    document = json.loads(path.read_text(encoding="utf-8"))
+    if not session or document["session"] != session:
+        raise ValueError("Course phase annotations must match the capture session.")
+    segments = []
+    end = -1
+    for segment in document["segments"]:
+        first, last = segment["first"], segment["last"]
+        phase, circuit = segment["phase"], segment.get("circuit")
+        if not (type(first) is int and type(last) is int and end < first <= last
+                and phase in {"selection", "start", "race", "transition", "results"}
+                and (circuit is None or isinstance(circuit, str) and circuit.strip())):
+            raise ValueError("Invalid, unsorted or overlapping confirmed course/phase range.")
+        segments.append(segment)
+        end = last
+    return segments
+
+
 def course_totals(windows):
     by_asset = {}
     first_incomplete = []
@@ -40,9 +147,10 @@ def course_totals(windows):
     for totals in by_asset.values():
         for key in totals.keys() - COURSE_COUNTS:
             totals[key] = round(totals[key], 3)
+        totals["texture_gpu_completed_ms"] = None  # Legacy feedback mixes invalid and valid timestamps.
     return {"completeIntervalsByAsset": by_asset, "incompleteWindows": first_incomplete}
 
-def summarize(host, captures, first, last):
+def summarize(host, captures, first, last, *, session=None, segments=()):
     def selected(frame):
         return first <= frame <= last
 
@@ -81,12 +189,36 @@ def summarize(host, captures, first, last):
     course_windows = {}
     slow_frames_by_asset = {}
     seen_slow_frames = set()
+    cup_rows, cup_gap_rows = {}, {}
+    lost_cup_rows = 0
+    engine_session = None
     archive = None
     missing = None
     shared_library_count = None
     completed_predictions, active_prediction, governor = [], None, []
     with host.open(encoding="utf-8", errors="replace") as lines:
         for line in lines:
+            identity = re.search(r"RewindBox cup session=([A-Fa-f0-9-]{36})", line)
+            if identity:
+                if engine_session is not None:
+                    raise ValueError("Multiple engine sessions. Supply a single session.")
+                engine_session = identity[1]
+                if session and engine_session.casefold() != session.casefold():
+                    raise ValueError("Engine graphics session differs from the requested session.")
+            for prefix, fields, table in ((CUP_FRAME, FRAME_FIELDS, cup_rows), (CUP_GAP, GAP_FIELDS, cup_gap_rows)):
+                _, match, remainder = line.partition(prefix)
+                if not match:
+                    continue
+                frame, row = metric_row(remainder, fields)
+                if selected(frame):
+                    if frame in table:
+                        raise ValueError("Duplicate Cup frame record. Supply a single session.")
+                    if row.get("interval_ns", 1) <= 0:
+                        raise ValueError("Cup frame intervals must be positive.")
+                    table[frame] = row
+            loss = re.search(r"RewindBox cup metrics missing_rows=(\d+)", line)
+            if loss:
+                lost_cup_rows += int(loss[1])
             if "RewindBox course slow frame=" in line:
                 slow = SLOW_LINE.search(line)
                 if slow and selected(int(slow[1])):
@@ -96,7 +228,8 @@ def summarize(host, captures, first, last):
                     seen_slow_frames.add(frame)
                     slow_frames_by_asset.setdefault(slow[2], []).append({
                         "frame": frame, "interval_ns": interval, "over500Ms": interval > 500_000_000,
-                        **{key: float(value) for key, value in zip(SLOW_TIMES, slow.groups()[3:])}})
+                        **{key: (None if key == "texture_gpu_completed_ms" else float(value))
+                           for key, value in zip(SLOW_TIMES, slow.groups()[3:])}})
             if "RewindBox course metrics frames=" in line:
                 m = COURSE_LINE.search(line)
                 if m and selected(int(m[1])) and selected(int(m[2])):
@@ -166,7 +299,8 @@ def summarize(host, captures, first, last):
         intervals = {"first": full_windows[0][0], "last": full_windows[-1][1], "samples": n,
                      "missingWithinObservedSpan": full_windows[-1][1] - full_windows[0][0] + 1 - n,
                      "averageFPS": round(n * 1e9 / ns, 3), "over100Ms": s100, "over200Ms": s200, "over500Ms": s500}
-    return {"courseAssetWindows": course_totals(course_windows), "slowFramesByAsset": slow_frames_by_asset,
+    return {"session": engine_session or session, "cupFrames": cup_metrics(cup_rows, cup_gap_rows, segments, lost_cup_rows),
+        "courseAssetWindows": course_totals(course_windows), "slowFramesByAsset": slow_frames_by_asset,
         "frameSignatureIntervals": sig, "completeHostWindows": intervals, "referenceBinds": reference_binds,
         "selectedLoggedFrames": {"rowsOverMs": slow_logged, "submitGaps": gap_rows,
         "longFrameRows": len(long_frames), "rowsWithCompilerBreakdown": len(available),
@@ -188,10 +322,14 @@ def main():
     parser.add_argument("captures", type=Path, nargs="*")
     parser.add_argument("--first", type=int, default=0, help="first frame, inclusive")
     parser.add_argument("--last", type=int, default=2**63-1, help="last frame, inclusive")
+    parser.add_argument("--session", help="Graphics session UUID from the capture journal")
+    parser.add_argument("--segments", type=Path, help="JSON object with session and synchronized, confirmed segments")
     args = parser.parse_args()
     if args.first > args.last:
         parser.error("--first must precede --last")
-    print(json.dumps(summarize(args.host, args.captures, args.first, args.last), indent=2))
+    segments = checked_segments(args.segments, args.session) if args.segments else ()
+    print(json.dumps(summarize(args.host, args.captures, args.first, args.last,
+                              session=args.session, segments=segments), indent=2))
 
 
 if __name__ == "__main__":

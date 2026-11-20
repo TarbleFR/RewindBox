@@ -1,0 +1,637 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_geometry.inc b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+index 54fa674..cfd9083 100644
+--- a/graphics/nvn/gfx/nvn/nvn_geometry.inc
++++ b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+@@ -159,9 +159,11 @@ static MTLMeshRenderPipelineDescriptor *mtk_desc(pso_key *k, NvShader *ts, NvSha
+ // A task / mesh pipeline goes into pso_user.tsv as an M row: M<TAB>pso_skey hex (the mesh shader in the vertex place)<TAB>task shader key ("-": none)<TAB>padded variant mask (hex), so the next start's
+ //   prewarm (warm_parse / mtk_warm) builds it before the scene, and the next package's seed (pso_seed.py) carries it. A merged pass's pipeline (a specialized fragment) is not recorded,
+ //   as R rows of one are not (pso_record). Submit thread
+-static void mtk_record(const mtk_key *mk, NvShader *ts, NvShader *ms, NvShader *fs, int merged) {
++static void mtk_record(id ps,const mtk_key *mk,NvShader *ts,NvShader *ms,NvShader *fs,int merged,uint64_t wait,BOOL prepared) {
+     if (merged || mk->k.fsfn) return;
+-    pso_skey sk; pso_skey_from(&mk->k, ms, fs, 0, NULL, &sk); char hx[sizeof sk * 2 + 1]; pso_skey_hex(&sk, hx);
++    pso_skey sk; pso_skey_from(&mk->k, ms, fs, 0, NULL, &sk);
++    if (rb_draw_remember(ps,&sk,ts ? ts->key : "-",mk->pad,wait,prepared) || prepared) return;
++    char hx[sizeof sk * 2 + 1]; pso_skey_hex(&sk, hx);
+     pso_user_record("M\t%s\t%s\t%x\n", hx, ts ? ts->key : "-", mk->pad);
+ }
+ // The key a draw of these shaders looks its pipeline up with, from an M row (the shader pointers are the shared objects, shader_load)
+@@ -189,6 +191,8 @@ static void mtk_warm_claim(NSData *key, id ps) {   // submit thread (warm_claim)
+     mtk_key mk; if (key.length != sizeof mk) return; [key getBytes:&mk length:sizeof mk];
+     os_unfair_lock_lock(&g_pso_mtk_lock); __unsafe_unretained id cur = hm_get_id(&g_pso_mtk, &mk); int put = !cur || cur == g_pso_mtk_building;
+     if (put) hm_put_id(&g_pso_mtk, &mk, ps); os_unfair_lock_unlock(&g_pso_mtk_lock);
++    if (put && rb_course_exact())
++        mtk_record(ps,&mk,(__bridge NvShader *)mk.ts,(__bridge NvShader *)mk.k.vs,(__bridge NvShader *)mk.k.fs,0,0,YES);
+     if (put) { uint64_t n = ++g_mtk_warm_claimed; if (!(n & (n - 1))) MLOG("task / mesh pipelines from the prewarm taken by the draws' table: %llu so far", (unsigned long long)n); }
+ }
+ // The background build of a mesh pipeline: a concurrent queue, at most mtk_width() at a time (the system compiler service builds them in parallel; one serial queue left a draw that
+@@ -294,7 +298,7 @@ static id<MTLRenderPipelineState> mtk_pso(NvProg *raster) {
+     }   // refused unpadded: ask for the padded variant (once; a variant that cannot be made stays failed)
+     if (ps && ps != NSNull.null && ps != g_pso_mtk_building) {   // #770: the first draw of each pipeline, with the frame and how many are still building
+         if (!g_mtk_drawn) g_mtk_drawn = [NSMutableSet set];
+-        if (![g_mtk_drawn containsObject:ps]) { [g_mtk_drawn addObject:ps]; mtk_record(&mk, ts, ms, fs, merged);
++        if (![g_mtk_drawn containsObject:ps]) { [g_mtk_drawn addObject:ps]; mtk_record(ps,&mk,ts,ms,fs,merged,0,NO);
+             MLOG("task / mesh pipeline first drawn at frame %llu: %s; still building %d", (unsigned long long)atomic_load_explicit(&g_cur_frame, memory_order_relaxed),
+                  mtk_name(ps), atomic_load(&g_mtk_inflight)); }
+     }
+@@ -324,10 +328,11 @@ static id<MTLRenderPipelineState> mtk_pso(NvProg *raster) {
+         //   above, as vertex pipelines record theirs once built. The pipeline of S2Arm's case is built again in the scene that uses it
+     }
+     if (!why) return nil;   // building in the background, and this draw may wait for it
++    uint64_t wait_start=bp_now();
+     __unsafe_unretained id p = mtk_wait(&mk, why);
+     if (p==NSNull.null) return mtk_pso(raster); // refusal is published; retry once with the missing padded interface
+     if (p) { if (!g_mtk_drawn) g_mtk_drawn = [NSMutableSet set];
+-        if (![g_mtk_drawn containsObject:p]) { [g_mtk_drawn addObject:p]; mtk_record(&mk, ts, ms, fs, merged); } }
++        if (![g_mtk_drawn containsObject:p]) { [g_mtk_drawn addObject:p]; mtk_record(p,&mk,ts,ms,fs,merged,bp_now()-wait_start,NO); } }
+     return p;
+ }
+ static void mtk_encode(id en_) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index c0c6977..08338eb 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -5,6 +5,7 @@
+ #import <QuartzCore/CAMetalDisplayLink.h>
+ #import <ImageIO/ImageIO.h>
+ #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
++#include <uuid/uuid.h>
+ #include <sys/sysctl.h>
+ #include <objc/runtime.h>   // objc_*AssociatedObject: the integer storage an RGBA8 atomic image is a view of (tex_upgrade, defer_drain)
+ #include <mach/mach_time.h>
+@@ -1627,7 +1628,12 @@ static inline id<MTL4RenderCommandEncoder> enc_r_begin_pass(MTL4RenderPassDescri
+     g_game_barrier = 0;
+     enc_r_table(e, g_vt, MTLRenderStageVertex); enc_r_table(e, g_ft, MTLRenderStageFragment); gp_begin(e, 'R', d); return e;
+ }
++static _Thread_local const void *t_rb_draw_encoder, *t_rb_draw_pipeline;
++static inline void rb_draw_encoder_ended(id e) {
++    if (t_rb_draw_encoder==(__bridge const void *)e) t_rb_draw_encoder=t_rb_draw_pipeline=NULL;
++}
+ static inline void enc_r_end_pass(id e) {
++    rb_draw_encoder_ended(e);
+     if (!barrier_game()) { m4_end(e); return; }
+     if (g_m3) { m4_end(e); g_last_end_relaxed = 1; return; }   // the fence is updated after the fragment stage either way; the next pass waits before its fragments only (enc_r_begin_pass)
+     gp_end(e); [(id<MTL4CommandEncoder>)e barrierAfterStages:MTLStageVertex | MTLStageFragment beforeQueueStages:MTLStageFragment | MTLStageDispatch | MTLStageBlit visibilityOptions:MTL4VisibilityOptionDevice];
+@@ -1642,7 +1648,7 @@ static inline id<MTL4RenderCommandEncoder> enc_r_begin(MTL4RenderPassDescriptor
+     if (g_m3) m3_wait(e, 1, 0); else main_barrier_begin(e, 0);
+     enc_r_table(e, g_vt, MTLRenderStageVertex); enc_r_table(e, g_ft, MTLRenderStageFragment); gp_begin(e, 'R', d); return e;
+ }
+-static inline void enc_r_end(id e) { m4_end(e); }
++static inline void enc_r_end(id e) { rb_draw_encoder_ended(e); m4_end(e); }
+ // Object lifetimes are owned by g_pso until session drain. Keep only pointers,
+  // and remove the first actual encoder bind from the same tiny table.
+ static nvn_hmap g_rb_promoted_objects = {.klen = sizeof(void *)};
+@@ -1657,6 +1663,8 @@ static void rb_compile_wait(pthread_cond_t *cv, pthread_mutex_t *mu) {
+ }
+ static _Atomic uint64_t g_course_pso_wait_ns, g_course_library_wait_ns;
+ static void rb_course_bound(id ps);
++static void rb_draw_encoded(id encoder);
++static nvn_hmap g_rb_draw_candidates={.klen=sizeof(void *)};
+
+ static nvn_hmap g_rb_seed_objects = {.klen = sizeof(void *)}; // submit thread only
+ static void rb_ref_bound(id ps);
+@@ -1666,6 +1674,11 @@ static inline void enc_r_pso(id<MTL4RenderCommandEncoder> e, id<MTLRenderPipelin
+     if (g_rb_promoted_objects.n && e) rb_trace_bound(p);
+     if (g_rb_seed_objects.n && e) rb_ref_bound(p);
+     if (e && atomic_load_explicit(&g_course_capture,memory_order_relaxed)) rb_course_bound(p);
++    if (g_rb_draw_candidates.n || t_rb_draw_pipeline) {
++        const void *raw=(__bridge const void *)p;
++        t_rb_draw_encoder=(__bridge const void *)e;
++        t_rb_draw_pipeline=e && nvn_hm_get(&g_rb_draw_candidates,&raw) ? raw : NULL;
++    }
+ }
+ static inline void enc_r_dss(id<MTL4RenderCommandEncoder> e, id<MTLDepthStencilState> s) { [e setDepthStencilState:s]; }
+ static inline void enc_r_viewport(id<MTL4RenderCommandEncoder> e, MTLViewport v) { [e setViewport:v]; }
+@@ -1707,32 +1720,35 @@ static inline void enc_r_half_mask(id e, uint8_t mask) {
+ }
+ static void udc_encode(void);   // every draw encode: the unwritten-attachment ledger (see udc_note_draw)
+ // Draws and dispatches: on Metal 3 the argument tables go first (m3_bind_draw / m3_bind_dispatch), and index / indirect buffers given by GPU address become a buffer and offset (m3_buf_at)
+-static inline void enc_r_draw(id<MTL4RenderCommandEncoder> e, MTLPrimitiveType p, NSUInteger v, NSUInteger n) { udc_encode(); if (g_m3) m3_bind_draw(e); [e drawPrimitives:p vertexStart:v vertexCount:n]; }
+-static inline void enc_r_draw_instanced(id<MTL4RenderCommandEncoder> e, MTLPrimitiveType p, NSUInteger v, NSUInteger n, NSUInteger i, NSUInteger b) { udc_encode(); if (g_m3) m3_bind_draw(e); [e drawPrimitives:p vertexStart:v vertexCount:n instanceCount:i baseInstance:b]; }
++static inline void rb_draw_after_encoding(id e) {
++    if (t_rb_draw_pipeline) rb_draw_encoded(e);
++}
++static inline void enc_r_draw(id<MTL4RenderCommandEncoder> e, MTLPrimitiveType p, NSUInteger v, NSUInteger n) { udc_encode(); if (g_m3) m3_bind_draw(e); [e drawPrimitives:p vertexStart:v vertexCount:n]; rb_draw_after_encoding(e); }
++static inline void enc_r_draw_instanced(id<MTL4RenderCommandEncoder> e, MTLPrimitiveType p, NSUInteger v, NSUInteger n, NSUInteger i, NSUInteger b) { udc_encode(); if (g_m3) m3_bind_draw(e); [e drawPrimitives:p vertexStart:v vertexCount:n instanceCount:i baseInstance:b]; rb_draw_after_encoding(e); }
+ static inline void enc_r_draw_indirect(id<MTL4RenderCommandEncoder> e, MTLPrimitiveType p, uint64_t gpu) {
+-    udc_encode(); if (!g_m3) { [e drawPrimitives:p indirectBuffer:gpu]; return; }
++    udc_encode(); if (!g_m3) { [e drawPrimitives:p indirectBuffer:gpu]; rb_draw_after_encoding(e); return; }
+     NSUInteger o; id<MTLBuffer> b; m3_bind_draw(e); if (!m3_buf_at(gpu, &b, &o)) return;
+-    [(id<MTLRenderCommandEncoder>)e drawPrimitives:p indirectBuffer:b indirectBufferOffset:o];
++    [(id<MTLRenderCommandEncoder>)e drawPrimitives:p indirectBuffer:b indirectBufferOffset:o]; rb_draw_after_encoding(e);
+ }
+ static inline void enc_r_draw_indexed(id<MTL4RenderCommandEncoder> e, MTLPrimitiveType p, NSUInteger n, MTLIndexType t, uint64_t gpu, NSUInteger len, NSUInteger i, NSInteger bv, NSUInteger bi) {
+-    udc_encode(); if (!g_m3) { [e drawIndexedPrimitives:p indexCount:n indexType:t indexBuffer:gpu indexBufferLength:len instanceCount:i baseVertex:bv baseInstance:bi]; return; }
++    udc_encode(); if (!g_m3) { [e drawIndexedPrimitives:p indexCount:n indexType:t indexBuffer:gpu indexBufferLength:len instanceCount:i baseVertex:bv baseInstance:bi]; rb_draw_after_encoding(e); return; }
+     NSUInteger o; id<MTLBuffer> b; m3_bind_draw(e); if (!m3_buf_at(gpu, &b, &o)) return;
+-    [(id<MTLRenderCommandEncoder>)e drawIndexedPrimitives:p indexCount:n indexType:t indexBuffer:b indexBufferOffset:o instanceCount:i baseVertex:bv baseInstance:bi];
++    [(id<MTLRenderCommandEncoder>)e drawIndexedPrimitives:p indexCount:n indexType:t indexBuffer:b indexBufferOffset:o instanceCount:i baseVertex:bv baseInstance:bi]; rb_draw_after_encoding(e);
+ }
+ static inline void enc_r_draw_indexed_indirect(id<MTL4RenderCommandEncoder> e, MTLPrimitiveType p, MTLIndexType t, uint64_t gpu, NSUInteger len, uint64_t ind) {
+-    udc_encode(); if (!g_m3) { [e drawIndexedPrimitives:p indexType:t indexBuffer:gpu indexBufferLength:len indirectBuffer:ind]; return; }
++    udc_encode(); if (!g_m3) { [e drawIndexedPrimitives:p indexType:t indexBuffer:gpu indexBufferLength:len indirectBuffer:ind]; rb_draw_after_encoding(e); return; }
+     NSUInteger o, io; id<MTLBuffer> b, ib; m3_bind_draw(e); if (!m3_buf_at(gpu, &b, &o) || !m3_buf_at(ind, &ib, &io)) return;
+-    [(id<MTLRenderCommandEncoder>)e drawIndexedPrimitives:p indexType:t indexBuffer:b indexBufferOffset:o indirectBuffer:ib indirectBufferOffset:io];
++    [(id<MTLRenderCommandEncoder>)e drawIndexedPrimitives:p indexType:t indexBuffer:b indexBufferOffset:o indirectBuffer:ib indirectBufferOffset:io]; rb_draw_after_encoding(e);
+ }
+ // NVN2 task / mesh draws (nvn_geometry.inc mtk_encode): groups object threadgroups (mesh ones without a task shader); Metal 3 takes the indirect arguments as buffer + offset
+ static inline void enc_r_mesh(id e, NSUInteger groups, NSUInteger ot, NSUInteger mt) {
+     udc_encode(); if (g_m3) m3_bind_mesh(e);
+-    [e drawMeshThreadgroups:MTLSizeMake(groups, 1, 1) threadsPerObjectThreadgroup:MTLSizeMake(ot, 1, 1) threadsPerMeshThreadgroup:MTLSizeMake(mt, 1, 1)];
++    [e drawMeshThreadgroups:MTLSizeMake(groups, 1, 1) threadsPerObjectThreadgroup:MTLSizeMake(ot, 1, 1) threadsPerMeshThreadgroup:MTLSizeMake(mt, 1, 1)]; rb_draw_after_encoding(e);
+ }
+ static inline void enc_r_mesh_indirect(id e, uint64_t ind, NSUInteger ot, NSUInteger mt) {
+-    udc_encode(); if (!g_m3) { [e drawMeshThreadgroupsWithIndirectBuffer:ind threadsPerObjectThreadgroup:MTLSizeMake(ot, 1, 1) threadsPerMeshThreadgroup:MTLSizeMake(mt, 1, 1)]; return; }
++    udc_encode(); if (!g_m3) { [e drawMeshThreadgroupsWithIndirectBuffer:ind threadsPerObjectThreadgroup:MTLSizeMake(ot, 1, 1) threadsPerMeshThreadgroup:MTLSizeMake(mt, 1, 1)]; rb_draw_after_encoding(e); return; }
+     NSUInteger o; id<MTLBuffer> b; m3_bind_mesh(e); if (!m3_buf_at(ind, &b, &o)) return;
+-    [(id<MTLRenderCommandEncoder>)e drawMeshThreadgroupsWithIndirectBuffer:b indirectBufferOffset:o threadsPerObjectThreadgroup:MTLSizeMake(ot, 1, 1) threadsPerMeshThreadgroup:MTLSizeMake(mt, 1, 1)];
++    [(id<MTLRenderCommandEncoder>)e drawMeshThreadgroupsWithIndirectBuffer:b indirectBufferOffset:o threadsPerObjectThreadgroup:MTLSizeMake(ot, 1, 1) threadsPerMeshThreadgroup:MTLSizeMake(mt, 1, 1)]; rb_draw_after_encoding(e);
+ }
+ static void ubd_land_compute(void);
+ static inline id<MTL4ComputeCommandEncoder> enc_c_begin(MTLComputePassDescriptor *d) {
+@@ -8643,7 +8659,7 @@ static void rb_bi_again(const p_draw *dw, const p_draw_idx *di) {   // mdx_next:
+     if (g_rbb_last.on && (dw || di)) rb_bi_put(dw ? dw->ind : di->ind, !dw, dw ? dw->mdi_cnt : di->mdi_cnt, dw ? dw->mdi_i : di->mdi_i);
+ }
+ // Warm-up entry: built in the background, waiting to be taken by the submit thread. vs / fs retain the actual shared shader objects (pso holds only raw pointers).
+-@interface WarmItem : NSObject { @public int kind, fc, transition; NSString *key, *vs_key, *fs_key; NvShader *shader, *vs, *fs; NSString *referenceKey; pso_key pso; id<MTLFunction> fsfn; id object; NSData *mkey; } @end   // fc: a compute pipeline of the sampler-emulation variant (#800); mkey: a task / mesh pipeline's key (kind 4, nvn_geometry.inc mtk_warm)
++@interface WarmItem : NSObject { @public int kind, fc, transition; NSString *key, *vs_key, *fs_key; NvShader *shader, *vs, *fs; NSString *referenceKey; NSData *drawRecipe; pso_key pso; id<MTLFunction> fsfn; id object; NSData *mkey; } @end   // fc: a compute pipeline of the sampler-emulation variant (#800); mkey: a task / mesh pipeline's key (kind 4, nvn_geometry.inc mtk_warm)
+ @implementation WarmItem @end
+ static NSMutableDictionary<NSString *, NvShader *> *g_shcache;
+ #define NVN_SHADER_FLIGHT_IMPL 1
+@@ -12061,6 +12077,7 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_(NvProg *pr, MTLRe
+ //   pso_pair_ok rejected every pair and none of The Witcher 3's 8 patch draws drew (w3tess6b, 10-28). g_pso_why: why the last call returned nil, for a caller whose red line names it
+ static void rb_trace_used(id ps, const pso_key *k, NvShader *vs, NvShader *fs);
+ static void rb_course_candidate(id ps, const pso_key *k, NvShader *vs, NvShader *fs);
++static BOOL rb_draw_remember(id ps,const pso_skey *recipe,const char *task,uint32_t pad,uint64_t wait,BOOL prepared);
+ static char g_pso_why[200];
+ // Submit-thread only: pso_get_ (normal/GS final draw) and tess_draw are the two
+ // callers. Background prewarm builds descriptors directly, without this state.
+@@ -12186,7 +12203,7 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+                 (unsigned long long)atomic_load(&g_cur_frame),par_hash(&sk,sizeof sk).UTF8String,shex);
+         }
+         pso_record("R\t%s\n", shex);
+-        pso_user_record("R\t%s\n", shex);
++        if (!rb_draw_remember(ps,&sk,NULL,0,first_use_ns,NO)) pso_user_record("R\t%s\n", shex);
+         if (rb_pso_hot_on() && !g_pso_lmap && !g_pso_fsfn && first_use_ns >= RB_PSO_HOT_MS * 1000000ull)
+             rb_pso_hot_note(shex); }
+     quar_built(vs, fs);
+@@ -12204,7 +12221,7 @@ static NSString *warm_key(const char *s, size_t n) {
+ // shaders, so one worker builds them one after the other). The tasks keep the lists' order (a pair at its first line). shader_load shares successful objects and in-flight loads
+ // with prefetch and runtime, without negatively caching failures. After the upstream reference implementation (MIT) warm_parse / warm_task
+ #include "rb_reference.inc"
+-@interface WarmTask : NSObject { @public RBReferenceProof *reference; NSString *referenceIdentity; BOOL externalOnly; uint8_t cupRank; int kind, stage, fc; uint32_t pad; NSString *key, *vkey, *fkey, *tkey; NSMutableArray<NSData *> *rs; } @end   // fc: a C line's sampler-emulation bits this GPU runs (#800, warm_parse)
++@interface WarmTask : NSObject { @public RBReferenceProof *reference; NSString *referenceIdentity; BOOL externalOnly; uint8_t cupRank,drawRank; NSString *drawCue; uint64_t drawWait; int kind, stage, fc; uint32_t pad; NSString *key, *vkey, *fkey, *tkey; NSMutableArray<NSData *> *rs; } @end   // fc: a C line's sampler-emulation bits this GPU runs (#800, warm_parse)
+ @implementation WarmTask @end
+ static _Atomic long g_warm_done;   // lines done (the prepare step's progress)
+ static _Atomic int g_wp_phase, g_wp_why, g_wp_play; static _Atomic long g_wp_total; static _Atomic uint64_t g_wp_t0;
+@@ -12578,6 +12595,13 @@ static void rb_recovered_program(NvShader *vs,NvShader *fs) {
+         pso_key_norm(&sk.k,vs,fs,0); pso_pend_kick(&sk.k,vs,fs,0);
+     }
+ }
++static os_unfair_lock g_wu_lock = OS_UNFAIR_LOCK_INIT;
++static NSDictionary<NSString *, NSArray<NSNumber *> *> *g_wu_pairs;   // "顶点键|片元键" → R 行下标；nil = 当前没有在跑的预热
++static NSMutableArray<NSNumber *> *g_wu_q;                             // 急件下标（先进先出）
++static _Atomic(uint8_t) *g_wu_claim; static long g_wu_n;                // 每行「已领」标记
++static _Atomic long g_wu_remaining;
++static _Atomic uint64_t g_wu_bumped, g_wu_taken;                        // 放进急件的行数 / 由急件路领走编的行数
++#include "rb_pso_transitions.inc"
+ // The lists' lines as tasks; *lines: the lines they hold
+ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines) {
+     NSMutableArray<WarmTask *> *tasks = [NSMutableArray array];
+@@ -12587,8 +12611,21 @@ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines)
+     NSString *referencePath=rb_ref_path();
+     NSString *referenceList=referencePath ?: ([paths.firstObject.lastPathComponent isEqual:@"pso_reference.tsv"] ? paths.firstObject : nil);
+     NSMutableArray *referenceTasks=[NSMutableArray array];
+-    for (NSString *path in paths) {
+-        NSString *txt = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
++    NSDictionary<NSString *,NSData *> *history=referenceList ? rb_draw_warm_history() : nil;
++    NSString *historyList=@"# RewindBox observed draw rows";
++    NSArray *lists=history.count ? [paths arrayByAddingObject:historyList] : paths;
++    NSMutableArray<WarmTask *> *foreground=[NSMutableArray array];
++    NSString *firstCue=nil; uint64_t firstCueFrame=UINT64_MAX;
++    for (NSData *data in history.objectEnumerator) {
++        const rb_draw_history_entry *entry=data.bytes;
++        const rb_draw_record *r=&entry->first;
++        if (*r->cue && !rb_draw_rank(r) && r->frame<firstCueFrame) {
++            firstCue=@(r->cue); firstCueFrame=r->frame;
++        }
++    }
++    for (NSString *path in lists) {
++        NSString *txt=[path isEqual:historyList] ? [history.allKeys componentsJoinedByString:@"\n"] :
++            [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+         RBReferenceProof *reference=[path isEqual:referencePath] ? rb_ref_open(path,txt) : nil;
+         if (txt.length && [path isEqual:referenceList])
+             atomic_store_explicit(&g_course_exact,1,memory_order_relaxed);
+@@ -12636,22 +12673,46 @@ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines)
+                 if ([path isEqual:referenceList]) t->referenceIdentity=par_hash(&sk,sizeof sk);
+                 else if (referenceList) t->referenceIdentity=rb_ref_later_recipe(vkey,fkey,&sk);
+                 if (!t->referenceIdentity && externalList) { t->referenceIdentity=par_hash(&sk,sizeof sk); t->externalOnly=YES; }
+-                if (t->referenceIdentity && !t->externalOnly) [referenceTasks addObject:t];
+-                else if (priority.count < RB_PSO_HOT_LIMIT && [hot containsObject:line]) [priority addObject:t];
+-                else [tasks addObject:t];
++
+             } else if ([c[0] isEqualToString:@"M"] && c.count >= 4) {   // a task / mesh pipeline (nvn_geometry.inc mtk_record): the mesh shader in the vertex place, then the task shader key ("-": none) and the padded variant's mask
+                 pso_skey sk; if (pso_skey_parse(c[1].UTF8String, &sk)) continue;
+                 NSString *mkey = warm_key(sk.vs, sizeof sk.vs), *fkey = warm_key(sk.fs, sizeof sk.fs), *tkey = [c[2] isEqualToString:@"-"] ? @"" : c[2];
+                 if (!mkey.length || warm_stale(mkey, stale) || (fkey.length && warm_stale(fkey, stale)) || (tkey.length && warm_stale(tkey, stale))) continue;
+                 t = [WarmTask new]; t->kind = 4; t->vkey = mkey; t->fkey = fkey; t->tkey = tkey; t->pad = (uint32_t)strtoul(c[3].UTF8String, NULL, 16);
+-                t->rs = [NSMutableArray arrayWithObject:[NSData dataWithBytes:&sk length:sizeof sk]]; [tasks addObject:t];
++                t->rs = [NSMutableArray arrayWithObject:[NSData dataWithBytes:&sk length:sizeof sk]];
+             } else continue;
++            if (t->kind==1 || t->kind==4) {
++                NSData *data=history[line];
++                if (data) {
++                    const rb_draw_history_entry *entry=data.bytes;
++                    const rb_draw_record *r=&entry->preferred;
++                    t->drawCue=@(r->cue); t->drawWait=r->wait_ns; t->drawRank=rb_draw_rank(r);
++                    if (!t->drawRank && [t->drawCue isEqual:firstCue]) t->drawRank=1;
++                    if (t->kind==1 && !t->referenceIdentity && !r->recipe.merged) {
++                        t->referenceIdentity=par_hash(&r->recipe,sizeof r->recipe); t->externalOnly=YES;
++                    }
++                }
++            }
+             if (required) { t->reference=reference; atomic_fetch_add(&reference->remaining,1); }
++            if (required || (t->referenceIdentity && !t->externalOnly)) [referenceTasks addObject:t];
++            else if (t->drawRank && t->drawWait) [foreground addObject:t];
++            else if (priority.count < RB_PSO_HOT_LIMIT && [hot containsObject:line]) [priority addObject:t];
++            else [tasks addObject:t];
+             n++;
+         }
+         if (reference && !atomic_load(&reference->remaining)) rb_ref_abort();
+     }
++    [foreground sortUsingComparator:^NSComparisonResult(WarmTask *a,WarmTask *b){
++        if (a->drawRank!=b->drawRank) return a->drawRank>b->drawRank ? NSOrderedAscending : NSOrderedDescending;
++        if (a->drawWait!=b->drawWait) return a->drawWait>b->drawWait ? NSOrderedAscending : NSOrderedDescending;
++        return [a->vkey compare:b->vkey];
++    }];
++    NSUInteger startup=MIN(foreground.count,(NSUInteger)RB_PSO_HOT_LIMIT);
++    [referenceTasks addObjectsFromArray:[foreground subarrayWithRange:NSMakeRange(0,startup)]];
++    [tasks addObjectsFromArray:[foreground subarrayWithRange:NSMakeRange(startup,foreground.count-startup)]];
+     *lines = n;
++    if (history.count) MLOG("RewindBox cup pipeline history: %lu exact recipes, %lu previous waits scheduled ahead of the generic list",
++        (unsigned long)history.count,(unsigned long)startup);
+     if (hot.count) MLOG("RewindBox (patch 0109): prewarm promoted %lu previously slow pipelines from %lu recorded priorities",
+                         (unsigned long)priority.count, (unsigned long)hot.count);
+     if (referenceTasks.count) {
+@@ -12666,13 +12727,6 @@ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines)
+ //   加载页到点放行时只编到第 5341 行，场景第一帧整个 G-buffer 都是新开的目标（不能跳），13 条管线排在后台队列里没编到，提交线程干等，最长一条 2714 ms。
+ //   游戏读档装载场景时先登记着色器程序（ProgramSetShaders，见上面 prog 登记处）、几秒后才画第一帧：登记那一刻按（顶点键，片元键）在清单里查到这对的 R 行，
+ //   放进急件队列；工人领下一行时先领急件（warm_pick）。每行一个「已领」标记，急件和顺序两条路谁先领谁编，不重复编；在编的同键首遇照旧由 par_render 在途合并
+-static os_unfair_lock g_wu_lock = OS_UNFAIR_LOCK_INIT;
+-static NSDictionary<NSString *, NSArray<NSNumber *> *> *g_wu_pairs;   // "顶点键|片元键" → R 行下标；nil = 当前没有在跑的预热
+-static NSMutableArray<NSNumber *> *g_wu_q;                             // 急件下标（先进先出）
+-static _Atomic(uint8_t) *g_wu_claim; static long g_wu_n;                // 每行「已领」标记
+-static _Atomic long g_wu_remaining;
+-static _Atomic uint64_t g_wu_bumped, g_wu_taken;                        // 放进急件的行数 / 由急件路领走编的行数
+-#include "rb_pso_transitions.inc"
+ static _Atomic long g_ref_late_rows[2];
+ static _Atomic unsigned g_ref_late_live, g_ref_late_hints;
+ static void rb_ref_stage_hint(const char *raw) {
+@@ -12692,7 +12746,15 @@ static long rb_ref_take_hint(void) {
+ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
+     NSMutableDictionary<NSString *, NSMutableArray<NSNumber *> *> *m = [NSMutableDictionary dictionary];
+     long lateRows[2]={0,0}, cupRows[128]={0};
+-    for (NSUInteger i = 0; i < tasks.count; i++) { WarmTask *t = tasks[i]; if (t->kind != 1) continue;
++    NSMutableDictionary<NSString *,NSMutableArray<NSNumber *> *> *routes=[NSMutableDictionary dictionary];
++    for (NSUInteger i = 0; i < tasks.count; i++) {
++        WarmTask *t=tasks[i];
++        if (t->drawCue.length && ![t->drawCue hasSuffix:@"_asset"] && t->drawWait) {
++            NSMutableArray *rows=routes[t->drawCue];
++            if (!rows) routes[t->drawCue]=rows=[NSMutableArray array];
++            if (rows.count<16) [rows addObject:@(i+1)];
++        }
++        if (t->kind != 1) continue;
+         if (t->cupRank && t->cupRank<=128) cupRows[t->cupRank-1]=(long)i+1;
+         if ([t->fkey isEqual:@"eb4884ca0964a92f_b"]) for (int slot=0;slot<2;++slot) {
+             if (strncmp(t->vkey.UTF8String,rb_ref_late_vs[slot],16)) continue;
+@@ -12704,6 +12766,7 @@ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
+     _Atomic(uint8_t) *c = calloc(tasks.count ? tasks.count : 1, sizeof *c);
+     os_unfair_lock_lock(&g_wu_lock); free((void *)g_wu_claim); g_wu_claim = c; g_wu_n = (long)tasks.count; atomic_store(&g_wu_remaining, g_wu_n); g_wu_pairs = c ? m : nil; g_wu_q = [NSMutableArray array];
+     memcpy(g_course_starters,cupRows,sizeof cupRows);
++    g_rb_draw_route_rows=routes; rb_draw_route_locked();
+     rb_course_rows_locked(nil);
+     g_rb_follow_rows = nil; atomic_store(&g_rb_next_row, 0);
+     atomic_store(&g_ref_late_rows[0],lateRows[0]); atomic_store(&g_ref_late_rows[1],lateRows[1]);
+@@ -12711,7 +12774,7 @@ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
+     os_unfair_lock_unlock(&g_wu_lock);
+     if (c) rb_trace_index(tasks, m);
+ }
+-static void warm_urgent_end(void) { os_unfair_lock_lock(&g_wu_lock); memset(g_course_starters,0,sizeof g_course_starters); rb_course_rows_locked(nil); g_wu_pairs = nil; atomic_store(&g_ref_late_live,0); atomic_store(&g_ref_late_hints,0); [g_wu_q removeAllObjects]; os_unfair_lock_unlock(&g_wu_lock); }   // 标记数组留给还没退出的工人读（随下一次索引换掉）
++static void warm_urgent_end(void) { os_unfair_lock_lock(&g_wu_lock); memset(g_course_starters,0,sizeof g_course_starters); g_rb_draw_route_rows=nil; rb_draw_route_locked(); rb_course_rows_locked(nil); g_wu_pairs = nil; atomic_store(&g_ref_late_live,0); atomic_store(&g_ref_late_hints,0); [g_wu_q removeAllObjects]; os_unfair_lock_unlock(&g_wu_lock); }   // 标记数组留给还没退出的工人读（随下一次索引换掉）
+ // 工人领下一行：先急件，再按清单顺序；已领的跳过。→ 下标，-1 = 没有了
+ // RewindBox (patch 0121): w, the background worker's index (-1: the prepare step's workers, the first frame waits on them, never held): a sequential row waits for the
+ //   speculative level (rb_spec_may); a row moved to the front by a program the game registered (warm_bump) is taken whatever the level
+@@ -12738,7 +12801,8 @@ static long warm_pick(_Atomic long *next, long n, int w, int *lease) {
+         }
+         long routeHint=0;
+         if (!urgent && w>=0 && !atomic_load(&g_fu_waiting)) {
+-            routeHint=rb_course_take_hint();
++            routeHint=rb_draw_route_take();
++            if (!routeHint) routeHint=rb_course_take_hint();
+             if (!routeHint) routeHint=rb_ref_take_hint();
+         }
+         long hint=routeHint ? routeHint : (!urgent && w>=0 ? atomic_exchange(&g_rb_next_row,0) : 0);
+@@ -12866,6 +12930,10 @@ static void warm_task_(WarmTask *t) {
+             if (!ps) { MLOG("【红】 background render pipeline creation failed: %s", e.localizedDescription.UTF8String); continue; }
+             WarmItem *item = [WarmItem new]; item->kind = 1; item->transition = g_rb_picked_hint; item->vs_key = t->vkey; item->fs_key = t->fkey; item->vs = vs; item->fs = fs; item->fsfn = fsfn; item->pso = k; item->object = ps;
+             if (rb_ref_pipeline(t->reference,akey,descriptor) || (!t->externalOnly && [akey isEqual:t->referenceIdentity])) item->referenceKey=akey;
++            if (rb_course_exact()) {
++                pso_skey drawRecipe; pso_skey_from(&k,vs,fs,sk.merged,sk.fz ? &sk.fz_desc : NULL,&drawRecipe);
++                item->drawRecipe=[NSData dataWithBytes:&drawRecipe length:sizeof drawRecipe];
++            }
+             warm_enqueue(item); g_warm_rps++;
+         }
+     }
+@@ -18619,6 +18687,7 @@ static void warm_claim(void) {
+         } else if (item->kind == 1) {
+             if (!hm_get_id(&g_pso, &item->pso)) {
+                 hm_put_id(&g_pso, &item->pso, item->object); g_warm_claim_rps++;
++                if (item->drawRecipe) rb_draw_remember(item->object,item->drawRecipe.bytes,NULL,0,0,YES);
+                 if (item->referenceKey) {
+                     const void *raw=(__bridge const void *)item->object;
+                     hm_put_id(&g_rb_seed_objects,&raw,item->referenceKey);
+diff --git a/graphics/nvn/gfx/nvn/rb_course_tracking.inc b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
+index d96df5e..739bb77 100644
+--- a/graphics/nvn/gfx/nvn/rb_course_tracking.inc
++++ b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
+@@ -139,6 +139,8 @@ static void rb_course_bound(id ps) {
+     }
+     os_unfair_lock_unlock(&g_wu_lock);
+ }
++static void rb_draw_cue_locked(uint64_t frame,BOOL transition);
++static void rb_draw_frame(uint64_t frame);
+ static const char *rb_course_bucket_name(unsigned bucket) {
+     if (bucket == 0) return "unknown";
+     if (bucket == 1) return "selection_asset";
+@@ -172,10 +174,12 @@ void nvn_rb_course_frame(uint64_t frame,uint64_t ns,double upload,double upload_
+             atomic_store(&g_course_capture,slot>=0 && !g_course_live.course[slot].key[RB_COURSE_KEYS-1]);
+             rb_course_hints_locked();
+         }
++        if (cue!=RB_COURSE_IGNORE) rb_draw_cue_locked(frame,slot!=prev);
+         os_unfair_lock_unlock(&g_wu_lock);
+     }
+     if (atomic_load_explicit(&g_course_capture,memory_order_relaxed) && ++g_course_frames>=120)
+         atomic_store(&g_course_capture,0);
++    rb_draw_frame(frame);
+     // The interval spans the boundary. Never charge it to either named course.
+     int attributed=slot!=prev ? RB_COURSE_UNKNOWN : slot;
+     unsigned bucket=attributed>=0 ? (unsigned)attributed+3 : (unsigned)(-attributed-1);
+diff --git a/graphics/nvn/gfx/nvn/rb_draw_history.inc b/graphics/nvn/gfx/nvn/rb_draw_history.inc
+new file mode 100644
+index 0000000..cc42ecc
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_draw_history.inc
+@@ -0,0 +1,233 @@
++// Cup profile observations are separate from the sealed configuration and from
++// render caches. Only an encoded Metal draw publishes a replayable recipe.
++enum { RB_DRAW_VERSION=1, RB_DRAW_LIMIT=16384, RB_DRAW_BATCH=192, RB_DRAW_FLUSH_FRAMES=120, RB_DRAW_CUE_FRAMES=600 };
++typedef struct {
++    pso_skey recipe;
++    char task[24]; // Empty for a vertex pipeline, "-" for mesh without a task.
++    uint32_t pad;
++    uint64_t wait_ns, frame;
++    uuid_t session;
++    char cue[RB_COURSE_NAME];
++    uint8_t prepared, phase; // 1: startup, 0: phase unavailable.
++} rb_draw_record;
++typedef struct {
++    rb_draw_record first, preferred;
++} rb_draw_history_entry;
++
++static os_unfair_lock g_rb_draw_batch_lock=OS_UNFAIR_LOCK_INIT;
++static NSMutableArray<NSData *> *g_rb_draw_batch; // submit and present may differ
++// Trace I/O queue. Keep failed checkpoints by path until they can be retried.
++static NSMutableDictionary<NSString *,NSMutableDictionary<NSString *,NSData *> *> *g_rb_draw_unsaved;
++static uuid_t g_rb_draw_session;
++static uint64_t g_rb_draw_cue_frame;
++static BOOL g_rb_draw_first_saved;
++static NSDictionary<NSString *,NSData *> *g_rb_draw_loaded;
++static NSString *g_rb_draw_loaded_path;
++
++
++static dispatch_queue_t rb_draw_io(void) {
++    static dispatch_queue_t queue;
++    static dispatch_once_t once;
++    dispatch_once(&once,^{
++        queue=dispatch_queue_create("rewindbox.pso-draw-history",
++            dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,s2a_qos(S2A_QOS_IO_BG),0));
++    });
++    return queue;
++}
++static NSString *rb_draw_path(void) {
++    return [pso_user_path() stringByAppendingString:@".draws-v1"];
++}
++static NSString *rb_draw_line(const rb_draw_record *record) {
++    char hex[sizeof(record->recipe)*2+1];
++    pso_skey_hex(&record->recipe,hex);
++    if (*record->task) return [NSString stringWithFormat:@"M\t%s\t%s\t%x",hex,record->task,record->pad];
++    return [NSString stringWithFormat:@"R\t%s",hex];
++}
++static BOOL rb_draw_valid(const rb_draw_record *r) {
++    const char *end=memchr(r->cue,0,sizeof r->cue);
++    const char *task=memchr(r->task,0,sizeof r->task);
++    if (!end || !task || !r->recipe.vs[0] || !memchr(r->recipe.vs,0,sizeof r->recipe.vs) ||
++        !memchr(r->recipe.fs,0,sizeof r->recipe.fs) ||
++        (end!=r->cue && !rb_course_token(r->cue,end-r->cue)) ||
++        (task!=r->task && !rb_course_token(r->task,task-r->task))) return NO;
++    if (r->recipe.merged || r->recipe.fz) {
++        if (*r->task || !r->recipe.merged || !r->recipe.fz || r->recipe.fz_desc.kind!=1) return NO;
++    }
++    return !r->recipe.k.vs && !r->recipe.k.fs && !r->recipe.k.fsfn && r->prepared<=1 && r->phase<=1;
++}
++static unsigned rb_draw_rank(const rb_draw_record *r) {
++    if (!strcmp(r->cue,"selection_asset")) return 3;
++    if (!strcmp(r->cue,"race_sequence_asset")) return 2;
++    return r->phase==1;
++}
++static BOOL rb_draw_preferred(const rb_draw_record *a,const rb_draw_record *b) {
++    unsigned lhs=rb_draw_rank(a),rhs=rb_draw_rank(b);
++    if (lhs!=rhs) return lhs>rhs;
++    if (a->wait_ns!=b->wait_ns) return a->wait_ns>b->wait_ns;
++    return !*b->cue && *a->cue;
++}
++// Called only off the submit thread. An unreadable established file is left
++// intact and retried, so a storage failure cannot erase earlier discoveries.
++static NSDictionary<NSString *,NSData *> *rb_draw_read(NSString *path) {
++    NSMutableDictionary *out=[NSMutableDictionary dictionary];
++    if (!path) return out;
++    FILE *f=fopen(path.fileSystemRepresentation,"rb");
++    if (!f) return errno==ENOENT ? out : nil;
++    const uint64_t expected[]={0x5242574244524157ull,RB_DRAW_VERSION,sizeof(rb_draw_history_entry)};
++    uint64_t header[3];
++    BOOL ok=fread(header,sizeof header,1,f)==1 && !memcmp(header,expected,sizeof header);
++    rb_draw_history_entry entry;
++    while (ok) {
++        size_t n=fread(&entry,1,sizeof entry,f);
++        if (!n) { ok=feof(f) && !ferror(f); break; }
++        if (n!=sizeof entry || out.count>=RB_DRAW_LIMIT) { ok=NO; break; }
++        if (!rb_draw_valid(&entry.first) || !rb_draw_valid(&entry.preferred) ||
++            memcmp(&entry.first.recipe,&entry.preferred.recipe,sizeof entry.first.recipe) ||
++            strcmp(entry.first.task,entry.preferred.task) || entry.first.pad!=entry.preferred.pad) continue;
++        out[rb_draw_line(&entry.first)]=[NSData dataWithBytes:&entry length:sizeof entry];
++    }
++    fclose(f);
++    return ok ? out : nil;
++}
++static void rb_draw_merge(NSMutableDictionary<NSString *,NSData *> *out,NSString *line,const rb_draw_record *r) {
++    NSData *old=out[line];
++    rb_draw_history_entry entry;
++    if (old) {
++        [old getBytes:&entry length:sizeof entry];
++        if (!rb_draw_preferred(r,&entry.preferred)) return;
++        entry.preferred=*r;
++    } else {
++        if (out.count>=RB_DRAW_LIMIT) return;
++        entry=(rb_draw_history_entry){.first=*r,.preferred=*r};
++    }
++    out[line]=[NSData dataWithBytes:&entry length:sizeof entry];
++}
++static void rb_draw_write(NSString *path,NSArray<NSData *> *batch) {
++    if (!path) return;
++    if (!g_rb_draw_unsaved) g_rb_draw_unsaved=[NSMutableDictionary dictionary];
++    NSMutableDictionary *pending=g_rb_draw_unsaved[path];
++    if (!pending) pending=g_rb_draw_unsaved[path]=[NSMutableDictionary dictionary];
++    for (NSData *data in batch) {
++        const rb_draw_record *r=data.bytes;
++        if (!rb_draw_valid(r)) continue;
++        NSString *line=rb_draw_line(r);
++        rb_draw_merge(pending,line,r);
++        uuid_string_t session; uuid_unparse_lower(r->session,session);
++        NSString *identity=par_hash(&r->recipe,sizeof r->recipe);
++        MLOG("RewindBox cup pipeline first draw frame=%llu key=%s session=%s kind=%s shader_a=%s shader_b=%s task=%s phase=%s course=unknown hint=%s wait_ns=%llu source=%s",
++            (unsigned long long)r->frame,identity.UTF8String,session,*r->task?"mesh":"render",r->recipe.vs,r->recipe.fs,r->task,
++            r->phase?"startup":"unknown",*r->cue?r->cue:"unknown",(unsigned long long)r->wait_ns,r->prepared?"prepared":"demand");
++    }
++    if (!pending.count) return;
++    NSDictionary *previous=[g_rb_draw_loaded_path isEqual:path] ? g_rb_draw_loaded : nil;
++    if (!previous) previous=rb_draw_read(path);
++    if (!previous) {
++        MLOG("RewindBox cup pipeline history: previous checkpoint unavailable; observed variants retained in memory");
++        return;
++    }
++    NSMutableDictionary *merged=[previous mutableCopy];
++    [pending enumerateKeysAndObjectsUsingBlock:^(NSString *line,NSData *data,BOOL *stop){
++        (void)stop;
++        const rb_draw_history_entry *entry=data.bytes;
++        rb_draw_merge(merged,line,&entry->first);
++        rb_draw_merge(merged,line,&entry->preferred);
++    }];
++    if ([merged isEqual:previous]) { [g_rb_draw_unsaved removeObjectForKey:path]; return; }
++    const uint64_t header[]={0x5242574244524157ull,RB_DRAW_VERSION,sizeof(rb_draw_history_entry)};
++    NSMutableData *output=[NSMutableData dataWithCapacity:sizeof header+merged.count*sizeof(rb_draw_history_entry)];
++    [output appendBytes:header length:sizeof header];
++    for (NSData *data in merged.objectEnumerator) [output appendData:data];
++    if ([output writeToFile:path options:NSDataWritingAtomic error:nil]) {
++        g_rb_draw_loaded_path=path; g_rb_draw_loaded=merged;
++        [g_rb_draw_unsaved removeObjectForKey:path];
++    } else {
++        MLOG("RewindBox cup pipeline history: checkpoint write deferred");
++    }
++}
++static NSDictionary<NSString *,NSData *> *rb_draw_warm_history(void) {
++    if (!rb_course_enabled()) return nil;
++    if (!rb_draw_path()) return nil;
++    return rb_draw_read(rb_draw_path());
++}
++static void rb_draw_flush(BOOL drain) {
++    NSString *path=rb_draw_path();
++    if (!path) return;
++    os_unfair_lock_lock(&g_rb_draw_batch_lock);
++    NSArray<NSData *> *batch=g_rb_draw_batch;
++    g_rb_draw_batch=nil;
++    os_unfair_lock_unlock(&g_rb_draw_batch_lock);
++    if (!batch.count && !drain) return;
++    void (^write)(void)=^{ @autoreleasepool { rb_draw_write(path,batch); } };
++    if (drain) dispatch_sync(rb_draw_io(),write);
++    else dispatch_async(rb_draw_io(),write);
++}
++static BOOL rb_draw_remember(id ps,const pso_skey *recipe,const char *task,uint32_t pad,uint64_t wait,BOOL prepared) {
++    if (!rb_course_exact() || !ps || !recipe->vs[0]) return NO;
++    if ((recipe->merged || recipe->fz) && (task || !recipe->merged || !recipe->fz || recipe->fz_desc.kind!=1)) return NO;
++    const void *raw=(__bridge const void *)ps;
++    if (hm_get_id(&g_rb_draw_candidates,&raw)) return YES;
++    rb_draw_record record={.recipe=*recipe,.pad=pad,.wait_ns=wait,.prepared=prepared};
++    if (task) snprintf(record.task,sizeof record.task,"%s",task);
++    hm_put_id(&g_rb_draw_candidates,&raw,[NSMutableData dataWithBytes:&record length:sizeof record]);
++    return YES;
++}
++static void rb_draw_encoded(id encoder) {
++    if (!t_rb_draw_pipeline || t_rb_draw_encoder!=(__bridge const void *)encoder) return;
++    const void *raw=t_rb_draw_pipeline;
++    t_rb_draw_pipeline=NULL;
++    NSMutableData *data=CFBridgingRelease(nvn_hm_del(&g_rb_draw_candidates,&raw));
++    if (!data) return;
++    rb_draw_record *record=data.mutableBytes;
++    record->frame=atomic_load_explicit(&g_cur_frame,memory_order_relaxed);
++    record->phase=record->frame==0;
++    if (uuid_is_null(g_rb_draw_session)) uuid_generate_random(g_rb_draw_session);
++    memcpy(record->session,g_rb_draw_session,sizeof record->session);
++    os_unfair_lock_lock(&g_wu_lock);
++    if (record->frame>=g_rb_draw_cue_frame && record->frame-g_rb_draw_cue_frame<RB_DRAW_CUE_FRAMES) {
++        if (g_course_current==RB_COURSE_MENU) memcpy(record->cue,"selection_asset",sizeof "selection_asset");
++        if (g_course_current==RB_COURSE_SEQUENCE) memcpy(record->cue,"race_sequence_asset",sizeof "race_sequence_asset");
++        if (g_course_current>=0) memcpy(record->cue,g_course_live.course[g_course_current].name,sizeof record->cue);
++    }
++    os_unfair_lock_unlock(&g_wu_lock);
++    os_unfair_lock_lock(&g_rb_draw_batch_lock);
++    if (!g_rb_draw_batch) g_rb_draw_batch=[NSMutableArray array];
++    [g_rb_draw_batch addObject:data];
++    BOOL full=g_rb_draw_batch.count>=RB_DRAW_BATCH;
++    os_unfair_lock_unlock(&g_rb_draw_batch_lock);
++    if (full || !g_rb_draw_first_saved) { g_rb_draw_first_saved=YES; rb_draw_flush(NO); }
++}
++static NSDictionary<NSString *,NSArray<NSNumber *> *> *g_rb_draw_route_rows;
++static NSArray<NSNumber *> *g_rb_draw_route;
++static NSUInteger g_rb_draw_route_next;
++static _Atomic int g_rb_draw_route_pending;
++static void rb_draw_route_locked(void) {
++    g_rb_draw_route=g_course_current>=0 ? g_rb_draw_route_rows[@(g_course_live.course[g_course_current].name)] : nil;
++    g_rb_draw_route_next=0;
++    atomic_store(&g_rb_draw_route_pending,g_rb_draw_route.count!=0);
++}
++static void rb_draw_cue_locked(uint64_t frame,BOOL transition) {
++    g_rb_draw_cue_frame=frame;
++    if (transition) rb_draw_route_locked();
++}
++static long rb_draw_route_take(void) {
++    if (!atomic_load_explicit(&g_rb_draw_route_pending,memory_order_relaxed)) return 0;
++    os_unfair_lock_lock(&g_wu_lock);
++    long row=0;
++    while (g_rb_draw_route_next<g_rb_draw_route.count) {
++        long next=g_rb_draw_route[g_rb_draw_route_next++].longValue;
++        if (g_wu_claim && next<=g_wu_n && atomic_load(&g_wu_claim[next-1])==RB_ROW_FREE) { row=next; break; }
++    }
++    atomic_store(&g_rb_draw_route_pending,g_rb_draw_route_next<g_rb_draw_route.count);
++    os_unfair_lock_unlock(&g_wu_lock);
++    return row;
++}
++static void rb_draw_frame(uint64_t frame) {
++    if (rb_course_exact() && !(frame%RB_DRAW_FLUSH_FRAMES)) rb_draw_flush(NO);
++}
++static void rb_draw_end(void) {
++    if (atomic_load_explicit(&g_course_exact,memory_order_relaxed)) rb_draw_flush(YES);
++    nvn_hm_clear(&g_rb_draw_candidates,hm_rel);
++    uuid_clear(g_rb_draw_session);
++    g_rb_draw_first_saved=NO;
++    g_rb_draw_cue_frame=0;
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_pso_transitions.inc b/graphics/nvn/gfx/nvn/rb_pso_transitions.inc
+index c8c2389..cd318f2 100644
+--- a/graphics/nvn/gfx/nvn/rb_pso_transitions.inc
++++ b/graphics/nvn/gfx/nvn/rb_pso_transitions.inc
+@@ -99,6 +99,7 @@ static RBPipelineTrace *g_rb_submit_trace;
+ static int g_rb_submit_initialized;
+
+ #include "rb_course_tracking.inc"
++#include "rb_draw_history.inc"
+ static void rb_trace_scan(NSArray<WarmTask *> *tasks, NSDictionary *epoch, NSDictionary *targets,
+                           NSMutableDictionary *rows, NSSet *courseKeys, NSMutableDictionary *courseRows, NSUInteger offset) {
+     os_unfair_lock_lock(&g_wu_lock);
+@@ -186,6 +187,7 @@ static void rb_trace_used(id ps, const pso_key *k, NvShader *vs, NvShader *fs) {
+ }
+ static void rb_trace_end(void) {
+     // Submit and warm workers are drained by the caller.
++    rb_draw_end();
+     rb_course_end();
+     rb_trace_save(g_rb_submit_trace, 1);
+     if (g_rb_submit_trace)

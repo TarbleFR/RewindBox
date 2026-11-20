@@ -43,11 +43,11 @@ int main(void) { @autoreleasepool {
   }
   [retry consume]; // consumed before the first call to guest configure
   CHECK([retry engineForGame:gid paths:launchPaths] == NULL);
-  // Reopen a partially verified 795 generation whose sole up-to-date personal
+  // Reopen a partially verified 796 generation whose sole up-to-date personal
   // manifest and shaders live in the pending slot, never promoted to active.
   NSString *upgradeDir = child(NSTemporaryDirectory(), NSUUID.UUID.UUIDString);
   NSDictionary *oldIdentity = @{@"gid":gid,@"build":build,@"content":@"same-content",@"chain":chain,
-                               @"hardware":@"same-device",@"osBuild":@"same-os",@"revision":@1};
+                               @"hardware":@"same-device",@"osBuild":@"same-os",@"revision":@2};
   NSData *serialized = [NSJSONSerialization dataWithJSONObject:oldIdentity options:NSJSONWritingSortedKeys error:NULL];
   unsigned char sum[CC_SHA256_DIGEST_LENGTH]; CC_SHA256(serialized.bytes,(CC_LONG)serialized.length,sum);
   NSMutableString *oldSlot = [NSMutableString string];
@@ -55,18 +55,20 @@ int main(void) { @autoreleasepool {
   [oldSlot appendFormat:@".%@",NSUUID.UUID.UUIDString];
   NSString *oldWire = child(child(upgradeDir,@"graphics"),oldSlot);
   put(oldWire,@".seeded.json",[[NSString alloc] initWithData:serialized encoding:NSUTF8StringEncoding]);
-  put(oldWire,@"pso_user.tsv",@"795 raced here");
-  put(oldWire,@"shaders/only-in-795.in",@"learned while incomplete");
-  NSDictionary *pending795=@{@"identity":oldIdentity,@"slot":oldSlot};
-  put(upgradeDir,@"graphics/pending.json",[[NSString alloc] initWithData:[NSJSONSerialization dataWithJSONObject:pending795 options:0 error:NULL] encoding:NSUTF8StringEncoding]);
+  put(oldWire,@"pso_user.tsv",@"796 raced here");
+  put(oldWire,@"shaders/only-in-796.in",@"learned while incomplete");
+  put(oldWire,@"stage-index-external-v1-example.tsv",@"796 scan checkpoint");
+  NSDictionary *pending796=@{@"identity":oldIdentity,@"slot":oldSlot};
+  put(upgradeDir,@"graphics/pending.json",[[NSString alloc] initWithData:[NSJSONSerialization dataWithJSONObject:pending796 options:0 error:NULL] encoding:NSUTF8StringEncoding]);
   S2ArmGraphicsGeneration *migration=plan(upgradeDir);
   CHECK(!migration.active && ![oldWire isEqual:migration.wire]);
   CHECK(![migration stage:^BOOL{ return YES; } progress:^(NSUInteger n){ (void)n; } error:NULL]);
   S2ArmGraphicsGeneration *again=plan(upgradeDir);
   CHECK([again.wire isEqual:migration.wire] && stage(again));
-  CHECK([readText(again.wire,@"pso_user.tsv") isEqual:@"795 raced here"]);
-  CHECK([readText(again.wire,@"shaders/only-in-795.in") isEqual:@"learned while incomplete"]);
-  CHECK([readText(oldWire,@"pso_user.tsv") isEqual:@"795 raced here"]);
+  CHECK([readText(again.wire,@"pso_user.tsv") isEqual:@"796 raced here"]);
+  CHECK([readText(again.wire,@"shaders/only-in-796.in") isEqual:@"learned while incomplete"]);
+  CHECK([readText(again.wire,@"stage-index-external-v1-example.tsv") isEqual:@"796 scan checkpoint"]);
+  CHECK([readText(oldWire,@"pso_user.tsv") isEqual:@"796 raced here"]);
   [NSFileManager.defaultManager removeItemAtPath:upgradeDir error:NULL];
   NSString *library = child(NSTemporaryDirectory(), NSUUID.UUID.UUIDString);
   NSString *dir = child(library,gid);

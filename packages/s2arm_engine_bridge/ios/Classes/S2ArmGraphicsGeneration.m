@@ -10,7 +10,7 @@
 #import <unistd.h>
 
 // Independent of the IPA, the CPU import format, and the engine producer run.
-static const NSUInteger kMarioKartGraphicsRevision = 2;
+static const NSUInteger kMarioKartGraphicsRevision = 3;
 static NSString *const kKart = @"0400C3F00006E000";
 static NSString *const kKartBuild = @"9e244438c3d8ef1c703a6a85ef99c4f0";
 
@@ -151,8 +151,8 @@ static BOOL genID(id value) {
   // phase finds exactly this work (even if an older receipt remains active).
   NSDictionary *pending = json([_base stringByAppendingPathComponent:@"pending.json"]);
   NSString *candidate = pending[@"slot"];
-  // A 795 that finished its CPU scan but failed 30/32 stored subsequent
-  // gameplay in the pending slot. Keep that learned history across the upgrade,
+  // A previous version can store gameplay in a seeded, uncommitted slot.
+  // Keep that learned history across the upgrade,
   // including a restart half-way through cloning it into the new generation.
   NSString *seed = [pending[@"identity"] isEqual:_identity] ? pending[@"seedSlot"] : candidate;
   if (safeLeaf(seed)) {
@@ -188,8 +188,11 @@ static BOOL genID(id value) {
   NSArray *roots = hasSource ? [fm contentsOfDirectoryAtPath:_source error:error] : nil;
   if (hasSource && !roots) return NO;
   for (NSString *name in roots) {
+    BOOL stageIndex = [name isEqual:@"stage-index-v1.tsv"] ||
+                      ([name hasPrefix:@"stage-index-external-v1-"] && [name hasSuffix:@".tsv"]);
+    BOOL stageProducts = [name isEqual:@"priority-stages-v1"];
     if (!([name isEqual:@"shaders"] || [name isEqual:@"pipelines"] || [name isEqual:@"pso_user.tsv"] ||
-          [name hasPrefix:@"pso_user.tsv."])) continue;
+          [name hasPrefix:@"pso_user.tsv."] || stageIndex || stageProducts)) continue;
     NSMutableArray *todo = [NSMutableArray arrayWithObject:name];
     while (todo.count) {
       if (cancel()) return problem(error, @"Graphics preparation interrupted.");
@@ -201,7 +204,8 @@ static BOOL genID(id value) {
       if (S_ISDIR(st.st_mode)) {
         if (![fm createDirectoryAtPath:dest withIntermediateDirectories:YES attributes:nil error:error]) return NO;
         NSArray *entries = [fm contentsOfDirectoryAtPath:src error:error]; if (!entries) return NO;
-        for (NSString *entry in entries) if (safeLeaf(entry) && ![entry hasSuffix:@".tmp"])
+        for (NSString *entry in entries) if (safeLeaf(entry) && ![entry hasSuffix:@".tmp"] &&
+                                            !(stageProducts && [entry hasSuffix:@".work"]))
           [todo addObject:[relative stringByAppendingPathComponent:entry]];
       } else if (S_ISREG(st.st_mode)) {
         // A leaf is published by rename only after its clone/copy completes.

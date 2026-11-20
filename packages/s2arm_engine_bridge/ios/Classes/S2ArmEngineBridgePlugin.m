@@ -557,6 +557,7 @@ static NSString *S2ArmEnginePath(void) {
   }
   if (self.graphicsGeneration) {
     self.graphicsSession = NSUUID.UUID.UUIDString;
+    setenv("S2A_RB_CUP_SESSION", self.graphicsSession.UTF8String, 1);
     S2ArmExportGraphicsEvidence(self.graphicsGeneration, self.graphicsSession, self.graphicsReady ? @"reused" : @"resumed");
   }
   if (self.graphicsGeneration && self.graphicsReady) {
@@ -792,6 +793,7 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
     if (![generation.gid isEqual:gid] || ![generation.gameDir isEqual:docs.stringByDeletingLastPathComponent])
       return launchFail(S2ArmErrorPrepareFailed, @"graphics", @"The planned graphics generation belongs to another game.");
     self.graphicsSession = NSUUID.UUID.UUIDString;
+    setenv("S2A_RB_CUP_SESSION", self.graphicsSession.UTF8String, 1);
     S2ArmExportGraphicsEvidence(generation, self.graphicsSession, pendingGPU ? @"starting" : @"reused");
     if (pendingGPU) {
       s2arm_graphics_prepare_fn prepare = (s2arm_graphics_prepare_fn)dlsym(engine, S2ARM_GRAPHICS_PREPARE);

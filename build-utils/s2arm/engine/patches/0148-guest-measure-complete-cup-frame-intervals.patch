@@ -1,0 +1,453 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 18c367c..9e16ef8 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -43,6 +43,8 @@
+ #include <sys/resource.h>
+ #include <sys/sysctl.h>
+ #include <mach/thread_policy.h>
++#include <mach/host_info.h>
++#include <mach/mach_host.h>
+ #include <assert.h>
+ #include <stdatomic.h>
+ #include <mach-o/getsect.h>
+@@ -2901,8 +2903,29 @@ void nvn_hle_queue_enter(void *q) {
+ }
+ void nvn_hle_piece_begun(void) { nvn_ft_poll(); }
+ #include "rb_submit_gap.h"
+-extern void nvn_rb_course_frame(uint64_t frame, uint64_t ns, double texture_ms, double gpu_upload_ms, double xlate_ms,
+-                                double xwait_ms, unsigned msl_n, double msl_ms) __attribute__((weak_import));
++#include "rb_course_metrics.h"
++extern int s2a_rb_mkw_measure(void) __attribute__((weak_import));
++extern void s2a_rb_mkw_reads_take(uint64_t out[3]) __attribute__((weak_import));
++extern uint64_t s2a_rb_mkw_wait_take(void) __attribute__((weak_import));
++extern uint64_t nvn_rb_upload_gpu_sample(uint64_t *,uint64_t *) __attribute__((weak_import));
++extern void nvn_rb_course_frame_observed(uint64_t frame, uint64_t ns, double texture_ms, double gpu_upload_ms,
++                                         double xlate_ms, double xwait_ms, unsigned msl_n, double msl_ms,
++                                         const rb_course_detail *) __attribute__((weak_import));
++// The kernel reports decompression across the device, not time in a guest codec.
++static int64_t rb_vm_decompressions(void) {
++    static uint64_t previous;
++    static int available;
++    vm_statistics64_data_t vm;
++    mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
++    mach_port_t host = mach_host_self();
++    kern_return_t result = host_statistics64(host,HOST_VM_INFO64,(host_info64_t)&vm,&count);
++    mach_port_deallocate(mach_task_self(),host);
++    if (result != KERN_SUCCESS) { available = 0; return -1; }
++    int64_t delta = available && vm.decompressions >= previous ? (int64_t)(vm.decompressions-previous) : -1;
++    previous = vm.decompressions;
++    available = 1;
++    return delta;
++}
+ static pthread_mutex_t rb_gap_lock = PTHREAD_MUTEX_INITIALIZER;
+ static rb_gap_clock rb_calls;
+ static rb_frame_window rb_intervals;
+@@ -3899,8 +3922,12 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+         double rb_mp_ms = (mn_ - pmn) / 1e6;   // RewindBox (patch 0065): for the long-frame line
+         trow(f, "@mprotect_calls", (double)(mc_ - pmc)); trow(f, "@mprotect_pages", (double)(mpg_ - pmp)); trow(f, "@mprotect_ms", (mn_ - pmn) / 1e6); pmc = mc_; pmp = mpg_; pmn = mn_;
+         double up_ms = nvn_be_upload_ns_take() / 1e6; trow(f, "@upload_ms", up_ms);
+-        double rb_upload_gpu_ms=nvn_be_upload_gpu_ns_take()/1e6;
+-        trow(f, "@upload_gpu_ms", rb_upload_gpu_ms);
++        rb_course_detail detail = {.guest_wait_ns = -1,.vm_decompressed_pages = -1};
++        uint64_t gpu_upload_ns = nvn_rb_upload_gpu_sample
++            ? nvn_rb_upload_gpu_sample(&detail.gpu_valid,&detail.gpu_unavailable)
++            : nvn_be_upload_gpu_ns_take();
++        double rb_upload_gpu_ms = gpu_upload_ns / 1e6;
++        trow(f, "@upload_gpu_ms", !detail.gpu_valid && detail.gpu_unavailable ? -1 : rb_upload_gpu_ms);
+         // Accounting: number of synchronous creations on the submit thread this frame + a timestamp on the same clock as UIMSG (offline, frames are split into front end / loading / in-run by the loading screen intervals)
+         static uint64_t plib, ppso; uint64_t lib_, pso_; nvn_be_create_stats(&lib_, &pso_);
+         trow(f, "@lib_new", (double)(lib_ - plib)); trow(f, "@pso_new", (double)(pso_ - ppso));
+@@ -3908,7 +3935,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+         {   // long-frame log: this frame's items are first recorded into the ring; whether to print is decided 8 frames later, once the GPU time has arrived (see below)
+             static uint64_t plns, ppns, pup, prup, pub; uint64_t lns, pns, up, rup, ub; nvn_be_create_ns(&lns, &pns); nvn_be_pkg_stats(&up, &rup); ub = nvn_be_upload_bytes();
+             lf_rec *r = &g_lf[f % LFN]; r->f = f; r->fr = fr; r->nv = nv; r->gaps = rb_gaps; r->t_s = (now_ns() - g_t0_ns) / 1e9; r->pso = (unsigned)(pso_ - ppso); r->lib = (unsigned)(lib_ - plib);
+-            r->make_ms = ((lns - plns) + (pns - ppns)) / 1e6; r->up = (unsigned)(up - pup); r->rup = (unsigned)(rup - prup); r->up_mb = (ub - pub) / 1048576.0; r->up_ms = up_ms;
++            r->make_ms = ((lns - plns) + (pns - ppns)) / 1e6; r->up = (unsigned)(up - pup); r->rup = (unsigned)(rup - prup); const uint64_t pub_previous = pub; r->up_mb = (ub - pub) / 1048576.0; r->up_ms = up_ms;
+             plns = lns; ppns = pns; pup = up; prup = rup; pub = ub;
+             {   // RewindBox (patch 0065): what the process did during the frame
+                 static struct rusage pru; static int have; static pthread_t pth; static uint64_t pcpu; struct rusage ru;
+@@ -3940,7 +3967,32 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+                 r->xn = (unsigned)(x[0] - px[0]); r->x_ms = (x[1] - px[1]) / 1e6; r->xwn = (unsigned)(x[2] - px[2]); r->xw_ms = (x[3] - px[3]) / 1e6; r->msl_n = (unsigned)(x[4] - px[4]); r->msl_ms = (x[5] - px[5]) / 1e6;
+                 memcpy(px, x, sizeof px);
+             }
+-            if (nvn_rb_course_frame && rb_interval) nvn_rb_course_frame(f,rb_interval,r->up_ms,rb_upload_gpu_ms,r->x_ms,r->xw_ms,r->msl_n,r->msl_ms);
++            if (nvn_rb_course_frame_observed && rb_interval) {
++                detail.texture_bytes = ub - pub_previous;
++                detail.outside_ns = rb_gaps.total;
++                detail.longest_gap_ns = rb_gaps.longest;
++                detail.process_read_mb = r->rd_mb;
++                detail.present_thread_ms = r->thr_ms;
++                if (s2a_rb_mkw_measure && s2a_rb_mkw_measure()) {
++                    detail.vm_decompressed_pages = rb_vm_decompressions();
++                    static pthread_t wait_thread;
++                    static int have_wait_thread;
++                    if (s2a_rb_mkw_wait_take) {
++                        uint64_t waited = s2a_rb_mkw_wait_take();
++                        if (have_wait_thread && pthread_equal(wait_thread,pthread_self())) detail.guest_wait_ns = (int64_t)waited;
++                        wait_thread = pthread_self();
++                        have_wait_thread = 1;
++                    }
++                    if (s2a_rb_mkw_reads_take) {
++                        uint64_t reads[3];
++                        s2a_rb_mkw_reads_take(reads);
++                        detail.read_calls = reads[0];
++                        detail.read_bytes = reads[1];
++                        detail.read_ns = reads[2];
++                    }
++                }
++                nvn_rb_course_frame_observed(f,rb_interval,r->up_ms,rb_upload_gpu_ms,r->x_ms,r->xw_ms,r->msl_n,r->msl_ms,&detail);
++            }
+             nvn_be_tex_absent_take(&g_lf_abs[f % LFN][0], &g_lf_abs[f % LFN][1], &g_lf_abs[f % LFN][2]);   // RewindBox (patch 0070)
+         }
+         plib = lib_; ppso = pso_;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index c0c6977..ef67529 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4457,7 +4457,8 @@ static id<MTLTexture> tex_upgrade_pfv(const tex_t *t, id<MTLTexture> base, MTLPi
+ // Batching: uploads within one replay submission share one upload command buffer (compute encoder deswizzle + a unified blit), flushed before the replay command buffer is committed;
+ // the same queue executes in commit order ⇒ uploads are always finished before the first sample. Uploads outside a submission are flushed on the spot. The staging area is cut from 32 MB private blocks, held by the command buffer until completion.
+ static _Atomic uint64_t g_upload_ns;   // Cumulative time of deswizzle + upload encoding on the submit thread (timing instrumentation)
+-static _Atomic uint64_t g_upload_gpu_ns;
++static os_unfair_lock g_upload_timing_lock = OS_UNFAIR_LOCK_INIT;
++static uint64_t g_upload_gpu_ns, g_upload_gpu_valid, g_upload_gpu_unavailable;
+ static id g_up_cb;   // MTL4CommandBuffer on Metal 4, MTLCommandBuffer on Metal 3
+ static id g_up_ce;   // its open encoder: Metal 4 compute (deswizzles, then the copies), Metal 3 copy encoder (the copies only)
+ static _Atomic int g_up_alloc_busy[RB_UP_MAX];   // RewindBox (patch 0082): RB_UP_MAX (3 before)
+@@ -4542,6 +4543,9 @@ static void up_flush(void) {
+     if (g_up_block && g_up_block != g_up_slot_blk[slot]) [kept addObject:g_up_block];   // the slot's own block stays (UP_SLOT_BLOCK)
+     id o = fb_new();
+     atomic_fetch_add(&g_up_pending, 1);
++    // The recording thread can hand this off to the encode thread. This is a lower
++    // bound on submission time, including when the command buffer is deferred.
++    double queued_at = CACurrentMediaTime();
+     fb_add(o, ^(id<MTL4CommitFeedback> f) {
+         if (f.error && !mtl_gpu_halted()) MLOG("【红】 upload command buffer execution error: %s", f.error.description.UTF8String);
+         if (f.error) mtl_gpu_cb_error(f.error, "upload", 0);
+@@ -4550,8 +4554,20 @@ static void up_flush(void) {
+             pthread_mutex_lock(&g_smu); g_ser_gen++; pthread_mutex_unlock(&g_smu);   // Make the view cache of every texture ID take the slow path once (on a cache hit tex_mtl is not passed through and this record is not seen)
+             MLOG("%supload command buffer dropped: the %lu textures of this batch are marked unwritten and re-uploaded on next use (%d awaiting re-upload)", fake_lost ? "DM_TEST_UP_LOST: " : "", (unsigned long)dsts.count, n);
+         }
+-        double d = f.GPUEndTime - f.GPUStartTime;
+-        if (d > 0) atomic_fetch_add(&g_upload_gpu_ns, (uint64_t)(d * 1e9));
++        double start = f.GPUStartTime, end = f.GPUEndTime, completed_at = CACurrentMediaTime();
++        // A missing, stale, non-finite or future timestamp cannot price this batch.
++        // The same-queue feedback can include the wait before this upload was queued.
++        int valid = !f.error && !fake_lost && isfinite(start) && isfinite(end) &&
++                    start > 0 && end > queued_at && end > start && start >= queued_at - 0.001 &&
++                    end <= completed_at + 0.001;
++        os_unfair_lock_lock(&g_upload_timing_lock);
++        if (valid) {
++            g_upload_gpu_ns += (uint64_t)((end - (start < queued_at ? queued_at : start)) * 1e9);
++            ++g_upload_gpu_valid;
++        } else {
++            ++g_upload_gpu_unavailable;
++        }
++        os_unfair_lock_unlock(&g_upload_timing_lock);
+         @autoreleasepool { for (id k in kept) res_remove((id<MTLResource>)k); [kept removeAllObjects]; }
+         atomic_store(&g_up_alloc_busy[slot], 0);
+         atomic_fetch_sub(&g_up_pending, 1);
+@@ -5287,7 +5303,19 @@ static id<MTLTexture> pkg_upload(const tex_t *t, uint64_t *stamp, id<MTLTexture>
+     return r;
+ }
+ uint64_t nvn_be_upload_ns_take(void) { return atomic_exchange(&g_upload_ns, 0); }
+-uint64_t nvn_be_upload_gpu_ns_take(void) { return atomic_exchange(&g_upload_gpu_ns, 0); }
++uint64_t nvn_rb_upload_gpu_sample(uint64_t *valid, uint64_t *unavailable) {
++    os_unfair_lock_lock(&g_upload_timing_lock);
++    uint64_t ns = g_upload_gpu_ns;
++    *valid = g_upload_gpu_valid;
++    *unavailable = g_upload_gpu_unavailable;
++    g_upload_gpu_ns = g_upload_gpu_valid = g_upload_gpu_unavailable = 0;
++    os_unfair_lock_unlock(&g_upload_timing_lock);
++    return ns;
++}
++uint64_t nvn_be_upload_gpu_ns_take(void) {
++    uint64_t valid, unavailable;
++    return nvn_rb_upload_gpu_sample(&valid, &unavailable);
++}
+ void nvn_be_create_stats(uint64_t *lib, uint64_t *pso) { *lib = g_bp_lib_n; *pso = g_bp_pso_n; }
+ void nvn_be_create_ns(uint64_t *lib_ns, uint64_t *pso_ns) { *lib_ns = g_bp_lib_ns; *pso_ns = g_bp_pso_ns; }   // Cumulative submit-thread shader load (construction or shared wait) / pipeline time; the long-frame log takes per-frame differences
+ uint64_t nvn_be_upload_bytes(void) { return g_bp_up_bytes; }   // Cumulative texture upload bytes
+diff --git a/graphics/nvn/gfx/nvn/rb_course_metrics.h b/graphics/nvn/gfx/nvn/rb_course_metrics.h
+new file mode 100644
+index 0000000..1d06f41
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_course_metrics.h
+@@ -0,0 +1,13 @@
++#ifndef RB_COURSE_METRICS_H
++#define RB_COURSE_METRICS_H
++#include <stdint.h>
++
++typedef struct {
++    uint64_t texture_bytes, gpu_valid, gpu_unavailable;
++    uint64_t outside_ns, longest_gap_ns;
++    uint64_t read_bytes, read_ns, read_calls;
++    int64_t guest_wait_ns, vm_decompressed_pages;
++    double process_read_mb, present_thread_ms;
++} rb_course_detail;
++
++#endif
+diff --git a/graphics/nvn/gfx/nvn/rb_course_tracking.inc b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
+index d96df5e..81199e5 100644
+--- a/graphics/nvn/gfx/nvn/rb_course_tracking.inc
++++ b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
+@@ -1,6 +1,7 @@
+ // One scheduling hint per existing worker claim. Only exact R rows confirmed by
+ // an encoder bind in a named course window can enter this tiny history.
+ #include "rb_course_history.h"
++#include "rb_course_metrics.h"
+ extern uint64_t s2a_npdm_program_id(void) __attribute__((weak_import));
+ static rb_course_db g_course_prior, g_course_live; // g_wu_lock
+ static NSDictionary *g_course_rows;
+@@ -155,7 +156,58 @@ static void rb_course_flush(void) {
+     }
+     memset(g_course_samples,0,sizeof g_course_samples);g_course_sample_count=0;
+ }
+-void nvn_rb_course_frame(uint64_t frame,uint64_t ns,double upload,double upload_gpu,double xlate,double xwait,unsigned libs,double msl) {
++typedef struct {
++    uint64_t frame, interval, pso_wait, library_wait;
++    double upload_ms, upload_gpu_ms, xlate_ms, xlate_wait_ms, msl_ms;
++    char hint[RB_COURSE_NAME];
++    unsigned msl_count;
++    rb_course_detail io;
++} rb_course_frame_row;
++
++#define RB_COURSE_ROWS_PER_BATCH 32
++typedef struct {
++    rb_course_frame_row rows[RB_COURSE_ROWS_PER_BATCH];
++    unsigned count;
++} rb_course_frame_batch;
++static rb_course_frame_batch g_course_frames_pending;
++static _Atomic unsigned g_course_batches_queued, g_course_rows_lost;
++static int g_course_session_logged;
++
++static void rb_course_metrics_flush(void) {
++    if (!g_course_frames_pending.count) return;
++    rb_course_frame_batch batch = g_course_frames_pending;
++    g_course_frames_pending.count = 0;
++    if (atomic_load(&g_course_batches_queued) >= 4) {
++        atomic_fetch_add(&g_course_rows_lost,batch.count);
++        return;
++    }
++    atomic_fetch_add(&g_course_batches_queued,1);
++    dispatch_async(rb_trace_io(),^{
++        for (unsigned i=0; i<batch.count; ++i) {
++            const rb_course_frame_row *r = &batch.rows[i];
++            MLOG("RewindBox cup frame=%llu interval_ns=%llu asset_hint=%s "
++                 "pso_wait_ns=%llu library_wait_ns=%llu xlate_ms=%.3f xlate_wait_ms=%.3f msl_count=%u msl_ms=%.3f "
++                 "texture_bytes=%llu texture_cpu_ms=%.3f texture_gpu_completed_ms=%.3f gpu_valid=%llu gpu_unavailable=%llu",
++                 (unsigned long long)r->frame,(unsigned long long)r->interval,r->hint,
++                 (unsigned long long)r->pso_wait,(unsigned long long)r->library_wait,
++                 r->xlate_ms,r->xlate_wait_ms,r->msl_count,r->msl_ms,
++                 (unsigned long long)r->io.texture_bytes,r->upload_ms,r->upload_gpu_ms,
++                 (unsigned long long)r->io.gpu_valid,(unsigned long long)r->io.gpu_unavailable);
++            if (r->interval > 100000000ull) {
++                MLOG("RewindBox cup gap frame=%llu outside_ns=%llu longest_ns=%llu "
++                     "romfs_read_calls=%llu romfs_read_bytes=%llu romfs_read_ns=%llu "
++                     "present_guest_wait_ns=%lld process_read_mib=%.3f present_thread_ms=%.3f vm_decompressed_pages=%lld guest_decompress=unavailable",
++                     (unsigned long long)r->frame,(unsigned long long)r->io.outside_ns,
++                     (unsigned long long)r->io.longest_gap_ns,(unsigned long long)r->io.read_calls,
++                     (unsigned long long)r->io.read_bytes,(unsigned long long)r->io.read_ns,
++                     (long long)r->io.guest_wait_ns,r->io.process_read_mb,r->io.present_thread_ms,(long long)r->io.vm_decompressed_pages);
++            }
++        }
++        atomic_fetch_sub(&g_course_batches_queued,1);
++    });
++}
++void nvn_rb_course_frame_observed(uint64_t frame,uint64_t ns,double upload,double upload_gpu,double xlate,
++                                 double xwait,unsigned libs,double msl,const rb_course_detail *detail) {
+     if (!rb_course_enabled()) return;
+     uint64_t pw=atomic_exchange(&g_course_pso_wait_ns,0),lw=atomic_exchange(&g_course_library_wait_ns,0);
+     int prev=g_course_current,slot=prev;
+@@ -186,14 +238,37 @@ void nvn_rb_course_frame(uint64_t frame,uint64_t ns,double upload,double upload_
+              (unsigned long long)frame, rb_course_bucket_name(bucket), (unsigned long long)ns,
+              pw / 1e6, lw / 1e6, xwait, xlate, msl, upload, upload_gpu);
+     }
++    if (detail) {
++        if (!g_course_session_logged) {
++            const char *session=getenv("S2A_RB_CUP_SESSION");
++            if (session && strlen(session)==36 && strspn(session,"0123456789ABCDEFabcdef-")==36)
++                MLOG("RewindBox cup session=%s",session);
++            g_course_session_logged=1;
++        }
++        rb_course_frame_row *row=&g_course_frames_pending.rows[g_course_frames_pending.count++];
++        *row=(rb_course_frame_row){.frame=frame,.interval=ns,.pso_wait=pw,.library_wait=lw,
++                                  .upload_ms=upload,.upload_gpu_ms=upload_gpu,.xlate_ms=xlate,
++                                  .xlate_wait_ms=xwait,.msl_ms=msl,.msl_count=libs,.io=*detail};
++        snprintf(row->hint,sizeof row->hint,"%s",rb_course_bucket_name(bucket));
++        if (g_course_frames_pending.count==RB_COURSE_ROWS_PER_BATCH) rb_course_metrics_flush();
++    }
+     rb_course_sample_add(&g_course_samples[bucket],ns,upload,upload_gpu,xlate,xwait,libs,msl,pw,lw);
+     if(!g_course_sample_count) g_course_first_frame=frame;
+     g_course_last_frame=frame;
+     if(++g_course_sample_count==300) {rb_course_flush();rb_course_request_save();}
+ }
++void nvn_rb_course_frame(uint64_t frame,uint64_t ns,double upload,double upload_gpu,double xlate,double xwait,unsigned libs,double msl) {
++    nvn_rb_course_frame_observed(frame,ns,upload,upload_gpu,xlate,xwait,libs,msl,NULL);
++}
+ static void rb_course_end(void) {
+     if (g_course_sample_count) rb_course_flush();
+     if (atomic_load(&g_course_on)==1) {
++        dispatch_sync(rb_trace_io(),^{});
++        rb_course_metrics_flush();
++        dispatch_sync(rb_trace_io(),^{});
++        g_course_session_logged=0;
++        unsigned lost=atomic_exchange(&g_course_rows_lost,0);
++        if(lost) MLOG("RewindBox cup metrics missing_rows=%u",lost);
+         dispatch_sync(rb_trace_io(),^{});rb_course_request_save();dispatch_sync(rb_trace_io(),^{});
+     }
+     os_unfair_lock_lock(&g_wu_lock);
+diff --git a/runtime/src/loader.c b/runtime/src/loader.c
+index c963d8f..f6cad30 100644
+--- a/runtime/src/loader.c
++++ b/runtime/src/loader.c
+@@ -5,6 +5,7 @@
+ // 随包表：nro_modules.tsv（出包组装 pack/ship_ext.py 从产物根拷进 App，runtime/build.mk 按这行自动收清单；ro LoadNro 按 NRO 哈希查改写映像，11-02 前 iOS 漏拷：马力欧派对第一次装 NRO 即中止）
+ #include "../include/s2a_docs.h"
+ #include <stdatomic.h>
++#include <pthread.h>
+ #include "native.h"
+ #include "loader.h"
+ #include "s2a_gfx_mode.h"
+@@ -151,10 +152,28 @@ const char *s2a_main_build_id(void) { return g_main_build_id; }
+ #if defined(__APPLE__)
+ extern void nvn_rb_route_read(const char *, int) __attribute__((weak_import));
+ #endif
++// Internal to the engine and its NativeAOT services. No asset contents are retained.
++int s2a_rb_mkw_measure(void) {
++    return !strcmp(g_main_build_id,"9e244438c3d8ef1c703a6a85ef99c4f0");
++}
++static pthread_mutex_t g_mkw_io_lock = PTHREAD_MUTEX_INITIALIZER;
++static uint64_t g_mkw_io[3];
++void s2a_rb_mkw_read_sample(uint64_t bytes,uint64_t ns) {
++    if (!s2a_rb_mkw_measure()) return;
++    pthread_mutex_lock(&g_mkw_io_lock);
++    ++g_mkw_io[0]; g_mkw_io[1] += bytes; g_mkw_io[2] += ns;
++    pthread_mutex_unlock(&g_mkw_io_lock);
++}
++void s2a_rb_mkw_reads_take(uint64_t out[3]) {
++    pthread_mutex_lock(&g_mkw_io_lock);
++    memcpy(out,g_mkw_io,sizeof g_mkw_io);
++    memset(g_mkw_io,0,sizeof g_mkw_io);
++    pthread_mutex_unlock(&g_mkw_io_lock);
++}
+ // Internal DirectPInvoke. Other renderers and unknown game builds keep their normal path.
+ void s2a_rb_route_read(const char *p, int len) {
+ #if defined(__APPLE__)
+-    if (nvn_rb_route_read && !strcmp(g_main_build_id,"9e244438c3d8ef1c703a6a85ef99c4f0"))
++    if (nvn_rb_route_read && s2a_rb_mkw_measure())
+         nvn_rb_route_read(p,len);
+ #else
+     (void)p; (void)len;
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index c84c1ca..d662d2a 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -2652,6 +2652,15 @@ static void peer_yield(thr_t *me) {
+         struct timespec ts = {0, 50000}; nanosleep(&ts, NULL);
+     }
+ }
++#if defined(__APPLE__)
++extern int s2a_rb_mkw_measure(void) __attribute__((weak_import));
++static _Thread_local uint64_t t_mkw_guest_wait_ns;
++uint64_t s2a_rb_mkw_wait_take(void) {
++    uint64_t ns=t_mkw_guest_wait_ns;
++    t_mkw_guest_wait_ns=0;
++    return ns;
++}
++#endif
+ int svc_thread(int num, uint64_t *regs) {
+ #if defined(__APPLE__)
+     if (__builtin_expect(g_wg_state > 0 && g_wg_mode == 3 && !t_wg_joined, 0)) { thr_t *w = thread_current_or_null(); if (w) { char nm[48]; snprintf(nm, sizeof nm, "游戏线程 %llu（优先级 %d）", (unsigned long long)w->id, w->prio); wg_join_self(nm); } }
+@@ -2681,9 +2690,14 @@ int svc_thread(int num, uint64_t *regs) {
+     // RewindBox (patch 0074): the synchronization calls defer their wake-ups to after G (wq_add) and issue them here, before peer_yield waits for one of the woken
+     int wq = rb_gw_on() && (num == 0x11 || num == 0x18 || num == 0x19 || num == 0x1A || num == 0x1B || num == 0x1C || num == 0x1D || num == 0x34 || num == 0x35);
+     if (wq) t_wq_on++;
++#endif
++#if defined(__APPLE__)
++    const int sync_call = num==0x18 || num==0x1A || num==0x1C || num==0x34;
++    const uint64_t mkw_wait_start = sync_call && s2a_rb_mkw_measure && s2a_rb_mkw_measure() ? now_mono_ns() : 0;
+ #endif
+     int r = svc_thread_impl(me, num, regs);
+ #if defined(__APPLE__)
++    if (mkw_wait_start) t_mkw_guest_wait_ns += now_mono_ns()-mkw_wait_start;
+     if (wq && !--t_wq_on) wq_flush();
+ #endif
+     if (diag) g_wd_source_svc = source_svc;
+diff --git a/services/S2A.Services/RomFsIndex.cs b/services/S2A.Services/RomFsIndex.cs
+index 07a9d97..a9fb434 100644
+--- a/services/S2A.Services/RomFsIndex.cs
++++ b/services/S2A.Services/RomFsIndex.cs
+@@ -6,6 +6,7 @@ using LibHac.Tools.FsSystem;
+ using LibHac.Tools.FsSystem.RomFs;
+ using System;
+ using System.Collections.Generic;
++using System.Diagnostics;
+ using System.IO;
+ using System.Text;
+ using Path = System.IO.Path;
+@@ -22,6 +23,8 @@ namespace S2A.Services
+     {
+         public delegate void RouteRead(ReadOnlySpan<byte> path);
+         public static RouteRead RouteObserver;
++        public static Func<bool> ReadTimingEnabled;
++        public static Action<ulong, ulong> ReadTimingObserver;
+
+         internal static void NoteRouteFile(ReadOnlySpan<byte> path)
+         {
+@@ -917,6 +920,7 @@ namespace S2A.Services
+
+             private readonly Dictionary<string, string> _overlay;   // RomFS 相对路径 → 覆盖层文件（OverlayFiles），null = 无覆盖层
+             private readonly Microsoft.Win32.SafeHandles.SafeFileHandle _image;   // 单文件镜像；null = 目录布局
++            private readonly bool _measureReads;
+             private readonly long[] _imageOffset;   // 文件号 → 镜像偏移，-1 = 在覆盖层
+
+             public IndexedStorage(string root, byte[] idx, string where, Dictionary<string, string> overlay, Microsoft.Win32.SafeHandles.SafeFileHandle image, long[] imageOffset)
+@@ -925,6 +929,7 @@ namespace S2A.Services
+                 _overlay = overlay;
+                 _image = image;
+                 _imageOffset = imageOffset;
++                _measureReads = ReadTimingEnabled?.Invoke() == true;
+                 _idx = idx;
+
+                 if (idx.Length < 24 || !idx.AsSpan(0, 8).SequenceEqual(Magic))
+@@ -1000,6 +1005,16 @@ namespace S2A.Services
+             }
+
+             public override Result Read(long offset, Span<byte> destination)
++            {
++                if (!_measureReads) return ReadIndexed(offset, destination);
++                long start = Stopwatch.GetTimestamp();
++                Result result = ReadIndexed(offset, destination);
++                ulong ns = (ulong)(Stopwatch.GetElapsedTime(start).Ticks * 100);
++                ReadTimingObserver?.Invoke(result.IsSuccess() ? (ulong)destination.Length : 0, ns);
++                return result;
++            }
++
++            private Result ReadIndexed(long offset, Span<byte> destination)
+             {
+                 if (offset < 0 || offset + destination.Length > _size)
+                 {
+diff --git a/services/aot/Compose.cs b/services/aot/Compose.cs
+index 7cf54f2..2c75c1f 100644
+--- a/services/aot/Compose.cs
++++ b/services/aot/Compose.cs
+@@ -79,6 +79,8 @@ namespace S2A.Aot
+         }
+
+         [DllImport("s2a_native")] private static extern void s2a_rb_route_read(byte* path, int length);
++        [DllImport("s2a_native")] private static extern int s2a_rb_mkw_measure();
++        [DllImport("s2a_native")] private static extern void s2a_rb_mkw_read_sample(ulong bytes, ulong ns);
+
+         private static void RouteRead(System.ReadOnlySpan<byte> path)
+         {
+@@ -89,6 +91,8 @@ namespace S2A.Aot
+         internal static void Init()
+         {
+             S2A.Services.RomFsIndex.RouteObserver = RouteRead;
++            S2A.Services.RomFsIndex.ReadTimingEnabled = static () => s2a_rb_mkw_measure() != 0;
++            S2A.Services.RomFsIndex.ReadTimingObserver = s2a_rb_mkw_read_sample;
+             S2A.Services.Exports.AudioFactory = &S2A.Apple.Audio.AppleAudio.Create;
+             // 视频解码（平台 adapter P1，#1069）：Nvdec 只认登记的工厂，苹果实现在 platform/apple/cs/video
+             S2A.Apple.Video.AppleVideo.Register();
