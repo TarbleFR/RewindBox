@@ -1,0 +1,124 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 494bea9..19f8e74 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -152,6 +152,7 @@ static id<MTLBuffer> g_present_uv[3];
+ static uint64_t g_present_alloc_fence[3];
+ static pthread_mutex_t g_pq_mu = PTHREAD_MUTEX_INITIALIZER;
+ static pthread_cond_t g_pq_cv = PTHREAD_COND_INITIALIZER;
++static pthread_cond_t g_classic_work = PTHREAD_COND_INITIALIZER; // only the classic presenter waits here
+ static pthread_cond_t g_link_cv = PTHREAD_COND_INITIALIZER;
+ static pthread_mutex_t g_link_mu = PTHREAD_MUTEX_INITIALIZER;
+ static uint64_t g_link_tick_ns, g_link_tick_n;
+@@ -21689,6 +21690,7 @@ static void *link_main(void *arg) {   // Display link thread: started when switc
+     [link invalidate];
+     pthread_mutex_lock(&g_pq_mu);
+     g_link = nil; g_link_rl = NULL; g_link_owns_layer = 0;
++    if (g_pq_read != g_pq_in) pthread_cond_signal(&g_classic_work);
+     pthread_mutex_unlock(&g_pq_mu);
+     }
+     pthread_mutex_lock(&g_pq_mu);
+@@ -21826,7 +21828,7 @@ static void *present_main(void *arg) {
+     qos_class_t qc = QOS_CLASS_UNSPECIFIED; int rp = 0; pthread_get_qos_class_np(pthread_self(), &qc, &rp); atomic_store(&g_present_qos, (uint32_t)qc);
+     for (;;) {
+         pthread_mutex_lock(&g_pq_mu);
+-        while (g_pq_read == g_pq_in || g_link_owns_layer) pthread_cond_wait(&g_pq_cv, &g_pq_mu);   // In display-link mode the display-link callback takes them; an empty queue is judged by "taken"; "done" has to wait for the feedback of the present submit and lags behind taken
++        while (g_pq_read == g_pq_in || g_link_owns_layer) pthread_cond_wait(&g_classic_work, &g_pq_mu);   // In display-link mode the display-link callback takes them; an empty queue is judged by "taken"; "done" has to wait for the feedback of the present submit and lags behind taken
+         pq_item it = g_pq[g_pq_read % PQ];
+         uint64_t ticket = ++g_pq_read; g_classic_busy = 1;
+         pthread_mutex_unlock(&g_pq_mu);
+@@ -21886,7 +21888,8 @@ static uint64_t present_enqueue(const tex_t *t, double period, const int crop[4]
+     pq_item *it = &g_pq[g_pq_in % PQ]; *it = (pq_item){*t, period, atomic_load(&g_cur_frame), {0}, CACurrentMediaTime(), ev_val};
+     if (crop) memcpy(it->crop, crop, sizeof it->crop);   // The current frame's state is enqueued with the ticket number, rather than reading the mutable window late on the present thread
+     uint64_t tk = ++g_pq_in;
+-    pthread_cond_broadcast(&g_pq_cv);
++    // Enqueue makes a consumer runnable only when the classic presenter owns an empty queue.
++    if (!g_link_owns_layer && tk - 1 == g_pq_read) pthread_cond_signal(&g_classic_work);
+     pthread_mutex_unlock(&g_pq_mu);
+     return tk;
+ }
+diff --git a/graphics/nvn/gfx/nvn/rb_course_tracking.inc b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
+index d84e5a9..7858b9a 100644
+--- a/graphics/nvn/gfx/nvn/rb_course_tracking.inc
++++ b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
+@@ -203,8 +203,8 @@ static int rb_course_log_append(rb_course_log_buffer *out, const char *fmt, ...)
+     return 1;
+ }
+ 
+-#define RB_COURSE_LOG(...) do { \
+-    if (!rb_course_log_append(&out, "[dm] [nvn-mtl] " __VA_ARGS__)) MLOG(__VA_ARGS__); \
++#define RB_COURSE_LOG(buffer, ...) do { \
++    if (!rb_course_log_append(buffer, "[dm] [nvn-mtl] " __VA_ARGS__)) MLOG(__VA_ARGS__); \
+ } while (0)
+ 
+ static void rb_course_metrics_flush(void) {
+@@ -221,7 +221,7 @@ static void rb_course_metrics_flush(void) {
+         out.used = 0;
+         for (unsigned i=0; i<batch.count; ++i) {
+             const rb_course_frame_row *r = &batch.rows[i];
+-            RB_COURSE_LOG("RewindBox cup frame=%llu interval_ns=%llu asset_hint=%s "
++            RB_COURSE_LOG(&out, "RewindBox cup frame=%llu interval_ns=%llu asset_hint=%s "
+                  "pso_wait_ns=%llu library_wait_ns=%llu xlate_ms=%.3f xlate_wait_ms=%.3f msl_count=%u msl_ms=%.3f "
+                  "texture_bytes=%llu texture_cpu_ms=%.3f texture_gpu_completed_ms=%.3f gpu_valid=%llu gpu_unavailable=%llu",
+                  (unsigned long long)r->frame,(unsigned long long)r->interval,r->hint,
+@@ -232,12 +232,12 @@ static void rb_course_metrics_flush(void) {
+             if (r->interval > 100000000ull) {
+                 if (r->io.guest_wait_ns >= 0 && r->io.longest_svc[0] >= 50000000ull) {
+                     const uint64_t *s = r->io.longest_svc;
+-                    RB_COURSE_LOG("RewindBox guest wait frame=%llu ns=%llu svc=0x%llx key_or_list=0x%llx guest_thread=%llu guest_pc=0x%llx result=0x%llx signaled_handle=0x%llx last_waker_guest=%llu",
++                    RB_COURSE_LOG(&out, "RewindBox guest wait frame=%llu ns=%llu svc=0x%llx key_or_list=0x%llx guest_thread=%llu guest_pc=0x%llx result=0x%llx signaled_handle=0x%llx last_waker_guest=%llu",
+                          (unsigned long long)r->frame,(unsigned long long)s[0],(unsigned long long)s[1],
+                          (unsigned long long)s[2],(unsigned long long)s[3],(unsigned long long)s[4],
+                          (unsigned long long)s[5],(unsigned long long)s[6],(unsigned long long)s[7]);
+                 }
+-                RB_COURSE_LOG("RewindBox cup gap frame=%llu outside_ns=%llu longest_ns=%llu "
++                RB_COURSE_LOG(&out, "RewindBox cup gap frame=%llu outside_ns=%llu longest_ns=%llu "
+                      "romfs_read_calls=%llu romfs_read_bytes=%llu romfs_read_ns=%llu "
+                      "present_guest_wait_ns=%lld process_read_mib=%.3f present_thread_ms=%.3f vm_decompressed_pages=%lld guest_decompress=unavailable",
+                      (unsigned long long)r->frame,(unsigned long long)r->io.outside_ns,
+@@ -250,7 +250,6 @@ static void rb_course_metrics_flush(void) {
+         atomic_fetch_sub(&g_course_batches_queued,1);
+     });
+ }
+-#undef RB_COURSE_LOG
+ void nvn_rb_course_frame_observed(uint64_t frame,uint64_t ns,double upload,double upload_gpu,double xlate,
+                                  double xwait,unsigned libs,double msl,const rb_course_detail *detail) {
+     if (!rb_course_enabled()) return;
+diff --git a/graphics/nvn/gfx/nvn/rb_draw_history.inc b/graphics/nvn/gfx/nvn/rb_draw_history.inc
+index 66412c1..fa2e5ba 100644
+--- a/graphics/nvn/gfx/nvn/rb_draw_history.inc
++++ b/graphics/nvn/gfx/nvn/rb_draw_history.inc
+@@ -122,6 +122,8 @@ static void rb_draw_write(NSString *path,NSArray<NSData *> *batch) {
+     if (!g_rb_draw_unsaved) g_rb_draw_unsaved=[NSMutableDictionary dictionary];
+     NSMutableDictionary *pending=g_rb_draw_unsaved[path];
+     if (!pending) pending=g_rb_draw_unsaved[path]=[NSMutableDictionary dictionary];
++    rb_course_log_buffer out;
++    out.used = 0;
+     for (NSData *data in batch) {
+         const rb_draw_record *r=data.bytes;
+         if (!rb_draw_valid(r)) continue;
+@@ -129,10 +131,11 @@ static void rb_draw_write(NSString *path,NSArray<NSData *> *batch) {
+         rb_draw_merge(pending,line,r);
+         uuid_string_t session; uuid_unparse_lower(r->session,session);
+         NSString *identity=par_hash(&r->recipe,sizeof r->recipe);
+-        MLOG("RewindBox cup pipeline first draw frame=%llu key=%s session=%s kind=%s shader_a=%s shader_b=%s task=%s phase=%s course=unknown hint=%s wait_ns=%llu source=%s",
++        RB_COURSE_LOG(&out, "RewindBox cup pipeline first draw frame=%llu key=%s session=%s kind=%s shader_a=%s shader_b=%s task=%s phase=%s course=unknown hint=%s wait_ns=%llu source=%s",
+             (unsigned long long)r->frame,identity.UTF8String,session,*r->task?"mesh":"render",r->recipe.vs,r->recipe.fs,r->task,
+             r->phase?"startup":"unknown",*r->cue?r->cue:"unknown",(unsigned long long)r->wait_ns,r->prepared?"prepared":"demand");
+     }
++    rb_course_log_flush(&out);
+     if (!pending.count) { [g_rb_draw_unsaved removeObjectForKey:path]; return; }
+     BOOL truncated=NO;
+     NSDictionary *previous=[g_rb_draw_loaded_path isEqual:path] ? g_rb_draw_loaded : nil;
+diff --git a/graphics/nvn/gfx/nvn/rb_pso_transitions.inc b/graphics/nvn/gfx/nvn/rb_pso_transitions.inc
+index cd318f2..63d9c7b 100644
+--- a/graphics/nvn/gfx/nvn/rb_pso_transitions.inc
++++ b/graphics/nvn/gfx/nvn/rb_pso_transitions.inc
+@@ -100,6 +100,7 @@ static int g_rb_submit_initialized;
+ 
+ #include "rb_course_tracking.inc"
+ #include "rb_draw_history.inc"
++#undef RB_COURSE_LOG
+ static void rb_trace_scan(NSArray<WarmTask *> *tasks, NSDictionary *epoch, NSDictionary *targets,
+                           NSMutableDictionary *rows, NSSet *courseKeys, NSMutableDictionary *courseRows, NSUInteger offset) {
+     os_unfair_lock_lock(&g_wu_lock);
