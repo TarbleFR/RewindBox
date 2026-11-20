@@ -327,7 +327,7 @@
           "binary": "sysdata/SHA256SUMS"
         }
       ],
-      "pinSha256": "e7a2a8fb48779d95ceb971250559bcf13088dd2858fa8134bd4f6d370eedd3e3"
+      "pinSha256": "c1d4ce01d4f3db222537637bd2718f195fa43625eb516954b6061682647527fd"
     }
   },
   "product": {
@@ -343,6 +343,10 @@
       {
         "commit": "5bc7fa9089c3224e8a3300116dec36fd55ad1938",
         "note": "Reviewed merged recipes, bounded atomic history persistence, host notice and foreground wait attribution."
+      },
+      {
+        "commit": "b72b0a915a0163d04005c833eddeb64d5c5b489a",
+        "note": "Verified the engine, preparation and system archive SHAs and selected the reviewed engine pin."
       }
     ],
     "sourceOnly": [
