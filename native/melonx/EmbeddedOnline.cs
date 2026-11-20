@@ -694,23 +694,43 @@ zdAq1CTeFUrJ6r/siw==
             // The published SSBU auth and secure NEX ports. No NAT, arbitrary IP, account API or other title.
             bool privateRoute = settings?.SmashPrivateTls == true && peer != null && (port == 443 || port == 60005) &&
                 !peer.Equals(settings.Nat) && (peer.Equals(settings.Server) || peer.Equals(settings.SmashServer));
+            // SSBU's secure NEX connection (port 60005) names its server by the IP address the Smash login server
+            // returned, not by the login host name (device journal of 20 November, IPA 801: "certificate refused for
+            // '<address>' (reason: hostname)" on every attempt). Under the same consent, that connection may take the
+            // legacy certificate only when the name is exactly this socket's address.
+            IPAddress secureEndpoint = privateRoute && port == 60005 ? peer : null;
             return (sender, certificate, chain, errors) =>
-                ValidateServerCertificate(sender, certificate, chain, errors, settings, privateRoute);
+                ValidateServerCertificate(sender, certificate, chain, errors, settings, privateRoute, secureEndpoint);
         }
 
         /// <summary>Strict validation when no session/socket scope is supplied.</summary>
         public static bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors errors)
-            => ValidateServerCertificate(sender, certificate, chain, errors, _settings, false);
+            => ValidateServerCertificate(sender, certificate, chain, errors, _settings, false, null);
 
         private static bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain,
-            SslPolicyErrors errors, Settings settings, bool privateRoute)
+            SslPolicyErrors errors, Settings settings, bool privateRoute, IPAddress secureEndpoint)
         {
             string host = (sender as SslStream)?.TargetHostName;
             string failure = CertificateFailure(certificate, chain, host, RootsForTests ?? TrustedRoots());
             bool valid = failure == null;
             bool smash = string.Equals(host, SmashHost, StringComparison.OrdinalIgnoreCase);
-            bool compatibility = !valid && privateRoute && ReferenceEquals(settings, _settings) && smash &&
-                IsLegacySmashCertificate(certificate);
+            // The secure server's address only after this session reached the Smash login server (verified or by
+            // consent): the game learns that address from it.
+            bool secureServer = !smash && secureEndpoint != null && settings != null &&
+                Volatile.Read(ref settings.SmashTlsState) is 1 or 3 &&
+                IPAddress.TryParse(host, out IPAddress named) && named.Equals(secureEndpoint);
+            // A certificate chaining to Nextendo's published roots is verified on that address: only the name differs,
+            // and the name is the address itself.
+            bool secureVerified = !valid && secureServer && ReferenceEquals(settings, _settings) && failure == "hostname" &&
+                CertificateFailure(certificate, chain, host, RootsForTests ?? TrustedRoots(), checkHostname: false) == null;
+            bool compatibility = !valid && !secureVerified && privateRoute && ReferenceEquals(settings, _settings) &&
+                (smash || secureServer) && IsLegacySmashCertificate(certificate);
+            if (secureServer && (secureVerified || compatibility))
+            {
+                Logger.Warning?.Print(LogClass.ServiceSsl, secureVerified
+                    ? "Online play: SSBU secure server certificate verified against Nextendo's roots (address from the login server)."
+                    : "Online play: SSBU secure server certificate accepted by consent (unverified, legacy private certificate).");
+            }
             if (settings != null && ReferenceEquals(settings, _settings) && smash)
             {
                 int state = valid ? 1 : compatibility ? 3 : 2;
@@ -718,13 +738,17 @@ zdAq1CTeFUrJ6r/siw==
                     Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("smashTls", valid ? "accepted" : compatibility ? "compatibility" : "refused",
                         detail: compatibility ? "unverified-private-certificate" : failure ?? "verified");
             }
-            if (!valid && !compatibility)
+            if (!valid && !secureVerified && !compatibility)
             {
+                // On SSBU's secure port, say which certificate was presented (no certificate data is logged).
+                string presented = secureEndpoint == null ? string.Empty :
+                    $"; secure-port legacy-private-certificate={(IsLegacySmashCertificate(certificate) ? "yes" : "no")}" +
+                    $"; login={(settings == null ? 0 : Volatile.Read(ref settings.SmashTlsState))}";
                 Logger.Warning?.Print(LogClass.ServiceSsl,
-                    $"Online play: certificate refused for '{host}' (reason: {failure}).");
+                    $"Online play: certificate refused for '{host}' (reason: {failure}{presented}).");
             }
 
-            return valid || compatibility;
+            return valid || secureVerified || compatibility;
         }
 
         // This identifies the legacy certificate format, NOT the server's identity. Only the explicitly consented,
@@ -750,7 +774,7 @@ zdAq1CTeFUrJ6r/siw==
         internal static bool Validate(X509Certificate certificate, X509Chain presented, string host, X509Certificate2Collection roots) =>
             CertificateFailure(certificate, presented, host, roots) == null;
 
-        private static string CertificateFailure(X509Certificate certificate, X509Chain presented, string host, X509Certificate2Collection roots, bool localChainOnly = false)
+        private static string CertificateFailure(X509Certificate certificate, X509Chain presented, string host, X509Certificate2Collection roots, bool localChainOnly = false, bool checkHostname = true)
         {
             if (certificate == null) return "missing-certificate";
             if (string.IsNullOrEmpty(host)) return "missing-host";
@@ -758,7 +782,7 @@ zdAq1CTeFUrJ6r/siw==
             try
             {
                 using X509Certificate2 leaf = new(certificate);
-                if (!leaf.MatchesHostname(host, allowWildcards: true, allowCommonName: false)) return "hostname";
+                if (checkHostname && !leaf.MatchesHostname(host, allowWildcards: true, allowCommonName: false)) return "hostname";
                 using X509Chain chain = new();
                 chain.ChainPolicy.DisableCertificateDownloads = localChainOnly;
                 chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
