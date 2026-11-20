@@ -260,3 +260,14 @@ benchmark and VM ledger switches still govern ledger publication. See the
 The offline [six-window comparator](../../../docs/evidence/s2arm-fluidity-803/compare_heap_windows.py)
 requires complete post-score tag-2 censuses and the unchanged benchmark validity
 checks. A compiled candidate is not evidence of a device memory or frame-time gain.
+
+### Live guest Metal pipelines, patches 0177–0180
+
+| Patch | Change |
+| --- | --- |
+| 0177 | Count distinct guest render, mesh and compute PSOs through final Objective-C release. Each benchmark memory sample includes shallow host malloc bytes. Driver-private allocations are unavailable. |
+| 0178 | Admit PSO prewarm on a bind in either of the two previous sessions, a current shader-pair or course hint, or a required profile migration. The first launch can import the two existing render traces. Shader stages and on-demand drawing keep their original paths. |
+| 0179 | Incrementally scan the submit-owned render and compute tables. After five idle minutes, retire only objects that Metal returned on a fail-on-binary-archive-miss lookup. Defer release behind the GPU fence. Log each rebuild attempt after retirement with its archive digest, nanoseconds, and archive/compiler/failure outcome. |
+| 0180 | Associate foreground PSO acquisitions with actual drawable presentation intervals. The benchmark includes cumulative long gaps and a conservative all-cause ceiling including boundary exposure. |
+
+Set `S2A_RB_PSO_CAP=0` before launch for the 803 policy, including the 804 heap switch. Set `S2A_RB_HEAP_TRIM=0` alone to isolate the pipeline changes on the 803 heap policy. Player archives stay on disk. See the [comparison criteria](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md#pipelines-metal-vivants).

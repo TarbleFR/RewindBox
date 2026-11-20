@@ -1,0 +1,238 @@
+Track retained guest pipeline objects through their final release and sample their shallow bytes in each benchmark window.
+
+diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+--- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
++++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+@@ -429,7 +429,8 @@
+         }
+ 
+         private static readonly bool MeasureHeap =
+-            OperatingSystem.IsIOS() && Environment.GetEnvironmentVariable("S2A_RB_HEAP_TRIM") != "0" &&
++            OperatingSystem.IsIOS() && Environment.GetEnvironmentVariable("S2A_RB_PSO_CAP") != "0" &&
++            Environment.GetEnvironmentVariable("S2A_RB_HEAP_TRIM") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_HEAP_LEDGER") != "0";
+         internal static long HeapBufferBytes;
+         private long _queueCapacity;
+diff --git a/graphics/nvn/gfx/nvn/nvn_geometry.inc b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+--- a/graphics/nvn/gfx/nvn/nvn_geometry.inc
++++ b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+@@ -181,6 +181,7 @@
+     if (mk.k.fc && fs && !se_warm(fs, mk.k.fc)) return nil;   // a sampler-emulation variant this device has not made yet (as R rows)
+     NSError *e = nil; uint64_t t0 = bp_now();
+     id<MTLRenderPipelineState> p = [g_dev newRenderPipelineStateWithMeshDescriptor:mtk_desc(&mk.k, ts, ms, fs, pf, 0, nil) options:MTLPipelineOptionNone reflection:nil error:&e];
++    rb_pso_track(p, RB_MESH, nil, NO);
+     if (!p) { MLOG("【红】 prewarm: task / mesh pipeline refused (task %s mesh %s fragment %s): %s", ts ? ts->key : "-", ms->key, fs ? fs->key : "-", e.localizedDescription.UTF8String); return nil; }
+     NSString *names = [NSString stringWithFormat:@"task %s mesh %s%s fragment %s", ts ? ts->key : "-", ms->key, pf ? " (padded)" : "", fs ? fs->key : "-"];
+     os_unfair_lock_lock(&g_pso_mtk_lock); if (!g_mtk_names) g_mtk_names = [NSMapTable strongToStrongObjectsMapTable]; [g_mtk_names setObject:names forKey:p]; os_unfair_lock_unlock(&g_pso_mtk_lock);
+@@ -209,6 +210,7 @@
+         dispatch_semaphore_wait(g_mtk_sem, DISPATCH_TIME_FOREVER);
+         NSError *e = nil; uint64_t t0 = bp_now();
+         id<MTLRenderPipelineState> p = [g_dev newRenderPipelineStateWithMeshDescriptor:m options:MTLPipelineOptionNone reflection:nil error:&e];
++        rb_pso_track(p, RB_MESH, nil, NO);
+         dispatch_semaphore_signal(g_mtk_sem);
+         int left = atomic_fetch_sub(&g_mtk_inflight, 1) - 1;
+         if (p) MLOG("task / mesh pipeline: %s, %.1f ms in the background (frame %llu, still building %d)", names.UTF8String, (bp_now() - t0) / 1e6,
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9311,6 +9311,7 @@
+ static void rb_fu_end(void) {
+     if (atomic_fetch_sub(&g_fu_waiting, 1) == 1 && atomic_load(&g_fu_waiters)) rb_fu_wake();
+ }
++#include "rb_pso_lifetime.inc"
+ #include "pso_archive.h"   // S2Arm: per-pipeline binary archive (after MacNativeGames, MIT)
+ static void rb_heap_pressure_relief(void)
+ {
+@@ -11845,6 +11846,7 @@
+ }
+ static void rb_pso_store(const void *key, id object)
+ {
++    rb_pso_track(object, RB_RENDER, nil, NO);
+     if (!rb_heap_measure()) { hm_put_id(&g_pso, key, object); return; }
+     void *old = nvn_hm_put(&g_pso, key, (void *)CFBridgingRetain(object));
+     uint64_t before = rb_heap_size(old), after = rb_heap_size((__bridge void *)object);
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -775,19 +775,20 @@
+         d.binaryArchives = @[b];
+         id<MTLRenderPipelineState> ps = [g_dev newRenderPipelineStateWithDescriptor:d options:MTLPipelineOptionFailOnBinaryArchiveMiss reflection:nil error:nil];
+         d.binaryArchives = nil;
+-        if (ps) { par_count(1); return ps; }
++        if (ps) { rb_pso_track(ps, RB_RENDER, key, YES); par_count(1); return ps; }
+     }
+     id<MTLBinaryArchive> a = rebuild ? nil : par_archive_for(key);
+     if (a) {
+         d.binaryArchives = @[a];
+         id<MTLRenderPipelineState> ps = [g_dev newRenderPipelineStateWithDescriptor:d options:MTLPipelineOptionFailOnBinaryArchiveMiss reflection:nil error:nil];
+         d.binaryArchives = nil;
+-        if (ps) { par_count(1); return ps; }
++        if (ps) { rb_pso_track(ps, RB_RENDER, key, YES); par_count(1); return ps; }
+         par_drop(key);
+     }
+     if (key && g_par_on) par_count(0);
+     id<MTLRenderPipelineState> ps = [g_dev newRenderPipelineStateWithDescriptor:d error:e];
+     if (ps && rebuild) atomic_fetch_add(&g_par_reference_created,1);
++    rb_pso_track(ps, RB_RENDER, key, NO);
+     if (ps && key && g_par_on && (par_write_in_place || g_par_note_play)) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }   // RewindBox (patch 0033): g_par_note_play
+     return ps;
+ }
+@@ -798,18 +799,19 @@
+         d.binaryArchives = @[b];
+         id<MTLComputePipelineState> ps = [g_dev newComputePipelineStateWithDescriptor:d options:MTLPipelineOptionFailOnBinaryArchiveMiss reflection:nil error:nil];
+         d.binaryArchives = nil;
+-        if (ps) { par_count(1); return ps; }
++        if (ps) { rb_pso_track(ps, RB_COMPUTE, key, YES); par_count(1); return ps; }
+     }
+     id<MTLBinaryArchive> a = par_archive_for(key);
+     if (a) {
+         d.binaryArchives = @[a];
+         id<MTLComputePipelineState> ps = [g_dev newComputePipelineStateWithDescriptor:d options:MTLPipelineOptionFailOnBinaryArchiveMiss reflection:nil error:nil];
+         d.binaryArchives = nil;
+-        if (ps) { par_count(1); return ps; }
++        if (ps) { rb_pso_track(ps, RB_COMPUTE, key, YES); par_count(1); return ps; }
+         par_drop(key);
+     }
+     if (key && g_par_on) par_count(0);
+     id<MTLComputePipelineState> ps = [g_dev newComputePipelineStateWithDescriptor:d options:MTLPipelineOptionNone reflection:nil error:e];
++    rb_pso_track(ps, RB_COMPUTE, key, NO);
+     if (ps && key && g_par_on && (par_write_in_place || g_par_note_play)) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }   // RewindBox (patch 0033): g_par_note_play
+     return ps;
+ }
+diff --git a/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc b/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc
+new file mode 100644
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc
+@@ -0,0 +1,50 @@
++// Guest render, mesh and compute pipeline objects. An associated sentinel
++// follows every other strong owner, including Metal and deferred GPU releases.
++static char rb_pso_lifetime_key;
++static os_unfair_lock rb_pso_counter_lock = OS_UNFAIR_LOCK_INIT;
++static uint64_t rb_pso_live[3], rb_pso_live_bytes;
++enum { RB_RENDER, RB_COMPUTE, RB_MESH };
++
++@interface RBPSOLifetime : NSObject {
++@public
++    unsigned kind;
++    size_t bytes;
++    NSString *identity;
++    BOOL archiveHit;
++    // Submit-thread fields after publication.
++    uint64_t touched;
++    BOOL recorded;
++}
++@end
++@implementation RBPSOLifetime
++- (void)dealloc {
++    os_unfair_lock_lock(&rb_pso_counter_lock);
++    rb_pso_live[kind]--;
++    rb_pso_live_bytes -= bytes;
++    os_unfair_lock_unlock(&rb_pso_counter_lock);
++}
++@end
++
++// Called by the builder before publication, or by the sole submit-thread
++// owner on the unarchived fallback path. Never retains the pipeline.
++static void rb_pso_track(id ps, unsigned kind, NSString *key, BOOL hit) {
++    if (!rb_pso_cap_on() || !ps || objc_getAssociatedObject(ps,&rb_pso_lifetime_key)) return;
++    RBPSOLifetime *life = [RBPSOLifetime new];
++    life->kind = kind; life->identity = key; life->archiveHit = hit;
++    life->touched = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
++    life->bytes = rb_heap_size((__bridge void *)ps);
++    os_unfair_lock_lock(&rb_pso_counter_lock);
++    rb_pso_live[kind]++;
++    rb_pso_live_bytes += life->bytes;
++    os_unfair_lock_unlock(&rb_pso_counter_lock);
++    objc_setAssociatedObject(ps,&rb_pso_lifetime_key,life,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
++}
++
++int nvn_rb_pso_snapshot(uint64_t out[4]) {
++    if (!rb_pso_cap_on()) return -1;
++    os_unfair_lock_lock(&rb_pso_counter_lock);
++    memcpy(out, rb_pso_live, sizeof rb_pso_live);
++    out[3] = rb_pso_live_bytes;
++    os_unfair_lock_unlock(&rb_pso_counter_lock);
++    return 0;
++}
+diff --git a/ios/rb_benchmark.m b/ios/rb_benchmark.m
+--- a/ios/rb_benchmark.m
++++ b/ios/rb_benchmark.m
+@@ -21,6 +21,8 @@
+ 
+ extern int s2a_rb_guest_session_over(void);
+ 
++// 弱链接[ios]：nvn_rb_pso_snapshot
++extern int nvn_rb_pso_snapshot(uint64_t *) __attribute__((weak_import));
+ // 弱链接[ios]：nvn_rb_bench_memory
+ extern int nvn_rb_bench_memory(uint64_t *) __attribute__((weak_import));
+ // 弱链接[ios]：s2a_rb_bench_after_window
+@@ -46,6 +48,7 @@
+     uint64_t at_ns, read_ns, nominal_ns;
+     uint64_t io[4], vm[6], managed[RB_WORDS];
+     uint64_t metal, footprint, compressed, graphics, graphics_compressed;
++    uint64_t pso[4]; int pso_valid;
+     unsigned valid;
+ } rb_sample;
+ typedef struct {
+@@ -204,6 +207,7 @@
+         if (RB_TASK_HAS(ledger_tag_graphics_footprint_compressed) && vi.ledger_tag_graphics_footprint_compressed >= 0) { s.graphics_compressed = (uint64_t)vi.ledger_tag_graphics_footprint_compressed; s.valid |= RB_GRAPHICS_COMPRESSED; }
+ #undef RB_TASK_HAS
+     }
++    s.pso_valid = nvn_rb_pso_snapshot && !nvn_rb_pso_snapshot(s.pso);
+     if (nvn_rb_bench_memory && !nvn_rb_bench_memory(&s.metal)) s.valid |= RB_METAL;
+     if (g_rb_managed_snapshot && g_rb_managed_snapshot(S2A_RB_BENCH_MANAGED_VERSION, s.managed, RB_WORDS)) memset(s.managed, 0, sizeof s.managed);
+     s.at_ns = rb_now(); s.read_ns = s.at_ns - start;
+@@ -214,12 +218,17 @@
+     return rb_delta((a->managed[0] & b->managed[0] & bit) != 0, a->managed[i], b->managed[i]);
+ }
+ static NSDictionary *rb_memory(const rb_sample *s) {
+-    return @{@"metal_allocated_bytes":rb_value(s->valid & RB_METAL, s->metal),
++    NSDictionary *memory = @{@"metal_allocated_bytes":rb_value(s->valid & RB_METAL, s->metal),
+              @"process_footprint_bytes":rb_value(s->valid & RB_FOOTPRINT, s->footprint),
+              @"process_compressed_logical_bytes":rb_value(s->valid & RB_COMPRESSED, s->compressed),
+              @"graphics_ledger_footprint_bytes":rb_value(s->valid & RB_GRAPHICS, s->graphics),
+              @"graphics_ledger_compressed_bytes":rb_value(s->valid & RB_GRAPHICS_COMPRESSED, s->graphics_compressed),
+              @"gpu_resident_physical_bytes":NSNull.null};
++    if (!s->pso_valid) return memory;
++    NSMutableDictionary *out = [memory mutableCopy];
++    out[@"guest_pipelines"] = @{@"render":@(s->pso[0]), @"compute":@(s->pso[1]), @"mesh":@(s->pso[2]),
++        @"live_objects":@(s->pso[0]+s->pso[1]+s->pso[2]), @"shallow_malloc_bytes":@(s->pso[3])};
++    return out;
+ }
+ static NSDictionary *rb_gc(const rb_sample *a, const rb_sample *b) {
+     id p = rb_managed_delta(a, b, RB_BM_HAS_GC, RB_BM_GC_PAUSE_US);
+diff --git a/runtime/include/rb_heap.h b/runtime/include/rb_heap.h
+--- a/runtime/include/rb_heap.h
++++ b/runtime/include/rb_heap.h
+@@ -10,6 +10,21 @@
+ #endif
+ 
+ // Process launch switches. Pointers stay in their original allocator and ABI.
++static inline int rb_pso_cap_on(void)
++{
++#if defined(__APPLE__) && TARGET_OS_IOS
++    static _Atomic int cached;
++    int mode = atomic_load_explicit(&cached, memory_order_relaxed);
++    if (!mode) {
++        const char *value = getenv("S2A_RB_PSO_CAP");
++        mode = value && !strcmp(value, "0") ? -1 : 1;
++        atomic_store_explicit(&cached, mode, memory_order_relaxed);
++    }
++    return mode > 0;
++#else
++    return 0;
++#endif
++}
+ static inline int rb_heap_on(void)
+ {
+ #if defined(__APPLE__) && TARGET_OS_IOS
+@@ -17,7 +32,8 @@
+     int mode = atomic_load_explicit(&cached, memory_order_relaxed);
+     if (!mode) {
+         const char *trim = getenv("S2A_RB_HEAP_TRIM");
+-        mode = trim && !strcmp(trim, "0") ? -1 : 1;
++        const char *pso = getenv("S2A_RB_PSO_CAP");
++        mode = (trim && !strcmp(trim, "0")) || (pso && !strcmp(pso, "0")) ? -1 : 1;
+         atomic_store_explicit(&cached, mode, memory_order_relaxed);
+     }
+     return mode > 0;

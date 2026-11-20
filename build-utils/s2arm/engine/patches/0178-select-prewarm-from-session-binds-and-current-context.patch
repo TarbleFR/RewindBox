@@ -1,0 +1,223 @@
+Admit actual binds from the last two sessions, registered shader pairs, course hints and required migration rows.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_geometry.inc b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+--- a/graphics/nvn/gfx/nvn/nvn_geometry.inc
++++ b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+@@ -162,6 +162,10 @@
+ static void mtk_record(id ps,const mtk_key *mk,NvShader *ts,NvShader *ms,NvShader *fs,int merged,uint64_t wait,BOOL prepared) {
+     if (merged || mk->k.fsfn) return;
+     pso_skey sk; pso_skey_from(&mk->k, ms, fs, 0, NULL, &sk);
++    if (rb_pso_cap_on()) {
++        RBPSOLifetime *life=objc_getAssociatedObject(ps,&rb_pso_lifetime_key);
++        if (life && !life->identity) life->identity=rb_mesh_identity(&sk,ts ? @(ts->key) : nil,mk->pad);
++    }
+     if (rb_draw_remember(ps,&sk,ts ? ts->key : "-",mk->pad,wait,prepared) || prepared) return;
+     char hx[sizeof sk * 2 + 1]; pso_skey_hex(&sk, hx);
+     pso_user_record("M\t%s\t%s\t%x\n", hx, ts ? ts->key : "-", mk->pad);
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -98,6 +98,7 @@
+ 
+ static void warm_start(void), warm_announce(void), rb_warm_resume(void);
+ static void warm_claim(void);
++static void rb_pso_maintain(void);
+ static void rb_ref_stage_hint(const char *raw);
+ static void warm_bump(const char *vk, const char *fk);   // 游戏登记着色器程序时把预热清单里这对着色器的管线提到队头（warm_pick）
+ 
+@@ -1354,6 +1355,7 @@
+     g_sub_thread = pthread_self(); atomic_store(&g_sub_thread_set, 1);
+     atomic_store(&g_last_commit_error, 0);
+     g_sub_pool = objc_autoreleasePoolPush();
++    if (rb_pso_cap_on()) rb_pso_maintain();
+     main_barrier_reset(); g_cb = rec_cb_new();
+     // Do not wait for the GPU mid-frame (hot real device: with a fixed rotation of 3, when the GPU cannot keep up every frame blocks here, and the submit thread runs at low frequency after waking, instruction count −18% but CPU time +49%):
+     // pick an allocator the GPU has finished with; if all are in use create a new one; only at the cap wait for the oldest one. How far ahead it runs is bounded by the wait where the game acquires the swapchain texture, same as the old interface.
+@@ -1697,8 +1699,10 @@
+ static nvn_hmap g_rb_seed_objects = {.klen = sizeof(void *)}; // submit thread only
+ static void rb_ref_bound(id ps);
+ static void rb_trace_bound(id ps);
++static void rb_pso_bound(id ps);
+ static inline void enc_r_pso(id<MTL4RenderCommandEncoder> e, id<MTLRenderPipelineState> p) {
+     [e setRenderPipelineState:p];
++    if (e && rb_pso_cap_on()) rb_pso_bound(p);
+     if (g_rb_promoted_objects.n && e) rb_trace_bound(p);
+     if (g_rb_seed_objects.n && e) rb_ref_bound(p);
+     if (e && atomic_load_explicit(&g_course_capture,memory_order_relaxed)) rb_course_bound(p);
+@@ -1804,7 +1808,7 @@
+     [e endEncoding];
+ }
+ static inline void enc_c_end(id e) { m4_end(e); }
+-static inline void enc_c_pso(id e, id<MTLComputePipelineState> p) { [e setComputePipelineState:p]; }
++static inline void enc_c_pso(id e, id<MTLComputePipelineState> p) { [e setComputePipelineState:p]; if (e && rb_pso_cap_on()) rb_pso_bound(p); }
+ static inline void enc_c_args(id e, uint64_t gpu, NSUInteger i) { (void)e; if (rb_tab_skip(g_rb_ct_addr, &g_rb_ct_valid, gpu, i)) return; if (rec_on() && !g_m3) rec_table_op(RO_T_ADDR, g_ct, gpu, i); else tab_addr(g_ct, gpu, i); }   // RewindBox (patch 0073): rb_tab_skip
+ static inline void enc_c_dispatch(id e, MTLSize n, MTLSize t) { if (g_m3) m3_bind_dispatch(e); [e dispatchThreadgroups:n threadsPerThreadgroup:t]; }
+ static inline void enc_c_dispatch_threads(id e, MTLSize n, MTLSize t) { if (g_m3) m3_bind_dispatch(e); [e dispatchThreads:n threadsPerThreadgroup:t]; }   // 最后一组不补满
+@@ -12715,7 +12719,7 @@
+ // shaders, so one worker builds them one after the other). The tasks keep the lists' order (a pair at its first line). shader_load shares successful objects and in-flight loads
+ // with prefetch and runtime, without negatively caching failures. After the upstream reference implementation (MIT) warm_parse / warm_task
+ #include "rb_reference.inc"
+-@interface WarmTask : NSObject { @public RBReferenceProof *reference; NSString *referenceIdentity; BOOL externalOnly; uint8_t cupRank,drawRank; NSString *drawCue; uint64_t drawWait; int kind, stage, fc; uint32_t pad; NSString *key, *vkey, *fkey, *tkey; NSMutableArray<NSData *> *rs; } @end   // fc: a C line's sampler-emulation bits this GPU runs (#800, warm_parse)
++@interface WarmTask : NSObject { @public RBReferenceProof *reference; NSString *referenceIdentity; BOOL externalOnly, recent; uint8_t cupRank,drawRank; NSString *drawCue; uint64_t drawWait; int kind, stage, fc; uint32_t pad; NSString *key, *vkey, *fkey, *tkey; NSMutableArray<NSData *> *rs; } @end   // fc: a C line's sampler-emulation bits this GPU runs (#800, warm_parse)
+ @implementation WarmTask @end
+ static _Atomic long g_warm_done;   // lines done (the prepare step's progress)
+ static _Atomic int g_wp_phase, g_wp_why, g_wp_play; static _Atomic long g_wp_total; static _Atomic uint64_t g_wp_t0;
+@@ -13114,12 +13118,14 @@
+ static _Atomic long g_wu_remaining;
+ static _Atomic uint64_t g_wu_bumped, g_wu_taken;                        // 放进急件的行数 / 由急件路领走编的行数
+ #include "rb_pso_transitions.inc"
++#include "rb_pso_recent.inc"
+ // The lists' lines as tasks; *lines: the lines they hold
+ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines) {
+     NSMutableArray<WarmTask *> *tasks = [NSMutableArray array];
+     NSMutableOrderedSet<NSString *> *hot = rb_pso_hot_on() ? rb_pso_hot_read(rb_pso_hot_path()) : nil;
+     NSMutableArray<WarmTask *> *priority = hot.count ? [NSMutableArray array] : nil;
+     NSMutableSet<NSString *> *seen = [NSMutableSet set], *stale = [NSMutableSet set]; long n = 0;
++    NSSet *legacy=nil, *recent=rb_pso_cap_on() ? rb_warm_recent(&legacy) : nil;
+     NSString *referencePath=rb_ref_path();
+     NSString *referenceList=referencePath ?: ([paths.firstObject.lastPathComponent isEqual:@"pso_reference.tsv"] ? paths.firstObject : nil);
+     NSMutableArray *referenceTasks=[NSMutableArray array];
+@@ -13209,6 +13215,7 @@
+                     }
+                 }
+             }
++            if (rb_pso_cap_on() && t->kind) t->recent=rb_recent_task(t,recent,legacy);
+             if (required) { t->reference=reference; atomic_fetch_add(&reference->remaining,1); }
+             if (required || (t->referenceIdentity && !t->externalOnly)) [referenceTasks addObject:t];
+             else if (t->drawRank && t->drawWait) [foreground addObject:t];
+@@ -13361,6 +13368,7 @@
+             if (i >= n) { rb_spec_done(lease); return -1; }
+         }
+         if (hint || !c || i >= cn || rb_claim_row(&c[i])) {
++            rb_warm_context = urgent || hint != 0;
+             g_rb_picked_hint = hint != 0 && !routeHint;
+             if (g_rb_picked_hint) atomic_fetch_add(&g_rb_promoted,1);
+             int foreground_done = required && atomic_fetch_sub(&g_wu_required_remaining, 1) == 1;
+@@ -13436,6 +13444,10 @@
+ static void mtk_warm_claim(NSData *key, id ps);
+ static void warm_task(WarmTask *t) { atomic_fetch_add(&g_warm_busy, 1); par_write_in_place = 1; uint64_t libraries=t_rb_msl_n; warm_task_(t); if (t->reference) atomic_fetch_add(&t->reference->compiledLibraries,t_rb_msl_n-libraries); par_write_in_place = 0; atomic_fetch_sub(&g_warm_busy, 1); }   // the prewarm writes what it compiles into the archive (pso_archive.h)
+ static void warm_task_(WarmTask *t) {
++    BOOL context=rb_warm_context; rb_warm_context=NO;
++    if (rb_pso_cap_on() && t->kind && !t->reference && !context && !t->recent) {
++        g_warm_done++; return;
++    }
+     @autoreleasepool {
+         if (t->kind == 0) {
+             NvShader *sh = warm_shader(t->key, t->stage);
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -114,6 +114,7 @@
+     warm_claim();
+     rb_pso_user_flush();
+     rb_ref_abort(); nvn_hm_clear(&g_rb_seed_objects,hm_rel);
++    rb_flush_binds(YES,0);
+     rb_trace_end();
+     pool_session_reset();   // before the owners below: its pins would keep what they remove resident
+     // No callbacks can touch these objects now. Drop descriptors first, then
+diff --git a/graphics/nvn/gfx/nvn/rb_pso_recent.inc b/graphics/nvn/gfx/nvn/rb_pso_recent.inc
+new file mode 100644
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_pso_recent.inc
+@@ -0,0 +1,101 @@
++// Two completed gameplay sessions and this launch's actual encoder binds.
++// The serial history queue owns disk state. Bind callbacks never wait for it.
++enum { RB_RECENT_KEYS = 8192 };
++static NSArray *rb_previous_binds; // history queue, last completed nonempty session
++static NSSet *rb_recent_union;
++static NSString *rb_recent_file;
++static NSMutableOrderedSet *rb_bound_this_session; // submit thread
++static BOOL rb_recent_dirty;
++static uint64_t rb_recent_checkpoint;
++static _Thread_local BOOL rb_warm_context;
++
++static NSString *rb_bind_path(void) {
++    const char *build = s2a_main_build_id ? s2a_main_build_id() : NULL;
++    if (!build || !*build || strlen(build)>64 || strspn(build,"0123456789abcdefABCDEF")!=strlen(build)) return nil;
++    return [pso_user_path() stringByAppendingFormat:@".binds-%s-%s-v1.plist", build, DMSH_CHAIN];
++}
++static void rb_read_binds(NSString *path) {
++    if ([path isEqual:rb_recent_file]) return;
++    rb_recent_file = path; rb_previous_binds = @[]; rb_recent_union = nil;
++    if (!path) return;
++    NSDictionary *attr = [NSFileManager.defaultManager attributesOfItemAtPath:path error:nil];
++    if ([attr[NSFileSize] unsignedLongLongValue] > 4u*1024*1024) return;
++    NSArray *sessions = [NSArray arrayWithContentsOfFile:path];
++    if (sessions.count != 2) return;
++    NSMutableSet *keys = [NSMutableSet set];
++    for (id rows in sessions) {
++        if (![rows isKindOfClass:NSArray.class] || [rows count] > RB_RECENT_KEYS) return;
++        for (id row in rows) {
++            if (![row isKindOfClass:NSString.class] || ![row length] || [row length]>128) return;
++            [keys addObject:row];
++        }
++    }
++    rb_previous_binds = sessions.lastObject; rb_recent_union = keys;
++}
++static NSString *rb_mesh_identity(const pso_skey *sk, NSString *task, uint32_t pad) {
++    return [NSString stringWithFormat:@"m%@/%@/%x",par_hash(sk,sizeof *sk),task.length ? task : @"-",pad];
++}
++static void rb_pso_bound(id ps) {
++    if (!on_sub_thread()) return;
++    RBPSOLifetime *life = objc_getAssociatedObject(ps,&rb_pso_lifetime_key);
++    if (!life) return;
++    life->touched = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
++    if (life->recorded || !life->identity) return;
++    life->recorded = YES;
++    if (!rb_bound_this_session) rb_bound_this_session = [NSMutableOrderedSet orderedSet];
++    if ([rb_bound_this_session containsObject:life->identity]) return;
++    if (rb_bound_this_session.count == RB_RECENT_KEYS) [rb_bound_this_session removeObjectAtIndex:0];
++    [rb_bound_this_session addObject:life->identity]; rb_recent_dirty = YES;
++}
++static void rb_flush_binds(BOOL final, uint64_t now) {
++    if (!rb_pso_cap_on()) return;
++    if (rb_recent_dirty && (final || now>=rb_recent_checkpoint)) {
++        NSString *path = rb_bind_path();
++        if (path) {
++            NSArray *rows = [rb_bound_this_session.array copy];
++            dispatch_async(rb_trace_io(), ^{ @autoreleasepool {
++                rb_read_binds(path);
++                if (![@[rb_previous_binds,rows] writeToFile:path atomically:YES])
++                    MLOG("[RB-PSO-CAP] history_write_failed=1");
++            } });
++        }
++        rb_recent_dirty = NO;
++        rb_recent_checkpoint = now+60ull*NSEC_PER_SEC;
++    }
++    if (final) {
++        dispatch_sync(rb_trace_io(), ^{ rb_recent_file=nil; rb_previous_binds=nil; rb_recent_union=nil; });
++        rb_bound_this_session=nil; rb_recent_checkpoint=0;
++    }
++}
++static NSSet *rb_warm_recent(NSSet **legacy) {
++    NSString *path = rb_bind_path();
++    RBPipelineTrace *run = rb_trace_session();
++    __block NSSet *binds, *old;
++    dispatch_sync(rb_trace_io(), ^{
++        rb_read_binds(path); binds=rb_recent_union;
++        if (run && !binds) {
++            const rb_pso_history *h=&run->priorLaunches;
++            NSMutableSet *keys=[NSMutableSet set];
++            for (size_t i=0;i<h->latest.count;i++) [keys addObject:@(h->latest.key[i])];
++            for (size_t i=0;i<h->prior.count;i++) [keys addObject:@(h->prior.key[i])];
++            old=keys;
++        }
++    });
++    *legacy=old; return binds;
++}
++static BOOL rb_recent_task(WarmTask *t, NSSet *keys, NSSet *legacy) {
++    if (t->kind==2) {
++        NSData *bytes=[t->key dataUsingEncoding:NSUTF8StringEncoding];
++        NSMutableData *key=[bytes mutableCopy];
++        if (t->fc) { unsigned char fc=(unsigned char)('0'+t->fc); [key appendBytes:&fc length:1]; }
++        return [keys containsObject:[@"c" stringByAppendingString:par_hash(key.bytes,key.length)]];
++    }
++    NSData *row=t->rs.firstObject;
++    if (row.length!=sizeof(pso_skey)) return NO;
++    if (t->kind==4) return [keys containsObject:rb_mesh_identity(row.bytes,t->tkey,t->pad)];
++    if (legacy && [legacy containsObject:@(nvn_hm_hash(row.bytes,row.length))]) return YES;
++    return [keys containsObject:par_hash(row.bytes,row.length)];
++}
++static void rb_pso_maintain(void) {
++    rb_flush_binds(NO,clock_gettime_nsec_np(CLOCK_UPTIME_RAW));
++}

@@ -1,0 +1,142 @@
+Measure cumulative long display gaps once per window, including a conservative all-cause upper bound.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_geometry.inc b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+--- a/graphics/nvn/gfx/nvn/nvn_geometry.inc
++++ b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+@@ -238,6 +238,7 @@
+ static int g_mtk_budget = -1;   // ms; -1: not read yet (t_nvn_mesh ④d sets it)
+ static int mtk_budget_ms(void) { if (g_mtk_budget < 0) { const char *e = getenv("DM_NVN_MESH_WAIT_MS"); g_mtk_budget = e ? atoi(e) : 250; } return g_mtk_budget; }
+ static id mtk_wait(const mtk_key *mk, const char *why) {
++    RBPSOWait rb_wait __attribute__((cleanup(rb_wait_end)))=rb_wait_begin();
+     uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed); if (f != g_mtk_wait_frame) { g_mtk_wait_frame = f; g_mtk_wait_frame_ns = 0; }
+     uint64_t budget = (uint64_t)mtk_budget_ms() * 1000000ull, t0 = bp_now(); __unsafe_unretained id p = nil; int done = 0;
+     // Debug pacing deliberately publishes on a future frame. Normal profile draws
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -104,6 +104,8 @@
+ 
+ static id<MTLDevice> g_dev;
+ // RewindBox 0171: observation only; one hook per presented frame, never per draw.
++// 弱链接[host,ios,nvntest]：s2a_rb_bench_pipeline_wait
++extern void s2a_rb_bench_pipeline_wait(uint64_t,uint64_t,uint64_t) __attribute__((weak_import));
+ // 弱链接[host,ios,nvntest]：s2a_rb_bench_generation (optional iOS benchmark observer)
+ extern uint64_t s2a_rb_bench_generation(void) __attribute__((weak_import));
+ // 弱链接[host,ios,nvntest]：s2a_rb_bench_present_begin (optional iOS benchmark observer)
+@@ -12611,6 +12613,7 @@
+             rb_course_candidate(cached, &k, vs, fs);
+         return cached;
+     }
++    RBPSOWait rb_wait __attribute__((cleanup(rb_wait_end)))=rb_wait_begin();
+     if (hm_get_id(&g_pso_fail, &k)) { PSO_WHY("on the failed list (its first build was refused; the red line then said why)"); return nil; }
+     { NSNumber *r = hm_get_id(&g_pso_retry, &k); if (r && r.unsignedLongLongValue > atomic_load(&g_cur_frame)) { g_first_skipped = 1; PSO_WHY("waiting to retry after a compiler service failure"); return nil; } }   // waiting to retry (pso_err_transient)
+     if (quar_has(vs, fs)) { hm_put_id(&g_pso_fail, &k, NSNull.null); PSO_WHY("quarantined after a GPU error"); return nil; }   // a GPU error quarantined it (quar_fault)
+@@ -19439,6 +19442,7 @@
+     id<MTLComputePipelineState> ps = hm_get_id(cps, ck);
+     if ((id)ps == (id)NSNull.null) return;   // its pipeline failed before: built once, reported once (see below)
+     if (!ps) {
++        RBPSOWait rb_wait __attribute__((cleanup(rb_wait_end)))=rb_wait_begin();
+         NSError *e = nil; uint64_t bt = bp_now(); ps = par_compute(fc ? se_fn(cs, fc) : cs->fn, par_ckey(cs, fc), &e);
+         { uint64_t d_ = bp_now() - bt; g_bp_pso_n++; g_bp_pso_ns += d_; fe_sync_note(d_); }
+         // A failure is remembered like a success: it was rebuilt at every dispatch (Monster Hunter Rise's 36,880-byte threadgroup memory, over Apple's 32,768: 2,472–6,450 builds in one
+diff --git a/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc b/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc
+--- a/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc
++++ b/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc
+@@ -79,3 +79,13 @@
+     MLOG("[RB-PSO-RECREATE] id=%s elapsed_ns=%llu source=%s",key.UTF8String,
+          (unsigned long long)elapsed,!ps ? "failed" : life && life->archiveHit ? "binary_archive" : "compiler");
+ }
++
++typedef struct { uint64_t start, generation; } RBPSOWait;
++static RBPSOWait rb_wait_begin(void) {
++    if (!rb_pso_cap_on() || !s2a_rb_bench_generation || !s2a_rb_bench_pipeline_wait) return (RBPSOWait){0};
++    uint64_t gen=s2a_rb_bench_generation();
++    return (RBPSOWait){gen ? clock_gettime_nsec_np(CLOCK_UPTIME_RAW) : 0,gen};
++}
++static void rb_wait_end(RBPSOWait *wait) {
++    if (wait->generation) s2a_rb_bench_pipeline_wait(wait->generation,wait->start,clock_gettime_nsec_np(CLOCK_UPTIME_RAW));
++}
+diff --git a/ios/rb_benchmark.m b/ios/rb_benchmark.m
+--- a/ios/rb_benchmark.m
++++ b/ios/rb_benchmark.m
+@@ -69,6 +69,20 @@
+ static _Atomic uint64_t g_rb_end_serial;
+ static _Atomic unsigned g_rb_stopped_engine;
+ static rb_run g_rb;
++typedef struct { uint64_t start,end; } rb_pipeline_wait;
++// Submit-thread scopes arrive in time order. Storage stays fixed while a
++// window is open and only its used pages need backing.
++static rb_pipeline_wait rb_waits[16384];
++static size_t rb_wait_count;
++static BOOL rb_wait_overflow;
++void s2a_rb_bench_pipeline_wait(uint64_t generation,uint64_t start,uint64_t end) {
++    pthread_mutex_lock(&g_rb_lock);
++    if (generation==g_rb.generation && (g_rb.state==RB_RUNNING || g_rb.state==RB_DRAINING) && end>start) {
++        if (rb_wait_count<sizeof rb_waits/sizeof *rb_waits) rb_waits[rb_wait_count++]=(rb_pipeline_wait){start,end};
++        else rb_wait_overflow=YES;
++    }
++    pthread_mutex_unlock(&g_rb_lock);
++}
+ static uint64_t g_rb_next_generation;
+ static NSDictionary *g_rb_metadata, *g_rb_initial, *g_rb_last_summary;
+ static NSMutableArray<NSString *> *g_rb_reasons;
+@@ -393,6 +407,35 @@
+ }
+ 
+ static int rb_u64_cmp(const void *a, const void *b) { uint64_t x = *(const uint64_t *)a, y = *(const uint64_t *)b; return (x > y) - (x < y); }
++// Display callbacks are not necessarily ordered. Count each complete
++// presentation gap once even if it contains several acquisition waits.
++static int rb_wait_cmp(const void *a,const void *b) {
++    const rb_pipeline_wait *x=a,*y=b;
++    return (x->start>y->start)-(x->start<y->start);
++}
++static NSDictionary *rb_pipeline_gaps(const rb_run *run) {
++    size_t n=run->display_n;
++    if (!n) return nil;
++    qsort(run->display,n,sizeof *run->display,rb_u64_cmp);
++    qsort(rb_waits,rb_wait_count,sizeof *rb_waits,rb_wait_cmp);
++    size_t j=0; uint64_t matched=0,all=0,prev=run->display[0];
++    for (size_t i=1;i<n;i++) {
++        uint64_t end=run->display[i],gap=end-prev;
++        if (gap>100000000) {
++            all+=gap;
++            while (j<rb_wait_count && rb_waits[j].end<=prev) j++;
++            if (j<rb_wait_count && rb_waits[j].start<end) matched+=gap;
++        }
++        prev=end;
++    }
++    // The true duration of each boundary frame is unknown. Charge every
++    // nanosecond inside the window on both boundaries to the upper bound.
++    uint64_t edges=run->display[0]-run->start_ns+run->end_ns-prev;
++    return @{@"complete_long_display_ns":@(all),@"boundary_exposure_ns":@(edges),
++        @"all_causes_upper_bound_ns":@(all+edges),@"wait_scopes":@(rb_wait_count),
++        @"wait_overflow":rb_bool(rb_wait_overflow),
++        @"overlapping_long_display_ns":rb_value(!rb_wait_overflow,matched)};
++}
+ static NSDictionary *rb_frame_stats(uint64_t *timestamps, size_t n, uint64_t start, uint64_t end, int unique) {
+     if (n) qsort(timestamps,n,sizeof *timestamps,rb_u64_cmp);
+     size_t count = n, duplicates = 0;
+@@ -532,6 +575,7 @@
+     pthread_mutex_unlock(&g_rb_lock);
+     if (g_rb_timer) { dispatch_source_cancel(g_rb_timer); g_rb_timer = nil; }
+     NSDictionary *frame = rb_frame_stats(run.frame,run.frame_n,run.start_ns,run.end_ns,0);
++    NSDictionary *pipeline = run.base.pso_valid ? rb_pipeline_gaps(&run) : nil;
+     NSDictionary *display = rb_frame_stats(run.display,run.display_n,run.start_ns,run.end_ns,1);
+     rb_sample last = run.sample_n ? run.samples[run.sample_n - 1] : run.base;
+     NSDictionary *protocol = @{@"schema":@1,@"protocol_id":RB_PROTOCOL,@"duration_seconds":@(RB_SECONDS),
+@@ -570,6 +614,7 @@
+         @"protocol_hash":@(hex), @"comparison_policy":@"same protocol and initial conditions; no comparison with runs missing this schema",
+         @"report_path":NSNull.null} mutableCopy];
+     char docs[4096]; int dn = s2a_container_docs(docs,sizeof docs);
++    if (pipeline) summary[@"pipeline_display"]=pipeline;
+     NSString *path = nil; NSError *writeError = nil;
+     NSString *relative = [@"Diagnostics/S2Arm/benchmarks" stringByAppendingPathComponent:[identifier stringByAppendingPathExtension:@"json"]];
+     if (dn > 0 && (size_t)dn < sizeof docs) {
+@@ -710,6 +755,7 @@
+         pthread_mutex_unlock(&g_rb_lock); return rb_abort_start(generation,frames,display,timer,why,-8);
+     }
+     memset(&g_rb,0,sizeof g_rb); g_rb.generation = generation; g_rb.engine_generation = engine_generation;
++    rb_wait_count=0; rb_wait_overflow=NO;
+     g_rb.frame = frames; g_rb.display = display; g_rb.state = RB_PREPARING;
+     g_rb.start_ns = start; g_rb.deadline_ns = start + RB_SECONDS * RB_NS; g_rb.next_sample_ns = start + 10 * RB_NS;
+     g_rb.mode_at_ns = g_rb.thermal_at_ns = start; g_rb.last_game_mode = g_rb.last_sent_mode = 3;

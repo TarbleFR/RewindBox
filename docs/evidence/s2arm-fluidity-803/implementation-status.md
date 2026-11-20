@@ -91,3 +91,24 @@ Compatibilité de lecture 803 : seuls `end.complete` et `mapping_tag.external_pa
 Pour les page-ins, l’outil prend la médiane des dix-huit débits réels par fenêtre, ramenés à dix secondes, puis celle des trois fenêtres. Pour le tag 2, le p95 affiché et les images >100 ms/min, il prend la médiane des trois valeurs de fenêtre. Les valeurs individuelles et leur dispersion restent dans le JSON ; aucun quantile fusionné n’est inventé. Résultats distincts : comparaison refusée, objectif non atteint, objectif atteint sur ce scénario. Ce dernier résultat exige les quatre critères, sans extrapolation aux FPS, à la chauffe ni aux autres circuits.
 
 Usage : répéter `--baseline JOURNAL UUID` trois fois et `--candidate JOURNAL UUID` trois fois, puis donner `--output RAPPORT.json`. Les journaux restent privés. Vérification syntaxique réussie et refus confirmé sur un export historique sans protocole ; aucune fenêtre appareil valide fournie, aucun résultat positif fabriqué. Aucune nouvelle suite de tests n’est ajoutée.
+
+## Pipelines Metal vivants
+
+Le relevé fourni pour Mario Kart World compte environ 5 500 pipelines sur 803 et 2 900 sur 779. La préparation 803 annonce zéro ligne transférée en arrière-plan. Le mainteneur indique n’avoir observé aucune compilation en course. Ces chiffres décrivent la référence et motivent la mesure de rétention.
+
+| Étape | État |
+| --- | --- |
+| Corrigé dans les sources | 0177 compte les objets de pipeline du jeu et leurs octets malloc superficiels jusqu’à leur destruction. 0178 sélectionne le préchauffage par utilisation récente ou contexte. 0179 retire les entrées froides reconstructibles et chronomètre chaque reconstruction. 0180 agrège les images longues du banc. |
+| Compilé pour iOS | En attente de la compilation de ce lot. |
+| IPA privée livrée | 804 reste la dernière livraison vérifiée à ce stade. |
+| Observé sur appareil | Aucune fenêtre candidate. Nombre d’objets, footprint et durée cumulée en attente. |
+
+Les compteurs `guest_pipelines` couvrent les constructeurs du jeu passant par les archives de rendu/calcul, les objets admis dans la table de rendu et les constructeurs mesh. Les objets fixes du présentateur et les pipelines internes du pilote sont hors périmètre. Les octets malloc superficiels, le footprint du processus et les octets Metal mesurent trois grandeurs différentes. Relever aussi les entrées de la table de rendu dans le compteur de ressources commun à 803 et à la candidate.
+
+Le délai candidat est de cinq minutes depuis le dernier bind ou la création. Seuls les hits vérifiés par Metal avec `MTLPipelineOptionFailOnBinaryArchiveMiss` sont éligibles. La libération attend la soumission GPU. Les objets sans archive éprouvée, dont les pipelines mesh, restent détenus. La nouvelle liste d’indices conserve au plus 8 192 identités par session à côté du manifeste du joueur. Les deux sessions précédentes, les indices de scène courante et les dépendances obligatoires de migration alimentent le préchauffage. La première exécution peut reprendre les traces de rendu déjà disponibles sur 803. Chaque ligne privée `[RB-PSO-RECREATE]` donne le temps de construction, l’identité d’archive et l’issue. Une attente sur le thread de rendu a sa propre mesure.
+
+### Décision sur appareil
+
+Suivre le [protocole du banc](../../s2arm-benchmark-protocol.md) avec trois fenêtres valides de 180 secondes par version sur le même circuit nommé, sur iPhone17,2 avec iOS 27. Garder la même résolution, le même état thermique et les mêmes caches chauds, puis alterner les versions. Amener les deux sessions au même point après au moins cinq minutes de jeu. Relever par fenêtre la médiane des footprints, le compteur de ressources commun aux deux versions, le p95 affiché et les images de plus de 100 ms. La référence 803 ne fournit pas le compteur distinct `guest_pipelines`. Consigner la série candidate séparément et utiliser les entrées de tables de même périmètre pour la comparaison directe.
+
+Le champ `pipeline_display.overlapping_long_display_ns` additionne chaque intervalle affiché supérieur à 100 ms qui recouvre une attente instrumentée (rendu, calcul, mesh). La simultanéité seule ne démontre pas la cause, et une file GPU peut décaler l’affichage. `all_causes_upper_bound_ns` ajoute aux images longues complètes les portions de fenêtre aux deux bords, quelle qu’en soit la cause. S’il est strictement inférieur à 1 000 000 000 ns sur chacune des trois fenêtres candidates valides, le budget PSO est respecté. Sinon, il faut attribuer les images restantes à partir d’une trace synchronisée avant de conclure. Une couverture absente ou un débordement ne vaut jamais zéro. La baisse des compteurs comparables et du footprint reste à vérifier face à 803. La candidate hérite du lot tas de 804. Pour isoler l’effet PSO, consigner un passage supplémentaire avec `S2A_RB_HEAP_TRIM=0`. Le repli global `S2A_RB_PSO_CAP=0` s’applique dès le lancement.

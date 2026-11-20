@@ -1,0 +1,185 @@
+Retire idle archive-proven guest PSOs behind the submission fence. Time and classify recreation attempts.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -19292,6 +19292,69 @@
+ static nvn_hmap g_cps = {.klen = sizeof(void *)};
+ typedef struct { const void *cs; uintptr_t fc; } cps_se_key;
+ static nvn_hmap g_cps_se = {.klen = sizeof(cps_se_key)};   // S2Arm #800: compute pipelines of the sampler-emulation variant (se_want), by shader and SE_* bits: keyed apart from main0's
++// Advance all three submit-owned tables in small slices. No GPU completion
++// waits occur here. Backshift deletion requires revisiting the same slot.
++enum { RB_IDLE_SECONDS=300, RB_SCAN_SLOTS=96, RB_SCAN_DROPS=4 };
++static uint32_t rb_scan_cursor[3];
++static uint64_t rb_next_scan, rb_next_report, rb_drop_total;
++static void rb_forget_render_pointer(id obj) {
++    const void *raw=(__bridge void *)obj;
++    nvn_hm_del(&g_rb_promoted_objects,&raw);
++    hm_del_id(&g_rb_seed_objects,&raw);
++    hm_del_id(&g_rb_draw_candidates,&raw);
++    if (t_rb_draw_pipeline==raw) t_rb_draw_pipeline=NULL;
++    if (t_course.ps==(uintptr_t)raw) t_course.ps=0;
++    os_unfair_lock_lock(&g_wu_lock);
++    for (unsigned i=0;i<g_course_attempts;i++)
++        if (g_course_probed[i]==(uintptr_t)raw) g_course_probed[i]=0;
++    os_unfair_lock_unlock(&g_wu_lock);
++}
++static void rb_pso_scan(nvn_hmap *map,unsigned lane,uint64_t now) {
++    if (!map->n) return;
++    unsigned dropped=0, budget=MIN(map->cap,(uint32_t)RB_SCAN_SLOTS);
++    for (unsigned i=0;i<budget && dropped<RB_SCAN_DROPS;i++) {
++        uint32_t slot=rb_scan_cursor[lane] & (map->cap-1);
++        rb_scan_cursor[lane]=slot+1;
++        id obj=(__bridge id)map->vals[slot];
++        if (!obj) continue;
++        RBPSOLifetime *life=objc_getAssociatedObject(obj,&rb_pso_lifetime_key);
++        if (!life || !life->archiveHit || now<life->touched ||
++            now-life->touched<RB_IDLE_SECONDS*(uint64_t)NSEC_PER_SEC) continue;
++        if (!rb_retire_identity(life->identity)) continue;
++        defer_obj_unref(obj);
++        if (map==&g_pso) {
++            rb_forget_render_pointer(obj);
++            if (rb_heap_measure()) atomic_fetch_sub_explicit(&g_rb_pso_objects,life->bytes,memory_order_relaxed);
++        }
++        hm_del_id(map,map->keys+(size_t)slot*map->klen);
++        rb_scan_cursor[lane]=slot; dropped++; rb_drop_total++;
++    }
++}
++static void rb_pso_maintain(void) {
++    uint64_t now=clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
++    if (now<rb_next_scan) return;
++    rb_next_scan=now+50*NSEC_PER_MSEC;
++    rb_flush_binds(NO,now);
++    rb_pso_scan(&g_pso,0,now);
++    rb_pso_scan(&g_cps,1,now);
++    rb_pso_scan(&g_cps_se,2,now);
++    if (now>=rb_next_report) {
++        uint64_t v[4]; nvn_rb_pso_snapshot(v);
++        MLOG("[RB-PSO-CAP] render_live=%llu compute_live=%llu mesh_live=%llu shallow_bytes=%llu render_entries=%u compute_entries=%u variant_entries=%u evictions=%llu idle_s=%u",
++             (unsigned long long)v[0],(unsigned long long)v[1],(unsigned long long)v[2],(unsigned long long)v[3],
++             g_pso.n,g_cps.n,g_cps_se.n,(unsigned long long)rb_drop_total,RB_IDLE_SECONDS);
++        rb_next_report=now+60ull*NSEC_PER_SEC;
++    }
++}
++static void rb_pso_retirement_end(void) {
++    if (!rb_pso_cap_on()) return;
++    os_unfair_lock_lock(&rb_retired_lock);
++    rb_retired=nil; atomic_store(&rb_retired_count,0);
++    os_unfair_lock_unlock(&rb_retired_lock);
++    memset(rb_scan_cursor,0,sizeof rb_scan_cursor); rb_next_scan=rb_next_report=rb_drop_total=0;
++    // Variant keys contain session-local shader pointers.
++    nvn_hm_clear(&g_cps_se,hm_rel);
++}
+ static void warm_claim(void) {
+     if (!atomic_load_explicit(&g_warm_ready, memory_order_acquire)) return;
+     os_unfair_lock_lock(&g_warm_lock);
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -161,6 +161,7 @@
+     nvn_hm_clear(&g_pso, hm_rel);
+     if (rb_heap_measure()) atomic_store_explicit(&g_rb_pso_objects, 0, memory_order_relaxed);
+     nvn_hm_clear(&g_cps, hm_rel);
++    rb_pso_retirement_end();
+     if (g_mtk_group) dispatch_group_wait(g_mtk_group, DISPATCH_TIME_FOREVER);   // task / mesh pipelines (nvn_geometry.inc mtk_pso): the background builds write the map
+     os_unfair_lock_lock(&g_pso_mtk_lock); nvn_hm_clear(&g_pso_mtk, hm_rel);
+     [g_mtk_names removeAllObjects]; [g_mtk_ready removeAllObjects];   // RewindBox (patch 0044): the names table (pipelines as strong keys), the pace list and the first-draw set kept every
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -734,8 +734,10 @@
+ static id<MTLRenderPipelineState> par_render(MTLRenderPipelineDescriptor *d, NSString *key, NSError **e) {
+     id got; ParFlight *mine;
+     if (par_fl_enter(key, &got, &mine) && got) return got;
++    uint64_t rb_start=rb_pso_cap_on() ? clock_gettime_nsec_np(CLOCK_UPTIME_RAW) : 0;
+     ParSlow *sw = par_slow_begin(key, "render", [NSString stringWithFormat:@"%@ %@", d.vertexFunction.name ?: @"-", d.fragmentFunction.name ?: @"-"]);
+     id<MTLRenderPipelineState> ps = par_render_(d, key, e);
++    rb_recreated(key,ps,rb_start);
+     par_slow_end(sw, ps != nil);
+     par_fl_leave(key, mine, ps);
+     return ps;
+@@ -744,8 +746,10 @@
+     if (!fn) return nil;
+     id got; ParFlight *mine;
+     if (par_fl_enter(key, &got, &mine) && got) return got;
++    uint64_t rb_start=rb_pso_cap_on() ? clock_gettime_nsec_np(CLOCK_UPTIME_RAW) : 0;
+     ParSlow *sw = par_slow_begin(key ? key : fn.name, "compute", fn.name);
+     id<MTLComputePipelineState> ps = par_compute_(fn, key, e);
++    rb_recreated(key,ps,rb_start);
+     par_slow_end(sw, ps != nil);
+     par_fl_leave(key, mine, ps);
+     return ps;
+diff --git a/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc b/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc
+--- a/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc
++++ b/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc
+@@ -13,7 +13,7 @@
+     BOOL archiveHit;
+     // Submit-thread fields after publication.
+     uint64_t touched;
+-    BOOL recorded;
++    BOOL recorded, traced;
+ }
+ @end
+ @implementation RBPSOLifetime
+@@ -48,3 +48,34 @@
+     os_unfair_lock_unlock(&rb_pso_counter_lock);
+     return 0;
+ }
++
++// Only owners whose exact archive has already passed Metal's fail-on-miss
++// check can be retired. Keep a bounded ledger of outstanding identities.
++// If the ledger fills, keep more pipelines instead of losing recreations.
++enum { RB_RETIRED_LIMIT=8192 };
++static NSMutableSet *rb_retired;
++static os_unfair_lock rb_retired_lock=OS_UNFAIR_LOCK_INIT;
++static _Atomic NSUInteger rb_retired_count;
++static BOOL rb_retire_identity(NSString *key) {
++    if (!key) return NO;
++    os_unfair_lock_lock(&rb_retired_lock);
++    if (!rb_retired) rb_retired=[NSMutableSet set];
++    BOOL room=rb_retired.count<RB_RETIRED_LIMIT || [rb_retired containsObject:key];
++    if (room) [rb_retired addObject:key];
++    atomic_store(&rb_retired_count,rb_retired.count);
++    os_unfair_lock_unlock(&rb_retired_lock);
++    return room;
++}
++static void rb_recreated(NSString *key,id ps,uint64_t start) {
++    if (!start || !key || !atomic_load_explicit(&rb_retired_count,memory_order_relaxed)) return;
++    uint64_t elapsed=clock_gettime_nsec_np(CLOCK_UPTIME_RAW)-start;
++    os_unfair_lock_lock(&rb_retired_lock);
++    BOOL retired=[rb_retired containsObject:key];
++    if (retired && ps) [rb_retired removeObject:key];
++    atomic_store(&rb_retired_count,rb_retired.count);
++    os_unfair_lock_unlock(&rb_retired_lock);
++    if (!retired) return;
++    RBPSOLifetime *life=objc_getAssociatedObject(ps,&rb_pso_lifetime_key);
++    MLOG("[RB-PSO-RECREATE] id=%s elapsed_ns=%llu source=%s",key.UTF8String,
++         (unsigned long long)elapsed,!ps ? "failed" : life && life->archiveHit ? "binary_archive" : "compiler");
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_pso_recent.inc b/graphics/nvn/gfx/nvn/rb_pso_recent.inc
+--- a/graphics/nvn/gfx/nvn/rb_pso_recent.inc
++++ b/graphics/nvn/gfx/nvn/rb_pso_recent.inc
+@@ -96,6 +96,3 @@
+     if (legacy && [legacy containsObject:@(nvn_hm_hash(row.bytes,row.length))]) return YES;
+     return [keys containsObject:par_hash(row.bytes,row.length)];
+ }
+-static void rb_pso_maintain(void) {
+-    rb_flush_binds(NO,clock_gettime_nsec_np(CLOCK_UPTIME_RAW));
+-}
+diff --git a/graphics/nvn/gfx/nvn/rb_pso_transitions.inc b/graphics/nvn/gfx/nvn/rb_pso_transitions.inc
+--- a/graphics/nvn/gfx/nvn/rb_pso_transitions.inc
++++ b/graphics/nvn/gfx/nvn/rb_pso_transitions.inc
+@@ -172,7 +172,12 @@
+     if (!run) { g_rb_observing = 0; return; }
+     // Called on successful render lookup, including a cached object. Exclude
+     // diagnostic/merged overrides that cannot use ordinary R rows.
+-    if (run->objectCount >= RB_TRACE_LIMIT || !rb_trace_first(run->seenPSO, (uintptr_t)(__bridge void *)ps)) return;
++    if (run->objectCount >= RB_TRACE_LIMIT) return;
++    RBPSOLifetime *life=rb_pso_cap_on() ? objc_getAssociatedObject(ps,&rb_pso_lifetime_key) : nil;
++    if (life) {
++        if (life->traced) return;
++        life->traced=YES;
++    } else if (!rb_trace_first(run->seenPSO,(uintptr_t)(__bridge void *)ps)) return;
+     if (++run->objectCount == RB_TRACE_LIMIT) g_rb_observing = 0;
+     pso_skey sk; pso_skey_from(k, vs, fs, 0, NULL, &sk);
+     uint64_t key = nvn_hm_hash(&sk, sizeof sk);
