@@ -579,7 +579,7 @@ jobs:
           sudo xcode-select -s "$best/Contents/Developer"
           xcodebuild -version
       - name: Measure the original and candidate CPU paths
-        run: python3 build-utils/s2arm/engine/benchmarks/run_cpu.py
+        run: python3 build-utils/s2arm/engine/benchmarks/run_cpu.py ${{ contains(github.event.head_commit.message, '[s2arm-rid-only]') && '--rid-only' || '' }}
       - name: Measure identical image processing in Metal and Core ML
         run: python3 build-utils/s2arm/engine/benchmarks/run_coreml.py
       - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb

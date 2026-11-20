@@ -21,6 +21,13 @@ struct BenchMain {
                 print("wrote \(output)")
                 print(result["ane_verdict"] ?? "unknown")
                 print("Scope: standalone reconstruction; no game-render savings or iPhone FPS claim.")
+                // Preserve the complete report even when numerical agreement fails.
+                // A successful process must not hide invalid timing comparisons.
+                guard result["B_C_numerical_equivalence_passed"] as? Bool == true,
+                      result["coreml_prediction_failures"] as? Int == 0 else {
+                    fputs("ReconstructionBench: numerical comparison or prediction failed; full report retained\n", stderr)
+                    exit(2)
+                }
             } else { throw BenchError("Requires macOS 14.4 / iOS 17.4 for per-operation compute-plan evidence") }
         } catch {
             fputs("ReconstructionBench: \(error)\n", stderr)

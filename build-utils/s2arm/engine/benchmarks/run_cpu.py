@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Source-path microbenchmarks, not a game replay or an iPhone FPS claim."""
-import json, os, platform, subprocess
+import json, os, platform, subprocess, sys
 from pathlib import Path
 root=Path(__file__).resolve().parent
 out=Path("proof/race-benchmarks").resolve();out.mkdir(parents=True,exist_ok=True)
@@ -11,6 +11,11 @@ def run(args, name=None, env=None):
     if p.returncode: print(p.stdout,p.stderr);raise SystemExit(p.returncode)
     return p.stdout
 (out/"cpu-environment.json").write_text(json.dumps({"platform":platform.platform(),"machine":platform.machine(),"cc":run(["cc","--version"]),"physicalIPhone":False,"input":"controlled ordinary resident address and push-byte patterns; not session801 replay"},indent=2))
+if "--rid-only" in sys.argv:
+    exe=out/"rid_bench"
+    run(["cc","-O3","-std=gnu11","-Wall","-Wextra","-DNDEBUG","-fobjc-arc","-framework","Foundation","-framework","Metal",root/"rid_bench.m","-o",exe])
+    run([exe],"rid-direct.csv",env=dict(os.environ,RID_VARIANT="direct"))
+    raise SystemExit(0)
 for variant,defs in [("full",[]),("no-timing",["-DNO_TIMING"])]:
     exe=out/("ubo-"+variant)
     run(["cc","-O3","-std=gnu11","-Wall","-Wextra","-pthread",*defs,root/"ubo_bench.c",root/"ga.c","-o",exe])
