@@ -1,0 +1,73 @@
+{
+  "flutter": {
+    "result": "not-run",
+    "evidenceMode": "not-run",
+    "kind": "flutter",
+    "execution": {
+      "source": "27316165edc053de9c96f3fde322bf5774aa421c",
+      "tree": "ef99e7cfb3d9e790f979f3c30b85168faf2d4275",
+      "run": 44663855103,
+      "attempt": 1
+    },
+    "job": 136049050321,
+    "commands": [],
+    "reason": "The existing Metal checks on 0154 passed. This private build compiles the application using authenticated producer binaries and the standard delivery checks.",
+    "fullRegressionSuiteExecuted": false
+  },
+  "native": {
+    "result": "not-run",
+    "evidenceMode": "not-run",
+    "kind": "native",
+    "execution": {
+      "source": "27316165edc053de9c96f3fde322bf5774aa421c",
+      "tree": "ef99e7cfb3d9e790f979f3c30b85168faf2d4275",
+      "run": 44663855103,
+      "attempt": 1
+    },
+    "job": 136049050036,
+    "commands": [],
+    "reason": "The existing Metal checks on 0154 passed. This private build compiles the application using authenticated producer binaries and the standard delivery checks.",
+    "fullRegressionSuiteExecuted": false
+  },
+  "deliveryContract": {
+    "result": "authenticated",
+    "evidenceMode": "fresh",
+    "command": "python3 -B test/standard_delivery_contract_test.py",
+    "rerunInThisRun": true,
+    "job": 136048288768,
+    "artifact": 14597230987,
+    "archiveSHA256": "033ebb882c843cca420e18d6f5e4421bd4119b4ed4798e58ad80fb0afc81e07d",
+    "logSHA256": "a2122ce50467d81d50d7aa49ad135038cb4af113ad2100c166e0cb93598f6285",
+    "execution": {
+      "source": "27316165edc053de9c96f3fde322bf5774aa421c",
+      "tree": "ef99e7cfb3d9e790f979f3c30b85168faf2d4275",
+      "run": 44663855103,
+      "attempt": 1
+    }
+  },
+  "testsExecutedInThisRun": [
+    "delivery-contract"
+  ],
+  "testsRun": {
+    "flutter": {
+      "mode": "not-run",
+      "run": 44663855103,
+      "attempt": 1,
+      "job": 136049050321,
+      "source": "27316165edc053de9c96f3fde322bf5774aa421c"
+    },
+    "native": {
+      "mode": "not-run",
+      "run": 44663855103,
+      "attempt": 1,
+      "job": 136049050036,
+      "source": "27316165edc053de9c96f3fde322bf5774aa421c"
+    },
+    "delivery-contract": {
+      "mode": "fresh",
+      "run": 44663855103,
+      "attempt": 1,
+      "job": 136048288768
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "build": 799,
+  "baseCompared": 797,
+  "matchingExecutableBundleIdentifiers": 10,
+  "bundle": "com.neogamelab.neostation",
+  "s2armProducer": "447c8e0628af3f2123f1b01736772cc2e058f4d8",
+  "patch": "0154-guest-stream-prewarm-rows-and-recover-draw-history.patch",
+  "patchSha256": "665e89a5b62df26e237aecca5f302677d5ab27d62481ebbbf291ed888a347121",
+  "deviceTested": false,
+  "armsx2BridgeComparison": {
+    "base": 797,
+    "changedSections": [
+      "__stubs",
+      "__objc_stubs"
+    ],
+    "allFileBackedSectionsEqualAfterResolvingStubSymbols": true
+  }
+}
