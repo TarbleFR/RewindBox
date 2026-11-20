@@ -45,3 +45,29 @@ La [livraison](../rewind803/delivery.json) provient de `c5422386b72ec4ea88b010da
 La [revue de compilation application](../rewind803/application803-warnings.json) ne trouve aucun avertissement dans les cinq fichiers modifiés, soit 249 lignes ajoutées. Les sources des avertissements S2Arm ailleurs sont inchangées depuis 802 ; leur émission dans 802 n’a pas été vérifiée, son journal étant indisponible. Les diagnostics du moteur sont documentés [séparément](../rewind803/engine171-warnings.json). Le framework libretro recompilé a des relais générés par le linker différents mais équivalents : code principal et données identiques, mêmes destinations `_objc_msgSend`, avec UUID et signature différents. Le [classement binaire](../rewind803/libretro-image-difference.json) conserve les détails.
 
 L’IPA a été remise en privé après vérification ; la clé privée de transport a été supprimée après conservation des reçus. Aucun essai physique iPhone, aucune validation de partie, aucun gain de FPS ou de chaleur n’est déclaré. La comparaison 803/802 selon le protocole reste indisponible : 802 n’avait pas ce protocole. 803 constitue la première référence instrumentée.
+
+## Tas hôte iOS — lots 0172 à 0176
+
+Référence fournie par le mainteneur pour Mario Kart World (`0400C3F00006E000`) sur iPhone17,2, 8 Go, iOS 27, IPA 803. Footprint 4 346 Mo, compressed logique 1 205 Mo, graphics compressed 212 Mo. Tranches communiquées en Mio par tag : 2 = 755, 0 = 243, 100 = 163, 88 = 64. Environ 22 500 page-ins / 10 s et 31 % de CPU système. En session longue sur 802, jusqu’à 85 000 page-ins, 312 000 compressions / 10 s et 63 % de CPU système. Ces relevés motivent le choix du tas. Ils ne déterminent ni un propriétaire ni un résultat apparié.
+
+| Propriétaire suivi | Octets comptabilisés en mémoire au moment du relevé |
+| --- | --- |
+| Traduction | Allocations des descripteurs de modules, tables de symboles, traps et sauts lointains. Code exécutable mappé exclu. |
+| Pages et fenêtres | Plages de suivi des écritures, tableaux courants et retirés, index de plages et répertoire de la fenêtre lointaine. Réservation virtuelle du jeu exclue. |
+| Vues de textures | Capacité allouée du registre de textures et des deux index, plus la taille structurelle des jeux de vues vivants. Une acquisition du verrou impossible donne une valeur indisponible. |
+| Pipelines | Capacité malloc des clés et pointeurs de la table de rendu. Taille superficielle des objets retenus publiée séparément par référence. Plusieurs références peuvent désigner le même objet. Les allocations privées de Metal sont inconnues. |
+| Commandes | Enregistrements NVN, nœuds de l’index de pages, intervalles alloués et table d’internement. Les blocs de commandes mmap relèvent d’une autre comptabilité. |
+| Son | Capacité demandée des buffers AudioQueue effectivement alloués et encore détenus, toutes sorties confondues, sans travail ajouté au callback audio. Le tas managé et les allocations privées de Core Audio sont hors couverture. |
+
+`[RB-VM-HEAP]` associe les lignes de zone et la synthèse par horodatage monotone et génération. Les valeurs de zone et les compteurs internes se recouvrent. `over_threshold` utilise le seuil strict de 100 Mo décimaux sur les sites suivis. Les références superficielles PSO ont leur propre indicateur. Aucun propriétaire dépassant réellement ce seuil sur la 803 n’est établi par les données disponibles. Les octets rendus par `malloc_zone_pressure_relief` ont leur propre ligne `[RB-HEAP-RELIEF]`.
+
+Le cache des archives ouvertes gardait les objets et des alias de lot jusqu’à la fin du processus. Son plafond candidat est de 128 fichiers distincts, avec les huit plus récents conservés sur une alerte système. Ces deux plafonds d’essai devront être confrontés aux temps d’image. Les descripteurs Metal en cours conservent leurs archives. Les entrées de traduction utilisées par le traitement de fautes restent actives jusqu’au retrait des lecteurs. Aucun changement de format de fichier, de sauvegarde ou d’identité shader.
+
+| Étape | État du lot |
+| --- | --- |
+| Corrigé dans les sources | Relevé malloc par minute, propriétaires, plafond LRU, libération des tables du chargeur au retrait et restitution à malloc sur alerte. Repli global au lancement avec `S2A_RB_HEAP_TRIM=0`. |
+| Compilé pour iOS | À confirmer par le producteur de ce lot. |
+| IPA privée livrée | À confirmer après vérification de l’IPA contenant ce moteur. |
+| Observé sur appareil | Aucune fenêtre candidate disponible. Objectif non validé. |
+
+Pour statuer, conserver trois fenêtres valides de 180 s **par version**. Utiliser le même circuit nommé, le même appareil et le même état de cache chaud, avec refroidissement et ordre alterné, selon le [protocole](../../s2arm-benchmark-protocol.md). Pour chaque fenêtre, associer le parcours VM post-score complet à son identifiant et convertir les pages comprimées du tag 2 avec la taille de page déclarée. Comparer les médianes des relevés par version et les médianes des débits de page-ins du processus ramenés à 10 s. Publier aussi les valeurs individuelles, le p95 affiché et les images affichées >100 ms/min. Acceptation : baisse du tag 2 d’au moins 250 000 000 octets, baisse de la médiane des page-ins, sans hausse des deux métriques de temps d’image. Un tag manquant, une couverture manquante ou une fenêtre invalide laisse le résultat en attente.

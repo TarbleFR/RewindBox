@@ -1,0 +1,138 @@
+Record process malloc zones on the existing serial VM ledger worker once per minute.
+
+diff --git a/ios/rb_vm_audit.m b/ios/rb_vm_audit.m
+--- a/ios/rb_vm_audit.m
++++ b/ios/rb_vm_audit.m
+@@ -18,6 +18,7 @@
+ #include "native.h"
+ #include "s2a_session.h"
+ #include "rb_vm_audit.h"
++#include "../runtime/include/rb_heap.h"
+ 
+ // Use the public iOS VM API already compiled by vawin.c, with a 64-bit address range.
+ _Static_assert(sizeof(vm_address_t) == 8 && sizeof(vm_size_t) == 8, "VM benchmark requires a 64-bit iOS target");
+@@ -273,6 +274,46 @@
+     return r;
+ }
+ 
++static void rb_heap_ledger(unsigned generation, uint64_t frame, uint64_t sample_ns)
++{
++    static unsigned previous_generation;
++    static uint64_t next_ns;
++    if (!rb_heap_measure()) return;
++    if (previous_generation == generation && sample_ns < next_ns) return;
++    const uint64_t minute = 60000000000ull;
++    if (previous_generation != generation || !next_ns) next_ns = sample_ns;
++    next_ns += ((sample_ns - next_ns) / minute + 1) * minute;
++    previous_generation = generation;
++    vm_address_t *zones = NULL;
++    unsigned count = 0, emitted = 0;
++    uint64_t started = rb_vm_now();
++    kern_return_t status = malloc_get_all_zones(mach_task_self(), NULL, &zones, &count);
++    if (status == KERN_SUCCESS && zones) {
++        for (unsigned i = 0; i < count && rb_vm_alive(generation); ++i) {
++            malloc_zone_t *zone = (malloc_zone_t *)(uintptr_t)zones[i];
++            if (!zone || !zone->introspect || !zone->introspect->statistics) continue;
++            malloc_statistics_t stats = {0};
++            malloc_zone_statistics(zone, &stats);
++            const char *name = malloc_get_zone_name(zone);
++            rb_vm_write_json("[RB-VM-HEAP]", @{
++                @"event": @"malloc_zone", @"sample_ns": @(sample_ns),
++                @"generation": @(generation), @"zone_index": @(i),
++                @"name": name ? ([NSString stringWithUTF8String:name] ?: @"unknown") : @"unnamed",
++                @"size_in_use": @(stats.size_in_use), @"size_allocated": @(stats.size_allocated),
++                @"max_size_in_use": @(stats.max_size_in_use)
++            });
++            ++emitted;
++        }
++    }
++    if (!rb_vm_alive(generation)) return;
++    rb_vm_write_json("[RB-VM-HEAP]", @{
++        @"event": @"heap_census", @"schema": @1, @"generation": @(generation),
++        @"frame": @(frame), @"sample_ns": @(sample_ns), @"zone_status": @(status),
++        @"zone_count": @(count), @"zones_reported": @(emitted),
++        @"elapsed_ns": @(rb_vm_now() - started)
++    });
++}
++
+ void s2a_rb_vm_ledgers_log(const task_vm_info_data_t *info,
+     mach_msg_type_number_t count, kern_return_t kr, unsigned generation,
+     uint64_t frame, uint64_t sample_ns)
+@@ -296,7 +337,10 @@
+             r[@"published_ns"] = @(rb_vm_now());
+             r[@"source"] = @"existing_heartbeat_task_info";
+             r[@"additional_mach_calls"] = @0;
+-            if (rb_vm_alive(generation)) rb_vm_write_json("[RB-VM-LEDGER]", r);
++            if (rb_vm_alive(generation)) {
++                rb_vm_write_json("[RB-VM-LEDGER]", r);
++                rb_heap_ledger(generation, frame, sample_ns);
++            }
+         }
+     });
+ }
+diff --git a/runtime/include/rb_heap.h b/runtime/include/rb_heap.h
+new file mode 100644
+--- /dev/null
++++ b/runtime/include/rb_heap.h
+@@ -0,0 +1,61 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++#include <stdint.h>
++#include <stdlib.h>
++#include <string.h>
++#include <stdatomic.h>
++#ifdef __APPLE__
++#include <TargetConditionals.h>
++#include <malloc/malloc.h>
++#endif
++
++// Process launch switches. Pointers stay in their original allocator and ABI.
++static inline int rb_heap_on(void)
++{
++#if defined(__APPLE__) && TARGET_OS_IOS
++    static _Atomic int cached;
++    int mode = atomic_load_explicit(&cached, memory_order_relaxed);
++    if (!mode) {
++        const char *trim = getenv("S2A_RB_HEAP_TRIM");
++        mode = trim && !strcmp(trim, "0") ? -1 : 1;
++        atomic_store_explicit(&cached, mode, memory_order_relaxed);
++    }
++    return mode > 0;
++#else
++    return 0;
++#endif
++}
++static inline int rb_heap_measure(void)
++{
++    if (!rb_heap_on()) return 0;
++    static _Atomic int cached;
++    int mode = atomic_load_explicit(&cached, memory_order_relaxed);
++    if (!mode) {
++        const char *value = getenv("S2A_RB_HEAP_LEDGER");
++        mode = value && !strcmp(value, "0") ? -1 : 1;
++        atomic_store_explicit(&cached, mode, memory_order_relaxed);
++    }
++    return mode > 0;
++}
++static inline size_t rb_heap_size(const void *p)
++{
++#ifdef __APPLE__
++    return p ? malloc_size(p) : 0;
++#else
++    (void)p;
++    return 0;
++#endif
++}
++// Called only by the thread owning the allocation, before publication/free.
++static inline void *rb_heap_acquire(_Atomic uint64_t *bytes, void *p)
++{
++    if (p && rb_heap_measure())
++        atomic_fetch_add_explicit(bytes, rb_heap_size(p), memory_order_relaxed);
++    return p;
++}
++static inline void rb_heap_free(_Atomic uint64_t *bytes, void *p)
++{
++    if (p && rb_heap_measure())
++        atomic_fetch_sub_explicit(bytes, rb_heap_size(p), memory_order_relaxed);
++    free(p);
++}

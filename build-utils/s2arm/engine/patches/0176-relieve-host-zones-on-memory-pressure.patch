@@ -1,0 +1,49 @@
+On OS warning/critical events, release cold archive handles and request allocator pressure relief off the rendering thread.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3900,6 +3900,7 @@
+ static dispatch_source_t g_rb_press_src;
+ static _Atomic uint64_t g_spec_pressure_until;
+ static _Atomic int g_snp_give, g_snp_sweep;   // RewindBox (patch 0071 review): the snapshot pools let everything go (the low-region ledger) / their idle textures (the 300-frame report) at the next submission end (snp_maint)
++static void rb_heap_pressure_relief(void);
+ static void rb_press_release(void);   // the event handler's release (defined with the ring, after tex_put)
+ static void rb_low_from(uint64_t f, int event) {   // any thread: a low state starts, or goes on, for RB_PRESS_HOLD frames from frame f
+     if (event) atomic_store(&g_spec_pressure_until, bp_now() + 5000000000ull);
+@@ -3910,7 +3911,7 @@
+ static int rb_mem_low(void) {
+     static dispatch_once_t once;
+     dispatch_once(&once, ^{ g_rb_press_src = dispatch_source_create(DISPATCH_SOURCE_TYPE_MEMORYPRESSURE, 0, DISPATCH_MEMORYPRESSURE_WARN | DISPATCH_MEMORYPRESSURE_CRITICAL, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
+-        if (g_rb_press_src) { dispatch_source_set_event_handler(g_rb_press_src, ^{ rb_low_from(atomic_load_explicit(&g_cur_frame, memory_order_relaxed), 1); rb_press_release(); }); dispatch_resume(g_rb_press_src); } });
++        if (g_rb_press_src) { dispatch_source_set_event_handler(g_rb_press_src, ^{ rb_low_from(atomic_load_explicit(&g_cur_frame, memory_order_relaxed), 1); rb_press_release(); if (rb_heap_on()) rb_heap_pressure_relief(); }); dispatch_resume(g_rb_press_src); } });
+     uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
+ #if TARGET_OS_IPHONE
+     static _Atomic uint64_t looked = UINT64_MAX;
+@@ -9311,6 +9312,26 @@
+     if (atomic_fetch_sub(&g_fu_waiting, 1) == 1 && atomic_load(&g_fu_waiters)) rb_fu_wake();
+ }
+ #include "pso_archive.h"   // S2Arm: per-pipeline binary archive (after MacNativeGames, MIT)
++static void rb_heap_pressure_relief(void)
++{
++#if TARGET_OS_IOS
++    // Same dispatch memorypressure source as 803. Never called by a draw or
++    // by the per-frame headroom poll. Drain temporary Objective-C references
++    // and leave all engine locks before asking libmalloc to release pages.
++    NSUInteger before, after;
++    @autoreleasepool {
++        pthread_mutex_lock(&g_par_mu);
++        before = g_rb_recent_archives.count;
++        rb_archive_limit(RB_PRESSURE_OPEN_ARCHIVES);
++        after = g_rb_recent_archives.count;
++        pthread_mutex_unlock(&g_par_mu);
++    }
++    size_t released = malloc_zone_pressure_relief(NULL, 0);
++    MLOG("[RB-HEAP-RELIEF] evicted_archive_files=%lu allocator_reported_bytes=%zu",
++         (unsigned long)(before - after), released);
++#endif
++}
++
+ // Archive keys: a render pipeline by its pso_skey, as pso_user.tsv records it; nil (not archived) for a specialized fragment (readable-tile merge) or a diagnostic override
+ static NSString *par_rkey(const pso_key *k, NvShader *vs, NvShader *fs, int merged, id fsfn) {
+     if (fsfn || merged) return nil;

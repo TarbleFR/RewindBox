@@ -240,3 +240,18 @@ GC alert thresholds are diagnostic, not automatic tuning: 2% completed pause tim
 seconds. Audio gaps are estimates of shortfall, with callback delays and output
 session changes reported separately. The producer and artifact checks remain the
 existing CI contract; no new native test suite is introduced.
+
+### Host heap on iOS, patches 0172–0176
+
+| Patch | Effect |
+| --- | --- |
+| 0172 | The existing VM ledger worker samples Darwin malloc zones at the first heartbeat and then at 60-second intervals. Each row includes the used, allocated and high-water fields. |
+| 0173 | The same sample reports bytes at instrumented owner sites, flags totals strictly above 100,000,000 bytes and marks unavailable providers. The GPU driver, guest address space and uninstrumented allocations are outside this accounting. |
+| 0174 | Open pipeline archives share a bounded 128-file LRU, including one handle per batch file. Archive users hold strong references through pipeline creation. Compiled PSOs and persistent shader data remain available. |
+| 0175 | At drained loader retirement or aborted boot, release the trap and far-jump tables allocated with each module. |
+| 0176 | On a dispatch memory-pressure warning or critical event, retain the eight most recently used archive files and call allocator pressure relief outside engine locks. The returned bytes are logged separately from VM compression. |
+
+`S2A_RB_HEAP_TRIM=0` at process launch restores the 803 paths for all five patches.
+`S2A_RB_HEAP_LEDGER=0` disables the new instrumentation alone. The existing
+benchmark and VM ledger switches still govern ledger publication. See the
+[owner coverage and device acceptance criteria](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md#tas-hôte-ios--lots-0172-à-0176).

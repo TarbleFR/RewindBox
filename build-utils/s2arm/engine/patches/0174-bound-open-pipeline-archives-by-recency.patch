@@ -1,0 +1,99 @@
+Bound reconstructible in-memory archive references by physical file, retaining compiled in-flight users and disk history.
+
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -216,17 +216,50 @@
+              (unsigned long)g_par_bmap.count, (unsigned long)nb, bytes / 1048576.0);
+     });
+ }
++// Accessed under g_par_mu. All users take strong references under this same
++// lock. Only read-only, already serialized files enter this cache.
++enum { RB_OPEN_ARCHIVES = 128, RB_PRESSURE_OPEN_ARCHIVES = 8 };
++static NSMutableOrderedSet<NSString *> *g_rb_recent_archives;
++static void rb_archive_forget(NSString *key)
++{
++    [g_par_open removeObjectForKey:key];
++    if (rb_heap_on()) [g_rb_recent_archives removeObject:key];
++}
++static void rb_archive_limit(NSUInteger limit)
++{
++    while (g_rb_recent_archives.count > limit) {
++        rb_archive_forget(g_rb_recent_archives.firstObject);
++    }
++}
++static id<MTLBinaryArchive> rb_archive_lookup(NSString *key)
++{
++    id<MTLBinaryArchive> archive = g_par_open[key];
++    if (archive && rb_heap_on()) {
++        [g_rb_recent_archives removeObject:key];
++        [g_rb_recent_archives addObject:key];
++    }
++    return archive;
++}
++static void rb_archive_store(NSString *key, id<MTLBinaryArchive> archive)
++{
++    g_par_open[key] = archive;
++    if (!rb_heap_on()) return;
++    if (!g_rb_recent_archives) g_rb_recent_archives = [NSMutableOrderedSet orderedSet];
++    [g_rb_recent_archives removeObject:key];
++    [g_rb_recent_archives addObject:key];
++    rb_archive_limit(RB_OPEN_ARCHIVES);
++}
+ static id<MTLBinaryArchive> par_bundle_for(NSString *key) {   // the package's file for this key, or nil (kept open like the device's)
+     par_open_dir();
+     if (!key || !g_par_bundle_files) return nil;
+     pthread_mutex_lock(&g_par_mu);
+     if (![g_par_bhave containsObject:key]) { pthread_mutex_unlock(&g_par_mu); return nil; }
+     NSString *k = [@"b/" stringByAppendingString:key];
+-    id<MTLBinaryArchive> a = g_par_open[k];
++    id<MTLBinaryArchive> a = rb_archive_lookup(k);
+     if (!a) {
+         MTLBinaryArchiveDescriptor *d = [MTLBinaryArchiveDescriptor new]; d.url = [NSURL fileURLWithPath:[g_par_bdir stringByAppendingFormat:@"/%@.metalarchive", key]];
+         a = [g_dev newBinaryArchiveWithDescriptor:d error:nil];
+-        if (a) g_par_open[k] = a; else [g_par_bhave removeObject:key];
++        if (a) rb_archive_store(k, a); else [g_par_bhave removeObject:key];
+     }
+     pthread_mutex_unlock(&g_par_mu);
+     return a;
+@@ -235,24 +268,24 @@
+     par_open_dir();
+     if (!g_par_on || !key) return nil;
+     pthread_mutex_lock(&g_par_mu);
+-    id<MTLBinaryArchive> a = g_par_open[key];
++    id<MTLBinaryArchive> a = rb_archive_lookup(key);
+     NSString *bf = a ? nil : g_par_bmap[key];
+     if (bf) {   // in a batch file: one open archive per file, shared by its keys
+-        NSString *fk = [@"f/" stringByAppendingString:bf]; a = g_par_open[fk];
++        NSString *fk = [@"f/" stringByAppendingString:bf]; a = rb_archive_lookup(fk);
+         if (!a) { MTLBinaryArchiveDescriptor *d = [MTLBinaryArchiveDescriptor new]; d.url = [NSURL fileURLWithPath:[g_par_dir stringByAppendingPathComponent:bf]];
+-                  a = [g_dev newBinaryArchiveWithDescriptor:d error:nil]; if (a) g_par_open[fk] = a; }
+-        if (a) g_par_open[key] = a; else { [g_par_bmap removeObjectForKey:key]; [g_par_have removeObject:key]; }
++                  a = [g_dev newBinaryArchiveWithDescriptor:d error:nil]; if (a) rb_archive_store(fk, a); }
++        if (a) { if (!rb_heap_on()) rb_archive_store(key, a); } else { [g_par_bmap removeObjectForKey:key]; [g_par_have removeObject:key]; }
+     } else if (!a && [g_par_have containsObject:key]) {
+         MTLBinaryArchiveDescriptor *d = [MTLBinaryArchiveDescriptor new]; d.url = [NSURL fileURLWithPath:par_file(key)];
+         NSError *e = nil; a = [g_dev newBinaryArchiveWithDescriptor:d error:&e];
+-        if (a) g_par_open[key] = a;
+-        else { [g_par_have removeObject:key]; [NSFileManager.defaultManager removeItemAtPath:par_file(key) error:nil]; }
++        if (a) rb_archive_store(key, a);
++        else if (!rb_heap_on()) { [g_par_have removeObject:key]; [NSFileManager.defaultManager removeItemAtPath:par_file(key) error:nil]; }
+     }
+     pthread_mutex_unlock(&g_par_mu);
+     return a;
+ }
+ static void par_drop(NSString *key) {   // its file did not give the pipeline (another package's libraries under the same key): written again by the next write
+-    pthread_mutex_lock(&g_par_mu); [g_par_open removeObjectForKey:key]; [g_par_have removeObject:key];
++    pthread_mutex_lock(&g_par_mu); rb_archive_forget(key); [g_par_have removeObject:key];
+     BOOL batched = g_par_bmap[key] != nil; [g_par_bmap removeObjectForKey:key]; pthread_mutex_unlock(&g_par_mu);
+     if (!batched) [NSFileManager.defaultManager removeItemAtPath:par_file(key) error:nil];   // a batch file holds others' pipelines: kept, the key is written again into a new one
+     atomic_fetch_add(&g_par_stale, 1);
+@@ -718,7 +751,7 @@
+     BOOL rebuild=[g_par_reference_fresh containsObject:key];
+     if (rebuild) {
+         [g_par_reference_fresh removeObject:key]; atomic_store(&g_par_reference_left,g_par_reference_fresh.count);
+-        [g_par_open removeObjectForKey:key]; [g_par_bmap removeObjectForKey:key]; [g_par_have removeObject:key];
++        rb_archive_forget(key); [g_par_bmap removeObjectForKey:key]; [g_par_have removeObject:key];
+     }
+     pthread_mutex_unlock(&g_par_mu);
+     return rebuild;

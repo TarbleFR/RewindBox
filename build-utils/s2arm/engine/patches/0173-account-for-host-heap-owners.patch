@@ -1,0 +1,552 @@
+Attribute live host bytes at selected owning sites. Keep driver-private and mmap storage outside heap estimates.
+
+diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+--- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
++++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+@@ -360,7 +360,9 @@
+                         return stopRc;
+                     }
+ 
+-                    AudioQueueDispose(_audioQueue, true);
++                    int disposed = AudioQueueDispose(_audioQueue, true);
++                    if (disposed == 0) ForgetQueueCapacity();
++                    else _queueCapacity = 0; // previous queue is no longer reachable, bytes still outstanding
+                     newRc = CreateQueue();
+ 
+                     return 0;   // 旧队列连同它的缓冲已销毁：在途的槽全部收回
+@@ -426,6 +428,16 @@
+             }
+         }
+ 
++        private static readonly bool MeasureHeap =
++            OperatingSystem.IsIOS() && Environment.GetEnvironmentVariable("S2A_RB_HEAP_TRIM") != "0" &&
++            Environment.GetEnvironmentVariable("S2A_RB_HEAP_LEDGER") != "0";
++        internal static long HeapBufferBytes;
++        private long _queueCapacity;
++        private void ForgetQueueCapacity()
++        {
++            if (MeasureHeap) Interlocked.Add(ref HeapBufferBytes, -_queueCapacity);
++            _queueCapacity = 0;
++        }
+         private uint BufferBytes => RequestedSampleRate * BufferMilliseconds / 1000 * (uint)_bytesPerFrame;
+ 
+         // S2Arm: 建 AudioQueue 和它的 32 个缓冲（起会话与媒体服务重置后重建共用）。缓冲放回同一个数组：泵按槽号取，换队列不用换泵
+@@ -445,7 +457,12 @@
+ 
+             for (int i = 0; i < NumBuffers; i++)
+             {
+-                AudioQueueAllocateBuffer(_audioQueue, BufferBytes, out _audioQueueBuffers[i]);
++                int allocation = AudioQueueAllocateBuffer(_audioQueue, BufferBytes, out _audioQueueBuffers[i]);
++                if (MeasureHeap && allocation == 0 && _audioQueueBuffers[i] != nint.Zero)
++                {
++                    _queueCapacity += BufferBytes;
++                    Interlocked.Add(ref HeapBufferBytes, BufferBytes);
++                }
+             }
+ 
+             return 0;
+@@ -823,6 +840,7 @@
+                         int result = AudioQueueDispose(_audioQueue, true);
+                         if (result != 0)
+                             throw new InvalidOperationException($"AudioQueueDispose failed: {result}; callback handle retained");
++                        ForgetQueueCapacity();
+                         _audioQueue = nint.Zero;
+                     }
+ 
+diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs
+--- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs
++++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs
+@@ -45,6 +45,8 @@
+                 previous = observed;
+             }
+         }
++
++        public static ulong BufferCapacity => (ulong)Volatile.Read(ref AppleHardwareDeviceSession.HeapBufferBytes);
+ 
+         public static void Snapshot(Span<ulong> values)
+         {
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -19,6 +19,13 @@
+ #include "nvn_vpace.h"
+ #include "../../host/front.h"
+ #include "nvn_dirty.h"
++#include "../../../../runtime/include/rb_heap.h"
++static _Atomic uint64_t g_rb_commands;
++uint64_t s2a_rb_heap_commands(void)
++{
++    return atomic_load_explicit(&g_rb_commands, memory_order_relaxed);
++}
++
+ #include "nvn_program_pins.h"
+ #include "nvn2.h"
+ #include "nvn2_cmd.h"   // NVN2 推常量 / DLSS 的记录格式与对象布局
+@@ -1694,7 +1701,7 @@
+ static void sh_index(srec *r) {   // g_sh_mu held
+     uint32_t n = 0;
+     for (uint32_t i = 0; i < r->niv; i++) n += (uint32_t)(((r->iv[i].hi - 1) >> SH_PAGE_SHIFT) - (r->iv[i].lo >> SH_PAGE_SHIFT) + 1);
+-    r->nodes = malloc(sizeof *r->nodes * n); if (!r->nodes) die("NVN command recording: index nodes for %u pages", n);
++    r->nodes = rb_heap_acquire(&g_rb_commands, malloc(sizeof *r->nodes * n)); if (!r->nodes) die("NVN command recording: index nodes for %u pages", n);
+     r->nnodes = n; n = 0;
+     for (uint32_t i = 0; i < r->niv; i++)
+         for (uintptr_t pg = r->iv[i].lo >> SH_PAGE_SHIFT; pg <= (r->iv[i].hi - 1) >> SH_PAGE_SHIFT; pg++) {
+@@ -1706,8 +1713,8 @@
+ static void sh_free_rec(srec *r) {   // g_sh_mu held: blocks back to their classes
+     if (r->blk) r->blk->rb_tag = 0;   // RewindBox (patch 0072): no more its handle's (nvn_hle_handle_sigs)
+     for (sblk *b = r->blk, *nx; b; b = nx) { nx = b->next; b->next = g_sh_free[b->cls]; g_sh_free[b->cls] = b; }
+-    if (r->iv != r->ivs) free(r->iv);
+-    free(r);
++    if (r->iv != r->ivs) rb_heap_free(&g_rb_commands, r->iv);
++    rb_heap_free(&g_rb_commands, r);
+ }
+ static void sh_pump(void) {   // g_sh_mu held: reuse the blocks of recordings released long enough ago
+     uint64_t f = dm_nvn_frame_count();
+@@ -1718,7 +1725,7 @@
+ }
+ static void sh_kill(srec *r) {   // g_sh_mu held: the recording is dead; unindex it and queue its blocks for reuse
+     for (uint32_t i = 0; i < r->nnodes; i++) { snode *d = &r->nodes[i]; __atomic_store_n(d->pprev, d->next, __ATOMIC_RELEASE); if (d->next) d->next->pprev = d->pprev; }
+-    free(r->nodes); r->nodes = NULL; r->nnodes = 0;
++    rb_heap_free(&g_rb_commands, r->nodes); r->nodes = NULL; r->nnodes = 0;
+     r->prev->next = r->next; r->next->prev = r->prev;
+     g_sh_nlive--; g_sh_live_bytes -= r->bytes;
+     r->frame = dm_nvn_frame_count(); r->next = NULL; g_sh_qbytes += r->bytes;
+@@ -1752,12 +1759,12 @@
+ }
+ static void sh_shutdown(void) {   // session end: every recording and chunk goes
+     pthread_mutex_lock(&g_sh_mu);
+-    for (srec *r = g_sh_all.next, *nx; r != &g_sh_all; r = nx) { nx = r->next; free(r->nodes); if (r->iv != r->ivs) free(r->iv); free(r); }
+-    for (srec *r = g_sh_qhead, *nx; r; r = nx) { nx = r->next; if (r->iv != r->ivs) free(r->iv); free(r); }
++    for (srec *r = g_sh_all.next, *nx; r != &g_sh_all; r = nx) { nx = r->next; rb_heap_free(&g_rb_commands, r->nodes); if (r->iv != r->ivs) rb_heap_free(&g_rb_commands, r->iv); rb_heap_free(&g_rb_commands, r); }
++    for (srec *r = g_sh_qhead, *nx; r; r = nx) { nx = r->next; if (r->iv != r->ivs) rb_heap_free(&g_rb_commands, r->iv); rb_heap_free(&g_rb_commands, r); }
+     for (int i = 0; i < g_sh_nchunk; i++) sh_chunk_unmap(g_sh_chunk[i].mem);
+     free(g_sh_chunk); g_sh_chunk = NULL; g_sh_nchunk = g_sh_cchunk = 0;
+     memset(g_sh_carving, 0, sizeof g_sh_carving); memset(g_sh_free, 0, sizeof g_sh_free); memset(g_sh_bkt, 0, sizeof g_sh_bkt);
+-    g_sh_all.next = g_sh_all.prev = &g_sh_all; g_sh_qhead = g_sh_qtail = NULL; g_sh_qbytes = g_sh_nlive = g_sh_live_bytes = g_sh_unanchored = 0; free(g_sh_it); g_sh_it = NULL; g_sh_itcap = g_sh_itn = 0; g_sh_shared_n = 0;
++    g_sh_all.next = g_sh_all.prev = &g_sh_all; g_sh_qhead = g_sh_qtail = NULL; g_sh_qbytes = g_sh_nlive = g_sh_live_bytes = g_sh_unanchored = 0; rb_heap_free(&g_rb_commands, g_sh_it); g_sh_it = NULL; g_sh_itcap = g_sh_itn = 0; g_sh_shared_n = 0;
+     pthread_mutex_unlock(&g_sh_mu);
+ }
+ // The open recording leaves the command buffer's current window: note the device bytes it took there. In a host-lent window it took none of the game's memory; it hangs off
+@@ -1768,8 +1775,8 @@
+     if (!v.lo) return;
+     if (r->niv && r->iv[r->niv - 1].hi >= v.lo && r->iv[r->niv - 1].lo <= v.lo) { if (v.hi > r->iv[r->niv - 1].hi) r->iv[r->niv - 1].hi = v.hi; return; }   // contiguous / the same anchor
+     if (r->niv == r->civ) {
+-        siv *t = malloc(sizeof *t * r->civ * 2); if (!t) die("NVN command recording: interval list growth failed");
+-        memcpy(t, r->iv, sizeof *t * r->niv); if (r->iv != r->ivs) free(r->iv); r->iv = t; r->civ *= 2;
++        siv *t = rb_heap_acquire(&g_rb_commands, malloc(sizeof *t * r->civ * 2)); if (!t) die("NVN command recording: interval list growth failed");
++        memcpy(t, r->iv, sizeof *t * r->niv); if (r->iv != r->ivs) rb_heap_free(&g_rb_commands, r->iv); r->iv = t; r->civ *= 2;
+     }
+     r->iv[r->niv++] = v;
+ }
+@@ -1878,9 +1885,9 @@
+         if (g_sh_it[i].h == hv && g_sh_it[i].len == len && !memcmp(g_sh_it[i].b + 1, o->begin, len)) { copy = g_sh_it[i].b; break; }
+     if (!copy) {
+         if ((g_sh_itn + 1) * 2 > g_sh_itcap) {   // grow (load <= 1/2) and rehash
+-            size_t nc = g_sh_itcap ? g_sh_itcap * 2 : 64; sintern *t = calloc(nc, sizeof *t); if (!t) return 0;
++            size_t nc = g_sh_itcap ? g_sh_itcap * 2 : 64; sintern *t = rb_heap_acquire(&g_rb_commands, calloc(nc, sizeof *t)); if (!t) return 0;
+             for (size_t k = 0; k < g_sh_itcap; k++) if (g_sh_it[k].b) { size_t j = g_sh_it[k].h & (nc - 1); while (t[j].b) j = (j + 1) & (nc - 1); t[j] = g_sh_it[k]; }
+-            free(g_sh_it); g_sh_it = t; g_sh_itcap = nc;
++            rb_heap_free(&g_rb_commands, g_sh_it); g_sh_it = t; g_sh_itcap = nc;
+         }
+         copy = sh_blk_get(sizeof(sblk) + len, sizeof(sblk) + len); copy->next = NULL; memcpy(copy + 1, o->begin, len);
+         for (i = hv & (g_sh_itcap - 1); g_sh_it[i].b; i = (i + 1) & (g_sh_itcap - 1)) {}
+@@ -1888,8 +1895,8 @@
+     }
+     r->prev->next = r->next; r->next->prev = r->prev; g_sh_nlive--; g_sh_live_bytes -= r->bytes;
+     b->rb_tag = 0; b->next = g_sh_free[b->cls]; g_sh_free[b->cls] = b;   // nothing points into it yet: the handle is handed out below. RewindBox (patch 0072): rb_tag
+-    if (r->iv != r->ivs) free(r->iv);
+-    free(r);
++    if (r->iv != r->ivs) rb_heap_free(&g_rb_commands, r->iv);
++    rb_heap_free(&g_rb_commands, r);
+     o->begin = (uint8_t *)(copy + 1); o->cur = o->end = NULL; g_sh_shared_n++;
+     return 1;
+ }
+@@ -1934,7 +1941,7 @@
+ NVN(nvnCommandBufferBeginRecording, void, NVNcommandBuffer *c) {
+     cmd_t *o = CB(c);
+     if (o->recording) { LOG("【红】 BeginRecording re-entered"); if (o->rec) sh_end(o); }
+-    srec *r = calloc(1, sizeof *r); if (!r) die("NVN command recording: no memory for a recording");
++    srec *r = rb_heap_acquire(&g_rb_commands, calloc(1, sizeof *r)); if (!r) die("NVN command recording: no memory for a recording");
+     r->iv = r->ivs; r->civ = 2; r->open = 1; r->glo = o->gcur;
+     pthread_mutex_lock(&g_sh_mu); r->prev = g_sh_all.prev; r->next = &g_sh_all; g_sh_all.prev->next = r; g_sh_all.prev = r; g_sh_nlive++; pthread_mutex_unlock(&g_sh_mu);
+     o->rec = r; o->cur = o->end = NULL; o->begin = NULL;
+diff --git a/graphics/nvn/gfx/nvn/nvn_dirty.c b/graphics/nvn/gfx/nvn/nvn_dirty.c
+--- a/graphics/nvn/gfx/nvn/nvn_dirty.c
++++ b/graphics/nvn/gfx/nvn/nvn_dirty.c
+@@ -3,6 +3,13 @@
+ // (measured: the game writes streamed assets into texture storage that is still being sampled, without re-registering).
+ // Signal handler constraint: the page-fault path uses only atomic operations and mprotect, no allocation, no locks.
+ #include "nvn_dirty.h"
++#include "../../../../runtime/include/rb_heap.h"
++static _Atomic uint64_t g_rb_page_records;
++uint64_t s2a_rb_heap_page_records(void)
++{
++    return atomic_load_explicit(&g_rb_page_records, memory_order_relaxed);
++}
++
+ #include "../../host/dm.h"
+ #include <stdatomic.h>
+ #include <pthread.h>
+@@ -104,7 +111,7 @@
+     rix_t *x = atomic_load(&g_rix);
+     if (x && x->cap >= need) return x;
+     int cap = x ? x->cap * 2 : 1024; while (cap < need) cap *= 2;
+-    rix_t *y = calloc(1, sizeof *y + (size_t)cap * sizeof y->e[0]);
++    rix_t *y = rb_heap_acquire(&g_rb_page_records, calloc(1, sizeof *y + (size_t)cap * sizeof y->e[0]));
+     if (!y) return NULL;
+     int n = x ? RL(x->n) : 0; y->cap = cap; y->old = x;
+     for (int i = 0; i < n; i++) { RS(y->e[i].base, RL(x->e[i].base)); RS(y->e[i].end, RL(x->e[i].end)); RS(y->e[i].mx, RL(x->e[i].mx)); RS(y->e[i].slot, RL(x->e[i].slot)); }
+@@ -211,14 +218,14 @@
+     for (int b = 0; b < NBLK; b++) {
+         range_t *r = atomic_exchange(&g_blk[b], NULL);
+         if (!r) continue;
+-        for (int i = 0; i < BLK; i++) { free(r[i].state); free(r[i].gen); free((void *)atomic_load(&r[i].sparse)); }   // RewindBox (patch 0025): and the placement sparse marks
+-        free(r);
++        for (int i = 0; i < BLK; i++) { rb_heap_free(&g_rb_page_records, r[i].state); rb_heap_free(&g_rb_page_records, r[i].gen); rb_heap_free(&g_rb_page_records, (void *)atomic_load(&r[i].sparse)); }   // RewindBox (patch 0025): and the placement sparse marks
++        rb_heap_free(&g_rb_page_records, r);
+     }
+     while (g_retired_arrays) {
+         retired_arrays *r = g_retired_arrays; g_retired_arrays = r->next;
+-        free(r->state); free(r->gen); free(r->sparse); free(r);
+-    }
+-    for (rix_t *x = atomic_exchange(&g_rix, NULL); x; ) { rix_t *o = x->old; free(x); x = o; }   // RewindBox (patch 0074): every fault handler has been joined (above)
++        rb_heap_free(&g_rb_page_records, r->state); rb_heap_free(&g_rb_page_records, r->gen); rb_heap_free(&g_rb_page_records, r->sparse); rb_heap_free(&g_rb_page_records, r);
++    }
++    for (rix_t *x = atomic_exchange(&g_rix, NULL); x; ) { rix_t *o = x->old; rb_heap_free(&g_rb_page_records, x); x = o; }   // RewindBox (patch 0074): every fault handler has been joined (above)
+     atomic_store(&g_nr, 0); atomic_store(&g_live, 0); atomic_store(&g_live_peak, 0);
+     atomic_store(&g_now, 1); atomic_store(&g_overflow_logged, 0); atomic_store(&g_busy_red, 0); atomic_store(&g_hooks_on, 0);
+     atomic_store(&g_sparse_untracked_logged, 0); atomic_store(&g_span_ovl_logged, 0);   // RewindBox (patch 0025). g_sparse_writes is not reset: callers only compare it with a value they kept
+@@ -482,7 +489,7 @@
+         }
+         slot = n;
+         if (!atomic_load_explicit(&g_blk[n >> BLK_SHIFT], memory_order_acquire)) {   // published before g_nr counts the slot (the scans read g_nr first)
+-            range_t *b = calloc(BLK, sizeof *b); if (!b) die("dirty-page tracking range table allocation failed (block %d)", n >> BLK_SHIFT);
++            range_t *b = rb_heap_acquire(&g_rb_page_records, calloc(BLK, sizeof *b)); if (!b) die("dirty-page tracking range table allocation failed (block %d)", n >> BLK_SHIFT);
+             atomic_store_explicit(&g_blk[n >> BLK_SHIFT], b, memory_order_release);
+         }
+     }
+@@ -499,10 +506,10 @@
+             if (cap < r->cap * 2) cap = r->cap * 2;
+         }
+         if (cap > SIZE_MAX / sizeof *gen) die("dirty-page table size overflow (%zu pages)", cap);
+-        state = calloc(cap, sizeof *state); gen = calloc(cap, sizeof *gen);
++        state = rb_heap_acquire(&g_rb_page_records, calloc(cap, sizeof *state)); gen = rb_heap_acquire(&g_rb_page_records, calloc(cap, sizeof *gen));
+         if (!state || !gen) die("dirty-page table allocation failed (%zu pages)", cap);
+         if (r->cap) {
+-            retired_arrays *old = malloc(sizeof *old);
++            retired_arrays *old = rb_heap_acquire(&g_rb_page_records, malloc(sizeof *old));
+             if (!old) die("dirty-page retirement record allocation failed");
+             // RewindBox (patch 0025): the placement sparse marks, sized for the old cap, retire with the arrays (a fault reader may still hold them; nvn_dirty_protect_sparse makes new ones).
+             //   Upstream (1d4b8e82, nvn_dirty.c:174 at 0c078130) leaks them as it leaks the arrays
+@@ -597,7 +604,7 @@
+     } else {
+         _Atomic uint8_t *sp = atomic_load(&r->sparse);
+         if (!sp) {
+-            if (!(sp = calloc(r->cap, sizeof *sp))) die("dirty-page tracking: placement sparse mark table allocation failed (%zu pages)", r->cap);
++            if (!(sp = rb_heap_acquire(&g_rb_page_records, calloc(r->cap, sizeof *sp)))) die("dirty-page tracking: placement sparse mark table allocation failed (%zu pages)", r->cap);
+             atomic_store(&r->sparse, sp);
+         }
+         if (atomic_load(&r->ovl) && !atomic_exchange(&g_span_ovl_logged, 1))
+diff --git a/graphics/nvn/gfx/nvn/nvn_geometry.inc b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+--- a/graphics/nvn/gfx/nvn/nvn_geometry.inc
++++ b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+@@ -93,7 +93,7 @@
+     if (ps || hm_get_id(&g_pso_fail, &k)) return ps;
+     NSError *e = nil;
+     ps = [g_dev newRenderPipelineStateWithDescriptor:pso_desc(&k, vs, nil, nil, 0) error:&e];
+-    if (ps) hm_put_id(&g_pso, &k, ps);
++    if (ps) rb_pso_store(&k, ps);
+     else { hm_put_id(&g_pso_fail, &k, NSNull.null); MLOG("【红】 geometry vertex capture %s: %s", vs->key, e.localizedDescription.UTF8String); }
+     return ps;
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -19,6 +19,7 @@
+ #include <os/proc.h>   // os_proc_available_memory: for the memory readout line
+ #endif
+ #include "nvn_mtl.h"
++#include "../../../../runtime/include/rb_heap.h"
+ #include "../../../metal/mtl_slot.h"   // machine-wide Metal client slot
+ #include "nvn_fps.h"
+ #include "nvn_link_backoff.h"   // 低频链路档降档退避（link_sync）
+@@ -10198,6 +10199,24 @@
+                  void *rows, *rows_of; uint64_t rows_rid, rows_n; int rows_exact; } vc_set;   // rows: a texture buffer as 2D rows (tbuf_as_2d; retained, resident), rows_of / rows_n: the buffer texture it was made from and its element count; rows_exact: the exact layout (f1d 2)
+ static nvn_hmap g_vc = {.klen = 8};   // texture serial → vc_set
+ static uint64_t g_vc_hit, g_vc_new;
++// The registry lock also guards its allocation/reallocation and destruction.
++int s2a_rb_heap_views(uint64_t *out)
++{
++    if (pthread_mutex_trylock(&g_rb_open_mu)) return 0;
++    // Drained shutdown does not take the registry lock. Its open-state marker
++    // is set under g_rb_open_mu before retirement begins.
++    if (g_rb_sub_open == 2 || pthread_mutex_trylock(&g_rmu)) {
++        pthread_mutex_unlock(&g_rb_open_mu);
++        return 0;
++    }
++    *out = rb_heap_size(g_treg) + rb_heap_size(g_vc.keys) + rb_heap_size(g_vc.vals)
++         + rb_heap_size(g_treg_ser.keys) + rb_heap_size(g_treg_ser.vals)
++         + (uint64_t)g_vc.n * sizeof(vc_set);
++    pthread_mutex_unlock(&g_rmu);
++    pthread_mutex_unlock(&g_rb_open_mu);
++    return 1;
++}
++
+ static void vc_rows_drop(vc_set *s) { if (s->rows) { defer_obj_release((__bridge id)s->rows); CFRelease(s->rows); s->rows = s->rows_of = NULL; s->rows_rid = s->rows_n = 0; s->rows_exact = 0; } }
+ static void vc_set_free(void *p) {
+     vc_set *s = p;
+@@ -11794,6 +11813,25 @@
+ typedef struct { char key[24]; uint8_t fbmask, nfc; int8_t fx[32]; uint8_t lmap[8]; } bf_key;
+ static nvn_hmap g_bf_fn = {.klen = sizeof(bf_key)}; static unsigned g_bf_libs;
+ static nvn_hmap g_pso = {.klen = sizeof(pso_key)}, g_dss;
++// Table storage is unique. Shallow object bytes are separately attributed per
++// retained reference; neither metric includes opaque Metal driver allocations.
++static _Atomic uint64_t g_rb_pso_table, g_rb_pso_objects;
++void s2a_rb_heap_pipeline(uint64_t *table, uint64_t *objects)
++{
++    *table = atomic_load_explicit(&g_rb_pso_table, memory_order_relaxed);
++    *objects = atomic_load_explicit(&g_rb_pso_objects, memory_order_relaxed);
++}
++static void rb_pso_store(const void *key, id object)
++{
++    if (!rb_heap_measure()) { hm_put_id(&g_pso, key, object); return; }
++    void *old = nvn_hm_put(&g_pso, key, (void *)CFBridgingRetain(object));
++    uint64_t before = rb_heap_size(old), after = rb_heap_size((__bridge void *)object);
++    if (old) CFRelease(old);
++    atomic_fetch_add_explicit(&g_rb_pso_objects, after - before, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_pso_table, rb_heap_size(g_pso.keys) + rb_heap_size(g_pso.vals),
++                          memory_order_relaxed);
++}
++
+ static nvn_hmap g_pso_fail = {.klen = sizeof(pso_key)};   // pipelines that failed to build: remembered and never retried (previously every draw recompiled it, over 10,000 times in one iPhone session)
+ static const char g_tf_mark;
+ static char g_geo_mark;
+@@ -12639,7 +12677,7 @@
+         if (rb_pso_hot_on() && !g_pso_lmap && !g_pso_fsfn && first_use_ns >= RB_PSO_HOT_MS * 1000000ull)
+             rb_pso_hot_note(shex); }
+     quar_built(vs, fs);
+-    hm_put_id(&g_pso, &k, ps);
++    rb_pso_store(&k, ps);
+     if (g_rb_observing && !g_pso_lmap && !k.fsfn) rb_trace_used(ps, &k, vs, fs);
+         if (atomic_load_explicit(&g_course_capture,memory_order_relaxed) && !g_pso_lmap && !k.fsfn)
+             rb_course_candidate(ps, &k, vs, fs);
+@@ -18088,7 +18126,7 @@
+     if (hm_get_id(&g_pso_fail, &k)) return nil;
+     NSError *e = nil; id<MTLRenderPipelineState> ps = [g_dev newRenderPipelineStateWithDescriptor:pso_desc(&k, vs, nil, nil, 0) error:&e];
+     if (!ps) { MLOG("【红】 failed to create the transform feedback pipeline (vertex %s): %s", vs->key, e.localizedDescription.UTF8String); hm_put_id(&g_pso_fail, &k, NSNull.null); return nil; }
+-    hm_put_id(&g_pso, &k, ps);
++    rb_pso_store(&k, ps);
+     return ps;
+ }
+ // Instanced draws capture one instance at a time (the feedback stage writes instance j's vertices after instance j - 1's). Indexed draws capture each index in draw order: the
+@@ -19232,7 +19270,7 @@
+             mtk_warm_claim(item->mkey, item->object);
+         } else if (item->kind == 1) {
+             if (!hm_get_id(&g_pso, &item->pso)) {
+-                hm_put_id(&g_pso, &item->pso, item->object); g_warm_claim_rps++;
++                rb_pso_store(&item->pso, item->object); g_warm_claim_rps++;
+                 if (item->drawRecipe) rb_draw_remember(item->object,item->drawRecipe.bytes,NULL,0,0,YES);
+                 if (item->referenceKey) {
+                     const void *raw=(__bridge const void *)item->object;
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -157,7 +157,9 @@
+     atomic_fetch_add(&g_pool_gen, 1); atomic_fetch_add(&g_reg_gen, 1); atomic_fetch_add(&g_ser_gen, 1);
+     // Keys for these caches include program/guest buffer identity. Reuse only
+     // the compiled shader cache (its keys are content hashes).
+-    nvn_hm_clear(&g_pso, hm_rel); nvn_hm_clear(&g_cps, hm_rel);
++    nvn_hm_clear(&g_pso, hm_rel);
++    if (rb_heap_measure()) atomic_store_explicit(&g_rb_pso_objects, 0, memory_order_relaxed);
++    nvn_hm_clear(&g_cps, hm_rel);
+     if (g_mtk_group) dispatch_group_wait(g_mtk_group, DISPATCH_TIME_FOREVER);   // task / mesh pipelines (nvn_geometry.inc mtk_pso): the background builds write the map
+     os_unfair_lock_lock(&g_pso_mtk_lock); nvn_hm_clear(&g_pso_mtk, hm_rel);
+     [g_mtk_names removeAllObjects]; [g_mtk_ready removeAllObjects];   // RewindBox (patch 0044): the names table (pipelines as strong keys), the pace list and the first-draw set kept every
+diff --git a/ios/rb_vm_audit.m b/ios/rb_vm_audit.m
+--- a/ios/rb_vm_audit.m
++++ b/ios/rb_vm_audit.m
+@@ -6,6 +6,7 @@
+ // f6217f891ac0bb64f3d375211650a4c1ff8ca1ea, task_info.h and vm_region.h.
+ #import <Foundation/Foundation.h>
+ #include <dispatch/dispatch.h>
++#include <dlfcn.h>
+ #include <mach/mach.h>
+ #include <mach/vm_map.h>
+ #include <mach/task_info.h>
+@@ -274,6 +275,39 @@
+     return r;
+ }
+ 
++uint64_t s2a_rb_heap_translation(void);
++uint64_t s2a_rb_heap_window(void);
++uint64_t s2a_rb_heap_page_records(void);
++uint64_t s2a_rb_heap_commands(void);
++int s2a_rb_heap_views(uint64_t *out);
++void s2a_rb_heap_pipeline(uint64_t *table, uint64_t *objects);
++
++static NSDictionary *rb_heap_owners(void)
++{
++    uint64_t views = 0, table = 0, objects = 0, audio = 0;
++    int (*snapshot)(uint32_t, uint64_t *, uint32_t) = dlsym(RTLD_DEFAULT, "s2a_rb_bench_managed_snapshot");
++    BOOL audio_valid = snapshot && snapshot(2, &audio, 1) == 0;
++    s2a_rb_heap_pipeline(&table, &objects);
++    NSDictionary *bytes = @{
++        @"translation_tables": @(s2a_rb_heap_translation()),
++        @"page_and_window_records": @(s2a_rb_heap_page_records() + s2a_rb_heap_window()),
++        @"texture_view_metadata": s2a_rb_heap_views(&views) ? @(views) : (id)NSNull.null,
++        @"render_pipeline_table": @(table), @"command_record_metadata": @(s2a_rb_heap_commands()),
++        @"audio_queue_buffers": audio_valid ? @(audio) : (id)NSNull.null
++    };
++    const uint64_t threshold = 100000000;
++    NSMutableArray *above = [NSMutableArray array];
++    for (NSString *owner in bytes) {
++        id value = bytes[owner];
++        if (value != NSNull.null && [value unsignedLongLongValue] > threshold) [above addObject:owner];
++    }
++    return @{@"tracked_bytes": bytes, @"threshold_bytes": @(threshold),
++             @"over_threshold": [above sortedArrayUsingSelector:@selector(compare:)],
++             @"render_pipeline_shallow_ref_bytes": @(objects),
++             @"pipeline_ref_bytes_over_threshold": @(objects > threshold),
++             @"coverage": @"instrumented_sites_only"};
++}
++
+ static void rb_heap_ledger(unsigned generation, uint64_t frame, uint64_t sample_ns)
+ {
+     static unsigned previous_generation;
+@@ -310,7 +344,7 @@
+         @"event": @"heap_census", @"schema": @1, @"generation": @(generation),
+         @"frame": @(frame), @"sample_ns": @(sample_ns), @"zone_status": @(status),
+         @"zone_count": @(count), @"zones_reported": @(emitted),
+-        @"elapsed_ns": @(rb_vm_now() - started)
++        @"owners": rb_heap_owners(), @"elapsed_ns": @(rb_vm_now() - started)
+     });
+ }
+ 
+diff --git a/runtime/src/far.c b/runtime/src/far.c
+--- a/runtime/src/far.c
++++ b/runtime/src/far.c
+@@ -4,6 +4,13 @@
+ //   游戏地址本身保持没有映射（Mac 上是压窗口的围栏），一碰即缺页：缺页处理里按「影子 − 游戏」的差值代执行这一条访存（emul_ld / emul_st），
+ //   游戏线程、宿主线程都能走（影子页本身可读写，不要别名槽）。同时记下每个访存点（模块 + 偏移、次数、类别）——出包期静态改写的依据。
+ #include "native.h"
++#include "../include/rb_heap.h"
++static _Atomic uint64_t g_rb_window;
++uint64_t s2a_rb_heap_window(void)
++{
++    return atomic_load_explicit(&g_rb_window, memory_order_relaxed);
++}
++
+ #include "s2a_emul_st.h"
+ #include <errno.h>
+ #include <stdatomic.h>
+@@ -50,11 +57,11 @@
+ void s2a_far_set(uint64_t lo, uint64_t hi, uint64_t sh_lo, uint64_t sh_hi) {
+     if (hi <= lo || sh_hi <= sh_lo) return;
+     if (hi - lo > S2A_FAR_SPAN) hi = lo + S2A_FAR_SPAN;
+-    _Atomic int64_t *dir = calloc(NDIR, sizeof *dir);
++    _Atomic int64_t *dir = rb_heap_acquire(&g_rb_window, calloc(NDIR, sizeof *dir));
+     if (!dir) { LOG("【红】远端：目录分配失败，远端照旧回内存不足"); return; }
+     uint64_t fenced; int clash = fence_far(lo, hi, &fenced);
+     // 与宿主可访问的映射重叠（11-01 审计 P1-12）：远端地址碰到那里会静默读写宿主内存，不开远端（目录留空）。伸出窗口的物理映射照旧回内存不足（svc_mem.c va_short）
+-    if (clash) { free(dir); LOG("【红】远端：远端 %#llx +%llu MB 与宿主可访问的映射重叠 %d 段，不开远端（伸出窗口的映射回内存不足）", (unsigned long long)lo, (unsigned long long)((hi - lo) >> 20), clash); return; }
++    if (clash) { rb_heap_free(&g_rb_window, dir); LOG("【红】远端：远端 %#llx +%llu MB 与宿主可访问的映射重叠 %d 段，不开远端（伸出窗口的映射回内存不足）", (unsigned long long)lo, (unsigned long long)((hi - lo) >> 20), clash); return; }
+     if (g_lin) { munmap((void *)(uintptr_t)g_lin, g_hi - g_lo); g_lin = 0; }   // 再次开远端（单测）：上一份线性预留按旧跨度退
+     g_lo = lo; g_hi = hi; g_sh_lo = sh_lo; g_sh_hi = sh_hi & ~(CHUNK - 1); g_dir = dir; s2a_far_desc.lo = lo; s2a_far_desc.dir = dir;
+     // #419：分块影子从堆区顶往下切，后一次映射请求拿到更低的地址——游戏地址相邻、分两次映射的两块在影子里倒过来不相邻，显存池正好跨这两次映射时
+@@ -417,7 +424,7 @@
+         atomic_store(&g_dir[i], 0); g_ov_used -= CHUNK;
+     }
+     s2a_far_desc.dir = NULL; s2a_far_desc.lo = 0;
+-    free(g_dir); g_dir = NULL;
++    rb_heap_free(&g_rb_window, g_dir); g_dir = NULL;
+     g_lo = g_hi = g_sh_lo = g_sh_hi = g_sh_used = g_ov_used = g_flush_orig = 0;
+     memset(g_mon, 0, sizeof g_mon); memset(g_site, 0, sizeof g_site);
+     atomic_store(&g_faults, 0); atomic_store(&g_emul, 0); atomic_store(&g_skip, 0);
+diff --git a/runtime/src/loader.c b/runtime/src/loader.c
+--- a/runtime/src/loader.c
++++ b/runtime/src/loader.c
+@@ -8,6 +8,13 @@
+ #include <pthread.h>
+ #include "native.h"
+ #include "loader.h"
++#include "../include/rb_heap.h"
++static _Atomic uint64_t g_rb_translation;
++uint64_t s2a_rb_heap_translation(void)
++{
++    return atomic_load_explicit(&g_rb_translation, memory_order_relaxed);
++}
++
+ #include "s2a_gfx_mode.h"
+ #include "ro_find.h"
+ #include "../../platform/plat.h"
+@@ -70,7 +77,7 @@
+ static void mod_table_alloc(int cap) {
+     if (g_mod || g_nmod) die("模块表已分配（上一局没有复位）");
+     if (cap <= 0) die("模块表容量 %d 无效", cap);
+-    if (!(g_mod = calloc((size_t)cap, sizeof *g_mod))) die("模块表 %d 项分配失败", cap);
++    if (!(g_mod = rb_heap_acquire(&g_rb_translation, calloc((size_t)cap, sizeof *g_mod)))) die("模块表 %d 项分配失败", cap);
+ #if defined(__APPLE__)
+     if (g_boot_owned && !(g_boot_maps = calloc((size_t)cap, sizeof *g_boot_maps))) die("失败装载所有权表 %d 项分配失败", cap);
+ #endif
+@@ -107,7 +114,7 @@
+ // 名字哈希表：按下标升序插入、同名已在则不覆盖 ⇒ 查询结果 = 线性扫描的首个已定义同名符号
+ static void build_symhash(module_t *m) {
+     unsigned cap = 16; while (cap < m->nsym * 2) cap <<= 1;
+-    m->symh = calloc(cap, sizeof *m->symh); m->symh_mask = cap - 1;
++    m->symh = rb_heap_acquire(&g_rb_translation, calloc(cap, sizeof *m->symh)); m->symh_mask = cap - 1;
+     for (unsigned i = 1; i < m->nsym; i++) {
+         const Elf64_Sym *s = &m->symtab[i]; if (!s->st_shndx) continue;
+         const char *nm = m->strtab + s->st_name;
+@@ -252,7 +259,7 @@
+         else if (!strcmp(key, "TRAP_SITES")) {   // 随后 n 行 # TRAP（序号 = 出现顺序）
+             unsigned long n = strtoul(line + 2 + strlen(key), NULL, 10);
+             if (m->traps || n > S2A_TRAP_MAX) die("%s: TRAP_SITES 重复或超过 %#x", path, S2A_TRAP_MAX);
+-            m->traps = calloc(n ? n : 1, sizeof *m->traps); m->ntrap = 0; trap_cap = (unsigned)n; have_traps = 1;
++            m->traps = rb_heap_acquire(&g_rb_translation, calloc(n ? n : 1, sizeof *m->traps)); m->ntrap = 0; trap_cap = (unsigned)n; have_traps = 1;
+         }
+         else if (!strcmp(key, "TRAP")) {   // # TRAP <偏移> <种类> <寄存器> <原字>
+             char kind[16]; unsigned reg; unsigned long orig; static const char *const kinds[] = {"tpidr_r", "tpidrro_r", "tpidr_w", "ctr"};
+@@ -265,7 +272,7 @@
+         else if (!strcmp(key, "FAR_JUMPS")) {   // 随后 n 行 # FAR <从> <到> <E|X>
+             unsigned long n = strtoul(line + 2 + strlen(key), NULL, 10);
+             if (m->fars || n > (1u << 22)) die("%s: FAR_JUMPS 重复或过多", path);
+-            m->fars = calloc(n ? n : 1, sizeof *m->fars); m->nfar = 0; far_cap = (unsigned)n; have_fars = 1;
++            m->fars = rb_heap_acquire(&g_rb_translation, calloc(n ? n : 1, sizeof *m->fars)); m->nfar = 0; far_cap = (unsigned)n; have_fars = 1;
+         }
+         else if (!strcmp(key, "FAR")) {
+             char a[32], b[32], e; 
+@@ -561,7 +568,7 @@
+ }
+ #ifdef S2A_UNIT_TEST
+ void s2a_loader_test_relocate(module_t *m) {   // 单测：内存里的合成模块，不走映射
+-    if (m->symh) { free(m->symh); m->symh = NULL; m->symh_mask = 0; }
++    if (m->symh) { rb_heap_free(&g_rb_translation, m->symh); m->symh = NULL; m->symh_mask = 0; }
+     build_symhash(m);
+     relocate(m);
+ }
+@@ -1185,8 +1192,8 @@
+ // The coordinator replaces guest pages before releasing loader registrations.
+ // Signed iOS images are remapped from their pristine original segments.
+ void s2a_loader_session_reset(void) {
+-    for (int i = 0; i < g_mod_cap; i++) free(g_mod[i].symh);
+-    free(g_mod); g_mod = NULL; g_mod_cap = 0; g_nmod = 0;
++    for (int i = 0; i < g_mod_cap; i++) rb_heap_free(&g_rb_translation, g_mod[i].symh);
++    rb_heap_free(&g_rb_translation, g_mod); g_mod = NULL; g_mod_cap = 0; g_nmod = 0;
+ #if defined(__APPLE__)
+     g_modcur = g_slot_at = 0;
+ #endif
+diff --git a/services/aot/Compose.cs b/services/aot/Compose.cs
+--- a/services/aot/Compose.cs
++++ b/services/aot/Compose.cs
+@@ -29,6 +29,11 @@
+         [UnmanagedCallersOnly(EntryPoint = "s2a_rb_bench_managed_snapshot")]
+         public static int BenchmarkSnapshot(uint version, ulong* output, uint count)
+         {
++            if (version == 2 && output != null && count == 1)
++            {
++                output[0] = Ryujinx.Audio.Backends.Apple.S2ABenchmarkAudio.BufferCapacity;
++                return 0;
++            }
+             if (version != 1 || output == null || count < 24) return -1;
+             var values = new System.Span<ulong>(output, 24);
+             values.Clear();

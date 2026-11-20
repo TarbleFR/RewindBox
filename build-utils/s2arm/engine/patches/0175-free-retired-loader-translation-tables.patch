@@ -1,0 +1,22 @@
+Release module-owned trap and far-jump metadata at the existing drained loader reset.
+
+diff --git a/runtime/src/loader.c b/runtime/src/loader.c
+--- a/runtime/src/loader.c
++++ b/runtime/src/loader.c
+@@ -1192,7 +1192,15 @@
+ // The coordinator replaces guest pages before releasing loader registrations.
+ // Signed iOS images are remapped from their pristine original segments.
+ void s2a_loader_session_reset(void) {
+-    for (int i = 0; i < g_mod_cap; i++) rb_heap_free(&g_rb_translation, g_mod[i].symh);
++    for (int i = 0; i < g_mod_cap; i++) {
++        rb_heap_free(&g_rb_translation, g_mod[i].symh);
++        if (rb_heap_on()) {
++            // read_layout owns these allocations, including in a partial boot.
++            // The coordinator already stopped all readers before this reset.
++            rb_heap_free(&g_rb_translation, g_mod[i].traps);
++            rb_heap_free(&g_rb_translation, g_mod[i].fars);
++        }
++    }
+     rb_heap_free(&g_rb_translation, g_mod); g_mod = NULL; g_mod_cap = 0; g_nmod = 0;
+ #if defined(__APPLE__)
+     g_modcur = g_slot_at = 0;
