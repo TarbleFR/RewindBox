@@ -1,0 +1,62 @@
+{
+  "build": 804,
+  "appSourceSha": "5f8fc02a57e97fbf36a97588d30c0190f4c9eca4",
+  "appRun": 44803751366,
+  "bundleIdentifier": "com.neogamelab.neostation",
+  "ipa": {
+    "filename": "RewindBox-804.ipa",
+    "bytes": 333563097,
+    "sha256": "eedf87f8fb75698cad30e405a9d7318861fc77202157a71f085943f2d4690763"
+  },
+  "engine": {
+    "producerSourceSha": "f956b7d84b03c23f8ecb9ff500c7965a2ff25807",
+    "upstreamSourceSha": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+    "run": 44790771355,
+    "artifact": 14656314477,
+    "patchesVerified": 176,
+    "signedMachOSha256": "451f7939c1ba709c60c3f9d4bbec7b21e084d57f82a647b0e8a2dae93c08dead",
+    "payloadFingerprint": "e80cf84ff6e9e7741bf5b80c1233b0beb7b85bbb5f3809ffc27cce87efaeeda2",
+    "machOUUID": "F8864727-ABE5-3327-AA53-5074C1D3074E",
+    "producerMachOSha256": "b309c6f1fcc33b0dfa8e1c4789e22bfa66628976ede7be4db8067271cb962346",
+    "pinSha256": "e7a2a8fb48779d95ceb971250559bcf13088dd2858fa8134bd4f6d370eedd3e3",
+    "sourceIdentityMatchesPin": true,
+    "first171PatchesMatch803": true
+  },
+  "physicalDeviceTested": false,
+  "nextendo": {
+    "producerSourceSha": "8988ced5014dd23caae2eefac70b3d37f5a5b7f0",
+    "run": 44753917742,
+    "artifact": 14638435340,
+    "payloadFingerprint": "1fc7f4af847f17394ab43c19b230400251288db38c9e76def77efa51f16a843a",
+    "pinSha256": "2f7f97fe1ff1572c344977eca8c565f4c7aed171535a83272632bbff87787864",
+    "physicalDeviceTested": false
+  },
+  "bundleIdentifiers": {
+    "Info.plist": "com.neogamelab.neostation",
+    "PlugIns/ARMSX2JITHelper.appex/Info.plist": "com.neogamelab.neostation.armsx2jithelper",
+    "PlugIns/DolphinJITHelper.appex/Info.plist": "com.neogamelab.neostation.dolphinjithelper",
+    "PlugIns/MeloNXJITHelper.appex/Info.plist": "com.neogamelab.neostation.melonxjithelper",
+    "PlugIns/MeloNXRamDonor.appex/Info.plist": "com.neogamelab.neostation.melonxramdonor",
+    "PlugIns/NeoSwapDonor.appex/Info.plist": "com.neogamelab.neostation.neoswapdonor",
+    "PlugIns/NeoSwapPageRelay.appex/Info.plist": "com.neogamelab.neostation.NeoSwapPageRelay",
+    "PlugIns/RPCS3JITHelper.appex/Info.plist": "com.neogamelab.neostation.rpcs3jithelper",
+    "PlugIns/S2ArmJITHelper.appex/Info.plist": "com.neogamelab.neostation.s2armjithelper",
+    "PlugIns/XeniaJITHelper.appex/Info.plist": "com.neogamelab.neostation.xeniajithelper"
+  },
+  "bundleIdentifiersMatchBuild803": true,
+  "compatiblePreparation": {
+    "prepareProducerUnchanged": true,
+    "preparePatchSeriesUnchanged": true,
+    "sysdataProducerUnchanged": true,
+    "NS2ProFingerprintUnchanged": true,
+    "directShaderChain": "0be3f28548fd",
+    "directShaderChainUnchanged": true
+  },
+  "signature": {
+    "installationMethod": "SideStore re-signing",
+    "engineSignature": "adhoc",
+    "verifiedByCIReceipt": true,
+    "cryptographicVerificationPerformedHere": false,
+    "appleProvisioningVerified": false
+  }
+}

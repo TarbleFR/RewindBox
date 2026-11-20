@@ -243,7 +243,7 @@ existing CI contract; no new native test suite is introduced.
 
 ### Host heap on iOS, patches 0172–0176
 
-Revision `f956b7d8` is compiled on macOS 15 and 26, with all 176 patch hashes and the three producer archives authenticated. See the [build evidence](../../../docs/evidence/s2arm-fluidity-803/engine176-review-build.json). Device memory and frame-time gains are not yet measured.
+Revision `f956b7d8` is compiled on macOS 15 and 26, with all 176 patch hashes and the three producer archives authenticated. It is delivered in [private IPA 804](../../../docs/evidence/rewind804/delivery.json): the downloaded IPA, all 97 native images and the ten unchanged bundle identifiers are verified. The [packaged engine identity](../../../docs/evidence/rewind804/s2arm-identity804.json) matches the reviewed pin; the first 171 patches, preparation and shader chain remain identical to 803. See the [build evidence](../../../docs/evidence/s2arm-fluidity-803/engine176-review-build.json). Device memory and frame-time gains are not yet measured.
 
 | Patch | Effect |
 | --- | --- |

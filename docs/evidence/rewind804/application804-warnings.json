@@ -1,0 +1,285 @@
+{
+  "schema": 1,
+  "build": 804,
+  "source": "5f8fc02a57e97fbf36a97588d30c0190f4c9eca4",
+  "run": 44803751366,
+  "applicationJob": 136523290159,
+  "attempt": 1,
+  "applicationJobStatus": "completed",
+  "applicationJobConclusion": "success",
+  "applicationJobCompletedUTC": "2026-11-20T20:03:29Z",
+  "baseBuild": 803,
+  "baseSource": "c5422386b72ec4ea88b010dab3826075ee7e79f8",
+  "baseRun": 44775472323,
+  "baseApplicationJob": 136425255612,
+  "baselineSummary": {
+    "path": "docs/evidence/rewind803/application803-warnings.json",
+    "sha256": "12513e98e5bb5de3acb062073ed057743a78c727d9b0cab0a3b04bd94dee0536"
+  },
+  "result": "no-new-xcode-warning-signatures-vs803",
+  "scope": "Complete Xcode application build output; compiled S2Arm engine review is separate.",
+  "retrieval": {
+    "directJobLogAPI": {
+      "attempts": 2,
+      "result": "unavailable",
+      "error": "Transport closed"
+    },
+    "fallback": "Encrypted diagnostics artifact authenticated against GitHub API size and SHA256.",
+    "diagnosticsArtifact": 14663277546,
+    "diagnosticsArtifactName": "RewindBox-Build804-5f8fc02a57e97fbf36a97588d30c0190f4c9eca4-attempt1-cold-diagnostics",
+    "encryptedArchive": {
+      "path": "/workspace/scratch/bf38d7364848/private804-preparation/application804-diagnostics.zip",
+      "bytes": 7775064,
+      "sha256": "3ce0bf66fa4a66c1e38a7d65fdcb222b2f3e850a774d5b9e93e64838b3d1989b",
+      "apiSizeAndSHA256Matched": true,
+      "members": [
+        "artifact.tar.enc",
+        "format.json",
+        "password.rsa"
+      ]
+    },
+    "decryption": {
+      "performedBy": "parent",
+      "routine": "build-utils/verify_downloaded_delivery.py:decrypt",
+      "temporarySecretRemovalReportedByParent": true,
+      "privateKeyReadByThisReview": false
+    },
+    "authentication": "The review independently checked the archive and plaintext log hashes. The parent authenticated and decrypted the envelope using the existing recipe."
+  },
+  "log": {
+    "path": "/workspace/scratch/bf38d7364848/private804-preparation/application804-diagnostics-work/delivery/xcodebuild.log",
+    "bytes": 6928036,
+    "sha256": "dc4eedbd5fdf0e839b09a4fd04ad97bcacef4dd8be3ac9d01def9f8ce1ffdce8",
+    "lines": 25913
+  },
+  "baselineLog": {
+    "path": "/workspace/scratch/c42a7edd1474/private803/diagnostics-offline/delivery/xcodebuild.log",
+    "bytes": 6928051,
+    "sha256": "4d4eae11c7b428533f9a615de9016a667d7f95396726d79154f43fa7f339904b",
+    "lines": 25914
+  },
+  "sourceComparison": {
+    "method": "Git entries at each delivered source, then the corresponding frozen manifest product.restore applied; no checkout mutation.",
+    "manifestSHA256803": "32235cd5e1cfce470490639b1e20308f471ee4239e691010d212196e92cae478",
+    "manifestSHA256804": "92ded4da2186684b1c9636ffc9531de764b2bf90707544539a3a08f3e8031ba9",
+    "selectedRoots": [
+      "ios/",
+      "lib/",
+      "packages/"
+    ],
+    "additionalPaths": [
+      "pubspec.yaml",
+      "pubspec.lock",
+      ".github/workflows/standard-delivery.yml",
+      "build-utils/s2arm/configure_s2arm_ios.py"
+    ],
+    "effectivePathsCompared": 1894,
+    "changedEffectivePaths": [],
+    "sameEffectiveHostInputs": true
+  },
+  "comparison": {
+    "method": "Compare the complete multiset of normalized lines containing warning:, retaining occurrence counts.",
+    "normalization": [
+      "Remove ANSI color escapes and outer whitespace.",
+      "Replace the common runner repository root and pub-cache root with relative placeholders.",
+      "Remove only the AppIntents diagnostic timestamp and process/thread IDs.",
+      "Replace only the random MetalToolchain mount suffix; preserve its version."
+    ],
+    "warningTextLines803": 457,
+    "warningTextLines804": 457,
+    "distinctNormalizedWarningTextLines803": 307,
+    "distinctNormalizedWarningTextLines804": 307,
+    "warningTextCategories803": {
+      "other_located_source_diagnostics_outside_scope": 390,
+      "other_warning_text_or_context": 3,
+      "unchanged_s2arm_preparation_source": 1,
+      "toolchain_missing_search_path": 20,
+      "appintents_tooling": 20,
+      "duplicate_link_libraries": 9,
+      "link_object_deployment_target": 12,
+      "application_orientation_configuration": 1,
+      "build_script_no_outputs": 1
+    },
+    "warningTextCategories804": {
+      "other_located_source_diagnostics_outside_scope": 390,
+      "other_warning_text_or_context": 3,
+      "unchanged_s2arm_preparation_source": 1,
+      "toolchain_missing_search_path": 20,
+      "appintents_tooling": 20,
+      "duplicate_link_libraries": 9,
+      "link_object_deployment_target": 12,
+      "application_orientation_configuration": 1,
+      "build_script_no_outputs": 1
+    },
+    "newNormalizedWarnings": [],
+    "removedNormalizedWarnings": [],
+    "warningOccurrenceChanges": [],
+    "categoriesMatchExisting803Summary": true
+  },
+  "records": [
+    {
+      "path": "packages/s2arm_engine_bridge/ios/Classes/S2ArmEngineBridgePlugin.m",
+      "sameBytes": true,
+      "baseSHA256": "4af207b030751e1a4c4460e6b8041cc1e9fb3691df8791eebab91e175b0ae840",
+      "sourceSHA256": "4af207b030751e1a4c4460e6b8041cc1e9fb3691df8791eebab91e175b0ae840",
+      "warnings": [],
+      "compilationRecords": [
+        {
+          "logLine": 10760,
+          "source": "packages/s2arm_engine_bridge/ios/Classes/S2ArmEngineBridgePlugin.m",
+          "kind": "CompileC"
+        }
+      ]
+    },
+    {
+      "path": "packages/s2arm_engine_bridge/ios/Classes/S2ArmSessionMenu.h",
+      "sameBytes": true,
+      "baseSHA256": "1b11a24ea2fd77c0431cc46db7d9dd3d53f6bd01ef9de1a95674e51a0353785e",
+      "sourceSHA256": "1b11a24ea2fd77c0431cc46db7d9dd3d53f6bd01ef9de1a95674e51a0353785e",
+      "warnings": [],
+      "compilationRecords": []
+    },
+    {
+      "path": "packages/s2arm_engine_bridge/ios/Classes/S2ArmSessionMenu.m",
+      "sameBytes": true,
+      "baseSHA256": "ea284e6e9647dcf553822c698eeb2b0372d3ab18b8db67ad526e68b2660bd857",
+      "sourceSHA256": "ea284e6e9647dcf553822c698eeb2b0372d3ab18b8db67ad526e68b2660bd857",
+      "warnings": [],
+      "compilationRecords": [
+        {
+          "logLine": 10623,
+          "source": "packages/s2arm_engine_bridge/ios/Classes/S2ArmSessionMenu.m",
+          "kind": "CompileC"
+        }
+      ]
+    },
+    {
+      "path": "packages/s2arm_engine_bridge/ios/Classes/S2ArmGuestABI.h",
+      "sameBytes": true,
+      "baseSHA256": "ad52e87d883a41e7114d3f81a22fb16ed614b8fac6791e42dab0c9ea78339bbf",
+      "sourceSHA256": "ad52e87d883a41e7114d3f81a22fb16ed614b8fac6791e42dab0c9ea78339bbf",
+      "warnings": [],
+      "compilationRecords": []
+    },
+    {
+      "path": "lib/l10n/switch2_settings_locale.dart",
+      "sameBytes": true,
+      "baseSHA256": "2785dd2abaa588f123d594d1994b5f5af583426e6545bb8bb0c1c9c8cd35c918",
+      "sourceSHA256": "2785dd2abaa588f123d594d1994b5f5af583426e6545bb8bb0c1c9c8cd35c918",
+      "warnings": [],
+      "compilationRecords": []
+    },
+    {
+      "path": "packages/s2arm_engine_bridge/ios/Classes/S2ArmGamePreparation.m",
+      "sameBytes": true,
+      "baseSHA256": "af10a14139c48458ddf77e1fe809fe5ed80d635af44b8c21355a2504b87af068",
+      "sourceSHA256": "af10a14139c48458ddf77e1fe809fe5ed80d635af44b8c21355a2504b87af068",
+      "warnings": [
+        {
+          "logLine": 10736,
+          "text": "packages/s2arm_engine_bridge/ios/Classes/S2ArmGamePreparation.m:215:16: warning: variable 'thread' may be uninitialized when used here [-Wconditional-uninitialized]",
+          "category": "unchanged_s2arm_preparation_source"
+        }
+      ],
+      "compilationRecords": [
+        {
+          "logLine": 10730,
+          "source": "packages/s2arm_engine_bridge/ios/Classes/S2ArmGamePreparation.m",
+          "kind": "CompileC"
+        }
+      ]
+    },
+    {
+      "path": "packages/s2arm_engine_bridge/ios/s2arm_engine_bridge.podspec",
+      "sameBytes": true,
+      "baseSHA256": "518830b16af5be4e221a162479912a1814d67eba41a19ac3188d21dc1fdcbf7b",
+      "sourceSHA256": "518830b16af5be4e221a162479912a1814d67eba41a19ac3188d21dc1fdcbf7b",
+      "warnings": [],
+      "compilationRecords": []
+    },
+    {
+      "path": "build-utils/s2arm/configure_s2arm_ios.py",
+      "sameBytes": true,
+      "baseSHA256": "6e7be25893e554713f5db3525da574152281a8393fb990bbc30c18fa79d6ef42",
+      "sourceSHA256": "6e7be25893e554713f5db3525da574152281a8393fb990bbc30c18fa79d6ef42",
+      "warnings": [],
+      "compilationRecords": []
+    },
+    {
+      "path": ".github/workflows/standard-delivery.yml",
+      "sameBytes": true,
+      "baseSHA256": "4aba0eadf6e8e0bda67d6820b54072122120e30b9e196636ba95ca94ede450eb",
+      "sourceSHA256": "4aba0eadf6e8e0bda67d6820b54072122120e30b9e196636ba95ca94ede450eb",
+      "warnings": [],
+      "compilationRecords": []
+    }
+  ],
+  "relatedWarnings": [
+    {
+      "logLine": 10736,
+      "text": "packages/s2arm_engine_bridge/ios/Classes/S2ArmGamePreparation.m:215:16: warning: variable 'thread' may be uninitialized when used here [-Wconditional-uninitialized]",
+      "category": "unchanged_s2arm_preparation_source",
+      "classification": "identical-warning-text-and-occurrence-count-in803",
+      "baselineLogLines": [
+        10687
+      ]
+    },
+    {
+      "logLine": 16699,
+      "text": "ld: warning: object file (build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Pods_S2ArmJITHelper.framework/Pods_S2ArmJITHelper[2](Pods_S2ArmJITHelper_vers.o)) was built for newer 'iOS' version (18.0) than being linked (17.4)",
+      "category": "link_object_deployment_target",
+      "classification": "identical-warning-text-and-occurrence-count-in803",
+      "baselineLogLines": [
+        22166
+      ]
+    },
+    {
+      "logLine": 16700,
+      "text": "ld: warning: object file (build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Pods_S2ArmJITHelper.framework/Pods_S2ArmJITHelper[3](Pods-S2ArmJITHelper-dummy.o)) was built for newer 'iOS' version (18.0) than being linked (17.4)",
+      "category": "link_object_deployment_target",
+      "classification": "identical-warning-text-and-occurrence-count-in803",
+      "baselineLogLines": [
+        22167
+      ]
+    }
+  ],
+  "actualCompilerErrors": [],
+  "success": [
+    {
+      "logLine": 25912,
+      "text": "** BUILD SUCCEEDED **"
+    }
+  ],
+  "falseErrorCandidates": [
+    {
+      "logLine": 9831,
+      "text": "37 | /// Wraps the underlying asset's statusOfValueForKey:error: method.",
+      "reason": "Quoted Objective-C source context, not a compiler diagnostic."
+    },
+    {
+      "logLine": 9834,
+      "text": "39 |                                   error:(NSError *_Nullable *_Nullable)outError;",
+      "reason": "Quoted Objective-C source context, not a compiler diagnostic."
+    }
+  ],
+  "limits": [
+    "Warning text-line counts include repeated compiler diagnostics and source context; 307 distinct normalized texts are not claimed to be 307 unique underlying issues.",
+    "Both complete Xcode logs were compared. The complete application job log could not be obtained from the API, so warnings from non-Xcode workflow steps are not covered.",
+    "No warning was corrected by this review: the potentially uninitialized thread and the S2Arm helper deployment-target warnings remain present.",
+    "Unchanged effective host inputs do not imply byte-identical linked binaries; separate final IPA and binary-difference reviews are required.",
+    "No compilation, test, source edit, Git mutation or key access was performed by this review. Raw logs and encrypted diagnostics remain outside the repository.",
+    "Compilation and unchanged warning output do not establish gameplay correctness, device stability, reduced memory pressure or performance gains."
+  ],
+  "actions": {
+    "testsRun": false,
+    "buildsRun": false,
+    "repositoryFilesModified": false,
+    "keysRead": false,
+    "rawLogsCopiedIntoRepository": false
+  },
+  "deviceObservation": {
+    "physicalDeviceTested": false,
+    "gameplayTested": false,
+    "performanceGainMeasured": false
+  }
+}

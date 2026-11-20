@@ -69,7 +69,7 @@
   "globalRollback": "S2A_RB_HEAP_TRIM=0",
   "deepTestSuites": "not-run per AGENTS.md",
   "deviceWindows": 0,
-  "candidateIPA": "not delivered",
+  "candidateIPA": 804,
   "pinCheck": {
     "source": "b47339a9cc67ab18656507aab453a3e6e75b1c95",
     "run": 44793831852,
@@ -80,7 +80,7 @@
   },
   "candidatePreparation": {
     "build": 804,
-    "status": "prepared-not-frozen-not-triggered",
+    "status": "frozen-built-verified-and-delivered",
     "source": "ba74d50fa96dc56d93c2511856df1c9754a2b961",
     "baseImagesVerified": 97,
     "manifestSchemaErrors": [],
@@ -98,8 +98,26 @@
     "engineSource": "f956b7d84b03c23f8ecb9ff500c7965a2ff25807",
     "enginePinSHA256": "e7a2a8fb48779d95ceb971250559bcf13088dd2858fa8134bd4f6d370eedd3e3",
     "remaining": [
-      "normal contract and freeze, CI IPA build, download verification and private handoff",
       "three valid device benchmark windows per version"
-    ]
+    ],
+    "freezeCommit": "d0aaeac0f55fd6f26e55af3a061533b9dc00f96b"
+  },
+  "candidateDelivery": {
+    "build": 804,
+    "source": "5f8fc02a57e97fbf36a97588d30c0190f4c9eca4",
+    "run": 44803751366,
+    "attempt": 1,
+    "result": "privately-delivered-and-verified",
+    "receipt": "../rewind804/delivery.json",
+    "identity": "../rewind804/s2arm-identity804.json",
+    "ipaBytes": 333563097,
+    "ipaSHA256": "eedf87f8fb75698cad30e405a9d7318861fc77202157a71f085943f2d4690763",
+    "nativeImages": 97,
+    "bundleIdentifiers": 10,
+    "bundleIdentifiersMatch803": true,
+    "privateRecipientReused": true,
+    "newTransportKeyAddedToGit": false,
+    "deviceWindows": 0,
+    "heapTargetValidated": false
   }
 }
