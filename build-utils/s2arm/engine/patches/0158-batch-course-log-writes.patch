@@ -1,0 +1,83 @@
+diff --git a/graphics/nvn/gfx/nvn/rb_course_tracking.inc b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
+index d948fd9..d84e5a9 100644
+--- a/graphics/nvn/gfx/nvn/rb_course_tracking.inc
++++ b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
+@@ -175,6 +175,38 @@ static rb_course_frame_batch g_course_frames_pending;
+ static _Atomic unsigned g_course_batches_queued, g_course_rows_lost;
+ static int g_course_session_logged;
+ 
++// Numeric course records already leave the frame thread in batches of 32.
++typedef struct {
++    char bytes[16384];
++    size_t used;
++} rb_course_log_buffer;
++
++static void rb_course_log_flush(rb_course_log_buffer *out) {
++    if (out->used) s2a_log_out(g_s2a_logfd2, out->bytes, out->used);
++    out->used = 0;
++}
++
++__attribute__((format(printf, 2, 3)))
++static int rb_course_log_append(rb_course_log_buffer *out, const char *fmt, ...) {
++    if (g_s2a_logfd2 <= 2) return 0; // standalone stderr, including pipes
++    size_t room = sizeof out->bytes - out->used;
++    va_list args;
++    va_start(args, fmt);
++    int n = vsnprintf(out->bytes + out->used, room, fmt, args);
++    va_end(args);
++    if (n < 0 || (size_t)n >= room) {
++        rb_course_log_flush(out); // only the preceding complete lines
++        return 0;
++    }
++    out->used += (size_t)n;
++    out->bytes[out->used++] = '\n';
++    return 1;
++}
++
++#define RB_COURSE_LOG(...) do { \
++    if (!rb_course_log_append(&out, "[dm] [nvn-mtl] " __VA_ARGS__)) MLOG(__VA_ARGS__); \
++} while (0)
++
+ static void rb_course_metrics_flush(void) {
+     if (!g_course_frames_pending.count) return;
+     rb_course_frame_batch batch = g_course_frames_pending;
+@@ -185,9 +217,11 @@ static void rb_course_metrics_flush(void) {
+     }
+     atomic_fetch_add(&g_course_batches_queued,1);
+     dispatch_async(rb_trace_io(),^{
++        rb_course_log_buffer out;
++        out.used = 0;
+         for (unsigned i=0; i<batch.count; ++i) {
+             const rb_course_frame_row *r = &batch.rows[i];
+-            MLOG("RewindBox cup frame=%llu interval_ns=%llu asset_hint=%s "
++            RB_COURSE_LOG("RewindBox cup frame=%llu interval_ns=%llu asset_hint=%s "
+                  "pso_wait_ns=%llu library_wait_ns=%llu xlate_ms=%.3f xlate_wait_ms=%.3f msl_count=%u msl_ms=%.3f "
+                  "texture_bytes=%llu texture_cpu_ms=%.3f texture_gpu_completed_ms=%.3f gpu_valid=%llu gpu_unavailable=%llu",
+                  (unsigned long long)r->frame,(unsigned long long)r->interval,r->hint,
+@@ -198,12 +232,12 @@ static void rb_course_metrics_flush(void) {
+             if (r->interval > 100000000ull) {
+                 if (r->io.guest_wait_ns >= 0 && r->io.longest_svc[0] >= 50000000ull) {
+                     const uint64_t *s = r->io.longest_svc;
+-                    MLOG("RewindBox guest wait frame=%llu ns=%llu svc=0x%llx key_or_list=0x%llx guest_thread=%llu guest_pc=0x%llx result=0x%llx signaled_handle=0x%llx last_waker_guest=%llu",
++                    RB_COURSE_LOG("RewindBox guest wait frame=%llu ns=%llu svc=0x%llx key_or_list=0x%llx guest_thread=%llu guest_pc=0x%llx result=0x%llx signaled_handle=0x%llx last_waker_guest=%llu",
+                          (unsigned long long)r->frame,(unsigned long long)s[0],(unsigned long long)s[1],
+                          (unsigned long long)s[2],(unsigned long long)s[3],(unsigned long long)s[4],
+                          (unsigned long long)s[5],(unsigned long long)s[6],(unsigned long long)s[7]);
+                 }
+-                MLOG("RewindBox cup gap frame=%llu outside_ns=%llu longest_ns=%llu "
++                RB_COURSE_LOG("RewindBox cup gap frame=%llu outside_ns=%llu longest_ns=%llu "
+                      "romfs_read_calls=%llu romfs_read_bytes=%llu romfs_read_ns=%llu "
+                      "present_guest_wait_ns=%lld process_read_mib=%.3f present_thread_ms=%.3f vm_decompressed_pages=%lld guest_decompress=unavailable",
+                      (unsigned long long)r->frame,(unsigned long long)r->io.outside_ns,
+@@ -212,9 +246,11 @@ static void rb_course_metrics_flush(void) {
+                      (long long)r->io.guest_wait_ns,r->io.process_read_mb,r->io.present_thread_ms,(long long)r->io.vm_decompressed_pages);
+             }
+         }
++        rb_course_log_flush(&out);
+         atomic_fetch_sub(&g_course_batches_queued,1);
+     });
+ }
++#undef RB_COURSE_LOG
+ void nvn_rb_course_frame_observed(uint64_t frame,uint64_t ns,double upload,double upload_gpu,double xlate,
+                                  double xwait,unsigned libs,double msl,const rb_course_detail *detail) {
+     if (!rb_course_enabled()) return;

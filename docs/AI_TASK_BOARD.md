@@ -25,12 +25,12 @@ Calcul conservé d’une version à l’autre : somme(note × poids) / 100, arro
 ```mermaid
 xychart-beta
     title "S2Arm : avancement estimé par mise à jour"
-    x-axis "IPA ou commit moteur" ["799", "0155", "pont iOS", "0156", "0157"]
+    x-axis "IPA ou commit moteur" ["799", "0155", "pont iOS", "0156", "0157", "0158"]
     y-axis "Maturité estimée (%)" 0 --> 100
-    bar [55, 55, 55, 55, 55]
+    bar [55, 55, 55, 55, 55, 55]
 ```
 
-Le graphique reprend les cinq derniers points de l’historique, dans le même ordre. Il commence à la 799 : aucun pourcentage antérieur n’a été reconstitué. Conserver toutes les lignes ci-dessous, même lorsque la note reste identique ; un résultat tardif complète la ligne de sa version.
+Le graphique reprend les mises à jour depuis la 799 dans leur ordre chronologique. Conserver toutes les lignes ci-dessous, même lorsque la note reste identique ; un résultat tardif complète la ligne de sa version.
 
 | Date | IPA / source | I / R / C / P / S (%) | Global estimé | Évolution et preuve / mesure sur appareil |
 | --- | --- | --- | ---: | --- |
@@ -38,7 +38,8 @@ Le graphique reprend les cinq derniers points de l’historique, dans le même o
 | 2026-11-20 | [Moteur 0155](https://github.com/TarbleFR/RewindBox/commit/49db0f52ba0679fd08ba9ffac58e547a5cf917f3) | 90 / 60 / 65 / 35 / 25 | 55 % | [Textures, attentes, RomFS, préparation, audio et cadence visible](evidence/s2arm-799-frame-stalls.md). [Compilé sur macOS 15 et 26](https://github.com/TarbleFR/RewindBox/actions/runs/44670712737) ; mesure iPhone en attente. |
 | 2026-11-20 | [Pont iOS après 0155](https://github.com/TarbleFR/RewindBox/commit/4abe6bbe7755794b1ef3c44c7d4f9ac4dc8b53ea) | 90 / 60 / 65 / 35 / 25 | 55 % | Durées monotones du moteur (prepareMs) et des exports de preuves (exportMs), y compris en réutilisation. [Compilation iOS arm64 réussie](https://github.com/TarbleFR/RewindBox/actions/runs/44670870535). Mesure iPhone en attente. |
 | 2026-11-20 | [Moteur 0156](https://github.com/TarbleFR/RewindBox/commit/b3ab1140d686cd570c53a08212f00e5bb8b55d26) | 90 / 60 / 65 / 35 / 25 | 55 % | Petits transferts CPU regroupés sur Mario Kart World, encodeur de calcul ouvert à la demande, prélecture bornée même en concurrence et fermeture des fichiers RomFS évincés hors verrou. [Compilé sur macOS 15 et 26](https://github.com/TarbleFR/RewindBox/actions/runs/44671317240), empreintes des patches 0155/0156 vérifiées. Gain sur appareil à mesurer. |
-| 2026-11-20 | Moteur 0157 | 90 / 60 / 65 / 35 / 25 | 55 % | Réveil ciblé des threads et mise en sommeil du travailleur de copies Metal lorsque iOS signale une chauffe sérieuse. Essai Linux, 8 threads et 5 000 événements reçus à chaque passage, 7 passages par version. Réveils 40 000 → 5 000, temps CPU médian 1 354,8 → 138,5 ms. À chacun des quatre niveaux thermiques simulés, les 34 768 copies se terminent dans l’ordre. Chauffe et FPS sur iPhone non mesurés avec ce moteur. |
+| 2026-11-20 | [Moteur 0157](https://github.com/TarbleFR/RewindBox/commit/1178423daea79396531b12ee84cd24b7620bf558) | 90 / 60 / 65 / 35 / 25 | 55 % | Réveil ciblé des threads et mise en sommeil du travailleur de copies Metal lorsque iOS signale une chauffe sérieuse. Essai Linux, 8 threads et 5 000 événements reçus à chaque passage, 7 passages par version. Réveils 40 000 → 5 000, temps CPU médian 1 354,8 → 138,5 ms. À chacun des quatre niveaux thermiques simulés, les 34 768 copies se terminent dans l’ordre. Chauffe et FPS sur iPhone non mesurés avec ce moteur. |
+| 2026-11-20 | Moteur 0158 | 90 / 60 / 65 / 35 / 25 | 55 % | Écritures du journal de course regroupées. Rejeu local des 7 232 images et 153 lignes de pause de la 799. Les écritures passent de 7 385 à 226 avec 2 089 095 octets identiques. Les lignes hors capacité et la sortie d’erreur gardent le format initial. Chauffe et FPS sur iPhone non mesurés avec ce moteur. |
 
 **Mesures de référence, à conserver séparément de l’estimation :** [IPA 795](evidence/rewind796/profile-observations-795.json), 26,886 FPS moteur sur 9 145 intervalles sans lacune dans la plage observée (≈ 5 min 40 s), 213 >100 ms dont 36 >500 ms ; [ancien moteur 0001–0089](evidence/s2arm-ipa783-device-2026-11-18.md), 60 FPS sur 526 intervalles (≈ 8,8 s), scène non identifiée ; [IPA 786](evidence/s2arm-ipa786-device-2026-11-18.md), deux fenêtres à l’affichage à 23,9 / 22,5 FPS et GPU médian à 33,38 / 35,03 ms ; [IPA 794](evidence/s2arm-first-race-795.md), pic échantillonné de 5 175 Mio. Parcours, caches et réglages non uniformisés : aucun gain avant/après attribuable à partir de ces seuls relevés.
 
