@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "839ab6cd060c363e2e81fb4f3be960379342124e210e166d829b9d5e87747afb",
+  "packagedFingerprint": "01115730a7ddf1a799928666c5d30a36b8630cebca5dcab79acc4855a121ccef",
   "producers": {
     "engine": {
-      "run": 44652463127,
+      "run": 44661903275,
       "attempt": 1,
-      "artifact": 14591509536,
-      "name": "s2arm-engine-framework-c10ede83c9d221bf0f0828bdc9fb5b6368092a06",
-      "bytes": 24985224,
-      "sha256": "10eacd895cf6003b7b5b1389c35f0b6ae60c70f823c2683a4603e259bca8de77",
-      "headSha": "c10ede83c9d221bf0f0828bdc9fb5b6368092a06",
+      "artifact": 14597135373,
+      "name": "s2arm-engine-framework-447c8e0628af3f2123f1b01736772cc2e058f4d8",
+      "bytes": 24984953,
+      "sha256": "ca45a9254a8cde1564db0c5c860416cc32e5ec3b3c8761ce7b298e649e064751",
+      "headSha": "447c8e0628af3f2123f1b01736772cc2e058f4d8",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-20T01:30:36Z",
+      "expiresAt": "2026-12-20T02:48:27Z",
       "members": {
-        "S2ArmEngine.framework.zip": "35a1194653eef63359d4079fc5c512397b96bcb5de6824cad8c9f326480b2acb",
-        "NS2Pro.framework.zip": "4a24f032c6f5a7062913289789a865aae3d76943dc6aca703111c1f5e65d8d8e"
+        "S2ArmEngine.framework.zip": "c3e856100820e5b44ac8c607b4cc08f9795caf3ad3138bf1b43dc15c742f6614",
+        "NS2Pro.framework.zip": "7765738103adbd358e7d3023c2d30018d2ce4bc4e371d009853583833eaa54a5"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "10eacd895cf6003b7b5b1389c35f0b6ae60c70f823c2683a4603e259bca8de77",
+    "engine": "ca45a9254a8cde1564db0c5c860416cc32e5ec3b3c8761ce7b298e649e064751",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "ecd2b30ee8d1295e0091beb9488f0f85e43f1bdb01649e401d411ccf8ecbc51e",
-      "bytes": 114557608,
-      "fingerprint": "839ab6cd060c363e2e81fb4f3be960379342124e210e166d829b9d5e87747afb"
+      "sha256": "653a766ffef283569a08679763e31e485a7b452cc9b21c916989590147be46be",
+      "bytes": 114557656,
+      "fingerprint": "01115730a7ddf1a799928666c5d30a36b8630cebca5dcab79acc4855a121ccef"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 44652463127,
+      "run": 44661903275,
       "attempt": 1,
-      "head_sha": "c10ede83c9d221bf0f0828bdc9fb5b6368092a06",
+      "head_sha": "447c8e0628af3f2123f1b01736772cc2e058f4d8",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -742,11 +742,15 @@
         {
           "name": "0153-guest-pause-neighbour-pool-reads-under-pressure.patch",
           "sha256": "c8042f5a62b7de80e451960b9ec57dce3027d1975a81cb9310b7d8440583e619"
+        },
+        {
+          "name": "0154-guest-stream-prewarm-rows-and-recover-draw-history.patch",
+          "sha256": "665e89a5b62df26e237aecca5f302677d5ab27d62481ebbbf291ed888a347121"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "35a1194653eef63359d4079fc5c512397b96bcb5de6824cad8c9f326480b2acb",
-        "NS2Pro.framework.zip": "4a24f032c6f5a7062913289789a865aae3d76943dc6aca703111c1f5e65d8d8e"
+        "S2ArmEngine.framework.zip": "c3e856100820e5b44ac8c607b4cc08f9795caf3ad3138bf1b43dc15c742f6614",
+        "NS2Pro.framework.zip": "7765738103adbd358e7d3023c2d30018d2ce4bc4e371d009853583833eaa54a5"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
