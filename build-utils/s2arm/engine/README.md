@@ -275,3 +275,15 @@ Set `S2A_RB_PSO_CAP=0` before launch for the 803 policy, including the 804 heap 
 The [verified 180-patch iOS build](../../../docs/evidence/s2arm-fluidity-803/engine180-build.json) records the engine fingerprint and the two successful macOS jobs. On-device results are pending.
 
 The [805 delivery receipt](../../../docs/evidence/rewind805/delivery.json) records the private build decrypted with the maintainer’s reusable recipient and verified against the signing receipt (97 native images, 10 bundles). The [earlier encrypted transport](../../../docs/evidence/rewind805/transport.json) remains documented. Device measurements against 803 are pending.
+
+### Texture cache budget, patches 0181–0185
+
+| Patch | Change |
+| --- | --- |
+| 0181 | Every 30 presented frames, read iOS process headroom and assign one sixth to optional texture storage, clamped to 32–256 MiB (192 MiB when unavailable). Depth and colour snapshot pools receive 8/16 and 4/16, limited by their existing ceilings. Retire cold scratch textures after 300 frames through the existing GPU retirement path. The shared resize pool keeps its 803 reuse policy. |
+| 0182 | Bound spare destinations for whole packaged uploads to 3/16 of the budget and 180 idle frames. An eviction retires the spare behind its fence. The live texture stays available. |
+| 0183 | Reserve 1/16 for unpublished speculative copies of tracked, compressed, non-sparse 2D assets. A completed private root can go volatile after 60 frames. The first demand restores nonvolatile state and rebuilds an empty copy through the ordinary upload path. Drop cold copies after 300 frames. |
+| 0184 | Benchmark snapshots distinguish texture-root bytes, heap capacity, timestamped full owner census, ordinary reuploads, uploads following an eviction, changed-or-unknown sources and staging bytes. |
+| 0185 | Independent candidate controls for GPU upload-ahead (0132) and host page hints (0149/0160) allow same-build comparisons. |
+
+Set `S2A_RB_TEX_BUDGET=0` before launch to restore the 803 paths, including the heap and PSO policies. See the [historical attribution and device criteria](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md#textures-metal).

@@ -1,0 +1,42 @@
+Measure the separate effects of 0132 and 0149/0160 with independent candidate-only launch switches.
+
+diff --git a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+--- a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
++++ b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+@@ -72,7 +72,28 @@
+     rb_spec_done(&lease);
+ }
+ 
++// These independent process-launch controls isolate historical behavior on
++// the candidate. The 803 rollback keeps its original environment semantics.
++static BOOL rb_upload_ahead_allowed(void) {
++    static dispatch_once_t once;
++    static BOOL enabled;
++    dispatch_once(&once, ^{
++        const char *value = getenv("S2A_RB_TEX_UPLOAD_AHEAD");
++        enabled = !(value && !strcmp(value, "0"));
++    });
++    return enabled;
++}
++static BOOL rb_page_hints_allowed(void) {
++    static dispatch_once_t once;
++    static BOOL enabled;
++    dispatch_once(&once, ^{
++        const char *value = getenv("S2A_RB_TEX_PAGE_HINTS");
++        enabled = !(value && !strcmp(value, "0"));
++    });
++    return enabled;
++}
+ void nvn_be_record_texture_pages(uint32_t id_) {
++    if (rb_tex_budget_on() && !rb_page_hints_allowed()) return;
+     if (id_ >= (1u << 20) || !rb_course_exact() || !rb_park_compat() || !rb_pf_on() || !rb_wn_on() ||
+         dm_gfx_session_stopping() || nvn_be_stopping() || atomic_load(&g_fu_waiting)) return;
+     uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
+@@ -102,6 +123,7 @@
+ 
+ void nvn_be_record_texture_hint(uint32_t id_) {
+     nvn_be_record_texture_pages(id_);
++    if (rb_tex_budget_on() && !rb_upload_ahead_allowed()) return;
+     if (id_ >= (1u << 20)) return;
+     uint64_t serial = atomic_load_explicit(&g_tser[id_], memory_order_relaxed);
+     _Atomic uint64_t *recent = &g_tx_ahead.recent[id_ % 2048];

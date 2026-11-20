@@ -41,6 +41,11 @@ release idle archive-backed render and compute entries after the GPU submission 
 reports include shallow allocation sizes, reconstruction times and cumulative long display intervals.
 S2A_RB_PSO_CAP=0 restores the IPA 803 pipeline and host-heap policies for this series.
 
+RewindBox patches 0181 through 0185 budget optional Metal texture storage using available iOS process memory,
+retire cold scratch textures and upload spares, and track the first use of purgeable speculative copies.
+The benchmark distinguishes texture allocations, heap capacity and uploads after eviction.
+S2A_RB_TEX_BUDGET=0 selects the IPA 803 policies for these changes.
+
 The engine also contains third-party code; S2Arm's own table of it is S2Arm/THIRD_PARTY_LICENSES.md. The exact
 licence and notice texts of the components that reach this application are in the folders beside this file. Each is
 listed in license-sources.json with its origin (a file of that S2Arm commit, a source archive the engine build fetched

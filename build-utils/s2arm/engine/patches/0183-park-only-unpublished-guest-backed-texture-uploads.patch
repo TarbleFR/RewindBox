@@ -1,0 +1,217 @@
+Isolate tracked speculative uploads until first use. Make only completed, unbound private copies volatile and recover a discarded copy through the demand uploader.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -7557,6 +7557,7 @@
+ }
+ #include "nvn_sparse_tiles.inc"   // RewindBox (patch 0028): placement sparse textures for the packaged arrays of sparse pools (seedds/nxnative 1d4b8e82, MIT)
+ static uint64_t g_texinfo_ser[8]; static int g_texinfo_n;
++#include "rb_cold_upload.inc"
+ static id<MTLTexture> tex_mtl_(const tex_t *ct) {
+     tex_t *t = (tex_t *)ct;
+     if (!t || !t->serial) return nil;
+@@ -7599,6 +7600,7 @@
+         packaged = 0;
+     }
+     if (packaged) {
++        if (!have && on_sub_thread() && rb_tex_budget_on() && !rb_capturing_upload) have = rb_cold_claim(t);
+         NvPkg *pk = [have isKindOfClass:[NvPkg class]] ? have : nil;   // resolved as GPU-only before the CPU wrote it: dropped and rebuilt as packaged
+         // RewindBox (patch 0032, from the review of patches 0028-0031), S2Arm: a placement sparse texture is made, and looked at, on the submit thread only (on_sub_thread). The guard above lets any thread through before a session's first submission
+         //   (g_sub_thread_set 0), when after an in-process restart (patches 0006, 0010) the encode thread still runs: there a look would record mapping blocks into the open record
+@@ -7683,13 +7685,24 @@
+         pk->sparse = t->pool && nvn_sparse_pool(t->pool); pk->vgen = pk->vseen = nvn_sparse_gen();
+         uint64_t *gr = NULL, gb = 0; int gn = 0; id<MTLTexture> gfrom = nil;   // turning packaged from a GPU-only texture: its texels a GPU write left stale in guest memory (carry_gpu)
+         if (have && !pk->sparse && [have conformsToProtocol:@protocol(MTLTexture)]) { gfrom = have; gn = gpw_stale(t->mem, t->L.size, &gr, &gb); }
++        BOOL repeated = NO, wasClean = NO;
++        if (rb_tex_budget_on() && on_sub_thread() && !rb_capturing_upload) {
++            rb_cold_entry *e = rb_cold_slot(t->serial);
++            repeated = e->discarded && rb_cold_matches(e, t);
++            if (repeated) {
++                const void *span = nvn_dirty_span(t->mem, t->L.size);
++                wasClean = span && !nvn_dirty_since_span(span, t->mem, t->L.size, e->stamp);
++            }
++        }
+         pk->tex = pkg_upload(t, &pk->stamp, nil, &pk->ph, &pk->nph, !have);
+         if (!pk->tex) { free(gr); return nil; }
+         pk->span = nvn_dirty_span(t->mem, t->L.size);
+         pk->seen = nvn_dirty_now(); g_pkg_uploads++; if (dirtycheck() && !pk->sparse) pk->hash = full_hash(t->mem, t->L.size);
+         if (pk->sparse) sparse_view(pk, t);
+         zb_report(t, pk->sparse ? (unsigned)pk->vbase : 0, "upload");
+-        tex_put(t->serial, pk);
++        if (rb_capturing_upload && !have && !gn && !pk->sparse && pk->span) rb_cold_store(pk, t);
++        else tex_put(t->serial, pk);
++        if (repeated) rb_cold_uploaded(t, wasClean);
+         if (gn) carry_gpu(t, pk->tex, gfrom, gr, gn, gb);   // after tex_put: pkg_gpu_wrote notes the pages on this NvPkg
+         free(gr);
+         return pk->view ? pk->view : pk->tex;
+@@ -17383,6 +17396,7 @@
+     atomic_store_explicit(&rb_texture_budget, budget, memory_order_relaxed);
+ #endif
+     rb_spare_tend(frame);
++    rb_cold_maintain(frame);
+     snp_pool_t *pools[] = {&g_snp_depth, &g_snp_color};
+     for (unsigned k = 0; k < 2; ++k) {
+         snp_pool_t *p = pools[k];
+@@ -17616,6 +17630,7 @@
+ // RewindBox (patch 0071): nvn_be_shutdown_session (the GPU idle, no submit thread): the kept shared textures, the finalized-texture ring and its notes, and the snapshot pools go with
+ //   the session (their keys name its memory pools and serials)
+ static void rb_reuse_session_reset(void) {
++    if (rb_tex_budget_on()) for (int i = 0; i < RB_COLD_SLOTS; ++i) rb_cold_detach(&rb_cold[i], NO);
+     if (rb_tex_budget_on()) for (int i = 0; i < RB_SPARE_SLOTS; ++i) rb_spare_forget(i, NO);
+     if (rb_tex_budget_on()) { rb_texture_sample_frame = UINT64_MAX; atomic_store(&rb_texture_budget, 192ull << 20); }
+     pthread_mutex_lock(&g_smu);
+diff --git a/graphics/nvn/gfx/nvn/rb_cold_upload.inc b/graphics/nvn/gfx/nvn/rb_cold_upload.inc
+new file mode 100644
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_cold_upload.inc
+@@ -0,0 +1,110 @@
++// SPDX-License-Identifier: Apache-2.0
++// Submit-owned, never-bound copies of the recorded CPU-backed texture hints.
++// A nonempty slot reserves its serial even after eviction. On a collision we
++// skip speculative work; we never lose an eviction attribution to a collision.
++enum { RB_COLD_SLOTS = 256 };
++typedef struct {
++    NvPkg * __strong copy;
++    uint64_t serial, born, bytes, stamp, guestBytes;
++    uintptr_t pool, address;
++    unsigned registration;
++    BOOL isVolatile, discarded;
++} rb_cold_entry;
++static rb_cold_entry rb_cold[RB_COLD_SLOTS];
++static uint64_t rb_cold_held;
++static _Thread_local BOOL rb_capturing_upload;
++static _Thread_local unsigned rb_capture_registration;
++static BOOL rb_cold_rebuildable(const rb_cold_entry *e);
++static _Atomic uint64_t rb_cold_evictions, rb_cold_volatile, rb_cold_empty;
++static _Atomic uint64_t rb_cold_repeat, rb_cold_repeat_bytes, rb_cold_changed_repeat;
++static rb_cold_entry *rb_cold_slot(uint64_t serial) {
++    return &rb_cold[(serial ^ (serial >> 32)) % RB_COLD_SLOTS];
++}
++static BOOL rb_cold_room(const tex_t *t) {
++    uint64_t cap = rb_texture_share(1);
++    return !rb_cold_slot(t->serial)->serial && rb_cold_held < cap && t->L.size <= cap - rb_cold_held;
++}
++static void rb_cold_store(NvPkg *pk, const tex_t *t) {
++    rb_cold_entry *e = rb_cold_slot(t->serial);
++    e->registration = rb_capture_registration; e->serial = t->serial; e->copy = pk;
++    e->pool = (uintptr_t)t->pool; e->address = (uintptr_t)t->mem; e->guestBytes = t->L.size;
++    e->born = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    e->bytes = pk->tex.allocatedSize; e->stamp = pk->stamp;
++    rb_cold_held += e->bytes;
++}
++static void rb_cold_detach(rb_cold_entry *e, BOOL discarded) {
++    rb_cold_held -= e->bytes;
++    e->bytes = 0;
++    e->copy = nil; e->isVolatile = NO; e->discarded = discarded;
++    if (!discarded) e->serial = 0;
++}
++static void rb_cold_maintain(uint64_t frame) {
++    // up_flush increments pending before clearing the open batch and only the
++    // upload completion decrements it. Never wait, evict or purge an open upload.
++    if (g_up_cb || atomic_load(&g_up_pending)) return;
++    uint64_t cap = rb_texture_share(1);
++    rb_cold_entry *pending[4];
++    unsigned count = 0;
++    for (int i = 0; i < RB_COLD_SLOTS; ++i) {
++        rb_cold_entry *e = &rb_cold[i];
++        if (!e->copy || frame < e->born || frame - e->born < 60 ||
++            (e->isVolatile && frame - e->born < 300) || !rb_cold_rebuildable(e)) continue;
++        if (frame - e->born >= 300) {
++            rb_cold_detach(e, YES);
++            atomic_fetch_add_explicit(&rb_cold_evictions, 1, memory_order_relaxed);
++        } else if (count < 4 && !e->isVolatile && frame - e->born >= 60) {
++            id<MTLTexture> t = e->copy->tex;
++            if (t.parentTexture || t.buffer || t.heap || t.isSparse || t.storageMode != MTLStorageModePrivate) continue;
++            res_remove(t);
++            pending[count++] = e;
++        }
++    }
++    if (count) {
++        res_commit_(1);
++        for (unsigned j = 0; j < count; ++j) {
++            rb_cold_entry *e = pending[j];
++            [e->copy->tex setPurgeableState:MTLPurgeableStateVolatile];
++            e->isVolatile = YES;
++            atomic_fetch_add_explicit(&rb_cold_volatile, 1, memory_order_relaxed);
++        }
++    }
++    while (rb_cold_held > cap) {
++        rb_cold_entry *oldest = NULL;
++        for (int i = 0; i < RB_COLD_SLOTS; ++i)
++            if (rb_cold[i].copy && (!oldest || rb_cold[i].born < oldest->born) && rb_cold_rebuildable(&rb_cold[i])) oldest = &rb_cold[i];
++        if (!oldest) break;
++        rb_cold_detach(oldest, YES);
++        atomic_fetch_add_explicit(&rb_cold_evictions, 1, memory_order_relaxed);
++    }
++}
++static BOOL rb_cold_matches(const rb_cold_entry *e, const tex_t *t) {
++    return e->serial == t->serial && e->pool == (uintptr_t)t->pool &&
++           e->address == (uintptr_t)t->mem && e->guestBytes == t->L.size;
++}
++static NvPkg *rb_cold_claim(const tex_t *t) {
++    rb_cold_entry *e = rb_cold_slot(t->serial);
++    if (!rb_cold_matches(e, t) || !e->copy) return nil;
++    NvPkg *pk = e->copy;
++    if (e->isVolatile) {
++        if ([pk->tex setPurgeableState:MTLPurgeableStateNonVolatile] == MTLPurgeableStateEmpty) {
++            rb_cold_detach(e, YES);
++            atomic_fetch_add_explicit(&rb_cold_empty, 1, memory_order_relaxed);
++            return nil;
++        }
++        res_add(pk->tex);
++    }
++    // The original dirty-page path below validates or updates a promoted copy.
++    // Never use the former pool's dirty-span handle if its registration changed.
++    if (pk->span != nvn_dirty_span(t->mem, t->L.size)) pk->span = NULL;
++    rb_cold_detach(e, NO);
++    tex_put(t->serial, pk);
++    return pk;
++}
++static void rb_cold_uploaded(const tex_t *t, BOOL wasClean) {
++    rb_cold_entry *e = rb_cold_slot(t->serial);
++    if (!e->discarded || !rb_cold_matches(e, t)) return;
++    rb_cold_detach(e, NO);
++    atomic_fetch_add_explicit(&rb_cold_repeat, 1, memory_order_relaxed);
++    atomic_fetch_add_explicit(&rb_cold_repeat_bytes, t->L.size, memory_order_relaxed);
++    if (!wasClean) atomic_fetch_add_explicit(&rb_cold_changed_repeat, 1, memory_order_relaxed);
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+--- a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
++++ b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+@@ -146,6 +146,20 @@
+     return ok;
+ }
+ 
++static BOOL rb_cold_rebuildable(const rb_cold_entry *e) {
++    if (pthread_mutex_trylock(&g_rmu)) return NO;
++    BOOL safe = NO;
++    if (e->registration < (unsigned)g_ntreg) {
++        const treg_t *r = &g_treg[e->registration];
++        // A retired registration cannot have a future bind to this hint. A
++        // replacement serial owns another allocation. No guest bytes are read.
++        safe = !r->ok || r->gone || r->t.serial != e->serial ||
++            (rb_cold_matches(e, &r->t) && rb_tx_eligible(r, e->serial) &&
++             rb_span_readable(e->address, e->guestBytes));
++    } else safe = YES;
++    pthread_mutex_unlock(&g_rmu);
++    return safe;
++}
+ void nvn_be_advance_texture(void) {
+     if (!atomic_load_explicit(&g_tx_ahead.pending, memory_order_relaxed) ||
+         !on_sub_thread() || dm_gfx_session_stopping() || g_cb || g_up_cb || atomic_load(&g_fu_waiting) ||
+@@ -161,7 +175,13 @@
+             if (h.id >= (unsigned)g_ntreg || !rb_tx_eligible(&g_treg[h.id], h.serial)) continue;
+             const tex_t *t = &g_treg[h.id].t;
+             if (t->L.size > RB_TX_SESSION - g_tx_ahead.bytes) break;
+-            if (tex_mtl_(t)) {
++            BOOL isolate = rb_tex_budget_on() && fmt_compressed(t->d.format);
++            if (isolate && (!rb_cold_room(t) || !rb_span_readable((uintptr_t)t->mem, t->L.size))) continue;
++            rb_capture_registration = h.id;
++            rb_capturing_upload = isolate;
++            id<MTLTexture> prepared = tex_mtl_(t);
++            rb_capturing_upload = NO;
++            if (prepared) {
+                 g_tx_ahead.bytes += t->L.size;
+                 ++g_tx_ahead.in_frame;
+                 ++g_tx_ahead.made;

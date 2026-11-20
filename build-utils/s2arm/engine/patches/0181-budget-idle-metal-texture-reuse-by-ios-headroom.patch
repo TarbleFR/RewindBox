@@ -1,0 +1,150 @@
+Budget scratch snapshot pools by iOS process headroom. Sweep cold entries through their existing retirement paths.
+
+diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+--- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
++++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+@@ -429,7 +429,8 @@
+         }
+ 
+         private static readonly bool MeasureHeap =
+-            OperatingSystem.IsIOS() && Environment.GetEnvironmentVariable("S2A_RB_PSO_CAP") != "0" &&
++            OperatingSystem.IsIOS() && Environment.GetEnvironmentVariable("S2A_RB_TEX_BUDGET") != "0" &&
++            Environment.GetEnvironmentVariable("S2A_RB_PSO_CAP") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_HEAP_TRIM") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_HEAP_LEDGER") != "0";
+         internal static long HeapBufferBytes;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -99,6 +99,7 @@
+ static void warm_start(void), warm_announce(void), rb_warm_resume(void);
+ static void warm_claim(void);
+ static void rb_pso_maintain(void);
++static void rb_tex_budget_maintain(void);
+ static void rb_ref_stage_hint(const char *raw);
+ static void warm_bump(const char *vk, const char *fk);   // 游戏登记着色器程序时把预热清单里这对着色器的管线提到队头（warm_pick）
+ 
+@@ -1357,6 +1358,7 @@
+     g_sub_thread = pthread_self(); atomic_store(&g_sub_thread_set, 1);
+     atomic_store(&g_last_commit_error, 0);
+     g_sub_pool = objc_autoreleasePoolPush();
++    if (rb_tex_budget_on()) rb_tex_budget_maintain();
+     if (rb_pso_cap_on()) rb_pso_maintain();
+     main_barrier_reset(); g_cb = rec_cb_new();
+     // Do not wait for the GPU mid-frame (hot real device: with a fixed rotation of 3, when the GPU cannot keep up every frame blocks here, and the submit thread runs at low frequency after waking, instruction count −18% but CPU time +49%):
+@@ -3952,6 +3954,14 @@
+ //   against 46-139) and 33 frames of 200 ms or more that read 20 MB or more against 19: each texture the pool no longer held was made again and filled from
+ //   guest memory the system had paged out. The 192 MB and 900 frames of before are the default again
+ static int rb_txr_small_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_TXR_SMALL"); v = e && !strcmp(e, "1"); } return v; }   // read under g_smu: said by rb_reuse_report, after it lets the lock go; RewindBox (patch 0088): =1 only
++// Only optional storage competes for this budget. Live render targets, sparse
++// placements and pool buffers remain outside it. The submit thread publishes a
++// new limit every 30 presented frames; the pressure handler can still drain now.
++static _Atomic uint64_t rb_texture_budget = 192ull << 20;
++static uint64_t rb_texture_sample_frame = UINT64_MAX;
++static uint64_t rb_texture_share(unsigned sixteenths) {
++    return atomic_load_explicit(&rb_texture_budget, memory_order_relaxed) / 16 * sixteenths;
++}
+ static uint64_t txr_bytes_cap(void) { return rb_txr_small_on() ? (48ull << 20) : TXR_BYTES; }
+ static uint64_t txr_idle_frames(void) { return rb_txr_small_on() ? 120 : TXR_IDLE; }
+ typedef struct { alias_key k; uint64_t fence, tick, frame, bytes, ser[TXR_SERS]; int nser; uint32_t tt, pf, w, h, z, nl, na, use; } txr_ent;   // fence: g_done must reach it; its Metal shape
+@@ -17289,6 +17299,7 @@
+     uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
+     snp_tend(p, 0, f - p->swept >= 300);   // review: snp_tend
+     uint64_t budget = rb_mem_low() ? p->budget >> 2 : p->budget;   // review: a quarter while memory is low (none made a texture at each such draw)
++    if (rb_tex_budget_on()) budget = MIN(budget, rb_texture_share(p == &g_snp_depth ? 8 : 4));
+     const uint32_t key[6] = {(uint32_t)tt, (uint32_t)pf, (uint32_t)w, (uint32_t)h, (uint32_t)nl, (uint32_t)ns};
+     for (int i = 0; i < p->n; i++) if (p->draw[i] != g_draw_seq && !memcmp(p->key[i], key, sizeof key)) { p->used[i] = ++p->tick; p->draw[i] = g_draw_seq; p->frame[i] = f; p->taken++; return p->t[i]; }
+     MTLTextureDescriptor *d = [MTLTextureDescriptor new];
+@@ -17298,6 +17309,7 @@
+     res_add_at(t, line); p->made++;
+     t.label = p == &g_snp_depth ? @"RewindBox depth snapshot" : @"RewindBox same-pass snapshot";   // RewindBox (patch 0071): named in the resident top as patch 0070 names 0057's (res_top)
+     uint64_t b = t.allocatedSize;
++    if (rb_tex_budget_on() && b > budget) { defer_obj_release(t); return t; }
+     while (p->n && (p->n == SNAP_KEEP || p->held + b > budget)) { int o = -1;   // the least recently used one this draw has not taken
+         for (int i = 0; i < p->n; i++) if (p->draw[i] != g_draw_seq && (o < 0 || p->used[i] < p->used[o])) o = i;
+         if (o < 0) break;
+@@ -17309,6 +17321,32 @@
+ // A snapshot of the shape a sampled view has: `nl` levels from level tl of the base and `ns` slices (a 2D array / cube base; 1 otherwise). The mip chain is kept because
+ // the shader's LOD means the same in the snapshot as in the attachment (fb_prepare ④ copies every level and slice into it). One per slot of the draw: distinct sources of one draw
+ // never share a snapshot, even with the same shape (10-27 #570 follow-up, xy0v0 ae42eb856: two same-format same-size attachments read the second one's copy); kept across draws
++static void rb_tex_budget_maintain(void) {
++    uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    if (rb_texture_sample_frame != UINT64_MAX && frame >= rb_texture_sample_frame &&
++        frame - rb_texture_sample_frame < 30) return;
++    rb_texture_sample_frame = frame;
++#if TARGET_OS_IPHONE
++    uint64_t room = rb_ios_headroom();
++    uint64_t budget = room == UINT64_MAX ? (192ull << 20) : MIN(256ull << 20, MAX(32ull << 20, room / 6));
++    atomic_store_explicit(&rb_texture_budget, budget, memory_order_relaxed);
++#endif
++    snp_pool_t *pools[] = {&g_snp_depth, &g_snp_color};
++    for (unsigned k = 0; k < 2; ++k) {
++        snp_pool_t *p = pools[k];
++        uint64_t cap = MIN(p->budget, rb_texture_share(k ? 4 : 8));
++        for (int i = p->n - 1; i >= 0; --i)
++            if (p->draw[i] != g_draw_seq && frame >= p->frame[i] && frame - p->frame[i] >= 300)
++                snp_drop(p, i, 0);
++        while (p->held > cap) {
++            int oldest = -1;
++            for (int i = 0; i < p->n; ++i)
++                if (p->draw[i] != g_draw_seq && (oldest < 0 || p->used[i] < p->used[oldest])) oldest = i;
++            if (oldest < 0) break;
++            snp_drop(p, oldest, 0);
++        }
++    }
++}
+ static id<MTLTexture> fb_snap_shape(MTLTextureType tt, MTLPixelFormat pf, NSUInteger bw, NSUInteger bh, NSUInteger tl, NSUInteger nl, NSUInteger ns, int slot) {   // tt: the base's type (2D / 2D array); a cube / cube array view is made from the 2D array snapshot by fb_narrow_view, never as a cube base (see tex_desc)
+     // RewindBox (patch 0057): FB_SNAP_KEEP shapes a slot, the least recently used giving way (one before: a slot whose draws ask two shapes in turn made its texture again at
+     //   every draw; the engine log of 16 November counts 110 to 190 textures made here in every 300 frames of a Mario Kart World race, 400 to 700 MB). A slot's textures stay its
+@@ -17526,6 +17564,7 @@
+ // RewindBox (patch 0071): nvn_be_shutdown_session (the GPU idle, no submit thread): the kept shared textures, the finalized-texture ring and its notes, and the snapshot pools go with
+ //   the session (their keys name its memory pools and serials)
+ static void rb_reuse_session_reset(void) {
++    if (rb_tex_budget_on()) { rb_texture_sample_frame = UINT64_MAX; atomic_store(&rb_texture_budget, 192ull << 20); }
+     pthread_mutex_lock(&g_smu);
+     for (int i = 0; i < g_txr_n; i++) { res_remove(g_txr_t[i]); g_txr_t[i] = nil; }
+     g_txr_n = 0; g_txr_bytes = 0;
+diff --git a/runtime/include/rb_heap.h b/runtime/include/rb_heap.h
+--- a/runtime/include/rb_heap.h
++++ b/runtime/include/rb_heap.h
+@@ -10,6 +10,22 @@
+ #endif
+ 
+ // Process launch switches. Pointers stay in their original allocator and ABI.
++static inline int rb_tex_budget_on(void)
++{
++#if defined(__APPLE__) && TARGET_OS_IOS
++    static _Atomic int cached;
++    int mode = atomic_load_explicit(&cached, memory_order_relaxed);
++    if (!mode) {
++        const char *e = getenv("S2A_RB_TEX_BUDGET");
++        mode = e && !strcmp(e, "0") ? -1 : 1;
++        atomic_store_explicit(&cached, mode, memory_order_relaxed);
++    }
++    return mode > 0;
++#else
++    return 0;
++#endif
++}
++
+ static inline int rb_pso_cap_on(void)
+ {
+ #if defined(__APPLE__) && TARGET_OS_IOS
+@@ -17,7 +33,7 @@
+     int mode = atomic_load_explicit(&cached, memory_order_relaxed);
+     if (!mode) {
+         const char *value = getenv("S2A_RB_PSO_CAP");
+-        mode = value && !strcmp(value, "0") ? -1 : 1;
++        mode = !rb_tex_budget_on() || (value && !strcmp(value, "0")) ? -1 : 1;
+         atomic_store_explicit(&cached, mode, memory_order_relaxed);
+     }
+     return mode > 0;
+@@ -33,7 +49,7 @@
+     if (!mode) {
+         const char *trim = getenv("S2A_RB_HEAP_TRIM");
+         const char *pso = getenv("S2A_RB_PSO_CAP");
+-        mode = (trim && !strcmp(trim, "0")) || (pso && !strcmp(pso, "0")) ? -1 : 1;
++        mode = !rb_tex_budget_on() || (trim && !strcmp(trim, "0")) || (pso && !strcmp(pso, "0")) ? -1 : 1;
+         atomic_store_explicit(&cached, mode, memory_order_relaxed);
+     }
+     return mode > 0;

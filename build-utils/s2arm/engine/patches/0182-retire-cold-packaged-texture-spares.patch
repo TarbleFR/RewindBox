@@ -1,0 +1,88 @@
+Bound secondary whole-upload destinations independently of the live guest copy. Retire on the original GPU fence.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4338,6 +4338,57 @@
+ @implementation NvPkg
+ - (void)dealloc { res_remove(tex); if (spare) res_remove(spare); free(ph); free(pgpu); }
+ @end
++// A spare is the previous whole-upload destination, never the authoritative
++// current texture. The existing upload either overwrites it completely or uses
++// a fresh allocation. Weak owners must not keep a finalized guest texture alive.
++enum { RB_SPARE_SLOTS = 128 };
++typedef struct { __weak NvPkg *owner; uint64_t frame, bytes; } rb_spare_entry;
++static rb_spare_entry rb_spares[RB_SPARE_SLOTS];
++static uint64_t rb_spare_held;
++static _Atomic uint64_t rb_spare_evictions;
++static void rb_spare_forget(int i, BOOL evict) {
++    rb_spare_entry *slot = &rb_spares[i];
++    NvPkg *owner = slot->owner;
++    if (evict && owner && owner->spare) {
++        defer_obj_release_at(owner->spare, owner->spare_fence);
++        owner->spare = nil;
++        atomic_fetch_add_explicit(&rb_spare_evictions, 1, memory_order_relaxed);
++    }
++    rb_spare_held -= slot->bytes;
++    slot->owner = nil;
++    slot->bytes = slot->frame = 0;
++}
++static void rb_spare_tend(uint64_t frame) {
++    for (int i = 0; i < RB_SPARE_SLOTS; ++i) {
++        rb_spare_entry *slot = &rb_spares[i];
++        if (slot->bytes && (!slot->owner || (frame >= slot->frame && frame - slot->frame >= 180)))
++            rb_spare_forget(i, YES);
++    }
++    while (rb_spare_held > rb_texture_share(3)) {
++        int oldest = -1;
++        for (int i = 0; i < RB_SPARE_SLOTS; ++i)
++            if (rb_spares[i].bytes && (oldest < 0 || rb_spares[i].frame < rb_spares[oldest].frame)) oldest = i;
++        if (oldest < 0) break;
++        rb_spare_forget(oldest, YES);
++    }
++}
++static void rb_spare_record(NvPkg *owner) {
++    uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    int empty = -1, oldest = 0;
++    for (int i = 0; i < RB_SPARE_SLOTS; ++i) {
++        if (rb_spares[i].owner == owner) { rb_spare_forget(i, NO); empty = i; break; }
++        if (!rb_spares[i].owner && empty < 0) empty = i;
++        if (rb_spares[i].frame < rb_spares[oldest].frame) oldest = i;
++    }
++    int i = empty >= 0 ? empty : oldest;
++    rb_spare_forget(i, YES);
++    rb_spares[i].owner = owner;
++    rb_spares[i].frame = frame;
++    rb_spares[i].bytes = owner->spare.allocatedSize;
++    rb_spare_held += rb_spares[i].bytes;
++    if (!rb_spares[i].bytes) rb_spare_forget(i, YES);
++    if (rb_spare_held > rb_texture_share(3)) rb_spare_tend(frame);
++}
+ static uint64_t g_pkg_uploads, g_pkg_reuploads, g_pkg_miss, g_pkg_same, g_pkg_gpu_writes, g_pkg_gpu_kept, g_pkg_partial;
+ // pgpu (S2Arm 10-25): per host page, the dirty-page generation when the GPU last wrote the texture's bytes there (a copy or clear into it; nvn_dirty_now at encoding, which is the game's submission).
+ // The replay's GPU writes reach the host texture, never guest memory, so a whole re-upload from guest memory would undo them. Who wrote a page last decides: written by the CPU after the GPU
+@@ -7624,7 +7675,7 @@
+                 if (pk->spare && pk->spare != nt) defer_obj_release(pk->spare);   // still in use, or of another shape: retired as before
+                 if (pk->sparse) sparse_view(pk, t);
+                 zb_report(t, pk->sparse ? (unsigned)pk->vbase : 0, "re-upload");
+-                pk->spare = old; pk->spare_fence = g_fence + 1; if (!pk->sparse) rb_serial_local(t->serial); else g_ser_gen++; pk->stamp = st; pk->vgen = pk->vseen = vg; pk->span = nvn_dirty_span(t->mem, t->L.size); pk->seen = nvn_dirty_now(); g_pkg_reuploads++; if (dirtycheck() && !pk->sparse) pk->hash = full_hash(t->mem, t->L.size); }
++                pk->spare = old; pk->spare_fence = g_fence + 1; if (rb_tex_budget_on() && on_sub_thread()) rb_spare_record(pk); if (!pk->sparse) rb_serial_local(t->serial); else g_ser_gen++; pk->stamp = st; pk->vgen = pk->vseen = vg; pk->span = nvn_dirty_span(t->mem, t->L.size); pk->seen = nvn_dirty_now(); g_pkg_reuploads++; if (dirtycheck() && !pk->sparse) pk->hash = full_hash(t->mem, t->L.size); }
+             return pk->view ? pk->view : pk->tex;
+         }
+         if (!have && t->serial < (1ull << 62) && !nvn_be_tex_is_live(t->serial)) ghost_miss_note(t, "uploaded again from guest memory");   // RewindBox (patch 0071)
+@@ -17331,6 +17382,7 @@
+     uint64_t budget = room == UINT64_MAX ? (192ull << 20) : MIN(256ull << 20, MAX(32ull << 20, room / 6));
+     atomic_store_explicit(&rb_texture_budget, budget, memory_order_relaxed);
+ #endif
++    rb_spare_tend(frame);
+     snp_pool_t *pools[] = {&g_snp_depth, &g_snp_color};
+     for (unsigned k = 0; k < 2; ++k) {
+         snp_pool_t *p = pools[k];
+@@ -17564,6 +17616,7 @@
+ // RewindBox (patch 0071): nvn_be_shutdown_session (the GPU idle, no submit thread): the kept shared textures, the finalized-texture ring and its notes, and the snapshot pools go with
+ //   the session (their keys name its memory pools and serials)
+ static void rb_reuse_session_reset(void) {
++    if (rb_tex_budget_on()) for (int i = 0; i < RB_SPARE_SLOTS; ++i) rb_spare_forget(i, NO);
+     if (rb_tex_budget_on()) { rb_texture_sample_frame = UINT64_MAX; atomic_store(&rb_texture_budget, 192ull << 20); }
+     pthread_mutex_lock(&g_smu);
+     for (int i = 0; i < g_txr_n; i++) { res_remove(g_txr_t[i]); g_txr_t[i] = nil; }
