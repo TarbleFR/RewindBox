@@ -23,14 +23,14 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
  // 弱链接[host,ios,nvntest]：s2a_rb_bench_generation (optional iOS benchmark observer)
  extern uint64_t s2a_rb_bench_generation(void) __attribute__((weak_import));
  // 弱链接[host,ios,nvntest]：s2a_rb_bench_present_begin (optional iOS benchmark observer)
-@@ -12611,6 +12613,7 @@
-             rb_course_candidate(cached, &k, vs, fs);
-         return cached;
-     }
+@@ -12627,6 +12629,7 @@
+     if (!exact && !g_pso_lmap && !ms_fn && !g_pso_fsfn && first_skip_ok(&k, vs, fs)) { PSO_WHY("compiling in the background (first-use skip)"); return nil; }   // S2Arm first-use skip: no stand-in, the full pipeline compiles in the background (draw counts it)
+     id<MTLRenderPipelineState> ps;
+     NSError *e = nil; uint64_t bt = bp_now();
 +    RBPSOWait rb_wait __attribute__((cleanup(rb_wait_end)))=rb_wait_begin();
-     if (hm_get_id(&g_pso_fail, &k)) { PSO_WHY("on the failed list (its first build was refused; the red line then said why)"); return nil; }
-     { NSNumber *r = hm_get_id(&g_pso_retry, &k); if (r && r.unsignedLongLongValue > atomic_load(&g_cur_frame)) { g_first_skipped = 1; PSO_WHY("waiting to retry after a compiler service failure"); return nil; } }   // waiting to retry (pso_err_transient)
-     if (quar_has(vs, fs)) { hm_put_id(&g_pso_fail, &k, NSNull.null); PSO_WHY("quarantined after a GPU error"); return nil; }   // a GPU error quarantined it (quar_fault)
+     int pp_late = 0, may_skip = !exact && skip_safe(vs, fs);
+     // Not queued: compile it in the background too and wait the same bounded time, instead of compiling here with no limit (the same compiler service, the same queue).
+     //   The first miss of a submission kicks the later misses of the submission out to compile beside it (pso_predict_rest) before this draw waits: since 93dc5957e (10-26) the wait
 @@ -19439,6 +19442,7 @@
      id<MTLComputePipelineState> ps = hm_get_id(cps, ck);
      if ((id)ps == (id)NSNull.null) return;   // its pipeline failed before: built once, reported once (see below)

@@ -104,6 +104,15 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
      @autoreleasepool {
          if (t->kind == 0) {
              NvShader *sh = warm_shader(t->key, t->stage);
+@@ -13487,7 +13499,7 @@
+             if (!ps) { MLOG("【红】 background render pipeline creation failed: %s", e.localizedDescription.UTF8String); continue; }
+             WarmItem *item = [WarmItem new]; item->kind = 1; item->transition = g_rb_picked_hint; item->vs_key = t->vkey; item->fs_key = t->fkey; item->vs = vs; item->fs = fs; item->fsfn = fsfn; item->pso = k; item->object = ps;
+             if (rb_ref_pipeline(t->reference,akey,descriptor) || (!t->externalOnly && [akey isEqual:t->referenceIdentity])) item->referenceKey=akey;
+-            if (rb_course_exact()) {
++            if (rb_course_exact() || (rb_pso_cap_on() && !akey)) {
+                 pso_skey drawRecipe; pso_skey_from(&k,vs,fs,sk.merged,sk.fz ? &sk.fz_desc : NULL,&drawRecipe);
+                 item->drawRecipe=[NSData dataWithBytes:&drawRecipe length:sizeof drawRecipe];
+             }
 diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
 --- a/graphics/nvn/gfx/nvn/nvn_session.inc
 +++ b/graphics/nvn/gfx/nvn/nvn_session.inc
@@ -115,11 +124,26 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_ses
      rb_trace_end();
      pool_session_reset();   // before the owners below: its pins would keep what they remove resident
      // No callbacks can touch these objects now. Drop descriptors first, then
+diff --git a/graphics/nvn/gfx/nvn/rb_draw_history.inc b/graphics/nvn/gfx/nvn/rb_draw_history.inc
+--- a/graphics/nvn/gfx/nvn/rb_draw_history.inc
++++ b/graphics/nvn/gfx/nvn/rb_draw_history.inc
+@@ -194,6 +194,11 @@
+     else dispatch_async(rb_draw_io(),write);
+ }
+ static BOOL rb_draw_remember(id ps,const pso_skey *recipe,const char *task,uint32_t pad,uint64_t wait,BOOL prepared) {
++    if (rb_pso_cap_on() && ps && !task && recipe->vs[0]) {
++        rb_pso_track(ps,RB_RENDER,nil,NO);
++        RBPSOLifetime *life=objc_getAssociatedObject(ps,&rb_pso_lifetime_key);
++        if (life && !life->identity) life->identity=par_hash(recipe,sizeof *recipe);
++    }
+     if (!rb_course_exact() || !ps || !recipe->vs[0]) return NO;
+     if ((recipe->merged || recipe->fz) && (task || !recipe->merged || !recipe->fz || recipe->fz_desc.kind!=1)) return NO;
+     const void *raw=(__bridge const void *)ps;
 diff --git a/graphics/nvn/gfx/nvn/rb_pso_recent.inc b/graphics/nvn/gfx/nvn/rb_pso_recent.inc
 new file mode 100644
 --- /dev/null
 +++ b/graphics/nvn/gfx/nvn/rb_pso_recent.inc
-@@ -0,0 +1,101 @@
+@@ -0,0 +1,109 @@
 +// Two completed gameplay sessions and this launch's actual encoder binds.
 +// The serial history queue owns disk state. Bind callbacks never wait for it.
 +enum { RB_RECENT_KEYS = 8192 };
@@ -142,17 +166,21 @@ new file mode 100644
 +    if (!path) return;
 +    NSDictionary *attr = [NSFileManager.defaultManager attributesOfItemAtPath:path error:nil];
 +    if ([attr[NSFileSize] unsignedLongLongValue] > 4u*1024*1024) return;
-+    NSArray *sessions = [NSArray arrayWithContentsOfFile:path];
-+    if (sessions.count != 2) return;
++    NSData *data=[NSData dataWithContentsOfFile:path options:NSDataReadingMappedIfSafe error:nil];
++    if (!data || data.length>4u*1024*1024) return;
++    id sessions=[NSPropertyListSerialization propertyListWithData:data options:NSPropertyListImmutable format:NULL error:nil];
++    if (![sessions isKindOfClass:NSArray.class]) return;
++    NSArray *lists=sessions;
++    if (lists.count != 2) return;
 +    NSMutableSet *keys = [NSMutableSet set];
-+    for (id rows in sessions) {
++    for (id rows in lists) {
 +        if (![rows isKindOfClass:NSArray.class] || [rows count] > RB_RECENT_KEYS) return;
 +        for (id row in rows) {
 +            if (![row isKindOfClass:NSString.class] || ![row length] || [row length]>128) return;
 +            [keys addObject:row];
 +        }
 +    }
-+    rb_previous_binds = sessions.lastObject; rb_recent_union = keys;
++    rb_previous_binds = lists.lastObject; rb_recent_union = keys;
 +}
 +static NSString *rb_mesh_identity(const pso_skey *sk, NSString *task, uint32_t pad) {
 +    return [NSString stringWithFormat:@"m%@/%@/%x",par_hash(sk,sizeof *sk),task.length ? task : @"-",pad];
@@ -171,13 +199,15 @@ new file mode 100644
 +}
 +static void rb_flush_binds(BOOL final, uint64_t now) {
 +    if (!rb_pso_cap_on()) return;
-+    if (rb_recent_dirty && (final || now>=rb_recent_checkpoint)) {
++    if ((final && rb_bound_this_session.count) || (rb_recent_dirty && now>=rb_recent_checkpoint)) {
 +        NSString *path = rb_bind_path();
 +        if (path) {
 +            NSArray *rows = [rb_bound_this_session.array copy];
 +            dispatch_async(rb_trace_io(), ^{ @autoreleasepool {
 +                rb_read_binds(path);
-+                if (![@[rb_previous_binds,rows] writeToFile:path atomically:YES])
++                NSData *snapshot=[NSPropertyListSerialization dataWithPropertyList:@[rb_previous_binds,rows]
++                    format:NSPropertyListBinaryFormat_v1_0 options:0 error:nil];
++                if (![snapshot writeToFile:path options:NSDataWritingAtomic error:nil])
 +                    MLOG("[RB-PSO-CAP] history_write_failed=1");
 +            } });
 +        }
@@ -206,7 +236,9 @@ new file mode 100644
 +    *legacy=old; return binds;
 +}
 +static BOOL rb_recent_task(WarmTask *t, NSSet *keys, NSSet *legacy) {
++    if (!keys.count && !legacy.count) return NO;
 +    if (t->kind==2) {
++        if (!keys.count) return NO;
 +        NSData *bytes=[t->key dataUsingEncoding:NSUTF8StringEncoding];
 +        NSMutableData *key=[bytes mutableCopy];
 +        if (t->fc) { unsigned char fc=(unsigned char)('0'+t->fc); [key appendBytes:&fc length:1]; }

@@ -36,6 +36,11 @@ their additional accounting alone. These changes are written for RewindBox under
 with the existing MIT notices retained for the direct graphics and Ryujinx-derived portions.
 They do not change the shader translator, delete player caches, or establish a measured device gain.
 
+RewindBox patches 0177 through 0180 count live guest Metal pipelines, record recent encoder binds and
+release idle archive-backed render and compute entries after the GPU submission fence. Private benchmark
+reports include shallow allocation sizes, reconstruction times and cumulative long display intervals.
+S2A_RB_PSO_CAP=0 restores the IPA 803 pipeline and host-heap policies for this series.
+
 The engine also contains third-party code; S2Arm's own table of it is S2Arm/THIRD_PARTY_LICENSES.md. The exact
 licence and notice texts of the components that reach this application are in the folders beside this file. Each is
 listed in license-sources.json with its origin (a file of that S2Arm commit, a source archive the engine build fetched

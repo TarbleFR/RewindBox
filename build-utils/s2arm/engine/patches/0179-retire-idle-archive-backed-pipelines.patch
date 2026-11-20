@@ -159,7 +159,7 @@ diff --git a/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc b/graphics/nvn/gfx/nvn/rb_
 diff --git a/graphics/nvn/gfx/nvn/rb_pso_recent.inc b/graphics/nvn/gfx/nvn/rb_pso_recent.inc
 --- a/graphics/nvn/gfx/nvn/rb_pso_recent.inc
 +++ b/graphics/nvn/gfx/nvn/rb_pso_recent.inc
-@@ -96,6 +96,3 @@
+@@ -104,6 +104,3 @@
      if (legacy && [legacy containsObject:@(nvn_hm_hash(row.bytes,row.length))]) return YES;
      return [keys containsObject:par_hash(row.bytes,row.length)];
  }
