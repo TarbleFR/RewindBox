@@ -1,5 +1,5 @@
 diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
-index 18c367c..9e16ef8 100644
+index 18c367c..7c5121f 100644
 --- a/graphics/nvn/gfx/nvn/hle_nvn.c
 +++ b/graphics/nvn/gfx/nvn/hle_nvn.c
 @@ -43,6 +43,8 @@
@@ -67,11 +67,17 @@ index 18c367c..9e16ef8 100644
              plns = lns; ppns = pns; pup = up; prup = rup; pub = ub;
              {   // RewindBox (patch 0065): what the process did during the frame
                  static struct rusage pru; static int have; static pthread_t pth; static uint64_t pcpu; struct rusage ru;
-@@ -3940,7 +3967,32 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+@@ -3940,7 +3967,38 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
                  r->xn = (unsigned)(x[0] - px[0]); r->x_ms = (x[1] - px[1]) / 1e6; r->xwn = (unsigned)(x[2] - px[2]); r->xw_ms = (x[3] - px[3]) / 1e6; r->msl_n = (unsigned)(x[4] - px[4]); r->msl_ms = (x[5] - px[5]) / 1e6;
                  memcpy(px, x, sizeof px);
              }
 -            if (nvn_rb_course_frame && rb_interval) nvn_rb_course_frame(f,rb_interval,r->up_ms,rb_upload_gpu_ms,r->x_ms,r->xw_ms,r->msl_n,r->msl_ms);
++            if (!rb_interval && s2a_rb_mkw_measure && s2a_rb_mkw_measure()) {
++                uint64_t before_first_present[3];
++                if (s2a_rb_mkw_reads_take) s2a_rb_mkw_reads_take(before_first_present);
++                if (s2a_rb_mkw_wait_take) s2a_rb_mkw_wait_take();
++                rb_vm_decompressions();
++            }
 +            if (nvn_rb_course_frame_observed && rb_interval) {
 +                detail.texture_bytes = ub - pub_previous;
 +                detail.outside_ns = rb_gaps.total;
@@ -102,10 +108,10 @@ index 18c367c..9e16ef8 100644
          }
          plib = lib_; ppso = pso_;
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index c0c6977..ef67529 100644
+index 9cd22e0..cac4914 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
-@@ -4457,7 +4457,8 @@ static id<MTLTexture> tex_upgrade_pfv(const tex_t *t, id<MTLTexture> base, MTLPi
+@@ -4473,7 +4473,8 @@ static id<MTLTexture> tex_upgrade_pfv(const tex_t *t, id<MTLTexture> base, MTLPi
  // Batching: uploads within one replay submission share one upload command buffer (compute encoder deswizzle + a unified blit), flushed before the replay command buffer is committed;
  // the same queue executes in commit order ⇒ uploads are always finished before the first sample. Uploads outside a submission are flushed on the spot. The staging area is cut from 32 MB private blocks, held by the command buffer until completion.
  static _Atomic uint64_t g_upload_ns;   // Cumulative time of deswizzle + upload encoding on the submit thread (timing instrumentation)
@@ -115,7 +121,7 @@ index c0c6977..ef67529 100644
  static id g_up_cb;   // MTL4CommandBuffer on Metal 4, MTLCommandBuffer on Metal 3
  static id g_up_ce;   // its open encoder: Metal 4 compute (deswizzles, then the copies), Metal 3 copy encoder (the copies only)
  static _Atomic int g_up_alloc_busy[RB_UP_MAX];   // RewindBox (patch 0082): RB_UP_MAX (3 before)
-@@ -4542,6 +4543,9 @@ static void up_flush(void) {
+@@ -4558,6 +4559,9 @@ static void up_flush(void) {
      if (g_up_block && g_up_block != g_up_slot_blk[slot]) [kept addObject:g_up_block];   // the slot's own block stays (UP_SLOT_BLOCK)
      id o = fb_new();
      atomic_fetch_add(&g_up_pending, 1);
@@ -125,7 +131,7 @@ index c0c6977..ef67529 100644
      fb_add(o, ^(id<MTL4CommitFeedback> f) {
          if (f.error && !mtl_gpu_halted()) MLOG("【红】 upload command buffer execution error: %s", f.error.description.UTF8String);
          if (f.error) mtl_gpu_cb_error(f.error, "upload", 0);
-@@ -4550,8 +4554,20 @@ static void up_flush(void) {
+@@ -4566,8 +4570,20 @@ static void up_flush(void) {
              pthread_mutex_lock(&g_smu); g_ser_gen++; pthread_mutex_unlock(&g_smu);   // Make the view cache of every texture ID take the slow path once (on a cache hit tex_mtl is not passed through and this record is not seen)
              MLOG("%supload command buffer dropped: the %lu textures of this batch are marked unwritten and re-uploaded on next use (%d awaiting re-upload)", fake_lost ? "DM_TEST_UP_LOST: " : "", (unsigned long)dsts.count, n);
          }
@@ -148,7 +154,7 @@ index c0c6977..ef67529 100644
          @autoreleasepool { for (id k in kept) res_remove((id<MTLResource>)k); [kept removeAllObjects]; }
          atomic_store(&g_up_alloc_busy[slot], 0);
          atomic_fetch_sub(&g_up_pending, 1);
-@@ -5287,7 +5303,19 @@ static id<MTLTexture> pkg_upload(const tex_t *t, uint64_t *stamp, id<MTLTexture>
+@@ -5303,7 +5319,19 @@ static id<MTLTexture> pkg_upload(const tex_t *t, uint64_t *stamp, id<MTLTexture>
      return r;
  }
  uint64_t nvn_be_upload_ns_take(void) { return atomic_exchange(&g_upload_ns, 0); }
@@ -189,7 +195,7 @@ index 0000000..1d06f41
 +
 +#endif
 diff --git a/graphics/nvn/gfx/nvn/rb_course_tracking.inc b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
-index d96df5e..81199e5 100644
+index 739bb77..a35faad 100644
 --- a/graphics/nvn/gfx/nvn/rb_course_tracking.inc
 +++ b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
 @@ -1,6 +1,7 @@
@@ -200,7 +206,7 @@ index d96df5e..81199e5 100644
  extern uint64_t s2a_npdm_program_id(void) __attribute__((weak_import));
  static rb_course_db g_course_prior, g_course_live; // g_wu_lock
  static NSDictionary *g_course_rows;
-@@ -155,7 +156,58 @@ static void rb_course_flush(void) {
+@@ -157,7 +158,58 @@ static void rb_course_flush(void) {
      }
      memset(g_course_samples,0,sizeof g_course_samples);g_course_sample_count=0;
  }
@@ -260,7 +266,7 @@ index d96df5e..81199e5 100644
      if (!rb_course_enabled()) return;
      uint64_t pw=atomic_exchange(&g_course_pso_wait_ns,0),lw=atomic_exchange(&g_course_library_wait_ns,0);
      int prev=g_course_current,slot=prev;
-@@ -186,14 +238,37 @@ void nvn_rb_course_frame(uint64_t frame,uint64_t ns,double upload,double upload_
+@@ -190,14 +242,37 @@ void nvn_rb_course_frame(uint64_t frame,uint64_t ns,double upload,double upload_
               (unsigned long long)frame, rb_course_bucket_name(bucket), (unsigned long long)ns,
               pw / 1e6, lw / 1e6, xwait, xlate, msl, upload, upload_gpu);
      }

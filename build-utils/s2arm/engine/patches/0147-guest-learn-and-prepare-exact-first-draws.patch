@@ -48,7 +48,7 @@ index 54fa674..cfd9083 100644
  }
  static void mtk_encode(id en_) {
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index c0c6977..08338eb 100644
+index c0c6977..9cd22e0 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -5,6 +5,7 @@
@@ -222,6 +222,15 @@ index c0c6977..08338eb 100644
          RBReferenceProof *reference=[path isEqual:referencePath] ? rb_ref_open(path,txt) : nil;
          if (txt.length && [path isEqual:referenceList])
              atomic_store_explicit(&g_course_exact,1,memory_order_relaxed);
+@@ -12617,7 +12654,7 @@ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines)
+             }
+             if (([c[0] isEqualToString:@"S"] && c.count >= 3) || ([c[0] isEqualToString:@"C"] && c.count >= 2)) {
+                 if (!c[1].length || warm_stale(c[1], stale)) continue;
+-                t = [WarmTask new]; t->kind = [c[0] isEqualToString:@"S"] ? 0 : 2; t->key = c[1]; t->stage = t->kind ? 5 : c[2].intValue; t->fc = t->kind ? fc : 0; [(required ? referenceTasks : tasks) addObject:t];
++                t = [WarmTask new]; t->kind = [c[0] isEqualToString:@"S"] ? 0 : 2; t->key = c[1]; t->stage = t->kind ? 5 : c[2].intValue; t->fc = t->kind ? fc : 0;
+             } else if ([c[0] isEqualToString:@"R"] && c.count >= 2) {
+                 pso_skey sk; if (pso_skey_parse(c[1].UTF8String, &sk)) continue;
+                 if (sk.k.fc & ~se_mask()) {
 @@ -12636,22 +12673,46 @@ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines)
                  if ([path isEqual:referenceList]) t->referenceIdentity=par_hash(&sk,sizeof sk);
                  else if (referenceList) t->referenceIdentity=rb_ref_later_recipe(vkey,fkey,&sk);
@@ -378,10 +387,10 @@ index d96df5e..739bb77 100644
      unsigned bucket=attributed>=0 ? (unsigned)attributed+3 : (unsigned)(-attributed-1);
 diff --git a/graphics/nvn/gfx/nvn/rb_draw_history.inc b/graphics/nvn/gfx/nvn/rb_draw_history.inc
 new file mode 100644
-index 0000000..cc42ecc
+index 0000000..b264776
 --- /dev/null
 +++ b/graphics/nvn/gfx/nvn/rb_draw_history.inc
-@@ -0,0 +1,233 @@
+@@ -0,0 +1,236 @@
 +// Cup profile observations are separate from the sealed configuration and from
 +// render caches. Only an encoded Metal draw publishes a replayable recipe.
 +enum { RB_DRAW_VERSION=1, RB_DRAW_LIMIT=16384, RB_DRAW_BATCH=192, RB_DRAW_FLUSH_FRAMES=120, RB_DRAW_CUE_FRAMES=600 };
@@ -564,7 +573,10 @@ index 0000000..cc42ecc
 +    rb_draw_record *record=data.mutableBytes;
 +    record->frame=atomic_load_explicit(&g_cur_frame,memory_order_relaxed);
 +    record->phase=record->frame==0;
-+    if (uuid_is_null(g_rb_draw_session)) uuid_generate_random(g_rb_draw_session);
++    if (uuid_is_null(g_rb_draw_session)) {
++        const char *session=getenv("S2A_RB_CUP_SESSION");
++        if (!session || uuid_parse(session,g_rb_draw_session)) uuid_generate_random(g_rb_draw_session);
++    }
 +    memcpy(record->session,g_rb_draw_session,sizeof record->session);
 +    os_unfair_lock_lock(&g_wu_lock);
 +    if (record->frame>=g_rb_draw_cue_frame && record->frame-g_rb_draw_cue_frame<RB_DRAW_CUE_FRAMES) {
