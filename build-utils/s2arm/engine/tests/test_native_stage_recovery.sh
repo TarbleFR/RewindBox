@@ -108,6 +108,8 @@ git -C "$pre134" apply -R --include='graphics/nvn/host/*' "$tests"/../patches/01
 xcrun --sdk macosx clang -x objective-c -std=gnu11 -fblocks -pthread -framework Foundation \
   "$pre134/graphics/nvn/tests/t_dsh_stats.c" -o "$case_dir/dsh-795-no-aliases"
 git -C "$pre134" apply -R --include='graphics/nvn/host/*' --include='graphics/nvn/tests/t_dsh_stats.c' "$tests"/../patches/0136-*.patch
+# Restore the original priority helper before reversing the patch that added it.
+git -C "$pre134" apply -R --include='graphics/nvn/host/rb_priority_stage.inc' "$tests"/../patches/0149-*.patch
 git -C "$pre134" apply -R --include='graphics/nvn/host/*' "$tests"/../patches/0134-*.patch
 xcrun --sdk macosx clang -x objective-c -std=gnu11 -fblocks -pthread -framework Foundation \
   "$pre134/graphics/nvn/tests/t_dsh_stats.c" -o "$case_dir/dsh-before-priority"
