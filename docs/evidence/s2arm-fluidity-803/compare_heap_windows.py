@@ -50,6 +50,16 @@ def uint(value: Any, *, positive: bool = False) -> bool:
     return bench.integer(value) and int(positive) <= value <= UINT64_MAX
 
 
+def vm_integer_boolean(value: Any) -> bool | None:
+    # IPA 803 boxes two C int expressions, complete and external_pager_or_shadow,
+    # as NSNumber 0/1. Accept only that exact encoding at these two sites.
+    if isinstance(value, bool):
+        return value
+    if bench.integer(value) and value in (0, 1):
+        return value == 1
+    return None
+
+
 def decode_record(raw: bytes, marker: bytes) -> dict:
     payload = raw.split(marker, 1)[1].strip().decode("utf-8")
     result = json.loads(payload, object_pairs_hook=bench.unique_object,
@@ -132,7 +142,8 @@ def read_vm(run: bench.Run) -> dict:
         "mapping_sums_may_count_aliases": True, "mapping_and_task_ledgers_are_additive": False,
     }
     for key, value in expected.items():
-        if type(end.get(key)) is not type(value) or end.get(key) != value:
+        observed = vm_integer_boolean(end.get(key)) if key == "complete" else end.get(key)
+        if type(observed) is not type(value) or observed != value:
             run.issue("vm_coverage_invalid", f"vm.end.{key}", f"Required exported value: {value!r}.")
     page_bytes = begin.get("mapping_page_bytes")
     if not uint(page_bytes, positive=True) or not uint(end.get("mapping_page_bytes"), positive=True) or end.get("mapping_page_bytes") != page_bytes:
@@ -155,7 +166,8 @@ def read_vm(run: bench.Run) -> dict:
     categories: set[tuple] = set()
     tag2_pages = 0
     for line_no, row in grouped["mapping_tag"]:
-        tag, side, external = row.get("tag"), row.get("side"), row.get("external_pager_or_shadow")
+        tag, side = row.get("tag"), row.get("side")
+        external = vm_integer_boolean(row.get("external_pager_or_shadow"))
         valid_key = uint(tag) and tag <= (1 << 32) - 1 and isinstance(side, str) and side in VM_SIDES and isinstance(external, bool)
         if not valid_key:
             run.issue("vm_mapping_category_invalid", f"line:{line_no}", "A numeric tag, known side and explicit external-pager boolean are required.")
@@ -173,7 +185,9 @@ def read_vm(run: bench.Run) -> dict:
             totals[key] += counts[key]
         if valid_key and tag == 2:
             tag2_pages += counts["compressed_logical_pages"]
-            report["tag2_categories"].append({"side": side, "external_pager_or_shadow": external, "counts": counts})
+            report["tag2_categories"].append({"side": side, "external_pager_or_shadow": external,
+                                              "external_pager_or_shadow_source": row.get("external_pager_or_shadow"),
+                                              "counts": counts})
     declared = end.get("mapping_counts")
     if not isinstance(declared, dict) or any(not uint(declared.get(key)) or
             not uint(totals[key]) or declared.get(key) != totals[key] for key in VM_COUNTS):
@@ -186,6 +200,7 @@ def read_vm(run: bench.Run) -> dict:
     if not uint(tag2_bytes):
         run.issue("vm_tag2_bytes_invalid", "vm.tag2", "Page conversion must produce a representable nonnegative byte count.")
     report.update({"eligible": len(run.issues) == issues_before, "generation": generation,
+                   "complete_source": end.get("complete"),
                    "mapping_page_bytes": page_bytes, "mapping_counts": declared,
                    "requested_ns": begin.get("requested_ns"), "started_ns": begin.get("started_ns"),
                    "ended_ns": end.get("ended_ns"), "coverage": end.get("coverage"),

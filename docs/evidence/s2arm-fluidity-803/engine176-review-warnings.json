@@ -1,0 +1,348 @@
+{
+  "schema": 1,
+  "source": "f956b7d84b03c23f8ecb9ff500c7965a2ff25807",
+  "run": 44790771355,
+  "baselineSource": "342f534efc856eedeba9b085df291757bc942d41",
+  "baselineRun": 44772035018,
+  "sourceAddedLineCountsVs803": {
+    "compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs": 20,
+    "compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs": 3,
+    "graphics/nvn/gfx/nvn/hle_nvn.c": 21,
+    "graphics/nvn/gfx/nvn/nvn_dirty.c": 16,
+    "graphics/nvn/gfx/nvn/nvn_geometry.inc": 1,
+    "graphics/nvn/gfx/nvn/nvn_mtl.m": 64,
+    "graphics/nvn/gfx/nvn/nvn_session.inc": 3,
+    "graphics/nvn/gfx/nvn/pso_archive.h": 55,
+    "ios/rb_vm_audit.m": 85,
+    "runtime/include/rb_heap.h": 61,
+    "runtime/src/far.c": 10,
+    "runtime/src/loader.c": 22,
+    "services/aot/Compose.cs": 13
+  },
+  "records": [
+    {
+      "platform": "macos-15",
+      "job": 136477517105,
+      "run": 44790771355,
+      "source": "f956b7d84b03c23f8ecb9ff500c7965a2ff25807",
+      "baselineJob": 136411912842,
+      "baselineRun": 44772035018,
+      "baselineSource": "342f534efc856eedeba9b085df291757bc942d41",
+      "baselineLogSHA256": "4090720121dd6eb7aa2cc19a9c78d99f48811fd4e0244c58c4542886ab181ddb",
+      "baselineLogMatchesCommittedReceipt": true,
+      "diagnosticsInputSHA256": "747d6a8b1b393bcfdde634370f32edcdfc32ab95ff21a5069441c644945dc9f5",
+      "compilerWarningCount": 12,
+      "baselineCompilerWarningCount": 12,
+      "sameDiagnosticMessagesAndOccurrenceCounts": true,
+      "warningsOnAdded0172to0176": 0,
+      "unmatchedWarnings": 0,
+      "diagnostics": [
+        {
+          "path": null,
+          "line": null,
+          "column": null,
+          "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "baselineLine": null,
+          "onAdded0172to0176": false,
+          "sameSourceLine": null,
+          "classification": "pre-existing"
+        },
+        {
+          "path": null,
+          "line": null,
+          "column": null,
+          "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "baselineLine": null,
+          "onAdded0172to0176": false,
+          "sameSourceLine": null,
+          "classification": "pre-existing"
+        },
+        {
+          "path": null,
+          "line": null,
+          "column": null,
+          "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "baselineLine": null,
+          "onAdded0172to0176": false,
+          "sameSourceLine": null,
+          "classification": "pre-existing"
+        },
+        {
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 18964,
+          "column": 15,
+          "diagnostic": "warning: comparison of distinct pointer types ('id<MTL4RenderCommandEncoder>' and 'id<MTLRenderCommandEncoder>') [-Wcompare-distinct-pointer-types]",
+          "baselineLine": 18904,
+          "onAdded0172to0176": false,
+          "sameSourceLine": true,
+          "sourceLine": "    if (g_enc != en) { static int again; if (again < 2) { again++; draw(dw, di); again--; return; } RED_ONCE(136, \"a draw's binding ended its render pass again on the retry; the draw is skipped\"); return; }",
+          "classification": "pre-existing"
+        },
+        {
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 18983,
+          "column": 82,
+          "diagnostic": "warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+          "baselineLine": 18923,
+          "onAdded0172to0176": false,
+          "sameSourceLine": true,
+          "sourceLine": "            if (g_vis_cur >= 0 && g_enc_vis != g_vis_cur + 1) { enc_r_visibility(en, MTLVisibilityResultModeCounting, (NSUInteger)g_vis_cur * 8); g_enc_vis = g_vis_cur + 1; }",
+          "classification": "pre-existing"
+        },
+        {
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 19045,
+          "column": 37,
+          "diagnostic": "warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+          "baselineLine": 18985,
+          "onAdded0172to0176": false,
+          "sameSourceLine": true,
+          "sourceLine": "        enc_r_draw_indexed_indirect(en, mp, MTLIndexTypeUInt32, g_geo_indices, g_geo_index_bytes, g_geo_args); g_pass_geo++;",
+          "classification": "pre-existing"
+        },
+        {
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 19048,
+          "column": 62,
+          "diagnostic": "warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+          "baselineLine": 18988,
+          "onAdded0172to0176": false,
+          "sameSourceLine": true,
+          "sourceLine": "    if (dw && dw->tfc) { if (g_tfd_args) enc_r_draw_indirect(en, mp, g_tfd_args); return; }   // DrawTransformFeedback: the arguments tfd_args made (nvn_geometry.inc)",
+          "classification": "pre-existing"
+        },
+        {
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 20535,
+          "column": 15,
+          "diagnostic": "warning: 'MTLPixelFormatPVRTC_RGB_2BPP' is deprecated: first deprecated in iOS 18.0 - Usage of ASTC/ETC2/BC formats is recommended instead. [-Wdeprecated-declarations]",
+          "baselineLine": 20475,
+          "onAdded0172to0176": false,
+          "sameSourceLine": true,
+          "sourceLine": "    if (pf >= MTLPixelFormatPVRTC_RGB_2BPP && pf <= MTLPixelFormatEAC_RG11Snorm) return MD_PVRTC_ETC;",
+          "classification": "pre-existing"
+        },
+        {
+          "path": "graphics/metal/fit_judge.h",
+          "line": 199,
+          "column": 51,
+          "diagnostic": "warning: '&&' within '||' [-Wlogical-op-parentheses]",
+          "baselineLine": 199,
+          "onAdded0172to0176": false,
+          "sameSourceLine": true,
+          "sourceLine": "        int c = l || rr, pil = c && (g >= 2 || lb && rb) ? g : 0;",
+          "classification": "pre-existing"
+        },
+        {
+          "path": "graphics/metal/fit_judge.h",
+          "line": 236,
+          "column": 78,
+          "diagnostic": "warning: '&&' within '||' [-Wlogical-op-parentheses]",
+          "baselineLine": 236,
+          "onAdded0172to0176": false,
+          "sameSourceLine": true,
+          "sourceLine": "        int t = tb && ti, b = bb && bi, c = t || b, pil = c && (g >= 2 || tb && bb) ? g : 0;",
+          "classification": "pre-existing"
+        },
+        {
+          "path": "runtime/src/svc_mem.c",
+          "line": 1333,
+          "column": 26,
+          "diagnostic": "warning: unused variable 'g_phys_retry' [-Wunused-variable]",
+          "baselineLine": 1333,
+          "onAdded0172to0176": false,
+          "sameSourceLine": true,
+          "sourceLine": "static _Thread_local int g_phys_retry;",
+          "classification": "pre-existing"
+        },
+        {
+          "path": null,
+          "line": null,
+          "column": null,
+          "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "baselineLine": null,
+          "onAdded0172to0176": false,
+          "sameSourceLine": null,
+          "classification": "pre-existing"
+        }
+      ],
+      "infrastructureWarnings": [
+        {
+          "diagnostic": "##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830, actions/checkout@v4, actions/setup-dotnet@v4, actions/setup-python@v5, actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+          "classification": "pre-existing"
+        }
+      ],
+      "result": "no-new-compiler-or-infrastructure-warning",
+      "logSHA256": "41520ef6ca3a3a958e1783b0b94a09463dc9aa2cd196c6749bfb52db9a420473",
+      "fullProducerLogReviewed": true,
+      "fullProducerLogCompilerWarningCount": 12,
+      "sameInfrastructureMessagesAndOccurrenceCounts": true,
+      "compilerErrors": []
+    },
+    {
+      "platform": "macos-26",
+      "job": 136477516482,
+      "run": 44790771355,
+      "source": "f956b7d84b03c23f8ecb9ff500c7965a2ff25807",
+      "baselineJob": 136411913395,
+      "baselineRun": 44772035018,
+      "baselineSource": "342f534efc856eedeba9b085df291757bc942d41",
+      "baselineLogSHA256": "54c25a1e6f1d19344ca3762162620710742700056093ecf7cda0e1e87c3e0af9",
+      "baselineLogMatchesCommittedReceipt": true,
+      "logSHA256": "6be939f8fa6e57de49da24ffcabf340f44e7f6a4fae38f76292a0dbec91584b9",
+      "fullProducerLogReviewed": true,
+      "compilerWarningCount": 12,
+      "fullProducerLogCompilerWarningCount": 12,
+      "baselineCompilerWarningCount": 12,
+      "sameDiagnosticMessagesAndOccurrenceCounts": true,
+      "warningsOnAdded0172to0176": 0,
+      "unmatchedWarnings": 0,
+      "diagnostics": [
+        {
+          "path": null,
+          "line": null,
+          "column": null,
+          "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "baselineLine": null,
+          "onAdded0172to0176": false,
+          "sameSourceLine": null,
+          "classification": "pre-existing"
+        },
+        {
+          "path": null,
+          "line": null,
+          "column": null,
+          "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "baselineLine": null,
+          "onAdded0172to0176": false,
+          "sameSourceLine": null,
+          "classification": "pre-existing"
+        },
+        {
+          "path": null,
+          "line": null,
+          "column": null,
+          "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "baselineLine": null,
+          "onAdded0172to0176": false,
+          "sameSourceLine": null,
+          "classification": "pre-existing"
+        },
+        {
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 18964,
+          "column": 15,
+          "diagnostic": "warning: comparison of distinct pointer types ('id<MTL4RenderCommandEncoder>' and 'id<MTLRenderCommandEncoder>') [-Wcompare-distinct-pointer-types]",
+          "baselineLine": 18904,
+          "onAdded0172to0176": false,
+          "sameSourceLine": true,
+          "sourceLine": "    if (g_enc != en) { static int again; if (again < 2) { again++; draw(dw, di); again--; return; } RED_ONCE(136, \"a draw's binding ended its render pass again on the retry; the draw is skipped\"); return; }",
+          "classification": "pre-existing"
+        },
+        {
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 18983,
+          "column": 82,
+          "diagnostic": "warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+          "baselineLine": 18923,
+          "onAdded0172to0176": false,
+          "sameSourceLine": true,
+          "sourceLine": "            if (g_vis_cur >= 0 && g_enc_vis != g_vis_cur + 1) { enc_r_visibility(en, MTLVisibilityResultModeCounting, (NSUInteger)g_vis_cur * 8); g_enc_vis = g_vis_cur + 1; }",
+          "classification": "pre-existing"
+        },
+        {
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 19045,
+          "column": 37,
+          "diagnostic": "warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+          "baselineLine": 18985,
+          "onAdded0172to0176": false,
+          "sameSourceLine": true,
+          "sourceLine": "        enc_r_draw_indexed_indirect(en, mp, MTLIndexTypeUInt32, g_geo_indices, g_geo_index_bytes, g_geo_args); g_pass_geo++;",
+          "classification": "pre-existing"
+        },
+        {
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 19048,
+          "column": 62,
+          "diagnostic": "warning: passing '__strong id<MTLRenderCommandEncoder>' to parameter of incompatible type 'id<MTL4RenderCommandEncoder>'",
+          "baselineLine": 18988,
+          "onAdded0172to0176": false,
+          "sameSourceLine": true,
+          "sourceLine": "    if (dw && dw->tfc) { if (g_tfd_args) enc_r_draw_indirect(en, mp, g_tfd_args); return; }   // DrawTransformFeedback: the arguments tfd_args made (nvn_geometry.inc)",
+          "classification": "pre-existing"
+        },
+        {
+          "path": "graphics/nvn/gfx/nvn/nvn_mtl.m",
+          "line": 20535,
+          "column": 15,
+          "diagnostic": "warning: 'MTLPixelFormatPVRTC_RGB_2BPP' is deprecated: first deprecated in iOS 18.0 - Usage of ASTC/ETC2/BC formats is recommended instead. [-Wdeprecated-declarations]",
+          "baselineLine": 20475,
+          "onAdded0172to0176": false,
+          "sameSourceLine": true,
+          "sourceLine": "    if (pf >= MTLPixelFormatPVRTC_RGB_2BPP && pf <= MTLPixelFormatEAC_RG11Snorm) return MD_PVRTC_ETC;",
+          "classification": "pre-existing"
+        },
+        {
+          "path": "graphics/metal/fit_judge.h",
+          "line": 199,
+          "column": 51,
+          "diagnostic": "warning: '&&' within '||' [-Wlogical-op-parentheses]",
+          "baselineLine": 199,
+          "onAdded0172to0176": false,
+          "sameSourceLine": true,
+          "sourceLine": "        int c = l || rr, pil = c && (g >= 2 || lb && rb) ? g : 0;",
+          "classification": "pre-existing"
+        },
+        {
+          "path": "graphics/metal/fit_judge.h",
+          "line": 236,
+          "column": 78,
+          "diagnostic": "warning: '&&' within '||' [-Wlogical-op-parentheses]",
+          "baselineLine": 236,
+          "onAdded0172to0176": false,
+          "sameSourceLine": true,
+          "sourceLine": "        int t = tb && ti, b = bb && bi, c = t || b, pil = c && (g >= 2 || tb && bb) ? g : 0;",
+          "classification": "pre-existing"
+        },
+        {
+          "path": "runtime/src/svc_mem.c",
+          "line": 1333,
+          "column": 26,
+          "diagnostic": "warning: unused variable 'g_phys_retry' [-Wunused-variable]",
+          "baselineLine": 1333,
+          "onAdded0172to0176": false,
+          "sameSourceLine": true,
+          "sourceLine": "static _Thread_local int g_phys_retry;",
+          "classification": "pre-existing"
+        },
+        {
+          "path": null,
+          "line": null,
+          "column": null,
+          "diagnostic": "ld: warning: ignoring duplicate libraries: '-lc++', '-lobjc', '-lz'",
+          "baselineLine": null,
+          "onAdded0172to0176": false,
+          "sameSourceLine": null,
+          "classification": "pre-existing"
+        }
+      ],
+      "infrastructureWarnings": [
+        {
+          "diagnostic": "##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830, actions/checkout@v4, actions/setup-dotnet@v4, actions/setup-python@v5, actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+          "classification": "pre-existing"
+        }
+      ],
+      "sameInfrastructureMessagesAndOccurrenceCounts": true,
+      "compilerErrors": [],
+      "result": "no-new-compiler-or-infrastructure-warning"
+    }
+  ],
+  "pendingPlatforms": [],
+  "scope": "Read-only comparison of both complete successful producer logs, the committed IPA 803 warning receipt and the 0172–0176 source materialization. No tests, compilation or repository changes. This JSON contains normalized diagnostics and source lines only, with no raw log.",
+  "result": "no-new-compiler-or-infrastructure-warning-on-both-producers",
+  "limits": [
+    "Compilation and warnings only; no physical iPhone observation and no measured memory or performance gain.",
+    "Artifact identity, pin and final IPA delivery verification are owned separately by the parent."
+  ]
+}

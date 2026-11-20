@@ -1,0 +1,76 @@
+{
+  "patchesVerified": 176,
+  "first171UnchangedFrom803": true,
+  "source": "f956b7d84b03c23f8ecb9ff500c7965a2ff25807",
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "engineFingerprint": "e80cf84ff6e9e7741bf5b80c1233b0beb7b85bbb5f3809ffc27cce87efaeeda2",
+  "directShaderChain": "0be3f28548fd",
+  "exportsMatch803": true,
+  "noticeMatchesSource": true,
+  "unchangedFrom803": [
+    "prepare producer",
+    "sysdata producer",
+    "NS2Pro payload fingerprint",
+    "direct shader chain",
+    "exports"
+  ],
+  "pinSha256": "e7a2a8fb48779d95ceb971250559bcf13088dd2858fa8134bd4f6d370eedd3e3",
+  "run": 44790771355,
+  "attempt": 1,
+  "branch": "Claude",
+  "xcode": "Xcode 26.6",
+  "patchDelta": [
+    {
+      "name": "0172-periodic-malloc-zone-ledger.patch",
+      "sha256": "9acfc4201486aa273f955b24bfb5fff16143a513a277b718ee43e0188dbae962"
+    },
+    {
+      "name": "0173-account-for-host-heap-owners.patch",
+      "sha256": "cd13414c403b824a7b4b8138e20ec8ff54b67d734fa645a6f31e5398bd7e266c"
+    },
+    {
+      "name": "0174-bound-open-pipeline-archives-by-recency.patch",
+      "sha256": "365f6d7130317dbda8d6114a548bcd7111c2bdad809c5ed008e1a399d31b251b"
+    },
+    {
+      "name": "0175-free-retired-loader-translation-tables.patch",
+      "sha256": "661824d52246b14341d13dc1fa993dd86287105b8ed065d64154b5e3e0b14224"
+    },
+    {
+      "name": "0176-relieve-host-zones-on-memory-pressure.patch",
+      "sha256": "c264a659a30f1861ccdadfc30afa229b54353f52a24567f0465bccdf7aba046f"
+    }
+  ],
+  "artifact": {
+    "artifact": 14656314477,
+    "name": "s2arm-engine-framework-f956b7d84b03c23f8ecb9ff500c7965a2ff25807",
+    "bytes": 25039571,
+    "sha256": "416a5b03e4661078f1e96427b93f2af19ed869874f7e5a4ab359286e7c1c0b6e"
+  },
+  "jobs": [
+    {
+      "platform": "macos-15",
+      "id": 136477517105,
+      "result": "success"
+    },
+    {
+      "platform": "macos-26",
+      "id": 136477516482,
+      "result": "success"
+    }
+  ],
+  "compilerAndLinkerWarnings": {
+    "perPlatform": 12,
+    "messagesAndCountsMatch803IgnoringLineNumbers": true,
+    "onAdded0172to0176": 0,
+    "newSourceLinesReviewed": 374,
+    "proof": "engine176-review-warnings.json"
+  },
+  "globalRollback": "S2A_RB_HEAP_TRIM=0",
+  "deepTestSuites": "not-run per AGENTS.md",
+  "deviceWindows": 0,
+  "candidateIPA": "not delivered",
+  "pinCheck": {
+    "status": "pending"
+  }
+}

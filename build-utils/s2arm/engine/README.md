@@ -243,6 +243,8 @@ existing CI contract; no new native test suite is introduced.
 
 ### Host heap on iOS, patches 0172–0176
 
+Revision `f956b7d8` is compiled on macOS 15 and 26, with all 176 patch hashes and the three producer archives authenticated. See the [build evidence](../../../docs/evidence/s2arm-fluidity-803/engine176-review-build.json). Device memory and frame-time gains are not yet measured.
+
 | Patch | Effect |
 | --- | --- |
 | 0172 | The existing VM ledger worker samples Darwin malloc zones at the first heartbeat and then at 60-second intervals. Each row includes the used, allocated and high-water fields, plus the actual collection interval; the census reports queue delay separately from the heartbeat timestamp. |
