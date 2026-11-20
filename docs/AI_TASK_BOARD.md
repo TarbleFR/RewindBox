@@ -8,7 +8,7 @@
 
 20 novembre — [IPA privée 804 livrée et vérifiée](evidence/rewind804/delivery.json) : moteur S2Arm revu `f956b7d8`, instrumentation et restitution du tas hôte 0172–0176. Clé privée existante réutilisée, quatre pièces chiffrées et IPA finale vérifiées, 97 images vérifiées et 10 identifiants de bundles conservés. Les différences de relais des deux ponts recompilés sont expliquées ; aucun nouvel avertissement Xcode face à 803. Comparaison mémoire et temps d’image sur iPhone en attente, estimation inchangée.
 
-21 novembre — Préchargement 0192–0196. Rendement par source et octets lus par le processus. Mesures sur iPhone en attente.
+21 novembre — Préchargement 0192–0197. Rendement par source et octets lus par le processus. Mesures sur iPhone en attente.
 
 21 novembre — Gouverneur mémoire 0186–0191. Suivi de dix minutes, seuils sur appareil en attente.
 
@@ -34,9 +34,9 @@ Calcul conservé d’une version à l’autre : somme(note × poids) / 100, arro
 ```mermaid
 xychart-beta
     title "S2Arm : avancement estimé par mise à jour"
-    x-axis "IPA ou commit moteur" ["799", "0155", "pont iOS", "0156", "0157", "0158", "0159", "0160", "0161", "0162", "0163", "0164", "0165", "801", "0166–0168", "0169", "802", "0170", "0171", "803", "0176", "f956b7d8", "804", "0180", "805", "0185", "0191", "806", "0196"]
+    x-axis "IPA ou commit moteur" ["799", "0155", "pont iOS", "0156", "0157", "0158", "0159", "0160", "0161", "0162", "0163", "0164", "0165", "801", "0166–0168", "0169", "802", "0170", "0171", "803", "0176", "f956b7d8", "804", "0180", "805", "0185", "0191", "806", "0196", "0197"]
     y-axis "Maturité estimée (%)" 0 --> 100
-    bar [55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55]
+    bar [55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55]
 ```
 
 | Date | IPA / source | I / R / C / P / S (%) | Global estimé | Évolution et preuve / mesure sur appareil |
@@ -70,6 +70,7 @@ xychart-beta
 | 2026-11-21 | IPA 806 / livraison privée | 90 / 60 / 65 / 35 / 25 | 55 % | [IPA vérifiée](evidence/rewind806/delivery.json). Mémoire des textures, ré-envois et temps d’image en attente des mesures sur iPhone. |
 | 2026-11-21 | Moteur 0186–0191 / gouverneur mémoire | 90 / 60 / 65 / 35 / 25 | 55 % | [Quotas, ordre de réduction et critères de pagination](evidence/s2arm-fluidity-803/implementation-status.md#pagination-sur-dix-minutes). Non mesuré sur iPhone. |
 | 2026-11-21 | Moteur 0192–0196 / préchargement | 90 / 60 / 65 / 35 / 25 | 55 % | [Mesures par source et critère de lecture](evidence/s2arm-fluidity-803/implementation-status.md#rendement-de-la-lecture-anticipée). Gain sur appareil non mesuré. |
+| 2026-11-21 | Moteur 0197 / confirmation des lectures | 90 / 60 / 65 / 35 / 25 | 55 % | Lectures invitées confirmées et observations censurées distinguées dans le [suivi](evidence/s2arm-fluidity-803/implementation-status.md#rendement-de-la-lecture-anticipée). Non mesuré sur iPhone. |
 
 **Mesures de référence, à conserver séparément de l’estimation :** [IPA 795](evidence/rewind796/profile-observations-795.json), 26,886 FPS moteur sur 9 145 intervalles sans lacune dans la plage observée (≈ 5 min 40 s), 213 >100 ms dont 36 >500 ms ; [ancien moteur 0001–0089](evidence/s2arm-ipa783-device-2026-11-18.md), 60 FPS sur 526 intervalles (≈ 8,8 s), scène non identifiée ; [IPA 786](evidence/s2arm-ipa786-device-2026-11-18.md), deux fenêtres à l’affichage à 23,9 / 22,5 FPS et GPU médian à 33,38 / 35,03 ms ; [IPA 794](evidence/s2arm-first-race-795.md), pic échantillonné de 5 175 Mio. Parcours, caches et réglages non uniformisés : aucun gain avant/après attribuable à partir de ces seuls relevés.
 

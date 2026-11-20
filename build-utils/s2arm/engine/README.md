@@ -303,7 +303,7 @@ Set `S2A_RB_MEM_GOV=0` before launch for the 803 paths. Existing emergency GPU a
 
 The [806 delivery receipt](../../../docs/evidence/rewind806/delivery.json) records the privately decrypted and verified package (97 native images, 10 bundles). Device data against 803 are pending.
 
-### Adaptive file-backed read-ahead, patches 0192–0196
+### Adaptive file-backed read-ahead, patches 0192–0197
 
 | Patch | Change |
 | --- | --- |
@@ -312,5 +312,6 @@ The [806 delivery receipt](../../../docs/evidence/rewind806/delivery.json) recor
 | 0194 | Bypass the additional speculative whole-texture GPU upload on the recorded-bind path. The measured page hint and demanded upload remain separate. |
 | 0195 | Include per-source counters in benchmark memory samples and process disk-read byte deltas in the ten-minute companion. |
 | 0196 | Report counts and durations of long presentations that overlap a demanded upload with an observed missing file-backed page. Preserve overflow and missing-presentation information. |
+| 0197 | Require independent evidence of a natural read of the page before crediting it. Retire observations when a guest pool is finalized. Report unconfirmed reads, censored samples and the reason each source stopped. |
 
 `S2A_RB_POOL_AHEAD=0` still disables only neighbour lookahead. `S2A_RB_PREFETCH_ADAPT=0` restores the 803 execution paths for the candidate at launch. [Counter definitions, evidence and device criteria](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md#rendement-de-la-lecture-anticipée).
