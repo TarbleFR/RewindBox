@@ -75,11 +75,13 @@ static void S2ArmExportGraphicsEvidence(S2ArmGraphicsGeneration *generation, NSS
   if (!generation || !session) return;
   NSString *documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
   if (!documents.length) return;
+  NSTimeInterval exportStart = NSProcessInfo.processInfo.systemUptime;
   BOOL copied = [generation writeEvidenceToDirectory:S2ArmEngineDiagnosticsDirectory(documents, generation.gid)
                                               session:session phase:phase];
   s2arm_journal("graphicsEvidence", copied ? "recorded" : "unavailable",
-                "\"gid\":\"%s\",\"session\":\"%s\",\"generation\":\"%s\",\"phase\":\"%s\"",
-                generation.gid.UTF8String, session.UTF8String, generation.wire.lastPathComponent.UTF8String, phase.UTF8String);
+                "\"gid\":\"%s\",\"session\":\"%s\",\"generation\":\"%s\",\"phase\":\"%s\",\"exportMs\":%llu",
+                generation.gid.UTF8String, session.UTF8String, generation.wire.lastPathComponent.UTF8String, phase.UTF8String,
+                (unsigned long long)((NSProcessInfo.processInfo.systemUptime - exportStart) * 1000));
 }
 
 static void S2ArmExportEngineLogs(void) {
@@ -800,12 +802,14 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
       graphicsStatus = (s2arm_graphics_status_fn)dlsym(engine, S2ARM_GRAPHICS_STATUS);
       if (!prepare || !graphicsStatus) return launchFail(@"engineAbiMissing", @"graphics", @"The verified graphics preparation entry points are missing.");
       uint64_t stages[8] = {0}; self.graphicsLastProgress = 0;
+      NSTimeInterval prepareStart = NSProcessInfo.processInfo.systemUptime;
       int rc = prepare(gid.UTF8String, generation.buildID.UTF8String, gameData.fileSystemRepresentation,
                        generation.wire.fileSystemRepresentation, graphicsCancelled, (__bridge void *)self, stages,
                        rb_s2arm_shader_inflate, graphicsProgress, rb_s2arm_shader_inflate_fd);
-      s2arm_journal("graphics", "stageInputs", "\"result\":%d,\"wanted\":%llu,\"recovered\":%llu,\"missing\":%llu,\"translated\":%llu,\"refused\":%llu",
+      s2arm_journal("graphics", "stageInputs", "\"result\":%d,\"wanted\":%llu,\"recovered\":%llu,\"missing\":%llu,\"translated\":%llu,\"refused\":%llu,\"prepareMs\":%llu",
                     rc, (unsigned long long)stages[0], (unsigned long long)stages[3], (unsigned long long)stages[4],
-                    (unsigned long long)stages[5], (unsigned long long)stages[6]);
+                    (unsigned long long)stages[5], (unsigned long long)stages[6],
+                    (unsigned long long)((NSProcessInfo.processInfo.systemUptime - prepareStart) * 1000));
       S2ArmExportGraphicsEvidence(generation, self.graphicsSession, rc ? @"interrupted" : @"inputs");
       if (rc) {
         // No guest session or code pages have been created. End this helper
