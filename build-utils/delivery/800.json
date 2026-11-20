@@ -371,9 +371,24 @@
       {
         "commit": "8eb3af9023298ac69c2966eefedca59715d03a5c",
         "note": "S2Arm: keep unaffected texture views, batch compatible first uploads, and measure visible race pacing [s2arm-engine]"
+      },
+      {
+        "commit": "4821b3054a84104b9d96c2d86004de242570b614",
+        "note": "Embed the verified S2Arm 0163 arm64 framework produced by run 44725883644."
       }
     ],
-    "sourceOnly": [],
+    "sourceOnly": [
+      {
+        "commit": "d244e54092e952681ac8ef89a072c56f68893211",
+        "targetBuild": 801,
+        "note": "Concurrent Nextendo development. IPA 800 compares S2Arm against IPA 799."
+      },
+      {
+        "commit": "4f5d8ab53e38792efe86fb9241e7e8d1f345089e",
+        "targetBuild": 801,
+        "note": "Concurrent Nextendo diagnostic change. IPA 800 compares S2Arm against IPA 799."
+      }
+    ],
     "promotedCommits": []
   },
   "images": {
