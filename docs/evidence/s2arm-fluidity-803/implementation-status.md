@@ -66,7 +66,7 @@ Le cache des archives ouvertes gardait les objets et des alias de lot jusqu’à
 | Étape | État du lot |
 | --- | --- |
 | Corrigé dans les sources | Relevé malloc par minute, propriétaires, plafond LRU, libération des tables du chargeur au retrait et restitution à malloc sur alerte. Repli global au lancement avec `S2A_RB_HEAP_TRIM=0`. |
-| Compilé pour iOS | Réussi sur macOS 15 et 26. [Run 44787696848](https://github.com/TarbleFR/RewindBox/actions/runs/44787696848), [empreinte du framework et vérifications](engine176-build.json). Les 176 patchs, leurs empreintes et les trois archives productrices ont été vérifiés. Les 12 avertissements compilateur/éditeur de liens par plateforme ont les mêmes messages et occurrences que dans la 803. |
+| Compilé pour iOS | Réussi sur macOS 15 et 26. [Run 44787696848](https://github.com/TarbleFR/RewindBox/actions/runs/44787696848), [empreinte du framework et vérifications](engine176-build.json). Les 176 patchs, leurs empreintes et les trois archives productrices ont été vérifiés. Les 12 avertissements compilateur/éditeur de liens par plateforme ont les mêmes messages et occurrences que dans la 803. [Contrôle du pin 4b777be](https://github.com/TarbleFR/RewindBox/actions/runs/44790389674) réussi, SHA-256 du fichier régénéré identique au fichier intégré. |
 | IPA privée livrée | En attente. La recette exige une clé publique de transport épinglée. La clé privée correspondante de la 803 a été supprimée après vérification, selon son reçu. |
 | Observé sur appareil | Aucune fenêtre candidate disponible. Objectif non validé. |
 

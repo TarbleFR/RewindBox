@@ -59,5 +59,13 @@
     "direct shader chain"
   ],
   "deviceWindows": 0,
-  "candidateIPA": "not delivered"
+  "candidateIPA": "not delivered",
+  "pinCheck": {
+    "source": "4b777be07116ceffc4f6d2e4a99c8bcdfbaef3cf",
+    "run": 44790389674,
+    "job": 136476188570,
+    "conclusion": "success",
+    "generatedPinMatchesCommittedBytes": true,
+    "sha256": "d717b031c6f607a5cd4bd1c5b025608ec785bc0b4cf9ffb3e08d648ae65358ed"
+  }
 }
