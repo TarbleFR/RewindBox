@@ -449,7 +449,7 @@ zdAq1CTeFUrJ6r/siw==
                     $"Online play: title {titleId}, installed version {version ?? "unknown"}, accepted by Nextendo's catalog: {accepted}; " +
                     $"BCAT data: {bcat}; account id: {(settings.Nsa != null ? "the account's NSA" : "the PID")} (adapt_nextendo_data)");
                 Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("onlineAccount", "prepared",
-                    detail: $"title={titleId}; version={version ?? "unknown"}; catalog={accepted}; BCAT={bcat}");
+                    detail: $"Online account: title={titleId}; version={version ?? "unknown"}; catalog={accepted}; BCAT={bcat}");
             }
 
             return displayVersion;
@@ -563,7 +563,7 @@ zdAq1CTeFUrJ6r/siw==
                 if (status == "failed" && Interlocked.Exchange(ref failed, 1) != 0) return;
                 if (id <= 64 && ReferenceEquals(settings, _settings))
                     Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("onlineTls", status,
-                        detail: $"connection={id}; route={route}; port={port}; {detail}");
+                        detail: $"Online TLS: connection={id}; route={route}; port={port}; {detail}");
             };
         }
 
