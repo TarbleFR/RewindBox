@@ -96,3 +96,27 @@ Le rejeu stdio produit les mêmes 180 254 octets. Le manifeste personnel est vid
 ## Vérification physique restante
 
 Sur le même appareil, même version du jeu, mode 1× et départ comparable : annoter circuit et phase à partir d’une capture synchronisée ; premier passage puis même passage avec génération et archives réutilisées. Conserver images moteur et timestamps écran, p95/p99, seuils 100/200/500 ms, CPU de soumission, GPU, attente SVC/objet/réveil, uploads, empreinte, E/S, état thermique et réveils. Associer le lancement au SHA moteur et à la génération. Relever l’intégrité visuelle, l’audio et la sauvegarde après reprise. Un avant/après reste indisponible pour 0155.
+
+### Débit en course après 0162
+
+Le patch 0163 traite les invalidations du cache de vues Metal dans `tex_by_id`. Les changements de programmes et certaines écritures d’une texture non virtuelle sont suivis par numéro de série. Une recherche peut réutiliser sa vue si tous les changements depuis son dernier passage sont connus et concernent d’autres numéros de série. Le chemin complet reste actif lors d’une collision de suivi, d’une modification du même objet, d’une invalidation globale, d’un remappage sparse, d’un alias compressé ou d’un changement pertinent des données invitées. Les compteurs distinguent les vues réutilisées sans nouvelle recherche, les recherches qui retrouvent la même base et celles qui la remplacent.
+
+Banc local Linux x86-64, temps CPU du thread, 300 images synthétiques de 1 683 vérifications, neuf essais par variante et médiane. Le scénario alterne changements de programme, remplacements du même objet, changements des données invitées et invalidations globales à deux fréquences. Le banc appelle la logique de génération du patch avec un modèle de résolution de texture et compare les valeurs et remplacements. Les sommes de contrôle concordent à chaque essai.
+
+| Invalidation globale simulée | Recherches avant → après | CPU par image avant → après | Économie CPU du banc |
+| --- | ---: | ---: | ---: |
+| Toutes les 2 images | 504 900 → 322 506 | 0,0418 → 0,0342 ms | 0,0076 ms |
+| Toutes les 10 images | 504 900 → 96 745 | 0,0385 → 0,0271 ms | 0,0114 ms |
+
+Le banc mesure les parcours du cache sur hôte. Les 17,311 ms par image de la fenêtre 3600 sont le temps CPU de l’ensemble de la soumission sur iPhone. La part gagnée par 0163 sur cette charge réelle reste à mesurer. L’analyseur a aussi rejoué la 799 et une trace synthétique couvrant horodatages valides ou absents, deux budgets d’affichage, attente invitée et motifs de vidage.
+
+Un profil court antérieur du même titre du 18 novembre à 13 h 01 a classé 1 318 mesures d’encodeurs. Les trois plus coûteuses sont des passes 1248×700 avec chargement couleur et profondeur, 388, 401 et 693 dessins et des durées de 3,786, 3,690 et 3,387 ms. Les durées mesurées sont regroupées par type dans l’analyseur. Les chemins Metal existants emploient déjà l’action Clear lorsqu’un effacement peut être intégré à l’ouverture d’une passe. Le profil ne contient pas les dépendances et pixels nécessaires pour déclarer les autres chargements et stockages redondants. Les actions de rendu Metal de ces passes conservent leur comportement.
+
+| Portion de référence 799 | Échantillons | FPS moteur | p95 / p99 moteur | >100 / >200 / >500 ms |
+| --- | ---: | ---: | ---: | ---: |
+| Indice `race_sequence_asset`, tous les intervalles | 5 259 | 27,282 | 74,890 / 137,797 ms | 123 / 28 / 6 |
+| Images 3301 à 3600, même indice | 300 | 14,297 | 133,886 / 437,877 ms | 32 / 9 / 3 |
+
+Pour 3518, le journal confirme 1 963,45 ms en synchronisation et zéro nouveau pipeline. Objet et thread de réveil sont inconnus dans cet export. Pour 2441, 980 premiers transferts totalisent 128 Mio et 573,081 ms CPU, sans motif de vidage observé. Le patch groupe des premiers transferts non sparse jusqu’à 128 Kio quand ils tiennent dans un tampon de staging déjà alloué et que le plafond thermique le permet. Les limites de lot et les dépendances d’exécution sont conservées. La sortie d’une image lente compte les vidages aux frontières, à saturation, lors d’un transfert isolé, par limite de lot ou par découpage.
+
+À relever sur iPhone 16 Pro Max, Mario Kart World 1.0.0, Coupe Champignon 150 cc à 1×. Identifier chacun des quatre circuits et un segment reproductible par circuit. Relever séparément le premier passage, le retour avec caches compatibles et un passage après 20 min. Comparer FPS moteur et affichés, percentiles, seuils, horodatages manquants, échéances à 16,67 et 33,33 ms et durée de soumission. Vérifier jeu à vitesse normale, rendu couleur/profondeur, progression après relance et apprentissage des shaders en course. Les anciennes lignes `on-screen` de la 799 ne suffisent pas pour reconstruire ses FPS affichés et ses échéances par intervalle demandé.
