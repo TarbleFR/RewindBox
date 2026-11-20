@@ -1,0 +1,33 @@
+# Lot 0171 — état et limites de validation
+
+## Périmètre
+
+- 0170 : correction de la provenance du mode de présentation générique, avec retour explicite `S2A_RB_NATIVE_CADENCE=0` ajouté par 0171.
+- 0171 : protocole de 180 s, menu générique, compteurs bornés, audio/GC, ledgers et parcours mémoire complet après le score.
+- Nextendo : Core déjà compilé et authentifié du run 44753917742, source `8988ced5014dd23caae2eefac70b3d37f5a5b7f0`, à intégrer dans la même IPA.
+- Aucun budget de textures/prélecture, ordonnanceur audio, pas de simulation ou traducteur de shaders modifié par 0171.
+
+## Vérifications source
+
+Le contrôle existant `tools/weak_link_decl.py check` a d’abord signalé trois déclarations faibles non enregistrées, déjà présentes à 0170. Leurs consommateurs ont un repli explicite ; les annotations manquantes sont ajoutées auprès des déclarations (`nvn_rb_route_read`, `s2a_rb_guest_input_release`, `s2a_rb_mkw_measure`). Le même contrôle passe ensuite : 31 symboles host enregistrés, aucun flag de liaison manuscrit. Le contrôle n’est ni modifié ni désactivé.
+
+Les revues indépendantes couvrent les familles, les crochets de présentation, les métadonnées host, la mémoire et la concurrence du collecteur. Elles ont notamment corrigé l’identité amont confondue avec le moteur patché, les préférences confondues avec les réglages actifs, les rappels de minuterie périmés et l’arrêt pendant l’initialisation du banc. La lecture VM utilise l’API iOS déjà employée par le moteur, avec des adresses de 64 bits.
+
+L’analyseur de comparaison a été appliqué à deux exports privés existants : [comparaison refusée](legacy-comparison-refused.json), car aucun ne porte les marqueurs du protocole. Aucune différence de performance n’est produite. Il ne s’agit ni d’un banc synthétique ni d’un test d’exécution du moteur.
+
+## Statut avant CI
+
+| Étape | État |
+| --- | --- |
+| Correctifs et instrumentation dans les sources | Intégrés et relus ; application de 0171 sur 0170 et contrôle des déclarations faibles réussis |
+| Compilation du moteur 0170 | Réussie sur macOS 15 et 26, run 44759330364 ; zéro avertissement sur ses lignes ajoutées |
+| Compilation du lot 0171 | En attente de CI |
+| Pin et IPA privée 803 | En attente de compilation authentifiée |
+| Gain de fluidité, chaleur, son, attribution mémoire sur iPhone | Non observé ; il manque les nouvelles mesures appareil |
+| Régression des deux autres jeux Switch 2 | Non observée avec ce lot ; état satisfaisant rapporté par le mainteneur |
+
+Les suites Flutter/natives approfondies ne sont pas exécutées, conformément à AGENTS.md. Les contrôles obligatoires de configuration, ABI, signatures, identité et livraison restent actifs. Aucun avertissement nouveau sur les lignes ajoutées n’est accepté lors de la revue des journaux CI.
+
+## Décisions qui attendent les données
+
+Le poste compressé dominant, le taux d’usage de la prélecture et les trous audio réellement entendus ne sont pas encore attribués. Il n’est pas justifié de réduire arbitrairement un cache ou de changer une échéance audio avant ces relevés. Le mode endurance et les retraits/désactivations de familles sont des propositions classées dans [l’audit](audit-803.md). La première IPA instrumentée est une référence ; elle ne transforme pas les anciens essais non appariés en un avant/après.

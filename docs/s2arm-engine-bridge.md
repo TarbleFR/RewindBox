@@ -1,5 +1,39 @@
 # S2Arm engine host bridge (Switch 2 playlist)
 
+## Generic Switch 2 benchmark — patch 0171
+
+The in-game menu exposes an optional `s2a_rb_guest_benchmark` C entry point without
+changing the existing guest ABI struct. Commands are status (0), start (1), partial
+end (2), and invalidate on menu opening (3). The engine observes a fixed 180-second
+window; it never drives game input or changes emulation speed. See the
+[reproducible protocol](s2arm-benchmark-protocol.md) and
+[0090–0170 family audit](evidence/s2arm-fluidity-803/audit-803.md).
+
+The host supplies the signed payload's `sourceIdentity.head_sha`, app build and
+the prepared main NSO's complete 32-byte build ID. `S2ACommit` alone is insufficient:
+it names the upstream checkout shared by different patch series. Launch preferences
+remain distinct from the active environment and live frame-limit getter captured
+by the engine when the benchmark starts. Resuming a parked game refreshes the
+host preferences; a settings reload invalidates any running measurement.
+
+The native menu requests confirmation of the cold, unplugged, warmed-route setup.
+The collector checks initial thermal/power/capture/focus conditions and records
+changes without stopping the game. Frame and display timestamp storage is bounded;
+overflow, late samples and missing presentation callbacks stay visible. Actual
+Metal timestamps, not CPU iterations, determine displayed FPS. GC and audio
+snapshots do not consume existing diagnostic counters. A complete recursive VM
+census runs after the score, on its own utility queue, with session-generation
+cancellation. A walk is not an atomic or alias-deduplicated physical footprint.
+
+`S2A_RB_BENCH=0` restores the behavior without these observations. Separate
+`S2A_RB_VM_LEDGERS=0` and `S2A_RB_VM_FULL_AUDIT=0` switches suppress the extra
+heartbeat ledgers and post-window census. `S2A_RB_NATIVE_CADENCE=0` provides an
+explicit diagnostic rollback of 0170; the default retains native cadence.
+No texture-cache budget, read-ahead budget, audio queue policy or shader identity
+is changed by 0171. Its first delivered IPA is a baseline, not a measured gain.
+
+## Existing host integration
+
 Host side of the embedded Switch 2 engine: the Flutter plugin `packages/s2arm_engine_bridge` and the Dart service
 `lib/services/s2arm_internal_service.dart`. It prepares a game on the phone, loads `S2ArmEngine.framework`, drives the
 engine's guest sequence and the S2Arm JIT helper, and reports every step to a journal. Nothing of S2Arm or of any game is

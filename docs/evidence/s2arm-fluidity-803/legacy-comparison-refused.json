@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "purpose": "Analysis of existing private captures, not an engine test or device benchmark",
+  "status": "refused",
+  "comparable": false,
+  "baseline_reasons": [
+    {
+      "code": "protocol_missing",
+      "path": "input",
+      "detail": "No valid [RB-BENCH] JSON records. Legacy summaries and other logs are not comparable."
+    }
+  ],
+  "candidate_reasons": [
+    {
+      "code": "protocol_missing",
+      "path": "input",
+      "detail": "No valid [RB-BENCH] JSON records. Legacy summaries and other logs are not comparable."
+    }
+  ],
+  "descriptive_differences": null,
+  "rule": "No legacy log is relabeled as a matched180secondprotocolrun"
+}

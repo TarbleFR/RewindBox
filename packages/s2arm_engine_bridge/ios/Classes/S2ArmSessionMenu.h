@@ -20,6 +20,10 @@ NS_ASSUME_NONNULL_BEGIN
 // has the entry point; nil = every setting waits for the next start.
 @property(nonatomic, copy, nullable) BOOL (^applyNow)(NSString *setting, id value);
 
+// Source/game identity and launch preferences. The engine resolves its active
+// environment and live cadence when the window starts; the host supplies its overlay.
+@property(nonatomic, copy, nullable) NSDictionary<NSString *, id> *benchmarkContext;
+
 - (void)attach;   // main thread, once the game view controller is presented
 - (void)detach;   // main thread; idempotent
 - (void)showMenu;

@@ -3,6 +3,8 @@
 #import "S2ArmSettings.h"
 
 #import <GameController/GameController.h>
+#import <dlfcn.h>
+#include <string.h>
 
 static NSString *const kMenuButtonIdentifier = @"rewindbox.s2arm.menu";
 // The engine's brief overlay (S2Arm hud.m s2a_hud_brief_show): a UILabel added to the game view with this identifier.
@@ -16,6 +18,14 @@ static NSDictionary<NSString *, NSString *> *EnglishStrings(void) {
     @"menu.performanceOn" : @"Show performance overlay",
     @"menu.performanceOff" : @"Hide performance overlay",
     @"menu.settings" : @"Settings",
+    @"menu.benchmark" : @"Benchmark",
+    @"menu.benchmarkInstructions" : @"180 seconds on the same route, from the same starting point. Use a cool, unplugged phone with Low Power Mode off and a route already played once. Keep settings and brightness unchanged. The measurement starts when this dialog closes; do not reopen the menu until it ends.",
+    @"menu.benchmarkScenario" : @"Route and starting point",
+    @"menu.benchmarkStart" : @"Confirm conditions and start",
+    @"menu.benchmarkFailed" : @"Could not start. Enter a scenario, cool and unplug the phone, then turn off Low Power Mode and screen recording and try again.",
+    @"menu.benchmarkInterrupted" : @"Opening the menu interrupted the comparison. Let this measurement finish before starting another one.",
+    @"menu.benchmarkSaved" : @"The last measurement is complete. Results are in the game diagnostics.",
+    @"menu.benchmarkInvalid" : @"The last measurement is incomplete or its conditions changed. It cannot establish a performance improvement; details are in the game diagnostics.",
     @"menu.resolution" : @"Resolution",
     @"menu.antiAliasing" : @"Anti-aliasing",
     @"menu.scalingFilter" : @"Scaling filter",
@@ -200,6 +210,11 @@ static UIView *FindView(UIView *view, NSString *identifier) {
 }
 
 - (void)showMenu {
+  // An overlay changes the measured scenario. Keep the game running and retain
+  // the partial evidence, but never silently compare this window with a clean one.
+  typedef int (*BenchmarkFn)(int, const char *, char *, size_t);
+  BenchmarkFn benchmark = (BenchmarkFn)dlsym(RTLD_DEFAULT, "s2a_rb_guest_benchmark");
+  if (benchmark) (void)benchmark(3, NULL, NULL, 0);
   UIAlertController *sheet = [UIAlertController alertControllerWithTitle:[self text:@"menu.title"]
                                                                  message:nil
                                                           preferredStyle:UIAlertControllerStyleActionSheet];
@@ -214,11 +229,101 @@ static UIView *FindView(UIView *view, NSString *identifier) {
   [sheet addAction:[UIAlertAction actionWithTitle:[self text:@"menu.settings"]
                                             style:UIAlertActionStyleDefault
                                           handler:^(UIAlertAction *action) { [weakSelf showSettings]; }]];
+  if (benchmark && [[self benchmarkStatus][@"available"] boolValue]) {
+    [sheet addAction:[UIAlertAction actionWithTitle:[self text:@"menu.benchmark"]
+                                              style:UIAlertActionStyleDefault
+                                            handler:^(UIAlertAction *action) { [weakSelf showBenchmark]; }]];
+  }
   [sheet addAction:[UIAlertAction actionWithTitle:[self text:@"menu.quit"]
                                             style:UIAlertActionStyleDestructive
                                           handler:^(UIAlertAction *action) { [weakSelf confirmQuit]; }]];
   [sheet addAction:[UIAlertAction actionWithTitle:[self text:@"menu.resume"] style:UIAlertActionStyleCancel handler:nil]];
   [self present:sheet];
+}
+
+#pragma mark - reproducible benchmark (optional engine entry point)
+
+- (NSDictionary *)benchmarkStatus {
+  typedef int (*BenchmarkFn)(int, const char *, char *, size_t);
+  BenchmarkFn benchmark = (BenchmarkFn)dlsym(RTLD_DEFAULT, "s2a_rb_guest_benchmark");
+  if (!benchmark) return @{};
+  char output[32768] = {0};
+  if (benchmark(0, NULL, output, sizeof output) != 0) return @{};
+  NSData *data = [NSData dataWithBytes:output length:strnlen(output, sizeof output)];
+  id result = [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL];
+  return [result isKindOfClass:NSDictionary.class] ? result : @{};
+}
+
+- (void)benchmarkMessage:(NSString *)message {
+  UIAlertController *alert = [UIAlertController alertControllerWithTitle:[self text:@"menu.benchmark"]
+                                                                 message:message preferredStyle:UIAlertControllerStyleAlert];
+  [alert addAction:[UIAlertAction actionWithTitle:[self text:@"menu.back"] style:UIAlertActionStyleCancel handler:nil]];
+  [self present:alert];
+}
+
+- (void)showBenchmark {
+  NSDictionary *status = [self benchmarkStatus];
+  if ([status[@"active"] boolValue]) {
+    [self benchmarkMessage:[self text:@"menu.benchmarkInterrupted"]];
+    return;
+  }
+  NSString *message = [self text:@"menu.benchmarkInstructions"];
+  NSDictionary *last = [status[@"lastsummary"] isKindOfClass:NSDictionary.class] ? status[@"lastsummary"] : nil;
+  if (last) {
+    NSString *result = [self text:[last[@"comparable"] boolValue] ? @"menu.benchmarkSaved" : @"menu.benchmarkInvalid"];
+    message = [NSString stringWithFormat:@"%@\n\n%@", result, message];
+  }
+  UIAlertController *alert = [UIAlertController alertControllerWithTitle:[self text:@"menu.benchmark"]
+                                                                 message:message preferredStyle:UIAlertControllerStyleAlert];
+  NSString *scenarioKey = [@"rewindbox.s2arm.benchmark.scenario." stringByAppendingString:self.benchmarkContext[@"game_id"] ?: @"unknown"];
+  [alert addTextFieldWithConfigurationHandler:^(UITextField *field) {
+    field.placeholder = [self text:@"menu.benchmarkScenario"];
+    field.text = [NSUserDefaults.standardUserDefaults stringForKey:scenarioKey];
+    field.autocorrectionType = UITextAutocorrectionTypeNo;
+    field.returnKeyType = UIReturnKeyDone;
+  }];
+  __weak S2ArmSessionMenu *weakSelf = self;
+  __weak UIAlertController *weakAlert = alert;
+  [alert addAction:[UIAlertAction actionWithTitle:[self text:@"menu.cancel"] style:UIAlertActionStyleCancel handler:nil]];
+  [alert addAction:[UIAlertAction actionWithTitle:[self text:@"menu.benchmarkStart"] style:UIAlertActionStyleDefault
+                                          handler:^(UIAlertAction *action) {
+    S2ArmSessionMenu *menu = weakSelf;
+    UIAlertController *dialog = weakAlert;
+    NSString *scenario = [dialog.textFields.firstObject.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    if (!menu || menu.stopping) return;
+    NSMutableDictionary *metadata = [menu.benchmarkContext mutableCopy] ?: [NSMutableDictionary dictionary];
+    metadata[@"protocol_id"] = @"rb-switch2-bench-v1";
+    metadata[@"duration_seconds"] = @180;
+    metadata[@"scenario"] = scenario ?: @"";
+    metadata[@"cold_confirmed"] = @YES;
+    metadata[@"cache_protocol"] = @"warm-route-v1";
+    // The overlay is a live host setting, unlike the graphics preferences.
+    NSMutableDictionary *settings = [metadata[@"settings"] mutableCopy] ?: [NSMutableDictionary dictionary];
+    settings[@"performanceOverlay"] = @(S2ArmSettingsPerformanceOverlay());
+    metadata[@"settings"] = settings;
+    NSData *data = [NSJSONSerialization dataWithJSONObject:metadata options:0 error:NULL];
+    NSString *json = data ? [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] : nil;
+    void (^start)(void) = ^{
+      S2ArmSessionMenu *current = weakSelf;
+      if (!current || current.stopping || !current.viewController.view.window) return;
+      typedef int (*BenchmarkFn)(int, const char *, char *, size_t);
+      BenchmarkFn benchmark = (BenchmarkFn)dlsym(RTLD_DEFAULT, "s2a_rb_guest_benchmark");
+      if (!json || !benchmark || benchmark(1, json.UTF8String, NULL, 0) != 0) {
+        [current benchmarkMessage:[current text:@"menu.benchmarkFailed"]];
+      } else {
+        [NSUserDefaults.standardUserDefaults setObject:scenario forKey:scenarioKey];
+      }
+    };
+    UIViewController *presenter = dialog.presentingViewController;
+    if (presenter) [presenter dismissViewControllerAnimated:YES completion:start];
+    else dispatch_async(dispatch_get_main_queue(), ^{
+      // A missing presenter is not proof that the dismissal animation ended.
+      // Refuse this attempt if its dialog still covers the game.
+      if (!dialog.viewIfLoaded.window) start();
+      else [weakSelf benchmarkMessage:[weakSelf text:@"menu.benchmarkFailed"]];
+    });
+  }]];
+  [self present:alert];
 }
 
 - (NSString *)label:(NSString *)setting value:(id)value {

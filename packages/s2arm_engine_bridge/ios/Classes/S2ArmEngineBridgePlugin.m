@@ -34,6 +34,34 @@ static uint64_t const kBootQuiesceNs = 2000000000ull;   // 2 s with no hook acti
 static void s2arm_session_ended(int code, const char *reason, void *context);
 static void s2arm_session_parked(const char *reason, void *context);
 
+// Cheap launch-time identity; no game bytes or private paths enter the report.
+// Missing identities remain missing evidence, never an assumed game revision.
+static NSDictionary *S2ArmBenchmarkContext(NSString *gid, NSString *docs) {
+  const char *benchmark = getenv("S2A_RB_BENCH");
+  if (benchmark && !strcmp(benchmark, "0")) return nil;
+  NSString *gameDir = docs.stringByDeletingLastPathComponent;
+  NSFileHandle *main = [NSFileHandle fileHandleForReadingAtPath:[gameDir stringByAppendingPathComponent:@"root/exefs/main"]];
+  NSData *header = [main readDataUpToLength:0x60 error:NULL];
+  [main closeFile];
+  NSMutableString *build = [NSMutableString string];
+  if (header.length == 0x60 && !memcmp(header.bytes, "NSO0", 4)) {
+    const unsigned char *bytes = header.bytes;
+    for (NSUInteger i = 0x40; i < 0x60; i++) [build appendFormat:@"%02x", bytes[i]];
+  }
+  // S2ACommit is the upstream checkout, shared by different patch series.
+  // The signed payload identity names the actual producing RewindBox source.
+  NSURL *identityURL = [NSBundle.mainBundle URLForResource:@"S2Arm-native-identity" withExtension:@"json"];
+  NSData *identityData = identityURL ? [NSData dataWithContentsOfURL:identityURL] : nil;
+  id parsed = identityData ? [NSJSONSerialization JSONObjectWithData:identityData options:0 error:NULL] : nil;
+  NSDictionary *identity = [parsed isKindOfClass:NSDictionary.class] ? parsed : @{};
+  NSDictionary *source = [identity[@"sourceIdentity"] isKindOfClass:NSDictionary.class] ? identity[@"sourceIdentity"] : @{};
+  NSString *engineBuild = [source[@"head_sha"] isKindOfClass:NSString.class] ? source[@"head_sha"] : @"";
+  NSString *appBuild = [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleVersion"];
+  return @{@"game_id":gid ?: @"", @"game_version":build, @"game_identity_kind":@"main_nso_build_id_32_bytes",
+           @"engine_build":engineBuild, @"engine_run":source[@"run"] ?: NSNull.null,
+           @"app_build":appBuild ?: @"", @"settings":S2ArmSettingsSnapshot()};
+}
+
 static void S2ArmJournalSessionMemory(const char *step, const char *status, NSString *gid,
                                      NSString *session, BOOL parked) {
   task_vm_info_data_t info;
@@ -176,6 +204,7 @@ static NSString *S2ArmEnginePath(void) {
 @property(nonatomic, copy, nullable) NSDictionary<NSString *, NSString *> *menuStrings;   // from Dart, for the in-game menu
 @property(nonatomic, strong, nullable) UIViewController *engineViewController;   // presented while a game runs (main thread)
 @property(nonatomic, strong, nullable) S2ArmSessionMenu *sessionMenu;             // RewindBox's in-game menu (main thread)
+@property(atomic, copy, nullable) NSDictionary<NSString *, id> *benchmarkContext;
 @property(nonatomic, copy, nullable) NSString *saveFolder;   // Documents/S2Arm/Saves/<game>, given to the engine
 @property(nonatomic, copy, nullable) NSString *runningGameId;   // main thread, from launch through view dismissal
 @property(atomic, copy, nullable) NSString *parkedGameId;    // patch 0010: Quit parked this game; it can resume in this process
@@ -581,6 +610,9 @@ static NSString *S2ArmEnginePath(void) {
     unsetenv("S2A_RB_GPU_GENERATION");
   }
   S2ArmSettingsPrepareLaunch();   // settings changed while parked apply now (the rebuild reloads the graphics settings)
+  NSMutableDictionary *benchmark = [self.benchmarkContext mutableCopy] ?: [NSMutableDictionary dictionary];
+  benchmark[@"settings"] = S2ArmSettingsSnapshot();   // launch preferences; the engine reports effective settings at begin
+  self.benchmarkContext = benchmark;
   [self applyStoredFrameRateLimit];   // patch 0078: S2A_FPS was read once, at this process's first game start
   __block UIViewController *vc = nil;
   dispatch_sync(dispatch_get_main_queue(), ^{ vc = (__bridge UIViewController *)viewController(); });
@@ -782,6 +814,7 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
   s2arm_journal("gameProfile", profileFailed ? "failed" : "selected",
                 "\"profile\":\"%s\"", fastFusion ? "fast-fusion" : marioKartWorld ? "mario-kart-world" : "default");
   S2ArmSettingsPrepareLaunch();   // the game language, and the engine's brief overlay that the in-game menu shows or hides
+  self.benchmarkContext = S2ArmBenchmarkContext(gid, docs);
   S2ArmGuestFileSpace();          // the free space the engine wants for the guest memory files (S2A_GUEST_FILE_MIN_FREE_MB)
   S2ArmPrepareSaveFolder(self.saveFolder, docs);   // the save folder the player sees in Files (S2A_SAVE_FOLDER)
   void *engine = retryEngine;
@@ -1041,6 +1074,7 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
                                                                    // The engine stops on its own queue; session_ended follows.
                                                                    if (stop) stop("rewindbox-menu");
                                                                  }];
+  self.sessionMenu.benchmarkContext = self.benchmarkContext;
   // Patch 0078: the frame-rate limit the player picks in the menu is in effect at once (the other settings still wait for the next start)
   __weak S2ArmEngineBridgePlugin *weakSelf = self;
   if (dlsym(RTLD_DEFAULT, S2A_RB_GUEST_SET_FPS_LIMIT)) {
@@ -1058,6 +1092,17 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
   if (!set) return NO;
   int fps = [(NSString *)value intValue];
   int rc = set(fps);
+  if (rc == 0) {
+    NSMutableDictionary *context = [self.benchmarkContext mutableCopy] ?: [NSMutableDictionary dictionary];
+    NSMutableDictionary *settings = [context[@"settings"] mutableCopy] ?: [NSMutableDictionary dictionary];
+    settings[@"frameRateLimit"] = value;
+    context[@"settings"] = settings;
+    self.benchmarkContext = context;
+    self.sessionMenu.benchmarkContext = context;
+    typedef int (*BenchmarkFn)(int, const char *, char *, size_t);
+    BenchmarkFn benchmark = (BenchmarkFn)dlsym(RTLD_DEFAULT, "s2a_rb_guest_benchmark");
+    if (benchmark) (void)benchmark(3, NULL, NULL, 0);
+  }
   s2arm_journal("frameRate", rc == 0 ? "now" : "nextStart", "\"fps\":%d,\"rc\":%d", fps, rc);
   return rc == 0;
 }

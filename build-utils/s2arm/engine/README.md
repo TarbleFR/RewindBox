@@ -207,3 +207,36 @@ The [counter-expertise](../../../docs/evidence/s2arm-801-driving-analysis.md#con
 ### Native presentation cadence, patch 0170
 
 The [801/802 cadence audit](../../../docs/evidence/s2arm-cadence-803.md) finds generic `fps60_display=1` bypassing a game interval of two without an identified speed correction. 0170 accepts display capability only from an explicit patch, preserving profile/frame-step sources, manual overrides and the FPS enable switch. Generic prepared manifests return to the game interval, including existing cached modules. Legacy A/B-green comments alone are not parsed as authorization; explicit profiles and patches retain their semantics. No clocks, waits, fences, cache formats, resolution or texture budget change. Source reviewed; iOS build and subsequent device behavior still to authenticate.
+
+### Reproducible observation, patch 0171
+
+| Patch | Change and switches |
+| --- | --- |
+| `0171-generic-benchmark-and-post-window-memory-attribution.patch` | Generic, explicitly started 180-second benchmark: actual Metal presentation timestamps, requested/sent 30/60 mode durations, thermal/power conditions, 10-second I/O/compression samples and non-consuming audio/GC counters. Full recursive VM census after the score, including submaps/tag 32, plus count-guarded graphics/media/neural/network/purgeable ledgers. `S2A_RB_BENCH=0` restores the observation-free behavior; `S2A_RB_VM_LEDGERS=0` and `S2A_RB_VM_FULL_AUDIT=0` disable extra reports independently. `S2A_RB_NATIVE_CADENCE=0` rolls back 0170. No shader translator, texture/read-ahead budget, scheduling or audio queue change. No iPhone gain or regression claim. |
+
+The [protocol](../../../docs/s2arm-benchmark-protocol.md) precedes further performance
+changes. The [0090–0170 audit](../../../docs/evidence/s2arm-fluidity-803/audit-803.md)
+covers all 81 patches in 18 families, distinguishing device observations, synthetic
+measurements and correctness evidence. The proposed later cleanup is not applied
+blindly by this patch. Its first IPA is a baseline with Nextendo retained.
+
+The benchmark requires an explicit menu start; it does not replay inputs or choose
+a circuit. It records the active engine settings separately from launch preferences,
+and counts displayed frames from positive Metal presentation callbacks. Buffers are
+bounded, callbacks are generation-tagged, and a one-second callback drain never waits
+for the GPU. Missing data, censored boundary stalls and changed conditions remain
+visible. Heavy automatic CPU/GPU probes and legacy VM scans are deferred within the
+window; an already-running diagnostic makes the window non-comparable.
+
+The VM census is metadata-only and runs after the score. It descends submaps, covers
+all encountered leaf regions and tags, yields cooperatively, and cancels at session
+changes. It does not truncate at a time/region quota. A Mach syscall can exceed a
+soft slice duration. Alias counts are not deduplicated and the walk is not atomic.
+`compressed` is logical pre-compression accounting; `currentAllocatedSize` is Metal
+allocation, not physical GPU residency. Unknown physical GPU residency stays null.
+
+GC alert thresholds are diagnostic, not automatic tuning: 2% completed pause time,
+100 generation-0 collections per ten seconds, or 10 generation-2 collections per ten
+seconds. Audio gaps are estimates of shortfall, with callback delays and output
+session changes reported separately. The producer and artifact checks remain the
+existing CI contract; no new native test suite is introduced.

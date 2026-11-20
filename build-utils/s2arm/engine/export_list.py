@@ -47,7 +47,11 @@ GUEST_ENTRY_POINTS = ('s2a_rb_guest_prepare_graphics', 's2a_rb_guest_prepare_gpu
                       # patch 0010: the host resumes the game Quit parked (S2ArmEngineBridgePlugin.m resumeParkedGame)
                       's2a_rb_guest_parked', 's2a_rb_guest_view_controller', 's2a_rb_guest_resume',
                       # patch 0078: the in-game menu changes the frame-rate limit during play (S2ArmEngineBridgePlugin.m applyLiveSetting)
-                      's2a_rb_guest_set_fps_limit')
+                      's2a_rb_guest_set_fps_limit',
+                      # patch 0171: optional host benchmark UI, no guest ABI struct change
+                      's2a_rb_guest_benchmark',
+                      # The benchmark requires these NativeAOT POD providers.
+                      's2a_rb_bench_managed_snapshot', 's2a_rb_bench_managed_active')
 IDENTIFIER = re.compile(rb'[A-Za-z_][A-Za-z0-9_$.]{1,255}')
 UTF16_IDENTIFIER = re.compile(rb'(?:[A-Za-z_]\x00)(?:[A-Za-z0-9_$.]\x00){1,255}')
 # A run of UTF-16LE identifier characters whose last character's high byte is not looked at (see the module text)

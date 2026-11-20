@@ -14,6 +14,15 @@ rewriter for that library with the patch series build-utils/s2arm/prepare/patche
 that commit, each change marked "RewindBox" in comments (a progress report; the rewritten code is the same). The name
 and SHA-256 of every patch of that series are recorded in S2Arm-native-identity.json under "preparePatches".
 
+RewindBox patch 0170 preserves a game's native presentation interval when a generic prepared FPS capability has no
+explicit speed-corrected source. Patch 0171 adds a generic, user-started 180-second observation protocol, actual Metal
+presentation timing, bounded audio/GC counters, TASK_VM_INFO ledger reporting and a complete recursive VM metadata
+census after the timed window. It does not add game assets or circuit-specific policies, change the shader translator,
+or claim a measured device speed or energy gain. S2A_RB_BENCH=0 disables the new observation path;
+S2A_RB_VM_LEDGERS=0 and S2A_RB_VM_FULL_AUDIT=0 independently disable the additional ledger report and post-window census.
+S2A_RB_NATIVE_CADENCE=0 restores the generic FPS-capability behavior preceding patch 0170. These changes are provided
+under S2Arm's Apache License, Version 2.0; all upstream and third-party notices remain applicable.
+
 The engine also contains third-party code; S2Arm's own table of it is S2Arm/THIRD_PARTY_LICENSES.md. The exact
 licence and notice texts of the components that reach this application are in the folders beside this file. Each is
 listed in license-sources.json with its origin (a file of that S2Arm commit, a source archive the engine build fetched

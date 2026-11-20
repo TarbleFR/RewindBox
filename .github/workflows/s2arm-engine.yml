@@ -290,7 +290,8 @@ jobs:
           note() { echo "$1" | tee -a "$report"; }
           nm -gU "$fw/S2ArmEngine" | awk '{print $3}' | sort > "$RUNNER_TEMP/guest-exports.txt"
           for sym in _s2a_rb_guest_prepare_graphics _s2a_rb_guest_prepare_gpu_status _s2a_rb_guest_configure _s2a_rb_guest_make_view_controller _s2a_rb_guest_start _s2a_rb_guest_stop _s2a_rb_guest_fatal \
-                     _s2a_rb_guest_parked _s2a_rb_guest_view_controller _s2a_rb_guest_resume; do
+                     _s2a_rb_guest_parked _s2a_rb_guest_view_controller _s2a_rb_guest_resume _s2a_rb_guest_benchmark \
+                     _s2a_rb_bench_managed_snapshot _s2a_rb_bench_managed_active; do
             if grep -qx "$sym" "$RUNNER_TEMP/guest-exports.txt"; then note "ok   exported $sym"; else note "FAIL not exported: $sym"; status=1; fi
           done
           # Looked up by name by the engine itself (export_list.py REQUIRED): the input pump (controller and touch), the C# clock and

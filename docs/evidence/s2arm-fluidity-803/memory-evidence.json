@@ -1,0 +1,374 @@
+{
+  "schema": "rewindbox.memory-review.v1",
+  "capture": {
+    "appBuild": 802,
+    "engineRun": 44746620489,
+    "hostSha256": "e5bc90b0757ed660c05edbc1f2387486cd422834b58b50a74369d3564bd9d738",
+    "noSynchronizedScene": true
+  },
+  "appliedSource": "0001-0170 supplied by implementation owner",
+  "sourceSha256": {
+    "runtime/src/vawin.c": "ddff414f4a60cd19908a8ee6e28770149cfc93d88ad839afaf592a455a32aa10",
+    "runtime/src/session.c": "e55b2269bde1edf2f659a5891e3583eeab6471ac27278a910e0e1cf659e12e38",
+    "ios/app.m": "a00632a22801c46138f7de82205c6f72827da9e06958fa2795a6b31df5f7fbe0",
+    "graphics/nvn/gfx/nvn/nvn_mtl.m": "ce752be04e716cb6f56e7390c9b2b3430d1f5694f6b6725b8dc08d48351e72a3",
+    "graphics/nvn/gfx/nvn/nvn_session.inc": "e77d0d8a068e2811aa5207d50f9aa49605b564b3b43e9e5d242146e9881ff797"
+  },
+  "units": "MiB; older log labels MB but computes bytes >> 20. compressedLogicalMiB is original-size accounting, not compressor storage bytes.",
+  "taskVMSnapshots": [
+    {
+      "line": 2635,
+      "frame": 0,
+      "internalMiB": 508,
+      "externalMiB": 2188,
+      "compressedLogicalMiB": 369
+    },
+    {
+      "line": 5593,
+      "frame": 285,
+      "internalMiB": 111,
+      "externalMiB": 1718,
+      "compressedLogicalMiB": 1157
+    },
+    {
+      "line": 6761,
+      "frame": 627,
+      "internalMiB": 225,
+      "externalMiB": 861,
+      "compressedLogicalMiB": 1131
+    },
+    {
+      "line": 7440,
+      "frame": 1072,
+      "internalMiB": 264,
+      "externalMiB": 1035,
+      "compressedLogicalMiB": 1140
+    },
+    {
+      "line": 8170,
+      "frame": 1596,
+      "internalMiB": 219,
+      "externalMiB": 1074,
+      "compressedLogicalMiB": 1241
+    },
+    {
+      "line": 8817,
+      "frame": 2069,
+      "internalMiB": 139,
+      "externalMiB": 1190,
+      "compressedLogicalMiB": 1331
+    },
+    {
+      "line": 9761,
+      "frame": 2305,
+      "internalMiB": 202,
+      "externalMiB": 590,
+      "compressedLogicalMiB": 1273
+    },
+    {
+      "line": 10242,
+      "frame": 2627,
+      "internalMiB": 209,
+      "externalMiB": 825,
+      "compressedLogicalMiB": 1308
+    },
+    {
+      "line": 10774,
+      "frame": 2966,
+      "internalMiB": 234,
+      "externalMiB": 899,
+      "compressedLogicalMiB": 1311
+    },
+    {
+      "line": 11429,
+      "frame": 3345,
+      "internalMiB": 247,
+      "externalMiB": 977,
+      "compressedLogicalMiB": 1303
+    },
+    {
+      "line": 12053,
+      "frame": 3642,
+      "internalMiB": 259,
+      "externalMiB": 900,
+      "compressedLogicalMiB": 1289
+    },
+    {
+      "line": 12335,
+      "frame": 3858,
+      "internalMiB": 277,
+      "externalMiB": 889,
+      "compressedLogicalMiB": 1277
+    },
+    {
+      "line": 12699,
+      "frame": 4116,
+      "internalMiB": 228,
+      "externalMiB": 907,
+      "compressedLogicalMiB": 1324
+    },
+    {
+      "line": 13187,
+      "frame": 4423,
+      "internalMiB": 282,
+      "externalMiB": 894,
+      "compressedLogicalMiB": 1271
+    },
+    {
+      "line": 13692,
+      "frame": 4786,
+      "internalMiB": 278,
+      "externalMiB": 956,
+      "compressedLogicalMiB": 1274
+    },
+    {
+      "line": 14276,
+      "frame": 5169,
+      "internalMiB": 313,
+      "externalMiB": 949,
+      "compressedLogicalMiB": 1240
+    },
+    {
+      "line": 14784,
+      "frame": 5526,
+      "internalMiB": 277,
+      "externalMiB": 867,
+      "compressedLogicalMiB": 1276
+    },
+    {
+      "line": 15297,
+      "frame": 5863,
+      "internalMiB": 302,
+      "externalMiB": 951,
+      "compressedLogicalMiB": 1256
+    },
+    {
+      "line": 15683,
+      "frame": 6104,
+      "internalMiB": 294,
+      "externalMiB": 934,
+      "compressedLogicalMiB": 1266
+    },
+    {
+      "line": 16082,
+      "frame": 6400,
+      "internalMiB": 240,
+      "externalMiB": 813,
+      "compressedLogicalMiB": 1327
+    }
+  ],
+  "mappingSlices": [
+    {
+      "line": 2636,
+      "frame": 0,
+      "elapsedMs": 5.0,
+      "status": "time-limit",
+      "regions": 2304,
+      "skipped": 0,
+      "slice": 1
+    },
+    {
+      "line": 5594,
+      "frame": 285,
+      "elapsedMs": 5.2,
+      "status": "time-limit",
+      "regions": 1280,
+      "skipped": 0,
+      "slice": 2
+    },
+    {
+      "line": 6762,
+      "frame": 627,
+      "elapsedMs": 5.0,
+      "status": "time-limit",
+      "regions": 2688,
+      "skipped": 0,
+      "slice": 3
+    },
+    {
+      "line": 7441,
+      "frame": 1072,
+      "elapsedMs": 6.1,
+      "status": "time-limit",
+      "regions": 384,
+      "skipped": 0,
+      "slice": 4
+    },
+    {
+      "line": 8171,
+      "frame": 1596,
+      "elapsedMs": 5.5,
+      "status": "time-limit",
+      "regions": 1920,
+      "skipped": 0,
+      "slice": 5
+    },
+    {
+      "line": 8818,
+      "frame": 2069,
+      "elapsedMs": 5.7,
+      "status": "time-limit",
+      "regions": 1856,
+      "skipped": 9,
+      "slice": 6
+    },
+    {
+      "line": 9762,
+      "frame": 2305,
+      "elapsedMs": 5.2,
+      "status": "time-limit",
+      "regions": 384,
+      "skipped": 7,
+      "slice": 7
+    },
+    {
+      "line": 10243,
+      "frame": 2627,
+      "elapsedMs": 5.2,
+      "status": "time-limit",
+      "regions": 1408,
+      "skipped": 0,
+      "slice": 8
+    },
+    {
+      "line": 10775,
+      "frame": 2966,
+      "elapsedMs": 5.1,
+      "status": "time-limit",
+      "regions": 512,
+      "skipped": 0,
+      "slice": 9
+    },
+    {
+      "line": 11430,
+      "frame": 3345,
+      "elapsedMs": 5.1,
+      "status": "time-limit",
+      "regions": 1664,
+      "skipped": 0,
+      "slice": 10
+    },
+    {
+      "line": 12054,
+      "frame": 3642,
+      "elapsedMs": 5.0,
+      "status": "time-limit",
+      "regions": 2816,
+      "skipped": 0,
+      "slice": 11
+    },
+    {
+      "line": 12336,
+      "frame": 3858,
+      "elapsedMs": 5.0,
+      "status": "time-limit",
+      "regions": 4416,
+      "skipped": 0,
+      "slice": 12
+    },
+    {
+      "line": 12700,
+      "frame": 4116,
+      "elapsedMs": 5.1,
+      "status": "time-limit",
+      "regions": 1472,
+      "skipped": 0,
+      "slice": 13
+    },
+    {
+      "line": 13188,
+      "frame": 4423,
+      "elapsedMs": 5.8,
+      "status": "time-limit",
+      "regions": 192,
+      "skipped": 0,
+      "slice": 14
+    },
+    {
+      "line": 13693,
+      "frame": 4786,
+      "elapsedMs": 5.1,
+      "status": "time-limit",
+      "regions": 896,
+      "skipped": 0,
+      "slice": 15
+    },
+    {
+      "line": 14277,
+      "frame": 5169,
+      "elapsedMs": 5.0,
+      "status": "time-limit",
+      "regions": 1536,
+      "skipped": 0,
+      "slice": 16
+    },
+    {
+      "line": 14785,
+      "frame": 5526,
+      "elapsedMs": 5.1,
+      "status": "time-limit",
+      "regions": 2240,
+      "skipped": 0,
+      "slice": 17
+    },
+    {
+      "line": 15298,
+      "frame": 5863,
+      "elapsedMs": 5.4,
+      "status": "time-limit",
+      "regions": 1536,
+      "skipped": 0,
+      "slice": 18
+    },
+    {
+      "line": 15684,
+      "frame": 6104,
+      "elapsedMs": 10.5,
+      "status": "time-limit",
+      "regions": 192,
+      "skipped": 0,
+      "slice": 19
+    },
+    {
+      "line": 16083,
+      "frame": 6400,
+      "elapsedMs": 5.1,
+      "status": "time-limit",
+      "regions": 384,
+      "skipped": 0,
+      "slice": 20
+    }
+  ],
+  "mappingEvidence": {
+    "completeWalks": 0,
+    "slices": 20,
+    "regionsVisitedAcrossDifferentTimes": 30080,
+    "maxSliceElapsedMs": 10.5,
+    "notAnAtomicTotal": true
+  },
+  "poolReadAheadAt6300": {
+    "sourceLine": 15918,
+    "triggerUploads": 1696,
+    "enqueuedSpans": 342,
+    "enqueuedSpanMiB": 1966,
+    "absentPagesObservedByWorker": 99387,
+    "absentLogicalMiBRounded": 1552,
+    "queuePendingMiB": 0,
+    "queuePeakMiB": 63,
+    "queueRefusedSpans": 61,
+    "queueSourceLine": 15919,
+    "doesNotMeasure": [
+      "unique pages",
+      "successful madvise advice",
+      "actual I/O completion",
+      "later demand use",
+      "causal saved page faults"
+    ]
+  },
+  "primarySources": {
+    "repository": "apple-oss-distributions/xnu",
+    "commit": "f6217f891ac0bb64f3d375211650a4c1ff8ca1ea",
+    "release": "xnu-12377.1.9",
+    "notProvenDeviceKernelRevision": true
+  }
+}
