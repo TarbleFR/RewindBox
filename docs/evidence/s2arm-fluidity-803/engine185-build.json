@@ -1,0 +1,66 @@
+{
+  "source": "68d726832298085bb850ad85fb368c47e7d82f95",
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "run": 44832243329,
+  "attempt": 1,
+  "xcode": "Xcode 26.6",
+  "jobs": [
+    {
+      "platform": "macos-26",
+      "id": 136619791882,
+      "result": "success"
+    },
+    {
+      "platform": "macos-15",
+      "id": 136619792387,
+      "result": "success"
+    }
+  ],
+  "patchesVerified": 185,
+  "first180UnchangedFrom805": true,
+  "patchDelta": [
+    {
+      "name": "0181-budget-idle-metal-texture-reuse-by-ios-headroom.patch",
+      "sha256": "995c435c20bf597ba6595640abe9434bb114f3efb4e65dfde4766eb81c46d4c8"
+    },
+    {
+      "name": "0182-retire-cold-packaged-texture-spares.patch",
+      "sha256": "cfb542fcdf99a2e2bfbb82b86c555f5e6b2ca2ca9d56f3da1c9132082e8bbeb8"
+    },
+    {
+      "name": "0183-park-only-unpublished-guest-backed-texture-uploads.patch",
+      "sha256": "9e790d742d49e25db2aed7945a0b1b08a9501550395191428cf12d7cc12cf791"
+    },
+    {
+      "name": "0184-measure-texture-owners-and-post-eviction-uploads.patch",
+      "sha256": "02a4223654ef0d91367f83a99f957a4e448d5dc19231a95a700ec209b1764559"
+    },
+    {
+      "name": "0185-isolate-recorded-texture-upload-and-page-hints.patch",
+      "sha256": "c6e1fae5869a9cc0a95655f5ddd66e30d5f15179b92568ced1956079daa4f81f"
+    }
+  ],
+  "engineFingerprint": "7e6443e71cabbcdb54f38868d5506ff2de1bc5d254318d7ef5e03ef2cc2de854",
+  "pinSha256": "601aeb57b676ad52534f254a30c10f436d69a8504edd6ee91ac7ebdee8ce7918",
+  "artifact": {
+    "run": 44832243329,
+    "attempt": 1,
+    "artifact": 14678160236,
+    "name": "s2arm-engine-framework-68d726832298085bb850ad85fb368c47e7d82f95",
+    "bytes": 25049149,
+    "sha256": "6351e5de621252cf1cd1e6f49121cd5d5bbd5d4f5162b355f84a6b330f753a3f",
+    "headSha": "68d726832298085bb850ad85fb368c47e7d82f95",
+    "headBranch": "Claude",
+    "expiresAt": "2026-12-20T23:03:01Z"
+  },
+  "prepareRun": 44555747908,
+  "sysdataRun": 43038032448,
+  "directShaderChain": "0be3f28548fd",
+  "exportListUnchanged": true,
+  "exportsComparedAgainstSource": "5bc7fa9089c3224e8a3300116dec36fd55ad1938",
+  "ns2proUnchangedFrom805": true,
+  "noticeMatchesSource": true,
+  "privateDelivery": "pending",
+  "validDeviceWindows": 0,
+  "observedPerformance": null
+}
