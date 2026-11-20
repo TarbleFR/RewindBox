@@ -1,0 +1,431 @@
+diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+index 4d11c3e..f851f8d 100644
+--- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
++++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+@@ -92,6 +92,7 @@ namespace Ryujinx.Audio.Backends.Apple
+         private static int _watchdogStarted;
+         private long _lastCallbackTicks;
+         private long _lastHealTicks;
++        private bool _watchdogAwaitingActivation;
+         private int _heals;
+         private bool _testStallDone;
+         // 测试钩子：S2A_AUDIO_TEST_PRODUCER_STALL_AT=<秒>:<毫秒> —— 开播后到点在送声音的入口（QueueBuffer）睡一次，模拟 GC 停顿卡住生产方、吃光缓冲垫
+@@ -337,6 +338,16 @@ namespace Ryujinx.Audio.Backends.Apple
+                 _lastHealTicks = now;
+                 long inFlightFrames = _pump.InFlightBytes / _bytesPerFrame;
+                 bool active = _driver.S2AReactivateSession();
++                if (OperatingSystem.IsIOS() && !active && red && !rebuild && !reprime)
++                {
++                    if (!_watchdogAwaitingActivation)
++                    {
++                        Console.Error.WriteLine($"[audio] output #{_diag.Index}: watchdog deferred until the audio session can activate.");
++                        _watchdogAwaitingActivation = true;
++                    }
++                    return;
++                }
++                _watchdogAwaitingActivation = false;
+                 int stopRc = 0, newRc = 0;
+                 // 停 / 重建期间泵不交缓冲（审计 P1-27）：同步停队列时缓冲经回调交还，回调和游戏线程的 Pump 此时什么都不交；
+                 //   原先它们照交，收回又把队列仍持有的缓冲放回池里、这里再交一次 = 同一块缓冲入队两次。停失败（缓冲可能还在队列里）不收回
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 6f2e9fe..d452848 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -2910,7 +2910,7 @@ void nvn_hle_piece_begun(void) { nvn_ft_poll(); }
+ #include "rb_course_metrics.h"
+ extern int s2a_rb_mkw_measure(void) __attribute__((weak_import));
+ extern void s2a_rb_mkw_reads_take(uint64_t out[3]) __attribute__((weak_import));
+-extern uint64_t s2a_rb_mkw_wait_take(void) __attribute__((weak_import));
++extern uint64_t s2a_rb_mkw_wait_detail_take(uint64_t [8]) __attribute__((weak_import));
+ extern uint64_t nvn_rb_upload_gpu_sample(uint64_t *,uint64_t *) __attribute__((weak_import));
+ extern void nvn_rb_course_frame_observed(uint64_t frame, uint64_t ns, double texture_ms, double gpu_upload_ms,
+                                          double xlate_ms, double xwait_ms, unsigned msl_n, double msl_ms,
+@@ -3310,6 +3310,8 @@ static void dump_frame(void) {
+ // ---------- Timing instrumentation (per-frame rows written to DM_NVN_TSV: frame / @metric / value; every 300 frames a summary of p50 / p95 / max) ----------
+ #define TWIN 300
+ static double g_tw[6][TWIN]; static unsigned g_tn[6];
++static double g_visible_first, g_visible_last;
++static unsigned g_visible_count, g_visible_unknown;
+ static double g_pres_iv[TWIN]; static unsigned g_presn;   // Present interval (ms; -1 = dropped by the system, 0 = no reading)
+ static double g_pres_exp[TWIN], g_pres_exp_last;   // how long that frame should have stayed on screen (ms, pres_expect_ms); the last one for slow_emit
+ // The hold (60 Hz vsyncs) each present was given, by present number. On-screen intervals are read 8 presents late, so each is judged against the holds of its own presents:
+@@ -3465,7 +3467,11 @@ static void tsummary(uint64_t frame) {
+       task_vm_info_data_t vi; mach_msg_type_number_t vc = TASK_VM_INFO_COUNT; double fp = task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&vi, &vc) == KERN_SUCCESS ? vi.phys_footprint / 1048576.0 : -1;
+       double br = dm_brightness_now();   // footprint / brightness are carried on the on-screen present row: does not depend on the tick-entry observation gate (camp runs have it too)
+       if (k) { qsort(v, k, sizeof *v, dcmp); LOG("[nvn] on-screen up to frame %llu: %u frames, dropped %u (discarded %u), p99 %.2f ms; footprint %.0f MiB; brightness %.2f; thermal %d", frame, k + discard, drop, discard, v[(k * 99) / 100 < k ? (k * 99) / 100 : k - 1], fp, br, dm_thermal_now()); }
+-      g_presn = 0; }
++      if (g_visible_count > 1 && g_visible_last > g_visible_first)
++          LOG("[nvn] displayed window up to frame %llu: observed %.3f fps, %u visible timestamps, %u unavailable",
++              frame,(g_visible_count-1)/(g_visible_last-g_visible_first),g_visible_count,g_visible_unknown);
++      g_visible_first = g_visible_last = 0;
++      g_visible_count = g_visible_unknown = g_presn = 0; }
+     power_line(frame);
+     { static uint64_t prev[4], pf; uint64_t v[4]; nvn_be_vbuf_stats(&v[0], &v[1], &v[2], &v[3]);
+       if (pf && frame > pf) { double nf = (double)(frame - pf);
+@@ -3974,7 +3980,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+             if (!rb_interval && s2a_rb_mkw_measure && s2a_rb_mkw_measure()) {
+                 uint64_t before_first_present[3];
+                 if (s2a_rb_mkw_reads_take) s2a_rb_mkw_reads_take(before_first_present);
+-                if (s2a_rb_mkw_wait_take) s2a_rb_mkw_wait_take();
++                if (s2a_rb_mkw_wait_detail_take) s2a_rb_mkw_wait_detail_take(NULL);
+                 rb_vm_decompressions();
+             }
+             if (nvn_rb_course_frame_observed && rb_interval) {
+@@ -3987,8 +3993,8 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+                     detail.vm_decompressed_pages = rb_vm_decompressions();
+                     static pthread_t wait_thread;
+                     static int have_wait_thread;
+-                    if (s2a_rb_mkw_wait_take) {
+-                        uint64_t waited = s2a_rb_mkw_wait_take();
++                    if (s2a_rb_mkw_wait_detail_take) {
++                        uint64_t waited = s2a_rb_mkw_wait_detail_take(detail.longest_svc);
+                         if (have_wait_thread && pthread_equal(wait_thread,pthread_self())) detail.guest_wait_ns = (int64_t)waited;
+                         wait_thread = pthread_self();
+                         have_wait_thread = 1;
+@@ -4067,7 +4073,12 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+     if (idx >= 0 && idx < 4) o->avail[idx] = period ? slot + period : 0;
+     static uint64_t prev_slot; if (prev_slot && period) trow(f, "@display_ms", (slot - prev_slot) / 1e6); prev_slot = slot;   // display interval between two adjacent frames on screen (this is the one to look at for dropped frames)
+     // Actual presentation interval (windowed mode): taken 8 presents late (the presented callback has arrived by then), as the difference between the n-th and the (n−1)-th; −1 = discarded
++    if (o->presents <= 9) { g_visible_count=g_visible_unknown=0; g_visible_first=g_visible_last=0; }
+     if (o->presents > 9) { uint64_t n = o->presents - 8; double a_ = nvn_be_presented_time(n), b_ = nvn_be_presented_time(n - 1);
++        if (a_ > 0 && a_ > g_visible_last) {
++            if (!g_visible_count++) g_visible_first=a_;
++            g_visible_last=a_;
++        } else if (a_ >= 0) g_visible_unknown++;
+         if (a_ < 0) trow(f - 8, "@presented_ms", -1); else if (a_ > 0 && b_ > 0) trow(f - 8, "@presented_ms", (a_ - b_) * 1e3);
+         g_pres_exp[g_presn % TWIN] = g_pres_exp_last = pres_expect_ms(n);
+         g_pres_iv[g_presn++ % TWIN] = a_ < 0 ? -1 : (a_ > 0 && b_ > 0 ? (a_ - b_) * 1e3 : 0);
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 6f2205a..1315fd8 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4591,8 +4591,16 @@ static void up_flush(void) {
+     if (b) { m4_end(b); g_up_ce = nil; }   // Metal 3: m4_end updates the fence
+     id cb = g_up_cb;
+     unsigned slot = (g_up_seq - 1) % (unsigned)rb_up_n();   // RewindBox (patch 0082): rb_up_n() slots
+-    NSMutableArray *dsts = [NSMutableArray arrayWithCapacity:(NSUInteger)g_nup_blits]; for (int i = 0; i < g_nup_blits; i++) if (g_up_blits[i].dst) [dsts addObject:g_up_blits[i].dst];
+-    for (int i = 0; i < g_nup_decs; i++) if (g_up_decs[i].base) [dsts addObject:g_up_decs[i].base];   // a dropped batch re-uploads its GPU-decoded textures too
++    NSMutableArray *dsts = [NSMutableArray array];
++    id lastDst = nil;
++    for (int i = 0; i < g_nup_blits; ++i) {
++        id dst = g_up_blits[i].dst;
++        if (dst && dst != lastDst) { [dsts addObject:dst]; lastDst = dst; }
++    }
++    for (int i = 0; i < g_nup_decs; ++i) {
++        id dst = g_up_decs[i].base;
++        if (dst && dst != lastDst) { [dsts addObject:dst]; lastDst = dst; }
++    }
+     static int lost_at = -2; static uint64_t batch_n; if (lost_at == -2) { const char *e = getenv("DM_TEST_UP_LOST"); lost_at = e ? atoi(e) : -1; } int fake_lost = dsts.count && lost_at > 0 && (int)++batch_n == lost_at;
+     // This batch's staging is read only by this upload command buffer: retire it when the upload completes. defer_obj_release waits for the next replay submission's fence, which an
+     // open submission does not reach until it ends, so batches flushed at UP_KEEP_CAP inside one submission still kept every block (a frame replay grew past 37 GB)
+@@ -5837,8 +5845,8 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+     }
+     g_bp_up_bytes += total;
+     void *mb; uint64_t mo; id<MTLBuffer> upsrc = nil;
+-    if ((!unp || gdec) && !sparse && !rb && g_nvn_deswz_gpu) { up_begin(); upsrc = up_tex_src((uint64_t)t->mem, t->L.size, &mo); if (upsrc) mb = (__bridge void *)upsrc; }   // a pool that holds only textures stays out of the residency set (up_tex_src)
+     int lin = (t->d.flags & (NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET)) != 0;   // 线性排布（tex_linear_needs_upload）只有 CPU 逐行拷，GPU 去混排不认
++    if ((!unp || gdec) && !sparse && !rb && !lin && g_nvn_deswz_gpu) { up_begin(); upsrc = up_tex_src((uint64_t)t->mem, t->L.size, &mo); if (upsrc) mb = (__bridge void *)upsrc; }   // a pool that holds only textures stays out of the residency set (up_tex_src)
+     int use_gpu = (!unp || gdec) && !sparse && !rb && g_nvn_deswz_gpu && !lin && (upsrc || nvn_be_addr((uint64_t)t->mem, t->L.size, &mb, &mo));   // 线性排布（tex_linear_needs_upload）只有 CPU 逐行拷，GPU 去混排不认   // a sparse pool's texture is gathered through its page table on the CPU
+     if (g_nvn_deswz_gpu && !use_gpu && !sparse && !rb && !lin && (!unp || gdec)) RED_ONCE(40, "swizzled texture storage is not in a memory pool; falling back to the CPU");   // rb: said by rb_pkg_note, and the GPU would read the pool's pages themselves
+     if (use_gpu) {
+@@ -5865,7 +5873,8 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+                     if (!v) { enc_ok = 0; break; }
+                     uint32_t *pp = (uint32_t *)((uint8_t *)q.contents + qoff); pp[0] = (uint32_t)(stg_off + off); pp[1] = (uint32_t)pitch; pp[2] = w; pp[3] = h; pp[4] = (uint32_t)bcd_fmt(t->d.format); pp[5] = 0;
+                     if (g_nup_decs == g_up_deccap) { size_t c = g_up_deccap ? g_up_deccap * 2 : 256; if (GROW(g_up_decs, c * sizeof *g_up_decs, "BC decode list")) g_up_deccap = c; }
+-                    if (g_nup_decs < g_up_deccap) g_up_decs[g_nup_decs++] = (up_dec){stg, q, qoff, (w + 3) / 4, (h + 3) / 4, v, mt}; [g_up_texs addObject:v]; defer_obj_unref(v);   // the view goes when this submission has run; the residency set holds the base texture
++                    if (g_nup_decs == g_up_deccap) { enc_ok = 0; break; }
++                    g_up_decs[g_nup_decs++] = (up_dec){stg, q, qoff, (w + 3) / 4, (h + 3) / 4, v, mt}; [g_up_texs addObject:v]; defer_obj_unref(v);   // the view goes when this submission has run; the residency set holds the base texture
+                     if (y == 0 && l == 0) bc_note(t->d.format, "upload, GPU");
+                 } else
+                 up_blit_add(stg, stg_off + off, pitch, pitch * rows, MTLSizeMake(w, h, z), mt, y, l);
+@@ -5911,8 +5920,8 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+         rb_up_pieces(t, mt, src, (unsigned)d.mipmapLevelCount, layers, unp, ubpp, bw, bh, bpb, total);
+         free(part); free(rb);
+         up_flush();
+-        if (k <= 8 || !(k & (k - 1))) {   // RewindBox (patch 0022): once the texture's staging is retired, what is left
+-            rec_drain(); up_wait_zero(&g_up_pending);
++        // Take a retirement snapshot only when uploads have already completed.
++        if ((k <= 8 || !(k & (k - 1))) && !atomic_load(&g_up_pending)) {
+             uint64_t fp, av; rb_up_mem(&fp, &av);
+             MLOG("RewindBox: texture ser=%llu staged; with its staging retired Metal holds %llu MB, the process %llu MB and it may take %llu MB more",
+                  (unsigned long long)t->serial, (unsigned long long)(g_dev.currentAllocatedSize >> 20), (unsigned long long)(fp >> 20), (unsigned long long)(av >> 20));
+@@ -5923,11 +5932,14 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+     res_add(stg); up_keep_add(stg);
+     size_t off = 0;
+     int zb = zblock_on() && t->d.format >= 0x79 && t->d.format <= 0x94; if (zb) { g_zb_ser = t->serial; g_zb_n = (int)MIN(d.mipmapLevelCount, 16u); memset(g_zb, 0, sizeof g_zb); memset(g_zb_tot, 0, sizeof g_zb_tot); }
++    uint8_t *cb = NULL;  // Later mip levels never exceed level zero.
+     for (unsigned l = 0; l < d.mipmapLevelCount; l++) {
+         uint32_t w = MAX(t->d.width >> l, 1u), h = MAX(t->d.height >> l, 1u), z = t->d.target == 2 ? MAX(t->d.depth >> l, 1u) : 1;
+         size_t pitch = (size_t)((w + bw - 1) / bw) * bpb, rows = (h + bh - 1) / bh;
+         if (unp) {   // no BC: the blocks of each layer are deswizzled into a scratch buffer and decompressed into the staging area (nvn_bc_decode, one depth slice at a time)
+-            size_t up = (size_t)w * ubpp; uint8_t *cb = malloc(pitch * rows * z ? pitch * rows * z : 1); bc_note(t->d.format, "upload");
++            size_t up = (size_t)w * ubpp;
++            if (!cb) cb = malloc(pitch * rows * z);
++            bc_note(t->d.format, "upload");
+             if (!cb) MDIE("BC decode scratch of %zu bytes failed", pitch * rows * z);
+             for (unsigned y = 0; y < layers; y++) {
+                 if (nvn_deswizzle(&t->d, l, y, src, cb, pitch)) { RED_ONCE(9, "deswizzle failed format %#x target %d", t->d.format, t->d.target); break; }
+@@ -5935,7 +5947,7 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+                 up_blit_add(stg, off, up, up * h, MTLSizeMake(w, h, z), mt, y, l);
+                 off += up * h * z;
+             }
+-            free(cb); continue;
++            continue;
+         }
+         for (unsigned y = 0; y < layers; y++) {
+             if (nvn_deswizzle(&t->d, l, y, src, (uint8_t *)stg.contents + off, pitch)) { RED_ONCE(9, "deswizzle failed format %#x target %d", t->d.format, t->d.target); break; }
+@@ -5946,6 +5958,7 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+             off += pitch * rows * z;
+         }
+     }
++    free(cb);
+     free(part); free(rb);
+     up_flush();
+     return mt;
+@@ -10304,13 +10317,14 @@ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+     // Guest writes (nvn_dirty_now) matter only to CPU-written textures: a texture that becomes CPU-written later bumps g_ser_gen once (nvn_be_tex_cpu_written), which sends its ID through here again.
+     // Before, every guest write to any protected page sent every texture ID, render targets included, down this path
+     rp->view_pkg = (rp->t.has_layout || tex_cpu_written(rp->t.serial)) && rp->t.mem;
++    id<MTLTexture> resolved = nil;
+     if (v) {   // The serial table or guest memory has changed: check whether the base texture was re-uploaded and replaced; if so the view is invalidated
+-        id<MTLTexture> cur = tex_mtl(&rp->t);
++        id<MTLTexture> cur = resolved = tex_mtl(&rp->t);
+         if ((cur || !txr_on()) && (cur == v || v.parentTexture == cur)) { rp->view_ser = sg; rp->view_sa = sa; rp->view_dirty = dg; rp->view_ep = g_pkg_epoch; treg_sp_note(tid, rp, cur, spq); return v; }   // RewindBox (patch 0031): treg_sp_note; (patch 0073): view_sa; RewindBox (patch 0073): cur, nil is no match (a root view's object may serve another texture now, patch 0071's txr_take; S2A_RB_TEX_REUSE=0 as before)
+         defer_obj_unref(v); CFRelease(rp->view); rp->view = NULL; rp->alt_source_rid = rp->view_rid = 0; v = nil;
+     }
+     treg_t r = *rp;
+-    id<MTLTexture> base = tex_mtl(&rp->t);
++    id<MTLTexture> base = resolved ?: tex_mtl(&rp->t);
+     if (!base) return nil;
+     v = base;
+     // Channel swizzle: the view's if set, otherwise the one from texture building; identity builds no view (SMBW's font cache is (1 1 1 R): without the swizzle glyphs become white blocks).
+diff --git a/graphics/nvn/gfx/nvn/rb_course_metrics.h b/graphics/nvn/gfx/nvn/rb_course_metrics.h
+index 1d06f41..c5a81b6 100644
+--- a/graphics/nvn/gfx/nvn/rb_course_metrics.h
++++ b/graphics/nvn/gfx/nvn/rb_course_metrics.h
+@@ -7,6 +7,7 @@ typedef struct {
+     uint64_t outside_ns, longest_gap_ns;
+     uint64_t read_bytes, read_ns, read_calls;
+     int64_t guest_wait_ns, vm_decompressed_pages;
++    uint64_t longest_svc[8];
+     double process_read_mb, present_thread_ms;
+ } rb_course_detail;
+ 
+diff --git a/graphics/nvn/gfx/nvn/rb_course_tracking.inc b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
+index a35faad..d948fd9 100644
+--- a/graphics/nvn/gfx/nvn/rb_course_tracking.inc
++++ b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
+@@ -196,6 +196,13 @@ static void rb_course_metrics_flush(void) {
+                  (unsigned long long)r->io.texture_bytes,r->upload_ms,r->upload_gpu_ms,
+                  (unsigned long long)r->io.gpu_valid,(unsigned long long)r->io.gpu_unavailable);
+             if (r->interval > 100000000ull) {
++                if (r->io.guest_wait_ns >= 0 && r->io.longest_svc[0] >= 50000000ull) {
++                    const uint64_t *s = r->io.longest_svc;
++                    MLOG("RewindBox guest wait frame=%llu ns=%llu svc=0x%llx key_or_list=0x%llx guest_thread=%llu guest_pc=0x%llx result=0x%llx signaled_handle=0x%llx last_waker_guest=%llu",
++                         (unsigned long long)r->frame,(unsigned long long)s[0],(unsigned long long)s[1],
++                         (unsigned long long)s[2],(unsigned long long)s[3],(unsigned long long)s[4],
++                         (unsigned long long)s[5],(unsigned long long)s[6],(unsigned long long)s[7]);
++                }
+                 MLOG("RewindBox cup gap frame=%llu outside_ns=%llu longest_ns=%llu "
+                      "romfs_read_calls=%llu romfs_read_bytes=%llu romfs_read_ns=%llu "
+                      "present_guest_wait_ns=%lld process_read_mib=%.3f present_thread_ms=%.3f vm_decompressed_pages=%lld guest_decompress=unavailable",
+diff --git a/graphics/nvn/host/rb_external_stages.inc b/graphics/nvn/host/rb_external_stages.inc
+index 41fa1c8..cc68e4b 100644
+--- a/graphics/nvn/host/rb_external_stages.inc
++++ b/graphics/nvn/host/rb_external_stages.inc
+@@ -38,7 +38,7 @@ static BOOL rb_read_external(NSString *wire,RBStageAliases *a) {
+             a->requested.count>=RB_EXT_MAX) { a->rejected=YES; break; }
+         memcpy(hex,line+2,16); hex[16]=0;
+         [a->requested addObject:rb_alias_id(line[0],line[19]-'0',hex)];
+-        a->active[line[0]=='P']=1;
++        a->active[line[0]=='P'] |= 1u << (line[19]-'0');
+         CC_SHA256_Update(&hc,line,size);
+     }
+     int io=ferror(f); fclose(f);
+@@ -92,10 +92,11 @@ static BOOL rb_alias_candidate(RBStageAliases *a,NSMutableOrderedSet *entries,NS
+                                const uint8_t *ctl,unsigned nt,const uint8_t *code,unsigned nc,int *overflow) {
+     if (!a->indexName) return NO;
+     int stage=rb_external_render_stage(dsh);
++    if (stage < 0 || stage > 5) return NO;
+     BOOL matched=NO; NSString *witness=nil;
+     for (int i=0;i<2;i++) {
+         char src=i?'P':'K', hex[17];
+-        if (!a->active[i] || !rb_external_key(src,ctl,nt,code,nc,hex)) continue;
++        if (!(a->active[i] & (1u << stage)) || !rb_external_key(src,ctl,nt,code,nc,hex)) continue;
+         NSString *alias=rb_alias_id(src,stage,hex);
+         if (![a->requested containsObject:alias]) continue;
+         if (!witness) { witness=rb_alias_witness(ctl,nt,code,nc); rb_alias_expect(a,native,witness); }
+diff --git a/graphics/nvn/host/rb_prepare_stages.inc b/graphics/nvn/host/rb_prepare_stages.inc
+index b5c49e5..22ac75e 100644
+--- a/graphics/nvn/host/rb_prepare_stages.inc
++++ b/graphics/nvn/host/rb_prepare_stages.inc
+@@ -159,7 +159,12 @@ static unsigned rb_resource_scan(rb_local_scan *scan,NSString *root,const char *
+ static void rb_row_digest(const char *row,size_t n,char hex[65]) {
+     unsigned char sum[CC_SHA256_DIGEST_LENGTH];
+     CC_SHA256(row,(CC_LONG)n,sum);
+-    for (unsigned i=0;i<sizeof sum;i++) snprintf(hex+2*i,3,"%02x",sum[i]);
++    static const char digits[]="0123456789abcdef";
++    for (unsigned i=0;i<sizeof sum;i++) {
++        hex[2*i]=digits[sum[i] >> 4];
++        hex[2*i+1]=digits[sum[i] & 15];
++    }
++    hex[2*sizeof sum]=0;
+ }
+ 
+ // One checksummed line per asset, in the exact order of pack/index.tsv.
+@@ -332,6 +337,7 @@ static int rb_stage_assets(NSString *game,NSString *wire,rb_local_scan *scan,rb_
+ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const char *profile,int (*cancel)(void *),
+                                   void *ctx,uint64_t stats[8],rb_inflate_fn inflate,
+                                   void (*progress)(void *,uint64_t,uint64_t),rb_stage_spill_fn spill) {
++    NSTimeInterval entered=NSProcessInfo.processInfo.systemUptime;
+     NSString *wire=@(wire_path), *out=[wire stringByAppendingPathComponent:@"shaders"];
+     if (![NSFileManager.defaultManager createDirectoryAtPath:out withIntermediateDirectories:YES attributes:nil error:NULL]) return -1;
+     NSMutableOrderedSet *targets=[NSMutableOrderedSet orderedSet];
+@@ -372,8 +378,10 @@ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const c
+     } }
+     stats[1]=current.count;
+     if (progress) progress(ctx,0,0);
++    NSTimeInterval scanStart=NSProcessInfo.processInfo.systemUptime;
+     int rc=rb_stage_assets(@(game),wire,&scan,&batch,&stats[7],progress);
+     if (rc) return rc;
++    NSTimeInterval scanEnd=NSProcessInfo.processInfo.systemUptime;
+     for (NSString *alias in aliases->requested) {
+         NSString *native=aliases->resolved[alias];
+         if (!native || [native isEqual:@"!"] || [aliases->conflicts containsObject:native]) continue;
+@@ -426,7 +434,10 @@ static int rb_prepare_stage_batch(const char *game,const char *wire_path,const c
+     } }
+     if (![report writeToFile:[wire stringByAppendingPathComponent:@"stage-recovery.tsv"] atomically:YES encoding:NSUTF8StringEncoding error:NULL]) return -1;
+     LOG("RewindBox: previously translated but stale: kept input %llu, recovered from local assets or dumps %llu, not located in inspected resources %llu",old_kept,old_found,old_missing);
+-    NSDictionary *coverage=@{@"spooled":@(scan.spooled),@"unavailableDictionary":@(scan.unsupported),@"corrupt":@(scan.malformed),
++    NSTimeInterval recoveryEnd=NSProcessInfo.processInfo.systemUptime;
++    NSDictionary *coverage=@{@"targetLookupMs":@((uint64_t)((scanStart-entered)*1000)),
++        @"assetScanMs":@((uint64_t)((scanEnd-scanStart)*1000)),
++        @"stageRecoveryMs":@((uint64_t)((recoveryEnd-scanEnd)*1000)),@"spooled":@(scan.spooled),@"unavailableDictionary":@(scan.unsupported),@"corrupt":@(scan.malformed),
+         @"resourceLimits":@(scan.limited),@"ioErrors":@(scan.io_errors),@"unlocatedRequestedKeys":@(stats[4])};
+     if (![coverage writeToFile:[wire stringByAppendingPathComponent:@"stage-scan-coverage.plist"] atomically:YES]) return -1;
+     LOG("RewindBox: priority stage inputs: %llu newly retranslated, %llu generation checkpoints reused, %llu compatible sources preserved without input, %llu failed",
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index d662d2a..e9582f4 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -140,6 +140,9 @@ typedef struct thr {
+     _Atomic int in_svc;                // 此刻在系统调用里（含阻塞在等待里）
+     _Atomic int pause; int pmach;
+ #if defined(__APPLE__)
++    _Atomic int mkw_wait_active;
++    _Atomic uint64_t mkw_last_waker;
++    uint32_t mkw_signaled_handle;
+     arm_thread_state64_t pst; arm_neon_state64_t pns;
+ #endif   // SetThreadActivity：在系统调用里的在出入口挂起；在游戏代码里的 Mach 挂起
+     uint64_t *svc_regs; uint64_t svc_pc;   // 当前系统调用的门帧与原 svc 指令地址
+@@ -394,6 +397,12 @@ static void wq_flush(void) {}
+ #endif
+ static void wake(thr_t *t, int64_t res) {
+     wait_diag_wake_locked(t, res);
++#if defined(__APPLE__)
++    if (atomic_load_explicit(&t->mkw_wait_active, memory_order_relaxed)) {
++        thr_t *w = thread_current_or_null();
++        atomic_store_explicit(&t->mkw_last_waker, w ? w->id : 0, memory_order_relaxed);
++    }
++#endif
+     if (wt_on()) { thr_t *w = thread_current_or_null(); uint64_t n = thread_clock(); t->tr_wake_t = n; t->tr_waker = w ? w->id : 0; if (w && w != t) w->tr_lastwake_t = n; }
+ #if defined(__APPLE__)
+     // RewindBox (patch 0074): woke last, after wres and wake_t, which block_u reads without G once it sees it; the wake-up deferred to after G inside a wq scope (see wq_add)
+@@ -2655,11 +2664,15 @@ static void peer_yield(thr_t *me) {
+ #if defined(__APPLE__)
+ extern int s2a_rb_mkw_measure(void) __attribute__((weak_import));
+ static _Thread_local uint64_t t_mkw_guest_wait_ns;
+-uint64_t s2a_rb_mkw_wait_take(void) {
++static _Thread_local uint64_t t_mkw_longest[8]; // ns, SVC, key/list, guest thread, PC, result, resolved handle, last waking guest thread
++uint64_t s2a_rb_mkw_wait_detail_take(uint64_t out[8]) {
++    if (out) memcpy(out,t_mkw_longest,sizeof t_mkw_longest);
++    memset(t_mkw_longest,0,sizeof t_mkw_longest);
+     uint64_t ns=t_mkw_guest_wait_ns;
+     t_mkw_guest_wait_ns=0;
+     return ns;
+ }
++uint64_t s2a_rb_mkw_wait_take(void) { return s2a_rb_mkw_wait_detail_take(NULL); }
+ #endif
+ int svc_thread(int num, uint64_t *regs) {
+ #if defined(__APPLE__)
+@@ -2694,10 +2707,26 @@ int svc_thread(int num, uint64_t *regs) {
+ #if defined(__APPLE__)
+     const int sync_call = num==0x18 || num==0x1A || num==0x1C || num==0x34;
+     const uint64_t mkw_wait_start = sync_call && s2a_rb_mkw_measure && s2a_rb_mkw_measure() ? now_mono_ns() : 0;
++    uint64_t object = mkw_wait_start ? regs[num == 0x34 ? 0 : 1] : 0;
++    if (mkw_wait_start) {
++        me->mkw_signaled_handle=0;
++        atomic_store_explicit(&me->mkw_last_waker,0,memory_order_relaxed);
++        atomic_store_explicit(&me->mkw_wait_active,1,memory_order_relaxed);
++    }
+ #endif
+     int r = svc_thread_impl(me, num, regs);
+ #if defined(__APPLE__)
+-    if (mkw_wait_start) t_mkw_guest_wait_ns += now_mono_ns()-mkw_wait_start;
++    if (mkw_wait_start) {
++        uint64_t elapsed = now_mono_ns()-mkw_wait_start;
++        atomic_store_explicit(&me->mkw_wait_active,0,memory_order_relaxed);
++        t_mkw_guest_wait_ns += elapsed;
++        if (elapsed > t_mkw_longest[0]) {
++            t_mkw_longest[0]=elapsed; t_mkw_longest[1]=num; t_mkw_longest[2]=object;
++            t_mkw_longest[3]=me->id; t_mkw_longest[4]=me->svc_pc;
++            t_mkw_longest[5]=regs[0]; t_mkw_longest[6]=me->mkw_signaled_handle;
++            t_mkw_longest[7]=atomic_load_explicit(&me->mkw_last_waker,memory_order_relaxed);
++        }
++    }
+     if (wq && !--t_wq_on) wq_flush();
+ #endif
+     if (diag) g_wd_source_svc = source_svc;
+@@ -3000,7 +3029,15 @@ static int svc_thread_impl(thr_t *me, int num, uint64_t *regs) {
+         for (;;) {
+             if (me->cancel) { me->cancel = 0; r = R_CANCELLED; break; }
+             int bad = 0;
+-            for (int i = 0; i < n && idx < 0; i++) if (sig_obj(hs[i], &bad)) idx = i;
++            for (int i = 0; i < n && idx < 0; i++) {
++                uint32_t handle = hs[i];
++                if (sig_obj(handle, &bad)) {
++                    idx = i;
++#if defined(__APPLE__)
++                    me->mkw_signaled_handle = handle;
++#endif
++                }
++            }
+             if (bad) { r = R_BAD_HANDLE; break; }
+             if (idx >= 0) { r = 0; break; }
+             int64_t left = ns < 0 ? -1 : ns == 0 ? 0 : deadline - now_mono_ns();
+diff --git a/services/S2A.Services/RomFsIndex.cs b/services/S2A.Services/RomFsIndex.cs
+index a9fb434..ba7b9f5 100644
+--- a/services/S2A.Services/RomFsIndex.cs
++++ b/services/S2A.Services/RomFsIndex.cs
+@@ -921,11 +921,13 @@ namespace S2A.Services
+             private readonly Dictionary<string, string> _overlay;   // RomFS 相对路径 → 覆盖层文件（OverlayFiles），null = 无覆盖层
+             private readonly Microsoft.Win32.SafeHandles.SafeFileHandle _image;   // 单文件镜像；null = 目录布局
+             private readonly bool _measureReads;
++            private readonly string _rootPrefix;
+             private readonly long[] _imageOffset;   // 文件号 → 镜像偏移，-1 = 在覆盖层
+ 
+             public IndexedStorage(string root, byte[] idx, string where, Dictionary<string, string> overlay, Microsoft.Win32.SafeHandles.SafeFileHandle image, long[] imageOffset)
+             {
+                 _root = root;
++                _rootPrefix = Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar;
+                 _overlay = overlay;
+                 _image = image;
+                 _imageOffset = imageOffset;
+@@ -1016,7 +1018,7 @@ namespace S2A.Services
+ 
+             private Result ReadIndexed(long offset, Span<byte> destination)
+             {
+-                if (offset < 0 || offset + destination.Length > _size)
++                if (offset < 0 || offset > _size || destination.Length > _size - offset)
+                 {
+                     return ResultFs.OutOfRange.Value;
+                 }
+@@ -1113,7 +1115,7 @@ namespace S2A.Services
+ 
+                     // 拼完必须仍在 romfs/ 下（审计 #1534 P1-5）：索引被改成 ../ 或绝对路径就拒绝这次打开，
+                     //   码同 LibHac 路径规范化里 .. 越过根（DirectoryUnobtainable）
+-                    if (!full.StartsWith(Path.TrimEndingDirectorySeparator(_root) + Path.DirectorySeparatorChar, StringComparison.Ordinal))
++                    if (!full.StartsWith(_rootPrefix, StringComparison.Ordinal))
+                     {
+                         Red.Report("RomFS 索引里的路径走出游戏 romfs/，拒绝打开", $"{rel} → {full}");
+                         return ResultFs.DirectoryUnobtainable.Value;

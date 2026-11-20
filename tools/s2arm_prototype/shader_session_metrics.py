@@ -59,6 +59,7 @@ def group_metrics(rows):
         "intervalNs": sum(intervals),
         "averageFPS": round(len(rows) * 1e9 / sum(intervals), 3),
         "p95Ms": intervals[math.ceil(0.95 * len(rows)) - 1] / 1e6,
+        "p99Ms": intervals[math.ceil(0.99 * len(rows)) - 1] / 1e6,
         **{f"over{ms}Ms": sum(ns > ms * 1_000_000 for ns in intervals) for ms in (100, 200, 500)},
         "psoWaitMs": round(sum(row["pso_wait_ns"] for row in rows) / 1e6, 3),
         "sharedLibraryWaitMs": round(sum(row["library_wait_ns"] for row in rows) / 1e6, 3),
@@ -78,6 +79,7 @@ def cup_metrics(rows, gap_rows, segments, lost_rows):
     if not rows:
         return None
     groups = defaultdict(list)
+    hints = defaultdict(list)
     ranges = iter(segments)
     current = next(ranges, None)
     named = 0
@@ -91,6 +93,7 @@ def cup_metrics(rows, gap_rows, segments, lost_rows):
         else:
             circuit, phase = None, "unknown"
         groups[circuit, phase].append(row)
+        hints[row["asset_hint"]].append(row)
     first, last = min(rows), max(rows)
     return {
         "first": first,
@@ -99,6 +102,7 @@ def cup_metrics(rows, gap_rows, segments, lost_rows):
         "reportedDroppedRows": lost_rows,
         "namedCircuitSamples": named,
         "total": group_metrics(list(rows.values())),
+        "byAssetHint": {hint: group_metrics(samples) for hint, samples in hints.items()},
         "byCircuitAndPhase": [
             {"circuit": circuit, "phase": phase, **group_metrics(samples)}
             for (circuit, phase), samples in groups.items()

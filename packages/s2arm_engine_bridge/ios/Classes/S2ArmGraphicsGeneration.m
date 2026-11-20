@@ -325,7 +325,7 @@ static NSData *evidenceTable(NSString *path) {
     return [NSPropertyListSerialization dataWithPropertyList:counters format:NSPropertyListXMLFormat_v1_0 options:0 error:NULL];
   }
   if (coverage) {
-    // The scan writes six counts. Encode only those values, including when
+    // Export known counters and optional phase durations, including when
     // Foundation represents the source dictionary as a binary plist.
     id object = [NSPropertyListSerialization propertyListWithData:data options:NSPropertyListImmutable format:NULL error:NULL];
     if (![object isKindOfClass:NSDictionary.class]) return nil;
@@ -334,6 +334,11 @@ static NSData *evidenceTable(NSString *path) {
       id value = object[key];
       if (![value isKindOfClass:NSNumber.class] || [value longLongValue] < 0) return nil;
       counts[key] = @([value unsignedLongLongValue]);
+    }
+    for (NSString *key in @[@"targetLookupMs", @"assetScanMs", @"stageRecoveryMs"]) {
+      id value = object[key];
+      if ([value isKindOfClass:NSNumber.class] && [value longLongValue] >= 0)
+        counts[key] = @([value unsignedLongLongValue]);
     }
     return [NSPropertyListSerialization dataWithPropertyList:counts format:NSPropertyListXMLFormat_v1_0 options:0 error:NULL];
   }
