@@ -556,73 +556,105 @@
       "path": "packages/libretro_internal_bridge",
       "git_entry_802": "040000 tree 4b2986e01f8299dd044dce7ede37a9ad5e86a659\tpackages/libretro_internal_bridge",
       "git_entry_803": "040000 tree 4b2986e01f8299dd044dce7ede37a9ad5e86a659\tpackages/libretro_internal_bridge",
-      "identical": true
+      "identical": true,
+      "present_in_both_revisions": true,
+      "status": "identical_tracked_git_entry"
     },
     {
       "path": "packages/achievement_translation",
       "git_entry_802": "040000 tree 2e6e713ab4e1f23b209266b61685d2e8ec388155\tpackages/achievement_translation",
       "git_entry_803": "040000 tree 2e6e713ab4e1f23b209266b61685d2e8ec388155\tpackages/achievement_translation",
-      "identical": true
+      "identical": true,
+      "present_in_both_revisions": true,
+      "status": "identical_tracked_git_entry"
     },
     {
       "path": "packages/retro_achievements_session",
       "git_entry_802": "040000 tree d9361e63f59767d463d9cda9a5b2c77b526e27ff\tpackages/retro_achievements_session",
       "git_entry_803": "040000 tree d9361e63f59767d463d9cda9a5b2c77b526e27ff\tpackages/retro_achievements_session",
-      "identical": true
+      "identical": true,
+      "present_in_both_revisions": true,
+      "status": "identical_tracked_git_entry"
     },
     {
       "path": "packages/external_display",
       "git_entry_802": "040000 tree 978bb0912a04f021dd2dd9348f4b54ea5740b2be\tpackages/external_display",
       "git_entry_803": "040000 tree 978bb0912a04f021dd2dd9348f4b54ea5740b2be\tpackages/external_display",
-      "identical": true
+      "identical": true,
+      "present_in_both_revisions": true,
+      "status": "identical_tracked_git_entry"
     },
     {
       "path": "packages/neo_shader_kit",
       "git_entry_802": "040000 tree 5ede95d587255db14dfc45273e2ba86679d97e18\tpackages/neo_shader_kit",
       "git_entry_803": "040000 tree 5ede95d587255db14dfc45273e2ba86679d97e18\tpackages/neo_shader_kit",
-      "identical": true
+      "identical": true,
+      "present_in_both_revisions": true,
+      "status": "identical_tracked_git_entry"
     },
     {
       "path": "packages/neo_cheat_catalog",
       "git_entry_802": "040000 tree 95ffb3bb62768d54d36201e9886ad95a4b2635a4\tpackages/neo_cheat_catalog",
       "git_entry_803": "040000 tree 95ffb3bb62768d54d36201e9886ad95a4b2635a4\tpackages/neo_cheat_catalog",
-      "identical": true
+      "identical": true,
+      "present_in_both_revisions": true,
+      "status": "identical_tracked_git_entry"
     },
     {
       "path": "ios/Podfile",
       "git_entry_802": null,
       "git_entry_803": null,
-      "identical": true
+      "identical": null,
+      "present_in_both_revisions": false,
+      "status": "absent_in_both_revisions; not a verified build input"
     },
     {
       "path": "ios/Podfile.lock",
       "git_entry_802": null,
       "git_entry_803": null,
-      "identical": true
+      "identical": null,
+      "present_in_both_revisions": false,
+      "status": "absent_in_both_revisions; not a verified build input"
     },
     {
       "path": "pubspec.yaml",
       "git_entry_802": "100644 blob becd9bcee8237922ea233253e89c0c147710a9e6\tpubspec.yaml",
       "git_entry_803": "100644 blob becd9bcee8237922ea233253e89c0c147710a9e6\tpubspec.yaml",
-      "identical": true
+      "identical": true,
+      "present_in_both_revisions": true,
+      "status": "identical_tracked_git_entry"
     },
     {
       "path": "pubspec.lock",
       "git_entry_802": "100644 blob 719ea3b6767c10e60209e144a4e7793520a88b54\tpubspec.lock",
       "git_entry_803": "100644 blob 719ea3b6767c10e60209e144a4e7793520a88b54\tpubspec.lock",
-      "identical": true
+      "identical": true,
+      "present_in_both_revisions": true,
+      "status": "identical_tracked_git_entry"
     },
     {
       "path": ".github/workflows/s2arm-delivery.yml",
       "git_entry_802": "100644 blob e004cc960a9212f1e4c58ac4cf336bc39c7bc14b\t.github/workflows/s2arm-delivery.yml",
       "git_entry_803": "100644 blob e004cc960a9212f1e4c58ac4cf336bc39c7bc14b\t.github/workflows/s2arm-delivery.yml",
-      "identical": true
+      "identical": true,
+      "present_in_both_revisions": true,
+      "status": "identical_tracked_git_entry"
     },
     {
       "path": "build-utils/libretro",
       "git_entry_802": "040000 tree 9a40f4b2c3726582b492f6aa2c3f9a3a852a2f21\tbuild-utils/libretro",
       "git_entry_803": "040000 tree 9a40f4b2c3726582b492f6aa2c3f9a3a852a2f21\tbuild-utils/libretro",
-      "identical": true
+      "identical": true,
+      "present_in_both_revisions": true,
+      "status": "identical_tracked_git_entry"
+    },
+    {
+      "path": ".github/workflows/standard-delivery.yml",
+      "git_entry_802": "100644 blob 6df547d219b95c8019c83138ec957518ff7cefd4\t.github/workflows/standard-delivery.yml",
+      "git_entry_803": "100644 blob 6df547d219b95c8019c83138ec957518ff7cefd4\t.github/workflows/standard-delivery.yml",
+      "identical": true,
+      "present_in_both_revisions": true,
+      "status": "identical_tracked_git_entry"
     }
   ],
   "limits": [

@@ -20,7 +20,7 @@ Tout `__LINKEDIT` avant la signature est identique : fixups/imports, export trie
 
 ## Sources et entrées de build
 
-Git `ffdb82c37d6dd8e1763a1263fca28eb424fb5e30` → `c5422386b72ec4ea88b010dab3826075ee7e79f8` ne modifie ni le bridge ni son podspec ni ses tiers inclus. Le tree Git du package est identique : `4b2986e01f8299dd044dce7ede37a9ad5e86a659`. Les dépendances déclarées du pod, Podfile/lock, pubspec/lock, le workflow de livraison S2Arm et `build-utils/libretro` ont également des entrées Git identiques. Le détail et les empreintes de toutes les sections figurent dans [libretro-image-difference.json](libretro-image-difference.json).
+Git `ffdb82c37d6dd8e1763a1263fca28eb424fb5e30` → `c5422386b72ec4ea88b010dab3826075ee7e79f8` ne modifie ni le bridge ni son podspec ni ses tiers inclus. Le tree Git du package est identique : `4b2986e01f8299dd044dce7ede37a9ad5e86a659`. Les dépendances déclarées du pod, `pubspec.yaml`/`pubspec.lock`, la recette standard réellement utilisée (`.github/workflows/standard-delivery.yml`), le workflow de livraison S2Arm historique et `build-utils/libretro` ont également des entrées Git identiques. Les chemins `ios/Podfile` et `ios/Podfile.lock` sont absents des deux révisions : ils ne constituent donc pas des entrées de build vérifiées dans ce constat. Le détail et les empreintes de toutes les sections figurent dans [libretro-image-difference.json](libretro-image-difference.json).
 
 ## Traitement dans le reçu
 
