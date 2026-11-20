@@ -81,7 +81,7 @@
   "candidatePreparation": {
     "build": 804,
     "status": "prepared-not-frozen-not-triggered",
-    "source": "b47339a9cc67ab18656507aab453a3e6e75b1c95",
+    "source": "ba74d50fa96dc56d93c2511856df1c9754a2b961",
     "baseImagesVerified": 97,
     "manifestSchemaErrors": [],
     "unclassifiedProductCommits": [],
@@ -89,11 +89,15 @@
     "missingDeclaredCommits": [],
     "effectiveDigest": "6853c07c42e378307af8a55562ae3215af1ed1d57d529dcc57e67c7b21dd6022",
     "privateOrPublicKeysGenerated": false,
-    "transportKeyInGit": false,
+    "newTransportKeyAddedToGit": false,
+    "existingRecipientReused": {
+      "path": "build-utils/delivery-798-nextendo-recipient.pem",
+      "sha256": "42fd4866b7608950986f7fe9dfe75f75abf14a25c61215a1774716d66e1b4936"
+    },
+    "matchingPrivateKeyVerifiedLocally": true,
     "engineSource": "f956b7d84b03c23f8ecb9ff500c7965a2ff25807",
     "enginePinSHA256": "e7a2a8fb48779d95ceb971250559bcf13088dd2858fa8134bd4f6d370eedd3e3",
     "remaining": [
-      "maintainer decision on the mandatory public encryption recipient",
       "normal contract and freeze, CI IPA build, download verification and private handoff",
       "three valid device benchmark windows per version"
     ]
