@@ -1,0 +1,70 @@
+{
+  "source": "e72c8c3a5a8d93ad52ded154cc617b351248a6d8",
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "run": 44838717788,
+  "attempt": 1,
+  "xcode": "Xcode 26.6",
+  "jobs": [
+    {
+      "platform": "macos-26",
+      "id": 136641499785,
+      "result": "success"
+    },
+    {
+      "platform": "macos-15",
+      "id": 136641500054,
+      "result": "success"
+    }
+  ],
+  "patchesVerified": 197,
+  "first191UnchangedFromGovernorBuild": true,
+  "patchDelta": [
+    {
+      "name": "0192-attribute-successful-demand-to-issued-read-ahead-pages.patch",
+      "sha256": "d5dbcd939589419ace06db55c4120846bc2df451073b293914db2779058f8418"
+    },
+    {
+      "name": "0193-shrink-optional-read-windows-using-closed-cohorts.patch",
+      "sha256": "430c86fcb3064325a4ec9dfe5089a6c24e41bc6acf923826260a25b2cf692157"
+    },
+    {
+      "name": "0194-omit-the-second-speculative-upload-after-a-recorded-bind.patch",
+      "sha256": "cf1ca2de31338945b7f5d76ba685f72740c5bf252617d5b3c3eee0c30803c5ac"
+    },
+    {
+      "name": "0195-report-read-ahead-yield-and-process-disk-read-bytes.patch",
+      "sha256": "d276ed82c509e5c5f26a046de53b63a669bf7d01cebb38c7d7808e45716f60ff"
+    },
+    {
+      "name": "0196-correlate-demand-page-misses-with-long-presentations.patch",
+      "sha256": "db7bcdbb7216f710b1619f5e2dbf983de99076516256d006f62b2bd748184484"
+    },
+    {
+      "name": "0197-confirm-natural-reads-and-censor-retired-pool-observations.patch",
+      "sha256": "089fd89dfa89edd1a4d6452e46a2d001502837101f864799cf3476e8c2a9f9eb"
+    }
+  ],
+  "engineFingerprint": "db66fd1426bde58a0fa57c4f8c4718e470b88542bb2da2c5097feea4adb9d4f1",
+  "pinSha256": "3706182205b914bc0f74be93de60b5fcfa8aba8c4936fb678da91f1719edfcdf",
+  "artifact": {
+    "run": 44838717788,
+    "attempt": 1,
+    "artifact": 14679963891,
+    "name": "s2arm-engine-framework-e72c8c3a5a8d93ad52ded154cc617b351248a6d8",
+    "bytes": 25063038,
+    "sha256": "35c061f8132175167974bf01c6ff26fdeaa09f154bf6b6c2aa15a4954e110242",
+    "headSha": "e72c8c3a5a8d93ad52ded154cc617b351248a6d8",
+    "headBranch": "Claude",
+    "expiresAt": "2026-12-20T23:55:03Z"
+  },
+  "prepareRun": 44555747908,
+  "sysdataRun": 43038032448,
+  "directShaderChain": "0be3f28548fd",
+  "exportListUnchanged": true,
+  "exportsComparedAgainstSource": "94c277b5dd872ea05cae4934826396f745b90e53",
+  "ns2proUnchangedFrom806": true,
+  "noticeMatchesSource": true,
+  "privateDelivery": "pending",
+  "validDeviceWindows": 0,
+  "observedPerformance": null
+}
