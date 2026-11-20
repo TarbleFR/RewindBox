@@ -1,0 +1,234 @@
+# RewindBox: keep the measured low-level race paths; discard the slower 0166 candidates.
+# Apple arm64 microbenchmarks and scope: docs/evidence/s2arm-801-driving-analysis.md.
+diff --git a/graphics/nvn/gfx/nvn/nvn_obj.h b/graphics/nvn/gfx/nvn/nvn_obj.h
+--- a/graphics/nvn/gfx/nvn/nvn_obj.h
++++ b/graphics/nvn/gfx/nvn/nvn_obj.h
+@@ -28,7 +28,14 @@
+ 
+ typedef struct { NVNdevice *dev; void *mem; uint64_t size; uint32_t flags; } pool_builder_t;  FITS(pool_builder_t, NVNmemoryPoolBuilder);
+ typedef struct { uint32_t magic, flags; uint8_t *mem; uint64_t size; int32_t nvmap; uint64_t gva; } pool_t;  FITS(pool_t, NVNmemoryPool);   // nvmap: the pool's nvmap handle, opened on first nvnTextureGetNvRmSurfaceNVX (0 = none yet); gva: 池的 GPU 地址（hle_nvn.c gva_alloc，0 = 没分到，用 CPU 地址）
++// The resolver returns native addresses unchanged outside this allocator window.
++// Keep the identity case inline; guest mappings still use the original lock.
++#define NVN_GVA_LO 0xC000000000ull
++#define NVN_GVA_HI 0x10000000000ull
+ uint64_t nvn_ga2ca(uint64_t a);   // 游戏拿到的 GPU 地址 → 池存储的 CPU 地址；窗口外原样返回（hle_nvn.c）
++static inline uint64_t nvn_ga2ca_inline(uint64_t a) {
++    return a < NVN_GVA_LO || a >= NVN_GVA_HI ? a : nvn_ga2ca(a);
++}
+ int nvn_gva_snapshot(uint64_t *out, int cap);   // GPU 地址表按 {GPU 起点, CPU 起点, 字节数} 三元组写出，返回段数（帧录放 nvn_frame_rec.inc 存 state.bin 用）
+ // 缓冲长度查询：CPU 地址所在活 nvnBuffer 的 {起点, 总长度}（1 = 命中）。storage 绑定只给地址、
+ // size=0 时用它求精确长度；查不到再退回池尾近似。
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -285,8 +285,8 @@
+ // 现在每个池在下面这个窗口里另分一段 64 KB 对齐、段间隔 64 KB 的 GPU 地址：产出点（GetBufferAddress / BufferGetAddress / TextureGetTextureAddress）给它；
+ //   收地址的 NVN 入口、以及回放时从游戏内存里读出的地址（nvn_mtl.m：Deferred 缓冲绑定、游戏自存的存储缓冲地址、地址解析兜底）用 nvn_ga2ca 换回 CPU 地址。
+ //   录制与回放内部一律 CPU 地址，不变；窗口外的地址原样过（宿主自己录的命令给的就是 CPU 地址），换算可重复做。
+-#define GVA_LO 0xC000000000ull     // 39 位客体地址空间之上、40 位（Maxwell GPU 虚拟地址宽度）之内
+-#define GVA_HI 0x10000000000ull
++#define GVA_LO NVN_GVA_LO     // 39 位客体地址空间之上、40 位（Maxwell GPU 虚拟地址宽度）之内
++#define GVA_HI NVN_GVA_HI
+ #define GVA_ALIGN 0x10000ull
+ typedef struct { uint64_t g, c, n; } gva_ent;   // GPU 起点、CPU 起点、字节数；按 g 升序
+ static gva_ent *g_gva; static int g_ngva, g_cgva; static pthread_rwlock_t g_gva_lk = PTHREAD_RWLOCK_INITIALIZER;
+@@ -3171,8 +3171,6 @@
+ __attribute__((weak)) void dm_thread_lv_stats(uint64_t out[2][2][2]) { memset(out, 0, 8 * sizeof(uint64_t)); }   // nvn_rec.h：编码 / 上屏线程按性能档；没有 Metal 后端（单测 / 安卓）为 0
+ __attribute__((weak)) void dm_rb_rt_stats(int st[2], int pri[2]) { st[0] = st[1] = pri[0] = pri[1] = 0; }   // RewindBox (patch 0073): nvn_rec.h, the encode / uniform copy threads' policy
+ __attribute__((weak)) void nvn_be_race_costs(uint64_t v[4]) { memset(v,0,4*sizeof *v); }
+-__attribute__((weak)) void nvn_be_rb_bind_stats(uint64_t v[11]) { memset(v,0,11*sizeof *v); }
+-__attribute__((weak)) void nvn_be_rb_push_stats(uint64_t v[2]) { memset(v,0,2*sizeof *v); }
+ __attribute__((weak)) void nvn_be_rb73_stats(uint64_t v[10]) { memset(v, 0, 10 * sizeof *v); }   // RewindBox (patch 0073): nvn_mtl.m, the encoding counts
+ __attribute__((weak)) void dm_yield_top(char *out, size_t n) { if (n) snprintf(out, n, "-"); }   // hle_thread.c: the threads that yielded most since the last call; none in graphics unit tests
+ __attribute__((weak)) void dm_thread_cpu(char *out, size_t n, double secs) { (void)secs; if (n) snprintf(out, n, "-"); }   // hle_thread.c: guest-thread CPU by Switch priority band since the last call
+@@ -3533,17 +3531,6 @@
+           frame,(unsigned long long)(counts[0]-previous[0]),(unsigned long long)(counts[1]-previous[1]),
+           (unsigned long long)(counts[2]-previous[2]),(unsigned long long)(counts[3]-previous[3]));
+       memcpy(previous, counts, sizeof previous); }
+-    { static uint64_t previous[2]; uint64_t counts[2]; nvn_be_rb_push_stats(counts);
+-      LOG("[nvn] push constants up to frame %llu: identical kept %llu, changed or uncached %llu",
+-          frame, (unsigned long long)(counts[0] - previous[0]), (unsigned long long)(counts[1] - previous[1]));
+-      memcpy(previous, counts, sizeof previous); }
+-    { static uint64_t previous[11]; uint64_t counts[11], d[11]; nvn_be_rb_bind_stats(counts);
+-      for (int k = 0; k < 11; k++) d[k] = counts[k] - previous[k];
+-      LOG("[nvn] binding cache up to frame %llu: UBO reused %llu, resolved %llu, uncacheable %llu, disabled %llu; sampled calls hit/miss/off %llu/%llu/%llu; sampled ns hit/miss/off %llu/%llu/%llu; view resource IDs reused %llu",
+-          frame,(unsigned long long)d[0],(unsigned long long)d[1],(unsigned long long)d[2],(unsigned long long)d[3],
+-          (unsigned long long)d[4],(unsigned long long)d[6],(unsigned long long)d[8],
+-          (unsigned long long)d[5],(unsigned long long)d[7],(unsigned long long)d[9],(unsigned long long)d[10]);
+-      memcpy(previous,counts,sizeof previous); }
+     power_line(frame);
+     { static uint64_t prev[4], pf; uint64_t v[4]; nvn_be_vbuf_stats(&v[0], &v[1], &v[2], &v[3]);
+       if (pf && frame > pf) { double nf = (double)(frame - pf);
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -975,7 +975,7 @@
+ //   where pages are mapped (a binding looked up by its first byte, as before, still gets its whole range copied)
+ int nvn_sparse_shadow(uint64_t a, uint64_t len, uint64_t want);
+ int nvn_be_addr(uint64_t addr, uint64_t len, void **buf, uint64_t *off) {
+-    addr = nvn_ga2ca(addr);   // 兜底：录制入口已换成 CPU 地址，这里只接住从游戏内存里读出、没在读出处换的 GPU 地址（hle_nvn.c GPU 地址空间）
++    addr = nvn_ga2ca_inline(addr);   // 兜底：录制入口已换成 CPU 地址，这里只接住从游戏内存里读出、没在读出处换的 GPU 地址（hle_nvn.c GPU 地址空间）
+     const pc_ent *c = pc_get(addr, len);
+     if (c) { *buf = (__bridge void *)c->buf; *off = addr - c->base; return 1; }
+     int ok = 0;
+@@ -994,7 +994,7 @@
+ //   Fire Emblem: Fortune's Weave about 4% of the submit thread in the reads and as much in the autorelease drain. Here the pool's pages may be a far shadow (pool_host), so the kept
+ //   pointer is the buffer's own, not the guest address
+ static inline const uint8_t *addr_cpu(uint64_t addr, uint64_t len) {
+-    addr = nvn_ga2ca(addr);
++    addr = nvn_ga2ca_inline(addr);
+     const pc_ent *c = pc_get(addr, len);
+     if (c) return (const uint8_t *)(c->host + (addr - c->base));
+     const uint8_t *r = NULL;
+@@ -1009,7 +1009,7 @@
+ static inline uint64_t pool_buf_end(uintptr_t hi) { static uintptr_t pg; if (!pg) pg = (uintptr_t)getpagesize(); return (hi + pg - 1) & ~(pg - 1); }
+ static int xq_addr_want(uint64_t addr, uint64_t len, void **buf, uint64_t *off, uint64_t *gpu, uint64_t *avail);   // nvn_xqueue.inc: only the state of the parked piece currently being replayed
+ static inline int gpu_addr_want(uint64_t addr, uint64_t len, uint64_t want, void **buf, uint64_t *off, uint64_t *gpu, uint64_t *avail) {
+-    addr = nvn_ga2ca(addr);   // 同 nvn_be_addr
++    addr = nvn_ga2ca_inline(addr);   // 同 nvn_be_addr
+     const pc_ent *c = pc_get(addr, len);
+     if (c) { *buf = (__bridge void *)c->buf; *off = addr - c->base; *gpu = c->gpu + *off; *avail = pool_buf_end(c->hi) - addr; return 1; }
+     int ok = 0;
+@@ -1024,81 +1024,6 @@
+     if (!ok) ok = xq_addr_want(addr, len, buf, off, gpu, avail);
+     return ok;
+ }
+-// Repeated CBUF binds need the same immutable pool-address metadata. Content,
+-// deferred-update shadows, widening and bounds are still resolved on every draw.
+-// No strong references: ordinary resident pools retain their existing lifetime.
+-static uint64_t bp_now(void);
+-static int rb_course_exact(void);
+-static uint64_t rb_push_same, rb_push_changed;
+-static _Atomic uint64_t rb_bind_published[11], rb_push_published[2];
+-static uint64_t rb_ubo_addr_hits, rb_ubo_addr_resolves, rb_ubo_addr_uncached, rb_ubo_addr_off;
+-static uint64_t rb_ubo_addr_calls, rb_ubo_addr_samples[3], rb_ubo_addr_ns[3], rb_view_rid_reused;
+-static int rb_ubo_addr_on(void) {
+-    static int mode = -2;
+-    if (mode == -2) { const char *v = getenv("S2A_RB_UBO_BIND_CACHE"); mode = v ? strcmp(v, "0") != 0 : -1; }
+-    return mode < 0 ? rb_course_exact() : mode;
+-}
+-static void rb_ubo_addr_sample(int bin, uint64_t start, int sampled) {
+-    if (!sampled) return;
+-    rb_ubo_addr_ns[bin] += bp_now() - start;
+-    rb_ubo_addr_samples[bin]++;
+-}
+-static int rb_ubo_addr(int stage, int slot, uint64_t addr, uint64_t want,
+-                       void **buf, uint64_t *off, uint64_t *gpu, uint64_t *avail) {
+-    typedef struct { uint64_t addr, want, gen, off, gpu, avail; void *buf; } entry;
+-    static entry cache[6][16]; // submit thread only; g_pool_gen also changes at teardown
+-    // Select before classifying a hit, miss or disabled-path call. No clock read
+-    // on the other 255 calls; report sample counts, not an asserted device gain.
+-    int sampled = (++rb_ubo_addr_calls & 255u) == 0;
+-    uint64_t start = sampled ? bp_now() : 0;
+-    if (!rb_ubo_addr_on() || (unsigned)stage >= 6 || (unsigned)slot >= 16) {
+-        int ok = gpu_addr_want(addr, 1, want, buf, off, gpu, avail);
+-        rb_ubo_addr_off++; rb_ubo_addr_sample(2, start, sampled); return ok;
+-    }
+-    // Normalize every call: a GPU VA remap must never reuse its former CPU range.
+-    addr = nvn_ga2ca(addr);
+-    uint64_t gen = atomic_load_explicit(&g_pool_gen, memory_order_acquire);
+-    entry *c = &cache[stage][slot];
+-    if (c->gen == gen && c->addr == addr && c->want == want) {
+-        *buf = c->buf; *off = c->off; *gpu = c->gpu; *avail = c->avail;
+-        rb_ubo_addr_hits++; rb_ubo_addr_sample(0, start, sampled); return 1;
+-    }
+-    rb_ubo_addr_resolves++;
+-    // nvn_ga2ca is idempotent: CPU ranges inside its GVA window are refused by
+-    // gva_alloc. The ordinary lookup keeps every sparse/parked-piece fallback.
+-    int ok = gpu_addr_want(addr, 1, want, buf, off, gpu, avail);
+-    const pc_ent *p = ok ? pc_get(addr, 1) : NULL;
+-    // Parked-piece xq_addr_want results have another lifetime and are not cached.
+-    // A resident pc_get result must agree with every returned address/bounds byte.
+-    if (p && atomic_load_explicit(&g_pool_gen, memory_order_acquire) == gen &&
+-        (__bridge void *)p->buf == *buf && addr - p->base == *off &&
+-        p->gpu + *off == *gpu && pool_buf_end(p->hi) - addr == *avail) {
+-        *c = (entry){addr, want, gen, *off, *gpu, *avail, *buf};
+-    } else { c->gen = 0; rb_ubo_addr_uncached++; }
+-    rb_ubo_addr_sample(1, start, sampled); return ok;
+-}
+-// Publish on the submit thread; readers never race hot-path increments. Values
+-// are cumulative diagnostic counters, not an atomic per-frame timing snapshot.
+-static void rb_bind_publish(void) {
+-    uint64_t v[11] = {rb_ubo_addr_hits, rb_ubo_addr_resolves, rb_ubo_addr_uncached, rb_ubo_addr_off};
+-    for (int k = 0; k < 3; k++) { v[4 + 2*k] = rb_ubo_addr_samples[k]; v[5 + 2*k] = rb_ubo_addr_ns[k]; }
+-    v[10] = rb_view_rid_reused;
+-    for (int k = 0; k < 11; k++) atomic_store_explicit(&rb_bind_published[k], v[k], memory_order_relaxed);
+-    atomic_store_explicit(&rb_push_published[0], rb_push_same, memory_order_relaxed);
+-    atomic_store_explicit(&rb_push_published[1], rb_push_changed, memory_order_relaxed);
+-}
+-void nvn_be_rb_bind_stats(uint64_t v[11]) {
+-    for (int k = 0; k < 11; k++) v[k] = atomic_load_explicit(&rb_bind_published[k], memory_order_relaxed);
+-}
+-void nvn_be_rb_push_stats(uint64_t v[2]) {
+-    for (int k = 0; k < 2; k++) v[k] = atomic_load_explicit(&rb_push_published[k], memory_order_relaxed);
+-}
+-static int rb_view_rid_on(void) {
+-    static int mode = -2;
+-    if (mode == -2) { const char *v = getenv("S2A_RB_VIEW_RID_REUSE"); mode = v ? strcmp(v, "0") != 0 : -1; }
+-    return mode < 0 ? rb_course_exact() : mode;
+-}
+-
+ static inline int gpu_addr_avail(uint64_t addr, uint64_t len, void **buf, uint64_t *off, uint64_t *gpu, uint64_t *avail) { return gpu_addr_want(addr, len, len, buf, off, gpu, avail); }
+ int mtl_gpu_addr(uint64_t addr, uint64_t len, void **buf, uint64_t *off, uint64_t *gpu) { uint64_t avail; return gpu_addr_avail(addr, len, buf, off, gpu, &avail); }
+ 
+@@ -3578,7 +3503,6 @@
+     lc_land();   // clears still waiting (the command list ends with them)
+     defer_fallback();   // Deferred merged pass: at the end of the submission there are still P draws not replayed (the normal path never gets here)
+     rp_flush(); ubd_land();
+-    rb_bind_publish();
+     rt_keep_state();   // bound descriptors outlive the command records consumed by this submission
+     if (g_mdxchk_n) mdxchk_after();   // RewindBox (patch 0067): the multi-draw counts checked, as the GPU has them after the piece's work
+     g_ts_pend = -1;   // nothing after it: the last segment's end is the command buffer's own (rep_ticks)
+@@ -11049,11 +10973,10 @@
+     if (tid >= 0 && tid < g_ntreg && g_treg[tid].ok && g_treg[tid].view && g_treg[tid].view_ser == g_ser_gen && (!g_treg[tid].view_pkg || g_treg[tid].view_dirty == nvn_dirty_now() || g_treg[tid].view_ep == g_pkg_epoch)
+         && (!g_treg[tid].view_sp || treg_sp_fresh(&g_treg[tid]))) { if (out) *out = g_treg[tid].view; return g_treg[tid].view_rid; }
+     id<MTLTexture> t = tex_by_id(tid); if (out) *out = (__bridge void *)t;
+-    // tex_by_id already records the immutable resource ID under this same g_rmu.
+-    if (rb_view_rid_on() && t && tid >= 0 && tid < g_ntreg && g_treg[tid].view == (__bridge void *)t) {
+-        rb_view_rid_reused++; return g_treg[tid].view_rid;
+-    }
+-    return t ? t.gpuResourceID._impl : 0;
++    // Every non-nil tex_by_id return is the registered view with its RID set.
++    // g_rmu remains held across that lookup and this read: no second validation,
++    // title switch, counter or Objective-C message is needed here.
++    return t ? g_treg[tid].view_rid : 0;
+ }
+ // Buffer textures of a format the host expands (nvn_fmt_expanded: three-component RGB8 / 16 / 32, *_UI2F / *_I2F, RGB10A2 signed): Metal has no such texture buffer format,
+ //   so they bound the dummy (Warriors Abyss 11-01: "buffer texture format 0x22 not mapped"; an effect read zeros). At the binding the elements are expanded (nvn_fmt_expand, the
+@@ -14500,11 +14423,7 @@
+ static uint64_t zero_bank_gpu(void) { static uint64_t gpu; if (!gpu) gpu = zero_bank().gpuAddress; return gpu; }
+ // NVN2 push-constant slot (S.push, c[24 + slot]) as the GPU reads it: one copy in the frame scratch per push, made by the first draw that reads it and reused by the
+ //   following ones until the next push into the slot or the next scratch generation (g_arena_gen: a cut segment's blocks are reused). A slot never pushed reads 0
+-static int rb_push_same_on(void) {
+-    static int mode = -2;
+-    if (mode == -2) { const char *v = getenv("S2A_RB_PUSH_SAME"); mode = v ? strcmp(v, "0") != 0 : -1; }
+-    return mode < 0 ? rb_course_exact() : mode;
+-}
++
+ static uint64_t g_push_seq;
+ static struct { uint64_t ver, gen, gpu; } g_push_copy[2][NVN2_PUSH_SLOTS];
+ static uint64_t push_gpu(int c, int slot) {
+@@ -14839,7 +14758,7 @@
+         if (b->kind == NVN_RB_CBUF) {
+             const p_bind_buf *u = reg < 16 ? &S.ubo[nvn_stage][reg] : NULL;
+             void *mb; uint64_t mo, gpu, pav;
+-            if (!u || !u->addr || !rb_ubo_addr(nvn_stage, reg, u->addr, u->size, &mb, &mo, &gpu, &pav)) {   // reads 0 (the all-zero bank), as an unbound texture slot does, instead of through a null pointer
++            if (!u || !u->addr || !gpu_addr_want(u->addr, 1, u->size, &mb, &mo, &gpu, &pav)) {   // reads 0 (the all-zero bank), as an unbound texture slot does, instead of through a null pointer
+                 RED_ONCE(16, "stage %d cb%d has no uniform buffer bound", nvn_stage, reg); slots[aid] = zero_bank_gpu(); USE(zero_bank(), MTLResourceUsageRead); continue; }
+             uint64_t ul = cb_len(sh, reg, u->size);   // what the shader can read of it
+             // S2Arm widen: the rewritten copy replaces the binding (compute: wd_dispatch). Checked first: the deferred-update shadow below used to be built for it and then thrown away,
+@@ -15564,13 +15483,7 @@
+         case OP_PUSH_CONST: case OP_PUSH_CONST_PTR: { const p_push_const *pc = a; int c = pc->compute ? 1 : 0;
+             const void *src = op == OP_PUSH_CONST ? (const void *)(pc + 1) : (const void *)(uintptr_t)((const p_push_const_ptr *)a)->data;
+             if (pc->offset + pc->size > NVN2_PUSH_BYTES || !src) break;
+-            uint8_t *dst = S.push[c][pc->slot & (NVN2_PUSH_SLOTS - 1)] + pc->offset;
+-            // A deferred push is read now, exactly as before. Identical bytes do
+-            // not change its GPU copy or any stage's arguments. Version numbers
+-            // only identify content; compute-indirect destinations stay separate.
+-            if (rb_push_same_on() && !memcmp(dst, src, pc->size)) { rb_push_same++; break; }
+-            memcpy(dst, src, pc->size); S.push_ver[c][pc->slot & (NVN2_PUSH_SLOTS - 1)] = ++g_push_seq;
+-            rb_push_changed++;
++            memcpy(S.push[c][pc->slot & (NVN2_PUSH_SLOTS - 1)] + pc->offset, src, pc->size); S.push_ver[c][pc->slot & (NVN2_PUSH_SLOTS - 1)] = ++g_push_seq;
+             if (c) g_args_dirty[5] = 1; else memset(g_args_dirty, 1, 5);
+             break; }
+         case OP_SET_TEX_POOL: case OP_SET_SAMP_POOL: { int tex = op == OP_SET_TEX_POOL, b = nvn_dpool_base(((const p_set_pool *)a)->pool, tex);

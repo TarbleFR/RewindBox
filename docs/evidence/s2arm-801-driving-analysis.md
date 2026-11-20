@@ -80,3 +80,43 @@ Aucun opérateur Core ML coûteux n'est établi dans le chemin observé. Les der
 Sources primaires : https://developer.apple.com/documentation/coreml/mlcomputeunits/cpuandneuralengine ; https://developer.apple.com/documentation/coreml/analyzing-a-core-ml-model-s-performance-in-xcode ; https://developer.apple.com/videos/play/wwdc2022/10027/ .
 
 Protocole : installer par-dessus avec la même identité de signature, garder jeu/réglages/sauvegarde/caches ; Coupe Champignon 150 cc à 1× en notant départ/fin de chaque circuit ; répéter avec caches réutilisés, puis après environ 20 minutes. Exporter journal, engine et profiles de la même session. Comparer seulement les portions annotées : FPS moteur/écran, p50/p95/p99, retards par minute couverte et séries, trous audio, vitesse/effets/HUD, empreinte et thermique. Aucune mesure physique après correction disponible ici.
+
+## Contre-expertise mesurée et chemin court 0169 — 20 novembre 2026
+
+Bancs source `2372080f`, [run 44744537924](https://github.com/TarbleFR/RewindBox/actions/runs/44744537924), job 136316319338, [artefact 14631934749](https://github.com/TarbleFR/RewindBox/actions/runs/44744537924/artifacts/14631934749), SHA-256 `6533298e4226556ad1ef6e4533e8479783f2b140bae8fedbd583546cb2b5b6e2`. Les [CSV, environnement, rapports Core ML et empreintes](s2arm-802-benchmarks/provenance.json) sont conservés. Machine macOS 26.7.2 arm64, Apple clang 21 / Xcode 26.6 ; Metal **Apple Paravirtual device**, aucun iPhone physique. Entrées synthétiques contrôlées, chemins alternés, états réinitialisés, sorties comparées hors chronométrage ; aucun rejeu du jeu ni conversion de ces coûts en FPS.
+
+| Chemin | Initial → candidat (médianes ns/appel) | Rapport apparié médian | Décision |
+| --- | ---: | ---: | --- |
+| Second cache UBO, 100 % de réutilisation | 7,289 → 8,457 | 1,193 | Rejeté. |
+| Second cache UBO, 50 % de réutilisation | 8,397 → 19,222 | 2,360 | Rejeté, plus lent dans 9/9 passages. |
+| Second cache UBO, 0 % de réutilisation | 8,676 → 21,225 | 2,447 | Rejeté. |
+| Garde inline, adresses natives répétées | 8,285 → 6,580 | 0,861 | Conservée ; dispersion importante, 5/9 passages gagnants. |
+| Garde inline, adresses natives renouvelées | 6,979 → 6,046 | 0,851 | Conservée ; 7/9 passages gagnants. |
+| Garde inline, collisions du cache existant | 7,680 → 7,354 | 0,995 | Effet environ neutre. |
+| Garde inline, vraie traduction GVA | 16,630 → 15,111 | 0,923 | Résolveur et verrou conservés ; 8/9 passages gagnants. |
+| Identifiant de vue avec activation dynamique 0166 | 3,706 → 8,040 | 2,108 | Rejeté, plus lent dans 11/11 passages. |
+
+Les rapports appariés sont calculés passage par passage, puis médiannés ; ils ne sont pas le quotient des deux médianes indépendantes. Le runner virtuel et les coûts de quelques nanosecondes limitent leur portée. La garde partage les bornes immuables avec l'allocateur : seule une adresse déjà native évite l'appel externe. Le cache de pools existant, sa génération, les bornes, les copies sparse et les morceaux de soumission restent inchangés. `addr_cpu` et `nvn_be_addr` utilisent également cette garde identique ; leur coût individuel n'a pas été mesuré séparément.
+
+Le push sélectif n'améliore que 6/30 scénarios avec consommation, tous avec 100 % de constantes identiques. À 50 % identiques et premier octet changé, son coût vaut 1,33–1,61 fois l'original selon la taille. La distribution réelle des mises à jour du jeu manque : la comparaison n'est donc pas activée dans le moteur livré. Le chemin initial copie, incrémente la version et invalide les arguments. Les expériences rejetées restent dans les bancs pour comparaison, pas dans le chemin normal.
+
+0169 retire entièrement le second cache UBO, son wrapper, ses lectures d'horloge et ses compteurs. Il retire aussi la comparaison des constantes et ses compteurs. Les anciennes lignes de diagnostic sont supprimées, plutôt que de publier des zéros qui sembleraient mesurés. Les captures GPU bornées, les échéances visibles et la chronologie producteur/réveil des patches 0166–0168 restent présentes. Ni résolution, ni vitesse invitée, ni cache de textures de 192 Mio, ni sauvegarde/historique graphique ne sont modifiés.
+
+### Identifiant Metal direct : mesure décisive retenue
+
+Le suffixe court relit directement le RID de la vue que `tex_by_id` vient de valider sous le même verrou `g_rmu`. Audit de toutes ses sorties : un résultat non nul implique une entrée valide, la même vue et son RID déjà rempli, y compris le repli sur la texture de base lorsqu'une création de vue échoue. Le pointeur fort local et la sortie `out` sont conservés. Il n'ajoute ni comparaison de titre, ni lecture atomique de configuration, ni compteur par appel.
+
+[Second banc, source fc0017a9](https://github.com/TarbleFR/RewindBox/actions/runs/44745877482), job 136320916653 : **3,2866 → 1,1816 ns/appel**, rapport apparié médian **0,359521**, candidat plus rapide dans **11/11 passages**, sommes de contrôle identiques. Le suffixe est donc environ 64 % moins coûteux dans ce microbanc. Cela ne mesure ni le reste de `tex_by_id`, ni une image complète, ni l'A18 Pro. [CSV et provenance](s2arm-802-benchmarks/short-provenance.json). La garde d'échec numérique du banc Core ML est aussi compilée/exécutée avec succès ; rapports complets conservés séparément de la première mesure.
+
+### Neural Engine : expérience réalisée, accès matériel manquant
+
+Le modèle analytique authored (filtre 3×3 et interpolation ×2, pas de poids entraînés) a été réellement exécuté. Les sorties du même traitement Metal B et Core ML C concordent : écart maximal 1/255 et moyen 0,029–0,034/255, zéro erreur de prédiction. Le code iOS du banc passe le typecheck SDK. Le runner expose seulement CPU/GPU ; **zéro opération ANE**, C est un **repli CPU**. `cpuAndNeuralEngine` autorise les deux processeurs sans promettre un passage sur l'ANE ; le plan Core ML est une affectation anticipée, pas une trace d'exécution physique.
+
+| Entrée → sortie | Échantillons mesurés | Metal B p50 / p95 | Core ML C, repli CPU, p50 / p95 |
+| --- | ---: | ---: | ---: |
+| 320×180 → 640×360 | 90 | 0,497 / 1,185 ms | 1,338 / 4,531 ms |
+| 960×540 → 1920×1080 | 30 | 1,634 / 3,135 ms | 6,517 / 9,833 ms |
+
+Le temps englobe conversions, attente de l'entrée GPU et production jusqu'à la fin GPU ; il exclut rendu du jeu et affichage réel (zéro horodatage de présentation). Les BGRA synthétiques natifs A contre B donnent MAE≈26/255 et PSNR≈15,7 dB sur les motifs fins : la concordance B/C ne prouve pas la qualité native. Aucune reconstruction n'est activée dans RewindBox. Le runner iOS portable est conservé pour mesurer l'ANE d'un A18 réel ; aucune cadence, chauffe ou qualité en jeu après ces changements n'est encore mesurée. Le programme du banc conserve désormais son rapport complet et échoue explicitement si l'équivalence numérique ou les prédictions échouent.
+
+Références Apple : [cpuAndNeuralEngine](https://developer.apple.com/documentation/coreml/mlcomputeunits/cpuandneuralengine), [MLComputePlan](https://developer.apple.com/documentation/coreml/mlcomputeplan-1w21n).

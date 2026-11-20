@@ -22,9 +22,9 @@ Calcul conservé d’une version à l’autre : somme(note × poids) / 100, arro
 ```mermaid
 xychart-beta
     title "S2Arm : avancement estimé par mise à jour"
-    x-axis "IPA ou commit moteur" ["799", "0155", "pont iOS", "0156", "0157", "0158", "0159", "0160", "0161", "0162", "0163", "0164", "0165", "801", "0166–0168"]
+    x-axis "IPA ou commit moteur" ["799", "0155", "pont iOS", "0156", "0157", "0158", "0159", "0160", "0161", "0162", "0163", "0164", "0165", "801", "0166–0168", "0169"]
     y-axis "Maturité estimée (%)" 0 --> 100
-    bar [55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55]
+    bar [55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55]
 ```
 
 | Date | IPA / source | I / R / C / P / S (%) | Global estimé | Évolution et preuve / mesure sur appareil |
@@ -44,6 +44,8 @@ xychart-beta
 | 2026-11-20 | [Moteur 0165](https://github.com/TarbleFR/RewindBox/commit/71ea69e8173db4db3795c8092d74f552a8e89d90) | 90 / 60 / 65 / 35 / 25 | 55 % | Sous pression, récupération bornée des tampons Metal surdimensionnés après confirmation de fin du lot. [Moteur 0164–0165 compilé pour iOS](https://github.com/TarbleFR/RewindBox/actions/runs/44729718541). [Bancs et référence 799](evidence/s2arm-799-frame-stalls.md#empreinte-mémoire-et-transferts-après-0163). Réallocations et retransferts à mesurer sur iPhone. |
 | 2026-11-20 | [IPA privée 801](evidence/rewind801/delivery.json) / `f1d0df55` | 90 / 60 / 65 / 35 / 25 | 55 % | Débit en course et audit RAM livrés avec les correctifs Nextendo du même lot. [Identité du moteur signé](evidence/rewind801/s2arm-identity801.json) authentifiée, 165 patches et identifiants des bundles identiques à la 799. Mesures du menu, de la relance et des quatre circuits sur iPhone en attente. |
 | 2026-11-20 | Moteur 0166–0168 | 90 / 60 / 65 / 35 / 25 | 55 % | [Session 801 et changements](evidence/s2arm-801-driving-analysis.md) : 8 254 intervalles sans nouvelle compilation, périodes GPU 36–39 ms, attentes SVC et premiers uploads distincts. Réutilisation des adresses UBO, identifiants de vues et constantes identiques ; captures GPU bornées, producteur des attentes et séries de retards visibles. Revue indépendante effectuée ; compilation et gain iPhone encore à vérifier. |
+
+| 2026-11-20 | Moteur 0169 | 90 / 60 / 65 / 35 / 25 | 55 % | [Contre-expertise mesurée](evidence/s2arm-801-driving-analysis.md#contre-expertise-mesurée-et-chemin-court-0169--20-novembre-2026) : second cache UBO et comparaison des constantes retirés ; garde d'adresse inline et RID validé direct. [Banc RID](https://github.com/TarbleFR/RewindBox/actions/runs/44745877482) : 3,287 → 1,182 ns/appel, 11/11 passages favorables sur runner arm64 virtuel. Core ML exécuté, ANE indisponible ; reconstruction inactive. Compilation iOS et mesure iPhone en attente ; aucun FPS extrapolé. |
 
 **Mesures de référence, à conserver séparément de l’estimation :** [IPA 795](evidence/rewind796/profile-observations-795.json), 26,886 FPS moteur sur 9 145 intervalles sans lacune dans la plage observée (≈ 5 min 40 s), 213 >100 ms dont 36 >500 ms ; [ancien moteur 0001–0089](evidence/s2arm-ipa783-device-2026-11-18.md), 60 FPS sur 526 intervalles (≈ 8,8 s), scène non identifiée ; [IPA 786](evidence/s2arm-ipa786-device-2026-11-18.md), deux fenêtres à l’affichage à 23,9 / 22,5 FPS et GPU médian à 33,38 / 35,03 ms ; [IPA 794](evidence/s2arm-first-race-795.md), pic échantillonné de 5 175 Mio. Parcours, caches et réglages non uniformisés : aucun gain avant/après attribuable à partir de ces seuls relevés.
 
