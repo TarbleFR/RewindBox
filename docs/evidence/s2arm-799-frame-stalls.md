@@ -79,6 +79,20 @@ Le moteur 0160 consulte en mémoire l’identité exacte du shader avant la vér
 
 Les instants du HUD sont des mesures de la vidéo. Les durées du banc isolent le calcul sur des données synthétiques déjà résidentes. Le coût du stockage, le FPS et le maximum du HUD après 0160 restent à mesurer sur iPhone.
 
+## Réveil des workers et chauffe après 0160
+
+En 799, le moteur a relevé 1 705 mises en attente du travail facultatif pour 242 s cumulées. Au niveau thermique sérieux, iOS attribue au processus 4 202 puis 4 487 réveils/s dans deux fenêtres de course. Le compteur couvre tout le processus.
+
+Le préchauffage facultatif respecte désormais le même plafond après une promotion en tête de file. Une alerte sérieuse ou critique bloque les nouvelles tâches facultatives. Les tâches déjà engagées se terminent. Le retour à l’état nominal garde au plus un worker pendant cinq secondes à compter du dernier échantillon chaud. En préparation de référence, une demande exacte pour le premier rendu peut passer en priorité dans le préfixe obligatoire. Le chemin utilisé par un vrai draw garde son accès au pipeline.
+
+| Vérification ciblée sur Linux | Avant | Après |
+| --- | ---: | ---: |
+| Délais expirés à quatre workers arrêtés par le gouverneur pendant 4,25 s | 64 | 14 |
+| Appels de scrutation à quatre workers pendant un premier usage simulé de 350 ms | 2 377 | 0 |
+| Appels d’écriture du tampon stdio sur les 498 lignes de référence 799, une ligne par image simulée | 498 | 6 |
+
+Le rejeu stdio produit les mêmes 180 254 octets. Le manifeste personnel est vidé sur des points de contrôle espacés de 120 images ainsi qu’à la suspension et à l’arrêt ordonné. Une interruption brutale peut perdre les dernières entrées du cache en attente. Le test de sélection de files vérifie la priorité d’un pipeline exact obligatoire en niveau sérieux, l’attente du pipeline facultatif promu et la consommation unique de chaque entrée à la reprise. Ces mesures isolent les chemins corrigés. La température, le débit d’écriture et le nombre total de réveils en jeu restent à vérifier sur iPhone.
+
 ## Vérification physique restante
 
 Sur le même appareil, même version du jeu, mode 1× et départ comparable : annoter circuit et phase à partir d’une capture synchronisée ; premier passage puis même passage avec génération et archives réutilisées. Conserver images moteur et timestamps écran, p95/p99, seuils 100/200/500 ms, CPU de soumission, GPU, attente SVC/objet/réveil, uploads, empreinte, E/S, état thermique et réveils. Associer le lancement au SHA moteur et à la génération. Relever l’intégrité visuelle, l’audio et la sauvegarde après reprise. Un avant/après reste indisponible pour 0155.
