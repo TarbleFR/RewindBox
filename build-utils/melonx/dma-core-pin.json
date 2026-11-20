@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "13ffc868b099be7c529f46ae87cbd7e194a2855f",
-  "run": 44654074211,
-  "job": 136015899480,
+  "source": "bde1a21ccfab81be3db6aea4082ac8e0f8eeabd0",
+  "run": 44729801297,
+  "job": 136266628658,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14592333807,
-  "name": "MeloNX-engine-13ffc868b099be7c529f46ae87cbd7e194a2855f",
-  "bytes": 101243573,
-  "sha256": "915538e3260542829f49d0157d2f910fd8d4e0d2ed229d61bd2809d289295b3c",
-  "expiresAt": "2027-02-18T01:30:12Z",
+  "artifact": 14625314612,
+  "name": "MeloNX-engine-bde1a21ccfab81be3db6aea4082ac8e0f8eeabd0",
+  "bytes": 101259000,
+  "sha256": "8a0029eb440fcf677b20d4fd2633527e493405c0ecfb4ca0d3fa4c90206b0d7c",
+  "expiresAt": "2027-02-18T11:42:37Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "a85b7e5a0ec1e7c26e68298372e7a0b757d66de9c13a7e501aacfb3396ac58b0",
-      "bytes": 39179280
+      "sha256": "ee2ec63150904b94e892ba1ec526944108d86fc69174d27bdceb8a910b0d8d85",
+      "bytes": 39179320
     },
     "iossimulator-arm64": {
-      "sha256": "8815eb43c6677dec193c9de2f202f68bf4346945f2e49fd9a25b355698e61188",
-      "bytes": 39485480
+      "sha256": "1b1d7f4783a80d4cbb6d7cbb245799e7a44fccaf80562484d868ab54fa25be05",
+      "bytes": 39485528
     }
   },
   "identities": {
-    "ios-arm64": "653157a0fff9477c0b0ca5a0e12733fdfbb43e800cfc5bfc0cefc78bb8b6eb88",
-    "iossimulator-arm64": "762e19b4eb984c0cc0070bc62b1550abcc8695e2c666c3880d1e3b8bc399dde7"
+    "ios-arm64": "e595e422f629e9c63da0262a9387b2403a063a004607860ab414db9bf8a51ea1",
+    "iossimulator-arm64": "58a6708738a7d519b715530de20bd5f89286507b48cff63a38fd7f50f72b11cb"
   },
-  "contractSha256": "8afa655c2573efc8b46e9bf7eea2210f3924ee8112ab19a3d8551251011086c7",
-  "resultSha256": "0e88bdcfe9cf52d515e7402f027e7dc3ae9533d431f05014237dd4f54336c536",
-  "packagedFingerprint": "51ed8085a6c5c1371992c629aca55eb25379fd876dd29158da2b734905f62844",
+  "contractSha256": "c1029219d76fd04be920867673a54cda51848311b6bf5938133b83c79a8bb081",
+  "resultSha256": "7fc87d996f35ffdc7ffe825115dd9d2adb5019230a687a06b537614a597d4326",
+  "packagedFingerprint": "b442c28e806c3b54cde90de5257aa5a15337e3cd80291928f7cb26413cfed255",
   "replaces": {
-    "source": "cf6396a2ca61cb6efdffab76ae85c3c5ac520987",
-    "run": 44303057356,
-    "artifact": 14428770548,
-    "packagedFingerprint": "e58acedc9b3a9d3c41ee47cbe6eb06e068a2c6727acd453fe8dc99bd8b4c8731",
-    "reason": "Explicit, session-scoped SSBU legacy certificate compatibility; all other TLS validation retained."
+    "source": "13ffc868b099be7c529f46ae87cbd7e194a2855f",
+    "run": 44654074211,
+    "artifact": 14592333807,
+    "packagedFingerprint": "51ed8085a6c5c1371992c629aca55eb25379fd876dd29158da2b734905f62844",
+    "reason": "Nextendo buffered TLS reads, pending/peek, cancellation on borrowed sockets and redacted transport diagnostics. No physical matchmaking claim."
   }
 }
