@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "01115730a7ddf1a799928666c5d30a36b8630cebca5dcab79acc4855a121ccef",
+  "packagedFingerprint": "60772c5d4aca6968c93a367dcd1f66fd9914392bb75fa07a616673120d3f184e",
   "producers": {
     "engine": {
-      "run": 44661903275,
+      "run": 44725883644,
       "attempt": 1,
-      "artifact": 14597135373,
-      "name": "s2arm-engine-framework-447c8e0628af3f2123f1b01736772cc2e058f4d8",
-      "bytes": 24984953,
-      "sha256": "ca45a9254a8cde1564db0c5c860416cc32e5ec3b3c8761ce7b298e649e064751",
-      "headSha": "447c8e0628af3f2123f1b01736772cc2e058f4d8",
+      "artifact": 14624732880,
+      "name": "s2arm-engine-framework-8eb3af9023298ac69c2966eefedca59715d03a5c",
+      "bytes": 24989934,
+      "sha256": "ef6637353acfa7b1b9bf7955a9a1ae70b6a732ded239baf64f36f0b78a65797e",
+      "headSha": "8eb3af9023298ac69c2966eefedca59715d03a5c",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-20T02:48:27Z",
+      "expiresAt": "2026-12-20T11:32:39Z",
       "members": {
-        "S2ArmEngine.framework.zip": "c3e856100820e5b44ac8c607b4cc08f9795caf3ad3138bf1b43dc15c742f6614",
-        "NS2Pro.framework.zip": "7765738103adbd358e7d3023c2d30018d2ce4bc4e371d009853583833eaa54a5"
+        "S2ArmEngine.framework.zip": "33ae512da648b3cdfc7ff2970f35efd4210adc5f286fcb7b69646f9f236a1882",
+        "NS2Pro.framework.zip": "e91a7eaf8a31c87a9f0c45ada0c82d8ee61bee0eb23e6944a1042cd32b7b8766"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "ca45a9254a8cde1564db0c5c860416cc32e5ec3b3c8761ce7b298e649e064751",
+    "engine": "ef6637353acfa7b1b9bf7955a9a1ae70b6a732ded239baf64f36f0b78a65797e",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "653a766ffef283569a08679763e31e485a7b452cc9b21c916989590147be46be",
-      "bytes": 114557656,
-      "fingerprint": "01115730a7ddf1a799928666c5d30a36b8630cebca5dcab79acc4855a121ccef"
+      "sha256": "8a135276ed775206005f57dd594f075ca8791bed2d28cbac8a25d9f0c510e55e",
+      "bytes": 114559992,
+      "fingerprint": "60772c5d4aca6968c93a367dcd1f66fd9914392bb75fa07a616673120d3f184e"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 44661903275,
+      "run": 44725883644,
       "attempt": 1,
-      "head_sha": "447c8e0628af3f2123f1b01736772cc2e058f4d8",
+      "head_sha": "8eb3af9023298ac69c2966eefedca59715d03a5c",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -746,11 +746,47 @@
         {
           "name": "0154-guest-stream-prewarm-rows-and-recover-draw-history.patch",
           "sha256": "665e89a5b62df26e237aecca5f302677d5ab27d62481ebbbf291ed888a347121"
+        },
+        {
+          "name": "0155-stalls-texture-upload-and-preparation.patch",
+          "sha256": "0c1c8716bf35be762aef241631aade9d798864a7070ffff5f6777513d136d45a"
+        },
+        {
+          "name": "0156-batch-small-uploads-bound-io.patch",
+          "sha256": "951461cab789fc3466af0fa38bd7e1c7c1816ec2afc99168f27cfe8f5702f6bb"
+        },
+        {
+          "name": "0157-thermal-targeted-wakes-and-copy-parking.patch",
+          "sha256": "cb5cec74a515f075f82bd79e99fcc89449ed3471ece9322d157d4094b0edf3c4"
+        },
+        {
+          "name": "0158-batch-course-log-writes.patch",
+          "sha256": "aa0dcbae821cd0dff5fa74f9238299bb45a6300e84480f0132ac0448679a36bf"
+        },
+        {
+          "name": "0159-present-wake-and-draw-log-batches.patch",
+          "sha256": "775a40b267a942c3c2287ecc2afe7ee8e02f9aba11ee941cb9c39385f868d174"
+        },
+        {
+          "name": "0160-early-pipeline-and-texture-work.patch",
+          "sha256": "711bb175b09bb99009b51846bfe6ef0925c1baa10ead27e1359cc73c54a485c6"
+        },
+        {
+          "name": "0161-thermal-background-admission-and-writes.patch",
+          "sha256": "3af648319c91ec9ca474614d9cf0d9cef4c16250d875578419204466c18927d5"
+        },
+        {
+          "name": "0162-preserve-required-foreground-pipelines.patch",
+          "sha256": "6f4e394bb91a8e4ed67745d33eb1efbe64b9c286c49ae4345a1676c61fab1a2d"
+        },
+        {
+          "name": "0163-scoped-texture-views-and-race-pacing.patch",
+          "sha256": "6974616e1843f6d55cb5c47a5cdeefb69c057294e5196ee9c8ccf955b1bbebcd"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "c3e856100820e5b44ac8c607b4cc08f9795caf3ad3138bf1b43dc15c742f6614",
-        "NS2Pro.framework.zip": "7765738103adbd358e7d3023c2d30018d2ce4bc4e371d009853583833eaa54a5"
+        "S2ArmEngine.framework.zip": "33ae512da648b3cdfc7ff2970f35efd4210adc5f286fcb7b69646f9f236a1882",
+        "NS2Pro.framework.zip": "e91a7eaf8a31c87a9f0c45ada0c82d8ee61bee0eb23e6944a1042cd32b7b8766"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
