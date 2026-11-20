@@ -1,0 +1,436 @@
+{
+  "schema": 1,
+  "build": 799,
+  "status": "draft",
+  "note": "Private 1x Mushroom Cup update including validated pipeline history recovery and the fixes already shipped in builds 797 and 798.",
+  "base": {
+    "build": 797,
+    "source": "bc457e06cd60eea57e0b0608602e60966d192158",
+    "tree": "c162f35debe511aac82cbbc8754757c43ade7b17",
+    "run": 44655596048,
+    "attempt": 1,
+    "workflow": ".github/workflows/standard-delivery.yml",
+    "jobs": {
+      "preflight": {
+        "name": "preflight",
+        "id": 136021801484
+      },
+      "application": {
+        "name": "application",
+        "id": 136022486640
+      }
+    },
+    "receipt": {
+      "path": "docs/evidence/rewind797/delivery.json",
+      "sha256": "890a97b61e650b0ba125f55189e851f74b354c1b318113c06fb6fa1235cac7e3",
+      "proofFiles": 13
+    },
+    "identity": {
+      "path": "docs/evidence/rewind797/signed-payload-identity.json",
+      "sha256": "d0544591d1130c1a491bf4af157abe0ad9d49dc23faab2cbc0f38074019cdcb5",
+      "images": 97
+    },
+    "ipa": {
+      "name": "RewindBox-797.ipa",
+      "producerName": "RewindBox-Build797-bc457e06cd60eea57e0b0608602e60966d192158-cold.ipa",
+      "bytes": 333477355,
+      "sha256": "82e46ae1b22c3255852d0c8b05ab9326bb408e6b0a586f88ac98a2cfe114dcc0"
+    }
+  },
+  "components": {
+    "rpcs3": {
+      "mode": "replace",
+      "verifier": ".github/diagnostics/rpcs3_core_component.py",
+      "pin": "build-utils/rpcs3/core-pin.json",
+      "image": "Frameworks/libRPCS3Core.dylib",
+      "producerRoute": "RPCS3 Core route (.github/workflows/rpcs3-core610.yml driven by build-utils/rpcs3/core-build.json, build 948)",
+      "unchangedFromBase": true,
+      "pinSha256": "cab77771931c520d15b9b8c9af1663e79b0033202abd9ed1d5b9bb620e2c1937"
+    },
+    "melonx": {
+      "mode": "replace",
+      "verifier": ".github/diagnostics/melonx_dma_core_component.py",
+      "pin": "build-utils/melonx/dma-core-pin.json",
+      "packaging": "build-utils/melonx/package_runtime.py",
+      "image": "Frameworks/MeloNXCore.framework/MeloNXCore",
+      "producerRoute": ".github/workflows/melonx-core.yml",
+      "unchangedFromBase": false,
+      "pinSha256": "cf14f6c2e3ee3de50279469b9f8bfab0c8dd92aa82ad27cada7405593a079ce1"
+    },
+    "dolphin": {
+      "mode": "retain",
+      "retainedSince": 608,
+      "image": "Frameworks/DolphinCore.framework/DolphinCore",
+      "payloadFingerprint": "640e4389559c800087b3d4b2a2748b4c11307ae6a79bc72f59d55430ccddd6fc",
+      "upstreamRevision": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+      "legalFolder": "Dolphin-session608",
+      "inputs": "rewind608_producers.input_paths",
+      "origin": {
+        "workflow": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+        "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+        "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+        "run": 41293321826,
+        "attempt": 1,
+        "runConclusion": "failure",
+        "job": 124810929735,
+        "jobName": "Build608 Dolphin arm64",
+        "steps": [
+          "Patch and compile Dolphin Core",
+          "Materialize and validate Dolphin framework",
+          "Bind608 native inputs and compiled payload"
+        ],
+        "artifact": 13078193437,
+        "name": "RewindBox608-dolphin-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+        "bytes": 11191038,
+        "sha256": "9d32c236c79c43cd57053b000dfaba94c4e0d6f627bd04a657f74b36dd58c064",
+        "expiresAt": "2026-11-15T09:41:57Z"
+      },
+      "consumedBy": {
+        "build": 608,
+        "receipt": "docs/evidence/rewind608/delivery.json",
+        "sha256": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b"
+      },
+      "republished": {
+        "build": 797,
+        "source": "bc457e06cd60eea57e0b0608602e60966d192158",
+        "run": 44655596048,
+        "attempt": 1,
+        "job": 136022486753,
+        "artifact": 14593770437,
+        "name": "RewindBox-Build797-bc457e06cd60eea57e0b0608602e60966d192158-attempt1-component-dolphin",
+        "bytes": 11192276,
+        "sha256": "dcaf66b346013cf935f107eacb83ba3027a69fbf79ecf72d076469d69ae92a96"
+      },
+      "inheritedChangedInputs": [
+        {
+          "path": "packages/dolphin_internal_bridge/ci/verify_ipa.py",
+          "baseBlob": "6032458096236bcf75fc007d208d4ba177dd3216",
+          "newBlob": "613eed254edce2cbaf54460a020be34a6a82136c",
+          "commit": "c0aae7294abe2deca32af68e1438e4f6bfa465cb",
+          "build": 727
+        }
+      ]
+    },
+    "armsx2": {
+      "mode": "retain",
+      "retainedSince": 608,
+      "image": "Frameworks/ARMSX2Core.framework/ARMSX2Core",
+      "payloadFingerprint": "fab55193e509583b03c0e5b33ae8d8812745b5410d138a53e3779b6257f370d4",
+      "upstreamRevision": "9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe",
+      "legalFolder": "ARMSX2-session608",
+      "inputs": "rewind608_producers.input_paths",
+      "origin": {
+        "workflow": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+        "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+        "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+        "run": 41293321826,
+        "attempt": 1,
+        "runConclusion": "failure",
+        "job": 124810929747,
+        "jobName": "Build608 ARMSX2 ABI9 arm64",
+        "steps": [
+          "Compile native core and verify binary ABI",
+          "Bind608 native inputs and compiled payload"
+        ],
+        "artifact": 13078023872,
+        "name": "RewindBox608-armsx2-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+        "bytes": 14042625,
+        "sha256": "e4354b47eee93d5dc8d53be070a88cc83ceb8b31ff4f7ccdca2eb2c2067b8763",
+        "expiresAt": "2026-11-15T09:57:51Z"
+      },
+      "consumedBy": {
+        "build": 608,
+        "receipt": "docs/evidence/rewind608/delivery.json",
+        "sha256": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b"
+      },
+      "republished": {
+        "build": 797,
+        "source": "bc457e06cd60eea57e0b0608602e60966d192158",
+        "run": 44655596048,
+        "attempt": 1,
+        "job": 136022486753,
+        "artifact": 14593785421,
+        "name": "RewindBox-Build797-bc457e06cd60eea57e0b0608602e60966d192158-attempt1-component-armsx2",
+        "bytes": 14043861,
+        "sha256": "2f7477e11619f4de7792c933d79da732abb854f7889810345adbf58c9bee990c"
+      }
+    },
+    "libretro": {
+      "mode": "retain-archive",
+      "destination": "dist/libretro",
+      "inputs": [
+        "build-utils/libretro/"
+      ],
+      "origin": {
+        "workflow": ".github/workflows/build497-checks.yml",
+        "branch": "Claude",
+        "source": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "run": 39455712245,
+        "attempt": 1,
+        "runConclusion": "success",
+        "artifact": 12280822192,
+        "name": "LibretroCores-ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "bytes": 55566830,
+        "sha256": "e06f641dd10409c815787fe1cf4ac6746920360a1023c83b23631b2bd693ba47",
+        "expiresAt": "2026-11-03T16:19:42Z"
+      },
+      "republished": {
+        "build": 797,
+        "source": "bc457e06cd60eea57e0b0608602e60966d192158",
+        "run": 44655596048,
+        "attempt": 1,
+        "job": 136022486753,
+        "artifact": 14592349760,
+        "name": "RewindBox-Build797-bc457e06cd60eea57e0b0608602e60966d192158-attempt1-component-libretro",
+        "bytes": 55568023,
+        "sha256": "1fd02022c62a1cc6aa0e408870036c3b46eab5054aa47f1f12248db7e2006071"
+      }
+    },
+    "melonx-dependencies": {
+      "mode": "retain-archive",
+      "destination": "dist/melonx-native",
+      "inputs": [
+        "build-utils/melonx/native-dependencies.json"
+      ],
+      "origin": {
+        "workflow": ".github/workflows/melonx-native-dependencies.yml",
+        "branch": "work/melonx-embedded-20261022",
+        "source": "66737aa9c959eb5915264bf178f179bda8643314",
+        "run": 39854858591,
+        "attempt": 1,
+        "runConclusion": "success",
+        "artifact": 12458409441,
+        "name": "MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314",
+        "bytes": 49178074,
+        "sha256": "12a1e4c7bf1c970c218ebddead965a51c3aa57af4d0e1fb5c0523ca8b1340261",
+        "expiresAt": "2026-11-05T21:09:37Z"
+      },
+      "republished": {
+        "build": 797,
+        "source": "bc457e06cd60eea57e0b0608602e60966d192158",
+        "run": 44655596048,
+        "attempt": 1,
+        "job": 136022486753,
+        "artifact": 14592869295,
+        "name": "RewindBox-Build797-bc457e06cd60eea57e0b0608602e60966d192158-attempt1-component-melonx-dependencies",
+        "bytes": 49179302,
+        "sha256": "367654e795719b4c72e07b47ed73055e88cc978351925b27182b51539268bf1f"
+      }
+    },
+    "melonx-upstream": {
+      "mode": "pinned-source",
+      "inputs": [
+        "build-utils/melonx/source.json",
+        "build-utils/melonx/vendor_controller.py"
+      ],
+      "tree": "82a29e6f593f6244869481e9a489b8d5154175fe",
+      "controller": "c049ce88a5635bddcd88e1965c42aa8fc92fe961"
+    },
+    "stikjit": {
+      "mode": "pinned-source",
+      "inputs": [
+        "build-utils/stikjit/",
+        "build-utils/patch_stikjit_rpcs3.py",
+        "build-utils/patch_stikjit_compat.py",
+        "build-utils/install_patched_stikjit.py",
+        "build-utils/build_patched_stikjit.py"
+      ],
+      "cacheKeySuffix": "37844950677"
+    },
+    "donor": {
+      "mode": "pinned-release",
+      "build": 527,
+      "release": "0.0.9",
+      "asset": "RewindBox-Build527.ipa",
+      "assetId": 673430199,
+      "url": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.9/RewindBox-Build527.ipa",
+      "bytes": 186673707,
+      "sha256": "884a44dea6e627fc9cd774d296dc2abf1ef683ca01572651d5c0e3425bd9756e",
+      "preparer": "build-utils/prepare_release527_native_runtime.py"
+    },
+    "xenia": {
+      "mode": "pinned-engine",
+      "pin": "build-utils/xenia/core-pin.json",
+      "verifier": "build-utils/xenia/core_pin.py",
+      "identityFile": "Xenia-native-identity.json",
+      "frameworks": [
+        "Frameworks/XeniaCore.framework"
+      ],
+      "image": "Frameworks/XeniaCore.framework/XeniaCore",
+      "sideImages": [
+        {
+          "path": "Frameworks/libmetalirconverter.dylib",
+          "source": "build-utils/xenia/source.json#shader_converter.upstream_mirror"
+        }
+      ],
+      "extensions": [
+        "XeniaJITHelper.appex"
+      ],
+      "legalFolders": [
+        "Legal/XeniOS",
+        "Legal/MetalShaderConverter"
+      ],
+      "checks": [
+        "build-utils/xenia/check_app_shader_converter.py"
+      ],
+      "producers": {
+        "engine": {
+          "workflow": ".github/workflows/xenia-core.yml",
+          "branch": "Claude"
+        }
+      },
+      "unchangedFromBase": true,
+      "pinSha256": "efe5d6e1a0afa5a6b7346725de20e534c4247caa892f58583df5d1d0e7479300"
+    },
+    "s2arm": {
+      "mode": "pinned-engine",
+      "pin": "build-utils/s2arm/engine-pin.json",
+      "verifier": "build-utils/s2arm/engine_pin.py",
+      "identityFile": "S2Arm-native-identity.json",
+      "frameworks": [
+        "Frameworks/S2ArmEngine.framework",
+        "Frameworks/NS2Pro.framework"
+      ],
+      "image": "Frameworks/S2ArmEngine.framework/S2ArmEngine",
+      "sideImages": [],
+      "extensions": [
+        "S2ArmJITHelper.appex"
+      ],
+      "legalFolders": [
+        "Legal/S2Arm"
+      ],
+      "checks": [
+        "build-utils/s2arm/check_app.py"
+      ],
+      "producers": {
+        "engine": {
+          "workflow": ".github/workflows/s2arm-engine.yml",
+          "branch": "Claude"
+        },
+        "prepare": {
+          "workflow": ".github/workflows/s2arm-core.yml",
+          "branch": "Claude",
+          "subdir": "prepare"
+        },
+        "sysdata": {
+          "workflow": ".github/workflows/s2arm-prepare.yml",
+          "branch": "work/s2arm-switch2-prototype-20261110",
+          "subdir": "sysdata"
+        }
+      },
+      "podLibraries": [
+        "s2arm_engine_bridge"
+      ],
+      "appResources": [
+        {
+          "path": "S2ArmSystemData/SHA256SUMS",
+          "binary": "sysdata/SHA256SUMS"
+        }
+      ],
+      "pinSha256": "da8eb9e7fba5fe6fc860986e9cb4833e37276cf3f9ed9e22c0f273c734887607"
+    }
+  },
+  "product": {
+    "reviewedCommits": [
+      {
+        "commit": "80625b65f1056024a9dce7bf78cb4e2c65639c75",
+        "note": "Retain the verified core and host consent UI shipped with IPA 798."
+      },
+      {
+        "commit": "863aa70bd78830948726c649a914aeca43e8c2ec",
+        "note": "Enumerate saved recipes directly, recover complete history records at EOF and release the saved dictionary on exit."
+      },
+      {
+        "commit": "447c8e0628af3f2123f1b01736772cc2e058f4d8",
+        "note": "Build the iOS engine from the GPU-verified history implementation."
+      },
+      {
+        "commit": "aa25ee1e30a16bb05e41bf7b10bf1f53516dc8be",
+        "note": "Pin the newly compiled S2Arm engine with its patch and payload identities."
+      }
+    ],
+    "sourceOnly": [],
+    "promotedCommits": [
+      {
+        "commit": "2bef01cfa5f76672ddbadfb0721f1fd47948a810",
+        "note": "Preserve the previously shipped SSBU compatibility update from IPA 798."
+      },
+      {
+        "commit": "13ffc868b099be7c529f46ae87cbd7e194a2855f",
+        "note": "Preserve the previously shipped SSBU compatibility update from IPA 798."
+      },
+      {
+        "commit": "a37a3f9f2d546262983d47ebd2bbb15885b50af8",
+        "note": "Preserve the previously shipped SSBU compatibility update from IPA 798."
+      }
+    ]
+  },
+  "images": {
+    "added": [],
+    "removed": [],
+    "replaced": {
+      "melonx": "Frameworks/MeloNXCore.framework/MeloNXCore"
+    },
+    "retained": {
+      "dolphin": [
+        "Frameworks/DolphinCore.framework/DolphinCore"
+      ],
+      "armsx2": [
+        "Frameworks/ARMSX2Core.framework/ARMSX2Core"
+      ],
+      "libretro": [
+        "Frameworks/*_libretro.framework/*_libretro",
+        "Frameworks/MoltenVK.framework/MoltenVK"
+      ],
+      "melonx-dependencies": [
+        "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec",
+        "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil",
+        "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport",
+        "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK",
+        "Frameworks/MeloNXSDL3.framework/MeloNXSDL3"
+      ],
+      "xenia": [
+        "Frameworks/XeniaCore.framework/XeniaCore",
+        "Frameworks/libmetalirconverter.dylib"
+      ],
+      "s2arm": [
+        "Frameworks/NS2Pro.framework/NS2Pro"
+      ],
+      "rpcs3": [
+        "Frameworks/libRPCS3Core.dylib"
+      ]
+    },
+    "mustChange": [
+      "Frameworks/App.framework/App",
+      "Frameworks/MeloNXCore.framework/MeloNXCore",
+      "Frameworks/S2ArmEngine.framework/S2ArmEngine",
+      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "Runner"
+    ]
+  },
+  "tests": {
+    "flutter": {
+      "mode": "not-run",
+      "commands": [],
+      "reason": "The existing Metal checks on 0154 passed. This private build compiles the application using authenticated producer binaries and the standard delivery checks."
+    },
+    "native": {
+      "mode": "not-run",
+      "commands": [],
+      "reason": "The existing Metal checks on 0154 passed. This private build compiles the application using authenticated producer binaries and the standard delivery checks."
+    },
+    "awaitMinutes": 75
+  },
+  "recipient": {
+    "path": "build-utils/delivery-799-recipient.pem",
+    "sha256": "a02c8b53d194745ecb54ac811fc197b4513fbb38082efdc2ae3f2fffa900b784"
+  },
+  "republish": [
+    "rpcs3-core",
+    "melonx-core",
+    "dolphin",
+    "armsx2",
+    "libretro",
+    "melonx-dependencies"
+  ]
+}
