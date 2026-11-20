@@ -1,0 +1,309 @@
+{
+ "schema": 1,
+ "result": "passed-offline-checks",
+ "build": 797,
+ "version": "0.0.8",
+ "execution": {
+  "source": "bc457e06cd60eea57e0b0608602e60966d192158",
+  "tree": "c162f35debe511aac82cbbc8754757c43ade7b17",
+  "run": 44655596048,
+  "attempt": 1,
+  "conclusion": "success"
+ },
+ "jobs": {
+  "application": {
+   "id": 136022486640,
+   "conclusion": "success"
+  },
+  "flutter": {
+   "id": 136022489254,
+   "conclusion": "skipped"
+  },
+  "native": {
+   "id": 136022488875,
+   "conclusion": "skipped"
+  },
+  "preflight": {
+   "id": 136021801484,
+   "conclusion": "success"
+  },
+  "republish": {
+   "id": 136022486753,
+   "conclusion": "success"
+  }
+ },
+ "apiMetadataSHA256": {
+  "run-attempt.json": "5886fe18751a92522bbfadb4b86bd502d181eeb1cbe287ee42c7b46483a86733",
+  "jobs.json": "ee2f39c432cb675a0ebca138a064f7f4f408ffeeb843d47704e52ed1915c646a",
+  "artifacts.json": "70391c2e02a5356f68049cf8eaea518a137617b7df24d5fcae284239c3acdc4b"
+ },
+ "manifest": {
+  "path": "build-utils/delivery/797.json",
+  "sha256": "9b90c475729023ee7f10e6704c35e707a1472543affac708e5f87cf7ca74a0e4"
+ },
+ "transport": {
+  "manifest": {
+   "schemaVersion": 1,
+   "source": "bc457e06cd60eea57e0b0608602e60966d192158",
+   "run": 44655596048,
+   "build": 797,
+   "encrypted": true,
+   "rebuilt": false,
+   "files": {
+    "artifact.tar.enc": {
+     "bytes": 334323232,
+     "sha256": "5b4a126b2e42bde2ea647345183a0b1f393e69d701f49fa18a255eae994445e1"
+    },
+    "format.json": {
+     "bytes": 133,
+     "sha256": "82cae9fd5975b6f0768716fbea66ab175de91406d5b63429db85c3d34fc6895b"
+    },
+    "password.rsa": {
+     "bytes": 384,
+     "sha256": "6bc2e60446c0e8b61766edda12f7209b3e05ef17a54853850c75a2f66d778f4f"
+    }
+   },
+   "parts": [
+    {
+     "index": 0,
+     "bytes": 83580808,
+     "sha256": "0752afc5da90be9d6ca48922bac32635e99e6288849ddef9e18e797926e56c09"
+    },
+    {
+     "index": 1,
+     "bytes": 83580808,
+     "sha256": "9cd7f0a7a355608dd6a8fef8ccf27f0ec895d624cc960608d220c06885006d62"
+    },
+    {
+     "index": 2,
+     "bytes": 83580808,
+     "sha256": "5a3c1dffce4dc785b66519b0e40d25657b967f94c210560682095c829d3616e6"
+    },
+    {
+     "index": 3,
+     "bytes": 83580808,
+     "sha256": "871538642d318e3b227484da06398d11d22d6a099cb38b1eea25ee315e4ecfe1"
+    }
+   ]
+  },
+  "pieces": [
+   {
+    "index": 0,
+    "name": "RewindBox-Build797-bc457e06cd60eea57e0b0608602e60966d192158-attempt1-cold-part00",
+    "artifactId": 14593679522,
+    "zipBytes": 83582958,
+    "zipSHA256": "5561dc15680c63139c9c7ebbac70415eb20e68248e5ee3f2572366edb48fd49b",
+    "bytes": 83580808,
+    "sha256": "0752afc5da90be9d6ca48922bac32635e99e6288849ddef9e18e797926e56c09"
+   },
+   {
+    "index": 1,
+    "name": "RewindBox-Build797-bc457e06cd60eea57e0b0608602e60966d192158-attempt1-cold-part01",
+    "artifactId": 14593559902,
+    "zipBytes": 83582958,
+    "zipSHA256": "a88a428aadfbec8505ea3e12ffa2ccae55180f3e08f24b5859149bde06806673",
+    "bytes": 83580808,
+    "sha256": "9cd7f0a7a355608dd6a8fef8ccf27f0ec895d624cc960608d220c06885006d62"
+   },
+   {
+    "index": 2,
+    "name": "RewindBox-Build797-bc457e06cd60eea57e0b0608602e60966d192158-attempt1-cold-part02",
+    "artifactId": 14594238386,
+    "zipBytes": 83582958,
+    "zipSHA256": "42f2c885d37930f6786979641cbfa25dbc97033279a49692cc53cc853006c125",
+    "bytes": 83580808,
+    "sha256": "5a3c1dffce4dc785b66519b0e40d25657b967f94c210560682095c829d3616e6"
+   },
+   {
+    "index": 3,
+    "name": "RewindBox-Build797-bc457e06cd60eea57e0b0608602e60966d192158-attempt1-cold-part03",
+    "artifactId": 14595205239,
+    "zipBytes": 83582958,
+    "zipSHA256": "2a2b26a109c70c444a19eecfd6e8fd2ab862e9ec762662f3fb4330e4d5c6f7af",
+    "bytes": 83580808,
+    "sha256": "871538642d318e3b227484da06398d11d22d6a099cb38b1eea25ee315e4ecfe1"
+   }
+  ]
+ },
+ "decryptedRegularFiles": 40,
+ "decryptedFiles": [
+  "RewindBox-Build797-bc457e06cd60eea57e0b0608602e60966d192158-cold.ipa",
+  "SHA256SUMS",
+  "environment.json",
+  "final-structure.json",
+  "host-cache.json",
+  "melonx-ipa.json",
+  "neoswap-host-source.json",
+  "no-dusklight.json",
+  "no-kartpad.json",
+  "observed-timings.json",
+  "retroarch-rollback-2026-10-08.md",
+  "signature.json",
+  "signed-payload-identity.json",
+  "standard-armsx2.json",
+  "standard-baseline.json",
+  "standard-component-runs.json",
+  "standard-dolphin.json",
+  "standard-donor.json",
+  "standard-embedded.json",
+  "standard-engine-s2arm-download.json",
+  "standard-engine-s2arm-embedded.json",
+  "standard-engine-s2arm-evidence.json",
+  "standard-engine-xenia-download.json",
+  "standard-engine-xenia-embedded.json",
+  "standard-engine-xenia-evidence.json",
+  "standard-host-contract.json",
+  "standard-ipa-validation.json",
+  "standard-libretro.json",
+  "standard-materialized.json",
+  "standard-melonx-download.json",
+  "standard-melonx-evidence.json",
+  "standard-retained-libretro.json",
+  "standard-retained-melonx-dependencies.json",
+  "standard-rpcs3-download.json",
+  "standard-rpcs3-exports.json",
+  "standard-rpcs3-install.json",
+  "standard-rpcs3-source.json",
+  "standard-rpcs3-structure.json",
+  "standard-tests.json",
+  "version-validation.json"
+ ],
+ "secretFilesRemoved": true,
+ "recipientPublicKeyDER_SHA256": "8a0414b531ac8a8a6ea1ea47c842e8dcf7a8dbf68e5b25a8e88388afddb5ff1b",
+ "privateKeyMatchesRecipient": true,
+ "ipa": {
+  "name": "RewindBox-Build797-bc457e06cd60eea57e0b0608602e60966d192158-cold.ipa",
+  "bytes": 333477355,
+  "sha256": "82e46ae1b22c3255852d0c8b05ab9326bb408e6b0a586f88ac98a2cfe114dcc0",
+  "sha256sumsMatched": true,
+  "signerReceiptMatched": true
+ },
+ "binaryValidation": {
+  "versions": {
+   "Info.plist": {
+    "CFBundleIdentifier": "com.neogamelab.neostation",
+    "CFBundleVersion": "797",
+    "CFBundleShortVersionString": "0.0.8",
+    "MinimumOSVersion": "18.0"
+   },
+   "PlugIns/ARMSX2JITHelper.appex/Info.plist": {
+    "CFBundleIdentifier": "com.neogamelab.neostation.armsx2jithelper",
+    "CFBundleVersion": "797",
+    "CFBundleShortVersionString": "0.0.8",
+    "MinimumOSVersion": "17.4"
+   },
+   "PlugIns/DolphinJITHelper.appex/Info.plist": {
+    "CFBundleIdentifier": "com.neogamelab.neostation.dolphinjithelper",
+    "CFBundleVersion": "797",
+    "CFBundleShortVersionString": "0.0.8",
+    "MinimumOSVersion": "17.4"
+   },
+   "PlugIns/MeloNXJITHelper.appex/Info.plist": {
+    "CFBundleIdentifier": "com.neogamelab.neostation.melonxjithelper",
+    "CFBundleVersion": "797",
+    "CFBundleShortVersionString": "0.0.8",
+    "MinimumOSVersion": "17.4"
+   },
+   "PlugIns/MeloNXRamDonor.appex/Info.plist": {
+    "CFBundleIdentifier": "com.neogamelab.neostation.melonxramdonor",
+    "CFBundleVersion": "797",
+    "CFBundleShortVersionString": "0.0.8",
+    "MinimumOSVersion": "18.0"
+   },
+   "PlugIns/NeoSwapDonor.appex/Info.plist": {
+    "CFBundleIdentifier": "com.neogamelab.neostation.neoswapdonor",
+    "CFBundleVersion": "797",
+    "CFBundleShortVersionString": "0.0.8",
+    "MinimumOSVersion": "17.4"
+   },
+   "PlugIns/NeoSwapPageRelay.appex/Info.plist": {
+    "CFBundleIdentifier": "com.neogamelab.neostation.NeoSwapPageRelay",
+    "CFBundleVersion": "797",
+    "CFBundleShortVersionString": "0.0.8",
+    "MinimumOSVersion": "18.0"
+   },
+   "PlugIns/RPCS3JITHelper.appex/Info.plist": {
+    "CFBundleIdentifier": "com.neogamelab.neostation.rpcs3jithelper",
+    "CFBundleVersion": "797",
+    "CFBundleShortVersionString": "0.0.8",
+    "MinimumOSVersion": "17.4"
+   },
+   "PlugIns/S2ArmJITHelper.appex/Info.plist": {
+    "CFBundleIdentifier": "com.neogamelab.neostation.s2armjithelper",
+    "CFBundleVersion": "797",
+    "CFBundleShortVersionString": "0.0.8",
+    "MinimumOSVersion": "17.4"
+   },
+   "PlugIns/XeniaJITHelper.appex/Info.plist": {
+    "CFBundleIdentifier": "com.neogamelab.neostation.xeniajithelper",
+    "CFBundleVersion": "797",
+    "CFBundleShortVersionString": "0.0.8",
+    "MinimumOSVersion": "17.4"
+   }
+  },
+  "bundleCount": 10,
+  "nativeImageCount": 97,
+  "imagesChangedFromBase": [
+   "Frameworks/S2ArmEngine.framework/S2ArmEngine",
+   "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+   "Runner"
+  ],
+  "undeclaredImageChanges": [
+   "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge"
+  ],
+  "replacedFingerprints": {},
+  "retainedFingerprintsVerified": 48,
+  "engines": {
+   "dolphin": {
+    "fingerprint": "640e4389559c800087b3d4b2a2748b4c11307ae6a79bc72f59d55430ccddd6fc",
+    "exports": 21266
+   },
+   "armsx2": {
+    "fingerprint": "fab55193e509583b03c0e5b33ae8d8812745b5410d138a53e3779b6257f370d4",
+    "exports": 1
+   }
+  },
+  "packagedIdentity": "RewindBox-build-identity.json",
+  "packagedIdentityBuild": 797,
+  "packagedIdentitySHA256": "96ee231445c1260fd9342c500239e48bb4181c19bc158863fcddb81fa701ee4f"
+ },
+ "validators": [
+  {
+   "name": "melonx",
+   "exitCode": 0,
+   "logSHA256": "ae97a38bc1bc378d6ced66ec8f211dab621b69a1b662374b34998360c3d78bbc"
+  },
+  {
+   "name": "neoplay",
+   "exitCode": 0,
+   "logSHA256": "5536cf9e5fb2b62f85cd31b55c4c3458d4cbae154a2aba2f65284a84258ccd2e"
+  },
+  {
+   "name": "shaders",
+   "exitCode": 0,
+   "logSHA256": "f03eb9dc32fda7e1549e519108399036cb3ba83831cb378b48e13e1e2dd77ebe"
+  },
+  {
+   "name": "legal",
+   "exitCode": 0,
+   "logSHA256": "c682b067e4a611d732284c4d588b81783b22d0990d2830199966b2f36371a00e"
+  },
+  {
+   "name": "no-kartpad",
+   "exitCode": 0,
+   "logSHA256": "069e0b88172ac5234c3500e2770ce47b0f1cef55d0e859c69cbd4136eab310d2"
+  },
+  {
+   "name": "no-dusklight",
+   "exitCode": 0,
+   "logSHA256": "f8d8ee4c5e83c13e8d0bad3a1c5547a738668d90357d519e40755b34254beafe"
+  }
+ ],
+ "sourceCheckoutModified": false,
+ "compilationPerformedHere": false,
+ "networkCallsPerformed": false,
+ "cryptographicSignatureVerificationPerformedHere": false,
+ "physicalDeviceTested": false,
+ "gameplayTested": false,
+ "appleProvisioningVerified": false
+}
