@@ -1,0 +1,21 @@
+{
+  "build": 801,
+  "appSourceSha": "f1d0df55a93680a4bd9b43922af1375cf0d66715",
+  "appRun": 44733205671,
+  "bundleIdentifier": "com.neogamelab.neostation",
+  "ipa": {
+    "filename": "RewindBox-801.ipa",
+    "bytes": 333498542,
+    "sha256": "16209cbf87eb3dc9edf93f31cb3820e0896b6da4d608132b474d15b49e1cc5d0"
+  },
+  "engine": {
+    "producerSourceSha": "71ea69e8173db4db3795c8092d74f552a8e89d90",
+    "upstreamSourceSha": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+    "run": 44729718541,
+    "artifact": 14627001034,
+    "patchesVerified": 165,
+    "signedMachOSha256": "635d303d296ebca38afc863f452df57d17e4af4cb7e20834866e1180c6cfb5f7",
+    "payloadFingerprint": "78105884be5f313cba4707cea2c59b47254b4793e82cce342b6a6af2c13f8e46"
+  },
+  "physicalDeviceTested": false
+}
