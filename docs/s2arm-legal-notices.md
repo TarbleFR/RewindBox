@@ -13,6 +13,18 @@ preparation library linked into Runner and the system data
 ([What the test IPA ships](#what-the-test-ipa-ships-with-the-engine-and-its-bridge) below);
 the tables after it detail `S2ArmPrepare.xcframework` and the RewindBox code derived from S2Arm.
 
+## Host-heap changes, 20 November 2026
+
+Patches 0172–0176 in `build-utils/s2arm/engine/patches` are RewindBox changes to
+the pinned S2Arm sources: malloc-zone observations, internal owner accounting,
+bounded open archive handles, drained loader-table retirement and memory-pressure
+relief. Their statement is embedded from
+`build-utils/s2arm/engine/RewindBox-S2Arm-NOTICE.txt`. The changes are provided
+under Apache-2.0, retaining the existing MIT notices for direct graphics and
+Ryujinx-derived code. No new third-party dependency or game content is added.
+`S2A_RB_HEAP_TRIM=0` restores the 803 paths. Device results and delivery status
+are recorded in [the implementation record](evidence/s2arm-fluidity-803/implementation-status.md#tas-hôte-ios--lots-0172-à-0176).
+
 ## What the test IPA ships with the engine and its bridge
 
 Every piece comes from an authenticated producer run of the test line

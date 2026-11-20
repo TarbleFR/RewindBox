@@ -11,7 +11,7 @@ diff --git a/ios/rb_vm_audit.m b/ios/rb_vm_audit.m
  
  // Use the public iOS VM API already compiled by vawin.c, with a 64-bit address range.
  _Static_assert(sizeof(vm_address_t) == 8 && sizeof(vm_size_t) == 8, "VM benchmark requires a 64-bit iOS target");
-@@ -273,6 +274,46 @@
+@@ -273,6 +274,52 @@
      return r;
  }
  
@@ -34,11 +34,14 @@ diff --git a/ios/rb_vm_audit.m b/ios/rb_vm_audit.m
 +            malloc_zone_t *zone = (malloc_zone_t *)(uintptr_t)zones[i];
 +            if (!zone || !zone->introspect || !zone->introspect->statistics) continue;
 +            malloc_statistics_t stats = {0};
++            uint64_t zone_started_ns = rb_vm_now();
 +            malloc_zone_statistics(zone, &stats);
++            uint64_t zone_ended_ns = rb_vm_now();
 +            const char *name = malloc_get_zone_name(zone);
 +            rb_vm_write_json("[RB-VM-HEAP]", @{
 +                @"event": @"malloc_zone", @"sample_ns": @(sample_ns),
 +                @"generation": @(generation), @"zone_index": @(i),
++                @"started_ns": @(zone_started_ns), @"ended_ns": @(zone_ended_ns),
 +                @"name": name ? ([NSString stringWithUTF8String:name] ?: @"unknown") : @"unnamed",
 +                @"size_in_use": @(stats.size_in_use), @"size_allocated": @(stats.size_allocated),
 +                @"max_size_in_use": @(stats.max_size_in_use)
@@ -47,7 +50,10 @@ diff --git a/ios/rb_vm_audit.m b/ios/rb_vm_audit.m
 +        }
 +    }
 +    if (!rb_vm_alive(generation)) return;
++    uint64_t zones_ended_ns = rb_vm_now();
 +    rb_vm_write_json("[RB-VM-HEAP]", @{
++        @"zones_started_ns": @(started), @"zones_ended_ns": @(zones_ended_ns),
++        @"queue_delay_ns": @(started > sample_ns ? started - sample_ns : 0),
 +        @"event": @"heap_census", @"schema": @1, @"generation": @(generation),
 +        @"frame": @(frame), @"sample_ns": @(sample_ns), @"zone_status": @(status),
 +        @"zone_count": @(count), @"zones_reported": @(emitted),
@@ -58,7 +64,7 @@ diff --git a/ios/rb_vm_audit.m b/ios/rb_vm_audit.m
  void s2a_rb_vm_ledgers_log(const task_vm_info_data_t *info,
      mach_msg_type_number_t count, kern_return_t kr, unsigned generation,
      uint64_t frame, uint64_t sample_ns)
-@@ -296,7 +337,10 @@
+@@ -296,7 +343,10 @@
              r[@"published_ns"] = @(rb_vm_now());
              r[@"source"] = @"existing_heartbeat_task_info";
              r[@"additional_mach_calls"] = @0;

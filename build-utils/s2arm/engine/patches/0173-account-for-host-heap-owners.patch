@@ -56,12 +56,13 @@ diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSes
 diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs
 --- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs
 +++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs
-@@ -45,6 +45,8 @@
+@@ -45,6 +45,9 @@
                  previous = observed;
              }
          }
 +
-+        public static ulong BufferCapacity => (ulong)Volatile.Read(ref AppleHardwareDeviceSession.HeapBufferBytes);
++        public static ulong BufferCapacity => OperatingSystem.IsIOS() || OperatingSystem.IsMacOS()
++            ? (ulong)Volatile.Read(ref AppleHardwareDeviceSession.HeapBufferBytes) : 0;
  
          public static void Snapshot(Span<ulong> values)
          {
@@ -413,7 +414,7 @@ diff --git a/ios/rb_vm_audit.m b/ios/rb_vm_audit.m
  static void rb_heap_ledger(unsigned generation, uint64_t frame, uint64_t sample_ns)
  {
      static unsigned previous_generation;
-@@ -310,7 +344,7 @@
+@@ -316,7 +350,7 @@
          @"event": @"heap_census", @"schema": @1, @"generation": @(generation),
          @"frame": @(frame), @"sample_ns": @(sample_ns), @"zone_status": @(status),
          @"zone_count": @(count), @"zones_reported": @(emitted),
@@ -538,14 +539,22 @@ diff --git a/runtime/src/loader.c b/runtime/src/loader.c
 diff --git a/services/aot/Compose.cs b/services/aot/Compose.cs
 --- a/services/aot/Compose.cs
 +++ b/services/aot/Compose.cs
-@@ -29,6 +29,11 @@
+@@ -29,6 +29,19 @@
          [UnmanagedCallersOnly(EntryPoint = "s2a_rb_bench_managed_snapshot")]
          public static int BenchmarkSnapshot(uint version, ulong* output, uint count)
          {
 +            if (version == 2 && output != null && count == 1)
 +            {
-+                output[0] = Ryujinx.Audio.Backends.Apple.S2ABenchmarkAudio.BufferCapacity;
-+                return 0;
++                try
++                {
++                    output[0] = Ryujinx.Audio.Backends.Apple.S2ABenchmarkAudio.BufferCapacity;
++                    return 0;
++                }
++                catch
++                {
++                    output[0] = 0; // unavailable; never let observation escape through the native ABI
++                    return -1;
++                }
 +            }
              if (version != 1 || output == null || count < 24) return -1;
              var values = new System.Span<ulong>(output, 24);

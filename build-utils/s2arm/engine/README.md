@@ -245,9 +245,9 @@ existing CI contract; no new native test suite is introduced.
 
 | Patch | Effect |
 | --- | --- |
-| 0172 | The existing VM ledger worker samples Darwin malloc zones at the first heartbeat and then at 60-second intervals. Each row includes the used, allocated and high-water fields. |
+| 0172 | The existing VM ledger worker samples Darwin malloc zones at the first heartbeat and then at 60-second intervals. Each row includes the used, allocated and high-water fields, plus the actual collection interval; the census reports queue delay separately from the heartbeat timestamp. |
 | 0173 | The same sample reports bytes at instrumented owner sites, flags totals strictly above 100,000,000 bytes and marks unavailable providers. The GPU driver, guest address space and uninstrumented allocations are outside this accounting. |
-| 0174 | Open pipeline archives share a bounded 128-file LRU, including one handle per batch file. Archive users hold strong references through pipeline creation. Compiled PSOs and persistent shader data remain available. |
+| 0174 | Open pipeline archives share a bounded 128-file LRU, including one handle per batch file. Archive users hold strong references through pipeline creation; evicted handles are destroyed after unlocking. A failed open permits reconstruction without deleting the old file. Compiled PSOs and persistent shader data remain available. |
 | 0175 | At drained loader retirement or aborted boot, release the trap and far-jump tables allocated with each module. |
 | 0176 | On a dispatch memory-pressure warning or critical event, retain the eight most recently used archive files and call allocator pressure relief outside engine locks. The returned bytes are logged separately from VM compression. |
 
@@ -255,3 +255,6 @@ existing CI contract; no new native test suite is introduced.
 `S2A_RB_HEAP_LEDGER=0` disables the new instrumentation alone. The existing
 benchmark and VM ledger switches still govern ledger publication. See the
 [owner coverage and device acceptance criteria](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md#tas-hôte-ios--lots-0172-à-0176).
+The offline [six-window comparator](../../../docs/evidence/s2arm-fluidity-803/compare_heap_windows.py)
+requires complete post-score tag-2 censuses and the unchanged benchmark validity
+checks. A compiled candidate is not evidence of a device memory or frame-time gain.

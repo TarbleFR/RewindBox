@@ -23,6 +23,19 @@ S2A_RB_VM_LEDGERS=0 and S2A_RB_VM_FULL_AUDIT=0 independently disable the additio
 S2A_RB_NATIVE_CADENCE=0 restores the generic FPS-capability behavior preceding patch 0170. These changes are provided
 under S2Arm's Apache License, Version 2.0; all upstream and third-party notices remain applicable.
 
+RewindBox patch 0172 records malloc-zone statistics once per minute, with collection timing.
+Patch 0173 accounts for selected host allocations owned by translation tables, page/window records,
+texture views, pipeline tables, command recordings and audio output buffers. These counters exclude
+unobserved driver allocations and are not added to overlapping VM ledgers. Patch 0174 bounds the
+reconstructible open pipeline-archive cache by recency, retaining active users and persistent files;
+evicted objects are released outside its shared lock. Patch 0175 releases module-owned trap and
+far-jump metadata at drained loader retirement. Patch 0176 responds to system memory-pressure
+events by releasing cold archive handles and requesting allocator pressure relief outside engine locks.
+S2A_RB_HEAP_TRIM=0 restores the IPA 803 paths for these five patches; S2A_RB_HEAP_LEDGER=0 disables
+their additional accounting alone. These changes are written for RewindBox under Apache-2.0,
+with the existing MIT notices retained for the direct graphics and Ryujinx-derived portions.
+They do not change the shader translator, delete player caches, or establish a measured device gain.
+
 The engine also contains third-party code; S2Arm's own table of it is S2Arm/THIRD_PARTY_LICENSES.md. The exact
 licence and notice texts of the components that reach this application are in the folders beside this file. Each is
 listed in license-sources.json with its origin (a file of that S2Arm commit, a source archive the engine build fetched

@@ -20,7 +20,7 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
      uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
  #if TARGET_OS_IPHONE
      static _Atomic uint64_t looked = UINT64_MAX;
-@@ -9311,6 +9312,26 @@
+@@ -9311,6 +9312,27 @@
      if (atomic_fetch_sub(&g_fu_waiting, 1) == 1 && atomic_load(&g_fu_waiters)) rb_fu_wake();
  }
  #include "pso_archive.h"   // S2Arm: per-pipeline binary archive (after MacNativeGames, MIT)
@@ -34,9 +34,10 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
 +    @autoreleasepool {
 +        pthread_mutex_lock(&g_par_mu);
 +        before = g_rb_recent_archives.count;
-+        rb_archive_limit(RB_PRESSURE_OPEN_ARCHIVES);
++        CFArrayRef retired = rb_archive_limit(RB_PRESSURE_OPEN_ARCHIVES);
 +        after = g_rb_recent_archives.count;
 +        pthread_mutex_unlock(&g_par_mu);
++        if (retired) CFRelease(retired);
 +    }
 +    size_t released = malloc_zone_pressure_relief(NULL, 0);
 +    MLOG("[RB-HEAP-RELIEF] evicted_archive_files=%lu allocator_reported_bytes=%zu",
