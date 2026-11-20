@@ -359,6 +359,11 @@
         "commit": "13ffc868b099be7c529f46ae87cbd7e194a2855f",
         "note": "Concurrent MeloNX and Nextendo changes outside the 797 test",
         "targetBuild": 798
+      },
+      {
+        "commit": "a37a3f9f2d546262983d47ebd2bbb15885b50af8",
+        "targetBuild": 798,
+        "note": "Concurrent Nextendo dialog and documentation outside the Mario Kart test"
       }
     ],
     "promotedCommits": []
