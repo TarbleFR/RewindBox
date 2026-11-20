@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "bde1a21ccfab81be3db6aea4082ac8e0f8eeabd0",
-  "run": 44729801297,
-  "job": 136266628658,
+  "source": "8988ced5014dd23caae2eefac70b3d37f5a5b7f0",
+  "run": 44753917742,
+  "job": 136348582464,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14625314612,
-  "name": "MeloNX-engine-bde1a21ccfab81be3db6aea4082ac8e0f8eeabd0",
-  "bytes": 101259000,
-  "sha256": "8a0029eb440fcf677b20d4fd2633527e493405c0ecfb4ca0d3fa4c90206b0d7c",
-  "expiresAt": "2027-02-18T11:42:37Z",
+  "artifact": 14638435340,
+  "name": "MeloNX-engine-8988ced5014dd23caae2eefac70b3d37f5a5b7f0",
+  "bytes": 101260810,
+  "sha256": "5e157016cfd9197b1e682383b81c2eb256beafd686ea66a6cee3b2266b32f048",
+  "expiresAt": "2027-02-18T14:29:19Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "ee2ec63150904b94e892ba1ec526944108d86fc69174d27bdceb8a910b0d8d85",
+      "sha256": "b1c4fa43f9738a9b95c91b334f0ab6579f51d54ac5f880727f399eac3fe4c14f",
       "bytes": 39179320
     },
     "iossimulator-arm64": {
-      "sha256": "1b1d7f4783a80d4cbb6d7cbb245799e7a44fccaf80562484d868ab54fa25be05",
-      "bytes": 39485528
+      "sha256": "1aab9fd21cd94102f2b7e003c10fc90f022dcde33793b190833078ce33ab34e9",
+      "bytes": 39502040
     }
   },
   "identities": {
-    "ios-arm64": "e595e422f629e9c63da0262a9387b2403a063a004607860ab414db9bf8a51ea1",
-    "iossimulator-arm64": "58a6708738a7d519b715530de20bd5f89286507b48cff63a38fd7f50f72b11cb"
+    "ios-arm64": "ef5033e62f84e6fb46f3a062bfe7abbb6fdff48f579c41fd65571607f17cc53d",
+    "iossimulator-arm64": "99a8e566701466f24f8f1f686dbed458b78279e4cdb493c5f08b71bcfd3fae37"
   },
-  "contractSha256": "c1029219d76fd04be920867673a54cda51848311b6bf5938133b83c79a8bb081",
-  "resultSha256": "7fc87d996f35ffdc7ffe825115dd9d2adb5019230a687a06b537614a597d4326",
-  "packagedFingerprint": "b442c28e806c3b54cde90de5257aa5a15337e3cd80291928f7cb26413cfed255",
+  "contractSha256": "bd3b429d1d08df8a8612220ea700d7f74b0f898125f2d040212479711df07638",
+  "resultSha256": "109143bbddc66c3055e2bd3e5809fdc55bb38ed720f7e10df6b7689328a9de28",
+  "packagedFingerprint": "1fc7f4af847f17394ab43c19b230400251288db38c9e76def77efa51f16a843a",
   "replaces": {
-    "source": "13ffc868b099be7c529f46ae87cbd7e194a2855f",
-    "run": 44654074211,
-    "artifact": 14592333807,
-    "packagedFingerprint": "51ed8085a6c5c1371992c629aca55eb25379fd876dd29158da2b734905f62844",
-    "reason": "Nextendo buffered TLS reads, pending/peek, cancellation on borrowed sockets and redacted transport diagnostics. No physical matchmaking claim."
+    "source": "bde1a21ccfab81be3db6aea4082ac8e0f8eeabd0",
+    "run": 44729801297,
+    "artifact": 14625314612,
+    "packagedFingerprint": "b442c28e806c3b54cde90de5257aa5a15337e3cd80291928f7cb26413cfed255",
+    "reason": "After IPA 801, SSBU online: the consented certificate rule reaches the secure server on port 60005, which the game names by the address the Smash login server returned (device journal: every attempt refused for hostname). Only that port of the session game address, only once the login server was reached; a chain to Nextendo roots is verified, the legacy private certificate needs the existing consent. Contract bd3b429d, build-smoke route. Not run on an iPhone; NEX login, NAT and matchmaking unproven."
   }
 }
