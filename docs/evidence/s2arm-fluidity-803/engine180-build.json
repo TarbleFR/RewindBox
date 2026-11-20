@@ -1,0 +1,69 @@
+{
+  "source": "5bc7fa9089c3224e8a3300116dec36fd55ad1938",
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "run": 44814628866,
+  "attempt": 1,
+  "xcode": "Xcode 26.6",
+  "jobs": [
+    {
+      "platform": "macos-15",
+      "id": 136559637670,
+      "result": "success"
+    },
+    {
+      "platform": "macos-26",
+      "id": 136559637999,
+      "result": "success"
+    }
+  ],
+  "patchesVerified": 180,
+  "first176UnchangedFrom804": true,
+  "patchDelta": [
+    {
+      "name": "0177-count-live-guest-metal-pipelines.patch",
+      "sha256": "7aa70d1413bb57a5dc2804b0727efddead5979029eab659ee77e19995bfd4eed"
+    },
+    {
+      "name": "0178-select-prewarm-from-session-binds-and-current-context.patch",
+      "sha256": "e981f0fc1cb2bcb42c3f5d2332f964b6cf725d0bc78fec54d1a68d76ab177c95"
+    },
+    {
+      "name": "0179-retire-idle-archive-backed-pipelines.patch",
+      "sha256": "7b3fa8cf73d40098af7567824b53054ca8c6160a7846e4d469e13216b8651d1c"
+    },
+    {
+      "name": "0180-measure-pipeline-waits-against-presented-frames.patch",
+      "sha256": "121bba9181bedd262f3c77fb90905e937c03d4060cac4c5f4622f57febe2a16c"
+    }
+  ],
+  "engineFingerprint": "a15dc93a7f6f0109d64de85aa9ad7ce821c9f37f207a922a70d9666c5371e18a",
+  "pinSha256": "c1d4ce01d4f3db222537637bd2718f195fa43625eb516954b6061682647527fd",
+  "artifact": {
+    "run": 44814628866,
+    "attempt": 1,
+    "artifact": 14668508909,
+    "name": "s2arm-engine-framework-5bc7fa9089c3224e8a3300116dec36fd55ad1938",
+    "bytes": 25041913,
+    "sha256": "d1add400a606ad8f949f1ffa7bb292b922a445564d7ad41550a4014ab5786953",
+    "headSha": "5bc7fa9089c3224e8a3300116dec36fd55ad1938",
+    "headBranch": "Claude",
+    "expiresAt": "2026-12-20T21:00:50Z"
+  },
+  "prepareRun": 44555747908,
+  "sysdataRun": 43038032448,
+  "directShaderChain": "0be3f28548fd",
+  "exportListUnchanged": true,
+  "exportsComparedAgainstSource": "6bdf6fec6850dc4cb4218cf0ae6bd4b25b2a1a14",
+  "ns2proUnchangedFrom804": true,
+  "noticeMatchesSource": true,
+  "privateDelivery": "pending",
+  "validDeviceWindows": 0,
+  "observedPerformance": null,
+  "diagnostics": {
+    "baselineRun804": 44790771355,
+    "compilerOrLinkerWarningsPerJob": 12,
+    "newCompilerOrLinkerWarningTexts": 0,
+    "normalizedWarningMultisetsEqual": true,
+    "compilerErrorLines": 0
+  }
+}
