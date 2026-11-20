@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "1846421b0bd9ed23a95e595a2ec46b1a0c12bdeda9b2419957726e9d51933342",
+  "packagedFingerprint": "839ab6cd060c363e2e81fb4f3be960379342124e210e166d829b9d5e87747afb",
   "producers": {
     "engine": {
-      "run": 44639231641,
+      "run": 44652463127,
       "attempt": 1,
-      "artifact": 14585963728,
-      "name": "s2arm-engine-framework-7377b7438925c8a8d3c9b9494fbc5afa81f9562c",
-      "bytes": 24966343,
-      "sha256": "15978fa3710223a3a0d708e991349cf5077ae2cc7af5c7e945d7567c2f84e494",
-      "headSha": "7377b7438925c8a8d3c9b9494fbc5afa81f9562c",
+      "artifact": 14591509536,
+      "name": "s2arm-engine-framework-c10ede83c9d221bf0f0828bdc9fb5b6368092a06",
+      "bytes": 24985224,
+      "sha256": "10eacd895cf6003b7b5b1389c35f0b6ae60c70f823c2683a4603e259bca8de77",
+      "headSha": "c10ede83c9d221bf0f0828bdc9fb5b6368092a06",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-19T23:52:36Z",
+      "expiresAt": "2026-12-20T01:30:36Z",
       "members": {
-        "S2ArmEngine.framework.zip": "a28d73d986b5c44364bc34f38f90197ba709cb1ef1b3a1afdbc4068964b9b62e",
-        "NS2Pro.framework.zip": "74e9f39c5c405c32a9e20b842dc7af844a9f44f81ca3260c7e5b5f3318e2ac59"
+        "S2ArmEngine.framework.zip": "35a1194653eef63359d4079fc5c512397b96bcb5de6824cad8c9f326480b2acb",
+        "NS2Pro.framework.zip": "4a24f032c6f5a7062913289789a865aae3d76943dc6aca703111c1f5e65d8d8e"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "15978fa3710223a3a0d708e991349cf5077ae2cc7af5c7e945d7567c2f84e494",
+    "engine": "10eacd895cf6003b7b5b1389c35f0b6ae60c70f823c2683a4603e259bca8de77",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "952a540b39caadaac41b8260588e539b2a8ae725224d20412c5b6e31b3d60c3e",
-      "bytes": 114470640,
-      "fingerprint": "1846421b0bd9ed23a95e595a2ec46b1a0c12bdeda9b2419957726e9d51933342"
+      "sha256": "ecd2b30ee8d1295e0091beb9488f0f85e43f1bdb01649e401d411ccf8ecbc51e",
+      "bytes": 114557608,
+      "fingerprint": "839ab6cd060c363e2e81fb4f3be960379342124e210e166d829b9d5e87747afb"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 44639231641,
+      "run": 44652463127,
       "attempt": 1,
-      "head_sha": "7377b7438925c8a8d3c9b9494fbc5afa81f9562c",
+      "head_sha": "c10ede83c9d221bf0f0828bdc9fb5b6368092a06",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -714,11 +714,39 @@
         {
           "name": "0146-guest-report-individual-slow-frames-for-the-cup.patch",
           "sha256": "d59f41f90f824d8205a4488303c4ce6561fee09b6fa296abf0abbda1c8675479"
+        },
+        {
+          "name": "0147-guest-learn-and-prepare-exact-first-draws.patch",
+          "sha256": "4bb6df6adb64877212e87529142de0ce1b330b8dd0df1dbb47c4c4dc68500644"
+        },
+        {
+          "name": "0148-guest-measure-complete-cup-frame-intervals.patch",
+          "sha256": "59c324d5b886dd96544a118d59b42bdb3c08af8bcd7c46a498c90911d67be730"
+        },
+        {
+          "name": "0149-guest-advance-measured-shader-and-texture-dependencies.patch",
+          "sha256": "7588bc40d60d63df430332524dcbbc13c2cea1e1ec57fb7443343da135597963"
+        },
+        {
+          "name": "0150-guest-prioritize-exact-mushroom-cup-recipes.patch",
+          "sha256": "5741091ad5ab63f0cefd58d72c1fdba7807d96fd99eeed16f60dd78d5c46083d"
+        },
+        {
+          "name": "0151-guest-retire-snapshot-views-with-their-backing.patch",
+          "sha256": "3fcbc773d6f689fbe8c5f37efcecb562fde33ec1578d2752e1d209417312496c"
+        },
+        {
+          "name": "0152-guest-keep-cup-verification-off-the-render-path.patch",
+          "sha256": "29f72f985e74c06f317b14189f0a1afbffae55c52593f934735d2174e9eeac6d"
+        },
+        {
+          "name": "0153-guest-pause-neighbour-pool-reads-under-pressure.patch",
+          "sha256": "c8042f5a62b7de80e451960b9ec57dce3027d1975a81cb9310b7d8440583e619"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "a28d73d986b5c44364bc34f38f90197ba709cb1ef1b3a1afdbc4068964b9b62e",
-        "NS2Pro.framework.zip": "74e9f39c5c405c32a9e20b842dc7af844a9f44f81ca3260c7e5b5f3318e2ac59"
+        "S2ArmEngine.framework.zip": "35a1194653eef63359d4079fc5c512397b96bcb5de6824cad8c9f326480b2acb",
+        "NS2Pro.framework.zip": "4a24f032c6f5a7062913289789a865aae3d76943dc6aca703111c1f5e65d8d8e"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
