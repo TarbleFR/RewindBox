@@ -1,12 +1,14 @@
 using Ryujinx.Common.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Security.Cryptography;
+using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 
@@ -60,6 +62,7 @@ namespace Ryujinx.HLE
             public Task<IPAddress> SmashSelection;
             public volatile IPAddress SmashServer;
             public int SmashTlsState;
+            public int TransportSequence;
             public bool SmashPrivateTls;
             public readonly Dictionary<IPAddress, string> Resolved = new();
             public string BcatDirectory; // adapt_nextendo_data
@@ -445,6 +448,8 @@ zdAq1CTeFUrJ6r/siw==
                 Logger.Info?.Print(LogClass.ServiceAcc,
                     $"Online play: title {titleId}, installed version {version ?? "unknown"}, accepted by Nextendo's catalog: {accepted}; " +
                     $"BCAT data: {bcat}; account id: {(settings.Nsa != null ? "the account's NSA" : "the PID")} (adapt_nextendo_data)");
+                Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("onlineAccount", "prepared",
+                    detail: $"title={titleId}; version={version ?? "unknown"}; catalog={accepted}; BCAT={bcat}");
             }
 
             return displayVersion;
@@ -541,6 +546,141 @@ zdAq1CTeFUrJ6r/siw==
             bool npln = name.Contains("npln", StringComparison.OrdinalIgnoreCase) ||
                         name.Contains("gs.nintendo.net", StringComparison.OrdinalIgnoreCase);
             return [npln ? SslApplicationProtocol.Http2 : SslApplicationProtocol.Http11];
+        }
+
+        // A certificate callback runs BEFORE AuthenticateAsClient finishes. Keep transport events separate:
+        // neither certificate acceptance nor bytes exchanged proves NEX login or a completed match.
+        // Bound events to the launching session and never record addresses, tokens, payloads or exception messages.
+        public static Action<string, string> TransportJournal(string host, int port)
+        {
+            Settings settings = _settings;
+            if (settings == null) return (_, _) => { };
+            int id = Interlocked.Increment(ref settings.TransportSequence);
+            int failed = 0;
+            string route = string.Equals(host, SmashHost, StringComparison.OrdinalIgnoreCase) ? "ssbu" : "other";
+            return (status, detail) =>
+            {
+                if (status == "failed" && Interlocked.Exchange(ref failed, 1) != 0) return;
+                if (id <= 64 && ReferenceEquals(settings, _settings))
+                    Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("onlineTls", status,
+                        detail: $"connection={id}; route={route}; port={port}; {detail}");
+            };
+        }
+
+        public static HOS.Services.Ssl.ResultCode TransportError(Exception error)
+        {
+            for (Exception current = error; current != null; current = current.InnerException)
+                if (current is SocketException socket)
+                    return socket.SocketErrorCode switch
+                    {
+                        SocketError.ConnectionReset => HOS.Services.Ssl.ResultCode.ConnectionReset,
+                        SocketError.TimedOut => HOS.Services.Ssl.ResultCode.Timeout,
+                        _ => HOS.Services.Ssl.ResultCode.ConnectionAbort,
+                    };
+            return HOS.Services.Ssl.ResultCode.ConnectionAbort;
+        }
+
+        // Socket.Poll cannot see SslStream's decrypted buffer. A 1 ms synchronous read timeout is not a
+        // safe substitute: a partial TLS record can outlive that timeout. Keep ONE asynchronous read alive
+        // across guest polls, into owned storage (never an IPC WritableRegion that dies after WouldBlock).
+        // The existing service returns WouldBlock when data is unavailable, for either guest socket mode.
+        public sealed class TlsReadBuffer : IDisposable
+        {
+            private readonly SslStream _stream;
+            private readonly Action<string, string> _journal;
+            private readonly object _gate = new();
+            private readonly byte[] _buffer = new byte[16 * 1024];
+            private Task<int> _pending;
+            private int _offset, _count;
+            private bool _eof, _disposed;
+            private long _readBytes, _writtenBytes;
+            private HOS.Services.Ssl.ResultCode _error;
+
+            public TlsReadBuffer(SslStream stream, Action<string, string> journal)
+            {
+                _stream = stream;
+                _journal = journal;
+            }
+
+            private HOS.Services.Ssl.ResultCode Fill()
+            {
+                if (_disposed) return HOS.Services.Ssl.ResultCode.ConnectionAbort;
+                if (_error != HOS.Services.Ssl.ResultCode.Success) return _error;
+                if (_count != 0 || _eof) return HOS.Services.Ssl.ResultCode.Success;
+                try
+                {
+                    _pending ??= _stream.ReadAsync(_buffer.AsMemory()).AsTask();
+                    if (!_pending.IsCompleted) return HOS.Services.Ssl.ResultCode.WouldBlock;
+                    _count = _pending.GetAwaiter().GetResult();
+                    _pending = null;
+                    _offset = 0;
+                    if (_count == 0)
+                    {
+                        _eof = true;
+                        _journal("eof", "read");
+                    }
+                    return HOS.Services.Ssl.ResultCode.Success;
+                }
+                catch (Exception error) when (error is IOException or SocketException or AuthenticationException or ObjectDisposedException)
+                {
+                    _pending = null;
+                    _error = TransportError(error);
+                    _journal("failed", "read; result=" + _error);
+                    return _error;
+                }
+            }
+
+            public HOS.Services.Ssl.ResultCode Read(out int count, Memory<byte> destination, bool peek = false)
+            {
+                lock (_gate)
+                {
+                    count = -1;
+                    if (_disposed) return HOS.Services.Ssl.ResultCode.ConnectionAbort;
+                    if (destination.Length == 0) { count = 0; return HOS.Services.Ssl.ResultCode.Success; }
+                    HOS.Services.Ssl.ResultCode result = Fill();
+                    if (result != HOS.Services.Ssl.ResultCode.Success) return result;
+                    count = Math.Min(destination.Length, _count);
+                    _buffer.AsMemory(_offset, count).CopyTo(destination);
+                    if (!peek)
+                    {
+                        if (_readBytes == 0 && count > 0) _journal("received", "first-response");
+                        _readBytes += count;
+                        _offset += count;
+                        _count -= count;
+                    }
+                    return HOS.Services.Ssl.ResultCode.Success;
+                }
+            }
+
+            public int Pending()
+            {
+                lock (_gate) return Fill() == HOS.Services.Ssl.ResultCode.Success ? _count : 0;
+            }
+
+            public void Written(int count)
+            {
+                lock (_gate)
+                {
+                    if (_writtenBytes == 0 && count > 0) _journal("sent", "first-request");
+                    _writtenBytes += count;
+                }
+            }
+
+            public void Dispose()
+            {
+                lock (_gate)
+                {
+                    if (_disposed) return;
+                    _disposed = true;
+                    _journal("closed", $"readBytes={_readBytes}; writtenBytes={_writtenBytes}");
+                    // Dispose cancels an outstanding read. Observe its eventual failure without waiting on
+                    // the network or reusing its buffer in another session.
+                    if (_pending != null)
+                        _ = _pending.ContinueWith(task => { _ = task.Exception; }, CancellationToken.None,
+                            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                    _stream.Dispose();
+                }
+            }
         }
 
         /// <summary>Bind the optional SSBU exception to this session and this socket's actual destination.</summary>

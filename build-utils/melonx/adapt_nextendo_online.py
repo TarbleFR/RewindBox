@@ -197,11 +197,14 @@ TLS_NEW = '''            StartSslOperation();
             if (Ryujinx.HLE.EmbeddedOnline.IsServer(onlinePeer))
             {
                 string onlineHost = string.IsNullOrEmpty(hostName) ? Ryujinx.HLE.EmbeddedOnline.HostFor(onlinePeer) : hostName;
+                _onlineJournal = Ryujinx.HLE.EmbeddedOnline.TransportJournal(onlineHost, Socket.RemoteEndPoint.Port);
+                _onlineJournal("begin", "handshake");
 
                 try
                 {
                     if (string.IsNullOrEmpty(onlineHost))
                     {
+                        _onlineJournal("failed", "handshake; missing-host");
                         Ryujinx.Common.Logging.Logger.Warning?.Print(Ryujinx.Common.Logging.LogClass.ServiceSsl, "Online play: no host name for a TLS connection to a configured server.");
 
                         return ResultCode.ConnectionAbort;
@@ -217,16 +220,19 @@ TLS_NEW = '''            StartSslOperation();
                     };
                     _stream = new SslStream(new NetworkStream(((DefaultSocket)((ManagedSocket)Socket).Socket).BaseSocket, false), false);
                     _stream.AuthenticateAsClient(onlineOptions);
+                    _onlineRead = new Ryujinx.HLE.EmbeddedOnline.TlsReadBuffer(_stream, _onlineJournal);
+                    _onlineJournal("ready", "handshake-completed");
 
                     return ResultCode.Success;
                 }
-                catch (Exception error) when (error is AuthenticationException or IOException or ObjectDisposedException)
+                catch (Exception error) when (error is AuthenticationException or IOException or SocketException or ObjectDisposedException)
                 {
+                    _onlineJournal("failed", "handshake; result=" + Ryujinx.HLE.EmbeddedOnline.TransportError(error));
                     Ryujinx.Common.Logging.Logger.Warning?.Print(Ryujinx.Common.Logging.LogClass.ServiceSsl, $"Online play: TLS to '{onlineHost}' failed ({error.GetType().Name}).");
                     _stream?.Dispose();
                     _stream = null;
 
-                    return ResultCode.ConnectionAbort;
+                    return Ryujinx.HLE.EmbeddedOnline.TransportError(error);
                 }
                 finally
                 {
@@ -258,10 +264,16 @@ TLS_NEW = '''            StartSslOperation();
 '''
 
 STREAM_GUARDS = (
+    ('''        private SslStream _stream;
+''', '''        private SslStream _stream;
+        private Ryujinx.HLE.EmbeddedOnline.TlsReadBuffer _onlineRead;
+        private Action<string, string> _onlineJournal;
+'''),
     ('''        public ResultCode Read(out int readCount, Memory<byte> buffer)
         {
 ''', '''        public ResultCode Read(out int readCount, Memory<byte> buffer)
         {
+            if (_onlineRead != null) return _onlineRead.Read(out readCount, buffer);
             // RewindBox (adapt_nextendo_online): no stream after a refused handshake while online.
             if (_stream == null && Ryujinx.HLE.EmbeddedOnline.Enabled)
             {
@@ -297,6 +309,43 @@ STREAM_GUARDS = (
                 return ResultCode.ConnectionAbort;
             }
 
+'''),
+    ('''        public ResultCode Peek(out int peekCount, Memory<byte> buffer)
+        {
+''', '''        public ResultCode Peek(out int peekCount, Memory<byte> buffer)
+        {
+            if (_onlineRead != null) return _onlineRead.Read(out peekCount, buffer, peek: true);
+'''),
+    ('''        public int Pending()
+        {
+''', '''        public int Pending()
+        {
+            if (_onlineRead != null) return _onlineRead.Pending();
+'''),
+    ('''                _stream.Write(buffer.Span);
+            }
+            catch (IOException exception)
+''', '''                _stream.Write(buffer.Span);
+                _onlineRead?.Written(buffer.Length);
+            }
+            catch (Exception error) when (_onlineRead != null && error is IOException or SocketException or AuthenticationException or ObjectDisposedException)
+            {
+                writtenCount = -1;
+                ResultCode result = Ryujinx.HLE.EmbeddedOnline.TransportError(error);
+                _onlineJournal("failed", "write; result=" + result);
+                return result;
+            }
+            catch (IOException exception)
+'''),
+    ('''        public void Dispose()
+        {
+            _bsdContext.CloseFileDescriptor(SocketFd);
+        }
+''', '''        public void Dispose()
+        {
+            try { _onlineRead?.Dispose(); }
+            finally { _bsdContext.CloseFileDescriptor(SocketFd); }
+        }
 '''),
 )
 

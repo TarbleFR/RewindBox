@@ -31,7 +31,8 @@ enum MeloNXLaunchJournal {
     static func relayCore(_ event: [String:Any]) {
         let stage = event["stage"] as? String ?? "native"
         let status = event["status"] as? String ?? "unknown"
-        guard stage == "smashTls" || (stage == "memory" && status == "retained") || status == "failed" ||
+        guard stage == "smashTls" || stage == "onlineTls" || stage == "onlineAccount" ||
+              (stage == "memory" && status == "retained") || status == "failed" ||
               status == "fatal" || stage == "unhandledException" else { return }
         DispatchQueue.main.async { sink?(event) }
     }
