@@ -25,12 +25,10 @@ Calcul conservé d’une version à l’autre : somme(note × poids) / 100, arro
 ```mermaid
 xychart-beta
     title "S2Arm : avancement estimé par mise à jour"
-    x-axis "IPA ou commit moteur" ["799", "0155", "pont iOS", "0156", "0157", "0158", "0159", "0160"]
+    x-axis "IPA ou commit moteur" ["799", "0155", "pont iOS", "0156", "0157", "0158", "0159", "0160", "0161"]
     y-axis "Maturité estimée (%)" 0 --> 100
-    bar [55, 55, 55, 55, 55, 55, 55, 55]
+    bar [55, 55, 55, 55, 55, 55, 55, 55, 55]
 ```
-
-Le graphique reprend les mises à jour depuis la 799 dans leur ordre chronologique. Conserver toutes les lignes ci-dessous, même lorsque la note reste identique ; un résultat tardif complète la ligne de sa version.
 
 | Date | IPA / source | I / R / C / P / S (%) | Global estimé | Évolution et preuve / mesure sur appareil |
 | --- | --- | --- | ---: | --- |
@@ -42,6 +40,7 @@ Le graphique reprend les mises à jour depuis la 799 dans leur ordre chronologiq
 | 2026-11-20 | [Moteur 0158](https://github.com/TarbleFR/RewindBox/commit/3472b90f158f01ff3c5fe895ca2a129e7e591fbf) | 90 / 60 / 65 / 35 / 25 | 55 % | Écritures du journal de course regroupées. Rejeu local des 7 232 images et 153 lignes de pause de la 799. Les écritures passent de 7 385 à 226 avec 2 089 095 octets identiques. Les lignes hors capacité et la sortie d’erreur gardent le format initial. Chauffe et FPS sur iPhone non mesurés avec ce moteur. |
 | 2026-11-20 | [Moteur 0159](https://github.com/TarbleFR/RewindBox/commit/b4e34f4382761fa27a40650449a702749bc59ab9) | 90 / 60 / 65 / 35 / 25 | 55 % | Réveil du présentateur classique uniquement quand il peut présenter. Essai pthread synchronisé sur 5 000 images en mode DisplayLink et trois notifications distinctes par image. Revérifications inutiles du présentateur 15 000 → 0. Après 100 bascules, 1 001 images classiques traitées. Rejeu des 1 341 lignes de premier dessin de la 799 en 94 groupes observés ou subdivisés. Écritures 1 341 → 116 pour 400 406 octets identiques. Mesure sur iPhone en attente. |
 | 2026-11-20 | [Moteur 0160](https://github.com/TarbleFR/RewindBox/commit/e5d8c2a08f8ecbba7b13c71d32ef5ec12f577303) | 90 / 60 / 65 / 35 / 25 | 55 % | Lancement de Mario Kart World. Rejeu séquentiel du manifeste de la 799, 698 → 298 contrôles de disponibilité pour 298 variantes. Empreintes des textures identiques dans 312 cas. Temps CPU médian du hachage de 131,25 Mio sur Linux, 43,71 → 14,84 ms. [Vidéo, mesures et méthode](evidence/s2arm-799-frame-stalls.md#chargement-de-la-carte-de-mario-kart-world). [Compilation réussie sur macOS 15 et 26](https://github.com/TarbleFR/RewindBox/actions/runs/44689588152). Les 160 empreintes de correctifs et les deux frameworks iOS arm64 correspondent au manifeste de [l’artefact](https://github.com/TarbleFR/RewindBox/actions/runs/44689588152/artifacts/14608277766). Gain en jeu à mesurer. |
+| 2026-11-20 | Moteur 0161 | 90 / 60 / 65 / 35 / 25 | 55 % | Les tâches de préchauffage promues suivent le plafond thermique. Reprise à un worker pendant cinq secondes après la dernière mesure de chauffe sérieuse, si iOS autorise la reprise. Attente signalée lors d’un premier pipeline et regroupement des ajouts au manifeste personnel. Contrôle pthread réussi. Chauffe, cadence et débit d’écriture en jeu à mesurer sur iPhone. |
 
 **Mesures de référence, à conserver séparément de l’estimation :** [IPA 795](evidence/rewind796/profile-observations-795.json), 26,886 FPS moteur sur 9 145 intervalles sans lacune dans la plage observée (≈ 5 min 40 s), 213 >100 ms dont 36 >500 ms ; [ancien moteur 0001–0089](evidence/s2arm-ipa783-device-2026-11-18.md), 60 FPS sur 526 intervalles (≈ 8,8 s), scène non identifiée ; [IPA 786](evidence/s2arm-ipa786-device-2026-11-18.md), deux fenêtres à l’affichage à 23,9 / 22,5 FPS et GPU médian à 33,38 / 35,03 ms ; [IPA 794](evidence/s2arm-first-race-795.md), pic échantillonné de 5 175 Mio. Parcours, caches et réglages non uniformisés : aucun gain avant/après attribuable à partir de ces seuls relevés.
 
