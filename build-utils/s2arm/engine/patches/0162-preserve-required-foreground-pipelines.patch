@@ -1,0 +1,155 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 4360722..46b9a59 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -12885,6 +12885,8 @@ static void rb_recovered_program(NvShader *vs,NvShader *fs) {
+ }
+ static os_unfair_lock g_wu_lock = OS_UNFAIR_LOCK_INIT;
+ static NSMutableDictionary<NSString *, NSMutableArray<NSNumber *> *> *g_wu_pairs;   // "顶点键|片元键" → R 行下标；nil = 当前没有在跑的预热
++static long g_wu_required_rows;  // exact foreground prefix during explicit reference preparation, g_wu_lock
++static _Atomic long g_wu_required_remaining;
+ static NSMutableArray<NSNumber *> *g_wu_q;                             // 急件下标（先进先出）
+ static _Atomic(uint8_t) *g_wu_claim; static long g_wu_n;                // 每行「已领」标记
+ static _Atomic long g_wu_remaining;
+@@ -13061,6 +13063,7 @@ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
+     g_rb_draw_route_rows=routes; rb_draw_route_locked();
+     rb_course_rows_locked(nil);
+     g_rb_follow_rows = nil; atomic_store(&g_rb_next_row, 0);
++    g_wu_required_rows = 0; atomic_store(&g_wu_required_remaining, 0);
+     atomic_store(&g_ref_late_rows[0],lateRows[0]); atomic_store(&g_ref_late_rows[1],lateRows[1]);
+     atomic_store(&g_ref_late_hints,0); atomic_store(&g_ref_late_live,c ? (!!lateRows[0] | (!!lateRows[1]<<1)) : 0);
+     os_unfair_lock_unlock(&g_wu_lock);
+@@ -13068,8 +13071,9 @@ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
+ }
+ static void warm_urgent_end(void) { os_unfair_lock_lock(&g_wu_lock); memset(g_course_starters,0,sizeof g_course_starters); g_rb_draw_route_rows=nil; rb_draw_route_locked(); rb_course_rows_locked(nil); g_wu_pairs = nil; atomic_store(&g_ref_late_live,0); atomic_store(&g_ref_late_hints,0); [g_wu_q removeAllObjects]; os_unfair_lock_unlock(&g_wu_lock); }   // 标记数组留给还没退出的工人读（随下一次索引换掉）
+ // 工人领下一行：先急件，再按清单顺序；已领的跳过。→ 下标，-1 = 没有了
+-// The required foreground pass (w < 0) and first draws retain their own paths.
+-static long warm_pick(_Atomic long *next, long n, int w, int *lease) {
++// A verified foreground prefix can still serve an exact registered dependency
++// under HOLD. Other promoted rows use the same admission as background work.
++static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL required) {
+     *lease = 0;
+     if (fu_yield_on() && atomic_load(&g_fu_waiting)) {
+         uint64_t t0 = bp_now(), deadline = t0 + FU_YIELD_MAX_MS * 1000000ull;
+@@ -13087,13 +13091,24 @@ static long warm_pick(_Atomic long *next, long n, int w, int *lease) {
+     for (;;) {
+         uint64_t ticket = atomic_load(&g_spec_gate.epoch);
+         if (dm_gfx_session_stopping() || nvn_be_stopping()) return -1;
++        long i = -1;
+         os_unfair_lock_lock(&g_wu_lock);
+         _Atomic(uint8_t) *c = g_wu_claim;
+         long cn = g_wu_n;
+-        int drained = !g_wu_q.count && (atomic_load(next) >= n || (c && !atomic_load(&g_wu_remaining)));
++        if (required && atomic_load(&g_wu_required_remaining)) {
++            for (NSUInteger slot = 0; slot < g_wu_q.count; ++slot) {
++                long row = g_wu_q[slot].longValue;
++                if (row >= n) continue;
++                i = row;
++                [g_wu_q removeObjectAtIndex:slot];
++                break;
++            }
++        }
++        int drained = required ? i < 0 && (!atomic_load(&g_wu_required_remaining) || atomic_load(next) >= n)
++                               : !g_wu_q.count && (atomic_load(next) >= n || (c && !atomic_load(&g_wu_remaining)));
+         os_unfair_lock_unlock(&g_wu_lock);
+         if (drained) return -1;
+-        if (w >= 0 && !rb_spec_take(w, lease)) {
++        if (i < 0 && w >= 0 && !rb_spec_take(w, lease)) {
+ #ifdef RB_REF_TEST_HELD_PICK
+             RB_REF_TEST_HELD_PICK(w);
+ #endif
+@@ -13101,18 +13116,19 @@ static long warm_pick(_Atomic long *next, long n, int w, int *lease) {
+             continue;
+         }
+         if (dm_gfx_session_stopping() || nvn_be_stopping()) { rb_spec_done(lease); return -1; }
+-        long i = -1;
+-        os_unfair_lock_lock(&g_wu_lock);
+-        if (g_wu_q.count) { i = g_wu_q[0].longValue; [g_wu_q removeObjectAtIndex:0]; }
+-        os_unfair_lock_unlock(&g_wu_lock);
++        if (!required) {
++            os_unfair_lock_lock(&g_wu_lock);
++            if (g_wu_q.count) { i = g_wu_q[0].longValue; [g_wu_q removeObjectAtIndex:0]; }
++            os_unfair_lock_unlock(&g_wu_lock);
++        }
+         int urgent = i >= 0;
+         long routeHint=0;
+-        if (!urgent && w>=0 && !atomic_load(&g_fu_waiting)) {
++        if (!required && !urgent && w >= 0 && !atomic_load(&g_fu_waiting)) {
+             routeHint=rb_draw_route_take();
+             if (!routeHint) routeHint=rb_course_take_hint();
+             if (!routeHint) routeHint=rb_ref_take_hint();
+         }
+-        long hint=routeHint ? routeHint : (!urgent && w>=0 ? atomic_exchange(&g_rb_next_row,0) : 0);
++        long hint=routeHint ? routeHint : (!required && !urgent && w >= 0 ? atomic_exchange(&g_rb_next_row,0) : 0);
+         if (hint && (atomic_load(&g_fu_waiting) || !c || hint > cn || hint > n)) hint = 0;
+         if (hint) {
+             i = hint - 1;
+@@ -13125,22 +13141,32 @@ static long warm_pick(_Atomic long *next, long n, int w, int *lease) {
+         if (hint || !c || i >= cn || rb_claim_row(&c[i])) {
+             g_rb_picked_hint = hint != 0 && !routeHint;
+             if (g_rb_picked_hint) atomic_fetch_add(&g_rb_promoted,1);
+-            if (c && i < cn && atomic_fetch_sub(&g_wu_remaining, 1) == 1) rb_spec_wake(&g_spec_gate);
++            int foreground_done = required && atomic_fetch_sub(&g_wu_required_remaining, 1) == 1;
++            int all_done = c && i < cn && atomic_fetch_sub(&g_wu_remaining, 1) == 1;
++            if (foreground_done || all_done) rb_spec_wake(&g_spec_gate);
+             if (urgent) atomic_fetch_add(&g_wu_taken, 1);
+             return i;
+         }
+         rb_spec_done(lease);
+     }
+ }
++static long warm_pick(_Atomic long *next, long n, int w, int *lease) {
++    return warm_pick_row(next, n, w, lease, NO);
++}
+ static void warm_bump(const char *vk, const char *fk) {
+     if (!vk) return;
+-    NSString *k = [NSString stringWithFormat:@"%s|%s", vk, fk ? fk : ""]; uint64_t added = 0;
++    NSString *k = [NSString stringWithFormat:@"%s|%s", vk, fk ? fk : ""]; uint64_t added = 0; BOOL wake_required = NO;
+     os_unfair_lock_lock(&g_wu_lock);
+     NSArray<NSNumber *> *rows = g_wu_pairs[k];
+-    for (NSNumber *r in rows) if (r.longValue < g_wu_n && rb_promote_row(&g_wu_claim[r.longValue])) { [g_wu_q addObject:r]; added++; }
++    for (NSNumber *r in rows) if (r.longValue < g_wu_n && rb_promote_row(&g_wu_claim[r.longValue])) {
++        [g_wu_q addObject:r];
++        added++;
++        if (r.longValue < g_wu_required_rows) wake_required = YES;
++    }
+     // Rows only move from free to promoted/claimed in this epoch. A repeated bind cannot promote them again.
+     if (rows) [g_wu_pairs removeObjectForKey:k];
+     os_unfair_lock_unlock(&g_wu_lock);
++    if (wake_required) rb_spec_wake(&g_spec_gate);
+     if (added) { uint64_t n = atomic_fetch_add(&g_wu_bumped, added) + added;
+         if (!((n - added) & (n - added - 1)) || n == added) MLOG("pipeline prewarm: the game registered a program whose pipelines were still queued: %llu lines moved to the front so far (%llu taken from the front)", (unsigned long long)n, (unsigned long long)atomic_load(&g_wu_taken)); }
+ }
+@@ -13361,6 +13387,10 @@ static int warm_prepare(NSArray<WarmTask *> *tasks, long lines, BOOL referencePr
+         // run on the normal background workers after the strict disk proof.
+         frontCount=0;
+         while (frontCount<n && tasks[(NSUInteger)frontCount]->reference) ++frontCount;
++        os_unfair_lock_lock(&g_wu_lock);
++        g_wu_required_rows = frontCount;
++        atomic_store(&g_wu_required_remaining, frontCount);
++        os_unfair_lock_unlock(&g_wu_lock);
+     }
+     __block _Atomic long optionalNext=frontCount;
+     atomic_store(&g_wp_total, lines); atomic_store(&g_wp_phase, WARM_FRONT);
+@@ -13370,7 +13400,7 @@ static int warm_prepare(NSArray<WarmTask *> *tasks, long lines, BOOL referencePr
+         for (;;) {
+             if (atomic_load(&stop)) break;
+             int lease;
+-            long i=warm_pick(&next,frontCount,referencePreparation ? w : -1,&lease);
++            long i=warm_pick_row(&next,frontCount,referencePreparation ? w : -1,&lease,migration);
+             if (i<0 || dm_gfx_session_stopping()) { rb_spec_done(&lease); break; }
+             WarmTask *task=tasks[(NSUInteger)i];
+             WARM_PREPARE_TASK(task);
+diff --git a/graphics/nvn/tests/rb_reference_gpu.inc b/graphics/nvn/tests/rb_reference_gpu.inc
+index 249db98..edc95aa 100644
+--- a/graphics/nvn/tests/rb_reference_gpu.inc
++++ b/graphics/nvn/tests/rb_reference_gpu.inc
+@@ -28,7 +28,7 @@ static void reference_test_pause(int reason) {
+     if (!reference_pause_mode || !reason) return;
+     uint64_t counts[6]; GPU_CHECK(s2a_rb_guest_prepare_gpu_status(counts)==0 && counts[4]==1);
+     if (reason==1 && reference_pause_state==0) {
+-        ++reference_pause_state; atomic_store(&g_fu_waiting,0);
++        ++reference_pause_state; rb_fu_end();
+     } else if (reason==2 && reference_pause_state==1) {
+         ++reference_pause_state;
+         if (reference_pause_mode==2) GPU_CHECK(!nvn_be_request_stop());
