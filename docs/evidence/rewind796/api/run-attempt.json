@@ -1,0 +1,17 @@
+{
+  "conclusion": "success",
+  "created_at": "2026-11-19T23:58:00Z",
+  "event": "push",
+  "head_branch": "Claude",
+  "head_sha": "e15d80346f287de4d5806757220dfacd646c30cc",
+  "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/44641967049",
+  "id": 44641967049,
+  "name": "RewindBox standard delivery - e15d80346f287de4d5806757220dfacd646c30cc",
+  "path": ".github/workflows/standard-delivery.yml",
+  "run_attempt": 1,
+  "run_number": 601,
+  "run_started_at": "2026-11-19T23:58:00Z",
+  "status": "completed",
+  "updated_at": "2026-11-20T00:21:04Z",
+  "workflow_id": 404028367
+}
