@@ -383,6 +383,10 @@
       {
         "commit": "71ea69e8173db4db3795c8092d74f552a8e89d90",
         "note": "Recover oversized GPU-completed staging buffers under pressure and report subsequent reuse."
+      },
+      {
+        "commit": "a79467c9397142fe4b9e7eb2d781f1ef2c27be8f",
+        "note": "Embed the verified S2Arm framework with the cumulative race and RAM work, from run 44729718541."
       }
     ],
     "sourceOnly": [
