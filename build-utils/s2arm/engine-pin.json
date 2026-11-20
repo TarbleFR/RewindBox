@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "60772c5d4aca6968c93a367dcd1f66fd9914392bb75fa07a616673120d3f184e",
+  "packagedFingerprint": "78105884be5f313cba4707cea2c59b47254b4793e82cce342b6a6af2c13f8e46",
   "producers": {
     "engine": {
-      "run": 44725883644,
+      "run": 44729718541,
       "attempt": 1,
-      "artifact": 14624732880,
-      "name": "s2arm-engine-framework-8eb3af9023298ac69c2966eefedca59715d03a5c",
-      "bytes": 24989934,
-      "sha256": "ef6637353acfa7b1b9bf7955a9a1ae70b6a732ded239baf64f36f0b78a65797e",
-      "headSha": "8eb3af9023298ac69c2966eefedca59715d03a5c",
+      "artifact": 14627001034,
+      "name": "s2arm-engine-framework-71ea69e8173db4db3795c8092d74f552a8e89d90",
+      "bytes": 24989715,
+      "sha256": "b25145eeee9e84f2ec1903ec23488db00d1726e63702065ab25a15a194136dc0",
+      "headSha": "71ea69e8173db4db3795c8092d74f552a8e89d90",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-20T11:32:39Z",
+      "expiresAt": "2026-12-20T11:56:33Z",
       "members": {
-        "S2ArmEngine.framework.zip": "33ae512da648b3cdfc7ff2970f35efd4210adc5f286fcb7b69646f9f236a1882",
-        "NS2Pro.framework.zip": "e91a7eaf8a31c87a9f0c45ada0c82d8ee61bee0eb23e6944a1042cd32b7b8766"
+        "S2ArmEngine.framework.zip": "8473ce8b089fac50ff7db3725f0a3ecf07674ba5070fa6c3560d2936c2106a1e",
+        "NS2Pro.framework.zip": "5bfb65ea0b878b35428b38bdf7ef8e2d89ac12b4da9be31f0bcaa51ce6493525"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "ef6637353acfa7b1b9bf7955a9a1ae70b6a732ded239baf64f36f0b78a65797e",
+    "engine": "b25145eeee9e84f2ec1903ec23488db00d1726e63702065ab25a15a194136dc0",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "8a135276ed775206005f57dd594f075ca8791bed2d28cbac8a25d9f0c510e55e",
-      "bytes": 114559992,
-      "fingerprint": "60772c5d4aca6968c93a367dcd1f66fd9914392bb75fa07a616673120d3f184e"
+      "sha256": "91166547b9f7b04b3cb46d8b69980d2813e56bc5ea2056d3aa7d6dc652244932",
+      "bytes": 114560496,
+      "fingerprint": "78105884be5f313cba4707cea2c59b47254b4793e82cce342b6a6af2c13f8e46"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 44725883644,
+      "run": 44729718541,
       "attempt": 1,
-      "head_sha": "8eb3af9023298ac69c2966eefedca59715d03a5c",
+      "head_sha": "71ea69e8173db4db3795c8092d74f552a8e89d90",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -782,11 +782,19 @@
         {
           "name": "0163-scoped-texture-views-and-race-pacing.patch",
           "sha256": "6974616e1843f6d55cb5c47a5cdeefb69c057294e5196ee9c8ccf955b1bbebcd"
+        },
+        {
+          "name": "0164-ios-headroom-and-bounded-draw-checkpoint.patch",
+          "sha256": "86ddbf069828246543b626c92bf19561ef7da57795081f2ab63ddcd17b1ee20b"
+        },
+        {
+          "name": "0165-reclaim-completed-idle-staging-slots.patch",
+          "sha256": "00b093d7de4db852c3b1ca8d5b7a3dec8488d505f4696191b8c09ba7ee1489fa"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "33ae512da648b3cdfc7ff2970f35efd4210adc5f286fcb7b69646f9f236a1882",
-        "NS2Pro.framework.zip": "e91a7eaf8a31c87a9f0c45ada0c82d8ee61bee0eb23e6944a1042cd32b7b8766"
+        "S2ArmEngine.framework.zip": "8473ce8b089fac50ff7db3725f0a3ecf07674ba5070fa6c3560d2936c2106a1e",
+        "NS2Pro.framework.zip": "5bfb65ea0b878b35428b38bdf7ef8e2d89ac12b4da9be31f0bcaa51ce6493525"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
