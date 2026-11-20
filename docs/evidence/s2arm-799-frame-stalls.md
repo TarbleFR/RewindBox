@@ -49,6 +49,36 @@ Les chemins moteur sont relatifs au pin amont après application ordonnée des p
 | P2 · Audio, arrière-plan, reprise et sauvegardes | Notification de réinitialisation audio suivie d’une reconstruction réussie. En fin de capture, deux watchdogs sans callback (1043 et 2026 ms) tentent stop/start après refus d’activation, code 2003329396. Passage en arrière-plan avec 3 images en attente abandonnées. | compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs, S2ARecover : le watchdog ordinaire diffère le redémarrage lorsque iOS refuse l’activation, conserve les buffers, réessaie selon le délai existant ; les notifications de reset conservent leur reconstruction. | Vérifier interruption réelle, reprise audio avec activation réussie, arrêt/reprise du moteur, chargement d’une sauvegarde après relance. Aucun aller-retour complet équivalent dans le journal, aucune preuve de causalité audio pour 3518. |
 | P2 · Collecte et analyse | Profils CPU joints antérieurs ; 2689 mesures de lots GPU disponibles, 1865 indisponibles. | shader_session_metrics.py ajoute p99 et regroupement par indice d’asset. Télémétrie SVC en mémoire bornée, sortie dans le lot différé ; durée de préparation en trois entiers, lisibles avec les anciens exports. | Cinq tests existants de l’analyseur et quatre contrôles existants des exports exécutés. Mesurer sur appareil le surcoût résiduel et les FPS visibles ; écarter les fenêtres avec couverture lacunaire. |
 
+## Réveils et écritures après la 799
+
+La 799 atteint l’état thermique sérieux. Aux images 6 600 et 6 900, iOS relève respectivement 4 202 et 4 487 réveils/s pour le processus. Le tableau compare ensuite des essais locaux. Ces deux fenêtres iPhone servent de référence pour le prochain passage en course à 1×.
+
+| Opération et conditions | Avant | Après | Travail vérifié |
+| --- | ---: | ---: | --- |
+| Événements invités, 8 threads POSIX, 5 000 signaux à tour de rôle, 7 passages par version | 40 000 réveils | 5 000 réveils | 5 000 événements reçus à chaque passage. Temps CPU médian du processus Linux de 1 354,8 à 138,5 ms. |
+| Présentateur classique pendant 5 000 images DisplayLink, avec notifications d’ajout, de prise et de fin séparées sur le banc pthread | 15 000 revérifications inutiles | 0 | 100 bascules d’ordonnanceur d’affichage, 1 001 images classiques traitées et 200 images écartées lors des suspensions simulées dans chaque version. |
+| Journal de course, rejeu des 7 232 images et 153 lignes de pause | 7 385 écritures | 226 écritures | 2 089 095 octets identiques et résultats identiques avec `shader_session_metrics.py`. |
+| Premiers dessins de pipelines, rejeu de 1 341 lignes en 94 groupes | 1 341 écritures | 116 écritures | 400 406 octets identiques. Les groupes s’arrêtent aux interruptions observées du journal et aux bornes de lot du moteur. |
+
+Les essais utilisent les fonctions de sélection des réveils, d’attente et de regroupement extraites des versions comparées. Le test de présentation contrôle l’ordre des notifications pour rendre le comptage reproductible. Les quatre niveaux thermiques simulés terminent chacun 34 768 copies avant et après 0157. Une fois l’état sérieux ou critique échantillonné, les boucles de scrutation du travailleur de copie et de son appelant ont chacune un budget nul. La file continue à signaler les transferts prêts.
+
+Les sommes SHA-256 des sorties rejouées sont `331b9b85be553fd464941cafc3ed5793ae164ad95efdfedaab8d3970224988a5` pour les mesures par image et `226224e9a3a899abbb8f1679913bdc3d314e6933d11bede5f9589d6c8d6c52ba` pour les premiers dessins. Les écritures comptées sont les appels de l’application pour ces lignes, à contenu conservé. Les réveils du processus, l’énergie par image, l’état thermique et les FPS restent à mesurer sur un iPhone utilisant le moteur 0159.
+
+## Chargement de la carte de Mario Kart World
+
+Vidéo du 20 novembre, durée 10,59 s. Sur la carte de lancement, le compteur affiche successivement 60 FPS et 23 ms maximum, 14 FPS et 767 ms, puis 3 FPS et 942 ms à 3,5 s. La mémoire affichée monte de 3,3 à 4,2 Go. Le numéro du moteur et l’identité de la session ne sont pas visibles.
+
+La 799 fournit un point de comparaison indépendant. L’image 121 dure 910,9 ms, dont 2,6 ms de création de pipeline et bibliothèque et 63,4 ms pour 42 premiers uploads de textures totalisant 131,25 Mio. Le thread de présentation consomme 625,1 ms de CPU, et le processus lit 138,2 Mio depuis le stockage sur l’intervalle. Ces compteurs se chevauchent. À l’image 304, 556,5 ms de transferts CPU et environ 1 055 ms d’attente invitée sont relevés. L’attribution précise du pic de la vidéo nécessite le journal de son lancement.
+
+Le moteur 0160 consulte en mémoire l’identité exacte du shader avant la vérification des fichiers de traduction. Il retire de la liste de promotion les paires déjà examinées et transfère les lots prêts sans recopier leurs objets sous verrou. Une bibliothèque déjà publiée par le travailleur de prélecture ne crée plus un élément vide à traiter sur le thread de soumission. Le premier upload traite quatre pages de texture indépendantes en parallèle dans la même boucle, avec les empreintes et protections existantes.
+
+| Essai local | Avant | Après | Résultat conservé |
+| --- | ---: | ---: | --- |
+| Préparation séquentielle des 298 étapes et 200 pipelines du manifeste 799, cache initialement vide, même mode de profondeur | 698 appels au contrôle de disponibilité | 298 appels | 298 variantes chargées. Les absences restent réessayées. Les variantes de profondeur et les étapes distinctes gardent leurs identités. |
+| Hachage en mémoire de 137 626 752 octets, longueur correspondant au volume téléchargé sur l’image 121. Médiane de sept exécutions alternées sur Linux | 43,71 ms CPU | 14,84 ms CPU | 312 comparaisons identiques avec plages vides, bords partiels, sources décalées et pages de 4, 16 ou 64 Kio. |
+
+Les instants du HUD sont des mesures de la vidéo. Les durées du banc isolent le calcul sur des données synthétiques déjà résidentes. Le coût du stockage, le FPS et le maximum du HUD après 0160 restent à mesurer sur iPhone.
+
 ## Vérification physique restante
 
 Sur le même appareil, même version du jeu, mode 1× et départ comparable : annoter circuit et phase à partir d’une capture synchronisée ; premier passage puis même passage avec génération et archives réutilisées. Conserver images moteur et timestamps écran, p95/p99, seuils 100/200/500 ms, CPU de soumission, GPU, attente SVC/objet/réveil, uploads, empreinte, E/S, état thermique et réveils. Associer le lancement au SHA moteur et à la génération. Relever l’intégrité visuelle, l’audio et la sauvegarde après reprise. Un avant/après reste indisponible pour 0155.

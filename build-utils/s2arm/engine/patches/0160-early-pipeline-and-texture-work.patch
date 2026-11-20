@@ -1,0 +1,150 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 19f8e74..af8c4c7 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4792,9 +4792,15 @@ static void up_blit_add(id<MTLBuffer> src, size_t off, size_t row, size_t image,
+     up_blit_add_at(src, off, row, image, size, dst, slice, level, 0, 0);
+ }
+ 
++static inline uint64_t span_hash_word(uint64_t h, const uint8_t *bytes) {
++    uint64_t word;
++    memcpy(&word, bytes, sizeof word);
++    h = (h ^ word) * 0xff51afd7ed558ccdull;
++    return h ^ (h >> 32);
++}
+ static uint64_t span_hash(const uint8_t *m, size_t n) {   // 8 bytes at a time (the page check runs on every written page): a multiply-xorshift mix, then the tail bytes
+-    uint64_t h = 0x9e3779b97f4a7c15ull ^ n, w; size_t i = 0;
+-    for (; i + 8 <= n; i += 8) { memcpy(&w, m + i, 8); h = (h ^ w) * 0xff51afd7ed558ccdull; h ^= h >> 32; }
++    uint64_t h = 0x9e3779b97f4a7c15ull ^ n; size_t i = 0;
++    for (; i + 8 <= n; i += 8) h = span_hash_word(h, m + i);
+     for (; i < n; i++) h = (h ^ m[i]) * 0x100000001b3ull;
+     return h;
+ }
+@@ -4901,6 +4907,32 @@ static void page_span(const tex_t *t, size_t k, const uint8_t **lo, size_t *n) {
+     uintptr_t b = MAX(a, p0 + k * pg), c = MIN(e, p0 + (k + 1) * pg); *lo = (const uint8_t *)b; *n = c > b ? c - b : 0;
+ }
+ static uint32_t page_count(const tex_t *t) { uintptr_t pg = nvn_dirty_page_size(), a = (uintptr_t)t->mem; return t->L.size ? (uint32_t)(((a + t->L.size - 1) & ~(pg - 1)) - (a & ~(pg - 1))) / (uint32_t)pg + 1 : 0; }
++// First upload: interleave four independent page hashes. Boundaries follow the guest
++// mapping even when src points to the readable snapshot, whose alignment may differ.
++static void pkg_hash_pages(const tex_t *t, const uint8_t *src, uint64_t *out, uint32_t count) {
++    if (!count) return;
++    const size_t page = nvn_dirty_page_size();
++    size_t offset = MIN(t->L.size, page - ((uintptr_t)t->mem & (page - 1)));
++    out[0] = span_hash(src, offset);
++    uint32_t k = 1;
++    for (; count - k > 4; k += 4, offset += 4 * page) {
++        const uint64_t seed = 0x9e3779b97f4a7c15ull ^ page;
++        uint64_t a = seed, b = seed, c = seed, d = seed;
++        for (size_t i = 0; i < page; i += sizeof(uint64_t)) {
++            const uint8_t *p = src + offset + i;
++            a = span_hash_word(a, p);
++            b = span_hash_word(b, p + page);
++            c = span_hash_word(c, p + 2 * page);
++            d = span_hash_word(d, p + 3 * page);
++        }
++        out[k] = a; out[k+1] = b; out[k+2] = c; out[k+3] = d;
++    }
++    for (; k < count; ++k) {
++        size_t n = MIN(t->L.size - offset, page);
++        out[k] = span_hash(src + offset, n);
++        offset += n;
++    }
++}
+ // RewindBox (patch 0070): texture storage the host is about to read is asked of the pager in runs first. IPA 765 (Mario Kart World, iPhone17,2, guest memory in 39 window files of
+ //   1 GB, the heap kept there by patch 0052's tier): long race frames with 30 first uploads or more had a median of 884 page reads from storage against 48 for those with fewer
+ //   than 5 (81 reads per MB uploaded; f1805 133 MB in 869 ms with 8,111 reads), and in the f1858 profile the submit thread waited 0.58 s of 4 s in span_hash under tex_mtl_ (the
+@@ -5878,7 +5910,7 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+     if (!sparse) rb = rb_pkg_bytes(t, 1);   // after the protection (it only ever adds read access) and the stamp, before any read
+     if (stamp && ph && !sparse) {   // after the stamp, before the read: a write in between is after the stamp too, so the next check sees its page (and the hash may hold it, the upload does)
+         uint32_t n = page_count(t); uint64_t *h = realloc(*ph, (size_t)MAX(n, 1u) * sizeof *h); const uint8_t *rd = rb ? rb : t->mem;
+-        if (h) { for (uint32_t k = 0; k < n; k++) { const uint8_t *lo; size_t m; page_span(t, k, &lo, &m); h[k] = span_hash(rd + (lo - t->mem), m); } *ph = h; *nph = n; } else { free(*ph); *ph = NULL; *nph = 0; } }
++        if (h) { pkg_hash_pages(t, rd, h, n); *ph = h; *nph = n; } else { free(*ph); *ph = NULL; *nph = 0; } }
+     int bw, bh, bpb = nvn_fmt_bpb(t->d.format, &bw, &bh);
+     unsigned layers = (t->d.target == 4 || t->d.target == 9) ? t->d.depth : t->d.target == 8 ? 6 : t->d.target == 3 ? t->d.height : 1;   // a cube array's depth counts layer-faces (tex_desc)
+     uint32_t upf; int ubpp = 0, unp = fmt_unpack(t->d.format, &upf, &ubpp);   // stored in another format (fmt_unpack: BC on a GPU without BC, or expanded): deswizzle, then convert on the CPU; the staging area is sized for the converted data
+@@ -12459,15 +12491,26 @@ static int fb_loadable(NSString *pc) {
+ }
+ static int shader_loadable(NSString *pc) { return mtl_shlib_has(pc.UTF8String) || fb_loadable(pc); }
+ static NvShader *warm_shader(NSString *key, int stage) {
++    // A published exact variant already passed the loader's reflection and translator checks.
++    const int depth = stage_depth_moded(stage) && atomic_load(&g_depth_zero);
++    NSString *identity = shader_identity(key, stage, 0, depth);
++    os_unfair_lock_lock(&g_shader_lock);
++    NvShader *cached = g_shcache[identity];
++    os_unfair_lock_unlock(&g_shader_lock);
++    if (cached) {
++        atomic_fetch_add_explicit(&g_shader_requests, 1, memory_order_relaxed);
++        atomic_fetch_add_explicit(&g_shader_hits, 1, memory_order_relaxed);
++        return cached;
++    }
+     if (!shader_loadable(key)) {
+         char k16[17];   // RewindBox (patch 0056): an earlier translator's translation with its bytes kept is made again here, on the prewarm's worker, then loaded like any other
+         if (!(rb_stage_key(key, k16) && dm_shader_retranslate(k16) && shader_loadable(key))) { atomic_fetch_add_explicit(&g_cold_skips, 1, memory_order_relaxed); return nil; }
+     }
+-    return shader_load(key, stage, 0);
++    return shader_load_depth(key, stage, 0, depth, NULL, NULL);
+ }
+ static void warm_enqueue(WarmItem *item) {
+     os_unfair_lock_lock(&g_warm_lock);
+-    if (!g_warm_items) g_warm_items = [NSMutableArray array];   // the shader prefetch can come before (or without) the prewarm list
++    if (!g_warm_items) g_warm_items = [NSMutableArray array];
+     [g_warm_items addObject:item];
+     atomic_store_explicit(&g_warm_ready, 1, memory_order_release);
+     os_unfair_lock_unlock(&g_warm_lock);
+@@ -12668,8 +12711,7 @@ static void shader_prefetch(NSString *k, int stage_hint, int depth) {
+             if (!(count & (count - 1))) MLOG("RewindBox (patch 0117): %llu exact shader variants prefetched from recorded binds",
+                                            (unsigned long long)count);
+         }
+-        WarmItem *item = [WarmItem new]; item->kind = 3; item->key = key; item->shader = sh;
+-        warm_enqueue(item);
++        // shader_load_depth already published this exact variant under g_shader_lock.
+         uint64_t d = bp_now() - t0, n = atomic_fetch_add(&g_shpre_n, 1) + 1, ns = atomic_fetch_add(&g_shpre_ns, d) + d;
+         if (!(n & (n - 1)) && n >= 64) MLOG("shader prefetch: %llu libraries loaded off the frame path on %d lanes, %.1f ms in all", (unsigned long long)n, g_shpre.n, ns / 1e6);
+     } });
+@@ -12783,7 +12825,7 @@ static void rb_recovered_program(NvShader *vs,NvShader *fs) {
+     }
+ }
+ static os_unfair_lock g_wu_lock = OS_UNFAIR_LOCK_INIT;
+-static NSDictionary<NSString *, NSArray<NSNumber *> *> *g_wu_pairs;   // "顶点键|片元键" → R 行下标；nil = 当前没有在跑的预热
++static NSMutableDictionary<NSString *, NSMutableArray<NSNumber *> *> *g_wu_pairs;   // "顶点键|片元键" → R 行下标；nil = 当前没有在跑的预热
+ static NSMutableArray<NSNumber *> *g_wu_q;                             // 急件下标（先进先出）
+ static _Atomic(uint8_t) *g_wu_claim; static long g_wu_n;                // 每行「已领」标记
+ static _Atomic long g_wu_remaining;
+@@ -13022,6 +13064,8 @@ static void warm_bump(const char *vk, const char *fk) {
+     os_unfair_lock_lock(&g_wu_lock);
+     NSArray<NSNumber *> *rows = g_wu_pairs[k];
+     for (NSNumber *r in rows) if (r.longValue < g_wu_n && rb_promote_row(&g_wu_claim[r.longValue])) { [g_wu_q addObject:r]; added++; }
++    // Rows only move from free to promoted/claimed in this epoch. A repeated bind cannot promote them again.
++    if (rows) [g_wu_pairs removeObjectForKey:k];
+     os_unfair_lock_unlock(&g_wu_lock);
+     if (added) { rb_spec_wake(&g_spec_gate); uint64_t n = atomic_fetch_add(&g_wu_bumped, added) + added;
+         if (!((n - added) & (n - added - 1)) || n == added) MLOG("pipeline prewarm: the game registered a program whose pipelines were still queued: %llu lines moved to the front so far (%llu taken from the front)", (unsigned long long)n, (unsigned long long)atomic_load(&g_wu_taken)); }
+@@ -13387,7 +13431,6 @@ static void warm_start_mode(int resumed) {
+     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ pso_user_seen_load(); });   // the record's dedupe set, off the submit thread (pso_user_seen_load)
+     NSArray<NSString *> *paths = warm_paths(1);
+     if (!paths) { dm_shader_retranslate_kept(); return; }   // RewindBox (patch 0069): no prewarm, so no warm_finish
+-    if (!g_warm_items) g_warm_items = [NSMutableArray array];
+     g_warm_t0 = bp_now(); atomic_store(&g_wp_t0, g_warm_t0);
+     atomic_store(&g_warm_running, 1);
+     if (rb_ref_path() || (!resumed && prepare_on())) {
+@@ -18911,16 +18954,15 @@ static nvn_hmap g_cps = {.klen = sizeof(void *)};
+ typedef struct { const void *cs; uintptr_t fc; } cps_se_key;
+ static nvn_hmap g_cps_se = {.klen = sizeof(cps_se_key)};   // S2Arm #800: compute pipelines of the sampler-emulation variant (se_want), by shader and SE_* bits: keyed apart from main0's
+ static void warm_claim(void) {
+-    if (!atomic_exchange_explicit(&g_warm_ready, 0, memory_order_acq_rel)) return;
++    if (!atomic_load_explicit(&g_warm_ready, memory_order_acquire)) return;
+     os_unfair_lock_lock(&g_warm_lock);
+-    NSArray<WarmItem *> *items = [g_warm_items copy];
+-    [g_warm_items removeAllObjects];
++    NSArray<WarmItem *> *items = g_warm_items;
++    g_warm_items = nil; // transfer ownership of the complete batch; no per-entry copies under lock
++    atomic_store_explicit(&g_warm_ready, 0, memory_order_relaxed);
+     os_unfair_lock_unlock(&g_warm_lock);
+     for (WarmItem *item in items) {
+         if (item->kind == 0) {
+             if (!item->shader->warm_claimed) { item->shader->warm_claimed = 1; g_warm_claim_shaders++; }
+-        } else if (item->kind == 3) {   // S2Arm: prefetched at ProgramSetShaders; its S line waits for its first use (shader_used)
+-            // Already published by shader_load, including its complete identity.
+         } else if (item->kind == 4) {
+             mtk_warm_claim(item->mkey, item->object);
+         } else if (item->kind == 1) {
