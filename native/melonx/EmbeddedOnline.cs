@@ -562,7 +562,8 @@ zdAq1CTeFUrJ6r/siw==
             {
                 if (status == "failed" && Interlocked.Exchange(ref failed, 1) != 0) return;
                 if (id <= 64 && ReferenceEquals(settings, _settings))
-                    Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("onlineTls", status,
+                    // "begin" would replace the journal's global launch stage and mislabel later engine warnings.
+                    Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("onlineTls", status == "begin" ? "connecting" : status,
                         detail: $"Online TLS: connection={id}; route={route}; port={port}; {detail}");
             };
         }
