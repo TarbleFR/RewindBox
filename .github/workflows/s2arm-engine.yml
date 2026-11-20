@@ -554,3 +554,38 @@ jobs:
           cat build-utils/s2arm/engine-pin.json
           echo "exportsList of the engine images (for components.s2arm):"
           python3 -B build-utils/s2arm/engine_pin.py exports "$RUNNER_TEMP/pin/engine.zip"
+
+  race-benchmarks:
+    name: Measured race CPU and Core ML probes
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[s2arm-benchmark]') }}
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Select installed Xcode for the measured probes
+        run: |
+          set -euo pipefail
+          best=
+          for app in $(ls -d /Applications/Xcode*.app | sort -V); do
+            [ -L "$app" ] && continue
+            if DEVELOPER_DIR="$app/Contents/Developer" xcrun --sdk macosx --show-sdk-version > /dev/null 2>&1; then best=$app; fi
+          done
+          test -n "$best"
+          sudo xcode-select -s "$best/Contents/Developer"
+          xcodebuild -version
+      - name: Measure the original and candidate CPU paths
+        run: python3 build-utils/s2arm/engine/benchmarks/run_cpu.py
+      - name: Measure identical image processing in Metal and Core ML
+        run: python3 build-utils/s2arm/engine/benchmarks/run_coreml.py
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
+        if: always()
+        with:
+          name: s2arm-race-benchmarks-${{ github.sha }}
+          path: proof/race-benchmarks/
+          if-no-files-found: error
+          retention-days: 14

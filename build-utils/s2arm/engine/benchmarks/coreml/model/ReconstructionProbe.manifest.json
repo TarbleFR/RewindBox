@@ -1,0 +1,94 @@
+{
+  "model": "ReconstructionProbe.mlpackage",
+  "coremltools": "9.0",
+  "input": {
+    "name": "inputImage",
+    "shape_nchw": [
+      1,
+      3,
+      180,
+      320
+    ],
+    "image_type": "RGB",
+    "pixel_buffer": "32BGRA"
+  },
+  "output": {
+    "name": "outputImage",
+    "shape_nchw": [
+      1,
+      3,
+      360,
+      640
+    ],
+    "image_type": "RGB",
+    "pixel_buffer": "32BGRA"
+  },
+  "kernel": [
+    [
+      0.0,
+      -0.125,
+      0.0
+    ],
+    [
+      -0.125,
+      1.5,
+      -0.125
+    ],
+    [
+      0.0,
+      -0.125,
+      0.0
+    ]
+  ],
+  "convolution_boundary": "zero",
+  "clip": [
+    0,
+    255
+  ],
+  "order": [
+    "depthwise_conv",
+    "clip",
+    "2x_bilinear"
+  ],
+  "resize": {
+    "align_corners": false,
+    "half_pixel_centers": true,
+    "boundary": "clamp_to_edge"
+  },
+  "execution_precision": "fp16",
+  "minimum_deployment_target": "iOS16/macOS13",
+  "operations": [
+    "const",
+    "const",
+    "const",
+    "const",
+    "const",
+    "const",
+    "const",
+    "cast",
+    "conv",
+    "const",
+    "const",
+    "clip",
+    "const",
+    "const",
+    "const",
+    "const",
+    "upsample_bilinear",
+    "const",
+    "cast"
+  ],
+  "learned": false,
+  "coreml_prediction_executed": false,
+  "ane_execution_verified": false,
+  "verification": {
+    "passed": true,
+    "scope": "NumPy reference math only; not Core ML inference",
+    "nonidentity_probe_pixel": 153.5
+  },
+  "sha256": {
+    "Data/com.apple.CoreML/model.mlmodel": "55de60cf7b36cd3a5d7128a67007889b3c64bccdac334258130be8b7ad9d7f5d",
+    "Data/com.apple.CoreML/weights/weight.bin": "add064ee56c165eca784d0e41fa673db05e49b932509a8d944d2e6f1a43776ad",
+    "Manifest.json": "364ac5dccb820f65866953bc8f4712b8eefcd48f7b59ac6235e8d50aea6d78c2"
+  }
+}

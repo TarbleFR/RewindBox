@@ -51,6 +51,29 @@ DISPLAY_DEADLINES = re.compile(
     r"16\.67 ms known (\d+) late (\d+) discarded (\d+) missing (\d+); "
     r"33\.33 ms known (\d+) late (\d+) discarded (\d+) missing (\d+)")
 DEADLINE_FIELDS = ("measuredIntervals", "lateIntervals", "discarded", "missingIntervals")
+# Optional engine168 rows. These are absent from older captures; do not invent
+# coverage, ordered streaks or per-frame GPU/display pairing for those sessions.
+DISPLAY_DISTRIBUTION = re.compile(
+    r"displayed distribution up to frame (\d+): p50 ([\d.]+) p95 ([\d.]+) p99 ([\d.]+) ms; known (\d+)")
+DISPLAY_STREAKS = re.compile(
+    r"displayed streaks up to frame (\d+): covered ([\d.]+) s, missed slots (\d+) \((-?[\d.]+)/min\), "
+    r"late intervals (\d+) \((-?[\d.]+)/min\), max run (\d+), ongoing (\d+), runs reaching 2/3/5 (\d+)/(\d+)/(\d+)")
+DISPLAY_GPU_DEADLINES = re.compile(
+    r"displayed GPU deadlines up to frame (\d+): paired (\d+), "
+    r"late with GPU ending before interval-derived deadline (\d+)")
+DISPLAY_TRACE_FIELDS = {
+    "present": int, "gpu_start_s": float, "gpu_end_s": float,
+    "previous_s": float, "displayed_s": float, "interval_deadline_s": float, "hold": int,
+}
+BINDING_CACHE = re.compile(
+    r"binding cache up to frame (\d+): UBO reused (\d+), resolved (\d+), uncacheable (\d+), disabled (\d+); "
+    r"sampled calls hit/miss/off (\d+)/(\d+)/(\d+); sampled ns hit/miss/off (\d+)/(\d+)/(\d+); "
+    r"view resource IDs reused (\d+)")
+PUSH_CONSTANTS = re.compile(
+    r"push constants up to frame (\d+): identical kept (\d+), changed or uncached (\d+)")
+INFERRED_DEADLINE_NOTE = (
+    "Previous displayed timestamp plus the larger adjacent guest hold / 60; "
+    "not the requested drawable deadline. GPU ending before it does not prove a presentation bug.")
 GUEST_WAIT_FIELDS = {
     "ns": int, "svc": lambda v: int(v, 16), "key_or_list": lambda v: int(v, 16),
     "guest_thread": int, "guest_pc": lambda v: int(v, 16), "result": lambda v: int(v, 16),
@@ -253,6 +276,7 @@ def summarize(host, captures, first, last, *, session=None, segments=(), journal
     slow_logged = {100: 0, 200: 0, 500: 0}
     full_windows, gap_rows, reference_binds = [], {}, []
     visible_windows, deadlines, guest_waits, upload_flushes, staging = {}, {}, {}, {}, {}
+    display_details, display_traces, binding_windows = {}, [], {}
     gpu_passes = []
     course_windows = {}
     slow_frames_by_asset = {}
@@ -295,6 +319,48 @@ def summarize(host, captures, first, last, *, session=None, segments=(), journal
                 deadlines[values[0]] = {
                     band: dict(zip(DEADLINE_FIELDS, values[index:index + 4]))
                     for band, index in (("16.67", 1), ("33.33", 5))}
+            m = DISPLAY_DISTRIBUTION.search(line)
+            if m and selected(int(m[1])):
+                display_details.setdefault(int(m[1]), {})["distribution"] = {
+                    "p50Ms": float(m[2]), "p95Ms": float(m[3]), "p99Ms": float(m[4]),
+                    "measuredIntervals": int(m[5]), "source": "engine-sorted display interval window"}
+            m = DISPLAY_STREAKS.search(line)
+            if m and selected(int(m[1])):
+                covered = float(m[2])
+                display_details.setdefault(int(m[1]), {})["streaks"] = {
+                    "coveredSeconds": covered, "missedCadenceSlots": int(m[3]),
+                    "missedCadenceSlotsPerCoveredMinute": float(m[4]) if covered > 0 else None,
+                    "lateIntervals": int(m[5]),
+                    "lateIntervalsPerCoveredMinute": float(m[6]) if covered > 0 else None,
+                    "maxRun": int(m[7]), "ongoingRun": int(m[8]),
+                    "runsReaching": dict(zip(("2", "3", "5"), map(int, m.groups()[8:]))),
+                    "semantics": "Runs continue across windows; missing/discarded timestamps break runs. "
+                                 "Counts record threshold crossings, not all overlapping sub-runs. "
+                                 "Slots use the adjacent guest cadence, not individual display refreshes."}
+            m = DISPLAY_GPU_DEADLINES.search(line)
+            if m and selected(int(m[1])):
+                display_details.setdefault(int(m[1]), {})["gpuAgainstInferredIntervalDeadline"] = {
+                    "pairedIntervals": int(m[2]), "lateWithGpuEndingBeforeInferredDeadline": int(m[3]),
+                    "deadlineSemantics": INFERRED_DEADLINE_NOTE}
+            _, match, remainder = line.partition("displayed trace frame=")
+            if match:
+                frame, row = metric_row(remainder, DISPLAY_TRACE_FIELDS)
+                if selected(frame):
+                    display_traces.append({"frame": frame, **row})
+            m = BINDING_CACHE.search(line)
+            if m and selected(int(m[1])):
+                v = list(map(int, m.groups()))
+                binding_windows.setdefault(v[0], {})["uboAddressCache"] = {
+                    "reused": v[1], "resolved": v[2], "uncacheable": v[3], "disabled": v[4],
+                    "sampledCalls": dict(zip(("hit", "miss", "off"), v[5:8])),
+                    "sampledNs": dict(zip(("hit", "miss", "off"), v[8:11])),
+                    "viewResourceIdsReused": v[11],
+                    "sampling": "One call in 256, selected before hit/miss classification; "
+                                "deterministic sampling may alias repeating calls. No total time or gain inferred."}
+            m = PUSH_CONSTANTS.search(line)
+            if m and selected(int(m[1])):
+                binding_windows.setdefault(int(m[1]), {})["pushConstants"] = {
+                    "identicalKept": int(m[2]), "changedOrUncached": int(m[3])}
             for prefix, fields, target in (
                 ("RewindBox guest wait frame=", GUEST_WAIT_FIELDS, guest_waits),
                 ("RewindBox upload flush frame=", UPLOAD_FLUSH_FIELDS, upload_flushes),
@@ -410,9 +476,15 @@ def summarize(host, captures, first, last, *, session=None, segments=(), journal
         "courseAssetWindows": course_totals(course_windows), "slowFramesByAsset": slow_frames_by_asset,
         "displayedWindows": [
             {**visible_windows.get(frame, {"frame": frame, "observedFPS": None}),
-             "deadlinesByRequestedMs": deadlines.get(frame)}
-            for frame in sorted(visible_windows.keys() | deadlines.keys())
+             "deadlinesByRequestedMs": deadlines.get(frame), **display_details.get(frame, {})}
+            for frame in sorted(visible_windows.keys() | deadlines.keys() | display_details.keys())
         ],
+        **({"displayedGpuTraces": {
+            "deadlineSemantics": INFERRED_DEADLINE_NOTE,
+            "coverage": "At most eight late GPU/display pairs per summary window; not a complete frame trace.",
+            "samples": display_traces}} if display_traces else {}),
+        **({"bindingWindows": [{"frame": frame, **row} for frame, row in sorted(binding_windows.items())]}
+           if binding_windows else {}),
         "guestWaitDetails": guest_waits,
         "uploadFlushReasons": upload_flushes,
         "stagingWindows": [{"frame": frame, **row} for frame, row in sorted(staging.items())],
