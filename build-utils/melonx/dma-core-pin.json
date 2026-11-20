@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "cf6396a2ca61cb6efdffab76ae85c3c5ac520987",
-  "run": 44303057356,
-  "job": 134797444394,
+  "source": "13ffc868b099be7c529f46ae87cbd7e194a2855f",
+  "run": 44654074211,
+  "job": 136015899480,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14428770548,
-  "name": "MeloNX-engine-cf6396a2ca61cb6efdffab76ae85c3c5ac520987",
-  "bytes": 101242454,
-  "sha256": "d3d195d2ced3f1f57325473e1285943fef6bc3be9925a92b8af8e7456312b562",
-  "expiresAt": "2027-02-16T12:20:57Z",
+  "artifact": 14592333807,
+  "name": "MeloNX-engine-13ffc868b099be7c529f46ae87cbd7e194a2855f",
+  "bytes": 101243573,
+  "sha256": "915538e3260542829f49d0157d2f910fd8d4e0d2ed229d61bd2809d289295b3c",
+  "expiresAt": "2027-02-18T01:30:12Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "786c175354c45282e6ffa8ba9ae0553e0a74e0b7826f28f3be25bac2b825f105",
-      "bytes": 39162888
+      "sha256": "a85b7e5a0ec1e7c26e68298372e7a0b757d66de9c13a7e501aacfb3396ac58b0",
+      "bytes": 39179280
     },
     "iossimulator-arm64": {
-      "sha256": "f5d7712d18fb85d10e1bb4e6abe117aadeda24ca04763cdc46b821a08a70be57",
-      "bytes": 39485464
+      "sha256": "8815eb43c6677dec193c9de2f202f68bf4346945f2e49fd9a25b355698e61188",
+      "bytes": 39485480
     }
   },
   "identities": {
-    "ios-arm64": "10a1679e9c208c0406b1ddd00d3860c7365d2cdfa3d1c26747715d86992f035a",
-    "iossimulator-arm64": "14a6f9df3d522979101045c355d40f4716479f56877575ac68f57811d195ba28"
+    "ios-arm64": "653157a0fff9477c0b0ca5a0e12733fdfbb43e800cfc5bfc0cefc78bb8b6eb88",
+    "iossimulator-arm64": "762e19b4eb984c0cc0070bc62b1550abcc8695e2c666c3880d1e3b8bc399dde7"
   },
-  "contractSha256": "e2e86f28c5c5a2c8d072e2d19a781a61bdf316c717c6a23684833fb0aa86d839",
-  "resultSha256": "373c29d654be43282792618f0d29647e1955ce760258939038fd39dc6647e554",
-  "packagedFingerprint": "e58acedc9b3a9d3c41ee47cbe6eb06e068a2c6727acd453fe8dc99bd8b4c8731",
+  "contractSha256": "8afa655c2573efc8b46e9bf7eea2210f3924ee8112ab19a3d8551251011086c7",
+  "resultSha256": "0e88bdcfe9cf52d515e7402f027e7dc3ae9533d431f05014237dd4f54336c536",
+  "packagedFingerprint": "51ed8085a6c5c1371992c629aca55eb25379fd876dd29158da2b734905f62844",
   "replaces": {
-    "source": "6d8cb068569fbe29f5dd408e50ab2d8155d379f9",
-    "run": 44274960144,
-    "artifact": 14414617849,
-    "packagedFingerprint": "b36ab3a0d50ef418982c1e7a3c63c23930f71777d2d899a9a90a99eeeb41eea1",
-    "reason": "Verify SSBU routes and coalesce speculative pipeline queue sorting."
+    "source": "cf6396a2ca61cb6efdffab76ae85c3c5ac520987",
+    "run": 44303057356,
+    "artifact": 14428770548,
+    "packagedFingerprint": "e58acedc9b3a9d3c41ee47cbe6eb06e068a2c6727acd453fe8dc99bd8b4c8731",
+    "reason": "Explicit, session-scoped SSBU legacy certificate compatibility; all other TLS validation retained."
   }
 }

@@ -176,6 +176,7 @@ class _NextendoDialogState extends State<NextendoDialog> {
       final accepted = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
+          scrollable: true,
           title: Text(_text('nextendoSmashPrivateTls')),
           content: Text(_text('nextendoSmashPrivateTlsWarning')),
           actions: [

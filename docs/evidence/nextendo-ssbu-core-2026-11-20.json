@@ -1,0 +1,45 @@
+{
+  "result": "passed",
+  "component": "melonx-hogwarts-dma-copy-core",
+  "origin": {
+    "result": "authenticated",
+    "source": "13ffc868b099be7c529f46ae87cbd7e194a2855f",
+    "run": 44654074211,
+    "job": 136015899480,
+    "attempt": 1,
+    "artifact": 14592333807,
+    "archiveSHA256": "915538e3260542829f49d0157d2f910fd8d4e0d2ed229d61bd2809d289295b3c",
+    "testsExecutedByDelivery": 0
+  },
+  "source": "13ffc868b099be7c529f46ae87cbd7e194a2855f",
+  "binaries": {
+    "ios-arm64": {
+      "sha256": "a85b7e5a0ec1e7c26e68298372e7a0b757d66de9c13a7e501aacfb3396ac58b0",
+      "bytes": 39179280
+    },
+    "iossimulator-arm64": {
+      "sha256": "8815eb43c6677dec193c9de2f202f68bf4346945f2e49fd9a25b355698e61188",
+      "bytes": 39485480
+    }
+  },
+  "identities": {
+    "ios-arm64": "653157a0fff9477c0b0ca5a0e12733fdfbb43e800cfc5bfc0cefc78bb8b6eb88",
+    "iossimulator-arm64": "762e19b4eb984c0cc0070bc62b1550abcc8695e2c666c3880d1e3b8bc399dde7"
+  },
+  "payloadFingerprint": "51ed8085a6c5c1371992c629aca55eb25379fd876dd29158da2b734905f62844",
+  "replacedCoreSource": "b181cbe19164b5c10da4d0412209d2067f97ea3e",
+  "replacedCorePackagedFingerprint": "bf7de0ddaa36aefe29f1ae6cdbc9d2c543c13aedc6ba501a96c54fa53b104e5b",
+  "validationMode": "build-smoke",
+  "fullRegressionSuiteExecuted": false,
+  "deferredAppleGatesInProducer": 119,
+  "freshAppleGatesInProducer": 0,
+  "reusedScopedAppleGatesInProducer": 14,
+  "historicalAppleReceiptsInProducer": 61,
+  "producerSimulatorSessions": 2,
+  "engineRecompiledForDelivery": false,
+  "priorGatesReexecuted": false,
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "fpsGainProven": false,
+  "deviceAllocationReductionProven": false
+}
