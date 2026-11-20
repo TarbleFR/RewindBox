@@ -352,11 +352,13 @@
     "sourceOnly": [
       {
         "commit": "2bef01cfa5f76672ddbadfb0721f1fd47948a810",
-        "note": "Concurrent Nextendo work outside the Mario Kart World private test"
+        "note": "Concurrent Nextendo work outside the Mario Kart World private test",
+        "targetBuild": 798
       },
       {
         "commit": "13ffc868b099be7c529f46ae87cbd7e194a2855f",
-        "note": "Concurrent MeloNX and Nextendo changes outside the 797 test"
+        "note": "Concurrent MeloNX and Nextendo changes outside the 797 test",
+        "targetBuild": 798
       }
     ],
     "promotedCommits": []
