@@ -98,7 +98,8 @@
         "artifact": 14586229672,
         "name": "RewindBox-Build796-e15d80346f287de4d5806757220dfacd646c30cc-attempt1-component-dolphin",
         "bytes": 11192276,
-        "sha256": "515825a35cc308b7401b0f249663f569793a56f0da440e86e43a4f850a1d0528"
+        "sha256": "515825a35cc308b7401b0f249663f569793a56f0da440e86e43a4f850a1d0528",
+        "attempt": 1
       },
       "inheritedChangedInputs": [
         {
@@ -150,7 +151,8 @@
         "artifact": 14587396044,
         "name": "RewindBox-Build796-e15d80346f287de4d5806757220dfacd646c30cc-attempt1-component-armsx2",
         "bytes": 14043861,
-        "sha256": "6dfc5a3a5bafe93e9a90f5b2b827080aed48bcfe17d3befe8cd151642f71557f"
+        "sha256": "6dfc5a3a5bafe93e9a90f5b2b827080aed48bcfe17d3befe8cd151642f71557f",
+        "attempt": 1
       }
     },
     "libretro": {
@@ -180,7 +182,8 @@
         "artifact": 14588070123,
         "name": "RewindBox-Build796-e15d80346f287de4d5806757220dfacd646c30cc-attempt1-component-libretro",
         "bytes": 55568023,
-        "sha256": "d97907769dc10efb53bf84d3e9a095c558ff4b255a4aeac4d889ced4a5dcf8c8"
+        "sha256": "d97907769dc10efb53bf84d3e9a095c558ff4b255a4aeac4d889ced4a5dcf8c8",
+        "attempt": 1
       }
     },
     "melonx-dependencies": {
@@ -210,7 +213,8 @@
         "artifact": 14587955406,
         "name": "RewindBox-Build796-e15d80346f287de4d5806757220dfacd646c30cc-attempt1-component-melonx-dependencies",
         "bytes": 49179302,
-        "sha256": "1af682d2daa49adf1c1f8ff59606d8204e6220dc30ea111b93d8d9dcd0d74008"
+        "sha256": "1af682d2daa49adf1c1f8ff59606d8204e6220dc30ea111b93d8d9dcd0d74008",
+        "attempt": 1
       }
     },
     "melonx-upstream": {
