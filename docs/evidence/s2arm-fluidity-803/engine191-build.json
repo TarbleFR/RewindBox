@@ -64,7 +64,11 @@
   "exportsComparedAgainstSource": "68d726832298085bb850ad85fb368c47e7d82f95",
   "ns2proUnchangedFrom806": true,
   "noticeMatchesSource": true,
-  "privateDelivery": "pending",
+  "privateDelivery": {
+    "build": 807,
+    "receipt": "../rewind807/delivery.json",
+    "integration": "included in the cumulative 197-patch engine"
+  },
   "validDeviceWindows": 0,
   "observedPerformance": null
 }

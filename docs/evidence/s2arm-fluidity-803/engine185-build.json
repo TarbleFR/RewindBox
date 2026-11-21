@@ -60,7 +60,11 @@
   "exportsComparedAgainstSource": "5bc7fa9089c3224e8a3300116dec36fd55ad1938",
   "ns2proUnchangedFrom805": true,
   "noticeMatchesSource": true,
-  "privateDelivery": "pending",
+  "privateDelivery": {
+    "build": 806,
+    "receipt": "../rewind806/delivery.json",
+    "integration": "embedded"
+  },
   "validDeviceWindows": 0,
   "observedPerformance": null
 }

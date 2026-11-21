@@ -331,3 +331,5 @@ Patch 0203 adds `exclusive_ns` over every long interval, including mixed frames.
 A launch with either `S2A_RB_LONGFRAME=0` or `S2A_RB_AUDIO_GUARD=0` selects the 803 comparison paths. Private benchmark samples distinguish concealed audio from audible gap estimates and count attempted recovery stops. The observed iPhone output latency and the dominant cause in 803 remain open.
 
 Patch 0204 retains device recovery when full-rate real PCM continues to drain the queue for at least two seconds after a guard reserve was attempted. Synthetic audio cannot qualify as evidence of this fault. Ordinary producer starvation uses the fade.
+
+The [807 delivery receipt](../../../docs/evidence/rewind807/delivery.json) records the privately decrypted and verified package (97 native images, 10 bundles). Read-ahead yields, process read bytes, storage stalls and ten-minute paging on iPhone remain unmeasured.
