@@ -1,0 +1,536 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index bfe2d56..33b612b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9698,6 +9698,11 @@ static void rb_fu_end(void) {
+     if (atomic_fetch_sub(&g_fu_waiting, 1) == 1 && atomic_load(&g_fu_waiters)) rb_fu_wake();
+ }
+ #include "rb_pso_lifetime.inc"
++static const char *rb_par_game_build(void);
++#define RB_PAR_SCOPED() rb_async_pso()
++#define RB_PAR_MEASURE() (rb_pso_mode() != 0)
++#define RB_PAR_BUILD() rb_par_game_build()
++#define RB_PAR_SUBMIT_THREAD() on_sub_thread()
+ #include "pso_archive.h"   // S2Arm: per-pipeline binary archive (after MacNativeGames, MIT)
+ static void rb_heap_pressure_relief(void)
+ {
+@@ -13598,6 +13603,10 @@ static _Atomic(uint8_t) *g_wu_claim; static long g_wu_n;                // 每
+ static _Atomic long g_wu_remaining;
+ static _Atomic uint64_t g_wu_bumped, g_wu_taken;                        // 放进急件的行数 / 由急件路领走编的行数
+ #include "rb_pso_transitions.inc"
++static const char *rb_par_game_build(void) {
++    return s2a_main_build_id ? s2a_main_build_id() : NULL;
++}
++
+ #include "rb_pso_recent.inc"
+ // The lists' lines as tasks; *lines: the lines they hold
+ static NSArray<WarmTask *> *warm_parse(NSArray<NSString *> *paths, long *lines) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 1d47879..1988507 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -286,6 +286,7 @@ int nvn_be_shutdown_session(void) {
+     memset(&g_rb_dlss_thermal, 0, sizeof g_rb_dlss_thermal);
+     atomic_store_explicit(&g_rb_dlss_title, 0, memory_order_relaxed);
+     cap_reset();   // RewindBox (patch 0045): a screenshot's frame capture the session ended in the middle of
++    par_retire_session();
+     atomic_store(&g_sub_thread_set, 0);
+     // Ordinary deferred releases target fence+1. There will be no next
+     // submission in this session, and all prior callbacks have completed.
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+index 15c34df..6a0eb7c 100644
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -21,13 +21,31 @@
+ #include "dmsh_chain.h"
+ #include "rb_archive_index.h"
+ 
++// Renderer integration is optional for hosts exercising the archive writer alone.
++#ifndef RB_PAR_SCOPED
++#define RB_PAR_SCOPED() 0
++#define RB_PAR_BUILD() NULL
++#define RB_PAR_SUBMIT_THREAD() 0
++#endif
++#ifndef RB_PAR_MEASURE
++#define RB_PAR_MEASURE() RB_PAR_SCOPED()
++#endif
++static pthread_mutex_t g_par_init_mu = PTHREAD_MUTEX_INITIALIZER;
++static _Atomic int g_par_initialized;
++static NSString *g_par_legacy_dir;
++static NSMutableSet<NSString *> *g_par_legacy_have;
++static NSMutableDictionary<NSString *, NSString *> *g_par_legacy_batches;
++static _Atomic uint64_t g_rb_par_stats[16];
++static __attribute__((unused)) void rb_par_snapshot(uint64_t out[16]) {
++    for (unsigned i = 0; i < 16; i++) out[i] = atomic_load_explicit(&g_rb_par_stats[i], memory_order_relaxed);
++}
+ static pthread_mutex_t g_par_mu = PTHREAD_MUTEX_INITIALIZER;
+ static NSMutableSet<NSString *> *g_par_have;                              // keys with a file
+ static NSMutableDictionary<NSString *, NSString *> *g_par_bmap;          // key → batch file name (pipelines/batches.tsv; 11-06, see par_write_batch)
+ static NSMutableDictionary<NSString *, id<MTLBinaryArchive>> *g_par_open; // opened (kept: Metal keeps their memory anyway)
+ static NSString *g_par_dir, *g_par_bdir;                                // g_par_bdir: the package's read-only archives (shaders/direct/pipelines, made at pack time)
+ static NSMutableSet<NSString *> *g_par_bhave;                             // keys with a package file
+-static int g_par_on, g_par_bundle_files;
++static _Atomic int g_par_on; static int g_par_bundle_files;
+ static const char *g_par_harvest;                                        // S2A_PSO_HARVEST: the folder the harvest writes into (nvn_pso_harvest); writes at once instead of noting
+ static _Atomic uint64_t g_par_hits, g_par_misses, g_par_written, g_par_write_failed, g_par_stale, g_par_ga_removed;
+ static __thread int par_write_in_place;                                  // the prewarm's threads: what they compile is noted for writing (par_flush_bg)
+@@ -136,85 +154,148 @@ static void par_ga_remove_new(NSSet<NSString *> *before) {
+         else { static _Atomic int said; if (atomic_fetch_add(&said, 1) < 4) MLOG("【红】 pipeline archive: cannot remove Metal's build folder %s: %s", path.UTF8String, e.localizedDescription.UTF8String); }
+     }
+ }
+-// Once: the folder of this OS version, GPU and chain, and the keys it has files for
+-static void par_open_dir(void) {
+-    static dispatch_once_t once;
+-    dispatch_once(&once, ^{
+-        const char *ev = getenv("DM_PSO_ARCHIVE"); if (ev && !strcmp(ev, "0")) { MLOG("DM_PSO_ARCHIVE=0: no pipeline archive, every pipeline compiles"); return; }
+-        const char *coalesce = getenv("S2A_RB_PSO_ARCHIVE_COALESCE");
+-        g_rb_archive_coalesce = coalesce && !strcmp(coalesce, "1");
+-        // The package's archives (pack time, shader line 10-26: one file per pipeline under the same key, made for the target GPU): looked up first, never removed or rewritten
+-        g_par_bhave = [NSMutableSet set];
+-        if (g_shmap_path && !g_par_harvest) {
+-            g_par_bdir = [g_shmap_path.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pipelines"];
+-            for (NSString *name in [NSFileManager.defaultManager contentsOfDirectoryAtPath:g_par_bdir error:nil] ?: @[]) if ([name hasSuffix:@".metalarchive"]) [g_par_bhave addObject:name.stringByDeletingPathExtension];
+-            g_par_bundle_files = g_par_bhave.count != 0;
+-            if (g_par_bundle_files) MLOG("pipeline archive in the package %s: %lu pipelines", g_par_bdir.UTF8String, (unsigned long)g_par_bhave.count);
++static uint64_t par_read_inventory(NSString *dir, NSMutableSet *have, NSMutableDictionary *batches, NSUInteger *batchCount) {
++    NSFileManager *fm = NSFileManager.defaultManager;
++    uint64_t bytes = 0;
++    for (NSString *name in [fm contentsOfDirectoryAtPath:dir error:nil] ?: @[]) if ([name hasSuffix:@".metalarchive"] && ![name hasPrefix:@"batch-"]) {
++        [have addObject:name.stringByDeletingPathExtension];
++        bytes += [[fm attributesOfItemAtPath:[dir stringByAppendingPathComponent:name] error:nil] fileSize];
++    }
++    // Batch files (par_write_batch): batches.tsv holds key → file, later lines win (a key written again after a miss); a line whose file is gone is skipped
++    __attribute__((objc_precise_lifetime)) NSData *idx = [NSData dataWithContentsOfFile:[dir stringByAppendingPathComponent:@"batches.tsv"]
++                                        options:NSDataReadingMappedIfSafe error:nil];
++    NSMutableSet *bfiles = [NSMutableSet set];
++    const char *cursor = idx.bytes;
++    size_t left = idx.length;
++    char rawKey[42], rawName[80];
++    // Keep the mapped bytes alive until parsing finishes (ARC may release a local
++    // after its final message, even if C still holds an interior pointer).
++    while (rb_archive_index_next(&cursor, &left, rawKey, rawName)) {
++        NSString *key = @(rawKey), *file = @(rawName);
++        if (![bfiles containsObject:file]) {
++            if (![fm fileExistsAtPath:[dir stringByAppendingPathComponent:file]]) continue;
++            [bfiles addObject:file];
++        }
++        batches[key] = file;
++        [have addObject:key];
++    }
++    for (NSString *f in bfiles) bytes += [[fm attributesOfItemAtPath:[dir stringByAppendingPathComponent:f] error:nil] fileSize];
++    if (batchCount) *batchCount = bfiles.count;
++    return bytes;
++}
++static BOOL par_stamp_conflicts(NSDictionary *stamp, NSDictionary *current) {
++    if (![stamp isKindOfClass:NSDictionary.class]) return NO;
++    for (NSString *field in @[@"schema", @"chain", @"gpu", @"osBuild"]) {
++        if (stamp[field] && current[field] && ![stamp[field] isEqual:current[field]]) return YES;
++    }
++    return NO;
++}
++static NSDictionary *par_scoped_identity(NSDictionary *device) {
++    const char *title = getenv("S2A_RB_DIRECT_GAME_ID"), *build = RB_PAR_BUILD();
++    const char *hex = "0123456789abcdefABCDEF";
++    if (!title || strlen(title) != 16 || strspn(title, hex) != 16 ||
++        !build || strlen(build) != 32 || strspn(build, hex) != 32 ||
++        !device[@"osBuild"] || [device[@"gpu"] isEqual:@"?"]) return nil;
++    char machine[128] = {0}; size_t size = sizeof machine;
++    if (sysctlbyname("hw.machine", machine, &size, NULL, 0) || !size || size > sizeof machine || machine[size - 1]) return nil;
++    return @{@"schema":@2, @"binaryABI":@1, @"backend":@"direct-metal4", @"machine":@(machine),
++             @"compileABI":@"invariant-relaxed-1",
++             @"title":[@(title) lowercaseString], @"titleBuild":[@(build) lowercaseString],
++             @"chain":device[@"chain"], @"gpu":device[@"gpu"], @"osBuild":device[@"osBuild"]};
++}
++static NSDictionary *par_read_identity(NSString *dir) {
++    NSData *data = [NSData dataWithContentsOfFile:[dir stringByAppendingPathComponent:@"identity.json"]];
++    id stamp = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
++    return [stamp isKindOfClass:NSDictionary.class] ? stamp : nil;
++}
++// Initialization is single-flight within a session. A successful renderer drain
++// retires the paths and dictionaries before another game can open its cache.
++static void par_init_dir(void) {
++    const char *ev = getenv("DM_PSO_ARCHIVE"); if (ev && !strcmp(ev, "0")) { MLOG("DM_PSO_ARCHIVE=0: no pipeline archive, every pipeline compiles"); return; }
++    const char *coalesce = getenv("S2A_RB_PSO_ARCHIVE_COALESCE");
++    g_rb_archive_coalesce = coalesce && !strcmp(coalesce, "1");
++    // The package's archives (pack time, shader line 10-26: one file per pipeline under the same key, made for the target GPU): looked up first, never removed or rewritten
++    g_par_bhave = [NSMutableSet set];
++    if (g_shmap_path && !g_par_harvest) {
++        g_par_bdir = [g_shmap_path.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pipelines"];
++        for (NSString *name in [NSFileManager.defaultManager contentsOfDirectoryAtPath:g_par_bdir error:nil] ?: @[]) if ([name hasSuffix:@".metalarchive"]) [g_par_bhave addObject:name.stringByDeletingPathExtension];
++        g_par_bundle_files = g_par_bhave.count != 0;
++        if (g_par_bundle_files) MLOG("pipeline archive in the package %s: %lu pipelines", g_par_bdir.UTF8String, (unsigned long)g_par_bhave.count);
++    }
++    NSString *user = g_par_harvest ? nil : pso_user_path(); if (!user && !g_par_harvest) return;   // no save directory (unit tests): nowhere to keep it
++    g_par_dir = g_par_harvest ? @(g_par_harvest) : [user.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pipelines"];
++    NSFileManager *fm = NSFileManager.defaultManager;
++    dispatch_async(s2a_qos_global(S2A_QOS_IO_BG), ^{   // the app's own build folders left by earlier runs (a crash in a write)
++        pthread_mutex_lock(&g_par_wmu); int lk = par_ga_lock(); NSUInteger n = 0;
++        for (NSString *path in par_ga_list(1))
++            if (!g_par_ga_held[path] && [NSFileManager.defaultManager removeItemAtPath:path error:nil]) n++;
++        par_ga_unlock(lk); pthread_mutex_unlock(&g_par_wmu);
++        if (n) MLOG("pipeline archive: removed %lu build folders Metal left behind in earlier runs", (unsigned long)n);
++    });
++    NSDictionary *current = par_identity(g_dev);
++    NSDictionary *stamp = par_read_identity(g_par_dir);
++    BOOL scoped = !g_par_harvest && RB_PAR_SCOPED();
++    if (scoped) {
++        NSDictionary *scope = par_scoped_identity(current);
++        if (!scope) { MLOG("pipeline archive: scoped game/device identity incomplete; package probes only"); return; }
++        if (!par_stamp_conflicts(stamp, current) && [fm fileExistsAtPath:g_par_dir]) {
++            g_par_legacy_dir = g_par_dir;
++            g_par_legacy_have = [NSMutableSet set];
++            g_par_legacy_batches = [NSMutableDictionary dictionary];
++            par_read_inventory(g_par_legacy_dir, g_par_legacy_have, g_par_legacy_batches, NULL);
++        }
++        NSData *encoded = [NSJSONSerialization dataWithJSONObject:scope options:NSJSONWritingSortedKeys error:nil];
++        if (!encoded.length) return;
++        NSString *root = [user.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pipelines-v2"];
++        g_par_dir = [root stringByAppendingPathComponent:par_hash(encoded.bytes, encoded.length)];
++        current = scope;
++        stamp = par_read_identity(g_par_dir);
++        if (stamp && ![stamp isEqual:current]) {
++            MLOG("pipeline archive: conflicting identity at scoped path; cache left intact"); return;
+         }
+-        NSString *user = g_par_harvest ? nil : pso_user_path(); if (!user && !g_par_harvest) return;   // no save directory (unit tests): nowhere to keep it
+-        g_par_dir = g_par_harvest ? @(g_par_harvest) : [user.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pipelines"];
+-        NSFileManager *fm = NSFileManager.defaultManager;
+-        dispatch_async(s2a_qos_global(S2A_QOS_IO_BG), ^{   // the app's own build folders left by earlier runs (a crash in a write)
+-            pthread_mutex_lock(&g_par_wmu); int lk = par_ga_lock(); NSUInteger n = 0;
+-            for (NSString *path in par_ga_list(1))
+-                if (!g_par_ga_held[path] && [NSFileManager.defaultManager removeItemAtPath:path error:nil]) n++;
+-            par_ga_unlock(lk); pthread_mutex_unlock(&g_par_wmu);
+-            if (n) MLOG("pipeline archive: removed %lu build folders Metal left behind in earlier runs", (unsigned long)n);
+-        });
+-        NSString *stamp_path = [g_par_dir stringByAppendingPathComponent:@"identity.json"];
+-        NSData *sd = [NSData dataWithContentsOfFile:stamp_path];
+-        NSDictionary *stamp = sd ? [NSJSONSerialization JSONObjectWithData:sd options:0 error:nil] : nil;
+-        NSDictionary *current = par_identity(g_dev);
+-        // A missing or damaged stamp says nothing about the GPU code. Metal validates
+-        // every recovered entry with FailOnBinaryArchiveMiss before it can become a hit.
+-        BOOL known = [stamp isKindOfClass:NSDictionary.class] && [stamp[@"schema"] isKindOfClass:NSNumber.class]
+-            && [stamp[@"gpu"] isKindOfClass:NSString.class] && [stamp[@"os"] isKindOfClass:NSString.class]
+-            && [stamp[@"chain"] isKindOfClass:NSString.class];
+-        // Legacy stamps contain a localized OS description. On migration, let the
+-        // strict Metal probe validate each entry instead of evicting the entire cache.
+-        BOOL incompatible = known && (![stamp[@"schema"] isEqual:current[@"schema"]]
+-            || ![stamp[@"chain"] isEqual:current[@"chain"]] || ![stamp[@"gpu"] isEqual:current[@"gpu"]]
+-            || ([stamp[@"osBuild"] isKindOfClass:NSString.class] && current[@"osBuild"]
+-                && ![stamp[@"osBuild"] isEqual:current[@"osBuild"]]));
+-        if (incompatible) {
++    } else {
++        // Preserve the historical migration of old format stamps and bundled harvests.
++        BOOL known = [stamp[@"schema"] isKindOfClass:NSNumber.class] && [stamp[@"gpu"] isKindOfClass:NSString.class]
++            && [stamp[@"os"] isKindOfClass:NSString.class] && [stamp[@"chain"] isKindOfClass:NSString.class];
++        if (known && par_stamp_conflicts(stamp, current)) {
+             NSError *err = nil;
+             if (![fm removeItemAtPath:g_par_dir error:&err]) {
+                 MLOG("pipeline archive: incompatible directory could not be reset: %s", err.localizedDescription.UTF8String);
+                 return;
+             }
+         }
+-        [fm createDirectoryAtPath:g_par_dir withIntermediateDirectories:YES attributes:nil error:nil];
+-        if (![stamp isEqual:current])
+-            [[NSJSONSerialization dataWithJSONObject:current options:NSJSONWritingSortedKeys error:nil] writeToFile:stamp_path atomically:YES];
+-        g_par_have = [NSMutableSet set]; g_par_open = [NSMutableDictionary dictionary]; uint64_t bytes = 0;
+-        for (NSString *name in [fm contentsOfDirectoryAtPath:g_par_dir error:nil] ?: @[]) if ([name hasSuffix:@".metalarchive"] && ![name hasPrefix:@"batch-"]) {
+-            [g_par_have addObject:name.stringByDeletingPathExtension];
+-            bytes += [[fm attributesOfItemAtPath:[g_par_dir stringByAppendingPathComponent:name] error:nil] fileSize];
+-        }
+-        // Batch files (par_write_batch): batches.tsv holds key → file, later lines win (a key written again after a miss); a line whose file is gone is skipped
+-        g_par_bmap = [NSMutableDictionary dictionary]; NSUInteger nb = 0;
+-        __attribute__((objc_precise_lifetime)) NSData *idx = [NSData dataWithContentsOfFile:[g_par_dir stringByAppendingPathComponent:@"batches.tsv"]
+-                                            options:NSDataReadingMappedIfSafe error:nil];
+-        NSMutableSet *bfiles = [NSMutableSet set];
+-        const char *cursor = idx.bytes;
+-        size_t left = idx.length;
+-        char rawKey[42], rawName[80];
+-        // Keep the mapped bytes alive until parsing finishes (ARC may release a local
+-        // after its final message, even if C still holds an interior pointer).
+-        while (rb_archive_index_next(&cursor, &left, rawKey, rawName)) {
+-            NSString *key = @(rawKey), *file = @(rawName);
+-            if (![bfiles containsObject:file]) {
+-                if (![fm fileExistsAtPath:[g_par_dir stringByAppendingPathComponent:file]]) continue;
+-                [bfiles addObject:file];
++    }
++    if (![fm createDirectoryAtPath:g_par_dir withIntermediateDirectories:YES attributes:nil error:nil]) return;
++    NSString *stamp_path = [g_par_dir stringByAppendingPathComponent:@"identity.json"];
++    if (![stamp isEqual:current] &&
++        ![[NSJSONSerialization dataWithJSONObject:current options:NSJSONWritingSortedKeys error:nil] writeToFile:stamp_path atomically:YES] &&
++        scoped) return;
++    g_par_have = [NSMutableSet set]; g_par_open = [NSMutableDictionary dictionary];
++    g_par_bmap = [NSMutableDictionary dictionary];
++    NSUInteger nb = 0;
++    uint64_t bytes = par_read_inventory(g_par_dir, g_par_have, g_par_bmap, &nb);
++    g_par_on = 1;
++    MLOG("pipeline archive %s: %lu pipelines (%lu in %lu batch files, the rest one file each; %.1f MB), opened when used", g_par_dir.UTF8String, (unsigned long)g_par_have.count,
++         (unsigned long)g_par_bmap.count, (unsigned long)nb, bytes / 1048576.0);
++}
++static int par_open_dir(void) {
++    if (atomic_load_explicit(&g_par_initialized, memory_order_acquire)) return 1;
++    pthread_mutex_lock(&g_par_init_mu);
++    if (!atomic_load_explicit(&g_par_initialized, memory_order_relaxed)) {
++        if (!g_par_harvest && RB_PAR_SCOPED()) {
++            const char *build = RB_PAR_BUILD();
++            if (!build || !*build) {
++                // Startup before the loader has selected its executable must not pin
++                // the rest of this session to an unidentified archive.
++                pthread_mutex_unlock(&g_par_init_mu);
++                return 0;
+             }
+-            g_par_bmap[key] = file;
+-            [g_par_have addObject:key];
+         }
+-        for (NSString *f in bfiles) { bytes += [[fm attributesOfItemAtPath:[g_par_dir stringByAppendingPathComponent:f] error:nil] fileSize]; nb++; }
+-        g_par_on = 1;
+-        MLOG("pipeline archive %s: %lu pipelines (%lu in %lu batch files, the rest one file each; %.1f MB), opened when used", g_par_dir.UTF8String, (unsigned long)g_par_have.count,
+-             (unsigned long)g_par_bmap.count, (unsigned long)nb, bytes / 1048576.0);
+-    });
++        par_init_dir();
++        atomic_store_explicit(&g_par_initialized, 1, memory_order_release);
++    }
++    pthread_mutex_unlock(&g_par_init_mu);
++    return 1;
+ }
+ // Accessed under g_par_mu. All users take strong references under this same
+ // lock. Only read-only, already serialized files enter this cache.
+@@ -258,8 +339,7 @@ static CFArrayRef rb_archive_store(NSString *key, id<MTLBinaryArchive> archive)
+     return rb_archive_limit(RB_OPEN_ARCHIVES);
+ }
+ static id<MTLBinaryArchive> par_bundle_for(NSString *key) {   // the package's file for this key, or nil (kept open like the device's)
+-    par_open_dir();
+-    if (!key || !g_par_bundle_files) return nil;
++    if (!key || !par_open_dir() || !g_par_bundle_files) return nil;
+     CFArrayRef retired = NULL;
+     pthread_mutex_lock(&g_par_mu);
+     if (![g_par_bhave containsObject:key]) { pthread_mutex_unlock(&g_par_mu); return nil; }
+@@ -275,8 +355,7 @@ static id<MTLBinaryArchive> par_bundle_for(NSString *key) {   // the package's f
+     return a;
+ }
+ static id<MTLBinaryArchive> par_archive_for(NSString *key) {
+-    par_open_dir();
+-    if (!g_par_on || !key) return nil;
++    if (!key || !par_open_dir() || !g_par_on) return nil;
+     CFArrayRef retired = NULL;
+     pthread_mutex_lock(&g_par_mu);
+     id<MTLBinaryArchive> a = rb_archive_lookup(key);
+@@ -296,6 +375,29 @@ static id<MTLBinaryArchive> par_archive_for(NSString *key) {
+     if (retired) CFRelease(retired);
+     return a;
+ }
++// Older per-title files remain read-only. One key in a batch can fail a strict
++// probe while its neighbors are still valid, so retire only that mapping.
++static id<MTLBinaryArchive> par_legacy_for(NSString *key) {
++    if (!key || !g_par_on || !g_par_legacy_dir) return nil;
++    CFArrayRef retired = NULL;
++    pthread_mutex_lock(&g_par_mu);
++    id<MTLBinaryArchive> archive = nil;
++    if ([g_par_legacy_have containsObject:key]) {
++        NSString *file = g_par_legacy_batches[key] ?: [key stringByAppendingPathExtension:@"metalarchive"];
++        NSString *cache = [@"legacy/" stringByAppendingString:file];
++        archive = rb_archive_lookup(cache);
++        if (!archive) {
++            MTLBinaryArchiveDescriptor *desc = [MTLBinaryArchiveDescriptor new];
++            desc.url = [NSURL fileURLWithPath:[g_par_legacy_dir stringByAppendingPathComponent:file]];
++            archive = [g_dev newBinaryArchiveWithDescriptor:desc error:nil];
++            if (archive) retired = rb_archive_store(cache, archive);
++            else [g_par_legacy_have removeObject:key];
++        }
++    }
++    pthread_mutex_unlock(&g_par_mu);
++    if (retired) CFRelease(retired);
++    return archive;
++}
+ static void par_drop(NSString *key) {   // its file did not give the pipeline (another package's libraries under the same key): written again by the next write
+     pthread_mutex_lock(&g_par_mu); rb_archive_forget(key); [g_par_have removeObject:key];
+     BOOL batched = g_par_bmap[key] != nil; [g_par_bmap removeObjectForKey:key]; pthread_mutex_unlock(&g_par_mu);
+@@ -645,7 +747,7 @@ static void par_note(NSString *key, id desc) {
+         if (!g_par_todo.count) g_rb_archive_first = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+         if (par_write_in_place) g_rb_archive_has_warm = 1;
+     }
+-    [g_par_todo addObject:@[key, desc]];
++    [g_par_todo addObject:@[key, [desc copy]]];
+     int start = !g_par_writer; g_par_writer = 1;
+     if (start && !g_par_w_t0) { g_par_w_t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW); g_par_w_n0 = atomic_load(&g_par_written); }
+     pthread_mutex_unlock(&g_par_mu);
+@@ -669,7 +771,7 @@ static void par_count(int hit) {
+ //   原先各编各的：提交线程急用的那条若正被预热工人编着，它自己再编一遍，两份一起排编译服务（Switch2 线时之笛读数：与提交线程重复建同一条；
+ //   斯普拉遁3 c1104_r2 第 232 帧单条首用等待 36.7 s）。现在后到的等先到的那份、把自己的 QoS 借给它（同 flight_wait_locked），拿同一个管线对象（Metal 管线对象线程安全）；
+ //   先到的失败（nil）时后到的自己再编一次，取它自己的错误信息
+-@interface ParFlight : NSObject { @public dispatch_group_t done; id result; pthread_t builder; } @end
++@interface ParFlight : NSObject { @public dispatch_group_t done; id result; NSError *failure; pthread_t builder; } @end
+ @implementation ParFlight @end
+ static NSMutableDictionary<NSString *, ParFlight *> *g_par_flights;
+ static os_unfair_lock g_par_fl_lock = OS_UNFAIR_LOCK_INIT;
+@@ -687,7 +789,7 @@ static int par_fl_enter(NSString *key, id *out, ParFlight **mine) {
+         clock_gettime(CLOCK_MONOTONIC, &t1);
+         if (ov) pthread_override_qos_class_end_np(ov);
+         atomic_fetch_add(&g_par_dedup, 1); atomic_fetch_add(&g_par_dedup_ns, (uint64_t)((t1.tv_sec - t0.tv_sec) * 1000000000ll + (t1.tv_nsec - t0.tv_nsec)));
+-        *out = f->result; return 1;
++        *out = f->result; *mine = f; return 1;
+     }
+     f = [ParFlight new]; f->done = dispatch_group_create(); dispatch_group_enter(f->done); f->builder = pthread_self();
+     if (!g_par_flights) g_par_flights = [NSMutableDictionary dictionary];
+@@ -733,10 +835,19 @@ static void par_slow_end(ParSlow *w, int ok) {
+ // Build a render pipeline through the archive. key = par_rkey(...), nil = not archived (built as before)
+ static id<MTLRenderPipelineState> par_render(MTLRenderPipelineDescriptor *d, NSString *key, NSError **e) {
+     id got; ParFlight *mine;
+-    if (par_fl_enter(key, &got, &mine) && got) return got;
++    if (par_fl_enter(key, &got, &mine)) {
++        if (got || RB_PAR_SCOPED()) {
++            if (!got && e) *e = mine->failure;
++            return got;
++        }
++        mine = nil;  // historical unscoped behavior retries failures with the caller's descriptor
++    }
+     uint64_t rb_start=rb_pso_cap_on() ? clock_gettime_nsec_np(CLOCK_UPTIME_RAW) : 0;
+     ParSlow *sw = par_slow_begin(key, "render", [NSString stringWithFormat:@"%@ %@", d.vertexFunction.name ?: @"-", d.fragmentFunction.name ?: @"-"]);
+-    id<MTLRenderPipelineState> ps = par_render_(d, key, e);
++    NSError *buildError = nil;
++    id<MTLRenderPipelineState> ps = par_render_(d, key, &buildError);
++    if (e && buildError) *e = buildError;
++    if (mine) mine->failure = buildError;
+     rb_recreated(key,ps,rb_start);
+     par_slow_end(sw, ps != nil);
+     par_fl_leave(key, mine, ps);
+@@ -745,10 +856,19 @@ static id<MTLRenderPipelineState> par_render(MTLRenderPipelineDescriptor *d, NSS
+ static id<MTLComputePipelineState> par_compute(id<MTLFunction> fn, NSString *key, NSError **e) {
+     if (!fn) return nil;
+     id got; ParFlight *mine;
+-    if (par_fl_enter(key, &got, &mine) && got) return got;
++    if (par_fl_enter(key, &got, &mine)) {
++        if (got || RB_PAR_SCOPED()) {
++            if (!got && e) *e = mine->failure;
++            return got;
++        }
++        mine = nil;  // historical unscoped behavior retries failures with the caller's descriptor
++    }
+     uint64_t rb_start=rb_pso_cap_on() ? clock_gettime_nsec_np(CLOCK_UPTIME_RAW) : 0;
+     ParSlow *sw = par_slow_begin(key ? key : fn.name, "compute", fn.name);
+-    id<MTLComputePipelineState> ps = par_compute_(fn, key, e);
++    NSError *buildError = nil;
++    id<MTLComputePipelineState> ps = par_compute_(fn, key, &buildError);
++    if (e && buildError) *e = buildError;
++    if (mine) mine->failure = buildError;
+     rb_recreated(key,ps,rb_start);
+     par_slow_end(sw, ps != nil);
+     par_fl_leave(key, mine, ps);
+@@ -772,6 +892,17 @@ static BOOL par_reference_rebuild(NSString *key) {
+     pthread_mutex_unlock(&g_par_mu);
+     return rebuild;
+ }
++static void par_scope_result(int compute, int hit) {
++    if (!RB_PAR_MEASURE()) return;
++    unsigned i = 4 * compute + (par_write_in_place ? 0 : 2) + !hit;
++    atomic_fetch_add_explicit(&g_rb_par_stats[i], 1, memory_order_relaxed);
++}
++static void par_scope_build(int compute, uint64_t started) {
++    if (!started) return;
++    unsigned i = 8 + 4 * compute + (RB_PAR_SUBMIT_THREAD() ? 0 : 2);
++    atomic_fetch_add_explicit(&g_rb_par_stats[i], 1, memory_order_relaxed);
++    atomic_fetch_add_explicit(&g_rb_par_stats[i + 1], bp_now() - started, memory_order_relaxed);
++}
+ static id<MTLRenderPipelineState> par_render_(MTLRenderPipelineDescriptor *d, NSString *key, NSError **e) {
+     BOOL rebuild=par_reference_rebuild(key);
+     id<MTLBinaryArchive> b = rebuild ? nil : par_bundle_for(key);
+@@ -779,21 +910,38 @@ static id<MTLRenderPipelineState> par_render_(MTLRenderPipelineDescriptor *d, NS
+         d.binaryArchives = @[b];
+         id<MTLRenderPipelineState> ps = [g_dev newRenderPipelineStateWithDescriptor:d options:MTLPipelineOptionFailOnBinaryArchiveMiss reflection:nil error:nil];
+         d.binaryArchives = nil;
+-        if (ps) { rb_pso_track(ps, RB_RENDER, key, YES); par_count(1); return ps; }
++        if (ps) { rb_pso_track(ps, RB_RENDER, key, YES); par_count(1); par_scope_result(0, 1); return ps; }
+     }
+     id<MTLBinaryArchive> a = rebuild ? nil : par_archive_for(key);
+     if (a) {
+         d.binaryArchives = @[a];
+         id<MTLRenderPipelineState> ps = [g_dev newRenderPipelineStateWithDescriptor:d options:MTLPipelineOptionFailOnBinaryArchiveMiss reflection:nil error:nil];
+         d.binaryArchives = nil;
+-        if (ps) { rb_pso_track(ps, RB_RENDER, key, YES); par_count(1); return ps; }
++        if (ps) { rb_pso_track(ps, RB_RENDER, key, YES); par_count(1); par_scope_result(0, 1); return ps; }
+         par_drop(key);
+     }
+-    if (key && g_par_on) par_count(0);
++    id<MTLBinaryArchive> legacy = rebuild ? nil : par_legacy_for(key);
++    if (legacy) {
++        d.binaryArchives = @[legacy];
++        id<MTLRenderPipelineState> ps = [g_dev newRenderPipelineStateWithDescriptor:d options:MTLPipelineOptionFailOnBinaryArchiveMiss reflection:nil error:nil];
++        d.binaryArchives = nil;
++        if (ps) {
++            rb_pso_track(ps, RB_RENDER, key, YES);
++            par_count(1); par_scope_result(0, 1);
++            par_note(key, d);  // promote only a descriptor that strictly reopened on this GPU
++            return ps;
++        }
++        pthread_mutex_lock(&g_par_mu);
++        [g_par_legacy_have removeObject:key];
++        pthread_mutex_unlock(&g_par_mu);
++    }
++    if (key && g_par_on) { par_count(0); par_scope_result(0, 0); }
++    uint64_t started = RB_PAR_MEASURE() ? bp_now() : 0;
+     id<MTLRenderPipelineState> ps = [g_dev newRenderPipelineStateWithDescriptor:d error:e];
++    par_scope_build(0, started);
+     if (ps && rebuild) atomic_fetch_add(&g_par_reference_created,1);
+     rb_pso_track(ps, RB_RENDER, key, NO);
+-    if (ps && key && g_par_on && (par_write_in_place || g_par_note_play)) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }   // RewindBox (patch 0033): g_par_note_play
++    if (ps && key && g_par_on && (par_write_in_place || g_par_note_play || RB_PAR_SCOPED())) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }   // RewindBox (patch 0033): g_par_note_play
+     return ps;
+ }
+ static id<MTLComputePipelineState> par_compute_(id<MTLFunction> fn, NSString *key, NSError **e) {
+@@ -803,19 +951,54 @@ static id<MTLComputePipelineState> par_compute_(id<MTLFunction> fn, NSString *ke
+         d.binaryArchives = @[b];
+         id<MTLComputePipelineState> ps = [g_dev newComputePipelineStateWithDescriptor:d options:MTLPipelineOptionFailOnBinaryArchiveMiss reflection:nil error:nil];
+         d.binaryArchives = nil;
+-        if (ps) { rb_pso_track(ps, RB_COMPUTE, key, YES); par_count(1); return ps; }
++        if (ps) { rb_pso_track(ps, RB_COMPUTE, key, YES); par_count(1); par_scope_result(1, 1); return ps; }
+     }
+     id<MTLBinaryArchive> a = par_archive_for(key);
+     if (a) {
+         d.binaryArchives = @[a];
+         id<MTLComputePipelineState> ps = [g_dev newComputePipelineStateWithDescriptor:d options:MTLPipelineOptionFailOnBinaryArchiveMiss reflection:nil error:nil];
+         d.binaryArchives = nil;
+-        if (ps) { rb_pso_track(ps, RB_COMPUTE, key, YES); par_count(1); return ps; }
++        if (ps) { rb_pso_track(ps, RB_COMPUTE, key, YES); par_count(1); par_scope_result(1, 1); return ps; }
+         par_drop(key);
+     }
+-    if (key && g_par_on) par_count(0);
++    id<MTLBinaryArchive> legacy = par_legacy_for(key);
++    if (legacy) {
++        d.binaryArchives = @[legacy];
++        id<MTLComputePipelineState> ps = [g_dev newComputePipelineStateWithDescriptor:d options:MTLPipelineOptionFailOnBinaryArchiveMiss reflection:nil error:nil];
++        d.binaryArchives = nil;
++        if (ps) {
++            rb_pso_track(ps, RB_COMPUTE, key, YES);
++            par_count(1); par_scope_result(1, 1);
++            par_note(key, d);  // promote only a descriptor that strictly reopened on this GPU
++            return ps;
++        }
++        pthread_mutex_lock(&g_par_mu);
++        [g_par_legacy_have removeObject:key];
++        pthread_mutex_unlock(&g_par_mu);
++    }
++    if (key && g_par_on) { par_count(0); par_scope_result(1, 0); }
++    uint64_t started = RB_PAR_MEASURE() ? bp_now() : 0;
+     id<MTLComputePipelineState> ps = [g_dev newComputePipelineStateWithDescriptor:d options:MTLPipelineOptionNone reflection:nil error:e];
++    par_scope_build(1, started);
+     rb_pso_track(ps, RB_COMPUTE, key, NO);
+-    if (ps && key && g_par_on && (par_write_in_place || g_par_note_play)) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }   // RewindBox (patch 0033): g_par_note_play
++    if (ps && key && g_par_on && (par_write_in_place || g_par_note_play || RB_PAR_SCOPED())) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }   // RewindBox (patch 0033): g_par_note_play
+     return ps;
+ }
++
++
++// Called after session_wait_backend, the archive writer and all shader workers have drained.
++static void par_retire_session(void) {
++    pthread_mutex_lock(&g_par_init_mu);
++    pthread_mutex_lock(&g_par_mu);
++    g_par_bdir = g_par_dir = g_par_legacy_dir = nil;
++    g_par_have = g_par_bhave = g_par_legacy_have = nil;
++    g_par_bmap = g_par_legacy_batches = nil;
++    g_par_open = nil;
++    g_rb_recent_archives = nil;
++    g_par_reference_fresh = nil;
++    atomic_store(&g_par_reference_left, 0);
++    g_par_bundle_files = g_par_on = g_par_note_play = 0;
++    atomic_store_explicit(&g_par_initialized, 0, memory_order_release);
++    pthread_mutex_unlock(&g_par_mu);
++    pthread_mutex_unlock(&g_par_init_mu);
++}

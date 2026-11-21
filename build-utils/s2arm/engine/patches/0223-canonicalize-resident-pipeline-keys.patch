@@ -1,0 +1,167 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 33b612b..ee8e660 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -10005,7 +10005,9 @@ static id<MTLLibrary> rb_compile_source(NSString *src, NSError **error) {
+ }
+ static id<MTLLibrary> rb_stage_library(NSString *src, int stage, NSError **error) {
+     t_lib_layer = [src containsString:@"render_target_array_index"];
+-    if (!stage_depth_moded(stage)) return rb_compile_source(src, error);
++    // Base shader identities differ by stage/entry, but compiling the same final
++    // source with dm_msl_opts() on the same device produces the same library.
++    if (!stage_depth_moded(stage) && !rb_async_pso()) return rb_compile_source(src, error);
+     const char *bytes = src.UTF8String;
+     if (!bytes) return rb_compile_source(src, error);
+     NSString *identity = [NSString stringWithFormat:@"lib/%p/%@", (__bridge void *)g_dev,
+@@ -12243,8 +12245,50 @@ void s2a_rb_heap_pipeline(uint64_t *table, uint64_t *objects)
+     *table = atomic_load_explicit(&g_rb_pso_table, memory_order_relaxed);
+     *objects = atomic_load_explicit(&g_rb_pso_objects, memory_order_relaxed);
+ }
+-static void rb_pso_store(const void *key, id object)
++// Additional descriptor equivalences for the resident and pending render tables
++// only. Archive names and R recipes are computed from the original pso_key.
++static const pso_key *rb_pso_live_key(const pso_key *key, pso_key *copy)
+ {
++    if (!rb_async_pso() || key->fsfn) return key;
++    memcpy(copy, key, sizeof *copy);
++    if (!copy->samples) copy->samples = 1; // pso_desc.rasterSampleCount
++    copy->blend_en &= 0xff; // eight logical targets
++    unsigned streams = 0;
++    for (int i = 0; i < 16; i++) {
++        if (!copy->attr[i].fmt) {
++            // ZERO_ATTR takes the dedicated zero buffer before consulting either field.
++            copy->attr[i] = (va_st){0};
++        } else if (copy->attr[i].stream < 16) {
++            streams |= 1u << copy->attr[i].stream;
++        }
++    }
++    for (int i = 0; i < 16; i++) {
++        if (!(streams & (1u << i))) copy->stream[i] = (vs_st){0};
++        // Both converted and direct zero-stride fetch use Constant with stepRate zero.
++        else if (!copy->stream[i].stride) copy->stream[i].divisor = 0;
++    }
++    return memcmp(copy, key, sizeof *copy) ? copy : key;
++}
++// Normal resident hits need only the existing hash lookup. On a miss, return
++// the identity to use for pending, failed and retry lookups as well.
++static __unsafe_unretained id rb_pso_probe(const pso_key *key, pso_key *copy, const pso_key **live)
++{
++    *live = key;
++    __unsafe_unretained id result = hm_get_id(&g_pso, key);
++    if (result) return result;
++    *live = rb_pso_live_key(key, copy);
++    return *live == key ? nil : hm_get_id(&g_pso, *live);
++}
++static __unsafe_unretained id rb_pso_lookup(const pso_key *key)
++{
++    pso_key copy;
++    const pso_key *live;
++    return rb_pso_probe(key, &copy, &live);
++}
++static void rb_pso_store(const pso_key *key, id object)
++{
++    pso_key copy;
++    key = rb_pso_live_key(key, &copy);
+     rb_pso_track(object, RB_RENDER, nil, NO);
+     if (!rb_heap_measure()) { hm_put_id(&g_pso, key, object); return; }
+     void *old = nvn_hm_put(&g_pso, key, (void *)CFBridgingRetain(object));
+@@ -12728,17 +12772,29 @@ static int pso_pair_ok(NvShader *vs, NvShader *fs, int report) {
+         static unsigned n; if (n++ < 16) MLOG("vertex %s does not write user(locn) mask %#x that fragment %s reads: its draws wait for the padded variant (vp_ask)", vs->key, miss, fs->key); }
+     return 0;
+ }
+-static int pso_pend_find(const pso_key *k) { for (int i = 0; i < PSO_PEND_MAX; i++) if (g_pp[i].used && !memcmp(&g_pp[i].k, k, sizeof *k)) return i; return -1; }
++static int pso_pend_find_live(const pso_key *live)
++{
++    for (int i = 0; i < PSO_PEND_MAX; i++)
++        if (g_pp[i].used && !memcmp(&g_pp[i].k, live, sizeof *live)) return i;
++    return -1;
++}
++static int pso_pend_find(const pso_key *key)
++{
++    pso_key copy;
++    return pso_pend_find_live(rb_pso_live_key(key, &copy));
++}
+ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs, int now) {   // Called by the submit thread: kick only if it is neither in the cache nor in the table. now: a draw needs it (RewindBox (patch 0069): started at once, not after the lookahead's guesses)
+-    if (hm_get_id(&g_pso, k) || !pso_pair_ok(vs, fs, 0)) return;
++    pso_key copy;
++    const pso_key *live;
++    if (rb_pso_probe(k, &copy, &live) || !pso_pair_ok(vs, fs, 0)) return;
+     pthread_mutex_lock(&g_pp_mu);
+-    int at = pso_pend_find(k), slot = -1;
++    int at = pso_pend_find_live(live), slot = -1;
+     if (at < 0) for (int i = 0; i < PSO_PEND_MAX; i++) if (!g_pp[i].used) { slot = i; break; }
+     // Full: reuse a slot whose compile is done but which no draw took. Only a draw's own wait frees a slot, and the lookahead also kicks the attach modes a pass may not use, so
+     //   those stayed for the whole run and a full table sent every later first use back to a synchronous build. Dropped, it costs nothing later: Metal keeps what this process
+     //   compiled, and building the same descriptor again took 0.0 ms (M5 Max, 24 pipelines, 11-02 microbenchmark), and its records are written when a draw builds it
+     if (at < 0 && slot < 0) for (int i = 0; i < PSO_PEND_MAX; i++) if (g_pp[i].used && g_pp[i].done) { slot = i; g_pp[i].ps = nil; g_pp_dropped++; break; }
+-    if (at < 0 && slot >= 0) { g_pp[slot].k = *k; g_pp[slot].ps = nil; g_pp[slot].error = nil; g_pp[slot].done = 0; g_pp[slot].late = 0; g_pp[slot].stuck = 0; g_pp[slot].used = 1; }
++    if (at < 0 && slot >= 0) { g_pp[slot].k = *live; g_pp[slot].ps = nil; g_pp[slot].error = nil; g_pp[slot].done = 0; g_pp[slot].late = 0; g_pp[slot].stuck = 0; g_pp[slot].used = 1; }
+     if (at >= 0 && now) ppq_hurry_locked(at);   // RewindBox (patch 0069): a guess of the lookahead no lane has started, needed now
+     pthread_mutex_unlock(&g_pp_mu);
+     if (at >= 0 || slot < 0) return;
+@@ -13064,7 +13120,9 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+       if (at > 0 && cf - f0 + 1 == at && (!rb_async_pso() || rb_pso_draw_inert(pr, vs)) && skip_safe(vs, fs)) {
+           static uint64_t n; if (!(++n & (n - 1))) MLOG("skip-safe test (DM_NVN_SKIP_SAFE_AT=%ld): %llu draws skipped; %llu steady answers so far came from the storage only", at, (unsigned long long)n, (unsigned long long)g_rt_steady_mem);
+           g_first_skipped = 1; PSO_WHY("skip-safe test frame"); return nil; } }
+-    __unsafe_unretained id<MTLRenderPipelineState> cached = hm_get_id(&g_pso, &k);
++    pso_key copy;
++    const pso_key *live;
++    __unsafe_unretained id<MTLRenderPipelineState> cached = rb_pso_probe(&k, &copy, &live);
+     if (cached) {
+         if (rb_pso_mode()) rb_async_note(RB_ASYNC_HIT);
+         if (g_rb_observing && !g_pso_lmap && !k.fsfn) rb_trace_used(cached, &k, vs, fs);
+@@ -13072,9 +13130,9 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+             rb_course_candidate(cached, &k, vs, fs);
+         return cached;
+     }
+-    if (hm_get_id(&g_pso_fail, &k)) { PSO_WHY("on the failed list (its first build was refused; the red line then said why)"); return nil; }
+-    { NSNumber *r = hm_get_id(&g_pso_retry, &k); if (r && r.unsignedLongLongValue > atomic_load(&g_cur_frame)) { g_first_skipped = 1; PSO_WHY("waiting to retry after a compiler service failure"); return nil; } }   // waiting to retry (pso_err_transient)
+-    if (quar_has(vs, fs)) { hm_put_id(&g_pso_fail, &k, NSNull.null); PSO_WHY("quarantined after a GPU error"); return nil; }   // a GPU error quarantined it (quar_fault)
++    if (hm_get_id(&g_pso_fail, live)) { PSO_WHY("on the failed list (its first build was refused; the red line then said why)"); return nil; }
++    { NSNumber *r = hm_get_id(&g_pso_retry, live); if (r && r.unsignedLongLongValue > atomic_load(&g_cur_frame)) { g_first_skipped = 1; PSO_WHY("waiting to retry after a compiler service failure"); return nil; } }   // waiting to retry (pso_err_transient)
++    if (quar_has(vs, fs)) { hm_put_id(&g_pso_fail, live, NSNull.null); PSO_WHY("quarantined after a GPU error"); return nil; }   // a GPU error quarantined it (quar_fault)
+     const int async=rb_async_pso();
+     if (async) g_async_miss_frame=atomic_load_explicit(&g_cur_frame,memory_order_relaxed);
+     const int course_exact=rb_course_exact();
+@@ -13097,7 +13155,7 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+             if (!rb_demand_padding(pr->gp,vs,mask)) { PSO_WHY("required vertex padding unavailable"); return nil; }
+         } else {
+             if (vp_ask(pr->gp,vs,mask)) { PSO_WHY("the vertex stage %s's padded variant is being made", vs->key); return nil; }
+-            hm_put_id(&g_pso_fail,&k,NSNull.null); PSO_WHY("the vertex stage %s does not write a user(locn) the fragment reads", vs->key); return nil;
++            hm_put_id(&g_pso_fail,live,NSNull.null); PSO_WHY("the vertex stage %s does not write a user(locn) the fragment reads", vs->key); return nil;
+         }
+     }
+     if (!async && !exact && !g_pso_lmap && !ms_fn && !g_pso_fsfn && first_skip_ok(&k, vs, fs)) { if (rb_pso_mode()) rb_async_note(RB_ASYNC_SKIP); PSO_WHY("compiling in the background (first-use skip)"); return nil; }   // S2Arm first-use skip: no stand-in, the full pipeline compiles in the background (draw counts it)
+@@ -13170,12 +13228,12 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+                fu_take / 1e6, fu_build / 1e6, fu_busy0, fu_yield_on() ? "on" : "off", tg);
+       } }
+     if (!ps && pso_err_transient(e)) {   // the compiler service, not the pipeline: retried after PSO_RETRY_FRAMES frames, its draws skipped meanwhile (never on the failed list for the run)
+-        hm_put_id(&g_pso_retry, &k, @(atomic_load(&g_cur_frame) + PSO_RETRY_FRAMES)); g_pso_transient++;
++        hm_put_id(&g_pso_retry, live, @(atomic_load(&g_cur_frame) + PSO_RETRY_FRAMES)); g_pso_transient++;
+         { static unsigned n; if (n++ < 8) MLOG("【红】 render pipeline (vertex %s fragment %s) not built, the system compiler service failed (%s): its draws are skipped and it is built again in %d frames (%llu so far)",
+                                                vs->key, fs ? fs->key : "-", e.localizedDescription.UTF8String, PSO_RETRY_FRAMES, (unsigned long long)g_pso_transient); }
+         g_first_skipped = 1; return nil; }
+     if (!ps) { char hint[200]; MLOG("【红】 failed to create render pipeline (vertex %s fragment %s): %s%s", vs->key, fs ? fs->key : "-", e.localizedDescription.UTF8String, pso_fout_hint(fs, g_pass.cfmt, hint, sizeof hint));
+-               hm_put_id(&g_pso_fail, &k, NSNull.null); return nil; }
++               hm_put_id(&g_pso_fail, live, NSNull.null); return nil; }
+     if (!ms_fn) { pso_skey sk; char shex[sizeof sk * 2 + 1]; pso_skey_from(&k, vs, fs, g_pso_lmap != NULL, g_pso_lmap ? &g_pso_fz : NULL, &sk); pso_skey_hex(&sk, shex);
+         rb_ref_capture_recipe(&sk,shex);
+         // Full exact recipes from slow first-use waits allow a later pack to
+@@ -16324,7 +16382,7 @@ static void pso_predict_rest_(void) {
+                 if (v && dv[v] == dv[0] && sv[v] == sv[0]) continue;
+                 if (v == 2 && !sfull) continue; if (v == 3 && (!dfull || !sfull)) continue;
+                 pso_key k; pso_key_fill(&k, vs, fs, cf, dv[v], sv[v], samples, 0);
+-                if (hm_get_id(&g_pso, &k)) continue;
++                if (rb_pso_lookup(&k)) continue;
+                 int dup = 0; for (int i = 0; i < na && !dup; i++) dup = !memcmp(&qa[i].k, &k, sizeof k);
+                 if (dup) continue;
+                 if (na < QN) { qa[na].k = k; qa[na].vs = (__bridge void *)vs; qa[na].fs = (__bridge void *)fs; na++; }   // 只预测原样附件（v 恒 0）；原先另填一份不派发的 qb[160]，审计 P2-160 删
+@@ -20206,7 +20264,7 @@ static void warm_claim(void) {
+         } else if (item->kind == 4) {
+             mtk_warm_claim(item->mkey, item->object);
+         } else if (item->kind == 1) {
+-            if (!hm_get_id(&g_pso, &item->pso)) {
++            if (!rb_pso_lookup(&item->pso)) {
+                 rb_pso_store(&item->pso, item->object); g_warm_claim_rps++;
+                 if (item->drawRecipe) rb_draw_remember(item->object,item->drawRecipe.bytes,NULL,0,0,YES);
+                 if (item->referenceKey) {

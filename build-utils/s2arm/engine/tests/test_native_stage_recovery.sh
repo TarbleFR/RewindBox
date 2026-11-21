@@ -17,6 +17,8 @@ for patch in "$tests"/../patches/*.patch; do
   (( 10#${number:0:4} <= 126 )) || break
   git -C "$red" apply --whitespace=nowarn "$patch"
 done
+# Keep the archived fixture before installing the current live-input controls.
+cp "$red/graphics/nvn/tests/t_dsh_stats.c" "$case_dir/stats-126.c"
 # Copy the test program (including its known paravirtual-device adapter);
 # engine compilation still includes headers and links libnvn.a strictly from 793.
 cp graphics/nvn/tests/{t_dsh_stats.c,t_nvn_shader_flight.m} "$red/graphics/nvn/tests/"
@@ -97,22 +99,31 @@ test "$pixel" = '0000002a 00000007 00000063 00000001' || { echo "Unexpected nati
 echo "PASS exact RGBA32Uint from repaired production NVN2 fragment $pixel"
 # Reuse this published translator, shader host and Metal renderer.
 xcrun --sdk macosx clang -O2 -dynamiclib "$tests/../../../../native/s2arm/prepare/s2arm_zstd.c" -o "$case_dir/prepare-zstd.dylib"
-# A separately compiled negative control runs the same true NativeAOT runtime
-# against the previous stage preparer. Reverse only its implementation; the
-# common test CLI and its cancellation probe are identical on both binaries.
-pre134="$case_dir/pre134"
-mkdir -p "$pre134/graphics" "$pre134/runtime"
-cp -R graphics/nvn "$pre134/graphics/"
-cp -R runtime/include "$pre134/runtime/"
-git -C "$pre134" apply -R --include='graphics/nvn/host/*' "$tests"/../patches/0140-*.patch
-xcrun --sdk macosx clang -x objective-c -std=gnu11 -fblocks -pthread -framework Foundation \
-  "$pre134/graphics/nvn/tests/t_dsh_stats.c" -o "$case_dir/dsh-795-no-aliases"
-git -C "$pre134" apply -R --include='graphics/nvn/host/*' --include='graphics/nvn/tests/t_dsh_stats.c' "$tests"/../patches/0136-*.patch
-# Restore the original priority helper before reversing the patch that added it.
-git -C "$pre134" apply -R --include='graphics/nvn/host/rb_priority_stage.inc' "$tests"/../patches/0149-*.patch
-git -C "$pre134" apply -R --include='graphics/nvn/host/*' "$tests"/../patches/0134-*.patch
-xcrun --sdk macosx clang -x objective-c -std=gnu11 -fblocks -pthread -framework Foundation \
-  "$pre134/graphics/nvn/tests/t_dsh_stats.c" -o "$case_dir/dsh-before-priority"
+# Build each historical stage preparer forward from the verified 793 tree.
+# Later changes to the production scanner cannot affect either negative control.
+build_stage_control() {
+  local last=$1 output=$2 tree="$case_dir/stage-$1" patch name number
+  mkdir -p "$tree/graphics" "$tree/runtime"
+  cp -R "$red/graphics/nvn" "$tree/graphics/"
+  cp -R "$red/runtime/include" "$tree/runtime/"
+  cp "$case_dir/stats-126.c" "$tree/graphics/nvn/tests/t_dsh_stats.c"
+  for patch in "$tests"/../patches/*.patch; do
+    name=$(basename "$patch"); number=$((10#${name:0:4}))
+    (( number > 126 )) || continue
+    (( number <= last )) || break
+    git -C "$tree" apply --whitespace=nowarn --include='graphics/nvn/host/*' --include='graphics/nvn/gfx/nvn/*' \
+      --include='graphics/nvn/tests/t_dsh_stats.c' --include='runtime/include/*' "$patch"
+  done
+  # The pre-priority engine uses its real eight-argument preparer. Give its
+  # fixture the same cancellation callback added in 0134, with the host untouched.
+  if (( last == 133 )); then
+    git -C "$tree" apply --include='graphics/nvn/tests/t_dsh_stats.c' "$tests"/../patches/0134-*.patch
+  fi
+  xcrun --sdk macosx clang -x objective-c -std=gnu11 -fblocks -pthread -framework Foundation \
+    "$tree/graphics/nvn/tests/t_dsh_stats.c" -o "$output"
+}
+build_stage_control 139 "$case_dir/dsh-795-no-aliases"
+build_stage_control 133 "$case_dir/dsh-before-priority"
 python3 "$tests/test_local_stage_recovery.py" "$root" "$dsh_stats" "$translator" "$case_dir/prepare-zstd.dylib" "$case_dir/fragment" "$case_dir/dsh-before-priority" "$case_dir/dsh-795-no-aliases"
 rm "$data/${key}_b.in"
 cp "$data/truncated.metal" "$msl"

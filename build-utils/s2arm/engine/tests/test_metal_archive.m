@@ -47,6 +47,17 @@ static const int control_793 = 1;
 #else
 static const int control_793 = 0;
 #endif
+// Supply the renderer callbacks omitted by this isolated archive fixture.
+enum { RB_RENDER, RB_COMPUTE };
+static int rb_heap_on(void) { return 1; }
+static int rb_pso_cap_on(void) { return 0; }
+static void rb_pso_track(id ps, unsigned kind, NSString *key, BOOL hit) { (void)ps; (void)kind; (void)key; (void)hit; }
+static void rb_recreated(NSString *key, id ps, uint64_t start) { (void)key; (void)ps; (void)start; }
+static int test_scope_enabled;
+static const char *test_scope_build;
+#define RB_PAR_SCOPED() test_scope_enabled
+#define RB_PAR_BUILD() test_scope_build
+#define RB_PAR_SUBMIT_THREAD() 0
 #include "pso_archive.h"
 #include "rb_archive_relaunch.inc"
 
@@ -265,8 +276,61 @@ static void test_held_writer(const char *directory, const char *mode, int replay
     REQUIRE(cmd.status == MTLCommandBufferStatusCompleted && *(uint32_t *)output.contents == expected);
     printf("PASS deferred writer mode=%s replay=%d strict compute hit, output=%u\n", mode, replay, expected);
 }
+#ifndef RB_ARCHIVE_TEST_793_CONTROL
+static void test_scoped_archive(const char *directory) {
+    NSString *parent = @(directory);
+    REQUIRE(setenv("DM_PSO_USER", [parent stringByAppendingPathComponent:@"pso_user.tsv"].fileSystemRepresentation, 1) == 0);
+    REQUIRE(setenv("S2A_RB_DIRECT_GAME_ID", "04007EF01F8AE000", 1) == 0);
+    g_dev = MTLCreateSystemDefaultDevice();
+    REQUIRE(g_dev);
+    NSError *error = nil;
+    NSString *source = @"#include <metal_stdlib>\nusing namespace metal; kernel void scope_test(device int* x [[buffer(0)]]){x[0]=42;}";
+    id<MTLLibrary> lib = [g_dev newLibraryWithSource:source options:nil error:&error];
+    REQUIRE(lib);
+    id<MTLFunction> fn = [lib newFunctionWithName:@"scope_test"];
+    REQUIRE(fn);
+    NSString *key = [@"c" stringByAppendingString:par_hash("scoped-key", 10)];
+    MTLComputePipelineDescriptor *d = [MTLComputePipelineDescriptor new];
+    d.computeFunction = fn;
+    REQUIRE(par_open_dir() && g_par_on);
+    REQUIRE(par_write_batch(@[@[key, d]]) == 1 && atomic_load(&g_par_written) == 1);
+    NSString *legacyIndex = [g_par_dir stringByAppendingPathComponent:@"batches.tsv"];
+    NSData *expectedIndex = [NSData dataWithContentsOfFile:legacyIndex];
+    REQUIRE(expectedIndex.length);
+    par_retire_session();
+    test_scope_enabled = 1;
+    test_scope_build = "";
+    REQUIRE(!par_open_dir());
+    test_scope_build = "0123456789abcdef0123456789abcdef";
+    REQUIRE(par_open_dir() && g_par_on && g_par_legacy_dir);
+    NSString *scopedA = g_par_dir;
+    REQUIRE([g_par_legacy_have containsObject:key] && ![g_par_have containsObject:key]);
+    REQUIRE(par_compute(fn, key, &error)); // actual GPU, fail-on-miss for the old file
+    struct timespec closeBy; clock_gettime(CLOCK_REALTIME, &closeBy); closeBy.tv_sec += 30;
+    REQUIRE(!par_wait_idle(&closeBy));
+    uint64_t stats[16]; rb_par_snapshot(stats);
+    REQUIRE(stats[6] == 1 && !stats[7] && !stats[14]);
+    REQUIRE([g_par_have containsObject:key] && [[NSData dataWithContentsOfFile:legacyIndex] isEqual:expectedIndex]);
+    par_retire_session();
+    REQUIRE(par_open_dir() && [g_par_dir isEqual:scopedA] && [g_par_have containsObject:key]);
+    REQUIRE(par_compute(fn, key, &error));
+    par_retire_session();
+    test_scope_build = "1123456789abcdef0123456789abcdef";
+    REQUIRE(par_open_dir() && ![g_par_dir isEqual:scopedA] && ![g_par_have containsObject:key]);
+    NSString *scopedB = g_par_dir;
+    par_retire_session();
+    REQUIRE(setenv("S2A_RB_DIRECT_GAME_ID", "04007EF01F8AE001", 1) == 0);
+    REQUIRE(par_open_dir() && ![g_par_dir isEqual:scopedA] && ![g_par_dir isEqual:scopedB]);
+    REQUIRE([[NSData dataWithContentsOfFile:legacyIndex] isEqual:expectedIndex]);
+    REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:[scopedA stringByAppendingPathComponent:@"batches.tsv"]]);
+    printf("scoped archive strict legacy hit, promotion, reopen and title/build isolation passed\n");
+}
+#endif
 int main(int argc, char **argv) { @autoreleasepool {
     if (argc == 2 && !strcmp(argv[1], "--probe")) return MTLCreateSystemDefaultDevice() ? 0 : 77;
+#ifndef RB_ARCHIVE_TEST_793_CONTROL
+    if (argc == 3 && !strcmp(argv[1], "--scoped")) { test_scoped_archive(argv[2]); return 0; }
+#endif
     if (argc == 4 && !strcmp(argv[1], "--relaunch") && (!strcmp(argv[3], "cold") || !strcmp(argv[3], "warm")))
         return rb_archive_relaunch(argv[2], !strcmp(argv[3], "warm"));
     if (argc == 5 && !strcmp(argv[1], "--held") && (!strcmp(argv[4], "write") || !strcmp(argv[4], "replay"))) {

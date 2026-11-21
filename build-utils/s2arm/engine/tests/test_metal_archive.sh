@@ -25,6 +25,8 @@ if "$work/archive-test" --probe; then
         exit 1
     fi
     sh "$engine/graphics/nvn/tests/t_rb_archive_relaunch.sh" "$work/archive-test"
+    mkdir "$work/scoped"
+    "$work/archive-test" --scoped "$work/scoped"
     result=0
     for mode in resume close shared retry fail expire-retry; do
         mkdir "$work/$mode"

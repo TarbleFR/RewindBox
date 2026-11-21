@@ -1,0 +1,92 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 7aed443..cb95a5d 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -140,6 +140,26 @@ static id<MTL4CommandQueue> g_q4;
+ // Metal 3 path (nvn_be.h, #277 D3-1): g_q3 does what g_q4 does on Metal 4 (submissions, upload batches, presents) and holds the same residency set; no Metal 4 object is made on this path.
+ // The main command buffer's encoders are the old ones (D3-2 #278); the argument tables are DmTable3 (D3-3 #279, m3_table_apply)
+ static int g_m3;
++// Set by the host before the first guest submission. Re-read on a title change.
++static _Atomic int rb_pso_session_mode;
++static int rb_pso_mode(void) {
++#if TARGET_OS_IOS
++    if (g_m3) return 0;
++    int value = atomic_load_explicit(&rb_pso_session_mode, memory_order_relaxed);
++    if (!value) {
++        const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
++        const char *option = getenv("DM_NVN_ASYNC_PSO");
++        if (!title || !*title) return 0;
++        value = strcasecmp(title, "04007EF01F8AE000") ? 1 :
++                (option && !strcmp(option, "1") ? 3 : 2);
++        atomic_store_explicit(&rb_pso_session_mode, value, memory_order_relaxed);
++    }
++    return value - 1;  // 0 outside the title, 1 control, 2 async
++#else
++    return 0;
++#endif
++}
++static int rb_async_pso(void) { return rb_pso_mode() == 2; }
+ // Sampler reduction and LOD bias in the shader (#800; samp_by_id, se_need / se_fn / se_bind): each where this GPU has no native one (graphics/metal/gal_samp_caps.h, the generic path's same test):
+ //   g_red_emu: the reduction needs an Apple10 GPU (A19 / M5) and macOS / iOS 26; g_lb_emu: the sampler LOD bias, measured on this GPU once (M4 Pro yes, M3 no, 10-28).
+ //   S2A_SAMP_EMU=1 turns both on (the non-Apple10 path on an M5, to compare). A border colour Metal does not have is emulated on every GPU (nvn_red.h nvn_samp_border_custom)
+@@ -13925,6 +13945,7 @@ static void warm_finish(void) {
+ // Wait for the background warm-up to finish (at most timeout_ms): returns how many milliseconds were actually waited, 0 if it is not running. On first install the system shader cache is fully cold; if warm-up is slower than the player entering a run,
+ // pipelines not yet warmed are compiled on the spot on the submit thread = in-run stutter; the loading screen on entering a run blocks the player anyway, so let it load a little longer (called where hle_nvn.c presents).
+ int mtl_warm_wait(int timeout_ms) {
++    if (rb_async_pso() && !rb_ref_path()) return 0;
+     if (!atomic_load(&g_warm_running)) return 0;
+     if (rb_spec_level() == RB_SPEC_HOLD) return 0;   // RewindBox (patch 0121): the prewarm's workers are parked; a loading screen would wait for nothing
+     uint64_t t0 = bp_now();
+@@ -13957,6 +13978,11 @@ static void warm_tick_full(long total) { if (!atomic_exchange(&g_wp_full_sent, 1
+ //   31 条等的管线 31 条都在清单里，只是后台还没排到。判据（维护者 10-29）：首装一次性 loading ≤ 15 s、之后不卡 → 首帧前满核编清单最前面（首遇先后）的，
+ //   15 s（DM_PSO_PREPARE_MAX_MS）到点必放行、前端也不能延长，剩下的交给后台 DM_PSO_BG_THREADS 路 utility（同 11-02 的后台）
+ static int prepare_on(void) {
++    // Explicit blocking preparation is still available for controlled comparisons.
++    if (rb_async_pso()) {
++        const char *option = getenv("DM_PSO_PREPARE");
++        return option && !strcmp(option, "1");
++    }
+     static int v = -1;
+     if (v < 0) { const char *e = getenv("DM_PSO_PREPARE"); v = !(e && !strcmp(e, "0")); }
+     return v;
+@@ -14141,7 +14167,7 @@ static NSArray<NSString *> *warm_paths(int say) {
+ //   mtl_init runs at the game's first memory pool, before any present: (0, n) here, n = the lists' non-comment lines (an upper bound: warm_prepare drops repeats and stale keys and then
+ //   gives the exact total with its own (0, total)). The prewarm itself cannot move here: its pipelines need the depth mode the game sets later (nvn_be_set_depth_zero)
+ static void warm_announce(void) {
+-    if (!prepare_on()) return;
++    if (!prepare_on() && !rb_ref_path()) return;
+     NSArray<NSString *> *paths = warm_paths(0); long n = 0;
+     for (NSString *path in paths) { NSString *txt = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+         for (NSString *l in [txt componentsSeparatedByString:@"\n"]) n += l.length && ![l hasPrefix:@"#"]; }
+@@ -14178,12 +14204,16 @@ static void warm_start_mode(int resumed) {
+     }
+     // warm_bg: DM_PSO_BG_THREADS workers (default 2) at WARM_BG_QOS while the game plays: first uses (pso_pend, user-initiated) go ahead of them at the compiler service, and two
+     //   workers keep the compile load off the cores the game and the system need (six at user-initiated were the heat above)
+-    dispatch_async(dispatch_get_global_queue(WARM_BG_QOS, 0), ^{ @autoreleasepool { long lines = 0; NSArray<WarmTask *> *ts = warm_parse(paths, &lines); warm_urgent_index(ts);
++    const int async = rb_async_pso();
++    const qos_class_t qos = async ? QOS_CLASS_UTILITY : WARM_BG_QOS;
++    dispatch_async(dispatch_get_global_queue(qos, 0), ^{ @autoreleasepool { long lines = 0; NSArray<WarmTask *> *ts = warm_parse(paths, &lines); warm_urgent_index(ts);
+         atomic_store(&g_wp_total, lines); atomic_store(&g_wp_why, WARM_WHY_CONFIG); atomic_store(&g_wp_phase, WARM_BG);
+         const char *e = getenv("DM_PSO_BG_THREADS"); int workers = e && atoi(e) > 0 ? atoi(e) : 2;
+-        MLOG("pipeline prewarm: %ld lines in the background on %d workers at default QoS, the game does not wait for it", lines, workers);
++        if (async && workers > 2) workers = 2;
++        MLOG("pipeline prewarm: %ld lines in the background on %d workers at %s QoS, the game does not wait for it",
++             lines, workers, async ? "utility" : "default");
+         __block _Atomic long next = 0; dispatch_group_t g = dispatch_group_create();
+-        for (int w = 0; w < workers; w++) dispatch_group_async(g, dispatch_get_global_queue(WARM_BG_QOS, 0), ^{
++        for (int w = 0; w < workers; w++) dispatch_group_async(g, dispatch_get_global_queue(qos, 0), ^{
+             warm_background_rows(ts, &next, w, 0);
+         });
+         dispatch_group_notify(g, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ warm_finish(); }); } });
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index b401c77..fa5265a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -298,6 +298,7 @@ int nvn_be_shutdown_session(void) {
+     return 0;
+ }
+ void nvn_be_begin_session(void) {
++    atomic_store_explicit(&rb_pso_session_mode, 0, memory_order_relaxed);
+     if (g_rb_warm_retired) {
+         g_rb_warm_retired = 0;
+         g_rb_warm_resume = 1;

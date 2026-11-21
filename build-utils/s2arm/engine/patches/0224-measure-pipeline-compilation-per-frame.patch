@@ -1,0 +1,146 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index afc2e6b..9d8ad27 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3431,6 +3431,69 @@ __attribute__((weak)) int dm_thermal_now(void) { return -1; }   // Strong defini
+ __attribute__((weak)) int dm_low_power_now(void) { return 0; }   // Low Power Mode (iOS front_ios.m); off on the Mac
+ // Per-frame ring for the long-frame log (GPU time only arrives 8 frames late, so store first and judge later)
+ #define LFN 16
++#include "rb_pso_activity.h"
++extern int nvn_rb_pso_activity(rb_pso_activity *) __attribute__((weak_import));
++typedef struct { rb_pso_activity counts; int mode; } rb_pso_sample;
++static rb_pso_sample rb_pso_frames[LFN];
++
++static void rb_pso_emit(const char *label, uint64_t f, const rb_pso_sample *s) {
++    const uint64_t *v = s->counts.value;
++    LOG("[%s] frame=%llu async=%d pso_cache_hit=%llu pso_async_queued=%llu pso_async_skipped_draws=%llu "
++        "pso_sync_fallback=%llu early_render=%llu early_compute=%llu critical_joins=%llu critical_join_ms=%.2f "
++        "msl_source_count=%llu msl_source_ms=%.2f render_link_submit=%llu/%.2fms render_link_worker=%llu/%.2fms "
++        "compute_link_submit=%llu/%.2fms compute_link_worker=%llu/%.2fms "
++        "archive_hit_miss_render_warm=%llu/%llu render_play=%llu/%llu compute_warm=%llu/%llu compute_play=%llu/%llu",
++        label, (unsigned long long)f, s->mode == 2, (unsigned long long)v[RB_PSO_HIT],
++        (unsigned long long)v[RB_PSO_QUEUED], (unsigned long long)v[RB_PSO_SKIPPED],
++        (unsigned long long)v[RB_PSO_SYNC], (unsigned long long)v[RB_PSO_EARLY_R],
++        (unsigned long long)v[RB_PSO_EARLY_C], (unsigned long long)v[RB_PSO_JOIN], v[RB_PSO_JOIN_NS]/1e6,
++        (unsigned long long)v[RB_PSO_MSL_N], v[RB_PSO_MSL_NS]/1e6,
++        (unsigned long long)v[RB_PSO_R_SUB_N], v[RB_PSO_R_SUB_NS]/1e6,
++        (unsigned long long)v[RB_PSO_R_BG_N], v[RB_PSO_R_BG_NS]/1e6,
++        (unsigned long long)v[RB_PSO_C_SUB_N], v[RB_PSO_C_SUB_NS]/1e6,
++        (unsigned long long)v[RB_PSO_C_BG_N], v[RB_PSO_C_BG_NS]/1e6,
++        (unsigned long long)v[RB_PSO_R_WARM_HIT], (unsigned long long)v[RB_PSO_R_WARM_MISS],
++        (unsigned long long)v[RB_PSO_R_PLAY_HIT], (unsigned long long)v[RB_PSO_R_PLAY_MISS],
++        (unsigned long long)v[RB_PSO_C_WARM_HIT], (unsigned long long)v[RB_PSO_C_WARM_MISS],
++        (unsigned long long)v[RB_PSO_C_PLAY_HIT], (unsigned long long)v[RB_PSO_C_PLAY_MISS]);
++}
++
++static int dcmp(const void *, const void *);
++static void rb_pso_frame_sample(uint64_t frame) {
++    static double waits[TWIN];
++    static rb_pso_activity previous;
++    static rb_pso_sample window;
++    static unsigned frames;
++    rb_pso_activity now;
++    rb_pso_sample *s = &rb_pso_frames[frame % LFN];
++    s->mode = nvn_rb_pso_activity ? nvn_rb_pso_activity(&now) : 0;
++    if (!s->mode) { frames = 0; window.mode = 0; return; }
++    if (!frame || s->mode != window.mode) {
++        // First present establishes the boundary for gameplay deltas. Include
++        // boot work as labelled process totals, even with the first GPU sample pending.
++        s->counts = now;
++        rb_pso_emit("pso-first-present-process", frame, s);
++        memset(&window, 0, sizeof window);
++        memset(&s->counts, 0, sizeof s->counts);
++        window.mode = s->mode;
++        frames = 0;
++    } else {
++        for (unsigned i = 0; i < RB_PSO_COUNTERS; ++i) {
++            s->counts.value[i] = now.value[i] - previous.value[i];
++            window.counts.value[i] += s->counts.value[i];
++        }
++        waits[frames] = s->counts.value[RB_PSO_JOIN_NS] / 1e6;
++        if (++frames == TWIN) {
++            qsort(waits, frames, sizeof *waits, dcmp);
++            LOG("[pso-waits] frame=%llu samples=%u critical_join_p95_ms=%.2f critical_join_max_ms=%.2f",
++                (unsigned long long)frame, frames, waits[(frames * 95 + 99) / 100 - 1], waits[frames - 1]);
++            rb_pso_emit("pso-window", frame, &window);
++            memset(&window.counts, 0, sizeof window.counts);
++            frames = 0;
++        }
++    }
++    previous = now;
++}
+ // RewindBox (patch 0065): what the process did during the frame, for the line. In the IPA 762 race (Mario Kart World, iPhone17,2) 178 of the 595 long frames from the start
+ //   grid on, 13.6 s in all, came out at 60 to 450 ms with 7 to 30 ms in the engine's calls and 10 to 48 ms of GPU time, no pipeline, shader library or upload of note: the rest
+ //   of the frame was spent before the game submitted, and the line did not say whether its threads computed, waited, took page faults or read storage. Now it gives the
+@@ -4026,6 +4089,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+     if (rb_sent && rb_808_on() && s2a_rb_bench_longframe) s2a_rb_bench_longframe(t0,rb_sent_interval,rb_sent_period,&lf_sample);
+     else if (rb_sent && s2a_rb_bench_frame) s2a_rb_bench_frame(t0, rb_sent_interval, rb_sent_period);
+     uint64_t f = g_frame, ps, dr; nvn_be_stats(&ps, &dr);
++    rb_pso_frame_sample(f);
+     if (nvn_real[0] || nvn_real[1]) {   // DM_NVN_PROF: record phase = time of all implemented functions except submit; submit phase = QueueSubmitCommands
+         static unsigned isub = ~0u; static mach_timebase_info_data_t tb; if (!tb.denom) mach_timebase_info(&tb);
+         if (isub == ~0u) for (isub = 0; isub < NVN_NFUNC && strcmp(nvn_names[isub], "nvnQueueSubmitCommands"); isub++) {}
+@@ -4209,7 +4273,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+           int la = !lf && !lg && per > 0 && r->fr > 1.5 * per && r->fr > 1.2 * ef; static uint64_t la_t; static unsigned la_n, la_skip;   // RewindBox (patch 0068): and 1.2 times the mean, so a game steadily slower than its period does not flood the log
+           if (la && on && r->f == f - 8 && f - 8 > 0) { uint64_t t = now_ns(); if (t - la_t >= 1000000000ull) { la_t = t; la_n = 0; } if (la_n >= 10) { la_skip++; la = 0; } else la_n++; }
+           if (r->f == f - 8) { ef += ((r->fr < 3 * ef ? r->fr : 3 * ef) - ef) / 16; eg += ((g < 3 * eg ? g : 3 * eg) - eg) / 16; }
+-          if (on && r->f == f - 8 && f - 8 > 0 && (lf || lg || la)) { char b[1536];   // RewindBox (patch 0065): 1024, the line is longer; RewindBox (patch 0068): 1536
++          if (on && r->f == f - 8 && f - 8 > 0 && (lf || lg || la || (r->fr >= 1000.0 && rb_pso_frames[r->f % LFN].mode))) { char b[1536];   // RewindBox (patch 0065): 1024, the line is longer; RewindBox (patch 0068): 1536
+               snprintf(b, sizeof b, "frame %llu (%.2f s) whole frame %.1f ms, submit+present %.1f ms, GPU %.1f ms; new pipelines %u + shader libraries %u, %.1f ms in all; texture uploads %u first + %u re-uploads, %.1f MB / %.1f ms",
+                        (unsigned long long)r->f, r->t_s, r->fr, r->nv, g, r->pso, r->lib, r->make_ms, r->up, r->rup, r->up_mb, r->up_ms);
+               { size_t bl = strlen(b);   // RewindBox (patch 0065): the process during the frame (-1 = not known)
+@@ -4232,7 +4296,9 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+               { size_t bl = strlen(b);
+                 snprintf(b + bl, sizeof b - bl, "; outside submit/present %.1f ms, longest %.1f ms over %u gaps",
+                          r->gaps.total / 1e6, r->gaps.longest / 1e6, r->gaps.count); }
+-              dm_longframe_note(b); } }
++              dm_longframe_note(b);
++              const rb_pso_sample *activity = &rb_pso_frames[r->f % LFN];
++              if (activity->mode) rb_pso_emit("pso-frame", r->f, activity); } }
+         uint64_t g0, g1; if (frame_rec() && nvn_be_gpu_span(f - 8, &g0, &g1)) { trow(f - 8, "@gpu_beg_ms", (g0 - g_t0_ns) / 1e6); trow(f - 8, "@gpu_end_ms", (g1 - g_t0_ns) / 1e6); } }
+     // 撑不住就问玩家（runtime/src/qprompt.c）：每帧喂本帧绘制数、在放视频、过场标记（满屏判据结果由宿主侧自己读 mtl_fit_last）
+     s2a_qp_frame((uint32_t)(dr - prev_draw), g_vid.on, dm_fps_state && __atomic_load_n((uint32_t *)(dm_fps_state + 4), __ATOMIC_RELAXED), atomic_load(&g_game_itv));
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index ee8e660..0a5c6b8 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -23766,6 +23766,17 @@ void mtl_wait_state_dump(void) {
+     if (g_m3) MLOG("Metal 3: copy encoders split for a barrier %llu", (unsigned long long)g_blit_splits3);
+ }
+ void nvn_be_alloc_stats(uint64_t *waits, uint64_t *grown, int *n) { *waits = g_alloc_waits; *grown = g_alloc_grown; *n = g_alloc_n; }   // Main submit allocator pool: how many times it waited, how many times it grew, how many exist now
++#include "rb_pso_activity.h"
++int nvn_rb_pso_activity(rb_pso_activity *out) {
++    int mode = rb_pso_mode();
++    if (!mode) return 0;
++    nvn_rb_async_pso_snapshot(out->value);
++    rb_par_snapshot(out->value + RB_PSO_R_WARM_HIT);
++    out->value[RB_PSO_MSL_N] = atomic_load_explicit(&g_rb_msl_n, memory_order_relaxed);
++    out->value[RB_PSO_MSL_NS] = atomic_load_explicit(&g_rb_msl_ns, memory_order_relaxed);
++    return mode;
++}
++
+ #include "nvn_session.inc"
+ // 弱链接[nvntest]：s2a_window_get（帧录放 nvn_frame_rec.inc 引用、原生层提供；NVN 单测不链原生层，链接行按这行放行未定义，runtime/build.mk 自动收）
+ // 弱链接[nvntest]：s2a_frame_replay_screen（同上，runtime/src/widen.c）
+diff --git a/graphics/nvn/gfx/nvn/rb_pso_activity.h b/graphics/nvn/gfx/nvn/rb_pso_activity.h
+new file mode 100644
+index 0000000..b8d6d95
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_pso_activity.h
+@@ -0,0 +1,16 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <stdint.h>
++
++// Relaxed cumulative counters, sampled once on presentation. Work finishing
++// concurrently can span samples; worker durations are not frame wall time.
++enum {
++    RB_PSO_HIT, RB_PSO_QUEUED, RB_PSO_SKIPPED, RB_PSO_SYNC,
++    RB_PSO_EARLY_R, RB_PSO_EARLY_C, RB_PSO_JOIN, RB_PSO_JOIN_NS,
++    RB_PSO_R_WARM_HIT, RB_PSO_R_WARM_MISS, RB_PSO_R_PLAY_HIT, RB_PSO_R_PLAY_MISS,
++    RB_PSO_C_WARM_HIT, RB_PSO_C_WARM_MISS, RB_PSO_C_PLAY_HIT, RB_PSO_C_PLAY_MISS,
++    RB_PSO_R_SUB_N, RB_PSO_R_SUB_NS, RB_PSO_R_BG_N, RB_PSO_R_BG_NS,
++    RB_PSO_C_SUB_N, RB_PSO_C_SUB_NS, RB_PSO_C_BG_N, RB_PSO_C_BG_NS,
++    RB_PSO_MSL_N, RB_PSO_MSL_NS, RB_PSO_COUNTERS
++};
++typedef struct { uint64_t value[RB_PSO_COUNTERS]; } rb_pso_activity;
