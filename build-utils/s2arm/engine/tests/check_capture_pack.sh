@@ -31,11 +31,16 @@ cat > "$work/check.c" <<'C'
 #define LP_LOG(...) ((void)0)
 #define LP_HI_RANGE(lo, hi) (-1)
 #include "lib_pack.inc"
+#include "rb_capture_identity.h"
 
 int main(int argc, char **argv) {
     lp_pack pack;
-    if (argc != 4 || lp_open(&pack, argv[1], argv[2]) != 1 || pack.n != 2 || pack.nshard != 1)
+    if (argc != 5 || lp_open(&pack, argv[1], argv[2]) != 1 || pack.n != 2 || pack.nshard != 1)
         return 1;
+    if (!rb_capture_index_matches(pack.idx, argv[4]) || rb_capture_index_matches(pack.idx, NULL) ||
+        rb_capture_index_matches(pack.idx, "different title/build/translator")) return 5;
+    uint8_t legacy[48] = {0};
+    if (!rb_capture_index_matches(legacy, NULL) || rb_capture_index_matches(legacy, argv[4])) return 6;
     dispatch_data_t lib = lp_get(&pack, argv[3], LP_K_B);
     dispatch_data_t json = lp_get(&pack, argv[3], LP_K_BJSON);
     if (!lib || !json) return 2;
@@ -49,5 +54,6 @@ int main(int argc, char **argv) {
     return 0;
 }
 C
-xcrun --sdk macosx clang -std=gnu11 -D_DARWIN_C_SOURCE -fblocks -I"$engine/graphics/nvn" "$work/check.c" -o "$work/check"
-"$work/check" "$direct/b-$chain" "$chain" "$key"
+xcrun --sdk macosx clang -std=gnu11 -D_DARWIN_C_SOURCE -fblocks -I"$engine/graphics/nvn" -I"$engine/graphics/nvn/gfx/nvn" "$work/check.c" -o "$work/check"
+stamp=$(sed -n 's/^# //p' "$direct/shader_map.tsv")
+"$work/check" "$direct/b-$chain" "$chain" "$key" "$stamp"

@@ -38,7 +38,7 @@ for i in range(10):
     KINDS[f'bgs{i}'] = (64 + i, 80 + i)
 
 
-def write_container(directory, chain, entries, shard_size=64 << 20):
+def write_container(directory, chain, entries, stamp, shard_size=64 << 20):
     """lib_pack.inc v1. Copy each sorted, aligned segment without accumulating shards in RAM."""
     sizes, records = [], bytearray()
     for (key, kind), (path, skip) in sorted(entries.items()):
@@ -61,7 +61,9 @@ def write_container(directory, chain, entries, shard_size=64 << 20):
         sizes[shard] = offset + length
         records.extend(struct.pack('<QBBHIQ', key, kind, shard, 0, length, offset))
     with (directory / 'lib.idx').open('wb') as idx:
-        idx.write(struct.pack('<8sIIII12s12x', b'S2ALIB\0\0', 1, len(entries), len(sizes), 0, chain.encode()))
+        receipt = hashlib.sha256(stamp.encode('ascii')).digest()[:12]
+        idx.write(struct.pack('<8sIII4s12s12s', b'S2ALIB\0\0', 1, len(entries),
+                              len(sizes), b'RBC1', chain.encode(), receipt))
         for size in sizes:
             idx.write(struct.pack('<Q8x', size))
         idx.write(records)
@@ -146,8 +148,8 @@ def build(args, output, work):
             rewritten = subprocess.run([str(work / 'rewrite')], input=raw, stdout=subprocess.PIPE, check=True).stdout
             if raw != rewritten:
                 air_tool['prepare'](rewritten, 'iphoneos', air, work)
-    write_container(root, chain, entries)
     stamp = '\t'.join(('rb-capture-v1', args.title_id.upper(), args.build_id[:32].lower(), chain, fingerprints.pop()))
+    write_container(root, chain, entries, stamp)
     (root / 'inputs.tsv').write_text(f'game\t{args.title_id.upper()}\ninputs\truntime-only-capture\n{stamp}\n')
     keys = output / 'keys.tsv'
     mapping = output / 'shader_map.tsv'

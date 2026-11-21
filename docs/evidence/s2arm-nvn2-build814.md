@@ -52,3 +52,9 @@ S2A_RB_XQ_RESUME=1
 S2A_RB_XQ_TAIL_RETURNS=1
 S2A_RB_XQ_WAIT_PREFIX=1
 ~~~
+
+## Identité AIR et budget PSO
+
+L’en-tête de `lib.idx` lie le pack capturé aux identifiants du titre, du build, de la chaîne et du traducteur. Le moteur vérifie cette identité à la lecture de la table et de l’index. Une empreinte discordante écarte le pack capturé. Un repli vers le source MSL indique la clé et la cause dans le journal.
+
+`S2A_RB_NVN2_PSO_BUDGET=1` étend à tous les titres la réserve PSO du gouverneur, dans la même enveloppe mémoire totale. En Fair, un programme déjà demandé peut faire passer sa recette sur la file urgente. Si le nombre ou la taille des PSO résidents approche du plafond, le worker laisse la recette dans la file. Le premier draw conserve son accès au worker urgent. `S2A_RB_PSO_HEADROOM=0` désactive la réserve.

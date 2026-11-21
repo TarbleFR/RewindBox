@@ -1,0 +1,164 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 2b6be38..9978ced 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -15209,7 +15209,13 @@ static void warm_urgent_end(void) { os_unfair_lock_lock(&g_wu_lock); memset(g_co
+ // 工人领下一行：先急件，再按清单顺序；已领的跳过。→ 下标，-1 = 没有了
+ // Only lane zero bypasses optional admission for registered rows through Fair.
+ static _Thread_local BOOL rb_picked_registered;
+-static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL required) {
++static BOOL rb_registered_capacity(void) {
++    uint64_t live[4];
++    rb_gov_sample(0);
++    return !nvn_rb_pso_snapshot(live) && rb_gov_admit_registered(
++        atomic_load(&rb_gov_plan), atomic_load(&rb_gov_room), live[3], live[0]+live[1]+live[2]);
++}
++static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL required, BOOL background) {
+     *lease = 0;
+     if (fu_yield_on() && atomic_load(&g_fu_waiting)) {
+         uint64_t t0 = bp_now(), deadline = t0 + FU_YIELD_MAX_MS * 1000000ull;
+@@ -15228,7 +15234,9 @@ static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL re
+         uint64_t ticket = atomic_load(&g_spec_gate.epoch);
+         if (dm_gfx_session_stopping() || nvn_be_stopping()) return -1;
+         long i = -1;
+-        BOOL registered = !required && w == 0 && rb_promoted_on();
++        BOOL limited = background && rb_gov_on() && rb_gov_all_nvn2();
++        BOOL capacity = !limited || rb_registered_capacity();
++        BOOL registered = !required && w == 0 && capacity && rb_promoted_on();
+         if (registered) {
+             int thermal = rb_cached_thermal();
+ #ifdef RB_TEST_REGISTERED_ROWS
+@@ -15252,10 +15260,14 @@ static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL re
+             i = g_wu_q.firstObject.longValue;
+             [g_wu_q removeObjectAtIndex:0];
+         }
++        BOOL defer = !capacity && g_wu_q.count;
+         int drained = required ? i < 0 && (!atomic_load(&g_wu_required_remaining) || atomic_load(next) >= n)
+                                : i < 0 && !g_wu_q.count && (atomic_load(next) >= n || (c && !atomic_load(&g_wu_remaining)));
+         os_unfair_lock_unlock(&g_wu_lock);
+         if (drained) return -1;
++        // Leave the promoted row, its claim bit and the manifest cursor intact.
++        // Actual draw requests continue to use their independent urgent pool.
++        if (defer) { rb_spec_park_worker(ticket, w); continue; }
+         if (i < 0 && w >= 0 && !rb_spec_take(w, lease)) {
+ #ifdef RB_REF_TEST_HELD_PICK
+             RB_REF_TEST_HELD_PICK(w);
+@@ -15266,7 +15278,7 @@ static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL re
+         if (dm_gfx_session_stopping() || nvn_be_stopping()) { rb_spec_done(lease); return -1; }
+         if (!required && i < 0) {
+             os_unfair_lock_lock(&g_wu_lock);
+-            if (g_wu_q.count) { i = g_wu_q[0].longValue; [g_wu_q removeObjectAtIndex:0]; }
++            if (capacity && g_wu_q.count) { i = g_wu_q[0].longValue; [g_wu_q removeObjectAtIndex:0]; }
+             os_unfair_lock_unlock(&g_wu_lock);
+         }
+         int urgent = i >= 0;
+@@ -15293,7 +15305,12 @@ static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL re
+             i = atomic_fetch_add(next, 1);
+             if (i >= n) { rb_spec_done(lease); return -1; }
+         }
+-        if (hint || !c || i >= cn || rb_claim_row(&c[i])) {
++        uint8_t freeRow = RB_ROW_FREE;
++        // A bind may promote this cursor row after our first queue inspection.
++        // Its queue now owns it and rechecks capacity before consumption.
++        if (hint || !c || i >= cn || (limited && !urgent
++                ? atomic_compare_exchange_strong(&c[i], &freeRow, RB_ROW_CLAIMED)
++                : rb_claim_row(&c[i]))) {
+             if (hint && coursePick) atomic_fetch_add_explicit(&rb_cup_claims,1,memory_order_relaxed);
+             rb_picked_registered = urgent && registered;
+             rb_warm_context = urgent || hint != 0;
+@@ -15309,7 +15326,7 @@ static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL re
+     }
+ }
+ static long warm_pick(_Atomic long *next, long n, int w, int *lease) {
+-    return warm_pick_row(next, n, w, lease, NO);
++    return warm_pick_row(next, n, w, lease, NO, YES);
+ }
+ static void warm_bump(const char *vk, const char *fk) {
+     if (!vk) return;
+@@ -15594,7 +15611,7 @@ static int warm_prepare(NSArray<WarmTask *> *tasks, long lines, BOOL referencePr
+         for (;;) {
+             if (atomic_load(&stop)) break;
+             int lease;
+-            long i=warm_pick_row(&next,frontCount,referencePreparation || thermal ? w : -1,&lease,migration);
++            long i=warm_pick_row(&next,frontCount,referencePreparation || thermal ? w : -1,&lease,migration,NO);
+             if (i<0 || dm_gfx_session_stopping()) { rb_spec_done(&lease); break; }
+             WarmTask *task=tasks[(NSUInteger)i];
+             WARM_PREPARE_TASK(task);
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 2c272f5..5a9a6c6 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -383,6 +383,8 @@ void nvn_be_begin_session(void) {
+     os_unfair_lock_lock(&g_shpre_mu);
+     rb_observed_begin(&g_observed);
+     g_rb_observed_shaders = nil;
++    atomic_store(&rb_gov_all_titles, 0);
++    atomic_store(&rb_gov_floor_option, 0);
+     atomic_store(&g_rb_archive_always, 0);
+     atomic_store(&g_rb_promoted_urgent, 0);
+     atomic_store(&g_rb_observed_option, 0);
+diff --git a/graphics/nvn/gfx/nvn/rb_gov_plan.h b/graphics/nvn/gfx/nvn/rb_gov_plan.h
+index 0059a84..b0ae0aa 100644
+--- a/graphics/nvn/gfx/nvn/rb_gov_plan.h
++++ b/graphics/nvn/gfx/nvn/rb_gov_plan.h
+@@ -57,6 +57,14 @@ static inline uint64_t rb_gov_pso_count(unsigned plan) {
+     uint64_t legacy = rb_gov_share(plan & ~RB_GOV_PSO_FLOOR,RB_GOV_PIPELINE) / 4096u;
+     return (plan & RB_GOV_PSO_FLOOR) && legacy < 4096u ? 4096u : legacy;
+ }
++// Match the count planner's 4 KiB estimate. Leave capacity for the actual draw
++// and one concurrent worker. Thermal state already affects the published quota.
++static inline int rb_gov_admit_registered(unsigned plan, uint64_t room, uint64_t bytes, uint64_t count) {
++    const uint64_t limit = rb_gov_pso_count(plan);
++    const uint64_t cap = rb_gov_share(plan,RB_GOV_PIPELINE);
++    return room != UINT64_MAX && room >= (1000ull << 20) && (plan & 3u) != RB_GOV_CRITICAL &&
++           count < limit && limit - count > 2 && bytes < cap && cap - bytes > 2u * 4096;
++}
+ static inline unsigned rb_gov_pso_drops(unsigned plan, uint64_t bytes, uint64_t count, unsigned scanLimit) {
+     if (!(plan & RB_GOV_PSO_FLOOR) || bytes > rb_gov_share(plan,RB_GOV_PIPELINE)) return scanLimit;
+     uint64_t limit = rb_gov_pso_count(plan);
+diff --git a/graphics/nvn/gfx/nvn/rb_memory_governor.inc b/graphics/nvn/gfx/nvn/rb_memory_governor.inc
+index 2045b65..536f2de 100644
+--- a/graphics/nvn/gfx/nvn/rb_memory_governor.inc
++++ b/graphics/nvn/gfx/nvn/rb_memory_governor.inc
+@@ -6,6 +6,10 @@ static _Atomic unsigned rb_gov_plan = (128u << 2) | RB_GOV_WARN;
+ static _Atomic uint64_t rb_gov_next, rb_gov_room = UINT64_MAX;
+ static pthread_mutex_t rb_gov_mu = PTHREAD_MUTEX_INITIALIZER;
+ static uint64_t rb_gov_warn_until, rb_gov_critical_until, rb_gov_recover_since;
++static _Atomic int rb_gov_all_titles, rb_gov_floor_option;
++static int rb_gov_all_nvn2(void) {
++    return nvn_rb_thermal_scope() && rb_pacing_setting(&rb_gov_all_titles,"S2A_RB_NVN2_PSO_BUDGET");
++}
+ static int rb_gov_on(void) { return rb_tex_budget_on() && rb_pso_cap_on(); }
+ static uint64_t rb_gov_quota(unsigned owner) {
+     return rb_gov_share(atomic_load_explicit(&rb_gov_plan,memory_order_acquire),owner);
+@@ -64,7 +68,9 @@ static void rb_gov_sample(unsigned long event) {
+     unsigned ceiling = rb_gov_ceiling(tier,stressed);
+     unsigned mib = room == UINT64_MAX ? 64 : (unsigned)MIN((uint64_t)ceiling,MAX(16ull,(room >> 20)/8));
+     mib = MIN(ceiling,(mib / 16) * 16);
+-    unsigned plan = rb_gov_make_plan(mib,tier,room,rb_kart_option(RB_KART_HEADROOM),old);
++    int protect = rb_kart_option(RB_KART_HEADROOM) ||
++                  (rb_gov_all_nvn2() && rb_pacing_setting(&rb_gov_floor_option,"S2A_RB_PSO_HEADROOM"));
++    unsigned plan = rb_gov_make_plan(mib,tier,room,protect,old);
+     atomic_store_explicit(&rb_gov_plan,plan,memory_order_release);
+     if (event || plan != old) MLOG("[RB-MEM-GOV] owner=prefetch optional_reads=%s budget_bytes=%llu",
+         tier == RB_GOV_NORMAL ? "admitted" : "held", (unsigned long long)rb_gov_share(plan,RB_GOV_PREFETCH));
+diff --git a/graphics/nvn/tests/t_rb_spec_gate.c b/graphics/nvn/tests/t_rb_spec_gate.c
+index b8c1370..5e79b17 100644
+--- a/graphics/nvn/tests/t_rb_spec_gate.c
++++ b/graphics/nvn/tests/t_rb_spec_gate.c
+@@ -105,6 +105,15 @@ static void kart_limits(void) {
+     assert(rb_gov_pso_drops(cold,0,0,12)==12);
+     assert(!(rb_gov_make_plan(128,RB_GOV_WARN,UINT64_MAX,1,plan)&RB_GOV_PSO_FLOOR));
+     assert(!(rb_gov_make_plan(128,RB_GOV_WARN,1600*mib,0,plan)&RB_GOV_PSO_FLOOR));
++    // Fair with usable memory keeps its protected share. Near either limit
++    // postpone the registered recipe, without charging the foreground draw.
++    const uint64_t cap = rb_gov_share(plan,RB_GOV_PIPELINE), count = rb_gov_pso_count(plan);
++    assert(rb_gov_admit_registered(plan,1000*mib,cap-8193,count-3));
++    assert(!rb_gov_admit_registered(plan,1000*mib-1,0,0));
++    assert(!rb_gov_admit_registered(plan,UINT64_MAX,0,0));
++    assert(!rb_gov_admit_registered(plan,1500*mib,cap-8192,count-3));
++    assert(!rb_gov_admit_registered(plan,1500*mib,cap-8193,count-2));
++    assert(!rb_gov_admit_registered(critical,1500*mib,0,0));
+     uint64_t sum = 0;
+     for (unsigned i=0; i<4; i++) sum+=rb_gov_share(plan,i);
+     assert(sum==128*mib);

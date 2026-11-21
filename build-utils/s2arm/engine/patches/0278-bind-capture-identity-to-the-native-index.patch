@@ -1,0 +1,160 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9931,6 +9931,8 @@
+ // fingerprint and game/build identity travel with the container AND the map.
+ static NSString *g_rb_capture_bin;
+ static BOOL g_rb_capture_refused;
++static NSString *g_rb_capture_stamp;
++#include "rb_capture_identity.h"
+ static const char *fb_xfp(void);
+ extern const char *s2a_main_build_id(void) __attribute__((weak_import));
+ static NSString *exe_rel(const char *rel) {
+@@ -9974,18 +9976,27 @@
+     }
+     g_rb_capture_bin = nil;
+     g_rb_capture_refused = NO;
+-    if (stampRow || mapRow) {
++    // Read the independent index tag even when both text receipts are absent.
++    uint8_t header[48];
++    NSString *indexPath = [g_msl_dir stringByAppendingPathComponent:@"lib.idx"];
++    int fd = open(indexPath.fileSystemRepresentation, O_RDONLY | O_NONBLOCK);
++    BOOL haveHeader = fd >= 0 && pread(fd, header, sizeof header, 0) == sizeof header;
++    if (fd >= 0) close(fd);
++    const uint8_t *index = haveHeader ? header : NULL;
++    g_rb_capture_stamp = nil;
++    if (stampRow || mapRow || !rb_capture_index_matches(index, NULL)) {
+         NSArray *identity = [stampRow componentsSeparatedByString:@"\t"];
+         const char *e = getenv("S2A_RB_CAPTURE_PACK");
+         const char *game = s2a_nvn_game_id(), *build = s2a_main_build_id ? s2a_main_build_id() : NULL;
+         const char *xfp = fb_xfp();
+         BOOL enabled = !e || strcmp(e, "0");
+         BOOL accepts = enabled && nvn2_on() && [stampRow isEqual:mapRow] && identity.count == 5 &&
++            rb_capture_index_matches(index, stampRow.UTF8String) &&
+             game && build && xfp && !strcasecmp([identity[1] UTF8String], game) &&
+             !strcasecmp([identity[2] UTF8String], build) && [identity[3] isEqual:@DMSH_CHAIN] &&
+             [identity[4] isEqual:@(xfp)];
+         g_rb_capture_refused = !accepts;
+-        if (accepts) g_rb_capture_bin = g_msl_dir;
++        if (accepts) { g_rb_capture_bin = g_msl_dir; g_rb_capture_stamp = stampRow; }
+         else txt = @"";
+         MLOG("[rb-capture-pack] %s, game=%s build=%s", accepts ? "accepted" :
+              enabled ? "identity mismatch" : "disabled", game ?: "-", build ?: "-");
+@@ -10594,9 +10605,22 @@
+ #define LP_HI_RANGE(lo, hi) s2a_host_hi_range(lo, hi)
+ #include "../../lib_pack.inc"
+ static lp_pack g_libpack; static int g_libpack_ok;   // lp_open: 1 container, 0 one file per key, -1 a broken container (red, nothing loads)
++// Recheck the mapped index itself: an installer may have replaced it after shmap_load_once.
++static int rb_open_direct_library(void) {
++    if (g_rb_capture_refused || !g_msl_dir) return g_rb_capture_refused ? -1 : 0;
++    int r = lp_open(&g_libpack, g_msl_dir.fileSystemRepresentation, DMSH_CHAIN);
++    if (r == 0 && g_rb_capture_stamp) return -1;
++    if (r == 1 && !rb_capture_index_matches(g_libpack.idx, g_rb_capture_stamp.UTF8String)) {
++        MLOG("[rb-capture-pack] refused replaced index");
++        munmap((void *)g_libpack.idx, g_libpack.idx_len);
++        memset(&g_libpack, 0, sizeof g_libpack);
++        return -1;
++    }
++    return r;
++}
+ static lp_pack *lp_pack_get(void) {
+     static dispatch_once_t once;
+-    dispatch_once(&once, ^{ int r = g_rb_capture_refused ? -1 : g_msl_dir ? lp_open(&g_libpack, g_msl_dir.fileSystemRepresentation, DMSH_CHAIN) : 0;
++    dispatch_once(&once, ^{ int r = rb_open_direct_library();
+         if (r == 1) MLOG("direct library container: %u records in %u shards (%s/lib.idx)", g_libpack.n, g_libpack.nshard, g_msl_dir.UTF8String);
+         g_libpack_ok = r; });
+     return g_libpack_ok == 1 ? &g_libpack : NULL;
+@@ -10616,7 +10640,7 @@
+     g_shmap = nil; g_c1_full = nil; g_c1_full_valid = 0; g_cb_ext = nil;
+     g_warm_started = 1;   // 先挡住 shmap_load_once 里的预热：预热要用库容器，等新目录的库容器开好再起
+     shmap_load_once();
+-    int r = g_rb_capture_refused ? -1 : g_msl_dir ? lp_open(&g_libpack, g_msl_dir.fileSystemRepresentation, DMSH_CHAIN) : 0; g_libpack_ok = r;
++    int r = rb_open_direct_library(); g_libpack_ok = r;
+     MLOG("multi-program: shader map %s → %s, library %s (container %s)", old.UTF8String ?: "-", np.UTF8String, g_msl_dir.UTF8String ?: "-", r == 1 ? "opened" : r == 0 ? "none, one file per key" : "broken");
+     g_warm_started = 0; warm_start();   // 同首次：读完映射表就起预热
+     return 1;
+@@ -10819,9 +10843,18 @@
+     if (!rb_shader_stats_on()) return s2a_mtl_source(device,src,options,error);
+     return rb_measure_source(device,src,options,error,0);
+ }
++static __thread const char *t_rb_pack_source_reason;
++static __thread const char *t_rb_pack_source_key;
++static _Atomic unsigned g_rb_pack_source_fallbacks;
+ static id<MTLLibrary> rb_compile_source(NSString *src, NSError **error) {
+     id<MTLLibrary> binary = rb_disk_library(src);
+     if (binary) return binary;
++    if (t_rb_pack_source_reason) {
++        unsigned n = atomic_fetch_add_explicit(&g_rb_pack_source_fallbacks, 1, memory_order_relaxed) + 1;
++        if (n <= 8 || !(n & (n - 1)))
++            MLOG("[rb-capture-pack] MSL fallback=%s key=%s total=%u",
++                 t_rb_pack_source_reason, t_rb_pack_source_key, n);
++    }
+     return rb_measure_source(g_dev,src,dm_msl_opts(),error,1);
+ }
+ static id<MTLLibrary> rb_source_library(NSString *src, int share, NSError **error) {
+@@ -11006,17 +11039,22 @@
+     NSString *ul = dir == g_msl_dir && [j[@"fn_lib"] isKindOfClass:[NSString class]] ? j[@"fn_lib"] : nil;
+     id<MTLLibrary> lib = nil;
+     if (ul) { os_unfair_lock_lock(&ulock); lib = ulibs[ul]; os_unfair_lock_unlock(&ulock); }
+-    if (!lib) lib = dir == g_msl_dir ? lib_from_pack(pc.UTF8String, &e) : [NSFileManager.defaultManager fileExistsAtPath:lp] ? lib_from_file(lp, &e) : nil;
++    BOOL captured = g_rb_capture_bin && dir == g_msl_dir;
++    if (!lib && !captured) lib = dir == g_msl_dir ? lib_from_pack(pc.UTF8String, &e) : [NSFileManager.defaultManager fileExistsAtPath:lp] ? lib_from_file(lp, &e) : nil;
+     if (lib && ul) { os_unfair_lock_lock(&ulock); if (!ulibs) ulibs = [NSMutableDictionary dictionary]; if (!ulibs[ul]) ulibs[ul] = lib; else lib = ulibs[ul]; os_unfair_lock_unlock(&ulock); }
+     NSString *rb_src = nil;   // RewindBox (patch 0073): a compute shader's fallback source compiled here (NvShader rb_msl, rb_icls_pick)
+     NSString *fallbackPath = nil, *original = nil, *refused = nil, *digest = nil;
+-    if (g_rb_capture_bin && dir == g_msl_dir) {
++    if (captured) {
+         fallbackPath = [dir stringByAppendingPathComponent:[pc stringByAppendingString:@".metal"]];
+         original = [NSString stringWithContentsOfFile:fallbackPath encoding:NSUTF8StringEncoding error:nil];
+-        if (original) {
+-            rb_src = fallbackPath;
+-            NSString *used = stage == 0 ? rb_msl_base_instance(original, pc.UTF8String) : original;
+-            if (used != original || !lib) lib = rb_stage_library(used, stage, &e);
++        rb_src = original ? fallbackPath : nil;
++        NSString *used = stage == 0 && original ? rb_msl_base_instance(original, pc.UTF8String) : original;
++        if (used == original) lib = lib_from_pack(pc.UTF8String, &e);
++        if (!lib && used) {
++            t_rb_pack_source_reason = used == original ? "native_slice_unavailable" : "rewritten_air_unavailable";
++            t_rb_pack_source_key = pc.UTF8String;
++            lib = rb_stage_library(used, stage, &e);
++            t_rb_pack_source_reason = t_rb_pack_source_key = NULL;
+         }
+     }
+     if (!lib && dir != g_msl_dir) {   // S2Arm fallback: MSL source compiled here, same options as the offline chain (dm_msl_opts)
+@@ -11032,6 +11070,11 @@
+         if (lib) { rb_src = fallbackPath; MLOG("shader %s loaded from the fallback translation (%s)", pc.UTF8String, fb); }
+     }
+     unsigned rb_bi_n = t_rb_binst_reads; int rb_bi_seen = t_rb_binst_seen; t_rb_binst_reads = 0; t_rb_binst_seen = 0;   // RewindBox (patch 0066): what rb_msl_base_instance did to the source compiled above
++    if (!lib && rb_bi_n && captured) {
++        rb_binst_refused(pc.UTF8String, e);
++        rb_bi_n = rb_bi_seen = 0; e = nil;
++        lib = lib_from_pack(pc.UTF8String, &e);
++    }
+     if (!lib && rb_bi_n) { rb_binst_refused(pc.UTF8String, e); e = nil; rb_bi_n = 0; rb_bi_seen = 0; NSString *s0 = [NSString stringWithContentsOfFile:fallbackPath encoding:NSUTF8StringEncoding error:&e];
+         if (s0) lib = rb_stage_library(s0, stage, &e); }   // RewindBox (patch 0066): Metal refused the rewritten source: the translation as written, as before
+     if (!lib && original.length && pc.length == 18 && [pc hasSuffix:@"_b"] &&
+diff --git a/graphics/nvn/gfx/nvn/rb_capture_identity.h b/graphics/nvn/gfx/nvn/rb_capture_identity.h
+new file mode 100644
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_capture_identity.h
+@@ -0,0 +1,20 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <CommonCrypto/CommonDigest.h>
++#include <stdint.h>
++#include <string.h>
++
++// S2ALIB v1 leaves bytes 20..23 and (on Metal) 36..47 unused.
++// RBC1 binds the exact UTF-8 identity row to this index; legacy v1 has a zero word.
++static int rb_capture_index_matches(const uint8_t *header, const char *identity) {
++    if (!header) return !identity;
++    if (!identity) {
++        uint32_t word;
++        memcpy(&word, header + 20, sizeof word);
++        return !word;
++    }
++    if (memcmp(header + 20, "RBC1", 4)) return 0;
++    uint8_t hash[CC_SHA256_DIGEST_LENGTH];
++    CC_SHA256(identity, (CC_LONG)strlen(identity), hash);
++    return !memcmp(hash, header + 36, 12);
++}
