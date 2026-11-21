@@ -1,0 +1,283 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_dlss.inc b/graphics/nvn/gfx/nvn/nvn_dlss.inc
+index d7c17ca..0fca78f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_dlss.inc
++++ b/graphics/nvn/gfx/nvn/nvn_dlss.inc
+@@ -9,13 +9,32 @@
+ //   （Metal 4 不带时校验层断言，同上屏放大 nvn_present_fx.inc；Metal 3 用 g_fence3，与回放各编码器同一个栅栏）。
+ // 编码线程（DM_NVN_ENC_THREAD，iOS 缺省开）：放大器与四张图、参数录成一条 RO_FX，在编码线程上设属性、编码进真的命令缓冲（nvn_rec.h）。
+ // 不链 MetalFX 框架：类按名字取（首次 dlopen 系统框架，同 nvn_present_fx.inc）；没有 MetalFX 的设备报红一次、这一遍不做。
++#include "nvn_rb_fx_prefix.h"
++
++// The submit thread caches eligible descriptors; the present thread only samples tracing.
++static BOOL rb_fx_tail_flag(const char *name) {
++#if TARGET_OS_IOS && !TARGET_OS_SIMULATOR
++    static _Atomic int title;
++    const char *opt = getenv(name);
++    return opt && !strcmp(opt, "1") && !g_m3 && rb_direct_option(&title, NULL)
++        && [g_dev.name isEqualToString:@"Apple A18 Pro GPU"];
++#else
++    (void)name; return NO;
++#endif
++}
++static BOOL rb_fx_tail_trace(void) {
++    static dispatch_once_t once; static BOOL trace;
++    dispatch_once(&once, ^{ trace = rb_fx_tail_flag("S2A_RB_GPU_TAIL_TRACE"); });
++    return trace;
++}
++
+ typedef enum { RBFxOff, RBFxAdaptive, RBFxAlways } RBFxPolicy;
+ @interface NvDlss : NSObject {
+ @public
+     id scaler; BOOL spatial, m4;
+     id<MTLFXSpatialScalerBase> thermalSpatial;
+     RBFxPolicy policy;
+-    BOOL resetAfterSpatial, trialLogged;
++    BOOL resetAfterSpatial, trialLogged, prefixEnabled;
+     uint64_t net;
+     MTLPixelFormat cf, df, mf, of; NSUInteger iw, ih, ow, oh; uint32_t flags;
+ }
+@@ -112,6 +131,8 @@ static NvDlss *dlss_scaler(const p_dlss *d, id<MTLTexture> c, id<MTLTexture> dp,
+     f = [NvDlss new];
+     f->scaler = sc; f->spatial = spatial; f->m4 = m4; f->net = d->network; f->flags = d->flags;
+     f->cf = c.pixelFormat; f->df = dp.pixelFormat; f->mf = mv.pixelFormat; f->of = o.pixelFormat; f->iw = c.width; f->ih = c.height; f->ow = o.width; f->oh = o.height;
++    f->prefixEnabled = f->iw == 960 && f->ih == 540 && f->ow == 1920 && f->oh == 1080 &&
++                       rb_fx_tail_flag("S2A_RB_GPU_FX_PREFIX");
+     f->policy = spatial ? RBFxOff : dlss_thermal_trial(c, o);
+     if (f->policy != RBFxOff) {
+         // Build once per descriptor, alongside the normal scaler. Never compile at a heat transition.
+@@ -209,12 +230,27 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
+     pkg_gpu_wrote(to, 0, 0, 1, 0, 0, (uint32_t)to->d.width, (uint32_t)to->d.height);
+     if (g_wd > 0) { pthread_mutex_lock(&g_wd_mu); s2a_widen_gpu_wrote((uint32_t)to->serial, (uint32_t)tc->serial); pthread_mutex_unlock(&g_wd_mu); }
+     // 前一侧的全屏障：一个空的拷贝编码器（开时等此前全部工作、关时让此后全部等它），MetalFX 的编码器排在它之后
+-    rp_flush();
+-    id pre = blit();
++    // Take the actual render encoder being flushed, not the last label or frame/pass number.
++    id prior = f->prefixEnabled ? g_enc : nil;
++    int prior_index = g_gp_cur, was_sampled = prior && g_gp_enc == prior;
++    rp_flush();   // lands clears and ordered deferred geometry; it may create other encoders
++    int same_render = prior && prior == g_bar_full_entry && g_bar_main_cb == g_cb && g_bar_main_full;
++    int alias = atomic_load_explicit(&g_sp_heap_n, memory_order_relaxed) != 0;
++    BOOL need_sample = f->prefixEnabled && rb_fx_trace() && gp_active();
++    int sample = was_sampled && g_gp_state == 1 && g_gp_frame == atomic_load(&g_cur_frame) &&
++                 prior_index >= 0 && g_gp_n == prior_index + 1 && !g_gp_drop &&
++                 g_gp_lab[prior_index].kind == 'R' && g_gp_lab[prior_index].cb == g_rb_main_cb_serial;
++    int uniform_pending = g_nubd != 0;
++    enum rb_fx_prefix path = rb_fx_choose_prefix(f->prefixEnabled, g_blit != nil, uniform_pending,
++        same_render, alias, g_ts_pend >= 0, !need_sample || sample);
++    id pre = nil;
++    if (path == RB_FX_KEEP) pre = blit();
++    else if (path == RB_FX_CLOSE_COPY) pre = g_blit;   // no command issued between this and the full producer
++    int index = path == RB_FX_AFTER_RENDER ? prior_index : pre && pre == g_gp_enc ? g_gp_cur : -1;
+     NSUInteger fx_mark = 0;
+-    if (g_gp_cur >= 0 && pre == g_gp_enc && g_gp_state == 1 &&
+-        g_gp_frame == atomic_load(&g_cur_frame) && rb_fx_trace()) {
+-        gp_lab *label = &g_gp_lab[g_gp_cur];
++    // blit() can start the first captured encoder. Recheck after opening it.
++    if (index >= 0 && g_gp_state == 1 && g_gp_frame == atomic_load(&g_cur_frame) && rb_fx_trace()) {
++        gp_lab *label = &g_gp_lab[index];
+         if (2 * (g_gp_n + g_gp_fx_pairs + 1) <= GP_MAX) {
+             label->fx_pair = (uint16_t)++g_gp_fx_pairs;
+             fx_mark = GP_MAX - 2 * (NSUInteger)label->fx_pair + 1;
+@@ -223,6 +259,21 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
+         label->in_w = (uint32_t)cw; label->in_h = (uint32_t)ch;
+         label->out_w = (uint32_t)o.width; label->out_h = (uint32_t)o.height;
+     }
++    if (rb_fx_tail_trace()) {
++        static uint64_t counts[3], internal_saved, alias_kept, uniform_kept, no_proof;
++        counts[path]++;
++        if (path == RB_FX_CLOSE_COPY && g_blit_ops) internal_saved++;
++        if (path == RB_FX_KEEP) { alias_kept += alias; uniform_kept += uniform_pending; no_proof += !same_render; }
++        if (!(g_dlss_evals % 120))
++            MLOG("[rb-tail] FX frame=%llu submission=%llu cb=%llu seg=%u enabled=%d kept=%llu empty_encoders_saved=%llu copy_reused=%llu terminal_dependencies_omitted=%llu kept_alias=%llu kept_uniform=%llu kept_no_proof=%llu cuts_physical=%llu cuts_busy_deferred=%llu cuts_copy=%llu cuts_inside_render=%llu",
++                 (unsigned long long)atomic_load(&g_cur_frame), (unsigned long long)g_sub_serial,
++                 (unsigned long long)g_rb_main_cb_serial, g_seg, f->prefixEnabled,
++                 (unsigned long long)counts[RB_FX_KEEP], (unsigned long long)counts[RB_FX_AFTER_RENDER],
++                 (unsigned long long)counts[RB_FX_CLOSE_COPY], (unsigned long long)internal_saved,
++                 (unsigned long long)alias_kept, (unsigned long long)uniform_kept, (unsigned long long)no_proof,
++                 (unsigned long long)g_cuts, (unsigned long long)g_cut_busy,
++                 (unsigned long long)g_copy_cuts, (unsigned long long)g_pass_cuts);
++    }
+     enc_close_blit();
+     uint64_t a[15] = {0};
+     a[5] = rec_f(d->jitter[0]); a[6] = rec_f(d->jitter[1]); a[7] = rec_f(d->mv_scale[0]); a[8] = rec_f(d->mv_scale[1]); a[9] = rec_f(d->pre_exposure);
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 6fafd67..d2bced7 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1537,6 +1537,7 @@ static inline void enc_full_barrier_end(id e) {
+ // Default off until same-package device comparisons qualify this candidate.
+ static __unsafe_unretained id g_bar_main_cb, g_bar_main_encoder;
+ static int g_bar_main_full;
++static __unsafe_unretained id g_bar_full_entry;   // exact encoder on which a full queue consumer was emitted
+ static uint64_t g_bar_covered;
+ static int producer_cover_on(void) {
+     static int on = -1;
+@@ -1547,7 +1548,7 @@ static int producer_cover_on(void) {
+     }
+     return on;
+ }
+-static void main_barrier_reset(void) { g_bar_main_cb = g_bar_main_encoder = nil; g_bar_main_full = 0; }
++static void main_barrier_reset(void) { g_bar_main_cb = g_bar_main_encoder = g_bar_full_entry = nil; g_bar_main_full = 0; }
+ enum rb_entry_barrier { RB_ENTRY_NO_PROOF, RB_ENTRY_ALIAS, RB_ENTRY_COVERED, RB_ENTRY_RELAXED, RB_ENTRY_COUNT };
+ static _Atomic uint64_t g_rb_draw_entries[RB_ENTRY_COUNT];
+ static int rb_pass_stats(void);
+@@ -1556,7 +1557,7 @@ static enum rb_entry_barrier main_barrier_begin(id e, int relaxed, int private_c
+     int covered = 0;
+     if (producer_cover_on()) {
+         covered = g_bar_main_cb == g_cb && g_bar_main_full;
+-        g_bar_main_cb = g_cb; g_bar_main_encoder = e; g_bar_main_full = 0;
++        g_bar_main_cb = g_cb; g_bar_main_encoder = e; g_bar_main_full = 0; g_bar_full_entry = nil;
+     }
+     if (relaxed) {   // RewindBox (patch 0028, check C10): a pass begun without the full barrier still flushes the aliases before its fragments while a placement heap exists (upstream enc_r_begin_pass, nvn_mtl.m:1657-1658 at 0c078130)
+         if (atomic_load_explicit(&g_sp_heap_n, memory_order_relaxed)) [(id<MTL4CommandEncoder>)e barrierAfterQueueStages:MTLStageAll beforeStages:MTLStageFragment visibilityOptions:rb_res_vis()];
+@@ -1570,6 +1571,7 @@ static enum rb_entry_barrier main_barrier_begin(id e, int relaxed, int private_c
+     }
+     if (covered && !atomic_load_explicit(&g_sp_heap_n, memory_order_relaxed)) { g_bar_covered++; return RB_ENTRY_COVERED; }   // RewindBox (patch 0028): with a placement heap, the full barrier (DM_NVN_PRODUCER_COVER=1 only)
+     enc_full_barrier_begin(e);
++    if (g_bar_main_encoder == e) g_bar_full_entry = e;
+     return covered ? RB_ENTRY_ALIAS : RB_ENTRY_NO_PROOF;
+ }
+ static inline void m4_end(id e) {
+@@ -1611,7 +1613,7 @@ uint64_t nvn_be_cut_count(void);
+ enum { GP_MAX = 4096 };   // the largest timestamp heap Metal makes
+ typedef struct { char kind; uint16_t w, h; uint8_t nc, depth, loads; uint32_t draws, seg; uint64_t pass; uint32_t gm;
+     const char *render_source;
+-    uint64_t cb; uint8_t fx; uint16_t fx_pair; uint32_t in_w, in_h, out_w, out_h;
++    uint64_t cb, submission; uint8_t fx; uint16_t fx_pair; uint32_t in_w, in_h, out_w, out_h;
+ } gp_lab;   // gm：本编码器里绑原始内存池表的绘制 / 派发数（gmem_count_draw）
+ static uint64_t g_gmem_draws, g_gmem_draws_all, g_gmem_disp, g_gmem_disp_all;   // 原始内存池表动态占比（gmem_count_draw；提交线程独占）   // seg: the command buffer (segment) of the submission it is in
+ // Encoder samples grow up from zero. Pairs around MetalFX grow down from the end.
+@@ -1670,7 +1672,7 @@ static int gp_m3_ready(void) {
+ }
+ static gp_lab gp_lab_make(char kind, id d) {
+     gp_lab l = {kind, 0, 0, 0, 0, 0, kind == 'R' ? (uint32_t)g_stat_draw : g_gp_copies, g_seg, g_stat_pass, (uint32_t)(g_gmem_draws + g_gmem_disp)}; if (kind != 'R') { l.w = (uint16_t)g_gp_disp; l.h = (uint16_t)g_gp_ubd; }
+-    l.cb = g_rb_main_cb_serial;
++    l.cb = g_rb_main_cb_serial; l.submission = g_sub_serial;
+     if (d) { for (int i = 0; i < 8; i++) { MTLRenderPassColorAttachmentDescriptor *c = ((MTLRenderPassDescriptor *)d).colorAttachments[i]; if (!c.texture) continue;
+             l.nc++; l.w = (uint16_t)MAX(c.texture.width >> c.level, 1); l.h = (uint16_t)MAX(c.texture.height >> c.level, 1); l.loads += c.loadAction == MTLLoadActionLoad; }
+         MTLRenderPassDepthAttachmentDescriptor *z = ((MTLRenderPassDescriptor *)d).depthAttachment;
+@@ -1707,13 +1709,13 @@ static int rb_fx_trace(void) {
+ }
+ static void rb_fx_commit_feedback(id options, uint64_t frame, uint32_t seg, const char *reason) {
+     if (g_gp_state != 1 || g_gp_frame != frame || !rb_fx_trace()) return;
+-    uint64_t serial = g_rb_main_cb_serial;
++    uint64_t serial = g_rb_main_cb_serial, submission = g_sub_serial;
+     fb_add(options, ^(id<MTL4CommitFeedback> fb) {
+         // Both values use Metal's host-time seconds. Compare these intervals only
+         // with other feedback intervals, never subtract them from counter-heap ticks.
+         if (fb.GPUStartTime > 0 && fb.GPUEndTime >= fb.GPUStartTime)
+-            MLOG("[gpuprof] F%llu CB=%llu seg=%u commit=%s gpu_start_s=%.9f gpu_end_s=%.9f",
+-                 (unsigned long long)frame, (unsigned long long)serial, seg, reason, fb.GPUStartTime, fb.GPUEndTime);
++            MLOG("[gpuprof] F%llu CB=%llu seg=%u commit=%s gpu_start_s=%.9f gpu_end_s=%.9f submission=%llu",
++                 (unsigned long long)frame, (unsigned long long)serial, seg, reason, fb.GPUStartTime, fb.GPUEndTime, (unsigned long long)submission);
+     });
+ }
+ static void gp_render_source(id encoder, const char *source) {
+@@ -1798,7 +1800,7 @@ static void gp_print(NSData *r, NSData *fx, int n, int dropped, gp_lab *lab, uin
+         const gp_lab *pre = &lab[i];
+         if (!pre->fx) continue;
+         uint64_t end = t[2 * i + 1], next = i + 1 < n ? t[2 * (i + 1)] : 0;
+-        int left = i - 1, right = i + 1;
++        int left = pre->kind == 'R' ? i : i - 1, right = i + 1;
+         while (left >= 0 && lab[left].kind != 'R') left--;
+         while (right < n && lab[right].kind != 'R') right++;
+         int valid = gp_valid_tick(t[2 * i]) && gp_valid_tick(end) && end >= t[2 * i] && gp_valid_tick(next) && next >= end;
+@@ -1829,10 +1831,14 @@ static void gp_print(NSData *r, NSData *fx, int n, int dropped, gp_lab *lab, uin
+         if (left >= 0 && right < n && gp_valid_tick(t[2 * left]) && gp_valid_tick(t[2 * left + 1]) &&
+             t[2 * left + 1] >= t[2 * left] && gp_valid_tick(t[2 * right])) {
+             double after_end = gp_delta_us(t[2 * left + 1], t[2 * right], tick_ns);
+-            MLOG("[gpuprof] F%llu MetalFX render_pass=%llu->%llu cb=%llu->%llu seg=%u->%u start_to_start_us=%.1f end_to_start_us=%.1f",
++            MLOG("[gpuprof] F%llu MetalFX render_pass=%llu->%llu cb=%llu->%llu seg=%u->%u start_to_start_us=%.1f end_to_start_us=%.1f submission=%llu->%llu boundary=%s",
+                  (unsigned long long)frame, (unsigned long long)lab[left].pass, (unsigned long long)lab[right].pass,
+                  (unsigned long long)lab[left].cb, (unsigned long long)lab[right].cb, lab[left].seg, lab[right].seg,
+-                 gp_delta_us(t[2 * left], t[2 * right], tick_ns), after_end);
++                 gp_delta_us(t[2 * left], t[2 * right], tick_ns), after_end,
++                 (unsigned long long)lab[left].submission, (unsigned long long)lab[right].submission,
++                 lab[left].submission != lab[right].submission ? "guest-submit" :
++                 lab[left].cb != lab[right].cb ? "physical-cb" :
++                 lab[left].seg != lab[right].seg ? "logical-segment" : "same-cb");
+         }
+     }
+     if (invalid) MLOG("[gpuprof] F%llu invalid_encoder_pairs=%d captured_encoders=%d",
+@@ -23328,6 +23334,23 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+         [cb endCommandBuffer];
+     } else MDIE("【红】 Metal 4 presentation requires macOS / iOS 26");
+     id o = fb_new();
++    // The queue waits for the drawable BEFORE this CB. Feedback measures the CB span,
++    // including optional effects/readback, and cannot time that queue wait.
++    if (!g_m3 && !(ticket % 16) && rb_fx_tail_trace()) {
++        BOOL nearest = g_present_nearest && !g_present_aa && !g_present_fx;
++        BOOL standalone = nearest && !rl_m4;
++        NSUInteger sw = src.width, sh = src.height, dw = dr.texture.width, dh = dr.texture.height;
++        NSUInteger sf = src.pixelFormat, df = dr.texture.pixelFormat;
++        int flip = atomic_load_explicit(&g_origin_ll, memory_order_relaxed), fbOnly = dr.texture.framebufferOnly;
++        fb_add(o, ^(id feedback) {
++            double start = [feedback GPUStartTime], end = [feedback GPUEndTime];
++            int valid = ![feedback error] && start > 0 && end >= start;
++            MLOG("[rb-tail] present frame=%llu ticket=%llu nearest_only=%d framebuffer_only=%d flip=%d source=%lux%lu/%lu drawable=%lux%lu/%lu redirect=0 reason=guest-source-owned cb_valid=%d present_cb_us=%.1f",
++                 (unsigned long long)frame, (unsigned long long)ticket, standalone, fbOnly, flip,
++                 (unsigned long)sw, (unsigned long)sh, (unsigned long)sf, (unsigned long)dw,
++                 (unsigned long)dh, (unsigned long)df, valid, valid ? (end - start) * 1e6 : -1.);
++        });
++    }
+     if (rl_m4) { id<MTLBuffer> b = g_rl_buf[alloc_i]; NSUInteger w = rw, h = rh; unsigned long long n = rn, tns = rtns;   // added before the slot-release handler below: the slot (and this buffer) is reused only after that one ran
+         fb_add(o, ^(id<MTL4CommitFeedback> f) { if (!f.error) rl_row(b.contents, w, h, n, tns); }); }
+     NvPresentAA *aa = g_present_aa ? g_present_aa_slots[alloc_i] : nil;
+diff --git a/graphics/nvn/gfx/nvn/nvn_rb_fx_prefix.h b/graphics/nvn/gfx/nvn/nvn_rb_fx_prefix.h
+new file mode 100644
+index 0000000..3ede7ad
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/nvn_rb_fx_prefix.h
+@@ -0,0 +1,15 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++
++enum rb_fx_prefix { RB_FX_KEEP, RB_FX_CLOSE_COPY, RB_FX_AFTER_RENDER };
++
++// An open copy encoder still gets its complete end barrier. The internal copy dependency
++// would have no consuming command: the next operation is the end barrier itself.
++static inline enum rb_fx_prefix rb_fx_choose_prefix(int enabled, int copy_open, int uniform_pending,
++    int same_full_render, int alias, int pending_timestamp, int profile_can_attach)
++{
++    if (!enabled || uniform_pending) return RB_FX_KEEP;
++    if (copy_open) return RB_FX_CLOSE_COPY;
++    return same_full_render && !alias && !pending_timestamp && profile_can_attach
++           ? RB_FX_AFTER_RENDER : RB_FX_KEEP;
++}
+diff --git a/graphics/nvn/tests/t_rb_fx_prefix.c b/graphics/nvn/tests/t_rb_fx_prefix.c
+new file mode 100644
+index 0000000..7651d97
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_fx_prefix.c
+@@ -0,0 +1,17 @@
++// SPDX-License-Identifier: MIT
++#include "../gfx/nvn/nvn_rb_fx_prefix.h"
++#include <assert.h>
++
++int main(void)
++{
++    for (unsigned i = 0; i < 128; ++i) {
++        int en = i & 1, open = i & 2, pending = i & 4, covered = i & 8;
++        int alias = i & 16, timestamp = i & 32, profile = i & 64;
++        enum rb_fx_prefix action = rb_fx_choose_prefix(en, open, pending, covered, alias, timestamp, profile);
++        if (action == RB_FX_CLOSE_COPY) assert(en && open && !pending);
++        if (action == RB_FX_AFTER_RENDER) assert(en && !open && !pending && covered && !alias && !timestamp && profile);
++        if ((!en || pending) || (!open && (!covered || alias || timestamp || !profile))) assert(action == RB_FX_KEEP);
++    }
++    assert(rb_fx_choose_prefix(1, 0, 0, 1, 0, 0, 1) == RB_FX_AFTER_RENDER);
++    assert(rb_fx_choose_prefix(1, 1, 0, 0, 1, 0, 0) == RB_FX_CLOSE_COPY);
++}
+diff --git a/ios/rb_benchmark.m b/ios/rb_benchmark.m
+--- a/ios/rb_benchmark.m
++++ b/ios/rb_benchmark.m
+@@ -836,7 +836,9 @@
+         NSMutableDictionary *options = [NSMutableDictionary dictionary];
+         for (NSString *key in @[@"S2A_RB_GPU_THERMAL_SPATIAL", @"S2A_RB_GPU_CLEAR_STORES", @"S2A_RB_GPU_PRODUCER",
+                                 @"S2A_RB_GPU_DISCARD", @"S2A_RB_GPU_PASS_STATS", @"S2A_RB_TBDR", @"DM_NVN_TBDR",
+-                                @"DM_NVN_PRODUCER_COVER", @"DM_NVN_GPUPROF"]) {
++                                @"DM_NVN_PRODUCER_COVER", @"DM_NVN_GPUPROF", @"S2A_RB_GPU_FX_TRACE",
++                                @"S2A_RB_GPU_ATTACHMENT_LIVENESS", @"S2A_RB_GPU_CLEAR_BATCH",
++                                @"S2A_RB_GPU_FX_PREFIX", @"S2A_RB_GPU_TAIL_TRACE"]) {
+             const char *value = getenv(key.UTF8String);
+             options[key] = value ? ([[NSString alloc] initWithBytes:value length:strnlen(value, 128)
+                                              encoding:NSUTF8StringEncoding] ?: (id)NSNull.null) : NSNull.null;

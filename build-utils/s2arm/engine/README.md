@@ -369,3 +369,7 @@ Patch 0218 parks the brief HUD refresh while its label is hidden or detached. Th
 ### Direct Metal 4 pipeline compilation
 
 For `04007EF01F8AE000` on iOS, set `DM_NVN_ASYNC_PSO=1` before launch. Leave `DM_PSO_PREPARE` unset for background startup. Explicit `DM_PSO_PREPARE=1` requests blocking preparation. Use `DM_NVN_ASYNC_PSO=0` as the control. The recorded bind requests the known shader stage and depth variant. Typed fragment, sampler and padded vertex variants count actual MSL compilation attempts. Personal prewarm uses at most two utility workers in background mode. Known dependent draws and compute dispatches consume the exact pipeline when ready. The gameplay archive stores linked render and compute pipelines under a versioned device and title identity. `[pso-window]` reports 300 frame intervals. `[pso-frame]` shares its frame number with `[longframe]`. Archive counters are hit/miss pairs. Compile times on concurrent threads can overlap. [Audit and device procedure](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md#première-utilisation-des-pipelines-sur-a18-pro)
+
+### Mesures des passes de rendu sur A18 Pro
+
+Pour le titre `04007EF01F8AE000`, les variables `S2A_RB_GPU_ATTACHMENT_LIVENESS=1`, `S2A_RB_GPU_CLEAR_BATCH=1` et `S2A_RB_GPU_FX_PREFIX=1` sélectionnent les trois optimisations indépendamment. La valeur `0` fournit le témoin. Le démarrage du titre fixe les options pour la session. Voir le [protocole A/B et les compteurs](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md#passes-de-rendu-sur-a18-pro).

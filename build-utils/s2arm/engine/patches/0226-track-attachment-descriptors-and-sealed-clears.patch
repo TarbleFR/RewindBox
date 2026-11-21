@@ -1,0 +1,620 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 9d8ad27..02f3aea 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -372,6 +372,8 @@ static void pool_mark_addressed(const pool_t *o) { static __thread const uint8_t
+ static inline uint64_t pool_ga(const pool_t *o) { pool_mark_addressed(o); return o->gva ? o->gva : (uint64_t)(uintptr_t)o->mem; }   // 池的缓冲区地址（游戏看到的）
+ #define GA(a) nvn_ga2ca(a)
+ 
++// Non-Metal replay has no private attachment liveness experiment.
++__attribute__((weak)) void nvn_be_rb_virtual_backing(uintptr_t start, uint64_t bytes) { (void)start; (void)bytes; }
+ static uint8_t *vpool_reserve(const pool_t *o); static void vpool_release(const pool_t *o);   // sparse virtual pools, see MapVirtual
+ NVN(nvnMemoryPoolInitialize, NVNboolean, NVNmemoryPool *p, const NVNmemoryPoolBuilder *b) {
+     const pool_builder_t *s = (const pool_builder_t *)b; pool_t *o = (pool_t *)p;
+@@ -4767,6 +4769,7 @@ static int vpool_map(struct vpool *v, const map_req *r) {   // caller holds g_vp
+             LOG("RewindBox: virtual pool %p: a 0-byte %s request at %#llx maps nothing; accepted (later cases are not logged)", (const void *)v->pool, ph ? "map" : "unmap", (unsigned long long)r->voff);
+         return 1;
+     }
++    if (ph) nvn_be_rb_virtual_backing((uintptr_t)(ph->mem + r->poff), r->size);
+     vpt_set(v, (uint64_t)r->voff, r->size, ph ? ph->mem + r->poff : NULL);
+     vm_address_t to = (vm_address_t)(v->base + r->voff);
+     // Not aliased (see above): kept in the page table; host pages of it already addressable become copies of the table (vsh_*), the others when a buffer first uses them
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index f0249c0..ba9b659 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -21,6 +21,8 @@
+ #include "nvn_mtl.h"
+ #include "../../../../runtime/include/rb_heap.h"
+ #include "nvn_rb_direct.h"
++#include "rb_attachment_ranges.h"
++#include "rb_sealed_clear.h"
+ #include "rb_fence_wait.h"
+ #include "../../../../runtime/include/rb_texture_stats.h"
+ #include "../../../metal/mtl_slot.h"   // machine-wide Metal client slot
+@@ -1463,6 +1465,63 @@ static inline void m3_wait(id e, int render, int relaxed) {
+ //   dm/gfx/nvn/nvn_mtl.m:284 at 0c078130, MIT, Copyright (c) 2026 seedds): a heap tile unmapped from one texture is mapped into another once the GPU is past it. Begin barriers
+ //   only, as upstream (its measure: about 100 KB of command allocator an encoder for the alias flush on the end barrier, nothing on the begin one). No heap: Device, as before
+ static _Atomic unsigned g_sp_heap_n;
++// Keep exposure history from process start, including registrations made before
++// the hosted title is selected. The experiment is an explicit fresh-launch opt-in.
++static int rb_live_requested(void) {
++    static _Atomic int value;
++    int v = atomic_load_explicit(&value, memory_order_relaxed);
++    if (!v) {
++        const char *e = getenv("S2A_RB_GPU_ATTACHMENT_LIVENESS");
++        v = e && !strcmp(e, "1") ? 2 : 1;
++        atomic_store_explicit(&value, v, memory_order_relaxed);
++    }
++    return v == 2;
++}
++static _Atomic int g_rb_live_title;
++static int rb_live_on(void) {
++    return !g_m3 && rb_live_requested() && rb_direct_option(&g_rb_live_title, NULL);
++}
++static os_unfair_lock g_rb_exposure_lock = OS_UNFAIR_LOCK_INIT;
++static rb_attachment_ranges g_rb_descriptor_bytes, g_rb_virtual_bytes;
++static _Atomic uint64_t g_rb_live_classes[3], g_rb_live_stores, g_rb_live_bytes, g_rb_plane_load_bytes, g_rb_clear_barriers;
++
++// MapVirtual may point even at an ordinary physical pool. Mark its backing
++// before publishing the mapping. Unmapping never erases an earlier exposure.
++void nvn_be_rb_virtual_backing(uintptr_t start, uint64_t bytes) {
++    if (!rb_live_requested()) return;
++    os_unfair_lock_lock(&g_rb_exposure_lock);
++    rb_range_add(&g_rb_virtual_bytes, start, bytes);
++    os_unfair_lock_unlock(&g_rb_exposure_lock);
++}
++static int rb_guest_span(const tex_t *t, rb_attachment_span *span) {
++    if (!t || !t->serial || !t->pool || !t->pool->mem || t->off < 0 ||
++        (uint64_t)t->off > t->pool->size || t->L.size > t->pool->size - (uint64_t)t->off ||
++        (uintptr_t)t->pool->mem > UINTPTR_MAX - (uintptr_t)t->off ||
++        (uintptr_t)t->mem != (uintptr_t)t->pool->mem + (uintptr_t)t->off) return 0;
++    return rb_attachment_span_make((uintptr_t)t->mem, t->L.size, span);
++}
++static void rb_descriptor_expose(const tex_t *t) {
++    if (!rb_live_requested()) return;
++    // A virtual descriptor can reach physical ranges mapped before OR after it.
++    if (t->pool && (t->pool->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL)) return;
++    rb_attachment_span span;
++    os_unfair_lock_lock(&g_rb_exposure_lock);
++    if (rb_guest_span(t, &span)) rb_range_add(&g_rb_descriptor_bytes, span.first, t->L.size);
++    else g_rb_descriptor_bytes.unknown = 1;
++    os_unfair_lock_unlock(&g_rb_exposure_lock);
++}
++enum { RB_LIVE_UNEXPOSED, RB_LIVE_DESCRIPTOR, RB_LIVE_UNKNOWN };
++static int rb_live_class(const tex_t *t) {
++    rb_attachment_span span;
++    if (!rb_guest_span(t, &span) || !t->pool || (t->pool->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL) ||
++        (t->d.flags & (NVN_TEXTURE_FLAGS_DISPLAY | NVN_TEXTURE_FLAGS_VIDEO_DECODE | NVN_TEXTURE_FLAGS_LINEAR |
++                       NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET | NVN_TEXTURE_FLAGS_SPARSE))) return RB_LIVE_UNKNOWN;
++    os_unfair_lock_lock(&g_rb_exposure_lock);
++    int c = g_rb_descriptor_bytes.unknown || rb_range_hits(&g_rb_virtual_bytes, span) ? RB_LIVE_UNKNOWN :
++            rb_range_hits(&g_rb_descriptor_bytes, span) ? RB_LIVE_DESCRIPTOR : RB_LIVE_UNEXPOSED;
++    os_unfair_lock_unlock(&g_rb_exposure_lock);
++    return c;
++}
+ static inline MTL4VisibilityOptions rb_res_vis(void) { return MTL4VisibilityOptionDevice | (atomic_load_explicit(&g_sp_heap_n, memory_order_relaxed) ? MTL4VisibilityOptionResourceAlias : 0); }
+ // Queue barriers without the main replay's profiling/fence state. Present
+ // encoders run on their own thread and must not change that state.
+@@ -1493,7 +1552,7 @@ enum rb_entry_barrier { RB_ENTRY_NO_PROOF, RB_ENTRY_ALIAS, RB_ENTRY_COVERED, RB_
+ static _Atomic uint64_t g_rb_draw_entries[RB_ENTRY_COUNT];
+ static int rb_pass_stats(void);
+ 
+-static enum rb_entry_barrier main_barrier_begin(id e, int relaxed) {
++static enum rb_entry_barrier main_barrier_begin(id e, int relaxed, int private_clear) {
+     int covered = 0;
+     if (producer_cover_on()) {
+         covered = g_bar_main_cb == g_cb && g_bar_main_full;
+@@ -1502,6 +1561,13 @@ static enum rb_entry_barrier main_barrier_begin(id e, int relaxed) {
+     if (relaxed) {   // RewindBox (patch 0028, check C10): a pass begun without the full barrier still flushes the aliases before its fragments while a placement heap exists (upstream enc_r_begin_pass, nvn_mtl.m:1657-1658 at 0c078130)
+         if (atomic_load_explicit(&g_sp_heap_n, memory_order_relaxed)) [(id<MTL4CommandEncoder>)e barrierAfterQueueStages:MTLStageAll beforeStages:MTLStageFragment visibilityOptions:rb_res_vis()];
+         return RB_ENTRY_RELAXED; }
++    if (covered && private_clear && atomic_load_explicit(&g_sp_heap_n, memory_order_relaxed)) {
++        // The full immediate producer orders ordinary resource access. This
++        // consumer has only private non-heap attachment clears and no draws.
++        // The next encoder still makes its own alias-visibility decision.
++        atomic_fetch_add_explicit(&g_rb_clear_barriers, 1, memory_order_relaxed);
++        g_bar_covered++; return RB_ENTRY_COVERED;
++    }
+     if (covered && !atomic_load_explicit(&g_sp_heap_n, memory_order_relaxed)) { g_bar_covered++; return RB_ENTRY_COVERED; }   // RewindBox (patch 0028): with a placement heap, the full barrier (DM_NVN_PRODUCER_COVER=1 only)
+     enc_full_barrier_begin(e);
+     return covered ? RB_ENTRY_ALIAS : RB_ENTRY_NO_PROOF;
+@@ -1789,7 +1855,7 @@ static inline void enc_c_table(id e, id t) { if (!g_m3) [(id<MTL4ComputeCommandE
+ static inline void m3_bind_draw(id e) { m3_table_apply(e, 0, g_m3_tab[0]); m3_table_apply(e, 1, g_m3_tab[1]); }
+ static inline void m3_bind_dispatch(id e) { m3_table_apply(e, 2, g_m3_tab[2]); }
+ static inline void m3_bind_mesh(id e) { m3_table_apply(e, 1, g_m3_tab[1]); m3_table_apply(e, 3, g_m3_tab[3]); m3_table_apply(e, 4, g_m3_tab[4]); }   // a task / mesh draw: fragment, object, mesh (no vertex stage)
+-static inline id<MTL4RenderCommandEncoder> enc_r_begin_pass(MTL4RenderPassDescriptor *d) {   // the draw passes (rp_begin_ex); see barrier_game
++static inline id<MTL4RenderCommandEncoder> enc_r_begin_pass_scoped(MTL4RenderPassDescriptor *d, int private_clear) {   // the draw passes (rp_begin_ex); see barrier_game
+     if (!g_rlane) geo_run_flush();
+     enc_close_blit();
+     g_half_mask_sent = -1;
+@@ -1799,7 +1865,7 @@ static inline id<MTL4RenderCommandEncoder> enc_r_begin_pass(MTL4RenderPassDescri
+     int full = !relaxed;
+     if (g_m3) m3_wait(e, 1, relaxed);
+     else {
+-        enum rb_entry_barrier why = main_barrier_begin(e, relaxed);
++        enum rb_entry_barrier why = main_barrier_begin(e, relaxed, private_clear);
+         full = why == RB_ENTRY_NO_PROOF || why == RB_ENTRY_ALIAS;
+         if (rb_pass_stats()) atomic_fetch_add_explicit(&g_rb_draw_entries[why], 1, memory_order_relaxed);
+     }
+@@ -1807,6 +1873,9 @@ static inline id<MTL4RenderCommandEncoder> enc_r_begin_pass(MTL4RenderPassDescri
+     g_game_barrier = 0;
+     enc_r_table(e, g_vt, MTLRenderStageVertex); enc_r_table(e, g_ft, MTLRenderStageFragment); gp_begin(e, 'R', d); return e;
+ }
++static inline id<MTL4RenderCommandEncoder> enc_r_begin_pass(MTL4RenderPassDescriptor *d) {
++    return enc_r_begin_pass_scoped(d, 0);
++}
+ static _Thread_local const void *t_rb_draw_encoder, *t_rb_draw_pipeline;
+ static inline void rb_draw_encoder_ended(id e) {
+     if (t_rb_draw_encoder==(__bridge const void *)e) t_rb_draw_encoder=t_rb_draw_pipeline=NULL;
+@@ -1824,7 +1893,7 @@ static inline id<MTL4RenderCommandEncoder> enc_r_begin(MTL4RenderPassDescriptor
+     g_half_mask_sent = -1;
+     gp_pre(d, 'R');
+     id<MTL4RenderCommandEncoder> e = [g_cb renderCommandEncoderWithDescriptor:d];
+-    if (g_m3) m3_wait(e, 1, 0); else main_barrier_begin(e, 0);
++    if (g_m3) m3_wait(e, 1, 0); else main_barrier_begin(e, 0, 0);
+     enc_r_table(e, g_vt, MTLRenderStageVertex); enc_r_table(e, g_ft, MTLRenderStageFragment); gp_begin(e, 'R', d); return e;
+ }
+ static inline void enc_r_end(id e) { rb_draw_encoder_ended(e); m4_end(e); }
+@@ -1941,7 +2010,7 @@ static inline id<MTL4ComputeCommandEncoder> enc_c_begin(MTLComputePassDescriptor
+         MTLComputePassDescriptor *cd = [MTLComputePassDescriptor computePassDescriptor]; gp_pre(cd, 'C');
+         e = [g_cb computeCommandEncoderWithDescriptor:cd];
+     } else e = [g_cb computeCommandEncoder];
+-    if (g_m3) m3_wait(e, 0, 0); else main_barrier_begin(e, 0);
++    if (g_m3) m3_wait(e, 0, 0); else main_barrier_begin(e, 0, 0);
+     enc_c_table(e, g_ct); gp_begin(e, 'C', nil); return e;
+ }
+ static inline id<MTLComputeCommandEncoder> enc_c_begin_concurrent(id<MTLCommandBuffer> cb) { return [cb computeCommandEncoderWithDispatchType:MTLDispatchTypeConcurrent]; }
+@@ -2004,7 +2073,7 @@ static id<MTL4ComputeCommandEncoder> blit_open_k(int cmp) {
+             } else g_blit = cmp ? [g_cb computeCommandEncoder] : [g_cb blitCommandEncoder];
+             g_blit_cmp = cmp; m3_wait(g_blit, 0, 0);
+         }
+-        else { g_blit = enc_b_begin(g_cb); main_barrier_begin(g_blit, 0); }
++        else { g_blit = enc_b_begin(g_cb); main_barrier_begin(g_blit, 0, 0); }
+         gp_begin(g_blit, 'C', nil); g_bw_n = g_br_n = 0; g_blit_ops = 0; g_blit_ct = 0; }
+     return g_blit;
+ }
+@@ -8112,6 +8181,13 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+     alias_orphan_pass();   // #357: before the line cap below, which only limits the readout
+     nvn_mem_detail(frame);   // before the line cap below: the detailed accounting has its own interval and must not be starved by the 400-line budget
+     fb_report(frame); samp_report(frame); audit_probe_report(frame);
++    if (rb_live_on()) {
++        MLOG("[tbdr] attachment liveness cumulative frame=%llu pass_resources_unexposed=%llu descriptor_overlap=%llu alias_or_unknown=%llu sealed_stores=%llu sealed_store_bytes=%llu sibling_load_bytes=%llu private_clear_entry_saved=%llu",
++             frame, (unsigned long long)atomic_load(&g_rb_live_classes[0]), (unsigned long long)atomic_load(&g_rb_live_classes[1]),
++             (unsigned long long)atomic_load(&g_rb_live_classes[2]), (unsigned long long)atomic_load(&g_rb_live_stores),
++             (unsigned long long)atomic_load(&g_rb_live_bytes), (unsigned long long)atomic_load(&g_rb_plane_load_bytes),
++             (unsigned long long)atomic_load(&g_rb_clear_barriers));
++    }
+     pthread_mutex_lock(&g_mu);
+     uint64_t pending_polls = g_guest_fences.pending_polls, sleeps = g_guest_fences.sleeps;
+     uint64_t broadcasts = g_guest_fences.broadcasts, segments = g_guest_fences.segment_completions_with_sleepers;
+@@ -8390,7 +8466,7 @@ static uint32_t g_noload_mask; static uint64_t g_noload_n, g_noload_bytes;
+ enum { SD_MAX = 8 + 2 };   // Entries per pass: up to 8 colour attachments (the recording loop's bound) + depth + stencil (a combined format records both planes)
+ static sd_att g_sd[SD_MAX]; static int g_nsd;
+ static unsigned g_rb_discard_mask;
+-static unsigned g_rb_next_clear_mask;
++static unsigned g_rb_next_clear_mask, g_rb_sealed_clear_mask;
+ static int g_rb_clear_legacy = -1;
+ static _Atomic int g_rb_next_clear_mode;
+ static _Atomic uint64_t g_rb_adjacent_pairs, g_rb_adjacent_stores, g_rb_adjacent_bytes;
+@@ -8576,7 +8652,7 @@ static void rp_end(void) { if (!g_rlane) geo_run_flush(); if (g_enc) { AP_B;
+ #endif
+     sd_finish();
+     if (g_rb_all_loaded) g_rb_final_rw++;
+-    g_rb_all_loaded = 0; g_rb_discard_mask = 0; g_rb_next_clear_mask = 0;
++    g_rb_all_loaded = 0; g_rb_discard_mask = 0; g_rb_next_clear_mask = 0; g_rb_sealed_clear_mask = 0;
+     enc_r_end_pass(g_enc); zskip_commit_clears(); g_enc = nil; g_rt_merged = 0; g_rt_range_active = g_rt_range_pending = 0; ts_after(); ms_after(); if (g_lp.count) lp_finish(); fz_end();
+     if (g_nubd && g_nubd >= ubd_lazy()) ubd_flush();   // the inline updates deferred in this pass, in order (see mtl_sub_update); across passes they wait for the next copy or dispatch (blit_raw)
+     if (g_nbcrt) bcrt_flush();   // blocks drawn into shadows go back into their compressed textures
+@@ -8894,6 +8970,27 @@ static void wd_pclr_apply(const tex_t *t) {   // no pass is open (wd_widen_rts):
+         p_clear_tex c = g_wd_pclr[i].c; g_wd_pclr[i].ser = 0; clear_tex(&c);
+     }
+ }
++static int rb_clear_private_texture(const tex_t *t, id<MTLTexture> mt) {
++    return t && mt && !xv_present(t->serial) && !mt.isSparse && !mt.heap && !mt.buffer &&
++           !mt.parentTexture && !mt.framebufferOnly && mt.storageMode == MTLStorageModePrivate &&
++           mt.sampleCount == 1 && mt.textureType == MTLTextureType2D && !t->has_layout && rb_live_class(t) == RB_LIVE_UNEXPOSED;
++}
++static int rb_private_clear_pass(MTL4RenderPassDescriptor *pd) {
++    if (g_rlane || g_rp_layered || pd.visibilityResultBuffer || g_game_barrier ||
++        !atomic_load_explicit(&g_sp_heap_n, memory_order_relaxed)) return 0;
++    int any = 0;
++    for (int i = 0; i < 10; i++) {
++        MTLRenderPassAttachmentDescriptor *a;
++        const tex_t *t;
++        if (i < 8) { a = pd.colorAttachments[i]; t = i < R.rt.n ? R.rt.color[i] : NULL; }
++        else { a = i == 8 ? pd.depthAttachment : pd.stencilAttachment; t = R.rt.depth; }
++        if (!a.texture) continue;
++        if (a.resolveTexture || a.loadAction != MTLLoadActionClear ||
++            !rb_clear_private_texture(t, a.texture)) return 0;
++        any = 1;
++    }
++    return any;
++}
+ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+     if (g_enc) return g_enc;
+     // Clears still waiting (lc_push) land before any pass opens: they are older than whatever this pass writes. Only a draw used to collect them (lc_take), so a pass opened
+@@ -8989,6 +9086,19 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+             if (R.clear_d && (!pd.stencilAttachment.texture || R.clear_s)) rt_fresh_mark(R.rt.depth);
+         }
+     }
++    // A materialization-only encoder executes no draw. Drop the *untouched*
++    // sibling of a combined DS clear. Keep the original freshness decision above.
++    int rb_kept_depth_only = 0;
++    if (clear_only == 1 && !R.rt.has_dview && !g_rlane && !g_rp_layered && R.clear_d != R.clear_s && rb_live_on()) {
++        id<MTLTexture> ds = pd.depthAttachment.texture;
++        if (ds && ds == pd.stencilAttachment.texture && ds.pixelFormat == MTLPixelFormatDepth32Float_Stencil8 &&
++            rb_clear_private_texture(R.rt.depth, ds)) {
++            uint64_t bytes = att_bytes(ds, pd.depthAttachment.level) / 5;
++            if (R.clear_d) { pd.stencilAttachment.texture = nil; rb_kept_depth_only = 1; }
++            else pd.depthAttachment.texture = nil;
++            atomic_fetch_add_explicit(&g_rb_plane_load_bytes, R.clear_d ? bytes : 4 * bytes, memory_order_relaxed);
++        }
++    }
+     // The attachments this pass writes (gpw_mark: their guest bytes go stale); the attached level, the attached layer (a layered pass: every layer from it)
+     for (int i = 0; i < R.rt.n && i < 8; i++) if (R.rt.color[i] && pd.colorAttachments[i].texture) gpw_mark_view(R.rt.color[i], &R.rt.cview[i], R.rt.has_cview[i], g_rp_layered);
+     if (R.rt.depth && (pd.depthAttachment.texture || pd.stencilAttachment.texture)) gpw_mark_view(R.rt.depth, &R.rt.dview, R.rt.has_dview, g_rp_layered);
+@@ -9042,6 +9152,12 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+     g_rb_all_loaded = natt && nload == natt && rb_pass_stats() &&
+                       (!pd.stencilAttachment.texture || pd.stencilAttachment.loadAction == MTLLoadActionLoad);
+     if (natt && nload == natt) g_pass_full_rw++;
++    if (rb_live_on()) {
++        for (int i = 0; i < R.rt.n && i < 8; ++i) if (pd.colorAttachments[i].texture)
++            atomic_fetch_add_explicit(&g_rb_live_classes[rb_live_class(R.rt.color[i])], 1, memory_order_relaxed);
++        if (pd.depthAttachment.texture || pd.stencilAttachment.texture)
++            atomic_fetch_add_explicit(&g_rb_live_classes[rb_live_class(R.rt.depth)], 1, memory_order_relaxed);
++    }
+     g_nsd = 0; g_pass_geo = 0;
+     {
+         for (int i = 0; i < R.rt.n && i < 8; i++) { MTLRenderPassColorAttachmentDescriptor *c = pd.colorAttachments[i]; if (!c.texture || bcrt_is(c.texture)) continue;
+@@ -9050,6 +9166,7 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+         id<MTLTexture> dt = pd.depthAttachment.texture, stt = pd.stencilAttachment.texture;
+         uint64_t db = att_bytes(dt, pd.depthAttachment.level), sb = 0;
+         if (stt) { int comb = stt.pixelFormat == MTLPixelFormatDepth32Float_Stencil8; sb = att_bytes(stt, pd.stencilAttachment.level) / (comb ? 5 : 1); if (stt == dt) db -= sb; }   // Combined format 5 bytes = depth 4 + stencil 1 (when only stencil is attached, only 1 is counted)
++        if (rb_kept_depth_only) db = db / 5 * 4;
+         if (dt) { g_sd[g_nsd] = (sd_att){0}; g_sd[g_nsd].ser = R.rt.depth->serial; g_sd[g_nsd].bytes = db; g_sd[g_nsd].lv = (uint32_t)pd.depthAttachment.level; g_sd[g_nsd].sl = (uint32_t)pd.depthAttachment.slice; g_sd[g_nsd].idx = -1; g_sd[g_nsd].depth = 1; g_sd[g_nsd].load = pd.depthAttachment.loadAction == MTLLoadActionLoad; g_sd[g_nsd].wrote = R.clear_d != 0; g_nsd++;
+                   pd.depthAttachment.storeAction = MTLStoreActionUnknown; }
+         if (stt) { g_sd[g_nsd] = (sd_att){0}; g_sd[g_nsd].ser = R.rt.depth->serial; g_sd[g_nsd].bytes = sb; g_sd[g_nsd].lv = (uint32_t)pd.stencilAttachment.level; g_sd[g_nsd].sl = (uint32_t)pd.stencilAttachment.slice; g_sd[g_nsd].idx = -1; g_sd[g_nsd].depth = 2; g_sd[g_nsd].load = pd.stencilAttachment.loadAction == MTLLoadActionLoad; g_sd[g_nsd].wrote = R.clear_s != 0; g_nsd++;
+@@ -9099,7 +9216,7 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+       void ms_note(id pd, NSUInteger nc); ms_note(pd, (NSUInteger)R.rt.n); }
+     if (g_blit) { enc_b_end(g_blit); g_blit = nil; }   // the copy encoder the shadows' blocks were moved in with (bcrt_attach)
+     ser_gate();
+-    g_enc = enc_r_begin_pass(pd);
++    g_enc = clear_only == 1 && rb_live_on() && rb_private_clear_pass(pd) ? enc_r_begin_pass_scoped(pd, 1) : enc_r_begin_pass(pd);
+     args_dirty_all();
+     g_stat_pass++;
+     FSIG(id<MTLTexture> ct = pd.colorAttachments[0].texture; fc_->passes++;   // RewindBox (patch 0059): the largest colour target drawn with a depth buffer is the scene's
+@@ -10878,7 +10995,7 @@ void nvn_be_reg_tex(int tid, const tex_t *t, const view_t *v) {
+         treg_drop_views(rr);
+         if (rr->ok) treg_ser_unlink(id_);
+         rr->ok = t != NULL; if (t) rr->t = *t; rr->has_v = v != NULL; if (v) rr->v = *v;
+-        if (rr->ok) treg_ser_link(id_);
++        if (rr->ok) { rb_descriptor_expose(t); treg_ser_link(id_); }
+         if (id_ < (1 << 20)) atomic_store_explicit(&g_tser[id_], t ? t->serial : 0, memory_order_release);
+     }
+     pthread_mutex_unlock(&g_rmu);
+@@ -16006,6 +16123,11 @@ static void sd_finish(void) {
+                 atomic_fetch_add_explicit(&g_rb_adjacent_stores, 1, memory_order_relaxed);
+                 atomic_fetch_add_explicit(&g_rb_adjacent_bytes, t->bytes, memory_order_relaxed);
+             }
++            if (!dead && (g_rb_sealed_clear_mask & (1u << i))) {
++                dead = 1;
++                atomic_fetch_add_explicit(&g_rb_live_stores, 1, memory_order_relaxed);
++                atomic_fetch_add_explicit(&g_rb_live_bytes, t->bytes, memory_order_relaxed);
++            }
+             if (dead) g_rb_all_loaded = 0;
+             MTLStoreAction sa = dead ? MTLStoreActionDontCare : MTLStoreActionStore;
+             // not loaded (g_noload_mask) and still unwritten: nothing to write back, memory is the content. Written after all = the lookahead's proof was wrong (red; written back so the draws stay)
+@@ -16911,6 +17033,27 @@ static unsigned rb_adjacent_clear_mask(const p_set_rt *next, const uint8_t *op)
+     }
+     return mask;
+ }
++// Only traverse END records in the real return stack and remaining sealed
++// top-level lists of the current xq_piece. No jump, draw, descriptor change,
++// wait, signal, segment publication or unseen next submission can supply proof.
++static int rb_inside_piece(void);
++static unsigned rb_sealed_clear(const p_set_rt *rt, const uint8_t *next) {
++    if (!rb_live_on() || !rb_inside_piece() || tbdr_on() || g_rb_clear_legacy ||
++        g_ret_n < 0 || g_ret_n > 16 || g_nlc || g_defer_nact || g_defer_replaying || g_fz.active ||
++        g_rt_range_active || g_imfit_npend || g_imwr_npend ||
++        g_nbcrt || g_nubd || rs_on() || sub_cut_due() || rb_clear_readback_pending()) return 0;
++    const uint8_t *clear = rb_sealed_overwrite(next, g_ret, g_ret_n, g_rest, g_nrest, lc_on());
++    if (!clear) return 0;
++    unsigned mask = 0;
++    for (int i = 0; i < g_nsd; i++) {
++        sd_att *att = &g_sd[i];
++        if (!rb_clear_covers_plane(att, rt, clear)) continue;
++        const tex_t *t = att->depth ? R.rt.depth : R.rt.color[att->idx];
++        if (!xv_present(att->ser) && !t->has_layout && rb_live_class(t) == RB_LIVE_UNEXPOSED)
++            mask |= 1u << i;
++    }
++    return mask;
++}
+ static int sdx_decide(uint8_t st[SD_MAX]) {   // st[i]: 2 redundant; otherwise why << 2 (the reason it is needed, same as sd_need). Returns 0 = index unavailable
+     if (!g_sdx_ok || !g_exec_cur || !g_exec_seq || g_sdx_op[g_exec_seq - 1] != g_exec_cur) return 0;
+     uint32_t P = g_exec_seq - 1;
+@@ -21500,6 +21643,7 @@ void nvn_be_exec(const uint8_t *p) {
+                 if (g_enc && !pend && !g_nlc && !g_rt_merged && !g_rlane && !g_pass_geo) {
+                     g_rb_discard_mask = terminal;
+                     g_rb_next_clear_mask = rb_adjacent_clear_mask(r, p + h.size);
++                    g_rb_sealed_clear_mask = rb_sealed_clear(r, p + h.size);
+                 }
+                 if (pend && !g_enc && g_cb && lc_on()) lc_push(); else rp_flush();   // clears with no draw wait for the next pass that attaches their targets (lc_push)
+                 sub_cut(); R.rt = *r; R.has_rt = 1; break;
+@@ -21647,6 +21791,7 @@ static int nvn_mem_fmt_class(MTLPixelFormat pf) {
+ #include <os/proc.h>
+ #endif
+ #include "nvn_xqueue.inc"   // cross-queue event ordering: nvn_be_submit
++static int rb_inside_piece(void) { return g_xq_cur && !g_xq_unwind; }
+ static int rb_last_submit_handle(void) {
+     // xq_piece calls nvn_be_sub_commit immediately after its last top-level
+     // list. That closes pending clears before uploading or publishing its fence.
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 1988507..1423fee 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -142,8 +142,9 @@ int nvn_be_shutdown_session(void) {
+     // A subsequent hosted session may select different render options. Keep
+     // cumulative store counters monotonic for the 300-frame sampler.
+     atomic_store_explicit(&g_rb_next_clear_mode, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_live_title, 0, memory_order_relaxed);
+     g_rb_clear_legacy = -1;
+-    g_rb_next_clear_mask = 0;
++    g_rb_next_clear_mask = g_rb_sealed_clear_mask = 0;
+     rb_reuse_session_reset();   // RewindBox (patch 0071): the textures kept for reuse, the ring of finalized textures, the snapshot pools (nvn_mtl.m)
+     nvn_hm_clear(&g_alias_seen, NULL); nvn_hm_clear(&g_tex_live, NULL);
+     pthread_mutex_lock(&g_gpw_mu);
+diff --git a/graphics/nvn/gfx/nvn/rb_attachment_ranges.h b/graphics/nvn/gfx/nvn/rb_attachment_ranges.h
+new file mode 100644
+index 0000000..bd7b198
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_attachment_ranges.h
+@@ -0,0 +1,46 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <stdint.h>
++#include <string.h>
++
++// Process-lifetime, conservative unions of guest backing bytes. The caller serializes
++// updates and queries. Keep an address exposed even when its descriptor is overwritten,
++// unregistered or reused by another resource. A full/ambiguous union fails closed.
++enum { RB_RANGE_LIMIT = 2048 };
++typedef struct { uintptr_t first, last; } rb_attachment_span; // both endpoints included
++typedef struct { rb_attachment_span spans[RB_RANGE_LIMIT]; unsigned n; int unknown; } rb_attachment_ranges;
++
++static inline int rb_attachment_span_make(uintptr_t address, uint64_t bytes, rb_attachment_span *out) {
++    if (!address || !bytes || bytes - 1 > UINTPTR_MAX - address) return 0;
++    *out = (rb_attachment_span){address, address + (uintptr_t)(bytes - 1)};
++    return 1;
++}
++static inline unsigned rb_range_start(const rb_attachment_ranges *r, uintptr_t first) {
++    unsigned lo = 0, hi = r->n;
++    while (lo < hi) {
++        unsigned mid = lo + (hi - lo) / 2;
++        if (r->spans[mid].last < first) lo = mid + 1;
++        else hi = mid;
++    }
++    return lo;
++}
++static inline int rb_range_hits(const rb_attachment_ranges *r, rb_attachment_span q) {
++    unsigned i = rb_range_start(r, q.first);
++    return r->unknown || (i < r->n && r->spans[i].first <= q.last);
++}
++static inline void rb_range_add(rb_attachment_ranges *r, uintptr_t address, uint64_t bytes) {
++    rb_attachment_span q;
++    if (r->unknown) return;
++    if (!rb_attachment_span_make(address, bytes, &q)) { r->unknown = 1; return; }
++    // Fold touching spans too, especially sequential tiles of virtual pools.
++    unsigned i = rb_range_start(r, q.first - 1), end = i;
++    while (end < r->n && (q.last == UINTPTR_MAX || r->spans[end].first <= q.last + 1)) {
++        if (r->spans[end].first < q.first) q.first = r->spans[end].first;
++        if (r->spans[end].last > q.last) q.last = r->spans[end].last;
++        ++end;
++    }
++    if (i == end && r->n == RB_RANGE_LIMIT) { r->unknown = 1; return; }
++    if (end != i + 1) memmove(&r->spans[i + 1], &r->spans[end], (r->n - end) * sizeof q);
++    r->spans[i] = q;
++    r->n = r->n - (end - i) + 1;
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_sealed_clear.h b/graphics/nvn/gfx/nvn/rb_sealed_clear.h
+new file mode 100644
+index 0000000..b01a0b9
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_sealed_clear.h
+@@ -0,0 +1,37 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include "nvn_obj.h"
++
++// Only END transitions cross a list. Accept a single clear followed by a
++// proven materialization. A missing or cyclic continuation never proves death.
++static inline const uint8_t *rb_sealed_overwrite(const uint8_t *next, const uint8_t *const *returns,
++                                                 int ret, const uint64_t *following, int lists, int lazy_clear) {
++    const uint8_t *clear = NULL;
++    int rest = 0, crossed = 0, landing = 0;
++    for (int n = 0; next && n < 24; ++n) {
++        op_hdr h; memcpy(&h, next, sizeof h);
++        if (h.size < 8 || (h.size & 7)) return NULL;
++        if (h.op == OP_END && h.size == 8) {
++            if (ret) next = returns[--ret];
++            else if (rest < lists) next = (const uint8_t *)(uintptr_t)following[rest++];
++            else { landing = 1; break; } // sub_commit → rp_flush
++            crossed = 1; continue;
++        }
++        if (!clear) {
++            if ((h.op == OP_CLEAR_COLOR && h.size == 8 + sizeof(p_clear_color)) ||
++                (h.op == OP_CLEAR_DS && h.size == 8 + sizeof(p_clear_ds))) {
++                clear = next; next += h.size; continue;
++            }
++        } else if (h.op == OP_SET_RT && h.size >= 8 + sizeof(p_set_rt_c) && !lazy_clear) {
++            p_set_rt_c rt;
++            memcpy(&rt, next + sizeof h, sizeof rt);
++            if (rt.n > 8 || (rt.cmask >> rt.n) || (rt.vmask & ~rt.cmask) ||
++                (rt.dflags & ~(SET_RT_DEPTH | SET_RT_DVIEW)) ||
++                ((rt.dflags & SET_RT_DVIEW) && !(rt.dflags & SET_RT_DEPTH)) ||
++                h.size != sizeof h + set_rt_payload(&rt)) return NULL;
++            landing = 1; break;
++        }
++        return NULL;
++    }
++    return crossed && landing ? clear : NULL;
++}
+diff --git a/graphics/nvn/tests/t_rb_attachment_liveness.c b/graphics/nvn/tests/t_rb_attachment_liveness.c
+new file mode 100644
+index 0000000..17660c9
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_attachment_liveness.c
+@@ -0,0 +1,77 @@
++// SPDX-License-Identifier: MIT
++#include "../gfx/nvn/rb_attachment_ranges.h"
++#include "../gfx/nvn/rb_sealed_clear.h"
++#include <stdio.h>
++#include <stdlib.h>
++
++static int checks;
++#define CHECK(x) do { if (!(x)) { fprintf(stderr, "Failed line %d: %s\n", __LINE__, #x); exit(1); } ++checks; } while (0)
++static unsigned rng = 0x1b547;
++static unsigned random_word(void) { rng = rng * 1664525u + 1013904223u; return rng; }
++static void range_tests(void) {
++    rb_attachment_ranges table = {0};
++    rb_attachment_span q;
++    CHECK(!rb_attachment_span_make(0, 8, &q));
++    CHECK(!rb_attachment_span_make(42, 0, &q));
++    CHECK(!rb_attachment_span_make(UINTPTR_MAX - 1, 3, &q));
++    CHECK(rb_attachment_span_make(UINTPTR_MAX - 1, 2, &q));
++    rb_range_add(&table, UINTPTR_MAX, 1);
++    CHECK(rb_range_hits(&table, q));
++    rb_range_add(&table, 100, 4); rb_range_add(&table, 110, 1);
++    rb_range_add(&table, 104, 6);
++    CHECK(table.n == 2 && table.spans[0].first == 100 && table.spans[0].last == 110);
++    CHECK(!rb_range_hits(&table, (rb_attachment_span){111, 112}));
++    CHECK(rb_range_hits(&table, (rb_attachment_span){99, 100}));
++    int seen[4096] = {0};
++    memset(&table, 0, sizeof table);
++    for (int i = 0; i < 2000; i++) {
++        unsigned first = 1 + random_word() % 4000, n = 1 + random_word() % 32;
++        rb_range_add(&table, first, n);
++        for (unsigned k = first; k < first + n; k++) seen[k] = 1;
++        unsigned lo = 1 + random_word() % 4000, count = 1 + random_word() % 17;
++        int oracle = 0;
++        for (unsigned k = lo; k < lo + count; k++) oracle |= seen[k];
++        CHECK(rb_range_hits(&table, (rb_attachment_span){lo, lo + count - 1}) == oracle);
++    }
++    memset(&table, 0, sizeof table);
++    for (unsigned i = 0; i < RB_RANGE_LIMIT; i++) rb_range_add(&table, 1u + i * 4u, 1);
++    CHECK(!table.unknown);
++    rb_range_add(&table, 2, 1); CHECK(!table.unknown); // merge even when full
++    rb_range_add(&table, 1u + RB_RANGE_LIMIT * 4u, 1);
++    CHECK(table.unknown && rb_range_hits(&table, (rb_attachment_span){22, 22}));
++}
++static void list_tests(void) {
++    struct { op_hdr h; p_clear_color c; op_hdr end; } clear = {{OP_CLEAR_COLOR,8 + sizeof(p_clear_color)}, {0}, {OP_END,8}};
++    op_hdr end = {OP_END,8};
++    struct { op_hdr h; p_set_rt_c payload; } rt = {{OP_SET_RT,8 + sizeof(p_set_rt_c)}, {0}};
++    const uint8_t *returns[] = {(const uint8_t *)&clear};
++    uint64_t lists[] = {(uintptr_t)&clear, (uintptr_t)&rt};
++    CHECK(rb_sealed_overwrite((const uint8_t *)&end, NULL,0,lists,1,1) == (const uint8_t *)&clear);
++    CHECK(rb_sealed_overwrite((const uint8_t *)&end,returns,1,NULL,0,1) == (const uint8_t *)&clear);
++    CHECK(rb_sealed_overwrite((const uint8_t *)&clear,NULL,0,NULL,0,0) == NULL); // 0215's existing case
++    CHECK(rb_sealed_overwrite((const uint8_t *)&end,NULL,0,lists,2,0) == (const uint8_t *)&clear);
++    CHECK(rb_sealed_overwrite((const uint8_t *)&end,NULL,0,lists,2,1) == NULL); // unlanded lazy group
++    CHECK(rb_sealed_overwrite((const uint8_t *)&end,NULL,0,NULL,0,1) == NULL);
++    for (unsigned op = 0; op < OP_COUNT_; ++op) {
++        if (op == OP_END || op == OP_SET_RT) continue;
++        op_hdr unknown = {op,8};
++        lists[1] = (uintptr_t)&unknown;
++        CHECK(rb_sealed_overwrite((const uint8_t *)&end,NULL,0,lists,2,0) == NULL);
++    }
++    lists[1] = (uintptr_t)&rt;
++    rt.payload.dflags = SET_RT_DVIEW;
++    CHECK(!rb_sealed_overwrite((const uint8_t *)&end,NULL,0,lists,2,0));
++    rt.payload.dflags = SET_RT_DEPTH;
++    CHECK(!rb_sealed_overwrite((const uint8_t *)&end,NULL,0,lists,2,0));
++    rt.payload.dflags = 0; rt.payload.n = 9;
++    CHECK(!rb_sealed_overwrite((const uint8_t *)&end,NULL,0,lists,2,0));
++    lists[0] = 0;
++    CHECK(rb_sealed_overwrite((const uint8_t *)&end,NULL,0,lists,1,0) == NULL);
++    clear.h.size -= 8;
++    CHECK(rb_sealed_overwrite((const uint8_t *)&end,returns,1,NULL,0,1) == NULL);
++}
++int main(void) {
++    range_tests(); list_tests();
++    printf("PASS %d attachment range and sealed-list checks\n", checks);
++    return 0;
++}
+diff --git a/graphics/nvn/tests/t_rb_clear_plane_metal.m b/graphics/nvn/tests/t_rb_clear_plane_metal.m
+new file mode 100644
+index 0000000..49b0c60
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_clear_plane_metal.m
+@@ -0,0 +1,70 @@
++// SPDX-License-Identifier: MIT
++// xcrun clang -fobjc-arc -framework Foundation -framework Metal t_rb_clear_plane_metal.m -o plane-test
++// Read each aspect after clearing only its sibling, including across command buffers.
++#import <Foundation/Foundation.h>
++#import <Metal/Metal.h>
++#include <stdio.h>
++#include <stdint.h>
++#include <string.h>
++
++enum { WIDTH = 16, HEIGHT = 12, ROW = 256, ASPECT_BYTES = ROW * HEIGHT };
++static int check_pass(id<MTLCommandQueue> queue, id<MTLTexture> t, id<MTLBuffer> out,
++                      int with_depth, int with_stencil, float depth, uint8_t stencil,
++                      float want_depth, uint8_t want_stencil) {
++    id<MTLCommandBuffer> cb = [queue commandBuffer];
++    MTLRenderPassDescriptor *pd = [MTLRenderPassDescriptor renderPassDescriptor];
++    if (with_depth) {
++        pd.depthAttachment.texture = t;
++        pd.depthAttachment.loadAction = MTLLoadActionClear;
++        pd.depthAttachment.storeAction = MTLStoreActionStore;
++        pd.depthAttachment.clearDepth = depth;
++    }
++    if (with_stencil) {
++        pd.stencilAttachment.texture = t;
++        pd.stencilAttachment.loadAction = MTLLoadActionClear;
++        pd.stencilAttachment.storeAction = MTLStoreActionStore;
++        pd.stencilAttachment.clearStencil = stencil;
++    }
++    id<MTLRenderCommandEncoder> render = [cb renderCommandEncoderWithDescriptor:pd];
++    if (!render) return 0;
++    [render endEncoding];
++    id<MTLBlitCommandEncoder> blit = [cb blitCommandEncoder];
++    if (!blit) return 0;
++    for (int i = 0; i < 2; i++)
++        [blit copyFromTexture:t sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0)
++                  sourceSize:MTLSizeMake(WIDTH,HEIGHT,1) toBuffer:out destinationOffset:i * ASPECT_BYTES
++       destinationBytesPerRow:ROW destinationBytesPerImage:ASPECT_BYTES
++                     options:i ? MTLBlitOptionStencilFromDepthStencil : MTLBlitOptionDepthFromDepthStencil];
++    [blit endEncoding];
++    [cb commit]; [cb waitUntilCompleted];
++    if (cb.status != MTLCommandBufferStatusCompleted) { NSLog(@"GPU error %@", cb.error); return 0; }
++    const uint8_t *bytes = [out contents];
++    for (int y = 0; y < HEIGHT; y++) for (int x = 0; x < WIDTH; x++) {
++        float d; memcpy(&d, &bytes[y * ROW + 4 * x], sizeof d);
++        uint8_t s = bytes[ASPECT_BYTES + y * ROW + x];
++        if (d != want_depth || s != want_stencil) {
++            fprintf(stderr,"pixel %d,%d has depth %.8g stencil %u; expected %.8g/%u\n",
++                    x,y,d,s,want_depth,want_stencil);
++            return 0;
++        }
++    }
++    return 1;
++}
++int main(void) {
++    @autoreleasepool {
++        id<MTLDevice> device = MTLCreateSystemDefaultDevice();
++        if (!device) { fprintf(stderr,"SKIP no Metal device\n"); return 77; }
++        MTLTextureDescriptor *d = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float_Stencil8
++                                                                                    width:WIDTH height:HEIGHT mipmapped:NO];
++        d.storageMode = MTLStorageModePrivate; d.usage = MTLTextureUsageRenderTarget;
++        id<MTLTexture> t = [device newTextureWithDescriptor:d];
++        id<MTLBuffer> out = [device newBufferWithLength:2 * ASPECT_BYTES options:MTLResourceStorageModeShared];
++        id<MTLCommandQueue> queue = [device newCommandQueue];
++        if (!t || !out || !queue) { fprintf(stderr,"SETUP FAIL combined depth/stencil resource\n"); return 2; }
++        if (!check_pass(queue,t,out,1,1,0.25f,0x35,0.25f,0x35) ||
++            !check_pass(queue,t,out,1,0,0.75f,0,0.75f,0x35) ||
++            !check_pass(queue,t,out,0,1,0,0xa7,0.75f,0xa7)) return 1;
++        puts("PASS combined depth/stencil readback across three passes and command buffers");
++        return 0;
++    }
++}

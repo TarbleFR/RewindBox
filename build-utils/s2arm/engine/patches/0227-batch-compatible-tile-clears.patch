@@ -1,0 +1,529 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 02f3aea..d820555 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3244,6 +3244,7 @@ __attribute__((weak)) void dm_thread_cpu(char *out, size_t n, double secs) { (vo
+ void nvn_be_res_stats(char *out, size_t n);
+ void nvn_be_barrier_stats(uint64_t *skip, uint64_t *full);
+ __attribute__((weak)) void nvn_be_draw_barrier_reasons(uint64_t counts[4]) { memset(counts, 0, 4 * sizeof *counts); }
++__attribute__((weak)) void nvn_be_clear_batch_stats(uint64_t values[4]) { memset(values,0,4*sizeof *values); }
+ __attribute__((weak)) int nvn_be_adjacent_clear_stats(uint64_t counts[3]) { (void)counts; return 0; }
+ extern uint32_t nvn_be_present_qos(void);
+ static uint64_t g_frame;
+@@ -3578,6 +3579,13 @@ static void power_line(uint64_t frame) {
+         }
+         uint64_t nvn_be_cut_count(void), nvn_be_copy_cut_count(void), nvn_be_pass_cut_count(void), nvn_be_blit_splits(void); void nvn_be_ubd_stats(uint64_t *, uint64_t *); static uint64_t pcut, pccut, ppcut, pbsp, pud, puc; uint64_t cut = nvn_be_cut_count(), ccut = nvn_be_copy_cut_count(), pcutn = nvn_be_pass_cut_count(), bsp = nvn_be_blit_splits(), ud, uc; nvn_be_ubd_stats(&ud, &uc);
+         void nvn_be_ubp_stats(uint64_t *, uint64_t *, uint64_t *); static uint64_t ppm, ppr, ppf; uint64_t pm, pr, pf_; nvn_be_ubp_stats(&pm, &pr, &pf_);
++        static uint64_t last_batch[4]; uint64_t batch[4]; nvn_be_clear_batch_stats(batch);
++        if (batch[0]!=last_batch[0]) {
++            LOG("[gpu-pass] pending clear pairs up to frame %llu: examined %llu, render encoders avoided %llu, rejected %llu, same attachment sets %llu",
++                frame,(unsigned long long)(batch[0]-last_batch[0]),(unsigned long long)(batch[1]-last_batch[1]),
++                (unsigned long long)(batch[2]-last_batch[2]),(unsigned long long)(batch[3]-last_batch[3]));
++            memcpy(last_batch,batch,sizeof batch);
++        }
+         void nvn_be_lc_stats(uint64_t *, uint64_t *); static uint64_t plt, pll; uint64_t lt, ll; nvn_be_lc_stats(&lt, &ll);
+         void nvn_be_ubp_why(uint64_t w[5]); static uint64_t pw5[5]; uint64_t w5[5]; nvn_be_ubp_why(w5);
+         uint64_t ld, st, fu, udc = nvn_be_udc_saved_bytes(); nvn_be_bw(&ld, &st, &fu);
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index ba9b659..6fafd67 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1610,6 +1610,7 @@ uint64_t nvn_be_cut_count(void);
+ // of the next new frame, so while a report is pending the frames in between are skipped and every frame printed is whole
+ enum { GP_MAX = 4096 };   // the largest timestamp heap Metal makes
+ typedef struct { char kind; uint16_t w, h; uint8_t nc, depth, loads; uint32_t draws, seg; uint64_t pass; uint32_t gm;
++    const char *render_source;
+     uint64_t cb; uint8_t fx; uint16_t fx_pair; uint32_t in_w, in_h, out_w, out_h;
+ } gp_lab;   // gm：本编码器里绑原始内存池表的绘制 / 派发数（gmem_count_draw）
+ static uint64_t g_gmem_draws, g_gmem_draws_all, g_gmem_disp, g_gmem_disp_all;   // 原始内存池表动态占比（gmem_count_draw；提交线程独占）   // seg: the command buffer (segment) of the submission it is in
+@@ -1715,6 +1716,10 @@ static void rb_fx_commit_feedback(id options, uint64_t frame, uint32_t seg, cons
+                  (unsigned long long)frame, (unsigned long long)serial, seg, reason, fb.GPUStartTime, fb.GPUEndTime);
+     });
+ }
++static void gp_render_source(id encoder, const char *source) {
++    if (g_gp_cur>=0 && (g_m3 || encoder==g_gp_enc) && g_gp_lab[g_gp_cur].kind=='R')
++        g_gp_lab[g_gp_cur].render_source=source;
++}
+ static void gp_end(id e) {   // right before that encoder ends
+     if (g_gp_cur < 0 || (!g_m3 && e != g_gp_enc)) return;
+     int k = g_gp_cur; g_gp_cur = -1; g_gp_lab[k].gm = (uint32_t)(g_gmem_draws + g_gmem_disp) - g_gp_lab[k].gm; if (g_gp_lab[k].kind == 'R') g_gp_lab[k].draws = (uint32_t)g_stat_draw - g_gp_lab[k].draws; else { g_gp_lab[k].draws = g_gp_copies - g_gp_lab[k].draws; g_gp_lab[k].w = (uint16_t)(g_gp_disp - g_gp_lab[k].w); g_gp_lab[k].h = (uint16_t)(g_gp_ubd - g_gp_lab[k].h); }
+@@ -1787,7 +1792,7 @@ static void gp_print(NSData *r, NSData *fx, int n, int dropped, gp_lab *lab, uin
+         if (!t0 || a < t0) t0 = a; if (b > t1) t1 = b;
+         if (l->kind == 'P' || l->kind == 'K') MLOG("[gpuprof] F%llu %4d %8.1f us geometry run %s, %u geometry draws, after pass %llu start %+.1f seg %u", (unsigned long long)frame, i, us,
+             l->kind == 'P' ? "captures (render)" : "geometry kernels + compaction (compute)", l->draws, (unsigned long long)l->pass, gp_delta_us(origin, a, tick_ns), l->seg);
+-        else if (l->kind == 'R') MLOG("[gpuprof] F%llu %4d %8.1f us render pass %llu %ux%u colors %u depth %u loads %u draws %u start %+.1f seg %u", (unsigned long long)frame, i, us, (unsigned long long)l->pass, l->w, l->h, l->nc, l->depth, l->loads, l->draws, gp_delta_us(origin, a, tick_ns), l->seg);
++        else if (l->kind == 'R') MLOG("[gpuprof] F%llu %4d %8.1f us render pass %llu %ux%u colors %u depth %u loads %u draws %u start %+.1f seg %u source=%s", (unsigned long long)frame, i, us, (unsigned long long)l->pass, l->w, l->h, l->nc, l->depth, l->loads, l->draws, gp_delta_us(origin, a, tick_ns), l->seg, l->render_source ?: "auxiliary");
+         else MLOG("[gpuprof] F%llu %4d %8.1f us compute / copy after pass %llu start %+.1f seg %u copies %u (uniform updates %u) dispatches %u", (unsigned long long)frame, i, us, (unsigned long long)l->pass, gp_delta_us(origin, a, tick_ns), l->seg, l->draws, l->h, l->w); }
+     for (int i = 0; i < n; i++) {
+         const gp_lab *pre = &lab[i];
+@@ -8465,6 +8470,19 @@ typedef struct { uint64_t ser, bytes; uint32_t lv, sl; int idx; uint8_t depth, s
+ static uint32_t g_noload_mask; static uint64_t g_noload_n, g_noload_bytes;
+ enum { SD_MAX = 8 + 2 };   // Entries per pass: up to 8 colour attachments (the recording loop's bound) + depth + stencil (a combined format records both planes)
+ static sd_att g_sd[SD_MAX]; static int g_nsd;
++// A requested batch is checked against the actual descriptor again immediately
++// before opening its encoder. Clear+Store is mandatory for every plane.
++static id<MTLTexture> __strong *g_rb_clear_expected;
++static int rb_clear_desc_matches(MTL4RenderPassDescriptor *pd) {
++    for (int i=0; i<9; i++) {
++        MTLRenderPassAttachmentDescriptor *a=i==8 ? (MTLRenderPassAttachmentDescriptor *)pd.depthAttachment :
++                                                    (MTLRenderPassAttachmentDescriptor *)pd.colorAttachments[i];
++        if (a.texture!=g_rb_clear_expected[i]) return 0;
++        if (a.texture && (a.level || a.slice || a.depthPlane || a.resolveTexture ||
++            a.loadAction!=MTLLoadActionClear || a.storeAction!=MTLStoreActionStore)) return 0;
++    }
++    return !pd.stencilAttachment.texture;
++}
+ static unsigned g_rb_discard_mask;
+ static unsigned g_rb_next_clear_mask, g_rb_sealed_clear_mask;
+ static int g_rb_clear_legacy = -1;
+@@ -9126,6 +9144,7 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+     for (int i = 0; i < R.rt.n && i < 8; i++) if (R.rt.color[i] && zskip_zero_clear(i) && !bcrt_is(pd.colorAttachments[i].texture)) {
+         g_zskip_cand_ok[i] = 1; g_zskip_cand[i] = (zskip_zero){R.rt.color[i]->serial, (uint16_t)(R.rt.has_cview[i] && R.rt.cview[i].set_levels ? R.rt.cview[i].base_level : 0), (uint16_t)(R.rt.has_cview[i] && R.rt.cview[i].set_layers ? R.rt.cview[i].min_layer : 0)};
+     }
++    if (g_rb_clear_expected && !rb_clear_desc_matches(pd)) return nil;
+     // Bandwidth ledger: attachments with Load count as load, all attachments count as store (currently always Store)
+     int nload = 0, natt = 0;
+     for (int i = 0; i < R.rt.n; i++) {
+@@ -9159,7 +9178,7 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+             atomic_fetch_add_explicit(&g_rb_live_classes[rb_live_class(R.rt.depth)], 1, memory_order_relaxed);
+     }
+     g_nsd = 0; g_pass_geo = 0;
+-    {
++    if (!g_rb_clear_expected) {
+         for (int i = 0; i < R.rt.n && i < 8; i++) { MTLRenderPassColorAttachmentDescriptor *c = pd.colorAttachments[i]; if (!c.texture || bcrt_is(c.texture)) continue;
+             g_sd[g_nsd] = (sd_att){0}; g_sd[g_nsd].ser = R.rt.color[i]->serial; g_sd[g_nsd].bytes = att_bytes(c.texture, c.level); g_sd[g_nsd].lv = (uint32_t)c.level; g_sd[g_nsd].sl = (uint32_t)(c.texture.textureType == MTLTextureType3D ? c.depthPlane : c.slice); g_sd[g_nsd].idx = i; g_sd[g_nsd].load = c.loadAction == MTLLoadActionLoad; g_sd[g_nsd].wrote = R.clear_c[i] != 0; g_sd[g_nsd].lskip = (uint8_t)(g_noload_mask >> i & 1); g_nsd++;
+             c.storeAction = MTLStoreActionUnknown; }
+@@ -9217,6 +9236,7 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+     if (g_blit) { enc_b_end(g_blit); g_blit = nil; }   // the copy encoder the shadows' blocks were moved in with (bcrt_attach)
+     ser_gate();
+     g_enc = clear_only == 1 && rb_live_on() && rb_private_clear_pass(pd) ? enc_r_begin_pass_scoped(pd, 1) : enc_r_begin_pass(pd);
++    gp_render_source(g_enc,g_rb_clear_expected ? "batched-clear" : clear_only==1 ? "guest-clear" : "guest-draw");
+     args_dirty_all();
+     g_stat_pass++;
+     FSIG(id<MTLTexture> ct = pd.colorAttachments[0].texture; fc_->passes++;   // RewindBox (patch 0059): the largest colour target drawn with a depth buffer is the scene's
+@@ -19249,6 +19269,142 @@ static int lc_same(const p_set_rt *a, int ka, const p_set_rt *b, int kb) {   //
+     int h1 = ka == 8 ? a->has_dview : a->has_cview[ka], h2 = kb == 8 ? b->has_dview : b->has_cview[kb];
+     return h1 == h2 && (!h1 || !memcmp(ka == 8 ? &a->dview : &a->cview[ka], kb == 8 ? &b->dview : &b->cview[kb], sizeof(view_t)));
+ }
++#include "rb_clear_batch.h"
++static _Atomic uint64_t g_rb_clear_candidates, g_rb_clear_saved, g_rb_clear_rejected, g_rb_clear_same;
++static int rb_clear_batch_on(void) {
++#if TARGET_OS_IOS && !TARGET_OS_SIMULATOR
++    static _Atomic int title;
++    const char *option=getenv("S2A_RB_GPU_CLEAR_BATCH");
++    return option && !strcmp(option,"1") && !g_m3 && rb_direct_option(&title,NULL) &&
++           [g_dev.name isEqualToString:@"Apple A18 Pro GPU"];
++#else
++    return 0;
++#endif
++}
++void nvn_be_clear_batch_stats(uint64_t result[4]) {
++    result[0]=atomic_load_explicit(&g_rb_clear_candidates,memory_order_relaxed);
++    result[1]=atomic_load_explicit(&g_rb_clear_saved,memory_order_relaxed);
++    result[2]=atomic_load_explicit(&g_rb_clear_rejected,memory_order_relaxed);
++    result[3]=atomic_load_explicit(&g_rb_clear_same,memory_order_relaxed);
++}
++static unsigned rb_clear_color_bytes(MTLPixelFormat fmt) {
++    switch (fmt) {
++    case MTLPixelFormatR8Unorm: return 1;
++    case MTLPixelFormatRG8Unorm: case MTLPixelFormatR16Float: return 2;
++    case MTLPixelFormatRGBA8Unorm: case MTLPixelFormatRGBA8Unorm_sRGB:
++    case MTLPixelFormatBGRA8Unorm: case MTLPixelFormatBGRA8Unorm_sRGB:
++    case MTLPixelFormatRG16Float: case MTLPixelFormatR32Float:
++    case MTLPixelFormatRGB10A2Unorm: case MTLPixelFormatRG11B10Float: return 4;
++    case MTLPixelFormatRGBA16Float: case MTLPixelFormatRG32Float: return 8;
++    default: return 0;
++    }
++}
++typedef struct {
++    rb_clear_batch planes;
++    lc_group group;
++    const pool_t *pool;
++    id<MTLTexture> native[9];
++} RBClearPlan;
++static int rb_clear_include(RBClearPlan *plan, const lc_group *g, int same_slots) {
++    if (g->rt.n<0 || g->rt.n>8 || g->clear_s || (!!g->rt.depth != !!g->clear_d)) return 0;
++    unsigned before=plan->planes.count;
++    for (int i=0; i<9; i++) {
++        int depth=i==8;
++        const tex_t *t=depth ? g->rt.depth : g->rt.color[i];
++        if (!depth && !!t!=!!g->clear_c[i]) return 0; // keep the same attachment tracking
++        if (!t) continue;
++        if (!depth && i>=g->rt.n) return 0;
++        const view_t *v=depth ? &g->rt.dview : &g->rt.cview[i];
++        int view=depth ? g->rt.has_dview : g->rt.has_cview[i];
++        if (view && ((v->set_levels && v->base_level) || (v->set_layers && v->min_layer) ||
++            (v->set_format && v->format!=t->d.format) || v->set_target || v->set_dsmode || v->set_swizzle)) return 0;
++        if (t->magic!=MAGIC('T','E','X',0) || !t->serial || !t->mem || !t->pool || t->has_layout ||
++            (t->pool->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL) || t->d.target!=NVN_TEXTURE_TARGET_2D ||
++            t->d.samples>1 || t->d.levels!=1 || t->L.layers!=1 || t->set_swz || t->stencil) return 0;
++        // Reject alternate mappings and unknown pool offsets, even if the current
++        // native objects differ. This is a whole-allocation check, not a mip estimate.
++        if ((plan->pool && plan->pool!=t->pool) || !t->pool->mem || t->off<0 ||
++            (uint64_t)t->off>t->pool->size || t->L.size>t->pool->size-(uint64_t)t->off ||
++            (uintptr_t)t->pool->mem>UINTPTR_MAX-(uintptr_t)t->off ||
++            (uintptr_t)t->mem!=(uintptr_t)t->pool->mem+(uintptr_t)t->off) return 0;
++        plan->pool=t->pool;
++        // Do not instantiate a texture, load bytes or upgrade a view for a speculative batch.
++        pthread_mutex_lock(&g_smu);
++        id obj=hm_get_id(&g_by_serial,&t->serial);
++        pthread_mutex_unlock(&g_smu);
++        if (![obj conformsToProtocol:@protocol(MTLTexture)]) return 0;
++        id<MTLTexture> native=obj;
++        if (native.textureType!=MTLTextureType2D || native.sampleCount!=1 || native.mipmapLevelCount!=1 ||
++            native.arrayLength!=1 || native.parentTexture || native.buffer || native.heap ||
++            native.storageMode!=MTLStorageModePrivate || !(native.usage & MTLTextureUsageRenderTarget) ||
++            native.width!=t->d.width || native.height!=t->d.height) return 0;
++        unsigned bytes=depth ? (native.pixelFormat==MTLPixelFormatDepth32Float ? 4 :
++                       native.pixelFormat==MTLPixelFormatDepth16Unorm ? 2 : 0) : rb_clear_color_bytes(native.pixelFormat);
++        rb_clear_plane p={(uintptr_t)t->mem,t->L.size,(uintptr_t)(__bridge void *)native,t->d.width,t->d.height,bytes,depth};
++        if (!rb_clear_batch_add(&plan->planes,p)) return 0;
++        if (depth) {
++            plan->group.rt.depth=t; plan->group.rt.has_dview=view; plan->group.rt.dview=*v;
++            plan->group.clear_d=1; plan->group.cd=g->cd; plan->native[8]=native;
++        } else {
++            int dst=same_slots ? i : plan->group.rt.n;
++            plan->group.rt.n=dst+1;
++            plan->group.rt.color[dst]=t; plan->group.rt.has_cview[dst]=view; plan->group.rt.cview[dst]=*v;
++            plan->group.clear_c[dst]=1; plan->group.cc[dst]=g->cc[i]; plan->native[dst]=native;
++        }
++    }
++    return plan->planes.count>before;
++}
++// The guest can keep the same MRT set bound while clearing one slot at a time.
++// Join only complementary clear masks from adjacent queued groups; preserve the
++// guest's slot numbering and the color/depth value from its original producer.
++static int rb_clear_same_set(RBClearPlan *plan, const lc_group *a, const lc_group *b) {
++    if (a->rt.n<0 || a->rt.n>8 || a->rt.n!=b->rt.n || a->clear_s || b->clear_s ||
++        a->rt.depth!=b->rt.depth || !rt_same(&a->rt,&b->rt)) return 0;
++    lc_group joined=*a;
++    unsigned targets=a->rt.depth ? 1u<<8 : 0;
++    unsigned left=a->clear_d ? 1u<<8 : 0, right=b->clear_d ? 1u<<8 : 0;
++    for (int i=0; i<8; i++) {
++        if (a->rt.color[i]!=b->rt.color[i]) return 0;
++        if (a->rt.color[i]) targets|=1u<<i;
++        if (a->clear_c[i]) left|=1u<<i;
++        if (b->clear_c[i]) {
++            right|=1u<<i; joined.clear_c[i]=1; joined.cc[i]=b->cc[i];
++        }
++    }
++    if (!rb_clear_disjoint_masks(targets,left,right)) return 0;
++    if (b->clear_d) { joined.clear_d=1; joined.cd=b->cd; }
++    return rb_clear_include(plan,&joined,1);
++}
++static void lc_apply(const lc_group *g) {
++    R.rt=g->rt; R.has_rt=1; memcpy(R.clear_c,g->clear_c,sizeof R.clear_c); memcpy(R.cc,g->cc,sizeof R.cc);
++    R.clear_d=g->clear_d; R.clear_s=g->clear_s; R.cd=g->cd; R.cs=g->cs;
++}
++// Only compare adjacent groups the existing queue is already materializing at
++// this very instruction. Never carry work across a draw, sync, encoder, or CB.
++static int rb_clear_combine(const lc_group *first, const lc_group *second) {
++    if (!g_cb || g_m3 || g_enc || g_nubd || g_nbcrt ||
++        g_imfit_npend || g_imwr_npend || g_rlane || g_rp_layered || g_fz.active || g_hoist_n ||
++        g_defer_replaying || g_rc_skip || g_vis_counting || g_rb_discard_mask || g_rb_next_clear_mask ||
++        rs_on() || g_wd>0) return 0;
++    atomic_fetch_add_explicit(&g_rb_clear_candidates,1,memory_order_relaxed);
++    RBClearPlan plan={0};
++    int same=rt_same(&first->rt,&second->rt);
++    if (same ? rb_clear_same_set(&plan,first,second) :
++        rb_clear_include(&plan,first,0) && rb_clear_include(&plan,second,0)) {
++        lc_apply(&plan.group);
++        g_rb_clear_expected=plan.native;
++        id encoder=rp_begin_ex(1);
++        g_rb_clear_expected=NULL;
++        if (encoder) {
++            rp_end(); g_lc_landed++;
++            if (same) atomic_fetch_add_explicit(&g_rb_clear_same,1,memory_order_relaxed);
++            atomic_fetch_add_explicit(&g_rb_clear_saved,1,memory_order_relaxed);
++            return 1;
++        }
++    }
++    atomic_fetch_add_explicit(&g_rb_clear_rejected,1,memory_order_relaxed);
++    return 0;
++}
+ // Land every waiting clear, oldest first, each group in a pass of its own (rp_flush's way)
+ static void lc_land(void) {
+     if (!g_nlc) return;
+@@ -19257,8 +19413,8 @@ static void lc_land(void) {
+     typeof(R) save = R;
+     for (int gi = 0; gi < n; gi++) { const lc_group *g = &g_lc[gi]; int any = g->clear_d || g->clear_s; for (int i = 0; i < 8; i++) any |= g->clear_c[i];
+         if (!any || !g_cb) continue;
+-        R.rt = g->rt; R.has_rt = 1; memcpy(R.clear_c, g->clear_c, sizeof R.clear_c); memcpy(R.cc, g->cc, sizeof R.cc);
+-        R.clear_d = g->clear_d; R.clear_s = g->clear_s; R.cd = g->cd; R.cs = g->cs;
++        if (gi+1<n && rb_clear_batch_on() && rb_clear_combine(g,&g_lc[gi+1])) { gi++; continue; }
++        lc_apply(g);
+         rp_begin_ex(1); rp_end(); g_lc_landed++; }
+     R = save;
+ }
+@@ -20872,7 +21028,7 @@ static int copy_t2t_draw_impl(id<MTLTexture> s, id<MTLTexture> d, unsigned sl, u
+         a.texture = d; a.level = dl; a.slice = ds + dr->zoffset + z; a.loadAction = whole ? MTLLoadActionDontCare : MTLLoadActionLoad; a.storeAction = MTLStoreActionStore;
+         id<MTLTexture> stv = scopy ? (z ? [s newTextureViewWithPixelFormat:MTLPixelFormatX32_Stencil8 textureType:MTLTextureType2D levels:NSMakeRange(sl, 1) slices:NSMakeRange(ss + sr->zoffset + z, 1)] : stv0) : nil;
+         if (stencil) { MTLRenderPassStencilAttachmentDescriptor *st = rp.stencilAttachment; st.texture = d; st.level = dl; st.slice = a.slice; st.loadAction = scopy ? (whole ? MTLLoadActionDontCare : MTLLoadActionLoad) : MTLLoadActionClear; st.clearStencil = 0; st.storeAction = MTLStoreActionStore; }
+-        ser_gate(); id<MTL4RenderCommandEncoder> en = enc_r_begin(rp);
++        ser_gate(); id<MTL4RenderCommandEncoder> en = enc_r_begin(rp); gp_render_source(en,"copy-draw");
+         if (require_encoder && !en) return 0;
+         if (depth) [en setDepthStencilState:scopy ? dss_s : dss];
+         enc_r_table(en, at, MTLRenderStageFragment);
+@@ -20962,7 +21118,7 @@ static int copy_resolve_scaled(const p_copy_t2t *c, id<MTLTexture> s, id<MTLText
+     a.texture = s; a.level = sl; a.slice = sz0; a.resolveTexture = tmp; a.resolveLevel = 0; a.resolveSlice = 0;
+     a.loadAction = MTLLoadActionLoad; a.storeAction = MTLStoreActionStoreAndMultisampleResolve;
+     if (depth) rp.depthAttachment.depthResolveFilter = MTLMultisampleDepthResolveFilterSample0;
+-    ser_gate(); enc_r_end(enc_r_begin(rpd));
++    ser_gate(); id encoder=enc_r_begin(rpd); gp_render_source(encoder,"scaled-resolve"); enc_r_end(encoder);
+     unsigned dw = (unsigned)MAX(d.width >> dl, 1ul), dh = (unsigned)MAX(d.height >> dl, 1ul);
+     // the source's corner of the destination's game size, in the source's storage (storage ÷ game width / height of the source, so a widened source gives its widened corner)
+     unsigned gsw = MAX(c->src->d.width >> sl, 1u), gsh = MAX(c->src->d.height >> sl, 1u), gdw = MAX(c->dst->d.width >> dl, 1u), gdh = MAX(c->dst->d.height >> dl, 1u);
+@@ -21065,7 +21221,7 @@ static void copy_t2t_(const p_copy_t2t *c, const p_copy_t2t *guest) {
+         a.texture = s; a.level = sl; a.slice = sz0; a.resolveTexture = d; a.resolveLevel = dl; a.resolveSlice = dz0;
+         a.loadAction = MTLLoadActionLoad; a.storeAction = MTLStoreActionStoreAndMultisampleResolve;
+         if (depth) rp.depthAttachment.depthResolveFilter = MTLMultisampleDepthResolveFilterSample0;
+-        ser_gate(); enc_r_end(enc_r_begin(rp));
++        ser_gate(); id encoder=enc_r_begin(rp); gp_render_source(encoder,"msaa-resolve"); enc_r_end(encoder);
+         return;
+     }
+     PD("t src=%llu lv%u sl%u xyz=%d,%d,%d dst=%llu lv%u sl%u xyz=%d,%d,%d size=%d,%d,%d", c->src->serial, sl, sz0, c->sr.xoffset, c->sr.yoffset, c->sr.zoffset,
+@@ -21209,7 +21365,7 @@ static void clear_tex(const p_clear_tex *c) {
+                            rp.stencilAttachment.storeAction = MTLStoreActionStore; rp.stencilAttachment.clearStencil = c->c.u[1]; } }
+         else if (stencil) rp.stencilAttachment.clearStencil = c->c.u[0];
+         else rp.colorAttachments[0].clearColor = color;
+-        ser_gate(); enc_r_end(enc_r_begin(rp));
++        ser_gate(); id encoder=enc_r_begin(rp); gp_render_source(encoder,"clear-texture"); enc_r_end(encoder);
+     }
+ }
+ 
+@@ -21441,7 +21597,7 @@ static void clear_tex_tri(const p_clear_tex *c, id<MTLTexture> t, unsigned level
+     for (int z = 0; z < nz; z++) {
+         MTL4RenderPassDescriptor *rp = pass_desc(); MTLRenderPassColorAttachmentDescriptor *a = rp.colorAttachments[0];
+         a.texture = t; a.level = level; a.slice = layer + c->r.zoffset + z; a.loadAction = MTLLoadActionLoad; a.storeAction = MTLStoreActionStore;
+-        ser_gate(); id<MTL4RenderCommandEncoder> en = enc_r_begin(rp);
++        ser_gate(); id<MTL4RenderCommandEncoder> en = enc_r_begin(rp); gp_render_source(en,"clear-triangle");
+         clr_tri(en, ps, ds, sc, w, h, v, 0, 0); enc_r_end(en);
+     }
+     args_dirty_all(); g_pso_dirty = g_dss_dirty = 1;
+diff --git a/graphics/nvn/gfx/nvn/rb_clear_batch.h b/graphics/nvn/gfx/nvn/rb_clear_batch.h
+new file mode 100644
+index 0000000..4aea91c
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_clear_batch.h
+@@ -0,0 +1,37 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <stdint.h>
++
++typedef struct {
++    uint64_t start, size;
++    uintptr_t backing;
++    uint32_t width, height;
++    unsigned bytes, depth;
++} rb_clear_plane;
++
++typedef struct {
++    rb_clear_plane planes[9];
++    unsigned count, colors, depths, bytes;
++} rb_clear_batch;
++
++// All attachments are ordinary single-sample, level-zero planes checked by the
++// caller. The conservative byte limit also bounds the tile footprint of the MRT.
++static inline int rb_clear_batch_add(rb_clear_batch *b, rb_clear_plane p) {
++    if (!p.start || !p.size || p.size > UINT64_MAX-p.start || !p.backing ||
++        !p.width || !p.height || !p.bytes || p.bytes>8 || b->bytes+p.bytes>32 ||
++        b->count>=9 || (p.depth ? b->depths!=0 : b->colors>=8)) return 0;
++    for (unsigned i=0; i<b->count; i++) {
++        const rb_clear_plane *q=&b->planes[i];
++        if (q->width!=p.width || q->height!=p.height || q->backing==p.backing ||
++            (q->start<p.start+p.size && p.start<q->start+q->size)) return 0;
++    }
++    b->planes[b->count++]=p;
++    if (p.depth) b->depths++; else b->colors++;
++    b->bytes+=p.bytes;
++    return 1;
++}
++
++static inline int rb_clear_disjoint_masks(unsigned targets, unsigned first, unsigned second) {
++    return targets && !(targets & ~0x1ffu) && first && second && !(first & second) &&
++           (first | second)==targets;
++}
+diff --git a/graphics/nvn/tests/t_rb_clear_batch.c b/graphics/nvn/tests/t_rb_clear_batch.c
+new file mode 100644
+index 0000000..2cc8264
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_clear_batch.c
+@@ -0,0 +1,37 @@
++// SPDX-License-Identifier: MIT
++// cc -std=c11 -Wall -Werror tests/t_rb_clear_batch.c -o /tmp/t_rb_clear_batch
++#include "../gfx/nvn/rb_clear_batch.h"
++#include <assert.h>
++#include <stdio.h>
++
++static rb_clear_plane target(unsigned index, unsigned bpp) {
++    return (rb_clear_plane){0x100000ull * (index+1), 0x100000, 0x2000+index,960,540,bpp,0};
++}
++int main(void) {
++    assert(rb_clear_disjoint_masks(3,1,2)); // two colors of the same MRT
++    assert(rb_clear_disjoint_masks(0x101,0x100,1)); // depth + color
++    assert(!rb_clear_disjoint_masks(3,1,1)); // would erase the order of two writes
++    assert(!rb_clear_disjoint_masks(7,1,2)); // an untouched plane needs its own load
++    assert(!rb_clear_disjoint_masks(3,0,3));
++    rb_clear_batch batch={0};
++    rb_clear_plane depth=target(0,4); depth.depth=1;
++    assert(rb_clear_batch_add(&batch,depth));
++    for (unsigned i=1; i<=6; i++) assert(rb_clear_batch_add(&batch,target(i,4)));
++    assert(batch.colors==6 && batch.depths==1 && batch.bytes==28);
++    rb_clear_plane different=target(7,4);
++    different.width=1920; assert(!rb_clear_batch_add(&batch,different)); different.width=960;
++    different.height=1080; assert(!rb_clear_batch_add(&batch,different)); different.height=540;
++    different.depth=1; assert(!rb_clear_batch_add(&batch,different)); different.depth=0;
++    different.backing=depth.backing; assert(!rb_clear_batch_add(&batch,different)); different=target(7,4);
++    different.start=depth.start+depth.size-1; assert(!rb_clear_batch_add(&batch,different));
++    different.start=UINT64_MAX-4; assert(!rb_clear_batch_add(&batch,different));
++    assert(!rb_clear_batch_add(&batch,target(7,8))); // tile footprint
++    assert(rb_clear_batch_add(&batch,target(7,4)));
++    assert(!rb_clear_batch_add(&batch,target(8,1)));
++    rb_clear_batch eight={0};
++    for (unsigned i=0; i<8; i++) assert(rb_clear_batch_add(&eight,target(i,1)));
++    assert(!rb_clear_batch_add(&eight,target(8,1)));
++    assert(!rb_clear_batch_add(&eight,(rb_clear_plane){0}));
++    assert(eight.colors==8 && eight.bytes==8);
++    puts("clear batches: disjoint intervals, exact domains, MRT limits and rejected cases passed");
++}
+diff --git a/graphics/nvn/tests/t_rb_clear_batch_metal.m b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+new file mode 100644
+index 0000000..62009f2
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+@@ -0,0 +1,116 @@
++// SPDX-License-Identifier: MIT
++// make native-test-rb_clear_batch_metal on macOS.
++#include "../gfx/nvn/nvn_mtl.m"
++#define CHECK(x) do { if (!(x)) { fprintf(stderr,"clear batch: %s (line %d)\n",#x,__LINE__); exit(1); } } while (0)
++enum { WIDTH=32, HEIGHT=8, POOL_BYTES=1<<20 };
++typedef float ClearImage[2][HEIGHT][WIDTH];
++static const double colors[2]={0.125,0.75};
++static tex_t targets[2];
++static pool_t pool;
++
++static void read_pair(id<MTLDevice> dev, id<MTLTexture> a, id<MTLTexture> b, ClearImage out) {
++    id<MTLCommandQueue> q=[dev newCommandQueue]; id<MTLCommandBuffer> cb=[q commandBuffer];
++    id<MTLBlitCommandEncoder> blit=[cb blitCommandEncoder];
++    id<MTLBuffer> read=[dev newBufferWithLength:2*256*HEIGHT options:MTLResourceStorageModeShared];
++    CHECK(read && blit);
++    for (int i=0; i<2; i++)
++        [blit copyFromTexture:i ? b : a sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0)
++            sourceSize:MTLSizeMake(WIDTH,HEIGHT,1) toBuffer:read destinationOffset:i*256*HEIGHT
++            destinationBytesPerRow:256 destinationBytesPerImage:256*HEIGHT];
++    [blit endEncoding]; [cb commit]; [cb waitUntilCompleted]; CHECK(cb.status==MTLCommandBufferStatusCompleted);
++    float *v=read.contents;
++    for (int i=0; i<2; i++) for (int y=0; y<HEIGHT; y++) for (int x=0; x<WIDTH; x++) {
++        out[i][y][x]=v[(i*HEIGHT+y)*64+x]; CHECK(out[i][y][x]==(float)colors[i]);
++    }
++}
++static void native_pair(int mode, ClearImage out) {
++    nvn_be_sub_begin(); state_reset();
++    lc_group poison={0}; poison.rt.n=2;
++    for (int i=0; i<2; i++) {
++        poison.rt.color[i]=&targets[i]; poison.clear_c[i]=1; poison.cc[i]=MTLClearColorMake(-0.5,0,0,1);
++    }
++    lc_apply(&poison); CHECK(rp_begin_ex(1)); rp_end();
++    lc_group a={0}, b={0};
++    a.rt.n=1; a.rt.color[0]=&targets[0]; a.clear_c[0]=1; a.cc[0]=MTLClearColorMake(colors[0],0,0,1);
++    if (mode==1) {
++        b.rt.n=1; b.rt.color[0]=&targets[1]; b.clear_c[0]=1; b.cc[0]=MTLClearColorMake(colors[1],0,0,1);
++    } else {
++        a.rt.n=2; a.rt.color[1]=&targets[1];
++        b.rt=a.rt; b.clear_c[1]=1; b.cc[1]=MTLClearColorMake(colors[1],0,0,1);
++    }
++    if (mode) {
++        CHECK(!rb_clear_combine(&a,&a));  // same subresource and duplicate clear
++        if (mode==2) CHECK(rt_same(&a.rt,&b.rt));
++        CHECK(rb_clear_combine(&a,&b));
++    } else {
++        lc_apply(&a); CHECK(rp_begin_ex(1)); rp_end();
++        lc_apply(&b); CHECK(rp_begin_ex(1)); rp_end();
++    }
++    uint64_t fence=nvn_be_sub_commit();
++    CHECK(nvn_be_wait(fence,10000000000ull) && !mtl_last_commit_error());
++    read_pair(g_dev,tex_mtl(&targets[0]),tex_mtl(&targets[1]),out);
++}
++static void tracked_pair(id<MTLDevice> dev, int combined, ClearImage out) {
++    MTLTextureDescriptor *d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatR32Float
++                                                                           width:WIDTH height:HEIGHT mipmapped:NO];
++    d.storageMode=MTLStorageModePrivate; d.usage=MTLTextureUsageRenderTarget;
++    id<MTLTexture> t[2]={[dev newTextureWithDescriptor:d],[dev newTextureWithDescriptor:d]};
++    CHECK(t[0] && t[1]);
++    if (combined) {
++        rb_clear_batch batch={0};
++        rb_clear_plane a={0x100000,65536,(uintptr_t)(__bridge void *)t[0],WIDTH,HEIGHT,4,0};
++        rb_clear_plane b={0x110000,65536,(uintptr_t)(__bridge void *)t[1],WIDTH,HEIGHT,4,0};
++        CHECK(rb_clear_disjoint_masks(3,1,2) && rb_clear_batch_add(&batch,a));
++        CHECK(!rb_clear_batch_add(&batch,a) && rb_clear_batch_add(&batch,b));
++    }
++    id<MTLCommandQueue> q=[dev newCommandQueue]; id<MTLCommandBuffer> cb=[q commandBuffer]; CHECK(cb);
++    MTLRenderPassDescriptor *poison=[MTLRenderPassDescriptor renderPassDescriptor];
++    for (int i=0; i<2; i++) {
++        MTLRenderPassColorAttachmentDescriptor *at=poison.colorAttachments[i];
++        at.texture=t[i]; at.loadAction=MTLLoadActionClear; at.storeAction=MTLStoreActionStore;
++        at.clearColor=MTLClearColorMake(-0.5,0,0,1);
++    }
++    id<MTLRenderCommandEncoder> reset=[cb renderCommandEncoderWithDescriptor:poison]; CHECK(reset); [reset endEncoding];
++    for (int p=0; p<(combined ? 1 : 2); p++) {
++        MTLRenderPassDescriptor *pass=[MTLRenderPassDescriptor renderPassDescriptor];
++        for (int i=0; i<2; i++) if (combined || p==i) {
++            MTLRenderPassColorAttachmentDescriptor *at=pass.colorAttachments[i];
++            at.texture=t[i]; at.loadAction=MTLLoadActionClear; at.storeAction=MTLStoreActionStore;
++            at.clearColor=MTLClearColorMake(colors[i],0,0,1);
++        }
++        id<MTLRenderCommandEncoder> enc=[cb renderCommandEncoderWithDescriptor:pass]; CHECK(enc); [enc endEncoding];
++    }
++    [cb commit]; [cb waitUntilCompleted]; CHECK(cb.status==MTLCommandBufferStatusCompleted);
++    read_pair(dev,t[0],t[1],out);
++}
++int main(void) { @autoreleasepool {
++    id<MTLDevice> dev=MTLCreateSystemDefaultDevice(); CHECK(dev);
++    BOOL direct=NO;
++    if (@available(macOS 26.0, iOS 26.0, *)) {
++        MTLResidencySetDescriptor *rd=[MTLResidencySetDescriptor new]; rd.initialCapacity=4;
++        direct=dev.hasUnifiedMemory && [dev supportsFamily:MTLGPUFamilyMetal4] &&
++               [dev newResidencySetWithDescriptor:rd error:NULL]!=nil &&
++               [dev newMTL4CommandQueueWithDescriptor:[MTL4CommandQueueDescriptor new] error:NULL]!=nil;
++    }
++    ClearImage before,after;
++    if (!direct) {
++        tracked_pair(dev,0,before); tracked_pair(dev,1,after); CHECK(!memcmp(before,after,sizeof before));
++        puts("PASS tracked Metal: identical MRT clear/store results and alias rejection; direct Metal 4 unavailable");
++        return 0;
++    }
++    mtl_init(); CHECK(!g_m3);
++    const op_hdr end={OP_END,sizeof(op_hdr)}; nvn_be_exec((const uint8_t *)&end);
++    uint8_t *mem=NULL; CHECK(!posix_memalign((void **)&mem,65536,POOL_BYTES)); memset(mem,0,POOL_BYTES);
++    pool=(pool_t){.magic=MAGIC('P','O','O','L'),.flags=NVN_MEMORY_POOL_FLAGS_CPU_NO_ACCESS|NVN_MEMORY_POOL_FLAGS_GPU_CACHED,
++                  .mem=mem,.size=POOL_BYTES}; nvn_be_pool_add(mem,POOL_BYTES);
++    for (int i=0; i<2; i++) {
++        tex_t *t=&targets[i]; t->magic=MAGIC('T','E','X',0); t->serial=nvn_new_serial();
++        t->d=(nvn_texdesc){.target=NVN_TEXTURE_TARGET_2D,.format=NVN_FORMAT_R32F,.width=WIDTH,.height=HEIGHT,.depth=1,.levels=1};
++        t->pool=&pool; t->off=i*65536; t->mem=mem+t->off;
++        nvn_tex_layout(&t->d,&t->L); nvn_be_tex_init(t); CHECK(tex_mtl(t));
++    }
++    native_pair(0,before);
++    for (int mode=1; mode<=2; mode++) { native_pair(mode,after); CHECK(!memcmp(before,after,sizeof before)); }
++    puts("PASS direct Metal 4: distinct/same target sets, alias rejection, both images identical");
++    return 0;
++} }
+diff --git a/runtime/tests/mk/rb_clear_batch.mk b/runtime/tests/mk/rb_clear_batch.mk
+new file mode 100644
+index 0000000..2a07a92
+--- /dev/null
++++ b/runtime/tests/mk/rb_clear_batch.mk
+@@ -0,0 +1,13 @@
++# Explicit pixel-readback test, including tracked Metal on a virtual Mac.
++ifeq ($(shell uname -s),Darwin)
++$(BUILD)/tests/t_rb_clear_batch_metal: graphics/nvn/tests/t_rb_clear_batch_metal.m $(NVN_MTL_DEPS) $(NVN_TEST_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN)
++	$(CC) $(CFLAGS) -std=gnu11 -fobjc-arc -Wno-unused-function -Wno-unguarded-availability-new -Wno-unguarded-availability \
++	  $(NATIVE_INC) -Igraphics/nvn/host -Igraphics/nvn/gfx/nvn -Igraphics/nvn/gfx/nvn/include -Igraphics/nvn/third_party/vulkan-headers/include \
++	  -o $@ graphics/nvn/tests/t_rb_clear_batch_metal.m $(NVN_TEST_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN) \
++	  -Wl,-rpath,@executable_path/nvn/widen $(NVN_TEST_WEAK) \
++	  -framework Metal -framework Foundation -framework QuartzCore -framework CoreGraphics \
++	  -framework ImageIO -framework UniformTypeIdentifiers -lc++
++.PHONY: native-test-rb_clear_batch_metal
++native-test-rb_clear_batch_metal: $(BUILD)/tests/t_rb_clear_batch_metal
++	$(BUILD)/tests/t_rb_clear_batch_metal
++endif
