@@ -1,0 +1,48 @@
+{
+  "build": 814,
+  "source": "3db4860479b77b142d6a52ac78f89c5df99c75f8",
+  "sha256": "ddd8e28b432ed774158b38c8b877f246bf0b74974af000d3634ed22706b7d4ec",
+  "bytes": 333708056,
+  "pinSHA256": "9d52027d5cdca2edb013fe5f0bdf68c19229f998c1f63083ce75dc22d03e8d52",
+  "engineRun": 44889895037,
+  "engineFingerprint": "84ab5e9cc243aaac308dd12394a4b78378c54c5e46cd43c505c2b5910da1fbfc",
+  "patchCount": 267,
+  "lastPatch": {
+    "name": "0267-check-first-draw-pixels-and-fair-workers.patch",
+    "sha256": "922198b0eb46a396d87aae47c68ea12873d9aa284b775454148df9eafa23d571"
+  },
+  "chain": "0be3f28548fd",
+  "markers": [
+    "S2A_RB_DRS_THERMAL_STATE",
+    "S2A_RB_TICK_WAKE_FILTER",
+    "S2A_RB_PSO_HEADROOM",
+    "S2A_RB_PSO_THERMAL_WORKERS",
+    "S2A_RB_PSO_BATCH_32",
+    "S2A_RB_GUEST_QOS_THERMAL",
+    "S2A_RB_NVN2_TILE_PASSES",
+    "requested_cap_ms=2.000 constraint_cap_ms=4.000",
+    "compressed_logical_bytes=%lld stress_cap=%d",
+    "S2A_RB_ASYNC_FIRST_DRAW",
+    "S2A_RB_URGENT_WORKERS",
+    "S2A_RB_STRICT_PRESENT_BUDGET",
+    "S2A_RB_STAGE_BINARIES",
+    "S2A_RB_STAGE_DISK_WARM",
+    "[rb-shader-disk]",
+    "unlisted=%llu loaded=%llu invalid=%llu air_hits=%llu",
+    "submit_msl_blocked_count=",
+    "submit_aux_msl_count="
+  ],
+  "plist": {
+    "RBTestAsyncPSODefault": true
+  },
+  "deviceFrames": 0,
+  "baselineBuild": 813,
+  "baselineSha256": "8767bb58286286b6e0251e6d29ca1de1532ca71705201911430f40a80a0ba129",
+  "run": 44891146464,
+  "attempt": 1,
+  "nativeImages": 97,
+  "bundles": 10,
+  "offlineValidators": 6,
+  "privateTransferVerified": true,
+  "physicalIphoneTested": false
+}
