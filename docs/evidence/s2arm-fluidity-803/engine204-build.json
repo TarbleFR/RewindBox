@@ -1,0 +1,74 @@
+{
+  "source": "d260bc1ed0a23f90d033a1bed58f56ef228581cc",
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "run": 44843105751,
+  "attempt": 1,
+  "xcode": "Xcode 26.6",
+  "jobs": [
+    {
+      "platform": "macos-15",
+      "id": 136656135536,
+      "result": "success"
+    },
+    {
+      "platform": "macos-26",
+      "id": 136656135861,
+      "result": "success"
+    }
+  ],
+  "patchesVerified": 204,
+  "first197UnchangedFrom807": true,
+  "patchDelta": [
+    {
+      "name": "0198-time-exclusive-presenter-phases-on-long-frames.patch",
+      "sha256": "ff9ceb12c4b78ccb5f2f9390b70a2a3676d729afc645b7f9c2633f9301e39ca9"
+    },
+    {
+      "name": "0199-count-all-long-frame-classes-inside-the-benchmark-window.patch",
+      "sha256": "023bf0047d6f073d78675e622ca34d2986f4822a0ee09d318a2ee8cd85ab9038"
+    },
+    {
+      "name": "0200-defer-coreaudio-handbacks-to-the-existing-pacing-thread.patch",
+      "sha256": "5c9959283470fb2391d9ac0406a5ca46471d29e47c20914decbe8a218faa0b2e"
+    },
+    {
+      "name": "0201-request-residency-for-the-allocated-device-pcm-buffers.patch",
+      "sha256": "eefc83d7596d1c595d5fa8774d1955201f097c24b344cc83dcd8299327dec1b7"
+    },
+    {
+      "name": "0202-adapt-a-bounded-audio-reserve-and-fade-through-underruns.patch",
+      "sha256": "87ac0472a68f8e1c4348216a0e7449a4723291aac11881584422829a1ec80f69"
+    },
+    {
+      "name": "0203-rank-exclusive-time-against-an-instrumented-803-policy.patch",
+      "sha256": "d13c97f6b5bf3ad5db926ed9be34645f4928d2eda3f57d5c5309a2cab6550004"
+    },
+    {
+      "name": "0204-recover-a-persistently-stale-device-timeline-after-concealment.patch",
+      "sha256": "561ccf2c6f526a58b81f685a20aba80bb195b0e113991ec81fcbfcfb58cf5c3c"
+    }
+  ],
+  "engineFingerprint": "695dfda401e8fc3a2a9ad5c9e719342d4bfaa1c7bbb01f80d25a993ae9b24460",
+  "pinSha256": "47b05c2c855549c97bd33b777e9bae205ff29dc55265569bd743a71f0efc1430",
+  "artifact": {
+    "run": 44843105751,
+    "attempt": 1,
+    "artifact": 14682710896,
+    "name": "s2arm-engine-framework-d260bc1ed0a23f90d033a1bed58f56ef228581cc",
+    "bytes": 25069716,
+    "sha256": "5dab83c3579e159681f95a1f1a10e3f769a32ed4ce3b0792ab81057489023711",
+    "headSha": "d260bc1ed0a23f90d033a1bed58f56ef228581cc",
+    "headBranch": "Claude",
+    "expiresAt": "2026-12-21T00:33:30Z"
+  },
+  "prepareRun": 44555747908,
+  "sysdataRun": 43038032448,
+  "directShaderChain": "0be3f28548fd",
+  "exportListUnchanged": true,
+  "exportsComparedAgainstSource": "e72c8c3a5a8d93ad52ded154cc617b351248a6d8",
+  "ns2proUnchangedFrom807": true,
+  "noticeMatchesSource": true,
+  "privateDelivery": "pending",
+  "validDeviceWindows": 0,
+  "observedPerformance": null
+}

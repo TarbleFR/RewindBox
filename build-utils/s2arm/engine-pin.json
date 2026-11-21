@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "db66fd1426bde58a0fa57c4f8c4718e470b88542bb2da2c5097feea4adb9d4f1",
+  "packagedFingerprint": "695dfda401e8fc3a2a9ad5c9e719342d4bfaa1c7bbb01f80d25a993ae9b24460",
   "producers": {
     "engine": {
-      "run": 44838717788,
+      "run": 44843105751,
       "attempt": 1,
-      "artifact": 14679963891,
-      "name": "s2arm-engine-framework-e72c8c3a5a8d93ad52ded154cc617b351248a6d8",
-      "bytes": 25063038,
-      "sha256": "35c061f8132175167974bf01c6ff26fdeaa09f154bf6b6c2aa15a4954e110242",
-      "headSha": "e72c8c3a5a8d93ad52ded154cc617b351248a6d8",
+      "artifact": 14682710896,
+      "name": "s2arm-engine-framework-d260bc1ed0a23f90d033a1bed58f56ef228581cc",
+      "bytes": 25069716,
+      "sha256": "5dab83c3579e159681f95a1f1a10e3f769a32ed4ce3b0792ab81057489023711",
+      "headSha": "d260bc1ed0a23f90d033a1bed58f56ef228581cc",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-20T23:55:03Z",
+      "expiresAt": "2026-12-21T00:33:30Z",
       "members": {
-        "S2ArmEngine.framework.zip": "fcb4d7e9228cafd680ce0446a0c7724cf933abc2b781c1b24ffe4bf1fe35359d",
-        "NS2Pro.framework.zip": "40d31887e516af48e0f7544445d3c6d4f84481c34333a3f02cdc901ecad99ce2"
+        "S2ArmEngine.framework.zip": "a3a6a9e2534d9f51b3648191a137809bf15ea17a6cdf4cd40eb081abccb0a1a9",
+        "NS2Pro.framework.zip": "25b01312102bf44e824a5dd86b50473320588e61c64b0b137682e2892a2cf858"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "35c061f8132175167974bf01c6ff26fdeaa09f154bf6b6c2aa15a4954e110242",
+    "engine": "5dab83c3579e159681f95a1f1a10e3f769a32ed4ce3b0792ab81057489023711",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "8af200cfc2e2dab6f6bee1439b5c0d2a762d0fbd854fd384baa046cc951cdcb5",
-      "bytes": 114712672,
-      "fingerprint": "db66fd1426bde58a0fa57c4f8c4718e470b88542bb2da2c5097feea4adb9d4f1"
+      "sha256": "0beb04540d2f54340150bba7b3d0806db2b5b24f24a7ec4fdfb63714bfa11695",
+      "bytes": 114739840,
+      "fingerprint": "695dfda401e8fc3a2a9ad5c9e719342d4bfaa1c7bbb01f80d25a993ae9b24460"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 44838717788,
+      "run": 44843105751,
       "attempt": 1,
-      "head_sha": "e72c8c3a5a8d93ad52ded154cc617b351248a6d8",
+      "head_sha": "d260bc1ed0a23f90d033a1bed58f56ef228581cc",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -918,22 +918,50 @@
         {
           "name": "0197-confirm-natural-reads-and-censor-retired-pool-observations.patch",
           "sha256": "089fd89dfa89edd1a4d6452e46a2d001502837101f864799cf3476e8c2a9f9eb"
+        },
+        {
+          "name": "0198-time-exclusive-presenter-phases-on-long-frames.patch",
+          "sha256": "ff9ceb12c4b78ccb5f2f9390b70a2a3676d729afc645b7f9c2633f9301e39ca9"
+        },
+        {
+          "name": "0199-count-all-long-frame-classes-inside-the-benchmark-window.patch",
+          "sha256": "023bf0047d6f073d78675e622ca34d2986f4822a0ee09d318a2ee8cd85ab9038"
+        },
+        {
+          "name": "0200-defer-coreaudio-handbacks-to-the-existing-pacing-thread.patch",
+          "sha256": "5c9959283470fb2391d9ac0406a5ca46471d29e47c20914decbe8a218faa0b2e"
+        },
+        {
+          "name": "0201-request-residency-for-the-allocated-device-pcm-buffers.patch",
+          "sha256": "eefc83d7596d1c595d5fa8774d1955201f097c24b344cc83dcd8299327dec1b7"
+        },
+        {
+          "name": "0202-adapt-a-bounded-audio-reserve-and-fade-through-underruns.patch",
+          "sha256": "87ac0472a68f8e1c4348216a0e7449a4723291aac11881584422829a1ec80f69"
+        },
+        {
+          "name": "0203-rank-exclusive-time-against-an-instrumented-803-policy.patch",
+          "sha256": "d13c97f6b5bf3ad5db926ed9be34645f4928d2eda3f57d5c5309a2cab6550004"
+        },
+        {
+          "name": "0204-recover-a-persistently-stale-device-timeline-after-concealment.patch",
+          "sha256": "561ccf2c6f526a58b81f685a20aba80bb195b0e113991ec81fcbfcfb58cf5c3c"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "fcb4d7e9228cafd680ce0446a0c7724cf933abc2b781c1b24ffe4bf1fe35359d",
-        "NS2Pro.framework.zip": "40d31887e516af48e0f7544445d3c6d4f84481c34333a3f02cdc901ecad99ce2"
+        "S2ArmEngine.framework.zip": "a3a6a9e2534d9f51b3648191a137809bf15ea17a6cdf4cd40eb081abccb0a1a9",
+        "NS2Pro.framework.zip": "25b01312102bf44e824a5dd86b50473320588e61c64b0b137682e2892a2cf858"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
-        "sha256": "11ebc6f9b5050e054826de48177faafdacda8ab5356e27e09f0049076553d8b6",
+        "sha256": "992b31c22fb9987056b47904c62c2ced1c78b95410d4b9e64279f581b9dc2215",
         "files": 36
       }
     },
     "licenses": {
       "path": "Legal/S2Arm",
       "manifest": "license-sources.json",
-      "sha256": "11ebc6f9b5050e054826de48177faafdacda8ab5356e27e09f0049076553d8b6",
+      "sha256": "992b31c22fb9987056b47904c62c2ced1c78b95410d4b9e64279f581b9dc2215",
       "files": 36
     },
     "preparePatches": [
