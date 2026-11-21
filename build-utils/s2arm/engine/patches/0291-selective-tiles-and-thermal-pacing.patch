@@ -1,0 +1,503 @@
+diff --git a/graphics/nvn/tests/t_rb_spec_gate.c b/graphics/nvn/tests/t_rb_spec_gate.c
+--- a/graphics/nvn/tests/t_rb_spec_gate.c
++++ b/graphics/nvn/tests/t_rb_spec_gate.c
+@@ -193,5 +193,13 @@
+     int last = rb_spec_admit(&gate, 1);
+     assert(last && rb_spec_extend_batch(&gate));
+     rb_spec_release(&gate, &last);
++    rb_spec_publish_plan(&gate,RB_SPEC_HOLD,2,1);
++    assert(!rb_spec_admit(&gate,0) && !rb_spec_admit_startup(&gate,1,1));
++    int hot = rb_spec_admit_startup(&gate,0,1);
++    assert(hot && !rb_spec_admit_startup(&gate,0,1));
++    rb_spec_publish_plan(&gate,RB_SPEC_HOLD,2,0);
++    rb_spec_release(&gate,&hot);
++    assert(!rb_spec_admit_startup(&gate,0,1));
++    puts("PASS Fair only admits one startup recipe and Serious parks it");
+     puts("PASS paused producers RUN->ONE and HOLD, thermal levels, unknown headroom, draining RUN, shared ONE lease, exclusive queue claims, all waiters released");
+ }
+diff --git a/graphics/nvn/tests/t_rb_thermal_pacing.c b/graphics/nvn/tests/t_rb_thermal_pacing.c
+--- a/graphics/nvn/tests/t_rb_thermal_pacing.c
++++ b/graphics/nvn/tests/t_rb_thermal_pacing.c
+@@ -127,6 +127,14 @@
+ }
+ 
+ int main(void) {
++    rb_thermal_interval interval = {0};
++    assert(!rb_guest_interval_tick(&interval, 1, 60, 25.));
++    assert(!rb_guest_interval_tick(&interval, 2, 60, 25.));
++    assert(rb_guest_interval_tick(&interval, 2, 60, 25.));
++    assert(rb_guest_interval_tick(&interval, 2, 60, -1.));
++    assert(!rb_guest_interval_tick(&interval, 1, 60, 25.));
++    assert(!rb_guest_interval_tick(&interval, 2, 30, 25.));
++
+     thermal(); scheduling(); effective_budget();
+     puts("Fixed 2 ms present budget and 1/2 interval debounce: passed");
+     puts("Guest DRS thermal entry/recovery and Mach policy debounce: passed");
+diff --git a/graphics/nvn/tests/t_rb_clear_batch_metal.m b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+--- a/graphics/nvn/tests/t_rb_clear_batch_metal.m
++++ b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+@@ -308,6 +308,21 @@
+     atomic_fetch_sub(&g_sp_heap_n,1); res_remove(heap);
+ }
+ int main(int argc,char **argv) { @autoreleasepool {
++    if (argc==2 && !strcmp(argv[1],"--selective-bindless")) {
++        CHECK(!setenv("S2A_RB_SAFE_TBDR","1",1));
++        CHECK(!setenv("DM_NVN_TBDR","1",1));
++        CHECK(tbdr_on() && rb_tbdr_bl() && !xv_on() && !zskip_on());
++        CHECK(rb_pr_bl(nil,0) && rb_pr_bl([NvProg new],1));
++        rb_anyr_push(4); CHECK(rb_anyr_in(3,5) && !rb_anyr_in(5,7));
++        id<MTLDevice> device = MTLCreateSystemDefaultDevice(); CHECK(device);
++        ClearImage reference, result;
++        tracked_pair(device,0,reference); tracked_pair(device,1,result);
++        CHECK(!memcmp(reference,result,sizeof result));
++        atomic_store(&rb_tile_policy,0); CHECK(!setenv("DM_NVN_TBDR","0",1));
++        CHECK(!tbdr_on() && !rb_tbdr_bl());
++        puts("PASS selective TBDR, unknown readers, explicit off and tracked Metal pixels");
++        return 0;
++    }
+     if (argc==2 && !strcmp(argv[1],"--fair-native-tiles")) {
+         load_test_platform();
+         CHECK(nvn2_on() && !setenv("DM_NVN_TBDR","0",1));
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -4092,6 +4092,7 @@
+ // The display link runs at 30 Hz at a 30 cap, except while the game fixes its own step at 1 (BotW's VFR override)
+ #if defined(__APPLE__)
+ extern void nvn_rb_observe_direct_interval(int interval) __attribute__((weak_import));
++extern int nvn_rb_native_thermal_interval(uint64_t frame) __attribute__((weak_import));
+ extern int nvn_rb_boot_interval(void) __attribute__((weak_import));
+ static int rb_interval_confirmed(uint64_t since) {
+     if (!since) return 0;
+@@ -4140,9 +4141,13 @@
+ __attribute__((weak)) int s2a_fps60_display_source(void) { return 0; }   // runtime/src/caps.c；没链能力清单的宿主 / 图形单测没有清单来源
+ __attribute__((weak)) void s2a_qp_frame(uint32_t draws, int video, int cutscene, int game_itv) { (void)draws; (void)video; (void)cutscene; (void)game_itv; }   // runtime/src/qprompt_host.c；图形单测没有宿主
+ static _Atomic int g_fps_game_itv;   // 这一帧按游戏自己设的间隔（不走 display 模式）
++static _Atomic int rb_thermal_guest_hold;
+ static int present_itv(const win_t *o) {   // vsyncs per frame that presentation follows
+     int c = fps_step_cap(), k = atomic_load(&g_fs_k);
+-    if (c) return k && fstep_on() ? k : 60 / c;
++    if (c) {
++        int hold = k && fstep_on() ? k : 60 / c;
++        return atomic_load(&rb_thermal_guest_hold) && o->interval > hold ? o->interval : hold;
++    }
+     int itv = g_display_mode && !atomic_load(&g_fps_game_itv) ? 1 : o->interval > 0 ? o->interval : 1;
+     return itv < 2 && g_hz > 0 && video_cap() ? 2 : itv;   // 放 ≤ 30 帧视频：至少隔 2 拍（60 Hz 节拍下 30 帧）
+ }
+@@ -4598,7 +4603,10 @@
+             (!dm_fps_state || !__atomic_load_n((uint32_t *)(dm_fps_state + 4), __ATOMIC_RELAXED)) ? o->interval : 0);
+ #endif
+     nvn_be_set_frame(g_frame);
+-    atomic_store(&g_fps_game_itv, s2a_fps_present_hook() | (g_display_mode && s2a_fps_cap_reason() != 0));   // | 不用 ||：钩子每帧都要调（动态步长）。 S2Arm 帧率表：每帧只在这里调一次（present_period 一帧被调 3 次：取图 / 入队 / 节拍器，直连线 10-26 审出），present_itv 只读结果
++#if defined(__APPLE__)
++    atomic_store(&rb_thermal_guest_hold, nvn_rb_native_thermal_interval && nvn_rb_native_thermal_interval(f));
++#endif
++    atomic_store(&g_fps_game_itv, s2a_fps_present_hook() | (g_display_mode && (s2a_fps_cap_reason() != 0 || atomic_load(&rb_thermal_guest_hold))));   // | 不用 ||：钩子每帧都要调（动态步长）。 S2Arm 帧率表：每帧只在这里调一次（present_period 一帧被调 3 次：取图 / 入队 / 节拍器，直连线 10-26 审出），present_itv 只读结果
+     // Real-device semantics: present only enqueues and returns immediately; this frame's display time is scheduled by the pacer, and the texture can be acquired again only at "display time + one period" (blocking in AcquireTexture)
+     uint64_t period = present_period(o), now = dm_detclock_enabled() ? guest_ns() : now_ns();
+     g_lf[f % LFN].per = period / 1e6;   // RewindBox (patch 0068): the frame's present period, for the long-frame thresholds
+@@ -6100,7 +6108,7 @@
+     //   h_nvnDeviceInitialize+0x44 读 g_cur_dev 0x75c61bf928）。同程序进程内重启同理，新局重新登记
+     atomic_store(&g_cur_dev, NULL);
+     memset(&g_fs, 0, sizeof g_fs); memset(&g_fg, 0, sizeof g_fg);
+-    g_fs_k = g_itv2_since = g_fps_game_itv = 0;
++    g_fs_k = g_itv2_since = g_fps_game_itv = 0; atomic_store(&rb_thermal_guest_hold,0);
+     nvn_dirty_reset_session();
+     return 0;
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -353,6 +353,8 @@
+     cap_reset();   // RewindBox (patch 0045): a screenshot's frame capture the session ended in the middle of
+     rb_profile_retire();
+     rb_uniform_reset();
++    rb_interval_heat = (rb_thermal_interval){0};
++    atomic_store(&rb_apple_session,0); atomic_store(&rb_tile_policy,0);
+     par_retire_session();
+     atomic_store(&g_sub_thread_set, 0);
+     // Ordinary deferred releases target fence+1. There will be no next
+diff --git a/graphics/nvn/gfx/nvn/rb_spec_gate.h b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+--- a/graphics/nvn/gfx/nvn/rb_spec_gate.h
++++ b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+@@ -56,9 +56,10 @@
+     _Atomic uint64_t epoch;
+     _Atomic int level;
+     unsigned limit;  // zero preserves unlimited legacy RUN
++    int fair_startup;
+     unsigned active;  // protected by mutex, including leases granted in RUN
+ } rb_spec_gate;
+-#define RB_SPEC_GATE_INITIALIZER { PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, PTHREAD_COND_INITIALIZER, 0, RB_SPEC_RUN, 0, 0 }
++#define RB_SPEC_GATE_INITIALIZER { PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, PTHREAD_COND_INITIALIZER, 0, RB_SPEC_RUN, 0, 0, 0 }
+ static inline void rb_spec_signal_locked(rb_spec_gate *gate) {
+     atomic_fetch_add(&gate->epoch, 1);
+     pthread_cond_broadcast(&gate->changed);
+@@ -69,13 +70,17 @@
+     rb_spec_signal_locked(gate);
+     pthread_mutex_unlock(&gate->mutex);
+ }
+-static inline int rb_spec_publish_limit(rb_spec_gate *gate, int level, unsigned limit) {
++static inline int rb_spec_publish_plan(rb_spec_gate *gate, int level, unsigned limit, int fair_startup) {
+     pthread_mutex_lock(&gate->mutex);
+     int old = atomic_exchange(&gate->level, level);
+-    if (level != old || gate->limit != limit) rb_spec_signal_locked(gate);
++    if (level != old || gate->limit != limit || gate->fair_startup != fair_startup) rb_spec_signal_locked(gate);
++    gate->fair_startup = fair_startup;
+     gate->limit = limit;
+     pthread_mutex_unlock(&gate->mutex);
+     return old;
++}
++static inline int rb_spec_publish_limit(rb_spec_gate *gate, int level, unsigned limit) {
++    return rb_spec_publish_plan(gate, level, limit, 0);
+ }
+ static inline int rb_spec_publish(rb_spec_gate *gate, int level) {
+     return rb_spec_publish_limit(gate,level,0);
+@@ -87,7 +92,8 @@
+     int level = atomic_load(&gate->level);
+     unsigned limit = gate->limit;
+     if (startup && level == RB_SPEC_RUN && limit == 2) limit = 4;
+-    int granted = rb_spec_worker_allowed(level, worker) && (level == RB_SPEC_RUN || !gate->active) &&
++    int fair = gate->fair_startup && startup && worker == 0 && level == RB_SPEC_HOLD;
++    int granted = (fair || rb_spec_worker_allowed(level, worker)) && (level == RB_SPEC_RUN || !gate->active) &&
+                   (!limit || gate->active < limit);
+     if (granted) gate->active++;
+     pthread_mutex_unlock(&gate->mutex);
+@@ -110,7 +116,7 @@
+     *lease = 0;
+     --gate->active;
+     if (gate->limit && atomic_load(&gate->level) == RB_SPEC_RUN) rb_spec_signal_locked(gate);
+-    else if (!gate->active && atomic_load(&gate->level) == RB_SPEC_ONE) {
++    else if (!gate->active && (atomic_load(&gate->level) == RB_SPEC_ONE || gate->fair_startup)) {
+         atomic_fetch_add(&gate->epoch, 1);
+         pthread_cond_signal(&gate->primary);
+     }
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -278,14 +278,27 @@
+     return 0;
+ #endif
+ }
++// Title-independent on both generations. Capability probes run before guest setup.
++static _Atomic int rb_apple_session;
++static int rb_direct_apple(void) {
++    if (atomic_load_explicit(&rb_apple_session, memory_order_relaxed)) return 1;
++    const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
++    if (!g_dev || g_m3 || !title || !*title || ![g_dev supportsFamily:MTLGPUFamilyApple7]) return 0;
++    atomic_store_explicit(&rb_apple_session, 1, memory_order_relaxed);
++    return 1;
++}
++static int rb_thermal_pacing(void) {
++    static _Atomic int option;
++    return rb_direct_apple() && rb_pacing_setting(&option, "S2A_RB_THERMAL_PACING");
++}
+ static _Atomic int g_rb_tiers_option, g_rb_live_option;
+ static _Thread_local int rb_startup_worker, rb_cold_worker;
+ static _Atomic unsigned rb_tier_cold_active;
+ static int rb_startup_tiers(void) {
+-    return nvn_rb_thermal_scope() && rb_pacing_setting(&g_rb_tiers_option,"S2A_RB_PREWARM_TIERS");
++    return (nvn_rb_thermal_scope() || rb_thermal_pacing()) && rb_pacing_setting(&g_rb_tiers_option,"S2A_RB_PREWARM_TIERS");
+ }
+ static int rb_live_lane(void) {
+-    return nvn_rb_thermal_scope() && rb_pacing_setting(&g_rb_live_option,"S2A_RB_PSO_LIVE_LANE");
++    return (nvn_rb_thermal_scope() || rb_thermal_pacing()) && rb_pacing_setting(&g_rb_live_option,"S2A_RB_PSO_LIVE_LANE");
+ }
+ static _Atomic int g_rb_observed_option, g_rb_urgent_continue, g_rb_pass_lookahead;
+ int rb_observed_workers_on(void) {
+@@ -1500,8 +1513,28 @@
+ static zskip_zero g_zskip_cand[8]; static uint8_t g_zskip_cand_ok[8];
+ static void zskip_clear(void);
+ static int tbdr_on(void);
+-// RewindBox (patch 0073): the TBDR set on with bindless readers taken into account (S2A_RB_TBDR=1, DM_NVN_TBDR unset; see tbdr_on)
+-static int rb_tbdr_bl(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_TBDR"), *d = getenv("DM_NVN_TBDR"); v = !d && e && !strcmp(e, "1"); } return v; }
++// 1 = disabled, 2 = legacy explicit policy, 3 = bindless-aware same-submit proofs.
++static _Atomic int rb_tile_policy;
++static int rb_current_tile_policy(void) {
++    int saved = atomic_load_explicit(&rb_tile_policy, memory_order_relaxed);
++    if (saved) return saved;
++    const char *dm = getenv("DM_NVN_TBDR"), *rb = getenv("S2A_RB_TBDR");
++    const char *selective = getenv("S2A_RB_SAFE_TBDR");
++    int hosted = rb_direct_apple();
++    int mode = 1;
++    if ((!dm || !strcmp(dm, "1")) && (!rb || strcmp(rb,"0")) &&
++        (selective ? !strcmp(selective, "1") : hosted)) mode = 3;
++    else if (dm && !strcmp(dm, "1")) mode = 2;
++    else if (!dm && rb && !strcmp(rb, "1")) mode = 3;
++    // A probe may precede installation of the title's environment.
++    if (hosted || dm || rb || selective) {
++        int expected = 0;
++        if (atomic_compare_exchange_strong(&rb_tile_policy, &expected, mode))
++            MLOG("[rb-tbdr] mode=%s", mode==3 ? "selective-bindless" : mode==2 ? "explicit-legacy" : "off");
++    }
++    return mode;
++}
++static int rb_tbdr_bl(void) { return rb_current_tile_policy()==3; }
+ static id g_cb;
+ static void main_barrier_reset(void);
+ static id<MTL4ComputeCommandEncoder> g_blit;
+@@ -1725,7 +1758,7 @@
+     flags |= rb_nvn2_mrt_flag(flags, getenv("S2A_RB_NVN2_MRT_CLEARS"));
+     const char *sealed = getenv("S2A_RB_SEALED_CLEAR_STATE");
+     if ((flags & RB_TILE_MRT) && (!sealed || !strcmp(sealed, "1"))) flags |= RB_TILE_SEALED_STATE;
+-    int track = (flags & (RB_TILE_STORE | RB_TILE_LIVE | RB_TILE_BATCH)) || (controls[1] && !strcmp(controls[1], "1"));
++    int track = rb_tbdr_bl() || (flags & (RB_TILE_STORE | RB_TILE_LIVE | RB_TILE_BATCH)) || (controls[1] && !strcmp(controls[1], "1"));
+     atomic_store_explicit(&g_rb_live_request, track ? 2 : 1, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_tile_options, flags | RB_TILE_READY, memory_order_relaxed);
+     if (flags) MLOG("[gpu-pass] NVN2 title=%s store=%d liveness=%d producer=%d batch=%d detailed_stats=%d clear_sibling=%d mrt_clears=%d legacy_tbdr=%s", title,
+@@ -3008,7 +3041,7 @@
+     int stored = atomic_load_explicit(&g_rb_drs_threshold, memory_order_relaxed);
+     if (!stored) {
+         const char *legacy = getenv("S2A_RB_DRS_THERMAL");
+-        int threshold = rb_thermal_threshold(!(legacy && !strcmp(legacy, "0")), nvn_rb_thermal_scope(),
++        int threshold = rb_thermal_threshold(!(legacy && !strcmp(legacy, "0")), nvn_rb_thermal_scope() || rb_thermal_pacing(),
+                                              getenv("S2A_RB_DRS_THERMAL_STATE"));
+         int zero = 0;
+         if (atomic_compare_exchange_strong(&g_rb_drs_threshold, &zero, threshold + 1))
+@@ -3027,7 +3060,7 @@
+     atomic_store(&g_drs_th_at, now);
+     int state = (int)NSProcessInfo.processInfo.thermalState, before = g_rb_guest_heat.hot;
+     if (g_rb_drs_target < 0.)
+-        g_rb_drs_target = nvn_rb_thermal_scope() ? rb_drs_target_ms(getenv("S2A_RB_DRS_TARGET_MS")) : 0.;
++        g_rb_drs_target = (nvn_rb_thermal_scope() || rb_thermal_pacing()) ? rb_drs_target_ms(getenv("S2A_RB_DRS_TARGET_MS")) : 0.;
+     int adapt = g_rb_drs_target > 0. && state == 1 && stored == 2;
+     if (adapt) {
+         int cap = nvn_fps_limit();
+@@ -6159,6 +6192,27 @@
+         atomic_store_explicit(&thermal, (int)NSProcessInfo.processInfo.thermalState, memory_order_relaxed);
+     return atomic_load_explicit(&thermal, memory_order_relaxed);
+ }
++static rb_thermal_interval rb_interval_heat;
++// Called by the present thread. Read completed frames, sufficiently far behind
++// the current one; missing samples leave the current decision intact.
++int nvn_rb_native_thermal_interval(uint64_t frame) {
++    if (!rb_thermal_pacing()) return 0;
++    if (frame >= RB_HEAT_SAMPLES + 4 && frame % 30 == 0) {
++        int user = nvn_fps_limit(), thermal = rb_cached_thermal();
++        double p95 = -1;
++        if (thermal >= 2) {
++            double samples[RB_HEAT_SAMPLES];
++            for (int i = 0; i < RB_HEAT_SAMPLES; ++i) samples[i] = nvn_be_gpu_ms(frame - 4 - i);
++            p95 = rb_thermal_p95(samples);
++        }
++        int old = rb_interval_heat.follow;
++        rb_guest_interval_tick(&rb_interval_heat, thermal, user > 0 && user < 60 ? user : 60, p95);
++        if (old != rb_interval_heat.follow)
++            MLOG("[rb-thermal-pacing] thermal=%d user_fps=%d gpu_p95_ms=%.2f follow_guest_interval=%d",
++                 thermal, user, p95, rb_interval_heat.follow);
++    }
++    return rb_interval_heat.follow;
++}
+ static uint64_t rb_pa_queue_limit(void) {
+     int state = rb_cached_thermal();
+     return (uint64_t)(state >= 2 ? 16 : state == 1 ? 32 : 64) << 20;
+@@ -6190,7 +6244,8 @@
+ }
+ static pthread_mutex_t rb_kart_sample_mu = PTHREAD_MUTEX_INITIALIZER;
+ static int rb_spec_level(void) {
+-    int strict = rb_kart_option(RB_KART_WORKERS);
++    int adaptive = rb_thermal_pacing();
++    int strict = adaptive || rb_kart_option(RB_KART_WORKERS);
+     if (!strict && !rb_spec_on() && !rb_gov_on()) return RB_SPEC_RUN;
+     if (strict) {
+         static dispatch_once_t once;
+@@ -6223,8 +6278,9 @@
+         why = rb_spec_recovery(why, now, atomic_load_explicit(&g_spec_last_hot, memory_order_relaxed));
+         int level = rb_spec_thermal_tier(why, th, strict);
+         atomic_store_explicit(&g_spec_why, why, memory_order_relaxed);
+-        int was = rb_spec_publish_limit(&g_spec_gate, level, strict ? 2 : 0);
+-        if (strict && (!prev || was != level)) MLOG("[RB-PSO-WORKERS] thermal=%d speculative_limit=%u qos=utility",th, level==RB_SPEC_HOLD ? 0u : level==RB_SPEC_ONE ? 1u : 2u);
++        int fairHot = adaptive && th == 1 && why == RB_SPEC_FAIR && !low;
++        int was = rb_spec_publish_plan(&g_spec_gate, level, strict ? 2 : 0, fairHot);
++        if (strict && (!prev || was != level)) MLOG("[RB-PSO-WORKERS] thermal=%d startup_limit=%u speculative_limit=%u qos=utility",th, level==RB_SPEC_RUN ? 4u : fairHot || level==RB_SPEC_ONE ? 1u : 0u, level==RB_SPEC_HOLD ? 0u : level==RB_SPEC_ONE ? 1u : 2u);
+         if (was != level) { uint64_t k = atomic_fetch_add(&g_spec_changes, 1) + 1;
+             if (k <= 8 || !(k & (k - 1))) MLOG("RewindBox: speculative shader work %s: %s (thermal state %d, %lld MB left before the process limit (-1 unknown), Low Power Mode %d; %llu changes; patch 0121)",
+                                               level == RB_SPEC_HOLD ? "held" : level == RB_SPEC_ONE ? "on one worker" : strict ? "on two utility workers" : "back on every worker", k_spec_why[why], th,
+@@ -6251,13 +6307,13 @@
+ #ifdef RB_SPEC_TEST_RESERVATION
+     RB_SPEC_TEST_RESERVATION(-1);
+ #endif
+-    *lease = rb_spec_admit_startup(&g_spec_gate, worker, rb_startup_worker && rb_cached_thermal()==0);
++    *lease = rb_spec_admit_startup(&g_spec_gate, worker, rb_startup_worker);
+ #ifdef RB_SPEC_TEST_RESERVATION
+     RB_SPEC_TEST_RESERVATION(*lease);
+ #endif
+     return *lease;
+ }
+-int rb_kart_thermal_workers(void) { return rb_kart_option(RB_KART_WORKERS); }
++int rb_kart_thermal_workers(void) { return rb_thermal_pacing() || rb_kart_option(RB_KART_WORKERS); }
+ int rb_kart_try_worker(int *lease) {
+     *lease = 0;
+     return !rb_kart_thermal_workers() || rb_spec_take(0,lease);
+@@ -8316,7 +8372,8 @@
+                                        (unsigned long long)t->serial, t->d.width, t->d.height, t->d.depth, t->d.format, (unsigned long long)bytes, (unsigned long)from.pixelFormat,
+                                        from.pixelFormat == mt.pixelFormat ? "" : ", its bytes through a buffer", (unsigned long long)k, (unsigned long long)g_init_copy_b);
+ }
+-static id<MTLTexture> tex_mtl_(const tex_t *ct);
++static id<MTLTexture> tex_mtl_for_pass(const tex_t *ct, id<MTLTexture> __strong *pendingZero);
++static id<MTLTexture> tex_mtl_(const tex_t *ct) { return tex_mtl_for_pass(ct, NULL); }
+ // NVN formats whose Metal format is the other one of an sRGB / linear pair (g_pfv_srgb) of a format's Metal format: up to 4, zero-terminated (an RGBA8 texture has RGBA8_SRGB and RGBX8_SRGB)
+ //   (upstream reference implementation, MIT, 92f223a7)
+ static const uint8_t *srgb_twins(uint32_t f) {
+@@ -8428,7 +8485,7 @@
+ #include "nvn_sparse_tiles.inc"   // RewindBox (patch 0028): placement sparse textures for the packaged arrays of sparse pools (seedds/nxnative 1d4b8e82, MIT)
+ static uint64_t g_texinfo_ser[8]; static int g_texinfo_n;
+ #include "rb_cold_upload.inc"
+-static id<MTLTexture> tex_mtl_(const tex_t *ct) {
++static id<MTLTexture> tex_mtl_for_pass(const tex_t *ct, id<MTLTexture> __strong *pendingZero) {
+     tex_t *t = (tex_t *)ct;
+     if (!t || !t->serial) return nil;
+     if (on_sub_thread()) cpu_unc_drop();
+@@ -8665,7 +8722,14 @@
+         mt = txr_take(&ak, d, t->serial); txr_back = mt != nil;   // RewindBox (patch 0071): one of this Metal shape a resize let go, the GPU done with it; filled below as a new one
+         if (!mt) mt = [g_dev newTextureWithDescriptor:d];
+         if (!mt) { RED_ONCE(2, "failed to create MTLTexture ser=%llu %ux%u format %#x target %d samples %d levels %u", (unsigned long long)t->serial, t->d.width, t->d.height, t->d.format, t->d.target, t->d.samples, t->d.levels); return nil; }
+-        res_add(mt); if (!tex_init_fill(t, mt)) { tex_zero_fill(mt); rb_fresh_add(t); }   // register residency before filling (the copy destination must be resident too); RewindBox (patch 0067): rb_fresh_add
++        res_add(mt);
++        if (!tex_init_fill(t, mt)) {
++            if (pendingZero && !wd_poison() && mt.textureType == MTLTextureType2D && mt.mipmapLevelCount == 1 &&
++                mt.sampleCount == 1 && (mt.usage & MTLTextureUsageRenderTarget))
++                *pendingZero = mt;
++            else tex_zero_fill(mt);
++            rb_fresh_add(t);
++        }   // register residency before filling (the copy destination must be resident too); RewindBox (patch 0067): rb_fresh_add
+         if (big_tex_on() && mt.allocatedSize >= (4u << 20)) {   // 大贴图建立账（big_tex_res）：NVN 侧描述 + 存储有没有被游戏碰过（mincore，不读页）
+             uint64_t touched = 0; size_t pg = (size_t)getpagesize(); unsigned char vec[512];
+             for (uint64_t a = (uint64_t)(uintptr_t)t->mem & ~(uint64_t)(pg - 1), e = (uint64_t)(uintptr_t)t->mem + t->L.size; t->mem && a < e; a += sizeof vec * pg) {
+@@ -9117,9 +9181,7 @@
+ //   pass past its scan; 765: 2,048 attachments, 7.9 GB by frame ~4,800, about 1.7 MB a frame of the ~300 MB loaded), and it adds the index walk of each submission, the hoist and depth-stencil scans to
+ //   the submit thread. An A/B compares, with the switch on and off: attachment load / store MB a frame and load-all store-all passes (residency line), GPU p50, submit CPU a frame
+ //   (translation line), the encoding line's index ms, and the cross-queue line's 'kept released (lookahead spans the wait)', which must stay 0
+-static int tbdr_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_NVN_TBDR"); v = (e && !strcmp(e, "1")) || rb_tbdr_bl();
+-    if (!v) MLOG("TBDR optimizations off by default (this game uses bindless textures; DM_NVN_TBDR=1 turns them on)");
+-    else if (rb_tbdr_bl()) MLOG("RewindBox: TBDR optimizations on with bindless readers taken into account (S2A_RB_TBDR=1, patch 0073): a draw or dispatch reading textures through handles, or an event wait, counts as reading every attachment; no clear is hoisted past one or past queue synchronisation; the cross-submission ledger, deferral, readable-tile merge and zero-source skip stay off; attachments proven unwritten to the pass end are loaded again (that saving runs only with the set off); the submit thread walks each submission once more (encoding line: index ms)"); } return v; }
++static int tbdr_on(void) { return rb_current_tile_policy() >= 2; }
+ static int rt_range_on(void) { static int v = -1; if (v < 0) { const char *e=getenv("DM_NVN_RT_RANGE"); v=e && !strcmp(e,"1"); } return v; }   // Narrow candidate, off by default
+ static uint64_t g_sd_dead_bytes, g_sd_n_dead, g_sd_n_all;
+ // ---------- Cross-submission attachment validity ledger ----------
+@@ -9703,9 +9765,14 @@
+     //   1920x1080 主画面与 960x540 中间目标都登记成打包贴图，usage 只有 ShaderRead）。往没有 RenderTarget 用途的贴图里渲染是 Metal 的未定义行为（调试层报
+     //   「colorAttachment has usage which doesn't specify MTLTextureUsageRenderTarget」），Apple GPU 上存下的是分块级的不确定内容：画面散落 16×16 黑块、每次不同。
+     //   开遍前就地升级（tex_upgrade 保留全部像素、换掉持有者的贴图）；在关掉 blit 编码器与取附件版本之前做，升级的拷贝排在这一遍之前
++    id<MTLTexture> pendingZero = nil;
++    static _Atomic int overwriteOption;
++    BOOL clearFirst = R.rt.n == 1 && !R.rt.depth && R.clear_c[0] && !R.rt.has_cview[0] &&
++        !g_rp_layered && on_sub_thread() && rb_direct_apple() &&
++        rb_pacing_setting(&overwriteOption, "S2A_RB_OVERWRITE_ZERO");
+     for (int i = 0; i < R.rt.n && i < 8; i++) {
+         const tex_t *ct = R.rt.color[i]; if (!ct || rt_dup_slot(&R.rt, i)) continue;
+-        id<MTLTexture> b = tex_mtl(ct);
++        id<MTLTexture> b = clearFirst && !fmt_compressed(ct->d.format) ? tex_mtl_for_pass(ct, &pendingZero) : tex_mtl(ct);
+         if (b && !(b.usage & MTLTextureUsageRenderTarget) && !mtl_fmt_block(b.pixelFormat) && b.sampleCount == 1) {
+             id<MTLTexture> u = tex_upgrade(ct, b, MTLTextureUsageRenderTarget, b.pixelFormat);
+             static uint64_t nup; if (u != b && !nup++) MLOG("render target without render-target usage (packaged storage drawn into): upgraded in place, first ser=%llu %lux%lu", (unsigned long long)ct->serial, (unsigned long)b.width, (unsigned long)b.height);
+@@ -9793,6 +9860,13 @@
+             atomic_fetch_add_explicit(&g_rb_plane_load_bytes, R.clear_d ? bytes : 4 * bytes, memory_order_relaxed);
+         }
+     }
++    if (pendingZero && (pd.colorAttachments[0].texture != pendingZero ||
++        pd.colorAttachments[0].loadAction != MTLLoadActionClear ||
++        pd.colorAttachments[0].level || pd.colorAttachments[0].slice ||
++        (g_rb_clear_expected && !rb_clear_desc_matches(pd)))) {
++        tex_zero_fill(pendingZero);
++        pendingZero = nil;
++    }
+     // The attachments this pass writes (gpw_mark: their guest bytes go stale); the attached level, the attached layer (a layered pass: every layer from it)
+     for (int i = 0; i < R.rt.n && i < 8; i++) if (R.rt.color[i] && pd.colorAttachments[i].texture) gpw_mark_view(R.rt.color[i], &R.rt.cview[i], R.rt.has_cview[i], g_rp_layered);
+     if (R.rt.depth && (pd.depthAttachment.texture || pd.stencilAttachment.texture)) gpw_mark_view(R.rt.depth, &R.rt.dview, R.rt.has_dview, g_rp_layered);
+@@ -9921,6 +9995,13 @@
+     int private_clear = clear_only == 1 && (rb_live_on() || rb_tile_enabled(RB_TILE_LIVE)) ?
+                         rb_private_clear_pass(pd) : 0;
+     g_enc = enc_r_begin_pass_scoped(pd, private_clear);
++    if (pendingZero) {
++        if (!g_enc) tex_zero_fill(pendingZero);
++        else {
++            static uint64_t clears;
++            if (!(clears++ & 255)) MLOG("[rb-texture-zero] first_full_clear=%llu", (unsigned long long)clears);
++        }
++    }
+     if (g_rb_shadow_native) {
+         if (!g_enc) {
+             g_rb_shadow_native=nil; g_rb_shadow_failed=1;
+@@ -10151,6 +10232,7 @@
+     id<MTLLibrary> at_lib; NSString *at_main, *at_u; NSMutableDictionary<NSNumber *, id<MTLFunction>> *at_fns; uint8_t has_atms;   // gap families 34 / 37: a fragment main0 declaring S2A_AT / S2A_MSOFF (Dsh.cs FsAlphaMs): its library and entry names, specialized per (u, at, msoff) on demand (fs_atms_fn)
+     int load_depth_zero;   // captured with the identity, also used by its layer variant
+     uint8_t u_mask;   // S2Arm gap 2 A: the colour outputs fn_u returns as uint, bit n = color(n) (json u_mask; dmsh_build.py fs_uint turns only the integer-bit writers)
++    BOOL rb_explicit_bindings;
+     uint16_t tf_stride[4]; uint32_t cb_ext[16], rb_c1_end, sb_ro; nvn_refl rf; id<MTLArgumentEncoder> ae; NSUInteger arg_len; int stage, range_ro, rb_first_ro, rb_first_storage, afr, layer_out; const char *builtin; uint64_t logged; uint64_t rb_frame_key; BOOL rb_frame_key_ready; char key[24]; id<MTLBuffer> c1buf; uint64_t c1_gpu; size_t c1off;
+     uint32_t geo_vertices, geo_invocations, geo_output, geo_stride, geo_index_stride;
+     // NVN2 task / mesh shader (json msl_entry_kind object / mesh, at stage 3 / 4; nvn_geometry.inc mesh_tasks_draw): mesh_kind 1 object 2 mesh (0 = neither); its workgroup's threads,
+@@ -11277,6 +11359,7 @@
+         o->rb_first_ro = rb_first_stage_ro(j,stage);
+         if (!o->rb_first_ro && rb_first_recovery()) o->rb_first_storage = rb_first_stage_storage(j);
+     }
++    o->rb_explicit_bindings = [j[@"bindings"] isKindOfClass:NSArray.class];
+     if (rt_range_on() || rb_async_pso()) o->range_ro=rt_range_bindings_ro(j);
+     NSString *entry = j[@"entry"];
+     if (stage == 0) {
+@@ -14186,7 +14269,7 @@
+     // The general lookahead guesses attachment modes. Demand and its immediate
+     // same-encoder successor carry an actual render key and exact shader pair.
+     int observed = now && rb_observed_workers_on();
+-    if (!observed && !now && rb_kart_option(RB_KART_WORKERS) && !rb_spec_may(0)) return;
++    if (!observed && !now && rb_kart_thermal_workers() && !rb_spec_may(0)) return;
+     pso_key copy;
+     const pso_key *live;
+     if (rb_pso_probe(k, &copy, &live) || !pso_pair_ok(vs, fs, 0)) return;
+@@ -18759,8 +18842,11 @@
+     return sh->rb_bl == 2;
+ }
+ static int rb_pr_bl(__unsafe_unretained NvProg *pr, int compute) {   // 1: a draw (compute 0) / dispatch with these shaders may read any attachment
+-    if (!pr) return 1;
+-    for (int st = 0; st < 6; st++) { __unsafe_unretained NvShader *sh = pr->sh[st]; if (sh && (st == 5) == (compute != 0) && rb_sh_bl(sh)) return 1; }
++    if (!pr || (compute ? !pr->sh[5] : (!pr->sh[0] || !pr->sh[1] || pr->gs_miss[0]))) return 1;
++    for (int st = 0; st < 6; st++) {
++        __unsafe_unretained NvShader *sh = pr->sh[st];
++        if (sh && (st == 5) == (compute != 0) && (!sh->rb_explicit_bindings || rb_sh_bl(sh))) return 1;
++    }
+     return 0;
+ }
+ static void rb_seq_push(uint32_t **v, uint32_t *n, uint32_t *cap, uint32_t seq) {   // g_rb_anyr / g_rb_wsq (review: one form for both)
+@@ -18880,7 +18966,7 @@
+ }
+ static int rb_strict_clear_proofs(void) {
+     static _Atomic int title;
+-    return !g_m3 && rb_tbdr_bl() && rb_direct_option(&title, NULL);
++    return rb_tbdr_bl() && (rb_direct_apple() || (!g_m3 && rb_direct_option(&title, NULL)) || getenv("S2A_RB_SAFE_TBDR"));
+ }
+ 
+ // The sequence index does not replay scissors or conditional rendering. Only the
+@@ -19074,7 +19160,10 @@
+                                : e->plane == 0 && e->lv == t->lv && e->sl == t->sl;
+             if (!hit) continue;
+             st[i] = e->kind == SDX_CLEAR ? 2 : (uint8_t)(2 << 2); ec = e->seq; break; }
+-        if (st[i] == 2 && rb_strict_clear_proofs() && !rb_next_clear_covers(t, P, ec)) st[i] = 2 << 2;
++        if (st[i] == 2 && rb_strict_clear_proofs()) {
++            const tex_t *source = t->depth ? R.rt.depth : (t->idx >= 0 && t->idx < R.rt.n ? R.rt.color[t->idx] : NULL);
++            if (!rb_store_unexposed(source) || !rb_next_clear_covers(t, P, ec)) st[i] = 2 << 2;
++        }
+         if (st[i] == 2 && rb_tbdr_bl() && rb_anyr_in(P, ec)) { st[i] = 1 << 2; g_rb_anyr_kept++; }   // RewindBox (patch 0073): a bindless reader before the clear: stored (why 1, read)
+         else if (st[i] == 2 && rb_tbdr_bl() && rb_seq_in(g_rb_wsq, g_rb_wsq_n, P, ec)) { st[i] = 1 << 2; g_rb_wsq_kept++; }   // RewindBox (patch 0073, review): an event wait before the clear (g_rb_wsq): stored
+     }
+diff --git a/graphics/nvn/gfx/nvn/rb_thermal_pacing.h b/graphics/nvn/gfx/nvn/rb_thermal_pacing.h
+--- a/graphics/nvn/gfx/nvn/rb_thermal_pacing.h
++++ b/graphics/nvn/gfx/nvn/rb_thermal_pacing.h
+@@ -12,6 +12,19 @@
+     return !strcmp(value, "0") ? 0 : 2;
+ }
+ 
++// Only return control to a slower interval actually requested by the game.
++// Two completed GPU windows must miss the configured frame budget; the user's
++// cap and the simulation rate are never rewritten.
++typedef struct { unsigned slow; int follow; } rb_thermal_interval;
++static inline int rb_guest_interval_tick(rb_thermal_interval *state, int heat, int hz, double p95) {
++    if (heat < 2) { *state = (rb_thermal_interval){0}; return 0; }
++    if (!(p95 > 0.) || hz <= 0) return state->follow;
++    if (p95 > 1000. / hz) {
++        if (state->slow < 2) ++state->slow;
++        if (state->slow == 2) state->follow = 1;
++    } else state->slow = 0;
++    return state->follow;
++}
+ enum { RB_HEAT_SAMPLES = 24 };
+ static inline double rb_thermal_p95(const double *samples) {
+     // Nearest rank 23 out of 24 is the second-highest sample.

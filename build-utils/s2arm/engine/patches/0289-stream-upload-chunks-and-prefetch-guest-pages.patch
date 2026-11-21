@@ -1,0 +1,825 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -410,12 +410,17 @@
+ #endif
+  cmdshadow_pool_gone(((pool_t *)p)->mem, ((pool_t *)p)->size); } nvn_be_alias_drop_pool(p); ((pool_t *)p)->magic = 0; }
+ static void ft_flush(const uint8_t *a, uint64_t n);
++#include "rb_guest_hint.h"
++__attribute__((weak)) int nvn_be_guest_hint_on(void) { return 0; }
++__attribute__((weak)) void nvn_be_guest_range_hint(rb_guest_hint h) { (void)h; }
+ // CPU_UNCACHED 池的刷新也照样发布、不做空操作（11-01 维护者定：按语义对齐，不按字面对齐）：真机上它是空操作，是因为真机 CPU 与 GPU 共享缓存语义、GPU 直接看得到 CPU 写；
+ //   我方贴图在 Metal 侧另有一份，刷新是「CPU 写过这段」唯一的显式信号，照真机做成空操作会在关了脏页上传的配置里漏发布（贴图停在旧内容）
+ NVN(nvnMemoryPoolFlushMappedRange, void, const NVNmemoryPool *p, ptrdiff_t off, size_t n) {   // see ft_add
+     const pool_t *o = (const pool_t *)p;
+-    if (!o->mem) return;
++    if (!o->mem || off<0 || (uint64_t)off>o->size || n>o->size-(uint64_t)off) return;
+     ft_flush(o->mem + off, n);
++    if (!(o->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL) && nvn_be_guest_hint_on())
++        nvn_be_guest_range_hint((rb_guest_hint){(uintptr_t)o->mem,o->size,off,n,RB_RANGE_FLUSH});
+ #if defined(__ANDROID__)
+     // 后端可选：内容变化通知（安卓直连用它推进资源账本的内容版本）。
+     // 只在安卓直连编；苹果宿主不链该后端，弱引用在 Mach-O 上会变成未定义符号。
+@@ -2331,6 +2336,10 @@
+ NVN(nvnCommandBufferBindVertexBuffers, void, NVNcommandBuffer *c, int first, int n, const NVNbufferRange *rg) {
+     if (n < 0 || first + n > 16) { LOG("【红】 BindVertexBuffers first=%d n=%d", first, n); return; }
+     NVNbufferRange rc[16]; for (int i = 0; i < n; i++) rc[i] = (NVNbufferRange){GA(rg[i].address), rg[i].size}; rg = rc;
++    // Recording runs before QueueSubmitCommands. GA above translates either
++    // guest address representation. The worker rechecks the actual file mapping.
++    if (nvn_be_guest_hint_on()) for (int i=0;i<n;++i)
++        nvn_be_guest_range_hint((rb_guest_hint){rg[i].address,rg[i].size,0,rg[i].size,RB_RANGE_VERTEX});
+     if (n == 1 && rg[0].size <= UINT32_MAX) {
+         *REC(c, OP_BIND_VBUF, p_bind_vbuf_single) = (p_bind_vbuf_single){first, (uint32_t)rg[0].size, rg[0].address};
+         return;
+@@ -5136,9 +5145,21 @@
+ }
+ NVN(nvnMemoryPoolMapVirtual, NVNboolean, NVNmemoryPool *p, int n, const NVNmappingRequest *rq) {
+     pool_t *o = (pool_t *)p; const map_req *r = (const map_req *)rq;
++    int hint=nvn_be_guest_hint_on();
+     vp_lock(); struct vpool *v = vpool_of(o); int ok = v != NULL;
+-    for (int i = 0; v && i < n && ok; i++) ok = vpool_map(v, &r[i]);
++    // Copy the mapped physical coordinates while the page-table operation owns
++    // them. No address translation, I/O or dispatch under the page-table lock.
++    rb_guest_hint hints[8]; unsigned count=0;
++    for (int i=0; v && i<n && ok; ++i) {
++        ok=vpool_map(v,&r[i]);
++        if (ok && hint && count<8 && r[i].phys) {
++            const pool_t *ph=(const pool_t *)r[i].phys;
++            if (ph->mem && !(ph->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL))
++                hints[count++]=(rb_guest_hint){(uintptr_t)ph->mem,ph->size,r[i].poff,r[i].size,RB_RANGE_MAP};
++        }
++    }
+     vp_unlock();
++    for (unsigned i=0;i<count;++i) nvn_be_guest_range_hint(hints[i]);
+     if (!v) LOG("【红】 MapVirtual: pool %p (flags %#x) is not a virtual pool with an address range (%s): %d requests refused", (void *)o, o->flags, o->flags & 0x200 ? "its reservation failed" : "not virtual", n);
+     return (NVNboolean)ok;
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -110,6 +110,9 @@
+ static void warm_claim(void);
+ static void rb_pso_maintain(void);
+ static void rb_tex_budget_maintain(void);
++static void rb_stage_maintain(void);
++static void rb_range_report(uint64_t frame);
++int nvn_be_guest_hint_on(void);
+ static void rb_gov_before_submit(void);
+ static void rb_sparse_maintain(void);
+ static void rb_ref_stage_hint(const char *raw);
+@@ -1591,6 +1594,7 @@
+     rb_ub_ranges = nvn_rb_thermal_scope() && rb_pacing_setting(&rb_ub_setting, "S2A_RB_UNIFORM_RANGES");
+     rb_gov_before_submit();
+     if (rb_tex_budget_on()) rb_tex_budget_maintain();
++    rb_stage_maintain();
+     if (rb_pso_cap_on()) rb_pso_maintain();
+     main_barrier_reset(); g_cb = rb_new_main_cb();
+     // Do not wait for the GPU mid-frame (hot real device: with a fixed rotation of 3, when the GPU cannot keep up every frame blocks here, and the submit thread runs at low frequency after waking, instruction count −18% but CPU time +49%):
+@@ -4447,7 +4451,7 @@
+ static void rb_ra_pool_gone(const void *pool);
+ void nvn_be_alias_drop_pool(const void *pool) {
+     if (!pool) return;
+-    if (rb_pso_cap_on()) rb_ra_pool_gone(pool);
++    if (rb_pso_cap_on() || nvn_be_guest_hint_on()) rb_ra_pool_gone(pool);
+     pthread_mutex_lock(&g_smu);
+     uint32_t n = 0; alias_key *ks = NULL;
+     for (uint32_t i = 0; i < g_alias.cap; i++) {
+@@ -5407,6 +5411,8 @@
+     for (unsigned i = 0; i < UP_FLUSH_REASONS; ++i)
+         out[i] = atomic_exchange_explicit(&g_up_flush_counts[i], 0, memory_order_relaxed);
+ }
++#include "rb_stream_budget.h"
++#include "rb_stage_ring.inc"
+ static void up_flush_cause(unsigned reason) {
+     up_owner_check("up_flush");
+     if (!g_up_cb) return;
+@@ -5459,6 +5465,11 @@
+     atomic_fetch_add(&g_up_pending, 1);
+     // The recording thread can hand this off to the encode thread. This is a lower
+     // bound on submission time, including when the command buffer is deferred.
++    const int ringSlot=rb_stage_current;
++    const uint64_t otherBytes=rb_stage_enabled() ? g_up_keep_bytes+
++        (g_up_block && g_up_block!=g_up_slot_blk[slot] ? g_up_block_size : 0) : 0;
++    if (otherBytes) atomic_fetch_add_explicit(&rb_stage_other,otherBytes,memory_order_relaxed);
++    rb_stage_current=-1; rb_stage_used=0;
+     double queued_at = CACurrentMediaTime();
+     fb_add(o, ^(id<MTL4CommitFeedback> f) {
+         if (f.error && !mtl_gpu_halted()) MLOG("【红】 upload command buffer execution error: %s", f.error.description.UTF8String);
+@@ -5483,6 +5494,11 @@
+         }
+         os_unfair_lock_unlock(&g_upload_timing_lock);
+         @autoreleasepool { for (id k in kept) res_remove((id<MTLResource>)k); [kept removeAllObjects]; }
++        if (ringSlot>=0) {
++            atomic_fetch_add_explicit(&rb_stage_completions,1,memory_order_relaxed);
++            atomic_store_explicit(&rb_stage_busy[ringSlot],0,memory_order_release);
++        }
++        if (otherBytes) atomic_fetch_sub_explicit(&rb_stage_other,otherBytes,memory_order_relaxed);
+         atomic_store(&g_up_alloc_busy[slot], 0);
+         atomic_fetch_sub(&g_up_pending, 1);
+         up_wake();
+@@ -5511,7 +5527,10 @@
+     // With deferred encoding (nvn_rec.h, on by default on iPhone) the batch that last used this slot may still be a commit record in this thread's open block: the GPU has not seen it,
+     // so waiting for it to finish never ends. Hand everything recorded to the encode thread first, as every other wait for the GPU does. Textures deswizzled on the CPU (a sparse
+     // virtual pool's, read through its page table) are one batch each, so four in a row within one submission got here: Monster Hunter Rise stopped at frame 721 for 45 s
+-    if (atomic_load(&g_up_alloc_busy[slot])) rec_drain();
++    if (atomic_load(&g_up_alloc_busy[slot])) {
++        if (rb_stage_enabled() && g_rb_started) rec_publish();
++        else rec_drain();
++    }
+     up_wait_zero(&g_up_alloc_busy[slot]);
+     atomic_store(&g_up_alloc_busy[slot], 1); g_up_cur_slot = slot;
+     if (g_m3) {
+@@ -5629,6 +5648,10 @@
+     }
+ }
+ static id<MTLBuffer> up_alloc(size_t n, size_t *off) {
++    // up_tex_src may have reserved source storage in this command buffer.
++    // It and the deswizzle output must remain in the same upload batch.
++    id<MTLBuffer> ring=rb_stage_take(n,off,0);
++    if (ring) return ring;
+     size_t need = (n + 255u) & ~((size_t)255u);
+     uint64_t retainPerSlot = rb_gov_on() ? rb_gov_quota(RB_GOV_UPLOAD)/(unsigned)rb_up_n() : UINT64_MAX;
+     if (!g_up_block && need <= UP_BLOCK_SIZE && MAX(need,(size_t)UP_SLOT_BLOCK) <= retainPerSlot) {   // first allocation of the batch: the slot's own block, grown to the next power of two that holds it (a movie frame re-uploaded every frame, 8 MB in Link's Awakening)
+@@ -6843,7 +6866,10 @@
+ //   piece would take the open batch past RB_UP_INFLIGHT, the batch is flushed and every upload batch is waited for (as q_cb does), so at most RB_UP_INFLIGHT
+ //   of staging is alive while a texture is staged in pieces
+ #define RB_UP_INFLIGHT ((size_t)128 << 20)
+-static id<MTLBuffer> rb_up_staging(size_t n) {   // a shared staging piece of the open upload batch; nil: refused (the caller says so)
++static id<MTLBuffer> rb_up_staging_at(size_t n,size_t *offset) {
++    *offset=0;
++    id<MTLBuffer> ring=rb_stage_take(n,offset,1);
++    if (ring) return ring;   // a shared staging piece of the open upload batch; nil: refused (the caller says so)
+     if (g_up_cb && g_up_keep_bytes + n > RB_UP_INFLIGHT) { up_flush_cause(UP_CAPACITY); rec_drain(); up_wait_zero(&g_up_pending); }   // RewindBox (patch 0021)
+     up_begin();   // flushes the batch once it holds UP_KEEP_CAP: between two pieces, whose copies are recorded whole
+     id<MTLBuffer> b = [g_dev newBufferWithLength:n ? n : 16 options:MTLResourceStorageModeShared];
+@@ -6886,22 +6912,24 @@
+             size_t rowb = unp ? (size_t)w * ubpp : pitch, nrows = unp ? h : rows, rh = unp ? 1 : (size_t)bh, piece = rowb * nrows * z;
+             // Bands only for 2D storage (2D, 2D array, rectangle, cube, cube array): their rows are texel rows of one slice
+             int flat = t->d.target == 1 || t->d.target == 4 || t->d.target == 7 || t->d.target == 8 || t->d.target == 9;
+-            int whole = piece <= RB_UP_PIECE || z > 1 || !flat;
+-            id<MTLBuffer> stg = whole ? rb_up_staging(piece) : nil;
+-            uint8_t *lin = whole ? (stg ? (uint8_t *)stg.contents : NULL) : malloc(piece);
++            const size_t chunk=rb_stage_enabled() ? 16*RB_STAGE_MIB : RB_UP_PIECE;
++            int whole = piece <= chunk || z > 1 || !flat;
++            size_t start=0;
++            id<MTLBuffer> stg = whole ? rb_up_staging_at(piece,&start) : nil;
++            uint8_t *lin = whole ? (stg ? (uint8_t *)stg.contents+start : NULL) : malloc(piece);
+             if (!lin) { if (!whole) MDIE("texture upload copy of %zu bytes failed", piece); rb_up_refused(t, l, y, piece, total); continue; }
+             if (nvn_deswizzle(&t->d, l, sy, src, unp ? cb : lin, pitch)) { RED_ONCE(9, "deswizzle failed format %#x target %d", t->d.format, t->d.target); if (!whole) free(lin); break; }
+             if (unp) for (uint32_t zi = 0; zi < z; zi++) fmt_decode(t->d.format, cb + zi * pitch * rows, pitch, w, h, lin + zi * rowb * nrows, rowb);
+-            if (whole) { up_blit_add(stg, 0, rowb, rowb * nrows, MTLSizeMake(w, h, z), mt, y, l); continue; }
+-            size_t band = RB_UP_PIECE / rowb ? RB_UP_PIECE / rowb : 1;   // rows per band (a row larger than RB_UP_PIECE is a band of its own)
++            if (whole) { up_blit_add(stg, start, rowb, rowb * nrows, MTLSizeMake(w, h, z), mt, y, l); continue; }
++            size_t band = chunk >= rowb ? chunk / rowb : 1;   // rows per band (a row larger than RB_UP_PIECE is a band of its own)
+             for (size_t r0 = 0; r0 < nrows;) {   // bands of rows, each its own staging piece
+                 size_t nr = MIN(nrows - r0, band);
+-                id<MTLBuffer> b = rb_up_staging(nr * rowb);
++                id<MTLBuffer> b = rb_up_staging_at(nr * rowb,&start);
+                 if (!b) rb_up_refused(t, l, y, nr * rowb, total);
+                 else {
+-                    memcpy(b.contents, lin + r0 * rowb, nr * rowb);
++                    memcpy((uint8_t *)b.contents+start, lin + r0 * rowb, nr * rowb);
+                     uint32_t y0 = (uint32_t)(r0 * rh), hh = (uint32_t)MIN((size_t)h - y0, nr * rh);
+-                    up_blit_add_at(b, 0, rowb, rowb * nr, MTLSizeMake(w, hh, 1), mt, y, l, 0, y0);
++                    up_blit_add_at(b, start, rowb, rowb * nr, MTLSizeMake(w, hh, 1), mt, y, l, 0, y0);
+                 }
+                 r0 += nr;
+             }
+@@ -6962,7 +6990,9 @@
+     if (rb_tex_budget_on()) atomic_fetch_add_explicit(&rb_tex_staging, total, memory_order_relaxed);
+     void *mb; uint64_t mo; id<MTLBuffer> upsrc = nil;
+     int lin = (t->d.flags & (NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET)) != 0;   // 线性排布（tex_linear_needs_upload）只有 CPU 逐行拷，GPU 去混排不认
+-    if ((!unp || gdec) && !sparse && !rb && !lin && g_nvn_deswz_gpu) { up_begin(); upsrc = up_tex_src((uint64_t)t->mem, t->L.size, &mo); if (upsrc) mb = (__bridge void *)upsrc; }   // a pool that holds only textures stays out of the residency set (up_tex_src)
++    if ((!unp || gdec) && !sparse && !rb && !lin && g_nvn_deswz_gpu) {
++        if (rb_stage_enabled()) rb_stage_boundary(gdec ? ctotal : total);
++        up_begin(); upsrc = up_tex_src((uint64_t)t->mem, t->L.size, &mo); if (upsrc) mb = (__bridge void *)upsrc; }   // a pool that holds only textures stays out of the residency set (up_tex_src)
+     int use_gpu = (!unp || gdec) && !sparse && !rb && g_nvn_deswz_gpu && !lin && (upsrc || nvn_be_addr((uint64_t)t->mem, t->L.size, &mb, &mo));   // 线性排布（tex_linear_needs_upload）只有 CPU 逐行拷，GPU 去混排不认   // a sparse pool's texture is gathered through its page table on the CPU
+     if (g_nvn_deswz_gpu && !use_gpu && !sparse && !rb && !lin && (!unp || gdec)) RED_ONCE(40, "swizzled texture storage is not in a memory pool; falling back to the CPU");   // rb: said by rb_pkg_note, and the GPU would read the pool's pages themselves
+     if (use_gpu) {
+@@ -7044,7 +7074,10 @@
+     if (medium) g_rb_upload_medium++;
+     NSUInteger start = 0;
+     id<MTLBuffer> stg = nil;
+-    if (small || medium) {
++    stg=rb_stage_take(total,&start,1);
++    BOOL fromRing=stg!=nil;
++    if (!stg && !g_up_cb) up_begin(); // a chunk boundary can roll before a pressure refusal
++    if (!stg && (small || medium)) {
+         start = aligned;
+         if (!g_cpu_upload_block || start + total > g_cpu_upload_block.length) {
+             g_cpu_upload_block = [g_dev newBufferWithLength:RB_CPU_UPLOAD_BLOCK options:MTLResourceStorageModeShared];
+@@ -7054,14 +7087,17 @@
+         stg = g_cpu_upload_block;
+         if (stg) g_cpu_upload_next = start + total;
+     }
+-    BOOL pooled = stg != nil;
++    // Changing storage ownership must not relax any ordering decision on a
++    // reused or sparse destination. Only a fresh sampled texture may join.
++    BOOL pooled = stg && (!fromRing || (first && !reuse && !sparse && g_cb));
+     // Ordinary first-use sampled textures can share the final copy encoder even
+     // when each needs its own staging buffer. Ordering stays with this submission.
+     BOOL join = !pooled && first && !reuse && g_cb && on_sub_thread() && !sparse &&
+         t->has_layout && !t->d.flags && t->d.target == NVN_TEXTURE_TARGET_2D &&
+         rb_upload_batch_on() && !rb_mem_low() && rb_batch_fits(g_up_keep_bytes, total,
+             rb_gov_on() ? rb_gov_quota(RB_GOV_UPLOAD) / (unsigned)rb_up_n() : RB_BATCH_BYTES);
+-    if (!stg && total <= RB_UP_PIECE)
++    BOOL stageBands=rb_stage_enabled() && total>16*RB_STAGE_MIB;
++    if (!stg && total <= RB_UP_PIECE && !stageBands)
+         stg = [g_dev newBufferWithLength:total ? total : 16 options:MTLResourceStorageModeShared];
+     if (!stg) {
+         uint64_t k = ++g_rb_up_split_n;
+@@ -7092,7 +7128,7 @@
+         }
+         return mt;
+     }
+-    if (!pooled) { res_add(stg); up_keep_add(stg); }
++    if (!pooled && !fromRing) { res_add(stg); up_keep_add(stg); }
+     int first_blit = g_nup_blits;
+     BOOL complete = YES;
+     size_t off = start;
+@@ -8221,10 +8257,13 @@
+         const up_rect *q = &L->r[i]; int dup = 0; for (int j = 0; j < i; j++) dup |= L->r[j].level == q->level && L->r[j].layer == q->layer; if (dup) continue;   // one deswizzle per level and layer
+         uint32_t w = MAX(t->d.width >> q->level, 1u), h = MAX(t->d.height >> q->level, 1u), z = t->d.target == 2 ? MAX(t->d.depth >> q->level, 1u) : 1;
+         size_t pitch = (size_t)((w + bw - 1) / bw) * bpb, rows = (h + bh - 1) / bh;
+-        id<MTLBuffer> stg = [g_dev newBufferWithLength:pitch * rows * z options:MTLResourceStorageModeShared];
++        size_t start=0;
++        id<MTLBuffer> stg=rb_stage_take(pitch*rows*z,&start,0);
++        BOOL fromRing=stg!=nil;
++        if (!stg) stg=[g_dev newBufferWithLength:pitch * rows * z options:MTLResourceStorageModeShared];
+         if (!stg) { free(rb); return 1; }
+-        res_add(stg); up_keep_add(stg);
+-        if (nvn_deswizzle(&t->d, q->level, q->layer, rb ? rb : t->mem, stg.contents, pitch)) { RED_ONCE(98, "partial re-upload: deswizzle failed format %#x target %d", t->d.format, t->d.target); free(rb); return 1; }
++        if (!fromRing) { res_add(stg); up_keep_add(stg); }
++        if (nvn_deswizzle(&t->d, q->level, q->layer, rb ? rb : t->mem, (uint8_t *)stg.contents+start, pitch)) { RED_ONCE(98, "partial re-upload: deswizzle failed format %#x target %d", t->d.format, t->d.target); free(rb); return 1; }
+         // The first texel was read by the completed natural deswizzle. Padding
+         // and the rest of a tiled mip have no proven contiguous read coverage.
+         if (!rb && !t->d.flags && q->level<t->d.levels) {
+@@ -8235,7 +8274,7 @@
+             size_t off = (size_t)(r->y / bh) * pitch + (size_t)(r->x / bw) * bpb; uint64_t rectBytes = (size_t)((r->w + bw - 1) / bw) * bpb * ((r->h + bh - 1) / bh) * z;
+             g_bp_up_bytes += rectBytes;
+             if (rb_tex_budget_on()) atomic_fetch_add_explicit(&rb_tex_staging, rectBytes, memory_order_relaxed);
+-            up_blit_add_at(stg, off, pitch, pitch * rows, MTLSizeMake(r->w, r->h, z), mt, t->d.target == 2 ? 0 : r->layer, r->level, r->x, r->y); }
++            up_blit_add_at(stg, start+off, pitch, pitch * rows, MTLSizeMake(r->w, r->h, z), mt, t->d.target == 2 ? 0 : r->layer, r->level, r->x, r->y); }
+     }
+     free(rb);
+     [g_up_texs addObject:mt];
+@@ -8766,6 +8805,7 @@
+              (unsigned long long)broadcasts, (unsigned long long)segments);
+     rb_reuse_report(frame);   // RewindBox (patch 0071)
+     zp_report(frame);   // RewindBox (patch 0060)
++    rb_range_report(frame);
+     rb_wn_line(frame);   // RewindBox (patch 0070): texture storage read ahead (before the line cap below: it says itself when anything moved)
+     static unsigned long long last_rss, last_gpu, last_frame; static int lines; unsigned long long gpu = (unsigned long long)(g_dev.currentAllocatedSize >> 20);
+     unsigned long long dr = rss_mb > last_rss ? rss_mb - last_rss : last_rss - rss_mb, dg = gpu > last_gpu ? gpu - last_gpu : last_gpu - gpu;
+@@ -16348,6 +16388,7 @@
+ }
+ static int pool_size_cmp(const void *a, const void *b) { uint64_t x = *(const uint64_t *)a, y = *(const uint64_t *)b; return x < y ? -1 : x > y; }
+ #include "rb_texture_ahead.inc"
++#include "rb_guest_range.inc"
+ static int pool_unmade(int id_) { return id_ > 0 && id_ < g_ntreg && g_treg[id_].ok && !g_treg[id_].gone && !g_treg[id_].view && !tex_get(g_treg[id_].t.serial); }
+ // The largest texture these IDs may make: this frame's room, spent from the smallest up. UINT64_MAX while they all fit. ids NULL: base .. base + n - 1
+ static uint64_t pool_walk_limit(int base, int n, const uint32_t *ids) {
+@@ -24219,7 +24260,17 @@
+                 break;
+             case OP_DRAW_TEX: if (!g_rc_skip) { if (!g_enc) rb_mdx_ahead_from(p + h.size); draw_tex(a); } else fsig_cond_skip(1); break;   // RewindBox (patch 0064): fsig_cond_skip. RewindBox (patch 0072): rb_mdx_ahead_from
+             // Do not mark dirty if the state did not change (the game often re-sends the same program / state block / vertex format before each draw; the dirty flag only decides whether to re-fetch the pipeline / depth-stencil object, and equal values mean the same object)
+-            case OP_SCISSOR: case OP_BIND_PROGRAM: case OP_BIND_STATE: case OP_BIND_VATTR: case OP_BIND_VSTREAM: case OP_BIND_VBUF:
++            case OP_BIND_VBUF: {
++                state_op(h.op,a,h.size);
++                // Real replay only. Predictive walks must not touch the pager.
++                if (nvn_be_guest_hint_on()) {
++                    p_bind_vbuf t; const p_bind_vbuf *b=bind_vbuf_rec(a,h.size,&t);
++                    for (int i=0;i<b->n;++i)
++                        nvn_be_guest_range_hint((rb_guest_hint){b->r[i].address,b->r[i].size,0,b->r[i].size,RB_RANGE_REPLAY});
++                }
++                break;
++            }
++            case OP_SCISSOR: case OP_BIND_PROGRAM: case OP_BIND_STATE: case OP_BIND_VATTR: case OP_BIND_VSTREAM:
+             case OP_BIND_UBO: case OP_BIND_SSBO: case OP_BIND_TEX: case OP_BIND_TEX1: case OP_BIND_SAMP: case OP_BIND_IMG: case OP_STENCIL:
+             case OP_POLY_OFFSET: case OP_VIEWPORTS: case OP_DEPTH_RANGE: case OP_DEPTH_CLAMP: case OP_VP_SWIZZLE: case OP_BLEND_COLOR:
+                 state_op(h.op, a, h.size); break;
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -48,6 +48,8 @@
+     struct timespec dl = session_deadline();
+     // Both lane sets (the prefetch and the lookahead's loads): stopping is set and enqueues happen under g_shpre_mu, so no load can be queued after these markers
+     dispatch_group_t prefetch_done = dispatch_group_create();
++    // Stop/restart can retire the guest file descriptors independently of the park option.
++    rb_range_mark(prefetch_done);
+     os_unfair_lock_lock(&g_shpre_mu);
+     shq_mark(&g_shpre, prefetch_done); shq_mark(&g_shurg, prefetch_done);
+     if (g_rb_disk_q) dispatch_group_async(prefetch_done,g_rb_disk_q,^{});
+@@ -136,6 +138,7 @@
+         if (t->view) CFRelease(t->view); if (t->alt) CFRelease(t->alt);
+         if (t->ar) CFRelease(t->ar); if (t->im) CFRelease(t->im);
+     }
++    rb_range_reset();
+     rb_tx_reset();
+     free(g_treg); g_treg = NULL; g_ntreg = g_tpool_n = 0;
+     for (int i = 0; i < g_nsreg; i++) if (g_sview[i]) CFRelease(g_sview[i]);
+@@ -263,6 +266,7 @@
+     }
+     // Staging and submission arenas contain copies, but must not retain old
+     // no-copy texture owners through the upload batch or encoded commands.
++    rb_stage_retire();
+     g_up_texs = nil; g_up_keep = nil; g_up_lost = nil; g_up_old = nil;
+     g_nup_blits = g_nup_decs = 0;
+     free(g_up_blits); g_up_blits = NULL; g_up_blitcap = 0;
+diff --git a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+--- a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
++++ b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+@@ -392,7 +392,7 @@
+ //   piece (stg). full: this round's piece is used up, or none taken yet (the tile goes in the next round); refused: Metal refused this look's staging; heapfail: Metal refused a heap
+ //   in this look (none is asked for again); newh: heaps this round made; done: g_done at the round's start; the tiles left out of date for want of staging, a heap tile, a decode or
+ //   host memory. RewindBox (patch 0029): stamp, the look's dirty-page stamp, a shared slot's once uploaded (1110473c, nvn_mtl.m:3577 at 0c078130)
+-typedef struct { NvSparse *s; const tex_t *t; id<MTLTexture> tex; sp_ops *ops; uint32_t nheaps; uint8_t *tile, *tail; id<MTLBuffer> stg; size_t stg_off, tail_need; uint64_t up, unmapped, stamp; int bw, bh, bpb, force;
++typedef struct { NvSparse *s; const tex_t *t; id<MTLTexture> tex; sp_ops *ops; uint32_t nheaps; uint8_t *tile, *tail; id<MTLBuffer> stg; size_t stg_off, stg_end, tail_need; uint64_t up, unmapped, stamp; int bw, bh, bpb, force;
+                  int full, refused, heapfail; uint64_t done, round_up, rounds, staged, nostg, noheap, nodec, nomem; NSMutableArray *newh;
+                  size_t zbpp; uint64_t zeroed; uint64_t tail_shared, tail_drawn; } sp_look;   // RewindBox (patch 0030), S2Arm: a GPU-written texture's bytes a texel when its fresh heap tiles are zeroed (0: not), and how many were
+ static int sp_blit_room(int k) {   // S2Arm (check C2): room in the upload list for k copies before a tile is mapped (up_blit_add_at drops a copy it cannot record)
+@@ -531,7 +531,7 @@
+     }
+     size_t need = is_tail ? c->tail_need : SP_TILE; int nb = is_tail ? (int)(s->levels - s->ntiled) : 1;
+     if (!c->stg) { if (c->refused) { c->nostg++; sp_drop(c, sl, rg, lev, y); } else c->full = 1; return; }   // S2Arm: Metal refused this look's staging / none taken yet
+-    if (c->stg_off + need > c->stg.length) { c->full = 1; return; }   // S2Arm: this round's piece is used up
++    if (c->stg_off>c->stg_end || need>c->stg_end-c->stg_off) { c->full = 1; return; }   // S2Arm: this round's piece is used up
+     if (!sp_blit_room(nb)) { c->nomem++; sp_drop(c, sl, rg, lev, y); return; }
+     // the content: protected before it is read, as any packaged texture's, so a later CPU write shows (nvn_dirty_sparse_writes, sparse_look). A shared slot is the memory at p, which the
+     // game may remap away from this place on its own thread at any moment: the content is read from p, not through the page table, so it is never kept under another memory's key
+@@ -659,7 +659,7 @@
+             if (!c.stg) { c.refused = 1; RED_ONCE(194, "no zero buffer of %zu bytes for the new tiles of GPU-written placement sparse texture ser=%llu: they stay unmapped (read 0), every tile is "
+                                                     "looked at again 60 frames on", z, (unsigned long long)t->serial); }
+         } else if (c.full && !c.refused) {   // S2Arm: the round's staging piece, g_sp_mu not held: rb_up_staging may flush the upload batch and wait (RB_UP_INFLIGHT, patch 0021)
+-            size_t z = MAX(SP_STG, c.tail_need); c.stg = rb_up_staging(z); c.stg_off = 0;
++            size_t z = MAX(SP_STG, c.tail_need); c.stg = rb_up_staging_at(z,&c.stg_off); c.stg_end=c.stg_off+z;
+             if (c.stg) c.staged += z; else { c.refused = 1; sp_stg_refused(t, z); }
+         }
+         c.full = 0; c.round_up = 0; c.newh = nil; c.rounds++; c.done = rc_done();   // S2Arm: g_done under g_mu, read without g_sp_mu
+diff --git a/graphics/nvn/gfx/nvn/rb_guest_hint.h b/graphics/nvn/gfx/nvn/rb_guest_hint.h
+new file mode 100644
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_guest_hint.h
+@@ -0,0 +1,7 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++#include <stdint.h>
++enum { RB_RANGE_FLUSH, RB_RANGE_MAP, RB_RANGE_VERTEX, RB_RANGE_REPLAY, RB_RANGE_KINDS };
++typedef struct { uint64_t base,capacity; int64_t offset; uint64_t bytes; unsigned source; } rb_guest_hint;
++int nvn_be_guest_hint_on(void);
++void nvn_be_guest_range_hint(rb_guest_hint h);
+diff --git a/graphics/nvn/gfx/nvn/rb_guest_range.inc b/graphics/nvn/gfx/nvn/rb_guest_range.inc
+new file mode 100644
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_guest_range.inc
+@@ -0,0 +1,87 @@
++// SPDX-License-Identifier: Apache-2.0
++#include "rb_guest_hint.h"
++enum { RB_RANGE_RECENT=32, RB_RANGE_PENDING=8, RB_RANGE_POSTS=16, RB_RANGE_PERIOD_MS=100 };
++static pthread_mutex_t rb_ranges_lock=PTHREAD_MUTEX_INITIALIZER;
++static rb_stream_range rb_ranges[RB_RANGE_RECENT];
++static uint64_t rb_ranges_epoch,rb_ranges_window;
++static unsigned rb_ranges_cursor,rb_ranges_pending,rb_ranges_posts;
++static dispatch_queue_t rb_ranges_queue; // protected by rb_ranges_lock
++static _Atomic int rb_ranges_option;
++static _Atomic uint64_t rb_ranges_queued[RB_RANGE_KINDS],rb_ranges_duplicate,rb_ranges_refused,rb_ranges_advised;
++int nvn_be_guest_hint_on(void) {
++    return g_dev && !g_m3 &&
++        rb_pacing_setting(&rb_ranges_option,"S2A_RB_GUEST_RANGE_PREFETCH");
++}
++static void rb_range_read(uint64_t address,uint64_t bytes,uint64_t epoch,uint64_t posted) {
++    uint64_t now=bp_now()/NSEC_PER_MSEC;
++    if (dm_gfx_session_stopping() || nvn_be_stopping() || now-posted>=250 ||
++        epoch!=atomic_load(&rb_ra_backing_epoch) || atomic_load(&g_fu_waiting) ||
++        !rb_wn_on() || rb_cached_thermal()>=2 || rb_mem_low() || !rb_ra_scale(RA_BIND) ||
++        rb_metal_working_room()<bytes ||
++        !s2a_guest_in_file(address,bytes) || !rb_file_hint_admit(&rb_bind_budget,now,
++            rb_stream_headroom(),address,bytes,(unsigned)getpagesize(),0)) {
++        atomic_fetch_add_explicit(&rb_ranges_refused,1,memory_order_relaxed);
++        return;
++    }
++    // rb_wn runs mincore on the worker. F_RDADVISE applies to confirmed missing
++    // pages in current file descriptors, including splits between backing files.
++    uint64_t before=atomic_load_explicit(&rb_bind_advised,memory_order_relaxed);
++    rb_bind_fd_only=1;
++    (void)rb_wn((const void *)(uintptr_t)address,bytes,RA_BIND,epoch);
++    rb_bind_fd_only=0;
++    uint64_t after=atomic_load_explicit(&rb_bind_advised,memory_order_relaxed);
++    atomic_fetch_add_explicit(&rb_ranges_advised,after-before,memory_order_relaxed);
++}
++void nvn_be_guest_range_hint(rb_guest_hint h) {
++    uint64_t addr,length;
++    if (h.source>=RB_RANGE_KINDS || !rb_stream_window(h.base,h.capacity,h.offset,h.bytes,&addr,&length) ||
++        dm_gfx_session_stopping() || nvn_be_stopping() || pthread_mutex_trylock(&rb_ranges_lock)) return;
++    length=MIN(length,(uint64_t)RB_HINT_MAX_ITEM);
++    uint64_t now=bp_now()/NSEC_PER_MSEC,epoch=atomic_load(&rb_ra_backing_epoch);
++    if (rb_ranges_epoch!=epoch) { memset(rb_ranges,0,sizeof rb_ranges); rb_ranges_epoch=epoch; }
++    if (now-rb_ranges_window>=RB_RANGE_PERIOD_MS) { rb_ranges_posts=0; rb_ranges_window=now; }
++    // Cap producer submissions even when the worker can immediately reject
++    // anonymous ranges. Bind-heavy command lists must not wake it for every draw.
++    if (rb_ranges_pending>=RB_RANGE_PENDING || rb_ranges_posts>=RB_RANGE_POSTS || nvn_be_stopping()) {
++        atomic_fetch_add_explicit(&rb_ranges_refused,1,memory_order_relaxed);
++        pthread_mutex_unlock(&rb_ranges_lock);
++        return;
++    }
++    for (unsigned i=0;i<RB_RANGE_RECENT;++i) if (rb_stream_recent(&rb_ranges[i],addr,length,now)) {
++        atomic_fetch_add_explicit(&rb_ranges_duplicate,1,memory_order_relaxed);
++        pthread_mutex_unlock(&rb_ranges_lock);
++        return;
++    }
++    rb_ranges[rb_ranges_cursor++%RB_RANGE_RECENT]=(rb_stream_range){addr,addr+length,now};
++    rb_ranges_pending++; rb_ranges_posts++;
++    atomic_fetch_add_explicit(&rb_ranges_queued[h.source],1,memory_order_relaxed);
++    rb_ranges_queue=rb_guest_page_queue();
++    dispatch_async(rb_ranges_queue, ^{ @autoreleasepool {
++        rb_range_read(addr,length,epoch,now);
++        pthread_mutex_lock(&rb_ranges_lock);
++        rb_ranges_pending--;
++        pthread_mutex_unlock(&rb_ranges_lock);
++    }});
++    pthread_mutex_unlock(&rb_ranges_lock);
++}
++static void rb_range_mark(dispatch_group_t closing) {
++    pthread_mutex_lock(&rb_ranges_lock);
++    if (rb_ranges_queue) dispatch_group_async(closing,rb_ranges_queue,^{});
++    pthread_mutex_unlock(&rb_ranges_lock);
++}
++static void rb_range_reset(void) {
++    // All producers stopped and the marker retired before the old mapping can close.
++    rb_ranges_queue=nil; rb_ranges_cursor=rb_ranges_posts=0; rb_ranges_epoch=rb_ranges_window=0;
++    memset(rb_ranges,0,sizeof rb_ranges);
++    for (unsigned i=0;i<RB_RANGE_KINDS;++i) atomic_store(&rb_ranges_queued[i],0);
++    atomic_store(&rb_ranges_duplicate,0); atomic_store(&rb_ranges_refused,0);
++    atomic_store(&rb_ranges_advised,0); atomic_store(&rb_ranges_option,0);
++}
++static void rb_range_report(uint64_t frame) {
++    if (frame%300 || !nvn_be_guest_hint_on()) return;
++    MLOG("[rb-guest-pages] frame=%llu flush=%llu map=%llu record=%llu replay=%llu duplicate=%llu held=%llu file_bytes_advised=%llu",
++        (unsigned long long)frame,(unsigned long long)atomic_load(&rb_ranges_queued[RB_RANGE_FLUSH]),
++        (unsigned long long)atomic_load(&rb_ranges_queued[RB_RANGE_MAP]),(unsigned long long)atomic_load(&rb_ranges_queued[RB_RANGE_VERTEX]),
++        (unsigned long long)atomic_load(&rb_ranges_queued[RB_RANGE_REPLAY]),(unsigned long long)atomic_load(&rb_ranges_duplicate),
++        (unsigned long long)atomic_load(&rb_ranges_refused),(unsigned long long)atomic_load(&rb_ranges_advised));
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_stage_ring.inc b/graphics/nvn/gfx/nvn/rb_stage_ring.inc
+new file mode 100644
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_stage_ring.inc
+@@ -0,0 +1,136 @@
++// Submit is the sole allocator. Completion owns only the atomic busy flag.
++// The real upload CB already runs independently of the main CB and is
++// committed in the ordered stream after any sparse mapping it consumes.
++static _Atomic int rb_stage_option;
++static id<MTLBuffer> rb_stage_buffers[RB_STAGE_SLOTS];
++static _Atomic int rb_stage_busy[RB_STAGE_SLOTS];
++static uint64_t rb_stage_ticket[RB_STAGE_SLOTS], rb_stage_sequence;
++static int rb_stage_current=-1;
++static size_t rb_stage_used;
++static uint64_t rb_stage_held,rb_stage_peak,rb_stage_bytes,rb_stage_slices,rb_stage_rollovers,rb_stage_waits;
++static _Atomic uint64_t rb_stage_completions,rb_stage_other;
++static int rb_cached_thermal(void);
++#ifdef RB_TEST_FIRST_FRAME
++static int rb_stage_test; // exercises the same copy and completion on hosted Metal
++#endif
++static int rb_stage_enabled(void) {
++#ifdef RB_TEST_FIRST_FRAME
++    if (rb_stage_test) return rb_pacing_setting(&rb_stage_option,"S2A_RB_UPLOAD_STAGING_RING");
++#endif
++    return g_dev && !g_m3 && rb_pacing_setting(&rb_stage_option,"S2A_RB_UPLOAD_STAGING_RING");
++}
++static uint64_t rb_stream_headroom(void) {
++#if TARGET_OS_IPHONE
++    return rb_gov_on() ? atomic_load_explicit(&rb_gov_room,memory_order_relaxed) : rb_ios_headroom();
++#else
++    uint64_t limit=g_dev.recommendedMaxWorkingSetSize,used=g_dev.currentAllocatedSize;
++    return used<limit ? limit-used : 0;
++#endif
++}
++static rb_stage_plan rb_stage_current_plan(void) {
++#ifdef RB_TEST_FIRST_FRAME
++    if (rb_stage_test) return rb_stage_policy(1,4ull<<30,32*RB_STAGE_MIB,0);
++#endif
++    uint64_t room=rb_stream_headroom();
++    if (room==UINT64_MAX) room=0; // unavailable hosted memory reading
++    uint64_t quota=rb_gov_on()?rb_gov_quota(RB_GOV_UPLOAD):UINT64_MAX;
++    uint64_t other=atomic_load_explicit(&rb_stage_other,memory_order_relaxed)+g_up_keep_bytes;
++    for (int i=0;i<rb_up_n();i++) other+=g_up_slot_blk[i].length;
++    rb_stage_plan plan=rb_stage_policy(rb_cached_thermal(),room,quota>other ? quota-other : 0,rb_mem_low());
++    return rb_stage_metal_limit(plan,rb_stage_held,rb_metal_working_room());
++}
++// The governor samples at 2 Hz. Multiple streamed chunks can grow in one
++// interval, so check the device again only when about to allocate a new chunk.
++static int rb_stage_can_grow(uint64_t chunk) {
++#ifdef RB_TEST_FIRST_FRAME
++    if (rb_stage_test) return 1;
++#endif
++    if (!rb_working_set_on()) return 1;
++    uint64_t target=rb_ws_target(g_dev.recommendedMaxWorkingSetSize);
++    return chunk<=rb_metal_working_room() && chunk<=rb_ws_room(target,g_dev.currentAllocatedSize,UINT64_MAX);
++}
++static void rb_stage_trim(rb_stage_plan plan) {
++    for (int i=0;i<RB_STAGE_SLOTS;i++) {
++        if (i==rb_stage_current || atomic_load_explicit(&rb_stage_busy[i],memory_order_acquire)) continue;
++        id<MTLBuffer> b=rb_stage_buffers[i];
++        if (b && (b.length>plan.chunk || rb_stage_held>plan.limit)) {
++            rb_stage_held-=b.length;
++            res_remove(b); rb_stage_buffers[i]=nil;
++        }
++    }
++}
++// Safe only between independently recorded copies. Never call this after
++// up_tex_src has lent a resource to the current upload command buffer.
++static void rb_stage_boundary(size_t bytes) {
++    if (rb_stage_current<0 || !bytes || bytes>32*RB_STAGE_MIB || !on_sub_thread()) return;
++    uint64_t offset;
++    if (rb_stage_slice(rb_stage_used,rb_stage_buffers[rb_stage_current].length,bytes,&offset)) return;
++    up_flush_cause(UP_BATCH_LIMIT);
++    rb_stage_rollovers++;
++    if (g_rb_started) rec_publish(); // hand off only already-recorded blocks; no main commit or encoder wait
++}
++static void up_begin(void);
++static id<MTLBuffer> rb_stage_take(size_t bytes,size_t *offset,int may_roll) {
++    if (!rb_stage_enabled() || !on_sub_thread() || !bytes || bytes>32*RB_STAGE_MIB) return nil;
++    if (may_roll) rb_stage_boundary(bytes);
++    int slot=rb_stage_current;
++    if (slot<0) {
++        rb_stage_plan plan=rb_stage_current_plan();
++        rb_stage_trim(plan);
++        if (bytes>plan.chunk || plan.limit<plan.chunk) return nil;
++        int free_slot=-1,oldest=-1;
++        for (int i=0;i<RB_STAGE_SLOTS;i++) {
++            if (!atomic_load_explicit(&rb_stage_busy[i],memory_order_acquire)) {
++                if (rb_stage_buffers[i].length>=bytes) { slot=i; break; }
++                if (!rb_stage_buffers[i] && free_slot<0) free_slot=i;
++            } else if (rb_stage_buffers[i].length>=bytes &&
++                      (oldest<0 || rb_stage_ticket[i]<rb_stage_ticket[oldest])) oldest=i;
++        }
++        if (slot<0 && free_slot>=0 && rb_stage_held<=plan.limit-plan.chunk && rb_stage_can_grow(plan.chunk)) {
++            id<MTLBuffer> b=[g_dev newBufferWithLength:plan.chunk
++                options:MTLResourceStorageModeShared|MTLResourceCPUCacheModeWriteCombined];
++            if (b) {
++                slot=free_slot; rb_stage_buffers[slot]=b; res_add(b);
++                rb_stage_held+=b.length; rb_stage_peak=MAX(rb_stage_peak,rb_stage_held);
++            }
++        }
++        // Backpressure at the memory ceiling only waits for one actual upload.
++        // The encoder thread can submit it even inside a geometry recording lane.
++        if (slot<0 && oldest>=0 && may_roll) {
++            if (g_rb_started) rec_publish();
++            rb_stage_waits++; up_wait_zero(&rb_stage_busy[oldest]); slot=oldest;
++            if (rb_stage_buffers[slot].length>plan.chunk) return nil;
++        }
++        if (slot<0) return nil;
++        if (!g_up_cb) up_begin();
++        rb_stage_current=slot; rb_stage_used=0;
++        rb_stage_ticket[slot]=++rb_stage_sequence;
++        atomic_store_explicit(&rb_stage_busy[slot],1,memory_order_release);
++    }
++    uint64_t start;
++    if (!rb_stage_slice(rb_stage_used,rb_stage_buffers[slot].length,bytes,&start)) return nil;
++    *offset=(size_t)start; rb_stage_used=*offset+bytes;
++    rb_stage_bytes+=bytes; rb_stage_slices++;
++    return rb_stage_buffers[slot];
++}
++
++static void rb_stage_maintain(void) {
++    if (!rb_stage_held) return;
++    uint64_t frame=atomic_load_explicit(&g_cur_frame,memory_order_relaxed);
++    static uint64_t sampled=UINT64_MAX;
++    if (frame==sampled) return;
++    sampled=frame;
++    rb_stage_trim(rb_stage_current_plan());
++    if (frame%300==0)
++        MLOG("[rb-upload-ring] MiB=%llu peak_MiB=%llu copied_MiB=%llu slices=%llu upload_commits=%llu completed=%llu slot_waits=%llu",
++             (unsigned long long)(rb_stage_held>>20),(unsigned long long)(rb_stage_peak>>20),
++             (unsigned long long)(rb_stage_bytes>>20),(unsigned long long)rb_stage_slices,
++             (unsigned long long)rb_stage_rollovers,(unsigned long long)atomic_load(&rb_stage_completions),
++             (unsigned long long)rb_stage_waits);
++}
++static void rb_stage_retire(void) {
++    // session_wait_backend joined every upload completion before reaching here.
++    rb_stage_trim((rb_stage_plan){0});
++    rb_stage_peak=rb_stage_bytes=rb_stage_slices=rb_stage_rollovers=rb_stage_waits=0;
++    atomic_store(&rb_stage_completions,0); atomic_store(&rb_stage_option,0);
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_stream_budget.h b/graphics/nvn/gfx/nvn/rb_stream_budget.h
+new file mode 100644
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_stream_budget.h
+@@ -0,0 +1,43 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++#include <stdint.h>
++#include <stddef.h>
++
++#define RB_STAGE_MIB (UINT64_C(1) << 20)
++enum { RB_STAGE_SLOTS = 4 };
++typedef struct { uint64_t chunk, limit; } rb_stage_plan;
++static inline rb_stage_plan rb_stage_policy(unsigned thermal, uint64_t room, uint64_t quota, int pressure) {
++    uint64_t chunk=(thermal || pressure ? 16 : 32)*RB_STAGE_MIB;
++    uint64_t limit=(pressure || thermal>=2 ? 1 : thermal ? 2 : RB_STAGE_SLOTS)*chunk;
++    if (quota<limit) limit=quota;
++    if (room<=1024*RB_STAGE_MIB) limit=0;
++    else if (room-1024*RB_STAGE_MIB<limit) limit=room-1024*RB_STAGE_MIB;
++    return (rb_stage_plan){chunk,limit};
++}
++// Device room is additional capacity beyond already allocated ring bytes.
++// Exhaustion asks the owner to return every idle slot; GPU-owned slots retire normally.
++static inline rb_stage_plan rb_stage_metal_limit(rb_stage_plan plan,uint64_t held,uint64_t room) {
++    if (!room) plan.limit=0;
++    else if (held<plan.limit && room<plan.limit-held) plan.limit=held+room;
++    return plan;
++}
++static inline int rb_stage_slice(uint64_t used,uint64_t capacity,uint64_t bytes,uint64_t *offset) {
++    if (!bytes || used>UINT64_MAX-255) return 0;
++    uint64_t start=(used+255)&~UINT64_C(255);
++    if (start>capacity || bytes>capacity-start) return 0;
++    *offset=start;
++    return 1;
++}
++typedef struct { uint64_t begin,end,tick; } rb_stream_range;
++static inline int rb_stream_window(uint64_t base,uint64_t capacity,int64_t offset,uint64_t size,
++                                   uint64_t *addr,uint64_t *length) {
++    if (!base || offset<0 || !size || (uint64_t)offset>=capacity || size>capacity-(uint64_t)offset ||
++        base>UINT64_MAX-(uint64_t)offset || base+(uint64_t)offset>UINT64_MAX-size) return 0;
++    *addr=base+(uint64_t)offset;
++    *length=size;
++    return 1;
++}
++static inline int rb_stream_recent(const rb_stream_range *recent,uint64_t a,uint64_t n,uint64_t ms) {
++    return n && a<=UINT64_MAX-n && recent->begin<=a && a+n<=recent->end &&
++           ms>=recent->tick && ms-recent->tick<250;
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+--- a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
++++ b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+@@ -18,6 +18,13 @@
+ // can also give a page hint, but only replay can decide what to upload.
+ enum { RB_TX_PAGE_HINTS = 32, RB_TX_PAGE_ITEM = 1024 * 1024, RB_TX_PAGE_FRAME = 8 * RB_TX_PAGE_ITEM };
+ static dispatch_queue_t g_tx_page_queue;
++// All file hints spend the same page-rounded token bucket on this serial queue.
++static dispatch_queue_t rb_guest_page_queue(void) {
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{ g_tx_page_queue = dispatch_queue_create("rb.texture.bind.pages",
++        dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,QOS_CLASS_DEFAULT,0)); });
++    return g_tx_page_queue;
++}
+ static struct {
+     pthread_mutex_t lock;
+     unsigned pending, posted;
+@@ -123,13 +130,10 @@
+     if (frame != g_tx_page.post_frame) { g_tx_page.post_frame = frame; g_tx_page.posted = 0; }
+     if (g_tx_page.pending < RB_TX_PAGE_HINTS && g_tx_page.posted < RB_TX_PAGE_HINTS/scale &&
+         atomic_load_explicit(recent, memory_order_relaxed) != serial) {
+-        static dispatch_once_t once;
+-        dispatch_once(&once, ^{ g_tx_page_queue = dispatch_queue_create("rb.texture.bind.pages",
+-            dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_DEFAULT, 0)); });
+         atomic_store_explicit(recent, serial, memory_order_relaxed);
+         ++g_tx_page.pending;
+         ++g_tx_page.posted;
+-        dispatch_async(g_tx_page_queue, ^{ @autoreleasepool {
++        dispatch_async(rb_guest_page_queue(), ^{ @autoreleasepool {
+             rb_tx_page_run(id_, serial, frame);
+             pthread_mutex_lock(&g_tx_page.lock);
+             --g_tx_page.pending;
+diff --git a/graphics/nvn/tests/rb_upload_stream_gpu.inc b/graphics/nvn/tests/rb_upload_stream_gpu.inc
+new file mode 100644
+--- /dev/null
++++ b/graphics/nvn/tests/rb_upload_stream_gpu.inc
+@@ -0,0 +1,67 @@
++// Force two small Fair chunks on the hosted GPU. A real shared event holds the
++// first upload until both command buffers have been built on the submit thread.
++static int rb_test_upload_stream(void) {
++    setenv("S2A_RB_UPLOAD_STAGING_RING","1",1);
++    rb_stage_test=1;
++    id<MTLDevice> device=MTLCreateSystemDefaultDevice(); REQUIRE(device);
++    BOOL direct=NO;
++    if (@available(macOS 26.0,iOS 26.0,*)) {
++        MTLResidencySetDescriptor *probe=[MTLResidencySetDescriptor new]; probe.initialCapacity=4;
++        direct=device.hasUnifiedMemory && [device supportsFamily:MTLGPUFamilyMetal4] &&
++            [device newResidencySetWithDescriptor:probe error:NULL] &&
++            [device newMTL4CommandQueueWithDescriptor:[MTL4CommandQueueDescriptor new] error:NULL];
++    }
++    if (direct) {
++        nvn_be_sub_begin();
++    } else {
++        s2a_mtl_slot_take("upload ring fixture");
++        g_dev=device; g_m3=1; g_q3=[device newCommandQueue]; g_q=g_q3;
++        g_fence3=[device newFence]; g_keep=[NSMutableArray array];
++        g_sub_thread=pthread_self(); atomic_store(&g_sub_thread_set,1);
++        g_cb=[g_q3 commandBuffer];
++    }
++    printf("Upload ring readback on %s (%s)\n",device.name.UTF8String,g_m3 ? "tracked Metal 3" : "direct Metal 4");
++    id main=g_cb; REQUIRE(main);
++    id<MTLSharedEvent> gate=nil;
++    id<MTLCommandBuffer> reserved=nil;
++    if (g_m3) {
++        reserved=[g_q3 commandBuffer]; REQUIRE(reserved); [reserved enqueue];
++    } else {
++        gate=[g_dev newSharedEvent]; REQUIRE(gate); [g_q4 waitForEvent:gate value:1];
++    }
++    MTLTextureDescriptor *desc=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
++        width:64 height:1 mipmapped:NO];
++    desc.storageMode=MTLStorageModeShared;
++    id<MTLTexture> a=[g_dev newTextureWithDescriptor:desc], b=[g_dev newTextureWithDescriptor:desc];
++    REQUIRE(a && b); res_add(a); res_add(b);
++    size_t start;
++    id<MTLBuffer> first=rb_stage_take(16*RB_STAGE_MIB,&start,1);
++    REQUIRE(first && !start); size_t old=(size_t)rb_stage_current;
++    uint8_t *p=first.contents; memset(p,0x53,256);
++    REQUIRE(up_blit_add(first,start,256,256,MTLSizeMake(64,1,1),a,0,0));
++    id<MTLBuffer> second=rb_stage_take(1,&start,1);
++    REQUIRE(second && !start && first!=second && atomic_load(&rb_stage_busy[old]));
++    id<MTLBuffer> slice=rb_stage_take(256,&start,1);
++    CHECK(slice==second && start==256 && second.cpuCacheMode==MTLCPUCacheModeWriteCombined,
++          "crossing the chunk while the first upload waits uses a distinct shared write-combined buffer and aligned slice");
++    memset((uint8_t *)second.contents+start,0xad,256);
++    REQUIRE(up_blit_add(second,start,256,256,MTLSizeMake(64,1,1),b,0,0));
++    up_flush_cause(UP_BOUNDARY);
++    CHECK(g_cb==main && atomic_load(&rb_stage_completions)==0,"two blit command buffers leave the main command buffer open");
++    if (reserved) [reserved commit]; else gate.signaledValue=1;
++    rec_drain(); up_wait_zero(&g_up_pending);
++    uint8_t left[256]={0},right[256]={0};
++    [a getBytes:left bytesPerRow:256 fromRegion:MTLRegionMake2D(0,0,64,1) mipmapLevel:0];
++    [b getBytes:right bytesPerRow:256 fromRegion:MTLRegionMake2D(0,0,64,1) mipmapLevel:0];
++    unsigned wrong=0;
++    for (size_t i=0;i<256;i++) wrong+=left[i]!=0x53 || right[i]!=0xad;
++    CHECK(!wrong && atomic_load(&rb_stage_completions)==2,
++          "both upload completions retired, all 128 texture pixels match across the held fence");
++    CHECK(rb_stage_take(1,&start,1)==first && !start,"the completed first slot becomes reusable");
++    up_flush(); rec_drain(); up_wait_zero(&g_up_pending);
++    if (direct) {
++        uint64_t fence=nvn_be_sub_commit(); REQUIRE(nvn_be_wait(fence,10ull*NSEC_PER_SEC));
++    } else g_cb=nil;
++    rb_stage_retire(); res_remove(a); res_remove(b);
++    return failures!=0;
++}
+diff --git a/graphics/nvn/tests/t_nvn_shader_flight.m b/graphics/nvn/tests/t_nvn_shader_flight.m
+--- a/graphics/nvn/tests/t_nvn_shader_flight.m
++++ b/graphics/nvn/tests/t_nvn_shader_flight.m
+@@ -101,6 +101,9 @@
+     }
+     CHECK(!wrong,"vertex GPU %s slice=%d expected red=%.2f actual=%.2f wrong pixels=%u",shader->ventry.UTF8String,layer,expected,first,wrong);
+ }
++#ifdef RB_STAGE_MIB
++#include "rb_upload_stream_gpu.inc"
++#endif
+ #ifdef RB_FIRST_DRAW_IMPL
+ #include "rb_first_draw_flight.inc"
+ #ifdef RB_LOOK_BUDGET_H
+@@ -234,6 +237,9 @@
+     return 0;
+ }
+ int main(int argc, char **argv) { @autoreleasepool {
++#ifdef RB_STAGE_MIB
++    if (argc==2 && !strcmp(argv[1],"--rb-upload-stream")) return rb_test_upload_stream();
++#endif
+     if (argc == 6 && !strcmp(argv[1],"--rb-native-msl"))
+         return native_msl_recovery(argv[2],argv[3],argv[4],argv[5]);
+ #ifdef RB_FIRST_DRAW_IMPL
+diff --git a/graphics/nvn/tests/t_rb_upload_stream.c b/graphics/nvn/tests/t_rb_upload_stream.c
+new file mode 100644
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_upload_stream.c
+@@ -0,0 +1,42 @@
++// SPDX-License-Identifier: Apache-2.0
++#include "../gfx/nvn/rb_stream_budget.h"
++#include "../gfx/nvn/rb_file_hint.h"
++#include <assert.h>
++#include <stdio.h>
++int main(void) {
++    uint64_t m=RB_STAGE_MIB,room=3ull<<30;
++    rb_stage_plan nominal=rb_stage_policy(0,room,UINT64_MAX,0);
++    rb_stage_plan fair=rb_stage_policy(1,room,UINT64_MAX,0);
++    assert(nominal.chunk==32*m && nominal.limit==128*m);
++    assert(fair.chunk==16*m && fair.limit==32*m);
++    assert(rb_stage_policy(2,room,UINT64_MAX,0).limit==16*m);
++    assert(rb_stage_policy(0,room,UINT64_MAX,1).limit==16*m);
++    assert(rb_stage_policy(0,room,20*m,0).limit==20*m);
++    assert(!rb_stage_policy(0,1024*m,UINT64_MAX,0).limit);
++    assert(rb_stage_policy(1,1028*m,UINT64_MAX,0).limit==4*m);
++    assert(!rb_stage_metal_limit(fair,16*m,0).limit);
++    assert(rb_stage_metal_limit(fair,16*m,3*m).limit==19*m);
++    assert(rb_stage_metal_limit(fair,16*m,UINT64_MAX).limit==32*m);
++    uint64_t off,n;
++    assert(rb_stage_slice(255,512,256,&off) && off==256);
++    assert(!rb_stage_slice(255,512,257,&off));
++    assert(!rb_stage_slice(UINT64_MAX,UINT64_MAX,1,&off));
++    assert(!rb_stage_slice(0,m,0,&off));
++    assert(rb_stream_window(0x1000,8192,4095,4097,&off,&n) && off==0x1fff && n==4097);
++    assert(!rb_stream_window(0x1000,8192,-1,1,&off,&n));
++    assert(!rb_stream_window(0x1000,8192,1,8192,&off,&n));
++    assert(!rb_stream_window(UINT64_MAX-7,64,8,1,&off,&n));
++    assert(!rb_stream_window(UINT64_MAX-7,64,0,8,&off,&n));
++    rb_stream_range seen={0x1fff,0x3000,100};
++    assert(rb_stream_recent(&seen,0x2000,4096,349));
++    assert(!rb_stream_recent(&seen,0x2000,4096,350));
++    assert(!rb_stream_recent(&seen,0x2000,4097,200));
++    assert(!rb_stream_recent(&seen,UINT64_MAX,1,200));
++    rb_file_budget shared={0};
++    assert(rb_file_hint_admit(&shared,1000,room,16384,2*m,16384,0));
++    assert(rb_file_hint_admit(&shared,1000,room,16384,2*m,16384,0));
++    assert(!rb_file_hint_admit(&shared,1000,room,16385,1,16384,0));
++    assert(!rb_file_hint_admit(&shared,1100,2ull<<30,16385,1,16384,0));
++    assert(rb_file_hint_admit(&shared,1100,room,16385,1,16384,0));
++    puts("PASS staging sizes, pressure/headroom quotas, overflow, boundary crossings, file windows, expiry, and shared read-ahead budget");
++}

@@ -1,0 +1,700 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 5840577..dd6439f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -111,6 +111,7 @@ static void warm_claim(void);
+ static void rb_pso_maintain(void);
+ static void rb_tex_budget_maintain(void);
+ static void rb_gov_before_submit(void);
++static void rb_sparse_maintain(void);
+ static void rb_ref_stage_hint(const char *raw);
+ static void warm_bump(const char *vk, const char *fk);   // 游戏登记着色器程序时把预热清单里这对着色器的管线提到队头（warm_pick）
+ 
+@@ -1621,6 +1622,7 @@ void nvn_be_sub_begin(void) {
+     if (!g_vis_ring[pick].buf) { g_vis_ring[pick].buf = [g_dev newBufferWithLength:VIS_SLOTS * 8 options:MTLResourceStorageModeShared]; res_add(g_vis_ring[pick].buf); }
+     g_vis = g_vis_ring[pick].buf;
+     void arena_begin(void); arena_begin();
++    rb_sparse_maintain();
+     rb_res_top_tick();   // RewindBox (patch 0023): the resident top when the process has grown (a log line only)
+ }
+ 
+@@ -4566,7 +4568,13 @@ static void rb_low_from(uint64_t f, int event) {   // any thread: a low state st
+ }
+ static int rb_mem_low(void);
+ static void rb_gov_trim_uploads(void);
+-static void rb_gov_before_submit(void) { if (rb_gov_on()) { (void)rb_mem_low(); rb_gov_trim_uploads(); } }
++static void rb_gov_before_submit(void) {
++    if (rb_working_set_on()) {
++        rb_gov_sample(0);
++        if (!rb_metal_working_room()) rb_low_from(atomic_load(&g_cur_frame), 0);
++    }
++    if (rb_gov_on()) { (void)rb_mem_low(); rb_gov_trim_uploads(); }
++}
+ static int rb_mem_low(void) {
+     static dispatch_once_t once;
+     dispatch_once(&once, ^{ g_rb_press_src = dispatch_source_create(DISPATCH_SOURCE_TYPE_MEMORYPRESSURE, 0, DISPATCH_MEMORYPRESSURE_WARN | DISPATCH_MEMORYPRESSURE_CRITICAL, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0));
+@@ -4711,13 +4719,13 @@ static void alias_take_over(const alias_key *nk) {
+         nvn_hm_del(&g_alias_seen, &ks[j]); nvn_hm_del(&g_alias_wrote, &ks[j]);
+         id o = CFBridgingRelease(old);
+         if (g_alias_set) CFSetRemoveValue(g_alias_set, (__bridge const void *)o);
+-        uint64_t dsk[TXR_SERS]; int dn = 0;   // RewindBox (patch 0071): live serials whose views wait with it while it is kept for reuse (txr_keep)
++        uint64_t dsk[TXR_SERS]; int dn = 0, superseded = 0;   // RewindBox (patch 0071): live serials whose views wait with it while it is kept for reuse (txr_keep)
+         for (uint32_t i = 0; i < g_by_serial.cap; i++) if (g_by_serial.vals[i] == (__bridge void *)o) {   // live objects over overwritten storage: their next use makes the texture anew (tex_mtl_)
+             uint64_t sk; memcpy(&sk, g_by_serial.keys + (size_t)i * g_by_serial.klen, sizeof sk); defer_obj_unref(o); hm_del_id(&g_by_serial, &sk); i = (uint32_t)-1; g_alias_dead++;   // deletion shifts entries: rescan
+-            ndead++; rb_alias_dead_note(sk, &ks[j], nk);   // RewindBox (patch 0067)
++            superseded = 1; ndead++; rb_alias_dead_note(sk, &ks[j], nk);   // RewindBox (patch 0067)
+             if (dn < TXR_SERS && txr_on() && rb_view_keep_on()) dsk[dn++] = sk; else alias_dead_add(&sk, 1); }   // its texture-ID views go at the end of the submission (alias_dead_views: they need g_rmu, taken before g_smu)
+         if (serial_holds(&g_ghost, o) || serial_holds(&g_ghost_active, o)) { alias_dead_add(dsk, dn); defer_obj_unref(o); }
+-        else if (!txr_keep(o, &ks[j], dsk, dn)) { alias_dead_add(dsk, dn); defer_obj_release(o); }   // RewindBox (patch 0071): kept for reuse, else released as before
++        else if ((rb_sparse_budget_on() && (superseded || (atomic_load(&rb_gov_plan) & 3u) == RB_GOV_CRITICAL)) || !txr_keep(o, &ks[j], dsk, dn)) { alias_dead_add(dsk, dn); defer_obj_release(o); }   // RewindBox (patch 0071): kept for reuse, else released as before
+     }
+     if (n) { g_ser_gen++; g_alias_taken += n; FSIG(fc_->taken += n; fc_->dead += ndead); }   // RewindBox (patch 0059): FSIG; RewindBox (patch 0067): dead
+ }
+@@ -8465,7 +8473,7 @@ static id<MTLTexture> tex_mtl_(const tex_t *ct) {
+         if (!have && sparse_off_sub(t, 0)) return nil;   // RewindBox (patch 0028, check C7; seedds/nxnative a9005a51): one that would be made placement sparse is not made whole here, nor kept: the submit thread makes it at its first use (a line says so)
+         static int once; if (!once++) MLOG("packaged texture ser=%llu first needed off the submit thread (%s): not uploaded there, %s", (unsigned long long)t->serial,
+                                            pk0 ? "already uploaded" : "never uploaded", pk0 ? "the current copy is used, a dirty one is re-uploaded on the submit thread" : "used as a GPU texture");
+-        if (pk0) return pk0->view ? pk0->view : pk0->tex;
++        if (pk0) { if (pk0->ps) rb_sp_pin(pk0->tex); return pk0->view ? pk0->view : pk0->tex; }
+         packaged = 0;
+     }
+     if (packaged) {
+@@ -11743,6 +11751,19 @@ static void rb_treg_name(const void *const *tex, int nt, char (*o)[160]) {
+ //   nvn_be_reg_tex, nvn_be_unreg_tex_range). A finalized texture's IDs are found by its serial (treg_sweep_gone, alias_dead_views): those passes walked the whole registry, about
+ //   33,000 IDs in Ocarina of Time, at every submission where a texture had been finalized (11-07 E1 on device: 11% of its submit CPU, 39% of Donkey Kong's). Under g_rmu
+ static nvn_hmap g_treg_ser = {.klen = 8};
++static int rb_sp_closed_source(NvSparse *s) {
++    uint64_t serial = s->ser;
++    int closed = 0;
++    if (pthread_mutex_trylock(&g_rmu)) return 0;
++    if (!nvn_hm_get(&g_treg_ser, &serial) && !pthread_mutex_trylock(&g_smu)) {
++        id kept = hm_get_id(&g_ghost, &serial);
++        closed = !nvn_hm_get(&g_tex_live, &serial) && !hm_get_id(&g_ghost_active, &serial) &&
++                 [kept isKindOfClass:[NvPkg class]] && ((NvPkg *)kept)->ps == s;
++        pthread_mutex_unlock(&g_smu);
++    }
++    pthread_mutex_unlock(&g_rmu);
++    return closed;
++}
+ static uint64_t g_treg_ser_walk;   // IDs looked at by serial (treg_sweep_gone, alias_dead_views): the work grows with the finalized textures' IDs, not with the registry (t_nvn_treg_sweep)
+ static void treg_ser_link(int id_) {
+     treg_t *r = &g_treg[id_]; uint64_t s = r->t.serial; int h = (int)(uintptr_t)nvn_hm_get(&g_treg_ser, &s);
+@@ -12161,6 +12182,7 @@ static void treg_sp_note(int tid, treg_t *rp, id<MTLTexture> base, uint64_t spq)
+     //   pool->flags first, as tex_mtl_ reads it: only a virtual pool's texture pays nvn_sparse_pool (a read lock), only a sparse one the parentTexture / isSparse messages
+     int sp = base && p && (p->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL) && nvn_sparse_pool(p);
+     id<MTLTexture> par = sp ? base.parentTexture : nil;
++    if (sp) rb_sp_pin(base);
+     // A twin view (tex_mtl_ made it of the other format's texture, srgb_twins) shows the parent's mappings, but nothing looks through it (patch 0030): its cached view has the tiles of
+     //   the parent's last look, which another ID or binding of the parent makes. Not flagged (a slow path would not look either); said, so that the gap is not silent (D3)
+     if (par && par.isSparse && srgb_twin_view(base) && g_treg_sp_twin++ < 4)
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 5c425b4..2a77090 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -391,6 +391,11 @@ void nvn_be_begin_session(void) {
+     atomic_store(&g_rb_live_option,0); atomic_store(&g_rb_tiers_option,0);
+     g_rb_observed_shaders = nil;
+     atomic_store(&rb_gov_all_titles, 0);
++    atomic_store(&rb_ws_option, 0);
++    atomic_store(&rb_sparse_budget_option, 0);
++    atomic_store(&rb_ws_recommended, 0);
++    atomic_store(&rb_ws_room_bytes, UINT64_MAX);
++    atomic_store(&rb_gov_next, 0);
+     atomic_store(&rb_gov_floor_option, 0);
+     atomic_store(&g_rb_archive_always, 0);
+     atomic_store(&g_rb_promoted_urgent, 0);
+diff --git a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+index f21381c..13cfbd4 100644
+--- a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
++++ b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+@@ -52,6 +52,7 @@ static uint32_t g_sp_ht;               // S2Arm: tiles a heap, fixed at the firs
+ static uint32_t *g_sp_free; static size_t g_sp_nfree, g_sp_freecap;
+ static struct sp_late { uint32_t slot; uint64_t fence; } *g_sp_late; static size_t g_sp_nlate, g_sp_latecap;   // unmapped tiles, free once the GPU is past the fence
+ static uint64_t g_sp_live, g_sp_peak;
++static uint64_t rb_sp_heap_bytes, rb_sp_overflow, rb_sp_retired, rb_sp_reclaimed, rb_sp_refaults;
+ static uint64_t g_sp_sess = 1;         // S2Arm (check C6): the session whose tables the slots are in (sp_session_end); an NvSparse of another gives none back
+ static int g_sp_nmade, g_sp_nwhole; static uint64_t g_sp_whole_ser[64], g_sp_looks, g_sp_nskip;   // S2Arm: this session's log lines (sp_session_end starts them again)
+ // RewindBox (patch 0029): a heap slot's sharing record (below). Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1110473c (dm/gfx/nvn/nvn_mtl.m:3426 at 0c078130)
+@@ -70,7 +71,7 @@ static uint32_t sp_heap_tiles(void) {   // caller holds g_sp_mu
+ //   GROW, the free list before a heap is made; a heap made here is returned in *made, made resident and logged by the look once g_sp_mu is let go (check M2), and from the first one
+ //   the queue barriers flush aliased addresses (g_sp_heap_n, check C10); made NULL: no heap is asked for (Metal refused one earlier in this look).
+ //   → 1; 0 with no heap tile (made NULL, or a list that could not grow); -1 when Metal refused the heap (a red line)
+-static int sp_slot(uint32_t *out, uint64_t done, __strong id<MTLHeap> *made) {   // caller holds g_sp_mu
++static void sp_reap_slots(uint64_t done) {   // caller holds g_sp_mu
+     size_t k = 0;
+     for (size_t i = 0; i < g_sp_nlate; i++) {
+         if (g_sp_late[i].fence > done) { g_sp_late[k++] = g_sp_late[i]; continue; }
+@@ -80,6 +81,9 @@ static int sp_slot(uint32_t *out, uint64_t done, __strong id<MTLHeap> *made) {
+         g_sp_free[g_sp_nfree++] = g_sp_late[i].slot;
+     }
+     g_sp_nlate = k;
++}
++static int sp_slot(uint32_t *out, uint64_t done, __strong id<MTLHeap> *made) {
++    if (!g_sp_nfree || !rb_sparse_budget_on()) sp_reap_slots(done);
+     if (!g_sp_nfree) {
+         if (!made) return 0;   // S2Arm: Metal refused a heap in this look
+         uint32_t ht = sp_heap_tiles();
+@@ -91,14 +95,23 @@ static int sp_slot(uint32_t *out, uint64_t done, __strong id<MTLHeap> *made) {
+                 return 0; }
+             memset(g_sp_tl + g_sp_ntl, 0, (ntl - g_sp_ntl) * sizeof *g_sp_tl); g_sp_ntl = ntl;
+         }
++        unsigned pages = ht;
++        uint64_t budget = (uint64_t)rb_sparse_heap_target() * 256 * RB_WS_MIB;
++        if (rb_sparse_budget_on()) {
++            uint64_t live_room = rb_ws_room(rb_ws_target(g_dev.recommendedMaxWorkingSetSize),
++                                            g_dev.currentAllocatedSize, rb_metal_working_room());
++            pages = rb_ws_heap_pages(ht, rb_sp_heap_bytes, budget, live_room);
++        }
+         MTLHeapDescriptor *hd = [MTLHeapDescriptor new];
+-        hd.type = MTLHeapTypePlacement; hd.storageMode = MTLStorageModePrivate; hd.size = (NSUInteger)ht * SP_TILE; hd.maxCompatiblePlacementSparsePageSize = MTLSparsePageSize64;
++        hd.type = MTLHeapTypePlacement; hd.storageMode = MTLStorageModePrivate; hd.size = (NSUInteger)pages * SP_TILE; hd.maxCompatiblePlacementSparsePageSize = MTLSparsePageSize64;
+         id<MTLHeap> h = [g_dev newHeapWithDescriptor:hd];
+-        if (!h) { RED_ONCE(184, "cannot make a %u MB placement heap for sparse tiles (%llu tiles mapped in %lu heaps; Metal holds %llu MB): the tiles that need one stay unmapped (read 0)", ht / 16,
++        if (!h) { RED_ONCE(184, "cannot make a %u MB placement heap for sparse tiles (%llu tiles mapped in %lu heaps; Metal holds %llu MB): the tiles that need one stay unmapped (read 0)", pages / 16,
+                            (unsigned long long)g_sp_live, (unsigned long)g_sp_heaps.count, (unsigned long long)(g_dev.currentAllocatedSize >> 20)); return -1; }
+         if (!g_sp_heaps) g_sp_heaps = [NSMutableArray array];
+         uint32_t base = (uint32_t)g_sp_heaps.count * ht; [g_sp_heaps addObject:h]; atomic_fetch_add(&g_sp_heap_n, 1); *made = h;
+-        for (uint32_t i = ht; i-- > 0;) g_sp_free[g_sp_nfree++] = base + i;   // taken from the front of the heap first
++        rb_sp_heap_bytes += hd.size;
++        if (rb_sparse_budget_on() && rb_sp_heap_bytes > budget) rb_sp_overflow++;
++        for (uint32_t i = pages; i-- > 0;) g_sp_free[g_sp_nfree++] = base + i;   // taken from the front of the heap first
+     }
+     *out = g_sp_free[--g_sp_nfree]; if (++g_sp_live > g_sp_peak) g_sp_peak = g_sp_live;
+     *sp_tl_of(*out) = (sp_tl){.rc = 1};   // RewindBox (patch 0029): one place maps it, its own (1110473c, nvn_mtl.m:3447 at 0c078130)
+@@ -117,10 +130,10 @@ static int rb_sp_heap_used(id<MTLHeap> h, uint64_t *mapped, uint64_t *late) {
+     if (!h || pthread_mutex_trylock(&g_sp_mu)) return 0;
+     NSUInteger hi = g_sp_heaps ? [g_sp_heaps indexOfObjectIdenticalTo:h] : NSNotFound; int ok = hi != NSNotFound && g_sp_ht;
+     if (ok) {
+-        uint64_t lo = (uint64_t)hi * g_sp_ht, end = lo + g_sp_ht, fr = 0, lt = 0;
++        uint64_t tiles = h.size / SP_TILE, lo = (uint64_t)hi * g_sp_ht, end = lo + tiles, fr = 0, lt = 0;
+         for (size_t i = 0; i < g_sp_nfree; i++) fr += g_sp_free[i] >= lo && g_sp_free[i] < end;
+         for (size_t i = 0; i < g_sp_nlate; i++) lt += g_sp_late[i].slot >= lo && g_sp_late[i].slot < end;
+-        *late = lt; *mapped = fr + lt <= g_sp_ht ? g_sp_ht - fr - lt : 0;
++        *late = lt; *mapped = fr + lt <= tiles ? tiles - fr - lt : 0;
+     }
+     pthread_mutex_unlock(&g_sp_mu);
+     return ok;
+@@ -224,6 +237,12 @@ void nvn_be_sparse_phys_gone(const void *mem, uint64_t size) {
+     int gpu;                           // the GPU writes it (a render target or image): tiles are mapped and unmapped, nothing is uploaded (patch 0030; S2Arm: a fresh heap tile is zeroed, sp_tile)
+     uint64_t seq;                      // the pool's change log up to here has been handled (nvn_sparse_log_read)
+     uint64_t wseen, wframe;            // nvn_dirty_sparse_writes and the frame at the last look for rewritten tiles
++    uint64_t last_frame, last_fence;
++    size_t reclaim_cursor;
++    const void *guest_pool;
++    uintptr_t guest_base;
++    _Atomic int opaque_access;
++    int source_only, refault;
+     uint64_t sess, ser;                // S2Arm: the session whose tables its slots are in (check C6); its serial, for the log
+     uint64_t rescan_frame; uint8_t rescan;   // S2Arm (check C2): a tile was left out of date for want of staging, a heap tile or host memory: every tile is looked at again 60 frames on
+     uint8_t undrawn;                   // a tile was mapped since the GPU last wrote through this texture (sparse_gpu_wrote). RewindBox (patch 0029): 1110473c (nvn_mtl.m:3522 at 0c078130)
+@@ -234,6 +253,24 @@ void nvn_be_sparse_phys_gone(const void *mem, uint64_t size) {
+ - (void)dealloc { pthread_mutex_lock(&g_sp_mu); for (uint32_t i = 0; slot && sess == g_sp_sess && i < layers * per_layer; i++) if (slot[i]) sp_release(slot[i] - 1); pthread_mutex_unlock(&g_sp_mu); free(slot); free(nmap); }
+ @end
+ 
++// Weak sampling slots bound maintenance work and do not keep a texture alive.
++// A descriptor exposed to a persistent argument table, a view, or another
++// thread is opaque to CPU liveness tracking and keeps its valid guest pages.
++enum { RB_SP_TRACK = 128 };
++static __weak NvSparse *rb_sp_candidates[RB_SP_TRACK];
++static unsigned rb_sp_insert, rb_sp_walk;
++static uint64_t rb_sp_sweep_frame = UINT64_MAX;
++static char rb_sp_source_key;
++// Registration + lifetime ownership checks are defined with the texture-ID table.
++static int rb_sp_closed_source(NvSparse *s);
++static void rb_sp_pin(id<MTLTexture> texture) {
++    if (!texture || !rb_sparse_budget_on()) return;
++    id<MTLTexture> parent = texture;
++    while (parent.parentTexture) parent = parent.parentTexture;
++    NvSparse *s = objc_getAssociatedObject(parent, &rb_sp_source_key);
++    if (s) atomic_store(&s->opaque_access, 1);
++}
++
+ // S2Arm: a texture's tiles as NVN lays them out and Metal makes them, found by sp_check and copied into its NvSparse by sparse_make
+ typedef struct { uint32_t tw, th, ntiled, levels, layers, per_layer, tail_at, tiles_x[16], tiles_y[16], loff_t[16]; uint64_t loff[16], tail_off, layer_size, whole; MTLSize ms; } sp_geo;
+ // Upstream sparse_make's checks (1d4b8e82, nvn_mtl.m:3531-3551 at 0c078130), making, keeping and logging nothing, so that another thread may ask (sparse_off_sub, check C7): the
+@@ -322,6 +359,18 @@ static NvSparse *sparse_make(const tex_t *t, int gpu, __strong id<MTLTexture> *m
+     memcpy(s->tiles_x, g.tiles_x, sizeof g.tiles_x); memcpy(s->tiles_y, g.tiles_y, sizeof g.tiles_y); memcpy(s->loff_t, g.loff_t, sizeof g.loff_t); memcpy(s->loff, g.loff, sizeof g.loff);
+     s->tail_at = g.tail_at; s->per_layer = g.per_layer; s->tail_off = g.tail_off; s->sess = g_sp_sess; s->ser = t->serial;
+     s->tex = mt; *made = mt; res_add(mt);
++    if (!gpu && rb_sparse_budget_on()) {
++        s->guest_pool = t->pool;
++        s->guest_base = (uintptr_t)t->mem;
++        // These sampled arrays cannot serve as a presentation or render target.
++        s->source_only = g.layers > 1 && fmt_compressed(t->d.format) &&
++            !(t->d.flags & (NVN_TEXTURE_FLAGS_DISPLAY | NVN_TEXTURE_FLAGS_VIDEO_DECODE |
++                            NVN_TEXTURE_FLAGS_IMAGE | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET));
++        s->last_frame = atomic_load(&g_cur_frame);
++        s->last_fence = g_fence + 1;
++        rb_sp_candidates[rb_sp_insert++ % RB_SP_TRACK] = s;
++        objc_setAssociatedObject(mt, &rb_sp_source_key, s, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
++    }
+     if (atomic_load(&rb_profile_collecting)) atomic_store_explicit(&rb_profile_sparse, 1, memory_order_relaxed);
+     s->slot = calloc((size_t)s->layers * s->per_layer, sizeof *s->slot); s->nmap = calloc(s->ntiled + 1, sizeof *s->nmap);
+     if (!s->slot || !s->nmap) MDIE("sparse texture tile table");
+@@ -382,7 +431,16 @@ static int sp_map(sp_look *c, uint32_t *sl, MTLRegion rg, uint32_t lev, uint32_t
+         if (made) { if (!c->newh) c->newh = [NSMutableArray array]; [c->newh addObject:made]; }
+     } else sp_tl_of(slot)->rc++;
+     uint32_t hi = slot / g_sp_ht;
+-    if (hi >= c->nheaps) { RED_ONCE(186, "sparse tiles: more than 64 heaps made in one round of a look"); sp_release(slot); c->noheap++; sp_rescan(s); return 0; }
++    if (hi >= c->nheaps) {
++        // Smaller pressure increments may span more than 64 heaps during one
++        // obligatory map. Keep the unmap group last when extending the batch.
++        uint32_t size = hi + 64;
++        sp_ops *more = calloc((size_t)size + 1, sizeof *more);
++        if (!more) { sp_release(slot); c->nomem++; sp_rescan(s); return 0; }
++        memcpy(more, c->ops, c->nheaps * sizeof *more);
++        more[size] = c->ops[c->nheaps];
++        free(c->ops); c->ops = more; c->nheaps = size;
++    }
+     c->ops[hi].heap = g_sp_heaps[hi];
+     if (!sp_op(&c->ops[hi], (MTL4UpdateSparseTextureMappingOperation){MTLSparseTextureMappingModeMap, rg, lev, y, slot % g_sp_ht})) { sp_release(slot); c->nomem++; sp_rescan(s); return 0; }
+     *sl = slot + 1; s->nmap[lev]++; s->undrawn = 1;
+@@ -550,6 +608,8 @@ static void sp_queue(sp_look *c) {
+         rec_queue_block(^{ [g_q4 updateTextureMappings:stex heap:heap operations:op count:n]; free(op); });
+     }
+ }
++#include "rb_sparse_reclaim.inc"
++
+ static void sp_stg_refused(const tex_t *t, size_t z) {   // S2Arm: Metal refused a round's staging piece (rb_up_staging gave nil); submit thread, not holding g_sp_mu
+     RED_ONCE(189, "Metal refused %zu bytes of staging for the tiles of placement sparse texture ser=%llu: the tiles that need content stay unmapped (read 0), every tile is looked at again 60 frames on", z, (unsigned long long)t->serial);
+     rb_res_top_refused("Metal refused a staging buffer for sparse tiles");   // patch 0023: forced at the first refusal of any staging
+@@ -656,6 +716,16 @@ static void sparse_sync(NvSparse *s, const tex_t *t, int whole) {
+ // A look when the texture is resolved: only a new mapping request in its pool costs anything, or a write to a page behind a tile, which no game seen does to a tile it keeps mapped (none of 42,072
+ // in Mario Kart World's first race): at most once a second, as the look goes over every mapped tile, so a rewritten tile can show its old content for that long (check C4: kept so)
+ static inline void sparse_look(NvSparse *s, const tex_t *t) {
++    if (s->guest_pool) {
++        if (g_tex_peek) return; // Lookahead uses only format and sample count.
++        s->last_frame = atomic_load(&g_cur_frame);
++        s->last_fence = g_fence + 1;
++        if (s->refault) {
++            s->refault = 0;
++            sparse_sync(s, t, 1);
++            rb_sp_refaults++;
++        }
++    }
+     if (nvn_sparse_log_seq(t->pool) != s->seq) sparse_sync(s, t, 0);
+     if (atomic_load_explicit(&g_up_lost_n, memory_order_relaxed) && !s->gpu && up_lost_take(s->tex)) { sparse_sync(s, t, 3); return; }
+     if (s->rescan && atomic_load(&g_cur_frame) - s->rescan_frame >= 60) sparse_sync(s, t, 1);   // S2Arm (check C2): tiles left out of date for want of staging, a heap tile or host memory
+@@ -691,6 +761,7 @@ static void sparse_gpu_wrote(const tex_t *t, id have) {
+         id<MTLTexture> b = have; while (b.parentTexture) b = b.parentTexture;
+         s = objc_getAssociatedObject(b, &g_sp_key);
+     }
++    if (s && s->guest_pool) atomic_store(&s->opaque_access, 1);
+     if (!s || !s->undrawn) return;
+     uint64_t nd = 0, all = 0, k = 0;
+     pthread_mutex_lock(&g_sp_mu);
+@@ -723,6 +794,9 @@ static NvPkg *sparse_pkg(const tex_t *t) {
+     id<MTLTexture> made = nil; NvSparse *ps = sparse_make(t, 0, &made);
+     if (!ps) return nil;
+     NvPkg *pk = [NvPkg new]; pk->ps = ps; pk->tex = made; pk->sparse = 1;
++    // Do not publish an uninitialized texture, including to the presentation
++    // thread. A metadata-only look can use this temporary late-bound object.
++    if (g_tex_peek && rb_sparse_budget_on()) return pk;
+     sparse_sync(ps, t, 1); tex_put(t->serial, pk);
+     return pk;
+ }
+@@ -750,6 +824,8 @@ static void sp_session_end(void) {
+     free(g_sp_ph); g_sp_ph = NULL; g_sp_phcap = g_sp_phn = 0; g_sp_shared = g_sp_drawn = 0; g_sp_nwrote = g_sp_ngone = 0;
+     free(g_sp_free); g_sp_free = NULL; g_sp_nfree = g_sp_freecap = 0;
+     free(g_sp_late); g_sp_late = NULL; g_sp_nlate = g_sp_latecap = 0;
++    rb_sp_heap_bytes = rb_sp_overflow = rb_sp_retired = rb_sp_reclaimed = rb_sp_refaults = 0;
++    rb_sp_insert = rb_sp_walk = 0; rb_sp_sweep_frame = UINT64_MAX;
+     g_sp_live = g_sp_peak = 0; g_sp_sess++; atomic_store(&g_sp_heap_n, 0);
+     g_sp_nmade = g_sp_nwhole = 0; g_sp_looks = g_sp_nskip = 0;
+     atomic_store_explicit(&g_sp_gpu_n, 0, memory_order_relaxed);   // RewindBox (patch 0030, check C6): the session's GPU-written ones are gone (a late one's sparse_sync sees its sess)
+diff --git a/graphics/nvn/gfx/nvn/rb_memory_governor.inc b/graphics/nvn/gfx/nvn/rb_memory_governor.inc
+index 536f2de..540f209 100644
+--- a/graphics/nvn/gfx/nvn/rb_memory_governor.inc
++++ b/graphics/nvn/gfx/nvn/rb_memory_governor.inc
+@@ -2,6 +2,15 @@
+ // One published word contains the tier and total MiB. All four quotas derive
+ // from that word, so a pressure callback never publishes a partial allocation.
+ #include "rb_gov_plan.h"
++#include "rb_working_set.h"
++static _Atomic int rb_ws_option, rb_sparse_budget_option;
++static _Atomic uint64_t rb_ws_room_bytes = UINT64_MAX, rb_ws_recommended;
++static int rb_working_set_on(void) {
++    return g_dev && !g_m3 && rb_pacing_setting(&rb_ws_option, "S2A_RB_METAL_WORKING_SET");
++}
++static uint64_t rb_metal_working_room(void) {
++    return rb_working_set_on() ? atomic_load(&rb_ws_room_bytes) : UINT64_MAX;
++}
+ static _Atomic unsigned rb_gov_plan = (128u << 2) | RB_GOV_WARN;
+ static _Atomic uint64_t rb_gov_next, rb_gov_room = UINT64_MAX;
+ static pthread_mutex_t rb_gov_mu = PTHREAD_MUTEX_INITIALIZER;
+@@ -11,6 +20,12 @@ static int rb_gov_all_nvn2(void) {
+     return nvn_rb_thermal_scope() && rb_pacing_setting(&rb_gov_all_titles,"S2A_RB_NVN2_PSO_BUDGET");
+ }
+ static int rb_gov_on(void) { return rb_tex_budget_on() && rb_pso_cap_on(); }
++static unsigned rb_sparse_heap_target(void) {
++    return rb_ws_sparse_target(atomic_load(&rb_ws_recommended), atomic_load(&rb_gov_plan) & 3u);
++}
++static int rb_sparse_budget_on(void) {
++    return rb_working_set_on() && rb_pacing_setting(&rb_sparse_budget_option, "S2A_RB_SPARSE_HEAP_BUDGET");
++}
+ static uint64_t rb_gov_quota(unsigned owner) {
+     return rb_gov_share(atomic_load_explicit(&rb_gov_plan,memory_order_acquire),owner);
+ }
+@@ -37,34 +52,55 @@ static void rb_gov_probe_compression(uint64_t now) {
+ }
+ #endif
+ static void rb_gov_sample(unsigned long event) {
+-#if TARGET_OS_IPHONE
++#if !TARGET_OS_IPHONE
++    if (!rb_working_set_on()) return;
++#endif
+     uint64_t now = bp_now();
+     if (!event && now < atomic_load_explicit(&rb_gov_next,memory_order_relaxed)) return;
+     pthread_mutex_lock(&rb_gov_mu);
+     now = bp_now();
+     if (!event && now < atomic_load(&rb_gov_next)) { pthread_mutex_unlock(&rb_gov_mu); return; }
+     atomic_store(&rb_gov_next,now + 500 * NSEC_PER_MSEC);
+-    uint64_t room = rb_ios_headroom();
++    uint64_t room = UINT64_MAX;
++#if TARGET_OS_IPHONE
++    room = rb_ios_headroom();
++#endif
++    int protect_ws = rb_working_set_on();
++    uint64_t allocated = protect_ws ? g_dev.currentAllocatedSize : 0;
++    uint64_t recommended = protect_ws ? g_dev.recommendedMaxWorkingSetSize : 0;
++    uint64_t target = rb_ws_target(recommended);
++    uint64_t metal_room = protect_ws ? rb_ws_room(target, allocated, room) : UINT64_MAX;
++    atomic_store(&rb_ws_recommended, recommended);
++    atomic_store(&rb_ws_room_bytes, metal_room);
+     atomic_store(&rb_gov_room,room);
+     if (event & DISPATCH_MEMORYPRESSURE_CRITICAL) rb_gov_critical_until = now + 15ull*NSEC_PER_SEC;
+     if (event & (DISPATCH_MEMORYPRESSURE_CRITICAL | DISPATCH_MEMORYPRESSURE_WARN))
+         rb_gov_warn_until = now + 30ull*NSEC_PER_SEC;
++    int thermal = (int)NSProcessInfo.processInfo.thermalState;
++#if TARGET_OS_IPHONE
+     rb_gov_probe_compression(now);
+     uint64_t compressed = atomic_load_explicit(&rb_gov_compressed,memory_order_acquire);
+-    int thermal = (int)NSProcessInfo.processInfo.thermalState;
+     int was_stressed = rb_gov_stress.active;
+     int stressed = rb_gov_stressed(&rb_gov_stress,now,compressed,thermal);
++#else
++    uint64_t compressed = UINT64_MAX;
++    int was_stressed = 0, stressed = 0;
++#endif
+     unsigned old = atomic_load(&rb_gov_plan), tier = RB_GOV_NORMAL;
+-    if (now < rb_gov_critical_until || room <= (768ull << 20)) tier = RB_GOV_CRITICAL;
+-    else if (stressed || now < rb_gov_warn_until || room == UINT64_MAX || room <= (2048ull << 20)) tier = RB_GOV_WARN;
++    if ((protect_ws && allocated >= target) || now < rb_gov_critical_until || room <= (768ull << 20)) tier = RB_GOV_CRITICAL;
++    else if (stressed || now < rb_gov_warn_until || (room == UINT64_MAX && !protect_ws) || room <= (2048ull << 20)) tier = RB_GOV_WARN;
+     unsigned before = old & 3u;
+     if (tier < before) {
+         uint64_t floor = before == RB_GOV_CRITICAL ? (1024ull << 20) : (2304ull << 20);
+-        if (room == UINT64_MAX || room < floor) rb_gov_recover_since = 0;
++        if ((room == UINT64_MAX && !protect_ws) || room < floor || (protect_ws && metal_room < 256 * RB_WS_MIB)) rb_gov_recover_since = 0;
+         else if (!rb_gov_recover_since) rb_gov_recover_since = now;
+         if (!rb_gov_recover_since || now - rb_gov_recover_since < 10ull*NSEC_PER_SEC) tier = before;
+     } else rb_gov_recover_since = 0;
+     if (tier != before) rb_gov_recover_since = 0;
++    if (protect_ws && (event || tier != before))
++        MLOG("[RB-MEM-GOV] tier=%u metal_MiB=%llu recommended_MiB=%llu target_MiB=%llu remaining_MiB=%llu",
++             tier, (unsigned long long)(allocated >> 20), (unsigned long long)(recommended >> 20),
++             (unsigned long long)(target >> 20), (unsigned long long)(metal_room >> 20));
+     unsigned ceiling = rb_gov_ceiling(tier,stressed);
+     unsigned mib = room == UINT64_MAX ? 64 : (unsigned)MIN((uint64_t)ceiling,MAX(16ull,(room >> 20)/8));
+     mib = MIN(ceiling,(mib / 16) * 16);
+@@ -80,7 +116,4 @@ static void rb_gov_sample(unsigned long event) {
+         (unsigned long long)rb_gov_share(plan,2),(unsigned long long)rb_gov_share(plan,3),
+         thermal,compressed == UINT64_MAX ? -1ll : (long long)compressed,stressed);
+     pthread_mutex_unlock(&rb_gov_mu);
+-#else
+-    (void)event;
+-#endif
+ }
+diff --git a/graphics/nvn/gfx/nvn/rb_sparse_reclaim.inc b/graphics/nvn/gfx/nvn/rb_sparse_reclaim.inc
+new file mode 100644
+index 0000000..380ef59
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_sparse_reclaim.inc
+@@ -0,0 +1,103 @@
++// SPDX-License-Identifier: Apache-2.0
++// Called only from the submit owner before it encodes draws. At most 256
++// virtual tiles and one empty heap are inspected per pass through a candidate.
++static void rb_sp_reclaim(NvSparse *s, uint64_t frame, uint64_t done) {
++    if (!s || !s->guest_pool || s->sess != g_sp_sess || s->gpu ||
++        s->last_fence > done || frame < s->last_frame || frame - s->last_frame < 180) return;
++    id<MTLTexture> texture = s->tex;
++    size_t count = (size_t)s->layers * s->per_layer;
++    if (!texture || !count) return;
++    // A valid live handle can be newly registered into a bindless pool from
++    // another thread. Only unmap a still-backed tile when the source has
++    // been finalized AND no registered descriptor or active stream holds it.
++    // An idle live texture may give back pages already unmapped by the guest.
++    int can_refault = s->source_only && !atomic_load(&s->opaque_access) && rb_sp_closed_source(s);
++    if (!can_refault && (done < g_fence || nvn_sparse_log_seq(s->guest_pool) == s->seq)) return;
++    sp_ops unmaps = {0};
++    sp_look c = { .s = s, .tex = texture, .ops = &unmaps };
++    pthread_mutex_lock(&g_sp_mu);
++    for (size_t step = 0, checks = MIN(count, (size_t)256); step < checks; ++step) {
++        size_t index = s->reclaim_cursor++;
++        if (s->reclaim_cursor >= count) s->reclaim_cursor = 0;
++        uint32_t *slot = &s->slot[index];
++        if (!*slot) continue;
++        const sp_tl *entry = sp_tl_of(*slot - 1);
++        if (entry->rc != 1 || entry->drawn || entry->p <= SP_GONE) continue;
++        uint32_t layer = (uint32_t)(index / s->per_layer), tile = (uint32_t)(index % s->per_layer);
++        uint32_t level = 0, x = 0, y = 0;
++        uint64_t offset = s->tail_off, length = s->layer_size - offset;
++        if (tile == s->tail_at) level = s->ntiled;
++        else {
++            while (level + 1 < s->ntiled && tile >= s->loff_t[level + 1]) ++level;
++            uint32_t local = tile - s->loff_t[level];
++            x = local % s->tiles_x[level]; y = local / s->tiles_x[level];
++            offset = s->loff[level] + (uint64_t)local * SP_TILE;
++            length = SP_TILE;
++        }
++        uint64_t address = s->guest_base + (uint64_t)layer * s->layer_size + offset;
++        int state = nvn_sparse_tile_state(s->guest_pool, address, length, s->gen, entry->stamp);
++        if (state < 0) continue; // Finalized or replaced virtual pool.
++        if (state & 1) {
++            // The typed submit lookup replays mappings and copies before the
++            // next use. An opaque (bindless / view) descriptor may bypass it.
++            if (!can_refault || atomic_load(&s->opaque_access) ||
++                nvn_sparse_tile_phys(s->guest_pool, address) != (const void *)entry->p ||
++                !rb_ws_tile_idle(frame, s->last_frame, done, s->last_fence, 0, entry->rc,
++                                 entry->drawn, !nvn_dirty_since((const void *)entry->p, SP_TILE, entry->stamp))) continue;
++        }
++        if (!sp_move_off(&c, slot, MTLRegionMake3D(x,y,0,1,1,1), level, layer)) break;
++        s->refault = 1;
++        ++rb_sp_reclaimed;
++    }
++    pthread_mutex_unlock(&g_sp_mu);
++    sp_queue(&c); // Queue owns the operations. Retired slots remain fenced.
++}
++
++static void rb_sparse_maintain(void) {
++    if (!rb_sparse_budget_on() || !atomic_load(&g_sp_heap_n)) return;
++    uint64_t budget = (uint64_t)rb_sparse_heap_target() * 256 * RB_WS_MIB;
++    unsigned tier = atomic_load(&rb_gov_plan) & 3u;
++    if (rb_sp_heap_bytes < budget && tier != RB_GOV_CRITICAL) return;
++    if (g_up_cb || atomic_load(&g_up_pending)) return;
++    uint64_t frame = atomic_load(&g_cur_frame);
++    if (frame == rb_sp_sweep_frame) return;
++    rb_sp_sweep_frame = frame;
++    uint64_t done = rc_done();
++    for (unsigned i = 0; i < 4; ++i)
++        rb_sp_reclaim(rb_sp_candidates[rb_sp_walk++ % RB_SP_TRACK], frame, done);
++
++    // Slot numbers of earlier heaps must remain stable for other aliases and
++    // pending unmaps. A trailing heap leaves residency only when every physical
++    // page (including unmaps on the queue) is on the completed free list.
++    id<MTLHeap> retired = nil;
++    pthread_mutex_lock(&g_sp_mu);
++    sp_reap_slots(done);
++    id<MTLHeap> tail = g_sp_heaps.lastObject;
++    if (tail) {
++        uint32_t first = (uint32_t)(g_sp_heaps.count - 1) * g_sp_ht;
++        size_t free_pages = 0;
++        for (size_t i = 0; i < g_sp_nfree; ++i) free_pages += g_sp_free[i] >= first;
++        if (free_pages == tail.size / SP_TILE) {
++            size_t keep = 0;
++            for (size_t i = 0; i < g_sp_nfree; ++i)
++                if (g_sp_free[i] < first) g_sp_free[keep++] = g_sp_free[i];
++            g_sp_nfree = keep;
++            retired = tail;
++            [g_sp_heaps removeLastObject];
++            atomic_fetch_sub(&g_sp_heap_n, 1);
++            rb_sp_heap_bytes -= tail.size;
++            ++rb_sp_retired;
++        }
++    }
++    pthread_mutex_unlock(&g_sp_mu);
++    if (retired) res_remove(retired);
++    static uint64_t last_report = UINT64_MAX;
++    if (last_report == UINT64_MAX || frame < last_report || frame - last_report >= 180 || retired) {
++        last_report = frame;
++        MLOG("[RB-MEM-GOV] sparse active_heaps=%u heap_MiB=%llu target_MiB=%llu metal_MiB=%llu mandatory_overflow=%llu retired_heaps=%llu reclaimed_tiles=%llu refaulted_textures=%llu",
++             atomic_load(&g_sp_heap_n), (unsigned long long)(rb_sp_heap_bytes >> 20),
++             (unsigned long long)(budget >> 20), (unsigned long long)(g_dev.currentAllocatedSize >> 20),
++             (unsigned long long)rb_sp_overflow, (unsigned long long)rb_sp_retired,
++             (unsigned long long)rb_sp_reclaimed, (unsigned long long)rb_sp_refaults);
++    }
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_working_set.h b/graphics/nvn/gfx/nvn/rb_working_set.h
+new file mode 100644
+index 0000000..ad03a48
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_working_set.h
+@@ -0,0 +1,37 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++#include <stdint.h>
++
++#define RB_WS_MIB (UINT64_C(1) << 20)
++static inline uint64_t rb_ws_target(uint64_t recommended) {
++    const uint64_t cap = 5120 * RB_WS_MIB;
++    if (!recommended || recommended >= cap * 100 / 85 + 1) return cap;
++    return recommended * 85 / 100;
++}
++static inline uint64_t rb_ws_room(uint64_t target, uint64_t metal, uint64_t process) {
++    uint64_t remaining = target > metal ? target - metal : 0;
++    return remaining < process ? remaining : process;
++}
++// Placement resources receive up to one seventh of the device recommendation.
++// Express the target in 256-MiB units even if the user selects smaller heaps.
++static inline unsigned rb_ws_sparse_target(uint64_t recommended, unsigned tier) {
++    return tier >= 2 || recommended < UINT64_C(3) * 256 * 7 * RB_WS_MIB ? 2 : 3;
++}
++static inline int rb_ws_tile_idle(uint64_t frame, uint64_t last_frame, uint64_t done,
++                                  uint64_t needed_fence, int pinned, unsigned references,
++                                  int authoritative, int clean_backing) {
++    return !pinned && frame >= last_frame && frame - last_frame >= 180 &&
++           done >= needed_fence && references == 1 && !authoritative && clean_backing;
++}
++// Always fulfill a real mapping. Near the soft ceiling reserve only a small
++// increment, never another 256 MiB for a handful of mandatory pages.
++static inline unsigned rb_ws_heap_pages(unsigned configured, uint64_t committed,
++                                        uint64_t budget, uint64_t room) {
++    const uint64_t page = UINT64_C(65536);
++    uint64_t left = committed < budget ? budget - committed : 0;
++    if (room < left) left = room;
++    uint64_t pages = left / page;
++    if (pages >= configured) return configured;
++    if (pages >= 256) return (unsigned)pages;
++    return configured < 256 ? configured : 256;
++}
+diff --git a/graphics/nvn/tests/t_rb_sparse_retire.m b/graphics/nvn/tests/t_rb_sparse_retire.m
+new file mode 100644
+index 0000000..86edf22
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_sparse_retire.m
+@@ -0,0 +1,81 @@
++// SPDX-License-Identifier: Apache-2.0
++#include "../gfx/nvn/nvn_mtl.m"
++#define REQUIRE(e) do { if (!(e)) { fprintf(stderr,"sparse retire line %d: %s\n",__LINE__,#e); return 1; } } while (0)
++
++// Supply just the two driver gauges to exercise the production sampler against
++// the device trace, without allocating several GiB on a shared CI Mac.
++@interface RBMemoryGauge : NSObject
++@property(nonatomic) NSUInteger currentAllocatedSize, recommendedMaxWorkingSetSize;
++@end
++@implementation RBMemoryGauge
++@end
++
++// Use a real GPU transfer held behind a shared event. The production free
++// list and empty-heap collector must respect the same completed fence. This
++// exercises completion even on virtual Macs without sparse-placement support.
++int main(void) { @autoreleasepool {
++    g_m3 = 0;
++    setenv("S2A_RB_METAL_WORKING_SET","1",1);
++    setenv("S2A_RB_SPARSE_HEAP_BUDGET","1",1);
++    RBMemoryGauge *probe = [RBMemoryGauge new];
++    probe.recommendedMaxWorkingSetSize = 5461 * RB_WS_MIB;
++    probe.currentAllocatedSize = 4600 * RB_WS_MIB;
++    g_dev = (id<MTLDevice>)probe;
++    rb_gov_sample(0);
++    REQUIRE((atomic_load(&rb_gov_plan) & 3u) < RB_GOV_CRITICAL && rb_metal_working_room() > 0);
++    atomic_store(&rb_gov_next,0);
++    probe.currentAllocatedSize = 4650 * RB_WS_MIB;
++    rb_gov_sample(0);
++    REQUIRE((atomic_load(&rb_gov_plan) & 3u) == RB_GOV_CRITICAL && !rb_metal_working_room());
++    g_dev = MTLCreateSystemDefaultDevice();
++    REQUIRE(g_dev);
++    id<MTLCommandQueue> queue = [g_dev newCommandQueue];
++    id<MTLSharedEvent> gate = [g_dev newSharedEvent];
++    MTLHeapDescriptor *hd = [MTLHeapDescriptor new];
++    hd.size = 16 * RB_WS_MIB;
++    hd.storageMode = MTLStorageModePrivate;
++    hd.type = MTLHeapTypePlacement;
++    id<MTLHeap> heap = [g_dev newHeapWithDescriptor:hd];
++    REQUIRE(heap && gate && queue);
++    // A real resource in the last physical page stands in for a sparse mapping.
++    id<MTLBuffer> page = [heap newBufferWithLength:256 options:MTLResourceStorageModePrivate
++                                            offset:hd.size - SP_TILE];
++    id<MTLBuffer> observed = [g_dev newBufferWithLength:256 options:MTLResourceStorageModeShared];
++    id<MTLCommandBuffer> cb = [queue commandBuffer];
++    REQUIRE(page && observed && cb);
++    [cb encodeWaitForEvent:gate value:1];
++    id<MTLBlitCommandEncoder> blit = [cb blitCommandEncoder];
++    [blit fillBuffer:page range:NSMakeRange(0,256) value:0x5c];
++    [blit copyFromBuffer:page sourceOffset:0 toBuffer:observed destinationOffset:0 size:256];
++    [blit endEncoding];
++    g_sp_ht = (uint32_t)(heap.size / SP_TILE);
++    g_sp_heaps = [NSMutableArray arrayWithObject:heap];
++    atomic_store(&g_sp_heap_n,1);
++    rb_sp_heap_bytes = heap.size;
++    g_sp_free = calloc(g_sp_ht,sizeof *g_sp_free);
++    REQUIRE(g_sp_free);
++    g_sp_freecap = g_sp_ht;
++    for (uint32_t i = 0; i + 1 < g_sp_ht; ++i) g_sp_free[g_sp_nfree++] = i;
++    g_sp_live = 1; g_fence = 0;
++    sp_slot_free(g_sp_ht - 1); // Retirement fence 1; not yet reusable.
++    dispatch_semaphore_t completed = dispatch_semaphore_create(0);
++    [cb addCompletedHandler:^(id<MTLCommandBuffer> command) {
++        if (command.status == MTLCommandBufferStatusCompleted) {
++            pthread_mutex_lock(&g_mu); g_done = 1; pthread_mutex_unlock(&g_mu);
++        }
++        dispatch_semaphore_signal(completed);
++    }];
++    [cb commit];
++    rb_sparse_maintain();
++    REQUIRE(g_sp_heaps.count == 1 && g_sp_nlate == 1 && rb_sp_retired == 0);
++    gate.signaledValue = 1;
++    REQUIRE(!dispatch_semaphore_wait(completed,dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC)));
++    REQUIRE(cb.status == MTLCommandBufferStatusCompleted);
++    for (int i = 0; i < 256; ++i) REQUIRE(((uint8_t *)observed.contents)[i] == 0x5c);
++    atomic_fetch_add(&g_cur_frame,1);
++    rb_sparse_maintain();
++    REQUIRE(!g_sp_heaps.count && !g_sp_nlate && !g_sp_nfree && !rb_sp_heap_bytes && rb_sp_retired == 1);
++    free(g_sp_free); g_sp_free = NULL; free(g_sp_late); g_sp_late = NULL;
++    puts("sparse retire: the live heap survived the pending GPU fence and retired after validated readback");
++    return 0;
++} }
+diff --git a/graphics/nvn/tests/t_rb_working_set.c b/graphics/nvn/tests/t_rb_working_set.c
+new file mode 100644
+index 0000000..7c297b4
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_working_set.c
+@@ -0,0 +1,29 @@
++// SPDX-License-Identifier: Apache-2.0
++#include "../gfx/nvn/rb_working_set.h"
++#include <assert.h>
++#include <stdio.h>
++
++int main(void) {
++    const uint64_t mib = RB_WS_MIB;
++    const uint64_t recommended = 5461 * mib;
++    const uint64_t target = rb_ws_target(recommended);
++    assert(target == recommended * 85 / 100);
++    assert(rb_ws_target(0) == 5120 * mib && rb_ws_target(UINT64_MAX) == 5120 * mib);
++    assert(rb_ws_room(target, target - 1, 6000 * mib) == 1);
++    assert(rb_ws_room(target, 7794 * mib, 4466 * mib) == 0);
++    assert(rb_ws_room(target, 1, 29) == 29);
++    assert(rb_ws_sparse_target(recommended, 0) == 3);
++    assert(rb_ws_sparse_target(recommended, 2) == 2);
++    assert(rb_ws_sparse_target(4096 * mib, 0) == 2);
++    assert(rb_ws_heap_pages(4096, 0, 768 * mib, UINT64_MAX) == 4096);
++    assert(rb_ws_heap_pages(4096, 512 * mib, 768 * mib, 64 * mib) == 1024);
++    assert(rb_ws_heap_pages(4096, 768 * mib, 768 * mib, 0) == 256);
++    assert(!rb_ws_tile_idle(205, 26, 110, 110, 0, 1, 0, 1));
++    assert( rb_ws_tile_idle(206, 26, 110, 110, 0, 1, 0, 1));
++    assert(!rb_ws_tile_idle(206, 26, 109, 110, 0, 1, 0, 1));
++    assert(!rb_ws_tile_idle(206, 26, 110, 110, 1, 1, 0, 1));
++    assert(!rb_ws_tile_idle(206, 26, 110, 110, 0, 2, 0, 1));
++    assert(!rb_ws_tile_idle(206, 26, 110, 110, 0, 1, 1, 1));
++    assert(!rb_ws_tile_idle(206, 26, 110, 110, 0, 1, 0, 0));
++    puts("working set: verified Metal + process budgets, demand increments and sparse ownership");
++}
+diff --git a/runtime/tests/mk/rb_sparse_retire.mk b/runtime/tests/mk/rb_sparse_retire.mk
+new file mode 100644
+index 0000000..6ce1c0f
+--- /dev/null
++++ b/runtime/tests/mk/rb_sparse_retire.mk
+@@ -0,0 +1,13 @@
++# Sparse storage lifetime, including virtual Macs with tracked Metal.
++ifeq ($(shell uname -s),Darwin)
++$(BUILD)/tests/t_rb_sparse_retire: graphics/nvn/tests/t_rb_sparse_retire.m $(NVN_MTL_DEPS) $(NVN_TEST_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN)
++	$(CC) $(CFLAGS) -std=gnu11 -fobjc-arc -Wno-unused-function -Wno-unguarded-availability-new -Wno-unguarded-availability \
++	  $(NATIVE_INC) -I$(NVN_TEST_DIR)/nvn/gen -Igraphics/nvn/host -Igraphics/nvn/gfx/nvn -Igraphics/nvn/gfx/nvn/include -Igraphics/nvn/third_party/vulkan-headers/include \
++	  -o $@ graphics/nvn/tests/t_rb_sparse_retire.m $(NVN_TEST_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN) \
++	  -Wl,-rpath,@executable_path/nvn/widen $(NVN_TEST_WEAK) \
++	  -framework Metal -framework Foundation -framework QuartzCore -framework CoreGraphics \
++	  -framework ImageIO -framework UniformTypeIdentifiers -lc++
++.PHONY: native-test-rb_sparse_retire
++native-test-rb_sparse_retire: $(BUILD)/tests/t_rb_sparse_retire
++	$(BUILD)/tests/t_rb_sparse_retire
++endif

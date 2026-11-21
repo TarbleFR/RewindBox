@@ -108,7 +108,7 @@ jobs:
         run: |
           set -euo pipefail
           source_tree="$RUNNER_TEMP/s2arm"
-          for fixture in spec_gate stage_input pso_trace archive_index local_stage look_budget; do
+          for fixture in spec_gate stage_input pso_trace archive_index local_stage look_budget working_set upload_stream file_hint; do
             xcrun --sdk macosx clang -std=gnu11 -D_DARWIN_C_SOURCE -O2 -Wall -Wextra -pthread \
               "$source_tree/graphics/nvn/tests/t_rb_$fixture.c" -o "$RUNNER_TEMP/t_rb_$fixture"
             "$RUNNER_TEMP/t_rb_$fixture"
@@ -174,7 +174,7 @@ jobs:
           xcrun --sdk macosx clang -std=gnu11 -fobjc-arc -fblocks -framework Foundation \
             graphics/nvn/tests/t_rb_direct_autoprofile.m -o "$RUNNER_TEMP/direct-profile-test"
           for layout in docs/wire/synthetic graphics/synthetic; do
-            for phase in cold warm other; do
+            for phase in cold device bundle warm other; do
               "$RUNNER_TEMP/direct-profile-test" "$RUNNER_TEMP/$layout" "$phase"
             done
           done
@@ -231,6 +231,8 @@ jobs:
             S2A_RB_INPASS_UBO_RING=$mode build/tests/t_nvn_ubd_index --inflight
           done
           build/tests/t_nvn_pso_batch --thermal-batch
+          make -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" native-test-rb_sparse_retire
+          build/tests/t_rb_clear_batch_metal --selective-bindless
           build/tests/t_rb_clear_batch_metal --nvn2-control
           for mode in 0 1; do
             S2A_RB_FAIR_NATIVE_TILES=$mode build/tests/t_rb_clear_batch_metal --fair-native-tiles
@@ -334,6 +336,9 @@ jobs:
             build/tests/t_nvn_shader_flight build/tests/t_nvn_warmbump
           status=0
           build/tests/t_nvn_warmbump || status=1
+          dotnet run -c Release --project graphics/tools/direct/tests/rb_uniform_extents -- "$RUNNER_TEMP/rb-uniform-test" graphics/nvn/gfx/nvn/dmsh_chain.h
+          build/tests/t_nvn_warmbump --uniform-extents "$RUNNER_TEMP/rb-uniform-test" || status=1
+          build/tests/t_nvn_shader_flight --rb-upload-stream || status=1
           build/tests/t_nvn_warmbump --startup-tiers || status=1
           build/tests/t_nvn_warmbump --transition-gpu || status=1
           build/tests/t_nvn_warmbump --fair-registered "$RUNNER_TEMP/rb-fair-registered" || status=1

@@ -1,0 +1,196 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -320,10 +320,20 @@
+     return nvn_rb_thermal_scope() && rb_pacing_setting(&g_rb_wake_option, "S2A_RB_TICK_WAKE_FILTER");
+ }
+ static void rb_uniform_profile(uint64_t *stages, uint64_t *bindings, uint64_t *c1_bytes);
++static unsigned rb_sparse_heap_target(void);
++static int rb_sparse_budget_on(void);
++static int rb_current_tile_policy(void);
++extern uint64_t s2a_app_pool(void) __attribute__((weak_import));
++static int rb_profile_resources_on(void) {
++    static _Atomic int flag;
++    return rb_direct_apple() && rb_pacing_setting(&flag,"S2A_RB_PROFILE_RESOURCES") && !s2a_nvn_prof()->bundled;
++}
++static uint64_t rb_profile_app_pool(void) { return s2a_app_pool ? s2a_app_pool() : 0; }
++static NSString *rb_profile_gpu_name(void) { return g_dev.name ?: @""; }
+ #include "rb_direct_autoprofile.inc"
+ static int rb_direct_profile_on(void) {
+     static _Atomic int flag;
+-    return nvn_rb_thermal_scope() && rb_pacing_setting(&flag, "S2A_RB_AUTO_PROFILE");
++    return (nvn_rb_thermal_scope() || rb_direct_apple()) && rb_pacing_setting(&flag, "S2A_RB_AUTO_PROFILE");
+ }
+ void nvn_rb_link_wake_stats(uint64_t out[3]) {
+     pthread_mutex_lock(&g_link_mu); memcpy(out, g_rb_wake_counts, sizeof g_rb_wake_counts); pthread_mutex_unlock(&g_link_mu);
+diff --git a/graphics/nvn/gfx/nvn/rb_direct_autoprofile.inc b/graphics/nvn/gfx/nvn/rb_direct_autoprofile.inc
+--- a/graphics/nvn/gfx/nvn/rb_direct_autoprofile.inc
++++ b/graphics/nvn/gfx/nvn/rb_direct_autoprofile.inc
+@@ -3,6 +3,7 @@
+ static _Atomic unsigned rb_profile_sparse, rb_profile_bindless;
+ static _Atomic unsigned rb_profile_sparse_peak, rb_profile_bind_peak;
+ static _Atomic unsigned rb_seed_sparse, rb_seed_bind, rb_seed_interval;
++static _Atomic unsigned rb_seed_heap;
+ static _Atomic int rb_profile_ready, rb_profile_collecting;
+ static NSString *rb_profile_path;
+ static NSDictionary *rb_profile_identity, *rb_saved_profile;
+@@ -20,6 +21,12 @@
+     return q;
+ }
+ 
++// A learnt heap count is an initial host hint. Re-evaluate against today's
++// device and budget, and drop it after the first 120 real presents.
++static unsigned rb_profile_heap_limit(unsigned live) {
++    unsigned seed = atomic_load_explicit(&rb_seed_heap, memory_order_relaxed);
++    return seed && seed < live && atomic_load(&rb_profile_boot_window) ? seed : live;
++}
+ static unsigned rb_profile_capacity(id number, unsigned minimum, unsigned maximum) {
+     if (![number isKindOfClass:NSNumber.class]) return 0;
+     uint64_t value = [number unsignedLongLongValue];
+@@ -42,6 +49,9 @@
+     NSString *dir = [user.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"profiles"];
+     NSString *path = [dir stringByAppendingPathComponent:[identity stringByAppendingPathExtension:@"plist"]];
+     NSDictionary *scope = @{@"schema": @1, @"program": @(program), @"build": @(build), @"chain": @DMSH_CHAIN};
++    BOOL resources = rb_profile_resources_on();
++    uint64_t pool = resources ? rb_profile_app_pool() : 0;
++    NSString *gpu = resources ? rb_profile_gpu_name() : nil;
+     pthread_mutex_lock(&rb_profile_lock);
+     if (!rb_profile_path) {
+         rb_profile_path = path; rb_profile_identity = scope;
+@@ -54,6 +64,13 @@
+                 atomic_store(&rb_seed_interval, interval == 1 || interval == 2 ? interval : 0);
+                 if ([record[@"sparse"] isEqual:@YES]) atomic_store(&rb_seed_sparse, rb_profile_capacity(record[@"sparse_cells"], 4096, 65536));
+                 if ([record[@"bindless"] isEqual:@YES]) atomic_store(&rb_seed_bind, rb_profile_capacity(record[@"reader_cells"], 1024, 8192));
++                NSDictionary *device = record[@"resources"];
++                if (resources && pool && gpu.length && [device isKindOfClass:NSDictionary.class] &&
++                    [device[@"gpu"] isEqual:gpu] && [device[@"app_pool"] isEqual:@(pool)] &&
++                    [device[@"policy_version"] isEqual:@1] && [device[@"safe_tbdr"] isEqual:@YES]) {
++                    id count = device[@"sparse_heap_cap"];
++                    if ([count isEqual:@2] || [count isEqual:@3]) atomic_store(&rb_seed_heap,[count unsignedIntValue]);
++                }
+                 rb_saved_profile = record;
+             }
+             MLOG("[rb-direct-profile] %s %s interval=%u sparse_cells=%u reader_cells=%u", [scope[@"program"] UTF8String],
+@@ -82,14 +99,29 @@
+     unsigned sparse = atomic_load(&rb_profile_sparse), bindless = atomic_load(&rb_profile_bindless);
+     unsigned sp = atomic_load(&rb_profile_sparse_peak), bl = atomic_load(&rb_profile_bind_peak);
+     unsigned cadence = rb_first_interval;
++    NSDictionary *resources = nil;
++    if (cadence && rb_profile_resources_on()) {
++        uint64_t stages, bindings, c1;
++        rb_uniform_profile(&stages, &bindings, &c1);
++        uint64_t pool = rb_profile_app_pool();
++        NSString *gpu = rb_profile_gpu_name();
++        if (pool && gpu.length) resources = @{
++            @"policy_version": @1, @"gpu": gpu, @"app_pool": @(pool),
++            @"safe_tbdr": @(rb_current_tile_policy()==3),
++            @"sparse_heap_cap": @(rb_sparse_budget_on() ? rb_sparse_heap_target() : 0),
++            @"uniform_format": @"rb_uniform_v1", @"uniform_store": @"DM_MSL_FALLBACK/<stage>_b.json",
++            @"verified_stages": @(stages), @"verified_bindings": @(bindings), @"verified_c1_bytes": @(c1)};
++    }
+     dispatch_async(rb_profile_io(), ^{ @autoreleasepool {
+         BOOL hasSparse = sparse || [rb_saved_profile[@"sparse"] isEqual:@YES];
+         BOOL hasBind = bindless || [rb_saved_profile[@"bindless"] isEqual:@YES];
+         unsigned interval = cadence ?: atomic_load(&rb_seed_interval);
+         if (!interval && !hasSparse && !hasBind) return;
+-        NSDictionary *record = @{@"identity": rb_profile_identity, @"interval": @(interval),
++        NSMutableDictionary *record = [@{@"identity": rb_profile_identity, @"interval": @(interval),
+             @"sparse": @(hasSparse), @"bindless": @(hasBind), @"sparse_cells": @(MAX(sp, atomic_load(&rb_seed_sparse))),
+-            @"reader_cells": @(MAX(bl, atomic_load(&rb_seed_bind)))};
++            @"reader_cells": @(MAX(bl, atomic_load(&rb_seed_bind)))} mutableCopy];
++        if (resources) record[@"resources"] = resources;
++        else if (rb_saved_profile[@"resources"]) record[@"resources"] = rb_saved_profile[@"resources"];
+         if ([record isEqual:rb_saved_profile]) return;
+         NSString *dir = rb_profile_path.stringByDeletingLastPathComponent;
+         if ([NSFileManager.defaultManager createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil] &&
+@@ -107,7 +139,7 @@
+     if (rb_profile_path) dispatch_sync(rb_profile_io(), ^{ rb_saved_profile = nil; });
+     rb_profile_path = nil; rb_profile_identity = nil; atomic_store(&rb_profile_collecting, 0);
+     atomic_store(&rb_profile_ready, 0); atomic_store(&rb_profile_boot_window, 0);
+-    atomic_store(&rb_seed_interval, 0); atomic_store(&rb_seed_sparse, 0); atomic_store(&rb_seed_bind, 0);
++    atomic_store(&rb_seed_heap, 0); atomic_store(&rb_seed_interval, 0); atomic_store(&rb_seed_sparse, 0); atomic_store(&rb_seed_bind, 0);
+     atomic_store(&rb_profile_sparse_peak, 0); atomic_store(&rb_profile_bind_peak, 0);
+     atomic_store(&rb_profile_sparse, 0); atomic_store(&rb_profile_bindless, 0);
+     rb_first_interval = rb_interval_run = rb_interval_candidate = rb_profile_frames = 0;
+diff --git a/graphics/nvn/host/game_profile.h b/graphics/nvn/host/game_profile.h
+--- a/graphics/nvn/host/game_profile.h
++++ b/graphics/nvn/host/game_profile.h
+@@ -5,6 +5,7 @@
+ #include <stdlib.h>
+ #include "game_tsv.h"
+ typedef struct {
++    int bundled;
+     s2a_game_tsv t;                 // 随包 game.tsv 的图形层各项（没有文件 / 没写的键按 Switch 真实语义的缺省，见 game_tsv.h）
+ } s2a_nvn_profile;
+ const s2a_nvn_profile *s2a_nvn_prof(void);   // host_adapt.m：本次运行这一款的参数（起局读一次）
+diff --git a/graphics/nvn/host_adapt.m b/graphics/nvn/host_adapt.m
+--- a/graphics/nvn/host_adapt.m
++++ b/graphics/nvn/host_adapt.m
+@@ -54,6 +54,7 @@
+         if (gd && *gd) snprintf(p, sizeof p, "%s/shaders/direct/game.tsv", gd); else p[0] = 0;
+ 
+         int got = s2a_game_tsv_load(p, &g_prof.t, err, sizeof err);
++        g_prof.bundled = got;
+         int explicit_set = g_prof.t.present_explicit;
+         // 读 L3 判定结果（fps_l3_results.tsv，名单线产出、出库时拷进配置档目录）
+         char l3_path[1300]; const char *prog_id = s2a_nvn_game_id(); char l3_result[20] = "";
+diff --git a/graphics/nvn/tests/t_rb_direct_autoprofile.m b/graphics/nvn/tests/t_rb_direct_autoprofile.m
+--- a/graphics/nvn/tests/t_rb_direct_autoprofile.m
++++ b/graphics/nvn/tests/t_rb_direct_autoprofile.m
+@@ -4,6 +4,16 @@
+ #include <pthread.h>
+ #include "../gfx/nvn/dmsh_chain.h"
+ #define MLOG(...) do { fprintf(stderr, __VA_ARGS__); fputc(10, stderr); } while (0)
++static int fixture_device, fixture_bundle;
++static unsigned rb_sparse_heap_target(void) { return 2; }
++static int rb_sparse_budget_on(void) { return 1; }
++static int rb_current_tile_policy(void) { return 3; }
++static int rb_profile_resources_on(void) { return !fixture_bundle; }
++static uint64_t rb_profile_app_pool(void) { return UINT64_C(0x240000000); }
++static NSString *rb_profile_gpu_name(void) { return fixture_device ? @"other GPU" : @"test GPU"; }
++static void rb_uniform_profile(uint64_t *stages, uint64_t *bindings, uint64_t *c1) {
++    *stages = 2; *bindings = 3; *c1 = 256;
++}
+ #include "../gfx/nvn/rb_direct_autoprofile.inc"
+ #define CHECK(c) do { if (!(c)) { fprintf(stderr, "FAIL %s:%d %s\n", __FILE__, __LINE__, #c); return 1; } } while (0)
+ int main(int argc, const char **argv) { @autoreleasepool {
+@@ -11,6 +21,7 @@
+     NSString *user = [@(argv[1]) stringByAppendingPathComponent:@"pso_user.tsv"];
+     const char *program = "0400123456789000", *build = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+     BOOL cold = !strcmp(argv[2], "cold"), other = !strcmp(argv[2], "other");
++    fixture_device = !strcmp(argv[2], "device"); fixture_bundle = !strcmp(argv[2], "bundle");
+     rb_profile_begin(user, program, other ? "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" : build);
+     dispatch_sync(rb_profile_io(), ^{});
+     CHECK(rb_profile_path && atomic_load(&rb_profile_ready));
+@@ -25,12 +36,17 @@
+         nvn_rb_observe_direct_interval(2);
+         dispatch_sync(rb_profile_io(), ^{});
+         CHECK([NSFileManager.defaultManager fileExistsAtPath:rb_profile_path]);
++        NSDictionary *res = [NSDictionary dictionaryWithContentsOfFile:rb_profile_path][@"resources"];
++        CHECK([res[@"app_pool"] isEqual:@(UINT64_C(0x240000000))] && [res[@"safe_tbdr"] isEqual:@YES]);
++        CHECK([res[@"verified_bindings"] isEqual:@3] && [res[@"uniform_format"] isEqual:@"rb_uniform_v1"]);
+     } else if (other) {
+         CHECK(!nvn_rb_boot_interval() && !atomic_load(&rb_seed_bind) && !atomic_load(&rb_seed_sparse));
+     } else {
+         CHECK(nvn_rb_boot_interval() == 2 && atomic_load(&rb_seed_sparse) == 32768 && atomic_load(&rb_seed_bind) == 8192);
++        CHECK(rb_profile_heap_limit(3) == (fixture_device || fixture_bundle ? 3u : 2u));
++        CHECK(rb_profile_heap_limit(1) == 1);
+         for (int i=0; i<120; ++i) nvn_rb_observe_direct_interval(1);
+-        CHECK(!nvn_rb_boot_interval());
++        CHECK(!nvn_rb_boot_interval() && rb_profile_heap_limit(3)==3);
+     }
+     rb_profile_retire();
+     CHECK(!nvn_rb_boot_interval() && !atomic_load(&rb_profile_ready));
+diff --git a/graphics/nvn/gfx/nvn/rb_memory_governor.inc b/graphics/nvn/gfx/nvn/rb_memory_governor.inc
+--- a/graphics/nvn/gfx/nvn/rb_memory_governor.inc
++++ b/graphics/nvn/gfx/nvn/rb_memory_governor.inc
+@@ -21,7 +21,8 @@
+ }
+ static int rb_gov_on(void) { return rb_tex_budget_on() && rb_pso_cap_on(); }
+ static unsigned rb_sparse_heap_target(void) {
+-    return rb_ws_sparse_target(atomic_load(&rb_ws_recommended), atomic_load(&rb_gov_plan) & 3u);
++    unsigned live = rb_ws_sparse_target(atomic_load(&rb_ws_recommended), atomic_load(&rb_gov_plan) & 3u);
++    return rb_profile_heap_limit(live);
+ }
+ static int rb_sparse_budget_on(void) {
+     return rb_working_set_on() && rb_pacing_setting(&rb_sparse_budget_option, "S2A_RB_SPARSE_HEAP_BUDGET");

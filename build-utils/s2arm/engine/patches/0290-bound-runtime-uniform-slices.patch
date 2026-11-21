@@ -1,0 +1,640 @@
+From 490e875547c16a66d03dece7f9083cde6e5427da Mon Sep 17 00:00:00 2001
+From: RewindBox <dev@rewindbox.local>
+Date: Sun, 22 Nov 2026 00:02:21 +0100
+Subject: [PATCH] Derive per-stage NVN2 constant bounds from typed SPIR-V
+
+---
+ graphics/nvn/gfx/nvn/nvn_mtl.m                | 40 ++++++---
+ graphics/nvn/gfx/nvn/nvn_session.inc          |  1 +
+ graphics/nvn/gfx/nvn/rb_uniform_extents.inc   | 61 ++++++++++++++
+ graphics/nvn/tests/rb_uniform_pixels.inc      | 81 +++++++++++++++++++
+ graphics/nvn/tests/t_nvn_warmbump.m           |  2 +
+ graphics/tools/direct/dsh/Dsh.cs              | 12 ++-
+ graphics/tools/direct/dsh/RbUniformExtents.cs | 52 ++++++++++++
+ graphics/tools/direct/dsh/S2A.Dsh.csproj      |  1 +
+ .../tools/direct/tests/dsh_cmp/Program.cs     |  9 ++-
+ .../tests/rb_uniform_extents/Program.cs       | 76 +++++++++++++++++
+ .../rb_uniform_extents/native_translation.py  | 51 ++++++++++++
+ .../rb_uniform_extents.csproj                 | 10 +++
+ 12 files changed, 383 insertions(+), 13 deletions(-)
+ create mode 100644 graphics/nvn/gfx/nvn/rb_uniform_extents.inc
+ create mode 100644 graphics/nvn/tests/rb_uniform_pixels.inc
+ create mode 100644 graphics/tools/direct/dsh/RbUniformExtents.cs
+ create mode 100644 graphics/tools/direct/tests/rb_uniform_extents/Program.cs
+ create mode 100644 graphics/tools/direct/tests/rb_uniform_extents/native_translation.py
+ create mode 100644 graphics/tools/direct/tests/rb_uniform_extents/rb_uniform_extents.csproj
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 5840577..f952055 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -306,6 +306,7 @@ static double g_rb_wait_seconds;
+ static int rb_tick_filter_enabled(void) {
+     return nvn_rb_thermal_scope() && rb_pacing_setting(&g_rb_wake_option, "S2A_RB_TICK_WAKE_FILTER");
+ }
++static void rb_uniform_profile(uint64_t *stages, uint64_t *bindings, uint64_t *c1_bytes);
+ #include "rb_direct_autoprofile.inc"
+ static int rb_direct_profile_on(void) {
+     static _Atomic int flag;
+@@ -10114,12 +10115,15 @@ static void shmap_load_once(void) {
+     NSString *ct = cp ? [NSString stringWithContentsOfFile:cp encoding:NSUTF8StringEncoding error:nil] : nil;
+     NSString *head = ct ? [[ct componentsSeparatedByString:@"\n"] firstObject] : nil;
+     NSString *want = [NSString stringWithFormat:@"# chain b-%s inputs %@ ", DMSH_CHAIN, st_inputs ?: @"-"];   // a library without a stamp matches no table
++    BOOL inferUniforms = rb_env_on("S2A_RB_UNIFORM_EXTENTS");
+     if (!head || ![head hasPrefix:want]) {
+         // RewindBox (patch 0070): not red for a library translated on the device. IPA 765's (stamp "runtime-only-…", graphics/tools/direct/runtime_only_lib.sh) has no such table
+         //   by design: the red line came at every launch, as on IPA 762, for 42 c1 buffers of 64 KiB (2.6 MB, 10,752 bytes used) and about one in-pass uniform update a frame copied whole,
+         //   and a red line that is always there hides the ones that are not. A library with any other stamp, or none, keeps it
+-        if (st_inputs && [st_inputs hasPrefix:@"runtime-only-"]) MLOG("c1_full.tsv: the shader library is translated on the device (its stamp says runtime-only), which makes no such table: every c1 gets its own 64 KiB (as expected)");
+-        else MLOG("【红】 c1_full.tsv is stale or missing (its header must name this library's chain and inputs; a full dmsh_build.py run makes it); every c1 gets its own 64 KiB");
++        const char *mode = inferUniforms ? "per-stage SPIR-V proofs may shorten c1 slices; unverified c1 allocations use 64 KiB"
++                                         : "runtime extent inference disabled; each c1 allocation uses 64 KiB";
++        if (st_inputs && [st_inputs hasPrefix:@"runtime-only-"]) MLOG("c1_full.tsv: runtime-only shader library; %s",mode);
++        else MLOG("【红】 c1_full.tsv is stale or missing (its header must name this library's chain and inputs); %s",mode);
+     } else {
+         g_c1_full_valid = 1; g_c1_full = [NSMutableSet set];
+         for (NSString *line in [ct componentsSeparatedByString:@"\n"]) if (line.length && ![line hasPrefix:@"#"]) [g_c1_full addObject:[line stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]];
+@@ -10128,7 +10132,9 @@ static void shmap_load_once(void) {
+         NSString *xp = [[path stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"cb_extent.tsv"];
+         NSString *xt = [NSString stringWithContentsOfFile:xp encoding:NSUTF8StringEncoding error:nil];
+         NSString *xh = xt ? [[xt componentsSeparatedByString:@"\n"] firstObject] : nil;
+-        if (!xh || ![xh hasPrefix:want]) MLOG("cb_extent.tsv is stale or missing: uniform reads are taken to reach the whole binding");
++        if (!xh || ![xh hasPrefix:want]) MLOG("cb_extent.tsv is stale or missing: %s",
++            inferUniforms ? "per-stage SPIR-V proofs may bound reads; unverified slots use the whole binding"
++                          : "runtime extent inference disabled; reads use the whole binding");
+         else { NSMutableDictionary *d = [NSMutableDictionary dictionary];
+             for (NSString *line in [xt componentsSeparatedByString:@"\n"]) { if (!line.length || [line hasPrefix:@"#"]) continue;
+                 NSRange t = [line rangeOfString:@"\t"]; if (t.location != NSNotFound) d[[line substringToIndex:t.location]] = [line substringFromIndex:t.location + 1]; }
+@@ -10150,7 +10156,7 @@ static void shmap_load_once(void) {
+     id<MTLLibrary> at_lib; NSString *at_main, *at_u; NSMutableDictionary<NSNumber *, id<MTLFunction>> *at_fns; uint8_t has_atms;   // gap families 34 / 37: a fragment main0 declaring S2A_AT / S2A_MSOFF (Dsh.cs FsAlphaMs): its library and entry names, specialized per (u, at, msoff) on demand (fs_atms_fn)
+     int load_depth_zero;   // captured with the identity, also used by its layer variant
+     uint8_t u_mask;   // S2Arm gap 2 A: the colour outputs fn_u returns as uint, bit n = color(n) (json u_mask; dmsh_build.py fs_uint turns only the integer-bit writers)
+-    uint16_t tf_stride[4]; uint32_t cb_ext[16], sb_ro; nvn_refl rf; id<MTLArgumentEncoder> ae; NSUInteger arg_len; int stage, range_ro, rb_first_ro, rb_first_storage, afr, layer_out; const char *builtin; uint64_t logged; uint64_t rb_frame_key; BOOL rb_frame_key_ready; char key[24]; id<MTLBuffer> c1buf; uint64_t c1_gpu; size_t c1off;
++    uint16_t tf_stride[4]; uint32_t cb_ext[16], rb_c1_end, sb_ro; nvn_refl rf; id<MTLArgumentEncoder> ae; NSUInteger arg_len; int stage, range_ro, rb_first_ro, rb_first_storage, afr, layer_out; const char *builtin; uint64_t logged; uint64_t rb_frame_key; BOOL rb_frame_key_ready; char key[24]; id<MTLBuffer> c1buf; uint64_t c1_gpu; size_t c1off;
+     uint32_t geo_vertices, geo_invocations, geo_output, geo_stride, geo_index_stride;
+     // NVN2 task / mesh shader (json msl_entry_kind object / mesh, at stage 3 / 4; nvn_geometry.inc mesh_tasks_draw): mesh_kind 1 object 2 mesh (0 = neither); its workgroup's threads,
+     //   the payload's bytes (task), a task shader feeds it (mesh), the most vertices / primitives a mesh workgroup emits (Switch2 line's interface contract, item 6)
+@@ -10354,6 +10360,10 @@ static _Atomic uint64_t g_lp_lib_built, g_lp_lib_shared, g_lp_hi_n, g_lp_hi_live
+ static void rb_stage_disk_stats(void);
+ static void shader_load_stats(void) {
+     rb_stage_disk_stats();
++    uint64_t stages, bindings, c1_bytes;
++    rb_uniform_profile(&stages,&bindings,&c1_bytes);
++    if (stages) MLOG("[rb-uniform] stage_instances=%llu verified_bindings=%llu c1_extent_bytes=%llu",
++        (unsigned long long)stages,(unsigned long long)bindings,(unsigned long long)c1_bytes);
+     MLOG("shader loads: requests %llu / cache hits %llu / shared waits %llu (%.3f ms) / constructions %llu / failures %llu / active %llu",
+          (unsigned long long)atomic_load(&g_shader_requests), (unsigned long long)atomic_load(&g_shader_hits),
+          (unsigned long long)atomic_load(&g_shader_waits), atomic_load(&g_shader_wait_ns) / 1e6, (unsigned long long)atomic_load(&g_shader_builds),
+@@ -10367,12 +10377,14 @@ static void shader_load_stats(void) {
+                                           (unsigned long long)atomic_load(&g_lp_low_n), atomic_load(&g_lp_low_bytes) / 1048576.0);
+ }
+ 
++#include "rb_uniform_extents.inc"
++
+ static void c1_store(NvShader *o) {
+     size_t len = o->rf.c1_len;
+     NSString *guardKey = [NSString stringWithUTF8String:o->key];
+     if ([guardKey hasSuffix:@"_b"]) guardKey = [guardKey substringToIndex:guardKey.length - 2];
+     os_unfair_lock_lock(&g_c1_lock);   // Both the warm-up thread and the submit thread load shaders
+-    if (o->geo_vertices || !g_c1_full_valid || [g_c1_full containsObject:guardKey]) {   // Geometry topology variants have independent control flow; only the base shader is in the guard table.
++    if (o->geo_vertices || (!g_c1_full_valid && !o->rb_c1_end) || [g_c1_full containsObject:guardKey]) {   // Geometry topology variants have independent control flow; only the base shader is in the guard table.
+         o->c1buf = [g_dev newBufferWithLength:C1_DECL_SIZE options:MTLResourceStorageModeShared]; o->c1_gpu = o->c1buf.gpuAddress;
+         if (!o->c1buf) { os_unfair_lock_unlock(&g_c1_lock); MDIE("c1 dedicated buffer allocation failed"); }
+         res_add(o->c1buf);
+@@ -10381,7 +10393,11 @@ static void c1_store(NvShader *o) {
+         os_unfair_lock_unlock(&g_c1_lock);
+         return;
+     }
+-    size_t need = (len + 255u) & ~((size_t)255u);
++    // The shader may read fewer bytes than the control section contains, or
++    // past its end. Banks start zero-filled and slices are never reused.
++    size_t span = o->rb_c1_end ? o->rb_c1_end : len;
++    size_t copied = MIN(span, len);
++    size_t need = (span + 255u) & ~((size_t)255u);
+     if (!g_c1_banks) g_c1_banks = [NSMutableArray array];
+     if (!g_c1_banks.count || g_c1_bank_off + need + 256u + C1_DECL_SIZE > C1_BANK_SIZE) {
+         id<MTLBuffer> b = [g_dev newBufferWithLength:C1_BANK_SIZE options:MTLResourceStorageModeShared];
+@@ -10394,9 +10410,11 @@ static void c1_store(NvShader *o) {
+     }
+     id<MTLBuffer> b = g_c1_banks.lastObject;
+     size_t off = g_c1_bank_off;
+-    memcpy((uint8_t *)b.contents + off, o->rf.c1, len);
+-    g_c1_bank_off += need + 256u;
+-    g_c1_data_bytes += len;
++    if (copied) memcpy((uint8_t *)b.contents + off, o->rf.c1, copied);
++    // The packaged guard permits a 256-byte tail. A verified SPIR-V extent
++    // already includes every loaded byte and is rounded up to Metal alignment.
++    g_c1_bank_off += need + (o->rb_c1_end ? 0u : 256u);
++    g_c1_data_bytes += copied;
+     g_c1_count++;
+     o->c1buf = b;
+     o->c1_gpu = b.gpuAddress;
+@@ -10783,6 +10801,7 @@ int nvn_be_reload_direct_library(void) {
+     lp_pack_get();   // 同理：让库容器的 once 先走过（旧目录），下面按新目录重开
+     if (g_libpack.idx) munmap((void *)g_libpack.idx, g_libpack.idx_len);
+     memset(&g_libpack, 0, sizeof g_libpack); g_libpack_ok = 0;
++    rb_uniform_reset();
+     g_shmap = nil; g_c1_full = nil; g_c1_full_valid = 0; g_cb_ext = nil;
+     g_warm_started = 1;   // 先挡住 shmap_load_once 里的预热：预热要用库容器，等新目录的库容器开好再起
+     shmap_load_once();
+@@ -11379,11 +11398,12 @@ static NvShader *shader_build_attempt(NSString *pc, int stage, int layer, int de
+         if (o->fn_u) { f = [lib newFunctionWithName:fnn(o, j[@"entry_u"]) constantValues:[MTLFunctionConstantValues new] error:&fe]; o->fn_u = f; }
+     }
+     if (!shader_args_init(o)) return nil;
+-    if (o->rf.has_c1) c1_store(o);
+     NSString *ext = g_cb_ext[[pc hasSuffix:@"_b"] ? [pc substringToIndex:pc.length - 2] : pc];   // bytes each uniform slot can read (cb_len), storage slots never written (sb_ro)
+     for (NSString *f in [ext componentsSeparatedByString:@" "]) { int r = 0, n = 0;
+         if (sscanf(f.UTF8String, "%d:%d", &r, &n) == 2 && r >= 0 && r < 16 && n > 0) o->cb_ext[r] = (uint32_t)n;
+         else if (sscanf(f.UTF8String, "s%d", &r) == 1 && r >= 0 && r < 32) o->sb_ro |= 1u << r; }
++    if (j[@"rb_uniform_v1"]) rb_uniform_apply(o,j,original,fb_xfp());
++    if (o->rf.has_c1) c1_store(o);
+     return o;
+ }
+ // Wait for a shader another thread is building, lending that thread this one's urgency. A dispatch group has no owner, so the system cannot do it by itself: the submit thread used
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 5c425b4..729d728 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -352,6 +352,7 @@ int nvn_be_shutdown_session(void) {
+     atomic_store_explicit(&g_rb_dlss_title, 0, memory_order_relaxed);
+     cap_reset();   // RewindBox (patch 0045): a screenshot's frame capture the session ended in the middle of
+     rb_profile_retire();
++    rb_uniform_reset();
+     par_retire_session();
+     atomic_store(&g_sub_thread_set, 0);
+     // Ordinary deferred releases target fence+1. There will be no next
+diff --git a/graphics/nvn/gfx/nvn/rb_uniform_extents.inc b/graphics/nvn/gfx/nvn/rb_uniform_extents.inc
+new file mode 100644
+index 0000000..94cd70c
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_uniform_extents.inc
+@@ -0,0 +1,61 @@
++// The fallback stage JSON, shader key, translator fingerprint and original MSL
++// are loaded together. Never transfer bounds from one executable to another.
++static NSString *rb_uniform_source_sha(NSString *source) {
++    const char *bytes = source.UTF8String;
++    NSUInteger n = [source lengthOfBytesUsingEncoding:NSUTF8StringEncoding];
++    if (!bytes || !n || n > UINT32_MAX) return nil;
++    unsigned char digest[CC_SHA256_DIGEST_LENGTH];
++    CC_SHA256(bytes,(CC_LONG)n,digest);
++    char hex[sizeof digest * 2 + 1];
++    static const char digits[] = "0123456789abcdef";
++    for (size_t i = 0; i < sizeof digest; ++i) {
++        hex[2*i] = digits[digest[i] >> 4]; hex[2*i+1] = digits[digest[i] & 15];
++    }
++    hex[sizeof hex-1] = 0;
++    return @(hex);
++}
++
++static _Atomic uint64_t rb_uniform_stages, rb_uniform_bindings, rb_uniform_c1_bytes;
++static void rb_uniform_reset(void) {
++    atomic_store(&rb_uniform_stages,0); atomic_store(&rb_uniform_bindings,0); atomic_store(&rb_uniform_c1_bytes,0);
++}
++static void rb_uniform_profile(uint64_t *stages, uint64_t *bindings, uint64_t *c1_bytes) {
++    *stages = atomic_load(&rb_uniform_stages); *bindings = atomic_load(&rb_uniform_bindings);
++    *c1_bytes = atomic_load(&rb_uniform_c1_bytes);
++}
++
++static void rb_uniform_apply(NvShader *sh, NSDictionary *json, NSString *source, const char *xfp) {
++    NSDictionary *proof = json[@"rb_uniform_v1"];
++    if (![proof isKindOfClass:NSDictionary.class] || !rb_env_on("S2A_RB_UNIFORM_EXTENTS") ||
++        !xfp || ![json[@"xfp"] isEqual:@(xfp)] || ![json[@"chain"] isEqual:@DMSH_CHAIN] ||
++        ![json[@"key"] isEqual:@(sh->key)] || ![json[@"route"] isEqual:@"B"] ||
++        !source.length || ![proof[@"source_sha256"] isEqual:rb_uniform_source_sha(source)]) return;
++    static NSString *const stages[] = {@"vs", @"ps", nil, @"ts", @"ms", @"cs"};
++    if ((unsigned)sh->stage >= 6 || !stages[sh->stage] || ![json[@"stage"] isEqual:stages[sh->stage]] ||
++        sh->geo_vertices) return;
++    NSArray *rows = proof[@"slots"];
++    if (![rows isKindOfClass:NSArray.class] || rows.count > 15) return;
++    uint32_t ends[17] = {0};
++    for (id row in rows) {
++        if (![row isKindOfClass:NSArray.class] || [row count] != 2 ||
++            ![row[0] isKindOfClass:NSNumber.class] || ![row[1] isKindOfClass:NSNumber.class]) return;
++        double s = [row[0] doubleValue], e = [row[1] doubleValue];
++        if (!(s >= 1 && s <= 16 && s != 2 && e >= 4 && e <= C1_DECL_SIZE) ||
++            s != (int)s || e != (int)e || ((uint32_t)e & 3) || ends[(unsigned)s]) return;
++        ends[(unsigned)s] = (uint32_t)e;
++    }
++    unsigned count = 0;
++    for (int i = 0; i < sh->rf.nb; ++i) {
++        const nvn_rbind *b = &sh->rf.b[i];
++        if (b->kind == NVN_RB_C1 && ends[1]) { sh->rb_c1_end = ends[1]; ++count; }
++        if (b->kind == NVN_RB_CBUF && (unsigned)b->reg < 14 && ends[3+b->reg] && !sh->cb_ext[b->reg]) {
++            // Preserve a whole vec4 at the binding boundary even for a scalar lane.
++            sh->cb_ext[b->reg] = (ends[3+b->reg] + 15u) & ~15u;
++            ++count;
++        }
++    }
++    if (count) {
++        atomic_fetch_add(&rb_uniform_stages,1); atomic_fetch_add(&rb_uniform_bindings,count);
++        atomic_fetch_add(&rb_uniform_c1_bytes,sh->rb_c1_end);
++    }
++}
+diff --git a/graphics/nvn/tests/rb_uniform_pixels.inc b/graphics/nvn/tests/rb_uniform_pixels.inc
+new file mode 100644
+index 0000000..b122f04
+--- /dev/null
++++ b/graphics/nvn/tests/rb_uniform_pixels.inc
+@@ -0,0 +1,81 @@
++// Reads the real output of the managed SPIR-V proof fixture in a fresh process.
++// Both stages alias one guest UBO at offset zero, but require different ranges.
++static int rb_uniform_pixels(NSString *dir) {
++    g_dev = MTLCreateSystemDefaultDevice();
++    id<MTLCommandQueue> queue = [g_dev newCommandQueue];
++    MTLRenderPipelineDescriptor *desc = [MTLRenderPipelineDescriptor new];
++    desc.colorAttachments[0].pixelFormat = MTLPixelFormatRGBA8Unorm;
++    NvShader *sh[2];
++    id<MTLBuffer> uniforms[2];
++    float guest[1024] = {0}; guest[3] = 1; guest[1020] = 1;
++    const size_t c1_lengths[2] = {4096,32};
++    const uint32_t c1_ends[2] = {256,516};
++    const uint32_t ub_ends[2] = {16,4096};
++    NSArray *keys = @[@"0000000000000011_b",@"0000000000000022_b"];
++    NSError *error = nil;
++    if (!queue) return 1;
++    for (int i = 0; i < 2; ++i) {
++        NSString *base = [dir stringByAppendingPathComponent:keys[i]];
++        NSData *bytes = [NSData dataWithContentsOfFile:[base stringByAppendingString:@".json"]];
++        if (!bytes) return 1;
++        NSDictionary *record = [NSJSONSerialization JSONObjectWithData:bytes options:0 error:&error];
++        NSString *source = [NSString stringWithContentsOfFile:[base stringByAppendingString:@".metal"]
++                                                    encoding:NSUTF8StringEncoding error:&error];
++        NvShader *s = [NvShader new]; sh[i] = s; s->stage = i;
++        strlcpy(s->key,[keys[i] UTF8String],sizeof s->key);
++        s->rf.nb = 2; s->rf.b = calloc(2,sizeof *s->rf.b);
++        s->rf.b[0].kind = NVN_RB_C1; s->rf.b[1].kind = NVN_RB_CBUF; s->rf.b[1].reg = 0;
++        s->rf.c1_len = c1_lengths[i]; s->rf.c1 = calloc(1,c1_lengths[i]); s->rf.has_c1 = 1;
++        if (!i) ((float *)s->rf.c1)[63] = 1;
++        rb_uniform_apply(s,record,source,"outdated-fingerprint");
++        rb_uniform_apply(s,record,[source stringByAppendingString:@" "],"uniform-fixture");
++        setenv("S2A_RB_UNIFORM_EXTENTS","0",1);
++        rb_uniform_apply(s,record,source,"uniform-fixture");
++        if (s->rb_c1_end || cb_len(s,0,sizeof guest) != sizeof guest) return 1;
++        setenv("S2A_RB_UNIFORM_EXTENTS","1",1);
++        rb_uniform_apply(s,record,source,"uniform-fixture");
++        if (s->rb_c1_end != c1_ends[i] || cb_len(s,0,sizeof guest) != ub_ends[i] ||
++            cb_len(s,1,sizeof guest) != sizeof guest || cb_len(s,0,8) != 8) return 1;
++        c1_store(s);
++        uniforms[i] = [g_dev newBufferWithBytes:guest length:cb_len(s,0,sizeof guest) options:MTLResourceStorageModeShared];
++        id<MTLLibrary> lib = [g_dev newLibraryWithSource:source options:nil error:&error];
++        if (!lib || !uniforms[i]) { fprintf(stderr,"uniform library: %s\n",error.localizedDescription.UTF8String); return 1; }
++        if (!i) desc.vertexFunction = [lib newFunctionWithName:@"v"];
++        else desc.fragmentFunction = [lib newFunctionWithName:@"f"];
++    }
++    if (sh[0]->c1buf != sh[1]->c1buf || sh[0]->c1off != 0 || sh[1]->c1off != 256 ||
++        g_c1_bank_off != 1024 || g_c1_data_bytes != 288 || g_c1_exclusive) return 1;
++    NvShader *unknown = [NvShader new]; unknown->rf.c1 = calloc(1,4); unknown->rf.c1_len = 4;
++    c1_store(unknown);
++    if (unknown->c1buf.length != C1_DECL_SIZE || g_c1_exclusive != 1) return 1;
++
++    id<MTLRenderPipelineState> pipeline = [g_dev newRenderPipelineStateWithDescriptor:desc error:&error];
++    if (!pipeline) { fprintf(stderr,"uniform pipeline: %s\n",error.localizedDescription.UTF8String); return 1; }
++    MTLTextureDescriptor *td = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm width:1 height:1 mipmapped:NO];
++    td.usage = MTLTextureUsageRenderTarget; td.storageMode = MTLStorageModePrivate;
++    id<MTLTexture> color = [g_dev newTextureWithDescriptor:td];
++    id<MTLBuffer> readback = [g_dev newBufferWithLength:256 options:MTLResourceStorageModeShared];
++    if (!color || !readback) return 1;
++    id<MTLCommandBuffer> cb = [queue commandBuffer];
++    MTLRenderPassDescriptor *pass = [MTLRenderPassDescriptor renderPassDescriptor];
++    pass.colorAttachments[0].texture = color; pass.colorAttachments[0].loadAction = MTLLoadActionClear;
++    pass.colorAttachments[0].storeAction = MTLStoreActionStore;
++    id<MTLRenderCommandEncoder> enc = [cb renderCommandEncoderWithDescriptor:pass];
++    [enc setRenderPipelineState:pipeline];
++    [enc setVertexBuffer:sh[0]->c1buf offset:sh[0]->c1off atIndex:0]; [enc setVertexBuffer:uniforms[0] offset:0 atIndex:1];
++    [enc setFragmentBuffer:sh[1]->c1buf offset:sh[1]->c1off atIndex:0]; [enc setFragmentBuffer:uniforms[1] offset:0 atIndex:1];
++    [enc drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3]; [enc endEncoding];
++    id<MTLBlitCommandEncoder> blit = [cb blitCommandEncoder];
++    [blit copyFromTexture:color sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0)
++       sourceSize:MTLSizeMake(1,1,1) toBuffer:readback destinationOffset:0 destinationBytesPerRow:256 destinationBytesPerImage:256];
++    [blit endEncoding]; [cb commit]; [cb waitUntilCompleted];
++    const uint8_t expected[] = {255,255,255,255};
++    if (cb.status != MTLCommandBufferStatusCompleted || memcmp(readback.contents,expected,4)) return 1;
++    uint64_t stages, bindings, total;
++    rb_uniform_profile(&stages,&bindings,&total);
++    if (stages != 2 || bindings != 4 || total != 772) return 1;
++    rb_uniform_reset(); rb_uniform_profile(&stages,&bindings,&total);
++    if (stages || bindings || total) return 1;
++    puts("PASS GPU uniform bounds: shared guest input, vs=16 ps=4096; c1 ranges 256+516 in 1024 bank bytes, copied=288; opaque=65536; persisted SHA + ABI checked, pixel RGBA=ffffffff");
++    return 0;
++}
+diff --git a/graphics/nvn/tests/t_nvn_warmbump.m b/graphics/nvn/tests/t_nvn_warmbump.m
+index 9319b5c..4ec598c 100644
+--- a/graphics/nvn/tests/t_nvn_warmbump.m
++++ b/graphics/nvn/tests/t_nvn_warmbump.m
+@@ -190,8 +190,10 @@ static int startup_tiers_test(void) { @autoreleasepool {
+     [NSFileManager.defaultManager removeItemAtPath:dir error:nil];
+     return bad!=0;
+ } }
++#include "rb_uniform_pixels.inc"
+ #include "rb_registration_gpu.inc"
+ int main(int argc, char **argv) {
++    if (argc == 3 && !strcmp(argv[1],"--uniform-extents")) return rb_uniform_pixels(@(argv[2]));
+     if (argc == 3 && !strcmp(argv[1],"--register-library")) return test_registered_library(@(argv[2]),YES);
+     if (argc == 3 && !strcmp(argv[1],"--register-library-off")) return test_registered_library(@(argv[2]),NO);
+     if (argc==2 && !strcmp(argv[1],"--startup-tiers")) return startup_tiers_test();
+diff --git a/graphics/tools/direct/dsh/Dsh.cs b/graphics/tools/direct/dsh/Dsh.cs
+index ef3a34a..9a039ec 100644
+--- a/graphics/tools/direct/dsh/Dsh.cs
++++ b/graphics/tools/direct/dsh/Dsh.cs
+@@ -136,6 +136,10 @@ namespace S2A.Dsh
+         {
+             public string Key, Out, W; public ISpvCross Xc; public DshTables T;
+             public readonly List<string> Written = new();
++            // Retain only this stage's final compiler input; a VS retranslating
++            // with integer attributes replaces the first version here.
++            byte[] uniformSpv;
++            bool verifyUniforms;
+             string Spv => Path.Combine(W, Key + ".spv");
+ 
+             // ---- job_for ----
+@@ -346,7 +350,9 @@ namespace S2A.Dsh
+             // 直连三条链交 SPIRV-Cross 都过这里（顶点 / 片元 / 计算 / 几何）与下面的 TessMsl（曲面）：先加固（NxgalSpvCross.Harden，#1204 T1），同通用路径 xc_shader1
+             string Msl(string spvPath, string status = "MSL failed", string resKey = null)   // resKey：资源表取别的键的（直通几何只算副作用的核 .side.spv 与本键同一份存储缓冲表）
+             {
+-                var s = Xc.Msl(NxgalSpvCross.Harden(XIo.ReadAllBytes(spvPath)), out var e);
++                byte[] hardened = NxgalSpvCross.Harden(XIo.ReadAllBytes(spvPath));
++                if (verifyUniforms && spvPath == Spv) uniformSpv = hardened;
++                var s = Xc.Msl(hardened, out var e);
+                 if (s == null) throw new DshError(status, Sl(e ?? "", 0, 160));
+                 s = GatherOffsets(s);   // 四偏移 gather 拆成四次常量偏移（见 GatherOffsets）
+                 s = PoolArrays(s);   // 追不到槽的句柄读宿主的池表（见 PoolArrays）
+@@ -369,6 +375,8 @@ namespace S2A.Dsh
+             // ---- finish ----
+             public void Finish(JsonObject j, byte[] c1)
+             {
++                verifyUniforms = (string)j["arch"] == "sm86" &&
++                    Environment.GetEnvironmentVariable("S2A_RB_UNIFORM_EXTENTS") != "0";
+                 string stage = (string)j["stage"];
+                 if (j["mesh_stage"] is JsonObject mo) { MeshFinish(j, c1, MeshInfo.FromJson(mo)); return; }
+                 if (stage == "hs" || stage == "ds") { TessFinish(j, c1); return; }
+@@ -468,6 +476,7 @@ namespace S2A.Dsh
+                 }
+                 if (stage == "ps" && res["uses_frag_coord"] is JsonNode ufc && (bool)ufc) refl["frag_coord"] = true;   // 宽屏：读片元坐标（同 dmsh_build.py，宿主按它写 render_scale[0]）
+                 if (res["cbuf_use"] is JsonNode cu) refl["cbuf_use"] = (string)cu;   // 宽屏：每个常量寄存器读哪些 vec4（同 dmsh_build.py，宿主交给 s2a_widen_shader）
++                if (verifyUniforms) RbUniformExtents.Record(refl, uniformSpv, res, full);
+                 foreach (var field in ScaleMetadata(res)) refl[field.Key] = field.Value;
+                 SaveJson(Key + "_b.json", refl);
+                 if (PackOut && stage == "vs") VinFinish(full);   // 同 dmsh_build.py finish：vin_finish(key, open(msl).read(), refl)，msl 此时 = 写出的 _b.metal（全部入口、压平后）
+@@ -495,6 +504,7 @@ namespace S2A.Dsh
+                 refl["bindings"] = Reflect(kind, src, res);
+                 refl["vertex_inputs"] = new List<object>(); refl["raster"] = new PyDict(); refl["vs_pad"] = new List<object>();
+                 if (res["cbuf_use"] is JsonNode cu) refl["cbuf_use"] = (string)cu;
++                if (verifyUniforms) RbUniformExtents.Record(refl, uniformSpv, res, full);
+                 foreach (var field in ScaleMetadata(res)) refl[field.Key] = field.Value;
+                 SaveJson(Key + "_b.json", refl);
+             }
+diff --git a/graphics/tools/direct/dsh/RbUniformExtents.cs b/graphics/tools/direct/dsh/RbUniformExtents.cs
+new file mode 100644
+index 0000000..9694d1a
+--- /dev/null
++++ b/graphics/tools/direct/dsh/RbUniformExtents.cs
+@@ -0,0 +1,52 @@
++// Bounds from the same typed SPIR-V passed to SPIRV-Cross. A missing binding
++// means "unknown": it can never shorten an allocation or a transfer.
++using System;
++using System.Collections.Generic;
++using System.Linq;
++using System.Text;
++using System.Text.Json.Nodes;
++using S2A.DirectCompiler;
++
++namespace S2A.Dsh
++{
++    static class RbUniformExtents
++    {
++        internal static List<object> Analyze(byte[] spv, JsonArray buffers)
++        {
++            var rows = new List<object>();
++            // More than one descriptor for a guest slot requires a union. One
++            // dynamic or unmodelled descriptor disqualifies the entire slot.
++            foreach (var slotGroup in buffers.GroupBy(b => (int)b["slot"]))
++            {
++                int slot = slotGroup.Key;
++                if (slot != 1 && (slot < 3 || slot > 16)) continue;
++                int end = 0;
++                foreach (JsonNode b in slotGroup)
++                {
++                    int[][] ranges = DirectComputeC0Reads.Analyze(spv, 0, (int)b["binding"]);
++                    if (ranges == null) { end = -1; break; }
++                    foreach (int[] range in ranges)
++                    {
++                        if (range[0] < 0 || range[1] <= 0 || range[1] > 65536 || range[0] > 65536 - range[1])
++                        { end = -1; break; }
++                        end = Math.Max(end, range[0] + range[1]);
++                    }
++                    if (end < 0) break;
++                }
++                if (end > 0) rows.Add(new List<object> { (long)slot, (long)end });
++            }
++            return rows;
++        }
++
++        internal static void Record(PyDict reflection, byte[] spv, JsonObject resources, string source)
++        {
++            if (spv == null || resources["cbufs"] is not JsonArray buffers) return;
++            var rows = Analyze(spv, buffers);
++            if (rows.Count == 0) return;
++            reflection["rb_uniform_v1"] = new PyDict {
++                ["source_sha256"] = Convert.ToHexStringLower(Sha256.HashData(Encoding.UTF8.GetBytes(source))),
++                ["slots"] = rows
++            };
++        }
++    }
++}
+diff --git a/graphics/tools/direct/dsh/S2A.Dsh.csproj b/graphics/tools/direct/dsh/S2A.Dsh.csproj
+index 323b5e1..0187125 100644
+--- a/graphics/tools/direct/dsh/S2A.Dsh.csproj
++++ b/graphics/tools/direct/dsh/S2A.Dsh.csproj
+@@ -20,6 +20,7 @@
+   </PropertyGroup>
+   <ItemGroup>
+     <Compile Include="*.cs" />
++    <Compile Include="../compiler/DirectComputeC0Reads.cs" Link="DirectComputeC0Reads.cs" />
+     <Compile Include="../compiler/Sha256.cs" Link="Sha256.cs" />
+     <Compile Include="$(Nx)../../translator/dmsh_xlate/Program.cs" Link="xlate/Program.cs" />
+     <Compile Include="$(Nx)../widen/SpirvCbufUseText.cs" Link="xlate/SpirvCbufUseText.cs" />
+diff --git a/graphics/tools/direct/tests/dsh_cmp/Program.cs b/graphics/tools/direct/tests/dsh_cmp/Program.cs
+index fe9dfb8..34428cf 100644
+--- a/graphics/tools/direct/tests/dsh_cmp/Program.cs
++++ b/graphics/tools/direct/tests/dsh_cmp/Program.cs
+@@ -28,7 +28,7 @@ using System.Threading.Tasks;
+ 
+ static unsafe class DshCmp
+ {
+-    static readonly string[] Excluded = { "chain_metal", "vin", "fetch", "fn_prefix", "fn_lib", "writes_layer", "xfp" };   // xfp：现编 json 才带的翻译器指纹（离线库不带）；其前三项：离线成批合编（dmsh_build.py unity_flush）才有，设备现编不分批
++    static readonly string[] Excluded = { "chain_metal", "vin", "fetch", "fn_prefix", "fn_lib", "writes_layer", "xfp", "rb_uniform_v1" };   // xfp：现编 json 才带的翻译器指纹（离线库不带）；其前三项：离线成批合编（dmsh_build.py unity_flush）才有，设备现编不分批
+     static readonly string[] Entries = { "entry", "entry_z", "entry_geometry_capture", "entry_tf", "entry_layer", "entry_layer_z", "entry_u" };
+     [DllImport("libc")] static extern int setenv(string name, string value, int overwrite);
+ 
+@@ -272,7 +272,12 @@ static unsafe class DshCmp
+     {
+         if (!name.EndsWith(".json", StringComparison.Ordinal)) return text;
+         var j = JsonNode.Parse(text) as JsonObject;
+-        if (j == null || !j.Remove("xfp")) return text;
++        if (j == null) return text;
++        // These compiler certificates have their own digest/ABI and executable
++        // GPU tests. Existing coverage goldens compare shared shader output.
++        bool changed = j.Remove("xfp");
++        changed |= j.Remove("rb_uniform_v1");
++        if (!changed) return text;
+         return j.ToJsonString();
+     }
+ 
+diff --git a/graphics/tools/direct/tests/rb_uniform_extents/Program.cs b/graphics/tools/direct/tests/rb_uniform_extents/Program.cs
+new file mode 100644
+index 0000000..8886d5d
+--- /dev/null
++++ b/graphics/tools/direct/tests/rb_uniform_extents/Program.cs
+@@ -0,0 +1,76 @@
++using System;
++using System.Collections.Generic;
++using System.IO;
++using System.Linq;
++using System.Runtime.InteropServices;
++using System.Text.Json.Nodes;
++using System.Text.RegularExpressions;
++using S2A.Dsh;
++
++// Each Uniform has the translator's struct { vec4 data[N]; } ABI. Offsets
++// and result types are independent of the Metal unit used by the GPU test.
++static class Program
++{
++    static byte[] Spv(int c1Word, int uboWord, bool dynamic = false, bool escape = false, bool vector = false)
++    {
++        var w = new List<uint> { 0x07230203, 0x10000, 0, 3000, 0 };
++        void Op(uint op, params uint[] args) { w.Add(((uint)args.Length + 1) << 16 | op); w.AddRange(args); }
++        Op(21, 301, 32, 0); Op(22, 302, 32); Op(23, 303, 302, 4);
++        Op(43, 301, 310, 4100); Op(28, 304, 303, 310); Op(30, 305, 304);
++        Op(32, 306, 2, 305); Op(32, 307, 2, 302); Op(32, 308, 2, 303);
++        Op(71, 304, 6, 16); Op(72, 305, 0, 35, 0); Op(43, 301, 311, 0);
++        void Read(uint id, uint binding, int word, bool indirect, bool escapes, bool wide)
++        {
++            Op(71, id, 33, binding); Op(71, id, 34, 0); Op(59, 306, id, 2);
++            Op(43, 301, id+1, (uint)word / 4); Op(43, 301, id+2, (uint)word % 4);
++            uint index = indirect ? 2999u : id+1;
++            if (wide) Op(65, 308, id+3, id, 311, index);
++            else Op(65, 307, id+3, id, 311, index, id+2);
++            Op(61, wide ? 303u : 302u, id+4, id+3);
++            if (escapes) Op(83, 307, id+5, id+3);
++        }
++        Read(1500, 7, c1Word, false, false, false);
++        Read(1600, 9, uboWord, dynamic, escape, vector);
++        return MemoryMarshal.AsBytes(w.ToArray().AsSpan()).ToArray();
++    }
++
++    const string Preamble = "#include <metal_stdlib>\nusing namespace metal;\nstruct V { float4 p [[position]]; float2 rg; };\n";
++    const string VS = Preamble + "vertex V v(uint i [[vertex_id]], constant float *c [[buffer(0)]], constant float *u [[buffer(1)]]) { float2 p[3]={float2(-1,-1),float2(3,-1),float2(-1,3)}; return {float4(p[i],0,1),float2(u[3],c[63])}; }";
++    const string FS = Preamble + "fragment float4 f(V in [[stage_in]], constant float *c [[buffer(0)]], constant float *u [[buffer(1)]]) { return float4(in.rg,u[1020],1-c[128]); }";
++
++    static void Main(string[] args)
++    {
++        Directory.CreateDirectory(args[0]);
++        string chain = Regex.Match(File.ReadAllText(args[1]), "DMSH_CHAIN \"([0-9a-f]+)\"").Groups[1].Value;
++        if (chain.Length == 0) throw new Exception("missing chain");
++        const string mapping = "[{\"slot\":1,\"binding\":7},{\"slot\":3,\"binding\":9}]";
++        var buffers = JsonNode.Parse(mapping).AsArray();
++        void Expect(byte[] spv, JsonArray map, string expected)
++        {
++            string actual = string.Join(",", RbUniformExtents.Analyze(spv,map).Cast<List<object>>().Select(row => string.Join("/",row)));
++            if (actual != expected) throw new Exception($"expected {expected}, got {actual}");
++        }
++        Expect(Spv(63,3), buffers,"1/256,3/16");
++        Expect(Spv(128,1020), buffers,"1/516,3/4084");
++        Expect(Spv(63,4,vector:true), buffers,"1/256,3/32");
++        Expect(Spv(63,4,dynamic:true), buffers,"1/256");
++        Expect(Spv(63,4,escape:true), buffers,"1/256");
++        Expect(Spv(63,16384), buffers,"1/256");
++        // Multiple descriptors alias one guest slot. Its upper bound must
++        // include all mapped reads; an unknown descriptor invalidates it.
++        var aliases = JsonNode.Parse("[{\"slot\":3,\"binding\":7},{\"slot\":3,\"binding\":9}]").AsArray();
++        Expect(Spv(128,1020), aliases,"3/4084");
++        Expect(Spv(128,0,dynamic:true), aliases,"");
++
++        void Write(string stage, string key, string src, byte[] spv)
++        {
++            var json = new PyDict { ["key"]=key, ["stage"]=stage, ["route"]="B", ["chain"]=chain, ["xfp"]="uniform-fixture" };
++            RbUniformExtents.Record(json,spv,new JsonObject {["cbufs"]=buffers.DeepClone()},src);
++            File.WriteAllText(Path.Combine(args[0],key+".json"),Py.Dumps(json));
++            File.WriteAllText(Path.Combine(args[0],key+".metal"),src);
++        }
++        Write("vs","0000000000000011_b",VS,Spv(63,3));
++        Write("ps","0000000000000022_b",FS,Spv(128,1020));
++        Console.WriteLine("PASS SPIR-V C1/UBO exact typed reads, vector width, alias union, dynamic, pointer escape, 64 KiB overflow; wrote two stage proofs");
++    }
++}
+diff --git a/graphics/tools/direct/tests/rb_uniform_extents/native_translation.py b/graphics/tools/direct/tests/rb_uniform_extents/native_translation.py
+new file mode 100644
+index 0000000..b1196a1
+--- /dev/null
++++ b/graphics/tools/direct/tests/rb_uniform_extents/native_translation.py
+@@ -0,0 +1,51 @@
++"""Assert that the actual Ampere -> hardened SPIR-V -> MSL translator emits the proof."""
++import ctypes
++import hashlib
++import importlib.util
++import json
++import os
++from pathlib import Path
++import struct
++import sys
++import tempfile
++
++
++def main():
++    spec = importlib.util.spec_from_file_location("ampere", "tests/ampere_isa/cases.py")
++    ampere = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(ampere)
++    # MOV R0,c[1][252]; MOV R1,c[3][4092]. Both outputs are observable.
++    from_c1 = ampere.alu(0x002, 5, 0, off=(38, 252), bank=(54, 1), m=(72, 0xf))
++    text, original = ampere.shader([from_c1, ampere.MOVC(1, 1023), ampere.MOVI(2, 3), ampere.MOVI(3, 4)])
++    control = bytearray(original)
++    code = text + bytes(range(256))
++    struct.pack_into("<II", control, 0x40, len(text), len(code))
++    key = hashlib.sha256(control[:0x48] + code).hexdigest()[:16]
++    with tempfile.TemporaryDirectory() as temp:
++        root = Path(temp)
++        facts = root / "game" / "shaders" / "direct"
++        facts.mkdir(parents=True)
++        (facts / "shader_facts.tsv").write_text(key + '\t{"fout":{"0":"uint"}}\n')
++        (facts / "shader_pairs.tsv").write_text("")
++        os.environ["S2A_GAME_DATA"] = str(root / "game")
++        os.environ["S2A_RB_UNIFORM_EXTENTS"] = "1"
++        translator = ctypes.CDLL(sys.argv[1])
++        compile_stage = translator.s2a_dsh_compile
++        p = ctypes.c_char_p
++        compile_stage.argtypes = [p, ctypes.c_int, p, ctypes.c_size_t, p, ctypes.c_size_t, p]
++        compile_stage.restype = ctypes.c_int
++        if compile_stage(key.encode(), 1, code, len(code), bytes(control), len(control), os.fsencode(root)):
++            raise RuntimeError("NVN2 fragment translation failed")
++        metadata = json.loads((root / f"{key}_b.json").read_bytes())
++        source = (root / f"{key}_b.metal").read_bytes()
++        proof = metadata.get("rb_uniform_v1", {})
++        if proof.get("source_sha256") != hashlib.sha256(source).hexdigest():
++            raise RuntimeError(f"source-bound reflection missing: slots={proof.get('slots')}")
++        ends = dict(proof["slots"])
++        if ends.get(1) != 256 or ends.get(3) != 4096:
++            raise RuntimeError(f"unexpected compiler bounds for two literal vec4.w loads: {ends}")
++        print("PASS NativeAOT Ampere fragment: constant 1 = 256, guest slot 3 = 4096, MSL digest matched")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/graphics/tools/direct/tests/rb_uniform_extents/rb_uniform_extents.csproj b/graphics/tools/direct/tests/rb_uniform_extents/rb_uniform_extents.csproj
+new file mode 100644
+index 0000000..06a5cbc
+--- /dev/null
++++ b/graphics/tools/direct/tests/rb_uniform_extents/rb_uniform_extents.csproj
+@@ -0,0 +1,10 @@
++<Project Sdk="Microsoft.NET.Sdk">
++  <PropertyGroup>
++    <OutputType>Exe</OutputType>
++    <TargetFramework>net10.0</TargetFramework>
++    <InvariantGlobalization>true</InvariantGlobalization>
++  </PropertyGroup>
++  <ItemGroup>
++    <Compile Include="../../dsh/RbUniformExtents.cs;../../dsh/Py.cs;../../compiler/Sha256.cs;../../compiler/DirectComputeC0Reads.cs;../../../../widen/shader/SpirvCbufUse.cs" />
++  </ItemGroup>
++</Project>
+-- 
+2.56.1
+
