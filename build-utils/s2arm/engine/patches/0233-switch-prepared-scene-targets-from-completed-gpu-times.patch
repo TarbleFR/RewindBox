@@ -237,7 +237,7 @@ index 7bf6261..91354ed 100644
  // A guest-driven change already expressed in its own pixels needs no conversion.
  static inline float rb_fx_physical_pixels(float guest, unsigned physicalExtent, unsigned guestExtent) {
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index d3b2229..8349cd7 100644
+index d3b2229..48411a0 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -1469,7 +1469,7 @@ static _Atomic unsigned g_sp_heap_n;
@@ -363,6 +363,20 @@ index d3b2229..8349cd7 100644
  // ---------- Shader mapping table: Switch control section hash → PC metallib (produced by dm/gfx/tools/shader_map.py) ----------
  static NSMutableDictionary<NSString *, NSString *> *g_shmap;   // S2Arm: key -> stage name (shader_map.tsv column 3); was declared NSArray *, clang 21 rejects the NSString reads
  static NSString *g_shmap_path, *g_msl_dir;
+@@ -11118,11 +11173,11 @@ static void alias_dead_views(void) {
+     free(ser);
+ }
+ static void treg_drop_pool_views(const void *pool) {
+-    pthread_mutex_lock(&g_rmu);
++    int gate = rs_registration_begin();
+     vc_drop_pool(pool);
+     for (int i = 0; i < g_ntreg; i++)
+         if (g_treg[i].ok && (const void *)g_treg[i].t.pool == pool) { treg_drop_views(&g_treg[i]); g_treg[i].gone = 1; pool_dirty(0, i); }   // nothing may make its texture until the ID is registered again (pool_tex_obj)
+-    pthread_mutex_unlock(&g_rmu);
++    rs_registration_end(gate);
+ }
+ // Texture ID 0 with nothing registered there: the zero handle a slot holds until the game binds it (a shader declares the slot, the game never binds it). Hardware reads the
+ // pool's first descriptor; Ryujinx finds it empty (address 0: TexturePool.GetInternal makes no texture) and the backend binds its all-zero dummy, with no error. So it reads 0 here
 @@ -11145,19 +11200,19 @@ static void pool_seen_clear(int id_) {   // an ID given another texture has not
  // 贴图池销毁时清它那段编号的登记（hle_nvn.c dpool_finalize）：只动已登记的项（不扩表），同 nvn_be_reg_tex(id, NULL, NULL) 的清法——丢缓存的视图、记登记代号
  void nvn_be_unreg_tex_range(int base, int n) {
@@ -468,10 +482,10 @@ index d3b2229..8349cd7 100644
      geo_run_flush();
 diff --git a/graphics/nvn/gfx/nvn/nvn_rb_drs_pool.inc b/graphics/nvn/gfx/nvn/nvn_rb_drs_pool.inc
 new file mode 100644
-index 0000000..c15c7b8
+index 0000000..daa88de
 --- /dev/null
 +++ b/graphics/nvn/gfx/nvn/nvn_rb_drs_pool.inc
-@@ -0,0 +1,417 @@
+@@ -0,0 +1,436 @@
 +// SPDX-License-Identifier: MIT
 +// Submit owns the banks and registry publication. The serial utility queue only
 +// constructs unused resources. A release/acquire flag publishes each complete bank.
@@ -500,6 +514,8 @@ index 0000000..c15c7b8
 +static int g_rb_drs_heat;
 +static const char *g_rb_drs_hold="none";
 +static uint64_t g_rb_drs_retry_after;
++static uint64_t g_rb_drs_transition_begin, g_rb_drs_last_copies, g_rb_drs_last_bytes;
++static uint64_t g_rb_drs_sample_frame[8];
 +static unsigned rb_drs_fx_ready_mask(void);
 +static int rb_drs_fx_inputs(uint64_t ids[3]);
 +static int rb_drs_fx_usage(unsigned tier, NSUInteger usage[4]);
@@ -729,6 +745,9 @@ index 0000000..c15c7b8
 +    return YES;
 +}
 +static BOOL rb_drs_transition(unsigned tier) {
++    g_rb_drs_transition_begin=bp_now();
++    g_rb_drs_last_copies=g_rb_drs_copies;
++    g_rb_drs_last_bytes=g_rb_drs_bytes;
 +    NvRBDrsBank *banks[RB_DRS_BANKS], *fx_banks[3]; unsigned previous[RB_DRS_BANKS], n=0;
 +    NSUInteger usage[4]={0}; uint64_t fx[3]={0};
 +    rb_drs_prune();
@@ -783,9 +802,13 @@ index 0000000..c15c7b8
 +    return NO;
 +}
 +static void rb_drs_log(unsigned from, unsigned to, const char *cause, uint64_t frame, double mean) {
-+    MLOG("[rb-drs] frame=%llu cause=%s scale=%u->%u thermal=%d gpu_mean_ms=%.3f banks=%u migration_copies_total=%llu migration_backing_bytes_total=%llu held_total=%llu held_reason=%s",
++    if (from!=to && frame) g_rb_drs_sample_frame[frame%8]=frame;
++    MLOG("[rb-drs] frame=%llu cause=%s scale=%u->%u thermal=%d gpu_mean_ms=%.3f banks=%u migration_copies_total=%llu migration_backing_bytes_total=%llu held_total=%llu held_reason=%s transition_cpu_us=%llu migration_copies=%llu migration_backing_bytes=%llu",
 +         (unsigned long long)frame,cause,rb_drs_percent(from),rb_drs_percent(to),g_rb_drs_heat,mean,
-+         g_rb_drs_count,(unsigned long long)g_rb_drs_copies,(unsigned long long)g_rb_drs_bytes,(unsigned long long)g_rb_drs_blocked,g_rb_drs_hold);
++         g_rb_drs_count,(unsigned long long)g_rb_drs_copies,(unsigned long long)g_rb_drs_bytes,(unsigned long long)g_rb_drs_blocked,g_rb_drs_hold,
++         (unsigned long long)((bp_now()-g_rb_drs_transition_begin)/1000),
++         (unsigned long long)(g_rb_drs_copies-g_rb_drs_last_copies),
++         (unsigned long long)(g_rb_drs_bytes-g_rb_drs_last_bytes));
 +}
 +static BOOL rb_drs_restore(const char *why) {
 +    unsigned from=g_rb_drs_control.tier;
@@ -809,6 +832,15 @@ index 0000000..c15c7b8
 +    uint64_t frame=atomic_load_explicit(&g_cur_frame,memory_order_relaxed);
 +    if (!frame || frame==g_rb_drs_frame) return;
 +    g_rb_drs_frame=frame;
++    for (unsigned i=0;i<8;i++) {
++        uint64_t prior=g_rb_drs_sample_frame[i];
++        if (!prior || frame<=prior || frame-prior<8) continue;
++        double elapsed=nvn_be_gpu_ms(prior);
++        if (elapsed<0 && frame-prior<64) continue;
++        MLOG("[rb-drs] transition_frame=%llu completed_frame_gpu_ms=%.3f sample_valid=%d",
++             (unsigned long long)prior,elapsed,elapsed>0);
++        g_rb_drs_sample_frame[i]=0;
++    }
 +    uint64_t now=bp_now()/1000000ull;
 +    if (now-g_rb_drs_heat_ms>=250) { g_rb_drs_heat=(int)NSProcessInfo.processInfo.thermalState; g_rb_drs_heat_ms=now; }
 +    double gpu=frame>=8 ? nvn_be_gpu_ms(frame-8) : -1;
@@ -886,6 +918,7 @@ index 0000000..c15c7b8
 +        dispatch_sync(g_rb_drs_tools->queue, ^{});
 +        res_remove(g_rb_drs_tools->params);
 +    }
++    memset(g_rb_drs_sample_frame,0,sizeof g_rb_drs_sample_frame);
 +    g_rb_drs_tools=nil; g_rb_drs_count=0; g_rb_drs_frame=g_rb_drs_heat_ms=g_rb_drs_copies=g_rb_drs_blocked=g_rb_drs_bytes=0;
 +    g_rb_drs_heat=0; g_rb_drs_retry_after=0; memset(&g_rb_drs_control,0,sizeof g_rb_drs_control);
 +}
