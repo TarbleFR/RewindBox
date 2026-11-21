@@ -384,4 +384,4 @@ Patches 0234–0237 implement build-bound pacing profiles, bounded file-backed p
 
 The [A18 Pro thermal comparison](../../../docs/evidence/s2arm-thermal-813.md) documents the hosted NVN2 DRS threshold, presentation scheduling, pipeline memory and archive budgets, guest QoS and resource-proven tile-pass rules.
 
-Patches 0245–0246 bound the hosted iOS presentation thread’s time constraint and limit optional memory retention under process compression or thermal pressure. See the [capture replay and device checks](../../../docs/evidence/s2arm-present-freeze.md).
+Patches 0245–0247 bound the hosted iOS presentation thread’s time constraint and limit optional memory retention under process compression or thermal pressure. See the [capture replay and device checks](../../../docs/evidence/s2arm-present-freeze.md).

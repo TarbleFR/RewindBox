@@ -1,0 +1,390 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index f7b69de53775a0b5911d9421a9ada16c22ea4e5f..fa7b27adbcf9fed5bc8cbdf21f8ee268d14b904b 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3194,6 +3194,9 @@ NVN(nvnWindowBuilderGetTexture, NVNtexture *, const NVNwindowBuilder *b, int i)
+ // host's private tail without moving any NVN1 or NVN2 window fields.
+ #include "rb_promotion.h"
+ #include "rb_thermal_pacing.h"
++#if defined(__APPLE__)
++#include "rb_present_mach.h"
++#endif
+ typedef struct { win2 layout; rb_present_samples samples; } rb_present_history;
+ FITS(rb_present_history, NVNwindow);
+ static void nvn2_win_init(NVNwindow *w, const NVNwindowBuilder *b);
+@@ -3249,6 +3252,7 @@ static _Atomic uint64_t rb_rt_same, rb_rt_deferred, rb_rt_calls, rb_rt_failures;
+ static __thread struct {
+     unsigned generation;
+     rb_rt_gate gate;
++    rb_rt_fallback fallback;
+     uint64_t cpu_last, legacy_period;
+     double cpu_samples[120];
+     unsigned cpu_count;
+@@ -3680,7 +3684,7 @@ static void tsummary(uint64_t frame) {
+ 
+     if (nvn_rb_thermal_scope()) {
+         uint64_t wake[3]; nvn_rb_link_wake_stats(wake);
+-        LOG("[rb-rt] frame=%llu debounce=1 requested_cap_ms=2.000 set_calls=%llu set_failed=%llu same=%llu deferred=%llu tick_notifications=%llu skip_no_waiter=%llu skip_not_due=%llu",
++        LOG("[rb-rt] frame=%llu debounce=1 requested_cap_ms=2.000 constraint_cap_ms=4.000 effective_cap_ms=3.000 set_calls=%llu set_failed=%llu same=%llu deferred=%llu tick_notifications=%llu skip_no_waiter=%llu skip_not_due=%llu",
+             (unsigned long long)frame, (unsigned long long)atomic_load(&rb_rt_calls),
+             (unsigned long long)atomic_load(&rb_rt_failures), (unsigned long long)atomic_load(&rb_rt_same),
+             (unsigned long long)atomic_load(&rb_rt_deferred), (unsigned long long)wake[0],
+@@ -3842,17 +3846,33 @@ static void slow_emit(uint64_t f) {
+ // DM_RT_COMP=<ms> fixes the declaration; default auto = every 120 frames take the larger of 1.25 × the p90 and 1.1 × the peak of this thread's per-frame CPU time and re-declare if it differs from the declared value by > 15% (capped at 0.9 × period).
+ // DM_RT=0 leaves the acquire thread on the standard policy (its QoS only), for power A/B: the real-time declaration is how the performance controller learns the frame deadline, and it may hold the clock up for it
+ static int rt_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_RT"); v = !(e && !strcmp(e, "0")); if (!v) LOG("[nvn] DM_RT=0: the present thread gets no time-constraint policy (QoS only)"); } return v; }
++#if defined(__APPLE__)
++static void rb_release_acquire_rt(void) {
++    char note[128];
++    if (!rb_mach_try_release(&t_rb_rt.fallback, pthread_mach_thread_np(pthread_self()), now_ns(),
++                             note,sizeof note)) return;
++    if (t_rb_rt.fallback.confirmed) g_rt_comp_ms = g_rt_period_ms = 0;
++    LOG("[rb-rt] owner=acquire %s",note);
++}
++#endif
+ static void set_time_constraint_comp(uint64_t period_ns, uint64_t comp_ns) {
+     if (!rt_on()) return;
+     // The host's acquire thread also runs guest work. Its measured frame CPU
+     // time is not a reservation for the act of presentation.
+     int gated = nvn_rb_thermal_scope();
+     comp_ns = rb_present_budget(gated, comp_ns);
+-    static mach_timebase_info_data_t tb; if (!tb.denom) mach_timebase_info(&tb);
++    static __thread mach_timebase_info_data_t tb; if (!tb.denom) mach_timebase_info(&tb);
+     if (comp_ns < 1000000ull) comp_ns = 1000000ull; if (comp_ns > period_ns * 9 / 10) comp_ns = period_ns * 9 / 10;
+     thread_time_constraint_policy_data_t p = {
+         .period = (uint32_t)(period_ns * tb.denom / tb.numer), .computation = (uint32_t)(comp_ns * tb.denom / tb.numer),
+         .constraint = (uint32_t)(period_ns * tb.denom / tb.numer), .preemptible = 1};
++#if defined(__APPLE__)
++    if (gated) {
++        if (t_rb_rt.fallback.blocked) { rb_release_acquire_rt(); return; }
++        p = rb_mach_present_tuple(period_ns, tb);
++        comp_ns = period_ns < RB_PRESENT_COMP_NS ? period_ns : RB_PRESENT_COMP_NS;
++    }
++#endif
+     rb_rt_tuple request = {p.period, p.computation};
+     if (gated) {
+         enum rb_rt_decision d = rb_rt_consider(&t_rb_rt.gate, request, now_ns(), atomic_load_explicit(&g_frame, memory_order_relaxed));
+@@ -3864,15 +3884,23 @@ static void set_time_constraint_comp(uint64_t period_ns, uint64_t comp_ns) {
+     if (kr == KERN_SUCCESS) { g_rt_comp_ms = comp_ns / 1e6; g_rt_period_ms = period_ns / 1e6; }
+     // 读回内核实际生效的值（10-30：xnu 收到声明后 computation < constraint / 2 会直接抬到 constraint / 2，60 Hz 即 8.33 ms；读回才知道真正交给调度器的是多少）
+     thread_time_constraint_policy_data_t g = {0}; mach_msg_type_number_t gc = THREAD_TIME_CONSTRAINT_POLICY_COUNT; boolean_t gd = 0;
+-    int got = thread_policy_get(pthread_mach_thread_np(pthread_self()), THREAD_TIME_CONSTRAINT_POLICY, (thread_policy_t)&g, &gc, &gd) == KERN_SUCCESS && !gd;
++    kern_return_t read_kr = thread_policy_get(pthread_mach_thread_np(pthread_self()), THREAD_TIME_CONSTRAINT_POLICY, (thread_policy_t)&g, &gc, &gd);
++    int got = read_kr == KERN_SUCCESS && !gd && gc == THREAD_TIME_CONSTRAINT_POLICY_COUNT;
+     if (kr != KERN_SUCCESS) atomic_fetch_add_explicit(&rb_rt_failures,1,memory_order_relaxed);
+-    else if (gated) {
+-        rb_rt_tuple effective = got && g.preemptible && g.constraint == g.period ?
+-                                 (rb_rt_tuple){g.period, g.computation} : request;
+-        rb_rt_accepted(&t_rb_rt.gate, request, effective);
++#if defined(__APPLE__)
++    if (gated) {
++        int verified = rb_rt_verified(kr == KERN_SUCCESS, got, g.computation, rb_mach_ticks(RB_RT_MAX_NS,tb));
++        if (verified) rb_rt_accepted(&t_rb_rt.gate,request,(rb_rt_tuple){g.period,g.computation});
++        else t_rb_rt.fallback.blocked = 1;
++        LOG("[rb-rt] owner=acquire requested_constraint_ms=%.3f effective_budget_verified=%d set_kr=%d read_kr=%d",
++            p.constraint*(double)tb.numer/tb.denom/1e6, verified,kr,read_kr);
+     }
++#endif
+     LOG("[nvn] present thread time-constraint policy (period %.3f ms, computation %.3f ms) %s; kernel now holds period %.3f / computation %.3f / constraint %.3f ms%s", period_ns / 1e6, comp_ns / 1e6, kr == KERN_SUCCESS ? "set" : "failed to set",
+         got ? g.period * (double)tb.numer / tb.denom / 1e6 : 0, got ? g.computation * (double)tb.numer / tb.denom / 1e6 : 0, got ? g.constraint * (double)tb.numer / tb.denom / 1e6 : 0, got ? "" : " (read back failed)");
++#if defined(__APPLE__)
++    if (gated && t_rb_rt.fallback.blocked) rb_release_acquire_rt();
++#endif
+ }
+ static int rt_comp_fixed_ms(void) { static int v = -2; if (v == -2) { const char *e = getenv("DM_RT_COMP"); v = e && *e && strcmp(e, "auto") ? atoi(e) : -1; } return v; }   // −1 = auto
+ // The fixed value, or in auto mode the computation declared so far (auto's starting value of 2 ms only the first time): a reset to 2 ms at each period change under-declared the thread until the next p90
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index eac6c45bb00eded53eb90a3448768a2000a33452..c1fed4dde87ea94fbb5e8849850febdcb826ff75 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -30,6 +30,7 @@
+ #include "nvn_fps.h"
+ #include "rb_promotion.h"
+ #include "rb_thermal_pacing.h"
++#include "rb_present_mach.h"
+ #include "nvn_link_backoff.h"   // 低频链路档降档退避（link_sync）
+ #include "nvn_obj.h"
+ #include "nvn2.h"   // Switch 2: NVN2 control sections (DM_NVN_SHDUMP code length)
+@@ -24059,10 +24060,18 @@ static uint64_t g_stall_t0, g_stall_drop, g_stall_n; static int g_stall_red, g_s
+ // but it is not counted as stuck and no failure is reported; the stall is measured from the later of "the most recent callback / the most recent activation" (A16 logs: 8–17 seconds inactive and 17 seconds in the background were both reported as "stuck in foreground")
+ __attribute__((weak)) int dm_focus_now(void) { return 1; }   // Mac/iOS application shells provide strong lifecycle-backed definitions; shell-less graphics components have no application focus
+ __attribute__((weak)) uint64_t dm_focus_in_since(void) { return 0; }
++// Owned by our nvn-present-link pthread throughout its run loop.
++static __thread rb_rt_fallback rb_link_rt_fallback;
++static void rb_release_link_rt(uint64_t now) {
++    char note[128];
++    if (rb_mach_try_release(&rb_link_rt_fallback,pthread_mach_thread_np(pthread_self()),now,note,sizeof note))
++        MLOG("[rb-rt] owner=display_link %s",note);
++}
+ @implementation NvMetalDisplayLinkDelegate
+ - (void)metalDisplayLink:(CAMetalDisplayLink *)link needsUpdate:(CAMetalDisplayLinkUpdate *)update {
+     (void)link;
+     uint64_t arrival = now_ns();
++    if (rb_link_rt_fallback.blocked && !rb_link_rt_fallback.confirmed) rb_release_link_rt(arrival);
+     pthread_mutex_lock(&g_pq_mu);
+     int active = dm_focus_now() == 1;
+     uint64_t since = dm_focus_in_since();
+@@ -24258,11 +24267,20 @@ static void link_rt_declare(CAFrameRateRange r) {
+     static mach_timebase_info_data_t tb; if (!tb.denom) mach_timebase_info(&tb);
+     thread_time_constraint_policy_data_t p = { .period = (uint32_t)(period_ns * tb.denom / tb.numer), .computation = (uint32_t)(comp_ns * tb.denom / tb.numer),
+         .constraint = (uint32_t)(period_ns * tb.denom / tb.numer), .preemptible = 1 };
++    int gated = nvn_rb_thermal_scope();
++    if (gated) p = rb_mach_present_tuple(period_ns, tb);
+     kern_return_t kr = thread_policy_set(pthread_mach_thread_np(pthread_self()), THREAD_TIME_CONSTRAINT_POLICY, (thread_policy_t)&p, THREAD_TIME_CONSTRAINT_POLICY_COUNT);
+     thread_time_constraint_policy_data_t g = {0}; mach_msg_type_number_t gc = THREAD_TIME_CONSTRAINT_POLICY_COUNT; boolean_t gd = 0;   // 读回内核实际生效的值（同 hle_nvn.c set_time_constraint_comp）
+-    int got = thread_policy_get(pthread_mach_thread_np(pthread_self()), THREAD_TIME_CONSTRAINT_POLICY, (thread_policy_t)&g, &gc, &gd) == KERN_SUCCESS && !gd;
++    kern_return_t read_kr = thread_policy_get(pthread_mach_thread_np(pthread_self()), THREAD_TIME_CONSTRAINT_POLICY, (thread_policy_t)&g, &gc, &gd);
++    int got = read_kr == KERN_SUCCESS && !gd && gc == THREAD_TIME_CONSTRAINT_POLICY_COUNT;
+     MLOG("display link thread time-constraint policy (period %.3f ms, computation %.3f ms) %s; kernel now holds computation %.3f / constraint %.3f ms%s", period_ns / 1e6, comp_ns / 1e6, kr == KERN_SUCCESS ? "set" : "failed to set",
+          got ? g.computation * (double)tb.numer / tb.denom / 1e6 : 0, got ? g.constraint * (double)tb.numer / tb.denom / 1e6 : 0, got ? "" : " (read back failed)");
++    if (gated) {
++        int verified = rb_rt_verified(kr == KERN_SUCCESS,got,g.computation,rb_mach_ticks(RB_RT_MAX_NS,tb));
++        MLOG("[rb-rt] owner=display_link requested_constraint_ms=%.3f effective_budget_verified=%d set_kr=%d read_kr=%d",
++             p.constraint*(double)tb.numer/tb.denom/1e6,verified,kr,read_kr);
++        if (!verified) { rb_link_rt_fallback.blocked = 1; rb_release_link_rt(now_ns()); }
++    }
+ }
+ static void *link_main(void *arg) {   // Display link thread: started when switching to display-link mode, exits when switching back to 0
+     (void)arg;
+diff --git a/graphics/nvn/gfx/nvn/rb_present_mach.h b/graphics/nvn/gfx/nvn/rb_present_mach.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..2245247ca2cf04fc732a8db54ec47838bfb7771c
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_present_mach.h
+@@ -0,0 +1,45 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include "rb_thermal_pacing.h"
++#include <mach/mach.h>
++#include <mach/mach_time.h>
++#include <mach/thread_policy.h>
++#include <stdio.h>
++
++static inline uint32_t rb_mach_ticks(uint64_t ns, mach_timebase_info_data_t tb) {
++    return (uint32_t)(ns * tb.denom / tb.numer);
++}
++
++static inline thread_time_constraint_policy_data_t rb_mach_present_tuple(
++    uint64_t period_ns, mach_timebase_info_data_t tb) {
++    uint64_t budget = period_ns < RB_PRESENT_COMP_NS ? period_ns : RB_PRESENT_COMP_NS;
++    return (thread_time_constraint_policy_data_t){
++        .period = rb_mach_ticks(period_ns,tb), .computation = rb_mach_ticks(budget,tb),
++        .constraint = rb_mach_ticks(rb_present_deadline(period_ns),tb), .preemptible = TRUE
++    };
++}
++
++static inline int rb_mach_timeshare(thread_t thread, kern_return_t *set_kr, kern_return_t *read_kr) {
++    thread_extended_policy_data_t policy = {.timeshare=TRUE};
++    *set_kr = thread_policy_set(thread,THREAD_EXTENDED_POLICY,(thread_policy_t)&policy,THREAD_EXTENDED_POLICY_COUNT);
++    mach_msg_type_number_t count = THREAD_EXTENDED_POLICY_COUNT;
++    boolean_t def = FALSE;
++    policy.timeshare = FALSE;
++    *read_kr = thread_policy_get(thread,THREAD_EXTENDED_POLICY,(thread_policy_t)&policy,&count,&def);
++    return *set_kr == KERN_SUCCESS && *read_kr == KERN_SUCCESS && !def &&
++           count == THREAD_EXTENDED_POLICY_COUNT && policy.timeshare;
++}
++
++// Only called by the pthread that made the declaration. A failed cleanup
++// never re-arms RT. Retries use subsequent callbacks/acquires, without timers.
++static inline int rb_mach_try_release(rb_rt_fallback *state, thread_t thread, uint64_t now,
++                                      char *note, size_t size) {
++    if (!rb_rt_release_due(state, now)) return 0;
++    kern_return_t set_kr, read_kr;
++    state->confirmed = rb_mach_timeshare(thread,&set_kr,&read_kr);
++    snprintf(note,size,"fallback=%s attempt=%u set_kr=%d read_kr=%d",
++             state->confirmed ? "timeshare_verified" :
++             state->attempts == 3 ? "timeshare_unconfirmed_final" : "timeshare_retry",
++             state->attempts,set_kr,read_kr);
++    return 1;
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_thermal_pacing.h b/graphics/nvn/gfx/nvn/rb_thermal_pacing.h
+index af5f96cd2fb721ed9833d3a42c0c83cc039d150a..9fb9ccf09dc7336534fd7f0e91561585cc8c8526 100644
+--- a/graphics/nvn/gfx/nvn/rb_thermal_pacing.h
++++ b/graphics/nvn/gfx/nvn/rb_thermal_pacing.h
+@@ -86,8 +86,27 @@ static inline int rb_link_may_switch(int stable, int active, int desired) {
+     return stable || !active || !desired || active == desired || active == 4 || desired == 4;
+ }
+ 
+-// Period == constraint and preemptible == 1 for the acquire-thread declaration.
+-// Compare the final tuple in Mach ticks, after conversion and clamping.
++// Absolute time conversion and kernel calls live in rb_present_mach.h.
++enum { RB_RT_MAX_NS = 3000000, RB_RT_DEADLINE_NS = 4000000 };
++static inline uint64_t rb_present_deadline(uint64_t period_ns) {
++    return period_ns < RB_RT_DEADLINE_NS ? period_ns : RB_RT_DEADLINE_NS;
++}
++static inline int rb_rt_verified(int set_ok, int live, uint32_t computation, uint32_t max_ticks) {
++    return set_ok && live && computation && computation <= max_ticks;
++}
++typedef struct {
++    int blocked, confirmed;
++    unsigned attempts;
++    uint64_t next_retry;
++} rb_rt_fallback;
++static inline int rb_rt_release_due(rb_rt_fallback *s, uint64_t now) {
++    if (!s->blocked || s->confirmed || s->attempts >= 3 || now < s->next_retry) return 0;
++    ++s->attempts;
++    s->next_retry = now + (s->attempts == 1 ? 1000000000ull : 5000000000ull);
++    return 1;
++}
++
++// The hosted deadline is deterministic from period. Compare Mach ticks.
+ typedef struct { uint32_t period, comp; } rb_rt_tuple;
+ typedef struct {
+     rb_rt_tuple applied, requested;
+@@ -104,15 +123,6 @@ static inline enum rb_rt_decision rb_rt_consider(rb_rt_gate *s, rb_rt_tuple p, u
+         s->pending.frames = 0;
+         return RB_RT_SAME;
+     }
+-    // XNU may raise computation to half of the constraint. Once the readback
+-    // proves this floor on this thread at this period, equivalent requests can
+-    // be suppressed without another set/get pair.
+-    if (p.period == s->applied.period && s->requested.period == p.period &&
+-        s->applied.comp > s->requested.comp && s->applied.comp == p.period / 2 &&
+-        p.comp <= s->applied.comp) {
+-        s->pending.frames = 0;
+-        return RB_RT_SAME;
+-    }
+     uint64_t key = ((uint64_t)p.period << 32) | p.comp;
+     if (s->requested.period && !rb_cadence_stable(&s->pending, key, frame, now)) return RB_RT_WAIT;
+     if (s->attempted && now - s->attempted < RB_CADENCE_DWELL_NS) return RB_RT_WAIT;
+diff --git a/graphics/nvn/tests/t_rb_present_mach.c b/graphics/nvn/tests/t_rb_present_mach.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..a0a84d9cf44aef2a9b4024bba122b9bcfd279fae
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_present_mach.c
+@@ -0,0 +1,84 @@
++#include <inttypes.h>
++#include <mach/mach.h>
++#include <mach/mach_time.h>
++#include <mach/thread_policy.h>
++#include <pthread.h>
++#include <stdint.h>
++#include <stdio.h>
++
++#include "rb_present_mach.h"
++
++typedef struct {
++    uint64_t period_ns;
++    mach_timebase_info_data_t tb;
++    int ok;
++} trial;
++
++static uint64_t to_ns(uint32_t ticks, mach_timebase_info_data_t tb) {
++    return (uint64_t)ticks * tb.numer / tb.denom;
++}
++
++static void *exercise(void *arg) {
++    trial *test = arg;
++    thread_time_constraint_policy_data_t request = rb_mach_present_tuple(test->period_ns, test->tb);
++    uint64_t budget_ns = to_ns(request.computation, test->tb);
++    uint64_t deadline_ns = to_ns(request.constraint, test->tb);
++    uint64_t tick_ns = ((uint64_t)test->tb.numer + test->tb.denom - 1) / test->tb.denom;
++    uint64_t actual_period_ns = to_ns(request.period, test->tb);
++    if (actual_period_ns + tick_ns < test->period_ns || actual_period_ns > test->period_ns + tick_ns ||
++        budget_ns + tick_ns < 2000000 || budget_ns > 2000000 + tick_ns ||
++        deadline_ns > 4000000 || request.computation > request.constraint ||
++        request.constraint > request.period || !request.preemptible) return NULL;
++
++    thread_t self = mach_thread_self();
++    kern_return_t set_rt = thread_policy_set(self, THREAD_TIME_CONSTRAINT_POLICY,
++                                             (thread_policy_t)&request, THREAD_TIME_CONSTRAINT_POLICY_COUNT);
++    thread_time_constraint_policy_data_t effective = {0};
++    mach_msg_type_number_t count = THREAD_TIME_CONSTRAINT_POLICY_COUNT;
++    boolean_t get_default = FALSE;
++    kern_return_t read_rt = KERN_FAILURE;
++    if (set_rt == KERN_SUCCESS) {
++        read_rt = thread_policy_get(self, THREAD_TIME_CONSTRAINT_POLICY,
++                                    (thread_policy_t)&effective, &count, &get_default);
++    }
++    int bounded_rt = read_rt == KERN_SUCCESS && !get_default &&
++                     count == THREAD_TIME_CONSTRAINT_POLICY_COUNT && effective.computation > 0 &&
++                     to_ns(effective.computation, test->tb) <= 3000000;
++
++    // Clean up even if the kernel refused, promoted, or withheld the RT policy.
++    // Independently read back the scheduling mode after exercising the production fallback.
++    kern_return_t set_ts = KERN_FAILURE, read_ts = KERN_FAILURE;
++    int fallback_ok = rb_mach_timeshare(self, &set_ts, &read_ts);
++    thread_extended_policy_data_t extended = {0};
++    count = THREAD_EXTENDED_POLICY_COUNT;
++    boolean_t ext_default = FALSE;
++    kern_return_t verify_ts = thread_policy_get(self, THREAD_EXTENDED_POLICY,
++                                                (thread_policy_t)&extended, &count, &ext_default);
++    int timeshared = fallback_ok && set_ts == KERN_SUCCESS && read_ts == KERN_SUCCESS &&
++                     verify_ts == KERN_SUCCESS && !ext_default &&
++                     count == THREAD_EXTENDED_POLICY_COUNT && extended.timeshare;
++    // THREAD_TIME_CONSTRAINT_POLICY may be denied on a hosted runner; the only
++    // acceptable terminal states for the caller are bounded RT or verified timeshare.
++    test->ok = timeshared;
++    printf("period_ns=%" PRIu64 " requested_ns=%" PRIu64 " constraint_ns=%" PRIu64
++           " set_rt=%d read_rt=%d effective_ns=%" PRIu64 " bounded_rt=%d"
++           " set_timeshare=%d read_timeshare=%d independent_timeshare=%d path=%s\n",
++           test->period_ns, budget_ns, deadline_ns, set_rt, read_rt,
++           to_ns(effective.computation, test->tb), bounded_rt, set_ts, read_ts, timeshared,
++           bounded_rt ? "bounded-rt" : "fallback");
++    mach_port_deallocate(mach_task_self(), self);
++    return NULL;
++}
++
++int main(void) {
++    mach_timebase_info_data_t tb;
++    if (mach_timebase_info(&tb) != KERN_SUCCESS || !tb.numer || !tb.denom) return 1;
++    const uint64_t periods[] = {16666667, 33333333};
++    for (unsigned i = 0; i < sizeof(periods) / sizeof(periods[0]); ++i) {
++        trial test = {periods[i], tb, 0};
++        pthread_t thread;
++        if (pthread_create(&thread, NULL, exercise, &test) != 0 ||
++            pthread_join(thread, NULL) != 0 || !test.ok) return 1;
++    }
++    return 0;
++}
+diff --git a/graphics/nvn/tests/t_rb_thermal_pacing.c b/graphics/nvn/tests/t_rb_thermal_pacing.c
+index e696e4974b889fdba9877b1e10ec13e531b7aeac..2fc0847221ebce413791d0a899d745453ac39bac 100644
+--- a/graphics/nvn/tests/t_rb_thermal_pacing.c
++++ b/graphics/nvn/tests/t_rb_thermal_pacing.c
+@@ -48,8 +48,7 @@ static void observe(pacing *p, uint32_t requested, uint32_t expected, unsigned f
+     enum rb_rt_decision d = rb_rt_consider(&p->mach, tuple, p->now, p->frame);
+     assert((d == RB_RT_SET) == (p->mach.requested.period != expected));
+     if (d == RB_RT_SET) {
+-        // Some devices report half the period even for a 2 ms request.
+-        rb_rt_accepted(&p->mach, tuple, (rb_rt_tuple){requested, requested/2});
++        rb_rt_accepted(&p->mach, tuple, tuple);
+         ++p->sets;
+     }
+     assert(p->mach.requested.period == expected && p->mach.requested.comp == 2000000);
+@@ -65,7 +64,7 @@ static void scheduling(void) {
+     assert(rb_present_budget(0, 9000000) == 9000000);
+     pacing p = {0};
+     observe(&p, FAST_NS, FAST_NS, 0, 1);
+-    assert(rb_rt_consider(&p.mach, (rb_rt_tuple){FAST_NS, 4000000}, p.now, p.frame) == RB_RT_SAME);
++    assert(rb_rt_consider(&p.mach, (rb_rt_tuple){FAST_NS, RB_PRESENT_COMP_NS}, p.now, p.frame) == RB_RT_SAME);
+     // Even five slow frames can take over 250 ms when the system is under load.
+     for (unsigned burst = 1; burst <= 5; ++burst) {
+         for (unsigned i = 0; i < burst; ++i) observe(&p, SLOW_NS, FAST_NS, 1, 80000000);
+@@ -109,8 +108,26 @@ static void scheduling(void) {
+     assert(rb_display_wait_ready(102,100,2,0,0,1./30));
+ }
+ 
++static void effective_budget(void) {
++    assert(rb_present_deadline(16666667) == 4000000 && rb_present_deadline(33333333) == 4000000);
++    assert(rb_present_deadline(3000000) == 3000000);
++    assert(rb_rt_verified(1,1,2000000,3000000) && rb_rt_verified(1,1,3000000,3000000));
++    assert(!rb_rt_verified(1,1,3000001,3000000) && !rb_rt_verified(1,1,0,3000000));
++    assert(!rb_rt_verified(0,1,2000000,3000000) && !rb_rt_verified(1,0,2000000,3000000));
++    rb_rt_fallback f = {0};
++    assert(!rb_rt_release_due(&f,1));
++    f.blocked = 1;
++    assert(rb_rt_release_due(&f,1) && !rb_rt_release_due(&f,2));
++    assert(rb_rt_release_due(&f,1000000001ull) && !rb_rt_release_due(&f,2000000001ull));
++    assert(rb_rt_release_due(&f,6000000001ull) && !rb_rt_release_due(&f,61000000001ull));
++    f = (rb_rt_fallback){.blocked=1};
++    assert(rb_rt_release_due(&f,1));
++    f.confirmed = 1;
++    assert(!rb_rt_release_due(&f,10000000001ull));
++}
++
+ int main(void) {
+-    thermal(); scheduling();
++    thermal(); scheduling(); effective_budget();
+     puts("Fixed 2 ms present budget and 1/2 interval debounce: passed");
+     puts("Guest DRS thermal entry/recovery and Mach policy debounce: passed");
+ }

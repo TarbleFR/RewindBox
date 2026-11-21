@@ -6,6 +6,7 @@ Mario Kart World, titre `0400C3F00006E000`, iPhone 16 Pro Max. La capture compte
 
 - **0245** fixe la demande de calcul à 2,000 ms sur le backend direct NVN2 hébergé sur iOS. Un changement de cadence 1 ↔ 2 exige au moins huit trames invitées consécutives et 250 ms à la même valeur. Les appels répétés sur une trame ne font pas avancer la confirmation. Le filtre intervient avant la déclaration Mach et le changement de plage du display link, y compris avec le réglage historique de ProMotion. Le journal Mach distingue la demande de la politique relue dans le noyau.
 - **0246** échantillonne la compression du processus. Dès que celle-ci dépasse 512 Mio ou que l’appareil atteint Fair, le budget de rétention est plafonné à 96 Mio. Le plafond critique reste à 32 Mio. La sortie du régime limité exige dix secondes stables à Nominal et au plus 448 Mio compressés. Le gouverneur réduit les admissions facultatives et laisse les ressources nécessaires aux commandes en vol achever leur durée de vie.
+- **0247** borne la contrainte Mach à 4 ms sur les deux threads de présentation concernés. Dans la capture, une demande de calcul de 2 ms avec une contrainte de 16,667 ms donnait 8,333 ms après relecture. Un budget de calcul de 2 ms avec une contrainte de 4 ms respecte le [plancher documenté de XNU](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/mach/thread_policy.h). Le moteur vérifie la politique effective et revient au partage de temps si le budget dépasse 3 ms ou que la relecture échoue.
 
 ## Vérification
 

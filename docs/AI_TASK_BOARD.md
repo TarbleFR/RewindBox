@@ -34,7 +34,7 @@ Calcul conservé d’une version à l’autre : somme(note × poids) / 100, arro
 ```mermaid
 xychart-beta
     title "S2Arm : avancement estimé par mise à jour"
-    x-axis "IPA ou commit moteur" ["799", "0155", "pont iOS", "0156", "0157", "0158", "0159", "0160", "0161", "0162", "0163", "0164", "0165", "801", "0166–0168", "0169", "802", "0170", "0171", "803", "0176", "f956b7d8", "804", "0180", "805", "0185", "0191", "806", "0196", "0197", "0203", "0204", "807", "0205", "808", "0206–0209", "0210–0214", "0215–0219", "0220–0225", "810", "811", "812", "0234–0237", "0245–0246"]
+    x-axis "IPA ou commit moteur" ["799", "0155", "pont iOS", "0156", "0157", "0158", "0159", "0160", "0161", "0162", "0163", "0164", "0165", "801", "0166–0168", "0169", "802", "0170", "0171", "803", "0176", "f956b7d8", "804", "0180", "805", "0185", "0191", "806", "0196", "0197", "0203", "0204", "807", "0205", "808", "0206–0209", "0210–0214", "0215–0219", "0220–0225", "810", "811", "812", "0234–0237", "0245–0247"]
     y-axis "Maturité estimée (%)" 0 --> 100
     bar [55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55]
 ```
@@ -86,7 +86,7 @@ xychart-beta
 | 2026-11-21 | Moteur 0234–0237 | 90 / 60 / 65 / 35 / 25 | 55 % | [Uploads, pager fichier, cadence réelle et profil par build](evidence/s2arm-upload-pacing.md). Titre 04007EF01F8AE000. [Backend Metal 4 macOS et framework iOS arm64 compilés](https://github.com/TarbleFR/RewindBox/actions/runs/44870326035), [pont UIKit compilé](https://github.com/TarbleFR/RewindBox/actions/runs/44869974500). Relecture de textures validée en Metal 3 sur GPU virtuel. Distribution des images après changement et pic mémoire sur iPhone non mesurés. |
 | 2026-11-21 | Moteur thermique A18 Pro / Mario Kart World | 90 / 60 / 65 / 35 / 25 | 55 % | [Changements et protocole face à la 810](evidence/s2arm-thermal-813.md). La session 810 communiquée atteint Serious à 7,2 min. Gain du nouveau moteur sur iPhone non mesuré. |
 
-| 2026-11-21 | Moteur 0245–0246 / gel de présentation | 90 / 60 / 65 / 35 / 25 | 55 % | [Budget Mach, anti-rebond et quotas sous compression](evidence/s2arm-present-freeze.md). Rejeu de la capture à 270 changements d’intervalle. Endurance sur iPhone à mesurer. |
+| 2026-11-21 | Moteur 0245–0247 / gel de présentation | 90 / 60 / 65 / 35 / 25 | 55 % | [Budget Mach, anti-rebond et quotas sous compression](evidence/s2arm-present-freeze.md). Rejeu de la capture à 270 changements d’intervalle. Endurance sur iPhone à mesurer. |
 
 **Mesures de référence, à conserver séparément de l’estimation :** [IPA 795](evidence/rewind796/profile-observations-795.json), 26,886 FPS moteur sur 9 145 intervalles sans lacune dans la plage observée (≈ 5 min 40 s), 213 >100 ms dont 36 >500 ms ; [ancien moteur 0001–0089](evidence/s2arm-ipa783-device-2026-11-18.md), 60 FPS sur 526 intervalles (≈ 8,8 s), scène non identifiée ; [IPA 786](evidence/s2arm-ipa786-device-2026-11-18.md), deux fenêtres à l’affichage à 23,9 / 22,5 FPS et GPU médian à 33,38 / 35,03 ms ; [IPA 794](evidence/s2arm-first-race-795.md), pic échantillonné de 5 175 Mio. Parcours, caches et réglages non uniformisés : aucun gain avant/après attribuable à partir de ces seuls relevés.
 
