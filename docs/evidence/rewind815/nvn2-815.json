@@ -1,0 +1,34 @@
+{
+  "build": 815,
+  "source": "9af4d191f859e1ecd95a1fed8487a2513cb39ace",
+  "sha256": "7fe8bf00050c63565e41340d685b9443480ddf39dbdb801aa1a023237465887d",
+  "bytes": 333718925,
+  "pinSHA256": "e717485d3b987850bbd69b94f192fbd33cb43df29959b711404eb0b208f1e075",
+  "engineRun": 44899318078,
+  "engineFingerprint": "15cf034bbd7ee07b5f82050f4f900b49fc2547ab7fe5c50b78e9895b7711123f",
+  "patchCount": 279,
+  "lastPatch": {
+    "name": "0279-preserve-the-NVN2-pipeline-budget-during-promotions.patch",
+    "sha256": "fa06dea44192a121ff848529137aff2dfebbca9d009d2878103f59c826a496fd"
+  },
+  "chain": "0be3f28548fd",
+  "markers": [
+    "blocked_storage=",
+    "S2A_RB_INPASS_UBO_RING",
+    "S2A_RB_ARCHIVE_WRITE_ALWAYS",
+    "S2A_RB_FAIR_SCALE"
+  ],
+  "plist": {
+    "RBTestAsyncPSODefault": true
+  },
+  "deviceFrames": 0,
+  "baselineBuild": 814,
+  "baselineSha256": "ddd8e28b432ed774158b38c8b877f246bf0b74974af000d3634ed22706b7d4ec",
+  "run": 44900868960,
+  "attempt": 1,
+  "nativeImages": 97,
+  "bundles": 10,
+  "offlineValidators": 6,
+  "privateTransferVerified": true,
+  "physicalIphoneTested": false
+}
