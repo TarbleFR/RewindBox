@@ -133,7 +133,7 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
  }
  void nvn_rb_link_wake_stats(uint64_t out[3]) {
      pthread_mutex_lock(&g_link_mu); memcpy(out, g_rb_wake_counts, sizeof g_rb_wake_counts); pthread_mutex_unlock(&g_link_mu);
-@@ -11246,6 +11251,8 @@
+@@ -11247,6 +11252,8 @@
      if (o->rf.dyn && !DM_GAME_TEX_DYN_SLOTS) {   // dynamic texture handles (TEXD / SAMPD) only where the profile says the game picks them from c2's tables, as before otherwise
          // (rf.c1 is freed by dealloc when o goes: freeing it here too was a double free, which aborted FINAL FANTASY RESONANCE at its first such shader)
          MLOG("【红】 shader %s reflection conversion failed: a texture handle the translator could not trace to one slot (profile key tex_dyn_slots off)", pc.UTF8String); return nil; }
@@ -142,7 +142,7 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
      if (o->rf.unb_uncov) {   // #968: texture bindings the runtime normalization bits do not cover (binding > 31, geometry): counted, never silent
          static _Atomic uint64_t n_sh, n_b; uint64_t k = atomic_fetch_add(&n_sh, 1) + 1, nb = atomic_fetch_add(&n_b, o->rf.unb_uncov) + o->rf.unb_uncov;
          if (k <= 8 || !(k & (k - 1))) MLOG("unnorm bits: shader %s has %u texture bindings outside the s2a_flags.yzw bitmap (normalization compiled in); %llu such bindings in %llu shaders so far",
-@@ -16052,6 +16059,10 @@
+@@ -16053,6 +16060,10 @@
  }
  static void warm_start(void) { warm_start_mode(0); }
  static void warm_start_mode(int resumed) {
@@ -153,7 +153,7 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
      rb_archive_preopen_start();
      if (atomic_exchange(&g_warm_started,1)) return;
      dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ pso_user_seen_load(); });   // the record's dedupe set, off the submit thread (pso_user_seen_load)
-@@ -18735,7 +18746,18 @@
+@@ -18738,7 +18749,18 @@
  }
  static void rb_seq_push(uint32_t **v, uint32_t *n, uint32_t *cap, uint32_t seq) {   // g_rb_anyr / g_rb_wsq (review: one form for both)
      if (*n && (*v)[*n - 1] == seq) return;

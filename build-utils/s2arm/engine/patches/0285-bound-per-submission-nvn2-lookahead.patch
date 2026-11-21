@@ -106,7 +106,7 @@ index 3b69473..d01e0e0 100644
  static dispatch_block_t rb_test_pso_owner;
  #endif
 -static void ppq_build(int slot, MTLRenderPipelineDescriptor *d, NSString *pkey) {   // a lane or a block started at once; d / pkey were taken out of g_ppq under g_pp_mu
-+static void ppq_build(int slot, id payload, NSString *pkey) {   // a lane or a block started at once; d / pkey were taken out of g_ppq under g_pp_mu
++static void ppq_build(int slot, id payload, NSString *requestedKey) {   // a lane or a block started at once; d / pkey were taken out of g_ppq under g_pp_mu
      id<MTLRenderPipelineState> ps; NSError *e=nil;
      @autoreleasepool {
          // One builder owns this descriptor and slot until it publishes done.
@@ -114,7 +114,7 @@ index 3b69473..d01e0e0 100644
 -        // pso_desc were already captured on the submit thread.
 +        // Demand supplies a descriptor. A bounded prediction supplies the
 +        // original render key and strong shader references for this worker.
-+        MTLRenderPipelineDescriptor *d;
++        MTLRenderPipelineDescriptor *d; NSString *pkey=requestedKey;
 +        if ([payload isKindOfClass:RBLookRecipe.class]) {
 +            RBLookRecipe *recipe=payload;
 +            d=pso_desc(&recipe->key,recipe->vertex,recipe->fragment,nil,0);

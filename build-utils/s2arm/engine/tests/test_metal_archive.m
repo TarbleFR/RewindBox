@@ -53,12 +53,16 @@ static int rb_heap_on(void) { return 1; }
 static int rb_pso_cap_on(void) { return 0; }
 static void rb_pso_track(id ps, unsigned kind, NSString *key, BOOL hit) { (void)ps; (void)kind; (void)key; (void)hit; }
 static void rb_recreated(NSString *key, id ps, uint64_t start) { (void)key; (void)ps; (void)start; }
-static int test_scope_enabled;
+static int test_scope_enabled, test_storage_scope;
 static const char *test_scope_build;
 #define RB_PAR_SCOPED() test_scope_enabled
+#define RB_PAR_STORAGE_SCOPE() (test_storage_scope || test_scope_enabled)
+#define RB_PAR_MEASURE() RB_PAR_STORAGE_SCOPE()
 #define RB_PAR_BUILD() test_scope_build
 static _Thread_local int fixture_submit;
 static int fixture_preopen;
+static NSString *fixture_seed_key;
+#define RB_PAR_SEED_RECIPES(keys) do { if (fixture_seed_key) [(keys) addObject:fixture_seed_key]; } while (0)
 #define RB_PAR_SUBMIT_THREAD() fixture_submit
 #define RB_PAR_PREOPEN() fixture_preopen
 #ifndef RB_ARCHIVE_TEST_793_CONTROL
@@ -380,11 +384,20 @@ static void test_scoped_archive(const char *directory) {
     NSData *expectedIndex = [NSData dataWithContentsOfFile:legacyIndex];
     REQUIRE(expectedIndex.length);
     retire_drained_test_archive();
-    test_scope_enabled = 1;
+    test_storage_scope = 1; // generic disk identity with legacy scheduling
+    REQUIRE(!test_scope_enabled);
     test_scope_build = "";
     REQUIRE(!par_open_dir());
     test_scope_build = "0123456789abcdef0123456789abcdef";
     REQUIRE(par_open_dir() && g_par_on && g_par_legacy_dir);
+    // Upgrading an on-disk legacy catalogue: no startup-key plist exists.
+    // A recipe from the old manifest should already have its batch in memory.
+    fixture_seed_key = key; fixture_preopen = 1;
+    rb_archive_preopen_start();
+    REQUIRE(!dispatch_group_wait(rb_archive_jobs(), dispatch_time(DISPATCH_TIME_NOW, 10*NSEC_PER_SEC)));
+    REQUIRE(atomic_load(&rb_preopened) == 1 && rb_archive_fetch(key, RB_LEGACY, YES));
+    REQUIRE(!atomic_load(&rb_cold_submit));
+    fixture_seed_key = nil;
     NSString *scopedA = g_par_dir;
     REQUIRE([g_par_legacy_have containsObject:key] && ![g_par_have containsObject:key]);
     REQUIRE(par_compute(fn, key, &error)); // actual GPU, fail-on-miss for the old file

@@ -162,9 +162,9 @@ new file mode 100644
 +        if (merged.count >= RB_STARTUP_KEYS) break;
 +        if (rb_archive_key(old)) [merged addObject:old];
 +    }
-+    keys = merged.array;
-+    if (![keys writeToFile:path atomically:YES])
-+        MLOG("[rb-archive-open] could not persist %lu startup keys", (unsigned long)keys.count);
++    NSArray *snapshot = merged.array;
++    if (![snapshot writeToFile:path atomically:YES])
++        MLOG("[rb-archive-open] could not persist %lu startup keys", (unsigned long)snapshot.count);
 +}
 +
 +static void rb_archive_note_startup(NSString *key) {
@@ -194,7 +194,7 @@ new file mode 100644
 diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
 --- a/graphics/nvn/gfx/nvn/pso_archive.h
 +++ b/graphics/nvn/gfx/nvn/pso_archive.h
-@@ -33,6 +33,15 @@
+@@ -33,6 +33,19 @@
  #ifndef RB_PAR_WRITE_MODE
  #define RB_PAR_WRITE_MODE() RB_ARCHIVE_LEGACY
  #endif
@@ -204,13 +204,17 @@ diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archi
 +#ifndef RB_PAR_SEED_RECIPES
 +#define RB_PAR_SEED_RECIPES(keys) ((void)(keys))
 +#endif
++// Namespace disk state by the executable independently of draw scheduling.
++#ifndef RB_PAR_STORAGE_SCOPE
++#define RB_PAR_STORAGE_SCOPE() RB_PAR_SCOPED()
++#endif
 +#ifndef RB_PAR_PREOPEN_ROOM
 +#define RB_PAR_PREOPEN_ROOM() 1
 +#endif
  #ifndef RB_PAR_MEASURE
  #define RB_PAR_MEASURE() RB_PAR_SCOPED()
  #endif
-@@ -165,6 +174,7 @@
+@@ -165,6 +178,7 @@
      NSFileManager *fm = NSFileManager.defaultManager;
      uint64_t bytes = 0;
      NSArray<NSString *> *names = [fm contentsOfDirectoryAtPath:dir error:nil] ?: @[];
@@ -218,7 +222,7 @@ diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archi
      for (NSString *name in names) if ([name hasSuffix:@".metalarchive"] && ![name hasPrefix:@"batch-"]) {
          [have addObject:name.stringByDeletingPathExtension];
          bytes += [[fm attributesOfItemAtPath:[dir stringByAppendingPathComponent:name] error:nil] fileSize];
-@@ -181,7 +191,7 @@
+@@ -181,7 +195,7 @@
      while (rb_archive_index_next(&cursor, &left, rawKey, rawName)) {
          NSString *key = @(rawKey), *file = @(rawName);
          if (![bfiles containsObject:file]) {
@@ -227,7 +231,7 @@ diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archi
              [bfiles addObject:file];
          }
          batches[key] = file;
-@@ -193,7 +203,7 @@
+@@ -193,7 +207,7 @@
      for (NSString *journal in names) {
          if (![journal hasPrefix:@"batch-"] || ![journal hasSuffix:@".metalarchive.rows"]) continue;
          NSString *file = journal.stringByDeletingPathExtension;
@@ -236,7 +240,30 @@ diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archi
          NSString *jp = [dir stringByAppendingPathComponent:journal];
          NSUInteger maxBytes = 64 * 128;
          if ([[fm attributesOfItemAtPath:jp error:nil] fileSize] > maxBytes) continue;
-@@ -305,8 +315,8 @@
+@@ -246,8 +260,11 @@
+     g_rb_archive_coalesce = g_rb_archive_batch32 || (coalesce && !strcmp(coalesce, "1"));
+     // The package's archives (pack time, shader line 10-26: one file per pipeline under the same key, made for the target GPU): looked up first, never removed or rewritten
+     g_par_bhave = [NSMutableSet set];
+-    if (g_shmap_path && !g_par_harvest) {
+-        g_par_bdir = [g_shmap_path.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pipelines"];
++    // The device may be ready before the first program opens the shader map.
++    const char *configuredMap = RB_PAR_PREOPEN() ? getenv("DM_NVN_SHMAP") : NULL;
++    NSString *packageMap = configuredMap && *configuredMap ? @(configuredMap) : g_shmap_path;
++    if (packageMap && !g_par_harvest) {
++        g_par_bdir = [packageMap.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pipelines"];
+         for (NSString *name in [NSFileManager.defaultManager contentsOfDirectoryAtPath:g_par_bdir error:nil] ?: @[]) if ([name hasSuffix:@".metalarchive"]) [g_par_bhave addObject:name.stringByDeletingPathExtension];
+         g_par_bundle_files = g_par_bhave.count != 0;
+         if (g_par_bundle_files) MLOG("pipeline archive in the package %s: %lu pipelines", g_par_bdir.UTF8String, (unsigned long)g_par_bhave.count);
+@@ -264,7 +281,7 @@
+     });
+     NSDictionary *current = par_identity(g_dev);
+     NSDictionary *stamp = par_read_identity(g_par_dir);
+-    BOOL scoped = !g_par_harvest && RB_PAR_SCOPED();
++    BOOL scoped = !g_par_harvest && RB_PAR_STORAGE_SCOPE();
+     if (scoped) {
+         NSDictionary *scope = par_scoped_identity(current);
+         if (!scope) { MLOG("pipeline archive: scoped game/device identity incomplete; package probes only"); return; }
+@@ -305,14 +322,14 @@
      NSUInteger nb = 0;
      uint64_t bytes = par_read_inventory(g_par_dir, g_par_have, g_par_bmap, &nb);
      g_par_on = 1;
@@ -247,7 +274,14 @@ diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archi
  }
  static int par_open_dir(void) {
      if (atomic_load_explicit(&g_par_initialized, memory_order_acquire)) return 1;
-@@ -334,7 +344,7 @@
+     pthread_mutex_lock(&g_par_init_mu);
+     if (!atomic_load_explicit(&g_par_initialized, memory_order_relaxed)) {
+-        if (!g_par_harvest && RB_PAR_SCOPED()) {
++        if (!g_par_harvest && RB_PAR_STORAGE_SCOPE()) {
+             const char *build = RB_PAR_BUILD();
+             if (!build || !*build) {
+                 // Startup before the loader has selected its executable must not pin
+@@ -334,7 +351,7 @@
  static void rb_archive_forget(NSString *key)
  {
      [g_par_open removeObjectForKey:key];
@@ -256,7 +290,7 @@ diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archi
  }
  // RewindBox: callers release this owned collection only after g_par_mu.
  // Retiring a cold Metal object must not hold up a concurrent first draw.
-@@ -353,7 +363,7 @@
+@@ -353,7 +370,7 @@
  static id<MTLBinaryArchive> rb_archive_lookup(NSString *key)
  {
      id<MTLBinaryArchive> archive = g_par_open[key];
@@ -265,7 +299,7 @@ diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archi
          [g_rb_recent_archives removeObject:key];
          [g_rb_recent_archives addObject:key];
      }
-@@ -362,13 +372,15 @@
+@@ -362,13 +379,15 @@
  static CFArrayRef rb_archive_store(NSString *key, id<MTLBinaryArchive> archive)
  {
      g_par_open[key] = archive;
@@ -282,7 +316,7 @@ diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archi
      if (!key || !par_open_dir() || !g_par_bundle_files) return nil;
      CFArrayRef retired = NULL;
      pthread_mutex_lock(&g_par_mu);
-@@ -385,6 +397,7 @@
+@@ -385,6 +404,7 @@
      return a;
  }
  static id<MTLBinaryArchive> par_archive_for(NSString *key) {
@@ -290,7 +324,7 @@ diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archi
      if (!key || !par_open_dir() || !g_par_on) return nil;
      CFArrayRef retired = NULL;
      pthread_mutex_lock(&g_par_mu);
-@@ -408,6 +421,7 @@
+@@ -408,6 +428,7 @@
  // Older per-title files remain read-only. One key in a batch can fail a strict
  // probe while its neighbors are still valid, so retire only that mapping.
  static id<MTLBinaryArchive> par_legacy_for(NSString *key) {
@@ -298,7 +332,7 @@ diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archi
      if (!key || !g_par_on || !g_par_legacy_dir) return nil;
      CFArrayRef retired = NULL;
      pthread_mutex_lock(&g_par_mu);
-@@ -431,7 +445,7 @@
+@@ -431,7 +452,7 @@
  static void par_drop(NSString *key) {   // its file did not give the pipeline (another package's libraries under the same key): written again by the next write
      pthread_mutex_lock(&g_par_mu); rb_archive_forget(key); [g_par_have removeObject:key];
      BOOL batched = g_par_bmap[key] != nil; [g_par_bmap removeObjectForKey:key]; pthread_mutex_unlock(&g_par_mu);
@@ -307,7 +341,7 @@ diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archi
      atomic_fetch_add(&g_par_stale, 1);
  }
  // One pipeline as its own file (a temporary name, then renamed)
-@@ -652,6 +666,8 @@
+@@ -652,6 +673,8 @@
      if (wake) dispatch_async(s2a_qos_global(S2A_QOS_IO_BG), ^{ par_writer(); });
  }
  static int par_wait_idle(const struct timespec *deadline) {
@@ -316,7 +350,7 @@ diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archi
      pthread_mutex_lock(&g_par_mu);
      while (g_par_writer) {
          int e = pthread_cond_timedwait(&g_par_idle, &g_par_mu, deadline);
-@@ -826,6 +842,29 @@
+@@ -826,6 +849,29 @@
      if (start) dispatch_async(s2a_qos_global(S2A_QOS_IO_BG), ^{ par_writer(); });
  }
  // After the prewarm: how far the writer is (it goes on until what the prewarm noted is written)
@@ -346,7 +380,7 @@ diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archi
  static void par_flush_bg(void) {
      pthread_mutex_lock(&g_par_mu); unsigned long left = (unsigned long)g_par_todo.count; uint64_t t0 = g_par_w_t0, n0 = g_par_w_n0; pthread_mutex_unlock(&g_par_mu);
      if (!t0) return;
-@@ -906,6 +945,7 @@
+@@ -906,6 +952,7 @@
  }
  // Build a render pipeline through the archive. key = par_rkey(...), nil = not archived (built as before)
  static id<MTLRenderPipelineState> par_render(MTLRenderPipelineDescriptor *d, NSString *key, NSError **e) {
@@ -354,7 +388,7 @@ diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archi
      id got; ParFlight *mine;
      if (par_fl_enter(key, &got, &mine)) {
          if (got || RB_PAR_SCOPED()) {
-@@ -926,6 +966,7 @@
+@@ -926,6 +973,7 @@
      return ps;
  }
  static id<MTLComputePipelineState> par_compute(id<MTLFunction> fn, NSString *key, NSError **e) {
@@ -362,7 +396,7 @@ diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archi
      if (!fn) return nil;
      id got; ParFlight *mine;
      if (par_fl_enter(key, &got, &mine)) {
-@@ -1013,7 +1054,8 @@
+@@ -1013,7 +1061,8 @@
      par_scope_build(0, started);
      if (ps && rebuild) atomic_fetch_add(&g_par_reference_created,1);
      rb_pso_track(ps, RB_RENDER, key, NO);
@@ -372,7 +406,7 @@ diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archi
      return ps;
  }
  static id<MTLComputePipelineState> par_compute_(id<MTLFunction> fn, NSString *key, NSError **e) {
-@@ -1053,13 +1095,15 @@
+@@ -1053,13 +1102,15 @@
      id<MTLComputePipelineState> ps = [g_dev newComputePipelineStateWithDescriptor:d options:MTLPipelineOptionNone reflection:nil error:e];
      par_scope_build(1, started);
      rb_pso_track(ps, RB_COMPUTE, key, NO);
@@ -408,7 +442,7 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
      warm_start();
  }
  
-@@ -10639,9 +10641,52 @@
+@@ -10639,9 +10641,53 @@
  #define RB_PAR_BATCH_POLICY() (rb_kart_option(RB_KART_BATCH) || rb_archive_enabled())
  #define RB_PAR_SCOPED() rb_async_pso()
  #define RB_PAR_MEASURE() (rb_pso_mode() != 0)
@@ -419,6 +453,7 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
 +    return nvn_rb_thermal_scope() && rb_pacing_setting(&flag, "S2A_RB_ARCHIVE_PREOPEN");
 +}
 +#define RB_PAR_PREOPEN() rb_archive_preopen_on()
++#define RB_PAR_STORAGE_SCOPE() (RB_PAR_PREOPEN() || RB_PAR_SCOPED())
 +#if TARGET_OS_IOS
 +#define RB_PAR_PREOPEN_ROOM() (rb_ios_headroom() > (1024ull << 20))
 +#endif
@@ -461,7 +496,7 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
  static void rb_heap_pressure_relief(void)
  {
  #if TARGET_OS_IOS
-@@ -16007,6 +16052,7 @@
+@@ -16007,6 +16053,7 @@
  }
  static void warm_start(void) { warm_start_mode(0); }
  static void warm_start_mode(int resumed) {
@@ -469,3 +504,12 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
      if (atomic_exchange(&g_warm_started,1)) return;
      dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ pso_user_seen_load(); });   // the record's dedupe set, off the submit thread (pso_user_seen_load)
      rb_disk_launch(nil, YES);
+@@ -16061,6 +16108,8 @@
+     return g_rb_startup_q;
+ }
+ static void rb_startup_ready(int device,int depth) {
++    // Opening a device archive does not depend on the guest depth convention.
++    if (device && getenv("DM_NVN_SHMAP") && !nvn_be_stopping()) rb_archive_preopen_start();
+     os_unfair_lock_lock(&g_shpre_mu);
+     if (device) g_rb_device_ready=1;
+     if (depth) g_rb_depth_ready=1;

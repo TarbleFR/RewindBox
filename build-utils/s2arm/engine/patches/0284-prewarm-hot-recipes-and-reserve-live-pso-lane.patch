@@ -17,7 +17,7 @@ index 8277366..03371c6 100644
  NVN(nvnDeviceGetDepthMode, NVNdepthMode, const NVNdevice *d) { return ((const dev_t_ *)d)->depth_mode; }
  NVN(nvnDeviceFinalizeCommandHandle, void, NVNdevice *d, NVNcommandHandle h) { (void)d; (void)h; }
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 969e898..9343b40 100644
+index 969e898..bc66556 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -106,6 +106,7 @@ static int grow_(void **p, size_t n, const char *what) {
@@ -212,7 +212,7 @@ index 969e898..9343b40 100644
 +// Two phases share canonical row identities. The external file is only opened
 +// by the cold phase after all accepted hot rows have finished.
 +static NSArray<WarmTask *> *warm_parse_list(NSArray<NSString *> *paths, long *lines,
-+        NSMutableSet<NSString *> *seen, NSString *referenceList, BOOL hotPhase, BOOL coldPhase) {
++        NSMutableSet<NSString *> *seen, NSString *requestedReference, BOOL hotPhase, BOOL coldPhase) {
      NSMutableArray<WarmTask *> *tasks = [NSMutableArray array];
 -    NSMutableOrderedSet<NSString *> *hot = rb_pso_hot_on() ? rb_pso_hot_read(rb_pso_hot_path()) : nil;
 +    NSMutableOrderedSet<NSString *> *hot = !coldPhase && rb_pso_hot_on() ? rb_pso_hot_read(rb_pso_hot_path()) : nil;
@@ -223,7 +223,7 @@ index 969e898..9343b40 100644
 -    NSString *referencePath=rb_ref_path();
 -    NSString *referenceList=referencePath ?: ([paths.firstObject.lastPathComponent isEqual:@"pso_reference.tsv"] ? paths.firstObject : nil);
 +    NSString *referencePath=rb_ref_path(), *userPath=hotPhase ? pso_user_path() : nil;
-+    if (!referenceList) referenceList=referencePath ?: ([paths.firstObject.lastPathComponent isEqual:@"pso_reference.tsv"] ? paths.firstObject : nil);
++    NSString *referenceList=requestedReference ?: referencePath ?: ([paths.firstObject.lastPathComponent isEqual:@"pso_reference.tsv"] ? paths.firstObject : nil);
      NSMutableArray *referenceTasks=[NSMutableArray array];
 -    NSDictionary<NSString *,NSData *> *history=referenceList ? rb_draw_warm_history() : nil;
 +    NSDictionary<NSString *,NSData *> *history=referenceList && !coldPhase ? rb_draw_warm_history() : nil;
@@ -306,14 +306,7 @@ index 969e898..9343b40 100644
  static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
      NSMutableDictionary<NSString *, NSMutableArray<NSNumber *> *> *m = [NSMutableDictionary dictionary];
      long lateRows[2]={0,0}, cupRows[128]={0};
-@@ -15242,21 +15320,24 @@ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
-         NSString *k = [NSString stringWithFormat:@"%@|%@", t->vkey, t->fkey ?: @""];
-         NSMutableArray *a = m[k]; if (!a) m[k] = a = [NSMutableArray array]; [a addObject:@(i)]; }
-     _Atomic(uint8_t) *c = calloc(tasks.count ? tasks.count : 1, sizeof *c);
--    os_unfair_lock_lock(&g_wu_lock); free((void *)g_wu_claim); g_wu_claim = c; g_wu_n = (long)tasks.count; atomic_store(&g_wu_remaining, g_wu_n); g_wu_pairs = c ? m : nil; g_wu_q = [NSMutableArray array];
-+    os_unfair_lock_lock(&g_wu_lock); free((void *)g_wu_claim); g_wu_claim = c; g_wu_n = (long)tasks.count; atomic_store(&g_wu_remaining, g_wu_n); g_wu_pairs = c ? [m mutableCopy] : nil; g_wu_q = [NSMutableArray array];
-     memcpy(g_course_starters,cupRows,sizeof cupRows);
-     g_rb_draw_route_rows=routes; rb_draw_route_locked();
+@@ -15248,15 +15326,18 @@ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
      rb_course_rows_locked(nil);
      g_rb_follow_rows = nil; atomic_store(&g_rb_next_row, 0);
      g_wu_required_rows = 0; atomic_store(&g_wu_required_remaining, 0);
