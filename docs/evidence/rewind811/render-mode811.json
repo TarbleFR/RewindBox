@@ -1,0 +1,41 @@
+{
+  "build": 811,
+  "source": "eccadad60ccfa56fb28fde1550a9c02d17971aa2",
+  "sha256": "1cf1b80e92488b4f6613f5f3e6e27af082b357517a64e96276440648bf1d60d4",
+  "bytes": 333632294,
+  "pinSHA256": "249bc70df0fa56ebe6b56785779ae0a33d1836ff241f8b80256cbaab22b6b0ec",
+  "engineRun": 44861783651,
+  "engineFingerprint": "44d724705a9ea39615279d272aefb3bf775df241dc7860d6bb6eba6b231e3e46",
+  "patchCount": 229,
+  "lastPatch": {
+    "name": "0229-preserve-alias-proof-across-restore-and-title-changes.patch",
+    "sha256": "d0e6186d8a07ef0cb584a0b7a8d29ee74f6d829b293221869fdbbacaa6a83f29"
+  },
+  "chain": "0be3f28548fd",
+  "markers": [
+    "S2A_RB_GPU_ATTACHMENT_LIVENESS",
+    "S2A_RB_GPU_CLEAR_BATCH",
+    "S2A_RB_GPU_FX_PREFIX",
+    "S2A_RB_GPU_TAIL_TRACE"
+  ],
+  "plist": {
+    "RBTestAsyncPSODefault": true
+  },
+  "deviceFrames": 0,
+  "run": 44863215872,
+  "attempt": 1,
+  "baselineBuild": 810,
+  "samePSOAsBaseline": true,
+  "nativeImages": 97,
+  "bundles": 10,
+  "verifiedAdHocSignaturesInCI": 97,
+  "offlineValidators": 6,
+  "gpuOptInWhenUnconfigured": {
+    "S2A_RB_GPU_ATTACHMENT_LIVENESS": false,
+    "S2A_RB_GPU_CLEAR_BATCH": false,
+    "S2A_RB_GPU_FX_PREFIX": false
+  },
+  "traceOptInWhenUnconfigured": false,
+  "defaultEvidence": "verified engine-patch bytes and signed package settings; no bundled env.txt or launch overrides",
+  "physicalIPhoneTested": false
+}
