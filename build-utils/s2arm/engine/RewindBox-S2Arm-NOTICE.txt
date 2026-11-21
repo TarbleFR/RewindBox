@@ -60,6 +60,8 @@ S2A_RB_LONGFRAME=0.
 
 RewindBox patch 0205 isolates course-priority scheduling for a two-course comparison on the IPA 803 policies.
 
+RewindBox patches 0206-0209 handle explicit terminal NVN discards, scope Metal 4 producer coverage, measure MetalFX GPU intervals and preserve native D32 copy compatibility.
+
 The engine also contains third-party code; S2Arm's own table of it is S2Arm/THIRD_PARTY_LICENSES.md. The exact
 licence and notice texts of the components that reach this application are in the folders beside this file. Each is
 listed in license-sources.json with its origin (a file of that S2Arm commit, a source archive the engine build fetched

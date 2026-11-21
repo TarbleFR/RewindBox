@@ -1,0 +1,233 @@
+Honor terminal NVN discard hints only at an actual pass end. Count all-load/all-store after final store decisions. Targeted guest switch S2A_RB_GPU_DISCARD=0 restores the historical counter and recording.
+
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -20,6 +20,7 @@
+ #include "../../host/front.h"
+ #include "nvn_dirty.h"
+ #include "../../../../runtime/include/rb_heap.h"
++#include "nvn_rb_direct.h"
+ static _Atomic uint64_t g_rb_commands;
+ uint64_t s2a_rb_heap_commands(void)
+ {
+@@ -5575,8 +5576,12 @@
+ NVN(nvnCommandBufferSetConservativeRasterEnable, void, NVNcommandBuffer *c, uint32_t en) { (void)c; if (en & 0xff) ONCE_LOG("SetConservativeRasterEnable on: ignored by the host for now"); }
+ NVN(nvnCommandBufferSetTiledCacheAction, void, NVNcommandBuffer *c, NVNtiledCacheAction a) { (void)c; (void)a; }        // Tegra tiled cache hint, no Metal equivalent
+ // A bound target's contents may be discarded: they are undefined afterwards, so keeping them is correct (The Great Ace Attorney Chronicles discards colour target 0)
+-NVN(nvnCommandBufferDiscardColor, void, NVNcommandBuffer *c, int i) { (void)c; (void)i; }
+-NVN(nvnCommandBufferDiscardDepthStencil, void, NVNcommandBuffer *c) { (void)c; }
++NVN(nvnCommandBufferDiscardColor, void, NVNcommandBuffer *c, int i) {
++    if (rb_direct_discard() && (unsigned)i < 8) *REC(c, OP_RB_DISCARD, uint32_t) = 1u << i;
++}
++NVN(nvnCommandBufferDiscardDepthStencil, void, NVNcommandBuffer *c) {
++    if (rb_direct_discard()) *REC(c, OP_RB_DISCARD, uint32_t) = 1u << 8;
++}
+ NVN(nvnCommandBufferSetTiledCacheTileSize, void, NVNcommandBuffer *c, int w, int h) { (void)c; (void)w; (void)h; }
+ NVN_NOPROTO(nvnCommandBufferSetColorReductionEnable, void, NVNcommandBuffer *c, uint32_t en) { (void)c; (void)en; }   // color compression hints
+ NVN_NOPROTO(nvnCommandBufferSetColorReductionThresholds, void, NVNcommandBuffer *c, int cls, const int *t) { (void)c; (void)cls; (void)t; }
+diff --git a/graphics/nvn/gfx/nvn/nvn2_cmd.h b/graphics/nvn/gfx/nvn/nvn2_cmd.h
+--- a/graphics/nvn/gfx/nvn/nvn2_cmd.h
++++ b/graphics/nvn/gfx/nvn/nvn2_cmd.h
+@@ -10,7 +10,7 @@
+ 
+ // OP_PUSH_CONST_PTR（11-04）：Push{Graphics,Compute}ConstantsDeferred——数据指针录下、回放时才读（见下「推常量」）。新操作码一律接在 OP_NVN2_END_ 前，回放 rec_bad 的上限跟着走
+ // OP_MULTI_DRAW（11-06）：间接计数多绘超过 1,024 条时整段一条记录（见下「间接计数多绘」；补齐上游参考实现（MIT）c7ba23df，上游放在 nvn_obj.h，这里同理接在 OP_COUNT_ 之后）
+-enum { OP_PUSH_CONST = OP_COUNT_, OP_DLSS, OP_PUSH_CONST_PTR, OP_MULTI_DRAW, OP_NVN2_END_ };
++enum { OP_PUSH_CONST = OP_COUNT_, OP_DLSS, OP_PUSH_CONST_PTR, OP_MULTI_DRAW, OP_RB_DISCARD, OP_NVN2_END_ };
+ 
+ // ---------- 间接计数多绘（MultiDraw{Arrays,Elements}IndirectCount）----------
+ // 不超过 1,024 条的照旧逐条录成带计数地址与序号的间接绘制（hle_nvn.c rec_draw / rec_draw_idx，怪物猎人崛起那条路不变）；更大的一次调用录成这一条：参数记录的起点（宿主地址）、
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -20,6 +20,7 @@
+ #endif
+ #include "nvn_mtl.h"
+ #include "../../../../runtime/include/rb_heap.h"
++#include "nvn_rb_direct.h"
+ #include "../../../../runtime/include/rb_texture_stats.h"
+ #include "../../../metal/mtl_slot.h"   // machine-wide Metal client slot
+ #include "nvn_fps.h"
+@@ -8226,6 +8227,28 @@
+ static uint32_t g_noload_mask; static uint64_t g_noload_n, g_noload_bytes;
+ enum { SD_MAX = 8 + 2 };   // Entries per pass: up to 8 colour attachments (the recording loop's bound) + depth + stencil (a combined format records both planes)
+ static sd_att g_sd[SD_MAX]; static int g_nsd;
++static unsigned g_rb_discard_mask;
++static int g_rb_all_loaded;
++static uint64_t g_rb_final_rw;
++static int rb_pass_stats(void) {
++    static _Atomic int mode;
++    return !g_m3 && rb_direct_option(&mode, "S2A_RB_GPU_PASS_STATS");
++}
++static uint64_t g_rb_discard_n, g_rb_discard_bytes;
++
++// Exclude duplicate/overlapping attachments, including distinct views on guest memory.
++static int rb_discard_unique(const tex_t *t, const p_set_rt *r, int slot) {
++    if (!t || !t->mem || !t->L.size || (t->d.flags & NVN_TEXTURE_FLAGS_SPARSE)) return 0;
++    uintptr_t p = (uintptr_t)t->mem;
++    for (int i = 0; i <= 8; i++) {
++        const tex_t *other = i == 8 ? r->depth : i < r->n ? r->color[i] : NULL;
++        if (i == slot || !other) continue;
++        if (!other->mem || !other->L.size || (other->d.flags & NVN_TEXTURE_FLAGS_SPARSE)) return 0;
++        uintptr_t q = (uintptr_t)other->mem;
++        if (p <= q ? q - p < t->L.size : p - q < other->L.size) return 0;
++    }
++    return 1;
++}
+ // S2Arm 11-07：免加载附件（lskip）第一次被记写的现场（g_nlw[i] 对 g_sd[i]），「lookahead wrong」红行带出来定因——满屏线 t0100670014482000（没有几何绘制、开满屏）也出这行，
+ //   几何连段之外还有判错路径。prec：1 绘制的精确记写（udc_note_draw）0 非精确编码整遍记写（udc_encode）2 清除画成三角（clr_note）。前 8 条都打，之后按 2 的幂报计数（g_noload_wrong）
+ typedef struct { uint64_t pass, draw; uint8_t wwhy, prec, geo, run; int wd, wdm; char vs[24], fs[24], gs[24]; } nl_wit;
+@@ -8362,7 +8385,10 @@
+ #ifdef NVN_RT_RANGE_TEST
+     int ranged=g_rt_range_active && !g_rt_range_pending;
+ #endif
+-    sd_finish(); enc_r_end_pass(g_enc); zskip_commit_clears(); g_enc = nil; g_rt_merged = 0; g_rt_range_active = g_rt_range_pending = 0; ts_after(); ms_after(); if (g_lp.count) lp_finish(); fz_end();
++    sd_finish();
++    if (g_rb_all_loaded) g_rb_final_rw++;
++    g_rb_all_loaded = 0; g_rb_discard_mask = 0;
++    enc_r_end_pass(g_enc); zskip_commit_clears(); g_enc = nil; g_rt_merged = 0; g_rt_range_active = g_rt_range_pending = 0; ts_after(); ms_after(); if (g_lp.count) lp_finish(); fz_end();
+     if (g_nubd && g_nubd >= ubd_lazy()) ubd_flush();   // the inline updates deferred in this pass, in order (see mtl_sub_update); across passes they wait for the next copy or dispatch (blit_raw)
+     if (g_nbcrt) bcrt_flush();   // blocks drawn into shadows go back into their compressed textures
+ #ifdef NVN_RT_RANGE_TEST
+@@ -8824,6 +8850,8 @@
+         else if (stt) PD("P %llu s ser=%llu fmt=%lu %lux%lu %s (stencil only)", g_stat_pass + 1, R.rt.depth->serial, (unsigned long)stt.pixelFormat,
+                    (unsigned long)stt.width, (unsigned long)stt.height, pd.stencilAttachment.loadAction == MTLLoadActionClear ? "clear" : "load");
+     }
++    g_rb_all_loaded = natt && nload == natt && rb_pass_stats() &&
++                      (!pd.stencilAttachment.texture || pd.stencilAttachment.loadAction == MTLLoadActionLoad);
+     if (natt && nload == natt) g_pass_full_rw++;
+     g_nsd = 0; g_pass_geo = 0;
+     {
+@@ -15580,16 +15608,30 @@
+ static void sd_need(sd_att *t, int why) { if (!t->state) { t->state = 1; t->why = (uint8_t)why; } }   // why: 1 a draw reads it as a texture 2 as an attachment, drawn before cleared 3 copy 4 texture clear 5 scanned to the end undecided 6 no start point / index unavailable
+ static int sdx_decide(uint8_t st[SD_MAX]);   // Store lookahead decision (for the index see nvn_be_sub_index)
+ static void sd_finish(void) {
+-    if (!g_nsd) return;
++    if (!g_nsd) {
++        return;
++    }
+     if (!tbdr_on()) {   // TBDR set off: write back everything except an attachment loaded and not written in this pass (udc_on, needs no reader inference)
+-        for (int i = 0; i < g_nsd; i++) { sd_att *t = &g_sd[i]; int dead = (udc_on() && t->load && !t->wrote) || (t->lskip && !t->wrote); MTLStoreAction sa = dead ? MTLStoreActionDontCare : MTLStoreActionStore;
++        for (int i = 0; i < g_nsd; i++) { sd_att *t = &g_sd[i]; int dead = (udc_on() && t->load && !t->wrote) || (t->lskip && !t->wrote);
++            unsigned slot = t->depth ? 8 : (unsigned)t->idx;
++            if (!dead && slot <= 8 && (g_rb_discard_mask & (1u << slot)) &&
++                rb_discard_unique(t->depth ? R.rt.depth : R.rt.color[slot], &R.rt, (int)slot)) {
++                dead = 1;
++                g_rb_discard_n++;
++                g_rb_discard_bytes += t->bytes;
++                if (!(g_rb_discard_n & (g_rb_discard_n - 1)))
++                    MLOG("[tbdr] guest discard stores elided=%llu logical_bytes=%llu",
++                         (unsigned long long)g_rb_discard_n, (unsigned long long)g_rb_discard_bytes);
++            }
++            if (dead) g_rb_all_loaded = 0;
++            MTLStoreAction sa = dead ? MTLStoreActionDontCare : MTLStoreActionStore;
+             // not loaded (g_noload_mask) and still unwritten: nothing to write back, memory is the content. Written after all = the lookahead's proof was wrong (red; written back so the draws stay)
+             if (t->lskip && t->wrote) { const nl_wit *w = &g_nlw[i]; g_noload_wrong++;   // the first 8 with where the first write came from (g_nlw), then counts at powers of two
+                 if (g_noload_wrong <= 8) MLOG("【红】 color attachment ser=%llu was not loaded (proven unwritten to the pass end) but a draw wrote it: lookahead wrong (pass %llu, #%llu); first write: wwhy=%d (1 image 2 color mask 4 depth 5 stencil 6 imprecise encode) precise=%d (1 draw 0 encode 2 clear) pass %llu draw %llu vs=%s fs=%s gs=%s geo_program=%d geo_run=%d widen=%d wmode=%d; geometry draws in this pass %u",
+                     (unsigned long long)t->ser, (unsigned long long)g_stat_pass, (unsigned long long)g_noload_wrong, w->wwhy, w->prec, (unsigned long long)w->pass, (unsigned long long)w->draw, w->vs, w->fs, w->gs, w->geo, w->run, w->wd, w->wdm, g_pass_geo);
+                 else if (!(g_noload_wrong & (g_noload_wrong - 1))) MLOG("【红】 color attachments not loaded but written (lookahead wrong): %llu so far", (unsigned long long)g_noload_wrong); }
+             if (t->depth == 1) [g_enc setDepthStoreAction:sa]; else if (t->depth == 2) [g_enc setStencilStoreAction:sa]; else [g_enc setColorStoreAction:sa atIndex:(NSUInteger)t->idx];
+-            g_sd_n_all++; if (dead) { g_sd_n_dead++; g_sd_dead_bytes += t->bytes; g_bw_store -= t->bytes; g_udc_saved_bytes += t->bytes; }
++            g_sd_n_all++; if (dead) { g_sd_n_dead++; g_sd_dead_bytes += t->bytes; g_bw_store -= t->bytes; if ((t->load || t->lskip) && !t->wrote) g_udc_saved_bytes += t->bytes; }
+             PD("Z %llu %s ser=%llu lv%u sl%u %s load=%d wrote=%d wwhy=%d (TBDR set off)", g_stat_pass, t->depth == 1 ? "d" : t->depth == 2 ? "s" : "c", (unsigned long long)t->ser, t->lv, t->sl, dead ? "dontcare" : "store", t->load, t->wrote, t->wwhy); }
+         g_nsd = 0; return; }
+     uint8_t nst[SD_MAX];
+@@ -15606,7 +15648,7 @@
+                                         && !xv_disabled(xtag = xv_tag_pass(R.rt.color[t->idx], t->lv, t->idx, &R.rt));
+         int xvdead = xvcand && xv_trial_get(xtag, 0) >= XV_TRIAL;   // Only after the trial period is the write-back really skipped
+         if (xvcand && !xvdead) xv_set(t->ser, t->lv, t->sl, XV_PROBE, xtag);   // Trial period: write back as usual, only track the next touch
+-        int dead = t->state == 2 || udc_dead || xvdead; MTLStoreAction sa = dead ? MTLStoreActionDontCare : MTLStoreActionStore;
++        int dead = t->state == 2 || udc_dead || xvdead; if (dead) g_rb_all_loaded = 0; MTLStoreAction sa = dead ? MTLStoreActionDontCare : MTLStoreActionStore;
+         if (xvdead) { xv_set(t->ser, t->lv, t->sl, XV_INVALID, xtag); g_xv_dc++; }
+         if (t->depth == 1) [g_enc setDepthStoreAction:sa]; else if (t->depth == 2) [g_enc setStencilStoreAction:sa]; else [g_enc setColorStoreAction:sa atIndex:(NSUInteger)t->idx];
+         g_sd_n_all++; if (dead) { g_sd_n_dead++; g_sd_dead_bytes += t->bytes; g_bw_store -= t->bytes; if (udc_dead) g_udc_saved_bytes += t->bytes; }
+@@ -20661,10 +20703,12 @@
+     static int inited; if (!inited) { inited = 1; state_reset(); }
+     static int dump_all = -1; if (dump_all < 0) dump_all = getenv("DM_NVN_PASSDUMP_ALL") != NULL;
+     int trace = dump_all && passdump();   // Normal mode does not check the frame range per operation; the full command position is only used for the designated diagnostic frames
++    unsigned discard_suffix = 0;
+     const uint8_t *list = p, *prev = NULL; if (!g_ret_n) g_exec_top = p;
+     for (;;) {
+         op_hdr h; memcpy(&h, p, sizeof h);
+         if (rec_bad(h)) { rec_bad_red("replay", p, h, list, prev); g_exec_cur = NULL; return; }   // ends this list as its END would; the caller goes on after its CALL
++        if (h.op != OP_RB_DISCARD && h.op != OP_SET_RT) discard_suffix = 0;
+         prev = p;
+         g_exec_cur = p;   // Scan start point of the store lookahead: the operation that ends the render pass (inclusive)
+         if (p == g_defer_pend) { for (int gi = 0; gi < 4; gi++) if (g_defer_slots[gi].active && g_defer_slots[gi].p_end_op == p) g_defer_slots[gi].in_p = 0; g_defer_pend = NULL; }
+@@ -20732,7 +20776,12 @@
+                 if (p == g_mdx_stop) { g_mdx_epoch++; g_mdx_stop = NULL; }   // it writes a record or count that masked copies were made of (mdx_run)
+                 PD("Y update_ub cmd=%p src=%#llx dst=%#llx bytes=%llu f=%g,%g,%g,%g", p, (unsigned long long)((const uint8_t *)a + 16), (unsigned long long)d, (unsigned long long)n,
+                    n >= 4 ? ((const float *)((const uint8_t *)a + 16))[0] : 0.f, n >= 8 ? ((const float *)((const uint8_t *)a + 16))[1] : 0.f, n >= 12 ? ((const float *)((const uint8_t *)a + 16))[2] : 0.f, n >= 16 ? ((const float *)((const uint8_t *)a + 16))[3] : 0.f); mtl_sub_update((const uint8_t *)a + 16, d, n); break; }
++            case OP_RB_DISCARD:
++                if (h.size == 16 && !g_m3 && !g_rc_skip && g_enc && !tbdr_on() && rb_direct_discard())
++                    discard_suffix |= *(const uint32_t *)a & 0x1ff;
++                break;
+             case OP_SET_RT: {
++                unsigned terminal = discard_suffix; discard_suffix = 0;
+                 p_set_rt rb; const p_set_rt *r = set_rt_rec(a, h.size, &rb); dsnap_stale();
+                 if (defer_begin_q(p)) break;
+                 int pend = R.clear_d || R.clear_s; for (int i = 0; i < 8; i++) pend |= R.clear_c[i];
+@@ -20742,6 +20791,10 @@
+                     g_rt_merged = 1; if (!g_rt_merge_n++) MLOG("same-target continuation: first case pass %llu", g_stat_pass); PD("M %llu same-target continuation pass", g_stat_pass); break; }
+                 // Do not continue a render pass opened only for a clear; one with fewer depth / stencil attachments can be continued (check the planes before drawing)
+                 if (g_enc && g_enc_mode != 1 && !pend && R.has_rt && tbdr_on() && rt_same(&R.rt, r)) { g_rt_merged = 1; if (!g_rt_merge_n++) MLOG("same-target continuation: first case pass %llu", g_stat_pass); PD("M %llu same-target continuation pass", g_stat_pass); R.rt = *r; break; }
++                // The next command after the guest discards rebinds the targets and closes
++                // this encoder. Never carry a hint past a draw, call, wait, alias or submission.
++                if (terminal && g_enc && !pend && !g_nlc && !g_rt_merged && !g_rlane && !g_pass_geo)
++                    g_rb_discard_mask = terminal;
+                 if (pend && !g_enc && g_cb && lc_on()) lc_push(); else rp_flush();   // clears with no draw wait for the next pass that attaches their targets (lc_push)
+                 sub_cut(); R.rt = *r; R.has_rt = 1; break;
+             }
+@@ -22850,7 +22903,7 @@
+ }
+ void nvn_be_use_stats(uint64_t *call, uint64_t *skip) { *call = 0; *skip = 0; }
+ uint64_t nvn_be_ds_omit(void) { return g_stat_ds_omit; }
+-void nvn_be_bw(uint64_t *load, uint64_t *store, uint64_t *full) { *load = g_bw_load; *store = g_bw_store; *full = g_pass_full_rw; }
++void nvn_be_bw(uint64_t *load, uint64_t *store, uint64_t *full) { *load = g_bw_load; *store = g_bw_store; *full = rb_pass_stats() ? g_rb_final_rw : g_pass_full_rw; }
+ const char *nvn_diag_path(const char *p, char *buf, size_t n) {
+ #if TARGET_OS_IPHONE
+     if (p && p[0] != '/') {
+diff --git a/graphics/nvn/gfx/nvn/nvn_rb_direct.h b/graphics/nvn/gfx/nvn/nvn_rb_direct.h
+new file mode 100644
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/nvn_rb_direct.h
+@@ -0,0 +1,26 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <stdatomic.h>
++#include <stdlib.h>
++#include <string.h>
++#include <strings.h>
++
++// The hosted launch context sets the identifier before command recording starts.
++static inline int rb_direct_option(_Atomic int *cached, const char *name)
++{
++    int mode = atomic_load_explicit(cached, memory_order_relaxed);
++    if (!mode) {
++        const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
++        const char *option = getenv(name);
++        mode = title && !strcasecmp(title, "04007EF01F8AE000") &&
++               (!option || !strcmp(option, "1")) ? 2 : 1;
++        atomic_store_explicit(cached, mode, memory_order_relaxed);
++    }
++    return mode == 2;
++}
++
++static inline int rb_direct_discard(void)
++{
++    static _Atomic int mode;
++    return rb_direct_option(&mode, "S2A_RB_GPU_DISCARD");
++}
+diff --git a/runtime/src/rb_guest.c b/runtime/src/rb_guest.c
+--- a/runtime/src/rb_guest.c
++++ b/runtime/src/rb_guest.c
+@@ -96,6 +96,8 @@
+     atomic_store(&g_on, 1);
+     const char *why = s2a_launch_ctx_set_guest(c->game_id, c->images, c->module_dir, c->caps_dir, c->game_data, c->ryu_data, c->docs);
+     if (why) return refuse(error, error_size, "launch context: %s", why);
++    // One hosted game per process. Keep user-facing switches available to the game's env.txt.
++    setenv("S2A_RB_DIRECT_GAME_ID", c->game_id, 1);
+     // Same reservation as S2Arm's constructor (vawin.c), now that main.npdm and the image pack are known; then the .NET GC limit,
+     //   which S2Arm's main sets right after the window (it reads the free low address space)
+     s2a_rb_guest_window_boot();

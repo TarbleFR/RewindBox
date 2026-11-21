@@ -341,3 +341,17 @@ Patch 0205 isolates the F14 priority given to course cues in 0143 and 0147. With
 The private benchmark end record includes the selected arm, title/build match, ranked candidates, eligible worker selections and actual course-hint claims. Each count separates the launch prefix from the official window. A count of worker selections is not a count of distinct pipelines. The two-circuit results and retirement decisions belong in the [implementation status](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md).
 
 The [808 delivery receipt](../../../docs/evidence/rewind808/delivery.json) records 97 verified native images across 10 bundles. Device benchmarks for frame attribution and audio remain outstanding.
+
+### Direct Metal 4 on A18 Pro · 04007EF01F8AE000
+
+Patches 0206–0209 default to the trial for this exact hosted title. Restart the process to change arms. An explicit zero for each of the following switches selects its 803 path. Explicit upstream environment overrides keep their usual meaning.
+
+| Patch | Launch switch | Code and scope |
+| --- | --- | --- |
+| 0206 | `S2A_RB_GPU_DISCARD` | Records explicit NVN color or depth/stencil discard hints. Elides an additional store only for a discard suffix immediately before an actual render-target rebind in an open pass. Rejects overlapping guest attachments, unresolved sparse backing, pending clears and merged geometry. Keeps the existing bindless policy. |
+| 0206 | `S2A_RB_GPU_PASS_STATS` | Computes the all-load/all-store count after the encoder's final plane-store decisions, including combined stencil. Enable in both instrumented arms. Zero selects the historic load-only proxy. Load/store bytes are logical estimates. |
+| 0207 | `S2A_RB_GPU_PRODUCER` | Reuses the immediately preceding full producer on the same main Metal 4 CB. A placement heap retains alias visibility. Guest sync invalidates the proof. `DM_NVN_PRODUCER_COVER` remains an explicit diagnostic override. |
+| 0208 | `S2A_RB_GPU_FX_TRACE` | During `DM_NVN_GPUPROF` captures only, labels the actual scaler mode, extents, surrounding pass samples, physical CBs and completion clocks. Mixed intervals include MetalFX, barriers and any inter-CB gap. |
+| 0209 | `S2A_RB_GPU_NATIVE_D32` | A scaled run retains native D32 storage before allocating an incompatible pair. The existing render-pass attachment-group policy follows the depth target. No change to guest rects, depth filtering or native-size copies. |
+
+[Device acceptance and analysis](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md#gpu-metal-4-sur-a18-pro)

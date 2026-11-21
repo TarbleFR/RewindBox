@@ -1,0 +1,23 @@
+Make a native D32 decision before allocating scaled storage on the target. Preserve genuine guest copies and incompatible-shader fallbacks. S2A_RB_GPU_NATIVE_D32=0 selects the original policy.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_rscale.inc b/graphics/nvn/gfx/nvn/nvn_rscale.inc
+--- a/graphics/nvn/gfx/nvn/nvn_rscale.inc
++++ b/graphics/nvn/gfx/nvn/nvn_rscale.inc
+@@ -70,6 +70,17 @@
+     uint32_t bad = NVN_TEXTURE_FLAGS_DISPLAY | NVN_TEXTURE_FLAGS_VIDEO_DECODE | NVN_TEXTURE_FLAGS_IMAGE | NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_SPARSE | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET;
+     if (!t || !base) { if (why) *why = "没有存储"; return 0; }
+     MTLPixelFormat pf = base.pixelFormat; int depth = pf == MTLPixelFormatDepth32Float || pf == MTLPixelFormatDepth32Float_Stencil8;
++    // Storage rescaling creates a synthetic mismatch when another D32 image must
++    // remain native. rs_rts already propagates an ineligible member to the whole pass.
++    static _Atomic int mode;
++    if (!g_m3 && pf == MTLPixelFormatDepth32Float && rb_direct_option(&mode, "S2A_RB_GPU_NATIVE_D32")) {
++        static uint64_t vetoes;
++        if (why) *why = "native D32 copy compatibility";
++        ++vetoes;
++        if (!(vetoes & (vetoes - 1)))
++            MLOG("[rscale] D32 native eligibility vetoes=%llu", (unsigned long long)vetoes);
++        return 0;
++    }
+     NSUInteger gw = t->d.width, gh = t->d.height;
+     if (!(t->d.flags & NVN_TEXTURE_FLAGS_COMPRESSIBLE) || (t->d.flags & bad)) w = "标志（不可压缩 / 上屏 / 视频 / 存储图像 / 线性 / 稀疏）";
+     else if (t->d.target != NVN_TEXTURE_TARGET_2D && t->d.target != NVN_TEXTURE_TARGET_2D_ARRAY && t->d.target != NVN_TEXTURE_TARGET_RECTANGLE) w = "类型（只缩二维 / 二维数组 / 矩形）";

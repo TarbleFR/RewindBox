@@ -1,0 +1,177 @@
+Label the existing GPU counter endpoints around actual MetalFX encoding. Correlate logical segments with real main-queue command buffer feedback. S2A_RB_GPU_FX_TRACE=0 omits new diagnostics; no barrier is removed.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_dlss.inc b/graphics/nvn/gfx/nvn/nvn_dlss.inc
+--- a/graphics/nvn/gfx/nvn/nvn_dlss.inc
++++ b/graphics/nvn/gfx/nvn/nvn_dlss.inc
+@@ -121,7 +121,15 @@
+     pkg_gpu_wrote(to, 0, 0, 1, 0, 0, (uint32_t)to->d.width, (uint32_t)to->d.height);
+     if (g_wd > 0) { pthread_mutex_lock(&g_wd_mu); s2a_widen_gpu_wrote((uint32_t)to->serial, (uint32_t)tc->serial); pthread_mutex_unlock(&g_wd_mu); }
+     // 前一侧的全屏障：一个空的拷贝编码器（开时等此前全部工作、关时让此后全部等它），MetalFX 的编码器排在它之后
+-    rp_flush(); (void)blit(); enc_close_blit();
++    rp_flush();
++    id pre = blit();
++    if (g_gp_cur >= 0 && pre == g_gp_enc && rb_fx_trace()) {
++        gp_lab *label = &g_gp_lab[g_gp_cur];
++        label->fx = f->spatial ? 2 : 1;
++        label->in_w = (uint32_t)cw; label->in_h = (uint32_t)ch;
++        label->out_w = (uint32_t)o.width; label->out_h = (uint32_t)o.height;
++    }
++    enc_close_blit();
+     uint64_t a[15] = {0};
+     a[5] = rec_f(d->jitter[0]); a[6] = rec_f(d->jitter[1]); a[7] = rec_f(d->mv_scale[0]); a[8] = rec_f(d->mv_scale[1]); a[9] = rec_f(d->pre_exposure);
+     a[10] = d->reset; a[11] = cw; a[12] = ch; a[13] = f->spatial;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1338,6 +1338,12 @@
+ enum { PUSH_SLOT = 13 };   // = dmsh_build.py PUSH_SLOT; the geometry capture pass (nvn_geometry.inc) binds its own info at 13 after bind_vbufs
+ static float g_wd_push[4];
+ static int g_wd_inst, g_wd_vc;   // S2Arm widen: the current draw's instance / vertex (index) count for wd_draw (draw sets them; 0 = unknown, an indirect draw)
++// A logical timestamp boundary may share the same physical command buffer (sub_cut).
++static uint64_t g_rb_main_cb_serial;
++static id rb_new_main_cb(void) {
++    ++g_rb_main_cb_serial;
++    return rec_cb_new();
++}
+ static uint64_t g_sub_serial;   // Submission index (used by the parallel precompile's 'predict only once per submission')
+ static uint64_t g_pkg_epoch;   // Packaged-texture check period: a new one at each submission and at each wait on another queue (OP_WAIT_SYNC); see tex_by_id view_ep
+ uint64_t nvn_sparse_gen(void);   // RewindBox (patch 0031): hle_nvn.c (declared again with the sparse pool queries below)
+@@ -1366,7 +1372,7 @@
+     rb_gov_before_submit();
+     if (rb_tex_budget_on()) rb_tex_budget_maintain();
+     if (rb_pso_cap_on()) rb_pso_maintain();
+-    main_barrier_reset(); g_cb = rec_cb_new();
++    main_barrier_reset(); g_cb = rb_new_main_cb();
+     // Do not wait for the GPU mid-frame (hot real device: with a fixed rotation of 3, when the GPU cannot keep up every frame blocks here, and the submit thread runs at low frequency after waking, instruction count −18% but CPU time +49%):
+     // pick an allocator the GPU has finished with; if all are in use create a new one; only at the cap wait for the oldest one. How far ahead it runs is bounded by the wait where the game acquires the swapchain texture, same as the old interface.
+     // Metal 3 has no allocators: every submission takes a fresh command buffer (m3_cb)
+@@ -1499,7 +1505,9 @@
+ // a capture closes at the first encoder of the next frame (state 3), is reported at the next commit (state 2), and re-arms when that report has run (state 0) at the start
+ // of the next new frame, so while a report is pending the frames in between are skipped and every frame printed is whole
+ enum { GP_MAX = 4096 };   // the largest timestamp heap Metal makes
+-typedef struct { char kind; uint16_t w, h; uint8_t nc, depth, loads; uint32_t draws, seg; uint64_t pass; uint32_t gm; } gp_lab;   // gm：本编码器里绑原始内存池表的绘制 / 派发数（gmem_count_draw）
++typedef struct { char kind; uint16_t w, h; uint8_t nc, depth, loads; uint32_t draws, seg; uint64_t pass; uint32_t gm;
++    uint64_t cb; uint8_t fx; uint32_t in_w, in_h, out_w, out_h;
++} gp_lab;   // gm：本编码器里绑原始内存池表的绘制 / 派发数（gmem_count_draw）
+ static uint64_t g_gmem_draws, g_gmem_draws_all, g_gmem_disp, g_gmem_disp_all;   // 原始内存池表动态占比（gmem_count_draw；提交线程独占）   // seg: the command buffer (segment) of the submission it is in
+ static id g_gp_heap; static id<MTLCounterSampleBuffer> g_gp_sb;   // Metal 4 counter heap; Metal 3 sample buffer (gp_m3_ready)
+ // Metal 4 timestamp heaps (GPUPROF and segment-boundary timestamps) are made and written only through these two: MTL4 names stay in one place (mtl4 ratchet) under @available (avail ratchet)
+@@ -1555,6 +1563,7 @@
+ }
+ static gp_lab gp_lab_make(char kind, id d) {
+     gp_lab l = {kind, 0, 0, 0, 0, 0, kind == 'R' ? (uint32_t)g_stat_draw : g_gp_copies, g_seg, g_stat_pass, (uint32_t)(g_gmem_draws + g_gmem_disp)}; if (kind != 'R') { l.w = (uint16_t)g_gp_disp; l.h = (uint16_t)g_gp_ubd; }
++    l.cb = g_rb_main_cb_serial;
+     if (d) { for (int i = 0; i < 8; i++) { MTLRenderPassColorAttachmentDescriptor *c = ((MTLRenderPassDescriptor *)d).colorAttachments[i]; if (!c.texture) continue;
+             l.nc++; l.w = (uint16_t)MAX(c.texture.width >> c.level, 1); l.h = (uint16_t)MAX(c.texture.height >> c.level, 1); l.loads += c.loadAction == MTLLoadActionLoad; }
+         MTLRenderPassDepthAttachmentDescriptor *z = ((MTLRenderPassDescriptor *)d).depthAttachment;
+@@ -1584,6 +1593,21 @@
+     g_gp_lab[g_gp_n] = gp_lab_make(kind, d); g_gp_cur = g_gp_n; g_gp_enc = e;
+     ts_write(e, kind, MTLRenderStageVertex, g_gp_heap, 2 * g_gp_n);
+     g_gp_n++;
++}
++static int rb_fx_trace(void) {
++    static _Atomic int mode;
++    return !g_m3 && rb_direct_option(&mode, "S2A_RB_GPU_FX_TRACE");
++}
++static void rb_fx_commit_feedback(id options, uint64_t frame, uint32_t seg, const char *reason) {
++    if (g_gp_state != 1 || g_gp_frame != frame || !rb_fx_trace()) return;
++    uint64_t serial = g_rb_main_cb_serial;
++    fb_add(options, ^(id<MTL4CommitFeedback> fb) {
++        // Both values use Metal's host-time seconds. Compare these intervals only
++        // with other feedback intervals, never subtract them from counter-heap ticks.
++        if (fb.GPUStartTime > 0 && fb.GPUEndTime >= fb.GPUStartTime)
++            MLOG("[gpuprof] F%llu CB=%llu seg=%u commit=%s gpu_start_s=%.9f gpu_end_s=%.9f",
++                 (unsigned long long)frame, (unsigned long long)serial, seg, reason, fb.GPUStartTime, fb.GPUEndTime);
++    });
+ }
+ static void gp_end(id e) {   // right before that encoder ends
+     if (g_gp_cur < 0 || (!g_m3 && e != g_gp_enc)) return;
+@@ -1635,6 +1659,27 @@
+             l->kind == 'P' ? "captures (render)" : "geometry kernels + compaction (compute)", l->draws, (unsigned long long)l->pass, (a - t[0]) * tick_ns / 1e3, l->seg);
+         else if (l->kind == 'R') MLOG("[gpuprof] F%llu %4d %8.1f us render pass %llu %ux%u colors %u depth %u loads %u draws %u start %+.1f seg %u", (unsigned long long)frame, i, us, (unsigned long long)l->pass, l->w, l->h, l->nc, l->depth, l->loads, l->draws, (a - t[0]) * tick_ns / 1e3, l->seg);
+         else MLOG("[gpuprof] F%llu %4d %8.1f us compute / copy after pass %llu start %+.1f seg %u copies %u (uniform updates %u) dispatches %u", (unsigned long long)frame, i, us, (unsigned long long)l->pass, (a - t[0]) * tick_ns / 1e3, l->seg, l->draws, l->h, l->w); }
++    for (int i = 0; i < n; i++) {
++        const gp_lab *pre = &lab[i];
++        if (!pre->fx) continue;
++        uint64_t end = t[2 * i + 1], next = i + 1 < n ? t[2 * (i + 1)] : 0;
++        int left = i - 1, right = i + 1;
++        while (left >= 0 && lab[left].kind != 'R') left--;
++        while (right < n && lab[right].kind != 'R') right++;
++        int valid = t[2 * i] && end >= t[2 * i] && next && next >= end;
++        MLOG("[gpuprof] F%llu MetalFX=%s %ux%u->%ux%u pre_index=%d cb=%llu->%llu seg=%u->%u bracket_valid=%d fx_plus_sync_us=%.1f",
++             (unsigned long long)frame, pre->fx == 2 ? "spatial" : "temporal", pre->in_w, pre->in_h,
++             pre->out_w, pre->out_h, i, (unsigned long long)pre->cb,
++             (unsigned long long)(i + 1 < n ? lab[i + 1].cb : 0), pre->seg, i + 1 < n ? lab[i + 1].seg : 0,
++             valid, valid ? (next - end) * tick_ns / 1e3 : -1.);
++        if (left >= 0 && right < n && t[2 * left] && t[2 * left + 1] >= t[2 * left] && t[2 * right]) {
++            double after_end = ((double)t[2 * right] - (double)t[2 * left + 1]) * tick_ns / 1e3;
++            MLOG("[gpuprof] F%llu MetalFX render_pass=%llu->%llu cb=%llu->%llu seg=%u->%u start_to_start_us=%.1f end_to_start_us=%.1f",
++                 (unsigned long long)frame, (unsigned long long)lab[left].pass, (unsigned long long)lab[right].pass,
++                 (unsigned long long)lab[left].cb, (unsigned long long)lab[right].cb, lab[left].seg, lab[right].seg,
++                 ((double)t[2 * right] - (double)t[2 * left]) * tick_ns / 1e3, after_end);
++        }
++    }
+     span = (t1 - t0) * tick_ns / 1e3;
+     MLOG("[gpuprof] frame %llu: render %.2f ms, compute / copy %.2f ms over %d encoders, first start to last end %.2f ms; encoders with raw-memory-pool-table draws / dispatches %.2f ms (%d)%s", (unsigned long long)frame, tot[0] / 1e3, tot[1] / 1e3, n, span / 1e3, gm_us / 1e3, gm_n, dropped ? " (TRUNCATED: see the next line)" : "");
+     // 11-05 金刚：一帧 4000 多个编码器，只记得下前 GP_MAX / 2 个，报告曾被当成整帧读。记满时明说截断：之后的编码器没记，以上合计 / 跨度只是前段
+@@ -3557,6 +3602,7 @@
+     NSArray<dispatch_block_t> *commit_blocks = [g_commit_blocks copy];
+     NSArray<NSString *> *qsus = quar_take();   // this commit's suspects for a GPU error (quar_fault)
+     id o = fb_new();
++    rb_fx_commit_feedback(o, atomic_load(&g_cur_frame), g_seg, "submission");
+     atomic_fetch_add(&g_seg_inflight, 1);
+     // RewindBox (patch 0072): one completion handler for the submission's command buffer, not two (the first one's work now opens the second): Metal and libdispatch work tied
+     //   to submissions was 0.15 to 0.26 of a core in IPA 765. S2A_RB_ONE_HANDLER=0 adds two as before
+@@ -18254,6 +18300,10 @@
+     // RewindBox (patch 0068): this command buffer is a main-queue piece of the frame too: its GPU time goes on the busy clock (tsb_piece) as sub_cut's does, or tsb_map takes it out as idle
+     //   time (the reviewer's bench: pieces 1000-2000 and 3000-4000 with this one at 2100-3000 read 2000 for 2900 of GPU work). S2A_RB_TS_BUSY=0: no handler, as before
+     id mo = nil; if (rb_ts_busy()) { uint64_t mf = atomic_load(&g_cur_frame); mo = fb_new(); fb_add(mo, ^(id<MTL4CommitFeedback> cb) { tsb_piece(mf, gpu_s_guest_ns(cb.GPUStartTime), gpu_s_guest_ns(cb.GPUEndTime)); }); }   // RewindBox (patch 0068)
++    if (g_gp_state == 1 && rb_fx_trace()) {
++        if (!mo) mo = fb_new();
++        rb_fx_commit_feedback(mo, atomic_load(&g_cur_frame), g_seg, "indirect-read");
++    }
+     if (g_m3) { rec_commit_m3(g_cb, mo, g_mdi_ev, ++g_mdi_v, 1); rec_drain(); }   // the CPU waits on the event: the signal must be on the queue first  RewindBox (patch 0068): mo
+     else {
+         [g_cb endCommandBuffer];
+@@ -18262,9 +18312,9 @@
+     }
+     if (![g_mdi_ev waitUntilSignaledValue:g_mdi_v timeoutMS:10000]) RED_ONCE(97, "indirect-count multi-draw: the GPU did not finish within 10 s; the count is read anyway");
+     main_barrier_reset();
+-    if (g_m3) g_cb = rec_cb_new();
++    if (g_m3) g_cb = rb_new_main_cb();
+     else {
+-        g_cb = rec_cb_new();
++        g_cb = rb_new_main_cb();
+         [g_cb beginCommandBufferWithAllocator:g_alloc4[g_alloc_cur]];
+     }
+     if (!g_mdi_waits++) MLOG("indirect-count multi-draw: first wait for the GPU-written count at frame %llu pass %llu", (unsigned long long)atomic_load(&g_cur_frame), g_stat_pass);
+@@ -20448,6 +20498,7 @@
+         if (ts_on()) { ts_boundary(); g_seg++; }
+         g_cut_busy++; g_cut_draw0 = g_stat_draw; return; }
+     if (ts_on()) ts_boundary();
++    const char *cut_reason = scratch ? "scratch" : g_cut_copy ? "copy" : "draw-budget";
+     if (g_cut_copy) g_copy_cuts++;
+     if (scratch && !g_arena_cuts++) MLOG("segmented submission: first cut for frame scratch (%llu MB in the segment) at frame %llu", (unsigned long long)(g_arena_seg >> 20), (unsigned long long)atomic_load(&g_cur_frame));
+     g_cut_copy = 0;
+@@ -20459,6 +20510,7 @@
+     uint64_t sf = arena_cut();
+     if (seg_ts()) { if (!g_sclk) { g_sclk = calloc(1, sizeof *g_sclk); atomic_store(&g_sclk->refs, 1); } sc = g_sclk; atomic_fetch_add(&sc->refs, 1); }
+     id o = fb_new();
++    rb_fx_commit_feedback(o, f, k, cut_reason);
+     atomic_fetch_add(&g_seg_inflight, 1);
+     fb_add(o, ^(id<MTL4CommitFeedback> cb) {
+         atomic_fetch_sub(&g_seg_inflight, 1);
+@@ -20470,11 +20522,11 @@
+     });
+     res_commit();
+     main_barrier_reset();
+-    if (g_m3) { rec_commit_m3(g_cb, o, nil, 0, 1); g_cb = rec_cb_new(); }
++    if (g_m3) { rec_commit_m3(g_cb, o, nil, 0, 1); g_cb = rb_new_main_cb(); }
+     else {
+         [g_cb endCommandBuffer];
+         rec_commit(g_cb, o);
+-        g_cb = rec_cb_new();
++        g_cb = rb_new_main_cb();
+         [g_cb beginCommandBufferWithAllocator:g_alloc4[g_alloc_cur]];   // one allocator encodes several command buffers in sequence; it is reset only once its fence (the last segment) has passed, when a later submission starts
+     }
+     g_cut_draw0 = g_stat_draw;
