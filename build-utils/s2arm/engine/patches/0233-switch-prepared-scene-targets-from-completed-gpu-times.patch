@@ -1557,10 +1557,10 @@ index 0000000..22a8ce3
 +    puts("PASS DRS rolling window, missing samples, recovery dwell, Fair edge, Serious and pending actuator");
 +}
 diff --git a/graphics/nvn/tests/t_rb_drs_fx_descriptor.m b/graphics/nvn/tests/t_rb_drs_fx_descriptor.m
-index c9b8fb5..33bd789 100644
+index c9b8fb5..41ac2be 100644
 --- a/graphics/nvn/tests/t_rb_drs_fx_descriptor.m
 +++ b/graphics/nvn/tests/t_rb_drs_fx_descriptor.m
-@@ -6,35 +6,73 @@
+@@ -6,35 +6,77 @@
  #include "../gfx/nvn/nvn_drs_fx_descriptor.h"
  #include <stdio.h>
  
@@ -1596,23 +1596,27 @@ index c9b8fb5..33bd789 100644
  // Exercises the worker's real factory and the title's measured texture formats.
  int main(void) { @autoreleasepool {
      if (@available(macOS 26.0,iOS 26.0,*)) {
--        id<MTLDevice> dev=MTLCreateSystemDefaultDevice();
--        Class cls=[MTLFXTemporalScalerDescriptor class];
--        if (!dev || ![cls supportsDevice:dev] || ![cls instancesRespondToSelector:@selector(setRequiresSynchronousInitialization:)]) {
--            puts("SKIP: compatible temporal MetalFX device unavailable"); return 77;
 +        Class cls=[MTLFXTemporalScalerDescriptor class],spatial=[MTLFXSpatialScalerDescriptor class];
 +        if (!check_descriptors(cls,spatial)) {
 +            fputs("FAIL MetalFX descriptor fields\n",stderr); return 4;
-         }
++        }
 +        puts("PASS MetalFX descriptor fields: 960x540, 816x459, 720x405 -> 1920x1080; temporal and spatial");
 +        fflush(stdout);
-+        id<MTLDevice> dev=MTLCreateSystemDefaultDevice();
+         id<MTLDevice> dev=MTLCreateSystemDefaultDevice();
+-        Class cls=[MTLFXTemporalScalerDescriptor class];
+-        if (!dev || ![cls supportsDevice:dev] || ![cls instancesRespondToSelector:@selector(setRequiresSynchronousInitialization:)]) {
+-            puts("SKIP: compatible temporal MetalFX device unavailable"); return 77;
++        if (!dev || ![dev supportsFamily:MTLGPUFamilyMetal4]) {
++            printf("SKIP Metal 4 scaler creation: device=%s family4=0\n", dev.name.UTF8String ?: "(none)");
++            return 77;
+         }
 +        BOOL temporalOK=dev && [cls supportsDevice:dev],spatialOK=dev && [spatial supportsDevice:dev];
 +        if (!temporalOK && !spatialOK) { puts("SKIP: compatible MetalFX scaler hardware unavailable"); return 77; }
          NSError *error=nil;
          id compiler=[dev newCompilerWithDescriptor:[MTL4CompilerDescriptor new] error:&error];
-         if (!compiler) return 1;
+-        if (!compiler) return 1;
 -        float max=[cls supportedInputContentMaxScaleForDevice:dev];
++        if (!compiler) { NSLog(@"Metal 4 compiler creation failed on %@: %@",dev.name,error); return 1; }
 +        float max=temporalOK ? [cls supportedInputContentMaxScaleForDevice:dev] : 0;
 +        unsigned tested=0;
          for (unsigned tier=0;tier<3;tier++) { @autoreleasepool {

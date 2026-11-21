@@ -169,6 +169,7 @@ jobs:
             xcrun clang -std=c11 -O2 -Wall -Wextra -Werror -Igraphics/nvn/gfx/nvn/include "$tests/t_rb_$suite.c" -o "$RUNNER_TEMP/$suite"
             "$RUNNER_TEMP/$suite"
           done
+          python3 graphics/nvn/tests/t_rb_d32_tracked.py
           xcrun clang -fobjc-arc -fblocks -framework Foundation -framework Metal -framework MetalFX "$tests/t_rb_drs_fx_descriptor.m" -o "$RUNNER_TEMP/drs-fx"
           result=0
           "$RUNNER_TEMP/drs-fx" || result=$?
@@ -176,7 +177,6 @@ jobs:
           make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" build/tests/t_nvn_rscale build/tests/t_rb_scale_preflight build/tests/t_rb_drs_ownership
           build/tests/t_rb_scale_preflight
           build/tests/t_rb_drs_ownership
-          python3 graphics/nvn/tests/t_rb_d32_tracked.py
       - name: Validate attachment lifetime, tile pass fusion and MetalFX boundaries
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-gpu-passes]')
         working-directory: ${{ runner.temp }}/s2arm
