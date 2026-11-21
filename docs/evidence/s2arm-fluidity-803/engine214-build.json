@@ -1,0 +1,62 @@
+{
+  "source": "24ace55e87202c30d3200f066ded04a29c3a265d",
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "run": 44851519304,
+  "attempt": 1,
+  "xcode": "Xcode 26.6",
+  "jobs": [
+    {
+      "platform": "macos-26",
+      "id": 136683723394,
+      "result": "success"
+    },
+    {
+      "platform": "macos-15",
+      "id": 136683723719,
+      "result": "success"
+    }
+  ],
+  "patchesVerified": 214,
+  "first209Verified": true,
+  "patchDelta": [
+    {
+      "name": "0210-compose-terminal-discards-with-bindless-safe-stores.patch",
+      "sha256": "107cd253efde37fc0ab1f3c455de58281b3ed99e2787dc32deb40a7850be5a1e"
+    },
+    {
+      "name": "0211-direct-metal-stamp-scaler-on-command-buffer.patch",
+      "sha256": "de43e7782a6ab1607cf6e611ac8eb6944490dedab369b8ff4e399da6ee2e59de"
+    },
+    {
+      "name": "0212-prove-bindless-clear-coverage-before-discard.patch",
+      "sha256": "a188399bb17b6002cc56eb31aae8d75deff0acd8f38cab00cc2635e17e9765c9"
+    },
+    {
+      "name": "0213-direct-metal-readonly-d32-region-copy.patch",
+      "sha256": "db12abcf3865b30296e1e791c95d1a7944bbfa247ad786f7ecd483919e315056"
+    },
+    {
+      "name": "0214-classify-draw-pass-entry-barriers.patch",
+      "sha256": "8753e7a338f0ef7fd15d6d96ea251deceab7336c184c4d21a61b24a781e32b0b"
+    }
+  ],
+  "engineFingerprint": "71bdaede1f51630377fbd8cee0609ccc8c3600d04c0996678887250baf24a5b6",
+  "pinSha256": "5dd0849a382b12afe7c3bb3df4082a944b7b5281b771ff58be66253d569985c4",
+  "artifact": {
+    "run": 44851519304,
+    "attempt": 1,
+    "artifact": 14685459119,
+    "name": "s2arm-engine-framework-24ace55e87202c30d3200f066ded04a29c3a265d",
+    "bytes": 25081120,
+    "sha256": "48689ceddf25ac0a4b790f082edb5f99f52bed963c64b664b89cd6caf61fa2a8",
+    "headSha": "24ace55e87202c30d3200f066ded04a29c3a265d",
+    "headBranch": "Claude",
+    "expiresAt": "2026-12-21T01:52:17Z"
+  },
+  "prepareRun": 44555747908,
+  "sysdataRun": 43038032448,
+  "unchangedExports": true,
+  "directShaderChain": "0be3f28548fd",
+  "validPostChangeDeviceWindows": 0,
+  "observedPostChangePerformance": null
+}

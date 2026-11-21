@@ -54,7 +54,113 @@
         "drawEntryFull": 29652,
         "drawEntrySaved": 0
       }
-    ]
+    ],
+    "profiledFramesWithRenderSamples": 7,
+    "sceneToOutputBoundaries": [
+      {
+        "frame": 2813,
+        "passBefore": 53923,
+        "passAfter": 53924,
+        "encoderBefore": 66,
+        "encoderAfter": 68,
+        "missingIndices": [
+          67
+        ],
+        "segmentBefore": 9,
+        "segmentAfter": 0,
+        "renderEndToStartUs": 3692.1
+      },
+      {
+        "frame": 2816,
+        "passBefore": 54227,
+        "passAfter": 54228,
+        "encoderBefore": 65,
+        "encoderAfter": 67,
+        "missingIndices": [
+          66
+        ],
+        "segmentBefore": 9,
+        "segmentAfter": 0,
+        "renderEndToStartUs": 3442.4
+      },
+      {
+        "frame": 3838,
+        "passBefore": 151714,
+        "passAfter": 151715,
+        "encoderBefore": 66,
+        "encoderAfter": 68,
+        "missingIndices": [
+          67
+        ],
+        "segmentBefore": 10,
+        "segmentAfter": 0,
+        "renderEndToStartUs": 3963.4
+      },
+      {
+        "frame": 3840,
+        "passBefore": 151899,
+        "passAfter": 151900,
+        "encoderBefore": 66,
+        "encoderAfter": 68,
+        "missingIndices": [
+          67
+        ],
+        "segmentBefore": 10,
+        "segmentAfter": 0,
+        "renderEndToStartUs": 3990.3
+      },
+      {
+        "frame": 3842,
+        "passBefore": 152084,
+        "passAfter": 152085,
+        "encoderBefore": 66,
+        "encoderAfter": 68,
+        "missingIndices": [
+          67
+        ],
+        "segmentBefore": 10,
+        "segmentAfter": 0,
+        "renderEndToStartUs": 3956.7
+      },
+      {
+        "frame": 4680,
+        "passBefore": 234396,
+        "passAfter": 234397,
+        "encoderBefore": 67,
+        "encoderAfter": 69,
+        "missingIndices": [
+          68
+        ],
+        "segmentBefore": 10,
+        "segmentAfter": 0,
+        "renderEndToStartUs": 5357.4
+      },
+      {
+        "frame": 4683,
+        "passBefore": 234694,
+        "passAfter": 234695,
+        "encoderBefore": 66,
+        "encoderAfter": 68,
+        "missingIndices": [
+          67
+        ],
+        "segmentBefore": 10,
+        "segmentAfter": 0,
+        "renderEndToStartUs": 5465.8
+      }
+    ],
+    "matchingFrameSignature": {
+      "automaticCaptureTriggerFrame": 2782,
+      "meanDrawsIn120FramesBeforeTrigger": 813,
+      "frame": 2813,
+      "draws": 1689,
+      "drawsSkippedForPipeline": 0,
+      "passes": 102,
+      "pieces": 6,
+      "dispatches": 327,
+      "scene": "960x540",
+      "usToNextFrameFirstCommand": 21704
+    }
   },
   "scaledLog": {
     "sha256": "84b8ee1253a07eb9b8db702d31a57fd2441096c8e1f6255139fd411cf5edf0e6",
@@ -75,7 +181,168 @@
       "drawEntrySaved": 0
     },
     "minStorageDownscalesReported": 129,
-    "minNativeRestoresReported": 33
+    "minNativeRestoresReported": 33,
+    "profiledFramesWithRenderSamples": 11,
+    "sceneToOutputBoundaries": [
+      {
+        "frame": 2932,
+        "passBefore": 80891,
+        "passAfter": 80892,
+        "encoderBefore": 66,
+        "encoderAfter": 68,
+        "missingIndices": [
+          67
+        ],
+        "segmentBefore": 9,
+        "segmentAfter": 0,
+        "renderEndToStartUs": 6720.3
+      },
+      {
+        "frame": 2934,
+        "passBefore": 81094,
+        "passAfter": 81095,
+        "encoderBefore": 66,
+        "encoderAfter": 68,
+        "missingIndices": [
+          67
+        ],
+        "segmentBefore": 9,
+        "segmentAfter": 0,
+        "renderEndToStartUs": 6953.2
+      },
+      {
+        "frame": 2937,
+        "passBefore": 81398,
+        "passAfter": 81399,
+        "encoderBefore": 65,
+        "encoderAfter": 67,
+        "missingIndices": [
+          66
+        ],
+        "segmentBefore": 9,
+        "segmentAfter": 0,
+        "renderEndToStartUs": 8108.3
+      },
+      {
+        "frame": 3800,
+        "passBefore": 164788,
+        "passAfter": 164789,
+        "encoderBefore": 69,
+        "encoderAfter": 71,
+        "missingIndices": [
+          70
+        ],
+        "segmentBefore": 10,
+        "segmentAfter": 0,
+        "renderEndToStartUs": 3817.5
+      },
+      {
+        "frame": 3802,
+        "passBefore": 164999,
+        "passAfter": 165000,
+        "encoderBefore": 69,
+        "encoderAfter": 71,
+        "missingIndices": [
+          70
+        ],
+        "segmentBefore": 10,
+        "segmentAfter": 0,
+        "renderEndToStartUs": 3763.4
+      },
+      {
+        "frame": 3804,
+        "passBefore": 165209,
+        "passAfter": 165210,
+        "encoderBefore": 68,
+        "encoderAfter": 70,
+        "missingIndices": [
+          69
+        ],
+        "segmentBefore": 9,
+        "segmentAfter": 0,
+        "renderEndToStartUs": 3805.6
+      },
+      {
+        "frame": 4638,
+        "passBefore": 241934,
+        "passAfter": 241935,
+        "encoderBefore": 68,
+        "encoderAfter": 70,
+        "missingIndices": [
+          69
+        ],
+        "segmentBefore": 9,
+        "segmentAfter": 0,
+        "renderEndToStartUs": 7367.5
+      },
+      {
+        "frame": 4640,
+        "passBefore": 242119,
+        "passAfter": 242120,
+        "encoderBefore": 68,
+        "encoderAfter": 70,
+        "missingIndices": [
+          69
+        ],
+        "segmentBefore": 9,
+        "segmentAfter": 0,
+        "renderEndToStartUs": 6953.3
+      },
+      {
+        "frame": 4642,
+        "passBefore": 242303,
+        "passAfter": 242304,
+        "encoderBefore": 68,
+        "encoderAfter": 70,
+        "missingIndices": [
+          69
+        ],
+        "segmentBefore": 9,
+        "segmentAfter": 0,
+        "renderEndToStartUs": 3873.9
+      }
+    ],
+    "observedRenderEncoderDimensions": {
+      "profileFrames": [
+        2932,
+        2934,
+        2937,
+        3800,
+        3802,
+        3804,
+        4638,
+        4640,
+        4642
+      ],
+      "printedRenderEncoderCount": 975,
+      "dimensions": {
+        "960x540": {
+          "printedEncoders": 329,
+          "reportedDraws": 6512
+        },
+        "720x405": {
+          "printedEncoders": 18,
+          "reportedDraws": 9
+        },
+        "1536x1536": {
+          "printedEncoders": 53,
+          "reportedDraws": 3589
+        },
+        "1152x1152": {
+          "printedEncoders": 0,
+          "reportedDraws": 0
+        },
+        "1920x1080": {
+          "printedEncoders": 45,
+          "reportedDraws": 27
+        },
+        "1440x810": {
+          "printedEncoders": 76,
+          "reportedDraws": 1731
+        }
+      },
+      "scope": "Dimensions printed by gpuprof. No original guest texture identity is available in these lines."
+    }
   },
   "postChangeDeviceWindows": 0
 }
