@@ -1,0 +1,183 @@
+{
+  "source": "c9474bfb805d5b01e1a3efb3cc83e57b0fc769d7",
+  "run": 44899318078,
+  "attempt": 1,
+  "tests": [
+    {
+      "name": "engine (macos-26)",
+      "job": 136831692504,
+      "run": 44899318078,
+      "source": "c9474bfb805d5b01e1a3efb3cc83e57b0fc769d7",
+      "status": "success",
+      "steps": [
+        "Test the exported symbol list tool",
+        "Fetch S2Arm at the pinned commit",
+        "Select the newest installed Xcode with an iPhoneOS SDK",
+        "Check adaptive shader cache changes",
+        "Install the build tools S2Arm's makefiles call",
+        "Prefetch and rehash the pinned codec source archives",
+        "Locate the Metal compiler for the iOS framework",
+        "Compile and read an iPhoneOS capture pack",
+        "Compile the direct Metal backend and verify thermal policies and GPU pixels",
+        "Verify shader-library sharing and warm priority on the Mac GPU",
+        "Build S2Arm's iOS engine with no game (make ios)",
+        "Inventory the engine (images, sizes, symbols)",
+        "Check the guest entry points of the framework (patches 0003-0010)",
+        "Inventory the code the engine keeps per licensed component (blocking)",
+        "Collect the engine's licence and notice texts from its pinned sources",
+        "Package the guest frameworks for RewindBox's delivery (macos-26 only)",
+        "Upload the guest frameworks for RewindBox's delivery (macos-26 only)",
+        "Run TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb"
+      ],
+      "observations": {
+        "demandRenderPSO": {
+          "Fair": {
+            "coldWritten": 1,
+            "nextProcessStrictHits": 1
+          },
+          "Serious": {
+            "coldWritten": 1,
+            "nextProcessStrictHits": 1
+          }
+        },
+        "capturedAIR": {
+          "target": "iphoneos",
+          "stages": 1,
+          "nativeRecords": 2,
+          "runtimeReaderLoadedMTLBAndReflection": true
+        },
+        "firstDraw": {
+          "librarySkipsAtFrames": [
+            200,
+            204
+          ],
+          "pipelineSkipsAtFrames": [
+            202
+          ],
+          "resumedAt": [
+            201,
+            203,
+            205
+          ],
+          "expectedPixelsPerFrame": 8,
+          "pixelMismatches": 0,
+          "heldWorkerCase": {
+            "omissions": 4,
+            "submitSourceBuilds": 0,
+            "submitWaits": 0
+          }
+        },
+        "inFlightUniform": {
+          "ringOff": {
+            "encoders": 2,
+            "correctPixels": 2
+          },
+          "ringOn": {
+            "encoders": 1,
+            "correctPixels": 2
+          },
+          "expectedPixels": 2,
+          "queue": "tracked Metal"
+        },
+        "MRT": {
+          "correctPixels": 512,
+          "fusedRenderEncoders": 1
+        },
+        "crossQueue": {
+          "emptyPrefixesElidedWithOptimization": 1,
+          "GPUReadbackOrderVerified": true
+        },
+        "genericWire": {
+          "stageDiskAndRegisteredComputeWarmup": true,
+          "pthreadRequests": {
+            "down": 2,
+            "restore": 2
+          }
+        },
+        "directQueue": "Unavailable on the virtual Mac. Direct Metal 4 sibling tests skipped. Tracked Metal fixture readbacks used."
+      }
+    },
+    {
+      "name": "engine (macos-15)",
+      "job": 136831692351,
+      "run": 44899318078,
+      "source": "c9474bfb805d5b01e1a3efb3cc83e57b0fc769d7",
+      "status": "success",
+      "steps": [
+        "Test the exported symbol list tool",
+        "Fetch S2Arm at the pinned commit",
+        "Select the newest installed Xcode with an iPhoneOS SDK",
+        "Install the build tools S2Arm's makefiles call",
+        "Prefetch and rehash the pinned codec source archives",
+        "Locate the Metal compiler for the iOS framework",
+        "Build S2Arm's iOS engine with no game (make ios)",
+        "Inventory the engine (images, sizes, symbols)",
+        "Check the guest entry points of the framework (patches 0003-0010)",
+        "Inventory the code the engine keeps per licensed component (blocking)",
+        "Collect the engine's licence and notice texts from its pinned sources",
+        "Run TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb"
+      ]
+    },
+    {
+      "name": "engine (macos-26)",
+      "job": 136833392342,
+      "run": 44899899564,
+      "source": "77d4ee471289d4a897b4f681a4dfc58f72f053fb",
+      "status": "success",
+      "steps": [
+        "Test the exported symbol list tool",
+        "Fetch S2Arm at the pinned commit",
+        "Select the newest installed Xcode with an iPhoneOS SDK",
+        "Check adaptive shader cache changes",
+        "Install the build tools S2Arm's makefiles call",
+        "Prefetch and rehash the pinned codec source archives",
+        "Locate the Metal compiler for the iOS framework",
+        "Compile and read an iPhoneOS capture pack",
+        "Verify observed shader workers and persistent stage libraries",
+        "Check the presentation freeze and memory governor on macOS arm64",
+        "Build Metal 4 and verify DRS retention, thermal steps and texture extents",
+        "Validate attachment lifetime, tile pass fusion and MetalFX boundaries",
+        "Verify shader-library sharing and warm priority on the Mac GPU",
+        "Run TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb"
+      ]
+    },
+    {
+      "name": "compile",
+      "job": 136833392172,
+      "run": 44899899585,
+      "source": "77d4ee471289d4a897b4f681a4dfc58f72f053fb",
+      "status": "success",
+      "steps": [
+        "Run subosito/flutter-action@v2",
+        "Flutter iOS engine headers",
+        "Compile the bridge sources for iOS arm64",
+        "Bridge, session and preparation identity contracts"
+      ]
+    }
+  ],
+  "deviceValidation": {
+    "baseline": 814,
+    "rawLogsAvailable": false,
+    "hardware": "iPhone 16 Pro Max, A18 Pro",
+    "measuredAfterChange": false,
+    "pending": [
+      "paired cold/warm game sessions",
+      "first-use stalls above 500 milliseconds",
+      "render passes and load/store traffic",
+      "PSO evictions",
+      "P-core residency, wakeups, and frame rate under Fair and Serious"
+    ]
+  },
+  "directShaderChain": "0be3f28548fd",
+  "patchesVerified": 279,
+  "pinSha256": "e717485d3b987850bbd69b94f192fbd33cb43df29959b711404eb0b208f1e075",
+  "engineFingerprint": "15cf034bbd7ee07b5f82050f4f900b49fc2547ab7fe5c50b78e9895b7711123f",
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "xcode": "Xcode 26.6",
+  "artifact": {
+    "artifact": 14706160488,
+    "sha256": "b7bb5be6bc6054b7c873308d534ab0d9fff887327d89ec516522b37ba245ba2a",
+    "bytes": 25188843
+  },
+  "validPostChangeDeviceWindows": 0
+}
