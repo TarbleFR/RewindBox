@@ -97,7 +97,7 @@ xychart-beta
 
 | 2026-11-21 | Moteur 0256–0259 / chemin NVN2 | 90 / 60 / 65 / 35 / 25 | 55 % | [Travail par passe, identité de shader au rejeu, couverture du disque et utilitaires précalculés](evidence/s2arm-first-draw.md#correctifs-02560259). FPS affichés et temps de compilation sur iPhone non mesurés. |
 
-| 2026-11-21 | Moteur 0260–0261 / A18 Pro et NVN2 | 90 / 60 / 65 / 35 / 25 | 55 % | [Effacement partiel D32F/S8 et mesure des transitions de QoS](evidence/s2arm-first-draw.md#gpu-et-qos-des-invités). Fréquence des cas éligibles et gain GPU sur appareil non mesurés. |
+| 2026-11-21 | Moteur 0260–0261 / A18 Pro et NVN2 | 90 / 60 / 65 / 35 / 25 | 55 % | [Effacement partiel D32F/S8 et mesure des transitions de QoS](evidence/s2arm-first-draw.md#gpu-et-qos-des-invités). [Moteur iOS arm64 compilé et vérifié, 261 patchs](evidence/s2arm-fluidity-803/engine261-build.json). Fréquence des cas éligibles et gain GPU sur appareil non mesurés. |
 
 **Mesures de référence, à conserver séparément de l’estimation :** [IPA 795](evidence/rewind796/profile-observations-795.json), 26,886 FPS moteur sur 9 145 intervalles sans lacune dans la plage observée (≈ 5 min 40 s), 213 >100 ms dont 36 >500 ms ; [ancien moteur 0001–0089](evidence/s2arm-ipa783-device-2026-11-18.md), 60 FPS sur 526 intervalles (≈ 8,8 s), scène non identifiée ; [IPA 786](evidence/s2arm-ipa786-device-2026-11-18.md), deux fenêtres à l’affichage à 23,9 / 22,5 FPS et GPU médian à 33,38 / 35,03 ms ; [IPA 794](evidence/s2arm-first-race-795.md), pic échantillonné de 5 175 Mio. Parcours, caches et réglages non uniformisés : aucun gain avant/après attribuable à partir de ces seuls relevés.
 

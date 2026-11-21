@@ -1,0 +1,65 @@
+{
+  "source": "4b7383ca558d06118a6d11c4e5a2d0adcb647102",
+  "run": 44885479925,
+  "attempt": 1,
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "xcode": "Xcode 26.6",
+  "patchesVerified": 261,
+  "jobs": [
+    {
+      "platform": "macos-26",
+      "id": 136789722847,
+      "conclusion": "success"
+    },
+    {
+      "platform": "macos-15",
+      "id": 136789722631,
+      "conclusion": "success"
+    }
+  ],
+  "shaderProducer": {
+    "source": "fd412ebcc550f84f7cbadc0fb64fb3caad362953",
+    "run": 44884906894,
+    "job": 136787977373,
+    "shaderFlightChecks": 78,
+    "failures": 0,
+    "eligibleDrawsSkipped": 2,
+    "submitMslBuildsDuringTwoOmissions": 0,
+    "submitWaitsDuringTwoOmissions": 0,
+    "requiresExactOnThirdFrame": true,
+    "occupiedObservedSlotsAtLibraryHandoff": 32,
+    "listedColdStageBuiltWithoutPsoAndReused": true
+  },
+  "gpuAndScheduler": {
+    "job": 136789722847,
+    "trackedMetalD32FS8BothPlanesExactWithFlagOnAndOff": true,
+    "directMetal4SiblingQueueTest": "skipped in both arms because runner GPU cannot create the direct Metal 4 queue",
+    "machProbePeriodsNs": [
+      16666667,
+      33333333
+    ],
+    "machProbeRequestedComputationNs": 2000000,
+    "machProbeEffectiveComputationNs": 2000000,
+    "machProbeRequestedConstraintNs": 4000000,
+    "machProbeBoundedRtAtBothPeriods": true,
+    "thermalQosSecondaryFairNominalAndRoleTransitions": "pass",
+    "psoReserveMiB": 24,
+    "psoReserveCount": 4096,
+    "psoIdleSeconds": 300,
+    "arm64ExportListsEqualTo247ForBothFrameworks": true
+  },
+  "artifact": {
+    "id": 14699608491,
+    "bytes": 25177964,
+    "sha256": "1a4e24035bc9a5bb5c895b36a9c40a00b10bdd0e078f6d6745c57ef7ba8292a4"
+  },
+  "bundledIndirectKernels": [
+    "expand",
+    "widen",
+    "mask",
+    "mask-check"
+  ],
+  "engineFingerprint": "10f6a6ddbc78d5b87b84a26c1d4356e1967319c8f33715f31c93f87187572785",
+  "pinSha256": "fe4db80f00977f356ce3a93eb2d67232fc89b33bdd2cefaa21404af3f956098e",
+  "validPostChangeDeviceWindows": 0
+}
