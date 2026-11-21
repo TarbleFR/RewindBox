@@ -12,7 +12,7 @@ Titre `04007EF01F8AE000`, exécutable principal `db93b0125f4850601d61c3edde012f8
 
 `vawin.c` réserve l’espace d’adressage et crée des fichiers temporaires clairsemés, immédiatement détachés de leur nom. Les mappings `MAP_SHARED` gardent leurs descripteurs. Au lancement de la session T2079, le moteur mesure 6 014 Mio disponibles, sous son seuil de 7 168 Mio pour sortir la région du mode fichier. Il annonce 59 segments de 1 024 Mio. La RAM disponible au processus autorise une croissance future. La résidence de chaque page dépend du cache de fichiers du noyau.
 
-`getrusage(RUSAGE_SELF).ru_majflt` couvre tous les threads et tous les mappings durant l’intervalle. `mincore` échantillonne les pages des spans textures sondés. Une page absente peut ensuite arriver par lecture anticipée. T7 compte 255,3 ms de CPU sur le thread de présentation. Les traces historiques ne ventilent pas les 42,5–80,5 ms entre hachage, préparation CPU, encodage et attente de pages.
+`getrusage(RUSAGE_SELF).ru_majflt` couvre tous les threads et tous les mappings durant l’intervalle. `mincore` échantillonne les pages des spans textures sondés. Une page absente peut ensuite arriver par lecture anticipée. T2079 et T1051 ont chacune zéro retransfert et 0,0 ms d’attente des readbacks et slots d’upload sur le thread de présentation. Les lectures du processus totalisent respectivement 26,8 et 41,4 Mio. Le GPU prend 34,9 et 37,2 ms pour la trame entière. T7 compte 255,3 ms de CPU sur le thread de présentation. Les traces historiques ne ventilent pas les 42,5–80,5 ms entre hachage, préparation CPU, encodage et attente de pages.
 
 ## Premier usage des textures
 
@@ -35,9 +35,38 @@ program_id	04007EF01F8AE000
 present_interval	display
 ```
 
+Dans le profil personnel, seules les deux clés ci-dessus déterminent la cadence. Les noms de clés et les valeurs `display` et `game` sont sensibles à la casse. L’identifiant programme est comparé sans distinction de casse. Les espaces autour de chaque champ sont ignorés. Une espace entre la clé et la valeur ne remplace pas la tabulation.
+
+Le paquet préparé utilise le même lecteur TSV. Voici les champs qu’il interprète à l’exécution.
+
+| Clé du paquet | Valeurs | Défaut de lecture |
+| --- | --- | --- |
+| `program_id` | Identifiant programme, 16 chiffres hexadécimaux pour un profil de titre | Vide |
+| `present_interval`, `present_interval_derived` | `game` ou `display` | `game` |
+| `fps_hold`, `render_cond`, `tex_dyn_slots`, `tex_flush_upload` | `on` ou `off` | `on` |
+| `tex_dirty_upload` | `on` ou `off` | Suit `tex_flush_upload`, qui peut aussi le désactiver |
+| `vconv_range` | `on` ou `off` | `off` |
+| `gpu_timestamps` | `segment` ou `submission` | `segment` |
+| `draw_barriers` | `full` ou `game` | `full` |
+| `app_pool` | Entier non nul, base automatique, en octets | `0xCD500000` |
+| `alpha_from_red`, `feedback_snap` | Liste de préfixes de clés de shaders, 8 à 16 chiffres hexadécimaux minuscules | Liste vide |
+| `zero_skip` | Liste de tuples `clé:registre:vecteur:composante` | Liste vide |
+
+Les clés inconnues du lecteur sont ignorées. Plusieurs valeurs d’une liste peuvent être séparées par des tabulations. Dans `fps_l3_results.tsv`, les deux premiers champs sont l’identifiant programme et le verdict. Le chargeur retient la première ligne correspondante.
+
 Le profil personnel est consulté à la première configuration de présentation, après chargement du programme et de son build. Le chemin sélectionne l’exécutable. Le contenu doit fournir le `program_id` correspondant et la valeur explicite `display` ou `game`. UTF-8 sans BOM, LF ou CRLF, une clé par ligne, commentaires sur lignes commençant par `#`, première occurrence d’une clé retenue. Une ligne vide est admise. La limite est de 1 Mio. Un profil mal formé revient à `game`. L’absence du fichier conserve la décision du paquet. Aucun profil personnel actif n’est livré.
 
 `S2A_FPS60=0` désactive la libération de l’intervalle par profil. Les commandes explicites historiques `DM_PRESENT_INTERVAL` et les correctifs de pas de simulation restent distincts. Pour comparer les profils, laisser `DM_PRESENT_INTERVAL` non renseigné et redémarrer le processus entre les essais. Suivre le temps d’un événement de jeu reproductible pendant la même durée réelle, en mode `game` puis `display`. Inclure gameplay, menus et transitions. Une fréquence d’affichage de 60 Hz seule ne valide pas la vitesse logique.
+
+## Compilation et essais réalisés
+
+Le moteur est construit à partir de `05bddd2102e060080baf6e89fe6c85cb2cbcd865`. Les deux jobs Apple terminent `make ios`, la construction du framework invité arm64 et le contrôle de ses exports. Le job macOS 26 compile en plus le backend direct NVN/Metal 4 en arm64. Les tests passent pour les budgets, la pression, les deux fichiers temporaires Darwin, le profil par build et les changements de cadence 30/60. [Compilation Apple et tests ciblés](https://github.com/TarbleFR/RewindBox/actions/runs/44870326035)
+
+Le GPU du runner s’identifie comme `Apple Paravirtual device`. Il a exécuté la relecture en Metal 3. Le test a lu tous les texels de deux textures après leur premier upload groupé, validé les nouveaux octets après écriture invitée et contrôlé que le moteur avait rejeté le hachage périmé. L’exécution GPU Metal 4 et la mesure ProMotion sur A18 Pro restent à faire.
+
+Le pont UIKit compile ses onze sources pour iOS arm64 et passe ses contrôles, dont 254 assertions sur le pont. Entre son commit et celui du moteur, seule la position des arguments de `lipo` dans le workflow moteur a changé. [Compilation du pont UIKit](https://github.com/TarbleFR/RewindBox/actions/runs/44869974500)
+
+Le framework sélectionné provient de l’artefact `14693732708` (25 137 487 octets). Son empreinte d’archive, les 237 patchs source, la liste des symboles exportés et les empreintes des composants réutilisés ont été vérifiés. L’empreinte de l’ensemble conditionné est `7a1dfe6eb344ac9db53b3e10cced5933dbe9f02a09f1a60c8008e2a208d5d947`.
 
 ## Comparaison sur iPhone
 
@@ -56,4 +85,4 @@ Dans `host.log`, contrôler le build, `cadence profile ... result=explicit` et `
 
 La présentation active utilise `CAMetalDisplayLink` sur le `CAMetalLayer`, le drawable fourni par le callback, la soumission puis `present`. Le mode physique 30 ou 60 suit la période autorisée. Le moteur conserve les limites en vol et la dépendance de complétion Metal avant réemploi. Apple réserve la présentation temporisée au système pour ce drawable. [Contrat du délégué](https://developer.apple.com/documentation/quartzcore/cametaldisplaylinkdelegate/metaldisplaylink(_:needsupdate:))
 
-Suivre `[rb-link]` pour les callbacks, les holds, les ticks filtrés, la file vide, les slots occupés et les échéances de soumission. Pour accepter le 60 Hz, exploiter les fenêtres stables 60 avec timestamps disponibles, `displayed deadlines`, `displayed streaks` et `on-screen ... dropped ... p99`. Cibles de zéro perte et de p99 ≤ 16,8 ms. Consigner séparément le maximum et le nombre de trames > 100 ms aux changements de zone, qui peuvent échapper au p99. Dans la capture du 19 novembre, la ligne à 3 001 présentations cumulées indique 354 callbacks, 300 présentations et 54 ticks vides. Le compteur des anciennes images fusionnées y vaut zéro.
+Suivre `[rb-link]` pour les callbacks, les holds, les ticks filtrés, la file vide, les slots occupés et les échéances de soumission. Pour accepter le 60 Hz, exploiter les fenêtres stables 60 avec timestamps disponibles, `displayed deadlines`, `displayed streaks` et `on-screen ... dropped ... p99`. Cibles de zéro perte et de p99 ≤ 16,8 ms. Consigner séparément le maximum et le nombre de trames > 100 ms aux changements de zone, qui peuvent échapper au p99. Dans la capture du 19 novembre, la ligne à 3 001 présentations cumulées indique 354 callbacks, 300 présentations et 54 ticks vides. Le compteur des anciennes images fusionnées y vaut zéro. La synthèse d’affichage voisine à la trame 3 000 indique 292 intervalles connus, 40 pertes, 8 écartées et un p99 de 50,00 ms. Cette synthèse est lue avec huit présentations de retard et ne couvre pas exactement la même fenêtre que le compteur des callbacks. Sur la fenêtre couvrant la trame 2 813, le GPU prend déjà 18,67 ms en médiane, 19,90 ms au p95 et 32,31 ms au maximum, en état thermique nominal. À charge identique, la médiane dépasse le budget de 16,67 ms d’une image à 60 Hz.
