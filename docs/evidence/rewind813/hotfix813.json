@@ -1,0 +1,42 @@
+{
+  "build": 813,
+  "source": "bd84e34639ca24f21eb208802ef129f2755d27ae",
+  "sha256": "8767bb58286286b6e0251e6d29ca1de1532ca71705201911430f40a80a0ba129",
+  "bytes": 333671878,
+  "pinSHA256": "81b20ce5029e24f47c06a4a76bc04e4d48779219e62b529a96cc8e42b143cafc",
+  "engineRun": 44874372701,
+  "engineFingerprint": "44a5cd75cd7b02b13524a0f9a5585593f0ae7ee41469699607ce2e0716da9bff",
+  "patchCount": 247,
+  "lastPatch": {
+    "name": "0247-verify-the-effective-Mach-presentation-budget.patch",
+    "sha256": "bd460fd9436f80f595e651cf40f1c3126056efa3357ff93fbc9dc5ab84217e09"
+  },
+  "chain": "0be3f28548fd",
+  "markers": [
+    "S2A_RB_DRS_THERMAL_STATE",
+    "S2A_RB_TICK_WAKE_FILTER",
+    "S2A_RB_PSO_HEADROOM",
+    "S2A_RB_PSO_THERMAL_WORKERS",
+    "S2A_RB_PSO_BATCH_32",
+    "S2A_RB_GUEST_QOS_THERMAL",
+    "S2A_RB_NVN2_TILE_PASSES",
+    "[RB-GUEST-QOS]",
+    "[RB-PSO-RECREATE]",
+    "requested_cap_ms=2.000 constraint_cap_ms=4.000 effective_cap_ms=3.000",
+    "compressed_logical_bytes=%lld stress_cap=%d",
+    "timeshare_unconfirmed_final"
+  ],
+  "plist": {
+    "RBTestAsyncPSODefault": true
+  },
+  "deviceFrames": 0,
+  "baselineBuild": 812,
+  "baselineSha256": "71dd5f77222cf9fee7938f2ce4c4c831d9491e4354c4af22f17666d1fbf6c002",
+  "run": 44875720652,
+  "attempt": 1,
+  "nativeImages": 97,
+  "bundles": 10,
+  "offlineValidators": 6,
+  "privateTransferVerified": true,
+  "physicalIphoneTested": false
+}

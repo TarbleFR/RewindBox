@@ -1,0 +1,172 @@
+{
+ "schema": 1,
+ "build": 813,
+ "version": "0.0.8",
+ "result": "delivered-and-verified",
+ "deliveryType": "private",
+ "recipe": {
+  "workflow": ".github/workflows/standard-delivery.yml",
+  "manifest": "build-utils/delivery/813.json",
+  "manifestSHA256": "6d1fc4a9adb4b77c8c7d2908bdae7e36dcba6a108f33341d67bd3fb9d759ff81"
+ },
+ "execution": {
+  "source": "bd84e34639ca24f21eb208802ef129f2755d27ae",
+  "tree": "d9c1ecf53aad1ec1038385a4185f1ce9cc519be5",
+  "run": 44875720652,
+  "attempt": 1,
+  "branch": "Claude",
+  "jobs": {
+   "application": {
+    "id": 136760394225,
+    "conclusion": "success",
+    "started": "2026-11-21T06:30:54Z",
+    "completed": "2026-11-21T06:50:21Z"
+   },
+   "flutter": {
+    "id": 136760395434,
+    "conclusion": "skipped",
+    "started": "2026-11-21T06:30:53Z",
+    "completed": "2026-11-21T06:30:52Z"
+   },
+   "native": {
+    "id": 136760396007,
+    "conclusion": "skipped",
+    "started": "2026-11-21T06:30:53Z",
+    "completed": "2026-11-21T06:30:52Z"
+   },
+   "preflight": {
+    "id": 136759872787,
+    "conclusion": "success",
+    "started": "2026-11-21T06:28:46Z",
+    "completed": "2026-11-21T06:30:52Z"
+   },
+   "republish": {
+    "id": 136760394257,
+    "conclusion": "success",
+    "started": "2026-11-21T06:30:54Z",
+    "completed": "2026-11-21T06:32:45Z"
+   }
+  },
+  "runConclusion": "success",
+  "startedUTC": "2026-11-21T06:28:44Z",
+  "completedUTC": "2026-11-21T06:50:22Z"
+ },
+ "baseline": {
+  "build": 812,
+  "source": "e8d58ec5d516dcd1e981284dd223f623b2dcf45d",
+  "ipaSHA256": "71dd5f77222cf9fee7938f2ce4c4c831d9491e4354c4af22f17666d1fbf6c002"
+ },
+ "ipa": {
+  "name": "RewindBox-813.ipa",
+  "producerName": "RewindBox-Build813-bd84e34639ca24f21eb208802ef129f2755d27ae-cold.ipa",
+  "bytes": 333671878,
+  "sha256": "8767bb58286286b6e0251e6d29ca1de1532ca71705201911430f40a80a0ba129"
+ },
+ "delta": {
+  "freezeCommit": "d7a3aef3cde3dd9290ba56dcf0496a7175e97862",
+  "effectiveDigest": "4e38c81ffa3032c905a945dbd61bfc8b279449578b8fc01bb077cf83284c6abb",
+  "reviewedCommits": [
+   "25151ef95bbbc3bbd9376a765f8d1b51cfeb1380",
+   "0ee6ddad9b88138aa4ea3d007d9e179b3c56f591",
+   "eaa3392ec3f57a3de0858573f63cb872bb237547",
+   "a60e82f9a8a613f150298f6854d80b1608b6d8e9",
+   "aef33c52c4982a1e98a89089cd76464632dd2b8c",
+   "f99267fe3865a58427e1094def9b4ef232ce890f",
+   "96b7e84063768f8c90b23fe1546b24e6aefecaf6",
+   "2eb2069787e1716f0693b1a641bf261ac2cb0427",
+   "4f606dd39b7219b95a3fca43b518c300f1b53eca",
+   "ccd63bd8e2291b8c064a8ef9787ccc09fe532f22"
+  ],
+  "sourceOnly": [],
+  "promotedCommits": [],
+  "restoredPaths": 241
+ },
+ "components": {
+  "rpcs3": {
+   "mode": "replace"
+  },
+  "melonx": {
+   "mode": "replace"
+  },
+  "dolphin": {
+   "mode": "retain"
+  },
+  "armsx2": {
+   "mode": "retain"
+  },
+  "libretro": {
+   "mode": "retain-archive"
+  },
+  "melonx-dependencies": {
+   "mode": "retain-archive"
+  },
+  "melonx-upstream": {
+   "mode": "pinned-source"
+  },
+  "stikjit": {
+   "mode": "pinned-source"
+  },
+  "donor": {
+   "mode": "pinned-release"
+  },
+  "xenia": {
+   "mode": "pinned-engine"
+  },
+  "s2arm": {
+   "mode": "pinned-engine"
+  }
+ },
+ "verification": {
+  "result": "passed-offline-checks",
+  "nativeImageCount": 97,
+  "bundles": 10,
+  "imagesChangedFromBase": [
+   "Frameworks/S2ArmEngine.framework/S2ArmEngine",
+   "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+   "Runner"
+  ],
+  "offlineValidators": {
+   "melonx": 0,
+   "neoplay": 0,
+   "shaders": 0,
+   "legal": 0,
+   "no-kartpad": 0,
+   "no-dusklight": 0
+  },
+  "signerReceiptIPASHA256Matched": true,
+  "cryptographicSignatureVerificationPerformedOffline": false
+ },
+ "testEvidence": {
+  "testsRun": {
+   "flutter": "not-run",
+   "native": "not-run",
+   "delivery-contract": "fresh"
+  },
+  "testsExecutedInThisRun": [
+   "delivery-contract"
+  ],
+  "deliveryContractJob": 136759872787
+ },
+ "limits": {
+  "physicalDeviceTested": false,
+  "gameplayTested": false,
+  "fpsGainProven": false,
+  "appleProvisioningVerified": false,
+  "directAppleInstallationReady": false
+ },
+ "privateRecipientKeyDeletedAfterVerifiedDelivery": false,
+ "proofFiles": {
+  "api/artifacts.json": "e77128ab0656cb1995c4df9a6ec4d923c6678dfc420cdd901edfba40344d32a2",
+  "api/jobs.json": "56b2b818856aca011bdf66e3ebfa517b4c9f9b005bd0a658c62deb198f798d9b",
+  "api/run-attempt.json": "8e319236944bf45771a63923c0acc52b96ffab6dd10962e527f583e52c8c602d",
+  "download813-verification.json": "4e0f059af89cbed6a48fb97f28b729a289d7ec1c109ba59af6ff22d95c85f5d7",
+  "environment.json": "e5b03a7dbeb50f16f5b574cae03828f07f31e518d8bf076e696e2d7ee8f96097",
+  "observed-timings.json": "2df940ac91bf2a9c197e70ddb65ae36a90dc44aa6bf7541a3292260df40eb53a",
+  "signature.json": "761527b64b06794eb278c46d151cdf24125e733f498700743a57f48dd55e8903",
+  "signed-payload-identity.json": "137c9af862223617105d5a8afc292845fb820fa3a51a3030c9b982edcbc6fead",
+  "standard-embedded.json": "330ebd6d196063b84f053a128d87ca30859b246919bf8f4370a5f63a3af78a8a",
+  "standard-ipa-validation.json": "e991f865e3f3b96212f0f51f8f06c36a281f6d61d3e8928a248a87aa0d0aca3e",
+  "standard-tests.json": "71736bc632bdaf2388ff0f557bafd1cef0d31d837305ddb64a0e0fa214551480",
+  "version-validation.json": "02b32bf335fbfeee49d6321061c67df13e171d5985cbc71a6efa67301d0e04ea"
+ }
+}
