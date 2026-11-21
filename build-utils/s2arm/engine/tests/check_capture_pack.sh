@@ -11,7 +11,7 @@ title=0100000000000001
 build=11223344556677889900aabbccddeeff
 chain=$(awk '/^#define DMSH_CHAIN / {gsub(/"/, "", $3); print $3}' "$engine/graphics/nvn/gfx/nvn/dmsh_chain.h")
 mkdir "$work/shaders"
-cat > "$work/shaders/${key}_b.metal" <<'METAL'
+cat > "$work/shaders/${key}_b.msl" <<'METAL'
 #include <metal_stdlib>
 using namespace metal;
 kernel void main0(device uint *out [[buffer(0)]], uint i [[thread_position_in_grid]]) { out[i] = i; }
@@ -23,6 +23,7 @@ python3 -B "$builder" "$work/shaders" --history "$work/pso_user.tsv" --title-id 
 direct="$work/export/pack/shaders/direct"
 grep -Fx "$(printf 'C\t%s_b' "$key")" "$direct/pso_manifest.tsv"
 grep -Fx "$(printf 'capture\t0\tcompute\t%s' "$key")" "$direct/shader_map.tsv"
+cmp "$work/shaders/${key}_b.msl" "$direct/b-$chain/${key}_b.metal"
 cat > "$work/check.c" <<'C'
 #include <stdio.h>
 #include <stdint.h>

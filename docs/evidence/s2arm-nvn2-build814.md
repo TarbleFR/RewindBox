@@ -14,3 +14,41 @@ Sur iPhone 16 Pro Max, les relevés transmis pour Zelda comptent 1 270 PSO compi
 Le producteur macOS utilise la chaîne du moteur et l’historique d’un seul titre. Le lecteur reçoit des segments metallib et leurs réflexions au format natif S2ALIB. Le pack doit correspondre au titre, au build, à la chaîne et à la signature du traducteur. Les stages absents de la capture restent à découvrir au premier passage. Un pack de bibliothèques AIR et une archive de PSO couvrent deux étapes différentes de la compilation. [Commande de génération](../../build-utils/s2arm/build_nvn2_shader_pack.py)
 
 Les critères sur appareil s’évaluent sur les mêmes scènes après un premier passage puis après fermeture et relance, séparément à Nominal, Fair et Serious. Relever les trames de plus de 500 ms, les évictions, les budgets Mach aux deux périodes et les temps GPU. Le nombre de draws omis doit se lire avec les pixels affichés et la durée d’omission.
+
+## Compléments au moteur 0273
+
+Le lecteur de packs accepte les sources exportées sous les extensions .metal et .msl. Le producteur de recettes promues attend une place dans la file urgente quand les 32 places sont occupées. Cette attente appartient au worker de préchauffage. Un draw en lecture seule qui suit une prépasse de profondeur sur une cible monocouleur neuve peut différer son premier pipeline pendant quatre trames. Le test garde une bibliothèque en cours de construction sur un autre thread pendant la soumission.
+
+La preuve par intervalles de la 0272 reste prioritaire pour les uniformes. Le moteur conserve également des versions bornées des octets connus de cinq soumissions et peut reconstruire une lecture sur une écriture inline antérieure. Une écriture GPU dont la valeur est inconnue garde la synchronisation habituelle. Le test Metal compare le rendu de deux draws avec le même uniforme et deux valeurs différentes.
+
+En Fair, les grandes cibles réductibles peuvent passer à 0,85× sur chaque axe lorsque le réglage utilisateur est à 1×. Le retour à la résolution native attend 30 s en Nominal. Les lectures de texture incompatibles, les cibles de présentation et les attachements impossibles à redimensionner ensemble suivent les protections du moteur. La QoS est initialisée à nouveau sur la première soumission NVN2 si le périphérique Metal a été créé avant la configuration du titre. Le propriétaire d’une réservation Mach révoquée peut réessayer une fois après vérification sur son propre thread, avec les plafonds de 2 et 4 ms.
+
+Un signal GPU futur conserve son ordre. Si une nouvelle soumission commence par la seule attente d’un événement exclusivement écrit par le GPU, la file peut stationner avant d’ouvrir un command buffer vide. Le compteur empty_prefixes compte ces opérations. Les copies virtuelles sont prises en compte à l’entrée de la file. Une texture sale pouvant nécessiter un upload interdit cette optimisation.
+
+Pour une comparaison sur appareil, repartir du même fichier env.txt et du même niveau de chauffe. La limite de quatre trames peut conduire à une attente exacte à la cinquième. Les recettes et les stages non capturés restent à découvrir. Les seuils de 500 ms, 40 passes et 60 FPS demandent des mesures sur iPhone.
+
+~~~ini
+S2A_RB_ARCHIVE_WRITE_ALWAYS=1
+S2A_RB_PROMOTED_URGENT=1
+S2A_RB_NVN2_DISK_CACHE=1
+S2A_RB_STAGE_BINARIES=1
+S2A_RB_STAGE_DISK_WARM=1
+S2A_RB_CAPTURE_PACK=1
+S2A_RB_URGENT_WORKERS=1
+S2A_RB_ASYNC_FIRST_DRAW=1
+S2A_RB_FIRST_DRAW_RECOVERY=1
+S2A_RB_UNIFORM_RANGES=1
+S2A_RB_INPASS_UBO_RING=1
+S2A_RB_NVN2_GUEST_QOS=1
+S2A_RB_GUEST_QOS_THERMAL=1
+S2A_RB_HOT_IDLE_COALESCE=1
+S2A_RB_RT_RECHECK=1
+S2A_RB_FAIR_SCALE=0.85
+S2A_RB_ALL_NVN2_TILES=1
+S2A_RB_NVN2_MRT_CLEARS=1
+S2A_RB_MRT_REPEATED_CLEARS=1
+S2A_RB_SEALED_CLEAR_STATE=1
+S2A_RB_XQ_RESUME=1
+S2A_RB_XQ_TAIL_RETURNS=1
+S2A_RB_XQ_WAIT_PREFIX=1
+~~~

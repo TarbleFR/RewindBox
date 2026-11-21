@@ -1,0 +1,628 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 450e47b..bc3eaa1 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1397,9 +1397,21 @@ static struct { uint64_t lo, n; uint32_t gen; uint8_t src; } g_sbw_memo[SBW_MEMO
+ //   "too large to keep" and marks the whole submission over (g_sbw_over), so every later indexed geometry draw waited for the GPU and left its geometry run
+ //   (11-06 Donkey Kong: compute shaders 80c1f2f388617e69 / 1cc137863bec3f11 / c3de3d90f81ac8e0 bind such buffers with 59–320 KB left in theirs)
+ static uint64_t sbw_to_end(void *mb, uint64_t mo) { uint64_t len = mb ? (uint64_t)[(__bridge id<MTLBuffer>)mb length] : 0; return len > mo ? len - mo : 0; }
++#include "rb_ubo_versions.h"
++static rb_ub_versions g_rb_ub_ring;
++static rb_ub_frame *g_rb_ub_current;
++static uint64_t g_rb_ub_recovered;
++static void rb_ub_begin_submission(void) {
++    // pend_reset also runs while unloading a title. Sample the platform at
++    // submission begin so a subsequently loaded NVN2 game gets its own policy.
++    const char *flag = getenv("S2A_RB_INPASS_UBO_RING");
++    int enabled = flag ? !strcmp(flag, "1") : nvn2_on();
++    g_rb_ub_current = enabled && !g_m3 ? rb_ub_begin(&g_rb_ub_ring, g_fence + 1) : NULL;
++}
+ static void sbw_note(uint64_t lo, uint64_t n, int src) {
+     unsigned m = (unsigned)(((lo ^ (n << 20)) * 0x9E3779B97F4A7C15ull) >> 58) & (SBW_MEMO - 1);
+     if (n && g_sbw_memo[m].gen == g_pend_gen && g_sbw_memo[m].lo == lo && g_sbw_memo[m].n == n && (g_sbw_memo[m].src & src) == src) return;
++    rb_ub_opaque(g_rb_ub_current, lo, n);
+     if (src == SBW_GPU) g_sbw_gen++;
+     if (!n || n > UINT64_MAX - lo || n > (uint64_t)SBW_PAGES << 12) { if (src == SBW_GPU) g_sbw_over = 1; return; }   // a report too large to keep cannot happen (16 bytes)
+     g_sbw_pages += ((lo + n - 1) >> 12) - (lo >> 12) + 1;
+@@ -1415,10 +1427,11 @@ static void sbw_note(uint64_t lo, uint64_t n, int src) {
+ }
+ static int sbw_hits(uint64_t lo, uint64_t hi) { if (!g_nsbw) return 0; for (uint64_t pg = lo >> 12; pg <= (hi - 1) >> 12; pg++) { int k = sbw_slot(pg, 0); if (k >= 0 && (g_sbwp[k].src & SBW_GPU)) return 1; } return 0; }
+ static inline unsigned pend_bucket(uint64_t page) { return (unsigned)((page * 0x9E3779B97F4A7C15ull) >> 53) & (PEND_HB - 1); }
+-static void pend_reset(void) { g_npend = g_pend_over = g_nupd = g_npnode = g_nwide = g_nsbw = g_sbw_over = g_npseg = g_pseg_over = g_npzero = 0; if (!++g_pend_gen) { memset(g_pend_hgen, 0, sizeof g_pend_hgen); memset(g_psp, 0, sizeof g_psp); memset(g_sbwp, 0, sizeof g_sbwp); memset(g_sbw_memo, 0, sizeof g_sbw_memo); g_pend_gen = 1; } }
++static void pend_reset(void) { rb_ub_begin_submission(); g_npend = g_pend_over = g_nupd = g_npnode = g_nwide = g_nsbw = g_sbw_over = g_npseg = g_pseg_over = g_npzero = 0; if (!++g_pend_gen) { memset(g_pend_hgen, 0, sizeof g_pend_hgen); memset(g_psp, 0, sizeof g_psp); memset(g_sbwp, 0, sizeof g_sbwp); memset(g_sbw_memo, 0, sizeof g_sbw_memo); g_pend_gen = 1; } }
+ static void vc_gpu_write(uint64_t dst, uint64_t n);   // kept index ranges under the written range are not trusted again (ix_range)
+ static void gpw_clear(uint64_t lo, uint64_t n);   // guest bytes the GPU wrote into memory itself are current again (see gpw_mark)
+ static int pend_add(uint64_t dst, uint64_t n, int kind) {
++    if (kind != 1 && n) rb_ub_opaque(g_rb_ub_current, dst, n);
+     vc_gpu_write(dst, n); gpw_clear(dst, n);
+     if (g_pend_over || g_npend == PEND_MAX) { g_pend_over = 1; return -1; }
+     int e = g_npend; uint64_t p0 = dst >> 12, p1 = (dst + (n ? n : 1) - 1) >> 12;
+@@ -2602,8 +2615,8 @@ static int ubp_get(uint64_t lo, uint64_t hi, uint64_t *gpu, const uint8_t **cpu)
+     if (c && c->npend == g_npend) { g_ubp_reused++; *gpu = c->gpu; *cpu = c->cpu; ubp_lineage(c); return 1; }
+     int since = c ? c->npend : 0;
+     int live = !c && gw_live(lo, hi);
+-    if (live && !rb_ub_ranges) { g_ubp_why[2]++; return 0; }
+-    if (live && !gw_check(lo, hi, 1)) { live = 0; rb_ub_subpage_saved++; }
++    if (live && !rb_ub_ranges && !g_rb_ub_current) { g_ubp_why[2]++; return 0; }
++    if (live && rb_ub_ranges && !gw_check(lo, hi, 1)) { live = 0; rb_ub_subpage_saved++; }
+     if (!c && !nvn_host_readable(lo, hi - lo)) { g_ubp_why[4]++; return 0; }
+     int n = pend_since(lo, hi, since, g_ubp_idx); if (n < 0) { g_ubp_why[4]++; return 0; }
+     // Nothing queued over the range since the kept shadow (the writes since went elsewhere): the next one would be a byte-for-byte copy of it, so it is the answer.
+@@ -2625,21 +2638,42 @@ static int ubp_get(uint64_t lo, uint64_t hi, uint64_t *gpu, const uint8_t **cpu)
+                    if (nc == 1 && cl[0] == lo && ch[0] == hi) break; } } }
+     // Only bytes missing from the inline updates need a CPU read. A prior
+     // GPU write covered by a newer inline update never reaches this binding.
++    uint64_t len = hi - lo;
++    int versioned = 0;
++    static uint8_t base[UBP_MAX_BYTES], have[UBP_MAX_BYTES]; // submit thread only
+     if (live) {
+-        if (!exact || !nc) { g_ubp_why[2]++; return 0; }
++        int gaps_ready = rb_ub_ranges && exact && nc;
+         uint64_t cursor = lo;
+-        for (int i = 0; i < nc; i++) {
+-            if (cursor < cl[i] && gw_check(cursor, cl[i], 1)) { g_ubp_why[2]++; return 0; }
++        for (int i = 0; gaps_ready && i < nc; ++i) {
++            if (cursor < cl[i] && gw_check(cursor, cl[i], 1)) gaps_ready = 0;
+             cursor = ch[i];
+         }
+-        if (cursor < hi && gw_check(cursor, hi, 1)) { g_ubp_why[2]++; return 0; }
+-        rb_ub_overlay_saved++;
++        if (gaps_ready && cursor < hi && gw_check(cursor, hi, 1)) gaps_ready = 0;
++        if (gaps_ready) rb_ub_overlay_saved++;
++        else {
++            if (!g_rb_ub_current) { g_ubp_why[2]++; return 0; }
++            memset(have, 0, (size_t)len);
++            for (int i = 0; i < nk; ++i) {
++                int e = g_ubp_idx[i];
++                uint64_t a = MAX(lo, g_pend_lo[e]), b = MIN(hi, g_pend_hi[e]);
++                memset(have + (a-lo), 1, (size_t)(b-a));
++            }
++            pthread_mutex_lock(&g_mu);
++            uint64_t done = g_done;
++            pthread_mutex_unlock(&g_mu);
++            if (!rb_ub_base(&g_rb_ub_ring, done, g_fence, lo, hi, base, have)) { g_ubp_why[2]++; return 0; }
++            versioned = 1;
++        }
+     }
+-    uint64_t len = hi - lo;
+     id<MTLBuffer> ab; size_t o = arena_alloc((size_t)len, &ab); uint8_t *d = (uint8_t *)ab.contents + o;
+     int big = len >= UBQ_ASYNC;   // smaller ones are always copied here: handing a copy to the worker costs more than making it (see UBQ_ASYNC)
+     if (UBQ_N - (g_ubq_tail - g_ubq_head) < (uint64_t)nk + (live ? nc + 1 : 1)) ubq_flush();   // a shadow's copies never straddle a forced flush
+-    if (live) {
++    if (versioned) {
++        memcpy(d, base, (size_t)len); // never enqueue reads from shared scratch
++        ++g_rb_ub_recovered;
++        if ((g_rb_ub_recovered & (g_rb_ub_recovered - 1)) == 0)
++            MLOG("[rb-ubo-ring] recovered in-flight uniform bindings=%llu", (unsigned long long)g_rb_ub_recovered);
++    } else if (live) {
+         // The proof above excludes exactly these gaps. Do not read the
+         // covered bytes even transiently while the GPU may be writing them.
+         uint64_t cursor = lo;
+@@ -2689,6 +2723,7 @@ void mtl_sub_update(const void *data, uint64_t dst, uint64_t n) {
+         res_add(g_ubs_buf); g_ubs_off = 0;
+     }
+     memcpy((uint8_t *)g_ubs_buf.contents + g_ubs_off, data, n);
++    rb_ub_capture(g_rb_ub_current, dst, n, (const uint8_t *)g_ubs_buf.contents + g_ubs_off);
+     if (pi >= 0) { g_upd[g_nupd] = (upd_ent){dst, g_ubs_off, g_ubs_buf}; g_pend_upd[pi] = (uint16_t)++g_nupd; }
+     if (defer) {
+         ubd_add(dst, dst + n, g_ubs_buf.gpuAddress + g_ubs_off, g_ubs_off, g_ubs_buf); g_ubd_deferred++; ubd_dirty(dst, dst + n); }   // see ubd_add / ubd_shadow
+@@ -20661,24 +20696,43 @@ static int rb_clear_include(RBClearPlan *plan, const lc_group *g, int same_slots
+ // The guest can keep the same MRT set bound while clearing one slot at a time.
+ // Join only complementary clear masks from adjacent queued groups; preserve the
+ // guest's slot numbering and the color/depth value from its original producer.
+-static int rb_clear_same_set(RBClearPlan *plan, const lc_group *a, const lc_group *b) {
++static int rb_clear_recorded_plane(const tex_t *t, const tex_t *other) {
++    return t == other || (t && other && t->serial == other->serial && !memcmp(t,other,sizeof *t));
++}
++static int rb_mrt_repeated_on(void) {
++    static int enabled = -1;
++    if (enabled < 0) {
++        const char *flag = getenv("S2A_RB_MRT_REPEATED_CLEARS");
++        enabled = !flag || !strcmp(flag, "1");
++    }
++    return enabled && rb_tile_enabled(RB_TILE_MRT);
++}
++static int rb_clear_joined_set(RBClearPlan *plan, const lc_group *a, const lc_group *b, int repeat) {
+     if (a->rt.n<0 || a->rt.n>8 || a->rt.n!=b->rt.n || a->clear_s || b->clear_s ||
+-        a->rt.depth!=b->rt.depth || !rt_same(&a->rt,&b->rt)) return 0;
++        !(repeat ? rb_clear_recorded_plane(a->rt.depth,b->rt.depth) : a->rt.depth==b->rt.depth) || !rt_same(&a->rt,&b->rt)) return 0;
+     lc_group joined=*a;
+     unsigned targets=a->rt.depth ? 1u<<8 : 0;
+     unsigned left=a->clear_d ? 1u<<8 : 0, right=b->clear_d ? 1u<<8 : 0;
+     for (int i=0; i<8; i++) {
+-        if (a->rt.color[i]!=b->rt.color[i]) return 0;
++        if (a->rt.color[i]!=b->rt.color[i] && !(repeat && rb_clear_recorded_plane(a->rt.color[i],b->rt.color[i]))) return 0;
+         if (a->rt.color[i]) targets|=1u<<i;
+         if (a->clear_c[i]) left|=1u<<i;
+         if (b->clear_c[i]) {
+             right|=1u<<i; joined.clear_c[i]=1; joined.cc[i]=b->cc[i];
+         }
+     }
+-    if (!rb_clear_disjoint_masks(targets,left,right)) return 0;
++    // Both queued clear-only encoders are about to land consecutively. The
++    // second clear overwrites its shared plane completely. Preserve its value
++    // and every first-only plane in the same slots, with the usual alias and
++    // descriptor checks. Keep degenerate one-plane duplicates on their old path.
++    if (!rb_clear_disjoint_masks(targets,left,right) &&
++        !(repeat && (targets & (targets-1)) && (left & right) && (left|right)==targets)) return 0;
+     if (b->clear_d) { joined.clear_d=1; joined.cd=b->cd; }
+     return rb_clear_include(plan,&joined,1);
+ }
++static int rb_clear_same_set(RBClearPlan *plan, const lc_group *a, const lc_group *b) {
++    return rb_clear_joined_set(plan, a, b, rb_mrt_repeated_on());
++}
+ static void lc_apply(const lc_group *g) {
+     R.rt=g->rt; R.has_rt=1; memcpy(R.clear_c,g->clear_c,sizeof R.clear_c); memcpy(R.cc,g->cc,sizeof R.cc);
+     R.clear_d=g->clear_d; R.clear_s=g->clear_s; R.cd=g->cd; R.cs=g->cs;
+@@ -20687,9 +20741,6 @@ static void lc_apply(const lc_group *g) {
+ // clear and ignores depth when neither aspect is cleared. Keep each active
+ // plane's original clear value; the existing planner checks its physical span,
+ // descriptor exposure, native object, dimensions, tile budget and format.
+-static int rb_clear_recorded_plane(const tex_t *t, const tex_t *other) {
+-    return t == other || (t && other && t->serial == other->serial && !memcmp(t,other,sizeof *t));
+-}
+ static int rb_clear_active_elsewhere(const tex_t *t, const lc_group *other) {
+     if (!t) return 1;
+     if (other->clear_d && rb_clear_recorded_plane(t,other->rt.depth)) return 1;
+diff --git a/graphics/nvn/gfx/nvn/rb_ubo_versions.h b/graphics/nvn/gfx/nvn/rb_ubo_versions.h
+new file mode 100644
+index 0000000..2e1652c
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_ubo_versions.h
+@@ -0,0 +1,117 @@
++// Submit-thread only. Keep the bytes supplied by guest inline updates until
++// the corresponding submission completes. Opaque GPU writes carry a range,
++// never a CPU value. Saturation loses an optimization, never a dependency.
++#ifndef RB_UBO_VERSIONS_H
++#define RB_UBO_VERSIONS_H
++#include <stdint.h>
++#include <string.h>
++
++enum { RB_UB_FRAMES = 5, RB_UB_PAGES = 64, RB_UB_PAGE = 4096, RB_UB_SPANS = 128 };
++typedef struct {
++    uint64_t fence, page;
++    uint8_t bytes[RB_UB_PAGE], valid[RB_UB_PAGE];
++} rb_ub_page;
++typedef struct {
++    uint64_t fence;
++    unsigned count;
++    int unknown;
++    struct { uint64_t lo, hi; } opaque[RB_UB_SPANS];
++    rb_ub_page pages[RB_UB_PAGES];
++} rb_ub_frame;
++typedef struct { rb_ub_frame frames[RB_UB_FRAMES]; } rb_ub_versions;
++
++static rb_ub_frame *rb_ub_begin(rb_ub_versions *ring, uint64_t fence) {
++    rb_ub_frame *frame = &ring->frames[fence % RB_UB_FRAMES];
++    frame->fence = fence;
++    frame->count = 0;
++    frame->unknown = 0;
++    return frame;
++}
++static void rb_ub_opaque(rb_ub_frame *f, uint64_t lo, uint64_t size) {
++    if (!f || f->unknown) return;
++    if (!size || size > UINT64_MAX - lo) { f->unknown = 1; return; }
++    uint64_t hi = lo + size;
++    // Coalesce adjacent/overlapping ranges. Keep disjoint ranges to avoid
++    // turning a large storage allocation into a false global hazard.
++    for (unsigned i = 0; i < f->count;) {
++        if (hi < f->opaque[i].lo || lo > f->opaque[i].hi) { ++i; continue; }
++        if (lo >= f->opaque[i].lo && hi <= f->opaque[i].hi) return;
++        if (lo > f->opaque[i].lo) lo = f->opaque[i].lo;
++        if (hi < f->opaque[i].hi) hi = f->opaque[i].hi;
++        f->opaque[i] = f->opaque[--f->count];
++        i = 0;
++    }
++    if (f->count == RB_UB_SPANS) { f->unknown = 1; return; }
++    f->opaque[f->count].lo = lo;
++    f->opaque[f->count++].hi = hi;
++}
++static rb_ub_page *rb_ub_find_page(rb_ub_frame *f, uint64_t page, int create) {
++    unsigned slot = (unsigned)((page * UINT64_C(11400714819323198485)) >> 58);
++    for (unsigned i = 0; i < RB_UB_PAGES; i++) {
++        rb_ub_page *p = &f->pages[(slot + i) % RB_UB_PAGES];
++        if (p->fence != f->fence) {
++            if (!create) return NULL;
++            p->fence = f->fence;
++            p->page = page;
++            memset(p->valid, 0, sizeof p->valid);
++            return p;
++        }
++        if (p->page == page) return p;
++    }
++    return NULL;
++}
++static void rb_ub_capture(rb_ub_frame *f, uint64_t lo, size_t size, const uint8_t *bytes) {
++    if (!f || f->unknown || !size) return;
++    if (size > RB_UB_PAGE * RB_UB_PAGES || size > UINT64_MAX - lo) { rb_ub_opaque(f, lo, size); return; }
++    while (size) {
++        unsigned offset = lo % RB_UB_PAGE;
++        size_t n = RB_UB_PAGE - offset;
++        if (n > size) n = size;
++        rb_ub_page *p = rb_ub_find_page(f, lo / RB_UB_PAGE, 1);
++        if (p) {
++            memcpy(p->bytes + offset, bytes, n);
++            memset(p->valid + offset, 1, n);
++        } else rb_ub_opaque(f, lo, n);
++        size -= n; bytes += n; lo += n;
++    }
++}
++// 'have' starts with the bytes replaced by this submission. Never even read
++// a guest byte while an older GPU write to that byte may still be executing.
++static int rb_ub_base(rb_ub_versions *ring, uint64_t done, uint64_t latest,
++                      uint64_t lo, uint64_t hi, uint8_t *out, uint8_t *have) {
++    if (hi <= lo || done > latest) return 0;
++    for (uint64_t fence = latest; fence > done; --fence) {
++        if (!memchr(have, 0, (size_t)(hi - lo))) return 1;
++        rb_ub_frame *f = &ring->frames[fence % RB_UB_FRAMES];
++        if (f->fence != fence || f->unknown) return 0;
++        for (unsigned i = 0; i < f->count; i++) {
++            uint64_t a = lo > f->opaque[i].lo ? lo : f->opaque[i].lo;
++            uint64_t b = hi < f->opaque[i].hi ? hi : f->opaque[i].hi;
++            if (a < b && memchr(have + (a-lo), 0, (size_t)(b-a))) return 0;
++        }
++        for (uint64_t pos = lo; pos < hi;) {
++            unsigned offset = pos % RB_UB_PAGE;
++            size_t n = RB_UB_PAGE - offset;
++            if (n > hi-pos) n = (size_t)(hi-pos);
++            rb_ub_page *p = rb_ub_find_page(f, pos / RB_UB_PAGE, 0);
++            if (p) for (size_t j = 0; j < n; ++j) {
++                size_t k = (size_t)(pos-lo) + j;
++                if (!have[k] && p->valid[offset+j]) {
++                    out[k] = p->bytes[offset+j]; have[k] = 1;
++                }
++            }
++            pos += n;
++        }
++    }
++    size_t n = (size_t)(hi-lo);
++    for (size_t i = 0; i < n;) {
++        uint8_t *start = memchr(have+i, 0, n-i);
++        if (!start) break;
++        size_t a = (size_t)(start-have);
++        uint8_t *end = memchr(start, 1, n-a);
++        i = end ? (size_t)(end-have) : n;
++        memcpy(out+a, (const uint8_t *)(uintptr_t)lo+a, i-a);
++    }
++    return 1;
++}
++#endif
+diff --git a/graphics/nvn/tests/rb_ubo_tracked_pixels.inc b/graphics/nvn/tests/rb_ubo_tracked_pixels.inc
+new file mode 100644
+index 0000000..87dfb1e
+--- /dev/null
++++ b/graphics/nvn/tests/rb_ubo_tracked_pixels.inc
+@@ -0,0 +1,73 @@
++// Run the same version resolver against real GPU writes and pixel readback
++// on CI devices that cannot open the engine's Metal 4 queue/residency set.
++static int rb_ubo_tracked_pixels(id<MTLDevice> dev) {
++    const int enabled = !strcmp(getenv("S2A_RB_INPASS_UBO_RING") ?: "", "1");
++    id<MTLCommandQueue> q = [dev newCommandQueue];
++    id<MTLSharedEvent> gate = [dev newSharedEvent];
++    NSError *error = nil;
++    NSString *src = @"#include <metal_stdlib>\nusing namespace metal;\n"
++      "vertex float4 v(uint i [[vertex_id]]) { float2 p[3]={{-1,-1},{3,-1},{-1,3}};return float4(p[i],0,1); }\n"
++      "fragment float4 f(constant float4 &color [[buffer(0)]]){return color;}";
++    id<MTLLibrary> lib = [dev newLibraryWithSource:src options:nil error:&error];
++    MTLRenderPipelineDescriptor *pd = [MTLRenderPipelineDescriptor new];
++    pd.vertexFunction = [lib newFunctionWithName:@"v"];
++    pd.fragmentFunction = [lib newFunctionWithName:@"f"];
++    pd.colorAttachments[0].pixelFormat = MTLPixelFormatRGBA8Unorm;
++    id<MTLRenderPipelineState> pipeline = [dev newRenderPipelineStateWithDescriptor:pd error:&error];
++    if (!pipeline || !q || !gate) { fprintf(stderr,"tracked fixture: %s\n",error.localizedDescription.UTF8String); return 1; }
++    MTLTextureDescriptor *td = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm width:2 height:1 mipmapped:NO];
++    td.usage = MTLTextureUsageRenderTarget; td.storageMode = MTLStorageModePrivate;
++    id<MTLTexture> rt = [dev newTextureWithDescriptor:td];
++    id<MTLBuffer> guest = [dev newBufferWithLength:256 options:MTLResourceStorageModeShared];
++    id<MTLBuffer> versions = [dev newBufferWithLength:512 options:MTLResourceStorageModeShared];
++    id<MTLBuffer> result = [dev newBufferWithLength:256 options:MTLResourceStorageModeShared];
++    const float base[4] = {0,0,1,1};
++    id<MTLBuffer> old = [dev newBufferWithBytes:base length:sizeof base options:MTLResourceStorageModeShared];
++    if (!rt || !guest || !versions || !result || !old) return 1;
++    memset(guest.contents,0,16);
++    id<MTLCommandBuffer> prev = [q commandBuffer];
++    [prev encodeWaitForEvent:gate value:1];
++    id<MTLBlitCommandEncoder> blit = [prev blitCommandEncoder];
++    [blit copyFromBuffer:old sourceOffset:0 toBuffer:guest destinationOffset:0 size:16];
++    [blit endEncoding]; [prev commit];
++    uint64_t addr = (uintptr_t)guest.contents;
++    rb_ub_capture(rb_ub_begin(&g_rb_ub_ring, 1), addr, 16, old.contents);
++    id<MTLCommandBuffer> cb = [q commandBuffer];
++    MTLRenderPassDescriptor *rp = [MTLRenderPassDescriptor renderPassDescriptor];
++    rp.colorAttachments[0].texture = rt; rp.colorAttachments[0].storeAction = MTLStoreActionStore;
++    id<MTLRenderCommandEncoder> encoder = nil;
++    int encoders = 0;
++    for (unsigned i = 0; i < 2; ++i) {
++        uint8_t *d = (uint8_t *)versions.contents + 256*i;
++        const float update[2] = {i == 0, i == 1};
++        memcpy(d, update, 8);
++        if (enabled) {
++            uint8_t have[16] = {1,1,1,1,1,1,1,1};
++            if (!rb_ub_base(&g_rb_ub_ring,0,1,addr,addr+16,d,have)) return 1;
++        } else {
++            if (encoder) [encoder endEncoding];
++            encoder = nil;
++            blit = [cb blitCommandEncoder];
++            [blit copyFromBuffer:versions sourceOffset:256*i toBuffer:guest destinationOffset:0 size:8];
++            [blit endEncoding];
++        }
++        if (!encoder) {
++            rp.colorAttachments[0].loadAction = i ? MTLLoadActionLoad : MTLLoadActionClear;
++            encoder = [cb renderCommandEncoderWithDescriptor:rp]; ++encoders;
++        }
++        [encoder setRenderPipelineState:pipeline];
++        [encoder setScissorRect:(MTLScissorRect){i,0,1,1}];
++        [encoder setFragmentBuffer:(enabled ? versions : guest) offset:(enabled ? 256*i : 0) atIndex:0];
++        [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
++    }
++    [encoder endEncoding];
++    blit = [cb blitCommandEncoder];
++    [blit copyFromTexture:rt sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0)
++               sourceSize:MTLSizeMake(2,1,1) toBuffer:result destinationOffset:0 destinationBytesPerRow:256 destinationBytesPerImage:256];
++    [blit endEncoding]; [cb commit]; gate.signaledValue = 1; [cb waitUntilCompleted];
++    const uint8_t expected[] = {255,0,255,255,0,255,255,255};
++    if (cb.status != MTLCommandBufferStatusCompleted || prev.status != MTLCommandBufferStatusCompleted ||
++        encoders != (enabled ? 1 : 2) || memcmp(result.contents, expected, sizeof expected)) return 1;
++    printf("PASS tracked Metal in-flight UBO: ring=%d encoders=%d pixels=2/2; direct queue unavailable\n",enabled,encoders);
++    return 0;
++}
+diff --git a/graphics/nvn/tests/t_nvn_ubd_index.m b/graphics/nvn/tests/t_nvn_ubd_index.m
+index 8ea143a..cfae2c7 100644
+--- a/graphics/nvn/tests/t_nvn_ubd_index.m
++++ b/graphics/nvn/tests/t_nvn_ubd_index.m
+@@ -77,6 +77,7 @@ static NSString *const e2e_src = @"#include <metal_stdlib>\nusing namespace meta
+ "struct A { constant float4 *c0 [[id(0)]]; constant float4 *c1 [[id(1)]]; constant float4 *c2 [[id(2)]]; constant float4 *c3 [[id(3)]]; };\n"
+ "fragment float4 fs(constant A &a [[buffer(0)]]) { return a.c3[0]; }\n";
+ static uint64_t g_e9_hash, g_e9_tex; static double g_e9_per;   // ⑨：宽屏一遍的读回指纹、提交里 tex_mtl 次数、每笔次数
++static int inflight_fixture;
+ static void e2e(int bs, int busy, int wide) {
+     enum { POOL = 32 << 20, CMD = 1 << 20, RT = 8 << 20, UB = 16 << 20, W = 64 };
+     static int inited; static NvShader *f; static NVNbufferAddress ga; static NVNtexture rt, rtw; static prog_t p;
+@@ -104,6 +105,20 @@ static void e2e(int bs, int busy, int wide) {
+     pr->sh[0] = v; pr->sh[1] = f; pr->smask = 3;
+     p = (prog_t){.magic = MAGIC('P', 'R', 'O', 'G'), .serial = nvn_new_serial()}; serial_put(p.serial, pr);
+     ga = API(nvnMemoryPoolGetBufferAddress)(&pool); }
++    id<MTLSharedEvent> gate = nil;
++    if (inflight_fixture) {
++        gate = [g_dev newSharedEvent];
++        if (!gate || g_m3) { fprintf(stderr, "Metal 4 shared event required\n"); exit(1); }
++        for (unsigned i=0; i<3; ++i)
++            memset((void *)(uintptr_t)nvn_ga2ca(ga + UB + i*bs), 0, (size_t)bs);
++        nvn_be_queue_wait_event((__bridge void *)gate, 1);
++        nvn_be_sub_begin();
++        float alpha = 1.0f;
++        for (unsigned i=0; i<3; ++i)
++            mtl_sub_update(&alpha, nvn_ga2ca(ga + UB + i*bs) + 12, sizeof alpha);
++        nvn_be_sub_commit();
++    }
++    uint64_t ring0 = g_rb_ub_recovered, splits0 = g_ubd_conflicts;
+     for (int r = 0; r < 4; r++) f->cb_ext[r] = (uint32_t)bs;
+     API(nvnCommandBufferAddCommandMemory)(&cmd, &pool, 0, CMD); API(nvnCommandBufferBeginRecording)(&cmd);
+     if (wide) { g_wd = s2a_widen_init(2346, 1080, S2A_WIDEN_GAME | S2A_WIDEN_FULL); g_wd_gen = s2a_screen_gen(); }
+@@ -115,7 +130,7 @@ static void e2e(int bs, int busy, int wide) {
+         static float blk[4096]; blk[0] = (4 * i) / 255.0f; blk[1] = (255 - 4 * i) / 255.0f; blk[2] = i / 255.0f; blk[3] = 1.0f;
+         for (int k = 4; k < bs / 4; k++) blk[k] = 0.25f;   // 整块写时后面的字节（着色器不读）
+         NVNbufferAddress obj = ga + UB + (wide == 2 ? 0 : (NVNbufferAddress)(i % 3) * (NVNbufferAddress)bs);   // wide 2：每笔都写同一块的块头、绑同一处（宽屏胶水按更新段交核心那条路）
+-        API(nvnCommandBufferUpdateUniformBuffer)(&cmd, obj, (size_t)bs, 0, (i & 1) && !busy ? (size_t)bs : 16, blk);   // ⑥ 只写块头：每笔都走部分覆盖影子
++        API(nvnCommandBufferUpdateUniformBuffer)(&cmd, obj, (size_t)bs, 0, inflight_fixture ? 12 : (i & 1) && !busy ? (size_t)bs : 16, blk);   // ⑥ 只写块头：每笔都走部分覆盖影子
+         API(nvnCommandBufferBindUniformBuffer)(&cmd, NVN_SHADER_STAGE_FRAGMENT, 3, obj, (size_t)bs);
+         if (!wide) API(nvnCommandBufferSetScissor)(&cmd, i, 0, 1, 1);
+         API(nvnCommandBufferDrawArrays)(&cmd, NVN_DRAW_PRIMITIVE_TRIANGLES, 0, 3);
+@@ -125,7 +140,16 @@ static void e2e(int bs, int busy, int wide) {
+     if (busy) {   // ⑥ 拷贝线程先忙一大段（256 MB）：这一遍 ≥ 8 KB 影子的拷贝排在它后面，提交不等就会让 GPU 读到还没写的影子
+         if (!bigs) { bigs = malloc(BIG); bigd = malloc(BIG); memset(bigs, 1, BIG); memset(bigd, 0, BIG); }
+         ubc_push(bigd, bigs, BIG); }
+-    uint64_t d0 = g_ubd_deferred, m0 = g_ubp_made, w0 = g_ubp_why[0] + g_ubp_why[1] + g_ubp_why[2] + g_ubp_why[3] + g_ubp_why[4]; uint64_t x0 = g_tex_mtl_n, dr0 = g_wd_draws; API(nvnQueueSubmitCommands)(&q, 1, &h); API(nvnQueueFinish)(&q);
++    uint64_t d0 = g_ubd_deferred, m0 = g_ubp_made, w0 = g_ubp_why[0] + g_ubp_why[1] + g_ubp_why[2] + g_ubp_why[3] + g_ubp_why[4]; uint64_t x0 = g_tex_mtl_n, dr0 = g_wd_draws; API(nvnQueueSubmitCommands)(&q, 1, &h);
++    if (gate) {
++        gate.signaledValue = 1;
++        int enabled = !strcmp(getenv("S2A_RB_INPASS_UBO_RING") ?: "", "1");
++        CHECK(enabled ? g_rb_ub_recovered > ring0 && g_ubd_conflicts == splits0 :
++                        g_rb_ub_recovered == ring0 && g_ubd_conflicts > splits0,
++              "inflight flag=%d ring=%llu splits=%llu", enabled,
++              (unsigned long long)(g_rb_ub_recovered-ring0), (unsigned long long)(g_ubd_conflicts-splits0));
++    }
++    API(nvnQueueFinish)(&q);
+     CHECK(!mtl_last_commit_error(), "④ GPU 报错");
+     if (wide) {   // ⑨ 读回整张放宽后的存储做指纹（改前 / 改后各编一份比）；提交里 tex_mtl 的次数
+         g_e9_tex = g_tex_mtl_n - x0; g_e9_per = (double)g_e9_tex / (double)(g_wd_draws - dr0 ? g_wd_draws - dr0 : 1);
+@@ -152,8 +176,23 @@ static int checked_uniform_ranges(void) {
+     uint8_t *pool = NULL;
+     if (posix_memalign((void **)&pool, 65536, 65536)) return 1;
+     memset(pool, 0x47, 65536);
+-    nvn_be_sub_begin();
+-    nvn_be_pool_add(pool, 65536);
++    id<MTLDevice> device = MTLCreateSystemDefaultDevice();
++    if (!device) return 1;
++    MTLResidencySetDescriptor *rd = [MTLResidencySetDescriptor new]; rd.initialCapacity=4096;
++    BOOL tracked = ![device newResidencySetWithDescriptor:rd error:NULL];
++    if (tracked) {
++        // This fixture exercises ubp_get's CPU proof, independently of the
++        // separate in-flight pixel fixture. Give it real shared Metal storage.
++        g_m3 = 1; g_dev = device;
++        g_cur_arena = [NvArena new];
++        g_cur_arena->buf = [device newBufferWithLength:65536 options:MTLResourceStorageModeShared];
++        if (!g_cur_arena->buf) return 1;
++        g_cur_arena->len = g_cur_arena->buf.length;
++        pend_reset();
++    } else {
++        nvn_be_sub_begin();
++        nvn_be_pool_add(pool, 65536);
++    }
+     uint64_t base = (uint64_t)(uintptr_t)pool, gpu = 0;
+     const uint8_t *cpu = NULL;
+     uint64_t next = g_done + 10;
+@@ -161,11 +200,18 @@ static int checked_uniform_ranges(void) {
+     sbw_note(base + 48, 8, SBW_REPORT);
+     gw_commit(next);
+     pend_reset();
++    g_rb_ub_current = NULL; // this negative control isolates the earlier byte-range proof
+     CHECK(gw_live(base, base + 16) && !gw_check(base, base + 16, 1), "disjoint report on the same live page");
+     CHECK(gw_check(base + 48, base + 49, 1), "overlapping byte of an outstanding report");
+     uint8_t update[16];
+     memset(update, 0xab, sizeof update);
+-    mtl_sub_update(update, base + 44, sizeof update);
++    if (tracked) {
++        g_ubs_buf = [device newBufferWithBytes:update length:sizeof update options:MTLResourceStorageModeShared];
++        int entry = pend_add(base+44, sizeof update, 1);
++        if (!g_ubs_buf || entry < 0) return 1;
++        g_upd[g_nupd] = (upd_ent){base+44, 0, g_ubs_buf};
++        g_pend_upd[entry] = (uint16_t)++g_nupd;
++    } else mtl_sub_update(update, base + 44, sizeof update);
+     rb_ub_ranges = 0;
+     CHECK(!ubp_get(base, base + 128, &gpu, &cpu), "legacy page-level rejection");
+     rb_ub_ranges = 1;
+@@ -180,7 +226,26 @@ static int checked_uniform_ranges(void) {
+     printf("NVN2 uniform range check: %u failures\n", bad);
+     return !!bad;
+ }
++#include "rb_ubo_tracked_pixels.inc"
++
+ int main(int argc, char **argv) { @autoreleasepool {
++    if (argc == 2 && !strcmp(argv[1], "--inflight")) {
++        signal(SIGALRM, on_alarm); alarm(60);
++        id<MTLDevice> device = MTLCreateSystemDefaultDevice();
++        if (!device) return 1;
++        BOOL direct = NO;
++        if (@available(macOS 26.0, iOS 26.0, *)) {
++            MTLResidencySetDescriptor *rd = [MTLResidencySetDescriptor new]; rd.initialCapacity = 4096;
++            direct = device.hasUnifiedMemory && [device supportsFamily:MTLGPUFamilyMetal4] &&
++                     [device newResidencySetWithDescriptor:rd error:NULL] &&
++                     [device newMTL4CommandQueueWithDescriptor:[MTL4CommandQueueDescriptor new] error:NULL];
++        }
++        if (!direct) return rb_ubo_tracked_pixels(device);
++        e2e(256, 0, 0); // populate pipelines before holding the GPU at the event
++        inflight_fixture = 1;
++        e2e(256, 0, 0);
++        return bad ? 1 : 0;
++    }
+     if (argc == 2 && !strcmp(argv[1], "--rb-uniform-ranges")) return checked_uniform_ranges();
+     signal(SIGALRM, on_alarm); alarm(60);
+     e2e(256, 0, 0); e2e(16384, 0, 0); e2e(16384, 1, 0);
+diff --git a/graphics/nvn/tests/t_rb_clear_batch_metal.m b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+index 11210d0..d8b262c 100644
+--- a/graphics/nvn/tests/t_rb_clear_batch_metal.m
++++ b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+@@ -41,6 +41,10 @@ static void native_pair(int mode, ClearImage out) {
+         a.rt.n=2; a.rt.color[1]=&targets[1];
+         b.rt=a.rt; b.clear_c[1]=1; b.cc[1]=MTLClearColorMake(colors[1],0,0,1);
+     }
++    if (mode == 4) { // R0 cleared twice before either group is observed
++        a.cc[0] = MTLClearColorMake(-0.75,0,0,1);
++        b.clear_c[0] = 1; b.cc[0] = MTLClearColorMake(colors[0],0,0,1);
++    }
+     if (mode == 3) { // one work pass keeps the next clear's color bound but untouched
+         b.rt = (p_set_rt){.n=1,.color={&targets[1]}};
+         b.clear_c[1]=0; b.clear_c[0]=1; b.cc[0]=MTLClearColorMake(colors[1],0,0,1);
+@@ -52,7 +56,7 @@ static void native_pair(int mode, ClearImage out) {
+             uint64_t before=atomic_load(&g_rb_clear_saved), projected=atomic_load(&g_rb_mrt_batch);
+             g_lc[0]=a; g_lc[1]=b; g_nlc=2;
+             lc_land();
+-            int should_merge=mode!=3 || rb_tile_enabled(RB_TILE_MRT);
++            int should_merge=mode==4 ? rb_mrt_repeated_on() : mode!=3 || rb_tile_enabled(RB_TILE_MRT);
+             CHECK(atomic_load(&g_rb_clear_saved)==before+should_merge);
+             CHECK(atomic_load(&g_rb_mrt_batch)==projected+(mode==3 && should_merge));
+         } else CHECK(rb_clear_combine(&a,&b));
+@@ -71,7 +75,7 @@ static void tracked_pair(id<MTLDevice> dev, int combined, ClearImage out) {
+     id<MTLTexture> t[2]={[dev newTextureWithDescriptor:d],[dev newTextureWithDescriptor:d]};
+     CHECK(t[0] && t[1]);
+     RBClearPlan projected={0};
+-    if (combined == 2) {
++    if (combined >= 2) {
+         static unsigned char mem[512];
+         pool_t backing={.mem=mem,.size=sizeof mem};
+         tex_t guest[2]={0}; lc_group a={0}, b={0};
+@@ -84,12 +88,20 @@ static void tracked_pair(id<MTLDevice> dev, int combined, ClearImage out) {
+         }
+         a.rt=(p_set_rt){.n=2,.color={&guest[0],&guest[1]}}; a.clear_c[0]=1; a.cc[0]=MTLClearColorMake(colors[0],0,0,1);
+         b.rt=(p_set_rt){.n=1,.color={&guest[1]}}; b.clear_c[0]=1; b.cc[0]=MTLClearColorMake(colors[1],0,0,1);
++        if (combined == 3) {
++            b.rt=a.rt; b.clear_c[1]=1; b.cc[1]=MTLClearColorMake(colors[1],0,0,1);
++            b.cc[0]=MTLClearColorMake(colors[0],0,0,1); a.cc[0]=MTLClearColorMake(-0.75,0,0,1);
++            RBClearPlan control={0};
++            CHECK(!rb_clear_joined_set(&control,&a,&b,0));
++            CHECK(rb_clear_joined_set(&projected,&a,&b,1) && projected.planes.count==2);
++        } else {
+         RBClearPlan old={0}; CHECK(!rb_clear_include(&old,&a,0));
+         CHECK(rb_projected_pair(&projected,&a,&b) && projected.planes.count==2);
+         CHECK(projected.native[0]==t[0] && projected.native[1]==t[1]);
+         RBClearPlan clash={0}; CHECK(!rb_projected_pair(&clash,&a,&a));
+         tex_t alias=guest[0]; alias.serial=911; a.rt.color[1]=&alias;
+         lc_group bad; CHECK(!rb_clear_project(&a,&b,&bad));
++        }
+     } else if (combined) {
+         rb_clear_batch batch={0};
+         rb_clear_plane a={0x100000,65536,(uintptr_t)(__bridge void *)t[0],WIDTH,HEIGHT,4,0};
+@@ -109,8 +121,8 @@ static void tracked_pair(id<MTLDevice> dev, int combined, ClearImage out) {
+         MTLRenderPassDescriptor *pass=[MTLRenderPassDescriptor renderPassDescriptor];
+         for (int i=0; i<2; i++) if (combined || p==i) {
+             MTLRenderPassColorAttachmentDescriptor *at=pass.colorAttachments[i];
+-            at.texture=combined==2 ? projected.native[i] : t[i]; at.loadAction=MTLLoadActionClear; at.storeAction=MTLStoreActionStore;
+-            at.clearColor=combined==2 ? projected.group.cc[i] : MTLClearColorMake(colors[i],0,0,1);
++            at.texture=combined>=2 ? projected.native[i] : t[i]; at.loadAction=MTLLoadActionClear; at.storeAction=MTLStoreActionStore;
++            at.clearColor=combined>=2 ? projected.group.cc[i] : MTLClearColorMake(colors[i],0,0,1);
+         }
+         id<MTLRenderCommandEncoder> enc=[cb renderCommandEncoderWithDescriptor:pass]; CHECK(enc); [enc endEncoding];
+     }
+@@ -297,6 +309,7 @@ int main(int argc,char **argv) { @autoreleasepool {
+                 if (mrt_enabled) {
+                     tracked_store(dev,1,1,after); CHECK(!memcmp(before,after,sizeof before));
+                     tracked_pair(dev,2,after); CHECK(!memcmp(before,after,sizeof before));
++                    tracked_pair(dev,3,after); CHECK(!memcmp(before,after,sizeof before));
+                     puts("PASS tracked Metal with production NVN2 MRT planner: full overwrite, one fused encoder, alias refusal, 512 identical pixels");
+                 }
+             }
+@@ -325,7 +338,7 @@ int main(int argc,char **argv) { @autoreleasepool {
+     native_pair(0,before);
+     if (enabled) CHECK(g_bar_covered>covered);
+     if (!titles || enabled) {
+-        for (int mode=1; mode<=(enabled ? 3 : 2); mode++) { native_pair(mode,after); CHECK(!memcmp(before,after,sizeof before)); }
++        for (int mode=1; mode<=(enabled ? 4 : 2); mode++) { native_pair(mode,after); CHECK(!memcmp(before,after,sizeof before)); }
+     }
+     if (titles) {
+         // An explicit legacy zero keeps the old broad TBDR mode disabled.
+diff --git a/graphics/nvn/tests/t_rb_ubo_versions.c b/graphics/nvn/tests/t_rb_ubo_versions.c
+new file mode 100644
+index 0000000..02ebc03
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_ubo_versions.c
+@@ -0,0 +1,39 @@
++#include "../gfx/nvn/rb_ubo_versions.h"
++#include <assert.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <sys/mman.h>
++#include <unistd.h>
++
++static rb_ub_versions versions;
++int main(void) {
++    const size_t n = 8192;
++    uint8_t *guest = mmap(NULL, n, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
++    assert(guest != MAP_FAILED);
++    uint64_t addr = (uintptr_t)guest;
++    uint8_t old[32], fresh[16], have[32], out[32];
++    memset(old, 31, sizeof old); memset(fresh, 43, sizeof fresh);
++    rb_ub_frame *first = rb_ub_begin(&versions, 1);
++    rb_ub_capture(first, addr+4090, 32, old);
++    rb_ub_frame *second = rb_ub_begin(&versions, 2);
++    rb_ub_capture(second, addr+4100, 16, fresh);
++    // None of these guest bytes can be touched, even momentarily.
++    assert(mprotect(guest, n, PROT_NONE) == 0);
++    memset(have, 0, sizeof have);
++    assert(rb_ub_base(&versions, 0, 2, addr+4090, addr+4122, out, have));
++    for (size_t i=0; i<32; i++) assert(out[i] == (i>=10 && i<26 ? 43 : 31));
++    rb_ub_opaque(first, addr+4101, 2); // replaced by a known later writer
++    memset(have, 0, sizeof have);
++    assert(rb_ub_base(&versions, 0, 2, addr+4090, addr+4122, out, have));
++    rb_ub_opaque(second, addr+4091, 2);
++    memset(have, 0, sizeof have);
++    assert(!rb_ub_base(&versions, 0, 2, addr+4090, addr+4122, out, have));
++    memset(have, 0, sizeof have); have[1] = have[2] = 1; // newest inline bytes
++    assert(rb_ub_base(&versions, 0, 2, addr+4090, addr+4122, out, have));
++    // Reusing an unretired slot cannot supply its predecessor's bytes.
++    for (uint64_t f=3; f<=1+RB_UB_FRAMES; f++) rb_ub_begin(&versions, f);
++    memset(have, 0, sizeof have);
++    assert(!rb_ub_base(&versions, 0, 1+RB_UB_FRAMES, addr, addr+32, out, have));
++    assert(munmap(guest, n)==0);
++    puts("UBO versions: overlap, opaque writes, wrap and protected memory passed");
++}

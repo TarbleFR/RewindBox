@@ -1,0 +1,182 @@
+From c2a213681a9ed03ca53ad746cff3d4141e074169 Mon Sep 17 00:00:00 2001
+From: RewindBox <dev@rewindbox.local>
+Date: Sat, 21 Nov 2026 12:23:02 +0100
+Subject: [PATCH] Bound Fair registered prewarm under shader queue saturation
+
+---
+ graphics/nvn/gfx/nvn/nvn_mtl.m          | 12 ++---
+ graphics/nvn/gfx/nvn/rb_observed_pool.h | 25 +++++++++--
+ graphics/nvn/tests/t_nvn_warmbump.m     | 60 +++++++++++++++++++++++++
+ 3 files changed, 86 insertions(+), 11 deletions(-)
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 450e47b..66945cb 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -15320,21 +15320,17 @@ static void warm_task(WarmTask *t) {
+     if (!rb_picked_registered) { warm_task_local(t); return; }
+     rb_picked_registered = NO;
+     // Preserve the warm group's completion, reference accounting and teardown
+-    // ordering. Only its worker waits. A saturated observed pool still makes
+-    // progress on the worker that already owns this exact row.
++    // ordering. Only the background owner of this row waits. Even when all
++    // observed slots are busy, preserve the two active compiler limit.
+     dispatch_semaphore_t done = dispatch_semaphore_create(0);
+-    if (!rb_observed_enqueue(^{
++    if (rb_observed_admit(&g_observed, ^{
+         if (!nvn_be_stopping() && !dm_gfx_session_stopping()) {
+             rb_warm_context = YES;
+             g_rb_picked_hint = 0;
+             warm_task_local(t);  // Includes its stage libraries and variants.
+         }
+         dispatch_semaphore_signal(done);
+-    })) {
+-        if (!nvn_be_stopping() && !dm_gfx_session_stopping()) warm_task_local(t);
+-    } else {
+-        dispatch_semaphore_wait(done, DISPATCH_TIME_FOREVER);
+-    }
++    }, 1)) dispatch_semaphore_wait(done, DISPATCH_TIME_FOREVER);
+     rb_warm_context = NO;
+ }
+ static void warm_task_(WarmTask *t) {
+diff --git a/graphics/nvn/gfx/nvn/rb_observed_pool.h b/graphics/nvn/gfx/nvn/rb_observed_pool.h
+index caf153b..acad7d2 100644
+--- a/graphics/nvn/gfx/nvn/rb_observed_pool.h
++++ b/graphics/nvn/gfx/nvn/rb_observed_pool.h
+@@ -10,16 +10,27 @@
+ enum { RB_OBSERVED_LANES = 2, RB_OBSERVED_LIMIT = 32 };
+ typedef struct {
+     pthread_mutex_t mu;
++    pthread_cond_t room;
++    unsigned waiters;
+     dispatch_queue_t queue[RB_OBSERVED_LANES];
+     unsigned outstanding[RB_OBSERVED_LANES], peak, next;
+     uint64_t accepted, full;
+     int stopped;
+ } rb_observed_pool;
+-#define RB_OBSERVED_POOL_INIT { .mu = PTHREAD_MUTEX_INITIALIZER }
++#define RB_OBSERVED_POOL_INIT { .mu = PTHREAD_MUTEX_INITIALIZER, .room = PTHREAD_COND_INITIALIZER }
+ 
+-static inline int rb_observed_submit(rb_observed_pool *pool, dispatch_block_t job) {
++static inline int rb_observed_admit(rb_observed_pool *pool, dispatch_block_t job, int wait_for_slot) {
+     pthread_mutex_lock(&pool->mu);
+     unsigned outstanding = pool->outstanding[0]+pool->outstanding[1];
++    while (wait_for_slot && !pool->stopped && outstanding >= RB_OBSERVED_LIMIT) {
++        pool->waiters++;
++#ifdef RB_TEST_REGISTERED_WAIT
++        RB_TEST_REGISTERED_WAIT();
++#endif
++        pthread_cond_wait(&pool->room,&pool->mu);
++        pool->waiters--;
++        outstanding = pool->outstanding[0]+pool->outstanding[1];
++    }
+     if (pool->stopped || outstanding >= RB_OBSERVED_LIMIT) {
+         if (!pool->stopped) pool->full++;
+         pthread_mutex_unlock(&pool->mu);
+@@ -38,6 +49,7 @@ static inline int rb_observed_submit(rb_observed_pool *pool, dispatch_block_t jo
+             @autoreleasepool { job(); }
+             pthread_mutex_lock(&pool->mu);
+             pool->outstanding[lane]--;
++            if (pool->waiters) pthread_cond_signal(&pool->room);
+             pthread_mutex_unlock(&pool->mu);
+         });
+     dispatch_async(pool->queue[lane],rated);
+@@ -47,8 +59,15 @@ static inline int rb_observed_submit(rb_observed_pool *pool, dispatch_block_t jo
+     pthread_mutex_unlock(&pool->mu);
+     return 1;
+ }
++static inline int rb_observed_submit(rb_observed_pool *pool, dispatch_block_t job) {
++    // Draw/translation callers never wait for queue admission.
++    return rb_observed_admit(pool,job,0);
++}
+ static inline void rb_observed_stop(rb_observed_pool *pool) {
+-    pthread_mutex_lock(&pool->mu); pool->stopped=1; pthread_mutex_unlock(&pool->mu);
++    pthread_mutex_lock(&pool->mu);
++    pool->stopped=1;
++    if (pool->waiters) pthread_cond_broadcast(&pool->room);
++    pthread_mutex_unlock(&pool->mu);
+ }
+ static inline int rb_observed_drain(rb_observed_pool *pool,dispatch_time_t deadline) {
+     dispatch_group_t done=dispatch_group_create();
+diff --git a/graphics/nvn/tests/t_nvn_warmbump.m b/graphics/nvn/tests/t_nvn_warmbump.m
+index 6807489..4064f60 100644
+--- a/graphics/nvn/tests/t_nvn_warmbump.m
++++ b/graphics/nvn/tests/t_nvn_warmbump.m
+@@ -22,6 +22,9 @@ static void transition_test_before_pick(void);
+ #define s2a_main_build_id rb_transition_test_game_build
+ static int registered_rows_enabled;
+ #define RB_TEST_REGISTERED_ROWS() registered_rows_enabled
++static void rb_registered_full(void);
++#define RB_TEST_REGISTERED_WAIT() rb_registered_full()
++#define RB_TEST_FIRST_FRAME 1
+ #include "../gfx/nvn/nvn_mtl.m"
+ #undef s2a_main_build_id
+ #undef s2a_nvn_game_id
+@@ -91,7 +94,64 @@ static void test_reservation_race(int tier, int expected) {
+        "warm row and held translation both resume exactly once");
+ }
+ static NSString *seq(_Atomic long *next, int k) { NSMutableArray *o = [NSMutableArray array]; for (int i = 0; i < k; i++) [o addObject:@(warm_pick(next, 6, -1, &(int){0}))]; return [o componentsJoinedByString:@" "]; }
++static dispatch_semaphore_t rb_full_signal;
++static void rb_registered_full(void) {
++    if (rb_full_signal) dispatch_semaphore_signal(rb_full_signal);
++}
++// Start from an observed program registration and a HOLD speculative tier.
++static int fair_registered(NSString *root) { @autoreleasepool {
++    registered_rows_enabled = 1;
++    rb_test_first_scope = 1;
++    setenv("S2A_RB_DIRECT_GAME_ID","0000000000000042",1);
++    setenv("DM_PSO_ARCHIVE","0",1);
++    NSString *wire = [root stringByAppendingPathComponent:@"docs/wire/0000000000000042"];
++    NSString *shaders = [wire stringByAppendingPathComponent:@"shaders"];
++    NSString *air = [shaders stringByAppendingPathComponent:@RB_AIR_FOLDER "/iphoneos"];
++    GPU_CHECK([NSFileManager.defaultManager createDirectoryAtPath:air withIntermediateDirectories:YES attributes:nil error:nil]);
++    setenv("DM_MSL_FALLBACK",shaders.fileSystemRepresentation,1);
++    setenv("DM_PSO_USER",[wire stringByAppendingPathComponent:@"pso_user.tsv"].fileSystemRepresentation,1);
++    GPU_CHECK(rb_disk_setting("S2A_RB_STAGE_BINARIES") && rb_disk_setting("S2A_RB_STAGE_DISK_WARM"));
++    rb_disk_launch(nil, YES);
++    dispatch_sync(g_rb_disk_q, ^{});
++    GPU_CHECK(atomic_load(&g_rb_disk_online) && [g_rb_binary_dir isEqual:air]);
++    g_dev = MTLCreateSystemDefaultDevice();
++    GPU_CHECK(g_dev);
++    NSString *key=@"0102030405060708_b";
++    NSString *base=[shaders stringByAppendingPathComponent:key];
++    write_test_text([base stringByAppendingPathExtension:@"metal"],
++        @"#include <metal_stdlib>\nusing namespace metal; kernel void main0(device uint *v [[buffer(0)]]) { v[0]=7; }");
++    NSDictionary *refl=@{@"chain":@DMSH_CHAIN,@"xfp":@(s2a_dsh_xfp()),@"route":@"B",
++        @"stage":@"cs",@"key":key,@"entry":@"main0",@"bindings":@[]};
++    GPU_CHECK([[NSJSONSerialization dataWithJSONObject:refl options:0 error:nil]
++        writeToFile:[base stringByAppendingPathExtension:@"json"] atomically:YES]);
++    // An empty initial pack and a game-specific fallback, as on first device use.
++    setenv("DM_MSL_DIR",wire.fileSystemRepresentation,1);
++    NSString *map=[wire stringByAppendingPathComponent:@"shader_map.tsv"];
++    write_test_text(map,@""); setenv("DM_NVN_SHMAP",map.fileSystemRepresentation,1);
++    WarmTask *task=[WarmTask new]; task->kind=2; task->key=key;
++    NSArray *tasks=@[task]; warm_urgent_index(tasks);
++    atomic_store(&g_spec_sampled,UINT64_MAX); rb_spec_publish(&g_spec_gate,RB_SPEC_HOLD);
++    warm_bump("compute",key.UTF8String);
++    dispatch_semaphore_t release = dispatch_semaphore_create(0);
++    rb_full_signal = dispatch_semaphore_create(0);
++    for (unsigned i = 0; i < RB_OBSERVED_LIMIT; ++i)
++        GPU_CHECK(rb_observed_enqueue(^{ dispatch_semaphore_wait(release,DISPATCH_TIME_FOREVER); }));
++    GPU_CHECK(g_wu_q.count==1);
++    __block _Atomic long next=0;
++    dispatch_group_t done=dispatch_group_create();
++    dispatch_group_async(done,dispatch_get_global_queue(QOS_CLASS_DEFAULT,0),^{ warm_background_rows(tasks,&next,0,0); });
++    GPU_CHECK(!dispatch_semaphore_wait(rb_full_signal, dispatch_time(DISPATCH_TIME_NOW, 5*NSEC_PER_SEC)));
++    // The warm worker is waiting for a place; a submit-path request is still nonblocking.
++    GPU_CHECK(!rb_observed_enqueue(^{}));
++    for (unsigned i = 0; i < RB_OBSERVED_LIMIT; ++i) dispatch_semaphore_signal(release);
++    GPU_CHECK(!dispatch_group_wait(done, dispatch_time(DISPATCH_TIME_NOW, 30*NSEC_PER_SEC)));
++    GPU_CHECK(g_observed.accepted==RB_OBSERVED_LIMIT+1 && g_warm_cps==1 && atomic_load(&g_wu_taken)==1);
++    GPU_CHECK(atomic_load(&g_spec_gate.level)==RB_SPEC_HOLD);
++    puts("PASS docs/wire shader-disk, Fair registered compute program to observed worker, Metal library and PSO built");
++    return 0;
++} }
+ int main(int argc, char **argv) {
++    if (argc == 3 && !strcmp(argv[1],"--fair-registered")) return fair_registered(@(argv[2]));
+     if (argc > 1) return transition_test_main(argc, argv);
+     @autoreleasepool {
+         __block _Atomic long next = 0; warm_urgent_index(mk());
+-- 
+2.56.1
+

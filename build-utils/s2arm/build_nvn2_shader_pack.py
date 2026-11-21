@@ -85,6 +85,15 @@ def build(args, output, work):
     air.mkdir(parents=True)
     all_files = sorted(args.shaders.iterdir())
     entries, stages, fingerprints = {}, {}, set()
+    sources = {}
+    for path in all_files:
+        if path.suffix not in ('.metal', '.msl') or not STAGE_FILE.fullmatch(path.stem):
+            continue
+        if path.stem in sources:
+            if sources[path.stem].read_bytes() != path.read_bytes():
+                raise ValueError(f'Conflicting .metal and .msl sources for {path.stem}')
+            continue
+        sources[path.stem] = path
     for path in all_files:
         m = STAGE_FILE.fullmatch(path.stem)
         if path.suffix != '.json' or not m or m[2] not in KINDS or KINDS[m[2]][1] is None:
@@ -98,12 +107,11 @@ def build(args, output, work):
             if meta['stage'] not in STAGES:
                 raise ValueError(f'Unknown stage in {path.name}: {meta["stage"]}')
             stages[m[1]] = STAGES[meta['stage']]
-        if not path.with_suffix('.metal').is_file() and not meta.get('gs_slice'):
+        if path.stem not in sources and not meta.get('gs_slice'):
             raise ValueError(f'Missing source for {path.name}')
         entries[(int(m[1], 16), KINDS[m[2]][1])] = (path, 0)
     if not stages or len(fingerprints) != 1:
         raise ValueError('Expected translated stage pairs from exactly one translator fingerprint')
-    sources = [p for p in all_files if p.suffix == '.metal' and STAGE_FILE.fullmatch(p.stem)]
     if not sources:
         raise ValueError('No translated Metal stages in the shader directory')
     subprocess.run(['xcrun', '--sdk', 'macosx', 'clang', '-std=c11', '-D_DARWIN_C_SOURCE',
@@ -112,7 +120,7 @@ def build(args, output, work):
     # dynamic variant genuinely needs the same bytes in it.
     base = work / 'base'
     base.mkdir()
-    for source in sources:
+    for source in sources.values():
         key, suffix = STAGE_FILE.fullmatch(source.stem).groups()
         if key not in stages:
             raise ValueError(f'No base-stage reflection for {source.name}')
@@ -133,7 +141,7 @@ def build(args, output, work):
             entries[(int(key, 16), kinds[0])] = (path, 80)
         # The runtime still consults MSL for reflection and generated variants.
         if kinds and kinds[1] is not None:
-            (root / source.name).write_bytes(raw)
+            (root / (source.stem + '.metal')).write_bytes(raw)
         if b'(*spvDescriptorSet0.vp_c0)._m0[100].y' in raw:
             rewritten = subprocess.run([str(work / 'rewrite')], input=raw, stdout=subprocess.PIPE, check=True).stdout
             if raw != rewritten:

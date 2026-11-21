@@ -1,0 +1,427 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 159bcbb..045615b 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3002,6 +3002,16 @@ void nvn_hle_queue_enter(void *q) {
+     vsh_sync();   // copies of non-aliasable virtual pool pages: what the CPU wrote behind them since (hle_nvn.c vsh_*)
+ }
+ void nvn_hle_piece_begun(void) { nvn_ft_poll(); }
++// A wait-only prefix can omit its empty CB only when a poll could not have
++// scheduled a dirty texture upload. Queue entry (including virtual copies)
++// still runs at the original submission point.
++__attribute__((visibility("hidden"))) int nvn_hle_prefix_poll_idle(void) {
++    if (!DM_GAME_TEX_DIRTY_UPLOAD) return 1;
++    pthread_mutex_lock(&g_ft_mu);
++    int idle = g_nft == 0;
++    pthread_mutex_unlock(&g_ft_mu);
++    return idle;
++}
+ #include "rb_submit_gap.h"
+ #include "rb_course_metrics.h"
+ extern int s2a_rb_mkw_measure(void) __attribute__((weak_import));
+@@ -3281,7 +3291,8 @@ static __thread struct {
+     unsigned generation;
+     rb_rt_gate gate;
+     rb_rt_fallback fallback;
+-    uint64_t cpu_last, legacy_period;
++    uint64_t cpu_last, legacy_period, next_policy_check;
++    int recovered_revocation;
+     double cpu_samples[120];
+     unsigned cpu_count;
+ } t_rb_rt;
+@@ -3926,7 +3937,29 @@ static void set_time_constraint_comp(uint64_t period_ns, uint64_t comp_ns) {
+ #endif
+     rb_rt_tuple request = {p.period, p.computation};
+     if (gated) {
+-        enum rb_rt_decision d = rb_rt_consider(&t_rb_rt.gate, request, now_ns(), atomic_load_explicit(&g_frame, memory_order_relaxed));
++        uint64_t now = now_ns();
++#if defined(__APPLE__)
++        static _Atomic int recheck;
++        if (!t_rb_rt.recovered_revocation && rb_rt_equal(t_rb_rt.gate.requested,request) &&
++            now >= t_rb_rt.next_policy_check && rb_pacing_setting(&recheck,"S2A_RB_RT_RECHECK")) {
++            t_rb_rt.next_policy_check = now + 5000000000ull;
++            if (dm_thermal_now() >= 1) {
++                thread_time_constraint_policy_data_t actual = {0};
++                mach_msg_type_number_t count = THREAD_TIME_CONSTRAINT_POLICY_COUNT;
++                boolean_t def = FALSE;
++                kern_return_t rc = thread_policy_get(pthread_mach_thread_np(pthread_self()),
++                    THREAD_TIME_CONSTRAINT_POLICY,(thread_policy_t)&actual,&count,&def);
++                if (rc == KERN_SUCCESS && def) {
++                    // The kernel revoked a previously verified tuple. Retry once
++                    // on its owner; a second revocation remains under OS control.
++                    t_rb_rt.recovered_revocation = 1;
++                    t_rb_rt.gate = (rb_rt_gate){0};
++                    LOG("[rb-rt] owner=acquire observed_revocation=1 retry_budget=1");
++                }
++            }
++        }
++#endif
++        enum rb_rt_decision d = rb_rt_consider(&t_rb_rt.gate, request, now, atomic_load_explicit(&g_frame, memory_order_relaxed));
+         if (d == RB_RT_SAME) { atomic_fetch_add_explicit(&rb_rt_same,1,memory_order_relaxed); return; }
+         if (d == RB_RT_WAIT) { atomic_fetch_add_explicit(&rb_rt_deferred,1,memory_order_relaxed); return; }
+     }
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 450e47b..faf3703 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -793,14 +793,19 @@ static void udc_selftest(void) {
+ #if TARGET_OS_IPHONE
+ // 弱链接[nvntest]：s2a_guest_heat_publish (runtime owns the guest threads)
+ extern void s2a_guest_heat_publish(int) __attribute__((weak_import));
++static _Atomic int rb_heat_installed;
+ static void rb_guest_heat_monitor(void) {
++    if (atomic_load_explicit(&rb_heat_installed,memory_order_acquire)) return;
+     const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
+     const char *option = getenv("S2A_RB_GUEST_QOS_THERMAL");
+     const char *all = getenv("S2A_RB_NVN2_GUEST_QOS");
+     int generic = nvn2_on() && (!all || !strcmp(all, "1"));
+     if (g_m3 || !title || !*title || (!generic && strcasecmp(title, "0400C3F00006E000")) ||
+-        (option && strcmp(option, "1")) || ![g_dev.name isEqualToString:@"Apple A18 Pro GPU"] ||
+-        !s2a_guest_heat_publish) return;
++        (!generic && ![g_dev.name isEqualToString:@"Apple A18 Pro GPU"]) || !s2a_guest_heat_publish) return;
++    if (option && strcmp(option,"1")) {
++        atomic_store_explicit(&rb_heat_installed,1,memory_order_release);
++        return;
++    }
+     static dispatch_once_t once;
+     dispatch_once(&once, ^{
+         const char *resume=getenv("S2A_RB_GUEST_QOS_TRANSITIONS");
+@@ -832,6 +837,7 @@ static void rb_guest_heat_monitor(void) {
+         });
+         MLOG("[RB-GUEST-QOS] active=1 main/gameplay/submit/present/encode preserved");
+     });
++    atomic_store_explicit(&rb_heat_installed,1,memory_order_release);
+ }
+ #endif
+ void mtl_init(void) {
+@@ -1532,11 +1538,17 @@ static uint64_t g_arena_gen = 1;
+ static void ts_sub_begin(void);   // segment boundary timestamps (ts_on, before sub_cut)
+ static void sub_cut_begin(void);   // the segment draw count starts with the submission (before sub_cut)
+ static void dsnap_stale(void);   // #387 (with fb_prepare)
++static void rb_fair_sample(void);
+ void nvn_be_sub_begin(void) {
+     rb_warm_resume();  // first submit of an explicitly resumed session
+     rb_sub_open(1);   // RewindBox (patch 0071): a submission is open (waits for the pressure handler's idle release, rb_press_release)
+     dsnap_stale();   // #387: depth may change between submissions (CPU writes, other queues)
+-    mtl_init(); g_sub_serial++; g_pkg_epoch++; g_sub_vgen = nvn_sparse_gen(); wd_sub_begin(); g_seg = 0; seg_clk_put(g_sclk); g_sclk = NULL; rc_retire(); g_rc_npend = 0; g_rc_skip = 0;   // RewindBox (patch 0031): g_sub_vgen
++    mtl_init();
++#if TARGET_OS_IPHONE
++    rb_guest_heat_monitor();
++#endif
++    rb_fair_sample();
++    g_sub_serial++; g_pkg_epoch++; g_sub_vgen = nvn_sparse_gen(); wd_sub_begin(); g_seg = 0; seg_clk_put(g_sclk); g_sclk = NULL; rc_retire(); g_rc_npend = 0; g_rc_skip = 0;   // RewindBox (patch 0031): g_sub_vgen
+     defer_drain();
+     defer_reset();
+     void treg_sweep_gone(void); treg_sweep_gone();
+@@ -5191,7 +5203,7 @@ static id<MTLTexture> tex_upgrade(const tex_t *t, id<MTLTexture> asked, MTLTextu
+     if (!upgraded) { RED_ONCE(45, "texture upgrade failed ser=%llu format %lu → %lu usage %#lx", t->serial, (unsigned long)base.pixelFormat, (unsigned long)view_pf, (unsigned long)d.usage); return asked; }
+     if (!root && (d.usage & MTLTextureUsageShaderAtomic)) tex_note_atomic(upgraded);
+     if (!root) res_add(upgraded);
+-    { NvRsInfo *ri = rs_info(base); if (ri) rs_set_info_at(upgraded, ri->state, ri->cw, ri->ch, ri->scale); }   // S2Arm internal resolution: same size, same record (nvn_rscale.inc)
++    { NvRsInfo *ri = rs_info(base); if (ri) { rs_set_info_at(upgraded, ri->state, ri->cw, ri->ch, ri->scale); rs_info(upgraded)->fairScale = ri->fairScale; } }   // S2Arm internal resolution: same size, same record (nvn_rscale.inc)
+     id<MTL4ComputeCommandEncoder> b = base.buffer ? nil : blit();
+     NSUInteger slices = base.textureType == MTLTextureType3D ? 1 : base.arrayLength * (base.textureType == MTLTextureTypeCube || base.textureType == MTLTextureTypeCubeArray ? 6 : 1);
+     for (NSUInteger l = 0; !base.buffer && l < base.mipmapLevelCount; l++) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_rscale.inc b/graphics/nvn/gfx/nvn/nvn_rscale.inc
+index e2570e4..81f6b9a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rscale.inc
++++ b/graphics/nvn/gfx/nvn/nvn_rscale.inc
+@@ -24,12 +24,40 @@ static double rs_setting(void) {
+     }
+     return g_rs;
+ }
++// Sample on the serialized submit path. A hot session keeps scale metadata
++// active during recovery until all existing scaled roots have been seen again.
++static _Atomic int rb_fair_seen;
++static double rb_fair_factor, rb_fair_current = 1.;
++static uint64_t rb_fair_sample_at, rb_fair_cool_since;
++static void rb_fair_sample(void) {
++    if (!nvn_rb_thermal_scope()) return;
++    if (rb_fair_factor == 0.) {
++        const char *value = getenv("S2A_RB_FAIR_SCALE");
++        char *end = NULL;
++        double v = value ? strtod(value,&end) : 0.85;
++        rb_fair_factor = ((!value || (end != value && !*end)) && v >= 0.5 && v < 1.) ? v : 1.;
++    }
++    if (rb_fair_factor >= 1.) return;
++    uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
++    if (rb_fair_sample_at && now - rb_fair_sample_at < 500000000ull) return;
++    rb_fair_sample_at = now;
++    int heat = (int)NSProcessInfo.processInfo.thermalState;
++    double prior = rb_fair_current;
++    if (heat > 0) {
++        rb_fair_cool_since = 0;
++        rb_fair_current = rb_fair_factor;
++        atomic_store_explicit(&rb_fair_seen,1,memory_order_relaxed);
++    } else if (!rb_fair_cool_since) rb_fair_cool_since = now;
++    else if (now - rb_fair_cool_since >= 30000000000ull) rb_fair_current = 1.;
++    if (prior != rb_fair_current)
++        MLOG("[rb-fair-scale] thermal=%d requested_factor=%.3f", heat, rb_fair_current);
++}
+ static _Atomic int g_rb_shadow_pass;
+-static inline int rs_on(void) { return rb_drs_enabled() || (g_rs < 0 ? rs_setting() : g_rs) < 1.0 || atomic_load_explicit(&g_rb_shadow_pass, memory_order_relaxed); }
++static inline int rs_on(void) { return atomic_load_explicit(&rb_fair_seen,memory_order_relaxed) || rb_drs_enabled() || (g_rs < 0 ? rs_setting() : g_rs) < 1.0 || atomic_load_explicit(&g_rb_shadow_pass, memory_order_relaxed); }
+ 
+ // 每份存储的缩放记录挂在 Metal 根贴图上（关联对象：存储释放时一起走，地址复用不会认错）
+ enum { RS_NONE = 0, RS_SCALED = 1, RS_BLACK = 2 };
+-@interface NvRsInfo : NSObject { @public int state; NSUInteger cw, ch; double scale; uint32_t logged; } @end
++@interface NvRsInfo : NSObject { @public int state; BOOL fairScale; NSUInteger cw, ch; double scale; uint32_t logged; } @end
+ @implementation NvRsInfo @end
+ static char k_rs_info;
+ static id<MTLTexture> rs_root(id<MTLTexture> t0) { id<MTLTexture> t = t0; while (t.parentTexture) t = t.parentTexture; return t; }
+diff --git a/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc b/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc
+index 093ce17..5f3bcd0 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc
++++ b/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc
+@@ -75,8 +75,12 @@ static void rs_note_skip(const tex_t *t, const char *why) {
+     static int n; if (n++ < 16) MLOG("内部分辨率：渲染目标 ser=%llu %ux%u 格式 %#x 标志 %#x 不缩（%s）", (unsigned long long)t->serial, t->d.width, t->d.height, t->d.format, t->d.flags, why ? why : "?");
+ }
+ static double rs_target_factor(const tex_t *t, id<MTLTexture> base) {
+-    (void)t; (void)base;
+-    return rs_setting();
++    (void)base;
++    double user = rs_setting();
++    if (user == 1. && t && t->d.width >= 1280 && t->d.height >= 720 &&
++        t->d.width > t->d.height && t->d.levels == 1 && t->d.samples <= 1)
++        return rb_fair_current;
++    return user;
+ }
+ static int rs_rts(int clear_only) {
+     if (!rs_on()) return 1;
+@@ -118,6 +122,13 @@ static int rs_rts(int clear_only) {
+     for (int k = 0; k < n; k++) {
+         id<MTLTexture> b = tex_mtl(ts[k]); int st = rs_state(b);
+         if (!b) continue;
++        if (st == RS_SCALED && rs_info(b)->fairScale && rb_fair_current == 1.) {
++            id<MTLTexture> native = rs_rescale_to(b,1.,"thermal recovery");
++            if (!native) return 0;
++            rs_set_info_at(native,RS_NONE,0,0,1.);
++            b = native;
++            st = RS_NONE;
++        }
+         double factor = st == RS_SCALED ? rs_of(b) : rs_target_factor(ts[k], b);
+         if (desired && desired != factor) block = 1;
+         if (!desired) desired = factor;
+@@ -132,7 +143,11 @@ static int rs_rts(int clear_only) {
+     }
+     if (!block) for (int k = 0; k < n; k++) {
+         id<MTLTexture> b = tex_mtl(ts[k]);
+-        if (b && rs_state(b) == RS_NONE && !rs_rescale_to(b, desired, NULL)) { block = 1; break; }
++        if (b && rs_state(b) == RS_NONE) {
++            id<MTLTexture> scaled = rs_rescale_to(b,desired,NULL);
++            if (!scaled) { block = 1; break; }
++            rs_info(scaled)->fairScale = desired < 1. && rs_setting() == 1.;
++        }
+     }
+     // Every active plane must agree. Keep the old root and its real factor if
+     // promotion fails so a later retry can recover; never encode a mixed pass.
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index e80b0fa..2c272f5 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -161,6 +161,7 @@ int nvn_be_shutdown_session(void) {
+     atomic_store_explicit(&g_rs_scene_count, 0, memory_order_relaxed);
+     os_unfair_lock_unlock(&g_rs_scene_lock);
+     g_rs_native_draw = 0; g_rs = -1;
++    rb_fair_factor = 0.; rb_fair_current = 1.; rb_fair_sample_at = rb_fair_cool_since = 0; atomic_store(&rb_fair_seen,0);
+     // The retired session's descriptor registry and pools have been drained.
+     os_unfair_lock_lock(&g_rb_exposure_lock);
+     memset(&g_rb_descriptor_bytes, 0, sizeof g_rb_descriptor_bytes);
+diff --git a/graphics/nvn/gfx/nvn/nvn_xqueue.inc b/graphics/nvn/gfx/nvn/nvn_xqueue.inc
+index 00b31f7..eb8b8f0 100644
+--- a/graphics/nvn/gfx/nvn/nvn_xqueue.inc
++++ b/graphics/nvn/gfx/nvn/nvn_xqueue.inc
+@@ -19,6 +19,7 @@ typedef struct {
+     int parked;                       // 1 = waiting for (val, mode, v); 2 = waiting for queue dep to drain (QueueWaitSync on its owed fence); 0 = runnable
+     volatile uint32_t *val; uint32_t mode, v; void *dep;
+     int indexed;                     // number of continuation roots whose signal set has been read
++    int omitted_prefix;
+     uint64_t parked_at;                // host wall clock at a real event park
+     uint64_t since;                   // g_xq_subs when parked
+     sync_t **owed; int nowed, ocap;   // fences taken on this queue while it had parked work
+@@ -35,7 +36,16 @@ __attribute__((weak)) void nvn_hle_piece_begun(void) {}   // hle_nvn.c: texture
+ 
+ // The submission lock serializes queue state and option initialization. Generic NVN2
+ // uses the same decision as the title; explicit 0/1 also permits a hardware A/B.
+-static int rb_xq_override = -2;
++static int rb_xq_override = -2, rb_xq_prefix_option = -1;
++static uint64_t rb_xq_prefixes;
++__attribute__((weak,visibility("hidden"))) int nvn_hle_prefix_poll_idle(void) { return 1; } // standalone backend
++static int rb_xq_prefix_on(void) {
++    if (rb_xq_prefix_option < 0) {
++        const char *v = getenv("S2A_RB_XQ_WAIT_PREFIX");
++        rb_xq_prefix_option = !v || !strcmp(v,"1");
++    }
++    return rb_xq_prefix_option;
++}
+ static _Atomic int rb_xq_nested_option;
+ static int rb_xq_resume_on(void) {
+     if (rb_xq_override == -2) {
+@@ -47,7 +57,7 @@ static int rb_xq_resume_on(void) {
+ static uint64_t rb_xq_saved_scans, rb_xq_fused, rb_xq_rechecks, rb_xq_park_ns;
+ static uint64_t rb_xq_extra_replay_ns, rb_xq_extra_commit_ns, rb_xq_extra_block_ns[4];
+ static void rb_xq_resume_reset(void) {
+-    rb_xq_override = -2;
++    rb_xq_override = -2; rb_xq_prefix_option = -1; rb_xq_prefixes = 0;
+     atomic_store(&rb_xq_nested_option,0);
+     rb_xq_saved_scans = rb_xq_fused = rb_xq_rechecks = rb_xq_park_ns = 0;
+     rb_xq_extra_replay_ns = rb_xq_extra_commit_ns = 0;
+@@ -147,12 +157,13 @@ static void xq_vbuf_save(xq_state *x, int slot) {
+     const xq_vbuf *old = xq_vbuf_find(g_xq_state_active, lo, hi);   // the pool was finalized after the preceding park; transfer its held dependency if this piece parks again
+     if (old) { x->vb[slot] = (xq_vbuf){lo, hi, old->base, old->gpu, old->buf}; xq_buf_hold_add(old->buf); }
+ }
+-static void *xq_state_save(void) {
+-    size_t k = g_rc_npend, n = sizeof(xq_state) + k * sizeof(uint64_t); xq_state *x = calloc(1, n); if (!x) MDIE("no memory for a parked queue's state");
+-    memcpy(&x->s, &S, sizeof S); memcpy(&x->r, &R, sizeof R); x->rc_skip = g_rc_skip; x->nrc = k; if (k) memcpy(x->rc, g_rc_pend, k * sizeof(uint64_t));
++static void *xq_state_save_at(int before_begin) {
++    size_t k = before_begin ? 0 : g_rc_npend, n = sizeof(xq_state) + k * sizeof(uint64_t); xq_state *x = calloc(1, n); if (!x) MDIE("no memory for a parked queue's state");
++    memcpy(&x->s, &S, sizeof S); memcpy(&x->r, &R, sizeof R); x->rc_skip = before_begin ? 0 : g_rc_skip; x->nrc = k; if (k) memcpy(x->rc, g_rc_pend, k * sizeof(uint64_t));
+     for (int i = 0; i < 16; i++) xq_vbuf_save(x, i);
+     return x;
+ }
++static void *xq_state_save(void) { return xq_state_save_at(0); }
+ static void xq_state_load(const void *p) {
+     const xq_state *x = p; memcpy(&S, &x->s, sizeof S); memcpy(&R, &x->r, sizeof R); g_rc_skip = x->rc_skip;
+     for (size_t i = 0; i < x->nrc; i++) rc_note(x->rc[i], 1);
+@@ -236,11 +247,46 @@ static int rb_xq_late_ready(void *q, uint64_t f0, uint64_t w0, uint64_t v0, uint
+     pthread_mutex_unlock(&g_evw_mu);
+     return ready;
+ }
++// A real future GPU signal cannot arrive during the short snapshot recheck.
++// If a new queue submission starts with that wait, park before opening its CB.
++// The resumed piece performs all draws and owns every subsequent guest fence.
++// Peers, CPU-writable events, reports and work before the wait use normal replay.
++static int rb_xq_park_prefix(void *q, const uint64_t *h, int n) {
++    if (!rb_xq_resume_on() || !rb_xq_prefix_on() || n < 1 || !q || g_nxq ||
++        !g_rb_pc_n || g_defer_nact || g_hoist_n || g_ret_n || !h[0]) return 0;
++    const uint8_t *p = (const uint8_t *)(uintptr_t)h[0];
++    op_hdr op;
++    memcpy(&op,p,sizeof op);
++    if (op.op == OP_BEGIN && op.size == 8) { p += 8; memcpy(&op,p,sizeof op); }
++    if (rec_bad(op) || op.op != OP_SIGNAL_EVENT || op.size != 24) return 0;
++    volatile uint32_t *word; uint32_t mode,value;
++    memcpy(&word,p+8,8); memcpy(&mode,p+16,4); memcpy(&value,p+20,4);
++    if (!word || !(mode & NVN_EV_WAIT) || !nvn_hle_prefix_poll_idle()) return 0;
++    mode &= ~NVN_EV_WAIT;
++    pthread_mutex_lock(&g_evw_mu);
++    int index = eva_at(word);
++    int pending = !g_evs_over && index >= 0 && g_eva[index].gpu && !g_eva[index].cpu &&
++                  !ev_cond(ev_now_locked(word),mode,value);
++    pthread_mutex_unlock(&g_evw_mu);
++    if (!pending) return 0;
++    xq_state_deactivate();
++    void *snapshot = xq_state_save_at(1);
++    pthread_mutex_lock(&g_xq_mu);
++    xq_t *e = &g_xq[g_nxq++];
++    *e = (xq_t){.q=q,.state=snapshot,.parked=1,.val=word,.mode=mode,.v=value,
++                .since=g_xq_subs,.parked_at=clock_gettime_nsec_np(CLOCK_UPTIME_RAW),.omitted_prefix=1};
++    pthread_mutex_unlock(&g_xq_mu);
++    xq_push(e,(uint64_t)(uintptr_t)(p+op.size));
++    for (int i=1;i<n;i++) xq_push(e,h[i]);
++    g_xq_parks++; rb_xq_fused++; rb_xq_prefixes++;
++    return 1;
++}
+ // One piece: replay streams h[0..n) of queue q as a submission; returns 1 if it parked (the rest is in q's entry)
+ static int xq_piece(void *q, const uint64_t *h, int n, const void *state) {
+     uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW), w0 = g_rb_qwait_n, v0 = g_rb_evwait_n, f0 = g_rb_fsync_n, m0 = g_mdi_waits;   // RewindBox (patch 0072)
+     int follows = g_rb_pc_last == g_rb_pc_call; g_rb_pc_last = g_rb_pc_call;
+     nvn_hle_queue_enter(q);
++    if (!state && rb_xq_park_prefix(q,h,n)) return 1;
+ #ifdef RB_XQ_TEST_DEVICE
+     rb_test_xq_begin();
+ #else
+@@ -315,12 +361,16 @@ static int xq_ready(const xq_t *e) {
+ }
+ // Replay a queue's parked work (it may park again); force = released without its wait being met
+ static void xq_run(xq_t *e, int force) {
++    int omitted_prefix = e->omitted_prefix; e->omitted_prefix = 0;
+     void *q = e->q; uint64_t *c = e->cont; int nc = e->ncont; void *st = e->state;
+     rb_xq_saved_scans += (uint64_t)(nc - e->indexed);
+     if (e->parked == 1) rb_xq_park_ns += clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - e->parked_at;
+     e->cont = NULL; e->ncont = e->ccap = e->indexed = 0; e->state = NULL; e->parked = 0; e->nsig = e->sigall = 0;
+     if (force) { g_xq_forced++; } else g_xq_resumes++;
+-    if (nc) {
++    if (nc && omitted_prefix) {
++        // This is the only CB for this guest submission, not extra replay.
++        xq_piece(q,c,nc,st);
++    } else if (nc) {
+         uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW), enc = g_rb_pc_enc, commit = g_rb_pc_commit, blocked[4];
+         memcpy(blocked, t_rb_blk, sizeof blocked);
+         g_xq_pieces++;
+@@ -343,8 +393,8 @@ static void xq_stats(void) {
+     MLOG("cross-queue event waits up to submission %llu: parked %llu, resumed %llu, kept released (lookahead spans the wait) %llu, cycles %llu, released by force %llu, owed fences %llu, queue waits behind a parked queue %llu, parked now %d; extra pieces %llu (%.1f ms submit thread in them), cycle checks %.1f ms; RewindBox: parks at events the game only sets back %llu, waits on the GPU released by a signal recorded after them %llu",
+          (unsigned long long)g_xq_subs, (unsigned long long)g_xq_parks, (unsigned long long)g_xq_resumes, (unsigned long long)g_xq_busy, (unsigned long long)g_xq_cycles, (unsigned long long)g_xq_forced,
+          (unsigned long long)g_xq_owed_n, (unsigned long long)g_xq_deps, g_nxq, (unsigned long long)g_xq_pieces, g_xq_piece_ns / 1e6, g_xq_check_ns / 1e6, sb, late);
+-    MLOG("RewindBox [xqueue] resume=%d suffix_scans_avoided=%llu late_ready_checks=%llu pieces_avoided=%llu park_to_resume_wall_ms=%.2f extra_replay_ms=%.2f extra_commit_ms=%.2f tracked_cpu_wait_ms[fence,encode_or_copy_worker,readback_or_upload,owed]=%.2f,%.2f,%.2f,%.2f (cumulative; CPU waits are within the piece times)",
+-         rb_xq_resume_on(), (unsigned long long)rb_xq_saved_scans, (unsigned long long)rb_xq_rechecks, (unsigned long long)rb_xq_fused,
++    MLOG("RewindBox [xqueue] resume=%d suffix_scans_avoided=%llu late_ready_checks=%llu pieces_avoided=%llu empty_prefixes=%llu park_to_resume_wall_ms=%.2f extra_replay_ms=%.2f extra_commit_ms=%.2f tracked_cpu_wait_ms[fence,encode_or_copy_worker,readback_or_upload,owed]=%.2f,%.2f,%.2f,%.2f (cumulative; CPU waits are within the piece times)",
++         rb_xq_resume_on(), (unsigned long long)rb_xq_saved_scans, (unsigned long long)rb_xq_rechecks, (unsigned long long)rb_xq_fused, (unsigned long long)rb_xq_prefixes,
+          rb_xq_park_ns / 1e6, rb_xq_extra_replay_ns / 1e6, rb_xq_extra_commit_ns / 1e6,
+          rb_xq_extra_block_ns[0] / 1e6, rb_xq_extra_block_ns[1] / 1e6, rb_xq_extra_block_ns[2] / 1e6, rb_xq_extra_block_ns[3] / 1e6);
+     // RewindBox (patch 0072): the pieces' costs (since the last line) and the signal lists
+diff --git a/graphics/nvn/tests/t_nvn_xqueue.m b/graphics/nvn/tests/t_nvn_xqueue.m
+index b3d183e..4eec42e 100644
+--- a/graphics/nvn/tests/t_nvn_xqueue.m
++++ b/graphics/nvn/tests/t_nvn_xqueue.m
+@@ -165,10 +165,13 @@ int main(void) { @autoreleasepool {
+     wait_eq(&a1, &E, 1); copy(&a1, D, X, 4096); end(&a1);
+     copy(&a2, X, Z, 4096); end(&a2);
+     fill(&b1, D, 4096, 0x22222222u); ev(&b1, &E, 0, 1); end(&b1);
+-    uint64_t p0 = g_xq_parks;
++    uint64_t p0 = g_xq_parks, pre0 = rb_xq_prefixes;
+     stream *va[] = {&a1}, *va2[] = {&a2}, *vb[] = {&b1};
+     submit(&QA, va, 1); submit(&QA, va2, 1); submit(&QB, vb, 1);
+     int ok = settle();
++    VERIFY(rb_xq_prefixes == pre0 + (fast && rb_xq_prefix_on()),
++           "future producer skips exactly the empty consumer prefix (%llu), order verified by readback",
++           (unsigned long long)(rb_xq_prefixes-pre0));
+     VERIFY(ok && X[0] == 0x22 && X[4095] == 0x22, "① 计算队列先提交、等图形队列后发的信号：X = %#x（期望 0x22，改前 0x11），停住 %llu 次，完成 %d", X[0], (unsigned long long)(g_xq_parks - p0), ok);
+     VERIFY(Z[0] == 0x22 && Z[4095] == 0x22, "② 停住期间同队列再提交：排在后面，Z = %#x（期望 0x22）", Z[0]);
+     // ③ 等待在子列表里
+diff --git a/runtime/tests/rb_guest_heat_owner.inc b/runtime/tests/rb_guest_heat_owner.inc
+index 78a32c2..b52ead6 100644
+--- a/runtime/tests/rb_guest_heat_owner.inc
++++ b/runtime/tests/rb_guest_heat_owner.inc
+@@ -5,6 +5,7 @@
+ int rb_lf_switch(int phase) { (void)phase; return -1; }
+ int s2a_guest_fd(void) { return -1; }
+ static int rb_test_hosted;
++int s2a_platform_ounce(void) { return rb_test_hosted; }
+ int s2a_rb_guest_on(void) { return rb_test_hosted; }
+ extern void s2a_guest_heat_publish(int);
+ extern void s2a_guest_heat_stats_report(const char *,uint64_t);
+@@ -46,7 +47,9 @@ static int rb_owner_test(void) {
+     const char *setting=getenv("S2A_RB_GUEST_QOS_TRANSITIONS");
+     int enabled=!setting || !strcmp(setting,"1");
+     rb_test_hosted=1;
+-    setenv("S2A_RB_DIRECT_GAME_ID","0400C3F00006E000",1);
++    int wire = getenv("S2A_TEST_GENERIC_WIRE") != NULL;
++    setenv("S2A_RB_DIRECT_GAME_ID",wire ? "0400000000000123" : "0400C3F00006E000",1);
++    if (wire) setenv("DM_PSO_USER","/Documents/docs/wire/0400000000000123/pso_user.tsv",1);
+     setenv("S2A_RB_GUEST_QOS_THERMAL","1",1);
+     setenv("S2A_RB_GUEST_QOS_STATS","1",1);
+     setenv("S2A_CORES","0",1);
+@@ -70,11 +73,12 @@ static int rb_owner_test(void) {
+     while (atomic_load(&rb_ready)!=3) usleep(1000);
+     unsigned requests[2];
+     s2a_test_guest_heat_requests(requests);
+-    CHECK(requests[0]==(unsigned)enabled && !requests[1],"Fair attempted %u reductions, %u restores",requests[0],requests[1]);
++    unsigned expected = enabled ? 1u + (unsigned)wire : 0u;
++    CHECK(requests[0]==expected && !requests[1],"Fair attempted %u reductions, %u restores",requests[0],requests[1]);
+     CHECK(rb_test_current()==QOS_CLASS_USER_INTERACTIVE,"main retains interactive QoS at Fair");
+     for (unsigned i=0;i<3;i++) {
+         CHECK(!rb_wait_rc[i] && rb_initial[i]==QOS_CLASS_USER_INTERACTIVE,"nx-%u baseline and wait result",82+i);
+-        CHECK(rb_at_fair[i]==(enabled && i==0 ? QOS_CLASS_USER_INITIATED : QOS_CLASS_USER_INTERACTIVE),
++        CHECK(rb_at_fair[i]==(enabled && (i==0 || (wire && i==1)) ? QOS_CLASS_USER_INITIATED : QOS_CLASS_USER_INTERACTIVE),
+               "nx-%u actual requested pthread QoS after Fair %#x",82+i,(unsigned)rb_at_fair[i]);
+     }
+     s2a_guest_heat_stats_report("fixture-fair",1);
+@@ -83,7 +87,7 @@ static int rb_owner_test(void) {
+     atomic_store(&rb_phase,1);
+     while (atomic_load(&rb_completed)!=3) usleep(1000);
+     s2a_test_guest_heat_requests(requests);
+-    CHECK(requests[0]==(unsigned)enabled && requests[1]==(unsigned)enabled,
++    CHECK(requests[0]==expected && requests[1]==expected,
+           "idempotent owner transitions across 128 polls: down=%u up=%u",requests[0],requests[1]);
+     for (unsigned i=0;i<3;i++) CHECK(rb_at_nominal[i]==QOS_CLASS_USER_INTERACTIVE,"nx-%u after Nominal",82+i);
+     s2a_guest_heat_stats_report("fixture-nominal",2);
