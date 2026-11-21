@@ -383,3 +383,5 @@ For title `04007EF01F8AE000`, `S2A_RB_SCALE_RETAIN=1` checks the shader's direct
 Patches 0234–0237 implement build-bound pacing profiles, bounded file-backed page hints, first-upload batching and metadata preparation, and display-link cadence. The [A18 Pro measurement and profile guide](../../../docs/evidence/s2arm-upload-pacing.md) lists the switches, limits and verification criteria.
 
 The [A18 Pro thermal comparison](../../../docs/evidence/s2arm-thermal-813.md) documents the hosted NVN2 DRS threshold, presentation scheduling, pipeline memory and archive budgets, guest QoS and resource-proven tile-pass rules.
+
+Patches 0245–0246 bound the hosted iOS presentation thread’s time constraint and limit optional memory retention under process compression or thermal pressure. See the [capture replay and device checks](../../../docs/evidence/s2arm-present-freeze.md).

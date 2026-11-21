@@ -18,7 +18,7 @@ Les chemins ci-dessous sont relatifs à l’arbre S2Arm après application des p
 | Variable dans `Documents/env.txt` | Défaut dans ce test | Témoin ou variante |
 | --- | --- | --- |
 | `S2A_RB_DRS_THERMAL_STATE` | `1` (Fair) | `2` pour la règle Serious de la 810. `0` désactive le relèvement thermique de TIMESTAMP. `S2A_RB_DRS_THERMAL=0` a priorité. |
-| `S2A_RB_RT_DEBOUNCE` | `1` | `0` rétablit les déclarations Mach antérieures. |
+| `S2A_RB_RT_DEBOUNCE` | `1` | Dans le lot 0238, `0` rétablit les déclarations Mach antérieures. À partir de 0245, le budget de 2 ms et le filtre 1 ↔ 2 sont obligatoires sur le chemin NVN2 hébergé sur iOS. |
 | `S2A_RB_TICK_WAKE_FILTER` | `1` | `0` rétablit les notifications antérieures. |
 | `S2A_RB_PSO_HEADROOM` | `1` | `0` rétablit les plafonds du gouverneur précédent. |
 | `S2A_RB_PSO_THERMAL_WORKERS` | `1` | `0` rétablit les admissions précédentes. Le contrôle explicite `S2A_RB_SPEC_GOVERN=0` garde sa priorité. |

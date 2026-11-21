@@ -1,0 +1,174 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 7199e9d2679a418cc17dbc3e47d4a0180d1611b0..eac6c45bb00eded53eb90a3448768a2000a33452 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4384,7 +4384,9 @@ static int rb_txr_small_on(void) { static int v = -1; if (v < 0) { const char *e
+ static _Atomic uint64_t rb_texture_budget = 192ull << 20;
+ static uint64_t rb_texture_sample_frame = UINT64_MAX;
+ static uint64_t rb_texture_share(unsigned sixteenths) {
+-    return atomic_load_explicit(&rb_texture_budget, memory_order_relaxed) / 16 * sixteenths;
++    uint64_t budget = atomic_load_explicit(&rb_texture_budget,memory_order_relaxed);
++    if (rb_gov_on()) budget = MIN(budget,rb_gov_quota(RB_GOV_TEXTURE));
++    return budget / 16 * sixteenths;
+ }
+ static uint64_t txr_bytes_cap(void) { return rb_txr_small_on() ? (48ull << 20) : TXR_BYTES; }
+ static uint64_t txr_idle_frames(void) { return rb_txr_small_on() ? 120 : TXR_IDLE; }
+diff --git a/graphics/nvn/gfx/nvn/rb_gov_plan.h b/graphics/nvn/gfx/nvn/rb_gov_plan.h
+index 2130c16f5509a4708aa50a4b8957275a6389df70..0059a841c409ed62c4cc281c92fcf893d96e86cc 100644
+--- a/graphics/nvn/gfx/nvn/rb_gov_plan.h
++++ b/graphics/nvn/gfx/nvn/rb_gov_plan.h
+@@ -3,6 +3,37 @@
+ #include <stdint.h>
+ enum { RB_GOV_PREFETCH, RB_GOV_UPLOAD, RB_GOV_TEXTURE, RB_GOV_PIPELINE };
+ enum { RB_GOV_NORMAL, RB_GOV_WARN, RB_GOV_CRITICAL };
++// The pressure counter is TASK_VM_INFO.compressed in logical bytes for this process.
++typedef struct {
++    uint64_t below_since_ns;
++    int active;
++} rb_gov_stress_state;
++
++static inline int rb_gov_stressed(rb_gov_stress_state *state, uint64_t now_ns,
++                                  uint64_t compressed_bytes, int thermal) {
++    int known = compressed_bytes != UINT64_MAX;
++    if (thermal >= 1 || (known && compressed_bytes > (512ull << 20))) {
++        state->active = 1;
++        state->below_since_ns = 0;
++    } else if (state->active) {
++        if (thermal != 0 || !known || compressed_bytes > (448ull << 20)) {
++            state->below_since_ns = 0;
++        } else if (!state->below_since_ns || now_ns < state->below_since_ns) {
++            state->below_since_ns = now_ns;
++        } else if (now_ns - state->below_since_ns >= 10000000000ull) {
++            state->active = 0;
++            state->below_since_ns = 0;
++        }
++    }
++    return state->active;
++}
++
++static inline unsigned rb_gov_ceiling(unsigned tier, int stressed) {
++    if (tier == RB_GOV_CRITICAL) return 32;
++    if (stressed) return 96;
++    return tier == RB_GOV_WARN ? 128 : 512;
++}
++
+ // The floor is published with the plan. Transfer its bytes from the texture
+ // share, keeping the total exactly equal to the existing governor ceiling.
+ #define RB_GOV_PSO_FLOOR (1u << 31)
+diff --git a/graphics/nvn/gfx/nvn/rb_memory_governor.inc b/graphics/nvn/gfx/nvn/rb_memory_governor.inc
+index 65ff0837c35101cb481475d6f583d16c1096958b..2045b65c2fab95588342939e443d7287a3005588 100644
+--- a/graphics/nvn/gfx/nvn/rb_memory_governor.inc
++++ b/graphics/nvn/gfx/nvn/rb_memory_governor.inc
+@@ -10,6 +10,28 @@ static int rb_gov_on(void) { return rb_tex_budget_on() && rb_pso_cap_on(); }
+ static uint64_t rb_gov_quota(unsigned owner) {
+     return rb_gov_share(atomic_load_explicit(&rb_gov_plan,memory_order_acquire),owner);
+ }
++#if TARGET_OS_IPHONE
++static rb_gov_stress_state rb_gov_stress; // guarded by rb_gov_mu
++static uint64_t rb_gov_next_probe;        // guarded by rb_gov_mu
++static _Atomic int rb_gov_probe_pending;
++static _Atomic uint64_t rb_gov_compressed = UINT64_MAX;
++
++// Request VM accounting only while the existing governor is active. One utility
++// job per second at most, no extra timer and no task_info call on the submit thread.
++static void rb_gov_probe_compression(uint64_t now) {
++    if (now < rb_gov_next_probe || atomic_exchange(&rb_gov_probe_pending,1)) return;
++    rb_gov_next_probe = now + NSEC_PER_SEC;
++    dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
++        task_vm_info_data_t info = {0};
++        mach_msg_type_number_t count = TASK_VM_INFO_REV0_COUNT;
++        kern_return_t kr = task_info(mach_task_self(),TASK_VM_INFO,(task_info_t)&info,&count);
++        uint64_t value = kr == KERN_SUCCESS && count >= TASK_VM_INFO_REV0_COUNT ?
++                         (uint64_t)info.compressed : UINT64_MAX;
++        atomic_store_explicit(&rb_gov_compressed,value,memory_order_release);
++        atomic_store(&rb_gov_probe_pending,0);
++    });
++}
++#endif
+ static void rb_gov_sample(unsigned long event) {
+ #if TARGET_OS_IPHONE
+     uint64_t now = bp_now();
+@@ -23,9 +45,14 @@ static void rb_gov_sample(unsigned long event) {
+     if (event & DISPATCH_MEMORYPRESSURE_CRITICAL) rb_gov_critical_until = now + 15ull*NSEC_PER_SEC;
+     if (event & (DISPATCH_MEMORYPRESSURE_CRITICAL | DISPATCH_MEMORYPRESSURE_WARN))
+         rb_gov_warn_until = now + 30ull*NSEC_PER_SEC;
++    rb_gov_probe_compression(now);
++    uint64_t compressed = atomic_load_explicit(&rb_gov_compressed,memory_order_acquire);
++    int thermal = (int)NSProcessInfo.processInfo.thermalState;
++    int was_stressed = rb_gov_stress.active;
++    int stressed = rb_gov_stressed(&rb_gov_stress,now,compressed,thermal);
+     unsigned old = atomic_load(&rb_gov_plan), tier = RB_GOV_NORMAL;
+     if (now < rb_gov_critical_until || room <= (768ull << 20)) tier = RB_GOV_CRITICAL;
+-    else if (now < rb_gov_warn_until || room == UINT64_MAX || room <= (2048ull << 20)) tier = RB_GOV_WARN;
++    else if (stressed || now < rb_gov_warn_until || room == UINT64_MAX || room <= (2048ull << 20)) tier = RB_GOV_WARN;
+     unsigned before = old & 3u;
+     if (tier < before) {
+         uint64_t floor = before == RB_GOV_CRITICAL ? (1024ull << 20) : (2304ull << 20);
+@@ -34,17 +61,18 @@ static void rb_gov_sample(unsigned long event) {
+         if (!rb_gov_recover_since || now - rb_gov_recover_since < 10ull*NSEC_PER_SEC) tier = before;
+     } else rb_gov_recover_since = 0;
+     if (tier != before) rb_gov_recover_since = 0;
+-    unsigned ceiling = tier == RB_GOV_NORMAL ? 512 : tier == RB_GOV_WARN ? 128 : 32;
++    unsigned ceiling = rb_gov_ceiling(tier,stressed);
+     unsigned mib = room == UINT64_MAX ? 64 : (unsigned)MIN((uint64_t)ceiling,MAX(16ull,(room >> 20)/8));
+     mib = MIN(ceiling,(mib / 16) * 16);
+     unsigned plan = rb_gov_make_plan(mib,tier,room,rb_kart_option(RB_KART_HEADROOM),old);
+     atomic_store_explicit(&rb_gov_plan,plan,memory_order_release);
+     if (event || plan != old) MLOG("[RB-MEM-GOV] owner=prefetch optional_reads=%s budget_bytes=%llu",
+         tier == RB_GOV_NORMAL ? "admitted" : "held", (unsigned long long)rb_gov_share(plan,RB_GOV_PREFETCH));
+-    if (event || plan != old) MLOG("[RB-MEM-GOV] tier=%u event=%lu headroom_MiB=%lld total_MiB=%u ordered_quotas_bytes prefetch=%llu upload=%llu texture=%llu pipeline=%llu",
++    if (event || plan != old || was_stressed != stressed) MLOG("[RB-MEM-GOV] tier=%u event=%lu headroom_MiB=%lld total_MiB=%u ordered_quotas_bytes prefetch=%llu upload=%llu texture=%llu pipeline=%llu thermal=%d compressed_logical_bytes=%lld stress_cap=%d",
+         tier,event,room == UINT64_MAX ? -1ll : (long long)(room >> 20),mib,
+         (unsigned long long)rb_gov_share(plan,0),(unsigned long long)rb_gov_share(plan,1),
+-        (unsigned long long)rb_gov_share(plan,2),(unsigned long long)rb_gov_share(plan,3));
++        (unsigned long long)rb_gov_share(plan,2),(unsigned long long)rb_gov_share(plan,3),
++        thermal,compressed == UINT64_MAX ? -1ll : (long long)compressed,stressed);
+     pthread_mutex_unlock(&rb_gov_mu);
+ #else
+     (void)event;
+diff --git a/graphics/nvn/tests/t_rb_gov_stress.c b/graphics/nvn/tests/t_rb_gov_stress.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..772c94d755d9363292f65196964310b34c93f2ec
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_gov_stress.c
+@@ -0,0 +1,40 @@
++// SPDX-License-Identifier: Apache-2.0
++#include "../gfx/nvn/rb_gov_plan.h"
++#include <assert.h>
++#include <stdio.h>
++
++int main(void) {
++    const uint64_t mib = 1ull << 20, sec = 1000000000ull;
++    rb_gov_stress_state state = {0};
++    assert(!rb_gov_stressed(&state,sec,UINT64_MAX,0));
++    assert(!rb_gov_stressed(&state,2*sec,512*mib,0));
++    assert(rb_gov_stressed(&state,3*sec,512*mib+1,0));
++    assert(rb_gov_stressed(&state,4*sec,448*mib,0));
++    assert(rb_gov_stressed(&state,13*sec,448*mib,0));
++    assert(rb_gov_stressed(&state,14*sec,UINT64_MAX,0));
++    assert(rb_gov_stressed(&state,20*sec,448*mib,0));
++    assert(rb_gov_stressed(&state,30*sec,448*mib+1,0));
++    assert(rb_gov_stressed(&state,31*sec,0,0));
++    assert(rb_gov_stressed(&state,41*sec,0,1));
++    assert(rb_gov_stressed(&state,42*sec,0,0));
++    assert(rb_gov_stressed(&state,52*sec-1,0,0));
++    assert(!rb_gov_stressed(&state,52*sec,0,0));
++    for (int thermal=1;thermal<=3;thermal++) {
++        rb_gov_stress_state cold = {0};
++        assert(rb_gov_stressed(&cold,sec,UINT64_MAX,thermal));
++    }
++    assert(rb_gov_ceiling(RB_GOV_NORMAL,0)==512 && rb_gov_ceiling(RB_GOV_WARN,0)==128);
++    assert(rb_gov_ceiling(RB_GOV_CRITICAL,1)==32 && rb_gov_ceiling(RB_GOV_CRITICAL,0)==32);
++    for (int floor=0;floor<=1;floor++) {
++        // headroom_MiB=2533 was the previous return to Normal in the incident.
++        unsigned plan=rb_gov_make_plan(rb_gov_ceiling(RB_GOV_WARN,1),RB_GOV_WARN,2533*mib,floor,0);
++        assert(rb_gov_share(plan,RB_GOV_PREFETCH)==0);
++        assert(rb_gov_share(plan,RB_GOV_UPLOAD)==18*mib);
++        assert(rb_gov_share(plan,RB_GOV_TEXTURE)==(floor ? 54 : 72)*mib);
++        assert(rb_gov_share(plan,RB_GOV_PIPELINE)==(floor ? 24 : 6)*mib);
++        uint64_t sum=0;
++        for (unsigned i=0;i<4;i++) sum+=rb_gov_share(plan,i);
++        assert(sum==96*mib);
++    }
++    puts("PASS memory governor compression, Fair, recovery and owner quotas");
++}

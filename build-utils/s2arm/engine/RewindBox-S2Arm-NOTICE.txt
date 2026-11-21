@@ -86,3 +86,5 @@ RewindBox adds optional tracking of descriptor aliases and sealed NVN command li
 RewindBox adds opt-in resolution retention, verified shadow-caster scaling, prepared MetalFX input sizes and GPU/thermal resolution control. These modifications and their tests are part of the direct Metal renderer.
 
 RewindBox adds build-specific presentation profiles, bounded file advice and texture upload preparation, and display-link pacing with on-screen measurements.
+
+RewindBox limits the hosted NVN2 presentation budget, debounces host cadence changes and adapts retained memory to process compression and thermal state.

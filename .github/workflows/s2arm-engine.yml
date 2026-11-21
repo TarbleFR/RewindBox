@@ -156,6 +156,21 @@ jobs:
           set -euo pipefail
           python3 build-utils/s2arm/engine/prefetch_sources.py "$RUNNER_TEMP/s2arm" \
             "$RUNNER_TEMP/s2arm-build-cache/sources" | tee -a proof/inputs.txt
+      - name: Check the presentation freeze and memory governor on macOS arm64
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-freeze-check]')
+        working-directory: ${{ runner.temp }}/s2arm
+        env:
+          S2A_DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
+          S2A_BUILD_CACHE: ${{ runner.temp }}/s2arm-build-cache
+        run: |
+          set -euo pipefail
+          for suite in thermal_pacing promotion present_profile gov_stress; do
+            binary="$RUNNER_TEMP/t_rb_$suite"
+            xcrun --sdk macosx clang -std=gnu11 -O2 -Wall -Wextra -Werror "graphics/nvn/tests/t_rb_$suite.c" -o "$binary"
+            "$binary"
+          done
+          make -C graphics/nvn mac
+          xcrun lipo build/nvn/mac/libnvn.a -verify_arch arm64
       - name: Compile the direct Metal backend and verify thermal policies and GPU pixels
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-thermal-checks]')
         working-directory: ${{ runner.temp }}/s2arm

@@ -1,0 +1,424 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 2633dd3a77a763044aeb2818f047258d52f8a917..f7b69de53775a0b5911d9421a9ada16c22ea4e5f 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3242,23 +3242,20 @@ NVN(nvnWindowGetCrop, void, const NVNwindow *w, NVNrectangle *crop) {
+ }
+ static void trow(uint64_t f, const char *name, double v);
+ static void set_time_constraint(uint64_t period_ns);
++static void set_time_constraint_comp(uint64_t period_ns, uint64_t comp_ns);
+ static void rt_comp_tick(uint64_t period_ns);
+ static _Atomic unsigned rb_rt_generation = 1;
+-static _Atomic int rb_rt_setting;
+ static _Atomic uint64_t rb_rt_same, rb_rt_deferred, rb_rt_calls, rb_rt_failures;
+ static __thread struct {
+     unsigned generation;
+     rb_rt_gate gate;
+-    uint64_t desired_comp_ns, cpu_last, legacy_period;
++    uint64_t cpu_last, legacy_period;
+     double cpu_samples[120];
+     unsigned cpu_count;
+ } t_rb_rt;
+ // Unlinked/alternative backend, simulator and non-hosted sessions keep the
+ // historical scheduling policy. The production Metal backend verifies scope.
+ __attribute__((weak)) int nvn_rb_thermal_scope(void) { return 0; }
+-static int rb_rt_on(void) {
+-    return nvn_rb_thermal_scope() && rb_pacing_setting(&rb_rt_setting, "S2A_RB_RT_DEBOUNCE");
+-}
+ __attribute__((weak)) void nvn_rb_link_wake_stats(uint64_t out[3]) { memset(out, 0, 3 * sizeof *out); }
+ static _Atomic double g_rt_comp_ms;   // Currently declared real-time computation amount (ms; 0 = not declared)
+ static double g_rt_bound_ms; static int g_rt_over = -1, g_rt_over_bound = -1;   // RewindBox (patch 0068): see rt_comp_tick
+@@ -3282,7 +3279,7 @@ __attribute__((weak)) void nvn_be_draw_barrier_reasons(uint64_t counts[4]) { mem
+ __attribute__((weak)) void nvn_be_clear_batch_stats(uint64_t values[4]) { memset(values,0,4*sizeof *values); }
+ __attribute__((weak)) int nvn_be_adjacent_clear_stats(uint64_t counts[3]) { (void)counts; return 0; }
+ extern uint32_t nvn_be_present_qos(void);
+-static uint64_t g_frame;
++static _Atomic uint64_t g_frame;
+ // RewindBox (patch 0070, L24 item 1): the host pages of virtual pools copied for buffers (vsh_fill: made, and filled again after a mapping or a CPU write behind them), and their
+ //   bytes. IPA 765: Mario Kart World's pools past 1 GB keep those mappings in the page table, its buffers there read such copies, and what the copies cost was
+ //   not counted anywhere. Said every 300 frames by dump_frame when any was made, with the most in one frame
+@@ -3334,14 +3331,13 @@ NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsyn
+         uint64_t period = present_period(o), rtp = rt_period_ns(o, period);
+         // Guest timing below uses every actual interval. Only the Mach
+         // scheduling declaration is debounced, per owning pthread.
+-        int debounced = rb_rt_on();
++        int debounced = nvn_rb_thermal_scope();
+         unsigned generation = atomic_load_explicit(&rb_rt_generation, memory_order_relaxed);
+         if (t_rb_rt.generation != generation) {
+             memset(&t_rb_rt, 0, sizeof t_rb_rt); t_rb_rt.generation = generation;
+         }
+         if (debounced) {
+-            rt_comp_tick(rtp);
+-            if (rtp) set_time_constraint(rtp);
++            if (rtp) set_time_constraint_comp(rtp, RB_PRESENT_COMP_NS);
+         } else {
+             if (rtp && t_rb_rt.legacy_period != rtp) { t_rb_rt.legacy_period = rtp; set_time_constraint(rtp); }
+             rt_comp_tick(rtp);
+@@ -3393,13 +3389,14 @@ static void dump_frame(void) {
+     }
+     uint64_t total = 0; unsigned nfn = 0;
+     char line[8192]; size_t o = 0; line[0] = 0;
++    const uint64_t frame = atomic_load_explicit(&g_frame, memory_order_relaxed);
+     for (unsigned i = 0; i < NVN_NFUNC; i++) {
+         uint64_t c = atomic_load(&nvn_slot[i].cnt), d = c - g_prev[i];
+         g_prev[i] = c;
+         if (!d) continue;
+         total += d; nfn++;
+-        if (g_tsv && calls) fprintf(g_tsv, "%llu\t%s\t%llu\n", g_frame, nvn_names[i], d);
+-        if (g_frame <= (uint64_t)nframes && o < sizeof line - 96) o += snprintf(line + o, sizeof line - o, " %s=%llu", nvn_names[i] + 3, d);
++        if (g_tsv && calls) fprintf(g_tsv, "%llu\t%s\t%llu\n", frame, nvn_names[i], d);
++        if (frame <= (uint64_t)nframes && o < sizeof line - 96) o += snprintf(line + o, sizeof line - o, " %s=%llu", nvn_names[i] + 3, d);
+     }
+     if (g_tsv) fflush(g_tsv);
+     if (g_frame <= (uint64_t)nframes) LOG("[nvn] %s %llu: %u functions %llu calls |%s", g_frame ? "frame" : "init", g_frame, nfn, total, line);
+@@ -3683,8 +3680,8 @@ static void tsummary(uint64_t frame) {
+ 
+     if (nvn_rb_thermal_scope()) {
+         uint64_t wake[3]; nvn_rb_link_wake_stats(wake);
+-        LOG("[rb-rt] frame=%llu debounce=%d set_calls=%llu set_failed=%llu same=%llu deferred=%llu tick_notifications=%llu skip_no_waiter=%llu skip_not_due=%llu",
+-            (unsigned long long)frame, rb_rt_on(), (unsigned long long)atomic_load(&rb_rt_calls),
++        LOG("[rb-rt] frame=%llu debounce=1 requested_cap_ms=2.000 set_calls=%llu set_failed=%llu same=%llu deferred=%llu tick_notifications=%llu skip_no_waiter=%llu skip_not_due=%llu",
++            (unsigned long long)frame, (unsigned long long)atomic_load(&rb_rt_calls),
+             (unsigned long long)atomic_load(&rb_rt_failures), (unsigned long long)atomic_load(&rb_rt_same),
+             (unsigned long long)atomic_load(&rb_rt_deferred), (unsigned long long)wake[0],
+             (unsigned long long)wake[1], (unsigned long long)wake[2]);
+@@ -3792,7 +3789,9 @@ static void tsummary(uint64_t frame) {
+         if (frame % 300 == 0) { unsigned wn = 0; uint32_t wq = dm_guest_work_qos(&wn); thread_extended_info_data_t xi; mach_msg_type_number_t xc = THREAD_EXTENDED_INFO_COUNT; int okx = thread_info(pthread_mach_thread_np(pthread_self()), THREAD_EXTENDED_INFO, (thread_info_t)&xi, &xc) == KERN_SUCCESS;
+             thread_time_constraint_policy_data_t tp; mach_msg_type_number_t tc = THREAD_TIME_CONSTRAINT_POLICY_COUNT; boolean_t def = 0; int rt_live = thread_policy_get(pthread_mach_thread_np(pthread_self()), THREAD_TIME_CONSTRAINT_POLICY, (thread_policy_t)&tp, &tc, &def) == KERN_SUCCESS && !def;   // def = 1: the real-time policy is not in effect (never set / revoked)
+             // RewindBox (patch 0068): the frames over the declaration and over the bound (rt_comp_tick)
+-            LOG("[nvn] thread policy: main thread real-time computation %.2f ms / period %.2f ms, real-time policy %s, current priority %d (base %d, policy %d); %u worker threads QoS %#x; present QoS %#x; "
++            if (nvn_rb_thermal_scope())
++                LOG("[nvn] thread policy: requested computation %.2f ms / period %.2f ms, real-time policy %s, current priority %d (base %d, policy %d); %u worker threads QoS %#x; present QoS %#x", g_rt_comp_ms, g_rt_period_ms, rt_live ? "in effect" : "not in effect", okx ? xi.pth_curpri : -1, okx ? xi.pth_priority : -1, okx ? xi.pth_policy : -1, wn, wq, nvn_be_present_qos());
++            else LOG("[nvn] thread policy: main thread real-time computation %.2f ms / period %.2f ms, real-time policy %s, current priority %d (base %d, policy %d); %u worker threads QoS %#x; present QoS %#x; "
+                 "of the last 120 frames %d over the declared computation, a bound of max(p90 x 1.25, min(peak x 1.1, half the period)) = %.2f ms would have %d over it (%s; RewindBox patch 0068)", g_rt_comp_ms, g_rt_period_ms, rt_live ? "in effect" : "not in effect", okx ? xi.pth_curpri : -1, okx ? xi.pth_priority : -1, okx ? xi.pth_policy : -1, wn, wq, nvn_be_present_qos(),
+                 g_rt_over, g_rt_bound_ms, g_rt_over_bound, rb_rt_bound() ? "declared, S2A_RB_RT_BOUND=1" : "not declared; S2A_RB_RT_BOUND=1 declares it"); }
+         py = cy; pk = ck; pw = cw; }
+@@ -3837,7 +3836,7 @@ static void slow_emit(uint64_t f) {
+     }
+     if (f % 300 == 0) fprintf(stderr, "[slowframe]\t#\tup to frame %llu\tjudged=%llu\tslow=%llu\tcriterion=%s\n", f, judged, slow, has ? "on-screen interval" : "present call interval (no window)");
+ }
+-// Declaration for the time-constraint (real-time) thread: period = present period, constraint = period, computation = the CPU time this thread actually needs per frame.
++// Hosted iOS NVN2 uses a fixed presentation budget. Other backends retain the historical adaptive policy below.
+ // The computation used to be hard-coded at 2 ms, while the game main thread (game logic + recording + submit replay) takes about 10 ms per frame when hot - a 5× gap between declared and actual:
+ // a real-time thread that exceeds its declared computation gets demoted by the system, and the performance controller also sets frequency from the declaration (this declaration is how the system learns the frame deadline and the workload).
+ // DM_RT_COMP=<ms> fixes the declaration; default auto = every 120 frames take the larger of 1.25 × the p90 and 1.1 × the peak of this thread's per-frame CPU time and re-declare if it differs from the declared value by > 15% (capped at 0.9 × period).
+@@ -3845,15 +3844,18 @@ static void slow_emit(uint64_t f) {
+ static int rt_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_RT"); v = !(e && !strcmp(e, "0")); if (!v) LOG("[nvn] DM_RT=0: the present thread gets no time-constraint policy (QoS only)"); } return v; }
+ static void set_time_constraint_comp(uint64_t period_ns, uint64_t comp_ns) {
+     if (!rt_on()) return;
++    // The host's acquire thread also runs guest work. Its measured frame CPU
++    // time is not a reservation for the act of presentation.
++    int gated = nvn_rb_thermal_scope();
++    comp_ns = rb_present_budget(gated, comp_ns);
+     static mach_timebase_info_data_t tb; if (!tb.denom) mach_timebase_info(&tb);
+     if (comp_ns < 1000000ull) comp_ns = 1000000ull; if (comp_ns > period_ns * 9 / 10) comp_ns = period_ns * 9 / 10;
+     thread_time_constraint_policy_data_t p = {
+         .period = (uint32_t)(period_ns * tb.denom / tb.numer), .computation = (uint32_t)(comp_ns * tb.denom / tb.numer),
+         .constraint = (uint32_t)(period_ns * tb.denom / tb.numer), .preemptible = 1};
+-    int gated = rb_rt_on();
+     rb_rt_tuple request = {p.period, p.computation};
+     if (gated) {
+-        enum rb_rt_decision d = rb_rt_consider(&t_rb_rt.gate, request, now_ns());
++        enum rb_rt_decision d = rb_rt_consider(&t_rb_rt.gate, request, now_ns(), atomic_load_explicit(&g_frame, memory_order_relaxed));
+         if (d == RB_RT_SAME) { atomic_fetch_add_explicit(&rb_rt_same,1,memory_order_relaxed); return; }
+         if (d == RB_RT_WAIT) { atomic_fetch_add_explicit(&rb_rt_deferred,1,memory_order_relaxed); return; }
+     }
+@@ -3876,10 +3878,8 @@ static int rt_comp_fixed_ms(void) { static int v = -2; if (v == -2) { const char
+ // The fixed value, or in auto mode the computation declared so far (auto's starting value of 2 ms only the first time): a reset to 2 ms at each period change under-declared the thread until the next p90
+ static void set_time_constraint(uint64_t period_ns) {
+     int fixed = rt_comp_fixed_ms();
+-    uint64_t comp = fixed > 0 ? (uint64_t)fixed * 1000000ull : 2000000ull;
+-    if (fixed <= 0 && rb_rt_on()) {
+-        if (t_rb_rt.desired_comp_ns) comp = t_rb_rt.desired_comp_ns;
+-    } else if (fixed <= 0 && g_rt_comp_ms > 0) comp = (uint64_t)(g_rt_comp_ms * 1e6);
++    uint64_t comp = fixed > 0 ? (uint64_t)fixed * 1000000ull :
++                    g_rt_comp_ms > 0 ? (uint64_t)(g_rt_comp_ms * 1e6) : 2000000ull;
+     set_time_constraint_comp(period_ns, comp);
+ }
+ // Called every frame at acquire: records this thread's CPU time since the last call; in auto mode re-declares based on p90
+@@ -3905,8 +3905,7 @@ static void rt_comp_tick(uint64_t period_ns) {
+     g_rt_over = over; g_rt_over_bound = over_b; g_rt_bound_ms = bound;
+     if (rb_rt_bound()) comp = bound;
+     if (comp > g_rt_comp_ms * 1.15 || comp < g_rt_comp_ms * 0.85) {
+-        if (rb_rt_on()) t_rb_rt.desired_comp_ns = (uint64_t)(comp * 1e6);
+-        else set_time_constraint_comp(period_ns, (uint64_t)(comp * 1e6));
++        set_time_constraint_comp(period_ns, (uint64_t)(comp * 1e6));
+     }
+ }
+ static void sleep_until_ns(uint64_t dl) {   // absolute time on the monotonic clock
+@@ -5929,7 +5928,7 @@ int dm_nvn_shutdown_session(void) {
+     pthread_mutex_lock(&rb_gap_lock); rb_calls = (rb_gap_clock){0}; pthread_mutex_unlock(&rb_gap_lock);
+     if (g_frame) rb_report_intervals(g_frame - 1);
+     rb_last_present = 0;
+-    atomic_fetch_add(&rb_rt_generation,1); atomic_store(&rb_rt_setting,0);
++    atomic_fetch_add(&rb_rt_generation,1);
+     atomic_store(&rb_rt_same,0); atomic_store(&rb_rt_deferred,0);
+     atomic_store(&rb_rt_calls,0); atomic_store(&rb_rt_failures,0);
+     g_rt_comp_ms = g_rt_period_ms = 0;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 73ef64b6bf78710ec4ce50d66f5d7d794baa75d0..7199e9d2679a418cc17dbc3e47d4a0180d1611b0 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -24223,6 +24223,8 @@ static CAFrameRateRange link_range(int mode) {
+     return mode == 2 ? CAFrameRateRangeMake(60, 120, 120) : CAFrameRateRangeMake(rate, rate, rate);
+ }
+ static _Atomic int g_link_mode = 1;   // 1 / 2 same as g_dm_present_link, 3 = 30 Hz, 4 = 20 Hz
++static os_unfair_lock g_rb_cadence_lock = OS_UNFAIR_LOCK_INIT;
++static rb_cadence_candidate g_rb_display_cadence;
+ static int g_link_pending;
+ static uint64_t g_link_pending_since, g_link_pending_period;
+ static link_backoff g_low;   // 降到低频档的退避（nvn_link_backoff.h）
+@@ -24334,6 +24336,16 @@ static const char *rb_pace_why(int want, int fallback, int inexact) {
+ static void link_sync(double period) {   // Called every frame by the game's present thread: aligns the display link object's state to g_dm_present_link and the power-saving mode (can change at run time)
+     if (atomic_load(&g_link_stop)) return;
+     int applied = g_link_applied; int want = g_dm_present_link;
++    // Record every raw period, including reversals, on the submitter. Exact
++    // and legacy modes share the authorization immediately before programming.
++    int cadence_stable = 1;
++    if (nvn_rb_thermal_scope()) {
++        os_unfair_lock_lock(&g_rb_cadence_lock);
++        if (!want) g_rb_display_cadence = (rb_cadence_candidate){0};
++        else cadence_stable = rb_display_ready(&g_rb_display_cadence, (uint64_t)llround(period * 1e9),
++                                               atomic_load_explicit(&g_cur_frame, memory_order_relaxed), now_ns());
++        os_unfair_lock_unlock(&g_rb_cadence_lock);
++    }
+     int exact_mode = rb_promotion_on() && want ? rb_promotion_mode(period) : 0;
+     int base = exact_mode ? 1 : want;
+     if (want < 0 || want > 2) { g_dm_present_link = applied >= 3 ? 1 : applied; return; }
+@@ -24374,7 +24386,10 @@ static void link_sync(double period) {   // Called every frame by the game's pre
+     uint64_t now = now_ns(), period_ns = (uint64_t)llround(period * 1e9);
+     // 退避（nvn_link_backoff.h）：进低频档不到 2 秒就被打回 = 来回切，下次降档要稳的时长翻倍；低频稳 60 秒恢复
+     lb_tick(&g_low, now);
+-    if (inexact) { lb_forced_back(&g_low, now); want = base; }
++    if (inexact) {
++        if (rb_link_may_switch(cadence_stable, applied, base)) { lb_forced_back(&g_low, now); want = base; }
++        else want = applied;
++    }
+     // Start observing before nvn_game_fps's native-30 gate opens, so the same
+     // stable second satisfies both gates rather than adding another second.
+     if (g_link_pending != candidate || g_link_pending_period != period_ns) {
+@@ -24383,6 +24398,8 @@ static void link_sync(double period) {   // Called every frame by the game's pre
+     if (applied && want != applied && want && fps_override() < 0 && !fallback && !inexact) {
+         if (now - g_link_pending_since < (want >= 3 ? lb_hold(&g_low) : LB_S)) want = applied;
+     }
++    int active = applied ? applied : g_link_started ? atomic_load(&g_link_mode) : 0;
++    if (!fallback && !rb_link_may_switch(cadence_stable, active, want)) return;
+     if (want == applied && (!want || g_link_started)) return;
+     g_link_mode = want;
+     if (!g_link_started) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index c95e224a405998903620a5a84ba80a894aeff0e8..27aefada7210ba01974e3e1657d32d43f16eac0f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -304,6 +304,7 @@ int nvn_be_shutdown_session(void) {
+     atomic_store(&g_drs_hot_raised, 0); atomic_store(&g_drs_seen, 0); atomic_store(&g_drs_raised, 0);
+     for (unsigned i = 0; i < DRS_N; ++i) { atomic_store(&g_drs[i].frame, 0); atomic_store(&g_drs[i].top, 0); }
+     g_link_applied = 0; g_link_hold_until = g_link_vperiod = g_link_vhalf = 0;
++    g_rb_display_cadence = (rb_cadence_candidate){0};
+     g_link_pending = 0; g_link_pending_since = g_link_pending_period = 0;
+     g_low = (link_backoff){0};   // 降档退避（nvn_link_backoff.h）逐局：旧局顶到 64 秒的 hold、停在低频档的 since 都不带进新局（满屏补丁线复核 11-04）
+     g_link20_last = 0; g_link20_n = 0; g_link20_sample = g_link20_reported = 0;
+diff --git a/graphics/nvn/gfx/nvn/rb_thermal_pacing.h b/graphics/nvn/gfx/nvn/rb_thermal_pacing.h
+index f94eb81d0a54d5c284564b69d0d692d07d184b8f..af5f96cd2fb721ed9833d3a42c0c83cc039d150a 100644
+--- a/graphics/nvn/gfx/nvn/rb_thermal_pacing.h
++++ b/graphics/nvn/gfx/nvn/rb_thermal_pacing.h
+@@ -42,21 +42,66 @@ static inline int rb_thermal_observe(rb_guest_heat *s, int threshold, int state,
+     return s->hot;
+ }
+ 
++// Hardware programming follows sustained demand. Guest present/acquire deadlines
++// keep their exact interval even while a host policy change is pending.
++enum { RB_CADENCE_MIN_FRAMES = 8, RB_PRESENT_COMP_NS = 2000000 };
++static inline uint64_t rb_present_budget(int hosted, uint64_t requested) {
++    return hosted ? RB_PRESENT_COMP_NS : requested;
++}
++#define RB_CADENCE_DWELL_NS UINT64_C(250000000)
++typedef struct {
++    uint64_t key, since, last_ns, frame;
++    unsigned frames;
++} rb_cadence_candidate;
++
++static inline int rb_cadence_stable(rb_cadence_candidate *c, uint64_t key, uint64_t frame, uint64_t now) {
++    if (!c->frames || c->key != key || frame < c->frame || frame - c->frame > 1 ||
++        now < c->last_ns || now - c->last_ns > RB_CADENCE_DWELL_NS) {
++        *c = (rb_cadence_candidate){.key = key, .since = now, .frames = 1};
++    } else if (frame == c->frame) {
++        return 0;
++    } else if (c->frames < RB_CADENCE_MIN_FRAMES) {
++        ++c->frames;
++    }
++    c->last_ns = now;
++    c->frame = frame;
++    return c->frames == RB_CADENCE_MIN_FRAMES && now - c->since >= RB_CADENCE_DWELL_NS;
++}
++
++static inline unsigned rb_display_interval(uint64_t ns) {
++    if (ns >= 16666665 && ns <= 16666668) return 1;
++    if (ns >= 33333331 && ns <= 33333335) return 2;
++    return 0;
++}
++static inline int rb_display_ready(rb_cadence_candidate *s, uint64_t period, uint64_t frame, uint64_t now) {
++    unsigned interval = rb_display_interval(period);
++    if (interval) return rb_cadence_stable(s, interval, frame, now);
++    s->frames = 0;
++    return 1;
++}
++
++// The legacy target can fall back to 60 Hz on a single interval-1 frame,
++// even when the raw period immediately returns to interval 2.
++static inline int rb_link_may_switch(int stable, int active, int desired) {
++    return stable || !active || !desired || active == desired || active == 4 || desired == 4;
++}
++
+ // Period == constraint and preemptible == 1 for the acquire-thread declaration.
+ // Compare the final tuple in Mach ticks, after conversion and clamping.
+ typedef struct { uint32_t period, comp; } rb_rt_tuple;
+ typedef struct {
+-    rb_rt_tuple applied, requested, pending;
+-    uint64_t pending_since, attempted;
++    rb_rt_tuple applied, requested;
++    rb_cadence_candidate pending;
++    uint64_t attempted;
+ } rb_rt_gate;
+ enum rb_rt_decision { RB_RT_SAME, RB_RT_WAIT, RB_RT_SET };
+ 
+ static inline int rb_rt_equal(rb_rt_tuple a, rb_rt_tuple b) {
+     return a.period == b.period && a.comp == b.comp;
+ }
+-static inline enum rb_rt_decision rb_rt_consider(rb_rt_gate *s, rb_rt_tuple p, uint64_t now) {
++static inline enum rb_rt_decision rb_rt_consider(rb_rt_gate *s, rb_rt_tuple p, uint64_t now, uint64_t frame) {
+     if (rb_rt_equal(s->requested, p) || rb_rt_equal(s->applied, p)) {
+-        s->pending.period = 0;
++        s->pending.frames = 0;
+         return RB_RT_SAME;
+     }
+     // XNU may raise computation to half of the constraint. Once the readback
+@@ -65,18 +110,17 @@ static inline enum rb_rt_decision rb_rt_consider(rb_rt_gate *s, rb_rt_tuple p, u
+     if (p.period == s->applied.period && s->requested.period == p.period &&
+         s->applied.comp > s->requested.comp && s->applied.comp == p.period / 2 &&
+         p.comp <= s->applied.comp) {
+-        s->pending.period = 0;
++        s->pending.frames = 0;
+         return RB_RT_SAME;
+     }
+-    if (!rb_rt_equal(s->pending, p)) { s->pending = p; s->pending_since = now; }
+-    const uint64_t dwell = 250000000ull;
+-    if ((s->requested.period && now - s->pending_since < dwell) ||
+-        (s->attempted && now - s->attempted < dwell)) return RB_RT_WAIT;
++    uint64_t key = ((uint64_t)p.period << 32) | p.comp;
++    if (s->requested.period && !rb_cadence_stable(&s->pending, key, frame, now)) return RB_RT_WAIT;
++    if (s->attempted && now - s->attempted < RB_CADENCE_DWELL_NS) return RB_RT_WAIT;
+     s->attempted = now;
+     return RB_RT_SET;
+ }
+ static inline void rb_rt_accepted(rb_rt_gate *s, rb_rt_tuple requested, rb_rt_tuple effective) {
+-    s->requested = requested; s->applied = effective; s->pending.period = 0;
++    s->requested = requested; s->applied = effective; s->pending.frames = 0;
+ }
+ 
+ #include <stdatomic.h>
+diff --git a/graphics/nvn/tests/t_rb_thermal_pacing.c b/graphics/nvn/tests/t_rb_thermal_pacing.c
+index 92660848ec9449a1731ad8204e7aba96d14e682a..e696e4974b889fdba9877b1e10ec13e531b7aeac 100644
+--- a/graphics/nvn/tests/t_rb_thermal_pacing.c
++++ b/graphics/nvn/tests/t_rb_thermal_pacing.c
+@@ -32,27 +32,74 @@ static void thermal(void) {
+     assert(!rb_thermal_observe(&heat,2,1,t+30000000000ull,++frame,-1.));
+ }
+ 
++enum { FAST_NS = 16666667, SLOW_NS = 33333333 };
++typedef struct {
++    rb_rt_gate mach;
++    rb_cadence_candidate link;
++    int active_mode;
++    uint64_t frame, now;
++    unsigned sets;
++} pacing;
++
++static void observe(pacing *p, uint32_t requested, uint32_t expected, unsigned frame_delta, uint64_t ns) {
++    p->frame += frame_delta;
++    p->now += ns;
++    rb_rt_tuple tuple = {requested, RB_PRESENT_COMP_NS};
++    enum rb_rt_decision d = rb_rt_consider(&p->mach, tuple, p->now, p->frame);
++    assert((d == RB_RT_SET) == (p->mach.requested.period != expected));
++    if (d == RB_RT_SET) {
++        // Some devices report half the period even for a 2 ms request.
++        rb_rt_accepted(&p->mach, tuple, (rb_rt_tuple){requested, requested/2});
++        ++p->sets;
++    }
++    assert(p->mach.requested.period == expected && p->mach.requested.comp == 2000000);
++    int ready = rb_display_ready(&p->link, requested, p->frame, p->now);
++    int desired = requested == FAST_NS ? 1 : 3;
++    if (rb_link_may_switch(ready, p->active_mode, desired)) p->active_mode = desired;
++    assert(p->active_mode == (expected == FAST_NS ? 1 : 3));
++}
++
+ static void scheduling(void) {
+-    rb_rt_gate gate={0};
+-    const rb_rt_tuple fast={16000,2000}, slow={32000,2000}, effective={16000,8000};
+-    uint64_t now=1000000000ull; unsigned calls=0;
+-    assert(rb_rt_consider(&gate, fast, now)==RB_RT_SET); ++calls;
+-    rb_rt_accepted(&gate,fast,effective);
+-    assert(rb_rt_consider(&gate,(rb_rt_tuple){16000,4000},now+1)==RB_RT_SAME);
+-    for (unsigned i=0;i<11209;++i) {
+-        now+=16000000ull;
+-        enum rb_rt_decision decision=rb_rt_consider(&gate,i%2 ? fast : slow,now);
+-        assert(decision==(i%2 ? RB_RT_SAME : RB_RT_WAIT));
+-        calls+=decision==RB_RT_SET;
++    assert(rb_present_budget(1, 15000000) == 2000000);
++    assert(rb_present_budget(1, 9000000) == 2000000);
++    assert(rb_present_budget(0, 9000000) == 9000000);
++    pacing p = {0};
++    observe(&p, FAST_NS, FAST_NS, 0, 1);
++    assert(rb_rt_consider(&p.mach, (rb_rt_tuple){FAST_NS, 4000000}, p.now, p.frame) == RB_RT_SAME);
++    // Even five slow frames can take over 250 ms when the system is under load.
++    for (unsigned burst = 1; burst <= 5; ++burst) {
++        for (unsigned i = 0; i < burst; ++i) observe(&p, SLOW_NS, FAST_NS, 1, 80000000);
++        observe(&p, FAST_NS, FAST_NS, 1, 16000000);
++    }
++    assert(p.sets == 1);
++    for (unsigned i = 0; i < 8; ++i) observe(&p, SLOW_NS, FAST_NS, 1, 16000000);
++    observe(&p, SLOW_NS, FAST_NS, 0, 160000000);  // Same frame, even after the dwell.
++    observe(&p, SLOW_NS, SLOW_NS, 1, 20000000);
++    for (unsigned i = 0; i < 7; ++i) observe(&p, FAST_NS, SLOW_NS, 1, 40000000);
++    observe(&p, FAST_NS, SLOW_NS, 1, 2000000000); // Suspension discards the partial run.
++    for (unsigned i = 0; i < 6; ++i) observe(&p, FAST_NS, SLOW_NS, 1, 40000000);
++    observe(&p, FAST_NS, SLOW_NS, 2, 40000000);   // Unsampled frame breaks continuity.
++    for (unsigned i = 0; i < 6; ++i) observe(&p, FAST_NS, SLOW_NS, 1, 40000000);
++    observe(&p, FAST_NS, FAST_NS, 1, 40000000);
++    assert(p.sets == 3);
++    // Legacy mode can ask for 60 Hz on both halves of a 1/2 oscillation
++    // when the native-30 detector restarts its one-second timer.
++    p.active_mode = 3;
++    for (unsigned i = 0; i < 80; ++i) {
++        uint64_t period = i % 2 ? FAST_NS : SLOW_NS;
++        p.now += period;
++        int ready = rb_display_ready(&p.link, period, ++p.frame, p.now);
++        assert(!rb_link_may_switch(ready, p.active_mode, 1));
++        assert(rb_link_may_switch(ready, p.active_mode, 0)); // Explicit off is immediate.
+     }
+-    assert(calls==1);
+-    assert(rb_rt_consider(&gate, slow,now+250000000ull)==RB_RT_SET);
+-    rb_rt_accepted(&gate,slow,slow);
+-    assert(rb_rt_consider(&gate,fast,now+251000000ull)==RB_RT_WAIT);
+-    assert(rb_rt_consider(&gate,fast,now+501000000ull)==RB_RT_SET);
+-    // A failed call stays retryable after the cooldown.
+-    assert(rb_rt_consider(&gate,fast,now+510000000ull)==RB_RT_WAIT);
+-    assert(rb_rt_consider(&gate,fast,now+751000000ull)==RB_RT_SET);
++    assert(rb_display_ready(&p.link, 50000000, ++p.frame, ++p.now));
++    assert(rb_link_may_switch(0, 4, 1)); // An incompatible 20 Hz link must return at once.
++    // A fresh session accepts its first period. Failed kernel requests retry at a bounded rate.
++    p = (pacing){0};
++    rb_rt_tuple slow = {SLOW_NS, RB_PRESENT_COMP_NS};
++    assert(rb_rt_consider(&p.mach, slow, ++p.now, p.frame) == RB_RT_SET);
++    assert(rb_rt_consider(&p.mach, slow, ++p.now, ++p.frame) == RB_RT_WAIT);
++    observe(&p, SLOW_NS, SLOW_NS, 1, RB_CADENCE_DWELL_NS);
+     assert(rb_tick_action(1,0,0)==RB_TICK_EMPTY);
+     assert(rb_tick_action(1,1,0)==RB_TICK_EARLY);
+     assert(rb_tick_action(1,1,1)==RB_TICK_NOTIFY);
+@@ -64,5 +111,6 @@ static void scheduling(void) {
+ 
+ int main(void) {
+     thermal(); scheduling();
++    puts("Fixed 2 ms present budget and 1/2 interval debounce: passed");
+     puts("Guest DRS thermal entry/recovery and Mach policy debounce: passed");
+ }
