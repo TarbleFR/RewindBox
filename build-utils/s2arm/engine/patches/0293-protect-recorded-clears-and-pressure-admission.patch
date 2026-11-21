@@ -1,0 +1,266 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -2189,12 +2189,14 @@
+ static inline void m3_bind_draw(id e) { m3_table_apply(e, 0, g_m3_tab[0]); m3_table_apply(e, 1, g_m3_tab[1]); }
+ static inline void m3_bind_dispatch(id e) { m3_table_apply(e, 2, g_m3_tab[2]); }
+ static inline void m3_bind_mesh(id e) { m3_table_apply(e, 1, g_m3_tab[1]); m3_table_apply(e, 3, g_m3_tab[3]); m3_table_apply(e, 4, g_m3_tab[4]); }   // a task / mesh draw: fragment, object, mesh (no vertex stage)
+-static inline id<MTL4RenderCommandEncoder> enc_r_begin_pass_scoped(MTL4RenderPassDescriptor *d, int private_clear) {   // the draw passes (rp_begin_ex); see barrier_game
++static inline id<MTL4RenderCommandEncoder> enc_r_begin_pass_scoped(MTL4RenderPassDescriptor *d, int private_clear, id<MTLTexture> pendingZero) {   // the draw passes (rp_begin_ex); see barrier_game
+     if (!g_rlane) geo_run_flush();
+     enc_close_blit();
+     g_half_mask_sent = -1;
+     gp_pre(d, 'R');   // Metal 3: the sample points go on the pass descriptor before the encoder is made (no-op elsewhere)
+-    id<MTL4RenderCommandEncoder> e = [g_cb renderCommandEncoderWithDescriptor:d];
++    id<MTL4RenderCommandEncoder> e = pendingZero && [g_cb isKindOfClass:DmRecCB.class]
++        ? [(DmRecCB *)g_cb rbRenderEncoder:d restoreZero:pendingZero]
++        : [g_cb renderCommandEncoderWithDescriptor:d];
+     int relaxed = g_last_end_relaxed && !g_game_barrier;
+     int full = !relaxed;
+     if (g_m3) m3_wait(e, 1, relaxed);
+@@ -2208,7 +2210,7 @@
+     enc_r_table(e, g_vt, MTLRenderStageVertex); enc_r_table(e, g_ft, MTLRenderStageFragment); gp_begin(e, 'R', d); return e;
+ }
+ static inline id<MTL4RenderCommandEncoder> enc_r_begin_pass(MTL4RenderPassDescriptor *d) {
+-    return enc_r_begin_pass_scoped(d, 0);
++    return enc_r_begin_pass_scoped(d, 0, nil);
+ }
+ static _Thread_local const void *t_rb_draw_encoder, *t_rb_draw_pipeline;
+ static inline void rb_draw_encoder_ended(id e) {
+@@ -6287,7 +6289,8 @@
+ static int rb_spec_level(void) {
+     int adaptive = rb_thermal_pacing();
+     int strict = adaptive || rb_kart_option(RB_KART_WORKERS);
+-    if (!strict && !rb_spec_on() && !rb_gov_on()) return RB_SPEC_RUN;
++    int metalBudget = rb_working_set_on();
++    if (!strict && !rb_spec_on() && !rb_gov_on() && !metalBudget) return RB_SPEC_RUN;
+     if (strict) {
+         static dispatch_once_t once;
+         dispatch_once(&once, ^{
+@@ -6308,13 +6311,18 @@
+         if (rb_test_first_scope) th=1;
+ #endif
+         uint64_t av = UINT64_MAX;
++        int sampled = metalBudget || rb_gov_on();
++        if (sampled) rb_gov_sample(0);
+ #if TARGET_OS_IPHONE
+-        if (rb_gov_on()) { rb_gov_sample(0); av = atomic_load(&rb_gov_room); } else av = rb_ios_headroom();
++        av = sampled ? atomic_load(&rb_gov_room) : rb_ios_headroom();
+ #endif
+         _Static_assert(NSProcessInfoThermalStateFair == 1 && NSProcessInfoThermalStateSerious == 2, "thermal states");
+         int why = (strict || rb_spec_on()) ? rb_spec_reason(th, low, av, rb_spec_min_free()) : RB_SPEC_CLEAR;
+         if (rb_gov_on() && !rb_gov_quota(RB_GOV_PREFETCH) && (!strict || av < (1000ull << 20) || av == UINT64_MAX) && why != RB_SPEC_HOT) why = RB_SPEC_LOW_MEMORY;
+-        if (why != RB_SPEC_HOT && now < atomic_load(&g_spec_pressure_until)) why = RB_SPEC_LOW_MEMORY;
++        // A large OS process allowance can coexist with an exhausted Metal
++        // budget. Neither speculative rows nor Fair startup leases may grow it.
++        if (why != RB_SPEC_HOT && (!rb_metal_working_room() || now < atomic_load(&g_spec_pressure_until)))
++            why = RB_SPEC_LOW_MEMORY;
+         if (why == RB_SPEC_HOT) atomic_store_explicit(&g_spec_last_hot, now, memory_order_relaxed);
+         why = rb_spec_recovery(why, now, atomic_load_explicit(&g_spec_last_hot, memory_order_relaxed));
+         int level = rb_spec_thermal_tier(why, th, strict);
+@@ -10052,7 +10060,7 @@
+     ser_gate();
+     int private_clear = clear_only == 1 && (rb_live_on() || rb_tile_enabled(RB_TILE_LIVE)) ?
+                         rb_private_clear_pass(pd) : 0;
+-    g_enc = enc_r_begin_pass_scoped(pd, private_clear);
++    g_enc = enc_r_begin_pass_scoped(pd, private_clear, pendingZero);
+     if (pendingZero) {
+         if (!g_enc) tex_zero_fill(pendingZero);
+         else {
+@@ -15653,7 +15661,10 @@
+ #ifdef RB_TEST_REGISTERED_ROWS
+             if (RB_TEST_REGISTERED_ROWS()) thermal = 1;
+ #endif
+-            registered = thermal <= 1 && bp_now() >= atomic_load(&g_spec_pressure_until);
++            // Registration has a fast path before rb_spec_take. Keep the
++            // same memory test here. A real draw retains its dedicated lane.
++            if (rb_working_set_on()) rb_gov_sample(0);
++            registered = thermal <= 1 && rb_metal_working_room() && bp_now() >= atomic_load(&g_spec_pressure_until);
+         }
+         os_unfair_lock_lock(&g_wu_lock);
+         _Atomic(uint8_t) *c = g_wu_claim;
+diff --git a/graphics/nvn/gfx/nvn/nvn_rec.h b/graphics/nvn/gfx/nvn/nvn_rec.h
+--- a/graphics/nvn/gfx/nvn/nvn_rec.h
++++ b/graphics/nvn/gfx/nvn/nvn_rec.h
+@@ -178,6 +178,29 @@
+ // encoder is recorded (RO_M3_BUF / TEX / SMP), so the real encoder gets the same calls in the same order. Fences are g_fence3; commits are m3_commit (defined after this include)
+ static void m3_commit(id<MTLCommandBuffer> cb, NSArray *fb, id<MTLSharedEvent> ev, uint64_t v);
+ static id<MTLCommandBuffer> m3_cb(void);
++// The recorded encoder is a proxy. Resolve the omitted initialization where
++// Metal actually creates the encoder, on the same command buffer and queue.
++static id rec_begin_render(id cb, id descriptor, id<MTLTexture> pending, int classic) {
++    id encoder = [(id<MTL4CommandBuffer>)cb renderCommandEncoderWithDescriptor:descriptor];
++    if (encoder || !pending) return encoder;
++    id d = classic ? (id)[MTLRenderPassDescriptor new] : (id)[MTL4RenderPassDescriptor new];
++    MTLRenderPassColorAttachmentDescriptor *color = [(MTL4RenderPassDescriptor *)d colorAttachments][0];
++    color.texture = pending;
++    color.loadAction = MTLLoadActionClear;
++    color.clearColor = MTLClearColorMake(0.,0.,0.,0.);
++    color.storeAction = MTLStoreActionStore;
++    id fallback = [(id<MTL4CommandBuffer>)cb renderCommandEncoderWithDescriptor:d];
++    if (!fallback) {
++        mtl_gpu_halt("could not initialize a new attachment after its render encoder failed");
++        return nil;
++    }
++    if (!classic) {
++        [(id<MTL4CommandEncoder>)fallback barrierAfterQueueStages:MTLStageAll beforeStages:MTLStageAll visibilityOptions:MTL4VisibilityOptionDevice];
++        [(id<MTL4CommandEncoder>)fallback barrierAfterStages:MTLStageAll beforeQueueStages:MTLStageAll visibilityOptions:MTL4VisibilityOptionDevice];
++    }
++    [fallback endEncoding];
++    return nil;
++}
+ static id g_rx_cb, g_rx_enc;   // the encode thread's real command buffer and open encoder
+ static void dlss_fx_run(id cb, const uint64_t *a);   // nvn_dlss.inc: a[0] scaler, a[1..4] color / depth / motion / output (retained by the record), the rest its parameters
+ static void rec_exec(const rec_t *r) {
+@@ -201,7 +224,7 @@
+     //   (dm/gfx/nvn/nvn_rec.h:149 at 0c078130). S2Arm: not run after a GPU safe stop, as RO_SIGNAL (the block is still released below)
+     case RO_Q_BLOCK: if (!mtl_gpu_halted()) ((void (^)(void))rec_id(a[0]))(); break;
+     case RO_FX: dlss_fx_run(g_rx_cb, a); break;
+-    case RO_RE_BEGIN: g_rx_enc = [(id<MTL4CommandBuffer>)g_rx_cb renderCommandEncoderWithDescriptor:rec_id(a[0])]; break;
++    case RO_RE_BEGIN: g_rx_enc = rec_begin_render(g_rx_cb, rec_id(a[0]), r->nobj==2 ? rec_id(a[1]) : nil, g_m3); break;
+     case RO_CE_BEGIN: g_rx_enc = [(id<MTL4CommandBuffer>)g_rx_cb computeCommandEncoder]; break;
+     case RO_END: [(id<MTL4CommandEncoder>)e endEncoding]; g_rx_enc = nil; break;
+     case RO_BAR_QUEUE: [(id<MTL4CommandEncoder>)e barrierAfterQueueStages:a[0] beforeStages:a[1] visibilityOptions:a[2]]; break;
+@@ -486,12 +509,21 @@
+ - (void)writeTimestampWithGranularity:(MTL4TimestampGranularity)g intoHeap:(id)h atIndex:(NSUInteger)i { rec_t *r = rec_put(RO_C_TS, 1); r->a[0] = rec_obj(h); r->a[1] = g; r->a[2] = i; }
+ @end
+ 
+-@interface DmRecCB : NSObject @end
++@interface DmRecCB : NSObject
++- (id)rbRenderEncoder:(MTL4RenderPassDescriptor *)d restoreZero:(id<MTLTexture>)texture;
++@end
+ @implementation DmRecCB
+ - (id)forwardingTargetForSelector:(SEL)s { rec_missing(self, s); }
+ - (void)beginCommandBufferWithAllocator:(id)a { rec_put(RO_CB_BEGIN, 1)->a[0] = rec_obj(a); }
+ - (void)endCommandBuffer { rec_put(RO_CB_END, 0); }
+-- (id)renderCommandEncoderWithDescriptor:(MTL4RenderPassDescriptor *)d { rec_put(RO_RE_BEGIN, 1)->a[0] = rec_obj([d copy]); DmRecEnc *e = [DmRecEnc new]; e->render = 1; return e; }   // copied: the replay may reuse or change the descriptor afterwards
++- (id)rbRenderEncoder:(MTL4RenderPassDescriptor *)d restoreZero:(id<MTLTexture>)texture {
++    rec_t *r = rec_put(RO_RE_BEGIN, texture ? 2 : 1);
++    r->a[0] = rec_obj([d copy]);
++    if (texture) r->a[1] = rec_obj(texture);
++    DmRecEnc *e = [DmRecEnc new]; e->render = 1;
++    return e;
++}
++- (id)renderCommandEncoderWithDescriptor:(MTL4RenderPassDescriptor *)d { return [self rbRenderEncoder:d restoreZero:nil]; }
+ - (id)computeCommandEncoder { rec_put(RO_CE_BEGIN, 0); return [DmRecEnc new]; }
+ // Metal 3: the copy encoder and the compute encoder made from a descriptor (GPUPROF's sample buffer rides on that one)
+ - (id<MTLBlitCommandEncoder>)blitCommandEncoder { rec_put(RO_CB_BLIT, 0); return [DmRecEnc new]; }
+diff --git a/graphics/nvn/gfx/nvn/rb_direct_autoprofile.inc b/graphics/nvn/gfx/nvn/rb_direct_autoprofile.inc
+--- a/graphics/nvn/gfx/nvn/rb_direct_autoprofile.inc
++++ b/graphics/nvn/gfx/nvn/rb_direct_autoprofile.inc
+@@ -67,7 +67,7 @@
+                 NSDictionary *device = record[@"resources"];
+                 if (resources && pool && gpu.length && [device isKindOfClass:NSDictionary.class] &&
+                     [device[@"gpu"] isEqual:gpu] && [device[@"app_pool"] isEqual:@(pool)] &&
+-                    [device[@"policy_version"] isEqual:@1] && [device[@"safe_tbdr"] isEqual:@YES]) {
++                    [device[@"policy_version"] isEqual:@1]) {
+                     id count = device[@"sparse_heap_cap"];
+                     if ([count isEqual:@2] || [count isEqual:@3]) atomic_store(&rb_seed_heap,[count unsignedIntValue]);
+                 }
+diff --git a/graphics/nvn/tests/t_rb_direct_autoprofile.m b/graphics/nvn/tests/t_rb_direct_autoprofile.m
+--- a/graphics/nvn/tests/t_rb_direct_autoprofile.m
++++ b/graphics/nvn/tests/t_rb_direct_autoprofile.m
+@@ -4,10 +4,10 @@
+ #include <pthread.h>
+ #include "../gfx/nvn/dmsh_chain.h"
+ #define MLOG(...) do { fprintf(stderr, __VA_ARGS__); fputc(10, stderr); } while (0)
+-static int fixture_device, fixture_bundle;
++static int fixture_device, fixture_bundle, fixture_no_tiles;
+ static unsigned rb_sparse_heap_target(void) { return 2; }
+ static int rb_sparse_budget_on(void) { return 1; }
+-static int rb_current_tile_policy(void) { return 3; }
++static int rb_current_tile_policy(void) { return fixture_no_tiles ? 1 : 3; }
+ static int rb_profile_resources_on(void) { return !fixture_bundle; }
+ static uint64_t rb_profile_app_pool(void) { return UINT64_C(0x240000000); }
+ static NSString *rb_profile_gpu_name(void) { return fixture_device ? @"other GPU" : @"test GPU"; }
+@@ -45,10 +45,29 @@
+         CHECK(nvn_rb_boot_interval() == 2 && atomic_load(&rb_seed_sparse) == 32768 && atomic_load(&rb_seed_bind) == 8192);
+         CHECK(rb_profile_heap_limit(3) == (fixture_device || fixture_bundle ? 3u : 2u));
+         CHECK(rb_profile_heap_limit(1) == 1);
+-        for (int i=0; i<120; ++i) nvn_rb_observe_direct_interval(1);
++        // Test expiry without learning a new cadence/GPU and overwriting the
++        // cold record shared by the following independent process.
++        for (int i=0; i<120; ++i) nvn_rb_observe_direct_interval(0);
+         CHECK(!nvn_rb_boot_interval() && rb_profile_heap_limit(3)==3);
+     }
+     rb_profile_retire();
+     CHECK(!nvn_rb_boot_interval() && !atomic_load(&rb_profile_ready));
++    if (cold) {
++        // A separate program keeps the enabled and disabled policy cases
++        // independent on both wire and graphics directory layouts.
++        const char *alternate = "0400123456789001";
++        fixture_no_tiles = 1;
++        rb_profile_begin(user,alternate,build);
++        dispatch_sync(rb_profile_io(), ^{});
++        for (int i=0; i<120; ++i) nvn_rb_observe_direct_interval(2);
++        dispatch_sync(rb_profile_io(), ^{});
++        NSDictionary *settings = [NSDictionary dictionaryWithContentsOfFile:rb_profile_path][@"resources"];
++        CHECK([settings[@"safe_tbdr"] isEqual:@NO] && [settings[@"sparse_heap_cap"] isEqual:@2]);
++        rb_profile_retire();
++        rb_profile_begin(user,alternate,build);
++        dispatch_sync(rb_profile_io(), ^{});
++        CHECK(rb_profile_heap_limit(3) == 2);
++        rb_profile_retire();
++    }
+     puts("PASS scoped runtime profile"); return 0;
+ } }
+diff --git a/graphics/nvn/tests/t_rb_clear_batch_metal.m b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+--- a/graphics/nvn/tests/t_rb_clear_batch_metal.m
++++ b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+@@ -12,6 +12,30 @@
+ #include "rb_test_tile_platform.h"
+ #undef RB_PLATFORM_CHECK
+ 
++// Force the real replay-time failure once, then delegate the recovery pass
++// to a tracked Metal command buffer and inspect the actual pixel.
++@interface RbFailFirstPass : NSObject { @public id<MTLCommandBuffer> cb; unsigned calls; } @end
++@implementation RbFailFirstPass
++- (id)renderCommandEncoderWithDescriptor:(MTLRenderPassDescriptor *)d {
++    ++calls;
++    return calls==1 ? nil : [cb renderCommandEncoderWithDescriptor:d];
++}
++@end
++static void recorded_zero_failure(id<MTLDevice> device) {
++    MTLTextureDescriptor *desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatR32Float
++        width:1 height:1 mipmapped:NO];
++    desc.storageMode = MTLStorageModeShared; desc.usage = MTLTextureUsageRenderTarget;
++    id<MTLTexture> t = [device newTextureWithDescriptor:desc]; CHECK(t);
++    float pixel=4.f;
++    [t replaceRegion:MTLRegionMake2D(0,0,1,1) mipmapLevel:0 withBytes:&pixel bytesPerRow:4];
++    RbFailFirstPass *proxy = [RbFailFirstPass new];
++    id<MTLCommandQueue> queue = [device newCommandQueue]; proxy->cb = [queue commandBuffer];
++    CHECK(!rec_begin_render(proxy,[MTLRenderPassDescriptor new],t,1) && proxy->calls==2);
++    [proxy->cb commit]; [proxy->cb waitUntilCompleted]; CHECK(proxy->cb.status==MTLCommandBufferStatusCompleted);
++    [t getBytes:&pixel bytesPerRow:4 fromRegion:MTLRegionMake2D(0,0,1,1) mipmapLevel:0];
++    CHECK(pixel==0.f);
++    puts("PASS recorded first clear: failed real encoder restored zero on the GPU");
++}
+ static void read_pair(id<MTLDevice> dev, id<MTLTexture> a, id<MTLTexture> b, ClearImage out) {
+     id<MTLCommandQueue> q=[dev newCommandQueue]; id<MTLCommandBuffer> cb=[q commandBuffer];
+     id<MTLBlitCommandEncoder> blit=[cb blitCommandEncoder];
+@@ -316,6 +340,7 @@
+         rb_anyr_push(4); CHECK(rb_anyr_in(3,5) && !rb_anyr_in(5,7));
+         id<MTLDevice> device = MTLCreateSystemDefaultDevice(); CHECK(device);
+         ClearImage reference, result;
++        recorded_zero_failure(device);
+         tracked_pair(device,0,reference); tracked_pair(device,1,result);
+         CHECK(!memcmp(reference,result,sizeof result));
+         atomic_store(&rb_tile_policy,0); CHECK(!setenv("DM_NVN_TBDR","0",1));
+diff --git a/graphics/nvn/tests/t_rb_sparse_retire.m b/graphics/nvn/tests/t_rb_sparse_retire.m
+--- a/graphics/nvn/tests/t_rb_sparse_retire.m
++++ b/graphics/nvn/tests/t_rb_sparse_retire.m
+@@ -27,6 +27,14 @@
+     probe.currentAllocatedSize = 4650 * RB_WS_MIB;
+     rb_gov_sample(0);
+     REQUIRE((atomic_load(&rb_gov_plan) & 3u) == RB_GOV_CRITICAL && !rb_metal_working_room());
++    // A process with abundant host RAM still must not issue optional PSOs.
++    // Re-sample on macOS as well, directly through the startup worker path.
++    atomic_store(&rb_apple_session, 1);
++    atomic_store(&rb_ws_room_bytes, UINT64_MAX);
++    atomic_store(&rb_gov_next, 0);
++    atomic_store(&g_spec_sampled, 0);
++    REQUIRE(rb_spec_level() == RB_SPEC_HOLD && !rb_metal_working_room());
++    REQUIRE(!rb_spec_admit(&g_spec_gate,0) && !rb_spec_admit_startup(&g_spec_gate,0,1));
+     g_dev = MTLCreateSystemDefaultDevice();
+     REQUIRE(g_dev);
+     id<MTLCommandQueue> queue = [g_dev newCommandQueue];

@@ -1,0 +1,248 @@
+{
+  "source": "1007302d3c96772813256796f14641aa16bcb3fe",
+  "run": 44957231810,
+  "attempt": 1,
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "xcode": "Xcode 26.6",
+  "patchesVerified": 287,
+  "pinSha256": "e94f791d5c5103499762535bd81615a85dccb78bd4cb7d39bfba3904aa9f6101",
+  "engineFingerprint": "f3344f43154ba60206463ab371bfc0a77c5d6fe3c7cf5ad90dd257eb5863cc84",
+  "directShaderChain": "0be3f28548fd",
+  "controlBuild": 816,
+  "control": {
+    "artifact": 14717439126,
+    "bytes": 25191043,
+    "sha256": "30f1f5dbfdd19eda28dc230efeff53be817e7cf7ec0e6d5d5a3e05d59caf1b01"
+  },
+  "retainedExportCounts": {
+    "Frameworks/S2ArmEngine.framework/S2ArmEngine": 147,
+    "Frameworks/NS2Pro.framework/NS2Pro": 1
+  },
+  "unchangedExports": true,
+  "auxiliaryMetallibs": [
+    "S2ArmEngine.framework/RBIndirect/expand.metallib",
+    "S2ArmEngine.framework/RBIndirect/mask-check.metallib",
+    "S2ArmEngine.framework/RBIndirect/mask.metallib",
+    "S2ArmEngine.framework/RBIndirect/widen.metallib"
+  ],
+  "artifact": {
+    "artifact": 14728272669,
+    "bytes": 25213694,
+    "sha256": "fdca4495a9ec0e8754fe2f7ab1b3a5e7f853960e7ab54c311f0950f1e79655d0"
+  },
+  "tests": [
+    {
+      "name": "engine (macos-26)",
+      "job": 137007922014,
+      "run": 44957231810,
+      "source": "1007302d3c96772813256796f14641aa16bcb3fe",
+      "status": "success",
+      "steps": [
+        "Test the exported symbol list tool",
+        "Fetch S2Arm at the pinned commit",
+        "Select the newest installed Xcode with an iPhoneOS SDK",
+        "Check adaptive shader cache changes",
+        "Install the build tools S2Arm's makefiles call",
+        "Prefetch and rehash the pinned codec source archives",
+        "Locate the Metal compiler for the iOS framework",
+        "Compile and read an iPhoneOS capture pack",
+        "Verify scoped startup profiles in independent processes",
+        "Verify observed shader workers and persistent stage libraries",
+        "Compile the direct Metal backend and verify thermal policies and GPU pixels",
+        "Verify shader-library sharing and warm priority on the Mac GPU",
+        "Build S2Arm's iOS engine with no game (make ios)",
+        "Inventory the engine (images, sizes, symbols)",
+        "Check the guest entry points of the framework (patches 0003-0010)",
+        "Inventory the code the engine keeps per licensed component (blocking)",
+        "Collect the engine's licence and notice texts from its pinned sources",
+        "Package the guest frameworks for RewindBox's delivery (macos-26 only)",
+        "Upload the guest frameworks for RewindBox's delivery (macos-26 only)",
+        "Run TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb"
+      ]
+    },
+    {
+      "name": "engine (macos-15)",
+      "job": 137007922108,
+      "run": 44957231810,
+      "source": "1007302d3c96772813256796f14641aa16bcb3fe",
+      "status": "success",
+      "steps": [
+        "Test the exported symbol list tool",
+        "Fetch S2Arm at the pinned commit",
+        "Select the newest installed Xcode with an iPhoneOS SDK",
+        "Install the build tools S2Arm's makefiles call",
+        "Prefetch and rehash the pinned codec source archives",
+        "Locate the Metal compiler for the iOS framework",
+        "Build S2Arm's iOS engine with no game (make ios)",
+        "Inventory the engine (images, sizes, symbols)",
+        "Check the guest entry points of the framework (patches 0003-0010)",
+        "Inventory the code the engine keeps per licensed component (blocking)",
+        "Collect the engine's licence and notice texts from its pinned sources",
+        "Run TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb"
+      ]
+    },
+    {
+      "name": "compile",
+      "job": 137007922123,
+      "run": 44957231821,
+      "source": "1007302d3c96772813256796f14641aa16bcb3fe",
+      "status": "success",
+      "steps": [
+        "Run subosito/flutter-action@v2",
+        "Flutter iOS engine headers",
+        "Compile the bridge sources for iOS arm64",
+        "Bridge, session and preparation identity contracts"
+      ]
+    }
+  ],
+  "macGPU": {
+    "archiveLookup": [
+      {
+        "p50_ns": 709,
+        "p99_ns": 1500,
+        "samples": 101,
+        "thermal": 1
+      },
+      {
+        "p50_ns": 667,
+        "p99_ns": 1000,
+        "samples": 101,
+        "thermal": 2
+      }
+    ],
+    "renderArchive": [
+      {
+        "thermal": 1,
+        "written": 1,
+        "fromArchive": 0
+      },
+      {
+        "thermal": 1,
+        "written": 0,
+        "fromArchive": 1
+      },
+      {
+        "thermal": 2,
+        "written": 1,
+        "fromArchive": 0
+      },
+      {
+        "thermal": 2,
+        "written": 0,
+        "fromArchive": 1
+      }
+    ],
+    "uniformRing": [
+      {
+        "enabled": 0,
+        "encoders": 2,
+        "matchedPixels": 2,
+        "totalPixels": 2
+      },
+      {
+        "enabled": 1,
+        "encoders": 1,
+        "matchedPixels": 2,
+        "totalPixels": 2
+      },
+      {
+        "enabled": 1,
+        "encoders": 2,
+        "matchedPixels": 2,
+        "totalPixels": 2
+      }
+    ],
+    "orderedUniformRing": [
+      {
+        "enabled": 0,
+        "finalOpaque": 0,
+        "encoders": 2,
+        "matchedPixels": 2,
+        "totalPixels": 2
+      },
+      {
+        "enabled": 0,
+        "finalOpaque": 1,
+        "encoders": 2,
+        "matchedPixels": 2,
+        "totalPixels": 2
+      },
+      {
+        "enabled": 1,
+        "finalOpaque": 0,
+        "encoders": 1,
+        "matchedPixels": 2,
+        "totalPixels": 2
+      },
+      {
+        "enabled": 1,
+        "finalOpaque": 1,
+        "encoders": 2,
+        "matchedPixels": 2,
+        "totalPixels": 2
+      }
+    ]
+  },
+  "observations": {
+    "pack": [
+      "Loaded iPhoneOS metallib and reflection from S2ALIB using the engine reader",
+      "PASS matching/stale/unlisted translated stages, persisted executable shader, GPU output 12, absent and damaged binaries"
+    ],
+    "registration": [
+      "PASS docs/wire shader-disk, Fair registered compute program to observed worker, Metal library and PSO built",
+      "PASS registration and extended registration build Metal libraries before commands, keep mutable guest keys independent, and capture compiler inputs",
+      "PASS disabled registration leaves preparation until the recorded bind"
+    ],
+    "twoPhasePrewarm": [
+      "[dm] [nvn-mtl] [rb-prewarm] tier=hot rows=1 qos=userInitiated workers=4",
+      "✓ cold workers did not start while a hot worker is held",
+      "[dm] [nvn-mtl] [rb-prewarm] tier=cold rows=1 qos=utility workers=2",
+      "✓ both phase groups drain",
+      "✓ startup workers execute at userInitiated and cold workers at utility",
+      "✓ cold file opened after hot completion and duplicate suppressed"
+    ],
+    "liveLane": [
+      "PASS required PSO completes on the live lane while both observed workers are held"
+    ],
+    "lookahead": [
+      "PASS cumulative lookahead deadline, retry cap, publication epochs and collisions"
+    ],
+    "autoProfile": [
+      "[rb-direct-profile] 0400123456789000 learning interval=0 sparse_cells=0 reader_cells=0",
+      "[rb-direct-profile] persisted interval=2 sparse=1 bindless=1",
+      "PASS scoped runtime profile",
+      "[rb-direct-profile] 0400123456789000 restored interval=2 sparse_cells=32768 reader_cells=8192",
+      "[rb-direct-profile] persisted interval=1 sparse=1 bindless=1"
+    ],
+    "firstDraw": [
+      "PASS MRT material over an existing depth prepass is eligible",
+      "PASS missing library returns while both workers are gated",
+      "PASS fourth frame still within budget",
+      "PASS fifth frame requires the exact path",
+      "PASS four real omissions, zero submit source builds and zero waits",
+      "PASS frame 200 omitted exactly one library draw",
+      "PASS frame 200 returned before the compiler owner was released",
+      "PASS frame 200 expected red 0.00 on eight pixels, mismatches=0",
+      "PASS both distinct libraries compiled off-submit",
+      "PASS frame 201 ready material resumes",
+      "PASS frame 201 consumed the finished pipeline without waiting",
+      "PASS frame 201 expected red 0.25 on eight pixels, mismatches=0",
+      "PASS frame 202 omitted exactly one PSO draw",
+      "PASS frame 202 returned before the compiler owner was released",
+      "PASS frame 202 expected red 0.00 on eight pixels, mismatches=0",
+      "PASS frame 203 ready material resumes",
+      "PASS frame 203 consumed the finished pipeline without waiting",
+      "PASS frame 203 expected red 0.25 on eight pixels, mismatches=0"
+    ],
+    "archiveMigration": [
+      "scoped archive strict legacy hit, promotion, reopen and title/build isolation passed"
+    ]
+  },
+  "validPostChangeDeviceWindows": 0,
+  "limitations": [
+    "Mac GPU fixtures and iOS arm64 compilation. No post-change A18 Pro capture of either title.",
+    "Lookup timing covers a preopened archive on the Mac and excludes pipeline creation.",
+    "The UBO readback used the tracked Metal encoder on the hosted Mac. Opaque ordered updates retained their compatibility encoder split.",
+    "Runtime MSL remains possible on an uncaptured stage or variant; the Mac producer writes executable AIR and iOS writes binary pipeline archives."
+  ]
+}
