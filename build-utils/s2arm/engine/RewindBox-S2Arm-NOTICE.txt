@@ -58,6 +58,8 @@ RewindBox patches 0198 through 0204 measure long presenting-thread intervals and
 output on underrun. The original comparison paths are available with S2A_RB_AUDIO_GUARD=0 or
 S2A_RB_LONGFRAME=0.
 
+RewindBox patch 0205 isolates course-priority scheduling for a two-course comparison on the IPA 803 policies.
+
 The engine also contains third-party code; S2Arm's own table of it is S2Arm/THIRD_PARTY_LICENSES.md. The exact
 licence and notice texts of the components that reach this application are in the folders beside this file. Each is
 listed in license-sources.json with its origin (a file of that S2Arm commit, a source archive the engine build fetched

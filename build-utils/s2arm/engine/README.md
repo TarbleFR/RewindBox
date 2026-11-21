@@ -333,3 +333,9 @@ A launch with either `S2A_RB_LONGFRAME=0` or `S2A_RB_AUDIO_GUARD=0` selects the 
 Patch 0204 retains device recovery when full-rate real PCM continues to drain the queue for at least two seconds after a guard reserve was attempted. Synthetic audio cannot qualify as evidence of this fault. Ordinary producer starvation uses the fade.
 
 The [807 delivery receipt](../../../docs/evidence/rewind807/delivery.json) records the privately decrypted and verified package (97 native images, 10 bundles). Read-ahead yields, process read bytes, storage stalls and ten-minute paging on iPhone remain unmeasured.
+
+### Two-circuit sampling of Mushroom Cup scheduling
+
+Patch 0205 isolates the F14 priority given to course cues in 0143 and 0147. With `S2A_RB_ABLATE_CUP_PRIORITY=1`, the engine applies the 803 policies and schedules optional pipelines without the selection, sequence, named-course or course-starter preferences. Exact learned recipes, their on-disk histories, genuine first draws, generic startup priority, generic successor hints and mandatory reference preparation remain available. An explicit `0` selects the 803 scheduling control. An absent switch retains the cumulative 808 behaviour. Restart the process when changing arms.
+
+The private benchmark end record includes the selected arm, title/build match, ranked candidates, eligible worker selections and actual course-hint claims. Each count separates the launch prefix from the official window. A count of worker selections is not a count of distinct pipelines. The two-circuit results and retirement decisions belong in the [implementation status](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md).

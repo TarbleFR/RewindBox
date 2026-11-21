@@ -1,0 +1,180 @@
+Ablate only the F14 scheduling decisions on an explicit 803 policy arm. Keep personal histories, strict first use, F12 reference preparation, and the generic predictor on both arms.
+
+diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+--- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
++++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+@@ -19,11 +19,13 @@
+         // 3 buffers of 10 ms refilled only from the device callback. 50 ms holds a whole game buffer (witcher3 audout: 1024 frames =
+         // 21.3 ms; at 20 ms each one went out as 960 + 64 frames, two hand-backs per buffer)
+         private const int NumBuffers = 32;
+-        internal static readonly bool Reference = OperatingSystem.IsIOS() &&
++        private static readonly bool CourseTrial = OperatingSystem.IsIOS() &&
++            Environment.GetEnvironmentVariable("S2A_RB_ABLATE_CUP_PRIORITY") is "0" or "1";
++        internal static readonly bool Reference = !CourseTrial && OperatingSystem.IsIOS() &&
+             Environment.GetEnvironmentVariable("S2A_RB_LONGFRAME_REFERENCE") == "1" &&
+             Environment.GetEnvironmentVariable("S2A_RB_LONGFRAME") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_AUDIO_GUARD") != "0";
+-        internal static readonly bool Guard = !Reference && OperatingSystem.IsIOS() &&
++        internal static readonly bool Guard = !CourseTrial && !Reference && OperatingSystem.IsIOS() &&
+             Environment.GetEnvironmentVariable("S2A_RB_AUDIO_GUARD") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_LONGFRAME") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_MEM_GOV") != "0" &&
+@@ -565,7 +567,7 @@
+         }
+ 
+         private static readonly bool MeasureHeap =
+-            !Reference && OperatingSystem.IsIOS() && Environment.GetEnvironmentVariable("S2A_RB_AUDIO_GUARD") != "0" &&
++            !CourseTrial && !Reference && OperatingSystem.IsIOS() && Environment.GetEnvironmentVariable("S2A_RB_AUDIO_GUARD") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_LONGFRAME") != "0" && Environment.GetEnvironmentVariable("S2A_RB_PREFETCH_ADAPT") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_MEM_GOV") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_TEX_BUDGET") != "0" &&
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -13305,6 +13305,7 @@
+     NSString *historyList=@"# RewindBox observed draw rows";
+     NSArray *lists=history.count ? [paths arrayByAddingObject:historyList] : paths;
+     NSMutableArray<WarmTask *> *foreground=[NSMutableArray array];
++    const int courseTrial=rb_cup_trial();
+     NSString *firstCue=nil; uint64_t firstCueFrame=UINT64_MAX;
+     for (NSData *data in history.objectEnumerator) {
+         const rb_draw_history_entry *entry=data.bytes;
+@@ -13382,6 +13383,13 @@
+                     const rb_draw_record *r=&entry->preferred;
+                     t->drawCue=@(r->cue); t->drawWait=r->wait_ns; t->drawRank=rb_draw_rank(r);
+                     if (!t->drawRank && [t->drawCue isEqual:firstCue]) t->drawRank=1;
++                    if (courseTrial>=0) {
++                        // A startup first draw can still qualify without any course cue.
++                        unsigned genericRank=r->phase==1;
++                        if (t->drawRank!=genericRank && r->wait_ns && !required)
++                            atomic_fetch_add_explicit(&rb_cup_rank_candidates,1,memory_order_relaxed);
++                        if (courseTrial==1) t->drawRank=genericRank;
++                    }
+                     if (t->kind==1 && !t->referenceIdentity && !r->recipe.merged) {
+                         t->referenceIdentity=par_hash(&r->recipe,sizeof r->recipe); t->externalOnly=YES;
+                     }
+@@ -13523,10 +13531,17 @@
+             os_unfair_lock_unlock(&g_wu_lock);
+         }
+         int urgent = i >= 0;
+-        long routeHint=0;
++        long routeHint=0; int coursePick=0;
+         if (!required && !urgent && w >= 0 && !atomic_load(&g_fu_waiting)) {
+-            routeHint=rb_draw_route_take();
+-            if (!routeHint) routeHint=rb_course_take_hint();
++            int mode=rb_cup_trial();
++            if (mode>=0 && (atomic_load_explicit(&g_rb_draw_route_pending,memory_order_relaxed) ||
++                            atomic_load_explicit(&g_course_hints,memory_order_relaxed)))
++                atomic_fetch_add_explicit(&rb_cup_opportunities,1,memory_order_relaxed);
++            if (mode!=1) {
++                routeHint=rb_draw_route_take();
++                if (!routeHint) routeHint=rb_course_take_hint();
++                coursePick=mode==0 && routeHint!=0;
++            }
+             if (!routeHint) routeHint=rb_ref_take_hint();
+         }
+         long hint=routeHint ? routeHint : (!required && !urgent && w >= 0 ? atomic_exchange(&g_rb_next_row,0) : 0);
+@@ -13540,6 +13555,7 @@
+             if (i >= n) { rb_spec_done(lease); return -1; }
+         }
+         if (hint || !c || i >= cn || rb_claim_row(&c[i])) {
++            if (hint && coursePick) atomic_fetch_add_explicit(&rb_cup_claims,1,memory_order_relaxed);
+             rb_warm_context = urgent || hint != 0;
+             g_rb_picked_hint = hint != 0 && !routeHint;
+             if (g_rb_picked_hint) atomic_fetch_add(&g_rb_promoted,1);
+diff --git a/graphics/nvn/gfx/nvn/rb_course_tracking.inc b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
+--- a/graphics/nvn/gfx/nvn/rb_course_tracking.inc
++++ b/graphics/nvn/gfx/nvn/rb_course_tracking.inc
+@@ -27,6 +27,16 @@
+     if (!strcasecmp(b,rb_ref_build) && !title) return 0; // NPDM identity can follow the build ID
+     on=!strcasecmp(b,rb_ref_build) && title==0x0400c3f00006e000ull;
+     atomic_store_explicit(&g_course_on,on,memory_order_release); return on;
++}
++// Session-independent monotone counters. Benchmark captures the launch prefix and
++// the window delta separately. A worker opportunity need not be a unique row.
++static _Atomic uint64_t rb_cup_rank_candidates, rb_cup_opportunities, rb_cup_claims;
++int nvn_rb_cup_trial_sample(uint64_t out[3]) {
++    if (rb_cup_trial()<0 || !rb_course_enabled()) return 0;
++    out[0]=atomic_load_explicit(&rb_cup_rank_candidates,memory_order_relaxed);
++    out[1]=atomic_load_explicit(&rb_cup_opportunities,memory_order_relaxed);
++    out[2]=atomic_load_explicit(&rb_cup_claims,memory_order_relaxed);
++    return 1;
+ }
+ static int rb_course_known(const rb_course_db *db,const char *name) {
+     for (int i=0;i<RB_COURSES;++i) if (db->course[i].name[0] && !strcmp(name,db->course[i].name)) return i;
+diff --git a/ios/rb_benchmark.m b/ios/rb_benchmark.m
+--- a/ios/rb_benchmark.m
++++ b/ios/rb_benchmark.m
+@@ -56,6 +56,7 @@
+     uint64_t io[4], vm[6], managed[RB_WORDS];
+     uint64_t metal, footprint, compressed, graphics, graphics_compressed;
+     uint64_t pso[4]; int pso_valid;
++    uint64_t course_trial[3]; int course_trial_valid;
+     rb_texture_stats tex; int tex_valid;
+     unsigned valid;
+ } rb_sample;
+@@ -244,8 +245,11 @@
+     }
+ }
+ 
++// 弱链接[host,ios,nvntest]：nvn_rb_cup_trial_sample (optional Metal scheduling counters)
++extern int nvn_rb_cup_trial_sample(uint64_t out[3]) __attribute__((weak_import));
+ static rb_sample rb_read_sample(uint64_t nominal_ns) {
+     rb_sample s = {0}; uint64_t start = rb_now(); s.nominal_ns = nominal_ns;
++    if (rb_cup_trial()>=0 && nvn_rb_cup_trial_sample) s.course_trial_valid=nvn_rb_cup_trial_sample(s.course_trial);
+     if (s2a_disk_io && !s2a_disk_io(&s.io[0], &s.io[1], &s.io[2], &s.io[3])) s.valid |= RB_IO;
+     vm_statistics64_data_t vm = {0}; mach_msg_type_number_t vc = HOST_VM_INFO64_COUNT;
+     mach_port_t host = mach_host_self();
+@@ -695,6 +699,17 @@
+         @"memory":@{@"start":rb_memory(&run.base),@"end":rb_memory(&last)},
+         @"protocol_hash":@(hex), @"comparison_policy":@"same protocol and initial conditions; no comparison with runs missing this schema",
+         @"report_path":NSNull.null} mutableCopy];
++    if (rb_cup_trial()>=0) {
++        NSMutableDictionary *trial=[@{@"family":@"F14_COURSE_PRIORITY",@"ablation":@(rb_cup_trial()),
++            @"base_policy":@"803",@"exact_title_and_build":@(run.base.course_trial_valid && last.course_trial_valid)} mutableCopy];
++        NSArray *fields=@[@"rank_candidates",@"eligible_worker_picks",@"claimed_course_rows"];
++        for (unsigned k=0;k<3;++k) {
++            uint64_t before=run.base.course_trial[k],after=last.course_trial[k];
++            trial[fields[k]]=@{@"at_start":rb_value(run.base.course_trial_valid,before),
++                @"in_window":rb_delta(run.base.course_trial_valid && last.course_trial_valid,before,after)};
++        }
++        summary[@"course_priority_trial"]=trial;
++    }
+     if (run.lf_observed) {
+         NSArray *names=@[@"unknown",@"guest_sync",@"guest_code_prepare",@"submit",@"display_wait",@"submit_lock",@"write_fault"];
+         NSMutableDictionary *rows=[NSMutableDictionary dictionary];
+diff --git a/runtime/include/rb_heap.h b/runtime/include/rb_heap.h
+--- a/runtime/include/rb_heap.h
++++ b/runtime/include/rb_heap.h
+@@ -10,6 +10,22 @@
+ #endif
+ 
+ // A zero comparison switch selects the 803 paths across the cumulative candidate.
++// An explicit arm runs the 803 policy baseline. An absent or invalid selector
++// keeps the cumulative build. Restart the process when switching arms.
++static inline int rb_cup_trial(void) {
++#if defined(__APPLE__) && TARGET_OS_IOS
++    static _Atomic int cached;
++    int state=atomic_load_explicit(&cached,memory_order_relaxed);
++    if (!state) {
++        const char *e=getenv("S2A_RB_ABLATE_CUP_PRIORITY");
++        state=e && !strcmp(e,"0") ? 2 : e && !strcmp(e,"1") ? 3 : 1;
++        atomic_store_explicit(&cached,state,memory_order_relaxed);
++    }
++    return state-2; // -1 cumulative, 0 control, 1 without course priority
++#else
++    return -1;
++#endif
++}
+ static inline int rb_808_on(void) {
+ #if defined(__APPLE__) && TARGET_OS_IOS
+     static _Atomic int mode;
+@@ -17,7 +33,7 @@
+     if (!v) {
+         const char *names[]={"S2A_RB_AUDIO_GUARD","S2A_RB_LONGFRAME","S2A_RB_PREFETCH_ADAPT",
+                              "S2A_RB_MEM_GOV","S2A_RB_TEX_BUDGET","S2A_RB_PSO_CAP","S2A_RB_HEAP_TRIM"};
+-        v=1;
++        v=rb_cup_trial()>=0 ? -1 : 1;
+         for (unsigned i=0; i<sizeof names/sizeof names[0]; ++i) {
+             const char *e=getenv(names[i]);
+             if (e && !strcmp(e,"0")) { v=-1; break; }
