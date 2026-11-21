@@ -1,0 +1,104 @@
+{
+  "source": "96b7e84063768f8c90b23fe1546b24e6aefecaf6",
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "run": 44874372701,
+  "attempt": 1,
+  "xcode": "Xcode 26.6",
+  "jobs": [
+    {
+      "platform": "macos-26",
+      "id": 136755703020,
+      "result": "success"
+    },
+    {
+      "platform": "macos-15",
+      "id": 136755703281,
+      "result": "success"
+    }
+  ],
+  "freezeCheck": {
+    "job": 136755703020,
+    "name": "Check the presentation freeze and memory governor on macOS arm64",
+    "number": 14,
+    "conclusion": "success"
+  },
+  "patchesVerified": 247,
+  "basePatchCount": 237,
+  "first237Verified": true,
+  "verified0244": {
+    "pinCommit": "2eb2069787e1716f0693b1a641bf261ac2cb0427",
+    "pinSha256": "8495f42f312492dd172b4bb1ea53abaefa5d054ff40ad92110ce944add04be22",
+    "run": 44873287460,
+    "source": "aef33c52c4982a1e98a89089cd76464632dd2b8c",
+    "artifactSha256": "2d60b3fc3b7e6f197711fb317d3c4f642fe87ec3bd0b9db96a33f5174a8fe4c8",
+    "engineFingerprint": "c9d3cca20481fa6b6ee97a991cf5bb0af619c0cb25e75cb86c792048080ab818",
+    "byteIdenticalSourcePatches": 244,
+    "orderedPatchManifestSha256": "f1b4f1c77b79e6b7669378476844a92c550d69c679c15a304a8bc980776ba0ef",
+    "unchangedExports": true
+  },
+  "patchDelta": [
+    {
+      "name": "0238-react-to-fair-and-debounce-presentation-policy.patch",
+      "sha256": "c25ab6e32e8fd0eacc48b03819c9b2de265ebf12a9cf3a26c170860120786011"
+    },
+    {
+      "name": "0239-preserve-hot-pipelines-and-batch-archive-writes.patch",
+      "sha256": "8c0a3010773a8f9b249ba2a9cf2962bbf92f41adf77b83c65f96161f02854185"
+    },
+    {
+      "name": "0240-lower-secondary-guest-qos-on-warm-devices.patch",
+      "sha256": "a7448bb4cdf9c02746825844d1dce13401b4a344847a546417a5a80f603083f5"
+    },
+    {
+      "name": "0241-expand-proven-tile-pass-rules-to-hosted-nvn2.patch",
+      "sha256": "bc93ed9b3b17d51bb04babdf1c5319972ca88944d1bff82ef83ca424fe9ed5b8"
+    },
+    {
+      "name": "0242-preserve-normal-pipeline-capacity-and-asynchronous-boot.patch",
+      "sha256": "5a441f58aa997e418108803791d591a711b31d4d48d421585345b05072cc065d"
+    },
+    {
+      "name": "0243-check-matching-tile-pixels-in-both-control-arms.patch",
+      "sha256": "f03f2bb12b7e35ba7d2f4c5586a8d1ece82aee40e1846d5af48d554290a6abd6"
+    },
+    {
+      "name": "0244-verify-the-close-batch-through-a-fresh-archive-session.patch",
+      "sha256": "f5e131174c5b6ca547c303778ebbab9fa8068a3abc9a52c95f57a77970431365"
+    },
+    {
+      "name": "0245-bound-presentation-budget-and-debounce-host-cadence.patch",
+      "sha256": "56f758688b43f271c2f11aba2e60943969debabf314e936657ed597e15c75836"
+    },
+    {
+      "name": "0246-limit-retained-memory-under-compression-or-heat.patch",
+      "sha256": "d83eb69a5bc6fa66cab561111fc8204005a15c1f08367bf006a31303cec0acf4"
+    },
+    {
+      "name": "0247-verify-the-effective-Mach-presentation-budget.patch",
+      "sha256": "bd460fd9436f80f595e651cf40f1c3126056efa3357ff93fbc9dc5ab84217e09"
+    }
+  ],
+  "engineFingerprint": "44a5cd75cd7b02b13524a0f9a5585593f0ae7ee41469699607ce2e0716da9bff",
+  "pinSha256": "81b20ce5029e24f47c06a4a76bc04e4d48779219e62b529a96cc8e42b143cafc",
+  "artifact": {
+    "run": 44874372701,
+    "attempt": 1,
+    "artifact": 14696060713,
+    "name": "s2arm-engine-framework-96b7e84063768f8c90b23fe1546b24e6aefecaf6",
+    "bytes": 25144736,
+    "sha256": "7845b3c3b816cab004ecdba8b729938fd0cb75cfe2adcd66fc3e4ccc9292d73c",
+    "headSha": "96b7e84063768f8c90b23fe1546b24e6aefecaf6",
+    "headBranch": "Claude",
+    "expiresAt": "2026-12-21T06:25:22Z"
+  },
+  "prepareRun": 44555747908,
+  "sysdataRun": 43038032448,
+  "unchangedExports": true,
+  "exportBaseline": {
+    "commit": "05bddd2102e060080baf6e89fe6c85cb2cbcd865",
+    "artifactSha256": "8320f8256ac58139c4d61c5ab3d095e04ec47dec61d474aa64bcd9dadff6f2b6"
+  },
+  "directShaderChain": "0be3f28548fd",
+  "validPostChangeDeviceWindows": 0,
+  "observedPostChangePerformance": null
+}
