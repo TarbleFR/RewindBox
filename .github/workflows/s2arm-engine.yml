@@ -172,7 +172,7 @@ jobs:
           done
           python3 tests/game_tsv_test.py "$RUNNER_TEMP/game_tsv"
           make -C graphics/nvn mac
-          xcrun lipo -verify_arch arm64 build/nvn/mac/libnvn.a
+          xcrun lipo build/nvn/mac/libnvn.a -verify_arch arm64
           make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" build/tests/t_nvn_up_tex_src
           build/tests/t_nvn_up_tex_src --upload-smooth
       - name: Build Metal 4 and verify DRS retention, thermal steps and texture extents
