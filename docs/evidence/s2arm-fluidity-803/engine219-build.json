@@ -1,0 +1,103 @@
+{
+  "source": "b4676dffb327ba8e2b51061e631d7d1cd6af7662",
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "run": 44854956362,
+  "attempt": 1,
+  "xcode": "Xcode 26.6",
+  "jobs": [
+    {
+      "platform": "macos-26",
+      "id": 136694866169,
+      "result": "success"
+    },
+    {
+      "platform": "macos-15",
+      "id": 136694866459,
+      "result": "success"
+    }
+  ],
+  "patchesVerified": 219,
+  "first214Verified": true,
+  "patchDelta": [
+    {
+      "name": "0215-elide-stores-before-immediate-full-clear.patch",
+      "sha256": "70c55aef58ce1acddbc43f20509deda432bd951ff429dd45acc2269a8fd83b5e"
+    },
+    {
+      "name": "0216-sleep-on-guest-fence-progress.patch",
+      "sha256": "8543ceacec040eec747dfd34ba4bc7c25d8553a94fa1ac89c9a6e8364509264c"
+    },
+    {
+      "name": "0217-offer-thermal-spatial-metalfx.patch",
+      "sha256": "8fbcb809080ee1eb52bf4a270135adbc492348213d9fd47c4f807acdf9aa1dc9"
+    },
+    {
+      "name": "0218-park-invisible-brief-hud.patch",
+      "sha256": "dd3aca7d1ddb0cd80ef94deeab6df460ce74b2d6c17e222274ae0e18f40d94d8"
+    },
+    {
+      "name": "0219-record-first-fair-and-thermal-options.patch",
+      "sha256": "524e4f152cd7133c90f02c2d7ae2d707ca6724b07c4ba30440a48c660dea1c65"
+    }
+  ],
+  "engineFingerprint": "78c98fecb986bc0c65c74be1aa7ccda44be50b8f15e7bfb729f1c91fb9a56e66",
+  "pinSha256": "84f67df4a11e327c2506b08e54a03990f14cd5cd3b0e0c6547fe4b9499de5570",
+  "artifact": {
+    "run": 44854956362,
+    "attempt": 1,
+    "artifact": 14686894331,
+    "name": "s2arm-engine-framework-b4676dffb327ba8e2b51061e631d7d1cd6af7662",
+    "bytes": 25091859,
+    "sha256": "3d60e5bac5a164402a64b5bc4e0cb1687971a42eb0550e566b8b856d52950257",
+    "headSha": "b4676dffb327ba8e2b51061e631d7d1cd6af7662",
+    "headBranch": "Claude",
+    "expiresAt": "2026-12-21T02:24:19Z"
+  },
+  "prepareRun": 44555747908,
+  "sysdataRun": 43038032448,
+  "unchangedExports": true,
+  "directShaderChain": "0be3f28548fd",
+  "validPostChangeDeviceWindows": 0,
+  "observedPostChangePerformance": null,
+  "bridge": {
+    "run": 44854956358,
+    "result": "success",
+    "target": "iOS arm64"
+  },
+  "macos26BuildLogs": {
+    "make-ios.log": {
+      "before": 77,
+      "after": 77
+    },
+    "make-ios-guest.log": {
+      "before": 3,
+      "after": 3
+    },
+    "newWarningsAfterLineNormalization": 0
+  },
+  "hostChecks": {
+    "attachmentProof": {
+      "casesPerConfiguration": 58,
+      "freshLaunchConfigurationsPerVersion": 7,
+      "onDevice": false,
+      "fixtureStoreBytes": {
+        "before": 2048,
+        "after": 0
+      }
+    },
+    "fenceProbes": {
+      "pendingZeroTimeoutPolls": 40,
+      "expiredTimedwaitsBeforeAfter": [
+        40,
+        0
+      ],
+      "segmentRetirements": 64,
+      "sleepCallsBeforeAfter": [
+        65,
+        1
+      ],
+      "sameCompletion": true
+    },
+    "metalFXPolicy": "Admission, thermal transitions, interrupted nominal recovery and always-spatial selection exercised on host. No renderer/device trial."
+  }
+}
