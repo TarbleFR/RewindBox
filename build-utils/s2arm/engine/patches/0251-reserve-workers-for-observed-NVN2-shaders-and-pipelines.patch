@@ -1,0 +1,739 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 4acb2cb8bad8d8b927a1ced572a07fc1cb29bac9..5c249525984b78f4d3d6807e259f5ecd6a96a7d3 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -201,6 +201,9 @@ static int rb_kart_option(unsigned key) {
+ #endif
+ }
+ static int rb_async_pso(void) { return rb_pso_mode() == 2; }
++__attribute__((visibility("hidden"))) int rb_observed_workers_on(void);
++__attribute__((visibility("hidden"))) int rb_observed_enqueue(dispatch_block_t block);
++static int rb_observed_shader(NSString *key, int stage, int depth);
+ // Sampler reduction and LOD bias in the shader (#800; samp_by_id, se_need / se_fn / se_bind): each where this GPU has no native one (graphics/metal/gal_samp_caps.h, the generic path's same test):
+ //   g_red_emu: the reduction needs an Apple10 GPU (A19 / M5) and macOS / iOS 26; g_lb_emu: the sampler LOD bias, measured on this GPU once (M4 Pro yes, M3 no, 10-28).
+ //   S2A_SAMP_EMU=1 turns both on (the non-Apple10 path on an M5, to compare). A border colour Metal does not have is emulated on every GPU (nvn_red.h nvn_samp_border_custom)
+@@ -266,6 +269,10 @@ int nvn_rb_thermal_scope(void) {
+     return 0;
+ #endif
+ }
++static _Atomic int g_rb_observed_option;
++int rb_observed_workers_on(void) {
++    return nvn_rb_thermal_scope() && rb_pacing_setting(&g_rb_observed_option, "S2A_RB_URGENT_WORKERS");
++}
+ static unsigned g_rb_waiters;
+ static uint64_t g_rb_wait_step, g_rb_wake_counts[3]; // notified, empty, premature
+ static double g_rb_wait_seconds;
+@@ -12435,6 +12442,12 @@ static int prog_look_mask(const prog_t *p, int *smask) {
+         for (int b = 0; b < 8; b++) snprintf(hx + 2 * b, 3, "%02x", md[b]);
+         NSString *stage = shmap_stage(@(hx)); int st = stage ? stage_of(stage) : -1;
+         if (!stage) { const void *ctl = p->sd[i].control;
++            uint8_t header[0xd8];
++            if (rb_observed_workers_on() && ctl) {
++                vm_size_t got=0;
++                if (vm_read_overwrite(mach_task_self(),(vm_address_t)ctl,sizeof header,(vm_address_t)header,&got)!=KERN_SUCCESS || got!=sizeof header) return 0;
++                ctl=header;
++            }
+             if (ctl && (uintptr_t)ctl < (1ull << 47) && nvn2_on() && nvn2_ctl(ctl)) { unsigned w = ((const uint8_t *)ctl)[0x56]; st = w == 0 ? 0 : w == 1 ? 1 : w == 2 ? 2 : w == 5 ? 5 : w == 6 ? 3 : w == 7 ? 4 : -1; } }
+         if (st < 0) return 0;
+         m |= 1 << st;
+@@ -13366,11 +13379,30 @@ static void ppq_build(int slot, MTLRenderPipelineDescriptor *d, NSString *pkey)
+     pthread_mutex_lock(&g_pp_mu); g_pp[slot].ps = ps; g_pp[slot].error = rb_async_pso() ? e : nil; g_pp[slot].done = 1; pthread_cond_broadcast(&g_pp_cv); pthread_mutex_unlock(&g_pp_mu);
+ }
+ static int ppq_waiting(int i) { return i >= 0 && g_pp[i].used && !g_pp[i].done && !g_ppq[i].run && g_ppq[i].d; }   // caller holds g_pp_mu
+-static void ppq_start_locked(int at) {   // caller holds g_pp_mu: slot at's build starts now, beside the lanes
+-    MTLRenderPipelineDescriptor *d = g_ppq[at].d; NSString *pk = g_ppq[at].pkey; g_ppq[at].d = nil; g_ppq[at].pkey = nil; g_ppq[at].run = 1; g_ppq_now++;
+-    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), ^{ ppq_build(at, d, pk); });
++static int ppq_start_locked(int at) {   // caller holds g_pp_mu: slot at's build starts now, beside the lanes
++    MTLRenderPipelineDescriptor *d = g_ppq[at].d; NSString *pk = g_ppq[at].pkey; g_ppq[at].d = nil; g_ppq[at].pkey = nil; g_ppq[at].run = 1;
++    if (rb_observed_workers_on()) {
++        if (!rb_observed_enqueue(^{ ppq_build(at,d,pk); })) {
++            // The background table no longer owns this build. Its real draw
++            // retries or uses its existing required synchronous path.
++            g_ppq[at].run = 0;
++            g_ppq[at].d = d;
++            g_ppq[at].pkey = pk;
++            return 0;
++        }
++    } else dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), ^{ ppq_build(at, d, pk); });
++    g_ppq_now++;
++    return 1;
+ }
+-static void ppq_hurry_locked(int at) { if (ppq_waiting(at)) ppq_start_locked(at); }   // caller holds g_pp_mu: a draw needs this guess now
++static int ppq_hurry_locked(int at) {
++    if (!ppq_waiting(at) || ppq_start_locked(at)) return 1;
++    // The two observed workers and their bounded backlog are occupied. Do not
++    // wait on an unclaimed optional slot which the thermal governor can cancel.
++    g_ppq[at].d=nil; g_ppq[at].pkey=nil; g_ppq[at].typed_fs=nil;
++    g_pp[at].used=0;
++    pthread_cond_broadcast(&g_pp_cv);
++    return 0;
++}   // caller holds g_pp_mu: a draw needs this guess now
+ static void ppq_lane(void) {   // a lane: the oldest waiting build, until none is left
+     pthread_mutex_lock(&g_pp_mu);
+     for (;;) {
+@@ -13428,7 +13460,10 @@ static int pso_pend_find(const pso_key *key)
+     return pso_pend_find_live(rb_pso_live_key(key, &copy));
+ }
+ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs, int now) {   // Called by the submit thread: kick only if it is neither in the cache nor in the table. now: a draw needs it (RewindBox (patch 0069): started at once, not after the lookahead's guesses)
+-    if (!now && rb_kart_option(RB_KART_WORKERS) && !rb_spec_may(0)) return;
++    // The recorded lookahead still guesses render-pass attachment modes.
++    // Only an actual draw supplies the exact render key and shader variants.
++    int observed = now && rb_observed_workers_on();
++    if (!observed && !now && rb_kart_option(RB_KART_WORKERS) && !rb_spec_may(0)) return;
+     pso_key copy;
+     const pso_key *live;
+     if (rb_pso_probe(k, &copy, &live) || !pso_pair_ok(vs, fs, 0)) return;
+@@ -13443,9 +13478,9 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs, int now)
+     if (at >= 0 && now) ppq_hurry_locked(at);   // RewindBox (patch 0069): a guess of the lookahead no lane has started, needed now
+     pthread_mutex_unlock(&g_pp_mu);
+     if (at >= 0 || slot < 0) return;
+-    const int lanes = rb_pso_lanes();
++    const int lanes = observed || rb_pso_lanes();
+     uint32_t typed = 0;
+-    MTLRenderPipelineDescriptor *d = pso_desc_capture(k, vs, fs, nil, 0, lanes && rb_async_pso() ? &typed : NULL);
++    MTLRenderPipelineDescriptor *d = pso_desc_capture(k, vs, fs, nil, 0, lanes && (observed || rb_async_pso()) ? &typed : NULL);
+     g_pp_kicked++; NSString *pkey = par_rkey(k, vs, fs, 0, nil);
+     if (rb_pso_mode()) {
+         rb_async_note(RB_ASYNC_QUEUE);
+@@ -13455,7 +13490,12 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs, int now)
+         pthread_mutex_lock(&g_pp_mu);
+         g_ppq[slot].typed_fs = typed ? fs : nil; g_ppq[slot].typed_need = typed;
+         g_ppq[slot].d = d; g_ppq[slot].pkey = pkey; g_ppq[slot].run = 0; g_ppq[slot].guess = !now; g_ppq[slot].seq = ++g_ppq_seq;
+-        if (now) ppq_start_locked(slot); else ppq_pump_locked();
++        if (now || observed) {
++            if (!ppq_start_locked(slot)) {
++                g_ppq[slot].d = nil; g_ppq[slot].pkey = nil; g_ppq[slot].typed_fs = nil;
++                g_pp[slot].used = 0;
++            }
++        } else ppq_pump_locked();
+         pthread_mutex_unlock(&g_pp_mu); return;
+     }
+     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+@@ -13527,7 +13567,7 @@ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out
+     //   Super Mario Odyssey's Mac cold start (10-27): the system compiler was slow, the frame budget skipped 2048 draws in 4 frames, among them the temporal anti-aliasing / exposure
+     //   chain whose output feeds the next frame, and the 3D picture stayed black for the whole run; first_skip_ok never let those draws be skipped, these limits did
+     int at = pso_pend_find(k), blk = 0, ms = may_skip ? pso_wait_ms() : pso_unsafe_wait_ms(); id<MTLRenderPipelineState> ps = nil; *timed_out = 0;
+-    ppq_hurry_locked(at);   // RewindBox (patch 0069): a guess of the lookahead no lane has started: it starts now, so this draw does not wait behind the others
++    if (!ppq_hurry_locked(at)) at = -1;
+     if (may_skip && at >= 0 && g_pp[at].late && !g_pp[at].done) { pthread_mutex_unlock(&g_pp_mu); *timed_out = 1; return nil; }   // waited its limit once already: every later draw with it skips at once until it is done
+     // A draw that cannot be skipped waited the whole unsafe cap for it once: the compiler service is stuck on it, and every later draw with it, safe or not, skips at once until it is done.
+     //   Splatoon 3 (10-27 PSB, t0100c2500fc20000_1027065706_2): three such draws in a row each waited 10 s for the same pipeline (Hoian_UBER fragment fc88b546d13b4a9f), 31 s at frame 47
+@@ -13574,7 +13614,7 @@ static int pso_pend_state(const pso_key *k) {   // 2 compiled in the background
+     pthread_mutex_lock(&g_pp_mu); int at = pso_pend_find(k), st = at < 0 ? 0 : g_pp[at].done ? 2 : 1; pthread_mutex_unlock(&g_pp_mu); return st;
+ }
+ static int pso_pend_hurry(const pso_key *k) {   // RewindBox (patch 0069): a draw needs it now (a guess no lane has started starts here); → 1 when it is a lookahead guess not compiled yet
+-    pthread_mutex_lock(&g_pp_mu); int at = pso_pend_find(k); ppq_hurry_locked(at); int g = at >= 0 && !g_pp[at].done && g_ppq[at].guess; pthread_mutex_unlock(&g_pp_mu); return g;
++    pthread_mutex_lock(&g_pp_mu); int at = pso_pend_find(k); if (!ppq_hurry_locked(at)) at = -1; int g = at >= 0 && !g_pp[at].done && g_ppq[at].guess; pthread_mutex_unlock(&g_pp_mu); return g;
+ }
+ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_(NvProg *pr, MTLRenderPassDescriptor *unused);
+ static id<MTLFunction> ms_fs_override(NvShader *fs);   // DM_NVN_MAGSCAN (defined before draw)
+@@ -14032,6 +14072,11 @@ static NSMutableSet<NSString *> *g_shpre_seen;
+ static os_unfair_lock g_shpre_mu = OS_UNFAIR_LOCK_INIT;
+ static _Atomic int g_shpre_stopping;
+ int nvn_be_stopping(void) { return atomic_load(&g_shpre_stopping); }   // RewindBox (patch 0069): dsh_miss.inc's start pass stops at a session stop (dm_shader_retranslate_kept)
++#include "rb_observed_pool.h"
++static rb_observed_pool g_observed = RB_OBSERVED_POOL_INIT;
++int rb_observed_enqueue(dispatch_block_t block) {
++    return rb_observed_submit(&g_observed,block);
++}
+ static void shpre_sync(void) { dispatch_group_t g = dispatch_group_create(); os_unfair_lock_lock(&g_shpre_mu); shq_mark(&g_shpre, g); shq_mark(&g_shurg, g); os_unfair_lock_unlock(&g_shpre_mu); dispatch_group_wait(g, DISPATCH_TIME_FOREVER); }   // unit tests: wait for every queued load
+ // The lookahead (prog_peek) found a stage of a draw later in this submission not loaded: load it now on the urgent lanes, beside the submit thread, instead of when its draw reaches
+ //   prog_get. The submit thread then takes it from the cache or shares the load in flight (shader_load_depth, which lends it this thread's urgency). At most 2 per lane queued
+@@ -14049,7 +14094,46 @@ static int rb_shurg_unique_on(void) {
+ // The lookahead revisits a cold program at each draw. Repeated stages can consume all six
+ // speculative slots on the A18 Pro before a worker claims them. Use one slot per stage
+ // and depth variant. Translation-completion requests keep their separate, uncapped path.
++// Only calls reached through command replay and actual first-use enter these lanes.
++static NSMutableSet<NSString *> *g_rb_observed_shaders; // g_shpre_mu
++static int rb_observed_shader(NSString *key, int stage, int depth) {
++    if (!key || stage < 0 || !rb_observed_workers_on()) return 0;
++    depth = stage_depth_moded(stage) && depth;
++    NSString *identity = shader_identity(key,stage,0,depth);
++    os_unfair_lock_lock(&g_shpre_mu);
++    if ([g_rb_observed_shaders containsObject:identity]) {
++        os_unfair_lock_unlock(&g_shpre_mu);
++        return 1;
++    }
++    if (!g_rb_observed_shaders) g_rb_observed_shaders = [NSMutableSet set];
++    [g_rb_observed_shaders addObject:identity];
++    int accepted = rb_observed_enqueue(^{
++        if (!nvn_be_stopping() && shader_loadable(key)) {
++            uint64_t start = bp_now();
++            if (shader_load_depth(key,stage,0,depth,NULL,NULL)) {
++                atomic_fetch_add(&g_shurg_n,1);
++                atomic_fetch_add(&g_shurg_ns,bp_now()-start);
++            }
++        }
++        os_unfair_lock_lock(&g_shpre_mu);
++        [g_rb_observed_shaders removeObject:identity];
++        os_unfair_lock_unlock(&g_shpre_mu);
++    });
++    if (!accepted) [g_rb_observed_shaders removeObject:identity];
++    os_unfair_lock_unlock(&g_shpre_mu);
++    return accepted;
++}
++__attribute__((visibility("hidden")))
++void rb_observed_stage_load(const char *hex, const char *name) {
++    int st = stage_of(@(name));
++    if (st != 5) rb_observed_shader([@(hex) stringByAppendingString:@"_b"],st,atomic_load(&g_depth_zero));
++}
+ static void shader_urgent(NSString *k, int st) {
++    if (rb_observed_workers_on()) {
++        // The first real compute bind chooses the reflection-only tensor path.
++        if (st != 5) rb_observed_shader([k stringByAppendingString:@"_b"],st,atomic_load(&g_depth_zero));
++        return;
++    }
+     if (!shpre_on() || st < 0 || atomic_load(&g_shurg_live) >= 2 * shq_width()) return;
+     int unique = nvn2_on() && rb_shurg_unique_on();
+     int depth = unique && stage_depth_moded(st) && atomic_load(&g_depth_zero);
+@@ -16942,7 +17026,7 @@ static void rt_sub(const p_set_rt *r, int k, uint64_t *ser, int *lv, int *sl);
+ // The lookahead's program lookup: the resolved program when every stage's shader is already loaded, nil otherwise. It never loads, waits for a prefetch or compiles: prog_get would
+ //   (shader_get), and on the submit thread at that. Super Mario Party (11-02, pso_1102, frame 953): a lookahead through prog_get loaded the libraries of the rest of the submission
+ //   first, the first draw's wait came to 8.5 s and the frame to 38 s (68 libraries)
+-static __unsafe_unretained NvProg *prog_peek(const prog_t *p) {
++static __unsafe_unretained NvProg *prog_peek_jobs(const prog_t *p, int referenced) {
+     if (!p) return nil;
+     __unsafe_unretained NvProg *have = p->serial ? serial_get(p->serial) : nil;
+     if (have) return have;
+@@ -16956,12 +17040,17 @@ static __unsafe_unretained NvProg *prog_peek(const prog_t *p) {
+         else if (!g_shcache[shader_identity([k stringByAppendingString:@"_b"], st, 0, dz)]) { ok = 0; mk[nm] = k; ms[nm++] = st; }
+     }
+     os_unfair_lock_unlock(&g_shader_lock);
++    // Many callers inspect programs for binds that may be replaced before any draw,
++    // or for a hypothetical pass merge. Only replay's draw/dispatch cursor can
++    // promote those stages to the two observed lanes.
++    if (!referenced && rb_observed_workers_on()) return ok ? prog_get(p) : nil;
+     for (int i = 0; i < nm; i++) shader_urgent(mk[i], ms[i]);   // not loaded: loaded beside the submit thread for when its draw comes (this lookahead skips the draw)
+     // RewindBox (patch 0040): a Switch 2 stage that is not translated yet is translated beside the submit thread and its library then loaded on the urgent lanes (dsh_miss.inc
+     //   dm_shader_ahead, which takes Switch 2 control sections only and each key once); it was left for the submit thread to translate and compile at its draw
+     if (dm_shader_ahead) for (int i = 0; i < nu; i++) dm_shader_ahead(uk[i], p->sd[ui[i]].data, p->sd[ui[i]].control);
+     return ok ? prog_get(p) : nil;
+ }
++static __unsafe_unretained NvProg *prog_peek(const prog_t *p) { return prog_peek_jobs(p,0); }
+ // Prediction for parallel precompilation (see the note before pso_get): scan from after the current operation to the end of this submit, replaying only state; at a draw, compute the pipeline key from "the state at that time + that render pass's attachment formats" and dispatch those not yet built to the background.
+ // Only draws whose shaders are loaded (prog_peek), only the key with the pass's attachments as recorded, and at most PSO_AHEAD compiles in the background at once: the same run's
+ //   lookahead that also guessed the other depth / stencil attach modes and loaded the shaders kicked 362 pipelines of which its draws took 97, and they all queued at the one compiler
+@@ -17036,6 +17125,8 @@ static void pso_predict_rest(void) {
+     g_ppr_n++; g_ppr_ns += bp_now() - t0; g_ppr_tex += g_tex_mtl_n - x0;
+ }
+ static void pso_predict_rest_(void) {
++    const int observed=rb_observed_workers_on();
++    if (observed && g_rc_skip) return;
+     // state_op also writes the pass state R (OP_SCISSOR: R.sc / R.has_sc), not only S: restored with S below, as fz_probe_cov2 does. Before firstuse-pso the lookahead almost never ran
+     //   (93dc5957e) and nothing noticed; running at every first miss it left a later draw's scissor on the draw at hand (t_nvn_size_abi :106, t_nvn_ubd_index ④, train 11-02 21:48)
+     static typeof(S) Ssave; memcpy(&Ssave, &S, sizeof S); typeof(R) Rsave = R;
+@@ -17049,10 +17140,11 @@ static void pso_predict_rest_(void) {
+     g_look = look_noload_on();   // RewindBox (patch 0040): the binds replayed below load nothing (bind_stages); cleared before the saved state is restored
+     const prog_t *last_compute=NULL; uint64_t last_compute_serial=0;
+     const int scan_limit = g_async_early ? 2048 : 200000;
+-    const int async = rb_async_pso();
++    const int async = rb_async_pso() || observed;
+     for (int guard = 0; guard < scan_limit && na < QN; guard++) {
+         const uint8_t *q; op_hdr hq; const void *aq;
+         if (!fz_next(&cur, &q, &hq, &aq)) break;
++        if (observed && hq.op == OP_RENDER_COND) break; // live counters determine subsequent draws
+         if (hq.op == OP_SET_RT) {
+             p_set_rt rb; const p_set_rt *r = set_rt_rec(aq, hq.size, &rb); memset(cf, 0, sizeof cf); dfull = sfull = 0; samples = 1;
+             g_tex_peek = 1;   // 只取格式 / 采样数（见 g_tex_peek）
+@@ -17066,11 +17158,11 @@ static void pso_predict_rest_(void) {
+             sfull = (f == MTLPixelFormatStencil8 || f == MTLPixelFormatDepth32Float_Stencil8) ? f : 0;
+             df = dfull; sf = sfull; continue;
+         }
+-        if (async && hq.op == OP_DISPATCH && S.cprog && rb_spec_may(0)) {
++        if (async && hq.op == OP_DISPATCH && S.cprog && (observed || rb_spec_may(0))) {
+             if (!g_se_any && !g_fold_any && last_compute==S.cprog &&
+                 last_compute_serial==S.cprog->serial) continue;
+             last_compute=S.cprog; last_compute_serial=S.cprog->serial;
+-            NvProg *pr = prog_peek(S.cprog);
++            NvProg *pr = prog_peek_jobs(S.cprog,observed);
+             if (pr && !pr->unres) rb_compute_ahead(pr->sh[5]);
+             continue;
+         }
+@@ -17078,7 +17170,13 @@ static void pso_predict_rest_(void) {
+             if (S.rast_discard) continue;   // rasterizes nothing: transform feedback capture or nothing (tf_draw)
+             if (hq.op == OP_DRAW) { p_draw mt; if (draw_rec(aq, hq.size, &mt)->prim == DM_PRIM_MESH_TASKS) continue; }   // a task / mesh draw: its own pipeline kind, built by mtk_pso (no vertex stage to predict)
+             draws++;
+-            __unsafe_unretained NvProg *pr = prog_peek(S.prog); if (!pr || !pr->sh[0] || !pr->sh[0]->fn || (pr->sh[1] && !pr->sh[1]->fn)) continue;
++            // When a combined program is still unresolved its individual single-
++            // stage binds are sufficient evidence. Mixed programs wait for replay.
++            if (observed && !S.prog) for (unsigned st=0; st<5; st++) {
++                const prog_t *bound=S.bst[st];
++                if (bound && bound->nstage==1 && bound->serial==S.bser[st]) prog_peek_jobs(bound,1);
++            }
++            __unsafe_unretained NvProg *pr = prog_peek_jobs(S.prog,observed); if (!pr || !pr->sh[0] || !pr->sh[0]->fn || (pr->sh[1] && !pr->sh[1]->fn)) continue;
+             __unsafe_unretained NvShader *vs = pr->sh[0], *fs = pr->sh[1];
+             const uint32_t dv[4] = {dfull, 0, 0, dfull}, sv[4] = {sfull, 0, sfull, 0};
+             for (int v = 0; v < 1; v++) {   // the attachments as recorded only (dv / sv [1..3]: the other attach modes, not guessed any more)
+@@ -17777,7 +17875,7 @@ static void rb_async_probe(const uint8_t *record, uint64_t serial) {
+         if (g_async_seen_programs[slot]&mask) return;
+     } else if (g_async_frame_probes || (frame-g_async_miss_frame>3 && frame%60)) return;
+     if (!look_noload_on() || g_look || g_exec_next || g_defer_replaying || g_fz_checking ||
+-        !rb_pso_lanes() || dm_gfx_session_stopping() || rb_spec_level()!=RB_SPEC_RUN) return;
++        dm_gfx_session_stopping() || (!rb_observed_workers_on() && (!rb_pso_lanes() || rb_spec_level()!=RB_SPEC_RUN))) return;
+     if (serial) g_async_seen_programs[slot]|=mask;
+     g_async_frame_probes++;
+     g_async_early=1; g_exec_next=record;
+@@ -17792,7 +17890,7 @@ static void rb_look_at_miss(void) {   // pso_get_vs, at a pipeline miss
+     g_rb_look_sub_n++; g_rb_look_libs = libs; rb_look_note(0); pso_predict_rest();
+ }
+ static void rb_look_before_load(const prog_t *p) {   // bind_stages, at a bind the replay reached (not the lookahead's, a redraw's, a deferred draw's or a probe's: those run under a draw, g_exec_next set)
+-    if (p && p->serial && p->nstage && !g_look && !g_exec_next && g_exec_cur && rb_async_pso())
++    if (p && p->serial && p->nstage && !g_look && !g_exec_next && g_exec_cur && (rb_async_pso() || rb_observed_workers_on()))
+         rb_async_probe(g_exec_cur,p->serial);
+     if (!p || !p->nstage || g_look || g_fz_checking || g_defer_replaying || g_exec_next || !g_exec_cur || !rb_look_again_on()) return;
+     if ((p == g_prog_last_ptr && p->serial == g_prog_last_serial && g_ser_gen == g_prog_last_gen && g_prog_last) || (p->serial && serial_get(p->serial))) return;   // resolved (prog_get's own cache first)
+@@ -21005,8 +21103,8 @@ static void rb_compute_ahead(NvShader *cs) {
+         if (slot->shader && !slot->done) busy++;
+         if (!free_slot && (!slot->shader || (slot->done && frame-slot->frame>3))) free_slot=slot;
+     }
+-    int lease=0;
+-    if (!free_slot || busy>=RB_COMPUTE_IN_FLIGHT || !rb_spec_take(0,&lease)) {
++    int observed=rb_observed_workers_on(), lease=0;
++    if (!free_slot || busy>=RB_COMPUTE_IN_FLIGHT || (!observed && !rb_spec_take(0,&lease))) {
+         pthread_mutex_unlock(&g_async_compute_mu); return;
+     }
+     NSString *key=par_ckey(cs,fc);
+@@ -21014,9 +21112,7 @@ static void rb_compute_ahead(NvShader *cs) {
+     rb_compute_clear(free_slot);
+     free_slot->shader=cs; free_slot->function=fn; free_slot->fc=fc; free_slot->frame=frame;
+     pthread_mutex_unlock(&g_async_compute_mu);
+-    rb_async_note(RB_ASYNC_QUEUE);
+-    rb_async_note(RB_ASYNC_EARLY_COMPUTE);
+-    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0), ^{
++    dispatch_block_t task=^{
+         @autoreleasepool {
+             NSError *error=nil;
+             id<MTLComputePipelineState> ps=par_compute(fn,key,&error);
+@@ -21026,7 +21122,18 @@ static void rb_compute_ahead(NvShader *cs) {
+             pthread_cond_broadcast(&g_async_compute_cv);
+             pthread_mutex_unlock(&g_async_compute_mu);
+         }
+-    });
++    };
++    if (observed) {
++        if (!rb_observed_enqueue(task)) {
++            // Only replay admits or consumes slots, and this worker never started.
++            pthread_mutex_lock(&g_async_compute_mu);
++            rb_compute_clear(free_slot);
++            pthread_mutex_unlock(&g_async_compute_mu);
++            return;
++        }
++    } else dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0),task);
++    rb_async_note(RB_ASYNC_QUEUE);
++    rb_async_note(RB_ASYNC_EARLY_COMPUTE);
+ }
+ // Return YES for a matching job, including a compiler failure. Only demand records a
+ // real failure in the runtime map; a stop leaves the job for the bounded teardown drain.
+@@ -21231,7 +21338,7 @@ static void dispatch(const p_dispatch *dp) {
+     cps_se_key fk = {k, (uintptr_t)fc}; nvn_hmap *cps = fc ? &g_cps_se : &g_cps; const void *ck = fc ? (const void *)&fk : (const void *)&k;
+     id<MTLComputePipelineState> ps = hm_get_id(cps, ck);
+     if ((id)ps == (id)NSNull.null) return;   // remembered compiler failure
+-    const int async=rb_async_pso();
++    const int async=rb_async_pso() || rb_observed_workers_on();
+     if (ps && rb_pso_mode()) rb_async_note(RB_ASYNC_HIT);
+     if (!ps) {
+         RBPSOWait rb_wait __attribute__((cleanup(rb_wait_end)))=rb_wait_begin();
+@@ -22292,7 +22399,7 @@ void nvn_be_exec(const uint8_t *p) {
+         if (h.op != OP_RB_DISCARD && h.op != OP_SET_RT) discard_suffix = 0;
+         prev = p;
+         g_exec_cur = p;   // Scan start point of the store lookahead: the operation that ends the render pass (inclusive)
+-        if ((h.op==OP_SET_RT || h.op==OP_DISPATCH) && rb_async_pso()) rb_async_probe(p,0);
++        if ((h.op==OP_SET_RT || h.op==OP_DISPATCH) && (rb_async_pso() || rb_observed_workers_on())) rb_async_probe(p,0);
+         if (p == g_defer_pend) { for (int gi = 0; gi < 4; gi++) if (g_defer_slots[gi].active && g_defer_slots[gi].p_end_op == p) g_defer_slots[gi].in_p = 0; g_defer_pend = NULL; }
+         sdx_seq(p);
+         if (trace) PD("o cmd=%p pass=%llu op=%u size=%u", p, g_stat_pass, (unsigned)h.op, (unsigned)h.size);
+@@ -24640,7 +24747,19 @@ double nvn_be_gpu_probe_ms(void) {
+     }
+     return last ? last / 1e6 : -1;
+ }
+-void nvn_be_stats(uint64_t *passes, uint64_t *draws) { *passes = g_stat_pass; *draws = g_stat_draw; }
++void nvn_be_stats(uint64_t *passes, uint64_t *draws) {
++    *passes = g_stat_pass; *draws = g_stat_draw;
++    if (!rb_observed_workers_on()) return;
++    static _Atomic uint64_t previous;
++    uint64_t frame = atomic_load(&g_cur_frame), last = atomic_load(&previous);
++    if ((frame >= last && frame-last<300) || !atomic_compare_exchange_strong(&previous,&last,frame)) return;
++    pthread_mutex_lock(&g_observed.mu);
++    unsigned live = g_observed.outstanding[0]+g_observed.outstanding[1], peak=g_observed.peak;
++    uint64_t accepted=g_observed.accepted, full=g_observed.full;
++    pthread_mutex_unlock(&g_observed.mu);
++    MLOG("[rb-urgent] frame=%llu workers=2 pending=%u peak=%u admitted=%llu saturated=%llu",
++         (unsigned long long)frame,live,peak,(unsigned long long)accepted,(unsigned long long)full);
++}
+ // 本窗口（上次读后）画过的最大渲染目标：宽 / 高 / Metal 像素格式，读后清零（hle_nvn.c 每 300 帧那行带出）
+ void nvn_be_rt_window(uint32_t *w, uint32_t *h, uint32_t *fmt) { *w = g_rtw_w; *h = g_rtw_h; *fmt = g_rtw_fmt; g_rtw_w = g_rtw_h = g_rtw_fmt = 0; }
+ // Submit cost counters (cumulative, submit thread): render passes, packaged texture uploads (count, bytes, time on the submit thread), pages walked by sbw_note
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 421ddb84fed7708da5b0140c9dde5106d2c11566..e9d6e652ba20f4d11b03c4d83a40b439f18f1e1b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -7,6 +7,7 @@ static struct timespec session_deadline(void) {
+ int nvn_be_request_stop(void) {
+     os_unfair_lock_lock(&g_shpre_mu);
+     atomic_store(&g_shpre_stopping, 1);
++    rb_observed_stop(&g_observed);
+     os_unfair_lock_unlock(&g_shpre_mu);
+     rb_spec_wake(&g_spec_gate);
+     rb_fu_wake();
+@@ -51,6 +52,7 @@ static int session_wait_backend(void) {
+     shq_mark(&g_shpre, prefetch_done); shq_mark(&g_shurg, prefetch_done);
+     if (g_rb_disk_q) dispatch_group_async(prefetch_done,g_rb_disk_q,^{});
+     os_unfair_lock_unlock(&g_shpre_mu);
++    if (!rb_observed_drain(&g_observed,dispatch_time(DISPATCH_TIME_NOW,10*NSEC_PER_SEC))) return -ETIMEDOUT;
+     if (dispatch_group_wait(prefetch_done, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC))) return -ETIMEDOUT;
+     // A guest submit returns only after publishing its encode records. No
+     // producer remains here; neither queue can gain new work after this point.
+@@ -361,6 +363,9 @@ void nvn_be_begin_session(void) {
+     }
+     atomic_store(&g_par_close_until, 0);
+     os_unfair_lock_lock(&g_shpre_mu);
++    rb_observed_begin(&g_observed);
++    g_rb_observed_shaders = nil;
++    atomic_store(&g_rb_observed_option, 0);
+     atomic_store(&g_shpre_stopping, 0);
+     os_unfair_lock_unlock(&g_shpre_mu);
+     atomic_store(&g_link_stop, 0); atomic_store(&g_present_discard, 0);
+diff --git a/graphics/nvn/gfx/nvn/rb_observed_pool.h b/graphics/nvn/gfx/nvn/rb_observed_pool.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..caf153b5f5a6301f137e8510b4f3b509743b5b47
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_observed_pool.h
+@@ -0,0 +1,69 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++#include <dispatch/dispatch.h>
++#include <Block.h>
++#include <pthread.h>
++#include <stdint.h>
++
++// Keep a place for new scene work even if all speculative workers are parked.
++// Each serial queue has one active compiler and a bounded backlog.
++enum { RB_OBSERVED_LANES = 2, RB_OBSERVED_LIMIT = 32 };
++typedef struct {
++    pthread_mutex_t mu;
++    dispatch_queue_t queue[RB_OBSERVED_LANES];
++    unsigned outstanding[RB_OBSERVED_LANES], peak, next;
++    uint64_t accepted, full;
++    int stopped;
++} rb_observed_pool;
++#define RB_OBSERVED_POOL_INIT { .mu = PTHREAD_MUTEX_INITIALIZER }
++
++static inline int rb_observed_submit(rb_observed_pool *pool, dispatch_block_t job) {
++    pthread_mutex_lock(&pool->mu);
++    unsigned outstanding = pool->outstanding[0]+pool->outstanding[1];
++    if (pool->stopped || outstanding >= RB_OBSERVED_LIMIT) {
++        if (!pool->stopped) pool->full++;
++        pthread_mutex_unlock(&pool->mu);
++        return 0;
++    }
++    unsigned lane = pool->next;
++    if (pool->outstanding[lane] > pool->outstanding[1-lane]) lane=1-lane;
++    pool->next=1-lane;
++    if (!pool->queue[lane])
++        pool->queue[lane]=dispatch_queue_create("s2arm.nvn2.observed",
++            dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,QOS_CLASS_USER_INITIATED,0));
++    pool->outstanding[lane]++; pool->accepted++;
++    if (++outstanding > pool->peak) pool->peak=outstanding;
++    dispatch_block_t rated=dispatch_block_create_with_qos_class(
++        DISPATCH_BLOCK_ENFORCE_QOS_CLASS,QOS_CLASS_USER_INITIATED,0,^{
++            @autoreleasepool { job(); }
++            pthread_mutex_lock(&pool->mu);
++            pool->outstanding[lane]--;
++            pthread_mutex_unlock(&pool->mu);
++        });
++    dispatch_async(pool->queue[lane],rated);
++#if !__has_feature(objc_arc)
++    Block_release(rated);
++#endif
++    pthread_mutex_unlock(&pool->mu);
++    return 1;
++}
++static inline void rb_observed_stop(rb_observed_pool *pool) {
++    pthread_mutex_lock(&pool->mu); pool->stopped=1; pthread_mutex_unlock(&pool->mu);
++}
++static inline int rb_observed_drain(rb_observed_pool *pool,dispatch_time_t deadline) {
++    dispatch_group_t done=dispatch_group_create();
++    pthread_mutex_lock(&pool->mu);
++    for (unsigned lane=0;lane<RB_OBSERVED_LANES;lane++)
++        if (pool->queue[lane]) dispatch_group_async(done,pool->queue[lane],^{});
++    pthread_mutex_unlock(&pool->mu);
++    int completed=!dispatch_group_wait(done,deadline);
++#if !__has_feature(objc_arc)
++    dispatch_release(done);
++#endif
++    return completed;
++}
++static inline void rb_observed_begin(rb_observed_pool *pool) {
++    pthread_mutex_lock(&pool->mu);
++    pool->stopped=0; pool->accepted=pool->full=0; pool->peak=0;
++    pthread_mutex_unlock(&pool->mu);
++}
+diff --git a/graphics/nvn/host/dsh_miss.inc b/graphics/nvn/host/dsh_miss.inc
+index ba5b259ea974752e178f11ed0e223e0f73ad2ab5..ff5bb37f8736240887cbd63c77e9600a1b256513 100644
+--- a/graphics/nvn/host/dsh_miss.inc
++++ b/graphics/nvn/host/dsh_miss.inc
+@@ -537,10 +537,106 @@ static int dsh_cs_ahead_on(void) { static _Atomic int v = -1; int r = atomic_loa
+ static int dsh_ahead_(const char *k16, uint64_t code, const void *control, int bound);
+ void dm_shader_ahead(const char *k16, uint64_t code, const void *control) { (void)dsh_ahead_(k16, code, control, 0); }   // RewindBox (patch 0069): the lookahead (nvn_mtl.m prog_peek)
+ int dm_shader_bound(const char *k16, uint64_t code, const void *control) { return dsh_ahead_(k16, code, control, 1); }   // RewindBox (patch 0069): the game's bind (nvn_mtl.m nvn_be_prog_bound): control and code read just now
++// A cancelled ProgramSetShaders guess remains in the legacy "seen" history.
++// A real command retries from its own owned bytes even if that happened at Fair.
++__attribute__((visibility("hidden"))) int rb_observed_workers_on(void);
++__attribute__((visibility("hidden"))) int rb_observed_enqueue(dispatch_block_t block);
++__attribute__((visibility("hidden"))) void rb_observed_stage_load(const char *key, const char *stage);
++enum { DSH_OBSERVED_SLOTS = 32 };
++static pthread_mutex_t dsh_observed_mu = PTHREAD_MUTEX_INITIALIZER;
++static struct { uint8_t key[8]; size_t bytes; } dsh_observed[DSH_OBSERVED_SLOTS];
++static size_t dsh_observed_bytes;
++
++// NVN permits the guest to replace its control bytes after SetShaders. Never
++// dereference the old address while a recorded draw is being looked ahead.
++#if defined(__APPLE__)
++#include <mach/mach.h>
++#endif
++static int dsh_observed_read(void *dst, const void *src, size_t n) {
++#if defined(__APPLE__)
++    vm_size_t copied=0;
++    return vm_read_overwrite(mach_task_self(),(vm_address_t)src,n,(vm_address_t)dst,&copied)==KERN_SUCCESS && copied==n;
++#else
++    (void)dst; (void)src; (void)n; return 0;
++#endif
++}
++// Queued code/control snapshots have a shared 8 MiB limit. All claims are released on failure.
++static int dsh_observed_ahead(const char *key, const uint8_t hash[8], uint64_t code,
++                              const void *control, const char *out) {
++    if (nvn_be_stopping() || !out || !*out || !strcmp(out,"/dev/null")) return 0;
++    pthread_mutex_lock(&dsh_observed_mu);
++    for (unsigned i=0;i<DSH_OBSERVED_SLOTS;i++) if (dsh_observed[i].bytes && !memcmp(hash,dsh_observed[i].key,8)) {
++        pthread_mutex_unlock(&dsh_observed_mu); return 1;
++    }
++    pthread_mutex_unlock(&dsh_observed_mu);
++    char stage[16];
++    if (dsh_reuse_stage(key,stage,sizeof stage)) {
++        mtl_shmap_rt_add(key,stage);
++        rb_observed_stage_load(key,stage);
++        return 2;
++    }
++    uint8_t header[0xd8];
++    if (!code || !control || !dsh_observed_read(header,control,sizeof header) || !nvn2_ctl(header)) return 0;
++    uint32_t ncode=0, nctl=0;
++    int st=rb_nvn2_input_stage(header,&ncode,&nctl);
++    if ((st!=0 && st!=1 && !(st==2 && dsh_cs_ahead_on())) || !dsh_comp()) return 0;
++    size_t bytes=(size_t)ncode+nctl;
++    pthread_mutex_lock(&dsh_observed_mu);
++    int slot=-1;
++    for (unsigned i=0;i<DSH_OBSERVED_SLOTS;i++) {
++        if (dsh_observed[i].bytes && !memcmp(hash,dsh_observed[i].key,8)) {
++            pthread_mutex_unlock(&dsh_observed_mu); return 1;
++        }
++        if (!dsh_observed[i].bytes && slot<0) slot=(int)i;
++    }
++    if (slot<0 || !bytes || bytes>(8u<<20)-dsh_observed_bytes) {
++        pthread_mutex_unlock(&dsh_observed_mu); return 0;
++    }
++    dsh_observed[slot].bytes=bytes; memcpy(dsh_observed[slot].key,hash,8); dsh_observed_bytes+=bytes;
++    pthread_mutex_unlock(&dsh_observed_mu);
++    char *path=strdup(out), *name=strdup(key);
++    uint8_t *data=malloc(bytes);
++    int accepted=0;
++    if (data && path && name && dsh_observed_read(data,control,nctl) &&
++        dsh_observed_read(data+nctl,(const void *)(uintptr_t)code,ncode)) {
++        accepted=rb_observed_enqueue(^{
++            uint32_t layout[4]={0,(uint32_t)st,nctl,ncode};
++            if (!nvn_be_stopping() && rb_nvn2_input_matches(name,layout,data)) {
++                mkdir(path,0755);
++                dsh_dump(name,data,nctl,(uint64_t)(uintptr_t)(data+nctl),ncode);
++                dsh_comp_fn comp=dsh_comp();
++                uint64_t start=now_ns();
++                // dsh_comp_locked rechecks the versioned files under the same translator
++                // mutex as synchronous demand, eager binds, and optional retranslation.
++                int rc=comp ? dsh_comp_locked(comp,name,st,data+nctl,ncode,data,nctl,path) : -1;
++                if (!rc) {
++                    if (t_dsh_src_made) {
++                        atomic_fetch_add(&g_dsh_ahead_ok,1);
++                        atomic_fetch_add(&g_dsh_ahead_ns,now_ns()-start);
++                    } else atomic_fetch_add(&g_dsh_ahead_dup,1);
++                    mtl_shmap_rt_add(name,dsh_nm[st]); rb_observed_stage_load(name,dsh_nm[st]);
++                } else atomic_fetch_add(&g_dsh_ahead_failed,1);
++            }
++            free(path); free(name); free(data);
++            pthread_mutex_lock(&dsh_observed_mu);
++            dsh_observed[slot].bytes=0; dsh_observed_bytes-=bytes;
++            pthread_mutex_unlock(&dsh_observed_mu);
++        });
++    }
++    if (!accepted) {
++        free(path); free(name); free(data);
++        pthread_mutex_lock(&dsh_observed_mu);
++        dsh_observed[slot].bytes=0; dsh_observed_bytes-=bytes;
++        pthread_mutex_unlock(&dsh_observed_mu);
++    } else atomic_fetch_add(&g_dsh_ahead_n,1);
++    return accepted;
++}
+ static int dsh_ahead_(const char *k16, uint64_t code, const void *control, int bound) {   // RewindBox (patch 0069): bound = 1 from a bind; → 1 queued, 2 an earlier run's translation taken, 0 neither
+     if (!dsh_ahead_on() || !nvn2_on()) return 0;
+     uint8_t key[8]; for (int i = 0; i < 8; i++) { unsigned v; if (sscanf(k16 + 2 * i, "%2x", &v) != 1) return 0; key[i] = (uint8_t)v; }
+     char k[17]; snprintf(k, sizeof k, "%.16s", k16);
++    if (!bound && rb_observed_workers_on())
++        return dsh_observed_ahead(k16,key,code,control,getenv("DM_MSL_FALLBACK"));
+     if (!dsh_ahead_first(key)) return 0;
+     const char *out = getenv("DM_MSL_FALLBACK"); if (!out || !*out || !strcmp(out, "/dev/null")) return 0;
+     // RewindBox (patch 0043): a stage an earlier run translated is taken from the fallback directory before the control section is looked at, as the first use does
+diff --git a/graphics/nvn/tests/rb_observed_fixture.inc b/graphics/nvn/tests/rb_observed_fixture.inc
+new file mode 100644
+index 0000000000000000000000000000000000000000..6bd52e6ad673b7939700cff7302e582d8a281827
+--- /dev/null
++++ b/graphics/nvn/tests/rb_observed_fixture.inc
+@@ -0,0 +1,86 @@
++// Exercises the production two-lane queue and real DSH admission/translation.
++// The compiler stub can park precisely at the existing serialized compiler lock.
++#include <assert.h>
++static dispatch_time_t fixture_deadline(void) {
++    return dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC);
++}
++static void fixture_wait(dispatch_semaphore_t sem) {
++    assert(dispatch_semaphore_wait(sem, fixture_deadline()) == 0);
++}
++static void fixture_hold_lanes(dispatch_semaphore_t entered, dispatch_semaphore_t release) {
++    for (unsigned i=0; i<RB_OBSERVED_LANES; i++) {
++        assert(rb_observed_enqueue(^{
++            dispatch_semaphore_signal(entered);
++            fixture_wait(release);
++        }));
++    }
++    for (unsigned i=0; i<RB_OBSERVED_LANES; i++) fixture_wait(entered);
++}
++static void fixture_release_lanes(dispatch_semaphore_t release) {
++    for (unsigned i=0; i<RB_OBSERVED_LANES; i++) dispatch_semaphore_signal(release);
++}
++static void fixture_hash(char hex[17],const uint8_t *control,const uint8_t *bytes) {
++    uint8_t md[8]; nvn2_key(control,bytes,md);
++    for (int i=0; i<8; i++) snprintf(hex+2*i,3,"%02x",md[i]);
++}
++static int fixture_observed(void) {
++    char dir[]="/tmp/rb-observed-XXXXXX", name[17];
++    assert(mkdtemp(dir));
++    setenv("DM_MSL_FALLBACK",dir,1);
++    nvn2=1; write_out=1; fixture_workers=1;
++    uint8_t control[0xd8]={0}, bytes[256]={2};
++    uint32_t magic=NVN2_CTL_MAGIC, version=NVN2_CTL_VERSION, length=sizeof bytes;
++    memcpy(control,&magic,4); memcpy(control+4,&version,4); memcpy(control+0x44,&length,4);
++    fixture_hash(name,control,bytes);
++    dispatch_semaphore_t entered=dispatch_semaphore_create(0), release=dispatch_semaphore_create(0);
++
++    // Fair refuses a bind guess. Its permanent seen marker must not poison demand.
++    assert(dm_shader_bound(name,(uintptr_t)bytes,control)==1);
++    while (atomic_load(&g_dsh_bg_q)) usleep(1000);
++    assert(fixture_gate_calls==1 && compiler_calls==0);
++
++    fixture_hold_lanes(entered,release);
++    for (unsigned i=RB_OBSERVED_LANES; i<RB_OBSERVED_LIMIT; i++)
++        assert(rb_observed_enqueue(^{}));
++    assert(dsh_ahead_(name,(uintptr_t)bytes,control,0)==0);
++    assert(dsh_observed_bytes==0 && fixture_pool.full==1);
++    rb_observed_stop(&fixture_pool);
++    assert(!rb_observed_enqueue(^{}));
++    assert(!rb_observed_drain(&fixture_pool,DISPATCH_TIME_NOW));
++    fixture_release_lanes(release);
++    assert(rb_observed_drain(&fixture_pool,fixture_deadline()));
++    assert(fixture_pool.outstanding[0]+fixture_pool.outstanding[1]==0);
++    assert(fixture_pool.peak==RB_OBSERVED_LIMIT);
++    rb_observed_begin(&fixture_pool);
++
++    // Same CB key after saturation: exactly one owned copy and one translation.
++    fixture_hold_lanes(entered,release);
++    for (unsigned i=0;i<8;i++) assert(dsh_ahead_(name,(uintptr_t)bytes,control,0)==1);
++    assert(fixture_pool.accepted==3 && dsh_observed_bytes==sizeof control+sizeof bytes);
++    bytes[0]^=1; // Destroy guest input before the worker can access it.
++    fixture_release_lanes(release);
++    assert(rb_observed_drain(&fixture_pool,fixture_deadline()));
++    assert(compiler_calls==1 && g_dsh_ahead_ok==1 && fixture_stage_loads==1);
++    assert(dsh_observed_bytes==0);
++
++    // Optional work already inside the compiler when Fair arrives. An actual CB
++    // reference must join the resulting translation and still load the library.
++    fixture_hash(name,control,bytes);
++    fixture_comp_entered=dispatch_semaphore_create(0);
++    fixture_comp_release=dispatch_semaphore_create(0);
++    atomic_store(&fixture_allow_guess,1);
++    assert(dm_shader_bound(name,(uintptr_t)bytes,control)==1);
++    fixture_wait(fixture_comp_entered);
++    atomic_store(&fixture_allow_guess,0);
++    assert(dsh_ahead_(name,(uintptr_t)bytes,control,0)==1);
++    dispatch_semaphore_signal(fixture_comp_release);
++    assert(rb_observed_drain(&fixture_pool,fixture_deadline()));
++    assert(compiler_calls==2 && overlap==0 && fixture_stage_loads==2);
++    assert(dsh_observed_bytes==0 && g_dsh_ahead_dup>=1);
++    rb_observed_stop(&fixture_pool);
++    assert(rb_observed_drain(&fixture_pool,fixture_deadline()));
++    NSError *error=nil;
++    assert([[NSFileManager defaultManager] removeItemAtPath:@(dir) error:&error]);
++    puts("PASS two concurrent lanes, Fair demand after cancelled/in-flight speculation, dedup, memory bound, retry, teardown");
++    return 0;
++}
+diff --git a/graphics/nvn/tests/t_dsh_stats.c b/graphics/nvn/tests/t_dsh_stats.c
+index 6fef511f68a409587b64107920f8ac995f477552..0af914c9d12c16ba30b36024e25e646391aa832a 100644
+--- a/graphics/nvn/tests/t_dsh_stats.c
++++ b/graphics/nvn/tests/t_dsh_stats.c
+@@ -37,6 +37,13 @@ static const char *chain_name(void);   // DMSH_CHAIN（dmsh_chain.h 随 dsh_miss
+ static int write_out, slow_first;   // 39–41（后台预编）：编译器桩真把产物写进兜底目录（dsh_have 认它）；41：键 0 编得慢（让排在它后面的键停在队里）
+ static _Atomic int in_comp, overlap;   // 42：C# 现编入口不可重入，同时有两个调用在里面就计一次
+ static int compiler_(const char *key, int stage, const char *out);
++#ifdef RB_TEST_OBSERVED
++#include "../gfx/nvn/rb_observed_pool.h"
++static rb_observed_pool fixture_pool=RB_OBSERVED_POOL_INIT;
++static int fixture_workers;
++static _Atomic int fixture_allow_guess,fixture_gate_calls,fixture_stage_loads;
++static dispatch_semaphore_t fixture_comp_entered,fixture_comp_release;
++#endif
+ static int crash_in_comp;   // 44：替身翻译器编到一半崩（真 SIGSEGV），看崩溃处理落没落下输入
+ static int compiler(const char *key, int stage, const void *code, size_t nc, const void *ctl, size_t nt, const char *out) {
+     (void)code; (void)nc; (void)ctl; (void)nt;
+@@ -46,6 +53,12 @@ static int compiler(const char *key, int stage, const void *code, size_t nc, con
+ }
+ static int compiler_(const char *key, int stage, const char *out) {
+     compiled_stage = stage; atomic_fetch_add(&compiler_calls, 1);   // 先计数再慢：41 据此知道键 0 已在编（键 1 还在队里）
++#ifdef RB_TEST_OBSERVED
++    if (fixture_comp_entered) {
++        dispatch_semaphore_signal(fixture_comp_entered);
++        if (dispatch_semaphore_wait(fixture_comp_release, dispatch_time(DISPATCH_TIME_NOW,5*NSEC_PER_SEC))) abort();
++    }
++#endif
+     if (slow_first && !strcmp(key, "0000000000000000")) usleep(300000);
+     if (write_out && !compile_rc && out && strcmp(out, "/dev/null")) {
+         char p[1200]; FILE *f; snprintf(p, sizeof p, "%s/%s_b.metal", out, key); if ((f = fopen(p, "w"))) { fputs("// MSL fixture", f); fclose(f); }
+@@ -74,8 +87,19 @@ static void fixture_log(const char *fmt, ...) {
+ static int nvn2;
+ int nvn2_on(void) { return nvn2; }
+ int nvn_be_stopping(void) { return 0; }
++#ifdef RB_TEST_OBSERVED
++int rb_kart_thermal_workers(void) { return fixture_workers; }
++__attribute__((visibility("hidden"))) int rb_observed_workers_on(void) { return fixture_workers; }
++__attribute__((visibility("hidden"))) int rb_observed_enqueue(dispatch_block_t job) { return rb_observed_submit(&fixture_pool,job); }
++__attribute__((visibility("hidden"))) void rb_observed_stage_load(const char *key,const char *stage) { (void)key; (void)stage; atomic_fetch_add(&fixture_stage_loads,1); }
++int rb_kart_try_worker(int *lease) { *lease=0; atomic_fetch_add(&fixture_gate_calls,1); return !fixture_workers || atomic_load(&fixture_allow_guess); }
++#else
+ int rb_kart_thermal_workers(void) { return 0; }
+-int rb_kart_try_worker(int *lease) { *lease = 0; return 1; }
++__attribute__((visibility("hidden"))) int rb_observed_workers_on(void) { return 0; }
++__attribute__((visibility("hidden"))) int rb_observed_enqueue(dispatch_block_t job) { (void)job; return 0; }
++__attribute__((visibility("hidden"))) void rb_observed_stage_load(const char *key,const char *stage) { (void)key; (void)stage; }
++int rb_kart_try_worker(int *lease) { *lease=0; return 1; }
++#endif
+ int rb_spec_take_optional(void) { return 1; }
+ void rb_spec_done(int *lease) { *lease = 0; }
+ #include "../host/dsh_miss.inc"
+@@ -341,7 +365,13 @@ static int rb_test_receipt_ready(void *wire) {
+     return snprintf(file,sizeof file,"%s/priority-stages-v1/%s/receipt.plist",(char *)wire,key)<(int)sizeof file && !access(file,F_OK);
+ }
+ #endif
++#ifdef RB_TEST_OBSERVED
++#include "rb_observed_fixture.inc"
++#endif
+ int main(int argc, char **argv) {
++#ifdef RB_TEST_OBSERVED
++    if (argc==2 && !strcmp(argv[1],"--rb-observed-workers")) { @autoreleasepool { alarm(20); return fixture_observed(); } }
++#endif
+ #ifdef RB_PREPARE_STAGES_V1
+     if (argc == 7 && !strcmp(argv[1],"--rb-local-stages")) { @autoreleasepool {
+         alarm(90);

@@ -1,0 +1,151 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index fa7b27adbcf9fed5bc8cbdf21f8ee268d14b904b..843086ab35c912df5dabac7145428a41cddf0c41 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3477,17 +3477,27 @@ __attribute__((weak)) int dm_low_power_now(void) { return 0; }   // Low Power Mo
+ #define LFN 16
+ #include "rb_pso_activity.h"
+ extern int nvn_rb_pso_activity(rb_pso_activity *) __attribute__((weak_import));
+-typedef struct { rb_pso_activity counts; int mode; } rb_pso_sample;
++typedef struct { rb_pso_activity counts; int mode; uint64_t first_frame; } rb_pso_sample;
+ static rb_pso_sample rb_pso_frames[LFN];
+ 
+ static void rb_pso_emit(const char *label, uint64_t f, const rb_pso_sample *s) {
+     const uint64_t *v = s->counts.value;
++    int pso_mode = s->mode & RB_REPORT_PSO_MODE_MASK;
++    if (s->mode & RB_REPORT_SHADER_WORK)
++        LOG("[%s-shaders] frame=%llu first_frame=%llu draws_skipped_shlib=%llu draws_skipped_pso=%llu "
++            "submit_msl_blocked_count=%llu submit_msl_blocked_ms=%.3f "
++            "submit_shared_wait_count=%llu submit_shared_wait_ms=%.3f msl_source_count=%llu msl_source_ms=%.3f",
++            label, (unsigned long long)f, (unsigned long long)s->first_frame, (unsigned long long)v[RB_SKIP_SHADER_LIBRARY],
++            (unsigned long long)v[RB_SKIP_RENDER_PSO], (unsigned long long)v[RB_SUBMIT_MSL_COUNT],
++            v[RB_SUBMIT_MSL_NS]/1e6, (unsigned long long)v[RB_SUBMIT_SHARED_COUNT],
++            v[RB_SUBMIT_SHARED_NS]/1e6, (unsigned long long)v[RB_PSO_MSL_N], v[RB_PSO_MSL_NS]/1e6);
++    if (!pso_mode) return;
+     LOG("[%s] frame=%llu async=%d pso_cache_hit=%llu pso_async_queued=%llu pso_async_skipped_draws=%llu "
+         "pso_sync_fallback=%llu early_render=%llu early_compute=%llu critical_joins=%llu critical_join_ms=%.2f "
+         "msl_source_count=%llu msl_source_ms=%.2f render_link_submit=%llu/%.2fms render_link_worker=%llu/%.2fms "
+         "compute_link_submit=%llu/%.2fms compute_link_worker=%llu/%.2fms "
+         "archive_hit_miss_render_warm=%llu/%llu render_play=%llu/%llu compute_warm=%llu/%llu compute_play=%llu/%llu",
+-        label, (unsigned long long)f, s->mode == 2, (unsigned long long)v[RB_PSO_HIT],
++        label, (unsigned long long)f, pso_mode == 2, (unsigned long long)v[RB_PSO_HIT],
+         (unsigned long long)v[RB_PSO_QUEUED], (unsigned long long)v[RB_PSO_SKIPPED],
+         (unsigned long long)v[RB_PSO_SYNC], (unsigned long long)v[RB_PSO_EARLY_R],
+         (unsigned long long)v[RB_PSO_EARLY_C], (unsigned long long)v[RB_PSO_JOIN], v[RB_PSO_JOIN_NS]/1e6,
+@@ -3510,6 +3520,7 @@ static void rb_pso_frame_sample(uint64_t frame) {
+     static unsigned frames;
+     rb_pso_activity now;
+     rb_pso_sample *s = &rb_pso_frames[frame % LFN];
++    s->first_frame = frame;
+     s->mode = nvn_rb_pso_activity ? nvn_rb_pso_activity(&now) : 0;
+     if (!s->mode) { frames = 0; window.mode = 0; return; }
+     if (!frame || s->mode != window.mode) {
+@@ -3522,15 +3533,18 @@ static void rb_pso_frame_sample(uint64_t frame) {
+         window.mode = s->mode;
+         frames = 0;
+     } else {
++        if (!frames) window.first_frame = frame;
+         for (unsigned i = 0; i < RB_PSO_COUNTERS; ++i) {
+             s->counts.value[i] = now.value[i] - previous.value[i];
+             window.counts.value[i] += s->counts.value[i];
+         }
+         waits[frames] = s->counts.value[RB_PSO_JOIN_NS] / 1e6;
+         if (++frames == TWIN) {
+-            qsort(waits, frames, sizeof *waits, dcmp);
+-            LOG("[pso-waits] frame=%llu samples=%u critical_join_p95_ms=%.2f critical_join_max_ms=%.2f",
+-                (unsigned long long)frame, frames, waits[(frames * 95 + 99) / 100 - 1], waits[frames - 1]);
++            if (s->mode & RB_REPORT_PSO_MODE_MASK) {
++                qsort(waits, frames, sizeof *waits, dcmp);
++                LOG("[pso-waits] frame=%llu samples=%u critical_join_p95_ms=%.2f critical_join_max_ms=%.2f",
++                    (unsigned long long)frame, frames, waits[(frames * 95 + 99) / 100 - 1], waits[frames - 1]);
++            }
+             rb_pso_emit("pso-window", frame, &window);
+             memset(&window.counts, 0, sizeof window.counts);
+             frames = 0;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index c1fed4dde87ea94fbb5e8849850febdcb826ff75..e85327a8fa0250b8fa5a12f57d34cef8507bc52f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -249,7 +249,7 @@ static uint64_t g_link_tick_ns, g_link_tick_n;
+ static uint64_t g_link_started_tick;
+ // Metadata is protected by g_link_mu and outlives each timed wait. If several
+ // frontends ever wait concurrently, keep the original broadcast semantics.
+-static _Atomic int g_rb_wake_option, g_rb_thermal_host;
++static _Atomic int g_rb_wake_option, g_rb_thermal_host, g_rb_shader_stats_option;
+ int nvn_rb_thermal_scope(void) {
+ #if TARGET_OS_IOS && !TARGET_OS_SIMULATOR && !TARGET_OS_MACCATALYST
+     // rb_guest sets the title before command recording. Device and backend
+@@ -10007,6 +10007,8 @@ static _Atomic uint64_t g_rb_lib_done;   // RewindBox (patch 0085): libraries bu
+ static _Atomic uint64_t g_rb_msl_n, g_rb_msl_ns, g_rb_msl_shared;
+ static __thread uint64_t t_rb_msl_n; // per-job reference preparation accounting
+ static _Atomic uint64_t g_bp_msl_n, g_bp_msl_ns; // subset compiled on the submit thread
++static _Atomic uint64_t g_rb_first_shlib_skips, g_rb_first_pso_skips;
++static _Atomic uint64_t g_rb_submit_shared_count, g_rb_submit_shared_ns;
+ // Stages whose entry point follows the depth mode: vertex, and an NVN2 mesh shader at stage 4 (main0 / main0_z as a vertex shader's; a domain shader there takes main0 either way)
+ static inline int stage_depth_moded(int stage) { return stage == 0 || stage == 4; }
+ static NSString *shader_identity(NSString *pc, int stage, int layer, int depth_zero) {
+@@ -10896,6 +10898,10 @@ static uint64_t flight_wait_locked(ShaderFlight *flight) {
+     dispatch_group_wait(flight->done, DISPATCH_TIME_FOREVER);
+     uint64_t elapsed = bp_now() - start;
+     if (ov) pthread_override_qos_class_end_np(ov);
++    if (on_sub_thread()) {
++        atomic_fetch_add_explicit(&g_rb_submit_shared_count, 1, memory_order_relaxed);
++        atomic_fetch_add_explicit(&g_rb_submit_shared_ns, elapsed, memory_order_relaxed);
++    }
+     return elapsed;
+ }
+ static NvShader *shader_build(NSString *pc, int stage, int layer, int depth_zero) {
+@@ -24872,9 +24878,23 @@ void nvn_be_alloc_stats(uint64_t *waits, uint64_t *grown, int *n) { *waits = g_a
+ #include "rb_pso_activity.h"
+ int nvn_rb_pso_activity(rb_pso_activity *out) {
+     int mode = rb_pso_mode();
+-    if (!mode) return 0;
+-    nvn_rb_async_pso_snapshot(out->value);
+-    rb_par_snapshot(out->value + RB_PSO_R_WARM_HIT);
++    int report = nvn_rb_thermal_scope() &&
++                 rb_pacing_setting(&g_rb_shader_stats_option, "S2A_RB_SHADER_STATS");
++    if (!mode && !report) return 0;
++    memset(out, 0, sizeof *out);
++    if (mode) {
++        nvn_rb_async_pso_snapshot(out->value);
++        rb_par_snapshot(out->value + RB_PSO_R_WARM_HIT);
++    }
++    if (report) {
++        out->value[RB_SUBMIT_MSL_COUNT] = atomic_load_explicit(&g_bp_msl_n, memory_order_relaxed);
++        out->value[RB_SUBMIT_MSL_NS] = atomic_load_explicit(&g_bp_msl_ns, memory_order_relaxed);
++        out->value[RB_SUBMIT_SHARED_COUNT] = atomic_load_explicit(&g_rb_submit_shared_count, memory_order_relaxed);
++        out->value[RB_SUBMIT_SHARED_NS] = atomic_load_explicit(&g_rb_submit_shared_ns, memory_order_relaxed);
++        out->value[RB_SKIP_SHADER_LIBRARY] = atomic_load_explicit(&g_rb_first_shlib_skips, memory_order_relaxed);
++        out->value[RB_SKIP_RENDER_PSO] = atomic_load_explicit(&g_rb_first_pso_skips, memory_order_relaxed);
++        mode |= RB_REPORT_SHADER_WORK;
++    }
+     out->value[RB_PSO_MSL_N] = atomic_load_explicit(&g_rb_msl_n, memory_order_relaxed);
+     out->value[RB_PSO_MSL_NS] = atomic_load_explicit(&g_rb_msl_ns, memory_order_relaxed);
+     return mode;
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 27aefada7210ba01974e3e1657d32d43f16eac0f..23c7130dc3852dd4fc76594ae8608e00aaf6ee29 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -341,6 +341,7 @@ void nvn_be_begin_session(void) {
+     atomic_store(&rb_gov_next,0);
+     for (unsigned i=0; i<RB_KART_OPTIONS; i++) atomic_store(&rb_kart_settings[i],0);
+     atomic_store_explicit(&rb_pso_session_mode, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_shader_stats_option, 0, memory_order_relaxed);
+     if (g_rb_warm_retired) {
+         g_rb_warm_retired = 0;
+         g_rb_warm_resume = 1;
+diff --git a/graphics/nvn/gfx/nvn/rb_pso_activity.h b/graphics/nvn/gfx/nvn/rb_pso_activity.h
+index b8d6d95eacb73efeea3b701d433be61f1dcd98a5..919b700498cc5307a0005d742767aeb3816f2790 100644
+--- a/graphics/nvn/gfx/nvn/rb_pso_activity.h
++++ b/graphics/nvn/gfx/nvn/rb_pso_activity.h
+@@ -11,6 +11,9 @@ enum {
+     RB_PSO_C_WARM_HIT, RB_PSO_C_WARM_MISS, RB_PSO_C_PLAY_HIT, RB_PSO_C_PLAY_MISS,
+     RB_PSO_R_SUB_N, RB_PSO_R_SUB_NS, RB_PSO_R_BG_N, RB_PSO_R_BG_NS,
+     RB_PSO_C_SUB_N, RB_PSO_C_SUB_NS, RB_PSO_C_BG_N, RB_PSO_C_BG_NS,
+-    RB_PSO_MSL_N, RB_PSO_MSL_NS, RB_PSO_COUNTERS
++    RB_PSO_MSL_N, RB_PSO_MSL_NS,
++    RB_SUBMIT_MSL_COUNT, RB_SUBMIT_MSL_NS, RB_SUBMIT_SHARED_COUNT, RB_SUBMIT_SHARED_NS,
++    RB_SKIP_SHADER_LIBRARY, RB_SKIP_RENDER_PSO, RB_PSO_COUNTERS
+ };
++enum { RB_REPORT_PSO_MODE_MASK = 3, RB_REPORT_SHADER_WORK = 4 };
+ typedef struct { uint64_t value[RB_PSO_COUNTERS]; } rb_pso_activity;

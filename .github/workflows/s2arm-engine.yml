@@ -156,6 +156,19 @@ jobs:
           set -euo pipefail
           python3 build-utils/s2arm/engine/prefetch_sources.py "$RUNNER_TEMP/s2arm" \
             "$RUNNER_TEMP/s2arm-build-cache/sources" | tee -a proof/inputs.txt
+      - name: Verify observed shader workers and persistent stage libraries
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-first-draw]')
+        working-directory: ${{ runner.temp }}/s2arm
+        run: |
+          set -euo pipefail
+          xcrun --sdk macosx clang -x objective-c -std=gnu11 -fblocks -pthread -framework Foundation \
+            -DRB_TEST_OBSERVED=1 graphics/nvn/tests/t_dsh_stats.c -o "$RUNNER_TEMP/t_rb_observed"
+          "$RUNNER_TEMP/t_rb_observed" --rb-observed-workers
+          python3 -B "$GITHUB_WORKSPACE/test/s2arm_shader_session_metrics_test.py"
+          if ! xcrun --sdk macosx metal --version >/dev/null 2>&1; then
+            xcodebuild -downloadComponent MetalToolchain
+          fi
+          bash graphics/nvn/tests/t_rb_stage_disk.sh
       - name: Check the presentation freeze and memory governor on macOS arm64
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-freeze-check]')
         working-directory: ${{ runner.temp }}/s2arm

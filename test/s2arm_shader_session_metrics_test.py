@@ -8,6 +8,22 @@ from shader_session_metrics import summarize
 
 
 class SessionMetricsTests(unittest.TestCase):
+    def test_shader_waits_and_worker_costs_use_separate_windows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            host = Path(directory) / "host.log"
+            fields = ("draws_skipped_shlib=2 draws_skipped_pso=3 submit_msl_blocked_count=0 "
+                      "submit_msl_blocked_ms=0.000 submit_shared_wait_count=1 "
+                      "submit_shared_wait_ms=8.125 msl_source_count=9 msl_source_ms=150.750")
+            host.write_text(f"[pso-window-shaders] frame=301 first_frame=2 {fields}\n"
+                            f"[pso-frame-shaders] frame=301 first_frame=301 {fields}\n")
+            report = summarize(host, [], 2, 301)
+            window, = report["shaderWorkWindows"]
+            self.assertEqual((window["submit_msl_blocked_count"], window["msl_source_count"]), (0, 9))
+            self.assertEqual(window["submit_shared_wait_ms"], 8.125)
+            narrow = summarize(host, [], 301, 301)
+            self.assertNotIn("shaderWorkWindows", narrow)
+            self.assertEqual(narrow["shaderWorkSlowFrames"][0]["draws_skipped_shlib"], 2)
+
     def test_slow_frame_identity_costs_and_strict_threshold(self):
         with tempfile.TemporaryDirectory() as directory:
             host = Path(directory) / "host.log"

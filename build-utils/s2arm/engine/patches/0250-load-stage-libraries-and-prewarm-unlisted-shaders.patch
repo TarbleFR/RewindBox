@@ -1,0 +1,585 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index a415df8789f2a2aa25d55346ed0e1f0b09d8c37d..4acb2cb8bad8d8b927a1ced572a07fc1cb29bac9 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -10018,7 +10018,9 @@ static unsigned shader_cache_count(void) {
+     os_unfair_lock_lock(&g_shader_lock); unsigned n = (unsigned)g_shcache.count; os_unfair_lock_unlock(&g_shader_lock); return n;
+ }
+ static _Atomic uint64_t g_lp_lib_built, g_lp_lib_shared, g_lp_hi_n, g_lp_hi_live, g_lp_low_n, g_lp_low_bytes;   // lib_pack.inc lp_library / lp_map (tentative definitions: the container reader is included below)
++static void rb_stage_disk_stats(void);
+ static void shader_load_stats(void) {
++    rb_stage_disk_stats();
+     MLOG("shader loads: requests %llu / cache hits %llu / shared waits %llu (%.3f ms) / constructions %llu / failures %llu / active %llu",
+          (unsigned long long)atomic_load(&g_shader_requests), (unsigned long long)atomic_load(&g_shader_hits),
+          (unsigned long long)atomic_load(&g_shader_waits), atomic_load(&g_shader_wait_ns) / 1e6, (unsigned long long)atomic_load(&g_shader_builds),
+@@ -10482,54 +10484,7 @@ static int fb_json_current(NSDictionary *j) { const char *x = fb_xfp(); return x
+ // RewindBox (patch 0066): replaces, in the entry points main0, main0_z, main0_l and main0_lz of a translated vertex shader, each read of c0 + 0x644 by Metal's base instance.
+ //   Returns a malloc'd copy (NULL when nothing changed); *reads: reads replaced, *entries: entry points changed, *left: reads kept (main0_gs, or a read followed by a
+ //   swizzle or name this does not know)
+-static int rb_binst_idch(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'; }
+-static char *rb_binst_fix(const char *src, size_t len, unsigned *reads, unsigned *entries, unsigned *left) {
+-    static const char kRead[] = "(*spvDescriptorSet0.vp_c0)._m0[100].y";   // c0 is float4 _m0[]: byte 0x644 = _m0[100].y
+-    static const char kParam[] = ", uint rb_binst [[base_instance]]";
+-    const size_t kl = sizeof kRead - 1;
+-    *reads = *entries = *left = 0;
+-    if (!src || !memmem(src, len, kRead, kl)) return NULL;
+-    size_t cap = len + 4096, n = 0; char *out = malloc(cap); if (!out) return NULL;
+-    #define RB_PUT(p, l) do { size_t l_ = (l); if (n + l_ + 1 > cap) { while (n + l_ + 1 > cap) cap *= 2; char *t_ = realloc(out, cap); if (!t_) { free(out); return NULL; } out = t_; } memcpy(out + n, (p), l_); n += l_; } while (0)
+-    size_t i = 0;
+-    while (i < len) {
+-        // the next entry point header of interest
+-        const char *h0 = NULL; size_t hl = 0; const char *best = NULL;
+-        static const char *const heads[] = { "\nvertex main0_out main0(", "\nvertex main0_out main0_z(", "\nvertex main0l_out main0_l(", "\nvertex main0l_out main0_lz(" };
+-        for (int k = 0; k < (int)(sizeof heads / sizeof *heads); k++) { const char *f = memmem(src + i, len - i, heads[k], strlen(heads[k])); if (f && (!best || f < best)) { best = f; hl = strlen(heads[k]); } }
+-        if (!best) break;
+-        h0 = best;
+-        size_t po = (size_t)(h0 - src) + hl, p = po; int depth = 1;
+-        while (p < len && depth) { if (src[p] == '(') depth++; else if (src[p] == ')') depth--; p++; }
+-        if (depth) break;
+-        size_t pe = p - 1;   // ')' closing the parameters
+-        const char *bo = memchr(src + pe, '{', len - pe); if (!bo) break;
+-        size_t b = (size_t)(bo - src), q = b + 1; depth = 1;
+-        while (q < len && depth) { if (src[q] == '{') depth++; else if (src[q] == '}') depth--; q++; }
+-        if (depth) break;
+-        size_t be = q;   // one past the body's '}'
+-        // reads in the body? (one followed by a swizzle or a name, ._m0[100].yz, is not this word alone: kept)
+-        unsigned nr = 0; for (size_t s = b; s + kl <= be; ) { const char *f = memmem(src + s, be - s, kRead, kl); if (!f) break; s = (size_t)(f - src) + kl; nr += s >= be || !rb_binst_idch(src[s]); }
+-        if (!nr) { RB_PUT(src + i, be - i); i = be; continue; }
+-        // the base instance parameter's name, if the entry point has one
+-        char name[64] = "rb_binst"; int have = 0;
+-        const char *bi = memmem(src + po, pe - po, "[[base_instance]]", 17);
+-        if (bi) { const char *e = bi; while (e > src + po && (e[-1] == ' ' || e[-1] == '\t')) e--; const char *s = e; while (s > src + po && ((s[-1] >= 'a' && s[-1] <= 'z') || (s[-1] >= 'A' && s[-1] <= 'Z') || (s[-1] >= '0' && s[-1] <= '9') || s[-1] == '_')) s--;
+-                  if (e > s && (size_t)(e - s) < sizeof name) { memcpy(name, s, (size_t)(e - s)); name[e - s] = 0; have = 1; } }
+-        char with[96]; int wl = snprintf(with, sizeof with, "as_type<float>(uint(%s))", name);
+-        RB_PUT(src + i, pe - i);   // up to the ')' of the parameters
+-        if (!have) { size_t z = po; while (z < pe && (src[z] == ' ' || src[z] == '\t' || src[z] == '\n')) z++; size_t c = z < pe ? 0 : 2; RB_PUT(kParam + c, sizeof kParam - 1 - c); }   // no comma before it in an empty list
+-        for (size_t s = pe; s < be; ) { const char *f = memmem(src + s, be - s, kRead, kl); if (!f) { RB_PUT(src + s, be - s); break; } size_t t = (size_t)(f - src) + kl; RB_PUT(src + s, (size_t)(f - src) - s);
+-            if (t < be && rb_binst_idch(src[t])) RB_PUT(kRead, kl); else RB_PUT(with, (size_t)wl); s = t; }
+-        *reads += nr; (*entries)++; i = be;
+-    }
+-    if (i < len) RB_PUT(src + i, len - i);
+-    out[n] = 0;
+-    #undef RB_PUT
+-    for (size_t s = 0; s + kl <= n; ) { const char *f = memmem(out + s, n - s, kRead, kl); if (!f) break; (*left)++; s = (size_t)(f - out) + kl; }
+-    if (!*entries) { free(out); return NULL; }
+-    return out;
+-}
++#include "rb_base_instance_source.h"
+ static int rb_binst_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_BASE_INSTANCE"); v = !(e && !strcmp(e, "0")); } return v; }
+ static _Atomic uint32_t g_rb_binst_shaders, g_rb_binst_reads, g_rb_binst_refused, g_rb_binst_built;
+ static __thread unsigned t_rb_binst_reads; static __thread int t_rb_binst_seen;   // what the last call on this thread did: reads replaced, a source examined (its caller reads and clears them)
+@@ -10583,7 +10538,28 @@ static id<MTLLibrary> g_rb_msl_libraries[RB_RECENT_MSL];
+ 
+ static uint64_t flight_wait_locked(ShaderFlight *flight);
+ 
++#include "rb_stage_binary.h"
++static os_unfair_lock g_rb_disk_mu = OS_UNFAIR_LOCK_INIT;
++static NSString *g_rb_binary_dir;  // published by the disk worker, cleared before restarting
++static _Atomic int g_rb_disk_online;
++static _Atomic uint64_t g_rb_air_hits, g_rb_air_misses, g_rb_air_rejects;
++static id<MTLLibrary> rb_disk_library(NSString *src) {
++    if (!atomic_load_explicit(&g_rb_disk_online,memory_order_acquire)) return nil;
++    os_unfair_lock_lock(&g_rb_disk_mu);
++    NSString *dir = g_rb_binary_dir;
++    os_unfair_lock_unlock(&g_rb_disk_mu);
++    if (!dir) return nil;
++    NSString *digest = par_hash(src.UTF8String, [src lengthOfBytesUsingEncoding:NSUTF8StringEncoding]);
++    NSUInteger rejected = 0;
++    id<MTLLibrary> lib = rb_read_stage_binary(g_dev, dir, digest, &rejected);
++    if (lib) atomic_fetch_add(&g_rb_air_hits, 1);
++    else if (rejected) atomic_fetch_add(&g_rb_air_rejects, 1);
++    else atomic_fetch_add(&g_rb_air_misses, 1);
++    return lib;
++}
+ static id<MTLLibrary> rb_compile_source(NSString *src, NSError **error) {
++    id<MTLLibrary> binary = rb_disk_library(src);
++    if (binary) return binary;
+     uint64_t start = bp_now();
+     id<MTLLibrary> lib = [g_dev newLibraryWithSource:src options:dm_msl_opts() error:error];
+     uint64_t elapsed = bp_now() - start;
+@@ -15027,6 +15003,7 @@ static void warm_announce(void) {
+     MLOG("pipeline prepare: announced before the first frame (%ld list lines; front end %s)", n, r < 0 ? "absent" : "told");
+ }
+ static int g_rb_warm_retired, g_rb_warm_resume;
++#include "rb_stage_disk.inc"
+ static void warm_start_mode(int resumed);
+ static void rb_warm_resume(void) {
+     if (!g_rb_warm_resume) return;
+@@ -15037,12 +15014,13 @@ static void warm_start(void) { warm_start_mode(0); }
+ static void warm_start_mode(int resumed) {
+     if (g_warm_started++) return;
+     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ pso_user_seen_load(); });   // the record's dedupe set, off the submit thread (pso_user_seen_load)
++    rb_disk_launch(nil, YES);
+     NSArray<NSString *> *paths = warm_paths(1);
+-    if (!paths) { dm_shader_retranslate_kept(); return; }   // RewindBox (patch 0069): no prewarm, so no warm_finish
++    if (!paths) { rb_disk_launch(@[], NO); dm_shader_retranslate_kept(); return; }   // RewindBox (patch 0069): no prewarm, so no warm_finish
+     g_warm_t0 = bp_now(); atomic_store(&g_wp_t0, g_warm_t0);
+     atomic_store(&g_warm_running, 1);
+     if (rb_ref_path() || (!resumed && prepare_on())) {
+-        long lines = 0; NSArray<WarmTask *> *tasks = warm_parse(paths, &lines); warm_urgent_index(tasks);
++        long lines = 0; NSArray<WarmTask *> *tasks = warm_parse(paths, &lines); warm_urgent_index(tasks); rb_disk_launch(tasks, NO);
+         if (!lines) { MLOG("pipeline prepare: the prewarm lists hold nothing to build"); warm_finish(); }
+         else {
+             // A committed reference list has no migration proof object. Its opening
+@@ -15057,7 +15035,7 @@ static void warm_start_mode(int resumed) {
+     //   workers keep the compile load off the cores the game and the system need (six at user-initiated were the heat above)
+     const int async = rb_async_pso();
+     const qos_class_t qos = async ? QOS_CLASS_UTILITY : WARM_BG_QOS;
+-    dispatch_async(dispatch_get_global_queue(qos, 0), ^{ @autoreleasepool { long lines = 0; NSArray<WarmTask *> *ts = warm_parse(paths, &lines); warm_urgent_index(ts);
++    dispatch_async(dispatch_get_global_queue(qos, 0), ^{ @autoreleasepool { long lines = 0; NSArray<WarmTask *> *ts = warm_parse(paths, &lines); warm_urgent_index(ts); rb_disk_launch(ts, NO);
+         atomic_store(&g_wp_total, lines); atomic_store(&g_wp_why, WARM_WHY_CONFIG); atomic_store(&g_wp_phase, WARM_BG);
+         const char *e = getenv("DM_PSO_BG_THREADS"); int workers = e && atoi(e) > 0 ? atoi(e) : 2;
+         if ((async || rb_kart_thermal_workers()) && workers > 2) workers = 2;
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 23c7130dc3852dd4fc76594ae8608e00aaf6ee29..421ddb84fed7708da5b0140c9dde5106d2c11566 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -49,6 +49,7 @@ static int session_wait_backend(void) {
+     dispatch_group_t prefetch_done = dispatch_group_create();
+     os_unfair_lock_lock(&g_shpre_mu);
+     shq_mark(&g_shpre, prefetch_done); shq_mark(&g_shurg, prefetch_done);
++    if (g_rb_disk_q) dispatch_group_async(prefetch_done,g_rb_disk_q,^{});
+     os_unfair_lock_unlock(&g_shpre_mu);
+     if (dispatch_group_wait(prefetch_done, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC))) return -ETIMEDOUT;
+     // A guest submit returns only after publishing its encode records. No
+@@ -266,6 +267,11 @@ int nvn_be_shutdown_session(void) {
+     g_wd_c0 = 0; g_wd_d0 = ~0ull; g_wd_fskey = "-";
+     // All prefetch producers are drained. Compiled code stays resident, but
+     // widening ids and the first-use recording bit belong to the retired run.
++    os_unfair_lock_lock(&g_rb_disk_mu);
++    g_rb_binary_dir = nil; atomic_store(&g_rb_disk_online,0);
++    atomic_store(&g_rb_air_hits,0); atomic_store(&g_rb_air_misses,0); atomic_store(&g_rb_air_rejects,0);
++    atomic_store(&g_rb_disk_unlisted,0); atomic_store(&g_rb_disk_loaded,0); atomic_store(&g_rb_disk_invalid,0);
++    os_unfair_lock_unlock(&g_rb_disk_mu);
+     os_unfair_lock_lock(&g_shader_lock);
+     NSDictionary<NSString *, NvShader *> *shaders = [g_shcache copy];
+     os_unfair_lock_unlock(&g_shader_lock);
+diff --git a/graphics/nvn/gfx/nvn/rb_base_instance_source.h b/graphics/nvn/gfx/nvn/rb_base_instance_source.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..61666b8354d9f8f77feaa7d0a3ff77b1ecf5f4cd
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_base_instance_source.h
+@@ -0,0 +1,54 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++static int rb_binst_idch(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'; }
++static char *rb_binst_fix(const char *src, size_t len, unsigned *reads, unsigned *entries, unsigned *left) {
++    static const char kRead[] = "(*spvDescriptorSet0.vp_c0)._m0[100].y";   // c0 is float4 _m0[]: byte 0x644 = _m0[100].y
++    static const char kParam[] = ", uint rb_binst [[base_instance]]";
++    const size_t kl = sizeof kRead - 1;
++    *reads = *entries = *left = 0;
++    if (!src || !memmem(src, len, kRead, kl)) return NULL;
++    size_t cap = len + 4096, n = 0; char *out = malloc(cap); if (!out) return NULL;
++    #define RB_PUT(p, l) do { size_t l_ = (l); if (n + l_ + 1 > cap) { while (n + l_ + 1 > cap) cap *= 2; char *t_ = realloc(out, cap); if (!t_) { free(out); return NULL; } out = t_; } memcpy(out + n, (p), l_); n += l_; } while (0)
++    size_t i = 0;
++    while (i < len) {
++        // the next entry point header of interest
++        const char *h0 = NULL; size_t hl = 0; const char *best = NULL;
++        static const char *const heads[] = { "\nvertex main0_out main0(", "\nvertex main0_out main0_z(", "\nvertex main0l_out main0_l(", "\nvertex main0l_out main0_lz(" };
++        for (int k = 0; k < (int)(sizeof heads / sizeof *heads); k++) { const char *f = memmem(src + i, len - i, heads[k], strlen(heads[k])); if (f && (!best || f < best)) { best = f; hl = strlen(heads[k]); } }
++        if (!best) break;
++        h0 = best;
++        size_t po = (size_t)(h0 - src) + hl, p = po; int depth = 1;
++        while (p < len && depth) { if (src[p] == '(') depth++; else if (src[p] == ')') depth--; p++; }
++        if (depth) break;
++        size_t pe = p - 1;   // ')' closing the parameters
++        const char *bo = memchr(src + pe, '{', len - pe); if (!bo) break;
++        size_t b = (size_t)(bo - src), q = b + 1; depth = 1;
++        while (q < len && depth) { if (src[q] == '{') depth++; else if (src[q] == '}') depth--; q++; }
++        if (depth) break;
++        size_t be = q;   // one past the body's '}'
++        // reads in the body? (one followed by a swizzle or a name, ._m0[100].yz, is not this word alone: kept)
++        unsigned nr = 0; for (size_t s = b; s + kl <= be; ) { const char *f = memmem(src + s, be - s, kRead, kl); if (!f) break; s = (size_t)(f - src) + kl; nr += s >= be || !rb_binst_idch(src[s]); }
++        if (!nr) { RB_PUT(src + i, be - i); i = be; continue; }
++        // the base instance parameter's name, if the entry point has one
++        char name[64] = "rb_binst"; int have = 0;
++        const char *bi = memmem(src + po, pe - po, "[[base_instance]]", 17);
++        if (bi) { const char *e = bi; while (e > src + po && (e[-1] == ' ' || e[-1] == '\t')) e--; const char *s = e; while (s > src + po && ((s[-1] >= 'a' && s[-1] <= 'z') || (s[-1] >= 'A' && s[-1] <= 'Z') || (s[-1] >= '0' && s[-1] <= '9') || s[-1] == '_')) s--;
++                  if (e > s && (size_t)(e - s) < sizeof name) { memcpy(name, s, (size_t)(e - s)); name[e - s] = 0; have = 1; } }
++        char with[96]; int wl = snprintf(with, sizeof with, "as_type<float>(uint(%s))", name);
++        RB_PUT(src + i, pe - i);   // up to the ')' of the parameters
++        if (!have) { size_t z = po; while (z < pe && (src[z] == ' ' || src[z] == '\t' || src[z] == '\n')) z++; size_t c = z < pe ? 0 : 2; RB_PUT(kParam + c, sizeof kParam - 1 - c); }   // no comma before it in an empty list
++        for (size_t s = pe; s < be; ) { const char *f = memmem(src + s, be - s, kRead, kl); if (!f) { RB_PUT(src + s, be - s); break; } size_t t = (size_t)(f - src) + kl; RB_PUT(src + s, (size_t)(f - src) - s);
++            if (t < be && rb_binst_idch(src[t])) RB_PUT(kRead, kl); else RB_PUT(with, (size_t)wl); s = t; }
++        *reads += nr; (*entries)++; i = be;
++    }
++    if (i < len) RB_PUT(src + i, len - i);
++    out[n] = 0;
++    #undef RB_PUT
++    for (size_t s = 0; s + kl <= n; ) { const char *f = memmem(out + s, n - s, kRead, kl); if (!f) break; (*left)++; s = (size_t)(f - out) + kl; }
++    if (!*entries) { free(out); return NULL; }
++    return out;
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_stage_binary.h b/graphics/nvn/gfx/nvn/rb_stage_binary.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..d08e19375c43ef9511b47fccf58062ab95b39c77
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_stage_binary.h
+@@ -0,0 +1,40 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#import <Foundation/Foundation.h>
++#import <Metal/Metal.h>
++#import <CommonCrypto/CommonDigest.h>
++#include <fcntl.h>
++#include <sys/mman.h>
++#include <sys/stat.h>
++#include <unistd.h>
++
++// AIR executable libraries are produced by the platform Metal compiler, not the
++// pipeline archive. Validate the exact MSL and binary bytes before using one.
++#define RB_AIR_FOLDER "rb-stage-air-v1-relaxed-invariant"
++static id<MTLLibrary> rb_read_stage_binary(id<MTLDevice> device, NSString *dir,
++                                            NSString *digest, NSUInteger *rejected) {
++    *rejected = 0;
++    if (digest.length != 40) return nil;
++    NSString *path = [dir stringByAppendingPathComponent:[digest stringByAppendingPathExtension:@"airlib"]];
++    int fd = open(path.fileSystemRepresentation, O_RDONLY | O_NOFOLLOW | O_NONBLOCK);
++    if (fd < 0) return nil;
++    struct stat st;
++    size_t header = 8+40+CC_SHA256_DIGEST_LENGTH;
++    if (fstat(fd,&st) || !S_ISREG(st.st_mode) || st.st_size <= (off_t)header ||
++        st.st_size > (64ll << 20)) { close(fd); *rejected = 1; return nil; }
++    size_t size = (size_t)st.st_size;
++    uint8_t *bytes = mmap(NULL,size,PROT_READ,MAP_PRIVATE,fd,0);
++    close(fd);
++    if (bytes == MAP_FAILED) { *rejected = 1; return nil; }
++    uint8_t sum[CC_SHA256_DIGEST_LENGTH];
++    size_t payload = size-header;
++    if (memcmp(bytes,"RBAIR001",8) || memcmp(bytes+8,digest.UTF8String,40) ||
++        memcmp(bytes+48,CC_SHA256(bytes+header,(CC_LONG)payload,sum),sizeof sum)) {
++        munmap(bytes,size); *rejected = 1; return nil;
++    }
++    dispatch_data_t data = dispatch_data_create(bytes+header,payload,NULL,^{ munmap(bytes,size); });
++    NSError *error=nil;
++    id<MTLLibrary> library=[device newLibraryWithData:data error:&error];
++    if (!library) *rejected = 1;
++    return library;
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_stage_disk.inc b/graphics/nvn/gfx/nvn/rb_stage_disk.inc
+new file mode 100644
+index 0000000000000000000000000000000000000000..528fdd170ef01bd93a49fbd55294bd7cb2364e28
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_stage_disk.inc
+@@ -0,0 +1,85 @@
++// SPDX-License-Identifier: MIT
++// The optional disk scan belongs to the session. request_stop closes admission
++// under g_shpre_mu, wakes the governor, and the session drain joins this queue.
++#include "rb_unlisted_stages.h"
++static dispatch_queue_t g_rb_disk_q;
++static _Atomic uint64_t g_rb_disk_unlisted, g_rb_disk_loaded, g_rb_disk_invalid;
++static int rb_disk_setting(const char *flag) {
++    if (!nvn_rb_thermal_scope()) return 0;
++    const char *value = getenv(flag);
++    const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
++    return value ? !strcmp(value,"1") : title && !strcasecmp(title,"0400C3F00006E000");
++}
++static void rb_stage_disk_stats(void) {
++    uint64_t orphans = atomic_load(&g_rb_disk_unlisted), hits = atomic_load(&g_rb_air_hits);
++    uint64_t misses = atomic_load(&g_rb_air_misses), rejects = atomic_load(&g_rb_air_rejects);
++    if (orphans || hits || misses || rejects)
++        MLOG("[rb-shader-disk] unlisted=%llu loaded=%llu invalid=%llu air_hits=%llu air_misses=%llu air_rejected=%llu",
++            (unsigned long long)orphans,(unsigned long long)atomic_load(&g_rb_disk_loaded),
++            (unsigned long long)atomic_load(&g_rb_disk_invalid),(unsigned long long)hits,
++            (unsigned long long)misses,(unsigned long long)rejects);
++}
++static void rb_disk_launch(NSArray<WarmTask *> *tasks, BOOL prime) {
++    if (!rb_disk_setting(prime ? "S2A_RB_STAGE_BINARIES" : "S2A_RB_STAGE_DISK_WARM")) return;
++    const char *manifest = getenv("DM_PSO_MANIFEST");
++    if (!prime && (!shpre_on() || (manifest && !strcmp(manifest,"off")))) return;
++    const char *path = getenv("DM_MSL_FALLBACK");
++    if (!path || !*path) return;
++    NSString *root = @(path);
++    os_unfair_lock_lock(&g_shpre_mu);
++    if (atomic_load(&g_shpre_stopping)) { os_unfair_lock_unlock(&g_shpre_mu); return; }
++    if (!g_rb_disk_q) g_rb_disk_q = dispatch_queue_create("s2a.stage-disk",
++            dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,QOS_CLASS_UTILITY,0));
++    __block NSArray<WarmTask *> *recipes = tasks;
++    dispatch_async(g_rb_disk_q, ^{ @autoreleasepool {
++        if (nvn_be_stopping()) return;
++        if (prime) {
++            NSString *dir = [root stringByAppendingPathComponent:@RB_AIR_FOLDER "/iphoneos"];
++            BOOL isDir = NO;
++            if (![NSFileManager.defaultManager fileExistsAtPath:dir isDirectory:&isDir] || !isDir) dir = nil;
++            os_unfair_lock_lock(&g_rb_disk_mu);
++            g_rb_binary_dir = dir;
++            atomic_store_explicit(&g_rb_disk_online,dir != nil,memory_order_release);
++            os_unfair_lock_unlock(&g_rb_disk_mu);
++            MLOG("[rb-shader-disk] static_air_directory=%d",dir != nil);
++            return;
++        }
++        NSMutableSet<NSString *> *covered = [NSMutableSet set];
++        for (WarmTask *task in recipes) {
++            if (task->key) [covered addObject:task->key];
++            if (task->vkey) [covered addObject:task->vkey];
++            if (task->fkey) [covered addObject:task->fkey];
++            if (task->tkey) [covered addObject:task->tkey];
++        }
++        recipes = nil; // a long thermal pause must not retain every recipe
++        NSArray<NSString *> *keys = rb_unlisted_stages(root,covered,^BOOL{ return nvn_be_stopping(); });
++        if (nvn_be_stopping()) return;
++        covered = nil;
++        atomic_store(&g_rb_disk_unlisted,keys.count);
++        MLOG("[rb-shader-disk] unlisted=%lu disk_stage_scan=complete",(unsigned long)keys.count);
++        for (NSString *key in keys) { @autoreleasepool {
++            // Worker one never receives a ONE/low-power admission. Use the
++            // governor's condition wakeups, including synchronous teardown.
++            int lease = 0;
++            while (!nvn_be_stopping() && !dm_gfx_session_stopping()) {
++                uint64_t ticket = atomic_load(&g_spec_gate.epoch);
++                if (NSProcessInfo.processInfo.thermalState == NSProcessInfoThermalStateNominal &&
++                    (!rb_gov_on() || rb_gov_quota(RB_GOV_PREFETCH)) && rb_spec_take(1,&lease)) break;
++                rb_spec_park_worker(ticket,1);
++            }
++            if (!lease || nvn_be_stopping() || dm_gfx_session_stopping()) { rb_spec_done(&lease); break; }
++            static const int host[] = {0,1,5,2,3,4}; // vs, ps, cs, gs, ts, ms
++            int st = -1;
++            if (rb_translation_available(root.fileSystemRepresentation,key,fb_xfp(),1,&st) && st >= 0 && st < 6) {
++                int stage = host[st];
++                NvShader *shader = shader_load_depth(key,stage,0,
++                    stage_depth_moded(stage) && atomic_load(&g_depth_zero),NULL,NULL);
++                if (shader) atomic_fetch_add(&g_rb_disk_loaded,1);
++                else atomic_fetch_add(&g_rb_disk_invalid,1);
++            } else atomic_fetch_add(&g_rb_disk_invalid,1);
++            rb_spec_done(&lease);
++        } }
++        rb_stage_disk_stats();
++    } });
++    os_unfair_lock_unlock(&g_shpre_mu);
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_unlisted_stages.h b/graphics/nvn/gfx/nvn/rb_unlisted_stages.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..bbba02a0d10804fd83f5deac1fb4fbb1e3626a12
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_unlisted_stages.h
+@@ -0,0 +1,27 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#import <Foundation/Foundation.h>
++#include <sys/stat.h>
++#include <fcntl.h>
++#include <string.h>
++// Only base stages have a standalone reflection. The padded/specialized
++// variants remain owned by their parent shader and pipeline recipe.
++#include <dirent.h>
++static NSArray<NSString *> *rb_unlisted_stages(NSString *root, NSSet<NSString *> *covered, BOOL (^stopping)(void)) {
++    DIR *dir = opendir(root.fileSystemRepresentation);
++    if (!dir) return @[];
++    NSMutableArray<NSString *> *result = [NSMutableArray array];
++    struct dirent *ent;
++    while ((!stopping || !stopping()) && (ent=readdir(dir))) {
++        const char *name = ent->d_name;
++        if (strlen(name) != 23 || strcmp(name+16,"_b.json") || strspn(name,"0123456789abcdef") != 16) continue;
++        NSString *key = [[NSString alloc] initWithBytes:name length:18 encoding:NSASCIIStringEncoding];
++        if ([covered containsObject:key]) continue;
++        struct stat st;
++        if (fstatat(dirfd(dir),name,&st,AT_SYMLINK_NOFOLLOW) || !S_ISREG(st.st_mode)) continue;
++        [result addObject:key];
++    }
++    closedir(dir);
++    [result sortUsingSelector:@selector(compare:)];
++    return result;
++}
+diff --git a/graphics/nvn/tests/t_rb_stage_disk.m b/graphics/nvn/tests/t_rb_stage_disk.m
+new file mode 100644
+index 0000000000000000000000000000000000000000..aa96afb752ba2a05110d1dd2f0a0e394435d31d2
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_stage_disk.m
+@@ -0,0 +1,47 @@
++// SPDX-License-Identifier: MIT
++#import "../gfx/nvn/rb_stage_binary.h"
++#import "../gfx/nvn/rb_unlisted_stages.h"
++#define DMSH_CHAIN "qualification"
++#import "../gfx/nvn/rb_stage_reflection.h"
++
++static int check(BOOL condition,const char *name) {
++    if (!condition) fprintf(stderr,"FAIL: %s\n",name);
++    return condition ? 0 : 1;
++}
++int main(int argc,char **argv) {
++    if (argc != 3) return 2;
++    @autoreleasepool {
++        NSString *root=@(argv[1]), *tag=@(argv[2]);
++        NSArray *keys=rb_unlisted_stages(root,[NSSet setWithObject:@"0000000000000002_b"],nil);
++        if (check([keys isEqual:@[@"0000000000000001_b",@"0000000000000003_b"]],"complete, ordered orphan keys")) return 1;
++        int stage=-1;
++        if (check(rb_translation_available(argv[1],keys[0],"fixture",0,&stage) && stage==2,"current compute reflection")) return 1;
++        if (check(!rb_translation_available(argv[1],keys[1],"fixture",0,NULL),"stale translator excluded")) return 1;
++        id<MTLDevice> dev=MTLCreateSystemDefaultDevice();
++        NSString *dir=[root stringByAppendingPathComponent:@RB_AIR_FOLDER "/macosx"];
++        NSUInteger rejected=0;
++        id<MTLLibrary> lib=rb_read_stage_binary(dev,dir,tag,&rejected);
++        if (check(lib && !rejected,"platform loaded a persisted static library")) return 1;
++        NSError *error=nil;
++        id<MTLComputePipelineState> p=[dev newComputePipelineStateWithFunction:[lib newFunctionWithName:@"main0"] error:&error];
++        if (check(p!=nil,"create pipeline using persisted entry")) return 1;
++        id<MTLBuffer> b=[dev newBufferWithLength:sizeof(uint32_t) options:MTLResourceStorageModeShared];
++        *(uint32_t *)b.contents=5;
++        id<MTLCommandQueue> q=[dev newCommandQueue];
++        id<MTLCommandBuffer> cb=[q commandBuffer];
++        id<MTLComputeCommandEncoder> ce=[cb computeCommandEncoder];
++        [ce setComputePipelineState:p]; [ce setBuffer:b offset:0 atIndex:0];
++        [ce dispatchThreads:MTLSizeMake(1,1,1) threadsPerThreadgroup:MTLSizeMake(1,1,1)];
++        [ce endEncoding]; [cb commit]; [cb waitUntilCompleted];
++        if (check(!cb.error && *(uint32_t *)b.contents==12,"persisted MSL produces expected pixels/data")) return 1;
++        NSString *missing=@"0000000000000000000000000000000000000000";
++        if (check(!rb_read_stage_binary(dev,dir,missing,&rejected) && !rejected,"absent entry remains a miss")) return 1;
++        NSString *path=[dir stringByAppendingPathComponent:[tag stringByAppendingPathExtension:@"airlib"]];
++        NSMutableData *bad=[[NSData dataWithContentsOfFile:path] mutableCopy];
++        ((uint8_t *)bad.mutableBytes)[bad.length-1]^=1;
++        if (check([bad writeToFile:path atomically:YES],"replace fixture")) return 1;
++        if (check(!rb_read_stage_binary(dev,dir,tag,&rejected) && rejected,"damaged binary rejected")) return 1;
++        puts("PASS matching/stale/unlisted translated stages, persisted executable shader, GPU output 12, absent and damaged binaries");
++        return 0;
++    }
++}
+diff --git a/graphics/nvn/tests/t_rb_stage_disk.sh b/graphics/nvn/tests/t_rb_stage_disk.sh
+new file mode 100644
+index 0000000000000000000000000000000000000000..1b43f5da75868ea097e030b89bdfcbe5a1c66add
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_stage_disk.sh
+@@ -0,0 +1,23 @@
++#!/bin/bash
++set -eu
++root=$(cd "$(dirname "$0")/../../.." && pwd)
++work=$(mktemp -d)
++trap 'rm -rf "$work"' EXIT
++a=0000000000000001_b
++cat > "$work/$a.metal" <<'METAL'
++#include <metal_stdlib>
++using namespace metal;
++kernel void main0(device uint *value [[buffer(0)]]) { *value += 7; }
++METAL
++for key in "$a" 0000000000000002_b; do
++    echo '{"chain":"qualification","xfp":"fixture","stage":"cs"}' > "$work/$key.json"
++done
++echo '{"chain":"qualification","xfp":"old","stage":"cs"}' > "$work/0000000000000003_b.json"
++touch "$work/0000000000000123_bv.json" "$work/unrelated.json"
++ln -s "$work/$a.json" "$work/0000000000000004_b.json"
++tag=$(shasum -a 256 "$work/$a.metal" | cut -c1-40)
++python3 "$root/graphics/tools/direct/prepare_stage_air.py" "$work" --sdk macosx
++python3 "$root/graphics/tools/direct/prepare_stage_air.py" "$work" --sdk macosx | grep '0 binaries written, 1 reused'
++python3 "$root/graphics/tools/direct/prepare_stage_air.py" "$work" --sdk iphoneos
++xcrun --sdk macosx clang -std=gnu11 -fobjc-arc -Wall -Wextra -Werror "$root/graphics/nvn/tests/t_rb_stage_disk.m" -framework Foundation -framework Metal -o "$work/test"
++"$work/test" "$work" "$tag"
+diff --git a/graphics/tools/direct/prepare_stage_air.py b/graphics/tools/direct/prepare_stage_air.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..b5af408a93dd511a42d62b38a6ae236defedc92c
+--- /dev/null
++++ b/graphics/tools/direct/prepare_stage_air.py
+@@ -0,0 +1,91 @@
++#!/usr/bin/env python3
++"""Precompile exported MSL into a private, portable Metal IR cache for one platform.
++
++Example on a Mac with the Metal toolchain:
++    python3 graphics/tools/direct/prepare_stage_air.py /path/to/title/shaders --sdk iphoneos
++Copy the resulting rb-stage-air-v1-relaxed-invariant folder beside that title's
++_b.json files. The device also prewarms original translations without this cache.
++"""
++import argparse
++import hashlib
++import os
++from pathlib import Path
++import re
++import subprocess
++import tempfile
++
++SUFFIX = 'rb-stage-air-v1-relaxed-invariant'
++SOURCE = re.compile(r'[0-9a-f]{16}_[a-zA-Z0-9_]+\.metal\Z')
++MAX_BLOB = 64 << 20
++
++
++def digest(data):
++    return hashlib.sha256(data).digest()
++
++
++def valid(path, tag):
++    if not path.is_file() or not 80 < path.stat().st_size <= MAX_BLOB:
++        return False
++    data = path.read_bytes()
++    return data[:48] == b'RBAIR001' + tag.encode() and data[48:80] == digest(data[80:])
++
++
++def prepare(source, sdk, destination, temp):
++    tag = digest(source).hex()[:40]
++    target = destination / (tag + '.airlib')
++    if valid(target, tag):
++        return False
++    msl, air, library = (temp / f'input.{suffix}' for suffix in ('metal', 'air', 'metallib'))
++    msl.write_bytes(source)
++    minimum = '-mios-version-min=18.0' if sdk == 'iphoneos' else '-mmacosx-version-min=15.0'
++    subprocess.run(['xcrun', '--sdk', sdk, 'metal', '-c', '-w', minimum,
++                    '-fmetal-math-mode=relaxed', '-fpreserve-invariance', str(msl), '-o', str(air)], check=True)
++    subprocess.run(['xcrun', '--sdk', sdk, 'metallib', str(air), '-o', str(library)], check=True)
++    if not 0 < library.stat().st_size <= MAX_BLOB - 80:
++        raise ValueError('Metal emitted an empty or oversized library')
++    binary = library.read_bytes()
++    with tempfile.NamedTemporaryFile(dir=destination, prefix='.air-', delete=False) as f:
++        tmp = Path(f.name)
++        try:
++            f.write(b'RBAIR001' + tag.encode() + digest(binary) + binary)
++            f.flush()
++            os.replace(tmp, target)
++        finally:
++            tmp.unlink(missing_ok=True)
++    return True
++
++
++def main():
++    a = argparse.ArgumentParser(description=__doc__)
++    a.add_argument('shaders', type=Path)
++    a.add_argument('--sdk', choices=('iphoneos', 'macosx'), default='iphoneos')
++    a.add_argument('--out', type=Path, help='Root for the resulting cache (default: source directory)')
++    args = a.parse_args()
++    files = sorted(p for p in args.shaders.iterdir() if SOURCE.fullmatch(p.name) and p.is_file() and not p.is_symlink())
++    if not files:
++        a.error('No exported translated stages found')
++    dest = (args.out or args.shaders) / SUFFIX / args.sdk
++    dest.mkdir(parents=True, exist_ok=True)
++    new = existing = 0
++    with tempfile.TemporaryDirectory() as td:
++        temp = Path(td)
++        rewrite = temp/'base-instance'
++        helper = Path(__file__).with_name('rb_stage_base_instance.c')
++        subprocess.run(['xcrun','--sdk','macosx','clang','-std=c11','-D_DARWIN_C_SOURCE',
++                        '-O2',str(helper),'-o',str(rewrite)], check=True)
++        for file in files:
++            raw = file.read_bytes()
++            variants = [raw]
++            if b'(*spvDescriptorSet0.vp_c0)._m0[100].y' in raw:
++                changed = subprocess.run([str(rewrite)],input=raw,capture_output=True,check=True).stdout
++                if changed != raw: variants.append(changed)
++            for source in variants:
++                if prepare(source,args.sdk,dest,temp):
++                    new += 1
++                else:
++                    existing += 1
++    print(f'{len(files)} sources, {new} binaries written, {existing} reused: {dest}')
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/graphics/tools/direct/rb_stage_base_instance.c b/graphics/tools/direct/rb_stage_base_instance.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..b7dcf35694d17f7be3520c95d2cf96f467051f53
+--- /dev/null
++++ b/graphics/tools/direct/rb_stage_base_instance.c
+@@ -0,0 +1,14 @@
++// SPDX-License-Identifier: MIT
++// The host preparation tool feeds the same UTF-8 source as the runtime.
++#include "../../nvn/gfx/nvn/rb_base_instance_source.h"
++int main(void) {
++    char *src = NULL;
++    size_t size = 0;
++    ssize_t length = getdelim(&src,&size,'\0',stdin);
++    if (length < 0 || !feof(stdin)) { free(src); return 1; }
++    unsigned r,e,l;
++    char *out = rb_binst_fix(src,(size_t)length,&r,&e,&l);
++    size_t bytes = out ? strlen(out) : (size_t)length;
++    int success = fwrite(out ? out : src,1,bytes,stdout) == bytes && !fflush(stdout);
++    free(out); free(src); return success ? 0 : 1;
++}

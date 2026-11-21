@@ -16,6 +16,8 @@
 
 20 novembre — Pipelines Metal 0177–0180. Compteurs par durée de vie, préchauffage récent et éviction après cinq minutes. Comparaison 803 sur appareil en attente.
 
+21 novembre — [Première utilisation des shaders, 0248–0252](evidence/s2arm-first-draw.md). Temps par circuit et cadence soutenue sur A18 Pro à mesurer.
+
 ## S2Arm
 
 Objectif : 60 FPS constants sans saccades à 1×. Périmètre initial : Mario Kart World 1.0.0, Coupe Champignon 150 cc, quatre circuits, iPhone 16 Pro Max. Les notes évaluent ce périmètre, pas tous les jeux ou moteurs de RewindBox.
@@ -34,9 +36,9 @@ Calcul conservé d’une version à l’autre : somme(note × poids) / 100, arro
 ```mermaid
 xychart-beta
     title "S2Arm : avancement estimé par mise à jour"
-    x-axis "IPA ou commit moteur" ["799", "0155", "pont iOS", "0156", "0157", "0158", "0159", "0160", "0161", "0162", "0163", "0164", "0165", "801", "0166–0168", "0169", "802", "0170", "0171", "803", "0176", "f956b7d8", "804", "0180", "805", "0185", "0191", "806", "0196", "0197", "0203", "0204", "807", "0205", "808", "0206–0209", "0210–0214", "0215–0219", "0220–0225", "810", "811", "812", "0234–0237", "0238–0244", "0245–0247", "813"]
+    x-axis "IPA ou commit moteur" ["799", "0155", "pont iOS", "0156", "0157", "0158", "0159", "0160", "0161", "0162", "0163", "0164", "0165", "801", "0166–0168", "0169", "802", "0170", "0171", "803", "0176", "f956b7d8", "804", "0180", "805", "0185", "0191", "806", "0196", "0197", "0203", "0204", "807", "0205", "808", "0206–0209", "0210–0214", "0215–0219", "0220–0225", "810", "811", "812", "0234–0237", "0238–0244", "0245–0247", "813", "0248–0252"]
     y-axis "Maturité estimée (%)" 0 --> 100
-    bar [55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55]
+    bar [55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55, 55]
 ```
 
 | Date | IPA / source | I / R / C / P / S (%) | Global estimé | Évolution et preuve / mesure sur appareil |

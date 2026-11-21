@@ -1,0 +1,682 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 5c249525984b78f4d3d6807e259f5ecd6a96a7d3..b6555341577c4b6282c640d617d1f3177a2f98ec 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9236,6 +9236,12 @@ static void bare_dims(NSUInteger *w, NSUInteger *h);
+ //   wait for it (mhrise 10-26: a fresh install's first run built 111 such pipelines on the submit thread); the draw after it is ready takes it as before. Only where losing it costs
+ //   no more than a frame: every colour / depth target was attached in the last two frames too (drawn every frame: a one-off bake target waits), and neither shader writes storage
+ //   (MeloNX allowAsyncCompileSkip). On by default on iOS; the Mac keeps waiting (replays and gates compare pixels) unless DM_NVN_FIRST_SKIP=1. DM_NVN_FIRST_SKIP=0 turns it off
++#include "rb_first_draw.h"
++static _Atomic int g_rb_first_draw_option;
++static int first_skip_on(void);
++static int rb_first_draw_on(void) {
++    return nvn_rb_thermal_scope() && rb_pacing_setting(&g_rb_first_draw_option,"S2A_RB_ASYNC_FIRST_DRAW") && first_skip_on();
++}
+ static int first_skip_on(void) {
+     static int v = -1;
+     if (v < 0) { const char *e = getenv("DM_NVN_FIRST_SKIP");
+@@ -9825,7 +9831,7 @@ static void shmap_load_once(void) {
+     id<MTLLibrary> at_lib; NSString *at_main, *at_u; NSMutableDictionary<NSNumber *, id<MTLFunction>> *at_fns; uint8_t has_atms;   // gap families 34 / 37: a fragment main0 declaring S2A_AT / S2A_MSOFF (Dsh.cs FsAlphaMs): its library and entry names, specialized per (u, at, msoff) on demand (fs_atms_fn)
+     int load_depth_zero;   // captured with the identity, also used by its layer variant
+     uint8_t u_mask;   // S2Arm gap 2 A: the colour outputs fn_u returns as uint, bit n = color(n) (json u_mask; dmsh_build.py fs_uint turns only the integer-bit writers)
+-    uint16_t tf_stride[4]; uint32_t cb_ext[16], sb_ro; nvn_refl rf; id<MTLArgumentEncoder> ae; NSUInteger arg_len; int stage, range_ro, afr, layer_out; const char *builtin; uint64_t logged; uint64_t rb_frame_key; BOOL rb_frame_key_ready; char key[24]; id<MTLBuffer> c1buf; uint64_t c1_gpu; size_t c1off;
++    uint16_t tf_stride[4]; uint32_t cb_ext[16], sb_ro; nvn_refl rf; id<MTLArgumentEncoder> ae; NSUInteger arg_len; int stage, range_ro, rb_first_ro, afr, layer_out; const char *builtin; uint64_t logged; uint64_t rb_frame_key; BOOL rb_frame_key_ready; char key[24]; id<MTLBuffer> c1buf; uint64_t c1_gpu; size_t c1off;
+     uint32_t geo_vertices, geo_invocations, geo_output, geo_stride, geo_index_stride;
+     // NVN2 task / mesh shader (json msl_entry_kind object / mesh, at stage 3 / 4; nvn_geometry.inc mesh_tasks_draw): mesh_kind 1 object 2 mesh (0 = neither); its workgroup's threads,
+     //   the payload's bytes (task), a task shader feeds it (mesh), the most vertices / primitives a mesh workgroup emits (Switch2 line's interface contract, item 6)
+@@ -10668,6 +10674,45 @@ static void rb_shadow_reflect(NvShader *sh, NSDictionary *json, NSString *source
+         }
+     }
+ }
++static int rb_first_stage_ro(NSDictionary *j, int stage) {
++    NSDictionary *raster=j[@"raster"];
++    if (![raster isKindOfClass:NSDictionary.class] || j[@"geometry"] || j[@"first_store"] ||
++        (stage==0 && (![raster[@"pos_attr"] isKindOfClass:NSNumber.class] || [raster[@"pos_attr"] intValue]>=0 ||
++        ![raster[@"scr_uv"] isKindOfClass:NSArray.class] || [raster[@"scr_uv"] count])) ||
++        (stage==1 && (![raster[@"colors"] isKindOfClass:NSArray.class] || ![raster[@"colors"] count]))) return 0;
++    if (![j[@"route"] isEqual:@"B"] || ![j[@"stage"] isEqual:(stage == 0 ? @"vs" : @"ps")] ||
++        ![j[@"bindings"] isKindOfClass:NSArray.class] || j[@"gs_slice"] || j[@"tess_mode"] || [j[@"writes_layer"] boolValue] ||
++        (stage == 0 && (![j[@"vertex_inputs"] isKindOfClass:NSArray.class] ||
++                        [j[@"vertex_inputs"] count] < 3))) return 0;
++    for (NSDictionary *b in j[@"bindings"]) {
++        if (![b isKindOfClass:NSDictionary.class]) return 0;
++        NSString *k=b[@"kind"], *t=b[@"msl_type"];
++        if (![k isKindOfClass:NSString.class] || ![t isKindOfClass:NSString.class] || [b[@"atomic"] boolValue] ||
++            (b[@"rw"] && (![b[@"rw"] isKindOfClass:NSNumber.class] || [b[@"rw"] boolValue]))) return 0;
++        if ([k isEqual:@"tex_pool"] || [k isEqual:@"samp_pool"]) {
++            t=b[@"elem"];
++            if (![t isKindOfClass:NSString.class]) return 0;
++        }
++        // Reflection's argument-buffer and helper buffers must themselves be read-only.
++        // Pointers to nested raw memory tables are excluded even through a const base.
++        static NSSet *uniforms, *samplers, *sampled;
++        static dispatch_once_t once;
++        dispatch_once(&once,^{
++            uniforms=[NSSet setWithArray:@[@"c1",@"cbuf",@"drvcb",@"support",@"lb",@"uvx",@"sbsize",@"ubolen"]];
++            samplers=[NSSet setWithArray:@[@"samp",@"samp_ubo",@"samp_c2a",@"samp_id",@"samp_tex",@"samp_pool"]];
++            sampled=[NSSet setWithArray:@[@"tex",@"tex_ubo",@"tex_c2a",@"tex_pool",@"tbuf",@"tbuf_ubo"]];
++        });
++        if ([uniforms containsObject:k] && [t hasPrefix:@"constant "]) continue;
++        if ([samplers containsObject:k] && ([t isEqual:@"sampler"] || [t hasPrefix:@"array<sampler,"])) continue;
++        if (([k isEqual:@"sbuf"] || [k isEqual:@"sbuf_ubo"]) && [t hasPrefix:@"const device "]) continue;
++        if ([sampled containsObject:k] &&
++            ([t hasPrefix:@"texture"] || [t hasPrefix:@"depth"] || [t hasPrefix:@"array<texture"] || [t hasPrefix:@"array<depth"]) &&
++            (![t containsString:@"access::"] || [t containsString:@"access::sample>"] || [t containsString:@"access::read>"]) &&
++            ![t containsString:@"access::write"] && ![t containsString:@"access::read_write"]) continue;
++        return 0;
++    }
++    return 1;
++}
+ static NvShader *shader_build_attempt(NSString *pc, int stage, int layer, int depth_zero, int can_repair) {
+     NSError *e = nil;
+     // S2Arm: a key missing from the library is looked up in DM_MSL_FALLBACK (the on-device fallback translation writes <key>_b.metal + .json there; iOS cannot store a metallib built at runtime)
+@@ -10746,6 +10791,8 @@ static NvShader *shader_build_attempt(NSString *pc, int stage, int layer, int de
+         static _Atomic uint64_t n_sh, n_b; uint64_t k = atomic_fetch_add(&n_sh, 1) + 1, nb = atomic_fetch_add(&n_b, o->rf.unb_uncov) + o->rf.unb_uncov;
+         if (k <= 8 || !(k & (k - 1))) MLOG("unnorm bits: shader %s has %u texture bindings outside the s2a_flags.yzw bitmap (normalization compiled in); %llu such bindings in %llu shaders so far",
+                                            pc.UTF8String, (unsigned)o->rf.unb_uncov, (unsigned long long)nb, (unsigned long long)k); }
++    if (stage == 0 || stage == 1)
++        o->rb_first_ro = rb_first_stage_ro(j,stage);
+     if (rt_range_on() || rb_async_pso()) o->range_ro=rt_range_bindings_ro(j);
+     NSString *entry = j[@"entry"];
+     if (stage == 0) {
+@@ -11095,7 +11142,31 @@ static int tess_init(void) {
+ static const prog_t *g_prog_last_ptr; static uint64_t g_prog_last_serial, g_prog_last_gen; static NvProg *g_prog_last;
+ static _Atomic unsigned g_recovered_pairs;
+ static void rb_recovered_program(NvShader *vs,NvShader *fs);
++// Bind keeps the original program for variants that need a live control section.
++// If the guest recycles it before this delayed resolve, only use the immutable bind snapshot.
++// A known map entry can be missing from a partial distribution while an exact
++// base function was already loaded from the device's validated shader cache.
++// A depth/layer sibling, an in-flight build or a reflection-only object cannot
++// satisfy this check. shader_get below still claims and records the used stage.
++#define RB_RESIDENT_STAGE_IMPL 1
++extern void dm_shader_release_resident(const uint8_t key[8]) __attribute__((weak_import));
++static int rb_program_stage_resident(NSString *key, NSString *stage, int depth) {
++    int st=stage_of(stage);
++    if (st!=0 && st!=1) return 0;
++    NSString *base=[key stringByAppendingString:@"_b"];
++    NSString *identity=shader_identity(base,st,0,depth);
++    os_unfair_lock_lock(&g_shader_lock);
++    NvShader *cached=g_shcache[identity];
++    BOOL resident=cached && cached->stage==st && cached->fn;
++    os_unfair_lock_unlock(&g_shader_lock);
++    return resident;
++}
++static const prog_t *g_rb_first_live, *g_rb_first_snap;
++static int rb_first_still_bound(const prog_t *cp);
+ static __unsafe_unretained NvProg *prog_get(const prog_t *cp) {   // Called only on the submit thread
++    if (cp==g_rb_first_live && cp && g_rb_first_snap &&
++        (cp->serial!=g_rb_first_snap->serial || cp->magic!=MAGIC('P','R','O','G')) &&
++        rb_first_still_bound(cp)) cp=g_rb_first_snap;
+     prog_t *p = (prog_t *)cp;
+     uint64_t gen = g_ser_gen;
+     if (p == g_prog_last_ptr && p->serial == g_prog_last_serial && gen == g_prog_last_gen && g_prog_last) return g_prog_last;
+@@ -11111,7 +11182,11 @@ static __unsafe_unretained NvProg *prog_get(const prog_t *cp) {   // Called only
+         NSString *k = [NSString stringWithFormat:@"%02x%02x%02x%02x%02x%02x%02x%02x", md[0], md[1], md[2], md[3], md[4], md[5], md[6], md[7]];
+         NSString *stage = g_shmap[k];
+         if (!stage) stage = shmap_rt_get(k);   // S2Arm: compiled on the device by the fallback translation
+-        if (!mtl_shlib_has(k.UTF8String) && dm_shader_miss_late(k.UTF8String, p->sd[i].data, p->sd[i].control)) stage = shmap_rt_get(k);   // S2Arm: not in the library (a hot-key package's cold key): compiled now, at its first use (dsh_miss.inc)
++        if (!mtl_shlib_has(k.UTF8String)) {
++            if (rb_observed_workers_on() && rb_program_stage_resident(k,stage,atomic_load(&g_depth_zero))) {
++                if (dm_shader_release_resident) dm_shader_release_resident(md);
++            } else if (dm_shader_miss_late(k.UTF8String,p->sd[i].data,p->sd[i].control)) stage=shmap_rt_get(k);
++        }
+         if (!stage && dm_shader_reuse(k.UTF8String)) stage = shmap_rt_get(k);   // S2Arm: never registered (frame replay restores programs without ProgramSetShaders): reuse the fallback directory's earlier compile
+         if (!stage) {   // Not in the package: look up the compute kernels embedded in the main body (nvn_builtin.h)
+             NvShader *b = builtin_get(k.UTF8String);
+@@ -12454,6 +12529,23 @@ static int prog_look_mask(const prog_t *p, int *smask) {
+     }
+     *smask = m; return m != 0;
+ }
++static int rb_first_still_bound(const prog_t *cp) {
++    return !g_look && S.prog==cp && S.bser[0]==g_rb_first_snap->serial && S.bser[1]==g_rb_first_snap->serial;
++}
++static const prog_t *rb_first_bind_snapshot(const prog_t *p, int stages) {
++    if (!rb_first_draw_on() || !rb_observed_workers_on() || !p->serial || p->nstage != 2 || (stages & 3) != 3 ||
++        !nvn_prog_snap_get || serial_get(p->serial)) return NULL;
++    uint8_t keys[6][8], ok=0;
++    const prog_t *snap=nvn_prog_snap_get(p->serial,keys,&ok,NULL);
++    if (!snap || snap->nstage != 2 || (ok & 3) != 3) return NULL;
++    int mask=0;
++    if (!prog_look_mask(p,&mask) || mask!=3) return NULL;
++    // Start observed translation or library load while the later binding state is replayed.
++    // Only the published reflection can subsequently authorize an omitted draw.
++    (void)prog_peek(p);
++    prog_keys_put(snap,keys,ok);
++    return snap;
++}
+ static void rb_look_before_load(const prog_t *p);   // RewindBox (patch 0085): defined after the lookahead (pso_predict_rest_)
+ static const prog_t *bind_stages(const prog_t *p, int stages) {
+     // A program binds only the stages it has shaders for: Taiko no Tatsujin (0100383012646000, 10-30) makes one program per stage and binds each with
+@@ -12471,7 +12563,14 @@ static const prog_t *bind_stages(const prog_t *p, int stages) {
+             g_look_left++;
+             if (!(g_look_left & (g_look_left - 1)) && g_look_left >= 16) MLOG("RewindBox: lookahead binds of a program whose shaders are not loaded yet: %llu so far, none loaded on the submit thread by the lookahead", (unsigned long long)g_look_left); }
+     } else
+-    if (p) { rb_look_before_load(p); __unsafe_unretained NvProg *pr = prog_get(p); if (pr && !pr->unres && pr->smask) stages &= pr->smask | ~0x3; }   // RewindBox (patch 0085): rb_look_before_load
++    if (p) {
++        if (p==g_rb_first_live && g_rb_first_snap && p->serial!=g_rb_first_snap->serial) g_rb_first_live=g_rb_first_snap=NULL;
++        rb_look_before_load(p);
++        const prog_t *lazy=rb_first_bind_snapshot(p,stages);
++        if (lazy) { g_rb_first_live=p; g_rb_first_snap=lazy; }
++        else { __unsafe_unretained NvProg *pr=prog_get(p);
++            if (pr && !pr->unres && pr->smask) stages &= pr->smask | ~0x3; }
++    }   // RewindBox (patch 0085): rb_look_before_load
+     for (int st = 0; st < 5; st++) if (stages >> st & 1) { S.bst[st] = p; S.bser[st] = p ? p->serial : 0; }
+     // A stage this bind leaves alone still names the program of an earlier bind, maybe from an earlier submission: the game may have finalized or reused that object since, and
+     // reading it gave prog_get garbage (Diablo III, 10-26 cold run: keys_hash read a control pointer 0x20200ffffffff and crashed; the stage's program was gone, its pointer kept)
+@@ -13136,7 +13235,7 @@ static int vp_stage_of_at(const void *prog, const char *key, uint8_t md[8], void
+ static const void *vp_bst_at(unsigned st, void *ctx) { (void)ctx; return st < 5 ? (const void *)S.bst[st] : NULL; }
+ // A pair needs outputs the vertex shader does not write (miss): ask for the variant (submit thread). 1 = being made or just made (the caller skips this draw, nothing is recorded as
+ //   failed), 0 = it cannot be made (the caller records the pair as failed, as before)
+-static int vp_ask(const prog_t *p, NvShader *vs, uint32_t miss) {
++static int vp_request(const prog_t *p, NvShader *vs, uint32_t miss, int observed) {
+     pthread_mutex_lock(&g_vp_mu);
+     int st = vs->vp_st; uint32_t want = (st == SE_READY ? vs->vp_mask : 0) | miss;
+     if (st == SE_BUSY || st == SE_FAIL || (st == SE_READY && (vs->vp_mask & miss) == miss)) { pthread_mutex_unlock(&g_vp_mu); return st != SE_FAIL; }
+@@ -13144,25 +13243,38 @@ static int vp_ask(const prog_t *p, NvShader *vs, uint32_t miss) {
+     uint8_t md[8] = {0}; int at = -1; uint64_t t0 = bp_now();
+     const prog_t *gp = (const prog_t *)vp_pick_prog(p, vp_bst_at, 5, vs->key, md, vp_stage_of_at, NULL, &at);
+     if (at < 0) { static unsigned n; if (!n++ || !(n & (n - 1))) MLOG("顶点补齐变体：%s 在绘制 program 与 5 个按阶段绑定的 program 里都没有有效控制段（%u 次）", vs->key, n); }
+-    if (se_sync() || rb_course_exact() || rb_async_pso()) { char why[300] = ""; id<MTLFunction> f = vp_build(vs, md, at < 0 ? 0 : gp->sd[at].data, at < 0 ? NULL : gp->sd[at].control, want, why, sizeof why); vp_done(vs, f, want, why, t0, "同步现编"); return f != nil; }
++    if (!observed && (se_sync() || rb_course_exact() || rb_async_pso() ||
++        (rb_first_draw_on() && rb_observed_workers_on()))) { char why[300] = ""; id<MTLFunction> f = vp_build(vs, md, at < 0 ? 0 : gp->sd[at].data, at < 0 ? NULL : gp->sd[at].control, want, why, sizeof why); vp_done(vs, f, want, why, t0, "同步现编"); return f != nil; }
+     uint64_t code = 0; const void *ctl = NULL; void *snap = at < 0 ? NULL : dm_shader_snap(gp->sd[at].data, gp->sd[at].control, &code, &ctl); uint64_t key; memcpy(&key, md, 8);
++    if (observed && !snap) {
++        pthread_mutex_lock(&g_vp_mu); vs->vp_st=st; pthread_cond_broadcast(&g_vp_cv);
++        pthread_mutex_unlock(&g_vp_mu); return 0;
++    }
+     fprintf(stderr, "[s2a] 顶点补齐变体：程序号 %s 顶点 %.16s 首遇缺 user(locn) 掩码 %#x，后台编，编好前这对的绘制照旧跳过\n", s2a_nvn_game_id(), vs->key, want);
+     static dispatch_queue_t q; static dispatch_once_t once;
+     dispatch_once(&once, ^{ q = dispatch_queue_create("dm.nvn.vp", s2a_qos_queue_attr(DISPATCH_QUEUE_SERIAL, S2A_QOS_SHADER_VARIANT)); });
+-    dispatch_async(q, ^{ @autoreleasepool {
++    dispatch_block_t build = ^{ @autoreleasepool {
+         if (dm_gfx_session_stopping()) { free(snap); pthread_mutex_lock(&g_vp_mu); vs->vp_st = SE_NONE; pthread_cond_broadcast(&g_vp_cv); pthread_mutex_unlock(&g_vp_mu); return; }
+         uint8_t m[8]; memcpy(m, &key, 8); char why[300] = "";
+         id<MTLFunction> f = vp_build(vs, m, code, ctl, want, why, sizeof why); free(snap);
+         vp_done(vs, f, want, why, t0, "后台编");
+-    } });
++    } };
++    if (!observed) dispatch_async(q,build);
++    else if (!rb_observed_enqueue(build)) {
++        free(snap); pthread_mutex_lock(&g_vp_mu); vs->vp_st=st;
++        pthread_cond_broadcast(&g_vp_cv); pthread_mutex_unlock(&g_vp_mu); return 0;
++    }
+     return 1;
+ }
++static int vp_ask(const prog_t *p, NvShader *vs, uint32_t miss) {
++    return vp_request(p,vs,miss,0);
++}
+ // The prewarmer serializes masks on this same shader. If it has just started a
+ // narrower variant, join it first, then produce the mask the current draw needs.
+ static BOOL rb_demand_padding(const prog_t *p, NvShader *shader, uint32_t mask) {
+     @synchronized(shader) {
+         if (dm_gfx_session_stopping()) return NO;
+-        if (rb_async_pso()) {
++        if (rb_async_pso() || (rb_first_draw_on() && rb_observed_workers_on())) {
+             pthread_mutex_lock(&g_vp_mu);
+             while (shader->vp_st==SE_BUSY && !dm_gfx_session_stopping())
+                 rb_compile_wait(&g_vp_cv,&g_vp_mu);
+@@ -13561,7 +13673,8 @@ static NSError *g_async_render_error;
+ static int g_async_render_built;
+ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out, int may_skip) {   // Called by the submit thread: if it is in the table, wait for it to finish compiling and take it; otherwise return nil. *timed_out: 1 = past its own limit (late), 2 = the frame's budget ran out
+     g_async_render_built=0; g_async_render_error=nil;
+-    const int required = rb_course_exact() || (rb_async_pso() && !may_skip);
++    const int required = rb_course_exact() || (!may_skip && (rb_async_pso() ||
++        (rb_observed_workers_on() && rb_first_draw_on())));
+     pthread_mutex_lock(&g_pp_mu);
+     // may_skip = 0 (skip_safe: a draw whose target keeps content across frames, or one a shader writes storage in): no limit and no budget, it waits until the pipeline is compiled.
+     //   Super Mario Odyssey's Mac cold start (10-27): the system compiler was slow, the frame budget skipped 2048 draws in 4 frames, among them the temporal anti-aliasing / exposure
+@@ -13667,6 +13780,26 @@ static int pso_fout_variant(NvProg *pr, NvShader *fs, const pso_key *k, int merg
+     MLOG("fragment shader %s: typed-output variant %#x built in %.1f ms (%s)", fs->key, need, (clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0) / 1e6, path);
+     return 1;
+ }
++enum { RB_FIRST_REFLECTION, RB_FIRST_PASS, RB_FIRST_EXPIRED, RB_FIRST_REFUSAL_COUNT };
++// Submit thread only, emitted at most once per 300 frames by first_skip_window.
++static uint64_t g_rb_first_refused[RB_FIRST_REFUSAL_COUNT];
++static int rb_first_reject(int cause) { ++g_rb_first_refused[cause]; return 0; }
++static nvn_hmap g_rb_first_windows = {.klen=sizeof(rb_material_pair)};
++static int rb_first_allow(rb_material_pair pair, int record) {
++    uint64_t frame=atomic_load_explicit(&g_cur_frame,memory_order_relaxed);
++    uintptr_t v=(uintptr_t)nvn_hm_get(&g_rb_first_windows,&pair);
++    if (v) return rb_first_window(v-1,frame) || rb_first_reject(RB_FIRST_EXPIRED);
++    if (g_rb_first_windows.n>=4096 || frame==UINT64_MAX) return 0;
++    if (record) nvn_hm_put(&g_rb_first_windows,&pair,(void *)(uintptr_t)(frame+1));
++    return 1;
++}
++static rb_material_pair rb_material(NvShader *vs,NvShader *fs) {
++    return (rb_material_pair){fsig_parse_key(vs),fsig_parse_key(fs)};
++}
++static const p_draw_idx *g_rb_first_indexed;
++static int rb_first_scene(const p_draw_idx *di);
++static int rb_first_copy_clear(void);
++
+ static int g_first_skipped;   // pso_get_ returned nil to skip this draw (the draw counts it instead of logging a failure)
+ static uint64_t g_fsk_draws, g_fsk_frames, g_fsk_run, g_fsk_run_max, g_fsk_last_f, g_fsk_occl;   // g_fsk_occl: skipped while an occlusion query counted (its sample count reads low that frame)
+ static int shader_writes(NvShader *s) { if (!s) return 0; for (int i = 0; i < s->rf.nb; i++) if (s->rf.b[i].rw) return 1; return 0; }
+@@ -13826,7 +13959,30 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+     if (quar_has(vs, fs)) { hm_put_id(&g_pso_fail, live, NSNull.null); PSO_WHY("quarantined after a GPU error"); return nil; }   // a GPU error quarantined it (quar_fault)
+     const int async=rb_async_pso();
+     if (async) g_async_miss_frame=atomic_load_explicit(&g_cur_frame,memory_order_relaxed);
+-    const int course_exact=rb_course_exact();
++    if (g_rb_first_indexed && vs && fs && (!vs->rb_first_ro || !fs->rb_first_ro)) rb_first_reject(RB_FIRST_REFLECTION);
++    if (g_rb_first_indexed && !getenv("DM_NVN_HILITE") && !ms_fn && !g_pso_lmap && !g_pso_fsfn && !g_pso_fc &&
++        pr && !pr->unres && !pr->geo_base && !pr->geo_raster && !pr->gs_miss[0] &&
++        !(pr->smask & ~3u) && vs && fs && vs->rb_first_ro && fs->rb_first_ro &&
++        !vs->layer_out && !k.at && !k.msoff && !pso_fout_need(&k,fs,0) &&
++        (rb_first_scene(g_rb_first_indexed) || rb_first_reject(RB_FIRST_PASS)) && rb_first_allow(rb_material(vs,fs),0) &&
++        rb_first_copy_clear()) {
++        uint32_t pad=pso_pair_miss(vs,fs);
++        int pending=0;
++        if (pad && !vp_fn(vs,pad)) {
++            if (vp_request(pr->gp,vs,pad,1) && !vp_fn(vs,pad)) pending=1;
++        } else {
++            pso_pend_kick(&k,vs,fs,1);
++            if (pso_pend_state(&k)==1) pending=2;
++        }
++        if (pending && rb_first_allow(rb_material(vs,fs),1)) {
++            if (pending==1) atomic_fetch_add_explicit(&g_rb_first_shlib_skips,1,memory_order_relaxed);
++            else atomic_fetch_add_explicit(&g_rb_first_pso_skips,1,memory_order_relaxed);
++            rb_async_note(RB_ASYNC_SKIP); g_first_skipped=1;
++            PSO_WHY("scene geometry awaiting first-use %s",pending==1 ? "vertex padding" : "pipeline");
++            return nil;
++        }
++    }
++    const int course_exact=rb_course_exact() || (rb_first_draw_on() && rb_observed_workers_on());
+     const int can_drop=async && !course_exact && first_skip_on() && !g_pso_lmap && !ms_fn &&
+                        !g_pso_fsfn && rb_pso_draw_inert(pr,vs) && skip_safe(vs,fs);
+     const int exact=course_exact || (async && !can_drop);
+@@ -19868,6 +20024,13 @@ static void tf_draw(NvProg *pr, const p_draw *dw, const p_draw_idx *di) {
+ //   their count, which cannot be laid beside a recording: the maintainer's recordings of 15 November show objects drawn all black for seconds, and their logs cannot say
+ //   whether draws were being skipped at those moments. One line a window in which something was skipped or built on the submit thread (submit thread, rt_history_frame)
+ static void first_skip_window(uint64_t frame) {
++    if (g_rb_first_refused[0] || g_rb_first_refused[1] || g_rb_first_refused[2]) {
++        MLOG("[first-draw] frame=%llu refused_reflection=%llu refused_pass=%llu refused_two_frame_limit=%llu",
++            (unsigned long long)frame,(unsigned long long)g_rb_first_refused[RB_FIRST_REFLECTION],
++            (unsigned long long)g_rb_first_refused[RB_FIRST_PASS],(unsigned long long)g_rb_first_refused[RB_FIRST_EXPIRED]);
++        memset(g_rb_first_refused,0,sizeof g_rb_first_refused);
++    }
++
+     static uint64_t d0, f0, n0, e0, w0, o0, s0;
+     if (g_fsk_draws < d0 || g_fsk_frames < f0 || g_fsk_no_n < n0 || g_fsk_eq < e0 || g_mtk_wait < w0 || g_mtk_wait_over < o0 || g_mtk_skip < s0) d0 = f0 = n0 = e0 = w0 = o0 = s0 = 0;
+     uint64_t d = g_fsk_draws - d0, fr = g_fsk_frames - f0, n = g_fsk_no_n - n0, e = g_fsk_eq - e0, w = g_mtk_wait - w0, o = g_mtk_wait_over - o0, s = g_mtk_skip - s0;
+@@ -20561,8 +20724,137 @@ static int rb_shadow_caster(NvProg *pr) {
+     }
+     return 1;
+ }
++// The following geometry policy is used only on a cold stage or PSO. The evidence
++// describes the actual draw and attachment subresources, before writing encoder state.
++static uint64_t g_rb_first_scene_frame, g_rb_first_scene_depth;
++static int rb_first_mrt(void) {
++    if (!R.has_rt || !R.rt.depth || R.rt.n < 2 || R.rt.n > 8) return 0;
++    const tex_t *one=NULL;
++    for (int i=0;i<R.rt.n;i++) if (R.rt.color[i] && ((S.chmask.mask>>(4*i))&15)) {
++        if (one && R.rt.color[i]->serial!=one->serial) return 1;
++        one=R.rt.color[i];
++    }
++    return 0;
++}
++static int rb_first_base_view(const view_t *v) {
++    return !v->set_levels && !v->set_layers && !v->set_format && !v->set_target &&
++           !v->set_swizzle && !v->set_dsmode;
++}
++static int rb_first_scene(const p_draw_idx *di) {
++    if (!di || di->ind || di->mdi_cnt || di->count<=6 || di->instances<=0 ||
++        (di->prim!=4 && di->prim!=5) || S.nattr<3 || !S.ds.dt || S.ds.st ||
++        S.ds.df==NVN_DEPTH_FUNC_ALWAYS || S.ds.df==NVN_DEPTH_FUNC_NEVER ||
++        S.tf_on || S.rast_discard || g_vis_counting || g_enc_vis || g_rc_skip ||
++        g_fz.active || g_fz_checking || g_defer_replaying || g_gr.active || g_geo_program ||
++        g_mtk.on || g_rlane || g_rp_layered || g_fbc.pending || g_fbc.forcing || g_fbt.on || !R.has_rt || R.rt.n<1 || R.rt.n>8 || !R.rt.depth ||
++        (R.rt.has_dview && !rb_first_base_view(&R.rt.dview)) || !R.rt.depth->serial || R.rt.depth->d.width<=R.rt.depth->d.height) return 0;
++    const tex_t *depth=R.rt.depth;
++    if (S.ds.dw && !R.clear_d && !rt_fresh_now(depth)) return 0;
++    int visible=0;
++    for(int i=0;i<R.rt.n;i++) {
++        const tex_t *t=R.rt.color[i]; if (!t) continue;
++        if (!t->serial || (R.rt.has_cview[i] && !rb_first_base_view(&R.rt.cview[i])) || (t->d.flags & NVN_TEXTURE_FLAGS_DISPLAY) || xv_present(t->serial) ||
++            t->d.width!=depth->d.width || t->d.height!=depth->d.height) return 0;
++        if (!((S.chmask.mask>>(4*i))&15)) continue;
++        if (!R.clear_c[i] && !rt_fresh_now(t)) return 0;
++        visible=1;
++    }
++    // A single color target must reuse this frame's witnessed material MRT depth.
++    // This admits alpha and EQUAL passes without mistaking an independent HUD,
++    // a shadow atlas or a depth-only prepass for the geometry it precedes.
++    return visible && (rb_first_mrt() || (g_rb_first_scene_depth==depth->serial &&
++        g_rb_first_scene_frame==atomic_load_explicit(&g_cur_frame,memory_order_relaxed)));
++}
++static int rb_first_copy_clear(void) {
++    if (!g_exec_next) return 0;
++    fz_cursor c=fz_cursor_from_exec(); const uint8_t *p; op_hdr h; const void *a;
++    for (unsigned n=0;n<4096;n++) {
++        if (!fz_next(&c,&p,&h,&a)) return !c.bad;
++        const tex_t *source=NULL;
++        if (h.op==OP_COPY_T2T) source=((const p_copy_t2t*)a)->src;
++        else if (h.op==OP_COPY_T2B) source=((const p_copy_b2t*)a)->tex;
++        else if (h.op==OP_COPY_B2B || h.op==OP_COPY_B2T) return 0; // raw GPU address can alias target memory
++        else continue;
++        rb_attachment_span read;
++        if (!rb_guest_span(source,&read) || (source->pool->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL)) return 0;
++        for (int i=-1;i<R.rt.n;i++) {
++            const tex_t *t=i<0 ? R.rt.depth : R.rt.color[i]; if (!t) continue;
++            rb_attachment_span write;
++            if (!rb_guest_span(t,&write) || (t->pool->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL) || !(read.last<write.first || write.last<read.first)) return 0;
++        }
++    }
++    return 0; // unknown tail
++}
++// Only the submit thread reads this small reflection cache. It has the same
++// lifetime as the program/MTLLibrary maps. Failure to find reflection is never
++// permission to drop a draw; its urgent translation may make a later draw eligible.
++static NSMutableDictionary<NSString *,NSNumber *> *g_rb_first_ro;
++// -1 means missing, outdated, unclassified or effectful. A published JSON may precede
++// registration of its map entry by the translation worker.
++static int rb_first_reflected_stage(NSString *key) {
++    NSNumber *known=g_rb_first_ro[key]; if (known) return known.intValue;
++    NSData *data=json_from_pack(key.UTF8String);
++    BOOL fallback=!data;
++    if (!data) {
++        const char *dir=getenv("DM_MSL_FALLBACK");
++        if (dir && *dir) data=[NSData dataWithContentsOfFile:[NSString stringWithFormat:@"%s/%@.json",dir,key]];
++    }
++    NSDictionary *j=data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
++    if (![j isKindOfClass:NSDictionary.class] || ![j[@"key"] isEqual:key] ||
++        ![j[@"chain"] isEqual:@DMSH_CHAIN] || (fallback && !fb_json_current(j))) return -1;
++    int stage=[j[@"stage"] isEqual:@"vs"] ? 0 : [j[@"stage"] isEqual:@"ps"] ? 1 : -1;
++    if (stage>=0 && !rb_first_stage_ro(j,stage)) stage=-1;
++    if (!g_rb_first_ro) g_rb_first_ro=[NSMutableDictionary dictionary];
++    if (g_rb_first_ro.count<4096) g_rb_first_ro[key]=@(stage);
++    return stage;
++}
++static int rb_first_library_pair(rb_material_pair pair, NSString *names[2],
++                                 int (*enqueue)(NSString *,int,int)) {
++    if (!rb_first_allow(pair,0)) return 0;
++    int missing[2]={0}, building[2]={0}, dz=atomic_load_explicit(&g_depth_zero,memory_order_relaxed);
++    for(int st=0;st<2;st++) {
++        NSString *idn=shader_identity(names[st],st,0,dz);
++        os_unfair_lock_lock(&g_shader_lock);
++        NvShader *have=g_shcache[idn];
++        building[st]=g_shader_flights[idn]!=nil;
++        os_unfair_lock_unlock(&g_shader_lock);
++        if (have ? (!have->rb_first_ro || have->layer_out) : rb_first_reflected_stage(names[st])!=st) return rb_first_reject(RB_FIRST_REFLECTION);
++        missing[st]=!have;
++    }
++    if (!missing[0] && !missing[1]) return 0;
++    if (!rb_first_copy_clear()) return rb_first_reject(RB_FIRST_PASS);
++    for(int st=0;st<2;st++) if (missing[st] && !building[st] && !enqueue(names[st],st,dz)) return 0;
++    if (!rb_first_allow(pair,1)) return 0;
++    atomic_fetch_add_explicit(&g_rb_first_shlib_skips,1,memory_order_relaxed);
++    first_skip_note();
++    return 1;
++}
++static int rb_first_skip_libraries(const p_draw_idx *di) {
++    const prog_t *p=g_rb_first_snap;
++    if (!p || S.prog!=g_rb_first_live || S.bst[0]!=S.prog || S.bst[1]!=S.prog ||
++        S.bser[0]!=p->serial || S.bser[1]!=p->serial) return 0;
++    if (serial_get(p->serial)) { g_rb_first_live=g_rb_first_snap=NULL; return 0; }
++    if (!rb_first_scene(di)) return rb_first_reject(RB_FIRST_PASS);
++    NSString *names[2]={nil,nil};
++    rb_material_pair pair={0};
++    for (int i=0;i<2;i++) {
++        uint8_t md[8]; char key[17]; if (!prog_key(p,i,md)) return 0;
++        for(int j=0;j<8;j++) snprintf(key+2*j,3,"%02x",md[j]);
++        NSString *base=@(key), *full=[base stringByAppendingString:@"_b"], *stage=shmap_stage(base);
++        int st=stage ? stage_of(stage) : rb_first_reflected_stage(full);
++        if (st<0 || st>1 || names[st]) return rb_first_reject(RB_FIRST_REFLECTION);
++        names[st]=full;
++        uint64_t parsed=strtoull(key,NULL,16), value=parsed ? parsed : 1;
++        if (!st) pair.vs=value; else pair.fs=value;
++    }
++    return rb_first_library_pair(pair,names,rb_observed_shader);
++}
+ static void draw_impl(const p_draw *dw, const p_draw_idx *di);
+ static void draw(const p_draw *dw, const p_draw_idx *di) {
++    if (di && rb_first_draw_on() && rb_observed_workers_on() && rb_first_skip_libraries(di)) {
++        g_udc_precise=0; g_udc_lmap=NULL; g_udc_fsfn=0; g_mdxc.next=NULL;
++        return;
++    }
+     int descriptor_scope __attribute__((cleanup(rs_descriptor_scope_end))) = rs_descriptor_scope_begin();
+     if (!rb_shadow_on()) { draw_impl(dw,di); return; }
+     int saved=g_rb_shadow_draw_ok;
+@@ -20714,7 +21006,9 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+     if (g_mtk.on) {   // a task / mesh draw (mesh_tasks_draw): its own pipeline kind; the next draw fetches its own again (cur_pr nil)
+         g_pso_fc = fc; cur_ps = mtk_pso(pr); cur_ps_round = g_pso_color_round; g_pso_fc = 0; cur_pr = nil;
+         if (!cur_ps) { g_mtk.miss = 1; if (g_pso_lmap) { g_pso_lmap = NULL; g_pso_fsfn = nil; memset(&g_pso_fz, 0, sizeof g_pso_fz); g_pso_dirty = 1; } return; } }
+-    else if (g_pso_dirty || pr != cur_pr || cur_ps_pass != g_pass.serial || fc != cur_ps_fc) { g_pso_fc = fc; cur_ps = pso_get(pr, nil); cur_ps_round = g_pso_color_round; g_pso_fc = 0; cur_pr = pr; cur_ps_pass = g_pass.serial; cur_ps_fc = fc; g_pso_dirty = !cur_ps; }
++    else if (g_pso_dirty || pr != cur_pr || cur_ps_pass != g_pass.serial || fc != cur_ps_fc) { g_pso_fc = fc;
++        g_rb_first_indexed = rb_first_draw_on() && rb_observed_workers_on() && !g_geo_program ? di : NULL;
++        cur_ps = pso_get(pr, nil); g_rb_first_indexed=NULL; cur_ps_round = g_pso_color_round; g_pso_fc = 0; cur_pr = pr; cur_ps_pass = g_pass.serial; cur_ps_fc = fc; g_pso_dirty = !cur_ps; }
+     g_udc_lmap = g_pso_lmap; g_udc_fsfn = g_pso_fsfn != nil;   // udc_note_draw (below) judges this draw's writes by the map its pipeline used
+     if (g_pso_lmap) { g_pso_lmap = NULL; g_pso_fsfn = nil; memset(&g_pso_fz, 0, sizeof g_pso_fz); g_pso_dirty = 1; }   // The next draw fetches again according to its own situation
+     __unsafe_unretained id<MTLRenderPipelineState> ps = cur_ps;
+@@ -20834,6 +21128,12 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+     rb_bi_note(pr->sh[0], dw, di);   // RewindBox (patch 0066): an indirect draw's base instance, read once its submission has run
+     // A draw with 0 primitives (the game does send count=0) draws no pixels, so skip encoding; Metal requires the count to be non-zero, otherwise the validation layer aborts on the spot (measured on the camp / wilderness / combat pages)
+     draw_emit(en, mp, prim, dw, di, mdx);
++    if (di && di->count>6 && S.ds.dt && rb_first_draw_on() && rb_first_mrt() &&
++        pr->sh[0] && pr->sh[1] && pr->sh[0]->rb_first_ro && pr->sh[1]->rb_first_ro &&
++        pr->sh[1]->rf.color_known && __builtin_popcount(pr->sh[1]->rf.color_mask)>=2) {
++        g_rb_first_scene_depth=R.rt.depth->serial;
++        g_rb_first_scene_frame=atomic_load_explicit(&g_cur_frame,memory_order_relaxed);
++    }
+ }
+ // The draw itself, once the pass, pipeline and bindings are in place: picks the Metal draw call for the NVN draw (indirect, quads / fans, 8-bit indices, plain)
+ static void draw_emit(id en, MTLPrimitiveType mp, int prim, const p_draw *dw, const p_draw_idx *di, uint64_t mdx) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index e9d6e652ba20f4d11b03c4d83a40b439f18f1e1b..c682732c834d55a8a7fb3fc10b33ab99686fad42 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -211,6 +211,9 @@ int nvn_be_shutdown_session(void) {
+     g_rt_history_frame = 0; g_rt_history_valid = 0;
+     for (int i = 0; i < PSO_PEND_MAX; i++) { g_pp[i].ps = nil; g_pp[i].error = nil; g_pp[i].used = g_pp[i].done = g_pp[i].late = 0; }
+     g_geo_program = nil; g_pso_fsfn = nil; g_pso_lmap = NULL;
++    atomic_store(&g_rb_first_draw_option,0); g_rb_first_ro=nil; g_rb_first_indexed=NULL;
++    g_rb_first_snap=g_rb_first_live=NULL; memset(g_rb_first_refused,0,sizeof g_rb_first_refused);
++    nvn_hm_clear(&g_rb_first_windows,NULL); g_rb_first_scene_depth=0;
+     g_prog_last = nil; g_prog_last_ptr = NULL; g_prog_last_serial = g_prog_last_gen = 0;
+     memset(&g_bind_cache, 0, sizeof g_bind_cache);
+     g_pp_prog = g_pp_cprog = NULL; g_pp_rt = NULL;
+diff --git a/graphics/nvn/gfx/nvn/rb_first_draw.h b/graphics/nvn/gfx/nvn/rb_first_draw.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..b0f1bb9f5f9f911a4aadff001ae7efe24f57625b
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_first_draw.h
+@@ -0,0 +1,9 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++#include <stdint.h>
++#define RB_FIRST_DRAW_IMPL 1
++
++typedef struct { uint64_t vs, fs; } rb_material_pair;
++static inline int rb_first_window(uint64_t first, uint64_t frame) {
++    return frame >= first && frame - first < 2;
++}
+diff --git a/graphics/nvn/host/dsh_miss.inc b/graphics/nvn/host/dsh_miss.inc
+index ff5bb37f8736240887cbd63c77e9600a1b256513..156d483bab54e1226b0b933e38073d459ce670e0 100644
+--- a/graphics/nvn/host/dsh_miss.inc
++++ b/graphics/nvn/host/dsh_miss.inc
+@@ -750,14 +750,29 @@ static int dsh_nvn2_first(const uint8_t key[8]) {
+     pthread_mutex_unlock(&mu);
+     return first;
+ }
+-int dm_shader_miss_late(const char *k16, uint64_t code, const void *control) {
+-    uint8_t key[8]; for (int i = 0; i < 8; i++) { unsigned v; if (sscanf(k16 + 2 * i, "%2x", &v) != 1) return 0; key[i] = (uint8_t)v; }
+-    char k[17]; snprintf(k, sizeof k, "%.16s", k16);
++static dsh_pend *dsh_pending_take(const uint8_t key[8]) {
+     unsigned b = dsh_bucket(key);
+     pthread_mutex_lock(&g_dsh_pend_mu);
+     dsh_pend **pp = &g_dsh_pend[b]; while (*pp && memcmp((*pp)->key, key, 8)) pp = &(*pp)->next;
+     dsh_pend *e = *pp; if (e) *pp = e->next;   // 取出：同一键只编一次，失败也不再试（失败照旧报红、画面缺这支）
+     pthread_mutex_unlock(&g_dsh_pend_mu);
++    return e;
++}
++// The exact stage object is already live. Release the table's input copies,
++// without waiting for a translator that owns its own independent reference.
++__attribute__((visibility("hidden"))) void dm_shader_release_resident(const uint8_t key[8]) {
++    free(dsh_pending_take(key));
++    dsh_job *job;
++    while ((job=dsh_job_take(key))) {
++        int queued=DSH_JOB_QUEUED;
++        atomic_compare_exchange_strong(&job->state,&queued,DSH_JOB_CANCELLED);
++        dsh_job_put(job);
++    }
++}
++int dm_shader_miss_late(const char *k16, uint64_t code, const void *control) {
++    uint8_t key[8]; for (int i = 0; i < 8; i++) { unsigned v; if (sscanf(k16 + 2 * i, "%2x", &v) != 1) return 0; key[i] = (uint8_t)v; }
++    char k[17]; snprintf(k, sizeof k, "%.16s", k16);
++    dsh_pend *e = dsh_pending_take(key);
+     if (!e) {
+         // RewindBox (patch 0040): the lookahead may have handed this key to dm_shader_ahead. Its job is taken before the fallback directory is read: one that has not started is
+         //   cancelled (the key is translated here, below, as before), one in flight is waited for, so its files are never read half written. A job that is done leaves its
+diff --git a/graphics/nvn/tests/rb_first_draw_flight.inc b/graphics/nvn/tests/rb_first_draw_flight.inc
+new file mode 100644
+index 0000000000000000000000000000000000000000..c785c4361a5678d62c05470ee06294e3fddb2046
+--- /dev/null
++++ b/graphics/nvn/tests/rb_first_draw_flight.inc
+@@ -0,0 +1,78 @@
++// Gate admission rather than sleeping or substituting a timing result. Once released,
++// both workers use the production identity cache and actually build their Metal functions.
++static dispatch_group_t rb_test_loads;
++static dispatch_semaphore_t rb_test_release;
++static int rb_test_enqueued[2];
++
++static int rb_test_first_enqueue(NSString *key,int st,int dz) {
++    if (rb_test_enqueued[st]++) return 1;
++    dispatch_group_async(rb_test_loads,dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0),^{
++        @autoreleasepool {
++            REQUIRE(!dispatch_semaphore_wait(rb_test_release,dispatch_time(DISPATCH_TIME_NOW,10*NSEC_PER_SEC)));
++            REQUIRE(shader_load_depth(key,st,0,dz,NULL,NULL));
++        }
++    });
++    return 1;
++}
++
++static void rb_test_first_draw(void) {
++    NSString *keys[2]={@"eaeaeaeaeaeaeaea_b",@"fafafafafafafafa_b"};
++    rb_material_pair pair={0xeaeaeaeaeaeaeaeaull,0xfafafafafafafafaull};
++    for(int st=0;st<2;st++) {
++        NSString *entry=st ? @"color" : @"plain";
++        fixture(keys[st],vertex_source,entry);
++        NSMutableDictionary *j=[reflection(entry) mutableCopy];
++        [j removeObjectForKey:@"gs_slice"];
++        j[@"key"]=keys[st]; j[@"stage"]=st ? @"ps" : @"vs";
++        j[@"raster"]=st ? @{@"colors":@[@0]} : @{@"pos_attr":@(-1),@"scr_uv":@[]};
++        if (!st) j[@"vertex_inputs"]=@[@{@"location":@0,@"msl_type":@"float4"},
++                                      @{@"location":@1,@"msl_type":@"float4"},
++                                      @{@"location":@2,@"msl_type":@"float4"}];
++        REQUIRE(rb_first_stage_ro(j,st));
++        NSData *json=[NSJSONSerialization dataWithJSONObject:j options:0 error:nil];
++        REQUIRE([json writeToFile:[fallback stringByAppendingPathComponent:[keys[st] stringByAppendingString:@".json"]] atomically:YES]);
++        CHECK(!shmap_stage([keys[st] substringToIndex:16]) && rb_first_reflected_stage(keys[st])==st,
++              "a verified stage is usable before its shader-map registration");
++        j[@"bindings"]=@[@{@"kind":@"sbuf",@"msl_type":@"device uint *",@"rw":@YES}];
++        CHECK(!rb_first_stage_ro(j,st),"stage %d storage write is critical",st);
++        j[@"bindings"]=@[@{@"kind":@"unknown",@"msl_type":@"constant uint*"}];
++        CHECK(!rb_first_stage_ro(j,st),"unknown stage resource fails closed");
++    }
++
++    uint64_t original_frame=atomic_load(&g_cur_frame);
++    nvn_be_set_depth_zero(0);
++    op_hdr end={.op=OP_END,.size=8};
++    const uint8_t *next=g_exec_next;
++    g_exec_next=(const uint8_t *)&end;
++    rb_test_release=dispatch_semaphore_create(0); rb_test_loads=dispatch_group_create();
++    tex_t c0={.serial=10},c1={.serial=11},depth={.serial=12};
++    c0.d.width=c1.d.width=depth.d.width=960; c0.d.height=c1.d.height=depth.d.height=540;
++    p_draw_idx di={.prim=4,.count=72,.instances=1};
++    R.has_rt=1; R.rt=(p_set_rt){.n=2,.color={&c0,&c1},.depth=&depth};
++    R.clear_c[0]=R.clear_c[1]=R.clear_d=1;
++    S.nattr=3; S.chmask.mask=0xff; S.ds.dt=1; S.ds.dw=0; S.ds.df=NVN_DEPTH_FUNC_EQUAL;
++    atomic_store(&g_cur_frame,100);
++    CHECK(rb_first_scene(&di),"MRT material over an existing depth prepass is eligible");
++    R.rt.n=0; CHECK(!rb_first_scene(&di),"depth-only shadow pass stays exact");
++    R.rt.n=1; CHECK(!rb_first_scene(&di),"independent single-color UI stays exact");
++    R.rt.n=2; di.count=3; CHECK(!rb_first_scene(&di),"fullscreen triangle stays exact"); di.count=72;
++    S.tf_on=1; CHECK(!rb_first_scene(&di),"transform feedback stays exact"); S.tf_on=0;
++    g_vis_counting=1; CHECK(!rb_first_scene(&di),"visibility query stays exact"); g_vis_counting=0;
++    uint64_t n=atomic_load(&g_rb_first_shlib_skips), msl=atomic_load(&g_bp_msl_n), waits=atomic_load(&g_shader_waits);
++    CHECK(rb_first_library_pair(pair,keys,rb_test_first_enqueue),"missing library returns while both workers are gated");
++    atomic_store(&g_cur_frame,101);
++    CHECK(rb_first_library_pair(pair,keys,rb_test_first_enqueue),"same pending library may skip the second frame");
++    atomic_store(&g_cur_frame,102);
++    CHECK(!rb_first_library_pair(pair,keys,rb_test_first_enqueue),"third frame requires the exact path");
++    CHECK(atomic_load(&g_rb_first_shlib_skips)==n+2 && atomic_load(&g_bp_msl_n)==msl &&
++          atomic_load(&g_shader_waits)==waits,"two real omissions, zero submit source builds and zero waits");
++    dispatch_semaphore_signal(rb_test_release); dispatch_semaphore_signal(rb_test_release);
++    REQUIRE(!dispatch_group_wait(rb_test_loads,dispatch_time(DISPATCH_TIME_NOW,30*NSEC_PER_SEC)));
++    atomic_store(&g_cur_frame,101);
++    CHECK(!rb_first_library_pair(pair,keys,rb_test_first_enqueue),"ready stages draw immediately even within the window");
++    vertex_gpu(shader_get(keys[0],0),0.25f,0);
++    g_exec_next=next; atomic_store(&g_cur_frame,original_frame);
++    memset(&R.rt,0,sizeof R.rt); R.has_rt=0; R.clear_d=0; R.clear_c[0]=R.clear_c[1]=0;
++    memset(&S.ds,0,sizeof S.ds); S.nattr=0; S.chmask.mask=0;
++    rb_test_loads=nil; rb_test_release=nil;
++}
+diff --git a/graphics/nvn/tests/rb_observed_fixture.inc b/graphics/nvn/tests/rb_observed_fixture.inc
+index 6bd52e6ad673b7939700cff7302e582d8a281827..3166adbdd58dbafa0c1cfa141c4601ce49c6fad0 100644
+--- a/graphics/nvn/tests/rb_observed_fixture.inc
++++ b/graphics/nvn/tests/rb_observed_fixture.inc
+@@ -27,6 +27,7 @@ static int fixture_observed(void) {
+     char dir[]="/tmp/rb-observed-XXXXXX", name[17];
+     assert(mkdtemp(dir));
+     setenv("DM_MSL_FALLBACK",dir,1);
++    setenv("S2A_DSH_EAGER_MAX","0",1);
+     nvn2=1; write_out=1; fixture_workers=1;
+     uint8_t control[0xd8]={0}, bytes[256]={2};
+     uint32_t magic=NVN2_CTL_MAGIC, version=NVN2_CTL_VERSION, length=sizeof bytes;
+@@ -68,11 +69,17 @@ static int fixture_observed(void) {
+     fixture_hash(name,control,bytes);
+     fixture_comp_entered=dispatch_semaphore_create(0);
+     fixture_comp_release=dispatch_semaphore_create(0);
++    uint8_t md[8]; nvn2_key(control,bytes,md);
++    dm_shader_miss(md,(uintptr_t)bytes,control);  // also exercise a pending live-input entry
+     atomic_store(&fixture_allow_guess,1);
+     assert(dm_shader_bound(name,(uintptr_t)bytes,control)==1);
+     fixture_wait(fixture_comp_entered);
+     atomic_store(&fixture_allow_guess,0);
+     assert(dsh_ahead_(name,(uintptr_t)bytes,control,0)==1);
++    // Simulate a validated exact in-memory Metal stage while the old job is
++    // still in the translator. Waiting for it here would time out this test.
++    dm_shader_release_resident(md);
++    assert(!dsh_pending_take(md) && !dsh_job_take(md));
+     dispatch_semaphore_signal(fixture_comp_release);
+     assert(rb_observed_drain(&fixture_pool,fixture_deadline()));
+     assert(compiler_calls==2 && overlap==0 && fixture_stage_loads==2);
+diff --git a/graphics/nvn/tests/t_nvn_shader_flight.m b/graphics/nvn/tests/t_nvn_shader_flight.m
+index b6cd1d7f437a821ed99361a39de096f90375ed32..afa7fbe675fb333ce13c4929d7e8422357a9ef8d 100644
+--- a/graphics/nvn/tests/t_nvn_shader_flight.m
++++ b/graphics/nvn/tests/t_nvn_shader_flight.m
+@@ -99,6 +99,9 @@ static void vertex_gpu(NvShader *shader, float expected, int layer) {
+     }
+     CHECK(!wrong,"vertex GPU %s slice=%d expected red=%.2f actual=%.2f wrong pixels=%u",shader->ventry.UTF8String,layer,expected,first,wrong);
+ }
++#ifdef RB_FIRST_DRAW_IMPL
++#include "rb_first_draw_flight.inc"
++#endif
+ static void independent_keys(void) {
+     NSString *slow=@"4444444444444444_b", *fast=@"5555555555555555_b";
+     fixture(slow,vertex_source,@"plain"); fixture(fast,vertex_source,@"plain");
+@@ -300,6 +303,14 @@ int main(int argc, char **argv) { @autoreleasepool {
+     os_unfair_lock_lock(&g_shader_lock); NvShader *ug=g_shcache[shader_identity(key,0,0,atomic_load(&g_depth_zero))]; os_unfair_lock_unlock(&g_shader_lock);
+     CHECK(ug && ug->fn && atomic_load(&g_shurg_n)==un+1 && shader_get(key,0)==ug,"lookahead load: cached before its draw, the draw takes the same object (urgent loads +%llu)",
+         (unsigned long long)(atomic_load(&g_shurg_n)-un));
++#ifdef RB_RESIDENT_STAGE_IMPL
++    int depth=atomic_load(&g_depth_zero);
++    CHECK(rb_program_stage_resident(@"aaaaaaaaaaaaaaaa",@"vertex",depth) &&
++          !rb_program_stage_resident(@"aaaaaaaaaaaaaaaa",@"vertex",!depth) &&
++          !rb_program_stage_resident(@"aaaaaaaaaaaaaaaa",@"pixel",depth) &&
++          !rb_program_stage_resident(@"aaaaaaaaaaaaaaaa",nil,depth),
++          "fallback shortcut accepts only the resident stage and depth of the default entry");
++#endif
+     CHECK(g_shurg.n>=2 && g_shurg.n<=SHQ_MAX && g_shpre.n==g_shurg.n,"lanes: prefetch %d / lookahead %d, within 2..%d",g_shpre.n,g_shurg.n,SHQ_MAX);
+     key=@"bbbbbbbbbbbbbbbb_b"; fixture(key,vertex_source,@"plain"); un=atomic_load(&g_shurg_n);
+     atomic_store(&g_shpre_stopping,1); shader_urgent(@"bbbbbbbbbbbbbbbb",0); shpre_sync(); atomic_store(&g_shpre_stopping,0);
+@@ -324,6 +335,9 @@ int main(int argc, char **argv) { @autoreleasepool {
+         "geometry lookahead load: cached before its draw (urgent loads +%llu, expected +1), the draw takes the same object (submit-thread constructions +%llu, expected 0)",
+         (unsigned long long)(atomic_load(&g_shurg_n)-un),(unsigned long long)(atomic_load(&g_shader_builds)-builds));
+     retirement_prefetch();
++#ifdef RB_FIRST_DRAW_IMPL
++    rb_test_first_draw();
++#endif
+     printf("LOAD requests=%llu hits=%llu waits=%llu wait_ms=%.3f submit_wait_ms=%.3f builds=%llu failures=%llu active=%llu\n",
+         (unsigned long long)atomic_load(&g_shader_requests),(unsigned long long)atomic_load(&g_shader_hits),
+         (unsigned long long)atomic_load(&g_shader_waits),atomic_load(&g_shader_wait_ns)/1e6,g_bp_lib_wait_ns/1e6,(unsigned long long)atomic_load(&g_shader_builds),

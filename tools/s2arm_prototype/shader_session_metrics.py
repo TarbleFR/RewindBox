@@ -28,6 +28,12 @@ SLOW_LINE = re.compile(
     + " ".join(key + r"=(\d+\.\d+)" for key in SLOW_TIMES) + r"\s*$")
 
 
+SHADER_WORK_FIELDS = {"first_frame": int, "draws_skipped_shlib": int, "draws_skipped_pso": int,
+                      "submit_msl_blocked_count": int, "submit_msl_blocked_ms": float,
+                      "submit_shared_wait_count": int, "submit_shared_wait_ms": float,
+                      "msl_source_count": int, "msl_source_ms": float}
+
+
 CUP_FRAME = "RewindBox cup frame="
 CUP_GAP = "RewindBox cup gap frame="
 FRAME_FIELDS = {
@@ -277,6 +283,7 @@ def summarize(host, captures, first, last, *, session=None, segments=(), journal
     full_windows, gap_rows, reference_binds = [], {}, []
     visible_windows, deadlines, guest_waits, upload_flushes, staging = {}, {}, {}, {}, {}
     display_details, display_traces, binding_windows = {}, [], {}
+    shader_windows, shader_frames = {}, {}
     gpu_passes = []
     course_windows = {}
     slow_frames_by_asset = {}
@@ -371,6 +378,15 @@ def summarize(host, captures, first, last, *, session=None, segments=(), journal
                     frame, row = metric_row(remainder, fields)
                     if selected(frame):
                         target[frame] = row
+            for prefix, samples in (("[pso-window-shaders] frame=", shader_windows),
+                                    ("[pso-frame-shaders] frame=", shader_frames)):
+                if prefix in line:
+                    frame, row = metric_row(line.split(prefix, 1)[1], SHADER_WORK_FIELDS)
+                    if selected(row["first_frame"]) and selected(frame):
+                        if frame in samples:
+                            raise ValueError("Duplicate shader sample. Supply a single session.")
+                        samples[frame] = row
+                    break
             m = GPU_PASS.search(line)
             if m and selected(int(m[1])):
                 gpu_passes.append({"frame": int(m[1]), "us": float(m[2]), "kind": m[3], "detail": m[4].strip()})
@@ -473,6 +489,10 @@ def summarize(host, captures, first, last, *, session=None, segments=(), journal
     memory_points = [memory[f] for f in sorted(memory)]
     sampled = [p for p in memory_points if "footprintMiB" in p]
     return {"session": engine_session or session, "cupFrames": cup_metrics(cup_rows, cup_gap_rows, segments, lost_cup_rows),
+        **({"shaderWorkWindows": [{"frame": frame, **row} for frame, row in sorted(shader_windows.items())]}
+           if shader_windows else {}),
+        **({"shaderWorkSlowFrames": [{"frame": frame, **row} for frame, row in sorted(shader_frames.items())]}
+           if shader_frames else {}),
         "courseAssetWindows": course_totals(course_windows), "slowFramesByAsset": slow_frames_by_asset,
         "displayedWindows": [
             {**visible_windows.get(frame, {"frame": frame, "observedFPS": None}),

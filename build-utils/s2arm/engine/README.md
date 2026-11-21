@@ -387,3 +387,5 @@ The [A18 Pro thermal comparison](../../../docs/evidence/s2arm-thermal-813.md) do
 Patches 0245–0247 bound the hosted iOS presentation thread’s time constraint and limit optional memory retention under process compression or thermal pressure. See the [capture replay and device checks](../../../docs/evidence/s2arm-present-freeze.md).
 
 To exercise the combined thermal and presentation changes on the same engine sources, use the existing thermal and freeze check markers together. A host-only thermal check runs the Metal fixtures on macOS 26 and leaves the verified iOS framework available for packaging.
+
+Patches 0248–0252 keep two workers for shaders and pipelines referenced by NVN2 submissions and bound optional first-use geometry skips to two frames per material. The [device procedure and controls](../../../docs/evidence/s2arm-first-draw.md) distinguish source compilation, waiting on another thread and loading prepared libraries.
