@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "10f6a6ddbc78d5b87b84a26c1d4356e1967319c8f33715f31c93f87187572785",
+  "packagedFingerprint": "84ab5e9cc243aaac308dd12394a4b78378c54c5e46cd43c505c2b5910da1fbfc",
   "producers": {
     "engine": {
-      "run": 44885479925,
+      "run": 44889895037,
       "attempt": 1,
-      "artifact": 14699608491,
-      "name": "s2arm-engine-framework-4b7383ca558d06118a6d11c4e5a2d0adcb647102",
-      "bytes": 25177964,
-      "sha256": "1a4e24035bc9a5bb5c895b36a9c40a00b10bdd0e078f6d6745c57ef7ba8292a4",
-      "headSha": "4b7383ca558d06118a6d11c4e5a2d0adcb647102",
+      "artifact": 14701579957,
+      "name": "s2arm-engine-framework-a1007799f997e745a2774e4322c33d7a74eca862",
+      "bytes": 25182322,
+      "sha256": "93332c4966b4b697e55cb23e04d7d6e833e28c4326545be241c552c5f377eaf9",
+      "headSha": "a1007799f997e745a2774e4322c33d7a74eca862",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-21T08:49:14Z",
+      "expiresAt": "2026-12-21T09:42:54Z",
       "members": {
-        "S2ArmEngine.framework.zip": "29b23017d7e36a46dafcd798838967486973f0be3502a23ebd5a7a68fc1fe3f9",
-        "NS2Pro.framework.zip": "b0ee8d9d4ee9b0d4237f875a52c63c039534926c81a1b3ca5dd5bb01b1b107d7"
+        "S2ArmEngine.framework.zip": "08b18ef71261b11ce0f702eb6dc1d462fa706691ad29cb5ab79eb1c0cb907ddd",
+        "NS2Pro.framework.zip": "35c33012568b3791cb0bff58bf51f7b5391310684abb3a427e15d22fabc4faae"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "1a4e24035bc9a5bb5c895b36a9c40a00b10bdd0e078f6d6745c57ef7ba8292a4",
+    "engine": "93332c4966b4b697e55cb23e04d7d6e833e28c4326545be241c552c5f377eaf9",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "bb505a5598876e036f52b654a90e81c46aa75e3e0ba30c1a95143eaf3634067e",
-      "bytes": 114893472,
-      "fingerprint": "10f6a6ddbc78d5b87b84a26c1d4356e1967319c8f33715f31c93f87187572785"
+      "sha256": "c32ed3d242f32a5f19adcb68a6219618e817463f422c4db1e0f52911fc4f4a72",
+      "bytes": 114911160,
+      "fingerprint": "84ab5e9cc243aaac308dd12394a4b78378c54c5e46cd43c505c2b5910da1fbfc"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 44885479925,
+      "run": 44889895037,
       "attempt": 1,
-      "head_sha": "4b7383ca558d06118a6d11c4e5a2d0adcb647102",
+      "head_sha": "a1007799f997e745a2774e4322c33d7a74eca862",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1190,11 +1190,35 @@
         {
           "name": "0261-report-verified-guest-qos-transitions-per-session.patch",
           "sha256": "c765e0da254a81dae77b276f898f032a66d51a6cb0ff9f8706684e47d31e0fc3"
+        },
+        {
+          "name": "0262-prove-NVN2-MRT-clear-stores-and-batches-at-materialization.patch",
+          "sha256": "05e3197dcbe87d213bd2cc417f35e27fdfff71ed72a5fbc9f718eb7f71075292"
+        },
+        {
+          "name": "0263-revalidate-cross-queue-parks-and-defer-cycle-lookahead.patch",
+          "sha256": "0c5c44c1634aa1bd16698b5198d9629b203ad1b9794f03c7dfb9cf8d9c8900ae"
+        },
+        {
+          "name": "0264-apply-thermal-qos-on-owner-resume.patch",
+          "sha256": "74f4a4a6d351f46e534d08ca3aa73cb1dd40cd48be1c6156784b48a51a8849b8"
+        },
+        {
+          "name": "0265-debounce-the-display-link-hold-for-transient-guest-intervals.patch",
+          "sha256": "32538ed793658a1177c5e361a577269e51efe68b8c94406aa7f3d8d235b0000a"
+        },
+        {
+          "name": "0266-adjust-guest-drs-from-completed-gpu-frame-quantiles.patch",
+          "sha256": "4493462ba6e16153e0516512873646d00f2abc3cac6da61ed83123a62a6c2583"
+        },
+        {
+          "name": "0267-check-first-draw-pixels-and-fair-workers.patch",
+          "sha256": "922198b0eb46a396d87aae47c68ea12873d9aa284b775454148df9eafa23d571"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "29b23017d7e36a46dafcd798838967486973f0be3502a23ebd5a7a68fc1fe3f9",
-        "NS2Pro.framework.zip": "b0ee8d9d4ee9b0d4237f875a52c63c039534926c81a1b3ca5dd5bb01b1b107d7"
+        "S2ArmEngine.framework.zip": "08b18ef71261b11ce0f702eb6dc1d462fa706691ad29cb5ab79eb1c0cb907ddd",
+        "NS2Pro.framework.zip": "35c33012568b3791cb0bff58bf51f7b5391310684abb3a427e15d22fabc4faae"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
