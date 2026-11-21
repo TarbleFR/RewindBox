@@ -1,0 +1,12 @@
+{
+  "build": 810,
+  "sha256": "59d96e949cc4407944a2becc38a04ff3701daee3820ee71fda94ea5dbf0a2962",
+  "bytes": 333619826,
+  "signedEngineFingerprint": "77fa016ab521c34d280775a3dd37813108e697014c5afc4de2f190e601c5f058",
+  "engineRun": 44858428067,
+  "enginePatches": 225,
+  "enabledBySignedPlist": true,
+  "switchableAtLaunch": true,
+  "directShaderChain": "0be3f28548fd",
+  "postChangeDeviceFrames": 0
+}
