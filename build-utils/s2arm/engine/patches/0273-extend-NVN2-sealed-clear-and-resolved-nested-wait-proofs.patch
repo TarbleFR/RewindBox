@@ -1,0 +1,311 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 82f3402..a5621f4 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1662,10 +1662,13 @@ static void rb_tile_session_begin(void) {
+     const char *controls[5] = {getenv("S2A_RB_GPU_CLEAR_STORES"), getenv("S2A_RB_GPU_ATTACHMENT_LIVENESS"),
+                                getenv("S2A_RB_GPU_PRODUCER"), getenv("S2A_RB_GPU_CLEAR_BATCH"), getenv("S2A_RB_GPU_PASS_STATS")};
+     const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
+-    unsigned flags = rb_nvn2_tile_policy(!g_m3 && g_q4 != nil, nvn2_on(), title,
+-                                         getenv("S2A_RB_NVN2_TILE_PASSES"), controls);
++    const char *all = getenv("S2A_RB_ALL_NVN2_TILES");
++    unsigned flags = rb_nvn2_tile_policy_mode(!g_m3 && g_q4 != nil, nvn2_on(), title,
++            getenv("S2A_RB_NVN2_TILE_PASSES"), controls, !all || !strcmp(all, "1"));
+     flags |= rb_nvn2_sibling_flag(flags, getenv("S2A_RB_NVN2_CLEAR_SIBLING"));
+     flags |= rb_nvn2_mrt_flag(flags, getenv("S2A_RB_NVN2_MRT_CLEARS"));
++    const char *sealed = getenv("S2A_RB_SEALED_CLEAR_STATE");
++    if ((flags & RB_TILE_MRT) && (!sealed || !strcmp(sealed, "1"))) flags |= RB_TILE_SEALED_STATE;
+     int track = (flags & (RB_TILE_STORE | RB_TILE_LIVE | RB_TILE_BATCH)) || (controls[1] && !strcmp(controls[1], "1"));
+     atomic_store_explicit(&g_rb_live_request, track ? 2 : 1, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_tile_options, flags | RB_TILE_READY, memory_order_relaxed);
+@@ -18073,7 +18076,19 @@ static int rb_clear_covers_landing(const sd_att *att, const p_set_rt *next, cons
+     unsigned slot = att->depth ? 8u : (unsigned)att->idx;
+     if (att->depth) {
+         if (clear_header.op != OP_CLEAR_DS || clear_header.size != 8 + sizeof(p_clear_ds) ||
+-            next->n || next->has_dview || R.rt.has_dview) return 0;
++            next->n < 0 || next->n > 8 || next->has_dview || R.rt.has_dview) return 0;
++        if (next->n) {
++            // rp_begin_ex(1) omits uncleared colors from the clear encoder.
++            // Its preliminary tex_mtl pass can still prepare those colors.
++            // Require disjoint physical, fully accounted ranges in the same pool.
++            if (!mrt || !rb_tile_enabled(RB_TILE_SEALED_STATE) ||
++                !rb_discard_unique(next->depth, next, 8) || !rb_store_unexposed(next->depth)) return 0;
++            for (int i = 0; i < next->n; ++i) {
++                const tex_t *color = next->color[i];
++                if (color && (color->pool != next->depth->pool || color->has_layout ||
++                              rb_live_class(color) == RB_LIVE_UNKNOWN)) return 0;
++            }
++        }
+         const p_clear_ds *c = (const p_clear_ds *)(clear_op + 8);
+         unsigned sm = (unsigned)c->stencil_mask & 0xff;
+         if ((sm && sm != 0xff) || (att->depth == 1 ? !c->depth_mask : sm != 0xff)) return 0;
+@@ -18176,7 +18191,8 @@ static unsigned rb_sealed_clear(const p_set_rt *rt, const uint8_t *next) {
+         g_ret_n < 0 || g_ret_n > 16 || g_nlc || g_defer_nact || g_defer_replaying || g_fz.active ||
+         g_rt_range_active || g_imfit_npend || g_imwr_npend ||
+         g_nbcrt || g_nubd || rs_on() || sub_cut_due() || rb_clear_readback_pending()) return 0;
+-    const uint8_t *clear = rb_sealed_overwrite(next, g_ret, g_ret_n, g_rest, g_nrest, lc_on());
++    int state_ok = rb_tile_enabled(RB_TILE_SEALED_STATE) && !geo_run_active() && !g_rb_shadow_native;
++    const uint8_t *clear = rb_sealed_overwrite_mode(next, g_ret, g_ret_n, g_rest, g_nrest, lc_on(), state_ok);
+     if (!clear) return 0;
+     unsigned mask = 0;
+     for (int i = 0; i < g_nsd; i++) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_xqueue.inc b/graphics/nvn/gfx/nvn/nvn_xqueue.inc
+index 1eb3405..00b31f7 100644
+--- a/graphics/nvn/gfx/nvn/nvn_xqueue.inc
++++ b/graphics/nvn/gfx/nvn/nvn_xqueue.inc
+@@ -36,6 +36,7 @@ __attribute__((weak)) void nvn_hle_piece_begun(void) {}   // hle_nvn.c: texture
+ // The submission lock serializes queue state and option initialization. Generic NVN2
+ // uses the same decision as the title; explicit 0/1 also permits a hardware A/B.
+ static int rb_xq_override = -2;
++static _Atomic int rb_xq_nested_option;
+ static int rb_xq_resume_on(void) {
+     if (rb_xq_override == -2) {
+         const char *value = getenv("S2A_RB_XQ_RESUME");
+@@ -47,6 +48,7 @@ static uint64_t rb_xq_saved_scans, rb_xq_fused, rb_xq_rechecks, rb_xq_park_ns;
+ static uint64_t rb_xq_extra_replay_ns, rb_xq_extra_commit_ns, rb_xq_extra_block_ns[4];
+ static void rb_xq_resume_reset(void) {
+     rb_xq_override = -2;
++    atomic_store(&rb_xq_nested_option,0);
+     rb_xq_saved_scans = rb_xq_fused = rb_xq_rechecks = rb_xq_park_ns = 0;
+     rb_xq_extra_replay_ns = rb_xq_extra_commit_ns = 0;
+     memset(rb_xq_extra_block_ns, 0, sizeof rb_xq_extra_block_ns);
+@@ -214,9 +216,20 @@ static void xq_publish_owed(xq_t *e, uint64_t fence) {
+ static uint64_t g_rb_pc_n, g_rb_pc_begin, g_rb_pc_index, g_rb_pc_enc, g_rb_pc_commit, g_rb_pc_res, g_rb_pc_follow, g_rb_pc_fence, g_rb_pc_qwait, g_rb_pc_ewait, g_rb_pc_cwait, g_rb_pc_call, g_rb_pc_last;
+ static int rb_xq_late_ready(void *q, uint64_t f0, uint64_t w0, uint64_t v0, uint64_t m0) {
+     xq_t *owner = xq_find(q);
+-    if (!rb_xq_resume_on() || g_xq_nuc != 1 || g_xq_ucover || g_rc_skip || g_npost ||
++    if (!rb_xq_resume_on() || g_xq_nuc < 1 || g_xq_ucover || g_rc_skip || g_npost ||
+         (owner && owner->nowed) || f0 != g_rb_fsync_n || w0 != g_rb_qwait_n ||
+         v0 != g_rb_evwait_n || m0 != g_mdi_waits) return 0;
++    if (g_xq_nuc > 1) {
++        if (g_xq_nuc > 1 + (int)(sizeof g_ret / sizeof *g_ret) || g_ret_n ||
++            !rb_pacing_setting(&rb_xq_nested_option, "S2A_RB_XQ_TAIL_RETURNS")) return 0;
++        // Only return-only inner lists. A second wait or any executable
++        // suffix must use the full, ordered continuation and cycle checks.
++        for (int i = 0; i < g_xq_nuc - 1; ++i) {
++            op_hdr end;
++            memcpy(&end, g_xq_uc[i], sizeof end);
++            if (end.op != OP_END || end.size != sizeof end) return 0;
++        }
++    }
+     rb_xq_rechecks++;
+     pthread_mutex_lock(&g_evw_mu);
+     int ready = !g_evs_over && ev_cond(ev_now_locked(g_xq_pval), g_xq_pmode, g_xq_pv);
+@@ -250,12 +263,20 @@ static int xq_piece(void *q, const uint64_t *h, int n, const void *state) {
+ #ifdef RB_XQ_TEST_SNAPSHOT
+             RB_XQ_TEST_SNAPSHOT();  // deterministic CPU event publication during the snapshot
+ #endif
+-            // Only the single top-level continuation can stay in THIS CB. Preserve
+-            // every outstanding CPU-visible report, queue event, and guest fence
+-            // boundary, as well as waits nested in CALLs and conditional replay.
++            // Preserve queue ownership, CPU-visible reports and all guest fences.
++            // If the signal arrived during the snapshot, re-enter this exact CB.
+             if (!rb_xq_late_ready(q, f0, w0, v0, m0)) break;
+-            next = g_xq_uc[0];
++            int count = g_xq_nuc;
++            next = g_xq_uc[count - 1];
+             g_xq_unwind = g_xq_nuc = 0;
++            // Replay each verified END with its actual CALL depth. This keeps
++            // command-index advancement, lazy clear state and END hooks intact.
++            for (int j = 0; j < count - 1; ++j) g_ret[j] = g_xq_uc[count - 1 - j];
++            for (int j = 0; j < count - 1; ++j) {
++                g_ret_n = count - 1 - j;
++                nvn_be_exec(g_xq_uc[j]);
++            }
++            g_ret_n = 0;
+             xq_state_free(st);
+             st = NULL;
+             rb_xq_fused++;
+diff --git a/graphics/nvn/gfx/nvn/rb_nvn2_tiles.h b/graphics/nvn/gfx/nvn/rb_nvn2_tiles.h
+index 8f2b7ef..8e99e7e 100644
+--- a/graphics/nvn/gfx/nvn/rb_nvn2_tiles.h
++++ b/graphics/nvn/gfx/nvn/rb_nvn2_tiles.h
+@@ -6,15 +6,15 @@
+ enum {
+     RB_TILE_STORE = 1u << 0, RB_TILE_LIVE = 1u << 1, RB_TILE_PRODUCER = 1u << 2,
+     RB_TILE_BATCH = 1u << 3, RB_TILE_STATS = 1u << 4, RB_TILE_READY = 1u << 5,
+-    RB_TILE_CLEAR_SIBLING = 1u << 6, RB_TILE_MRT = 1u << 7
++    RB_TILE_CLEAR_SIBLING = 1u << 6, RB_TILE_MRT = 1u << 7, RB_TILE_SEALED_STATE = 1u << 8
+ };
+ 
+ // Only a hosted, identified NVN2 session running the direct Metal 4 queue.
+ // The previous target retains its independent 810/811 controls.
+-static inline unsigned rb_nvn2_tile_policy(int metal4, int nvn2, const char *title,
+-                                           const char *master, const char *const controls[5]) {
++static inline unsigned rb_nvn2_tile_policy_mode(int metal4, int nvn2, const char *title,
++                                           const char *master, const char *const controls[5], int all_titles) {
+     if (!metal4 || !nvn2 || !title || strlen(title) != 16 ||
+-        strspn(title, "0123456789abcdefABCDEF") != 16 || !strcasecmp(title, "04007EF01F8AE000") ||
++        strspn(title, "0123456789abcdefABCDEF") != 16 || (!all_titles && !strcasecmp(title, "04007EF01F8AE000")) ||
+         (master && strcmp(master, "1"))) return 0;
+     unsigned flags = 0;
+     for (unsigned i = 0; i < 5; i++) {
+@@ -24,6 +24,11 @@ static inline unsigned rb_nvn2_tile_policy(int metal4, int nvn2, const char *tit
+     return flags;
+ }
+ 
++static inline unsigned rb_nvn2_tile_policy(int metal4, int nvn2, const char *title,
++                                            const char *master, const char *const controls[5]) {
++    return rb_nvn2_tile_policy_mode(metal4, nvn2, title, master, controls, 0);
++}
++
+ // A single cleared aspect may omit its sibling only under the generic
+ // attachment-liveness policy. The original title owns its independent gate.
+ static inline unsigned rb_nvn2_sibling_flag(unsigned flags, const char *setting) {
+diff --git a/graphics/nvn/gfx/nvn/rb_sealed_clear.h b/graphics/nvn/gfx/nvn/rb_sealed_clear.h
+index b01a0b9..aa1b06a 100644
+--- a/graphics/nvn/gfx/nvn/rb_sealed_clear.h
++++ b/graphics/nvn/gfx/nvn/rb_sealed_clear.h
+@@ -4,8 +4,8 @@
+ 
+ // Only END transitions cross a list. Accept a single clear followed by a
+ // proven materialization. A missing or cyclic continuation never proves death.
+-static inline const uint8_t *rb_sealed_overwrite(const uint8_t *next, const uint8_t *const *returns,
+-                                                 int ret, const uint64_t *following, int lists, int lazy_clear) {
++static inline const uint8_t *rb_sealed_overwrite_mode(const uint8_t *next, const uint8_t *const *returns,
++                                                 int ret, const uint64_t *following, int lists, int lazy_clear, int allow_state) {
+     const uint8_t *clear = NULL;
+     int rest = 0, crossed = 0, landing = 0;
+     for (int n = 0; next && n < 24; ++n) {
+@@ -17,6 +17,14 @@ static inline const uint8_t *rb_sealed_overwrite(const uint8_t *next, const uint
+             else { landing = 1; break; } // sub_commit → rp_flush
+             crossed = 1; continue;
+         }
++        // These exact payloads only update raster values used by later draws.
++        // They leave scissor, resources, targets and the pending load action alone.
++        if (allow_state && ((h.op == OP_ALPHA_REF && h.size == 8 + sizeof(p_alpha_ref)) ||
++                            (h.op == OP_BLEND_COLOR && h.size == 8 + sizeof(p_blend_color)))) {
++            crossed = 1;
++            next += h.size;
++            continue;
++        }
+         if (!clear) {
+             if ((h.op == OP_CLEAR_COLOR && h.size == 8 + sizeof(p_clear_color)) ||
+                 (h.op == OP_CLEAR_DS && h.size == 8 + sizeof(p_clear_ds))) {
+@@ -35,3 +43,7 @@ static inline const uint8_t *rb_sealed_overwrite(const uint8_t *next, const uint
+     }
+     return crossed && landing ? clear : NULL;
+ }
++static inline const uint8_t *rb_sealed_overwrite(const uint8_t *next, const uint8_t *const *returns,
++                                                 int ret, const uint64_t *following, int lists, int lazy_clear) {
++    return rb_sealed_overwrite_mode(next,returns,ret,following,lists,lazy_clear,0);
++}
+diff --git a/graphics/nvn/tests/t_nvn_xqueue.m b/graphics/nvn/tests/t_nvn_xqueue.m
+index ac5f28c..b3d183e 100644
+--- a/graphics/nvn/tests/t_nvn_xqueue.m
++++ b/graphics/nvn/tests/t_nvn_xqueue.m
+@@ -138,6 +138,26 @@ int main(void) { @autoreleasepool {
+                "late-ready CPU signal with_post=%d mode=%d piece_avoided=%llu extra_pieces=%llu",
+                with_post, fast, (unsigned long long)(rb_xq_fused - fused), (unsigned long long)(g_xq_pieces - pieces));
+     }
++    // A tail wait two CALLs deep may return to the copying caller after an
++    // actual CPU signal. A nonempty inner suffix keeps the ordinary split.
++    for (int tail = 0; tail < 2; ++tail) {
++        static volatile uint32_t late_deep[2];
++        stream inner = {0}, middle = {0}, outer = {0};
++        memset(D, 0x64 + tail, 4096); memset(X, 0, 4096);
++        nvn_be_event_gpu_recorded(&late_deep[tail]);
++        wait_eq(&inner, &late_deep[tail], 1);
++        if (!tail) fill(&inner, X, 4096, 0x22222222);
++        end(&inner); call(&middle, &inner); end(&middle);
++        call(&outer, &middle); copy(&outer, D, X, 4096); end(&outer);
++        stream *lists[] = { &outer };
++        uint64_t pieces = g_xq_pieces, fused = rb_xq_fused;
++        rb_publish_word = &late_deep[tail];
++        submit(&QA, lists, 1);
++        int expected = fast && tail && rb_pacing_setting(&rb_xq_nested_option,"S2A_RB_XQ_TAIL_RETURNS");
++        VERIFY(settle() && !memcmp(D,X,4096) && !g_nxq && !g_ret_n &&
++               rb_xq_fused == fused + expected && g_xq_pieces == pieces + !expected,
++               "nested tail=%d fused=%d; signal and copy ordered",tail,expected);
++    }
+     // ①②
+     memset(D, 0x11, 4096); memset(X, 0, 4096); memset(Z, 0, 4096);
+     static volatile uint32_t E; E = 0; nvn_be_event_gpu_recorded(&E);   // 录制时知道 E 由 GPU 侧信号写（hle 在录 SignalEvent 时调）
+diff --git a/graphics/nvn/tests/t_rb_attachment_liveness.c b/graphics/nvn/tests/t_rb_attachment_liveness.c
+index 17660c9..390aae9 100644
+--- a/graphics/nvn/tests/t_rb_attachment_liveness.c
++++ b/graphics/nvn/tests/t_rb_attachment_liveness.c
+@@ -52,6 +52,19 @@ static void list_tests(void) {
+     CHECK(rb_sealed_overwrite((const uint8_t *)&end,NULL,0,lists,2,0) == (const uint8_t *)&clear);
+     CHECK(rb_sealed_overwrite((const uint8_t *)&end,NULL,0,lists,2,1) == NULL); // unlanded lazy group
+     CHECK(rb_sealed_overwrite((const uint8_t *)&end,NULL,0,NULL,0,1) == NULL);
++    struct {
++        op_hdr alpha; p_alpha_ref a;
++        op_hdr clear; p_clear_ds d;
++        op_hdr blend; p_blend_color b;
++        op_hdr end;
++    } states = {.alpha={OP_ALPHA_REF,8+sizeof(p_alpha_ref)}, .clear={OP_CLEAR_DS,8+sizeof(p_clear_ds)},
++                .blend={OP_BLEND_COLOR,8+sizeof(p_blend_color)}, .end={OP_END,8}};
++    CHECK(!rb_sealed_overwrite((const uint8_t *)&states,NULL,0,NULL,0,0));
++    CHECK(rb_sealed_overwrite_mode((const uint8_t *)&states,NULL,0,NULL,0,0,1)==(const uint8_t *)&states.clear);
++    states.alpha.op=OP_SCISSOR;
++    CHECK(!rb_sealed_overwrite_mode((const uint8_t *)&states,NULL,0,NULL,0,0,1));
++    states.alpha.op=OP_ALPHA_REF; states.blend.op=OP_WAIT_SYNC;
++    CHECK(!rb_sealed_overwrite_mode((const uint8_t *)&states,NULL,0,NULL,0,0,1));
+     for (unsigned op = 0; op < OP_COUNT_; ++op) {
+         if (op == OP_END || op == OP_SET_RT) continue;
+         op_hdr unknown = {op,8};
+diff --git a/graphics/nvn/tests/t_rb_clear_batch.c b/graphics/nvn/tests/t_rb_clear_batch.c
+index b9045ed..a1c3af9 100644
+--- a/graphics/nvn/tests/t_rb_clear_batch.c
++++ b/graphics/nvn/tests/t_rb_clear_batch.c
+@@ -19,6 +19,8 @@ int main(void) {
+     assert(!rb_nvn2_tile_policy(1,1,NULL,NULL,controls));
+     assert(!rb_nvn2_tile_policy(1,1,"unknown",NULL,controls));
+     assert(!rb_nvn2_tile_policy(1,1,"04007EF01F8AE000",NULL,controls));
++    assert(rb_nvn2_tile_policy_mode(1,1,"04007EF01F8AE000",NULL,controls,1)==all);
++    assert(!rb_nvn2_tile_policy_mode(1,1,"04007EF01F8AE000","0",controls,1));
+     controls[2]="0"; controls[4]="1";
+     assert(rb_nvn2_tile_policy(1,1,mkw,"1",controls)==((all & ~RB_TILE_PRODUCER)|RB_TILE_STATS));
+     assert(rb_nvn2_sibling_flag(all,NULL)==RB_TILE_CLEAR_SIBLING);
+diff --git a/graphics/nvn/tests/t_rb_clear_batch_metal.m b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+index d6fa0f5..11210d0 100644
+--- a/graphics/nvn/tests/t_rb_clear_batch_metal.m
++++ b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+@@ -184,11 +184,13 @@ static void native_store(int split, int exposed, int enabled, int mrt) {
+         full={{OP_CLEAR_COLOR,8+sizeof(p_clear_color)},{.index=mrt ? 1 : 0,.mask=15,.rgba={0.125,0,0,1}}};
+     op_hdr end={OP_END,8};
+     _Alignas(8) unsigned char first[sizeof first_bind+sizeof next_bind+sizeof partial+sizeof full+sizeof end];
+-    _Alignas(8) unsigned char second[sizeof full+sizeof end];
++    struct { op_hdr h; p_alpha_ref payload; } alpha={{OP_ALPHA_REF,8+sizeof(p_alpha_ref)},{.ref=0.5f}};
++    _Alignas(8) unsigned char second[sizeof alpha+sizeof full+sizeof end];
+     unsigned char *w=first;
+     memcpy(w,first_bind,first_size); w+=first_size; memcpy(w,&partial,sizeof partial); w+=sizeof partial;
+     memcpy(w,next_bind,next_size); w+=next_size;
+     if (split) { memcpy(w,&end,sizeof end); w=second; }
++    if (split==2) { memcpy(w,&alpha,sizeof alpha); w+=sizeof alpha; }
+     memcpy(w,&full,sizeof full); w+=sizeof full; memcpy(w,&end,sizeof end);
+     uint64_t handles[]={(uintptr_t)first,(uintptr_t)second};
+     static queue_t queue;
+@@ -237,7 +239,22 @@ static void native_packed_ordering(int enabled) {
+         uint64_t skipped=atomic_load(&g_rb_mrt_private_barriers);
+         nvn_be_sub_begin(); state_reset();
+         lc_group clear={.rt={.depth=&ds},.clear_d=1,.clear_s=1,.cd=0.25,.cs=0x35};
+-        lc_apply(&clear); CHECK(rp_begin_ex(1)); rp_end();
++        lc_apply(&clear); CHECK(rp_begin_ex(1));
++        p_set_rt rebound=clear.rt; rebound.n=1; rebound.color[0]=&targets[0];
++        struct { op_hdr h; p_clear_ds c; } dsop={{OP_CLEAR_DS,8+sizeof(p_clear_ds)},
++            {.depth_mask=i!=1,.stencil_mask=i==1 ? 255 : 0}};
++        unsigned proven=0;
++        for (int j=0;j<g_nsd;++j) {
++            if (!rb_clear_covers_landing(&g_sd[j],&rebound,(const uint8_t *)&dsop,enabled)) continue;
++            CHECK(g_sd[j].depth==(i==1 ? 2 : 1));
++            p_set_rt alias=rebound; alias.color[0]=&ds;
++            CHECK(!rb_clear_covers_landing(&g_sd[j],&alias,(const uint8_t *)&dsop,enabled));
++            proven|=1u<<j;
++        }
++        CHECK(!!proven==(rb_tile_enabled(RB_TILE_SEALED_STATE) && i!=2));
++        g_rb_sealed_clear_mask=proven;
++        rp_end();
++        clear.rt=rebound;
+         clear.clear_d=i!=1; clear.clear_s=i==1; clear.cd=0.75; clear.cs=0xa7;
+         lc_apply(&clear); CHECK(rp_begin_ex(1)); rp_end();
+         uint64_t fence=nvn_be_sub_commit();
+@@ -313,6 +330,7 @@ int main(int argc,char **argv) { @autoreleasepool {
+     if (titles) {
+         // An explicit legacy zero keeps the old broad TBDR mode disabled.
+         // Only the new narrow store proof can run with this setting.
++        native_store(2,0,rb_tile_enabled(RB_TILE_SEALED_STATE),1);
+         native_store(0,0,mrt_enabled,0); native_store(1,0,mrt_enabled,0);
+         native_store(0,0,mrt_enabled,1); native_store(1,0,mrt_enabled,1);
+         native_store(0,1,mrt_enabled,1); native_store(1,1,mrt_enabled,1);

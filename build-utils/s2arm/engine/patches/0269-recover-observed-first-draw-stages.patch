@@ -1,0 +1,509 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 0d0c366..724fa00 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9324,7 +9324,11 @@ static void bare_dims(NSUInteger *w, NSUInteger *h);
+ //   no more than a frame: every colour / depth target was attached in the last two frames too (drawn every frame: a one-off bake target waits), and neither shader writes storage
+ //   (MeloNX allowAsyncCompileSkip). On by default on iOS; the Mac keeps waiting (replays and gates compare pixels) unless DM_NVN_FIRST_SKIP=1. DM_NVN_FIRST_SKIP=0 turns it off
+ #include "rb_first_draw.h"
+-static _Atomic int g_rb_first_draw_option;
++static _Atomic int g_rb_first_draw_option, g_rb_first_recovery_option;
++// Called inside the existing first-draw feature, including its shared reflection parser.
++static int rb_first_recovery(void) {
++    return rb_pacing_setting(&g_rb_first_recovery_option, "S2A_RB_FIRST_DRAW_RECOVERY");
++}
+ static int first_skip_on(void);
+ static int rb_first_draw_on(void) {
+     return nvn_rb_thermal_scope() && rb_pacing_setting(&g_rb_first_draw_option,"S2A_RB_ASYNC_FIRST_DRAW") && first_skip_on();
+@@ -9934,7 +9938,7 @@ static void shmap_load_once(void) {
+     id<MTLLibrary> at_lib; NSString *at_main, *at_u; NSMutableDictionary<NSNumber *, id<MTLFunction>> *at_fns; uint8_t has_atms;   // gap families 34 / 37: a fragment main0 declaring S2A_AT / S2A_MSOFF (Dsh.cs FsAlphaMs): its library and entry names, specialized per (u, at, msoff) on demand (fs_atms_fn)
+     int load_depth_zero;   // captured with the identity, also used by its layer variant
+     uint8_t u_mask;   // S2Arm gap 2 A: the colour outputs fn_u returns as uint, bit n = color(n) (json u_mask; dmsh_build.py fs_uint turns only the integer-bit writers)
+-    uint16_t tf_stride[4]; uint32_t cb_ext[16], sb_ro; nvn_refl rf; id<MTLArgumentEncoder> ae; NSUInteger arg_len; int stage, range_ro, rb_first_ro, afr, layer_out; const char *builtin; uint64_t logged; uint64_t rb_frame_key; BOOL rb_frame_key_ready; char key[24]; id<MTLBuffer> c1buf; uint64_t c1_gpu; size_t c1off;
++    uint16_t tf_stride[4]; uint32_t cb_ext[16], sb_ro; nvn_refl rf; id<MTLArgumentEncoder> ae; NSUInteger arg_len; int stage, range_ro, rb_first_ro, rb_first_storage, afr, layer_out; const char *builtin; uint64_t logged; uint64_t rb_frame_key; BOOL rb_frame_key_ready; char key[24]; id<MTLBuffer> c1buf; uint64_t c1_gpu; size_t c1off;
+     uint32_t geo_vertices, geo_invocations, geo_output, geo_stride, geo_index_stride;
+     // NVN2 task / mesh shader (json msl_entry_kind object / mesh, at stage 3 / 4; nvn_geometry.inc mesh_tasks_draw): mesh_kind 1 object 2 mesh (0 = neither); its workgroup's threads,
+     //   the payload's bytes (task), a task shader feeds it (mesh), the most vertices / primitives a mesh workgroup emits (Switch2 line's interface contract, item 6)
+@@ -10786,15 +10790,34 @@ static void rb_shadow_reflect(NvShader *sh, NSDictionary *json, NSString *source
+         }
+     }
+ }
++// The translator's pool-feedback bitmap is an observable write even on a sampled read.
++// Unknown or malformed bindings still require the exact path.
++static int rb_first_stage_storage(NSDictionary *j) {
++    if (j[@"first_store"]) return 1;
++    if (![j[@"bindings"] isKindOfClass:NSArray.class]) return 0;
++    for (NSDictionary *binding in j[@"bindings"]) {
++        if (![binding isKindOfClass:NSDictionary.class]) continue;
++        NSString *type = binding[@"msl_type"];
++        if ([binding[@"kind"] isEqual:@"tex_pool"] ||
++            ([binding[@"rw"] isKindOfClass:NSNumber.class] && [binding[@"rw"] boolValue]) ||
++            ([binding[@"atomic"] isKindOfClass:NSNumber.class] && [binding[@"atomic"] boolValue]) ||
++            ([type isKindOfClass:NSString.class] &&
++             ([type containsString:@"access::write"] || [type containsString:@"access::read_write"]))) return 1;
++    }
++    return 0;
++}
+ static int rb_first_stage_ro(NSDictionary *j, int stage) {
+     NSDictionary *raster=j[@"raster"];
+-    if (![raster isKindOfClass:NSDictionary.class] || j[@"geometry"] || j[@"first_store"] ||
++    if (j[@"geometry"] || j[@"first_store"]) return 0;
++    // Position passthrough, vertex input count and UV interpolation say nothing
++    // about storage effects. Pass lifetime is checked against the live attachments.
++    if (!rb_first_recovery() && (![raster isKindOfClass:NSDictionary.class] ||
+         (stage==0 && (![raster[@"pos_attr"] isKindOfClass:NSNumber.class] || [raster[@"pos_attr"] intValue]>=0 ||
+         ![raster[@"scr_uv"] isKindOfClass:NSArray.class] || [raster[@"scr_uv"] count])) ||
+-        (stage==1 && (![raster[@"colors"] isKindOfClass:NSArray.class] || ![raster[@"colors"] count]))) return 0;
++        (stage==1 && (![raster[@"colors"] isKindOfClass:NSArray.class] || ![raster[@"colors"] count])))) return 0;
+     if (![j[@"route"] isEqual:@"B"] || ![j[@"stage"] isEqual:(stage == 0 ? @"vs" : @"ps")] ||
+         ![j[@"bindings"] isKindOfClass:NSArray.class] || j[@"gs_slice"] || j[@"tess_mode"] || [j[@"writes_layer"] boolValue] ||
+-        (stage == 0 && (![j[@"vertex_inputs"] isKindOfClass:NSArray.class] ||
++        (!rb_first_recovery() && stage == 0 && (![j[@"vertex_inputs"] isKindOfClass:NSArray.class] ||
+                         [j[@"vertex_inputs"] count] < 3))) return 0;
+     for (NSDictionary *b in j[@"bindings"]) {
+         if (![b isKindOfClass:NSDictionary.class]) return 0;
+@@ -10821,6 +10844,8 @@ static int rb_first_stage_ro(NSDictionary *j, int stage) {
+         if ([uniforms containsObject:k] && [t hasPrefix:@"constant "]) continue;
+         if ([samplers containsObject:k] && ([t isEqual:@"sampler"] || [t hasPrefix:@"array<sampler,"])) continue;
+         if (([k isEqual:@"sbuf"] || [k isEqual:@"sbuf_ubo"]) && [b[@"rw"] isKindOfClass:NSNumber.class] && [t hasPrefix:@"const device "]) continue;
++        if (rb_first_recovery() && ([k isEqual:@"img"] || [k isEqual:@"img_ubo"]) &&
++            [t hasPrefix:@"texture"] && [t hasSuffix:@", access::read>"]) continue;
+         if ([sampled containsObject:k] &&
+             ([t hasPrefix:@"texture"] || [t hasPrefix:@"depth"] || [t hasPrefix:@"array<texture"] || [t hasPrefix:@"array<depth"]) &&
+             (![t containsString:@"access::"] || [t containsString:@"access::sample>"] || [t containsString:@"access::read>"]) &&
+@@ -10908,8 +10933,10 @@ static NvShader *shader_build_attempt(NSString *pc, int stage, int layer, int de
+         if (k <= 8 || !(k & (k - 1))) MLOG("unnorm bits: shader %s has %u texture bindings outside the s2a_flags.yzw bitmap (normalization compiled in); %llu such bindings in %llu shaders so far",
+                                            pc.UTF8String, (unsigned)o->rf.unb_uncov, (unsigned long long)nb, (unsigned long long)k); }
+     if ((stage==0 || stage==1) && nvn_rb_thermal_scope() &&
+-        rb_pacing_setting(&g_rb_first_draw_option,"S2A_RB_ASYNC_FIRST_DRAW"))
++        rb_pacing_setting(&g_rb_first_draw_option,"S2A_RB_ASYNC_FIRST_DRAW")) {
+         o->rb_first_ro = rb_first_stage_ro(j,stage);
++        if (!o->rb_first_ro && rb_first_recovery()) o->rb_first_storage = rb_first_stage_storage(j);
++    }
+     if (rt_range_on() || rb_async_pso()) o->range_ro=rt_range_bindings_ro(j);
+     NSString *entry = j[@"entry"];
+     if (stage == 0) {
+@@ -12693,6 +12720,18 @@ static int rb_first_replay_keys(const prog_t *live, const prog_t *snap, uint8_t
+         memcmp(now.sd, program.sd, 2 * sizeof now.sd[0])) return 0;
+     return 1;
+ }
++static int rb_first_reflected_stage(NSString *key);
++static int rb_first_disk_pair(const uint8_t keys[6][8]) {
++    unsigned mask=0;
++    for (int i=0;i<2;i++) {
++        char hex[17];
++        for (int j=0;j<8;j++) snprintf(hex+2*j,3,"%02x",keys[i][j]);
++        int stage=rb_first_reflected_stage([@(hex) stringByAppendingString:@"_b"]);
++        if (stage<0 || stage>1) return 0;
++        mask|=1u<<stage;
++    }
++    return mask==3;
++}
+ static const prog_t *rb_first_bind_snapshot(const prog_t *p, int stages) {
+     if (!rb_first_draw_on() || !rb_observed_workers_on() || !p->serial || p->nstage != 2 || (stages & 3) != 3 ||
+         !nvn_prog_snap_get || serial_get(p->serial)) return NULL;
+@@ -12704,11 +12743,15 @@ static const prog_t *rb_first_bind_snapshot(const prog_t *p, int stages) {
+     int mask=0;
+     // Compare with the keys reported by normal replay before publishing.
+     // The mutable guest-program cache stays inside its existing accessor.
+-    if (!prog_look_mask(p, &mask, recover ? keys : NULL) || mask != 3) return NULL;
++    if (!prog_look_mask(p,&mask,recover ? keys : NULL) || mask!=3) {
++        // A finalized program's snapshot retains keys but deliberately clears
++        // guest control pointers. Current on-disk reflection can prove its stages.
++        if (!rb_first_recovery() || recover || p!=snap || !rb_first_disk_pair(keys)) return NULL;
++    }
+     if (recover && !nvn_prog_snap_fill_pair(snap, keys)) return NULL;
+     ok |= 3;
+-    // Start observed translation or library load while the later binding state is replayed.
+-    // Only the published reflection can subsequently authorize an omitted draw.
++    // Do not resolve a cold library or wait on a worker while binding.
++    // The first actual draw claims its stages and checks the published reflection.
+     (void)prog_peek(p);
+     prog_keys_put(snap,keys,ok);
+     return snap;
+@@ -13954,16 +13997,24 @@ static int pso_fout_variant(NvProg *pr, NvShader *fs, const pso_key *k, int merg
+     MLOG("fragment shader %s: typed-output variant %#x built in %.1f ms (%s)", fs->key, need, (clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0) / 1e6, path);
+     return 1;
+ }
+-enum { RB_FIRST_REFLECTION, RB_FIRST_PASS, RB_FIRST_EXPIRED, RB_FIRST_REFUSAL_COUNT };
++enum { RB_FIRST_REFLECTION, RB_FIRST_PASS, RB_FIRST_EXPIRED, RB_FIRST_STORAGE,
++       RB_FIRST_COMPUTE, RB_FIRST_QUEUE, RB_FIRST_TABLE, RB_FIRST_UNSUPPORTED, RB_FIRST_REFUSAL_COUNT };
+ // Submit thread only, emitted at most once per 300 frames by first_skip_window.
+ static uint64_t g_rb_first_refused[RB_FIRST_REFUSAL_COUNT];
+ static int rb_first_reject(int cause) { ++g_rb_first_refused[cause]; return 0; }
++static int rb_first_proof_failure(int proof) {
++    switch (proof) {
++        case -2: return RB_FIRST_STORAGE;
++        case -3: return RB_FIRST_UNSUPPORTED;
++        default: return RB_FIRST_REFLECTION;
++    }
++}
+ static nvn_hmap g_rb_first_windows = {.klen=sizeof(rb_material_pair)};
+ static int rb_first_allow(rb_material_pair pair, int record) {
+     uint64_t frame=atomic_load_explicit(&g_cur_frame,memory_order_relaxed);
+     uintptr_t v=(uintptr_t)nvn_hm_get(&g_rb_first_windows,&pair);
+-    if (v) return rb_first_window(v-1,frame) || rb_first_reject(RB_FIRST_EXPIRED);
+-    if (g_rb_first_windows.n>=4096 || frame==UINT64_MAX) return 0;
++    if (v) return rb_first_window(v-1, frame, rb_first_recovery() ? 4 : 2) || rb_first_reject(RB_FIRST_EXPIRED);
++    if (g_rb_first_windows.n>=4096 || frame==UINT64_MAX) return rb_first_reject(RB_FIRST_TABLE);
+     if (record) nvn_hm_put(&g_rb_first_windows,&pair,(void *)(uintptr_t)(frame+1));
+     return 1;
+ }
+@@ -14133,29 +14184,34 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+     if (quar_has(vs, fs)) { hm_put_id(&g_pso_fail, live, NSNull.null); PSO_WHY("quarantined after a GPU error"); return nil; }   // a GPU error quarantined it (quar_fault)
+     const int async=rb_async_pso();
+     if (async) g_async_miss_frame=atomic_load_explicit(&g_cur_frame,memory_order_relaxed);
+-    if (g_rb_first_indexed && vs && fs && (!vs->rb_first_ro || !fs->rb_first_ro)) rb_first_reject(RB_FIRST_REFLECTION);
+-    if (g_rb_first_indexed && !getenv("DM_NVN_HILITE") && !ms_fn && !g_pso_lmap && !g_pso_fsfn && !g_pso_fc &&
++    if (g_rb_first_indexed && (!vs || !fs || !vs->rb_first_ro || !fs->rb_first_ro)) {
++        rb_first_reject((vs && vs->rb_first_storage) || (fs && fs->rb_first_storage)
++                        ? RB_FIRST_STORAGE : vs && fs ? RB_FIRST_UNSUPPORTED : RB_FIRST_REFLECTION);
++    } else if (g_rb_first_indexed && !getenv("DM_NVN_HILITE") && !ms_fn && !g_pso_lmap && !g_pso_fsfn && !g_pso_fc &&
+         pr && !pr->unres && !pr->geo_base && !pr->geo_raster && !pr->gs_miss[0] &&
+         !(pr->smask & ~3u) && vs && fs && vs->rb_first_ro && fs->rb_first_ro &&
+         !vs->layer_out && !k.at && !k.msoff && !pso_fout_need(&k,fs,0) &&
+-        (rb_first_scene(g_rb_first_indexed) || rb_first_reject(RB_FIRST_PASS)) && rb_first_allow(rb_material(vs,fs),0) &&
+-        rb_first_copy_clear()) {
+-        uint32_t pad=pso_pair_miss(vs,fs);
+-        int pending=0;
+-        if (pad && !vp_fn(vs,pad)) {
+-            if (vp_request(pr->gp,vs,pad,1) && !vp_fn(vs,pad)) pending=1;
+-        } else {
+-            pso_pend_kick(&k,vs,fs,1);
+-            if (pso_pend_state(&k)==1) pending=2;
+-        }
+-        if (pending && rb_first_allow(rb_material(vs,fs),1)) {
+-            if (pending==1) atomic_fetch_add_explicit(&g_rb_first_shlib_skips,1,memory_order_relaxed);
+-            else atomic_fetch_add_explicit(&g_rb_first_pso_skips,1,memory_order_relaxed);
+-            rb_async_note(RB_ASYNC_SKIP); g_first_skipped=1;
+-            PSO_WHY("scene geometry awaiting first-use %s",pending==1 ? "vertex padding" : "pipeline");
+-            return nil;
++        rb_first_scene(g_rb_first_indexed) && rb_first_copy_clear()) {
++        if (rb_first_allow(rb_material(vs,fs),0)) {
++            uint32_t pad=pso_pair_miss(vs,fs);
++            int pending=0;
++            if (pad && !vp_fn(vs,pad)) {
++                if (vp_request(pr->gp,vs,pad,1) && !vp_fn(vs,pad)) pending=1;
++            } else {
++                pso_pend_kick(&k,vs,fs,1);
++                int state=pso_pend_state(&k);
++                if (state==1) pending=2;
++                else if (!state) rb_first_reject(RB_FIRST_QUEUE);
++            }
++            if (pending && rb_first_allow(rb_material(vs,fs),1)) {
++                if (pending==1) atomic_fetch_add_explicit(&g_rb_first_shlib_skips,1,memory_order_relaxed);
++                else atomic_fetch_add_explicit(&g_rb_first_pso_skips,1,memory_order_relaxed);
++                rb_async_note(RB_ASYNC_SKIP); g_first_skipped=1;
++                PSO_WHY("scene geometry awaiting first-use %s",pending==1 ? "vertex padding" : "pipeline");
++                return nil;
++            }
+         }
+-    }
++    } else if (g_rb_first_indexed) rb_first_reject(RB_FIRST_PASS);
+     const int course_exact=rb_course_exact() || (rb_first_draw_on() && rb_observed_workers_on());
+     const int can_drop=async && !course_exact && first_skip_on() && !g_pso_lmap && !ms_fn &&
+                        !g_pso_fsfn && rb_pso_draw_inert(pr,vs) && skip_safe(vs,fs);
+@@ -20271,10 +20327,16 @@ static void tf_draw(NvProg *pr, const p_draw *dw, const p_draw_idx *di) {
+ //   their count, which cannot be laid beside a recording: the maintainer's recordings of 15 November show objects drawn all black for seconds, and their logs cannot say
+ //   whether draws were being skipped at those moments. One line a window in which something was skipped or built on the submit thread (submit thread, rt_history_frame)
+ static void first_skip_window(uint64_t frame) {
+-    if (g_rb_first_refused[0] || g_rb_first_refused[1] || g_rb_first_refused[2]) {
+-        MLOG("[first-draw] frame=%llu refused_reflection=%llu refused_pass=%llu refused_two_frame_limit=%llu",
++    uint64_t total=0;
++    for (unsigned i=0;i<RB_FIRST_REFUSAL_COUNT;i++) total+=g_rb_first_refused[i];
++    if (total) {
++        MLOG("[first-draw] frame=%llu blocked_reflection_missing=%llu blocked_pass=%llu blocked_frame_limit=%llu "
++             "blocked_storage=%llu blocked_compute=%llu blocked_queue=%llu blocked_history_full=%llu blocked_reflection_unsupported=%llu",
+             (unsigned long long)frame,(unsigned long long)g_rb_first_refused[RB_FIRST_REFLECTION],
+-            (unsigned long long)g_rb_first_refused[RB_FIRST_PASS],(unsigned long long)g_rb_first_refused[RB_FIRST_EXPIRED]);
++            (unsigned long long)g_rb_first_refused[RB_FIRST_PASS],(unsigned long long)g_rb_first_refused[RB_FIRST_EXPIRED],
++            (unsigned long long)g_rb_first_refused[RB_FIRST_STORAGE],(unsigned long long)g_rb_first_refused[RB_FIRST_COMPUTE],
++            (unsigned long long)g_rb_first_refused[RB_FIRST_QUEUE],(unsigned long long)g_rb_first_refused[RB_FIRST_TABLE],
++            (unsigned long long)g_rb_first_refused[RB_FIRST_UNSUPPORTED]);
+         memset(g_rb_first_refused,0,sizeof g_rb_first_refused);
+     }
+ 
+@@ -21035,34 +21097,53 @@ static int rb_first_mrt(void) {
+     }
+     return 0;
+ }
+-static int rb_first_base_view(const view_t *v) {
+-    return !v->set_levels && !v->set_layers && !v->set_format && !v->set_target &&
++static int rb_first_base_view(const view_t *v, const tex_t *t) {
++    const int explicitBase=rb_first_recovery();
++    return (!v->set_levels || (explicitBase && !v->base_level && v->nlevels==1)) &&
++           (!v->set_layers || (explicitBase && !v->min_layer && v->nlayers==1)) &&
++           (!v->set_format || (explicitBase && v->format==t->d.format)) &&
++           (!v->set_target || (explicitBase && v->target==t->d.target)) &&
+            !v->set_swizzle && !v->set_dsmode;
+ }
+ static int rb_first_scene(const p_draw_idx *di) {
+-    if (!di || di->ind || di->mdi_cnt || di->count<=6 || di->instances<=0 ||
+-        (di->prim!=4 && di->prim!=5) || S.nattr<3 || !S.ds.dt || S.ds.st ||
+-        S.ds.df==NVN_DEPTH_FUNC_ALWAYS || S.ds.df==NVN_DEPTH_FUNC_NEVER ||
+-        S.tf_on || S.rast_discard || g_vis_counting || g_enc_vis || g_rc_skip ||
+-        g_fz.active || g_fz_checking || g_defer_replaying || g_gr.active || g_geo_program ||
+-        g_mtk.on || g_rlane || g_rp_layered || g_fbc.pending || g_fbc.forcing || g_fbt.on || !R.has_rt || R.rt.n<1 || R.rt.n>8 || !R.rt.depth ||
+-        (R.rt.has_dview && !rb_first_base_view(&R.rt.dview)) || !R.rt.depth->serial || R.rt.depth->d.width<=R.rt.depth->d.height) return 0;
++    if (!di || di->mdi_cnt || (di->prim!=4 && di->prim!=5) || S.tf_on || S.rast_discard ||
++        g_vis_counting || g_enc_vis || g_rc_skip || g_fz.active || g_fz_checking ||
++        g_defer_replaying || g_gr.active || g_geo_program || g_mtk.on || g_rlane ||
++        g_rp_layered || g_fbc.pending || g_fbc.forcing || g_fbt.on ||
++        !R.has_rt || R.rt.n<1 || R.rt.n>8 || S.ds.st) return 0;
++    const int recovery=rb_first_recovery();
+     const tex_t *depth=R.rt.depth;
+-    if (S.ds.dw && !R.clear_d && !rt_fresh_now(depth)) return 0;
+-    int visible=0;
+-    for(int i=0;i<R.rt.n;i++) {
+-        const tex_t *t=R.rt.color[i]; if (!t) continue;
+-        if (!t->serial || (R.rt.has_cview[i] && !rb_first_base_view(&R.rt.cview[i])) || (t->d.flags & NVN_TEXTURE_FLAGS_DISPLAY) || xv_present(t->serial) ||
+-            t->d.width!=depth->d.width || t->d.height!=depth->d.height) return 0;
++    if ((!recovery && (di->ind || S.nattr<3 || !depth || !S.ds.dt ||
++                       S.ds.df==NVN_DEPTH_FUNC_ALWAYS || S.ds.df==NVN_DEPTH_FUNC_NEVER)) ||
++        (!di->ind && (di->count<=6 || di->instances<=0))) return 0;
++    if (depth && (!depth->serial || (R.rt.has_dview && !rb_first_base_view(&R.rt.dview,depth)) ||
++                  (!recovery && depth->d.width<=depth->d.height) ||
++                  (S.ds.dw && !R.clear_d && !rt_fresh_now(depth)))) return 0;
++    int visible=0, recurring=1;
++    for (int i=0;i<R.rt.n;i++) {
++        const tex_t *t=R.rt.color[i];
++        if (!t) continue;
++        if (!t->serial || (R.rt.has_cview[i] && !rb_first_base_view(&R.rt.cview[i],t)) ||
++            (t->d.flags & NVN_TEXTURE_FLAGS_DISPLAY) || xv_present(t->serial) ||
++            (depth && (t->d.width!=depth->d.width || t->d.height!=depth->d.height))) return 0;
+         if (!((S.chmask.mask>>(4*i))&15)) continue;
+         if (!R.clear_c[i] && !rt_fresh_now(t)) return 0;
++        if (recovery && !rt_seen_steady(t)) recurring=0;
+         visible=1;
+     }
+-    // A single color target must reuse this frame's witnessed material MRT depth.
+-    // This admits alpha and EQUAL passes without mistaking an independent HUD,
+-    // a shadow atlas or a depth-only prepass for the geometry it precedes.
+-    return visible && (rb_first_mrt() || (g_rb_first_scene_depth==depth->serial &&
+-        g_rb_first_scene_frame==atomic_load_explicit(&g_cur_frame,memory_order_relaxed)));
++    if (!visible) return 0; // Includes the actual depth-only prepass.
++    // With unknown indirect arguments, only use recurring targets. In particular
++    // a newly bound one-shot texture cannot qualify merely by being an MRT.
++    if (di->ind && !recurring) return 0;
++    if (depth && S.ds.dt && rb_first_mrt()) return 1;
++    if (depth && g_rb_first_scene_depth==depth->serial &&
++        g_rb_first_scene_frame==atomic_load_explicit(&g_cur_frame,memory_order_relaxed)) return 1;
++    if (!recovery || !recurring) return 0;
++    // A single color pass can follow a depth prepass without an earlier MRT.
++    // EQUAL must read actual depth initialized this frame, not a pending clear.
++    if (depth && S.ds.dt && !S.ds.dw && S.ds.df==NVN_DEPTH_FUNC_EQUAL)
++        return !R.clear_d && rt_fresh_now(depth);
++    return 1;
+ }
+ static int rb_first_copy_clear(void) {
+     if (!g_exec_next) return 0;
+@@ -21088,7 +21169,7 @@ static int rb_first_copy_clear(void) {
+ // lifetime as the program/MTLLibrary maps. Failure to find reflection is never
+ // permission to drop a draw; its urgent translation may make a later draw eligible.
+ static NSMutableDictionary<NSString *,NSNumber *> *g_rb_first_ro;
+-// -1 means missing, outdated, unclassified or effectful. A published JSON may precede
++// Negative results distinguish missing/stale (-1), storage effects (-2) and unsupported stages (-3). JSON may precede
+ // registration of its map entry by the translation worker.
+ static int rb_first_reflected_stage(NSString *key) {
+     NSNumber *known=g_rb_first_ro[key]; if (known) return known.intValue;
+@@ -21102,14 +21183,14 @@ static int rb_first_reflected_stage(NSString *key) {
+     if (![j isKindOfClass:NSDictionary.class] || ![j[@"key"] isEqual:key] ||
+         ![j[@"chain"] isEqual:@DMSH_CHAIN] || (fallback && !fb_json_current(j))) return -1;
+     int stage=[j[@"stage"] isEqual:@"vs"] ? 0 : [j[@"stage"] isEqual:@"ps"] ? 1 : -1;
+-    if (stage>=0 && !rb_first_stage_ro(j,stage)) stage=-1;
++    if (stage>=0 && !rb_first_stage_ro(j,stage))
++        stage=rb_first_stage_storage(j) ? -2 : -3;
+     if (!g_rb_first_ro) g_rb_first_ro=[NSMutableDictionary dictionary];
+     if (g_rb_first_ro.count<4096) g_rb_first_ro[key]=@(stage);
+     return stage;
+ }
+ static int rb_first_library_pair(rb_material_pair pair, NSString * __strong const names[2],
+-                                 int (*enqueue)(NSString *,int,int)) {
+-    if (!rb_first_allow(pair,0)) return 0;
++                                 int (*enqueue)(NSString *,int,int), const p_draw_idx *di) {
+     int missing[2]={0}, building[2]={0}, dz=atomic_load_explicit(&g_depth_zero,memory_order_relaxed);
+     NSString *idn[2]={shader_identity(names[0],0,0,dz),shader_identity(names[1],1,0,dz)};
+     NvShader *have[2]={nil,nil};
+@@ -21121,11 +21202,18 @@ static int rb_first_library_pair(rb_material_pair pair, NSString * __strong cons
+     }
+     os_unfair_lock_unlock(&g_shader_lock);
+     if (!missing[0] && !missing[1]) return 0;
+-    for(int st=0;st<2;st++)
+-        if (have[st] ? (!have[st]->rb_first_ro || have[st]->layer_out) : rb_first_reflected_stage(names[st])!=st)
+-            return rb_first_reject(RB_FIRST_REFLECTION);
+-    if (!rb_first_copy_clear()) return rb_first_reject(RB_FIRST_PASS);
+-    for(int st=0;st<2;st++) if (missing[st] && !building[st] && !enqueue(names[st],st,dz)) return 0;
++    // A stage admitted on the observed queue owns its single-flight slot.
++    // Start work even when the command will require an exact result below.
++    int accepted=1;
++    for (int st=0;st<2;st++)
++        if (missing[st] && !building[st] && !enqueue(names[st],st,dz)) accepted=0;
++    for (int st=0;st<2;st++) {
++        int proof=have[st] ? (have[st]->rb_first_ro && !have[st]->layer_out ? st :
++                             have[st]->rb_first_storage ? -2 : -3) : rb_first_reflected_stage(names[st]);
++        if (proof!=st) return rb_first_reject(rb_first_proof_failure(proof));
++    }
++    if (!rb_first_scene(di) || !rb_first_copy_clear()) return rb_first_reject(RB_FIRST_PASS);
++    if (!accepted) return rb_first_reject(RB_FIRST_QUEUE);
+     if (!rb_first_allow(pair,1)) return 0;
+     atomic_fetch_add_explicit(&g_rb_first_shlib_skips,1,memory_order_relaxed);
+     first_skip_note();
+@@ -21136,24 +21224,51 @@ static int rb_first_skip_libraries(const p_draw_idx *di) {
+     if (!p || S.prog!=g_rb_first_live || S.bst[0]!=S.prog || S.bst[1]!=S.prog ||
+         S.bser[0]!=p->serial || S.bser[1]!=p->serial) return 0;
+     if (serial_get(p->serial)) { g_rb_first_live=g_rb_first_snap=NULL; return 0; }
+-    if (!rb_first_scene(di)) return rb_first_reject(RB_FIRST_PASS);
+     NSString *names[2]={nil,nil};
+     rb_material_pair pair={0};
++    int blocked=-1;
+     for (int i=0;i<2;i++) {
+-        uint8_t md[8]; char key[17]; if (!prog_key(p,i,md)) return 0;
+-        for(int j=0;j<8;j++) snprintf(key+2*j,3,"%02x",md[j]);
++        uint8_t md[8]; char key[17];
++        if (!prog_key(p,i,md)) { blocked=RB_FIRST_REFLECTION; continue; }
++        for (int j=0;j<8;j++) snprintf(key+2*j,3,"%02x",md[j]);
+         NSString *base=@(key), *full=[base stringByAppendingString:@"_b"], *stage=shmap_stage(base);
+         int st=stage ? stage_of(stage) : rb_first_reflected_stage(full);
+-        if (st<0 || st>1 || names[st]) return rb_first_reject(RB_FIRST_REFLECTION);
++        if (st<0 || st>1 || names[st]) {
++            // A bind is speculative. This is actual demand: take an owned,
++            // hash-verified copy before queuing translation on an observed lane.
++            if (!stage && st==-1 && rb_first_recovery() && dm_shader_ahead) {
++                prog_t live;
++                if (g_rb_first_live!=p && rb_first_read(g_rb_first_live,&live,sizeof live) &&
++                    live.magic==MAGIC('P','R','O','G') && live.serial==p->serial &&
++                    live.nstage==2 && live.sd[i].data==p->sd[i].data)
++                    dm_shader_ahead(key,live.sd[i].data,live.sd[i].control);
++            }
++            if (blocked!=RB_FIRST_STORAGE) blocked=rb_first_proof_failure(st);
++            continue;
++        }
+         names[st]=full;
+         uint64_t parsed=strtoull(key,NULL,16), value=parsed ? parsed : 1;
+         if (!st) pair.vs=value; else pair.fs=value;
+     }
+-    return rb_first_library_pair(pair,names,rb_observed_shader);
++    if (blocked>=0) {
++        if (rb_first_recovery()) for (int st=0;st<2;st++)
++            if (names[st]) rb_observed_shader(names[st],st,atomic_load(&g_depth_zero));
++        return rb_first_reject(blocked);
++    }
++    return rb_first_library_pair(pair,names,rb_observed_shader,di);
++}
++// Only the shape fields are used by the first-use policy. A transform-feedback
++// draw gets its count from a GPU buffer and must follow its actual encode path.
++static const p_draw_idx *rb_first_shape(const p_draw *dw, const p_draw_idx *di, p_draw_idx *shape) {
++    if (di || !dw || dw->tfc || !rb_first_recovery()) return di;
++    *shape=(p_draw_idx){.prim=dw->prim,.count=dw->count,.instances=dw->instances,.ind=dw->ind,.mdi_cnt=dw->mdi_cnt};
++    return shape;
+ }
+ static void draw_impl(const p_draw *dw, const p_draw_idx *di);
+ static void draw(const p_draw *dw, const p_draw_idx *di) {
+-    if (di && rb_first_draw_on() && rb_observed_workers_on() && rb_first_skip_libraries(di)) {
++    p_draw_idx shape;
++    if (g_rb_first_snap && rb_first_draw_on() && rb_observed_workers_on() &&
++        rb_first_skip_libraries(rb_first_shape(dw,di,&shape))) {
+         g_udc_precise=0; g_udc_lmap=NULL; g_udc_fsfn=0; g_mdxc.next=NULL;
+         return;
+     }
+@@ -21309,7 +21424,8 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+         g_pso_fc = fc; cur_ps = mtk_pso(pr); cur_ps_round = g_pso_color_round; g_pso_fc = 0; cur_pr = nil;
+         if (!cur_ps) { g_mtk.miss = 1; if (g_pso_lmap) { g_pso_lmap = NULL; g_pso_fsfn = nil; memset(&g_pso_fz, 0, sizeof g_pso_fz); g_pso_dirty = 1; } return; } }
+     else if (g_pso_dirty || pr != cur_pr || cur_ps_pass != g_pass.serial || fc != cur_ps_fc) { g_pso_fc = fc;
+-        g_rb_first_indexed = rb_first_draw_on() && rb_observed_workers_on() && !g_geo_program ? di : NULL;
++        p_draw_idx shape;
++        g_rb_first_indexed = rb_first_draw_on() && rb_observed_workers_on() && !g_geo_program ? rb_first_shape(dw,di,&shape) : NULL;
+         cur_ps = pso_get(pr, nil); g_rb_first_indexed=NULL; cur_ps_round = g_pso_color_round; g_pso_fc = 0; cur_pr = pr; cur_ps_pass = g_pass.serial; cur_ps_fc = fc; g_pso_dirty = !cur_ps; }
+     g_udc_lmap = g_pso_lmap; g_udc_fsfn = g_pso_fsfn != nil;   // udc_note_draw (below) judges this draw's writes by the map its pipeline used
+     if (g_pso_lmap) { g_pso_lmap = NULL; g_pso_fsfn = nil; memset(&g_pso_fz, 0, sizeof g_pso_fz); g_pso_dirty = 1; }   // The next draw fetches again according to its own situation
+@@ -21945,6 +22061,7 @@ static void dispatch(const p_dispatch *dp) {
+     const int async=rb_async_pso() || rb_observed_workers_on();
+     if (ps && rb_pso_mode()) rb_async_note(RB_ASYNC_HIT);
+     if (!ps) {
++        if (rb_first_draw_on() && rb_first_recovery()) rb_first_reject(RB_FIRST_COMPUTE);
+         RBPSOWait rb_wait __attribute__((cleanup(rb_wait_end)))=rb_wait_begin();
+         NSError *e=nil; uint64_t bt=bp_now();
+         id<MTLFunction> fn=fc ? se_fn(cs,fc) : cs->fn;
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 05a8f3c..9ebb674 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -217,7 +217,7 @@ int nvn_be_shutdown_session(void) {
+     g_rt_history_frame = 0; g_rt_history_valid = 0;
+     for (int i = 0; i < PSO_PEND_MAX; i++) { g_pp[i].ps = nil; g_pp[i].error = nil; g_pp[i].used = g_pp[i].done = g_pp[i].late = 0; }
+     g_geo_program = nil; g_pso_fsfn = nil; g_pso_lmap = NULL;
+-    atomic_store(&g_rb_first_draw_option,0); g_rb_first_ro=nil; g_rb_first_indexed=NULL;
++    atomic_store(&g_rb_first_recovery_option,0); atomic_store(&g_rb_first_draw_option,0); g_rb_first_ro=nil; g_rb_first_indexed=NULL;
+     g_rb_first_snap=g_rb_first_live=NULL; memset(g_rb_first_refused,0,sizeof g_rb_first_refused);
+     nvn_hm_clear(&g_rb_first_windows,NULL); g_rb_first_scene_depth=0;
+     g_prog_last = nil; g_prog_last_ptr = NULL; g_prog_last_serial = g_prog_last_gen = 0;
+diff --git a/graphics/nvn/gfx/nvn/rb_first_draw.h b/graphics/nvn/gfx/nvn/rb_first_draw.h
+index b0f1bb9..49f05d3 100644
+--- a/graphics/nvn/gfx/nvn/rb_first_draw.h
++++ b/graphics/nvn/gfx/nvn/rb_first_draw.h
+@@ -4,6 +4,6 @@
+ #define RB_FIRST_DRAW_IMPL 1
+ 
+ typedef struct { uint64_t vs, fs; } rb_material_pair;
+-static inline int rb_first_window(uint64_t first, uint64_t frame) {
+-    return frame >= first && frame - first < 2;
++static inline int rb_first_window(uint64_t first, uint64_t frame, unsigned limit) {
++    return frame >= first && frame - first < limit;
+ }
+diff --git a/graphics/nvn/tests/rb_first_draw_flight.inc b/graphics/nvn/tests/rb_first_draw_flight.inc
+index 7cad617..93767d2 100644
+--- a/graphics/nvn/tests/rb_first_draw_flight.inc
++++ b/graphics/nvn/tests/rb_first_draw_flight.inc
+@@ -98,12 +98,16 @@ static void rb_test_first_draw(void) {
+             @{@"kind":@"tex_ubo",@"msl_type":@"texture2d<float, access::sample>"},
+             @{@"kind":@"samp_pool",@"msl_type":@"constant spvPool_s*",@"elem":@"sampler"}];
+         CHECK(rb_first_stage_ro(material,st),"ordinary stage %d constant/RO buffer, sampled texture, pure sampler pool",st);
++        material[@"vertex_inputs"]=@[]; material[@"raster"]=@{};
++        CHECK(rb_first_stage_ro(material,st),"raster heuristics do not conceal read-only effects");
++        material[@"bindings"]=@[@{@"kind":@"img_ubo",@"msl_type":@"texture2d<float, access::read>"}];
++        CHECK(rb_first_stage_ro(material,st),"read-only image is eligible");
+         NSData *json=[NSJSONSerialization dataWithJSONObject:j options:0 error:nil];
+         REQUIRE([json writeToFile:[fallback stringByAppendingPathComponent:[keys[st] stringByAppendingString:@".json"]] atomically:YES]);
+         CHECK(!shmap_stage([keys[st] substringToIndex:16]) && rb_first_reflected_stage(keys[st])==st,
+               "a verified stage is usable before its shader-map registration");
+         j[@"bindings"]=@[@{@"kind":@"sbuf",@"msl_type":@"device uint *",@"rw":@YES}];
+-        CHECK(!rb_first_stage_ro(j,st),"stage %d storage write is critical",st);
++        CHECK(!rb_first_stage_ro(j,st) && rb_first_stage_storage(j),"stage %d storage write is critical",st);
+         j[@"bindings"]=@[@{@"kind":@"tex_pool",@"msl_type":@"constant spvPool_t*",@"elem":@"texture2d<float>"}];
+         CHECK(!rb_first_stage_ro(j,st),"texture pool writes its residency feedback even when sampling only");
+         j[@"bindings"]=@[@{@"kind":@"unknown",@"msl_type":@"constant uint*"}];
+@@ -126,17 +130,29 @@ static void rb_test_first_draw(void) {
+     CHECK(rb_first_scene(&di),"MRT material over an existing depth prepass is eligible");
+     R.rt.n=0; CHECK(!rb_first_scene(&di),"depth-only shadow pass stays exact");
+     R.rt.n=1; CHECK(!rb_first_scene(&di),"independent single-color UI stays exact");
++    R.clear_d=0;
++    rt_seen_mark(&c0); atomic_store(&g_cur_frame,101); rt_seen_mark(&c0); rt_fresh_mark(&depth);
++    CHECK(rb_first_scene(&di),"single recurring color over this frame's depth prepass");
++    R.rt.depth=NULL;
++    CHECK(rb_first_scene(&di),"recurring fresh single-color geometry needs no MRT or depth");
++    R.clear_c[0]=0;
++    CHECK(!rb_first_scene(&di),"retained single-color contents stay exact even with read-only stages");
++    R.clear_c[0]=1; R.rt.depth=&depth; R.clear_d=1; atomic_store(&g_cur_frame,100);
+     R.rt.n=2; di.count=3; CHECK(!rb_first_scene(&di),"fullscreen triangle stays exact"); di.count=72;
+     S.tf_on=1; CHECK(!rb_first_scene(&di),"transform feedback stays exact"); S.tf_on=0;
+     g_vis_counting=1; CHECK(!rb_first_scene(&di),"visibility query stays exact"); g_vis_counting=0;
+     uint64_t n=atomic_load(&g_rb_first_shlib_skips), msl=atomic_load(&g_bp_msl_n), waits=atomic_load(&g_shader_waits);
+-    CHECK(rb_first_library_pair(pair,keys,rb_test_first_enqueue),"missing library returns while both workers are gated");
++    CHECK(rb_first_library_pair(pair,keys,rb_test_first_enqueue,&di),"missing library returns while both workers are gated");
+     atomic_store(&g_cur_frame,101);
+-    CHECK(rb_first_library_pair(pair,keys,rb_test_first_enqueue),"same pending library may skip the second frame");
++    CHECK(rb_first_library_pair(pair,keys,rb_test_first_enqueue,&di),"same pending library may skip the second frame");
+     atomic_store(&g_cur_frame,102);
+-    CHECK(!rb_first_library_pair(pair,keys,rb_test_first_enqueue),"third frame requires the exact path");
+-    CHECK(atomic_load(&g_rb_first_shlib_skips)==n+2 && atomic_load(&g_bp_msl_n)==msl &&
+-          atomic_load(&g_shader_waits)==waits,"two real omissions, zero submit source builds and zero waits");
++    CHECK(rb_first_library_pair(pair,keys,rb_test_first_enqueue,&di),"third frame still within budget");
++    atomic_store(&g_cur_frame,103);
++    CHECK(rb_first_library_pair(pair,keys,rb_test_first_enqueue,&di),"fourth frame still within budget");
++    atomic_store(&g_cur_frame,104);
++    CHECK(!rb_first_library_pair(pair,keys,rb_test_first_enqueue,&di),"fifth frame requires the exact path");
++    CHECK(atomic_load(&g_rb_first_shlib_skips)==n+4 && atomic_load(&g_bp_msl_n)==msl &&
++          atomic_load(&g_shader_waits)==waits,"four real omissions, zero submit source builds and zero waits");
+     dispatch_semaphore_signal(rb_test_release); dispatch_semaphore_signal(rb_test_release);
+     REQUIRE(!dispatch_group_wait(rb_test_loads,dispatch_time(DISPATCH_TIME_NOW,30*NSEC_PER_SEC)));
+     rb_fixture_next_frames(keys,&di);

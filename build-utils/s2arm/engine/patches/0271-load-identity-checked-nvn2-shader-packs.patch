@@ -1,0 +1,146 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9920,6 +9920,12 @@
+ // ---------- Shader mapping table: Switch control section hash → PC metallib (produced by dm/gfx/tools/shader_map.py) ----------
+ static NSMutableDictionary<NSString *, NSString *> *g_shmap;   // S2Arm: key -> stage name (shader_map.tsv column 3); was declared NSArray *, clang 21 rejects the NSString reads
+ static NSString *g_shmap_path, *g_msl_dir;
++// A locally exported shader pack shares S2Arm's lib.idx reader. Its translator
++// fingerprint and game/build identity travel with the container AND the map.
++static NSString *g_rb_capture_bin;
++static BOOL g_rb_capture_refused;
++static const char *fb_xfp(void);
++extern const char *s2a_main_build_id(void) __attribute__((weak_import));
+ static NSString *exe_rel(const char *rel) {
+     char buf[4096]; uint32_t n = sizeof buf;
+     if (_NSGetExecutablePath(buf, &n)) return nil;
+@@ -9939,11 +9945,6 @@
+     if (!txt && nvn2_on()) { MLOG("【红】 Switch 2: no shader map %s yet: every shader is missing and its draws are skipped", path.UTF8String); txt = @""; }
+     if (!txt) MDIE("cannot read the shader map %s (DM_NVN_SHMAP can name another)", path.UTF8String);
+     g_shmap = [NSMutableDictionary dictionary];
+-    for (NSString *ln in [txt componentsSeparatedByString:@"\n"]) {
+-        if (!ln.length || [ln hasPrefix:@"#"] || [ln hasPrefix:@"package"]) continue;
+-        NSArray *c = [ln componentsSeparatedByString:@"\t"];
+-        if (c.count > 3) g_shmap[c[3]] = c[2];
+-    }
+     g_shmap_path = path;
+     const char *m = getenv("DM_MSL_DIR");
+     // Library directory = <DM_MSL_DIR or default cache>/b-<translation chain version>: the version comes from dm/gfx/nvn/dmsh_chain.h (tools/dmsh_chain.py), one for every game; a host built from an old source tree only accepts libraries of the old version
+@@ -9955,6 +9956,37 @@
+     for (NSString *ln in [stamp componentsSeparatedByString:@"\n"]) {
+         NSArray *c = [ln componentsSeparatedByString:@"\t"];
+         if (c.count == 2 && [c[0] isEqual:@"game"]) st_game = c[1]; else if (c.count == 2 && [c[0] isEqual:@"inputs"]) st_inputs = c[1];
++    }
++    NSString *stampRow = nil;
++    for (NSString *ln in [stamp componentsSeparatedByString:@"\n"])
++        if ([ln hasPrefix:@"rb-capture-v1\t"]) stampRow = ln;
++    NSString *mapRow = nil;
++    if ([txt hasPrefix:@"# rb-capture-v1\t"]) {
++        NSRange end = [txt rangeOfString:@"\n"];
++        if (end.location != NSNotFound) mapRow = [txt substringWithRange:NSMakeRange(2, end.location - 2)];
++    }
++    g_rb_capture_bin = nil;
++    g_rb_capture_refused = NO;
++    if (stampRow || mapRow) {
++        NSArray *identity = [stampRow componentsSeparatedByString:@"\t"];
++        const char *e = getenv("S2A_RB_CAPTURE_PACK");
++        const char *game = s2a_nvn_game_id(), *build = s2a_main_build_id ? s2a_main_build_id() : NULL;
++        const char *xfp = fb_xfp();
++        BOOL enabled = !e || strcmp(e, "0");
++        BOOL accepts = enabled && nvn2_on() && [stampRow isEqual:mapRow] && identity.count == 5 &&
++            game && build && xfp && !strcasecmp([identity[1] UTF8String], game) &&
++            !strcasecmp([identity[2] UTF8String], build) && [identity[3] isEqual:@DMSH_CHAIN] &&
++            [identity[4] isEqual:@(xfp)];
++        g_rb_capture_refused = !accepts;
++        if (accepts) g_rb_capture_bin = g_msl_dir;
++        else txt = @"";
++        MLOG("[rb-capture-pack] %s, game=%s build=%s", accepts ? "accepted" :
++             enabled ? "identity mismatch" : "disabled", game ?: "-", build ?: "-");
++    }
++    for (NSString *ln in [txt componentsSeparatedByString:@"\n"]) {
++        if (!ln.length || [ln hasPrefix:@"#"] || [ln hasPrefix:@"package"]) continue;
++        NSArray *c = [ln componentsSeparatedByString:@"\t"];
++        if (c.count > 3) g_shmap[c[3]] = c[2];
+     }
+     if (!st_inputs) MLOG("【红】 shader library %s has no stamp (inputs.tsv): no full dmsh_build.py run made it as it is, so c1_full.tsv and cb_extent.tsv are not taken", g_msl_dir.UTF8String);
+     else if (st_game && ![st_game isEqual:@(DM_GAME_ID)]) MLOG("【红】 shader library %s was built for game %s, not %s", g_msl_dir.UTF8String, st_game.UTF8String, DM_GAME_ID);
+@@ -10537,7 +10569,7 @@
+ static lp_pack g_libpack; static int g_libpack_ok;   // lp_open: 1 container, 0 one file per key, -1 a broken container (red, nothing loads)
+ static lp_pack *lp_pack_get(void) {
+     static dispatch_once_t once;
+-    dispatch_once(&once, ^{ int r = g_msl_dir ? lp_open(&g_libpack, g_msl_dir.fileSystemRepresentation, DMSH_CHAIN) : 0;
++    dispatch_once(&once, ^{ int r = g_rb_capture_refused ? -1 : g_msl_dir ? lp_open(&g_libpack, g_msl_dir.fileSystemRepresentation, DMSH_CHAIN) : 0;
+         if (r == 1) MLOG("direct library container: %u records in %u shards (%s/lib.idx)", g_libpack.n, g_libpack.nshard, g_msl_dir.UTF8String);
+         g_libpack_ok = r; });
+     return g_libpack_ok == 1 ? &g_libpack : NULL;
+@@ -10557,7 +10589,7 @@
+     g_shmap = nil; g_c1_full = nil; g_c1_full_valid = 0; g_cb_ext = nil;
+     g_warm_started = 1;   // 先挡住 shmap_load_once 里的预热：预热要用库容器，等新目录的库容器开好再起
+     shmap_load_once();
+-    int r = g_msl_dir ? lp_open(&g_libpack, g_msl_dir.fileSystemRepresentation, DMSH_CHAIN) : 0; g_libpack_ok = r;
++    int r = g_rb_capture_refused ? -1 : g_msl_dir ? lp_open(&g_libpack, g_msl_dir.fileSystemRepresentation, DMSH_CHAIN) : 0; g_libpack_ok = r;
+     MLOG("multi-program: shader map %s → %s, library %s (container %s)", old.UTF8String ?: "-", np.UTF8String, g_msl_dir.UTF8String ?: "-", r == 1 ? "opened" : r == 0 ? "none, one file per key" : "broken");
+     g_warm_started = 0; warm_start();   // 同首次：读完映射表就起预热
+     return 1;
+@@ -10725,14 +10757,18 @@
+ static _Atomic int g_rb_disk_online;
+ static _Atomic uint64_t g_rb_air_hits, g_rb_air_misses, g_rb_air_rejects;
+ static id<MTLLibrary> rb_disk_library(NSString *src) {
+-    if (!atomic_load_explicit(&g_rb_disk_online,memory_order_acquire)) return nil;
++    if (!g_rb_capture_bin && !atomic_load_explicit(&g_rb_disk_online,memory_order_acquire)) return nil;
+     os_unfair_lock_lock(&g_rb_disk_mu);
+     NSString *dir = g_rb_binary_dir;
+     os_unfair_lock_unlock(&g_rb_disk_mu);
+-    if (!dir) return nil;
++    if (!dir && !g_rb_capture_bin) return nil;
+     NSString *digest = par_hash(src.UTF8String, [src lengthOfBytesUsingEncoding:NSUTF8StringEncoding]);
+     NSUInteger rejected = 0;
+-    id<MTLLibrary> lib = rb_read_stage_binary(g_dev, dir, digest, &rejected);
++    id<MTLLibrary> lib = dir ? rb_read_stage_binary(g_dev, dir, digest, &rejected) : nil;
++    if (!lib && g_rb_capture_bin) {
++        NSString *sidecars = [g_rb_capture_bin stringByAppendingPathComponent:@RB_AIR_FOLDER "/iphoneos"];
++        lib = rb_read_stage_binary(g_dev, sidecars, digest, &rejected);
++    }
+     if (lib) atomic_fetch_add(&g_rb_air_hits, 1);
+     else if (rejected) atomic_fetch_add(&g_rb_air_rejects, 1);
+     else atomic_fetch_add(&g_rb_air_misses, 1);
+@@ -10926,6 +10962,15 @@
+     if (lib && ul) { os_unfair_lock_lock(&ulock); if (!ulibs) ulibs = [NSMutableDictionary dictionary]; if (!ulibs[ul]) ulibs[ul] = lib; else lib = ulibs[ul]; os_unfair_lock_unlock(&ulock); }
+     NSString *rb_src = nil;   // RewindBox (patch 0073): a compute shader's fallback source compiled here (NvShader rb_msl, rb_icls_pick)
+     NSString *fallbackPath = nil, *original = nil, *refused = nil, *digest = nil;
++    if (g_rb_capture_bin && dir == g_msl_dir) {
++        fallbackPath = [dir stringByAppendingPathComponent:[pc stringByAppendingString:@".metal"]];
++        original = [NSString stringWithContentsOfFile:fallbackPath encoding:NSUTF8StringEncoding error:nil];
++        if (original) {
++            rb_src = fallbackPath;
++            NSString *used = stage == 0 ? rb_msl_base_instance(original, pc.UTF8String) : original;
++            if (used != original || !lib) lib = rb_stage_library(used, stage, &e);
++        }
++    }
+     if (!lib && dir != g_msl_dir) {   // S2Arm fallback: MSL source compiled here, same options as the offline chain (dm_msl_opts)
+         fallbackPath = [dir stringByAppendingPathComponent:[pc stringByAppendingString:@".metal"]];
+         NSString *src = [NSString stringWithContentsOfFile:fallbackPath encoding:NSUTF8StringEncoding error:&e];
+@@ -10950,7 +10995,7 @@
+             if (g_rb_rejected_msl.count < 128 || g_rb_rejected_msl[fallbackPath]) g_rb_rejected_msl[fallbackPath] = digest;
+             os_unfair_lock_unlock(&g_shader_lock);
+             char key[17]; snprintf(key,sizeof key,"%.16s",pc.UTF8String);
+-            if (can_repair && dm_shader_repair_msl(dir.fileSystemRepresentation,key,original,digest))
++            if (dir != g_msl_dir && can_repair && dm_shader_repair_msl(dir.fileSystemRepresentation,key,original,digest))
+                 return shader_build_attempt(pc,stage,layer,depth_zero,0);
+         }
+     }
+@@ -15460,12 +15505,12 @@
+         NSString *external=[reference.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pso_external.tsv"];
+         if ([NSFileManager.defaultManager fileExistsAtPath:external]) [all addObject:external];
+     }
+-    if ([NSFileManager.defaultManager fileExistsAtPath:seed]) [all addObject:seed];
++    if (!g_rb_capture_refused && [NSFileManager.defaultManager fileExistsAtPath:seed]) [all addObject:seed];
+     NSString *user = pso_user_path();
+     int have_user = user && [NSFileManager.defaultManager fileExistsAtPath:user];   // RewindBox (patch 0033): kept for the case without a seed below
+     if (have_user) [all addObject:user];
+     else if (say) MLOG("pipeline prewarm: this device's user list %s%s", user ? "does not exist yet: " : "has no path (neither DM_PSO_USER nor DM_SAVE is set)", user ? user.UTF8String : "");
+-    int have_seed = [NSFileManager.defaultManager fileExistsAtPath:seed];
++    int have_seed = !g_rb_capture_refused && [NSFileManager.defaultManager fileExistsAtPath:seed];
+     // Seed lists describe known pipelines; new gameplay variants can still miss.
+     // Keep those successful builds through the same bounded utility writer.
+     g_par_note_play = 1;

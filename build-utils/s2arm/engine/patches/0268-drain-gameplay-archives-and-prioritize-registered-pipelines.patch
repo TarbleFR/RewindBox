@@ -1,0 +1,459 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 0d0c366..82f3402 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -10407,7 +10407,27 @@ static void rb_fu_end(void) {
+ }
+ #include "rb_pso_lifetime.inc"
+ static const char *rb_par_game_build(void);
+-#define RB_PAR_BATCH_POLICY() rb_kart_option(RB_KART_BATCH)
++static _Atomic int g_rb_archive_always, g_rb_promoted_urgent;
++static int rb_archive_enabled(void) {
++    return nvn_rb_thermal_scope() && rb_pacing_setting(&g_rb_archive_always, "S2A_RB_ARCHIVE_WRITE_ALWAYS");
++}
++static int rb_archive_mode(void) {
++#if TARGET_OS_IOS
++    if (rb_archive_enabled())
++        return rb_archive_write_mode(1, rb_cached_thermal(), rb_ios_headroom());
++#endif
++    return RB_ARCHIVE_LEGACY;
++}
++static int rb_promoted_on(void) {
++#ifdef RB_TEST_REGISTERED_ROWS
++    if (RB_TEST_REGISTERED_ROWS()) return 1;
++#endif
++    return nvn_rb_thermal_scope() && rb_pacing_setting(&g_rb_promoted_urgent, "S2A_RB_PROMOTED_URGENT");
++}
++#ifndef RB_PAR_WRITE_MODE
++#define RB_PAR_WRITE_MODE() rb_archive_mode()
++#endif
++#define RB_PAR_BATCH_POLICY() (rb_kart_option(RB_KART_BATCH) || rb_archive_enabled())
+ #define RB_PAR_SCOPED() rb_async_pso()
+ #define RB_PAR_MEASURE() (rb_pso_mode() != 0)
+ #define RB_PAR_BUILD() rb_par_game_build()
+@@ -14674,6 +14694,10 @@ void nvn_be_prog_bound(const prog_t *p) {   // a game thread recording the first
+     if (!p || !p->serial || !nvn2_on() || !shpre_on() || !rb_bind_ahead_on()) return;
+     shmap_load(); int dz = atomic_load(&g_depth_zero); uint64_t np = atomic_fetch_add(&g_rb_bound_progs, 1) + 1;
+     @autoreleasepool {   // a game thread has no pool of its own
++    // NVN2 code can be blank/mutable at SetShaders. The first recorded bind
++    // already validates and hashes the resolved stages before replay.
++    NSString *boundVertex = nil, *boundFragment = nil, *boundCompute = nil;
++    BOOL promote = rb_promoted_on();
+     for (unsigned i = 0; i < p->nstage && i < 6; i++) {
+         const void *ctl = p->sd[i].control; uint64_t code = p->sd[i].data; uint8_t md[8]; char hx[17];
+         if (!ctl || (uintptr_t)ctl >= (1ull << 47) || !nvn2_ctl(ctl) || !code) continue;
+@@ -14683,6 +14707,12 @@ void nvn_be_prog_bound(const prog_t *p) {   // a game thread recording the first
+         rb_ref_stage_hint(hx);
+         NSString *k = @(hx), *packed = g_shmap[k], *stage = packed ?: shmap_rt_get(k);
+         int st = stage ? stage_of(stage) : -1;
++        if (promote) {
++            int slot = stage ? st : ((const uint8_t *)ctl)[0x56];
++            if (slot == 0) boundVertex = [k stringByAppendingString:@"_b"];
++            if (slot == 1) boundFragment = [k stringByAppendingString:@"_b"];
++            if (slot == 5) boundCompute = [k stringByAppendingString:@"_b"];
++        }
+         if (!stage) { int r = dm_shader_bound(hx, code, ctl); if (r) atomic_fetch_add_explicit(r == 1 ? &g_rb_bound_xl : &g_rb_bound_re, 1, memory_order_relaxed); continue; }
+         if (st < 0) continue;
+         if (!packed) dm_shader_keep_known(md, hx, code, ctl);   // RewindBox (patch 0100): this device's translations only
+@@ -14700,6 +14730,9 @@ void nvn_be_prog_bound(const prog_t *p) {   // a game thread recording the first
+             atomic_fetch_add_explicit(&g_rb_bound_pre, 1, memory_order_relaxed);
+         }
+     }
++    if (boundVertex && (boundFragment || p->nstage == 1))
++        warm_bump(boundVertex.UTF8String, boundFragment.UTF8String);
++    if (boundCompute && p->nstage == 1) warm_bump("compute", boundCompute.UTF8String);
+     }
+     if (!(np & (np - 1)) && np >= 64) MLOG("RewindBox: programs bound by the game looked at ahead of their draw: %llu; stages queued for translation %llu, taken from an earlier run's translation %llu, handed to the prefetch %llu (S2A_RB_BIND_AHEAD)",
+                                            (unsigned long long)np, (unsigned long long)atomic_load(&g_rb_bound_xl), (unsigned long long)atomic_load(&g_rb_bound_re), (unsigned long long)atomic_load(&g_rb_bound_pre));
+@@ -14924,6 +14957,11 @@ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
+             if (!rows) routes[t->drawCue]=rows=[NSMutableArray array];
+             if (rows.count<16) [rows addObject:@(i+1)];
+         }
++        if (t->kind == 2 && rb_promoted_on()) {
++            NSString *k = [@"compute|" stringByAppendingString:t->key];
++            if (!m[k]) m[k] = [NSMutableArray array];
++            [m[k] addObject:@(i)];
++        }
+         if (t->kind != 1) continue;
+         if (t->cupRank && t->cupRank<=128) cupRows[t->cupRank-1]=(long)i+1;
+         if ([t->fkey isEqual:@"eb4884ca0964a92f_b"]) for (int slot=0;slot<2;++slot) {
+@@ -14947,8 +14985,8 @@ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
+ }
+ static void warm_urgent_end(void) { os_unfair_lock_lock(&g_wu_lock); memset(g_course_starters,0,sizeof g_course_starters); g_rb_draw_route_rows=nil; rb_draw_route_locked(); rb_course_rows_locked(nil); g_wu_pairs = nil; atomic_store(&g_ref_late_live,0); atomic_store(&g_ref_late_hints,0); [g_wu_q removeAllObjects]; os_unfair_lock_unlock(&g_wu_lock); }   // 标记数组留给还没退出的工人读（随下一次索引换掉）
+ // 工人领下一行：先急件，再按清单顺序；已领的跳过。→ 下标，-1 = 没有了
+-// A verified foreground prefix can still serve an exact registered dependency
+-// under HOLD. Other promoted rows use the same admission as background work.
++// Only lane zero bypasses optional admission for registered rows through Fair.
++static _Thread_local BOOL rb_picked_registered;
+ static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL required) {
+     *lease = 0;
+     if (fu_yield_on() && atomic_load(&g_fu_waiting)) {
+@@ -14968,6 +15006,14 @@ static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL re
+         uint64_t ticket = atomic_load(&g_spec_gate.epoch);
+         if (dm_gfx_session_stopping() || nvn_be_stopping()) return -1;
+         long i = -1;
++        BOOL registered = !required && w == 0 && rb_promoted_on();
++        if (registered) {
++            int thermal = rb_cached_thermal();
++#ifdef RB_TEST_REGISTERED_ROWS
++            if (RB_TEST_REGISTERED_ROWS()) thermal = 1;
++#endif
++            registered = thermal <= 1 && bp_now() >= atomic_load(&g_spec_pressure_until);
++        }
+         os_unfair_lock_lock(&g_wu_lock);
+         _Atomic(uint8_t) *c = g_wu_claim;
+         long cn = g_wu_n;
+@@ -14980,8 +15026,12 @@ static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL re
+                 break;
+             }
+         }
++        if (registered && g_wu_q.count) {
++            i = g_wu_q.firstObject.longValue;
++            [g_wu_q removeObjectAtIndex:0];
++        }
+         int drained = required ? i < 0 && (!atomic_load(&g_wu_required_remaining) || atomic_load(next) >= n)
+-                               : !g_wu_q.count && (atomic_load(next) >= n || (c && !atomic_load(&g_wu_remaining)));
++                               : i < 0 && !g_wu_q.count && (atomic_load(next) >= n || (c && !atomic_load(&g_wu_remaining)));
+         os_unfair_lock_unlock(&g_wu_lock);
+         if (drained) return -1;
+         if (i < 0 && w >= 0 && !rb_spec_take(w, lease)) {
+@@ -14992,7 +15042,7 @@ static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL re
+             continue;
+         }
+         if (dm_gfx_session_stopping() || nvn_be_stopping()) { rb_spec_done(lease); return -1; }
+-        if (!required) {
++        if (!required && i < 0) {
+             os_unfair_lock_lock(&g_wu_lock);
+             if (g_wu_q.count) { i = g_wu_q[0].longValue; [g_wu_q removeObjectAtIndex:0]; }
+             os_unfair_lock_unlock(&g_wu_lock);
+@@ -15023,6 +15073,7 @@ static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL re
+         }
+         if (hint || !c || i >= cn || rb_claim_row(&c[i])) {
+             if (hint && coursePick) atomic_fetch_add_explicit(&rb_cup_claims,1,memory_order_relaxed);
++            rb_picked_registered = urgent && registered;
+             rb_warm_context = urgent || hint != 0;
+             g_rb_picked_hint = hint != 0 && !routeHint;
+             if (g_rb_picked_hint) atomic_fetch_add(&g_rb_promoted,1);
+@@ -15051,7 +15102,7 @@ static void warm_bump(const char *vk, const char *fk) {
+     // Rows only move from free to promoted/claimed in this epoch. A repeated bind cannot promote them again.
+     if (rows) [g_wu_pairs removeObjectForKey:k];
+     os_unfair_lock_unlock(&g_wu_lock);
+-    if (wake_required) rb_spec_wake(&g_spec_gate);
++    if (wake_required || (added && rb_promoted_on())) rb_spec_wake(&g_spec_gate);
+     if (added) { uint64_t n = atomic_fetch_add(&g_wu_bumped, added) + added;
+         if (!((n - added) & (n - added - 1)) || n == added) MLOG("pipeline prewarm: the game registered a program whose pipelines were still queued: %llu lines moved to the front so far (%llu taken from the front)", (unsigned long long)n, (unsigned long long)atomic_load(&g_wu_taken)); }
+ }
+@@ -15096,7 +15147,28 @@ static void warm_task_(WarmTask *t);
+ static uint64_t g_warm_mps;   // task / mesh pipelines the prewarm built (M lines)
+ static id mtk_warm(const pso_skey *sk, NSString *mkey, NSString *fkey, NSString *tkey, uint32_t pad, NSData **key);   // nvn_geometry.inc
+ static void mtk_warm_claim(NSData *key, id ps);
+-static void warm_task(WarmTask *t) { atomic_fetch_add(&g_warm_busy, 1); par_write_in_place = 1; uint64_t libraries=t_rb_msl_n; warm_task_(t); if (t->reference) atomic_fetch_add(&t->reference->compiledLibraries,t_rb_msl_n-libraries); par_write_in_place = 0; atomic_fetch_sub(&g_warm_busy, 1); }   // the prewarm writes what it compiles into the archive (pso_archive.h)
++static void warm_task_local(WarmTask *t) { atomic_fetch_add(&g_warm_busy, 1); par_write_in_place = 1; uint64_t libraries=t_rb_msl_n; warm_task_(t); if (t->reference) atomic_fetch_add(&t->reference->compiledLibraries,t_rb_msl_n-libraries); par_write_in_place = 0; atomic_fetch_sub(&g_warm_busy, 1); }   // the prewarm writes what it compiles into the archive (pso_archive.h)
++static void warm_task(WarmTask *t) {
++    if (!rb_picked_registered) { warm_task_local(t); return; }
++    rb_picked_registered = NO;
++    // Preserve the warm group's completion, reference accounting and teardown
++    // ordering. Only its worker waits. A saturated observed pool still makes
++    // progress on the worker that already owns this exact row.
++    dispatch_semaphore_t done = dispatch_semaphore_create(0);
++    if (!rb_observed_enqueue(^{
++        if (!nvn_be_stopping() && !dm_gfx_session_stopping()) {
++            rb_warm_context = YES;
++            g_rb_picked_hint = 0;
++            warm_task_local(t);  // Includes its stage libraries and variants.
++        }
++        dispatch_semaphore_signal(done);
++    })) {
++        if (!nvn_be_stopping() && !dm_gfx_session_stopping()) warm_task_local(t);
++    } else {
++        dispatch_semaphore_wait(done, DISPATCH_TIME_FOREVER);
++    }
++    rb_warm_context = NO;
++}
+ static void warm_task_(WarmTask *t) {
+     BOOL context=rb_warm_context; rb_warm_context=NO;
+     if (rb_gov_on() && t->kind && !t->reference && !context) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 05a8f3c..6ba6dfb 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -380,6 +380,8 @@ void nvn_be_begin_session(void) {
+     os_unfair_lock_lock(&g_shpre_mu);
+     rb_observed_begin(&g_observed);
+     g_rb_observed_shaders = nil;
++    atomic_store(&g_rb_archive_always, 0);
++    atomic_store(&g_rb_promoted_urgent, 0);
+     atomic_store(&g_rb_observed_option, 0);
+     atomic_store(&g_rb_urgent_continue, 0);
+     atomic_store(&g_rb_pass_lookahead, 0);
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+index 5a92b47..66719e9 100644
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -30,6 +30,9 @@
+ #ifndef RB_PAR_BATCH_POLICY
+ #define RB_PAR_BATCH_POLICY() 0
+ #endif
++#ifndef RB_PAR_WRITE_MODE
++#define RB_PAR_WRITE_MODE() RB_ARCHIVE_LEGACY
++#endif
+ #ifndef RB_PAR_MEASURE
+ #define RB_PAR_MEASURE() RB_PAR_SCOPED()
+ #endif
+@@ -464,6 +467,18 @@ static void par_write(NSString *key, id desc) {
+ #define PAR_BATCH 32   // 单测反证编 -DPAR_BATCH=1
+ #endif
+ static _Atomic uint64_t g_par_close_until;
++static BOOL par_close_expired(uint64_t until, int mode) {
++    // Start teardown promptly even after a sustained stream of discoveries.
++    // Healthy writes can use 8 s of the coordinator's 10 s join, measured
++    // from the same close request. A pressure pause keeps the old 1.5 s cap.
++    uint64_t extra = mode == RB_ARCHIVE_DRAIN ? 6500000000ull : 0;
++    return until && bp_now() >= until + extra;
++}
++static BOOL par_admit_write(uint64_t until, int mode, int *lease) {
++    if (par_close_expired(until, mode)) return NO;
++    if (mode != RB_ARCHIVE_LEGACY) return mode == RB_ARCHIVE_DRAIN;
++    return until || rb_spec_take(0, lease);
++}
+ // Return the number of input entries consumed. On a tier change the writer
+ // retains the untouched suffix, along with its pending-key reservations.
+ static _Atomic uint64_t g_par_serialize_retries;
+@@ -542,7 +557,7 @@ static NSUInteger par_write_batch_try(NSArray<NSArray *> *items, RBArchiveSerial
+     pthread_mutex_lock(&g_par_wmu); int lk = par_ga_lock();
+     int lease = 0;
+     uint64_t closing = atomic_load(&g_par_close_until);
+-    if ((closing && bp_now() >= closing) || (!closing && !rb_spec_take(0, &lease))) {
++    if (!par_admit_write(closing, RB_PAR_WRITE_MODE(), &lease)) {
+         par_ga_unlock(lk); pthread_mutex_unlock(&g_par_wmu);
+         return 0;
+     }
+@@ -552,11 +567,12 @@ static NSUInteger par_write_batch_try(NSArray<NSArray *> *items, RBArchiveSerial
+         for (; consumed < items.count; ++consumed) {
+             if ([skip containsIndex:consumed]) continue;
+             uint64_t deadline = atomic_load(&g_par_close_until);
+-            if (deadline && bp_now() >= deadline) break;
++            int mode = RB_PAR_WRITE_MODE();
++            if (mode == RB_ARCHIVE_PAUSE || par_close_expired(deadline, mode)) break;
+             // The first descriptor already owns the writer's lease. The
+             // admission point for each further descriptor observes the current
+             // tier. On ONE or close, return to the one-entry writer path.
+-            if (consumed && !(deadline && g_rb_archive_batch32)) {
++            if (mode == RB_ARCHIVE_LEGACY && consumed && !(deadline && g_rb_archive_batch32)) {
+                 if (deadline) break;
+                 rb_spec_level();
+                 if (!rb_spec_extend_batch(&g_spec_gate)) break;
+@@ -571,7 +587,7 @@ static NSUInteger par_write_batch_try(NSArray<NSArray *> *items, RBArchiveSerial
+         }
+         if (keys.count) ok = par_serialize(a, path, keys, &serialize_refused, &e);
+         uint64_t until = atomic_load(&g_par_close_until);
+-        if (serialize_refused && retry_out && (!until || bp_now() < until)) {
++        if (serialize_refused && retry_out && !par_close_expired(until, RB_PAR_WRITE_MODE())) {
+             RBArchiveSerialization *retry = [RBArchiveSerialization new];
+             retry->archive = a;
+             retry->keys = keys;
+@@ -652,13 +668,14 @@ static BOOL par_retry_serialization(RBArchiveSerialization *r) {
+     int lease = 0; BOOL refused = NO, ok = NO; NSError *e = nil;
+     pthread_mutex_lock(&g_par_wmu); int lk = par_ga_lock();
+     uint64_t until = atomic_load(&g_par_close_until);
+-    if (!until && !rb_spec_take(0, &lease)) {
++    int mode = RB_PAR_WRITE_MODE();
++    if (!par_close_expired(until, mode) && !par_admit_write(until, mode, &lease)) {
+         par_ga_unlock(lk); pthread_mutex_unlock(&g_par_wmu);
+         return NO;
+     }
+     NSSet<NSString *> *before = par_ga_list(0);
+     until = atomic_load(&g_par_close_until);
+-    BOOL expired = until && bp_now() >= until;
++    BOOL expired = par_close_expired(until, mode);
+     if (!expired) ok = par_serialize(r->archive, r->path, r->keys, &refused, &e);
+     r->archive = nil;
+     par_ga_remove_new(before);
+@@ -684,7 +701,7 @@ static void par_writer(void) { @autoreleasepool {
+             if (finished) {
+                 for (NSString *key in retry->keys) [g_par_pending_keys removeObject:key];
+                 g_par_retry = nil;
+-            } else if (!atomic_load(&g_par_close_until)) {
++            } else {
+                 par_schedule_locked(250000000ull);
+                 return;
+             }
+@@ -692,7 +709,8 @@ static void par_writer(void) { @autoreleasepool {
+             continue;
+         }
+         uint64_t deadline = atomic_load(&g_par_close_until);
+-        if (deadline && bp_now() >= deadline && g_par_todo.count) {
++        int mode = RB_PAR_WRITE_MODE();
++        if (par_close_expired(deadline, mode) && g_par_todo.count) {
+             // The recipe remains in the prewarm list. Never hold up session
+             // teardown for the whole optional backlog or borrow the next session.
+             MLOG("RewindBox: session close left %lu optional descriptors for a later prewarm", (unsigned long)g_par_todo.count);
+@@ -700,10 +718,11 @@ static void par_writer(void) { @autoreleasepool {
+             [g_par_pending_keys removeAllObjects];  // this is the sole writer, between batches
+             g_rb_archive_has_warm = 0;
+         }
+-        BOOL single = (!g_rb_archive_batch32 && deadline) || (!deadline && atomic_load(&g_spec_gate.level) == RB_SPEC_ONE);
++        BOOL single = mode == RB_ARCHIVE_LEGACY &&
++            ((!g_rb_archive_batch32 && deadline) || (!deadline && atomic_load(&g_spec_gate.level) == RB_SPEC_ONE));
+         NSUInteger n = MIN(g_par_todo.count, (NSUInteger)(single ? 1 : PAR_BATCH));
+         uint64_t serial = 0, delays = 0, priority_delays = 0;
+-        if (n && !deadline && !rb_spec_may(0)) {
++        if (n && (mode == RB_ARCHIVE_PAUSE || (mode == RB_ARCHIVE_LEGACY && !deadline && !rb_spec_may(0)))) {
+             par_schedule_locked(250000000ull);
+             return;
+         }
+@@ -757,8 +776,8 @@ static void par_writer(void) { @autoreleasepool {
+         if (retry || !consumed) {
+             deadline = atomic_load(&g_par_close_until);
+             uint64_t now = bp_now(), delay = retry ? 100000000ull : 250000000ull;
+-            if (!deadline || (retry && now < deadline)) {
+-                if (deadline && deadline - now < delay) delay = deadline - now;
++            if (!par_close_expired(deadline, RB_PAR_WRITE_MODE())) {
++                if (deadline && now < deadline && deadline - now < delay) delay = deadline - now;
+                 par_schedule_locked(delay);
+                 return;
+             }
+@@ -776,9 +795,11 @@ static void par_note(NSString *key, id desc) {
+     // Optional descriptor retention only. All admitted entries stay eligible for
+     // writing. An over-budget key can be offered again and its draw still uses
+     // the exact pipeline just built. Count this separately from a usable hit.
+-    NSUInteger limit = atomic_load(&g_spec_gate.level) == RB_SPEC_HOLD ? 128 : 1024;
++    int mode = RB_PAR_WRITE_MODE();
++    NSUInteger limit = mode != RB_ARCHIVE_DRAIN &&
++                       atomic_load(&g_spec_gate.level) == RB_SPEC_HOLD ? 128 : 1024;
+     uint64_t deadline = atomic_load(&g_par_close_until);
+-    if (g_par_pending_keys.count >= limit || (deadline && bp_now() >= deadline)) {
++    if (g_par_pending_keys.count >= limit || par_close_expired(deadline, mode)) {
+         uint64_t count = ++g_par_deferred;
+         pthread_mutex_unlock(&g_par_mu);
+         if (!(count & (count - 1))) MLOG("RewindBox: skipped %llu optional archive writes under the queue or close budget", (unsigned long long)count);
+@@ -992,7 +1013,7 @@ static id<MTLRenderPipelineState> par_render_(MTLRenderPipelineDescriptor *d, NS
+     par_scope_build(0, started);
+     if (ps && rebuild) atomic_fetch_add(&g_par_reference_created,1);
+     rb_pso_track(ps, RB_RENDER, key, NO);
+-    if (ps && key && g_par_on && (par_write_in_place || g_par_note_play || RB_PAR_SCOPED())) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }   // RewindBox (patch 0033): g_par_note_play
++    if (ps && key && g_par_on && (par_write_in_place || g_par_note_play || RB_PAR_SCOPED() || RB_PAR_WRITE_MODE() != RB_ARCHIVE_LEGACY)) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }   // RewindBox (patch 0033): g_par_note_play
+     return ps;
+ }
+ static id<MTLComputePipelineState> par_compute_(id<MTLFunction> fn, NSString *key, NSError **e) {
+@@ -1032,7 +1053,7 @@ static id<MTLComputePipelineState> par_compute_(id<MTLFunction> fn, NSString *ke
+     id<MTLComputePipelineState> ps = [g_dev newComputePipelineStateWithDescriptor:d options:MTLPipelineOptionNone reflection:nil error:e];
+     par_scope_build(1, started);
+     rb_pso_track(ps, RB_COMPUTE, key, NO);
+-    if (ps && key && g_par_on && (par_write_in_place || g_par_note_play || RB_PAR_SCOPED())) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }   // RewindBox (patch 0033): g_par_note_play
++    if (ps && key && g_par_on && (par_write_in_place || g_par_note_play || RB_PAR_SCOPED() || RB_PAR_WRITE_MODE() != RB_ARCHIVE_LEGACY)) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }   // RewindBox (patch 0033): g_par_note_play
+     return ps;
+ }
+ 
+diff --git a/graphics/nvn/gfx/nvn/rb_spec_gate.h b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+index 6e909b5..64c2aa0 100644
+--- a/graphics/nvn/gfx/nvn/rb_spec_gate.h
++++ b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+@@ -13,6 +13,15 @@ enum { RB_SPEC_CLEAR, RB_SPEC_FAIR, RB_SPEC_LOW_POWER, RB_SPEC_HOT, RB_SPEC_LOW_
+ static inline uint64_t rb_spec_headroom(uint64_t bytes, int app_or_measured) {
+     return bytes || app_or_measured ? bytes : UINT64_MAX;
+ }
++// Metal's binary archive API re-adds function descriptors. Admit one utility
++// writer through Serious with measured headroom. Unknown and exactly 1 GiB
++// are both below the admission threshold.
++enum { RB_ARCHIVE_LEGACY = -1, RB_ARCHIVE_PAUSE, RB_ARCHIVE_DRAIN };
++static inline int rb_archive_write_mode(int enabled, int thermal, uint64_t room) {
++    if (!enabled) return RB_ARCHIVE_LEGACY;
++    return thermal < 3 && room != UINT64_MAX && room > (1024ull << 20)
++        ? RB_ARCHIVE_DRAIN : RB_ARCHIVE_PAUSE;
++}
+ static inline int rb_spec_reason(int thermal, int low_power, uint64_t available, uint64_t floor) {
+     if (thermal >= 2) return RB_SPEC_HOT;
+     if (available < floor) return RB_SPEC_LOW_MEMORY;
+diff --git a/graphics/nvn/tests/t_nvn_pso_batch.m b/graphics/nvn/tests/t_nvn_pso_batch.m
+index 2bca0d6..36f43a1 100644
+--- a/graphics/nvn/tests/t_nvn_pso_batch.m
++++ b/graphics/nvn/tests/t_nvn_pso_batch.m
+@@ -4,6 +4,9 @@
+ //   ③ 写成计数 +70、写失败 0。反证（构建规则另编 -DPAR_BATCH=1）：批文件 70 个，① 不符
+ #include <sched.h>
+ #define RB_TEST_KART_WARM 1
++#include <stdatomic.h>
++static _Atomic int rb_fixture_write_mode = -1;
++#define RB_PAR_WRITE_MODE() (atomic_load(&rb_fixture_write_mode))
+ #include "../gfx/nvn/nvn_mtl.m"
+ static unsigned checks, failures;
+ #define REQUIRE(c) do { if (!(c)) { fprintf(stderr, "FAIL setup %s:%d: %s\n", __FILE__, __LINE__, #c); exit(1); } } while (0)
+@@ -47,6 +50,10 @@ int main(int argc, char **argv) { @autoreleasepool {
+     }
+     uint64_t w0 = atomic_load(&g_par_written), f0 = atomic_load(&g_par_write_failed);
+     if (thermalBatch) {
++        // All normal leases are denied, as at the Zelda capture. Exercise
++        // the production writer and strict reopen of these 70 actual PSOs.
++        atomic_store(&rb_fixture_write_mode, rb_archive_write_mode(1, 2, (1024ull<<20)+1));
++        rb_spec_publish(&g_spec_gate,RB_SPEC_HOLD);
+         g_rb_archive_batch32=g_rb_archive_coalesce=1;
+         par_write_in_place=1;
+         par_note(keys[0],descs[0]); par_note(keys[0],descs[0]);
+@@ -112,6 +119,7 @@ int main(int argc, char **argv) { @autoreleasepool {
+     VERIFY(atomic_load(&g_par_written) - w0 == N && atomic_load(&g_par_write_failed) == f0, "③ 写成 +%llu（期望 70）、写失败 +%llu（期望 0）",
+            (unsigned long long)(atomic_load(&g_par_written) - w0), (unsigned long long)(atomic_load(&g_par_write_failed) - f0));
+     rb_spec_publish(&g_spec_gate, RB_SPEC_HOLD);
++    atomic_store(&rb_fixture_write_mode,RB_ARCHIVE_LEGACY);
+     NSString *held = [@"c" stringByAppendingString:par_hash("thermal-close",sizeof("thermal-close")-1)];
+     par_note(held, descs[0]); par_note(held, descs[0]);
+     uint64_t until = bp_now() + 3000000000ull;
+@@ -125,6 +133,8 @@ int main(int argc, char **argv) { @autoreleasepool {
+            "a duplicate during HOLD retains one descriptor with a scheduled writer");
+     pthread_mutex_unlock(&g_par_mu);
+     if (thermalBatch) REQUIRE(g_rb_archive_batch32 && g_rb_archive_coalesce);
++    if (thermalBatch)
++        atomic_store(&rb_fixture_write_mode, rb_archive_write_mode(1, 1, (1024ull<<20)+1));
+     par_begin_close();
+     struct timespec close_deadline = session_deadline();
+     VERIFY(!par_wait_idle(&close_deadline), "stop takes over the delayed writer and drains it");
+diff --git a/graphics/nvn/tests/t_nvn_warmbump.m b/graphics/nvn/tests/t_nvn_warmbump.m
+index ef35d7f..6807489 100644
+--- a/graphics/nvn/tests/t_nvn_warmbump.m
++++ b/graphics/nvn/tests/t_nvn_warmbump.m
+@@ -20,6 +20,8 @@ static void transition_test_before_pick(void);
+ #define s2a_npdm_program_id rb_course_test_title
+ #define s2a_nvn_game_id rb_reference_test_game_id
+ #define s2a_main_build_id rb_transition_test_game_build
++static int registered_rows_enabled;
++#define RB_TEST_REGISTERED_ROWS() registered_rows_enabled
+ #include "../gfx/nvn/nvn_mtl.m"
+ #undef s2a_main_build_id
+ #undef s2a_nvn_game_id
+@@ -188,6 +190,17 @@ int main(int argc, char **argv) {
+         atomic_store(&g_spec_sampled, UINT64_MAX);
+         rb_spec_publish(&g_spec_gate, RB_SPEC_HOLD);
+         next = 0; warm_urgent_index(mk()); got = -9;
++        // An actual registered pair goes ahead of the Fair HOLD on lane zero,
++        // independent of the speculative cursor and without taking its lease.
++        registered_rows_enabled = 1;
++        warm_bump("b", "y");
++        int registered_lease = 0;
++        ck(warm_pick(&next, 6, 0, &registered_lease) == 1 &&
++           rb_picked_registered && !registered_lease && !next &&
++           atomic_load(&g_spec_gate.level) == RB_SPEC_HOLD,
++           "registered pair admitted through Fair HOLD leaving optional backlog parked");
++        registered_rows_enabled = 0;
++        warm_urgent_index(mk());
+         uint64_t parks = atomic_load(&g_spec_parks);
+         dispatch_async(dispatch_get_global_queue(QOS_CLASS_DEFAULT, 0), ^{
+             int lease;
+diff --git a/graphics/nvn/tests/t_rb_spec_gate.c b/graphics/nvn/tests/t_rb_spec_gate.c
+index b5c58c4..b8c1370 100644
+--- a/graphics/nvn/tests/t_rb_spec_gate.c
++++ b/graphics/nvn/tests/t_rb_spec_gate.c
+@@ -127,6 +127,14 @@ int main(void) {
+     kart_limits();
+     const uint64_t floor = 768ull << 20;
+     assert(tier(0, 0, floor) == RB_SPEC_RUN);
++    uint64_t gib = 1024ull << 20;
++    for (int thermal=0; thermal<3; ++thermal) {
++        assert(rb_archive_write_mode(0, thermal, gib+1) == RB_ARCHIVE_LEGACY);
++        assert(rb_archive_write_mode(1, thermal, gib+1) == RB_ARCHIVE_DRAIN);
++        assert(rb_archive_write_mode(1, thermal, gib) == RB_ARCHIVE_PAUSE);
++        assert(rb_archive_write_mode(1, thermal, UINT64_MAX) == RB_ARCHIVE_PAUSE);
++    }
++    assert(rb_archive_write_mode(1, 3, gib+1) == RB_ARCHIVE_PAUSE);
+     assert(tier(0, 0, rb_spec_headroom(0, 1)) == RB_SPEC_HOLD);
+     assert(tier(0, 0, rb_spec_headroom(0, 0)) == RB_SPEC_RUN);
+     assert(tier(0, 0, rb_spec_headroom(floor, 1)) == RB_SPEC_RUN);

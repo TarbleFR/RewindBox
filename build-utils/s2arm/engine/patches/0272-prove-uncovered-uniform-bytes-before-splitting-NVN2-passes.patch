@@ -1,0 +1,227 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 6cce4fa..db683d7 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1373,12 +1373,15 @@ static upd_ent g_upd[PEND_MAX]; static int g_nupd;
+ // Kept by 4 KB page (Breath of the Wild's particle dispatches bind about ten storage buffers each, hundreds a frame): a set of pages tagged with the submission (g_pend_gen) and with what
+ // wrote them. A counter report does not count against this submission's shadows: the host writes reports on the CPU when the whole submission has completed, so no draw of it reads one
+ // (Fire Emblem Engage writes its query reports into the page of a uniform block); it counts for later submissions while this one runs (gw_commit)
++static _Atomic int rb_ub_setting;
++static int rb_ub_ranges; // submit owner, sampled after Metal initialization
++static uint64_t rb_ub_subpage_saved, rb_ub_overlay_saved;
+ enum { SBW_N = 16384, SBW_PAGES = 4096 };
+-static struct { uint64_t page; uint32_t gen; uint8_t src; } g_sbwp[SBW_N]; static int g_nsbw, g_sbw_over;   // src: SBW_* bits; pages in the set this submission; over: a write could not be kept (too large, set full, size not known)
++static struct { uint64_t page; uint32_t gen; uint8_t src; uint16_t begin, end; } g_sbwp[SBW_N]; static int g_nsbw, g_sbw_over;   // src: SBW_* bits; pages in the set this submission; over: a write could not be kept (too large, set full, size not known)
+ static int sbw_slot(uint64_t pg, int add) {   // open addressing; −1 = not there (or no room to add)
+     unsigned h = (unsigned)((pg * 0x9E3779B97F4A7C15ull) >> 50) & (SBW_N - 1);
+     for (int i = 0; i < 64; i++, h = (h + 1) & (SBW_N - 1)) {
+-        if (g_sbwp[h].gen != g_pend_gen) { if (!add) return -1; g_sbwp[h].page = pg; g_sbwp[h].gen = g_pend_gen; g_sbwp[h].src = 0; g_nsbw++; return (int)h; }
++        if (g_sbwp[h].gen != g_pend_gen) { if (!add) return -1; g_sbwp[h].page = pg; g_sbwp[h].gen = g_pend_gen; g_sbwp[h].src = 0; g_sbwp[h].begin = 4096; g_sbwp[h].end = 0; g_nsbw++; return (int)h; }
+         if (g_sbwp[h].page == pg) return (int)h; }
+     return -1;
+ }
+@@ -1398,9 +1401,15 @@ static void sbw_note(uint64_t lo, uint64_t n, int src) {
+     unsigned m = (unsigned)(((lo ^ (n << 20)) * 0x9E3779B97F4A7C15ull) >> 58) & (SBW_MEMO - 1);
+     if (n && g_sbw_memo[m].gen == g_pend_gen && g_sbw_memo[m].lo == lo && g_sbw_memo[m].n == n && (g_sbw_memo[m].src & src) == src) return;
+     if (src == SBW_GPU) g_sbw_gen++;
+-    if (!n || n > (uint64_t)SBW_PAGES << 12) { if (src == SBW_GPU) g_sbw_over = 1; return; }   // a report too large to keep cannot happen (16 bytes)
++    if (!n || n > UINT64_MAX - lo || n > (uint64_t)SBW_PAGES << 12) { if (src == SBW_GPU) g_sbw_over = 1; return; }   // a report too large to keep cannot happen (16 bytes)
+     g_sbw_pages += ((lo + n - 1) >> 12) - (lo >> 12) + 1;
+-    for (uint64_t pg = lo >> 12; pg <= (lo + n - 1) >> 12; pg++) { int k = sbw_slot(pg, 1); if (k < 0) { g_sbw_over = 1; return; } g_sbwp[k].src |= (uint8_t)src; }
++    for (uint64_t pg = lo >> 12; pg <= (lo + n - 1) >> 12; pg++) { int k = sbw_slot(pg, 1); if (k < 0) { g_sbw_over = 1; return; } g_sbwp[k].src |= (uint8_t)src;
++        uint64_t page = pg << 12;
++        unsigned begin = rb_ub_ranges && lo > page ? (unsigned)(lo - page) : 0;
++        unsigned end = rb_ub_ranges && lo + n - page < 4096 ? (unsigned)(lo + n - page) : 4096;
++        if (begin < g_sbwp[k].begin) g_sbwp[k].begin = begin;
++        if (end > g_sbwp[k].end) g_sbwp[k].end = end;
++    }
+     uint8_t had = g_sbw_memo[m].gen == g_pend_gen && g_sbw_memo[m].lo == lo && g_sbw_memo[m].n == n ? g_sbw_memo[m].src : 0;
+     g_sbw_memo[m].lo = lo; g_sbw_memo[m].n = n; g_sbw_memo[m].gen = g_pend_gen; g_sbw_memo[m].src = (uint8_t)(had | src);   // only after every page went in
+ }
+@@ -1536,6 +1545,7 @@ void nvn_be_sub_begin(void) {
+     g_sub_thread = pthread_self(); atomic_store(&g_sub_thread_set, 1);
+     atomic_store(&g_last_commit_error, 0);
+     g_sub_pool = objc_autoreleasePoolPush();
++    rb_ub_ranges = nvn_rb_thermal_scope() && rb_pacing_setting(&rb_ub_setting, "S2A_RB_UNIFORM_RANGES");
+     rb_gov_before_submit();
+     if (rb_tex_budget_on()) rb_tex_budget_maintain();
+     if (rb_pso_cap_on()) rb_pso_maintain();
+@@ -2471,7 +2481,7 @@ static void ubd_read(uint64_t lo, size_t n, void *out) {
+ // DM_NVN_UB_PARTIAL=0 turns it off
+ static int ub_partial_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_NVN_UB_PARTIAL"); v = !(e && !strcmp(e, "0")); if (!v) MLOG("DM_NVN_UB_PARTIAL=0: a binding the deferred uniform updates cover only in part ends the pass as before"); } return v; }
+ enum { GW_N = 1 << 16, GW_PAGES = 4096 };   // 4,096 slots fill up in Ocarina of Time, every slot then a false hit for some page (passes ended over blocks no GPU write touched; upstream reference implementation, MIT)
+-static struct { uint64_t page, fence; } g_gw[GW_N];   // page ~0: two live pages met in the slot, so any page there counts as written until fence completes
++static struct { uint64_t page, fence; uint16_t begin, end; } g_gw[GW_N];   // page ~0: two live pages met in the slot, so any page there counts as written until fence completes
+ static uint64_t g_gw_all;                            // every page counts as written until this fence completes (a submission whose writes could not all be listed)
+ static uint64_t g_ubp_made, g_ubp_reused, g_ubp_refused;   // partial shadows made / taken from the cache / refused (the pass ended), for the residency set line
+ static uint64_t g_ubp_why[5];   // why ubp_get refused: 0 too large or off, 1 other GPU writes in this submission (sbw), 2 GPU writes of an earlier submission still running, 3 a copy, fill or feedback write queued, 4 unreadable or too many writes
+@@ -2481,21 +2491,44 @@ static void gw_put(uint64_t lo, uint64_t hi, uint64_t fence, uint64_t done) {
+     uint64_t p0 = lo >> 12, p1 = (hi - 1) >> 12;
+     if (p1 - p0 >= GW_PAGES) { if (fence > g_gw_all) g_gw_all = fence; return; }
+     for (uint64_t pg = p0; pg <= p1; pg++) { unsigned s = gw_slot(pg);
+-        g_gw[s].page = g_gw[s].page == pg || g_gw[s].fence <= done ? pg : ~0ull;
++        uint64_t page = pg << 12;
++        unsigned begin = rb_ub_ranges && lo > page ? (unsigned)(lo - page) : 0;
++        unsigned end = rb_ub_ranges && hi - page < 4096 ? (unsigned)(hi - page) : 4096;
++        if (g_gw[s].fence <= done) {
++            g_gw[s].page = pg;
++            g_gw[s].begin = begin;
++            g_gw[s].end = end;
++        } else if (g_gw[s].page == pg) {
++            if (begin < g_gw[s].begin) g_gw[s].begin = begin;
++            if (end > g_gw[s].end) g_gw[s].end = end;
++        } else {
++            g_gw[s].page = ~0ull; // a live hash collision remains a full-page hazard
++        }
+         if (fence > g_gw[s].fence) g_gw[s].fence = fence; }
+ }
+-static int gw_live(uint64_t lo, uint64_t hi) {
++static int gw_check(uint64_t lo, uint64_t hi, int exact) {
+     uint64_t done = g_done;   // read without the lock as elsewhere: a stale value only refuses more
+     if (g_gw_all > done) return 1;
+-    for (uint64_t pg = lo >> 12; pg <= (hi - 1) >> 12; pg++) { unsigned s = gw_slot(pg); if ((g_gw[s].page == pg || g_gw[s].page == ~0ull) && g_gw[s].fence > done) return 1; }
++    for (uint64_t pg = lo >> 12; pg <= (hi - 1) >> 12; pg++) {
++        unsigned s = gw_slot(pg);
++        if (g_gw[s].fence <= done) continue;
++        if (g_gw[s].page == ~0ull) return 1;
++        if (g_gw[s].page != pg) continue;
++        uint64_t page = pg << 12;
++        if (!exact || ((lo <= page || lo - page < g_gw[s].end) && hi - page > g_gw[s].begin)) return 1;
++    }
+     return 0;
+ }
++static int gw_live(uint64_t lo, uint64_t hi) { return gw_check(lo, hi, 0); }
+ // The submission's GPU writes go into the page table with its fence (nvn_be_sub_commit)
+ static void gw_commit(uint64_t fence) {
+     uint64_t done = g_done;
+     if ((g_pend_over || g_sbw_over) && fence > g_gw_all) g_gw_all = fence;
+     for (int e = 0; e < g_npend; e++) gw_put(g_pend_lo[e], g_pend_hi[e], fence, done);
+-    if (g_nsbw) for (int i = 0; i < SBW_N; i++) if (g_sbwp[i].gen == g_pend_gen) gw_put(g_sbwp[i].page << 12, (g_sbwp[i].page + 1) << 12, fence, done);
++    if (g_nsbw) for (int i = 0; i < SBW_N; i++) if (g_sbwp[i].gen == g_pend_gen) {
++        uint64_t base = g_sbwp[i].page << 12;
++        gw_put(base + g_sbwp[i].begin, base + g_sbwp[i].end, fence, done);
++    }
+ }
+ // The writes queued in this submission from index since on that overlap [a, b), newest first, into out (room for every entry a lookup can meet); -1 when they cannot all be told
+ static int pend_since(uint64_t a, uint64_t b, int since, int *out) {
+@@ -2565,7 +2598,9 @@ static int ubp_get(uint64_t lo, uint64_t hi, uint64_t *gpu, const uint8_t **cpu)
+         if (g_gml_on) { pthread_mutex_lock(&g_gsr_mu); uint64_t i = g_gsr_n++ % GSR_N; g_gsr[i].fence = g_fence + 1; g_gsr[i].lo = lo; g_gsr[i].hi = hi; pthread_mutex_unlock(&g_gsr_mu); } }
+     if (c && c->npend == g_npend) { g_ubp_reused++; *gpu = c->gpu; *cpu = c->cpu; ubp_lineage(c); return 1; }
+     int since = c ? c->npend : 0;
+-    if (!c && gw_live(lo, hi)) { g_ubp_why[2]++; return 0; }
++    int live = !c && gw_live(lo, hi);
++    if (live && !rb_ub_ranges) { g_ubp_why[2]++; return 0; }
++    if (live && !gw_check(lo, hi, 1)) { live = 0; rb_ub_subpage_saved++; }
+     if (!c && !nvn_host_readable(lo, hi - lo)) { g_ubp_why[4]++; return 0; }
+     int n = pend_since(lo, hi, since, g_ubp_idx); if (n < 0) { g_ubp_why[4]++; return 0; }
+     // Nothing queued over the range since the kept shadow (the writes since went elsewhere): the next one would be a byte-for-byte copy of it, so it is the answer.
+@@ -2585,11 +2620,33 @@ static int ubp_get(uint64_t lo, uint64_t hi, uint64_t *gpu, const uint8_t **cpu)
+             if (nc - (m - k) + 1 > COVN) exact = 0;
+             else { memmove(&cl[k + 1], &cl[m], (nc - m) * sizeof *cl); memmove(&ch[k + 1], &ch[m], (nc - m) * sizeof *ch); nc = nc - (m - k) + 1; cl[k] = nl; ch[k] = nh;
+                    if (nc == 1 && cl[0] == lo && ch[0] == hi) break; } } }
++    // Only bytes missing from the inline updates need a CPU read. A prior
++    // GPU write covered by a newer inline update never reaches this binding.
++    if (live) {
++        if (!exact || !nc) { g_ubp_why[2]++; return 0; }
++        uint64_t cursor = lo;
++        for (int i = 0; i < nc; i++) {
++            if (cursor < cl[i] && gw_check(cursor, cl[i], 1)) { g_ubp_why[2]++; return 0; }
++            cursor = ch[i];
++        }
++        if (cursor < hi && gw_check(cursor, hi, 1)) { g_ubp_why[2]++; return 0; }
++        rb_ub_overlay_saved++;
++    }
+     uint64_t len = hi - lo;
+     id<MTLBuffer> ab; size_t o = arena_alloc((size_t)len, &ab); uint8_t *d = (uint8_t *)ab.contents + o;
+     int big = len >= UBQ_ASYNC;   // smaller ones are always copied here: handing a copy to the worker costs more than making it (see UBQ_ASYNC)
+-    if (UBQ_N - (g_ubq_tail - g_ubq_head) < (uint64_t)nk + 1) ubq_flush();   // a shadow's copies never straddle a forced flush
+-    ubq_put(d, c ? c->cpu : (const uint8_t *)(uintptr_t)lo, (size_t)len, big, c != NULL);   // the previous shadow's own copies are queued before these
++    if (UBQ_N - (g_ubq_tail - g_ubq_head) < (uint64_t)nk + (live ? nc + 1 : 1)) ubq_flush();   // a shadow's copies never straddle a forced flush
++    if (live) {
++        // The proof above excludes exactly these gaps. Do not read the
++        // covered bytes even transiently while the GPU may be writing them.
++        uint64_t cursor = lo;
++        for (int i = 0; i <= nc; i++) {
++            uint64_t end = i == nc ? hi : cl[i];
++            if (cursor < end)
++                ubq_put(d + (cursor - lo), (const uint8_t *)(uintptr_t)cursor, (size_t)(end - cursor), big, 0);
++            if (i < nc) cursor = ch[i];
++        }
++    } else ubq_put(d, c ? c->cpu : (const uint8_t *)(uintptr_t)lo, (size_t)len, big, c != NULL);   // the previous shadow's own copies are queued before these
+     for (int i = nk - 1; i >= 0; i--) { int e = g_ubp_idx[i]; const upd_ent *u = &g_upd[g_pend_upd[e] - 1];   // oldest first: each byte ends with the newest write
+         uint64_t x = g_pend_lo[e] > lo ? g_pend_lo[e] : lo, y = g_pend_hi[e] < hi ? g_pend_hi[e] : hi;
+         ubq_put(d + (x - lo), (const uint8_t *)u->buf.contents + u->off + (x - u->lo), (size_t)(y - x), big, 0); }
+@@ -2609,7 +2666,11 @@ static int ubp_get(uint64_t lo, uint64_t hi, uint64_t *gpu, const uint8_t **cpu)
+     *gpu = c->gpu; *cpu = d; g_ubp_q = g_ubq_tail; return 1;
+ }
+ void nvn_be_ubp_stats(uint64_t *made, uint64_t *reused, uint64_t *refused) { *made = g_ubp_made; *reused = g_ubp_reused; *refused = g_ubp_refused; }
+-void nvn_be_ubp_why(uint64_t w[5]) { memcpy(w, g_ubp_why, sizeof g_ubp_why); }
++void nvn_be_ubp_why(uint64_t w[5]) {
++    memcpy(w, g_ubp_why, sizeof g_ubp_why);
++    if (rb_ub_ranges) MLOG("[rb-uniform] disjoint_byte_ranges=%llu covered_prior_writes=%llu",
++        (unsigned long long)rb_ub_subpage_saved, (unsigned long long)rb_ub_overlay_saved);
++}
+ void mtl_sub_update(const void *data, uint64_t dst, uint64_t n) {
+     if (!n) return;
+     int pi = pend_add(dst, n, 1);
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 05a8f3c..0fa73b8 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -233,6 +233,8 @@ int nvn_be_shutdown_session(void) {
+     memset(g_ubpc, 0, sizeof g_ubpc); g_ubpc_i = 0;
+     memset(g_ubc, 0, sizeof g_ubc); // counters stay monotonic for the idle host worker
+     memset(g_gw, 0, sizeof g_gw); g_gw_all = 0;
++    rb_ub_ranges = 0; atomic_store(&rb_ub_setting, 0);
++    rb_ub_subpage_saved = rb_ub_overlay_saved = 0;
+     g_ixc_n = g_wide_n = g_mdx_n = g_nlc = 0; g_mdx_stop = NULL;
+     memset(&g_mdxc, 0, sizeof g_mdxc);
+     free(g_sdx); free(g_sdx_tmp); free(g_sdx_op); free(g_rtx_seq); free(g_drx_seq);
+diff --git a/graphics/nvn/tests/t_nvn_ubd_index.m b/graphics/nvn/tests/t_nvn_ubd_index.m
+index 7763469..8ea143a 100644
+--- a/graphics/nvn/tests/t_nvn_ubd_index.m
++++ b/graphics/nvn/tests/t_nvn_ubd_index.m
+@@ -146,7 +146,42 @@ static void e2e(int bs, int busy, int wide) {
+     printf("%s %s 真录真画（常量块 %d 字节，Metal %d，编码线程%s%s）：%d / %d 列 = 第 i 笔前写的颜色；这一遍延后的更新 %llu 条、做影子 %llu 份（拒 %llu）\n", ok == W ? "✓" : "✗", busy ? "⑥" : "④", bs, g_m3 ? 3 : 4, rec_on() ? "开" : "关", busy ? "，拷贝线程先忙 256 MB" : "", ok, W, (unsigned long long)(g_ubd_deferred - d0), (unsigned long long)(g_ubp_made - m0), (unsigned long long)(g_ubp_why[0] + g_ubp_why[1] + g_ubp_why[2] + g_ubp_why[3] + g_ubp_why[4] - w0));
+ }
+ 
+-int main(void) { @autoreleasepool {
++// Simulate an outstanding earlier fence while comparing each byte that would
++// be bound to the encoder. The same page includes covered and uncovered writes.
++static int checked_uniform_ranges(void) {
++    uint8_t *pool = NULL;
++    if (posix_memalign((void **)&pool, 65536, 65536)) return 1;
++    memset(pool, 0x47, 65536);
++    nvn_be_sub_begin();
++    nvn_be_pool_add(pool, 65536);
++    uint64_t base = (uint64_t)(uintptr_t)pool, gpu = 0;
++    const uint8_t *cpu = NULL;
++    uint64_t next = g_done + 10;
++    rb_ub_ranges = 1;
++    sbw_note(base + 48, 8, SBW_REPORT);
++    gw_commit(next);
++    pend_reset();
++    CHECK(gw_live(base, base + 16) && !gw_check(base, base + 16, 1), "disjoint report on the same live page");
++    CHECK(gw_check(base + 48, base + 49, 1), "overlapping byte of an outstanding report");
++    uint8_t update[16];
++    memset(update, 0xab, sizeof update);
++    mtl_sub_update(update, base + 44, sizeof update);
++    rb_ub_ranges = 0;
++    CHECK(!ubp_get(base, base + 128, &gpu, &cpu), "legacy page-level rejection");
++    rb_ub_ranges = 1;
++    CHECK(ubp_get(base, base + 128, &gpu, &cpu), "newer inline bytes cover the entire earlier write");
++    if (cpu) {
++        ubq_cpu(g_ubp_q);
++        for (int i = 0; i < 128; i++)
++            CHECK(cpu[i] == (i >= 44 && i < 60 ? 0xab : 0x47), "shadow byte %d", i);
++    }
++    gw_put(base + 80, base + 81, next, g_done);
++    CHECK(!ubp_get(base, base + 129, &gpu, &cpu), "one uncovered GPU-written byte still forces a split");
++    printf("NVN2 uniform range check: %u failures\n", bad);
++    return !!bad;
++}
++int main(int argc, char **argv) { @autoreleasepool {
++    if (argc == 2 && !strcmp(argv[1], "--rb-uniform-ranges")) return checked_uniform_ranges();
+     signal(SIGALRM, on_alarm); alarm(60);
+     e2e(256, 0, 0); e2e(16384, 0, 0); e2e(16384, 1, 0);
+     unsigned bad9 = bad; e2e(256, 0, 1);   // ⑨ 也走整套提交：放在下面手动开提交（nvn_be_sub_begin）之前，判在后面

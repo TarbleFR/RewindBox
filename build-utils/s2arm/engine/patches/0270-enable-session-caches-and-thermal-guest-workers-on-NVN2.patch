@@ -1,0 +1,154 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 0d0c366..6cce4fa 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -268,7 +268,8 @@ int nvn_rb_thermal_scope(void) {
+     int host = atomic_load_explicit(&g_rb_thermal_host, memory_order_relaxed);
+     if (!host) {
+         const char *id = getenv("S2A_RB_DIRECT_GAME_ID");
+-        host = id && *id ? 2 : 1;
++        if (!id || !*id) return 0; // capability probes may run before guest configuration
++        host = 2;
+         atomic_store_explicit(&g_rb_thermal_host, host, memory_order_relaxed);
+     }
+     return host == 2;
+@@ -795,7 +796,9 @@ extern void s2a_guest_heat_publish(int) __attribute__((weak_import));
+ static void rb_guest_heat_monitor(void) {
+     const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
+     const char *option = getenv("S2A_RB_GUEST_QOS_THERMAL");
+-    if (g_m3 || !title || strcasecmp(title, "0400C3F00006E000") ||
++    const char *all = getenv("S2A_RB_NVN2_GUEST_QOS");
++    int generic = nvn2_on() && (!all || !strcmp(all, "1"));
++    if (g_m3 || !title || !*title || (!generic && strcasecmp(title, "0400C3F00006E000")) ||
+         (option && strcmp(option, "1")) || ![g_dev.name isEqualToString:@"Apple A18 Pro GPU"] ||
+         !s2a_guest_heat_publish) return;
+     static dispatch_once_t once;
+diff --git a/graphics/nvn/gfx/nvn/rb_stage_disk.inc b/graphics/nvn/gfx/nvn/rb_stage_disk.inc
+index 5ea6837..183fe02 100644
+--- a/graphics/nvn/gfx/nvn/rb_stage_disk.inc
++++ b/graphics/nvn/gfx/nvn/rb_stage_disk.inc
+@@ -9,7 +9,9 @@ static int rb_disk_setting(const char *flag) {
+     if (!nvn_rb_thermal_scope()) return 0;
+     const char *value = getenv(flag);
+     const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
+-    return value ? !strcmp(value,"1") : title && !strcasecmp(title,"0400C3F00006E000");
++    const char *all = getenv("S2A_RB_NVN2_DISK_CACHE");
++    return value ? !strcmp(value, "1") : !all || !strcmp(all, "1") ||
++        (title && !strcasecmp(title, "0400C3F00006E000"));
+ }
+ static void rb_stage_disk_stats(void) {
+     uint64_t orphans = atomic_load(&g_rb_disk_unlisted), hits = atomic_load(&g_rb_air_hits);
+diff --git a/graphics/nvn/host_adapt.m b/graphics/nvn/host_adapt.m
+index 59707fd..8ac3e47 100644
+--- a/graphics/nvn/host_adapt.m
++++ b/graphics/nvn/host_adapt.m
+@@ -339,6 +339,7 @@ void *h_nvnBootstrapLoader(const char *name);   // graphics/nvn/gfx/nvn/hle_nvn.
+ // 着色器库 / 表 / 管线清单的位置：游戏第一次调 nvnBootstrapLoader 时定（不是重定位时：iOS 上 S2A_GAME_DATA 由 host_main.c 在装载之后才设缺省，
+ //   重定位时读到的是空，直连层退回自己的缺省路径找不到映射表直接 FATAL——10-24 真机首局）。直连层读这些变量在 Metal 初始化时，晚于这里
+ static char g_dp_gd[1100]; static int g_dp_from_gd;   // 首局着色器库路径是不是由游戏数据目录推出来的、推的根（多程序合集切换按它换到 programs/<n>）
++extern int s2a_platform_ounce(void);
+ static void direct_paths(void) {
+     char p[1300]; const char *gd = getenv("S2A_GAME_DATA");
+     // 外置着色器包（shader_overlay.h）：没显式给 DM_MSL_DIR / DM_NVN_SHMAP 时，文档目录 gal/<程序号>/shaders/direct 有本链号的库就用它（更新着色器包不必重签），否则照旧包内
+@@ -371,13 +372,31 @@ static void direct_paths(void) {
+     { int sw = s2a_screen_w(), sh = s2a_screen_h(); snprintf(p, sizeof p, "%dx%d", sw > 0 ? sw : 1920, sh > 0 ? sh : 1080); setenv("DM_NVN_SHOT_OUT", p, 0); }
+     // 本机见过的管线组合（直连层下次起局预建用）与兜底现编产物：<文档根>/wire/<程序号>/。文档根 = S2A_DOCS，否则 $HOME/Documents（iOS 沙盒）；
+     //   11-07 前这里固定拼 $HOME/Documents：Mac 宿主不在沙盒，落到用户文稿夹，新签名程序首次 opendir 被隐私授权框挡住、Hades 白屏 90 秒
+-    s2a_docs_path(p, sizeof p, "wire"); mkdir(p, 0755);
+-    s2a_docs_path(p, sizeof p, "wire/%016llX", (unsigned long long)s2a_npdm_program_id()); mkdir(p, 0755);
+-    { char q[1200]; snprintf(q, sizeof q, "%s/shaders", p); setenv("DM_MSL_FALLBACK", q, 0); }   // 兜底现编产物（着色器线 s2a_dsh_compile 写 <键>_b.metal / .json，§12.3）：库里没有的键再到这里找
++    const char *disk = getenv("S2A_RB_NVN2_DISK_CACHE");
++    const char *hostTitle = getenv("S2A_RB_DIRECT_GAME_ID");
++    const char *user = getenv("DM_PSO_USER");
++    BOOL hostedDisk = hostTitle && *hostTitle && s2a_platform_ounce() && (!disk || !strcmp(disk, "1"));
++    NSString *wire = nil;
++    if (hostedDisk && user && *user == '/') wire = [@(user) stringByDeletingLastPathComponent];
++    if (!wire) {
++        s2a_docs_path(p, sizeof p, "wire"); mkdir(p, 0755);
++        s2a_docs_path(p, sizeof p, "wire/%016llX", (unsigned long long)s2a_npdm_program_id()); mkdir(p, 0755);
++        wire = @(p);
++    }
++    setenv("DM_MSL_FALLBACK", [wire stringByAppendingPathComponent:@"shaders"].fileSystemRepresentation, 0);
++    setenv("DM_PSO_USER", [wire stringByAppendingPathComponent:@"pso_user.tsv"].fileSystemRepresentation, 0);
++    if (hostedDisk) {
++        const char *fallback = getenv("DM_MSL_FALLBACK");
++        NSError *error = nil;
++        if (!fallback || ![NSFileManager.defaultManager createDirectoryAtPath:@(fallback)
++                withIntermediateDirectories:YES attributes:nil error:&error]) {
++            LOG("[rb-shader-disk] cannot create stage directory: %s", error.localizedDescription.UTF8String ?: "no path");
++        }
++        LOG("[rb-shader-disk] stages=%s user=%s", fallback ?: "-", getenv("DM_PSO_USER") ?: "-");
++    }
+     { const char *c = getenv("S2A_COLD_START");   // 冷启动：兜底目录是首启没有的东西，清掉（host/dsh_cold.inc；通用模式的 NxColdStart 在直连模式不跑）
+       if (c && !strcmp(c, "1")) { uint64_t b = 0, n = dsh_cold_clear(getenv("DM_MSL_FALLBACK"), &b);
+           LOG("直连冷启动：已清兜底目录 %s %llu 个文件 %llu KB", getenv("DM_MSL_FALLBACK"), (unsigned long long)n, (unsigned long long)(b >> 10)); } }
+-    strlcat(p, "/pso_user.tsv", sizeof p); setenv("DM_PSO_USER", p, 0);
+     LOG("直连：着色器库 %s，映射表 %s", getenv("DM_MSL_DIR"), getenv("DM_NVN_SHMAP"));
+ }
+ static void fail_watch_start(void);   // 直连异常看门（见下）
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index ffed0e0..d02190f 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -871,10 +871,18 @@ static _Atomic int rb_heat_stats_enabled;
+ static _Atomic int rb_heat_last_state=-1; // only the title/device/backend monitor publishes here
+ static rb_guest_heat_counts rb_heat_counts;
+ static pthread_mutex_t rb_heat_report_mu=PTHREAD_MUTEX_INITIALIZER;
++// The NPDM is available before guest thread creation. The direct Metal monitor
++// publishes heat only on supported hardware. Standalone thread tests omit the loader.
++extern int s2a_platform_ounce(void) __attribute__((weak_import));
++static int rb_guest_generic_qos(void) {
++    const char *all = getenv("S2A_RB_NVN2_GUEST_QOS");
++    return (!all || !strcmp(all, "1")) && s2a_platform_ounce && s2a_platform_ounce();
++}
++static _Thread_local int rb_coalesce_idle;
+ static void rb_guest_heat_stats_begin(void) {
+     const char *title=getenv("S2A_RB_DIRECT_GAME_ID"), *policy=getenv("S2A_RB_GUEST_QOS_THERMAL");
+     const char *stats=getenv("S2A_RB_GUEST_QOS_STATS");
+-    int enabled=s2a_rb_guest_on() && title && !strcasecmp(title,"0400C3F00006E000") &&
++    int enabled=s2a_rb_guest_on() && title && *title && (rb_guest_generic_qos() || !strcasecmp(title, "0400C3F00006E000")) &&
+         (!policy || !strcmp(policy,"1")) && (!stats || !strcmp(stats,"1"));
+     pthread_mutex_lock(&rb_heat_report_mu);
+     rb_guest_heat_counts_reset(&rb_heat_counts);
+@@ -1001,10 +1009,22 @@ static void *thread_main(void *p) {
+     const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
+     const char *setting = getenv("S2A_RB_GUEST_QOS_THERMAL");
+     rb_heat_role = (rb_guest_heat_role){0};
+-    if (s2a_rb_guest_on() && title && !strcasecmp(title, "0400C3F00006E000") &&
+-        (!setting || !strcmp(setting, "1")))
+-        rb_heat_role = rb_guest_heat_worker(t->id, t->is_main, base == QOS_CLASS_USER_INTERACTIVE,
+-                                            other_qos() != QOS_CLASS_UNSPECIFIED);
++    int kart = title && !strcasecmp(title, "0400C3F00006E000");
++    int generic = s2a_rb_guest_on() && title && *title && rb_guest_generic_qos();
++    if (s2a_rb_guest_on() && (kart || generic) && (!setting || !strcmp(setting, "1"))) {
++        // ID 83 identifies a critical worker only in the measured Kart build.
++        // Elsewhere use the guest priority class and the runtime's frame-owner hooks.
++        if (kart)
++            rb_heat_role = rb_guest_heat_worker(t->id, t->is_main, base == QOS_CLASS_USER_INTERACTIVE,
++                                                other_qos() != QOS_CLASS_UNSPECIFIED);
++        else
++            rb_heat_role.secondary = !t->is_main && t->prio >= 44 && base == QOS_CLASS_USER_INTERACTIVE &&
++                                     other_qos() == QOS_CLASS_UNSPECIFIED;
++    }
++    const char *idle = getenv("S2A_RB_HOT_IDLE_COALESCE");
++    const char *backoff = getenv("S2A_YIELD_BACKOFF");
++    rb_coalesce_idle = generic && rb_heat_role.secondary && (!idle || !strcmp(idle, "1")) &&
++                       (!backoff || !strcmp(backoff, "1"));
+     const char *resume=getenv("S2A_RB_GUEST_QOS_TRANSITIONS");
+     rb_resume_qos=rb_heat_role.secondary && (!resume || !strcmp(resume,"1"));
+     rb_frame_role = 0;
+@@ -2286,6 +2306,14 @@ static void yield_bo(thr_t *me, const uint64_t *regs) {
+     }
+     if (run < ystart) { yb_sched_yield(me); me->y_ret = (uint64_t)now_mono_ns(); return; }   // RewindBox (patch 0074): g_yb_ystart, yb_sched_yield; RewindBox (patch 0087): ystart
+     uint64_t sl = run / 8; if (sl < 10000) sl = 10000; if (sl > (uint64_t)g_yb_cap) sl = (uint64_t)g_yb_cap;
++#if defined(__APPLE__)
++    // Only a sustained loop on a low-priority secondary qualifies. Bound the
++    // detection latency at 0.5 ms and respect an explicit guest backoff cap.
++    if (hot && rb_coalesce_idle && rb_heat_role.reduced && !rb_frame_role && me->prio >= 44 &&
++        same_poll && run >= 2000000 && atomic_load_explicit(&rb_heat_last_state, memory_order_relaxed) >= 2) {
++        sl = run / 4 < 500000 ? run / 4 : 500000;
++    }
++#endif
+     if (hot) atomic_fetch_add_explicit(&g_yb_hot_sleeps, 1, memory_order_relaxed);   // RewindBox (patch 0087)
+     struct timespec ts = {0, (long)sl}; nanosleep(&ts, NULL);
+     atomic_fetch_add_explicit(&g_yb_sleeps, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_yb_sleep_ns, sl, memory_order_relaxed);
