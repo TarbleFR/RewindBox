@@ -1,0 +1,74 @@
+{
+  "source": "d11f3728936a8e734548e55dca37c88f3bd4742c",
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "run": 44861783651,
+  "attempt": 1,
+  "xcode": "Xcode 26.6",
+  "jobs": [
+    {
+      "platform": "macos-15",
+      "id": 136716563894,
+      "result": "success"
+    },
+    {
+      "platform": "macos-26",
+      "id": 136716564034,
+      "result": "success"
+    }
+  ],
+  "patchesVerified": 229,
+  "first225Verified": true,
+  "patchDelta": [
+    {
+      "name": "0226-track-attachment-descriptors-and-sealed-clears.patch",
+      "sha256": "97cf786e075cc7d846b7c6d58d80cf38a3effbb0634db0f51f38e113b879b2f1"
+    },
+    {
+      "name": "0227-batch-compatible-tile-clears.patch",
+      "sha256": "eb2ac6ec7b41420e27c3e5015570020eb5a4c4e6dd77b2b3a5fe64cd48c42cc9"
+    },
+    {
+      "name": "0228-avoid-proven-redundant-metalfx-prefix.patch",
+      "sha256": "ee26a3e4e9b7b161c325b0e54fba3ca79ea5c61f9f5718a159c96caae839fbc3"
+    },
+    {
+      "name": "0229-preserve-alias-proof-across-restore-and-title-changes.patch",
+      "sha256": "d0e6186d8a07ef0cb584a0b7a8d29ee74f6d829b293221869fdbbacaa6a83f29"
+    }
+  ],
+  "engineFingerprint": "44d724705a9ea39615279d272aefb3bf775df241dc7860d6bb6eba6b231e3e46",
+  "pinSha256": "249bc70df0fa56ebe6b56785779ae0a33d1836ff241f8b80256cbaab22b6b0ec",
+  "artifact": {
+    "run": 44861783651,
+    "attempt": 1,
+    "artifact": 14690970542,
+    "name": "s2arm-engine-framework-d11f3728936a8e734548e55dca37c88f3bd4742c",
+    "bytes": 25099579,
+    "sha256": "c35179ea2834873f9d0ddfd334cd98c8cc883b38095f2618be73b5988f46e77f",
+    "headSha": "d11f3728936a8e734548e55dca37c88f3bd4742c",
+    "headBranch": "Claude",
+    "expiresAt": "2026-12-21T03:47:47Z"
+  },
+  "prepareRun": 44555747908,
+  "sysdataRun": 43038032448,
+  "unchangedExports": true,
+  "directShaderChain": "0be3f28548fd",
+  "validPostChangeDeviceWindows": 0,
+  "observedPostChangePerformance": null,
+  "passTests": {
+    "run": 44861783651,
+    "source": "d11f3728936a8e734548e55dca37c88f3bd4742c",
+    "bridgeRun": 44861783662,
+    "bridgeJob": 136716563904,
+    "bridgeSources": 11,
+    "attachmentRangeChecks": 2072,
+    "fxChoices": 128,
+    "nativeMachO": true,
+    "metalPixelRoute": "tracked Metal",
+    "metalPixelResult": "PASS tracked Metal: identical MRT clear/store results and alias rejection; direct Metal 4 unavailable",
+    "depthStencil": true,
+    "rangeRules": true,
+    "mrtRules": true,
+    "gpuTarget": "A18 Pro device results pending"
+  }
+}
