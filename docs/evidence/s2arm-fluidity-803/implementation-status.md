@@ -220,7 +220,7 @@ Le [comparateur des deux circuits](compare_course_priority.py) accepte six argum
 **Périmètre.** Titre `04007EF01F8AE000`, iPhone 16 Pro Max. Les chiffres communiqués portent sur 18,0–21,7 ms GPU à l’état thermique 0 et 25–37 ms à l’état 1. À charge comparable, atteindre le budget de 16,67 ms exige respectivement 1,33–5,03 ms et 8,33–20,33 ms de moins. Les mesures d’un autre modèle et les essais Mario Kart World restent des références distinctes.
 
 **Corrigé dans les sources.** 0206–0209 appliqués à la série vérifiée sur le pin `6b6a5715`.
-**Compilé et livré.** En attente pour 0206–0209.
+**Compilé.** [Moteur de 209 patchs vérifié sur macOS 15 et 26](engine209-build.json). **Livré.** En attente de la livraison privée de la 810.
 **Observé sur appareil.** 0/3 fenêtres de référence et 0/3 de la candidate. Aucun gain ni diagnostic thermique causal mesuré.
 
 | Priorité | Source moteur sous `graphics/nvn/gfx/nvn/` | Décision et critère |

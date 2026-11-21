@@ -1,0 +1,62 @@
+{
+  "source": "40a0d56002ccfbc1e6b83431421bd467a9d34313",
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "run": 44848385950,
+  "attempt": 1,
+  "xcode": "Xcode 26.6",
+  "jobs": [
+    {
+      "platform": "macos-26",
+      "id": 136673641386,
+      "result": "success"
+    },
+    {
+      "platform": "macos-15",
+      "id": 136673642428,
+      "result": "success"
+    }
+  ],
+  "patchesVerified": 209,
+  "first205UnchangedFrom809": true,
+  "patchDelta": [
+    {
+      "name": "0206-direct-metal-terminal-attachment-discard.patch",
+      "sha256": "6ae3ae7e55347fec17c9f86a49d46f3a2eb91b609fe9c8ae87a65fc24e3a9564"
+    },
+    {
+      "name": "0207-direct-metal-same-buffer-producer-coverage.patch",
+      "sha256": "db23b6aa0b34ec0ac4566b88e13837ceb05a2c0f44d7036931e339954fd25042"
+    },
+    {
+      "name": "0208-direct-metal-fx-gpu-intervals.patch",
+      "sha256": "c2d34aeb91bf69a0828bc883cc16fb847e6b631a49476c4d620912c229d99f28"
+    },
+    {
+      "name": "0209-direct-metal-native-depth-copy-pairs.patch",
+      "sha256": "1a16722ab0e951dddea1b5cffca79ad0945caeddee1f9db77df882e226fe8763"
+    }
+  ],
+  "engineFingerprint": "4847234ca6d47b93674e56cfb516a1a26151564b23603647e20dd09a93dcf41a",
+  "pinSha256": "0d7ff8e06831b98adfa13e1b38313ef805f838296839e604ce10298f8cbdff30",
+  "artifact": {
+    "run": 44848385950,
+    "attempt": 1,
+    "artifact": 14684433024,
+    "name": "s2arm-engine-framework-40a0d56002ccfbc1e6b83431421bd467a9d34313",
+    "bytes": 25075713,
+    "sha256": "04f9d2aa768879cca7a490f7311ee722214c15d516f53f0dff10e87679776f80",
+    "headSha": "40a0d56002ccfbc1e6b83431421bd467a9d34313",
+    "headBranch": "Claude",
+    "expiresAt": "2026-12-21T01:18:48Z"
+  },
+  "prepareRun": 44555747908,
+  "sysdataRun": 43038032448,
+  "directShaderChain": "0be3f28548fd",
+  "exportListUnchanged": true,
+  "exportsComparedAgainstSource": "ffae40e7a9aa55d9c05d81ab04f106c0b6c46797",
+  "ns2proUnchangedFrom809": true,
+  "noticeMatchesSource": true,
+  "privateDelivery": "pending",
+  "validDeviceWindows": 0,
+  "observedPerformance": null
+}
