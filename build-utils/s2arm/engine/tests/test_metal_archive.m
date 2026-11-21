@@ -58,6 +58,10 @@ static const char *test_scope_build;
 #define RB_PAR_SCOPED() test_scope_enabled
 #define RB_PAR_BUILD() test_scope_build
 #define RB_PAR_SUBMIT_THREAD() 0
+#ifndef RB_ARCHIVE_TEST_793_CONTROL
+static int injected_archive_thermal = -1;
+#define RB_PAR_WRITE_MODE() rb_archive_write_mode(injected_archive_thermal >= 0, injected_archive_thermal, (1024ull << 20) + 1)
+#endif
 #include "pso_archive.h"
 #include "rb_archive_relaunch.inc"
 
@@ -299,6 +303,34 @@ static void check_index_bytes(NSString *path, NSData *expected, const char *phas
         exit(1);
     }
 }
+// Demand-compile a render pipeline while every speculative lease is denied.
+// The warm invocation is a fresh process and Metal's strict archive probe has
+// to load the exact render state. Neither invocation enqueues a test descriptor.
+static void test_live_render_archive(const char *directory, int thermal, BOOL warm) {
+    REQUIRE(thermal == 1 || thermal == 2);
+    injected_archive_thermal=thermal;
+    rb_spec_publish(&g_spec_gate,RB_SPEC_HOLD);
+    REQUIRE(!setenv("DM_PSO_USER", [@(directory) stringByAppendingPathComponent:@"pso_user.tsv"].fileSystemRepresentation, 1));
+    g_dev=MTLCreateSystemDefaultDevice(); REQUIRE(g_dev);
+    NSString *source=@"#include <metal_stdlib>\nusing namespace metal;\n"
+         "vertex float4 vs(uint i [[vertex_id]]) { return float4(float(i),0,0,1); }\n"
+         "fragment float4 ps(){return float4(1,0,0,1);}";
+    NSError *error=nil;
+    id<MTLLibrary> lib=[g_dev newLibraryWithSource:source options:nil error:&error]; REQUIRE(lib);
+    MTLRenderPipelineDescriptor *d=[MTLRenderPipelineDescriptor new];
+    d.vertexFunction=[lib newFunctionWithName:@"vs"];
+    d.fragmentFunction=[lib newFunctionWithName:@"ps"];
+    d.colorAttachments[0].pixelFormat=MTLPixelFormatRGBA8Unorm;
+    NSString *key=par_hash("warm-render",sizeof("warm-render")-1);
+    REQUIRE(par_render(d,key,&error));
+    await_test_archive_writer();
+    REQUIRE(atomic_load(&g_par_written)==(unsigned)!warm);
+    REQUIRE(atomic_load(&g_par_hits)==(unsigned)warm);
+    REQUIRE(atomic_load(&g_par_misses)==(unsigned)!warm);
+    REQUIRE([NSFileManager.defaultManager fileExistsAtPath:[g_par_dir stringByAppendingPathComponent:@"batches.tsv"]]);
+    printf("PASS thermal=%d render written=%llu from_archive=%llu\n", thermal,
+           (unsigned long long)atomic_load(&g_par_written),(unsigned long long)atomic_load(&g_par_hits));
+}
 static void test_scoped_archive(const char *directory) {
     NSString *parent = @(directory);
     REQUIRE(setenv("DM_PSO_USER", [parent stringByAppendingPathComponent:@"pso_user.tsv"].fileSystemRepresentation, 1) == 0);
@@ -364,6 +396,11 @@ static void test_scoped_archive(const char *directory) {
 int main(int argc, char **argv) { @autoreleasepool {
     if (argc == 2 && !strcmp(argv[1], "--probe")) return MTLCreateSystemDefaultDevice() ? 0 : 77;
 #ifndef RB_ARCHIVE_TEST_793_CONTROL
+    if (argc == 5 && !strcmp(argv[1],"--live-render") &&
+        (!strcmp(argv[4],"cold") || !strcmp(argv[4],"warm"))) {
+        test_live_render_archive(argv[2],atoi(argv[3]),!strcmp(argv[4],"warm"));
+        return 0;
+    }
     if (argc == 3 && !strcmp(argv[1], "--scoped")) { test_scoped_archive(argv[2]); return 0; }
 #endif
     if (argc == 4 && !strcmp(argv[1], "--relaunch") && (!strcmp(argv[3], "cold") || !strcmp(argv[3], "warm")))

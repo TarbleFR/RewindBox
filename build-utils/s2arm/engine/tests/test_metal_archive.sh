@@ -25,6 +25,12 @@ if "$work/archive-test" --probe; then
         exit 1
     fi
     sh "$engine/graphics/nvn/tests/t_rb_archive_relaunch.sh" "$work/archive-test"
+    for thermal in 1 2; do
+        wire="$work/docs/wire/000000000000000$thermal"
+        mkdir -p "$wire"
+        "$work/archive-test" --live-render "$wire" "$thermal" cold
+        "$work/archive-test" --live-render "$wire" "$thermal" warm
+    done
     mkdir "$work/scoped"
     "$work/archive-test" --scoped "$work/scoped"
     result=0
