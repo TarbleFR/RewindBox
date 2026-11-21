@@ -104,7 +104,7 @@ jobs:
       - name: Check adaptive shader cache changes
         id: adaptive_shader_checks
         continue-on-error: true
-        if: matrix.os == 'macos-26' && (contains(github.event.head_commit.message, '[s2arm-shader-checks]') || env.CHECK_DELIVERY == 'yes')
+        if: matrix.os == 'macos-26' && (contains(github.event.head_commit.message, '[s2arm-shader-checks]') || contains(github.event.head_commit.message, '[s2arm-archive-check]') || env.CHECK_DELIVERY == 'yes')
         run: |
           set -euo pipefail
           source_tree="$RUNNER_TEMP/s2arm"
