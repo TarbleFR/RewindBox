@@ -1,0 +1,101 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index b6555341577c4b6282c640d617d1f3177a2f98ec..2ca558847ab5162da20d91187634049a28d00781 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -10687,11 +10687,15 @@ static int rb_first_stage_ro(NSDictionary *j, int stage) {
+     for (NSDictionary *b in j[@"bindings"]) {
+         if (![b isKindOfClass:NSDictionary.class]) return 0;
+         NSString *k=b[@"kind"], *t=b[@"msl_type"];
+-        if (![k isKindOfClass:NSString.class] || ![t isKindOfClass:NSString.class] || [b[@"atomic"] boolValue] ||
++        if (![k isKindOfClass:NSString.class] || ![t isKindOfClass:NSString.class] ||
++            (b[@"atomic"] && (![b[@"atomic"] isKindOfClass:NSNumber.class] || [b[@"atomic"] boolValue])) ||
+             (b[@"rw"] && (![b[@"rw"] isKindOfClass:NSNumber.class] || [b[@"rw"] boolValue]))) return 0;
+-        if ([k isEqual:@"tex_pool"] || [k isEqual:@"samp_pool"]) {
++        // Dsh.PoolArrays emits dm_pool_mark for sampled texture pools: the shader
++        // writes a residency-feedback bitmap through a nested GPU address.
++        if ([k isEqual:@"tex_pool"]) return 0;
++        if ([k isEqual:@"samp_pool"]) {
+             t=b[@"elem"];
+-            if (![t isKindOfClass:NSString.class]) return 0;
++            if (![t isEqual:@"sampler"]) return 0;
+         }
+         // Reflection's argument-buffer and helper buffers must themselves be read-only.
+         // Pointers to nested raw memory tables are excluded even through a const base.
+@@ -10700,11 +10704,11 @@ static int rb_first_stage_ro(NSDictionary *j, int stage) {
+         dispatch_once(&once,^{
+             uniforms=[NSSet setWithArray:@[@"c1",@"cbuf",@"drvcb",@"support",@"lb",@"uvx",@"sbsize",@"ubolen"]];
+             samplers=[NSSet setWithArray:@[@"samp",@"samp_ubo",@"samp_c2a",@"samp_id",@"samp_tex",@"samp_pool"]];
+-            sampled=[NSSet setWithArray:@[@"tex",@"tex_ubo",@"tex_c2a",@"tex_pool",@"tbuf",@"tbuf_ubo"]];
++            sampled=[NSSet setWithArray:@[@"tex",@"tex_ubo",@"tex_c2a",@"tbuf",@"tbuf_ubo"]];
+         });
+         if ([uniforms containsObject:k] && [t hasPrefix:@"constant "]) continue;
+         if ([samplers containsObject:k] && ([t isEqual:@"sampler"] || [t hasPrefix:@"array<sampler,"])) continue;
+-        if (([k isEqual:@"sbuf"] || [k isEqual:@"sbuf_ubo"]) && [t hasPrefix:@"const device "]) continue;
++        if (([k isEqual:@"sbuf"] || [k isEqual:@"sbuf_ubo"]) && [b[@"rw"] isKindOfClass:NSNumber.class] && [t hasPrefix:@"const device "]) continue;
+         if ([sampled containsObject:k] &&
+             ([t hasPrefix:@"texture"] || [t hasPrefix:@"depth"] || [t hasPrefix:@"array<texture"] || [t hasPrefix:@"array<depth"]) &&
+             (![t containsString:@"access::"] || [t containsString:@"access::sample>"] || [t containsString:@"access::read>"]) &&
+@@ -10791,7 +10795,8 @@ static NvShader *shader_build_attempt(NSString *pc, int stage, int layer, int de
+         static _Atomic uint64_t n_sh, n_b; uint64_t k = atomic_fetch_add(&n_sh, 1) + 1, nb = atomic_fetch_add(&n_b, o->rf.unb_uncov) + o->rf.unb_uncov;
+         if (k <= 8 || !(k & (k - 1))) MLOG("unnorm bits: shader %s has %u texture bindings outside the s2a_flags.yzw bitmap (normalization compiled in); %llu such bindings in %llu shaders so far",
+                                            pc.UTF8String, (unsigned)o->rf.unb_uncov, (unsigned long long)nb, (unsigned long long)k); }
+-    if (stage == 0 || stage == 1)
++    if ((stage==0 || stage==1) && nvn_rb_thermal_scope() &&
++        rb_pacing_setting(&g_rb_first_draw_option,"S2A_RB_ASYNC_FIRST_DRAW"))
+         o->rb_first_ro = rb_first_stage_ro(j,stage);
+     if (rt_range_on() || rb_async_pso()) o->range_ro=rt_range_bindings_ro(j);
+     NSString *entry = j[@"entry"];
+@@ -20812,16 +20817,19 @@ static int rb_first_library_pair(rb_material_pair pair, NSString *names[2],
+                                  int (*enqueue)(NSString *,int,int)) {
+     if (!rb_first_allow(pair,0)) return 0;
+     int missing[2]={0}, building[2]={0}, dz=atomic_load_explicit(&g_depth_zero,memory_order_relaxed);
++    NSString *idn[2]={shader_identity(names[0],0,0,dz),shader_identity(names[1],1,0,dz)};
++    NvShader *have[2]={nil,nil};
++    os_unfair_lock_lock(&g_shader_lock);
+     for(int st=0;st<2;st++) {
+-        NSString *idn=shader_identity(names[st],st,0,dz);
+-        os_unfair_lock_lock(&g_shader_lock);
+-        NvShader *have=g_shcache[idn];
+-        building[st]=g_shader_flights[idn]!=nil;
+-        os_unfair_lock_unlock(&g_shader_lock);
+-        if (have ? (!have->rb_first_ro || have->layer_out) : rb_first_reflected_stage(names[st])!=st) return rb_first_reject(RB_FIRST_REFLECTION);
+-        missing[st]=!have;
++        have[st]=g_shcache[idn[st]];
++        building[st]=g_shader_flights[idn[st]]!=nil;
++        missing[st]=!have[st];
+     }
++    os_unfair_lock_unlock(&g_shader_lock);
+     if (!missing[0] && !missing[1]) return 0;
++    for(int st=0;st<2;st++)
++        if (have[st] ? (!have[st]->rb_first_ro || have[st]->layer_out) : rb_first_reflected_stage(names[st])!=st)
++            return rb_first_reject(RB_FIRST_REFLECTION);
+     if (!rb_first_copy_clear()) return rb_first_reject(RB_FIRST_PASS);
+     for(int st=0;st<2;st++) if (missing[st] && !building[st] && !enqueue(names[st],st,dz)) return 0;
+     if (!rb_first_allow(pair,1)) return 0;
+diff --git a/graphics/nvn/tests/rb_first_draw_flight.inc b/graphics/nvn/tests/rb_first_draw_flight.inc
+index c785c4361a5678d62c05470ee06294e3fddb2046..87e67d25f73e080fb26a6876b04ae699854391a1 100644
+--- a/graphics/nvn/tests/rb_first_draw_flight.inc
++++ b/graphics/nvn/tests/rb_first_draw_flight.inc
+@@ -29,12 +29,22 @@ static void rb_test_first_draw(void) {
+                                       @{@"location":@1,@"msl_type":@"float4"},
+                                       @{@"location":@2,@"msl_type":@"float4"}];
+         REQUIRE(rb_first_stage_ro(j,st));
++        // Existing public engine fixtures: readonly buffer type in t_nvn_refl and
++        // pool layout in t_nvn_pool_tex. These are translator ABI cases, not game captures.
++        NSMutableDictionary *material=[j mutableCopy];
++        material[@"bindings"]=@[@{@"kind":@"sbuf",@"msl_type":@"const device _25*",@"rw":@NO},
++            @{@"kind":@"cbuf",@"msl_type":@"constant _28*"},
++            @{@"kind":@"tex_ubo",@"msl_type":@"texture2d<float, access::sample>"},
++            @{@"kind":@"samp_pool",@"msl_type":@"constant spvPool_s*",@"elem":@"sampler"}];
++        CHECK(rb_first_stage_ro(material,st),"ordinary stage %d constant/RO buffer, sampled texture, pure sampler pool",st);
+         NSData *json=[NSJSONSerialization dataWithJSONObject:j options:0 error:nil];
+         REQUIRE([json writeToFile:[fallback stringByAppendingPathComponent:[keys[st] stringByAppendingString:@".json"]] atomically:YES]);
+         CHECK(!shmap_stage([keys[st] substringToIndex:16]) && rb_first_reflected_stage(keys[st])==st,
+               "a verified stage is usable before its shader-map registration");
+         j[@"bindings"]=@[@{@"kind":@"sbuf",@"msl_type":@"device uint *",@"rw":@YES}];
+         CHECK(!rb_first_stage_ro(j,st),"stage %d storage write is critical",st);
++        j[@"bindings"]=@[@{@"kind":@"tex_pool",@"msl_type":@"constant spvPool_t*",@"elem":@"texture2d<float>"}];
++        CHECK(!rb_first_stage_ro(j,st),"texture pool writes its residency feedback even when sampling only");
+         j[@"bindings"]=@[@{@"kind":@"unknown",@"msl_type":@"constant uint*"}];
+         CHECK(!rb_first_stage_ro(j,st),"unknown stage resource fails closed");
+     }
