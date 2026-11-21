@@ -237,7 +237,7 @@ index 7bf6261..91354ed 100644
  // A guest-driven change already expressed in its own pixels needs no conversion.
  static inline float rb_fx_physical_pixels(float guest, unsigned physicalExtent, unsigned guestExtent) {
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index d3b2229..48411a0 100644
+index d3b2229..cc3764a 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -1469,7 +1469,7 @@ static _Atomic unsigned g_sp_heap_n;
@@ -302,7 +302,7 @@ index d3b2229..48411a0 100644
      pthread_mutex_unlock(&g_smu);
      if (n) rs_scene_replace(base, w);
      if (n || !rs_retain_on()) defer_obj_release(base);   // out of the residency set once the submissions that used it complete
-@@ -9041,6 +9049,16 @@ static void wd_pclr_apply(const tex_t *t) {   // no pass is open (wd_widen_rts):
+@@ -9041,12 +9049,23 @@ static void wd_pclr_apply(const tex_t *t) {   // no pass is open (wd_widen_rts):
      }
  }
  enum { RB_COPY_DEFAULT, RB_COPY_REQUIRE_ENCODER, RB_COPY_SHADOW_PREPARE, RB_COPY_SHADOW_RESOLVE };
@@ -319,7 +319,14 @@ index d3b2229..48411a0 100644
  static int copy_t2t_draw_impl(id<MTLTexture>,id<MTLTexture>,unsigned,unsigned,unsigned,unsigned,
                                const NVNcopyRegion *,const NVNcopyRegion *,int,int,int);
  static int rb_shadow_transfer(id<MTLTexture> dst,int mode) {
-@@ -9405,6 +9423,43 @@ static int clear_rect_zero(int i) {
+     NVNcopyRegion src_rect={0,0,0,1152,1152,1}, dst_rect={0,0,0,1536,1536,1};
+     return copy_t2t_draw_impl(g_rb_shadow_low,dst,0,0,0,0,&src_rect,&dst_rect,0,0,mode);
+ }
++static int g_wd; // Defined with its initializer in widen_glue.inc.
+ static void rb_shadow_attach(MTL4RenderPassDescriptor *pd,int clear_only) {
+     if (clear_only || !g_rb_shadow_draw_ok || g_rb_shadow_failed || !rb_shadow_on() ||
+         !R.clear_d || R.rt.has_dview || g_rp_layered || g_rlane || g_wd>0 || g_vis_on || tbdr_on() ||
+@@ -9405,6 +9424,43 @@ static int clear_rect_zero(int i) {
  
  // ================= Shaders / descriptor pool / pipelines / draws =================
  static pthread_mutex_t g_rmu = PTHREAD_MUTEX_INITIALIZER;
@@ -363,7 +370,7 @@ index d3b2229..48411a0 100644
  // ---------- Shader mapping table: Switch control section hash → PC metallib (produced by dm/gfx/tools/shader_map.py) ----------
  static NSMutableDictionary<NSString *, NSString *> *g_shmap;   // S2Arm: key -> stage name (shader_map.tsv column 3); was declared NSArray *, clang 21 rejects the NSString reads
  static NSString *g_shmap_path, *g_msl_dir;
-@@ -11118,11 +11173,11 @@ static void alias_dead_views(void) {
+@@ -11118,11 +11174,11 @@ static void alias_dead_views(void) {
      free(ser);
  }
  static void treg_drop_pool_views(const void *pool) {
@@ -377,7 +384,7 @@ index d3b2229..48411a0 100644
  }
  // Texture ID 0 with nothing registered there: the zero handle a slot holds until the game binds it (a shader declares the slot, the game never binds it). Hardware reads the
  // pool's first descriptor; Ryujinx finds it empty (address 0: TexturePool.GetInternal makes no texture) and the backend binds its all-zero dummy, with no error. So it reads 0 here
-@@ -11145,19 +11200,19 @@ static void pool_seen_clear(int id_) {   // an ID given another texture has not
+@@ -11145,19 +11201,19 @@ static void pool_seen_clear(int id_) {   // an ID given another texture has not
  // 贴图池销毁时清它那段编号的登记（hle_nvn.c dpool_finalize）：只动已登记的项（不扩表），同 nvn_be_reg_tex(id, NULL, NULL) 的清法——丢缓存的视图、记登记代号
  void nvn_be_unreg_tex_range(int base, int n) {
      if (base < 0 || n <= 0) return;
@@ -401,7 +408,7 @@ index d3b2229..48411a0 100644
          memset(g_treg + g_ntreg, 0, (n - g_ntreg) * sizeof *g_treg); g_ntreg = n; }
      // Registering what the ID already holds changes nothing: its view and the registration generation stay (the lookup still checks the base texture). About 1 in 6 of the
      // registrations KTGL (Age of Calamity) makes before every bind repeat the ID's texture; the rest cycle textures through its IDs (the view cache below, vc_get)
-@@ -11173,7 +11228,7 @@ void nvn_be_reg_tex(int tid, const tex_t *t, const view_t *v) {
+@@ -11173,7 +11229,7 @@ void nvn_be_reg_tex(int tid, const tex_t *t, const view_t *v) {
          if (rr->ok) { rb_descriptor_expose(t); treg_ser_link(id_); }
          if (id_ < (1 << 20)) atomic_store_explicit(&g_tser[id_], t ? t->serial : 0, memory_order_release);
      }
@@ -410,7 +417,7 @@ index d3b2229..48411a0 100644
      if (!same && t) rb_pf_post(t);   // RewindBox (patch 0070): its storage asked ahead of its first upload, off this thread (rb_pf_post)
      if (null_reads) MLOG("texture ID 0 registered (frame %llu) after %llu reads as an empty slot: those read 0, as hardware's first descriptor before it was written",
                           (unsigned long long)atomic_load(&g_cur_frame), (unsigned long long)null_reads);
-@@ -11195,11 +11250,11 @@ void nvn_be_reg_tex(int tid, const tex_t *t, const view_t *v) {
+@@ -11195,11 +11251,11 @@ void nvn_be_reg_tex(int tid, const tex_t *t, const view_t *v) {
  }
  void nvn_be_reg_samp(int sid, const samp_par *sp) {
      int id_ = sid; if (id_ < 0) return;
@@ -424,7 +431,7 @@ index d3b2229..48411a0 100644
          memset(g_sreg_ok + g_nsreg, 0, n - g_nsreg); memset(g_sview + g_nsreg, 0, (n - g_nsreg) * sizeof *g_sview); memset(g_srid + g_nsreg, 0, (n - g_nsreg) * sizeof *g_srid);
          memset(g_sbview + 2 * g_nsreg, 0, (size_t)(n - g_nsreg) * 2 * sizeof *g_sbview); memset(g_sbrid + 2 * g_nsreg, 0, (size_t)(n - g_nsreg) * 2 * sizeof *g_sbrid); g_nsreg = n; }
      if (g_sview[id_]) { CFRelease(g_sview[id_]); g_sview[id_] = NULL; g_srid[id_] = 0; }
-@@ -11209,7 +11264,7 @@ void nvn_be_reg_samp(int sid, const samp_par *sp) {
+@@ -11209,7 +11265,7 @@ void nvn_be_reg_samp(int sid, const samp_par *sp) {
      if (g_sreg_ok[id_] && memcmp(&g_sreg[id_], sp, sizeof *sp)) g_samp_rereg++;
      pool_dirty(1, id_);
      g_sreg[id_] = *sp; g_sreg_ok[id_] = 1;
@@ -433,7 +440,7 @@ index d3b2229..48411a0 100644
      {   // DM_NVN_SAMPINFO=N (diagnostic): the first N sampler registrations with their whole state (filters, wraps, LOD clamp / bias, anisotropy, compare, reduction)
          static int lim = -1; static _Atomic int n; if (lim < 0) { const char *e = getenv("DM_NVN_SAMPINFO"); lim = e ? atoi(e) : 0; }
          if (lim && atomic_fetch_add(&n, 1) < lim)
-@@ -19278,6 +19333,7 @@ static int mdx_next(const p_draw *dw, const p_draw_idx *di) {
+@@ -19278,6 +19334,7 @@ static int mdx_next(const p_draw *dw, const p_draw_idx *di) {
  int nvn_be_multi_draw_range(void) { return 1; }   // hle_nvn.c records a large call as one OP_MULTI_DRAW (draw_multi replays it)
  int nvn_be_buf_extent_consumer(void) { return 0; }   // Metal 回放不按地址查活缓冲长度：hle_nvn.c 不登记活缓冲（建删零开销）
  static void draw_multi(const p_multi_draw *m) {
@@ -441,7 +448,7 @@ index d3b2229..48411a0 100644
      int prior_rs_scope __attribute__((cleanup(rs_restore_draw_scope))) = g_rs_native_draw;
      if (rs_on() && rs_retain_on() && !rs_prepare_work(nil, 0)) return;
      if (!m->cnt || m->max <= 0) return;
-@@ -19964,20 +20020,14 @@ static void draw_emit(id en, MTLPrimitiveType mp, int prim, const p_draw *dw, co
+@@ -19964,20 +20021,14 @@ static void draw_emit(id en, MTLPrimitiveType mp, int prim, const p_draw *dw, co
  static int fmt_int_or_ds(MTLPixelFormat f);
  static NvShader *g_dt_vs, *g_dt_fs; static id g_dt_tab;
  static void draw_tex(const p_draw_tex *t) {
@@ -464,7 +471,7 @@ index d3b2229..48411a0 100644
          NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(src) options:nil error:&e];
          id<MTLFunction> vf = [lib newFunctionWithName:@"dt_vs"], ff = [lib newFunctionWithName:@"dt_fs"];
          g_dt_tab = vf && ff ? rec_table(tab_new(1, 1, 1, &e)) : nil;
-@@ -20115,6 +20165,7 @@ static int rb_shadow_caster(NvProg *pr) {
+@@ -20115,6 +20166,7 @@ static int rb_shadow_caster(NvProg *pr) {
  }
  static void draw_impl(const p_draw *dw, const p_draw_idx *di);
  static void draw(const p_draw *dw, const p_draw_idx *di) {
@@ -472,7 +479,7 @@ index d3b2229..48411a0 100644
      if (!rb_shadow_on()) { draw_impl(dw,di); return; }
      int saved=g_rb_shadow_draw_ok;
      g_rb_shadow_draw_ok=R.has_rt && R.rt.depth && R.rt.depth->d.width==1536 && R.rt.depth->d.height==1536 &&
-@@ -20857,6 +20908,7 @@ static void img_wr_prescan(NvShader *sh, int nvn_stage) {
+@@ -20857,6 +20909,7 @@ static void img_wr_prescan(NvShader *sh, int nvn_stage) {
  }
  static void tensor_standin(NvShader *cs);   // nvn_tensor.inc
  static void dispatch(const p_dispatch *dp) {
