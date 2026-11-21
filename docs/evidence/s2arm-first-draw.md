@@ -12,6 +12,8 @@ Le journal décrit pour la 813 compte 228 compilations MSL sur le thread de soum
 | `graphics/tools/direct/prepare_stage_air.py` et `nvn_mtl.m` · `rb_compile_source` | Un Mac équipé de la toolchain Metal peut compiler les sources MSL exportées du joueur avec `python3 graphics/tools/direct/prepare_stage_air.py CHEMIN_DES_SHADERS --sdk iphoneos`. Le sous-dossier produit reste sous le même répertoire de shaders. Le moteur vérifie source et charge utile et confie le binaire à Metal. Si le fichier manque ou est rejeté, il reprend le chemin MSL. |
 | `nvn_mtl.m` · `flight_wait_locked` et diagnostics shaders, `tools/s2arm_prototype/shader_session_metrics.py` | Distingue source compilée sur la soumission, attente d'une dépendance partagée, compilation sur tous les threads et draws omis. Les fenêtres disjointes et les événements par trame sont analysés séparément. |
 
+Les compteurs `submit_guest_msl_count/ms` et `submit_aux_msl_count/ms` répartissent le temps de compilation de la soumission entre shaders invités et utilitaires du backend. `msl_source_count/ms` porte sur les shaders invités de tous les threads. `aux_msl_source_count/ms` donne son équivalent pour les utilitaires.
+
 Les accès à un `tex_pool` marquent les textures utilisées par écriture atomique en mémoire. Le patch 0253 garde ces draws exacts, y compris lorsque le shader ne fait qu’échantillonner la texture.
 
 Un fragment à effets de bord ou de réflexion inconnue, un dispatch compute, une shadow map ou une passe composite doivent garder leurs dépendances. Un objet éligible peut apparaître une ou deux trames plus tard. Après expiration ou si la preuve manque, le moteur peut attendre le shader exact. La capacité réservée aux PSO et le plan d'éviction restent ceux de la 813.

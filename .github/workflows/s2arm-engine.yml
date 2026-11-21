@@ -165,6 +165,7 @@ jobs:
             -DRB_TEST_OBSERVED=1 graphics/nvn/tests/t_dsh_stats.c -o "$RUNNER_TEMP/t_rb_observed"
           "$RUNNER_TEMP/t_rb_observed" --rb-observed-workers
           python3 -B "$GITHUB_WORKSPACE/test/s2arm_shader_session_metrics_test.py"
+          python3 -B graphics/nvn/tests/t_rb_msl_coverage.py
           if ! xcrun --sdk macosx metal --version >/dev/null 2>&1; then
             xcodebuild -downloadComponent MetalToolchain
           fi

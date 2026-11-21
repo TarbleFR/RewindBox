@@ -32,6 +32,11 @@ SHADER_WORK_FIELDS = {"first_frame": int, "draws_skipped_shlib": int, "draws_ski
                       "submit_msl_blocked_count": int, "submit_msl_blocked_ms": float,
                       "submit_shared_wait_count": int, "submit_shared_wait_ms": float,
                       "msl_source_count": int, "msl_source_ms": float}
+SHADER_ORIGIN_FIELDS = {
+    "submit_guest_msl_count": int, "submit_guest_msl_ms": float,
+    "submit_aux_msl_count": int, "submit_aux_msl_ms": float,
+    "aux_msl_source_count": int, "aux_msl_source_ms": float,
+}
 
 
 CUP_FRAME = "RewindBox cup frame="
@@ -135,9 +140,11 @@ def gpu_pass_summary(samples):
     }
 
 
-def metric_row(text, fields):
+def metric_row(text, fields, extension=None):
     frame, *cells = text.split()
     values = dict(cell.split("=", 1) for cell in cells)
+    if extension and extension.keys() & values.keys():
+        fields = fields | extension
     return int(frame), {key: convert(values[key]) for key, convert in fields.items()}
 
 
@@ -381,7 +388,7 @@ def summarize(host, captures, first, last, *, session=None, segments=(), journal
             for prefix, samples in (("[pso-window-shaders] frame=", shader_windows),
                                     ("[pso-frame-shaders] frame=", shader_frames)):
                 if prefix in line:
-                    frame, row = metric_row(line.split(prefix, 1)[1], SHADER_WORK_FIELDS)
+                    frame, row = metric_row(line.split(prefix, 1)[1], SHADER_WORK_FIELDS, SHADER_ORIGIN_FIELDS)
                     if selected(row["first_frame"]) and selected(frame):
                         if frame in samples:
                             raise ValueError("Duplicate shader sample. Supply a single session.")

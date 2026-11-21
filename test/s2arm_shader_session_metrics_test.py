@@ -20,6 +20,14 @@ class SessionMetricsTests(unittest.TestCase):
             window, = report["shaderWorkWindows"]
             self.assertEqual((window["submit_msl_blocked_count"], window["msl_source_count"]), (0, 9))
             self.assertEqual(window["submit_shared_wait_ms"], 8.125)
+            self.assertNotIn("submit_aux_msl_count", window)
+            detailed = (" submit_guest_msl_count=0 submit_guest_msl_ms=0.000 "
+                        "submit_aux_msl_count=0 submit_aux_msl_ms=0.000 "
+                        "aux_msl_source_count=7 aux_msl_source_ms=61.625")
+            host.write_text(host.read_text().replace(fields, fields + detailed))
+            origins, = summarize(host, [], 0, 600)["shaderWorkWindows"]
+            self.assertEqual(origins["aux_msl_source_count"], 7)
+            self.assertEqual(origins["aux_msl_source_ms"], 61.625)
             narrow = summarize(host, [], 301, 301)
             self.assertNotIn("shaderWorkWindows", narrow)
             self.assertEqual(narrow["shaderWorkSlowFrames"][0]["draws_skipped_shlib"], 2)

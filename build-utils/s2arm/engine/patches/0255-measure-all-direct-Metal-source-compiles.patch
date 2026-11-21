@@ -1,0 +1,651 @@
+diff --git a/graphics/metal/gal_samp_caps.h b/graphics/metal/gal_samp_caps.h
+index 1d6724f45a3713409db285580dfb0c382099f0ea..fb9588b92fee506f79c99bb904cb8ce3285f6f06 100644
+--- a/graphics/metal/gal_samp_caps.h
++++ b/graphics/metal/gal_samp_caps.h
+@@ -6,7 +6,7 @@
+ //   function constant 特化）+ nvn_red.h 表，离线库不带；通用：gal_border.m 采样辅助 + 边框表里的偏置），画面同原生。
+ //   S2A_SAMP_EMU=1：两项都当不可用，Apple10 本机上走模拟路径（单测 / 对照用）。系统早于 26（没有这两个属性）两项都不可用
+ #pragma once
+-#import <Metal/Metal.h>
++#include "mtl_source.h"
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+@@ -20,13 +20,13 @@ static inline int s2a_reduce_native(id<MTLDevice> dev) {
+ }
+ // LOD 偏置原生可用：系统 26 起、没有强制模拟，且本机 GPU 实测生效——R32Float 4×4 两级 mip（第 0 级 0、第 1 级 1），最近点采样、偏置 1，在 LOD 0 处读，读到 1 = 生效。
+ //   结果按进程记一次（每个包含它的编译单元各问一次）
+-static int s2a_lodbias_native(id<MTLDevice> dev) {
++static int s2a_lodbias_native_using(id<MTLDevice> dev,s2a_mtl_source_builder make_library) {
+     static int v = -1; if (v >= 0) return v;
+     v = 0;
+     if (s2a_samp_emu_forced()) { fprintf(stderr, "[s2a] 采样器 LOD 偏置：S2A_SAMP_EMU=1，按不生效走着色器模拟\n"); return v; }
+     if (@available(macOS 26.0, iOS 26.0, *)) { @autoreleasepool {
+         NSError *e = nil;
+-        id<MTLLibrary> lib = [dev newLibraryWithSource:@"#include <metal_stdlib>\nusing namespace metal;\nkernel void k(texture2d<float> t [[texture(0)]], sampler s [[sampler(0)]], device float *o [[buffer(0)]]) { o[0] = t.sample(s, float2(0.5), level(0.0)).r; }\n" options:nil error:&e];
++        id<MTLLibrary> lib = make_library(dev,@"#include <metal_stdlib>\nusing namespace metal;\nkernel void k(texture2d<float> t [[texture(0)]], sampler s [[sampler(0)]], device float *o [[buffer(0)]]) { o[0] = t.sample(s, float2(0.5), level(0.0)).r; }\n",nil,&e);
+         id<MTLComputePipelineState> ps = lib ? [dev newComputePipelineStateWithFunction:[lib newFunctionWithName:@"k"] error:&e] : nil;
+         MTLTextureDescriptor *td = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatR32Float width:4 height:4 mipmapped:YES]; td.storageMode = MTLStorageModeShared;
+         id<MTLTexture> t = [dev newTextureWithDescriptor:td]; float z[16] = {0}, one[4] = {1, 1, 1, 1};
+@@ -44,3 +44,7 @@ static int s2a_lodbias_native(id<MTLDevice> dev) {
+     } }
+     return v;
+ }
++
++static inline int s2a_lodbias_native(id<MTLDevice> dev) {
++    return s2a_lodbias_native_using(dev,s2a_mtl_source);
++}
+diff --git a/graphics/metal/mtl_source.h b/graphics/metal/mtl_source.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..e8a475a16c7b3deb647c1d3e53efb57b755a7c44
+--- /dev/null
++++ b/graphics/metal/mtl_source.h
+@@ -0,0 +1,10 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#import <Metal/Metal.h>
++
++// Accept the device and options supplied by the owner of a helper pipeline.
++typedef id<MTLLibrary> (*s2a_mtl_source_builder)(id<MTLDevice>,NSString *,MTLCompileOptions *,NSError **);
++static inline id<MTLLibrary> s2a_mtl_source(id<MTLDevice> device,NSString *source,
++                                           MTLCompileOptions *options,NSError **error) {
++    return [device newLibraryWithSource:source options:options error:error];
++}
+diff --git a/graphics/nvn/Makefile b/graphics/nvn/Makefile
+index 933ff18bb52a0011e50d5e7971e7894b8748e1a3..ba490084c90935fb8bfc8cd7a6c398c533d84d91 100644
+--- a/graphics/nvn/Makefile
++++ b/graphics/nvn/Makefile
+@@ -18,7 +18,7 @@ AA_LUTH := $(OUT)/gen/nvn_aa_lut.h
+ # S2Arm tessellation: CHWTessellator（graphics/metal/gal_tess_d3d.h）嵌成头文件 $(OUT)/gen/gal_tess_msl.h（k_nvn_tess_core），被 nvn_builtin.h include
+ GENH  := $(OUT)/gen/gal_tess_msl.h
+ SRCS  := $(sort $(wildcard gfx/nvn/*.c gfx/nvn/*.m gfx/nvn/*.S gfx/tex/*.c gfx/tex/*.m gfx/vk/*.m gfx/gl/*.m)) host_adapt.m graphics_session.c   # gfx/vk：Vulkan 款（直连层 hle_vk.m，10-24 搬入）
+-HDRS  := $(wildcard gfx/nvn/*.h gfx/nvn/*.inc gfx/nvn/include/*.h gfx/tex/*.h gfx/vk/*.h gfx/vk/*.inc gfx/gl/*.h host/*.h host/*.inc) graphics_session.h ../track/s2a_track.h texture_extent.inc widen_glue.inc widen_fallback.inc fe_stat.h lib_pack.inc $(ROOT)/graphics/widen/export/s2a_widen.h $(ROOT)/graphics/metal/fit_judge.h $(ROOT)/runtime/src/native.h $(ROOT)/runtime/include/s2a_gfx_mode.h $(AA_MSLH) $(AA_LUTH) $(GENH)
++HDRS  := $(wildcard gfx/nvn/*.h gfx/nvn/*.inc gfx/nvn/include/*.h gfx/tex/*.h gfx/vk/*.h gfx/vk/*.inc gfx/gl/*.h host/*.h host/*.inc) graphics_session.h ../track/s2a_track.h texture_extent.inc widen_glue.inc widen_fallback.inc fe_stat.h lib_pack.inc $(ROOT)/graphics/widen/export/s2a_widen.h $(ROOT)/graphics/metal/fit_judge.h $(ROOT)/graphics/metal/mtl_source.h $(ROOT)/graphics/metal/gal_samp_caps.h $(ROOT)/runtime/src/native.h $(ROOT)/runtime/include/s2a_gfx_mode.h $(AA_MSLH) $(AA_LUTH) $(GENH)
+ # 源 / 头清单戳（11-05 合入运维线：门禁常驻工作树跨批增量编，某批分支删 / 改名一个源文件后，余下源都比库旧、库不重建，
+ #   旧库里留着已删文件的目标文件，引用的宿主符号已不在 → 偶发「Undefined symbols」（nvn_rec_cover 构建失败 12 次，干净重跑就绿）。
+ #   清单变了就改写戳（内容不变不改写，不触发重编），各库依赖它
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 74abc27f1e3232c36dba41ea69e7b4bc0920d011..3bc743e42b4c6262723321a614dfc5706b7084af 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3486,10 +3486,16 @@ static void rb_pso_emit(const char *label, uint64_t f, const rb_pso_sample *s) {
+     if (s->mode & RB_REPORT_SHADER_WORK)
+         LOG("[%s-shaders] frame=%llu first_frame=%llu draws_skipped_shlib=%llu draws_skipped_pso=%llu "
+             "submit_msl_blocked_count=%llu submit_msl_blocked_ms=%.3f "
++            "submit_guest_msl_count=%llu submit_guest_msl_ms=%.3f submit_aux_msl_count=%llu submit_aux_msl_ms=%.3f "
++            "aux_msl_source_count=%llu aux_msl_source_ms=%.3f "
+             "submit_shared_wait_count=%llu submit_shared_wait_ms=%.3f msl_source_count=%llu msl_source_ms=%.3f",
+             label, (unsigned long long)f, (unsigned long long)s->first_frame, (unsigned long long)v[RB_SKIP_SHADER_LIBRARY],
+-            (unsigned long long)v[RB_SKIP_RENDER_PSO], (unsigned long long)v[RB_SUBMIT_MSL_COUNT],
+-            v[RB_SUBMIT_MSL_NS]/1e6, (unsigned long long)v[RB_SUBMIT_SHARED_COUNT],
++            (unsigned long long)v[RB_SKIP_RENDER_PSO],
++            (unsigned long long)(v[RB_SUBMIT_MSL_COUNT]+v[RB_SUBMIT_AUX_MSL_COUNT]),
++            (v[RB_SUBMIT_MSL_NS]+v[RB_SUBMIT_AUX_MSL_NS])/1e6,
++            (unsigned long long)v[RB_SUBMIT_MSL_COUNT], v[RB_SUBMIT_MSL_NS]/1e6,
++            (unsigned long long)v[RB_SUBMIT_AUX_MSL_COUNT], v[RB_SUBMIT_AUX_MSL_NS]/1e6,
++            (unsigned long long)v[RB_AUX_MSL_COUNT], v[RB_AUX_MSL_NS]/1e6, (unsigned long long)v[RB_SUBMIT_SHARED_COUNT],
+             v[RB_SUBMIT_SHARED_NS]/1e6, (unsigned long long)v[RB_PSO_MSL_N], v[RB_PSO_MSL_NS]/1e6);
+     if (!pso_mode) return;
+     LOG("[%s] frame=%llu async=%d pso_cache_hit=%llu pso_async_queued=%llu pso_async_skipped_draws=%llu "
+diff --git a/graphics/nvn/gfx/nvn/nvn_frame_rec.inc b/graphics/nvn/gfx/nvn/nvn_frame_rec.inc
+index 8718f5697e1c9dc0983856b1ec44c59da0274328..1e1b414b2ca537735ead14ac4bbdc7a62309c4f3 100644
+--- a/graphics/nvn/gfx/nvn/nvn_frame_rec.inc
++++ b/graphics/nvn/gfx/nvn/nvn_frame_rec.inc
+@@ -197,7 +197,7 @@ static id<MTLLibrary> fr_ms_lib(void) {
+         "fragment int4 wr2(V v [[stage_in]], uint s [[sample_id]], const device int4 *b [[buffer(0)]], constant uint2 &wn [[buffer(1)]]) { uint2 p = uint2(v.p.xy); return b[(p.y * wn.x + p.x) * wn.y + s]; }\n"
+         "struct D { float d [[depth(any)]]; };\n"
+         "fragment D wr3(V v [[stage_in]], uint s [[sample_id]], const device float *b [[buffer(0)]], constant uint2 &wn [[buffer(1)]]) { uint2 p = uint2(v.p.xy); D o; o.d = b[(p.y * wn.x + p.x) * wn.y + s]; return o; }\n";
+-    NSError *e = nil; lib = [g_dev newLibraryWithSource:src options:nil error:&e];
++    NSError *e = nil; lib = rb_compile_auxiliary(g_dev,src,nil,&e);
+     if (!lib) MLOG("【红】 帧录：多重采样存放着色器编不出（%s），多重采样贴图不存", e.localizedDescription.UTF8String);
+     return lib;
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_geometry.inc b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+index beff1ce3121c9c9de771f7a8ac7bfa009b6e7fe4..163005fafe526a7535e95c00037edc0fb953d0c5 100644
+--- a/graphics/nvn/gfx/nvn/nvn_geometry.inc
++++ b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+@@ -21,7 +21,7 @@ static uint64_t g_tfd_args;   // the DrawTransformFeedback being drawn: GPU addr
+ static int tf_init(void) {
+     if (g_tf_ps[3]) return 1;
+     static int failed; if (failed) return 0;
+-    NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(k_nvn_geo_tf_msl) options:nil error:&e];
++    NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(k_nvn_geo_tf_msl),nil,&e);
+     const char *nm[4] = {"geo_tf_write", "geo_tf_count", "tf_draw_args", "tf_snap"};
+     for (int i = 0; lib && i < 4; i++) g_tf_ps[i] = [g_dev newComputePipelineStateWithFunction:[lib newFunctionWithName:@(nm[i])] error:&e];
+     g_tf_cnt = [g_dev newBufferWithLength:16 options:MTLResourceStorageModeShared]; g_tf_snapbuf = [g_dev newBufferWithLength:16 * TFS_N options:MTLResourceStorageModeShared];
+@@ -698,7 +698,7 @@ static void geo_draw(NvProg *pr, const p_draw *dw0, const p_draw_idx *di0) {
+         if (!gs->geo_pso) { gs->geo_pso_bad = 1; GEO_RED("【红】 geometry compute %s: %s（之后这支的几何绘制跳过、不重建）", gs->key, e.localizedDescription.UTF8String); return; } }
+     if (gs->geo_pso.maxTotalThreadsPerThreadgroup < 32) { GEO_RED("【红】 geometry kernel cannot run a 32-thread group"); return; }
+     static id<MTLComputePipelineState> pack;
+-    if (!pack) { NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(k_nvn_geo_pack_msl) options:nil error:&e];
++    if (!pack) { NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(k_nvn_geo_pack_msl),nil,&e);
+         if (lib) pack = [g_dev newComputePipelineStateWithFunction:[lib newFunctionWithName:@"geo_pack_indices"] error:&e];
+         if (!pack) { GEO_RED("【红】 geometry index compaction: %s", e.localizedDescription.UTF8String); return; } }
+ 
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 33b81001e588d499457e1e95c87e488cdf49ee75..13a65a8e63190888da2a6ca474ed827a1f8ba5bc 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -140,6 +140,7 @@ enum { NVN_HALF_SLOT = 27 };
+ static id<MTLBuffer> g_half_masks;
+ static int g_half_mask_sent = -1;
+ extern int dm_gfx_session_stopping(void);
++static id<MTLLibrary> rb_compile_auxiliary(id<MTLDevice>,NSString *,MTLCompileOptions *,NSError **);
+ static int g_nvn_deswz_gpu;
+ static id<MTLCommandQueue> g_q;
+ static id<MTL4CommandQueue> g_q4;
+@@ -273,6 +274,15 @@ static _Atomic int g_rb_observed_option;
+ int rb_observed_workers_on(void) {
+     return nvn_rb_thermal_scope() && rb_pacing_setting(&g_rb_observed_option, "S2A_RB_URGENT_WORKERS");
+ }
++static int rb_shader_stats_on(void) {
++    // Device capability probes may compile before the host registers its title.
++    // Do not let those early probes cache the thermal scope as an unhosted launch.
++    if (!atomic_load_explicit(&g_rb_thermal_host,memory_order_relaxed)) {
++        const char *title=getenv("S2A_RB_DIRECT_GAME_ID");
++        if (!title || !*title) return 0;
++    }
++    return nvn_rb_thermal_scope() && rb_pacing_setting(&g_rb_shader_stats_option,"S2A_RB_SHADER_STATS");
++}
+ static unsigned g_rb_waiters;
+ static uint64_t g_rb_wait_step, g_rb_wake_counts[3]; // notified, empty, premature
+ static double g_rb_wait_seconds;
+@@ -822,7 +832,7 @@ void mtl_init(void) {
+ #endif
+     MLOG("direct backend: Metal %d (%s)", g_m3 ? 3 : 4, be_why);
+     g_mesh_ok = [g_dev supportsFamily:MTLGPUFamilyMetal3];   // object / mesh functions (NVN2 DrawMeshTasks): Apple7+ / Mac2, every Metal 4 GPU; an older GPU on the Metal 3 path has none
+-    g_red_emu = !s2a_reduce_native(g_dev); g_lb_emu = !s2a_lodbias_native(g_dev);
++    g_red_emu = !s2a_reduce_native(g_dev); g_lb_emu = !s2a_lodbias_native_using(g_dev,rb_compile_auxiliary);
+     g_red_emu_why = s2a_samp_emu_forced() ? "forced by S2A_SAMP_EMU=1" : !os26 ? "macOS / iOS before 26" : "the GPU is not Apple10";
+     MLOG("sampler reduction: %s; sampler LOD bias: %s (%s)", g_red_emu ? "in the shader" : "native", g_lb_emu ? "in the shader" : "native", g_dev.name.UTF8String);
+     g_q = [g_dev newCommandQueue];
+@@ -903,7 +913,7 @@ void mtl_init(void) {
+     g_keep = [NSMutableArray array];
+     // Both backends share one pipeline (newComputePipelineStateWithFunction); only the encode differs: Metal 4 sets an argument table and takes the parameter block from a buffer, Metal 3 passes it
+     // with setBytes on the old compute encoder (#329 D3-4 class 3). Same kernel, so the Metal 3 result is byte-identical to the CPU deswizzle it replaces.
+-    g_nvn_deswz_gpu = nvn_deswz_gpu_init(g_dev) == 0;
++    g_nvn_deswz_gpu = nvn_deswz_gpu_init_using(g_dev,rb_compile_auxiliary) == 0;
+     dm_res_report_register(mtl_res_counts);
+     if (g_m3 && g_nvn_deswz_gpu) MLOG("Metal 3: GPU deswizzle on (classic compute encoder, parameter block through setBytes)");
+     else if (!g_nvn_deswz_gpu) MLOG("【红】 GPU deswizzle init failed; swizzled textures fall back to the CPU");
+@@ -3052,8 +3062,8 @@ static void gpu_hang_inject(void) {
+     if (at < 0) { const char *e = getenv("DM_TEST_GPU_HANG"); at = e ? atoi(e) : 0; if (at > 0) MLOG("DM_TEST_GPU_HANG=%d: frame %d gets an endless compute kernel (deliberate GPU hang, diagnostics only)", at, at); }
+     if (at <= 0 || atomic_load(&g_cur_frame) < (uint64_t)at || atomic_exchange(&done, 1)) return;
+     NSError *e = nil;
+-    id<MTLLibrary> lib = [g_dev newLibraryWithSource:@"#include <metal_stdlib>\nusing namespace metal;\n"
+-        "kernel void spin(device atomic_uint *p [[buffer(0)]]) { uint n = 0; while (atomic_load_explicit(p, memory_order_relaxed) != 0x5a5a5a5au) n++; atomic_store_explicit(p + 1, n, memory_order_relaxed); }\n" options:nil error:&e];
++    id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@"#include <metal_stdlib>\nusing namespace metal;\n"
++        "kernel void spin(device atomic_uint *p [[buffer(0)]]) { uint n = 0; while (atomic_load_explicit(p, memory_order_relaxed) != 0x5a5a5a5au) n++; atomic_store_explicit(p + 1, n, memory_order_relaxed); }\n",nil,&e);
+     id<MTLComputePipelineState> ps = lib ? [g_dev newComputePipelineStateWithFunction:[lib newFunctionWithName:@"spin"] error:&e] : nil;
+     if (!ps) { MLOG("【红】 DM_TEST_GPU_HANG: cannot build the endless kernel: %s", e.localizedDescription.UTF8String); return; }
+     id<MTLBuffer> b = [g_dev newBufferWithLength:16 options:MTLResourceStorageModeShared]; memset(b.contents, 0, 16);
+@@ -4869,7 +4879,7 @@ static int bcd_fmt(uint32_t f) {   // NVN format → the kernel's fmt; 0 = not d
+ }
+ static id<MTLComputePipelineState> bcd_pso(void) {
+     static id<MTLComputePipelineState> ps; static int failed;
+-    if (!ps && !failed) { NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(k_bcd_msl) options:nil error:&e]; id<MTLFunction> fn = lib ? [lib newFunctionWithName:@"bcd"] : nil;
++    if (!ps && !failed) { NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(k_bcd_msl),nil,&e); id<MTLFunction> fn = lib ? [lib newFunctionWithName:@"bcd"] : nil;
+         ps = fn ? [g_dev newComputePipelineStateWithFunction:fn error:&e] : nil;
+         if (!ps) { failed = 1; MLOG("【红】 no BC: the GPU decompression pipeline cannot be built (%s); BC1–5 fall back to the CPU", e.localizedDescription.UTF8String); } else MLOG("no BC: BC1–5 are decompressed on the GPU"); }
+     return ps;
+@@ -10018,6 +10028,7 @@ static _Atomic uint64_t g_rb_lib_done;   // RewindBox (patch 0085): libraries bu
+ // Base translations and typed-output, sampler and padded vertex variants.
+ // Count only real newLibraryWithSource calls, including failed attempts.
+ static _Atomic uint64_t g_rb_msl_n, g_rb_msl_ns, g_rb_msl_shared;
++static _Atomic uint64_t g_rb_aux_msl_n, g_rb_aux_msl_ns, g_rb_submit_aux_msl_n, g_rb_submit_aux_msl_ns;
+ static __thread uint64_t t_rb_msl_n; // per-job reference preparation accounting
+ static _Atomic uint64_t g_bp_msl_n, g_bp_msl_ns; // subset compiled on the submit thread
+ static _Atomic uint64_t g_rb_first_shlib_skips, g_rb_first_pso_skips;
+@@ -10570,21 +10581,29 @@ static id<MTLLibrary> rb_disk_library(NSString *src) {
+     else atomic_fetch_add(&g_rb_air_misses, 1);
+     return lib;
+ }
+-static id<MTLLibrary> rb_compile_source(NSString *src, NSError **error) {
+-    id<MTLLibrary> binary = rb_disk_library(src);
+-    if (binary) return binary;
+-    uint64_t start = bp_now();
+-    id<MTLLibrary> lib = [g_dev newLibraryWithSource:src options:dm_msl_opts() error:error];
+-    uint64_t elapsed = bp_now() - start;
+-    atomic_fetch_add_explicit(&g_rb_msl_n, 1, memory_order_relaxed);
+-    atomic_fetch_add_explicit(&g_rb_msl_ns, elapsed, memory_order_relaxed);
+-    t_rb_msl_n++;
++static id<MTLLibrary> rb_measure_source(id<MTLDevice> device,NSString *src,MTLCompileOptions *options,
++                                       NSError **error,int guest) {
++    uint64_t start=bp_now();
++    id<MTLLibrary> lib=s2a_mtl_source(device,src,options,error);
++    uint64_t elapsed=bp_now()-start;
++    atomic_fetch_add_explicit(guest ? &g_rb_msl_n : &g_rb_aux_msl_n,1,memory_order_relaxed);
++    atomic_fetch_add_explicit(guest ? &g_rb_msl_ns : &g_rb_aux_msl_ns,elapsed,memory_order_relaxed);
++    if (guest) t_rb_msl_n++;
+     if (on_sub_thread()) {
+-        atomic_fetch_add_explicit(&g_bp_msl_n, 1, memory_order_relaxed);
+-        atomic_fetch_add_explicit(&g_bp_msl_ns, elapsed, memory_order_relaxed);
++        atomic_fetch_add_explicit(guest ? &g_bp_msl_n : &g_rb_submit_aux_msl_n,1,memory_order_relaxed);
++        atomic_fetch_add_explicit(guest ? &g_bp_msl_ns : &g_rb_submit_aux_msl_ns,elapsed,memory_order_relaxed);
+     }
+     return lib;
+ }
++static id<MTLLibrary> rb_compile_auxiliary(id<MTLDevice> device,NSString *src,MTLCompileOptions *options,NSError **error) {
++    if (!rb_shader_stats_on()) return s2a_mtl_source(device,src,options,error);
++    return rb_measure_source(device,src,options,error,0);
++}
++static id<MTLLibrary> rb_compile_source(NSString *src, NSError **error) {
++    id<MTLLibrary> binary = rb_disk_library(src);
++    if (binary) return binary;
++    return rb_measure_source(g_dev,src,dm_msl_opts(),error,1);
++}
+ static id<MTLLibrary> rb_source_library(NSString *src, int share, NSError **error) {
+     if (!share) return rb_compile_source(src, error);
+     const char *bytes = src.UTF8String;
+@@ -11110,7 +11129,7 @@ static NvShader *builtin_get(const char *ctl) {
+         NvShader *o = g_builtin[@(ctl)];
+         if (o) return o;
+         if (!g_builtin_lib) {
+-            NSError *e = nil; g_builtin_lib = [g_dev newLibraryWithSource:@(k_nvn_builtin_msl) options:nil error:&e];
++            NSError *e = nil; g_builtin_lib = rb_compile_auxiliary(g_dev,@(k_nvn_builtin_msl),nil,&e);
+             if (!g_builtin_lib) MDIE("embedded compute kernel MSL compile failed: %s", e.localizedDescription.UTF8String);
+         }
+         o = [NvShader new]; o->fn = [g_builtin_lib newFunctionWithName:@(k_nvn_builtin_map[i].fn)]; o->stage = 5; o->builtin = k_nvn_builtin_map[i].fn;
+@@ -11127,7 +11146,7 @@ static int tess_init(void) {
+     if (g_tess_emit) return 1;   // 已编译
+     if (!g_tess_lib) {
+         NSError *e = nil;
+-        g_tess_lib = [g_dev newLibraryWithSource:nvn_tess_msl() options:nil error:&e];
++        g_tess_lib = rb_compile_auxiliary(g_dev,nvn_tess_msl(),nil,&e);
+         if (!g_tess_lib) {
+             static int once; if (!once++) MLOG("【红】 tessellation kernel MSL compile failed: %s; patch draws will be skipped", e.localizedDescription.UTF8String);
+             return 0;
+@@ -13318,10 +13337,10 @@ static MTLRenderPipelineDescriptor *pso_desc_capture(const pso_key *k, NvShader
+         dispatch_once(&once, ^{ const char *e = getenv("DM_NVN_HILITE");
+             for (const char *q = e; q && *q && nk < 6; q = strchr(q, ',') ? strchr(q, ',') + 1 : q + strlen(q)) { size_t n = strcspn(q, ","); if (n > 23) n = 23; memcpy(keys[nk], q, n); keys[nk++][n] = 0; }
+             if (!nk) return;
+-            NSError *err = nil; hl = [g_dev newLibraryWithSource:@"#include <metal_stdlib>\nusing namespace metal;\nstruct O { float4 c0 [[color(0)]]; float4 c1 [[color(1)]]; float4 c2 [[color(2)]]; };\n"
++            NSError *err = nil; hl = rb_compile_auxiliary(g_dev,@"#include <metal_stdlib>\nusing namespace metal;\nstruct O { float4 c0 [[color(0)]]; float4 c1 [[color(1)]]; float4 c2 [[color(2)]]; };\n"
+                 "fragment O hl0() { return {float4(1,0,1,1),float4(1,0,1,1),float4(1,0,1,1)}; } fragment O hl1() { return {float4(0,1,0,1),float4(0,1,0,1),float4(0,1,0,1)}; }\n"
+                 "fragment O hl2() { return {float4(0,1,1,1),float4(0,1,1,1),float4(0,1,1,1)}; } fragment O hl3() { return {float4(1,1,0,1),float4(1,1,0,1),float4(1,1,0,1)}; }\n"
+-                "fragment O hl4() { return {float4(0,0,1,1),float4(0,0,1,1),float4(0,0,1,1)}; } fragment O hl5() { return {float4(1,1,1,1),float4(1,1,1,1),float4(1,1,1,1)}; }\n" options:nil error:&err];
++                "fragment O hl4() { return {float4(0,0,1,1),float4(0,0,1,1),float4(0,0,1,1)}; } fragment O hl5() { return {float4(1,1,1,1),float4(1,1,1,1),float4(1,1,1,1)}; }\n",nil,&err);
+             if (!hl) MLOG("【红】 HILITE shader compile failed %s", err.localizedDescription.UTF8String); });
+         for (int i = 0; i < nk; i++) if (!strncmp(fs->key, keys[i], strlen(keys[i]))) {
+             if (hl) d.fragmentFunction = [hl newFunctionWithName:[NSString stringWithFormat:@"hl%d", i]];
+@@ -18753,8 +18772,8 @@ static id<MTLFunction> ms_fs_override(NvShader *fs) {
+     if (!fs || !ms_on() || strncmp(fs->key, g_ms_key, strlen(g_ms_key))) return nil;
+     int ph = ms_phase_now(); if (ph < 2) return nil;
+     static id<MTLFunction> fn[2]; static int failed;
+-    if (!fn[0] && !failed) { NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:@"#include <metal_stdlib>\nusing namespace metal;\n"
+-            "fragment float4 msg() { return float4(0.5, 0.5, 0.5, 1.0); }\nfragment float4 msm() { return float4(1500.0, 2.0, 1500.0, 0.6); }\n" options:nil error:&e];
++    if (!fn[0] && !failed) { NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@"#include <metal_stdlib>\nusing namespace metal;\n"
++            "fragment float4 msg() { return float4(0.5, 0.5, 0.5, 1.0); }\nfragment float4 msm() { return float4(1500.0, 2.0, 1500.0, 0.6); }\n",nil,&e);
+         fn[0] = [lib newFunctionWithName:@"msg"]; fn[1] = [lib newFunctionWithName:@"msm"];
+         if (!fn[0] || !fn[1]) { failed = 1; MLOG("【红】 DM_NVN_MAGSCAN: cannot compile the constant fragment shaders %s", e.localizedDescription.UTF8String); } }
+     return failed ? nil : fn[ph - 2];
+@@ -18844,7 +18863,7 @@ void ms_after(void) {
+     if (g_ms_cur < 0 || g_stat_pass != g_ms_apass) { for (int i = 0; i < na; i++) g_ms_att[i] = nil; return; }
+     static int failed; static id<MTLComputePipelineState> ps; static id at; static int logged_att;
+     if (failed) return;
+-    if (!ps) { NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(k_ms_msl) options:nil error:&e]; id<MTLFunction> fn = lib ? [lib newFunctionWithName:@"ms"] : nil;
++    if (!ps) { NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(k_ms_msl),nil,&e); id<MTLFunction> fn = lib ? [lib newFunctionWithName:@"ms"] : nil;
+         ps = fn ? [g_dev newComputePipelineStateWithFunction:fn error:&e] : nil;
+         at = rec_table(tab_new(1, 1, 0, &e));
+         if (!ps || !at) { failed = 1; MLOG("【红】 DM_NVN_MAGSCAN: cannot create the compute pipeline %s", e.localizedDescription.UTF8String); return; } }
+@@ -19542,7 +19561,7 @@ static void ixc_take(const p_draw *dw, const p_draw_idx *di) {
+ static void ixc_run(const p_draw *dw, const p_draw_idx *di) {
+     static id<MTLComputePipelineState> ps[2]; static id at; static int failed;
+     if (failed) return;
+-    if (!at) { NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(k_ixc_msl) options:nil error:&e];
++    if (!at) { NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(k_ixc_msl),nil,&e);
+         for (int k = 0; k < 2 && lib; k++) { id<MTLFunction> f = [lib newFunctionWithName:k ? @"ixc_expand" : @"ixc_arrays"]; ps[k] = f ? [g_dev newComputePipelineStateWithFunction:f error:&e] : nil; }
+         at = ps[0] && ps[1] ? rec_table(tab_new(1, 0, 0, &e)) : nil;
+         if (!at) { failed = 1; MLOG("【红】 indirect draw conversion: cannot create the compute pipeline %s (indirect draws of quads / fans / 8-bit indices are skipped)", e.localizedDescription.UTF8String); return; } }
+@@ -19626,7 +19645,7 @@ static void wide_take(const p_draw_idx *di) { if (g_wide_n < WIDE_MAX && !wide_f
+ static void wide_run(const p_draw_idx *di) {
+     static id<MTLComputePipelineState> ps; static id at; static int failed;
+     if (failed) return;
+-    if (!at) { NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(k_wide_msl) options:nil error:&e]; id<MTLFunction> f = lib ? [lib newFunctionWithName:@"wide_u8"] : nil;
++    if (!at) { NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(k_wide_msl),nil,&e); id<MTLFunction> f = lib ? [lib newFunctionWithName:@"wide_u8"] : nil;
+         ps = f ? [g_dev newComputePipelineStateWithFunction:f error:&e] : nil;
+         at = ps ? rec_table(tab_new(1, 0, 0, &e)) : nil;
+         if (!at) { failed = 1; MLOG("【红】 8-bit index GPU expansion: cannot create the compute pipeline %s (the CPU expands them as before)", e.localizedDescription.UTF8String); return; } }
+@@ -19800,7 +19819,7 @@ static void mdx_run(const p_draw *dw, const p_draw_idx *di) {
+     static id<MTLComputePipelineState> ps; static id at; static int failed;
+     static int lay;   // RewindBox (patch 0067): lay: the jobs carry chk (k_mdx_msl_chk); g_mdxchk_buf: its slots, CPU-visible
+     if (failed) return;
+-    if (!at) { lay = rb_mdxchk_on() && fsig_on(); NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(lay ? k_mdx_msl_chk : k_mdx_msl) options:nil error:&e]; id<MTLFunction> f = [lib newFunctionWithName:@"mdx_mask"];   // RewindBox (patch 0067): lay, k_mdx_msl_chk
++    if (!at) { lay = rb_mdxchk_on() && fsig_on(); NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(lay ? k_mdx_msl_chk : k_mdx_msl),nil,&e); id<MTLFunction> f = [lib newFunctionWithName:@"mdx_mask"];   // RewindBox (patch 0067): lay, k_mdx_msl_chk
+         ps = f ? [g_dev newComputePipelineStateWithFunction:f error:&e] : nil;
+         at = ps ? rec_table(tab_new(1, 0, 0, &e)) : nil;
+         if (!at) { failed = 1; MLOG("【红】 indirect-count multi-draw masking: cannot create the compute pipeline %s (those draws wait for the GPU)", e.localizedDescription.UTF8String); return; }
+@@ -19978,7 +19997,7 @@ static void tf_draw(NvProg *pr, const p_draw *dw, const p_draw_idx *di) {
+         }
+     }
+     static id<MTLComputePipelineState> gather;
+-    if (di && !gather) { NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(k_tf_gather_msl) options:nil error:&e];
++    if (di && !gather) { NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(k_tf_gather_msl),nil,&e);
+         if (lib) gather = [g_dev newComputePipelineStateWithFunction:[lib newFunctionWithName:@"tf_gather"] error:&e];
+         if (!gather) { free(order); nvn_be_bad_draw_feat(); RED_ONCE(125, "transform feedback gather kernel: %s", e.localizedDescription.UTF8String); return; } }
+     __unsafe_unretained id<MTLRenderPipelineState> ps = tf_pso(vs);
+@@ -20594,7 +20613,7 @@ static void draw_tex(const p_draw_tex *t) {
+     if (failed) return;
+     if (!g_dt_vs) {
+         const char *src = rb_texture_copy_msl();
+-        NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(src) options:nil error:&e];
++        NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(src),nil,&e);
+         id<MTLFunction> vf = [lib newFunctionWithName:@"dt_vs"], ff = [lib newFunctionWithName:@"dt_fs"];
+         g_dt_tab = vf && ff ? rec_table(tab_new(1, 1, 1, &e)) : nil;
+         if (!g_dt_tab) { failed = 1; MLOG("【红】 DrawTexture: cannot build its shaders / argument table: %s; DrawTexture draws nothing", e.localizedDescription.UTF8String); return; }
+@@ -21339,7 +21358,9 @@ static void rb_icls_kick(NvShader *cs, int k, uint64_t m) {
+             if (!u) snprintf(why, sizeof why, "its fallback translation is unreadable");
+             NSString *vs = o ? [[NSString alloc] initWithBytesNoCopy:o length:strlen(o) encoding:NSUTF8StringEncoding freeWhenDone:YES] : nil;
+             if (o && !vs) { free(o); snprintf(why, sizeof why, "not UTF-8"); }
+-            if (vs) { NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:vs options:dm_msl_opts() error:&e];
++            if (vs) { NSError *e = nil; id<MTLLibrary> lib = rb_shader_stats_on()
++                    ? rb_measure_source(g_dev,vs,dm_msl_opts(),&e,1)
++                    : s2a_mtl_source(g_dev,vs,dm_msl_opts(),&e);
+                 id<MTLFunction> f = lib_entry(lib, entry);   // RewindBox (patch 0073, review): specialised when it declares function constants, as main0 is (a pipeline of an unspecialised one fails)
+                 ps = f ? par_compute(f, nil, &e) : nil;   // not archived: one per shader and class set, made once a run
+                 if (!ps) snprintf(why, sizeof why, "%s", e ? e.localizedDescription.UTF8String : "no entry point"); }
+@@ -21972,7 +21993,7 @@ static int copy_t2t_draw_impl(id<MTLTexture> s, id<MTLTexture> d, unsigned sl, u
+             "struct DS { float d [[depth(any)]]; uint s [[stencil]]; };\n"
+             "fragment DS fsds(V in [[stage_in]], depth2d<float> t [[texture(0)]], texture2d<uint> ts [[texture(1)]], constant float4 *p [[buffer(0)]]) {\n"
+             "  float2 st = p[0].xy + (in.p.xy - p[1].xy) * p[0].zw; DS o; o.d = t.read(uint2(st)); o.s = ts.read(uint2(st)).r; return o; }\n";
+-        NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(src) options:nil error:&e];
++        NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(src),nil,&e);
+         vf = [lib newFunctionWithName:@"vs"]; ff = [lib newFunctionWithName:@"fs"]; fd = [lib newFunctionWithName:@"fsd"]; fds = [lib newFunctionWithName:@"fsds"];
+         MTLDepthStencilDescriptor *dd = [MTLDepthStencilDescriptor new]; dd.depthCompareFunction = MTLCompareFunctionAlways; dd.depthWriteEnabled = YES; dss = [g_dev newDepthStencilStateWithDescriptor:dd];
+         MTLStencilDescriptor *sd_ = [MTLStencilDescriptor new]; sd_.stencilCompareFunction = MTLCompareFunctionAlways; sd_.depthStencilPassOperation = MTLStencilOperationReplace;   // Replace writes the [[stencil]] output
+@@ -22493,7 +22514,7 @@ static id<MTLLibrary> clr_lib(int slot, int kind) {   // vertex clr_vs (the tria
+     snprintf(src, sizeof src, "#include <metal_stdlib>\nusing namespace metal;\nstruct V { float4 p [[position]]; };\n"
+              "vertex V clr_vs(uint i [[vertex_id]], device const float *z [[buffer(0)]]) { V o; o.p = float4(float2(float((i << 1) & 2), float(i & 2)) * 2.0 - 1.0, z[0], 1.0); return o; }\n"
+              "struct O { %s4 c [[color(%d)]]; };\nfragment O clr_fs(device const %s4 *v [[buffer(0)]]) { O o; o.c = v[0]; return o; }\n", ty[kind], slot, ty[kind]);
+-    NSError *e = nil; libs[slot][kind] = [g_dev newLibraryWithSource:@(src) options:nil error:&e];
++    NSError *e = nil; libs[slot][kind] = rb_compile_auxiliary(g_dev,@(src),nil,&e);
+     if (!libs[slot][kind]) { failed[slot][kind] = 1; MLOG("【红】 clear-triangle shader compile failed (slot %d kind %d): %s", slot, kind, e.localizedDescription.UTF8String); }
+     return libs[slot][kind];
+ }
+@@ -23725,7 +23746,7 @@ static void td_dump(void) {
+             "struct V { float4 p [[position]]; float2 uv; };\n"
+             "vertex V vs(uint id [[vertex_id]]) { float2 uv = float2((id << 1) & 2, id & 2); V o; o.p = float4(uv * float2(2, -2) + float2(-1, 1), 0, 1); o.uv = uv; return o; }\n"
+             "fragment float4 fs(V in [[stage_in]], texture2d<float> t [[texture(0)]], sampler s [[sampler(0)]]) { float4 c = t.sample(s, in.uv); return float4(c.rgb, 1); }\n";
+-        NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(src_msl) options:nil error:&e];
++        NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(src_msl),nil,&e);
+         MTLRenderPipelineDescriptor *d = [MTLRenderPipelineDescriptor new];
+         d.vertexFunction = [lib newFunctionWithName:@"vs"]; d.fragmentFunction = [lib newFunctionWithName:@"fs"];
+         d.colorAttachments[0].pixelFormat = MTLPixelFormatRGBA8Unorm;
+@@ -23746,7 +23767,7 @@ static void td_dump(void) {
+             "fragment float4 f3(V in [[stage_in]], texture3d<float> t [[texture(0)]], constant uint4 &k [[buffer(0)]], constant uint &a [[buffer(1)]]) { uint3 q; if (!cell(in.p.xy, k, q)) return float4(0.25, 0, 0.25, 1); float4 c = t.read(q); return PICK(c); }\n"
+             "fragment float4 f3u(V in [[stage_in]], texture3d<uint> t [[texture(0)]], constant uint4 &k [[buffer(0)]], constant uint &a [[buffer(1)]]) { uint3 q; if (!cell(in.p.xy, k, q)) return float4(0.25, 0, 0.25, 1); float4 c = float4(min(t.read(q), 255u)) / 255.0; return PICK(c); }\n"
+             "fragment float4 f3i(V in [[stage_in]], texture3d<int> t [[texture(0)]], constant uint4 &k [[buffer(0)]], constant uint &a [[buffer(1)]]) { uint3 q; if (!cell(in.p.xy, k, q)) return float4(0.25, 0, 0.25, 1); float4 c = float4(clamp(t.read(q) + 128, 0, 255)) / 255.0; return PICK(c); }\n";
+-        id<MTLLibrary> il = [g_dev newLibraryWithSource:@(int_msl) options:nil error:&e];
++        id<MTLLibrary> il = rb_compile_auxiliary(g_dev,@(int_msl),nil,&e);
+         const char *fn[5] = {"fu", "fi", "f3", "f3u", "f3i"};
+         for (int k = 0; il && k < 5; k++) {
+             d.vertexFunction = [il newFunctionWithName:@"vs"]; d.fragmentFunction = [il newFunctionWithName:@(fn[k])];
+@@ -23861,7 +23882,7 @@ static void td_dump(void) {
+                 "fragment float4 sf(V in [[stage_in]], texture2d<float> t [[texture(0)]], sampler s [[sampler(0)]]) { return float4(t.sample(s, in.uv).rgb, 1); }\n"
+                 "fragment float4 su(V in [[stage_in]], texture2d<uint> t [[texture(0)]]) { uint4 c = t.read(at(in.uv, t.get_width(), t.get_height())); return float4(float3(min(c.rgb, 255u)) / 255.0, 1); }\n"
+                 "fragment float4 si(V in [[stage_in]], texture2d<int> t [[texture(0)]]) { int4 c = t.read(at(in.uv, t.get_width(), t.get_height())); return float4(float3(clamp(c.rgb + 128, 0, 255)) / 255.0, 1); }\n";
+-            NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(sheet_msl) options:nil error:&e];
++            NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(sheet_msl),nil,&e);
+             const char *fn[3] = {"sf", "su", "si"};
+             for (int k = 0; lib && k < 3; k++) {
+                 MTLRenderPipelineDescriptor *d = [MTLRenderPipelineDescriptor new];
+@@ -24020,7 +24041,7 @@ static void present_pipeline(MTLPixelFormat format) {
+             "struct Crop { float4 rect; float4 edge; };\n"
+             "fragment float4 fs(V in [[stage_in]], texture2d<float> t [[texture(0)]], sampler s [[sampler(0)]], constant Crop& c [[buffer(0)]]) { return t.sample(s, clamp(in.uv * c.rect.zw + c.rect.xy, c.edge.xy, c.edge.zw)); }\n";
+         NSError *e = nil;
+-        id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(src_msl) options:nil error:&e];
++        id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(src_msl),nil,&e);
+         if (!lib) MDIE("present shader compile failed %s", e.localizedDescription.UTF8String);
+         MTLRenderPipelineDescriptor *pd = [MTLRenderPipelineDescriptor new];
+         pd.vertexFunction = [lib newFunctionWithName:@"vs"]; pd.fragmentFunction = [lib newFunctionWithName:@"fs"];
+@@ -25032,11 +25053,11 @@ double nvn_be_gpu_probe_ms(void) {
+         atomic_store(&g_probe_state, 1);
+         dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+             NSError *er = nil;
+-            id<MTLLibrary> lib = [g_dev newLibraryWithSource:@"#include <metal_stdlib>\nusing namespace metal;\n"
++            id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@"#include <metal_stdlib>\nusing namespace metal;\n"
+                 @"kernel void rb_probe(device float *o [[buffer(0)]], uint i [[thread_position_in_grid]]) {\n"
+                 @"    float a = float(i) * 1e-6f, b = 1.0f;\n"
+                 @"    for (int k = 0; k < 2048; k++) { b = fma(b, 0.99991f, a); a = fma(a, 1.00007f, b * 1e-7f); }\n"
+-                @"    o[i] = a + b;\n}\n" options:nil error:&er];
++                @"    o[i] = a + b;\n}\n",nil,&er);
+             id<MTLFunction> fn = [lib newFunctionWithName:@"rb_probe"];
+             id<MTLComputePipelineState> pso = fn ? [g_dev newComputePipelineStateWithFunction:fn error:&er] : nil;
+             id<MTLCommandQueue> q = pso ? [g_dev newCommandQueue] : nil;
+@@ -25224,7 +25245,7 @@ int mtl_tab_selftest(char *why, size_t n) {
+     if (!g_m3) { snprintf(why, n, "not on the Metal 3 path"); return 1; }
+     static const char *src = "#include <metal_stdlib>\nusing namespace metal;\n"
+         "kernel void cp(device const uint *a [[buffer(0)]], device uint *b [[buffer(3)]], uint i [[thread_position_in_grid]]) { b[i] = a[i]; }\n";
+-    NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(src) options:nil error:&e];
++    NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(src),nil,&e);
+     id<MTLComputePipelineState> ps = lib ? [g_dev newComputePipelineStateWithFunction:[lib newFunctionWithName:@"cp"] error:&e] : nil;
+     if (!ps) { snprintf(why, n, "kernel: %s", e.localizedDescription.UTF8String); return 1; }
+     id<MTLBuffer> buf = [g_dev newBufferWithLength:4096 options:MTLResourceStorageModeShared]; res_add(buf); res_commit();
+@@ -25283,8 +25304,7 @@ void nvn_be_alloc_stats(uint64_t *waits, uint64_t *grown, int *n) { *waits = g_a
+ #include "rb_pso_activity.h"
+ int nvn_rb_pso_activity(rb_pso_activity *out) {
+     int mode = rb_pso_mode();
+-    int report = nvn_rb_thermal_scope() &&
+-                 rb_pacing_setting(&g_rb_shader_stats_option, "S2A_RB_SHADER_STATS");
++    int report = rb_shader_stats_on();
+     if (!mode && !report) return 0;
+     memset(out, 0, sizeof *out);
+     if (mode) {
+@@ -25294,6 +25314,10 @@ int nvn_rb_pso_activity(rb_pso_activity *out) {
+     if (report) {
+         out->value[RB_SUBMIT_MSL_COUNT] = atomic_load_explicit(&g_bp_msl_n, memory_order_relaxed);
+         out->value[RB_SUBMIT_MSL_NS] = atomic_load_explicit(&g_bp_msl_ns, memory_order_relaxed);
++        out->value[RB_SUBMIT_AUX_MSL_COUNT] = atomic_load_explicit(&g_rb_submit_aux_msl_n,memory_order_relaxed);
++        out->value[RB_SUBMIT_AUX_MSL_NS] = atomic_load_explicit(&g_rb_submit_aux_msl_ns,memory_order_relaxed);
++        out->value[RB_AUX_MSL_COUNT] = atomic_load_explicit(&g_rb_aux_msl_n,memory_order_relaxed);
++        out->value[RB_AUX_MSL_NS] = atomic_load_explicit(&g_rb_aux_msl_ns,memory_order_relaxed);
+         out->value[RB_SUBMIT_SHARED_COUNT] = atomic_load_explicit(&g_rb_submit_shared_count, memory_order_relaxed);
+         out->value[RB_SUBMIT_SHARED_NS] = atomic_load_explicit(&g_rb_submit_shared_ns, memory_order_relaxed);
+         out->value[RB_SKIP_SHADER_LIBRARY] = atomic_load_explicit(&g_rb_first_shlib_skips, memory_order_relaxed);
+diff --git a/graphics/nvn/gfx/nvn/nvn_present_aa.inc b/graphics/nvn/gfx/nvn/nvn_present_aa.inc
+index 58c1d62acc5715b9ee28f252e65fe47fb57704d2..bb5ecd9d23111121b390c2902863dfac6a86bd50 100644
+--- a/graphics/nvn/gfx/nvn/nvn_present_aa.inc
++++ b/graphics/nvn/gfx/nvn/nvn_present_aa.inc
+@@ -56,7 +56,7 @@ static id<MTLComputePipelineState> present_aa_pipeline(int index, NSUInteger w,
+     const char *sources[] = {k_aa_edge, k_aa_blend, k_aa_neighbour};
+     NSString *names[] = {@"aa_edge", @"aa_blend", @"aa_neighbour"};
+     NSError *error = nil;
+-    if (!g_present_aa_libs[index]) g_present_aa_libs[index] = [g_dev newLibraryWithSource:@(sources[index]) options:nil error:&error];
++    if (!g_present_aa_libs[index]) g_present_aa_libs[index] = rb_compile_auxiliary(g_dev,@(sources[index]),nil,&error);
+     id<MTLLibrary> lib = g_present_aa_libs[index];
+     if (!lib) { MLOG("【红】 direct AA library: %s", error.localizedDescription.UTF8String); return nil; }
+     id<MTLFunction> function;
+diff --git a/graphics/nvn/gfx/nvn/nvn_rb_drs_pool.inc b/graphics/nvn/gfx/nvn/nvn_rb_drs_pool.inc
+index daa88de89838ac779ffbe16f6a7d6ae811d159c4..58372043ebe69c820c6831792ebf138b7e230bd7 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rb_drs_pool.inc
++++ b/graphics/nvn/gfx/nvn/nvn_rb_drs_pool.inc
+@@ -66,7 +66,7 @@ static NvRBDrsTools *rb_drs_tools(void) {
+     id<MTLDevice> device=g_dev;
+     dispatch_async(tools->queue, ^{ @autoreleasepool {
+         NSError *err=nil;
+-        tools->library=[device newLibraryWithSource:@(rb_texture_copy_msl()) options:nil error:&err];
++        tools->library=rb_compile_auxiliary(device,@(rb_texture_copy_msl()),nil,&err);
+         tools->pipes=[NSMutableDictionary dictionary];
+         MTLDepthStencilDescriptor *depth=[MTLDepthStencilDescriptor new];
+         depth.depthCompareFunction=MTLCompareFunctionAlways; depth.depthWriteEnabled=YES;
+diff --git a/graphics/nvn/gfx/nvn/nvn_tensor.inc b/graphics/nvn/gfx/nvn/nvn_tensor.inc
+index 83c7434d660af83964ec8fccfb6373d113357b07..e2c839295955964e59517160f7f9b63af242828f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_tensor.inc
++++ b/graphics/nvn/gfx/nvn/nvn_tensor.inc
+@@ -88,7 +88,7 @@ static const char k_tensor_sq_msl[] =
+ static int tensor_sq_pass(id<MTLTexture> s, id<MTLTexture> d) {
+     static id<MTLComputePipelineState> ps; static id at; static int failed;
+     if (failed) return 0;
+-    if (!at) { NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(k_tensor_sq_msl) options:nil error:&e]; id<MTLFunction> f = lib ? [lib newFunctionWithName:@"tensor_sq"] : nil;
++    if (!at) { NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(k_tensor_sq_msl),nil,&e); id<MTLFunction> f = lib ? [lib newFunctionWithName:@"tensor_sq"] : nil;
+         ps = f ? [g_dev newComputePipelineStateWithFunction:f error:&e] : nil;
+         at = ps ? rec_table(tab_new(1, 2, 0, &e)) : nil;
+         if (!at) { failed = 1; MLOG("【红】 张量核网络顶替：平方计算核建不出（%s），要平方的出口层输出图不写", e.localizedDescription.UTF8String); return 0; } }
+diff --git a/graphics/nvn/gfx/nvn/rb_pso_activity.h b/graphics/nvn/gfx/nvn/rb_pso_activity.h
+index 919b700498cc5307a0005d742767aeb3816f2790..7be3593dda09df7969149d8c4d220282ac0f8045 100644
+--- a/graphics/nvn/gfx/nvn/rb_pso_activity.h
++++ b/graphics/nvn/gfx/nvn/rb_pso_activity.h
+@@ -13,7 +13,8 @@ enum {
+     RB_PSO_C_SUB_N, RB_PSO_C_SUB_NS, RB_PSO_C_BG_N, RB_PSO_C_BG_NS,
+     RB_PSO_MSL_N, RB_PSO_MSL_NS,
+     RB_SUBMIT_MSL_COUNT, RB_SUBMIT_MSL_NS, RB_SUBMIT_SHARED_COUNT, RB_SUBMIT_SHARED_NS,
+-    RB_SKIP_SHADER_LIBRARY, RB_SKIP_RENDER_PSO, RB_PSO_COUNTERS
++    RB_SKIP_SHADER_LIBRARY, RB_SKIP_RENDER_PSO,
++    RB_SUBMIT_AUX_MSL_COUNT, RB_SUBMIT_AUX_MSL_NS, RB_AUX_MSL_COUNT, RB_AUX_MSL_NS, RB_PSO_COUNTERS
+ };
+ enum { RB_REPORT_PSO_MODE_MASK = 3, RB_REPORT_SHADER_WORK = 4 };
+ typedef struct { uint64_t value[RB_PSO_COUNTERS]; } rb_pso_activity;
+diff --git a/graphics/nvn/gfx/tex/nvn_deswizzle_gpu.h b/graphics/nvn/gfx/tex/nvn_deswizzle_gpu.h
+index e312bb969db8a8d34ae8f17821ff36886097fa22..8e03f4f5748b48a8401cc9673b9d6955a356246b 100644
+--- a/graphics/nvn/gfx/tex/nvn_deswizzle_gpu.h
++++ b/graphics/nvn/gfx/tex/nvn_deswizzle_gpu.h
+@@ -1,10 +1,11 @@
+ #pragma once
+ #include <stddef.h>
+ #include <stdint.h>
+-#import <Metal/Metal.h>
++#include "../../../metal/mtl_source.h"
+ #include "nvn_deswizzle.h"
+ 
+ int nvn_deswz_gpu_init(id<MTLDevice> dev);
++__attribute__((visibility("hidden"))) int nvn_deswz_gpu_init_using(id<MTLDevice> dev,s2a_mtl_source_builder make_library);
+ int nvn_deswz_gpu_encode(id<MTLComputeCommandEncoder> enc, id<MTLBuffer> src, uint64_t src_off,
+                          const nvn_texdesc *d, unsigned level, unsigned layer,
+                          id<MTLBuffer> dst, uint64_t dst_off, size_t dst_pitch);
+diff --git a/graphics/nvn/gfx/tex/nvn_deswizzle_gpu.m b/graphics/nvn/gfx/tex/nvn_deswizzle_gpu.m
+index 526bcc8b459096ea3a6ddb0e819e6c6625cbb9bd..d484ea86605a524d18d81971a7f7c63ee3bc52cf 100644
+--- a/graphics/nvn/gfx/tex/nvn_deswizzle_gpu.m
++++ b/graphics/nvn/gfx/tex/nvn_deswizzle_gpu.m
+@@ -16,10 +16,13 @@ static const char *const k_nvn_deswz_msl =
+     "}\n";
+ 
+ int nvn_deswz_gpu_init(id<MTLDevice> dev) {
++    return nvn_deswz_gpu_init_using(dev,s2a_mtl_source);
++}
++int nvn_deswz_gpu_init_using(id<MTLDevice> dev,s2a_mtl_source_builder make_library) {
+     if (g_nvn_deswz_pipeline) return 0;
+     if (!dev) return -1;
+     NSError *error = nil;
+-    id<MTLLibrary> library = [dev newLibraryWithSource:@(k_nvn_deswz_msl) options:nil error:&error];
++    id<MTLLibrary> library = make_library(dev,@(k_nvn_deswz_msl),nil,&error);
+     if (!library) return -1;
+     id<MTLFunction> function = [library newFunctionWithName:@"deswz"];
+     if (!function) return -1;
+diff --git a/graphics/nvn/tests/t_rb_msl_coverage.py b/graphics/nvn/tests/t_rb_msl_coverage.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..2c6c7bafb4dc942ee0b653390506bba1376ed909
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_msl_coverage.py
+@@ -0,0 +1,48 @@
++"""Check every production Metal source-compilation selector reachable from direct NVN."""
++from pathlib import Path
++import re
++
++ROOT = Path(__file__).resolve().parents[3]
++NVN = ROOT / "graphics/nvn"
++INCLUDE = re.compile(r'^\s*#\s*(?:include|import)\s*"([^"\n]+)"', re.MULTILINE)
++NONCODE = re.compile(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|//[^\n]*|/\*.*?\*/', re.DOTALL)
++
++
++def direct_sources():
++    # Also scan sibling translation units: the deswizzle compiler is linked
++    # separately, so walking only nvn_mtl.m's textual inclusions misses it.
++    stack = [NVN / "host_adapt.m"]
++    for folder in (NVN / "gfx/nvn", NVN / "gfx/tex"):
++        stack.extend(p for p in folder.iterdir() if p.suffix in {".c", ".m", ".mm", ".cpp"})
++    seen = set()
++    while stack:
++        p = stack.pop().resolve()
++        if p in seen:
++            continue
++        seen.add(p)
++        src = p.read_text()
++        yield p, src
++        for local in INCLUDE.findall(src):
++            candidate = p.parent / local
++            if candidate.is_file():
++                stack.append(candidate)
++
++
++source_header = ROOT / "graphics/metal/mtl_source.h"
++raw = []
++text = {}
++for path, source in direct_sources():
++    text[path] = source
++    code = NONCODE.sub(" ", source)
++    raw.extend([path] * len(re.findall(r'\bnewLibraryWithSource\s*:',code)))
++assert raw == [source_header], [str(p.relative_to(ROOT)) for p in raw]
++header = text[source_header]
++assert "[device newLibraryWithSource:source options:options error:error]" in header
++engine = text[NVN / "gfx/nvn/nvn_mtl.m"]
++for helper in ("nvn_deswz_gpu_init_using", "s2a_lodbias_native_using"):
++    assert f"{helper}(g_dev,rb_compile_auxiliary)" in engine
++assert "#define WD_P2_COMPILE rb_compile_auxiliary" in text[NVN / "widen_glue.inc"]
++assert "make_library(dev," in text[NVN / "gfx/tex/nvn_deswizzle_gpu.m"]
++assert "make_library(dev," in text[ROOT / "graphics/metal/gal_samp_caps.h"]
++assert "rb_measure_source(g_dev,vs,dm_msl_opts(),&e,1)" in engine
++print(f"Checked {len(text)} direct NVN sources and includes. One synchronous Metal source gateway.")
+diff --git a/graphics/nvn/widen_fallback.inc b/graphics/nvn/widen_fallback.inc
+index f7630cc36c44b62043ff5bd7f40eb3384dcf4e9b..004e460bf16ed8e01f1a52c2dfd107e737e17179 100644
+--- a/graphics/nvn/widen_fallback.inc
++++ b/graphics/nvn/widen_fallback.inc
+@@ -14,6 +14,10 @@
+ //   每 WD_P2_EVERY 次上屏在旧队列上等本帧提交事件，计算内核 wd_p2 读它两侧带各 16 列 × 32 行，数「alpha 是哨兵、颜色是原清屏色」的点（= 本帧没被画到），
+ //   并取中间区 8 格亮度（开平方后分 16 档：暗部更敏感，植物大战僵尸开机商标 → 暗底协议页按原亮度只变 0–2 档、判不出换场景，开平方后 3–6 档）作场景签名；完成回调只记结果，下次上屏由渲染线程交核心（s2a_widen_side_coverage，核心按迟滞决定回退 / 解除）。
+ //   只认带完整 alpha 的格式（RGBA8 / BGRA8 / RGBA16F / RGBA32F 及 sRGB），别的目标不放哨兵、不判
++#ifndef WD_P2_COMPILE
++#include "../metal/mtl_source.h"
++#define WD_P2_COMPILE s2a_mtl_source
++#endif
+ #define WD_P2_DA (4.0 / 255.0)
+ #define WD_P2_EVERY 30
+ #define WD_P2_FLAT 16   // 一侧带画到的点亮度最大 − 最小 ≤ 16/255 = 一片均匀（纯黑边 / 纯色底），不算有内容
+@@ -104,7 +108,7 @@ static int wd_fb_want_self(uint64_t ser, id<MTLTexture> mt, uint32_t r5[5]) {
+ }
+ static id<MTLComputePipelineState> wd_p2_pso(void) {
+     static id<MTLComputePipelineState> ps; static int failed;
+-    if (!ps && !failed) { NSError *e = nil; id<MTLLibrary> lib = [WD_P2_DEV newLibraryWithSource:@(k_wd_p2_msl) options:nil error:&e]; id<MTLFunction> fn = lib ? [lib newFunctionWithName:@"wd_p2"] : nil;
++    if (!ps && !failed) { NSError *e = nil; id<MTLLibrary> lib = WD_P2_COMPILE(WD_P2_DEV,@(k_wd_p2_msl),nil,&e); id<MTLFunction> fn = lib ? [lib newFunctionWithName:@"wd_p2"] : nil;
+         ps = fn ? [WD_P2_DEV newComputePipelineStateWithFunction:fn error:&e] : nil;
+         if (!ps) { failed = 1; WD_P2_LOG("【红】 宽屏·原比例回退：两侧覆盖采样管线建不出（%s），不判回退", e.localizedDescription.UTF8String); } }
+     return ps;
+@@ -204,3 +208,5 @@ static void wd_fb_vote(uint64_t ser, uint32_t w, uint32_t h) {
+ }
+ // 上屏前：本帧上屏的贴图（3D 镜头帧没有放宽笔投票时它就是世界目标；状态行对账）
+ static void wd_fb_present_tex(uint64_t ser, uint32_t w, uint32_t h) { g_p2_pser = ser; g_p2_pw = w; g_p2_ph = h; }
++
++#undef WD_P2_COMPILE
+diff --git a/graphics/nvn/widen_glue.inc b/graphics/nvn/widen_glue.inc
+index 2dc108d6f45bc3cc2934f1ff71db9ca42ced4105..5c0bf1c2fd10df46a3754ed177c827ee4b947d24 100644
+--- a/graphics/nvn/widen_glue.inc
++++ b/graphics/nvn/widen_glue.inc
+@@ -161,7 +161,7 @@ static void wd_flat_written(uint64_t ser) {
+ }
+ static id<MTLComputePipelineState> wd_flat_pso(void) {
+     static id<MTLComputePipelineState> ps; static int failed;
+-    if (!ps && !failed) { NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(k_wd_flat_msl) options:nil error:&e]; id<MTLFunction> fn = lib ? [lib newFunctionWithName:@"wd_flat"] : nil;
++    if (!ps && !failed) { NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(k_wd_flat_msl),nil,&e); id<MTLFunction> fn = lib ? [lib newFunctionWithName:@"wd_flat"] : nil;
+         ps = fn ? [g_dev newComputePipelineStateWithFunction:fn error:&e] : nil;
+         if (!ps) { failed = 1; MLOG("【红】 宽屏·按内容判横向细节：计算管线建不出（%s），照尺寸规则", e.localizedDescription.UTF8String); } }
+     return ps;
+@@ -209,6 +209,7 @@ static void wd_flat_flush(void) {   // 上屏（持 g_wd_mu）：本帧点名的
+ static int wd_on(void);
+ #define WD_P2_LOG MLOG
+ #define WD_P2_DEV g_dev
++#define WD_P2_COMPILE rb_compile_auxiliary
+ static int wd_p2_widen_on(void) { return wd_on() > 0; }
+ static id<MTLCommandBuffer> wd_p2_cmdbuf(void) {   // 旧队列上先等本帧提交事件（Metal 4 队列按提交顺序执行）
+     id<MTLCommandBuffer> cb = g_m3 ? [g_q3 commandBuffer] : [g_q commandBuffer];
+diff --git a/runtime/build.mk b/runtime/build.mk
+index 96655fb0fc1e62c2a58b893cba8a40dd8fd5481c..38d386054745ac3524efecf15a82d6f370d389bd 100644
+--- a/runtime/build.mk
++++ b/runtime/build.mk
+@@ -206,7 +206,7 @@ ifeq ($(shell uname -s),Darwin)
+ NVN_TEST_DIR := $(BUILD)/tests/nvn
+ # 包含了生产 nvn_mtl.m 的单测目标都依赖这一组（11-05 nvn_rec_cover 时红时绿：目标只写 nvn_mtl.m，改了它包含的 .inc / .h 时增量构建不重编，
+ #   红绿取决于旧对象是哪一版；列车 gate-host 复用检出，批与批之间就这样漂）
+-NVN_MTL_DEPS := graphics/nvn/gfx/nvn/nvn_mtl.m $(wildcard graphics/nvn/gfx/nvn/*.inc graphics/nvn/gfx/nvn/*.h graphics/nvn/*.inc graphics/nvn/host/*.h)
++NVN_MTL_DEPS := graphics/nvn/gfx/nvn/nvn_mtl.m graphics/metal/mtl_source.h graphics/metal/gal_samp_caps.h $(wildcard graphics/nvn/gfx/nvn/*.inc graphics/nvn/gfx/nvn/*.h graphics/nvn/*.inc graphics/nvn/host/*.h)
+ NVN_TEST_HOST_SRCS := $(filter-out runtime/src/host_main.c,$(NATIVE_SRCS)) $(APPLE_PLAT_SRCS) graphics/track/track.c graphics/track/glue.c
+ NVN_TEST_HOST_OBJS := $(addprefix $(NVN_TEST_DIR)/host/,$(addsuffix .o,$(NVN_TEST_HOST_SRCS)))
+ NVN_TEST_LIB := $(NVN_TEST_DIR)/nvn/mac/libnvn.a
