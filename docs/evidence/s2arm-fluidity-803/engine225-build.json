@@ -1,0 +1,79 @@
+{
+  "source": "8e3db7f544938e22f0677f93523b4a68331c7ae0",
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "run": 44858428067,
+  "attempt": 1,
+  "xcode": "Xcode 26.6",
+  "jobs": [
+    {
+      "platform": "macos-15",
+      "id": 136705960317,
+      "result": "success"
+    },
+    {
+      "platform": "macos-26",
+      "id": 136705960493,
+      "result": "success"
+    }
+  ],
+  "patchesVerified": 225,
+  "first219Verified": true,
+  "patchDelta": [
+    {
+      "name": "0220-nonblocking-personal-pipeline-prewarm.patch",
+      "sha256": "006493fc11dbf72aab6d1088689f7c049fdab548fc67340606d2d97b20de5b89"
+    },
+    {
+      "name": "0221-prepare-required-render-and-compute-pipelines-ahead.patch",
+      "sha256": "f788b5f0d97f985af018e9eb31c488bb136f51a38309311d0d5a7f39ed3bd6dc"
+    },
+    {
+      "name": "0222-scope-device-pipeline-archives-and-share-results.patch",
+      "sha256": "dee9a0e0e4ea1be8a03b179c4a50cfb4a5a07167cd281fc787f55d6b763c88ea"
+    },
+    {
+      "name": "0223-canonicalize-resident-pipeline-keys.patch",
+      "sha256": "b359894168630515e837b5dec56e41041332b03c7ded84072693f11a5fd2a00e"
+    },
+    {
+      "name": "0224-measure-pipeline-compilation-per-frame.patch",
+      "sha256": "89f72ac741a2f9bb76fe9ac6e03cef005a7564d31557ae98784eff63fcf3eff8"
+    },
+    {
+      "name": "0225-prepare-exact-shader-variants-off-submit.patch",
+      "sha256": "284c819acd305f133666c6d43e92d63d58e2973ff5e06095d7a45089dd4fc07d"
+    }
+  ],
+  "engineFingerprint": "77fa016ab521c34d280775a3dd37813108e697014c5afc4de2f190e601c5f058",
+  "pinSha256": "0759939cdd99a1057fdfb52d44c9e9b4ac32cc3d5339cd38f392f18ca1df81b1",
+  "artifact": {
+    "run": 44858428067,
+    "attempt": 1,
+    "artifact": 14689416661,
+    "name": "s2arm-engine-framework-8e3db7f544938e22f0677f93523b4a68331c7ae0",
+    "bytes": 25089177,
+    "sha256": "f488373b8042fc27fcafa6fafe239f7abaadda409a5def7bd1c15307016f4b3b",
+    "headSha": "8e3db7f544938e22f0677f93523b4a68331c7ae0",
+    "headBranch": "Claude",
+    "expiresAt": "2026-12-21T03:06:57Z"
+  },
+  "prepareRun": 44555747908,
+  "sysdataRun": 43038032448,
+  "unchangedExports": true,
+  "directShaderChain": "0be3f28548fd",
+  "validPostChangeDeviceWindows": 0,
+  "observedPostChangePerformance": null,
+  "macOS26HostChecks": {
+    "run": 44858428067,
+    "source": "8e3db7f544938e22f0677f93523b4a68331c7ae0",
+    "job": 136705960493,
+    "checks": {
+      "Check adaptive shader cache changes": true,
+      "Verify shader-library sharing and warm priority on the Mac GPU": true,
+      "Build S2Arm's iOS engine with no game (make ios)": true,
+      "scoped archive strict legacy hit, promotion, reopen and title/build isolation passed": true,
+      "PASS two missing locn5 variants": true,
+      "PASS unchanged invalid MSL compiled once": true
+    }
+  }
+}
