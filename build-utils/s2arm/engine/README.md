@@ -381,3 +381,5 @@ For title `04007EF01F8AE000`, `S2A_RB_SCALE_RETAIN=1` checks the shader's direct
 `S2A_RB_DRS=1` selects the 960×540, 816×459 and 720×405 tiers. Start with `S2A_RES_SCALE=1.0`. Dynamic scaling includes the retention checks. Its input is completed GPU frame time in milliseconds and the operating system's thermal state. Compare `[rscale-retain]`, `[rb-drs]`, `[rb-drs-fx]` and the physical encoder dimensions. The 1920×1080 composition stays native. All three new options are off by default.
 
 Patches 0234–0237 implement build-bound pacing profiles, bounded file-backed page hints, first-upload batching and metadata preparation, and display-link cadence. The [A18 Pro measurement and profile guide](../../../docs/evidence/s2arm-upload-pacing.md) lists the switches, limits and verification criteria.
+
+The [A18 Pro thermal comparison](../../../docs/evidence/s2arm-thermal-813.md) documents the hosted NVN2 DRS threshold, presentation scheduling, pipeline memory and archive budgets, guest QoS and resource-proven tile-pass rules.

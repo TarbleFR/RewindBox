@@ -1,0 +1,53 @@
+diff --git a/graphics/nvn/tests/t_rb_clear_batch_metal.m b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+index 5beab16..d5279c9 100644
+--- a/graphics/nvn/tests/t_rb_clear_batch_metal.m
++++ b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+@@ -94,8 +94,8 @@ static void tracked_pair(id<MTLDevice> dev, int combined, ClearImage out) {
+ 
+ // A clipped or observable plane must survive the first pass. This tracked-Metal
+ // control runs on virtual Macs alongside the direct queue fixture on Apple GPUs.
+-static void tracked_store(id<MTLDevice> dev) {
+-    unsigned char memory[128];
++static void tracked_store(id<MTLDevice> dev, int optimize, ClearImage out) {
++    static unsigned char memory[128];
+     pool_t local={.mem=memory,.size=sizeof memory};
+     tex_t t[2]={0}; p_set_rt old={.n=2}, next={.n=1};
+     for (unsigned i=0;i<2;i++) {
+@@ -120,8 +120,8 @@ static void tracked_store(id<MTLDevice> dev) {
+         MTLRenderPassDescriptor *pd=[MTLRenderPassDescriptor renderPassDescriptor];
+         for (unsigned i=0;i<(pass ? 1u : 2u);i++) {
+             sd_att att={.ser=t[i].serial,.idx=(int)i};
+-            BOOL dead=!pass && rb_store_unexposed(&t[i]) && rb_clear_covers_plane(&att,&next,(const uint8_t *)&command);
+-            CHECK(dead==(!pass && i==0));
++            BOOL dead=optimize && !pass && rb_store_unexposed(&t[i]) && rb_clear_covers_plane(&att,&next,(const uint8_t *)&command);
++            CHECK(dead==(optimize && !pass && i==0));
+             MTLRenderPassColorAttachmentDescriptor *at=pd.colorAttachments[i];
+             at.texture=tex[i]; at.loadAction=MTLLoadActionClear; at.storeAction=dead ? MTLStoreActionDontCare : MTLStoreActionStore;
+             at.clearColor=MTLClearColorMake(!pass && !i ? -0.5 : colors[i],0,0,1);
+@@ -129,7 +129,7 @@ static void tracked_store(id<MTLDevice> dev) {
+         id<MTLRenderCommandEncoder> e=[cb renderCommandEncoderWithDescriptor:pd]; CHECK(e); [e endEncoding];
+     }
+     [cb commit]; [cb waitUntilCompleted]; CHECK(cb.status==MTLCommandBufferStatusCompleted);
+-    ClearImage out; read_pair(dev,tex[0],tex[1],out);
++    read_pair(dev,tex[0],tex[1],out);
+     R.rt=(p_set_rt){0};
+ }
+ 
+@@ -186,9 +186,14 @@ int main(int argc,char **argv) { @autoreleasepool {
+     ClearImage before,after;
+     if (!direct) {
+         tracked_pair(dev,0,before); tracked_pair(dev,1,after); CHECK(!memcmp(before,after,sizeof before));
+-        if (enabled) {
+-            tracked_store(dev);
+-            puts("PASS tracked Metal NVN2 proof: clipped/descriptor rejection, overwritten and preserved pixels; direct queue barriers untested");
++        if (titles) {
++            tracked_store(dev,0,before);
++            if (enabled) {
++                tracked_store(dev,1,after);
++                CHECK(!memcmp(before,after,sizeof before));
++            }
++            printf("PASS tracked Metal NVN2 store control: 512 expected pixels; forced Store%s; direct queue barriers untested\n",
++                   enabled ? " and proven DontCare identical" : "");
+         }
+         puts("PASS tracked Metal: identical MRT clear/store results and alias rejection; direct Metal 4 unavailable");
+         return 0;

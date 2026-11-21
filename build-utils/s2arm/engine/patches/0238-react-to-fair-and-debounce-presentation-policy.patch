@@ -1,0 +1,524 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index fff44d2..fda864c 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3188,6 +3188,7 @@ NVN(nvnWindowBuilderGetTexture, NVNtexture *, const NVNwindowBuilder *b, int i)
+ // monotonic through relaunches and are shared between windows. Extend the
+ // host's private tail without moving any NVN1 or NVN2 window fields.
+ #include "rb_promotion.h"
++#include "rb_thermal_pacing.h"
+ typedef struct { win2 layout; rb_present_samples samples; } rb_present_history;
+ FITS(rb_present_history, NVNwindow);
+ static void nvn2_win_init(NVNwindow *w, const NVNwindowBuilder *b);
+@@ -3237,10 +3238,27 @@ NVN(nvnWindowGetCrop, void, const NVNwindow *w, NVNrectangle *crop) {
+ static void trow(uint64_t f, const char *name, double v);
+ static void set_time_constraint(uint64_t period_ns);
+ static void rt_comp_tick(uint64_t period_ns);
+-static double g_rt_comp_ms;   // Currently declared real-time computation amount (ms; 0 = not declared)
++static _Atomic unsigned rb_rt_generation = 1;
++static _Atomic int rb_rt_setting;
++static _Atomic uint64_t rb_rt_same, rb_rt_deferred, rb_rt_calls, rb_rt_failures;
++static __thread struct {
++    unsigned generation;
++    rb_rt_gate gate;
++    uint64_t desired_comp_ns, cpu_last, legacy_period;
++    double cpu_samples[120];
++    unsigned cpu_count;
++} t_rb_rt;
++// Unlinked/alternative backend, simulator and non-hosted sessions keep the
++// historical scheduling policy. The production Metal backend verifies scope.
++__attribute__((weak)) int nvn_rb_thermal_scope(void) { return 0; }
++static int rb_rt_on(void) {
++    return nvn_rb_thermal_scope() && rb_pacing_setting(&rb_rt_setting, "S2A_RB_RT_DEBOUNCE");
++}
++__attribute__((weak)) void nvn_rb_link_wake_stats(uint64_t out[3]) { memset(out, 0, 3 * sizeof *out); }
++static _Atomic double g_rt_comp_ms;   // Currently declared real-time computation amount (ms; 0 = not declared)
+ static double g_rt_bound_ms; static int g_rt_over = -1, g_rt_over_bound = -1;   // RewindBox (patch 0068): see rt_comp_tick
+ static int rb_rt_bound(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_RT_BOUND"); v = e && !strcmp(e, "1"); } return v; }   // RewindBox (patch 0068): off by default, see rt_comp_tick
+-static double g_rt_period_ms;
++static _Atomic double g_rt_period_ms;
+ static void sleep_until_ns(uint64_t dl);
+ static uint64_t present_period(const win_t *o);
+ static uint64_t rt_period_ns(const win_t *o, uint64_t period);
+@@ -3308,9 +3326,21 @@ NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsyn
+     // Vsync blocks here (real-device NVN: when all textures in the swapchain are waiting for display, wait for the next one to be released), not in present -- the game often calls present while holding a lock
+     uint64_t at = *idx < 4 ? o->avail[*idx] : 0, now = dm_detclock_enabled() ? guest_ns() : now_ns(), wait = at > now ? at - now : 0, pace_ns = 0;
+     if (!dm_detclock_enabled()) {   // Register the acquire thread as a time-constraint thread (no longer registered only when it "arrived early": it must also declare itself when it is constantly behind in the hot state)
+-        static uint64_t rt_period; uint64_t period = present_period(o), rtp = rt_period_ns(o, period);
+-        if (rtp && rt_period != rtp) { rt_period = rtp; set_time_constraint(rtp); }
+-        rt_comp_tick(rtp);
++        uint64_t period = present_period(o), rtp = rt_period_ns(o, period);
++        // Guest timing below uses every actual interval. Only the Mach
++        // scheduling declaration is debounced, per owning pthread.
++        int debounced = rb_rt_on();
++        unsigned generation = atomic_load_explicit(&rb_rt_generation, memory_order_relaxed);
++        if (t_rb_rt.generation != generation) {
++            memset(&t_rb_rt, 0, sizeof t_rb_rt); t_rb_rt.generation = generation;
++        }
++        if (debounced) {
++            rt_comp_tick(rtp);
++            if (rtp) set_time_constraint(rtp);
++        } else {
++            if (rtp && t_rb_rt.legacy_period != rtp) { t_rb_rt.legacy_period = rtp; set_time_constraint(rtp); }
++            rt_comp_tick(rtp);
++        }
+         int display_phase=rb_lf_switch(RB_DISPLAY);
+         uint64_t p0 = now_ns();
+         if (nvn_be_link_active()) { if (!nvn_be_link_wait_tick(present_itv(o), period ? 2 * period : 33333333ull) && wait) sleep_until_ns(at); }   // DM_PRESENT_LINK: pacing fully follows the display link (wait for the present interval's display-link ticks when running fast, go immediately when behind); our own 60 Hz clock is only the fallback when no display-link tick arrives
+@@ -3646,6 +3676,14 @@ static void tsummary(uint64_t frame) {
+     return;
+ #else
+ 
++    if (nvn_rb_thermal_scope()) {
++        uint64_t wake[3]; nvn_rb_link_wake_stats(wake);
++        LOG("[rb-rt] frame=%llu debounce=%d set_calls=%llu set_failed=%llu same=%llu deferred=%llu tick_notifications=%llu skip_no_waiter=%llu skip_not_due=%llu",
++            (unsigned long long)frame, rb_rt_on(), (unsigned long long)atomic_load(&rb_rt_calls),
++            (unsigned long long)atomic_load(&rb_rt_failures), (unsigned long long)atomic_load(&rb_rt_same),
++            (unsigned long long)atomic_load(&rb_rt_deferred), (unsigned long long)wake[0],
++            (unsigned long long)wake[1], (unsigned long long)wake[2]);
++    }
+     char line[1024]; size_t o = 0;
+     for (int k = 0; k < 6; k++) {
+         unsigned n = g_tn[k] < TWIN ? g_tn[k] : TWIN; if (!n) continue;
+@@ -3807,17 +3845,38 @@ static void set_time_constraint_comp(uint64_t period_ns, uint64_t comp_ns) {
+     thread_time_constraint_policy_data_t p = {
+         .period = (uint32_t)(period_ns * tb.denom / tb.numer), .computation = (uint32_t)(comp_ns * tb.denom / tb.numer),
+         .constraint = (uint32_t)(period_ns * tb.denom / tb.numer), .preemptible = 1};
++    int gated = rb_rt_on();
++    rb_rt_tuple request = {p.period, p.computation};
++    if (gated) {
++        enum rb_rt_decision d = rb_rt_consider(&t_rb_rt.gate, request, now_ns());
++        if (d == RB_RT_SAME) { atomic_fetch_add_explicit(&rb_rt_same,1,memory_order_relaxed); return; }
++        if (d == RB_RT_WAIT) { atomic_fetch_add_explicit(&rb_rt_deferred,1,memory_order_relaxed); return; }
++    }
++    atomic_fetch_add_explicit(&rb_rt_calls,1,memory_order_relaxed);
+     kern_return_t kr = thread_policy_set(pthread_mach_thread_np(pthread_self()), THREAD_TIME_CONSTRAINT_POLICY, (thread_policy_t)&p, THREAD_TIME_CONSTRAINT_POLICY_COUNT);
+     if (kr == KERN_SUCCESS) { g_rt_comp_ms = comp_ns / 1e6; g_rt_period_ms = period_ns / 1e6; }
+     // 读回内核实际生效的值（10-30：xnu 收到声明后 computation < constraint / 2 会直接抬到 constraint / 2，60 Hz 即 8.33 ms；读回才知道真正交给调度器的是多少）
+     thread_time_constraint_policy_data_t g = {0}; mach_msg_type_number_t gc = THREAD_TIME_CONSTRAINT_POLICY_COUNT; boolean_t gd = 0;
+     int got = thread_policy_get(pthread_mach_thread_np(pthread_self()), THREAD_TIME_CONSTRAINT_POLICY, (thread_policy_t)&g, &gc, &gd) == KERN_SUCCESS && !gd;
++    if (kr != KERN_SUCCESS) atomic_fetch_add_explicit(&rb_rt_failures,1,memory_order_relaxed);
++    else if (gated) {
++        rb_rt_tuple effective = got && g.preemptible && g.constraint == g.period ?
++                                 (rb_rt_tuple){g.period, g.computation} : request;
++        rb_rt_accepted(&t_rb_rt.gate, request, effective);
++    }
+     LOG("[nvn] present thread time-constraint policy (period %.3f ms, computation %.3f ms) %s; kernel now holds period %.3f / computation %.3f / constraint %.3f ms%s", period_ns / 1e6, comp_ns / 1e6, kr == KERN_SUCCESS ? "set" : "failed to set",
+         got ? g.period * (double)tb.numer / tb.denom / 1e6 : 0, got ? g.computation * (double)tb.numer / tb.denom / 1e6 : 0, got ? g.constraint * (double)tb.numer / tb.denom / 1e6 : 0, got ? "" : " (read back failed)");
+ }
+ static int rt_comp_fixed_ms(void) { static int v = -2; if (v == -2) { const char *e = getenv("DM_RT_COMP"); v = e && *e && strcmp(e, "auto") ? atoi(e) : -1; } return v; }   // −1 = auto
+ // The fixed value, or in auto mode the computation declared so far (auto's starting value of 2 ms only the first time): a reset to 2 ms at each period change under-declared the thread until the next p90
+-static void set_time_constraint(uint64_t period_ns) { int f = rt_comp_fixed_ms(); set_time_constraint_comp(period_ns, f > 0 ? (uint64_t)f * 1000000ull : g_rt_comp_ms > 0 ? (uint64_t)(g_rt_comp_ms * 1e6) : 2000000ull); }
++static void set_time_constraint(uint64_t period_ns) {
++    int fixed = rt_comp_fixed_ms();
++    uint64_t comp = fixed > 0 ? (uint64_t)fixed * 1000000ull : 2000000ull;
++    if (fixed <= 0 && rb_rt_on()) {
++        if (t_rb_rt.desired_comp_ns) comp = t_rb_rt.desired_comp_ns;
++    } else if (fixed <= 0 && g_rt_comp_ms > 0) comp = (uint64_t)(g_rt_comp_ms * 1e6);
++    set_time_constraint_comp(period_ns, comp);
++}
+ // Called every frame at acquire: records this thread's CPU time since the last call; in auto mode re-declares based on p90
+ // RewindBox (patch 0068): in the IPA 765 race (Mario Kart World, iPhone17,2) the cadence thread declared 30 ms of computation in a 33.3 ms period 12 times in 25 (the cap, 0.9 periods,
+ //   reached through the window's peak), on a phone with two performance cores, while the performance cores ran at 1.64-2.68 GHz. A bound that keeps the measured need (p90 x 1.25)
+@@ -3826,11 +3885,13 @@ static void set_time_constraint(uint64_t period_ns) { int f = rt_comp_fixed_ms()
+ //   frames that would be over the bound. Acquire thread only; the counts are read by the timing summary
+ static void rt_comp_tick(uint64_t period_ns) {
+     if (rt_comp_fixed_ms() > 0 || !period_ns || !g_rt_comp_ms) return;
+-    static uint64_t last; static double win[120]; static int n;
+-    uint64_t c = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID); if (!last) { last = c; return; }
+-    win[n++] = (double)(c - last) / 1e6; last = c;
+-    if (n < 120) return;
+-    double v[120]; memcpy(v, win, sizeof v); qsort(v, 120, sizeof *v, dcmp); n = 0;
++    uint64_t c = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID);
++    uint64_t last = t_rb_rt.cpu_last; t_rb_rt.cpu_last = c;
++    if (!last || c < last) return;
++    t_rb_rt.cpu_samples[t_rb_rt.cpu_count++] = (double)(c - last) / 1e6;
++    if (t_rb_rt.cpu_count < 120) return;
++    double v[120]; memcpy(v, t_rb_rt.cpu_samples, sizeof v);
++    t_rb_rt.cpu_count = 0; qsort(v, 120, sizeof *v, dcmp);
+     // Also the window's peak: every frame that ran past the declaration stalled the thread for 30–60 ms. Dark Souls Remastered's render thread needs 1.9–2.0 ms a frame with one or
+     // two frames in 120 near 4.4 ms; declared at 2.5 ms (p90 × 1.25) it stalled about once a second, at 30 fps and at 60; declared above the peak it held 60 fps at the same CPU energy
+     double p90 = v[107], comp = fmax(p90 * 1.25, v[119] * 1.1), cap = period_ns * 0.9 / 1e6; if (comp > cap) comp = cap; if (comp < 1) comp = 1;
+@@ -3838,7 +3899,10 @@ static void rt_comp_tick(uint64_t period_ns) {
+     int over = 0, over_b = 0; for (int i = 0; i < 120; i++) { over += v[i] > g_rt_comp_ms; over_b += v[i] > bound; }
+     g_rt_over = over; g_rt_over_bound = over_b; g_rt_bound_ms = bound;
+     if (rb_rt_bound()) comp = bound;
+-    if (comp > g_rt_comp_ms * 1.15 || comp < g_rt_comp_ms * 0.85) set_time_constraint_comp(period_ns, (uint64_t)(comp * 1e6));
++    if (comp > g_rt_comp_ms * 1.15 || comp < g_rt_comp_ms * 0.85) {
++        if (rb_rt_on()) t_rb_rt.desired_comp_ns = (uint64_t)(comp * 1e6);
++        else set_time_constraint_comp(period_ns, (uint64_t)(comp * 1e6));
++    }
+ }
+ static void sleep_until_ns(uint64_t dl) {   // absolute time on the monotonic clock
+     static mach_timebase_info_data_t tb; if (!tb.denom) mach_timebase_info(&tb);
+@@ -5857,6 +5921,10 @@ int dm_nvn_shutdown_session(void) {
+     pthread_mutex_lock(&rb_gap_lock); rb_calls = (rb_gap_clock){0}; pthread_mutex_unlock(&rb_gap_lock);
+     if (g_frame) rb_report_intervals(g_frame - 1);
+     rb_last_present = 0;
++    atomic_fetch_add(&rb_rt_generation,1); atomic_store(&rb_rt_setting,0);
++    atomic_store(&rb_rt_same,0); atomic_store(&rb_rt_deferred,0);
++    atomic_store(&rb_rt_calls,0); atomic_store(&rb_rt_failures,0);
++    g_rt_comp_ms = g_rt_period_ms = 0;
+     g_frame = 0; g_hz = -1; g_display_mode = 0; g_game_itv = 1;
+     g_display_run = g_display_max_run = g_display_run2 = g_display_run3 = g_display_run5 = g_display_missed_slots = 0;
+     g_display_covered_s = 0;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 70631bd..d72ba47 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -29,6 +29,7 @@
+ #include "../../../metal/mtl_slot.h"   // machine-wide Metal client slot
+ #include "nvn_fps.h"
+ #include "rb_promotion.h"
++#include "rb_thermal_pacing.h"
+ #include "nvn_link_backoff.h"   // 低频链路档降档退避（link_sync）
+ #include "nvn_obj.h"
+ #include "nvn2.h"   // Switch 2: NVN2 control sections (DM_NVN_SHDUMP code length)
+@@ -216,6 +217,34 @@ static uint64_t g_link_tick_ns, g_link_tick_n;
+ // 上一帧开工时的显示链接拍号（nvn_be_link_wait_tick，只有游戏上屏线程调）。逐局状态：与 g_link_tick_n 同处清零（nvn_session.inc）——
+ //   11-04 进程内重启（设置页「立刻重启」）后拍号从 0 重数、它却留着上一局的约 5124，每帧都等满超时 2 拍 → 锁 30 帧，追平前约 85 秒（泰拉瑞亚 s04 两局）
+ static uint64_t g_link_started_tick;
++// Metadata is protected by g_link_mu and outlives each timed wait. If several
++// frontends ever wait concurrently, keep the original broadcast semantics.
++static _Atomic int g_rb_wake_option, g_rb_thermal_host;
++int nvn_rb_thermal_scope(void) {
++#if TARGET_OS_IOS && !TARGET_OS_SIMULATOR && !TARGET_OS_MACCATALYST
++    // rb_guest sets the title before command recording. Device and backend
++    // selection must be complete before caching a hosted NVN2 launch.
++    if (!g_dev || g_m3 || !nvn2_on()) return 0;
++    int host = atomic_load_explicit(&g_rb_thermal_host, memory_order_relaxed);
++    if (!host) {
++        const char *id = getenv("S2A_RB_DIRECT_GAME_ID");
++        host = id && *id ? 2 : 1;
++        atomic_store_explicit(&g_rb_thermal_host, host, memory_order_relaxed);
++    }
++    return host == 2;
++#else
++    return 0;
++#endif
++}
++static unsigned g_rb_waiters;
++static uint64_t g_rb_wait_step, g_rb_wake_counts[3]; // notified, empty, premature
++static double g_rb_wait_seconds;
++static int rb_tick_filter_enabled(void) {
++    return nvn_rb_thermal_scope() && rb_pacing_setting(&g_rb_wake_option, "S2A_RB_TICK_WAKE_FILTER");
++}
++void nvn_rb_link_wake_stats(uint64_t out[3]) {
++    pthread_mutex_lock(&g_link_mu); memcpy(out, g_rb_wake_counts, sizeof g_rb_wake_counts); pthread_mutex_unlock(&g_link_mu);
++}
+ static double g_rb_tick_target, g_rb_started_target;   // g_link_mu, same epoch as the tick counters
+ static uint64_t g_link_dropped;
+ static double g_link_hold_until; static uint64_t g_link_held;   // Changed only on the display-link callback thread: the time the previous frame must stay on screen until by its present interval (0 = no hold), and the ticks that took no new frame because of it
+@@ -2704,34 +2733,44 @@ static _Atomic uint64_t g_drs_raised, g_drs_seen;   // TIMESTAMP reports raised
+ //   at least the hold and an eighth after the frame's first TIMESTAMP_TOP (18.7 ms at 60 fps): past the band the game holds its size in (about 15-17 ms), so the game lowers its
+ //   own resolution toward its floor (1248x700 in Mario Kart World), as on a console that falls behind. Patch 0083's hold again after 30 s at fair or below. The state is read
+ //   twice a second at most, from the report loop. S2A_RB_DRS_THERMAL=0: no step
+-static int rb_drs_thermal_on(void) {
+-    static int v = -1;
+-    if (v < 0) { const char *e = getenv("S2A_RB_DRS_THERMAL"); v = !(e && !strcmp(e, "0"));
+-        MLOG("RewindBox: the game's dynamic resolution %s (S2A_RB_DRS_THERMAL; patch 0087)", v ? "steps down while the thermal state is serious or critical, and is held again after 30 s at fair or below" : "is not stepped down under heat"); }
+-    return v;
+-}
+-static _Atomic int g_drs_hot;   // 1 while the reports read past the game's band
+-static _Atomic uint64_t g_drs_th_at, g_drs_cool_at, g_drs_hot_raised;   // last reading of the state (uptime ns), first reading at fair or below since then (0 = none), reports raised past the band
++static _Atomic int g_rb_drs_threshold, g_drs_hot;
++static _Atomic uint64_t g_drs_th_at, g_drs_hot_raised;
++static rb_guest_heat g_rb_guest_heat;
++static os_unfair_lock g_rb_heat_lock = OS_UNFAIR_LOCK_INIT;
+ static int rb_drs_hot(uint64_t f) {
+-    if (!rb_drs_thermal_on()) return 0;
++    int stored = atomic_load_explicit(&g_rb_drs_threshold, memory_order_relaxed);
++    if (!stored) {
++        const char *legacy = getenv("S2A_RB_DRS_THERMAL");
++        int threshold = rb_thermal_threshold(!(legacy && !strcmp(legacy, "0")), nvn_rb_thermal_scope(),
++                                             getenv("S2A_RB_DRS_THERMAL_STATE"));
++        int zero = 0;
++        if (atomic_compare_exchange_strong(&g_rb_drs_threshold, &zero, threshold + 1))
++            MLOG("[rb-guest-drs] threshold=%d recovery=%s", threshold,
++                 threshold == 1 ? "30s nominal and completed GPU p95 <14.5ms" : threshold == 2 ? "30s fair or nominal" : "disabled");
++        stored = threshold + 1;
++    }
++    if (stored == 1) return 0;
+     uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW), at = atomic_load(&g_drs_th_at);
+-    if ((at && now - at < 500000000ull) || !atomic_compare_exchange_strong(&g_drs_th_at, &at, now)) return atomic_load(&g_drs_hot);
+-    NSInteger st = NSProcessInfo.processInfo.thermalState;
+-    if (st >= NSProcessInfoThermalStateSerious) {
+-        atomic_store(&g_drs_cool_at, 0);
+-        if (!atomic_exchange(&g_drs_hot, 1))
+-            MLOG("RewindBox: thermal state %ld at frame %llu: the game's TIMESTAMP reports read past its band, its dynamic resolution steps down (S2A_RB_DRS_THERMAL=0 keeps it; patch 0087)",
+-                 (long)st, (unsigned long long)f);
+-    } else if (atomic_load(&g_drs_hot)) {
+-        uint64_t since = atomic_load(&g_drs_cool_at);
+-        if (!since) atomic_store(&g_drs_cool_at, now);
+-        else if (now - since >= 30000000000ull) {
+-            atomic_store(&g_drs_hot, 0); atomic_store(&g_drs_cool_at, 0);
+-            MLOG("RewindBox: thermal state %ld for 30 s at frame %llu: the dynamic resolution is held again (%llu reports read past the band while hot; patch 0087)",
+-                 (long)st, (unsigned long long)f, (unsigned long long)atomic_load(&g_drs_hot_raised));
+-        }
+-    }
+-    return atomic_load(&g_drs_hot);
++    if (at && (now <= at || now - at < 500000000ull)) return atomic_load(&g_drs_hot);
++    if (!os_unfair_lock_trylock(&g_rb_heat_lock)) return atomic_load(&g_drs_hot);
++    at = atomic_load(&g_drs_th_at);
++    if (at && (now <= at || now - at < 500000000ull)) {
++        os_unfair_lock_unlock(&g_rb_heat_lock); return atomic_load(&g_drs_hot);
++    }
++    atomic_store(&g_drs_th_at, now);
++    int state = (int)NSProcessInfo.processInfo.thermalState, before = g_rb_guest_heat.hot;
++    double p95 = -1.;
++    if (stored == 2 && before && state == 0 && f >= RB_HEAT_SAMPLES + 4) {
++        double sample[RB_HEAT_SAMPLES];
++        for (int i = 0; i < RB_HEAT_SAMPLES; ++i) sample[i] = nvn_be_gpu_ms(f - 4 - i);
++        p95 = rb_thermal_p95(sample);
++    }
++    int hot = rb_thermal_observe(&g_rb_guest_heat, stored - 1, state, now, f, p95);
++    atomic_store(&g_drs_hot, hot);
++    os_unfair_lock_unlock(&g_rb_heat_lock);
++    if (hot != before) MLOG("[rb-guest-drs] frame=%llu thermal=%d threshold=%d hot=%d gpu_p95_ms=%.2f raised_total=%llu",
++                            (unsigned long long)f, state, stored - 1, hot, p95, (unsigned long long)atomic_load(&g_drs_hot_raised));
++    return hot;
+ }
+ static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the time a counter report of frame f records (19.2 MHz ticks)
+     if (!t || (type != 0 && type != 0x10)) return t;
+@@ -2752,8 +2791,8 @@ static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the ti
+     if (t - top >= want || t - top < hold / 2) return t;
+     if (hot) atomic_fetch_add(&g_drs_hot_raised, 1);   // RewindBox (patch 0087)
+     uint64_t n = atomic_fetch_add(&g_drs_raised, 1) + 1;
+-    if (!(n & (n - 1)) && n >= 16) MLOG("RewindBox: dynamic resolution hold: %llu TIMESTAMP reports of %llu raised to their frame's hold (%.1f ms after its first TIMESTAMP_TOP, %d fps; S2A_RB_DRS_HOLD=0 keeps their times)",
+-                                        (unsigned long long)n, (unsigned long long)seen, hold * 625 / 12 / 1e6, fps);
++    if (!(n & (n - 1)) && n >= 16) MLOG("RewindBox: dynamic resolution hold: %llu TIMESTAMP reports of %llu raised to %.2f ms after first TIMESTAMP_TOP (hot=%d, nominal hold %.2f ms, %d fps)",
++                                        (unsigned long long)n, (unsigned long long)seen, want * (625./12e6), hot, hold * (625./12e6), fps);
+     return top + want;   // RewindBox (patch 0087): want
+ }
+ 
+@@ -23950,7 +23989,12 @@ __attribute__((weak)) uint64_t dm_focus_in_since(void) { return 0; }
+     g_link_tick_ns = now_ns();
+     g_rb_tick_target = exact_hz ? update.targetPresentationTimestamp : 0;
+     g_link_tick_n++;
+-    pthread_cond_broadcast(&g_link_cv);
++    int filter = rb_tick_filter_enabled();
++    int due = !filter || !g_rb_wait_step || rb_display_wait_ready(g_link_tick_n, g_link_started_tick,
++                  g_rb_wait_step, g_rb_tick_target, g_rb_started_target, g_rb_wait_seconds);
++    unsigned action = rb_tick_action(filter, g_rb_waiters, due);
++    g_rb_wake_counts[action]++;
++    if (action == RB_TICK_NOTIFY) pthread_cond_broadcast(&g_link_cv);
+     pthread_mutex_unlock(&g_link_mu);
+     pthread_mutex_lock(&g_pq_mu);
+     if (!g_dm_present_link || g_pq_read == g_pq_in) {
+@@ -24503,9 +24547,16 @@ int nvn_be_link_wait_tick(int vsyncs, uint64_t timeout_ns) {
+     ts.tv_sec += timeout_ns / 1000000000ull; ts.tv_nsec += timeout_ns % 1000000000ull;
+     if (ts.tv_nsec >= 1000000000L) { ts.tv_sec++; ts.tv_nsec -= 1000000000L; }
+     pthread_mutex_unlock(&g_link_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_link_mu);
+-    while (!rb_display_wait_ready(g_link_tick_n, g_link_started_tick, step, g_rb_tick_target, g_rb_started_target, period)) {
+-        if (pthread_cond_timedwait(&g_link_cv, &g_link_mu, &ts) == ETIMEDOUT) { pthread_mutex_unlock(&g_link_mu); DM_BLOCK_END(); return 0; }
+-    }
++    if (++g_rb_waiters == 1) {
++        g_rb_wait_step = step; g_rb_wait_seconds = period;
++    } else g_rb_wait_step = 0; // multiple waiters with distinct predicates
++    int timeout = 0;
++    while (!atomic_load(&g_link_stop) &&
++           !rb_display_wait_ready(g_link_tick_n, g_link_started_tick, step, g_rb_tick_target, g_rb_started_target, period)) {
++        if (pthread_cond_timedwait(&g_link_cv, &g_link_mu, &ts) == ETIMEDOUT) { timeout = 1; break; }
++    }
++    --g_rb_waiters;
++    if (timeout || atomic_load(&g_link_stop)) { pthread_mutex_unlock(&g_link_mu); DM_BLOCK_END(); return 0; }
+     g_rb_started_target = g_rb_tick_target;
+     g_link_started_tick = g_link_tick_n;
+     pthread_mutex_unlock(&g_link_mu); DM_BLOCK_END(); t_link_waited = 1; return 1;   // RewindBox (patch 0068): t_link_waited
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index b04a25d..f6e55fb 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -288,6 +288,12 @@ int nvn_be_shutdown_session(void) {
+     memset(g_pq, 0, sizeof g_pq); g_ext_ev = nil; g_ext_pend3 = 0;
+     atomic_store(&g_rb_promotion_option, 0); g_rb_link_hz = 0;
+     g_rb_tick_target = g_rb_started_target = 0;
++    atomic_store(&g_rb_thermal_host, 0); atomic_store(&g_rb_wake_option, 0); g_rb_waiters = 0; g_rb_wait_step = 0;
++    memset(g_rb_wake_counts, 0, sizeof g_rb_wake_counts);
++    g_rb_guest_heat = (rb_guest_heat){0};
++    atomic_store(&g_rb_drs_threshold, 0); atomic_store(&g_drs_hot, 0); atomic_store(&g_drs_th_at, 0);
++    atomic_store(&g_drs_hot_raised, 0); atomic_store(&g_drs_seen, 0); atomic_store(&g_drs_raised, 0);
++    for (unsigned i = 0; i < DRS_N; ++i) { atomic_store(&g_drs[i].frame, 0); atomic_store(&g_drs[i].top, 0); }
+     g_link_applied = 0; g_link_hold_until = g_link_vperiod = g_link_vhalf = 0;
+     g_link_pending = 0; g_link_pending_since = g_link_pending_period = 0;
+     g_low = (link_backoff){0};   // 降档退避（nvn_link_backoff.h）逐局：旧局顶到 64 秒的 hold、停在低频档的 since 都不带进新局（满屏补丁线复核 11-04）
+diff --git a/graphics/nvn/gfx/nvn/rb_thermal_pacing.h b/graphics/nvn/gfx/nvn/rb_thermal_pacing.h
+new file mode 100644
+index 0000000..f94eb81
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_thermal_pacing.h
+@@ -0,0 +1,100 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <math.h>
++#include <stdint.h>
++#include <string.h>
++
++static inline int rb_thermal_threshold(int enabled, int nvn2, const char *value) {
++    if (!enabled) return 0;
++    if (!nvn2) return 2;
++    if (!value || !strcmp(value, "1")) return 1;
++    return !strcmp(value, "0") ? 0 : 2;
++}
++
++enum { RB_HEAT_SAMPLES = 24 };
++static inline double rb_thermal_p95(const double *samples) {
++    // Nearest rank 23 out of 24 is the second-highest sample.
++    double high = 0., next = 0.;
++    for (int i = 0; i < RB_HEAT_SAMPLES; i++) {
++        double v = samples[i];
++        if (!(v > 0) || !isfinite(v)) return -1.;
++        if (v >= high) { next = high; high = v; }
++        else if (v > next) next = v;
++    }
++    return next;
++}
++
++typedef struct { int hot; uint64_t cool_since, last_ns, last_frame; } rb_guest_heat;
++static inline int rb_thermal_observe(rb_guest_heat *s, int threshold, int state, uint64_t ns,
++                                     uint64_t frame, double gpu_p95_ms) {
++    int continuous = s->last_ns && ns > s->last_ns && ns - s->last_ns <= 1500000000ull && frame > s->last_frame;
++    s->last_ns = ns; s->last_frame = frame;
++    if (!threshold) { s->hot = 0; s->cool_since = 0; }
++    else if (state >= threshold) { s->hot = 1; s->cool_since = 0; }
++    else if (s->hot) {
++        int ready = threshold == 2 || (state == 0 && gpu_p95_ms > 0 && gpu_p95_ms < 14.5);
++        if (!ready) s->cool_since = 0;
++        else if (!s->cool_since || (threshold == 1 && !continuous)) s->cool_since = ns;
++        else if (ns >= s->cool_since && ns - s->cool_since >= 30000000000ull) {
++            s->hot = 0; s->cool_since = 0;
++        }
++    }
++    return s->hot;
++}
++
++// Period == constraint and preemptible == 1 for the acquire-thread declaration.
++// Compare the final tuple in Mach ticks, after conversion and clamping.
++typedef struct { uint32_t period, comp; } rb_rt_tuple;
++typedef struct {
++    rb_rt_tuple applied, requested, pending;
++    uint64_t pending_since, attempted;
++} rb_rt_gate;
++enum rb_rt_decision { RB_RT_SAME, RB_RT_WAIT, RB_RT_SET };
++
++static inline int rb_rt_equal(rb_rt_tuple a, rb_rt_tuple b) {
++    return a.period == b.period && a.comp == b.comp;
++}
++static inline enum rb_rt_decision rb_rt_consider(rb_rt_gate *s, rb_rt_tuple p, uint64_t now) {
++    if (rb_rt_equal(s->requested, p) || rb_rt_equal(s->applied, p)) {
++        s->pending.period = 0;
++        return RB_RT_SAME;
++    }
++    // XNU may raise computation to half of the constraint. Once the readback
++    // proves this floor on this thread at this period, equivalent requests can
++    // be suppressed without another set/get pair.
++    if (p.period == s->applied.period && s->requested.period == p.period &&
++        s->applied.comp > s->requested.comp && s->applied.comp == p.period / 2 &&
++        p.comp <= s->applied.comp) {
++        s->pending.period = 0;
++        return RB_RT_SAME;
++    }
++    if (!rb_rt_equal(s->pending, p)) { s->pending = p; s->pending_since = now; }
++    const uint64_t dwell = 250000000ull;
++    if ((s->requested.period && now - s->pending_since < dwell) ||
++        (s->attempted && now - s->attempted < dwell)) return RB_RT_WAIT;
++    s->attempted = now;
++    return RB_RT_SET;
++}
++static inline void rb_rt_accepted(rb_rt_gate *s, rb_rt_tuple requested, rb_rt_tuple effective) {
++    s->requested = requested; s->applied = effective; s->pending.period = 0;
++}
++
++#include <stdatomic.h>
++#include <stdlib.h>
++// Cached once per session. NVN2 is checked by callers after title registration.
++static inline int rb_pacing_setting(_Atomic int *cache, const char *name) {
++    int v = atomic_load_explicit(cache, memory_order_relaxed);
++    if (!v) {
++        const char *setting = getenv(name);
++        v = !setting || !strcmp(setting, "1") ? 2 : 1;
++        atomic_store_explicit(cache, v, memory_order_relaxed);
++    }
++    return v == 2;
++}
++
++enum { RB_TICK_NOTIFY, RB_TICK_EMPTY, RB_TICK_EARLY };
++static inline unsigned rb_tick_action(int enabled, unsigned waiters, int due) {
++    if (!enabled || waiters > 1) return RB_TICK_NOTIFY;
++    if (!waiters) return RB_TICK_EMPTY;
++    return due ? RB_TICK_NOTIFY : RB_TICK_EARLY;
++}
+diff --git a/graphics/nvn/tests/t_rb_thermal_pacing.c b/graphics/nvn/tests/t_rb_thermal_pacing.c
+new file mode 100644
+index 0000000..9266084
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_thermal_pacing.c
+@@ -0,0 +1,68 @@
++// SPDX-License-Identifier: MIT
++#include "../gfx/nvn/rb_thermal_pacing.h"
++#include "../gfx/nvn/rb_promotion.h"
++#include <assert.h>
++#include <stdio.h>
++
++static void thermal(void) {
++    assert(rb_thermal_threshold(1,1,NULL)==1);
++    assert(rb_thermal_threshold(1,1,"2")==2 && rb_thermal_threshold(1,1,"0")==0);
++    assert(rb_thermal_threshold(0,1,"1")==0 && rb_thermal_threshold(1,0,NULL)==2);
++    double raw[RB_HEAT_SAMPLES];
++    for (unsigned i=0;i<RB_HEAT_SAMPLES;++i) raw[i]=12.;
++    raw[0]=60.; assert(rb_thermal_p95(raw)==12.);
++    raw[1]=14.5; assert(rb_thermal_p95(raw)==14.5);
++    raw[2]=-1.; assert(rb_thermal_p95(raw)<0);
++    uint64_t t=1000000000ull, frame=100;
++    rb_guest_heat heat={0};
++    assert(rb_thermal_observe(&heat,1,1,t,frame,-1)==1);
++    for (unsigned i=0;i<120;++i) {
++        t+=500000000ull; frame+=20;
++        assert(rb_thermal_observe(&heat,1,0,t,frame,i==59 ? -1. : i==95 ? 14.5 : 13.)==1);
++    }
++    t+=31000000000ull; frame+=1;
++    assert(rb_thermal_observe(&heat,1,0,t,frame,12.)==1); // resume from suspension
++    for (unsigned i=1;i<=60;++i) {
++        t+=500000000ull; frame+=16;
++        assert(rb_thermal_observe(&heat,1,0,t,frame,12.)==(i!=60));
++    }
++    assert(!rb_thermal_observe(&heat,2,1,++t,++frame,50.));
++    assert(rb_thermal_observe(&heat,2,2,++t,++frame,-1.));
++    assert(rb_thermal_observe(&heat,2,1,++t,++frame,-1.));
++    assert(!rb_thermal_observe(&heat,2,1,t+30000000000ull,++frame,-1.));
++}
++
++static void scheduling(void) {
++    rb_rt_gate gate={0};
++    const rb_rt_tuple fast={16000,2000}, slow={32000,2000}, effective={16000,8000};
++    uint64_t now=1000000000ull; unsigned calls=0;
++    assert(rb_rt_consider(&gate, fast, now)==RB_RT_SET); ++calls;
++    rb_rt_accepted(&gate,fast,effective);
++    assert(rb_rt_consider(&gate,(rb_rt_tuple){16000,4000},now+1)==RB_RT_SAME);
++    for (unsigned i=0;i<11209;++i) {
++        now+=16000000ull;
++        enum rb_rt_decision decision=rb_rt_consider(&gate,i%2 ? fast : slow,now);
++        assert(decision==(i%2 ? RB_RT_SAME : RB_RT_WAIT));
++        calls+=decision==RB_RT_SET;
++    }
++    assert(calls==1);
++    assert(rb_rt_consider(&gate, slow,now+250000000ull)==RB_RT_SET);
++    rb_rt_accepted(&gate,slow,slow);
++    assert(rb_rt_consider(&gate,fast,now+251000000ull)==RB_RT_WAIT);
++    assert(rb_rt_consider(&gate,fast,now+501000000ull)==RB_RT_SET);
++    // A failed call stays retryable after the cooldown.
++    assert(rb_rt_consider(&gate,fast,now+510000000ull)==RB_RT_WAIT);
++    assert(rb_rt_consider(&gate,fast,now+751000000ull)==RB_RT_SET);
++    assert(rb_tick_action(1,0,0)==RB_TICK_EMPTY);
++    assert(rb_tick_action(1,1,0)==RB_TICK_EARLY);
++    assert(rb_tick_action(1,1,1)==RB_TICK_NOTIFY);
++    assert(rb_tick_action(1,2,0)==RB_TICK_NOTIFY);
++    assert(rb_tick_action(0,0,0)==RB_TICK_NOTIFY);
++    assert(!rb_display_wait_ready(101,100,2,0,0,1./30));
++    assert(rb_display_wait_ready(102,100,2,0,0,1./30));
++}
++
++int main(void) {
++    thermal(); scheduling();
++    puts("Guest DRS thermal entry/recovery and Mach policy debounce: passed");
++}

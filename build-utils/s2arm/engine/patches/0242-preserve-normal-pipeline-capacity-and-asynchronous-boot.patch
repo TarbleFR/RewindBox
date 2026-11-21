@@ -1,0 +1,131 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 84a581c..73ef64b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -172,7 +172,13 @@ static int rb_pso_mode(void) {
+ }
+ enum { RB_KART_HEADROOM, RB_KART_WORKERS, RB_KART_BATCH, RB_KART_OPTIONS };
+ static _Atomic int rb_kart_settings[RB_KART_OPTIONS];
++#ifdef RB_TEST_KART_WARM
++static int rb_test_kart_workers;
++#endif
+ static int rb_kart_option(unsigned key) {
++#ifdef RB_TEST_KART_WARM
++    if (key == RB_KART_WORKERS && rb_test_kart_workers) return 1;
++#endif
+ #if TARGET_OS_IOS && !TARGET_OS_SIMULATOR
+     if (g_m3) return 0;
+     int cached = atomic_load_explicit(&rb_kart_settings[key], memory_order_relaxed);
+@@ -14777,8 +14783,8 @@ static void warm_finish(void) {
+ // Wait for the background warm-up to finish (at most timeout_ms): returns how many milliseconds were actually waited, 0 if it is not running. On first install the system shader cache is fully cold; if warm-up is slower than the player entering a run,
+ // pipelines not yet warmed are compiled on the spot on the submit thread = in-run stutter; the loading screen on entering a run blocks the player anyway, so let it load a little longer (called where hle_nvn.c presents).
+ int mtl_warm_wait(int timeout_ms) {
+-    if (rb_async_pso() && !rb_ref_path()) return 0;
+-    if (!atomic_load(&g_warm_running)) return 0;
++    if (timeout_ms <= 0 || !atomic_load(&g_warm_running)) return 0;
++    if ((rb_async_pso() || rb_kart_thermal_workers()) && !rb_ref_path()) return 0;
+     if (rb_spec_level() == RB_SPEC_HOLD) return 0;   // RewindBox (patch 0121): the prewarm's workers are parked; a loading screen would wait for nothing
+     uint64_t t0 = bp_now();
+     DM_BLOCK_BEGIN(); while (atomic_load(&g_warm_running) && !nvn_be_stopping() && rb_spec_level() != RB_SPEC_HOLD && (bp_now() - t0) / 1000000ull < (uint64_t)timeout_ms) usleep(2000); DM_BLOCK_END();
+@@ -14811,7 +14817,7 @@ static void warm_tick_full(long total) { if (!atomic_exchange(&g_wp_full_sent, 1
+ //   15 s（DM_PSO_PREPARE_MAX_MS）到点必放行、前端也不能延长，剩下的交给后台 DM_PSO_BG_THREADS 路 utility（同 11-02 的后台）
+ static int prepare_on(void) {
+     // Explicit blocking preparation is still available for controlled comparisons.
+-    if (rb_async_pso()) {
++    if (rb_async_pso() || rb_kart_thermal_workers()) {
+         const char *option = getenv("DM_PSO_PREPARE");
+         return option && !strcmp(option, "1");
+     }
+@@ -21127,8 +21133,7 @@ static void rb_pso_maintain(void) {
+         uint64_t cap = rb_gov_share(plan,RB_GOV_PIPELINE), count = live[0]+live[1]+live[2];
+         uint64_t limit = rb_gov_pso_count(plan);
+         idle = rb_gov_pso_idle(plan,live[3],count);
+-        if ((plan & RB_GOV_PSO_FLOOR) && live[3] <= cap)
+-            drops = count > limit ? (unsigned)MIN((uint64_t)drops,count-limit) : 0;
++        drops = rb_gov_pso_drops(plan,live[3],count,drops);
+         if (applied != plan) MLOG("[RB-MEM-GOV] owner=pipeline shallow_cap_bytes=%llu object_limit=%llu shallow_live_bytes=%llu live=%llu eligible_idle_s=%u",
+             (unsigned long long)cap,(unsigned long long)limit,(unsigned long long)live[3],(unsigned long long)count,idle);
+     }
+diff --git a/graphics/nvn/gfx/nvn/rb_gov_plan.h b/graphics/nvn/gfx/nvn/rb_gov_plan.h
+index 22d9f84..2130c16 100644
+--- a/graphics/nvn/gfx/nvn/rb_gov_plan.h
++++ b/graphics/nvn/gfx/nvn/rb_gov_plan.h
+@@ -23,7 +23,15 @@ static inline uint64_t rb_gov_share(unsigned plan, unsigned owner) {
+     return value;
+ }
+ static inline uint64_t rb_gov_pso_count(unsigned plan) {
+-    return plan & RB_GOV_PSO_FLOOR ? 4096u : rb_gov_share(plan,RB_GOV_PIPELINE) / 4096u;
++    uint64_t legacy = rb_gov_share(plan & ~RB_GOV_PSO_FLOOR,RB_GOV_PIPELINE) / 4096u;
++    return (plan & RB_GOV_PSO_FLOOR) && legacy < 4096u ? 4096u : legacy;
++}
++static inline unsigned rb_gov_pso_drops(unsigned plan, uint64_t bytes, uint64_t count, unsigned scanLimit) {
++    if (!(plan & RB_GOV_PSO_FLOOR) || bytes > rb_gov_share(plan,RB_GOV_PIPELINE)) return scanLimit;
++    uint64_t limit = rb_gov_pso_count(plan);
++    if (count <= limit) return 0;
++    uint64_t excess = count - limit;
++    return excess < scanLimit ? (unsigned)excess : scanLimit;
+ }
+ static inline unsigned rb_gov_pso_idle(unsigned plan, uint64_t bytes, uint64_t count) {
+     if (plan & RB_GOV_PSO_FLOOR) return 300;
+diff --git a/graphics/nvn/tests/t_nvn_pso_batch.m b/graphics/nvn/tests/t_nvn_pso_batch.m
+index 9403733..ba364ca 100644
+--- a/graphics/nvn/tests/t_nvn_pso_batch.m
++++ b/graphics/nvn/tests/t_nvn_pso_batch.m
+@@ -3,6 +3,7 @@
+ //   ① 写出 3 个批文件（32 + 32 + 6）、batches.tsv 70 行、每行指向在的文件；② 70 个键都能经 par_archive_for 取到归档，只准命中归档地建管线（FailOnBinaryArchiveMiss）70/70 成；
+ //   ③ 写成计数 +70、写失败 0。反证（构建规则另编 -DPAR_BATCH=1）：批文件 70 个，① 不符
+ #include <sched.h>
++#define RB_TEST_KART_WARM 1
+ #include "../gfx/nvn/nvn_mtl.m"
+ static unsigned checks, failures;
+ #define REQUIRE(c) do { if (!(c)) { fprintf(stderr, "FAIL setup %s:%d: %s\n", __FILE__, __LINE__, #c); exit(1); } } while (0)
+@@ -15,6 +16,21 @@ int main(int argc, char **argv) { @autoreleasepool {
+     }
+     BOOL thermalBatch = argc == 2 && !strcmp(argv[1],"--thermal-batch");
+     atomic_store(&g_spec_sampled, UINT64_MAX); rb_spec_publish(&g_spec_gate, RB_SPEC_RUN);
++    if (thermalBatch) {
++        rb_test_kart_workers=1;
++        unsetenv("S2A_RB_PREPARE_PROFILE"); unsetenv("DM_PSO_PREPARE");
++        atomic_store(&g_warm_running,1);
++        VERIFY(!prepare_on() && !mtl_warm_wait(10),"optional Nominal work leaves the first frame free");
++        rb_spec_publish(&g_spec_gate,RB_SPEC_HOLD);
++        VERIFY(!prepare_on() && !mtl_warm_wait(10),"held optional work cannot delay launch");
++        setenv("DM_PSO_PREPARE","1",1);
++        VERIFY(prepare_on(),"explicit foreground comparison is honored");
++        rb_spec_publish(&g_spec_gate,RB_SPEC_RUN);
++        setenv("S2A_RB_PREPARE_PROFILE","reference.tsv",1);
++        VERIFY(mtl_warm_wait(1)>0,"required proof retains its bounded wait");
++        unsetenv("S2A_RB_PREPARE_PROFILE"); unsetenv("DM_PSO_PREPARE");
++        atomic_store(&g_warm_running,0); rb_test_kart_workers=0;
++    }
+     g_dev = MTLCreateSystemDefaultDevice(); REQUIRE(g_dev);
+     char tmpl[] = "/tmp/t_pso_batch.XXXXXX"; REQUIRE(mkdtemp(tmpl));
+     g_par_dir = @(tmpl); g_par_have = [NSMutableSet set]; g_par_open = [NSMutableDictionary dictionary]; g_par_bmap = [NSMutableDictionary dictionary]; g_par_on = 1;
+diff --git a/graphics/nvn/tests/t_rb_spec_gate.c b/graphics/nvn/tests/t_rb_spec_gate.c
+index f5694e0..b5c58c4 100644
+--- a/graphics/nvn/tests/t_rb_spec_gate.c
++++ b/graphics/nvn/tests/t_rb_spec_gate.c
+@@ -86,6 +86,15 @@ static void kart_limits(void) {
+     unsigned plan = rb_gov_make_plan(128,RB_GOV_WARN,1500*mib,1,0);
+     assert(rb_gov_share(plan,RB_GOV_PIPELINE)==24*mib && rb_gov_pso_count(plan)==4096);
+     assert(rb_gov_pso_idle(plan,40*mib,5000)==300);
++    assert(rb_gov_pso_drops(plan,23*mib,4095,12)==0);
++    assert(rb_gov_pso_drops(plan,24*mib,4096,12)==0);
++    assert(rb_gov_pso_drops(plan,24*mib,4097,12)==1);
++    assert(rb_gov_pso_drops(plan,24*mib,4110,12)==12);
++    assert(rb_gov_pso_drops(plan,24*mib+1,4090,12)==12);
++    unsigned normal=rb_gov_make_plan(512,RB_GOV_NORMAL,5000*mib,1,plan);
++    assert(rb_gov_share(normal,RB_GOV_PIPELINE)==32*mib && rb_gov_pso_count(normal)==8192);
++    assert(rb_gov_pso_drops(normal,32*mib,8192,12)==0);
++    assert(rb_gov_pso_drops(normal,32*mib,8195,12)==3);
+     unsigned hold = rb_gov_make_plan(112,RB_GOV_WARN,1000*mib,1,plan);
+     assert(rb_gov_share(hold,RB_GOV_PIPELINE)==24*mib);
+     unsigned critical = rb_gov_make_plan(32,RB_GOV_CRITICAL,1500*mib,1,plan);
+@@ -93,6 +102,7 @@ static void kart_limits(void) {
+     assert(rb_gov_share(critical,RB_GOV_TEXTURE)==4*mib);
+     unsigned cold = rb_gov_make_plan(112,RB_GOV_WARN,1000*mib-1,1,hold);
+     assert(rb_gov_share(cold,RB_GOV_PIPELINE)==7*mib && rb_gov_pso_idle(cold,0,0)==60);
++    assert(rb_gov_pso_drops(cold,0,0,12)==12);
+     assert(!(rb_gov_make_plan(128,RB_GOV_WARN,UINT64_MAX,1,plan)&RB_GOV_PSO_FLOOR));
+     assert(!(rb_gov_make_plan(128,RB_GOV_WARN,1600*mib,0,plan)&RB_GOV_PSO_FLOOR));
+     uint64_t sum = 0;

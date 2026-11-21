@@ -1,0 +1,449 @@
+diff --git a/graphics/nvn/docs/nvn2_tile_passes.md b/graphics/nvn/docs/nvn2_tile_passes.md
+new file mode 100644
+index 0000000..f8977ce
+--- /dev/null
++++ b/graphics/nvn/docs/nvn2_tile_passes.md
+@@ -0,0 +1,15 @@
++# Direct Metal 4 render passes on NVN2
++
++The first guest command list selects the policy using the NPDM platform, the hosted 16-digit title ID and the active queue. The default enables the proven rules for NVN2 titles including `0400C3F00006E000`. `S2A_RB_NVN2_TILE_PASSES=0` restores the previous generic path. The legacy `04007EF01F8AE000` target retains its 810/811 settings. An unidentified session, NVN1 and Metal 3 retain the previous path. Set flags before launch.
++
++| Control | Rule |
++| --- | --- |
++| `S2A_RB_GPU_CLEAR_STORES=0` | Disable generic store elision. The enabled rule requires a whole matching subresource that will actually be cleared before an observer in this command buffer. A sealed list can supply the proof only across END transitions within the submitted piece. |
++| `S2A_RB_GPU_ATTACHMENT_LIVENESS=0` | Disable traversal across sealed lists and the private-clear exception for heap alias visibility. Direct full-overwrite and clear-batch candidates still require a non-overlapping descriptor and virtual backing history. |
++| `S2A_RB_GPU_PRODUCER=0` | Disable generic consumer-barrier elision. The proof is an immediately preceding full producer in the same queue and command buffer. A relaxed producer, wait, submission cut or foreign encoder invalidates the proof. Placement heaps retain alias visibility unless a clear-only pass has exclusively unexposed private attachments. The existing explicit `DM_NVN_PRODUCER_COVER` override takes precedence. |
++| `S2A_RB_GPU_CLEAR_BATCH=0` | Keep the original adjacent pending clear groups. The enabled rule validates physical storage, formats, extent, slots and load/store actions before joining two groups at their original materialization point. |
++| `S2A_RB_GPU_PASS_STATS=1` | Count barrier reasons and classify every pass attachment. These detailed counters are off by default on the generic path. |
++
++An overlapping descriptor, virtual mapping, invalid range or saturated history keeps the conservative store/batch decision. Histories start before the first replay and remain valid until session shutdown. Attachment bytes in the host log are logical bytes. Use GPU counters for DRAM traffic and device measurements for energy and thermals.
++
++Run `make native-test-rb_clear_batch_metal` with the project's native-test makefile on macOS. The target checks original behavior, the new title with the master disabled and the default-enabled title in separate processes. On a physical Metal 4 system the fixture submits NVN commands, checks selected store actions through their counters, exercises actual producer coverage and clear fusion, and reads every pixel of both attachments. On virtual Macs lacking a Metal 4 queue and residency set it applies the shared clear/alias proof to tracked Metal passes and reads both textures, including the untouched attachment. This fallback leaves direct-queue barrier and replay coverage for a capable GPU.
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index de95f1f..84a581c 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1602,14 +1602,31 @@ static int rb_shadow_on(void) { return rb_a18_option(RB_DEVICE_SHADOW, "S2A_RB_S
+ static int rb_drs_enabled(void) {
+     return g_dev && rb_a18_option(RB_DEVICE_DRS, "S2A_RB_DRS");
+ }
++#include "rb_nvn2_tiles.h"
++static _Atomic unsigned g_rb_tile_options;
++// Before first replay the loader may still be publishing the title. Keep
++// bounded exposure history from registrations and virtual mappings during
++// that interval. Once replay starts, the selected policy is immutable.
+ static int rb_live_requested(void) {
+-    int v = atomic_load_explicit(&g_rb_live_request, memory_order_relaxed);
+-    if (!v) {
+-        const char *e = getenv("S2A_RB_GPU_ATTACHMENT_LIVENESS");
+-        v = e && !strcmp(e, "1") ? 2 : 1;
+-        atomic_store_explicit(&g_rb_live_request, v, memory_order_relaxed);
+-    }
+-    return v == 2;
++    int mode = atomic_load_explicit(&g_rb_live_request, memory_order_relaxed);
++    return mode != 1;
++}
++static void rb_tile_session_begin(void) {
++    if (atomic_load_explicit(&g_rb_tile_options, memory_order_relaxed)) return;
++    const char *controls[5] = {getenv("S2A_RB_GPU_CLEAR_STORES"), getenv("S2A_RB_GPU_ATTACHMENT_LIVENESS"),
++                               getenv("S2A_RB_GPU_PRODUCER"), getenv("S2A_RB_GPU_CLEAR_BATCH"), getenv("S2A_RB_GPU_PASS_STATS")};
++    const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
++    unsigned flags = rb_nvn2_tile_policy(!g_m3 && g_q4 != nil, nvn2_on(), title,
++                                         getenv("S2A_RB_NVN2_TILE_PASSES"), controls);
++    int track = (flags & (RB_TILE_STORE | RB_TILE_LIVE | RB_TILE_BATCH)) || (controls[1] && !strcmp(controls[1], "1"));
++    atomic_store_explicit(&g_rb_live_request, track ? 2 : 1, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_tile_options, flags | RB_TILE_READY, memory_order_relaxed);
++    if (flags) MLOG("[gpu-pass] NVN2 title=%s store=%d liveness=%d producer=%d batch=%d detailed_stats=%d", title,
++                    !!(flags & RB_TILE_STORE), !!(flags & RB_TILE_LIVE), !!(flags & RB_TILE_PRODUCER),
++                    !!(flags & RB_TILE_BATCH), !!(flags & RB_TILE_STATS));
++}
++static int rb_tile_enabled(unsigned feature) {
++    return !!(atomic_load_explicit(&g_rb_tile_options, memory_order_relaxed) & feature);
+ }
+ static int rb_live_on(void) {
+     return rb_a18_option(RB_DEVICE_LIVE, "S2A_RB_GPU_ATTACHMENT_LIVENESS");
+@@ -1655,6 +1672,9 @@ static int rb_live_class(const tex_t *t) {
+     os_unfair_lock_unlock(&g_rb_exposure_lock);
+     return c;
+ }
++static int rb_store_unexposed(const tex_t *t) {
++    return t && !t->has_layout && rb_live_class(t) == RB_LIVE_UNEXPOSED;
++}
+ static inline MTL4VisibilityOptions rb_res_vis(void) { return MTL4VisibilityOptionDevice | (atomic_load_explicit(&g_sp_heap_n, memory_order_relaxed) ? MTL4VisibilityOptionResourceAlias : 0); }
+ // Queue barriers without the main replay's profiling/fence state. Present
+ // encoders run on their own thread and must not change that state.
+@@ -1672,14 +1692,15 @@ static __unsafe_unretained id g_bar_main_cb, g_bar_main_encoder;
+ static int g_bar_main_full;
+ static __unsafe_unretained id g_bar_full_entry;   // exact encoder on which a full queue consumer was emitted
+ static uint64_t g_bar_covered;
++static _Atomic int g_rb_producer_mode;
++static int g_rb_producer_override = -1;
+ static int producer_cover_on(void) {
+-    static int on = -1;
+-    if (on < 0) {
+-        static _Atomic int mode;
++    if (g_rb_producer_override < 0) {
+         const char *e = getenv("DM_NVN_PRODUCER_COVER");
+-        on = e ? !strcmp(e, "1") : rb_direct_option(&mode, "S2A_RB_GPU_PRODUCER");
++        g_rb_producer_override = e ? !strcmp(e, "1") : 2;
+     }
+-    return on;
++    if (g_rb_producer_override != 2) return g_rb_producer_override;
++    return rb_direct_option(&g_rb_producer_mode, "S2A_RB_GPU_PRODUCER") || rb_tile_enabled(RB_TILE_PRODUCER);
+ }
+ static void main_barrier_reset(void) { g_bar_main_cb = g_bar_main_encoder = g_bar_full_entry = nil; g_bar_main_full = 0; }
+ enum rb_entry_barrier { RB_ENTRY_NO_PROOF, RB_ENTRY_ALIAS, RB_ENTRY_COVERED, RB_ENTRY_RELAXED, RB_ENTRY_COUNT };
+@@ -8472,7 +8493,7 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+     alias_orphan_pass();   // #357: before the line cap below, which only limits the readout
+     nvn_mem_detail(frame);   // before the line cap below: the detailed accounting has its own interval and must not be starved by the 400-line budget
+     fb_report(frame); samp_report(frame); audit_probe_report(frame); rs_retain_report(frame);
+-    if (rb_live_on()) {
++    if (rb_live_on() || rb_tile_enabled(RB_TILE_LIVE)) {
+         MLOG("[tbdr] attachment liveness cumulative frame=%llu pass_resources_unexposed=%llu descriptor_overlap=%llu alias_or_unknown=%llu sealed_stores=%llu sealed_store_bytes=%llu sibling_load_bytes=%llu private_clear_entry_saved=%llu",
+              frame, (unsigned long long)atomic_load(&g_rb_live_classes[0]), (unsigned long long)atomic_load(&g_rb_live_classes[1]),
+              (unsigned long long)atomic_load(&g_rb_live_classes[2]), (unsigned long long)atomic_load(&g_rb_live_stores),
+@@ -8776,7 +8797,7 @@ static _Atomic int g_rb_next_clear_mode;
+ static _Atomic uint64_t g_rb_adjacent_pairs, g_rb_adjacent_stores, g_rb_adjacent_bytes;
+ 
+ int nvn_be_adjacent_clear_stats(uint64_t counts[3]) {
+-    if (atomic_load_explicit(&g_rb_next_clear_mode, memory_order_relaxed) != 2) return 0;
++    if (atomic_load_explicit(&g_rb_next_clear_mode, memory_order_relaxed) != 2 && !rb_tile_enabled(RB_TILE_STORE)) return 0;
+     counts[0] = atomic_load_explicit(&g_rb_adjacent_pairs, memory_order_relaxed);
+     counts[1] = atomic_load_explicit(&g_rb_adjacent_stores, memory_order_relaxed);
+     counts[2] = atomic_load_explicit(&g_rb_adjacent_bytes, memory_order_relaxed);
+@@ -8785,9 +8806,9 @@ int nvn_be_adjacent_clear_stats(uint64_t counts[3]) {
+ 
+ static int g_rb_all_loaded;
+ static uint64_t g_rb_final_rw;
++static _Atomic int g_rb_pass_stats_mode;
+ static int rb_pass_stats(void) {
+-    static _Atomic int mode;
+-    return !g_m3 && rb_direct_option(&mode, "S2A_RB_GPU_PASS_STATS");
++    return !g_m3 && (rb_direct_option(&g_rb_pass_stats_mode, "S2A_RB_GPU_PASS_STATS") || rb_tile_enabled(RB_TILE_STATS));
+ }
+ static uint64_t g_rb_discard_n, g_rb_discard_bytes;
+ 
+@@ -9538,7 +9559,7 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+     g_rb_all_loaded = natt && nload == natt && rb_pass_stats() &&
+                       (!pd.stencilAttachment.texture || pd.stencilAttachment.loadAction == MTLLoadActionLoad);
+     if (natt && nload == natt) g_pass_full_rw++;
+-    if (rb_live_on()) {
++    if (rb_live_on() || (rb_tile_enabled(RB_TILE_LIVE) && rb_tile_enabled(RB_TILE_STATS))) {
+         for (int i = 0; i < R.rt.n && i < 8; ++i) if (pd.colorAttachments[i].texture)
+             atomic_fetch_add_explicit(&g_rb_live_classes[rb_live_class(R.rt.color[i])], 1, memory_order_relaxed);
+         if (pd.depthAttachment.texture || pd.stencilAttachment.texture)
+@@ -9602,7 +9623,7 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+       void ms_note(id pd, NSUInteger nc); ms_note(pd, (NSUInteger)R.rt.n); }
+     if (g_blit) { enc_b_end(g_blit); g_blit = nil; }   // the copy encoder the shadows' blocks were moved in with (bcrt_attach)
+     ser_gate();
+-    g_enc = clear_only == 1 && rb_live_on() && rb_private_clear_pass(pd) ? enc_r_begin_pass_scoped(pd, 1) : enc_r_begin_pass(pd);
++    g_enc = clear_only == 1 && (rb_live_on() || rb_tile_enabled(RB_TILE_LIVE)) && rb_private_clear_pass(pd) ? enc_r_begin_pass_scoped(pd, 1) : enc_r_begin_pass(pd);
+     if (g_rb_shadow_native) {
+         if (!g_enc) {
+             g_rb_shadow_native=nil; g_rb_shadow_failed=1;
+@@ -17554,7 +17575,7 @@ static int rb_clear_has_landing(const uint8_t *op, op_hdr clear) {
+ static unsigned rb_adjacent_clear_mask(const p_set_rt *next, const uint8_t *op) {
+     if (g_rb_clear_legacy < 0) g_rb_clear_legacy = getenv("DM_NVN_TBDR") != NULL;
+     if (g_m3 || g_rb_clear_legacy || tbdr_on() ||
+-        !rb_direct_option(&g_rb_next_clear_mode, "S2A_RB_GPU_CLEAR_STORES")) return 0;
++        (!rb_direct_option(&g_rb_next_clear_mode, "S2A_RB_GPU_CLEAR_STORES") && !rb_tile_enabled(RB_TILE_STORE))) return 0;
+     op_hdr header;
+     memcpy(&header, op, sizeof header);
+     if (header.op != OP_CLEAR_COLOR && header.op != OP_CLEAR_DS) return 0;
+@@ -17568,6 +17589,7 @@ static unsigned rb_adjacent_clear_mask(const p_set_rt *next, const uint8_t *op)
+         unsigned external = NVN_TEXTURE_FLAGS_DISPLAY | NVN_TEXTURE_FLAGS_VIDEO_DECODE |
+                             NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET;
+         if (!t || (t->d.flags & external) || xv_present(a->ser)) continue;
++        if (rb_tile_enabled(RB_TILE_STORE) && !rb_store_unexposed(t)) continue;
+         if (rb_clear_covers_plane(a, next, op)) mask |= 1u << i;
+     }
+     return mask;
+@@ -17577,7 +17599,7 @@ static unsigned rb_adjacent_clear_mask(const p_set_rt *next, const uint8_t *op)
+ // wait, signal, segment publication or unseen next submission can supply proof.
+ static int rb_inside_piece(void);
+ static unsigned rb_sealed_clear(const p_set_rt *rt, const uint8_t *next) {
+-    if (!rb_live_on() || !rb_inside_piece() || tbdr_on() || g_rb_clear_legacy ||
++    if ((!rb_live_on() && !(rb_tile_enabled(RB_TILE_STORE) && rb_tile_enabled(RB_TILE_LIVE))) || !rb_inside_piece() || tbdr_on() || g_rb_clear_legacy ||
+         g_ret_n < 0 || g_ret_n > 16 || g_nlc || g_defer_nact || g_defer_replaying || g_fz.active ||
+         g_rt_range_active || g_imfit_npend || g_imwr_npend ||
+         g_nbcrt || g_nubd || rs_on() || sub_cut_due() || rb_clear_readback_pending()) return 0;
+@@ -17588,7 +17610,7 @@ static unsigned rb_sealed_clear(const p_set_rt *rt, const uint8_t *next) {
+         sd_att *att = &g_sd[i];
+         if (!rb_clear_covers_plane(att, rt, clear)) continue;
+         const tex_t *t = att->depth ? R.rt.depth : R.rt.color[att->idx];
+-        if (!xv_present(att->ser) && !t->has_layout && rb_live_class(t) == RB_LIVE_UNEXPOSED)
++        if (!xv_present(att->ser) && rb_store_unexposed(t))
+             mask |= 1u << i;
+     }
+     return mask;
+@@ -19794,7 +19816,7 @@ static int lc_same(const p_set_rt *a, int ka, const p_set_rt *b, int kb) {   //
+ #include "rb_clear_batch.h"
+ static _Atomic uint64_t g_rb_clear_candidates, g_rb_clear_saved, g_rb_clear_rejected, g_rb_clear_same;
+ static int rb_clear_batch_on(void) {
+-    return rb_a18_option(RB_DEVICE_BATCH, "S2A_RB_GPU_CLEAR_BATCH");
++    return rb_a18_option(RB_DEVICE_BATCH, "S2A_RB_GPU_CLEAR_BATCH") || rb_tile_enabled(RB_TILE_BATCH);
+ }
+ void nvn_be_clear_batch_stats(uint64_t result[4]) {
+     result[0]=atomic_load_explicit(&g_rb_clear_candidates,memory_order_relaxed);
+@@ -19842,6 +19864,7 @@ static int rb_clear_include(RBClearPlan *plan, const lc_group *g, int same_slots
+             (uint64_t)t->off>t->pool->size || t->L.size>t->pool->size-(uint64_t)t->off ||
+             (uintptr_t)t->pool->mem>UINTPTR_MAX-(uintptr_t)t->off ||
+             (uintptr_t)t->mem!=(uintptr_t)t->pool->mem+(uintptr_t)t->off) return 0;
++        if (rb_tile_enabled(RB_TILE_BATCH) && rb_live_class(t) != RB_LIVE_UNEXPOSED) return 0;
+         plan->pool=t->pool;
+         // Do not instantiate a texture, load bytes or upgrade a view for a speculative batch.
+         pthread_mutex_lock(&g_smu);
+@@ -22256,6 +22279,7 @@ static void clear_ds_tri(const p_clear_ds *c) {
+ 
+ static void xq_unwind_push(const uint8_t *p);   // nvn_xqueue.inc
+ void nvn_be_exec(const uint8_t *p) {
++    rb_tile_session_begin();
+     static int inited; if (!inited) { inited = 1; state_reset(); }
+     static int dump_all = -1; if (dump_all < 0) dump_all = getenv("DM_NVN_PASSDUMP_ALL") != NULL;
+     int trace = dump_all && passdump();   // Normal mode does not check the frame range per operation; the full command position is only used for the designated diagnostic frames
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index d05b4b3..c95e224 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -158,6 +158,15 @@ int nvn_be_shutdown_session(void) {
+     atomic_store_explicit(&g_rs_scene_count, 0, memory_order_relaxed);
+     os_unfair_lock_unlock(&g_rs_scene_lock);
+     g_rs_native_draw = 0; g_rs = -1;
++    // The retired session's descriptor registry and pools have been drained.
++    os_unfair_lock_lock(&g_rb_exposure_lock);
++    memset(&g_rb_descriptor_bytes, 0, sizeof g_rb_descriptor_bytes);
++    memset(&g_rb_virtual_bytes, 0, sizeof g_rb_virtual_bytes);
++    os_unfair_lock_unlock(&g_rb_exposure_lock);
++    atomic_store(&g_rb_tile_options, 0);
++    atomic_store(&g_rb_producer_mode, 0);
++    g_rb_producer_override = -1;
++    atomic_store(&g_rb_pass_stats_mode, 0);
+     g_rb_clear_legacy = -1;
+     g_rb_next_clear_mask = g_rb_sealed_clear_mask = 0;
+     rb_reuse_session_reset();   // RewindBox (patch 0071): the textures kept for reuse, the ring of finalized textures, the snapshot pools (nvn_mtl.m)
+diff --git a/graphics/nvn/gfx/nvn/rb_nvn2_tiles.h b/graphics/nvn/gfx/nvn/rb_nvn2_tiles.h
+new file mode 100644
+index 0000000..7257e31
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_nvn2_tiles.h
+@@ -0,0 +1,24 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <string.h>
++#include <strings.h>
++
++enum {
++    RB_TILE_STORE = 1u << 0, RB_TILE_LIVE = 1u << 1, RB_TILE_PRODUCER = 1u << 2,
++    RB_TILE_BATCH = 1u << 3, RB_TILE_STATS = 1u << 4, RB_TILE_READY = 1u << 5
++};
++
++// Only a hosted, identified NVN2 session running the direct Metal 4 queue.
++// The previous target retains its independent 810/811 controls.
++static inline unsigned rb_nvn2_tile_policy(int metal4, int nvn2, const char *title,
++                                           const char *master, const char *const controls[5]) {
++    if (!metal4 || !nvn2 || !title || strlen(title) != 16 ||
++        strspn(title, "0123456789abcdefABCDEF") != 16 || !strcasecmp(title, "04007EF01F8AE000") ||
++        (master && strcmp(master, "1"))) return 0;
++    unsigned flags = 0;
++    for (unsigned i = 0; i < 5; i++) {
++        unsigned bit = 1u << i;
++        if (controls[i] ? !strcmp(controls[i], "1") : bit != RB_TILE_STATS) flags |= bit;
++    }
++    return flags;
++}
+diff --git a/graphics/nvn/tests/t_rb_clear_batch.c b/graphics/nvn/tests/t_rb_clear_batch.c
+index 2cc8264..dbe0d4d 100644
+--- a/graphics/nvn/tests/t_rb_clear_batch.c
++++ b/graphics/nvn/tests/t_rb_clear_batch.c
+@@ -1,6 +1,7 @@
+ // SPDX-License-Identifier: MIT
+ // cc -std=c11 -Wall -Werror tests/t_rb_clear_batch.c -o /tmp/t_rb_clear_batch
+ #include "../gfx/nvn/rb_clear_batch.h"
++#include "../gfx/nvn/rb_nvn2_tiles.h"
+ #include <assert.h>
+ #include <stdio.h>
+ 
+@@ -8,6 +9,18 @@ static rb_clear_plane target(unsigned index, unsigned bpp) {
+     return (rb_clear_plane){0x100000ull * (index+1), 0x100000, 0x2000+index,960,540,bpp,0};
+ }
+ int main(void) {
++    const char *mkw="0400C3F00006E000", *controls[5]={0};
++    unsigned all=RB_TILE_STORE|RB_TILE_LIVE|RB_TILE_PRODUCER|RB_TILE_BATCH;
++    assert(rb_nvn2_tile_policy(1,1,mkw,NULL,controls)==all);
++    assert(rb_nvn2_tile_policy(1,1,"0400aa00bb00cc00",NULL,controls)==all);
++    assert(!rb_nvn2_tile_policy(1,1,mkw,"0",controls));
++    assert(!rb_nvn2_tile_policy(1,0,mkw,NULL,controls));
++    assert(!rb_nvn2_tile_policy(0,1,mkw,NULL,controls));
++    assert(!rb_nvn2_tile_policy(1,1,NULL,NULL,controls));
++    assert(!rb_nvn2_tile_policy(1,1,"unknown",NULL,controls));
++    assert(!rb_nvn2_tile_policy(1,1,"04007EF01F8AE000",NULL,controls));
++    controls[2]="0"; controls[4]="1";
++    assert(rb_nvn2_tile_policy(1,1,mkw,"1",controls)==((all & ~RB_TILE_PRODUCER)|RB_TILE_STATS));
+     assert(rb_clear_disjoint_masks(3,1,2)); // two colors of the same MRT
+     assert(rb_clear_disjoint_masks(0x101,0x100,1)); // depth + color
+     assert(!rb_clear_disjoint_masks(3,1,1)); // would erase the order of two writes
+diff --git a/graphics/nvn/tests/t_rb_clear_batch_metal.m b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+index 62009f2..5beab16 100644
+--- a/graphics/nvn/tests/t_rb_clear_batch_metal.m
++++ b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+@@ -7,6 +7,9 @@ typedef float ClearImage[2][HEIGHT][WIDTH];
+ static const double colors[2]={0.125,0.75};
+ static tex_t targets[2];
+ static pool_t pool;
++// The runtime normally derives this from the loader's NPDM platform field.
++static int fixture_nvn2;
++int s2a_platform_ounce(void) { return fixture_nvn2; }
+ 
+ static void read_pair(id<MTLDevice> dev, id<MTLTexture> a, id<MTLTexture> b, ClearImage out) {
+     id<MTLCommandQueue> q=[dev newCommandQueue]; id<MTLCommandBuffer> cb=[q commandBuffer];
+@@ -41,7 +44,12 @@ static void native_pair(int mode, ClearImage out) {
+     if (mode) {
+         CHECK(!rb_clear_combine(&a,&a));  // same subresource and duplicate clear
+         if (mode==2) CHECK(rt_same(&a.rt,&b.rt));
+-        CHECK(rb_clear_combine(&a,&b));
++        if (fixture_nvn2) {
++            uint64_t before=atomic_load(&g_rb_clear_saved);
++            g_lc[0]=a; g_lc[1]=b; g_nlc=2;
++            lc_land();
++            CHECK(atomic_load(&g_rb_clear_saved)==before+1);
++        } else CHECK(rb_clear_combine(&a,&b));
+     } else {
+         lc_apply(&a); CHECK(rp_begin_ex(1)); rp_end();
+         lc_apply(&b); CHECK(rp_begin_ex(1)); rp_end();
+@@ -83,7 +91,90 @@ static void tracked_pair(id<MTLDevice> dev, int combined, ClearImage out) {
+     [cb commit]; [cb waitUntilCompleted]; CHECK(cb.status==MTLCommandBufferStatusCompleted);
+     read_pair(dev,t[0],t[1],out);
+ }
+-int main(void) { @autoreleasepool {
++
++// A clipped or observable plane must survive the first pass. This tracked-Metal
++// control runs on virtual Macs alongside the direct queue fixture on Apple GPUs.
++static void tracked_store(id<MTLDevice> dev) {
++    unsigned char memory[128];
++    pool_t local={.mem=memory,.size=sizeof memory};
++    tex_t t[2]={0}; p_set_rt old={.n=2}, next={.n=1};
++    for (unsigned i=0;i<2;i++) {
++        t[i].pool=&local; t[i].serial=i+1; t[i].mem=memory+i*64; t[i].off=i*64; t[i].L.size=64;
++        t[i].d=(nvn_texdesc){.target=NVN_TEXTURE_TARGET_2D,.width=WIDTH,.height=HEIGHT,.depth=1,.levels=1};
++        old.color[i]=&t[i];
++    }
++    sd_att plane={.ser=t[0].serial,.idx=0};
++    struct { op_hdr header; p_clear_color payload; } command={{OP_CLEAR_COLOR,8+sizeof(p_clear_color)},{.mask=0xf}};
++    R.rt=old; next.color[0]=&t[0];
++    CHECK(rb_clear_covers_plane(&plane,&next,(const uint8_t *)&command));
++    R.has_sc=1; R.sc=(typeof(R.sc)){.x=1,.w=WIDTH-1,.h=HEIGHT};
++    CHECK(!rb_clear_covers_plane(&plane,&next,(const uint8_t *)&command)); R.has_sc=0;
++    rb_descriptor_expose(&t[1]);
++    CHECK(rb_store_unexposed(&t[0]) && !rb_store_unexposed(&t[1]));
++    MTLTextureDescriptor *d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatR32Float
++                                                                                  width:WIDTH height:HEIGHT mipmapped:NO];
++    d.storageMode=MTLStorageModePrivate; d.usage=MTLTextureUsageRenderTarget;
++    id<MTLTexture> tex[2]={[dev newTextureWithDescriptor:d],[dev newTextureWithDescriptor:d]};
++    id<MTLCommandQueue> q=[dev newCommandQueue]; id<MTLCommandBuffer> cb=[q commandBuffer]; CHECK(cb && tex[0] && tex[1]);
++    for (unsigned pass=0;pass<2;pass++) {
++        MTLRenderPassDescriptor *pd=[MTLRenderPassDescriptor renderPassDescriptor];
++        for (unsigned i=0;i<(pass ? 1u : 2u);i++) {
++            sd_att att={.ser=t[i].serial,.idx=(int)i};
++            BOOL dead=!pass && rb_store_unexposed(&t[i]) && rb_clear_covers_plane(&att,&next,(const uint8_t *)&command);
++            CHECK(dead==(!pass && i==0));
++            MTLRenderPassColorAttachmentDescriptor *at=pd.colorAttachments[i];
++            at.texture=tex[i]; at.loadAction=MTLLoadActionClear; at.storeAction=dead ? MTLStoreActionDontCare : MTLStoreActionStore;
++            at.clearColor=MTLClearColorMake(!pass && !i ? -0.5 : colors[i],0,0,1);
++        }
++        id<MTLRenderCommandEncoder> e=[cb renderCommandEncoderWithDescriptor:pd]; CHECK(e); [e endEncoding];
++    }
++    [cb commit]; [cb waitUntilCompleted]; CHECK(cb.status==MTLCommandBufferStatusCompleted);
++    ClearImage out; read_pair(dev,tex[0],tex[1],out);
++    R.rt=(p_set_rt){0};
++}
++
++// Encode a masked clear as a real draw so the SetRT following it closes a live
++// encoder. Split=true crosses a sealed END within the same submitted piece.
++static void native_store(int split, int exposed, int enabled) {
++    p_set_rt target={.n=1}; target.color[0]=&targets[0];
++    struct {
++        op_hdr head; p_set_rt_c rt; const tex_t *ptr; tex_t snapshot;
++    } bind={.head={OP_SET_RT,sizeof bind}};
++    CHECK(sizeof bind==8+set_rt_size(&target));
++    set_rt_put(&bind.rt,&target);
++    struct { op_hdr h; p_clear_color c; } partial={{OP_CLEAR_COLOR,8+sizeof(p_clear_color)},
++                                                    {.mask=1,.rgba={-0.5,0,0,1}}},
++        full={{OP_CLEAR_COLOR,8+sizeof(p_clear_color)},{.mask=15,.rgba={0.125,0,0,1}}};
++    op_hdr end={OP_END,8};
++    _Alignas(8) unsigned char first[2*sizeof bind+sizeof partial+sizeof full+sizeof end];
++    _Alignas(8) unsigned char second[sizeof full+sizeof end];
++    unsigned char *w=first;
++    memcpy(w,&bind,sizeof bind); w+=sizeof bind; memcpy(w,&partial,sizeof partial); w+=sizeof partial;
++    memcpy(w,&bind,sizeof bind); w+=sizeof bind;
++    if (split) { memcpy(w,&end,sizeof end); w=second; }
++    memcpy(w,&full,sizeof full); w+=sizeof full; memcpy(w,&end,sizeof end);
++    uint64_t handles[]={(uintptr_t)first,(uintptr_t)second};
++    static queue_t queue;
++    if (exposed) nvn_be_reg_tex(7,&targets[0],NULL);
++    CHECK(rb_store_unexposed(&targets[0])==!exposed || !enabled);
++    uint64_t adjacent=atomic_load(&g_rb_adjacent_stores), sealed=atomic_load(&g_rb_live_stores);
++    nvn_be_submit(&queue,handles,split ? 2 : 1);
++    CHECK(nvn_be_wait(nvn_be_last_fence(),10000000000ull) && !mtl_last_commit_error());
++    CHECK(atomic_load(&g_rb_adjacent_stores)-adjacent==(unsigned)(enabled && !exposed && !split));
++    CHECK(atomic_load(&g_rb_live_stores)-sealed==(unsigned)(enabled && !exposed && split));
++    ClearImage out; read_pair(g_dev,tex_mtl(&targets[0]),tex_mtl(&targets[1]),out);
++}
++int main(int argc,char **argv) { @autoreleasepool {
++    int titles=argc==2 && (!strcmp(argv[1],"--nvn2-tiles") || !strcmp(argv[1],"--nvn2-control"));
++    int enabled=titles && !strcmp(argv[1],"--nvn2-tiles");
++    CHECK(argc==1 || titles);
++    if (titles) {
++        fixture_nvn2=1;
++        CHECK(!setenv("DM_NVN_BARRIER","full",1));
++        CHECK(!setenv("S2A_RB_DIRECT_GAME_ID","0400C3F00006E000",1));
++        if (enabled) CHECK(!unsetenv("S2A_RB_NVN2_TILE_PASSES"));
++        else CHECK(!setenv("S2A_RB_NVN2_TILE_PASSES","0",1));
++    }
+     id<MTLDevice> dev=MTLCreateSystemDefaultDevice(); CHECK(dev);
+     BOOL direct=NO;
+     if (@available(macOS 26.0, iOS 26.0, *)) {
+@@ -95,6 +186,10 @@ int main(void) { @autoreleasepool {
+     ClearImage before,after;
+     if (!direct) {
+         tracked_pair(dev,0,before); tracked_pair(dev,1,after); CHECK(!memcmp(before,after,sizeof before));
++        if (enabled) {
++            tracked_store(dev);
++            puts("PASS tracked Metal NVN2 proof: clipped/descriptor rejection, overwritten and preserved pixels; direct queue barriers untested");
++        }
+         puts("PASS tracked Metal: identical MRT clear/store results and alias rejection; direct Metal 4 unavailable");
+         return 0;
+     }
+@@ -109,8 +204,21 @@ int main(void) { @autoreleasepool {
+         t->pool=&pool; t->off=i*65536; t->mem=mem+t->off;
+         nvn_tex_layout(&t->d,&t->L); nvn_be_tex_init(t); CHECK(tex_mtl(t));
+     }
++    if (titles) {
++        CHECK(nvn2_on() && rb_tile_enabled(RB_TILE_STORE)==enabled && rb_clear_batch_on()==enabled &&
++              producer_cover_on()==enabled && rb_tile_enabled(RB_TILE_LIVE)==enabled);
++    }
++    uint64_t covered=g_bar_covered;
+     native_pair(0,before);
+-    for (int mode=1; mode<=2; mode++) { native_pair(mode,after); CHECK(!memcmp(before,after,sizeof before)); }
++    if (enabled) CHECK(g_bar_covered>covered);
++    if (!titles || enabled) {
++        for (int mode=1; mode<=2; mode++) { native_pair(mode,after); CHECK(!memcmp(before,after,sizeof before)); }
++    }
++    if (titles) {
++        native_store(0,0,enabled); native_store(1,0,enabled);
++        native_store(0,1,enabled); native_store(1,1,enabled);
++        printf("PASS direct Metal 4 NVN2 tiles=%d: adjacent/sealed stores, bindless overlap, barriers, pixel readback\n",enabled);
++    }
+     puts("PASS direct Metal 4: distinct/same target sets, alias rejection, both images identical");
+     return 0;
+ } }
+diff --git a/runtime/tests/mk/rb_clear_batch.mk b/runtime/tests/mk/rb_clear_batch.mk
+index efa79a3..d6fd71f 100644
+--- a/runtime/tests/mk/rb_clear_batch.mk
++++ b/runtime/tests/mk/rb_clear_batch.mk
+@@ -10,4 +10,6 @@ $(BUILD)/tests/t_rb_clear_batch_metal: graphics/nvn/tests/t_rb_clear_batch_metal
+ .PHONY: native-test-rb_clear_batch_metal
+ native-test-rb_clear_batch_metal: $(BUILD)/tests/t_rb_clear_batch_metal
+ 	$(BUILD)/tests/t_rb_clear_batch_metal
++	$(BUILD)/tests/t_rb_clear_batch_metal --nvn2-control
++	$(BUILD)/tests/t_rb_clear_batch_metal --nvn2-tiles
+ endif

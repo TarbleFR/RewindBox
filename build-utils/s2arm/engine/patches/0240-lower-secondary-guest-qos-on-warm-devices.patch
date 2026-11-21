@@ -1,0 +1,234 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index fda864c..2633dd3 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -2550,6 +2550,8 @@ static void thr_counts_lv(thsc_lv lv[2]) {
+ // Where every guest thread is USER_INTERACTIVE already (a Mac) this changes nothing. DM_NVN_RENDER_QOS=0 leaves the thread alone (A/B on a device)
+ #if !defined(__ANDROID__)
+ #include "../../../../runtime/include/s2a_qos.h"   // 全进程线程调度档一张表：提交线程 = S2A_QOS_SUBMIT
++// 弱链接[nvntest]：s2a_guest_frame_qos_protect (runtime owns guest pthread QoS)
++extern void s2a_guest_frame_qos_protect(void) __attribute__((weak_import));
+ static int render_qos_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_NVN_RENDER_QOS"); v = !(e && !strcmp(e, "0")); } return v; }
+ static _Atomic uint32_t g_sub_qos_seen;   // the submit thread's QoS as last checked (summary line)
+ #endif
+@@ -3028,6 +3030,9 @@ static void rb_call_leave(void) {
+     atomic_fetch_sub(&rb_callers, 1);
+ }
+ NVN(nvnQueueSubmitCommands, void, NVNqueue *q, int n, const NVNcommandHandle *h) {
++#if defined(__APPLE__)
++    if (s2a_guest_frame_qos_protect) s2a_guest_frame_qos_protect();
++#endif
+     gfx_enter();
+     if (dm_gfx_session_stopping()) { gfx_leave(); return; }
+     rb_call_enter(0);
+@@ -4143,6 +4148,9 @@ static void fstep_tick(win_t *o) {
+ }
+ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+     if (dm_gfx_session_stopping()) return;
++#if defined(__APPLE__)
++    if (s2a_guest_frame_qos_protect) s2a_guest_frame_qos_protect();
++#endif
+     rb_gap_sample rb_gaps = rb_call_enter(1);
+     win_t *o = (win_t *)w; o->presents++;
+     if (q) { if (pthread_mutex_trylock(&g_sub_mu)) { int phase=rb_lf_switch(RB_LOCK); uint64_t w0 = now_ns(); pthread_mutex_lock(&g_sub_mu); t_rb_lock_ns += now_ns() - w0; if (phase>=0) rb_lf_switch(phase); } nvn_be_xq_flush(q, "a present on it"); pthread_mutex_unlock(&g_sub_mu); }   // 上屏排在这条队列的工作后面：停在跨队列等待上的部分先放行（nvn_xqueue.inc）  RewindBox (patch 0068): a contended submit lock is timed (the parked work it replays is CPU, and its own waits land in nvn_be_blocked_ns)
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 718fad5..de95f1f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -759,6 +759,32 @@ static void udc_selftest(void) {
+         MLOG("UDC self-check %s %s %lux%lu first value %08x, values differing from it %lu / %lu", g_dev.name.UTF8String, depth ? "Depth32F_S8" : "RGBA8", (unsigned long)w, (unsigned long)h, px[0], (unsigned long)bad, (unsigned long)(w * h));
+     }
+ }
++#if TARGET_OS_IPHONE
++// 弱链接[nvntest]：s2a_guest_heat_publish (runtime owns the guest threads)
++extern void s2a_guest_heat_publish(int) __attribute__((weak_import));
++static void rb_guest_heat_monitor(void) {
++    const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
++    const char *option = getenv("S2A_RB_GUEST_QOS_THERMAL");
++    if (g_m3 || !title || strcasecmp(title, "0400C3F00006E000") ||
++        (option && strcmp(option, "1")) || ![g_dev.name isEqualToString:@"Apple A18 Pro GPU"] ||
++        !s2a_guest_heat_publish) return;
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{
++        // One configured game per hosted process. The observer and initial
++        // sample run on the same serial queue and never wake sleeping guests.
++        dispatch_async(dispatch_get_main_queue(), ^{
++            NSProcessInfo *info = NSProcessInfo.processInfo;
++            [NSNotificationCenter.defaultCenter addObserverForName:NSProcessInfoThermalStateDidChangeNotification
++                object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *unused) {
++                    (void)unused;
++                    s2a_guest_heat_publish((int)info.thermalState);
++                }];
++            s2a_guest_heat_publish((int)info.thermalState);
++        });
++        MLOG("[RB-GUEST-QOS] active=1 main/gameplay/submit/present/encode preserved");
++    });
++}
++#endif
+ void mtl_init(void) {
+     if (g_dev) return;
+     const char *vbc = getenv("DM_NVN_VBUF_CACHE"); g_vbuf_cache = !(vbc && !strcmp(vbc, "0"));
+@@ -777,6 +803,9 @@ void mtl_init(void) {
+     if (os26) { if (@available(iOS 27.0, *)) {} else ios26x = 1; }   // iOS 26.x：见 nvn_be.h（#311）
+ #endif
+     g_m3 = nvn_be_pick(getenv("NXGAL_BE"), os26, family4, ios26x, &be_why) == NVN_BE_MTL3;
++#if TARGET_OS_IPHONE
++    rb_guest_heat_monitor();
++#endif
+     MLOG("direct backend: Metal %d (%s)", g_m3 ? 3 : 4, be_why);
+     g_mesh_ok = [g_dev supportsFamily:MTLGPUFamilyMetal3];   // object / mesh functions (NVN2 DrawMeshTasks): Apple7+ / Mac2, every Metal 4 GPU; an older GPU on the Metal 3 path has none
+     g_red_emu = !s2a_reduce_native(g_dev); g_lb_emu = !s2a_lodbias_native(g_dev);
+diff --git a/runtime/src/rb_guest_heat.h b/runtime/src/rb_guest_heat.h
+new file mode 100644
+index 0000000..e949fad
+--- /dev/null
++++ b/runtime/src/rb_guest_heat.h
+@@ -0,0 +1,20 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++#include <stdint.h>
++
++typedef struct { int secondary, reduced; } rb_guest_heat_role;
++
++// Guest ID 83 is the hot gameplay worker in the measured MKW configuration.
++// IDs are process-local. The title/device/backend gate is applied by the producer.
++static inline rb_guest_heat_role rb_guest_heat_worker(uint64_t id, int main_thread,
++                                                     int interactive, int explicit_qos) {
++    return (rb_guest_heat_role){!main_thread && id != 83 && interactive && !explicit_qos, 0};
++}
++
++// Positive requests USER_INITIATED, negative restores the previous USER_INTERACTIVE.
++// Called on the owner thread; repeated observations do not make scheduler calls.
++static inline int rb_guest_heat_change(rb_guest_heat_role *role, int hot) {
++    if (!role->secondary || role->reduced == hot) return 0;
++    role->reduced = hot;
++    return hot ? 1 : -1;
++}
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index 5552a11..a2bbd9d 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -854,11 +854,55 @@ static qos_class_t guest_qos(int main_thread, uint64_t mask) {
+ }
+ qos_class_t s2a_test_guest_qos(int main_thread, uint64_t mask) { return guest_qos(main_thread, mask); }   // 单测入口（t_thread.c）
+ // 设 QoS 并读回核对：设不上（如 .NET 建的线程 EPERM）或读回不符就报红一次
+-static void set_qos(qos_class_t want) {
++static int set_qos(qos_class_t want) {
+     int rc = pthread_set_qos_class_self_np(want, 0); qos_class_t got = QOS_CLASS_UNSPECIFIED; int rp = 0;
+     pthread_get_qos_class_np(pthread_self(), &got, &rp);
+     if (rc || got != want) { static _Atomic int n; if (!atomic_fetch_add(&n, 1)) LOG("【红】游戏线程 QoS 设 %#x 失败：rc=%d 读回 %#x", want, rc, got); }
++    return !rc && got == want;
++}
++#include "rb_guest_heat.h"
++static _Atomic int rb_guest_hot;
++static _Atomic unsigned rb_guest_down, rb_guest_up;
++static _Thread_local rb_guest_heat_role rb_heat_role;
++static _Thread_local int rb_frame_role;
++static _Thread_local uint64_t rb_qos_retry;
++
++void s2a_guest_heat_publish(int state) {
++    if (state < 0 || state > 3) return;
++    int hot = state >= 1;
++    if (atomic_exchange_explicit(&rb_guest_hot, hot, memory_order_relaxed) != hot)
++        LOG("[RB-GUEST-QOS] thermal=%d secondary=%s reduced_requests=%u restore_requests=%u",
++            state, hot ? "USER_INITIATED" : "USER_INTERACTIVE",
++            atomic_load(&rb_guest_down), atomic_load(&rb_guest_up));
++}
++
++static void rb_guest_heat_apply(int hot) {
++    if (rb_frame_role) hot = 0;
++    if (rb_heat_role.reduced == hot) {
++        if (rb_frame_role) rb_heat_role.secondary = 0;
++        return;
++    }
++    if (rb_qos_retry && clock_gettime_nsec_np(CLOCK_UPTIME_RAW) < rb_qos_retry) return;
++    rb_guest_heat_role next = rb_heat_role;
++    int change = rb_guest_heat_change(&next, hot);
++    if (!change) return;
++    atomic_fetch_add_explicit(change > 0 ? &rb_guest_down : &rb_guest_up, 1, memory_order_relaxed);
++    if (set_qos(change > 0 ? QOS_CLASS_USER_INITIATED : QOS_CLASS_USER_INTERACTIVE)) {
++        rb_heat_role = next;
++        rb_qos_retry = 0;
++        if (rb_frame_role) rb_heat_role.secondary = 0;
++    } else {
++        rb_qos_retry = clock_gettime_nsec_np(CLOCK_UPTIME_RAW) + 1000000000ull;
++    }
+ }
++
++void s2a_guest_frame_qos_protect(void) {
++    if (!rb_heat_role.secondary) return;
++    if (!rb_frame_role) rb_qos_retry = 0;
++    rb_frame_role = 1;
++    rb_guest_heat_apply(0);
++}
++
+ #endif
+ static void thread_bind_host(thr_t *t) {
+ #if !defined(__APPLE__)
+@@ -890,7 +934,18 @@ static void samecore_init(void);
+ static void *thread_main(void *p) {
+     thr_t *t = p;
+ #if defined(__APPLE__)
+-    set_qos(guest_qos(0, t->mask));
++    qos_class_t base = guest_qos(0, t->mask);
++    const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
++    const char *setting = getenv("S2A_RB_GUEST_QOS_THERMAL");
++    rb_heat_role = (rb_guest_heat_role){0};
++    if (s2a_rb_guest_on() && title && !strcasecmp(title, "0400C3F00006E000") &&
++        (!setting || !strcmp(setting, "1")))
++        rb_heat_role = rb_guest_heat_worker(t->id, t->is_main, base == QOS_CLASS_USER_INTERACTIVE,
++                                            other_qos() != QOS_CLASS_UNSPECIFIED);
++    rb_frame_role = 0;
++    rb_qos_retry = 0;
++    set_qos(base);
++    if (rb_heat_role.secondary) rb_guest_heat_apply(atomic_load_explicit(&rb_guest_hot, memory_order_relaxed));
+ #endif
+     thread_bind_host(t);
+     glock(); while (!t->started && !atomic_load(&g_session_stop)) thread_condition_wait(t, &t->cv, NULL); pthread_mutex_unlock(&G);
+@@ -1202,6 +1257,7 @@ uint32_t s2a_thread_main_init(void) {
+     samecore_init();
+     if (!t->handle) die("主线程句柄分配失败");
+ #if defined(__APPLE__)
++    rb_heat_role = (rb_guest_heat_role){0};
+     set_qos(guest_qos(1, 7));
+     if (wg_on() && g_wg_mode != 2) wg_join_self("游戏主线程");
+ #endif
+@@ -2770,6 +2826,8 @@ uint64_t s2a_rb_mkw_wait_take(void) { return s2a_rb_mkw_wait_detail_take(NULL);
+ #endif
+ int svc_thread(int num, uint64_t *regs) {
+ #if defined(__APPLE__)
++    if (rb_heat_role.secondary)
++        rb_guest_heat_apply(atomic_load_explicit(&rb_guest_hot, memory_order_relaxed));
+     if (__builtin_expect(g_wg_state > 0 && g_wg_mode == 3 && !t_wg_joined, 0)) { thr_t *w = thread_current_or_null(); if (w) { char nm[48]; snprintf(nm, sizeof nm, "游戏线程 %llu（优先级 %d）", (unsigned long long)w->id, w->prio); wg_join_self(nm); } }
+ #endif
+     { thr_t *s = thread_current_or_null(); if (s) { atomic_fetch_add_explicit(&s->nsvc_all, 1, memory_order_relaxed);
+diff --git a/runtime/tests/t_rb_guest_heat.c b/runtime/tests/t_rb_guest_heat.c
+new file mode 100644
+index 0000000..4f69592
+--- /dev/null
++++ b/runtime/tests/t_rb_guest_heat.c
+@@ -0,0 +1,24 @@
++#include "../src/rb_guest_heat.h"
++#include <assert.h>
++#include <stdio.h>
++
++int main(void) {
++    rb_guest_heat_role worker = rb_guest_heat_worker(93, 0, 1, 0);
++    assert(!rb_guest_heat_change(&worker, 0));
++    assert(rb_guest_heat_change(&worker, 1) == 1);
++    assert(!rb_guest_heat_change(&worker, 1));
++    assert(rb_guest_heat_change(&worker, 0) == -1);
++    assert(!rb_guest_heat_change(&worker, 0));
++    rb_guest_heat_role keep[] = {
++        rb_guest_heat_worker(81, 1, 1, 0), rb_guest_heat_worker(83, 0, 1, 0),
++        rb_guest_heat_worker(174, 0, 0, 0), rb_guest_heat_worker(173, 0, 1, 1),
++        (rb_guest_heat_role){0}
++    };
++    for (unsigned i = 0; i < sizeof keep / sizeof *keep; ++i)
++        assert(!rb_guest_heat_change(&keep[i], 1));
++    assert(rb_guest_heat_change(&worker, 1) == 1);
++    assert(rb_guest_heat_change(&worker, 0) == -1);
++    worker.secondary = 0;
++    assert(!rb_guest_heat_change(&worker, 1));
++    puts("PASS guest thermal QoS: secondary Fair/Nominal, role promotion, explicit and file I/O tiers");
++}
