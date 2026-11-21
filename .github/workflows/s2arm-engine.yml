@@ -6,7 +6,7 @@ name: S2Arm engine (iOS) build check
 # runners and records what the engine is made of (images, sizes, exported and undefined symbols),
 # for the common IPA's authenticated engine pin. No game, key or Nintendo file is used.
 # Claude pushes require [s2arm-engine] to compile or [s2arm-pin ...] to pin;
-# [s2arm-shader-checks] alone runs the host suites while developing their fixtures.
+# Standalone shader or thermal checks run the host suites without producing another framework.
 # A follow-up [s2arm-check-delivery] push checks out the exact preceding private IPA
 # commit. It reruns the GPU fixtures without building or publishing a second engine.
 'on':
@@ -28,15 +28,15 @@ concurrency:
   cancel-in-progress: false
 jobs:
   engine:
-    if: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (contains(github.event.head_commit.message, '[s2arm-engine]') || contains(github.event.head_commit.message, '[s2arm-check-delivery]') || contains(github.event.head_commit.message, '[s2arm-shader-checks]')))) && !contains(github.event.head_commit.message, '[s2arm-pin ') }}
+    if: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (contains(github.event.head_commit.message, '[s2arm-engine]') || contains(github.event.head_commit.message, '[s2arm-check-delivery]') || (contains(github.event.head_commit.message, '[s2arm-shader-checks]') || contains(github.event.head_commit.message, '[s2arm-thermal-checks]'))))) && !contains(github.event.head_commit.message, '[s2arm-pin ') }}
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON((contains(github.event.head_commit.message, '[s2arm-check-delivery]') || (contains(github.event.head_commit.message, '[s2arm-shader-checks]') && !contains(github.event.head_commit.message, '[s2arm-engine]'))) && '["macos-26"]' || '["macos-26","macos-15"]') }}
+        os: ${{ fromJSON((contains(github.event.head_commit.message, '[s2arm-check-delivery]') || ((contains(github.event.head_commit.message, '[s2arm-shader-checks]') || contains(github.event.head_commit.message, '[s2arm-thermal-checks]')) && !contains(github.event.head_commit.message, '[s2arm-engine]'))) && '["macos-26"]' || '["macos-26","macos-15"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     env:
-      TEST_ONLY: ${{ (contains(github.event.head_commit.message, '[s2arm-check-delivery]') || (contains(github.event.head_commit.message, '[s2arm-shader-checks]') && !contains(github.event.head_commit.message, '[s2arm-engine]'))) && 'yes' || 'no' }}
+      TEST_ONLY: ${{ (contains(github.event.head_commit.message, '[s2arm-check-delivery]') || ((contains(github.event.head_commit.message, '[s2arm-shader-checks]') || contains(github.event.head_commit.message, '[s2arm-thermal-checks]')) && !contains(github.event.head_commit.message, '[s2arm-engine]'))) && 'yes' || 'no' }}
       FIRST_RACE: ${{ (contains(github.event.head_commit.message, '[s2arm-first-race]') || contains(github.event.head_commit.message, '[s2arm-check-delivery]')) && 'yes' || 'no' }}
       CHECK_DELIVERY: ${{ contains(github.event.head_commit.message, '[s2arm-check-delivery]') && 'yes' || 'no' }}
     steps:
