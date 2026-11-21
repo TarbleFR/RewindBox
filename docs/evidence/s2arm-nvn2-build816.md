@@ -1,0 +1,11 @@
+# NVN2 après la 815
+
+La 814 attribuait 8 677 des 8 780 interruptions pour lecture d’un uniforme à une soumission antérieure encore en vol. Sa protection portait sur une page de 4 Kio. La 815 a introduit la récupération par intervalle et par version de soumission. Elle conservait toutefois la marque d’un ancien transfert GPU même après son remplacement intégral par une écriture inline connue.
+
+| Chemin | Modification sous contrôle du flag | Limite conservée |
+| --- | --- | --- |
+| Anneau d’uniformes, patch 0280 | Avec `S2A_RB_INPASS_UBO_RING=1`, une copie ou un remplissage suivi d’une écriture inline connue dans la même soumission permet de reconstituer les seuls octets remplacés. Un transfert ultérieur invalide à nouveau ses octets. | Un octet requis dont la dernière valeur dépend encore du GPU impose une synchronisation. Les écritures de shader et de compteurs non ordonnables gardent leur protection. |
+| MRT en Fair, patch 0281 | `S2A_RB_FAIR_NATIVE_TILES=1` permet la fusion des clears et l’élision des stores quand les attachements des deux passes sont natifs, stables et prouvés distincts. La 815 utilisait le fait que le redimensionnement avait été actif dans la session entière. | Un attachement redimensionné, en transition ou susceptible de partager son stockage reste exclu. |
+| Réveils en Serious, patch 0282 | `S2A_RB_SUSTAINED_IDLE=1` étend jusqu’à 1 ms les attentes d’un worker secondaire déjà dépriorisé après 8 ms de polling continu au même site. L’option couvre les rendements volontaires du worker et ses appels successifs à SleepThread de 20 à 100 µs. Les champs `idle_1ms_yields` et `idle_1ms_short_sleeps` comptent les attentes réellement prolongées. | Le thread principal et les propriétaires de trame sont exclus. Une autre opération, un changement de site ou une sortie de Serious réinitialise le suivi. Les plafonds de backoff configurés par l’utilisateur sont respectés. Les réservations Mach restent à 2 ms de calcul et 4 ms de contrainte. |
+
+Sur des fenêtres identiques, économiser 29 coupures sur 110,3 passes par trame conduirait à environ 81 passes. Le passage sous 40 exige des réductions supplémentaires. Les octets chargés et stockés dépendent des attachements concernés. Les comparaisons de Zelda et de Mario Kart World doivent conserver la même scène, la même résolution et le même état thermique.

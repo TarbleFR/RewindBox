@@ -1,0 +1,184 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index f894032..b29b36f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -18425,6 +18425,44 @@ static int rb_clear_has_landing(const uint8_t *op, op_hdr clear) {
+     return 0;
+ }
+ 
++// Fair-scale ownership outlives an individual pass. The clear proofs can still
++// use native attachments if neither the consumer bind nor the original bind
++// can replace any storage while landing. Query only already published roots;
++// tex_mtl() may prepare an upload and cannot be used for this lookahead.
++static _Atomic int g_rb_fair_native_tiles;
++static int rb_tile_native_bind(const p_set_rt *rt) {
++    if (rt->n < 0 || rt->n > 8 || rt->has_dview) return 0;
++    for (int i = 0; i <= rt->n; ++i) {
++        const int depth = i == rt->n;
++        const tex_t *t = depth ? rt->depth : rt->color[i];
++        if (!depth && rt->has_cview[i]) return 0;
++        if (!t) continue;
++        if (!t->serial || t->d.target != NVN_TEXTURE_TARGET_2D ||
++            t->d.levels != 1 || t->d.samples > 1 || t->d.depth != 1 ||
++            rs_target_factor(t, nil) != 1.) return 0;
++        pthread_mutex_lock(&g_smu);
++        id root = hm_get_id(&g_by_serial, &t->serial);
++        pthread_mutex_unlock(&g_smu);
++        if (![root conformsToProtocol:@protocol(MTLTexture)]) return 0;
++        id<MTLTexture> native = root;
++        if (native.parentTexture || native.buffer || native.heap || native.iosurface ||
++            native.isSparse || native.textureType != MTLTextureType2D ||
++            native.width != t->d.width || native.height != t->d.height ||
++            rs_state(native) == RS_SCALED) return 0;
++    }
++    return 1;
++}
++static int rb_tile_scale_safe(const p_set_rt *first, const p_set_rt *second) {
++    if (!rs_on()) return 1;
++    if (!atomic_load_explicit(&rb_fair_seen, memory_order_relaxed) ||
++        !nvn2_on() || !rb_pacing_setting(&g_rb_fair_native_tiles, "S2A_RB_FAIR_NATIVE_TILES") ||
++        rs_setting() != 1. || rb_drs_enabled() || g_rs_native_draw || (g_enc && g_pass.rs != 1.) ||
++        g_rb_shadow_native || atomic_load_explicit(&g_rb_shadow_pass, memory_order_relaxed)) return 0;
++    pthread_mutex_lock(&g_rs_mu);
++    int pending = g_rs_nbad;
++    pthread_mutex_unlock(&g_rs_mu);
++    return !pending && rb_tile_native_bind(first) && rb_tile_native_bind(second);
++}
+ // The normal renderer closes this encoder on SetRT. Inspect only the next
+ // clear and its landing boundary. No submission index is needed.
+ static unsigned rb_adjacent_clear_mask(const p_set_rt *next, const uint8_t *op) {
+@@ -18435,7 +18473,7 @@ static unsigned rb_adjacent_clear_mask(const p_set_rt *next, const uint8_t *op)
+     memcpy(&header, op, sizeof header);
+     if (header.op != OP_CLEAR_COLOR && header.op != OP_CLEAR_DS) return 0;
+     const int mrt = rb_tile_enabled(RB_TILE_MRT);
+-    if (g_nbcrt || g_nubd || rs_on() || rb_clear_readback_pending()) return 0;
++    if (g_nbcrt || g_nubd || rb_clear_readback_pending() || !rb_tile_scale_safe(&R.rt, next)) return 0;
+     if (sub_cut_due()) {
+         if (mrt) atomic_fetch_add_explicit(&g_rb_mrt_cut,1,memory_order_relaxed);
+         return 0;
+@@ -18465,10 +18503,10 @@ static unsigned rb_sealed_clear(const p_set_rt *rt, const uint8_t *next) {
+     if ((!rb_live_on() && !(rb_tile_enabled(RB_TILE_STORE) && rb_tile_enabled(RB_TILE_LIVE))) || !rb_inside_piece() || tbdr_on() || g_rb_clear_legacy ||
+         g_ret_n < 0 || g_ret_n > 16 || g_nlc || g_defer_nact || g_defer_replaying || g_fz.active ||
+         g_rt_range_active || g_imfit_npend || g_imwr_npend ||
+-        g_nbcrt || g_nubd || rs_on() || sub_cut_due() || rb_clear_readback_pending()) return 0;
++        g_nbcrt || g_nubd || sub_cut_due() || rb_clear_readback_pending()) return 0;
+     int state_ok = rb_tile_enabled(RB_TILE_SEALED_STATE) && !geo_run_active() && !g_rb_shadow_native;
+     const uint8_t *clear = rb_sealed_overwrite_mode(next, g_ret, g_ret_n, g_rest, g_nrest, lc_on(), state_ok);
+-    if (!clear) return 0;
++    if (!clear || !rb_tile_scale_safe(&R.rt, rt)) return 0;
+     unsigned mask = 0;
+     for (int i = 0; i < g_nsd; i++) {
+         sd_att *att = &g_sd[i];
+@@ -20854,7 +20892,7 @@ static int rb_clear_combine(const lc_group *first, const lc_group *second) {
+     if (!g_cb || g_m3 || g_enc || g_nubd || g_nbcrt ||
+         g_imfit_npend || g_imwr_npend || g_rlane || g_rp_layered || g_fz.active || g_hoist_n ||
+         g_defer_replaying || g_rc_skip || g_vis_counting || g_rb_discard_mask || g_rb_next_clear_mask ||
+-        rs_on() || g_wd>0) return 0;
++        g_wd>0 || !rb_tile_scale_safe(&first->rt, &second->rt)) return 0;
+     atomic_fetch_add_explicit(&g_rb_clear_candidates,1,memory_order_relaxed);
+     RBClearPlan plan={0};
+     int same=rt_same(&first->rt,&second->rt);
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 5a9a6c6..3e05dd9 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -174,6 +174,7 @@ int nvn_be_shutdown_session(void) {
+     atomic_store(&g_rb_mrt_private_barriers, 0);
+     for (int i=0; i<RB_BATCH_REASON_COUNT; ++i) atomic_store(&g_rb_mrt_reason[i], 0);
+     atomic_store(&g_rb_tile_options, 0);
++    atomic_store(&g_rb_fair_native_tiles, 0);
+     atomic_store(&g_rb_producer_mode, 0);
+     g_rb_producer_override = -1;
+     atomic_store(&g_rb_pass_stats_mode, 0);
+diff --git a/graphics/nvn/tests/t_rb_clear_batch_metal.m b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+index d8b262c..6663289 100644
+--- a/graphics/nvn/tests/t_rb_clear_batch_metal.m
++++ b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+@@ -5,6 +5,7 @@
+ enum { WIDTH=32, HEIGHT=8, POOL_BYTES=1<<20 };
+ typedef float ClearImage[2][HEIGHT][WIDTH];
+ static const double colors[2]={0.125,0.75};
++static int fair_tiles_test;
+ static tex_t targets[2];
+ static pool_t pool;
+ #define RB_PLATFORM_CHECK CHECK
+@@ -162,12 +163,42 @@ static void tracked_store(id<MTLDevice> dev, int optimize, int mrt, ClearImage o
+     d.storageMode=MTLStorageModePrivate; d.usage=MTLTextureUsageRenderTarget;
+     id<MTLTexture> tex[2]={[dev newTextureWithDescriptor:d],[dev newTextureWithDescriptor:d]};
+     id<MTLCommandQueue> q=[dev newCommandQueue]; id<MTLCommandBuffer> cb=[q commandBuffer]; CHECK(cb && tex[0] && tex[1]);
++    unsigned fair_mask=0;
++    if (fair_tiles_test) {
++        const char *option = getenv("S2A_RB_FAIR_NATIVE_TILES");
++        int active = !option || !strcmp(option, "1");
++        for (int i=0; i<2; ++i) serial_put(t[i].serial,tex[i]);
++        CHECK(rs_on() && rb_fair_current==0.85 && rb_tile_scale_safe(&old,&next)==active);
++        g_sd[0]=plane; g_nsd=1; g_xq_cur=&local; g_rb_clear_legacy=0;
++        op_hdr end={OP_END,8};
++        struct { op_hdr h; p_clear_color c; op_hdr end; } stream={command.header,command.payload,end};
++        CHECK(rb_adjacent_clear_mask(&next,(const uint8_t *)&stream)==(unsigned)active);
++        uint64_t tail=(uintptr_t)&stream; nvn_be_exec_rest(&tail,1);
++        fair_mask=rb_sealed_clear(&next,(const uint8_t *)&end);
++        CHECK(fair_mask==(unsigned)active);
++        // An inactive sibling could still change its storage at the pass boundary.
++        rs_set_info_at(tex[1],RS_SCALED,WIDTH,HEIGHT,0.85);
++        CHECK(!rb_sealed_clear(&next,(const uint8_t *)&end));
++        rs_set_info_at(tex[1],RS_NONE,0,0,1.);
++        R.has_sc=1; R.sc=(typeof(R.sc)){.x=1,.w=WIDTH-1,.h=HEIGHT};
++        CHECK(!rb_sealed_clear(&next,(const uint8_t *)&end)); R.has_sc=0;
++        nvn_be_exec_rest(NULL,0); g_xq_cur=NULL; g_nsd=0;
++        d.width=1280; d.height=720;
++        id<MTLTexture> large=[dev newTextureWithDescriptor:d]; CHECK(large);
++        tex_t candidate=t[0]; candidate.serial=9911; candidate.d.width=1280; candidate.d.height=720;
++        serial_put(candidate.serial,large);
++        p_set_rt future={.n=1,.color={&candidate}};
++        CHECK(!rb_tile_scale_safe(&old,&future)); // Fair will resize this native root
++        rb_fair_current=1.; CHECK(rb_tile_scale_safe(&old,&future)==active);
++        rb_fair_current=0.85;
++    }
+     for (unsigned pass=0;pass<2;pass++) {
+         MTLRenderPassDescriptor *pd=[MTLRenderPassDescriptor renderPassDescriptor];
+         for (unsigned i=0;i<(pass ? 1u : 2u);i++) {
+             sd_att att={.ser=t[i].serial,.idx=(int)i};
+             BOOL dead=optimize && !pass && rb_store_unexposed(&t[i]) && rb_clear_covers_landing(&att,&next,(const uint8_t *)&command,mrt);
+-            CHECK(dead==(optimize && !pass && i==0));
++            if (fair_tiles_test) dead=optimize && !pass && i==0 && (fair_mask & 1u);
++            CHECK(dead==(optimize && !pass && i==0 && (!fair_tiles_test || fair_mask)));
+             MTLRenderPassColorAttachmentDescriptor *at=pd.colorAttachments[i];
+             at.texture=tex[i]; at.loadAction=MTLLoadActionClear; at.storeAction=dead ? MTLStoreActionDontCare : MTLStoreActionStore;
+             at.clearColor=MTLClearColorMake(!pass && !i ? -0.5 : colors[i],0,0,1);
+@@ -277,6 +308,19 @@ static void native_packed_ordering(int enabled) {
+     atomic_fetch_sub(&g_sp_heap_n,1); res_remove(heap);
+ }
+ int main(int argc,char **argv) { @autoreleasepool {
++    if (argc==2 && !strcmp(argv[1],"--fair-native-tiles")) {
++        load_test_platform();
++        CHECK(nvn2_on() && !setenv("DM_NVN_TBDR","0",1));
++        fair_tiles_test=1; rb_fair_current=0.85; g_rs=1.; atomic_store(&rb_fair_seen,1);
++        atomic_store(&g_rb_tile_options,RB_TILE_STORE|RB_TILE_LIVE|RB_TILE_MRT|RB_TILE_READY);
++        id<MTLDevice> device=MTLCreateSystemDefaultDevice(); CHECK(device);
++        ClearImage reference,result;
++        tracked_store(device,0,1,reference); tracked_store(device,1,1,result);
++        CHECK(!memcmp(reference,result,sizeof result));
++        printf("PASS Fair 0.85 native MRT: actual adjacent/sealed masks=%d, scaled sibling and pending resize rejected, 512 expected pixels\n",
++               rb_pacing_setting(&g_rb_fair_native_tiles,"S2A_RB_FAIR_NATIVE_TILES"));
++        return 0;
++    }
+     int titles=argc==2 && (!strcmp(argv[1],"--nvn2-tiles") || !strcmp(argv[1],"--nvn2-control"));
+     int enabled=titles && !strcmp(argv[1],"--nvn2-tiles");
+     int mrt_enabled=enabled && rb_nvn2_mrt_flag(RB_TILE_LIVE,getenv("S2A_RB_NVN2_MRT_CLEARS"));
+@@ -341,6 +385,15 @@ int main(int argc,char **argv) { @autoreleasepool {
+         for (int mode=1; mode<=(enabled ? 4 : 2); mode++) { native_pair(mode,after); CHECK(!memcmp(before,after,sizeof before)); }
+     }
+     if (titles) {
++        if (mrt_enabled && rb_pacing_setting(&g_rb_fair_native_tiles,"S2A_RB_FAIR_NATIVE_TILES")) {
++            // Keep the physical targets and real scheduler intact while driving
++            // the same Fair state used by above-threshold production sessions.
++            rb_fair_current=0.85; rb_fair_cool_since=0; atomic_store(&rb_fair_seen,1);
++            native_pair(3,after); CHECK(!memcmp(before,after,sizeof before));
++            native_store(1,0,1,1);
++            rb_fair_current=1.; atomic_store(&rb_fair_seen,0);
++            puts("PASS direct Metal 4 Fair: native MRT fusion, sealed store and both texture readbacks");
++        }
+         // An explicit legacy zero keeps the old broad TBDR mode disabled.
+         // Only the new narrow store proof can run with this setting.
+         native_store(2,0,rb_tile_enabled(RB_TILE_SEALED_STATE),1);

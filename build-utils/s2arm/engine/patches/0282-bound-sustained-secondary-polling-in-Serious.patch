@@ -1,0 +1,223 @@
+diff --git a/runtime/src/rb_guest_heat.h b/runtime/src/rb_guest_heat.h
+--- a/runtime/src/rb_guest_heat.h
++++ b/runtime/src/rb_guest_heat.h
+@@ -20,6 +20,31 @@
+     return hot ? 1 : -1;
+ }
+ 
++// A longer sleep requires consecutive idle calls at one site. A different
++// system call, meaningful guest work, a role change or another site re-arms it.
++typedef struct {
++    uint64_t site, sequence, since;
++    int active;
++} rb_idle_round;
++
++static inline uint64_t rb_idle_sleep_ns(rb_idle_round *round, int eligible,
++                                       uint64_t site, uint64_t sequence, uint64_t now,
++                                       uint64_t ordinary) {
++    if (!eligible) {
++        round->active = 0;
++        return ordinary;
++    }
++    if (!round->active || round->site != site || sequence != round->sequence + 1 ||
++        now < round->since) {
++        round->active = 1;
++        round->site = site;
++        round->since = now;
++    }
++    round->sequence = sequence;
++    if (now - round->since >= 8000000 && ordinary < 1000000) return 1000000;
++    return ordinary;
++}
++
+ // Each completed set_qos() has one owner and one outcome. The sum of verified
+ // and failed is the number of attempts with readback, even during a snapshot.
+ typedef struct { _Atomic uint64_t outcome[2][2]; } rb_guest_heat_counts;
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -878,7 +878,19 @@
+     const char *all = getenv("S2A_RB_NVN2_GUEST_QOS");
+     return (!all || !strcmp(all, "1")) && s2a_platform_ounce && s2a_platform_ounce();
+ }
+-static _Thread_local int rb_coalesce_idle;
++static _Thread_local int rb_coalesce_idle, rb_sustained_yields, rb_sustained_sleeps;
++static _Thread_local rb_idle_round rb_yield_round, rb_sleep_round;
++static _Atomic uint64_t rb_extended_yields, rb_extended_sleeps;
++
++static uint64_t rb_sustained_delay(rb_idle_round *round, _Atomic uint64_t *count,
++                                   int same_poll, int priority, uint64_t site,
++                                   uint64_t sequence, uint64_t now, uint64_t ordinary) {
++    int eligible = same_poll && rb_heat_role.reduced && !rb_frame_role && priority >= 44 &&
++                   atomic_load_explicit(&rb_heat_last_state, memory_order_relaxed) >= 2;
++    uint64_t delay = rb_idle_sleep_ns(round, eligible, site, sequence, now, ordinary);
++    if (delay > ordinary) atomic_fetch_add_explicit(count, 1, memory_order_relaxed);
++    return delay;
++}
+ static void rb_guest_heat_stats_begin(void) {
+     const char *title=getenv("S2A_RB_DIRECT_GAME_ID"), *policy=getenv("S2A_RB_GUEST_QOS_THERMAL");
+     const char *stats=getenv("S2A_RB_GUEST_QOS_STATS");
+@@ -886,6 +898,8 @@
+         (!policy || !strcmp(policy,"1")) && (!stats || !strcmp(stats,"1"));
+     pthread_mutex_lock(&rb_heat_report_mu);
+     rb_guest_heat_counts_reset(&rb_heat_counts);
++    atomic_store_explicit(&rb_extended_yields, 0, memory_order_relaxed);
++    atomic_store_explicit(&rb_extended_sleeps, 0, memory_order_relaxed);
+     atomic_store_explicit(&rb_heat_stats_enabled,enabled,memory_order_release);
+     pthread_mutex_unlock(&rb_heat_report_mu);
+ }
+@@ -899,10 +913,13 @@
+         rb_guest_heat_result down=rb_guest_heat_read(&rb_heat_counts,0), up=rb_guest_heat_read(&rb_heat_counts,1);
+         LOG("[RB-GUEST-QOS-STATS] phase=%s frame=%llu thermal=%d "
+             "down_attempted=%llu down_verified=%llu down_failed=%llu "
+-            "restore_attempted=%llu restore_verified=%llu restore_failed=%llu",
++            "restore_attempted=%llu restore_verified=%llu restore_failed=%llu "
++            "idle_1ms_yields=%llu idle_1ms_short_sleeps=%llu",
+             phase,(unsigned long long)frame,thermal,(unsigned long long)(down.verified+down.failed),
+             (unsigned long long)down.verified,(unsigned long long)down.failed,
+-            (unsigned long long)(up.verified+up.failed),(unsigned long long)up.verified,(unsigned long long)up.failed);
++            (unsigned long long)(up.verified+up.failed),(unsigned long long)up.verified,(unsigned long long)up.failed,
++            (unsigned long long)atomic_load_explicit(&rb_extended_yields,memory_order_relaxed),
++            (unsigned long long)atomic_load_explicit(&rb_extended_sleeps,memory_order_relaxed));
+     }
+     if (!strcmp(phase,"joined")) atomic_store_explicit(&rb_heat_stats_enabled,0,memory_order_release);
+     pthread_mutex_unlock(&rb_heat_report_mu);
+@@ -1025,6 +1042,11 @@
+     const char *backoff = getenv("S2A_YIELD_BACKOFF");
+     rb_coalesce_idle = generic && rb_heat_role.secondary && (!idle || !strcmp(idle, "1")) &&
+                        (!backoff || !strcmp(backoff, "1"));
++    const char *sustained = getenv("S2A_RB_SUSTAINED_IDLE");
++    const char *yield_heat = getenv("S2A_RB_YIELD_THERMAL");
++    rb_sustained_yields = rb_coalesce_idle && (!sustained || !strcmp(sustained,"1")) &&
++                          (!yield_heat || strcmp(yield_heat,"0"));
++    rb_sustained_sleeps = rb_sustained_yields && !getenv("S2A_SLEEP_BACKOFF");
+     const char *resume=getenv("S2A_RB_GUEST_QOS_TRANSITIONS");
+     rb_resume_qos=rb_heat_role.secondary && (!resume || !strcmp(resume,"1"));
+     rb_frame_role = 0;
+@@ -2313,6 +2335,11 @@
+         same_poll && run >= 2000000 && atomic_load_explicit(&rb_heat_last_state, memory_order_relaxed) >= 2) {
+         sl = run / 4 < 500000 ? run / 4 : 500000;
+     }
++    if (rb_sustained_yields) {
++        uint64_t seq = atomic_load_explicit(&me->nsvc_all, memory_order_relaxed);
++        sl = rb_sustained_delay(&rb_yield_round, &rb_extended_yields, hot && same_poll,
++                                me->prio, regs[30], seq, now, sl);
++    }
+ #endif
+     if (hot) atomic_fetch_add_explicit(&g_yb_hot_sleeps, 1, memory_order_relaxed);   // RewindBox (patch 0087)
+     struct timespec ts = {0, (long)sl}; nanosleep(&ts, NULL);
+@@ -2360,6 +2387,12 @@
+     uint64_t run = now - me->sl_t0;
+     if (run < (uint64_t)g_yb_start) return ns;
+     uint64_t sl = run / 8; if (sl > (uint64_t)sl_cap()) sl = (uint64_t)sl_cap();
++#if defined(__APPLE__)
++    if (rb_sustained_sleeps) {
++        sl = rb_sustained_delay(&rb_sleep_round, &rb_extended_sleeps, ns <= 100000,
++                                me->prio, regs[30], seq, now, sl);
++    }
++#endif
+     if (sl <= (uint64_t)ns) return ns;
+     atomic_fetch_add_explicit(&g_sl_bo, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_sl_bo_ns, sl - (uint64_t)ns, memory_order_relaxed);
+     me->nsl_bo++; me->sl_bo_ns += sl - (uint64_t)ns;
+@@ -2563,6 +2596,9 @@
+ void s2a_test_yield_bo(int on) { g_yb_cap = on ? 250000 : 0; g_yb_start = 2000000; g_yb_ystart = 2000000; }   // RewindBox (patch 0074): the case's counts are worked out for a 2 ms start of both
+ void s2a_test_yield_fast(int on) { g_yf = on; }
+ uint64_t s2a_test_yield_fastret(void) { return atomic_load(&g_yf_n); }
++#if defined(__APPLE__)
++uint64_t s2a_test_extended_short_sleeps(void) { return atomic_load(&rb_extended_sleeps); }
++#endif
+ uint64_t s2a_test_yield_sleeps(void) { return atomic_load(&g_yb_sleeps); }
+ uint64_t s2a_test_sleep_short(void) { return atomic_load(&g_sl_short); }
+ uint64_t s2a_test_sleep_bo(void) { return atomic_load(&g_sl_bo); }
+diff --git a/runtime/tests/t_rb_guest_heat.c b/runtime/tests/t_rb_guest_heat.c
+--- a/runtime/tests/t_rb_guest_heat.c
++++ b/runtime/tests/t_rb_guest_heat.c
+@@ -2,7 +2,25 @@
+ #include <assert.h>
+ #include <stdio.h>
+ 
++static void sustained_poll(void) {
++    rb_idle_round round = {0};
++    const uint64_t ordinary = 250000, site = 7;
++    uint64_t now = 0, seq = 0;
++    for (unsigned i=0; i<32; i++, now+=ordinary)
++        assert(rb_idle_sleep_ns(&round,1,site,++seq,now,ordinary)==ordinary);
++    assert(rb_idle_sleep_ns(&round,1,site,++seq,now,ordinary)==1000000);
++    assert(rb_idle_sleep_ns(&round,1,site+1,++seq,now,ordinary)==ordinary);
++    assert(rb_idle_sleep_ns(&round,1,site+1,++seq,now+8000000,ordinary)==1000000);
++    seq += 2;
++    assert(rb_idle_sleep_ns(&round,1,site+1,seq,now+16000000,ordinary)==ordinary);
++    assert(rb_idle_sleep_ns(&round,0,site+1,++seq,now+24000000,ordinary)==ordinary);
++    assert(rb_idle_sleep_ns(&round,1,site+1,++seq,now+32000000,ordinary)==ordinary);
++    assert(rb_idle_sleep_ns(&round,1,site+1,++seq,now+40000000,1500000)==1500000);
++    puts("PASS sustained guest idle: 8 ms stable site, bounded 1 ms delay, progress and eligibility reset");
++}
++
+ int main(void) {
++    sustained_poll();
+     rb_guest_heat_role worker = rb_guest_heat_worker(93, 0, 1, 0);
+     assert(!rb_guest_heat_change(&worker, 0));
+     assert(rb_guest_heat_change(&worker, 1) == 1);
+diff --git a/runtime/tests/rb_guest_heat_owner.inc b/runtime/tests/rb_guest_heat_owner.inc
+--- a/runtime/tests/rb_guest_heat_owner.inc
++++ b/runtime/tests/rb_guest_heat_owner.inc
+@@ -16,6 +16,10 @@
+ static _Atomic int rb_phase, rb_ready, rb_completed;
+ static qos_class_t rb_initial[3], rb_at_fair[3], rb_at_nominal[3];
+ static uint64_t rb_wait_rc[3];
++static int rb_measure_idle;
++static _Atomic int rb_idle_done;
++static unsigned rb_idle_returns;
++extern uint64_t s2a_test_extended_short_sleeps(void);
+ 
+ static qos_class_t rb_test_current(void) {
+     qos_class_t got=QOS_CLASS_UNSPECIFIED;
+@@ -35,6 +39,20 @@
+     for (int i=0;i<64;i++) s2a_tick_wait(0);
+     atomic_fetch_add(&rb_ready,1);
+     while (!atomic_load(&rb_phase)) sched_yield();
++    if (rb_measure_idle) {
++        if (role == 0) {
++            uint64_t regs[31] = {0};
++            regs[30] = 0x16000;
++            uint64_t end = clock_gettime_nsec_np(CLOCK_UPTIME_RAW) + 250000000;
++            do {
++                regs[0] = 50000;
++                svc_thread(0x0b, regs);
++                rb_idle_returns++;
++            } while (clock_gettime_nsec_np(CLOCK_UPTIME_RAW) < end);
++            atomic_store(&rb_idle_done,1);
++        }
++        while (atomic_load(&rb_phase) != 2) usleep(100);
++    }
+     // No SVC between Fair and Nominal: this worker uses only the clock gate.
+     for (int i=0;i<64;i++) s2a_tick_wait(0);
+     rb_at_nominal[role]=rb_test_current();
+@@ -48,6 +66,7 @@
+     int enabled=!setting || !strcmp(setting,"1");
+     rb_test_hosted=1;
+     int wire = getenv("S2A_TEST_GENERIC_WIRE") != NULL;
++    rb_measure_idle = getenv("S2A_TEST_SUSTAINED_IDLE") != NULL;
+     setenv("S2A_RB_DIRECT_GAME_ID",wire ? "0400000000000123" : "0400C3F00006E000",1);
+     if (wire) setenv("DM_PSO_USER","/Documents/docs/wire/0400000000000123/pso_user.tsv",1);
+     setenv("S2A_RB_GUEST_QOS_THERMAL","1",1);
+@@ -83,8 +102,18 @@
+     }
+     s2a_guest_heat_stats_report("fixture-fair",1);
+     s2a_guest_heat_publish(2);
++    if (rb_measure_idle) {
++        atomic_store(&rb_phase,1);
++        while (!atomic_load(&rb_idle_done)) usleep(1000);
++        uint64_t extended = s2a_test_extended_short_sleeps();
++        const char *opt = getenv("S2A_RB_SUSTAINED_IDLE");
++        int want = enabled && wire && (!opt || !strcmp(opt,"1")) && !getenv("S2A_SLEEP_BACKOFF");
++        CHECK(rb_idle_returns > 0 && ((extended > 0) == want),"Serious short-poll eligibility");
++        printf("Serious 250 ms guest SleepThread loop: flag=%d returns=%u extended=%llu\n",
++               want, rb_idle_returns, (unsigned long long)extended);
++    }
+     s2a_guest_heat_publish(0);
+-    atomic_store(&rb_phase,1);
++    atomic_store(&rb_phase,2);
+     while (atomic_load(&rb_completed)!=3) usleep(1000);
+     s2a_test_guest_heat_requests(requests);
+     CHECK(requests[0]==expected && requests[1]==expected,

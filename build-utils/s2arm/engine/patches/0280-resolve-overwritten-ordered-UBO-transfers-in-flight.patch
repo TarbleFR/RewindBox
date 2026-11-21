@@ -1,0 +1,266 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index f894032..3a47e15 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1437,7 +1437,8 @@ static void pend_reset(void) { rb_ub_begin_submission(); g_npend = g_pend_over =
+ static void vc_gpu_write(uint64_t dst, uint64_t n);   // kept index ranges under the written range are not trusted again (ix_range)
+ static void gpw_clear(uint64_t lo, uint64_t n);   // guest bytes the GPU wrote into memory itself are current again (see gpw_mark)
+ static int pend_add(uint64_t dst, uint64_t n, int kind) {
+-    if (kind != 1 && n) rb_ub_opaque(g_rb_ub_current, dst, n);
++    if ((kind == 2 || kind == 3) && n) rb_ub_transfer(g_rb_ub_current, dst, n);
++    else if (kind != 1 && n) rb_ub_opaque(g_rb_ub_current, dst, n);
+     vc_gpu_write(dst, n); gpw_clear(dst, n);
+     if (g_pend_over || g_npend == PEND_MAX) { g_pend_over = 1; return -1; }
+     int e = g_npend; uint64_t p0 = dst >> 12, p1 = (dst + (n ? n : 1) - 1) >> 12;
+diff --git a/graphics/nvn/gfx/nvn/rb_ubo_versions.h b/graphics/nvn/gfx/nvn/rb_ubo_versions.h
+index 2e1652c..7ef232a 100644
+--- a/graphics/nvn/gfx/nvn/rb_ubo_versions.h
++++ b/graphics/nvn/gfx/nvn/rb_ubo_versions.h
+@@ -8,50 +8,93 @@
+ 
+ enum { RB_UB_FRAMES = 5, RB_UB_PAGES = 64, RB_UB_PAGE = 4096, RB_UB_SPANS = 128 };
+ typedef struct {
+-    uint64_t fence, page;
++    uint64_t generation, page;
+     uint8_t bytes[RB_UB_PAGE], valid[RB_UB_PAGE];
+ } rb_ub_page;
+ typedef struct {
+-    uint64_t fence;
++    uint64_t fence, generation;
+     unsigned count;
++    unsigned transfer_count;
+     int unknown;
+-    struct { uint64_t lo, hi; } opaque[RB_UB_SPANS];
++    struct { uint64_t lo, hi; int transfer; } opaque[RB_UB_SPANS];
+     rb_ub_page pages[RB_UB_PAGES];
+ } rb_ub_frame;
+ typedef struct { rb_ub_frame frames[RB_UB_FRAMES]; } rb_ub_versions;
+ 
+ static rb_ub_frame *rb_ub_begin(rb_ub_versions *ring, uint64_t fence) {
+     rb_ub_frame *frame = &ring->frames[fence % RB_UB_FRAMES];
++    // Fence numbers may restart when a session is reset. A generation describes
++    // this specific opening of the slot, including a repeated fence number.
++    if (++frame->generation == 0) {
++        for (unsigned i = 0; i < RB_UB_PAGES; ++i) frame->pages[i].generation = 0;
++        frame->generation = 1;
++    }
+     frame->fence = fence;
++    frame->transfer_count = 0;
+     frame->count = 0;
+     frame->unknown = 0;
+     return frame;
+ }
+-static void rb_ub_opaque(rb_ub_frame *f, uint64_t lo, uint64_t size) {
++static void rb_ub_record_hazard(rb_ub_frame *f, uint64_t lo, uint64_t size, int transfer) {
+     if (!f || f->unknown) return;
+     if (!size || size > UINT64_MAX - lo) { f->unknown = 1; return; }
+     uint64_t hi = lo + size;
+     // Coalesce adjacent/overlapping ranges. Keep disjoint ranges to avoid
+     // turning a large storage allocation into a false global hazard.
+     for (unsigned i = 0; i < f->count;) {
+-        if (hi < f->opaque[i].lo || lo > f->opaque[i].hi) { ++i; continue; }
++        if (f->opaque[i].transfer != transfer || hi < f->opaque[i].lo || lo > f->opaque[i].hi) { ++i; continue; }
+         if (lo >= f->opaque[i].lo && hi <= f->opaque[i].hi) return;
+         if (lo > f->opaque[i].lo) lo = f->opaque[i].lo;
+         if (hi < f->opaque[i].hi) hi = f->opaque[i].hi;
++        if (transfer) --f->transfer_count;
+         f->opaque[i] = f->opaque[--f->count];
+         i = 0;
+     }
+     if (f->count == RB_UB_SPANS) { f->unknown = 1; return; }
++    if (transfer) ++f->transfer_count;
++    f->opaque[f->count].transfer = transfer;
+     f->opaque[f->count].lo = lo;
+     f->opaque[f->count++].hi = hi;
+ }
++// Shader binding hazards and counter writes performed by completion callbacks
++// stay conservative for their fence. Buffer copy/fill commands are ordered.
++static void rb_ub_opaque(rb_ub_frame *f, uint64_t lo, uint64_t size) {
++    rb_ub_record_hazard(f, lo, size, 0);
++}
++static void rb_ub_transfer(rb_ub_frame *f, uint64_t lo, uint64_t size) {
++    rb_ub_record_hazard(f, lo, size, 1);
++}
++// Remove only bytes now present in the CPU capture. No guest byte is read.
++// If an interior split cannot be represented, keep the original hazard.
++static void rb_ub_overwrite_transfers(rb_ub_frame *f, uint64_t lo, uint64_t hi) {
++    if (!f->transfer_count) return;
++    for (unsigned i = 0; i < f->count;) {
++        uint64_t a = f->opaque[i].lo, b = f->opaque[i].hi;
++        if (f->opaque[i].transfer && lo < b && a < hi) {
++            if (lo <= a && hi >= b) {
++                --f->transfer_count;
++                f->opaque[i] = f->opaque[--f->count];
++                continue;
++            }
++            if (lo <= a) f->opaque[i].lo = hi;
++            else if (hi >= b) f->opaque[i].hi = lo;
++            else if (f->count < RB_UB_SPANS) {
++                ++f->transfer_count;
++                f->opaque[f->count] = f->opaque[i];
++                f->opaque[f->count++].lo = hi;
++                f->opaque[i].hi = lo;
++            }
++        }
++        ++i;
++    }
++}
+ static rb_ub_page *rb_ub_find_page(rb_ub_frame *f, uint64_t page, int create) {
+     unsigned slot = (unsigned)((page * UINT64_C(11400714819323198485)) >> 58);
+     for (unsigned i = 0; i < RB_UB_PAGES; i++) {
+         rb_ub_page *p = &f->pages[(slot + i) % RB_UB_PAGES];
+-        if (p->fence != f->fence) {
++        if (p->generation != f->generation) {
+             if (!create) return NULL;
+-            p->fence = f->fence;
++            p->generation = f->generation;
+             p->page = page;
+             memset(p->valid, 0, sizeof p->valid);
+             return p;
+@@ -71,6 +114,7 @@ static void rb_ub_capture(rb_ub_frame *f, uint64_t lo, size_t size, const uint8_
+         if (p) {
+             memcpy(p->bytes + offset, bytes, n);
+             memset(p->valid + offset, 1, n);
++            rb_ub_overwrite_transfers(f, lo, lo+n);
+         } else rb_ub_opaque(f, lo, n);
+         size -= n; bytes += n; lo += n;
+     }
+diff --git a/graphics/nvn/tests/rb_ubo_tracked_pixels.inc b/graphics/nvn/tests/rb_ubo_tracked_pixels.inc
+index 87dfb1e..f917c09 100644
+--- a/graphics/nvn/tests/rb_ubo_tracked_pixels.inc
++++ b/graphics/nvn/tests/rb_ubo_tracked_pixels.inc
+@@ -1,6 +1,6 @@
+ // Run the same version resolver against real GPU writes and pixel readback
+ // on CI devices that cannot open the engine's Metal 4 queue/residency set.
+-static int rb_ubo_tracked_pixels(id<MTLDevice> dev) {
++static int rb_ubo_tracked_pixels(id<MTLDevice> dev, int final_opaque) {
+     const int enabled = !strcmp(getenv("S2A_RB_INPASS_UBO_RING") ?: "", "1");
+     id<MTLCommandQueue> q = [dev newCommandQueue];
+     id<MTLSharedEvent> gate = [dev newSharedEvent];
+@@ -28,10 +28,15 @@ static int rb_ubo_tracked_pixels(id<MTLDevice> dev) {
+     id<MTLCommandBuffer> prev = [q commandBuffer];
+     [prev encodeWaitForEvent:gate value:1];
+     id<MTLBlitCommandEncoder> blit = [prev blitCommandEncoder];
++    [blit fillBuffer:guest range:NSMakeRange(0,16) value:0];
+     [blit copyFromBuffer:old sourceOffset:0 toBuffer:guest destinationOffset:0 size:16];
++    if (final_opaque) [blit fillBuffer:guest range:NSMakeRange(8,4) value:0];
+     [blit endEncoding]; [prev commit];
+     uint64_t addr = (uintptr_t)guest.contents;
+-    rb_ub_capture(rb_ub_begin(&g_rb_ub_ring, 1), addr, 16, old.contents);
++    rb_ub_frame *previous = rb_ub_begin(&g_rb_ub_ring, 1);
++    rb_ub_transfer(previous, addr, 16);
++    rb_ub_capture(previous, addr, 16, old.contents);
++    if (final_opaque) rb_ub_transfer(previous, addr+8, 4);
+     id<MTLCommandBuffer> cb = [q commandBuffer];
+     MTLRenderPassDescriptor *rp = [MTLRenderPassDescriptor renderPassDescriptor];
+     rp.colorAttachments[0].texture = rt; rp.colorAttachments[0].storeAction = MTLStoreActionStore;
+@@ -41,10 +46,10 @@ static int rb_ubo_tracked_pixels(id<MTLDevice> dev) {
+         uint8_t *d = (uint8_t *)versions.contents + 256*i;
+         const float update[2] = {i == 0, i == 1};
+         memcpy(d, update, 8);
+-        if (enabled) {
+-            uint8_t have[16] = {1,1,1,1,1,1,1,1};
+-            if (!rb_ub_base(&g_rb_ub_ring,0,1,addr,addr+16,d,have)) return 1;
+-        } else {
++        uint8_t have[16] = {1,1,1,1,1,1,1,1};
++        int versioned = enabled && rb_ub_base(&g_rb_ub_ring,0,1,addr,addr+16,d,have);
++        if (versioned != (enabled && !final_opaque)) return 1;
++        if (!versioned) {
+             if (encoder) [encoder endEncoding];
+             encoder = nil;
+             blit = [cb blitCommandEncoder];
+@@ -57,7 +62,7 @@ static int rb_ubo_tracked_pixels(id<MTLDevice> dev) {
+         }
+         [encoder setRenderPipelineState:pipeline];
+         [encoder setScissorRect:(MTLScissorRect){i,0,1,1}];
+-        [encoder setFragmentBuffer:(enabled ? versions : guest) offset:(enabled ? 256*i : 0) atIndex:0];
++        [encoder setFragmentBuffer:(versioned ? versions : guest) offset:(versioned ? 256*i : 0) atIndex:0];
+         [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
+     }
+     [encoder endEncoding];
+@@ -65,9 +70,11 @@ static int rb_ubo_tracked_pixels(id<MTLDevice> dev) {
+     [blit copyFromTexture:rt sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0)
+                sourceSize:MTLSizeMake(2,1,1) toBuffer:result destinationOffset:0 destinationBytesPerRow:256 destinationBytesPerImage:256];
+     [blit endEncoding]; [cb commit]; gate.signaledValue = 1; [cb waitUntilCompleted];
+-    const uint8_t expected[] = {255,0,255,255,0,255,255,255};
++    const uint8_t blue = final_opaque ? 0 : 255;
++    const uint8_t expected[] = {255,0,blue,255,0,255,blue,255};
+     if (cb.status != MTLCommandBufferStatusCompleted || prev.status != MTLCommandBufferStatusCompleted ||
+-        encoders != (enabled ? 1 : 2) || memcmp(result.contents, expected, sizeof expected)) return 1;
++        encoders != (enabled && !final_opaque ? 1 : 2) || memcmp(result.contents, expected, sizeof expected)) return 1;
+     printf("PASS tracked Metal in-flight UBO: ring=%d encoders=%d pixels=2/2; direct queue unavailable\n",enabled,encoders);
++    printf("PASS same-fence UBO ring=%d final_opaque=%d encoders=%d pixels=2/2\n", enabled, final_opaque, encoders);
+     return 0;
+ }
+diff --git a/graphics/nvn/tests/t_nvn_ubd_index.m b/graphics/nvn/tests/t_nvn_ubd_index.m
+index cfae2c7..badaa6b 100644
+--- a/graphics/nvn/tests/t_nvn_ubd_index.m
++++ b/graphics/nvn/tests/t_nvn_ubd_index.m
+@@ -114,8 +114,11 @@ static void e2e(int bs, int busy, int wide) {
+         nvn_be_queue_wait_event((__bridge void *)gate, 1);
+         nvn_be_sub_begin();
+         float alpha = 1.0f;
+-        for (unsigned i=0; i<3; ++i)
+-            mtl_sub_update(&alpha, nvn_ga2ca(ga + UB + i*bs) + 12, sizeof alpha);
++        for (unsigned i=0; i<3; ++i) {
++            uint64_t dst = nvn_ga2ca(ga + UB + i*bs) + 12;
++            mtl_sub_fill(dst, sizeof alpha, 0);
++            mtl_sub_update(&alpha, dst, sizeof alpha);
++        }
+         nvn_be_sub_commit();
+     }
+     uint64_t ring0 = g_rb_ub_recovered, splits0 = g_ubd_conflicts;
+@@ -240,7 +243,10 @@ int main(int argc, char **argv) { @autoreleasepool {
+                      [device newResidencySetWithDescriptor:rd error:NULL] &&
+                      [device newMTL4CommandQueueWithDescriptor:[MTL4CommandQueueDescriptor new] error:NULL];
+         }
+-        if (!direct) return rb_ubo_tracked_pixels(device);
++        if (!direct) {
++            int first = rb_ubo_tracked_pixels(device, 0);
++            return first ? first : rb_ubo_tracked_pixels(device, 1);
++        }
+         e2e(256, 0, 0); // populate pipelines before holding the GPU at the event
+         inflight_fixture = 1;
+         e2e(256, 0, 0);
+diff --git a/graphics/nvn/tests/t_rb_ubo_versions.c b/graphics/nvn/tests/t_rb_ubo_versions.c
+index 02ebc03..c246e84 100644
+--- a/graphics/nvn/tests/t_rb_ubo_versions.c
++++ b/graphics/nvn/tests/t_rb_ubo_versions.c
+@@ -30,6 +30,37 @@ int main(void) {
+     assert(!rb_ub_base(&versions, 0, 2, addr+4090, addr+4122, out, have));
+     memset(have, 0, sizeof have); have[1] = have[2] = 1; // newest inline bytes
+     assert(rb_ub_base(&versions, 0, 2, addr+4090, addr+4122, out, have));
++    // Re-open an identical fence: do not inherit page validity from an
++    // earlier session. Leave the guest inaccessible throughout these checks.
++    rb_ub_frame *again = rb_ub_begin(&versions, 2);
++    assert(rb_ub_find_page(again, (addr+4100)/RB_UB_PAGE, 0) == NULL);
++    uint64_t x = addr+4100;
++    rb_ub_transfer(again, x-2, 20);
++    rb_ub_capture(again, x, 16, fresh);
++    memset(have, 0, sizeof have);
++    assert(rb_ub_base(&versions, 1, 2, x, x+16, out, have) && !memcmp(out,fresh,16));
++    // The two unoverwritten tails of the earlier transfer are still unknown.
++    memset(have, 0, sizeof have);
++    assert(!rb_ub_base(&versions, 1, 2, x-1, x+16, out, have));
++    memset(have, 0, sizeof have);
++    assert(!rb_ub_base(&versions, 1, 2, x, x+17, out, have));
++    // A repeated copy wins over an intervening inline write at the same address.
++    rb_ub_transfer(again, x-2, 20);
++    memset(have, 0, sizeof have);
++    assert(!rb_ub_base(&versions, 1, 2, x, x+16, out, have));
++    rb_ub_capture(again, x, 16, old);
++    rb_ub_opaque(again, x+3, 1); // shader or asynchronous counter
++    rb_ub_capture(again, x, 16, fresh);
++    memset(have, 0, sizeof have);
++    assert(!rb_ub_base(&versions, 1, 2, x, x+16, out, have));
++    // Fill every hazard slot. Subtracting one interior interval would need
++    // another slot: refuse conservatively and preserve both outer ranges.
++    again=rb_ub_begin(&versions,2);
++    for (unsigned i=0; i<RB_UB_SPANS; ++i) rb_ub_transfer(again,x+i*8,4);
++    rb_ub_capture(again,x+1,1,fresh);
++    memset(have,0,sizeof have);
++    assert(!rb_ub_base(&versions,1,2,x+1,x+2,out,have));
++    puts("PASS ordered transfer then inline capture, repeated GPU writer, sticky reports, generation and saturation");
+     // Reusing an unretired slot cannot supply its predecessor's bytes.
+     for (uint64_t f=3; f<=1+RB_UB_FRAMES; f++) rb_ub_begin(&versions, f);
+     memset(have, 0, sizeof have);
