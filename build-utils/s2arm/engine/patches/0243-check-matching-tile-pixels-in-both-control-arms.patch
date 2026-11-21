@@ -1,8 +1,49 @@
 diff --git a/graphics/nvn/tests/t_rb_clear_batch_metal.m b/graphics/nvn/tests/t_rb_clear_batch_metal.m
-index 5beab16..d5279c9 100644
+index 5beab16..326ded0 100644
 --- a/graphics/nvn/tests/t_rb_clear_batch_metal.m
 +++ b/graphics/nvn/tests/t_rb_clear_batch_metal.m
-@@ -94,8 +94,8 @@ static void tracked_pair(id<MTLDevice> dev, int combined, ClearImage out) {
+@@ -7,9 +7,28 @@ typedef float ClearImage[2][HEIGHT][WIDTH];
+ static const double colors[2]={0.125,0.75};
+ static tex_t targets[2];
+ static pool_t pool;
+-// The runtime normally derives this from the loader's NPDM platform field.
+-static int fixture_nvn2;
+-int s2a_platform_ounce(void) { return fixture_nvn2; }
++// The host links the real NPDM reader. Use the same platform fixture shape
++// as t_vawin_container and check both its title and its platform decision.
++extern uint64_t s2a_npdm_pid(const char *);
++static void load_test_platform(void) {
++    uint8_t metadata[0x404] = {0};
++    const uint32_t aci = 0x80, acid = 0x100;
++    const uint64_t title = UINT64_C(0x0400C3F00006E000);
++    memcpy(metadata, "META", 4);
++    memcpy(metadata + 0x70, &aci, sizeof aci);
++    memcpy(metadata + 0x78, &acid, sizeof acid);
++    memcpy(metadata + aci, "ACI0", 4);
++    memcpy(metadata + aci + 0x10, &title, sizeof title);
++    memcpy(metadata + acid + 0x300, "ACID", 4);
++    char path[] = "/tmp/t_rb_tile_platform.XXXXXX";
++    int fd = mkstemp(path);
++    CHECK(fd >= 0);
++    CHECK(write(fd, metadata, sizeof metadata) == (ssize_t)sizeof metadata);
++    CHECK(close(fd) == 0);
++    uint64_t observed = s2a_npdm_pid(path);
++    CHECK(unlink(path) == 0);
++    CHECK(observed == title && nvn2_on());
++}
+ 
+ static void read_pair(id<MTLDevice> dev, id<MTLTexture> a, id<MTLTexture> b, ClearImage out) {
+     id<MTLCommandQueue> q=[dev newCommandQueue]; id<MTLCommandBuffer> cb=[q commandBuffer];
+@@ -44,7 +63,7 @@ static void native_pair(int mode, ClearImage out) {
+     if (mode) {
+         CHECK(!rb_clear_combine(&a,&a));  // same subresource and duplicate clear
+         if (mode==2) CHECK(rt_same(&a.rt,&b.rt));
+-        if (fixture_nvn2) {
++        if (nvn2_on()) {
+             uint64_t before=atomic_load(&g_rb_clear_saved);
+             g_lc[0]=a; g_lc[1]=b; g_nlc=2;
+             lc_land();
+@@ -94,8 +113,8 @@ static void tracked_pair(id<MTLDevice> dev, int combined, ClearImage out) {
  
  // A clipped or observable plane must survive the first pass. This tracked-Metal
  // control runs on virtual Macs alongside the direct queue fixture on Apple GPUs.
@@ -13,7 +54,7 @@ index 5beab16..d5279c9 100644
      pool_t local={.mem=memory,.size=sizeof memory};
      tex_t t[2]={0}; p_set_rt old={.n=2}, next={.n=1};
      for (unsigned i=0;i<2;i++) {
-@@ -120,8 +120,8 @@ static void tracked_store(id<MTLDevice> dev) {
+@@ -120,8 +139,8 @@ static void tracked_store(id<MTLDevice> dev) {
          MTLRenderPassDescriptor *pd=[MTLRenderPassDescriptor renderPassDescriptor];
          for (unsigned i=0;i<(pass ? 1u : 2u);i++) {
              sd_att att={.ser=t[i].serial,.idx=(int)i};
@@ -24,7 +65,7 @@ index 5beab16..d5279c9 100644
              MTLRenderPassColorAttachmentDescriptor *at=pd.colorAttachments[i];
              at.texture=tex[i]; at.loadAction=MTLLoadActionClear; at.storeAction=dead ? MTLStoreActionDontCare : MTLStoreActionStore;
              at.clearColor=MTLClearColorMake(!pass && !i ? -0.5 : colors[i],0,0,1);
-@@ -129,7 +129,7 @@ static void tracked_store(id<MTLDevice> dev) {
+@@ -129,7 +148,7 @@ static void tracked_store(id<MTLDevice> dev) {
          id<MTLRenderCommandEncoder> e=[cb renderCommandEncoderWithDescriptor:pd]; CHECK(e); [e endEncoding];
      }
      [cb commit]; [cb waitUntilCompleted]; CHECK(cb.status==MTLCommandBufferStatusCompleted);
@@ -33,7 +74,16 @@ index 5beab16..d5279c9 100644
      R.rt=(p_set_rt){0};
  }
  
-@@ -186,9 +186,14 @@ int main(int argc,char **argv) { @autoreleasepool {
+@@ -169,7 +188,7 @@ int main(int argc,char **argv) { @autoreleasepool {
+     int enabled=titles && !strcmp(argv[1],"--nvn2-tiles");
+     CHECK(argc==1 || titles);
+     if (titles) {
+-        fixture_nvn2=1;
++        load_test_platform();
+         CHECK(!setenv("DM_NVN_BARRIER","full",1));
+         CHECK(!setenv("S2A_RB_DIRECT_GAME_ID","0400C3F00006E000",1));
+         if (enabled) CHECK(!unsetenv("S2A_RB_NVN2_TILE_PASSES"));
+@@ -186,9 +205,14 @@ int main(int argc,char **argv) { @autoreleasepool {
      ClearImage before,after;
      if (!direct) {
          tracked_pair(dev,0,before); tracked_pair(dev,1,after); CHECK(!memcmp(before,after,sizeof before));
