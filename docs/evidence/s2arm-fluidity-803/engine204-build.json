@@ -68,7 +68,11 @@
   "exportsComparedAgainstSource": "e72c8c3a5a8d93ad52ded154cc617b351248a6d8",
   "ns2proUnchangedFrom807": true,
   "noticeMatchesSource": true,
-  "privateDelivery": "pending",
+  "privateDelivery": {
+    "build": 808,
+    "receipt": "../rewind808/delivery.json",
+    "integration": "embedded"
+  },
   "validDeviceWindows": 0,
   "observedPerformance": null
 }
