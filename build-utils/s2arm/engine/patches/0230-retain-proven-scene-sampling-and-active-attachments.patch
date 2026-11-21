@@ -1,0 +1,827 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index e253a4a..fff55c4 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1360,7 +1360,7 @@ static void *g_sub_pool;
+ static int tbdr_on(void);
+ 
+ static void wd_sub_begin(void), wd_sub_end(void), wd_release(uint64_t ser), wd_widen_rts(void), wd_widen_resolve_dst(const tex_t *src, const tex_t *dst);   // S2Arm widen glue (graphics/nvn/widen_glue.inc)
+-static void rs_rts(void), rs_flush(void);   // S2Arm internal resolution (nvn_rscale_ops.inc)
++static int rs_rts(int clear_only); static void rs_flush(void);   // S2Arm internal resolution (nvn_rscale_ops.inc)
+ static _Atomic int g_fit_pillar;   // S2Arm full-screen check, the generic present layer's pillar kinds (nxgal_present_pillar): 1 = the widen core said the frame last handed to present is a 16:9 page kept centred with black bars, 2 = the widen core said its sides were drawn by widened content (black is the game's), 4 =the game draws wide itself (UI mode) and that frame was all 2D (wd_present); read by fit_* on the present thread
+ void mtl_fit_pillar(int kind) { atomic_store(&g_fit_pillar, kind); }   // nvn_mtl.h：GL 前端（gl_widen.inc gl_wd_present）上屏前设，同 widen_glue.inc wd_present
+ // S2Arm widen edge push: every vertex function of the B library reads float4 s2a_push at PUSH_SLOT (dm/gfx/tools/dmsh_build.py vs_push); each draw starts with it zero (unpushed)
+@@ -1468,7 +1468,7 @@ static _Atomic unsigned g_sp_heap_n;
+ // Keep exposure history from process start, including registrations made before
+ // the hosted title is selected. The experiment is an explicit fresh-launch opt-in.
+ static _Atomic int g_rb_live_request;
+-enum { RB_DEVICE_BATCH, RB_DEVICE_FX_PREFIX, RB_DEVICE_TAIL_TRACE, RB_DEVICE_LIVE, RB_DEVICE_OPTIONS };
++enum { RB_DEVICE_BATCH, RB_DEVICE_FX_PREFIX, RB_DEVICE_TAIL_TRACE, RB_DEVICE_LIVE, RB_DEVICE_RETAIN, RB_DEVICE_OPTIONS };
+ static _Atomic int g_rb_device_options[RB_DEVICE_OPTIONS];
+ static int rb_a18_option(unsigned key, const char *name) {
+ #if TARGET_OS_IOS && !TARGET_OS_SIMULATOR
+@@ -4885,7 +4885,7 @@ static id<MTLTexture> tex_upgrade(const tex_t *t, id<MTLTexture> asked, MTLTextu
+     if (!upgraded) { RED_ONCE(45, "texture upgrade failed ser=%llu format %lu → %lu usage %#lx", t->serial, (unsigned long)base.pixelFormat, (unsigned long)view_pf, (unsigned long)d.usage); return asked; }
+     if (!root && (d.usage & MTLTextureUsageShaderAtomic)) tex_note_atomic(upgraded);
+     if (!root) res_add(upgraded);
+-    { NvRsInfo *ri = rs_info(base); if (ri) rs_set_info(upgraded, ri->state, ri->cw, ri->ch); }   // S2Arm internal resolution: same size, same record (nvn_rscale.inc)
++    { NvRsInfo *ri = rs_info(base); if (ri) rs_set_info_at(upgraded, ri->state, ri->cw, ri->ch, ri->scale); }   // S2Arm internal resolution: same size, same record (nvn_rscale.inc)
+     id<MTL4ComputeCommandEncoder> b = base.buffer ? nil : blit();
+     NSUInteger slices = base.textureType == MTLTextureType3D ? 1 : base.arrayLength * (base.textureType == MTLTextureTypeCube || base.textureType == MTLTextureTypeCubeArray ? 6 : 1);
+     for (NSUInteger l = 0; !base.buffer && l < base.mipmapLevelCount; l++) {
+@@ -4924,6 +4924,7 @@ static id<MTLTexture> tex_upgrade(const tex_t *t, id<MTLTexture> asked, MTLTextu
+         } else if (!named) tex_put(t->serial, upgraded);
+         defer_obj_release(base);
+     }
++    if (rs_info(upgraded)) rs_scene_replace(base, upgraded);
+     int pkg_holder = [holder isKindOfClass:[NvPkg class]];
+     // RewindBox (patch 0049, review of 0048): learnt whatever the holder is now. A texture taken from its storage (tex_cpu_content) stops being an NvPkg as soon as a GPU write
+     //   over its range is recorded (cpu_unc_drop, at the head of the attachment's own tex_mtl_), so the upgrade of Mario Kart World's terrain tiles found a bare texture and 0048
+@@ -8215,7 +8216,7 @@ void nvn_be_mem_kinds(uint64_t *priv_tex, uint64_t *priv_buf, uint64_t *pool_len
+ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+     alias_orphan_pass();   // #357: before the line cap below, which only limits the readout
+     nvn_mem_detail(frame);   // before the line cap below: the detailed accounting has its own interval and must not be starved by the 400-line budget
+-    fb_report(frame); samp_report(frame); audit_probe_report(frame);
++    fb_report(frame); samp_report(frame); audit_probe_report(frame); rs_retain_report(frame);
+     if (rb_live_on()) {
+         MLOG("[tbdr] attachment liveness cumulative frame=%llu pass_resources_unexposed=%llu descriptor_overlap=%llu alias_or_unknown=%llu sealed_stores=%llu sealed_store_bytes=%llu sibling_load_bytes=%llu private_clear_entry_saved=%llu",
+              frame, (unsigned long long)atomic_load(&g_rb_live_classes[0]), (unsigned long long)atomic_load(&g_rb_live_classes[1]),
+@@ -8854,7 +8855,8 @@ static int tex_swap_storage(id<MTLTexture> base, id<MTLTexture> w) {
+     if (g_alias_set && CFSetContainsValue(g_alias_set, (__bridge const void *)base)) { CFSetRemoveValue(g_alias_set, (__bridge const void *)base); CFSetAddValue(g_alias_set, (__bridge const void *)w); }
+     g_ser_gen++;
+     pthread_mutex_unlock(&g_smu);
+-    defer_obj_release(base);   // out of the residency set once the submissions that used it complete
++    if (n) rs_scene_replace(base, w);
++    if (n || !rs_retain_on()) defer_obj_release(base);   // out of the residency set once the submissions that used it complete
+     return n;
+ }
+ static int tex_widen(const tex_t *t, NSUInteger r, NSUInteger rh) {   // 1 = the storage is r wide and rh high now (canvas units: a storage the internal resolution scaled is r × s, nvn_rscale.inc)
+@@ -8880,7 +8882,7 @@ static int tex_widen(const tex_t *t, NSUInteger r, NSUInteger rh) {   // 1 = the
+     id<MTLTexture> w = [g_dev newTextureWithDescriptor:d];
+     if (!w) { RED_ONCE(112, "widen: render target ser=%llu %lu → %lu wide could not be created", (unsigned long long)t->serial, (unsigned long)base.width, (unsigned long)r); return 0; }
+     res_add(w); tex_fill(w, wd_poison() != 0);
+-    if (scaled) rs_set_info(w, RS_SCALED, cw, ch); else if (rs_state(base) == RS_BLACK) rs_set_info(w, RS_BLACK, 0, 0);   // the new storage keeps the internal resolution's record
++    if (scaled) rs_set_info_at(w, RS_SCALED, cw, ch, rs_of(base)); else if (rs_state(base) == RS_BLACK) rs_set_info(w, RS_BLACK, 0, 0);   // the new storage keeps the internal resolution's record
+     id<MTL4ComputeCommandEncoder> b = blit();
+     NSUInteger slices = base.arrayLength * (base.textureType == MTLTextureTypeCube || base.textureType == MTLTextureTypeCubeArray ? 6 : 1);
+     for (NSUInteger l = 0; l < base.mipmapLevelCount; l++)
+@@ -9053,7 +9055,7 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+     if (g_imfit_npend) img_fit_upgrade();   // no pass is open here: the upgrade's copy may run (img_fit)
+     if (g_imwr_npend) img_wr_upgrade();     // the same for image textures made without shader writes (img_wr_note)
+     wd_widen_rts();   // S2Arm widen: this pass's targets the widen core widens get widened storage before they are attached (same reason: the copy may run here)
+-    rs_rts();   // S2Arm internal resolution: this pass's targets take their scale (all the same) before they are attached (nvn_rscale_ops.inc; the rescaling copies may run here)
++    if (!rs_rts(clear_only)) return nil;   // S2Arm internal resolution: this pass's targets take their scale (all the same) before they are attached (nvn_rscale_ops.inc; the rescaling copies may run here)
+     // The version of the attachment-range candidate is taken before capturing any attachment; if it changes during setup, there is no continuation.
+     // 颜色附件必须带渲染目标用途：打包贴图（NvPkg）建时不带（tex_new：只有放宽存储时才补），游戏却可能把同一存储当渲染目标画（11-09 #296 超级马力欧兄弟 惊奇：
+     //   1920x1080 主画面与 960x540 中间目标都登记成打包贴图，usage 只有 ShaderRead）。往没有 RenderTarget 用途的贴图里渲染是 Metal 的未定义行为（调试层报
+@@ -9415,6 +9417,7 @@ static void shmap_load_once(void) {
+     id vp_main; uint32_t vp_mask; uint8_t vp_st;   // S2Arm: the padded variant <key>_vp<mask> (vp_kick) and the user(locn) it adds; vp_st SE_* as se_st, all under g_vp_mu
+     id se_main; uint8_t se_st, se_fold;   // se_fold: the variant can read folded linear textures (its library has s2a_se_fold; se_lib_fold). S2Arm #800: the reduction variant <key>_se's main0 (se_fn) and where it stands (SE_NONE / SE_BUSY / SE_READY / SE_FAIL, atomic: se_want, se_done)
+     uint8_t nts, size_abi, size_exact; int8_t exact; struct { uint8_t idx, img, reg; } ts[72];   // S2Arm widen: the scaled fetches (json tex_scales: render_scale index, image?, replay slot) and scale_exact (-1 = library without it); wd_tex_scales
++    uint16_t rs_missing_slot;   // slot plus one, zero for incomplete/unrecognized producer proof
+     uint8_t ts_lost;   // S2Arm internal resolution: tex_scales entries not loaded (out of range): the shader counts as not exact for scaled textures (rs_support)
+     NSString *posb; NSArray *posu; NSData *pos; int8_t pos_st;   // S2Arm widen geometry (11-06): json pos_slice (base64 SpirvPosSlice.Packed, decoded on first use into pos; pos_st 1 ok / -1 bad) and pos_ubo [[SPIR-V binding, uniform register]]
+     NSString *cbu; int32_t wsh;   // S2Arm widen: which vec4 of each uniform register the shader reads (json cbuf_use, dmsh_xlate CbufUseText) and its widen core handle (wd_sh: registered on first draw, -1 = refused)
+@@ -10366,6 +10369,15 @@ static NvShader *shader_build_attempt(NSString *pc, int stage, int layer, int de
+         if (sl >= 0 && sl < 256) o->d2d[sl >> 6] |= 1ull << (sl & 63);
+     }
+     o->size_exact = o->size_abi && [size_exact boolValue];
++    NSArray *rs_reasons_json = j[@"resolution_scale_reasons"];
++    if (stage == 1 && o->size_abi && !o->size_exact && [j[@"resolution_scale_status"] isEqual:@"legacy_1x"] &&
++        [j[@"tex_scales"] isKindOfClass:[NSArray class]] && [j[@"tex_scales"] count] == 0 &&
++        [j[@"scale_exact"] isKindOfClass:[NSNumber class]] && [j[@"scale_exact"] doubleValue] == 1 &&
++        [rs_reasons_json isKindOfClass:[NSArray class]] && rs_reasons_json.count == 1 &&
++        [rs_reasons_json[0] isKindOfClass:[NSString class]]) {
++        int slot = rb_scale_missing_slot([rs_reasons_json[0] UTF8String]);
++        if (slot >= 0) o->rs_missing_slot = (uint16_t)(slot + 1);
++    }
+     uint8_t scale_indices[73] = {0};
+     for (id e in [j[@"tex_scales"] isKindOfClass:[NSArray class]] ? j[@"tex_scales"] : @[]) {
+         if (![e isKindOfClass:[NSArray class]] || [e count] != 3 ||
+@@ -15662,7 +15674,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+                 int tid = ubo_tex_id(ubo_handle(nvn_stage, reg, 8 * k)); if (tid < 0 || tid >= g_ntreg || !g_treg[tid].ok) tid = -1;   // as for the samplers: other data, not a handle
+                 void *tv = NULL; uint64_t trid = tex_fast_rid(tid, &tv); __unsafe_unretained id<MTLTexture> t = (__bridge id<MTLTexture>)tv;
+                 if (t && t.textureType != (MTLTextureType)b->dtt) { uint64_t r2 = 0; id<MTLTexture> v = tex_fit_elem(tid, t, (MTLTextureType)b->dtt, &r2); t = v; trid = v ? r2 : 0; }   // a handle the shader does not pick here may be another kind
+-                if (!t) { t = dummy_tex(b->dtt, b->dpf); trid = g_dummy_tex_rid[b->dtt & 15][b->dpf & 3]; } else { real |= 1ull << k; rs_bind_check(t, sh, nvn_stage, 1); }   // internal resolution: arrays of handles are not scaled
++                if (!t) { t = dummy_tex(b->dtt, b->dpf); trid = g_dummy_tex_rid[b->dtt & 15][b->dpf & 3]; } else { real |= 1ull << k; rs_bind_check(t, sh, nvn_stage, 1, b, tid, nil); }   // internal resolution: arrays of handles are not scaled
+                 if (bl && tid >= 0) PD("B %llu st%d texu [%d] tid=%d %s", g_stat_pass, nvn_stage, k, tid, tv ? "real" : "dummy");
+                 slots[aid + k] = trid;
+                 USE(t, MTLResourceUsageRead);
+@@ -15708,7 +15720,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+             if (t && b->dpf == NVN_DPF_FLOAT && mtl_pf_dpf(rb_pf(t, tid)) != NVN_DPF_FLOAT) { uint64_t r2 = 0; id<MTLTexture> v = tex_float_fit(tid, t, &r2); if (v) { t = v; trid = r2; } }   // see tex_float_fit; RewindBox (patch 0073): rb_pf
+             if (t && nvn_stage == 1 && afr_want(sh)) { uint64_t r2 = 0; id<MTLTexture> v = tex_alpha_red(tid, t, &r2); if (v) { t = v; trid = r2; } }   // see tex_alpha_red
+             size_abi_texture(sh, nvn_stage, b, tid, size_view, t);
+-            rs_bind_check(t, sh, nvn_stage, 0);   // S2Arm internal resolution: read where scaling is not supported → back to 1 at the next safe point
++            rs_bind_check(t, sh, nvn_stage, 0, b, tid, size_view);   // S2Arm internal resolution: read where scaling is not supported → back to 1 at the next safe point
+             if (t && tid >= 0 && tid < g_ntreg && g_treg[tid].ok) { fsig_tex_note(g_treg[tid].t.serial); rb_fresh_read(&g_treg[tid].t, sh->key, nvn_stage); }   // RewindBox (patch 0067): the draw's textures (frames.txt), a new texture read before it was written
+             if (!t) { t = dummy_tex(b->dtt, b->dpf); trid = g_dummy_tex_rid[b->dtt & 15][b->dpf & 3]; }
+             slots[aid] = trid;
+@@ -15736,7 +15748,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+             if (t && b->rw && tid < g_ntreg && g_treg[tid].ok) gpw_mark_view(&g_treg[tid].t, &g_treg[tid].v, g_treg[tid].has_v, 1);   // the shader stores to it: its guest bytes go stale (gpw_mark; a load-only image is not)
+             if (t && b->rw && tid < g_ntreg && g_treg[tid].ok) wd_flat_written(g_treg[tid].t.serial);   // S2Arm widen: its content changes, so the horizontal-detail measurement no longer holds
+             size_abi_texture(sh, nvn_stage, b, tid, size_view, t);
+-            rs_bind_check(t, sh, nvn_stage, 2);   // S2Arm internal resolution
++            rs_bind_check(t, sh, nvn_stage, 2, b, tid, nil);   // S2Arm internal resolution
+             if (!t) { t = dummy_img(b->dtt, b->dpf, b->atomic_image); trid = t.gpuResourceID._impl; }   // Unbound: D3D semantics discard the write - write into a dedicated dummy texture so the set that reads 0 is not polluted
+             slots[aid] = trid;
+             USE(t, MTLResourceUsageRead | MTLResourceUsageWrite);
+@@ -15776,7 +15788,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+                     if (!t) { t = dummy_tex(b->dtt, b->dpf); trid = g_dummy_tex_rid[b->dtt & 15][b->dpf & 3]; }
+                 }
+                 if (bl && tv) PD("B %llu st%d texd [%d] tid=%d %s", g_stat_pass, nvn_stage, k, tid, tv ? "real" : "dummy");
+-                if (tv && trid && trid != g_dummy_tbuf_rid[b->dpf & 3] && trid != g_dummy_tex_rid[b->dtt & 15][b->dpf & 3]) { real |= 1ull << k; rs_bind_check(t, sh, nvn_stage, 1); }   // internal resolution: arrays of handles are not scaled
++                if (tv && trid && trid != g_dummy_tbuf_rid[b->dpf & 3] && trid != g_dummy_tex_rid[b->dtt & 15][b->dpf & 3]) { real |= 1ull << k; rs_bind_check(t, sh, nvn_stage, 1, b, tid, nil); }   // internal resolution: arrays of handles are not scaled
+                 slots[aid + k] = trid;
+                 USE(t, MTLResourceUsageRead);
+             }
+@@ -15793,7 +15805,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+                 int tid = (int)(c2_handle(nvn_stage, b->off + 8u * k) & 0xfffff);
+                 void *tv = NULL; uint64_t trid = tex_fast_rid(tid, &tv); __unsafe_unretained id<MTLTexture> t = (__bridge id<MTLTexture>)tv;
+                 if (t && t.textureType != (MTLTextureType)b->dtt) { uint64_t r2 = 0; id<MTLTexture> v = tex_fit_elem(tid, t, (MTLTextureType)b->dtt, &r2); t = v; trid = v ? r2 : 0; }   // an element the shader does not pick here may be another kind
+-                if (!t) { t = dummy_tex(b->dtt, b->dpf); trid = g_dummy_tex_rid[b->dtt & 15][b->dpf & 3]; } else { real |= 1ull << k; rs_bind_check(t, sh, nvn_stage, 1); }   // internal resolution: arrays of handles are not scaled
++                if (!t) { t = dummy_tex(b->dtt, b->dpf); trid = g_dummy_tex_rid[b->dtt & 15][b->dpf & 3]; } else { real |= 1ull << k; rs_bind_check(t, sh, nvn_stage, 1, b, tid, nil); }   // internal resolution: arrays of handles are not scaled
+                 if (bl && tv) PD("B %llu st%d texa [%d] tid=%d %s", g_stat_pass, nvn_stage, k, tid, tv ? "real" : "dummy");
+                 slots[aid + k] = trid;
+                 USE(t, MTLResourceUsageRead);
+@@ -19128,6 +19140,8 @@ static int mdx_next(const p_draw *dw, const p_draw_idx *di) {
+ int nvn_be_multi_draw_range(void) { return 1; }   // hle_nvn.c records a large call as one OP_MULTI_DRAW (draw_multi replays it)
+ int nvn_be_buf_extent_consumer(void) { return 0; }   // Metal 回放不按地址查活缓冲长度：hle_nvn.c 不登记活缓冲（建删零开销）
+ static void draw_multi(const p_multi_draw *m) {
++    int prior_rs_scope __attribute__((cleanup(rs_restore_draw_scope))) = g_rs_native_draw;
++    if (rs_on() && rs_retain_on() && !rs_prepare_work(nil, 0)) return;
+     if (!m->cnt || m->max <= 0) return;
+     ubd_land();   // a deferred inline update can feed the count or any record in the range
+     p_draw arr = {.prim = m->prim, .instances = 1, .ind = m->ind, .mdi_cnt = m->cnt};
+@@ -19812,6 +19826,8 @@ static void draw_emit(id en, MTLPrimitiveType mp, int prim, const p_draw *dw, co
+ static int fmt_int_or_ds(MTLPixelFormat f);
+ static NvShader *g_dt_vs, *g_dt_fs; static id g_dt_tab;
+ static void draw_tex(const p_draw_tex *t) {
++    int prior_rs_scope __attribute__((cleanup(rs_restore_draw_scope))) = g_rs_native_draw;
++    if (rs_on() && rs_retain_on() && !rs_prepare_work(nil, 0)) return;
+     g_udc_precise = 0;   // not draw(): its encode marks every attachment of the pass written (udc_encode)
+     static int failed, once[6]; static NSMutableDictionary<NSData *, id<MTLRenderPipelineState>> *psos;
+     if (failed) return;
+@@ -19941,6 +19957,13 @@ static void rb_mdx_ahead(void) {   // submit thread, in draw before the pass ope
+ // RewindBox (patch 0072): the same look from a clear drawn as a triangle or a DrawTexture that opens the pass (the replay gives draws alone their place, g_exec_next)
+ static void rb_mdx_ahead_from(const uint8_t *next) { const uint8_t *en = g_exec_next; g_exec_next = next; rb_mdx_ahead(); g_exec_next = en; }
+ static void draw(const p_draw *dw, const p_draw_idx *di) {
++    int prior_rs_scope __attribute__((cleanup(rs_restore_draw_scope))) = g_rs_native_draw;
++    if (rs_on() && rs_retain_on()) {
++        int special = g_geo_program || g_mtk.on || S.tf_on || S.rast_discard ||
++                      (dw && dw->prim == DM_PRIM_MESH_TASKS);
++        NvProg *program = !special && S.prog ? prog_get(S.prog) : nil;
++        if (!rs_prepare_work(program, 0)) return;
++    }
+     if (dw && dw->prim == DM_PRIM_MESH_TASKS && !g_mtk.on) { if (!g_enc) rb_mdx_ahead(); mesh_tasks_draw(dw); return; }   // NVN2 task / mesh draw: binds its stages and comes back with its pixel stage (nvn_geometry.inc). RewindBox (patch 0072): rb_mdx_ahead
+     g_udc_precise = 0;   // only this draw's own udc_note_draw may cover its encode (a draw that returned without encoding leaves no stale cover)
+     g_udc_lmap = NULL; g_udc_fsfn = 0;   // the output map is this draw's own too: the one a previous (on-chip read / merged) draw used must not judge the next pass's lookahead (pass_color_unwritten) or a geometry / tessellation draw's writes (11-06 TotK: tiled lights black outside the lit tiles)
+@@ -20667,6 +20690,8 @@ static void img_wr_prescan(NvShader *sh, int nvn_stage) {
+ }
+ static void tensor_standin(NvShader *cs);   // nvn_tensor.inc
+ static void dispatch(const p_dispatch *dp) {
++    int prior_rs_scope __attribute__((cleanup(rs_restore_draw_scope))) = g_rs_native_draw;
++    if (rs_on() && rs_retain_on() && !rs_prepare_work(S.cprog ? prog_get(S.cprog) : nil, 1)) return;
+     geo_run_flush();
+     zskip_clear();
+     g_wr_epoch++; g_mdx_epoch++;
+@@ -20881,7 +20906,7 @@ void nvn_be_read_texels(const tex_t *t, unsigned level, unsigned layer0, const N
+     if (!mt) { memset(dst, 0, img * nz); return; }
+     mtl_finish_gpu();
+     if (!is3d && bw == 1 && bh == 1 && rs_state(mt) == RS_SCALED) {   // S2Arm internal resolution: read the storage rectangle, then take each game texel's nearest storage texel on the CPU
+-        double sc = g_rs; long sx = r->xoffset, sy = r->yoffset, sw = r->width, sh = r->height; rs_rect(sc, &sx, &sy, &sw, &sh);   // (this runs on the caller's thread: no copy draw)
++        double sc = rs_of(mt); long sx = r->xoffset, sy = r->yoffset, sw = r->width, sh = r->height; rs_rect(sc, &sx, &sy, &sw, &sh);   // (this runs on the caller's thread: no copy draw)
+         long lw = (long)MAX(mt.width >> level, 1u), lh = (long)MAX(mt.height >> level, 1u); if (sx + sw > lw) sw = lw - sx; if (sy + sh > lh) sh = lh - sy;
+         if (sw <= 0 || sh <= 0) { memset(dst, 0, img * nz); return; }
+         size_t swb = (size_t)sw * bpb;
+@@ -23241,7 +23266,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+     //   once the source covers the crop it is used as given again. Everything below (present, grab, screenshots, fit check, AA) takes the fitted crop
+     int rsc[4]; if (crop && rs_state(src) == RS_SCALED) {   // S2Arm internal resolution: a scaled present source (none expected: display textures are never scaled) takes the crop in storage texels
+         long x = crop[0], y = crop[1], w = crop[2], h = crop[3]; if (!w && !h) { w = (long)rs_cw(src); h = (long)rs_ch(src); }
+-        rs_rect(g_rs, &x, &y, &w, &h); rsc[0] = (int)x; rsc[1] = (int)y; rsc[2] = (int)w; rsc[3] = (int)h; crop = rsc; }
++        rs_rect(rs_of(src), &x, &y, &w, &h); rsc[0] = (int)x; rsc[1] = (int)y; rsc[2] = (int)w; rsc[3] = (int)h; crop = rsc; }
+     int fitted[4]; int fit_rc = pf_crop_fit(crop, src.width, src.height, fitted);
+     { static int last; static uint64_t n;
+       if (fit_rc == 1 && (last != 1 || ++n % 600 == 0)) MLOG("present crop %d,%d %dx%d is larger than the source texture %lux%lu: showing %d,%d %dx%d at 16:9 with black bars until the source covers it",
+diff --git a/graphics/nvn/gfx/nvn/nvn_rscale.inc b/graphics/nvn/gfx/nvn/nvn_rscale.inc
+index ff70bad..785149b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rscale.inc
++++ b/graphics/nvn/gfx/nvn/nvn_rscale.inc
+@@ -10,6 +10,7 @@
+ // 退回原尺寸（拉黑，Ryujinx BlacklistScale）：缩放图被顶点 / 计算阶段读、被存储图像槽绑、被句柄数组读、被不精确的片元着色器（scale_exact ≠ 1）读、
+ //   被缓冲 → 贴图拷贝写（CPU 写入：Ryujinx 部分写入即拉黑）、当多重采样解析的目标。前三类是绑定时发现的，记进待办，下一个安全点（开遍前 / 派发前）就换回原尺寸存储。
+ #import <objc/runtime.h>
++#include "rb_scale_retain.h"
+ 
+ static double g_rs = -1;   // 设定比例（S2A_RES_SCALE；1 = 关）
+ static double rs_setting(void) {
+@@ -27,18 +28,75 @@ static inline int rs_on(void) { return (g_rs < 0 ? rs_setting() : g_rs) < 1.0; }
+ 
+ // 每份存储的缩放记录挂在 Metal 根贴图上（关联对象：存储释放时一起走，地址复用不会认错）
+ enum { RS_NONE = 0, RS_SCALED = 1, RS_BLACK = 2 };
+-@interface NvRsInfo : NSObject { @public int state; NSUInteger cw, ch; } @end
++@interface NvRsInfo : NSObject { @public int state; NSUInteger cw, ch; double scale; uint32_t logged; } @end
+ @implementation NvRsInfo @end
+ static char k_rs_info;
+ static id<MTLTexture> rs_root(id<MTLTexture> t0) { id<MTLTexture> t = t0; while (t.parentTexture) t = t.parentTexture; return t; }
+ static NvRsInfo *rs_info(id<MTLTexture> t) { return t ? objc_getAssociatedObject(rs_root(t), &k_rs_info) : nil; }
+ static int rs_state(id<MTLTexture> t) { if (!t || !rs_on()) return RS_NONE; NvRsInfo *i = rs_info(t); return i ? i->state : RS_NONE; }
+-static void rs_set_info(id<MTLTexture> t, int state, NSUInteger cw, NSUInteger ch) {
+-    NvRsInfo *i = [NvRsInfo new]; i->state = state; i->cw = cw; i->ch = ch;
++static void rs_set_info_at(id<MTLTexture> t, int state, NSUInteger cw, NSUInteger ch, double scale) {
++    NvRsInfo *i = [NvRsInfo new]; i->state = state; i->cw = cw; i->ch = ch; i->scale = state == RS_SCALED ? scale : 1.0;
+     objc_setAssociatedObject(rs_root(t), &k_rs_info, i, OBJC_ASSOCIATION_RETAIN);
+ }
+ // 这份存储相对画布的比例（没缩 = 1）
+-static double rs_of(id<MTLTexture> t) { return rs_state(t) == RS_SCALED ? g_rs : 1.0; }
++static void rs_set_info(id<MTLTexture> t, int state, NSUInteger cw, NSUInteger ch) {
++    rs_set_info_at(t, state, cw, ch, state == RS_SCALED ? rs_setting() : 1.0);
++}
++static double rs_of(id<MTLTexture> t) {
++    if (!rs_on()) return 1.0;
++    NvRsInfo *info = rs_info(t);
++    return info && info->state == RS_SCALED ? info->scale : 1.0;
++}
++static int rs_retain_on(void) { return rb_a18_option(RB_DEVICE_RETAIN, "S2A_RB_SCALE_RETAIN"); }
++// Replay publishes storage after all copies succeed. Weak membership never owns
++// an old variant or a finalized guest texture. Replacements remove the old root.
++static NSHashTable *g_rs_scene_roots;
++static os_unfair_lock g_rs_scene_lock = OS_UNFAIR_LOCK_INIT;
++static _Atomic unsigned g_rs_scene_count;
++static int g_rs_native_draw;
++static inline void rs_restore_draw_scope(const int *prior) { g_rs_native_draw = *prior; }
++static void rs_scene_replace(id<MTLTexture> old_root, id<MTLTexture> current) {
++    if (!rs_retain_on()) return;
++    os_unfair_lock_lock(&g_rs_scene_lock);
++    if (old_root) [g_rs_scene_roots removeObject:rs_root(old_root)];
++    NvRsInfo *i = rs_info(current);
++    if (i && i->state == RS_SCALED && i->cw == 960 && i->ch == 540) {
++        if (!g_rs_scene_roots) g_rs_scene_roots = [NSHashTable weakObjectsHashTable];
++        [g_rs_scene_roots addObject:rs_root(current)];
++    }
++    atomic_store_explicit(&g_rs_scene_count, (unsigned)g_rs_scene_roots.count, memory_order_relaxed);
++    os_unfair_lock_unlock(&g_rs_scene_lock);
++}
++enum { RS_KEEP_READ, RS_REJECT_FS, RS_REJECT_INDIRECT, RS_REJECT_IMAGE, RS_REJECT_STAGE,
++       RS_MIXED, RS_INACTIVE, RS_REASON_COUNT };
++static const char *const rs_reasons[] = {"proven_2d_sample", "unproven_fragment", "indirect_handle",
++    "storage_image", "non_fragment", "mixed_attachments", "inactive_plane"};
++static _Atomic uint64_t g_rs_reasons[RS_REASON_COUNT], g_rs_opaque_promotions;
++
++static void rs_retain_note(const tex_t *t, id<MTLTexture> base, unsigned reason, const char *key, int slot) {
++    if (!t || t->d.width != 960 || t->d.height != 540) return;
++    uint64_t n = atomic_fetch_add_explicit(&g_rs_reasons[reason], 1, memory_order_relaxed) + 1;
++    NvRsInfo *info = rs_info(base);
++    // Called by the replay encoder only. Report the first observation per storage/reason
++    // within the startup budget, then sparse samples. Totals below include every event.
++    uint32_t bit = 1u << reason;
++    int first = info && !(info->logged & bit);
++    if (info) info->logged |= bit;
++    if (n <= 8 || (first && n <= 256) || !(n & (n - 1)))
++        MLOG("[rscale-retain] reason=%s target=%llu guest=960x540 physical=%lux%lu format=%lu slot=%d shader=%s events=%llu",
++             rs_reasons[reason], (unsigned long long)t->serial, (unsigned long)base.width,
++             (unsigned long)base.height, (unsigned long)base.pixelFormat, slot, key ? key : "-",
++             (unsigned long long)n);
++}
++static void rs_retain_report(uint64_t frame) {
++    if (!rs_retain_on()) return;
++    uint64_t c[RS_REASON_COUNT];
++    for (int j = 0; j < RS_REASON_COUNT; ++j) c[j] = atomic_load_explicit(&g_rs_reasons[j], memory_order_relaxed);
++    MLOG("[rscale-retain] frame=%llu guest=960x540 events_cumulative kept_2d=%llu unproven_fs=%llu indirect=%llu image=%llu stage=%llu mixed=%llu inactive_planes=%llu opaque_roots=%llu",
++         (unsigned long long)frame, (unsigned long long)c[0], (unsigned long long)c[1],
++         (unsigned long long)c[2], (unsigned long long)c[3], (unsigned long long)c[4],
++         (unsigned long long)c[5], (unsigned long long)c[6], (unsigned long long)atomic_load_explicit(&g_rs_opaque_promotions, memory_order_relaxed));
++}
+ // 画布尺寸（第 level 级，相对 t 自己的级；没缩 = 存储尺寸）
+ static NSUInteger rs_mip(NSUInteger v, NSUInteger level) { return level < sizeof(v) * 8 ? MAX(v >> level, 1u) : 1; }
+ static void rs_canvas(id<MTLTexture> t, NSUInteger level, NSUInteger *w, NSUInteger *h) {
+@@ -68,6 +126,10 @@ static int rs_one_comp(MTLPixelFormat f) {
+ static int rs_eligible(const tex_t *t, id<MTLTexture> base, const char **why) {
+     const char *w = NULL;
+     uint32_t bad = NVN_TEXTURE_FLAGS_DISPLAY | NVN_TEXTURE_FLAGS_VIDEO_DECODE | NVN_TEXTURE_FLAGS_IMAGE | NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_SPARSE | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET;
++    if (t && rb_scale_ui_canvas(t->d.width, t->d.height) && rs_retain_on()) {
++        if (why) *why = "native 1080p composition";
++        return 0;
++    }
+     if (!t || !base) { if (why) *why = "没有存储"; return 0; }
+     MTLPixelFormat pf = base.pixelFormat; int depth = pf == MTLPixelFormatDepth32Float || pf == MTLPixelFormatDepth32Float_Stencil8;
+     // Storage rescaling creates a synthetic mismatch when another D32 image must
+diff --git a/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc b/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc
+index a464d67..3925008 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc
++++ b/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc
+@@ -5,11 +5,13 @@ static uint64_t g_rs_up, g_rs_down, g_rs_fail;   // 缩了 / 退回原尺寸 / 
+ 
+ // 把存储 base 换成按画布 × s（to_scaled）或画布原尺寸的新存储，内容用缩放拷贝带过去（Ryujinx SetScale：GetScaledHostTexture(copy) + ReplaceStorage），
+ //   所有表里指向旧存储的项换成新的（tex_swap_storage）。只在没有开着的渲染遍时调（copy_t2t_draw 自己收遍）。失败 = 旧存储不动、记成不缩（以后不再试）。返回新存储
+-static id<MTLTexture> rs_rescale(id<MTLTexture> base, int to_scaled, const char *why) {
++static id<MTLTexture> rs_rescale_to(id<MTLTexture> base, double factor, const char *why) {
++    if (!base || !(factor > 0 && factor <= 1)) return nil;
++    int to_scaled = factor < 1.0;
+     NvRsInfo *i = rs_info(base);
+     NSUInteger cw = i && i->state == RS_SCALED ? i->cw : base.width, ch = i && i->state == RS_SCALED ? i->ch : base.height;
+-    NSUInteger w = to_scaled ? rs_up(cw, g_rs) : cw, h = to_scaled ? rs_up(ch, g_rs) : ch;
+-    if (w == base.width && h == base.height) { rs_set_info(base, to_scaled ? RS_SCALED : RS_BLACK, cw, ch); return base; }
++    NSUInteger w = to_scaled ? rs_up(cw, factor) : cw, h = to_scaled ? rs_up(ch, factor) : ch;
++    if (w == base.width && h == base.height) { rs_set_info_at(base, to_scaled ? RS_SCALED : RS_BLACK, cw, ch, factor); rs_scene_replace(base, base); return base; }
+     MTLTextureDescriptor *d = [MTLTextureDescriptor new];
+     d.textureType = base.textureType; d.pixelFormat = base.pixelFormat; d.width = w; d.height = h; d.depth = base.depth;
+     d.arrayLength = base.arrayLength; d.mipmapLevelCount = base.mipmapLevelCount; d.sampleCount = base.sampleCount;
+@@ -19,22 +21,32 @@ static id<MTLTexture> rs_rescale(id<MTLTexture> base, int to_scaled, const char
+     d.usage = base.usage | (mtl_fmt_block(base.pixelFormat) ? 0 : MTLTextureUsageRenderTarget);
+     id<MTLTexture> n = [g_dev newTextureWithDescriptor:d];
+     if (!n) { g_rs_fail++; RED_ONCE(114, "内部分辨率：%lux%lu 格式 %lu 的存储换成 %lux%lu 失败（建不出），不缩", (unsigned long)base.width, (unsigned long)base.height, (unsigned long)base.pixelFormat, (unsigned long)w, (unsigned long)h);
+-        rs_set_info(base, RS_BLACK, 0, 0); return nil; }
++        if (!i || i->state != RS_SCALED) rs_set_info(base, RS_BLACK, 0, 0); return nil; }
+     res_add(n);
+     for (NSUInteger l = 0; l < base.mipmapLevelCount; l++) {
+         NVNcopyRegion sr = {0, 0, 0, (int)rs_mip(base.width, l), (int)rs_mip(base.height, l), (int)base.arrayLength};
+         NVNcopyRegion dr = {0, 0, 0, (int)rs_mip(w, l), (int)rs_mip(h, l), (int)base.arrayLength};
+         if (!copy_t2t_draw(base, n, (unsigned)l, 0, (unsigned)l, 0, &sr, &dr, 1, 0)) {
+             g_rs_fail++; RED_ONCE(115, "内部分辨率：%lux%lu 格式 %lu 的缩放拷贝画不了，不缩（首例）", (unsigned long)base.width, (unsigned long)base.height, (unsigned long)base.pixelFormat);
+-            defer_obj_release(n); rs_set_info(base, RS_BLACK, 0, 0); return nil; }
++            defer_obj_release(n); if (!i || i->state != RS_SCALED) rs_set_info(base, RS_BLACK, 0, 0); return nil; }
++    }
++    rs_set_info_at(n, to_scaled ? RS_SCALED : RS_BLACK, cw, ch, factor);
++    int swapped = tex_swap_storage(base, n);
++    if (!swapped && rs_retain_on()) {
++        defer_obj_release(n);
++        g_rs_fail++;
++        MLOG("【红】 [rscale-retain] unpublished storage replacement old=%lux%lu desired=%lux%lu",
++             (unsigned long)base.width, (unsigned long)base.height, (unsigned long)w, (unsigned long)h);
++        return nil;
+     }
+-    rs_set_info(n, to_scaled ? RS_SCALED : RS_BLACK, cw, ch);
+-    tex_swap_storage(base, n);
+     uint64_t k = to_scaled ? g_rs_up++ : g_rs_down++;
+     if (k < 12 || !(k & (k - 1))) MLOG("内部分辨率：存储 %lux%lu 格式 %lu %s %lux%lu（第 %llu 份%s%s）", (unsigned long)base.width, (unsigned long)base.height, (unsigned long)base.pixelFormat,
+                                        to_scaled ? "缩到" : "退回原尺寸", (unsigned long)w, (unsigned long)h, (unsigned long long)k + 1, why ? "；" : "", why ? why : "");
+     return n;
+ }
++static id<MTLTexture> rs_rescale(id<MTLTexture> base, int to_scaled, const char *why) {
++    return rs_rescale_to(base, to_scaled ? rs_setting() : 1.0, why);
++}
+ 
+ // 待退回队列：绑定时发现缩放图被不支持缩放的地方读写，下一个安全点（开遍前 rs_rts / 派发前 rs_pre_compute）换回原尺寸。根存储去重
+ enum { RS_BADQ = 64 };
+@@ -59,30 +71,70 @@ static void rs_flush(void) {
+ static void rs_note_skip(const tex_t *t, const char *why) {
+     static int n; if (n++ < 16) MLOG("内部分辨率：渲染目标 ser=%llu %ux%u 格式 %#x 标志 %#x 不缩（%s）", (unsigned long long)t->serial, t->d.width, t->d.height, t->d.format, t->d.flags, why ? why : "?");
+ }
+-static void rs_rts(void) {
+-    if (!rs_on()) return;
++static double rs_target_factor(const tex_t *t, id<MTLTexture> base) {
++    (void)t; (void)base;
++    return rs_setting();
++}
++static int rs_rts(int clear_only) {
++    if (!rs_on()) return 1;
+     rs_flush();
+-    const tex_t *ts[9]; int n = 0, block = 0;
+-    for (int i = 0; i < R.rt.n && i < 8; i++) if (R.rt.color[i]) ts[n++] = R.rt.color[i];
+-    if (R.rt.depth) ts[n++] = R.rt.depth;
+-    for (int k = 0; k < n; k++) {
+-        id<MTLTexture> b = tex_mtl(ts[k]); int st = rs_state(b);
+-        if (!b) continue;
+-        if (st == RS_BLACK) block = 1;
+-        else if (st == RS_NONE) { const char *why = NULL; if (!rs_eligible(ts[k], b, &why)) { rs_set_info(b, RS_BLACK, 0, 0); rs_note_skip(ts[k], why); block = 1; } }
++    const tex_t *ts[9];
++    int n = 0, block = 0;
++    int retain = rs_retain_on();
++    int scene = R.rt.depth && R.rt.depth->d.width == 960 && R.rt.depth->d.height == 540;
++    if (retain && !scene) for (int i = 0; i < R.rt.n && i < 8; ++i) {
++        const tex_t *t = R.rt.color[i];
++        if (t && t->d.width == 960 && t->d.height == 540) { scene = 1; break; }
++    }
++    int physical = retain && scene;
++    for (int i = 0; i < R.rt.n && i < 8; i++) {
++        const tex_t *t = R.rt.color[i];
++        if (!t) continue;
++        if (!physical || rb_scale_active_plane(clear_only, 0, R.clear_c[i], rt_dup_slot(&R.rt, i)))
++            ts[n++] = t;
++        else rs_retain_note(t, nil, RS_INACTIVE, NULL, i);
+     }
++    if (R.rt.depth) {
++        if (!physical || rb_scale_active_plane(clear_only, 1, R.clear_d || R.clear_s, 0))
++            ts[n++] = R.rt.depth;
++        else rs_retain_note(R.rt.depth, nil, RS_INACTIVE, NULL, 8);
++    }
++    double desired = 0;
+     for (int k = 0; k < n; k++) {
+         id<MTLTexture> b = tex_mtl(ts[k]); int st = rs_state(b);
+         if (!b) continue;
+-        if (block) { if (st == RS_SCALED) rs_rescale(b, 0, "同一遍有不缩的附件"); else if (st == RS_NONE) rs_set_info(b, RS_BLACK, 0, 0); }
+-        else if (st == RS_NONE && !rs_rescale(b, 1, NULL)) block = 1;   // 换存储失败（rs_rescale 已把它记成不缩）
++        double factor = st == RS_SCALED ? rs_of(b) : rs_target_factor(ts[k], b);
++        if (desired && desired != factor) block = 1;
++        if (!desired) desired = factor;
++        if (st == RS_BLACK || factor >= 1.0 || (g_rs_native_draw && ts[k]->d.width == 960 && ts[k]->d.height == 540))
++            block = 1;
++        else if (st == RS_NONE) {
++            const char *why = NULL;
++            if (!rs_eligible(ts[k], b, &why)) {
++                rs_set_info(b, RS_BLACK, 0, 0); rs_note_skip(ts[k], why); block = 1;
++            }
++        }
++    }
++    if (!block) for (int k = 0; k < n; k++) {
++        id<MTLTexture> b = tex_mtl(ts[k]);
++        if (b && rs_state(b) == RS_NONE && !rs_rescale_to(b, desired, NULL)) { block = 1; break; }
+     }
+-    // 同一遍里有附件没缩成：已缩的附件退回原尺寸，同一遍的附件尺寸必须一致（11-09 #312：颜色目标缩放拷贝失败、深度照样缩到一半，同遍尺寸不一，iPhone 上闪粉色块）
++    // Every active plane must agree. Keep the old root and its real factor if
++    // promotion fails so a later retry can recover; never encode a mixed pass.
+     if (block) for (int k = 0; k < n; k++) {
+-        id<MTLTexture> b = tex_mtl(ts[k]); int st = rs_state(b);
++        id<MTLTexture> b = tex_mtl(ts[k]);
+         if (!b) continue;
+-        if (st == RS_SCALED) rs_rescale(b, 0, "同一遍有附件没缩成"); else if (st == RS_NONE) rs_set_info(b, RS_BLACK, 0, 0);
++        int st = rs_state(b);
++        if (st == RS_SCALED) {
++            if (retain) rs_retain_note(ts[k], b, RS_MIXED, NULL, -1);
++            if (!rs_rescale(b, 0, "同一遍有不缩的附件")) {
++                MLOG("【红】 [rscale] mixed pass refused: native promotion failed target=%llu actual=%lux%lu",
++                     (unsigned long long)ts[k]->serial, (unsigned long)b.width, (unsigned long)b.height);
++                return 0;
++            }
++        } else if (st == RS_NONE && desired < 1.0) rs_set_info(b, RS_BLACK, 0, 0);
+     }
++    return 1;
+ }
+ 
+ // 片元阶段的支持缓冲（encode_args_ NVN_RB_SUPPORT；调用时已持 g_rmu，所以用 wd_tex_scales_locked——10-30 真机：调加锁版在同一线程上自锁，缩放局第一笔精确着色器的绘制就卡死）：片元坐标倍率 = 宽屏核心给的 × 本遍比例；取图 / 尺寸查询倍率 = 所绑贴图「存储 ÷ 游戏」两轴（wd_tex_scales：宽屏 k 与 s 自然相乘），
+@@ -106,13 +158,172 @@ static uint64_t rs_support_cpu(const NvShader *fs, const uint8_t **cpu) {
+ }
+ static uint64_t rs_support(const NvShader *fs) { return rs_support_cpu(fs, NULL); }
+ // 绑定时：这张图在这里读写不支持缩放（顶点 / 计算等非片元阶段、不精确的片元着色器、句柄数组、存储图像槽）→ 记进待退回（只对已缩的起作用）
+-static inline void rs_bind_check(id<MTLTexture> t, const NvShader *sh, int nvn_stage, int kind) {
++static int rs_normalized_read(const NvShader *sh, const nvn_rbind *b, const treg_t *entry,
++                              id<MTLTexture> texture, id<MTLTexture> original) {
++    const tex_t *guest = &entry->t;
++    if (guest->d.width != 960 || guest->d.height != 540 || !sh->rs_missing_slot ||
++        b->kind != NVN_RB_TEX || b->n || b->f1d || entry->has_v || !texture || texture != original ||
++        guest->d.target != NVN_TEXTURE_TARGET_2D || guest->d.levels != 1 || guest->d.samples > 1 ||
++        texture.parentTexture || texture.textureType != MTLTextureType2D ||
++        texture.mipmapLevelCount != 1 || texture.sampleCount != 1) return 0;
++    int direct = b->dtt == MTLTextureType2D && b->dpf == NVN_DPF_FLOAT &&
++                 mtl_pf_dpf(texture.pixelFormat) == NVN_DPF_FLOAT;
++    return rb_scale_retain_read((int)sh->rs_missing_slot - 1, b->reg, sh->exact,
++        sh->size_abi && !sh->size_exact, sh->nts, sh->ts_lost, sh->fragc, direct);
++}
++
++// A missing, indirect or writable texture access can see any live scene
++// source. Make the decision BEFORE opening the encoder or sending the draw.
++// This scan observes descriptor registration under the same mutex as argument
++// encoding and only peeks existing storage; it never populates an upload.
++typedef struct {
++    NSMutableArray *roots;
++    int native_target;
++} rs_draw_guard;
++static int rs_active_alias(const tex_t *read, id<MTLTexture> storage) {
++    rb_attachment_span source;
++    if (!rb_guest_span(read, &source)) return 1;
++    for (int i = 0; i < 9; ++i) {
++        const tex_t *t = i == 8 ? R.rt.depth : i < R.rt.n ? R.rt.color[i] : NULL;
++        if (!t || t->d.width != 960 || t->d.height != 540) continue;
++        rb_attachment_span target;
++        if (t->serial == read->serial || !rb_guest_span(t, &target) ||
++            (source.first <= target.last && target.first <= source.last)) return 1;
++        pthread_mutex_lock(&g_smu);
++        id obj = hm_get_id(&g_by_serial, &t->serial);
++        pthread_mutex_unlock(&g_smu);
++        if ([obj conformsToProtocol:@protocol(MTLTexture)] && rs_root(obj) == storage) return 1;
++    }
++    return 0;
++}
++static int rs_shader_opaque(const NvShader *sh, int stage, rs_draw_guard *guard) {
++    if (!sh || !sh->rf.route_b || sh->rf.pool) return 1;
++    for (int k = 0; k < sh->rf.nb; ++k) {
++        const nvn_rbind *b = &sh->rf.b[k];
++        switch (b->kind) {
++        case NVN_RB_CBUF: case NVN_RB_SAMP: case NVN_RB_SAMPT: case NVN_RB_SAMPI:
++        case NVN_RB_SUPPORT: case NVN_RB_C1: case NVN_RB_DRV0: case NVN_RB_DRV2:
++        case NVN_RB_UVX: case NVN_RB_LB: case NVN_RB_UBOLEN: case NVN_RB_SBSZ: case NVN_RB_PUSH:
++            continue;
++        case NVN_RB_TEX: case NVN_RB_IMG: break;
++        default: return 1;
++        }
++        if (b->n || b->reg >= NTEX) return 1;
++        int tid = b->kind == NVN_RB_IMG ? img_tid(b, stage) :
++                  (int)(tex_slot_h(S.tex[stage], S.img[stage], b->reg) & 0xfffff);
++        if (tid < 0 || tid >= g_ntreg || !g_treg[tid].ok) continue;
++        const treg_t *entry = &g_treg[tid];
++        pthread_mutex_lock(&g_smu);
++        id obj = hm_get_id(&g_by_serial, &entry->t.serial);
++        id<MTLTexture> tex = [obj conformsToProtocol:@protocol(MTLTexture)] ? obj :
++                              [obj isKindOfClass:[NvPkg class]] ? ((NvPkg *)obj)->tex : nil;
++        pthread_mutex_unlock(&g_smu);
++        if (!tex || entry->t.has_layout || !entry->t.pool ||
++            (entry->t.pool->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL)) return 1;
++        id<MTLTexture> root = rs_root(tex);
++        NvRsInfo *info = rs_info(root);
++        if (!(entry->t.d.width == 960 && entry->t.d.height == 540) &&
++            !(info && info->cw == 960 && info->ch == 540)) continue;
++        if (stage == 1 && tid > 0 && b->kind == NVN_RB_TEX && !entry->has_v && !b->f1d &&
++            tex.textureType == MTLTextureType2D && b->dtt == MTLTextureType2D &&
++            tex.sampleCount == 1 && entry->t.d.target == NVN_TEXTURE_TARGET_2D) {
++            if (sh->size_abi && sh->size_exact && sh->exact == 1 && !sh->ts_lost &&
++                b->dpf == mtl_pf_dpf(tex.pixelFormat)) continue;
++            if (rs_normalized_read(sh, b, entry, tex, tex)) continue;
++        }
++        if (info && info->state == RS_SCALED) {
++            if (!guard->roots) guard->roots = [NSMutableArray array];
++            if (![guard->roots containsObject:root]) [guard->roots addObject:root];
++            unsigned why = b->kind == NVN_RB_IMG ? RS_REJECT_IMAGE : stage != 1 ? RS_REJECT_STAGE : RS_REJECT_FS;
++            rs_retain_note(&entry->t, root, why, sh->key, b->reg);
++        }
++        if (!guard->native_target && rs_active_alias(&entry->t, root)) guard->native_target = 1;
++    }
++    return 0;
++}
++
++static int rs_program_opaque(const NvProg *pr, int compute, rs_draw_guard *guarded) {
++    int native = !pr || pr->unres;
++    if (!native) {
++        pthread_mutex_lock(&g_rmu);
++        if (compute) native = rs_shader_opaque(pr->sh[5], 5, guarded);
++        else {
++            native = !pr->sh[0] || !pr->sh[1] || pr->sh[2] || pr->sh[3] || pr->sh[4] ||
++                     rs_shader_opaque(pr->sh[0], 0, guarded) || rs_shader_opaque(pr->sh[1], 1, guarded);
++        }
++        pthread_mutex_unlock(&g_rmu);
++    }
++    return native;
++}
++static int rs_prepare_work(const NvProg *pr, int compute) {
++    if (g_rs_native_draw) return 1;   // inherited from an enclosing GPU operation
++    if (!rs_on() || !rs_retain_on()) return 1;
++    int live = atomic_load_explicit(&g_rs_scene_count, memory_order_relaxed) != 0;
++    int possible = R.rt.depth && R.rt.depth->d.width == 960 && R.rt.depth->d.height == 540;
++    for (int k = 0; !possible && k < R.rt.n && k < 8; ++k)
++        possible = R.rt.color[k] && R.rt.color[k]->d.width == 960 && R.rt.color[k]->d.height == 540;
++    if (!live && !g_nlc && (!possible || compute)) return 1;
++    rs_draw_guard guarded = {0};
++    int native = rs_program_opaque(pr, compute, &guarded);
++    if (!native && !guarded.roots.count && !guarded.native_target) return 1;
++    // End the old producer and land pending clears before snapshotting roots:
++    // a deferred clear can itself create scaled storage. Prevent the consumer's
++    // pass from immediately putting an unknown input/feedback target back at scale.
++    g_rs_native_draw = native || guarded.native_target;
++    if (!live && !g_nlc) return 1;
++    uint64_t previous_generation = atomic_load_explicit(&g_ser_gen, memory_order_relaxed);
++    if (g_nlc) lc_land();
++    rp_flush();
++    if (!native && previous_generation != atomic_load_explicit(&g_ser_gen, memory_order_relaxed)) {
++        // Materializing an earlier clear can replace a root collected above.
++        // Consult the current holder again before choosing it for promotion.
++        guarded.roots = nil; guarded.native_target = 0;
++        native = rs_program_opaque(pr, compute, &guarded);
++        g_rs_native_draw = native || guarded.native_target;
++    }
++    NSArray *roots = guarded.roots;
++    if (native) {
++        os_unfair_lock_lock(&g_rs_scene_lock);
++        roots = g_rs_scene_roots.allObjects;
++        atomic_store_explicit(&g_rs_scene_count, (unsigned)roots.count, memory_order_relaxed);
++        os_unfair_lock_unlock(&g_rs_scene_lock);
++    }
++    if (native && roots.count)
++        atomic_fetch_add_explicit(&g_rs_opaque_promotions, roots.count, memory_order_relaxed);
++    for (id<MTLTexture> root in roots) {
++        NvRsInfo *old = rs_info(root);
++        if (old && old->state == RS_SCALED && !rs_rescale_to(root, 1.0, "incompatible shader preflight")) {
++            MLOG("【红】 [rscale-retain] blocked original GPU operation after a failed preflight promotion");
++            return 0;
++        }
++    }
++    return 1;
++}
++
++static inline void rs_bind_check(id<MTLTexture> t, const NvShader *sh, int stage, int kind,
++                                 const nvn_rbind *binding, int tid, id<MTLTexture> original) {
+     if (!t || !rs_on()) return;
+-    if (kind == 2) rs_bad(t, "绑在存储图像槽");
+-    else if (kind == 1) rs_bad(t, "被句柄数组读");
+-    else if (nvn_stage != 1) rs_bad(t, "被顶点 / 计算等非片元阶段读");
+-    else if (sh->exact != 1 || sh->ts_lost || (sh->size_abi && !sh->size_exact)) rs_bad(t, "被取图倍率不精确的片元着色器读");   // ABI2 非 exact（legacy_1x）同不精确
++    unsigned reason;
++    const char *why;
++    if (kind == 2) { reason = RS_REJECT_IMAGE; why = "绑在存储图像槽"; }
++    else if (kind == 1) { reason = RS_REJECT_INDIRECT; why = "被句柄数组读"; }
++    else if (stage != 1) { reason = RS_REJECT_STAGE; why = "被顶点 / 计算等非片元阶段读"; }
++    else if (sh->exact != 1 || sh->ts_lost || (sh->size_abi && !sh->size_exact)) {
++        reason = RS_REJECT_FS; why = "被取图倍率不精确的片元着色器读";
++    } else return;
++    if (rs_retain_on() && rs_state(t) == RS_SCALED && tid >= 0 && tid < g_ntreg && g_treg[tid].ok) {
++        const treg_t *entry = &g_treg[tid];
++        const tex_t *guest = &entry->t;
++        int slot = binding->reg;
++        if (reason == RS_REJECT_FS && rs_normalized_read(sh, binding, entry, t, original)) {
++            rs_retain_note(guest, t, RS_KEEP_READ, sh->key, slot);
++            return;
++        }
++        rs_retain_note(guest, t, reason, sh->key, slot);
++    }
++    rs_bad(t, why);
+ }
++
+ // 计算派发前（dispatch，此时没有开着的遍）：这次派发要读写的缩放图当场换回原尺寸，这次派发就读到对的（绑定时的检查只能等下一个安全点）
+ static void rs_pre_compute(NvShader *sh) {
+     if (!rs_on() || !sh) return;
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 31309fa..414d4f8 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -145,6 +145,11 @@ int nvn_be_shutdown_session(void) {
+     atomic_store_explicit(&g_rb_live_request, 0, memory_order_relaxed);
+     for (unsigned i = 0; i < RB_DEVICE_OPTIONS; ++i)
+         atomic_store_explicit(&g_rb_device_options[i], 0, memory_order_relaxed);
++    os_unfair_lock_lock(&g_rs_scene_lock);
++    g_rs_scene_roots = nil;
++    atomic_store_explicit(&g_rs_scene_count, 0, memory_order_relaxed);
++    os_unfair_lock_unlock(&g_rs_scene_lock);
++    g_rs_native_draw = 0; g_rs = -1;
+     g_rb_clear_legacy = -1;
+     g_rb_next_clear_mask = g_rb_sealed_clear_mask = 0;
+     rb_reuse_session_reset();   // RewindBox (patch 0071): the textures kept for reuse, the ring of finalized textures, the snapshot pools (nvn_mtl.m)
+diff --git a/graphics/nvn/gfx/nvn/rb_scale_retain.h b/graphics/nvn/gfx/nvn/rb_scale_retain.h
+new file mode 100644
+index 0000000..daec92a
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_scale_retain.h
+@@ -0,0 +1,43 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <stdint.h>
++#include <string.h>
++
++// Only the exact diagnostic emitted by QuerySamplerType's missing 2D default.
++// Indirect handles and unknown spellings don't establish a direct guest slot.
++static inline int rb_scale_missing_slot(const char *s) {
++    const char prefix[] = "unknown_missing_fact:sampler_type:handle=";
++    if (!s || strncmp(s, prefix, sizeof prefix - 1)) return -1;
++    s += sizeof prefix - 1;
++    int digits = 0;
++    while ((*s >= '0' && *s <= '9') || (*s >= 'A' && *s <= 'F')) {
++        if (++digits > 8) return -1;
++        ++s;
++    }
++    const char suffix[] = ":cbuf=-1:slot=";
++    if (!digits || strncmp(s, suffix, sizeof suffix - 1)) return -1;
++    s += sizeof suffix - 1;
++    if (*s < '0' || *s > '9') return -1;
++    unsigned slot = 0;
++    while (*s >= '0' && *s <= '9') {
++        slot = slot * 10 + (unsigned)(*s++ - '0');
++        if (slot > 255) return -1;
++    }
++    return *s ? -1 : (int)slot;
++}
++
++static inline int rb_scale_retain_read(int missing_slot, int slot, int exact, int abi2_legacy,
++                                        int table_entries, int dropped, int fragcoord, int direct_2d) {
++    return missing_slot >= 0 && missing_slot == slot && exact == 1 && abi2_legacy &&
++           !table_entries && !dropped && !fragcoord && direct_2d;
++}
++
++// Match the planes that rp_begin_ex_ will physically attach. Mode 1 is the
++// clear-only encoder; 2 omits DS, and 3/4 use just one plane of the DS texture.
++static inline int rb_scale_active_plane(int mode, int depth, int clears, int duplicate) {
++    return !duplicate && (!depth || mode != 2) && (mode != 1 || clears);
++}
++
++static inline int rb_scale_ui_canvas(unsigned width, unsigned height) {
++    return width == 1920 && height == 1080;
++}
+diff --git a/graphics/nvn/tests/t_rb_scale_preflight.m b/graphics/nvn/tests/t_rb_scale_preflight.m
+new file mode 100644
+index 0000000..068f7eb
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_scale_preflight.m
+@@ -0,0 +1,56 @@
++// SPDX-License-Identifier: MIT
++// Runs the real reflected binding lookup and uses an actual Metal allocation.
++// Compatible with the tracked Metal device provided by a virtual macOS host.
++#include "../gfx/nvn/nvn_mtl.m"
++#define REQUIRE(c) do { if (!(c)) { fprintf(stderr, "failed %s at %d\n", #c, __LINE__); return 1; } } while (0)
++
++int main(void) {
++    @autoreleasepool {
++        id<MTLDevice> device = MTLCreateSystemDefaultDevice();
++        if (!device) return 77;
++        id<MTLTexture> color = [device newTextureWithDescriptor:
++            [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
++                                                              width:720 height:405 mipmapped:NO]];
++        REQUIRE(color);
++        enum { SLOT = 2, TID = 7 };
++        static uint8_t bytes[1024];
++        static pool_t pool;
++        pool.mem = bytes; pool.size = sizeof bytes;
++        g_treg = calloc(TID + 1, sizeof *g_treg); g_ntreg = TID + 1;
++        REQUIRE(g_treg);
++        treg_t *entry = &g_treg[TID];
++        entry->ok = 1; entry->t.serial = 1234; entry->t.pool = &pool;
++        entry->t.mem = bytes; entry->t.L.size = sizeof bytes;
++        entry->t.d.target = NVN_TEXTURE_TARGET_2D;
++        entry->t.d.width = 960; entry->t.d.height = 540;
++        entry->t.d.levels = 1; entry->t.d.samples = 1;
++        hm_put_id(&g_by_serial, &entry->t.serial, color);
++        rs_set_info_at(color, RS_SCALED, 960, 540, 0.75);
++        S.tex[1][SLOT] = TID;
++
++        NvShader *fs = [NvShader new]; fs->rf.nb = 1; fs->rf.route_b = 1;
++        fs->rf.b = calloc(1, sizeof *fs->rf.b); REQUIRE(fs->rf.b);
++        nvn_rbind *b = fs->rf.b; b->kind = NVN_RB_TEX; b->reg = SLOT;
++        b->dtt = MTLTextureType2D; b->dpf = NVN_DPF_FLOAT;
++        fs->exact = 1; fs->size_abi = 1; fs->rs_missing_slot = SLOT + 1;
++        rs_draw_guard normalized = {0};
++        REQUIRE(!rs_shader_opaque(fs, 1, &normalized) && !normalized.roots.count);
++        // Same real texture, same slot, now accessed by an unproven integer fetch.
++        // The guard must return this root before the caller creates/uses the encoder.
++        fs->nts = 1;
++        rs_draw_guard integer = {0};
++        REQUIRE(!rs_shader_opaque(fs, 1, &integer));
++        REQUIRE(integer.roots.count == 1 && integer.roots.firstObject == color);
++        // A real active target must stay native during an opaque feedback draw.
++        R.rt.n = 1; R.rt.color[0] = &entry->t;
++        rs_draw_guard feedback = {0};
++        REQUIRE(!rs_shader_opaque(fs, 1, &feedback) && feedback.native_target);
++        REQUIRE(feedback.roots.count == 1 && feedback.roots.firstObject == color);
++        // An unresolved pool or buffer table cannot confine the operation to this root.
++        b->kind = NVN_RB_TEXP;
++        rs_draw_guard indirect = {0};
++        REQUIRE(rs_shader_opaque(fs, 1, &indirect));
++        puts("PASS actual Metal texture and binding preflight: sampled, integer access, feedback and opaque pool");
++    }
++    return 0;
++}
+diff --git a/graphics/nvn/tests/t_rb_scale_retain.c b/graphics/nvn/tests/t_rb_scale_retain.c
+new file mode 100644
+index 0000000..a880a5c
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_scale_retain.c
+@@ -0,0 +1,34 @@
++// SPDX-License-Identifier: MIT
++#include "../gfx/nvn/rb_scale_retain.h"
++#include <assert.h>
++#include <stdio.h>
++
++int main(void) {
++    assert(rb_scale_missing_slot("unknown_missing_fact:sampler_type:handle=2A:cbuf=-1:slot=12") == 12);
++    const char *invalid[] = {NULL, "", "unsupported_scaled_access:legacy_scale_helper",
++        "unknown_missing_fact:sampler_type:handle=A:cbuf=0:slot=12",
++        "unknown_missing_fact:sampler_type:handle=A:cbuf=-1:slot=256",
++        "unknown_missing_fact:sampler_type:handle=A:cbuf=-1:slot=12:value=2d",
++        "unknown_missing_fact:sampler_type:handle=:cbuf=-1:slot=12"};
++    for (unsigned i = 0; i < sizeof invalid / sizeof invalid[0]; ++i)
++        assert(rb_scale_missing_slot(invalid[i]) < 0);
++    assert(rb_scale_retain_read(12,12,1,1,0,0,0,1));
++    assert(!rb_scale_retain_read(-1,12,1,1,0,0,0,1));
++    assert(!rb_scale_retain_read(12,11,1,1,0,0,0,1));
++    assert(!rb_scale_retain_read(12,12,0,1,0,0,0,1));
++    assert(!rb_scale_retain_read(12,12,1,0,0,0,0,1));
++    assert(!rb_scale_retain_read(12,12,1,1,1,0,0,1));
++    assert(!rb_scale_retain_read(12,12,1,1,0,1,0,1));
++    assert(!rb_scale_retain_read(12,12,1,1,0,0,1,1));
++    assert(!rb_scale_retain_read(12,12,1,1,0,0,0,0));
++    assert(rb_scale_ui_canvas(1920,1080));
++    assert(!rb_scale_ui_canvas(960,540) && !rb_scale_ui_canvas(1536,1536));
++    // Bound 960x540 color + native-only D32: a color-only materialization
++    // sees only color, a draw sees both and must use a common factor.
++    assert(rb_scale_active_plane(1,0,1,0) && !rb_scale_active_plane(1,1,0,0));
++    assert(rb_scale_active_plane(0,0,0,0) && rb_scale_active_plane(0,1,0,0));
++    assert(!rb_scale_active_plane(1,0,0,0) && rb_scale_active_plane(1,1,1,0));
++    assert(!rb_scale_active_plane(2,1,1,0)); assert(rb_scale_active_plane(3,1,0,0));
++    assert(rb_scale_active_plane(4,1,0,0)); assert(!rb_scale_active_plane(0,0,1,1));
++    puts("PASS resolution retention: exact producer reason, confirmed binding and concrete pass planes");
++}
+diff --git a/graphics/nvn/texture_extent.inc b/graphics/nvn/texture_extent.inc
+index afbf065..2bb6dae 100644
+--- a/graphics/nvn/texture_extent.inc
++++ b/graphics/nvn/texture_extent.inc
+@@ -51,6 +51,6 @@ static tex_extent tex_extent_grow(const tex_t *t, id<MTLTexture> storage, NSUInt
+     e.requested_known = 1;
+     e.canvas = (tex_size){MAX(e.canvas.width, e.requested.width), MAX(e.canvas.height, e.requested.height)};
+     e.physical = e.canvas;
+-    if (storage && rs_state(storage) == RS_SCALED) e.physical = (tex_size){rs_up(e.canvas.width, g_rs), rs_up(e.canvas.height, g_rs)};   // S2Arm internal resolution: a scaled storage grows scaled
++    if (storage && rs_state(storage) == RS_SCALED) e.physical = (tex_size){rs_up(e.canvas.width, rs_of(storage)), rs_up(e.canvas.height, rs_of(storage))};   // S2Arm internal resolution: a scaled storage grows scaled
+     return e;
+ }
+diff --git a/runtime/tests/mk/rb_scale_preflight.mk b/runtime/tests/mk/rb_scale_preflight.mk
+new file mode 100644
+index 0000000..6dffe9c
+--- /dev/null
++++ b/runtime/tests/mk/rb_scale_preflight.mk
+@@ -0,0 +1,13 @@
++# Exercise production resolution-scale preflight on a tracked Metal device.
++ifeq ($(shell uname -s),Darwin)
++$(BUILD)/tests/t_rb_scale_preflight: graphics/nvn/tests/t_rb_scale_preflight.m $(NVN_MTL_DEPS) $(NVN_TEST_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN)
++	$(CC) $(CFLAGS) -std=gnu11 -fobjc-arc -Wno-unused-function -Wno-unguarded-availability-new -Wno-unguarded-availability \
++	  $(NATIVE_INC) -I$(NVN_TEST_DIR)/nvn/gen -Igraphics/nvn/host -Igraphics/nvn/gfx/nvn -Igraphics/nvn/gfx/nvn/include -Igraphics/nvn/third_party/vulkan-headers/include \
++	  -o $@ graphics/nvn/tests/t_rb_scale_preflight.m $(NVN_TEST_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN) \
++	  -Wl,-rpath,@executable_path/nvn/widen $(NVN_TEST_WEAK) \
++	  -framework Metal -framework Foundation -framework QuartzCore -framework CoreGraphics \
++	  -framework ImageIO -framework UniformTypeIdentifiers -lc++
++.PHONY: native-test-rb_scale_preflight
++native-test-rb_scale_preflight: $(BUILD)/tests/t_rb_scale_preflight
++	$(BUILD)/tests/t_rb_scale_preflight
++endif

@@ -1,0 +1,1567 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_dlss.inc b/graphics/nvn/gfx/nvn/nvn_dlss.inc
+index 7afca70..2267460 100644
+--- a/graphics/nvn/gfx/nvn/nvn_dlss.inc
++++ b/graphics/nvn/gfx/nvn/nvn_dlss.inc
+@@ -25,7 +25,7 @@ typedef enum { RBFxOff, RBFxAdaptive, RBFxAlways } RBFxPolicy;
+     uint64_t net;
+     id<MTLFXTemporalScalerBase> small[2];
+     id<MTLFXSpatialScalerBase> smallSpatial[2];
+-    BOOL drsWasSpatial;
++    BOOL drsWasSpatial, encoded; int scalerMethod;
+     _Atomic unsigned ready;
+     BOOL warmTried; unsigned lastTier; int drsMethod;
+     MTLPixelFormat cf, df, mf, of; NSUInteger iw, ih, ow, oh; uint32_t flags;
+@@ -60,12 +60,12 @@ static int rb_drs_fx_inputs(uint64_t serials[3]) {
+ }
+ static int rb_drs_fx_usage(unsigned tier, NSUInteger need[4]) {
+     if (tier >= 3 || !g_drs_fx_family || !(rb_drs_fx_ready_mask() & (1u << tier))) return 0;
+-    id<MTLFXTemporalScalerBase> s = tier ? g_drs_fx_family->small[tier-1] : g_drs_fx_family->scaler;
++    id<MTLFXTemporalScalerBase> s = tier ? g_drs_fx_family->small[tier-1] : (g_drs_fx_family->spatial ? nil : g_drs_fx_family->scaler);
+     if (s) {
+         need[0]=s.colorTextureUsage; need[1]=s.depthTextureUsage;
+         need[2]=s.motionTextureUsage; need[3]=s.outputTextureUsage;
+     } else {
+-        id<MTLFXSpatialScalerBase> spatial=g_drs_fx_family->smallSpatial[tier-1];
++        id<MTLFXSpatialScalerBase> spatial=tier ? g_drs_fx_family->smallSpatial[tier-1] : g_drs_fx_family->scaler;
+         if (!spatial) return 0;
+         need[0]=spatial.colorTextureUsage; need[1]=need[2]=0; need[3]=spatial.outputTextureUsage;
+     }
+@@ -87,10 +87,10 @@ static BOOL dlss_drs_shape(const p_dlss *d, const tex_t *inputs[3], id<MTLTextur
+          d->view[i].set_target || d->view[i].set_swizzle || d->view[i].set_dsmode)) return NO;
+     for (unsigned i=0;i<5;i++) if (d->base[i][0] || d->base[i][1]) return NO;
+     for (unsigned i=0;i<3;i++) {
+-        if (!inputs[i]->serial || inputs[i]->d.width!=960 || inputs[i]->d.height!=540 ||
++        if (!inputs[i]->serial ||
+             tex[i].textureType!=MTLTextureType2D || tex[i].sampleCount!=1 || tex[i].parentTexture || tex[i].buffer ||
+-            tex[i].width!=rb_fx_tier_width(tier) || tex[i].height!=rb_fx_tier_height(tier) ||
+-            fabs(rs_of(tex[i]) - (double)rb_fx_tier_width(tier)/960.0)>.0001) return NO;
++            !rb_fx_input_at_tier(inputs[i]->d.width,inputs[i]->d.height,(unsigned)tex[i].width,
++                                 (unsigned)tex[i].height,rs_of(tex[i]),tier)) return NO;
+         if (tex[i]==output || inputs[i]->serial==d->tex[DLT_OUTPUT]->serial) return NO;
+         for (unsigned j=0;j<i;j++) if (inputs[i]->serial==inputs[j]->serial || tex[i]==tex[j]) return NO;
+     }
+@@ -101,7 +101,7 @@ static void dlss_drs_warm(NvDlss *f) {
+     if (f->warmTried) return;
+     if (@available(macOS 26.0, iOS 26.0, *)) {
+         Class cl=dlss_class("MTLFXTemporalScalerDescriptor"), spatialCl=dlss_class("MTLFXSpatialScalerDescriptor");
+-        if (![cl instancesRespondToSelector:@selector(setRequiresSynchronousInitialization:)]) cl=nil;
++        if (f->spatial || ![cl instancesRespondToSelector:@selector(setRequiresSynchronousInitialization:)]) cl=nil;
+         id<MTLDevice> dev=g_dev; id comp=present_fx_compiler();
+         if (!comp || (!cl && !spatialCl)) {
+             f->warmTried=YES; return;
+@@ -180,19 +180,19 @@ static id dlss_make_spatial(const p_dlss *d, id<MTLTexture> c, id<MTLTexture> o,
+     else return [sd newSpatialScalerWithDevice:g_dev];
+     return nil;
+ }
+-static NvDlss *dlss_scaler(const p_dlss *d, id<MTLTexture> c, id<MTLTexture> dp, id<MTLTexture> mv, id<MTLTexture> o, NSUInteger cw, NSUInteger ch) {
++static NvDlss *dlss_scaler(const p_dlss *d, id<MTLTexture> c, id<MTLTexture> dp, id<MTLTexture> mv, id<MTLTexture> o, NSUInteger cw, NSUInteger ch, BOOL managed) {
+     BOOL m4 = !g_m3; int free_i = -1, hit = -1;
+     for (int i = 0; i < 4; i++) { if (!g_dlss[i]) { if (free_i < 0) free_i = i; continue; } if (g_dlss[i]->net == d->network) hit = i; }
+     NvDlss *f = hit >= 0 ? g_dlss[hit] : nil;
+-    if (f && f->m4 == m4 && f->cf == c.pixelFormat && f->df == dp.pixelFormat && f->mf == mv.pixelFormat && f->of == o.pixelFormat && f->iw == c.width && f->ih == c.height
++    if (f && (!managed || f->scalerMethod == d->method) && f->m4 == m4 && f->cf == c.pixelFormat && f->df == dp.pixelFormat && f->mf == mv.pixelFormat && f->of == o.pixelFormat && f->iw == c.width && f->ih == c.height
+         && f->ow == o.width && f->oh == o.height && f->flags == d->flags) return f;
+     int slot = hit >= 0 ? hit : free_i >= 0 ? free_i : (int)(g_dlss_evals % 4);
+     Class tc = dlss_class("MTLFXTemporalScalerDescriptor");
+-    if (!tc) { RED_ONCE(143, "DLSS：这台设备没有 MetalFX 时域放大，这一遍不做（场景不会进输出图）"); return nil; }
++    if (!tc && !managed) { RED_ONCE(143, "DLSS：这台设备没有 MetalFX 时域放大，这一遍不做（场景不会进输出图）"); return nil; }
+     float maxs = [tc supportedInputContentMaxScaleForDevice:g_dev];
+     double need = MAX((double)o.width / (double)MAX(cw, 1u), (double)o.height / (double)MAX(ch, 1u));
+     id sc = nil; BOOL spatial = NO;
+-    if (need <= maxs + 1e-3) {
++    if (tc && need <= maxs + 1e-3) {
+         MTLFXTemporalScalerDescriptor *td = [tc new];
+         td.colorTextureFormat = c.pixelFormat; td.depthTextureFormat = dp.pixelFormat; td.motionTextureFormat = mv.pixelFormat; td.outputTextureFormat = o.pixelFormat;
+         td.inputWidth = c.width; td.inputHeight = c.height; td.outputWidth = o.width; td.outputHeight = o.height;
+@@ -214,10 +214,11 @@ static NvDlss *dlss_scaler(const p_dlss *d, id<MTLTexture> c, id<MTLTexture> dp,
+                         (unsigned long)o.width, (unsigned long)o.height, (unsigned long)c.pixelFormat, (unsigned long)dp.pixelFormat, (unsigned long)mv.pixelFormat, (unsigned long)o.pixelFormat); return nil; }
+     // 放大器自己的栅栏：Metal 4 不带时校验层断言（同 nvn_present_fx.inc），前后顺序由两侧的队列级全屏障保证；Metal 3 用回放各编码器同一个 g_fence3
+     id<MTLFence> fence = m4 ? [g_dev newFence] : g_fence3;
++    if (managed && m4 && !fence) return nil;
+     if (spatial) [(id<MTLFXSpatialScalerBase>)sc setFence:fence]; else [(id<MTLFXTemporalScalerBase>)sc setFence:fence];
+     if (g_dlss[slot]) defer_obj_unref(g_dlss[slot]);   // 在飞的命令缓冲可能还在用：等它们完成再放
+     f = [NvDlss new];
+-    f->scaler = sc; f->spatial = spatial; f->m4 = m4; f->net = d->network; f->flags = d->flags;
++    f->scaler = sc; f->spatial = spatial; f->m4 = m4; f->net = d->network; f->flags = d->flags; f->scalerMethod = d->method;
+     f->cf = c.pixelFormat; f->df = dp.pixelFormat; f->mf = mv.pixelFormat; f->of = o.pixelFormat; f->iw = c.width; f->ih = c.height; f->ow = o.width; f->oh = o.height;
+     f->prefixEnabled = f->iw == 960 && f->ih == 540 && f->ow == 1920 && f->oh == 1080 &&
+                        rb_a18_option(RB_DEVICE_FX_PREFIX, "S2A_RB_GPU_FX_PREFIX");
+@@ -267,6 +268,23 @@ static void dlss_fx_run(id cb, const uint64_t *a) {
+ }
+ // 这张图满足放大器要的用途（读 / 写 / 渲染目标），不满足就升级（tex_upgrade：同格式同尺寸新建、拷内容、换进序号表）
+ static id<MTLTexture> dlss_usage(const tex_t *t, id<MTLTexture> m, MTLTextureUsage need) { return (m.usage & need) == need ? m : tex_upgrade(t, m, need & ~m.usage, m.pixelFormat); }
++// Fixed retention has no DRS banks. Use the regular content-preserving promotion
++// when a retained input cannot form a compatible group. Re-read every guest
++// binding after the copies, including any aliases replaced by an earlier copy.
++static BOOL dlss_fixed_native(const tex_t *inputs[3], id<MTLTexture> __strong tex[3]) {
++    rp_flush();
++    for (unsigned i=0;i<3;i++) {
++        id<MTLTexture> cur=tex_mtl(inputs[i]);
++        if (!cur) return NO;
++        if (rs_state(cur)==RS_SCALED && !rs_rescale(rs_root(cur),0,"fixed MetalFX input cohort")) return NO;
++    }
++    for (unsigned i=0;i<3;i++) {
++        tex[i]=tex_mtl(inputs[i]);
++        if (!tex[i] || rs_of(tex[i])!=1.0 || tex[i].width!=inputs[i]->d.width ||
++            tex[i].height!=inputs[i]->d.height) return NO;
++    }
++    return YES;
++}
+ static void dlss_eval(const p_dlss *d, uint32_t size) {
+     (void)size;
+     BOOL drs=rb_drs_enabled();
+@@ -286,17 +304,21 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
+     id<MTLTexture> __strong textures[3]={c,dp,mv};
+     int tier=0; id<MTLFXTemporalScalerBase> prepared=nil; id<MTLFXSpatialScalerBase> preparedSpatial=nil;
+     BOOL aligned=NO;
+-    if (drs) {
++    BOOL fixed=!drs && rs_retain_on() && rs_setting()<1.0 && tc->d.width==960 && tc->d.height==540 &&
++               to->d.width==1920 && to->d.height==1080;
++    BOOL fixedReduced=NO;
++    if (drs || fixed) {
+         BOOL reduced=NO;
+         for (unsigned i=0;i<3;i++) reduced |= rs_of(textures[i]) < .9999 ||
+             (inputs[i]->d.width==960 && inputs[i]->d.height==540 &&
+              (textures[i].width<960 || textures[i].height<540));
+         if (reduced) {
+             tier=rb_fx_extent_tier((unsigned)c.width,(unsigned)c.height);
+-            if (tier>0 && priorFamily && priorFamily->net==d->network && priorFamily->flags==d->flags &&
++            BOOL cohort=tier>0 && dlss_drs_shape(d,inputs,textures,o,(unsigned)tier);
++            fixedReduced=fixed && cohort;
++            if (drs && cohort && priorFamily && priorFamily->net==d->network && priorFamily->flags==d->flags &&
+                 priorFamily->drsMethod==d->method && priorFamily->cf==c.pixelFormat && priorFamily->df==dp.pixelFormat &&
+                 priorFamily->mf==mv.pixelFormat && priorFamily->of==o.pixelFormat &&
+-                dlss_drs_shape(d,inputs,textures,o,(unsigned)tier) &&
+                 (atomic_load_explicit(&priorFamily->ready,memory_order_acquire) & (1u<<tier))) {
+                 id<MTLFXTemporalScalerBase> s=priorFamily->small[tier-1];
+                 if (s && (s.colorTextureUsage & ~c.usage)==0 && (s.depthTextureUsage & ~dp.usage)==0 &&
+@@ -304,10 +326,11 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
+                 id<MTLFXSpatialScalerBase> sp=priorFamily->smallSpatial[tier-1];
+                 if (sp && !(sp.colorTextureUsage & ~c.usage) && !(sp.outputTextureUsage & ~o.usage)) preparedSpatial=sp;
+             }
+-            if (!prepared && !preparedSpatial) {
+-                if (!rb_drs_fx_align(inputs,textures)) {
++            if (!prepared && !preparedSpatial && !fixedReduced) {
++                BOOL coherent=drs ? rb_drs_fx_align(inputs,textures) : dlss_fixed_native(inputs,textures);
++                if (!coherent) {
+                     g_dlss_skips++;
+-                    MLOG("[rb-drs-fx] evaluation rejected: coherent native inputs unavailable");
++                    MLOG("[rb-drs-fx] evaluation rejected: coherent native inputs unavailable (fixed=%d)",fixed);
+                     return;
+                 }
+                 c=textures[0]; dp=textures[1]; mv=textures[2]; tier=0; aligned=YES;
+@@ -322,7 +345,7 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
+     NSUInteger cw = MIN(c.width, (NSUInteger)llround((double)gw * c.width / MAX(tc->d.width, 1u))), ch = MIN(c.height, (NSUInteger)llround((double)gh * c.height / MAX(tc->d.height, 1u)));
+     if (d->out_w > 0 && d->out_h > 0 && ((NSUInteger)d->out_w < o.width || (NSUInteger)d->out_h < o.height)) {
+         static int once; if (!once++) MLOG("【红】 DLSS：网络输出 %dx%d 小于输出图 %lux%lu，MetalFX 写满整张输出图", d->out_w, d->out_h, (unsigned long)o.width, (unsigned long)o.height); }
+-    NvDlss *f = (prepared || preparedSpatial) ? priorFamily : dlss_scaler(d, c, dp, mv, o, cw, ch);
++    NvDlss *f = (prepared || preparedSpatial) ? priorFamily : dlss_scaler(d, c, dp, mv, o, cw, ch, drs || fixed);
+     if (!f) { g_dlss_skips++; return; }
+     id<MTLFXTemporalScalerBase> ts = preparedSpatial ? nil : (prepared ? prepared : (f->spatial ? nil : f->scaler));
+     id<MTLFXSpatialScalerBase> ss = preparedSpatial ? preparedSpatial : (f->spatial ? f->scaler : nil);
+@@ -337,7 +360,7 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
+         }
+     }
+     BOOL thermalSpatial = ss && ss == f->thermalSpatial;
+-    BOOL reset = d->reset || (ts && (f->resetAfterSpatial || f->drsWasSpatial || f->lastTier != (unsigned)tier));
++    BOOL reset = d->reset || (ts && (f->resetAfterSpatial || f->drsWasSpatial || ((drs || fixed) && !f->encoded) || f->lastTier != (unsigned)tier));
+     if (f->policy != RBFxOff && (!f->trialLogged || thermalSpatial != f->resetAfterSpatial)) {
+         const char *reason = "nominal";
+         if (!f->thermalSpatial) reason = "unavailable";
+@@ -353,13 +376,30 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
+     o = dlss_usage(to, o, ts ? ts.outputTextureUsage : ss.outputTextureUsage);
+     if (ts) { dp = dlss_usage(td, dp, ts.depthTextureUsage); mv = dlss_usage(tm, mv, ts.motionTextureUsage); }
+     textures[0]=c; textures[1]=dp; textures[2]=mv;   // a native usage upgrade may replace the resource
+-    if (drs && !aligned && !f->spatial && f->policy==RBFxOff && f->iw==960 && f->ih==540 &&
+-        f->ow==1920 && f->oh==1080 && (preparedSpatial || (ts && !(ts.colorTextureUsage & ~c.usage) &&
++    // tex_upgrade may decline a format or return the old texture. Do not mark the
++    // output written, or let a temporal scaler see mixed storage after an upgrade.
++    if (drs || fixed) {
++        if (!c || !o || (ts && (!dp || !mv)) ||
++            ((ts ? ts.colorTextureUsage : ss.colorTextureUsage) & ~c.usage) ||
++            ((ts ? ts.outputTextureUsage : ss.outputTextureUsage) & ~o.usage) ||
++            (ts && ((ts.depthTextureUsage & ~dp.usage) || (ts.motionTextureUsage & ~mv.usage))) ||
++            ((fixedReduced || prepared || preparedSpatial) && !dlss_drs_shape(d,inputs,textures,o,(unsigned)tier))) {
++            g_dlss_skips++; f->encoded=NO;
++            RED_ONCE(146,"MetalFX: retained texture usage or geometry differs from the scaler");
++            return;
++        }
++    }
++    if (drs && !aligned && f->policy==RBFxOff && f->iw==960 && f->ih==540 &&
++        f->ow==1920 && f->oh==1080 && (ss || (ts && !(ts.colorTextureUsage & ~c.usage) &&
+         !(ts.depthTextureUsage & ~dp.usage) && !(ts.motionTextureUsage & ~mv.usage) && !(ts.outputTextureUsage & ~o.usage))) &&
+         dlss_drs_shape(d,inputs,textures,o,(unsigned)tier)) {
+         if (!f->warmTried) { f->drsMethod=d->method; dlss_drs_warm(f); }
+         if (f->drsMethod==d->method) {
+-            g_drs_fx_family=f; for (unsigned i=0;i<3;i++) g_drs_fx_inputs[i]=inputs[i]->serial;
++            g_drs_fx_family=f;
++            for (unsigned i=0;i<3;i++) {
++                g_drs_fx_inputs[i]=inputs[i]->serial;
++                if (!tier && !rb_drs_bank(inputs[i]->serial)) rb_drs_prepare(inputs[i],textures[i]);
++            }
+         }
+     }
+     if (drs && f->lastTier!=(unsigned)tier)
+@@ -418,7 +458,7 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
+     enc_close_blit();
+     uint64_t a[15] = {0};
+     a[5] = rec_f(d->jitter[0]); a[6] = rec_f(d->jitter[1]); a[7] = rec_f(d->mv_scale[0]); a[8] = rec_f(d->mv_scale[1]); a[9] = rec_f(d->pre_exposure);
+-    if (prepared) {
++    if (ts && (prepared || fixedReduced)) {
+         a[5]=rec_f(rb_fx_physical_pixels(d->jitter[0],(unsigned)c.width,(unsigned)tc->d.width));
+         a[6]=rec_f(rb_fx_physical_pixels(d->jitter[1],(unsigned)c.height,(unsigned)tc->d.height));
+         a[7]=rec_f(rb_fx_physical_pixels(d->mv_scale[0],(unsigned)mv.width,(unsigned)tm->d.width));
+@@ -435,6 +475,7 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
+     }
+     // 后一侧：下一个编码器开时做全屏障（不按放宽的上一遍结尾算），也不沿用「上一编码器已全屏障」的证明
+     g_last_end_relaxed = 0; main_barrier_reset();
++    f->encoded=YES;
+     f->drsWasSpatial = preparedSpatial != nil;
+     f->resetAfterSpatial = thermalSpatial;
+     g_dlss_evals++;
+diff --git a/graphics/nvn/gfx/nvn/nvn_drs_fx_extent.h b/graphics/nvn/gfx/nvn/nvn_drs_fx_extent.h
+index 7bf6261..91354ed 100644
+--- a/graphics/nvn/gfx/nvn/nvn_drs_fx_extent.h
++++ b/graphics/nvn/gfx/nvn/nvn_drs_fx_extent.h
+@@ -10,6 +10,12 @@ static inline int rb_fx_extent_tier(unsigned w, unsigned h) {
+ }
+ static inline unsigned rb_fx_tier_width(unsigned t) { const unsigned w[] = {960,816,720}; return t < 3 ? w[t] : 0; }
+ static inline unsigned rb_fx_tier_height(unsigned t) { const unsigned h[] = {540,459,405}; return t < 3 ? h[t] : 0; }
++// A retained size is only proven by the guest canvas, physical texture and
++// storage's own scale record agreeing. One bad input invalidates the cohort.
++static inline int rb_fx_input_at_tier(unsigned gw,unsigned gh,unsigned w,unsigned h,double scale,unsigned tier) {
++    return tier<3 && gw==960 && gh==540 && w==rb_fx_tier_width(tier) && h==rb_fx_tier_height(tier) &&
++           fabs(scale-(double)w/960.0) <= 0.0001;
++}
+ // Guest jitter and motion scales describe a displacement in guest input pixels.
+ // A guest-driven change already expressed in its own pixels needs no conversion.
+ static inline float rb_fx_physical_pixels(float guest, unsigned physicalExtent, unsigned guestExtent) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index d3b2229..8349cd7 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1469,7 +1469,7 @@ static _Atomic unsigned g_sp_heap_n;
+ // Keep exposure history from process start, including registrations made before
+ // the hosted title is selected. The experiment is an explicit fresh-launch opt-in.
+ static _Atomic int g_rb_live_request;
+-enum { RB_DEVICE_BATCH, RB_DEVICE_FX_PREFIX, RB_DEVICE_TAIL_TRACE, RB_DEVICE_LIVE, RB_DEVICE_RETAIN, RB_DEVICE_SHADOW, RB_DEVICE_OPTIONS };
++enum { RB_DEVICE_BATCH, RB_DEVICE_FX_PREFIX, RB_DEVICE_TAIL_TRACE, RB_DEVICE_LIVE, RB_DEVICE_RETAIN, RB_DEVICE_SHADOW, RB_DEVICE_DRS, RB_DEVICE_OPTIONS };
+ static _Atomic int g_rb_device_options[RB_DEVICE_OPTIONS];
+ static int rb_a18_option(unsigned key, const char *name) {
+ #if TARGET_OS_IOS && !TARGET_OS_SIMULATOR
+@@ -1477,7 +1477,7 @@ static int rb_a18_option(unsigned key, const char *name) {
+     if (!cached) {
+         const char *value = getenv(name);
+         const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
+-        if (key == RB_DEVICE_SHADOW && !g_dev) return 0;
++        if ((key == RB_DEVICE_SHADOW || key == RB_DEVICE_RETAIN) && !g_dev) return 0;
+         int requested = value && (key == RB_DEVICE_SHADOW ? (!strcmp(value, "0.75") || !strcmp(value, "0.750")) : !strcmp(value, "1"));
+         cached = requested && title && !strcasecmp(title, "04007EF01F8AE000") &&
+                  !g_m3 && [g_dev.name isEqualToString:@"Apple A18 Pro GPU"] ? 2 : 1;
+@@ -1490,6 +1490,9 @@ static int rb_a18_option(unsigned key, const char *name) {
+ #endif
+ }
+ static int rb_shadow_on(void) { return rb_a18_option(RB_DEVICE_SHADOW, "S2A_RB_SHADOW_SCALE"); }
++static int rb_drs_enabled(void) {
++    return g_dev && rb_a18_option(RB_DEVICE_DRS, "S2A_RB_DRS");
++}
+ static int rb_live_requested(void) {
+     int v = atomic_load_explicit(&g_rb_live_request, memory_order_relaxed);
+     if (!v) {
+@@ -8670,8 +8673,9 @@ void xv_test_counts(int *dc, int *viol) { if (dc) *dc = (int)g_xv_dc; if (viol)
+ // the guest tables. The private scratch is reused in queue order.
+ static id<MTLTexture> g_rb_shadow_low, g_rb_shadow_native;
+ static id<MTLBuffer> g_rb_shadow_params;
+-static int g_rb_shadow_draw_ok, g_rb_shadow_failed;
+-static uint64_t g_rb_shadow_renders, g_rb_shadow_resolves, g_rb_shadow_no_proof;
++static int g_rb_shadow_draw_ok;
++static _Atomic int g_rb_shadow_failed;
++static _Atomic uint64_t g_rb_shadow_renders, g_rb_shadow_resolves, g_rb_shadow_no_proof;
+ static void rb_shadow_report(unsigned long long frame) {
+     MLOG("[rscale] shadow frame=%llu native=1536x1536 raster=1152x1152 caster_passes=%llu native_resolves=%llu rejected_proof=%llu disabled_on_error=%d",
+         frame,(unsigned long long)g_rb_shadow_renders,(unsigned long long)g_rb_shadow_resolves,
+@@ -8861,8 +8865,7 @@ static const char *tex_widen_why(const tex_t *t) {
+ //   rh (10-26 any aspect ratio): the height the core gives (s2a_widen_tex_h; 0 = keep): a screen narrower than 16:9 widens heights instead (more picture above and below), the same storage swap
+ // Every table entry that holds the old storage takes the new one (the serial and finalized-serial tables, the sharing table: later objects on that storage get it too);
+ //   the old storage leaves the residency set once the submissions that used it complete. Returns the entries moved. tex_widen and the internal resolution (rs_rescale) use it
+-static int tex_swap_storage(id<MTLTexture> base, id<MTLTexture> w) {
+-    pthread_mutex_lock(&g_smu);
++static int rb_swap_storage_locked(id<MTLTexture> base, id<MTLTexture> w) {
+     nvn_hmap *ms[] = {&g_by_serial, &g_ghost, &g_ghost_active, &g_alias}; int n = 0;
+     // 打包贴图（NvPkg）表里存的是 NvPkg 对象，贴图在它的 tex 里：同样换掉。原先只有 tex_widen 自己换，内部分辨率（rs_rescale）换不到——新存储没人持有，
+     //   打包颜色目标仍是原尺寸、同遍深度缩到一半（11-09 #312 暗黑地牢2，S2A_RES_SCALE=0.5：同遍附件尺寸不一，iPhone 上闪粉色块）
+@@ -8874,6 +8877,11 @@ static int tex_swap_storage(id<MTLTexture> base, id<MTLTexture> w) {
+         }
+     if (g_alias_set && CFSetContainsValue(g_alias_set, (__bridge const void *)base)) { CFSetRemoveValue(g_alias_set, (__bridge const void *)base); CFSetAddValue(g_alias_set, (__bridge const void *)w); }
+     g_ser_gen++;
++    return n;
++}
++static int tex_swap_storage(id<MTLTexture> base, id<MTLTexture> w) {
++    pthread_mutex_lock(&g_smu);
++    int n=rb_swap_storage_locked(base,w);
+     pthread_mutex_unlock(&g_smu);
+     if (n) rs_scene_replace(base, w);
+     if (n || !rs_retain_on()) defer_obj_release(base);   // out of the residency set once the submissions that used it complete
+@@ -9041,6 +9049,16 @@ static void wd_pclr_apply(const tex_t *t) {   // no pass is open (wd_widen_rts):
+     }
+ }
+ enum { RB_COPY_DEFAULT, RB_COPY_REQUIRE_ENCODER, RB_COPY_SHADOW_PREPARE, RB_COPY_SHADOW_RESOLVE };
++static const char *rb_texture_copy_msl(void) {
++    return
++            "#include <metal_stdlib>\nusing namespace metal;\n"
++            "struct V { float4 p [[position]]; float2 uv; };\n"
++            // a 4-vertex strip over the whole viewport: (0,0) (1,0) (0,1) (1,1), uv (0,0) at the destination's first corner (top on an upper-left origin)
++            "vertex V dt_vs(uint id [[vertex_id]]) { float2 c = float2(id & 1, id >> 1); V o; o.p = float4(c.x * 2 - 1, 1 - c.y * 2, 0, 1); o.uv = c; return o; }\n"
++            // r = normalized source u0 u1 v0 v1
++            "fragment float4 dt_fs(V in [[stage_in]], texture2d<float> t [[texture(0)]], sampler s [[sampler(0)]], constant float4 *r [[buffer(0)]]) {\n"
++            "  return t.sample(s, float2(mix(r[0].x, r[0].y, in.uv.x), mix(r[0].z, r[0].w, in.uv.y))); }\n";
++}
+ static int copy_t2t_draw_impl(id<MTLTexture>,id<MTLTexture>,unsigned,unsigned,unsigned,unsigned,
+                               const NVNcopyRegion *,const NVNcopyRegion *,int,int,int);
+ static int rb_shadow_transfer(id<MTLTexture> dst,int mode) {
+@@ -9405,6 +9423,43 @@ static int clear_rect_zero(int i) {
+ 
+ // ================= Shaders / descriptor pool / pipelines / draws =================
+ static pthread_mutex_t g_rmu = PTHREAD_MUTEX_INITIALIZER;
++// Texture/sampler registration may run on a different guest thread while the
++// submit lock serializes draws. Keep the proof and the actual argument table
++// on one descriptor version, including when the render encoder has to reopen.
++// PSO workers and Metal completion callbacks never acquire this gate.
++static pthread_mutex_t g_rs_registration_gate = PTHREAD_MUTEX_INITIALIZER;
++static _Atomic int g_rs_registration_enabled;
++static _Thread_local int t_rs_read_scope;
++
++static int rs_descriptor_scope_begin(void) {
++    if (t_rs_read_scope || (!(rs_retain_on() && rs_on()) && !rb_shadow_on())) return 0;
++    if (!atomic_load_explicit(&g_rs_registration_enabled, memory_order_relaxed)) {
++        // Wait for a writer that already selected the legacy single-lock path.
++        pthread_mutex_lock(&g_rmu);
++        atomic_store_explicit(&g_rs_registration_enabled, 1, memory_order_relaxed);
++        pthread_mutex_unlock(&g_rmu);
++    }
++    pthread_mutex_lock(&g_rs_registration_gate);
++    t_rs_read_scope = 1;
++    return 1;
++}
++static void rs_descriptor_scope_end(const int *owns) {
++    if (!*owns) return;
++    t_rs_read_scope = 0;
++    pthread_mutex_unlock(&g_rs_registration_gate);
++}
++static int rs_registration_begin(void) {
++    pthread_mutex_lock(&g_rmu);
++    if (!atomic_load_explicit(&g_rs_registration_enabled, memory_order_relaxed)) return 0;
++    pthread_mutex_unlock(&g_rmu);
++    pthread_mutex_lock(&g_rs_registration_gate);
++    pthread_mutex_lock(&g_rmu);
++    return 1;
++}
++static void rs_registration_end(int gate) {
++    pthread_mutex_unlock(&g_rmu);
++    if (gate) pthread_mutex_unlock(&g_rs_registration_gate);
++}
+ // ---------- Shader mapping table: Switch control section hash → PC metallib (produced by dm/gfx/tools/shader_map.py) ----------
+ static NSMutableDictionary<NSString *, NSString *> *g_shmap;   // S2Arm: key -> stage name (shader_map.tsv column 3); was declared NSArray *, clang 21 rejects the NSString reads
+ static NSString *g_shmap_path, *g_msl_dir;
+@@ -11145,19 +11200,19 @@ static void pool_seen_clear(int id_) {   // an ID given another texture has not
+ // 贴图池销毁时清它那段编号的登记（hle_nvn.c dpool_finalize）：只动已登记的项（不扩表），同 nvn_be_reg_tex(id, NULL, NULL) 的清法——丢缓存的视图、记登记代号
+ void nvn_be_unreg_tex_range(int base, int n) {
+     if (base < 0 || n <= 0) return;
+-    pthread_mutex_lock(&g_rmu);
++    int gate = rs_registration_begin();
+     int end = base + n < g_ntreg ? base + n : g_ntreg, any = 0;
+     for (int id_ = base; id_ < end; id_++) { treg_t *rr = &g_treg[id_]; if (!rr->ok && !rr->view && !rr->alt && !rr->ar && !rr->im) continue;
+         treg_drop_views(rr); if (rr->ok) treg_ser_unlink(id_); rr->ok = 0; rr->tt1 = rr->gone = 0; pool_seen_clear(id_); pool_dirty(0, id_); any = 1;
+         if (id_ < (1 << 20)) atomic_store_explicit(&g_tser[id_], 0, memory_order_release); }
+     if (any) g_reg_gen++;
+-    pthread_mutex_unlock(&g_rmu);
++    rs_registration_end(gate);
+ }
+ void nvn_be_reg_tex(int tid, const tex_t *t, const view_t *v) {
+     int id_ = tid; if (id_ < 0) return;
+-    pthread_mutex_lock(&g_rmu);
++    int gate = rs_registration_begin();
+     if (id_ >= g_ntreg) { int n = id_ + 1024;
+-        if (!GROW(g_treg, (size_t)n * sizeof *g_treg, "texture registration table")) { pthread_mutex_unlock(&g_rmu); return; }   // not registered: binds of this ID find nothing (draw skipped / dummy texture)
++        if (!GROW(g_treg, (size_t)n * sizeof *g_treg, "texture registration table")) { rs_registration_end(gate); return; }   // not registered: binds of this ID find nothing (draw skipped / dummy texture)
+         memset(g_treg + g_ntreg, 0, (n - g_ntreg) * sizeof *g_treg); g_ntreg = n; }
+     // Registering what the ID already holds changes nothing: its view and the registration generation stay (the lookup still checks the base texture). About 1 in 6 of the
+     // registrations KTGL (Age of Calamity) makes before every bind repeat the ID's texture; the rest cycle textures through its IDs (the view cache below, vc_get)
+@@ -11173,7 +11228,7 @@ void nvn_be_reg_tex(int tid, const tex_t *t, const view_t *v) {
+         if (rr->ok) { rb_descriptor_expose(t); treg_ser_link(id_); }
+         if (id_ < (1 << 20)) atomic_store_explicit(&g_tser[id_], t ? t->serial : 0, memory_order_release);
+     }
+-    pthread_mutex_unlock(&g_rmu);
++    rs_registration_end(gate);
+     if (!same && t) rb_pf_post(t);   // RewindBox (patch 0070): its storage asked ahead of its first upload, off this thread (rb_pf_post)
+     if (null_reads) MLOG("texture ID 0 registered (frame %llu) after %llu reads as an empty slot: those read 0, as hardware's first descriptor before it was written",
+                          (unsigned long long)atomic_load(&g_cur_frame), (unsigned long long)null_reads);
+@@ -11195,11 +11250,11 @@ void nvn_be_reg_tex(int tid, const tex_t *t, const view_t *v) {
+ }
+ void nvn_be_reg_samp(int sid, const samp_par *sp) {
+     int id_ = sid; if (id_ < 0) return;
+-    pthread_mutex_lock(&g_rmu);
++    int gate = rs_registration_begin();
+     if (id_ >= g_nsreg) { int n = id_ + 256;
+         if (!GROW(g_sreg, (size_t)n * sizeof *g_sreg, "sampler registration table") || !GROW(g_sreg_ok, (size_t)n, "sampler registration table") || !GROW(g_sview, (size_t)n * sizeof *g_sview, "sampler registration table")
+             || !GROW(g_srid, (size_t)n * sizeof *g_srid, "sampler registration table") || !GROW(g_sbview, (size_t)n * 2 * sizeof *g_sbview, "sampler registration table")
+-            || !GROW(g_sbrid, (size_t)n * 2 * sizeof *g_sbrid, "sampler registration table")) { pthread_mutex_unlock(&g_rmu); return; }   // tables grown so far keep the old count (g_nsreg): not registered
++            || !GROW(g_sbrid, (size_t)n * 2 * sizeof *g_sbrid, "sampler registration table")) { rs_registration_end(gate); return; }   // tables grown so far keep the old count (g_nsreg): not registered
+         memset(g_sreg_ok + g_nsreg, 0, n - g_nsreg); memset(g_sview + g_nsreg, 0, (n - g_nsreg) * sizeof *g_sview); memset(g_srid + g_nsreg, 0, (n - g_nsreg) * sizeof *g_srid);
+         memset(g_sbview + 2 * g_nsreg, 0, (size_t)(n - g_nsreg) * 2 * sizeof *g_sbview); memset(g_sbrid + 2 * g_nsreg, 0, (size_t)(n - g_nsreg) * 2 * sizeof *g_sbrid); g_nsreg = n; }
+     if (g_sview[id_]) { CFRelease(g_sview[id_]); g_sview[id_] = NULL; g_srid[id_] = 0; }
+@@ -11209,7 +11264,7 @@ void nvn_be_reg_samp(int sid, const samp_par *sp) {
+     if (g_sreg_ok[id_] && memcmp(&g_sreg[id_], sp, sizeof *sp)) g_samp_rereg++;
+     pool_dirty(1, id_);
+     g_sreg[id_] = *sp; g_sreg_ok[id_] = 1;
+-    pthread_mutex_unlock(&g_rmu);
++    rs_registration_end(gate);
+     {   // DM_NVN_SAMPINFO=N (diagnostic): the first N sampler registrations with their whole state (filters, wraps, LOD clamp / bias, anisotropy, compare, reduction)
+         static int lim = -1; static _Atomic int n; if (lim < 0) { const char *e = getenv("DM_NVN_SAMPINFO"); lim = e ? atoi(e) : 0; }
+         if (lim && atomic_fetch_add(&n, 1) < lim)
+@@ -19278,6 +19333,7 @@ static int mdx_next(const p_draw *dw, const p_draw_idx *di) {
+ int nvn_be_multi_draw_range(void) { return 1; }   // hle_nvn.c records a large call as one OP_MULTI_DRAW (draw_multi replays it)
+ int nvn_be_buf_extent_consumer(void) { return 0; }   // Metal 回放不按地址查活缓冲长度：hle_nvn.c 不登记活缓冲（建删零开销）
+ static void draw_multi(const p_multi_draw *m) {
++    int descriptor_scope __attribute__((cleanup(rs_descriptor_scope_end))) = rs_descriptor_scope_begin();
+     int prior_rs_scope __attribute__((cleanup(rs_restore_draw_scope))) = g_rs_native_draw;
+     if (rs_on() && rs_retain_on() && !rs_prepare_work(nil, 0)) return;
+     if (!m->cnt || m->max <= 0) return;
+@@ -19964,20 +20020,14 @@ static void draw_emit(id en, MTLPrimitiveType mp, int prim, const p_draw *dw, co
+ static int fmt_int_or_ds(MTLPixelFormat f);
+ static NvShader *g_dt_vs, *g_dt_fs; static id g_dt_tab;
+ static void draw_tex(const p_draw_tex *t) {
++    int descriptor_scope __attribute__((cleanup(rs_descriptor_scope_end))) = rs_descriptor_scope_begin();
+     int prior_rs_scope __attribute__((cleanup(rs_restore_draw_scope))) = g_rs_native_draw;
+     if (rs_on() && rs_retain_on() && !rs_prepare_work(nil, 0)) return;
+     g_udc_precise = 0;   // not draw(): its encode marks every attachment of the pass written (udc_encode)
+     static int failed, once[6]; static NSMutableDictionary<NSData *, id<MTLRenderPipelineState>> *psos;
+     if (failed) return;
+     if (!g_dt_vs) {
+-        static const char *src =
+-            "#include <metal_stdlib>\nusing namespace metal;\n"
+-            "struct V { float4 p [[position]]; float2 uv; };\n"
+-            // a 4-vertex strip over the whole viewport: (0,0) (1,0) (0,1) (1,1), uv (0,0) at the destination's first corner (top on an upper-left origin)
+-            "vertex V dt_vs(uint id [[vertex_id]]) { float2 c = float2(id & 1, id >> 1); V o; o.p = float4(c.x * 2 - 1, 1 - c.y * 2, 0, 1); o.uv = c; return o; }\n"
+-            // r = normalized source u0 u1 v0 v1
+-            "fragment float4 dt_fs(V in [[stage_in]], texture2d<float> t [[texture(0)]], sampler s [[sampler(0)]], constant float4 *r [[buffer(0)]]) {\n"
+-            "  return t.sample(s, float2(mix(r[0].x, r[0].y, in.uv.x), mix(r[0].z, r[0].w, in.uv.y))); }\n";
++        const char *src = rb_texture_copy_msl();
+         NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:@(src) options:nil error:&e];
+         id<MTLFunction> vf = [lib newFunctionWithName:@"dt_vs"], ff = [lib newFunctionWithName:@"dt_fs"];
+         g_dt_tab = vf && ff ? rec_table(tab_new(1, 1, 1, &e)) : nil;
+@@ -20115,6 +20165,7 @@ static int rb_shadow_caster(NvProg *pr) {
+ }
+ static void draw_impl(const p_draw *dw, const p_draw_idx *di);
+ static void draw(const p_draw *dw, const p_draw_idx *di) {
++    int descriptor_scope __attribute__((cleanup(rs_descriptor_scope_end))) = rs_descriptor_scope_begin();
+     if (!rb_shadow_on()) { draw_impl(dw,di); return; }
+     int saved=g_rb_shadow_draw_ok;
+     g_rb_shadow_draw_ok=R.has_rt && R.rt.depth && R.rt.depth->d.width==1536 && R.rt.depth->d.height==1536 &&
+@@ -20857,6 +20908,7 @@ static void img_wr_prescan(NvShader *sh, int nvn_stage) {
+ }
+ static void tensor_standin(NvShader *cs);   // nvn_tensor.inc
+ static void dispatch(const p_dispatch *dp) {
++    int descriptor_scope __attribute__((cleanup(rs_descriptor_scope_end))) = rs_descriptor_scope_begin();
+     int prior_rs_scope __attribute__((cleanup(rs_restore_draw_scope))) = g_rs_native_draw;
+     if (rs_on() && rs_retain_on() && !rs_prepare_work(S.cprog ? prog_get(S.cprog) : nil, 1)) return;
+     geo_run_flush();
+diff --git a/graphics/nvn/gfx/nvn/nvn_rb_drs_pool.inc b/graphics/nvn/gfx/nvn/nvn_rb_drs_pool.inc
+new file mode 100644
+index 0000000..c15c7b8
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/nvn_rb_drs_pool.inc
+@@ -0,0 +1,417 @@
++// SPDX-License-Identifier: MIT
++// Submit owns the banks and registry publication. The serial utility queue only
++// constructs unused resources. A release/acquire flag publishes each complete bank.
++#include "rb_drs_control.h"
++enum { RB_DRS_BANKS = 20 };
++static const unsigned rb_drs_width[] = {960,816,720}, rb_drs_height[] = {540,459,405};
++@interface NvRBDrsTools : NSObject {
++@public dispatch_queue_t queue; id table; id<MTLLibrary> library;
++    id<MTLDepthStencilState> writeDepth; id<MTLSamplerState> sampler; id<MTLBuffer> params;
++    NSMutableDictionary<NSNumber *, id<MTLRenderPipelineState>> *pipes;
++}
++@end
++@implementation NvRBDrsTools @end
++@interface NvRBDrsBank : NSObject {
++@public alias_key key; uint64_t serial, lastFrame; id<MTLTexture> texture[RB_DRS_TIERS]; id<MTLRenderPipelineState> pipe;
++    unsigned active; BOOL nativeOnly, enrolled; _Atomic int ready;
++}
++@end
++@implementation NvRBDrsBank @end
++
++static NvRBDrsTools *g_rb_drs_tools;
++static NvRBDrsBank *g_rb_drs_banks[RB_DRS_BANKS];
++static unsigned g_rb_drs_count;
++static rb_drs_control g_rb_drs_control;
++static uint64_t g_rb_drs_frame, g_rb_drs_heat_ms, g_rb_drs_copies, g_rb_drs_blocked, g_rb_drs_bytes;
++static int g_rb_drs_heat;
++static const char *g_rb_drs_hold="none";
++static uint64_t g_rb_drs_retry_after;
++static unsigned rb_drs_fx_ready_mask(void);
++static int rb_drs_fx_inputs(uint64_t ids[3]);
++static int rb_drs_fx_usage(unsigned tier, NSUInteger usage[4]);
++static const char *rb_texture_copy_msl(void);
++
++
++static BOOL rb_drs_color_format(MTLPixelFormat format) {
++    switch (format) {
++        case MTLPixelFormatR8Unorm: case MTLPixelFormatRG8Unorm:
++        case MTLPixelFormatRGBA8Unorm: case MTLPixelFormatRGBA8Unorm_sRGB:
++        case MTLPixelFormatBGRA8Unorm: case MTLPixelFormatBGRA8Unorm_sRGB:
++        case MTLPixelFormatR16Float: case MTLPixelFormatRG16Float: case MTLPixelFormatRGBA16Float:
++        case MTLPixelFormatR32Float: case MTLPixelFormatRG11B10Float: case MTLPixelFormatRGB10A2Unorm: return YES;
++        default: return NO;
++    }
++}
++static NvRBDrsBank *rb_drs_bank(uint64_t serial) {
++    for (unsigned i=0;i<g_rb_drs_count;i++) if (g_rb_drs_banks[i]->serial==serial) return g_rb_drs_banks[i];
++    return nil;
++}
++static NvRBDrsBank *rb_drs_owner(id<MTLTexture> root) {
++    for (unsigned i=0;i<g_rb_drs_count;i++) {
++        NvRBDrsBank *b=g_rb_drs_banks[i];
++        if (atomic_load_explicit(&b->ready,memory_order_acquire)==1 &&
++            (b->texture[1]==root || b->texture[2]==root)) return b;
++    }
++    return nil;
++}
++static NvRBDrsTools *rb_drs_tools(void) {
++    if (g_rb_drs_tools) return g_rb_drs_tools;
++    NvRBDrsTools *tools=[NvRBDrsTools new];
++    tools->queue=dispatch_queue_create("s2arm.drs.prepare",dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,QOS_CLASS_UTILITY,0));
++    NSError *error=nil;
++    tools->table=rec_table(tab_new(1,1,1,&error));
++    g_rb_drs_tools=tools;
++    id<MTLDevice> device=g_dev;
++    dispatch_async(tools->queue, ^{ @autoreleasepool {
++        NSError *err=nil;
++        tools->library=[device newLibraryWithSource:@(rb_texture_copy_msl()) options:nil error:&err];
++        tools->pipes=[NSMutableDictionary dictionary];
++        MTLDepthStencilDescriptor *depth=[MTLDepthStencilDescriptor new];
++        depth.depthCompareFunction=MTLCompareFunctionAlways; depth.depthWriteEnabled=YES;
++        tools->writeDepth=[device newDepthStencilStateWithDescriptor:depth];
++        MTLSamplerDescriptor *sam=[MTLSamplerDescriptor new];
++        sam.minFilter=sam.magFilter=MTLSamplerMinMagFilterLinear;
++        sam.sAddressMode=sam.tAddressMode=MTLSamplerAddressModeClampToEdge; sam.supportArgumentBuffers=YES;
++        tools->sampler=[device newSamplerStateWithDescriptor:sam];
++        tools->params=[device newBufferWithLength:9*256 options:MTLResourceStorageModeShared];
++        if (tools->params) for (unsigned a=0;a<3;a++) for (unsigned b=0;b<3;b++) {
++            float p[8]={0,0,(float)rb_drs_width[a]/rb_drs_width[b],(float)rb_drs_height[a]/rb_drs_height[b],
++                        0,0,rb_drs_width[a],rb_drs_height[a]};
++            memcpy((uint8_t *)tools->params.contents+256*(a*3+b),p,sizeof p);
++        }
++    }});
++    return tools;
++}
++// All four registries are protected by g_smu. Ghost and active-ghost entries
++// can legitimately repeat the same serial. A retained format view or packaged
++// spare is not rewritten by rb_swap_storage_locked, even when its root matches.
++enum { RB_DRS_OWN=1, RB_DRS_ALIAS=2, RB_DRS_FOREIGN=4, RB_DRS_INDIRECT=8 };
++static unsigned rb_drs_backing_locked(NvRBDrsBank *b, id<MTLTexture> root) {
++    if (!root) return 0;
++    nvn_hmap *maps[]={&g_by_serial,&g_ghost,&g_ghost_active,&g_alias};
++    unsigned flags=0;
++    for (unsigned m=0;m<4;m++) {
++        nvn_hmap *map=maps[m];
++        for (uint32_t i=0;i<map->cap;i++) {
++            void *v=map->vals[i];
++            if (!v) continue;
++            if (v==(__bridge void *)root) {
++                const void *k=map->keys+(size_t)i*map->klen;
++                if (m==3) flags|=!memcmp(k,&b->key,sizeof(b->key)) ? RB_DRS_ALIAS : RB_DRS_FOREIGN;
++                else { uint64_t serial; memcpy(&serial,k,sizeof serial);
++                    flags|=serial==b->serial ? RB_DRS_OWN : RB_DRS_FOREIGN; }
++            } else {
++                id o=(__bridge id)v;
++                if ([o isKindOfClass:[NvPkg class]]) {
++                    NvPkg *pkg=o;
++                    if (rs_root(pkg->tex)==root || rs_root(pkg->view)==root || rs_root(pkg->spare)==root)
++                        flags|=RB_DRS_INDIRECT;
++                } else if ([o conformsToProtocol:@protocol(MTLTexture)] && rs_root(o)==root) flags|=RB_DRS_INDIRECT;
++            }
++        }
++    }
++    for (int i=0;i<g_txr_n;i++) if (g_txr_t[i]==root) flags|=RB_DRS_INDIRECT;
++    return flags;
++}
++static BOOL rb_drs_live_locked(NvRBDrsBank *b) {
++    id o=hm_get_id(&g_by_serial,&b->serial);
++    if (!o) o=hm_get_id(&g_ghost_active,&b->serial);
++    if (!o) o=hm_get_id(&g_ghost,&b->serial);
++    return o==b->texture[b->active];
++}
++// The live table owns a native bank's primary backing. If a reduced bank
++// loses every registry entry, retire its dormant native allocation as well.
++static void rb_drs_remove(unsigned i, BOOL orphan) {
++    NvRBDrsBank *b=g_rb_drs_banks[i];
++    if (b->enrolled) {
++        for (unsigned t=0;t<RB_DRS_TIERS;t++) {
++            if (!t && !orphan) continue;
++            pthread_mutex_lock(&g_smu);
++            BOOL accessible=rb_drs_backing_locked(b,b->texture[t])!=0;
++            pthread_mutex_unlock(&g_smu);
++            if (!accessible) defer_obj_release(b->texture[t]);
++        }
++    }
++    if (orphan) rs_scene_replace(b->texture[b->active],nil);
++    --g_rb_drs_count; g_rb_drs_banks[i]=g_rb_drs_banks[g_rb_drs_count]; g_rb_drs_banks[g_rb_drs_count]=nil;
++}
++static void rb_drs_prune(void) {
++    for (unsigned i=g_rb_drs_count;i-->0;) {
++        NvRBDrsBank *b=g_rb_drs_banks[i];
++        pthread_mutex_lock(&g_smu);
++        BOOL retired=!rb_drs_live_locked(b) && (!b->active || !rb_drs_backing_locked(b,b->texture[b->active]));
++        pthread_mutex_unlock(&g_smu);
++        if (retired) rb_drs_remove(i,b->active!=0);
++    }
++}
++static BOOL rb_drs_make_room(uint64_t frame) {
++    if (g_rb_drs_count<RB_DRS_BANKS) return YES;
++    rb_drs_prune();
++    if (g_rb_drs_count<RB_DRS_BANKS) return YES;
++    for (unsigned i=0;i<g_rb_drs_count;i++) {
++        NvRBDrsBank *b=g_rb_drs_banks[i];
++        if (b->active || !atomic_load_explicit(&b->ready,memory_order_acquire) ||
++            frame<=b->lastFrame || frame-b->lastFrame<300 || b->nativeOnly) continue;
++        rb_drs_remove(i,NO);
++        return YES;
++    }
++    return NO;
++}
++static void rb_drs_prepare(const tex_t *guest, id<MTLTexture> native) {
++    if (!guest || !guest->serial || !native ||
++        native.width!=960 || native.height!=540 || native.sampleCount!=1 || native.mipmapLevelCount!=1 ||
++        native.textureType!=MTLTextureType2D || native.storageMode!=MTLStorageModePrivate ||
++        native.parentTexture || native.iosurface || native.heap || native.buffer || native.framebufferOnly ||
++        native.isSparse || guest->has_layout || !guest->pool || (guest->pool->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL) ||
++        objc_getAssociatedObject(native,&g_atomic_root_key) || objc_getAssociatedObject(native,&g_twin_parent_key) ||
++        xv_present(guest->serial) ||
++        !(native.usage & MTLTextureUsageRenderTarget) || !(native.usage & MTLTextureUsageShaderRead) ||
++        (!rb_drs_color_format(native.pixelFormat) && native.pixelFormat!=MTLPixelFormatDepth32Float)) return;
++    for (unsigned i=0;i<g_rb_drs_count;i++)
++        if (g_rb_drs_banks[i]->texture[0]==native) return;
++    if (rs_state(native)==RS_BLACK || !rs_eligible(guest,native,NULL)) return;
++    pthread_mutex_lock(&g_smu);
++    BOOL direct=hm_get_id(&g_by_serial,&guest->serial)==native;
++    pthread_mutex_unlock(&g_smu);
++    uint64_t frame=atomic_load(&g_cur_frame);
++    if (!direct || !rb_drs_make_room(frame)) return;
++    NvRBDrsBank *b=[NvRBDrsBank new]; b->serial=guest->serial; b->lastFrame=frame; b->texture[0]=native; alias_key_of(&b->key,guest);
++    g_rb_drs_banks[g_rb_drs_count++]=b;
++    NvRBDrsTools *tools=rb_drs_tools();
++    id<MTLDevice> device=native.device;
++    dispatch_async(tools->queue, ^{ @autoreleasepool {
++        MTLPixelFormat fmt=native.pixelFormat;
++        BOOL depth=fmt==MTLPixelFormatDepth32Float;
++        NSNumber *key=@(fmt);
++        b->pipe=tools->pipes[key];
++        if (!b->pipe && tools->library) {
++            MTLRenderPipelineDescriptor *pd=[MTLRenderPipelineDescriptor new];
++            pd.vertexFunction=[tools->library newFunctionWithName:@"vs"];
++            pd.fragmentFunction=[tools->library newFunctionWithName:depth ? @"fsd" : @"fs"];
++            if (depth) pd.depthAttachmentPixelFormat=fmt; else pd.colorAttachments[0].pixelFormat=fmt;
++            NSError *err=nil; b->pipe=[device newRenderPipelineStateWithDescriptor:pd error:&err];
++            if (b->pipe) tools->pipes[key]=b->pipe;
++        }
++        BOOL valid=b->pipe && tools->params && tools->sampler && tools->writeDepth && tools->table;
++        for (unsigned t=1; valid && t<3; t++) {
++            MTLTextureDescriptor *d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:fmt
++                width:rb_drs_width[t] height:rb_drs_height[t] mipmapped:NO];
++            d.resourceOptions=native.resourceOptions; d.usage=native.usage|MTLTextureUsageShaderRead|MTLTextureUsageRenderTarget;
++            b->texture[t]=[device newTextureWithDescriptor:d];
++            valid=b->texture[t]!=nil;
++            if (valid) rs_set_info_at(b->texture[t],RS_SCALED,960,540,rb_drs_percent(t)/100.);
++        }
++        atomic_store_explicit(&b->ready,valid ? 1 : -1,memory_order_release);
++    }});
++}
++static void rb_drs_enroll(NvRBDrsBank *b) {
++    if (!b->enrolled) {
++        res_add(b->texture[1]); res_add(b->texture[2]); res_add(g_rb_drs_tools->params);
++        b->enrolled=YES;
++    }
++}
++// Uses the existing utility copy shader. Its pipeline, argument table, constants
++// and destination were all prepared before admission. No lazy shader or RT creation.
++static BOOL rb_drs_copy(NvRBDrsBank *b, unsigned source, unsigned destination) {
++    if (source==destination) return YES;
++    NvRBDrsTools *tools=g_rb_drs_tools;
++    id<MTLTexture> src=b->texture[source], dst=b->texture[destination];
++    if (!src || !dst || !tools || !b->enrolled) return NO;
++    BOOL depth=dst.pixelFormat==MTLPixelFormatDepth32Float;
++    MTL4RenderPassDescriptor *desc=pass_desc();
++    MTLRenderPassAttachmentDescriptor *attachment=depth ? (MTLRenderPassAttachmentDescriptor *)desc.depthAttachment : desc.colorAttachments[0];
++    attachment.texture=dst; attachment.loadAction=MTLLoadActionDontCare; attachment.storeAction=MTLStoreActionStore;
++    ser_gate(); id<MTL4RenderCommandEncoder> enc=enc_r_begin(desc);
++    if (!enc) return NO;
++    if (depth) [enc setDepthStencilState:tools->writeDepth];
++    enc_r_table(enc,tools->table,MTLRenderStageFragment);
++    tab_tex(tools->table,src,0); tab_samp(tools->table,tools->sampler,0);
++    tab_buf(tools->table,tools->params,256*(source*3+destination),0);
++    [enc setViewport:(MTLViewport){0,0,dst.width,dst.height,0,1}];
++    [enc setScissorRect:(MTLScissorRect){0,0,dst.width,dst.height}];
++    [enc setRenderPipelineState:b->pipe];
++    enc_r_draw(enc,MTLPrimitiveTypeTriangle,0,3); enc_r_end(enc);
++    args_dirty_all(); g_pso_dirty=g_dss_dirty=1; g_rb_drs_copies++;
++    g_rb_drs_bytes+=src.allocatedSize+dst.allocatedSize;
++    return YES;
++}
++// Only exact direct references can be republished. An upscale restores the
++// entire alias cohort (including a sharing-table-only root). A reduction needs
++// one effective serial and no other serial, package or derived storage owner.
++static BOOL rb_drs_source_locked(NvRBDrsBank *b, unsigned tier) {
++    unsigned flags=rb_drs_backing_locked(b,b->texture[b->active]);
++    // A pool argument table retains its resource IDs until its next scan. Direct
++    // texture-ID caches observe g_ser_gen, but the pool scan can run only once
++    // per submission. Its pin includes the root when a slot holds a format view.
++    if (!flags || (flags & RB_DRS_INDIRECT) || (tier && pool_pin_held((__bridge void *)b->texture[b->active]))) return NO;
++    return !tier || (rb_drs_live_locked(b) && (flags & RB_DRS_OWN) && !(flags & RB_DRS_FOREIGN));
++}
++static BOOL rb_drs_writable_locked(NvRBDrsBank *b,unsigned tier) {
++    id<MTLTexture> dst=b->texture[tier];
++    return dst && !rb_drs_backing_locked(b,dst) && !pool_pin_held((__bridge void *)dst);
++}
++static BOOL rb_drs_fx_locked(NvRBDrsBank *const fx[3], unsigned tier) {
++    for (unsigned i=0;i<3;i++) if (!rb_drs_source_locked(fx[i],tier)) return NO;
++    return YES;
++}
++static BOOL rb_drs_transition(unsigned tier) {
++    NvRBDrsBank *banks[RB_DRS_BANKS], *fx_banks[3]; unsigned previous[RB_DRS_BANKS], n=0;
++    NSUInteger usage[4]={0}; uint64_t fx[3]={0};
++    rb_drs_prune();
++    g_rb_drs_hold="metalfx-not-ready";
++    if (tier && (!rb_drs_fx_inputs(fx) || !rb_drs_input_ids(tier,rb_drs_fx_ready_mask(),fx) || !rb_drs_fx_usage(tier,usage))) return NO;
++    for (unsigned i=0;tier && i<3;i++) {
++        NvRBDrsBank *b=rb_drs_bank(fx[i]);
++        g_rb_drs_hold=!b ? "fx-input-not-admitted" : b->nativeOnly ? "fx-input-native-only" : "fx-usage-or-worker";
++        if (!b || b->nativeOnly || atomic_load_explicit(&b->ready,memory_order_acquire)!=1 ||
++            (usage[i]&~b->texture[tier].usage)) return NO;
++        fx_banks[i]=b;
++    }
++    uint64_t bytes=0, generation;
++    g_rb_drs_hold="alias-or-stale";
++    pthread_mutex_lock(&g_smu);
++    if (tier && !rb_drs_fx_locked(fx_banks,tier)) goto reject;
++    generation=g_ser_gen;
++    for (unsigned i=0;i<g_rb_drs_count;i++) {
++        NvRBDrsBank *b=g_rb_drs_banks[i];
++        if (b->active==tier || (!b->active && b->nativeOnly)) continue;
++        if (!b->active && !rb_drs_live_locked(b)) continue;
++        int ready=atomic_load_explicit(&b->ready,memory_order_acquire);
++        if (!b->active && ready<0) continue;  // permanently unavailable optional bank stays native
++        if (ready!=1) { g_rb_drs_hold="bank-preparation"; goto reject; }
++        if (!rb_drs_source_locked(b,tier) || !rb_drs_writable_locked(b,tier)) goto reject;
++        bytes+=b->texture[b->active].allocatedSize+b->texture[tier].allocatedSize;
++        previous[n]=b->active; banks[n++]=b;
++    }
++    pthread_mutex_unlock(&g_smu);
++    if (g_enc || !g_cb || !rb_drs_copy_budget(tier,n,bytes)) { g_rb_drs_hold="boundary-or-copy-budget"; return NO; }
++    enc_close_blit();
++    for (unsigned i=0;i<n;i++) {
++        rb_drs_enroll(banks[i]);
++        if (!rb_drs_copy(banks[i],previous[i],tier)) { g_rb_drs_hold="copy-encoder"; return NO; }
++    }
++    pthread_mutex_lock(&g_smu);
++    if (generation!=g_ser_gen || (tier && !rb_drs_fx_locked(fx_banks,tier))) goto reject;
++    for (unsigned i=0;i<n;i++)
++        if (!rb_drs_source_locked(banks[i],tier) || !rb_drs_writable_locked(banks[i],tier)) goto reject;
++    for (unsigned i=0;i<n;i++) {
++        NvRBDrsBank *b=banks[i];
++        rb_swap_storage_locked(b->texture[previous[i]],b->texture[tier]);
++        b->active=tier;
++    }
++    pthread_mutex_unlock(&g_smu);
++    for (unsigned i=0;i<n;i++)
++        rs_scene_replace(banks[i]->texture[previous[i]],banks[i]->texture[tier]);
++    g_rb_drs_hold="none";
++    return YES;
++reject:
++    pthread_mutex_unlock(&g_smu);
++    return NO;
++}
++static void rb_drs_log(unsigned from, unsigned to, const char *cause, uint64_t frame, double mean) {
++    MLOG("[rb-drs] frame=%llu cause=%s scale=%u->%u thermal=%d gpu_mean_ms=%.3f banks=%u migration_copies_total=%llu migration_backing_bytes_total=%llu held_total=%llu held_reason=%s",
++         (unsigned long long)frame,cause,rb_drs_percent(from),rb_drs_percent(to),g_rb_drs_heat,mean,
++         g_rb_drs_count,(unsigned long long)g_rb_drs_copies,(unsigned long long)g_rb_drs_bytes,(unsigned long long)g_rb_drs_blocked,g_rb_drs_hold);
++}
++static BOOL rb_drs_restore(const char *why) {
++    unsigned from=g_rb_drs_control.tier;
++    if (g_enc) rp_end();
++    if (!rb_drs_transition(0)) return NO;
++    rb_drs_applied(&g_rb_drs_control,0,bp_now()/1000000ull);
++    rb_drs_log(from,0,why,atomic_load(&g_cur_frame),0);
++    return YES;
++}
++static id<MTLTexture> rb_drs_native_for(id<MTLTexture> root, const char *why) {
++    NvRBDrsBank *b=rb_drs_owner(root);
++    if (!b || (b->active && !rb_drs_restore(why ?: "incompatible-reader")) || b->active) return nil;
++    // An opaque shader describes this operation only. A resolved, incompatible
++    // direct reader is evidence about this particular target for the session.
++    if (why && !strcmp(why, "opaque-shader-preflight")) return b->texture[0];
++    b->nativeOnly=YES;
++    rs_set_info_at(b->texture[0],RS_BLACK,960,540,1.);
++    return b->texture[0];
++}
++static void rb_drs_tick(void) {
++    uint64_t frame=atomic_load_explicit(&g_cur_frame,memory_order_relaxed);
++    if (!frame || frame==g_rb_drs_frame) return;
++    g_rb_drs_frame=frame;
++    uint64_t now=bp_now()/1000000ull;
++    if (now-g_rb_drs_heat_ms>=250) { g_rb_drs_heat=(int)NSProcessInfo.processInfo.thermalState; g_rb_drs_heat_ms=now; }
++    double gpu=frame>=8 ? nvn_be_gpu_ms(frame-8) : -1;
++    enum rb_drs_reason why;
++    unsigned before=g_rb_drs_control.tier;
++    unsigned to=rb_drs_observe(&g_rb_drs_control,now,gpu,g_rb_drs_heat,&why);
++    if (to==before || now<g_rb_drs_retry_after) return;
++    double avg=g_rb_drs_control.count ? g_rb_drs_control.sum/g_rb_drs_control.count : 0;
++    if (rb_drs_transition(to)) {
++        rb_drs_applied(&g_rb_drs_control,to,now);
++        rb_drs_log(before,to,rb_drs_cause(why),frame,avg);
++    } else {
++        g_rb_drs_retry_after=now+250; ++g_rb_drs_blocked;
++        if (g_rb_drs_blocked==1 || !(frame%120)) rb_drs_log(before,before,"awaiting-coherent-ready-inputs",frame,avg);
++    }
++}
++// -1 lets normal fixed scaling handle this pass. Main targets enter as native
++// and retain their latest contents until the submit-thread transaction succeeds.
++static int rb_drs_rt_group(const tex_t *const *ts,int n,int native_draw) {
++    if (!rb_drs_enabled()) return -1;
++    BOOL main=NO, mixed=NO;
++    for (int i=0;i<n;i++) if (ts[i]->d.width==960 && ts[i]->d.height==540) main=YES;
++    if (!main) return -1;
++    for (int i=0;i<n;i++) {
++        const tex_t *t=ts[i];
++        if (t->d.width!=960 || t->d.height!=540) { mixed=YES; continue; }
++        NvRBDrsBank *b=rb_drs_bank(t->serial);
++        if (b) b->lastFrame=atomic_load_explicit(&g_cur_frame,memory_order_relaxed);
++        else if (!native_draw && rb_drs_fx_ready_mask()>1) rb_drs_prepare(t,tex_mtl(t));
++    }
++    if (!native_draw && !mixed && !g_rlane && !g_rp_layered && !g_wd && !g_enc && !g_nubd && !g_nlc)
++        rb_drs_tick();
++    BOOL reduced=NO;
++    double factor=0;
++    for (int i=0;i<n;i++) {
++        id<MTLTexture> physical=tex_mtl(ts[i]);
++        if (!physical) { mixed=YES; continue; }
++        double s=rs_of(physical);
++        if (factor>0 && s!=factor) mixed=YES;
++        factor=s;
++        if (s!=1.) reduced=YES;
++    }
++    if (reduced && (mixed || native_draw)) return rb_drs_restore(mixed ? "mixed-attachments" : "native-coordinate-draw");
++    return 1;
++}
++// Always sample the authoritative guest contents. A changed network can need
++// native inputs even when all three incoming buffers still have a reduced size.
++static int rb_drs_fx_align(const tex_t *inputs[3], id<MTLTexture> __strong tex[3]) {
++    for (int i=0;i<3;i++) {
++        if (!inputs[i] || !tex[i]) return 0;
++        if (tex[i].width==960 && tex[i].height==540 && rs_of(tex[i])==1.) continue;
++        NvRBDrsBank *b=rb_drs_owner(tex[i]);
++        if (!b || b->serial!=inputs[i]->serial || b->texture[b->active]!=tex[i]) return 0;
++    }
++    if (!rb_drs_restore("metalfx-native-cohort")) return 0;
++    for (int i=0;i<3;i++) {
++        tex[i]=tex_mtl(inputs[i]);
++        if (!tex[i] || tex[i].width!=960 || tex[i].height!=540 || rs_of(tex[i])!=1.) return 0;
++    }
++    return 1;
++}
++static void rb_drs_pool_reset(void) {
++    // Called after GPU/submit drain. Jobs only retain their own old objects,
++    // never session globals, and never publish resources to the residency set.
++    for (unsigned i=0;i<g_rb_drs_count;i++) {
++        NvRBDrsBank *b=g_rb_drs_banks[i];
++        if (b->enrolled) {
++            if (b->active) res_remove(b->texture[0]);
++            res_remove(b->texture[1]); res_remove(b->texture[2]);
++        }
++        g_rb_drs_banks[i]=nil;
++    }
++    if (g_rb_drs_tools) {
++        // A worker could still be preparing buffer zero. Drain on shutdown, never on submit.
++        dispatch_sync(g_rb_drs_tools->queue, ^{});
++        res_remove(g_rb_drs_tools->params);
++    }
++    g_rb_drs_tools=nil; g_rb_drs_count=0; g_rb_drs_frame=g_rb_drs_heat_ms=g_rb_drs_copies=g_rb_drs_blocked=g_rb_drs_bytes=0;
++    g_rb_drs_heat=0; g_rb_drs_retry_after=0; memset(&g_rb_drs_control,0,sizeof g_rb_drs_control);
++}
+diff --git a/graphics/nvn/gfx/nvn/nvn_rscale.inc b/graphics/nvn/gfx/nvn/nvn_rscale.inc
+index f16178c..e2570e4 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rscale.inc
++++ b/graphics/nvn/gfx/nvn/nvn_rscale.inc
+@@ -25,7 +25,7 @@ static double rs_setting(void) {
+     return g_rs;
+ }
+ static _Atomic int g_rb_shadow_pass;
+-static inline int rs_on(void) { return (g_rs < 0 ? rs_setting() : g_rs) < 1.0 || atomic_load_explicit(&g_rb_shadow_pass, memory_order_relaxed); }
++static inline int rs_on(void) { return rb_drs_enabled() || (g_rs < 0 ? rs_setting() : g_rs) < 1.0 || atomic_load_explicit(&g_rb_shadow_pass, memory_order_relaxed); }
+ 
+ // 每份存储的缩放记录挂在 Metal 根贴图上（关联对象：存储释放时一起走，地址复用不会认错）
+ enum { RS_NONE = 0, RS_SCALED = 1, RS_BLACK = 2 };
+@@ -48,10 +48,10 @@ static double rs_of(id<MTLTexture> t) {
+     NvRsInfo *info = rs_info(t);
+     return info && info->state == RS_SCALED ? info->scale : 1.0;
+ }
+-static int rs_retain_on(void) { return rb_a18_option(RB_DEVICE_RETAIN, "S2A_RB_SCALE_RETAIN"); }
++static int rs_retain_on(void) { return rb_drs_enabled() || rb_a18_option(RB_DEVICE_RETAIN, "S2A_RB_SCALE_RETAIN"); }
+ // Replay publishes storage after all copies succeed. Weak membership never owns
+ // an old variant or a finalized guest texture. Replacements remove the old root.
+-static NSHashTable *g_rs_scene_roots;
++static NSHashTable *g_rs_scene_roots, *g_rs_native_roots;
+ static os_unfair_lock g_rs_scene_lock = OS_UNFAIR_LOCK_INIT;
+ static _Atomic unsigned g_rs_scene_count;
+ static int g_rs_native_draw;
+@@ -59,11 +59,20 @@ static inline void rs_restore_draw_scope(const int *prior) { g_rs_native_draw =
+ static void rs_scene_replace(id<MTLTexture> old_root, id<MTLTexture> current) {
+     if (!rs_retain_on()) return;
+     os_unfair_lock_lock(&g_rs_scene_lock);
+-    if (old_root) [g_rs_scene_roots removeObject:rs_root(old_root)];
++    id<MTLTexture> previous = rs_root(old_root);
++    BOOL tracked = previous && ([g_rs_scene_roots containsObject:previous] ||
++                                [g_rs_native_roots containsObject:previous]);
++    if (previous) {
++        [g_rs_scene_roots removeObject:previous];
++        [g_rs_native_roots removeObject:previous];
++    }
+     NvRsInfo *i = rs_info(current);
+     if (i && i->state == RS_SCALED && i->cw == 960 && i->ch == 540) {
+         if (!g_rs_scene_roots) g_rs_scene_roots = [NSHashTable weakObjectsHashTable];
+         [g_rs_scene_roots addObject:rs_root(current)];
++    } else if (tracked && current && current.width == 960 && current.height == 540) {
++        if (!g_rs_native_roots) g_rs_native_roots = [NSHashTable weakObjectsHashTable];
++        [g_rs_native_roots addObject:rs_root(current)];
+     }
+     atomic_store_explicit(&g_rs_scene_count, (unsigned)g_rs_scene_roots.count, memory_order_relaxed);
+     os_unfair_lock_unlock(&g_rs_scene_lock);
+@@ -91,10 +100,13 @@ static void rs_retain_note(const tex_t *t, id<MTLTexture> base, unsigned reason,
+ }
+ static void rs_retain_report(uint64_t frame) {
+     if (!rs_retain_on()) return;
++    os_unfair_lock_lock(&g_rs_scene_lock);
++    NSUInteger reduced = g_rs_scene_roots.allObjects.count, restored = g_rs_native_roots.allObjects.count;
++    os_unfair_lock_unlock(&g_rs_scene_lock);
+     uint64_t c[RS_REASON_COUNT];
+     for (int j = 0; j < RS_REASON_COUNT; ++j) c[j] = atomic_load_explicit(&g_rs_reasons[j], memory_order_relaxed);
+-    MLOG("[rscale-retain] frame=%llu guest=960x540 events_cumulative kept_2d=%llu unproven_fs=%llu indirect=%llu image=%llu stage=%llu mixed=%llu inactive_planes=%llu opaque_roots=%llu",
+-         (unsigned long long)frame, (unsigned long long)c[0], (unsigned long long)c[1],
++    MLOG("[rscale-retain] frame=%llu guest=960x540 reduced_live=%lu restored_live=%lu events_cumulative kept_2d=%llu unproven_fs=%llu indirect=%llu image=%llu stage=%llu mixed=%llu inactive_planes=%llu opaque_roots=%llu",
++         (unsigned long long)frame, (unsigned long)reduced, (unsigned long)restored, (unsigned long long)c[0], (unsigned long long)c[1],
+          (unsigned long long)c[2], (unsigned long long)c[3], (unsigned long long)c[4],
+          (unsigned long long)c[5], (unsigned long long)c[6], (unsigned long long)atomic_load_explicit(&g_rs_opaque_promotions, memory_order_relaxed));
+ }
+@@ -137,6 +149,13 @@ static int rs_one_comp(MTLPixelFormat f) {
+     switch (f) { case MTLPixelFormatR8Unorm: case MTLPixelFormatR8Snorm: case MTLPixelFormatR16Unorm: case MTLPixelFormatR16Snorm: case MTLPixelFormatR16Float: case MTLPixelFormatR32Float: case MTLPixelFormatA8Unorm: return 1; default: return 0; }
+ }
+ // 这张贴图的存储能不能缩（见文件头）；why 给不能缩的原因（日志用）
++static int rb_scene_d32_copies(const tex_t *guest,id<MTLTexture> base) {
++    return rs_retain_on() && !getenv("S2A_RB_GPU_NATIVE_D32") &&
++           guest && guest->d.width==960 && guest->d.height==540 &&
++           base.textureType==MTLTextureType2D && base.sampleCount==1 && base.mipmapLevelCount==1 &&
++           base.storageMode==MTLStorageModePrivate && !base.parentTexture && !base.buffer &&
++           !base.heap && !base.isSparse && !base.iosurface;
++}
+ static int rs_eligible(const tex_t *t, id<MTLTexture> base, const char **why) {
+     const char *w = NULL;
+     uint32_t bad = NVN_TEXTURE_FLAGS_DISPLAY | NVN_TEXTURE_FLAGS_VIDEO_DECODE | NVN_TEXTURE_FLAGS_IMAGE | NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_SPARSE | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET;
+@@ -153,7 +172,7 @@ static int rs_eligible(const tex_t *t, id<MTLTexture> base, const char **why) {
+         return 0;
+     }
+     static _Atomic int mode;
+-    if (!g_m3 && pf == MTLPixelFormatDepth32Float && rb_direct_option(&mode, "S2A_RB_GPU_NATIVE_D32")) {
++    if (!g_m3 && pf == MTLPixelFormatDepth32Float && (rb_direct_option(&mode, "S2A_RB_GPU_NATIVE_D32") && !rb_scene_d32_copies(t,base))) {
+         static uint64_t vetoes;
+         if (why) *why = "native D32 copy compatibility";
+         ++vetoes;
+diff --git a/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc b/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc
+index a38efee..093ce17 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc
++++ b/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc
+@@ -5,7 +5,10 @@ static uint64_t g_rs_up, g_rs_down, g_rs_fail;   // 缩了 / 退回原尺寸 / 
+ 
+ // 把存储 base 换成按画布 × s（to_scaled）或画布原尺寸的新存储，内容用缩放拷贝带过去（Ryujinx SetScale：GetScaledHostTexture(copy) + ReplaceStorage），
+ //   所有表里指向旧存储的项换成新的（tex_swap_storage）。只在没有开着的渲染遍时调（copy_t2t_draw 自己收遍）。失败 = 旧存储不动、记成不缩（以后不再试）。返回新存储
++#include "nvn_rb_drs_pool.inc"
+ static id<MTLTexture> rs_rescale_to(id<MTLTexture> base, double factor, const char *why) {
++    if (factor==1. && rb_drs_enabled() && rb_drs_owner(base)) return rb_drs_native_for(base,why);
++
+     if (!base || !(factor > 0 && factor <= 1)) return nil;
+     int to_scaled = factor < 1.0;
+     NvRsInfo *i = rs_info(base);
+@@ -107,6 +110,10 @@ static int rs_rts(int clear_only) {
+             objc_setAssociatedObject(native,&k_rb_shadow_serial,@(R.rt.depth->serial),OBJC_ASSOCIATION_RETAIN);
+         }
+     }
++    if (rb_drs_enabled()) {
++        int handled=rb_drs_rt_group(ts,n,g_rs_native_draw!=0);
++        if (handled>=0) return handled;
++    }
+     double desired = 0;
+     for (int k = 0; k < n; k++) {
+         id<MTLTexture> b = tex_mtl(ts[k]); int st = rs_state(b);
+@@ -300,7 +307,7 @@ static int rs_prepare_work(const NvProg *pr, int compute) {
+         atomic_fetch_add_explicit(&g_rs_opaque_promotions, roots.count, memory_order_relaxed);
+     for (id<MTLTexture> root in roots) {
+         NvRsInfo *old = rs_info(root);
+-        if (old && old->state == RS_SCALED && !rs_rescale_to(root, 1.0, "incompatible shader preflight")) {
++        if (old && old->state == RS_SCALED && !rs_rescale_to(root, 1.0, native ? "opaque-shader-preflight" : "incompatible-direct-reader")) {
+             MLOG("【红】 [rscale-retain] blocked original GPU operation after a failed preflight promotion");
+             return 0;
+         }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 819e88a..f73d405 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -152,7 +152,8 @@ int nvn_be_shutdown_session(void) {
+     for (unsigned i = 0; i < RB_DEVICE_OPTIONS; ++i)
+         atomic_store_explicit(&g_rb_device_options[i], 0, memory_order_relaxed);
+     os_unfair_lock_lock(&g_rs_scene_lock);
+-    g_rs_scene_roots = nil;
++    g_rs_scene_roots = nil; g_rs_native_roots = nil;
++    atomic_store_explicit(&g_rs_registration_enabled, 0, memory_order_relaxed);
+     atomic_store_explicit(&g_rs_scene_count, 0, memory_order_relaxed);
+     os_unfair_lock_unlock(&g_rs_scene_lock);
+     g_rs_native_draw = 0; g_rs = -1;
+@@ -296,6 +297,7 @@ int nvn_be_shutdown_session(void) {
+     g_td_frame = -2; g_td_path = NULL; g_td_w = g_td_h = 0; g_td_done = 0; g_lp = nil;
+     // GPU work and deferred records have drained. Guest network addresses may
+     // be reused by the next title, including their temporal history.
++    rb_drs_pool_reset();
+     rb_drs_fx_reset_session();
+     for (size_t i = 0; i < sizeof g_dlss / sizeof g_dlss[0]; i++) g_dlss[i] = nil;
+     memset(&g_rb_dlss_thermal, 0, sizeof g_rb_dlss_thermal);
+diff --git a/graphics/nvn/gfx/nvn/rb_drs_control.h b/graphics/nvn/gfx/nvn/rb_drs_control.h
+new file mode 100644
+index 0000000..d4dc02c
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_drs_control.h
+@@ -0,0 +1,66 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <math.h>
++#include <stdint.h>
++#include <string.h>
++
++enum { RB_DRS_TIERS = 3, RB_DRS_WINDOW = 24 };
++enum rb_drs_reason { RB_DRS_HOLD, RB_DRS_GPU_HIGH, RB_DRS_FAIR, RB_DRS_SERIOUS, RB_DRS_HEADROOM };
++typedef struct {
++    double samples[RB_DRS_WINDOW], sum;
++    unsigned count, cursor, tier;
++    int previous_thermal, fair_pending;
++    uint64_t previous_ms, high_since, low_since, changed_ms;
++} rb_drs_control;
++
++static inline unsigned rb_drs_percent(unsigned tier) {
++    static const unsigned pct[] = {100,85,75};
++    return tier < RB_DRS_TIERS ? pct[tier] : 100;
++}
++static inline const char *rb_drs_cause(enum rb_drs_reason reason) {
++    static const char *const names[] = {"hold","gpu-over-budget","fair","serious","nominal-headroom"};
++    return names[reason];
++}
++// t is monotonic wall time (ms). Missing or stale GPU samples cannot earn a promotion.
++// A thermal edge is retained until the actuator acknowledges a completed switch.
++static inline unsigned rb_drs_observe(rb_drs_control *c, uint64_t t, double gpu_ms, int thermal,
++                                      enum rb_drs_reason *reason) {
++    *reason = RB_DRS_HOLD;
++    if (!t || t <= c->previous_ms) return c->tier;
++    if (c->previous_ms && t - c->previous_ms > 500) {
++        c->count = c->cursor = 0; c->sum = 0; c->high_since = c->low_since = 0;
++    }
++    c->previous_ms=t;
++    if (thermal >= 1 && c->previous_thermal < 1) c->fair_pending=1;
++    if (thermal < 1) c->fair_pending=0;
++    c->previous_thermal=thermal;
++    int valid=isfinite(gpu_ms) && gpu_ms>0 && gpu_ms<=250;
++    if (valid) {
++        if (c->count==RB_DRS_WINDOW) c->sum-=c->samples[c->cursor]; else ++c->count;
++        c->samples[c->cursor]=gpu_ms; c->sum+=gpu_ms; c->cursor=(c->cursor+1)%RB_DRS_WINDOW;
++    }
++    double avg=c->count ? c->sum/c->count : 0;
++    if (valid && c->count==RB_DRS_WINDOW && avg>=14.8) { if (!c->high_since) c->high_since=t; }
++    else c->high_since=0;
++    if (valid && c->count==RB_DRS_WINDOW && thermal==0 && avg<12.5) { if (!c->low_since) c->low_since=t; }
++    else c->low_since=0;
++    if (c->tier<2 && thermal>=2) { *reason=RB_DRS_SERIOUS; return 2; }
++    if (c->tier<2 && c->fair_pending) { *reason=RB_DRS_FAIR; return c->tier+1; }
++    if (t-c->changed_ms<1500) return c->tier;
++    if (c->tier<2 && c->high_since && t-c->high_since>=400) { *reason=RB_DRS_GPU_HIGH; return c->tier+1; }
++    if (c->tier && c->low_since && t-c->low_since>=5000) { *reason=RB_DRS_HEADROOM; return c->tier-1; }
++    return c->tier;
++}
++static inline void rb_drs_applied(rb_drs_control *c, unsigned tier, uint64_t t) {
++    c->tier=tier; c->changed_ms=t; c->high_since=c->low_since=0; c->fair_pending=0;
++    c->count=c->cursor=0; c->sum=0;
++}
++
++// A transition needs three different guest allocations and a scaler prepared for that exact level.
++static inline int rb_drs_input_ids(unsigned tier,unsigned ready,const uint64_t ids[3]) {
++    return tier>0 && tier<RB_DRS_TIERS && (ready & (1u<<tier)) && ids &&
++           ids[0] && ids[1] && ids[2] && ids[0]!=ids[1] && ids[0]!=ids[2] && ids[1]!=ids[2];
++}
++static inline int rb_drs_copy_budget(unsigned tier, unsigned banks, uint64_t backing_bytes) {
++    return tier<RB_DRS_TIERS && (!tier || (banks && backing_bytes <= (64ull<<20)));
++}
+diff --git a/graphics/nvn/tests/t_nvn_rscale.m b/graphics/nvn/tests/t_nvn_rscale.m
+index cee1f3c..7424017 100644
+--- a/graphics/nvn/tests/t_nvn_rscale.m
++++ b/graphics/nvn/tests/t_nvn_rscale.m
+@@ -43,9 +43,9 @@ static void submit(void) {
+ }
+ static void make_tex_pkg(NVNtexture *t, NVNformat fmt, int flags, const void *pkg);
+ static void make_tex(NVNtexture *t, NVNformat fmt, int flags) { make_tex_pkg(t, fmt, flags, NULL); }
+-static void make_tex_pkg(NVNtexture *t, NVNformat fmt, int flags, const void *pkg) {
++static void make_tex_extent(NVNtexture *t, NVNformat fmt, int flags, const void *pkg, int w, int h) {
+     NVNtextureBuilder b; API(nvnTextureBuilderSetDefaults)(&b); API(nvnTextureBuilderSetDevice)(&b, &device);
+-    API(nvnTextureBuilderSetTarget)(&b, NVN_TEXTURE_TARGET_2D); API(nvnTextureBuilderSetSize2D)(&b, W, H); API(nvnTextureBuilderSetLevels)(&b, 1);
++    API(nvnTextureBuilderSetTarget)(&b, NVN_TEXTURE_TARGET_2D); API(nvnTextureBuilderSetSize2D)(&b, w, h); API(nvnTextureBuilderSetLevels)(&b, 1);
+     API(nvnTextureBuilderSetFormat)(&b, fmt); API(nvnTextureBuilderSetFlags)(&b, flags);
+     if (pkg) API(nvnTextureBuilderSetPackagedTextureData)(&b, pkg);
+     size_t al = API(nvnTextureBuilderGetStorageAlignment)(&b), sz = API(nvnTextureBuilderGetStorageSize)(&b);
+@@ -54,6 +54,10 @@ static void make_tex_pkg(NVNtexture *t, NVNformat fmt, int flags, const void *pk
+     REQUIRE(API(nvnTextureInitialize)(t, &b));
+ }
+ 
++static void make_tex_pkg(NVNtexture *t, NVNformat fmt, int flags, const void *pkg) {
++    make_tex_extent(t, fmt, flags, pkg, W, H);
++}
++
+ // 游戏坐标的期望图：底色 + 依次覆盖的矩形（整数游戏像素）；也给缩小图（矩形坐标 ÷ 2，全部取偶数坐标，缩小后仍是整像素）
+ typedef struct { int x, y, w, h; uint8_t c[4]; } rect;
+ static const uint8_t RED[4] = {255, 0, 0, 255}, GREEN[4] = {0, 255, 0, 255}, BLUE[4] = {0, 0, 255, 255}, YELLOW[4] = {255, 255, 0, 255}, GREY[4] = {128, 128, 128, 255};
+@@ -140,8 +144,96 @@ static void direct_d32_copy(void) {
+     done();
+ }
+ 
++// Read the entire physical image, including the destination pixels outside a copied subrectangle.
++static void read_d32(NVNtexture *t, int w, int h, float *out) {
++    NVNcopyRegion full={0,0,0,w,h,1};
++    size_t bytes=(size_t)w*h*sizeof(float);
++    REQUIRE(BUF_OFFSET+bytes <= (4u<<20));
++    memset((char *)storage+BUF_OFFSET,0xff,bytes);
++    NVNbufferAddress address=API(nvnMemoryPoolGetBufferAddress)(&pool)+BUF_OFFSET;
++    begin(); API(nvnCommandBufferCopyTextureToBuffer)(&commands,t,NULL,&full,address,0); submit();
++    memcpy(out,(char *)storage+BUF_OFFSET,bytes);
++    int sw=0,sh=0;
++    REQUIRE(nvn_be_tex_storage_size(t,&sw,&sh)>=0 && sw==w && sh==h);
++    REQUIRE(API(nvnTextureGetFormat)(t)==NVN_FORMAT_DEPTH32F);
++}
++
++// At an exact rational texel boundary the GPU's float product may round one ULP
++// below it before uint2(st). No tolerance away from a mathematical boundary.
++static int nearest_axis(int pos, int src, int dst, int start, int out[2]) {
++    int n=(2*pos+1)*src, d=2*dst;
++    out[0]=start+n/d;
++    if (n%d || n/d==0) return 1;
++    out[1]=out[0]-1; return 2;
++}
++static void expect_d32(const float *source, int sw, const float *actual, int dw, int dh,
++                       NVNcopyRegion sr, NVNcopyRegion dr, float sentinel) {
++    unsigned ties=0;
++    for (int y=0;y<dh;y++) for (int x=0;x<dw;x++) {
++        float got=actual[y*dw+x];
++        if (x<dr.xoffset || x>=dr.xoffset+dr.width || y<dr.yoffset || y>=dr.yoffset+dr.height) {
++            REQUIRE(got==sentinel); continue;
++        }
++        int sx[2],sy[2];
++        int nx=nearest_axis(x-dr.xoffset,sr.width,dr.width,sr.xoffset,sx);
++        int ny=nearest_axis(y-dr.yoffset,sr.height,dr.height,sr.yoffset,sy);
++        int ok=0;
++        for (int j=0;j<ny;j++) for (int i=0;i<nx;i++) ok |= got==source[sy[j]*sw+sx[i]];
++        if (!ok) fprintf(stderr,"D32 mismatch at (%d,%d), got %.8f, nearest at (%d,%d) = %.8f\n",
++                         x,y,got,sx[0],sy[0],source[sy[0]*sw+sx[0]]);
++        REQUIRE(ok); ties+=nx>1 || ny>1;
++    }
++    printf("D32 %dx%d -> %dx%d, %u pixels exactly on a source texel boundary\n",sr.width,sr.height,dr.width,dr.height,ties);
++}
++static void d32_scene_tiers(void) {
++    const int widths[]={960,816,720},heights[]={540,459,405};
++    const unsigned route[]={0,1,2,1,0};
++    const float sentinel=0.9375f;
++    NVNtexture tex[3];
++    size_t bytes=(size_t)widths[0]*heights[0]*sizeof(float);
++    float *prev=malloc(bytes),*got=malloc(bytes);
++    REQUIRE(prev && got);
++    for (unsigned i=0;i<3;i++) {
++        make_tex_extent(&tex[i],NVN_FORMAT_DEPTH32F,NVN_TEXTURE_FLAGS_COMPRESSIBLE,NULL,widths[i],heights[i]);
++        REQUIRE(API(nvnTextureGetWidth)(&tex[i])==widths[i] && API(nvnTextureGetHeight)(&tex[i])==heights[i]);
++        // Materialize a renderable private depth target before any copy.
++        begin(); API(nvnCommandBufferSetRenderTargets)(&commands,0,NULL,NULL,&tex[i],NULL);
++        API(nvnCommandBufferSetScissor)(&commands,0,0,widths[i],heights[i]);
++        API(nvnCommandBufferClearDepthStencil)(&commands,sentinel,1,0,0); submit();
++    }
++    for (int y=0;y<heights[0];y++) for (int x=0;x<widths[0];x++)
++        prev[y*widths[0]+x]=(float)(1+y*widths[0]+x)*0x1p-20f; // every original pixel is distinct and exactly representable
++    memcpy((char *)storage+BUF_OFFSET,prev,bytes);
++    NVNcopyRegion full={0,0,0,widths[0],heights[0],1};
++    NVNbufferAddress address=API(nvnMemoryPoolGetBufferAddress)(&pool)+BUF_OFFSET;
++    begin(); API(nvnCommandBufferCopyBufferToTexture)(&commands,address,&tex[0],NULL,&full,0); submit();
++    read_d32(&tex[0],widths[0],heights[0],got); REQUIRE(!memcmp(prev,got,bytes));
++    for (unsigned i=1;i<sizeof(route)/sizeof(*route);i++) {
++        unsigned s=route[i-1],d=route[i];
++        NVNcopyRegion sr={0,0,0,widths[s],heights[s],1},dr={0,0,0,widths[d],heights[d],1};
++        begin(); API(nvnCommandBufferCopyTextureToTexture)(&commands,&tex[s],NULL,&sr,&tex[d],NULL,&dr,0); submit();
++        read_d32(&tex[d],widths[d],heights[d],got);
++        expect_d32(prev,widths[s],got,widths[d],heights[d],sr,dr,sentinel);
++        float *tmp=prev; prev=got; got=tmp; // source samples have already passed the independent nearest oracle
++    }
++    // Offset odd-sized regions and verify the clear sentinel surrounding the entire result.
++    NVNcopyRegion sr={7,13,0,753,415,1},dr={9,9,0,671,363,1};
++    begin(); API(nvnCommandBufferSetRenderTargets)(&commands,0,NULL,NULL,&tex[2],NULL);
++    API(nvnCommandBufferSetScissor)(&commands,0,0,widths[2],heights[2]);
++    API(nvnCommandBufferClearDepthStencil)(&commands,sentinel,1,0,0);
++    API(nvnCommandBufferCopyTextureToTexture)(&commands,&tex[0],NULL,&sr,&tex[2],NULL,&dr,0); submit();
++    read_d32(&tex[2],widths[2],heights[2],got); expect_d32(prev,widths[0],got,widths[2],heights[2],sr,dr,sentinel);
++    for (unsigned i=0;i<3;i++) API(nvnTextureFinalize)(&tex[i]);
++    free(prev); free(got); done();
++}
++
+ int main(int argc, char **argv) {
+     @autoreleasepool {
++    if (argc == 2 && !strcmp(argv[1], "scene-d32")) {
++        phase = "scene D32 nearest round trip";
++        setenv("S2A_RB_DIRECT_GAME_ID","04007EF01F8AE000",1); setenv("S2A_RES_SCALE","1",1);
++        setup(); d32_scene_tiers(); return 0;
++    }
+     if (argc == 2 && !strcmp(argv[1], "direct-d32")) {
+         phase = "direct D32 native and stretched copies";
+         setenv("S2A_RB_DIRECT_GAME_ID", "04007EF01F8AE000", 1);
+diff --git a/graphics/nvn/tests/t_rb_d32_tracked.m b/graphics/nvn/tests/t_rb_d32_tracked.m
+new file mode 100644
+index 0000000..045c360
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_d32_tracked.m
+@@ -0,0 +1,121 @@
++// SPDX-License-Identifier: MIT
++#import <Foundation/Foundation.h>
++#import <Metal/Metal.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++typedef struct { unsigned x,y,w,h; } Rect;
++static void check(int valid,const char *message) {
++    if (!valid) { fprintf(stderr,"D32 tracked failure: %s\n",message); exit(1); }
++}
++static void finish(id<MTLCommandBuffer> cb) {
++    [cb commit]; [cb waitUntilCompleted];
++    if (cb.status!=MTLCommandBufferStatusCompleted) {
++        fprintf(stderr,"D32 GPU error: %s\n",cb.error.localizedDescription.UTF8String); exit(1);
++    }
++}
++static NSUInteger pitch(NSUInteger w) { return (w*sizeof(float)+255u)&~(NSUInteger)255u; }
++static void readback(id<MTLCommandQueue> q,id<MTLTexture> tex,float *out) {
++    NSUInteger w=tex.width,h=tex.height,row=pitch(w);
++    id<MTLBuffer> buffer=[q.device newBufferWithLength:row*h options:MTLResourceStorageModeShared];
++    check(buffer!=nil,"readback allocation"); memset(buffer.contents,0xff,row*h);
++    id<MTLCommandBuffer> cb=[q commandBuffer]; id<MTLBlitCommandEncoder> blit=[cb blitCommandEncoder];
++    [blit copyFromTexture:tex sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0)
++               sourceSize:MTLSizeMake(w,h,1) toBuffer:buffer destinationOffset:0 destinationBytesPerRow:row destinationBytesPerImage:row*h];
++    [blit endEncoding]; finish(cb);
++    for (NSUInteger y=0;y<h;y++) memcpy(out+y*w,(const char *)buffer.contents+y*row,w*sizeof(float));
++}
++static void upload(id<MTLCommandQueue> q,id<MTLTexture> texture,const float *pixels) {
++    NSUInteger w=texture.width,h=texture.height,row=pitch(w);
++    id<MTLBuffer> buffer=[q.device newBufferWithLength:row*h options:MTLResourceStorageModeShared];
++    check(buffer!=nil,"upload allocation");
++    for (NSUInteger y=0;y<h;y++) memcpy((char *)buffer.contents+y*row,pixels+y*w,w*sizeof(float));
++    id<MTLCommandBuffer> cb=[q commandBuffer]; id<MTLBlitCommandEncoder> blit=[cb blitCommandEncoder];
++    [blit copyFromBuffer:buffer sourceOffset:0 sourceBytesPerRow:row sourceBytesPerImage:row*h sourceSize:MTLSizeMake(w,h,1)
++               toTexture:texture destinationSlice:0 destinationLevel:0 destinationOrigin:MTLOriginMake(0,0,0)];
++    [blit endEncoding]; finish(cb);
++}
++static void draw(id<MTLCommandQueue> q,id<MTLRenderPipelineState> ps,id<MTLDepthStencilState> ds,
++                 id<MTLSamplerState> sampler,id<MTLTexture> src,id<MTLTexture> dst,Rect sr,Rect dr,int partial) {
++    id<MTLCommandBuffer> cb=[q commandBuffer];
++    MTLRenderPassDescriptor *rp=[MTLRenderPassDescriptor renderPassDescriptor];
++    rp.depthAttachment.texture=dst;
++    rp.depthAttachment.storeAction=MTLStoreActionStore;
++    if (partial) {
++        rp.depthAttachment.clearDepth=.9375; rp.depthAttachment.loadAction=MTLLoadActionClear;
++        id<MTLRenderCommandEncoder> e=[cb renderCommandEncoderWithDescriptor:rp]; check(e!=nil,"sentinel clear"); [e endEncoding];
++    }
++    rp.depthAttachment.loadAction=partial?MTLLoadActionLoad:MTLLoadActionDontCare;
++    id<MTLRenderCommandEncoder> e=[cb renderCommandEncoderWithDescriptor:rp]; check(e!=nil,"depth render encoder");
++    [e setRenderPipelineState:ps]; [e setDepthStencilState:ds];
++    float params[8]={(float)sr.x,(float)sr.y,(float)sr.w/dr.w,(float)sr.h/dr.h,
++                     (float)dr.x,(float)dr.y,(float)src.width,(float)src.height};
++    [e setFragmentTexture:src atIndex:0]; [e setFragmentSamplerState:sampler atIndex:0];
++    [e setFragmentBytes:params length:sizeof(params) atIndex:0];
++    [e setViewport:(MTLViewport){dr.x,dr.y,dr.w,dr.h,0,1}]; [e setScissorRect:(MTLScissorRect){dr.x,dr.y,dr.w,dr.h}];
++    [e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3]; [e endEncoding]; finish(cb);
++}
++// The runtime casts the computed source texel to uint2. An exact rational edge may
++// round one float ULP below that edge; only in that case accept either adjacent texel.
++static int axis(unsigned j,unsigned sw,unsigned dw,unsigned start,unsigned out[2]) {
++    unsigned n=(2*j+1)*sw,d=2*dw; out[0]=start+n/d;
++    if (n%d || n/d==0) return 1;
++    out[1]=out[0]-1; return 2;
++}
++static void compare(const float *src,unsigned sw,const float *got,unsigned dw,unsigned dh,Rect sr,Rect dr) {
++    for (unsigned y=0;y<dh;y++) for (unsigned x=0;x<dw;x++) {
++        if (x<dr.x||x>=dr.x+dr.w||y<dr.y||y>=dr.y+dr.h) {
++            check(got[y*dw+x]==.9375f,"changed outer sentinel"); continue;
++        }
++        unsigned sx[2],sy[2]; int nx=axis(x-dr.x,sr.w,dr.w,sr.x,sx),ny=axis(y-dr.y,sr.h,dr.h,sr.y,sy),ok=0;
++        for(int j=0;j<ny;j++) for(int i=0;i<nx;i++) ok|=got[y*dw+x]==src[sy[j]*sw+sx[i]];
++        if (!ok) { fprintf(stderr,"D32 mismatch at (%u,%u): %.8f, expected nearest from (%u,%u) %.8f\n",
++                           x,y,got[y*dw+x],sx[0],sy[0],src[sy[0]*sw+sx[0]]); exit(1); }
++    }
++}
++int main(int argc,const char **argv) { @autoreleasepool {
++    check(argc==2,"missing production MSL");
++    id<MTLDevice> dev=MTLCreateSystemDefaultDevice(); check(dev!=nil,"no Metal device");
++    id<MTLCommandQueue> q=[dev newCommandQueue]; check(q!=nil,"no tracked command queue");
++    NSError *error=nil;
++    NSString *msl=[NSString stringWithContentsOfFile:[NSString stringWithUTF8String:argv[1]] encoding:NSUTF8StringEncoding error:&error];
++    check(msl!=nil,"reading production MSL");
++    id<MTLLibrary> lib=[dev newLibraryWithSource:msl options:nil error:&error];
++    if (!lib) { fprintf(stderr,"MSL compiler: %s\n",error.localizedDescription.UTF8String); return 1; }
++    MTLRenderPipelineDescriptor *desc=[MTLRenderPipelineDescriptor new];
++    desc.vertexFunction=[lib newFunctionWithName:@"vs"]; desc.fragmentFunction=[lib newFunctionWithName:@"fsd"];
++    desc.depthAttachmentPixelFormat=MTLPixelFormatDepth32Float;
++    id<MTLRenderPipelineState> ps=[dev newRenderPipelineStateWithDescriptor:desc error:&error];
++    check(ps!=nil,"production fsd pipeline");
++    MTLDepthStencilDescriptor *dsd=[MTLDepthStencilDescriptor new]; dsd.depthCompareFunction=MTLCompareFunctionAlways;
++    dsd.depthWriteEnabled=YES; id<MTLDepthStencilState> ds=[dev newDepthStencilStateWithDescriptor:dsd]; check(ds!=nil,"depth state");
++    MTLSamplerDescriptor *sd=[MTLSamplerDescriptor new]; sd.minFilter=sd.magFilter=MTLSamplerMinMagFilterNearest;
++    id<MTLSamplerState> sampler=[dev newSamplerStateWithDescriptor:sd]; check(sampler!=nil,"nearest sampler");
++    unsigned w[]={960,816,720},h[]={540,459,405},route[]={0,1,2,1,0}; id<MTLTexture> textures[3];
++    for(unsigned i=0;i<3;i++) {
++        MTLTextureDescriptor *td=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float width:w[i] height:h[i] mipmapped:NO];
++        td.usage=MTLTextureUsageShaderRead|MTLTextureUsageRenderTarget; td.storageMode=MTLStorageModePrivate;
++        td.hazardTrackingMode=MTLHazardTrackingModeTracked;
++        textures[i]=[dev newTextureWithDescriptor:td];
++        check(textures[i] && textures[i].width==w[i] && textures[i].height==h[i] && textures[i].sampleCount==1 &&
++              textures[i].pixelFormat==MTLPixelFormatDepth32Float && textures[i].usage==td.usage,"texture descriptor differs");
++    }
++    size_t n=(size_t)w[0]*h[0],bytes=n*sizeof(float);
++    float *prev=malloc(bytes),*got=malloc(bytes); check(prev&&got,"CPU oracle allocation");
++    for(size_t i=0;i<n;i++) prev[i]=(float)(i+1)*0x1p-20f;
++    upload(q,textures[0],prev); readback(q,textures[0],got); check(!memcmp(prev,got,bytes),"seed depth data");
++    for(unsigned i=1;i<5;i++) { unsigned s=route[i-1],d=route[i];
++        Rect sr={0,0,w[s],h[s]},dr={0,0,w[d],h[d]};
++        draw(q,ps,ds,sampler,textures[s],textures[d],sr,dr,0); readback(q,textures[d],got);
++        compare(prev,w[s],got,w[d],h[d],sr,dr);
++        float *tmp=prev;prev=got;got=tmp;
++        printf("PASS D32 %ux%u -> %ux%u, %u pixels\n",w[s],h[s],w[d],h[d],w[d]*h[d]);
++    }
++    Rect sr={7,13,753,415},dr={9,9,671,363};
++    draw(q,ps,ds,sampler,textures[0],textures[2],sr,dr,1);readback(q,textures[2],got);
++    compare(prev,w[0],got,w[2],h[2],sr,dr);
++    printf("PASS D32 odd region and outer sentinel on %s\n",dev.name.UTF8String);
++    free(prev);free(got); return 0;
++}}
+diff --git a/graphics/nvn/tests/t_rb_d32_tracked.py b/graphics/nvn/tests/t_rb_d32_tracked.py
+new file mode 100644
+index 0000000..00a517c
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_d32_tracked.py
+@@ -0,0 +1,41 @@
++#!/usr/bin/env python3
++"""Compile and execute the backend's actual d32 shader with a tracked Metal queue, without NVN startup."""
++import ast
++import hashlib
++from pathlib import Path
++import subprocess
++import tempfile
++
++here=Path(__file__).resolve().parent
++root=here.parent/'gfx/nvn'
++candidates=[]
++for item in [root/'nvn_mtl.m',*root.glob('*.inc'),*root.glob('*.h')]:
++    if not item.exists(): continue
++    lines=item.read_text().splitlines()
++    for k,line in enumerate(lines):
++        if '"fragment D fsd(' not in line: continue
++        i=k
++        while i>=0 and '"#include <metal_stdlib>' not in lines[i]: i-=1
++        if i<0: raise ValueError('Production shader preamble not found')
++        fragments=[]
++        for index,l in enumerate(lines[i:]):
++            if index==0: l=l[l.index('"#include <metal_stdlib>'):]
++            l=l.strip()
++            if l.startswith('//'): continue
++            if not l.startswith('"'): raise ValueError('Unexpected MSL literal boundary')
++            end=l.endswith(';')
++            fragments.append(ast.literal_eval(l[:-1] if end else l))
++            if end:break
++        source=''.join(fragments)
++        if 'vertex V vs(' not in source or 'fragment D fsd(' not in source or 't.read(' not in source:
++            raise ValueError('Production nearest-depth entry point changed')
++        candidates.append(source)
++if len(candidates)!=1:raise ValueError('Expected exactly one production d32 MSL shader')
++source=candidates[0].encode()
++print('Production MSL SHA-256',hashlib.sha256(source).hexdigest(),flush=True)
++with tempfile.TemporaryDirectory() as tmp:
++    root=Path(tmp); msl=root/'copy.metal'; msl.write_bytes(source)
++    exe=root/'tracked-d32'
++    subprocess.run(['xcrun','clang','-fobjc-arc','-fblocks','-O2','-framework','Metal','-framework','Foundation',
++                    str(here/'t_rb_d32_tracked.m'),'-o',str(exe)],check=True)
++    subprocess.run([str(exe),str(msl)],check=True)
+diff --git a/graphics/nvn/tests/t_rb_drs_control.c b/graphics/nvn/tests/t_rb_drs_control.c
+new file mode 100644
+index 0000000..22a8ce3
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_drs_control.c
+@@ -0,0 +1,31 @@
++// SPDX-License-Identifier: MIT
++#include "../gfx/nvn/rb_drs_control.h"
++#include <assert.h>
++#include <stdio.h>
++int main(void) {
++    rb_drs_control c={0}; enum rb_drs_reason why;
++    uint64_t t=1700; unsigned next=0;
++    for (unsigned i=0;i<60;i++) { next=rb_drs_observe(&c,t+=17,18.2,0,&why); }
++    assert(next==1 && why==RB_DRS_GPU_HIGH && c.tier==0);
++    rb_drs_applied(&c,next,t);
++    for (unsigned i=0;i<300;i++) assert(rb_drs_observe(&c,t+=17, i%2 ? 12.6 : 14.7,0,&why)==1);
++    assert(rb_drs_observe(&c,t+=17,11.0,1,&why)==2 && why==RB_DRS_FAIR);
++    assert(rb_drs_observe(&c,t+=17,-1,1,&why)==2);
++    rb_drs_applied(&c,2,t);
++    for (unsigned i=0;i<400;i++) assert(rb_drs_observe(&c,t+=17,11.0,1,&why)==2);
++    for (unsigned i=0;i<120;i++) assert(rb_drs_observe(&c,t+=17,11.0,0,&why)==2);
++    assert(rb_drs_observe(&c,t+=17,NAN,0,&why)==2);
++    for (unsigned i=0;i<250;i++) assert(rb_drs_observe(&c,t+=17,11.0,0,&why)==2);
++    assert(rb_drs_observe(&c,t+=800,11.0,0,&why)==2);
++    for (unsigned i=0;i<360;i++) next=rb_drs_observe(&c,t+=17,11.0,0,&why);
++    assert(next==1 && why==RB_DRS_HEADROOM);
++    rb_drs_applied(&c,0,t);
++    assert(rb_drs_observe(&c,t+=17,-1,2,&why)==2 && why==RB_DRS_SERIOUS);
++    assert(rb_drs_percent(0)==100 && rb_drs_percent(1)==85 && rb_drs_percent(2)==75);
++    const uint64_t live[]={4,7,9}, alias[]={4,7,4}, missing[]={0,7,9};
++    assert(rb_drs_input_ids(2,7,live) && !rb_drs_input_ids(2,3,live));
++    assert(!rb_drs_input_ids(1,7,alias) && !rb_drs_input_ids(1,7,missing));
++    assert(!rb_drs_copy_budget(1,0,0) && !rb_drs_copy_budget(2,2,(64ull<<20)+1));
++    assert(rb_drs_copy_budget(0,0,0) && rb_drs_copy_budget(1,2,64ull<<20));
++    puts("PASS DRS rolling window, missing samples, recovery dwell, Fair edge, Serious and pending actuator");
++}
+diff --git a/graphics/nvn/tests/t_rb_drs_fx_extent.c b/graphics/nvn/tests/t_rb_drs_fx_extent.c
+index 14d3ebd..9e31f89 100644
+--- a/graphics/nvn/tests/t_rb_drs_fx_extent.c
++++ b/graphics/nvn/tests/t_rb_drs_fx_extent.c
+@@ -13,5 +13,17 @@ int main(void) {
+         assert(rb_fx_physical_pixels(.25f,w,w)==.25f);
+         assert(fabsf(rb_fx_physical_pixels(-.375f,h,540)-(-.375f*(float)h/540.f))<1.e-6f);
+     }
++    for (unsigned t=0;t<3;t++) {
++        unsigned w=rb_fx_tier_width(t),h=rb_fx_tier_height(t); double f=(double)w/960.0;
++        assert(rb_fx_input_at_tier(960,540,w,h,f,t));
++        assert(!rb_fx_input_at_tier(960,540,w,h+1,f,t));
++        assert(!rb_fx_input_at_tier(959,540,w,h,f,t));
++        assert(!rb_fx_input_at_tier(960,540,w,h,NAN,t));
++        if (t) {
++            assert(!rb_fx_input_at_tier(960,540,960,540,1.,t)); // native depth or motion beside reduced colour
++            assert(!rb_fx_input_at_tier(960,540,w,h,1.,t)); // missing reduction metadata
++            assert(!rb_fx_input_at_tier(960,540,w,h,f,0));
++        }
++    }
+     assert(rb_fx_tier_width(3)==0 && rb_fx_tier_height(3)==0 && rb_fx_extent_tier(1920,1080)==-1);
+ }
+diff --git a/graphics/nvn/tests/t_rb_drs_ownership.m b/graphics/nvn/tests/t_rb_drs_ownership.m
+new file mode 100644
+index 0000000..faa753e
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_drs_ownership.m
+@@ -0,0 +1,54 @@
++// SPDX-License-Identifier: MIT
++// Uses the engine registries and actual Metal parent texture relationships.
++// Runs with ordinary tracked Metal; no Metal 4 command queue or MetalFX required.
++#include "../gfx/nvn/nvn_mtl.m"
++#define CHECK(cond) do { if (!(cond)) { fprintf(stderr, "DRS ownership line %d: %s\n", __LINE__, #cond); return 1; } } while(0)
++int main(void) {
++    @autoreleasepool {
++        id<MTLDevice> device=MTLCreateSystemDefaultDevice();
++        if (!device) return 77;
++        MTLTextureDescriptor *d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm width:16 height:16 mipmapped:NO];
++        d.usage=MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead|MTLTextureUsagePixelFormatView;
++        NvRBDrsBank *b=[NvRBDrsBank new];
++        b->serial=41; b->active=1; b->key.off=128;
++        b->texture[0]=[device newTextureWithDescriptor:d]; b->texture[1]=[device newTextureWithDescriptor:d];
++        id<MTLTexture> root=b->texture[1], native=b->texture[0];
++        id<MTLTexture> view=[root newTextureViewWithPixelFormat:MTLPixelFormatRGBA8Unorm_sRGB];
++        CHECK(root && native && view && rs_root(view)==root);
++        uint64_t foreign=45;
++        hm_put_id(&g_by_serial,&b->serial,root);
++        hm_put_id(&g_ghost,&b->serial,root); hm_put_id(&g_ghost_active,&b->serial,root);
++        hm_put_id(&g_alias,&b->key,root);
++        CHECK(rb_drs_backing_locked(b,root)==(RB_DRS_OWN|RB_DRS_ALIAS));
++        CHECK(rb_drs_source_locked(b,2));
++        // A view's pool entry pins both the view and its physical root.
++        void *keys[4]; int nk=pool_pin_keys((__bridge void *)view,keys);
++        atomic_store(&g_ptab_any,1);
++        for (int i=0;i<nk;i++) pin_add(keys[i],7);
++        CHECK(!rb_drs_source_locked(b,2));
++        pin_add((__bridge void *)native,8); CHECK(!rb_drs_writable_locked(b,0));
++        for (int i=0;i<nk;i++) pin_del(keys[i],7);
++        pin_del((__bridge void *)native,8); atomic_store(&g_ptab_any,0);
++        CHECK(rb_drs_source_locked(b,2) && rb_drs_writable_locked(b,0));
++        hm_put_id(&g_ghost,&foreign,root);
++        CHECK(!rb_drs_source_locked(b,2)); CHECK(rb_drs_source_locked(b,0));
++        hm_del_id(&g_ghost,&foreign);
++        hm_put_id(&g_ghost_active,&foreign,view);
++        CHECK(!rb_drs_source_locked(b,0)); hm_del_id(&g_ghost_active,&foreign);
++        NvPkg *package=[NvPkg new]; package->spare=root;
++        hm_put_id(&g_ghost,&foreign,package);
++        CHECK(!rb_drs_source_locked(b,0)); hm_del_id(&g_ghost,&foreign);
++        hm_del_id(&g_by_serial,&b->serial);
++        CHECK(rb_drs_live_locked(b)); CHECK(rb_drs_source_locked(b,2));
++        hm_del_id(&g_ghost,&b->serial); hm_del_id(&g_ghost_active,&b->serial);
++        g_rb_drs_banks[0]=b; g_rb_drs_count=1;
++        CHECK(!rb_drs_live_locked(b)); CHECK(!rb_drs_source_locked(b,2)); CHECK(rb_drs_source_locked(b,0));
++        rb_drs_prune(); CHECK(g_rb_drs_count==1);
++        hm_put_id(&g_by_serial,&b->serial,native); // serial replaced, old alias still resolves to root
++        CHECK(!rb_drs_live_locked(b)); CHECK(rb_drs_backing_locked(b,native)&RB_DRS_OWN);
++        hm_del_id(&g_by_serial,&b->serial); hm_del_id(&g_alias,&b->key);
++        rb_drs_prune(); CHECK(!g_rb_drs_count);
++        puts("PASS DRS live, ghost, active ghost, duplicate serial, foreign alias, packaged spare, derived view, alias-only restore and retired bank");
++    }
++    return 0;
++}
+diff --git a/ios/rb_benchmark.m b/ios/rb_benchmark.m
+index 129c5e6..f8f7230 100644
+--- a/ios/rb_benchmark.m
++++ b/ios/rb_benchmark.m
+@@ -838,7 +838,8 @@ static int rb_start(const char *json) {
+                                 @"S2A_RB_GPU_DISCARD", @"S2A_RB_GPU_PASS_STATS", @"S2A_RB_TBDR", @"DM_NVN_TBDR",
+                                 @"DM_NVN_PRODUCER_COVER", @"DM_NVN_GPUPROF", @"S2A_RB_GPU_FX_TRACE",
+                                 @"S2A_RB_GPU_ATTACHMENT_LIVENESS", @"S2A_RB_GPU_CLEAR_BATCH",
+-                                @"S2A_RB_GPU_FX_PREFIX", @"S2A_RB_GPU_TAIL_TRACE"]) {
++                                @"S2A_RB_GPU_FX_PREFIX", @"S2A_RB_GPU_TAIL_TRACE", @"S2A_RES_SCALE",
++                                @"S2A_RB_SCALE_RETAIN", @"S2A_RB_SHADOW_SCALE", @"S2A_RB_DRS", @"S2A_RB_GPU_NATIVE_D32"]) {
+             const char *value = getenv(key.UTF8String);
+             options[key] = value ? ([[NSString alloc] initWithBytes:value length:strnlen(value, 128)
+                                              encoding:NSUTF8StringEncoding] ?: (id)NSNull.null) : NSNull.null;
+diff --git a/runtime/tests/mk/nvn_rscale.mk b/runtime/tests/mk/nvn_rscale.mk
+index 7292747..bec1deb 100644
+--- a/runtime/tests/mk/nvn_rscale.mk
++++ b/runtime/tests/mk/nvn_rscale.mk
+@@ -12,6 +12,8 @@ native-test-nvn_rscale: $(BUILD)/tests/t_nvn_rscale
+ 	timeout 120 $(BUILD)/tests/t_nvn_rscale scaled
+ 	timeout 120 $(BUILD)/tests/t_nvn_rscale off
+ 	timeout 120 $(BUILD)/tests/t_nvn_rscale direct-d32
++	timeout 120 $(BUILD)/tests/t_nvn_rscale scene-d32
++	NXGAL_BE=mtl3 timeout 120 $(BUILD)/tests/t_nvn_rscale scene-d32
+ 	NXGAL_BE=mtl3 timeout 120 $(BUILD)/tests/t_nvn_rscale scaled
+ 	NXGAL_BE=mtl3 timeout 120 $(BUILD)/tests/t_nvn_rscale off
+ 	@echo '✓ t_nvn_rscale：Metal 4 / Metal 3 × 缩放 0.5 / 关 四遍各 6 组全过'
+diff --git a/runtime/tests/mk/rb_scale_preflight.mk b/runtime/tests/mk/rb_scale_preflight.mk
+index 6dffe9c..c86f697 100644
+--- a/runtime/tests/mk/rb_scale_preflight.mk
++++ b/runtime/tests/mk/rb_scale_preflight.mk
+@@ -1,9 +1,9 @@
+ # Exercise production resolution-scale preflight on a tracked Metal device.
+ ifeq ($(shell uname -s),Darwin)
+-$(BUILD)/tests/t_rb_scale_preflight: graphics/nvn/tests/t_rb_scale_preflight.m $(NVN_MTL_DEPS) $(NVN_TEST_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN)
++$(BUILD)/tests/t_rb_scale_preflight $(BUILD)/tests/t_rb_drs_ownership: $(BUILD)/tests/%: graphics/nvn/tests/%.m $(NVN_MTL_DEPS) $(NVN_TEST_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN)
+ 	$(CC) $(CFLAGS) -std=gnu11 -fobjc-arc -Wno-unused-function -Wno-unguarded-availability-new -Wno-unguarded-availability \
+ 	  $(NATIVE_INC) -I$(NVN_TEST_DIR)/nvn/gen -Igraphics/nvn/host -Igraphics/nvn/gfx/nvn -Igraphics/nvn/gfx/nvn/include -Igraphics/nvn/third_party/vulkan-headers/include \
+-	  -o $@ graphics/nvn/tests/t_rb_scale_preflight.m $(NVN_TEST_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN) \
++	  -o $@ $< $(NVN_TEST_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN) \
+ 	  -Wl,-rpath,@executable_path/nvn/widen $(NVN_TEST_WEAK) \
+ 	  -framework Metal -framework Foundation -framework QuartzCore -framework CoreGraphics \
+ 	  -framework ImageIO -framework UniformTypeIdentifiers -lc++

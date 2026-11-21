@@ -373,3 +373,9 @@ For `04007EF01F8AE000` on iOS, set `DM_NVN_ASYNC_PSO=1` before launch. Leave `DM
 ### Mesures des passes de rendu sur A18 Pro
 
 Pour le titre `04007EF01F8AE000`, les variables `S2A_RB_GPU_ATTACHMENT_LIVENESS=1`, `S2A_RB_GPU_CLEAR_BATCH=1` et `S2A_RB_GPU_FX_PREFIX=1` sélectionnent les trois optimisations indépendamment. La valeur `0` fournit le témoin. Le démarrage du titre fixe les options pour la session. Voir le [protocole A/B et les compteurs](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md#passes-de-rendu-sur-a18-pro).
+
+### Internal resolution on A18 Pro
+
+For title `04007EF01F8AE000`, `S2A_RB_SCALE_RETAIN=1` checks the shader's direct texture access and the planes used by the encoder before promoting a reduced target. Use `S2A_RES_SCALE=0.75` for the fixed-size trial. `S2A_RB_SHADOW_SCALE=0.75` opts into a separate 1152×1152 depth raster on proven casters. The backing sampled by subsequent passes remains 1536×1536. An explicit native D32 override takes precedence.
+
+`S2A_RB_DRS=1` selects the 960×540, 816×459 and 720×405 tiers. Start with `S2A_RES_SCALE=1.0`. Dynamic scaling includes the retention checks. Its input is completed GPU frame time in milliseconds and the operating system's thermal state. Compare `[rscale-retain]`, `[rb-drs]`, `[rb-drs-fx]` and the physical encoder dimensions. The 1920×1080 composition stays native. All three new options are off by default.

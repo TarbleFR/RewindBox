@@ -1,0 +1,627 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index fff55c4..d3b2229 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -22,6 +22,7 @@
+ #include "../../../../runtime/include/rb_heap.h"
+ #include "nvn_rb_direct.h"
+ #include "rb_attachment_ranges.h"
++#include "rb_shadow.h"
+ #include "rb_sealed_clear.h"
+ #include "rb_fence_wait.h"
+ #include "../../../../runtime/include/rb_texture_stats.h"
+@@ -1468,7 +1469,7 @@ static _Atomic unsigned g_sp_heap_n;
+ // Keep exposure history from process start, including registrations made before
+ // the hosted title is selected. The experiment is an explicit fresh-launch opt-in.
+ static _Atomic int g_rb_live_request;
+-enum { RB_DEVICE_BATCH, RB_DEVICE_FX_PREFIX, RB_DEVICE_TAIL_TRACE, RB_DEVICE_LIVE, RB_DEVICE_RETAIN, RB_DEVICE_OPTIONS };
++enum { RB_DEVICE_BATCH, RB_DEVICE_FX_PREFIX, RB_DEVICE_TAIL_TRACE, RB_DEVICE_LIVE, RB_DEVICE_RETAIN, RB_DEVICE_SHADOW, RB_DEVICE_OPTIONS };
+ static _Atomic int g_rb_device_options[RB_DEVICE_OPTIONS];
+ static int rb_a18_option(unsigned key, const char *name) {
+ #if TARGET_OS_IOS && !TARGET_OS_SIMULATOR
+@@ -1476,7 +1477,9 @@ static int rb_a18_option(unsigned key, const char *name) {
+     if (!cached) {
+         const char *value = getenv(name);
+         const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
+-        cached = value && !strcmp(value, "1") && title && !strcasecmp(title, "04007EF01F8AE000") &&
++        if (key == RB_DEVICE_SHADOW && !g_dev) return 0;
++        int requested = value && (key == RB_DEVICE_SHADOW ? (!strcmp(value, "0.75") || !strcmp(value, "0.750")) : !strcmp(value, "1"));
++        cached = requested && title && !strcasecmp(title, "04007EF01F8AE000") &&
+                  !g_m3 && [g_dev.name isEqualToString:@"Apple A18 Pro GPU"] ? 2 : 1;
+         atomic_store_explicit(&g_rb_device_options[key], cached, memory_order_relaxed);
+     }
+@@ -1486,6 +1489,7 @@ static int rb_a18_option(unsigned key, const char *name) {
+     return 0;
+ #endif
+ }
++static int rb_shadow_on(void) { return rb_a18_option(RB_DEVICE_SHADOW, "S2A_RB_SHADOW_SCALE"); }
+ static int rb_live_requested(void) {
+     int v = atomic_load_explicit(&g_rb_live_request, memory_order_relaxed);
+     if (!v) {
+@@ -8213,7 +8217,9 @@ void nvn_be_mem_kinds(uint64_t *priv_tex, uint64_t *priv_buf, uint64_t *pool_len
+         }
+     }
+ }
++static void rb_shadow_report(unsigned long long frame);
+ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
++    if (rb_shadow_on()) rb_shadow_report(frame);
+     alias_orphan_pass();   // #357: before the line cap below, which only limits the readout
+     nvn_mem_detail(frame);   // before the line cap below: the detailed accounting has its own interval and must not be starved by the 400-line budget
+     fb_report(frame); samp_report(frame); audit_probe_report(frame); rs_retain_report(frame);
+@@ -8660,6 +8666,18 @@ static int tbdr_on(void);
+ static int xv_on(void) { static int off = -1; if (off < 0) { const char *e = getenv("DM_NVN_XV"); off = e && !strcmp(e, "0"); } return !off && tbdr_on() && !rb_tbdr_bl(); }   // RewindBox (patch 0073): rb_tbdr_bl
+ void nvn_be_xv_window_tex(uint64_t serial) { if (!xv_present(serial) && g_xv_npresent < 128) g_xv_present[g_xv_npresent++] = serial; }   // Window (swapchain) texture: never enters the ledger
+ void xv_test_counts(int *dc, int *viol) { if (dc) *dc = (int)g_xv_dc; if (viol) *viol = (int)g_xv_viol; }
++// Submit thread, one active caster encoder. The native destination never leaves
++// the guest tables. The private scratch is reused in queue order.
++static id<MTLTexture> g_rb_shadow_low, g_rb_shadow_native;
++static id<MTLBuffer> g_rb_shadow_params;
++static int g_rb_shadow_draw_ok, g_rb_shadow_failed;
++static uint64_t g_rb_shadow_renders, g_rb_shadow_resolves, g_rb_shadow_no_proof;
++static void rb_shadow_report(unsigned long long frame) {
++    MLOG("[rscale] shadow frame=%llu native=1536x1536 raster=1152x1152 caster_passes=%llu native_resolves=%llu rejected_proof=%llu disabled_on_error=%d",
++        frame,(unsigned long long)g_rb_shadow_renders,(unsigned long long)g_rb_shadow_resolves,
++        (unsigned long long)g_rb_shadow_no_proof,g_rb_shadow_failed);
++}
++static void rb_shadow_finish(void);
+ static void sd_finish(void);
+ // Load elision (fully covering first draw): if the draw that opens the pass can be proven to cover a color attachment in full (first_draw_covers), that attachment's load becomes DontCare -
+ // the first draw does not blend and writes all channels, every covered pixel is rewritten by it, and the original content is not visible (Switch immediate-mode rendering has no such cost; on TBDR load = reading the whole thing from memory into the tile)
+@@ -8702,7 +8720,9 @@ static void rp_end(void) { if (!g_rlane) geo_run_flush(); if (g_enc) { AP_B;
+     sd_finish();
+     if (g_rb_all_loaded) g_rb_final_rw++;
+     g_rb_all_loaded = 0; g_rb_discard_mask = 0; g_rb_next_clear_mask = 0; g_rb_sealed_clear_mask = 0;
+-    enc_r_end_pass(g_enc); zskip_commit_clears(); g_enc = nil; g_rt_merged = 0; g_rt_range_active = g_rt_range_pending = 0; ts_after(); ms_after(); if (g_lp.count) lp_finish(); fz_end();
++    enc_r_end_pass(g_enc); zskip_commit_clears(); g_enc = nil; g_rt_merged = 0; g_rt_range_active = g_rt_range_pending = 0;
++    if (g_rb_shadow_native) rb_shadow_finish();
++    ts_after(); ms_after(); if (g_lp.count) lp_finish(); fz_end();
+     if (g_nubd && g_nubd >= ubd_lazy()) ubd_flush();   // the inline updates deferred in this pass, in order (see mtl_sub_update); across passes they wait for the next copy or dispatch (blit_raw)
+     if (g_nbcrt) bcrt_flush();   // blocks drawn into shadows go back into their compressed textures
+ #ifdef NVN_RT_RANGE_TEST
+@@ -9020,6 +9040,55 @@ static void wd_pclr_apply(const tex_t *t) {   // no pass is open (wd_widen_rts):
+         p_clear_tex c = g_wd_pclr[i].c; g_wd_pclr[i].ser = 0; clear_tex(&c);
+     }
+ }
++enum { RB_COPY_DEFAULT, RB_COPY_REQUIRE_ENCODER, RB_COPY_SHADOW_PREPARE, RB_COPY_SHADOW_RESOLVE };
++static int copy_t2t_draw_impl(id<MTLTexture>,id<MTLTexture>,unsigned,unsigned,unsigned,unsigned,
++                              const NVNcopyRegion *,const NVNcopyRegion *,int,int,int);
++static int rb_shadow_transfer(id<MTLTexture> dst,int mode) {
++    NVNcopyRegion src_rect={0,0,0,1152,1152,1}, dst_rect={0,0,0,1536,1536,1};
++    return copy_t2t_draw_impl(g_rb_shadow_low,dst,0,0,0,0,&src_rect,&dst_rect,0,0,mode);
++}
++static void rb_shadow_attach(MTL4RenderPassDescriptor *pd,int clear_only) {
++    if (clear_only || !g_rb_shadow_draw_ok || g_rb_shadow_failed || !rb_shadow_on() ||
++        !R.clear_d || R.rt.has_dview || g_rp_layered || g_rlane || g_wd>0 || g_vis_on || tbdr_on() ||
++        pd.stencilAttachment.texture || pd.depthAttachment.loadAction != MTLLoadActionClear ||
++        pd.depthAttachment.resolveTexture || pd.depthAttachment.level || pd.depthAttachment.slice) return;
++    for (int i=0;i<8;i++) if (pd.colorAttachments[i].texture || (i < R.rt.n && R.rt.color[i])) return;
++    id<MTLTexture> native=pd.depthAttachment.texture;
++    if (!rb_shadow_candidate(R.rt.depth,native) || !(native.usage & MTLTextureUsageRenderTarget)) return;
++    if (!rb_shadow_proven(R.rt.depth,native) || native.width!=1536 || native.height!=1536) {
++        g_rb_shadow_no_proof++; return;
++    }
++    const char *force_native=getenv("S2A_RB_GPU_NATIVE_D32");
++    if (force_native && !strcmp(force_native,"1")) return;
++    if (!g_rb_shadow_low) {
++        MTLTextureDescriptor *d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
++                                                                                 width:1152 height:1152 mipmapped:NO];
++        d.storageMode=MTLStorageModePrivate; d.usage=MTLTextureUsageShaderRead | MTLTextureUsageRenderTarget;
++        g_rb_shadow_low=[g_dev newTextureWithDescriptor:d];
++        const float params[8]={0,0,0.75f,0.75f,0,0,1152,1152};
++        g_rb_shadow_params=[g_dev newBufferWithBytes:params length:sizeof params options:MTLResourceStorageModeShared];
++        if (!g_rb_shadow_low || !g_rb_shadow_params) { g_rb_shadow_failed=1; return; }
++        res_add(g_rb_shadow_low); res_add(g_rb_shadow_params);
++        rs_set_info_at(g_rb_shadow_low,RS_SCALED,1536,1536,0.75);
++    }
++    // Prepare the exact D32 PSO before substituting an attachment. The source
++    // texture and immutable sampling parameters are already reserved.
++    if (!rb_shadow_transfer(native,RB_COPY_SHADOW_PREPARE)) { g_rb_shadow_failed=1; return; }
++    g_rb_shadow_native=native;
++    atomic_store_explicit(&g_rb_shadow_pass,1,memory_order_relaxed);
++    pd.depthAttachment.texture=g_rb_shadow_low;
++}
++static void rb_shadow_finish(void) {
++    id<MTLTexture> dst=g_rb_shadow_native; g_rb_shadow_native=nil;
++    atomic_store_explicit(&g_rb_shadow_pass,0,memory_order_relaxed);
++    if (rb_shadow_transfer(dst,RB_COPY_SHADOW_RESOLVE)) g_rb_shadow_resolves++;
++    else {
++        // Without a Metal render encoder this command buffer failed. Indicate
++        // the error through the normal public health counter and stop substituting.
++        g_rb_shadow_failed=1; atomic_store(&g_last_commit_error,1); atomic_fetch_add(&g_commit_error_n,1);
++        MLOG("【红】[rscale] shadow resolve encoder failed");
++    }
++}
+ static int rb_clear_private_texture(const tex_t *t, id<MTLTexture> mt) {
+     return t && mt && !xv_present(t->serial) && !mt.isSparse && !mt.heap && !mt.buffer &&
+            !mt.parentTexture && !mt.iosurface && !mt.framebufferOnly && mt.storageMode == MTLStorageModePrivate &&
+@@ -9136,6 +9205,7 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+             if (R.clear_d && (!pd.stencilAttachment.texture || R.clear_s)) rt_fresh_mark(R.rt.depth);
+         }
+     }
++    rb_shadow_attach(pd,clear_only);
+     // A materialization-only encoder executes no draw. Drop the *untouched*
+     // sibling of a combined DS clear. Keep the original freshness decision above.
+     int rb_kept_depth_only = 0;
+@@ -9268,7 +9338,16 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+     if (g_blit) { enc_b_end(g_blit); g_blit = nil; }   // the copy encoder the shadows' blocks were moved in with (bcrt_attach)
+     ser_gate();
+     g_enc = clear_only == 1 && rb_live_on() && rb_private_clear_pass(pd) ? enc_r_begin_pass_scoped(pd, 1) : enc_r_begin_pass(pd);
+-    gp_render_source(g_enc,g_rb_clear_expected ? "batched-clear" : clear_only==1 ? "guest-clear" : "guest-draw");
++    if (g_rb_shadow_native) {
++        if (!g_enc) {
++            g_rb_shadow_native=nil; g_rb_shadow_failed=1;
++            atomic_store_explicit(&g_rb_shadow_pass,0,memory_order_relaxed);
++            R.clear_d=1; // rp_begin_ex_ consumed the one pending full depth clear
++            return rp_begin_ex_(clear_only);
++        }
++        g_rb_shadow_renders++;
++    }
++    gp_render_source(g_enc,g_rb_shadow_native ? "shadow-caster-0.75" : g_rb_clear_expected ? "batched-clear" : clear_only==1 ? "guest-clear" : "guest-draw");
+     args_dirty_all();
+     g_stat_pass++;
+     FSIG(id<MTLTexture> ct = pd.colorAttachments[0].texture; fc_->passes++;   // RewindBox (patch 0059): the largest colour target drawn with a depth buffer is the scene's
+@@ -9398,6 +9477,8 @@ static void shmap_load_once(void) {
+ 
+ @interface NvShader : NSObject { @public id<MTLLibrary> ft_lib; uint8_t ft_tried; id<MTLLibrary> bf_lib; uint8_t bf_tried;   // bf_lib: the readable-tile version <key>_bf, looked up once by name (bf_fn)
+     id<MTLFunction> fn, tf_fn, fn_u, geo_fn;   // fn_u: the integer-output entry point (dmsh_build.py fs_uint), for pipelines whose unsigned integer attachments are exactly u_mask (pso_desc)
++    uint8_t rb_shadow_n;
++    struct { uint16_t tex, samp; } rb_shadow_bind[RB_SHADOW_MAX_CALLS];
+     uint8_t s_rec, warm_claimed;   // submit-thread first-use / prewarm handoff counters
+     uint8_t gmem_use;   // 0 未判 / 1 不绑原始内存池表 / 2 绑（gmem_uses：动态占比计数用）
+     uint8_t tensor, tensor_log;   // S2Arm 11-05: compute shader with tensor-core matrix multiplies (Ampere HMMA): 1 = yes (stood in, nvn_tensor.inc), 2 = checked, none; 0 = not checked
+@@ -10238,6 +10319,37 @@ static NSString *rb_msl_digest(NSString *src) {
+ __attribute__((weak)) int dm_shader_repair_msl(const char *dir, const char *key, NSString *src, NSString *digest) {
+     (void)dir; (void)key; (void)src; (void)digest; return 0;
+ }
++// Associate concrete MSL compare calls with immutable reflection indices. Only
++// source actually compiled for this library is evidence; opaque metallibs are skipped.
++static void rb_shadow_reflect(NvShader *sh, NSDictionary *json, NSString *source) {
++    if (!source || sh->stage != 1 || !rb_shadow_on() || !sh->fn || sh->rf.pool || sh->rf.dyn) return;
++    rb_shadow_call pairs[RB_SHADOW_MAX_CALLS];
++    int count = rb_shadow_calls(source.UTF8String, sh->fn.name.UTF8String, pairs);
++    if (!count) return;
++    NSArray *members = json[@"bindings"];
++    for (int p = 0; p < count; p++) {
++        int ti = -1, si = -1;
++        for (NSDictionary *m in members) {
++            NSString *name = m[@"msl_name"];
++            if (![name isKindOfClass:NSString.class]) continue;
++            int tex = rb_shadow_is(pairs[p].texture, name.UTF8String);
++            int samp = rb_shadow_is(pairs[p].sampler, name.UTF8String);
++            if (!tex && !samp) continue;
++            for (int i = 0; i < sh->rf.nb; i++) {
++                const nvn_rbind *b = &sh->rf.b[i];
++                if (b->aid != [m[@"arg_id"] unsignedIntValue] || b->n) continue;
++                if (tex && (b->kind == NVN_RB_TEX || b->kind == NVN_RB_TEXU) &&
++                    b->dpf == NVN_DPF_DEPTH && b->dtt == MTLTextureType2D) ti=i;
++                if (samp && (b->kind == NVN_RB_SAMPT || b->kind == NVN_RB_SAMPU ||
++                             b->kind == NVN_RB_SAMP || b->kind == NVN_RB_SAMPI)) si=i;
++            }
++        }
++        if (ti >= 0 && si >= 0) {
++            sh->rb_shadow_bind[sh->rb_shadow_n].tex = (uint16_t)ti;
++            sh->rb_shadow_bind[sh->rb_shadow_n++].samp = (uint16_t)si;
++        }
++    }
++}
+ static NvShader *shader_build_attempt(NSString *pc, int stage, int layer, int depth_zero, int can_repair) {
+     NSError *e = nil;
+     // S2Arm: a key missing from the library is looked up in DM_MSL_FALLBACK (the on-device fallback translation writes <key>_b.metal + .json there; iOS cannot store a metallib built at runtime)
+@@ -10347,6 +10459,7 @@ static NvShader *shader_build_attempt(NSString *pc, int stage, int layer, int de
+     // A function that declares function constants cannot go into a pipeline until it is specialized, even when every constant is optional. SPIRV-Cross declares one for shaders that read a
+     // texel buffer (spvLinearTextureAlignmentOverride, used only through is_function_constant_defined; one of Pokémon Legends: Z-A's imgui pixel shaders, 2bd5037003980716): an empty set of
+     // values keeps its default. Without it the first pipeline with that shader failed Metal's validation (`fragmentFunction main0 cannot be used to build a pipeline state`)
++    if (stage == 1 && rb_src && original) rb_shadow_reflect(o, j, original);
+     if (j[@"entry_tf"]) {   // transform feedback capture entry point (dmsh_build.py vs_tf) and the bytes per vertex of each feedback buffer
+         o->tf_fn = lib_entry(lib, fnn(o, j[@"entry_tf"])); NSArray *ts = j[@"tf_strides"];
+         for (NSUInteger b = 0; b < 4 && b < ts.count; b++) o->tf_stride[b] = (uint16_t)[ts[b] unsignedIntValue];
+@@ -15356,6 +15469,29 @@ static int bind_sid(const nvn_rbind *b, int nvn_stage) {
+     return b->kind == NVN_RB_SAMPU ? ubo_samp_id(ubo_packed(nvn_stage, b)) :
+            b->kind == NVN_RB_SAMPI ? reg : b->kind == NVN_RB_SAMPT ? (reg < NTEX ? (int)(S.tex[nvn_stage][reg] >> 20) : 0) : reg < 128 ? (int)(S.samp[nvn_stage][reg] >> 20) : 0;   // SAMPI: a sampler ID the shader names as a constant
+ }
++// The caller already holds g_rmu. Match the sampler actually bound to the
++// instruction, and require the physical texture to be the registered root.
++static void rb_shadow_observe(NvShader *sh, const nvn_rbind *texture, int tid, id<MTLTexture> mt) {
++    if (!sh->rb_shadow_n || tid < 0 || tid >= g_ntreg || !g_treg[tid].ok || g_treg[tid].gone ||
++        g_treg[tid].has_v || !mt || !rb_shadow_on() || sh->exact != 1 || sh->ts_lost ||
++        (sh->size_abi && !sh->size_exact)) return;
++    const tex_t *t=&g_treg[tid].t;
++    if (!rb_shadow_candidate(t,mt)) return;
++    for (int j=0; j < sh->rb_shadow_n; j++) {
++        if (&sh->rf.b[sh->rb_shadow_bind[j].tex] != texture) continue;
++        int sid=bind_sid(&sh->rf.b[sh->rb_shadow_bind[j].samp],1);
++        if (sid <= 0 || sid >= g_nsreg || !g_sreg_ok[sid] || !g_sreg[sid].cmp_mode) continue;
++        NSNumber *prior=objc_getAssociatedObject(mt,&k_rb_shadow_serial);
++        if (!prior) {
++            objc_setAssociatedObject(mt,&k_rb_shadow_serial,@(t->serial),OBJC_ASSOCIATION_RETAIN);
++            MLOG("[rscale] shadow comparison proved serial=%llu shader=%.16s texture_arg=%u sampler_id=%d",
++                 (unsigned long long)t->serial,sh->key,(unsigned)texture->aid,sid);
++        } else if (prior.unsignedLongLongValue != t->serial && prior.unsignedLongLongValue) {
++            objc_setAssociatedObject(mt,&k_rb_shadow_serial,@0,OBJC_ASSOCIATION_RETAIN);
++        }
++        break;
++    }
++}
+ static int se_samp(const nvn_rbind *b) { return b->kind == NVN_RB_SAMP || b->kind == NVN_RB_SAMPT || b->kind == NVN_RB_SAMPI || (b->kind == NVN_RB_SAMPU && !b->n); }   // a single sampler member
+ // Sampler emulation in the shader (#800, gap family 31; nvn_red.h, se_fn): SE_RD when this draw / dispatch binds a sampler whose table entry is not zero (nvn_red_entry: a min / max one
+ //   the GPU cannot reduce natively, a custom border colour), else 0 (at once while no registered sampler needs it, g_se_any)
+@@ -15720,6 +15856,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+             if (t && b->dpf == NVN_DPF_FLOAT && mtl_pf_dpf(rb_pf(t, tid)) != NVN_DPF_FLOAT) { uint64_t r2 = 0; id<MTLTexture> v = tex_float_fit(tid, t, &r2); if (v) { t = v; trid = r2; } }   // see tex_float_fit; RewindBox (patch 0073): rb_pf
+             if (t && nvn_stage == 1 && afr_want(sh)) { uint64_t r2 = 0; id<MTLTexture> v = tex_alpha_red(tid, t, &r2); if (v) { t = v; trid = r2; } }   // see tex_alpha_red
+             size_abi_texture(sh, nvn_stage, b, tid, size_view, t);
++            if (sh->rb_shadow_n && nvn_stage==1) rb_shadow_observe(sh,b,tid,t);
+             rs_bind_check(t, sh, nvn_stage, 0, b, tid, size_view);   // S2Arm internal resolution: read where scaling is not supported → back to 1 at the next safe point
+             if (t && tid >= 0 && tid < g_ntreg && g_treg[tid].ok) { fsig_tex_note(g_treg[tid].t.serial); rb_fresh_read(&g_treg[tid].t, sh->key, nvn_stage); }   // RewindBox (patch 0067): the draw's textures (frames.txt), a new texture read before it was written
+             if (!t) { t = dummy_tex(b->dtt, b->dpf); trid = g_dummy_tex_rid[b->dtt & 15][b->dpf & 3]; }
+@@ -16172,6 +16309,7 @@ static const uint8_t *g_exec_cur;   // The op currently being replayed (inclusiv
+ static void sd_need(sd_att *t, int why) { if (!t->state) { t->state = 1; t->why = (uint8_t)why; } }   // why: 1 a draw reads it as a texture 2 as an attachment, drawn before cleared 3 copy 4 texture clear 5 scanned to the end undecided 6 no start point / index unavailable
+ static int sdx_decide(uint8_t st[SD_MAX]);   // Store lookahead decision (for the index see nvn_be_sub_index)
+ static void sd_finish(void) {
++    if (g_rb_shadow_native) { [g_enc setDepthStoreAction:MTLStoreActionStore]; return; }
+     if (!g_nsd) {
+         return;
+     }
+@@ -19538,7 +19676,7 @@ static int draw_pass_state(id en, NvShader *fs) {   // en: the render encoder (t
+         { float y = (float)v.originY, h = (float)v.height; s2a_widen_map_viewport_y(g_wd_mode, &y, &h); v.originY = y; v.height = h; }   // narrower screen: more picture above and below (s2a_widen_ky > 1)
+         if (x + w > (float)(tw / g_pass.rs) + 1.0f && x + w > r0 + 0.5f) RED_ONCE(113, "widen: viewport %.0f+%.0f past the target's storage width %lu (ser=%llu, storage not widened): the right part is clipped (first case)", x, w, (unsigned long)tw,
+                                               (unsigned long long)(R.has_rt && R.rt.n > 0 && R.rt.color[0] ? R.rt.color[0]->serial : 0)); }   // S2Arm widen: the storage is narrower than the widened viewport (tex_widen could not widen it); up to a texel over is level rounding: 391 wide, level 2 is 97, 80 x k = 97.75; only past what the game's own viewport reached (Monster Hunter Rise draws a 156-wide viewport on a 78-wide target, widen off as well)
+-      if (g_pass.rs != 1.0) { v.originX *= g_pass.rs; v.originY *= g_pass.rs; v.width *= g_pass.rs; v.height *= g_pass.rs; }   // S2Arm internal resolution: canvas → storage (nvn_rscale.inc)
++      if (g_pass.rs != 1.0) { rb_scale_viewport(g_pass.rs,&v.originX,&v.originY,&v.width,&v.height); }   // S2Arm internal resolution: canvas → storage (nvn_rscale.inc)
+       if (atomic_load_explicit(&g_origin_ll, memory_order_relaxed)) { v.originY += v.height; v.height = -v.height; }   // lower-left origin (see g_origin_ll)
+       // Viewport swizzle: NEGATIVE_Y negates clip y, the same as the viewport flipped about its centre; facing is decided after it on the GPU as in Metal, so the winding stays.
+       // Other swizzles (axis exchanges, negated x / z / w) are no viewport change and are drawn unswizzled
+@@ -19956,7 +20094,36 @@ static void rb_mdx_ahead(void) {   // submit thread, in draw before the pass ope
+ }
+ // RewindBox (patch 0072): the same look from a clear drawn as a triangle or a DrawTexture that opens the pass (the replay gives draws alone their place, g_exec_next)
+ static void rb_mdx_ahead_from(const uint8_t *next) { const uint8_t *en = g_exec_next; g_exec_next = next; rb_mdx_ahead(); g_exec_next = en; }
++// Without shader texture/image/SSBO/raw addressing a caster cannot see the
++// temporarily unmaterialized native depth. Never extend into helper draw paths.
++static int rb_shadow_caster(NvProg *pr) {
++    if (!pr || !pr->sh[0] || pr->sh[2] || pr->sh[3] || pr->sh[4] || pr->sh[5] ||
++        pr->sh[0]->layer_out || S.tf_on || S.rast_discard || g_geo_program || g_rlane ||
++        g_defer_replaying || !R.has_rt || !R.rt.depth || R.rt.depth->d.width!=1536 || R.rt.depth->d.height!=1536) return 0;
++    for (int stage=0; stage<2; stage++) {
++        NvShader *sh=pr->sh[stage];
++        if (!sh) continue;
++        if (!sh->fn || !sh->rf.route_b || sh->builtin || sh->rf.dyn || sh->rf.pool || (stage==1 && (sh->exact!=1 || sh->ts_lost ||
++                (sh->size_abi && !sh->size_exact)))) return 0;
++        for (int k=0;k<sh->rf.nb;k++) switch (sh->rf.b[k].kind) {
++            case NVN_RB_CBUF: case NVN_RB_SUPPORT: case NVN_RB_C1: case NVN_RB_DRV0:
++            case NVN_RB_DRV2: case NVN_RB_UBOLEN: case NVN_RB_PUSH: break;
++            default: return 0;
++        }
++    }
++    return 1;
++}
++static void draw_impl(const p_draw *dw, const p_draw_idx *di);
+ static void draw(const p_draw *dw, const p_draw_idx *di) {
++    if (!rb_shadow_on()) { draw_impl(dw,di); return; }
++    int saved=g_rb_shadow_draw_ok;
++    g_rb_shadow_draw_ok=R.has_rt && R.rt.depth && R.rt.depth->d.width==1536 && R.rt.depth->d.height==1536 &&
++        S.prog && !(dw && dw->prim==DM_PRIM_MESH_TASKS) && rb_shadow_caster(prog_get(S.prog));
++    if (g_rb_shadow_native && !g_rb_shadow_draw_ok) rp_end();
++    draw_impl(dw,di);
++    g_rb_shadow_draw_ok=saved;
++}
++static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+     int prior_rs_scope __attribute__((cleanup(rs_restore_draw_scope))) = g_rs_native_draw;
+     if (rs_on() && rs_retain_on()) {
+         int special = g_geo_program || g_mtk.on || S.tf_on || S.rast_discard ||
+@@ -21061,23 +21228,27 @@ static int copy_t2t_draw_impl(id<MTLTexture> s, id<MTLTexture> d, unsigned sl, u
+     }
+     unsigned sw = MAX(s.width >> sl, 1ul), sh = MAX(s.height >> sl, 1ul), dw = MAX(d.width >> dl, 1ul), dh = MAX(d.height >> dl, 1ul);
+     if ((unsigned)(dr->xoffset + dr->width) > dw || (unsigned)(dr->yoffset + dr->height) > dh) return 0;
++    if (require_encoder==RB_COPY_SHADOW_PREPARE) return 1;
++    int shadow = require_encoder==RB_COPY_SHADOW_RESOLVE;
+     int nz = sr->depth ? sr->depth : 1;
+     rp_end(); if (g_blit) { enc_b_end(g_blit); g_blit = nil; }
+     for (int z = 0; z < nz; z++) {
+-        id<MTLTexture> sv = [s newTextureViewWithPixelFormat:s.pixelFormat textureType:MTLTextureType2D levels:NSMakeRange(sl, 1) slices:NSMakeRange(ss + sr->zoffset + z, 1)];
+-        id<MTLBuffer> pb; size_t po = arena_alloc(32, &pb);   // parameters in the frame arena (resident already): a fresh 32-byte buffer per copy was a residency add, a commit and a release (Link's Awakening, about 11 a frame)
++        id<MTLTexture> sv = shadow ? s : [s newTextureViewWithPixelFormat:s.pixelFormat textureType:MTLTextureType2D levels:NSMakeRange(sl, 1) slices:NSMakeRange(ss + sr->zoffset + z, 1)];
++        id<MTLBuffer> pb = shadow ? g_rb_shadow_params : nil; size_t po = shadow ? 0 : arena_alloc(32, &pb);   // parameters in the frame arena (resident already): a fresh 32-byte buffer per copy was a residency add, a commit and a release (Link's Awakening, about 11 a frame)
+         if (!sv || !pb) { RED_ONCE(84, "format-converting / scaling texture copy: cannot create the source view / argument block"); return z > 0; }
+-        float *p = (float *)((uint8_t *)pb.contents + po); p[0] = sr->xoffset; p[1] = sr->yoffset; p[2] = (float)sr->width / dr->width; p[3] = (float)sr->height / dr->height;
+-        if (mirror & NVN_COPY_FLAGS_MIRROR_X_BIT) { p[0] += sr->width; p[2] = -p[2]; }   // mirrored: walk the source region from its far edge
+-        if (mirror & NVN_COPY_FLAGS_MIRROR_Y_BIT) { p[1] += sr->height; p[3] = -p[3]; }
+-        p[4] = dr->xoffset; p[5] = dr->yoffset; p[6] = sw; p[7] = sh;
++        if (!shadow) {
++            float *p = (float *)((uint8_t *)pb.contents + po); p[0] = sr->xoffset; p[1] = sr->yoffset; p[2] = (float)sr->width / dr->width; p[3] = (float)sr->height / dr->height;
++            if (mirror & NVN_COPY_FLAGS_MIRROR_X_BIT) { p[0] += sr->width; p[2] = -p[2]; }   // mirrored: walk the source region from its far edge
++            if (mirror & NVN_COPY_FLAGS_MIRROR_Y_BIT) { p[1] += sr->height; p[3] = -p[3]; }
++            p[4] = dr->xoffset; p[5] = dr->yoffset; p[6] = sw; p[7] = sh;
++        }
+         MTL4RenderPassDescriptor *rp = pass_desc();
+         MTLRenderPassAttachmentDescriptor *a = depth ? (MTLRenderPassAttachmentDescriptor *)rp.depthAttachment : (MTLRenderPassAttachmentDescriptor *)rp.colorAttachments[0];
+         int whole = !dr->xoffset && !dr->yoffset && (unsigned)dr->width == dw && (unsigned)dr->height == dh;   // the copy draws every pixel of the level (no blending, no discard): its old content is not loaded (Link's Awakening copies its scene this way every frame)
+         a.texture = d; a.level = dl; a.slice = ds + dr->zoffset + z; a.loadAction = whole ? MTLLoadActionDontCare : MTLLoadActionLoad; a.storeAction = MTLStoreActionStore;
+         id<MTLTexture> stv = scopy ? (z ? [s newTextureViewWithPixelFormat:MTLPixelFormatX32_Stencil8 textureType:MTLTextureType2D levels:NSMakeRange(sl, 1) slices:NSMakeRange(ss + sr->zoffset + z, 1)] : stv0) : nil;
+         if (stencil) { MTLRenderPassStencilAttachmentDescriptor *st = rp.stencilAttachment; st.texture = d; st.level = dl; st.slice = a.slice; st.loadAction = scopy ? (whole ? MTLLoadActionDontCare : MTLLoadActionLoad) : MTLLoadActionClear; st.clearStencil = 0; st.storeAction = MTLStoreActionStore; }
+-        ser_gate(); id<MTL4RenderCommandEncoder> en = enc_r_begin(rp); gp_render_source(en,"copy-draw");
++        ser_gate(); id<MTL4RenderCommandEncoder> en = enc_r_begin(rp); gp_render_source(en, shadow ? "shadow-resolve-1536" : "copy-draw");
+         if (require_encoder && !en) return 0;
+         if (depth) [en setDepthStencilState:scopy ? dss_s : dss];
+         enc_r_table(en, at, MTLRenderStageFragment);
+@@ -21085,7 +21256,7 @@ static int copy_t2t_draw_impl(id<MTLTexture> s, id<MTLTexture> d, unsigned sl, u
+         [en setViewport:(MTLViewport){dr->xoffset, dr->yoffset, dr->width, dr->height, 0, 1}];
+         [en setScissorRect:(MTLScissorRect){(NSUInteger)dr->xoffset, (NSUInteger)dr->yoffset, (NSUInteger)dr->width, (NSUInteger)dr->height}];
+         [en setRenderPipelineState:ps]; enc_r_draw(en, MTLPrimitiveTypeTriangle, 0, 3); enc_r_end(en);
+-        defer_obj_unref(sv); if (stv) defer_obj_unref(stv);   // released after this submission has run
++        if (!shadow) defer_obj_unref(sv); if (stv) defer_obj_unref(stv);   // released after this submission has run
+     }
+     args_dirty_all(); g_pso_dirty = g_dss_dirty = 1;
+     { static int once[2]; if (!once[depth]++) MLOG("format-converting / scaling texture copy: first case %dx%d format %lu → %dx%d format %lu%s%s", sr->width, sr->height, (unsigned long)s.pixelFormat, dr->width, dr->height, (unsigned long)d.pixelFormat,
+@@ -21754,6 +21925,15 @@ void nvn_be_exec(const uint8_t *p) {
+     for (;;) {
+         op_hdr h; memcpy(&h, p, sizeof h);
+         if (rec_bad(h)) { rec_bad_red("replay", p, h, list, prev); g_exec_cur = NULL; return; }   // ends this list as its END would; the caller goes on after its CALL
++        // DrawTexture, multi-draw helpers, copies, clears, fences and returned
++        // command buffers all see the native image before their own operation.
++        if (g_rb_shadow_native) switch (h.op) {
++            case OP_DRAW: case OP_DRAW_IDX: case OP_SCISSOR: case OP_VIEWPORTS:
++            case OP_DEPTH_RANGE: case OP_BIND_VATTR: case OP_BIND_VSTREAM: case OP_BIND_VBUF:
++            case OP_BIND_PROGRAM: case OP_BIND_STATE: case OP_BIND_UBO: case OP_POLY_OFFSET:
++            case OP_STENCIL: case OP_ALPHA_REF: case OP_BLEND_COLOR: break;
++            default: rp_end(); break;
++        }
+         if (h.op != OP_RB_DISCARD && h.op != OP_SET_RT) discard_suffix = 0;
+         prev = p;
+         g_exec_cur = p;   // Scan start point of the store lookahead: the operation that ends the render pass (inclusive)
+diff --git a/graphics/nvn/gfx/nvn/nvn_rscale.inc b/graphics/nvn/gfx/nvn/nvn_rscale.inc
+index 785149b..f16178c 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rscale.inc
++++ b/graphics/nvn/gfx/nvn/nvn_rscale.inc
+@@ -24,7 +24,8 @@ static double rs_setting(void) {
+     }
+     return g_rs;
+ }
+-static inline int rs_on(void) { return (g_rs < 0 ? rs_setting() : g_rs) < 1.0; }
++static _Atomic int g_rb_shadow_pass;
++static inline int rs_on(void) { return (g_rs < 0 ? rs_setting() : g_rs) < 1.0 || atomic_load_explicit(&g_rb_shadow_pass, memory_order_relaxed); }
+ 
+ // 每份存储的缩放记录挂在 Metal 根贴图上（关联对象：存储释放时一起走，地址复用不会认错）
+ enum { RS_NONE = 0, RS_SCALED = 1, RS_BLACK = 2 };
+@@ -108,14 +109,27 @@ static void rs_canvas(id<MTLTexture> t, NSUInteger level, NSUInteger *w, NSUInte
+ // 这个对象（贴图或视图）自己第 0 级的画布宽 / 高（宽屏胶水比较「放没放宽」用画布，不用存储）
+ static NSUInteger rs_cw(id<MTLTexture> t) { NSUInteger w, h; if (!t) return 0; rs_canvas(t, 0, &w, &h); return w; }
+ static NSUInteger rs_ch(id<MTLTexture> t) { NSUInteger w, h; if (!t) return 0; rs_canvas(t, 0, &w, &h); return h; }
+-static NSUInteger rs_up(NSUInteger v, double s) { NSUInteger r = (NSUInteger)ceil((double)v * s - 1e-9); return r ? r : 1; }   // Ryujinx：⌈v·s⌉
+-// 画布矩形 → 存储矩形（起点向下取整、终点向上取整，盖住画布矩形碰到的每个存储像素；同 Ryujinx 裁剪缩放）
+-static void rs_rect(double s, long *x, long *y, long *w, long *h) {
+-    if (s == 1.0) return;
+-    long x0 = (long)floor(*x * s), y0 = (long)floor(*y * s), x1 = (long)ceil((*x + *w) * s - 1e-9), y1 = (long)ceil((*y + *h) * s - 1e-9);
+-    *x = x0; *y = y0; *w = x1 - x0; *h = y1 - y0;
+-}
++#include "rb_raster_projection.h"
+ 
++// Evidence is attached to this Metal allocation and guest generation. Reusing
++// dimensions or an address after destruction cannot inherit the proof.
++static char k_rb_shadow_serial;
++static int rb_shadow_candidate(const tex_t *t,id<MTLTexture> mt) {
++    if (!t || !t->serial || !t->mem || !t->pool || (t->pool->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL) ||
++        t->has_layout || t->d.target != NVN_TEXTURE_TARGET_2D || t->d.format != NVN_FORMAT_DEPTH32F ||
++        t->d.width != 1536 || t->d.height != 1536 || t->d.levels != 1 || t->d.depth > 1 || t->d.samples > 1 ||
++        !(t->d.flags & NVN_TEXTURE_FLAGS_COMPRESSIBLE) ||
++        (t->d.flags & (NVN_TEXTURE_FLAGS_DISPLAY | NVN_TEXTURE_FLAGS_VIDEO_DECODE | NVN_TEXTURE_FLAGS_IMAGE |
++                       NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_SPARSE | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET))) return 0;
++    return mt && !mt.parentTexture && !mt.heap && !mt.buffer && !mt.iosurface && !mt.isSparse && !mt.framebufferOnly &&
++        mt.storageMode == MTLStorageModePrivate && mt.pixelFormat == MTLPixelFormatDepth32Float &&
++        mt.textureType == MTLTextureType2D && mt.sampleCount == 1 && mt.mipmapLevelCount == 1 && mt.arrayLength == 1 &&
++        rs_cw(mt) == 1536 && rs_ch(mt) == 1536;
++}
++static int rb_shadow_proven(const tex_t *t,id<MTLTexture> mt) {
++    return rb_shadow_on() && rb_shadow_candidate(t,mt) &&
++        [objc_getAssociatedObject(mt,&k_rb_shadow_serial) unsignedLongLongValue] == t->serial;
++}
+ static const char *tex_widen_why(const tex_t *t);
+ static int fmt_int_or_ds(MTLPixelFormat f);
+ // 单通道颜色格式（Ryujinx 不缩方形的规则对它放行，同深度）
+@@ -134,6 +148,10 @@ static int rs_eligible(const tex_t *t, id<MTLTexture> base, const char **why) {
+     MTLPixelFormat pf = base.pixelFormat; int depth = pf == MTLPixelFormatDepth32Float || pf == MTLPixelFormatDepth32Float_Stencil8;
+     // Storage rescaling creates a synthetic mismatch when another D32 image must
+     // remain native. rs_rts already propagates an ineligible member to the whole pass.
++    if (pf == MTLPixelFormatDepth32Float && rb_shadow_proven(t,base)) {
++        if (why) *why="independent shadow raster uses a native public backing";
++        return 0;
++    }
+     static _Atomic int mode;
+     if (!g_m3 && pf == MTLPixelFormatDepth32Float && rb_direct_option(&mode, "S2A_RB_GPU_NATIVE_D32")) {
+         static uint64_t vetoes;
+diff --git a/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc b/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc
+index 3925008..a38efee 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc
++++ b/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc
+@@ -99,6 +99,14 @@ static int rs_rts(int clear_only) {
+             ts[n++] = R.rt.depth;
+         else rs_retain_note(R.rt.depth, nil, RS_INACTIVE, NULL, 8);
+     }
++    if (rb_shadow_on() && R.rt.depth) {
++        id<MTLTexture> prior=tex_mtl(R.rt.depth);
++        if (rs_state(prior)==RS_SCALED && rb_shadow_proven(R.rt.depth,prior)) {
++            id<MTLTexture> native=rs_rescale_to(prior,1.0,"native backing for shadow caster");
++            if (!native) return 0;
++            objc_setAssociatedObject(native,&k_rb_shadow_serial,@(R.rt.depth->serial),OBJC_ASSOCIATION_RETAIN);
++        }
++    }
+     double desired = 0;
+     for (int k = 0; k < n; k++) {
+         id<MTLTexture> b = tex_mtl(ts[k]); int st = rs_state(b);
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 414d4f8..77193e6 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -142,6 +142,12 @@ int nvn_be_shutdown_session(void) {
+     // A subsequent hosted session may select different render options. Keep
+     // cumulative store counters monotonic for the 300-frame sampler.
+     atomic_store_explicit(&g_rb_next_clear_mode, 0, memory_order_relaxed);
++    if (g_rb_shadow_low) res_remove(g_rb_shadow_low);
++    if (g_rb_shadow_params) res_remove(g_rb_shadow_params);
++    g_rb_shadow_low=nil; g_rb_shadow_native=nil; g_rb_shadow_params=nil;
++    g_rb_shadow_draw_ok=g_rb_shadow_failed=0;
++    g_rb_shadow_renders=g_rb_shadow_resolves=g_rb_shadow_no_proof=0;
++    atomic_store_explicit(&g_rb_shadow_pass,0,memory_order_relaxed);
+     atomic_store_explicit(&g_rb_live_request, 0, memory_order_relaxed);
+     for (unsigned i = 0; i < RB_DEVICE_OPTIONS; ++i)
+         atomic_store_explicit(&g_rb_device_options[i], 0, memory_order_relaxed);
+diff --git a/graphics/nvn/gfx/nvn/rb_raster_projection.h b/graphics/nvn/gfx/nvn/rb_raster_projection.h
+new file mode 100644
+index 0000000..43bbf9f
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_raster_projection.h
+@@ -0,0 +1,16 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <math.h>
++#include <stddef.h>
++static inline size_t rs_up(size_t v,double scale) {
++    size_t r=(size_t)ceil((double)v * scale - 1e-9);
++    return r ? r : 1;
++}
++static inline void rb_scale_viewport(double scale,double *x,double *y,double *w,double *h) {
++    *x *= scale; *y *= scale; *w *= scale; *h *= scale;
++}
++static inline void rs_rect(double s, long *x, long *y, long *w, long *h) {
++    if (s == 1.0) return;
++    long x0 = (long)floor(*x * s), y0 = (long)floor(*y * s), x1 = (long)ceil((*x + *w) * s - 1e-9), y1 = (long)ceil((*y + *h) * s - 1e-9);
++    *x = x0; *y = y0; *w = x1 - x0; *h = y1 - y0;
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_shadow.h b/graphics/nvn/gfx/nvn/rb_shadow.h
+new file mode 100644
+index 0000000..451a3e2
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_shadow.h
+@@ -0,0 +1,75 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <stddef.h>
++#include <stdint.h>
++#include <string.h>
++
++typedef struct { const char *p; size_t n; } rb_shadow_token;
++typedef struct { rb_shadow_token texture, sampler; } rb_shadow_call;
++enum { RB_SHADOW_MAX_CALLS = 8 };
++
++static inline int rb_shadow_word(char c) {
++    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
++}
++static inline int rb_shadow_is(rb_shadow_token t, const char *name) {
++    return t.n == strlen(name) && !memcmp(t.p, name, t.n);
++}
++// Read tokens from generated MSL. Comments and quoted text cannot certify an access.
++static inline rb_shadow_token rb_shadow_next(const char **src) {
++    const char *p=*src;
++    for (;;) {
++        while (*p && (unsigned char)*p <= ' ') ++p;
++        if (p[0]=='/' && p[1]=='/') { while (*p && *p!='\n') ++p; continue; }
++        if (p[0]=='/' && p[1]=='*') {
++            p+=2; while (*p && !(p[0]=='*' && p[1]=='/')) ++p;
++            if (*p) p+=2;
++            continue;
++        }
++        break;
++    }
++    const char *start=p;
++    if (*p=='"' || *p=='\'') {
++        char quote=*p++;
++        while (*p && *p!=quote) { if (*p=='\\' && p[1]) ++p; ++p; }
++        if (*p) ++p;
++    } else if (rb_shadow_word(*p)) { do { ++p; } while (rb_shadow_word(*p)); }
++    else if (*p) ++p;
++    *src=p; return (rb_shadow_token){start,(size_t)(p-start)};
++}
++// Only canonical comparisons in the selected fragment entry, with two concrete
++// argument-buffer members. Separate handles, helper indirection and conditional
++// preprocessing need additional proof. Over-capacity entries stay at native size.
++static inline int rb_shadow_calls(const char *src,const char *entry,rb_shadow_call out[RB_SHADOW_MAX_CALLS]) {
++    if (!src || !entry || !*entry) return 0;
++    int fragment=0, selected=0, depth=0, n=0;
++    for (;;) {
++        rb_shadow_token t=rb_shadow_next(&src);
++        if (!t.n) return 0;
++        if (!depth) {
++            if (rb_shadow_is(t,"fragment")) { fragment=1; selected=0; }
++            else if (fragment && rb_shadow_is(t,entry)) { const char *q=src; selected=rb_shadow_is(rb_shadow_next(&q),"("); }
++            else if (rb_shadow_is(t,";")) { fragment=selected=0; }
++            else if (rb_shadow_is(t,"{")) { if (selected) depth=1; fragment=selected=0; }
++            continue;
++        }
++        if (rb_shadow_is(t,"#")) return 0;
++        if (rb_shadow_is(t,"{")) { depth++; continue; }
++        if (rb_shadow_is(t,"}")) { if (!--depth) return n; continue; }
++        if (!rb_shadow_is(t,"spvDescriptorSet0")) continue;
++        const char *q=src;
++        if (!rb_shadow_is(rb_shadow_next(&q),".")) continue;
++        rb_shadow_token tex=rb_shadow_next(&q);
++        if (!tex.n || !rb_shadow_word(*tex.p) || !rb_shadow_is(rb_shadow_next(&q),".")) continue;
++        rb_shadow_token op=rb_shadow_next(&q);
++        if (!(rb_shadow_is(op,"sample_compare") || rb_shadow_is(op,"gather_compare")) ||
++            !rb_shadow_is(rb_shadow_next(&q),"(") || !rb_shadow_is(rb_shadow_next(&q),"spvDescriptorSet0") ||
++            !rb_shadow_is(rb_shadow_next(&q),".")) continue;
++        rb_shadow_token samp=rb_shadow_next(&q);
++        if (!samp.n || !rb_shadow_word(*samp.p) || !rb_shadow_is(rb_shadow_next(&q),",")) continue;
++        int j=0;
++        for (;j<n;j++) if (tex.n==out[j].texture.n && samp.n==out[j].sampler.n &&
++            !memcmp(tex.p,out[j].texture.p,tex.n) && !memcmp(samp.p,out[j].sampler.p,samp.n)) break;
++        if (j==n) { if (n==RB_SHADOW_MAX_CALLS) return 0; out[n++]=(rb_shadow_call){tex,samp}; }
++        src=q;
++    }
++}
+diff --git a/graphics/nvn/tests/t_rb_shadow.c b/graphics/nvn/tests/t_rb_shadow.c
+new file mode 100644
+index 0000000..6731b11
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_shadow.c
+@@ -0,0 +1,53 @@
++// SPDX-License-Identifier: MIT
++#include "../gfx/nvn/rb_shadow.h"
++#include "../gfx/nvn/rb_raster_projection.h"
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++static unsigned checks;
++#define CHECK(p) do { if (!(p)) { fprintf(stderr,"FAIL %d: %s\n",__LINE__,#p); exit(1); } ++checks; } while(0)
++#define CALL "spvDescriptorSet0.map.sample_compare(spvDescriptorSet0.comparison, uv, z)"
++#define GATHER "spvDescriptorSet0.cascade.gather_compare(spvDescriptorSet0.pcf, uv, z)"
++#define F(X) "fragment float main0(int x) {" X "}"
++static void evidence(void) {
++    rb_shadow_call v[RB_SHADOW_MAX_CALLS];
++    CHECK(rb_shadow_calls(F(CALL "; if(x) {" GATHER ";}" CALL ";"),"main0",v)==2);
++    CHECK(rb_shadow_is(v[0].texture,"map") && rb_shadow_is(v[0].sampler,"comparison"));
++    CHECK(rb_shadow_is(v[1].texture,"cascade") && rb_shadow_is(v[1].sampler,"pcf"));
++    CHECK(rb_shadow_calls(F("spvDescriptorSet0.map.sample(spvDescriptorSet0.comparison, uv);"),"main0",v)==0);
++    CHECK(rb_shadow_calls(F("spvDescriptorSet0.map.sample_compare(localSampler, uv,z);"),"main0",v)==0);
++    CHECK(rb_shadow_calls(F("spvDescriptorSet0.maps[i].sample_compare(spvDescriptorSet0.s, uv,z);"),"main0",v)==0);
++    CHECK(rb_shadow_calls(F("/*" CALL "*/ // " GATHER "\n \"" CALL "\";"),"main0",v)==0);
++    CHECK(rb_shadow_calls(F(CALL),"different",v)==0);
++    CHECK(rb_shadow_calls("vertex float main0(int x){" CALL ";}", "main0",v)==0);
++    CHECK(rb_shadow_calls("fragment float other(){" CALL ";}" F("return 1;"),"main0",v)==0);
++    CHECK(rb_shadow_calls(F("#if 0\n" CALL "\n#endif"),"main0",v)==0);
++    CHECK(rb_shadow_calls("fragment float main0(int x){" CALL ";", "main0",v)==0);
++}
++static void projection(void) {
++    const unsigned pct[]={100,85,75};
++    for (unsigned k=0;k<3;k++) {
++        unsigned p=pct[k]; double scale=p/100.0;
++        for (unsigned dim=1;dim<=1537;dim++) CHECK(rs_up(dim,scale)==(dim*p+99)/100);
++        CHECK(rs_up(960,scale)==(k==0?960:k==1?816:720));
++        CHECK(rs_up(540,scale)==(k==0?540:k==1?459:405));
++        CHECK(rs_up(1536,0.75)==1152); // independent of the 3D tier
++        double x=3,y=7,w=1531,h=1527;
++        rb_scale_viewport(scale,&x,&y,&w,&h);
++        CHECK(fabs(x-(double)(3*p)/100)<1e-9 && fabs(y-(double)(7*p)/100)<1e-9 &&
++              fabs(w-(double)(1531*p)/100)<1e-9 && fabs(h-(double)(1527*p)/100)<1e-9);
++        for (long j=0;j<48;j++) {
++            long sx=j,sy=3*j,sw=2*j+1,sh=j+5;
++            long x0=sx*p/100,y0=sy*p/100;
++            long x1=((sx+sw)*p+99)/100,y1=((sy+sh)*p+99)/100;
++            rs_rect(scale,&sx,&sy,&sw,&sh);
++            CHECK(sx==x0 && sy==y0 && sw==x1-x0 && sh==y1-y0);
++        }
++    }
++}
++int main(void) {
++    evidence(); projection();
++    printf("PASS %u shader comparison and raster projection checks\n",checks);
++    return 0;
++}
