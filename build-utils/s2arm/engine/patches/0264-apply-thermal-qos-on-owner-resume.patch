@@ -153,12 +153,16 @@ index 41ea336..ffed0e0 100644
      atomic_fetch_add_explicit(&g_tw_pass, 1, memory_order_relaxed);
 diff --git a/runtime/tests/rb_guest_heat_owner.inc b/runtime/tests/rb_guest_heat_owner.inc
 new file mode 100644
-index 0000000..178290d
+index 0000000..78a32c2
 --- /dev/null
 +++ b/runtime/tests/rb_guest_heat_owner.inc
-@@ -0,0 +1,88 @@
+@@ -0,0 +1,92 @@
 +// Included by t_thread.c. The guest binding, wait table, return and hot clock
 +// gate are the runtime's. Only the notification producer is driven by the test.
++// t_thread links the scheduler without the graphics timing observer or a
++// file-backed guest window. The production absence sentinels are both -1.
++int rb_lf_switch(int phase) { (void)phase; return -1; }
++int s2a_guest_fd(void) { return -1; }
 +static int rb_test_hosted;
 +int s2a_rb_guest_on(void) { return rb_test_hosted; }
 +extern void s2a_guest_heat_publish(int);

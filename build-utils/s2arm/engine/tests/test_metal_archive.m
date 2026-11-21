@@ -277,6 +277,28 @@ static void test_held_writer(const char *directory, const char *mode, int replay
     printf("PASS deferred writer mode=%s replay=%d strict compute hit, output=%u\n", mode, replay, expected);
 }
 #ifndef RB_ARCHIVE_TEST_793_CONTROL
+static void await_test_archive_writer(void) {
+    struct timespec until;
+    REQUIRE(!clock_gettime(CLOCK_REALTIME, &until));
+    until.tv_sec += 30;
+    REQUIRE(!par_wait_idle(&until));
+}
+static void retire_drained_test_archive(void) {
+    // Production session_wait_backend drains the archive before retiring paths.
+    await_test_archive_writer();
+    par_retire_session();
+}
+static void check_index_bytes(NSString *path, NSData *expected, const char *phase) {
+    NSError *error = nil;
+    NSData *actual = [NSData dataWithContentsOfFile:path options:0 error:&error];
+    if (!actual || ![actual isEqualToData:expected]) {
+        fprintf(stderr, "FAIL legacy index %s at %s: expected %lu bytes, read %lu, error %s, expected_sha256_prefix=%s actual_sha256_prefix=%s\n",
+                phase, path.fileSystemRepresentation, (unsigned long)expected.length, (unsigned long)actual.length,
+                error.localizedDescription.UTF8String ?: "none", par_hash(expected.bytes, expected.length).UTF8String,
+                actual ? par_hash(actual.bytes, actual.length).UTF8String : "unavailable");
+        exit(1);
+    }
+}
 static void test_scoped_archive(const char *directory) {
     NSString *parent = @(directory);
     REQUIRE(setenv("DM_PSO_USER", [parent stringByAppendingPathComponent:@"pso_user.tsv"].fileSystemRepresentation, 1) == 0);
@@ -297,7 +319,7 @@ static void test_scoped_archive(const char *directory) {
     NSString *legacyIndex = [g_par_dir stringByAppendingPathComponent:@"batches.tsv"];
     NSData *expectedIndex = [NSData dataWithContentsOfFile:legacyIndex];
     REQUIRE(expectedIndex.length);
-    par_retire_session();
+    retire_drained_test_archive();
     test_scope_enabled = 1;
     test_scope_build = "";
     REQUIRE(!par_open_dir());
@@ -306,22 +328,29 @@ static void test_scoped_archive(const char *directory) {
     NSString *scopedA = g_par_dir;
     REQUIRE([g_par_legacy_have containsObject:key] && ![g_par_have containsObject:key]);
     REQUIRE(par_compute(fn, key, &error)); // actual GPU, fail-on-miss for the old file
-    struct timespec closeBy; clock_gettime(CLOCK_REALTIME, &closeBy); closeBy.tv_sec += 30;
-    REQUIRE(!par_wait_idle(&closeBy));
+    await_test_archive_writer();
     uint64_t stats[16]; rb_par_snapshot(stats);
     REQUIRE(stats[6] == 1 && !stats[7] && !stats[14]);
-    REQUIRE([g_par_have containsObject:key] && [[NSData dataWithContentsOfFile:legacyIndex] isEqual:expectedIndex]);
-    par_retire_session();
+    REQUIRE([g_par_have containsObject:key]);
+    check_index_bytes(legacyIndex, expectedIndex, "after legacy promotion");
+    retire_drained_test_archive();
     REQUIRE(par_open_dir() && [g_par_dir isEqual:scopedA] && [g_par_have containsObject:key]);
+    uint64_t writesBeforeReopen = atomic_load(&g_par_written);
     REQUIRE(par_compute(fn, key, &error));
-    par_retire_session();
+    retire_drained_test_archive();
+    rb_par_snapshot(stats);
+    // Both a re-promotion and a source build can return a usable pipeline.
+    // A strict hit in the newly reopened scoped archive writes no new entry.
+    REQUIRE(stats[6] == 2 && !stats[7] && !stats[14] &&
+            atomic_load(&g_par_written) == writesBeforeReopen);
+    check_index_bytes(legacyIndex, expectedIndex, "after scoped reopen");
     test_scope_build = "1123456789abcdef0123456789abcdef";
     REQUIRE(par_open_dir() && ![g_par_dir isEqual:scopedA] && ![g_par_have containsObject:key]);
     NSString *scopedB = g_par_dir;
-    par_retire_session();
+    retire_drained_test_archive();
     REQUIRE(setenv("S2A_RB_DIRECT_GAME_ID", "04007EF01F8AE001", 1) == 0);
     REQUIRE(par_open_dir() && ![g_par_dir isEqual:scopedA] && ![g_par_dir isEqual:scopedB]);
-    REQUIRE([[NSData dataWithContentsOfFile:legacyIndex] isEqual:expectedIndex]);
+    check_index_bytes(legacyIndex, expectedIndex, "after title/build isolation");
     REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:[scopedA stringByAppendingPathComponent:@"batches.tsv"]]);
     printf("scoped archive strict legacy hit, promotion, reopen and title/build isolation passed\n");
 }

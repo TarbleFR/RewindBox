@@ -190,6 +190,8 @@ jobs:
           make -C graphics/nvn mac
           xcrun lipo build/nvn/mac/libnvn.a -verify_arch arm64
       - name: Compile the direct Metal backend and verify thermal policies and GPU pixels
+        id: thermal_gpu_checks
+        continue-on-error: true
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-thermal-checks]')
         working-directory: ${{ runner.temp }}/s2arm
         env:
@@ -324,8 +326,8 @@ jobs:
           set -euo pipefail
           make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" build/tests/t_nvn_up_tex_src
           build/tests/t_nvn_up_tex_src --recorded-upload
-      - name: Require all adaptive cache checks to pass
-        if: ${{ !cancelled() && steps.adaptive_shader_checks.outcome == 'failure' }}
+      - name: Require all adaptive cache and thermal GPU checks to pass
+        if: ${{ !cancelled() && (steps.adaptive_shader_checks.outcome == 'failure' || steps.thermal_gpu_checks.outcome == 'failure') }}
         run: exit 1
       - name: Build S2Arm's iOS engine with no game (make ios)
         if: env.TEST_ONLY != 'yes'
