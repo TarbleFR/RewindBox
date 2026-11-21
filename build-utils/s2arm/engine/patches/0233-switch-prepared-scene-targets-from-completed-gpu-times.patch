@@ -1,5 +1,5 @@
 diff --git a/graphics/nvn/gfx/nvn/nvn_dlss.inc b/graphics/nvn/gfx/nvn/nvn_dlss.inc
-index 7afca70..2267460 100644
+index 7afca70..950ce58 100644
 --- a/graphics/nvn/gfx/nvn/nvn_dlss.inc
 +++ b/graphics/nvn/gfx/nvn/nvn_dlss.inc
 @@ -25,7 +25,7 @@ typedef enum { RBFxOff, RBFxAdaptive, RBFxAlways } RBFxPolicy;
@@ -7,7 +7,7 @@ index 7afca70..2267460 100644
      id<MTLFXTemporalScalerBase> small[2];
      id<MTLFXSpatialScalerBase> smallSpatial[2];
 -    BOOL drsWasSpatial;
-+    BOOL drsWasSpatial, encoded; int scalerMethod;
++    BOOL drsWasSpatial, encoded, lastSpatial, lastAligned; int scalerMethod;
      _Atomic unsigned ready;
      BOOL warmTried; unsigned lastTier; int drsMethod;
      MTLPixelFormat cf, df, mf, of; NSUInteger iw, ih, ow, oh; uint32_t flags;
@@ -168,7 +168,7 @@ index 7afca70..2267460 100644
      if (f->policy != RBFxOff && (!f->trialLogged || thermalSpatial != f->resetAfterSpatial)) {
          const char *reason = "nominal";
          if (!f->thermalSpatial) reason = "unavailable";
-@@ -353,13 +376,30 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
+@@ -353,19 +376,43 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
      o = dlss_usage(to, o, ts ? ts.outputTextureUsage : ss.outputTextureUsage);
      if (ts) { dp = dlss_usage(td, dp, ts.depthTextureUsage); mv = dlss_usage(tm, mv, ts.motionTextureUsage); }
      textures[0]=c; textures[1]=dp; textures[2]=mv;   // a native usage upgrade may replace the resource
@@ -201,8 +201,25 @@ index 7afca70..2267460 100644
 +            }
          }
      }
-     if (drs && f->lastTier!=(unsigned)tier)
-@@ -418,7 +458,7 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
+-    if (drs && f->lastTier!=(unsigned)tier)
+-        MLOG("[rb-drs-fx] network=%#llx input=%lux%lu output=%lux%lu tier=%d ready_mask=%u scaler=%s history_reset=%d",
+-             (unsigned long long)d->network,(unsigned long)c.width,(unsigned long)c.height,
+-             (unsigned long)o.width,(unsigned long)o.height,tier,rb_drs_fx_ready_mask(),ss ? "spatial" : "temporal",reset);
++    if ((drs || fixed) && (!f->encoded || f->lastTier!=(unsigned)tier || f->lastAligned!=aligned ||
++                           f->lastSpatial!=(ss!=nil))) {
++        MLOG("[rb-drs-fx] frame=%llu network=%#llx mode=%s input=%lux%lu depth=%lux%lu motion=%lux%lu "
++             "output=%lux%lu content=%lux%lu tier=%d aligned_native=%d ready_mask=%u scaler=%s history_reset=%d",
++             (unsigned long long)atomic_load(&g_cur_frame),(unsigned long long)d->network,drs ? "drs" : "fixed",
++             (unsigned long)c.width,(unsigned long)c.height,(unsigned long)dp.width,(unsigned long)dp.height,
++             (unsigned long)mv.width,(unsigned long)mv.height,(unsigned long)o.width,(unsigned long)o.height,
++             (unsigned long)cw,(unsigned long)ch,tier,aligned,rb_drs_fx_ready_mask(),ss ? "spatial" : "temporal",
++             ts && reset);
++        f->lastSpatial=ss!=nil; f->lastAligned=aligned;
++    }
+     f->lastTier=(unsigned)tier;
+     zskip_del(to->serial);
+     pkg_gpu_wrote(to, 0, 0, 1, 0, 0, (uint32_t)to->d.width, (uint32_t)to->d.height);
+@@ -418,7 +465,7 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
      enc_close_blit();
      uint64_t a[15] = {0};
      a[5] = rec_f(d->jitter[0]); a[6] = rec_f(d->jitter[1]); a[7] = rec_f(d->mv_scale[0]); a[8] = rec_f(d->mv_scale[1]); a[9] = rec_f(d->pre_exposure);
@@ -211,7 +228,7 @@ index 7afca70..2267460 100644
          a[5]=rec_f(rb_fx_physical_pixels(d->jitter[0],(unsigned)c.width,(unsigned)tc->d.width));
          a[6]=rec_f(rb_fx_physical_pixels(d->jitter[1],(unsigned)c.height,(unsigned)tc->d.height));
          a[7]=rec_f(rb_fx_physical_pixels(d->mv_scale[0],(unsigned)mv.width,(unsigned)tm->d.width));
-@@ -435,6 +475,7 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
+@@ -435,6 +482,7 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
      }
      // 后一侧：下一个编码器开时做全屏障（不按放宽的上一遍结尾算），也不沿用「上一编码器已全屏障」的证明
      g_last_end_relaxed = 0; main_barrier_reset();
@@ -219,6 +236,65 @@ index 7afca70..2267460 100644
      f->drsWasSpatial = preparedSpatial != nil;
      f->resetAfterSpatial = thermalSpatial;
      g_dlss_evals++;
+diff --git a/graphics/nvn/gfx/nvn/nvn_drs_fx_descriptor.h b/graphics/nvn/gfx/nvn/nvn_drs_fx_descriptor.h
+index 20b5161..a92aae0 100644
+--- a/graphics/nvn/gfx/nvn/nvn_drs_fx_descriptor.h
++++ b/graphics/nvn/gfx/nvn/nvn_drs_fx_descriptor.h
+@@ -1,12 +1,11 @@
+ // SPDX-License-Identifier: MIT
+ #pragma once
+ 
+-// Prepared by a non-render worker. Synchronous initialization requests the underlying
+-// MetalFX pipeline compilation before the scaler is published to the submit thread.
++// Use the same descriptor configuration for GPU-backed creation and field-only validation.
+ API_AVAILABLE(macos(26.0), ios(26.0))
+-static inline id<MTLFXTemporalScalerBase> rb_fx_make_temporal(Class cl,id<MTLDevice> dev,id compiler,
++static inline MTLFXTemporalScalerDescriptor *rb_fx_temporal_descriptor(Class cl,
+     NSUInteger w,NSUInteger h,NSUInteger ow,NSUInteger oh,MTLPixelFormat cf,MTLPixelFormat df,
+-    MTLPixelFormat mf,MTLPixelFormat of,BOOL autoExposure,BOOL reversed,float maxScale)
++    MTLPixelFormat mf,MTLPixelFormat of,BOOL autoExposure,float maxScale)
+ {
+     MTLFXTemporalScalerDescriptor *td=[cl new];
+     td.inputWidth=w; td.inputHeight=h; td.outputWidth=ow; td.outputHeight=oh;
+@@ -15,6 +14,15 @@ static inline id<MTLFXTemporalScalerBase> rb_fx_make_temporal(Class cl,id<MTLDev
+     td.inputContentPropertiesEnabled=YES; td.inputContentMinScale=1; td.inputContentMaxScale=maxScale;
+     td.autoExposureEnabled=autoExposure;
+     td.requiresSynchronousInitialization=YES;   // finish MetalFX compilation on this worker
++    return td;
++}
++
++API_AVAILABLE(macos(26.0), ios(26.0))
++static inline id<MTLFXTemporalScalerBase> rb_fx_make_temporal(Class cl,id<MTLDevice> dev,id compiler,
++    NSUInteger w,NSUInteger h,NSUInteger ow,NSUInteger oh,MTLPixelFormat cf,MTLPixelFormat df,
++    MTLPixelFormat mf,MTLPixelFormat of,BOOL autoExposure,BOOL reversed,float maxScale)
++{
++    MTLFXTemporalScalerDescriptor *td=rb_fx_temporal_descriptor(cl,w,h,ow,oh,cf,df,mf,of,autoExposure,maxScale);
+     id<MTLFXTemporalScalerBase> s=[td newTemporalScalerWithDevice:dev compiler:compiler];
+     id<MTLFence> fence=s ? [dev newFence] : nil;
+     if (!fence) return nil;
+@@ -24,13 +32,21 @@ static inline id<MTLFXTemporalScalerBase> rb_fx_make_temporal(Class cl,id<MTLDev
+ 
+ 
+ API_AVAILABLE(macos(26.0), ios(26.0))
+-static inline id<MTLFXSpatialScalerBase> rb_fx_make_spatial(Class cl,id<MTLDevice> dev,id compiler,
++static inline MTLFXSpatialScalerDescriptor *rb_fx_spatial_descriptor(Class cl,
+     NSUInteger w,NSUInteger h,NSUInteger ow,NSUInteger oh,MTLPixelFormat cf,MTLPixelFormat of,BOOL perceptual)
+ {
+     MTLFXSpatialScalerDescriptor *sd=[cl new];
+     sd.inputWidth=w; sd.inputHeight=h; sd.outputWidth=ow; sd.outputHeight=oh;
+     sd.colorTextureFormat=cf; sd.outputTextureFormat=of;
+     sd.colorProcessingMode=perceptual ? MTLFXSpatialScalerColorProcessingModePerceptual : MTLFXSpatialScalerColorProcessingModeHDR;
++    return sd;
++}
++
++API_AVAILABLE(macos(26.0), ios(26.0))
++static inline id<MTLFXSpatialScalerBase> rb_fx_make_spatial(Class cl,id<MTLDevice> dev,id compiler,
++    NSUInteger w,NSUInteger h,NSUInteger ow,NSUInteger oh,MTLPixelFormat cf,MTLPixelFormat of,BOOL perceptual)
++{
++    MTLFXSpatialScalerDescriptor *sd=rb_fx_spatial_descriptor(cl,w,h,ow,oh,cf,of,perceptual);
+     id<MTLFXSpatialScalerBase> s=[sd newSpatialScalerWithDevice:dev compiler:compiler];
+     id<MTLFence> fence=s ? [dev newFence] : nil;
+     if (!fence) return nil;
 diff --git a/graphics/nvn/gfx/nvn/nvn_drs_fx_extent.h b/graphics/nvn/gfx/nvn/nvn_drs_fx_extent.h
 index 7bf6261..91354ed 100644
 --- a/graphics/nvn/gfx/nvn/nvn_drs_fx_extent.h
@@ -1271,7 +1347,7 @@ index cee1f3c..7424017 100644
          setenv("S2A_RB_DIRECT_GAME_ID", "04007EF01F8AE000", 1);
 diff --git a/graphics/nvn/tests/t_rb_d32_tracked.m b/graphics/nvn/tests/t_rb_d32_tracked.m
 new file mode 100644
-index 0000000..045c360
+index 0000000..c65b823
 --- /dev/null
 +++ b/graphics/nvn/tests/t_rb_d32_tracked.m
 @@ -0,0 +1,121 @@
@@ -1283,7 +1359,7 @@ index 0000000..045c360
 +#include <stdlib.h>
 +#include <string.h>
 +
-+typedef struct { unsigned x,y,w,h; } Rect;
++typedef struct { unsigned x,y,w,h; } RBDepthTestRect;
 +static void check(int valid,const char *message) {
 +    if (!valid) { fprintf(stderr,"D32 tracked failure: %s\n",message); exit(1); }
 +}
@@ -1315,7 +1391,7 @@ index 0000000..045c360
 +    [blit endEncoding]; finish(cb);
 +}
 +static void draw(id<MTLCommandQueue> q,id<MTLRenderPipelineState> ps,id<MTLDepthStencilState> ds,
-+                 id<MTLSamplerState> sampler,id<MTLTexture> src,id<MTLTexture> dst,Rect sr,Rect dr,int partial) {
++                 id<MTLSamplerState> sampler,id<MTLTexture> src,id<MTLTexture> dst,RBDepthTestRect sr,RBDepthTestRect dr,int partial) {
 +    id<MTLCommandBuffer> cb=[q commandBuffer];
 +    MTLRenderPassDescriptor *rp=[MTLRenderPassDescriptor renderPassDescriptor];
 +    rp.depthAttachment.texture=dst;
@@ -1341,7 +1417,7 @@ index 0000000..045c360
 +    if (n%d || n/d==0) return 1;
 +    out[1]=out[0]-1; return 2;
 +}
-+static void compare(const float *src,unsigned sw,const float *got,unsigned dw,unsigned dh,Rect sr,Rect dr) {
++static void compare(const float *src,unsigned sw,const float *got,unsigned dw,unsigned dh,RBDepthTestRect sr,RBDepthTestRect dr) {
 +    for (unsigned y=0;y<dh;y++) for (unsigned x=0;x<dw;x++) {
 +        if (x<dr.x||x>=dr.x+dr.w||y<dr.y||y>=dr.y+dr.h) {
 +            check(got[y*dw+x]==.9375f,"changed outer sentinel"); continue;
@@ -1384,13 +1460,13 @@ index 0000000..045c360
 +    for(size_t i=0;i<n;i++) prev[i]=(float)(i+1)*0x1p-20f;
 +    upload(q,textures[0],prev); readback(q,textures[0],got); check(!memcmp(prev,got,bytes),"seed depth data");
 +    for(unsigned i=1;i<5;i++) { unsigned s=route[i-1],d=route[i];
-+        Rect sr={0,0,w[s],h[s]},dr={0,0,w[d],h[d]};
++        RBDepthTestRect sr={0,0,w[s],h[s]},dr={0,0,w[d],h[d]};
 +        draw(q,ps,ds,sampler,textures[s],textures[d],sr,dr,0); readback(q,textures[d],got);
 +        compare(prev,w[s],got,w[d],h[d],sr,dr);
 +        float *tmp=prev;prev=got;got=tmp;
 +        printf("PASS D32 %ux%u -> %ux%u, %u pixels\n",w[s],h[s],w[d],h[d],w[d]*h[d]);
 +    }
-+    Rect sr={7,13,753,415},dr={9,9,671,363};
++    RBDepthTestRect sr={7,13,753,415},dr={9,9,671,363};
 +    draw(q,ps,ds,sampler,textures[0],textures[2],sr,dr,1);readback(q,textures[2],got);
 +    compare(prev,w[0],got,w[2],h[2],sr,dr);
 +    printf("PASS D32 odd region and outer sentinel on %s\n",dev.name.UTF8String);
@@ -1480,6 +1556,92 @@ index 0000000..22a8ce3
 +    assert(rb_drs_copy_budget(0,0,0) && rb_drs_copy_budget(1,2,64ull<<20));
 +    puts("PASS DRS rolling window, missing samples, recovery dwell, Fair edge, Serious and pending actuator");
 +}
+diff --git a/graphics/nvn/tests/t_rb_drs_fx_descriptor.m b/graphics/nvn/tests/t_rb_drs_fx_descriptor.m
+index c9b8fb5..33bd789 100644
+--- a/graphics/nvn/tests/t_rb_drs_fx_descriptor.m
++++ b/graphics/nvn/tests/t_rb_drs_fx_descriptor.m
+@@ -6,35 +6,73 @@
+ #include "../gfx/nvn/nvn_drs_fx_descriptor.h"
+ #include <stdio.h>
+ 
++// Configuration is independent of supportsDevice:. These are real Apple objects and
++// both factories below call the same helpers. This step does not construct a scaler.
++API_AVAILABLE(macos(26.0), ios(26.0))
++static BOOL check_descriptors(Class temporal,Class spatial) {
++    const NSUInteger width[]={960,816,720},height[]={540,459,405};
++    if (!temporal || !spatial || ![temporal instancesRespondToSelector:@selector(setRequiresSynchronousInitialization:)])
++        return NO;
++    for (unsigned i=0;i<3;i++) for (int variant=0;variant<2;variant++) { @autoreleasepool {
++        NSUInteger w=rb_fx_tier_width(i),h=rb_fx_tier_height(i);
++        if (w!=width[i] || h!=height[i]) return NO;
++        // First use the recorded title formats. A distinct output format in the
++        // second variant catches accidentally interchanging the two color fields.
++        MTLPixelFormat cf=MTLPixelFormatRG11B10Float, of=variant ? MTLPixelFormatRGBA16Float : cf;
++        float limit=variant ? 3.f : 2.f;
++        MTLFXTemporalScalerDescriptor *td=rb_fx_temporal_descriptor(temporal,w,h,1920,1080,cf,
++            MTLPixelFormatDepth32Float,MTLPixelFormatRG16Float,of,variant!=0,limit);
++        if (!td || td.inputWidth!=w || td.inputHeight!=h || td.outputWidth!=1920 || td.outputHeight!=1080 ||
++            td.colorTextureFormat!=cf || td.depthTextureFormat!=MTLPixelFormatDepth32Float ||
++            td.motionTextureFormat!=MTLPixelFormatRG16Float || td.outputTextureFormat!=of ||
++            !td.inputContentPropertiesEnabled || td.inputContentMinScale!=1.f || td.inputContentMaxScale!=limit ||
++            td.autoExposureEnabled!=(variant!=0) || !td.requiresSynchronousInitialization) return NO;
++        MTLFXSpatialScalerDescriptor *sd=rb_fx_spatial_descriptor(spatial,w,h,1920,1080,cf,of,variant!=0);
++        if (!sd || sd.inputWidth!=w || sd.inputHeight!=h || sd.outputWidth!=1920 || sd.outputHeight!=1080 ||
++            sd.colorTextureFormat!=cf || sd.outputTextureFormat!=of || sd.colorProcessingMode!=
++            (variant ? MTLFXSpatialScalerColorProcessingModePerceptual : MTLFXSpatialScalerColorProcessingModeHDR)) return NO;
++    }}
++    return YES;
++}
++
+ // Exercises the worker's real factory and the title's measured texture formats.
+ int main(void) { @autoreleasepool {
+     if (@available(macOS 26.0,iOS 26.0,*)) {
+-        id<MTLDevice> dev=MTLCreateSystemDefaultDevice();
+-        Class cls=[MTLFXTemporalScalerDescriptor class];
+-        if (!dev || ![cls supportsDevice:dev] || ![cls instancesRespondToSelector:@selector(setRequiresSynchronousInitialization:)]) {
+-            puts("SKIP: compatible temporal MetalFX device unavailable"); return 77;
++        Class cls=[MTLFXTemporalScalerDescriptor class],spatial=[MTLFXSpatialScalerDescriptor class];
++        if (!check_descriptors(cls,spatial)) {
++            fputs("FAIL MetalFX descriptor fields\n",stderr); return 4;
+         }
++        puts("PASS MetalFX descriptor fields: 960x540, 816x459, 720x405 -> 1920x1080; temporal and spatial");
++        fflush(stdout);
++        id<MTLDevice> dev=MTLCreateSystemDefaultDevice();
++        BOOL temporalOK=dev && [cls supportsDevice:dev],spatialOK=dev && [spatial supportsDevice:dev];
++        if (!temporalOK && !spatialOK) { puts("SKIP: compatible MetalFX scaler hardware unavailable"); return 77; }
+         NSError *error=nil;
+         id compiler=[dev newCompilerWithDescriptor:[MTL4CompilerDescriptor new] error:&error];
+         if (!compiler) return 1;
+-        float max=[cls supportedInputContentMaxScaleForDevice:dev];
++        float max=temporalOK ? [cls supportedInputContentMaxScaleForDevice:dev] : 0;
++        unsigned tested=0;
+         for (unsigned tier=0;tier<3;tier++) { @autoreleasepool {
+             NSUInteger w=rb_fx_tier_width(tier), h=rb_fx_tier_height(tier);
+-            if (tier && [MTLFXSpatialScalerDescriptor supportsDevice:dev]) {
+-                id<MTLFXSpatialScalerBase> sp=rb_fx_make_spatial([MTLFXSpatialScalerDescriptor class],dev,compiler,w,h,1920,1080,
++            if (spatialOK) {
++                id<MTLFXSpatialScalerBase> sp=rb_fx_make_spatial(spatial,dev,compiler,w,h,1920,1080,
+                     MTLPixelFormatRG11B10Float,MTLPixelFormatRG11B10Float,NO);
+                 if (!sp || !sp.fence || sp.inputWidth!=w || sp.inputHeight!=h || sp.outputWidth!=1920 || sp.outputHeight!=1080) return 3;
++                tested++;
+                 printf("tier %u spatial inputs color=%lu depth=0 motion=0 output=%lu\n",tier,(unsigned long)sp.colorTextureUsage,(unsigned long)sp.outputTextureUsage);
+             }
+-            if (!rb_fx_temporal_ratio(w,h,1920,1080,max)) { printf("tier %u: temporal excluded by %.2f, tested spatial above\n",tier,max); continue; }
++            if (!rb_fx_temporal_ratio(w,h,1920,1080,max)) { printf("tier %u: temporal unavailable at max scale %.2f\n",tier,max); continue; }
+             id<MTLFXTemporalScalerBase> s=rb_fx_make_temporal(cls,dev,compiler,w,h,1920,1080,MTLPixelFormatRG11B10Float,
+                 MTLPixelFormatDepth32Float,MTLPixelFormatRG16Float,MTLPixelFormatRG11B10Float,NO,YES,max);
+             if (!s || !s.fence || !s.depthReversed || s.inputWidth!=w || s.inputHeight!=h ||
+                 s.outputWidth!=1920 || s.outputHeight!=1080) return 2;
++            tested++;
+             printf("tier %u: %lux%lu -> 1920x1080, color=%lu depth=%lu motion=%lu output=%lu\n",tier,(unsigned long)w,(unsigned long)h,
+                 (unsigned long)s.colorTextureUsage,(unsigned long)s.depthTextureUsage,
+                 (unsigned long)s.motionTextureUsage,(unsigned long)s.outputTextureUsage);
+         }}
++        if (!tested) { puts("SKIP: no eligible hardware scaler for the requested sizes"); return 77; }
++        printf("PASS MetalFX hardware scaler construction: %u\n",tested);
+         return 0;
+     }
+     return 77;
 diff --git a/graphics/nvn/tests/t_rb_drs_fx_extent.c b/graphics/nvn/tests/t_rb_drs_fx_extent.c
 index 14d3ebd..9e31f89 100644
 --- a/graphics/nvn/tests/t_rb_drs_fx_extent.c
