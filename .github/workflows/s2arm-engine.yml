@@ -164,7 +164,7 @@ jobs:
           fi
           xcrun --sdk iphoneos metal --version
       - name: Compile and read an iPhoneOS capture pack
-        if: matrix.os == 'macos-26' && env.TEST_ONLY != 'yes' && contains(github.event.head_commit.message, '[s2arm-shader-checks]')
+        if: matrix.os == 'macos-26' && (env.TEST_ONLY != 'yes' || contains(github.event.head_commit.message, '[s2arm-first-draw]')) && contains(github.event.head_commit.message, '[s2arm-shader-checks]')
         run: sh build-utils/s2arm/engine/tests/check_capture_pack.sh "$RUNNER_TEMP/s2arm"
       - name: Verify observed shader workers and persistent stage libraries
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-first-draw]')

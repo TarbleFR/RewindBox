@@ -57,3 +57,12 @@ C
 xcrun --sdk macosx clang -std=gnu11 -D_DARWIN_C_SOURCE -fblocks -I"$engine/graphics/nvn" -I"$engine/graphics/nvn/gfx/nvn" "$work/check.c" -o "$work/check"
 stamp=$(sed -n 's/^# //p' "$direct/shader_map.tsv")
 "$work/check" "$direct/b-$chain" "$chain" "$key" "$stamp"
+# A mixed export can contain both file extensions for one native stage key.
+# Conflicting sources must fail before publication, leaving a reusable destination.
+echo '// different stage bytes' > "$work/shaders/${key}_b.metal"
+if python3 -B "$builder" "$work/shaders" --history "$work/pso_user.tsv" --title-id "$title" --build-id "$build" \
+    --engine-source "$engine" --out "$work/rejected" > "$work/conflict.log" 2>&1; then
+    exit 1
+fi
+grep -F 'Conflicting .metal and .msl sources' "$work/conflict.log"
+test ! -e "$work/rejected/pack/shaders/direct"
