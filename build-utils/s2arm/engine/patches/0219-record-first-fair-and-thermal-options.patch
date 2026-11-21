@@ -1,0 +1,50 @@
+diff --git a/ios/rb_benchmark.m b/ios/rb_benchmark.m
+index 14315d0..076da37 100644
+--- a/ios/rb_benchmark.m
++++ b/ios/rb_benchmark.m
+@@ -67,7 +67,7 @@ typedef struct {
+     size_t frame_n, display_n;
+     uint64_t lf_count[RB_LF_PHASES], lf_ns[RB_LF_PHASES], exclusive_ns[RB_LF_PHASES], lf_unknown_clock;
+     int lf_observed;
+-    uint64_t mode_ns[2][4], mode_at_ns, thermal_ns[5], thermal_at_ns;
++    uint64_t mode_ns[2][4], mode_at_ns, thermal_ns[5], thermal_at_ns, first_fair_ns;
+     int last_game_mode, last_sent_mode, thermal, state, partial, closing_sample_claimed, prepare_cancelled;
+     unsigned engine_generation;
+     uint64_t next_sample_ns;
+@@ -455,6 +455,8 @@ static void rb_observe_conditions(uint64_t generation) {
+     pthread_mutex_lock(&g_rb_lock);
+     if (g_rb.state == RB_RUNNING && g_rb.generation == generation && now < g_rb.deadline_ns) {
+         rb_thermal_until_locked(now); g_rb.thermal = [c[@"thermal_state"] intValue];
++        if (!g_rb.first_fair_ns && g_rb.thermal >= NSProcessInfoThermalStateFair)
++            g_rb.first_fair_ns = now;
+         if (![c[@"battery_state"] isEqual:@"unplugged"]) rb_add_reason_locked(@"power_connection_changed");
+         if ([c[@"low_power"] boolValue]) rb_add_reason_locked(@"low_power_mode_changed");
+         if ([c[@"screen_captured"] boolValue]) rb_add_reason_locked(@"screen_capture_started");
+@@ -692,6 +694,7 @@ static void rb_finalize(uint64_t generation) {
+         @"coverage":@{@"registered":@(run.registered), @"completed":@(run.completed), @"pending":@(run.pending),
+                       @"discarded":@(run.discarded), @"outside_window":@(run.outside), @"overflow":@(run.overflow), @"timestamp_errors":@(run.clock_errors)},
+         @"mode_time_s":@{@"requested_game":rb_mode_times(run.mode_ns[0]),@"sent_period":rb_mode_times(run.mode_ns[1])},
++        @"first_fair_or_higher_s":run.first_fair_ns ? @(rb_seconds(run.first_fair_ns - run.start_ns)) : (id)NSNull.null,
+         @"thermal_time_s":@{@"nominal":@(rb_seconds(run.thermal_ns[0])),@"fair":@(rb_seconds(run.thermal_ns[1])),
+                             @"serious":@(rb_seconds(run.thermal_ns[2])),@"critical":@(rb_seconds(run.thermal_ns[3])),@"unknown":@(rb_seconds(run.thermal_ns[4]))},
+         @"gc":gc, @"audio":rb_audio(&run.base,&last), @"sample_count":@(run.sample_n),
+@@ -827,6 +830,19 @@ static int rb_start(const char *json) {
+     metadata[@"os_version"] = UIDevice.currentDevice.systemVersion;
+     metadata[@"protocol"] = RB_PROTOCOL; metadata[@"protocol_id"] = RB_PROTOCOL; metadata[@"duration_seconds"] = @(RB_SECONDS);
+     metadata[@"diagnostics"] = rb_diagnostics();
++    if ([metadata[@"game_id"] isKindOfClass:NSString.class] &&
++        [metadata[@"game_id"] caseInsensitiveCompare:@"04007EF01F8AE000"] == NSOrderedSame) {
++        // Record the A/B intervention separately from the scenario and display protocol.
++        NSMutableDictionary *options = [NSMutableDictionary dictionary];
++        for (NSString *key in @[@"S2A_RB_GPU_THERMAL_SPATIAL", @"S2A_RB_GPU_CLEAR_STORES", @"S2A_RB_GPU_PRODUCER",
++                                @"S2A_RB_GPU_DISCARD", @"S2A_RB_GPU_PASS_STATS", @"S2A_RB_TBDR", @"DM_NVN_TBDR",
++                                @"DM_NVN_PRODUCER_COVER", @"DM_NVN_GPUPROF"]) {
++            const char *value = getenv(key.UTF8String);
++            options[key] = value ? ([[NSString alloc] initWithBytes:value length:strnlen(value, 128)
++                                             encoding:NSUTF8StringEncoding] ?: (id)NSNull.null) : NSNull.null;
++        }
++        metadata[@"direct_metal_launch_options"] = options;
++    }
+     NSDictionary *launchPreferences = [metadata[@"settings"] isKindOfClass:NSDictionary.class] ? metadata[@"settings"] : @{};
+     metadata[@"launch_preferences"] = launchPreferences;
+     metadata[@"settings"] = rb_settings(launchPreferences);

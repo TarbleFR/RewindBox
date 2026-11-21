@@ -91,9 +91,10 @@ static NSArray *Choices(NSString *setting) {
 @property(nonatomic, copy) void (^stop)(void);
 @property(nonatomic, strong, nullable) UIButton *button;
 @property(nonatomic, strong, nullable) NSTimer *timer;
+@property(nonatomic, strong, nullable) id controllerConnected;
+@property(nonatomic, weak, nullable) UIView *overlay;
 @property(nonatomic, weak, nullable) UIViewController *presented;
 @property(nonatomic, assign) BOOL comboHeld;
-@property(nonatomic, assign) NSUInteger ticks;
 @property(nonatomic, assign) BOOL stopping;
 @end
 
@@ -142,31 +143,51 @@ static NSArray *Choices(NSString *setting) {
   ]];
   self.button = button;
   __weak S2ArmSessionMenu *weakSelf = self;
-  self.timer = [NSTimer timerWithTimeInterval:kTick repeats:YES block:^(NSTimer *timer) { [weakSelf tick]; }];
-  [NSRunLoop.mainRunLoop addTimer:self.timer forMode:NSRunLoopCommonModes];
+  self.controllerConnected = [NSNotificationCenter.defaultCenter addObserverForName:GCControllerDidConnectNotification
+      object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) { [weakSelf watchControllerCombo]; }];
+  [self watchControllerCombo];
   [self applyOverlay];
 }
 
 - (void)detach {
+  if (self.controllerConnected) [NSNotificationCenter.defaultCenter removeObserver:self.controllerConnected];
+  self.controllerConnected = nil;
   [self.timer invalidate];
   self.timer = nil;
+  self.comboHeld = NO;
+  self.overlay = nil;
   [self.button removeFromSuperview];
   self.button = nil;
   if (self.presented && self.presented.presentingViewController) [self.presented dismissViewControllerAnimated:NO completion:nil];
   self.presented = nil;
 }
 
+- (void)watchControllerCombo {
+  if (!self.button || self.timer) return;
+  for (GCController *controller in GCController.controllers) {
+    if (!controller.extendedGamepad.buttonOptions) continue;
+    __weak S2ArmSessionMenu *weakSelf = self;
+    self.timer = [NSTimer timerWithTimeInterval:kTick repeats:YES block:^(NSTimer *timer) { [weakSelf tick]; }];
+    [NSRunLoop.mainRunLoop addTimer:self.timer forMode:NSRunLoopCommonModes];
+    break;
+  }
+}
+
 - (void)tick {
   // − and + together on any controller opens the menu (read-only polling: the engine's own input handlers are untouched).
-  BOOL held = NO;
+  BOOL held = NO, canOpenMenu = NO;
   for (GCController *controller in GCController.controllers) {
     GCExtendedGamepad *pad = controller.extendedGamepad;
-    if (pad && pad.buttonOptions.isPressed && pad.buttonMenu.isPressed) held = YES;
+    if (!pad.buttonOptions) continue;
+    canOpenMenu = YES;
+    if (pad.buttonOptions.isPressed && pad.buttonMenu.isPressed) held = YES;
+  }
+  if (!canOpenMenu) {
+    [self.timer invalidate];
+    self.timer = nil;
   }
   if (held && !self.comboHeld) [self showMenu];
   self.comboHeld = held;
-  // The engine adds its overlay label when the game view is set up; keep it in the state the player chose.
-  if (++self.ticks % 5 == 0) [self applyOverlay];
 }
 
 #pragma mark - performance overlay
@@ -182,12 +203,18 @@ static UIView *FindView(UIView *view, NSString *identifier) {
 
 - (nullable UIView *)engineOverlay {
   UIView *root = self.viewController.view;
-  return root ? FindView(root.window ?: root, kEngineOverlayIdentifier) : nil;
+  UIView *scope = root.window ?: root;
+  UIView *overlay = self.overlay;
+  if (scope && (!overlay || ![overlay isDescendantOfView:scope])) {
+    self.overlay = overlay = FindView(scope, kEngineOverlayIdentifier);
+  }
+  return scope ? overlay : nil;
 }
 
 - (void)applyOverlay {
   UIView *overlay = [self engineOverlay];
-  overlay.hidden = !S2ArmSettingsPerformanceOverlay();
+  BOOL hidden = !S2ArmSettingsPerformanceOverlay();
+  if (overlay && overlay.hidden != hidden) overlay.hidden = hidden;
 }
 
 #pragma mark - menus

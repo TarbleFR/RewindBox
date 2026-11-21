@@ -1,0 +1,193 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_dlss.inc b/graphics/nvn/gfx/nvn/nvn_dlss.inc
+index d58246a..d7c17ca 100644
+--- a/graphics/nvn/gfx/nvn/nvn_dlss.inc
++++ b/graphics/nvn/gfx/nvn/nvn_dlss.inc
+@@ -9,9 +9,13 @@
+ //   （Metal 4 不带时校验层断言，同上屏放大 nvn_present_fx.inc；Metal 3 用 g_fence3，与回放各编码器同一个栅栏）。
+ // 编码线程（DM_NVN_ENC_THREAD，iOS 缺省开）：放大器与四张图、参数录成一条 RO_FX，在编码线程上设属性、编码进真的命令缓冲（nvn_rec.h）。
+ // 不链 MetalFX 框架：类按名字取（首次 dlopen 系统框架，同 nvn_present_fx.inc）；没有 MetalFX 的设备报红一次、这一遍不做。
++typedef enum { RBFxOff, RBFxAdaptive, RBFxAlways } RBFxPolicy;
+ @interface NvDlss : NSObject {
+ @public
+     id scaler; BOOL spatial, m4;
++    id<MTLFXSpatialScalerBase> thermalSpatial;
++    RBFxPolicy policy;
++    BOOL resetAfterSpatial, trialLogged;
+     uint64_t net;
+     MTLPixelFormat cf, df, mf, of; NSUInteger iw, ih, ow, oh; uint32_t flags;
+ }
+@@ -25,6 +29,50 @@ static Class dlss_class(const char *name) {
+     Class c = NSClassFromString(@(name));
+     return c && [c supportsDevice:g_dev] ? c : nil;
+ }
++// Only the submit thread selects a mode. The encoding thread receives the chosen
++// scaler and reset bit in the same immutable record as the evaluation's textures.
++static _Atomic int g_rb_dlss_title;
++static struct { uint64_t sampled, nominalSince; BOOL hot; } g_rb_dlss_thermal;
++
++static RBFxPolicy dlss_thermal_trial(id<MTLTexture> input, id<MTLTexture> output) {
++#if TARGET_OS_IOS
++    const char *setting = getenv("S2A_RB_GPU_THERMAL_SPATIAL");
++    if (!setting || g_m3 || input.width != 960 || input.height != 540 ||
++        output.width != 1920 || output.height != 1080 || !rb_direct_option(&g_rb_dlss_title, NULL)) return RBFxOff;
++    if (!strcmp(setting, "1")) return RBFxAdaptive;
++    if (!strcmp(setting, "always")) return RBFxAlways;
++#endif
++    return RBFxOff;
++}
++static BOOL dlss_thermal_hot(void) {
++    uint64_t now = bp_now(), last = g_rb_dlss_thermal.sampled;
++    if (last && now - last < 500000000ull) return g_rb_dlss_thermal.hot;
++    int state = rb_cached_thermal();
++    g_rb_dlss_thermal.sampled = now;
++    if (state >= NSProcessInfoThermalStateFair) {
++        g_rb_dlss_thermal.hot = YES;
++        g_rb_dlss_thermal.nominalSince = 0;
++    } else if (state == NSProcessInfoThermalStateNominal && g_rb_dlss_thermal.hot) {
++        // Time suspended or in menus without evaluations cannot prove uninterrupted recovery.
++        if (!g_rb_dlss_thermal.nominalSince || now - last > 2000000000ull)
++            g_rb_dlss_thermal.nominalSince = now;
++        if (now - g_rb_dlss_thermal.nominalSince >= 30000000000ull)
++            g_rb_dlss_thermal.hot = NO;
++    } else {
++        g_rb_dlss_thermal.nominalSince = 0;
++    }
++    return g_rb_dlss_thermal.hot;
++}
++static id dlss_make_spatial(const p_dlss *d, id<MTLTexture> c, id<MTLTexture> o, BOOL m4) {
++    Class scl = dlss_class("MTLFXSpatialScalerDescriptor");
++    if (!scl) return nil;
++    MTLFXSpatialScalerDescriptor *sd = [scl new];
++    sd.colorTextureFormat = c.pixelFormat; sd.outputTextureFormat = o.pixelFormat; sd.inputWidth = c.width; sd.inputHeight = c.height; sd.outputWidth = o.width; sd.outputHeight = o.height;
++    sd.colorProcessingMode = d->flags & DLF_LDR ? MTLFXSpatialScalerColorProcessingModePerceptual : MTLFXSpatialScalerColorProcessingModeHDR;
++    if (m4) { if (@available(macOS 26.0, iOS 26.0, *)) { id comp = present_fx_compiler(); if (comp) return [sd newSpatialScalerWithDevice:g_dev compiler:comp]; } }
++    else return [sd newSpatialScalerWithDevice:g_dev];
++    return nil;
++}
+ static NvDlss *dlss_scaler(const p_dlss *d, id<MTLTexture> c, id<MTLTexture> dp, id<MTLTexture> mv, id<MTLTexture> o, NSUInteger cw, NSUInteger ch) {
+     BOOL m4 = !g_m3; int free_i = -1, hit = -1;
+     for (int i = 0; i < 4; i++) { if (!g_dlss[i]) { if (free_i < 0) free_i = i; continue; } if (g_dlss[i]->net == d->network) hit = i; }
+@@ -49,28 +97,35 @@ static NvDlss *dlss_scaler(const p_dlss *d, id<MTLTexture> c, id<MTLTexture> dp,
+         if (sc) [(id<MTLFXTemporalScalerBase>)sc setDepthReversed:(d->flags & DLF_DEPTH_INVERTED) != 0];
+     }
+     if (!sc) {
+-        Class scl = dlss_class("MTLFXSpatialScalerDescriptor");
+         RED_ONCE(144, "DLSS：%lux%lu → %lux%lu 要放大 %.2f 倍，MetalFX 时域放大做不了（上限 %.2f 倍 / 格式 色 %lu 深 %lu 动 %lu 出 %lu），改用 MetalFX 空间放大（没有历史累积，画面更软）",
+                  (unsigned long)cw, (unsigned long)ch, (unsigned long)o.width, (unsigned long)o.height, need, maxs, (unsigned long)c.pixelFormat, (unsigned long)dp.pixelFormat,
+                  (unsigned long)mv.pixelFormat, (unsigned long)o.pixelFormat);
+-        if (scl) {
+-            MTLFXSpatialScalerDescriptor *sd = [scl new];
+-            sd.colorTextureFormat = c.pixelFormat; sd.outputTextureFormat = o.pixelFormat; sd.inputWidth = c.width; sd.inputHeight = c.height; sd.outputWidth = o.width; sd.outputHeight = o.height;
+-            sd.colorProcessingMode = d->flags & DLF_LDR ? MTLFXSpatialScalerColorProcessingModePerceptual : MTLFXSpatialScalerColorProcessingModeHDR;
+-            if (m4) { if (@available(macOS 26.0, iOS 26.0, *)) { id comp = present_fx_compiler(); if (comp) sc = [sd newSpatialScalerWithDevice:g_dev compiler:comp]; } }
+-            else sc = [sd newSpatialScalerWithDevice:g_dev];
+-            spatial = sc != nil;
+-        }
++        sc = dlss_make_spatial(d, c, o, m4);
++        spatial = sc != nil;
+     }
+     if (!sc) { RED_ONCE(145, "DLSS：建 MetalFX 放大器失败（%lux%lu → %lux%lu 格式 色 %lu 深 %lu 动 %lu 出 %lu），这一遍不做", (unsigned long)c.width, (unsigned long)c.height,
+                         (unsigned long)o.width, (unsigned long)o.height, (unsigned long)c.pixelFormat, (unsigned long)dp.pixelFormat, (unsigned long)mv.pixelFormat, (unsigned long)o.pixelFormat); return nil; }
+     // 放大器自己的栅栏：Metal 4 不带时校验层断言（同 nvn_present_fx.inc），前后顺序由两侧的队列级全屏障保证；Metal 3 用回放各编码器同一个 g_fence3
+     id<MTLFence> fence = m4 ? [g_dev newFence] : g_fence3;
+     if (spatial) [(id<MTLFXSpatialScalerBase>)sc setFence:fence]; else [(id<MTLFXTemporalScalerBase>)sc setFence:fence];
+-    if (g_dlss[slot]) defer_obj_unref(g_dlss[slot]->scaler);   // 在飞的命令缓冲可能还在用：等它们完成再放
++    if (g_dlss[slot]) defer_obj_unref(g_dlss[slot]);   // 在飞的命令缓冲可能还在用：等它们完成再放
+     f = [NvDlss new];
+     f->scaler = sc; f->spatial = spatial; f->m4 = m4; f->net = d->network; f->flags = d->flags;
+     f->cf = c.pixelFormat; f->df = dp.pixelFormat; f->mf = mv.pixelFormat; f->of = o.pixelFormat; f->iw = c.width; f->ih = c.height; f->ow = o.width; f->oh = o.height;
++    f->policy = spatial ? RBFxOff : dlss_thermal_trial(c, o);
++    if (f->policy != RBFxOff) {
++        // Build once per descriptor, alongside the normal scaler. Never compile at a heat transition.
++        id<MTLFXSpatialScalerBase> alternative = dlss_make_spatial(d, c, o, m4);
++        id<MTLFence> alternateFence = alternative ? [g_dev newFence] : nil;
++        if (alternateFence) {
++            alternative.fence = alternateFence;
++            f->thermalSpatial = alternative;
++        }
++        MLOG("[rb-thermal-fx] network=%#llx policy=%s spatial_available=%d input=%lux%lu output=%lux%lu",
++             (unsigned long long)d->network, f->policy == RBFxAlways ? "always" : "adaptive",
++             f->thermalSpatial != nil, (unsigned long)c.width,
++             (unsigned long)c.height, (unsigned long)o.width, (unsigned long)o.height);
++    }
+     g_dlss[slot] = f;
+     MLOG("DLSS → MetalFX %s放大（%s）：网络 %#llx，输入 %lux%lu（内容 %lux%lu）格式 色 %lu 深 %lu 动 %lu → 输出 %lux%lu 格式 %lu，深度%s，网络输出 %dx%d 方法 %d 标志 %#x",
+          spatial ? "空间" : "时域", m4 ? "Metal 4" : "Metal 3", (unsigned long long)d->network, (unsigned long)c.width, (unsigned long)c.height, (unsigned long)cw, (unsigned long)ch,
+@@ -122,7 +177,31 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
+         static int once; if (!once++) MLOG("【红】 DLSS：网络输出 %dx%d 小于输出图 %lux%lu，MetalFX 写满整张输出图", d->out_w, d->out_h, (unsigned long)o.width, (unsigned long)o.height); }
+     NvDlss *f = dlss_scaler(d, c, dp, mv, o, cw, ch);
+     if (!f) { g_dlss_skips++; return; }
+-    id<MTLFXTemporalScalerBase> ts = f->spatial ? nil : f->scaler; id<MTLFXSpatialScalerBase> ss = f->spatial ? f->scaler : nil;
++    id<MTLFXTemporalScalerBase> ts = f->spatial ? nil : f->scaler;
++    id<MTLFXSpatialScalerBase> ss = f->spatial ? f->scaler : nil;
++    BOOL requestSpatial = f->thermalSpatial && (f->policy == RBFxAlways || dlss_thermal_hot());
++    if (requestSpatial) {
++        // Never require an additional texture upgrade solely for this trial.
++        id<MTLFXSpatialScalerBase> candidate = f->thermalSpatial;
++        if ((candidate.colorTextureUsage & ~(c.usage | ts.colorTextureUsage)) == 0 &&
++            (candidate.outputTextureUsage & ~(o.usage | ts.outputTextureUsage)) == 0) {
++            ss = candidate;
++            ts = nil;
++        }
++    }
++    BOOL thermalSpatial = ss && ss == f->thermalSpatial;
++    BOOL reset = d->reset || (ts && f->resetAfterSpatial);
++    if (f->policy != RBFxOff && (!f->trialLogged || thermalSpatial != f->resetAfterSpatial)) {
++        const char *reason = "nominal";
++        if (!f->thermalSpatial) reason = "unavailable";
++        else if (requestSpatial && !thermalSpatial) reason = "texture-usage";
++        else if (thermalSpatial) reason = f->policy == RBFxAlways ? "always" : "thermal-or-recovery";
++        MLOG("[rb-thermal-fx] frame=%llu network=%#llx policy=%s scaler=%s reason=%s history_reset=%d",
++             (unsigned long long)atomic_load(&g_cur_frame), (unsigned long long)d->network,
++             f->policy == RBFxAlways ? "always" : "adaptive", thermalSpatial ? "spatial" : "temporal",
++             reason, !thermalSpatial && reset);
++        f->trialLogged = YES;
++    }
+     c = dlss_usage(tc, c, ts ? ts.colorTextureUsage : ss.colorTextureUsage);
+     o = dlss_usage(to, o, ts ? ts.outputTextureUsage : ss.outputTextureUsage);
+     if (ts) { dp = dlss_usage(td, dp, ts.depthTextureUsage); mv = dlss_usage(tm, mv, ts.motionTextureUsage); }
+@@ -140,22 +219,24 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
+             label->fx_pair = (uint16_t)++g_gp_fx_pairs;
+             fx_mark = GP_MAX - 2 * (NSUInteger)label->fx_pair + 1;
+         }
+-        label->fx = f->spatial ? 2 : 1;
++        label->fx = ss ? 2 : 1;
+         label->in_w = (uint32_t)cw; label->in_h = (uint32_t)ch;
+         label->out_w = (uint32_t)o.width; label->out_h = (uint32_t)o.height;
+     }
+     enc_close_blit();
+     uint64_t a[15] = {0};
+     a[5] = rec_f(d->jitter[0]); a[6] = rec_f(d->jitter[1]); a[7] = rec_f(d->mv_scale[0]); a[8] = rec_f(d->mv_scale[1]); a[9] = rec_f(d->pre_exposure);
+-    a[10] = d->reset; a[11] = cw; a[12] = ch; a[13] = f->spatial; a[14] = fx_mark;
++    a[10] = reset; a[11] = cw; a[12] = ch; a[13] = ss != nil; a[14] = fx_mark;
++    id scaler = ss ? (id)ss : (id)ts;
+     if (rec_on()) {   // 编码线程：放大器与四张图由记录持有到调用完
+         rec_t *r = rec_put(RO_FX, 5); memcpy(r->a, a, sizeof a);
+-        r->a[0] = rec_obj(f->scaler); r->a[1] = rec_obj(c); r->a[2] = rec_obj(ts ? dp : nil); r->a[3] = rec_obj(ts ? mv : nil); r->a[4] = rec_obj(o);
++        r->a[0] = rec_obj(scaler); r->a[1] = rec_obj(c); r->a[2] = rec_obj(ts ? dp : nil); r->a[3] = rec_obj(ts ? mv : nil); r->a[4] = rec_obj(o);
+     } else {
+-        a[0] = (uint64_t)(__bridge void *)f->scaler; a[1] = (uint64_t)(__bridge void *)c; a[2] = (uint64_t)(__bridge void *)dp; a[3] = (uint64_t)(__bridge void *)mv; a[4] = (uint64_t)(__bridge void *)o;
++        a[0] = (uint64_t)(__bridge void *)scaler; a[1] = (uint64_t)(__bridge void *)c; a[2] = (uint64_t)(__bridge void *)dp; a[3] = (uint64_t)(__bridge void *)mv; a[4] = (uint64_t)(__bridge void *)o;
+         dlss_fx_run(g_cb, a);
+     }
+     // 后一侧：下一个编码器开时做全屏障（不按放宽的上一遍结尾算），也不沿用「上一编码器已全屏障」的证明
+     g_last_end_relaxed = 0; main_barrier_reset();
++    f->resetAfterSpatial = thermalSpatial;
+     g_dlss_evals++;
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 4838872..7c99475 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -270,6 +270,11 @@ int nvn_be_shutdown_session(void) {
+     g_nshotq = 0; g_td_list = nil; g_td_frames = nil;
+     free(g_td_owned_path); g_td_owned_path = NULL;
+     g_td_frame = -2; g_td_path = NULL; g_td_w = g_td_h = 0; g_td_done = 0; g_lp = nil;
++    // GPU work and deferred records have drained. Guest network addresses may
++    // be reused by the next title, including their temporal history.
++    for (size_t i = 0; i < sizeof g_dlss / sizeof g_dlss[0]; i++) g_dlss[i] = nil;
++    memset(&g_rb_dlss_thermal, 0, sizeof g_rb_dlss_thermal);
++    atomic_store_explicit(&g_rb_dlss_title, 0, memory_order_relaxed);
+     cap_reset();   // RewindBox (patch 0045): a screenshot's frame capture the session ended in the middle of
+     atomic_store(&g_sub_thread_set, 0);
+     // Ordinary deferred releases target fence+1. There will be no next

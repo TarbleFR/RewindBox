@@ -1,0 +1,256 @@
+Use an immediate, proven attachment clear in the normal direct Metal path. Preserve stores for unrelated or uncertain targets.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -8340,6 +8340,19 @@
+ enum { SD_MAX = 8 + 2 };   // Entries per pass: up to 8 colour attachments (the recording loop's bound) + depth + stencil (a combined format records both planes)
+ static sd_att g_sd[SD_MAX]; static int g_nsd;
+ static unsigned g_rb_discard_mask;
++static unsigned g_rb_next_clear_mask;
++static int g_rb_clear_legacy = -1;
++static _Atomic int g_rb_next_clear_mode;
++static _Atomic uint64_t g_rb_adjacent_pairs, g_rb_adjacent_stores, g_rb_adjacent_bytes;
++
++int nvn_be_adjacent_clear_stats(uint64_t counts[3]) {
++    if (atomic_load_explicit(&g_rb_next_clear_mode, memory_order_relaxed) != 2) return 0;
++    counts[0] = atomic_load_explicit(&g_rb_adjacent_pairs, memory_order_relaxed);
++    counts[1] = atomic_load_explicit(&g_rb_adjacent_stores, memory_order_relaxed);
++    counts[2] = atomic_load_explicit(&g_rb_adjacent_bytes, memory_order_relaxed);
++    return 1;
++}
++
+ static int g_rb_all_loaded;
+ static uint64_t g_rb_final_rw;
+ static int rb_pass_stats(void) {
+@@ -8513,7 +8526,7 @@
+ #endif
+     sd_finish();
+     if (g_rb_all_loaded) g_rb_final_rw++;
+-    g_rb_all_loaded = 0; g_rb_discard_mask = 0;
++    g_rb_all_loaded = 0; g_rb_discard_mask = 0; g_rb_next_clear_mask = 0;
+     enc_r_end_pass(g_enc); zskip_commit_clears(); g_enc = nil; g_rt_merged = 0; g_rt_range_active = g_rt_range_pending = 0; ts_after(); ms_after(); if (g_lp.count) lp_finish(); fz_end();
+     if (g_nubd && g_nubd >= ubd_lazy()) ubd_flush();   // the inline updates deferred in this pass, in order (see mtl_sub_update); across passes they wait for the next copy or dispatch (blit_raw)
+     if (g_nbcrt) bcrt_flush();   // blocks drawn into shadows go back into their compressed textures
+@@ -15742,6 +15755,11 @@
+             sd_att *t = &g_sd[i];
+             int unwritten = !t->wrote && (t->lskip || (t->load && udc_on()));
+             int dead = unwritten || rb_terminal_discard(t);
++            if (!dead && (g_rb_next_clear_mask & (1u << i))) {
++                dead = 1;
++                atomic_fetch_add_explicit(&g_rb_adjacent_stores, 1, memory_order_relaxed);
++                atomic_fetch_add_explicit(&g_rb_adjacent_bytes, t->bytes, memory_order_relaxed);
++            }
+             if (dead) g_rb_all_loaded = 0;
+             MTLStoreAction sa = dead ? MTLStoreActionDontCare : MTLStoreActionStore;
+             // not loaded (g_noload_mask) and still unwritten: nothing to write back, memory is the content. Written after all = the lookahead's proof was wrong (red; written back so the draws stay)
+@@ -16548,28 +16566,23 @@
+ 
+ // The sequence index does not replay scissors or conditional rendering. Only the
+ // adjacent rebind/clear pair inherits their exact current state with no intervening reader.
+-static int rb_next_clear_covers(const sd_att *att, uint32_t rebind, uint32_t clear) {
+-    if (clear != rebind + 1 || g_rc_skip || g_hoist_n || g_rt_merged || g_pass.layered || g_wd > 0)
+-        return 0;
+-    const uint8_t *rt_op = g_sdx_op[rebind], *clear_op = g_sdx_op[clear];
+-    op_hdr rt_header, clear_header;
+-    memcpy(&rt_header, rt_op, sizeof rt_header);
++static int rb_clear_covers_plane(const sd_att *att, const p_set_rt *next, const uint8_t *clear_op) {
++    if (g_rc_skip || g_hoist_n || g_rt_merged || g_pass.layered || g_wd > 0) return 0;
++    op_hdr clear_header;
+     memcpy(&clear_header, clear_op, sizeof clear_header);
+-    if (rt_header.op != OP_SET_RT || clear_op != rt_op + rt_header.size) return 0;
+-
+-    p_set_rt tmp;
+-    const p_set_rt *next = set_rt_rec(rt_op + 8, rt_header.size, &tmp);
+     const tex_t *old, *tex;
+     unsigned slot = att->depth ? 8u : (unsigned)att->idx;
+     if (att->depth) {
+-        if (clear_header.op != OP_CLEAR_DS || next->n || next->has_dview || R.rt.has_dview) return 0;
++        if (clear_header.op != OP_CLEAR_DS || clear_header.size != 8 + sizeof(p_clear_ds) ||
++            next->n || next->has_dview || R.rt.has_dview) return 0;
+         const p_clear_ds *c = (const p_clear_ds *)(clear_op + 8);
+         unsigned sm = (unsigned)c->stencil_mask & 0xff;
+         if ((sm && sm != 0xff) || (att->depth == 1 ? !c->depth_mask : sm != 0xff)) return 0;
+         old = R.rt.depth;
+         tex = next->depth;
+     } else {
+-        if (clear_header.op != OP_CLEAR_COLOR || slot >= 8 || next->n != 1 || next->depth ||
++        if (clear_header.op != OP_CLEAR_COLOR || clear_header.size != 8 + sizeof(p_clear_color) ||
++            slot >= 8 || next->n != 1 || next->depth ||
+             next->has_cview[0] || R.rt.has_cview[slot]) return 0;
+         const p_clear_color *c = (const p_clear_color *)(clear_op + 8);
+         if (c->index != 0 || c->mask != 0xf) return 0;
+@@ -16583,6 +16596,62 @@
+         tex->d.levels != 1 || tex->d.samples > 1 || tex->d.depth > 1 ||
+         !tex->d.width || !tex->d.height || att->lv || att->sl) return 0;
+     return scissor_full(tex, NULL, 0);
++}
++static int rb_next_clear_covers(const sd_att *att, uint32_t rebind, uint32_t clear) {
++    if (clear != rebind + 1) return 0;
++    const uint8_t *rt_op = g_sdx_op[rebind], *clear_op = g_sdx_op[clear];
++    op_hdr header;
++    memcpy(&header, rt_op, sizeof header);
++    if (header.op != OP_SET_RT || clear_op != rt_op + header.size) return 0;
++    p_set_rt tmp;
++    return rb_clear_covers_plane(att, set_rt_rec(rt_op + 8, header.size, &tmp), clear_op);
++}
++
++static int rb_clear_readback_pending(void);
++static int sub_cut_due(void);
++static int lc_on(void);
++static int rb_last_submit_handle(void);
++
++// Establish that the backend will encode the clear into this CB before a
++// different queue, draw, lazy-clear group, command list or segment can see it.
++static int rb_clear_has_landing(const uint8_t *op, op_hdr clear) {
++    if (clear.op == OP_CLEAR_COLOR ? clear.size != 8 + sizeof(p_clear_color) :
++                                    clear.size != 8 + sizeof(p_clear_ds)) return 0;
++    const uint8_t *following = op + clear.size;
++    op_hdr h;
++    memcpy(&h, following, sizeof h);
++    if (h.op == OP_END) return h.size == 8 && rb_last_submit_handle();
++    if (h.op == OP_SET_RT) return !rec_bad(h) && h.size >= 8 + sizeof(p_set_rt_c) && !lc_on();   // pend && !g_enc calls rp_flush
++    if (h.op == OP_CLEAR_TEX && h.size == 8 + sizeof(p_clear_tex) && !g_fold_any) {
++        const p_clear_tex *c = (const p_clear_tex *)(following + 8);
++        // clear_tex calls rp_flush before looking up either texture.
++        return c->tex && (c->mask & 0xf) && c->r.width > 0 && c->r.height > 0;
++    }
++    return 0;
++}
++
++// The normal renderer closes this encoder on SetRT. Inspect only the next
++// clear and its landing boundary. No submission index is needed.
++static unsigned rb_adjacent_clear_mask(const p_set_rt *next, const uint8_t *op) {
++    if (g_rb_clear_legacy < 0) g_rb_clear_legacy = getenv("DM_NVN_TBDR") != NULL;
++    if (g_m3 || g_rb_clear_legacy || tbdr_on() ||
++        !rb_direct_option(&g_rb_next_clear_mode, "S2A_RB_GPU_CLEAR_STORES")) return 0;
++    op_hdr header;
++    memcpy(&header, op, sizeof header);
++    if (header.op != OP_CLEAR_COLOR && header.op != OP_CLEAR_DS) return 0;
++    if (g_nbcrt || g_nubd || rs_on() || sub_cut_due() || rb_clear_readback_pending() ||
++        !rb_clear_has_landing(op, header)) return 0;
++    atomic_fetch_add_explicit(&g_rb_adjacent_pairs, 1, memory_order_relaxed);
++    unsigned mask = 0;
++    for (int i = 0; i < g_nsd; i++) {
++        sd_att *a = &g_sd[i];
++        const tex_t *t = a->depth ? R.rt.depth : R.rt.color[a->idx];
++        unsigned external = NVN_TEXTURE_FLAGS_DISPLAY | NVN_TEXTURE_FLAGS_VIDEO_DECODE |
++                            NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET;
++        if (!t || (t->d.flags & external) || xv_present(a->ser)) continue;
++        if (rb_clear_covers_plane(a, next, op)) mask |= 1u << i;
++    }
++    return mask;
+ }
+ static int sdx_decide(uint8_t st[SD_MAX]) {   // st[i]: 2 redundant; otherwise why << 2 (the reason it is needed, same as sd_need). Returns 0 = index unavailable
+     if (!g_sdx_ok || !g_exec_cur || !g_exec_seq || g_sdx_op[g_exec_seq - 1] != g_exec_cur) return 0;
+@@ -20662,11 +20731,15 @@
+     if (!ts_on()) return;
+     ts_clk(); if (g_sclk->nb <= SEG_CLK_N) g_sclk->b[g_sclk->nb++] = (uint16_t)ts_stamp();
+ }
++static int sub_cut_due(void) {
++    int n = cut_draws();
++    return g_cut_copy || g_arena_seg >= ARENA_CUT ||
++           (n > 0 && g_stat_draw - g_cut_draw0 >= (uint64_t)n);
++}
+ static void sub_cut(void) {
+-    int n = cut_draws();
+     if (!g_cb || g_enc) return;
+     int scratch = g_arena_seg >= ARENA_CUT;   // the segment's frame scratch passed the bound (see NvArena): cut whatever the draw count, DM_NVN_CUT=0 included
+-    if ((!g_cut_copy && !scratch && (n <= 0 || g_stat_draw - g_cut_draw0 < (uint64_t)n)) || g_hoist_n || g_defer_nact || g_defer_pend || g_fz.active || g_rt_merged) return;
++    if (!sub_cut_due() || g_hoist_n || g_defer_nact || g_defer_pend || g_fz.active || g_rt_merged) return;
+     // The cut is there so that the GPU does not sit idle while the host encodes. With earlier work still running a commit gains nothing and queues one more command buffer (upstream reference implementation, MIT: with buffers queued
+     // behind running work the GPU waited 5-40 ms with the next one already committed). So it stays a boundary for the game's timestamps (ts_boundary), the commit left for when the GPU has run out.
+     // A copy still commits, as its data must land, and so does a cut for frame scratch, whose blocks come back only when their segment completes. DM_NVN_CUT_BUSY=0: every cut commits
+@@ -21031,8 +21104,10 @@
+                 if (g_enc && g_enc_mode != 1 && !pend && R.has_rt && tbdr_on() && rt_same(&R.rt, r)) { g_rt_merged = 1; if (!g_rt_merge_n++) MLOG("same-target continuation: first case pass %llu", g_stat_pass); PD("M %llu same-target continuation pass", g_stat_pass); R.rt = *r; break; }
+                 // The next command after the guest discards rebinds the targets and closes
+                 // this encoder. Never carry a hint past a draw, call, wait, alias or submission.
+-                if (terminal && g_enc && !pend && !g_nlc && !g_rt_merged && !g_rlane && !g_pass_geo)
++                if (g_enc && !pend && !g_nlc && !g_rt_merged && !g_rlane && !g_pass_geo) {
+                     g_rb_discard_mask = terminal;
++                    g_rb_next_clear_mask = rb_adjacent_clear_mask(r, p + h.size);
++                }
+                 if (pend && !g_enc && g_cb && lc_on()) lc_push(); else rp_flush();   // clears with no draw wait for the next pass that attaches their targets (lc_push)
+                 sub_cut(); R.rt = *r; R.has_rt = 1; break;
+             }
+@@ -21179,6 +21254,11 @@
+ #include <os/proc.h>
+ #endif
+ #include "nvn_xqueue.inc"   // cross-queue event ordering: nvn_be_submit
++static int rb_last_submit_handle(void) {
++    // xq_piece calls nvn_be_sub_commit immediately after its last top-level
++    // list. That closes pending clears before uploading or publishing its fence.
++    return g_xq_cur && !g_xq_unwind && !g_ret_n && !g_nrest;
++}
+ #include "nvn_mem_account.inc"
+ int nvn_rb_texture_snapshot(rb_texture_stats *out) {
+     if (!rb_tex_budget_on() || !out) return -1;
+@@ -22166,6 +22246,11 @@
+ // (the same target is often cleared and reused within a frame, so the end-of-frame state cannot reflect the output of intermediate passes); saved as <TEXDUMP path with %d = 0>_s<in-frame index>_<serial>_<level>.png
+ static int g_ts_idx[64], g_ts_n = -1, g_ts_on; static uint64_t g_ts_first, g_ts_curf = ~0ull;
+ static __strong id<MTLTexture> g_ts_att[8]; static uint64_t g_ts_ser[8]; static NSUInteger g_ts_lv[8]; static int g_ts_na;
++static int rb_clear_readback_pending(void) {
++    return (g_ts_on && g_ts_na) || g_ms_na || g_lp.count ||
++           (g_td_frame >= 0 && !g_td_done && (uint64_t)g_td_frame == atomic_load_explicit(&g_cur_frame, memory_order_relaxed));
++}
++
+ void ts_note(MTL4RenderPassDescriptor *pd, NSUInteger nc) {
+     if (g_ts_n < 0) { g_ts_n = 0; const char *e = getenv("DM_NVN_TEXSNAP");
+         for (const char *q = e; q && *q && g_ts_n < 64; q = strchr(q, ',') ? strchr(q, ',') + 1 : q + strlen(q)) g_ts_idx[g_ts_n++] = atoi(q); }
+
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3241,6 +3241,7 @@
+ void nvn_be_res_stats(char *out, size_t n);
+ void nvn_be_barrier_stats(uint64_t *skip, uint64_t *full);
+ __attribute__((weak)) void nvn_be_draw_barrier_reasons(uint64_t counts[4]) { memset(counts, 0, 4 * sizeof *counts); }
++__attribute__((weak)) int nvn_be_adjacent_clear_stats(uint64_t counts[3]) { (void)counts; return 0; }
+ extern uint32_t nvn_be_present_qos(void);
+ static uint64_t g_frame;
+ // RewindBox (patch 0070, L24 item 1): the host pages of virtual pools copied for buffers (vsh_fill: made, and filled again after a mapping or a CPU write behind them), and their
+@@ -3485,11 +3486,20 @@
+     uint64_t e = 0;
+ #endif
+     uint64_t iw = pw.cpu_energy.task_interrupt_wakeups, idw = pw.cpu_energy.task_platform_idle_wakeups, g = (uint64_t)(g_gpu_busy_ms * 1e6);   // GPU：命令缓冲忙的时间（纳秒累计；task_gpu_utilisation 真机读 0）
++    static uint64_t previous_clear[3];
+     if (pt && t > pt) { double s = (t - pt) / 1e9; char yt[192]; dm_yield_top(yt, sizeof yt);
+         double nf = frame > pf ? (double)(frame - pf) : 1;   // per frame: the fair comparison when one build holds the frame rate better than another
+         LOG("[nvn] power up to frame %llu: CPU energy %.2f W, %.1f mJ per frame (%.1f fps); CPU %.0f%% (100 = one core), %.0f%% of it on performance cores; wakeups %.0f/s (out of platform idle %.0f); GPU busy %.1f ms/s (time, not energy); thermal %d; top yielders: %s", frame,
+             (e - pe) / 1e9 / s, (e - pe) / 1e6 / nf, nf / s, (cpu - pcpu) / 1e7 / s, cpu > pcpu ? 100.0 * (double)(p - pp) / (double)(cpu - pcpu) : 0, (iw - piw) / s, (idw - ppw) / s, (g - pg) / 1e6 / s, dm_thermal_now(), yt);
+         char rs[400]; nvn_be_res_stats(rs, sizeof rs); static uint64_t pbs, pbf; uint64_t bs, bf; nvn_be_barrier_stats(&bs, &bf);
++
++        uint64_t clear[3];
++        if (nvn_be_adjacent_clear_stats(clear)) {
++            LOG("[tbdr] adjacent clears up to frame %llu: candidate rebinds %llu, additional stores elided %llu, logical store bytes saved %llu (%.2f MiB/frame)",
++                frame, (unsigned long long)(clear[0] - previous_clear[0]), (unsigned long long)(clear[1] - previous_clear[1]),
++                (unsigned long long)(clear[2] - previous_clear[2]), (clear[2] - previous_clear[2]) / 1048576.0 / nf);
++            memcpy(previous_clear, clear, sizeof clear);
++        }
+         static uint64_t previous_reason[4];
+         uint64_t reason[4];
+         nvn_be_draw_barrier_reasons(reason);
+@@ -3512,6 +3522,7 @@
+         char tc[400]; dm_thread_cpu(tc, sizeof tc, s);
+         LOG("[nvn] threads up to frame %llu: CPU %s", frame, tc); }
+     else { char yt[192], rs[400], tc[400]; dm_yield_top(yt, sizeof yt); nvn_be_res_stats(rs, sizeof rs); dm_thread_cpu(tc, sizeof tc, 1); }   // the first call only takes the baselines
++    if (!pt) nvn_be_adjacent_clear_stats(previous_clear);
+     pt = t; pe = e; pcpu = cpu; pp = p; piw = iw; ppw = idw; pg = g; pf = frame; nvn_be_bw(&pld, &pst, &pfu); pudc = nvn_be_udc_saved_bytes();
+ #endif
+ }
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -134,6 +134,11 @@
+     nvn_hm_clear(&g_by_serial, session_resource_release);
+     nvn_hm_clear(&g_alias, session_resource_release);
+     nvn_hm_clear(&g_ghost, hm_rel);
++    // A subsequent hosted session may select different render options. Keep
++    // cumulative store counters monotonic for the 300-frame sampler.
++    atomic_store_explicit(&g_rb_next_clear_mode, 0, memory_order_relaxed);
++    g_rb_clear_legacy = -1;
++    g_rb_next_clear_mask = 0;
+     rb_reuse_session_reset();   // RewindBox (patch 0071): the textures kept for reuse, the ring of finalized textures, the snapshot pools (nvn_mtl.m)
+     nvn_hm_clear(&g_alias_seen, NULL); nvn_hm_clear(&g_tex_live, NULL);
+     pthread_mutex_lock(&g_gpw_mu);

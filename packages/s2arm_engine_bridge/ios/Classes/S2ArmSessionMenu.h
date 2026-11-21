@@ -26,6 +26,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)attach;   // main thread, once the game view controller is presented
 - (void)detach;   // main thread; idempotent
+- (void)applyOverlay;   // also called by the existing game-view watch for late or replaced labels
 - (void)showMenu;
 
 // The text shown for a key (the Dart string, else English). Exposed for tests of the string table.

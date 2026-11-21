@@ -1152,6 +1152,7 @@ static NSString *S2ArmChainNames(UIViewController *root) {
   UIWindow *window = shown.view.window ?: vc.view.window;
   if (vc.presentingViewController && window && !window.isHidden) {
     self.viewLostTicks = 0;
+    [self.sessionMenu applyOverlay];
     return;
   }
   // Only the foreground can show it again (in the background the view stays where it is until the app comes back)

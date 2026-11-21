@@ -1,0 +1,53 @@
+diff --git a/ios/hud.m b/ios/hud.m
+index f97bdf6..8c155e5 100644
+--- a/ios/hud.m
++++ b/ios/hud.m
+@@ -46,13 +46,35 @@ static void tick(void) {
+     g_hud.frame = CGRectMake(10, 10, width - 20, ceil(fit.height));
+ }
+ // 简版性能浮层（齿轮菜单「性能浮层」，偏好 S2APerfHUD，缺省关）：右上角一枚小胶囊「帧率 · 内存」，每 0.5 秒刷新，不接触摸、不进截图
+-static UILabel *g_brief; static NSTimer *g_brief_timer;
++// RewindBox hides this label live from its own menu. Park its repeating refresh
++// while hidden or detached, retaining the frame history for an immediate reopen.
++@interface S2ArmBriefHUDLabel : UILabel
++@property(nonatomic, weak) NSTimer *refreshTimer;
++- (void)updateRefreshSchedule;
++@end
++
++@implementation S2ArmBriefHUDLabel
++- (void)updateRefreshSchedule {
++    self.refreshTimer.fireDate = self.hidden || !self.window ? NSDate.distantFuture : [NSDate dateWithTimeIntervalSinceNow:0.5];
++}
++- (void)setHidden:(BOOL)hidden {
++    BOOL changed = hidden != self.hidden;
++    [super setHidden:hidden];
++    if (changed) [self updateRefreshSchedule];
++}
++- (void)didMoveToWindow {
++    [super didMoveToWindow];
++    [self updateRefreshSchedule];
++}
++@end
++
++static S2ArmBriefHUDLabel *g_brief; static NSTimer *g_brief_timer;
+ void s2a_hud_brief_show(UIView *root, BOOL on) {
+     s2a_hud_brief_set(on);
+     if (!on || !root) { [g_brief_timer invalidate]; g_brief_timer = nil; [g_brief removeFromSuperview]; g_brief = nil; return; }
+     if (g_brief.superview == root) return;
+     [g_brief removeFromSuperview];
+-    g_brief = [UILabel new]; g_brief.userInteractionEnabled = NO; g_brief.textAlignment = NSTextAlignmentCenter;
++    g_brief = [S2ArmBriefHUDLabel new]; g_brief.userInteractionEnabled = NO; g_brief.textAlignment = NSTextAlignmentCenter;
+     g_brief.font = [UIFont monospacedDigitSystemFontOfSize:12 weight:UIFontWeightSemibold]; g_brief.textColor = UIColor.whiteColor;
+     g_brief.backgroundColor = [UIColor colorWithWhite:0 alpha:0.55]; g_brief.layer.cornerRadius = 9; g_brief.layer.masksToBounds = YES;
+     g_brief.layer.zPosition = 10000; g_brief.accessibilityIdentifier = @"hud.brief";
+@@ -65,7 +87,9 @@ void s2a_hud_brief_show(UIView *root, BOOL on) {
+     };
+     [g_brief_timer invalidate];
+     g_brief_timer = [NSTimer scheduledTimerWithTimeInterval:0.5 repeats:YES block:^(NSTimer *t) { (void)t; tick(); }];
+-    tick();
++    g_brief.refreshTimer = g_brief_timer;
++    [g_brief updateRefreshSchedule];
++    if (g_brief.window && !g_brief.hidden) tick();
+ }
+ void s2a_hud_attach(UIView *root) {
+     if (!s2a_hud_on() || g_hud) return;

@@ -1,0 +1,177 @@
+Poll guest fences without scheduling a timed wait; let real waiters sleep through unrelated segment retirements. Full-fence progress and session stop retain their notifications. The fence, arena and error completion contracts are unchanged.
+
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 849107f..13aa63c 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -1445,6 +1445,7 @@ NVN(nvnSyncWait, NVNsyncWaitResult, const NVNsync *s, uint64_t timeout) {
+     uint64_t fence;
+     { void *owner = NULL;
+       if (nvn_be_xq_owed(s, &owner)) {
++          if (!timeout) return NVN_SYNC_WAIT_RESULT_TIMEOUT_EXPIRED;
+           uint64_t first = timeout < 100000000ull ? timeout : 100000000ull;
+           if (!nvn_be_xq_owed_wait(s, first)) {
+               if (timeout <= first) return NVN_SYNC_WAIT_RESULT_TIMEOUT_EXPIRED;
+@@ -1452,9 +1453,9 @@ NVN(nvnSyncWait, NVNsyncWaitResult, const NVNsync *s, uint64_t timeout) {
+           } } }
+     if (!sync_published((const sync_t *)s, &fence)) return NVN_SYNC_WAIT_RESULT_ALREADY_SIGNALED;
+     { int ext = 0; if (sync_ext_wait((const sync_t *)s, 0, &ext)) return NVN_SYNC_WAIT_RESULT_ALREADY_SIGNALED;
+-      if (ext) return sync_ext_wait((const sync_t *)s, timeout, &ext) ? NVN_SYNC_WAIT_RESULT_CONDITION_SATISFIED : NVN_SYNC_WAIT_RESULT_TIMEOUT_EXPIRED; }
++      if (ext) return timeout && sync_ext_wait((const sync_t *)s, timeout, &ext) ? NVN_SYNC_WAIT_RESULT_CONDITION_SATISFIED : NVN_SYNC_WAIT_RESULT_TIMEOUT_EXPIRED; }
+     if (nvn_be_wait(fence, 0)) return NVN_SYNC_WAIT_RESULT_ALREADY_SIGNALED;
+-    return nvn_be_wait(fence, timeout) ? NVN_SYNC_WAIT_RESULT_CONDITION_SATISFIED : NVN_SYNC_WAIT_RESULT_TIMEOUT_EXPIRED;
++    return timeout && nvn_be_wait(fence, timeout) ? NVN_SYNC_WAIT_RESULT_CONDITION_SATISFIED : NVN_SYNC_WAIT_RESULT_TIMEOUT_EXPIRED;
+ }
+ NVN(nvnEventBuilderSetDefaults, void, NVNeventBuilder *b) { memset(b, 0, sizeof(ev_builder_t)); }
+ NVN(nvnEventBuilderSetStorage, void, NVNeventBuilder *b, const NVNmemoryPool *p, int64_t off) { *(ev_builder_t *)b = (ev_builder_t){(const pool_t *)p, off}; }
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 062c2b7..b359d10 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -21,6 +21,7 @@
+ #include "nvn_mtl.h"
+ #include "../../../../runtime/include/rb_heap.h"
+ #include "nvn_rb_direct.h"
++#include "rb_fence_wait.h"
+ #include "../../../../runtime/include/rb_texture_stats.h"
+ #include "../../../metal/mtl_slot.h"   // machine-wide Metal client slot
+ #include "nvn_fps.h"
+@@ -199,6 +200,7 @@ static uint64_t g_fence;                        // Highest committed fence value
+ static int g_cut_copy;                          // a buffer → texture copy was encoded since the last commit: the next pass boundary commits the segment (sub_cut)
+ static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
+ static pthread_cond_t g_cv = PTHREAD_COND_INITIALIZER;
++static rb_fence_waiters g_guest_fences = {.changed = PTHREAD_COND_INITIALIZER};
+ static uint64_t g_done;                         // Highest completed fence value (written by the completion callback)
+ static uint64_t g_arena_made, g_arena_cuts; static uint64_t arena_bytes(void), arena_waits(void);
+ static int g_allocprof = -1; static uint64_t g_ap_bytes[64], g_ap_fn[8];
+@@ -3737,7 +3739,13 @@ uint64_t nvn_be_sub_commit(void) {
+             free(mcl);
+         }
+         free(ops); seg_clk_put(sc);
+-        pthread_mutex_lock(&g_mu); if (fence > g_done) g_done = fence; pthread_cond_broadcast(&g_cv); pthread_mutex_unlock(&g_mu);
++        pthread_mutex_lock(&g_mu);
++        if (fence > g_done) {
++            g_done = fence;
++            rb_fence_advanced_locked(&g_guest_fences, g_done);
++        }
++        pthread_cond_broadcast(&g_cv);
++        pthread_mutex_unlock(&g_mu);
+         defer_drain();
+     });
+     void arena_commit(uint64_t fence); arena_commit(fence);
+@@ -3764,13 +3772,21 @@ uint64_t nvn_be_last_fence(void) { return g_fence; }
+ int mtl_last_commit_error(void) { return atomic_load(&g_last_commit_error); }
+ 
+ int nvn_be_wait(uint64_t fence, uint64_t timeout_ns) {
++    if (!timeout_ns) {
++        pthread_mutex_lock(&g_mu);
++        int ready = rb_fence_poll_locked(&g_guest_fences, g_done, fence);
++        pthread_mutex_unlock(&g_mu);
++        return ready;
++    }
+     struct timespec dl; clock_gettime(CLOCK_REALTIME, &dl);
+     uint64_t ns = (uint64_t)dl.tv_nsec + (timeout_ns > 3600000000000ull ? 3600000000000ull : timeout_ns);
+     dl.tv_sec += ns / 1000000000ull; dl.tv_nsec = ns % 1000000000ull;
+     pthread_mutex_lock(&g_mu);
+-    int r = 0, blk = g_done < fence; if (blk) { pthread_mutex_unlock(&g_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_mu); }
++    int blk = g_done < fence; if (blk) { pthread_mutex_unlock(&g_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_mu); }
+     uint64_t rb_w0 = blk ? now_ns() : 0;   // RewindBox (patch 0068): timed (t_rb_blk)
+-    while (g_done < fence && !dm_gfx_session_stopping()) if ((r = pthread_cond_timedwait(&g_cv, &g_mu, &dl))) break;
++    while (g_done < fence && !dm_gfx_session_stopping()) {
++        if (rb_fence_sleep_locked(&g_guest_fences, &g_mu, fence, &dl)) break;
++    }
+     int ok = g_done >= fence;
+     pthread_mutex_unlock(&g_mu);
+     if (blk) { DM_BLOCK_END(); t_rb_blk[0] += now_ns() - rb_w0; }   // RewindBox (patch 0068)
+@@ -8070,6 +8086,14 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+     alias_orphan_pass();   // #357: before the line cap below, which only limits the readout
+     nvn_mem_detail(frame);   // before the line cap below: the detailed accounting has its own interval and must not be starved by the 400-line budget
+     fb_report(frame); samp_report(frame); audit_probe_report(frame);
++    pthread_mutex_lock(&g_mu);
++    uint64_t pending_polls = g_guest_fences.pending_polls, sleeps = g_guest_fences.sleeps;
++    uint64_t broadcasts = g_guest_fences.broadcasts, segments = g_guest_fences.segment_completions_with_sleepers;
++    pthread_mutex_unlock(&g_mu);
++    if (pending_polls || sleeps)
++        MLOG("[fence-wake] cumulative frame=%llu pendingPolls=%llu positiveWaitSleeps=%llu fenceBroadcasts=%llu segmentCompletionsWithSleepers=%llu",
++             frame, (unsigned long long)pending_polls, (unsigned long long)sleeps,
++             (unsigned long long)broadcasts, (unsigned long long)segments);
+     rb_reuse_report(frame);   // RewindBox (patch 0071)
+     zp_report(frame);   // RewindBox (patch 0060)
+     rb_wn_line(frame);   // RewindBox (patch 0070): texture storage read ahead (before the line cap below: it says itself when anything moved)
+@@ -11535,7 +11559,15 @@ static uint64_t arena_cut(void) {   // sub_cut hands the segment to the GPU: its
+     return sf;
+ }
+ static void sub_cut(void);   // hands the encoded part of the submission to the GPU (segmented submission, below)
+-static void arena_seg_done(uint64_t sf) { pthread_mutex_lock(&g_mu); if (sf > g_seg_done) g_seg_done = sf; pthread_cond_broadcast(&g_cv); pthread_mutex_unlock(&g_mu); }
++static void arena_seg_done(uint64_t sf) {
++    pthread_mutex_lock(&g_mu);
++    if (sf > g_seg_done) {
++        g_seg_done = sf;
++        if (g_guest_fences.sleeping) ++g_guest_fences.segment_completions_with_sleepers;
++    }
++    pthread_cond_broadcast(&g_cv);  // arena and error waiters have separate predicates
++    pthread_mutex_unlock(&g_mu);
++}
+ static size_t arena_alloc(size_t n, id<MTLBuffer> *buf) {
+     n = (n + 255) & ~(size_t)255; g_arena_seg += n;
+     if (!g_cur_arena || g_cur_arena->used + n > g_cur_arena->len) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 4838872..4cb5d67 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -16,7 +16,10 @@ int nvn_be_request_stop(void) {
+     pthread_mutex_lock(&g_pq_mu);
+     g_pq_read = g_pq_in; // queued frames have not been submitted and can be dropped
+     pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu);
+-    pthread_mutex_lock(&g_mu); pthread_cond_broadcast(&g_cv); pthread_mutex_unlock(&g_mu);
++    pthread_mutex_lock(&g_mu);
++    pthread_cond_broadcast(&g_cv);
++    pthread_cond_broadcast(&g_guest_fences.changed);
++    pthread_mutex_unlock(&g_mu);
+     pthread_mutex_lock(&g_link_mu); pthread_cond_broadcast(&g_link_cv); pthread_mutex_unlock(&g_link_mu);
+     return 0;
+ }
+diff --git a/graphics/nvn/gfx/nvn/rb_fence_wait.h b/graphics/nvn/gfx/nvn/rb_fence_wait.h
+new file mode 100644
+index 0000000..e298cbe
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_fence_wait.h
+@@ -0,0 +1,38 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++#include <pthread.h>
++#include <stdint.h>
++
++// All fields and the completed-fence predicate are protected by the same mutex.
++typedef struct {
++    pthread_cond_t changed;
++    unsigned sleeping;
++    uint64_t earliest;
++    uint64_t pending_polls, sleeps, broadcasts, segment_completions_with_sleepers;
++} rb_fence_waiters;
++
++static inline int rb_fence_poll_locked(rb_fence_waiters *q, uint64_t done, uint64_t target) {
++    if (done >= target) return 1;
++    q->pending_polls++;
++    return 0;
++}
++
++static inline int rb_fence_sleep_locked(rb_fence_waiters *q, pthread_mutex_t *mutex,
++                                        uint64_t target, const struct timespec *deadline) {
++    if (!q->sleeping || target < q->earliest) q->earliest = target;
++    ++q->sleeping;
++    ++q->sleeps;
++    int result = pthread_cond_timedwait(&q->changed, mutex, deadline);
++    --q->sleeping;
++    return result;
++}
++
++static inline void rb_fence_advanced_locked(rb_fence_waiters *q, uint64_t done) {
++    if (q->sleeping && done >= q->earliest) {
++        // All sleepers are now runnable; any unsatisfied waiter registers its target
++        // again after checking the predicate under the mutex.
++        q->earliest = UINT64_MAX;
++        ++q->broadcasts;
++        pthread_cond_broadcast(&q->changed);
++    }
++}

@@ -76,3 +76,5 @@ the engine reads; the time zone data is compiled from an IANA release; the other
 structures written by S2Arm. Their licence texts and provenance are inside S2ArmSystemData (licenses/, SOURCES.tsv).
 No game, key or other protected content is in this application: games are exported by the player from their own
 console.
+
+RewindBox patches 0215 through 0219 narrow attachment stores before full clears, isolate guest fence wakeups, add opt-in thermal MetalFX Spatial, park invisible HUD refreshes and measure the first observed Fair or higher thermal state.
