@@ -1,0 +1,50 @@
+diff --git a/graphics/nvn/tests/t_nvn_pso_batch.m b/graphics/nvn/tests/t_nvn_pso_batch.m
+index ba364ca..2bca0d6 100644
+--- a/graphics/nvn/tests/t_nvn_pso_batch.m
++++ b/graphics/nvn/tests/t_nvn_pso_batch.m
+@@ -33,7 +33,10 @@ int main(int argc, char **argv) { @autoreleasepool {
+     }
+     g_dev = MTLCreateSystemDefaultDevice(); REQUIRE(g_dev);
+     char tmpl[] = "/tmp/t_pso_batch.XXXXXX"; REQUIRE(mkdtemp(tmpl));
+-    g_par_dir = @(tmpl); g_par_have = [NSMutableSet set]; g_par_open = [NSMutableDictionary dictionary]; g_par_bmap = [NSMutableDictionary dictionary]; g_par_on = 1;
++    NSString *root = @(tmpl);
++    REQUIRE(!setenv("DM_PSO_USER",[root stringByAppendingPathComponent:@"pso_user.tsv"].fileSystemRepresentation,1));
++    REQUIRE(!setenv("DM_PSO_ARCHIVE","1",1));
++    REQUIRE(par_open_dir() && g_par_on);
+     enum { N = 70 }; NSMutableArray *descs = [NSMutableArray array], *keys = [NSMutableArray array];
+     for (int i = 0; i < N; i++) {
+         NSString *src = [NSString stringWithFormat:@"#include <metal_stdlib>\nusing namespace metal;\nkernel void k(device float *b [[buffer(0)]], uint i [[thread_position_in_grid]]) { b[i] = b[i] * %d.0 + %d.0; }", i + 2, i];
+@@ -109,7 +112,7 @@ int main(int argc, char **argv) { @autoreleasepool {
+     VERIFY(atomic_load(&g_par_written) - w0 == N && atomic_load(&g_par_write_failed) == f0, "③ 写成 +%llu（期望 70）、写失败 +%llu（期望 0）",
+            (unsigned long long)(atomic_load(&g_par_written) - w0), (unsigned long long)(atomic_load(&g_par_write_failed) - f0));
+     rb_spec_publish(&g_spec_gate, RB_SPEC_HOLD);
+-    NSString *held = @"thermal-close";
++    NSString *held = [@"c" stringByAppendingString:par_hash("thermal-close",sizeof("thermal-close")-1)];
+     par_note(held, descs[0]); par_note(held, descs[0]);
+     uint64_t until = bp_now() + 3000000000ull;
+     BOOL waiting = NO;
+@@ -121,16 +124,23 @@ int main(int argc, char **argv) { @autoreleasepool {
+     VERIFY(waiting && g_par_todo.count == 1 && g_par_pending_keys.count == 1,
+            "a duplicate during HOLD retains one descriptor with a scheduled writer");
+     pthread_mutex_unlock(&g_par_mu);
++    if (thermalBatch) REQUIRE(g_rb_archive_batch32 && g_rb_archive_coalesce);
+     par_begin_close();
+     struct timespec close_deadline = session_deadline();
+     VERIFY(!par_wait_idle(&close_deadline), "stop takes over the delayed writer and drains it");
++    if (thermalBatch) {
++        par_retire_session();
++        REQUIRE(par_open_dir() && g_par_on);
++        VERIFY(g_par_have.count==N+1 && g_par_bmap[held]!=nil,
++               "cold index retains the close batch and all prior keys");
++    }
+     id<MTLBinaryArchive> archive = par_archive_for(held);
+     MTLComputePipelineDescriptor *held_desc = [descs[0] copy]; held_desc.binaryArchives = archive ? @[archive] : @[];
+     VERIFY(archive && [g_dev newComputePipelineStateWithDescriptor:held_desc options:MTLPipelineOptionFailOnBinaryArchiveMiss reflection:nil error:nil],
+            "deferred entry is usable without recompilation");
+     VERIFY(g_par_pending_keys.count == 0 && atomic_load(&g_par_written) == w0 + N + 1,
+            "single writer published one deferred descriptor");
+-    [NSFileManager.defaultManager removeItemAtPath:g_par_dir error:nil];
++    [NSFileManager.defaultManager removeItemAtPath:root error:nil];
+     if (failures) { printf("✗ t_nvn_pso_batch：%u 项里 %u 项不符\n", checks, failures); return 1; }
+     printf("✓ t_nvn_pso_batch：%u 项全过（70 条管线写成 3 个批文件，按键全部取回）\n", checks); return 0;
+ } }
