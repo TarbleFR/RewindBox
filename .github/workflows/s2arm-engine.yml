@@ -172,7 +172,7 @@ jobs:
           done
           xcrun clang -fobjc-arc -framework Foundation -framework Metal "$tests/t_rb_clear_plane_metal.m" -o "$RUNNER_TEMP/clear-planes"
           "$RUNNER_TEMP/clear-planes"
-          make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" build/tests/t_rb_clear_batch_metal
+          make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" build/tests/t_rb_clear_batch_metal build/tests/t_nvn_scissored_ds
           build/tests/t_rb_clear_batch_metal
       - name: Verify shader-library sharing and warm priority on the Mac GPU
         if: matrix.os == 'macos-26' && (contains(github.event.head_commit.message, '[s2arm-shader-checks]') || env.CHECK_DELIVERY == 'yes')

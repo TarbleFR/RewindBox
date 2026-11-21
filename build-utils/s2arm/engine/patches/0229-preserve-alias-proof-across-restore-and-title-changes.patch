@@ -1,0 +1,298 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -4681,6 +4681,8 @@
+ // Page table of a sparse pool (see above). Caller holds g_vp_mu
+ static const vpte *vpt_get(const struct vpool *v, uint64_t o) { const vpte *l = v->pt[o >> 21]; return l ? &l[(o >> 12) & (VPT_LEAF - 1)] : NULL; }
+ static void vpt_set(struct vpool *v, uint64_t voff, uint64_t size, const uint8_t *phys) {
++    // Normal mappings and restored virtual-pool segments share this publication point.
++    if (phys && size) nvn_be_rb_virtual_backing((uintptr_t)phys, size);
+     uint64_t gen = atomic_fetch_add(&g_vp_gen, 1) + 1;
+     // RewindBox (patch 0026): every request that changes the page table goes to the change log once there is one, map or unmap, aliased or kept in the page table only.
+     //   Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/nvn/hle_nvn.c:2742 at 0c078130). Here also the frame replay's rebuild (s2a_hle_vpool_load);
+@@ -4777,7 +4779,6 @@
+             LOG("RewindBox: virtual pool %p: a 0-byte %s request at %#llx maps nothing; accepted (later cases are not logged)", (const void *)v->pool, ph ? "map" : "unmap", (unsigned long long)r->voff);
+         return 1;
+     }
+-    if (ph) nvn_be_rb_virtual_backing((uintptr_t)(ph->mem + r->poff), r->size);
+     vpt_set(v, (uint64_t)r->voff, r->size, ph ? ph->mem + r->poff : NULL);
+     vm_address_t to = (vm_address_t)(v->base + r->voff);
+     // Not aliased (see above): kept in the page table; host pages of it already addressable become copies of the table (vsh_*), the others when a buffer first uses them
+diff --git a/graphics/nvn/gfx/nvn/nvn_dlss.inc b/graphics/nvn/gfx/nvn/nvn_dlss.inc
+--- a/graphics/nvn/gfx/nvn/nvn_dlss.inc
++++ b/graphics/nvn/gfx/nvn/nvn_dlss.inc
+@@ -11,21 +11,8 @@
+ // 不链 MetalFX 框架：类按名字取（首次 dlopen 系统框架，同 nvn_present_fx.inc）；没有 MetalFX 的设备报红一次、这一遍不做。
+ #include "nvn_rb_fx_prefix.h"
+ 
+-// The submit thread caches eligible descriptors; the present thread only samples tracing.
+-static BOOL rb_fx_tail_flag(const char *name) {
+-#if TARGET_OS_IOS && !TARGET_OS_SIMULATOR
+-    static _Atomic int title;
+-    const char *opt = getenv(name);
+-    return opt && !strcmp(opt, "1") && !g_m3 && rb_direct_option(&title, NULL)
+-        && [g_dev.name isEqualToString:@"Apple A18 Pro GPU"];
+-#else
+-    (void)name; return NO;
+-#endif
+-}
+ static BOOL rb_fx_tail_trace(void) {
+-    static dispatch_once_t once; static BOOL trace;
+-    dispatch_once(&once, ^{ trace = rb_fx_tail_flag("S2A_RB_GPU_TAIL_TRACE"); });
+-    return trace;
++    return rb_a18_option(RB_DEVICE_TAIL_TRACE, "S2A_RB_GPU_TAIL_TRACE");
+ }
+ 
+ typedef enum { RBFxOff, RBFxAdaptive, RBFxAlways } RBFxPolicy;
+@@ -132,7 +119,7 @@
+     f->scaler = sc; f->spatial = spatial; f->m4 = m4; f->net = d->network; f->flags = d->flags;
+     f->cf = c.pixelFormat; f->df = dp.pixelFormat; f->mf = mv.pixelFormat; f->of = o.pixelFormat; f->iw = c.width; f->ih = c.height; f->ow = o.width; f->oh = o.height;
+     f->prefixEnabled = f->iw == 960 && f->ih == 540 && f->ow == 1920 && f->oh == 1080 &&
+-                       rb_fx_tail_flag("S2A_RB_GPU_FX_PREFIX");
++                       rb_a18_option(RB_DEVICE_FX_PREFIX, "S2A_RB_GPU_FX_PREFIX");
+     f->policy = spatial ? RBFxOff : dlss_thermal_trial(c, o);
+     if (f->policy != RBFxOff) {
+         // Build once per descriptor, alongside the normal scaler. Never compile at a heat transition.
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1467,19 +1467,36 @@
+ static _Atomic unsigned g_sp_heap_n;
+ // Keep exposure history from process start, including registrations made before
+ // the hosted title is selected. The experiment is an explicit fresh-launch opt-in.
++static _Atomic int g_rb_live_request;
++enum { RB_DEVICE_BATCH, RB_DEVICE_FX_PREFIX, RB_DEVICE_TAIL_TRACE, RB_DEVICE_LIVE, RB_DEVICE_OPTIONS };
++static _Atomic int g_rb_device_options[RB_DEVICE_OPTIONS];
++static int rb_a18_option(unsigned key, const char *name) {
++#if TARGET_OS_IOS && !TARGET_OS_SIMULATOR
++    int cached = atomic_load_explicit(&g_rb_device_options[key], memory_order_relaxed);
++    if (!cached) {
++        const char *value = getenv(name);
++        const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
++        cached = value && !strcmp(value, "1") && title && !strcasecmp(title, "04007EF01F8AE000") &&
++                 !g_m3 && [g_dev.name isEqualToString:@"Apple A18 Pro GPU"] ? 2 : 1;
++        atomic_store_explicit(&g_rb_device_options[key], cached, memory_order_relaxed);
++    }
++    return cached == 2;
++#else
++    (void)key; (void)name;
++    return 0;
++#endif
++}
+ static int rb_live_requested(void) {
+-    static _Atomic int value;
+-    int v = atomic_load_explicit(&value, memory_order_relaxed);
++    int v = atomic_load_explicit(&g_rb_live_request, memory_order_relaxed);
+     if (!v) {
+         const char *e = getenv("S2A_RB_GPU_ATTACHMENT_LIVENESS");
+         v = e && !strcmp(e, "1") ? 2 : 1;
+-        atomic_store_explicit(&value, v, memory_order_relaxed);
++        atomic_store_explicit(&g_rb_live_request, v, memory_order_relaxed);
+     }
+     return v == 2;
+ }
+-static _Atomic int g_rb_live_title;
+ static int rb_live_on(void) {
+-    return !g_m3 && rb_live_requested() && rb_direct_option(&g_rb_live_title, NULL);
++    return rb_a18_option(RB_DEVICE_LIVE, "S2A_RB_GPU_ATTACHMENT_LIVENESS");
+ }
+ static os_unfair_lock g_rb_exposure_lock = OS_UNFAIR_LOCK_INIT;
+ static rb_attachment_ranges g_rb_descriptor_bytes, g_rb_virtual_bytes;
+@@ -1676,7 +1693,14 @@
+     if (d) { for (int i = 0; i < 8; i++) { MTLRenderPassColorAttachmentDescriptor *c = ((MTLRenderPassDescriptor *)d).colorAttachments[i]; if (!c.texture) continue;
+             l.nc++; l.w = (uint16_t)MAX(c.texture.width >> c.level, 1); l.h = (uint16_t)MAX(c.texture.height >> c.level, 1); l.loads += c.loadAction == MTLLoadActionLoad; }
+         MTLRenderPassDepthAttachmentDescriptor *z = ((MTLRenderPassDescriptor *)d).depthAttachment;
+-        if (z.texture) { l.depth = 1; l.w = (uint16_t)MAX(z.texture.width >> z.level, 1); l.h = (uint16_t)MAX(z.texture.height >> z.level, 1); l.loads += z.loadAction == MTLLoadActionLoad; } }
++        if (z.texture) { l.depth = 1; l.w = (uint16_t)MAX(z.texture.width >> z.level, 1); l.h = (uint16_t)MAX(z.texture.height >> z.level, 1); l.loads += z.loadAction == MTLLoadActionLoad; }
++        MTLRenderPassStencilAttachmentDescriptor *st = ((MTLRenderPassDescriptor *)d).stencilAttachment;
++        if (st.texture && !z.texture) {
++            l.w = (uint16_t)MAX(st.texture.width >> st.level, 1);
++            l.h = (uint16_t)MAX(st.texture.height >> st.level, 1);
++            l.loads += st.loadAction == MTLLoadActionLoad;
++        }
++    }
+     return l;
+ }
+ static void gp_pre(id d, char kind) {   // Metal 3: before the encoder is made — the pass descriptor carries the sample points
+@@ -8996,7 +9020,7 @@
+ }
+ static int rb_clear_private_texture(const tex_t *t, id<MTLTexture> mt) {
+     return t && mt && !xv_present(t->serial) && !mt.isSparse && !mt.heap && !mt.buffer &&
+-           !mt.parentTexture && !mt.framebufferOnly && mt.storageMode == MTLStorageModePrivate &&
++           !mt.parentTexture && !mt.iosurface && !mt.framebufferOnly && mt.storageMode == MTLStorageModePrivate &&
+            mt.sampleCount == 1 && mt.textureType == MTLTextureType2D && !t->has_layout && rb_live_class(t) == RB_LIVE_UNEXPOSED;
+ }
+ static int rb_private_clear_pass(MTL4RenderPassDescriptor *pd) {
+@@ -19278,14 +19302,7 @@
+ #include "rb_clear_batch.h"
+ static _Atomic uint64_t g_rb_clear_candidates, g_rb_clear_saved, g_rb_clear_rejected, g_rb_clear_same;
+ static int rb_clear_batch_on(void) {
+-#if TARGET_OS_IOS && !TARGET_OS_SIMULATOR
+-    static _Atomic int title;
+-    const char *option=getenv("S2A_RB_GPU_CLEAR_BATCH");
+-    return option && !strcmp(option,"1") && !g_m3 && rb_direct_option(&title,NULL) &&
+-           [g_dev.name isEqualToString:@"Apple A18 Pro GPU"];
+-#else
+-    return 0;
+-#endif
++    return rb_a18_option(RB_DEVICE_BATCH, "S2A_RB_GPU_CLEAR_BATCH");
+ }
+ void nvn_be_clear_batch_stats(uint64_t result[4]) {
+     result[0]=atomic_load_explicit(&g_rb_clear_candidates,memory_order_relaxed);
+@@ -19342,6 +19359,7 @@
+         id<MTLTexture> native=obj;
+         if (native.textureType!=MTLTextureType2D || native.sampleCount!=1 || native.mipmapLevelCount!=1 ||
+             native.arrayLength!=1 || native.parentTexture || native.buffer || native.heap ||
++            native.iosurface || native.framebufferOnly || native.isSparse ||
+             native.storageMode!=MTLStorageModePrivate || !(native.usage & MTLTextureUsageRenderTarget) ||
+             native.width!=t->d.width || native.height!=t->d.height) return 0;
+         unsigned bytes=depth ? (native.pixelFormat==MTLPixelFormatDepth32Float ? 4 :
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -142,7 +142,9 @@
+     // A subsequent hosted session may select different render options. Keep
+     // cumulative store counters monotonic for the 300-frame sampler.
+     atomic_store_explicit(&g_rb_next_clear_mode, 0, memory_order_relaxed);
+-    atomic_store_explicit(&g_rb_live_title, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_live_request, 0, memory_order_relaxed);
++    for (unsigned i = 0; i < RB_DEVICE_OPTIONS; ++i)
++        atomic_store_explicit(&g_rb_device_options[i], 0, memory_order_relaxed);
+     g_rb_clear_legacy = -1;
+     g_rb_next_clear_mask = g_rb_sealed_clear_mask = 0;
+     rb_reuse_session_reset();   // RewindBox (patch 0071): the textures kept for reuse, the ring of finalized textures, the snapshot pools (nvn_mtl.m)
+diff --git a/graphics/nvn/tests/t_nvn_scissored_ds.m b/graphics/nvn/tests/t_nvn_scissored_ds.m
+--- a/graphics/nvn/tests/t_nvn_scissored_ds.m
++++ b/graphics/nvn/tests/t_nvn_scissored_ds.m
+@@ -46,15 +46,18 @@
+     REQUIRE(API(nvnMemoryPoolInitialize)(&pool,&pb)); REQUIRE(API(nvnCommandBufferInitialize)(&commands,&device));
+     static uint8_t control[16384]; API(nvnCommandBufferAddControlMemory)(&commands,control,sizeof control);
+ }
+-static void make_image(image *out, NVNformat format, int bytes, int stencil) {
++static void make_image_shape(image *out, NVNformat format, int bytes, int stencil, int flat) {
+     out->bytes = bytes; out->stencil = stencil;
+     NVNtextureBuilder b; API(nvnTextureBuilderSetDefaults)(&b); API(nvnTextureBuilderSetDevice)(&b,&device);
+-    API(nvnTextureBuilderSetTarget)(&b,NVN_TEXTURE_TARGET_2D_ARRAY);
+-    API(nvnTextureBuilderSetSize3D)(&b,SIZE,SIZE,LAYERS); API(nvnTextureBuilderSetLevels)(&b,LEVELS); API(nvnTextureBuilderSetFormat)(&b,format);
++    API(nvnTextureBuilderSetTarget)(&b,flat ? NVN_TEXTURE_TARGET_2D : NVN_TEXTURE_TARGET_2D_ARRAY);
++    API(nvnTextureBuilderSetSize3D)(&b,SIZE,SIZE,flat ? 1 : LAYERS); API(nvnTextureBuilderSetLevels)(&b,flat ? 1 : LEVELS); API(nvnTextureBuilderSetFormat)(&b,format);
+     size_t alignment = API(nvnTextureBuilderGetStorageAlignment)(&b), bytes_needed = API(nvnTextureBuilderGetStorageSize)(&b);
+     REQUIRE(alignment && bytes_needed); next_offset = (next_offset+alignment-1)/alignment*alignment;
+     REQUIRE(next_offset+bytes_needed <= POOL_SIZE); API(nvnTextureBuilderSetStorage)(&b,&pool,(ptrdiff_t)next_offset); next_offset += bytes_needed;
+     REQUIRE(API(nvnTextureInitialize)(&out->object,&b));
++}
++static void make_image(image *out, NVNformat format, int bytes, int stencil) {
++    make_image_shape(out,format,bytes,stencil,0);
+ }
+ static void view(NVNtextureView *v, int level, int layer) {
+     API(nvnTextureViewSetDefaults)(v); API(nvnTextureViewSetLevels)(v,level,1); API(nvnTextureViewSetLayers)(v,layer,1);
+@@ -91,9 +94,9 @@
+ };
+ // Observe the real production holder, without using the NVN combined-format
+ // ReadTexels packing as the stencil oracle. Metal exposes these as two planes.
+-static void read_planes(image *t, int level, int layer, float *depth, uint8_t *stencil) {
++static void read_planes_shape(image *t, int level, int layer, float *depth, uint8_t *stencil, int flat) {
+     id<MTLTexture> mt = tex_mtl((const tex_t *)&t->object); REQUIRE(mt != nil);
+-    int n = SIZE >> level; REQUIRE(mt.mipmapLevelCount == LEVELS && mt.arrayLength == LAYERS);
++    int n = SIZE >> level; REQUIRE(mt.mipmapLevelCount == (flat ? 1 : LEVELS) && mt.arrayLength == (flat ? 1 : LAYERS));
+     REQUIRE(MAX(mt.width >> level,1ul) == (NSUInteger)n && MAX(mt.height >> level,1ul) == (NSUInteger)n);
+     id<MTLDevice> dev = mt.device; id<MTLCommandQueue> q = [dev newCommandQueue];
+     id<MTLBuffer> d = [dev newBufferWithLength:256*n options:MTLResourceStorageModeShared];
+@@ -110,6 +113,9 @@
+         memcpy(depth+y*n,(const uint8_t *)d.contents+y*256,n*4);
+         if (s) memcpy(stencil+y*n,(const uint8_t *)s.contents+y*256,n);
+     }
++}
++static void read_planes(image *t, int level, int layer, float *depth, uint8_t *stencil) {
++    read_planes_shape(t,level,layer,depth,stencil,0);
+ }
+ static void verify(image *t, const test_case *c, int initial) {
+     for (int l=0;l<LEVELS;l++) for (int z=0;z<LAYERS;z++) {
+@@ -145,7 +151,63 @@
+     API(nvnCommandBufferClearDepthStencil)(&commands,0.25f,c->dm,0x3c,depth->stencil ? c->sm : 0); submit();
+     verify(depth,c,0); cases++; printf("PASS %s format=%s\n",phase,depth->stencil ? "D32FS8" : "D32F");
+ }
++// Exercise the production public clear handlers, descriptor exposure and physical
++// sibling load counter. The explicit oracle reads both native planes after each CB.
++static int check_attachment_liveness(void) {
++    phase = "attachment-liveness";
++    setup();
++    image ds, color;
++    make_image_shape(&ds,NVN_FORMAT_DEPTH32F_STENCIL8,8,1,1);
++    make_image_shape(&color,NVN_FORMAT_RGBA8,4,0,1);
++    const int enabled = rb_live_on();
++    const tex_t *tex = (const tex_t *)&ds.object;
++    const struct { float d, expected_d; int dm, sm; uint8_t st, expected_s; unsigned bytes; } seq[] = {
++        {0.25f,0.25f,1,0xff,0x35,0x35,0},
++        {0.75f,0.75f,1,0,0,0x35,SIZE*SIZE},
++        {0,0.75f,0,0xff,0xa7,0xa7,4*SIZE*SIZE},
++        {0.5f,0.5f,1,0,0,0xa7,0},
++        {0,0.5f,0,0xff,0x2d,0x2d,0},
++    };
++    for (unsigned i=0; i<sizeof seq/sizeof seq[0]; i++) {
++        if (i==3) nvn_be_reg_tex(41,tex,NULL);
++        if (i==4) nvn_be_reg_tex(41,NULL,NULL); // its old bytes remain exposed
++        uint64_t before=atomic_load(&g_rb_plane_load_bytes);
++        begin();
++        API(nvnCommandBufferSetRenderTargets)(&commands,0,NULL,NULL,&ds.object,NULL);
++        API(nvnCommandBufferSetScissor)(&commands,0,0,SIZE,SIZE);
++        API(nvnCommandBufferClearDepthStencil)(&commands,seq[i].d,seq[i].dm,seq[i].st,seq[i].sm);
++        submit();
++        float depth[SIZE*SIZE]; uint8_t stencil[SIZE*SIZE];
++        read_planes_shape(&ds,0,0,depth,stencil,1);
++        for (unsigned x=0; x<SIZE*SIZE; x++) {
++            REQUIRE(depth[x]==seq[i].expected_d); REQUIRE(stencil[x]==seq[i].expected_s);
++        }
++        REQUIRE(atomic_load(&g_rb_plane_load_bytes)-before==(enabled ? seq[i].bytes : 0));
++    }
++    // The guest can read a private never-registered color on its own thread.
++    // Run after finish so that the expected bytes are ordered and deterministic.
++    begin();
++    const NVNtexture *colors[] = {&color.object};
++    const float rgba[] = {1,0,1,1};
++    API(nvnCommandBufferSetRenderTargets)(&commands,1,colors,NULL,NULL,NULL);
++    API(nvnCommandBufferClearColor)(&commands,0,rgba,15); submit();
++    const NVNtexture *read_target=&color.object;
++    dispatch_group_t done=dispatch_group_create();
++    dispatch_group_async(done,dispatch_get_global_queue(QOS_CLASS_DEFAULT,0),^{
++        NVNcopyRegion r={0,0,0,SIZE,SIZE,1};
++        uint8_t raw[SIZE*SIZE*4]; memset(raw,0xcd,sizeof raw);
++        API(nvnTextureReadTexels)(read_target,NULL,&r,raw);
++        for (unsigned i=0; i<SIZE*SIZE; i++)
++            REQUIRE(raw[4*i]==255 && raw[4*i+1]==0 && raw[4*i+2]==255 && raw[4*i+3]==255);
++    });
++    dispatch_group_wait(done,DISPATCH_TIME_FOREVER);
++    API(nvnTextureFinalize)(&ds.object); API(nvnTextureFinalize)(&color.object);
++    printf("PASS public NVN DS and off-submit ReadTexels checks=%u feature=%s\n",checks,
++           enabled ? "active" : "disabled (baseline only)");
++    return 0;
++}
+ int main(int argc, char **argv) { @autoreleasepool {
++    if (argc==2 && !strcmp(argv[1],"--attachment-liveness")) return check_attachment_liveness();
+     REQUIRE(argc <= 2); setup(); image depth,combined,color;
+     make_image(&depth,NVN_FORMAT_DEPTH32F,4,0); make_image(&combined,NVN_FORMAT_DEPTH32F_STENCIL8,8,1); make_image(&color,NVN_FORMAT_RGBA8,4,0);
+     for (unsigned i=0;i<sizeof tests/sizeof tests[0];i++) {
+diff --git a/runtime/tests/mk/rb_clear_batch.mk b/runtime/tests/mk/rb_clear_batch.mk
+--- a/runtime/tests/mk/rb_clear_batch.mk
++++ b/runtime/tests/mk/rb_clear_batch.mk
+@@ -2,7 +2,7 @@
+ ifeq ($(shell uname -s),Darwin)
+ $(BUILD)/tests/t_rb_clear_batch_metal: graphics/nvn/tests/t_rb_clear_batch_metal.m $(NVN_MTL_DEPS) $(NVN_TEST_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN)
+ 	$(CC) $(CFLAGS) -std=gnu11 -fobjc-arc -Wno-unused-function -Wno-unguarded-availability-new -Wno-unguarded-availability \
+-	  $(NATIVE_INC) -Igraphics/nvn/host -Igraphics/nvn/gfx/nvn -Igraphics/nvn/gfx/nvn/include -Igraphics/nvn/third_party/vulkan-headers/include \
++	  $(NATIVE_INC) -I$(NVN_TEST_DIR)/nvn/gen -Igraphics/nvn/host -Igraphics/nvn/gfx/nvn -Igraphics/nvn/gfx/nvn/include -Igraphics/nvn/third_party/vulkan-headers/include \
+ 	  -o $@ graphics/nvn/tests/t_rb_clear_batch_metal.m $(NVN_TEST_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN) \
+ 	  -Wl,-rpath,@executable_path/nvn/widen $(NVN_TEST_WEAK) \
+ 	  -framework Metal -framework Foundation -framework QuartzCore -framework CoreGraphics \
+diff --git a/runtime/tests/mk/nvn_scissored_ds.mk b/runtime/tests/mk/nvn_scissored_ds.mk
+--- a/runtime/tests/mk/nvn_scissored_ds.mk
++++ b/runtime/tests/mk/nvn_scissored_ds.mk
+@@ -4,7 +4,7 @@
+ $(NVN_SCISSORED_DS_BINARY): graphics/nvn/tests/t_nvn_scissored_ds.m $(NVN_MTL_DEPS) graphics/nvn/gfx/nvn/nvn_protos.h $(NVN_TEST_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN)
+ 	$(CC) $(CFLAGS) -fobjc-arc -Wno-unused-function -Wno-unguarded-availability-new -Wno-unguarded-availability \
+ 	  $(if $(NVN_SCISSORED_DS_SOURCE),-I$(dir $(NVN_SCISSORED_DS_SOURCE))../../host,) \
+-	  $(NATIVE_INC) -Igraphics/nvn/host -Igraphics/nvn/gfx/nvn -Igraphics/nvn/gfx/nvn/include -Igraphics/nvn/third_party/vulkan-headers/include \
++	  $(NATIVE_INC) -I$(NVN_TEST_DIR)/nvn/gen -Igraphics/nvn/host -Igraphics/nvn/gfx/nvn -Igraphics/nvn/gfx/nvn/include -Igraphics/nvn/third_party/vulkan-headers/include \
+ 	  $(if $(NVN_SCISSORED_DS_SOURCE),-DNVN_BACKEND_SOURCE='"$(NVN_SCISSORED_DS_SOURCE)"',) \
+ 	  -o $@ graphics/nvn/tests/t_nvn_scissored_ds.m $(NVN_TEST_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN) \
+ 	  -Wl,-rpath,@executable_path/nvn/widen $(NVN_TEST_WEAK) \
