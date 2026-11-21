@@ -105,7 +105,7 @@ xychart-beta
 | 2026-11-21 | Moteur 0268–0273 / comparaison 814 | 90 / 60 / 65 / 35 / 25 | 55 % | [Persistance, AIR, premier draw, uniformes et files NVN2](evidence/s2arm-nvn2-build814.md). Trames, réutilisation après relance et évictions à mesurer sur iPhone. |
 
 | 2026-11-21 | Moteur 0274–0277 / NVN2 | 90 / 60 / 65 / 35 / 25 | 55 % | [Uniformes en vol, première passe après prépasse, AIR et charge en Fair](evidence/s2arm-nvn2-build814.md). Mesure sur iPhone en attente. |
-| 2026-11-21 | Moteur 0278–0279 / NVN2 | 90 / 60 / 65 / 35 / 25 | 55 % | [Identité des packs AIR et budget de préchauffage](evidence/s2arm-nvn2-build814.md#identité-air-et-budget-pso). Cadence sur iPhone à mesurer. |
+| 2026-11-21 | Moteur 0278–0279 / NVN2 | 90 / 60 / 65 / 35 / 25 | 55 % | [Moteur iOS arm64 épinglé, archives et premier draw vérifiés sur Mac](evidence/s2arm-nvn2-build814.md#vérifications-apple-de-0279). Cadence et évictions sur iPhone à mesurer. |
 
 **Mesures de référence, à conserver séparément de l’estimation :** [IPA 795](evidence/rewind796/profile-observations-795.json), 26,886 FPS moteur sur 9 145 intervalles sans lacune dans la plage observée (≈ 5 min 40 s), 213 >100 ms dont 36 >500 ms ; [ancien moteur 0001–0089](evidence/s2arm-ipa783-device-2026-11-18.md), 60 FPS sur 526 intervalles (≈ 8,8 s), scène non identifiée ; [IPA 786](evidence/s2arm-ipa786-device-2026-11-18.md), deux fenêtres à l’affichage à 23,9 / 22,5 FPS et GPU médian à 33,38 / 35,03 ms ; [IPA 794](evidence/s2arm-first-race-795.md), pic échantillonné de 5 175 Mio. Parcours, caches et réglages non uniformisés : aucun gain avant/après attribuable à partir de ces seuls relevés.
 

@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "84ab5e9cc243aaac308dd12394a4b78378c54c5e46cd43c505c2b5910da1fbfc",
+  "packagedFingerprint": "15cf034bbd7ee07b5f82050f4f900b49fc2547ab7fe5c50b78e9895b7711123f",
   "producers": {
     "engine": {
-      "run": 44889895037,
+      "run": 44899318078,
       "attempt": 1,
-      "artifact": 14701579957,
-      "name": "s2arm-engine-framework-a1007799f997e745a2774e4322c33d7a74eca862",
-      "bytes": 25182322,
-      "sha256": "93332c4966b4b697e55cb23e04d7d6e833e28c4326545be241c552c5f377eaf9",
-      "headSha": "a1007799f997e745a2774e4322c33d7a74eca862",
+      "artifact": 14706160488,
+      "name": "s2arm-engine-framework-c9474bfb805d5b01e1a3efb3cc83e57b0fc769d7",
+      "bytes": 25188843,
+      "sha256": "b7bb5be6bc6054b7c873308d534ab0d9fff887327d89ec516522b37ba245ba2a",
+      "headSha": "c9474bfb805d5b01e1a3efb3cc83e57b0fc769d7",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-21T09:42:54Z",
+      "expiresAt": "2026-12-21T11:44:44Z",
       "members": {
-        "S2ArmEngine.framework.zip": "08b18ef71261b11ce0f702eb6dc1d462fa706691ad29cb5ab79eb1c0cb907ddd",
-        "NS2Pro.framework.zip": "35c33012568b3791cb0bff58bf51f7b5391310684abb3a427e15d22fabc4faae"
+        "S2ArmEngine.framework.zip": "6ac38775d765fbd4160122aa7fd86127f8311231daccbfad09273934874d57da",
+        "NS2Pro.framework.zip": "88d12a8482bb0755d2b832692b897b85ba09e6c6d2def8af74b7fffb5e352a93"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "93332c4966b4b697e55cb23e04d7d6e833e28c4326545be241c552c5f377eaf9",
+    "engine": "b7bb5be6bc6054b7c873308d534ab0d9fff887327d89ec516522b37ba245ba2a",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "c32ed3d242f32a5f19adcb68a6219618e817463f422c4db1e0f52911fc4f4a72",
-      "bytes": 114911160,
-      "fingerprint": "84ab5e9cc243aaac308dd12394a4b78378c54c5e46cd43c505c2b5910da1fbfc"
+      "sha256": "ac370475a9cfd8abc11b2ce83836c7e6cef050b769431146aa40e8c7692a6bb7",
+      "bytes": 114929872,
+      "fingerprint": "15cf034bbd7ee07b5f82050f4f900b49fc2547ab7fe5c50b78e9895b7711123f"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 44889895037,
+      "run": 44899318078,
       "attempt": 1,
-      "head_sha": "a1007799f997e745a2774e4322c33d7a74eca862",
+      "head_sha": "c9474bfb805d5b01e1a3efb3cc83e57b0fc769d7",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1214,11 +1214,59 @@
         {
           "name": "0267-check-first-draw-pixels-and-fair-workers.patch",
           "sha256": "922198b0eb46a396d87aae47c68ea12873d9aa284b775454148df9eafa23d571"
+        },
+        {
+          "name": "0268-drain-gameplay-archives-and-prioritize-registered-pipelines.patch",
+          "sha256": "ffc317601e3636a69dd4fce740b02d78af21b88ab08146eca190e41944378132"
+        },
+        {
+          "name": "0269-recover-observed-first-draw-stages.patch",
+          "sha256": "51b7297146de27aaf40b1cf93bcace51cbe6f0d209792a62d7591da88f8934d0"
+        },
+        {
+          "name": "0270-enable-session-caches-and-thermal-guest-workers-on-NVN2.patch",
+          "sha256": "4efa7340cbf4673b2eadc4cf22b5ac647907a46f378fefdffcb737074c8b91a8"
+        },
+        {
+          "name": "0271-load-identity-checked-nvn2-shader-packs.patch",
+          "sha256": "1f899b30632c97805ecea3058ccba8eb8597cab51afb5e73413d9800eb7af2d6"
+        },
+        {
+          "name": "0272-prove-uncovered-uniform-bytes-before-splitting-NVN2-passes.patch",
+          "sha256": "3cfbe0b0ad9d17b1c4ff47544aa0e18d27b0cc9aae531f0141fba0e0c85cb668"
+        },
+        {
+          "name": "0273-extend-NVN2-sealed-clear-and-resolved-nested-wait-proofs.patch",
+          "sha256": "41c2820148aadef5a6bf77e639f236f0170ec8e7cd822bff685c8d36481a1a3c"
+        },
+        {
+          "name": "0274-bound-registered-prewarm-when-shader-workers-are-full.patch",
+          "sha256": "3a00daf0fb8b3a68f13965a96aee42d65549e50ca3875d933e9e14a3dcf281cc"
+        },
+        {
+          "name": "0275-admit-first-prepass-and-verify-inflight-first-use.patch",
+          "sha256": "660dd0692df432f8ac94b4dc64f48f66a7c11b94f8d7868af8ef108aa4866b7c"
+        },
+        {
+          "name": "0276-version-inflight-UBOs-and-account-for-repeated-MRT-clears.patch",
+          "sha256": "70dda94c239d66b04c739417396da790447fe22ed7cb262d2ad441329d352938"
+        },
+        {
+          "name": "0277-scale-eligible-targets-in-Fair-and-elide-empty-wait-prefixes.patch",
+          "sha256": "882cd3d9884f49597f9d76baef5c8536d6531440871af580a6fc9fb748cb9396"
+        },
+        {
+          "name": "0278-bind-capture-identity-to-the-native-index.patch",
+          "sha256": "ec2c7b1c1d42139ef724a793b79ad5fead7aa0aed2bc0f2e152a8d36bcef5815"
+        },
+        {
+          "name": "0279-preserve-the-NVN2-pipeline-budget-during-promotions.patch",
+          "sha256": "fa06dea44192a121ff848529137aff2dfebbca9d009d2878103f59c826a496fd"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "08b18ef71261b11ce0f702eb6dc1d462fa706691ad29cb5ab79eb1c0cb907ddd",
-        "NS2Pro.framework.zip": "35c33012568b3791cb0bff58bf51f7b5391310684abb3a427e15d22fabc4faae"
+        "S2ArmEngine.framework.zip": "6ac38775d765fbd4160122aa7fd86127f8311231daccbfad09273934874d57da",
+        "NS2Pro.framework.zip": "88d12a8482bb0755d2b832692b897b85ba09e6c6d2def8af74b7fffb5e352a93"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",

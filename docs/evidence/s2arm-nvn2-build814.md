@@ -70,3 +70,16 @@ python3 build-utils/s2arm/build_nvn2_shader_pack.py "$CAPTURE/shaders" \
 ```
 
 Installer le répertoire obtenu `pack/shaders/direct/` dans le pack préparé de ce titre. Un premier lancement avec des stages déjà présents dans le pack permet de vérifier les lectures dans `direct library container`. Au second lancement, relever aussi les succès stricts `from the archive` pour les pipelines observés entre-temps.
+
+## Vérifications Apple de 0279
+
+Le framework iOS arm64 provient du commit `c9474bfb8`. Les compilations iOS et iOS guest ont réussi sur macOS 15 et 26. Le manifeste vérifié couvre les 279 patchs et les trois archives du moteur, de la préparation et des données système. L’empreinte de l’ensemble est `15cf034bbd7ee07b5f82050f4f900b49fc2547ab7fe5c50b78e9895b7711123f`. [Compilation et artefact](https://github.com/TarbleFR/RewindBox/actions/runs/44899318078)
+
+| Contrôle | Résultat mesuré sur le runner Apple |
+| --- | --- |
+| Archive de rendu sous `docs/wire/<title>/` | En Fair et en Serious simulés, le processus à froid affiche `written=1, from_archive=0`. Le processus suivant affiche `written=0, from_archive=1`. Une recette compute promue en Fair a produit sa bibliothèque et son PSO pendant la suspension du préchauffage spéculatif. |
+| Pack AIR iPhoneOS | Le lecteur natif a rouvert les deux enregistrements du stage capturé, sa bibliothèque et sa réflexion. Le test vérifie l’identité du pack et la lecture d’un ancien index. |
+| Premier draw | 107 contrôles réussis. Le test a omis un draw pour bibliothèque et un autre pour PSO pendant le travail des workers. Une séquence de quatre trames a compté quatre omissions, zéro compilation MSL et zéro attente sur le thread de soumission. Le test exige le chemin exact à la cinquième trame. |
+| Uniformes, MRT et synchronisation | Deux pixels identiques aux valeurs attendues avec deux encodeurs quand le suivi est désactivé et un seul quand il est activé. La fusion MRT conserve 512 pixels. Un retour imbriqué évite une pièce de soumission tout en conservant l’ordre du signal et de la copie. |
+
+Le GPU virtuel exécute ces lectures avec des ressources Metal suivies. Les deux essais de queue directe Metal 4 ont été ignorés parce que le runner ne peut pas créer cette queue. La fréquence des gels, le nombre de passes, les réveils, les compteurs de draws omis et les évictions des deux jeux restent à mesurer sur l’A18 Pro. [Journal détaillé](https://github.com/TarbleFR/RewindBox/actions/runs/44899318078/job/136831692504)
