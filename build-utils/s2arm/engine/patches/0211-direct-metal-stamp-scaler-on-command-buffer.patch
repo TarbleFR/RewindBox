@@ -1,0 +1,205 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_dlss.inc b/graphics/nvn/gfx/nvn/nvn_dlss.inc
+index 34af58d..d58246a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_dlss.inc
++++ b/graphics/nvn/gfx/nvn/nvn_dlss.inc
+@@ -90,7 +90,16 @@ static void dlss_fx_run(id cb, const uint64_t *a) {
+         t.jitterOffsetX = rec_fv(a[5]); t.jitterOffsetY = rec_fv(a[6]); t.motionVectorScaleX = rec_fv(a[7]); t.motionVectorScaleY = rec_fv(a[8]); t.preExposure = rec_fv(a[9]);
+         t.reset = a[10] != 0; t.inputContentWidth = a[11]; t.inputContentHeight = a[12];
+     }
++    // a[14] is zero off capture. The profile heap is shared with the recorded encoder
++    // timestamps and stays alive until the last command buffer has completed.
++    NSUInteger mark = (NSUInteger)a[14];
++    if (@available(macOS 26.0, iOS 26.0, *)) {
++        if (mark) [cb writeTimestampIntoHeap:g_gp_heap atIndex:mark - 1];
++    }
+     [(id)s encodeToCommandBuffer:cb];
++    if (@available(macOS 26.0, iOS 26.0, *)) {
++        if (mark) [cb writeTimestampIntoHeap:g_gp_heap atIndex:mark];
++    }
+ }
+ // 这张图满足放大器要的用途（读 / 写 / 渲染目标），不满足就升级（tex_upgrade：同格式同尺寸新建、拷内容、换进序号表）
+ static id<MTLTexture> dlss_usage(const tex_t *t, id<MTLTexture> m, MTLTextureUsage need) { return (m.usage & need) == need ? m : tex_upgrade(t, m, need & ~m.usage, m.pixelFormat); }
+@@ -123,8 +132,14 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
+     // 前一侧的全屏障：一个空的拷贝编码器（开时等此前全部工作、关时让此后全部等它），MetalFX 的编码器排在它之后
+     rp_flush();
+     id pre = blit();
+-    if (g_gp_cur >= 0 && pre == g_gp_enc && rb_fx_trace()) {
++    NSUInteger fx_mark = 0;
++    if (g_gp_cur >= 0 && pre == g_gp_enc && g_gp_state == 1 &&
++        g_gp_frame == atomic_load(&g_cur_frame) && rb_fx_trace()) {
+         gp_lab *label = &g_gp_lab[g_gp_cur];
++        if (2 * (g_gp_n + g_gp_fx_pairs + 1) <= GP_MAX) {
++            label->fx_pair = (uint16_t)++g_gp_fx_pairs;
++            fx_mark = GP_MAX - 2 * (NSUInteger)label->fx_pair + 1;
++        }
+         label->fx = f->spatial ? 2 : 1;
+         label->in_w = (uint32_t)cw; label->in_h = (uint32_t)ch;
+         label->out_w = (uint32_t)o.width; label->out_h = (uint32_t)o.height;
+@@ -132,7 +147,7 @@ static void dlss_eval(const p_dlss *d, uint32_t size) {
+     enc_close_blit();
+     uint64_t a[15] = {0};
+     a[5] = rec_f(d->jitter[0]); a[6] = rec_f(d->jitter[1]); a[7] = rec_f(d->mv_scale[0]); a[8] = rec_f(d->mv_scale[1]); a[9] = rec_f(d->pre_exposure);
+-    a[10] = d->reset; a[11] = cw; a[12] = ch; a[13] = f->spatial;
++    a[10] = d->reset; a[11] = cw; a[12] = ch; a[13] = f->spatial; a[14] = fx_mark;
+     if (rec_on()) {   // 编码线程：放大器与四张图由记录持有到调用完
+         rec_t *r = rec_put(RO_FX, 5); memcpy(r->a, a, sizeof a);
+         r->a[0] = rec_obj(f->scaler); r->a[1] = rec_obj(c); r->a[2] = rec_obj(ts ? dp : nil); r->a[3] = rec_obj(ts ? mv : nil); r->a[4] = rec_obj(o);
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 64cf087..5999a74 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1506,9 +1506,11 @@ uint64_t nvn_be_cut_count(void);
+ // of the next new frame, so while a report is pending the frames in between are skipped and every frame printed is whole
+ enum { GP_MAX = 4096 };   // the largest timestamp heap Metal makes
+ typedef struct { char kind; uint16_t w, h; uint8_t nc, depth, loads; uint32_t draws, seg; uint64_t pass; uint32_t gm;
+-    uint64_t cb; uint8_t fx; uint32_t in_w, in_h, out_w, out_h;
++    uint64_t cb; uint8_t fx; uint16_t fx_pair; uint32_t in_w, in_h, out_w, out_h;
+ } gp_lab;   // gm：本编码器里绑原始内存池表的绘制 / 派发数（gmem_count_draw）
+ static uint64_t g_gmem_draws, g_gmem_draws_all, g_gmem_disp, g_gmem_disp_all;   // 原始内存池表动态占比（gmem_count_draw；提交线程独占）   // seg: the command buffer (segment) of the submission it is in
++// Encoder samples grow up from zero. Pairs around MetalFX grow down from the end.
++static int g_gp_fx_pairs;
+ static id g_gp_heap; static id<MTLCounterSampleBuffer> g_gp_sb;   // Metal 4 counter heap; Metal 3 sample buffer (gp_m3_ready)
+ // Metal 4 timestamp heaps (GPUPROF and segment-boundary timestamps) are made and written only through these two: MTL4 names stay in one place (mtl4 ratchet) under @available (avail ratchet)
+ static id ts_heap_new(NSUInteger n, NSError **er) { if (@available(macOS 26.0, iOS 26.0, *)) { MTL4CounterHeapDescriptor *hd = [MTL4CounterHeapDescriptor new]; hd.type = MTL4CounterHeapTypeTimestamp; hd.count = n; return [g_dev newCounterHeapWithDescriptor:hd error:er]; } return nil; }
+@@ -1588,8 +1590,8 @@ static void gp_begin(id e, char kind, MTL4RenderPassDescriptor *d) {   // right
+     if (g_m3 || !gp_active() || !gp_open()) return;
+     if (!g_gp_heap) { NSError *er = nil;
+         g_gp_heap = ts_heap_new(GP_MAX, &er); if (!g_gp_heap) { MLOG("【红】 GPUPROF: no counter heap: %s", er.description.UTF8String); g_gp_f0 = -1; return; } }
+-    if (!g_gp_state) { g_gp_state = 1; g_gp_n = 0; g_gp_drop = 0; g_gp_frame = atomic_load(&g_cur_frame); [g_gp_heap invalidateCounterRange:NSMakeRange(0, GP_MAX)]; }
+-    if (2 * g_gp_n + 2 > GP_MAX) { g_gp_drop++; return; }
++    if (!g_gp_state) { g_gp_state = 1; g_gp_n = 0; g_gp_drop = 0; g_gp_frame = atomic_load(&g_cur_frame); g_gp_fx_pairs = 0; [g_gp_heap invalidateCounterRange:NSMakeRange(0, GP_MAX)]; }
++    if (2 * (g_gp_n + g_gp_fx_pairs + 1) > GP_MAX) { g_gp_drop++; return; }
+     g_gp_lab[g_gp_n] = gp_lab_make(kind, d); g_gp_cur = g_gp_n; g_gp_enc = e;
+     ts_write(e, kind, MTLRenderStageVertex, g_gp_heap, 2 * g_gp_n);
+     g_gp_n++;
+@@ -1633,32 +1635,56 @@ static void gp_lane_end(id e, int k, uint32_t n1) {
+ //   thread whose handlers also complete the fences the submit thread waits for: the IPA 765 analysts could not tell how much the automatic measurements (frames 600, 1858, 2683, 3696
+ //   and 4573) disturbed the frames they measured. The handler only resolves the timestamps (a copy) and re-arms the capture. S2A_RB_GPUPROF_DEFER=0: written in the handler, as before
+ static int rb_gpuprof_defer(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_GPUPROF_DEFER"); v = !(e && !strcmp(e, "0")); } return v; }
+-static void gp_print(NSData *r, int n, int dropped, gp_lab *lab, uint64_t frame, double tick_ns);
+-static void gp_report(int n, int dropped, gp_lab *lab, uint64_t frame) {   // the frame's last command buffer has completed
++static void gp_print(NSData *r, NSData *fx, int n, int dropped, gp_lab *lab, uint64_t frame, double tick_ns);
++static void gp_report(int n, int dropped, gp_lab *lab, uint64_t frame, int fx_pairs) {   // the frame's last command buffer has completed
+     // Both resolve to 2n 64-bit timestamps in order (MTLCounterResultTimestamp holds the one field); Metal 3's sample buffer reports nanoseconds, Metal 4's heap ticks
+     NSData *r = g_m3 ? [g_gp_sb resolveCounterRange:NSMakeRange(0, 2 * n)] : [g_gp_heap resolveCounterRange:NSMakeRange(0, 2 * n)];
+-    const uint64_t *t = r.bytes; if (!t) { free(lab); atomic_store(&g_gp_rearm_frame, atomic_load(&g_cur_frame)); atomic_store(&g_gp_state, 0); return; }
++    if (!r.bytes || r.length != 2 * (NSUInteger)n * sizeof(uint64_t)) {
++        MLOG("[gpuprof] F%llu encoder counters unavailable: %d pairs requested, %lu bytes returned",
++             (unsigned long long)frame, n, (unsigned long)r.length);
++        free(lab); atomic_store(&g_gp_rearm_frame, atomic_load(&g_cur_frame)); atomic_store(&g_gp_state, 0); return;
++    }
++    // Copy the tail before rearming the heap. A missing FX sample must not suppress the encoder report.
++    NSUInteger count = 2 * (NSUInteger)fx_pairs;
++    NSData *fx = count ? [g_gp_heap resolveCounterRange:NSMakeRange(GP_MAX - count, count)] : nil;
++    if (fx.length != count * sizeof(uint64_t)) fx = nil;
+     double tick_ns = g_m3 ? 1.0 : 1e9 / (double)[g_dev queryTimestampFrequency];
+     if (rb_gpuprof_defer()) {   // RewindBox (patch 0068)
+         static dispatch_queue_t q; static dispatch_once_t once;
+         dispatch_once(&once, ^{ q = dispatch_queue_create("rb.gpuprof", dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0)); });
+         atomic_store(&g_gp_rearm_frame, atomic_load(&g_cur_frame)); atomic_store(&g_gp_state, 0);
+-        dispatch_async(q, ^{ gp_print(r, n, dropped, lab, frame, tick_ns); });
++        dispatch_async(q, ^{ gp_print(r, fx, n, dropped, lab, frame, tick_ns); });
+         return;
+     }
+-    gp_print(r, n, dropped, lab, frame, tick_ns);
++    gp_print(r, fx, n, dropped, lab, frame, tick_ns);
+     atomic_store(&g_gp_rearm_frame, atomic_load(&g_cur_frame)); atomic_store(&g_gp_state, 0);
+ }
+-static void gp_print(NSData *r, int n, int dropped, gp_lab *lab, uint64_t frame, double tick_ns) {   // RewindBox (patch 0068): gp_report's lines, from its resolved timestamps; frees lab
++static int gp_valid_tick(uint64_t t) { return t != 0 && t != UINT64_MAX; }
++static double gp_delta_us(uint64_t from, uint64_t to, double tick_ns) {
++    return (to >= from ? (double)(to - from) : -(double)(from - to)) * tick_ns / 1e3;
++}
++static void gp_print(NSData *r, NSData *fx, int n, int dropped, gp_lab *lab, uint64_t frame, double tick_ns) {   // RewindBox (patch 0068): gp_report's lines, from its resolved timestamps; frees lab
+     const uint64_t *t = r.bytes;
+     double tot[2] = {0}, span = 0, gm_us = 0; int gm_n = 0; uint64_t t0 = 0, t1 = 0;
+-    for (int i = 0; i < n; i++) { uint64_t a = t[2 * i], b = t[2 * i + 1]; if (!a || !b || b < a) continue;
+-        double us = (b - a) * tick_ns / 1e3; const gp_lab *l = &lab[i]; tot[l->kind != 'R' && l->kind != 'P'] += us; if (l->gm) { gm_us += us; gm_n++; }
++    int invalid = 0;
++    uint64_t origin = 0;
++    for (int i = 0; i < n; i++) {
++        uint64_t a = t[2 * i], b = t[2 * i + 1];
++        const gp_lab *l = &lab[i];
++        if (!gp_valid_tick(a) || !gp_valid_tick(b) || b < a) {
++            if (++invalid <= 8 || l->fx)
++                MLOG("[gpuprof] F%llu invalid_index=%d kind=%c pass=%llu CB=%llu seg=%u begin_tick=%llu end_tick=%llu",
++                     (unsigned long long)frame, i, l->kind, (unsigned long long)l->pass, (unsigned long long)l->cb,
++                     l->seg, (unsigned long long)a, (unsigned long long)b);
++            continue;
++        }
++        if (!origin) origin = a;
++        double us = (b - a) * tick_ns / 1e3; tot[l->kind != 'R' && l->kind != 'P'] += us; if (l->gm) { gm_us += us; gm_n++; }
+         if (!t0 || a < t0) t0 = a; if (b > t1) t1 = b;
+         if (l->kind == 'P' || l->kind == 'K') MLOG("[gpuprof] F%llu %4d %8.1f us geometry run %s, %u geometry draws, after pass %llu start %+.1f seg %u", (unsigned long long)frame, i, us,
+-            l->kind == 'P' ? "captures (render)" : "geometry kernels + compaction (compute)", l->draws, (unsigned long long)l->pass, (a - t[0]) * tick_ns / 1e3, l->seg);
+-        else if (l->kind == 'R') MLOG("[gpuprof] F%llu %4d %8.1f us render pass %llu %ux%u colors %u depth %u loads %u draws %u start %+.1f seg %u", (unsigned long long)frame, i, us, (unsigned long long)l->pass, l->w, l->h, l->nc, l->depth, l->loads, l->draws, (a - t[0]) * tick_ns / 1e3, l->seg);
+-        else MLOG("[gpuprof] F%llu %4d %8.1f us compute / copy after pass %llu start %+.1f seg %u copies %u (uniform updates %u) dispatches %u", (unsigned long long)frame, i, us, (unsigned long long)l->pass, (a - t[0]) * tick_ns / 1e3, l->seg, l->draws, l->h, l->w); }
++            l->kind == 'P' ? "captures (render)" : "geometry kernels + compaction (compute)", l->draws, (unsigned long long)l->pass, gp_delta_us(origin, a, tick_ns), l->seg);
++        else if (l->kind == 'R') MLOG("[gpuprof] F%llu %4d %8.1f us render pass %llu %ux%u colors %u depth %u loads %u draws %u start %+.1f seg %u", (unsigned long long)frame, i, us, (unsigned long long)l->pass, l->w, l->h, l->nc, l->depth, l->loads, l->draws, gp_delta_us(origin, a, tick_ns), l->seg);
++        else MLOG("[gpuprof] F%llu %4d %8.1f us compute / copy after pass %llu start %+.1f seg %u copies %u (uniform updates %u) dispatches %u", (unsigned long long)frame, i, us, (unsigned long long)l->pass, gp_delta_us(origin, a, tick_ns), l->seg, l->draws, l->h, l->w); }
+     for (int i = 0; i < n; i++) {
+         const gp_lab *pre = &lab[i];
+         if (!pre->fx) continue;
+@@ -1666,24 +1692,46 @@ static void gp_print(NSData *r, int n, int dropped, gp_lab *lab, uint64_t frame,
+         int left = i - 1, right = i + 1;
+         while (left >= 0 && lab[left].kind != 'R') left--;
+         while (right < n && lab[right].kind != 'R') right++;
+-        int valid = t[2 * i] && end >= t[2 * i] && next && next >= end;
++        int valid = gp_valid_tick(t[2 * i]) && gp_valid_tick(end) && end >= t[2 * i] && gp_valid_tick(next) && next >= end;
+         MLOG("[gpuprof] F%llu MetalFX=%s %ux%u->%ux%u pre_index=%d cb=%llu->%llu seg=%u->%u bracket_valid=%d fx_plus_sync_us=%.1f",
+              (unsigned long long)frame, pre->fx == 2 ? "spatial" : "temporal", pre->in_w, pre->in_h,
+              pre->out_w, pre->out_h, i, (unsigned long long)pre->cb,
+              (unsigned long long)(i + 1 < n ? lab[i + 1].cb : 0), pre->seg, i + 1 < n ? lab[i + 1].seg : 0,
+              valid, valid ? (next - end) * tick_ns / 1e3 : -1.);
+-        if (left >= 0 && right < n && t[2 * left] && t[2 * left + 1] >= t[2 * left] && t[2 * right]) {
+-            double after_end = ((double)t[2 * right] - (double)t[2 * left + 1]) * tick_ns / 1e3;
++        // A command-buffer timestamp waits for earlier work. Later work may already have started.
++        // These are elapsed intervals on one GPU clock, not exclusive MetalFX kernel time.
++        NSUInteger pairs = fx.length / (2 * sizeof(uint64_t));
++        const uint64_t *marks = fx.bytes;
++        if (pre->fx_pair && pre->fx_pair <= pairs) {
++            marks += 2 * (pairs - pre->fx_pair);
++            if (gp_valid_tick(marks[0]) && gp_valid_tick(marks[1]) && marks[1] >= marks[0]) {
++                MLOG("[gpuprof] F%llu MetalFX pre_index=%d CB=%llu cb_markers_valid=1 fx_cb_elapsed_us=%.1f",
++                     (unsigned long long)frame, i, (unsigned long long)pre->cb, (marks[1] - marks[0]) * tick_ns / 1e3);
++                if (gp_valid_tick(end))
++                    MLOG("[gpuprof] F%llu MetalFX pre_index=%d pre_end_to_cb_begin_us=%.1f",
++                         (unsigned long long)frame, i, gp_delta_us(end, marks[0], tick_ns));
++                if (gp_valid_tick(next))
++                    MLOG("[gpuprof] F%llu MetalFX pre_index=%d cb_end_to_next_begin_us=%.1f",
++                         (unsigned long long)frame, i, gp_delta_us(marks[1], next, tick_ns));
++            } else marks = NULL;
++        } else marks = NULL;
++        if (!marks) MLOG("[gpuprof] F%llu MetalFX pre_index=%d CB=%llu cb_markers_valid=0",
++                         (unsigned long long)frame, i, (unsigned long long)pre->cb);
++        if (left >= 0 && right < n && gp_valid_tick(t[2 * left]) && gp_valid_tick(t[2 * left + 1]) &&
++            t[2 * left + 1] >= t[2 * left] && gp_valid_tick(t[2 * right])) {
++            double after_end = gp_delta_us(t[2 * left + 1], t[2 * right], tick_ns);
+             MLOG("[gpuprof] F%llu MetalFX render_pass=%llu->%llu cb=%llu->%llu seg=%u->%u start_to_start_us=%.1f end_to_start_us=%.1f",
+                  (unsigned long long)frame, (unsigned long long)lab[left].pass, (unsigned long long)lab[right].pass,
+                  (unsigned long long)lab[left].cb, (unsigned long long)lab[right].cb, lab[left].seg, lab[right].seg,
+-                 ((double)t[2 * right] - (double)t[2 * left]) * tick_ns / 1e3, after_end);
++                 gp_delta_us(t[2 * left], t[2 * right], tick_ns), after_end);
+         }
+     }
++    if (invalid) MLOG("[gpuprof] F%llu invalid_encoder_pairs=%d captured_encoders=%d",
++                      (unsigned long long)frame, invalid, n);
+     span = (t1 - t0) * tick_ns / 1e3;
+     MLOG("[gpuprof] frame %llu: render %.2f ms, compute / copy %.2f ms over %d encoders, first start to last end %.2f ms; encoders with raw-memory-pool-table draws / dispatches %.2f ms (%d)%s", (unsigned long long)frame, tot[0] / 1e3, tot[1] / 1e3, n, span / 1e3, gm_us / 1e3, gm_n, dropped ? " (TRUNCATED: see the next line)" : "");
+     // 11-05 金刚：一帧 4000 多个编码器，只记得下前 GP_MAX / 2 个，报告曾被当成整帧读。记满时明说截断：之后的编码器没记，以上合计 / 跨度只是前段
+-    if (dropped) MLOG("【黄】 [gpuprof] frame %llu TRUNCATED: %d more encoders after the first %d were not recorded (limit %d per frame = the largest timestamp heap); the totals and span above cover only the frame's start", (unsigned long long)frame, dropped, n, GP_MAX / 2);
++    if (dropped) MLOG("【黄】 [gpuprof] frame %llu TRUNCATED: %d more encoders after the first %d were not recorded (heap holds %d pairs shared with any MetalFX markers); the totals and span above cover only the frame's start", (unsigned long long)frame, dropped, n, GP_MAX / 2);
+     free(lab);   // RewindBox (patch 0068): re-armed by gp_report
+ }
+ // Render pass descriptors: MTL4RenderPassDescriptor on Metal 4, MTLRenderPassDescriptor on Metal 3. The replay writes them through the Metal 4 type and uses only what both classes have
+@@ -3680,8 +3728,8 @@ uint64_t nvn_be_sub_commit(void) {
+     });
+     void arena_commit(uint64_t fence); arena_commit(fence);
+     res_commit();
+-    if ((g_gp_state == 1 && !gp_active()) || g_gp_state == 3) { int gn = g_gp_n, gd = g_gp_drop; gp_lab *gl = malloc(sizeof(gp_lab) * (gn ? gn : 1)); memcpy(gl, g_gp_lab, sizeof(gp_lab) * gn); uint64_t gf = g_gp_frame; g_gp_state = 2;
+-        fb_add(o, ^(id<MTL4CommitFeedback> f) { (void)f; gp_report(gn, gd, gl, gf); }); }
++    if ((g_gp_state == 1 && !gp_active()) || g_gp_state == 3) { int gn = g_gp_n, gd = g_gp_drop; gp_lab *gl = malloc(sizeof(gp_lab) * (gn ? gn : 1)); memcpy(gl, g_gp_lab, sizeof(gp_lab) * gn); uint64_t gf = g_gp_frame; int fx_pairs = g_m3 ? 0 : g_gp_fx_pairs; g_gp_state = 2;
++        fb_add(o, ^(id<MTL4CommitFeedback> f) { (void)f; gp_report(gn, gd, gl, gf, fx_pairs); }); }
+     if (g_m3) { rec_commit_m3(g_cb, o, g_ev, fence, 1); rec_drain(); }   // the handlers and the signal go with the commit record; the encode thread makes them on the real buffer
+     else {
+         [g_cb endCommandBuffer];

@@ -1,0 +1,118 @@
+Classify draw-pass entry barriers at their original decision and report window deltas alongside full/saved. Invalidate producer proofs at guest synchronization under the effective producer switch, including a legacy override.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1461,7 +1461,11 @@
+     return on;
+ }
+ static void main_barrier_reset(void) { g_bar_main_cb = g_bar_main_encoder = nil; g_bar_main_full = 0; }
+-static int main_barrier_begin(id e, int relaxed) {
++enum rb_entry_barrier { RB_ENTRY_NO_PROOF, RB_ENTRY_ALIAS, RB_ENTRY_COVERED, RB_ENTRY_RELAXED, RB_ENTRY_COUNT };
++static _Atomic uint64_t g_rb_draw_entries[RB_ENTRY_COUNT];
++static int rb_pass_stats(void);
++
++static enum rb_entry_barrier main_barrier_begin(id e, int relaxed) {
+     int covered = 0;
+     if (producer_cover_on()) {
+         covered = g_bar_main_cb == g_cb && g_bar_main_full;
+@@ -1469,9 +1473,10 @@
+     }
+     if (relaxed) {   // RewindBox (patch 0028, check C10): a pass begun without the full barrier still flushes the aliases before its fragments while a placement heap exists (upstream enc_r_begin_pass, nvn_mtl.m:1657-1658 at 0c078130)
+         if (atomic_load_explicit(&g_sp_heap_n, memory_order_relaxed)) [(id<MTL4CommandEncoder>)e barrierAfterQueueStages:MTLStageAll beforeStages:MTLStageFragment visibilityOptions:rb_res_vis()];
+-        return 0; }
+-    if (covered && !atomic_load_explicit(&g_sp_heap_n, memory_order_relaxed)) { g_bar_covered++; return 0; }   // RewindBox (patch 0028): with a placement heap, the full barrier (DM_NVN_PRODUCER_COVER=1 only)
+-    enc_full_barrier_begin(e); return 1;
++        return RB_ENTRY_RELAXED; }
++    if (covered && !atomic_load_explicit(&g_sp_heap_n, memory_order_relaxed)) { g_bar_covered++; return RB_ENTRY_COVERED; }   // RewindBox (patch 0028): with a placement heap, the full barrier (DM_NVN_PRODUCER_COVER=1 only)
++    enc_full_barrier_begin(e);
++    return covered ? RB_ENTRY_ALIAS : RB_ENTRY_NO_PROOF;
+ }
+ static inline void m4_end(id e) {
+     gp_end(e);
+@@ -1497,6 +1502,11 @@
+ // indirect arguments), or when anything other than a draw pass ran in between (compute, copies and uploads keep their full barriers). Only vertex-stage reads of the previous pass's results without a barrier change order
+ static int barrier_game(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_NVN_BARRIER"); v = e && *e ? !strcmp(e, "game") : DM_GAME_DRAW_BARRIERS_GAME; if (v) MLOG("draw_barriers game (profile key; DM_NVN_BARRIER overrides): draw passes are ordered by the game's own barriers (fragment work still has barriers between passes; vertex work may overlap the previous pass's fragments)"); } return v; }
+ void nvn_be_barrier_stats(uint64_t *skip, uint64_t *full) { *skip = g_bar_skip; *full = g_bar_full; }
++void nvn_be_draw_barrier_reasons(uint64_t counts[4]) {
++    _Static_assert(RB_ENTRY_COUNT == 4, "draw entry reason count changed");
++    for (int i = 0; i < RB_ENTRY_COUNT; i++)
++        counts[i] = atomic_load_explicit(&g_rb_draw_entries[i], memory_order_relaxed);
++}
+ uint64_t nvn_be_cut_count(void);
+ // DM_NVN_GPUPROF=first frame[-last frame] (diagnostic): GPU time of every encoder of the main command buffers in those frames. A relaxed timestamp is written into a counter heap when an
+ // encoder begins (before its first draw or dispatch) and when it ends (after its fragment stage); nothing is serialized beyond the barriers the replay already sets, so the frame runs
+@@ -1760,7 +1770,11 @@
+     int relaxed = g_last_end_relaxed && !g_game_barrier;
+     int full = !relaxed;
+     if (g_m3) m3_wait(e, 1, relaxed);
+-    else full = main_barrier_begin(e, relaxed);
++    else {
++        enum rb_entry_barrier why = main_barrier_begin(e, relaxed);
++        full = why == RB_ENTRY_NO_PROOF || why == RB_ENTRY_ALIAS;
++        if (rb_pass_stats()) atomic_fetch_add_explicit(&g_rb_draw_entries[why], 1, memory_order_relaxed);
++    }
+     if (full) g_bar_full++; else g_bar_skip++;
+     g_game_barrier = 0;
+     enc_r_table(e, g_vt, MTLRenderStageVertex); enc_r_table(e, g_ft, MTLRenderStageFragment); gp_begin(e, 'R', d); return e;
+@@ -20906,7 +20920,7 @@
+                 nvn_be_exec((const uint8_t *)t); g_ret_n--;
+                 if (g_xq_unwind) { xq_unwind_push(p + h.size); g_exec_cur = NULL; return; }   // parked inside the sub-list: the caller goes on after its CALL (nvn_xqueue.inc)
+                 break; }
+-            case OP_SIGNAL_EVENT: { static _Atomic int mode; if (!g_m3 && rb_direct_option(&mode, "S2A_RB_GPU_PRODUCER")) main_barrier_reset(); volatile uint32_t *val; uint32_t m, v; memcpy(&val, a, 8); memcpy(&m, (const uint8_t *)a + 8, 4); memcpy(&v, (const uint8_t *)a + 12, 4);
++            case OP_SIGNAL_EVENT: { if (!g_m3 && producer_cover_on()) main_barrier_reset(); volatile uint32_t *val; uint32_t m, v; memcpy(&val, a, 8); memcpy(&m, (const uint8_t *)a + 8, 4); memcpy(&v, (const uint8_t *)a + 12, 4);
+                 if (m & NVN_EV_WAIT) { PD("Y wait_event cmd=%p dst=%p mode=%u value=%u now=%u", p, val, m & ~NVN_EV_WAIT, v, val ? *val : 0);   // nvnCommandBufferWaitEvent（同一记录，见 ev_wait）
+                     if (ev_wait(val, m & ~NVN_EV_WAIT, v, p + h.size)) { PD("Y parked at the wait (cross-queue order)"); xq_unwind_push(p + h.size); g_exec_cur = NULL; return; }
+                     break; }
+@@ -20924,11 +20938,11 @@
+                     fsig_cond(!known ? 2 : g_rc_skip ? 1 : 0, rc->addr);   // RewindBox (patch 0064); RewindBox (patch 0067): rc->addr
+                     PD("E %llu conditional render %s addr=%#llx values %llu / %llu%s%s", g_stat_pass, rc->mode ? "draw if not equal" : "draw if equal", (unsigned long long)rc->addr, (unsigned long long)x, (unsigned long long)y, known ? "" : " (unknown, drawn)", g_rc_skip ? " → not drawn" : ""); }
+                 break; }
+-            case OP_WAIT_SYNC: { static _Atomic int mode; if (!g_m3 && rb_direct_option(&mode, "S2A_RB_GPU_PRODUCER")) main_barrier_reset(); const sync_t *s; memcpy(&s, a, 8); void *ev; uint64_t v;   // another queue's fence: the queue waits for it before this submission commits (hle_nvn.c WaitSync)
++            case OP_WAIT_SYNC: { if (!g_m3 && producer_cover_on()) main_barrier_reset(); const sync_t *s; memcpy(&s, a, 8); void *ev; uint64_t v;   // another queue's fence: the queue waits for it before this submission commits (hle_nvn.c WaitSync)
+                 if (s && sync_ext(s, &ev, &v)) queue_wait_event(ev, v);
+                 g_pkg_epoch++;   // what the other queue wrote before its fence is visible after the wait: packaged textures are checked again
+                 PD("Y wait_sync cmd=%p sync=%p", p, (const void *)s); break; }
+-            case OP_FENCE_SYNC: { static _Atomic int mode; if (!g_m3 && rb_direct_option(&mode, "S2A_RB_GPU_PRODUCER")) main_barrier_reset(); sync_t *s; memcpy(&s, a, 8); uint64_t fv = g_fence + 1; sync_publish(s, fv); g_rb_fsync_n++;   // the fence value this submission (segment) commits with. RewindBox (patch 0072): g_rb_fsync_n
++            case OP_FENCE_SYNC: { if (!g_m3 && producer_cover_on()) main_barrier_reset(); sync_t *s; memcpy(&s, a, 8); uint64_t fv = g_fence + 1; sync_publish(s, fv); g_rb_fsync_n++;   // the fence value this submission (segment) commits with. RewindBox (patch 0072): g_rb_fsync_n
+                 PD("Y fence_sync cmd=%p sync=%p fence=%llu", p, (void *)s, (unsigned long long)fv); break; }
+             case OP_RESET_COUNTER: { uint64_t t; memcpy(&t, a, 8); g_cnt_reset[t & 31]++; PD("Q reset type=%llu cmd=%p", (unsigned long long)t, p);
+                 if (t == NVN_COUNTER_TYPE_SAMPLES_PASSED) {
+@@ -21035,7 +21049,7 @@
+             case OP_PUSH_CONST: case OP_PUSH_CONST_PTR: state_op(h.op, a, h.size); break;
+             case OP_CLEAR_TEX: dsnap_stale(); clear_tex(a); break;   // it may clear the depth texture the copy was taken from (audit P2-247)
+             case OP_DISPATCH: dispatch(a); break;
+-            case OP_BARRIER: { static _Atomic int mode; if (!g_m3 && rb_direct_option(&mode, "S2A_RB_GPU_PRODUCER")) main_barrier_reset(); int32_t bits; memcpy(&bits, a, 4);   // ordered at the next draw pass (barrier_game); inside a pass with shader writes, the pass ends first (swrite_note)
++            case OP_BARRIER: { if (!g_m3 && producer_cover_on()) main_barrier_reset(); int32_t bits; memcpy(&bits, a, 4);   // ordered at the next draw pass (barrier_game); inside a pass with shader writes, the pass ends first (swrite_note)
+                 int split = g_enc && g_pass_swrite && (bits & (NVN_BARRIER_ORDER_FRAGMENTS_BIT | NVN_BARRIER_ORDER_FRAGMENTS_TILED_BIT));
+                 PD("I %llu barrier bits %#x%s", g_stat_pass, bits, split ? ": ends the pass (shader writes)" : g_enc ? " (render pass open)" : "");
+                 if (split) { rp_end(); static int once; if (!once++) MLOG("a game barrier (bits %#x) after shader writes in a draw pass: the pass ends there (first case pass %llu)", bits, (unsigned long long)g_stat_pass); }
+
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3240,6 +3240,7 @@
+ __attribute__((weak)) void dm_thread_cpu(char *out, size_t n, double secs) { (void)secs; if (n) snprintf(out, n, "-"); }   // hle_thread.c: guest-thread CPU by Switch priority band since the last call
+ void nvn_be_res_stats(char *out, size_t n);
+ void nvn_be_barrier_stats(uint64_t *skip, uint64_t *full);
++__attribute__((weak)) void nvn_be_draw_barrier_reasons(uint64_t counts[4]) { memset(counts, 0, 4 * sizeof *counts); }
+ extern uint32_t nvn_be_present_qos(void);
+ static uint64_t g_frame;
+ // RewindBox (patch 0070, L24 item 1): the host pages of virtual pools copied for buffers (vsh_fill: made, and filled again after a mapping or a CPU write behind them), and their
+@@ -3489,6 +3490,16 @@
+         LOG("[nvn] power up to frame %llu: CPU energy %.2f W, %.1f mJ per frame (%.1f fps); CPU %.0f%% (100 = one core), %.0f%% of it on performance cores; wakeups %.0f/s (out of platform idle %.0f); GPU busy %.1f ms/s (time, not energy); thermal %d; top yielders: %s", frame,
+             (e - pe) / 1e9 / s, (e - pe) / 1e6 / nf, nf / s, (cpu - pcpu) / 1e7 / s, cpu > pcpu ? 100.0 * (double)(p - pp) / (double)(cpu - pcpu) : 0, (iw - piw) / s, (idw - ppw) / s, (g - pg) / 1e6 / s, dm_thermal_now(), yt);
+         char rs[400]; nvn_be_res_stats(rs, sizeof rs); static uint64_t pbs, pbf; uint64_t bs, bf; nvn_be_barrier_stats(&bs, &bf);
++        static uint64_t previous_reason[4];
++        uint64_t reason[4];
++        nvn_be_draw_barrier_reasons(reason);
++        if (memcmp(reason, previous_reason, sizeof reason)) {
++            LOG("[nvn] draw-pass entry reasons up to frame %llu: full without producer proof %llu, full for alias visibility %llu, saved by producer coverage %llu, guest relaxed %llu",
++                frame, (unsigned long long)(reason[0] - previous_reason[0]),
++                (unsigned long long)(reason[1] - previous_reason[1]), (unsigned long long)(reason[2] - previous_reason[2]),
++                (unsigned long long)(reason[3] - previous_reason[3]));
++            memcpy(previous_reason, reason, sizeof reason);
++        }
+         uint64_t nvn_be_cut_count(void), nvn_be_copy_cut_count(void), nvn_be_pass_cut_count(void), nvn_be_blit_splits(void); void nvn_be_ubd_stats(uint64_t *, uint64_t *); static uint64_t pcut, pccut, ppcut, pbsp, pud, puc; uint64_t cut = nvn_be_cut_count(), ccut = nvn_be_copy_cut_count(), pcutn = nvn_be_pass_cut_count(), bsp = nvn_be_blit_splits(), ud, uc; nvn_be_ubd_stats(&ud, &uc);
+         void nvn_be_ubp_stats(uint64_t *, uint64_t *, uint64_t *); static uint64_t ppm, ppr, ppf; uint64_t pm, pr, pf_; nvn_be_ubp_stats(&pm, &pr, &pf_);
+         void nvn_be_lc_stats(uint64_t *, uint64_t *); static uint64_t plt, pll; uint64_t lt, ll; nvn_be_lc_stats(&lt, &ll);

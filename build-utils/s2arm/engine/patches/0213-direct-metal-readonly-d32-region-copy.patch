@@ -1,0 +1,195 @@
+On the hosted direct Metal 4 title, draw a supported single-plane D32 stretch into the existing renderable scratch when the destination lacks render-target usage. Publish exactly the destination subregion only on success; compatible native copies retain their normal path. S2A_RB_GPU_D32_COPY=0 restores prior handling.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 64cf087..fbaf93a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -20087,7 +20087,7 @@ static int fmt_int_or_ds(MTLPixelFormat f) {
+         default: return 0;
+     }
+ }
+-static int copy_t2t_draw(id<MTLTexture> s, id<MTLTexture> d, unsigned sl, unsigned ss, unsigned dl, unsigned ds, const NVNcopyRegion *sr, const NVNcopyRegion *dr, int linear, int mirror) {
++static int copy_t2t_draw_impl(id<MTLTexture> s, id<MTLTexture> d, unsigned sl, unsigned ss, unsigned dl, unsigned ds, const NVNcopyRegion *sr, const NVNcopyRegion *dr, int linear, int mirror, int require_encoder) {
+     static NSMutableDictionary<NSNumber *, id<MTLRenderPipelineState>> *pso; static id<MTLFunction> vf, ff, fd, fds; static id<MTLSamplerState> samp[2]; static id at; static id<MTLDepthStencilState> dss, dss_s; static int failed;
+     if (failed || sr->width <= 0 || sr->height <= 0 || dr->width <= 0 || dr->height <= 0) return 0;
+     int depth = (s.pixelFormat == MTLPixelFormatDepth32Float || s.pixelFormat == MTLPixelFormatDepth32Float_Stencil8) && d.pixelFormat == s.pixelFormat, stencil = depth && d.pixelFormat == MTLPixelFormatDepth32Float_Stencil8;
+@@ -20149,6 +20149,7 @@ static int copy_t2t_draw(id<MTLTexture> s, id<MTLTexture> d, unsigned sl, unsign
+         id<MTLTexture> stv = scopy ? (z ? [s newTextureViewWithPixelFormat:MTLPixelFormatX32_Stencil8 textureType:MTLTextureType2D levels:NSMakeRange(sl, 1) slices:NSMakeRange(ss + sr->zoffset + z, 1)] : stv0) : nil;
+         if (stencil) { MTLRenderPassStencilAttachmentDescriptor *st = rp.stencilAttachment; st.texture = d; st.level = dl; st.slice = a.slice; st.loadAction = scopy ? (whole ? MTLLoadActionDontCare : MTLLoadActionLoad) : MTLLoadActionClear; st.clearStencil = 0; st.storeAction = MTLStoreActionStore; }
+         ser_gate(); id<MTL4RenderCommandEncoder> en = enc_r_begin(rp);
++        if (require_encoder && !en) return 0;
+         if (depth) [en setDepthStencilState:scopy ? dss_s : dss];
+         enc_r_table(en, at, MTLRenderStageFragment);
+         tab_tex(at, sv, 0); if (stv) tab_tex(at, stv, 1); tab_samp(at, samp[!!linear && !depth], 0); tab_buf(at, pb, po, 0);
+@@ -20162,12 +20163,15 @@ static int copy_t2t_draw(id<MTLTexture> s, id<MTLTexture> d, unsigned sl, unsign
+                                                     linear && !depth ? " (bilinear)" : "", stencil ? (scopy ? " (depth + stencil)" : " (no stencil view possible, cleared to 0)") : ""); }
+     return 1;
+ }
++static int copy_t2t_draw(id<MTLTexture> s, id<MTLTexture> d, unsigned sl, unsigned ss, unsigned dl, unsigned ds, const NVNcopyRegion *sr, const NVNcopyRegion *dr, int linear, int mirror) {
++    return copy_t2t_draw_impl(s, d, sl, ss, dl, ds, sr, dr, linear, mirror, 0);
++}
+ // GPU: texture -> texture (previously mislisted as a no-op, 3 times per frame on the character select page). Same size, not mirrored, same format -> blit layer by layer; the other semantics (scaling with filtering, mirroring, format change) cannot be expressed by blit: report a failure, to be implemented
+ // S2Arm widen: copies between render targets whose storage tex_widen widened. A copy of the whole game width from one widened storage into another takes the whole widened width
+ //   (the widened strips go with the picture, as every full-screen pass that draws it does); others stay in game coordinates, the left part, counted on the first ones (a widened
+ //   texture copied into an unwidened one, or a part of one: not seen yet, so not mapped)
+ static uint64_t g_wd_copy_full, g_wd_copy_part;
+-static void copy_t2t_(const p_copy_t2t *c);
++static void copy_t2t_(const p_copy_t2t *c, const p_copy_t2t *guest);
+ static void dlss_eval(const p_dlss *d, uint32_t size);   // nvn_dlss.inc
+ static void copy_t2t(const p_copy_t2t *c) {
+     // GPU 写出的贴图拷到别处，目标也是 GPU 内容，不当 16:9 原比例页的来源（核心按 src 判：CPU 供图拷来拷去仍是图片；10-26 八方2 场景图）
+@@ -20202,10 +20206,10 @@ static void copy_t2t(const p_copy_t2t *c) {
+             else if (g_wd_copy_part++ < 6) MLOG("widen: texture copy ser=%llu (%d wide, storage %d) x %d+%d → ser=%llu (%d wide, storage %d) x %d+%d mapped to x %d+%d → x %d+%d (%llu so far)",
+                                                  (unsigned long long)c->src->serial, sw0, sw1, c->sr.xoffset, c->sr.width, (unsigned long long)c->dst->serial, dw0, dw1, c->dr.xoffset, c->dr.width,
+                                                  cc.sr.xoffset, cc.sr.width, cc.dr.xoffset, cc.dr.width, (unsigned long long)g_wd_copy_part);
+-            copy_t2t_(&cc); return;
++            copy_t2t_(&cc, c); return;
+         }
+     }
+-    copy_t2t_(c);
++    copy_t2t_(c, c);
+ }
+ // Downsample from a multisample texture of another size (11-02 Digimon Story Time Stranger: 1920x1080 4 samples → 1280x720, with or without widening): the game renders its handheld
+ //   1280x720 picture into the corner of a 1920x1080 multisample target and resolves that corner into a 1280x720 texture, so the destination takes the source's corner of its own size
+@@ -20248,7 +20252,38 @@ static int copy_resolve_scaled(const p_copy_t2t *c, id<MTLTexture> s, id<MTLText
+                                       (unsigned long)s.height, (unsigned long)s.sampleCount, dw, dh, (unsigned long)pf, rw, rh);
+     return 1;
+ }
+-static void copy_t2t_(const p_copy_t2t *c) {
++// A writable destination region may belong to shader-read-only D32 storage.
++// Verify one complete plane before rendering, then publish it with a single blit.
++static int rb_d32_copy_plane(id<MTLTexture> tex, const NVNcopyRegion *r,
++                             const view_t *view, unsigned level, unsigned first_slice) {
++    if ((tex.textureType != MTLTextureType2D && tex.textureType != MTLTextureType2DArray)
++        || tex.isSparse || tex.framebufferOnly || tex.storageMode == MTLStorageModeMemoryless
++        || level >= tex.mipmapLevelCount || r->width <= 0 || r->height <= 0
++        || r->xoffset < 0 || r->yoffset < 0 || r->zoffset < 0 || (r->depth != 0 && r->depth != 1)) return 0;
++    if (view && (view->set_format || view->set_target || view->set_swizzle || view->set_dsmode
++                 || (view->set_layers && view->nlayers && (unsigned)r->zoffset >= view->nlayers))) return 0;
++    return (uint64_t)r->xoffset + r->width <= rs_mip(tex.width, level)
++        && (uint64_t)r->yoffset + r->height <= rs_mip(tex.height, level)
++        && (uint64_t)first_slice + r->zoffset < tex.arrayLength;
++}
++
++static int rb_d32_copy_via_scratch(const p_copy_t2t *c, id<MTLTexture> src, id<MTLTexture> dst,
++                                   unsigned sl, unsigned ss, unsigned dl, unsigned ds) {
++    if (!(src.usage & MTLTextureUsageShaderRead)
++        || !rb_d32_copy_plane(src, &c->sr, c->has_sv ? &c->sv : NULL, sl, ss)
++        || !rb_d32_copy_plane(dst, &c->dr, c->has_dv ? &c->dv : NULL, dl, ds)) return 0;
++    id<MTLTexture> tmp = wd_scratch(MTLPixelFormatDepth32Float, c->dr.width, c->dr.height);
++    NVNcopyRegion out = {0, 0, 0, c->dr.width, c->dr.height, 1};
++    if (!tmp || !copy_t2t_draw_impl(src, tmp, sl, ss, 0, 0, &c->sr, &out, 0, 0, 1)) return 0;
++    id<MTL4ComputeCommandEncoder> encoder = blit();
++    if (!encoder) return 0;
++    enc_b_copy_texture(encoder, tmp, 0, 0, MTLOriginMake(0, 0, 0),
++                       MTLSizeMake(out.width, out.height, 1), dst, ds + c->dr.zoffset, dl,
++                       MTLOriginMake(c->dr.xoffset, c->dr.yoffset, 0));
++    return 1;
++}
++
++static void copy_t2t_(const p_copy_t2t *c, const p_copy_t2t *guest) {
+     if (fold_copy_skip(c->src, "texture copy source") || fold_copy_skip(c->dst, "texture copy destination")) return;
+     if (c->src) xv_check(c->src->serial, c->has_sv && c->sv.set_levels ? c->sv.base_level : 0, c->has_sv && c->sv.set_layers ? c->sv.min_layer : 0, "texture copy source");
+     rp_flush();   // Land the pending pure-clear render pass first (zero-source candidates only enter the set when the render pass ends); the blit() below would end the render pass anyway
+@@ -20264,6 +20299,28 @@ static void copy_t2t_(const p_copy_t2t *c) {
+     if (!s || !d) return;
+     unsigned sl = c->has_sv && c->sv.set_levels ? c->sv.base_level : 0, dl = c->has_dv && c->dv.set_levels ? c->dv.base_level : 0;
+     unsigned sz0 = c->has_sv && c->sv.set_layers ? c->sv.min_layer : 0, dz0 = c->has_dv && c->dv.set_layers ? c->dv.min_layer : 0;
++    if (!g_m3 && c->flags == 0 && (c->sr.width != c->dr.width || c->sr.height != c->dr.height)
++        && s.pixelFormat == MTLPixelFormatDepth32Float && d.pixelFormat == s.pixelFormat
++        && s.sampleCount == 1 && d.sampleCount == 1 && !(d.usage & MTLTextureUsageRenderTarget)) {
++        static _Atomic int mode;
++        if (rb_direct_option(&mode, "S2A_RB_GPU_D32_COPY")) {
++            static uint64_t copied, rejected;
++            if (rb_d32_copy_via_scratch(c, s, d, sl, sz0, dl, dz0)) {
++                pkg_gpu_wrote(c->dst, dl, dz0 + c->dr.zoffset, 1, guest->dr.xoffset, guest->dr.yoffset,
++                              guest->dr.width, guest->dr.height);
++                ++copied;
++                if (!(copied & (copied - 1))) MLOG("[rscale] D32 scratch copies=%llu", (unsigned long long)copied);
++                return;
++            }
++            ++rejected;
++            if (!(rejected & (rejected - 1)))
++                MLOG("【红】[rscale] D32 copy rejected=%llu guest %dx%d->%dx%d physical %dx%d->%dx%d usage %#lx->%#lx mip %u->%u samples %lu->%lu",
++                     (unsigned long long)rejected, guest->sr.width, guest->sr.height, guest->dr.width, guest->dr.height,
++                     c->sr.width, c->sr.height, c->dr.width, c->dr.height, (unsigned long)s.usage, (unsigned long)d.usage,
++                     sl, dl, (unsigned long)s.sampleCount, (unsigned long)d.sampleCount);
++            return;
++        }
++    }
+     pkg_gpu_wrote(c->dst, dl, c->dst->d.target == 2 ? 0 : dz0 + (unsigned)c->dr.zoffset, c->dst->d.target == 2 ? 1 : (unsigned)MAX(c->dr.depth, 1), c->dr.xoffset, c->dr.yoffset, c->dr.width, c->dr.height);
+     if (c->flags & DM_COPY_RESOLVE) {   // Downsample: multisample resolve into the single-sample destination (depth takes sample 0); with equal sample counts it is a plain whole copy
+         if (s.sampleCount == d.sampleCount && s.pixelFormat == d.pixelFormat && s.width == d.width && s.height == d.height) {
+diff --git a/graphics/nvn/tests/t_nvn_rscale.m b/graphics/nvn/tests/t_nvn_rscale.m
+index 4bf259e..cee1f3c 100644
+--- a/graphics/nvn/tests/t_nvn_rscale.m
++++ b/graphics/nvn/tests/t_nvn_rscale.m
+@@ -100,8 +100,56 @@ static void clear_rt(NVNtexture *t, const rect *r, int n, const uint8_t base[4])
+ }
+ static void done(void) { cases++; printf("PASS %s\n", phase); fflush(stdout); }
+ 
++// A title-scoped run, in a fresh process. The packed D32 destination is never
++// attached. Read back the complete image so a clipped blit or a dropped write fails.
++static void direct_d32_copy(void) {
++    static uint8_t packed[1 << 20];
++    NVNtexture src, dst;
++    make_tex(&src, NVN_FORMAT_DEPTH32F, NVN_TEXTURE_FLAGS_COMPRESSIBLE);
++    texture_offset = (texture_offset + 65535) & ~(size_t)65535;
++    make_tex_pkg(&dst, NVN_FORMAT_DEPTH32F, 0, packed);
++    NVNcopyRegion full = {0, 0, 0, W, H, 1};
++    NVNcopyRegion sr = {4, 4, 0, 48, 32, 1};
++    NVNcopyRegion dr = {12, 8, 0, 36, 24, 1};
++    NVNbufferAddress address = API(nvnMemoryPoolGetBufferAddress)(&pool) + BUF_OFFSET;
++    begin();
++    API(nvnCommandBufferSetRenderTargets)(&commands, 0, NULL, NULL, &src, NULL);
++    API(nvnCommandBufferSetScissor)(&commands, 0, 0, W, H);
++    API(nvnCommandBufferClearDepthStencil)(&commands, 0.25f, 1, 0, 0);
++    API(nvnCommandBufferSetScissor)(&commands, 16, 8, 16, 16);
++    API(nvnCommandBufferClearDepthStencil)(&commands, 0.75f, 1, 0, 0);
++    API(nvnCommandBufferCopyTextureToTexture)(&commands, &src, NULL, &full, &dst, NULL, &full, 0);
++    API(nvnCommandBufferCopyTextureToBuffer)(&commands, &dst, NULL, &full, address, 0);
++    submit();
++    storage_is(&src, RS_BLACK, W, H);
++    const float *data = (float *)((uint8_t *)storage + BUF_OFFSET);
++    for (int y = 0; y < H; ++y) for (int x = 0; x < W; ++x)
++        REQUIRE(data[y * W + x] == ((x >= 16 && x < 32 && y >= 8 && y < 24) ? 0.75f : 0.25f));
++    begin();
++    API(nvnCommandBufferCopyTextureToTexture)(&commands, &src, NULL, &sr, &dst, NULL, &dr, 0);
++    API(nvnCommandBufferCopyTextureToBuffer)(&commands, &dst, NULL, &full, address, 0);
++    submit();
++    for (int y = 0; y < H; ++y) for (int x = 0; x < W; ++x) {
++        int sx = x, sy = y;
++        if (x >= dr.xoffset && x < dr.xoffset + dr.width && y >= dr.yoffset && y < dr.yoffset + dr.height) {
++            sx = sr.xoffset + (2 * (x - dr.xoffset) + 1) * sr.width / (2 * dr.width);
++            sy = sr.yoffset + (2 * (y - dr.yoffset) + 1) * sr.height / (2 * dr.height);
++        }
++        REQUIRE(data[y * W + x] == ((sx >= 16 && sx < 32 && sy >= 8 && sy < 24) ? 0.75f : 0.25f));
++    }
++    done();
++}
++
+ int main(int argc, char **argv) {
+     @autoreleasepool {
++    if (argc == 2 && !strcmp(argv[1], "direct-d32")) {
++        phase = "direct D32 native and stretched copies";
++        setenv("S2A_RB_DIRECT_GAME_ID", "04007EF01F8AE000", 1);
++        setenv("S2A_RES_SCALE", "0.75", 1);
++        setup();
++        direct_d32_copy();
++        return 0;
++    }
+     if (argc != 2 || (strcmp(argv[1], "scaled") && strcmp(argv[1], "off"))) { fprintf(stderr, "用法：t_nvn_rscale scaled | off\n"); return 2; }
+     scaled = !strcmp(argv[1], "scaled");
+     setenv("S2A_RES_SCALE", scaled ? "0.5" : "1", 1);
+diff --git a/runtime/tests/mk/nvn_rscale.mk b/runtime/tests/mk/nvn_rscale.mk
+index b88d640..7292747 100644
+--- a/runtime/tests/mk/nvn_rscale.mk
++++ b/runtime/tests/mk/nvn_rscale.mk
+@@ -11,6 +11,7 @@ $(BUILD)/tests/t_nvn_rscale: graphics/nvn/tests/t_nvn_rscale.m graphics/nvn/gfx/
+ native-test-nvn_rscale: $(BUILD)/tests/t_nvn_rscale
+ 	timeout 120 $(BUILD)/tests/t_nvn_rscale scaled
+ 	timeout 120 $(BUILD)/tests/t_nvn_rscale off
++	timeout 120 $(BUILD)/tests/t_nvn_rscale direct-d32
+ 	NXGAL_BE=mtl3 timeout 120 $(BUILD)/tests/t_nvn_rscale scaled
+ 	NXGAL_BE=mtl3 timeout 120 $(BUILD)/tests/t_nvn_rscale off
+ 	@echo '✓ t_nvn_rscale：Metal 4 / Metal 3 × 缩放 0.5 / 关 四遍各 6 组全过'

@@ -354,4 +354,6 @@ Patches 0206–0209 default to the trial for this exact hosted title. Restart th
 | 0208 | `S2A_RB_GPU_FX_TRACE` | During `DM_NVN_GPUPROF` captures only, labels the actual scaler mode, extents, surrounding pass samples, physical CBs and completion clocks. Mixed intervals include MetalFX, barriers and any inter-CB gap. |
 | 0209 | `S2A_RB_GPU_NATIVE_D32` | A scaled run retains native D32 storage before allocating an incompatible pair. The existing render-pass attachment-group policy follows the depth target. No change to guest rects, depth filtering or native-size copies. |
 
+Patches 0210 and 0212 keep explicit guest discards and require full subresource coverage for inferred discards in the title’s conservative mode. Set `S2A_RB_TBDR=1` and leave `DM_NVN_TBDR` unset to test that mode. Patch 0214 includes draw-only barrier reasons in the existing pass statistics. Patch 0211 records the MetalFX command-buffer interval only during GPU captures. Patch 0213 uses `S2A_RB_GPU_D32_COPY` for stretched copies to a D32 destination that cannot be bound as a render target. Set it to zero to isolate that change. The `direct-d32` case in `graphics/nvn/tests/t_nvn_rscale.m` exercises native storage and a partial stretched copy with depth readback.
+
 [Device acceptance and analysis](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md#gpu-metal-4-sur-a18-pro)

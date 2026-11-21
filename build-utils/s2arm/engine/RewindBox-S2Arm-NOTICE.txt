@@ -62,6 +62,8 @@ RewindBox patch 0205 isolates course-priority scheduling for a two-course compar
 
 RewindBox patches 0206-0209 handle explicit terminal NVN discards, scope Metal 4 producer coverage, measure MetalFX GPU intervals and preserve native D32 copy compatibility.
 
+RewindBox patches 0210 through 0214 preserve terminal discards in the bindless-aware mode, require full clear coverage, instrument MetalFX on its command buffer, support single-plane D32 scaling copies to non-renderable destinations and classify draw-pass entry barriers.
+
 The engine also contains third-party code; S2Arm's own table of it is S2Arm/THIRD_PARTY_LICENSES.md. The exact
 licence and notice texts of the components that reach this application are in the folders beside this file. Each is
 listed in license-sources.json with its origin (a file of that S2Arm commit, a source archive the engine build fetched

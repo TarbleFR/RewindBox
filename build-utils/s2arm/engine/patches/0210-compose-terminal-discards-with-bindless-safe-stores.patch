@@ -1,0 +1,86 @@
+Apply explicit terminal discards in the bindless-aware mode after existing store proofs. Keep hoisted, layered and continued passes conservative.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -8297,6 +8297,20 @@
+         uintptr_t q = (uintptr_t)other->mem;
+         if (p <= q ? q - p < t->L.size : p - q < other->L.size) return 0;
+     }
++    return 1;
++}
++// An explicit end-of-life from the guest applies in either safe store path.
++// Call only after all other store proofs fail, so bytes belong to one reason.
++static int rb_terminal_discard(const sd_att *att) {
++    unsigned slot = att->depth ? 8u : (unsigned)att->idx;
++    if (slot > 8 || !(g_rb_discard_mask & (1u << slot))) return 0;
++    const tex_t *tex = att->depth ? R.rt.depth : R.rt.color[slot];
++    if (!rb_discard_unique(tex, &R.rt, (int)slot) || tex->serial != att->ser) return 0;
++    g_rb_discard_n++;
++    g_rb_discard_bytes += att->bytes;
++    if (!(g_rb_discard_n & (g_rb_discard_n - 1)))
++        MLOG("[tbdr] guest discard stores elided=%llu logical_bytes=%llu",
++             (unsigned long long)g_rb_discard_n, (unsigned long long)g_rb_discard_bytes);
+     return 1;
+ }
+ // S2Arm 11-07：免加载附件（lskip）第一次被记写的现场（g_nlw[i] 对 g_sd[i]），「lookahead wrong」红行带出来定因——满屏线 t0100670014482000（没有几何绘制、开满屏）也出这行，
+@@ -15662,17 +15676,10 @@
+         return;
+     }
+     if (!tbdr_on()) {   // TBDR set off: write back everything except an attachment loaded and not written in this pass (udc_on, needs no reader inference)
+-        for (int i = 0; i < g_nsd; i++) { sd_att *t = &g_sd[i]; int dead = (udc_on() && t->load && !t->wrote) || (t->lskip && !t->wrote);
+-            unsigned slot = t->depth ? 8 : (unsigned)t->idx;
+-            if (!dead && slot <= 8 && (g_rb_discard_mask & (1u << slot)) &&
+-                rb_discard_unique(t->depth ? R.rt.depth : R.rt.color[slot], &R.rt, (int)slot)) {
+-                dead = 1;
+-                g_rb_discard_n++;
+-                g_rb_discard_bytes += t->bytes;
+-                if (!(g_rb_discard_n & (g_rb_discard_n - 1)))
+-                    MLOG("[tbdr] guest discard stores elided=%llu logical_bytes=%llu",
+-                         (unsigned long long)g_rb_discard_n, (unsigned long long)g_rb_discard_bytes);
+-            }
++        for (int i = 0; i < g_nsd; i++) {
++            sd_att *t = &g_sd[i];
++            int unwritten = !t->wrote && (t->lskip || (t->load && udc_on()));
++            int dead = unwritten || rb_terminal_discard(t);
+             if (dead) g_rb_all_loaded = 0;
+             MTLStoreAction sa = dead ? MTLStoreActionDontCare : MTLStoreActionStore;
+             // not loaded (g_noload_mask) and still unwritten: nothing to write back, memory is the content. Written after all = the lookahead's proof was wrong (red; written back so the draws stay)
+@@ -15681,7 +15688,7 @@
+                     (unsigned long long)t->ser, (unsigned long long)g_stat_pass, (unsigned long long)g_noload_wrong, w->wwhy, w->prec, (unsigned long long)w->pass, (unsigned long long)w->draw, w->vs, w->fs, w->gs, w->geo, w->run, w->wd, w->wdm, g_pass_geo);
+                 else if (!(g_noload_wrong & (g_noload_wrong - 1))) MLOG("【红】 color attachments not loaded but written (lookahead wrong): %llu so far", (unsigned long long)g_noload_wrong); }
+             if (t->depth == 1) [g_enc setDepthStoreAction:sa]; else if (t->depth == 2) [g_enc setStencilStoreAction:sa]; else [g_enc setColorStoreAction:sa atIndex:(NSUInteger)t->idx];
+-            g_sd_n_all++; if (dead) { g_sd_n_dead++; g_sd_dead_bytes += t->bytes; g_bw_store -= t->bytes; if ((t->load || t->lskip) && !t->wrote) g_udc_saved_bytes += t->bytes; }
++            g_sd_n_all++; if (dead) { g_sd_n_dead++; g_sd_dead_bytes += t->bytes; g_bw_store -= t->bytes; if (unwritten) g_udc_saved_bytes += t->bytes; }
+             PD("Z %llu %s ser=%llu lv%u sl%u %s load=%d wrote=%d wwhy=%d (TBDR set off)", g_stat_pass, t->depth == 1 ? "d" : t->depth == 2 ? "s" : "c", (unsigned long long)t->ser, t->lv, t->sl, dead ? "dontcare" : "store", t->load, t->wrote, t->wwhy); }
+         g_nsd = 0; return; }
+     uint8_t nst[SD_MAX];
+@@ -15698,7 +15705,9 @@
+                                         && !xv_disabled(xtag = xv_tag_pass(R.rt.color[t->idx], t->lv, t->idx, &R.rt));
+         int xvdead = xvcand && xv_trial_get(xtag, 0) >= XV_TRIAL;   // Only after the trial period is the write-back really skipped
+         if (xvcand && !xvdead) xv_set(t->ser, t->lv, t->sl, XV_PROBE, xtag);   // Trial period: write back as usual, only track the next touch
+-        int dead = t->state == 2 || udc_dead || xvdead; if (dead) g_rb_all_loaded = 0; MTLStoreAction sa = dead ? MTLStoreActionDontCare : MTLStoreActionStore;
++        int dead = t->state == 2 || udc_dead || xvdead || rb_terminal_discard(t);
++        if (dead) g_rb_all_loaded = 0;
++        MTLStoreAction sa = dead ? MTLStoreActionDontCare : MTLStoreActionStore;
+         if (xvdead) { xv_set(t->ser, t->lv, t->sl, XV_INVALID, xtag); g_xv_dc++; }
+         if (t->depth == 1) [g_enc setDepthStoreAction:sa]; else if (t->depth == 2) [g_enc setStencilStoreAction:sa]; else [g_enc setColorStoreAction:sa atIndex:(NSUInteger)t->idx];
+         g_sd_n_all++; if (dead) { g_sd_n_dead++; g_sd_dead_bytes += t->bytes; g_bw_store -= t->bytes; if (udc_dead) g_udc_saved_bytes += t->bytes; }
+@@ -16525,6 +16534,8 @@
+         if (rec_bad(h)) { rec_bad_red("clear hoist lookahead", p, h, NULL, NULL); return; }
+         switch (h.op) {
+             case OP_END: case OP_CALL: case OP_COPY_T2T: case OP_COPY_B2T: case OP_COPY_T2B: case OP_CLEAR_TEX: case OP_DISPATCH: case OP_DLSS: case OP_RENDER_COND: case OP_DRAW_TEX: case OP_MULTI_DRAW: return;
++            // Moving a clear across a discard would disconnect the hint from its guest target.
++            case OP_RB_DISCARD: if (rb_bl) return; break;
+             case OP_JUMP: { const uint8_t *t; memcpy(&t, a, 8); p = t; continue; }
+             case OP_DRAW: case OP_DRAW_IDX: if (in_grp) return; break;
+             case OP_BIND_PROGRAM: if (rb_bl) { p_bind_program bpt_; const p_bind_program *bp_ = bind_program_rec(a, h.size, &bpt_); const prog_t *pp_ = (bp_->stages & 0x1f) ? prog_live(bp_) : NULL;
+@@ -20779,7 +20790,7 @@
+         // pending clears and flush geometry runs even when the hint is never consumed.
+         if (h.op == OP_RB_DISCARD) {
+             if (h.size == 16 && !g_m3 && !g_rc_skip && g_enc && !g_nlc && !g_gr.active &&
+-                !tbdr_on() && rb_direct_discard())
++                rb_direct_discard() && (!tbdr_on() || (rb_tbdr_bl() && !g_hoist_n && !g_pass.layered)))
+                 discard_suffix |= *(const uint32_t *)a & 0x1ff;
+             p += h.size;
+             continue;

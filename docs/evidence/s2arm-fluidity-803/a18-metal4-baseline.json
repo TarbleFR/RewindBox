@@ -1,0 +1,81 @@
+{
+  "titleId": "04007EF01F8AE000",
+  "gpu": "Apple A18 Pro",
+  "sourceKind": "Pre-change user-provided logs. Only aggregate measurements are recorded. Windows are scene-dependent and unpaired.",
+  "hostLog": {
+    "sha256": "3ac7a90dec6d5c47e35ae52442d5f865cc2d7b5ed51cbf7891c8439341c3dca4",
+    "sessionDate": "2026-11-19",
+    "frame": 2813,
+    "capturedEncoderCount": 124,
+    "printedEncoderCount": 123,
+    "unreportedEncoderIndices": [
+      67
+    ],
+    "observedScalerInSession": "Metal 4 temporal 960x540 to 1920x1080",
+    "encoder66": {
+      "pass": 53923,
+      "segment": 9,
+      "beginUs": 11616.7,
+      "durationUs": 21.5,
+      "endUs": 11638.2
+    },
+    "encoder68": {
+      "pass": 53924,
+      "segment": 0,
+      "beginUs": 15330.3
+    },
+    "renderStartToStartUs": 3713.6,
+    "renderEndToStartUs": 3692.1,
+    "wholeProfilerSpanMs": 19.18,
+    "windows": [
+      {
+        "windowEndFrame": 3000,
+        "frames": 300,
+        "thermal": 0,
+        "gpuP50Ms": 18.67,
+        "gpuP95Ms": 19.9,
+        "gpuMaxMs": 32.31,
+        "logicalAttachmentLoadMiBPerFrame": 217,
+        "logicalAttachmentStoreMiBPerFrame": 356,
+        "historicalAllLoadedPassesPerFrame": 52,
+        "drawEntryFull": 27951,
+        "drawEntrySaved": 0
+      },
+      {
+        "windowEndFrame": 4500,
+        "frames": 300,
+        "thermal": 0,
+        "gpuP50Ms": 32.04,
+        "gpuP95Ms": 34.5,
+        "gpuMaxMs": 37.14,
+        "logicalAttachmentLoadMiBPerFrame": 235,
+        "logicalAttachmentStoreMiBPerFrame": 380,
+        "historicalAllLoadedPassesPerFrame": 57,
+        "drawEntryFull": 29652,
+        "drawEntrySaved": 0
+      }
+    ]
+  },
+  "scaledLog": {
+    "sha256": "84b8ee1253a07eb9b8db702d31a57fd2441096c8e1f6255139fd411cf5edf0e6",
+    "sessionDate": "2026-11-18",
+    "requestedScale": 0.75,
+    "d32CopyErrors": 2,
+    "firstWindowAt2100": {
+      "windowEndFrame": 2100,
+      "frames": 300,
+      "thermal": 1,
+      "gpuP50Ms": 24.78,
+      "gpuP95Ms": 37.0,
+      "gpuMaxMs": 38.43,
+      "logicalAttachmentLoadMiBPerFrame": 132,
+      "logicalAttachmentStoreMiBPerFrame": 290,
+      "historicalAllLoadedPassesPerFrame": 48,
+      "drawEntryFull": 29211,
+      "drawEntrySaved": 0
+    },
+    "minStorageDownscalesReported": 129,
+    "minNativeRestoresReported": 33
+  },
+  "postChangeDeviceWindows": 0
+}

@@ -1,0 +1,86 @@
+Verify the next full clear against live state before dropping a store in this title's conservative direct Metal mode. Preserve clear order.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -16479,6 +16479,49 @@
+     if (g_exec_seq >= g_sdx_nop || g_sdx_op[g_exec_seq] != p) { RED_ONCE(40, "store lookahead index does not match the replay order (index %u / %u); the remaining passes of this submission all store", g_exec_seq, g_sdx_nop); g_sdx_ok = 0; return; }
+     g_exec_seq++;
+ }
++static int rb_strict_clear_proofs(void) {
++    static _Atomic int title;
++    return !g_m3 && rb_tbdr_bl() && rb_direct_option(&title, NULL);
++}
++
++// The sequence index does not replay scissors or conditional rendering. Only the
++// adjacent rebind/clear pair inherits their exact current state with no intervening reader.
++static int rb_next_clear_covers(const sd_att *att, uint32_t rebind, uint32_t clear) {
++    if (clear != rebind + 1 || g_rc_skip || g_hoist_n || g_rt_merged || g_pass.layered || g_wd > 0)
++        return 0;
++    const uint8_t *rt_op = g_sdx_op[rebind], *clear_op = g_sdx_op[clear];
++    op_hdr rt_header, clear_header;
++    memcpy(&rt_header, rt_op, sizeof rt_header);
++    memcpy(&clear_header, clear_op, sizeof clear_header);
++    if (rt_header.op != OP_SET_RT || clear_op != rt_op + rt_header.size) return 0;
++
++    p_set_rt tmp;
++    const p_set_rt *next = set_rt_rec(rt_op + 8, rt_header.size, &tmp);
++    const tex_t *old, *tex;
++    unsigned slot = att->depth ? 8u : (unsigned)att->idx;
++    if (att->depth) {
++        if (clear_header.op != OP_CLEAR_DS || next->n || next->has_dview || R.rt.has_dview) return 0;
++        const p_clear_ds *c = (const p_clear_ds *)(clear_op + 8);
++        unsigned sm = (unsigned)c->stencil_mask & 0xff;
++        if ((sm && sm != 0xff) || (att->depth == 1 ? !c->depth_mask : sm != 0xff)) return 0;
++        old = R.rt.depth;
++        tex = next->depth;
++    } else {
++        if (clear_header.op != OP_CLEAR_COLOR || slot >= 8 || next->n != 1 || next->depth ||
++            next->has_cview[0] || R.rt.has_cview[slot]) return 0;
++        const p_clear_color *c = (const p_clear_color *)(clear_op + 8);
++        if (c->index != 0 || c->mask != 0xf) return 0;
++        old = R.rt.color[slot];
++        tex = next->color[0];
++    }
++    // A full load-action clear has one known render extent in this case.
++    if (!tex || !rb_discard_unique(old, &R.rt, (int)slot) || tex->serial != att->ser ||
++        old->serial != att->ser || tex->mem != old->mem || tex->L.size != old->L.size ||
++        tex->d.flags & NVN_TEXTURE_FLAGS_SPARSE || tex->d.target != NVN_TEXTURE_TARGET_2D ||
++        tex->d.levels != 1 || tex->d.samples > 1 || tex->d.depth > 1 ||
++        !tex->d.width || !tex->d.height || att->lv || att->sl) return 0;
++    return scissor_full(tex, NULL, 0);
++}
+ static int sdx_decide(uint8_t st[SD_MAX]) {   // st[i]: 2 redundant; otherwise why << 2 (the reason it is needed, same as sd_need). Returns 0 = index unavailable
+     if (!g_sdx_ok || !g_exec_cur || !g_exec_seq || g_sdx_op[g_exec_seq - 1] != g_exec_cur) return 0;
+     uint32_t P = g_exec_seq - 1;
+@@ -16494,6 +16537,7 @@
+                                : e->plane == 0 && e->lv == t->lv && e->sl == t->sl;
+             if (!hit) continue;
+             st[i] = e->kind == SDX_CLEAR ? 2 : (uint8_t)(2 << 2); ec = e->seq; break; }
++        if (st[i] == 2 && rb_strict_clear_proofs() && !rb_next_clear_covers(t, P, ec)) st[i] = 2 << 2;
+         if (st[i] == 2 && rb_tbdr_bl() && rb_anyr_in(P, ec)) { st[i] = 1 << 2; g_rb_anyr_kept++; }   // RewindBox (patch 0073): a bindless reader before the clear: stored (why 1, read)
+         else if (st[i] == 2 && rb_tbdr_bl() && rb_seq_in(g_rb_wsq, g_rb_wsq_n, P, ec)) { st[i] = 1 << 2; g_rb_wsq_kept++; }   // RewindBox (patch 0073, review): an event wait before the clear (g_rb_wsq): stored
+     }
+@@ -16519,6 +16563,9 @@
+ }
+ static void hoist_try(void) {
+     if (g_hoist_n || !g_exec_next) return;
++    // Hoisting currently checks sampled serials and does not prove that a depth
++    // clear covers the whole plane. Keep these clears in guest command order.
++    if (rb_strict_clear_proofs()) return;
+     typedef struct { const uint8_t *rt_op; p_set_rt rt; uint8_t clear_c[8]; MTLClearColor cc[8]; uint8_t clear_d, clear_s; double cd; uint32_t cs;
+                      p_scissor sc; int has_sc; const uint8_t *ops[8]; int nops; } grp;
+     grp G[4]; int ng = 0, in_grp = 0; p_scissor sc = R.sc; int has_sc = R.has_sc;
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_rb_direct.h b/graphics/nvn/gfx/nvn/nvn_rb_direct.h
+--- a/graphics/nvn/gfx/nvn/nvn_rb_direct.h
++++ b/graphics/nvn/gfx/nvn/nvn_rb_direct.h
+@@ -11,7 +11,7 @@
+     int mode = atomic_load_explicit(cached, memory_order_relaxed);
+     if (!mode) {
+         const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
+-        const char *option = getenv(name);
++        const char *option = name ? getenv(name) : NULL;
+         mode = title && !strcasecmp(title, "04007EF01F8AE000") &&
+                (!option || !strcmp(option, "1")) ? 2 : 1;
+         atomic_store_explicit(cached, mode, memory_order_relaxed);
