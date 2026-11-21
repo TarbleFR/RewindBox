@@ -58,3 +58,15 @@ S2A_RB_XQ_WAIT_PREFIX=1
 L’en-tête de `lib.idx` lie le pack capturé aux identifiants du titre, du build, de la chaîne et du traducteur. Le moteur vérifie cette identité à la lecture de la table et de l’index. Une empreinte discordante écarte le pack capturé. Un repli vers le source MSL indique la clé et la cause dans le journal.
 
 `S2A_RB_NVN2_PSO_BUDGET=1` étend à tous les titres la réserve PSO du gouverneur, dans la même enveloppe mémoire totale. En Fair, un programme déjà demandé peut faire passer sa recette sur la file urgente. Si le nombre ou la taille des PSO résidents approche du plafond, le worker laisse la recette dans la file. Le premier draw conserve son accès au worker urgent. `S2A_RB_PSO_HEADROOM=0` désactive la réserve.
+
+## Reproduire le pack sur macOS
+
+Dans `Documents/env.txt`, ajouter `S2A_RB_NVN2_PSO_BUDGET=1` et `S2A_RB_PSO_HEADROOM=1` aux options ci-dessus. Pour produire le pack, exporter le dossier `shaders/` avec ses sources MSL et leurs fichiers JSON de réflexion, ainsi que le `pso_user.tsv` du même titre. Renseigner `TITLE_ID`, `BUILD_ID` (identifiant du NSO principal), `CAPTURE`, `S2ARM` (sources avec les patchs du pin) et `OUTPUT` (dossier de sortie neuf) puis exécuter la commande à la racine de RewindBox.
+
+```sh
+python3 build-utils/s2arm/build_nvn2_shader_pack.py "$CAPTURE/shaders" \
+  --history "$CAPTURE/pso_user.tsv" --title-id "$TITLE_ID" --build-id "$BUILD_ID" \
+  --engine-source "$S2ARM" --out "$OUTPUT"
+```
+
+Installer le répertoire obtenu `pack/shaders/direct/` dans le pack préparé de ce titre. Un premier lancement avec des stages déjà présents dans le pack permet de vérifier les lectures dans `direct library container`. Au second lancement, relever aussi les succès stricts `from the archive` pour les pipelines observés entre-temps.
