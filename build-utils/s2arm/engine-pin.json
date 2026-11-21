@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "15cf034bbd7ee07b5f82050f4f900b49fc2547ab7fe5c50b78e9895b7711123f",
+  "packagedFingerprint": "6bd8a26fd08cd3067a5194aa27682b4900d7d812bdf8b2b43146ed85914c9f56",
   "producers": {
     "engine": {
-      "run": 44899318078,
+      "run": 44929649254,
       "attempt": 1,
-      "artifact": 14706160488,
-      "name": "s2arm-engine-framework-c9474bfb805d5b01e1a3efb3cc83e57b0fc769d7",
-      "bytes": 25188843,
-      "sha256": "b7bb5be6bc6054b7c873308d534ab0d9fff887327d89ec516522b37ba245ba2a",
-      "headSha": "c9474bfb805d5b01e1a3efb3cc83e57b0fc769d7",
+      "artifact": 14717439126,
+      "name": "s2arm-engine-framework-ac2d9422851a5a770bc9fa40ac11992720565559",
+      "bytes": 25191043,
+      "sha256": "30f1f5dbfdd19eda28dc230efeff53be817e7cf7ec0e6d5d5a3e05d59caf1b01",
+      "headSha": "ac2d9422851a5a770bc9fa40ac11992720565559",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-21T11:44:44Z",
+      "expiresAt": "2026-12-21T17:40:42Z",
       "members": {
-        "S2ArmEngine.framework.zip": "6ac38775d765fbd4160122aa7fd86127f8311231daccbfad09273934874d57da",
-        "NS2Pro.framework.zip": "88d12a8482bb0755d2b832692b897b85ba09e6c6d2def8af74b7fffb5e352a93"
+        "S2ArmEngine.framework.zip": "2c614e9641a1457e4c837a962bc70da7facd2016ae2d2129465878d3a8ea2a94",
+        "NS2Pro.framework.zip": "44948dc353779097c3c72a9ca921ee1758361932c489b4b65daf8723ddf693be"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "b7bb5be6bc6054b7c873308d534ab0d9fff887327d89ec516522b37ba245ba2a",
+    "engine": "30f1f5dbfdd19eda28dc230efeff53be817e7cf7ec0e6d5d5a3e05d59caf1b01",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "ac370475a9cfd8abc11b2ce83836c7e6cef050b769431146aa40e8c7692a6bb7",
-      "bytes": 114929872,
-      "fingerprint": "15cf034bbd7ee07b5f82050f4f900b49fc2547ab7fe5c50b78e9895b7711123f"
+      "sha256": "340c2857f35ac4262721759061f569cf9566a24645572244ed7345c3d69a93bb",
+      "bytes": 114946984,
+      "fingerprint": "6bd8a26fd08cd3067a5194aa27682b4900d7d812bdf8b2b43146ed85914c9f56"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 44899318078,
+      "run": 44929649254,
       "attempt": 1,
-      "head_sha": "c9474bfb805d5b01e1a3efb3cc83e57b0fc769d7",
+      "head_sha": "ac2d9422851a5a770bc9fa40ac11992720565559",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1262,11 +1262,23 @@
         {
           "name": "0279-preserve-the-NVN2-pipeline-budget-during-promotions.patch",
           "sha256": "fa06dea44192a121ff848529137aff2dfebbca9d009d2878103f59c826a496fd"
+        },
+        {
+          "name": "0280-resolve-overwritten-ordered-UBO-transfers-in-flight.patch",
+          "sha256": "b9576c42d56566ec14889b8d9dc23c6e4135b76a9b0e7c454cccf650641a43d9"
+        },
+        {
+          "name": "0281-allow-native-MRT-clears-in-Fair-scaling-sessions.patch",
+          "sha256": "43cc221ea9464eb4e77a53018f3fb7dd7e015a062aceb925e4253fde9caf3f6f"
+        },
+        {
+          "name": "0282-bound-sustained-secondary-polling-in-Serious.patch",
+          "sha256": "e2311c55746cf0e72ab60a799d39555362d229ce464cf4a7b5875b2310481d11"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "6ac38775d765fbd4160122aa7fd86127f8311231daccbfad09273934874d57da",
-        "NS2Pro.framework.zip": "88d12a8482bb0755d2b832692b897b85ba09e6c6d2def8af74b7fffb5e352a93"
+        "S2ArmEngine.framework.zip": "2c614e9641a1457e4c837a962bc70da7facd2016ae2d2129465878d3a8ea2a94",
+        "NS2Pro.framework.zip": "44948dc353779097c3c72a9ca921ee1758361932c489b4b65daf8723ddf693be"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
