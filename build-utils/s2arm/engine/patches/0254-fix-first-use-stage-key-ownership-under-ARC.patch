@@ -1,0 +1,22 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 2ca558847ab5162da20d91187634049a28d00781..33b81001e588d499457e1e95c87e488cdf49ee75 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -20813,7 +20813,7 @@ static int rb_first_reflected_stage(NSString *key) {
+     if (g_rb_first_ro.count<4096) g_rb_first_ro[key]=@(stage);
+     return stage;
+ }
+-static int rb_first_library_pair(rb_material_pair pair, NSString *names[2],
++static int rb_first_library_pair(rb_material_pair pair, NSString * __strong const names[2],
+                                  int (*enqueue)(NSString *,int,int)) {
+     if (!rb_first_allow(pair,0)) return 0;
+     int missing[2]={0}, building[2]={0}, dz=atomic_load_explicit(&g_depth_zero,memory_order_relaxed);
+@@ -20992,7 +20992,7 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+     g_rp_layered = pr->sh[0] && pr->sh[0]->layer_out;
+     if (g_enc && g_pass.layered != g_rp_layered) rp_end();   // a layered pass only for layer-writing vertex shaders (see rp_begin_ex)
+     g_noload_mask = g_enc ? 0 : pass_color_unwritten(pr);   // color attachments proven unwritten to this pass's end are not loaded (see g_noload_mask)
+-    id<MTLRenderCommandEncoder> en = rp_begin_ex(mode);
++    id en = rp_begin_ex(mode); // The common encoder helpers accept native Metal 3 and Metal 4 encoders.
+     g_noload_mask = 0;
+     g_rp_layered = 0;
+     g_fd_dw = NULL; g_fd_di = NULL;
