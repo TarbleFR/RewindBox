@@ -316,7 +316,7 @@ The [806 delivery receipt](../../../docs/evidence/rewind806/delivery.json) recor
 
 `S2A_RB_POOL_AHEAD=0` still disables only neighbour lookahead. `S2A_RB_PREFETCH_ADAPT=0` restores the 803 execution paths for the candidate at launch. [Counter definitions, evidence and device criteria](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md#rendement-de-la-lecture-anticipée).
 
-### Long-frame attribution and audio output, 0198–0203
+### Long-frame attribution and audio output, 0198–0204
 
 | Patch | Measurement or behaviour |
 | --- | --- |
@@ -329,3 +329,5 @@ The [806 delivery receipt](../../../docs/evidence/rewind806/delivery.json) recor
 Patch 0203 adds `exclusive_ns` over every long interval, including mixed frames. Launch with `S2A_RB_LONGFRAME_REFERENCE=1` for identical timing on the 803 performance policies.
 
 A launch with either `S2A_RB_LONGFRAME=0` or `S2A_RB_AUDIO_GUARD=0` selects the 803 comparison paths. Private benchmark samples distinguish concealed audio from audible gap estimates and count attempted recovery stops. The observed iPhone output latency and the dominant cause in 803 remain open.
+
+Patch 0204 retains device recovery when full-rate real PCM continues to drain the queue for at least two seconds after a guard reserve was attempted. Synthetic audio cannot qualify as evidence of this fault. Ordinary producer starvation uses the fade.

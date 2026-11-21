@@ -54,7 +54,7 @@ RewindBox patches 0192 through 0197 measure actual demand for file-backed textur
 speculation with poor yield and correlate demand-page misses with long display intervals.
 S2A_RB_PREFETCH_ADAPT=0 selects the IPA 803 paths. S2A_RB_POOL_AHEAD=0 keeps neighbour lookahead off.
 
-RewindBox patches 0198 through 0203 measure long presenting-thread intervals and adapt Apple audio
+RewindBox patches 0198 through 0204 measure long presenting-thread intervals and adapt Apple audio
 output on underrun. The original comparison paths are available with S2A_RB_AUDIO_GUARD=0 or
 S2A_RB_LONGFRAME=0.
 

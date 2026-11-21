@@ -1,0 +1,86 @@
+Keep the 803 recovery for a device that repeatedly returns real PCM at full rate without depth even after padding was submitted. Exclude padding from the detector.
+
+diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+--- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
++++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+@@ -37,6 +37,23 @@
+         private long _producerTicks, _producerPeriod, _lastRisk, _nextPad;
+         private ulong _lastPageins;
+         private bool _pageBaseline;
++        private long _realReturned, _firstTimeline, _lastTimeline, _padSerial, _initialPadSerial;
++        private int _realZero;
++        // First give ordinary starvation a chance to recover without resetting the queue.
++        // Use only real guest PCM for the independent full-rate/timeline evidence.
++        private bool GuardTimelineFault(long now)
++        {
++            if (_lastTimeline == 0 || now-_lastTimeline > Stopwatch.Frequency)
++            {
++                _firstTimeline=now;
++                _initialPadSerial=Volatile.Read(ref _padSerial);
++            }
++            _lastTimeline=now;
++            Volatile.Write(ref _lastRisk,now);
++            WakePacer();
++            return now-_firstTimeline >= 2*Stopwatch.Frequency &&
++                   Volatile.Read(ref _padSerial) != _initialPadSerial;
++        }
+         [StructLayout(LayoutKind.Sequential)]
+         private struct UsageV0
+         {
+@@ -64,6 +81,7 @@
+             int targetMs = _guardMs == 0 ? 4 : _guardMs;
+             int frames = _pump.GuardReserve(targetMs);
+             if (frames == 0) return;
++            Interlocked.Increment(ref _padSerial);
+             _nextPad = now + Math.Max(1, frames*Stopwatch.Frequency/RequestedSampleRate);
+             _guardMs = Math.Min(16,targetMs + 4);
+         }
+@@ -360,6 +378,11 @@
+             long returned = Interlocked.Exchange(ref _returnedBytes, 0), elapsed = now - _timelineTicks;
+ 
+             _timelineTicks = now;
++            if (Guard)
++            {
++                zero=Interlocked.Exchange(ref _realZero,0);
++                returned=Interlocked.Exchange(ref _realReturned,0);
++            }
+ 
+             if (!_started || !_queueRunning)
+             {
+@@ -370,12 +393,8 @@
+ 
+             if (_timeline.Tick(zero, returned, elapsed) && now - _lastHealTicks >= (long)HealBackoffMs * Stopwatch.Frequency / 1000)
+             {
+-                if (Guard)
+-                {
+-                    Volatile.Write(ref _lastRisk,now);
+-                    WakePacer();
+-                    return;
+-                }
++                if (Guard && !GuardTimelineFault(now)) return;
++                if (Guard) _firstTimeline=_lastTimeline=0;
+                 S2ARecover($"队列时间轴跑到声音前面（这 {elapsed * 1000 / Stopwatch.Frequency} ms 交还 {returned / _bytesPerFrame} 帧、{zero} 次交还后在途为 0：欠载后交的缓冲排在已过去的时刻，没播就交还）",
+                            false, now, false, reprime: _reprimeTimeline);
+ 
+@@ -802,6 +821,11 @@
+                     if (oldest < 0) break;
+                     _processingReturn = Interlocked.Exchange(ref _handbacks[oldest], 0);
+                     int played = _pump.Returned(oldest);
++                    if (played>0)
++                    {
++                        Interlocked.Add(ref _realReturned,played);
++                        if (_pump.InFlightBytes==0) Interlocked.Increment(ref _realZero);
++                    }
+                     _credit.Returned(played, _processingReturn);
+                     _processingReturn = 0;
+                     returned = true;
+@@ -1081,6 +1105,9 @@
+                 {
+                     _guardMs=0; _lastRisk=0; _nextPad=0; _producerTicks=0;
+                     _pageBaseline=false;
++                    _firstTimeline=_lastTimeline=0;
++                    Interlocked.Exchange(ref _realReturned,0);
++                    Interlocked.Exchange(ref _realZero,0);
+                 }
+                 _recoveringTimeline = false;
+                 _diag.SetStarted(false);
