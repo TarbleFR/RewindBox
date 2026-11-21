@@ -1,0 +1,139 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 3bc743e..f40f3e7 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -1066,6 +1066,29 @@ const prog_t *nvn_prog_snap_get(uint64_t serial, uint8_t keys[6][8], uint8_t *ok
+     if (stage) memcpy(stage, k->stage, sizeof k->stage);
+     return &e->snap;
+ }
++int nvn_prog_snap_fill_pair(const prog_t *snapshot, const uint8_t keys[6][8]) {
++    if (!snapshot || snapshot->nstage != 2 ||
++        nvn_prog_snap_get(snapshot->serial, NULL, NULL, NULL) != snapshot) return 0;
++    // Recording another bind can also publish keys. The pair is one decision:
++    // on a conflict neither half is added to the immutable serial snapshot.
++    pthread_mutex_lock(&g_ps_mu);
++    psnap_ent *entry = ps_find(atomic_load_explicit(&g_ps_tab, memory_order_relaxed), snapshot->serial);
++    const prog_keys_t *old = atomic_load_explicit(&entry->ks, memory_order_relaxed);
++    int valid = 1;
++    for (unsigned i = 0; i < 2; ++i)
++        if ((old->ok & (1u << i)) && memcmp(old->key[i], keys[i], 8)) valid = 0;
++    if (valid && (old->ok & 3) != 3) {
++        prog_keys_t *next = malloc(sizeof *next);
++        if (next) {
++            *next = *old;
++            memcpy(next->key, keys, 2 * sizeof next->key[0]);
++            next->ok |= 3;
++            atomic_store_explicit(&entry->ks, next, memory_order_release);
++        } else valid = 0;
++    }
++    pthread_mutex_unlock(&g_ps_mu);
++    return valid;
++}
+ #if defined(__ANDROID__)
+ // 源快照的 program 生命周期 pin：身份用 content_sha（不按 prog_t* 指针），引用记在 serial 的快照条目上。
+ // SetShaders 换代 / program Finalize 时统一解 pin；同一 serial 的重复 Bind 去重。
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 13a65a8..4bec187 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -12534,10 +12534,11 @@ static int look_noload_on(void) {
+ // The stage mask prog_get would give this program (NvProg.smask), with nothing loaded or translated: each key's stage from the map (the package's or this device's translations),
+ //   else, for a Switch 2 stage not translated yet, from its control section (the stage word at +0x56 as dsh_miss.inc dsh_stage reads it: the first use translates it under that
+ //   stage). 0 = some stage cannot be told: the bind then takes every bit it names, as it does for a program prog_get marks unres
+-static int prog_look_mask(const prog_t *p, int *smask) {
++static int prog_look_mask(const prog_t *p, int *smask, const uint8_t expected[6][8]) {
+     int m = 0;
+     for (unsigned i = 0; i < p->nstage && i < 6; i++) {
+         uint8_t md[8]; char hx[17]; if (!prog_key(p, i, md)) return 0;
++        if (expected && memcmp(expected[i], md, sizeof md)) return 0;
+         for (int b = 0; b < 8; b++) snprintf(hx + 2 * b, 3, "%02x", md[b]);
+         NSString *stage = shmap_stage(@(hx)); int st = stage ? stage_of(stage) : -1;
+         if (!stage) { const void *ctl = p->sd[i].control;
+@@ -12556,14 +12557,63 @@ static int prog_look_mask(const prog_t *p, int *smask) {
+ static int rb_first_still_bound(const prog_t *cp) {
+     return !g_look && S.prog==cp && S.bser[0]==g_rb_first_snap->serial && S.bser[1]==g_rb_first_snap->serial;
+ }
++static int rb_code_set(const uint8_t *code, uint32_t size);
++static _Atomic int g_rb_first_replay_keys_option;
++static int rb_first_read(const void *source, void *out, size_t size) {
++    vm_size_t copied = 0;
++    return source && vm_read_overwrite(mach_task_self(), (vm_address_t)source, size,
++                                       (vm_address_t)out, &copied) == KERN_SUCCESS && copied == size;
++}
++
++// NVN2 waits until replay to hash code that the guest may still be filling at
++// SetShaders. The first recorded bind therefore normally carries no key bits.
++// Rebuild only missing keys, only for the still-live recorded program. Bound the
++// temporary memory and verify both the replay identity and the recorded addresses.
++static int rb_first_replay_keys(const prog_t *live, const prog_t *snap, uint8_t keys[6][8], uint8_t ok) {
++    if (!nvn_prog_snap_fill_pair || live == snap || !nvn2_on() ||
++        !rb_pacing_setting(&g_rb_first_replay_keys_option, "S2A_RB_FIRST_DRAW_REPLAY_KEYS")) return 0;
++    prog_t program;
++    if (!rb_first_read(live, &program, sizeof program) || program.magic != MAGIC('P','R','O','G') ||
++        !program.serial || program.serial != snap->serial || program.nstage != 2) return 0;
++    unsigned stages = 0;
++    for (unsigned i = 0; i < 2; ++i) {
++        if (program.sd[i].data != snap->sd[i].data) return 0;
++        uint8_t ctl[0xd8];
++        if (!rb_first_read(program.sd[i].control, ctl, sizeof ctl) || !nvn2_ctl(ctl) || ctl[0x56] > 1)
++            return 0;
++        stages |= 1u << ctl[0x56];
++        if (ok & (1u << i)) continue;
++        uint32_t size = nvn2_code_len(ctl);
++        if (!program.sd[i].data || !size || size > (1u << 20)) return 0;
++        uint8_t *code = malloc(size);
++        if (!code) return 0;
++        int complete = rb_first_read((const void *)(uintptr_t)program.sd[i].data, code, size) &&
++                       rb_code_set(code, size);
++        if (complete) nvn2_key(ctl, code, keys[i]);
++        free(code);
++        if (!complete) return 0;
++    }
++    if (stages != 3) return 0;
++    prog_t now;
++    if (!rb_first_read(live, &now, sizeof now) || now.serial != program.serial ||
++        now.nstage != 2 || now.magic != program.magic ||
++        memcmp(now.sd, program.sd, 2 * sizeof now.sd[0])) return 0;
++    return 1;
++}
+ static const prog_t *rb_first_bind_snapshot(const prog_t *p, int stages) {
+     if (!rb_first_draw_on() || !rb_observed_workers_on() || !p->serial || p->nstage != 2 || (stages & 3) != 3 ||
+         !nvn_prog_snap_get || serial_get(p->serial)) return NULL;
+     uint8_t keys[6][8], ok=0;
+     const prog_t *snap=nvn_prog_snap_get(p->serial,keys,&ok,NULL);
+-    if (!snap || snap->nstage != 2 || (ok & 3) != 3) return NULL;
++    if (!snap || snap->nstage != 2) return NULL;
++    int recover = (ok & 3) != 3;
++    if (recover && !rb_first_replay_keys(p, snap, keys, ok)) return NULL;
+     int mask=0;
+-    if (!prog_look_mask(p,&mask) || mask!=3) return NULL;
++    // Compare with the keys reported by normal replay before publishing.
++    // The mutable guest-program cache stays inside its existing accessor.
++    if (!prog_look_mask(p, &mask, recover ? keys : NULL) || mask != 3) return NULL;
++    if (recover && !nvn_prog_snap_fill_pair(snap, keys)) return NULL;
++    ok |= 3;
+     // Start observed translation or library load while the later binding state is replayed.
+     // Only the published reflection can subsequently authorize an omitted draw.
+     (void)prog_peek(p);
+@@ -12583,7 +12633,7 @@ static const prog_t *bind_stages(const prog_t *p, int stages) {
+     if (p && g_look) {   // RewindBox (patch 0040): the lookahead: resolved already, or its stage mask alone (prog_look_mask); nothing is loaded here
+         __unsafe_unretained NvProg *pr = prog_peek(p); int lm = 0;
+         if (pr) { if (!pr->unres && pr->smask) stages &= pr->smask | ~0x3; }
+-        else { if (prog_look_mask(p, &lm)) stages &= lm | ~0x3;
++        else { if (prog_look_mask(p, &lm, NULL)) stages &= lm | ~0x3;
+             g_look_left++;
+             if (!(g_look_left & (g_look_left - 1)) && g_look_left >= 16) MLOG("RewindBox: lookahead binds of a program whose shaders are not loaded yet: %llu so far, none loaded on the submit thread by the lookahead", (unsigned long long)g_look_left); }
+     } else
+diff --git a/graphics/nvn/gfx/nvn/nvn_obj.h b/graphics/nvn/gfx/nvn/nvn_obj.h
+index 74a3364..f038556 100644
+--- a/graphics/nvn/gfx/nvn/nvn_obj.h
++++ b/graphics/nvn/gfx/nvn/nvn_obj.h
+@@ -230,6 +230,8 @@ typedef struct { const prog_t *prog; int32_t stages; uint8_t kok; uint8_t keys[6
+ typedef struct { const prog_t *prog; uint64_t serial; int32_t stages, pad; } p_bind_program_id;
+ // 宿主按序号的程序快照表（hle_nvn.c）：返回的快照指针长期有效；没有该序号返回空。安卓直连核心可能不带 hle_nvn.c 链接，故弱引用
+ const prog_t *nvn_prog_snap_get(uint64_t serial, uint8_t keys[6][8], uint8_t *ok, uint8_t stage[6]) __attribute__((weak));
++// Install replay-verified identities into an existing serial snapshot. Existing keys win.
++int nvn_prog_snap_fill_pair(const prog_t *snapshot, const uint8_t keys[6][8]) __attribute__((weak));
+ // 还原完整记录：prog / stages 取自记录，snap / keys / kok / stage_of 按序号查表；表里没有（或载荷长度不对）时快照只带序号、键全缺、阶段 0xff
+ static inline const p_bind_program *bind_program_rec(const void *a, uint32_t size, p_bind_program *t) {
+     memset(t, 0, sizeof *t); memset(t->stage_of, 0xff, sizeof t->stage_of);

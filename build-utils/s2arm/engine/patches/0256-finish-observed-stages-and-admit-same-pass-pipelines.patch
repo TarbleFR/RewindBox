@@ -1,0 +1,479 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 13a65a8..d38734b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -270,7 +270,7 @@ int nvn_rb_thermal_scope(void) {
+     return 0;
+ #endif
+ }
+-static _Atomic int g_rb_observed_option;
++static _Atomic int g_rb_observed_option, g_rb_urgent_continue, g_rb_pass_lookahead;
+ int rb_observed_workers_on(void) {
+     return nvn_rb_thermal_scope() && rb_pacing_setting(&g_rb_observed_option, "S2A_RB_URGENT_WORKERS");
+ }
+@@ -13569,8 +13569,8 @@ static void ppq_pump_locked(void) {   // caller holds g_pp_mu: one lane per wait
+     int w = 0; for (int i = 0; i < PSO_PEND_MAX; i++) w += ppq_waiting(i);
+     for (; w > 0 && g_ppq_lanes < rb_pso_lanes(); w--) { g_ppq_lanes++; dispatch_async(dispatch_get_global_queue(rb_kart_option(RB_KART_WORKERS) ? QOS_CLASS_UTILITY : QOS_CLASS_USER_INITIATED, 0), ^{ ppq_lane(); }); }
+ }
+-static void pso_predict_rest(void);
+-static void rb_look_at_miss(void);   // RewindBox (patch 0085): defined after the lookahead (pso_predict_rest_)
++static void pso_predict_rest(const pso_key *current);
++static void rb_look_at_miss(const pso_key *current);   // RewindBox (patch 0085): defined after the lookahead (pso_predict_rest_)
+ // A pixel shader that reads a user(locn) its vertex shader does not write makes a pipeline Metal refuses: on the Mac the build returns an error, on iOS it aborted inside Metal
+ // (The Witcher 3, 10-26 test device 2, cold run, frame 1758: SIGABRT under pso_get_ on a vertex / pixel pair the build had not paired, so vs_pad gave the vertex shader nothing).
+ // Checked before any pipeline with the pair is built (pso_get_, pso_pend_kick, the prewarm). report: one red line, and the pair goes to pso_user.tsv as a P row, from which the next
+@@ -13595,9 +13595,11 @@ static int pso_pend_find(const pso_key *key)
+     pso_key copy;
+     return pso_pend_find_live(rb_pso_live_key(key, &copy));
+ }
++enum { RB_PSO_SAME_PASS=2 };
++static _Atomic uint64_t g_rb_pass_ahead;
+ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs, int now) {   // Called by the submit thread: kick only if it is neither in the cache nor in the table. now: a draw needs it (RewindBox (patch 0069): started at once, not after the lookahead's guesses)
+-    // The recorded lookahead still guesses render-pass attachment modes.
+-    // Only an actual draw supplies the exact render key and shader variants.
++    // The general lookahead guesses attachment modes. Demand and its immediate
++    // same-encoder successor carry an actual render key and exact shader pair.
+     int observed = now && rb_observed_workers_on();
+     if (!observed && !now && rb_kart_option(RB_KART_WORKERS) && !rb_spec_may(0)) return;
+     pso_key copy;
+@@ -13611,7 +13613,11 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs, int now)
+     //   compiled, and building the same descriptor again took 0.0 ms (M5 Max, 24 pipelines, 11-02 microbenchmark), and its records are written when a draw builds it
+     if (at < 0 && slot < 0) for (int i = 0; i < PSO_PEND_MAX; i++) if (g_pp[i].used && g_pp[i].done) { slot = i; g_pp[i].ps = nil; g_pp_dropped++; break; }
+     if (at < 0 && slot >= 0) { g_pp[slot].k = *live; g_pp[slot].ps = nil; g_pp[slot].error = nil; g_pp[slot].done = 0; g_pp[slot].late = 0; g_pp[slot].stuck = 0; g_pp[slot].used = 1; }
+-    if (at >= 0 && now) ppq_hurry_locked(at);   // RewindBox (patch 0069): a guess of the lookahead no lane has started, needed now
++    if (at>=0 && now==RB_PSO_SAME_PASS) {
++        // Keep any earlier queue owner intact if we cannot promote it.
++        if (ppq_waiting(at) && ppq_start_locked(at))
++            atomic_fetch_add_explicit(&g_rb_pass_ahead,1,memory_order_relaxed);
++    } else if (at >= 0 && now) ppq_hurry_locked(at);   // RewindBox (patch 0069): a guess of the lookahead no lane has started, needed now
+     pthread_mutex_unlock(&g_pp_mu);
+     if (at >= 0 || slot < 0) return;
+     const int lanes = observed || rb_pso_lanes();
+@@ -13630,7 +13636,8 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs, int now)
+             if (!ppq_start_locked(slot)) {
+                 g_ppq[slot].d = nil; g_ppq[slot].pkey = nil; g_ppq[slot].typed_fs = nil;
+                 g_pp[slot].used = 0;
+-            }
++            } else if (now==RB_PSO_SAME_PASS)
++                atomic_fetch_add_explicit(&g_rb_pass_ahead,1,memory_order_relaxed);
+         } else ppq_pump_locked();
+         pthread_mutex_unlock(&g_pp_mu); return;
+     }
+@@ -14040,7 +14047,7 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+     //   61 new pipelines in one frame, 1,796 ms; 0 "parallel precompile" lines in the whole run). Kicked first, the draw at hand is ahead of them in the queue
+     if (!g_pso_lmap && !ms_fn && !g_pso_fsfn) {
+         pso_pend_kick(&k, vs, fs, 1);   // nothing when already queued (an earlier lookahead) or refused (table full: compiled here below); RewindBox (patch 0069): started at once, or hurried when the lookahead queued it
+-        rb_look_at_miss();   // RewindBox (patch 0085): the submission's first miss as before, or again once libraries were loaded since its last lookahead
++        rb_look_at_miss(!g_pso_lmap && !g_pso_fsfn && !ms_fn ? &k : NULL);   // RewindBox (patch 0085): the submission's first miss as before, or again once libraries were loaded since its last lookahead
+     }
+     atomic_fetch_add(&g_fu_waiting, 1); int fu_busy0 = atomic_load(&g_warm_busy); uint64_t fu_t0 = bp_now(), fu_take = 0, fu_build = 0;
+     const int take_pending=!g_pso_lmap && !ms_fn;
+@@ -14057,7 +14064,7 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+         g_first_skipped = 1; PSO_WHY("still compiling in the background past the wait limit"); return nil; }
+     if (ps) g_pp_taken++;
+     else {
+-        rb_look_at_miss();   // First miss in this submission: first kick the later ones out to compile in parallel, then synchronously compile the one at hand; RewindBox (patch 0085): rb_look_at_miss
++        rb_look_at_miss(!g_pso_lmap && !g_pso_fsfn && !ms_fn ? &k : NULL);   // First miss in this submission: first kick the later ones out to compile in parallel, then synchronously compile the one at hand; RewindBox (patch 0085): rb_look_at_miss
+         MTLRenderPipelineDescriptor *d=nil;
+         NSString *akey = par_rkey(&k, vs, fs, g_pso_lmap != NULL, ms_fn ? ms_fn : g_pso_fsfn);
+         if (!settled) {
+@@ -14276,8 +14283,8 @@ static int rb_shurg_unique_on(void) {
+ // and depth variant. Translation-completion requests keep their separate, uncapped path.
+ // Only calls reached through command replay and actual first-use enter these lanes.
+ static NSMutableSet<NSString *> *g_rb_observed_shaders; // g_shpre_mu
+-static int rb_observed_shader(NSString *key, int stage, int depth) {
+-    if (!key || stage < 0 || !rb_observed_workers_on()) return 0;
++static int rb_observed_shader_load(NSString *key, int stage, int depth, int on_worker) {
++    if (!key || stage < 0) return 0;
+     depth = stage_depth_moded(stage) && depth;
+     NSString *identity = shader_identity(key,stage,0,depth);
+     os_unfair_lock_lock(&g_shpre_mu);
+@@ -14287,7 +14294,7 @@ static int rb_observed_shader(NSString *key, int stage, int depth) {
+     }
+     if (!g_rb_observed_shaders) g_rb_observed_shaders = [NSMutableSet set];
+     [g_rb_observed_shaders addObject:identity];
+-    int accepted = rb_observed_enqueue(^{
++    dispatch_block_t build = ^{
+         if (!nvn_be_stopping() && shader_loadable(key)) {
+             uint64_t start = bp_now();
+             if (shader_load_depth(key,stage,0,depth,NULL,NULL)) {
+@@ -14298,15 +14305,26 @@ static int rb_observed_shader(NSString *key, int stage, int depth) {
+         os_unfair_lock_lock(&g_shpre_mu);
+         [g_rb_observed_shaders removeObject:identity];
+         os_unfair_lock_unlock(&g_shpre_mu);
+-    });
++    };
++    if (on_worker && rb_pacing_setting(&g_rb_urgent_continue,"S2A_RB_URGENT_CONTINUATION")) {
++        // The translation already occupies an observed slot. Complete its library
++        // in that slot, including when the other 31 slots are all occupied.
++        os_unfair_lock_unlock(&g_shpre_mu);
++        build();
++        return 1;
++    }
++    int accepted = rb_observed_enqueue(build);
+     if (!accepted) [g_rb_observed_shaders removeObject:identity];
+     os_unfair_lock_unlock(&g_shpre_mu);
+     return accepted;
+ }
++static int rb_observed_shader(NSString *key, int stage, int depth) {
++    return rb_observed_workers_on() && rb_observed_shader_load(key,stage,depth,0);
++}
+ __attribute__((visibility("hidden")))
+-void rb_observed_stage_load(const char *hex, const char *name) {
++void rb_observed_stage_load(const char *hex, const char *name, int on_worker) {
+     int st = stage_of(@(name));
+-    if (st != 5) rb_observed_shader([@(hex) stringByAppendingString:@"_b"],st,atomic_load(&g_depth_zero));
++    if (st != 5) rb_observed_shader_load([@(hex) stringByAppendingString:@"_b"],st,atomic_load(&g_depth_zero),on_worker);
+ }
+ static void shader_urgent(NSString *k, int st) {
+     if (rb_observed_workers_on()) {
+@@ -17297,16 +17315,62 @@ static uint32_t rb_pso_rt_format(rb_pso_rt_meta *cache, const tex_t *tex, const
+     return format;
+ }
+ static void rb_compute_ahead(NvShader *cs);
+-static void pso_predict_rest_(void);
+-static void pso_predict_rest(void) {
++static void pso_predict_rest_(const pso_key *current);
++static void pso_predict_rest(const pso_key *current) {
+     if (!g_exec_next) return;
+     uint64_t t0 = bp_now(), x0 = g_tex_mtl_n;
+-    pso_predict_rest_();
++    pso_predict_rest_(current);
+     g_ppr_n++; g_ppr_ns += bp_now() - t0; g_ppr_tex += g_tex_mtl_n - x0;
+ }
+-static void pso_predict_rest_(void) {
++// Shared with the depth-caster path. Unknown reflection or any access that may
++// sample an attachment or touch its backing prevents an encoder continuity proof.
++static int rb_shader_inputs_constant(NvProg *pr) {
++    for (int stage=0; stage<2; stage++) {
++        NvShader *sh=pr->sh[stage];
++        if (!sh) continue;
++        if (!sh->fn || !sh->rf.route_b || sh->builtin || sh->rf.dyn || sh->rf.pool || (stage==1 && (sh->exact!=1 || sh->ts_lost ||
++                (sh->size_abi && !sh->size_exact)))) return 0;
++        for (int k=0;k<sh->rf.nb;k++) switch (sh->rf.b[k].kind) {
++            case NVN_RB_CBUF: case NVN_RB_SUPPORT: case NVN_RB_C1: case NVN_RB_DRV0:
++            case NVN_RB_DRV2: case NVN_RB_UBOLEN: case NVN_RB_PUSH: break;
++            default: return 0;
++        }
++    }
++    return 1;
++}
++static int rb_next_draw_may_cut(void);
++// Only fixed vertex layout, blend/color and viewport state may precede this draw.
++// Resource/program changes and render/transfer/synchronization commands terminate the proof.
++static int rb_same_pass_state(uint32_t op, const void *payload) {
++    switch (op) {
++        case OP_BIND_VATTR: case OP_BIND_VSTREAM: case OP_SCISSOR: case OP_VIEWPORTS:
++        case OP_BLEND_COLOR: return 1;
++        case OP_BIND_STATE: return (unsigned)((const p_bind_state *)payload)->kind <= 2;
++        default: return 0;
++    }
++}
++static int rb_same_pass_draw(const pso_key *current, const pso_key *candidate,
++                             const p_draw_idx *d, NvProg *program) {
++    return current && d && d->count>0 && d->instances>0 && !d->ind && !d->mdi_cnt &&
++        (d->prim==4 || d->prim==5) && program && !program->unres &&
++        !program->geo_base && !program->geo_raster && !program->gs_miss[0] &&
++        program->smask==3 && rb_shader_inputs_constant(program) && program->sh[0] && program->sh[0]->fn && !program->sh[0]->layer_out &&
++        program->sh[1] && program->sh[1]->fn && !pso_fout_need(candidate,program->sh[1],0) &&
++        candidate->vs==current->vs && candidate->fs==current->fs &&
++        candidate->dfmt==current->dfmt && candidate->sfmt==current->sfmt &&
++        candidate->samples==current->samples && !memcmp(candidate->cfmt,current->cfmt,sizeof current->cfmt) &&
++        !candidate->at && !candidate->msoff && !current->fc && !current->fsfn;
++}
++static void pso_predict_rest_(const pso_key *current) {
+     const int observed=rb_observed_workers_on();
+     if (observed && g_rc_skip) return;
++    // The actual PSO request proves the shader pair and actual attachment formats.
++    // Only predict the next direct indexed draw of this encoder. Fresh render
++    // targets, a later list or a potentially changed binding have no such proof.
++    int same_pass = current && observed && g_enc && !g_enc_mode && !g_pass.layered &&
++        !g_fz.active && !g_defer_replaying && !g_rlane && !S.tf_on && !S.rast_discard &&
++        !g_se_any && !g_fold_any && !getenv("DM_NVN_HILITE") && !rb_next_draw_may_cut() &&
++        rb_pacing_setting(&g_rb_pass_lookahead,"S2A_RB_URGENT_PASS_LOOKAHEAD");
+     // state_op also writes the pass state R (OP_SCISSOR: R.sc / R.has_sc), not only S: restored with S below, as fz_probe_cov2 does. Before firstuse-pso the lookahead almost never ran
+     //   (93dc5957e) and nothing noticed; running at every first miss it left a later draw's scissor on the draw at hand (t_nvn_size_abi :106, t_nvn_ubd_index ④, train 11-02 21:48)
+     static typeof(S) Ssave; memcpy(&Ssave, &S, sizeof S); typeof(R) Rsave = R;
+@@ -17324,6 +17388,8 @@ static void pso_predict_rest_(void) {
+     for (int guard = 0; guard < scan_limit && na < QN; guard++) {
+         const uint8_t *q; op_hdr hq; const void *aq;
+         if (!fz_next(&cur, &q, &hq, &aq)) break;
++        int next_indexed = same_pass && !cur.rest_i && hq.op==OP_DRAW_IDX;
++        if (same_pass && (cur.rest_i || !rb_same_pass_state(hq.op,aq))) same_pass=0;
+         if (observed && hq.op == OP_RENDER_COND) break; // live counters determine subsequent draws
+         if (hq.op == OP_SET_RT) {
+             p_set_rt rb; const p_set_rt *r = set_rt_rec(aq, hq.size, &rb); memset(cf, 0, sizeof cf); dfull = sfull = 0; samples = 1;
+@@ -17364,6 +17430,13 @@ static void pso_predict_rest_(void) {
+                 if (v == 2 && !sfull) continue; if (v == 3 && (!dfull || !sfull)) continue;
+                 pso_key k; pso_key_fill(&k, vs, fs, cf, dv[v], sv[v], samples, 0);
+                 if (rb_pso_lookup(&k)) continue;
++                if (next_indexed) {
++                    p_draw_idx decoded;
++                    if (rb_same_pass_draw(current,&k,draw_idx_rec(aq,hq.size,&decoded),pr)) {
++                        pso_pend_kick(&k,vs,fs,RB_PSO_SAME_PASS);
++                        continue;
++                    }
++                }
+                 int dup = 0; for (int i = 0; i < na && !dup; i++) dup = !memcmp(&qa[i].k, &k, sizeof k);
+                 if (dup) continue;
+                 if (na < QN) { qa[na].k = k; qa[na].vs = (__bridge void *)vs; qa[na].fs = (__bridge void *)fs; na++; }   // 只预测原样附件（v 恒 0）；原先另填一份不派发的 qb[160]，审计 P2-160 删
+@@ -18059,15 +18132,15 @@ static void rb_async_probe(const uint8_t *record, uint64_t serial) {
+     if (serial) g_async_seen_programs[slot]|=mask;
+     g_async_frame_probes++;
+     g_async_early=1; g_exec_next=record;
+-    pso_predict_rest();
++    pso_predict_rest(NULL);
+     g_exec_next=NULL; g_async_early=0;
+ }
+ 
+-static void rb_look_at_miss(void) {   // pso_get_vs, at a pipeline miss
++static void rb_look_at_miss(const pso_key *current) {   // pso_get_vs, at a pipeline miss
+     uint64_t libs = atomic_load_explicit(&g_rb_lib_done, memory_order_relaxed);
+-    if (g_pp_submit_mark != g_sub_serial) { g_pp_submit_mark = g_sub_serial; g_rb_look_sub_n = 0; g_rb_look_libs = libs; pso_predict_rest(); return; }
++    if (g_pp_submit_mark != g_sub_serial) { g_pp_submit_mark = g_sub_serial; g_rb_look_sub_n = 0; g_rb_look_libs = libs; pso_predict_rest(current); return; }
+     if (!rb_look_again_on() || !g_exec_next || g_rb_look_sub_n >= RB_LOOK_AGAIN || libs == g_rb_look_libs) return;
+-    g_rb_look_sub_n++; g_rb_look_libs = libs; rb_look_note(0); pso_predict_rest();
++    g_rb_look_sub_n++; g_rb_look_libs = libs; rb_look_note(0); pso_predict_rest(current);
+ }
+ static void rb_look_before_load(const prog_t *p) {   // bind_stages, at a bind the replay reached (not the lookahead's, a redraw's, a deferred draw's or a probe's: those run under a draw, g_exec_next set)
+     if (p && p->serial && p->nstage && !g_look && !g_exec_next && g_exec_cur && (rb_async_pso() || rb_observed_workers_on()))
+@@ -18092,7 +18165,7 @@ static void rb_look_before_load(const prog_t *p) {   // bind_stages, at a bind t
+     else if (libs == g_rb_look_libs) return;   // the submission's last lookahead passed this bind already and nothing was built since
+     else g_rb_look_sub_n++;
+     g_rb_look_libs = libs; rb_look_note(1);
+-    g_exec_next = g_exec_cur; pso_predict_rest(); g_exec_next = NULL;   // from this bind on (inclusive): the lookahead replays it loading nothing (bind_stages under g_look) and starts its stages beside
++    g_exec_next = g_exec_cur; pso_predict_rest(NULL); g_exec_next = NULL;   // from this bind on (inclusive): the lookahead replays it loading nothing (bind_stages under g_look) and starts its stages beside
+ }
+ static void draw(const p_draw *dw, const p_draw_idx *di);
+ static void fz_snap_take(const p_draw *dw, const p_draw_idx *di) {
+@@ -20735,18 +20808,7 @@ static int rb_shadow_caster(NvProg *pr) {
+     if (!pr || !pr->sh[0] || pr->sh[2] || pr->sh[3] || pr->sh[4] || pr->sh[5] ||
+         pr->sh[0]->layer_out || S.tf_on || S.rast_discard || g_geo_program || g_rlane ||
+         g_defer_replaying || !R.has_rt || !R.rt.depth || R.rt.depth->d.width!=1536 || R.rt.depth->d.height!=1536) return 0;
+-    for (int stage=0; stage<2; stage++) {
+-        NvShader *sh=pr->sh[stage];
+-        if (!sh) continue;
+-        if (!sh->fn || !sh->rf.route_b || sh->builtin || sh->rf.dyn || sh->rf.pool || (stage==1 && (sh->exact!=1 || sh->ts_lost ||
+-                (sh->size_abi && !sh->size_exact)))) return 0;
+-        for (int k=0;k<sh->rf.nb;k++) switch (sh->rf.b[k].kind) {
+-            case NVN_RB_CBUF: case NVN_RB_SUPPORT: case NVN_RB_C1: case NVN_RB_DRV0:
+-            case NVN_RB_DRV2: case NVN_RB_UBOLEN: case NVN_RB_PUSH: break;
+-            default: return 0;
+-        }
+-    }
+-    return 1;
++    return rb_shader_inputs_constant(pr);
+ }
+ // The following geometry policy is used only on a cold stage or PSO. The evidence
+ // describes the actual draw and attachment subresources, before writing encoder state.
+@@ -22403,6 +22465,12 @@ static int cut_draws(void) { static int v = -1; if (v < 0) { const char *e = get
+ static uint64_t g_cut_draw0, g_cuts, g_copy_cuts, g_cut_busy;   // g_cut_busy: boundaries kept without a commit (GPU still busy)
+ // The count starts with the submission (nvn_be_sub_begin; upstream reference implementation, MIT). It used to start at the submission's first sub_cut, which only a render target change reaches (OP_SET_RT):
+ // the draws a submission makes into the target it inherited, before its first target change, were never counted, and the first segment came that many draws late
++static int rb_next_draw_may_cut(void) {
++    // The current draw is counted after its PSO lookup. The following recorded
++    // draw calls sub_cut_pass before it chooses its actual attachments.
++    int limit=cut_draws();
++    return limit>0 && g_stat_draw-g_cut_draw0>=(uint64_t)(limit-1);
++}
+ static void sub_cut_begin(void) { g_cut_draw0 = g_stat_draw; }
+ // Segment times without the segments (upstream reference implementation, MIT). A report in segment mode takes the GPU start or end of the segment it fell in, and what a game's controller makes of those depends on where the boundaries lie.
+ // So the boundaries stay every cut_draws() draws, each with a GPU timestamp, whether or not the host commits there (sub_cut): the game reads what it read, and a GPU still busy gets no extra command buffer.
+@@ -25086,8 +25154,9 @@ void nvn_be_stats(uint64_t *passes, uint64_t *draws) {
+     unsigned live = g_observed.outstanding[0]+g_observed.outstanding[1], peak=g_observed.peak;
+     uint64_t accepted=g_observed.accepted, full=g_observed.full;
+     pthread_mutex_unlock(&g_observed.mu);
+-    MLOG("[rb-urgent] frame=%llu workers=2 pending=%u peak=%u admitted=%llu saturated=%llu",
+-         (unsigned long long)frame,live,peak,(unsigned long long)accepted,(unsigned long long)full);
++    MLOG("[rb-urgent] frame=%llu workers=2 pending=%u peak=%u admitted=%llu saturated=%llu same_pass_lookahead=%llu",
++         (unsigned long long)frame,live,peak,(unsigned long long)accepted,(unsigned long long)full,
++         (unsigned long long)atomic_load_explicit(&g_rb_pass_ahead,memory_order_relaxed));
+ }
+ // 本窗口（上次读后）画过的最大渲染目标：宽 / 高 / Metal 像素格式，读后清零（hle_nvn.c 每 300 帧那行带出）
+ void nvn_be_rt_window(uint32_t *w, uint32_t *h, uint32_t *fmt) { *w = g_rtw_w; *h = g_rtw_h; *fmt = g_rtw_fmt; g_rtw_w = g_rtw_h = g_rtw_fmt = 0; }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index c682732..8220174 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -369,6 +369,9 @@ void nvn_be_begin_session(void) {
+     rb_observed_begin(&g_observed);
+     g_rb_observed_shaders = nil;
+     atomic_store(&g_rb_observed_option, 0);
++    atomic_store(&g_rb_urgent_continue, 0);
++    atomic_store(&g_rb_pass_lookahead, 0);
++    atomic_store(&g_rb_pass_ahead, 0);
+     atomic_store(&g_shpre_stopping, 0);
+     os_unfair_lock_unlock(&g_shpre_mu);
+     atomic_store(&g_link_stop, 0); atomic_store(&g_present_discard, 0);
+diff --git a/graphics/nvn/host/dsh_miss.inc b/graphics/nvn/host/dsh_miss.inc
+index 156d483..913014c 100644
+--- a/graphics/nvn/host/dsh_miss.inc
++++ b/graphics/nvn/host/dsh_miss.inc
+@@ -541,7 +541,7 @@ int dm_shader_bound(const char *k16, uint64_t code, const void *control) { retur
+ // A real command retries from its own owned bytes even if that happened at Fair.
+ __attribute__((visibility("hidden"))) int rb_observed_workers_on(void);
+ __attribute__((visibility("hidden"))) int rb_observed_enqueue(dispatch_block_t block);
+-__attribute__((visibility("hidden"))) void rb_observed_stage_load(const char *key, const char *stage);
++__attribute__((visibility("hidden"))) void rb_observed_stage_load(const char *key, const char *stage, int on_worker);
+ enum { DSH_OBSERVED_SLOTS = 32 };
+ static pthread_mutex_t dsh_observed_mu = PTHREAD_MUTEX_INITIALIZER;
+ static struct { uint8_t key[8]; size_t bytes; } dsh_observed[DSH_OBSERVED_SLOTS];
+@@ -572,7 +572,7 @@ static int dsh_observed_ahead(const char *key, const uint8_t hash[8], uint64_t c
+     char stage[16];
+     if (dsh_reuse_stage(key,stage,sizeof stage)) {
+         mtl_shmap_rt_add(key,stage);
+-        rb_observed_stage_load(key,stage);
++        rb_observed_stage_load(key,stage,0);
+         return 2;
+     }
+     uint8_t header[0xd8];
+@@ -614,7 +614,7 @@ static int dsh_observed_ahead(const char *key, const uint8_t hash[8], uint64_t c
+                         atomic_fetch_add(&g_dsh_ahead_ok,1);
+                         atomic_fetch_add(&g_dsh_ahead_ns,now_ns()-start);
+                     } else atomic_fetch_add(&g_dsh_ahead_dup,1);
+-                    mtl_shmap_rt_add(name,dsh_nm[st]); rb_observed_stage_load(name,dsh_nm[st]);
++                    mtl_shmap_rt_add(name,dsh_nm[st]); rb_observed_stage_load(name,dsh_nm[st],1);
+                 } else atomic_fetch_add(&g_dsh_ahead_failed,1);
+             }
+             free(path); free(name); free(data);
+diff --git a/graphics/nvn/tests/rb_first_draw_flight.inc b/graphics/nvn/tests/rb_first_draw_flight.inc
+index 87e67d2..fb056af 100644
+--- a/graphics/nvn/tests/rb_first_draw_flight.inc
++++ b/graphics/nvn/tests/rb_first_draw_flight.inc
+@@ -15,7 +15,67 @@ static int rb_test_first_enqueue(NSString *key,int st,int dz) {
+     return 1;
+ }
+ 
++static void rb_test_observed_handoff(void) {
++    NSString *key=@"abababababababab_b";
++    fixture(key,vertex_source,@"plain");
++    dispatch_semaphore_t started=dispatch_semaphore_create(0), run=dispatch_semaphore_create(0);
++    dispatch_semaphore_t held=dispatch_semaphore_create(0), done=dispatch_semaphore_create(0);
++    rb_observed_begin(&g_observed);
++    REQUIRE(rb_observed_enqueue(^{
++        dispatch_semaphore_signal(started);
++        REQUIRE(!dispatch_semaphore_wait(run,dispatch_time(DISPATCH_TIME_NOW,30*NSEC_PER_SEC)));
++        REQUIRE(rb_observed_shader_load(key,0,0,1));
++        dispatch_semaphore_signal(done);
++    }));
++    REQUIRE(rb_observed_enqueue(^{
++        dispatch_semaphore_signal(started);
++        REQUIRE(!dispatch_semaphore_wait(held,dispatch_time(DISPATCH_TIME_NOW,60*NSEC_PER_SEC)));
++    }));
++    for (int i=0;i<2;i++)
++        REQUIRE(!dispatch_semaphore_wait(started,dispatch_time(DISPATCH_TIME_NOW,30*NSEC_PER_SEC)));
++    for (int i=2;i<RB_OBSERVED_LIMIT;i++) REQUIRE(rb_observed_enqueue(^{}));
++    CHECK(!rb_observed_shader_load(key,0,0,0),"submission cannot claim a 33rd worker slot");
++    dispatch_semaphore_signal(run);
++    REQUIRE(!dispatch_semaphore_wait(done,dispatch_time(DISPATCH_TIME_NOW,30*NSEC_PER_SEC)));
++    os_unfair_lock_lock(&g_shader_lock);
++    NvShader *vertex=g_shcache[shader_identity(key,0,0,0)];
++    os_unfair_lock_unlock(&g_shader_lock);
++    CHECK(vertex && vertex->fn,"accepted translation publishes its Metal library while all slots are occupied");
++    dispatch_semaphore_signal(held);
++    REQUIRE(rb_observed_drain(&g_observed,dispatch_time(DISPATCH_TIME_NOW,30*NSEC_PER_SEC)));
++    if (vertex && vertex->fn) vertex_gpu(vertex,0.25f,0);
++
++    REQUIRE(vertex);
++    NSString *fragmentKey=@"abababababababac_b";
++    fixture(fragmentKey,vertex_source,@"color");
++    NSMutableDictionary *metadata=[reflection(@"color") mutableCopy];
++    metadata[@"scale_exact"]=@YES;
++    NSData *json=[NSJSONSerialization dataWithJSONObject:metadata options:0 error:nil];
++    REQUIRE([json writeToFile:[fallback stringByAppendingPathComponent:[fragmentKey stringByAppendingPathExtension:@"json"]]
++                   atomically:YES]);
++    NvShader *fragment=shader_load_depth(fragmentKey,1,0,0,NULL,NULL);
++    REQUIRE(fragment && fragment->fn);
++    NvProg *program=[NvProg new]; program->smask=3; program->sh[0]=vertex; program->sh[1]=fragment;
++    pso_key current={.vs=(__bridge void *)vertex,.fs=(__bridge void *)fragment,.samples=1,
++                     .cfmt={MTLPixelFormatRGBA8Unorm}}, next=current;
++    p_draw_idx indexed={.prim=4,.count=60,.instances=1};
++    next.chmask=7;
++    CHECK(rb_same_pass_draw(&current,&next,&indexed,program),"next draw can change fixed PSO state");
++    fragment->rf.pool=1;
++    CHECK(!rb_same_pass_draw(&current,&next,&indexed,program),"possible attachment feedback ends the proof");
++    fragment->rf.pool=0;
++    next.blend_en=1; next.blend[0].src_rgb=0x10;
++    CHECK(!rb_same_pass_draw(&current,&next,&indexed,program),"dual source output requires its exact fragment variant");
++    next=current; next.samples=4;
++    CHECK(!rb_same_pass_draw(&current,&next,&indexed,program),"sample-count change rejects the observed recipe");
++    next=current; indexed.ind=1;
++    CHECK(!rb_same_pass_draw(&current,&next,&indexed,program),"indirect draw cannot prove future demand");
++    CHECK(rb_same_pass_state(OP_BIND_VSTREAM,NULL) && !rb_same_pass_state(OP_WAIT_SYNC,NULL) &&
++          !rb_same_pass_state(OP_BIND_PROGRAM,NULL) && !rb_same_pass_state(OP_SET_RT,NULL),
++          "vertex state preserves the proof and a queue wait, new program or target ends it");
++}
+ static void rb_test_first_draw(void) {
++    rb_test_observed_handoff();
+     NSString *keys[2]={@"eaeaeaeaeaeaeaea_b",@"fafafafafafafafa_b"};
+     rb_material_pair pair={0xeaeaeaeaeaeaeaeaull,0xfafafafafafafafaull};
+     for(int st=0;st<2;st++) {
+diff --git a/graphics/nvn/tests/rb_observed_fixture.inc b/graphics/nvn/tests/rb_observed_fixture.inc
+index 3166adb..1f7ddce 100644
+--- a/graphics/nvn/tests/rb_observed_fixture.inc
++++ b/graphics/nvn/tests/rb_observed_fixture.inc
+@@ -61,7 +61,7 @@ static int fixture_observed(void) {
+     bytes[0]^=1; // Destroy guest input before the worker can access it.
+     fixture_release_lanes(release);
+     assert(rb_observed_drain(&fixture_pool,fixture_deadline()));
+-    assert(compiler_calls==1 && g_dsh_ahead_ok==1 && fixture_stage_loads==1);
++    assert(compiler_calls==1 && g_dsh_ahead_ok==1 && fixture_stage_loads==1 && fixture_inline_loads==1);
+     assert(dsh_observed_bytes==0);
+ 
+     // Optional work already inside the compiler when Fair arrives. An actual CB
+@@ -82,7 +82,7 @@ static int fixture_observed(void) {
+     assert(!dsh_pending_take(md) && !dsh_job_take(md));
+     dispatch_semaphore_signal(fixture_comp_release);
+     assert(rb_observed_drain(&fixture_pool,fixture_deadline()));
+-    assert(compiler_calls==2 && overlap==0 && fixture_stage_loads==2);
++    assert(compiler_calls==2 && overlap==0 && fixture_stage_loads==2 && fixture_inline_loads==2);
+     assert(dsh_observed_bytes==0 && g_dsh_ahead_dup>=1);
+     rb_observed_stop(&fixture_pool);
+     assert(rb_observed_drain(&fixture_pool,fixture_deadline()));
+diff --git a/graphics/nvn/tests/t_dsh_stats.c b/graphics/nvn/tests/t_dsh_stats.c
+index 0af914c..a819fd2 100644
+--- a/graphics/nvn/tests/t_dsh_stats.c
++++ b/graphics/nvn/tests/t_dsh_stats.c
+@@ -41,7 +41,7 @@ static int compiler_(const char *key, int stage, const char *out);
+ #include "../gfx/nvn/rb_observed_pool.h"
+ static rb_observed_pool fixture_pool=RB_OBSERVED_POOL_INIT;
+ static int fixture_workers;
+-static _Atomic int fixture_allow_guess,fixture_gate_calls,fixture_stage_loads;
++static _Atomic int fixture_allow_guess,fixture_gate_calls,fixture_stage_loads,fixture_inline_loads;
+ static dispatch_semaphore_t fixture_comp_entered,fixture_comp_release;
+ #endif
+ static int crash_in_comp;   // 44：替身翻译器编到一半崩（真 SIGSEGV），看崩溃处理落没落下输入
+@@ -91,13 +91,17 @@ int nvn_be_stopping(void) { return 0; }
+ int rb_kart_thermal_workers(void) { return fixture_workers; }
+ __attribute__((visibility("hidden"))) int rb_observed_workers_on(void) { return fixture_workers; }
+ __attribute__((visibility("hidden"))) int rb_observed_enqueue(dispatch_block_t job) { return rb_observed_submit(&fixture_pool,job); }
+-__attribute__((visibility("hidden"))) void rb_observed_stage_load(const char *key,const char *stage) { (void)key; (void)stage; atomic_fetch_add(&fixture_stage_loads,1); }
++__attribute__((visibility("hidden"))) void rb_observed_stage_load(const char *key,const char *stage,int on_worker) {
++    (void)key; (void)stage;
++    if (on_worker) atomic_fetch_add(&fixture_inline_loads,1);
++    atomic_fetch_add(&fixture_stage_loads,1);
++}
+ int rb_kart_try_worker(int *lease) { *lease=0; atomic_fetch_add(&fixture_gate_calls,1); return !fixture_workers || atomic_load(&fixture_allow_guess); }
+ #else
+ int rb_kart_thermal_workers(void) { return 0; }
+ __attribute__((visibility("hidden"))) int rb_observed_workers_on(void) { return 0; }
+ __attribute__((visibility("hidden"))) int rb_observed_enqueue(dispatch_block_t job) { (void)job; return 0; }
+-__attribute__((visibility("hidden"))) void rb_observed_stage_load(const char *key,const char *stage) { (void)key; (void)stage; }
++__attribute__((visibility("hidden"))) void rb_observed_stage_load(const char *key,const char *stage,int on_worker) { (void)key; (void)stage; (void)on_worker; }
+ int rb_kart_try_worker(int *lease) { *lease=0; return 1; }
+ #endif
+ int rb_spec_take_optional(void) { return 1; }
+diff --git a/graphics/nvn/tests/t_nvn_warmbump.m b/graphics/nvn/tests/t_nvn_warmbump.m
+index 6765e28..ef35d7f 100644
+--- a/graphics/nvn/tests/t_nvn_warmbump.m
++++ b/graphics/nvn/tests/t_nvn_warmbump.m
+@@ -183,6 +183,9 @@ int main(int argc, char **argv) {
+         rb_warm_resume(); rb_warm_resume();
+         ck(!g_rb_warm_resume && g_warm_started == 1, "first resumed submission starts warmup only once");
+         unsetenv("DM_PSO_MANIFEST");
++        // Session begin rearmed the real sensor. Freeze it again for this
++        // explicit HOLD/RUN replay so a Nominal CI host cannot override HOLD.
++        atomic_store(&g_spec_sampled, UINT64_MAX);
+         rb_spec_publish(&g_spec_gate, RB_SPEC_HOLD);
+         next = 0; warm_urgent_index(mk()); got = -9;
+         uint64_t parks = atomic_load(&g_spec_parks);

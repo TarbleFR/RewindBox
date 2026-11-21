@@ -1,0 +1,208 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index c682732c834d55a8a7fb3fc10b33ab99686fad42..407dffcb87f96746c884d25f1ab48b599c3f5f10 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -276,6 +276,8 @@ int nvn_be_shutdown_session(void) {
+     g_rb_binary_dir = nil; atomic_store(&g_rb_disk_online,0);
+     atomic_store(&g_rb_air_hits,0); atomic_store(&g_rb_air_misses,0); atomic_store(&g_rb_air_rejects,0);
+     atomic_store(&g_rb_disk_unlisted,0); atomic_store(&g_rb_disk_loaded,0); atomic_store(&g_rb_disk_invalid,0);
++    atomic_store(&g_rb_disk_listed,0); atomic_store(&g_rb_disk_listed_built,0);
++    atomic_store(&g_rb_disk_listed_reused,0); atomic_store(&g_rb_disk_listed_invalid,0);
+     os_unfair_lock_unlock(&g_rb_disk_mu);
+     os_unfair_lock_lock(&g_shader_lock);
+     NSDictionary<NSString *, NvShader *> *shaders = [g_shcache copy];
+diff --git a/graphics/nvn/gfx/nvn/rb_stage_disk.inc b/graphics/nvn/gfx/nvn/rb_stage_disk.inc
+index 528fdd170ef01bd93a49fbd55294bd7cb2364e28..5ea683717739007837a9a392ed0315dc12349e22 100644
+--- a/graphics/nvn/gfx/nvn/rb_stage_disk.inc
++++ b/graphics/nvn/gfx/nvn/rb_stage_disk.inc
+@@ -4,6 +4,7 @@
+ #include "rb_unlisted_stages.h"
+ static dispatch_queue_t g_rb_disk_q;
+ static _Atomic uint64_t g_rb_disk_unlisted, g_rb_disk_loaded, g_rb_disk_invalid;
++static _Atomic uint64_t g_rb_disk_listed, g_rb_disk_listed_built, g_rb_disk_listed_reused, g_rb_disk_listed_invalid;
+ static int rb_disk_setting(const char *flag) {
+     if (!nvn_rb_thermal_scope()) return 0;
+     const char *value = getenv(flag);
+@@ -13,11 +14,44 @@ static int rb_disk_setting(const char *flag) {
+ static void rb_stage_disk_stats(void) {
+     uint64_t orphans = atomic_load(&g_rb_disk_unlisted), hits = atomic_load(&g_rb_air_hits);
+     uint64_t misses = atomic_load(&g_rb_air_misses), rejects = atomic_load(&g_rb_air_rejects);
+-    if (orphans || hits || misses || rejects)
+-        MLOG("[rb-shader-disk] unlisted=%llu loaded=%llu invalid=%llu air_hits=%llu air_misses=%llu air_rejected=%llu",
++    if (orphans || hits || misses || rejects || atomic_load(&g_rb_disk_listed))
++        MLOG("[rb-shader-disk] unlisted=%llu loaded=%llu invalid=%llu air_hits=%llu air_misses=%llu air_rejected=%llu listed=%llu listed_built=%llu listed_reused=%llu listed_invalid=%llu",
+             (unsigned long long)orphans,(unsigned long long)atomic_load(&g_rb_disk_loaded),
+             (unsigned long long)atomic_load(&g_rb_disk_invalid),(unsigned long long)hits,
+-            (unsigned long long)misses,(unsigned long long)rejects);
++            (unsigned long long)misses,(unsigned long long)rejects,(unsigned long long)atomic_load(&g_rb_disk_listed),
++            (unsigned long long)atomic_load(&g_rb_disk_listed_built),(unsigned long long)atomic_load(&g_rb_disk_listed_reused),
++            (unsigned long long)atomic_load(&g_rb_disk_listed_invalid));
++}
++#define RB_DISK_SWEEP_COMPLETE_IMPL 1
++enum rb_disk_stage_result { RB_DISK_INVALID, RB_DISK_REUSED, RB_DISK_BUILT };
++static enum rb_disk_stage_result rb_disk_warm_stage(NSString *root, NSString *key, BOOL listed) {
++    int depth = atomic_load(&g_depth_zero);
++    // On a warm run, avoid opening the reflection for a known resident base stage.
++    if (listed) {
++        int known = stage_of(shmap_stage([key substringToIndex:16]));
++        if (known >= 0) {
++            NSString *identity = shader_identity(key,known,0,depth);
++            os_unfair_lock_lock(&g_shader_lock);
++            BOOL ready = g_shcache[identity] != nil;
++            os_unfair_lock_unlock(&g_shader_lock);
++            if (ready) return RB_DISK_REUSED;
++        }
++    }
++    static const int host[] = {0,1,5,2,3,4}; // reflection order: vs, ps, cs, gs, ts, ms
++    int stage = -1, built = 0;
++    if (!rb_translation_available(root.fileSystemRepresentation,key,fb_xfp(),1,&stage) || stage < 0 || stage >= 6)
++        return RB_DISK_INVALID;
++    // This normal loader joins any concurrent first use of exactly the same stage.
++    if (!shader_load_depth(key,host[stage],0,stage_depth_moded(host[stage]) && depth,&built,NULL)) return RB_DISK_INVALID;
++    return built ? RB_DISK_BUILT : RB_DISK_REUSED;
++}
++// The listed tail can contain thousands of entries. Let queued first uses finish
++// before reserving another optional build, even when the device is still cool.
++static int rb_disk_observed_busy(void) {
++    pthread_mutex_lock(&g_observed.mu);
++    int busy = g_observed.outstanding[0] || g_observed.outstanding[1];
++    pthread_mutex_unlock(&g_observed.mu);
++    return busy;
+ }
+ static void rb_disk_launch(NSArray<WarmTask *> *tasks, BOOL prime) {
+     if (!rb_disk_setting(prime ? "S2A_RB_STAGE_BINARIES" : "S2A_RB_STAGE_DISK_WARM")) return;
+@@ -52,31 +86,32 @@ static void rb_disk_launch(NSArray<WarmTask *> *tasks, BOOL prime) {
+             if (task->tkey) [covered addObject:task->tkey];
+         }
+         recipes = nil; // a long thermal pause must not retain every recipe
+-        NSArray<NSString *> *keys = rb_unlisted_stages(root,covered,^BOOL{ return nvn_be_stopping(); });
++        NSUInteger orphans = 0;
++        BOOL complete = rb_disk_setting("S2A_RB_STAGE_DISK_COMPLETE");
++        NSArray<NSString *> *keys = rb_disk_stage_candidates(root,covered,complete,&orphans,^BOOL{ return nvn_be_stopping(); });
+         if (nvn_be_stopping()) return;
+         covered = nil;
+-        atomic_store(&g_rb_disk_unlisted,keys.count);
+-        MLOG("[rb-shader-disk] unlisted=%lu disk_stage_scan=complete",(unsigned long)keys.count);
+-        for (NSString *key in keys) { @autoreleasepool {
++        atomic_store(&g_rb_disk_unlisted,orphans);
++        atomic_store(&g_rb_disk_listed,keys.count - orphans);
++        MLOG("[rb-shader-disk] unlisted=%lu disk_stage_scan=complete listed=%lu",(unsigned long)orphans,(unsigned long)(keys.count - orphans));
++        for (NSUInteger i = 0; i < keys.count; ++i) { @autoreleasepool {
++            NSString *key = keys[i];
++            BOOL listed = i >= orphans;
+             // Worker one never receives a ONE/low-power admission. Use the
+             // governor's condition wakeups, including synchronous teardown.
+             int lease = 0;
+             while (!nvn_be_stopping() && !dm_gfx_session_stopping()) {
+                 uint64_t ticket = atomic_load(&g_spec_gate.epoch);
+-                if (NSProcessInfo.processInfo.thermalState == NSProcessInfoThermalStateNominal &&
++                if ((!listed || !rb_disk_observed_busy()) &&
++                    NSProcessInfo.processInfo.thermalState == NSProcessInfoThermalStateNominal &&
+                     (!rb_gov_on() || rb_gov_quota(RB_GOV_PREFETCH)) && rb_spec_take(1,&lease)) break;
+                 rb_spec_park_worker(ticket,1);
+             }
+             if (!lease || nvn_be_stopping() || dm_gfx_session_stopping()) { rb_spec_done(&lease); break; }
+-            static const int host[] = {0,1,5,2,3,4}; // vs, ps, cs, gs, ts, ms
+-            int st = -1;
+-            if (rb_translation_available(root.fileSystemRepresentation,key,fb_xfp(),1,&st) && st >= 0 && st < 6) {
+-                int stage = host[st];
+-                NvShader *shader = shader_load_depth(key,stage,0,
+-                    stage_depth_moded(stage) && atomic_load(&g_depth_zero),NULL,NULL);
+-                if (shader) atomic_fetch_add(&g_rb_disk_loaded,1);
+-                else atomic_fetch_add(&g_rb_disk_invalid,1);
+-            } else atomic_fetch_add(&g_rb_disk_invalid,1);
++            enum rb_disk_stage_result result = rb_disk_warm_stage(root,key,listed);
++            if (result == RB_DISK_INVALID) atomic_fetch_add(listed ? &g_rb_disk_listed_invalid : &g_rb_disk_invalid,1);
++            else if (!listed) atomic_fetch_add(&g_rb_disk_loaded,1);
++            else atomic_fetch_add(result == RB_DISK_BUILT ? &g_rb_disk_listed_built : &g_rb_disk_listed_reused,1);
+             rb_spec_done(&lease);
+         } }
+         rb_stage_disk_stats();
+diff --git a/graphics/nvn/gfx/nvn/rb_unlisted_stages.h b/graphics/nvn/gfx/nvn/rb_unlisted_stages.h
+index bbba02a0d10804fd83f5deac1fb4fbb1e3626a12..6ae5ad01c8b0f73a5473bf780c93a495ad0ccf20 100644
+--- a/graphics/nvn/gfx/nvn/rb_unlisted_stages.h
++++ b/graphics/nvn/gfx/nvn/rb_unlisted_stages.h
+@@ -7,21 +7,34 @@
+ // Only base stages have a standalone reflection. The padded/specialized
+ // variants remain owned by their parent shader and pipeline recipe.
+ #include <dirent.h>
+-static NSArray<NSString *> *rb_unlisted_stages(NSString *root, NSSet<NSString *> *covered, BOOL (^stopping)(void)) {
++// Orphans go first. A listed suffix also captures stages referenced only by
++// recipes that the PSO budget can reject before loading their shaders.
++static NSArray<NSString *> *rb_disk_stage_candidates(NSString *root, NSSet<NSString *> *covered,
++                                                    BOOL includeListed, NSUInteger *orphans,
++                                                    BOOL (^stopping)(void)) {
++    *orphans = 0;
+     DIR *dir = opendir(root.fileSystemRepresentation);
+     if (!dir) return @[];
+     NSMutableArray<NSString *> *result = [NSMutableArray array];
++    NSMutableArray<NSString *> *listed = includeListed ? [NSMutableArray array] : nil;
+     struct dirent *ent;
+     while ((!stopping || !stopping()) && (ent=readdir(dir))) {
+         const char *name = ent->d_name;
+         if (strlen(name) != 23 || strcmp(name+16,"_b.json") || strspn(name,"0123456789abcdef") != 16) continue;
+         NSString *key = [[NSString alloc] initWithBytes:name length:18 encoding:NSASCIIStringEncoding];
+-        if ([covered containsObject:key]) continue;
++        BOOL inManifest = [covered containsObject:key];
++        if (inManifest && !includeListed) continue;
+         struct stat st;
+         if (fstatat(dirfd(dir),name,&st,AT_SYMLINK_NOFOLLOW) || !S_ISREG(st.st_mode)) continue;
+-        [result addObject:key];
++        if (inManifest) [listed addObject:key];
++        else [result addObject:key];
+     }
+     closedir(dir);
+     [result sortUsingSelector:@selector(compare:)];
++    *orphans = result.count;
++    if (listed.count) {
++        [listed sortUsingSelector:@selector(compare:)];
++        [result addObjectsFromArray:listed];
++    }
+     return result;
+ }
+diff --git a/graphics/nvn/tests/t_nvn_shader_flight.m b/graphics/nvn/tests/t_nvn_shader_flight.m
+index afa7fbe675fb333ce13c4929d7e8422357a9ef8d..9f3b732d61c3a2cda15e33ef3a59749b0460c360 100644
+--- a/graphics/nvn/tests/t_nvn_shader_flight.m
++++ b/graphics/nvn/tests/t_nvn_shader_flight.m
+@@ -269,6 +269,22 @@ int main(int argc, char **argv) { @autoreleasepool {
+           "four layer/depth entries share one compiled Metal library");
+     for (int i = 0; i < 4; i++)
+         vertex_gpu(shader_load_depth(variants,0,i >> 1,i & 1,NULL,NULL),0.25f * (i+1),i >> 1);
++#ifdef RB_DISK_SWEEP_COMPLETE_IMPL
++    // The manifest can mention this stage while its PSO row is budget-skipped.
++    // Use the disk pass twice, then issue its normal runtime draw lookup.
++    NSString *sweepKey=@"85a0000000000000_b";
++    fixture(sweepKey,[vertex_source stringByAppendingString:@"\n// listed sweep\n"],@"plain");
++    NSMutableDictionary *stageInfo=[reflection(@"plain") mutableCopy];
++    stageInfo[@"stage"]=@"vs";
++    NSString *stagePath=[fallback stringByAppendingPathComponent:[sweepKey stringByAppendingPathExtension:@"json"]];
++    REQUIRE([[NSJSONSerialization dataWithJSONObject:stageInfo options:0 error:nil] writeToFile:stagePath atomically:YES]);
++    uint64_t builtBefore=atomic_load(&g_shader_builds);
++    CHECK(rb_disk_warm_stage(fallback,sweepKey,YES)==RB_DISK_BUILT,"listed cold stage built without building a PSO");
++    CHECK(rb_disk_warm_stage(fallback,sweepKey,YES)==RB_DISK_REUSED,"listed warm stage reuses its exact object");
++    NvShader *swept=shader_get(sweepKey,0);
++    CHECK(swept && swept->fn && atomic_load(&g_shader_builds)==builtBefore+1,"draw reuses listed stage after the sweep");
++    if (swept && swept->fn) vertex_gpu(swept,0.25f,0);
++#endif
+     independent_keys();
+ 
+     key=@"3333333333333333_b"; fixture(key,vertex_source,@"plain");
+diff --git a/graphics/nvn/tests/t_rb_stage_disk.m b/graphics/nvn/tests/t_rb_stage_disk.m
+index aa96afb752ba2a05110d1dd2f0a0e394435d31d2..2bb8f571dfa971996a8f1be2b3f8324af63a543e 100644
+--- a/graphics/nvn/tests/t_rb_stage_disk.m
++++ b/graphics/nvn/tests/t_rb_stage_disk.m
+@@ -12,7 +12,13 @@ int main(int argc,char **argv) {
+     if (argc != 3) return 2;
+     @autoreleasepool {
+         NSString *root=@(argv[1]), *tag=@(argv[2]);
+-        NSArray *keys=rb_unlisted_stages(root,[NSSet setWithObject:@"0000000000000002_b"],nil);
++        NSSet *covered=[NSSet setWithObject:@"0000000000000002_b"];
++        NSUInteger orphans=0;
++        NSArray *complete=rb_disk_stage_candidates(root,covered,YES,&orphans,nil);
++        if (check(orphans==2 && [complete isEqual:@[@"0000000000000001_b",@"0000000000000003_b",@"0000000000000002_b"]],
++                  "listed-but-unbuilt stage follows orphans")) return 1;
++        NSArray *keys=rb_disk_stage_candidates(root,covered,NO,&orphans,nil);
++        if (check(orphans==keys.count,"disabled pass excludes listed stages")) return 1;
+         if (check([keys isEqual:@[@"0000000000000001_b",@"0000000000000003_b"]],"complete, ordered orphan keys")) return 1;
+         int stage=-1;
+         if (check(rb_translation_available(argv[1],keys[0],"fixture",0,&stage) && stage==2,"current compute reflection")) return 1;

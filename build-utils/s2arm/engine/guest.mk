@@ -25,6 +25,7 @@ ios-guest: ios
 	python3 $(S2ARM_GUEST_TOOLS)export_list.py $(S2ARM_GUEST_OPEN) $(S2ARM_GUEST_OPEN).nm $(S2ARM_GUEST_EXPORTS) $(S2ARM_GUEST_EXPORTS).json
 	$(S2ARM_GUEST_LINK) -Wl,-exported_symbols_list,$(S2ARM_GUEST_EXPORTS) -Wl,-map,$(BUILD)/ios/S2ArmEngine.map -o $(S2ARM_GUEST_FW)/S2ArmEngine
 	@rm -f $(S2ARM_GUEST_OPEN)
+	@sh graphics/tools/direct/build_indirect_libraries.sh "$(S2ARM_GUEST_FW)/RBIndirect" "$(IPHONEOS_DEPLOYMENT_TARGET)"
 	@cp -R ios/l10n/*.lproj "$(S2ARM_GUEST_FW)/"
 	@mkdir -p "$(S2ARM_GUEST_FW)/Headers" && cp runtime/src/rb_guest.h "$(S2ARM_GUEST_FW)/Headers/"   # guest interface for the host (patch 0003)
 	@/usr/bin/plutil -create xml1 "$(S2ARM_GUEST_FW)/Info.plist" && for kv in CFBundleIdentifier=com.neogamelab.neostation.S2ArmEngine CFBundleExecutable=S2ArmEngine CFBundleName=S2ArmEngine CFBundlePackageType=FMWK CFBundleDevelopmentRegion=en CFBundleShortVersionString=1.0 CFBundleVersion=1 MinimumOSVersion=$(IPHONEOS_DEPLOYMENT_TARGET); do /usr/bin/plutil -insert $${kv%%=*} -string "$${kv#*=}" "$(S2ARM_GUEST_FW)/Info.plist"; done

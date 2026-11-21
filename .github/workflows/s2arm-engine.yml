@@ -156,6 +156,13 @@ jobs:
           set -euo pipefail
           python3 build-utils/s2arm/engine/prefetch_sources.py "$RUNNER_TEMP/s2arm" \
             "$RUNNER_TEMP/s2arm-build-cache/sources" | tee -a proof/inputs.txt
+      - name: Locate the Metal compiler for the iOS framework
+        if: env.TEST_ONLY != 'yes' || (matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-first-draw]'))
+        run: |
+          if ! xcrun --sdk iphoneos metal --version >/dev/null 2>&1; then
+            xcodebuild -downloadComponent MetalToolchain
+          fi
+          xcrun --sdk iphoneos metal --version
       - name: Verify observed shader workers and persistent stage libraries
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-first-draw]')
         working-directory: ${{ runner.temp }}/s2arm
@@ -166,9 +173,6 @@ jobs:
           "$RUNNER_TEMP/t_rb_observed" --rb-observed-workers
           python3 -B "$GITHUB_WORKSPACE/test/s2arm_shader_session_metrics_test.py"
           python3 -B graphics/nvn/tests/t_rb_msl_coverage.py
-          if ! xcrun --sdk macosx metal --version >/dev/null 2>&1; then
-            xcodebuild -downloadComponent MetalToolchain
-          fi
           bash graphics/nvn/tests/t_rb_stage_disk.sh
       - name: Check the presentation freeze and memory governor on macOS arm64
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-freeze-check]')
@@ -395,6 +399,14 @@ jobs:
           : > "$report"
           status=0
           note() { echo "$1" | tee -a "$report"; }
+          for lib in expand widen mask mask-check; do
+            if [ "$(head -c 4 "$fw/RBIndirect/$lib.metallib")" = MTLB ]; then
+              note "ok   iOS Metal library for $lib"
+            else
+              note "FAIL missing or invalid iOS Metal library for $lib"
+              status=1
+            fi
+          done
           nm -gU "$fw/S2ArmEngine" | awk '{print $3}' | sort > "$RUNNER_TEMP/guest-exports.txt"
           for sym in _s2a_rb_guest_prepare_graphics _s2a_rb_guest_prepare_gpu_status _s2a_rb_guest_configure _s2a_rb_guest_make_view_controller _s2a_rb_guest_start _s2a_rb_guest_stop _s2a_rb_guest_fatal \
                      _s2a_rb_guest_parked _s2a_rb_guest_view_controller _s2a_rb_guest_resume _s2a_rb_guest_benchmark \

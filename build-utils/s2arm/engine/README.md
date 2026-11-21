@@ -389,3 +389,5 @@ Patches 0245–0247 bound the hosted iOS presentation thread’s time constraint
 To exercise the combined thermal and presentation changes on the same engine sources, use the existing thermal and freeze check markers together. A host-only thermal check runs the Metal fixtures on macOS 26 and leaves the verified iOS framework available for packaging.
 
 Patches 0248–0255 keep two workers for shaders and pipelines referenced by NVN2 submissions and bound optional first-use geometry skips to two frames per material. The [device procedure and controls](../../../docs/evidence/s2arm-first-draw.md) distinguish source compilation, waiting on another thread and loading prepared libraries.
+
+Patches 0256–0259 keep an admitted translation on its worker through the Metal library load, prepare proven same-pass render pipelines, resolve delayed NVN2 shader identities on replay, and cover disk stages whose manifest recipe never ran. The iOS engine framework packages four precompiled indirect-draw helper libraries. See the [controls and device measurements](../../../docs/evidence/s2arm-first-draw.md#correctifs-02560259).
