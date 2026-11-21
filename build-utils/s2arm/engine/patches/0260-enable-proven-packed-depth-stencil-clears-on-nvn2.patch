@@ -1,0 +1,252 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 13a65a8..1e34ff4 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1642,12 +1642,13 @@ static void rb_tile_session_begin(void) {
+     const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
+     unsigned flags = rb_nvn2_tile_policy(!g_m3 && g_q4 != nil, nvn2_on(), title,
+                                          getenv("S2A_RB_NVN2_TILE_PASSES"), controls);
++    flags |= rb_nvn2_sibling_flag(flags, getenv("S2A_RB_NVN2_CLEAR_SIBLING"));
+     int track = (flags & (RB_TILE_STORE | RB_TILE_LIVE | RB_TILE_BATCH)) || (controls[1] && !strcmp(controls[1], "1"));
+     atomic_store_explicit(&g_rb_live_request, track ? 2 : 1, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_tile_options, flags | RB_TILE_READY, memory_order_relaxed);
+-    if (flags) MLOG("[gpu-pass] NVN2 title=%s store=%d liveness=%d producer=%d batch=%d detailed_stats=%d", title,
++    if (flags) MLOG("[gpu-pass] NVN2 title=%s store=%d liveness=%d producer=%d batch=%d detailed_stats=%d clear_sibling=%d", title,
+                     !!(flags & RB_TILE_STORE), !!(flags & RB_TILE_LIVE), !!(flags & RB_TILE_PRODUCER),
+-                    !!(flags & RB_TILE_BATCH), !!(flags & RB_TILE_STATS));
++                    !!(flags & RB_TILE_BATCH), !!(flags & RB_TILE_STATS), !!(flags & RB_TILE_CLEAR_SIBLING));
+ }
+ static int rb_tile_enabled(unsigned feature) {
+     return !!(atomic_load_explicit(&g_rb_tile_options, memory_order_relaxed) & feature);
+@@ -9527,7 +9528,8 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+     // A materialization-only encoder executes no draw. Drop the *untouched*
+     // sibling of a combined DS clear. Keep the original freshness decision above.
+     int rb_kept_depth_only = 0;
+-    if (clear_only == 1 && !R.rt.has_dview && !g_rlane && !g_rp_layered && R.clear_d != R.clear_s && rb_live_on()) {
++    if (clear_only == 1 && !R.rt.has_dview && !g_rlane && !g_rp_layered && R.clear_d != R.clear_s &&
++        (rb_live_on() || rb_tile_enabled(RB_TILE_CLEAR_SIBLING))) {
+         id<MTLTexture> ds = pd.depthAttachment.texture;
+         if (ds && ds == pd.stencilAttachment.texture && ds.pixelFormat == MTLPixelFormatDepth32Float_Stencil8 &&
+             rb_clear_private_texture(R.rt.depth, ds)) {
+diff --git a/graphics/nvn/gfx/nvn/rb_nvn2_tiles.h b/graphics/nvn/gfx/nvn/rb_nvn2_tiles.h
+index 7257e31..fca5746 100644
+--- a/graphics/nvn/gfx/nvn/rb_nvn2_tiles.h
++++ b/graphics/nvn/gfx/nvn/rb_nvn2_tiles.h
+@@ -5,7 +5,8 @@
+ 
+ enum {
+     RB_TILE_STORE = 1u << 0, RB_TILE_LIVE = 1u << 1, RB_TILE_PRODUCER = 1u << 2,
+-    RB_TILE_BATCH = 1u << 3, RB_TILE_STATS = 1u << 4, RB_TILE_READY = 1u << 5
++    RB_TILE_BATCH = 1u << 3, RB_TILE_STATS = 1u << 4, RB_TILE_READY = 1u << 5,
++    RB_TILE_CLEAR_SIBLING = 1u << 6
+ };
+ 
+ // Only a hosted, identified NVN2 session running the direct Metal 4 queue.
+@@ -22,3 +23,9 @@ static inline unsigned rb_nvn2_tile_policy(int metal4, int nvn2, const char *tit
+     }
+     return flags;
+ }
++
++// A single cleared aspect may omit its sibling only under the generic
++// attachment-liveness policy. The original title owns its independent gate.
++static inline unsigned rb_nvn2_sibling_flag(unsigned flags, const char *setting) {
++    return (flags & RB_TILE_LIVE) && (!setting || !strcmp(setting, "1")) ? RB_TILE_CLEAR_SIBLING : 0;
++}
+diff --git a/graphics/nvn/tests/rb_test_tile_platform.h b/graphics/nvn/tests/rb_test_tile_platform.h
+new file mode 100644
+index 0000000..7d0f975
+--- /dev/null
++++ b/graphics/nvn/tests/rb_test_tile_platform.h
+@@ -0,0 +1,24 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++// The host links the real NPDM reader. Use the same platform fixture shape
++// as t_vawin_container and check both its title and its platform decision.
++extern uint64_t s2a_npdm_pid(const char *);
++static void load_test_platform(void) {
++    uint8_t metadata[0x404] = {0};
++    const uint32_t aci = 0x80, acid = 0x100;
++    const uint64_t title = UINT64_C(0x0400C3F00006E000);
++    memcpy(metadata, "META", 4);
++    memcpy(metadata + 0x70, &aci, sizeof aci);
++    memcpy(metadata + 0x78, &acid, sizeof acid);
++    memcpy(metadata + aci, "ACI0", 4);
++    memcpy(metadata + aci + 0x10, &title, sizeof title);
++    memcpy(metadata + acid + 0x300, "ACID", 4);
++    char path[] = "/tmp/t_rb_tile_platform.XXXXXX";
++    int fd = mkstemp(path);
++    RB_PLATFORM_CHECK(fd >= 0);
++    RB_PLATFORM_CHECK(write(fd, metadata, sizeof metadata) == (ssize_t)sizeof metadata);
++    RB_PLATFORM_CHECK(close(fd) == 0);
++    uint64_t observed = s2a_npdm_pid(path);
++    RB_PLATFORM_CHECK(unlink(path) == 0);
++    RB_PLATFORM_CHECK(observed == title && nvn2_on());
++}
+diff --git a/graphics/nvn/tests/t_nvn_scissored_ds.m b/graphics/nvn/tests/t_nvn_scissored_ds.m
+index 7d99d2a..f247536 100644
+--- a/graphics/nvn/tests/t_nvn_scissored_ds.m
++++ b/graphics/nvn/tests/t_nvn_scissored_ds.m
+@@ -22,6 +22,9 @@ static unsigned checks, cases;
+ static const char *phase = "setup";
+ enum { POOL_SIZE = 16 << 20, COMMAND_SIZE = 1 << 20, SIZE = 8, LEVELS = 3, LAYERS = 2 };
+ #define REQUIRE(x) do { checks++; if (!(x)) { fprintf(stderr,"FAIL [%s] %s:%d: %s\n",phase,__FILE__,__LINE__,#x); exit(1); } } while (0)
++#define RB_PLATFORM_CHECK REQUIRE
++#include "rb_test_tile_platform.h"
++#undef RB_PLATFORM_CHECK
+ static void *load(const char *name) { void *p = h_nvnBootstrapLoader(name); REQUIRE(p != NULL); return p; }
+ #define API(name) ((NVNT_##name)load(#name))
+ typedef struct { NVNtexture object; int bytes, stencil; } image;
+@@ -153,13 +156,36 @@ static void run(image *depth, image *color, const test_case *c) {
+ }
+ // Exercise the production public clear handlers, descriptor exposure and physical
+ // sibling load counter. The explicit oracle reads both native planes after each CB.
+-static int check_attachment_liveness(void) {
++static int check_attachment_liveness(int generic) {
+     phase = "attachment-liveness";
++    if (generic) {
++        // Physical direct queue is needed for the production NVN replay oracle.
++        // The standalone tracked-Metal oracle covers both policy arms on virtual Macs.
++        id<MTLDevice> test_gpu = MTLCreateSystemDefaultDevice();
++        if (@available(macOS 26.0, iOS 26.0, *)) {
++            MTLResidencySetDescriptor *d = [MTLResidencySetDescriptor new]; d.initialCapacity = 4;
++            if (!test_gpu.hasUnifiedMemory || ![test_gpu supportsFamily:MTLGPUFamilyMetal4] ||
++                ![test_gpu newResidencySetWithDescriptor:d error:NULL] ||
++                ![test_gpu newMTL4CommandQueueWithDescriptor:[MTL4CommandQueueDescriptor new] error:NULL]) return 77;
++        } else return 77;
++        load_test_platform();
++        REQUIRE(!setenv("NXGAL_BE","mtl4",1));
++        REQUIRE(!setenv("S2A_RB_DIRECT_GAME_ID","0400C3F00006E000",1));
++        REQUIRE(!setenv("S2A_RB_NVN2_TILE_PASSES","1",1));
++        REQUIRE(!setenv("S2A_RB_GPU_ATTACHMENT_LIVENESS","1",1));
++        REQUIRE(!setenv("S2A_RB_NVN2_CLEAR_SIBLING",generic == 1 ? "1" : "0",1));
++    }
+     setup();
++    if (generic) {
++        const op_hdr end = {OP_END,sizeof(op_hdr)};
++        nvn_be_exec((const uint8_t *)&end);
++        REQUIRE(!g_m3 && !rb_live_on() && rb_tile_enabled(RB_TILE_LIVE));
++        REQUIRE(rb_tile_enabled(RB_TILE_CLEAR_SIBLING) == (generic == 1));
++    }
+     image ds, color;
+     make_image_shape(&ds,NVN_FORMAT_DEPTH32F_STENCIL8,8,1,1);
+     make_image_shape(&color,NVN_FORMAT_RGBA8,4,0,1);
+-    const int enabled = rb_live_on();
++    const int enabled = rb_live_on() || rb_tile_enabled(RB_TILE_CLEAR_SIBLING);
+     const tex_t *tex = (const tex_t *)&ds.object;
+     const struct { float d, expected_d; int dm, sm; uint8_t st, expected_s; unsigned bytes; } seq[] = {
+         {0.25f,0.25f,1,0xff,0x35,0x35,0},
+@@ -207,7 +233,9 @@ static int check_attachment_liveness(void) {
+     return 0;
+ }
+ int main(int argc, char **argv) { @autoreleasepool {
+-    if (argc==2 && !strcmp(argv[1],"--attachment-liveness")) return check_attachment_liveness();
++    if (argc==2 && !strcmp(argv[1],"--attachment-liveness")) return check_attachment_liveness(0);
++    if (argc==2 && !strcmp(argv[1],"--nvn2-sibling-on")) return check_attachment_liveness(1);
++    if (argc==2 && !strcmp(argv[1],"--nvn2-sibling-off")) return check_attachment_liveness(2);
+     REQUIRE(argc <= 2); setup(); image depth,combined,color;
+     make_image(&depth,NVN_FORMAT_DEPTH32F,4,0); make_image(&combined,NVN_FORMAT_DEPTH32F_STENCIL8,8,1); make_image(&color,NVN_FORMAT_RGBA8,4,0);
+     for (unsigned i=0;i<sizeof tests/sizeof tests[0];i++) {
+diff --git a/graphics/nvn/tests/t_rb_clear_batch.c b/graphics/nvn/tests/t_rb_clear_batch.c
+index dbe0d4d..f45dd9f 100644
+--- a/graphics/nvn/tests/t_rb_clear_batch.c
++++ b/graphics/nvn/tests/t_rb_clear_batch.c
+@@ -21,6 +21,10 @@ int main(void) {
+     assert(!rb_nvn2_tile_policy(1,1,"04007EF01F8AE000",NULL,controls));
+     controls[2]="0"; controls[4]="1";
+     assert(rb_nvn2_tile_policy(1,1,mkw,"1",controls)==((all & ~RB_TILE_PRODUCER)|RB_TILE_STATS));
++    assert(rb_nvn2_sibling_flag(all,NULL)==RB_TILE_CLEAR_SIBLING);
++    assert(rb_nvn2_sibling_flag(all,"1")==RB_TILE_CLEAR_SIBLING);
++    assert(!rb_nvn2_sibling_flag(all,"0") && !rb_nvn2_sibling_flag(all,"other"));
++    assert(!rb_nvn2_sibling_flag(all & ~RB_TILE_LIVE,"1") && !rb_nvn2_sibling_flag(0,NULL));
+     assert(rb_clear_disjoint_masks(3,1,2)); // two colors of the same MRT
+     assert(rb_clear_disjoint_masks(0x101,0x100,1)); // depth + color
+     assert(!rb_clear_disjoint_masks(3,1,1)); // would erase the order of two writes
+diff --git a/graphics/nvn/tests/t_rb_clear_batch_metal.m b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+index 326ded0..69ee2e0 100644
+--- a/graphics/nvn/tests/t_rb_clear_batch_metal.m
++++ b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+@@ -7,28 +7,9 @@ typedef float ClearImage[2][HEIGHT][WIDTH];
+ static const double colors[2]={0.125,0.75};
+ static tex_t targets[2];
+ static pool_t pool;
+-// The host links the real NPDM reader. Use the same platform fixture shape
+-// as t_vawin_container and check both its title and its platform decision.
+-extern uint64_t s2a_npdm_pid(const char *);
+-static void load_test_platform(void) {
+-    uint8_t metadata[0x404] = {0};
+-    const uint32_t aci = 0x80, acid = 0x100;
+-    const uint64_t title = UINT64_C(0x0400C3F00006E000);
+-    memcpy(metadata, "META", 4);
+-    memcpy(metadata + 0x70, &aci, sizeof aci);
+-    memcpy(metadata + 0x78, &acid, sizeof acid);
+-    memcpy(metadata + aci, "ACI0", 4);
+-    memcpy(metadata + aci + 0x10, &title, sizeof title);
+-    memcpy(metadata + acid + 0x300, "ACID", 4);
+-    char path[] = "/tmp/t_rb_tile_platform.XXXXXX";
+-    int fd = mkstemp(path);
+-    CHECK(fd >= 0);
+-    CHECK(write(fd, metadata, sizeof metadata) == (ssize_t)sizeof metadata);
+-    CHECK(close(fd) == 0);
+-    uint64_t observed = s2a_npdm_pid(path);
+-    CHECK(unlink(path) == 0);
+-    CHECK(observed == title && nvn2_on());
+-}
++#define RB_PLATFORM_CHECK CHECK
++#include "rb_test_tile_platform.h"
++#undef RB_PLATFORM_CHECK
+ 
+ static void read_pair(id<MTLDevice> dev, id<MTLTexture> a, id<MTLTexture> b, ClearImage out) {
+     id<MTLCommandQueue> q=[dev newCommandQueue]; id<MTLCommandBuffer> cb=[q commandBuffer];
+diff --git a/graphics/nvn/tests/t_rb_clear_plane_metal.m b/graphics/nvn/tests/t_rb_clear_plane_metal.m
+index 49b0c60..355dddd 100644
+--- a/graphics/nvn/tests/t_rb_clear_plane_metal.m
++++ b/graphics/nvn/tests/t_rb_clear_plane_metal.m
+@@ -6,22 +6,23 @@
+ #include <stdio.h>
+ #include <stdint.h>
+ #include <string.h>
++#include "../gfx/nvn/rb_nvn2_tiles.h"
+ 
+ enum { WIDTH = 16, HEIGHT = 12, ROW = 256, ASPECT_BYTES = ROW * HEIGHT };
+ static int check_pass(id<MTLCommandQueue> queue, id<MTLTexture> t, id<MTLBuffer> out,
+-                      int with_depth, int with_stencil, float depth, uint8_t stencil,
++                      int clear_depth, int clear_stencil, int omit_sibling, float depth, uint8_t stencil,
+                       float want_depth, uint8_t want_stencil) {
+     id<MTLCommandBuffer> cb = [queue commandBuffer];
+     MTLRenderPassDescriptor *pd = [MTLRenderPassDescriptor renderPassDescriptor];
+-    if (with_depth) {
++    if (clear_depth || !omit_sibling) {
+         pd.depthAttachment.texture = t;
+-        pd.depthAttachment.loadAction = MTLLoadActionClear;
++        pd.depthAttachment.loadAction = clear_depth ? MTLLoadActionClear : MTLLoadActionLoad;
+         pd.depthAttachment.storeAction = MTLStoreActionStore;
+         pd.depthAttachment.clearDepth = depth;
+     }
+-    if (with_stencil) {
++    if (clear_stencil || !omit_sibling) {
+         pd.stencilAttachment.texture = t;
+-        pd.stencilAttachment.loadAction = MTLLoadActionClear;
++        pd.stencilAttachment.loadAction = clear_stencil ? MTLLoadActionClear : MTLLoadActionLoad;
+         pd.stencilAttachment.storeAction = MTLStoreActionStore;
+         pd.stencilAttachment.clearStencil = stencil;
+     }
+@@ -61,10 +62,15 @@ int main(void) {
+         id<MTLBuffer> out = [device newBufferWithLength:2 * ASPECT_BYTES options:MTLResourceStorageModeShared];
+         id<MTLCommandQueue> queue = [device newCommandQueue];
+         if (!t || !out || !queue) { fprintf(stderr,"SETUP FAIL combined depth/stencil resource\n"); return 2; }
+-        if (!check_pass(queue,t,out,1,1,0.25f,0x35,0.25f,0x35) ||
+-            !check_pass(queue,t,out,1,0,0.75f,0,0.75f,0x35) ||
+-            !check_pass(queue,t,out,0,1,0,0xa7,0.75f,0xa7)) return 1;
+-        puts("PASS combined depth/stencil readback across three passes and command buffers");
++        const char *const controls[5] = {0};
++        unsigned flags = rb_nvn2_tile_policy(1,1,"0400C3F00006E000",NULL,controls);
++        for (int enabled = 0; enabled <= 1; ++enabled) {
++            int omit = !!rb_nvn2_sibling_flag(flags, enabled ? "1" : "0");
++            if (omit != enabled || !check_pass(queue,t,out,1,1,omit,0.25f,0x35,0.25f,0x35) ||
++                !check_pass(queue,t,out,1,0,omit,0.75f,0,0.75f,0x35) ||
++                !check_pass(queue,t,out,0,1,omit,0,0xa7,0.75f,0xa7)) return 1;
++        }
++        puts("PASS tracked Metal D32F/S8: both planes exact with generic sibling omission disabled and enabled");
+         return 0;
+     }
+ }

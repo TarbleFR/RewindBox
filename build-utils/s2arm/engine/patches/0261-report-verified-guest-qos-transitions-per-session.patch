@@ -1,0 +1,179 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index f40f3e7..902a05f 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -2575,6 +2575,8 @@ static void thr_counts_lv(thsc_lv lv[2]) {
+ #include "../../../../runtime/include/s2a_qos.h"   // 全进程线程调度档一张表：提交线程 = S2A_QOS_SUBMIT
+ // 弱链接[nvntest]：s2a_guest_frame_qos_protect (runtime owns guest pthread QoS)
+ extern void s2a_guest_frame_qos_protect(void) __attribute__((weak_import));
++// 弱链接[nvntest]：s2a_guest_heat_stats_report (hosted runtime transitions)
++extern void s2a_guest_heat_stats_report(const char *,uint64_t) __attribute__((weak_import));
+ static int render_qos_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_NVN_RENDER_QOS"); v = !(e && !strcmp(e, "0")); } return v; }
+ static _Atomic uint32_t g_sub_qos_seen;   // the submit thread's QoS as last checked (summary line)
+ #endif
+@@ -3429,6 +3431,9 @@ static void dump_frame(void) {
+     if (g_frame <= (uint64_t)nframes) LOG("[nvn] %s %llu: %u functions %llu calls |%s", g_frame ? "frame" : "init", g_frame, nfn, total, line);
+     else if (g_frame % 300 == 0) LOG("[nvn] frame %llu: %u functions %llu calls", g_frame, nfn, total);
+     if (g_frame && g_frame % 300 == 0) {   // 审计 #1534 P1-23 采样：累计值，0 也打；首次、变了、或满 3000 帧打一行
++#if defined(__APPLE__)
++        if (s2a_guest_heat_stats_report) s2a_guest_heat_stats_report("sample",g_frame);
++#endif
+         static uint64_t lf, l0, l1; static int any; uint64_t n0 = __atomic_load_n(&g_nvn_qws_n, __ATOMIC_RELAXED), n1 = __atomic_load_n(&g_nvn_qws_unfenced, __ATOMIC_RELAXED);
+         if (!any || n0 != l0 || n1 != l1 || g_frame - lf >= 3000) { any = 1; lf = g_frame; l0 = n0; l1 = n1;
+             LOG("[nvn] queue sync waits up to frame %llu: QueueWaitSync %llu, on a sync not fenced yet %llu (audit #1534 P1-23 probe)", (unsigned long long)g_frame, (unsigned long long)n0, (unsigned long long)n1); }
+diff --git a/runtime/src/rb_guest.c b/runtime/src/rb_guest.c
+index 6a1cc2b..bd19f91 100644
+--- a/runtime/src/rb_guest.c
++++ b/runtime/src/rb_guest.c
+@@ -20,6 +20,8 @@
+ #include <unistd.h>
+ // 弱链接[host,ios,nvntest]：s2a_rb_bench_end (optional iOS benchmark observer)
+ extern void s2a_rb_bench_end(const char *) __attribute__((weak_import));
++// 弱链接[host]：s2a_guest_heat_stats_report (standalone guest-bridge tests omit thread.c)
++extern void s2a_guest_heat_stats_report(const char *,uint64_t) __attribute__((weak_import));
+ 
+ int s2a_rb_guest_window_deferred(void);       // vawin.c: the constructor left the window and the launch context to configure
+ void s2a_rb_guest_window_boot(void);          // vawin.c: the constructor's window reservation, deferred
+@@ -120,6 +122,7 @@ void *s2a_rb_guest_prepare_code(void *at, size_t len) {
+ void s2a_rb_guest_ended(int code, const char *why) {
+     if (!s2a_rb_guest_on() || atomic_exchange(&g_ended, 1)) return;
+     if (s2a_rb_bench_end) s2a_rb_bench_end("session_ended");
++    if (s2a_guest_heat_stats_report) s2a_guest_heat_stats_report("session_ended",0);
+     LOG("RewindBox guest: session ended, code %d (%s)", code, why && *why ? why : "-");
+     s2a_logcon_flush();
+     release_guest_input();
+diff --git a/runtime/src/rb_guest_heat.h b/runtime/src/rb_guest_heat.h
+index e949fad..d7f93c0 100644
+--- a/runtime/src/rb_guest_heat.h
++++ b/runtime/src/rb_guest_heat.h
+@@ -1,6 +1,7 @@
+ // SPDX-License-Identifier: Apache-2.0
+ #pragma once
+ #include <stdint.h>
++#include <stdatomic.h>
+ 
+ typedef struct { int secondary, reduced; } rb_guest_heat_role;
+ 
+@@ -18,3 +19,22 @@ static inline int rb_guest_heat_change(rb_guest_heat_role *role, int hot) {
+     role->reduced = hot;
+     return hot ? 1 : -1;
+ }
++
++// Each completed set_qos() has one owner and one outcome. The sum of verified
++// and failed is the number of attempts with readback, even during a snapshot.
++typedef struct { _Atomic uint64_t outcome[2][2]; } rb_guest_heat_counts;
++typedef struct { uint64_t verified, failed; } rb_guest_heat_result;
++static inline void rb_guest_heat_record(rb_guest_heat_counts *counts, int change, int verified) {
++    atomic_fetch_add_explicit(&counts->outcome[change<0][!!verified],1,memory_order_relaxed);
++}
++static inline rb_guest_heat_result rb_guest_heat_read(rb_guest_heat_counts *counts, unsigned restore) {
++    return (rb_guest_heat_result){
++        atomic_load_explicit(&counts->outcome[restore][1],memory_order_relaxed),
++        atomic_load_explicit(&counts->outcome[restore][0],memory_order_relaxed)
++    };
++}
++// Called before guest thread creation, after all owners of the last session have retired.
++static inline void rb_guest_heat_counts_reset(rb_guest_heat_counts *counts) {
++    for (unsigned i=0;i<2;i++) for (unsigned j=0;j<2;j++)
++        atomic_store_explicit(&counts->outcome[i][j],0,memory_order_relaxed);
++}
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index a2bbd9d..41ea336 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -866,9 +866,42 @@ static _Atomic unsigned rb_guest_down, rb_guest_up;
+ static _Thread_local rb_guest_heat_role rb_heat_role;
+ static _Thread_local int rb_frame_role;
+ static _Thread_local uint64_t rb_qos_retry;
++static _Atomic int rb_heat_stats_enabled;
++static _Atomic int rb_heat_last_state=-1; // only the title/device/backend monitor publishes here
++static rb_guest_heat_counts rb_heat_counts;
++static pthread_mutex_t rb_heat_report_mu=PTHREAD_MUTEX_INITIALIZER;
++static void rb_guest_heat_stats_begin(void) {
++    const char *title=getenv("S2A_RB_DIRECT_GAME_ID"), *policy=getenv("S2A_RB_GUEST_QOS_THERMAL");
++    const char *stats=getenv("S2A_RB_GUEST_QOS_STATS");
++    int enabled=s2a_rb_guest_on() && title && !strcasecmp(title,"0400C3F00006E000") &&
++        (!policy || !strcmp(policy,"1")) && (!stats || !strcmp(stats,"1"));
++    pthread_mutex_lock(&rb_heat_report_mu);
++    rb_guest_heat_counts_reset(&rb_heat_counts);
++    atomic_store_explicit(&rb_heat_stats_enabled,enabled,memory_order_release);
++    pthread_mutex_unlock(&rb_heat_report_mu);
++}
++// Periodic reports use the existing frame sampler. Shutdown may emit an early
++// snapshot on a fatal exit; "joined" is final and deactivates this session.
++void s2a_guest_heat_stats_report(const char *phase, uint64_t frame) {
++    if (!atomic_load_explicit(&rb_heat_stats_enabled,memory_order_acquire)) return;
++    pthread_mutex_lock(&rb_heat_report_mu);
++    int thermal=atomic_load_explicit(&rb_heat_last_state,memory_order_relaxed);
++    if (atomic_load_explicit(&rb_heat_stats_enabled,memory_order_relaxed) && thermal>=0) {
++        rb_guest_heat_result down=rb_guest_heat_read(&rb_heat_counts,0), up=rb_guest_heat_read(&rb_heat_counts,1);
++        LOG("[RB-GUEST-QOS-STATS] phase=%s frame=%llu thermal=%d "
++            "down_attempted=%llu down_verified=%llu down_failed=%llu "
++            "restore_attempted=%llu restore_verified=%llu restore_failed=%llu",
++            phase,(unsigned long long)frame,thermal,(unsigned long long)(down.verified+down.failed),
++            (unsigned long long)down.verified,(unsigned long long)down.failed,
++            (unsigned long long)(up.verified+up.failed),(unsigned long long)up.verified,(unsigned long long)up.failed);
++    }
++    if (!strcmp(phase,"joined")) atomic_store_explicit(&rb_heat_stats_enabled,0,memory_order_release);
++    pthread_mutex_unlock(&rb_heat_report_mu);
++}
+ 
+ void s2a_guest_heat_publish(int state) {
+     if (state < 0 || state > 3) return;
++    atomic_store_explicit(&rb_heat_last_state,state,memory_order_relaxed);
+     int hot = state >= 1;
+     if (atomic_exchange_explicit(&rb_guest_hot, hot, memory_order_relaxed) != hot)
+         LOG("[RB-GUEST-QOS] thermal=%d secondary=%s reduced_requests=%u restore_requests=%u",
+@@ -887,7 +920,10 @@ static void rb_guest_heat_apply(int hot) {
+     int change = rb_guest_heat_change(&next, hot);
+     if (!change) return;
+     atomic_fetch_add_explicit(change > 0 ? &rb_guest_down : &rb_guest_up, 1, memory_order_relaxed);
+-    if (set_qos(change > 0 ? QOS_CLASS_USER_INITIATED : QOS_CLASS_USER_INTERACTIVE)) {
++    int verified=set_qos(change > 0 ? QOS_CLASS_USER_INITIATED : QOS_CLASS_USER_INTERACTIVE);
++    if (atomic_load_explicit(&rb_heat_stats_enabled,memory_order_relaxed))
++        rb_guest_heat_record(&rb_heat_counts,change,verified);
++    if (verified) {
+         rb_heat_role = next;
+         rb_qos_retry = 0;
+         if (rb_frame_role) rb_heat_role.secondary = 0;
+@@ -1258,6 +1294,7 @@ uint32_t s2a_thread_main_init(void) {
+     if (!t->handle) die("主线程句柄分配失败");
+ #if defined(__APPLE__)
+     rb_heat_role = (rb_guest_heat_role){0};
++    rb_guest_heat_stats_begin();
+     set_qos(guest_qos(1, 7));
+     if (wg_on() && g_wg_mode != 2) wg_join_self("游戏主线程");
+ #endif
+@@ -3475,7 +3512,12 @@ int s2a_thread_stop_all(int wait_ms) {
+         usleep(1000);
+     }
+     int result = atomic_load(&g_join_result);
+-    if (!result) atomic_store(&g_join_verified, 1);
++    if (!result) {
++#if defined(__APPLE__)
++        s2a_guest_heat_stats_report("joined",0);
++#endif
++        atomic_store(&g_join_verified, 1);
++    }
+     return result;
+ }
+ 
+diff --git a/runtime/tests/t_rb_guest_heat.c b/runtime/tests/t_rb_guest_heat.c
+index 4f69592..df21f3f 100644
+--- a/runtime/tests/t_rb_guest_heat.c
++++ b/runtime/tests/t_rb_guest_heat.c
+@@ -20,5 +20,14 @@ int main(void) {
+     assert(rb_guest_heat_change(&worker, 0) == -1);
+     worker.secondary = 0;
+     assert(!rb_guest_heat_change(&worker, 1));
++    rb_guest_heat_counts counts={0};
++    rb_guest_heat_record(&counts,1,0); // rejected readback and one successful retry
++    rb_guest_heat_record(&counts,1,1);
++    rb_guest_heat_record(&counts,-1,1);
++    rb_guest_heat_result d=rb_guest_heat_read(&counts,0), r=rb_guest_heat_read(&counts,1);
++    assert(d.verified==1 && d.failed==1 && r.verified==1 && !r.failed);
++    rb_guest_heat_counts_reset(&counts);
++    d=rb_guest_heat_read(&counts,0); r=rb_guest_heat_read(&counts,1);
++    assert(!d.verified && !d.failed && !r.verified && !r.failed);
+     puts("PASS guest thermal QoS: secondary Fair/Nominal, role promotion, explicit and file I/O tiers");
+ }
