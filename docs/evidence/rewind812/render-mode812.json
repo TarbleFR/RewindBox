@@ -1,0 +1,41 @@
+{
+  "build": 812,
+  "source": "e8d58ec5d516dcd1e981284dd223f623b2dcf45d",
+  "sha256": "71dd5f77222cf9fee7938f2ce4c4c831d9491e4354c4af22f17666d1fbf6c002",
+  "bytes": 333652893,
+  "pinSHA256": "1a2d4d42999aa2d56af38be25366156d517f9a72a28fe1e2fad5acb693a79385",
+  "engineRun": 44867425496,
+  "engineFingerprint": "dbde149cfb6d66d92c7806f5173239e1fcad361de74802ab82b8a22ff8e96651",
+  "patchCount": 233,
+  "lastPatch": {
+    "name": "0233-switch-prepared-scene-targets-from-completed-gpu-times.patch",
+    "sha256": "8ebd751644db1d7f5e03ad78cb24da50e110f6cb83179f2f250bbc079dea24a6"
+  },
+  "chain": "0be3f28548fd",
+  "markers": [
+    "S2A_RB_GPU_ATTACHMENT_LIVENESS",
+    "S2A_RB_GPU_CLEAR_BATCH",
+    "S2A_RB_GPU_FX_PREFIX",
+    "S2A_RB_GPU_TAIL_TRACE",
+    "S2A_RB_SCALE_RETAIN",
+    "S2A_RB_SHADOW_SCALE",
+    "S2A_RB_DRS",
+    "[rb-drs]",
+    "[rb-drs-fx]"
+  ],
+  "plist": {
+    "RBTestAsyncPSODefault": true
+  },
+  "deviceFrames": 0,
+  "run": 44868822851,
+  "attempt": 1,
+  "baselineBuild": 811,
+  "baselineSha256": "1cf1b80e92488b4f6613f5f3e6e27af082b357517a64e96276440648bf1d60d4",
+  "nativeImages": 97,
+  "bundles": 10,
+  "verifiedAdHocSignaturesInCI": 97,
+  "offlineValidators": 6,
+  "samePSOAsBaseline": true,
+  "noBundledEnvOrLaunchOverrides": true,
+  "physicalIphoneTested": false
+}
