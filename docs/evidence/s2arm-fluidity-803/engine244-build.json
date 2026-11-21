@@ -1,0 +1,73 @@
+{
+  "source": "aef33c52c4982a1e98a89089cd76464632dd2b8c",
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "run": 44873287460,
+  "attempt": 1,
+  "xcode": "Xcode 26.6",
+  "patchesVerified": 244,
+  "first237Verified": true,
+  "patchDelta": [
+    {
+      "name": "0238-react-to-fair-and-debounce-presentation-policy.patch",
+      "sha256": "c25ab6e32e8fd0eacc48b03819c9b2de265ebf12a9cf3a26c170860120786011"
+    },
+    {
+      "name": "0239-preserve-hot-pipelines-and-batch-archive-writes.patch",
+      "sha256": "8c0a3010773a8f9b249ba2a9cf2962bbf92f41adf77b83c65f96161f02854185"
+    },
+    {
+      "name": "0240-lower-secondary-guest-qos-on-warm-devices.patch",
+      "sha256": "a7448bb4cdf9c02746825844d1dce13401b4a344847a546417a5a80f603083f5"
+    },
+    {
+      "name": "0241-expand-proven-tile-pass-rules-to-hosted-nvn2.patch",
+      "sha256": "bc93ed9b3b17d51bb04babdf1c5319972ca88944d1bff82ef83ca424fe9ed5b8"
+    },
+    {
+      "name": "0242-preserve-normal-pipeline-capacity-and-asynchronous-boot.patch",
+      "sha256": "5a441f58aa997e418108803791d591a711b31d4d48d421585345b05072cc065d"
+    },
+    {
+      "name": "0243-check-matching-tile-pixels-in-both-control-arms.patch",
+      "sha256": "f03f2bb12b7e35ba7d2f4c5586a8d1ece82aee40e1846d5af48d554290a6abd6"
+    },
+    {
+      "name": "0244-verify-the-close-batch-through-a-fresh-archive-session.patch",
+      "sha256": "f5e131174c5b6ca547c303778ebbab9fa8068a3abc9a52c95f57a77970431365"
+    }
+  ],
+  "engineFingerprint": "c9d3cca20481fa6b6ee97a991cf5bb0af619c0cb25e75cb86c792048080ab818",
+  "pinSha256": "8495f42f312492dd172b4bb1ea53abaefa5d054ff40ad92110ce944add04be22",
+  "directShaderChain": "0be3f28548fd",
+  "bridgeRun": 44873287530,
+  "physicalIphoneTested": false,
+  "hostIntegration": {
+    "status": "S2Arm app OK: helper, frameworks, 731 system data files, 36 notices, Runner bridge",
+    "baseIPASHA256": "71dd5f77222cf9fee7938f2ce4c4c831d9491e4354c4af22f17666d1fbf6c002",
+    "runnerSHA256": "1b949fa4f55b593e7ed0bf2f0d256157062b820c6b8feb31f242f16e9ea8b07e",
+    "hostBuild": "812",
+    "producerChecks": {
+      "engine": "S2Arm engine pin: OK (engine, run 44873287460, artifact 14695107044, 25144777 bytes)",
+      "prepare": "S2Arm engine pin: OK (prepare, run 44555747908, artifact 14544697879, 511751 bytes)",
+      "sysdata": "S2Arm engine pin: OK (sysdata, run 43038032448, artifact 13863124984, 11824176 bytes)"
+    },
+    "optionalRegistrantSource": false,
+    "optionalPodLock": false,
+    "createdIPA": false
+  },
+  "metalReadback": {
+    "pixelsPerArm": 512,
+    "format": "R32Float",
+    "device": "Apple virtual GPU",
+    "directMetal4QueueTested": false
+  },
+  "archiveTests": {
+    "initialBatchSizes": [
+      32,
+      32,
+      6
+    ],
+    "strictArchiveHits": 70,
+    "heldKeyServedAfterReopen": true
+  }
+}

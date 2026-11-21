@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "7a1dfe6eb344ac9db53b3e10cced5933dbe9f02a09f1a60c8008e2a208d5d947",
+  "packagedFingerprint": "c9d3cca20481fa6b6ee97a991cf5bb0af619c0cb25e75cb86c792048080ab818",
   "producers": {
     "engine": {
-      "run": 44870326035,
+      "run": 44873287460,
       "attempt": 1,
-      "artifact": 14693732708,
-      "name": "s2arm-engine-framework-05bddd2102e060080baf6e89fe6c85cb2cbcd865",
-      "bytes": 25137487,
-      "sha256": "8320f8256ac58139c4d61c5ab3d095e04ec47dec61d474aa64bcd9dadff6f2b6",
-      "headSha": "05bddd2102e060080baf6e89fe6c85cb2cbcd865",
+      "artifact": 14695107044,
+      "name": "s2arm-engine-framework-aef33c52c4982a1e98a89089cd76464632dd2b8c",
+      "bytes": 25144777,
+      "sha256": "2d60b3fc3b7e6f197711fb317d3c4f642fe87ec3bd0b9db96a33f5174a8fe4c8",
+      "headSha": "aef33c52c4982a1e98a89089cd76464632dd2b8c",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-21T05:31:10Z",
+      "expiresAt": "2026-12-21T06:10:36Z",
       "members": {
-        "S2ArmEngine.framework.zip": "47f1dd14c3e8a26d9b151c4f76c799bb5eb488c6131e212b3950fcff79739cc5",
-        "NS2Pro.framework.zip": "e14c39a93c7c66c3ad10b7c3218e9800bdf38814d6a1a8bd07abdd52d16ea343"
+        "S2ArmEngine.framework.zip": "21c821ac4cf811a39a2f822a242a4cf1fa7d4202bff2c62ffe421ac4decf4d06",
+        "NS2Pro.framework.zip": "e52ff7b6bd24c1136e08d912c7a1f09a681dbd0e406e91d5e4c3d8c91bd0c32d"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "8320f8256ac58139c4d61c5ab3d095e04ec47dec61d474aa64bcd9dadff6f2b6",
+    "engine": "2d60b3fc3b7e6f197711fb317d3c4f642fe87ec3bd0b9db96a33f5174a8fe4c8",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -90,9 +90,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "b2d23602db01a9288bf260d74bdaedd0ebfd0dc2dc1f95a628216ba668b98f22",
-      "bytes": 114836936,
-      "fingerprint": "7a1dfe6eb344ac9db53b3e10cced5933dbe9f02a09f1a60c8008e2a208d5d947"
+      "sha256": "04a1ac776e76d2109a8a7c16855bb187b61958117e6b02f7d1f93d707f2e4bbd",
+      "bytes": 114855616,
+      "fingerprint": "c9d3cca20481fa6b6ee97a991cf5bb0af619c0cb25e75cb86c792048080ab818"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -125,9 +125,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 44870326035,
+      "run": 44873287460,
       "attempt": 1,
-      "head_sha": "05bddd2102e060080baf6e89fe6c85cb2cbcd865",
+      "head_sha": "aef33c52c4982a1e98a89089cd76464632dd2b8c",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1078,11 +1078,39 @@
         {
           "name": "0237-follow-effective-display-cadence-and-measure-presented-tickets.patch",
           "sha256": "14281ec705af57ea276b76c25d2c5d9c8eaeda8c6cec5adaefb3afd6ad666b76"
+        },
+        {
+          "name": "0238-react-to-fair-and-debounce-presentation-policy.patch",
+          "sha256": "c25ab6e32e8fd0eacc48b03819c9b2de265ebf12a9cf3a26c170860120786011"
+        },
+        {
+          "name": "0239-preserve-hot-pipelines-and-batch-archive-writes.patch",
+          "sha256": "8c0a3010773a8f9b249ba2a9cf2962bbf92f41adf77b83c65f96161f02854185"
+        },
+        {
+          "name": "0240-lower-secondary-guest-qos-on-warm-devices.patch",
+          "sha256": "a7448bb4cdf9c02746825844d1dce13401b4a344847a546417a5a80f603083f5"
+        },
+        {
+          "name": "0241-expand-proven-tile-pass-rules-to-hosted-nvn2.patch",
+          "sha256": "bc93ed9b3b17d51bb04babdf1c5319972ca88944d1bff82ef83ca424fe9ed5b8"
+        },
+        {
+          "name": "0242-preserve-normal-pipeline-capacity-and-asynchronous-boot.patch",
+          "sha256": "5a441f58aa997e418108803791d591a711b31d4d48d421585345b05072cc065d"
+        },
+        {
+          "name": "0243-check-matching-tile-pixels-in-both-control-arms.patch",
+          "sha256": "f03f2bb12b7e35ba7d2f4c5586a8d1ece82aee40e1846d5af48d554290a6abd6"
+        },
+        {
+          "name": "0244-verify-the-close-batch-through-a-fresh-archive-session.patch",
+          "sha256": "f5e131174c5b6ca547c303778ebbab9fa8068a3abc9a52c95f57a77970431365"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "47f1dd14c3e8a26d9b151c4f76c799bb5eb488c6131e212b3950fcff79739cc5",
-        "NS2Pro.framework.zip": "e14c39a93c7c66c3ad10b7c3218e9800bdf38814d6a1a8bd07abdd52d16ea343"
+        "S2ArmEngine.framework.zip": "21c821ac4cf811a39a2f822a242a4cf1fa7d4202bff2c62ffe421ac4decf4d06",
+        "NS2Pro.framework.zip": "e52ff7b6bd24c1136e08d912c7a1f09a681dbd0e406e91d5e4c3d8c91bd0c32d"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
