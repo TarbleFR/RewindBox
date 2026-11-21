@@ -520,6 +520,7 @@ def manifest_errors(value):
         if not condition:
             errors.append(message)
     check(value.get('schema') == 1 and isinstance(value.get('build'), int), 'schema/build')
+    check(isinstance(value.get('s2armAsyncPSOTestDefault', False), bool), 's2armAsyncPSOTestDefault must be a Boolean')
     check(value.get('status') in ('draft', 'frozen'), 'status must be draft or frozen')
     for key in ('base', 'components', 'product', 'images', 'tests', 'recipient', 'republish'):
         check(key in value, 'missing section ' + key)
@@ -2583,8 +2584,15 @@ def expected():
 def embed(app):
     import retained_components as retained
     manifest = ci_manifest()
-    info = plistlib.loads((Path(app) / 'Info.plist').read_bytes())
+    info_path = Path(app) / 'Info.plist'
+    original = info_path.read_bytes()
+    info = plistlib.loads(original)
     require(str(info['CFBundleVersion']) == str(manifest['build']), 'Wrong embedding build')
+    if manifest.get('s2armAsyncPSOTestDefault') is True:
+        # A signed test default. On device, an explicit env.txt value takes precedence.
+        info['RBTestAsyncPSODefault'] = True
+        fmt = plistlib.FMT_BINARY if original.startswith(b'bplist00') else plistlib.FMT_XML
+        info_path.write_bytes(plistlib.dumps(info, fmt=fmt, sort_keys=False))
     value = expected()
     (Path(app) / IDENTITY).write_text(json.dumps(value, indent=2) + '\n')
     notices = {kind: retained.embed_native_notices(kind, manifest['components'][kind], app) for kind in retained.NATIVES}
@@ -2666,6 +2674,10 @@ def validate(ipa):
         root = APP_ROOT
         require(json.loads(archive.read(root + IDENTITY)) == receipt, 'Packaged build identity differs')
         info = plistlib.loads(archive.read(root + 'Info.plist'))
+        if manifest.get('s2armAsyncPSOTestDefault') is True:
+            require(info.get('RBTestAsyncPSODefault') is True, 'Missing requested async PSO test default')
+        else:
+            require('RBTestAsyncPSODefault' not in info, 'Unexpected async PSO test default')
         require(str(info['CFBundleVersion']) == str(manifest['build']) and info['MinimumOSVersion'] == '18.0',
                 'Wrong application version/deployment target')
         rpc_result = rpcs3.compare_core_pinned(pin, archive.read(root + rpcs3.CORE_IMAGE), rpcs3.raw_core(pin), signed=True)
