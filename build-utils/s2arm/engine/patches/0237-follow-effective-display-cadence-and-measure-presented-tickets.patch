@@ -1,0 +1,661 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 7393587..fff44d2 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3184,10 +3184,18 @@ NVN(nvnWindowBuilderGetTexture, NVNtexture *, const NVNwindowBuilder *b, int i)
+     const win_builder_t *o = (const win_builder_t *)b;
+     return i >= 0 && i < o->ntex ? o->tex[i] : NULL;
+ }
++// The window ordinal restarts on WindowInitialize. Backend tickets remain
++// monotonic through relaunches and are shared between windows. Extend the
++// host's private tail without moving any NVN1 or NVN2 window fields.
++#include "rb_promotion.h"
++typedef struct { win2 layout; rb_present_samples samples; } rb_present_history;
++FITS(rb_present_history, NVNwindow);
+ static void nvn2_win_init(NVNwindow *w, const NVNwindowBuilder *b);
+ NVN(nvnWindowInitialize, NVNboolean, NVNwindow *w, const NVNwindowBuilder *b) {
+     const win_builder_t *s = (const win_builder_t *)b; win_t *o = (win_t *)w;
+     memset(o, 0, sizeof *o); o->magic = MAGIC('W', 'I', 'N', 'D'); o->native = s->native; o->ntex = s->ntex; o->interval = s->interval;
++    rb_present_history *history = (rb_present_history *)o;
++    memset(&history->samples, 0, sizeof history->samples);
+     o->nactive = s->nactive > 0 ? (s->nactive < s->ntex ? s->nactive : s->ntex) : s->ntex;   // 未显式设过就按全部纹理可用
+     memcpy(o->tex, s->tex, sizeof o->tex);
+     // SDK initializes the crop to the full first window texture (see docs/window_queries.md).
+@@ -3392,9 +3400,6 @@ static double g_visible_first, g_visible_last;
+ static unsigned g_visible_count, g_visible_unknown;
+ static double g_pres_iv[TWIN]; static unsigned g_presn;   // Present interval (ms; -1 = dropped by the system, 0 = no reading)
+ static double g_pres_exp[TWIN], g_pres_exp_last;   // how long that frame should have stayed on screen (ms, pres_expect_ms); the last one for slow_emit
+-// The hold (60 Hz vsyncs) each present was given, by present number. On-screen intervals are read 8 presents late, so each is judged against the holds of its own presents:
+-// with the frame step at 2 vsyncs every frame stays 33.3 ms, which is not a dropped frame
+-static uint8_t g_hold_ring[16], g_game_hold_ring[16];
+ static unsigned g_display_known[2], g_display_late[2], g_display_lost[2], g_display_missing[2];
+ // Ordered presented callbacks are sampled eight presents late. Keep a streak
+ // across summary windows, but never bridge a missing timestamp or a new session.
+@@ -3402,10 +3407,7 @@ static uint64_t g_display_run, g_display_max_run, g_display_run2, g_display_run3
+ static uint64_t g_display_missed_slots;
+ static double g_display_covered_s;
+ static unsigned g_display_gpu_known, g_display_gpu_early_late, g_display_trace_lines;
+-static void rb_display_deadline(uint64_t n, double actual, double prev) {
+-    unsigned hold = g_game_hold_ring[n % 16];
+-    unsigned prior_hold = g_game_hold_ring[(n - 1) % 16];
+-    if (prior_hold > hold) hold = prior_hold;
++static void rb_display_deadline(unsigned hold, double actual, double prev) {
+     if (hold < 1 || hold > 2) { g_display_run = 0; return; }
+     unsigned i = hold - 1;
+     if (actual < 0) { g_display_lost[i]++; g_display_run = 0; }
+@@ -3426,10 +3428,9 @@ static void rb_display_deadline(uint64_t n, double actual, double prev) {
+         } else g_display_run = 0;
+     }
+ }
+-static double pres_expect_ms(uint64_t n) {   // the interval between presents n - 1 and n shows frame n - 1: the display link holds it for its own present's hold, the Mac pacer spaces present n by n's, so the larger of the two
+-    int k = g_hold_ring[n % 16] > g_hold_ring[(n - 1) % 16] ? g_hold_ring[n % 16] : g_hold_ring[(n - 1) % 16];
+-    double held = (k ? k : 1) * 1000.0 / 60, tgt = 1000.0 * nvn_fps_period(1.0 / nvn_be_fps_target());   // 游戏原生 30 或用户上限 30 都不是慢帧
+-    return held > tgt ? held : tgt;
++static double pres_expect_ms(unsigned hold) {
++    if (hold) return hold * (1000.0 / 60);
++    return 1000.0 * nvn_fps_period(1.0 / nvn_be_fps_target());
+ }
+ __attribute__((weak)) double dm_brightness_now(void) { return -1; }
+ __attribute__((weak)) void dm_perf_present(double iv_ms) { (void)iv_ms; }   // Default (unit tests); strong definition in the host's diag.c: always-on performance record perf.txt
+@@ -4013,7 +4014,7 @@ static int fstep_hold(void) {
+ }
+ // Once per present, before this frame's period is taken: the time since the previous frame's start (shown) and the frame's cost decide this frame's hold and the next frame's step.
+ // Cost = max(CPU: the time between the frames' starts without the pacing wait, GPU: the latest finished frame's GPU time), in vsyncs
+-static void fstep_tick(const win_t *o) {
++static void fstep_tick(win_t *o) {
+     static uint64_t prev, t0, v0, fixed_sum, held[FSTEP_MAX + 1]; static int nlog;
+     const double v = 1e9 / 60;
+     uint64_t st = g_fs_start ? g_fs_start : now_ns(), pw = g_fs_wait; g_fs_start = g_fs_wait = 0;
+@@ -4040,13 +4041,16 @@ static void fstep_tick(const win_t *o) {
+     // On-screen verdict for the step-up window (11-06 BotW, test device 1: start-to-start late 26–30 of 120 frames, presented late 6–7, and the hold went to 30 fps):
+     //   frame P stays steps[P] vsyncs, so presented(P+1) − presented(P) against it. Read 8 presents late (the presented callback has arrived by then, as for @presented_ms);
+     //   no presented time (no window, dropped by the system, not arrived) leaves it unknown and the start-to-start time counts
+-    static uint8_t steps[16];
++    rb_present_samples *samples = &((rb_present_history *)o)->samples;
+     if (o->presents > 9) {
+-        uint64_t pn = o->presents - 8; double a_ = nvn_be_presented_time(pn), b_ = nvn_be_presented_time(pn - 1); int k_ = steps[(pn - 1) % 16];
++        uint64_t pn = o->presents - 8;
++        double a_ = nvn_be_presented_time(samples->tickets[pn % RB_PRESENT_HISTORY]);
++        double b_ = nvn_be_presented_time(samples->tickets[(pn - 1) % RB_PRESENT_HISTORY]);
++        int k_ = samples->steps[(pn - 1) % RB_PRESENT_HISTORY];
+         if (a_ > 0 && b_ > 0 && k_) g_fs.onscreen = (a_ - b_) * 60 > k_ + FSTEP_LATE + g_fs.shown_slack ? 2 : 1;
+     }
+     int n = nvn_fstep_next(&g_fs, shown, cost, kmin, kmax, fixed, cslow || gslow);
+-    steps[o->presents % 16] = (uint8_t)n;
++    samples->steps[o->presents % RB_PRESENT_HISTORY] = (uint8_t)n;
+     __atomic_store_n((uint32_t *)(dm_fps_state + 0x20), (uint32_t)n, __ATOMIC_RELAXED); atomic_store(&g_fs_k, g_fs.k);
+     held[g_fs.k]++; if (fixed) fixed_sum += (uint64_t)n;   // the stubs count only the host's steps
+     static int fixed_was, nfix;
+@@ -4089,6 +4093,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+     dm_fps_lock_tick();
+     if (dm_fps_state) { static int was; int c = fps_step_cap(); if (c != was) { LOG("[nvn] frame step cap %d → %d fps at present %llu%s", was, c, (unsigned long long)o->presents, c == 30 && was == 60 ? " (prerendered movie)" : ""); was = c; } }
+     if (fstep_on()) fstep_tick(o);
++    else ((rb_present_history *)o)->samples.steps[o->presents % RB_PRESENT_HISTORY] = 0;
+     static uint64_t prev_in, prev_out, prev_pass, prev_draw;
+     present_cfg(o);
+     {
+@@ -4120,6 +4125,8 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+         rb_sent_period = present_period(o);
+         o->ticket[idx] = nvn_be_present(CTX(o->tex[idx]), rb_sent_period / 1e9, crop);   // enqueue only
+     }
++    rb_present_samples *samples = &((rb_present_history *)o)->samples;
++    samples->tickets[o->presents % RB_PRESENT_HISTORY] = rb_sent ? o->ticket[idx] : 0;
+     if (idx >= 0 && idx < o->ntex) __atomic_store_n(&o->shown, idx + 1, __ATOMIC_RELAXED);   // 屏上换成这张：上一张归还（AcquireTexture 的 #141 报红看它）
+     gfx_leave();
+     atomic_fetch_add(&g_nvn_ns, now_ns() - t0);
+@@ -4365,8 +4372,10 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+     // Real-device semantics: present only enqueues and returns immediately; this frame's display time is scheduled by the pacer, and the texture can be acquired again only at "display time + one period" (blocking in AcquireTexture)
+     uint64_t period = present_period(o), now = dm_detclock_enabled() ? guest_ns() : now_ns();
+     g_lf[f % LFN].per = period / 1e6;   // RewindBox (patch 0068): the frame's present period, for the long-frame thresholds
+-    g_hold_ring[o->presents % 16] = (uint8_t)present_itv(o);
+-    g_game_hold_ring[o->presents % 16] = (uint8_t)o->interval;
++    // Account the effective period enqueued before the per-frame policy hook.
++    // A verified profile can render at 60 while the guest reports interval 2.
++    unsigned sent_hold = (unsigned)llround(rb_sent_period * (60.0 / 1e9));
++    samples->holds[o->presents % RB_PRESENT_HISTORY] = (uint8_t)(sent_hold > 255 ? 255 : sent_hold);
+     nvn_pacer pc = {o->pace};
+     uint64_t slot = now + nvn_pace(&pc, now, period);
+     o->pace = pc.target;
+@@ -4380,16 +4389,17 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+         memset(g_display_known,0,sizeof g_display_known); memset(g_display_late,0,sizeof g_display_late);
+         memset(g_display_lost,0,sizeof g_display_lost); memset(g_display_missing,0,sizeof g_display_missing);
+     }
+-    if (o->presents > 9) { uint64_t n = o->presents - 8; double a_ = nvn_be_presented_time(n), b_ = nvn_be_presented_time(n - 1);
++    if (o->presents > 9) { uint64_t n = o->presents - 8;
++        unsigned hold = rb_shown_hold(samples, n);
++        double a_ = nvn_be_presented_time(samples->tickets[n % RB_PRESENT_HISTORY]);
++        double b_ = nvn_be_presented_time(samples->tickets[(n - 1) % RB_PRESENT_HISTORY]);
+         if (a_ > 0 && a_ > g_visible_last) {
+             if (!g_visible_count++) g_visible_first=a_;
+             g_visible_last=a_;
+         } else if (a_ >= 0) g_visible_unknown++;
+         if (a_ < 0) trow(f - 8, "@presented_ms", -1); else if (a_ > 0 && b_ > 0) trow(f - 8, "@presented_ms", (a_ - b_) * 1e3);
+-        rb_display_deadline(n, a_, b_);
++        rb_display_deadline(hold, a_, b_);
+         if (f >= 8 && a_ > b_ && b_ > 0) {
+-            unsigned hold = g_game_hold_ring[n % 16], prior = g_game_hold_ring[(n - 1) % 16];
+-            if (prior > hold) hold = prior;
+             uint64_t gpu0, gpu1;
+             if (hold >= 1 && hold <= 2 && nvn_be_gpu_span(f - 8, &gpu0, &gpu1)) {
+                 double deadline = b_ + hold / 60.0, end = gpu1 / 1e9;
+@@ -4401,7 +4411,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+                         f - 8, n, gpu0 / 1e9, end, b_, a_, deadline, hold);
+             }
+         }
+-        g_pres_exp[g_presn % TWIN] = g_pres_exp_last = pres_expect_ms(n);
++        g_pres_exp[g_presn % TWIN] = g_pres_exp_last = pres_expect_ms(hold);
+         g_pres_iv[g_presn++ % TWIN] = a_ < 0 ? -1 : (a_ > 0 && b_ > 0 ? (a_ - b_) * 1e3 : 0);
+         { double iv_ = a_ < 0 ? -1 : (a_ > 0 && b_ > 0 ? (a_ - b_) * 1e3 : 0); nvn_be_ub_present(iv_); }   // same-process alternating measurement (DM_NVN_UB) tallies on-screen present intervals per phase; when off it is just one atomic read
+         dm_perf_present(a_ < 0 ? -1 : (a_ > 0 && b_ > 0 ? (a_ - b_) * 1e3 : 0));   // on-screen present intervals are also kept in a separate ring; tsummary reports dropped frames every 300 frames (M1 criterion)
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index a81fdbf..70631bd 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -28,6 +28,7 @@
+ #include "../../../../runtime/include/rb_texture_stats.h"
+ #include "../../../metal/mtl_slot.h"   // machine-wide Metal client slot
+ #include "nvn_fps.h"
++#include "rb_promotion.h"
+ #include "nvn_link_backoff.h"   // 低频链路档降档退避（link_sync）
+ #include "nvn_obj.h"
+ #include "nvn2.h"   // Switch 2: NVN2 control sections (DM_NVN_SHDUMP code length)
+@@ -205,7 +206,7 @@ static uint64_t g_vbuf_resolve, g_vbuf_reuse, g_vbuf_set, g_vbuf_skip;
+ static uint64_t g_rb_ft_addr[31], g_rb_ct_addr[31]; static uint32_t g_rb_ft_valid, g_rb_ct_valid; static uint64_t g_rb_tab_set, g_rb_tab_skip;
+ static id g_present_args;   // tab_new
+ static id<MTLBuffer> g_present_uv[3];
+-static uint64_t g_present_alloc_fence[3];
++static uint64_t g_present_alloc_fence[3], g_present_slot_done[3];   // Actual GPU completion per slot. The queue watermark can also advance when tickets are merged.
+ static pthread_mutex_t g_pq_mu = PTHREAD_MUTEX_INITIALIZER;
+ static pthread_cond_t g_pq_cv = PTHREAD_COND_INITIALIZER;
+ static pthread_cond_t g_classic_work = PTHREAD_COND_INITIALIZER; // only the classic presenter waits here
+@@ -215,11 +216,16 @@ static uint64_t g_link_tick_ns, g_link_tick_n;
+ // 上一帧开工时的显示链接拍号（nvn_be_link_wait_tick，只有游戏上屏线程调）。逐局状态：与 g_link_tick_n 同处清零（nvn_session.inc）——
+ //   11-04 进程内重启（设置页「立刻重启」）后拍号从 0 重数、它却留着上一局的约 5124，每帧都等满超时 2 拍 → 锁 30 帧，追平前约 85 秒（泰拉瑞亚 s04 两局）
+ static uint64_t g_link_started_tick;
++static double g_rb_tick_target, g_rb_started_target;   // g_link_mu, same epoch as the tick counters
+ static uint64_t g_link_dropped;
+ static double g_link_hold_until; static uint64_t g_link_held;   // Changed only on the display-link callback thread: the time the previous frame must stay on screen until by its present interval (0 = no hold), and the ticks that took no new frame because of it
+ static int g_pq_inflight;   // Under g_pq_mu: number of presents committed to the GPU whose completion callback has not arrived yet
+ int g_dm_present_link;   // Present pacing mode (runtime value of DM_PRESENT_LINK, modified directly during same-process alternating measurement): 0 = acquire the drawable itself; 1 = display link at 60 Hz; 2 = display link at 120 Hz, the game presents a frame every other display-link tick
+ static int g_present_latency = 1;
++static _Atomic int g_rb_promotion_option;
++static int rb_promotion_on(void) {
++    return !g_m3 && rb_direct_option(&g_rb_promotion_option, "S2A_RB_PROMOTION_PACING");
++}
+ static uint64_t g_pq_done;
+ static uint64_t g_pq_read;
+ static id<MTLResidencySet> g_res;
+@@ -707,7 +713,7 @@ void mtl_init(void) {
+     const char *link = getenv("DM_PRESENT_LINK");
+     g_dm_present_link = link ? atoi(link) : 1; if (g_dm_present_link < 0 || g_dm_present_link > 2) g_dm_present_link = 1;   // Default 1 (real-device same-process alternation: when load exceeds one display-link period, long frames 15% → 0 and frame intervals even out; no difference from 0 at a steady 60); DM_PRESENT_LINK=0 turns it off   // 1 = present on every tick of a 60 Hz display link; 2 = 120 Hz display link, the game presents a frame every other display-link tick (when behind, it can present on the next 8.33 ms display-link tick)
+     const char *latency = getenv("DM_PRESENT_LATENCY");
+-    if (latency && atoi(latency) > 0) g_present_latency = atoi(latency);
++    if (latency && !strcmp(latency, "2")) g_present_latency = 2; // Core Animation accepts one or two frames only.
+     g_res_check_on = getenv("DM_RES_CHECK") != NULL;
+     s2a_mtl_slot_take("mtl_init");   // machine-wide Metal client slot (graphics/metal/mtl_slot.h): taken before the device, held until exit
+     g_dev = MTLCreateSystemDefaultDevice();
+@@ -23386,8 +23392,22 @@ void ts_after(void) {
+ #define PRING 1024
+ typedef struct { uint64_t n; double t; } pres_ent;
+ static pres_ent g_pres[PRING];
++static os_unfair_lock g_pres_lock = OS_UNFAIR_LOCK_INIT;
++// Completion callbacks, the link, the watchdog and the game sample this ring
++// on different threads. An older callback cannot overwrite a newer wrapped slot.
++static void present_store(uint64_t n, double t) {
++    os_unfair_lock_lock(&g_pres_lock);
++    pres_ent *slot = &g_pres[n % PRING];
++    if (n >= slot->n) *slot = (pres_ent){n, t};
++    os_unfair_lock_unlock(&g_pres_lock);
++}
+ // Get the actual presentation time of the nth present (returns 0 if not ready, -1 if dropped)
+-double nvn_be_presented_time(uint64_t n) { pres_ent e = g_pres[n % PRING]; return e.n == n ? e.t : 0; }
++double nvn_be_presented_time(uint64_t n) {
++    os_unfair_lock_lock(&g_pres_lock);
++    pres_ent e = g_pres[n % PRING];
++    os_unfair_lock_unlock(&g_pres_lock);
++    return n && e.n == n ? e.t : 0;
++}
+ static _Atomic uint64_t g_drawable_ns;   // Accumulated wall clock waiting for nextDrawable in present (timing instrumentation)
+ uint64_t nvn_be_drawable_ns_take(void) { return atomic_exchange(&g_drawable_ns, 0); }
+ // Maximum refresh rate (Hz) of the screen when there is a window; returns 0 without a window. Mac uses CoreGraphics display modes (thread-safe C interface; the present configuration is read on the game thread)
+@@ -23578,7 +23598,7 @@ static void present_note(id<CAMetalDrawable> dr, uint64_t pn) {   // pn: the gam
+     uint64_t rb_generation = s2a_rb_bench_present_begin ? s2a_rb_bench_present_begin() : 0;
+     [dr addPresentedHandler:^(id<MTLDrawable> d) {   // Actual presentation time (the time this frame is really put on screen, CACurrentMediaTime base)
+         CFTimeInterval tt = d.presentedTime;
+-        g_pres[pn % PRING] = (pres_ent){pn, tt > 0 ? tt : -1};
++        present_store(pn, tt > 0 ? tt : -1);
+         if (rb_generation && s2a_rb_bench_presented) s2a_rb_bench_presented(rb_generation, tt);
+     }];
+ }
+@@ -23713,7 +23733,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+     }
+     if (g_present_alloc_fence[alloc_i]) {
+         DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_pq_mu);
+-        while (g_pq_done < g_present_alloc_fence[alloc_i]) pthread_cond_wait(&g_pq_cv, &g_pq_mu);
++        while (g_present_slot_done[alloc_i] < g_present_alloc_fence[alloc_i]) pthread_cond_wait(&g_pq_cv, &g_pq_mu);
+         pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_END();
+     }
+     id<MTL4CommandBuffer> cb = nil; id<MTLCommandBuffer> cb3 = nil;
+@@ -23760,7 +23780,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+     NvPresentFX *fxs = g_present_fx ? g_present_fx_slots[alloc_i] : nil;   // 这一帧没用 MetalFX 时也标：槽里的图只要在途就不能被下一次重建换掉
+     fb_add(o, ^(id<MTL4CommitFeedback> f) {
+         if (f.error && !mtl_gpu_cb_error(f.error, "present", ticket)) MLOG("【红】 display command buffer error: %s", f.error.description.UTF8String);
+-        pthread_mutex_lock(&g_pq_mu); if (aa) aa->busy = NO; if (fxs) fxs->busy = NO; if (ticket > g_pq_done) g_pq_done = ticket; g_pq_inflight--; pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu);
++        pthread_mutex_lock(&g_pq_mu); g_present_slot_done[alloc_i] = ticket; if (aa) aa->busy = NO; if (fxs) fxs->busy = NO; if (ticket > g_pq_done) g_pq_done = ticket; g_pq_inflight--; pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu);
+     });
+     pthread_mutex_lock(&g_pq_mu); if (aa) aa->busy = YES; if (fxs) fxs->busy = YES; g_pq_inflight++; pthread_mutex_unlock(&g_pq_mu);
+     if (g_m3) { present_m3(cb3, dr, ticket, period, target_ts); m3_commit(cb3, o, nil, 0); }
+@@ -23769,7 +23789,9 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+         res_commit();
+         id<MTL4CommandBuffer> buffers[] = {cb}; [g_q4 commit:buffers count:1 options:o];
+     }
+-    if (target_ts > 0) {
++    // The title profile reports after presentation. The legacy summary sorts
++    // two arrays and writes host.log here, between commit and signalDrawable.
++    if (target_ts > 0 && !rb_promotion_on()) {
+         static double leads[300], e2e[300];   // e2e: game enqueue -> system-scheduled present (including the time waiting in the queue for the display-link callback), the full span of input latency that our side can read
+         static uint64_t lead_n;
+         leads[lead_n % 300] = (target_ts - CACurrentMediaTime()) * 1000.0; e2e[lead_n % 300] = g_link_it_tin > 0 ? (target_ts - g_link_it_tin) * 1000.0 : 0;
+@@ -23797,7 +23819,9 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+     // Record the present time by the game's present sequence number (ticket number): hle's present statistics are taken by "the game's nth present"; in the display link path the actual present count != the game's present count (old frames get merged and dropped)
+     present_note(dr, ticket);
+     // Each frame is displayed for at least one present period: when the GPU completion time jitters around a 120 Hz refresh boundary, the paired "25 ms + 8.33 ms" stutter no longer appears
+-    if (target_ts > 0) [dr present];
++    // A CAMetalDisplayLink supplies its own deadline and drawable. Apple
++    // requires present here. Timed presentation asserts for a link drawable.
++    if (supplied) [dr present];
+     else if (period > 0) [dr presentAfterMinimumDuration:period]; else [dr present];
+ #endif
+     (void)frame;
+@@ -23826,7 +23850,19 @@ static unsigned g_link20_n;
+ static int g_link20_sample, g_link20_reported;
+ static _Atomic int g_link20_unavailable;
+ 
+-@interface NvMetalDisplayLinkDelegate : NSObject <CAMetalDisplayLinkDelegate>
++// Set under g_pq_mu with the range. Zero keeps the existing cadence for
++// opt-outs, other titles, 20/120 Hz and non-divisible external displays.
++static int g_rb_link_hz;
++typedef struct {
++    unsigned raw, filtered, held, empty, busy, missing_drawable, submitted, failed, merged, late;
++    uint64_t first_arrival;
++    double queue_max_ms;
++} rb_link_window;
++@interface NvMetalDisplayLinkDelegate : NSObject <CAMetalDisplayLinkDelegate> {
++    rb_display_phase _phase;
++    rb_link_window _window;
++    int _windowHz;
++}
+ @end
+ 
+ // Fallback for the display link going silent while in the foreground (two smoke-test hangs before merge: the display link stopped calling back while the app was in the foreground, nobody takes the queued frames, and the game waits forever for its previous present to be processed before "acquiring the next swapchain texture"):
+@@ -23876,39 +23912,97 @@ __attribute__((weak)) uint64_t dm_focus_in_since(void) { return 0; }
+     if (g_stall_t0) { uint64_t t = now_ns();
+         g_link20_last = 0; g_link20_n = 0;
+         MLOG("display link recovered: stalled %.0f ms (%.0f ms of it active), fallback dropped %llu frames (stall #%llu)", (t - g_stall_t0) / 1e6, (t - (g_stall_t0 > since ? g_stall_t0 : since)) / 1e6, (unsigned long long)g_stall_drop, (unsigned long long)g_stall_n); g_stall_t0 = 0; }
++    int exact_hz = g_rb_link_hz;
++    double vp = g_link_vperiod, half_refresh = g_link_vhalf;
+     pthread_mutex_unlock(&g_pq_mu);
+-    double vp = g_link_vperiod, tol = 0.002;   // tol: how early a tick may come and still end a hold (below)
++    if (_windowHz != exact_hz || !active || (since && _window.first_arrival < since)) {
++        _phase = (rb_display_phase){0};
++        _window = (rb_link_window){0};
++        _windowHz = exact_hz;
++    }
++    if (!active) exact_hz = 0;
++    if (exact_hz) {
++        // Report the completed window before accounting this callback. No I/O
++        // or percentile sorting between commit, signalDrawable and present.
++        if (_window.raw == 300) {
++            const rb_link_window w = _window;
++            double hz = arrival > w.first_arrival ? w.raw * 1e9 / (arrival - w.first_arrival) : 0;
++            dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
++                MLOG("[rb-link] requested_hz=%d callback_hz=%.2f callbacks=%u filtered=%u held=%u empty_queue=%u gpu_slot_busy=%u no_drawable=%u submitted=%u failed=%u merged=%u missed_submit_deadline=%u max_queue_ms=%.2f",
++                     exact_hz, hz, w.raw, w.filtered, w.held, w.empty, w.busy, w.missing_drawable, w.submitted, w.failed, w.merged, w.late, w.queue_max_ms);
++            });
++            _window = (rb_link_window){0};
++        }
++        if (!_window.raw++) _window.first_arrival = arrival;
++        if (!rb_display_tick(&_phase, exact_hz, update.targetPresentationTimestamp)) {
++            _window.filtered++;
++            return;
++        }
++    }
++    double tol = 0.002;   // tol: how early a tick may come and still end a hold (below)
+     if (vp > 0) {   // virtual ticks: only the refresh nearest each slot of a steady clock at the wanted rate counts (link_range)
+         static double next, vp_was; double t = update.targetPresentationTimestamp;
+         if (vp != vp_was || t > next + vp) { next = t; vp_was = vp; }   // the first callback, a new rate, or after a stall: the clock starts again here
+-        if (t < next - g_link_vhalf) return;
+-        next += vp; tol += 2 * g_link_vhalf;   // a tick lies up to half a refresh off its slot, so two of them up to one refresh nearer each other than the slots
++        if (t < next - half_refresh) return;
++        next += vp; tol += 2 * half_refresh;   // a tick lies up to half a refresh off its slot, so two of them up to one refresh nearer each other than the slots
+     }
+     pthread_mutex_lock(&g_link_mu);
+     g_link_tick_ns = now_ns();
++    g_rb_tick_target = exact_hz ? update.targetPresentationTimestamp : 0;
+     g_link_tick_n++;
+     pthread_cond_broadcast(&g_link_cv);
+     pthread_mutex_unlock(&g_link_mu);
+     pthread_mutex_lock(&g_pq_mu);
+-    if (!g_dm_present_link || g_pq_read == g_pq_in) { pthread_mutex_unlock(&g_pq_mu); return; }
++    if (!g_dm_present_link || g_pq_read == g_pq_in) {
++        if (exact_hz) {
++            if (update.targetPresentationTimestamp < g_link_hold_until - tol) _window.held++;
++            else _window.empty++;
++        }
++        pthread_mutex_unlock(&g_pq_mu);
++        return;
++    }
+     // The previous frame's present interval was >= 2 (period > 25 ms): keep it on screen for its whole period before taking the next one, as the Switch flips only every N vertical syncs. This also holds while the link runs at 60 Hz (Mario 1.2.1 sets 2 for single frames, see nvn_game_fps in hle_nvn.c);
+     //   before, every tick took the newest frame, so that frame, carrying the extra time step the game advanced for it, was shown for only 16.7 ms and the game looked like it jumped ahead
+-    if (g_link_hold_until > 0 && update.targetPresentationTimestamp < g_link_hold_until - tol) { g_link_held++; pthread_mutex_unlock(&g_pq_mu); return; }
++    if (g_link_hold_until > 0 && update.targetPresentationTimestamp < g_link_hold_until - tol) { g_link_held++; if (exact_hz) _window.held++; pthread_mutex_unlock(&g_pq_mu); return; }
+     uint64_t first = g_pq_read + 1, ticket = g_pq_in;
+     // In order, one frame per tick and at most one behind the newest: two waiting, the older now and the newer on the next tick; three or more, the older ones are dropped. Taking the newest
+     // dropped the one before whenever two frames landed in the same refresh, as frames of a 60 fps game that take 16-17.5 ms do, and the next frame then stayed up 33 ms
+     // (Dark Souls Remastered, from PR #31: presents within 14.7-18.7 ms 98.2 -> 99.98 %, about 2 ms more from enqueue to display). DM_PRESENT_FIFO=0 takes the newest, as before
+     static int fifo = -1; if (fifo < 0) { const char *e = getenv("DM_PRESENT_FIFO"); fifo = !(e && !strcmp(e, "0")); MLOG("display link: %s", fifo ? "frames in order, at most one behind" : "the newest frame each tick (DM_PRESENT_FIFO=0)"); }
+     if (fifo && ticket > first) ticket = ticket - first >= 2 ? g_pq_in - 1 : first;
++    // The link owns this layer. Never enter the classic nextDrawable path
++    // while it is attached, or wait inside the delegate for this allocator.
++    id<CAMetalDrawable> drawable = update.drawable;
++    if (!drawable) {
++        if (exact_hz) _window.missing_drawable++;
++        pthread_mutex_unlock(&g_pq_mu);
++        return;
++    }
++    unsigned slot = (unsigned)(ticket % 3);
++    if (exact_hz && g_present_slot_done[slot] < g_present_alloc_fence[slot]) {
++        _window.busy++;
++        pthread_mutex_unlock(&g_pq_mu);
++        return;
++    }
+     pq_item it = g_pq[(ticket - 1) % PQ]; g_link_it_tin = it.t_in;
++    if (exact_hz) {
++        _window.merged += (unsigned)(ticket - first);
++        _window.queue_max_ms = fmax(_window.queue_max_ms, (CACurrentMediaTime() - it.t_in) * 1000.0);
++    }
+     g_pq_read = ticket;
+-    if (ticket > first) { g_link_dropped += ticket - first; for (uint64_t k = first; k < ticket; k++) g_pres[k % PRING] = (pres_ent){k, -1}; }   // Old frames merged and dropped are recorded as "not presented", so the present statistics honestly count them as dropped frames
++    if (ticket > first) { g_link_dropped += ticket - first; for (uint64_t k = first; k < ticket; k++) present_store(k, -1); }   // Old frames merged and dropped are recorded as "not presented", so the present statistics honestly count them as dropped frames
+     if (ticket > 1 && g_pq_done < ticket - 1) g_pq_done = ticket - 1;
+     pthread_cond_broadcast(&g_pq_cv);
+     pthread_mutex_unlock(&g_pq_mu);
+     int submitted;
+     ext_wait(it.ev_val);
+-    @autoreleasepool { submitted = present_now(&it.t, it.period, it.frame, ticket, it.crop, update.drawable, update.targetPresentationTimestamp); }
++    @autoreleasepool { submitted = present_now(&it.t, it.period, it.frame, ticket, it.crop, drawable, update.targetPresentationTimestamp); }
++    if (exact_hz) {
++        if (submitted) {
++            _window.submitted++;
++            if (update.targetTimestamp > 0 && CACurrentMediaTime() > update.targetTimestamp) _window.late++;
++        } else _window.failed++;
++    }
+     g_link_hold_until = submitted && it.period > 0.025 ? update.targetPresentationTimestamp + it.period : 0;
+     if (!submitted) {
+         pthread_mutex_lock(&g_pq_mu);
+@@ -23941,7 +24035,7 @@ static CAFrameRateRange link_range(int mode) {
+     g_link_vperiod = 0;
+     return mode == 2 ? CAFrameRateRangeMake(60, 120, 120) : CAFrameRateRangeMake(rate, rate, rate);
+ }
+-static int g_link_mode = 1;   // 1 / 2 same as g_dm_present_link, 3 = 30 Hz, 4 = 20 Hz
++static _Atomic int g_link_mode = 1;   // 1 / 2 same as g_dm_present_link, 3 = 30 Hz, 4 = 20 Hz
+ static int g_link_pending;
+ static uint64_t g_link_pending_since, g_link_pending_period;
+ static link_backoff g_low;   // 降到低频档的退避（nvn_link_backoff.h）
+@@ -23966,9 +24060,9 @@ static void link_join(void) {
+ //   丝之歌测试设备（轮询线程长退避、整机 1.7 W、CPU 多在能效核约 1.9 GHz）每约 35 帧一个 33.3 ms 帧：游戏按时交帧（交帧间隔 16.69 ms）、
+ //   GPU 交帧后 4.7 ms 做完，可那一拍没放出去，上屏晚一整个刷新（第 5509 帧：交帧到上屏 62.6 ms，相邻帧 46 ms）。只有 QoS 的这条线程在低主频下偶尔被晚调度。
+ //   周期 = 链接目标帧率的一拍，计算 2 ms（回调实测远小于它），约束 = 一拍：给的是「准时」，不是让它多占核
+-static void link_rt_declare(void) {
++static void link_rt_declare(CAFrameRateRange r) {
+     const char *e = getenv("DM_LINK_RT"); if (e && !strcmp(e, "0")) { MLOG("DM_LINK_RT=0: the display link thread gets no time-constraint policy"); return; }
+-    CAFrameRateRange r = link_range(g_link_mode); float hz = r.preferred > 0 ? r.preferred : r.maximum > 0 ? r.maximum : 60;
++    float hz = r.preferred > 0 ? r.preferred : r.maximum > 0 ? r.maximum : 60;
+     uint64_t period_ns = (uint64_t)(1e9 / hz), comp_ns = 2000000ull; if (comp_ns > period_ns / 2) comp_ns = period_ns / 2;
+     static mach_timebase_info_data_t tb; if (!tb.denom) mach_timebase_info(&tb);
+     thread_time_constraint_policy_data_t p = { .period = (uint32_t)(period_ns * tb.denom / tb.numer), .computation = (uint32_t)(comp_ns * tb.denom / tb.numer),
+@@ -23985,14 +24079,17 @@ static void *link_main(void *arg) {   // Display link thread: started when switc
+     s2a_qos_set_self(S2A_QOS_PRESENT);
+     @autoreleasepool {
+     CAMetalLayer *layer = (__bridge CAMetalLayer *)front_metal_layer();
+-    link_rt_declare();
+     pthread_mutex_lock(&g_pq_mu); g_link_owns_layer = 1; while (g_classic_busy) pthread_cond_wait(&g_pq_cv, &g_pq_mu); pthread_mutex_unlock(&g_pq_mu);   // Wait for the present thread to finish handing over the frame it holds
+     NvMetalDisplayLinkDelegate *delegate = [NvMetalDisplayLinkDelegate new];
+     CAMetalDisplayLink *link = [[CAMetalDisplayLink alloc] initWithMetalLayer:layer];
+     pthread_mutex_lock(&g_pq_mu);
+     g_link20_sample = g_link_mode == 4; g_link20_last = 0; g_link20_n = 0; g_link20_reported = 0;
+-    link.preferredFrameRateRange = link_range(g_link_mode);
++    CAFrameRateRange range = link_range(g_link_mode);
++    link.preferredFrameRateRange = range;
++    g_rb_link_hz = rb_promotion_on() && range.minimum == range.maximum &&
++                   (range.preferred == 30 || range.preferred == 60) ? (int)range.preferred : 0;
+     pthread_mutex_unlock(&g_pq_mu);
++    link_rt_declare(range);
+     link.preferredFrameLatency = g_present_latency;
+     link.delegate = delegate;
+     [link addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+@@ -24049,7 +24146,9 @@ static const char *rb_pace_why(int want, int fallback, int inexact) {
+ }
+ static void link_sync(double period) {   // Called every frame by the game's present thread: aligns the display link object's state to g_dm_present_link and the power-saving mode (can change at run time)
+     if (atomic_load(&g_link_stop)) return;
+-    int applied = g_link_applied; int want = g_dm_present_link; const int base = want;
++    int applied = g_link_applied; int want = g_dm_present_link;
++    int exact_mode = rb_promotion_on() && want ? rb_promotion_mode(period) : 0;
++    int base = exact_mode ? 1 : want;
+     if (want < 0 || want > 2) { g_dm_present_link = applied >= 3 ? 1 : applied; return; }
+     // Follow the current final period, never permanently lock out low rates
+     // after a loading screen. Preserve the native-30 stability gate and pins.
+@@ -24072,6 +24171,10 @@ static void link_sync(double period) {   // Called every frame by the game's pre
+                                (unsigned long long)atomic_load(&g_cur_frame)); }
+         }
+     }
++    // Choose the exact physical rate from the final, authorized period, even
++    // when the user's base link is 120 or a 30 FPS cap is active. Existing
++    // hysteresis protects transient game interval changes and 20 Hz fallback.
++    if (exact_mode && fps_override() != 30) want = candidate = exact_mode;
+     // Reuse the one-second rationale of g_itv2_since: a single slow frame must
+     // not reconfigure the system's asynchronous display link. Both directions
+     // require the same final period continuously; explicit pins / off do not.
+@@ -24109,8 +24212,15 @@ static void link_sync(double period) {   // Called every frame by the game's pre
+     if (want != 4 || applied != 4) {
+         g_link20_sample = want == 4; g_link20_last = 0; g_link20_n = 0; g_link20_reported = 0;
+     }
+-    if (want) link.preferredFrameRateRange = link_range(want);
+-    else link_stop_locked();
++    if (want) {
++        CAFrameRateRange range = link_range(want);
++        link.preferredFrameRateRange = range;
++        g_rb_link_hz = rb_promotion_on() && range.minimum == range.maximum &&
++                       (range.preferred == 30 || range.preferred == 60) ? (int)range.preferred : 0;
++    } else {
++        g_rb_link_hz = 0;
++        link_stop_locked();
++    }
+     MLOG("present pacing mode %d → %d (%s; S2A_FPS %d; low-rate hold %.0f s; frame %llu)", applied, want, rb_pace_why(want, fallback, inexact), nvn_fps_limit(), lb_hold(&g_low) / 1e9, (unsigned long long)atomic_load(&g_cur_frame));   // RewindBox (patch 0068): the reason and the limit; the frame stays last (t_fps_limit.sh reads $NF)
+     lb_applied(&g_low, applied, want, now);
+     g_link_applied = want;
+@@ -24123,7 +24233,7 @@ static void present_drop_for_suspend(void) {
+     pthread_mutex_lock(&g_pq_mu);
+     if (g_link_owns_layer) {
+         uint64_t n = g_pq_in - g_pq_read;
+-        for (uint64_t k = g_pq_read + 1; k <= g_pq_in; k++) g_pres[k % PRING] = (pres_ent){k, -1};
++        for (uint64_t k = g_pq_read + 1; k <= g_pq_in; k++) present_store(k, -1);
+         g_link_dropped += n; g_pq_read = g_pq_in;
+         while (g_pq_inflight) pthread_cond_wait(&g_pq_cv, &g_pq_mu);
+         if (g_pq_done < g_pq_in) g_pq_done = g_pq_in;
+@@ -24221,7 +24331,7 @@ void nvn_be_present_wait(uint64_t tk) {
+         if (g_pq_read >= tk) continue;
+         if (now - last < STALL_NS) { pthread_cond_timedwait(&g_pq_cv, &g_pq_mu, &ts); continue; }   // The display link is still running, it is just not this one's turn yet: keep waiting (bounded, no busy spinning)
+         uint64_t n = tk - g_pq_read;
+-        for (uint64_t k = g_pq_read + 1; k <= tk; k++) g_pres[k % PRING] = (pres_ent){k, -1};
++        for (uint64_t k = g_pq_read + 1; k <= tk; k++) present_store(k, -1);
+         g_link_dropped += n; g_pq_read = tk;
+         while (g_pq_inflight) pthread_cond_wait(&g_pq_cv, &g_pq_mu);
+         if (g_pq_done < tk) g_pq_done = tk;
+@@ -24384,12 +24494,19 @@ int nvn_be_link_wait_tick(int vsyncs, uint64_t timeout_ns) {
+     int rate = g_link_mode == 4 ? 20 : g_link_mode == 3 ? 30 : g_link_mode == 2 ? 120 : 60;
+     const uint64_t step = (uint64_t)fmax(1, ceil(period * rate - 1e-6));
+     pthread_mutex_lock(&g_link_mu);
+-    if (g_link_tick_n >= g_link_started_tick + step) { g_link_started_tick = g_link_tick_n; pthread_mutex_unlock(&g_link_mu); return 1; }
++    if (rb_display_wait_ready(g_link_tick_n, g_link_started_tick, step, g_rb_tick_target, g_rb_started_target, period)) {
++        g_link_started_tick = g_link_tick_n;
++        g_rb_started_target = g_rb_tick_target;
++        pthread_mutex_unlock(&g_link_mu); return 1;
++    }
+     struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts);
+     ts.tv_sec += timeout_ns / 1000000000ull; ts.tv_nsec += timeout_ns % 1000000000ull;
+     if (ts.tv_nsec >= 1000000000L) { ts.tv_sec++; ts.tv_nsec -= 1000000000L; }
+     pthread_mutex_unlock(&g_link_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_link_mu);
+-    while (g_link_tick_n < g_link_started_tick + step) if (pthread_cond_timedwait(&g_link_cv, &g_link_mu, &ts) == ETIMEDOUT) { pthread_mutex_unlock(&g_link_mu); DM_BLOCK_END(); return 0; }
++    while (!rb_display_wait_ready(g_link_tick_n, g_link_started_tick, step, g_rb_tick_target, g_rb_started_target, period)) {
++        if (pthread_cond_timedwait(&g_link_cv, &g_link_mu, &ts) == ETIMEDOUT) { pthread_mutex_unlock(&g_link_mu); DM_BLOCK_END(); return 0; }
++    }
++    g_rb_started_target = g_rb_tick_target;
+     g_link_started_tick = g_link_tick_n;
+     pthread_mutex_unlock(&g_link_mu); DM_BLOCK_END(); t_link_waited = 1; return 1;   // RewindBox (patch 0068): t_link_waited
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 8073f58..b04a25d 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -286,6 +286,8 @@ int nvn_be_shutdown_session(void) {
+     // The next session starts in the convention used to seed its prefetch set above.
+     atomic_store(&g_vs_loaded, 0); atomic_store(&g_depth_zero, next_depth_zero);
+     memset(g_pq, 0, sizeof g_pq); g_ext_ev = nil; g_ext_pend3 = 0;
++    atomic_store(&g_rb_promotion_option, 0); g_rb_link_hz = 0;
++    g_rb_tick_target = g_rb_started_target = 0;
+     g_link_applied = 0; g_link_hold_until = g_link_vperiod = g_link_vhalf = 0;
+     g_link_pending = 0; g_link_pending_since = g_link_pending_period = 0;
+     g_low = (link_backoff){0};   // 降档退避（nvn_link_backoff.h）逐局：旧局顶到 64 秒的 hold、停在低频档的 since 都不带进新局（满屏补丁线复核 11-04）
+diff --git a/graphics/nvn/gfx/nvn/rb_promotion.h b/graphics/nvn/gfx/nvn/rb_promotion.h
+new file mode 100644
+index 0000000..4361f0b
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_promotion.h
+@@ -0,0 +1,56 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <math.h>
++#include <stdint.h>
++
++// The effective period already includes the guest interval, simulation policy and FPS cap.
++static inline int rb_promotion_mode(double period) {
++    if (fabs(period * 60 - 1) < 1e-6) return 1;
++    if (fabs(period * 30 - 1) < 1e-6) return 3;
++    return 0;
++}
++
++typedef struct { double next; int hz; } rb_display_phase;
++
++// The range is a request. If CA supplies 120 targets/s while a 60/30 request
++// settles, count only the appropriate targets, before waking the guest. A late
++// update never emits catch-up ticks. A rate switch starts a new phase.
++static inline int rb_display_tick(rb_display_phase *phase, int hz, double target) {
++    if (!hz || !(target > 0) || !isfinite(target)) {
++        *phase = (rb_display_phase){0};
++        return 1;
++    }
++    double period = 1.0 / hz;
++    if (phase->hz != hz || target > phase->next + period * 0.25) {
++        phase->hz = hz;
++        phase->next = target + period;
++        return 1;
++    }
++    if (target < phase->next - 0.001) return 0;
++    phase->next += period;
++    return 1;
++}
++
++// A rate change may happen while AcquireTexture is asleep. Account for the
++// actual difference between accepted display targets across that transition.
++static inline int rb_display_wait_ready(uint64_t tick, uint64_t previous_tick, uint64_t step,
++                                        double target, double previous_target, double period) {
++    if (tick <= previous_tick) return 0;
++    if (target > 0 && previous_target > 0 && target >= previous_target)
++        return target - previous_target >= period - 0.001;
++    return tick - previous_tick >= step;
++}
++
++// The delayed observer needs the current window ordinal minus eight and nine.
++// Retain the actual global backend ticket, effective hold and frame step.
++enum { RB_PRESENT_HISTORY = 10 };
++typedef struct {
++    uint64_t tickets[RB_PRESENT_HISTORY];
++    uint8_t holds[RB_PRESENT_HISTORY], steps[RB_PRESENT_HISTORY];
++} rb_present_samples;
++
++static inline unsigned rb_shown_hold(const rb_present_samples *samples, uint64_t ordinal) {
++    unsigned current = samples->holds[ordinal % RB_PRESENT_HISTORY];
++    unsigned previous = samples->holds[(ordinal - 1) % RB_PRESENT_HISTORY];
++    return current > previous ? current : previous;
++}
+diff --git a/graphics/nvn/tests/t_rb_promotion.c b/graphics/nvn/tests/t_rb_promotion.c
+new file mode 100644
+index 0000000..34a248c
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_promotion.c
+@@ -0,0 +1,64 @@
++// SPDX-License-Identifier: MIT
++#define _POSIX_C_SOURCE 200809L
++#include "../gfx/nvn/rb_promotion.h"
++#include "../gfx/nvn/nvn_rb_direct.h"
++#include <assert.h>
++#include <stdio.h>
++
++static void count_ticks(int requested, int offered, int expected) {
++    rb_display_phase phase = {0};
++    int ticks = 0;
++    for (int i = 0; i < offered * 3; ++i)
++        ticks += rb_display_tick(&phase, requested, 1 + (double)i / offered);
++    assert(ticks == expected * 3);
++}
++
++int main(void) {
++    assert(rb_promotion_mode(16666666 / 1e9) == 1);
++    assert(rb_promotion_mode(33333333 / 1e9) == 3);
++    assert(!rb_promotion_mode(0) && !rb_promotion_mode(1.0/120));
++    assert(!rb_promotion_mode(1.0/20));
++    count_ticks(60, 120, 60); count_ticks(30, 120, 30);
++    count_ticks(60, 60, 60); count_ticks(30, 30, 30);
++    count_ticks(30, 60, 30); count_ticks(60, 30, 30);
++    rb_display_phase phase = {0};
++    assert(rb_display_tick(&phase, 60, 1));
++    assert(!rb_display_tick(&phase, 60, 1));
++    assert(rb_display_tick(&phase, 60, 1.5));
++    assert(!rb_display_tick(&phase, 60, 1.508));
++    assert(rb_display_tick(&phase, 30, 1.516));
++    assert(!rb_display_tick(&phase, 30, 1.532));
++    assert(rb_display_tick(&phase, 30, 1.5492));
++    assert(rb_display_tick(&phase, 60, 1.566));
++    // 2 old 60 Hz ticks becomes one physical 30 Hz callback while waiting.
++    assert(rb_display_wait_ready(11, 10, 2, 1+1.0/30, 1, 1.0/30));
++    assert(!rb_display_wait_ready(11, 10, 1, 1+1.0/60, 1, 1.0/30));
++    assert(rb_display_wait_ready(12, 10, 1, 1+2.0/60, 1, 1.0/30));
++    assert(!rb_display_wait_ready(10, 10, 1, 2, 1, 1.0/60));
++    assert(!rb_display_wait_ready(11, 10, 2, 0, 0, 1.0/30));
++    assert(rb_display_wait_ready(12, 10, 2, 0, 0, 1.0/30));
++    rb_present_samples first = {0}, second = {0};
++    for (unsigned n = 1; n <= 24; n++) {
++        unsigned index = n % RB_PRESENT_HISTORY;
++        first.tickets[index] = 400 + 2*n;
++        first.holds[index] = n == 13 ? 2 : 1;
++        second.tickets[index] = first.tickets[index]+1;
++        second.holds[index] = 2;
++        if (n < 10) continue;
++        unsigned seen = n-8;
++        assert(first.tickets[seen % RB_PRESENT_HISTORY] == 400 + 2*seen);
++        assert(second.tickets[(seen-1) % RB_PRESENT_HISTORY] == 401 + 2*(seen-1));
++        assert(rb_shown_hold(&first, seen) == (seen == 13 || seen == 14 ? 2u : 1u));
++        assert(rb_shown_hold(&second, seen) == 2);
++    }
++    _Atomic int cached = 0;
++    setenv("S2A_RB_DIRECT_GAME_ID","04007EF01F8AE000",1);
++    unsetenv("S2A_RB_PROMOTION_PACING");
++    assert(rb_direct_option(&cached,"S2A_RB_PROMOTION_PACING"));
++    setenv("S2A_RB_PROMOTION_PACING","0",1); cached = 0;
++    assert(!rb_direct_option(&cached,"S2A_RB_PROMOTION_PACING"));
++    setenv("S2A_RB_DIRECT_GAME_ID","other",1);
++    setenv("S2A_RB_PROMOTION_PACING","1",1); cached = 0;
++    assert(!rb_direct_option(&cached,"S2A_RB_PROMOTION_PACING"));
++    puts("ProMotion effective period, callback phase, missing refreshes, transitions and title scope: passed");
++}

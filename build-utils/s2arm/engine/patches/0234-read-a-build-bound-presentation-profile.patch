@@ -1,0 +1,273 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 6605b16..8776211 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -41,6 +41,10 @@ extern void s2a_rb_bench_frame(uint64_t, int, uint64_t) __attribute__((weak_impo
+ #include <CoreFoundation/CoreFoundation.h>
+ #include <mach/mach.h>
+ #include <TargetConditionals.h>
++#if TARGET_OS_IOS
++#include "../../../../runtime/include/s2a_docs.h"
++#include "../../host/rb_present_profile.h"
++#endif
+ #include <unistd.h>
+ #include <sys/mman.h>
+ #include <errno.h>
+@@ -3898,9 +3902,26 @@ static void present_cfg(const win_t *o) {
+     // with a fixed hard floor of 60 fps; the logic stays at 25 ticks, and the client's frame-counted UI logic is unaffected -
+     // with the same save and the same input, the UI message streams of the two modes match message by message. Proof (before character select): r9 game / display 60 ×3 / display 120 ×2, 6 groups in total, uicmp consistent
+     // (the save indicator is exempted as a timing race), and the timing differences of key messages are within game mode's own noise band; proof after entering a run is still missing, pending action script coverage
+-    const char *m = getenv("DM_PRESENT_INTERVAL"); g_display_mode = m ? !strcmp(m, "display") : DM_GAME_PRESENT_DISPLAY;
++    const char *m = getenv("DM_PRESENT_INTERVAL");
++    int profile_mode = -1;
++#if TARGET_OS_IOS
++    const char *host_id = getenv("S2A_RB_DIRECT_GAME_ID");
++    const char *setting = getenv("S2A_RB_CADENCE_PROFILE");
++    if (!m && host_id && (!setting || !strcmp(setting, "1"))) {
++        const char *program = DM_GAME_ID;
++        const char *build = dm_main_build();
++        const char *status = "identity-mismatch";
++        char docs[1024];
++        int length = s2a_container_docs(docs, sizeof docs);
++        if (!strcasecmp(host_id, program) && length > 0 && (size_t)length < sizeof docs)
++            profile_mode = rb_read_present_profile(docs, program, build, &status);
++        LOG("[RewindBox] cadence profile program=%s build=%s result=%s", program, build ? build : "-", status);
++    }
++#endif
++    g_display_mode = m ? !strcmp(m, "display") : profile_mode >= 0 ?
++        s2a_present_fps60_gate(profile_mode, getenv("S2A_FPS60")) : DM_GAME_PRESENT_DISPLAY;
+     if (g_display_mode) s2a_fps_cap_watch();   // display 模式跑在游戏自己的帧率之上：热 / 低电量时退回游戏间隔，降档判定统一在帧率表（runtime/src/fps.c s2a_fps_cap_tick）
+-    const char *src = m ? "DM_PRESENT_INTERVAL 环境变量" : DM_GAME_PRESENT_DISPLAY ? "推导（引擎标记 + L3 判定）或显式 game.tsv" : "缺省（game）";
++    const char *src = m ? "DM_PRESENT_INTERVAL 环境变量" : profile_mode >= 0 ? "user game.tsv" : DM_GAME_PRESENT_DISPLAY ? "推导（引擎标记 + L3 判定）或显式 game.tsv" : "缺省（game）";
+     LOG("[nvn] present tick %d Hz, interval mode %s（依据：%s；游戏设 interval %d；%s）", g_hz, g_display_mode ? "display（每个显示节拍一帧）" : "game（按游戏设的间隔）",
+         src, o->interval, scr > 0 ? "window, fixed 60 Hz" : "no window, fixed 60 Hz");
+ }
+diff --git a/graphics/nvn/host/game_tsv.h b/graphics/nvn/host/game_tsv.h
+index 61fcc69..3c7b41a 100644
+--- a/graphics/nvn/host/game_tsv.h
++++ b/graphics/nvn/host/game_tsv.h
+@@ -11,10 +11,13 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <strings.h>
++
+ 
+ typedef struct {
+     uint64_t app_pool;
+-    int present_display, present_display_derived, fps_hold, render_cond, tex_flush_upload, tex_dirty_upload, tex_dyn_slots, gpu_ts_segment, vconv_range, draw_barriers_game;
++    char program_id[18];
++    int present_explicit, present_display, present_display_derived, fps_hold, render_cond, tex_flush_upload, tex_dirty_upload, tex_dyn_slots, gpu_ts_segment, vconv_range, draw_barriers_game;
+     char alpha_from_red[2048], feedback_snap[512], zero_skip[512];
+ } s2a_game_tsv;
+ 
+@@ -66,10 +69,12 @@ static inline void s2a_game_tsv_parse(const char *text, s2a_game_tsv *g, char *e
+     s2a_game_tsv_defaults(g); if (err && en) *err = 0;
+     if (!text) return;
+     char v[64];
++    s2a_game_tsv_find(text, "program_id", g->program_id, sizeof g->program_id);
+     if (s2a_game_tsv_find(text, "app_pool", v, sizeof v)) {
+         char *end; unsigned long long x = strtoull(v, &end, 0);
+         if (*v && !*end && x) g->app_pool = x; else if (err && !*err) snprintf(err, en, "app_pool 的值「%s」看不懂，按缺省", v);
+     }
++    g->present_explicit = s2a_game_tsv_find(text, "present_interval", v, sizeof v);
+     s2a_game_tsv_switch(text, "present_interval", "display", "game", &g->present_display, err, en);
+     s2a_game_tsv_switch(text, "present_interval_derived", "display", "game", &g->present_display_derived, err, en);
+     s2a_game_tsv_switch(text, "fps_hold", "on", "off", &g->fps_hold, err, en);
+@@ -89,14 +94,27 @@ static inline void s2a_game_tsv_parse(const char *text, s2a_game_tsv *g, char *e
+ 
+ // 读文件再解析；返回 1 = 读到文件，0 = 没有文件（全按缺省）
+ static inline int s2a_game_tsv_load(const char *path, s2a_game_tsv *g, char *err, size_t en) {
+-    FILE *f = fopen(path, "rb"); if (!f) { s2a_game_tsv_parse(NULL, g, err, en); return 0; }
+-    char *buf = NULL; size_t cap = 0, len = 0, r; char tmp[4096];
+-    while ((r = fread(tmp, 1, sizeof tmp, f)) > 0) {
+-        if (len + r + 1 > cap) { cap = (len + r + 1) * 2; char *nb = realloc(buf, cap); if (!nb) break; buf = nb; }
+-        memcpy(buf + len, tmp, r); len += r;
++    s2a_game_tsv_parse(NULL, g, err, en);
++    FILE *f = path && *path ? fopen(path, "rb") : NULL;
++    if (!f) return 0;
++    // Both explicit presence and value must come from one complete snapshot.
++    // game.tsv is a small, regular text file. Discard short reads and embedded NULs.
++    int valid = 0;
++    long length = -1;
++    if (!fseek(f, 0, SEEK_END)) length = ftell(f);
++    if (length >= 0 && length <= 1024 * 1024 && !fseek(f, 0, SEEK_SET)) {
++        size_t n = (size_t)length;
++        char *buf = malloc(n + 1);
++        if (buf && fread(buf, 1, n, f) == n && fgetc(f) == EOF && !ferror(f) && !memchr(buf, 0, n)) {
++            buf[n] = 0;
++            s2a_game_tsv_parse(buf, g, err, en);
++            valid = 1;
++        }
++        free(buf);
+     }
+-    fclose(f); if (buf) buf[len] = 0;
+-    s2a_game_tsv_parse(buf, g, err, en); free(buf); return 1;
++    fclose(f);
++    if (!valid && err && en) snprintf(err, en, "invalid or incomplete game.tsv");
++    return valid;
+ }
+ 
+ // present_interval 决策函数（生产代码与单测共用）：返回最终的 present_display（1=display, 0=game）
+@@ -113,5 +131,12 @@ static inline int s2a_present_decide(int explicit_set, int explicit_display, int
+     // 推导 display：只有 L3 判定 need_l3（逻辑速度红、必须补时间步）才退回 game
+     return l3_result && !strcmp(l3_result, "need_l3") ? 0 : 1;
+ }
++// Hosted profiles can derive display cadence only with an affirmative speed verdict.
++static inline int s2a_present_packaged(const s2a_game_tsv *g, const char *host_id, const char *l3) {
++    int hosted = host_id && *host_id;
++    if (hosted && g->program_id[0] && strcasecmp(g->program_id, host_id)) return 0;
++    int derived = g->present_display_derived && (!hosted || (l3 && !strcmp(l3, "ok")));
++    return s2a_present_decide(g->present_explicit, g->present_display, derived, l3);
++}
+ // 60 帧开关（S2A_FPS60，同 runtime/src/fps.c fps_on_at_start：只认整串 "0" 为关）：关 = 回游戏原帧率，档里的 present_interval display（显式或推导）也不生效
+ static inline int s2a_present_fps60_gate(int display, const char *fps60_env) { return display && !(fps60_env && !strcmp(fps60_env, "0")); }
+diff --git a/graphics/nvn/host/rb_present_profile.h b/graphics/nvn/host/rb_present_profile.h
+new file mode 100644
+index 0000000..0ca3eb9
+--- /dev/null
++++ b/graphics/nvn/host/rb_present_profile.h
+@@ -0,0 +1,32 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright 2026 S2Arm contributors
++#pragma once
++#include "game_tsv.h"
++#include <errno.h>
++
++// Scope a user-authored cadence choice to the actual program and executable.
++// Only explicit present_interval is imported. Other renderer options remain packaged.
++static inline int rb_profile_hex(const char *value, size_t n) {
++    return value && strlen(value) == n && strspn(value, "0123456789abcdefABCDEF") == n;
++}
++static inline int rb_read_present_profile(const char *docs, const char *program, const char *build,
++                                          const char **status) {
++    *status = "identity-unavailable";
++    if (!docs || !*docs || !rb_profile_hex(program, 16) || !rb_profile_hex(build, 32)) return -1;
++    char path[2048];
++    int n = snprintf(path, sizeof path, "%s/S2Arm/profiles/%s/%s/game.tsv", docs, program, build);
++    if (n < 0 || (size_t)n >= sizeof path) return -1;
++    // This is called on the guest present stack. Keep the full parse object on the heap.
++    s2a_game_tsv *g = malloc(sizeof *g);
++    if (!g) { *status = "allocation-failed"; return 0; }
++    char error[160];
++    errno = 0;
++    int loaded = s2a_game_tsv_load(path, g, error, sizeof error);
++    int mode;
++    if (!loaded && !error[0] && errno == ENOENT) { *status = "absent"; mode = -1; }
++    else if (!loaded || error[0] || !g->present_explicit) { *status = "invalid"; mode = 0; }
++    else if (strcasecmp(g->program_id, program)) { *status = "program-mismatch"; mode = 0; }
++    else { *status = "explicit"; mode = g->present_display; }
++    free(g);
++    return mode;
++}
+diff --git a/graphics/nvn/host_adapt.m b/graphics/nvn/host_adapt.m
+index ef30116..59707fd 100644
+--- a/graphics/nvn/host_adapt.m
++++ b/graphics/nvn/host_adapt.m
+@@ -53,28 +53,14 @@ static void prof_load(const char *gd_in) {
+ #endif
+         if (gd && *gd) snprintf(p, sizeof p, "%s/shaders/direct/game.tsv", gd); else p[0] = 0;
+ 
+-        // 读 game.tsv 原文（用于判定是否显式写了 present_interval）
+-        char *tsv_text = NULL;
+-        if (p[0]) {
+-            FILE *tf = fopen(p, "rb");
+-            if (tf) {
+-                fseek(tf, 0, SEEK_END); long sz = ftell(tf); fseek(tf, 0, SEEK_SET);
+-                if (sz > 0 && sz < 1 << 20) { tsv_text = malloc((size_t)sz + 1); if (tsv_text) { fread(tsv_text, 1, (size_t)sz, tf); tsv_text[sz] = 0; } }
+-                fclose(tf);
+-            }
+-        }
+-
+-        int got = p[0] && s2a_game_tsv_load(p, &g_prof.t, err, sizeof err);
+-        if (!p[0]) s2a_game_tsv_parse(NULL, &g_prof.t, err, sizeof err);
+-
+-        // present_interval 决策（10-28 60 帧零配置）：显式 present_interval 优先；否则 推导 display 且 L3=ok → display；否则 game
+-        int explicit_set = 0;
+-        if (tsv_text) {
+-            char dummy[64]; explicit_set = s2a_game_tsv_find(tsv_text, "present_interval", dummy, sizeof dummy);
+-            free(tsv_text);
+-        }
++        int got = s2a_game_tsv_load(p, &g_prof.t, err, sizeof err);
++        int explicit_set = g_prof.t.present_explicit;
+         // 读 L3 判定结果（fps_l3_results.tsv，名单线产出、出库时拷进配置档目录）
+         char l3_path[1300]; const char *prog_id = s2a_nvn_game_id(); char l3_result[20] = "";
++        const char *host_id = getenv("S2A_RB_DIRECT_GAME_ID");
++        // NPDM may not be loaded during relocations. configure() already froze
++        // the host title before this first query. Subprograms use their own ID.
++        if (!gd_in && host_id && !strcmp(prog_id, "0000000000000000")) prog_id = host_id;
+         if (gd && *gd) { snprintf(l3_path, sizeof l3_path, "%s/shaders/direct/fps_l3_results.tsv", gd);
+             FILE *f = fopen(l3_path, "r");
+             if (f) {
+@@ -88,10 +74,10 @@ static void prof_load(const char *gd_in) {
+             }
+         }
+         // 调用决策函数
+-        int decided = s2a_present_decide(explicit_set, g_prof.t.present_display, g_prof.t.present_display_derived, l3_result[0] ? l3_result : NULL);
++        int decided = s2a_present_packaged(&g_prof.t, host_id && *host_id ? prog_id : NULL, l3_result);
+         int final_display = s2a_present_fps60_gate(decided, getenv("S2A_FPS60"));   // 只用于下面这行日志：缓存的是开关前的决策，开关在读时套（game_profile.h DM_GAME_PRESENT_DISPLAY）
+         const char *reason = decided && !final_display ? "60 帧关（S2A_FPS60=0），档里的 display 不生效" : explicit_set ? "显式" :
+-                             (final_display ? "推导 + L3 ok" :
++                             (final_display ? "derived profile" :
+                               (g_prof.t.present_display_derived ? (l3_result[0] ? "推导但 L3 未确认" : "推导但无 L3 判定") : "缺省"));
+         if (explicit_set || g_prof.t.present_display_derived) {
+             LOG("直连：present_interval 决策 → %s（依据：%s；显式=%d，推导=%d，L3=%s）",
+diff --git a/graphics/nvn/tests/t_rb_present_profile.c b/graphics/nvn/tests/t_rb_present_profile.c
+new file mode 100644
+index 0000000..370fbac
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_present_profile.c
+@@ -0,0 +1,53 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright 2026 S2Arm contributors
++#include "../host/rb_present_profile.h"
++#include <assert.h>
++#include <sys/stat.h>
++#include <unistd.h>
++
++static void put(const void *bytes, size_t length) {
++    FILE *f = fopen("game.tsv", "wb");
++    assert(f && fwrite(bytes, 1, length, f) == length && !fclose(f));
++}
++
++int main(void) {
++    const char *program = "04007EF01F8AE000";
++    const char *build = "db93b0125f4850601d61c3edde012f8e";
++    const char *status = NULL;
++    char root[] = "/tmp/rb-pacing-XXXXXX";
++    assert(mkdtemp(root) && !chdir(root));
++    assert(rb_read_present_profile(root, program, build, &status) == -1 && !strcmp(status, "absent"));
++    assert(!mkdir("S2Arm", 0700) && !chdir("S2Arm") && !mkdir("profiles", 0700) && !chdir("profiles"));
++    assert(!mkdir(program, 0700) && !chdir(program) && !mkdir(build, 0700) && !chdir(build));
++    const char example[] = "# User-verified build\r\nprogram_id\t04007ef01f8ae000\r\npresent_interval\tdisplay\r\n";
++    put(example, sizeof example - 1);
++    assert(rb_read_present_profile(root, program, build, &status) == 1 && !strcmp(status, "explicit"));
++    assert(rb_read_present_profile(root, program, "11111111111111111111111111111111", &status) == -1);
++    assert(rb_read_present_profile(root, "../invalid", build, &status) == -1);
++    assert(!s2a_present_fps60_gate(1, "0"));
++    const char wrong[] = "program_id\t0400C3F00006E000\npresent_interval\tdisplay\n";
++    put(wrong, sizeof wrong - 1);
++    assert(rb_read_present_profile(root, program, build, &status) == 0 && !strcmp(status, "program-mismatch"));
++    const char bad[] = "program_id\t04007EF01F8AE000\npresent_interval_derived\tdisplay\n";
++    put(bad, sizeof bad - 1);
++    assert(rb_read_present_profile(root, program, build, &status) == 0 && !strcmp(status, "invalid"));
++    put(example, sizeof example); // embedded/trailing NUL
++    assert(rb_read_present_profile(root, program, build, &status) == 0 && !strcmp(status, "invalid"));
++    assert(!truncate("game.tsv", 1024 * 1024 + 1));
++    assert(rb_read_present_profile(root, program, build, &status) == 0 && !strcmp(status, "invalid"));
++    s2a_game_tsv p;
++    char err[160];
++    s2a_game_tsv_parse(bad, &p, err, sizeof err);
++    assert(!p.present_explicit && !s2a_present_packaged(&p, program, NULL) && !s2a_present_packaged(&p, program, "untested"));
++    assert(!s2a_present_packaged(&p, program, "need_l3") && s2a_present_packaged(&p, program, "ok"));
++    assert(s2a_present_packaged(&p, NULL, NULL)); // preserve standalone policy
++    s2a_game_tsv_parse(wrong, &p, err, sizeof err);
++    assert(p.present_explicit && !s2a_present_packaged(&p, program, "ok"));
++    s2a_game_tsv_parse("present_interval\tgame\npresent_interval\tdisplay\n", &p, err, sizeof err);
++    assert(p.present_explicit && !s2a_present_packaged(&p, program, "ok"));
++    s2a_game_tsv_parse("present_interval\t60\n", &p, err, sizeof err);
++    assert(err[0] && !s2a_present_packaged(&p, program, "ok"));
++    assert(!unlink("game.tsv") && !chdir("..") && !rmdir(build) && !chdir("..") && !rmdir(program));
++    assert(!chdir("..") && !rmdir("profiles") && !chdir("..") && !rmdir("S2Arm") && !chdir("/") && !rmdir(root));
++    puts("PASS cadence profile: build, program, malformed input, duplicate keys, L3 and FPS gate");
++}

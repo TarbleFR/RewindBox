@@ -1,0 +1,643 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index fb97dae..7393587 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3527,6 +3527,8 @@ static int64_t g_lf_abs[LFN][3];
+ // 弱链接[host,ios,nvntest]：nvn_rb_pager_take (optional Metal backend)
+ extern int nvn_rb_pager_take(rb_pager_sample *) __attribute__((weak_import));
+ 
++extern int nvn_rb_upload_detail_take(uint64_t out[9]) __attribute__((weak_import));
++static struct { uint64_t v[9]; int enabled; } rb_lf_upload[LFN];
+ __attribute__((weak)) void dm_longframe_note(const char *what) { LOG("[longframe] %s", what); }   // Default (graphics unit tests); the strong definition in the host's diag.c adds scene context and writes perf.txt
+ // RewindBox (patch 0069): the long-frame line counted pipelines and shader libraries but not the translations the submit thread made or waited for (dsh_miss.inc
+ //   dm_shader_miss_late), nor the MSL it compiled. IPA 765: frame 701 took 126.4 ms, 107.2 ms in the engine's calls, but its line gave "4.6 ms in all", while the profile had the
+@@ -4201,6 +4203,8 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+         {   // long-frame log: this frame's items are first recorded into the ring; whether to print is decided 8 frames later, once the GPU time has arrived (see below)
+             static uint64_t plns, ppns, pup, prup, pub; uint64_t lns, pns, up, rup, ub; nvn_be_create_ns(&lns, &pns); nvn_be_pkg_stats(&up, &rup); ub = nvn_be_upload_bytes();
+             lf_rec *r = &g_lf[f % LFN]; r->f = f; r->fr = fr; r->nv = nv; r->gaps = rb_gaps; r->t_s = (now_ns() - g_t0_ns) / 1e9; r->pso = (unsigned)(pso_ - ppso); r->lib = (unsigned)(lib_ - plib);
++            rb_lf_upload[f % LFN].enabled = nvn_rb_upload_detail_take &&
++                nvn_rb_upload_detail_take(rb_lf_upload[f % LFN].v);
+             r->make_ms = ((lns - plns) + (pns - ppns)) / 1e6; r->up = (unsigned)(up - pup); r->rup = (unsigned)(rup - prup); const uint64_t pub_previous = pub; r->up_mb = (ub - pub) / 1048576.0; r->up_ms = up_ms;
+             plns = lns; ppns = pns; pup = up; prup = rup; pub = ub;
+             {   // RewindBox (patch 0065): what the process did during the frame
+@@ -4341,6 +4345,13 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+                 snprintf(b + bl, sizeof b - bl, "; outside submit/present %.1f ms, longest %.1f ms over %u gaps",
+                          r->gaps.total / 1e6, r->gaps.longest / 1e6, r->gaps.count); }
+               dm_longframe_note(b);
++              if (rb_lf_upload[r->f % LFN].enabled) {
++                  const uint64_t *u = rb_lf_upload[r->f % LFN].v;
++                  snprintf(b, sizeof b, "[RB-UPLOAD] frame=%llu hash_cpu_ms=%.3f staging_swizzle_cpu_ms=%.3f blit_encode_cpu_ms=%.3f blit_copies=%llu cpu_payload_MiB=%.3f gpu_payload_MiB=%.3f joined=%llu hash_prepared_MiB=%.3f hash_reused_MiB=%.3f",
++                      (unsigned long long)r->f, u[0]/1e6, u[1]/1e6, u[2]/1e6, (unsigned long long)u[3], u[4]/1048576.0, u[5]/1048576.0,
++                      (unsigned long long)u[6], u[7]/1048576.0, u[8]/1048576.0);
++                  dm_longframe_note(b);
++              }
+               const rb_pso_sample *activity = &rb_pso_frames[r->f % LFN];
+               if (activity->mode) rb_pso_emit("pso-frame", r->f, activity); } }
+         uint64_t g0, g1; if (frame_rec() && nvn_be_gpu_span(f - 8, &g0, &g1)) { trow(f - 8, "@gpu_beg_ms", (g0 - g_t0_ns) / 1e6); trow(f - 8, "@gpu_end_ms", (g1 - g_t0_ns) / 1e6); } }
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index b9916c8..a81fdbf 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1469,7 +1469,7 @@ static _Atomic unsigned g_sp_heap_n;
+ // Keep exposure history from process start, including registrations made before
+ // the hosted title is selected. The experiment is an explicit fresh-launch opt-in.
+ static _Atomic int g_rb_live_request;
+-enum { RB_DEVICE_BATCH, RB_DEVICE_FX_PREFIX, RB_DEVICE_TAIL_TRACE, RB_DEVICE_LIVE, RB_DEVICE_RETAIN, RB_DEVICE_SHADOW, RB_DEVICE_DRS, RB_DEVICE_PAGER, RB_DEVICE_PAGER_TRACE, RB_DEVICE_OPTIONS };
++enum { RB_DEVICE_BATCH, RB_DEVICE_FX_PREFIX, RB_DEVICE_TAIL_TRACE, RB_DEVICE_LIVE, RB_DEVICE_RETAIN, RB_DEVICE_SHADOW, RB_DEVICE_DRS, RB_DEVICE_PAGER, RB_DEVICE_PAGER_TRACE, RB_DEVICE_UPLOAD_BATCH, RB_DEVICE_UPLOAD_SMOOTH, RB_DEVICE_UPLOAD_TRACE, RB_DEVICE_OPTIONS };
+ static _Atomic int g_rb_device_options[RB_DEVICE_OPTIONS];
+ static int rb_a18_option(unsigned key, const char *name) {
+ #if TARGET_OS_IOS && !TARGET_OS_SIMULATOR
+@@ -1489,6 +1489,28 @@ static int rb_a18_option(unsigned key, const char *name) {
+     return 0;
+ #endif
+ }
++// The standalone GPU readback harness runs the same paths on the CI Mac.
++#ifdef RB_TEST_UPLOAD_OPTIONS
++static BOOL rb_test_upload_options;
++#endif
++static int rb_upload_batch_on(void) {
++#ifdef RB_TEST_UPLOAD_OPTIONS
++    if (rb_test_upload_options) return 1;
++#endif
++    return g_dev && rb_a18_option(RB_DEVICE_UPLOAD_BATCH, "S2A_RB_UPLOAD_BATCH");
++}
++static int rb_upload_smooth_on(void) {
++#ifdef RB_TEST_UPLOAD_OPTIONS
++    if (rb_test_upload_options) return 1;
++#endif
++    return g_dev && rb_a18_option(RB_DEVICE_UPLOAD_SMOOTH, "S2A_RB_UPLOAD_SMOOTH");
++}
++static int rb_upload_trace_on(void) {
++#ifdef RB_TEST_UPLOAD_OPTIONS
++    if (rb_test_upload_options) return 1;
++#endif
++    return g_dev && rb_a18_option(RB_DEVICE_UPLOAD_TRACE, "S2A_RB_UPLOAD_TRACE");
++}
+ static int rb_shadow_on(void) { return rb_a18_option(RB_DEVICE_SHADOW, "S2A_RB_SHADOW_SCALE"); }
+ static int rb_drs_enabled(void) {
+     return g_dev && rb_a18_option(RB_DEVICE_DRS, "S2A_RB_DRS");
+@@ -4986,6 +5008,7 @@ static NSMutableArray *g_up_keep;
+ // submission), so one submission that uploads a lot piled up blocks without bound: a frame replay re-uploading every texture held 2729 blocks, 116 GB, and locked ~110 GB of the 128 GB machine.
+ // up_begin flushes the batch once it holds UP_KEEP_CAP: between two texture uploads, where every recorded copy is complete; the upload commits before the open submission, so order is kept
+ #define UP_KEEP_CAP (256ull << 20)
++#include "rb_upload_budget.h"
+ static uint64_t g_up_keep_bytes; static uint64_t g_up_cap_flushes, g_rb_upload_medium;
+ enum { RB_CPU_UPLOAD_BLOCK = 256 * 1024, RB_CPU_UPLOAD_BATCH = 2 * 1024 * 1024 };
+ static id<MTLBuffer> g_cpu_upload_block;
+@@ -5001,6 +5024,21 @@ static int up_lost_take(id tex) {   // This texture's upload was dropped: take i
+     if (!tex) return 0; os_unfair_lock_lock(&g_up_lost_lk); int hit = [g_up_lost containsObject:tex]; if (hit) { [g_up_lost removeObject:tex]; atomic_store(&g_up_lost_n, (int)g_up_lost.allObjects.count); atomic_fetch_add(&g_up_lost_redo, 1); } os_unfair_lock_unlock(&g_up_lost_lk); return hit;
+ }
+ static void up_diag(void);
++enum { RB_UT_HASH_CPU, RB_UT_STAGE_CPU, RB_UT_BLIT_CPU, RB_UT_BLITS, RB_UT_CPU_BYTES,
++       RB_UT_GPU_BYTES, RB_UT_JOINED, RB_UT_PREPARED, RB_UT_REUSED, RB_UT_COUNT };
++static _Atomic uint64_t rb_upload_detail[RB_UT_COUNT];
++static _Thread_local uint64_t rb_blit_cpu_total;
++static uint64_t rb_upload_clock(void) { return clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID); }
++static void rb_upload_add(unsigned which, uint64_t value) {
++    atomic_fetch_add_explicit(&rb_upload_detail[which], value, memory_order_relaxed);
++}
++int nvn_rb_upload_detail_take(uint64_t out[9]) {
++    if (!rb_upload_trace_on()) return 0;
++    _Static_assert(RB_UT_COUNT == 9, "host telemetry ABI");
++    for (unsigned i = 0; i < RB_UT_COUNT; ++i)
++        out[i] = atomic_exchange_explicit(&rb_upload_detail[i], 0, memory_order_relaxed);
++    return 1;
++}
+ static _Atomic uint64_t g_up_flush_counts[UP_FLUSH_REASONS];
+ void nvn_rb_upload_flush_take(uint64_t out[5]) {
+     for (unsigned i = 0; i < UP_FLUSH_REASONS; ++i)
+@@ -5023,6 +5061,7 @@ static void up_flush_cause(unsigned reason) {
+             [e dispatchThreadgroups:MTLSizeMake((x->bw + 7) / 8, (x->bh + 7) / 8, 1) threadsPerThreadgroup:MTLSizeMake(8, 8, 1)]; }
+         m4_end(e); g_up_ce = nil;   // Metal 3: m4_end updates the fence the copies' encoder waits on
+     }
++    uint64_t copy_cpu = g_nup_blits && rb_upload_trace_on() ? rb_upload_clock() : 0;
+     id b = g_nup_blits ? g_up_ce = g_m3 ? [g_up_cb blitCommandEncoder] : [g_up_cb computeCommandEncoder] : nil;
+     if (b) { if (g_m3) [b waitForFence:g_fence3]; else enc_full_barrier_begin(b); }   // Metal 3: the fence stands in for the queue barrier
+     for (int i = 0; b && i < g_nup_blits; i++) {
+@@ -5030,6 +5069,12 @@ static void up_flush_cause(unsigned reason) {
+         enc_b_copy_buffer_texture(b, x->src, x->off, x->row, x->image, x->size, x->dst, x->slice, x->level, MTLOriginMake(x->x0, x->y0, 0));
+     }
+     if (b) { m4_end(b); g_up_ce = nil; }   // Metal 3: m4_end updates the fence
++    if (copy_cpu && b) {
++        uint64_t elapsed = rb_upload_clock() - copy_cpu;
++        rb_blit_cpu_total += elapsed;
++        rb_upload_add(RB_UT_BLIT_CPU, elapsed);
++        rb_upload_add(RB_UT_BLITS, g_nup_blits);
++    }
+     id cb = g_up_cb;
+     unsigned slot = (g_up_seq - 1) % (unsigned)rb_up_n();   // RewindBox (patch 0082): rb_up_n() slots
+     NSMutableArray *dsts = [NSMutableArray array];
+@@ -5297,17 +5342,18 @@ static id<MTLBuffer> up_param_alloc(size_t *off) {
+     *off = g_up_pblock_off; g_up_pblock_off += 64;
+     return g_up_pblock;
+ }
+-static void up_blit_add_at(id<MTLBuffer> src, size_t off, size_t row, size_t image, MTLSize size,
++static BOOL up_blit_add_at(id<MTLBuffer> src, size_t off, size_t row, size_t image, MTLSize size,
+                            id<MTLTexture> dst, NSUInteger slice, NSUInteger level, NSUInteger x0, NSUInteger y0) {
+     if (g_nup_blits == g_up_blitcap) {
+         size_t c = g_up_blitcap ? g_up_blitcap * 2 : 256;
+-        if (!GROW(g_up_blits, c * sizeof *g_up_blits, "texture upload list")) return;   // dropped: this upload is not made (the texture keeps its old content)
++        if (!GROW(g_up_blits, c * sizeof *g_up_blits, "texture upload list")) return NO;
+         g_up_blitcap = c;
+     }
+     g_up_blits[g_nup_blits++] = (up_blit){src, off, row, image, size, dst, slice, level, x0, y0};
++    return YES;
+ }
+-static void up_blit_add(id<MTLBuffer> src, size_t off, size_t row, size_t image, MTLSize size, id<MTLTexture> dst, NSUInteger slice, NSUInteger level) {
+-    up_blit_add_at(src, off, row, image, size, dst, slice, level, 0, 0);
++static BOOL up_blit_add(id<MTLBuffer> src, size_t off, size_t row, size_t image, MTLSize size, id<MTLTexture> dst, NSUInteger slice, NSUInteger level) {
++    return up_blit_add_at(src, off, row, image, size, dst, slice, level, 0, 0);
+ }
+ 
+ static inline uint64_t span_hash_word(uint64_t h, const uint8_t *bytes) {
+@@ -5451,6 +5497,7 @@ static void pkg_hash_pages(const tex_t *t, const uint8_t *src, uint64_t *out, ui
+         offset += n;
+     }
+ }
++#include "rb_upload_hash.inc"
+ // RewindBox (patch 0070): texture storage the host is about to read is asked of the pager in runs first. IPA 765 (Mario Kart World, iPhone17,2, guest memory in 39 window files of
+ //   1 GB, the heap kept there by patch 0052's tier): long race frames with 30 first uploads or more had a median of 884 page reads from storage against 48 for those with fewer
+ //   than 5 (81 reads per MB uploaded; f1805 133 MB in 869 ms with 8,111 reads), and in the f1858 profile the submit thread waited 0.58 s of 4 s in span_hash under tex_mtl_ (the
+@@ -6500,7 +6547,17 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+     if (!sparse) rb = rb_pkg_bytes(t, 1);   // after the protection (it only ever adds read access) and the stamp, before any read
+     if (stamp && ph && !sparse) {   // after the stamp, before the read: a write in between is after the stamp too, so the next check sees its page (and the hash may hold it, the upload does)
+         uint32_t n = page_count(t); uint64_t *h = realloc(*ph, (size_t)MAX(n, 1u) * sizeof *h); const uint8_t *rd = rb ? rb : t->mem;
+-        if (h) { pkg_hash_pages(t, rd, h, n); if (rd==t->mem) rb_ra_confirm(rd,t->L.size); *ph = h; *nph = n; } else { free(*ph); *ph = NULL; *nph = 0; } }
++        if (h) {
++            uint64_t cpu = rb_upload_trace_on() ? rb_upload_clock() : 0;
++            BOOL reused = first && on_sub_thread() && rb_upload_smooth_on() && rb_hash_claim(t, rd, h, n);
++            if (!reused) pkg_hash_pages(t, rd, h, n);
++            if (cpu) {
++                rb_upload_add(RB_UT_HASH_CPU, rb_upload_clock() - cpu);
++                if (reused) rb_upload_add(RB_UT_REUSED, t->L.size);
++            }
++            if (rd == t->mem) rb_ra_confirm(rd, t->L.size);
++            *ph = h; *nph = n;
++        } else { free(*ph); *ph = NULL; *nph = 0; } }
+     int bw, bh, bpb = nvn_fmt_bpb(t->d.format, &bw, &bh);
+     unsigned layers = (t->d.target == 4 || t->d.target == 9) ? t->d.depth : t->d.target == 8 ? 6 : t->d.target == 3 ? t->d.height : 1;   // a cube array's depth counts layer-faces (tex_desc)
+     uint32_t upf; int ubpp = 0, unp = fmt_unpack(t->d.format, &upf, &ubpp);   // stored in another format (fmt_unpack: BC on a GPU without BC, or expanded): deswizzle, then convert on the CPU; the staging area is sized for the converted data
+@@ -6512,6 +6569,8 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+         ctotal += (size_t)((w + bw - 1) / bw) * bpb * ((h + bh - 1) / bh) * z * layers;
+     }
+     g_bp_up_bytes += total;
++    if (rb_upload_smooth_on() && on_sub_thread())
++        rb_hash_note_demand(&rb_hash_work, atomic_load_explicit(&g_cur_frame, memory_order_relaxed), total);
+     if (rb_tex_budget_on()) atomic_fetch_add_explicit(&rb_tex_staging, total, memory_order_relaxed);
+     void *mb; uint64_t mo; id<MTLBuffer> upsrc = nil;
+     int lin = (t->d.flags & (NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET)) != 0;   // 线性排布（tex_linear_needs_upload）只有 CPU 逐行拷，GPU 去混排不认
+@@ -6552,12 +6611,14 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+                     if (g_nup_decs == g_up_deccap) { enc_ok = 0; break; }
+                     g_up_decs[g_nup_decs++] = (up_dec){stg, q, qoff, (w + 3) / 4, (h + 3) / 4, v, mt}; [g_up_texs addObject:v]; defer_obj_unref(v);   // the view goes when this submission has run; the residency set holds the base texture
+                     if (y == 0 && l == 0) bc_note(t->d.format, "upload, GPU");
+-                } else
+-                up_blit_add(stg, stg_off + off, pitch, pitch * rows, MTLSizeMake(w, h, z), mt, y, l);
++                } else if (!up_blit_add(stg, stg_off + off, pitch, pitch * rows, MTLSizeMake(w, h, z), mt, y, l)) {
++                    enc_ok = 0; break;
++                }
+                 off += pitch * rows * z;
+             }
+         }
+         if (enc_ok) {
++            if (rb_upload_trace_on()) rb_upload_add(RB_UT_GPU_BYTES, total);
+             [g_up_texs addObject:mt];
+             if (!g_cb) up_flush();
+             return mt;
+@@ -6568,6 +6629,8 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+     }
+ 
+     // A sparse pool's texture is read through a copy gathered from its page table, unmapped pages as 0 (a mip tail at a 4 KB offset has no host alias; reading the alias stopped the host with SIGBUS)
++    uint64_t stage_cpu = rb_upload_trace_on() ? rb_upload_clock() : 0;
++    uint64_t stage_blit = rb_blit_cpu_total;
+     const uint8_t *src = t->mem; uint8_t *part = NULL;
+     // RewindBox (patch 0021): a sparse pool's texture staged in pieces (more than RB_UP_PIECE) is read layer by layer there (rb_up_pieces), not copied whole here
+     int rb_gather = sparse && total > RB_UP_PIECE;
+@@ -6604,6 +6667,12 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+         if (stg) g_cpu_upload_next = start + total;
+     }
+     BOOL pooled = stg != nil;
++    // Ordinary first-use sampled textures can share the final copy encoder even
++    // when each needs its own staging buffer. Ordering stays with this submission.
++    BOOL join = !pooled && first && !reuse && g_cb && on_sub_thread() && !sparse &&
++        t->has_layout && !t->d.flags && t->d.target == NVN_TEXTURE_TARGET_2D &&
++        rb_upload_batch_on() && !rb_mem_low() && rb_batch_fits(g_up_keep_bytes, total,
++            rb_gov_on() ? rb_gov_quota(RB_GOV_UPLOAD) / (unsigned)rb_up_n() : RB_BATCH_BYTES);
+     if (!stg && total <= RB_UP_PIECE)
+         stg = [g_dev newBufferWithLength:total ? total : 16 options:MTLResourceStorageModeShared];
+     if (!stg) {
+@@ -6621,6 +6690,10 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+         if (total <= RB_UP_PIECE) rb_res_top_refused("Metal refused a staging buffer in one piece"); else if (k <= 8 || !(k & (k - 1))) rb_res_top_check("a texture to be staged in pieces", 0);
+         rb_up_pieces(t, mt, src, (unsigned)d.mipmapLevelCount, layers, unp, ubpp, bw, bh, bpb, total);
+         free(part); free(rb);
++        if (stage_cpu) {
++            rb_upload_add(RB_UT_STAGE_CPU, (rb_upload_clock() - stage_cpu) - (rb_blit_cpu_total - stage_blit));
++            rb_upload_add(RB_UT_CPU_BYTES, total);
++        }
+         up_flush_cause(UP_PIECES);
+         // Take a retirement snapshot only when uploads have already completed.
+         if ((k <= 8 || !(k & (k - 1))) && !atomic_load(&g_up_pending)) {
+@@ -6632,10 +6705,12 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+         return mt;
+     }
+     if (!pooled) { res_add(stg); up_keep_add(stg); }
++    int first_blit = g_nup_blits;
++    BOOL complete = YES;
+     size_t off = start;
+     int zb = zblock_on() && t->d.format >= 0x79 && t->d.format <= 0x94; if (zb) { g_zb_ser = t->serial; g_zb_n = (int)MIN(d.mipmapLevelCount, 16u); memset(g_zb, 0, sizeof g_zb); memset(g_zb_tot, 0, sizeof g_zb_tot); }
+     uint8_t *cb = NULL;  // Later mip levels never exceed level zero.
+-    for (unsigned l = 0; l < d.mipmapLevelCount; l++) {
++    for (unsigned l = 0; complete && l < d.mipmapLevelCount; l++) {
+         uint32_t w = MAX(t->d.width >> l, 1u), h = MAX(t->d.height >> l, 1u), z = t->d.target == 2 ? MAX(t->d.depth >> l, 1u) : 1;
+         size_t pitch = (size_t)((w + bw - 1) / bw) * bpb, rows = (h + bh - 1) / bh;
+         if (unp) {   // no BC: the blocks of each layer are deswizzled into a scratch buffer and decompressed into the staging area (nvn_bc_decode, one depth slice at a time)
+@@ -6644,26 +6719,37 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+             bc_note(t->d.format, "upload");
+             if (!cb) MDIE("BC decode scratch of %zu bytes failed", pitch * rows * z);
+             for (unsigned y = 0; y < layers; y++) {
+-                if (nvn_deswizzle(&t->d, l, y, src, cb, pitch)) { RED_ONCE(9, "deswizzle failed format %#x target %d", t->d.format, t->d.target); break; }
++                if (nvn_deswizzle(&t->d, l, y, src, cb, pitch)) { RED_ONCE(9, "deswizzle failed format %#x target %d", t->d.format, t->d.target); complete = NO; break; }
+                 for (uint32_t zi = 0; zi < z; zi++) fmt_decode(t->d.format, cb + zi * pitch * rows, pitch, w, h, (uint8_t *)stg.contents + off + zi * up * h, up);
+-                up_blit_add(stg, off, up, up * h, MTLSizeMake(w, h, z), mt, y, l);
++                if (!up_blit_add(stg, off, up, up * h, MTLSizeMake(w, h, z), mt, y, l)) { complete = NO; break; }
+                 off += up * h * z;
+             }
+             continue;
+         }
+         for (unsigned y = 0; y < layers; y++) {
+-            if (nvn_deswizzle(&t->d, l, y, src, (uint8_t *)stg.contents + off, pitch)) { RED_ONCE(9, "deswizzle failed format %#x target %d", t->d.format, t->d.target); break; }
++            if (nvn_deswizzle(&t->d, l, y, src, (uint8_t *)stg.contents + off, pitch)) { RED_ONCE(9, "deswizzle failed format %#x target %d", t->d.format, t->d.target); complete = NO; break; }
+             if (zb && l < 16) { const uint64_t *q = (const uint64_t *)((const uint8_t *)stg.contents + off); size_t nb = pitch * rows * z / 16;
+                 for (size_t i = 0; i < nb; i++) g_zb[l] += !(q[2 * i] | q[2 * i + 1]);
+                 g_zb_tot[l] += (uint32_t)nb; }
+-            up_blit_add(stg, off, pitch, pitch * rows, MTLSizeMake(w, h, z), mt, y, l);
++            if (!up_blit_add(stg, off, pitch, pitch * rows, MTLSizeMake(w, h, z), mt, y, l)) { complete = NO; break; }
+             off += pitch * rows * z;
+         }
+     }
+     free(cb);
+     free(part); free(rb);
+-    if (pooled) [g_up_texs addObject:mt]; // queued blits hold unretained destinations until flush
+-    if (!pooled) up_flush_cause(UP_ISOLATED);
++    if (stage_cpu) {
++        rb_upload_add(RB_UT_STAGE_CPU, (rb_upload_clock() - stage_cpu) - (rb_blit_cpu_total - stage_blit));
++        rb_upload_add(RB_UT_CPU_BYTES, off - start);
++    }
++    if (!complete) {
++        g_nup_blits = first_blit;
++        if (mt != reuse) res_remove(mt);
++        if (!g_cb) up_flush_cause(UP_ISOLATED);
++        return nil;
++    }
++    if (join && stage_cpu) rb_upload_add(RB_UT_JOINED, 1);
++    if (pooled || join) [g_up_texs addObject:mt]; // queued blits hold unretained destinations until flush
++    if (!pooled && !join) up_flush_cause(UP_ISOLATED);
+     else if (g_up_keep_bytes >= RB_CPU_UPLOAD_BATCH || g_nup_blits >= 256)
+         up_flush_cause(UP_BATCH_LIMIT);
+     return mt;
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index f73d405..8073f58 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -97,6 +97,7 @@ int nvn_be_drain_session(void) { return session_wait_backend(); }
+ int nvn_be_shutdown_session(void) {
+     rb_sub_open(2);   // RewindBox (patch 0071): no idle release by the pressure handler from here to the next session's first submission end (it waits for one under way; nvn_mtl.m rb_press_release)
+     int e = session_wait_backend(); if (e) { MLOG("【红】重启：Metal 工作仍持有旧会话 (%d)", e); return e; }
++    if (rb_hash_drain()) return -ETIMEDOUT;
+     if (rb_park_compat()) {
+         // Guest/encode and upload producers are already retired by session_wait_backend.
+         dispatch_group_t reads = dispatch_group_create();
+diff --git a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+index 38941d6..760a9c4 100644
+--- a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
++++ b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+@@ -143,8 +143,8 @@ void nvn_be_record_texture_hint(uint32_t id_) {
+     nvn_be_record_texture_pages(id_);
+     // Keep the recorded page hint when admitted. A second full GPU upload
+     // before replay has no verified on-device benefit against 803.
+-    if (rb_gov_on()) return;
+-    if (rb_tex_budget_on() && !rb_upload_ahead_allowed()) return;
++    BOOL smooth = rb_upload_smooth_on();
++    if (!smooth && (rb_gov_on() || (rb_tex_budget_on() && !rb_upload_ahead_allowed()))) return;
+     if (id_ >= (1u << 20)) return;
+     uint64_t serial = atomic_load_explicit(&g_tser[id_], memory_order_relaxed);
+     _Atomic uint64_t *recent = &g_tx_ahead.recent[id_ % 2048];
+@@ -204,13 +204,21 @@ static BOOL rb_cold_rebuildable(const rb_cold_entry *e) {
+     return safe;
+ }
+ void nvn_be_advance_texture(void) {
++    BOOL smooth = rb_upload_smooth_on();
++    if (smooth && on_sub_thread() && rb_mem_low()) { rb_hash_clear(NO); return; }
+     if (rb_gov_on() && !rb_gov_quota(RB_GOV_PREFETCH)) return;
+     if (!atomic_load_explicit(&g_tx_ahead.pending, memory_order_relaxed) ||
+         !on_sub_thread() || dm_gfx_session_stopping() || g_cb || g_up_cb || atomic_load(&g_fu_waiting) ||
+-        g_tx_ahead.bytes >= RB_TX_SESSION || atomic_load(&g_up_pending)) return;
++        (!smooth && g_tx_ahead.bytes >= RB_TX_SESSION) || atomic_load(&g_up_pending)) return;
+     uint64_t frame = atomic_load(&g_cur_frame);
+     if (g_tx_ahead.frame != frame) { g_tx_ahead.frame = frame; g_tx_ahead.in_frame = 0; }
+-    if (g_tx_ahead.in_frame >= 2 || rb_mem_low()) return;
++    if (smooth) {
++        if (atomic_load_explicit(&rb_hash_busy, memory_order_acquire) || !rb_hash_has_room(&rb_hash_work, frame)) return;
++#if TARGET_OS_IPHONE
++        uint64_t room = rb_ios_headroom();
++        if (room == UINT64_MAX || room < (1024ull << 20)) return;
++#endif
++    } else if (g_tx_ahead.in_frame >= 2 || rb_mem_low()) return;
+     if (pthread_mutex_trylock(&g_rmu)) return;
+     int lease = 0;
+     if (rb_spec_take(0, &lease)) {
+@@ -218,6 +226,11 @@ void nvn_be_advance_texture(void) {
+         for (int i = 0; i < 4 && rb_tx_next(&h); ++i) {
+             if (h.id >= (unsigned)g_ntreg || !rb_tx_eligible(&g_treg[h.id], h.serial)) continue;
+             const tex_t *t = &g_treg[h.id].t;
++            if (smooth) {
++                if (!s2a_far_g2h((uintptr_t)t->mem) && !s2a_far_g2h((uintptr_t)t->mem + t->L.size - 1))
++                    rb_hash_offer(t, frame);
++                break;
++            }
+             if (t->L.size > RB_TX_SESSION - g_tx_ahead.bytes) break;
+             BOOL isolate = rb_tex_budget_on() && fmt_compressed(t->d.format);
+             if (isolate && (!rb_cold_room(t) || !rb_span_readable((uintptr_t)t->mem, t->L.size))) continue;
+@@ -257,6 +270,7 @@ static void rb_tx_reset(void) {
+     rb_pager_sample ignored;
+     nvn_rb_pager_take(&ignored);
+     for (unsigned i = 0; i < 2048; ++i) atomic_store(&g_tx_page.recent[i], 0);
++    rb_hash_reset();
+     pthread_mutex_lock(&g_tx_ahead.lock);
+     g_tx_ahead.head = g_tx_ahead.count = g_tx_ahead.in_frame = 0;
+     g_tx_ahead.bytes = g_tx_ahead.made = g_tx_ahead.frame = 0;
+diff --git a/graphics/nvn/gfx/nvn/rb_upload_budget.h b/graphics/nvn/gfx/nvn/rb_upload_budget.h
+new file mode 100644
+index 0000000..6d8493b
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_upload_budget.h
+@@ -0,0 +1,36 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++#include <stdint.h>
++
++enum { RB_HASH_ITEM = 256 * 1024, RB_HASH_SLOTS = 8, RB_HASH_FRAME = 4 * RB_HASH_ITEM,
++       RB_BATCH_ITEM = 1024 * 1024, RB_BATCH_BYTES = 2 * RB_BATCH_ITEM };
++typedef struct {
++    uint64_t frame;
++    unsigned charged, attempts;
++    uint64_t demand;
++} rb_hash_budget;
++
++static inline void rb_hash_frame(rb_hash_budget *b, uint64_t frame) {
++    if (frame != b->frame) *b = (rb_hash_budget){.frame = frame};
++}
++static inline void rb_hash_note_demand(rb_hash_budget *b, uint64_t frame, uint64_t bytes) {
++    rb_hash_frame(b, frame);
++    if (b->demand < (8u << 20)) b->demand += bytes > (8u << 20) ? (8u << 20) : bytes;
++}
++static inline int rb_hash_has_room(rb_hash_budget *b, uint64_t frame) {
++    rb_hash_frame(b, frame);
++    return b->demand < (8u << 20) && b->charged < RB_HASH_FRAME && b->attempts < 8;
++}
++static inline int rb_hash_reserve(rb_hash_budget *b, uint64_t frame, uint64_t bytes) {
++    if (!rb_hash_has_room(b, frame)) return 0;
++    if (!bytes || bytes > RB_HASH_ITEM || bytes > RB_HASH_FRAME - b->charged)
++        return 0;
++    b->charged += (unsigned)bytes;
++    ++b->attempts;
++    return 1;
++}
++
++static inline int rb_batch_fits(uint64_t held, uint64_t bytes, uint64_t quota) {
++    uint64_t limit = quota < RB_BATCH_BYTES ? quota : RB_BATCH_BYTES;
++    return bytes && bytes <= RB_BATCH_ITEM && held <= limit && bytes <= limit - held;
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_upload_hash.inc b/graphics/nvn/gfx/nvn/rb_upload_hash.inc
+new file mode 100644
+index 0000000..742878a
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_upload_hash.inc
+@@ -0,0 +1,115 @@
++// SPDX-License-Identifier: Apache-2.0
++// This optional cache contains hash metadata and a comparison
++// image. Nothing here is ever bound to a draw. A byte-for-byte comparison at the
++// point of first use also handles untracked aliases and edits to a recorded bind.
++enum { RB_HASH_PAGES = RB_HASH_ITEM / 4096 + 1 };
++typedef struct {
++    uint64_t serial, hashes[RB_HASH_PAGES];
++    uintptr_t address;
++    uint32_t size, pages;
++    uint8_t data[RB_HASH_ITEM];
++} rb_hash_snapshot;
++static rb_hash_snapshot *rb_hash_slots[RB_HASH_SLOTS];
++static rb_hash_budget rb_hash_work;
++
++static dispatch_group_t rb_hash_jobs;
++static dispatch_queue_t rb_hash_queue;
++static pthread_mutex_t rb_hash_lock = PTHREAD_MUTEX_INITIALIZER;
++static _Atomic uint64_t rb_hash_epoch;
++static _Atomic BOOL rb_hash_busy;
++
++static void rb_hash_clear(BOOL drain) {
++    // Session teardown has already retired the worker. During pressure, drop old
++    // publications without introducing a lock wait on the submit path.
++    atomic_fetch_add_explicit(&rb_hash_epoch, 1, memory_order_relaxed);
++    if (drain) pthread_mutex_lock(&rb_hash_lock);
++    else if (pthread_mutex_trylock(&rb_hash_lock)) return;
++    for (unsigned i = 0; i < RB_HASH_SLOTS; ++i) {
++        free(rb_hash_slots[i]);
++        rb_hash_slots[i] = NULL;
++    }
++    pthread_mutex_unlock(&rb_hash_lock);
++}
++static void rb_hash_reset(void) {
++    rb_hash_clear(YES);
++    rb_hash_work = (rb_hash_budget){0};
++}
++static int rb_hash_drain(void) {
++    return rb_hash_jobs && dispatch_group_wait(rb_hash_jobs, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC))
++        ? -ETIMEDOUT : 0;
++}
++
++static void rb_hash_stage(const tex_t *t, uint64_t epoch, BOOL trace) {
++    uintptr_t address = (uintptr_t)t->mem;
++    size_t page = nvn_dirty_page_size(), size = t->L.size;
++    if (!address || !size || size > RB_HASH_ITEM || page < 4096 || page != (size_t)getpagesize() ||
++        address > UINTPTR_MAX - size || dm_gfx_session_stopping() || rb_mem_low()) return;
++    uint32_t pages = page_count(t);
++    char resident[RB_HASH_PAGES];
++    if (!pages || pages > RB_HASH_PAGES ||
++        mincore((void *)(address & ~(page - 1)), (size_t)pages * page, resident)) return;
++    for (uint32_t i = 0; i < pages; ++i) if (!(resident[i] & 1)) return;
++    rb_hash_snapshot *s = malloc(sizeof(*s));
++    if (!s) return;
++    // The kernel handles concurrent unmaps. Eviction after mincore can block
++    // this utility worker only. It holds no renderer lock during the copy.
++    vm_size_t copied = 0;
++    if (vm_read_overwrite(mach_task_self(), address, size, (vm_address_t)s->data, &copied) == KERN_SUCCESS &&
++        copied == size && epoch == atomic_load_explicit(&rb_hash_epoch, memory_order_relaxed)) {
++        pkg_hash_pages(t, s->data, s->hashes, pages);
++        s->address = address;
++        s->size = (uint32_t)size;
++        s->pages = pages;
++        s->serial = t->serial;
++        unsigned slot = (unsigned)(t->serial % RB_HASH_SLOTS);
++        pthread_mutex_lock(&rb_hash_lock);
++        if (epoch == atomic_load_explicit(&rb_hash_epoch, memory_order_relaxed) && !dm_gfx_session_stopping()) {
++            rb_hash_snapshot *old = rb_hash_slots[slot];
++            rb_hash_slots[slot] = s;
++            s = old;
++            if (trace) rb_upload_add(RB_UT_PREPARED, size);
++        }
++        pthread_mutex_unlock(&rb_hash_lock);
++    }
++    free(s);
++}
++
++static void rb_hash_offer(const tex_t *t, uint64_t frame) {
++    // Only the submit owner posts jobs. Never queue behind an active kernel read.
++    if (atomic_load_explicit(&rb_hash_busy, memory_order_acquire) ||
++        !rb_hash_reserve(&rb_hash_work, frame, t->L.size)) return;
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{
++        rb_hash_queue = dispatch_queue_create("rb.texture.first-hash",
++            dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0));
++        rb_hash_jobs = dispatch_group_create();
++    });
++    // Copy just the geometry used by page_count/pkg_hash_pages. The worker
++    // never looks back through the registration, texture or guest pool object.
++    tex_t geometry = {0};
++    geometry.serial = t->serial;
++    geometry.mem = t->mem;
++    geometry.L.size = t->L.size;
++    BOOL trace = rb_upload_trace_on();
++    uint64_t epoch = atomic_load_explicit(&rb_hash_epoch, memory_order_relaxed);
++    atomic_store_explicit(&rb_hash_busy, YES, memory_order_relaxed);
++    dispatch_group_async(rb_hash_jobs, rb_hash_queue, ^{
++        rb_hash_stage(&geometry, epoch, trace);
++        atomic_store_explicit(&rb_hash_busy, NO, memory_order_release);
++    });
++}
++
++static BOOL rb_hash_claim(const tex_t *t, const uint8_t *source, uint64_t *out, uint32_t pages) {
++    unsigned slot = (unsigned)(t->serial % RB_HASH_SLOTS);
++    if (pthread_mutex_trylock(&rb_hash_lock)) return NO;
++    rb_hash_snapshot *s = rb_hash_slots[slot];
++    if (s && s->serial == t->serial) rb_hash_slots[slot] = NULL;
++    else s = NULL;
++    pthread_mutex_unlock(&rb_hash_lock);
++    if (!s) return NO;
++    BOOL same = s->address == (uintptr_t)t->mem && s->size == t->L.size && s->pages == pages &&
++                !memcmp(source, s->data, s->size);
++    if (same) memcpy(out, s->hashes, pages * sizeof(*out));
++    free(s);
++    return same;
++}
+diff --git a/graphics/nvn/tests/t_nvn_up_tex_src.m b/graphics/nvn/tests/t_nvn_up_tex_src.m
+index aeb452c..bbdecc3 100644
+--- a/graphics/nvn/tests/t_nvn_up_tex_src.m
++++ b/graphics/nvn/tests/t_nvn_up_tex_src.m
+@@ -8,6 +8,7 @@
+ //   ② 池 Q 给出过地址（nvn_be_pool_addressed，GetBufferAddress 等的去处）：上传 → Q 照旧进常驻（res = 1）、常驻池数 +1；临时源不变；内容对
+ //   ③ 池 R 没给过地址但已常驻（缓冲绑定等别的 GPU 用途查过它）：上传 → 临时源不变（直接用已常驻的池缓冲）；内容对
+ // 反证（修前）：同一单测编改前的 nvn_mtl.m → ① 的 res = 1、常驻池数 +1、临时源计数不存在（编不过时把 ① 的计数检查换成 0 再看前两条）
++#define RB_TEST_UPLOAD_OPTIONS 1
+ #include "../gfx/nvn/nvn_mtl.m"
+ 
+ static unsigned checks, failures;
+@@ -79,9 +80,69 @@ static int recorded_upload(void) {
+     rb_tx_reset(); CHECK(!atomic_load(&g_tx_ahead.pending) && !g_tx_ahead.made, "session retired");
+     return failures != 0;
+ }
++// The VM exposes ordinary Metal blits. Force the opt-in policy only in this
++// standalone translation unit; exercise record, upload, flush and GPU readback.
++static int smooth_upload(void) {
++    rb_test_upload_options = YES;
++    setenv("S2A_RB_SPEC_GOVERN", "0", 1);
++    id<MTLDevice> device = MTLCreateSystemDefaultDevice(); REQUIRE(device);
++    BOOL direct = NO;
++    if (@available(macOS 26.0, iOS 26.0, *)) {
++        MTLResidencySetDescriptor *rd = [MTLResidencySetDescriptor new]; rd.initialCapacity = 4;
++        direct = device.hasUnifiedMemory && [device supportsFamily:MTLGPUFamilyMetal4] &&
++            [device newResidencySetWithDescriptor:rd error:NULL] != nil &&
++            [device newMTL4CommandQueueWithDescriptor:[MTL4CommandQueueDescriptor new] error:NULL] != nil;
++    }
++    if (direct) {
++        mtl_init(); REQUIRE(!g_m3);
++        g_nvn_deswz_gpu = 0; // exercise the CPU-staged copy path on the real Metal 4 encoder
++    } else {
++        g_dev = device; g_m3 = 1; g_q = [g_dev newCommandQueue]; g_q3 = g_q; REQUIRE(g_q);
++        g_fence3 = [g_dev newFence]; g_keep = [NSMutableArray array];
++    }
++    printf("Upload readback backend=%s device=%s\n", direct ? "direct Metal 4" : "tracked Metal 3 (Metal 4 unavailable)", device.name.UTF8String);
++    g_sub_thread = pthread_self(); atomic_store(&g_sub_thread_set, 1);
++    static box pools[2]; static tex_t tex[2];
++    for (unsigned i = 0; i < 2; ++i) {
++        make_pool(&pools[i]); make_tex(&tex[i], &pools[i]); tex[i].has_layout = 1;
++        nvn_dirty_add_range(pools[i].mem, POOL);
++        nvn_be_reg_tex(10+i, &tex[i], NULL);
++        nvn_be_record_texture_hint(10+i); nvn_be_advance_texture();
++        REQUIRE(rb_hash_drain() == 0);
++        CHECK(!tex_get(tex[i].serial) && !g_up_cb, "hint %u never publishes a texture or allocates a GPU batch", i);
++    }
++    // Deliberately modify the entire guest layout after the hint, before normal
++    // dirty tracking begins. Correct output and page hashes must reflect the edit.
++    for (size_t j = 0; j < tex[1].L.size / 4; ++j) ((uint32_t *)tex[1].mem)[j] = 0xc0ffaabb;
++    if (direct) nvn_be_sub_begin();
++    else g_cb = [g_q3 commandBuffer];
++    id<MTLTexture> a = tex_mtl(&tex[0]), b = tex_mtl(&tex[1]);
++    REQUIRE(a && b);
++    CHECK(g_up_cb && g_nup_blits == 2, "two ordinary CPU first uploads share an open copy batch");
++    if (direct) {
++        uint64_t fence = nvn_be_sub_commit();
++        REQUIRE(nvn_be_wait(fence, 10000000000ull)); nvn_be_drain();
++    } else { wait_uploads(); g_cb = nil; }
++    uint64_t v[9];
++    REQUIRE(nvn_rb_upload_detail_take(v));
++    CHECK(v[RB_UT_PREPARED] == tex[0].L.size + tex[1].L.size &&
++          v[RB_UT_REUSED] == tex[0].L.size, "unchanged metadata used, changed snapshot rejected");
++    CHECK(v[RB_UT_JOINED] == 2 && v[RB_UT_BLITS] == 2, "joined first uses and encoded copies counted separately");
++    CHECK(!wrong_value(a, 0x11223344) && !wrong_value(b, 0xc0ffaabb),
++          "both textures initialized at first use, including the edit after the hint");
++    NvPkg *pk = tex_get(tex[1].serial);
++    uint64_t reference[RB_HASH_PAGES];
++    REQUIRE(pk && pk->ph && pk->nph <= RB_HASH_PAGES);
++    pkg_hash_pages(&tex[1], tex[1].mem, reference, pk->nph);
++    CHECK(!memcmp(reference, pk->ph, pk->nph * sizeof(*reference)), "dirty baseline uses the final page contents");
++    rb_tx_reset();
++    for (unsigned i = 0; i < RB_HASH_SLOTS; ++i) REQUIRE(!rb_hash_slots[i]);
++    return failures != 0;
++}
+ int main(int argc, char **argv) {
+     @autoreleasepool {
+         setvbuf(stdout, NULL, _IOLBF, 0); alarm(120);
++        if (argc == 2 && !strcmp(argv[1], "--upload-smooth")) return smooth_upload();
+         if (argc == 2 && !strcmp(argv[1], "--recorded-upload")) return recorded_upload();
+         mtl_init(); printf("DEVICE %s backend=Metal%d deswizzle on GPU %d page %d\n", g_dev.name.UTF8String, g_m3 ? 3 : 4, g_nvn_deswz_gpu, getpagesize());
+         REQUIRE(g_nvn_deswz_gpu);   // 被测的是 GPU 解交错的取源
+diff --git a/graphics/nvn/tests/t_rb_upload_budget.c b/graphics/nvn/tests/t_rb_upload_budget.c
+new file mode 100644
+index 0000000..bd83449
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_upload_budget.c
+@@ -0,0 +1,25 @@
++// SPDX-License-Identifier: Apache-2.0
++#include <assert.h>
++#include <stdio.h>
++#include "../gfx/nvn/rb_upload_budget.h"
++
++int main(void) {
++    rb_hash_budget b = {0};
++    assert(!rb_hash_reserve(&b, 10, RB_HASH_ITEM + 1));
++    for (unsigned n = 0; n < 4; ++n) assert(rb_hash_reserve(&b, 10, RB_HASH_ITEM));
++    assert(!rb_hash_reserve(&b, 10, 1));
++    assert(rb_hash_reserve(&b, 11, 1));
++    rb_hash_note_demand(&b, 11, 201u << 20);
++    assert(!rb_hash_reserve(&b, 11, 1));
++    for (unsigned n = 0; n < 8; ++n) assert(rb_hash_reserve(&b, 12, 1));
++    assert(!rb_hash_reserve(&b, 12, 1));
++    assert(rb_batch_fits(0, RB_BATCH_ITEM, UINT64_MAX));
++    assert(rb_batch_fits(RB_BATCH_BYTES - 1, 1, RB_BATCH_BYTES));
++    assert(!rb_batch_fits(RB_BATCH_BYTES, 1, UINT64_MAX));
++    assert(!rb_batch_fits(0, RB_BATCH_ITEM + 1, UINT64_MAX));
++    assert(!rb_batch_fits(UINT64_MAX, 1, RB_BATCH_BYTES));
++    assert(!rb_batch_fits(0, 1, 0));
++    assert(!rb_batch_fits(512, 256, 640));
++    puts("PASS first-upload budget, burst, quota, overflow, empty and rollover");
++    return 0;
++}

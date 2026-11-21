@@ -84,3 +84,5 @@ RewindBox patches 0220 through 0225 add optional title-scoped asynchronous pipel
 RewindBox adds optional tracking of descriptor aliases and sealed NVN command lists, tile clear batching and MetalFX producer reuse. The accompanying checks cover command ordering, attachment values and timing boundaries.
 
 RewindBox adds opt-in resolution retention, verified shadow-caster scaling, prepared MetalFX input sizes and GPU/thermal resolution control. These modifications and their tests are part of the direct Metal renderer.
+
+RewindBox adds build-specific presentation profiles, bounded file advice and texture upload preparation, and display-link pacing with on-screen measurements.

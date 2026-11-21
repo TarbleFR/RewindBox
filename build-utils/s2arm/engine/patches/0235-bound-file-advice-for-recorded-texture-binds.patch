@@ -1,0 +1,401 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 8776211..fb97dae 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3523,6 +3523,10 @@ static lf_rec g_lf[LFN];
+ //   one) says -1, and the line then leaves the field out. The third value: texture reads not looked at (their storage not wholly in the window's files)
+ __attribute__((weak)) void nvn_be_tex_absent_take(int64_t *pages, int64_t *noacc, int64_t *unseen) { *pages = *noacc = *unseen = -1; }
+ static int64_t g_lf_abs[LFN][3];
++#include "rb_pager_sample.h"
++// 弱链接[host,ios,nvntest]：nvn_rb_pager_take (optional Metal backend)
++extern int nvn_rb_pager_take(rb_pager_sample *) __attribute__((weak_import));
++
+ __attribute__((weak)) void dm_longframe_note(const char *what) { LOG("[longframe] %s", what); }   // Default (graphics unit tests); the strong definition in the host's diag.c adds scene context and writes perf.txt
+ // RewindBox (patch 0069): the long-frame line counted pipelines and shader libraries but not the translations the submit thread made or waited for (dsh_miss.inc
+ //   dm_shader_miss_late), nor the MSL it compiled. IPA 765: frame 701 took 126.4 ms, 107.2 ms in the engine's calls, but its line gave "4.6 ms in all", while the profile had the
+@@ -4283,6 +4287,15 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+                 nvn_rb_course_frame_observed(f,rb_interval,r->up_ms,rb_upload_gpu_ms,r->x_ms,r->xw_ms,r->msl_n,r->msl_ms,&detail);
+             }
+             nvn_be_tex_absent_take(&g_lf_abs[f % LFN][0], &g_lf_abs[f % LFN][1], &g_lf_abs[f % LFN][2]);   // RewindBox (patch 0070)
++            rb_pager_sample pager;
++            if (nvn_rb_pager_take && nvn_rb_pager_take(&pager) && fr >= 50.0) {
++                uint64_t off = pager.cold_wall > pager.cold_cpu ? pager.cold_wall - pager.cold_cpu : 0;
++                char line[384];
++                snprintf(line,sizeof line,"[RB-TEX-PAGER] frame=%llu proc_major_faults=%ld texture_absent_pages=%lld probe_wall_ms=%.3f probe_cpu_ms=%.3f cold_upload_wall_ms=%.3f cold_upload_cpu_ms=%.3f cold_upload_offcpu_upper_ms=%.3f kernel_fault_ms=unavailable",
++                    (unsigned long long)f, r->majflt, (long long)g_lf_abs[f%LFN][0], pager.probe_wall/1e6,
++                    pager.probe_cpu/1e6, pager.cold_wall/1e6, pager.cold_cpu/1e6, off/1e6);
++                dm_longframe_note(line);
++            }
+         }
+         plib = lib_; ppso = pso_;
+         trow(f, "@t_s", (now_ns() - g_t0_ns) / 1e9);
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index cc3764a..b9916c8 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1469,7 +1469,7 @@ static _Atomic unsigned g_sp_heap_n;
+ // Keep exposure history from process start, including registrations made before
+ // the hosted title is selected. The experiment is an explicit fresh-launch opt-in.
+ static _Atomic int g_rb_live_request;
+-enum { RB_DEVICE_BATCH, RB_DEVICE_FX_PREFIX, RB_DEVICE_TAIL_TRACE, RB_DEVICE_LIVE, RB_DEVICE_RETAIN, RB_DEVICE_SHADOW, RB_DEVICE_DRS, RB_DEVICE_OPTIONS };
++enum { RB_DEVICE_BATCH, RB_DEVICE_FX_PREFIX, RB_DEVICE_TAIL_TRACE, RB_DEVICE_LIVE, RB_DEVICE_RETAIN, RB_DEVICE_SHADOW, RB_DEVICE_DRS, RB_DEVICE_PAGER, RB_DEVICE_PAGER_TRACE, RB_DEVICE_OPTIONS };
+ static _Atomic int g_rb_device_options[RB_DEVICE_OPTIONS];
+ static int rb_a18_option(unsigned key, const char *name) {
+ #if TARGET_OS_IOS && !TARGET_OS_SIMULATOR
+@@ -5478,6 +5478,29 @@ static int rb_wn_batch_on(void) {
+     if (on < 0) { const char *e = getenv("S2A_RB_DEMAND_PROBE_BATCH"); on = !(e && !strcmp(e, "0")); }
+     return on;
+ }
++static int rb_bind_file_hints(void) {
++    return g_dev && rb_a18_option(RB_DEVICE_PAGER, "S2A_RB_TEXTURE_PAGER");
++}
++static int rb_pager_trace(void) {
++    return g_dev && rb_a18_option(RB_DEVICE_PAGER_TRACE, "S2A_RB_PAGER_TRACE");
++}
++#include "rb_file_hint.h"
++static rb_file_budget rb_bind_budget;
++static _Thread_local int rb_bind_fd_only;
++static _Atomic uint64_t rb_bind_advised, rb_bind_refused, rb_bind_failed;
++#include "rb_file_hint_darwin.h"
++
++// A recorded bind may become stale. The hint targets only the still-open
++// window files, never a guest pointer or any replacement anonymous mapping.
++// Park-compatible shutdown drains this queue before the files are closed.
++static int rb_wn_issue(uintptr_t address, size_t bytes) {
++    if (!rb_bind_fd_only)
++        return madvise((void *)address, bytes, MADV_WILLNEED) == 0;
++    size_t done = rb_mem_low() || dm_gfx_session_stopping() ? 0 : rb_guest_file_advise(address, bytes);
++    atomic_fetch_add_explicit(&rb_bind_advised, done, memory_order_relaxed);
++    if (done < bytes) atomic_fetch_add_explicit(&rb_bind_failed, bytes - done, memory_order_relaxed);
++    return done == bytes;
++}
+ static int rb_wn_sel(const tex_t *t, const uint64_t *bits, long np, uintptr_t h, uintptr_t hp) {
+     if (!bits) return 1;
+     uintptr_t dp = nvn_dirty_page_size(), p0 = (uintptr_t)t->mem & ~(dp - 1);
+@@ -5519,10 +5542,10 @@ static uint64_t rb_wn_(const void *p, uint64_t n, const tex_t *t, const uint64_t
+             if ((bits && !selected[i]) || (v[i] & MINCORE_INCORE)) { i++; continue; }
+             size_t end = MIN(m, ((i / RB_WN_RUN) + 1) * RB_WN_RUN), j = i + 1;
+             while (j < end && (!bits || selected[j]) && !(v[j] & MINCORE_INCORE)) j++;
+-            if (demand && rb_ra_wait_gen) rb_ra_saw_absent=YES;
++            if (demand && (rb_ra_wait_gen || rb_pager_cpu_start)) rb_ra_saw_absent=YES;
+             if (adv) {
+                 if (rb_ra_source && rb_gov_on()) rb_ra_advise(c+i*pg,j-i,pg,rb_ra_source);
+-                else (void)madvise((void *)(c + i * pg), (j - i) * pg, MADV_WILLNEED); atomic_fetch_add_explicit(&g_wn_runs, 1, memory_order_relaxed); }
++                else (void)rb_wn_issue(c + i * pg, (j - i) * pg); atomic_fetch_add_explicit(&g_wn_runs, 1, memory_order_relaxed); }
+             absent += j - i; i = j;
+         }
+         c += m * pg;
+@@ -5553,7 +5576,15 @@ static uint64_t rb_wn(const void *p, uint64_t n, unsigned source,uint64_t epoch)
+     atomic_fetch_sub(&rb_gov_prefetch_inflight,n);
+     return probed;
+ }
+-static uint64_t rb_wn_demand(const void *p, uint64_t n) { return rb_wn_(p, n, NULL, NULL, 0, 1); }
++static uint64_t rb_wn_demand(const void *p, uint64_t n) {
++    if (!rb_pager_trace() || !on_sub_thread() || g_tex_peek || rb_ra_spec_upload)
++        return rb_wn_(p, n, NULL, NULL, 0, 1);
++    uint64_t wall = bp_now(), cpu = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID);
++    uint64_t result = rb_wn_(p, n, NULL, NULL, 0, 1);
++    atomic_fetch_add_explicit(&rb_probe_cpu_ns, clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)-cpu, memory_order_relaxed);
++    atomic_fetch_add_explicit(&rb_probe_wall_ns, bp_now()-wall, memory_order_relaxed);
++    return result;
++}
+ static void rb_wn_note(const tex_t *t, uint64_t absent) {   // what a read of t's storage found (rb_wn), for the counts; reads t->pool as tex_mtl_ does (its callers' thread)
+     if (absent == RB_WN_NONE) { atomic_fetch_add_explicit(&g_wn_frame_unseen, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_wn_tot_unseen, 1, memory_order_relaxed); return; }
+     if (!absent) return;
+@@ -5907,6 +5938,16 @@ void nvn_be_tex_absent_take(int64_t *pages, int64_t *noacc, int64_t *unseen) {
+ }
+ static void rb_wn_line(unsigned long long frame) {   // every 300 frames (nvn_be_mem_stat, before its line cap), when anything moved: the totals, and the window's GB the reads found most pages missing in
+     static uint64_t last; uint64_t tot = atomic_load(&g_wn_tot), posted = atomic_load(&g_pf_posted), dropped = atomic_load(&g_pf_dropped), unseen = atomic_load(&g_wn_tot_unseen);
++    if (rb_bind_file_hints() || rb_pager_trace()) {
++        task_vm_info_data_t vm = {0};
++        mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
++        int64_t peak = -1;
++        if (task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&vm, &count) == KERN_SUCCESS &&
++            count >= TASK_VM_INFO_REV3_COUNT) peak = vm.ledger_phys_footprint_peak;
++        MLOG("[RB-FILE-HINT] frame=%llu enabled=%d advised_file_bytes=%llu refused_spans=%llu unissued_file_bytes=%llu burst_MiB=4 rate_MiB_s=8 reserve_MiB=2048 process_peak_footprint_bytes=%lld",
++             frame, rb_bind_file_hints(), (unsigned long long)atomic_load(&rb_bind_advised),
++             (unsigned long long)atomic_load(&rb_bind_refused), (unsigned long long)atomic_load(&rb_bind_failed), (long long)peak);
++    }
+     static uint64_t last_probes;
+     uint64_t probes = atomic_load_explicit(&g_wn_demand_probes, memory_order_relaxed);
+     if (probes != last_probes) {
+diff --git a/graphics/nvn/gfx/nvn/rb_file_hint.h b/graphics/nvn/gfx/nvn/rb_file_hint.h
+new file mode 100644
+index 0000000..400a57a
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_file_hint.h
+@@ -0,0 +1,38 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++#include <stdint.h>
++
++enum {
++    RB_HINT_MAX_ITEM = 2 * 1024 * 1024,
++    RB_HINT_BURST = 4 * 1024 * 1024,
++    RB_HINT_RATE = 8 * 1024 * 1024
++};
++#define RB_HINT_RESERVE (UINT64_C(2) << 30)
++typedef struct { uint64_t tick_ms, credit; int started; } rb_file_budget;
++
++// Only the serial bind-hint worker owns this bucket. Charge all host pages
++// spanned (even if already resident), so unaligned tiny textures cannot bypass it.
++static inline int rb_file_hint_admit(rb_file_budget *b, uint64_t now_ms,
++                                     uint64_t room, uint64_t address, uint64_t size,
++                                     uint64_t page, int pressure) {
++    if (!size || size > RB_HINT_MAX_ITEM || !page || (page & (page - 1)) ||
++        !address || address > UINT64_MAX - size || room == UINT64_MAX || pressure)
++        return 0;
++    uint64_t prefix = address & (page - 1);
++    if (page > RB_HINT_BURST || size + prefix > UINT64_MAX - (page - 1)) return 0;
++    uint64_t cost = (size + prefix + page - 1) & ~(page - 1);
++    if (room < RB_HINT_RESERVE + cost) return 0;
++    if (!b->started) {
++        b->credit = RB_HINT_BURST;
++        b->tick_ms = now_ms;
++        b->started = 1;
++    } else if (now_ms > b->tick_ms) {
++        uint64_t dt = now_ms - b->tick_ms;
++        b->credit += dt >= 500 ? RB_HINT_BURST : dt * RB_HINT_RATE / 1000;
++        if (b->credit > RB_HINT_BURST) b->credit = RB_HINT_BURST;
++        b->tick_ms = now_ms;
++    }
++    if (cost > b->credit) return 0;
++    b->credit -= cost;
++    return 1;
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_file_hint_darwin.h b/graphics/nvn/gfx/nvn/rb_file_hint_darwin.h
+new file mode 100644
+index 0000000..29b17cf
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_file_hint_darwin.h
+@@ -0,0 +1,25 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++#include <fcntl.h>
++#include <limits.h>
++#include <stdint.h>
++
++int s2a_guest_file_at(uint64_t address, uint64_t *offset, uint64_t *remaining);
++int s2a_guest_in_file(uint64_t address, uint64_t bytes);
++
++// The consumer owns the window lifetime. Work on file descriptors even if the
++// guest recycles a virtual address. File offsets restart at each chunk boundary.
++static inline size_t rb_guest_file_advise(uintptr_t address, size_t bytes) {
++    if (!bytes || address > UINTPTR_MAX - bytes || !s2a_guest_in_file(address, bytes)) return 0;
++    size_t done = 0;
++    while (done < bytes) {
++        uint64_t offset = 0, remaining = 0;
++        int fd = s2a_guest_file_at(address + done, &offset, &remaining);
++        size_t n = remaining < bytes - done ? (size_t)remaining : bytes - done;
++        if (fd < 0 || !n || n > INT_MAX || offset > INT64_MAX) break;
++        struct radvisory hint = {.ra_offset = (off_t)offset, .ra_count = (int)n};
++        if (fcntl(fd, F_RDADVISE, &hint) < 0) break;
++        done += n;
++    }
++    return done;
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_pager_sample.h b/graphics/nvn/gfx/nvn/rb_pager_sample.h
+new file mode 100644
+index 0000000..b2d7dfa
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_pager_sample.h
+@@ -0,0 +1,4 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++#include <stdint.h>
++typedef struct { uint64_t probe_wall, probe_cpu, cold_wall, cold_cpu; } rb_pager_sample;
+diff --git a/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc b/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc
+index 8ad14f2..a7424dd 100644
+--- a/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc
++++ b/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc
+@@ -16,17 +16,38 @@ static _Thread_local unsigned rb_ra_source;
+ static _Thread_local uint64_t rb_ra_issue_epoch;
+ static _Thread_local BOOL rb_ra_spec_upload, rb_ra_saw_absent;
+ static _Thread_local uint64_t rb_ra_wait_gen;
++// Submission diagnostics are independent of the optional benchmark generation.
++// A cold upload's off-CPU duration is an upper bound including scheduling and
++// other waits. Neither this clock nor process-wide page-ins times kernel faults.
++#include "rb_pager_sample.h"
++static _Thread_local uint64_t rb_pager_cpu_start;
++static _Atomic uint64_t rb_probe_wall_ns, rb_probe_cpu_ns, rb_cold_wall_ns, rb_cold_cpu_ns;
++int nvn_rb_pager_take(rb_pager_sample *s) {
++    if (!rb_pager_trace()) return 0;
++    *s = (rb_pager_sample){.probe_wall=atomic_exchange(&rb_probe_wall_ns,0),
++        .probe_cpu=atomic_exchange(&rb_probe_cpu_ns,0), .cold_wall=atomic_exchange(&rb_cold_wall_ns,0),
++        .cold_cpu=atomic_exchange(&rb_cold_cpu_ns,0)};
++    return 1;
++}
+ static uint64_t rb_ra_wait_start(BOOL required) {
+-    if (!required || rb_ra_spec_upload || !on_sub_thread() || !rb_gov_on() || !s2a_rb_bench_generation ||
+-        !s2a_rb_bench_storage_wait || rb_ra_wait_gen) return 0;
+-    rb_ra_wait_gen=s2a_rb_bench_generation();
++    if (!required || rb_ra_spec_upload || !on_sub_thread() || rb_ra_wait_gen || rb_pager_cpu_start) return 0;
++    if (rb_gov_on() && s2a_rb_bench_generation && s2a_rb_bench_storage_wait)
++        rb_ra_wait_gen = s2a_rb_bench_generation();
++    if (rb_pager_trace()) rb_pager_cpu_start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID);
+     rb_ra_saw_absent=NO;
+-    return rb_ra_wait_gen ? clock_gettime_nsec_np(CLOCK_UPTIME_RAW) : 0;
++    return rb_ra_wait_gen || rb_pager_cpu_start ? clock_gettime_nsec_np(CLOCK_UPTIME_RAW) : 0;
+ }
+ static void rb_ra_wait_end(uint64_t start) {
+     if (!start) return;
+-    if (rb_ra_saw_absent) s2a_rb_bench_storage_wait(rb_ra_wait_gen,start,clock_gettime_nsec_np(CLOCK_UPTIME_RAW));
+-    rb_ra_wait_gen=0;rb_ra_saw_absent=NO;
++    if (rb_ra_saw_absent) {
++        uint64_t end = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
++        if (rb_pager_cpu_start) {
++            atomic_fetch_add_explicit(&rb_cold_wall_ns,end-start,memory_order_relaxed);
++            atomic_fetch_add_explicit(&rb_cold_cpu_ns,clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)-rb_pager_cpu_start,memory_order_relaxed);
++        }
++        if (rb_ra_wait_gen) s2a_rb_bench_storage_wait(rb_ra_wait_gen,start,end);
++    }
++    rb_pager_cpu_start=0;rb_ra_wait_gen=0;rb_ra_saw_absent=NO;
+ }
+ typedef struct { uint32_t slot; uint64_t seq; uintptr_t address; BOOL resident, read; } rb_ra_candidate;
+ typedef struct { uint64_t token; unsigned count; rb_ra_candidate page[(RA_LANES-1)*RA_TRIAL]; } rb_ra_read;
+@@ -134,7 +155,7 @@ static void rb_ra_advise(uintptr_t a,size_t pages,size_t pg,unsigned source) {
+         }
+         l->pending+=(unsigned)n;atomic_fetch_add(&rb_ra_open,(unsigned)n);
+         os_unfair_lock_unlock(&rb_ra_lock);
+-        BOOL ok=rb_gov_quota(RB_GOV_PREFETCH) && !madvise((void *)(a+i*pg),n*pg,MADV_WILLNEED);
++        BOOL ok=rb_gov_quota(RB_GOV_PREFETCH) && rb_wn_issue(a+i*pg,n*pg);
+         os_unfair_lock_lock(&rb_ra_lock);
+         for (size_t j=0;j<n;j++) {
+             p=&rb_ra_pages[rb_ra_slot(a+(i+j)*pg,pg)];
+diff --git a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+index 3a46f79..38941d6 100644
+--- a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
++++ b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+@@ -27,6 +27,7 @@ static struct {
+ } g_tx_page = {.lock = PTHREAD_MUTEX_INITIALIZER};
+ 
+ static void rb_tx_page_run(uint32_t id_, uint64_t serial, uint64_t posted_frame) {
++    int file_only = rb_bind_file_hints();
+     uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
+     if (frame - posted_frame > 2 || dm_gfx_session_stopping() || rb_mem_low() ||
+         nvn_be_stopping() || atomic_load(&g_fu_waiting)) return;
+@@ -50,7 +51,7 @@ static void rb_tx_page_run(uint32_t id_, uint64_t serial, uint64_t posted_frame)
+             const treg_t *r = &g_treg[id_];
+             const tex_t *t = &r->t;
+             if (r->ok && !r->gone && t->serial == serial && t->has_layout && t->mem &&
+-                !t->d.flags && t->L.size && t->L.size <= RB_TX_PAGE_ITEM && !pthread_mutex_trylock(&g_smu)) {
++                !t->d.flags && t->L.size && t->L.size <= (file_only ? RB_HINT_MAX_ITEM : RB_TX_PAGE_ITEM) && !pthread_mutex_trylock(&g_smu)) {
+                 if (nvn_hm_get(&g_tex_live, &serial) && !nvn_hm_get(&g_by_serial, &serial)) {
+                     mem = t->mem;
+                     bytes = t->L.size;
+@@ -62,7 +63,20 @@ static void rb_tx_page_run(uint32_t id_, uint64_t serial, uint64_t posted_frame)
+     }
+     if (mem && bytes <= RB_TX_PAGE_FRAME - g_tx_page.work_bytes) {
+         g_tx_page.work_bytes += bytes;
++        if (file_only) {
++#if TARGET_OS_IPHONE
++            uint64_t room = rb_ios_headroom();
++            if (!rb_file_hint_admit(&rb_bind_budget, bp_now()/NSEC_PER_MSEC, room,
++                                    (uintptr_t)mem, bytes, (unsigned)getpagesize(), rb_mem_low())) {
++                atomic_fetch_add_explicit(&rb_bind_refused, 1, memory_order_relaxed);
++                rb_spec_done(&lease);
++                return;
++            }
++#endif
++        }
++        rb_bind_fd_only = file_only;
+         uint64_t pages = rb_wn(mem, bytes, RA_BIND,backingEpoch);
++        rb_bind_fd_only = 0;
+         if (pages != RB_WN_NONE && pages) {
+             g_tx_page.pages += pages;
+             uint64_t n = ++g_tx_page.refreshed;
+@@ -94,10 +108,11 @@ static BOOL rb_page_hints_allowed(void) {
+     return enabled;
+ }
+ void nvn_be_record_texture_pages(uint32_t id_) {
+-    if (rb_tex_budget_on() && !rb_page_hints_allowed()) return;
++    int file_only = rb_bind_file_hints();
++    if ((file_only || rb_tex_budget_on()) && !rb_page_hints_allowed()) return;
+     unsigned scale=rb_ra_scale(RA_BIND);
+     if (!scale) return;
+-    if (id_ >= (1u << 20) || !rb_course_exact() || !rb_park_compat() || !rb_pf_on() || !rb_wn_on() ||
++    if (id_ >= (1u << 20) || (!file_only && !rb_course_exact()) || !rb_park_compat() || !rb_pf_on() || !rb_wn_on() ||
+         dm_gfx_session_stopping() || nvn_be_stopping() || atomic_load(&g_fu_waiting)) return;
+     uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
+     if (!frame) return;
+@@ -235,6 +250,12 @@ static void rb_tx_reset(void) {
+     g_tx_page.pending = g_tx_page.posted = 0;
+     g_tx_page.pages = g_tx_page.refreshed = 0;
+     g_tx_page.enough_room = 0;
++    rb_bind_budget = (rb_file_budget){0};
++    atomic_store(&rb_bind_advised, 0);
++    atomic_store(&rb_bind_refused, 0);
++    atomic_store(&rb_bind_failed, 0);
++    rb_pager_sample ignored;
++    nvn_rb_pager_take(&ignored);
+     for (unsigned i = 0; i < 2048; ++i) atomic_store(&g_tx_page.recent[i], 0);
+     pthread_mutex_lock(&g_tx_ahead.lock);
+     g_tx_ahead.head = g_tx_ahead.count = g_tx_ahead.in_frame = 0;
+diff --git a/graphics/nvn/tests/t_rb_file_hint.c b/graphics/nvn/tests/t_rb_file_hint.c
+new file mode 100644
+index 0000000..ff8c05e
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_file_hint.c
+@@ -0,0 +1,62 @@
++#include "../gfx/nvn/rb_file_hint.h"
++#include <assert.h>
++#include <stdio.h>
++#ifdef __APPLE__
++#include "../gfx/nvn/rb_file_hint_darwin.h"
++#include <stdlib.h>
++#include <unistd.h>
++static int fds[2], resolutions;
++static uint64_t chunk;
++int s2a_guest_in_file(uint64_t a, uint64_t n) {
++    return a >= chunk && a < 3*chunk && n <= 3*chunk-a;
++}
++int s2a_guest_file_at(uint64_t a, uint64_t *off, uint64_t *remaining) {
++    assert(a >= chunk && a < 3*chunk);
++    ++resolutions;
++    *off = (a-chunk)%chunk;
++    *remaining = chunk-*off;
++    return fds[(a-chunk)/chunk];
++}
++static void darwin_file_test(void) {
++    chunk = getpagesize();
++    for (int i=0; i<2; ++i) {
++        char path[]="/tmp/rewrite-pager.XXXXXX";
++        fds[i]=mkstemp(path);
++        assert(fds[i] >= 0 && unlink(path) == 0 && ftruncate(fds[i], chunk) == 0);
++        assert(pwrite(fds[i], i ? "B" : "A", 1, 0) == 1);
++    }
++    assert(rb_guest_file_advise(0,chunk) == 0 && !resolutions);
++    assert(rb_guest_file_advise(UINTPTR_MAX-8,chunk) == 0 && !resolutions);
++    // Synthetic addresses are never dereferenced. Both files receive their own offset.
++    assert(rb_guest_file_advise(chunk,2*chunk) == 2*chunk && resolutions == 2);
++    for (int i=0; i<2; ++i) {
++        char value=0;
++        assert(pread(fds[i],&value,1,0) == 1 && value == (i ? 'B' : 'A'));
++        close(fds[i]);
++    }
++    puts("PASS Darwin F_RDADVISE across unlinked chunks with original bytes intact");
++}
++#endif
++int main(void) {
++#ifdef __APPLE__
++    darwin_file_test();
++#endif
++    const uint64_t page = 16384, item = RB_HINT_MAX_ITEM, room = RB_HINT_RESERVE + item;
++    rb_file_budget b = {0};
++    assert(!rb_file_hint_admit(&b,100,UINT64_MAX,page,item,page,0));
++    assert(!rb_file_hint_admit(&b,100,room-1,page,item,page,0));
++    assert(!rb_file_hint_admit(&b,100,room,page,item,page,1));
++    assert(!rb_file_hint_admit(&b,100,room,UINT64_MAX-page,2*page,page,0));
++    assert(!rb_file_hint_admit(&b,100,room,page,item+1,page,0));
++    assert(!b.started);
++    assert(rb_file_hint_admit(&b,100,room,page,item,page,0));
++    assert(rb_file_hint_admit(&b,100,room,page,item,page,0));
++    assert(!rb_file_hint_admit(&b,100,room,page,1,page,0));
++    assert(!rb_file_hint_admit(&b,99,room,page,1,page,0));
++    assert(!rb_file_hint_admit(&b,349,room,page,item,page,0));
++    assert(rb_file_hint_admit(&b,351,room,page,item,page,0));
++    assert(rb_file_hint_admit(&b,UINT64_MAX-1,room,page+1,page,page,0));
++    assert(b.credit == RB_HINT_BURST - 2*page);
++    assert(!rb_file_hint_admit(&b,UINT64_MAX-1,RB_HINT_RESERVE+page,page+1,page,page,0));
++    puts("PASS file-backed bind hints: headroom, pressure, byte and time limits, page rounding");
++}
