@@ -1,0 +1,37 @@
+{
+  "build": 816,
+  "source": "770e8a5a3b12af3ef1001515f4fcbaa1ba459828",
+  "sha256": "096531279179802340d64c7b65bfdc16ccdf5cadaf8531dfba0fc7275412c415",
+  "bytes": 333722574,
+  "pinSHA256": "2748428a8e461a8405d8bfbe3608aa16f81ec378a186721362c12730dc8a3784",
+  "engineRun": 44929649254,
+  "engineFingerprint": "6bd8a26fd08cd3067a5194aa27682b4900d7d812bdf8b2b43146ed85914c9f56",
+  "patchCount": 282,
+  "lastPatch": {
+    "name": "0282-bound-sustained-secondary-polling-in-Serious.patch",
+    "sha256": "e2311c55746cf0e72ab60a799d39555362d229ce464cf4a7b5875b2310481d11"
+  },
+  "chain": "0be3f28548fd",
+  "markers": [
+    "S2A_RB_INPASS_UBO_RING",
+    "S2A_RB_FAIR_SCALE",
+    "S2A_RB_ARCHIVE_WRITE_ALWAYS",
+    "blocked_storage=",
+    "S2A_RB_FAIR_NATIVE_TILES",
+    "S2A_RB_SUSTAINED_IDLE",
+    "idle_1ms_short_sleeps"
+  ],
+  "plist": {
+    "RBTestAsyncPSODefault": true
+  },
+  "deviceFrames": 0,
+  "baselineBuild": 815,
+  "baselineSha256": "7fe8bf00050c63565e41340d685b9443480ddf39dbdb801aa1a023237465887d",
+  "run": 44931754746,
+  "attempt": 1,
+  "nativeImages": 97,
+  "bundles": 10,
+  "offlineValidators": 6,
+  "physicalIphoneTested": false,
+  "privateTransferVerified": true
+}
