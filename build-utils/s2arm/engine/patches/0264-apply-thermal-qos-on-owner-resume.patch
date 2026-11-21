@@ -1,0 +1,265 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index b4981f2..7d05b29 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -794,6 +794,22 @@ static void rb_guest_heat_monitor(void) {
+         !s2a_guest_heat_publish) return;
+     static dispatch_once_t once;
+     dispatch_once(&once, ^{
++        const char *resume=getenv("S2A_RB_GUEST_QOS_TRANSITIONS");
++        if (!resume || !strcmp(resume,"1")) {
++            // A long main-queue callback must not postpone an owner transition.
++            // Read current state on one queue, including the initial sample.
++            dispatch_queue_t samples=dispatch_queue_create("s2a.guest-thermal",DISPATCH_QUEUE_SERIAL);
++            NSProcessInfo *info=NSProcessInfo.processInfo;
++            void (^sample)(void)=^{ s2a_guest_heat_publish((int)info.thermalState); };
++            [NSNotificationCenter.defaultCenter addObserverForName:NSProcessInfoThermalStateDidChangeNotification
++                object:nil queue:nil usingBlock:^(NSNotification *note) {
++                    (void)note;
++                    dispatch_async(samples,sample);
++                }];
++            dispatch_sync(samples,sample);
++            MLOG("[RB-GUEST-QOS] active=1 owner_resume=1 main/gameplay/submit/present/encode preserved");
++            return;
++        }
+         // One configured game per hosted process. The observer and initial
+         // sample run on the same serial queue and never wake sleeping guests.
+         dispatch_async(dispatch_get_main_queue(), ^{
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index 41ea336..ffed0e0 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -864,7 +864,8 @@ static int set_qos(qos_class_t want) {
+ static _Atomic int rb_guest_hot;
+ static _Atomic unsigned rb_guest_down, rb_guest_up;
+ static _Thread_local rb_guest_heat_role rb_heat_role;
+-static _Thread_local int rb_frame_role;
++static _Thread_local int rb_frame_role, rb_resume_qos;
++static _Atomic int rb_heat_ack = -1; // one verified owner report per thermal transition
+ static _Thread_local uint64_t rb_qos_retry;
+ static _Atomic int rb_heat_stats_enabled;
+ static _Atomic int rb_heat_last_state=-1; // only the title/device/backend monitor publishes here
+@@ -903,10 +904,15 @@ void s2a_guest_heat_publish(int state) {
+     if (state < 0 || state > 3) return;
+     atomic_store_explicit(&rb_heat_last_state,state,memory_order_relaxed);
+     int hot = state >= 1;
+-    if (atomic_exchange_explicit(&rb_guest_hot, hot, memory_order_relaxed) != hot)
++    // The Metal observer serializes publishers. Arm the acknowledgement before
++    // exposing the new target to owners, including those returning from a wait.
++    if (atomic_load_explicit(&rb_guest_hot,memory_order_relaxed) != hot) {
++        atomic_store_explicit(&rb_heat_ack,hot,memory_order_relaxed);
++        atomic_store_explicit(&rb_guest_hot,hot,memory_order_release);
+         LOG("[RB-GUEST-QOS] thermal=%d secondary=%s reduced_requests=%u restore_requests=%u",
+             state, hot ? "USER_INITIATED" : "USER_INTERACTIVE",
+             atomic_load(&rb_guest_down), atomic_load(&rb_guest_up));
++    }
+ }
+ 
+ static void rb_guest_heat_apply(int hot) {
+@@ -926,12 +932,33 @@ static void rb_guest_heat_apply(int hot) {
+     if (verified) {
+         rb_heat_role = next;
+         rb_qos_retry = 0;
++        int expected=hot;
++        if (rb_resume_qos && !rb_frame_role && atomic_compare_exchange_strong_explicit(
++                &rb_heat_ack,&expected,-1,memory_order_relaxed,memory_order_relaxed))
++            LOG("[RB-GUEST-QOS] phase=applied thermal=%d verified=%s reduced_requests=%u restore_requests=%u",
++                atomic_load(&rb_heat_last_state),hot ? "USER_INITIATED" : "USER_INTERACTIVE",
++                atomic_load(&rb_guest_down),atomic_load(&rb_guest_up));
+         if (rb_frame_role) rb_heat_role.secondary = 0;
+     } else {
+         rb_qos_retry = clock_gettime_nsec_np(CLOCK_UPTIME_RAW) + 1000000000ull;
+     }
+ }
+ 
++// These paths can complete guest work or return from a blocking call without
++// another SVC entry. Darwin requires the priority setter to run on its owner.
++static inline void rb_guest_heat_resume(void) {
++    if (rb_resume_qos && rb_heat_role.secondary) {
++        int hot=atomic_load_explicit(&rb_guest_hot,memory_order_acquire);
++        if (rb_heat_role.reduced!=hot || rb_frame_role) rb_guest_heat_apply(hot);
++    }
++}
++#ifdef S2A_UNIT_TEST
++void s2a_test_guest_heat_requests(unsigned out[2]) {
++    out[0]=atomic_load(&rb_guest_down);
++    out[1]=atomic_load(&rb_guest_up);
++}
++#endif
++
+ void s2a_guest_frame_qos_protect(void) {
+     if (!rb_heat_role.secondary) return;
+     if (!rb_frame_role) rb_qos_retry = 0;
+@@ -978,6 +1005,8 @@ static void *thread_main(void *p) {
+         (!setting || !strcmp(setting, "1")))
+         rb_heat_role = rb_guest_heat_worker(t->id, t->is_main, base == QOS_CLASS_USER_INTERACTIVE,
+                                             other_qos() != QOS_CLASS_UNSPECIFIED);
++    const char *resume=getenv("S2A_RB_GUEST_QOS_TRANSITIONS");
++    rb_resume_qos=rb_heat_role.secondary && (!resume || !strcmp(resume,"1"));
+     rb_frame_role = 0;
+     rb_qos_retry = 0;
+     set_qos(base);
+@@ -996,7 +1025,12 @@ static void *thread_main(void *p) {
+ #endif
+     // S2A_CORES：进游戏代码前先取核（同 Horizon：线程被调度上核才开始跑）；原先到第一次系统调用才取，期间不持核在跑、同核可 ≥2（调度计数 / t_thread ⑯ 抓到）。
+     // 走系统调用出口同一条路：等核期间算在系统调用里（暂停方不去 Mach 挂起它），出来前认暂停
+-    if (!hostent) svc_exit(t); else atomic_store(&t->in_svc, 0);
++    if (!hostent) svc_exit(t); else {
++#if defined(__APPLE__)
++        rb_guest_heat_resume();
++#endif
++        atomic_store(&t->in_svc, 0);
++    }
+ #ifndef S2A_UNIT_TEST
+     { void s2a_det_set_ord(int); s2a_det_set_ord((int)(t->id - 0x51)); s2a_det_acquire(); }   // 确定性档：游戏线程串行（序号 = 创建先后，主线程 0）
+ #endif
+@@ -2035,6 +2069,9 @@ void s2a_guest_return(void) {
+     core_acquire(t);   // 自带「已持且掩码容得下就返回」，不必自己判 held_core
+     if (on) hostcore_corewait((void *)HC_LAZY_RA, thread_clock() - t0);
+     if (wt) t_wt_core_ns += thread_clock_ns(thread_clock() - t0);
++#if defined(__APPLE__)
++    rb_guest_heat_resume();
++#endif
+     atomic_store(&t->off_guest, 0);
+ }
+ #if !defined(__APPLE__)
+@@ -2073,6 +2110,7 @@ static void svc_exit(thr_t *t) {
+     atomic_store(&t->in_svc, 0);
+ #if defined(__APPLE__)
+     svc_leave_check(t);
++    rb_guest_heat_resume();
+ #endif
+     if (wt_on()) { uint64_t n = thread_clock();
+         if (t->tr_wake_t) { wt_bucket(0, thread_clock_ns(n - t->tr_wake_t)); t->tr_wake_t = 0; }          // 被唤醒方：唤醒 → 回到游戏
+@@ -2307,6 +2345,9 @@ static int64_t sleep_bo(thr_t *me, const uint64_t *regs, int64_t ns) {
+ static int g_spin_on = -1; static uint64_t g_spin_poll = 2000000;
+ static _Atomic uint64_t g_spin_pass, g_spin_sleeps, g_spin_sleep_ns;
+ void s2a_spin_wait(uint64_t site) {
++#if defined(__APPLE__)
++    rb_guest_heat_resume();
++#endif
+     (void)site;
+     if (g_spin_on < 0) { const char *e = getenv("S2A_SPIN"), *pl = getenv("S2A_SPIN_POLL"); g_spin_on = !(e && !strcmp(e, "0"));   // 10-24 缺省开（S2A_SPIN=0 关）
+         if (pl && *pl) g_spin_poll = strtoull(pl, NULL, 10) * 1000;
+@@ -2345,6 +2386,9 @@ void s2a_spin_wait(uint64_t site) {
+ static int g_tw_on = -1;
+ static _Atomic uint64_t g_tw_pass, g_tw_sleeps, g_tw_sleep_ns;
+ void s2a_tick_wait(uint64_t key) {
++#if defined(__APPLE__)
++    rb_guest_heat_resume();
++#endif
+     if (g_tw_on < 0) { const char *e = getenv("S2A_TICK_WAIT"); g_tw_on = e && !strcmp(e, "1");
+         LOG("读时钟闸：%s（同一调用点连续读时钟满 2 ms 后每次最多睡 250 µs）", g_tw_on ? "开（S2A_TICK_WAIT=1）" : "关（缺省，S2A_TICK_WAIT=1 开）"); }
+     atomic_fetch_add_explicit(&g_tw_pass, 1, memory_order_relaxed);
+diff --git a/runtime/tests/rb_guest_heat_owner.inc b/runtime/tests/rb_guest_heat_owner.inc
+new file mode 100644
+index 0000000..178290d
+--- /dev/null
++++ b/runtime/tests/rb_guest_heat_owner.inc
+@@ -0,0 +1,88 @@
++// Included by t_thread.c. The guest binding, wait table, return and hot clock
++// gate are the runtime's. Only the notification producer is driven by the test.
++static int rb_test_hosted;
++int s2a_rb_guest_on(void) { return rb_test_hosted; }
++extern void s2a_guest_heat_publish(int);
++extern void s2a_guest_heat_stats_report(const char *,uint64_t);
++extern void s2a_guest_frame_qos_protect(void);
++extern void s2a_test_guest_heat_requests(unsigned [2]);
++extern void s2a_tick_wait(uint64_t);
++static _Atomic uint32_t rb_wait_word;
++static _Atomic int rb_phase, rb_ready, rb_completed;
++static qos_class_t rb_initial[3], rb_at_fair[3], rb_at_nominal[3];
++static uint64_t rb_wait_rc[3];
++
++static qos_class_t rb_test_current(void) {
++    qos_class_t got=QOS_CLASS_UNSPECIFIED;
++    int relative=0;
++    return pthread_get_qos_class_np(pthread_self(),&got,&relative) ? QOS_CLASS_UNSPECIFIED : got;
++}
++
++static void rb_owner(uint64_t role) {
++    rb_initial[role]=rb_test_current();
++    if (role==2) s2a_guest_frame_qos_protect();
++    uint64_t wait[31]={(uint64_t)&rb_wait_word,2,0,(uint64_t)-1};
++    svc_thread(0x34,wait);
++    rb_wait_rc[role]=wait[0];
++    // No intervening SVC or clock gate: the change must have taken effect on
++    // the return from the wait in which the producer switched from Nominal.
++    rb_at_fair[role]=rb_test_current();
++    for (int i=0;i<64;i++) s2a_tick_wait(0);
++    atomic_fetch_add(&rb_ready,1);
++    while (!atomic_load(&rb_phase)) sched_yield();
++    // No SVC between Fair and Nominal: this worker uses only the clock gate.
++    for (int i=0;i<64;i++) s2a_tick_wait(0);
++    rb_at_nominal[role]=rb_test_current();
++    atomic_fetch_add(&rb_completed,1);
++    uint64_t quit[31]={0};
++    svc_thread(0x0a,quit);
++}
++
++static int rb_owner_test(void) {
++    const char *setting=getenv("S2A_RB_GUEST_QOS_TRANSITIONS");
++    int enabled=!setting || !strcmp(setting,"1");
++    rb_test_hosted=1;
++    setenv("S2A_RB_DIRECT_GAME_ID","0400C3F00006E000",1);
++    setenv("S2A_RB_GUEST_QOS_THERMAL","1",1);
++    setenv("S2A_RB_GUEST_QOS_STATS","1",1);
++    setenv("S2A_CORES","0",1);
++    unsetenv("S2A_GUEST_QOS");
++    setenv("S2A_GAME_MAIN_QOS","interactive",1);
++    setenv("S2A_TICK_WAIT","0",1);
++    g_case="RB guest thermal owner";
++    signal(SIGALRM,timeout_kill); alarm(20);
++    pthread_key_create(&g_key18,NULL); pthread_key_create(&g_keytls,NULL);
++    pthread_key_create(&g_keytlr,NULL); pthread_key_create(&g_keygate,NULL);
++    s2a_thread_main_init(); // nx-81, then nx-82, nx-83, frame owner nx-84
++    s2a_guest_heat_publish(0);
++    // Initialize the clock-gate option before three simultaneous readers.
++    s2a_tick_wait(0);
++    for (unsigned i=0;i<3;i++) spawn(rb_owner,i,NULL);
++    while (s2a_test_waiters(3,(uint64_t)&rb_wait_word)!=3) usleep(1000);
++    s2a_guest_heat_publish(1);
++    uint64_t wake[31]={(uint64_t)&rb_wait_word,0,0,(uint64_t)-1};
++    svc_thread(0x35,wake);
++    CHECK(wake[0]==0,"signal registered secondary workers");
++    while (atomic_load(&rb_ready)!=3) usleep(1000);
++    unsigned requests[2];
++    s2a_test_guest_heat_requests(requests);
++    CHECK(requests[0]==(unsigned)enabled && !requests[1],"Fair attempted %u reductions, %u restores",requests[0],requests[1]);
++    CHECK(rb_test_current()==QOS_CLASS_USER_INTERACTIVE,"main retains interactive QoS at Fair");
++    for (unsigned i=0;i<3;i++) {
++        CHECK(!rb_wait_rc[i] && rb_initial[i]==QOS_CLASS_USER_INTERACTIVE,"nx-%u baseline and wait result",82+i);
++        CHECK(rb_at_fair[i]==(enabled && i==0 ? QOS_CLASS_USER_INITIATED : QOS_CLASS_USER_INTERACTIVE),
++              "nx-%u actual requested pthread QoS after Fair %#x",82+i,(unsigned)rb_at_fair[i]);
++    }
++    s2a_guest_heat_stats_report("fixture-fair",1);
++    s2a_guest_heat_publish(2);
++    s2a_guest_heat_publish(0);
++    atomic_store(&rb_phase,1);
++    while (atomic_load(&rb_completed)!=3) usleep(1000);
++    s2a_test_guest_heat_requests(requests);
++    CHECK(requests[0]==(unsigned)enabled && requests[1]==(unsigned)enabled,
++          "idempotent owner transitions across 128 polls: down=%u up=%u",requests[0],requests[1]);
++    for (unsigned i=0;i<3;i++) CHECK(rb_at_nominal[i]==QOS_CLASS_USER_INTERACTIVE,"nx-%u after Nominal",82+i);
++    s2a_guest_heat_stats_report("fixture-nominal",2);
++    printf("%s guest QoS pthread A/B %d; reduced_requests=%u restore_requests=%u\n",bad?"FAIL":"PASS",enabled,requests[0],requests[1]);
++    return !!bad;
++}
+diff --git a/runtime/tests/t_thread.c b/runtime/tests/t_thread.c
+index 760d2e2..fa01189 100644
+--- a/runtime/tests/t_thread.c
++++ b/runtime/tests/t_thread.c
+@@ -820,7 +820,13 @@ static void lz_freeze_worker(uint64_t arg) { (void)arg;    // ㉚：冻结期间
+     atomic_store(&g_lz3_done, 1);
+     uint64_t e[31] = {0}; svc_thread(0x0A, e);
+ }
++#if defined(__APPLE__)
++#include "rb_guest_heat_owner.inc"
++#endif
+ int main(void) {
++#if defined(__APPLE__)
++    if (getenv("S2A_TEST_RB_QOS_OWNER")) return rb_owner_test();
++#endif
+     if (getenv("S2A_TEST_FOREIGN_TSD")) return foreign_tsd_before_init();
+     // Isolate the deliberately occupied host key from the normal guest setup.
+     { fflush(stdout); pid_t pid = fork();

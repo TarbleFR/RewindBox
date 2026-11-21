@@ -1,0 +1,223 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index b4981f2..196e1a6 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -254,7 +254,13 @@ static uint64_t g_link_started_tick;
+ // Metadata is protected by g_link_mu and outlives each timed wait. If several
+ // frontends ever wait concurrently, keep the original broadcast semantics.
+ static _Atomic int g_rb_wake_option, g_rb_thermal_host, g_rb_shader_stats_option;
++#ifdef RB_TEST_FIRST_FRAME
++static int rb_test_first_scope;
++#endif
+ int nvn_rb_thermal_scope(void) {
++#ifdef RB_TEST_FIRST_FRAME
++    if (rb_test_first_scope) return 1;
++#endif
+ #if TARGET_OS_IOS && !TARGET_OS_SIMULATOR && !TARGET_OS_MACCATALYST
+     // rb_guest sets the title before command recording. Device and backend
+     // selection must be complete before caching a hosted NVN2 launch.
+@@ -5997,6 +6003,9 @@ static int rb_spec_level(void) {
+     uint64_t now = bp_now(), prev = atomic_load_explicit(&g_spec_sampled, memory_order_relaxed);
+     if ((!prev || (now > prev && now - prev >= 500000000ull)) && atomic_compare_exchange_strong_explicit(&g_spec_sampled, &prev, now, memory_order_relaxed, memory_order_relaxed)) {
+         NSProcessInfo *pi = NSProcessInfo.processInfo; int th = strict ? (int)pi.thermalState : rb_cached_thermal(), low = pi.isLowPowerModeEnabled ? 1 : 0;
++#ifdef RB_TEST_FIRST_FRAME
++        if (rb_test_first_scope) th=1;
++#endif
+         uint64_t av = UINT64_MAX;
+ #if TARGET_OS_IPHONE
+         if (rb_gov_on()) { rb_gov_sample(0); av = atomic_load(&rb_gov_room); } else av = rb_ios_headroom();
+diff --git a/graphics/nvn/tests/rb_first_draw_flight.inc b/graphics/nvn/tests/rb_first_draw_flight.inc
+index fb056af..7cad617 100644
+--- a/graphics/nvn/tests/rb_first_draw_flight.inc
++++ b/graphics/nvn/tests/rb_first_draw_flight.inc
+@@ -74,6 +74,7 @@ static void rb_test_observed_handoff(void) {
+           !rb_same_pass_state(OP_BIND_PROGRAM,NULL) && !rb_same_pass_state(OP_SET_RT,NULL),
+           "vertex state preserves the proof and a queue wait, new program or target ends it");
+ }
++#include "rb_first_frame_pixels.inc"
+ static void rb_test_first_draw(void) {
+     rb_test_observed_handoff();
+     NSString *keys[2]={@"eaeaeaeaeaeaeaea_b",@"fafafafafafafafa_b"};
+@@ -138,9 +139,7 @@ static void rb_test_first_draw(void) {
+           atomic_load(&g_shader_waits)==waits,"two real omissions, zero submit source builds and zero waits");
+     dispatch_semaphore_signal(rb_test_release); dispatch_semaphore_signal(rb_test_release);
+     REQUIRE(!dispatch_group_wait(rb_test_loads,dispatch_time(DISPATCH_TIME_NOW,30*NSEC_PER_SEC)));
+-    atomic_store(&g_cur_frame,101);
+-    CHECK(!rb_first_library_pair(pair,keys,rb_test_first_enqueue),"ready stages draw immediately even within the window");
+-    vertex_gpu(shader_get(keys[0],0),0.25f,0);
++    rb_fixture_next_frames(keys,&di);
+     g_exec_next=next; atomic_store(&g_cur_frame,original_frame);
+     memset(&R.rt,0,sizeof R.rt); R.has_rt=0; R.clear_d=0; R.clear_c[0]=R.clear_c[1]=0;
+     memset(&S.ds,0,sizeof S.ds); S.nattr=0; S.chmask.mask=0;
+diff --git a/graphics/nvn/tests/rb_first_frame_pixels.inc b/graphics/nvn/tests/rb_first_frame_pixels.inc
+new file mode 100644
+index 0000000..309f1c4
+--- /dev/null
++++ b/graphics/nvn/tests/rb_first_frame_pixels.inc
+@@ -0,0 +1,143 @@
++// A device selector is injected on macOS. All worker admission, Metal builds,
++// skip decisions, pending-table consumption and GPU output are real.
++static void rb_fixture_drain(void) {
++    REQUIRE(rb_observed_drain(&g_observed,dispatch_time(DISPATCH_TIME_NOW,30*NSEC_PER_SEC)));
++}
++static dispatch_semaphore_t rb_fixture_hold_lanes(void) {
++    dispatch_semaphore_t ready=dispatch_semaphore_create(0), release=dispatch_semaphore_create(0);
++    for (int lane=0;lane<2;lane++) REQUIRE(rb_observed_enqueue(^{
++        REQUIRE(qos_class_self()==QOS_CLASS_USER_INITIATED);
++        dispatch_semaphore_signal(ready);
++        REQUIRE(!dispatch_semaphore_wait(release,dispatch_time(DISPATCH_TIME_NOW,30*NSEC_PER_SEC)));
++    }));
++    for (int lane=0;lane<2;lane++)
++        REQUIRE(!dispatch_semaphore_wait(ready,dispatch_time(DISPATCH_TIME_NOW,30*NSEC_PER_SEC)));
++    return release;
++}
++
++static id<MTLTexture> rb_fixture_target(MTLPixelFormat format) {
++    MTLTextureDescriptor *d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:format width:4 height:2 mipmapped:NO];
++    d.usage=MTLTextureUsageRenderTarget; d.storageMode=MTLStorageModePrivate;
++    id<MTLTexture> t=[g_dev newTextureWithDescriptor:d]; REQUIRE(t); return t;
++}
++
++// Issue the returned production PSO for the same 72 indices declared by the
++// material draw. A nil PSO leaves the cleared color target untouched.
++static void rb_fixture_pixels(id<MTLRenderPipelineState> pipeline,float red) {
++    MTLRenderPassDescriptor *pass=[MTLRenderPassDescriptor renderPassDescriptor];
++    for (int i=0;i<2;i++) {
++        MTLRenderPassColorAttachmentDescriptor *a=pass.colorAttachments[i];
++        a.texture=rb_fixture_target(MTLPixelFormatRGBA32Float);
++        a.loadAction=MTLLoadActionClear; a.storeAction=MTLStoreActionStore;
++        a.clearColor=MTLClearColorMake(0,0,0,1);
++    }
++    pass.depthAttachment.texture=rb_fixture_target(MTLPixelFormatDepth32Float);
++    pass.depthAttachment.loadAction=MTLLoadActionClear; pass.depthAttachment.clearDepth=0;
++    pass.depthAttachment.storeAction=MTLStoreActionDontCare;
++    id<MTLCommandBuffer> cb=[g_q commandBuffer];
++    id<MTLRenderCommandEncoder> e=[cb renderCommandEncoderWithDescriptor:pass];
++    if (pipeline) {
++        uint16_t indices[72]; for (unsigned i=0;i<72;i++) indices[i]=i%3;
++        float zeros[4]={0};
++        id<MTLBuffer> idx=[g_dev newBufferWithBytes:indices length:sizeof indices options:MTLResourceStorageModeShared];
++        id<MTLBuffer> zero=[g_dev newBufferWithBytes:zeros length:sizeof zeros options:MTLResourceStorageModeShared];
++        MTLDepthStencilDescriptor *ds=[MTLDepthStencilDescriptor new]; ds.depthCompareFunction=MTLCompareFunctionEqual;
++        [e setRenderPipelineState:pipeline]; [e setDepthStencilState:[g_dev newDepthStencilStateWithDescriptor:ds]];
++        [e setVertexBuffer:zero offset:0 atIndex:30];
++        [e drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:72 indexType:MTLIndexTypeUInt16 indexBuffer:idx indexBufferOffset:0];
++    }
++    [e endEncoding];
++    id<MTLBuffer> read=[g_dev newBufferWithLength:512 options:MTLResourceStorageModeShared];
++    id<MTLBlitCommandEncoder> blit=[cb blitCommandEncoder];
++    [blit copyFromTexture:pass.colorAttachments[0].texture sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0)
++        sourceSize:MTLSizeMake(4,2,1) toBuffer:read destinationOffset:0 destinationBytesPerRow:256 destinationBytesPerImage:512];
++    [blit endEncoding]; [cb commit]; [cb waitUntilCompleted]; REQUIRE(cb.status==MTLCommandBufferStatusCompleted);
++    int mismatch=0;
++    for (int y=0;y<2;y++) for (int x=0;x<4;x++) {
++        const float *v=(const float *)((uint8_t *)read.contents+256*y+16*x);
++        mismatch+=v[0]!=red || v[1]!=0 || v[2]!=0 || v[3]!=1;
++    }
++    CHECK(!mismatch,"frame %llu expected red %.2f on eight pixels, mismatches=%d",
++          (unsigned long long)atomic_load(&g_cur_frame),red,mismatch);
++}
++static void rb_fixture_material(NSString *dst,NSString *src,int stage) {
++    NSString *metadata=[fallback stringByAppendingPathComponent:[src stringByAppendingPathExtension:@"json"]];
++    NSData *bytes=[NSData dataWithContentsOfFile:metadata];
++    NSMutableDictionary *j=[[NSJSONSerialization JSONObjectWithData:bytes options:0 error:nil] mutableCopy]; REQUIRE(j);
++    j[@"key"]=dst;
++    // Unique source digest ensures that this case really compiles on its worker.
++    NSString *msl=[vertex_source stringByAppendingFormat:@"\n// rb next-frame %@\n",dst];
++    fixture(dst,msl,stage ? @"color" : @"plain");
++    bytes=[NSJSONSerialization dataWithJSONObject:j options:0 error:nil];
++    REQUIRE([bytes writeToFile:[fallback stringByAppendingPathComponent:[dst stringByAppendingPathExtension:@"json"]] atomically:YES]);
++}
++
++static void rb_fixture_next_frames(NSString * __strong const source[2],p_draw_idx *di) {
++    int prior_owner=atomic_load(&g_sub_thread_set); pthread_t prior_thread=g_sub_thread;
++    g_sub_thread=pthread_self(); atomic_store(&g_sub_thread_set,1);
++    rb_test_first_scope=1;
++    REQUIRE(rb_observed_workers_on() && rb_first_draw_on() && on_sub_thread());
++    rb_test_kart_workers=1; atomic_store(&g_spec_sampled,0);
++    int lease=0;
++    REQUIRE(rb_spec_level()==RB_SPEC_HOLD && !rb_kart_try_worker(&lease) && !lease);
++    g_pass.cfmt[0]=g_pass.cfmt[1]=MTLPixelFormatRGBA32Float;
++    g_pass.dfmt=MTLPixelFormatDepth32Float; g_pass.samples=1;
++    for (int pso_only=0;pso_only<2;pso_only++) {
++        NSString *keys[2]; uint8_t md[6][8]={0};
++        for (unsigned st=0;st<2;st++) {
++            unsigned tag=0x61u+2*pso_only+st;
++            memset(md[st],tag,8);
++            keys[st]=[NSString stringWithFormat:@"%016llx_b",0x0101010101010101ull*tag];
++            rb_fixture_material(keys[st],source[st],st);
++            if (pso_only) REQUIRE(rb_observed_shader(keys[st],st,0));
++        }
++        if (pso_only) rb_fixture_drain();
++        prog_t saved={.magic=MAGIC('P','R','O','G'),.serial=0x18000u+(unsigned)pso_only,.nstage=2};
++        prog_keys_put(&saved,md,3);
++        S.bst[0]=S.bst[1]=S.prog=&saved; S.bser[0]=S.bser[1]=saved.serial;
++        g_rb_first_live=g_rb_first_snap=&saved;
++        NvProg *program=[NvProg new]; program->smask=3; program->gp=&saved;
++        int frame=200+2*pso_only;
++        atomic_store(&g_cur_frame,frame);
++        dispatch_semaphore_t release=rb_fixture_hold_lanes();
++        uint64_t sh=atomic_load(&g_rb_first_shlib_skips),ps=atomic_load(&g_rb_first_pso_skips);
++        uint64_t submit=atomic_load(&g_bp_msl_n), waits=atomic_load(&g_shader_waits);
++        uint64_t total=atomic_load(&g_rb_msl_n), pso_wait=atomic_load(&g_course_pso_wait_ns);
++        id<MTLRenderPipelineState> result=nil;
++        if (pso_only) {
++            for (int st=0;st<2;st++) { program->sh[st]=shader_get(keys[st],st); REQUIRE(program->sh[st] && program->sh[st]->rb_first_ro); }
++            g_rb_first_indexed=di; result=pso_get(program,nil); g_rb_first_indexed=NULL;
++        } else {
++            // The real draw entry returns before prog_get or any encoding.
++            draw(NULL,di);
++        }
++        CHECK(!result && atomic_load(&g_rb_first_shlib_skips)==sh+!pso_only &&
++              atomic_load(&g_rb_first_pso_skips)==ps+pso_only,"frame %d omitted exactly one %s draw",frame,pso_only?"PSO":"library");
++        CHECK(atomic_load(&g_bp_msl_n)==submit && atomic_load(&g_shader_waits)==waits &&
++              atomic_load(&g_course_pso_wait_ns)==pso_wait,"frame %d returned with both compiler lanes still held",frame);
++        rb_fixture_pixels(result,0);
++        dispatch_semaphore_signal(release); dispatch_semaphore_signal(release); rb_fixture_drain();
++        if (!pso_only) {
++            CHECK(atomic_load(&g_rb_msl_n)==total+2,"both distinct libraries compiled off-submit");
++            for (int st=0;st<2;st++) { program->sh[st]=shader_get(keys[st],st); REQUIRE(program->sh[st] && program->sh[st]->rb_first_ro); }
++            pso_key key;
++            pso_key_fill(&key,program->sh[0],program->sh[1],g_pass.cfmt,g_pass.dfmt,g_pass.sfmt,g_pass.samples,0);
++            pso_pend_kick(&key,program->sh[0],program->sh[1],RB_PSO_SAME_PASS);
++            rb_fixture_drain();
++        }
++        atomic_store(&g_cur_frame,frame+1);
++        CHECK(!rb_first_skip_libraries(di),"frame %d ready material resumes",frame+1);
++        g_rb_first_indexed=di; result=pso_get(program,nil); g_rb_first_indexed=NULL;
++        REQUIRE(result);
++        CHECK(atomic_load(&g_bp_msl_n)==submit && atomic_load(&g_shader_waits)==waits &&
++              atomic_load(&g_course_pso_wait_ns)==pso_wait,"frame %d consumed the finished pipeline without waiting",frame+1);
++        rb_fixture_pixels(result,0.25f);
++        S.prog=S.bst[0]=S.bst[1]=NULL;
++        g_rb_first_live=g_rb_first_snap=NULL;
++    }
++    g_pass.cfmt[0]=g_pass.cfmt[1]=g_pass.dfmt=g_pass.samples=0;
++    rb_test_kart_workers=0; atomic_store(&g_spec_sampled,0);
++    rb_spec_publish(&g_spec_gate,RB_SPEC_RUN);
++    rb_test_first_scope=0;
++    atomic_store(&g_sub_thread_set,0); g_sub_thread=prior_thread; atomic_store(&g_sub_thread_set,prior_owner);
++}
+diff --git a/graphics/nvn/tests/t_nvn_shader_flight.m b/graphics/nvn/tests/t_nvn_shader_flight.m
+index 9f3b732..3842111 100644
+--- a/graphics/nvn/tests/t_nvn_shader_flight.m
++++ b/graphics/nvn/tests/t_nvn_shader_flight.m
+@@ -3,6 +3,8 @@
+ #ifndef NVN_SHADER_FLIGHT_SOURCE
+ #define NVN_SHADER_FLIGHT_SOURCE "../gfx/nvn/nvn_mtl.m"
+ #endif
++#define RB_TEST_FIRST_FRAME 1
++#define RB_TEST_KART_WARM 1
+ #include NVN_SHADER_FLIGHT_SOURCE
+ 
+ static unsigned checks, failures;
+@@ -231,6 +233,9 @@ static int native_msl_recovery(const char *mode, const char *dir, const char *ke
+ int main(int argc, char **argv) { @autoreleasepool {
+     if (argc == 6 && !strcmp(argv[1],"--rb-native-msl"))
+         return native_msl_recovery(argv[2],argv[3],argv[4],argv[5]);
++#ifdef RB_FIRST_DRAW_IMPL
++    setenv("DM_NVN_FIRST_SKIP","1",1);
++#endif
+     char tmp[]="/tmp/t_nvn_shader_flight_XXXXXX"; REQUIRE(mkdtemp(tmp)); root=@(tmp);
+     fallback=[root stringByAppendingPathComponent:@"fallback"];
+     REQUIRE([NSFileManager.defaultManager createDirectoryAtPath:fallback withIntermediateDirectories:YES attributes:nil error:nil]);

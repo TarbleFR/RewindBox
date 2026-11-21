@@ -1,0 +1,612 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index b4981f2..20f0848 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1643,12 +1643,14 @@ static void rb_tile_session_begin(void) {
+     unsigned flags = rb_nvn2_tile_policy(!g_m3 && g_q4 != nil, nvn2_on(), title,
+                                          getenv("S2A_RB_NVN2_TILE_PASSES"), controls);
+     flags |= rb_nvn2_sibling_flag(flags, getenv("S2A_RB_NVN2_CLEAR_SIBLING"));
++    flags |= rb_nvn2_mrt_flag(flags, getenv("S2A_RB_NVN2_MRT_CLEARS"));
+     int track = (flags & (RB_TILE_STORE | RB_TILE_LIVE | RB_TILE_BATCH)) || (controls[1] && !strcmp(controls[1], "1"));
+     atomic_store_explicit(&g_rb_live_request, track ? 2 : 1, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_tile_options, flags | RB_TILE_READY, memory_order_relaxed);
+-    if (flags) MLOG("[gpu-pass] NVN2 title=%s store=%d liveness=%d producer=%d batch=%d detailed_stats=%d clear_sibling=%d", title,
++    if (flags) MLOG("[gpu-pass] NVN2 title=%s store=%d liveness=%d producer=%d batch=%d detailed_stats=%d clear_sibling=%d mrt_clears=%d legacy_tbdr=%s", title,
+                     !!(flags & RB_TILE_STORE), !!(flags & RB_TILE_LIVE), !!(flags & RB_TILE_PRODUCER),
+-                    !!(flags & RB_TILE_BATCH), !!(flags & RB_TILE_STATS), !!(flags & RB_TILE_CLEAR_SIBLING));
++                    !!(flags & RB_TILE_BATCH), !!(flags & RB_TILE_STATS), !!(flags & RB_TILE_CLEAR_SIBLING),
++                    !!(flags & RB_TILE_MRT), getenv("DM_NVN_TBDR") ?: "unset");
+ }
+ static int rb_tile_enabled(unsigned feature) {
+     return !!(atomic_load_explicit(&g_rb_tile_options, memory_order_relaxed) & feature);
+@@ -1658,6 +1660,10 @@ static int rb_live_on(void) {
+ }
+ static os_unfair_lock g_rb_exposure_lock = OS_UNFAIR_LOCK_INIT;
+ static rb_attachment_ranges g_rb_descriptor_bytes, g_rb_virtual_bytes;
++enum { RB_BATCH_SHAPE, RB_BATCH_EXPOSURE, RB_BATCH_BACKING, RB_BATCH_LAYOUT, RB_BATCH_REASON_COUNT };
++static _Atomic uint64_t g_rb_mrt_reason[RB_BATCH_REASON_COUNT];
++static _Atomic uint64_t g_rb_mrt_cut, g_rb_mrt_no_landing, g_rb_mrt_batch, g_rb_mrt_no_plan;
++static _Atomic uint64_t g_rb_mrt_no_descriptor, g_rb_mrt_private_loads, g_rb_mrt_private_barriers;
+ static _Atomic uint64_t g_rb_live_classes[3], g_rb_live_stores, g_rb_live_bytes, g_rb_plane_load_bytes, g_rb_clear_barriers;
+ 
+ // MapVirtual may point even at an ordinary physical pool. Mark its backing
+@@ -1746,6 +1752,7 @@ static enum rb_entry_barrier main_barrier_begin(id e, int relaxed, int private_c
+         // consumer has only private non-heap attachment clears and no draws.
+         // The next encoder still makes its own alias-visibility decision.
+         atomic_fetch_add_explicit(&g_rb_clear_barriers, 1, memory_order_relaxed);
++        if (private_clear == 2) atomic_fetch_add_explicit(&g_rb_mrt_private_barriers, 1, memory_order_relaxed);
+         g_bar_covered++; return RB_ENTRY_COVERED;
+     }
+     if (covered && !atomic_load_explicit(&g_sp_heap_n, memory_order_relaxed)) { g_bar_covered++; return RB_ENTRY_COVERED; }   // RewindBox (patch 0028): with a placement heap, the full barrier (DM_NVN_PRODUCER_COVER=1 only)
+@@ -8526,6 +8533,14 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+              (unsigned long long)atomic_load(&g_rb_live_classes[2]), (unsigned long long)atomic_load(&g_rb_live_stores),
+              (unsigned long long)atomic_load(&g_rb_live_bytes), (unsigned long long)atomic_load(&g_rb_plane_load_bytes),
+              (unsigned long long)atomic_load(&g_rb_clear_barriers));
++        if (rb_tile_enabled(RB_TILE_MRT))
++            MLOG("[tbdr] MRT cumulative frame=%llu segment_cut=%llu no_adjacent_landing=%llu projected_clear_pairs=%llu rejected_plan=%llu rejected_encoder=%llu shape=%llu exposure=%llu backing=%llu layout=%llu private_sibling_load=%llu private_sibling_entry_saved=%llu",
++                 frame,(unsigned long long)atomic_load(&g_rb_mrt_cut),(unsigned long long)atomic_load(&g_rb_mrt_no_landing),
++                 (unsigned long long)atomic_load(&g_rb_mrt_batch),(unsigned long long)atomic_load(&g_rb_mrt_no_plan),
++                 (unsigned long long)atomic_load(&g_rb_mrt_no_descriptor),(unsigned long long)atomic_load(&g_rb_mrt_reason[RB_BATCH_SHAPE]),
++                 (unsigned long long)atomic_load(&g_rb_mrt_reason[RB_BATCH_EXPOSURE]),(unsigned long long)atomic_load(&g_rb_mrt_reason[RB_BATCH_BACKING]),
++                 (unsigned long long)atomic_load(&g_rb_mrt_reason[RB_BATCH_LAYOUT]),(unsigned long long)atomic_load(&g_rb_mrt_private_loads),
++                 (unsigned long long)atomic_load(&g_rb_mrt_private_barriers));
+     }
+     pthread_mutex_lock(&g_mu);
+     uint64_t pending_polls = g_guest_fences.pending_polls, sleeps = g_guest_fences.sleeps;
+@@ -9416,16 +9431,29 @@ static int rb_clear_private_texture(const tex_t *t, id<MTLTexture> mt) {
+ static int rb_private_clear_pass(MTL4RenderPassDescriptor *pd) {
+     if (g_rlane || g_rp_layered || pd.visibilityResultBuffer || g_game_barrier ||
+         !atomic_load_explicit(&g_sp_heap_n, memory_order_relaxed)) return 0;
+-    int any = 0;
++    int any = 0, sibling_load = 0;
+     for (int i = 0; i < 10; i++) {
+         MTLRenderPassAttachmentDescriptor *a;
+         const tex_t *t;
+         if (i < 8) { a = pd.colorAttachments[i]; t = i < R.rt.n ? R.rt.color[i] : NULL; }
+         else { a = i == 8 ? pd.depthAttachment : pd.stencilAttachment; t = R.rt.depth; }
+         if (!a.texture) continue;
+-        if (a.resolveTexture || a.loadAction != MTLLoadActionClear ||
+-            !rb_clear_private_texture(t, a.texture)) return 0;
+-        any = 1;
++        if (a.resolveTexture || !rb_clear_private_texture(t, a.texture)) return 0;
++        if (a.loadAction == MTLLoadActionClear) { any = 1; continue; }
++        // A load of the untouched packed aspect uses the same non-heap private
++        // Metal object as its cleared sibling. Full prior production still orders
++        // ordinary reads. No heap alias can be accessed by this clear-only encoder.
++        MTLRenderPassAttachmentDescriptor *other = i == 8 ? (MTLRenderPassAttachmentDescriptor *)pd.stencilAttachment :
++                                                           (MTLRenderPassAttachmentDescriptor *)pd.depthAttachment;
++        if (!rb_tile_enabled(RB_TILE_MRT) || i < 8 || a.loadAction != MTLLoadActionLoad ||
++            a.storeAction != MTLStoreActionStore || a.texture.pixelFormat != MTLPixelFormatDepth32Float_Stencil8 ||
++            other.texture != a.texture || other.level != a.level || other.slice != a.slice ||
++            other.loadAction != MTLLoadActionClear) return 0;
++        sibling_load = 1;
++    }
++    if (any && sibling_load) {
++        atomic_fetch_add_explicit(&g_rb_mrt_private_loads, 1, memory_order_relaxed);
++        return 2;
+     }
+     return any;
+ }
+@@ -9657,7 +9685,9 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+       void ms_note(id pd, NSUInteger nc); ms_note(pd, (NSUInteger)R.rt.n); }
+     if (g_blit) { enc_b_end(g_blit); g_blit = nil; }   // the copy encoder the shadows' blocks were moved in with (bcrt_attach)
+     ser_gate();
+-    g_enc = clear_only == 1 && (rb_live_on() || rb_tile_enabled(RB_TILE_LIVE)) && rb_private_clear_pass(pd) ? enc_r_begin_pass_scoped(pd, 1) : enc_r_begin_pass(pd);
++    int private_clear = clear_only == 1 && (rb_live_on() || rb_tile_enabled(RB_TILE_LIVE)) ?
++                        rb_private_clear_pass(pd) : 0;
++    g_enc = enc_r_begin_pass_scoped(pd, private_clear);
+     if (g_rb_shadow_native) {
+         if (!g_enc) {
+             g_rb_shadow_native=nil; g_rb_shadow_failed=1;
+@@ -17902,7 +17932,7 @@ static int rb_strict_clear_proofs(void) {
+ 
+ // The sequence index does not replay scissors or conditional rendering. Only the
+ // adjacent rebind/clear pair inherits their exact current state with no intervening reader.
+-static int rb_clear_covers_plane(const sd_att *att, const p_set_rt *next, const uint8_t *clear_op) {
++static int rb_clear_covers_landing(const sd_att *att, const p_set_rt *next, const uint8_t *clear_op, int mrt) {
+     if (g_rc_skip || g_hoist_n || g_rt_merged || g_pass.layered || g_wd > 0) return 0;
+     op_hdr clear_header;
+     memcpy(&clear_header, clear_op, sizeof clear_header);
+@@ -17918,12 +17948,15 @@ static int rb_clear_covers_plane(const sd_att *att, const p_set_rt *next, const
+         tex = next->depth;
+     } else {
+         if (clear_header.op != OP_CLEAR_COLOR || clear_header.size != 8 + sizeof(p_clear_color) ||
+-            slot >= 8 || next->n != 1 || next->depth ||
+-            next->has_cview[0] || R.rt.has_cview[slot]) return 0;
++            slot >= 8 || next->n < 1 || next->n > 8 || R.rt.has_cview[slot]) return 0;
+         const p_clear_color *c = (const p_clear_color *)(clear_op + 8);
+-        if (c->index != 0 || c->mask != 0xf) return 0;
++        if (c->index < 0 || c->index >= next->n || c->mask != 0xf || next->has_cview[c->index]) return 0;
++        if (!mrt && (next->n != 1 || next->depth || c->index)) return 0;
+         old = R.rt.color[slot];
+-        tex = next->color[0];
++        tex = next->color[c->index];
++        // At a proven clear-only landing rp_begin_ex(1) omits every uncleared
++        // color and unused depth plane. An alias in either binding still fails.
++        if (mrt && !rb_discard_unique(tex, next, c->index)) return 0;
+     }
+     // A full load-action clear has one known render extent in this case.
+     if (!tex || !rb_discard_unique(old, &R.rt, (int)slot) || tex->serial != att->ser ||
+@@ -17933,6 +17966,9 @@ static int rb_clear_covers_plane(const sd_att *att, const p_set_rt *next, const
+         !tex->d.width || !tex->d.height || att->lv || att->sl) return 0;
+     return scissor_full(tex, NULL, 0);
+ }
++static int rb_clear_covers_plane(const sd_att *att, const p_set_rt *next, const uint8_t *clear) {
++    return rb_clear_covers_landing(att, next, clear, 0);
++}
+ static int rb_next_clear_covers(const sd_att *att, uint32_t rebind, uint32_t clear) {
+     if (clear != rebind + 1) return 0;
+     const uint8_t *rt_op = g_sdx_op[rebind], *clear_op = g_sdx_op[clear];
+@@ -17969,14 +18005,22 @@ static int rb_clear_has_landing(const uint8_t *op, op_hdr clear) {
+ // The normal renderer closes this encoder on SetRT. Inspect only the next
+ // clear and its landing boundary. No submission index is needed.
+ static unsigned rb_adjacent_clear_mask(const p_set_rt *next, const uint8_t *op) {
+-    if (g_rb_clear_legacy < 0) g_rb_clear_legacy = getenv("DM_NVN_TBDR") != NULL;
++    if (g_rb_clear_legacy < 0) g_rb_clear_legacy = rb_legacy_store_override(getenv("DM_NVN_TBDR"), rb_tile_enabled(RB_TILE_MRT));
+     if (g_m3 || g_rb_clear_legacy || tbdr_on() ||
+         (!rb_direct_option(&g_rb_next_clear_mode, "S2A_RB_GPU_CLEAR_STORES") && !rb_tile_enabled(RB_TILE_STORE))) return 0;
+     op_hdr header;
+     memcpy(&header, op, sizeof header);
+     if (header.op != OP_CLEAR_COLOR && header.op != OP_CLEAR_DS) return 0;
+-    if (g_nbcrt || g_nubd || rs_on() || sub_cut_due() || rb_clear_readback_pending() ||
+-        !rb_clear_has_landing(op, header)) return 0;
++    const int mrt = rb_tile_enabled(RB_TILE_MRT);
++    if (g_nbcrt || g_nubd || rs_on() || rb_clear_readback_pending()) return 0;
++    if (sub_cut_due()) {
++        if (mrt) atomic_fetch_add_explicit(&g_rb_mrt_cut,1,memory_order_relaxed);
++        return 0;
++    }
++    if (!rb_clear_has_landing(op, header)) {
++        if (mrt) atomic_fetch_add_explicit(&g_rb_mrt_no_landing,1,memory_order_relaxed);
++        return 0;
++    }
+     atomic_fetch_add_explicit(&g_rb_adjacent_pairs, 1, memory_order_relaxed);
+     unsigned mask = 0;
+     for (int i = 0; i < g_nsd; i++) {
+@@ -17986,7 +18030,7 @@ static unsigned rb_adjacent_clear_mask(const p_set_rt *next, const uint8_t *op)
+                             NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET;
+         if (!t || (t->d.flags & external) || xv_present(a->ser)) continue;
+         if (rb_tile_enabled(RB_TILE_STORE) && !rb_store_unexposed(t)) continue;
+-        if (rb_clear_covers_plane(a, next, op)) mask |= 1u << i;
++        if (rb_clear_covers_landing(a, next, op, mrt)) mask |= 1u << i;
+     }
+     return mask;
+ }
+@@ -18004,7 +18048,7 @@ static unsigned rb_sealed_clear(const p_set_rt *rt, const uint8_t *next) {
+     unsigned mask = 0;
+     for (int i = 0; i < g_nsd; i++) {
+         sd_att *att = &g_sd[i];
+-        if (!rb_clear_covers_plane(att, rt, clear)) continue;
++        if (!rb_clear_covers_landing(att, rt, clear, rb_tile_enabled(RB_TILE_MRT))) continue;
+         const tex_t *t = att->depth ? R.rt.depth : R.rt.color[att->idx];
+         if (!xv_present(att->ser) && rb_store_unexposed(t))
+             mask |= 1u << i;
+@@ -20236,8 +20280,13 @@ typedef struct {
+     rb_clear_batch planes;
+     lc_group group;
+     const pool_t *pool;
++    int reject;
+     id<MTLTexture> native[9];
+ } RBClearPlan;
++static int rb_clear_reject(RBClearPlan *plan, int reason) {
++    plan->reject = reason;
++    return 0;
++}
+ static int rb_clear_include(RBClearPlan *plan, const lc_group *g, int same_slots) {
+     if (g->rt.n<0 || g->rt.n>8 || g->clear_s || (!!g->rt.depth != !!g->clear_d)) return 0;
+     unsigned before=plan->planes.count;
+@@ -20259,24 +20308,24 @@ static int rb_clear_include(RBClearPlan *plan, const lc_group *g, int same_slots
+         if ((plan->pool && plan->pool!=t->pool) || !t->pool->mem || t->off<0 ||
+             (uint64_t)t->off>t->pool->size || t->L.size>t->pool->size-(uint64_t)t->off ||
+             (uintptr_t)t->pool->mem>UINTPTR_MAX-(uintptr_t)t->off ||
+-            (uintptr_t)t->mem!=(uintptr_t)t->pool->mem+(uintptr_t)t->off) return 0;
+-        if (rb_tile_enabled(RB_TILE_BATCH) && rb_live_class(t) != RB_LIVE_UNEXPOSED) return 0;
++            (uintptr_t)t->mem!=(uintptr_t)t->pool->mem+(uintptr_t)t->off) return rb_clear_reject(plan,RB_BATCH_BACKING);
++        if (rb_tile_enabled(RB_TILE_BATCH) && rb_live_class(t) != RB_LIVE_UNEXPOSED) return rb_clear_reject(plan,RB_BATCH_EXPOSURE);
+         plan->pool=t->pool;
+         // Do not instantiate a texture, load bytes or upgrade a view for a speculative batch.
+         pthread_mutex_lock(&g_smu);
+         id obj=hm_get_id(&g_by_serial,&t->serial);
+         pthread_mutex_unlock(&g_smu);
+-        if (![obj conformsToProtocol:@protocol(MTLTexture)]) return 0;
++        if (![obj conformsToProtocol:@protocol(MTLTexture)]) return rb_clear_reject(plan,RB_BATCH_BACKING);
+         id<MTLTexture> native=obj;
+         if (native.textureType!=MTLTextureType2D || native.sampleCount!=1 || native.mipmapLevelCount!=1 ||
+             native.arrayLength!=1 || native.parentTexture || native.buffer || native.heap ||
+             native.iosurface || native.framebufferOnly || native.isSparse ||
+             native.storageMode!=MTLStorageModePrivate || !(native.usage & MTLTextureUsageRenderTarget) ||
+-            native.width!=t->d.width || native.height!=t->d.height) return 0;
++            native.width!=t->d.width || native.height!=t->d.height) return rb_clear_reject(plan,RB_BATCH_LAYOUT);
+         unsigned bytes=depth ? (native.pixelFormat==MTLPixelFormatDepth32Float ? 4 :
+                        native.pixelFormat==MTLPixelFormatDepth16Unorm ? 2 : 0) : rb_clear_color_bytes(native.pixelFormat);
+         rb_clear_plane p={(uintptr_t)t->mem,t->L.size,(uintptr_t)(__bridge void *)native,t->d.width,t->d.height,bytes,depth};
+-        if (!rb_clear_batch_add(&plan->planes,p)) return 0;
++        if (!rb_clear_batch_add(&plan->planes,p)) return rb_clear_reject(plan,RB_BATCH_LAYOUT);
+         if (depth) {
+             plan->group.rt.depth=t; plan->group.rt.has_dview=view; plan->group.rt.dview=*v;
+             plan->group.clear_d=1; plan->group.cd=g->cd; plan->native[8]=native;
+@@ -20314,6 +20363,45 @@ static void lc_apply(const lc_group *g) {
+     R.rt=g->rt; R.has_rt=1; memcpy(R.clear_c,g->clear_c,sizeof R.clear_c); memcpy(R.cc,g->cc,sizeof R.cc);
+     R.clear_d=g->clear_d; R.clear_s=g->clear_s; R.cd=g->cd; R.cs=g->cs;
+ }
++// The standalone clear-only encoder ignores bound colors without a pending
++// clear and ignores depth when neither aspect is cleared. Keep each active
++// plane's original clear value; the existing planner checks its physical span,
++// descriptor exposure, native object, dimensions, tile budget and format.
++static int rb_clear_recorded_plane(const tex_t *t, const tex_t *other) {
++    return t == other || (t && other && t->serial == other->serial && !memcmp(t,other,sizeof *t));
++}
++static int rb_clear_active_elsewhere(const tex_t *t, const lc_group *other) {
++    if (!t) return 1;
++    if (other->clear_d && rb_clear_recorded_plane(t,other->rt.depth)) return 1;
++    for (int i=0; i<other->rt.n; ++i)
++        if (other->clear_c[i] && rb_clear_recorded_plane(t,other->rt.color[i])) return 1;
++    return 0;
++}
++static int rb_clear_project(const lc_group *src, const lc_group *other, lc_group *out) {
++    if (src->rt.n < 0 || src->rt.n > 8 || other->rt.n < 0 || other->rt.n > 8 || src->clear_s) return 0;
++    *out = *src;
++    if (!src->clear_d) {
++        if (!rb_clear_active_elsewhere(src->rt.depth,other)) return 0;
++        out->rt.depth = NULL;
++    }
++    else if (!rb_discard_unique(src->rt.depth, &src->rt, 8)) return 0;
++    for (int i = 0; i < src->rt.n; ++i) {
++        if (!src->clear_c[i]) {
++            // Even a bound inactive color may need tex_mtl preparation. Only
++            // omit it here when the combined encoder prepares that identical
++            // recorded plane among its own active attachments.
++            if (!rb_clear_active_elsewhere(src->rt.color[i],other)) return 0;
++            out->rt.color[i] = NULL;
++        }
++        else if (!rb_discard_unique(src->rt.color[i], &src->rt, i)) return 0;
++    }
++    return 1;
++}
++static int rb_projected_pair(RBClearPlan *plan, const lc_group *a, const lc_group *b) {
++    lc_group left, right;
++    if (!rb_clear_project(a, b, &left) || !rb_clear_project(b, a, &right)) return 0;
++    return rb_clear_include(plan, &left, 0) && rb_clear_include(plan, &right, 0);
++}
+ // Only compare adjacent groups the existing queue is already materializing at
+ // this very instruction. Never carry work across a draw, sync, encoder, or CB.
+ static int rb_clear_combine(const lc_group *first, const lc_group *second) {
+@@ -20324,18 +20412,37 @@ static int rb_clear_combine(const lc_group *first, const lc_group *second) {
+     atomic_fetch_add_explicit(&g_rb_clear_candidates,1,memory_order_relaxed);
+     RBClearPlan plan={0};
+     int same=rt_same(&first->rt,&second->rt);
+-    if (same ? rb_clear_same_set(&plan,first,second) :
+-        rb_clear_include(&plan,first,0) && rb_clear_include(&plan,second,0)) {
++    int accepted = same ? rb_clear_same_set(&plan,first,second) :
++                          rb_clear_include(&plan,first,0) && rb_clear_include(&plan,second,0);
++    int projected = 0;
++    if (!accepted && rb_tile_enabled(RB_TILE_MRT)) {
++        RBClearPlan partial = {0};
++        if (rb_projected_pair(&partial, first, second)) {
++            plan = partial; accepted = projected = 1;
++        } else {
++            atomic_fetch_add_explicit(&g_rb_mrt_no_plan,1,memory_order_relaxed);
++            atomic_fetch_add_explicit(&g_rb_mrt_reason[partial.reject],1,memory_order_relaxed);
++        }
++    }
++    if (accepted) {
+         lc_apply(&plan.group);
+         g_rb_clear_expected=plan.native;
+         id encoder=rp_begin_ex(1);
+         g_rb_clear_expected=NULL;
+         if (encoder) {
+             rp_end(); g_lc_landed++;
++            if (projected) {
++                // Preserve the original clear encoders' bound-target history.
++                for (int i = 0; i < first->rt.n; ++i) rt_seen_mark(first->rt.color[i]);
++                for (int i = 0; i < second->rt.n; ++i) rt_seen_mark(second->rt.color[i]);
++                rt_seen_mark(first->rt.depth); rt_seen_mark(second->rt.depth);
++                atomic_fetch_add_explicit(&g_rb_mrt_batch,1,memory_order_relaxed);
++            }
+             if (same) atomic_fetch_add_explicit(&g_rb_clear_same,1,memory_order_relaxed);
+             atomic_fetch_add_explicit(&g_rb_clear_saved,1,memory_order_relaxed);
+             return 1;
+         }
++        if (rb_tile_enabled(RB_TILE_MRT)) atomic_fetch_add_explicit(&g_rb_mrt_no_descriptor,1,memory_order_relaxed);
+     }
+     atomic_fetch_add_explicit(&g_rb_clear_rejected,1,memory_order_relaxed);
+     return 0;
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 65258ce..cda4c70 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -166,6 +166,12 @@ int nvn_be_shutdown_session(void) {
+     memset(&g_rb_descriptor_bytes, 0, sizeof g_rb_descriptor_bytes);
+     memset(&g_rb_virtual_bytes, 0, sizeof g_rb_virtual_bytes);
+     os_unfair_lock_unlock(&g_rb_exposure_lock);
++    g_rb_clear_legacy = -1;
++    atomic_store(&g_rb_mrt_cut, 0); atomic_store(&g_rb_mrt_no_landing, 0);
++    atomic_store(&g_rb_mrt_batch, 0); atomic_store(&g_rb_mrt_no_plan, 0);
++    atomic_store(&g_rb_mrt_no_descriptor, 0); atomic_store(&g_rb_mrt_private_loads, 0);
++    atomic_store(&g_rb_mrt_private_barriers, 0);
++    for (int i=0; i<RB_BATCH_REASON_COUNT; ++i) atomic_store(&g_rb_mrt_reason[i], 0);
+     atomic_store(&g_rb_tile_options, 0);
+     atomic_store(&g_rb_producer_mode, 0);
+     g_rb_producer_override = -1;
+diff --git a/graphics/nvn/gfx/nvn/rb_nvn2_tiles.h b/graphics/nvn/gfx/nvn/rb_nvn2_tiles.h
+index fca5746..8f2b7ef 100644
+--- a/graphics/nvn/gfx/nvn/rb_nvn2_tiles.h
++++ b/graphics/nvn/gfx/nvn/rb_nvn2_tiles.h
+@@ -6,7 +6,7 @@
+ enum {
+     RB_TILE_STORE = 1u << 0, RB_TILE_LIVE = 1u << 1, RB_TILE_PRODUCER = 1u << 2,
+     RB_TILE_BATCH = 1u << 3, RB_TILE_STATS = 1u << 4, RB_TILE_READY = 1u << 5,
+-    RB_TILE_CLEAR_SIBLING = 1u << 6
++    RB_TILE_CLEAR_SIBLING = 1u << 6, RB_TILE_MRT = 1u << 7
+ };
+ 
+ // Only a hosted, identified NVN2 session running the direct Metal 4 queue.
+@@ -29,3 +29,11 @@ static inline unsigned rb_nvn2_tile_policy(int metal4, int nvn2, const char *tit
+ static inline unsigned rb_nvn2_sibling_flag(unsigned flags, const char *setting) {
+     return (flags & RB_TILE_LIVE) && (!setting || !strcmp(setting, "1")) ? RB_TILE_CLEAR_SIBLING : 0;
+ }
++
++static inline unsigned rb_nvn2_mrt_flag(unsigned flags, const char *setting) {
++    return (flags & RB_TILE_LIVE) && (!setting || !strcmp(setting, "1")) ? RB_TILE_MRT : 0;
++}
++
++static inline int rb_legacy_store_override(const char *legacy, unsigned mrt) {
++    return legacy && !(mrt && !strcmp(legacy, "0"));
++}
+diff --git a/graphics/nvn/tests/t_rb_clear_batch.c b/graphics/nvn/tests/t_rb_clear_batch.c
+index f45dd9f..b9045ed 100644
+--- a/graphics/nvn/tests/t_rb_clear_batch.c
++++ b/graphics/nvn/tests/t_rb_clear_batch.c
+@@ -25,6 +25,11 @@ int main(void) {
+     assert(rb_nvn2_sibling_flag(all,"1")==RB_TILE_CLEAR_SIBLING);
+     assert(!rb_nvn2_sibling_flag(all,"0") && !rb_nvn2_sibling_flag(all,"other"));
+     assert(!rb_nvn2_sibling_flag(all & ~RB_TILE_LIVE,"1") && !rb_nvn2_sibling_flag(0,NULL));
++    assert(rb_nvn2_mrt_flag(all,NULL)==RB_TILE_MRT && rb_nvn2_mrt_flag(all,"1")==RB_TILE_MRT);
++    assert(!rb_nvn2_mrt_flag(all,"0") && !rb_nvn2_mrt_flag(all&~RB_TILE_LIVE,"1"));
++    assert(!rb_legacy_store_override(NULL,0) && rb_legacy_store_override("0",0));
++    assert(!rb_legacy_store_override("0",RB_TILE_MRT) && rb_legacy_store_override("1",RB_TILE_MRT));
++    assert(rb_legacy_store_override("invalid",RB_TILE_MRT));
+     assert(rb_clear_disjoint_masks(3,1,2)); // two colors of the same MRT
+     assert(rb_clear_disjoint_masks(0x101,0x100,1)); // depth + color
+     assert(!rb_clear_disjoint_masks(3,1,1)); // would erase the order of two writes
+diff --git a/graphics/nvn/tests/t_rb_clear_batch_metal.m b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+index 69ee2e0..d6fa0f5 100644
+--- a/graphics/nvn/tests/t_rb_clear_batch_metal.m
++++ b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+@@ -41,14 +41,20 @@ static void native_pair(int mode, ClearImage out) {
+         a.rt.n=2; a.rt.color[1]=&targets[1];
+         b.rt=a.rt; b.clear_c[1]=1; b.cc[1]=MTLClearColorMake(colors[1],0,0,1);
+     }
++    if (mode == 3) { // one work pass keeps the next clear's color bound but untouched
++        b.rt = (p_set_rt){.n=1,.color={&targets[1]}};
++        b.clear_c[1]=0; b.clear_c[0]=1; b.cc[0]=MTLClearColorMake(colors[1],0,0,1);
++    }
+     if (mode) {
+         CHECK(!rb_clear_combine(&a,&a));  // same subresource and duplicate clear
+         if (mode==2) CHECK(rt_same(&a.rt,&b.rt));
+         if (nvn2_on()) {
+-            uint64_t before=atomic_load(&g_rb_clear_saved);
++            uint64_t before=atomic_load(&g_rb_clear_saved), projected=atomic_load(&g_rb_mrt_batch);
+             g_lc[0]=a; g_lc[1]=b; g_nlc=2;
+             lc_land();
+-            CHECK(atomic_load(&g_rb_clear_saved)==before+1);
++            int should_merge=mode!=3 || rb_tile_enabled(RB_TILE_MRT);
++            CHECK(atomic_load(&g_rb_clear_saved)==before+should_merge);
++            CHECK(atomic_load(&g_rb_mrt_batch)==projected+(mode==3 && should_merge));
+         } else CHECK(rb_clear_combine(&a,&b));
+     } else {
+         lc_apply(&a); CHECK(rp_begin_ex(1)); rp_end();
+@@ -64,7 +70,27 @@ static void tracked_pair(id<MTLDevice> dev, int combined, ClearImage out) {
+     d.storageMode=MTLStorageModePrivate; d.usage=MTLTextureUsageRenderTarget;
+     id<MTLTexture> t[2]={[dev newTextureWithDescriptor:d],[dev newTextureWithDescriptor:d]};
+     CHECK(t[0] && t[1]);
+-    if (combined) {
++    RBClearPlan projected={0};
++    if (combined == 2) {
++        static unsigned char mem[512];
++        pool_t backing={.mem=mem,.size=sizeof mem};
++        tex_t guest[2]={0}; lc_group a={0}, b={0};
++        for (unsigned i=0;i<2;i++) {
++            guest[i].magic=MAGIC('T','E','X',0); guest[i].serial=900+i;
++            guest[i].pool=&backing; guest[i].off=i*256; guest[i].mem=mem+i*256;
++            guest[i].L.size=256; guest[i].L.layers=1;
++            guest[i].d=(nvn_texdesc){.target=NVN_TEXTURE_TARGET_2D,.width=WIDTH,.height=HEIGHT,.depth=1,.levels=1};
++            serial_put(guest[i].serial,t[i]);
++        }
++        a.rt=(p_set_rt){.n=2,.color={&guest[0],&guest[1]}}; a.clear_c[0]=1; a.cc[0]=MTLClearColorMake(colors[0],0,0,1);
++        b.rt=(p_set_rt){.n=1,.color={&guest[1]}}; b.clear_c[0]=1; b.cc[0]=MTLClearColorMake(colors[1],0,0,1);
++        RBClearPlan old={0}; CHECK(!rb_clear_include(&old,&a,0));
++        CHECK(rb_projected_pair(&projected,&a,&b) && projected.planes.count==2);
++        CHECK(projected.native[0]==t[0] && projected.native[1]==t[1]);
++        RBClearPlan clash={0}; CHECK(!rb_projected_pair(&clash,&a,&a));
++        tex_t alias=guest[0]; alias.serial=911; a.rt.color[1]=&alias;
++        lc_group bad; CHECK(!rb_clear_project(&a,&b,&bad));
++    } else if (combined) {
+         rb_clear_batch batch={0};
+         rb_clear_plane a={0x100000,65536,(uintptr_t)(__bridge void *)t[0],WIDTH,HEIGHT,4,0};
+         rb_clear_plane b={0x110000,65536,(uintptr_t)(__bridge void *)t[1],WIDTH,HEIGHT,4,0};
+@@ -83,8 +109,8 @@ static void tracked_pair(id<MTLDevice> dev, int combined, ClearImage out) {
+         MTLRenderPassDescriptor *pass=[MTLRenderPassDescriptor renderPassDescriptor];
+         for (int i=0; i<2; i++) if (combined || p==i) {
+             MTLRenderPassColorAttachmentDescriptor *at=pass.colorAttachments[i];
+-            at.texture=t[i]; at.loadAction=MTLLoadActionClear; at.storeAction=MTLStoreActionStore;
+-            at.clearColor=MTLClearColorMake(colors[i],0,0,1);
++            at.texture=combined==2 ? projected.native[i] : t[i]; at.loadAction=MTLLoadActionClear; at.storeAction=MTLStoreActionStore;
++            at.clearColor=combined==2 ? projected.group.cc[i] : MTLClearColorMake(colors[i],0,0,1);
+         }
+         id<MTLRenderCommandEncoder> enc=[cb renderCommandEncoderWithDescriptor:pass]; CHECK(enc); [enc endEncoding];
+     }
+@@ -94,7 +120,7 @@ static void tracked_pair(id<MTLDevice> dev, int combined, ClearImage out) {
+ 
+ // A clipped or observable plane must survive the first pass. This tracked-Metal
+ // control runs on virtual Macs alongside the direct queue fixture on Apple GPUs.
+-static void tracked_store(id<MTLDevice> dev, int optimize, ClearImage out) {
++static void tracked_store(id<MTLDevice> dev, int optimize, int mrt, ClearImage out) {
+     static unsigned char memory[128];
+     pool_t local={.mem=memory,.size=sizeof memory};
+     tex_t t[2]={0}; p_set_rt old={.n=2}, next={.n=1};
+@@ -106,9 +132,17 @@ static void tracked_store(id<MTLDevice> dev, int optimize, ClearImage out) {
+     sd_att plane={.ser=t[0].serial,.idx=0};
+     struct { op_hdr header; p_clear_color payload; } command={{OP_CLEAR_COLOR,8+sizeof(p_clear_color)},{.mask=0xf}};
+     R.rt=old; next.color[0]=&t[0];
+-    CHECK(rb_clear_covers_plane(&plane,&next,(const uint8_t *)&command));
++    if (mrt) {
++        next.n=2; next.color[1]=&t[0]; next.color[0]=&t[1]; command.payload.index=1;
++        CHECK(!rb_clear_covers_plane(&plane,&next,(const uint8_t *)&command));
++    }
++    CHECK(rb_clear_covers_landing(&plane,&next,(const uint8_t *)&command,mrt));
++    if (mrt) {
++        next.color[0]=&t[0]; CHECK(!rb_clear_covers_landing(&plane,&next,(const uint8_t *)&command,mrt));
++        next.color[0]=&t[1];
++    }
+     R.has_sc=1; R.sc=(typeof(R.sc)){.x=1,.w=WIDTH-1,.h=HEIGHT};
+-    CHECK(!rb_clear_covers_plane(&plane,&next,(const uint8_t *)&command)); R.has_sc=0;
++    CHECK(!rb_clear_covers_landing(&plane,&next,(const uint8_t *)&command,mrt)); R.has_sc=0;
+     rb_descriptor_expose(&t[1]);
+     CHECK(rb_store_unexposed(&t[0]) && !rb_store_unexposed(&t[1]));
+     MTLTextureDescriptor *d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatR32Float
+@@ -120,7 +154,7 @@ static void tracked_store(id<MTLDevice> dev, int optimize, ClearImage out) {
+         MTLRenderPassDescriptor *pd=[MTLRenderPassDescriptor renderPassDescriptor];
+         for (unsigned i=0;i<(pass ? 1u : 2u);i++) {
+             sd_att att={.ser=t[i].serial,.idx=(int)i};
+-            BOOL dead=optimize && !pass && rb_store_unexposed(&t[i]) && rb_clear_covers_plane(&att,&next,(const uint8_t *)&command);
++            BOOL dead=optimize && !pass && rb_store_unexposed(&t[i]) && rb_clear_covers_landing(&att,&next,(const uint8_t *)&command,mrt);
+             CHECK(dead==(optimize && !pass && i==0));
+             MTLRenderPassColorAttachmentDescriptor *at=pd.colorAttachments[i];
+             at.texture=tex[i]; at.loadAction=MTLLoadActionClear; at.storeAction=dead ? MTLStoreActionDontCare : MTLStoreActionStore;
+@@ -135,22 +169,25 @@ static void tracked_store(id<MTLDevice> dev, int optimize, ClearImage out) {
+ 
+ // Encode a masked clear as a real draw so the SetRT following it closes a live
+ // encoder. Split=true crosses a sealed END within the same submitted piece.
+-static void native_store(int split, int exposed, int enabled) {
+-    p_set_rt target={.n=1}; target.color[0]=&targets[0];
+-    struct {
+-        op_hdr head; p_set_rt_c rt; const tex_t *ptr; tex_t snapshot;
+-    } bind={.head={OP_SET_RT,sizeof bind}};
+-    CHECK(sizeof bind==8+set_rt_size(&target));
+-    set_rt_put(&bind.rt,&target);
++static void native_store(int split, int exposed, int enabled, int mrt) {
++    p_set_rt first_target={.n=1,.color={&targets[0]}}, next=first_target;
++    if (mrt) next=(p_set_rt){.n=2,.color={&targets[1],&targets[0]}};
++    size_t first_size=8+set_rt_size(&first_target), next_size=8+set_rt_size(&next);
++    _Alignas(8) uint8_t first_bind[8+sizeof(p_set_rt_c)+sizeof(tex_t)+sizeof(void *)];
++    _Alignas(8) uint8_t next_bind[8+sizeof(p_set_rt_c)+2*(sizeof(tex_t)+sizeof(void *))];
++    CHECK(first_size<=sizeof first_bind && next_size<=sizeof next_bind);
++    op_hdr fh={OP_SET_RT,first_size}, nh={OP_SET_RT,next_size};
++    memcpy(first_bind,&fh,8); set_rt_put(first_bind+8,&first_target);
++    memcpy(next_bind,&nh,8); set_rt_put(next_bind+8,&next);
+     struct { op_hdr h; p_clear_color c; } partial={{OP_CLEAR_COLOR,8+sizeof(p_clear_color)},
+                                                     {.mask=1,.rgba={-0.5,0,0,1}}},
+-        full={{OP_CLEAR_COLOR,8+sizeof(p_clear_color)},{.mask=15,.rgba={0.125,0,0,1}}};
++        full={{OP_CLEAR_COLOR,8+sizeof(p_clear_color)},{.index=mrt ? 1 : 0,.mask=15,.rgba={0.125,0,0,1}}};
+     op_hdr end={OP_END,8};
+-    _Alignas(8) unsigned char first[2*sizeof bind+sizeof partial+sizeof full+sizeof end];
++    _Alignas(8) unsigned char first[sizeof first_bind+sizeof next_bind+sizeof partial+sizeof full+sizeof end];
+     _Alignas(8) unsigned char second[sizeof full+sizeof end];
+     unsigned char *w=first;
+-    memcpy(w,&bind,sizeof bind); w+=sizeof bind; memcpy(w,&partial,sizeof partial); w+=sizeof partial;
+-    memcpy(w,&bind,sizeof bind); w+=sizeof bind;
++    memcpy(w,first_bind,first_size); w+=first_size; memcpy(w,&partial,sizeof partial); w+=sizeof partial;
++    memcpy(w,next_bind,next_size); w+=next_size;
+     if (split) { memcpy(w,&end,sizeof end); w=second; }
+     memcpy(w,&full,sizeof full); w+=sizeof full; memcpy(w,&end,sizeof end);
+     uint64_t handles[]={(uintptr_t)first,(uintptr_t)second};
+@@ -164,12 +201,61 @@ static void native_store(int split, int exposed, int enabled) {
+     CHECK(atomic_load(&g_rb_live_stores)-sealed==(unsigned)(enabled && !exposed && split));
+     ClearImage out; read_pair(g_dev,tex_mtl(&targets[0]),tex_mtl(&targets[1]),out);
+ }
++static void check_packed_pixels(id<MTLTexture> ds, float expected_depth, uint8_t expected_stencil) {
++    id<MTLCommandQueue> q=[ds.device newCommandQueue];
++    id<MTLCommandBuffer> cb=[q commandBuffer];
++    id<MTLBuffer> dst=[ds.device newBufferWithLength:2*HEIGHT*256 options:MTLResourceStorageModeShared];
++    id<MTLBlitCommandEncoder> blit=[cb blitCommandEncoder]; CHECK(blit && dst);
++    for (unsigned i=0;i<2;++i)
++        [blit copyFromTexture:ds sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0)
++                   sourceSize:MTLSizeMake(WIDTH,HEIGHT,1) toBuffer:dst destinationOffset:i*HEIGHT*256
++        destinationBytesPerRow:256 destinationBytesPerImage:HEIGHT*256
++            options:i ? MTLBlitOptionStencilFromDepthStencil : MTLBlitOptionDepthFromDepthStencil];
++    [blit endEncoding]; [cb commit]; [cb waitUntilCompleted]; CHECK(cb.status==MTLCommandBufferStatusCompleted);
++    const uint8_t *bytes=dst.contents;
++    for (unsigned y=0;y<HEIGHT;++y) for (unsigned x=0;x<WIDTH;++x) {
++        float depth; memcpy(&depth,bytes+y*256+x*4,4);
++        CHECK(depth==expected_depth && bytes[HEIGHT*256+y*256+x]==expected_stencil);
++    }
++}
++static void native_packed_ordering(int enabled) {
++    // Register an actual placement heap unrelated to this private packed
++    // allocation. The backend must preserve alias ordering for other encoders.
++    MTLHeapDescriptor *hd=[MTLHeapDescriptor new]; hd.type=MTLHeapTypePlacement;
++    hd.storageMode=MTLStorageModePrivate; hd.size=1u<<20;
++    id<MTLHeap> heap=[g_dev newHeapWithDescriptor:hd]; CHECK(heap); res_add(heap);
++    atomic_fetch_add(&g_sp_heap_n,1);
++    tex_t ds={.magic=MAGIC('T','E','X',0),.serial=nvn_new_serial()};
++    ds.d=(nvn_texdesc){.target=NVN_TEXTURE_TARGET_2D,.format=NVN_FORMAT_DEPTH32F_STENCIL8,.width=WIDTH,.height=HEIGHT,.depth=1,.levels=1};
++    ds.pool=&pool; ds.off=2*65536; ds.mem=(uint8_t *)pool.mem+ds.off;
++    nvn_tex_layout(&ds.d,&ds.L); nvn_be_tex_init(&ds);
++    id<MTLTexture> native=tex_mtl(&ds); CHECK(native.pixelFormat==MTLPixelFormatDepth32Float_Stencil8);
++    // Test depth-only and stencil-only writes, then repeat after exposing an
++    // alias. Each consumer immediately follows a full producer in the same CB.
++    for (unsigned i=0;i<3;++i) {
++        if (i==2) nvn_be_reg_tex(47,&ds,NULL);
++        uint64_t skipped=atomic_load(&g_rb_mrt_private_barriers);
++        nvn_be_sub_begin(); state_reset();
++        lc_group clear={.rt={.depth=&ds},.clear_d=1,.clear_s=1,.cd=0.25,.cs=0x35};
++        lc_apply(&clear); CHECK(rp_begin_ex(1)); rp_end();
++        clear.clear_d=i!=1; clear.clear_s=i==1; clear.cd=0.75; clear.cs=0xa7;
++        lc_apply(&clear); CHECK(rp_begin_ex(1)); rp_end();
++        uint64_t fence=nvn_be_sub_commit();
++        CHECK(nvn_be_wait(fence,10000000000ull) && !mtl_last_commit_error());
++        CHECK(atomic_load(&g_rb_mrt_private_barriers)-skipped==(unsigned)(enabled && i!=2));
++        check_packed_pixels(native,i==1 ? 0.25f : 0.75f,i==1 ? 0xa7 : 0x35);
++    }
++    atomic_fetch_sub(&g_sp_heap_n,1); res_remove(heap);
++}
+ int main(int argc,char **argv) { @autoreleasepool {
+     int titles=argc==2 && (!strcmp(argv[1],"--nvn2-tiles") || !strcmp(argv[1],"--nvn2-control"));
+     int enabled=titles && !strcmp(argv[1],"--nvn2-tiles");
++    int mrt_enabled=enabled && rb_nvn2_mrt_flag(RB_TILE_LIVE,getenv("S2A_RB_NVN2_MRT_CLEARS"));
+     CHECK(argc==1 || titles);
+     if (titles) {
+         load_test_platform();
++        CHECK(!setenv("DM_NVN_TBDR","0",1));
++        CHECK(!setenv("S2A_RB_NVN2_CLEAR_SIBLING","0",1));
+         CHECK(!setenv("DM_NVN_BARRIER","full",1));
+         CHECK(!setenv("S2A_RB_DIRECT_GAME_ID","0400C3F00006E000",1));
+         if (enabled) CHECK(!unsetenv("S2A_RB_NVN2_TILE_PASSES"));
+@@ -187,10 +273,15 @@ int main(int argc,char **argv) { @autoreleasepool {
+     if (!direct) {
+         tracked_pair(dev,0,before); tracked_pair(dev,1,after); CHECK(!memcmp(before,after,sizeof before));
+         if (titles) {
+-            tracked_store(dev,0,before);
++            tracked_store(dev,0,0,before);
+             if (enabled) {
+-                tracked_store(dev,1,after);
++                tracked_store(dev,1,0,after);
+                 CHECK(!memcmp(before,after,sizeof before));
++                if (mrt_enabled) {
++                    tracked_store(dev,1,1,after); CHECK(!memcmp(before,after,sizeof before));
++                    tracked_pair(dev,2,after); CHECK(!memcmp(before,after,sizeof before));
++                    puts("PASS tracked Metal with production NVN2 MRT planner: full overwrite, one fused encoder, alias refusal, 512 identical pixels");
++                }
+             }
+             printf("PASS tracked Metal NVN2 store control: 512 expected pixels; forced Store%s; direct queue barriers untested\n",
+                    enabled ? " and proven DontCare identical" : "");
+@@ -217,11 +308,15 @@ int main(int argc,char **argv) { @autoreleasepool {
+     native_pair(0,before);
+     if (enabled) CHECK(g_bar_covered>covered);
+     if (!titles || enabled) {
+-        for (int mode=1; mode<=2; mode++) { native_pair(mode,after); CHECK(!memcmp(before,after,sizeof before)); }
++        for (int mode=1; mode<=(enabled ? 3 : 2); mode++) { native_pair(mode,after); CHECK(!memcmp(before,after,sizeof before)); }
+     }
+     if (titles) {
+-        native_store(0,0,enabled); native_store(1,0,enabled);
+-        native_store(0,1,enabled); native_store(1,1,enabled);
++        // An explicit legacy zero keeps the old broad TBDR mode disabled.
++        // Only the new narrow store proof can run with this setting.
++        native_store(0,0,mrt_enabled,0); native_store(1,0,mrt_enabled,0);
++        native_store(0,0,mrt_enabled,1); native_store(1,0,mrt_enabled,1);
++        native_store(0,1,mrt_enabled,1); native_store(1,1,mrt_enabled,1);
++        native_packed_ordering(mrt_enabled);
+         printf("PASS direct Metal 4 NVN2 tiles=%d: adjacent/sealed stores, bindless overlap, barriers, pixel readback\n",enabled);
+     }
+     puts("PASS direct Metal 4: distinct/same target sets, alias rejection, both images identical");

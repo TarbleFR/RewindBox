@@ -197,7 +197,7 @@ jobs:
           S2A_BUILD_CACHE: ${{ runner.temp }}/s2arm-build-cache
         run: |
           set -euo pipefail
-          for fixture in graphics/nvn/tests/t_rb_{thermal_pacing,spec_gate,archive_index}.c runtime/tests/t_rb_guest_heat.c; do
+          for fixture in graphics/nvn/tests/t_rb_{thermal_pacing,spec_gate,archive_index,display_hold,adaptive_drs}.c runtime/tests/t_rb_guest_heat.c; do
             binary="$RUNNER_TEMP/$(basename "$fixture" .c)"
             xcrun --sdk macosx clang -std=gnu11 -D_DARWIN_C_SOURCE -O2 -Wall -Wextra -Werror -pthread "$fixture" -o "$binary"
             "$binary"
@@ -208,7 +208,16 @@ jobs:
             build/tests/t_nvn_pso_batch build/tests/t_rb_clear_batch_metal
           build/tests/t_nvn_pso_batch --thermal-batch
           build/tests/t_rb_clear_batch_metal --nvn2-control
-          build/tests/t_rb_clear_batch_metal --nvn2-tiles
+          S2A_RB_NVN2_MRT_CLEARS=0 build/tests/t_rb_clear_batch_metal --nvn2-tiles
+          S2A_RB_NVN2_MRT_CLEARS=1 build/tests/t_rb_clear_batch_metal --nvn2-tiles
+          make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" build/tests/t_nvn_xqueue
+          for mode in 0 1; do
+            for enc in 0 1; do
+              S2A_RB_XQ_RESUME=$mode DM_NVN_ENC_THREAD=$enc build/tests/t_nvn_xqueue
+            done
+          done
+          S2A_TEST_RB_QOS_OWNER=1 S2A_RB_GUEST_QOS_TRANSITIONS=1 make native-test-thread
+          S2A_TEST_RB_QOS_OWNER=1 S2A_RB_GUEST_QOS_TRANSITIONS=0 build/tests/t_thread
           xcrun clang -fobjc-arc -framework Foundation -framework Metal \
             graphics/nvn/tests/t_rb_clear_plane_metal.m -o "$RUNNER_TEMP/sibling-planes"
           "$RUNNER_TEMP/sibling-planes"

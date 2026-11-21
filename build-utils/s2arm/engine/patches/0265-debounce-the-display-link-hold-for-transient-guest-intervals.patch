@@ -1,0 +1,241 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 902a05f..159bcbb 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3222,7 +3222,9 @@ NVN(nvnWindowBuilderGetTexture, NVNtexture *, const NVNwindowBuilder *b, int i)
+ #if defined(__APPLE__)
+ #include "rb_present_mach.h"
+ #endif
+-typedef struct { win2 layout; rb_present_samples samples; } rb_present_history;
++#include "rb_present_hold.h"
++static _Atomic int g_rb_interval_debounce;
++typedef struct { win2 layout; rb_present_samples samples; rb_present_hold display_hold; } rb_present_history;
+ FITS(rb_present_history, NVNwindow);
+ static void nvn2_win_init(NVNwindow *w, const NVNwindowBuilder *b);
+ NVN(nvnWindowInitialize, NVNboolean, NVNwindow *w, const NVNwindowBuilder *b) {
+@@ -3230,6 +3232,7 @@ NVN(nvnWindowInitialize, NVNboolean, NVNwindow *w, const NVNwindowBuilder *b) {
+     memset(o, 0, sizeof *o); o->magic = MAGIC('W', 'I', 'N', 'D'); o->native = s->native; o->ntex = s->ntex; o->interval = s->interval;
+     rb_present_history *history = (rb_present_history *)o;
+     memset(&history->samples, 0, sizeof history->samples);
++    history->display_hold = (rb_present_hold){0};
+     o->nactive = s->nactive > 0 ? (s->nactive < s->ntex ? s->nactive : s->ntex) : s->ntex;   // 未显式设过就按全部纹理可用
+     memcpy(o->tex, s->tex, sizeof o->tex);
+     // SDK initializes the crop to the full first window texture (see docs/window_queries.md).
+@@ -4221,6 +4224,12 @@ static void fstep_tick(win_t *o) {
+         t0 = t; v0 = vs; memset(held, 0, sizeof held);
+     }
+ }
++__attribute__((weak)) uint64_t nvn_be_present_with_hold(const tex_t *t, double period,
++                                                        const int crop[4], double display_hold) {
++    (void)display_hold;
++    return nvn_be_present(t, period, crop);
++}
++
+ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+     if (dm_gfx_session_stopping()) return;
+ #if defined(__APPLE__)
+@@ -4270,7 +4279,20 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+     int rb_sent_interval = o->interval, rb_sent = idx >= 0 && idx < o->ntex && idx < 4;
+     if (rb_sent) {
+         rb_sent_period = present_period(o);
+-        o->ticket[idx] = nvn_be_present(CTX(o->tex[idx]), rb_sent_period / 1e9, crop);   // enqueue only
++        uint64_t hold = rb_sent_period;
++        if (nvn_rb_thermal_scope()) {
++            int enabled = rb_pacing_setting(&g_rb_interval_debounce, "S2A_RB_PRESENT_INTERVAL_DEBOUNCE");
++            int cap = nvn_fps_limit();
++            int eligible = enabled && !g_display_mode && g_hz == 60 && (cap == 0 || cap >= 60) &&
++                           !fps_step_cap() && !nvn_rb_video_paced() && nvn_be_fps_target() >= 60;
++            rb_present_hold *state = &((rb_present_history *)o)->display_hold;
++            hold = rb_window_hold_ns(state, o->presents, rb_sent_interval, rb_sent_period, eligible);
++            if (!(o->presents % 300))
++                LOG("[rb-present-hold] enabled=%d frame=%llu raw=%d filtered_frames=%llu sustained_runs=%llu",
++                    enabled, (unsigned long long)o->presents, rb_sent_interval,
++                    (unsigned long long)state->filtered_frames, (unsigned long long)state->sustained_runs);
++        }
++        o->ticket[idx] = nvn_be_present_with_hold(CTX(o->tex[idx]), rb_sent_period / 1e9, crop, hold / 1e9);
+     }
+     rb_present_samples *samples = &((rb_present_history *)o)->samples;
+     samples->tickets[o->presents % RB_PRESENT_HISTORY] = rb_sent ? o->ticket[idx] : 0;
+@@ -6008,6 +6030,7 @@ int dm_nvn_shutdown_session(void) {
+     atomic_store(&rb_rt_same,0); atomic_store(&rb_rt_deferred,0);
+     atomic_store(&rb_rt_calls,0); atomic_store(&rb_rt_failures,0);
+     g_rt_comp_ms = g_rt_period_ms = 0;
++    atomic_store(&g_rb_interval_debounce, 0);
+     g_frame = 0; g_hz = -1; g_display_mode = 0; g_game_itv = 1;
+     g_display_run = g_display_max_run = g_display_run2 = g_display_run3 = g_display_run5 = g_display_missed_slots = 0;
+     g_display_covered_s = 0;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index b4981f2..2b59096 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -24552,7 +24552,8 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+ // Swapchain texture return: before AcquireTexture gets a texture it waits for the ticket of that texture's previous present to be processed (nvn_be_present_wait), after which the commands the game draws into it
+ // are necessarily ordered after that blit on the GPU queue.
+ #define PQ 8
+-typedef struct { tex_t t; double period; uint64_t frame; int crop[4]; double t_in; uint64_t ev_val; } pq_item;   // t_in: the time the game handed this frame into the present queue (CACurrentMediaTime); ev_val: see g_ext_ev
++#include "rb_present_hold.h"
++typedef struct { tex_t t; double period; uint64_t frame; int crop[4]; double t_in; uint64_t ev_val; double display_hold; } pq_item;   // t_in: the time the game handed this frame into the present queue (CACurrentMediaTime); ev_val: see g_ext_ev
+ // External producer (the Vulkan layer, dm/gfx/vk) renders on its own queue and signals this event when a frame's rendering is done: the present of that frame waits for the value on g_q4
+ static uint64_t g_ext_pend3;   // Metal 3: the value ext_wait asked for, encoded into the next present command buffer (an old queue waits only inside a command buffer)
+ static void ext_wait(uint64_t v) { g_ext_cur = v; if (g_m3) { if (v) g_ext_pend3 = v; return; } if (v && g_ext_ev) [g_q4 waitForEvent:g_ext_ev value:v]; }
+@@ -24734,7 +24735,7 @@ static void rb_release_link_rt(uint64_t now) {
+             if (update.targetTimestamp > 0 && CACurrentMediaTime() > update.targetTimestamp) _window.late++;
+         } else _window.failed++;
+     }
+-    g_link_hold_until = submitted && it.period > 0.025 ? update.targetPresentationTimestamp + it.period : 0;
++    g_link_hold_until = rb_link_hold_deadline(submitted, update.targetPresentationTimestamp, it.display_hold);
+     if (!submitted) {
+         pthread_mutex_lock(&g_pq_mu);
+         if (ticket > g_pq_done) g_pq_done = ticket;
+@@ -25033,8 +25034,16 @@ void mtl_link_pause(int on);
+ // When turned on, also clear the frames already queued: the system first stops the display-link callback and only afterwards notifies about going to the background, and in that gap the game has already filled the swapchain and is stuck at "before acquiring the next texture, wait for its previous present to be processed"
+ // (hle_nvn.c nvnWindowAcquireTexture -> nvn_be_present_wait). Without clearing, the game cannot advance a single tick during those 2.5 seconds of waiting for the save, and the save is not written (the same pattern three times in player logs: 3 frames queued, 0 submits)
+ void mtl_present_discard(int on) { atomic_store(&g_present_discard, on != 0); if (on) present_drop_for_suspend(); }
+-static uint64_t present_enqueue(const tex_t *t, double period, const int crop[4], uint64_t ev_val);
+-uint64_t nvn_be_present(const tex_t *t, double period, const int crop[4]) { int c[4] = {0}; if (crop) memcpy(c, crop, sizeof c); wd_present(t, c); return present_enqueue(t, period, crop || c[2] || c[3] ? c : NULL, 0); }   // S2Arm widen: present notice (a fallback crop the core set counts even when the game gave none)
++static uint64_t present_enqueue(const tex_t *t, double period, const int crop[4], uint64_t ev_val, double display_hold);
++uint64_t nvn_be_present_with_hold(const tex_t *t, double period, const int crop[4], double display_hold) {
++    int c[4] = {0};
++    if (crop) memcpy(c, crop, sizeof c);
++    wd_present(t, c);
++    return present_enqueue(t, period, crop || c[2] || c[3] ? c : NULL, 0, display_hold);
++}
++uint64_t nvn_be_present(const tex_t *t, double period, const int crop[4]) {
++    return nvn_be_present_with_hold(t, period, crop, period);
++}
+ void *mtl_device(void) { mtl_init(); return (__bridge void *)g_dev; }
+ // An external producer's texture (the Vulkan layer's swapchain images): a serial the present path resolves (serial_put), resident for the Metal 4 queue, never collected by the cross-submit ledger
+ uint64_t mtl_ext_tex(void *tex) {
+@@ -25047,9 +25056,9 @@ uint64_t mtl_ext_tex(void *tex) {
+ uint64_t mtl_present_ext(uint64_t serial, double period, void *ev, uint64_t ev_val, const int crop[4]) {
+     tex_t t; memset(&t, 0, sizeof t); t.magic = MAGIC('T', 'E', 'X', 0); t.serial = serial;
+     if (ev && !g_ext_ev) g_ext_ev = (__bridge id<MTLSharedEvent>)ev;
+-    return present_enqueue(&t, period, crop, ev ? ev_val : 0);
++    return present_enqueue(&t, period, crop, ev ? ev_val : 0, period);
+ }
+-static uint64_t present_enqueue(const tex_t *t, double period, const int crop[4], uint64_t ev_val) {
++static uint64_t present_enqueue(const tex_t *t, double period, const int crop[4], uint64_t ev_val, double display_hold) {
+     if (atomic_load(&g_present_discard) || mtl_gpu_halted()) return 0;   // GPU 安全停同丢帧。Ticket number 0 = no pending present; the swapchain texture acquire does not wait
+     if (t) { xv_check(t->serial, 0, 0, "present"); if (g_xv_npresent < 128) g_xv_present[g_xv_npresent++] = t->serial; }
+     static pthread_once_t once = PTHREAD_ONCE_INIT; pthread_once(&once, present_start);
+@@ -25063,7 +25072,7 @@ static uint64_t present_enqueue(const tex_t *t, double period, const int crop[4]
+     pthread_mutex_lock(&g_pq_mu);
+     if (g_pq_in - g_pq_done >= PQ) { pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_pq_mu); while (g_pq_in - g_pq_done >= PQ && !atomic_load(&g_present_discard)) pthread_cond_wait(&g_pq_cv, &g_pq_mu); pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_END(); pthread_mutex_lock(&g_pq_mu); }
+     if (atomic_load(&g_present_discard)) { pthread_mutex_unlock(&g_pq_mu); return 0; }
+-    pq_item *it = &g_pq[g_pq_in % PQ]; *it = (pq_item){*t, period, atomic_load(&g_cur_frame), {0}, CACurrentMediaTime(), ev_val};
++    pq_item *it = &g_pq[g_pq_in % PQ]; *it = (pq_item){*t, period, atomic_load(&g_cur_frame), {0}, CACurrentMediaTime(), ev_val, display_hold};
+     if (crop) memcpy(it->crop, crop, sizeof it->crop);   // The current frame's state is enqueued with the ticket number, rather than reading the mutable window late on the present thread
+     uint64_t tk = ++g_pq_in;
+     // Enqueue makes a consumer runnable only when the classic presenter owns an empty queue.
+diff --git a/graphics/nvn/gfx/nvn/nvn_obj.h b/graphics/nvn/gfx/nvn/nvn_obj.h
+index f038556..43a3669 100644
+--- a/graphics/nvn/gfx/nvn/nvn_obj.h
++++ b/graphics/nvn/gfx/nvn/nvn_obj.h
+@@ -322,6 +322,7 @@ void nvn_be_exec(const uint8_t *handle);
+ void mtl_sub_fill(uint64_t dst, uint64_t n, uint32_t value);   // in-order buffer fill within the submission (OP_CLEAR_BUF)
+ void nvn_be_exec_rest(const uint64_t *handles, int n);   // Tells which handles in this submission still follow the current handle (used by the pass lookahead across handles)
+ // Present: draw the swapchain texture to the front-end CAMetalLayer (only counts when there is no window)
++uint64_t nvn_be_present_with_hold(const tex_t *t, double period_s, const int crop[4], double display_hold);
+ uint64_t nvn_be_present(const tex_t *t, double period_s, const int crop[4]);   // Enqueue a present and return the ticket immediately; period_s: minimum time this image is displayed (= present period, 0 = unlimited)
+ void nvn_be_present_wait(uint64_t ticket);                    // Wait until the present with this ticket has been processed (blit committed to the GPU queue)
+ void mtl_present_flush(void);                              // Wait until all enqueued presents have been processed
+diff --git a/graphics/nvn/gfx/nvn/rb_present_hold.h b/graphics/nvn/gfx/nvn/rb_present_hold.h
+new file mode 100644
+index 0000000..09b4be2
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_present_hold.h
+@@ -0,0 +1,40 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <stdint.h>
++
++// A window starting at 30 Hz is native 30 until it requests a genuine 60 Hz
++// present. Keep the guest clock and acquire deadlines independent of this hold.
++enum { RB_PRESENT_HOLD_CONFIRM = 8 };
++typedef struct {
++    uint64_t ordinal, filtered_frames, sustained_runs;
++    unsigned armed, slow_run;
++} rb_present_hold;
++
++static inline uint64_t rb_window_hold_ns(rb_present_hold *s, uint64_t ordinal, int raw,
++                                         uint64_t period, int eligible) {
++    if (!eligible || ordinal != s->ordinal + 1) {
++        s->armed = 0;
++        s->slow_run = 0;
++    }
++    s->ordinal = ordinal;
++    if (eligible && raw == 1 && period >= 16666665 && period <= 16666668) {
++        s->armed = 1;
++        s->slow_run = 0;
++    } else if (eligible && s->armed && raw == 2 && period >= 33333331 && period <= 33333335) {
++        if (s->slow_run < RB_PRESENT_HOLD_CONFIRM) {
++            if (++s->slow_run == RB_PRESENT_HOLD_CONFIRM) ++s->sustained_runs;
++            else {
++                ++s->filtered_frames;
++                return 16666667;
++            }
++        }
++    } else {
++        s->armed = 0;
++        s->slow_run = 0;
++    }
++    return period;
++}
++
++static inline double rb_link_hold_deadline(int submitted, double target, double hold) {
++    return submitted && hold > 0.025 ? target + hold : 0.;
++}
+diff --git a/graphics/nvn/tests/t_rb_display_hold.c b/graphics/nvn/tests/t_rb_display_hold.c
+new file mode 100644
+index 0000000..1a2a81b
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_display_hold.c
+@@ -0,0 +1,36 @@
++// SPDX-License-Identifier: MIT
++#include "../gfx/nvn/rb_present_hold.h"
++#include <assert.h>
++#include <stdio.h>
++
++enum { FAST = 16666667, SLOW = 33333333 };
++static int held_on_next_tick(uint64_t hold) {
++    return 1.0 + FAST / 1e9 < rb_link_hold_deadline(1, 1.0, hold / 1e9) - .002;
++}
++int main(void) {
++    for (int enabled = 0; enabled <= 1; ++enabled) {
++        rb_present_hold s = {0};
++        uint64_t n = 0;
++        assert(held_on_next_tick(rb_window_hold_ns(&s, ++n, 2, SLOW, enabled)));
++        for (int burst = 1; burst <= 3; ++burst) {
++            assert(!held_on_next_tick(rb_window_hold_ns(&s, ++n, 1, FAST, enabled)));
++            for (int j = 0; j < burst; ++j)
++                assert(held_on_next_tick(rb_window_hold_ns(&s, ++n, 2, SLOW, enabled)) == !enabled);
++        }
++        rb_window_hold_ns(&s, ++n, 1, FAST, enabled);
++        for (int j = 1; j <= 12; ++j)
++            assert(held_on_next_tick(rb_window_hold_ns(&s, ++n, 2, SLOW, enabled)) ==
++                   (!enabled || j >= RB_PRESENT_HOLD_CONFIRM));
++        assert(s.sustained_runs == (unsigned)enabled);
++        assert(s.filtered_frames == (enabled ? 13u : 0u));
++        rb_window_hold_ns(&s, ++n, 1, FAST, enabled);
++        assert(rb_window_hold_ns(&s, ++n, 2, SLOW, 0) == SLOW); // video or user cap
++        assert(rb_window_hold_ns(&s, ++n, 2, SLOW, enabled) == SLOW);
++        rb_window_hold_ns(&s, ++n, 1, FAST, enabled);
++        n += 2;
++        assert(rb_window_hold_ns(&s, n, 2, SLOW, enabled) == SLOW);
++        assert(rb_window_hold_ns(&s, ++n, 3, 50000000, enabled) == 50000000);
++        assert(!rb_link_hold_deadline(0, 1., SLOW / 1e9));
++    }
++    puts("PASS display hold: A/B 1-3 frame bursts, sustained and native 30 Hz, caps, gaps and failed present");
++}
+diff --git a/graphics/nvn/tests/t_nvn_gpu_halt.m b/graphics/nvn/tests/t_nvn_gpu_halt.m
+--- a/graphics/nvn/tests/t_nvn_gpu_halt.m
++++ b/graphics/nvn/tests/t_nvn_gpu_halt.m
+@@ -79,7 +79,7 @@
+         uint64_t pn = g_present_n;
+         VERIFY(present_now(NULL, 1 / 60.0, 1, 1, NULL, nil, 0) == 0 && g_present_n == pn, "上屏 present_now 不交（上屏计数 %llu 不涨）", (unsigned long long)g_present_n);
+         tex_t tx; memset(&tx, 0, sizeof tx);
+-        VERIFY(present_enqueue(&tx, 1 / 60.0, NULL, 0) == 0, "present_enqueue 回票号 0（游戏不等这一帧）");
++        VERIFY(present_enqueue(&tx, 1 / 60.0, NULL, 0, 1 / 60.0) == 0, "present_enqueue 回票号 0（游戏不等这一帧）");
+         t0 = now_ns(); nvn_be_drain(); ms = (now_ns() - t0) / 1e6;
+         VERIFY(ms < 50, "进后台排空 nvn_be_drain 立即返回（%.2f ms），不交不等", ms);
+         VERIFY(atomic_load(&g_gpu_commits) == c1 && atomic_load(&g_gpu_refused) > r1, "安全停后放行计数不涨（%llu），拒交 %llu 次", (unsigned long long)atomic_load(&g_gpu_commits), (unsigned long long)(atomic_load(&g_gpu_refused) - r1));

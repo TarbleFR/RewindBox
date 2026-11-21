@@ -1,0 +1,221 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 2b59096..68c26c7 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -2833,7 +2833,12 @@ static _Atomic uint64_t g_drs_raised, g_drs_seen;   // TIMESTAMP reports raised
+ //   twice a second at most, from the report loop. S2A_RB_DRS_THERMAL=0: no step
+ static _Atomic int g_rb_drs_threshold, g_drs_hot;
+ static _Atomic uint64_t g_drs_th_at, g_drs_hot_raised;
++#include "rb_adaptive_drs.h"
+ static rb_guest_heat g_rb_guest_heat;
++static rb_adaptive_drs g_rb_adaptive_drs;
++static _Atomic unsigned g_rb_drs_level;
++// Configuration and observations are serialised by g_rb_heat_lock.
++static double g_rb_drs_target = -1.;
+ static os_unfair_lock g_rb_heat_lock = OS_UNFAIR_LOCK_INIT;
+ static int rb_drs_hot(uint64_t f) {
+     int stored = atomic_load_explicit(&g_rb_drs_threshold, memory_order_relaxed);
+@@ -2857,15 +2862,42 @@ static int rb_drs_hot(uint64_t f) {
+     }
+     atomic_store(&g_drs_th_at, now);
+     int state = (int)NSProcessInfo.processInfo.thermalState, before = g_rb_guest_heat.hot;
+-    double p95 = -1.;
+-    if (stored == 2 && before && state == 0 && f >= RB_HEAT_SAMPLES + 4) {
++    if (g_rb_drs_target < 0.)
++        g_rb_drs_target = nvn_rb_thermal_scope() ? rb_drs_target_ms(getenv("S2A_RB_DRS_TARGET_MS")) : 0.;
++    int adapt = g_rb_drs_target > 0. && state == 1 && stored == 2;
++    if (adapt) {
++        int cap = nvn_fps_limit();
++        adapt = (cap == 0 || cap >= 60) && nvn_be_fps_target() == 60;
++    }
++    double p50 = -1., p95 = -1.;
++    int window = adapt && rb_drs_sample_due(&g_rb_adaptive_drs, f);
++    if (window) {
++        double sample[RB_DRS_LOOKBACK];
++        for (int i = 0; i < RB_DRS_LOOKBACK; ++i) sample[i] = nvn_be_gpu_ms(f - 4 - i);
++        rb_drs_quantiles(sample, &p50, &p95);
++    } else if (stored == 2 && before && state == 0 && f >= RB_HEAT_SAMPLES + 4) {
+         double sample[RB_HEAT_SAMPLES];
+         for (int i = 0; i < RB_HEAT_SAMPLES; ++i) sample[i] = nvn_be_gpu_ms(f - 4 - i);
+         p95 = rb_thermal_p95(sample);
+     }
+     int hot = rb_thermal_observe(&g_rb_guest_heat, stored - 1, state, now, f, p95);
++    unsigned old_level = g_rb_adaptive_drs.level;
++    if (window) {
++        rb_drs_observe_gpu(&g_rb_adaptive_drs, f, g_rb_drs_target, p50, p95);
++    } else if (!adapt) {
++        g_rb_adaptive_drs.pressure_windows = g_rb_adaptive_drs.recovery_windows = 0;
++        if (!hot) g_rb_adaptive_drs.level = 0;
++    }
++    unsigned level = g_rb_adaptive_drs.level;
++    atomic_store_explicit(&g_rb_drs_level, level, memory_order_relaxed);
++    rb_adaptive_drs observed = g_rb_adaptive_drs;
++    double target = g_rb_drs_target;
+     atomic_store(&g_drs_hot, hot);
+     os_unfair_lock_unlock(&g_rb_heat_lock);
++    if (hot != before || old_level != level || (window && (observed.windows + observed.incomplete) % 16 == 0))
++        MLOG("[rb-guest-drs] frame=%llu thermal=%d target_ms=%.2f level=%u gpu_p50_ms=%.2f gpu_p95_ms=%.2f windows=%llu incomplete=%llu up_steps=%llu down_steps=%llu",
++             (unsigned long long)f, state, target, level, p50, p95, (unsigned long long)observed.windows,
++             (unsigned long long)observed.incomplete, (unsigned long long)observed.up_steps, (unsigned long long)observed.down_steps);
+     if (hot != before) MLOG("[rb-guest-drs] frame=%llu thermal=%d threshold=%d hot=%d gpu_p95_ms=%.2f raised_total=%llu",
+                             (unsigned long long)f, state, stored - 1, hot, p95, (unsigned long long)atomic_load(&g_drs_hot_raised));
+     return hot;
+@@ -2884,7 +2916,8 @@ static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the ti
+     uint64_t top = atomic_load(&g_drs[i].top); if (!top || t <= top) return t;
+     int fps = nvn_be_fps_target(); if (fps <= 0 || fps > 60) fps = 60;   // 30 / 60 (nvn_obj.h)
+     uint64_t hold = 16600000ull * 60 / (uint64_t)fps * 12 / 625;   // 16.6 ms at 60 fps, in 19.2 MHz ticks
+-    uint64_t want = hot ? hold + hold / 8 : hold;   // RewindBox (patch 0087): past the game's band while hot
++    unsigned level = atomic_load_explicit(&g_rb_drs_level, memory_order_relaxed);
++    uint64_t want = rb_drs_report_ticks(hot, fps, level ? nvn_fps_limit() : 0, level, hold);
+     uint64_t seen = atomic_fetch_add(&g_drs_seen, 1) + 1;
+     if (t - top >= want || t - top < hold / 2) return t;
+     if (hot) atomic_fetch_add(&g_drs_hot_raised, 1);   // RewindBox (patch 0087)
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 65258ce..833f48c 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -313,6 +313,9 @@ int nvn_be_shutdown_session(void) {
+     atomic_store(&g_rb_thermal_host, 0); atomic_store(&g_rb_wake_option, 0); g_rb_waiters = 0; g_rb_wait_step = 0;
+     memset(g_rb_wake_counts, 0, sizeof g_rb_wake_counts);
+     g_rb_guest_heat = (rb_guest_heat){0};
++    g_rb_adaptive_drs = (rb_adaptive_drs){0};
++    g_rb_drs_target = -1.;
++    atomic_store(&g_rb_drs_level, 0);
+     atomic_store(&g_rb_drs_threshold, 0); atomic_store(&g_drs_hot, 0); atomic_store(&g_drs_th_at, 0);
+     atomic_store(&g_drs_hot_raised, 0); atomic_store(&g_drs_seen, 0); atomic_store(&g_drs_raised, 0);
+     for (unsigned i = 0; i < DRS_N; ++i) { atomic_store(&g_drs[i].frame, 0); atomic_store(&g_drs[i].top, 0); }
+diff --git a/graphics/nvn/gfx/nvn/rb_adaptive_drs.h b/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
+new file mode 100644
+index 0000000..b11f2cc
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
+@@ -0,0 +1,77 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include "rb_thermal_pacing.h"
++#include <stdlib.h>
++
++enum { RB_DRS_LOOKBACK = 32 };
++
++typedef struct {
++    unsigned level, pressure_windows, recovery_windows;
++    uint64_t last_frame, windows, incomplete, up_steps, down_steps;
++} rb_adaptive_drs;
++
++static inline double rb_drs_target_ms(const char *value) {
++    if (!value || !*value) return 13.5;
++    char *end;
++    double target = strtod(value, &end);
++    if (end != value && !*end && target == 0.) return 0.;
++    return !*end && isfinite(target) && target >= 10. && target <= 15.5 ? target : 13.5;
++}
++
++// Use at least 24 completed frames within a disjoint group of 32. GPU
++// completion can lag without invalidating the entire observation.
++static inline int rb_drs_sample_due(const rb_adaptive_drs *s, uint64_t frame) {
++    return frame >= RB_DRS_LOOKBACK + 4 && frame >= s->last_frame &&
++           frame - s->last_frame >= RB_DRS_LOOKBACK;
++}
++static inline int rb_drs_quantiles(const double *samples, double *p50, double *p95) {
++    double sorted[RB_DRS_LOOKBACK];
++    unsigned count = 0;
++    *p50 = *p95 = -1.;
++    for (unsigned i = 0; i < RB_DRS_LOOKBACK; ++i) {
++        double value = samples[i];
++        if (!(value > 0.) || !isfinite(value)) continue;
++        unsigned j = count++;
++        while (j && sorted[j-1] > value) { sorted[j] = sorted[j-1]; --j; }
++        sorted[j] = value;
++    }
++    if (count < RB_HEAT_SAMPLES) return 0;
++    *p50 = (sorted[(count - 1) / 2] + sorted[count / 2]) * .5;
++    *p95 = sorted[(95 * count + 99) / 100 - 1];
++    return 1;
++}
++static inline void rb_drs_observe_gpu(rb_adaptive_drs *s, uint64_t frame, double target,
++                                      double p50, double p95) {
++    if (!rb_drs_sample_due(s, frame) || target <= 0.) return;
++    // Drop incomplete pressure/recovery streaks across a pause or missing windows.
++    if (s->last_frame && frame - s->last_frame > RB_DRS_LOOKBACK * 3) {
++        s->pressure_windows = s->recovery_windows = 0;
++    }
++    s->last_frame = frame;
++    if (!(p50 > 0.) || !(p95 >= p50)) {
++        ++s->incomplete;
++        s->pressure_windows = s->recovery_windows = 0;
++        return;
++    }
++    ++s->windows;
++    if (p95 > 15.5 || p50 > target) {
++        s->recovery_windows = 0;
++        if (s->level < 2 && ++s->pressure_windows == 2) {
++            ++s->level; ++s->up_steps; s->pressure_windows = 0;
++        }
++    } else if (p50 < target - 1. && p95 < 14.5) {
++        s->pressure_windows = 0;
++        if (s->level && ++s->recovery_windows == 8) {
++            --s->level; ++s->down_steps; s->recovery_windows = 0;
++        }
++    } else {
++        s->pressure_windows = s->recovery_windows = 0;
++    }
++}
++static inline uint64_t rb_drs_report_ticks(int hot, int fps, int cap, unsigned level, uint64_t hold) {
++    if (!hot) return hold;
++    if (cap > 0 && cap < 60) level = 0;
++    if (fps == 60 && level == 1) return UINT64_C(20500) * 192 / 10;
++    if (fps == 60 && level >= 2) return UINT64_C(22000) * 192 / 10;
++    return hold + hold / 8;
++}
+diff --git a/graphics/nvn/tests/t_rb_adaptive_drs.c b/graphics/nvn/tests/t_rb_adaptive_drs.c
+new file mode 100644
+index 0000000..8bea581
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_adaptive_drs.c
+@@ -0,0 +1,46 @@
++// SPDX-License-Identifier: MIT
++#include "../gfx/nvn/rb_adaptive_drs.h"
++#include <assert.h>
++#include <stdio.h>
++
++int main(void) {
++    assert(rb_drs_target_ms("0") == 0. && rb_drs_target_ms(NULL) == 13.5);
++    assert(rb_drs_target_ms("14") == 14. && rb_drs_target_ms("nan") == 13.5);
++    assert(rb_drs_target_ms("13ms") == 13.5);
++    double sample[RB_DRS_LOOKBACK], median, tail;
++    for (int i = 0; i < RB_DRS_LOOKBACK; ++i) sample[i] = RB_DRS_LOOKBACK-i;
++    assert(rb_drs_quantiles(sample, &median, &tail) && median == 16.5 && tail == 31.);
++    for (int i = 0; i < 8; ++i) sample[i] = -1.;
++    assert(rb_drs_quantiles(sample, &median, &tail) && median == 12.5 && tail == 23.);
++    sample[10] = NAN;
++    assert(!rb_drs_quantiles(sample, &median, &tail) && median < 0. && tail < 0.);
++    rb_adaptive_drs s = {0};
++    uint64_t f = 36;
++    rb_drs_observe_gpu(&s, f, 0., 16., 19.);
++    assert(!s.windows);
++    rb_drs_observe_gpu(&s, f, 13.5, 15.34, 18.5);
++    rb_drs_observe_gpu(&s, f + 1, 13.5, 15.34, 18.5);
++    assert(s.windows == 1 && !s.level);
++    rb_drs_observe_gpu(&s, f += 32, 13.5, 15.34, 18.5);
++    assert(s.level == 1);
++    rb_drs_observe_gpu(&s, f += 32, 13.5, 12.8, 16.2);
++    rb_drs_observe_gpu(&s, f += 32, 13.5, -1., -1.);
++    rb_drs_observe_gpu(&s, f += 32, 13.5, 12.8, 16.2);
++    assert(s.level == 1 && s.incomplete == 1);
++    rb_drs_observe_gpu(&s, f += 32, 13.5, 12.8, 16.2);
++    assert(s.level == 2 && s.up_steps == 2);
++    for (int i=0;i<12;++i) rb_drs_observe_gpu(&s,f+=32,13.5,13.2,15.2);
++    assert(s.level == 2);
++    for (int i=0;i<7;++i) rb_drs_observe_gpu(&s,f+=32,13.5,12.,13.9);
++    rb_drs_observe_gpu(&s,f+=128,13.5,12.,13.9);
++    assert(s.level == 2);
++    for (int i=0;i<7;++i) rb_drs_observe_gpu(&s,f+=32,13.5,12.,13.9);
++    assert(s.level == 1 && s.down_steps == 1);
++    assert(rb_drs_report_ticks(1,60,0,0,318720) == 358560);
++    assert(rb_drs_report_ticks(1,60,0,1,318720) == 393600);
++    assert(rb_drs_report_ticks(1,60,0,2,318720) == 422400);
++    assert(rb_drs_report_ticks(1,30,0,2,637440) == 717120);
++    assert(rb_drs_report_ticks(1,60,30,2,318720) == 358560); // live user cap
++    assert(rb_drs_report_ticks(0,60,0,2,318720) == 318720);
++    puts("PASS guest DRS: measured medians/tails, base/20.5/22 ms, disjoint samples, invalid windows, hysteresis, 30 Hz and off");
++}

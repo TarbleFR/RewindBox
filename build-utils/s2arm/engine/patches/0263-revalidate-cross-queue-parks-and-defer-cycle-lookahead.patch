@@ -1,0 +1,428 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index b4981f2cf750d7c001de23bae7c006e35144219c..2d251cc462301f669d25ec0685677c81dbeaa1ef 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -2704,6 +2704,7 @@ static volatile uint32_t *g_xq_pval; static uint32_t g_xq_pmode, g_xq_pv; static
+ static int ev_wait(volatile uint32_t *val, uint32_t mode, uint32_t v, const uint8_t *next) {   // 回放 OP_SIGNAL_EVENT + NVN_EV_WAIT
+     if (!val) return 0;
+     pthread_mutex_lock(&g_evw_mu);
++sample_event: ;
+     uint32_t cur = ev_now_locked(val);
+     uint64_t ticket = 0;
+     int a = eva_at(val);
+@@ -2716,7 +2717,9 @@ static int ev_wait(volatile uint32_t *val, uint32_t mode, uint32_t v, const uint
+     static int reset_park = -1; if (reset_park < 0) { const char *x = getenv("S2A_RB_XQ_RESET"); reset_park = !(x && !strcmp(x, "0")); }
+     int unmet = !g_evs_over && !ev_cond(cur, mode, v), gpu_only = a >= 0 && g_eva[a].gpu && !g_eva[a].cpu, set_back = a >= 0 && g_eva[a].gpu && g_eva[a].cpu && !g_eva[a].cpu_up && reset_park;
+     if (unmet && a >= 0 && g_eva[a].gpu && g_eva[a].cpu_up) { static int n; if (!n++) MLOG("RewindBox: GPU event waits: event %p is raised by the game's own writes too: its unmet waits wait on the GPU as before (first case)", val); }
+-    if (unmet && (gpu_only || set_back) && xq_may_park(next, val, mode, v)) {   // 停住这条队列，等那笔信号回放后再接着回放（nvn_xqueue.inc）
++    int park = unmet && (gpu_only || set_back) ? xq_may_park(next, val, mode, v) : 0;
++    if (park < 0) goto sample_event;  // 0263 built the peer's immutable signal index without holding the event lock
++    if (park) {   // 停住这条队列，等那笔信号回放后再接着回放（nvn_xqueue.inc）
+         if (set_back && !g_evw_xq_reset++) MLOG("RewindBox: GPU event waits: event %p is raised only by GPU-side signals (the CPU sets it back): its unmet waits park the queue, as for an event the CPU never writes (first case; S2A_RB_XQ_RESET=0 turns this off)", val);
+         g_xq_pval = val; g_xq_pmode = mode; g_xq_pv = v; g_xq_unwind = 1; pthread_mutex_unlock(&g_evw_mu); return 1; }
+     if (unmet && gpu_only) {   // ④ 只由 GPU 侧信号写的事件：写它的信号还在后面的提交里，不在 GPU 上等
+@@ -22852,6 +22855,9 @@ void nvn_be_exec(const uint8_t *p) {
+         const void *a = p + 8;
+         // This is a hint. Passing it to the general operation handler would land
+         // pending clears and flush geometry runs even when the hint is never consumed.
++#ifdef RB_XQ_TEST_DEVICE
++        if (rb_test_xq_transfer(h.op, a)) { p += h.size; continue; }
++#endif
+         if (h.op == OP_RB_DISCARD) {
+             if (h.size == 16 && !g_m3 && !g_rc_skip && g_enc && !g_nlc && !g_gr.active &&
+                 rb_direct_discard() && (!tbdr_on() || (rb_tbdr_bl() && !g_hoist_n && !g_pass.layered)))
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 65258ce1e91a0c3cb5835b4950dcfc50a9467337..3f7d9e2133234dda3f8b8953e34fae9e412245a9 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -350,6 +350,7 @@ int nvn_be_shutdown_session(void) {
+     return 0;
+ }
+ void nvn_be_begin_session(void) {
++    rb_xq_resume_reset();
+     atomic_store(&g_spec_sampled,0);
+     atomic_store(&rb_gov_next,0);
+     for (unsigned i=0; i<RB_KART_OPTIONS; i++) atomic_store(&rb_kart_settings[i],0);
+diff --git a/graphics/nvn/gfx/nvn/nvn_xqueue.inc b/graphics/nvn/gfx/nvn/nvn_xqueue.inc
+index f13fa21ba1782891a56cf6be5507d2a987304e8a..1eb34057574b49b2141f68766b4b82207e6680e3 100644
+--- a/graphics/nvn/gfx/nvn/nvn_xqueue.inc
++++ b/graphics/nvn/gfx/nvn/nvn_xqueue.inc
+@@ -18,6 +18,8 @@ typedef struct {
+     void *state;                      // replay state at the park point (xq_state_save)
+     int parked;                       // 1 = waiting for (val, mode, v); 2 = waiting for queue dep to drain (QueueWaitSync on its owed fence); 0 = runnable
+     volatile uint32_t *val; uint32_t mode, v; void *dep;
++    int indexed;                     // number of continuation roots whose signal set has been read
++    uint64_t parked_at;                // host wall clock at a real event park
+     uint64_t since;                   // g_xq_subs when parked
+     sync_t **owed; int nowed, ocap;   // fences taken on this queue while it had parked work
+     volatile uint32_t *sig[64]; int nsig, sigall;   // events the parked streams signal from the GPU (sigall: more than fit, assume any): the cycle check reads this, not the streams
+@@ -31,6 +33,25 @@ static pthread_mutex_t g_xq_mu = PTHREAD_MUTEX_INITIALIZER; static pthread_cond_
+ __attribute__((weak)) void nvn_hle_queue_enter(void *q) { (void)q; }   // hle_nvn.c: per-queue device, raster flip, virtual pool copies before each replayed piece (before sub_begin)
+ __attribute__((weak)) void nvn_hle_piece_begun(void) {}   // hle_nvn.c: texture write polling (after sub_begin)
+ 
++// The submission lock serializes queue state and option initialization. Generic NVN2
++// uses the same decision as the title; explicit 0/1 also permits a hardware A/B.
++static int rb_xq_override = -2;
++static int rb_xq_resume_on(void) {
++    if (rb_xq_override == -2) {
++        const char *value = getenv("S2A_RB_XQ_RESUME");
++        rb_xq_override = value ? !strcmp(value, "1") : -1;
++    }
++    return rb_xq_override < 0 ? nvn2_on() : rb_xq_override;
++}
++static uint64_t rb_xq_saved_scans, rb_xq_fused, rb_xq_rechecks, rb_xq_park_ns;
++static uint64_t rb_xq_extra_replay_ns, rb_xq_extra_commit_ns, rb_xq_extra_block_ns[4];
++static void rb_xq_resume_reset(void) {
++    rb_xq_override = -2;
++    rb_xq_saved_scans = rb_xq_fused = rb_xq_rechecks = rb_xq_park_ns = 0;
++    rb_xq_extra_replay_ns = rb_xq_extra_commit_ns = 0;
++    memset(rb_xq_extra_block_ns, 0, sizeof rb_xq_extra_block_ns);
++}
++
+ static void xq_state_free(void *p);
+ static xq_t *xq_find(void *q) { for (int i = 0; i < g_nxq; i++) if (g_xq[i].q == q) return &g_xq[i]; return NULL; }
+ static int xq_busy_q(void *q) { xq_t *e = xq_find(q); return e && e->ncont; }
+@@ -79,10 +100,15 @@ static void xq_sig_of(xq_t *e, uint64_t h, int depth) {
+     for (int i = 0; i < ns && !e->sigall; i++) { volatile uint32_t *x = sig[i]; int k = 0; while (k < e->nsig && e->sig[k] != x) k++; if (k == e->nsig) { if (e->nsig == 64) e->sigall = 1; else e->sig[e->nsig++] = x; } }
+     for (int i = 0; i < nc && !e->sigall; i++) { if (depth < 8) xq_sig_of(e, call[i], depth + 1); else e->sigall = 1; }
+ }
++static void xq_index_pending(xq_t *e) {
++    for (; e->indexed < e->ncont; e->indexed++)
++        xq_sig_of(e, e->cont[e->indexed], 0);
++}
+ static int xq_sig_has(const xq_t *e, volatile uint32_t *val) { if (e->sigall) return 1; for (int k = 0; k < e->nsig; k++) if (e->sig[k] == val) return 1; return 0; }
+ static void xq_push(xq_t *e, uint64_t h) {
+     if (e->ncont == e->ccap) { e->ccap = e->ccap ? e->ccap * 2 : 16; e->cont = realloc(e->cont, sizeof *e->cont * e->ccap); if (!e->cont) MDIE("no memory for parked command streams"); }
+-    e->cont[e->ncont++] = h; xq_sig_of(e, h, 0);   // RewindBox (patch 0072): xq_sig_of
++    e->cont[e->ncont++] = h;
++    if (!rb_xq_resume_on()) xq_index_pending(e);
+ }
+ // Replay state carried across a park: what the commands after the wait read from the commands before it. A bound vertex range is also a dependency of the already-submitted piece:
+ // NVN lets the guest Finalize its pool while the queue is waiting, but this host has not encoded the commands after the wait yet. Keep only those 16 bound ranges and expose them only
+@@ -154,7 +180,20 @@ static int xq_may_park(const uint8_t *p, volatile uint32_t *val, uint32_t mode,
+ static int xq_may_park_(const uint8_t *p, volatile uint32_t *val, uint32_t mode, uint32_t v) {
+     if (g_defer_nact || g_hoist_n || g_ret_n > XQ_UNWIND_MAX - 2) { g_xq_busy++; return 0; }   // a lookahead (deferred draws, hoisted clears) spans the wait: keep the old release
+     for (int i = 0; i < g_nxq; i++) {   // cycle: a parked queue signals what this one waits for, and waits for what the rest of this one signals
+-        const xq_t *e = &g_xq[i]; if (e->q == g_xq_cur || e->parked != 1 || !xq_sig_has(e, val) || ev_cond(ev_now_locked(e->val), e->mode, e->v)) continue;   // a parked queue that is ready already is no cycle (holds g_evw_mu: ev_wait)
++        xq_t *e = &g_xq[i];
++        if (e->q == g_xq_cur || e->parked != 1 || ev_cond(ev_now_locked(e->val), e->mode, e->v)) continue;
++        // The common signal/wait exchange has already released the peer. Its suffix
++        // cannot form a cycle. For an unresolved peer inspect the identical signal
++        // set as 0072, including appended handles and nested CALLs. g_sub_mu keeps
++        // the continuation stable. Do not hold the event lock while inspecting
++        // recording metadata under the HLE's command-shadow lock.
++        if (e->indexed < e->ncont) {
++            pthread_mutex_unlock(&g_evw_mu);
++            xq_index_pending(e);
++            pthread_mutex_lock(&g_evw_mu);
++            return -1;  // ev_wait must re-read both event values and CPU-writer classification
++        }
++        if (!xq_sig_has(e, val)) continue;
+         int mine = xq_signals(p, e->val, 0); for (int k = 0; !mine && k < g_nrest; k++) mine = xq_signals((const uint8_t *)(uintptr_t)g_rest[k], e->val, 0);
+         for (int k = g_ret_n - 1; !mine && k >= 0 && k < 16; k--) mine = xq_signals(g_ret[k], e->val, 0);
+         if (mine) { g_xq_cycles++; static int n; if (n++ < 4) MLOG("【红】 cross-queue event wait on %p: queue %p is parked waiting for %p, which only this queue signals later, and signals this one: a cycle, released at once", val, e->q, e->val); return 0; }
+@@ -173,22 +212,63 @@ static void xq_publish_owed(xq_t *e, uint64_t fence) {
+ //   shared buffer would delay: a fence the game may wait on (OP_FENCE_SYNC, owed fences), a queue wait for another queue's fence (OP_WAIT_SYNC), a queue wait for a GPU event wait's
+ //   ticket (ev_wait), a CPU wait for a multi-draw count. Stats line only
+ static uint64_t g_rb_pc_n, g_rb_pc_begin, g_rb_pc_index, g_rb_pc_enc, g_rb_pc_commit, g_rb_pc_res, g_rb_pc_follow, g_rb_pc_fence, g_rb_pc_qwait, g_rb_pc_ewait, g_rb_pc_cwait, g_rb_pc_call, g_rb_pc_last;
++static int rb_xq_late_ready(void *q, uint64_t f0, uint64_t w0, uint64_t v0, uint64_t m0) {
++    xq_t *owner = xq_find(q);
++    if (!rb_xq_resume_on() || g_xq_nuc != 1 || g_xq_ucover || g_rc_skip || g_npost ||
++        (owner && owner->nowed) || f0 != g_rb_fsync_n || w0 != g_rb_qwait_n ||
++        v0 != g_rb_evwait_n || m0 != g_mdi_waits) return 0;
++    rb_xq_rechecks++;
++    pthread_mutex_lock(&g_evw_mu);
++    int ready = !g_evs_over && ev_cond(ev_now_locked(g_xq_pval), g_xq_pmode, g_xq_pv);
++    pthread_mutex_unlock(&g_evw_mu);
++    return ready;
++}
+ // One piece: replay streams h[0..n) of queue q as a submission; returns 1 if it parked (the rest is in q's entry)
+ static int xq_piece(void *q, const uint64_t *h, int n, const void *state) {
+     uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW), w0 = g_rb_qwait_n, v0 = g_rb_evwait_n, f0 = g_rb_fsync_n, m0 = g_mdi_waits;   // RewindBox (patch 0072)
+     int follows = g_rb_pc_last == g_rb_pc_call; g_rb_pc_last = g_rb_pc_call;
+     nvn_hle_queue_enter(q);
+-    nvn_be_sub_begin(); nvn_hle_piece_begun(); xq_state_deactivate(); if (state) xq_state_load(state);
++#ifdef RB_XQ_TEST_DEVICE
++    rb_test_xq_begin();
++#else
++    nvn_be_sub_begin();
++#endif
++    nvn_hle_piece_begun(); xq_state_deactivate(); if (state) xq_state_load(state);
+     uint64_t t1 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+     nvn_be_sub_index(h, n);
+     uint64_t t2 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+     g_xq_cur = q; g_xq_unwind = 0; g_xq_nuc = 0; g_xq_ucover = 0;
+     int i = 0;
+-    for (; i < n; i++) { nvn_be_exec_rest(h + i + 1, n - i - 1); nvn_be_exec((const uint8_t *)(uintptr_t)h[i]); if (g_xq_unwind) break; }
++    void *st = NULL;
++    for (; i < n; i++) {
++        nvn_be_exec_rest(h + i + 1, n - i - 1);
++        const uint8_t *next = (const uint8_t *)(uintptr_t)h[i];
++        do {
++            nvn_be_exec(next);
++            if (!g_xq_unwind) break;
++            st = xq_state_save();
++#ifdef RB_XQ_TEST_SNAPSHOT
++            RB_XQ_TEST_SNAPSHOT();  // deterministic CPU event publication during the snapshot
++#endif
++            // Only the single top-level continuation can stay in THIS CB. Preserve
++            // every outstanding CPU-visible report, queue event, and guest fence
++            // boundary, as well as waits nested in CALLs and conditional replay.
++            if (!rb_xq_late_ready(q, f0, w0, v0, m0)) break;
++            next = g_xq_uc[0];
++            g_xq_unwind = g_xq_nuc = 0;
++            xq_state_free(st);
++            st = NULL;
++            rb_xq_fused++;
++        } while (1);
++        if (g_xq_unwind) break;
++    }
+     nvn_be_exec_rest(NULL, 0); g_xq_cur = NULL;
+-    void *st = g_xq_unwind ? xq_state_save() : NULL;
+     uint64_t t3 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW), r3 = t_rb_res_ns;
++#ifdef RB_XQ_TEST_DEVICE
++    uint64_t fence = rb_test_xq_commit();
++#else
+     uint64_t fence = nvn_be_sub_commit();
++#endif
+     uint64_t t4 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+     xq_state_deactivate();
+     xq_t *e = xq_find(q);
+@@ -198,12 +278,12 @@ static int xq_piece(void *q, const uint64_t *h, int n, const void *state) {
+     g_xq_unwind = 0;
+     if (g_xq_ucover) MDIE("cross-queue park: CALL nesting deeper than %d", XQ_UNWIND_MAX);
+     if (!e) { if (g_nxq == XQ_MAX) MDIE("cross-queue park: more than %d queues", XQ_MAX); pthread_mutex_lock(&g_xq_mu); e = &g_xq[g_nxq++]; memset(e, 0, sizeof *e); e->q = q; pthread_mutex_unlock(&g_xq_mu); }
+-    uint64_t *rest = e->cont; int nrest = e->ncont; e->cont = NULL; e->ncont = e->ccap = 0; e->nsig = e->sigall = 0;   // work queued behind (none on the first park)
++    uint64_t *rest = e->cont; int nrest = e->ncont; e->cont = NULL; e->ncont = e->ccap = e->indexed = 0; e->nsig = e->sigall = 0;   // work queued behind (none on the first park)
+     for (int k = 0; k < g_xq_nuc; k++) xq_push(e, (uint64_t)(uintptr_t)g_xq_uc[k]);
+     for (int k = i + 1; k < n; k++) xq_push(e, h[k]);
+     for (int k = 0; k < nrest; k++) xq_push(e, rest[k]);
+     free(rest); xq_state_free(e->state); e->state = st;
+-    e->parked = 1; e->val = g_xq_pval; e->mode = g_xq_pmode; e->v = g_xq_pv; e->since = g_xq_subs; g_xq_parks++;
++    e->parked = 1; e->val = g_xq_pval; e->mode = g_xq_pmode; e->v = g_xq_pv; e->since = g_xq_subs; e->parked_at = clock_gettime_nsec_np(CLOCK_UPTIME_RAW); g_xq_parks++;
+     { static int n_; if (!n_++) MLOG("cross-queue event waits: queue %p parked at a wait on %p (mode %u, value %u, now %u) until another queue's signal is replayed (first case)", q, g_xq_pval, g_xq_pmode, g_xq_pv, ev_now(g_xq_pval)); }
+     return 1;
+ }
+@@ -215,9 +295,20 @@ static int xq_ready(const xq_t *e) {
+ // Replay a queue's parked work (it may park again); force = released without its wait being met
+ static void xq_run(xq_t *e, int force) {
+     void *q = e->q; uint64_t *c = e->cont; int nc = e->ncont; void *st = e->state;
+-    e->cont = NULL; e->ncont = e->ccap = 0; e->state = NULL; e->parked = 0; e->nsig = e->sigall = 0;
++    rb_xq_saved_scans += (uint64_t)(nc - e->indexed);
++    if (e->parked == 1) rb_xq_park_ns += clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - e->parked_at;
++    e->cont = NULL; e->ncont = e->ccap = e->indexed = 0; e->state = NULL; e->parked = 0; e->nsig = e->sigall = 0;
+     if (force) { g_xq_forced++; } else g_xq_resumes++;
+-    if (nc) { uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW); g_xq_pieces++; xq_piece(q, c, nc, st); g_xq_piece_ns += clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0; }
++    if (nc) {
++        uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW), enc = g_rb_pc_enc, commit = g_rb_pc_commit, blocked[4];
++        memcpy(blocked, t_rb_blk, sizeof blocked);
++        g_xq_pieces++;
++        xq_piece(q, c, nc, st);
++        g_xq_piece_ns += clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0;
++        rb_xq_extra_replay_ns += g_rb_pc_enc - enc;
++        rb_xq_extra_commit_ns += g_rb_pc_commit - commit;
++        for (int k = 0; k < 4; k++) rb_xq_extra_block_ns[k] += t_rb_blk[k] - blocked[k];
++    }
+     else if ((e = xq_find(q)) && !e->parked) { xq_publish_owed(e, nvn_be_last_fence()); xq_drop(e); }
+     free(c); xq_state_free(st);
+ }
+@@ -226,11 +317,15 @@ static void xq_drain_ready(void) {
+         for (int i = 0; i < g_nxq; i++) if (xq_ready(&g_xq[i])) { xq_run(&g_xq[i], 0); again = 1; break; } }
+ }
+ static void xq_stats(void) {
+-    if (g_xq_subs % 3000 || !(g_xq_parks | g_xq_busy | g_xq_cycles | g_xq_forced)) return;
++    if (g_xq_subs % 3000 || !(g_xq_parks | g_xq_busy | g_xq_cycles | g_xq_forced | rb_xq_fused)) return;
+     pthread_mutex_lock(&g_evw_mu); unsigned long long sb = g_evw_xq_reset, late = g_evw_xq; pthread_mutex_unlock(&g_evw_mu);   // RewindBox (patch 0053)
+     MLOG("cross-queue event waits up to submission %llu: parked %llu, resumed %llu, kept released (lookahead spans the wait) %llu, cycles %llu, released by force %llu, owed fences %llu, queue waits behind a parked queue %llu, parked now %d; extra pieces %llu (%.1f ms submit thread in them), cycle checks %.1f ms; RewindBox: parks at events the game only sets back %llu, waits on the GPU released by a signal recorded after them %llu",
+          (unsigned long long)g_xq_subs, (unsigned long long)g_xq_parks, (unsigned long long)g_xq_resumes, (unsigned long long)g_xq_busy, (unsigned long long)g_xq_cycles, (unsigned long long)g_xq_forced,
+          (unsigned long long)g_xq_owed_n, (unsigned long long)g_xq_deps, g_nxq, (unsigned long long)g_xq_pieces, g_xq_piece_ns / 1e6, g_xq_check_ns / 1e6, sb, late);
++    MLOG("RewindBox [xqueue] resume=%d suffix_scans_avoided=%llu late_ready_checks=%llu pieces_avoided=%llu park_to_resume_wall_ms=%.2f extra_replay_ms=%.2f extra_commit_ms=%.2f tracked_cpu_wait_ms[fence,encode_or_copy_worker,readback_or_upload,owed]=%.2f,%.2f,%.2f,%.2f (cumulative; CPU waits are within the piece times)",
++         rb_xq_resume_on(), (unsigned long long)rb_xq_saved_scans, (unsigned long long)rb_xq_rechecks, (unsigned long long)rb_xq_fused,
++         rb_xq_park_ns / 1e6, rb_xq_extra_replay_ns / 1e6, rb_xq_extra_commit_ns / 1e6,
++         rb_xq_extra_block_ns[0] / 1e6, rb_xq_extra_block_ns[1] / 1e6, rb_xq_extra_block_ns[2] / 1e6, rb_xq_extra_block_ns[3] / 1e6);
+     // RewindBox (patch 0072): the pieces' costs (since the last line) and the signal lists
+     double pn = g_rb_pc_n ? (double)g_rb_pc_n : 1;
+     MLOG("RewindBox (patch 0072): submission pieces %llu since the last line, per piece: begin %.3f ms, store index %.3f ms, replay %.3f ms, commit %.3f ms (residency commits %.3f ms); following another piece of the same submit call %llu, of them with a fence the game may wait on %llu, with a queue wait for another queue's fence %llu, with a queue wait for a GPU event wait %llu, with a CPU wait for a multi-draw count %llu; parked streams' signals from the recording's list %llu, walked %llu",
+diff --git a/graphics/nvn/tests/t_nvn_xqueue.m b/graphics/nvn/tests/t_nvn_xqueue.m
+index f1f0aedb9b3baa32f4cadbec221f73d6378ef0bd..ac5f28c37d387ce2263182200f925b7dc1bd6389 100644
+--- a/graphics/nvn/tests/t_nvn_xqueue.m
++++ b/graphics/nvn/tests/t_nvn_xqueue.m
+@@ -16,10 +16,68 @@ __attribute__((weak)) int dm_shader_vpad_cached_mesh(const uint8_t key[8], uint3
+     (void)key; (void)mask; (void)path; (void)n;
+     return -1;
+ }
++// Deliver one real CPU-side event write at the same point as an asynchronous
++// guest write during the snapshot. Both A/B runs reach the identical callback.
++static volatile uint32_t *rb_publish_word;
++static void rb_publish_after_snapshot(void);
++#define RB_XQ_TEST_SNAPSHOT rb_publish_after_snapshot
++#define RB_XQ_TEST_DEVICE
++static int rb_test_xq_transfer(unsigned op, const void *data);
++static void rb_test_xq_begin(void);
++static uint64_t rb_test_xq_commit(void);
+ #include "../gfx/nvn/nvn_mtl.m"
++static void rb_publish_after_snapshot(void) {
++    if (!rb_publish_word) return;
++    volatile uint32_t *word = rb_publish_word;
++    rb_publish_word = NULL;
++    *word = 1;
++    nvn_be_event_written(word);
++}
+ static unsigned checks, failures;
+ #define REQUIRE(c) do { if (!(c)) { fprintf(stderr, "FAIL setup %s:%d: %s\n", __FILE__, __LINE__, #c); exit(1); } } while (0)
+ #define VERIFY(c, ...) do { checks++; int ok_ = !!(c); if (!ok_) failures++; printf("%s ", ok_ ? "PASS" : "FAIL"); printf(__VA_ARGS__); putchar('\n'); fflush(stdout); } while (0)
++// Virtual macOS devices can expose a real, tracked Metal queue without the
++// residency sets required by S2Arm. Replace just the Metal CB and the two blits.
++// The actual replay, event test, unwind, continuation, fences and cycle detection run.
++static id<MTLCommandQueue> tracked_q;
++static id<MTLCommandBuffer> tracked_cb;
++static id<MTLBuffer> tracked_pool;
++static void rb_test_xq_begin(void) {
++    if (!tracked_q) { nvn_be_sub_begin(); return; }
++    tracked_cb = [tracked_q commandBuffer]; REQUIRE(tracked_cb);
++    g_npost = 0; g_rc_skip = 0; g_rc_npend = 0;
++}
++static NSUInteger tracked_offset(uint64_t addr, uint64_t n) {
++    uintptr_t base = (uintptr_t)tracked_pool.contents;
++    REQUIRE(addr >= base && n <= tracked_pool.length && addr - base <= tracked_pool.length - n);
++    return (NSUInteger)(addr - base);
++}
++static int rb_test_xq_transfer(unsigned op, const void *data) {
++    if (!tracked_q || (op != OP_CLEAR_BUF && op != OP_COPY_B2B)) return 0;
++    id<MTLBlitCommandEncoder> enc = [tracked_cb blitCommandEncoder]; REQUIRE(enc);
++    if (op == OP_CLEAR_BUF) {
++        p_clear_buf c; memcpy(&c, data, sizeof c);
++        REQUIRE(c.value == ((c.value & 0xffu) * 0x01010101u));
++        [enc fillBuffer:tracked_pool range:NSMakeRange(tracked_offset(c.addr, c.size), c.size) value:(uint8_t)c.value];
++    } else {
++        uint64_t a[3]; memcpy(a, data, sizeof a);
++        [enc copyFromBuffer:tracked_pool sourceOffset:tracked_offset(a[0], a[2])
++                toBuffer:tracked_pool destinationOffset:tracked_offset(a[1], a[2]) size:a[2]];
++    }
++    [enc endEncoding]; return 1;
++}
++static uint64_t rb_test_xq_commit(void) {
++    if (!tracked_q) return nvn_be_sub_commit();
++    [tracked_cb commit]; [tracked_cb waitUntilCompleted];
++    REQUIRE(tracked_cb.status == MTLCommandBufferStatusCompleted && !tracked_cb.error);
++    for (int i=0; i<g_npost; i++) {
++        post_op op = g_post[i]; REQUIRE(op.kind == 1);
++        if (op.mode == 1) *op.val += op.v; else *op.val = op.v;
++        evs_landed(op.val);
++    }
++    g_npost=0; tracked_cb=nil; g_done=++g_fence;
++    return g_fence;
++}
+ // 记录流拼装：每条记录 {op, size} + 载荷
+ typedef struct { uint8_t b[4096]; size_t n; } stream;
+ static void put(stream *s, uint32_t op, const void *pl, uint32_t n) { op_hdr h = {op, 8 + n}; REQUIRE(s->n + h.size + 8 <= sizeof s->b); memcpy(s->b + s->n, &h, 8); if (n) memcpy(s->b + s->n + 8, pl, n); s->n += h.size; }
+@@ -34,10 +92,52 @@ static int settle(void) { return nvn_be_wait(nvn_be_last_fence(), 5000000000ull)
+ int main(void) { @autoreleasepool {
+     setvbuf(stdout, NULL, _IOLBF, 0); alarm(120);
+     setenv("DM_NVN_ENC_THREAD", "0", 0); setenv("DM_PRESENT_LINK", "0", 1);
+-    mtl_init(); state_reset();
+-    uint8_t *pool = NULL; REQUIRE(!posix_memalign((void **)&pool, 65536, 1 << 20)); memset(pool, 0, 1 << 20); nvn_be_pool_add(pool, 1 << 20);
++    uint8_t *pool = NULL;
++    id<MTLDevice> device = MTLCreateSystemDefaultDevice(); REQUIRE(device);
++    int direct = 0;
++    if (@available(macOS 26.0, iOS 26.0, *)) {
++        MTLResidencySetDescriptor *r = [MTLResidencySetDescriptor new]; r.initialCapacity = 4;
++        direct = device.hasUnifiedMemory && [device supportsFamily:MTLGPUFamilyMetal4] &&
++                 [device newResidencySetWithDescriptor:r error:NULL] &&
++                 [device newMTL4CommandQueueWithDescriptor:[MTL4CommandQueueDescriptor new] error:NULL];
++    }
++    if (direct) {
++        mtl_init();
++        REQUIRE(!posix_memalign((void **)&pool, 65536, 1 << 20));
++        nvn_be_pool_add(pool, 1 << 20);
++    } else {
++        tracked_q=[device newCommandQueue]; REQUIRE(tracked_q);
++        tracked_pool = [device newBufferWithLength:1 << 20 options:MTLResourceStorageModeShared | MTLResourceHazardTrackingModeTracked];
++        REQUIRE(tracked_pool && tracked_pool.contents); pool=tracked_pool.contents;
++        g_m3 = 1;
++        puts("Using tracked Metal GPU for production cross-queue scheduler and copy readback (no direct Metal 4 residency set/queue)");
++    }
++    memset(pool, 0, 1 << 20); state_reset();
+     uint8_t *D = pool, *X = pool + 4096, *Z = pool + 8192, *W = pool + 12288, *V = pool + 16384, *P = pool + 20480;
+     static queue_t QA, QB;   // 两条队列（全零：没有设备，hle 的每段钩子照常走）
++    // A real write arrives after ev_wait first found the event unsatisfied. The
++    // consumer GPU copy and the producer's CPU-observable post both use production replay.
++    const int fast = rb_xq_resume_on();
++    for (int with_post = 0; with_post <= 1; with_post++) {
++        static volatile uint32_t late[2], marker;
++        stream consumer = {0};
++        memset(D, 0x53 + with_post, 4096); memset(X, 0, 4096);
++        nvn_be_event_gpu_recorded(&late[with_post]);
++        if (with_post) ev(&consumer, &marker, 0, 9);
++        wait_eq(&consumer, &late[with_post], 1);
++        copy(&consumer, D, X, 4096);
++        end(&consumer);
++        stream *lists[] = { &consumer };
++        uint64_t pieces = g_xq_pieces, fused = rb_xq_fused;
++        rb_publish_word = &late[with_post];
++        submit(&QA, lists, 1);
++        int finished = settle();
++        int expected = fast && !with_post;
++        VERIFY(finished && !memcmp(D, X, 4096) && !g_nxq && (!with_post || marker == 9) &&
++               rb_xq_fused == fused + expected && g_xq_pieces == pieces + !expected,
++               "late-ready CPU signal with_post=%d mode=%d piece_avoided=%llu extra_pieces=%llu",
++               with_post, fast, (unsigned long long)(rb_xq_fused - fused), (unsigned long long)(g_xq_pieces - pieces));
++    }
+     // ①②
+     memset(D, 0x11, 4096); memset(X, 0, 4096); memset(Z, 0, 4096);
+     static volatile uint32_t E; E = 0; nvn_be_event_gpu_recorded(&E);   // 录制时知道 E 由 GPU 侧信号写（hle 在录 SignalEvent 时调）
+@@ -104,28 +204,32 @@ int main(void) { @autoreleasepool {
+     submit(&QB, vb7, 1); seen_ref = S.alpha_ref; seen_patch = S.patch_size; seen_sc = R.has_sc ? (int)R.sc.x : -1; settle();
+     VERIFY(seen_ref == 0.25f && seen_patch == 7 && seen_sc == 11, "⑦ 接着回放时恢复停住时的状态：alpha_ref %.2f（期望 0.25）、patch %d（期望 7）、剪裁 x %d（期望 11）", seen_ref, seen_patch, seen_sc);
+     // ⑧ 直接核 xq_state_save / load 的资源寿命：真队列路径也只通过这两个函数携带停住点。
+-    uint8_t *vp = NULL; REQUIRE(!posix_memalign((void **)&vp, 65536, 65536)); memset(vp, 0x5a, 65536); nvn_be_pool_add(vp, 65536);
+-    state_reset(); S.vbuf[5] = (NVNbufferRange){(uint64_t)(uintptr_t)(vp + 4096), 34720};
+-    NSUInteger deferred0 = g_deferred.count;
+-    void *saved = xq_state_save(); nvn_be_pool_del(vp); state_reset(); xq_state_load(saved);
+-    void *mb = NULL; uint64_t mo = 0, gpu = 0, avail = 0;
+-    int held = gpu_addr_want(S.vbuf[5].address, 1, S.vbuf[5].size, &mb, &mo, &gpu, &avail);
+-    VERIFY(held && mb && mo == 4096 && avail >= S.vbuf[5].size,
+-           "⑧ 停住状态持有顶点缓冲：内存池 Finalize 后恢复 slot 5 仍可解析 %d、偏移 %llu（期望 4096）、可用 %llu 字节",
+-           held, (unsigned long long)mo, (unsigned long long)avail);
+-    void *saved2 = xq_state_save(); xq_state_deactivate(); xq_state_free(saved); state_reset(); xq_state_load(saved2);
+-    mb = NULL; mo = gpu = avail = 0;
+-    int transferred = gpu_addr_want(S.vbuf[5].address, 1, S.vbuf[5].size, &mb, &mo, &gpu, &avail);
+-    VERIFY(transferred && mb && mo == 4096 && avail >= S.vbuf[5].size,
+-           "⑧ 再次停住：已 Finalize 池的持有从旧快照转给新快照 %d（期望 1），旧快照释放后仍可解析", transferred);
+-    void *other = NULL; uint64_t oo = 0, og = 0, oa = 0;
+-    int leaked = gpu_addr_want((uint64_t)(uintptr_t)vp + 60000, 1, 1, &other, &oo, &og, &oa);
+-    VERIFY(!leaked, "⑧ 负对照：同一已 Finalize 池里没被 slot 5 快照覆盖的地址仍不可解析 %d（期望 0）", leaked);
+-    xq_state_deactivate(); xq_state_free(saved2);
+-    pthread_mutex_lock(&g_xq_bhold_mu); int holds_left = g_xq_nbhold; pthread_mutex_unlock(&g_xq_bhold_mu);
+-    VERIFY(!holds_left && g_deferred.count == deferred0 + 1,
+-           "⑧ 生命周期收尾：暂停持有剩 %d（期望 0），池缓冲在最后一次回放之后进入延后释放 %ld 次（期望 1）",
+-           holds_left, (long)(g_deferred.count - deferred0));
++    if (direct) {
++        uint8_t *vp = NULL; REQUIRE(!posix_memalign((void **)&vp, 65536, 65536)); memset(vp, 0x5a, 65536); nvn_be_pool_add(vp, 65536);
++        state_reset(); S.vbuf[5] = (NVNbufferRange){(uint64_t)(uintptr_t)(vp + 4096), 34720};
++        NSUInteger deferred0 = g_deferred.count;
++        void *saved = xq_state_save(); nvn_be_pool_del(vp); state_reset(); xq_state_load(saved);
++        void *mb = NULL; uint64_t mo = 0, gpu = 0, avail = 0;
++        int held = gpu_addr_want(S.vbuf[5].address, 1, S.vbuf[5].size, &mb, &mo, &gpu, &avail);
++        VERIFY(held && mb && mo == 4096 && avail >= S.vbuf[5].size,
++               "⑧ 停住状态持有顶点缓冲：内存池 Finalize 后恢复 slot 5 仍可解析 %d、偏移 %llu（期望 4096）、可用 %llu 字节",
++               held, (unsigned long long)mo, (unsigned long long)avail);
++        void *saved2 = xq_state_save(); xq_state_deactivate(); xq_state_free(saved); state_reset(); xq_state_load(saved2);
++        mb = NULL; mo = gpu = avail = 0;
++        int transferred = gpu_addr_want(S.vbuf[5].address, 1, S.vbuf[5].size, &mb, &mo, &gpu, &avail);
++        VERIFY(transferred && mb && mo == 4096 && avail >= S.vbuf[5].size,
++               "⑧ 再次停住：已 Finalize 池的持有从旧快照转给新快照 %d（期望 1），旧快照释放后仍可解析", transferred);
++        void *other = NULL; uint64_t oo = 0, og = 0, oa = 0;
++        int leaked = gpu_addr_want((uint64_t)(uintptr_t)vp + 60000, 1, 1, &other, &oo, &og, &oa);
++        VERIFY(!leaked, "⑧ 负对照：同一已 Finalize 池里没被 slot 5 快照覆盖的地址仍不可解析 %d（期望 0）", leaked);
++        xq_state_deactivate(); xq_state_free(saved2);
++        pthread_mutex_lock(&g_xq_bhold_mu); int holds_left = g_xq_nbhold; pthread_mutex_unlock(&g_xq_bhold_mu);
++        VERIFY(!holds_left && g_deferred.count == deferred0 + 1,
++               "⑧ 生命周期收尾：暂停持有剩 %d（期望 0），池缓冲在最后一次回放之后进入延后释放 %ld 次（期望 1）",
++               holds_left, (long)(g_deferred.count - deferred0));
++    } else puts("Direct vertex-pool lifetime fixture requires Metal 4 residency sets");
++    VERIFY((rb_xq_saved_scans > 0) == fast, "deferred signal-index scans avoided=%llu mode=%d",
++           (unsigned long long)rb_xq_saved_scans, fast);
+     if (failures) { printf("✗ t_nvn_xqueue：%u 项里 %u 项不符\n", checks, failures); return 1; }
+     printf("✓ t_nvn_xqueue：%u 项全过（跨队列事件顺序：等待之后的命令排在满足它的信号之后；同队列后续提交排队；子列表 / 多句柄接着回放；欠着的栅栏；互等报红不死锁；保险放行；状态带过停住点及顶点缓冲寿命）\n", checks);
+     return 0;
