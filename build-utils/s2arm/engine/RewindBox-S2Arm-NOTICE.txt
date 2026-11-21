@@ -79,4 +79,4 @@ console.
 
 RewindBox patches 0215 through 0219 narrow attachment stores before full clears, isolate guest fence wakeups, add opt-in thermal MetalFX Spatial, park invisible HUD refreshes and measure the first observed Fair or higher thermal state.
 
-RewindBox patches 0220 through 0224 add optional title-scoped asynchronous pipeline lookahead and background prewarming, a versioned binary archive, resident render-key normalization, wider shader library reuse and per-frame compilation diagnostics.
+RewindBox patches 0220 through 0225 add optional title-scoped asynchronous pipeline lookahead and background prewarming, a versioned binary archive, resident render-key normalization, wider shader library reuse and per-frame compilation diagnostics.

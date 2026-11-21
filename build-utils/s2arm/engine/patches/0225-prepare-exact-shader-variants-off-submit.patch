@@ -1,0 +1,300 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 0a5c6b8..f0249c0 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -150,8 +150,14 @@ static int rb_pso_mode(void) {
+         const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
+         const char *option = getenv("DM_NVN_ASYNC_PSO");
+         if (!title || !*title) return 0;
+-        value = strcasecmp(title, "04007EF01F8AE000") ? 1 :
+-                (option && !strcmp(option, "1") ? 3 : 2);
++        value = 1;
++        if (!strcasecmp(title, "04007EF01F8AE000")) {
++            // The private test IPA can request a default. A configured 0/1
++            // from the scheme or the game's env.txt always takes precedence.
++            BOOL enabled = option ? !strcmp(option, "1") :
++                [[NSBundle.mainBundle objectForInfoDictionaryKey:@"RBTestAsyncPSODefault"] boolValue];
++            value = enabled ? 3 : 2;
++        }
+         atomic_store_explicit(&rb_pso_session_mode, value, memory_order_relaxed);
+     }
+     return value - 1;  // 0 outside the title, 1 control, 2 async
+@@ -9413,13 +9419,11 @@ static NSMutableDictionary<NSString *, ShaderFlight *> *g_shader_flights;
+ static os_unfair_lock g_shader_lock = OS_UNFAIR_LOCK_INIT;
+ static _Atomic uint64_t g_shader_requests, g_shader_hits, g_shader_waits, g_shader_wait_ns, g_shader_builds, g_shader_failures, g_shader_build_live;
+ static _Atomic uint64_t g_rb_lib_done;   // RewindBox (patch 0085): libraries built into the cache, on any thread (rb_look_at_miss)
+-// RewindBox (patch 0069): the MSL a translation on this device leaves is compiled from source at every start (iOS keeps no library built at run time), and that time was
+-//   counted only inside "shader libraries ... ms in all". IPA 765: the profile of window f1858 had the submit thread about 690 ms in a row in shader_build at frame 1892 (1,038.7 ms),
+-//   Metal's compiler under it. Counted apart now: shader_build's fallback compiles (newLibraryWithSource, every thread; the output-type, sampler and vertex-pad variants are not
+-//   counted), and the part on the submit thread (shader_load_submit, the long-frame line); the session's totals in dsh_miss.inc dsh_summary (nvn_be_msl_ns)
+-static _Atomic uint64_t g_rb_msl_n, g_rb_msl_ns, g_rb_msl_shared;   // all threads
+-static __thread uint64_t t_rb_msl_n, t_rb_msl_ns;   // this thread's, read around a load by shader_load_submit
+-static uint64_t g_bp_msl_n, g_bp_msl_ns;   // submit thread
++// Base translations and typed-output, sampler and padded vertex variants.
++// Count only real newLibraryWithSource calls, including failed attempts.
++static _Atomic uint64_t g_rb_msl_n, g_rb_msl_ns, g_rb_msl_shared;
++static __thread uint64_t t_rb_msl_n; // per-job reference preparation accounting
++static _Atomic uint64_t g_bp_msl_n, g_bp_msl_ns; // subset compiled on the submit thread
+ // Stages whose entry point follows the depth mode: vertex, and an NVN2 mesh shader at stage 4 (main0 / main0_z as a vertex shader's; a domain shader there takes main0 either way)
+ static inline int stage_depth_moded(int stage) { return stage == 0 || stage == 4; }
+ static NSString *shader_identity(NSString *pc, int stage, int layer, int depth_zero) {
+@@ -9435,7 +9439,7 @@ static void shader_load_stats(void) {
+          (unsigned long long)atomic_load(&g_shader_waits), atomic_load(&g_shader_wait_ns) / 1e6, (unsigned long long)atomic_load(&g_shader_builds),
+          (unsigned long long)atomic_load(&g_shader_failures), (unsigned long long)atomic_load(&g_shader_build_live));
+     if (atomic_load(&g_rb_msl_shared)) MLOG("RewindBox: existing Metal source library reused for another shader identity: %llu", (unsigned long long)atomic_load(&g_rb_msl_shared));
+-    if (atomic_load(&g_rb_msl_n)) MLOG("RewindBox: MSL of this device's translations compiled from source so far (shader_build's fallback path, every thread): %llu times, %.1f ms in all", (unsigned long long)atomic_load(&g_rb_msl_n), atomic_load(&g_rb_msl_ns) / 1e6);   // RewindBox (patch 0069)
++    if (atomic_load(&g_rb_msl_n)) MLOG("RewindBox: MSL of this device's translations compiled from source so far (base and typed/sampler/padded variants, every thread): %llu times, %.1f ms in all", (unsigned long long)atomic_load(&g_rb_msl_n), atomic_load(&g_rb_msl_ns) / 1e6);   // RewindBox (patch 0069)
+     if (atomic_load(&g_lp_lib_built)) MLOG("library container: %llu libraries built, %llu loads took one already built from the same segment (lib_pack.inc lp_library); "
+                                           "segments mapped in the host high range %llu (%.1f MB live), in the low range %llu (%.1f MB: high range full or absent)",
+                                           (unsigned long long)atomic_load(&g_lp_lib_built), (unsigned long long)atomic_load(&g_lp_lib_shared),
+@@ -10000,14 +10004,14 @@ static id<MTLLibrary> rb_compile_source(NSString *src, NSError **error) {
+     atomic_fetch_add_explicit(&g_rb_msl_n, 1, memory_order_relaxed);
+     atomic_fetch_add_explicit(&g_rb_msl_ns, elapsed, memory_order_relaxed);
+     t_rb_msl_n++;
+-    t_rb_msl_ns += elapsed;
++    if (on_sub_thread()) {
++        atomic_fetch_add_explicit(&g_bp_msl_n, 1, memory_order_relaxed);
++        atomic_fetch_add_explicit(&g_bp_msl_ns, elapsed, memory_order_relaxed);
++    }
+     return lib;
+ }
+-static id<MTLLibrary> rb_stage_library(NSString *src, int stage, NSError **error) {
+-    t_lib_layer = [src containsString:@"render_target_array_index"];
+-    // Base shader identities differ by stage/entry, but compiling the same final
+-    // source with dm_msl_opts() on the same device produces the same library.
+-    if (!stage_depth_moded(stage) && !rb_async_pso()) return rb_compile_source(src, error);
++static id<MTLLibrary> rb_source_library(NSString *src, int share, NSError **error) {
++    if (!share) return rb_compile_source(src, error);
+     const char *bytes = src.UTF8String;
+     if (!bytes) return rb_compile_source(src, error);
+     NSString *identity = [NSString stringWithFormat:@"lib/%p/%@", (__bridge void *)g_dev,
+@@ -10048,6 +10052,10 @@ static id<MTLLibrary> rb_stage_library(NSString *src, int stage, NSError **error
+     os_unfair_lock_unlock(&g_shader_lock);
+     return lib;
+ }
++static id<MTLLibrary> rb_stage_library(NSString *src, int stage, NSError **error) {
++    t_lib_layer = [src containsString:@"render_target_array_index"];
++    return rb_source_library(src, stage_depth_moded(stage) || rb_async_pso(), error);
++}
+ // Only deterministic compiler failures on device-generated MSL enter this set.
+ static NSMutableDictionary<NSString *, NSString *> *g_rb_rejected_msl;
+ static int rb_msl_rejected(NSError *e) {
+@@ -10311,9 +10319,8 @@ static NvShader *shader_load(NSString *pc, int stage, int layer) {
+     return shader_load_depth(pc, stage, layer, stage_depth_moded(stage) && atomic_load(&g_depth_zero), NULL, NULL);
+ }
+ static NvShader *shader_load_submit(NSString *pc, int stage, int layer, int depth_zero) {
+-    uint64_t start = bp_now(), wait_ns = 0, mn0 = t_rb_msl_n, mns0 = t_rb_msl_ns; int built = 0;   // RewindBox (patch 0069): mn0 / mns0
++    uint64_t start = bp_now(), wait_ns = 0; int built = 0;
+     NvShader *shader = shader_load_depth(pc, stage, layer, depth_zero, &built, &wait_ns);
+-    g_bp_msl_n += t_rb_msl_n - mn0; g_bp_msl_ns += t_rb_msl_ns - mns0;   // RewindBox (patch 0069): MSL compiled here, on the submit thread
+     // A shared load can block this frame even when another thread constructs
+     // it, and a failed attempt still consumed time. Never count a waiter as a
+     // construction; expose its time both in the frame ledger and separately.
+@@ -12336,28 +12343,28 @@ static uint8_t pso_color_round_mask(const pso_key *k, NvShader *fs, int merged)
+ }
+ // S2Arm: the fragment shader's typed-output entry point for this need mask: cached, else loaded from the fallback directory's <key>_t<u>_<s>.metal that an earlier pso_fout_variant wrote (this run or
+ // an earlier one: the background prewarm of a recorded pipeline has no guest program to translate from, but the variant is on disk). nil when there is none. Pipelines are built on several threads
+-static pthread_mutex_t g_fnt_mu = PTHREAD_MUTEX_INITIALIZER;
+ static id<MTLFunction> fs_typed_fn(NvShader *fs, uint32_t need) {
+-    pthread_mutex_lock(&g_fnt_mu);
+-    id f = fs->fn_t[@(need)];
+-    if (!f) {   // the library first: the package compiles the variants its pipeline seeds need into <key>_ft (dmsh_build.py ft_finish), so a new chain does not turn them into first-use builds
+-        if (!fs->ft_tried) { fs->ft_tried = 1; char nm[32]; snprintf(nm, sizeof nm, "%.16s_ft", fs->key); fs->ft_lib = lib_from_pack(nm, NULL); }
+-        id<MTLFunction> lf = lib_entry(fs->ft_lib, [NSString stringWithFormat:@"main0_t%x_%x", need & 0xff, need >> 8]);
+-        if (lf) { if (!fs->fn_t) fs->fn_t = [NSMutableDictionary dictionary]; fs->fn_t[@(need)] = f = lf; }
+-    }
+-    const char *fb = getenv("DM_MSL_FALLBACK");
+-    if (!f && fb && *fb && dm_shader_fout_fresh(fs->key, need & 0xff, need >> 8)) {   // a variant from another translation chain or older than its source is not loaded (its bindings may not match fs->rf)
+-        char p[1200]; snprintf(p, sizeof p, "%s/%.16s_t%x_%x.metal", fb, fs->key, need & 0xff, need >> 8);
+-        NSError *e = nil; NSString *src = [NSString stringWithContentsOfFile:@(p) encoding:NSUTF8StringEncoding error:nil];
+-        if (src) {
+-            id<MTLLibrary> lib = [g_dev newLibraryWithSource:src options:dm_msl_opts() error:&e];
+-            f = lib ? [lib newFunctionWithName:@"main0_t" constantValues:[MTLFunctionConstantValues new] error:&e] : nil;
+-            if (!f) { MLOG("【红】 fragment shader %s: typed-output variant %#x failed to build: %s", fs->key, need, e.localizedDescription.UTF8String); f = NSNull.null; }
+-            if (!fs->fn_t) fs->fn_t = [NSMutableDictionary dictionary];
+-            fs->fn_t[@(need)] = f;
++    id f;
++    @synchronized(fs) {
++        f = fs->fn_t[@(need)];
++        if (!f) {   // the library first: the package compiles the variants its pipeline seeds need into <key>_ft (dmsh_build.py ft_finish), so a new chain does not turn them into first-use builds
++            if (!fs->ft_tried) { fs->ft_tried = 1; char nm[32]; snprintf(nm, sizeof nm, "%.16s_ft", fs->key); fs->ft_lib = lib_from_pack(nm, NULL); }
++            id<MTLFunction> lf = lib_entry(fs->ft_lib, [NSString stringWithFormat:@"main0_t%x_%x", need & 0xff, need >> 8]);
++            if (lf) { if (!fs->fn_t) fs->fn_t = [NSMutableDictionary dictionary]; fs->fn_t[@(need)] = f = lf; }
++        }
++        const char *fb = getenv("DM_MSL_FALLBACK");
++        if (!f && fb && *fb && dm_shader_fout_fresh(fs->key, need & 0xff, need >> 8)) {   // a variant from another translation chain or older than its source is not loaded (its bindings may not match fs->rf)
++            char p[1200]; snprintf(p, sizeof p, "%s/%.16s_t%x_%x.metal", fb, fs->key, need & 0xff, need >> 8);
++            NSError *e = nil; NSString *src = [NSString stringWithContentsOfFile:@(p) encoding:NSUTF8StringEncoding error:nil];
++            if (src) {
++                id<MTLLibrary> lib = rb_source_library(src, rb_async_pso(), &e);
++                f = lib ? [lib newFunctionWithName:@"main0_t" constantValues:[MTLFunctionConstantValues new] error:&e] : nil;
++                if (!f) { MLOG("【红】 fragment shader %s: typed-output variant %#x failed to build: %s", fs->key, need, e.localizedDescription.UTF8String); f = NSNull.null; }
++                if (!fs->fn_t) fs->fn_t = [NSMutableDictionary dictionary];
++                fs->fn_t[@(need)] = f;
++            }
+         }
+     }
+-    pthread_mutex_unlock(&g_fnt_mu);
+     return f == NSNull.null ? nil : f;
+ }
+ // S2Arm (#800): the shader's sampler-emulation variant <key>_se (nvn_red.h SE_RD), run by a draw / dispatch that binds a min / max sampler on a GPU without the native reduction or
+@@ -12399,7 +12406,7 @@ static id<MTLFunction> se_build(NvShader *sh, const uint8_t md[8], uint64_t code
+     // A variant an older host made (another format version, still fresh by its source): made again from the guest code when there is some (version 4 added folded textures, 11-03)
+     if (src && ![src hasPrefix:ver] && code && !dm_shader_se(md, code, ctl, p, sizeof p)) { snprintf(p, sizeof p, "%s/%.16s_se.metal", fb, sh->key); src = [NSString stringWithContentsOfFile:@(p) encoding:NSUTF8StringEncoding error:nil]; }
+     if (!src || ![src hasPrefix:ver]) { snprintf(why, n, "%s %s", p, src ? "is of another format" : "is unreadable"); return nil; }
+-    NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:src options:dm_msl_opts() error:&e];
++    NSError *e = nil; id<MTLLibrary> lib = rb_source_library(src, rb_async_pso(), &e);
+     if (!lib) { snprintf(why, n, "failed to build: %s", e.localizedDescription.UTF8String); return nil; }
+     id<MTLFunction> f = lib_entry(lib, @"main0");
+     NSUInteger al = f && sh->rf.nb ? [f newArgumentEncoderWithBufferIndex:sh->rf.abi].encodedLength : sh->arg_len;
+@@ -12478,8 +12485,8 @@ static id<MTLFunction> vp_load_padded(NvShader *vs, const char *path, char *why,
+     NSString *src = [NSString stringWithContentsOfFile:@(path) encoding:NSUTF8StringEncoding error:nil];
+     if (!src || ![src hasPrefix:@"// s2a:vs-pad 1 "]) { snprintf(why, n, "%s %s", path, src ? "is of another format" : "is unreadable"); return nil; }
+     t_rb_binst_reads = 0; t_rb_binst_seen = 0; if (vs->rb_bi) src = rb_msl_base_instance(src, vs->key);   // RewindBox (patch 0066): the padded variant reads its base instance as its shader's entry points do: rewritten only when they were (rb_bi 0: the library container, S2A_RB_BASE_INSTANCE=0 or refused by Metal, whose entries read c0 + 0x644)
+-    NSError *e = nil; id<MTLLibrary> lib = [g_dev newLibraryWithSource:src options:dm_msl_opts() error:&e];
+-    if (!lib && t_rb_binst_reads) { rb_binst_refused(vs->key, e); e = nil; NSString *s0 = [NSString stringWithContentsOfFile:@(path) encoding:NSUTF8StringEncoding error:nil]; if (s0) lib = [g_dev newLibraryWithSource:s0 options:dm_msl_opts() error:&e]; }
++    NSError *e = nil; id<MTLLibrary> lib = rb_source_library(src, rb_async_pso(), &e);
++    if (!lib && t_rb_binst_reads) { rb_binst_refused(vs->key, e); e = nil; NSString *s0 = [NSString stringWithContentsOfFile:@(path) encoding:NSUTF8StringEncoding error:nil]; if (s0) lib = rb_source_library(s0, rb_async_pso(), &e); }
+     t_rb_binst_reads = 0; t_rb_binst_seen = 0;   // RewindBox (patch 0066): Metal refused the rewritten variant: as translated, as in shader_build
+     if (!lib) { snprintf(why, n, "failed to build: %s", e.localizedDescription.UTF8String); return nil; }
+     id<MTLFunction> f = lib_entry(lib, vs->ventry);   // the logical entry the library's function is (main0 / main0_z / the layer ones); a source library has no name prefix
+@@ -12562,7 +12569,7 @@ static id<MTLFunction> fs_atms_fn(NvShader *fs, int u, int at, int msoff) {
+     os_unfair_lock_lock(&g_atfn_lock); if (!fs->at_fns) fs->at_fns = [NSMutableDictionary dictionary]; fs->at_fns[key] = f; os_unfair_lock_unlock(&g_atfn_lock);
+     return f;
+ }
+-static MTLRenderPipelineDescriptor *pso_desc(const pso_key *k, NvShader *vs, NvShader *fs, id<MTLFunction> fsfn, int merged) {
++static MTLRenderPipelineDescriptor *pso_desc_capture(const pso_key *k, NvShader *vs, NvShader *fs, id<MTLFunction> fsfn, int merged, uint32_t *defer_typed) {
+     MTLRenderPipelineDescriptor *d = [MTLRenderPipelineDescriptor new];
+     // vs nil: no vertex stage, the fragment half of a task / mesh pipeline (mtk_pso copies it into its mesh descriptor). Setting the mesh function as vertexFunction is what Metal's
+     //   validation layer (MTL_DEBUG_LAYER=1) aborts on (#376: the tool that checks the M1 Metal 4 hang could not be turned on)
+@@ -12584,6 +12591,7 @@ static MTLRenderPipelineDescriptor *pso_desc(const pso_key *k, NvShader *vs, NvS
+             break; } }
+     uint32_t need = fs && !fsfn && d.fragmentFunction == fs->fn ? pso_fout_need(k, fs, merged) : 0;
+     if (need && fs->fn_u && need == fs->u_mask) d.fragmentFunction = fs->fn_u;   // the integer attachments are exactly the outputs main0_u turns (dmsh_build.py fs_uint u_mask)
++    else if (need && defer_typed && !merged && !k->fsfn && !k->at && !k->msoff) *defer_typed = need;
+     else if (need) { id<MTLFunction> t = fs_typed_fn(fs, need); if (t) d.fragmentFunction = t; }   // S2Arm: mixed float / integer targets, dual-source blending (pso_fout_variant)
+     else if (k->fc && fs && d.fragmentFunction == fs->fn) {   // S2Arm #800: the sampler-emulation variant (se_want: never with integer outputs)
+         id<MTLFunction> f = se_fn(fs, k->fc); if (f) d.fragmentFunction = f; else MLOG("【红】 fragment shader %s: pipeline keyed for its sampler-emulation variant (bits %d), which is not there: main0", fs->key, k->fc); }
+@@ -12649,6 +12657,9 @@ static MTLRenderPipelineDescriptor *pso_desc(const pso_key *k, NvShader *vs, NvS
+     d.vertexDescriptor = vd;
+     return d;
+ }
++static MTLRenderPipelineDescriptor *pso_desc(const pso_key *k, NvShader *vs, NvShader *fs, id<MTLFunction> fsfn, int merged) {
++    return pso_desc_capture(k, vs, fs, fsfn, merged, NULL);
++}
+ // Bytes of a pipeline key that pso_desc never reads go to 0, so one Metal descriptor is one key (S2Arm 10-25). The game leaves blend state, channel masks and blend-enable bits on targets
+ // it does not draw to, or on targets whose blending is off; kept in the key they split one pipeline into several builds, and keys from elsewhere (recorded seeds of other runs, community
+ // pipeline data) never matched them: in Mario Kart 8 Deluxe's recorded keys, 279 of 400 carried blend bytes of targets with blending off. Normal passes only: a merged pass reads target i's
+@@ -12719,7 +12730,7 @@ static uint64_t g_pp_submit_mark, g_pp_kicked, g_pp_taken, g_pp_dropped;   // Wh
+ //   Now the lookahead's guesses (pso_predict_rest) wait in the table and compile on S2A_RB_PSO_LANES lanes (default 2) in the order they were kicked, and a pipeline a draw needs
+ //   (the draw at hand's kick, a first-use skip, or pso_pend_take reaching a guess no lane has started) starts at once at user-interactive QoS beside the lanes, never behind them.
+ //   The build is the same (par_render on the same descriptor). S2A_RB_PSO_LANES=0: every kick on the global queue at once, as before
+-static struct { MTLRenderPipelineDescriptor *d; NSString *pkey; uint64_t seq; int run, guess; } g_ppq[PSO_PEND_MAX];   // a kicked slot's build: d set = waiting for a lane; run = started; guess = kicked by the lookahead (g_pp_mu)
++static struct { MTLRenderPipelineDescriptor *d; NSString *pkey; NvShader *typed_fs; uint32_t typed_need; uint64_t seq; int run, guess; } g_ppq[PSO_PEND_MAX];   // a kicked slot's build: d set = waiting for a lane; run = started; guess = kicked by the lookahead (g_pp_mu)
+ static uint64_t g_ppq_seq, g_ppq_now, g_ppq_lane; static int g_ppq_lanes;   // kick order / builds started at once for a draw / started by a lane / lanes running (all g_pp_mu)
+ static int rb_pso_lanes(void) {   // read once (submit thread)
+     static int v = -1;
+@@ -12732,7 +12743,19 @@ static int rb_pso_lanes(void) {   // read once (submit thread)
+     return v;
+ }
+ static void ppq_build(int slot, MTLRenderPipelineDescriptor *d, NSString *pkey) {   // a lane or a block started at once; d / pkey were taken out of g_ppq under g_pp_mu
+-    id<MTLRenderPipelineState> ps; NSError *e=nil; @autoreleasepool { ps=par_render(d,pkey,&e); }
++    id<MTLRenderPipelineState> ps; NSError *e=nil;
++    @autoreleasepool {
++        // One builder owns this descriptor and slot until it publishes done.
++        // Only the exact typed entry lookup is deferred. The other inputs to
++        // pso_desc were already captured on the submit thread.
++        NvShader *fs = g_ppq[slot].typed_fs;
++        if (fs) {
++            id<MTLFunction> fn = fs_typed_fn(fs, g_ppq[slot].typed_need);
++            if (fn) d.fragmentFunction = fn;
++            g_ppq[slot].typed_fs = nil;
++        }
++        ps=par_render(d,pkey,&e);
++    }
+     pthread_mutex_lock(&g_pp_mu); g_pp[slot].ps = ps; g_pp[slot].error = rb_async_pso() ? e : nil; g_pp[slot].done = 1; pthread_cond_broadcast(&g_pp_cv); pthread_mutex_unlock(&g_pp_mu);
+ }
+ static int ppq_waiting(int i) { return i >= 0 && g_pp[i].used && !g_pp[i].done && !g_ppq[i].run && g_ppq[i].d; }   // caller holds g_pp_mu
+@@ -12798,13 +12821,18 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs, int now)
+     if (at >= 0 && now) ppq_hurry_locked(at);   // RewindBox (patch 0069): a guess of the lookahead no lane has started, needed now
+     pthread_mutex_unlock(&g_pp_mu);
+     if (at >= 0 || slot < 0) return;
+-    MTLRenderPipelineDescriptor *d = pso_desc(k, vs, fs, nil, 0); g_pp_kicked++; NSString *pkey = par_rkey(k, vs, fs, 0, nil);
++    const int lanes = rb_pso_lanes();
++    uint32_t typed = 0;
++    MTLRenderPipelineDescriptor *d = pso_desc_capture(k, vs, fs, nil, 0, lanes && rb_async_pso() ? &typed : NULL);
++    g_pp_kicked++; NSString *pkey = par_rkey(k, vs, fs, 0, nil);
+     if (rb_pso_mode()) {
+         rb_async_note(RB_ASYNC_QUEUE);
+         if (g_async_early) rb_async_note(RB_ASYNC_EARLY_RENDER);
+     }
+-    if (rb_pso_lanes()) {   // RewindBox (patch 0069): the build waits in the table for a lane, or starts at once for the draw at hand
+-        pthread_mutex_lock(&g_pp_mu); g_ppq[slot].d = d; g_ppq[slot].pkey = pkey; g_ppq[slot].run = 0; g_ppq[slot].guess = !now; g_ppq[slot].seq = ++g_ppq_seq;
++    if (lanes) {   // RewindBox (patch 0069): the build waits in the table for a lane, or starts at once for the draw at hand
++        pthread_mutex_lock(&g_pp_mu);
++        g_ppq[slot].typed_fs = typed ? fs : nil; g_ppq[slot].typed_need = typed;
++        g_ppq[slot].d = d; g_ppq[slot].pkey = pkey; g_ppq[slot].run = 0; g_ppq[slot].guess = !now; g_ppq[slot].seq = ++g_ppq_seq;
+         if (now) ppq_start_locked(slot); else ppq_pump_locked();
+         pthread_mutex_unlock(&g_pp_mu); return;
+     }
+@@ -12959,16 +12987,17 @@ static int pso_fout_variant(NvProg *pr, NvShader *fs, const pso_key *k, int merg
+     //   a task / mesh pipeline asks first (nvn_geometry.inc mtk_pso): a fragment shader shared by a mesh program whose section the game has reused and a vertex program that still
+     //   holds it would have left the vertex pipeline, which got its variant after its refusal, refused for the run. A program found without the section is remembered by its
+     //   serial (bit 30: reported once per shader and mask, and not looked through again), and the attempt stays for another program that asks
+-    pthread_mutex_lock(&g_fnt_mu); int tried = fs->fn_t[@(need | 1u << 31)] != nil; id dead = fs->fn_t[@(need | 1u << 30)]; pthread_mutex_unlock(&g_fnt_mu);
++    int tried; id dead;
++    @synchronized(fs) { tried = fs->fn_t[@(need | 1u << 31)] != nil; dead = fs->fn_t[@(need | 1u << 30)]; }
+     if (tried) return 0;   // one attempt per shader and mask
+     const prog_t *p = pr->gp;
+     if (dead && [dead unsignedLongLongValue] == p->serial) return 0;
+     char path[1200]; uint8_t md[8]; int at = prog_stage_of(p, fs->key, md), first;
+-    pthread_mutex_lock(&g_fnt_mu);
+-    if (!fs->fn_t) fs->fn_t = [NSMutableDictionary dictionary];
+-    if (at < 0) { first = fs->fn_t[@(need | 1u << 30)] == nil; fs->fn_t[@(need | 1u << 30)] = @(p->serial); }
+-    else { first = fs->fn_t[@(need | 1u << 31)] == nil; if (first) fs->fn_t[@(need | 1u << 31)] = NSNull.null; }
+-    pthread_mutex_unlock(&g_fnt_mu);
++    @synchronized(fs) {
++        if (!fs->fn_t) fs->fn_t = [NSMutableDictionary dictionary];
++        if (at < 0) { first = fs->fn_t[@(need | 1u << 30)] == nil; fs->fn_t[@(need | 1u << 30)] = @(p->serial); }
++        else { first = fs->fn_t[@(need | 1u << 31)] == nil; if (first) fs->fn_t[@(need | 1u << 31)] = NSNull.null; }
++    }
+     if (at < 0) { if (first) MLOG("【红】 fragment shader %s: its pipeline needs the output variant %#x (integer outputs / dual-source), but the game no longer holds its control section to translate a variant", fs->key, need); return 0; }
+     if (!first) return 0;   // taken meanwhile
+     uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);   // built synchronously on the submit thread: the time is logged to judge whether it should move to the background
+@@ -13556,9 +13585,9 @@ static int rb_bound_exact_on(void) {
+     static dispatch_once_t once;
+     dispatch_once(&once, ^{
+         const char *e = getenv("S2A_RB_BOUND_SHADER_VARIANT");
+-        on = e && !strcmp(e, "1");
++        on = !e ? -1 : !strcmp(e, "1");
+     });
+-    return on;
++    return on < 0 ? rb_async_pso() : on;
+ }
+ // RewindBox (patch 0069): a Switch 2 stage was first looked at when the submit thread replayed its bind (prog_get), or by the lookahead, which runs only at the first pipeline
+ //   miss of a submission: the first new program of a scene was translated on the submit thread, then its library compiled there. IPA 765: 233 stages translated in play, 48 of them
+@@ -13990,7 +14019,6 @@ static BOOL rb_warm_pair(NvShader *vs, NvShader *fs, NSString *recipe) {
+         char path[1200], why[300]="source unavailable";
+         id<MTLFunction> fn=nil;
+         if (valid && !dm_shader_vpad(key,0,NULL,mask,path,sizeof path)) {
+-            ++t_rb_msl_n;
+             fn=vp_load_padded(vs,path,why,sizeof why);
+         }
+         pthread_mutex_lock(&g_vp_mu);
+diff --git a/graphics/nvn/host/dsh_miss.inc b/graphics/nvn/host/dsh_miss.inc
+index 6929961..9015691 100644
+--- a/graphics/nvn/host/dsh_miss.inc
++++ b/graphics/nvn/host/dsh_miss.inc
+@@ -70,10 +70,10 @@ static void dsh_summary(int normal) {
+     if (atomic_load(&g_rb_dsh_known_saved) || atomic_load(&g_rb_dsh_known_deferred))
+         LOG("RewindBox: already mapped shaders: %llu stage files kept, %llu copies deferred by the byte cap (S2A_RB_DSH_KEEP_MAPPED)",
+             (unsigned long long)atomic_load(&g_rb_dsh_known_saved), (unsigned long long)atomic_load(&g_rb_dsh_known_deferred));
+-    // RewindBox (patch 0069): the MSL this device's translations leave, compiled from source at their load (nvn_mtl.m shader_build's fallback path), for the whole session: the line
++    // RewindBox (patch 0069): the MSL this device's translations leave, compiled from source at their load (nvn_mtl.m base and typed/sampler/padded variants), for the whole session: the line
+     //   the backend writes at the prewarm's end stops there, and only long frames showed the submit thread's part (IPA 765 frame 1892: about 690 ms in shader_build)
+     { uint64_t m[4]; nvn_be_msl_ns(m);
+-      if (m[0]) LOG("RewindBox: MSL of this device's translations compiled from source in this session (shader_build's fallback path): %llu times, %.1f ms in all; on the submit thread %llu, %.1f ms",
++      if (m[0]) LOG("RewindBox: MSL of this device's translations compiled from source in this session (base and typed/sampler/padded variants): %llu times, %.1f ms in all; on the submit thread %llu, %.1f ms",
+                     (unsigned long long)m[0], m[1] / 1e6, (unsigned long long)m[2], m[3] / 1e6); }
+     // #800 采样器归约变体（nvn_mtl.m se_done）：库里不带，绘制真绑了 min / max 采样器、本机不原生归约时在设备上编（本局现出或载上局现出的）
+     uint64_t se[2]; mtl_se_stats(se);
