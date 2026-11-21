@@ -57,7 +57,10 @@ static int test_scope_enabled;
 static const char *test_scope_build;
 #define RB_PAR_SCOPED() test_scope_enabled
 #define RB_PAR_BUILD() test_scope_build
-#define RB_PAR_SUBMIT_THREAD() 0
+static _Thread_local int fixture_submit;
+static int fixture_preopen;
+#define RB_PAR_SUBMIT_THREAD() fixture_submit
+#define RB_PAR_PREOPEN() fixture_preopen
 #ifndef RB_ARCHIVE_TEST_793_CONTROL
 static int injected_archive_thermal = -1;
 #define RB_PAR_WRITE_MODE() rb_archive_write_mode(injected_archive_thermal >= 0, injected_archive_thermal, (1024ull << 20) + 1)
@@ -322,11 +325,36 @@ static void test_live_render_archive(const char *directory, int thermal, BOOL wa
     d.fragmentFunction=[lib newFunctionWithName:@"ps"];
     d.colorAttachments[0].pixelFormat=MTLPixelFormatRGBA8Unorm;
     NSString *key=par_hash("warm-render",sizeof("warm-render")-1);
+    fixture_preopen = 1;
+    rb_archive_preopen_start();
+    REQUIRE(!dispatch_group_wait(rb_archive_jobs(), dispatch_time(DISPATCH_TIME_NOW, 10*NSEC_PER_SEC)));
+    if (warm) {
+        REQUIRE(atomic_load(&rb_preopened) == 1);
+        fixture_submit = 1;
+        REQUIRE(rb_archive_get(key, RB_LOCAL));
+        uint64_t samples[101];
+        for (int i = 0; i < 101; ++i) {
+            uint64_t begin = bp_now();
+            REQUIRE(rb_archive_get(key, RB_LOCAL));
+            samples[i] = bp_now() - begin;
+        }
+        for (int i = 1; i < 101; ++i) {
+            uint64_t ns = samples[i]; int j = i;
+            while (j && ns < samples[j-1]) { samples[j]=samples[j-1]; --j; }
+            samples[j] = ns;
+        }
+        REQUIRE(samples[50] < 100000 && !atomic_load(&rb_cold_submit));
+        printf("PASS warm archive memory lookup p50_ns=%llu p99_ns=%llu n=101\n",
+               (unsigned long long)samples[50], (unsigned long long)samples[99]);
+    }
     REQUIRE(par_render(d,key,&error));
     await_test_archive_writer();
     REQUIRE(atomic_load(&g_par_written)==(unsigned)!warm);
     REQUIRE(atomic_load(&g_par_hits)==(unsigned)warm);
     REQUIRE(atomic_load(&g_par_misses)==(unsigned)!warm);
+    fixture_submit = 0;
+    rb_archive_preopen_retire();
+    REQUIRE([NSFileManager.defaultManager fileExistsAtPath:rb_hot_index()]);
     REQUIRE([NSFileManager.defaultManager fileExistsAtPath:[g_par_dir stringByAppendingPathComponent:@"batches.tsv"]]);
     printf("PASS thermal=%d render written=%llu from_archive=%llu\n", thermal,
            (unsigned long long)atomic_load(&g_par_written),(unsigned long long)atomic_load(&g_par_hits));

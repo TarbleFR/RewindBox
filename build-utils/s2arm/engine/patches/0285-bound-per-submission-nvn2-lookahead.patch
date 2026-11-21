@@ -1,0 +1,663 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 3b69473..d01e0e0 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4382,6 +4382,19 @@ static void hm_del_id(nvn_hmap *m, const void *k) { void *old = nvn_hm_del(m, k)
+ static nvn_hmap g_by_serial = {.klen = 8};     // Serial → MTLTexture / NvPkg / NvProg
+ static pthread_mutex_t g_smu = PTHREAD_MUTEX_INITIALIZER;
+ // Serial table generation: +1 when entries are added / removed or a packaged texture is replaced. Downstream caches (texture views, programs) record the generation at fetch time; if it is unchanged they can be used directly without another table lookup
++#include "rb_look_budget.h"
++static _Thread_local int g_look_try_only; // only the thread running the optional scan
++static rb_look_budget g_look_budget; // submit thread only
++static rb_look_miss g_look_missing[RB_LOOK_NEGATIVE_SLOTS];
++static _Atomic uint64_t g_look_publication[RB_LOOK_NEGATIVE_SLOTS];
++static _Atomic int g_look_budget_option;
++static int rb_look_bounded(void) {
++    int nvn2=nvn2_on();
++#ifdef RB_TEST_FIRST_FRAME
++    nvn2 |= rb_test_first_scope;
++#endif
++    return nvn2 && rb_pacing_setting(&g_look_budget_option,"S2A_RB_LOOK_BUDGET");
++}
+ static _Atomic uint64_t g_ser_gen = 1;
+ // RewindBox (patch 0073): the moves of g_ser_gen that only added a live serial no table held (tex_put), counted under g_smu; a texture ID's view survives those (tex_by_id, rb_view_keep_on)
+ static uint64_t g_rb_ser_add = 1;
+@@ -4800,6 +4813,7 @@ static void serial_put_kind(uint64_t k, id o, BOOL program) {
+     id old = hm_get_id(&g_by_serial, &k);
+     if (old) { if (alias_has(old)) defer_obj_unref(old); else defer_obj_release(old); }
+     hm_put_id(&g_by_serial, &k, o);
++    if (program && rb_look_bounded()) atomic_fetch_add_explicit(&g_look_publication[k % RB_LOOK_NEGATIVE_SLOTS],1,memory_order_release);
+     if (program) rb_serial_local_locked(k); else g_ser_gen++;
+     pthread_mutex_unlock(&g_smu);
+ }
+@@ -9307,6 +9321,21 @@ static int bcrt_attach(MTLRenderPassAttachmentDescriptor *a, id<MTLTexture> base
+                                        side == 1 ? "depth" : "compressed", v->format, (unsigned long)bw, (unsigned long)bh, (unsigned long)spf, g_stat_pass + 1);
+     return 1;
+ }
++typedef struct {
++    uint64_t serial;
++    view_t view;
++    int viewed;
++    uint32_t color, depth, stencil, samples;
++} RBLookAttachment;
++static RBLookAttachment g_look_attachment[2][128]; // real encoder observations, submit-owned
++static void rb_look_observe_attachment(const tex_t *texture, const view_t *view, int viewed,
++                                       uint32_t color, uint32_t depth, uint32_t stencil, uint32_t samples) {
++    if (!texture || !texture->serial || !(color || depth || stencil)) return;
++    RBLookAttachment *entry=&g_look_attachment[!color][texture->serial % 128];
++    *entry=(RBLookAttachment){.serial=texture->serial,.viewed=viewed,
++        .color=color,.depth=depth,.stencil=stencil,.samples=samples};
++    if (viewed) entry->view=*view;
++}
+ static MTLPixelFormat rt_view_fmt(id<MTLTexture> base, const view_t *v, int has_v) {
+     MTLPixelFormat spf;
+     if (bcrt_view(base, v, has_v, &spf)) return spf;
+@@ -9841,6 +9870,13 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+         g_pass.hd = dt && dt.pixelFormat != MTLPixelFormatStencil8; g_pass.hs = stt != nil;
+         g_pass.dfmt = g_pass.hd ? (uint32_t)dt.pixelFormat : 0; g_pass.sfmt = stt ? (uint32_t)stt.pixelFormat : 0;
+         if (dt || stt) g_pass.samples = (uint32_t)(dt ? dt : stt).sampleCount;
++        if (rb_look_bounded()) {
++            for (int i=0;i<R.rt.n && i<8;i++)
++                rb_look_observe_attachment(R.rt.color[i],&R.rt.cview[i],R.rt.has_cview[i],
++                                           g_pass.cfmt[i],0,0,g_pass.samples);
++            rb_look_observe_attachment(R.rt.depth,&R.rt.dview,R.rt.has_dview,
++                                       0,g_pass.dfmt,g_pass.sfmt,g_pass.samples);
++        }
+         pass_dims(pd, (NSUInteger)R.rt.n, &g_pass.tw, &g_pass.th);
+         g_pass.rs = 1.0; g_pass.cw = g_pass.tw; g_pass.ch = g_pass.th;   // S2Arm internal resolution: rs_rts made every attachment of this pass the same scale
+         if (rs_on()) { id<MTLTexture> a = nil; NSUInteger al = 0;
+@@ -13185,7 +13221,7 @@ static void vconv_elem(int f, const uint8_t *p, float o[4]) {
+ // conversion was about a quarter of its replay thread in battle). Transform feedback captures (main0_tf) keep the conversion. DM_NVN_VCONV_CPU=1 converts on the CPU as before
+ static int vin_cpu(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_NVN_VCONV_CPU"); v = e && !strcmp(e, "1"); if (v) MLOG("DM_NVN_VCONV_CPU=1: integer vertex inputs fed formats of another class are converted on the CPU (no shadow inputs)"); } return v; }
+ static os_unfair_lock g_vin_lock = OS_UNFAIR_LOCK_INIT;
+-static uint64_t g_vin_loaded, g_vin_failed, g_vin_psos;   // shadow-input libraries loaded / not usable, pipelines built with them
++static uint64_t g_vin_loaded, g_vin_failed; static _Atomic uint64_t g_vin_psos;   // shadow-input libraries loaded / not usable, pipelines built with them
+ static id<MTLFunction> vin_fn(NvShader *vs) {   // the shadow-input entry point, loaded on first need; a failure is final for the shader (it keeps the conversion)
+     if (!vs->rf.has_vin || vin_cpu()) return nil;
+     os_unfair_lock_lock(&g_vin_lock);
+@@ -13872,7 +13908,7 @@ static void pso_key_fill(pso_key *k, NvShader *vs, NvShader *fs, const uint32_t
+     k->blend_en = S.color.blend_en; k->chmask = S.chmask.mask; k->a2c = S.ms.a2c;
+     { int af = (int)S.color.alpha_func, ms_off = !S.ms.enable && samples > 1;   // gap families 34 / 37: NVN alpha test (ALWAYS 8 = off) and multisampling off on a multisampled target
+       if (fs && fs->has_atms) { k->at = af >= 1 && af <= 7 ? (uint8_t)af : 0; k->msoff = (uint8_t)ms_off; }
+-      else if (fs && ((af >= 1 && af <= 7) || ms_off)) RED_ONCE(134, "fragment shader %s: alpha test %d / multisampling off %d asked, but its library has no S2A_AT / S2A_MSOFF (built before the gap-family translator): drawn without them", fs->key, af, ms_off); }
++      else if (fs && ((af >= 1 && af <= 7) || ms_off) && !g_look_try_only) RED_ONCE(134, "fragment shader %s: alpha test %d / multisampling off %d asked, but its library has no S2A_AT / S2A_MSOFF (built before the gap-family translator): drawn without them", fs->key, af, ms_off); }
+     // 高级混合位（blend_st.adv_*，#344）只为 NVN 查询保真、渲染器不模拟，进键前清掉：键只含影响编译结果的状态，否则同一条管线按不影响画面的位拆成多份、白编（10-25 维护者）
+     for (int i = 0; i < 8; i++) if (k->cfmt[i] || lmap) { k->blend[i] = S.blend[i]; k->blend[i].adv_mode = k->blend[i].adv_overlap = k->blend[i].adv_premul = k->blend[i].adv_normdst = 0; }
+     const nvn_refl *rf = &vs->rf;
+@@ -13909,7 +13945,15 @@ static uint64_t g_pp_submit_mark, g_pp_kicked, g_pp_taken, g_pp_dropped;   // Wh
+ //   Now the lookahead's guesses (pso_predict_rest) wait in the table and compile on S2A_RB_PSO_LANES lanes (default 2) in the order they were kicked, and a pipeline a draw needs
+ //   (the draw at hand's kick, a first-use skip, or pso_pend_take reaching a guess no lane has started) starts at once at user-interactive QoS beside the lanes, never behind them.
+ //   The build is the same (par_render on the same descriptor). S2A_RB_PSO_LANES=0: every kick on the global queue at once, as before
+-static struct { MTLRenderPipelineDescriptor *d; NSString *pkey; NvShader *typed_fs; uint32_t typed_need; uint64_t seq; int run, guess, live; } g_ppq[PSO_PEND_MAX];   // a kicked slot's build: d set = waiting for a lane; run = started; guess = kicked by the lookahead (g_pp_mu)
++static struct { id d; NSString *pkey; NvShader *typed_fs; uint32_t typed_need; uint64_t seq; int run, guess, live; } g_ppq[PSO_PEND_MAX];   // a kicked slot's build: d set = waiting for a lane; run = started; guess = kicked by the lookahead (g_pp_mu)
++// A pending payload is a ready Metal descriptor or a captured key. Both are
++// retained and transferred by the same queue and required-draw takeover.
++@interface RBLookRecipe : NSObject {
++@public pso_key key; NvShader *vertex, *fragment;
++}
++@end
++@implementation RBLookRecipe
++@end
+ static uint64_t g_ppq_seq, g_ppq_now, g_ppq_lane; static int g_ppq_lanes;   // kick order / builds started at once for a draw / started by a lane / lanes running (all g_pp_mu)
+ static int rb_pso_lanes(void) {   // read once (submit thread)
+     static int v = -1;
+@@ -13925,12 +13969,18 @@ static int rb_pso_lanes(void) {   // read once (submit thread)
+ // The Metal test can hold the real owner of an accepted PSO slot while replay consumes it.
+ static dispatch_block_t rb_test_pso_owner;
+ #endif
+-static void ppq_build(int slot, MTLRenderPipelineDescriptor *d, NSString *pkey) {   // a lane or a block started at once; d / pkey were taken out of g_ppq under g_pp_mu
++static void ppq_build(int slot, id payload, NSString *pkey) {   // a lane or a block started at once; d / pkey were taken out of g_ppq under g_pp_mu
+     id<MTLRenderPipelineState> ps; NSError *e=nil;
+     @autoreleasepool {
+         // One builder owns this descriptor and slot until it publishes done.
+-        // Only the exact typed entry lookup is deferred. The other inputs to
+-        // pso_desc were already captured on the submit thread.
++        // Demand supplies a descriptor. A bounded prediction supplies the
++        // original render key and strong shader references for this worker.
++        MTLRenderPipelineDescriptor *d;
++        if ([payload isKindOfClass:RBLookRecipe.class]) {
++            RBLookRecipe *recipe=payload;
++            d=pso_desc(&recipe->key,recipe->vertex,recipe->fragment,nil,0);
++            pkey=par_rkey(&recipe->key,recipe->vertex,recipe->fragment,0,nil);
++        } else d=payload;
+         NvShader *fs = g_ppq[slot].typed_fs;
+         if (fs) {
+             id<MTLFunction> fn = fs_typed_fn(fs, g_ppq[slot].typed_need);
+@@ -13958,7 +14008,7 @@ static int ppq_schedule_locked(int at, BOOL demand) {
+             pthread_mutex_unlock(&g_pp_mu);
+             return;
+         }
+-        MTLRenderPipelineDescriptor *desc=g_ppq[at].d;
++        id desc=g_ppq[at].d;
+         NSString *key=g_ppq[at].pkey;
+         g_ppq[at].d=nil; g_ppq[at].pkey=nil;
+         pthread_mutex_unlock(&g_pp_mu);
+@@ -13983,7 +14033,7 @@ static void ppq_demand_locked(int at) {
+ }
+ static int ppq_start_locked(int at) {   // caller holds g_pp_mu: slot at's build starts now, beside the lanes
+     if (rb_live_lane() && rb_observed_workers_on()) return ppq_schedule_locked(at,NO);
+-    MTLRenderPipelineDescriptor *d = g_ppq[at].d; NSString *pk = g_ppq[at].pkey; g_ppq[at].d = nil; g_ppq[at].pkey = nil; g_ppq[at].run = 1;
++    id d = g_ppq[at].d; NSString *pk = g_ppq[at].pkey; g_ppq[at].d = nil; g_ppq[at].pkey = nil; g_ppq[at].run = 1;
+     if (rb_observed_workers_on()) {
+         if (!rb_observed_enqueue(^{ ppq_build(at,d,pk); })) {
+             // The background table no longer owns this build. Its real draw
+@@ -14024,7 +14074,7 @@ static void ppq_lane(void) {   // a lane: the oldest waiting build, until none i
+             pthread_cond_broadcast(&g_pp_cv);
+             break;
+         }
+-        MTLRenderPipelineDescriptor *d = g_ppq[at].d; NSString *pk = g_ppq[at].pkey; g_ppq[at].d = nil; g_ppq[at].pkey = nil; g_ppq[at].run = 1; g_ppq_lane++;
++        id d = g_ppq[at].d; NSString *pk = g_ppq[at].pkey; g_ppq[at].d = nil; g_ppq[at].pkey = nil; g_ppq[at].run = 1; g_ppq_lane++;
+         pthread_mutex_unlock(&g_pp_mu);
+         ppq_build(at, d, pk);
+         rb_spec_done(&lease);
+@@ -14748,6 +14798,7 @@ int nvn_be_stopping(void) { return atomic_load(&g_shpre_stopping); }   // Rewind
+ #include "rb_observed_pool.h"
+ static rb_observed_pool g_observed = RB_OBSERVED_POOL_INIT;
+ int rb_observed_enqueue(dispatch_block_t block) {
++    if (g_look_try_only) return rb_observed_admit(&g_observed,block,RB_OBSERVED_TRY_LOCK);
+     return rb_observed_submit(&g_observed,block);
+ }
+ static void shpre_sync(void) { dispatch_group_t g = dispatch_group_create(); os_unfair_lock_lock(&g_shpre_mu); shq_mark(&g_shpre, g); shq_mark(&g_shurg, g); os_unfair_lock_unlock(&g_shpre_mu); dispatch_group_wait(g, DISPATCH_TIME_FOREVER); }   // unit tests: wait for every queued load
+@@ -17518,11 +17569,11 @@ static inline fz_cursor fz_cursor_from_exec(void) {
+     c.ret_n = g_ret_n; memcpy(c.ret, g_ret, sizeof(*g_ret) * (size_t)g_ret_n);
+     return c;
+ }
+-static int fz_next(fz_cursor *c, const uint8_t **out, op_hdr *oh, const void **oa) {
++static int fz_next_until(fz_cursor *c, const uint8_t **out, op_hdr *oh, const void **oa, uint64_t deadline) {
+     for (int guard = 0; guard < 1000000; guard++) {
+-        if (!c->p) return 0;
++        if (!c->p || (deadline && bp_now() >= deadline)) return 0;
+         op_hdr h; memcpy(&h, c->p, sizeof h); const void *a = c->p + 8;
+-        if (rec_bad(h)) { rec_bad_red("lookahead fz_next", c->p, h, NULL, NULL); c->p = NULL; c->bad = 1; return 0; }
++        if (rec_bad(h)) { if (!deadline) rec_bad_red("lookahead fz_next", c->p, h, NULL, NULL); c->p = NULL; c->bad = 1; return 0; }
+         switch (h.op) {
+             case OP_END:
+                 if (c->ret_n) c->p = c->ret[--c->ret_n];
+@@ -17541,6 +17592,9 @@ static int fz_next(fz_cursor *c, const uint8_t **out, op_hdr *oh, const void **o
+     }
+     c->bad = 1; return 0;
+ }
++static inline int fz_next(fz_cursor *c, const uint8_t **out, op_hdr *oh, const void **oa) {
++    return fz_next_until(c,out,oh,oa,0);
++}
+ // State of the readable-tile pass merge (merge B step 2): the earlier pass (phase 1) and the later pass (phase 2) share one render pass, and the attachments are the union
+ typedef struct {
+     int active, phase, n1, nskip;
+@@ -18034,10 +18088,21 @@ static uint32_t rb_pso_rt_format(rb_pso_rt_meta *cache, const tex_t *tex, const
+ }
+ static void rb_compute_ahead(NvShader *cs);
+ static void pso_predict_rest_(const pso_key *current);
++static int rb_look_again_on(void);
++static void rb_look_scan(const pso_key *current);
++static uint64_t g_look_scan_libs;
++static uint64_t g_look_memo_hits, g_look_refused, g_look_max_ns, g_look_overruns;
+ static void pso_predict_rest(const pso_key *current) {
+     if (!g_exec_next) return;
+     uint64_t t0 = bp_now(), x0 = g_tex_mtl_n;
+-    pso_predict_rest_(current);
++    if (rb_look_bounded()) {
++        if (!rb_look_begin(&g_look_budget,g_sub_serial,t0,rb_look_again_on())) { g_look_refused++; return; }
++        g_look_scan_libs=atomic_load_explicit(&g_rb_lib_done,memory_order_relaxed);
++        g_look_try_only=1; rb_look_scan(current); g_look_try_only=0;
++        rb_look_finish(&g_look_budget,bp_now());
++        if (g_look_budget.spent > g_look_max_ns) g_look_max_ns=g_look_budget.spent;
++        if (g_look_budget.spent > RB_LOOK_BUDGET_NS) g_look_overruns++;
++    } else pso_predict_rest_(current);
+     g_ppr_n++; g_ppr_ns += bp_now() - t0; g_ppr_tex += g_tex_mtl_n - x0;
+ }
+ // Shared with the depth-caster path. Unknown reflection or any access that may
+@@ -18079,6 +18144,171 @@ static int rb_same_pass_draw(const pso_key *current, const pso_key *candidate,
+         candidate->samples==current->samples && !memcmp(candidate->cfmt,current->cfmt,sizeof current->cfmt) &&
+         !candidate->at && !candidate->msoff && !current->fc && !current->fsfn;
+ }
++// Look only at program serials published by replay. A queued library, guest
++// memory, or a map being changed by another thread is left for its owner.
++static NvProg *rb_look_program(uint64_t serial) {
++    if (!serial) return nil;
++    unsigned i=(unsigned)(serial % RB_LOOK_NEGATIVE_SLOTS);
++    uint64_t libs=atomic_load_explicit(&g_rb_lib_done,memory_order_relaxed);
++    uint64_t gen=atomic_load_explicit(&g_look_publication[i],memory_order_acquire);
++    if (rb_look_still_missing(&g_look_missing[i],serial,libs,gen)) {
++        g_look_memo_hits++;
++        return nil;
++    }
++    if (pthread_mutex_trylock(&g_smu)) return nil;
++    id object=hm_get_id(&g_by_serial,&serial);
++    pthread_mutex_unlock(&g_smu);
++    NvProg *pr=[object isKindOfClass:NvProg.class] ? object : nil;
++    if (!pr) g_look_missing[i]=(rb_look_miss){serial,libs,gen};
++    return pr;
++}
++
++static const RBLookAttachment *rb_look_attachment(const tex_t *texture, const view_t *view,
++                                                  int viewed, int depth) {
++    if (!texture || !texture->serial) return NULL;
++    const RBLookAttachment *entry=&g_look_attachment[depth][texture->serial % 128];
++    if (entry->serial!=texture->serial || entry->viewed!=viewed ||
++        (viewed && memcmp(view,&entry->view,sizeof *view))) return NULL;
++    return entry;
++}
++static int rb_look_formats(const p_set_rt *rt, uint32_t cf[8], uint32_t *df,
++                           uint32_t *sf, uint32_t *samples) {
++    if (rt->n<0 || rt->n>8) return 0;
++    memset(cf,0,8*sizeof *cf);
++    *df=*sf=0; *samples=1;
++    for (int i=0;i<rt->n;i++) {
++        if (!rt->color[i] || rt_dup_slot(rt,i)) continue;
++        const RBLookAttachment *c=rb_look_attachment(rt->color[i],&rt->cview[i],rt->has_cview[i],0);
++        if (!c) return 0;
++        cf[i]=c->color; *samples=c->samples;
++    }
++    if (rt->depth) {
++        const RBLookAttachment *d=rb_look_attachment(rt->depth,&rt->dview,rt->has_dview,1);
++        if (!d) return 0;
++        *df=d->depth; *sf=d->stencil; *samples=d->samples;
++    }
++    return 1;
++}
++
++// Publish a normal pending-table reservation. Descriptor construction, variant
++// selection and archive lookup belong to the worker, and a real draw can
++// still promote the reservation by its canonical key. Never reclaim a slot
++// holding a Metal object or wait for a compiler mutex on this path.
++static void rb_look_queue(const pso_key *key,NvShader *vs,NvShader *fs,int same_pass) {
++    if (pso_pair_miss(vs,fs) || !rb_pso_lanes()) return;
++    pso_key copy;
++    const pso_key *live;
++    if (rb_pso_probe(key,&copy,&live) || pthread_mutex_trylock(&g_pp_mu)) return;
++    int slot=-1, active=0, found=pso_pend_find_live(live);
++    if (found<0) {
++        for (int i=0;i<PSO_PEND_MAX;i++) {
++            if (g_pp[i].used && !g_pp[i].done) active++;
++            if (!g_pp[i].used && slot<0) slot=i;
++        }
++        if (slot>=0 && active<rb_look_cap() && bp_now()<g_look_budget.deadline) {
++            g_pp[slot].k=*live;
++            g_pp[slot].done=g_pp[slot].late=g_pp[slot].stuck=0;
++            g_pp[slot].used=1;
++            RBLookRecipe *recipe=[RBLookRecipe new];
++            recipe->key=*key; recipe->vertex=vs; recipe->fragment=fs;
++            g_ppq[slot]=(typeof(g_ppq[0])){.d=recipe,.seq=++g_ppq_seq,.guess=!same_pass};
++            g_pp_kicked++;
++            if (rb_pso_mode()) {
++                rb_async_note(RB_ASYNC_QUEUE);
++                if (g_async_early) rb_async_note(RB_ASYNC_EARLY_RENDER);
++            }
++            found=slot;
++        }
++    }
++    if (found>=0 && ppq_waiting(found)) {
++        if (same_pass && ppq_start_locked(found)) atomic_fetch_add_explicit(&g_rb_pass_ahead,1,memory_order_relaxed);
++        else ppq_pump_locked();
++    }
++    pthread_mutex_unlock(&g_pp_mu);
++}
++
++// Only fixed PSO state is projected. Fetches of live buffer/texture handles,
++// stage translation, combined-program creation and texture materialization
++// remain exclusively on their normal replay paths.
++static void rb_look_scan(const pso_key *current) {
++    if (g_rc_skip) return;
++    fz_cursor cur=fz_cursor_from_exec();
++    uint32_t cf[8]; memcpy(cf,g_pass.cfmt,sizeof cf);
++    uint32_t df=g_pass.dfmt,sf=g_pass.sfmt,samples=g_pass.samples;
++    int formats=g_enc!=nil;
++    // The current stage serials were captured at the real bind. A previous
++    // submission may have finalized its guest program storage by now.
++    uint64_t ser=S.prog && S.prog==S.bst[0] ? S.bser[0] :
++                 S.prog && S.prog==g_prog_last_ptr ? g_prog_last_serial : 0;
++    NvProg *graphics=rb_look_program(ser);
++    NvProg *compute=S.cprog && S.cprog==g_prog_last_ptr ? rb_look_program(g_prog_last_serial) : nil;
++    int same=current && rb_observed_workers_on() && g_enc && !g_enc_mode && !g_pass.layered &&
++        !g_fz.active && !g_defer_replaying && !g_rlane && !S.tf_on && !S.rast_discard &&
++        !g_se_any && !g_fold_any && !getenv("DM_NVN_HILITE") && !rb_next_draw_may_cut() &&
++        rb_pacing_setting(&g_rb_pass_lookahead,"S2A_RB_URGENT_PASS_LOOKAHEAD");
++    // state_op for these fixed records only touches S and the two dirty bits.
++    static typeof(S) saved;
++    memcpy(&saved,&S,sizeof S);
++    int pdirty=g_pso_dirty, ddirty=g_dss_dirty;
++    uint64_t deadline=g_look_budget.deadline;
++    const uint8_t *q; op_hdr h; const void *a;
++    while (fz_next_until(&cur,&q,&h,&a,deadline)) {
++        int next=same && !cur.rest_i && h.op==OP_DRAW_IDX;
++        if (same && (cur.rest_i || !rb_same_pass_state(h.op,a))) same=0;
++        switch (h.op) {
++        case OP_RENDER_COND: goto restore;
++        case OP_SET_RT: {
++            p_set_rt record;
++            formats=rb_look_formats(set_rt_rec(a,h.size,&record),cf,&df,&sf,&samples);
++            break;
++        }
++        case OP_BIND_PROGRAM: {
++            if (h.size!=8+sizeof(p_bind_program_id)) break;
++            const p_bind_program_id *b=a;
++            NvProg *pr=b->prog ? rb_look_program(b->serial) : nil;
++            if (b->stages&0x20) compute=pr;
++            if (b->stages&0x1f) {
++                // Mixed-stage binds require the real combined-program cache.
++                // A complete rebind restores a usable prediction.
++                graphics=pr && !pr->unres && pr->smask==3 && (b->stages&3)==3 ? pr : nil;
++            }
++            break;
++        }
++        case OP_BIND_VATTR: case OP_BIND_VSTREAM: {
++            int n=((const p_bind_vattr *)a)->n;
++            if ((unsigned)n<=16) state_op(h.op,a,h.size);
++            break;
++        }
++        case OP_BIND_STATE: {
++            const p_bind_state *state=a;
++            if (state->kind==0) { blend_st blend; memcpy(&blend,state->bytes,sizeof blend);
++                if ((unsigned)blend.target>=8) break; }
++            state_op(h.op,a,h.size);
++            break;
++        }
++        case OP_RAST_DISCARD:
++            state_op(h.op,a,h.size);
++            break;
++        case OP_DISPATCH:
++            if (compute && !compute->unres && !g_se_any && !g_fold_any &&
++                rb_observed_workers_on() && bp_now()<deadline) rb_compute_ahead(compute->sh[5]);
++            break;
++        case OP_DRAW: case OP_DRAW_IDX: {
++            if (!formats || !graphics || graphics->unres || !graphics->sh[0] ||
++                !graphics->sh[0]->fn || (graphics->sh[1] && !graphics->sh[1]->fn) || S.rast_discard) break;
++            if (h.op==OP_DRAW) { p_draw d; if (draw_rec(a,h.size,&d)->prim==DM_PRIM_MESH_TASKS) break; }
++            pso_key k; pso_key_fill(&k,graphics->sh[0],graphics->sh[1],cf,df,sf,samples,0);
++            p_draw_idx idx;
++            if (bp_now()<deadline) rb_look_queue(&k,graphics->sh[0],graphics->sh[1],
++                next && rb_same_pass_draw(current,&k,draw_idx_rec(a,h.size,&idx),graphics));
++            break;
++        }
++        }
++    }
++restore:
++    memcpy(&S,&saved,sizeof S); g_pso_dirty=pdirty; g_dss_dirty=ddirty;
++}
++
+ static void pso_predict_rest_(const pso_key *current) {
+     const int observed=rb_observed_workers_on();
+     if (observed && g_rc_skip) return;
+@@ -18891,7 +19121,7 @@ static uint64_t g_rb_look_libs, g_rb_look_miss_n, g_rb_look_bind_n; static int g
+ static int rb_look_again_on(void) {
+     static int v = -1;
+     if (v < 0) { const char *e = getenv("S2A_RB_LOOK_AGAIN"); v = !(e && !strcmp(e, "0")) && look_noload_on();
+-        MLOG("RewindBox: the precompile lookahead %s (S2A_RB_LOOK_AGAIN)", v ? "runs again in a submission once libraries were built since its last run, and before a library is built on the submit thread, at most 4 more times a submission" : "runs once a submission, at its first pipeline miss, as before"); }
++        MLOG("RewindBox: the precompile lookahead %s (S2A_RB_LOOK_AGAIN)", v ? "runs again after new library publication within the submission budget" : "runs once a submission, at its first pipeline miss, as before"); }
+     return v;
+ }
+ static void rb_look_note(int bind) {
+@@ -18900,6 +19130,8 @@ static void rb_look_note(int bind) {
+                              (unsigned long long)g_rb_look_miss_n, (unsigned long long)g_rb_look_bind_n);
+ }
+ static void rb_async_probe(const uint8_t *record, uint64_t serial) {
++    if (rb_look_bounded() && g_look_budget.submission==g_sub_serial &&
++        (g_look_budget.scans>=2 || g_look_budget.spent>=RB_LOOK_BUDGET_NS-RB_LOOK_RETURN_NS)) return;
+     uint64_t frame=atomic_load_explicit(&g_cur_frame,memory_order_relaxed);
+     if (frame!=g_async_last_probe) { g_async_frame_probes=0; g_async_last_probe=frame; }
+     if (g_async_frame_probes>=2) return;
+@@ -18921,6 +19153,11 @@ static void rb_async_probe(const uint8_t *record, uint64_t serial) {
+ 
+ static void rb_look_at_miss(const pso_key *current) {   // pso_get_vs, at a pipeline miss
+     uint64_t libs = atomic_load_explicit(&g_rb_lib_done, memory_order_relaxed);
++    if (rb_look_bounded()) {
++        if (g_look_budget.submission!=g_sub_serial || !g_look_budget.scans ||
++            (g_look_budget.scans<2 && libs!=g_look_scan_libs && rb_look_again_on())) pso_predict_rest(current);
++        return;
++    }
+     if (g_pp_submit_mark != g_sub_serial) { g_pp_submit_mark = g_sub_serial; g_rb_look_sub_n = 0; g_rb_look_libs = libs; pso_predict_rest(current); return; }
+     if (!rb_look_again_on() || !g_exec_next || g_rb_look_sub_n >= RB_LOOK_AGAIN || libs == g_rb_look_libs) return;
+     g_rb_look_sub_n++; g_rb_look_libs = libs; rb_look_note(0); pso_predict_rest(current);
+@@ -18929,6 +19166,18 @@ static void rb_look_before_load(const prog_t *p) {   // bind_stages, at a bind t
+     if (p && p->serial && p->nstage && !g_look && !g_exec_next && g_exec_cur && (rb_async_pso() || rb_observed_workers_on()))
+         rb_async_probe(g_exec_cur,p->serial);
+     if (!p || !p->nstage || g_look || g_fz_checking || g_defer_replaying || g_exec_next || !g_exec_cur || !rb_look_again_on()) return;
++    if (rb_look_bounded()) {
++        // The early probe above and pipeline misses share one admission gate.
++        // A new bind can arrive between them (also when early probes are off).
++        // Never walk stages, wait on the shader lock or hash guest bytes here.
++        uint64_t libs=atomic_load_explicit(&g_rb_lib_done,memory_order_relaxed);
++        if (g_look_budget.submission==g_sub_serial && g_look_budget.scans &&
++            (libs==g_look_scan_libs || g_look_budget.scans>=2)) return;
++        if (p==g_prog_last_ptr && p->serial==g_prog_last_serial &&
++            g_ser_gen==g_prog_last_gen && g_prog_last) return;
++        g_exec_next=g_exec_cur; pso_predict_rest(NULL); g_exec_next=NULL;
++        return;
++    }
+     if ((p == g_prog_last_ptr && p->serial == g_prog_last_serial && g_ser_gen == g_prog_last_gen && g_prog_last) || (p->serial && serial_get(p->serial))) return;   // resolved (prog_get's own cache first)
+     if (g_pp_submit_mark == g_sub_serial && g_rb_look_sub_n >= RB_LOOK_AGAIN) return;
+     int dz = atomic_load(&g_depth_zero), cold = 0;
+@@ -22401,28 +22650,30 @@ static void rb_compute_ahead(NvShader *cs) {
+     cps_se_key fk={k,(uintptr_t)fc};
+     if (fc ? hm_get_id(&g_cps_se,&fk) : hm_get_id(&g_cps,&k)) return;
+     uint64_t frame=atomic_load_explicit(&g_cur_frame,memory_order_relaxed);
+-    pthread_mutex_lock(&g_async_compute_mu);
++    const int bounded=g_look_try_only;
++    if (bounded) { if (pthread_mutex_trylock(&g_async_compute_mu)) return; }
++    else pthread_mutex_lock(&g_async_compute_mu);
+     RBComputeSlot *free_slot=NULL;
+     int busy=0;
+     for (int i=0; i<RB_COMPUTE_SLOTS; i++) {
+         RBComputeSlot *slot=&g_async_compute[i];
+         if (rb_compute_match(slot,cs,fc,fn)) { pthread_mutex_unlock(&g_async_compute_mu); return; }
+         if (slot->shader && !slot->done) busy++;
+-        if (!free_slot && (!slot->shader || (slot->done && frame-slot->frame>3))) free_slot=slot;
++        if (!free_slot && (!slot->shader || (!bounded && slot->done && frame-slot->frame>3))) free_slot=slot;
+     }
+     int observed=rb_observed_workers_on(), lease=0;
+     if (!free_slot || busy>=RB_COMPUTE_IN_FLIGHT || (!observed && !rb_spec_take(0,&lease))) {
+         pthread_mutex_unlock(&g_async_compute_mu); return;
+     }
+-    NSString *key=par_ckey(cs,fc);
+-    if (!key) { pthread_mutex_unlock(&g_async_compute_mu); rb_spec_done(&lease); return; }
++    NSString *key=bounded ? nil : par_ckey(cs,fc);
++    if (!bounded && !key) { pthread_mutex_unlock(&g_async_compute_mu); rb_spec_done(&lease); return; }
+     rb_compute_clear(free_slot);
+     free_slot->shader=cs; free_slot->function=fn; free_slot->fc=fc; free_slot->frame=frame;
+-    pthread_mutex_unlock(&g_async_compute_mu);
++    if (!bounded) pthread_mutex_unlock(&g_async_compute_mu);
+     dispatch_block_t task=^{
+         @autoreleasepool {
+             NSError *error=nil;
+-            id<MTLComputePipelineState> ps=par_compute(fn,key,&error);
++            id<MTLComputePipelineState> ps=par_compute(fn,key ?: par_ckey(cs,fc),&error);
+             int held=lease; rb_spec_done(&held);
+             pthread_mutex_lock(&g_async_compute_mu);
+             free_slot->result=ps; free_slot->error=error; free_slot->done=1;
+@@ -22433,7 +22684,7 @@ static void rb_compute_ahead(NvShader *cs) {
+     if (observed) {
+         if (!rb_observed_enqueue(task)) {
+             // Only replay admits or consumes slots, and this worker never started.
+-            pthread_mutex_lock(&g_async_compute_mu);
++            if (!bounded) pthread_mutex_lock(&g_async_compute_mu);
+             rb_compute_clear(free_slot);
+             pthread_mutex_unlock(&g_async_compute_mu);
+             return;
+@@ -22441,6 +22692,7 @@ static void rb_compute_ahead(NvShader *cs) {
+     } else dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0),task);
+     rb_async_note(RB_ASYNC_QUEUE);
+     rb_async_note(RB_ASYNC_EARLY_COMPUTE);
++    if (bounded) pthread_mutex_unlock(&g_async_compute_mu);
+ }
+ // Return YES for a matching job, including a compiler failure. Only demand records a
+ // real failure in the runtime map; a stop leaves the job for the bounded teardown drain.
+@@ -22476,6 +22728,14 @@ static int rb_compute_drain(const struct timespec *deadline) {
+         }
+         rb_compute_clear(slot);
+     }
++    if (g_look_budget.scans) MLOG("[rb-look-budget] max_submission_ms=%.3f budget_ms=2.0 refused=%llu overruns=%llu negative_hits=%llu",
++        g_look_max_ns/1e6,(unsigned long long)g_look_refused,(unsigned long long)g_look_overruns,
++        (unsigned long long)g_look_memo_hits);
++    atomic_store(&g_look_budget_option,0);
++    g_look_budget=(rb_look_budget){0};
++    memset(g_look_missing,0,sizeof g_look_missing);
++    memset(g_look_attachment,0,sizeof g_look_attachment);
++    g_look_max_ns=g_look_refused=g_look_overruns=g_look_memo_hits=0;
+     g_async_miss_frame=0; g_async_last_probe=UINT64_MAX; g_async_frame_probes=0;
+     memset(g_async_seen_programs,0,sizeof g_async_seen_programs);
+     g_async_render_error=nil;
+diff --git a/graphics/nvn/gfx/nvn/rb_look_budget.h b/graphics/nvn/gfx/nvn/rb_look_budget.h
+new file mode 100644
+index 0000000..2c3f67f
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_look_budget.h
+@@ -0,0 +1,29 @@
++#ifndef RB_LOOK_BUDGET_H
++#define RB_LOOK_BUDGET_H
++#include <stdint.h>
++
++enum { RB_LOOK_BUDGET_NS = 2000000, RB_LOOK_RETURN_NS = 50000, RB_LOOK_NEGATIVE_SLOTS = 128 };
++typedef struct {
++    uint64_t submission, spent, start, deadline;
++    unsigned scans;
++} rb_look_budget;
++
++static inline int rb_look_begin(rb_look_budget *b, uint64_t sub, uint64_t now, int retry) {
++    if (sub != b->submission) *b = (rb_look_budget){.submission=sub};
++    if (b->deadline || b->scans >= (retry ? 2u : 1u) ||
++        b->spent >= RB_LOOK_BUDGET_NS - RB_LOOK_RETURN_NS) return 0;
++    b->scans++;
++    b->start = now;
++    b->deadline = now + RB_LOOK_BUDGET_NS - RB_LOOK_RETURN_NS - b->spent;
++    return 1;
++}
++static inline void rb_look_finish(rb_look_budget *b, uint64_t now) {
++    b->spent += now - b->start;
++    b->deadline = 0;
++}
++typedef struct { uint64_t serial, libraries, programs; } rb_look_miss;
++static inline int rb_look_still_missing(const rb_look_miss *m, uint64_t serial,
++                                         uint64_t libraries, uint64_t programs) {
++    return serial && m->serial == serial && m->libraries == libraries && m->programs == programs;
++}
++#endif
+diff --git a/graphics/nvn/gfx/nvn/rb_observed_pool.h b/graphics/nvn/gfx/nvn/rb_observed_pool.h
+index b121c97..cbee73c 100644
+--- a/graphics/nvn/gfx/nvn/rb_observed_pool.h
++++ b/graphics/nvn/gfx/nvn/rb_observed_pool.h
+@@ -19,10 +19,12 @@ typedef struct {
+ } rb_observed_pool;
+ #define RB_OBSERVED_POOL_INIT { .mu = PTHREAD_MUTEX_INITIALIZER, .room = PTHREAD_COND_INITIALIZER }
+ 
++enum { RB_OBSERVED_TRY_LOCK = -1 }; // optional submit-thread prediction cannot wait even on admission
+ static inline int rb_observed_admit(rb_observed_pool *pool, dispatch_block_t job, int wait_for_slot) {
+-    pthread_mutex_lock(&pool->mu);
++    if (wait_for_slot==RB_OBSERVED_TRY_LOCK) { if (pthread_mutex_trylock(&pool->mu)) return 0; }
++    else pthread_mutex_lock(&pool->mu);
+     unsigned outstanding = pool->outstanding[0]+pool->outstanding[1];
+-    while (wait_for_slot && !pool->stopped && outstanding >= RB_OBSERVED_LIMIT) {
++    while (wait_for_slot>0 && !pool->stopped && outstanding >= RB_OBSERVED_LIMIT) {
+         pool->waiters++;
+ #ifdef RB_TEST_REGISTERED_WAIT
+         RB_TEST_REGISTERED_WAIT();
+diff --git a/graphics/nvn/tests/rb_look_flight.inc b/graphics/nvn/tests/rb_look_flight.inc
+new file mode 100644
+index 0000000..522f4b3
+--- /dev/null
++++ b/graphics/nvn/tests/rb_look_flight.inc
+@@ -0,0 +1,35 @@
++// Exercise the actual Metal-backend scanner with host-generated command
++// records. None of these serials has guest shader bytes to fall back to.
++static void rb_test_look_scan(void) {
++    unsigned old_scope=rb_test_first_scope;
++    const uint8_t *old_next=g_exec_next;
++    uint64_t sub=g_sub_serial, old_hits=g_look_memo_hits;
++    rb_look_budget prior=g_look_budget;
++    rb_test_first_scope=1;
++    struct { op_hdr bind; p_bind_program_id program; } rec={
++        {OP_BIND_PROGRAM,8+sizeof(p_bind_program_id)},
++        {.prog=(const prog_t *)(uintptr_t)1,.serial=UINT64_C(0xff001234568),.stages=3}
++    };
++    struct { typeof(rec) bind[3]; op_hdr end; } list={.bind={rec,rec,rec},.end={OP_END,8}};
++    g_exec_next=(const uint8_t *)&list;
++    g_sub_serial++; g_look_budget=(rb_look_budget){0};
++    uint64_t calls=g_ppr_n, textures=g_tex_mtl_n;
++    pso_predict_rest(NULL);
++    CHECK(g_ppr_n==calls+1 && g_look_memo_hits>=old_hits+2 && g_tex_mtl_n==textures,
++          "a repeated unresolved bind uses the negative serial cache without materializing a texture");
++    NvProg *ready=[NvProg new];
++    serial_put_kind(rec.program.serial,ready,YES);
++    CHECK(rb_look_program(rec.program.serial)==ready,"program publication invalidates the negative prediction");
++    serial_del_kind(rec.program.serial,YES);
++    // Even pathological guest jumps obey the shared deadline inside fz_next.
++    struct { op_hdr op; const void *destination; } loop={{OP_JUMP,16},NULL};
++    loop.destination=&loop;
++    fz_cursor cursor={.p=(const uint8_t *)&loop};
++    CHECK(!fz_next_until(&cursor,NULL,NULL,NULL,bp_now()+1000000) && !cursor.bad && cursor.p==(const uint8_t *)&loop,
++          "the deadline interrupts a cycle consisting entirely of JUMP records");
++    g_look_budget=(rb_look_budget){0}; g_sub_serial++;
++    g_exec_next=(const uint8_t *)&list.end; calls=g_ppr_n;
++    pso_predict_rest(NULL); pso_predict_rest(NULL); pso_predict_rest(NULL);
++    CHECK(g_ppr_n==calls+(rb_look_again_on()?2:1),"all origins share the initial scan and at most one retry");
++    g_exec_next=old_next; g_sub_serial=sub; g_look_budget=prior; rb_test_first_scope=old_scope;
++}
+diff --git a/graphics/nvn/tests/t_nvn_shader_flight.m b/graphics/nvn/tests/t_nvn_shader_flight.m
+index 3842111..1d73d07 100644
+--- a/graphics/nvn/tests/t_nvn_shader_flight.m
++++ b/graphics/nvn/tests/t_nvn_shader_flight.m
+@@ -103,6 +103,9 @@ static void vertex_gpu(NvShader *shader, float expected, int layer) {
+ }
+ #ifdef RB_FIRST_DRAW_IMPL
+ #include "rb_first_draw_flight.inc"
++#ifdef RB_LOOK_BUDGET_H
++#include "rb_look_flight.inc"
++#endif
+ #endif
+ static void independent_keys(void) {
+     NSString *slow=@"4444444444444444_b", *fast=@"5555555555555555_b";
+@@ -358,6 +361,9 @@ int main(int argc, char **argv) { @autoreleasepool {
+     retirement_prefetch();
+ #ifdef RB_FIRST_DRAW_IMPL
+     rb_test_first_draw();
++#ifdef RB_LOOK_BUDGET_H
++    rb_test_look_scan();
++#endif
+ #endif
+     printf("LOAD requests=%llu hits=%llu waits=%llu wait_ms=%.3f submit_wait_ms=%.3f builds=%llu failures=%llu active=%llu\n",
+         (unsigned long long)atomic_load(&g_shader_requests),(unsigned long long)atomic_load(&g_shader_hits),
+diff --git a/graphics/nvn/tests/t_rb_look_budget.c b/graphics/nvn/tests/t_rb_look_budget.c
+new file mode 100644
+index 0000000..c115866
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_look_budget.c
+@@ -0,0 +1,27 @@
++#include <assert.h>
++#include <stdint.h>
++#include <stdio.h>
++#include "../gfx/nvn/rb_look_budget.h"
++
++int main(void) {
++    rb_look_budget b={0};
++    assert(rb_look_begin(&b,0,100,1));
++    assert(!rb_look_begin(&b,0,101,1)); // no recursion
++    rb_look_finish(&b,1000100);
++    assert(rb_look_begin(&b,0,9000000,1));
++    assert(b.deadline==9950000); // idle gap between scans is free
++    rb_look_finish(&b,b.deadline);
++    assert(!rb_look_begin(&b,0,10000000,1));
++    assert(rb_look_begin(&b,1,11000000,0));
++    rb_look_finish(&b,11000001);
++    assert(!rb_look_begin(&b,1,12000000,0));
++    assert(rb_look_begin(&b,2,13000000,1));
++    rb_look_finish(&b,15000123);
++    assert(b.spent==2000123 && !rb_look_begin(&b,2,16000000,1)); // actual overshoot is recorded
++    rb_look_miss miss={17,7,3};
++    assert(rb_look_still_missing(&miss,17,7,3));
++    assert(!rb_look_still_missing(&miss,17,8,3));
++    assert(!rb_look_still_missing(&miss,17,7,4));
++    assert(!rb_look_still_missing(&miss,17+RB_LOOK_NEGATIVE_SLOTS,7,3));
++    puts("PASS cumulative lookahead deadline, retry cap, publication epochs and collisions");
++}
+diff --git a/runtime/tests/mk/nvn_shader_flight.mk b/runtime/tests/mk/nvn_shader_flight.mk
+index 985fc0e..f21cd01 100644
+--- a/runtime/tests/mk/nvn_shader_flight.mk
++++ b/runtime/tests/mk/nvn_shader_flight.mk
+@@ -3,7 +3,7 @@ NATIVE_TEST_OWN += nvn_shader_flight
+ ifeq ($(shell uname -s),Darwin)
+ NVN_SHADER_FLIGHT_SOURCE ?= graphics/nvn/gfx/nvn/nvn_mtl.m
+ NVN_SHADER_FLIGHT_BINARY ?= $(BUILD)/tests/t_nvn_shader_flight
+-$(NVN_SHADER_FLIGHT_BINARY): graphics/nvn/tests/t_nvn_shader_flight.m $(NVN_SHADER_FLIGHT_SOURCE) $(NVN_MTL_DEPS) $(dir $(NVN_SHADER_FLIGHT_SOURCE))nvn_session.inc $(NVN_TEST_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN)
++$(NVN_SHADER_FLIGHT_BINARY): graphics/nvn/tests/t_nvn_shader_flight.m graphics/nvn/tests/rb_look_flight.inc $(NVN_SHADER_FLIGHT_SOURCE) $(NVN_MTL_DEPS) $(dir $(NVN_SHADER_FLIGHT_SOURCE))nvn_session.inc $(NVN_TEST_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN)
+ 	@mkdir -p $(dir $@)
+ 	$(CC) $(CFLAGS) -std=gnu11 -fobjc-arc -Wno-unused-function -Wno-unguarded-availability-new -Wno-unguarded-availability \
+ 	  $(NATIVE_INC) -Igraphics/nvn/host -Igraphics/nvn/gfx/nvn -Igraphics/nvn/gfx/nvn/include -Igraphics/nvn/third_party/vulkan-headers/include \

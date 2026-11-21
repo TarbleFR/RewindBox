@@ -18,9 +18,15 @@ kernel void main0(device uint *out [[buffer(0)]], uint i [[thread_position_in_gr
 METAL
 printf '{"key":"%s_b","chain":"%s","xfp":"0123456789abcdef","stage":"cs","entry":"main0"}\n' "$key" "$chain" > "$work/shaders/${key}_b.json"
 printf 'C\t%s_b\n' "$key" > "$work/pso_user.tsv"
+# A runtime-created variant has no native stage filename. The producer must
+# publish its source-hash AIR without adding a bogus base stage to lib.idx.
+mkdir "$work/shaders/rb-compiled-msl-v1"
+variant=$(sed 's/out\[i\] = i/out[i] = i + 9/' "$work/shaders/${key}_b.msl" | shasum -a 256 | cut -c1-40)
+sed 's/out\[i\] = i/out[i] = i + 9/' "$work/shaders/${key}_b.msl" > "$work/shaders/rb-compiled-msl-v1/$variant.msl"
 python3 -B "$builder" "$work/shaders" --history "$work/pso_user.tsv" --title-id "$title" --build-id "$build" \
     --engine-source "$engine" --out "$work/export"
 direct="$work/export/pack/shaders/direct"
+test -s "$direct/b-$chain/rb-stage-air-v1-relaxed-invariant/iphoneos/$variant.airlib"
 grep -Fx "$(printf 'C\t%s_b' "$key")" "$direct/pso_manifest.tsv"
 grep -Fx "$(printf 'capture\t0\tcompute\t%s' "$key")" "$direct/shader_map.tsv"
 cmp "$work/shaders/${key}_b.msl" "$direct/b-$chain/${key}_b.metal"

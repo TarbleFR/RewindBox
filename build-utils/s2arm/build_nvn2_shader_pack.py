@@ -148,6 +148,14 @@ def build(args, output, work):
             rewritten = subprocess.run([str(work / 'rewrite')], input=raw, stdout=subprocess.PIPE, check=True).stdout
             if raw != rewritten:
                 air_tool['prepare'](rewritten, 'iphoneos', air, work)
+    # Some sampler, blend, and vertex-input variants are generated in memory.
+    # Their exact successful compiler inputs have no original <stage>_b.metal.
+    for source in air_tool['captured_sources'](args.shaders):
+        name = hashlib.sha256(source).hexdigest()[:40] + '.airlib'
+        if (base / name).is_file():
+            shutil.copyfile(base / name, air / name)
+        else:
+            air_tool['prepare'](source, 'iphoneos', air, work)
     stamp = '\t'.join(('rb-capture-v1', args.title_id.upper(), args.build_id[:32].lower(), chain, fingerprints.pop()))
     write_container(root, chain, entries, stamp)
     (root / 'inputs.tsv').write_text(f'game\t{args.title_id.upper()}\ninputs\truntime-only-capture\n{stamp}\n')

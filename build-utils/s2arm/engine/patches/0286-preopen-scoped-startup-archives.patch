@@ -1,0 +1,471 @@
+diff --git a/graphics/nvn/gfx/nvn/rb_archive_preopen.inc b/graphics/nvn/gfx/nvn/rb_archive_preopen.inc
+new file mode 100644
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_archive_preopen.inc
+@@ -0,0 +1,188 @@
++// The session owns the index, opened archives and this serial I/O queue.
++// A live lookup only inspects published mappings. A prewarm worker can open
++// an archive itself without holding the mutex needed by other pipeline keys.
++enum rb_archive_source { RB_BUNDLE, RB_LOCAL, RB_LEGACY };
++enum { RB_STARTUP_KEYS = 64 };
++static BOOL rb_open_started;
++static dispatch_group_t rb_archive_jobs(void) {
++    static dispatch_group_t group;
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{ group = dispatch_group_create(); });
++    return group;
++}
++static BOOL rb_archive_key(NSString *key) {
++    if (![key isKindOfClass:NSString.class]) return NO;
++    const char *p = key.UTF8String;
++    if (!p) return NO;
++    if (*p == 'c' && key.length == 41) ++p;
++    return strlen(p) == 40 && strspn(p, "0123456789abcdef") == 40;
++}
++static NSMutableSet<NSString *> *rb_open_pending;
++static NSMutableOrderedSet<NSString *> *rb_startup_keys;
++static _Atomic unsigned rb_preopened, rb_ready_hits, rb_cold_submit;
++static dispatch_queue_t rb_archive_io(void) {
++    static dispatch_queue_t queue;
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{
++        queue = dispatch_queue_create("s2a.archive.open",
++            dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0));
++    });
++    return queue;
++}
++
++// Called under g_par_mu. Resolve the current mapping again at publication:
++// a failed strict probe or a writer may have replaced it during the open.
++static NSString *rb_archive_mapping(NSString *key, enum rb_archive_source source, NSString **path) {
++    NSString *dir, *file, *cache;
++    if (source == RB_BUNDLE && [g_par_bhave containsObject:key]) {
++        dir = g_par_bdir; file = [key stringByAppendingPathExtension:@"metalarchive"];
++        cache = [@"b/" stringByAppendingString:key];
++    } else if (source == RB_LOCAL && [g_par_have containsObject:key]) {
++        dir = g_par_dir; file = g_par_bmap[key];
++        cache = file ? [@"f/" stringByAppendingString:file] : key;
++        if (!file) file = [key stringByAppendingPathExtension:@"metalarchive"];
++    } else if (source == RB_LEGACY && [g_par_legacy_have containsObject:key]) {
++        dir = g_par_legacy_dir; file = g_par_legacy_batches[key] ?: [key stringByAppendingPathExtension:@"metalarchive"];
++        cache = [@"legacy/" stringByAppendingString:file];
++    } else return nil;
++    if (path) *path = [dir stringByAppendingPathComponent:file];
++    return cache;
++}
++
++static id<MTLBinaryArchive> rb_archive_fetch(NSString *key, enum rb_archive_source source, BOOL submit) {
++    if (!key || !atomic_load_explicit(&g_par_initialized, memory_order_acquire)) return nil;
++    pthread_mutex_lock(&g_par_mu);
++    NSString *cache = rb_archive_mapping(key, source, NULL);
++    id<MTLBinaryArchive> archive = cache ? rb_archive_lookup(cache) : nil;
++    if (!cache || archive) {
++        pthread_mutex_unlock(&g_par_mu);
++        if (archive && submit) atomic_fetch_add_explicit(&rb_ready_hits, 1, memory_order_relaxed);
++        return archive;
++    }
++    if (submit) {
++        if (!rb_open_pending) rb_open_pending = [NSMutableSet set];
++        if (rb_open_pending.count < RB_STARTUP_KEYS && ![rb_open_pending containsObject:cache]) {
++            [rb_open_pending addObject:cache];
++            atomic_fetch_add_explicit(&rb_cold_submit, 1, memory_order_relaxed);
++            dispatch_group_async(rb_archive_jobs(), rb_archive_io(), ^{ @autoreleasepool {
++                rb_archive_fetch(key, source, NO);
++                pthread_mutex_lock(&g_par_mu);
++                [rb_open_pending removeObject:cache];
++                pthread_mutex_unlock(&g_par_mu);
++            }});
++        }
++        pthread_mutex_unlock(&g_par_mu);
++        return nil;
++    }
++    NSString *path = nil;
++    rb_archive_mapping(key, source, &path);
++    pthread_mutex_unlock(&g_par_mu);
++    MTLBinaryArchiveDescriptor *desc = [MTLBinaryArchiveDescriptor new];
++    desc.url = [NSURL fileURLWithPath:path];
++    id<MTLBinaryArchive> opened = [g_dev newBinaryArchiveWithDescriptor:desc error:nil];
++    CFArrayRef retired = NULL;
++    pthread_mutex_lock(&g_par_mu);
++    if ([cache isEqual:rb_archive_mapping(key, source, NULL)]) {
++        archive = rb_archive_lookup(cache);
++        if (!archive && opened) {
++            retired = rb_archive_store(cache, opened); archive = opened;
++        } else if (!archive && source == RB_LOCAL) {
++            [g_par_bmap removeObjectForKey:key]; [g_par_have removeObject:key];
++        } else if (!archive && source == RB_LEGACY) [g_par_legacy_have removeObject:key];
++        else if (!archive) [g_par_bhave removeObject:key];
++    }
++    pthread_mutex_unlock(&g_par_mu);
++    if (retired) CFRelease(retired);
++    return archive;
++}
++
++static NSString *rb_hot_index(void) {
++    if (!atomic_load_explicit(&g_par_initialized, memory_order_acquire)) return nil;
++    return [g_par_dir stringByAppendingPathComponent:@"startup-archives.plist"];
++}
++
++// Bounded input for a cache written by an interrupted or older app.
++static NSArray *rb_read_startup_keys(NSString *path) {
++    if (!path || [NSFileManager.defaultManager attributesOfItemAtPath:path error:nil].fileSize > 32768) return nil;
++    return [NSArray arrayWithContentsOfFile:path];
++}
++
++static void rb_archive_preopen_start(void) {
++    if (!RB_PAR_PREOPEN() || !g_dev || g_par_harvest) return;
++    pthread_mutex_lock(&g_par_mu);
++    if (!rb_open_started) {
++        rb_open_started = YES;
++        dispatch_group_async(rb_archive_jobs(), rb_archive_io(), ^{ @autoreleasepool {
++            if (!par_open_dir()) {
++                pthread_mutex_lock(&g_par_mu); rb_open_started = NO; pthread_mutex_unlock(&g_par_mu);
++                return;
++            }
++            NSString *path = rb_hot_index();
++            if (!path) return;
++            NSMutableOrderedSet *seeds = [NSMutableOrderedSet orderedSet];
++            for (id key in rb_read_startup_keys(path)) {
++                if (rb_archive_key(key)) [seeds addObject:key];
++                if (seeds.count == RB_STARTUP_KEYS) break;
++            }
++            if (seeds.count < RB_STARTUP_KEYS) RB_PAR_SEED_RECIPES(seeds);
++            NSArray *keys = seeds.array;
++            NSUInteger count = 0;
++            for (id key in keys) {
++                if (++count > RB_STARTUP_KEYS || !RB_PAR_PREOPEN_ROOM()) break;
++                if (!rb_archive_key(key)) continue;
++                for (enum rb_archive_source src = RB_BUNDLE; src <= RB_LEGACY; ++src)
++                    if (rb_archive_fetch(key, src, NO)) { atomic_fetch_add(&rb_preopened, 1); break; }
++            }
++            MLOG("[rb-archive-open] startup keys=%lu ready=%u", (unsigned long)keys.count, atomic_load(&rb_preopened));
++        }});
++    }
++    pthread_mutex_unlock(&g_par_mu);
++}
++
++static id<MTLBinaryArchive> rb_archive_get(NSString *key, enum rb_archive_source source) {
++    if (!key) return nil;
++    BOOL submit = RB_PAR_SUBMIT_THREAD();
++    if (!atomic_load_explicit(&g_par_initialized, memory_order_acquire)) {
++        if (submit) { rb_archive_preopen_start(); return nil; }
++        if (!par_open_dir()) return nil;
++    }
++    return rb_archive_fetch(key, source, submit);
++}
++
++static void rb_save_startup_keys(NSArray *keys) {
++    NSString *path = rb_hot_index();
++    if (!path || !keys.count) return;
++    NSMutableOrderedSet *merged = [NSMutableOrderedSet orderedSetWithArray:keys];
++    for (id old in rb_read_startup_keys(path)) {
++        if (merged.count >= RB_STARTUP_KEYS) break;
++        if (rb_archive_key(old)) [merged addObject:old];
++    }
++    keys = merged.array;
++    if (![keys writeToFile:path atomically:YES])
++        MLOG("[rb-archive-open] could not persist %lu startup keys", (unsigned long)keys.count);
++}
++
++static void rb_archive_note_startup(NSString *key) {
++    if (!RB_PAR_PREOPEN() || par_write_in_place || !rb_archive_key(key) || g_par_harvest) return;
++    pthread_mutex_lock(&g_par_mu);
++    if (!rb_startup_keys) rb_startup_keys = [NSMutableOrderedSet orderedSet];
++    NSUInteger old = rb_startup_keys.count;
++    if (old < RB_STARTUP_KEYS) {
++        [rb_startup_keys addObject:key];
++        NSUInteger n = rb_startup_keys.count;
++        if (n != old && (n == 1 || n == 8 || n == 32 || n == RB_STARTUP_KEYS)) {
++            NSArray *keys = [rb_startup_keys.array copy];
++            dispatch_group_async(rb_archive_jobs(), rb_archive_io(), ^{ @autoreleasepool { rb_save_startup_keys(keys); }});
++        }
++    }
++    pthread_mutex_unlock(&g_par_mu);
++}
++
++// Called only after all shader and PSO producers have stopped, before paths reset.
++static void rb_archive_preopen_retire(void) {
++    if (!rb_open_started && !rb_startup_keys) return;
++    dispatch_sync(rb_archive_io(), ^{ @autoreleasepool { rb_save_startup_keys(rb_startup_keys.array); }});
++    MLOG("[rb-archive-open] preopened=%u submit_ready=%u submit_cold=%u",
++        atomic_exchange(&rb_preopened, 0), atomic_exchange(&rb_ready_hits, 0), atomic_exchange(&rb_cold_submit, 0));
++    rb_open_started = NO; rb_open_pending = nil; rb_startup_keys = nil;
++}
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -33,6 +33,15 @@
+ #ifndef RB_PAR_WRITE_MODE
+ #define RB_PAR_WRITE_MODE() RB_ARCHIVE_LEGACY
+ #endif
++#ifndef RB_PAR_PREOPEN
++#define RB_PAR_PREOPEN() 0
++#endif
++#ifndef RB_PAR_SEED_RECIPES
++#define RB_PAR_SEED_RECIPES(keys) ((void)(keys))
++#endif
++#ifndef RB_PAR_PREOPEN_ROOM
++#define RB_PAR_PREOPEN_ROOM() 1
++#endif
+ #ifndef RB_PAR_MEASURE
+ #define RB_PAR_MEASURE() RB_PAR_SCOPED()
+ #endif
+@@ -165,6 +174,7 @@
+     NSFileManager *fm = NSFileManager.defaultManager;
+     uint64_t bytes = 0;
+     NSArray<NSString *> *names = [fm contentsOfDirectoryAtPath:dir error:nil] ?: @[];
++    NSSet *directoryFiles = [NSSet setWithArray:names];
+     for (NSString *name in names) if ([name hasSuffix:@".metalarchive"] && ![name hasPrefix:@"batch-"]) {
+         [have addObject:name.stringByDeletingPathExtension];
+         bytes += [[fm attributesOfItemAtPath:[dir stringByAppendingPathComponent:name] error:nil] fileSize];
+@@ -181,7 +191,7 @@
+     while (rb_archive_index_next(&cursor, &left, rawKey, rawName)) {
+         NSString *key = @(rawKey), *file = @(rawName);
+         if (![bfiles containsObject:file]) {
+-            if (![fm fileExistsAtPath:[dir stringByAppendingPathComponent:file]]) continue;
++            if (![directoryFiles containsObject:file]) continue;
+             [bfiles addObject:file];
+         }
+         batches[key] = file;
+@@ -193,7 +203,7 @@
+     for (NSString *journal in names) {
+         if (![journal hasPrefix:@"batch-"] || ![journal hasSuffix:@".metalarchive.rows"]) continue;
+         NSString *file = journal.stringByDeletingPathExtension;
+-        if (![fm fileExistsAtPath:[dir stringByAppendingPathComponent:file]]) continue;
++        if (![directoryFiles containsObject:file]) continue;
+         NSString *jp = [dir stringByAppendingPathComponent:journal];
+         NSUInteger maxBytes = 64 * 128;
+         if ([[fm attributesOfItemAtPath:jp error:nil] fileSize] > maxBytes) continue;
+@@ -305,8 +315,8 @@
+     NSUInteger nb = 0;
+     uint64_t bytes = par_read_inventory(g_par_dir, g_par_have, g_par_bmap, &nb);
+     g_par_on = 1;
+-    MLOG("pipeline archive %s: %lu pipelines (%lu in %lu batch files, the rest one file each; %.1f MB), opened when used", g_par_dir.UTF8String, (unsigned long)g_par_have.count,
+-         (unsigned long)g_par_bmap.count, (unsigned long)nb, bytes / 1048576.0);
++    MLOG("pipeline archive %s: %lu pipelines (%lu in %lu batch files, the rest one file each; %.1f MB), %s", g_par_dir.UTF8String, (unsigned long)g_par_have.count,
++         (unsigned long)g_par_bmap.count, (unsigned long)nb, bytes / 1048576.0, RB_PAR_PREOPEN() ? "startup archive preopen enabled" : "opened when used");
+ }
+ static int par_open_dir(void) {
+     if (atomic_load_explicit(&g_par_initialized, memory_order_acquire)) return 1;
+@@ -334,7 +344,7 @@
+ static void rb_archive_forget(NSString *key)
+ {
+     [g_par_open removeObjectForKey:key];
+-    if (rb_heap_on()) [g_rb_recent_archives removeObject:key];
++    if (rb_heap_on() || RB_PAR_PREOPEN()) [g_rb_recent_archives removeObject:key];
+ }
+ // RewindBox: callers release this owned collection only after g_par_mu.
+ // Retiring a cold Metal object must not hold up a concurrent first draw.
+@@ -353,7 +363,7 @@
+ static id<MTLBinaryArchive> rb_archive_lookup(NSString *key)
+ {
+     id<MTLBinaryArchive> archive = g_par_open[key];
+-    if (archive && rb_heap_on()) {
++    if (archive && (rb_heap_on() || RB_PAR_PREOPEN())) {
+         [g_rb_recent_archives removeObject:key];
+         [g_rb_recent_archives addObject:key];
+     }
+@@ -362,13 +372,15 @@
+ static CFArrayRef rb_archive_store(NSString *key, id<MTLBinaryArchive> archive)
+ {
+     g_par_open[key] = archive;
+-    if (!rb_heap_on()) return NULL;
++    if (!rb_heap_on() && !RB_PAR_PREOPEN()) return NULL;
+     if (!g_rb_recent_archives) g_rb_recent_archives = [NSMutableOrderedSet orderedSet];
+     [g_rb_recent_archives removeObject:key];
+     [g_rb_recent_archives addObject:key];
+     return rb_archive_limit(RB_OPEN_ARCHIVES);
+ }
++#include "rb_archive_preopen.inc"
+ static id<MTLBinaryArchive> par_bundle_for(NSString *key) {   // the package's file for this key, or nil (kept open like the device's)
++    if (RB_PAR_PREOPEN() && !g_par_harvest) return rb_archive_get(key, RB_BUNDLE);
+     if (!key || !par_open_dir() || !g_par_bundle_files) return nil;
+     CFArrayRef retired = NULL;
+     pthread_mutex_lock(&g_par_mu);
+@@ -385,6 +397,7 @@
+     return a;
+ }
+ static id<MTLBinaryArchive> par_archive_for(NSString *key) {
++    if (RB_PAR_PREOPEN() && !g_par_harvest) return rb_archive_get(key, RB_LOCAL);
+     if (!key || !par_open_dir() || !g_par_on) return nil;
+     CFArrayRef retired = NULL;
+     pthread_mutex_lock(&g_par_mu);
+@@ -408,6 +421,7 @@
+ // Older per-title files remain read-only. One key in a batch can fail a strict
+ // probe while its neighbors are still valid, so retire only that mapping.
+ static id<MTLBinaryArchive> par_legacy_for(NSString *key) {
++    if (RB_PAR_PREOPEN() && !g_par_harvest) return rb_archive_get(key, RB_LEGACY);
+     if (!key || !g_par_on || !g_par_legacy_dir) return nil;
+     CFArrayRef retired = NULL;
+     pthread_mutex_lock(&g_par_mu);
+@@ -431,7 +445,7 @@
+ static void par_drop(NSString *key) {   // its file did not give the pipeline (another package's libraries under the same key): written again by the next write
+     pthread_mutex_lock(&g_par_mu); rb_archive_forget(key); [g_par_have removeObject:key];
+     BOOL batched = g_par_bmap[key] != nil; [g_par_bmap removeObjectForKey:key]; pthread_mutex_unlock(&g_par_mu);
+-    if (!batched) [NSFileManager.defaultManager removeItemAtPath:par_file(key) error:nil];   // a batch file holds others' pipelines: kept, the key is written again into a new one
++    if (!batched && !(RB_PAR_PREOPEN() && RB_PAR_SUBMIT_THREAD())) [NSFileManager.defaultManager removeItemAtPath:par_file(key) error:nil];   // a batch file holds others' pipelines: kept, the key is written again into a new one
+     atomic_fetch_add(&g_par_stale, 1);
+ }
+ // One pipeline as its own file (a temporary name, then renamed)
+@@ -652,6 +666,8 @@
+     if (wake) dispatch_async(s2a_qos_global(S2A_QOS_IO_BG), ^{ par_writer(); });
+ }
+ static int par_wait_idle(const struct timespec *deadline) {
++    if (RB_PAR_PREOPEN() && dispatch_group_wait(rb_archive_jobs(), dispatch_walltime(deadline, 0)))
++        return -ETIMEDOUT;
+     pthread_mutex_lock(&g_par_mu);
+     while (g_par_writer) {
+         int e = pthread_cond_timedwait(&g_par_idle, &g_par_mu, deadline);
+@@ -826,6 +842,29 @@
+     if (start) dispatch_async(s2a_qos_global(S2A_QOS_IO_BG), ^{ par_writer(); });
+ }
+ // After the prewarm: how far the writer is (it goes on until what the prewarm noted is written)
++// Share the existing thermal pending limit while the initial catalogue is being
++// built. A permanently disabled archive never retains a descriptor.
++static NSMutableSet<NSString *> *rb_before_index_keys;
++static void rb_archive_note_before_index(NSString *key, id desc) {
++    if (!RB_PAR_PREOPEN() || !RB_PAR_SUBMIT_THREAD() || !key || g_par_harvest) return;
++    if (atomic_load_explicit(&g_par_initialized, memory_order_acquire)) {
++        if (g_par_on) par_note(key, desc);
++        return;
++    }
++    pthread_mutex_lock(&g_par_mu);
++    if (!rb_before_index_keys) rb_before_index_keys = [NSMutableSet set];
++    if ([rb_before_index_keys containsObject:key] || rb_before_index_keys.count >= 128) {
++        pthread_mutex_unlock(&g_par_mu);
++        return;
++    }
++    [rb_before_index_keys addObject:key];
++    pthread_mutex_unlock(&g_par_mu);
++    id copy = [desc copy];
++    dispatch_group_async(rb_archive_jobs(), rb_archive_io(), ^{ @autoreleasepool {
++        if (par_open_dir() && g_par_on) par_note(key, copy);
++        pthread_mutex_lock(&g_par_mu); [rb_before_index_keys removeObject:key]; pthread_mutex_unlock(&g_par_mu);
++    }});
++}
+ static void par_flush_bg(void) {
+     pthread_mutex_lock(&g_par_mu); unsigned long left = (unsigned long)g_par_todo.count; uint64_t t0 = g_par_w_t0, n0 = g_par_w_n0; pthread_mutex_unlock(&g_par_mu);
+     if (!t0) return;
+@@ -906,6 +945,7 @@
+ }
+ // Build a render pipeline through the archive. key = par_rkey(...), nil = not archived (built as before)
+ static id<MTLRenderPipelineState> par_render(MTLRenderPipelineDescriptor *d, NSString *key, NSError **e) {
++    rb_archive_note_startup(key);
+     id got; ParFlight *mine;
+     if (par_fl_enter(key, &got, &mine)) {
+         if (got || RB_PAR_SCOPED()) {
+@@ -926,6 +966,7 @@
+     return ps;
+ }
+ static id<MTLComputePipelineState> par_compute(id<MTLFunction> fn, NSString *key, NSError **e) {
++    rb_archive_note_startup(key);
+     if (!fn) return nil;
+     id got; ParFlight *mine;
+     if (par_fl_enter(key, &got, &mine)) {
+@@ -1013,7 +1054,8 @@
+     par_scope_build(0, started);
+     if (ps && rebuild) atomic_fetch_add(&g_par_reference_created,1);
+     rb_pso_track(ps, RB_RENDER, key, NO);
+-    if (ps && key && g_par_on && (par_write_in_place || g_par_note_play || RB_PAR_SCOPED() || RB_PAR_WRITE_MODE() != RB_ARCHIVE_LEGACY)) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }   // RewindBox (patch 0033): g_par_note_play
++    if (ps && key && !g_par_on) rb_archive_note_before_index(key, d);
++    else if (ps && key && g_par_on && (par_write_in_place || g_par_note_play || RB_PAR_SCOPED() || RB_PAR_WRITE_MODE() != RB_ARCHIVE_LEGACY)) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }   // RewindBox (patch 0033): g_par_note_play
+     return ps;
+ }
+ static id<MTLComputePipelineState> par_compute_(id<MTLFunction> fn, NSString *key, NSError **e) {
+@@ -1053,13 +1095,15 @@
+     id<MTLComputePipelineState> ps = [g_dev newComputePipelineStateWithDescriptor:d options:MTLPipelineOptionNone reflection:nil error:e];
+     par_scope_build(1, started);
+     rb_pso_track(ps, RB_COMPUTE, key, NO);
+-    if (ps && key && g_par_on && (par_write_in_place || g_par_note_play || RB_PAR_SCOPED() || RB_PAR_WRITE_MODE() != RB_ARCHIVE_LEGACY)) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }   // RewindBox (patch 0033): g_par_note_play
++    if (ps && key && !g_par_on) rb_archive_note_before_index(key, d);
++    else if (ps && key && g_par_on && (par_write_in_place || g_par_note_play || RB_PAR_SCOPED() || RB_PAR_WRITE_MODE() != RB_ARCHIVE_LEGACY)) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }   // RewindBox (patch 0033): g_par_note_play
+     return ps;
+ }
+ 
+ 
+ // Called after session_wait_backend, the archive writer and all shader workers have drained.
+ static void par_retire_session(void) {
++    rb_archive_preopen_retire();
+     pthread_mutex_lock(&g_par_init_mu);
+     pthread_mutex_lock(&g_par_mu);
+     g_par_bdir = g_par_dir = g_par_legacy_dir = nil;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -10037,6 +10037,7 @@
+     return [NSString stringWithFormat:@"%s/%s", dir, rel];
+ }
+ // Shader mapping table (output of tools/shader_map.py): at runtime only 'Switch control section key → stage' is used; shaders are always translations of the Switch originals (tools/dmsh_build.py produces <key>_b.metallib + reflection offline)
++static void rb_archive_preopen_start(void);
+ static void shmap_load_once(void);
+ static void shmap_load(void) { static dispatch_once_t once; dispatch_once(&once, ^{ shmap_load_once(); }); }   // S2Arm: also read from game threads (mtl_shmap_known at ProgramSetShaders)
+ static NSString *shmap_path(void) { const char *e = getenv("DM_NVN_SHMAP"); return e ? @(e) : exe_rel([NSString stringWithFormat:@"../games/%s/shader_map.tsv", DM_GAME_ID].UTF8String); }
+@@ -10129,6 +10130,7 @@
+             g_cb_ext = d; MLOG("uniform read extents: %lu shaders (cb_extent.tsv)", (unsigned long)d.count); }
+     }
+     MLOG("shader route B (translated Switch originals): shader map %lu entries (%s), metallib directory %s", (unsigned long)g_shmap.count, path.UTF8String, g_msl_dir.UTF8String);
++    rb_archive_preopen_start();
+     warm_start();
+ }
+ 
+@@ -10639,9 +10641,52 @@
+ #define RB_PAR_BATCH_POLICY() (rb_kart_option(RB_KART_BATCH) || rb_archive_enabled())
+ #define RB_PAR_SCOPED() rb_async_pso()
+ #define RB_PAR_MEASURE() (rb_pso_mode() != 0)
++static void rb_archive_seed_recipes(NSMutableOrderedSet *keys);
++#define RB_PAR_SEED_RECIPES(keys) rb_archive_seed_recipes(keys)
++static int rb_archive_preopen_on(void) {
++    static _Atomic int flag;
++    return nvn_rb_thermal_scope() && rb_pacing_setting(&flag, "S2A_RB_ARCHIVE_PREOPEN");
++}
++#define RB_PAR_PREOPEN() rb_archive_preopen_on()
++#if TARGET_OS_IOS
++#define RB_PAR_PREOPEN_ROOM() (rb_ios_headroom() > (1024ull << 20))
++#endif
+ #define RB_PAR_BUILD() rb_par_game_build()
+ #define RB_PAR_SUBMIT_THREAD() on_sub_thread()
+ #include "pso_archive.h"   // S2Arm: per-pipeline binary archive (after MacNativeGames, MIT)
++// The first launch after upgrading has no startup-key index. Seed the
++// worker from the actual slow recipes, followed by the reference and user
++// manifests in their original order. Only known archive mappings are opened.
++static void rb_archive_seed_row(NSMutableOrderedSet *keys, const char *hex) {
++    pso_skey recipe;
++    if (pso_skey_parse(hex, &recipe) || recipe.merged) return;
++    NSString *key = par_hash(&recipe, sizeof recipe);
++    pthread_mutex_lock(&g_par_mu);
++    BOOL known = [g_par_have containsObject:key] || [g_par_bhave containsObject:key] || [g_par_legacy_have containsObject:key];
++    pthread_mutex_unlock(&g_par_mu);
++    if (known) [keys addObject:key];
++}
++static void rb_archive_seed_recipes(NSMutableOrderedSet *keys) {
++    NSString *user = pso_user_path();
++    if (!user || !RB_PAR_PREOPEN_ROOM()) return;
++    for (NSString *row in [rb_pso_hot_read(rb_pso_hot_path()) reverseObjectEnumerator]) {
++        rb_archive_seed_row(keys, row.UTF8String + 2);
++        if (keys.count >= RB_STARTUP_KEYS) return;
++    }
++    NSString *reference = [user.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"pso_reference.tsv"];
++    for (NSString *path in @[reference, user]) {
++        FILE *file = fopen(path.fileSystemRepresentation, "r");
++        if (!file) continue;
++        char row[2 * sizeof(pso_skey) + 8];
++        for (unsigned n = 0; n < 512 && keys.count < RB_STARTUP_KEYS && fgets(row, sizeof row, file); ++n) {
++            if (row[0] != 'R' || row[1] != '\t') continue;
++            row[strcspn(row, "\r\n")] = 0;
++            rb_archive_seed_row(keys, row + 2);
++        }
++        fclose(file);
++        if (keys.count >= RB_STARTUP_KEYS) return;
++    }
++}
+ static void rb_heap_pressure_relief(void)
+ {
+ #if TARGET_OS_IOS
+@@ -16007,6 +16052,7 @@
+ }
+ static void warm_start(void) { warm_start_mode(0); }
+ static void warm_start_mode(int resumed) {
++    rb_archive_preopen_start();
+     if (atomic_exchange(&g_warm_started,1)) return;
+     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ pso_user_seen_load(); });   // the record's dedupe set, off the submit thread (pso_user_seen_load)
+     rb_disk_launch(nil, YES);

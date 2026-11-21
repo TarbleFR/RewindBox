@@ -1,0 +1,31 @@
+# Première utilisation des shaders et pipelines NVN2
+
+Le journal de Mario Kart World attribue 808,8 des 808,9 ms du premier draw à l’attente d’une compilation déjà en file. Le compteur de lookahead totalise 175,3 ms sur 59 scans. Le journal ne donne pas le temps de lookahead individuel de la trame 272. Les 43 compilations MSL sur le thread de soumission de cette fenêtre représentent 6,686 ms. La durée totale de soumission de 355,142 ms comprend d’autres travaux.
+
+| Patch moteur | Chemin modifié | Observation à rechercher sur appareil |
+| --- | --- | --- |
+| 0283 | Les deux formes de `ProgramSetShaders` capturent les octets nécessaires à la traduction anticipée. Les workers produisent la bibliothèque à partir d’une copie détenue. Le replay vérifie l’identité effective du code mutable. Les entrées MSL effectivement compilées, y compris les variantes, alimentent le générateur AIR macOS. | Bibliothèques prêtes avant le premier bind, chargements binaires et temps MSL de soumission. |
+| 0284 | La lecture des catalogues commence avant `nnMain`. La convention de profondeur et le device Metal conditionnent la construction des PSO. Les références, l’historique personnel et les recettes réordonnées passent avant le catalogue externe. Une compilation demandée par un draw peut reprendre une tâche encore en file avec la même clé. | Débuts et fins des phases, temps du premier draw, compilations déjà engagées et attentes résiduelles. |
+| 0285 | Le premier scan et son unique reprise partagent le budget de 2 ms de la soumission. Le chemin borné exploite les métadonnées d’attachements déjà connues et mémorise les absences jusqu’à la publication des shaders concernés. | Compteurs `[rb-look-budget]`, temps maximal par soumission et dépassements observés. |
+| 0286 | L’inventaire des archives et la réouverture de 64 clés de démarrage au maximum passent sur une file d’E/S. Le thread de soumission consulte les objets publiés en mémoire. Le moteur tient compte des archives embarquées, locales et héritées, des fichiers par lot et de la pression mémoire. | `[rb-archive-open]` indique les clés préouvertes, les accès prêts et les ouvertures reportées. La création du PSO Metal est mesurée séparément de la recherche. |
+| 0287 | Le profil local conserve l’intervalle demandé pendant 120 présentations de jeu consécutives et les capacités des tables de textures sparse et de lectures bindless. Le titre, le build de l’exécutable et la chaîne de traduction identifient le fichier. Les réservations sont bornées et les choix explicites de présentation restent prioritaires. | `[rb-direct-profile]` signale l’apprentissage, l’écriture et la reprise au lancement suivant. |
+
+Les deux dispositions de cache utilisent le répertoire parent du `pso_user.tsv` effectif. Le générateur `build-utils/s2arm/build_nvn2_shader_pack.py` produit les bibliothèques AIR avec la chaîne de compilation iPhoneOS du Mac. Les archives Metal du téléphone conservent les pipelines pour son GPU. Une source ou une combinaison de pipeline encore inconnue peut entraîner une compilation. Une compilation Metal déjà engagée pour le même PSO reste partagée.
+
+## Configuration de comparaison
+
+```text
+S2A_RB_BIND_AHEAD=1
+S2A_RB_REGISTER_LIBRARIES=1
+S2A_RB_CAPTURE_COMPILED_MSL=1
+S2A_RB_PREWARM_TIERS=1
+S2A_RB_PSO_LANES=2
+S2A_RB_PSO_LIVE_LANE=1
+S2A_RB_LOOK_AGAIN=1
+S2A_RB_LOOK_BUDGET=1
+S2A_RB_ARCHIVE_PREOPEN=1
+S2A_RB_ARCHIVE_WRITE_ALWAYS=1
+S2A_RB_AUTO_PROFILE=1
+```
+
+Aucune nouvelle fenêtre A18 Pro n’est disponible pour cette révision. Les deux points de comparaison à relever sur un parcours identique sont la trame 0 et le chargement de circuit, au premier puis au second lancement.

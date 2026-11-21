@@ -1,0 +1,467 @@
+From 23b84c12669108d77e7aad0b0b6606faec10fb90 Mon Sep 17 00:00:00 2001
+From: RewindBox <s2arm@localhost>
+Date: Sat, 21 Nov 2026 23:18:53 +0100
+Subject: [PATCH] Prepare tentative NVN2 stage libraries at registration and
+ capture exact compiler inputs
+
+---
+ graphics/nvn/gfx/nvn/hle_nvn.c             |   7 +
+ graphics/nvn/gfx/nvn/nvn_mtl.m             |   6 +-
+ graphics/nvn/gfx/nvn/nvn_session.inc       |   2 +
+ graphics/nvn/gfx/nvn/rb_registration.inc   | 148 +++++++++++++++++++++
+ graphics/nvn/host/dsh_miss.inc             |  20 +++
+ graphics/nvn/tests/rb_registration_gpu.inc |  64 +++++++++
+ graphics/nvn/tests/t_nvn_warmbump.m        |   3 +
+ graphics/nvn/tests/t_rb_stage_disk.sh      |   6 +
+ graphics/tools/direct/prepare_stage_air.py |  36 ++++-
+ runtime/tests/mk/nvn_warmbump.mk           |   2 +-
+ 10 files changed, 286 insertions(+), 8 deletions(-)
+ create mode 100644 graphics/nvn/gfx/nvn/rb_registration.inc
+ create mode 100644 graphics/nvn/tests/rb_registration_gpu.inc
+
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 045615b..8277366 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -1327,6 +1327,10 @@ int prog_key(const prog_t *p, unsigned st, uint8_t key[8]) {
+ }
+ // S2Arm: a stage's key from the bytes there now (prog_key returns the one computed at SetShaders): equal to it only while the game still holds the same control section and code (nvn_mtl.m pso_fout_variant)
+ int prog_key_live(const prog_t *p, unsigned st, uint8_t key[8]) { return st < p->nstage && keys_hash(&p->sd[st], 0, key); }
++#if defined(__APPLE__)
++// Host-only optional backend hook. This speculative snapshot must never set a prog_keys_t bit.
++extern void nvn_be_registered_stages(const prog_t *) __attribute__((weak_import));
++#endif
+ NVN(nvnProgramSetShaders, NVNboolean, NVNprogram *p, int n, const NVNshaderData *sd) {
+     prog_t *o = (prog_t *)p;
+     if (n < 0 || n > 6) { LOG("【红】 ProgramSetShaders stage count %d", n); return 0; }
+@@ -1401,6 +1405,9 @@ NVN(nvnProgramSetShaders, NVNboolean, NVNprogram *p, int n, const NVNshaderData
+     prog_pin_set_owner(o->serial, o);             // 该 serial 的 pin 归属固定为原件，拷贝先 Bind 不抢 owner
+     for (int i = 0; i < npin; i++) prog_pin_add(o->serial, o, &pinrefs[i]);
+     prog_pin_release(old_serial, o);   // 新阶段已经 pin 好：旧阶段不再被当前 program 引用，源快照可淘汰
++#endif
++#if defined(__APPLE__)
++    if (n && nvn2_on() && nvn_be_registered_stages) nvn_be_registered_stages(o);
+ #endif
+     OLOG("ProgramSetShaders %p n=%d data0=%#llx", (void *)p, n, n ? (unsigned long long)sd[0].data : 0ull);
+     return 1;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 3fe24fd..969e898 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -10894,6 +10894,7 @@ static id<MTLLibrary> rb_compile_auxiliary(id<MTLDevice> device,NSString *src,MT
+ static __thread const char *t_rb_pack_source_reason;
+ static __thread const char *t_rb_pack_source_key;
+ static _Atomic unsigned g_rb_pack_source_fallbacks;
++static void rb_capture_compiled_msl(NSString *source);
+ static id<MTLLibrary> rb_compile_source(NSString *src, NSError **error) {
+     id<MTLLibrary> binary = rb_disk_library(src);
+     if (binary) return binary;
+@@ -10903,7 +10904,9 @@ static id<MTLLibrary> rb_compile_source(NSString *src, NSError **error) {
+             MLOG("[rb-capture-pack] MSL fallback=%s key=%s total=%u",
+                  t_rb_pack_source_reason, t_rb_pack_source_key, n);
+     }
+-    return rb_measure_source(g_dev,src,dm_msl_opts(),error,1);
++    id<MTLLibrary> compiled = rb_measure_source(g_dev,src,dm_msl_opts(),error,1);
++    if (compiled) rb_capture_compiled_msl(src);
++    return compiled;
+ }
+ static id<MTLLibrary> rb_source_library(NSString *src, int share, NSError **error) {
+     if (!share) return rb_compile_source(src, error);
+@@ -14956,6 +14959,7 @@ static int rb_bind_ahead_on(void) {
+ }
+ static int rb_code_set(const uint8_t *c, uint32_t n) { for (uint32_t i = 0; i < n && i < 64; i++) if (c[i]) return 1; return 0; }   // the first bytes not all zero: code the game has filled in
+ static int rb_addr_mapped(uint64_t a, uint64_t len) { a = nvn_ga2ca(a); pthread_mutex_lock(&g_mu); int i = pool_find(a, len); pthread_mutex_unlock(&g_mu); return i >= 0; }   // nvn_be_addr's lookup, without making the pool resident
++#include "rb_registration.inc"
+ void nvn_be_prog_bound(const prog_t *p) {   // a game thread recording the first bind of a serial (hle_nvn.c)
+     if (!p || !p->serial || !nvn2_on() || !shpre_on() || !rb_bind_ahead_on()) return;
+     shmap_load(); int dz = atomic_load(&g_depth_zero); uint64_t np = atomic_fetch_add(&g_rb_bound_progs, 1) + 1;
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 3e05dd9..2c6a828 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -51,6 +51,8 @@ static int session_wait_backend(void) {
+     os_unfair_lock_lock(&g_shpre_mu);
+     shq_mark(&g_shpre, prefetch_done); shq_mark(&g_shurg, prefetch_done);
+     if (g_rb_disk_q) dispatch_group_async(prefetch_done,g_rb_disk_q,^{});
++    if (g_rb_registration_q) dispatch_group_async(prefetch_done,g_rb_registration_q,^{});
++    if (g_rb_export_q) dispatch_group_async(prefetch_done,g_rb_export_q,^{});
+     os_unfair_lock_unlock(&g_shpre_mu);
+     if (!rb_observed_drain(&g_observed,dispatch_time(DISPATCH_TIME_NOW,10*NSEC_PER_SEC))) return -ETIMEDOUT;
+     if (dispatch_group_wait(prefetch_done, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC))) return -ETIMEDOUT;
+diff --git a/graphics/nvn/gfx/nvn/rb_registration.inc b/graphics/nvn/gfx/nvn/rb_registration.inc
+new file mode 100644
+index 0000000..14e26f7
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_registration.inc
+@@ -0,0 +1,148 @@
++// SPDX-License-Identifier: MIT
++// The guest may overwrite both pointers as soon as SetShaders returns. Only a
++// self-contained tentative snapshot may cross to a worker. Replay still hashes
++// the current bytes, and serial/psnap keys are never published here.
++extern int dm_shader_prepare_registration(const char *,const uint8_t *,uint32_t,
++                                          const uint8_t *,uint32_t) __attribute__((weak_import));
++static dispatch_queue_t g_rb_registration_q;
++static NSMutableSet<NSString *> *g_rb_registering; // protected by g_shpre_mu
++static size_t g_rb_registration_bytes;
++static unsigned g_rb_registration_count;
++static _Atomic uint64_t g_rb_registration_queued, g_rb_registration_loaded, g_rb_registration_msl;
++static _Atomic int g_rb_register_option;
++
++static void rb_register_shader(const NVNshaderData *sd, int depth) {
++    uint8_t control[NVN2_CTL_COPY] = {0};
++    if (!sd->data || !rb_first_read(sd->control,control,0xd8) || !nvn2_ctl(control)) return;
++    uint32_t ncode = nvn2_code_len(control), nctl;
++    memcpy(&nctl, control + 0x30, sizeof nctl);
++    if (nctl < 0xd8 || nctl > sizeof control) nctl = 0xd8;
++    if (nctl > 0xd8 && !rb_first_read((const uint8_t *)sd->control + 0xd8,control + 0xd8,nctl - 0xd8)) return;
++    const size_t bytes = (size_t)nctl + ncode;
++    const size_t limit = 8u << 20;
++    if (!ncode || bytes > limit || sd->data > UINTPTR_MAX - ncode || !rb_addr_mapped(sd->data,ncode)) return;
++    // Reserve before copying, including concurrent registering game threads.
++    os_unfair_lock_lock(&g_shpre_mu);
++    BOOL admitted = !atomic_load(&g_shpre_stopping) && g_rb_registration_count < 32 &&
++                    bytes <= limit - g_rb_registration_bytes;
++    if (admitted) { g_rb_registration_bytes += bytes; ++g_rb_registration_count; }
++    os_unfair_lock_unlock(&g_shpre_mu);
++    if (!admitted) return;
++
++    NSMutableData *snapshot = [NSMutableData dataWithLength:bytes];
++    uint8_t *payload = snapshot.mutableBytes;
++    NSString *key = nil;
++    if (payload && rb_first_read((const void *)(uintptr_t)sd->data,payload+nctl,ncode) &&
++        rb_code_set(payload+nctl,ncode)) {
++        uint8_t digest[8];
++        memcpy(payload,control,nctl);
++        nvn2_key(payload,payload+nctl,digest);
++        char hex[17];
++        for (int i=0;i<8;++i) snprintf(hex + 2*i,3,"%02x",digest[i]);
++        key = @(hex);
++    }
++    // Commands already bound, watched draws, and demanded PSOs use other
++    // workers. A burst of speculative registrations cannot occupy their queue.
++    os_unfair_lock_lock(&g_shpre_mu);
++    NSString *identity = key ? [key stringByAppendingFormat:@"/%d",depth] : nil;
++    if (!key || atomic_load(&g_shpre_stopping) || [g_rb_registering containsObject:identity]) {
++        g_rb_registration_bytes -= bytes;
++        --g_rb_registration_count;
++        os_unfair_lock_unlock(&g_shpre_mu);
++        return;
++    }
++    if (!g_rb_registration_q) {
++        g_rb_registration_q = dispatch_queue_create("s2a.nvn2.register",
++            dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,QOS_CLASS_USER_INITIATED,0));
++        g_rb_registering = [NSMutableSet set];
++    }
++    [g_rb_registering addObject:identity];
++    uint64_t queued = atomic_fetch_add(&g_rb_registration_queued,1) + 1;
++    dispatch_async(g_rb_registration_q, ^{ @autoreleasepool {
++        if (!nvn_be_stopping()) {
++            const uint8_t *ctl = snapshot.bytes, *code = ctl+nctl;
++            shmap_load();
++            NSString *stage = shmap_stage(key);
++            if ((!stage || !mtl_shlib_has(key.UTF8String)) && dm_shader_prepare_registration) {
++                BOOL translated = dm_shader_prepare_registration(key.UTF8String,ctl,nctl,code,ncode);
++                stage = translated ? shmap_stage(key) : nil;
++            }
++            if (stage) {
++                int st = stage_of(stage);
++                // Tensor networks use reflection only at dispatch. A successful
++                // speculative build must never substitute for that decision.
++                if (st >= 0 && !(st == 5 && nvn2_hmma_count(code,ncode))) {
++                    NSString *pc = [key stringByAppendingString:@"_b"];
++                    int built = 0;
++                    uint64_t before = t_rb_msl_n;
++                    if (shader_loadable(pc) && shader_load_depth(pc,st,0,stage_depth_moded(st) && depth,&built,NULL) && built)
++                        atomic_fetch_add(&g_rb_registration_loaded,1);
++                    atomic_fetch_add(&g_rb_registration_msl,t_rb_msl_n-before);
++                }
++            }
++        }
++        os_unfair_lock_lock(&g_shpre_mu);
++        [g_rb_registering removeObject:identity];
++        g_rb_registration_bytes -= bytes;
++        --g_rb_registration_count;
++        os_unfair_lock_unlock(&g_shpre_mu);
++    }});
++    os_unfair_lock_unlock(&g_shpre_mu);
++    if (!(queued & (queued-1))) MLOG("[rb-bind-ahead] registered=%llu variants_built=%llu msl_compiles=%llu",
++        (unsigned long long)queued,(unsigned long long)atomic_load(&g_rb_registration_loaded),
++        (unsigned long long)atomic_load(&g_rb_registration_msl));
++}
++
++void nvn_be_registered_stages(const prog_t *program) {
++    if (!g_dev || !shpre_on() || !rb_bind_ahead_on() || !nvn2_on() ||
++        !rb_pacing_setting(&g_rb_register_option,"S2A_RB_REGISTER_LIBRARIES")) return;
++    @autoreleasepool {
++        int depth = atomic_load(&g_depth_zero);
++        for (unsigned i=0; i<program->nstage && i<6; ++i) rb_register_shader(&program->sd[i],depth);
++    }
++}
++
++// Public Metal can persist PSOs through MTLBinaryArchive, but its executable
++// MTLLibrary has no byte export method. Save the *actual successful compiler
++// input* for Mac pack preparation, including variants synthesized in memory.
++// The binary reader verifies the same digest before newLibraryWithData:error:.
++static dispatch_queue_t g_rb_export_q;
++static size_t g_rb_export_units;
++static _Atomic int g_rb_export_option;
++static _Atomic unsigned g_rb_export_dropped, g_rb_export_failed;
++
++static void rb_capture_compiled_msl(NSString *source) {
++    if (!nvn2_on() || !rb_pacing_setting(&g_rb_export_option,"S2A_RB_CAPTURE_COMPILED_MSL")) return;
++    const char *fallback = getenv("DM_MSL_FALLBACK");
++    if (!fallback || !*fallback || !strcmp(fallback,"/dev/null")) return;
++    NSString *root = @(fallback);
++    NSUInteger units = source.length;  // UTF-16 units retained by this job
++    const size_t limit = 4u << 20;
++    os_unfair_lock_lock(&g_shpre_mu);
++    if (atomic_load(&g_shpre_stopping) || !units || units > limit - g_rb_export_units) {
++        if (units && !atomic_load(&g_shpre_stopping)) atomic_fetch_add(&g_rb_export_dropped,1);
++        os_unfair_lock_unlock(&g_shpre_mu);
++        return;
++    }
++    if (!g_rb_export_q) g_rb_export_q = dispatch_queue_create("s2a.nvn2.export-msl",
++        dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,QOS_CLASS_UTILITY,0));
++    g_rb_export_units += units;
++    dispatch_async(g_rb_export_q,^{ @autoreleasepool {
++        NSData *bytes = [source dataUsingEncoding:NSUTF8StringEncoding];
++        NSString *dir = [root stringByAppendingPathComponent:@"rb-compiled-msl-v1"];
++        NSString *tag = par_hash(bytes.bytes,bytes.length);
++        NSString *path = [dir stringByAppendingPathComponent:[tag stringByAppendingPathExtension:@"msl"]];
++        NSError *error = nil;
++        NSFileManager *fm = NSFileManager.defaultManager;
++        if (![fm fileExistsAtPath:path] &&
++            (![fm createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:&error] ||
++             ![bytes writeToFile:path options:NSDataWritingAtomic error:&error])) {
++            unsigned errors = atomic_fetch_add(&g_rb_export_failed,1) + 1;
++            if (!(errors & (errors-1))) MLOG("[rb-shader-disk] source_capture_failed=%u error=%s",errors,error.localizedDescription.UTF8String);
++        }
++        os_unfair_lock_lock(&g_shpre_mu);
++        g_rb_export_units -= units;
++        os_unfair_lock_unlock(&g_shpre_mu);
++    }});
++    os_unfair_lock_unlock(&g_shpre_mu);
++}
+diff --git a/graphics/nvn/host/dsh_miss.inc b/graphics/nvn/host/dsh_miss.inc
+index 913014c..48e9ae7 100644
+--- a/graphics/nvn/host/dsh_miss.inc
++++ b/graphics/nvn/host/dsh_miss.inc
+@@ -693,6 +693,26 @@ static int dsh_ahead_(const char *k16, uint64_t code, const void *control, int b
+     });
+     return 1;   // RewindBox (patch 0069): queued
+ }
++// Owned, complete NVN2 registration snapshot. A racing draw uses the same
++// translator mutex and on-disk identity check. Publish only successful results.
++int dm_shader_prepare_registration(const char *key, const uint8_t *control, uint32_t nctl,
++                                   const uint8_t *code, uint32_t ncode) {
++    const char *out = getenv("DM_MSL_FALLBACK");
++    if (!out || !*out || !strcmp(out,"/dev/null") || nvn_be_stopping()) return 0;
++    uint32_t cs, bs;
++    int stage = rb_nvn2_input_stage(control,&bs,&cs);
++    if (stage < 0 || nctl != cs || ncode != bs) return 0;
++    int stored = -1;
++    if (!dsh_current_stage(out,key,&stored)) {
++        dsh_comp_fn compile = dsh_comp();
++        if (!compile || (mkdir(out,0755) && errno != EEXIST) ||
++            dsh_comp_locked(compile,key,stage,code,ncode,control,nctl,out) ||
++            !dsh_current_stage(out,key,&stored)) return 0;
++    }
++    if (stored != stage) return 0;
++    mtl_shmap_rt_add(key,dsh_nm[stage]);
++    return 1;
++}
+ void dm_shader_miss(const uint8_t key[8], uint64_t code, const void *control) {
+     char k[17]; for (int i = 0; i < 8; i++) snprintf(k + 2 * i, 3, "%02x", key[i]);
+     if (!control || !code) { atomic_fetch_add_explicit(&g_dsh_skipped, 1, memory_order_relaxed); return; }
+diff --git a/graphics/nvn/tests/rb_registration_gpu.inc b/graphics/nvn/tests/rb_registration_gpu.inc
+new file mode 100644
+index 0000000..19833e0
+--- /dev/null
++++ b/graphics/nvn/tests/rb_registration_gpu.inc
+@@ -0,0 +1,64 @@
++// Run in a fresh process. Both NVN registration entry points finish the
++// library before recording any command, even when the guest reuses its bytes.
++extern uint64_t s2a_npdm_pid(const char *path);
++extern void *h_nvnBootstrapLoader(const char *name);
++static int test_registered_library(NSString *root, BOOL enabled) { @autoreleasepool {
++    setenv("S2A_RB_REGISTER_LIBRARIES",enabled ? "1" : "0",1);
++    setenv("S2A_RB_STAGE_DISK_WARM","0",1);
++    NSFileManager *fm = NSFileManager.defaultManager;
++    NSString *shaders = [root stringByAppendingPathComponent:@"docs/wire/0000000000000042/shaders"];
++    GPU_CHECK([fm createDirectoryAtPath:shaders withIntermediateDirectories:YES attributes:nil error:nil]);
++    NSString *npdm = [root stringByAppendingPathComponent:@"fixture.npdm"];
++    uint8_t header[0x404] = {0};
++    memcpy(header,"META",4); memcpy(header+0x400,"ACID",4);
++    uint32_t offset=0x100; memcpy(header+0x78,&offset,sizeof offset);
++    GPU_CHECK([[NSData dataWithBytes:header length:sizeof header] writeToFile:npdm atomically:YES]);
++    (void)s2a_npdm_pid(npdm.fileSystemRepresentation);
++    GPU_CHECK(nvn2_on());
++    setenv("DM_MSL_FALLBACK",shaders.fileSystemRepresentation,1);
++    setenv("DM_MSL_DIR",root.fileSystemRepresentation,1);
++    NSString *map=[root stringByAppendingPathComponent:@"shader_map.tsv"];
++    write_test_text(map,@""); setenv("DM_NVN_SHMAP",map.fileSystemRepresentation,1);
++    g_dev=MTLCreateSystemDefaultDevice(); GPU_CHECK(g_dev);
++    // Back the synthetic guest address by a live, aligned pool.
++    uint8_t *code=NULL; GPU_CHECK(!posix_memalign((void **)&code,65536,65536));
++    memset(code,0,65536);
++    nvn_be_pool_add(code,65536);
++    uint32_t control[NVN2_CTL_COPY/4] = {NVN2_CTL_MAGIC,NVN2_CTL_VERSION};
++    control[0x44/4]=64; ((uint8_t *)control)[0x56]=5;
++    const char *entry[]={"nvnProgramSetShaders","nvnProgramSetShadersExt"};
++    NSString *source=@"#include <metal_stdlib>\nusing namespace metal; kernel void main0(device uint *v [[buffer(0)]]) { v[0]=7; }";
++    for (unsigned i=0;i<2;i++) {
++        code[0]=(uint8_t)(1+i);
++        uint8_t key[8]; nvn2_key(control,code,key);
++        char hex[17]; for (unsigned j=0;j<8;j++) snprintf(hex+2*j,3,"%02x",key[j]);
++        NSString *stage=[@(hex) stringByAppendingString:@"_b"];
++        NSString *base=[shaders stringByAppendingPathComponent:stage];
++        write_test_text([base stringByAppendingPathExtension:@"metal"],source);
++        NSDictionary *refl=@{@"chain":@DMSH_CHAIN,@"xfp":@(s2a_dsh_xfp()),@"route":@"B",
++            @"stage":@"cs",@"key":stage,@"entry":@"main0",@"bindings":@[]};
++        GPU_CHECK([[NSJSONSerialization dataWithJSONObject:refl options:0 error:nil]
++                   writeToFile:[base stringByAppendingPathExtension:@"json"] atomically:YES]);
++        NVNprogram program={0};
++        struct { NVNshaderData sd; uint64_t ext; } slot={{(uint64_t)(uintptr_t)code,control},0};
++        typedef NVNboolean (*set_fn)(NVNprogram *,int,const void *);
++        set_fn reg=(set_fn)h_nvnBootstrapLoader(entry[i]);
++        GPU_CHECK(reg && reg(&program,1,&slot));
++        code[0]+=64; // Subsequent replay must hash the changed guest code.
++        uint8_t actual[8]; GPU_CHECK(prog_key((const prog_t *)&program,0,actual) && memcmp(key,actual,8));
++        if (!enabled) { GPU_CHECK(!g_rb_registration_q && !g_rb_registration_queued); continue; }
++        GPU_CHECK(g_rb_registration_q);
++        dispatch_sync(g_rb_registration_q,^{});
++        GPU_CHECK(g_rb_registration_loaded==i+1 && g_rb_registration_count==0);
++        NvShader *built=g_shcache[shader_identity(stage,5,0,0)];
++        GPU_CHECK(built && built->fn && built->fn.functionType==MTLFunctionTypeKernel);
++    }
++    if (!enabled) { puts("PASS disabled registration leaves preparation until the recorded bind"); return 0; }
++    GPU_CHECK(g_rb_registration_msl>0 && !g_bp_msl_n);
++    GPU_CHECK(g_rb_export_q);
++    dispatch_sync(g_rb_export_q,^{});
++    NSArray *files=[fm contentsOfDirectoryAtPath:[shaders stringByAppendingPathComponent:@"rb-compiled-msl-v1"] error:nil];
++    GPU_CHECK(files.count>0 && !g_rb_export_failed && !g_rb_export_dropped);
++    puts("PASS registration and extended registration build Metal libraries before commands, keep mutable guest keys independent, and capture compiler inputs");
++    return 0;
++} }
+diff --git a/graphics/nvn/tests/t_nvn_warmbump.m b/graphics/nvn/tests/t_nvn_warmbump.m
+index 4064f60..88ceb3f 100644
+--- a/graphics/nvn/tests/t_nvn_warmbump.m
++++ b/graphics/nvn/tests/t_nvn_warmbump.m
+@@ -150,7 +150,10 @@ static int fair_registered(NSString *root) { @autoreleasepool {
+     puts("PASS docs/wire shader-disk, Fair registered compute program to observed worker, Metal library and PSO built");
+     return 0;
+ } }
++#include "rb_registration_gpu.inc"
+ int main(int argc, char **argv) {
++    if (argc == 3 && !strcmp(argv[1],"--register-library")) return test_registered_library(@(argv[2]),YES);
++    if (argc == 3 && !strcmp(argv[1],"--register-library-off")) return test_registered_library(@(argv[2]),NO);
+     if (argc == 3 && !strcmp(argv[1],"--fair-registered")) return fair_registered(@(argv[2]));
+     if (argc > 1) return transition_test_main(argc, argv);
+     @autoreleasepool {
+diff --git a/graphics/nvn/tests/t_rb_stage_disk.sh b/graphics/nvn/tests/t_rb_stage_disk.sh
+index 1b43f5d..40e4035 100644
+--- a/graphics/nvn/tests/t_rb_stage_disk.sh
++++ b/graphics/nvn/tests/t_rb_stage_disk.sh
+@@ -19,5 +19,11 @@ tag=$(shasum -a 256 "$work/$a.metal" | cut -c1-40)
+ python3 "$root/graphics/tools/direct/prepare_stage_air.py" "$work" --sdk macosx
+ python3 "$root/graphics/tools/direct/prepare_stage_air.py" "$work" --sdk macosx | grep '0 binaries written, 1 reused'
+ python3 "$root/graphics/tools/direct/prepare_stage_air.py" "$work" --sdk iphoneos
++mkdir -p "$work/only/rb-compiled-msl-v1"
++cp "$work/$a.metal" "$work/only/rb-compiled-msl-v1/$tag.msl"
++python3 "$root/graphics/tools/direct/prepare_stage_air.py" "$work/only" --sdk macosx | grep '1 sources, 1 binaries written'
++# Exercise the normal binary reader and actual GPU entry below using *only*
++# the capture-derived AIR. Other stage files are fixture inputs to the disk scan.
++cp "$work/only/rb-stage-air-v1-relaxed-invariant/macosx/$tag.airlib" "$work/rb-stage-air-v1-relaxed-invariant/macosx/$tag.airlib"
+ xcrun --sdk macosx clang -std=gnu11 -fobjc-arc -Wall -Wextra -Werror "$root/graphics/nvn/tests/t_rb_stage_disk.m" -framework Foundation -framework Metal -o "$work/test"
+ "$work/test" "$work" "$tag"
+diff --git a/graphics/tools/direct/prepare_stage_air.py b/graphics/tools/direct/prepare_stage_air.py
+index b5af408..7b98bcf 100644
+--- a/graphics/tools/direct/prepare_stage_air.py
++++ b/graphics/tools/direct/prepare_stage_air.py
+@@ -15,7 +15,7 @@ import subprocess
+ import tempfile
+ 
+ SUFFIX = 'rb-stage-air-v1-relaxed-invariant'
+-SOURCE = re.compile(r'[0-9a-f]{16}_[a-zA-Z0-9_]+\.metal\Z')
++SOURCE = re.compile(r'[0-9a-f]{16}_[a-zA-Z0-9_]+\.(?:metal|msl)\Z')
+ MAX_BLOB = 64 << 20
+ 
+ 
+@@ -55,6 +55,22 @@ def prepare(source, sdk, destination, temp):
+     return True
+ 
+ 
++def captured_sources(root):
++    directory = root / 'rb-compiled-msl-v1'
++    if not directory.is_dir() or directory.is_symlink():
++        return
++    for path in sorted(directory.glob('*.msl')):
++        if path.is_symlink() or not path.is_file() or not re.fullmatch('[0-9a-f]{40}', path.stem):
++            raise ValueError(f'Invalid runtime MSL capture: {path.name}')
++        if not 0 < path.stat().st_size <= MAX_BLOB:
++            raise ValueError(f'Invalid runtime MSL size: {path.name}')
++        source = path.read_bytes()
++        if digest(source).hex()[:40] != path.stem:
++            raise ValueError(f'Digest mismatch for runtime MSL: {path.name}')
++        source.decode('utf-8')
++        yield source
++
++
+ def main():
+     a = argparse.ArgumentParser(description=__doc__)
+     a.add_argument('shaders', type=Path)
+@@ -62,8 +78,6 @@ def main():
+     a.add_argument('--out', type=Path, help='Root for the resulting cache (default: source directory)')
+     args = a.parse_args()
+     files = sorted(p for p in args.shaders.iterdir() if SOURCE.fullmatch(p.name) and p.is_file() and not p.is_symlink())
+-    if not files:
+-        a.error('No exported translated stages found')
+     dest = (args.out or args.shaders) / SUFFIX / args.sdk
+     dest.mkdir(parents=True, exist_ok=True)
+     new = existing = 0
+@@ -71,8 +85,9 @@ def main():
+         temp = Path(td)
+         rewrite = temp/'base-instance'
+         helper = Path(__file__).with_name('rb_stage_base_instance.c')
+-        subprocess.run(['xcrun','--sdk','macosx','clang','-std=c11','-D_DARWIN_C_SOURCE',
+-                        '-O2',str(helper),'-o',str(rewrite)], check=True)
++        if files:
++            subprocess.run(['xcrun','--sdk','macosx','clang','-std=c11','-D_DARWIN_C_SOURCE',
++                            '-O2',str(helper),'-o',str(rewrite)], check=True)
+         for file in files:
+             raw = file.read_bytes()
+             variants = [raw]
+@@ -84,7 +99,16 @@ def main():
+                     new += 1
+                 else:
+                     existing += 1
+-    print(f'{len(files)} sources, {new} binaries written, {existing} reused: {dest}')
++        captures = 0
++        for source in captured_sources(args.shaders):
++            captures += 1
++            if prepare(source,args.sdk,dest,temp):
++                new += 1
++            else:
++                existing += 1
++    if not files and not captures:
++        a.error('No exported translated stages or runtime MSL captures found')
++    print(f'{len(files)+captures} sources, {new} binaries written, {existing} reused: {dest}')
+ 
+ 
+ if __name__ == '__main__':
+diff --git a/runtime/tests/mk/nvn_warmbump.mk b/runtime/tests/mk/nvn_warmbump.mk
+index 4c5e84d..9987418 100644
+--- a/runtime/tests/mk/nvn_warmbump.mk
++++ b/runtime/tests/mk/nvn_warmbump.mk
+@@ -3,7 +3,7 @@ NATIVE_TEST_OWN += nvn_warmbump
+ ifeq ($(shell uname -s),Darwin)
+ # 预热插队（warm_bump / warm_pick）：游戏登记程序时把清单里这对着色器的管线提到队头，不重复领
+ NVN_WARMBUMP_HOST_OBJS = $(filter-out %/loadprog.c.o,$(NVN_TEST_HOST_OBJS))   # 同 nvn_warmtick：前端换替身
+-$(BUILD)/tests/t_nvn_warmbump: graphics/nvn/tests/t_nvn_warmbump.m graphics/nvn/tests/rb_pso_transition_gpu.inc graphics/nvn/tests/rb_reference_gpu.inc graphics/nvn/gfx/nvn/rb_reference.inc graphics/nvn/gfx/nvn/rb_reference_mkw.inc graphics/nvn/tests/warmtick_front_stub.c $(NVN_MTL_DEPS) $(NVN_WARMBUMP_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN)
++$(BUILD)/tests/t_nvn_warmbump: graphics/nvn/tests/t_nvn_warmbump.m graphics/nvn/tests/rb_pso_transition_gpu.inc graphics/nvn/tests/rb_registration_gpu.inc graphics/nvn/tests/rb_reference_gpu.inc graphics/nvn/gfx/nvn/rb_reference.inc graphics/nvn/gfx/nvn/rb_reference_mkw.inc graphics/nvn/tests/warmtick_front_stub.c $(NVN_MTL_DEPS) $(NVN_WARMBUMP_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN)
+ 	$(CC) $(CFLAGS) -std=gnu11 -fobjc-arc -Wno-unused-function -Wno-unguarded-availability-new -Wno-unguarded-availability \
+ 	  $(NATIVE_INC) -Igraphics/nvn/host -Igraphics/nvn/gfx/nvn -Igraphics/nvn/gfx/nvn/include -Igraphics/nvn/third_party/vulkan-headers/include \
+ 	  -o $@ graphics/nvn/tests/t_nvn_warmbump.m graphics/nvn/tests/warmtick_front_stub.c $(NVN_WARMBUMP_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN) \
+-- 
+2.56.1
+

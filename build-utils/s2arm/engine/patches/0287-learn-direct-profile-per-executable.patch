@@ -1,0 +1,299 @@
+diff --git a/graphics/nvn/gfx/nvn/rb_direct_autoprofile.inc b/graphics/nvn/gfx/nvn/rb_direct_autoprofile.inc
+new file mode 100644
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_direct_autoprofile.inc
+@@ -0,0 +1,115 @@
++// Observations are hints for the next boot of this executable and translation
++// chain. The game and explicit cadence policy still own presentation timing.
++static _Atomic unsigned rb_profile_sparse, rb_profile_bindless;
++static _Atomic unsigned rb_profile_sparse_peak, rb_profile_bind_peak;
++static _Atomic unsigned rb_seed_sparse, rb_seed_bind, rb_seed_interval;
++static _Atomic int rb_profile_ready, rb_profile_collecting;
++static NSString *rb_profile_path;
++static NSDictionary *rb_profile_identity, *rb_saved_profile;
++static unsigned rb_interval_candidate, rb_interval_run, rb_first_interval;
++static unsigned rb_profile_frames;
++static _Atomic int rb_profile_boot_window;
++static pthread_mutex_t rb_profile_lock = PTHREAD_MUTEX_INITIALIZER;
++
++static dispatch_queue_t rb_profile_io(void) {
++    static dispatch_once_t once; static dispatch_queue_t q;
++    dispatch_once(&once, ^{
++        q = dispatch_queue_create("s2a.profile", dispatch_queue_attr_make_with_qos_class(
++            DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0));
++    });
++    return q;
++}
++
++static unsigned rb_profile_capacity(id number, unsigned minimum, unsigned maximum) {
++    if (![number isKindOfClass:NSNumber.class]) return 0;
++    uint64_t value = [number unsignedLongLongValue];
++    return value >= minimum && value <= maximum && !(value & (value - 1)) ? (unsigned)value : 0;
++}
++static void rb_profile_peak(_Atomic unsigned *peak, unsigned cells, unsigned cap) {
++    if (cells > cap) cells = cap;
++    unsigned old = atomic_load_explicit(peak, memory_order_relaxed);
++    while (cells > old && !atomic_compare_exchange_weak_explicit(peak, &old, cells,
++            memory_order_relaxed, memory_order_relaxed)) {}
++}
++static BOOL rb_profile_hex_id(const char *s, size_t length) {
++    return s && strlen(s) == length && strspn(s, "0123456789abcdefABCDEF") == length &&
++           strspn(s, "0") != length;
++}
++
++static void rb_profile_begin(NSString *user, const char *program, const char *build) {
++    if (!user.isAbsolutePath || !rb_profile_hex_id(program, 16) || !rb_profile_hex_id(build, 32)) return;
++    NSString *identity = [NSString stringWithFormat:@"%s-%s-%s", program, build, DMSH_CHAIN];
++    NSString *dir = [user.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"profiles"];
++    NSString *path = [dir stringByAppendingPathComponent:[identity stringByAppendingPathExtension:@"plist"]];
++    NSDictionary *scope = @{@"schema": @1, @"program": @(program), @"build": @(build), @"chain": @DMSH_CHAIN};
++    pthread_mutex_lock(&rb_profile_lock);
++    if (!rb_profile_path) {
++        rb_profile_path = path; rb_profile_identity = scope;
++        atomic_store(&rb_profile_collecting, 1);
++        dispatch_async(rb_profile_io(), ^{ @autoreleasepool {
++            NSDictionary *record = [NSDictionary dictionaryWithContentsOfFile:path];
++            BOOL valid = [scope isEqual:record[@"identity"]];
++            if (valid) {
++                int interval = [record[@"interval"] isKindOfClass:NSNumber.class] ? [record[@"interval"] intValue] : 0;
++                atomic_store(&rb_seed_interval, interval == 1 || interval == 2 ? interval : 0);
++                if ([record[@"sparse"] isEqual:@YES]) atomic_store(&rb_seed_sparse, rb_profile_capacity(record[@"sparse_cells"], 4096, 65536));
++                if ([record[@"bindless"] isEqual:@YES]) atomic_store(&rb_seed_bind, rb_profile_capacity(record[@"reader_cells"], 1024, 8192));
++                rb_saved_profile = record;
++            }
++            MLOG("[rb-direct-profile] %s %s interval=%u sparse_cells=%u reader_cells=%u", [scope[@"program"] UTF8String],
++                 valid ? "restored" : "learning", atomic_load(&rb_seed_interval), atomic_load(&rb_seed_sparse), atomic_load(&rb_seed_bind));
++            atomic_store(&rb_profile_boot_window, 1);
++            atomic_store_explicit(&rb_profile_ready, 1, memory_order_release);
++        }});
++    }
++    pthread_mutex_unlock(&rb_profile_lock);
++}
++
++// Present-thread only. Learn the guest-requested interval across 120 consecutive
++// real gameplay presents. Cutscenes, video and forced host cadence do not vote.
++void nvn_rb_observe_direct_interval(int interval) {
++    if (!atomic_load_explicit(&rb_profile_ready, memory_order_acquire)) return;
++    if (rb_profile_frames != UINT_MAX) ++rb_profile_frames;
++    if (rb_profile_frames == 120) atomic_store(&rb_profile_boot_window, 0);
++    if (!rb_first_interval) {
++        if (interval != rb_interval_candidate || (interval != 1 && interval != 2)) rb_interval_run = 0;
++        rb_interval_candidate = interval;
++        if ((interval == 1 || interval == 2) && ++rb_interval_run >= 120) rb_first_interval = interval;
++    }
++    BOOL firstStable = rb_first_interval && rb_interval_run == 120;
++    if (!firstStable && rb_profile_frames % 120 != 0) return;
++    if (firstStable) ++rb_interval_run;
++    unsigned sparse = atomic_load(&rb_profile_sparse), bindless = atomic_load(&rb_profile_bindless);
++    unsigned sp = atomic_load(&rb_profile_sparse_peak), bl = atomic_load(&rb_profile_bind_peak);
++    unsigned cadence = rb_first_interval;
++    dispatch_async(rb_profile_io(), ^{ @autoreleasepool {
++        BOOL hasSparse = sparse || [rb_saved_profile[@"sparse"] isEqual:@YES];
++        BOOL hasBind = bindless || [rb_saved_profile[@"bindless"] isEqual:@YES];
++        unsigned interval = cadence ?: atomic_load(&rb_seed_interval);
++        if (!interval && !hasSparse && !hasBind) return;
++        NSDictionary *record = @{@"identity": rb_profile_identity, @"interval": @(interval),
++            @"sparse": @(hasSparse), @"bindless": @(hasBind), @"sparse_cells": @(MAX(sp, atomic_load(&rb_seed_sparse))),
++            @"reader_cells": @(MAX(bl, atomic_load(&rb_seed_bind)))};
++        if ([record isEqual:rb_saved_profile]) return;
++        NSString *dir = rb_profile_path.stringByDeletingLastPathComponent;
++        if ([NSFileManager.defaultManager createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil] &&
++                [record writeToFile:rb_profile_path atomically:YES]) {
++            rb_saved_profile = record;
++            MLOG("[rb-direct-profile] persisted interval=%u sparse=%u bindless=%u", interval, hasSparse, hasBind);
++        }
++    }});
++}
++
++int nvn_rb_boot_interval(void) { return atomic_load(&rb_profile_boot_window) ? (int)atomic_load(&rb_seed_interval) : 0; }
++
++static void rb_profile_retire(void) {
++    pthread_mutex_lock(&rb_profile_lock);
++    if (rb_profile_path) dispatch_sync(rb_profile_io(), ^{ rb_saved_profile = nil; });
++    rb_profile_path = nil; rb_profile_identity = nil; atomic_store(&rb_profile_collecting, 0);
++    atomic_store(&rb_profile_ready, 0); atomic_store(&rb_profile_boot_window, 0);
++    atomic_store(&rb_seed_interval, 0); atomic_store(&rb_seed_sparse, 0); atomic_store(&rb_seed_bind, 0);
++    atomic_store(&rb_profile_sparse_peak, 0); atomic_store(&rb_profile_bind_peak, 0);
++    atomic_store(&rb_profile_sparse, 0); atomic_store(&rb_profile_bindless, 0);
++    rb_first_interval = rb_interval_run = rb_interval_candidate = rb_profile_frames = 0;
++    pthread_mutex_unlock(&rb_profile_lock);
++}
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -305,6 +305,11 @@
+ static double g_rb_wait_seconds;
+ static int rb_tick_filter_enabled(void) {
+     return nvn_rb_thermal_scope() && rb_pacing_setting(&g_rb_wake_option, "S2A_RB_TICK_WAKE_FILTER");
++}
++#include "rb_direct_autoprofile.inc"
++static int rb_direct_profile_on(void) {
++    static _Atomic int flag;
++    return nvn_rb_thermal_scope() && rb_pacing_setting(&flag, "S2A_RB_AUTO_PROFILE");
+ }
+ void nvn_rb_link_wake_stats(uint64_t out[3]) {
+     pthread_mutex_lock(&g_link_mu); memcpy(out, g_rb_wake_counts, sizeof g_rb_wake_counts); pthread_mutex_unlock(&g_link_mu);
+@@ -11246,6 +11251,8 @@
+     if (o->rf.dyn && !DM_GAME_TEX_DYN_SLOTS) {   // dynamic texture handles (TEXD / SAMPD) only where the profile says the game picks them from c2's tables, as before otherwise
+         // (rf.c1 is freed by dealloc when o goes: freeing it here too was a double free, which aborted FINAL FANTASY RESONANCE at its first such shader)
+         MLOG("【红】 shader %s reflection conversion failed: a texture handle the translator could not trace to one slot (profile key tex_dyn_slots off)", pc.UTF8String); return nil; }
++    if ((o->rf.bindless || o->rf.dyn) && atomic_load_explicit(&rb_profile_collecting, memory_order_relaxed))
++        atomic_store_explicit(&rb_profile_bindless, 1, memory_order_relaxed);
+     if (o->rf.unb_uncov) {   // #968: texture bindings the runtime normalization bits do not cover (binding > 31, geometry): counted, never silent
+         static _Atomic uint64_t n_sh, n_b; uint64_t k = atomic_fetch_add(&n_sh, 1) + 1, nb = atomic_fetch_add(&n_b, o->rf.unb_uncov) + o->rf.unb_uncov;
+         if (k <= 8 || !(k & (k - 1))) MLOG("unnorm bits: shader %s has %u texture bindings outside the s2a_flags.yzw bitmap (normalization compiled in); %llu such bindings in %llu shaders so far",
+@@ -16052,6 +16059,10 @@
+ }
+ static void warm_start(void) { warm_start_mode(0); }
+ static void warm_start_mode(int resumed) {
++    if (rb_direct_profile_on()) {
++        const char *build = s2a_main_build_id ? s2a_main_build_id() : NULL;
++        rb_profile_begin(pso_user_path(), s2a_nvn_game_id(), build);
++    }
+     rb_archive_preopen_start();
+     if (atomic_exchange(&g_warm_started,1)) return;
+     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ pso_user_seen_load(); });   // the record's dedupe set, off the submit thread (pso_user_seen_load)
+@@ -18735,7 +18746,18 @@
+ }
+ static void rb_seq_push(uint32_t **v, uint32_t *n, uint32_t *cap, uint32_t seq) {   // g_rb_anyr / g_rb_wsq (review: one form for both)
+     if (*n && (*v)[*n - 1] == seq) return;
+-    if (*n == *cap) { size_t c = *cap ? (size_t)*cap * 2 : 1024; if (!GROW(*v, c * sizeof **v, "store lookahead readers / waits")) { g_sdx_ok = 0; return; } *cap = (uint32_t)c; }   // no room: every pass stores
++    if (*n == *cap) {
++        unsigned seed = v == &g_rb_anyr ? atomic_load_explicit(&rb_seed_bind, memory_order_relaxed) : 0;
++        size_t c = *cap ? (size_t)*cap * 2 : MAX(1024u, seed);
++        if (!GROW(*v, c * sizeof **v, "store lookahead readers / waits")) {
++            if (seed <= 1024 || *cap || !GROW(*v, 1024 * sizeof **v, "store lookahead readers / waits")) {
++                g_sdx_ok = 0; return;
++            }
++            c = 1024;
++        }
++        *cap = (uint32_t)c;
++        if (v == &g_rb_anyr && atomic_load(&rb_profile_collecting)) rb_profile_peak(&rb_profile_bind_peak, *cap, 8192);
++    }
+     (*v)[(*n)++] = seq;
+ }
+ static int rb_seq_in(const uint32_t *v, uint32_t n, uint32_t lo, uint32_t hi) {   // an entry at a sequence number in [lo, hi)
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -351,6 +351,7 @@
+     memset(&g_rb_dlss_thermal, 0, sizeof g_rb_dlss_thermal);
+     atomic_store_explicit(&g_rb_dlss_title, 0, memory_order_relaxed);
+     cap_reset();   // RewindBox (patch 0045): a screenshot's frame capture the session ended in the middle of
++    rb_profile_retire();
+     par_retire_session();
+     atomic_store(&g_sub_thread_set, 0);
+     // Ordinary deferred releases target fence+1. There will be no next
+diff --git a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+--- a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
++++ b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+@@ -159,9 +159,13 @@
+ //   fuller (one cell stays empty, so that a probe ends)
+ static int sp_ph_put(uint32_t slot) {   // caller holds g_sp_mu
+     if (2 * (g_sp_phn + 1) > g_sp_phcap) {
+-        uint32_t *old = g_sp_ph; size_t oc = g_sp_phcap, nc = oc ? 2 * oc : 4096; uint32_t *nt = calloc(nc, sizeof *nt);
++        uint32_t *old = g_sp_ph; size_t oc = g_sp_phcap;
++        size_t nc = oc ? 2 * oc : MAX(4096u, atomic_load_explicit(&rb_seed_sparse, memory_order_relaxed));
++        uint32_t *nt = calloc(nc, sizeof *nt);
++        if (!nt && !oc && nc > 4096) { nc = 4096; nt = calloc(nc, sizeof *nt); }
+         if (nt) {
+             g_sp_ph = nt; g_sp_phcap = nc;
++            if (atomic_load(&rb_profile_collecting)) rb_profile_peak(&rb_profile_sparse_peak, (unsigned)MIN(nc, 65536u), 65536);
+             for (size_t i = 0; i < oc; i++) if (old[i]) { size_t j = sp_ph_at(g_sp_tl[old[i] - 1].p, g_sp_tl[old[i] - 1].fmt, g_sp_tl[old[i] - 1].shape); while (g_sp_ph[j]) j = (j + 1) & (g_sp_phcap - 1); g_sp_ph[j] = old[i]; }
+             free(old);
+         } else if (!oc || g_sp_phn + 2 > oc) {
+@@ -318,6 +322,7 @@
+     memcpy(s->tiles_x, g.tiles_x, sizeof g.tiles_x); memcpy(s->tiles_y, g.tiles_y, sizeof g.tiles_y); memcpy(s->loff_t, g.loff_t, sizeof g.loff_t); memcpy(s->loff, g.loff, sizeof g.loff);
+     s->tail_at = g.tail_at; s->per_layer = g.per_layer; s->tail_off = g.tail_off; s->sess = g_sp_sess; s->ser = t->serial;
+     s->tex = mt; *made = mt; res_add(mt);
++    if (atomic_load(&rb_profile_collecting)) atomic_store_explicit(&rb_profile_sparse, 1, memory_order_relaxed);
+     s->slot = calloc((size_t)s->layers * s->per_layer, sizeof *s->slot); s->nmap = calloc(s->ntiled + 1, sizeof *s->nmap);
+     if (!s->slot || !s->nmap) MDIE("sparse texture tile table");
+     s->gen = 0; s->stamp = 0;
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -4090,7 +4090,18 @@
+ static struct { uint64_t f, t; } g_cpath[16];
+ static _Atomic int g_fs_k;   // the hold presentation follows (0 = not decided yet)
+ // The display link runs at 30 Hz at a 30 cap, except while the game fixes its own step at 1 (BotW's VFR override)
+-int nvn_game_fps(void) { int c = fps_step_cap(); if (c) return c == 30 && atomic_load(&g_fs_k) == 1 && fstep_on() ? 60 : c; if (g_hz > 0 && video_cap()) return 30; uint64_t s = atomic_load(&g_itv2_since); return g_hz > 0 && !g_display_mode && s && now_ns() - s >= 1000000000ull ? 30 : 60; }
++#if defined(__APPLE__)
++extern void nvn_rb_observe_direct_interval(int interval) __attribute__((weak_import));
++extern int nvn_rb_boot_interval(void) __attribute__((weak_import));
++static int rb_interval_confirmed(uint64_t since) {
++    if (!since) return 0;
++    if (now_ns() - since >= 1000000000ull) return 1;
++    return atomic_load(&g_game_itv) == 2 && nvn_rb_boot_interval && nvn_rb_boot_interval() == 2;
++}
++#else
++static int rb_interval_confirmed(uint64_t since) { return since && now_ns() - since >= 1000000000ull; }
++#endif
++int nvn_game_fps(void) { int c = fps_step_cap(); if (c) return c == 30 && atomic_load(&g_fs_k) == 1 && fstep_on() ? 60 : c; if (g_hz > 0 && video_cap()) return 30; uint64_t s = atomic_load(&g_itv2_since); return g_hz > 0 && !g_display_mode && rb_interval_confirmed(s) ? 30 : 60; }
+ static void present_cfg(const win_t *o) {
+     if (g_hz >= 0) return;
+     // The interval mode comes from the game profile (present_interval, default game): whether frames follow the present interval the game sets depends on whether the game's logic counts frames, which differs per game. Environment variables override it, and can override the fixed 60 Hz.
+@@ -4144,7 +4155,7 @@
+     if (g_hz > 0 && video_cap()) { int itv = atomic_load(&g_game_itv); return hz / (itv > 2 && !g_display_mode ? itv : 2); }
+     if (g_display_mode && !atomic_load(&g_fps_game_itv)) return hz;
+     uint64_t s = atomic_load(&g_itv2_since); int itv = atomic_load(&g_game_itv);
+-    return s && itv > 1 && now_ns() - s >= 1000000000ull ? hz / itv : hz;
++    return itv > 1 && rb_interval_confirmed(s) ? hz / itv : hz;
+ }
+ static uint64_t present_period(const win_t *o) {
+     present_cfg(o);
+@@ -4581,6 +4592,11 @@
+     prev_in = t0; prev_pass = ps; prev_draw = dr;
+     dump_frame();
+     if (g_frame % TWIN == 0) tsummary(g_frame);
++#if defined(__APPLE__)
++    if (nvn_rb_observe_direct_interval)
++        nvn_rb_observe_direct_interval(!g_display_mode && !g_vid.on && !video_cap() &&
++            (!dm_fps_state || !__atomic_load_n((uint32_t *)(dm_fps_state + 4), __ATOMIC_RELAXED)) ? o->interval : 0);
++#endif
+     nvn_be_set_frame(g_frame);
+     atomic_store(&g_fps_game_itv, s2a_fps_present_hook() | (g_display_mode && s2a_fps_cap_reason() != 0));   // | 不用 ||：钩子每帧都要调（动态步长）。 S2Arm 帧率表：每帧只在这里调一次（present_period 一帧被调 3 次：取图 / 入队 / 节拍器，直连线 10-26 审出），present_itv 只读结果
+     // Real-device semantics: present only enqueues and returns immediately; this frame's display time is scheduled by the pacer, and the texture can be acquired again only at "display time + one period" (blocking in AcquireTexture)
+diff --git a/graphics/nvn/tests/t_rb_direct_autoprofile.m b/graphics/nvn/tests/t_rb_direct_autoprofile.m
+new file mode 100644
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_direct_autoprofile.m
+@@ -0,0 +1,38 @@
++// Exercise the real on-disk record, its launch identity and the 120-present cadence gate.
++#import <Foundation/Foundation.h>
++#include <stdatomic.h>
++#include <pthread.h>
++#include "../gfx/nvn/dmsh_chain.h"
++#define MLOG(...) do { fprintf(stderr, __VA_ARGS__); fputc(10, stderr); } while (0)
++#include "../gfx/nvn/rb_direct_autoprofile.inc"
++#define CHECK(c) do { if (!(c)) { fprintf(stderr, "FAIL %s:%d %s\n", __FILE__, __LINE__, #c); return 1; } } while (0)
++int main(int argc, const char **argv) { @autoreleasepool {
++    CHECK(argc == 3);
++    NSString *user = [@(argv[1]) stringByAppendingPathComponent:@"pso_user.tsv"];
++    const char *program = "0400123456789000", *build = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
++    BOOL cold = !strcmp(argv[2], "cold"), other = !strcmp(argv[2], "other");
++    rb_profile_begin(user, program, other ? "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" : build);
++    dispatch_sync(rb_profile_io(), ^{});
++    CHECK(rb_profile_path && atomic_load(&rb_profile_ready));
++    if (cold) {
++        for (int i=0; i<119; ++i) nvn_rb_observe_direct_interval(1);
++        nvn_rb_observe_direct_interval(0);
++        for (int i=0; i<119; ++i) nvn_rb_observe_direct_interval(2);
++        dispatch_sync(rb_profile_io(), ^{});
++        CHECK(![NSFileManager.defaultManager fileExistsAtPath:rb_profile_path]);
++        atomic_store(&rb_profile_sparse, 1); atomic_store(&rb_profile_bindless, 1);
++        rb_profile_peak(&rb_profile_sparse_peak, 32768, 65536); rb_profile_peak(&rb_profile_bind_peak, 65536, 8192);
++        nvn_rb_observe_direct_interval(2);
++        dispatch_sync(rb_profile_io(), ^{});
++        CHECK([NSFileManager.defaultManager fileExistsAtPath:rb_profile_path]);
++    } else if (other) {
++        CHECK(!nvn_rb_boot_interval() && !atomic_load(&rb_seed_bind) && !atomic_load(&rb_seed_sparse));
++    } else {
++        CHECK(nvn_rb_boot_interval() == 2 && atomic_load(&rb_seed_sparse) == 32768 && atomic_load(&rb_seed_bind) == 8192);
++        for (int i=0; i<120; ++i) nvn_rb_observe_direct_interval(1);
++        CHECK(!nvn_rb_boot_interval());
++    }
++    rb_profile_retire();
++    CHECK(!nvn_rb_boot_interval() && !atomic_load(&rb_profile_ready));
++    puts("PASS scoped runtime profile"); return 0;
++} }
