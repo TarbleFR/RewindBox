@@ -1,0 +1,89 @@
+Wire device-owned PCM storage on queue creation, report actual OS success and release residency before destruction or replacement.
+
+diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+--- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
++++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+@@ -29,6 +29,22 @@
+             Environment.GetEnvironmentVariable("S2A_RB_HEAP_TRIM") != "0";
+         private readonly long[] _handbacks = Guard ? new long[NumBuffers] : null;
+         private long _processingReturn;
++        private readonly bool[] _wired = Guard ? new bool[NumBuffers] : null;
++        [DllImport("libSystem.B.dylib", EntryPoint = "mlock", SetLastError = true)]
++        private static extern int Wire(nint pointer, nuint bytes);
++        [DllImport("libSystem.B.dylib", EntryPoint = "munlock")]
++        private static extern int Unwire(nint pointer, nuint bytes);
++        private unsafe void UnwireQueue()
++        {
++            if (!Guard) return;
++            for (int i = 0; i < NumBuffers; i++)
++            {
++                if (!_wired[i]) continue;
++                var buffer = (AudioQueueBuffer*)_audioQueueBuffers[i];
++                Unwire(buffer->AudioData, (nuint)buffer->AudioDataBytesCapacity);
++                _wired[i] = false;
++            }
++        }
+         // Only synchronous AudioQueue disposal can retire the callback's semaphore.
+         [DllImport("libSystem.B.dylib")] private static extern nint dispatch_semaphore_create(nint value);
+         [DllImport("libSystem.B.dylib")] private static extern nint dispatch_semaphore_signal(nint semaphore);
+@@ -413,6 +429,7 @@
+                         return stopRc;
+                     }
+ 
++                    UnwireQueue();
+                     int disposed = AudioQueueDispose(_audioQueue, true);
+                     if (disposed == 0) ForgetQueueCapacity();
+                     else _queueCapacity = 0; // previous queue is no longer reachable, bytes still outstanding
+@@ -500,7 +517,7 @@
+         private uint BufferBytes => RequestedSampleRate * BufferMilliseconds / 1000 * (uint)_bytesPerFrame;
+ 
+         // S2Arm: 建 AudioQueue 和它的 32 个缓冲（起会话与媒体服务重置后重建共用）。缓冲放回同一个数组：泵按槽号取，换队列不用换泵
+-        private int CreateQueue()
++        private unsafe int CreateQueue()
+         {
+             AudioStreamBasicDescription format = AppleHardwareDeviceDriver.GetAudioFormat(RequestedSampleFormat, RequestedSampleRate, RequestedChannelCount);
+             nint callbackPtr = Marshal.GetFunctionPointerForDelegate(_callbackDelegate);
+@@ -514,9 +531,27 @@
+                 return result;
+             }
+ 
++            long wired = 0, requested = 0;
++            int wireError = 0;
+             for (int i = 0; i < NumBuffers; i++)
+             {
+                 int allocation = AudioQueueAllocateBuffer(_audioQueue, BufferBytes, out _audioQueueBuffers[i]);
++                if (Guard)
++                {
++                    if (allocation != 0 || _audioQueueBuffers[i] == 0)
++                    {
++                        UnwireQueue();
++                        AudioQueueDispose(_audioQueue, true);
++                        _audioQueue = 0;
++                        ForgetQueueCapacity();
++                        return allocation != 0 ? allocation : -1;
++                    }
++                    var buffer = (AudioQueueBuffer*)_audioQueueBuffers[i];
++                    requested += buffer->AudioDataBytesCapacity;
++                    _wired[i] = Wire(buffer->AudioData,(nuint)buffer->AudioDataBytesCapacity) == 0;
++                    if (_wired[i]) wired += buffer->AudioDataBytesCapacity;
++                    else wireError = Marshal.GetLastPInvokeError();
++                }
+                 if (MeasureHeap && allocation == 0 && _audioQueueBuffers[i] != nint.Zero)
+                 {
+                     _queueCapacity += BufferBytes;
+@@ -524,6 +559,7 @@
+                 }
+             }
+ 
++            if (Guard) Console.Error.WriteLine($"[RB-AUDIO-GUARD] wire_bytes={wired} requested_bytes={requested} wire_errno={wireError}");
+             return 0;
+         }
+ 
+@@ -956,6 +992,7 @@
+                     if (_audioQueue != nint.Zero)
+                     {
+                         AudioQueueStop(_audioQueue, true);
++                        UnwireQueue();
+                         int result = AudioQueueDispose(_audioQueue, true);
+                         if (result != 0)
+                             throw new InvalidOperationException($"AudioQueueDispose failed: {result}; callback handle retained");

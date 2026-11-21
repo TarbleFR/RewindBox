@@ -1,0 +1,312 @@
+Observe elapsed intervals on the presenting thread and keep concurrent work and unmeasurable kernel time out of the partition.
+
+diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+--- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
++++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+@@ -429,7 +429,8 @@
+         }
+ 
+         private static readonly bool MeasureHeap =
+-            OperatingSystem.IsIOS() && Environment.GetEnvironmentVariable("S2A_RB_PREFETCH_ADAPT") != "0" &&
++            OperatingSystem.IsIOS() && Environment.GetEnvironmentVariable("S2A_RB_AUDIO_GUARD") != "0" &&
++            Environment.GetEnvironmentVariable("S2A_RB_LONGFRAME") != "0" && Environment.GetEnvironmentVariable("S2A_RB_PREFETCH_ADAPT") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_MEM_GOV") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_TEX_BUDGET") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_PSO_CAP") != "0" &&
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -2563,6 +2563,57 @@
+ static int frame_rec(void);
+ static _Atomic uint64_t g_nvn_ns;   // Host time spent in submit / present this frame (replay encoding + present), used by the timing instrumentation
+ // RewindBox (patch 0068): the calling thread's wait for the submit lock (submissions and a present's cross-queue flush), cumulative ns, for the long-frame line
++#define RB_LF_IMPLEMENTATION 1
++#include "../../../../runtime/include/rb_longframe.h"
++extern void nvn_rb_fault_watch(uintptr_t);
++extern uint64_t nvn_rb_fault_ns(void);
++// 弱链接[host,ios,nvntest]：s2a_rb_bench_longframe (optional iOS benchmark observer)
++extern void s2a_rb_bench_longframe(uint64_t, int, uint64_t,const struct rb_lf_sample *) __attribute__((weak_import));
++static __thread struct {
++    uint64_t at, fault, ns[RB_LF_PHASES];
++    int phase, valid;
++} rb_lf_clock;
++static _Atomic uintptr_t rb_lf_presenter;
++static void rb_lf_slice(uint64_t at) {
++    uint64_t faults = nvn_rb_fault_ns();
++    if (at < rb_lf_clock.at || faults < rb_lf_clock.fault || faults-rb_lf_clock.fault > at-rb_lf_clock.at) rb_lf_clock.valid = 0;
++    else {
++        uint64_t fault = faults-rb_lf_clock.fault;
++        rb_lf_clock.ns[RB_FAULT] += fault;
++        rb_lf_clock.ns[rb_lf_clock.phase] += at-rb_lf_clock.at-fault;
++    }
++    rb_lf_clock.at = at;
++    rb_lf_clock.fault = faults;
++}
++int rb_lf_switch(int phase) {
++    if (!rb_lf_clock.at || atomic_load_explicit(&rb_lf_presenter,memory_order_relaxed) != (uintptr_t)pthread_self()) return -1;
++    int previous = rb_lf_clock.phase;
++    rb_lf_slice(now_ns());
++    rb_lf_clock.phase = phase;
++    return previous;
++}
++static struct rb_lf_sample rb_lf_close(uint64_t at) {
++    static uint64_t last;
++    uintptr_t self = (uintptr_t)pthread_self();
++    uintptr_t previous = atomic_exchange_explicit(&rb_lf_presenter,self,memory_order_relaxed);
++    struct rb_lf_sample s = {.begin=last};
++    if (previous == self && rb_lf_clock.at && at >= last) {
++        rb_lf_slice(at);
++        memcpy(s.ns,rb_lf_clock.ns,sizeof s.ns);
++        s.valid = rb_lf_clock.valid && !rb_lf_clock.phase;
++        for (unsigned k=1; s.valid && k<RB_LF_PHASES; ++k) {
++            if (s.ns[k] > (at-last)/2) s.cause=k;
++        }
++    }
++    if (!s.valid) { memset(s.ns,0,sizeof s.ns); s.ns[RB_OTHER] = last && at>=last ? at-last : 0; }
++    memset(&rb_lf_clock,0,sizeof rb_lf_clock);
++    nvn_rb_fault_watch(self);
++    rb_lf_clock.at = at;
++    rb_lf_clock.fault = nvn_rb_fault_ns();
++    rb_lf_clock.valid = 1;
++    last = at;
++    return s;
++}
+ static __thread uint64_t t_rb_lock_ns;
+ 
+ // ---------- Lifecycle: dm_gfx_suspend (called before iOS goes to the background; equivalent to Switch suspend) ----------
+@@ -2972,7 +3023,7 @@
+     gfx_enter();
+     if (dm_gfx_session_stopping()) { gfx_leave(); return; }
+     rb_call_enter(0);
+-    if (pthread_mutex_trylock(&g_sub_mu)) { uint64_t w0 = now_ns(); pthread_mutex_lock(&g_sub_mu); t_rb_lock_ns += now_ns() - w0; }   // RewindBox (patch 0068): a contended submit lock is timed
++    if (pthread_mutex_trylock(&g_sub_mu)) { int phase=rb_lf_switch(RB_LOCK); uint64_t w0 = now_ns(); pthread_mutex_lock(&g_sub_mu); t_rb_lock_ns += now_ns() - w0; if (phase>=0) rb_lf_switch(phase); }   // RewindBox (patch 0068): a contended submit lock is timed
+     if (dm_gfx_session_stopping()) { pthread_mutex_unlock(&g_sub_mu); rb_call_leave(); gfx_leave(); return; }
+     render_thread_qos();
+     thsc_lv lv0[2]; thr_counts_lv(lv0);
+@@ -2980,7 +3031,9 @@
+     ((queue_t *)q)->submits++; g_err_queue = q;
+     nvn_frec_submit((const uint64_t *)h, n);
+     // 按 NVN 跨队列事件顺序回放（nvn_mtl.m nvn_xqueue.inc）：等别的队列还没回放的信号时，这条队列余下的命令停住，信号回放后再接着回放；每段回放前走 nvn_hle_queue_enter / nvn_hle_piece_begun
++    int submit_phase=rb_lf_switch(RB_SUBMIT);
+     nvn_be_submit(q, (const uint64_t *)h, n);
++    if (submit_phase>=0) rb_lf_switch(submit_phase);
+     // The submitted draws have been committed. Spend slack only after a short
+     // replay, when no other queue is already waiting for the submit lock.
+     if (atomic_load(&rb_callers) == 1 && now_ns() - t0 < 2000000) nvn_be_advance_texture();
+@@ -3239,6 +3292,7 @@
+         static uint64_t rt_period; uint64_t period = present_period(o), rtp = rt_period_ns(o, period);
+         if (rtp && rt_period != rtp) { rt_period = rtp; set_time_constraint(rtp); }
+         rt_comp_tick(rtp);
++        int display_phase=rb_lf_switch(RB_DISPLAY);
+         uint64_t p0 = now_ns();
+         if (nvn_be_link_active()) { if (!nvn_be_link_wait_tick(present_itv(o), period ? 2 * period : 33333333ull) && wait) sleep_until_ns(at); }   // DM_PRESENT_LINK: pacing fully follows the display link (wait for the present interval's display-link ticks when running fast, go immediately when behind); our own 60 Hz clock is only the fallback when no display-link tick arrives
+         else if (wait) sleep_until_ns(at);
+@@ -3248,6 +3302,7 @@
+         //   (nvn_be_present_wait_taken, nvn_mtl.m: only for a held period over 25 ms on a 60 / 120 Hz link, where a missed tick costs one refresh; S2A_RB_PRESENT_DEPTH=0 turns it off)
+         if (nvn_be_link_active()) nvn_be_present_wait_taken(period / 1e9);
+         pace_ns = now_ns() - p0;
++        if (display_phase>=0) rb_lf_switch(display_phase);
+     } else {   // DM_DETCLOCK_PACE=1 (used by the screenshot gate): while the guest clock advances per frame, each frame's wall clock is no shorter than one step -- frame count and in-game time are deterministic, and the background loading thread has at least one step of wall clock available per frame;
+                // When the machine is fully loaded frames only get slower and the background only gets more wall clock, so the picture captured at "the Nth frame after the message" is independent of load
+         static int pace = -1; static uint64_t step, last;
+@@ -3259,7 +3314,7 @@
+     g_acq_wait_ns += dm_detclock_enabled() ? wait : pace_ns; trow(g_frame, "@late_ms", wait ? (now_ns() - at) / 1e6 : 0);
+     // The previous present of this texture has not yet been processed by the present thread (display cannot keep up, a whole swapchain round behind): wait for it to be returned, then hand it to the game to draw
+     uint64_t tk = *idx < 4 ? o->ticket[*idx] : 0;
+-    if (tk) { uint64_t w0 = now_ns(); nvn_be_present_wait(tk); g_pq_wait_ns += now_ns() - w0; }
++    if (tk) { int phase=rb_lf_switch(RB_DISPLAY); uint64_t w0 = now_ns(); nvn_be_present_wait(tk); g_pq_wait_ns += now_ns() - w0; if (phase>=0) rb_lf_switch(phase); }
+     if (s) sync_publish((sync_t *)s, nvn_be_last_fence());   // The swapchain texture becomes available once the commits before this point have completed
+     if (!g_fs_start) { g_fs_start = now_ns(); g_fs_wait = pace_ns; }   // the frame starts when the first acquire after a present returns: on a display-link tick when on time
+     return NVN_WINDOW_ACQUIRE_TEXTURE_RESULT_SUCCESS;
+@@ -3898,7 +3953,7 @@
+     if (dm_gfx_session_stopping()) return;
+     rb_gap_sample rb_gaps = rb_call_enter(1);
+     win_t *o = (win_t *)w; o->presents++;
+-    if (q) { if (pthread_mutex_trylock(&g_sub_mu)) { uint64_t w0 = now_ns(); pthread_mutex_lock(&g_sub_mu); t_rb_lock_ns += now_ns() - w0; } nvn_be_xq_flush(q, "a present on it"); pthread_mutex_unlock(&g_sub_mu); }   // 上屏排在这条队列的工作后面：停在跨队列等待上的部分先放行（nvn_xqueue.inc）  RewindBox (patch 0068): a contended submit lock is timed (the parked work it replays is CPU, and its own waits land in nvn_be_blocked_ns)
++    if (q) { if (pthread_mutex_trylock(&g_sub_mu)) { int phase=rb_lf_switch(RB_LOCK); uint64_t w0 = now_ns(); pthread_mutex_lock(&g_sub_mu); t_rb_lock_ns += now_ns() - w0; if (phase>=0) rb_lf_switch(phase); } nvn_be_xq_flush(q, "a present on it"); pthread_mutex_unlock(&g_sub_mu); }   // 上屏排在这条队列的工作后面：停在跨队列等待上的部分先放行（nvn_xqueue.inc）  RewindBox (patch 0068): a contended submit lock is timed (the parked work it replays is CPU, and its own waits land in nvn_be_blocked_ns)
+     if (q && dev_ok(((queue_t *)q)->dev) && atomic_load(&g_cur_dev) != ((queue_t *)q)->dev) { pthread_mutex_lock(&g_sub_mu); dev_follow(((queue_t *)q)->dev); pthread_mutex_unlock(&g_sub_mu); }   // 上屏翻转跟上屏队列的设备
+     {   // 节拍主人：被上屏这张的取图线程（取图线程未知 = 上屏线程自己）；连续 PACE_SWITCH 次同一个才换
+         uintptr_t by = idx >= 0 && idx < 4 ? atomic_load_explicit(&g_acq_thr[idx], memory_order_relaxed) : 0; if (!by) by = (uintptr_t)pthread_self();
+@@ -3931,6 +3986,8 @@
+     }
+     gfx_enter();
+     uint64_t t0 = now_ns();
++    struct rb_lf_sample lf_sample = {0};
++    if (rb_808_on()) lf_sample = rb_lf_close(t0);
+     int crop[4]; dm_vi_layer_crop(crop); if (!crop[2] || !crop[3]) memcpy(crop, o->crop, sizeof crop);   // 上屏区域 = 系统窗口裁切：游戏最后设的显示层裁切，没设就是窗口自己的
+     if (idx >= 0 && idx < o->ntex && idx < 4 && nvn_frec_on()) { pthread_mutex_lock(&g_sub_mu); nvn_frec_present(CTX(o->tex[idx]), present_period(o) / 1e9, crop); pthread_mutex_unlock(&g_sub_mu); }   // 帧录：持提交锁落盘，这一帧之后的提交等它
+     uint64_t rb_sent_period = 0;
+@@ -3942,7 +3999,8 @@
+     if (idx >= 0 && idx < o->ntex) __atomic_store_n(&o->shown, idx + 1, __ATOMIC_RELAXED);   // 屏上换成这张：上一张归还（AcquireTexture 的 #141 报红看它）
+     gfx_leave();
+     atomic_fetch_add(&g_nvn_ns, now_ns() - t0);
+-    if (rb_sent && s2a_rb_bench_frame) s2a_rb_bench_frame(t0, rb_sent_interval, rb_sent_period);
++    if (rb_sent && rb_808_on() && s2a_rb_bench_longframe) s2a_rb_bench_longframe(t0,rb_sent_interval,rb_sent_period,&lf_sample);
++    else if (rb_sent && s2a_rb_bench_frame) s2a_rb_bench_frame(t0, rb_sent_interval, rb_sent_period);
+     uint64_t f = g_frame, ps, dr; nvn_be_stats(&ps, &dr);
+     if (nvn_real[0] || nvn_real[1]) {   // DM_NVN_PROF: record phase = time of all implemented functions except submit; submit phase = QueueSubmitCommands
+         static unsigned isub = ~0u; static mach_timebase_info_data_t tb; if (!tb.denom) mach_timebase_info(&tb);
+@@ -4038,8 +4096,27 @@
+             {   // RewindBox (patch 0068): storage read (ru_inblock stayed 0 on iOS: 0 in 397 of 397 IPA 765 lines, frame 337 included with 50,677 storage reads), drawable waits, and the
+                 //   presenting thread's blocked time by reason since its previous present: in the late race frames of 46-60 ms submit+present took 25-40 ms with 11-20 ms of thread CPU,
+                 //   and nothing named the rest. One proc_pid_rusage call a frame; the reasons are thread-local sums (nvn_be_blocked_ns, t_rb_lock_ns)
++                int64_t pageins = -1; static uint64_t previous_pageins; static int have_pageins;
+                 static uint64_t prd; static int hrd; uint64_t w_, rd_, pi_, lw_;
+-                if (!s2a_disk_io(&w_, &rd_, &pi_, &lw_)) { r->rd_mb = hrd ? (double)(rd_ - prd) / 1048576.0 : -1; prd = rd_; hrd = 1; } else r->rd_mb = -1;
++                if (!s2a_disk_io(&w_, &rd_, &pi_, &lw_)) { r->rd_mb = hrd ? (double)(rd_ - prd) / 1048576.0 : -1; prd = rd_; hrd = 1;
++                    if (rb_808_on()) {
++                        if (have_pageins && pi_ >= previous_pageins) pageins = (int64_t)(pi_-previous_pageins);
++                        previous_pageins=pi_; have_pageins=1;
++                    }
++                } else { r->rd_mb = -1; have_pageins=0; }
++                if (rb_808_on() && lf_sample.begin && t0 >= lf_sample.begin && t0-lf_sample.begin >= 50000000ull) {
++                    static const char *names[]={"unknown","guest_sync","guest_code_prepare","submit","display_wait","submit_lock","write_fault"};
++                    static int log_on=-1;
++                    if (log_on<0) { const char *e=getenv("DM_LONGFRAME"); log_on=!(e && !strcmp(e,"0")); }
++                    if (log_on) {
++                        char line[560];
++                        snprintf(line,sizeof line,"frame=%llu begin_ns=%llu end_ns=%llu cause=%s presenter_valid=%u guest_wait_ms=%.3f guest_code_prepare_ms=%.3f submit_ms=%.3f display_wait_ms=%.3f submit_lock_ms=%.3f write_fault_ms=%.3f residual_ms=%.3f proc_pageins=%lld kernel_pagein_ms=unavailable cpu_jit_mode=pretranslated",
++                             (unsigned long long)f,(unsigned long long)lf_sample.begin,(unsigned long long)t0,names[lf_sample.cause],lf_sample.valid,
++                             lf_sample.ns[RB_GUEST_WAIT]/1e6,lf_sample.ns[RB_CODE_PREP]/1e6,lf_sample.ns[RB_SUBMIT]/1e6,lf_sample.ns[RB_DISPLAY]/1e6,
++                             lf_sample.ns[RB_LOCK]/1e6,lf_sample.ns[RB_FAULT]/1e6,lf_sample.ns[RB_OTHER]/1e6,(long long)pageins);
++                        dm_longframe_note(line);
++                    }
++                }
+                 r->drw_ms = rb_drw_ms;
+                 static pthread_t bth; static int hb; static uint64_t pb[5]; uint64_t mb[4], bk[5]; nvn_be_blocked_ns(mb);
+                 bk[0] = t_rb_lock_ns; bk[1] = mb[0]; bk[2] = mb[1]; bk[3] = mb[2]; bk[4] = mb[3];
+diff --git a/graphics/nvn/gfx/nvn/nvn_dirty.c b/graphics/nvn/gfx/nvn/nvn_dirty.c
+--- a/graphics/nvn/gfx/nvn/nvn_dirty.c
++++ b/graphics/nvn/gfx/nvn/nvn_dirty.c
+@@ -338,7 +338,7 @@
+         if (!busy_wait(r, p)) return 0;   // another thread is changing its protection: wait, then look again
+     }
+ }
+-static int on_fault(void *addr, int is_write, void *uc) {
++static int rb_handle_write_fault(void *addr, int is_write, void *uc) {
+     (void)uc;
+     if (!is_write) return 0;
+     uintptr_t a = (uintptr_t)addr; int ours = 0, n = atomic_load(&g_nr);
+@@ -355,6 +355,22 @@
+     for (int i = 0; i < n; i++)   // Every range sharing the page must be released: releasing only one leaves the other range's state at "protected", and later writes no longer fault and are missed
+         { range_t *r = rg(i); if (live_at(i) && a >= r->base && a < r->end) ours |= release_page(r, (a - r->base) >> g_shift, &g_faults); }
+     return ours;
++}
++// Only the observed presenting thread contributes to the exclusive frame clock.
++static _Atomic uintptr_t rb_presenter;
++static _Atomic uint64_t rb_fault_ticks;
++void nvn_rb_fault_watch(uintptr_t thread) { atomic_store_explicit(&rb_presenter,thread,memory_order_relaxed); }
++uint64_t nvn_rb_fault_ns(void) {
++    uint64_t ticks = atomic_load_explicit(&rb_fault_ticks,memory_order_relaxed);
++    return g_tb_den ? ticks * g_tb_num / g_tb_den : 0;
++}
++static int on_fault(void *addr, int is_write, void *uc) {
++    uintptr_t observed = atomic_load_explicit(&rb_presenter,memory_order_relaxed);
++    if (!observed || observed != (uintptr_t)pthread_self()) return rb_handle_write_fault(addr,is_write,uc);
++    uint64_t start = dirty_tick();
++    int handled = rb_handle_write_fault(addr,is_write,uc);
++    if (handled) atomic_fetch_add_explicit(&rb_fault_ticks,dirty_tick()-start,memory_order_relaxed);
++    return handled;
+ }
+ // Unprotect pages p..q of a range with one mprotect per run of protected pages (a host write over a whole texture, e.g. WriteTexels, used to make one system call per 16 KB page:
+ // Link's Awakening, about 275 a frame). Pages another thread is changing are handled one by one after the run so far is finished, so no BUSY page is held while waiting
+diff --git a/runtime/include/rb_heap.h b/runtime/include/rb_heap.h
+--- a/runtime/include/rb_heap.h
++++ b/runtime/include/rb_heap.h
+@@ -9,6 +9,26 @@
+ #include <malloc/malloc.h>
+ #endif
+ 
++// A zero comparison switch selects the 803 paths across the cumulative candidate.
++static inline int rb_808_on(void) {
++#if defined(__APPLE__) && TARGET_OS_IOS
++    static _Atomic int mode;
++    int v = atomic_load_explicit(&mode, memory_order_relaxed);
++    if (!v) {
++        const char *names[]={"S2A_RB_AUDIO_GUARD","S2A_RB_LONGFRAME","S2A_RB_PREFETCH_ADAPT",
++                             "S2A_RB_MEM_GOV","S2A_RB_TEX_BUDGET","S2A_RB_PSO_CAP","S2A_RB_HEAP_TRIM"};
++        v=1;
++        for (unsigned i=0; i<sizeof names/sizeof names[0]; ++i) {
++            const char *e=getenv(names[i]);
++            if (e && !strcmp(e,"0")) { v=-1; break; }
++        }
++        atomic_store_explicit(&mode,v,memory_order_relaxed);
++    }
++    return v > 0;
++#else
++    return 0;
++#endif
++}
+ // Process launch switches. Pointers stay in their original allocator and ABI.
+ static inline int rb_mem_gov_switch(void) {
+ #if defined(__APPLE__) && TARGET_OS_IOS
+@@ -17,7 +37,7 @@
+     if (!v) {
+         const char *env = getenv("S2A_RB_MEM_GOV");
+         const char *adapt = getenv("S2A_RB_PREFETCH_ADAPT");
+-        v = (env && !strcmp(env, "0")) || (adapt && !strcmp(adapt, "0")) ? -1 : 1;
++        v = !rb_808_on() || (env && !strcmp(env, "0")) || (adapt && !strcmp(adapt, "0")) ? -1 : 1;
+         atomic_store_explicit(&mode, v, memory_order_relaxed);
+     }
+     return v > 0;
+diff --git a/runtime/include/rb_longframe.h b/runtime/include/rb_longframe.h
+new file mode 100644
+--- /dev/null
++++ b/runtime/include/rb_longframe.h
+@@ -0,0 +1,9 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++#include <stdint.h>
++enum rb_lf_phase { RB_OTHER, RB_GUEST_WAIT, RB_CODE_PREP, RB_SUBMIT, RB_DISPLAY, RB_LOCK, RB_FAULT, RB_LF_PHASES };
++struct rb_lf_sample { uint64_t begin, ns[RB_LF_PHASES]; unsigned cause, valid; };
++#if defined(__APPLE__) && !defined(RB_LF_IMPLEMENTATION)
++// 弱链接[host,ios,nvntest]：rb_lf_switch (optional presenting-thread timing observer)
++extern int rb_lf_switch(int phase) __attribute__((weak_import));
++#endif
+diff --git a/runtime/src/rb_guest.c b/runtime/src/rb_guest.c
+--- a/runtime/src/rb_guest.c
++++ b/runtime/src/rb_guest.c
+@@ -4,6 +4,7 @@
+ #if defined(__APPLE__)
+ #include "native.h"
+ #include "rb_guest.h"
++#include "../include/rb_longframe.h"
+ #include "s2a_session.h"
+ #include "imgpack.h"
+ #include "s2a_launch_ctx.h"
+@@ -107,7 +108,10 @@
+ 
+ // imgpack.c: the host's executable pages for [at, at + len), as a writable alias (NULL = refused)
+ void *s2a_rb_guest_prepare_code(void *at, size_t len) {
+-    return g_cfg.prepare_code ? g_cfg.prepare_code(at, len, g_cfg.prepare_context) : NULL;
++    int phase = rb_lf_switch ? rb_lf_switch(RB_CODE_PREP) : -1;
++    void *result = g_cfg.prepare_code ? g_cfg.prepare_code(at, len, g_cfg.prepare_context) : NULL;
++    if (phase>=0) rb_lf_switch(phase);
++    return result;
+ }
+ 
+ // The end of the session, once (normal end, start failure, watchdog, fatal error). Never from a signal handler (see s2a_rb_guest_fatal)
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -2714,6 +2714,7 @@
+ }
+ #if defined(__APPLE__)
+ // 弱链接[host]：s2a_rb_mkw_measure (RewindBox: optional loader diagnostics in standalone hosts, already weak)
++#include "../include/rb_longframe.h"
+ extern int s2a_rb_mkw_measure(void) __attribute__((weak_import));
+ extern uint64_t dm_nvn_frame_count(void) __attribute__((weak_import));
+ static _Thread_local uint64_t t_mkw_guest_wait_ns;
+@@ -2813,8 +2814,12 @@
+         atomic_store_explicit(&me->mkw_wait_active,1,memory_order_relaxed);
+     }
+ #endif
++#if defined(__APPLE__)
++    int phase = sync_call && rb_lf_switch ? rb_lf_switch(RB_GUEST_WAIT) : -1;
++#endif
+     int r = svc_thread_impl(me, num, regs);
+ #if defined(__APPLE__)
++    if (phase>=0) rb_lf_switch(phase);
+     if (mkw_wait_start) {
+         uint64_t impl_return_ns = (uint64_t)now_mono_ns(), elapsed = impl_return_ns-mkw_wait_start;
+         atomic_store_explicit(&me->mkw_wait_active,0,memory_order_relaxed);

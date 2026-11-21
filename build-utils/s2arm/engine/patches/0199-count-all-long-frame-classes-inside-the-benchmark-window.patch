@@ -1,0 +1,73 @@
+Use consecutive admitted engine presents inside the existing benchmark bounds; report unknown clocks and keep all long intervals in the denominator.
+
+diff --git a/ios/rb_benchmark.m b/ios/rb_benchmark.m
+--- a/ios/rb_benchmark.m
++++ b/ios/rb_benchmark.m
+@@ -20,6 +20,7 @@
+ #include "s2a_docs.h"
+ #include "s2a_session.h"
+ #include "rb_benchmark.h"
++#include "../runtime/include/rb_longframe.h"
+ 
+ extern int s2a_rb_guest_session_over(void);
+ 
+@@ -62,6 +63,8 @@
+     uint64_t registered, completed, pending, discarded, outside, overflow, clock_errors;
+     uint64_t *frame, *display;
+     size_t frame_n, display_n;
++    uint64_t lf_count[RB_LF_PHASES], lf_ns[RB_LF_PHASES], lf_unknown_clock;
++    int lf_observed;
+     uint64_t mode_ns[2][4], mode_at_ns, thermal_ns[5], thermal_at_ns;
+     int last_game_mode, last_sent_mode, thermal, state, partial, closing_sample_claimed, prepare_cancelled;
+     unsigned engine_generation;
+@@ -165,11 +168,21 @@
+     }
+ }
+ uint64_t s2a_rb_bench_generation(void) { return atomic_load_explicit(&g_rb_active, memory_order_relaxed); }
+-void s2a_rb_bench_frame(uint64_t t, int game_interval, uint64_t sent_period_ns) {
++void s2a_rb_bench_longframe(uint64_t t, int game_interval, uint64_t sent_period_ns,const struct rb_lf_sample *sample) {
+     uint64_t generation = s2a_rb_bench_generation();
+     if (!generation) return;
+     pthread_mutex_lock(&g_rb_lock);
+     if (g_rb.state == RB_RUNNING && g_rb.generation == generation && t >= g_rb.start_ns && t < g_rb.deadline_ns) {
++        if (sample) {
++            g_rb.lf_observed=1;
++            uint64_t begin=g_rb.frame_n ? g_rb.frame[g_rb.frame_n-1] : t;
++            if (t>=begin && t-begin>=50000000ull) {
++                int valid=sample->valid && sample->begin==begin && sample->cause<RB_LF_PHASES;
++                unsigned cause=valid ? sample->cause : RB_OTHER;
++                ++g_rb.lf_count[cause]; g_rb.lf_ns[cause]+=t-begin;
++                if (!valid) ++g_rb.lf_unknown_clock;
++            }
++        }
+         if (g_rb.frame_n && t < g_rb.frame[g_rb.frame_n - 1]) g_rb.clock_errors++;
+         if (g_rb.frame_n < RB_STAMPS) g_rb.frame[g_rb.frame_n++] = t; else g_rb.overflow++;
+         rb_modes_until_locked(t);
+@@ -179,6 +192,9 @@
+         g_rb.last_sent_mode = d60 <= 1000 ? 0 : d30 <= 1000 ? 1 : 2;
+     }
+     pthread_mutex_unlock(&g_rb_lock);
++}
++void s2a_rb_bench_frame(uint64_t t, int game_interval, uint64_t sent_period_ns) {
++    s2a_rb_bench_longframe(t,game_interval,sent_period_ns,NULL);
+ }
+ uint64_t s2a_rb_bench_present_begin(void) {
+     uint64_t generation = s2a_rb_bench_generation();
+@@ -668,6 +684,17 @@
+         @"memory":@{@"start":rb_memory(&run.base),@"end":rb_memory(&last)},
+         @"protocol_hash":@(hex), @"comparison_policy":@"same protocol and initial conditions; no comparison with runs missing this schema",
+         @"report_path":NSNull.null} mutableCopy];
++    if (run.lf_observed) {
++        NSArray *names=@[@"unknown",@"guest_sync",@"guest_code_prepare",@"submit",@"display_wait",@"submit_lock",@"write_fault"];
++        NSMutableDictionary *rows=[NSMutableDictionary dictionary];
++        uint64_t total=0;
++        for (unsigned k=0;k<RB_LF_PHASES;++k) {
++            total+=run.lf_count[k];
++            rows[names[k]]=@{@"frames":@(run.lf_count[k]),@"whole_frame_ns":@(run.lf_ns[k])};
++        }
++        summary[@"longframes_50ms"]=@{@"classes":rows,@"frames":@(total),@"missing_presenter":@(run.lf_unknown_clock),
++            @"unknown_fraction":total ? @((double)run.lf_count[RB_OTHER]/total) : (id)NSNull.null};
++    }
+     char docs[4096]; int dn = s2a_container_docs(docs,sizeof docs);
+     if (pipeline) summary[@"pipeline_display"]=pipeline;
+     if (storage) {

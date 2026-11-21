@@ -1,0 +1,279 @@
+Grow the reserve on late production or process page-ins, crossfade from the last PCM frame and exclude concealment from guest playback credit. Keep system interruption and failed-device handling.
+
+diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+--- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
++++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+@@ -29,6 +29,40 @@
+             Environment.GetEnvironmentVariable("S2A_RB_HEAP_TRIM") != "0";
+         private readonly long[] _handbacks = Guard ? new long[NumBuffers] : null;
+         private long _processingReturn;
++        private int _guardMs;
++        private long _producerTicks, _producerPeriod, _lastRisk, _nextPad;
++        private ulong _lastPageins;
++        private bool _pageBaseline;
++        [StructLayout(LayoutKind.Sequential)]
++        private struct UsageV0
++        {
++            public ulong Uuid0, Uuid1, User, System, IdleWakes, InterruptWakes, Pageins;
++            public ulong Wired, Resident, Footprint, Start, Exit;
++        }
++        [DllImport("libSystem.B.dylib", EntryPoint = "proc_pid_rusage")]
++        private static extern int ReadUsage(int pid, int flavor, out UsageV0 usage);
++        private void ObservePages(long now)
++        {
++            bool ok = ReadUsage(Environment.ProcessId, 0, out UsageV0 u) == 0;
++            if (ok && _pageBaseline && u.Pageins > _lastPageins && u.Pageins - _lastPageins >= 64)
++                Volatile.Write(ref _lastRisk, now);
++            _pageBaseline = ok;
++            if (ok) _lastPageins = u.Pageins;
++        }
++        private void ServiceReserve(long now)
++        {
++            long last = Volatile.Read(ref _producerTicks), period = Volatile.Read(ref _producerPeriod);
++            if (last == 0 || period <= 0 || now < last || now-last > Stopwatch.Frequency/5) return;
++            if (now-last > period + Stopwatch.Frequency/200) Volatile.Write(ref _lastRisk,now);
++            long risk = Volatile.Read(ref _lastRisk);
++            if (risk == 0 || now-risk > 2*Stopwatch.Frequency) { _guardMs=0; return; }
++            if (now < _nextPad) return;
++            int targetMs = _guardMs == 0 ? 4 : _guardMs;
++            int frames = _pump.GuardReserve(targetMs);
++            if (frames == 0) return;
++            _nextPad = now + Math.Max(1, frames*Stopwatch.Frequency/RequestedSampleRate);
++            _guardMs = Math.Min(16,targetMs + 4);
++        }
+         private readonly bool[] _wired = Guard ? new bool[NumBuffers] : null;
+         [DllImport("libSystem.B.dylib", EntryPoint = "mlock", SetLastError = true)]
+         private static extern int Wire(nint pointer, nuint bytes);
+@@ -317,6 +351,7 @@
+         // 兜底：开着播、在途有数据，设备却超过 StallMs 不回调。每次触发都打【红】，带上最近一条系统通知，免得悄悄盖住别的毛病
+         private void S2ACheckStall(long now)
+         {
++            if (Guard && _started && _queueRunning) ObservePages(now);
+             int zero = Interlocked.Exchange(ref _zeroReturns, 0);
+             long returned = Interlocked.Exchange(ref _returnedBytes, 0), elapsed = now - _timelineTicks;
+ 
+@@ -331,6 +366,12 @@
+ 
+             if (_timeline.Tick(zero, returned, elapsed) && now - _lastHealTicks >= (long)HealBackoffMs * Stopwatch.Frequency / 1000)
+             {
++                if (Guard)
++                {
++                    Volatile.Write(ref _lastRisk,now);
++                    WakePacer();
++                    return;
++                }
+                 S2ARecover($"队列时间轴跑到声音前面（这 {elapsed * 1000 / Stopwatch.Frequency} ms 交还 {returned / _bytesPerFrame} 帧、{zero} 次交还后在途为 0：欠载后交的缓冲排在已过去的时刻，没播就交还）",
+                            false, now, false, reprime: _reprimeTimeline);
+ 
+@@ -421,6 +462,7 @@
+                 //   原先它们照交，收回又把队列仍持有的缓冲放回池里、这里再交一次 = 同一块缓冲入队两次。停失败（缓冲可能还在队列里）不收回
+                 int reclaimed = _pump.Restart(() =>
+                 {
++                    if (Guard) S2ABenchmarkAudio.RestartAttempt();
+                     stopRc = AudioQueueStop(_audioQueue, true);
+                     if (Guard && stopRc == 0) Array.Clear(_handbacks);
+ 
+@@ -567,6 +609,69 @@
+         private sealed unsafe class Pump : DeviceBufferPump
+         {
+             private readonly AppleHardwareDeviceSession _s;
++            private readonly byte[] _tail;
++            private bool _padding, _afterPad;
++            private int _fadeInDone;
++            public int GuardReserve(int milliseconds) =>
++                FillGuardReserve((int)(_s.RequestedSampleRate * milliseconds / 1000) * _s._bytesPerFrame) / _s._bytesPerFrame;
++            protected override void GuardSubmit(int slot, int bytes)
++            {
++                _padding=true;
++                try { SubmitGuardSlot(slot,bytes); }
++                finally { _padding=false; }
++            }
++            private void ScaleFrame(Span<byte> frame, float gain)
++            {
++                switch (_s.RequestedSampleFormat)
++                {
++                    case SampleFormat.PcmInt8:
++                        var i8=MemoryMarshal.Cast<byte,sbyte>(frame);
++                        for (int i=0;i<i8.Length;i++) i8[i]=(sbyte)(i8[i]*gain);
++                        break;
++                    case SampleFormat.PcmInt16:
++                        var i16=MemoryMarshal.Cast<byte,short>(frame);
++                        for (int i=0;i<i16.Length;i++) i16[i]=(short)(i16[i]*gain);
++                        break;
++                    case SampleFormat.PcmInt32:
++                        var i32=MemoryMarshal.Cast<byte,int>(frame);
++                        for (int i=0;i<i32.Length;i++) i32[i]=(int)(i32[i]*(double)gain);
++                        break;
++                    case SampleFormat.PcmFloat:
++                        var floats=MemoryMarshal.Cast<byte,float>(frame);
++                        for (int i=0;i<floats.Length;i++) floats[i]*=gain;
++                        break;
++                }
++            }
++            private void Fade(Span<byte> pcm)
++            {
++                int size=_s._bytesPerFrame, frames=pcm.Length/size;
++                int fade=Math.Max(1,(int)_s.RequestedSampleRate/500);
++                if (_padding)
++                {
++                    if (!_afterPad)
++                    {
++                        int n=Math.Min(fade,frames);
++                        for (int i=0;i<n;i++)
++                        {
++                            Span<byte> frame=pcm.Slice(i*size,size);
++                            _tail.AsSpan().CopyTo(frame);
++                            ScaleFrame(frame,1f-(i+1f)/n);
++                        }
++                    }
++                    _afterPad=true; _fadeInDone=0;
++                    S2ABenchmarkAudio.Conceal(frames,(int)_s.RequestedSampleRate);
++                }
++                else
++                {
++                    if (_afterPad)
++                    {
++                        for (int i=0;i<frames && _fadeInDone<fade;i++)
++                            ScaleFrame(pcm.Slice(i*size,size),++_fadeInDone/(float)fade);
++                        _afterPad=_fadeInDone<fade;
++                    }
++                    pcm[^size..].CopyTo(_tail);
++                }
++            }
+ 
+             public Pump(AppleHardwareDeviceSession s, int bufferBytes)
+                 // S2Arm (10-22 杂音): 起播前预充 PrimeMilliseconds 的在途下限（约 3 个游戏缓冲），凑够才让设备开播
+@@ -574,6 +679,7 @@
+                        (long)s._bytesPerFrame * s.RequestedSampleRate * PrimeMilliseconds / 1000)
+             {
+                 _s = s;
++                _tail = Guard ? new byte[s._bytesPerFrame] : null;
+             }
+ 
+             // S2Arm (11-03 太鼓 iPhone 断续): 不取设备播放时钟（DeviceClock 留缺省 MinValue：补垫不补）。11-02 太鼓爆音修复在每次交还时调
+@@ -594,6 +700,7 @@
+                 nint bufferPtr = _s._audioQueueBuffers[slot];
+                 AudioQueueBuffer* buffer = (AudioQueueBuffer*)bufferPtr;
+ 
++                if (Guard && bytes >= _s._bytesPerFrame) Fade(new Span<byte>((void*)buffer->AudioData,bytes));
+                 _s.ApplyVolume(buffer->AudioData, bytes);
+                 buffer->AudioDataByteSize = (uint)bytes;
+                 _s._diag.OnSubmit(new ReadOnlySpan<byte>((void*)buffer->AudioData, bytes), InFlightBytes - bytes);
+@@ -695,6 +802,7 @@
+                     _processingReturn = 0;
+                     returned = true;
+                 }
++                if (_started && _queueRunning) ServiceReserve(Stopwatch.GetTimestamp());
+                 if (returned)
+                 {
+                     _diag.SetLead(_credit.LeadBytes / _bytesPerFrame);
+@@ -719,6 +827,15 @@
+ 
+                 if (Guard && ticks > 0)
+                 {
++                    long last = Volatile.Read(ref _producerTicks);
++                    long period = Volatile.Read(ref _producerPeriod);
++                    long now = Stopwatch.GetTimestamp();
++                    if (_started && _queueRunning && last>0 && now>=last && now-last<Stopwatch.Frequency/5)
++                    {
++                        long due = last+period+Stopwatch.Frequency/200-now;
++                        if (due<=0) due=Math.Max(Stopwatch.Frequency/250,_nextPad-now);
++                        ticks=Math.Min(ticks,due);
++                    }
+                     GuardWait(ticks);
+                 }
+                 else if (ticks == long.MaxValue)
+@@ -844,6 +961,11 @@
+             }
+ 
+             _samples.Enqueue(buffer);
++            if (Guard && sampleCount > 0)
++            {
++                Volatile.Write(ref _producerPeriod,(long)(sampleCount*(ulong)Stopwatch.Frequency/RequestedSampleRate));
++                Volatile.Write(ref _producerTicks,Stopwatch.GetTimestamp());
++            }
+ 
+             if (_started)
+             {
+@@ -951,6 +1073,11 @@
+                     return;
+ 
+                 _started = false;
++                if (Guard)
++                {
++                    _guardMs=0; _lastRisk=0; _nextPad=0; _producerTicks=0;
++                    _pageBaseline=false;
++                }
+                 _recoveringTimeline = false;
+                 _diag.SetStarted(false);
+                 AudioQueuePause(_audioQueue);
+diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs
+--- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs
++++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs
+@@ -15,6 +15,9 @@
+         private static int _active;
+         private static long _gapUs, _underruns, _pauses, _lateBursts;
+         private static long _callbacks, _submitted, _played, _gap100, _gap200, _gap500, _lastCallbackNs;
++        private static long _concealedUs, _restartAttempts;
++        internal static void Conceal(int frames,int rate) { if (Active) Interlocked.Add(ref _concealedUs, frames*1000000L/rate); }
++        internal static void RestartAttempt() { if (Active) Interlocked.Increment(ref _restartAttempts); }
+         internal static bool Active => Volatile.Read(ref _active) != 0;
+ 
+         public static void SetActive(int active)
+@@ -53,6 +56,12 @@
+         {
+             if (values.Length < 24 || !Enabled) return;
+             values[0] |= 2 | 4;
++            if (AppleHardwareDeviceSession.Guard)
++            {
++                values[0] |= 8;
++                values[22]=(ulong)Volatile.Read(ref _concealedUs);
++                values[23]=(ulong)Volatile.Read(ref _restartAttempts);
++            }
+             values[6] = (ulong)Volatile.Read(ref _gapUs);
+             values[7] = (ulong)Volatile.Read(ref _underruns);
+             values[8] = (ulong)Volatile.Read(ref _pauses);
+diff --git a/compat/tree/src/Ryujinx.Audio/Backends/Common/DeviceBufferPump.cs b/compat/tree/src/Ryujinx.Audio/Backends/Common/DeviceBufferPump.cs
+--- a/compat/tree/src/Ryujinx.Audio/Backends/Common/DeviceBufferPump.cs
++++ b/compat/tree/src/Ryujinx.Audio/Backends/Common/DeviceBufferPump.cs
+@@ -237,6 +237,29 @@
+         /// S2Arm: start the device anyway (prime floor could not be reached, e.g. a quiet game): latch primed so the
+         /// caller's start gate opens. Only raises; never lowers.
+         /// </summary>
++        // Runs on the pacing worker. The target bounds all queued synthetic PCM.
++        // Return its slot through the regular pump but never credit it as guest audio.
++        protected int FillGuardReserve(int targetBytes)
++        {
++            lock (_lock)
++            {
++                if (_suspended || _primed == 0 || _freeCount <= 1 || Samples.Length != 0 ||
++                    _inFlightBytes > targetBytes / 2) return 0;
++                int bytes = (int)Math.Min(_slotBytes, targetBytes - _inFlightBytes) / _bytesPerFrame * _bytesPerFrame;
++                if (bytes <= 0) return 0;
++                int slot = _free[--_freeCount];
++                SlotData(slot)[..bytes].Clear();
++                _filled[slot] = bytes;
++                _sampleBytes[slot] = 0;
++                Interlocked.Add(ref _inFlightBytes, bytes);
++                GuardSubmit(slot, bytes);
++                return bytes;
++            }
++        }
++
++        protected virtual void GuardSubmit(int slot, int bytes) => SubmitLocked(slot, bytes);
++        protected void SubmitGuardSlot(int slot, int bytes) => SubmitLocked(slot, bytes);
++
+         public void ForcePrimed()
+         {
+             Volatile.Write(ref _primed, 1);
+diff --git a/ios/rb_benchmark.m b/ios/rb_benchmark.m
+--- a/ios/rb_benchmark.m
++++ b/ios/rb_benchmark.m
+@@ -352,6 +352,7 @@
+              @"callback_gaps_gt100":seen ? rb_managed_delta(a,b,RB_BM_HAS_AUDIO,RB_BM_AUDIO_GAP_GT100) : NSNull.null,
+              @"callback_gaps_gt200":seen ? rb_managed_delta(a,b,RB_BM_HAS_AUDIO,RB_BM_AUDIO_GAP_GT200) : NSNull.null,
+              @"callback_gaps_gt500":seen ? rb_managed_delta(a,b,RB_BM_HAS_AUDIO,RB_BM_AUDIO_GAP_GT500) : NSNull.null,
++             @"guard_concealed_us":rb_managed_delta(a,b,8,22), @"guard_queue_restart_attempts":rb_managed_delta(a,b,8,23),
+              @"active_outputs":rb_value(valid,b->managed[RB_BM_AUDIO_ACTIVE_OUTPUTS]),
+              @"registry_overflow":rb_value(valid,b->managed[RB_BM_AUDIO_REGISTRY_OVERFLOW]),
+              @"last_callback_age_ms":seen && age_known && b->managed[RB_BM_AUDIO_ACTIVE_OUTPUTS] && b->at_ns >= since ? @((b->at_ns - since) / 1e6) : NSNull.null};

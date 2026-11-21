@@ -1,0 +1,245 @@
+Publish a preallocated timestamp per hardware slot. Account at the original callback time, reclaim in timestamp order, and invalidate stopped-queue handbacks before slot reuse.
+
+diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+--- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
++++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+@@ -19,6 +19,40 @@
+         // 3 buffers of 10 ms refilled only from the device callback. 50 ms holds a whole game buffer (witcher3 audout: 1024 frames =
+         // 21.3 ms; at 20 ms each one went out as 960 + 64 frames, two hand-backs per buffer)
+         private const int NumBuffers = 32;
++        internal static readonly bool Guard = OperatingSystem.IsIOS() &&
++            Environment.GetEnvironmentVariable("S2A_RB_AUDIO_GUARD") != "0" &&
++            Environment.GetEnvironmentVariable("S2A_RB_LONGFRAME") != "0" &&
++            Environment.GetEnvironmentVariable("S2A_RB_MEM_GOV") != "0" &&
++            Environment.GetEnvironmentVariable("S2A_RB_PREFETCH_ADAPT") != "0" &&
++            Environment.GetEnvironmentVariable("S2A_RB_TEX_BUDGET") != "0" &&
++            Environment.GetEnvironmentVariable("S2A_RB_PSO_CAP") != "0" &&
++            Environment.GetEnvironmentVariable("S2A_RB_HEAP_TRIM") != "0";
++        private readonly long[] _handbacks = Guard ? new long[NumBuffers] : null;
++        private long _processingReturn;
++        // Only synchronous AudioQueue disposal can retire the callback's semaphore.
++        [DllImport("libSystem.B.dylib")] private static extern nint dispatch_semaphore_create(nint value);
++        [DllImport("libSystem.B.dylib")] private static extern nint dispatch_semaphore_signal(nint semaphore);
++        [DllImport("libSystem.B.dylib")] private static extern nint dispatch_semaphore_wait(nint semaphore, ulong timeout);
++        [DllImport("libSystem.B.dylib")] private static extern ulong dispatch_time(ulong start, long nanoDelta);
++        [DllImport("libSystem.B.dylib")] private static extern void dispatch_release(nint obj);
++        private nint _guardWake;
++        private int _wakePending;
++        private void SignalGuard()
++        {
++            if (Interlocked.Exchange(ref _wakePending,1)==0) dispatch_semaphore_signal(_guardWake);
++        }
++        private void WakePacer()
++        {
++            if (!Guard) { _paceEvent.Set(); return; }
++            lock (_lock) { if (_guardWake!=0) SignalGuard(); }
++        }
++        private void GuardWait(long ticks)
++        {
++            ulong deadline = ticks==long.MaxValue ? ulong.MaxValue :
++                dispatch_time(0,(long)(Math.Min(ticks,Stopwatch.Frequency)*(1e9/Stopwatch.Frequency)));
++            if (dispatch_semaphore_wait(_guardWake,deadline)==0) Interlocked.Exchange(ref _wakePending,0);
++        }
++
+         private const int BufferMilliseconds = 50;
+         // S2Arm (10-22 杂音): 起播前预充的在途下限（毫秒，约 3 个游戏缓冲 21.3 ms）。凑够才让设备开播，一开声就有深度；
+         // 安静游戏凑不够时 StartFallbackMilliseconds 后照常开播。
+@@ -128,9 +162,27 @@
+             _bytesPerFrame = BackendHelper.GetSampleSize(requestedSampleFormat) * (int)requestedChannelCount;
+             _diag = S2AOutputDiag.Create(_bytesPerFrame, (int)requestedChannelCount, (int)requestedSampleRate, BackendHelper.GetSampleSize(requestedSampleFormat) * 8);
+ 
++            if (Guard)
++            {
++                _guardWake=dispatch_semaphore_create(0);
++                if (_guardWake==0) throw new OutOfMemoryException();
++            }
+             _gcHandle = GCHandle.Alloc(this, GCHandleType.Normal);
+ 
+-            SetupAudioQueue();
++            if (Guard)
++            {
++                try { SetupAudioQueue(); }
++                catch
++                {
++                    if (_audioQueue==0)
++                    {
++                        _gcHandle.Free();
++                        dispatch_release(_guardWake); _guardWake=0;
++                    }
++                    throw;
++                }
++            }
++            else SetupAudioQueue();
+             S2AWatch(this, true);
+             new Thread(PaceLoop) { IsBackground = true, Name = "S2A.AudioPace" }.Start();
+         }
+@@ -354,6 +406,7 @@
+                 int reclaimed = _pump.Restart(() =>
+                 {
+                     stopRc = AudioQueueStop(_audioQueue, true);
++                    if (Guard && stopRc == 0) Array.Clear(_handbacks);
+ 
+                     if (!rebuild)
+                     {
+@@ -363,6 +416,7 @@
+                     int disposed = AudioQueueDispose(_audioQueue, true);
+                     if (disposed == 0) ForgetQueueCapacity();
+                     else _queueCapacity = 0; // previous queue is no longer reachable, bytes still outstanding
++                    if (Guard && disposed == 0) Array.Clear(_handbacks);
+                     newRc = CreateQueue();
+ 
+                     return 0;   // 旧队列连同它的缓冲已销毁：在途的槽全部收回
+@@ -513,7 +567,7 @@
+ 
+             protected override void OnReturned(int bytes, long inFlightAfter)
+             {
+-                _s._diag.OnReturned(bytes, inFlightAfter);
++                _s._diag.OnReturned(bytes, inFlightAfter, _s._processingReturn);
+                 Interlocked.Add(ref _s._returnedBytes, bytes);
+ 
+                 if (inFlightAfter == 0)
+@@ -529,6 +583,20 @@
+ 
+         private void OutputCallback(nint userData, nint audioQueue, nint bufferPtr)
+         {
++            if (Guard)
++            {
++                long stamp = Stopwatch.GetTimestamp();
++                if (bufferPtr == 0 || audioQueue != Volatile.Read(ref _audioQueue)) return;
++                for (int i = 0; i < NumBuffers; i++)
++                {
++                    if (Volatile.Read(ref _audioQueueBuffers[i]) != bufferPtr) continue;
++                    Volatile.Write(ref _lastCallbackTicks, stamp);
++                    Interlocked.Exchange(ref _handbacks[i], stamp);
++                    SignalGuard();
++                    break;
++                }
++                return;
++            }
+             Ryujinx.Common.S2AThreadAlloc.Tick("CoreAudio 回调"); // S2Arm: per-thread allocation accounting
+             Volatile.Write(ref _lastCallbackTicks, Stopwatch.GetTimestamp()); // S2Arm: 停播看门狗（S2ACheckStall）
+ 
+@@ -567,10 +635,42 @@
+ 
+         // S2Arm (11-02 Pokopia iPhone 杂音): sleep until the head buffer is due (its unplayed rest passed by the play head), release it,
+         //   repeat; with nothing queued, or the head beyond the cap, wait for a hand-back or a new buffer
++        // The queue owns one device slot until its callback. The consumer clears the
++        // mailbox before recycling the slot; order by actual callback time, not slot.
++        private void DrainHandbacks()
++        {
++            lock (_lock)
++            {
++                if (_disposed || _audioQueue == 0) return;
++                bool returned = false;
++                for (int n = 0; n < NumBuffers; n++)
++                {
++                    int oldest = -1;
++                    long first = long.MaxValue;
++                    for (int i = 0; i < NumBuffers; i++)
++                    {
++                        long stamp = Volatile.Read(ref _handbacks[i]);
++                        if (stamp > 0 && stamp < first) { oldest = i; first = stamp; }
++                    }
++                    if (oldest < 0) break;
++                    _processingReturn = Interlocked.Exchange(ref _handbacks[oldest], 0);
++                    int played = _pump.Returned(oldest);
++                    _credit.Returned(played, _processingReturn);
++                    _processingReturn = 0;
++                    returned = true;
++                }
++                if (returned)
++                {
++                    _diag.SetLead(_credit.LeadBytes / _bytesPerFrame);
++                    if (_started) _pump.Pump();
++                }
++            }
++        }
+         private void PaceLoop()
+         {
+             while (!Volatile.Read(ref _disposed))
+             {
++                if (Guard) DrainHandbacks();
+                 S2ACredit();
+ 
+                 long rest;
+@@ -581,7 +681,11 @@
+ 
+                 long ticks = rest < 0 ? long.MaxValue : _credit.TicksUntil(rest, _pump.SubmittedSampleBytes, Stopwatch.GetTimestamp());
+ 
+-                if (ticks == long.MaxValue)
++                if (Guard && ticks > 0)
++                {
++                    GuardWait(ticks);
++                }
++                else if (ticks == long.MaxValue)
+                 {
+                     _paceEvent.WaitOne();
+                 }
+@@ -589,6 +693,15 @@
+                 {
+                     _paceEvent.WaitOne((int)Math.Min(1000, (ticks * 1000 + Stopwatch.Frequency - 1) / Stopwatch.Frequency));
+                 }
++            }
++            if (Guard) RetireGuardWake();
++        }
++
++        private void RetireGuardWake()
++        {
++            lock (_lock)
++            {
++                if (_guardWake != 0) { dispatch_release(_guardWake); _guardWake=0; }
+             }
+         }
+ 
+@@ -700,7 +813,7 @@
+             {
+                 _pump.Pump();
+                 S2ACredit();
+-                _paceEvent.Set();
++                WakePacer();
+                 // S2Arm (10-22 杂音): 预充期排进设备但未启播——凑够下限的这一笔到了就开播
+                 if (!_queueRunning)
+                 {
+@@ -720,6 +833,7 @@
+                     return;
+ 
+                 _started = true;
++                if (Guard) WakePacer();
+                 _diag.SetStarted(true);
+                 _startTicks = Stopwatch.GetTimestamp();
+                 _pump.Pump();
+@@ -855,7 +969,7 @@
+                     _diag.Dispose();
+                     _driver.Unregister(this);
+                     Volatile.Write(ref _disposed, true);
+-                    _paceEvent.Set();
++                    WakePacer();
+                 }
+             }
+         }
+diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs
+--- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs
++++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs
+@@ -413,9 +413,9 @@
+         /// <summary>
+         /// The device handed back a buffer of <paramref name="bytes"/>; <paramref name="inFlightAfter"/> bytes are still in flight.
+         /// </summary>
+-        public void OnReturned(int bytes, long inFlightAfter)
+-        {
+-            long now = Stopwatch.GetTimestamp();
++        public void OnReturned(int bytes, long inFlightAfter, long callbackTicks = 0)
++        {
++            long now = callbackTicks != 0 ? callbackTicks : Stopwatch.GetTimestamp();
+ 
+             long gapTicks = _lastCallbackTicks == 0 ? 0 : now - _lastCallbackTicks;
+ 
+@@ -461,7 +461,8 @@
+             }
+             _framesPlayed += bytes / _bytesPerFrame;
+             if (S2ABenchmarkAudio.Active)
+-                S2ABenchmarkAudio.Returned(bytes / _bytesPerFrame, gapTicks, MachUs() * 1000);
++                S2ABenchmarkAudio.Returned(bytes / _bytesPerFrame, gapTicks,
++                    MachUs() * 1000 - (callbackTicks == 0 ? 0 : (long)((Stopwatch.GetTimestamp() - callbackTicks) * (1e9 / Stopwatch.Frequency))));
+ 
+             if (_started && bytes > 0)
+             {

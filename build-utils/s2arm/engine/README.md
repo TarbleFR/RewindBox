@@ -315,3 +315,17 @@ The [806 delivery receipt](../../../docs/evidence/rewind806/delivery.json) recor
 | 0197 | Require independent evidence of a natural read of the page before crediting it. Retire observations when a guest pool is finalized. Report unconfirmed reads, censored samples and the reason each source stopped. |
 
 `S2A_RB_POOL_AHEAD=0` still disables only neighbour lookahead. `S2A_RB_PREFETCH_ADAPT=0` restores the 803 execution paths for the candidate at launch. [Counter definitions, evidence and device criteria](../../../docs/evidence/s2arm-fluidity-803/implementation-status.md#rendement-de-la-lecture-anticipée).
+
+### Long-frame attribution and audio output, 0198–0203
+
+| Patch | Measurement or behaviour |
+| --- | --- |
+| 0198 | Partitions each engine interval of at least 50 ms on the presenting thread. Measures guest synchronization calls, runtime preparation of pretranslated code, command submission, display waits, submission lock contention and handled write faults. Reports residual elapsed time, unavailable kernel fault time and process page-ins. |
+| 0199 | Counts consecutive submitted frame intervals within the existing benchmark boundaries. A class needs over half of the frame. Unobserved, mixed and migrating-presenter intervals stay in the denominator. Reports count and whole-frame duration by class. |
+| 0200 | Core Audio handback records the time and slot and signals a preallocated Darwin semaphore. The existing pacing thread recycles buffers, advances guest credit and runs diagnostics. |
+| 0201 | Requests residency for each actual device PCM buffer and reports accepted versus requested bytes. Releases residency at queue replacement or teardown. |
+| 0202 | Adapts the reserve after late production or process page-ins, up to 16 ms of synthetic audio outstanding. Uses a two-millisecond per-channel fade. Guest playback credit excludes synthetic samples. The timeline starvation path requests reserve. System interruption, reset and stopped-device recovery remain active. |
+
+Patch 0203 adds `exclusive_ns` over every long interval, including mixed frames. Launch with `S2A_RB_LONGFRAME_REFERENCE=1` for identical timing on the 803 performance policies.
+
+A launch with either `S2A_RB_LONGFRAME=0` or `S2A_RB_AUDIO_GUARD=0` selects the 803 comparison paths. Private benchmark samples distinguish concealed audio from audible gap estimates and count attempted recovery stops. The observed iPhone output latency and the dominant cause in 803 remain open.

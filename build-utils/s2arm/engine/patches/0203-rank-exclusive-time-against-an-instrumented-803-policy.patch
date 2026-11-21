@@ -1,0 +1,148 @@
+Keep long-frame measurement while explicitly selecting the 803 performance policies for diagnosis. Include exclusive durations of mixed and unclassified frames in ranking.
+
+diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+--- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
++++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs
+@@ -19,7 +19,11 @@
+         // 3 buffers of 10 ms refilled only from the device callback. 50 ms holds a whole game buffer (witcher3 audout: 1024 frames =
+         // 21.3 ms; at 20 ms each one went out as 960 + 64 frames, two hand-backs per buffer)
+         private const int NumBuffers = 32;
+-        internal static readonly bool Guard = OperatingSystem.IsIOS() &&
++        internal static readonly bool Reference = OperatingSystem.IsIOS() &&
++            Environment.GetEnvironmentVariable("S2A_RB_LONGFRAME_REFERENCE") == "1" &&
++            Environment.GetEnvironmentVariable("S2A_RB_LONGFRAME") != "0" &&
++            Environment.GetEnvironmentVariable("S2A_RB_AUDIO_GUARD") != "0";
++        internal static readonly bool Guard = !Reference && OperatingSystem.IsIOS() &&
+             Environment.GetEnvironmentVariable("S2A_RB_AUDIO_GUARD") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_LONGFRAME") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_MEM_GOV") != "0" &&
+@@ -462,7 +466,7 @@
+                 //   原先它们照交，收回又把队列仍持有的缓冲放回池里、这里再交一次 = 同一块缓冲入队两次。停失败（缓冲可能还在队列里）不收回
+                 int reclaimed = _pump.Restart(() =>
+                 {
+-                    if (Guard) S2ABenchmarkAudio.RestartAttempt();
++                    if (Guard || Reference) S2ABenchmarkAudio.RestartAttempt();
+                     stopRc = AudioQueueStop(_audioQueue, true);
+                     if (Guard && stopRc == 0) Array.Clear(_handbacks);
+ 
+@@ -542,7 +546,7 @@
+         }
+ 
+         private static readonly bool MeasureHeap =
+-            OperatingSystem.IsIOS() && Environment.GetEnvironmentVariable("S2A_RB_AUDIO_GUARD") != "0" &&
++            !Reference && OperatingSystem.IsIOS() && Environment.GetEnvironmentVariable("S2A_RB_AUDIO_GUARD") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_LONGFRAME") != "0" && Environment.GetEnvironmentVariable("S2A_RB_PREFETCH_ADAPT") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_MEM_GOV") != "0" &&
+             Environment.GetEnvironmentVariable("S2A_RB_TEX_BUDGET") != "0" &&
+diff --git a/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs b/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs
+--- a/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs
++++ b/compat/tree/src/Ryujinx.Audio.Backends.Apple/S2AOutputDiag.cs
+@@ -56,7 +56,7 @@
+         {
+             if (values.Length < 24 || !Enabled) return;
+             values[0] |= 2 | 4;
+-            if (AppleHardwareDeviceSession.Guard)
++            if (AppleHardwareDeviceSession.Guard || AppleHardwareDeviceSession.Reference)
+             {
+                 values[0] |= 8;
+                 values[22]=(ulong)Volatile.Read(ref _concealedUs);
+diff --git a/ios/rb_benchmark.m b/ios/rb_benchmark.m
+--- a/ios/rb_benchmark.m
++++ b/ios/rb_benchmark.m
+@@ -21,6 +21,7 @@
+ #include "s2a_session.h"
+ #include "rb_benchmark.h"
+ #include "../runtime/include/rb_longframe.h"
++#include "../runtime/include/rb_heap.h"
+ 
+ extern int s2a_rb_guest_session_over(void);
+ 
+@@ -63,7 +64,7 @@
+     uint64_t registered, completed, pending, discarded, outside, overflow, clock_errors;
+     uint64_t *frame, *display;
+     size_t frame_n, display_n;
+-    uint64_t lf_count[RB_LF_PHASES], lf_ns[RB_LF_PHASES], lf_unknown_clock;
++    uint64_t lf_count[RB_LF_PHASES], lf_ns[RB_LF_PHASES], exclusive_ns[RB_LF_PHASES], lf_unknown_clock;
+     int lf_observed;
+     uint64_t mode_ns[2][4], mode_at_ns, thermal_ns[5], thermal_at_ns;
+     int last_game_mode, last_sent_mode, thermal, state, partial, closing_sample_claimed, prepare_cancelled;
+@@ -180,7 +181,12 @@
+                 int valid=sample->valid && sample->begin==begin && sample->cause<RB_LF_PHASES;
+                 unsigned cause=valid ? sample->cause : RB_OTHER;
+                 ++g_rb.lf_count[cause]; g_rb.lf_ns[cause]+=t-begin;
+-                if (!valid) ++g_rb.lf_unknown_clock;
++                if (valid) {
++                    for (unsigned k=0;k<RB_LF_PHASES;++k) g_rb.exclusive_ns[k]+=sample->ns[k];
++                } else {
++                    ++g_rb.lf_unknown_clock;
++                    g_rb.exclusive_ns[RB_OTHER]+=t-begin;
++                }
+             }
+         }
+         if (g_rb.frame_n && t < g_rb.frame[g_rb.frame_n - 1]) g_rb.clock_errors++;
+@@ -342,7 +348,7 @@
+     uint64_t last = b->managed[RB_BM_AUDIO_LAST_CALLBACK_NS];
+     uint64_t since = last >= a->at_ns ? last : a->at_ns;
+     int age_known = last > 0 || (valid && b->managed[RB_BM_AUDIO_CALLBACKS] == a->managed[RB_BM_AUDIO_CALLBACKS]);
+-    return @{@"observed_output":rb_bool(seen), @"gap_estimate_ms":gap == NSNull.null ? gap : @([gap doubleValue] / 1000.0),
++    NSDictionary *base=@{@"observed_output":rb_bool(seen), @"gap_estimate_ms":gap == NSNull.null ? gap : @([gap doubleValue] / 1000.0),
+              @"underruns":seen ? rb_managed_delta(a,b,RB_BM_HAS_AUDIO,RB_BM_AUDIO_UNDERRUNS) : NSNull.null,
+              @"pauses":seen ? rb_managed_delta(a,b,RB_BM_HAS_AUDIO,RB_BM_AUDIO_PAUSES) : NSNull.null,
+              @"late_bursts":seen ? rb_managed_delta(a,b,RB_BM_HAS_AUDIO,RB_BM_AUDIO_LATE_BURSTS) : NSNull.null,
+@@ -352,10 +358,14 @@
+              @"callback_gaps_gt100":seen ? rb_managed_delta(a,b,RB_BM_HAS_AUDIO,RB_BM_AUDIO_GAP_GT100) : NSNull.null,
+              @"callback_gaps_gt200":seen ? rb_managed_delta(a,b,RB_BM_HAS_AUDIO,RB_BM_AUDIO_GAP_GT200) : NSNull.null,
+              @"callback_gaps_gt500":seen ? rb_managed_delta(a,b,RB_BM_HAS_AUDIO,RB_BM_AUDIO_GAP_GT500) : NSNull.null,
+-             @"guard_concealed_us":rb_managed_delta(a,b,8,22), @"guard_queue_restart_attempts":rb_managed_delta(a,b,8,23),
+              @"active_outputs":rb_value(valid,b->managed[RB_BM_AUDIO_ACTIVE_OUTPUTS]),
+              @"registry_overflow":rb_value(valid,b->managed[RB_BM_AUDIO_REGISTRY_OVERFLOW]),
+              @"last_callback_age_ms":seen && age_known && b->managed[RB_BM_AUDIO_ACTIVE_OUTPUTS] && b->at_ns >= since ? @((b->at_ns - since) / 1e6) : NSNull.null};
++    if (!(a->managed[0] & b->managed[0] & 8)) return base;
++    NSMutableDictionary *observed=[base mutableCopy];
++    observed[@"guard_concealed_us"]=rb_managed_delta(a,b,8,22);
++    observed[@"guard_queue_restart_attempts"]=rb_managed_delta(a,b,8,23);
++    return observed;
+ }
+ static NSDictionary *rb_sample_row(const rb_sample *a, const rb_sample *b, uint64_t start, NSString *identifier) {
+     unsigned common = a->valid & b->valid;
+@@ -691,9 +701,9 @@
+         uint64_t total=0;
+         for (unsigned k=0;k<RB_LF_PHASES;++k) {
+             total+=run.lf_count[k];
+-            rows[names[k]]=@{@"frames":@(run.lf_count[k]),@"whole_frame_ns":@(run.lf_ns[k])};
++            rows[names[k]]=@{@"frames":@(run.lf_count[k]),@"whole_frame_ns":@(run.lf_ns[k]), @"exclusive_ns":@(run.exclusive_ns[k])};
+         }
+-        summary[@"longframes_50ms"]=@{@"classes":rows,@"frames":@(total),@"missing_presenter":@(run.lf_unknown_clock),
++        summary[@"longframes_50ms"]=@{@"policy":rb_lf_reference() ? @"803_instrumented" : @"candidate", @"classes":rows,@"frames":@(total),@"missing_presenter":@(run.lf_unknown_clock),
+             @"unknown_fraction":total ? @((double)run.lf_count[RB_OTHER]/total) : (id)NSNull.null};
+     }
+     char docs[4096]; int dn = s2a_container_docs(docs,sizeof docs);
+diff --git a/runtime/include/rb_heap.h b/runtime/include/rb_heap.h
+--- a/runtime/include/rb_heap.h
++++ b/runtime/include/rb_heap.h
+@@ -29,6 +29,16 @@
+     return 0;
+ #endif
+ }
++static inline int rb_lf_reference(void) {
++    static _Atomic int cache;
++    int value=atomic_load_explicit(&cache,memory_order_relaxed);
++    if (!value) {
++        const char *ref=getenv("S2A_RB_LONGFRAME_REFERENCE");
++        value=ref && !strcmp(ref,"1") && rb_808_on() ? 1 : -1;
++        atomic_store_explicit(&cache,value,memory_order_relaxed);
++    }
++    return value>0;
++}
+ // Process launch switches. Pointers stay in their original allocator and ABI.
+ static inline int rb_mem_gov_switch(void) {
+ #if defined(__APPLE__) && TARGET_OS_IOS
+@@ -37,7 +47,7 @@
+     if (!v) {
+         const char *env = getenv("S2A_RB_MEM_GOV");
+         const char *adapt = getenv("S2A_RB_PREFETCH_ADAPT");
+-        v = !rb_808_on() || (env && !strcmp(env, "0")) || (adapt && !strcmp(adapt, "0")) ? -1 : 1;
++        v = !rb_808_on() || rb_lf_reference() || (env && !strcmp(env, "0")) || (adapt && !strcmp(adapt, "0")) ? -1 : 1;
+         atomic_store_explicit(&mode, v, memory_order_relaxed);
+     }
+     return v > 0;
