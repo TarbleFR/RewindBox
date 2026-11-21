@@ -1,0 +1,50 @@
+{
+  "source": "ffae40e7a9aa55d9c05d81ab04f106c0b6c46797",
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "run": 44846193072,
+  "attempt": 1,
+  "xcode": "Xcode 26.6",
+  "jobs": [
+    {
+      "platform": "macos-26",
+      "id": 136666368339,
+      "result": "success"
+    },
+    {
+      "platform": "macos-15",
+      "id": 136666368453,
+      "result": "success"
+    }
+  ],
+  "patchesVerified": 205,
+  "first204UnchangedFrom808": true,
+  "patchDelta": [
+    {
+      "name": "0205-isolate-course-priority-for-two-circuit-benchmarking.patch",
+      "sha256": "d5621756b6033e8e974866f875ef8656adf1bd5083690b5e588b15a4171ccbca"
+    }
+  ],
+  "engineFingerprint": "d78ab9afd58e140c892bc22db6e16fca0384f459a20fdda12967617f0d2e8507",
+  "pinSha256": "585208b0f690b933e48bb2a3f2ddf64068011b1549ac1a582126d638b48bd5ae",
+  "artifact": {
+    "run": 44846193072,
+    "attempt": 1,
+    "artifact": 14682999290,
+    "name": "s2arm-engine-framework-ffae40e7a9aa55d9c05d81ab04f106c0b6c46797",
+    "bytes": 25070935,
+    "sha256": "1f2c6a511cb33796b5cbe4c989479fa2466e3a7136860efc30e5b0333cef0775",
+    "headSha": "ffae40e7a9aa55d9c05d81ab04f106c0b6c46797",
+    "headBranch": "Claude",
+    "expiresAt": "2026-12-21T01:02:12Z"
+  },
+  "prepareRun": 44555747908,
+  "sysdataRun": 43038032448,
+  "directShaderChain": "0be3f28548fd",
+  "exportListUnchanged": true,
+  "exportsComparedAgainstSource": "d260bc1ed0a23f90d033a1bed58f56ef228581cc",
+  "ns2proUnchangedFrom808": true,
+  "noticeMatchesSource": true,
+  "privateDelivery": "pending",
+  "validDeviceWindows": 0,
+  "observedPerformance": null
+}

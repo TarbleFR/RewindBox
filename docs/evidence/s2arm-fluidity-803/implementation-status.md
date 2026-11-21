@@ -202,7 +202,7 @@ Le périmètre de l’audit est de 81 patchs et 18 familles. Deux familles conti
 
 **Corrigé dans les sources.** 0205 fournit un seul facteur expérimental. La valeur explicite `S2A_RB_ABLATE_CUP_PRIORITY=1` sélectionne les politiques de la 803 et retire la priorité F14. La valeur explicite `0` sélectionne les politiques et priorités 803. L’absence de cette variable garde les politiques cumulatives de la 808. Le mode expérimental désactive dans les deux bras les politiques introduites depuis la 803, y compris la garde audio et le chronométrage des images longues. Il conserve les fichiers du joueur et les écritures d’historique dans leur format habituel. Le nouveau bloc agrégé `course_priority_trial` enregistre le bras réellement lu et l’identité MKW reconnue.
 
-**Compilé et livré.** En attente pour 0205. **Observé sur appareil.** Aucune paire valide disponible. La pile passe de 204 à 205 fichiers pour l’essai. Zéro patch supprimé sur la foi des mesures actuelles.
+**Compilé.** [Moteur de 205 patchs vérifié sur macOS 15 et 26](engine205-build.json). **Livré.** En attente de la livraison privée de la 809. **Observé sur appareil.** Aucune paire valide disponible. La pile passe de 204 à 205 fichiers pour l’essai. Zéro patch supprimé sur la foi des mesures actuelles.
 
 ### Acquisition et décision F14
 
