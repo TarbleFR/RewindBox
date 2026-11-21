@@ -1,0 +1,82 @@
+{
+  "source": "e7c8b693963e3002ca5164725fac9a771bcb7901",
+  "upstream": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "run": 44867425496,
+  "attempt": 1,
+  "xcode": "Xcode 26.6",
+  "jobs": [
+    {
+      "platform": "macos-15",
+      "id": 136734110964,
+      "result": "success"
+    },
+    {
+      "platform": "macos-26",
+      "id": 136734111244,
+      "result": "success"
+    }
+  ],
+  "patchesVerified": 233,
+  "first229Verified": true,
+  "patchDelta": [
+    {
+      "name": "0230-retain-proven-scene-sampling-and-active-attachments.patch",
+      "sha256": "08c04889e1ea1a370e35672ad92fba6f5a60b4131a16d75bc7a83409ddf62bc0"
+    },
+    {
+      "name": "0231-scale-proven-shadow-casters-independently.patch",
+      "sha256": "3681ab805d367dc99096aa4e4bcdcb0747c25a386db07f437865cea5771a2259"
+    },
+    {
+      "name": "0232-prepare-metalfx-inputs-by-resolution-tier.patch",
+      "sha256": "4ba5b420c5b7a34e4643ec90ab1e1166e98f803440f48c0b09d36ac7be680b4d"
+    },
+    {
+      "name": "0233-switch-prepared-scene-targets-from-completed-gpu-times.patch",
+      "sha256": "8ebd751644db1d7f5e03ad78cb24da50e110f6cb83179f2f250bbc079dea24a6"
+    }
+  ],
+  "engineFingerprint": "dbde149cfb6d66d92c7806f5173239e1fcad361de74802ab82b8a22ff8e96651",
+  "pinSha256": "1a2d4d42999aa2d56af38be25366156d517f9a72a28fe1e2fad5acb693a79385",
+  "artifact": {
+    "run": 44867425496,
+    "attempt": 1,
+    "artifact": 14692614182,
+    "name": "s2arm-engine-framework-e7c8b693963e3002ca5164725fac9a771bcb7901",
+    "bytes": 25125514,
+    "sha256": "0c918a1bce07b1050c0b7070c1318e3eb1c69670932d2a7793ad50a76ccdb53e",
+    "headSha": "e7c8b693963e3002ca5164725fac9a771bcb7901",
+    "headBranch": "Claude",
+    "expiresAt": "2026-12-21T04:56:59Z"
+  },
+  "prepareRun": 44555747908,
+  "sysdataRun": 43038032448,
+  "unchangedExports": true,
+  "directShaderChain": "0be3f28548fd",
+  "validPostChangeDeviceWindows": 0,
+  "observedPostChangePerformance": null,
+  "resolutionTests": {
+    "source": "e7c8b693963e3002ca5164725fac9a771bcb7901",
+    "engineRun": 44867425496,
+    "bridgeRun": 44867425491,
+    "bridgeJob": 136734111099,
+    "bridgeSources": 11,
+    "retention": true,
+    "casterProjection": true,
+    "control": true,
+    "metalBinding": true,
+    "trackedDepthReadbacks": [
+      "PASS D32 960x540 -> 816x459, 374544 pixels",
+      "PASS D32 816x459 -> 720x405, 291600 pixels",
+      "PASS D32 720x405 -> 816x459, 374544 pixels",
+      "PASS D32 816x459 -> 960x540, 518400 pixels",
+      "PASS D32 odd region and outer sentinel on Apple Paravirtual device"
+    ],
+    "metalFX": [
+      "No compatible MetalFX hardware on this Mac"
+    ],
+    "descriptorObjects": true,
+    "ownership": true,
+    "deviceWindows": 0
+  }
+}
