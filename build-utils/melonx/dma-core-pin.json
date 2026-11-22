@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "8988ced5014dd23caae2eefac70b3d37f5a5b7f0",
-  "run": 44753917742,
-  "job": 136348582464,
+  "source": "0fe58d629ea3fd8f31c93031705bd2bb4267dce0",
+  "run": 45025628716,
+  "job": 137217902801,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14638435340,
-  "name": "MeloNX-engine-8988ced5014dd23caae2eefac70b3d37f5a5b7f0",
-  "bytes": 101260810,
-  "sha256": "5e157016cfd9197b1e682383b81c2eb256beafd686ea66a6cee3b2266b32f048",
-  "expiresAt": "2027-02-18T14:29:19Z",
+  "artifact": 14756136006,
+  "name": "MeloNX-engine-0fe58d629ea3fd8f31c93031705bd2bb4267dce0",
+  "bytes": 101259920,
+  "sha256": "385094d1b7a7648d0ae245f355aa4ff67378b92d5cda1a13c4b52689d63de9ca",
+  "expiresAt": "2027-02-20T13:05:20Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "b1c4fa43f9738a9b95c91b334f0ab6579f51d54ac5f880727f399eac3fe4c14f",
-      "bytes": 39179320
+      "sha256": "2da94a31c92c49c71d40b28bb5f4186b0deb40e48c5d259a59f10ce95a07fa33",
+      "bytes": 39179328
     },
     "iossimulator-arm64": {
-      "sha256": "1aab9fd21cd94102f2b7e003c10fc90f022dcde33793b190833078ce33ab34e9",
+      "sha256": "aa1e3fcb0d99142d27334273cf7aa0272ef3915c1558715a0e7e64e9f26ef04c",
       "bytes": 39502040
     }
   },
   "identities": {
-    "ios-arm64": "ef5033e62f84e6fb46f3a062bfe7abbb6fdff48f579c41fd65571607f17cc53d",
-    "iossimulator-arm64": "99a8e566701466f24f8f1f686dbed458b78279e4cdb493c5f08b71bcfd3fae37"
+    "ios-arm64": "16ed372ce3483a1810b1d1f7f68cd2d324b0e50847725a7284047e1a671dd696",
+    "iossimulator-arm64": "bc3c164675f0a1346de4f9c292c75543a70b36c0a1bbd6cc333733fd02e7904a"
   },
-  "contractSha256": "bd3b429d1d08df8a8612220ea700d7f74b0f898125f2d040212479711df07638",
-  "resultSha256": "109143bbddc66c3055e2bd3e5809fdc55bb38ed720f7e10df6b7689328a9de28",
-  "packagedFingerprint": "1fc7f4af847f17394ab43c19b230400251288db38c9e76def77efa51f16a843a",
+  "contractSha256": "0cf713b530c6cfbfe6e2313945799e4d1be51ff1e04f17450eaa71e333916d54",
+  "resultSha256": "bfbb74f17f709613f453508ac2f9c8c3f362f8efa95fbf27cb42470bc861f86e",
+  "packagedFingerprint": "400ac08cca6cb190b323eba5f7ca879acfafc7b491bbe81892be64ea36bc6e90",
   "replaces": {
-    "source": "bde1a21ccfab81be3db6aea4082ac8e0f8eeabd0",
-    "run": 44729801297,
-    "artifact": 14625314612,
-    "packagedFingerprint": "b442c28e806c3b54cde90de5257aa5a15337e3cd80291928f7cb26413cfed255",
-    "reason": "After IPA 801, SSBU online: the consented certificate rule reaches the secure server on port 60005, which the game names by the address the Smash login server returned (device journal: every attempt refused for hostname). Only that port of the session game address, only once the login server was reached; a chain to Nextendo roots is verified, the legacy private certificate needs the existing consent. Contract bd3b429d, build-smoke route. Not run on an iPhone; NEX login, NAT and matchmaking unproven."
+    "source": "8988ced5014dd23caae2eefac70b3d37f5a5b7f0",
+    "run": 44753917742,
+    "artifact": 14638435340,
+    "packagedFingerprint": "1fc7f4af847f17394ab43c19b230400251288db38c9e76def77efa51f16a843a",
+    "reason": "After IPA 819, SSBU recompiled ~90% of its pipelines every session, never reached primaryReady and took 69.8 s to close: commit 4086c77f had extended to every title the variant replay's wait for the primary pipeline cache. The replay adapter returns to its state before 4086c77f (Hogwarts-only wait, as in Core 6d8cb068 of IPA 786); Nextendo online fixes kept. Contract and simulator sessions verified; not run on an iPhone."
   }
 }
