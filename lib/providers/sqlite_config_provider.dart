@@ -225,7 +225,7 @@ class SqliteConfigProvider extends ChangeNotifier with WidgetsBindingObserver {
       // regardless of whether ROM scanning is enabled.
       _scanStatus = 'Syncing system databases...';
       notifyListeners();
-      await SqliteService.loadAndSyncSystems();
+      await SqliteService.loadAndSyncSystems(skipWhenUnchanged: true);
       StartupTimeline.mark('systems sync');
 
       // Refresh RetroAchievements data from SQL asset

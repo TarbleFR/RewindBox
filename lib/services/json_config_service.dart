@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:crypto/crypto.dart' show sha256;
 import 'package:flutter/services.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/systems_update_service.dart';
@@ -18,9 +19,18 @@ class JsonConfigService {
 
   static final _log = LoggerService.instance;
 
+  /// SHA-256 of the definition files read by the last [loadSystems] call
+  /// (each file name with the digest of its exact content, bundled or
+  /// downloaded); empty when that call failed. Startup compares it to the
+  /// fingerprint recorded after the last systems sync.
+  String get lastSourceFingerprint => _lastSourceFingerprint;
+  String _lastSourceFingerprint = '';
+
   /// Loads all system configurations, preferring cached (updated) versions
   /// over bundled assets. Also picks up new systems added by remote updates.
   Future<List<SystemConfiguration>> loadSystems() async {
+    _lastSourceFingerprint = '';
+    final sources = <String, String>{};
     try {
       final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
 
@@ -65,6 +75,7 @@ class JsonConfigService {
           } else {
             content = await rootBundle.loadString('assets/systems/$fileName');
           }
+          sources[fileName] = sha256.convert(utf8.encode(content)).toString();
 
           final Map<String, dynamic> jsonMap = json.decode(content);
 
@@ -122,6 +133,10 @@ class JsonConfigService {
         }
       }
 
+      final names = sources.keys.toList()..sort();
+      _lastSourceFingerprint = sha256
+          .convert(utf8.encode(names.map((n) => '$n:${sources[n]}').join('\n')))
+          .toString();
       return systems;
     } catch (e) {
       _log.e('Error loading system configurations: $e');

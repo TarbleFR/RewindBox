@@ -1,9 +1,12 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:convert' show jsonEncode, utf8;
+import 'dart:typed_data' show BytesBuilder;
 
 import 'package:crypto/crypto.dart' show sha256;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart'; // Required for rootBundle
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as path; // Required for path operations
 import 'package:sqlite3/sqlite3.dart' as sqlite; // sqlite3 usage
 
@@ -451,8 +454,18 @@ class SqliteService {
 
   /// Loads system definitions from JSON assets and synchronizes them with
   /// the database to maintain referential integrity.
-  static Future<List<SystemModel>> loadAndSyncSystems() async {
+  ///
+  /// [skipWhenUnchanged] (startup): the sync is skipped when it would write
+  /// nothing — the definition files, the app version and every row the sync
+  /// reads or writes are exactly as they were right after the last full sync
+  /// (see [_systemsSyncKey]). Any difference, a user's change of emulator
+  /// included, runs the full sync as before. The skipped sync returns the
+  /// list the sync would have returned.
+  static Future<List<SystemModel>> loadAndSyncSystems({
+    bool skipWhenUnchanged = false,
+  }) async {
     final configurations = await JsonConfigService.instance.loadSystems();
+    final source = JsonConfigService.instance.lastSourceFingerprint;
     // RETIRED_PORTS_BEGIN: backup_before_prune
     // The former Ports system left the bundled definitions: the sync below
     // prunes it and, by cascade, its game rows. It runs only after a checked
@@ -466,9 +479,96 @@ class SqliteService {
       ];
     }
     // RETIRED_PORTS_END: backup_before_prune
+    final db = await instance.database;
+    if (skipWhenUnchanged) {
+      final key = await _systemsSyncKey(db, source);
+      if (key != null && await _seedFingerprint(db, 'systems_sync') == key) {
+        final unchanged = await _systemsAsSynced(db, configurations);
+        if (unchanged != null) {
+          _cachedSystems = unchanged;
+          _log.i(
+            'Systems definitions and tables unchanged since the last sync '
+            '(${unchanged.length} systems): sync skipped',
+          );
+          return unchanged;
+        }
+      }
+    }
     final synced = await syncSystems(configurations);
     _cachedSystems = synced;
+    final after = await _systemsSyncKey(db, source);
+    if (after != null) await _saveSeedFingerprint(db, 'systems_sync', after);
     return synced;
+  }
+
+  /// The rows [syncSystems] reads or writes. Ordered by rowid: a row the sync
+  /// deleted and inserted again gets a new rowid, so only an untouched table
+  /// keeps the fingerprint recorded after the sync.
+  static const List<String> _systemsSyncState = [
+    'SELECT rowid, * FROM app_os ORDER BY rowid',
+    'SELECT rowid, * FROM app_systems ORDER BY rowid',
+    'SELECT rowid, * FROM app_system_folders ORDER BY rowid',
+    'SELECT rowid, * FROM app_system_extensions ORDER BY rowid',
+    'SELECT rowid, * FROM app_emulators ORDER BY rowid',
+    'SELECT rowid, * FROM user_emulator_config ORDER BY rowid',
+    'SELECT rowid, app_system_id, app_emulator_unique_id, app_emulator_os_id '
+        'FROM user_roms WHERE app_emulator_unique_id IS NOT NULL '
+        'OR app_emulator_os_id IS NOT NULL ORDER BY rowid',
+  ];
+
+  /// What a systems sync depends on: the definition files ([source]), the
+  /// app build (its sync code), the platform, and the content of every table
+  /// in [_systemsSyncState]. Null when one of them cannot be read: then the
+  /// sync always runs.
+  static Future<String?> _systemsSyncKey(
+    DatabaseAdapter db,
+    String source,
+  ) async {
+    if (source.isEmpty) return null;
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final bytes = BytesBuilder(copy: false)
+        ..add(
+          utf8.encode(
+            'systems-sync-1|${info.version}+${info.buildNumber}|'
+            '${Platform.operatingSystem}|$source',
+          ),
+        );
+      for (final query in _systemsSyncState) {
+        bytes.add(utf8.encode('\n#$query'));
+        for (final row in await db.rawQuery(query)) {
+          bytes.add(utf8.encode('\n${jsonEncode(row.values.toList())}'));
+        }
+      }
+      return sha256.convert(bytes.takeBytes()).toString();
+    } catch (e) {
+      _log.w('Systems sync fingerprint unavailable, the sync runs: $e');
+      return null;
+    }
+  }
+
+  /// The list [syncSystems] returns for [configurations] when the tables
+  /// already hold its result; null when a system is missing (the sync runs).
+  static Future<List<SystemModel>?> _systemsAsSynced(
+    DatabaseAdapter db,
+    List<SystemConfiguration> configurations,
+  ) async {
+    final ids = <String, String>{};
+    for (final row in await db.rawQuery(
+      'SELECT id, folder_name FROM app_systems ORDER BY rowid',
+    )) {
+      ids.putIfAbsent(
+        row['folder_name'].toString().toLowerCase(),
+        () => row['id'].toString(),
+      );
+    }
+    final systems = <SystemModel>[];
+    for (final config in configurations) {
+      final id = ids[config.system.folderName.toLowerCase()];
+      if (id == null) return null;
+      systems.add(config.system.copyWith(id: id));
+    }
+    return systems;
   }
 
   /// Loads all registered systems directly from the database, enriching them
