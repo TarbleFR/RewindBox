@@ -9,13 +9,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, readonly) NSString *wire;
 @property(nonatomic, readonly) NSString *gameDir;
 @property(nonatomic, readonly) BOOL active;
-@property(nonatomic, readonly) BOOL requiresVerification;
-/// A matching receipt may defer its archive reads until the host has started services.
-- (nullable instancetype)verifyForLaunch:(BOOL (^)(void))cancel;
 + (nullable instancetype)planForGame:(NSString *)gid directory:(NSString *)gameDir root:(NSString *)root
                               chain:(NSString *)chain reused:(BOOL)reused error:(NSError **)error;
-+ (nullable instancetype)planForGame:(NSString *)gid directory:(NSString *)gameDir root:(NSString *)root
-                              chain:(NSString *)chain reused:(BOOL)reused deferArchiveVerification:(BOOL)defer error:(NSError **)error;
 /// Only stages compatible files from an already prepared import. The normal launch
 /// performs full validation and owns Metal translation, pipeline creation and activation.
 + (nullable instancetype)startupPlanInLibrary:(NSString *)library chain:(nullable NSString *)chain;

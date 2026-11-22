@@ -71,3 +71,26 @@ Sur le GPU du Mac, le thread de test a conservé le verrou d’enregistrement ju
 Le rejeu des valeurs mémoire, avec 8 192 Mio de RAM et 3 400 Mio de marge simulées, conserve cette marge pour les échantillons à 179 et 29 703 Mio. L’échantillon à 4 650 Mio épuise le budget Metal. Sous suspension spéculative, le premier des six workers obtient la seule place prioritaire à température nominale. Le banc du pont a aussi vérifié l’ouverture d’une génération intacte et la réparation isolée d’un index ou d’une archive endommagés. [Vérification du pont iOS arm64](https://github.com/TarbleFR/RewindBox/actions/runs/44979339911/job/137076183469).
 
 Le moteur issu de `1f66a2d0` compile sur les runners macOS 15 et 26. Le manifeste identifie les 299 patchs par leur SHA-256 dans l’ordre d’application. L’empreinte du framework arm64 est `78b5bd0178bc265255f9ad5ed74db6b81304e33da1467698a8eb1cf8e01e996a`. L’export de la taille de configuration du pont est présent dans ce binaire. [Compilation iOS](https://github.com/TarbleFR/RewindBox/actions/runs/44979639172) · [Manifeste du moteur](../../build-utils/s2arm/engine-pin.json).
+
+## Échec graphics_prepare de la 818
+
+Journal iPhone de la 818, Mario Kart World, cache graphique déjà publié. `S2A_Init` rend la main à +499 ms. La ligne suivante indique `[RB-PSO-WORKERS] thermal=1 startup_limit=0` avec le travail spéculatif retenu par l’état Fair. Les battements restent à l’image 0 pendant toute la session. Les lectures disque, jusqu’à 1 702 Mo sur 10 s pour un seul thread, n’ont lieu que pendant les fenêtres en état thermique 0. La session finit sur `graphics_prepare`.
+
+| Constat | Source |
+| --- | --- |
+| 0297 lance la vérification et la préparation du cache après `S2A_Init`, sur le thread hôte | patch 0297 (`host_main.c`), pont `postInitGraphics` |
+| `rb_ref_checkpoint` attend tant que `rb_spec_may(0)` refuse | `rb_reference.inc` |
+| En mode strict, l’état Fair donne `RB_SPEC_HOLD` | `rb_spec_gate.h`, `rb_spec_thermal_tier` |
+| Le mode strict exige `S2A_RB_DIRECT_GAME_ID`, posé par `s2a_rb_guest_configure`, et le device Metal | `rb_kart_option`, `nvn_rb_thermal_scope` |
+| Avant 0297, la préparation tournait avant la configuration, hors mode strict | pont avant `381b09af` |
+| `pendingGPU` faux pour une génération à vérifier : pas de renouvellement JIT après une préparation longue | `S2ArmEngineBridgePlugin.m` de `381b09af` |
+
+Le journal ne distingue pas un abandon du joueur d’une erreur de préparation comme source du code de retour non nul. Le correctif retire 0297 et le report de vérification du pont. La vérification et la préparation reviennent avant la configuration, avec le renouvellement JIT existant. 0296 rétablit l’ouverture de l’index des archives quand le device Metal est prêt. `rb_archive_preopen_start` ne prend plus de verrou depuis 0296.
+
+Pistes examinées et écartées :
+
+- `DM_NVN_TBDR=0`, posé par `s2a_rb_guest_configure`, n’est pas redondant. `rb_legacy_store_override` le lit et choisit le chemin d’effacement legacy quand le drapeau MRT est absent. Il est conservé.
+- `safe_tbdr` reste couvert par le banc Mac autonome. Il est conservé.
+- `row.UTF8String + 2` est borné par `rb_pso_hot_read`, qui ne garde que des lignes `R\t` de 866 caractères.
+- `rb_device_allocated_bytes` enveloppe seulement `currentAllocatedSize`. Les lectures directes n’ont aucun effet sur le comportement.
+- La reprise d’une session ne rappelle pas le rappel de 0297.

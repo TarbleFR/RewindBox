@@ -44,15 +44,6 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
  // Metal work begins once the renderer is initialized and the guest has selected
  // its depth convention. With implicit/default depth the first real bind
  // remains authoritative. A stopped epoch cannot start work on a later title.
-@@ -16306,8 +16314,6 @@
-     return g_rb_startup_q;
- }
- static void rb_startup_ready(int device,int depth) {
--    // Opening a device archive does not depend on the guest depth convention.
--    if (device && getenv("DM_NVN_SHMAP") && !nvn_be_stopping()) rb_archive_preopen_start();
-     os_unfair_lock_lock(&g_shpre_mu);
-     if (device) g_rb_device_ready=1;
-     if (depth) g_rb_depth_ready=1;
 @@ -16325,26 +16331,6 @@
      os_unfair_lock_unlock(&g_shpre_mu);
  }
@@ -168,7 +159,7 @@ diff --git a/graphics/nvn/gfx/nvn/rb_archive_preopen.inc b/graphics/nvn/gfx/nvn/
 -        if (submit) { rb_archive_preopen_start(); return nil; }
 -        if (!par_open_dir()) return nil;
 -    }
-+    // First actual pipeline lookup starts the index and bounded preopen.
++    // The device-ready start normally opened the index; a lookup before it starts the same bounded preopen.
 +    if (!atomic_load_explicit(&rb_open_started, memory_order_relaxed)) rb_archive_preopen_start();
 +    if (!atomic_load_explicit(&g_par_initialized, memory_order_acquire) &&
 +        (submit || !par_open_dir())) return nil;

@@ -29,16 +29,14 @@ static NSString *digest(NSData *data) {
   CC_SHA256(data.bytes, (CC_LONG)data.length, bytes);
   return hex(bytes, sizeof bytes);
 }
-static NSString *fileDigest(NSString *path, BOOL (^cancel)(void)) {
+static NSString *fileDigest(NSString *path) {
   int fd = open(path.fileSystemRepresentation, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
   if (fd < 0) return nil;
   struct stat st;
   if (fstat(fd, &st) || !S_ISREG(st.st_mode) || !st.st_size) { close(fd); return nil; }
   CC_SHA256_CTX hash; CC_SHA256_Init(&hash);
   unsigned char buf[32768]; ssize_t n;
-  NSUInteger chunks = 0;
   while ((n = read(fd, buf, sizeof buf)) != 0) {
-    if (cancel && !(chunks++ % 32) && cancel()) { close(fd); return nil; }
     if (n < 0) { if (errno == EINTR) continue; close(fd); return nil; }
     CC_SHA256_Update(&hash, buf, (CC_LONG)n);
   }
@@ -68,16 +66,12 @@ static BOOL genID(id value) {
     [value rangeOfCharacterFromSet:[NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdef"].invertedSet].location == NSNotFound;
 }
 @interface S2ArmGraphicsGeneration ()
-- (NSDictionary *)outputsForCount:(uint64_t)expected cancel:(BOOL (^)(void))cancel;
-- (instancetype)initWithDirectory:(NSString *)directory gid:(NSString *)gid buildID:(NSString *)buildID
-                          content:(NSString *)content chain:(NSString *)chain hardware:(NSString *)hardware
-                          osBuild:(NSString *)osBuild reuseLegacy:(BOOL)reuseLegacy defer:(BOOL)defer cancel:(BOOL (^)(void))cancel;
+- (NSDictionary *)outputsForCount:(uint64_t)expected;
 @end
 
 @implementation S2ArmGraphicsGeneration {
   NSString *_base, *_generation, *_source, *_slot, *_seedSlot;
   NSDictionary *_identity;
-  BOOL _reuseLegacy;
 }
 + (instancetype)startupPlanInLibrary:(NSString *)library chain:(NSString *)chain {
   NSString *dir = [library stringByAppendingPathComponent:kKart];
@@ -91,15 +85,11 @@ static BOOL genID(id value) {
   if ([identity isKindOfClass:NSDictionary.class] && [identity[@"revision"] isEqual:@(kMarioKartGraphicsRevision)]) return nil;
   S2ArmGraphicsGeneration *plan = [self planForGame:kKart directory:dir root:[dir stringByAppendingPathComponent:@"root"]
                                               chain:chain reused:YES error:NULL];
-  if (!plan || plan.requiresVerification || plan.active || [json([plan.wire stringByAppendingPathComponent:@".seeded.json"]) isEqual:plan->_identity]) return nil;
+  if (!plan || plan.active || [json([plan.wire stringByAppendingPathComponent:@".seeded.json"]) isEqual:plan->_identity]) return nil;
   return plan;
 }
 + (instancetype)planForGame:(NSString *)gid directory:(NSString *)gameDir root:(NSString *)root
                       chain:(NSString *)chain reused:(BOOL)reused error:(NSError **)error {
-  return [self planForGame:gid directory:gameDir root:root chain:chain reused:reused deferArchiveVerification:NO error:error];
-}
-+ (instancetype)planForGame:(NSString *)gid directory:(NSString *)gameDir root:(NSString *)root
-                      chain:(NSString *)chain reused:(BOOL)reused deferArchiveVerification:(BOOL)defer error:(NSError **)error {
   if ([gid caseInsensitiveCompare:kKart] != NSOrderedSame || ![chain isEqual:@"0be3f28548fd"]) return nil;
   NSString *main = [root stringByAppendingPathComponent:@"exefs/main"];
   NSFileHandle *nso = [NSFileHandle fileHandleForReadingAtPath:main];
@@ -109,7 +99,7 @@ static BOOL genID(id value) {
   }
   NSString *build = hex((const unsigned char *)header.bytes + 0x40, 16);
   if (![build isEqual:kKartBuild]) return nil;  // the reference belongs to this exact executable
-  NSString *metadata = fileDigest([root stringByAppendingPathComponent:@"unpack.tsv"], nil);
+  NSString *metadata = fileDigest([root stringByAppendingPathComponent:@"unpack.tsv"]);
   NSString *pack = [gameDir stringByAppendingPathComponent:@"pack"];
   NSString *applied = [NSString stringWithContentsOfFile:[pack stringByAppendingPathComponent:@".applied"]
                                                  encoding:NSASCIIStringEncoding error:NULL];
@@ -125,27 +115,12 @@ static BOOL genID(id value) {
     problem(error, @"Missing graphics cache compatibility identity."); return nil;
   }
   return [[self alloc] initWithDirectory:gameDir gid:gid buildID:build content:content chain:chain
-                                hardware:machine osBuild:os reuseLegacy:reused defer:defer cancel:nil];
+                                hardware:machine osBuild:os reuseLegacy:reused];
 }
 - (instancetype)initWithDirectory:(NSString *)directory gid:(NSString *)gid buildID:(NSString *)buildID
                           content:(NSString *)content chain:(NSString *)chain hardware:(NSString *)hardware
                           osBuild:(NSString *)osBuild reuseLegacy:(BOOL)reuseLegacy {
-  return [self initWithDirectory:directory gid:gid buildID:buildID content:content chain:chain hardware:hardware
-                         osBuild:osBuild reuseLegacy:reuseLegacy defer:NO cancel:nil];
-}
-- (instancetype)verifyForLaunch:(BOOL (^)(void))cancel {
-  if (!_requiresVerification) return self;
-  if (cancel()) return nil;
-  S2ArmGraphicsGeneration *checked = [[S2ArmGraphicsGeneration alloc] initWithDirectory:_gameDir gid:_gid buildID:_buildID
-      content:_identity[@"content"] chain:_identity[@"chain"] hardware:_identity[@"hardware"] osBuild:_identity[@"osBuild"]
-      reuseLegacy:_reuseLegacy defer:NO cancel:cancel];
-  return cancel() ? nil : checked;
-}
-- (instancetype)initWithDirectory:(NSString *)directory gid:(NSString *)gid buildID:(NSString *)buildID
-                          content:(NSString *)content chain:(NSString *)chain hardware:(NSString *)hardware
-                          osBuild:(NSString *)osBuild reuseLegacy:(BOOL)reuseLegacy defer:(BOOL)defer cancel:(BOOL (^)(void))cancel {
   if (!(self = [super init])) return nil;
-  _reuseLegacy = reuseLegacy;
   _gid = [gid copy]; _gameDir = [directory copy]; _buildID = [buildID copy];
   _identity = @{@"revision":@(kMarioKartGraphicsRevision), @"gid":gid, @"build":buildID, @"content":content,
                 @"chain":chain, @"hardware":hardware, @"osBuild":osBuild};
@@ -156,10 +131,9 @@ static BOOL genID(id value) {
   BOOL safePrior = genID(prior) && safeLeaf(slot) && [slot hasPrefix:[prior stringByAppendingString:@"."]];
   if (safePrior && [previous[@"identity"] isEqual:_identity] && [prior isEqual:_generation]) {
     _slot = slot; _wire = [_base stringByAppendingPathComponent:slot];
-    if (defer) { _requiresVerification = YES; return self; }
     NSNumber *pipelines = previous[@"pipelines"];
     NSDictionary *stored = previous[@"outputs"];
-    NSDictionary *present = [pipelines isKindOfClass:NSNumber.class] ? [self outputsForCount:pipelines.unsignedLongLongValue cancel:cancel] : nil;
+    NSDictionary *present = [pipelines isKindOfClass:NSNumber.class] ? [self outputsForCount:pipelines.unsignedLongLongValue] : nil;
     // Additional compatible stage inputs learned during gameplay are valid.
     BOOL matches = present && [stored isKindOfClass:NSDictionary.class] && stored.count &&
                    stored[@"pso_reference.tsv"] && stored[@"pso_reference.archives.tsv"] && stored[@"pipelines/identity.json"];
@@ -256,7 +230,7 @@ static BOOL genID(id value) {
   progress(count);
   return atomicJSON(_identity, marker, error);
 }
-- (NSDictionary *)outputsForCount:(uint64_t)expected cancel:(BOOL (^)(void))cancel {
+- (NSDictionary *)outputsForCount:(uint64_t)expected {
   NSString *manifest = [_wire stringByAppendingPathComponent:@"pso_reference.archives.tsv"];
   NSString *text = [NSString stringWithContentsOfFile:manifest encoding:NSUTF8StringEncoding error:nil];
   NSMutableSet *ids = [NSMutableSet set], *files = [NSMutableSet setWithObjects:@"pso_reference.tsv", @"pso_external.tsv", @"pso_reference.archives.tsv",
@@ -280,9 +254,7 @@ static BOOL genID(id value) {
     if (!f) return nil;
     NSMutableDictionary *matched = [NSMutableDictionary dictionary];
     char row[256];
-    NSUInteger lines = 0;
     while (fgets(row, sizeof row, f)) {
-      if (cancel && !(lines++ % 1024) && cancel()) { fclose(f); return nil; }
       char *tab = strchr(row, '\t'), *end = strchr(row, '\n');
       if (!tab || !end) continue;
       *tab = 0; *end = 0;
@@ -321,7 +293,7 @@ static BOOL genID(id value) {
       NSData *identity = [NSJSONSerialization dataWithJSONObject:@[stamp[@"schema"],stamp[@"gpu"],stamp[@"chain"],stamp[@"osBuild"]]
                                                          options:0 error:NULL];
       hash = digest(identity);
-    } else hash = fileDigest(file, cancel);
+    } else hash = fileDigest(file);
     if (!hash) return nil;
     inventory[name] = hash;
   }
@@ -426,7 +398,7 @@ static NSData *evidenceTable(NSString *path) {
 - (BOOL)activateWithGPU:(const uint64_t *)s error:(NSError **)error {
   if (!s[0] || s[0] != s[1] || !s[2] || s[2] != s[3] || s[2] != s[4])
     return problem(error, @"The complete GPU profile has not passed strict archive verification.");
-  NSDictionary *outputs = [self outputsForCount:s[4] cancel:nil];
+  NSDictionary *outputs = [self outputsForCount:s[4]];
   if (!outputs) return problem(error, @"The verified pipeline files are missing or incomplete.");
   _active = atomicJSON(@{@"generation":_generation, @"slot":_slot, @"identity":_identity, @"gid":_gid, @"build":_buildID,
                       @"chain":_identity[@"chain"], @"stages":@(s[1]), @"pipelines":@(s[4]), @"deferredRecipes":@(s[5]), @"outputs":outputs},

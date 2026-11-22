@@ -3,7 +3,7 @@
 // public header (runtime/src/rb_guest.h of patch 0003, copied into S2ArmEngine.framework/Headers) is not on this pod's
 // search path: the declarations below copy it field for field. test/s2arm_engine_bridge_test.py compares this struct with
 // the one in build-utils/s2arm/engine/patches/0003-guest-configure-launch-context-and-window.patch, as patch 0010 extends it
-// (session_parked, parked_context, prepare_graphics), and fails on any change.
+// (session_parked, parked_context), and fails on any change.
 #include <stddef.h>
 #include <stdint.h>
 
@@ -26,7 +26,6 @@ typedef struct s2a_rb_guest_config {
     void *ended_context;
     void (*session_parked)(const char *reason, void *context);   // patch 0010: Quit parked the session (same game can resume)
     void *parked_context;
-    int (*prepare_graphics)(void *context);
 } s2a_rb_guest_config;
 
 // Looked up with dlsym after the dlopen (names of rb_guest.h).
@@ -40,7 +39,6 @@ typedef int (*s2a_rb_guest_resume_fn)(char *error, size_t error_size);   // patc
 typedef int (*s2a_rb_guest_set_fps_limit_fn)(int fps);   // patch 0078: 0 or 24–1000; 0 = in effect from the next frame, -1 refused, -2 off
 typedef int (*s2a_rb_guest_benchmark_fn)(int command, const char *metadata_json, char *out, size_t cap); // patch 0171, optional
 
-#define S2A_RB_GUEST_CONFIG_SIZE "s2a_rb_guest_config_size"
 #define S2A_RB_GUEST_CONFIGURE "s2a_rb_guest_configure"
 #define S2A_RB_GUEST_MAKE_VIEW_CONTROLLER "s2a_rb_guest_make_view_controller"
 #define S2A_RB_GUEST_START "s2a_rb_guest_start"
