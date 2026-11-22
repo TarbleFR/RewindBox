@@ -407,6 +407,8 @@ void main() async {
     await IosLibraryRootRelocation.run(
       linkedFolder: ConfigService.linkedExternalFolderPath,
       linkedFolders: linkedFolders,
+      everyLinkGivenBack:
+          linkFailure == null && IosLinkedLibraryFolders.unavailable.isEmpty,
     );
     // LIBRARY_RELOCATION_END: startup_folders
 

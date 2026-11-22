@@ -77,6 +77,26 @@ abstract final class IosLibraryRootRelocation {
     return changed ? folders : null;
   }
 
+  /// The folders of [folders] that cannot come back: they do not open and
+  /// lie in an app container that is neither NeoStation's own nor a linked
+  /// folder's ([containers]). That is the path of an earlier install whose
+  /// files were carried into the current one (found again by [relocate]) or
+  /// deleted. Only meaningful when every linked folder was given back.
+  static Future<List<String>> stale(
+    List<String> folders, {
+    required List<String> containers,
+    Future<bool> Function(String folder)? exists,
+  }) async {
+    final reachable = exists ?? (folder) => Directory(folder).exists();
+    final gone = <String>[];
+    for (final folder in folders) {
+      final parts = split(folder);
+      if (parts == null || containers.contains(parts.container)) continue;
+      if (!await reachable(folder)) gone.add(folder);
+    }
+    return gone;
+  }
+
   /// The folders of [before] that [after] holds at a new place: the same
   /// path inside another container. A folder that was only dropped as a
   /// duplicate of one already listed moves nowhere.
@@ -104,6 +124,7 @@ abstract final class IosLibraryRootRelocation {
   static Future<void> run({
     String? linkedFolder,
     Iterable<String> linkedFolders = const <String>[],
+    bool everyLinkGivenBack = false,
   }) async {
     try {
       final containers = <String>[];
@@ -115,9 +136,20 @@ abstract final class IosLibraryRootRelocation {
       }
       if (containers.isEmpty) return;
       final registered = await SqliteService.getUserRomFolders();
-      final folders = await relocate(registered, containers: containers);
-      if (folders == null) return;
+      final relocated = await relocate(registered, containers: containers);
+      // A reinstall that carried its files over leaves the old container's
+      // paths behind: each would be looked for at every launch. A folder a
+      // refused link may still hold is never dropped.
+      final gone = everyLinkGivenBack
+          ? await stale(relocated ?? registered, containers: containers)
+          : const <String>[];
+      if (relocated == null && gone.isEmpty) return;
+      final folders = (relocated ?? registered).where((folder) => !gone.contains(folder)).toList();
       await SqliteService.saveUserRomFolders(folders);
+      if (gone.isNotEmpty) {
+        _log.i('Library folders of an earlier install removed: $gone');
+        if (relocated == null) return;
+      }
       relocatedThisLaunch = true;
       // The games follow their folder: the same rows at the new path, so
       // play time, favourites and scraped data are kept. Without this the
