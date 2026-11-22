@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "dc8d1af8ecbdb333bad8f736984cb3a7b4c104dc835b5edb5c8e192e211383ba",
+  "packagedFingerprint": "e95103963f4885e21ad031daf85b3fb5f43d4e3dc9c36587f0815c34a644cb2b",
   "producers": {
     "engine": {
-      "run": 45012035930,
+      "run": 45036469078,
       "attempt": 1,
-      "artifact": 14750068498,
-      "name": "s2arm-engine-framework-2afbc8aacbecaa5a8cff1b2446a9460a60afe6c3",
-      "bytes": 25252488,
-      "sha256": "de67ba53837c5bbdc6a4bb67f68de3512120d77ef1c0e1f6930c220fe5473701",
-      "headSha": "2afbc8aacbecaa5a8cff1b2446a9460a60afe6c3",
+      "artifact": 14759968072,
+      "name": "s2arm-engine-framework-31d09fdd17411b29830da1bf7c9c661c6f05672f",
+      "bytes": 25252480,
+      "sha256": "72bdaa5f8c0aa6749f4cebfd7465497f2622b067e693cae10c18b27b574856f0",
+      "headSha": "31d09fdd17411b29830da1bf7c9c661c6f05672f",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-22T10:34:48Z",
+      "expiresAt": "2026-12-22T15:18:29Z",
       "members": {
-        "S2ArmEngine.framework.zip": "2d503e7753b226f1c4e542bd35585b3d26fd7fc19d81597c6bdebdca01786256",
-        "NS2Pro.framework.zip": "be136a8d9d05fde2f4456b388ec8d9c7c0ffa96c638f31474b0c1e36fffe9380"
+        "S2ArmEngine.framework.zip": "ec99bf155cf9b9882913b0d48623bb3624b784b627d53af211fd9bbb058999cb",
+        "NS2Pro.framework.zip": "37ebbca5456cb558d42cb107eb916c692bc7b509d5a3c56b2007f326d22a9f3a"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "de67ba53837c5bbdc6a4bb67f68de3512120d77ef1c0e1f6930c220fe5473701",
+    "engine": "72bdaa5f8c0aa6749f4cebfd7465497f2622b067e693cae10c18b27b574856f0",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "fc0ebee33da8c6418b2fa7a2d2c90528f03929e3205a034d40050038e415bb43",
+      "sha256": "b885ef699c3f20753b9a24a0952585117cdeea786de7e5b449242fe5071322cd",
       "bytes": 115135328,
-      "fingerprint": "dc8d1af8ecbdb333bad8f736984cb3a7b4c104dc835b5edb5c8e192e211383ba"
+      "fingerprint": "e95103963f4885e21ad031daf85b3fb5f43d4e3dc9c36587f0815c34a644cb2b"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45012035930,
+      "run": 45036469078,
       "attempt": 1,
-      "head_sha": "2afbc8aacbecaa5a8cff1b2446a9460a60afe6c3",
+      "head_sha": "31d09fdd17411b29830da1bf7c9c661c6f05672f",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1342,11 +1342,15 @@
         {
           "name": "0300-correct-startup-admission-lookahead-slots-and-shutdown-drains.patch",
           "sha256": "5981d3418f35c910496c9463a37be9757a35e878cc85ca46836026b362acf6ba"
+        },
+        {
+          "name": "0301-name-the-archive-directory-in-the-reference-manifest.patch",
+          "sha256": "d1476419068d5c3e00eab3d0742980d55dfd686c0e3ec215a70e29833ae94aa8"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "2d503e7753b226f1c4e542bd35585b3d26fd7fc19d81597c6bdebdca01786256",
-        "NS2Pro.framework.zip": "be136a8d9d05fde2f4456b388ec8d9c7c0ffa96c638f31474b0c1e36fffe9380"
+        "S2ArmEngine.framework.zip": "ec99bf155cf9b9882913b0d48623bb3624b784b627d53af211fd9bbb058999cb",
+        "NS2Pro.framework.zip": "37ebbca5456cb558d42cb107eb916c692bc7b509d5a3c56b2007f326d22a9f3a"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
