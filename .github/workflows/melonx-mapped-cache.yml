@@ -2,9 +2,12 @@ name: MeloNX mapped pipeline cache memory measure
 run-name: Mapped pipeline cache memory • ${{ github.sha }}
 # Lot 9. MoltenVK v1.4.2 with the candidate patch built for macOS: the footprint of a loaded pipeline cache, copied
 # against referenced in a read-only mapping, on the runner's real Metal device. Nothing is packaged, pinned or delivered.
+# Since 22 Nov 2026 it also runs on Claude for a change of the recipe patch: ninth part, a library read from cache data
+# is compiled at its first use (every mode runs lazy and once with the eager control).
 'on':
   push:
     branches:
+    - Claude
     - work/melonx-fps-stability-20261103
     paths:
     - .github/workflows/melonx-mapped-cache.yml
