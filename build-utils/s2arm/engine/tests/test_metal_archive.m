@@ -50,6 +50,7 @@ static const int control_793 = 0;
 // Supply the renderer callbacks omitted by this isolated archive fixture.
 enum { RB_RENDER, RB_COMPUTE };
 static int rb_heap_on(void) { return 1; }
+static int nvn_be_stopping(void) { return 0; }   // patch 0300: archive jobs stand down for a session that is ending; this fixture never ends one
 static int rb_pso_cap_on(void) { return 0; }
 static void rb_pso_track(id ps, unsigned kind, NSString *key, BOOL hit) { (void)ps; (void)kind; (void)key; (void)hit; }
 static void rb_recreated(NSString *key, id ps, uint64_t start) { (void)key; (void)ps; (void)start; }

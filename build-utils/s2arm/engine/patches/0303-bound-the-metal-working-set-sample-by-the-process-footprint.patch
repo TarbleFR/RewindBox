@@ -1,0 +1,240 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+index 93ef215..987b2d2 100644
+--- a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
++++ b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+@@ -98,7 +98,7 @@ static int sp_slot(uint32_t *out, uint64_t done, __strong id<MTLHeap> *made) {
+         unsigned pages = ht;
+         uint64_t budget = (uint64_t)rb_sparse_heap_target() * 256 * RB_WS_MIB;
+         if (rb_sparse_budget_on()) {
+-            uint64_t allocated = rb_device_allocated_bytes(g_dev);
++            uint64_t allocated = rb_device_resident_bytes(g_dev);
+             uint64_t live_room = rb_ws_sample_room(rb_ws_target(g_dev.recommendedMaxWorkingSetSize),
+                                                    allocated, rb_device_sample_valid(allocated), rb_metal_working_room());
+             pages = rb_ws_heap_pages(ht, rb_sp_heap_bytes, budget, live_room);
+diff --git a/graphics/nvn/gfx/nvn/rb_gov_plan.h b/graphics/nvn/gfx/nvn/rb_gov_plan.h
+index b0ae0aa..cdd0f05 100644
+--- a/graphics/nvn/gfx/nvn/rb_gov_plan.h
++++ b/graphics/nvn/gfx/nvn/rb_gov_plan.h
+@@ -4,19 +4,21 @@
+ enum { RB_GOV_PREFETCH, RB_GOV_UPLOAD, RB_GOV_TEXTURE, RB_GOV_PIPELINE };
+ enum { RB_GOV_NORMAL, RB_GOV_WARN, RB_GOV_CRITICAL };
+ // The pressure counter is TASK_VM_INFO.compressed in logical bytes for this process.
++// Heat is not a memory reading: the speculative gate (rb_spec_gate.h) holds
++// optional work for it, and smaller caches only add rebuilds to a warm device.
+ typedef struct {
+     uint64_t below_since_ns;
+     int active;
+ } rb_gov_stress_state;
+ 
+ static inline int rb_gov_stressed(rb_gov_stress_state *state, uint64_t now_ns,
+-                                  uint64_t compressed_bytes, int thermal) {
++                                  uint64_t compressed_bytes) {
+     int known = compressed_bytes != UINT64_MAX;
+-    if (thermal >= 1 || (known && compressed_bytes > (512ull << 20))) {
++    if (known && compressed_bytes > (512ull << 20)) {
+         state->active = 1;
+         state->below_since_ns = 0;
+     } else if (state->active) {
+-        if (thermal != 0 || !known || compressed_bytes > (448ull << 20)) {
++        if (!known || compressed_bytes > (448ull << 20)) {
+             state->below_since_ns = 0;
+         } else if (!state->below_since_ns || now_ns < state->below_since_ns) {
+             state->below_since_ns = now_ns;
+diff --git a/graphics/nvn/gfx/nvn/rb_memory_governor.inc b/graphics/nvn/gfx/nvn/rb_memory_governor.inc
+index fafd43e..c850344 100644
+--- a/graphics/nvn/gfx/nvn/rb_memory_governor.inc
++++ b/graphics/nvn/gfx/nvn/rb_memory_governor.inc
+@@ -8,6 +8,13 @@ static _Atomic uint64_t rb_ws_room_bytes = UINT64_MAX, rb_ws_recommended;
+ static int rb_working_set_on(void) {
+     return g_dev && !g_m3 && rb_pacing_setting(&rb_ws_option, "S2A_RB_METAL_WORKING_SET");
+ }
++// The process footprint of the last probe (rb_gov_probe_compression), at most a
++// second old. UINT64_MAX until the first probe and where there is none.
++static _Atomic uint64_t rb_gov_footprint = UINT64_MAX;
++static uint64_t rb_device_resident_bytes(id<MTLDevice> device) {
++    return rb_ws_resident(rb_device_allocated_bytes(device),
++                          atomic_load_explicit(&rb_gov_footprint,memory_order_acquire));
++}
+ static int rb_device_sample_valid(uint64_t allocated) {
+ #if TARGET_OS_IPHONE
+     return rb_ws_sample_valid(allocated, NSProcessInfo.processInfo.physicalMemory);
+@@ -50,11 +57,14 @@ static void rb_gov_probe_compression(uint64_t now) {
+     rb_gov_next_probe = now + NSEC_PER_SEC;
+     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+         task_vm_info_data_t info = {0};
+-        mach_msg_type_number_t count = TASK_VM_INFO_REV0_COUNT;
++        mach_msg_type_number_t count = TASK_VM_INFO_REV1_COUNT;   // REV1 adds phys_footprint
+         kern_return_t kr = task_info(mach_task_self(),TASK_VM_INFO,(task_info_t)&info,&count);
+         uint64_t value = kr == KERN_SUCCESS && count >= TASK_VM_INFO_REV0_COUNT ?
+                          (uint64_t)info.compressed : UINT64_MAX;
++        uint64_t footprint = kr == KERN_SUCCESS && count >= TASK_VM_INFO_REV1_COUNT ?
++                             (uint64_t)info.phys_footprint : UINT64_MAX;
+         atomic_store_explicit(&rb_gov_compressed,value,memory_order_release);
++        atomic_store_explicit(&rb_gov_footprint,footprint,memory_order_release);
+         atomic_store(&rb_gov_probe_pending,0);
+     });
+ }
+@@ -76,10 +86,11 @@ static void rb_gov_sample(unsigned long event) {
+     int protect_ws = rb_working_set_on();
+     id<MTLDevice> device = protect_ws ? g_dev : nil;
+     uint64_t allocated = rb_device_allocated_bytes(device);
+-    int valid = device && rb_device_sample_valid(allocated);
++    uint64_t resident = rb_ws_resident(allocated, atomic_load_explicit(&rb_gov_footprint,memory_order_acquire));
++    int valid = device && rb_device_sample_valid(resident);
+     uint64_t recommended = device.recommendedMaxWorkingSetSize;
+     uint64_t target = rb_ws_target(recommended);
+-    uint64_t metal_room = protect_ws ? rb_ws_sample_room(target, allocated, valid, room) : UINT64_MAX;
++    uint64_t metal_room = protect_ws ? rb_ws_sample_room(target, resident, valid, room) : UINT64_MAX;
+     atomic_store(&rb_ws_recommended, recommended);
+     atomic_store(&rb_ws_room_bytes, metal_room);
+     atomic_store(&rb_gov_room,room);
+@@ -91,15 +102,20 @@ static void rb_gov_sample(unsigned long event) {
+     rb_gov_probe_compression(now);
+     uint64_t compressed = atomic_load_explicit(&rb_gov_compressed,memory_order_acquire);
+     int was_stressed = rb_gov_stress.active;
+-    int stressed = rb_gov_stressed(&rb_gov_stress,now,compressed,thermal);
++    int stressed = rb_gov_stressed(&rb_gov_stress,now,compressed);
+ #else
+     uint64_t compressed = UINT64_MAX;
+     int was_stressed = 0, stressed = 0;
+ #endif
+     unsigned old = atomic_load(&rb_gov_plan), tier = RB_GOV_NORMAL;
+-    if ((valid && allocated >= target) || now < rb_gov_critical_until || room <= (768ull << 20)) tier = RB_GOV_CRITICAL;
++    if ((valid && resident >= target) || now < rb_gov_critical_until || room <= (768ull << 20)) tier = RB_GOV_CRITICAL;
+     else if (stressed || now < rb_gov_warn_until || (room == UINT64_MAX && !valid) || room <= (2048ull << 20)) tier = RB_GOV_WARN;
+     unsigned before = old & 3u;
++    // The plan a process starts with is a placeholder for readers that come
++    // before any sample: the first sample publishes what it measured, and the
++    // ten seconds of recovery apply to tiers a sample set.
++    static int measured; // rb_gov_mu
++    if (!measured) { measured = 1; before = tier; }
+     if (tier < before) {
+         uint64_t floor = before == RB_GOV_CRITICAL ? (1024ull << 20) : (2304ull << 20);
+         if ((room == UINT64_MAX && !valid) || room < floor || (protect_ws && metal_room < 256 * RB_WS_MIB)) rb_gov_recover_since = 0;
+@@ -109,8 +125,9 @@ static void rb_gov_sample(unsigned long event) {
+     if (tier != before) rb_gov_recover_since = 0;
+     static int previous_valid = -1; // rb_gov_mu
+     if (protect_ws && (event || tier != before || valid != previous_valid))
+-        MLOG("[RB-MEM-GOV] tier=%u metal_MiB=%lld recommended_MiB=%llu target_MiB=%llu remaining_MiB=%llu budget_source=%s",
+-             tier, allocated == UINT64_MAX ? -1LL : (long long)(allocated / RB_WS_MIB), (unsigned long long)(recommended / RB_WS_MIB),
++        MLOG("[RB-MEM-GOV] tier=%u metal_MiB=%lld resident_MiB=%lld recommended_MiB=%llu target_MiB=%llu remaining_MiB=%llu budget_source=%s",
++             tier, allocated == UINT64_MAX ? -1LL : (long long)(allocated / RB_WS_MIB),
++             resident == UINT64_MAX ? -1LL : (long long)(resident / RB_WS_MIB), (unsigned long long)(recommended / RB_WS_MIB),
+              (unsigned long long)(target / RB_WS_MIB), (unsigned long long)(metal_room / RB_WS_MIB),
+              valid ? "metal+process" : "process");
+     previous_valid = protect_ws ? valid : -1;
+diff --git a/graphics/nvn/gfx/nvn/rb_stage_ring.inc b/graphics/nvn/gfx/nvn/rb_stage_ring.inc
+index c2e85c2..a3bc7af 100644
+--- a/graphics/nvn/gfx/nvn/rb_stage_ring.inc
++++ b/graphics/nvn/gfx/nvn/rb_stage_ring.inc
+@@ -47,7 +47,7 @@ static int rb_stage_can_grow(uint64_t chunk) {
+ #endif
+     if (!rb_working_set_on()) return 1;
+     uint64_t target = rb_ws_target(g_dev.recommendedMaxWorkingSetSize);
+-    uint64_t allocated = rb_device_allocated_bytes(g_dev);
++    uint64_t allocated = rb_device_resident_bytes(g_dev);
+     uint64_t room = rb_ws_sample_room(target, allocated, rb_device_sample_valid(allocated),
+                                       rb_metal_working_room());
+     return chunk <= room;
+diff --git a/graphics/nvn/gfx/nvn/rb_working_set.h b/graphics/nvn/gfx/nvn/rb_working_set.h
+index 0b097b5..f7294ec 100644
+--- a/graphics/nvn/gfx/nvn/rb_working_set.h
++++ b/graphics/nvn/gfx/nvn/rb_working_set.h
+@@ -12,9 +12,19 @@ static inline uint64_t rb_ws_room(uint64_t target, uint64_t metal, uint64_t proc
+     uint64_t remaining = target > metal ? target - metal : 0;
+     return remaining < process ? remaining : process;
+ }
+-// On iOS a device allocation total above installed unified RAM cannot be
+-// interpreted as resident bytes. Use independently measured process headroom
+-// for that sample. Unknown headroom must never open unbounded optional work.
++// The device's allocation total counts address space: buffers that wrap guest
++// memory, placement heaps and purgeable storage are reported in full whether
++// or not a page is resident (an iPhone showed 6265 MiB allocated beside a
++// footprint under 1 GiB and 5757 MiB of process headroom). Metal cannot hold
++// more resident bytes than the process is charged for, so the working-set test
++// takes the smaller figure. An unknown footprint leaves the device's figure.
++static inline uint64_t rb_ws_resident(uint64_t allocated, uint64_t footprint) {
++    if (footprint == UINT64_MAX) return allocated;
++    return allocated == UINT64_MAX || footprint < allocated ? footprint : allocated;
++}
++// On iOS a total above installed unified RAM cannot be interpreted as resident
++// bytes either. Use independently measured process headroom for that sample.
++// Unknown headroom must never open unbounded optional work.
+ static inline int rb_ws_sample_valid(uint64_t allocated, uint64_t physical) {
+     return allocated != UINT64_MAX && (!physical || allocated <= physical);
+ }
+diff --git a/graphics/nvn/tests/t_rb_gov_stress.c b/graphics/nvn/tests/t_rb_gov_stress.c
+index 772c94d..753ba67 100644
+--- a/graphics/nvn/tests/t_rb_gov_stress.c
++++ b/graphics/nvn/tests/t_rb_gov_stress.c
+@@ -6,23 +6,21 @@
+ int main(void) {
+     const uint64_t mib = 1ull << 20, sec = 1000000000ull;
+     rb_gov_stress_state state = {0};
+-    assert(!rb_gov_stressed(&state,sec,UINT64_MAX,0));
+-    assert(!rb_gov_stressed(&state,2*sec,512*mib,0));
+-    assert(rb_gov_stressed(&state,3*sec,512*mib+1,0));
+-    assert(rb_gov_stressed(&state,4*sec,448*mib,0));
+-    assert(rb_gov_stressed(&state,13*sec,448*mib,0));
+-    assert(rb_gov_stressed(&state,14*sec,UINT64_MAX,0));
+-    assert(rb_gov_stressed(&state,20*sec,448*mib,0));
+-    assert(rb_gov_stressed(&state,30*sec,448*mib+1,0));
+-    assert(rb_gov_stressed(&state,31*sec,0,0));
+-    assert(rb_gov_stressed(&state,41*sec,0,1));
+-    assert(rb_gov_stressed(&state,42*sec,0,0));
+-    assert(rb_gov_stressed(&state,52*sec-1,0,0));
+-    assert(!rb_gov_stressed(&state,52*sec,0,0));
+-    for (int thermal=1;thermal<=3;thermal++) {
+-        rb_gov_stress_state cold = {0};
+-        assert(rb_gov_stressed(&cold,sec,UINT64_MAX,thermal));
+-    }
++    assert(!rb_gov_stressed(&state,sec,UINT64_MAX));
++    assert(!rb_gov_stressed(&state,2*sec,512*mib));
++    assert(rb_gov_stressed(&state,3*sec,512*mib+1));
++    assert(rb_gov_stressed(&state,4*sec,448*mib));
++    assert(rb_gov_stressed(&state,13*sec,448*mib));
++    assert(rb_gov_stressed(&state,14*sec,UINT64_MAX));
++    assert(rb_gov_stressed(&state,20*sec,448*mib));
++    assert(rb_gov_stressed(&state,30*sec,448*mib+1));
++    assert(rb_gov_stressed(&state,31*sec,0));
++    assert(rb_gov_stressed(&state,41*sec-1,0));
++    assert(!rb_gov_stressed(&state,41*sec,0));
++    // Heat is the speculative gate's input, not a memory reading: an unknown or
++    // low compression figure never starts the cap, whatever the thermal state.
++    rb_gov_stress_state cold = {0};
++    assert(!rb_gov_stressed(&cold,sec,UINT64_MAX) && !rb_gov_stressed(&cold,2*sec,0));
+     assert(rb_gov_ceiling(RB_GOV_NORMAL,0)==512 && rb_gov_ceiling(RB_GOV_WARN,0)==128);
+     assert(rb_gov_ceiling(RB_GOV_CRITICAL,1)==32 && rb_gov_ceiling(RB_GOV_CRITICAL,0)==32);
+     for (int floor=0;floor<=1;floor++) {
+@@ -36,5 +34,5 @@ int main(void) {
+         for (unsigned i=0;i<4;i++) sum+=rb_gov_share(plan,i);
+         assert(sum==96*mib);
+     }
+-    puts("PASS memory governor compression, Fair, recovery and owner quotas");
++    puts("PASS memory governor compression only, recovery and owner quotas");
+ }
+diff --git a/graphics/nvn/tests/t_rb_working_set.c b/graphics/nvn/tests/t_rb_working_set.c
+index 7c297b4..13cbd9b 100644
+--- a/graphics/nvn/tests/t_rb_working_set.c
++++ b/graphics/nvn/tests/t_rb_working_set.c
+@@ -12,6 +12,20 @@ int main(void) {
+     assert(rb_ws_room(target, target - 1, 6000 * mib) == 1);
+     assert(rb_ws_room(target, 7794 * mib, 4466 * mib) == 0);
+     assert(rb_ws_room(target, 1, 29) == 29);
++    // The device's total is address space. iPhone 16 Pro Max, build 820: 6265 MiB
++    // allocated, a footprint near 900 MiB and 5757 MiB of process headroom were
++    // read as no room at all.
++    assert(rb_ws_resident(6265 * mib, 900 * mib) == 900 * mib);
++    assert(rb_ws_sample_valid(rb_ws_resident(6265 * mib, 900 * mib), 7619 * mib));
++    assert(rb_ws_sample_room(target, rb_ws_resident(6265 * mib, 900 * mib), 1, 5757 * mib) == target - 900 * mib);
++    // Above installed RAM the total was already set aside; the footprint now bounds it too.
++    assert(rb_ws_resident(29127 * mib, 2000 * mib) == 2000 * mib);
++    // A small real total stays, an unknown footprint changes nothing, an unknown total takes the footprint.
++    assert(rb_ws_resident(238 * mib, 900 * mib) == 238 * mib);
++    assert(rb_ws_resident(6265 * mib, UINT64_MAX) == 6265 * mib);
++    assert(rb_ws_resident(UINT64_MAX, 900 * mib) == 900 * mib && rb_ws_resident(UINT64_MAX, UINT64_MAX) == UINT64_MAX);
++    // A process really charged for more than the target leaves no optional room.
++    assert(rb_ws_sample_room(target, rb_ws_resident(7794 * mib, 5000 * mib), 1, 1200 * mib) == 0);
+     assert(rb_ws_sparse_target(recommended, 0) == 3);
+     assert(rb_ws_sparse_target(recommended, 2) == 2);
+     assert(rb_ws_sparse_target(4096 * mib, 0) == 2);

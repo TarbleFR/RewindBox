@@ -160,3 +160,28 @@ Patch 0302.
 Aucune règle par titre. La clé de pipeline n'est pas modifiée : `pso_norm_masks` retire déjà du `pso_key` les attributs de sommet non lus, les flux inutilisés et l'état de fusion des cibles non écrites.
 
 Vérification. `t_rb_spec_gate.c` couvre la règle (deux voies jusqu'à Fair, une à Serious, aucune à Critical, aucune voie au-delà de la deuxième) et passe sur l'hôte. `t_nvn_warmbump.m` vérifie sur le GPU du Mac de CI que la deuxième voie sert une ligne enregistrée à Fair, que la voie zéro continue à Serious et qu'un worker ordinaire reste suspendu. Rien n'est mesuré sur iPhone avec ce patch : le rapport `prepared` / `demand` et la chauffe à Serious restent à observer.
+
+## Gouverneur mémoire : fausse saturation du budget Metal
+
+Deux journaux iPhone 16 Pro Max de Mario Kart World.
+
+| Journal | Ligne `[RB-MEM-GOV]` | Marge réelle au même instant |
+|---|---|---|
+| IPA 820 | `tier=2 metal_MiB=6265 target_MiB=4642 remaining_MiB=0 budget_source=metal+process` | `headroom_MiB=5757` ; empreinte du processus 917 Mo à l'image 250 |
+| Session après la 821 | `metal_MiB` : 238, puis 22343 (`process`), 6121 (`tier=2`), 7621 (`process`), 7616 (`tier=2`), 7639 (`process`) | `headroom_MiB=5813` ; « resident 892 MB, GPU allocated 6280 MB » à l'image 300 |
+
+Effets relevés à `tier=2` : `prefetch=0`, `upload=4194304`, `texture=4194304`, puis « speculative shader work held: little memory left before the process limit (… 5726 MB left …) ». Le même palier ferme aussi l'admission des lignes enregistrées (`rb_gov_admit_registered`).
+
+Cause. `rb_gov_sample` compare `MTLDevice.currentAllocatedSize` à la cible du jeu de travail (85 % de `recommendedMaxWorkingSetSize`). Ce total compte de l'espace d'adressage : tampons qui enveloppent la mémoire invitée, tas de placement, stockage purgeable. Le patch 0295 écartait déjà l'échantillon quand il dépasse la mémoire installée (7619 Mio) ; en dessous, la même valeur gonflée était prise pour des octets résidents. Le palier basculait donc selon que le total passait au-dessus ou au-dessous de 7619 Mio.
+
+Patch 0303.
+
+- `rb_ws_resident` : Metal ne peut pas détenir plus d'octets résidents que le processus n'en est facturé. L'échantillon utilisé est le plus petit du total Metal et de l'empreinte du processus (`phys_footprint`, lue par la sonde existante, une fois par seconde, hors du thread de soumission). Empreinte inconnue : le total Metal reste tel quel. Les trois lecteurs passent par cette valeur : gouverneur, anneau de transit des envois, tas de placement.
+- `rb_gov_stressed` ne lit plus l'état thermique. La chaleur est l'entrée du régulateur spéculatif (`rb_spec_gate.h`) ; des caches plus petits ajoutent des reconstructions à un appareil chaud. La compression du processus (plus de 512 Mio) garde le plafond de 96 Mio du patch 0246.
+- Le premier échantillon publie le palier mesuré. Le plan initial (128 Mio, `tier=1`) n'est qu'une valeur d'attente : il imposait dix secondes de `tier=1` à chaque premier lancement.
+- La ligne `[RB-MEM-GOV] tier=` porte `resident_MiB` à côté de `metal_MiB`.
+
+Ce qui ne change pas : le palier critique à 768 Mio de marge ou moins, l'avertissement à 2048 Mio ou moins, les événements de pression mémoire du système, le plafond sous compression, et le palier critique quand l'empreinte elle-même atteint la cible.
+
+Vérification. `t_rb_working_set.c` rejoue les valeurs des deux journaux (6265 Mio alloués, empreinte de 900 Mio : il reste la cible moins 900 Mio) et garde le cas saturé (empreinte au-dessus de la cible : aucune marge). `t_rb_gov_stress.c` vérifie que seule la compression active le plafond. Les deux passent sur l'hôte. Rien n'est mesuré sur iPhone : à observer, `tier=0` avec `prefetch=134217728 upload=134217728 texture=234881024` tant que la marge dépasse 2 Go et que la compression reste sous 512 Mio, et l'évolution de l'empreinte réelle.
+
