@@ -35,3 +35,39 @@ Comparer Airship Fortress et Moo Moo Farm avec un premier passage à caches équ
 ## Vérification Apple
 
 Les [frameworks iOS arm64 et le contrôle de réouverture des archives Metal](https://github.com/TarbleFR/RewindBox/actions/runs/44889895037) et le [pont UIKit](https://github.com/TarbleFR/RewindBox/actions/runs/44889895029) correspondent au même commit source. Le [banc des 267 patchs](https://github.com/TarbleFR/RewindBox/actions/runs/44888750599/job/136799701221) a vérifié les pixels MRT, les copies GPU, la QoS des pthreads et les 89 contrôles de la suite shaders. La série de patchs est identique octet par octet entre ces deux runs. Le [reçu du moteur](s2arm-fluidity-803/engine267-build.json) associe chaque contrôle à son résultat et identifie les contrôles de file directe indisponibles sur le GPU du banc. Le pin authentifie les 267 patchs et les archives effectivement intégrées. Les temps de trame de course sur A18 Pro restent à mesurer.
+
+## Planchers de TIMESTAMP et cadence 30 demandée par le jeu
+
+Deux sessions Mario Kart World sur iPhone 16 Pro Max : IPA 820 (Nominal, puis Fair à l'image 2501) et une session reçue après la 821 (Fair dès le lancement, puis Serious).
+
+Présentation. Aucune attente parasite : sur 215 et 295 lignes `[longframe]`, aucune n'est dominée par l'attente du display link avec un GPU sous 10 ms. Les images de 33 ms suivent un intervalle 2 écrit par le jeu (1 993 et 3 629 changements d'intervalle dans les deux sessions). L'attente du display link pèse 4,1 % et 2,0 % du temps des images longues ; soumission et présentation 80 % et 84 %.
+
+Part des images de course à l'intervalle 2, selon le plancher que le moteur donne au temps GPU lu par le jeu (IPA 820, images 1200 et suivantes ; p50 GPU réel à l'entrée du segment) :
+
+| État | Plancher | Images | Part à l'intervalle 2 | p50 GPU réel |
+|---|---|---|---|---|
+| Nominal | 16,6 ms | 1200–2501 | 3,2 % | — |
+| Fair, palier 0 | 18,68 ms | 5614–9933 | 32,1 % | 11,4 ms |
+| Fair, palier 1 | 20,5 ms | 2915–3249, 4221–4577, 4956–5614 | 30,5 %, 36,0 %, 62,0 % | 11,3 à 29,7 ms |
+| Fair, palier 2 | 22,0 ms | 3249–4221 | 51,1 % | 13,8 ms |
+
+Session après la 821 : palier 2 (22,0 ms) de l'image 1200 à la fin, 58,6 % à l'intervalle 2, puis intervalle 2 continu à partir de l'image 5638.
+
+Lecture. Le patch 0087 relève le temps lu au-delà de la bande où le jeu garde sa taille (environ 15 à 17 ms à 60 images par seconde) pour qu'il baisse sa résolution. Un temps au-dessus du budget de 16,67 ms est aussi une image manquée : le jeu demande alors l'intervalle 2. Les scènes diffèrent d'un segment à l'autre ; le lien est une corrélation, pas un essai apparié.
+
+Patch 0305, `rb_drs_report_ticks`.
+
+- À Fair, sans pression GPU mesurée (palier 0), le plancher reste le maintien de 16,6 ms : la chaleur seule ne déclare plus d'image manquée.
+- Un palier relevé par le temps GPU mesuré (`rb_drs_observe_gpu`) sort de la bande par le plus petit pas : 18,675 ms au palier 1, 20,5 ms au palier 2. Le pas de 22,0 ms disparaît.
+- À partir de Serious, le système a ralenti le GPU lui-même : chaque palier pousse la taille vers le bas, comme le patch 0087.
+- `S2A_RB_DRS_THERMAL_STATE` et `S2A_RB_DRS_THERMAL` gardent leur rôle.
+
+Ce qui reste hors de ce patch.
+
+- Une fois l'intervalle 2 tenu une seconde, le maintien passe à 33,2 ms : le jeu ne peut plus constater que le GPU est redevenu rapide. Le temps GPU mesuré s'étire aussi avec l'intervalle (30 à 36 ms à l'intervalle 2, sonde GPU fixe de 0,19–0,31 ms à 0,64–1,23 ms), ce qui ressemble à une baisse de fréquence et non à une charge.
+- En course à l'intervalle 1, le thread de soumission consomme 12,8 à 22,5 ms de CPU par image à 1,3–1,7 GHz : c'est lui qui borne la cadence.
+- `S2A_WORKGROUP` reste à 0 : le groupe de travail fait refuser la mise en veille de la session, et la seule mesure disponible (un autre jeu) donne 2,47 W contre 1,69 W.
+- Profil de cadence : il ne change que l'instant de présentation, pas le coût, et un mode `display` forcé risque d'accélérer la simulation. Aucun n'est ajouté.
+
+Vérification. `t_rb_adaptive_drs.c` couvre les trois cas (maintien à Fair, pas de 18,675 et 20,5 ms, poussée à Serious, plafond de cadence de l'utilisateur) et passe sur l'hôte. À observer sur iPhone, à Fair : la part d'images à l'intervalle 2 dans `the game sets present interval`, les lignes `dynamic resolution hold … raised to`, la taille des cibles du jeu, et le délai avant Serious, qui peut se raccourcir puisque le jeu garde plus souvent 60 images par seconde.
+

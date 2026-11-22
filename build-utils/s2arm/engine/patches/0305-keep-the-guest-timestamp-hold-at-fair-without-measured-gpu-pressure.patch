@@ -1,0 +1,88 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index d49b3e9..4bfbe5f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3055,7 +3055,7 @@ static _Atomic uint64_t g_drs_raised, g_drs_seen;   // TIMESTAMP reports raised
+ //   at least the hold and an eighth after the frame's first TIMESTAMP_TOP (18.7 ms at 60 fps): past the band the game holds its size in (about 15-17 ms), so the game lowers its
+ //   own resolution toward its floor (1248x700 in Mario Kart World), as on a console that falls behind. Patch 0083's hold again after 30 s at fair or below. The state is read
+ //   twice a second at most, from the report loop. S2A_RB_DRS_THERMAL=0: no step
+-static _Atomic int g_rb_drs_threshold, g_drs_hot;
++static _Atomic int g_rb_drs_threshold, g_drs_hot, g_drs_state;   // g_drs_state: the thermal state rb_drs_hot last read
+ static _Atomic uint64_t g_drs_th_at, g_drs_hot_raised;
+ #include "rb_adaptive_drs.h"
+ static rb_guest_heat g_rb_guest_heat;
+@@ -3086,6 +3086,7 @@ static int rb_drs_hot(uint64_t f) {
+     }
+     atomic_store(&g_drs_th_at, now);
+     int state = (int)NSProcessInfo.processInfo.thermalState, before = g_rb_guest_heat.hot;
++    atomic_store_explicit(&g_drs_state, state, memory_order_relaxed);
+     if (g_rb_drs_target < 0.)
+         g_rb_drs_target = (nvn_rb_thermal_scope() || rb_thermal_pacing()) ? rb_drs_target_ms(getenv("S2A_RB_DRS_TARGET_MS")) : 0.;
+     int adapt = g_rb_drs_target > 0. && state == 1 && stored == 2;
+@@ -3141,7 +3142,8 @@ static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the ti
+     int fps = nvn_be_fps_target(); if (fps <= 0 || fps > 60) fps = 60;   // 30 / 60 (nvn_obj.h)
+     uint64_t hold = 16600000ull * 60 / (uint64_t)fps * 12 / 625;   // 16.6 ms at 60 fps, in 19.2 MHz ticks
+     unsigned level = atomic_load_explicit(&g_rb_drs_level, memory_order_relaxed);
+-    uint64_t want = rb_drs_report_ticks(hot, fps, level ? nvn_fps_limit() : 0, level, hold);
++    uint64_t want = rb_drs_report_ticks(hot, atomic_load_explicit(&g_drs_state, memory_order_relaxed) >= 2, fps,
++                                        level ? nvn_fps_limit() : 0, level, hold);
+     uint64_t seen = atomic_fetch_add(&g_drs_seen, 1) + 1;
+     if (t - top >= want || t - top < hold / 2) return t;
+     if (hot) atomic_fetch_add(&g_drs_hot_raised, 1);   // RewindBox (patch 0087)
+diff --git a/graphics/nvn/gfx/nvn/rb_adaptive_drs.h b/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
+index b11f2cc..f5ab4b4 100644
+--- a/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
++++ b/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
+@@ -68,10 +68,18 @@ static inline void rb_drs_observe_gpu(rb_adaptive_drs *s, uint64_t frame, double
+         s->pressure_windows = s->recovery_windows = 0;
+     }
+ }
+-static inline uint64_t rb_drs_report_ticks(int hot, int fps, int cap, unsigned level, uint64_t hold) {
++// A report past the game's hold band (about 15-17 ms at 60 fps) reads as a
++// missed frame: the game lowers its size, and Mario Kart World also asks for
++// present interval 2. An iPhone 16 Pro Max at Fair, GPU p50 near 11.4 ms: 3 %
++// of race frames at interval 2 with the 16.6 ms hold, 32 % over 4300 frames at
++// 18.68 ms, 30 to 62 % at 20.5 ms, 51 % at 22.0 ms. Heat alone therefore keeps
++// the hold at Fair; a level that measured GPU time raised (rb_drs_observe_gpu)
++// goes past the band by the smallest step first. From Serious on the system
++// has slowed the GPU itself, and every level pushes the size down (patch 0087).
++static inline uint64_t rb_drs_report_ticks(int hot, int serious, int fps, int cap, unsigned level, uint64_t hold) {
+     if (!hot) return hold;
+     if (cap > 0 && cap < 60) level = 0;
+-    if (fps == 60 && level == 1) return UINT64_C(20500) * 192 / 10;
+-    if (fps == 60 && level >= 2) return UINT64_C(22000) * 192 / 10;
++    if (!level) return serious ? hold + hold / 8 : hold;
++    if (fps == 60 && level >= 2) return UINT64_C(20500) * 192 / 10;
+     return hold + hold / 8;
+ }
+diff --git a/graphics/nvn/tests/t_rb_adaptive_drs.c b/graphics/nvn/tests/t_rb_adaptive_drs.c
+index 8bea581..3bba4a3 100644
+--- a/graphics/nvn/tests/t_rb_adaptive_drs.c
++++ b/graphics/nvn/tests/t_rb_adaptive_drs.c
+@@ -36,11 +36,19 @@ int main(void) {
+     assert(s.level == 2);
+     for (int i=0;i<7;++i) rb_drs_observe_gpu(&s,f+=32,13.5,12.,13.9);
+     assert(s.level == 1 && s.down_steps == 1);
+-    assert(rb_drs_report_ticks(1,60,0,0,318720) == 358560);
+-    assert(rb_drs_report_ticks(1,60,0,1,318720) == 393600);
+-    assert(rb_drs_report_ticks(1,60,0,2,318720) == 422400);
+-    assert(rb_drs_report_ticks(1,30,0,2,637440) == 717120);
+-    assert(rb_drs_report_ticks(1,60,30,2,318720) == 358560); // live user cap
+-    assert(rb_drs_report_ticks(0,60,0,2,318720) == 318720);
+-    puts("PASS guest DRS: measured medians/tails, base/20.5/22 ms, disjoint samples, invalid windows, hysteresis, 30 Hz and off");
++    // Fair without measured GPU pressure keeps the 16.6 ms hold; a raised level
++    // steps past the band to 18.675 then 20.5 ms; Serious pushes at every level.
++    assert(rb_drs_report_ticks(1,0,60,0,0,318720) == 318720);
++    assert(rb_drs_report_ticks(1,0,60,0,1,318720) == 358560);
++    assert(rb_drs_report_ticks(1,0,60,0,2,318720) == 393600);
++    assert(rb_drs_report_ticks(1,1,60,0,0,318720) == 358560);
++    assert(rb_drs_report_ticks(1,1,60,0,1,318720) == 358560);
++    assert(rb_drs_report_ticks(1,1,60,0,2,318720) == 393600);
++    assert(rb_drs_report_ticks(1,0,30,0,0,637440) == 637440);
++    assert(rb_drs_report_ticks(1,0,30,0,2,637440) == 717120);
++    assert(rb_drs_report_ticks(1,1,30,0,0,637440) == 717120);
++    assert(rb_drs_report_ticks(1,0,60,30,2,318720) == 318720); // live user cap
++    assert(rb_drs_report_ticks(1,1,60,30,2,318720) == 358560);
++    assert(rb_drs_report_ticks(0,0,60,0,2,318720) == 318720 && rb_drs_report_ticks(0,1,60,0,2,318720) == 318720);
++    puts("PASS guest DRS: measured medians/tails, hold at Fair, 18.675/20.5 ms steps, Serious push, disjoint samples, invalid windows, hysteresis, 30 Hz and off");
+ }
