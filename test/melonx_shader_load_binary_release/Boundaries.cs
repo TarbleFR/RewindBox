@@ -108,6 +108,13 @@ sealed class StartFaultThread
 }
 #endif
 
+namespace Ryujinx.Common
+{
+    static class EmbeddedLaunchDiagnostics
+    {
+        public static void Record(string stage, string status, int code = 0, string detail = "") { }
+    }
+}
 namespace Ryujinx.Common.Logging
 {
     public enum LogClass { Gpu }
@@ -192,11 +199,25 @@ namespace Ryujinx.Graphics.Gpu.Shader
     {
         public readonly List<CachedShaderProgram> Programs = new();
         public void Add(CachedShaderProgram program) => Programs.Add(program);
+        // adapt_shader_code_table_load: the loader registers its programs together once the load has ended.
+        public void AddRange(List<CachedShaderProgram> programs, out int references, out int codes, out long codeBytes)
+        {
+            Programs.AddRange(programs);
+            references = codes = 0;
+            codeBytes = 0;
+        }
     }
     sealed class ComputeShaderCacheHashTable
     {
         public readonly List<CachedShaderProgram> Programs = new();
         public void Add(CachedShaderProgram program) => Programs.Add(program);
+        // adapt_shader_code_table_load: the loader registers its programs together once the load has ended.
+        public void AddRange(List<CachedShaderProgram> programs, out int references, out int codes, out long codeBytes)
+        {
+            Programs.AddRange(programs);
+            references = codes = 0;
+            codeBytes = 0;
+        }
     }
     sealed class ShaderInfoBuilder(GpuContext context, bool transformFeedback)
     {

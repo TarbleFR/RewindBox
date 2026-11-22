@@ -129,7 +129,7 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # bodies of Syscall.cs executed again from the final source (kernel-wait-lifetime-final, the historical gate's successor);
 # 115 after IPA 771 (the shader cache load keeps no host code of cached programs: shader-load-binary-release).
 # Streaming-memory fixture is available for manual exact-source validation.
-FRESH_GATES = 121  # After IPA 820: the guest-stop compile cancellation and the deferred release roots.
+FRESH_GATES = 124  # After IPA 821: render-thread compile relief, guest start during the shader load, code table load.
 HISTORICAL_RECEIPTS = 61
 
 

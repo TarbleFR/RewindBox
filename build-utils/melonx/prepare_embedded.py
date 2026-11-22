@@ -245,6 +245,9 @@ from adapt_hogwarts_steady_render import apply as adapt_hogwarts_steady_render
 from adapt_hogwarts_pipeline_replay import apply as adapt_hogwarts_pipeline_replay
 from adapt_guest_stop_compile_cancel import apply as adapt_guest_stop_compile_cancel
 from adapt_deferred_release_roots import apply as adapt_deferred_release_roots
+from adapt_render_thread_compile_relief import apply as adapt_render_thread_compile_relief
+from adapt_guest_start_during_shader_load import apply as adapt_guest_start_during_shader_load
+from adapt_shader_code_table_load import apply as adapt_shader_code_table_load
 
 
 def replace_once(path, old, new):
@@ -791,6 +794,9 @@ def main():
     adapted += adapt_hogwarts_pipeline_replay(source)
     adapted += adapt_guest_stop_compile_cancel(source)
     adapted += adapt_deferred_release_roots(source)
+    adapted += adapt_render_thread_compile_relief(source)
+    adapted += adapt_guest_start_during_shader_load(source)
+    adapted += adapt_shader_code_table_load(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -957,7 +963,8 @@ def main():
                  'adapt_xci_update_identity.py', 'adapt_hogwarts_frame_budget.py',
                  'adapt_fifo_channel_retirement.py', 'adapt_hogwarts_steady_render.py',
                  'adapt_hogwarts_pipeline_replay.py', 'adapt_guest_stop_compile_cancel.py',
-                 'adapt_deferred_release_roots.py']:
+                 'adapt_deferred_release_roots.py', 'adapt_render_thread_compile_relief.py',
+                 'adapt_guest_start_during_shader_load.py', 'adapt_shader_code_table_load.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

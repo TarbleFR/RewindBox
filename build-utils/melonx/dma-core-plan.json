@@ -166,7 +166,10 @@
   "build-utils/melonx/adapt_hogwarts_steady_render.py",
   "build-utils/melonx/adapt_hogwarts_pipeline_replay.py",
   "build-utils/melonx/adapt_guest_stop_compile_cancel.py",
-  "build-utils/melonx/adapt_deferred_release_roots.py"
+  "build-utils/melonx/adapt_deferred_release_roots.py",
+  "build-utils/melonx/adapt_render_thread_compile_relief.py",
+  "build-utils/melonx/adapt_guest_start_during_shader_load.py",
+  "build-utils/melonx/adapt_shader_code_table_load.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -310,7 +313,12 @@
   "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoProcessor.cs",
   "src/Ryujinx.Graphics.Gpu/GpuChannel.cs",
   "src/Ryujinx.Graphics.Gpu/Memory/MemoryManager.cs",
-  "src/Ryujinx.HLE/HOS/Services/Nv/NvDrvServices/NvHostChannel/NvHostChannelDeviceFile.cs"
+  "src/Ryujinx.HLE/HOS/Services/Nv/NvDrvServices/NvHostChannel/NvHostChannelDeviceFile.cs",
+  "src/Ryujinx.Graphics.Gpu/Shader/ComputeShaderCacheHashTable.cs",
+  "src/Ryujinx.Graphics.Gpu/Shader/HashTable/PartitionHashTable.cs",
+  "src/Ryujinx.Graphics.Gpu/Shader/HashTable/PartitionedHashTable.cs",
+  "src/Ryujinx.Graphics.Gpu/Shader/ShaderCacheHashTable.cs",
+  "src/Ryujinx.HLE/HOS/ArmProcessContext.cs"
  ],
  "productionAdditions": [
   "src/Ryujinx.HLE/EmbeddedOnline.cs",
@@ -495,7 +503,13 @@
   "test/melonx_guest_stop_compile_cancel/Double.cs",
   "test/melonx_guest_stop_compile_cancel/Program.cs",
   "test/melonx_deferred_release_roots/Double.cs",
-  "test/melonx_deferred_release_roots/Program.cs"
+  "test/melonx_deferred_release_roots/Program.cs",
+  "test/melonx_render_thread_compile_relief/Double.cs",
+  "test/melonx_render_thread_compile_relief/Program.cs",
+  "test/melonx_guest_start_during_shader_load/Double.cs",
+  "test/melonx_guest_start_during_shader_load/Program.cs",
+  "test/melonx_shader_code_table_load/Double.cs",
+  "test/melonx_shader_code_table_load/Program.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -750,7 +764,11 @@
     "src/Ryujinx.Graphics.Vulkan/BufferManager.cs",
     "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTexture.cs",
     "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoProcessor.cs",
-    "src/Ryujinx.Graphics.Gpu/GpuChannel.cs"
+    "src/Ryujinx.Graphics.Gpu/GpuChannel.cs",
+    "src/Ryujinx.Graphics.Gpu/Shader/HashTable/PartitionHashTable.cs",
+    "src/Ryujinx.Graphics.Gpu/Shader/HashTable/PartitionedHashTable.cs",
+    "src/Ryujinx.Graphics.Gpu/Shader/ShaderCacheHashTable.cs",
+    "src/Ryujinx.Graphics.Gpu/Shader/ComputeShaderCacheHashTable.cs"
    ],
    "compiledBindings": [
     {
@@ -1607,6 +1625,42 @@
       "src/Ryujinx.Graphics.Gpu/GpuChannel.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Gpu/GpuChannel.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Gpu/Shader/HashTable/PartitionHashTable.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Shader/HashTable/PartitionHashTable.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Gpu/Shader/HashTable/PartitionedHashTable.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Shader/HashTable/PartitionedHashTable.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Gpu/Shader/ShaderCacheHashTable.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Shader/ShaderCacheHashTable.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Gpu/Shader/ComputeShaderCacheHashTable.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Shader/ComputeShaderCacheHashTable.cs"
     }
    ]
   },
@@ -5476,6 +5530,82 @@
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs"
+   ]
+  },
+  {
+   "name": "render-thread-compile-relief",
+   "script": "test/melonx_render_thread_compile_relief_test.py",
+   "report": "render-thread-compile-relief-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 1800,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "physicalDeviceTested": false,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "productionVulkanAssemblyBuilt": true,
+    "reports.candidate.joined": true,
+    "reports.candidate.computeCompiles": 1,
+    "reports.control.computeCompiles": 2
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
+    "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs",
+    "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs",
+    "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs"
+   ]
+  },
+  {
+   "name": "guest-start-during-shader-load",
+   "script": "test/melonx_guest_start_during_shader_load_test.py",
+   "report": "guest-start-during-shader-load-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 2400,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "physicalDeviceTested": false,
+    "sourceKind": "finalPreparationWithReversedControl"
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Gpu/GpuContext.cs",
+    "src/Ryujinx.Graphics.Gpu/Synchronization/SynchronizationManager.cs",
+    "src/Ryujinx.HLE/HOS/ArmProcessContext.cs"
+   ]
+  },
+  {
+   "name": "shader-code-table-load",
+   "script": "test/melonx_shader_code_table_load_test.py",
+   "report": "shader-code-table-load-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 2400,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "physicalDeviceTested": false,
+    "sourceKind": "finalPreparationWithReversedControl"
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Gpu/Shader/HashTable/PartitionHashTable.cs",
+    "src/Ryujinx.Graphics.Gpu/Shader/HashTable/PartitionedHashTable.cs",
+    "src/Ryujinx.Graphics.Gpu/Shader/ShaderCacheHashTable.cs",
+    "src/Ryujinx.Graphics.Gpu/Shader/ComputeShaderCacheHashTable.cs",
+    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs"
    ]
   }
  ]

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib
+import os
 from pathlib import Path
 import shutil
 import tempfile
@@ -68,7 +69,8 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_cheat_report', 'adapt_descriptor_pool_lifetime', 'adapt_descriptor_and_block_usage', 'adapt_cached_shader_stages',
          'adapt_account_cache_import', 'adapt_xci_update_identity', 'adapt_hogwarts_frame_budget',
          'adapt_fifo_channel_retirement', 'adapt_hogwarts_steady_render', 'adapt_hogwarts_pipeline_replay',
-         'adapt_guest_stop_compile_cancel', 'adapt_deferred_release_roots')
+         'adapt_guest_stop_compile_cancel', 'adapt_deferred_release_roots',
+         'adapt_render_thread_compile_relief', 'adapt_guest_start_during_shader_load', 'adapt_shader_code_table_load')
 
 
 def sha(path: Path) -> str:
@@ -82,7 +84,27 @@ class _NoDigests(dict):
         return []
 
 
+# What each ordered adapter found before it ran, recorded by test/melonx_adapter_preimages.py during a real preparation.
+PREIMAGES = Path(os.environ.get('MELONX_ADAPTER_PREIMAGES') or Path(__file__).resolve().parents[1] / 'dist/melonx/adapter-preimages')
+
+
+def _restore(module_name: str, tree: Path, only=None) -> bool:
+    """Put back the files of the adapter's BASELINE as it found them, from the recorded preimages: each must have the
+    digest the adapter pins. False (nothing written) when the store lacks one of them; the caller then undoes the
+    adapter's text replacements, which fails where a replacement's new text is not unique in the file."""
+    module = importlib.import_module(module_name)
+    names = [name for name in module.BASELINE if only is None or name in only]
+    stored = {name: PREIMAGES / module_name / name for name in names}
+    if not names or not all(path.is_file() and sha(path) == module.BASELINE[name] for name, path in stored.items()):
+        return False
+    for name, path in stored.items():
+        shutil.copyfile(path, tree / name)
+    return True
+
+
 def _reverse(module_name: str, tree: Path) -> None:
+    if _restore(module_name, tree):
+        return
     module = importlib.import_module(module_name)
     original = module.once
 
@@ -200,6 +222,8 @@ def reverse_present(target: Path, module_name: str, only=None) -> list:
     present = [name for name in module.BASELINE if (target / name).exists() and (only is None or name in only)]
     if not present:
         return []
+    if _restore(module_name, target, set(present)):
+        return present
     original = module.once
 
     def undo_present(path, old, new):

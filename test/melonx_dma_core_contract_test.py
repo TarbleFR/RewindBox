@@ -306,7 +306,11 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'shader-load-binary-release': 'delivered', 'streaming-memory': 'delivered',
             'nextendo-data': 'delivered', 'buffer-mirror-windows': 'delivered', 'cheat-report': 'delivered',
             # After IPA 820: a close cancels the queued compiles at the guest's stop; the loading thread's release keeps no session.
-            'guest-stop-compile-cancel': 'delivered', 'deferred-release-roots': 'delivered'}
+            'guest-stop-compile-cancel': 'delivered', 'deferred-release-roots': 'delivered',
+            # After IPA 821: no compile on the render thread for a skippable draw, the guest starts during the shader load,
+            # the guest code tables are filled once at the end of the load.
+            'render-thread-compile-relief': 'delivered', 'guest-start-during-shader-load': 'delivered',
+            'shader-code-table-load': 'delivered'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
 # Core 654: the collector (DIAGNOSTICS) is a reviewed change again, its gcEvent lines bound by the gc-events gate.
 CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES) |
@@ -501,6 +505,13 @@ JOINED = JOINED | {C745_NIFM_SERVICE}
 # Core 747 (adapt_wait_spin_bound): Ryujinx.Common's AsyncWorkQueue.cs (the adaptive spin event) joins the prepared source.
 C747_SPIN_EVENT = 'src/Ryujinx.Common/AsyncWorkQueue.cs'
 JOINED = JOINED | {C747_SPIN_EVENT}
+# After IPA 821 (adapt_shader_code_table_load): the guest code tables are filled once at the end of the shader cache
+# load; the two partition tables and the two shader tables join the prepared source.
+C825_CODE_TABLES = {'src/Ryujinx.Graphics.Gpu/Shader/HashTable/PartitionHashTable.cs',
+                    'src/Ryujinx.Graphics.Gpu/Shader/HashTable/PartitionedHashTable.cs',
+                    'src/Ryujinx.Graphics.Gpu/Shader/ShaderCacheHashTable.cs',
+                    'src/Ryujinx.Graphics.Gpu/Shader/ComputeShaderCacheHashTable.cs'}
+JOINED = JOINED | C825_CODE_TABLES
 # Core 749 candidate (adapt_darwin_timed_waits): Ryujinx.Common's PreciseSleepHelper.cs joins the prepared source.
 C749_TIMED_WAITS = 'src/Ryujinx.Common/PreciseSleep/PreciseSleepHelper.cs'
 JOINED = JOINED | {C749_TIMED_WAITS}
@@ -754,7 +765,14 @@ if not args.helpers_only:
     from adapt_fifo_channel_retirement import CHANNEL, MEMORY, NV_CHANNEL, PROCESSOR
     from adapt_hogwarts_steady_render import TEXTURE as THREADED_TEXTURE
     CHANGES.update({CHANNEL, MEMORY, NV_CHANNEL, PROCESSOR, THREADED_TEXTURE})
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 142 and
+    # After IPA 821: the guest's first thread waits for the loader's start only (adapt_guest_start_during_shader_load),
+    # the guest code tables are filled once at the end of the load (adapt_shader_code_table_load).
+    CHANGES.update({'src/Ryujinx.HLE/HOS/ArmProcessContext.cs',
+                    'src/Ryujinx.Graphics.Gpu/Shader/HashTable/PartitionHashTable.cs',
+                    'src/Ryujinx.Graphics.Gpu/Shader/HashTable/PartitionedHashTable.cs',
+                    'src/Ryujinx.Graphics.Gpu/Shader/ShaderCacheHashTable.cs',
+                    'src/Ryujinx.Graphics.Gpu/Shader/ComputeShaderCacheHashTable.cs'})
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 147 and
           set(frozen["productionAdditions"]) == {C768_ONLINE_ADDITION, C770_RUNTIME_YIELD_ADDITION, 'src/Ryujinx.Horizon/EmbeddedDeliveryCache.cs', 'src/Ryujinx.HLE/EmbeddedCheatReport.cs',
               'src/Ryujinx.Library/EmbeddedNsz.cs', 'src/Ryujinx.Graphics.Gpu/EmbeddedShaderMetadataReader.cs'}, "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
@@ -924,7 +942,11 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_hogwarts_pipeline_replay.py',
                                                      # After IPA 820: the close and the session retention.
                                                      'build-utils/melonx/adapt_guest_stop_compile_cancel.py',
-                                                     'build-utils/melonx/adapt_deferred_release_roots.py'} and
+                                                     'build-utils/melonx/adapt_deferred_release_roots.py',
+                                                     # After IPA 821: stutter and launch time.
+                                                     'build-utils/melonx/adapt_render_thread_compile_relief.py',
+                                                     'build-utils/melonx/adapt_guest_start_during_shader_load.py',
+                                                     'build-utils/melonx/adapt_shader_code_table_load.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -998,7 +1020,9 @@ if not args.helpers_only:
     # After IPA 767: adapt_loh_compaction_request.py and adapt_guest_break_context.py join them (262); Switch.cs and
     # Syscall.cs are members already (228).
     # After IPA 771: adapt_shader_load_binary_release.py joins them (263); its two disk cache files are members already.
-    check(len(frozen['preparationInputs']) == 282 and len(frozen['preparedMembers']) == 245, 'Wrong final composition')
+    # After IPA 821, launch and stutter lot: three adapters join them (285); the four code table files join the members
+    # (249), the nine other files they edit are members already.
+    check(len(frozen['preparationInputs']) == 285 and len(frozen['preparedMembers']) == 249, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -1167,6 +1191,8 @@ if not args.helpers_only:
                     'src/Ryujinx.HLE/HOS/Services/Account/Acc/AccountService/IManagerForApplication.cs'}
     OUTSIDE_GPU |= {SERVICE_CREATOR, 'src/Ryujinx.Library/EmbeddedAddons.cs', 'src/Ryujinx.Library/EmbeddedSessionCoordinator.cs'}
     OUTSIDE_GPU.add(NV_CHANNEL)
+    # After IPA 821: ArmProcessContext.cs (Ryujinx.HLE) is outside the GPU closure; guest-start-during-shader-load builds it.
+    OUTSIDE_GPU.add('src/Ryujinx.HLE/HOS/ArmProcessContext.cs')
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
           CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},

@@ -156,6 +156,10 @@ from adapt_fifo_channel_retirement import BASELINE as FIFO_RETIREMENT, NV_CHANNE
 from adapt_hogwarts_steady_render import BASELINE as HOGWARTS_RENDER  # noqa: E402
 from adapt_hogwarts_pipeline_replay import BASELINE as HOGWARTS_REPLAY  # noqa: E402
 COMPOSED = sorted(set(COMPOSED) | (set(FIFO_RETIREMENT) - {NV_CHANNEL}) | set(HOGWARTS_RENDER) | set(HOGWARTS_REPLAY))
+# After IPA 821: adapt_shader_code_table_load's four table files join the composition (its loader file is composed
+# already), so the final GPU build binds them.
+from adapt_shader_code_table_load import BASELINE as SHADER_CODE_TABLES  # noqa: E402
+COMPOSED = sorted(set(COMPOSED) | set(SHADER_CODE_TABLES))
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs
 # (Ryujinx.Library) is outside the GPU assembly closure: it is composed and bound here, compiled by NativeAOT.
 COMPILED = sorted((set(COMPOSED) - {DMA_LIBRARY}) | {'src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs'})
