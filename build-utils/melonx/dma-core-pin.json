@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "0fe58d629ea3fd8f31c93031705bd2bb4267dce0",
-  "run": 45025628716,
-  "job": 137217902801,
+  "source": "c82639d5c1be77db056e28d586e9bf805f6a0f5d",
+  "run": 45041051613,
+  "job": 137265365102,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14756136006,
-  "name": "MeloNX-engine-0fe58d629ea3fd8f31c93031705bd2bb4267dce0",
-  "bytes": 101259920,
-  "sha256": "385094d1b7a7648d0ae245f355aa4ff67378b92d5cda1a13c4b52689d63de9ca",
-  "expiresAt": "2027-02-20T13:05:20Z",
+  "artifact": 14762201190,
+  "name": "MeloNX-engine-c82639d5c1be77db056e28d586e9bf805f6a0f5d",
+  "bytes": 101267715,
+  "sha256": "80b219c49593ee83bdcf9d582d5b6fa582d4e3d03fa8b086fd528e5d60674787",
+  "expiresAt": "2027-02-20T15:56:37Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "2da94a31c92c49c71d40b28bb5f4186b0deb40e48c5d259a59f10ce95a07fa33",
-      "bytes": 39179328
+      "sha256": "5c3baa732b65c551a6afa83b4c686eb42eb09ff17970c0cd468f364937faa2a9",
+      "bytes": 39195720
     },
     "iossimulator-arm64": {
-      "sha256": "aa1e3fcb0d99142d27334273cf7aa0272ef3915c1558715a0e7e64e9f26ef04c",
-      "bytes": 39502040
+      "sha256": "a96b91bcc7d75f4ee2d362c5efe1a87c615ab3b9f2366eed34929e15ba4b1b8e",
+      "bytes": 39502056
     }
   },
   "identities": {
-    "ios-arm64": "16ed372ce3483a1810b1d1f7f68cd2d324b0e50847725a7284047e1a671dd696",
-    "iossimulator-arm64": "bc3c164675f0a1346de4f9c292c75543a70b36c0a1bbd6cc333733fd02e7904a"
+    "ios-arm64": "be4bdfc13502d462bd65666a48af5105ef154bdee4001b7df8d3d7fb32fd6e07",
+    "iossimulator-arm64": "b61808b3faa4363fa303d15c9339648c2e052b0bb27ae94b0a5096191e89b970"
   },
-  "contractSha256": "0cf713b530c6cfbfe6e2313945799e4d1be51ff1e04f17450eaa71e333916d54",
-  "resultSha256": "bfbb74f17f709613f453508ac2f9c8c3f362f8efa95fbf27cb42470bc861f86e",
-  "packagedFingerprint": "400ac08cca6cb190b323eba5f7ca879acfafc7b491bbe81892be64ea36bc6e90",
+  "contractSha256": "4fa02e2a560d0ee6d926ab0d44ea3cda00d56f4230bc829f6817621d50ef1d69",
+  "resultSha256": "52cad6c2123a91d908ab41e370dbc7e2616c0a660d84594609eff3d76bd16e83",
+  "packagedFingerprint": "0af0298e85d0ce9a759bbe75119ac9cb6afbb05d0df893bc79ff70ac58d5c79d",
   "replaces": {
-    "source": "8988ced5014dd23caae2eefac70b3d37f5a5b7f0",
-    "run": 44753917742,
-    "artifact": 14638435340,
-    "packagedFingerprint": "1fc7f4af847f17394ab43c19b230400251288db38c9e76def77efa51f16a843a",
-    "reason": "After IPA 819, SSBU recompiled ~90% of its pipelines every session, never reached primaryReady and took 69.8 s to close: commit 4086c77f had extended to every title the variant replay's wait for the primary pipeline cache. The replay adapter returns to its state before 4086c77f (Hogwarts-only wait, as in Core 6d8cb068 of IPA 786); Nextendo online fixes kept. Contract and simulator sessions verified; not run on an iPhone."
+    "source": "0fe58d629ea3fd8f31c93031705bd2bb4267dce0",
+    "run": 45025628716,
+    "artifact": 14756136006,
+    "packagedFingerprint": "400ac08cca6cb190b323eba5f7ca879acfafc7b491bbe81892be64ea36bc6e90",
+    "reason": "After IPA 820 (journals of IPA 816-820): a close waited 13 s to more than 100 s for the render loop's drain, which disposed every program of the guest and waited for the compiles queued for each; every closed session of Super Smash Bros. Ultimate and Hogwarts Legacy stayed reachable through the device release left to the pipeline cache's loading thread. adapt_guest_stop_compile_cancel cancels the queued compiles when the guest is terminated; adapt_deferred_release_roots builds that release from a static method that captures no renderer. Contract updated without a full freeze (two fresh gates, 119 not re-executed), contract test and simulator sessions verified; not run on an iPhone. The lazy cache libraries are in the MoltenVK recipe (ninth part), pinned separately."
   }
 }
