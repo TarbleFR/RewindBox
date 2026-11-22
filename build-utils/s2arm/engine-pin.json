@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "e95103963f4885e21ad031daf85b3fb5f43d4e3dc9c36587f0815c34a644cb2b",
+  "packagedFingerprint": "2caea615c19ea995778db76dec3e4452f2522a5ca5100b3c55b71b24187841b6",
   "producers": {
     "engine": {
-      "run": 45036469078,
+      "run": 45060097526,
       "attempt": 1,
-      "artifact": 14759968072,
-      "name": "s2arm-engine-framework-31d09fdd17411b29830da1bf7c9c661c6f05672f",
-      "bytes": 25252480,
-      "sha256": "72bdaa5f8c0aa6749f4cebfd7465497f2622b067e693cae10c18b27b574856f0",
-      "headSha": "31d09fdd17411b29830da1bf7c9c661c6f05672f",
+      "artifact": 14769571463,
+      "name": "s2arm-engine-framework-6191ee52348ce76b74130e9acb894e8aaa93b3b6",
+      "bytes": 25252472,
+      "sha256": "0338527ed5cc6affd06077f2faf1ef86d7eed467da2731b60e6742584b3f38cf",
+      "headSha": "6191ee52348ce76b74130e9acb894e8aaa93b3b6",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-22T15:18:29Z",
+      "expiresAt": "2026-12-22T19:32:46Z",
       "members": {
-        "S2ArmEngine.framework.zip": "ec99bf155cf9b9882913b0d48623bb3624b784b627d53af211fd9bbb058999cb",
-        "NS2Pro.framework.zip": "37ebbca5456cb558d42cb107eb916c692bc7b509d5a3c56b2007f326d22a9f3a"
+        "S2ArmEngine.framework.zip": "6367441b6d2d8c26ad18d6eee82b92f5ebde56df73f5f3b2a51c2666273a0104",
+        "NS2Pro.framework.zip": "dfe1da11aa163c8dda9e9d7d564105b181a6fcb59aeca220b0e65dbf557301d5"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "72bdaa5f8c0aa6749f4cebfd7465497f2622b067e693cae10c18b27b574856f0",
+    "engine": "0338527ed5cc6affd06077f2faf1ef86d7eed467da2731b60e6742584b3f38cf",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "b885ef699c3f20753b9a24a0952585117cdeea786de7e5b449242fe5071322cd",
-      "bytes": 115135328,
-      "fingerprint": "e95103963f4885e21ad031daf85b3fb5f43d4e3dc9c36587f0815c34a644cb2b"
+      "sha256": "5e4d7723a2ca1c2363826b8e4e1f4b3db1822f1ff7da188e1abf13f0b5818d77",
+      "bytes": 115135768,
+      "fingerprint": "2caea615c19ea995778db76dec3e4452f2522a5ca5100b3c55b71b24187841b6"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45036469078,
+      "run": 45060097526,
       "attempt": 1,
-      "head_sha": "31d09fdd17411b29830da1bf7c9c661c6f05672f",
+      "head_sha": "6191ee52348ce76b74130e9acb894e8aaa93b3b6",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1346,11 +1346,27 @@
         {
           "name": "0301-name-the-archive-directory-in-the-reference-manifest.patch",
           "sha256": "d1476419068d5c3e00eab3d0742980d55dfd686c0e3ec215a70e29833ae94aa8"
+        },
+        {
+          "name": "0302-serve-registered-pipeline-rows-through-thermal-holds.patch",
+          "sha256": "0b5104a5a6b0d3ec60cad91338ee804f76d5bca26f92d8bcf402f806094dc54a"
+        },
+        {
+          "name": "0303-bound-the-metal-working-set-sample-by-the-process-footprint.patch",
+          "sha256": "217ffbd41f98033bada4a6cd308405d4e6ea228e392aa5fb32018eebd13a8e9d"
+        },
+        {
+          "name": "0304-apply-the-pending-pool-index-edit-before-the-next-mutation.patch",
+          "sha256": "f91876b174b446f03ad302e120f0b74756d30bade94b46691646c357d6a86ddb"
+        },
+        {
+          "name": "0305-keep-the-guest-timestamp-hold-at-fair-without-measured-gpu-pressure.patch",
+          "sha256": "0f432d0fe61a0d42ee97713141d62b2d4b6fdc8e8d60b0cb8375642fa4a01d86"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "ec99bf155cf9b9882913b0d48623bb3624b784b627d53af211fd9bbb058999cb",
-        "NS2Pro.framework.zip": "37ebbca5456cb558d42cb107eb916c692bc7b509d5a3c56b2007f326d22a9f3a"
+        "S2ArmEngine.framework.zip": "6367441b6d2d8c26ad18d6eee82b92f5ebde56df73f5f3b2a51c2666273a0104",
+        "NS2Pro.framework.zip": "dfe1da11aa163c8dda9e9d7d564105b181a6fcb59aeca220b0e65dbf557301d5"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
