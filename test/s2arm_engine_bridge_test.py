@@ -138,7 +138,8 @@ abi = read('S2ArmGuestABI.h')
 abi_fields = struct_members(abi[abi.index('typedef struct s2a_rb_guest_config'):], 's2a_rb_guest_config')
 check(patch_fields == abi_fields and patch_fields[:3] == ['size', 'game_id', 'images'] and 'prepare_code' in patch_fields,
       f'the guest config ABI matches the patch series ({abi_fields} vs {patch_fields})')
-check(patch_fields[-2:] == ['session_parked', 'parked_context'], 'patch 0010 appends session_parked last (older hosts keep working)')
+check(patch_fields[-3:] == ['session_parked', 'parked_context', 'prepare_graphics'],
+      'patch 0297 appends the optional cold-start graphics callback after the existing park ABI')
 
 def struct_field_names(text, name):
     """The member names of `typedef struct { ... } name;`, in order (comments removed, function pointers and

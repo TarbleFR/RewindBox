@@ -687,9 +687,9 @@ static NSString *mapPrepareCode(int rc) {
   if ([result[@"success"] boolValue]) {
     NSError *error = nil;
     _graphicsGeneration = [S2ArmGraphicsGeneration planForGame:result[@"gid"] directory:result[@"gameDir"]
-        root:result[@"root"] chain:self.directChain ?: S2ArmShippedDirectChain() reused:[result[@"reused"] boolValue] error:&error];
+        root:result[@"root"] chain:self.directChain ?: S2ArmShippedDirectChain() reused:[result[@"reused"] boolValue] deferArchiveVerification:YES error:&error];
     _graphicsReady = _graphicsGeneration && _graphicsGeneration.active;
-    if (_graphicsGeneration && !_graphicsReady) {
+    if (_graphicsGeneration && !_graphicsReady && !_graphicsGeneration.requiresVerification) {
       [self emit:@"graphics" index:kPrepareSteps count:kPrepareSteps + 1 fraction:0 detail:@"copy"];
       if (![_graphicsGeneration stage:^BOOL { return prep_cancelled((__bridge void *)self); }
                            progress:^(NSUInteger files) {
@@ -704,9 +704,9 @@ static NSString *mapPrepareCode(int rc) {
     }
     if ([result[@"success"] boolValue]) {
       NSMutableDictionary *out = [result mutableCopy];
-      out[@"graphicsStatus"] = !_graphicsGeneration ? @"notApplicable" : _graphicsReady ? @"verified" : @"pending";
+      out[@"graphicsStatus"] = !_graphicsGeneration ? @"notApplicable" : _graphicsReady ? @"verified" : _graphicsGeneration.requiresVerification ? @"awaitingVerification" : @"pending";
       result = out;
-      if (!_graphicsGeneration || _graphicsReady)
+      if (!_graphicsGeneration || _graphicsReady || _graphicsGeneration.requiresVerification)
         [self emit:@"done" index:kPrepareSteps count:kPrepareSteps fraction:1 detail:[result[@"reused"] boolValue] ? @"reused" : nil];
     }
   }

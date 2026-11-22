@@ -1,0 +1,242 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1531,20 +1531,29 @@
+ static _Atomic int rb_tile_policy;
+ static int rb_current_tile_policy(void) {
+     int saved = atomic_load_explicit(&rb_tile_policy, memory_order_relaxed);
++    if (saved == 1) return 1;
++    // A hosted title can use handles in guest memory even before its first
++    // bindless shader has been registered. An earlier capability probe or an
++    // old selective-mode setting cannot establish attachment liveness.
++    const char *title = getenv("S2A_RB_DIRECT_GAME_ID");
++    if (title && *title) {
++        if (atomic_exchange_explicit(&rb_tile_policy, 1, memory_order_relaxed) != 1)
++            MLOG("[rb-tbdr] mode=off (hosted bindless attachments)");
++        return 1;
++    }
+     if (saved) return saved;
+     const char *dm = getenv("DM_NVN_TBDR"), *rb = getenv("S2A_RB_TBDR");
+     const char *selective = getenv("S2A_RB_SAFE_TBDR");
+-    int hosted = rb_direct_apple();
+     int mode = 1;
+-    if ((!dm || !strcmp(dm, "1")) && (!rb || strcmp(rb,"0")) &&
+-        (selective ? !strcmp(selective, "1") : hosted)) mode = 3;
++    if ((!dm || !strcmp(dm, "1")) && (!rb || strcmp(rb, "0")) &&
++        selective && !strcmp(selective, "1")) mode = 3;
+     else if (dm && !strcmp(dm, "1")) mode = 2;
+     else if (!dm && rb && !strcmp(rb, "1")) mode = 3;
+-    // A probe may precede installation of the title's environment.
+-    if (hosted || dm || rb || selective) {
++    if (dm || rb || selective) {
+         int expected = 0;
+         if (atomic_compare_exchange_strong(&rb_tile_policy, &expected, mode))
+             MLOG("[rb-tbdr] mode=%s", mode==3 ? "selective-bindless" : mode==2 ? "explicit-legacy" : "off");
++        else return expected;
+     }
+     return mode;
+ }
+@@ -16293,7 +16302,6 @@
+         });
+         dispatch_group_notify(g, dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ warm_finish(); }); } });
+ }
+-// Metadata read-ahead before nnMain takes copies of only this title's paths.
+ // Metal work begins once the renderer is initialized and the guest has selected
+ // its depth convention. With implicit/default depth the first real bind
+ // remains authoritative. A stopped epoch cannot start work on a later title.
+@@ -16306,8 +16314,6 @@
+     return g_rb_startup_q;
+ }
+ static void rb_startup_ready(int device,int depth) {
+-    // Opening a device archive does not depend on the guest depth convention.
+-    if (device && getenv("DM_NVN_SHMAP") && !nvn_be_stopping()) rb_archive_preopen_start();
+     os_unfair_lock_lock(&g_shpre_mu);
+     if (device) g_rb_device_ready=1;
+     if (depth) g_rb_depth_ready=1;
+@@ -16325,26 +16331,6 @@
+     os_unfair_lock_unlock(&g_shpre_mu);
+ }
+ void nvn_be_depth_configured(void) { rb_startup_ready(0,1); }
+-void nvn_be_prime_recipes(const char *user) {
+-    if (!user || !*user) return;
+-    NSString *personal=@(user);
+-    NSString *ref=rb_ref_manifest(personal.stringByDeletingLastPathComponent);
+-    NSArray *paths=@[ref,[personal stringByAppendingString:@".rb-priority"],personal];
+-    os_unfair_lock_lock(&g_shpre_mu);
+-    if (!nvn_be_stopping()) dispatch_async(rb_start_queue_locked(),^{ @autoreleasepool {
+-        for (NSString *path in paths) {
+-            int fd=open(path.fileSystemRepresentation,O_RDONLY|O_NONBLOCK);
+-            if (fd<0) continue;
+-            struct stat st;
+-            if (!fstat(fd,&st) && S_ISREG(st.st_mode) && st.st_size>0) {
+-                struct radvisory hint={.ra_offset=0,.ra_count=(int)MIN(st.st_size,(off_t)(8u<<20))};
+-                (void)fcntl(fd,F_RDADVISE,&hint);
+-            }
+-            close(fd);
+-        }
+-    } });
+-    os_unfair_lock_unlock(&g_shpre_mu);
+-}
+ // S2Arm pso harvest (S2A_PSO_HARVEST=<folder>, Mac only, shader line 10-26): the pack builds the package's pipeline archives without running the game ("no trial run at pack
+ //   time"): initialize Metal, load the shader map and the package's seed list (DM_NVN_SHMAP / DM_MSL_DIR as for a run), set the game's depth mode, run the prepare step on every
+ //   core and write each pipeline it builds into <folder> at once (pso_archive.h, the same keys the device looks up), then return. The depth mode decides every vertex entry
+diff --git a/graphics/nvn/gfx/nvn/rb_archive_preopen.inc b/graphics/nvn/gfx/nvn/rb_archive_preopen.inc
+--- a/graphics/nvn/gfx/nvn/rb_archive_preopen.inc
++++ b/graphics/nvn/gfx/nvn/rb_archive_preopen.inc
+@@ -3,7 +3,7 @@
+ // an archive itself without holding the mutex needed by other pipeline keys.
+ enum rb_archive_source { RB_BUNDLE, RB_LOCAL, RB_LEGACY };
+ enum { RB_STARTUP_KEYS = 64 };
+-static BOOL rb_open_started;
++static _Atomic int rb_open_started;
+ static dispatch_group_t rb_archive_jobs(void) {
+     static dispatch_group_t group;
+     static dispatch_once_t once;
+@@ -51,7 +51,9 @@
+ 
+ static id<MTLBinaryArchive> rb_archive_fetch(NSString *key, enum rb_archive_source source, BOOL submit) {
+     if (!key || !atomic_load_explicit(&g_par_initialized, memory_order_acquire)) return nil;
+-    pthread_mutex_lock(&g_par_mu);
++    if (submit) {
++        if (pthread_mutex_trylock(&g_par_mu)) return nil;
++    } else pthread_mutex_lock(&g_par_mu);
+     NSString *cache = rb_archive_mapping(key, source, NULL);
+     id<MTLBinaryArchive> archive = cache ? rb_archive_lookup(cache) : nil;
+     if (!cache || archive) {
+@@ -109,43 +111,39 @@
+ 
+ static void rb_archive_preopen_start(void) {
+     if (!RB_PAR_PREOPEN() || !g_dev || g_par_harvest) return;
+-    pthread_mutex_lock(&g_par_mu);
+-    if (!rb_open_started) {
+-        rb_open_started = YES;
+-        dispatch_group_async(rb_archive_jobs(), rb_archive_io(), ^{ @autoreleasepool {
+-            if (!par_open_dir()) {
+-                pthread_mutex_lock(&g_par_mu); rb_open_started = NO; pthread_mutex_unlock(&g_par_mu);
+-                return;
+-            }
+-            NSString *path = rb_hot_index();
+-            if (!path) return;
+-            NSMutableOrderedSet *seeds = [NSMutableOrderedSet orderedSet];
+-            for (id key in rb_read_startup_keys(path)) {
+-                if (rb_archive_key(key)) [seeds addObject:key];
+-                if (seeds.count == RB_STARTUP_KEYS) break;
+-            }
+-            if (seeds.count < RB_STARTUP_KEYS) RB_PAR_SEED_RECIPES(seeds);
+-            NSArray *keys = seeds.array;
+-            NSUInteger count = 0;
+-            for (id key in keys) {
+-                if (++count > RB_STARTUP_KEYS || !RB_PAR_PREOPEN_ROOM()) break;
+-                if (!rb_archive_key(key)) continue;
+-                for (enum rb_archive_source src = RB_BUNDLE; src <= RB_LEGACY; ++src)
+-                    if (rb_archive_fetch(key, src, NO)) { atomic_fetch_add(&rb_preopened, 1); break; }
+-            }
+-            MLOG("[rb-archive-open] startup keys=%lu ready=%u", (unsigned long)keys.count, atomic_load(&rb_preopened));
+-        }});
+-    }
+-    pthread_mutex_unlock(&g_par_mu);
++    if (atomic_exchange(&rb_open_started, 1)) return;
++    dispatch_group_async(rb_archive_jobs(), rb_archive_io(), ^{ @autoreleasepool {
++        if (!par_open_dir()) {
++            atomic_store(&rb_open_started, 0);
++            return;
++        }
++        NSString *path = rb_hot_index();
++        if (!path) return;
++        NSMutableOrderedSet *seeds = [NSMutableOrderedSet orderedSet];
++        for (id key in rb_read_startup_keys(path)) {
++            if (rb_archive_key(key)) [seeds addObject:key];
++            if (seeds.count == RB_STARTUP_KEYS) break;
++        }
++        if (seeds.count < RB_STARTUP_KEYS) RB_PAR_SEED_RECIPES(seeds);
++        NSArray *keys = seeds.array;
++        NSUInteger count = 0;
++        for (id key in keys) {
++            if (++count > RB_STARTUP_KEYS || !RB_PAR_PREOPEN_ROOM()) break;
++            if (!rb_archive_key(key)) continue;
++            for (enum rb_archive_source src = RB_BUNDLE; src <= RB_LEGACY; ++src)
++                if (rb_archive_fetch(key, src, NO)) { atomic_fetch_add(&rb_preopened, 1); break; }
++        }
++        MLOG("[rb-archive-open] startup keys=%lu ready=%u", (unsigned long)keys.count, atomic_load(&rb_preopened));
++    }});
+ }
+ 
+ static id<MTLBinaryArchive> rb_archive_get(NSString *key, enum rb_archive_source source) {
+     if (!key) return nil;
+     BOOL submit = RB_PAR_SUBMIT_THREAD();
+-    if (!atomic_load_explicit(&g_par_initialized, memory_order_acquire)) {
+-        if (submit) { rb_archive_preopen_start(); return nil; }
+-        if (!par_open_dir()) return nil;
+-    }
++    // First actual pipeline lookup starts the index and bounded preopen.
++    if (!atomic_load_explicit(&rb_open_started, memory_order_relaxed)) rb_archive_preopen_start();
++    if (!atomic_load_explicit(&g_par_initialized, memory_order_acquire) &&
++        (submit || !par_open_dir())) return nil;
+     return rb_archive_fetch(key, source, submit);
+ }
+ 
+diff --git a/graphics/nvn/host_adapt.m b/graphics/nvn/host_adapt.m
+--- a/graphics/nvn/host_adapt.m
++++ b/graphics/nvn/host_adapt.m
+@@ -400,19 +400,6 @@
+           LOG("直连冷启动：已清兜底目录 %s %llu 个文件 %llu KB", getenv("DM_MSL_FALLBACK"), (unsigned long long)n, (unsigned long long)(b >> 10)); } }
+     LOG("直连：着色器库 %s，映射表 %s", getenv("DM_MSL_DIR"), getenv("DM_NVN_SHMAP"));
+ }
+-// Called before entering nnMain. No graphics initialization or title path
+-// mutation on this guest thread. direct_paths later selects the same user root.
+-void s2a_direct_prime_recipes(void) {
+-    const char *title=getenv("S2A_RB_DIRECT_GAME_ID"), *tiers=getenv("S2A_RB_PREWARM_TIERS");
+-    const char *explicit=getenv("DM_PSO_MANIFEST");
+-    if ((tiers && strcmp(tiers,"1")) || !title || !*title || !s2a_platform_ounce() ||
+-        s2a_gfx_mode()!=S2A_GFX_DIRECT || (explicit && !strcmp(explicit,"off"))) return;
+-    const char *user=getenv("DM_PSO_USER");
+-    char path[1300];
+-    if (!user) { s2a_docs_path(path,sizeof path,"wire/%016llX/pso_user.tsv",(unsigned long long)s2a_npdm_program_id()); user=path; }
+-    extern void nvn_be_prime_recipes(const char *);
+-    nvn_be_prime_recipes(user);
+-}
+ static void fail_watch_start(void);   // 直连异常看门（见下）
+ static void *direct_bootstrap(const char *name) {
+     static pthread_once_t once = PTHREAD_ONCE_INIT, watch = PTHREAD_ONCE_INIT;
+diff --git a/runtime/src/guest_main.c b/runtime/src/guest_main.c
+--- a/runtime/src/guest_main.c
++++ b/runtime/src/guest_main.c
+@@ -42,10 +42,6 @@
+         ((fnp)req("_ZN2nn2os11SetHostArgcEi"))((void *)(uint64_t)g_start->argc);
+         ((fnp)req("_ZN2nn2os11SetHostArgvEPPc"))(g_start->argv);
+     }
+-#if defined(__APPLE__)
+-    extern void s2a_direct_prime_recipes(void) __attribute__((weak_import));
+-    if (s2a_direct_prime_recipes) s2a_direct_prime_recipes();
+-#endif
+     LOG(">>> nnMain"); ((fn0)req("nnMain"))();
+     LOG("nnMain 返回");
+ }
+diff --git a/runtime/src/rb_guest.c b/runtime/src/rb_guest.c
+--- a/runtime/src/rb_guest.c
++++ b/runtime/src/rb_guest.c
+@@ -100,6 +100,8 @@
+     if (why) return refuse(error, error_size, "launch context: %s", why);
+     // One hosted game per process. Keep user-facing switches available to the game's env.txt.
+     setenv("S2A_RB_DIRECT_GAME_ID", c->game_id, 1);
++    // Hosted NVN can use bindless textures from the very first draw.
++    setenv("DM_NVN_TBDR", "0", 1);
+     // Same reservation as S2Arm's constructor (vawin.c), now that main.npdm and the image pack are known; then the .NET GC limit,
+     //   which S2Arm's main sets right after the window (it reads the free low address space)
+     s2a_rb_guest_window_boot();
+diff --git a/graphics/nvn/tests/t_rb_clear_batch_metal.m b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+--- a/graphics/nvn/tests/t_rb_clear_batch_metal.m
++++ b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+@@ -343,6 +343,12 @@
+         recorded_zero_failure(device);
+         tracked_pair(device,0,reference); tracked_pair(device,1,result);
+         CHECK(!memcmp(reference,result,sizeof result));
++        // Host configuration can arrive after a standalone capability probe.
++        CHECK(!setenv("S2A_RB_DIRECT_GAME_ID", "fixture", 1));
++        CHECK(!tbdr_on() && !rb_tbdr_bl());
++        atomic_store(&rb_tile_policy,0);
++        CHECK(!tbdr_on() && !rb_tbdr_bl());
++        unsetenv("S2A_RB_DIRECT_GAME_ID");
+         atomic_store(&rb_tile_policy,0); CHECK(!setenv("DM_NVN_TBDR","0",1));
+         CHECK(!tbdr_on() && !rb_tbdr_bl());
+         puts("PASS selective TBDR, unknown readers, explicit off and tracked Metal pixels");

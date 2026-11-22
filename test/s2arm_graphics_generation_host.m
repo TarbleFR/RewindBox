@@ -24,6 +24,16 @@ static void put(NSString *root, NSString *name, NSString *data) {
                                  withIntermediateDirectories:YES attributes:nil error:NULL]);
   CHECK([data writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:NULL]);
 }
+// Use the launch selector with the same injected device/build identity as plan().
+@interface S2ArmGraphicsGeneration (FixtureIdentity)
+- (instancetype)initWithDirectory:(NSString *)directory gid:(NSString *)gid buildID:(NSString *)buildID
+                          content:(NSString *)content chain:(NSString *)chain hardware:(NSString *)hardware
+                          osBuild:(NSString *)osBuild reuseLegacy:(BOOL)reused defer:(BOOL)defer cancel:(BOOL (^)(void))cancel;
+@end
+static S2ArmGraphicsGeneration *candidate(NSString *dir) {
+  return [[S2ArmGraphicsGeneration alloc] initWithDirectory:dir gid:gid buildID:build content:@"same-content"
+      chain:chain hardware:@"same-device" osBuild:@"same-os" reuseLegacy:YES defer:YES cancel:nil];
+}
 static S2ArmGraphicsGeneration *plan(NSString *dir) {
   return [[S2ArmGraphicsGeneration alloc] initWithDirectory:dir gid:gid buildID:build content:@"same-content"
                                                        chain:chain hardware:@"same-device" osBuild:@"same-os" reuseLegacy:YES];
@@ -142,10 +152,16 @@ int main(void) { @autoreleasepool {
   CHECK(nextLaunch.active && [nextLaunch.wire isEqual:resumed.wire]);
   put(nextLaunch.wire, @"pipelines/batches.tsv", [rows stringByAppendingString:@"unrelated-row\n"]);
   CHECK(plan(dir).active);
+  S2ArmGraphicsGeneration *cold = candidate(dir);
+  CHECK(cold.requiresVerification && !cold.active && [cold.wire isEqual:resumed.wire]);
+  CHECK(![cold verifyForLaunch:^BOOL { return YES; }]);
+  CHECK([cold verifyForLaunch:^BOOL { return NO; }].active);
   // Deleting the indexed membership cannot silently turn the strict archive
   // proof into metadata. The replacement must have its own directory.
   put(nextLaunch.wire, @"pipelines/batches.tsv", @"broken row\n");
-  S2ArmGraphicsGeneration *replacement = plan(dir);
+  S2ArmGraphicsGeneration *damaged = candidate(dir);
+  CHECK(damaged.requiresVerification && !damaged.active && [damaged.wire isEqual:resumed.wire]);
+  S2ArmGraphicsGeneration *replacement = [damaged verifyForLaunch:^BOOL { return NO; }];
   CHECK(!replacement.active && ![replacement.wire isEqual:resumed.wire]);
   CHECK(stage(replacement) && ![replacement activateWithGPU:valid error:NULL]);
   CHECK([readText(dir, marker) isEqual:receipt] && [plan(dir).wire isEqual:replacement.wire]);

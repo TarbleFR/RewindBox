@@ -1,0 +1,377 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 46cb6a469b618c9affcfe5abfa605efbeb6f82ba..eb14c6c28ec004097a5e6b41defdd50a2b72bdc7 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -2221,7 +2221,7 @@ NVN(nvnCommandBufferBindProgram, void, NVNcommandBuffer *c, const NVNprogram *p,
+ #if !defined(__ANDROID__)
+     {   // RewindBox (patch 0069): the first bind of a serial goes to the backend once (its snapshot entry's flag, read without a lock: entries are never freed); later binds cost one probe
+         psnap_ent *pe = ps_find(atomic_load_explicit(&g_ps_tab, memory_order_acquire), o->serial);
+-        if (pe && !atomic_load_explicit(&pe->looked, memory_order_relaxed) && !atomic_exchange_explicit(&pe->looked, 1, memory_order_relaxed)) rb_prog_bound(o);   // RewindBox (patch 0069): on the host stack
++        if (pe && !atomic_load_explicit(&pe->looked, memory_order_relaxed) && !atomic_exchange_explicit(&pe->looked, 1, memory_order_relaxed)) rb_prog_bound(&snap);   // RewindBox (patch 0069): on the host stack
+     }
+ #endif
+ #if defined(__ANDROID__)   // Android 直连：按 serial 补 key、记阶段、补存源快照（Apple 回放不读，不在 Apple 上付扫表成本）
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index f8cc194461135f0d9a0d42b16d45b6903c454ce1..2c9e2a8cb17d06cdfc1eaaffa50f2d7f0836a878 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -105,7 +105,7 @@ static int grow_(void **p, size_t n, const char *what) {
+ }
+ #define GROW(ptr, nbytes, what) grow_((void **)&(ptr), (size_t)(nbytes), what)
+ 
+-static void warm_start(void), warm_announce(void), rb_warm_resume(void);
++static void warm_start(void), warm_announce(void), rb_warm_at_submit(void);
+ static void rb_startup_ready(int device, int depth);
+ static void warm_claim(void);
+ static void rb_pso_maintain(void);
+@@ -1618,10 +1618,10 @@ static void sub_cut_begin(void);   // the segment draw count starts with the sub
+ static void dsnap_stale(void);   // #387 (with fb_prepare)
+ static void rb_fair_sample(void);
+ void nvn_be_sub_begin(void) {
+-    rb_warm_resume();  // first submit of an explicitly resumed session
+     rb_sub_open(1);   // RewindBox (patch 0071): a submission is open (waits for the pressure handler's idle release, rb_press_release)
+     dsnap_stale();   // #387: depth may change between submissions (CPU writes, other queues)
+     mtl_init();
++    rb_warm_at_submit();  // No renderer/registration mutex is held at this boundary.
+ #if TARGET_OS_IPHONE
+     rb_guest_heat_monitor();
+ #endif
+@@ -10190,19 +10190,28 @@ static NSString *exe_rel(const char *rel) {
+     return [NSString stringWithFormat:@"%s/%s", dir, rel];
+ }
+ // Shader mapping table (output of tools/shader_map.py): at runtime only 'Switch control section key → stage' is used; shaders are always translations of the Switch originals (tools/dmsh_build.py produces <key>_b.metallib + reflection offline)
+-static void rb_archive_preopen_start(void);
++// Only metadata initialization owns this token. Registration workers may need
++// the metadata while the foreground prepare waits for their work to finish.
++static _Atomic bool g_shmap_ready;
+ static void shmap_load_once(void);
+-static void shmap_load(void) { static dispatch_once_t once; dispatch_once(&once, ^{ shmap_load_once(); }); }   // S2Arm: also read from game threads (mtl_shmap_known at ProgramSetShaders)
++static void shmap_load_metadata(void) {
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{ shmap_load_once(); });
++}
++static void shmap_load(void) {
++    shmap_load_metadata();
++    warm_start();
++}
+ static NSString *shmap_path(void) { const char *e = getenv("DM_NVN_SHMAP"); return e ? @(e) : exe_rel([NSString stringWithFormat:@"../games/%s/shader_map.tsv", DM_GAME_ID].UTF8String); }
+ static void shmap_load_once(void) {
+-    if (g_shmap) return;
++    if (g_shmap) { atomic_store_explicit(&g_shmap_ready, true, memory_order_release); return; }
+     NSString *path = shmap_path();   // default: the current game profile folder (Mac: dm/games/<id>; on iOS main.m sets DM_NVN_SHMAP)
+     NSString *txt = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+     // Switch 2 bring-up (nvn2.h): the Ampere shader library is not built yet; an absent map is an empty one (every shader reported missing, its draws skipped) so the device,
+     //   window and frame loop still run. Switch 1 keeps the fatal stop
+     if (!txt && nvn2_on()) { MLOG("【红】 Switch 2: no shader map %s yet: every shader is missing and its draws are skipped", path.UTF8String); txt = @""; }
+     if (!txt) MDIE("cannot read the shader map %s (DM_NVN_SHMAP can name another)", path.UTF8String);
+-    g_shmap = [NSMutableDictionary dictionary];
++    NSMutableDictionary *stages = [NSMutableDictionary dictionary];
+     g_shmap_path = path;
+     const char *m = getenv("DM_MSL_DIR");
+     // Library directory = <DM_MSL_DIR or default cache>/b-<translation chain version>: the version comes from dm/gfx/nvn/dmsh_chain.h (tools/dmsh_chain.py), one for every game; a host built from an old source tree only accepts libraries of the old version
+@@ -10253,7 +10262,7 @@ static void shmap_load_once(void) {
+     for (NSString *ln in [txt componentsSeparatedByString:@"\n"]) {
+         if (!ln.length || [ln hasPrefix:@"#"] || [ln hasPrefix:@"package"]) continue;
+         NSArray *c = [ln componentsSeparatedByString:@"\t"];
+-        if (c.count > 3) g_shmap[c[3]] = c[2];
++        if (c.count > 3) stages[c[3]] = c[2];
+     }
+     if (!st_inputs) MLOG("【红】 shader library %s has no stamp (inputs.tsv): no full dmsh_build.py run made it as it is, so c1_full.tsv and cb_extent.tsv are not taken", g_msl_dir.UTF8String);
+     else if (st_game && ![st_game isEqual:@(DM_GAME_ID)]) MLOG("【红】 shader library %s was built for game %s, not %s", g_msl_dir.UTF8String, st_game.UTF8String, DM_GAME_ID);
+@@ -10287,9 +10296,9 @@ static void shmap_load_once(void) {
+                 NSRange t = [line rangeOfString:@"\t"]; if (t.location != NSNotFound) d[[line substringToIndex:t.location]] = [line substringFromIndex:t.location + 1]; }
+             g_cb_ext = d; MLOG("uniform read extents: %lu shaders (cb_extent.tsv)", (unsigned long)d.count); }
+     }
++    g_shmap = stages;  // Read-only until all workers and guest threads retire at a program switch.
++    atomic_store_explicit(&g_shmap_ready, true, memory_order_release);
+     MLOG("shader route B (translated Switch originals): shader map %lu entries (%s), metallib directory %s", (unsigned long)g_shmap.count, path.UTF8String, g_msl_dir.UTF8String);
+-    rb_archive_preopen_start();
+-    warm_start();
+ }
+ 
+ @interface NvShader : NSObject { @public id<MTLLibrary> ft_lib; uint8_t ft_tried; id<MTLLibrary> bf_lib; uint8_t bf_tried;   // bf_lib: the readable-tile version <key>_bf, looked up once by name (bf_fn)
+@@ -10942,7 +10951,7 @@ static lp_pack *lp_pack_get(void) {
+ //   只在会话之间调（客体线程都已收回、预热 / 预载已停，nvn_session.inc）。已建好的着色器对象按内容键缓存，两支程序同键 = 同一份翻译，不清。
+ //   回 1 = 换了；0 = 映射表路径没变，什么都不动
+ int nvn_be_reload_direct_library(void) {
+-    shmap_load();   // 首次读走过 once，之后 shmap_load 不会再读：这里直接调 shmap_load_once
++    shmap_load_metadata();
+     NSString *np = shmap_path();
+     if (g_shmap_path && [np isEqualToString:g_shmap_path]) return 0;
+     NSString *old = g_shmap_path;
+@@ -10950,12 +10959,12 @@ int nvn_be_reload_direct_library(void) {
+     if (g_libpack.idx) munmap((void *)g_libpack.idx, g_libpack.idx_len);
+     memset(&g_libpack, 0, sizeof g_libpack); g_libpack_ok = 0;
+     rb_uniform_reset();
++    atomic_store_explicit(&g_shmap_ready, false, memory_order_release);
+     g_shmap = nil; g_c1_full = nil; g_c1_full_valid = 0; g_cb_ext = nil;
+-    g_warm_started = 1;   // 先挡住 shmap_load_once 里的预热：预热要用库容器，等新目录的库容器开好再起
+     shmap_load_once();
+     int r = rb_open_direct_library(); g_libpack_ok = r;
+     MLOG("multi-program: shader map %s → %s, library %s (container %s)", old.UTF8String ?: "-", np.UTF8String, g_msl_dir.UTF8String ?: "-", r == 1 ? "opened" : r == 0 ? "none, one file per key" : "broken");
+-    g_warm_started = 0; warm_start();   // 同首次：读完映射表就起预热
++    atomic_store(&g_warm_started, 0);  // First submit or the startup coordinator uses the new library.
+     return 1;
+ }
+ // A library name <16 hex key>_b / _bf / _bv / _b_t<d> / _bg<i> / _bgv / _bgs<i> / _bgc → its container kind (json: the reflection beside it); -1 if the name is not one
+@@ -11727,7 +11736,7 @@ static NSString *shmap_rt_get(NSString *k) { pthread_mutex_lock(&g_shmap_rt_mu);
+ //   (11-06 DRAGON BALL Sparking! ZERO, 测试设备1: 25 such keys, none in the package's 2105-key map)
+ static NSString *shmap_stage(NSString *k) { NSString *s = g_shmap[k]; return s ? s : shmap_rt_get(k); }
+ void mtl_shmap_rt_add(const char *key, const char *stage) { pthread_mutex_lock(&g_shmap_rt_mu); if (!g_shmap_rt) g_shmap_rt = [NSMutableDictionary dictionary]; g_shmap_rt[@(key)] = @(stage); pthread_mutex_unlock(&g_shmap_rt_mu); }
+-int mtl_shmap_known(const char *key) { shmap_load(); NSString *k = @(key); return g_shmap[k] != nil || shmap_rt_get(k) != nil || builtin_get(key) != NULL; }
++int mtl_shmap_known(const char *key) { shmap_load_metadata(); NSString *k = @(key); return g_shmap[k] != nil || shmap_rt_get(k) != nil || builtin_get(key) != NULL; }
+ // S2Arm 两段式出包（10-27）：映射表有键不等于库里有这支——热键版包的映射表是全键、库只带热键，缺的那支要照样走首遇现编（dsh_miss.inc），不能让 shader_load 失败去触发直连失败判据。
+ // 只查索引不读数据（每次 ProgramSetShaders 都会问）：现编过的 / 内置的 → 有；有库容器 → 容器索引里有没有 <键>_b 的反射；没容器（Mac 开发树）→ <键>_b.json 文件在不在
+ int mtl_shlib_has(const char *key) {
+@@ -11811,7 +11820,7 @@ static __unsafe_unretained NvProg *prog_get(const prog_t *cp) {   // Called only
+     if (p == g_prog_last_ptr && p->serial == g_prog_last_serial && gen == g_prog_last_gen && g_prog_last) return g_prog_last;
+     __unsafe_unretained NvProg *have = p->serial ? serial_get(p->serial) : nil;
+     if (have) { g_prog_last_ptr = p; g_prog_last_serial = p->serial; g_prog_last_gen = gen; g_prog_last = have; return have; }
+-    shmap_load();
++    shmap_load_metadata();
+     NvProg *o = [NvProg new];
+     for (unsigned i = 0; i < p->nstage; i++) {
+         // Key = sha256(first 0x880 bytes of the control section + code area): many of Mario's shaders share a control section but differ in code (dm/gfx/tools/shader_split.py). It was computed at SetShaders (hle_nvn.c): by now the game may have freed the control section
+@@ -15230,7 +15239,7 @@ static void shader_prefetch(NSString *k, int stage_hint, int depth) {
+         if (atomic_load(&g_shpre_stopping)) return;
+         int st = stage_hint;
+         if (st < 0) {
+-            shmap_load();
++            shmap_load_metadata();
+             NSString *stage = shmap_stage(k);
+             st = stage ? stage_of(stage) : -1;
+         }
+@@ -15301,19 +15310,22 @@ static int rb_bind_ahead_on(void) {
+ static int rb_code_set(const uint8_t *c, uint32_t n) { for (uint32_t i = 0; i < n && i < 64; i++) if (c[i]) return 1; return 0; }   // the first bytes not all zero: code the game has filled in
+ static int rb_addr_mapped(uint64_t a, uint64_t len) { a = nvn_ga2ca(a); pthread_mutex_lock(&g_mu); int i = pool_find(a, len); pthread_mutex_unlock(&g_mu); return i >= 0; }   // nvn_be_addr's lookup, without making the pool resident
+ #include "rb_registration.inc"
+-void nvn_be_prog_bound(const prog_t *p) {   // a game thread recording the first bind of a serial (hle_nvn.c)
+-    if (!p || !p->serial || !nvn2_on() || !shpre_on() || !rb_bind_ahead_on()) return;
+-    shmap_load(); int dz = atomic_load(&g_depth_zero); uint64_t np = atomic_fetch_add(&g_rb_bound_progs, 1) + 1;
+-    @autoreleasepool {   // a game thread has no pool of its own
+-    // NVN2 code can be blank/mutable at SetShaders. The first recorded bind
+-    // already validates and hashes the resolved stages before replay.
++// Bind hints use owned bytes. The guest never enters map/archive initialization,
++// the runtime map mutex, a prewarm lane, or the pipeline promotion queue.
++static dispatch_queue_t g_rb_bind_q;  // enqueues and the stop marker use g_shpre_mu
++static _Atomic uint64_t g_rb_startup_epoch;  // advanced under g_shpre_mu on stop
++static _Atomic unsigned g_rb_bind_jobs;
++static _Atomic size_t g_rb_bind_bytes;
++static void rb_prepare_bound(NSArray<NSData *> *stages, unsigned nstage, int dz) {
++    uint64_t np = atomic_fetch_add(&g_rb_bound_progs, 1) + 1;
+     NSString *boundVertex = nil, *boundFragment = nil, *boundCompute = nil;
+     BOOL promote = rb_promoted_on();
+-    for (unsigned i = 0; i < p->nstage && i < 6; i++) {
+-        const void *ctl = p->sd[i].control; uint64_t code = p->sd[i].data; uint8_t md[8]; char hx[17];
+-        if (!ctl || (uintptr_t)ctl >= (1ull << 47) || !nvn2_ctl(ctl) || !code) continue;
+-        uint32_t n2 = nvn2_code_len(ctl);
+-        if (!n2 || n2 >= (1u << 24) || !rb_addr_mapped(code, n2) || !rb_code_set((const uint8_t *)(uintptr_t)code, n2) || !prog_key_live(p, i, md)) continue;
++    for (NSData *snapshot in stages) {
++        const uint8_t *ctl = snapshot.bytes;
++        const uint8_t *shader = ctl + snapshot.length - nvn2_code_len(ctl);
++        uint64_t code = (uint64_t)(uintptr_t)shader;
++        uint8_t md[8]; char hx[17];
++        nvn2_key(ctl, shader, md);
+         for (int b = 0; b < 8; b++) snprintf(hx + 2 * b, 3, "%02x", md[b]);
+         rb_ref_stage_hint(hx);
+         NSString *k = @(hx), *packed = g_shmap[k], *stage = packed ?: shmap_rt_get(k);
+@@ -15341,13 +15353,65 @@ void nvn_be_prog_bound(const prog_t *p) {   // a game thread recording the first
+             atomic_fetch_add_explicit(&g_rb_bound_pre, 1, memory_order_relaxed);
+         }
+     }
+-    if (boundVertex && (boundFragment || p->nstage == 1))
++    if (boundVertex && (boundFragment || nstage == 1))
+         warm_bump(boundVertex.UTF8String, boundFragment.UTF8String);
+-    if (boundCompute && p->nstage == 1) warm_bump("compute", boundCompute.UTF8String);
+-    }
++    if (boundCompute && nstage == 1) warm_bump("compute", boundCompute.UTF8String);
+     if (!(np & (np - 1)) && np >= 64) MLOG("RewindBox: programs bound by the game looked at ahead of their draw: %llu; stages queued for translation %llu, taken from an earlier run's translation %llu, handed to the prefetch %llu (S2A_RB_BIND_AHEAD)",
+                                            (unsigned long long)np, (unsigned long long)atomic_load(&g_rb_bound_xl), (unsigned long long)atomic_load(&g_rb_bound_re), (unsigned long long)atomic_load(&g_rb_bound_pre));
+ }
++void nvn_be_prog_bound(const prog_t *p) {
++    uint64_t epoch = atomic_load(&g_rb_startup_epoch);
++    if (!p || !p->serial || !atomic_load_explicit(&g_shmap_ready, memory_order_acquire) ||
++        nvn_be_stopping() || !nvn2_on() || !shpre_on() || !rb_bind_ahead_on()) return;
++    // This is a hint. A busy lock, cold map, unreadable program or full queue
++    // always falls through to the ordinary required lookup during replay.
++    if (atomic_fetch_add(&g_rb_bind_jobs, 1) >= 32) {
++        atomic_fetch_sub(&g_rb_bind_jobs, 1);
++        return;
++    }
++    @autoreleasepool {
++        unsigned nstage = p->nstage;
++        int depth = atomic_load(&g_depth_zero);
++        NSMutableArray<NSData *> *stages = [NSMutableArray array];
++        size_t reserved = 0;
++        for (unsigned i = 0; i < nstage && i < 6; ++i) {
++            const NVNshaderData *sd = &p->sd[i];
++            uint8_t ctl[NVN2_CTL_COPY];
++            uint32_t nctl, ncode;
++            if (!rb_read_stage_header(sd, ctl, &nctl, &ncode)) continue;
++            if (pthread_mutex_trylock(&g_mu)) continue;
++            // sd->data is the readable CPU storage used by prog_key_live().
++            int mapped = pool_find(sd->data, ncode) >= 0;
++            pthread_mutex_unlock(&g_mu);
++            if (!mapped) continue;
++            size_t bytes = (size_t)nctl + ncode;
++            if (atomic_fetch_add(&g_rb_bind_bytes, bytes) > (8u << 20) - bytes) {
++                atomic_fetch_sub(&g_rb_bind_bytes, bytes);
++                continue;
++            }
++            NSData *snapshot = rb_stage_snapshot(sd, ctl, nctl, ncode);
++            if (!snapshot) { atomic_fetch_sub(&g_rb_bind_bytes, bytes); continue; }
++            [stages addObject:snapshot];
++            reserved += bytes;
++        }
++        if (reserved && os_unfair_lock_trylock(&g_shpre_mu)) {
++            if (epoch == atomic_load(&g_rb_startup_epoch) && !nvn_be_stopping()) {
++                if (!g_rb_bind_q) g_rb_bind_q = dispatch_queue_create("s2a.nvn2.bind",
++                    dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0));
++                dispatch_async(g_rb_bind_q, ^{ @autoreleasepool {
++                    if (!nvn_be_stopping()) rb_prepare_bound(stages, nstage, depth);
++                    atomic_fetch_sub(&g_rb_bind_bytes, reserved);
++                    atomic_fetch_sub(&g_rb_bind_jobs, 1);
++                }});
++                os_unfair_lock_unlock(&g_shpre_mu);
++                return;
++            }
++            os_unfair_lock_unlock(&g_shpre_mu);
++        }
++        atomic_fetch_sub(&g_rb_bind_bytes, reserved);
++        atomic_fetch_sub(&g_rb_bind_jobs, 1);
++    }
++}
+ // The normal warm parser skips unavailable stages. Keep only exact native
+ // recipes intentionally deferred by migration, so when a later guest bind
+ // supplies both real libraries the existing lookahead lanes can take them.
+@@ -16246,13 +16310,18 @@ static void rb_warm_resume(void) {
+     warm_start_mode(1);
+ }
+ static void warm_start(void) { warm_start_mode(0); }
++static void rb_warm_at_submit(void) {
++    if (atomic_load(&g_warm_started) || nvn_be_stopping()) return;
++    if (atomic_load(&g_rb_warm_resume)) { rb_warm_resume(); return; }
++    if (atomic_load_explicit(&g_shmap_ready, memory_order_acquire) ||
++        (getenv("DM_NVN_SHMAP") && (rb_ref_path() || prepare_on()))) shmap_load();
++}
+ static void warm_start_mode(int resumed) {
++    if (atomic_exchange(&g_warm_started, 1)) return;
+     if (rb_direct_profile_on()) {
+         const char *build = s2a_main_build_id ? s2a_main_build_id() : NULL;
+         rb_profile_begin(pso_user_path(), s2a_nvn_game_id(), build);
+     }
+-    rb_archive_preopen_start();
+-    if (atomic_exchange(&g_warm_started,1)) return;
+     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ pso_user_seen_load(); });   // the record's dedupe set, off the submit thread (pso_user_seen_load)
+     rb_disk_launch(nil, YES);
+     NSArray<NSString *> *paths = warm_paths(1);
+@@ -16298,7 +16367,6 @@ static void warm_start_mode(int resumed) {
+ // its depth convention. With implicit/default depth the first real bind
+ // remains authoritative. A stopped epoch cannot start work on a later title.
+ static dispatch_queue_t g_rb_startup_q;
+-static uint64_t g_rb_startup_epoch;
+ static int g_rb_device_ready, g_rb_depth_ready, g_rb_startup_queued;
+ static dispatch_queue_t rb_start_queue_locked(void) {
+     if (!g_rb_startup_q) g_rb_startup_q=dispatch_queue_create("s2arm.nvn2.startup",
+@@ -16319,7 +16387,11 @@ static void rb_startup_ready(int device,int depth) {
+             os_unfair_lock_lock(&g_shpre_mu);
+             BOOL current=epoch==g_rb_startup_epoch && !nvn_be_stopping();
+             os_unfair_lock_unlock(&g_shpre_mu);
+-            if (current) { shmap_load(); rb_warm_resume(); }
++            if (current) {
++                shmap_load_metadata();
++                if (atomic_load(&g_rb_warm_resume)) rb_warm_resume();
++                else warm_start();
++            }
+         } });
+     }
+     os_unfair_lock_unlock(&g_shpre_mu);
+@@ -16362,7 +16434,7 @@ int nvn_pso_harvest(const char *dir) {
+     mtl_init();
+     nvn_be_set_depth_zero(!strcmp(dm, "zero"));
+     uint64_t t0 = bp_now();
+-    shmap_load();   // ends with warm_start: the prepare step, waiting for every line
++    shmap_load();   // Offline harvest starts prepare after the metadata token has been released.
+     while (atomic_load(&g_warm_running)) usleep(10000);
+     MLOG("pipeline harvest into %s: depth mode %s, %llu written, %llu failed to write, %.1f s", dir, dm, (unsigned long long)atomic_load(&g_par_written), (unsigned long long)atomic_load(&g_par_write_failed), (bp_now() - t0) / 1e9);
+     return atomic_load(&g_par_written) ? 0 : 1;
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index dcbbd5423a431892cff9294ce076ca8193d80876..db5dba36530d655d8c254396cf0e216f4ece8499 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -53,6 +53,7 @@ static int session_wait_backend(void) {
+     os_unfair_lock_lock(&g_shpre_mu);
+     shq_mark(&g_shpre, prefetch_done); shq_mark(&g_shurg, prefetch_done);
+     if (g_rb_disk_q) dispatch_group_async(prefetch_done,g_rb_disk_q,^{});
++    if (g_rb_bind_q) dispatch_group_async(prefetch_done,g_rb_bind_q,^{});
+     if (g_rb_registration_q) dispatch_group_async(prefetch_done,g_rb_registration_q,^{});
+     if (g_rb_export_q) dispatch_group_async(prefetch_done,g_rb_export_q,^{});
+     if (g_rb_startup_q) dispatch_group_async(prefetch_done,g_rb_startup_q,^{});
+diff --git a/graphics/nvn/gfx/nvn/rb_registration.inc b/graphics/nvn/gfx/nvn/rb_registration.inc
+index ec2be3d19e04bf35bc237fdbbf5c6d0283eb632d..1187141679efed10979ce1528c6637a2f765de02 100644
+--- a/graphics/nvn/gfx/nvn/rb_registration.inc
++++ b/graphics/nvn/gfx/nvn/rb_registration.inc
+@@ -11,16 +11,28 @@ static _Atomic unsigned g_rb_registration_count;
+ static _Atomic uint64_t g_rb_registration_queued, g_rb_registration_loaded, g_rb_registration_msl;
+ static _Atomic int g_rb_register_option;
+ 
++static BOOL rb_read_stage_header(const NVNshaderData *sd, uint8_t ctl[NVN2_CTL_COPY],
++                            uint32_t *nctl, uint32_t *ncode) {
++    if (!sd->data || !rb_first_read(sd->control, ctl, 0xd8) || !nvn2_ctl(ctl)) return NO;
++    *ncode = nvn2_code_len(ctl);
++    memcpy(nctl, ctl + 0x30, sizeof *nctl);
++    if (*nctl < 0xd8 || *nctl > NVN2_CTL_COPY) *nctl = 0xd8;
++    if (!*ncode || (size_t)*nctl + *ncode > (8u << 20) || sd->data > UINTPTR_MAX - *ncode) return NO;
++    return *nctl == 0xd8 || rb_first_read((const uint8_t *)sd->control + 0xd8, ctl + 0xd8, *nctl - 0xd8);
++}
++static NSData *rb_stage_snapshot(const NVNshaderData *sd, const uint8_t *ctl, uint32_t nctl, uint32_t ncode) {
++    NSMutableData *snapshot = [NSMutableData dataWithLength:(size_t)nctl + ncode];
++    uint8_t *payload = snapshot.mutableBytes;
++    if (!payload || !rb_first_read((const void *)(uintptr_t)sd->data, payload + nctl, ncode) ||
++        !rb_code_set(payload + nctl, ncode)) return nil;
++    memcpy(payload, ctl, nctl);
++    return snapshot;
++}
+ static void rb_register_shader(const NVNshaderData *sd, int depth) {
+-    uint8_t control[NVN2_CTL_COPY] = {0};
+-    if (!sd->data || !rb_first_read(sd->control,control,0xd8) || !nvn2_ctl(control)) return;
+-    uint32_t ncode = nvn2_code_len(control), nctl;
+-    memcpy(&nctl, control + 0x30, sizeof nctl);
+-    if (nctl < 0xd8 || nctl > sizeof control) nctl = 0xd8;
+-    if (nctl > 0xd8 && !rb_first_read((const uint8_t *)sd->control + 0xd8,control + 0xd8,nctl - 0xd8)) return;
+-    const size_t bytes = (size_t)nctl + ncode;
+-    const size_t limit = 8u << 20;
+-    if (!ncode || bytes > limit || sd->data > UINTPTR_MAX - ncode || !rb_addr_mapped(sd->data,ncode)) return;
++    uint8_t control[NVN2_CTL_COPY];
++    uint32_t nctl, ncode;
++    if (!rb_read_stage_header(sd, control, &nctl, &ncode) || !rb_addr_mapped(sd->data, ncode)) return;
++    const size_t bytes = (size_t)nctl + ncode, limit = 8u << 20;
+     // Reserve before copying, including concurrent registering game threads.
+     os_unfair_lock_lock(&g_shpre_mu);
+     BOOL admitted = !atomic_load(&g_shpre_stopping) && g_rb_registration_count < 32 &&
+@@ -29,13 +41,11 @@ static void rb_register_shader(const NVNshaderData *sd, int depth) {
+     os_unfair_lock_unlock(&g_shpre_mu);
+     if (!admitted) return;
+ 
+-    NSMutableData *snapshot = [NSMutableData dataWithLength:bytes];
+-    uint8_t *payload = snapshot.mutableBytes;
++    NSData *snapshot = rb_stage_snapshot(sd, control, nctl, ncode);
++    const uint8_t *payload = snapshot.bytes;
+     NSString *key = nil;
+-    if (payload && rb_first_read((const void *)(uintptr_t)sd->data,payload+nctl,ncode) &&
+-        rb_code_set(payload+nctl,ncode)) {
++    if (payload) {
+         uint8_t digest[8];
+-        memcpy(payload,control,nctl);
+         nvn2_key(payload,payload+nctl,digest);
+         char hex[17];
+         for (int i=0;i<8;++i) snprintf(hex + 2*i,3,"%02x",digest[i]);
+@@ -62,7 +72,7 @@ static void rb_register_shader(const NVNshaderData *sd, int depth) {
+     dispatch_async(g_rb_registration_q, ^{ @autoreleasepool {
+         if (!nvn_be_stopping()) {
+             const uint8_t *ctl = snapshot.bytes, *code = ctl+nctl;
+-            shmap_load();
++            shmap_load_metadata();
+             NSString *stage = shmap_stage(key);
+             if ((!stage || !mtl_shlib_has(key.UTF8String)) && dm_shader_prepare_registration) {
+                 BOOL translated = dm_shader_prepare_registration(key.UTF8String,ctl,nctl,code,ncode);

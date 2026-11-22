@@ -1,0 +1,335 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index f8cc194..90df2fb 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -132,11 +132,15 @@ extern uint64_t s2a_rb_bench_present_begin(void) __attribute__((weak_import));
+ extern void s2a_rb_bench_presented(uint64_t, double) __attribute__((weak_import));
+ // 弱链接[host,ios,nvntest]：s2a_rb_bench_invalidate (optional iOS benchmark observer)
+ extern void s2a_rb_bench_invalidate(const char *) __attribute__((weak_import));
++// The boot report and governor must sample the same MTLDevice byte counter.
++static uint64_t rb_device_allocated_bytes(id<MTLDevice> device) {
++    return (uint64_t)[device currentAllocatedSize];
++}
+ int nvn_rb_bench_memory(uint64_t *allocated) {
+     // g_dev is created once before gameplay and kept for this process's lifetime.
+     // No texture enumeration, residency walk, fence, allocation or resource trim.
+     if (!allocated || !g_dev) return -1;
+-    *allocated = (uint64_t)g_dev.currentAllocatedSize;
++    *allocated = rb_device_allocated_bytes(g_dev);
+     return 0;
+ }
+ // Immutable values avoid a per-draw allocation and remain alive through recorded
+@@ -6327,9 +6331,18 @@ static int rb_spec_level(void) {
+         why = rb_spec_recovery(why, now, atomic_load_explicit(&g_spec_last_hot, memory_order_relaxed));
+         int level = rb_spec_thermal_tier(why, th, strict);
+         atomic_store_explicit(&g_spec_why, why, memory_order_relaxed);
+-        int fairHot = adaptive && th == 1 && why == RB_SPEC_FAIR && !low;
+-        int was = rb_spec_publish_plan(&g_spec_gate, level, strict ? 2 : 0, fairHot);
+-        if (strict && (!prev || was != level)) MLOG("[RB-PSO-WORKERS] thermal=%d startup_limit=%u speculative_limit=%u qos=utility",th, level==RB_SPEC_RUN ? 4u : fairHot || level==RB_SPEC_ONE ? 1u : 0u, level==RB_SPEC_HOLD ? 0u : level==RB_SPEC_ONE ? 1u : 2u);
++        int startupFloor = RB_FLOOR_NONE;
++        if (rb_spec_nominal_startup(th, av)) startupFloor = RB_FLOOR_NOMINAL;
++        else if (adaptive && th == 1 && why == RB_SPEC_FAIR && !low) startupFloor = RB_FLOOR_HOT_TIER;
++        int was = rb_spec_publish_plan(&g_spec_gate, level, strict ? 2 : 0, startupFloor);
++        if (strict) {
++            static unsigned lastStartup; // rb_kart_sample_mu
++            unsigned startup = level == RB_SPEC_RUN ? 4u : (startupFloor || level == RB_SPEC_ONE ? 1u : 0u);
++            if (!prev || was != level || startup != lastStartup)
++                MLOG("[RB-PSO-WORKERS] thermal=%d startup_limit=%u speculative_limit=%u qos=utility",
++                     th, startup, level == RB_SPEC_HOLD ? 0u : level == RB_SPEC_ONE ? 1u : 2u);
++            lastStartup = startup;
++        }
+         if (was != level) { uint64_t k = atomic_fetch_add(&g_spec_changes, 1) + 1;
+             if (k <= 8 || !(k & (k - 1))) MLOG("RewindBox: speculative shader work %s: %s (thermal state %d, %lld MB left before the process limit (-1 unknown), Low Power Mode %d; %llu changes; patch 0121)",
+                                               level == RB_SPEC_HOLD ? "held" : level == RB_SPEC_ONE ? "on one worker" : strict ? "on two utility workers" : "back on every worker", k_spec_why[why], th,
+@@ -6351,17 +6364,20 @@ static void rb_spec_park(uint64_t ticket) { rb_spec_park_worker(ticket, 0); }
+ // Used by the host translation unit. Link failure is preferable to bypassing
+ // the governor or stop flag in the guest. Standalone test stubs live in the test.
+ int rb_spec_allow(int worker) { return rb_spec_may(worker); }
+-int rb_spec_take(int worker, int *lease) {
++static int rb_spec_take_for(int worker, int startup, int *lease) {
+     rb_spec_level();  // refresh the shared tier before reserving
+ #ifdef RB_SPEC_TEST_RESERVATION
+     RB_SPEC_TEST_RESERVATION(-1);
+ #endif
+-    *lease = rb_spec_admit_startup(&g_spec_gate, worker, rb_startup_worker);
++    *lease = rb_spec_admit_startup(&g_spec_gate, worker, startup);
+ #ifdef RB_SPEC_TEST_RESERVATION
+     RB_SPEC_TEST_RESERVATION(*lease);
+ #endif
+     return *lease;
+ }
++int rb_spec_take(int worker, int *lease) {
++    return rb_spec_take_for(worker, rb_startup_worker, lease);
++}
+ int rb_kart_thermal_workers(void) { return rb_thermal_pacing() || rb_kart_option(RB_KART_WORKERS); }
+ int rb_kart_try_worker(int *lease) {
+     *lease = 0;
+@@ -6752,7 +6768,7 @@ static void rb_sp_device_line(void) { @autoreleasepool {
+          g_dev.name.UTF8String, g_m3 ? 3 : 4, g_m3 ? " (it makes no placement sparse texture: their tiles are mapped by an MTL4CommandQueue)" : "", sps, fb,
+          bc ? "native" : g_dev.supportsBCTextureCompression ? "decoded on upload (test switch DM_TEST_NO_BC; this GPU has them)" : "decoded on upload",
+          (unsigned long)(fam ? [g_dev sparseTileSizeInBytesForSparsePageSize:MTLSparsePageSize64] : 0), tl[0] ? tl : "none asked", same, asked,
+-         (unsigned long long)(g_dev.currentAllocatedSize >> 20), (unsigned long long)(g_dev.recommendedMaxWorkingSetSize >> 20), (unsigned long long)(g_dev.maxBufferLength >> 20),
++         (unsigned long long)(rb_device_allocated_bytes(g_dev) / RB_WS_MIB), (unsigned long long)(g_dev.recommendedMaxWorkingSetSize >> 20), (unsigned long long)(g_dev.maxBufferLength >> 20),
+          (unsigned long long)(fp >> 20), (unsigned long long)(av >> 20));
+ } }
+ static const char *rb_tex_type(MTLTextureType y) {
+@@ -6867,7 +6883,7 @@ static void res_top(const char *why, uint64_t fp, uint64_t was, uint64_t av, int
+          "staging of the open upload batch %llu, %llu MB and zero-copy views of pools' pages it holds %llu, %llu MB%s; other shared buffers %llu, %llu MB%s; private buffers %llu, %llu MB; "
+          "other allocations %llu, %llu MB; the largest: %s",
+          nline, (int)(RB_TOP_LINES + RB_TOP_FORCED), why, (unsigned long long)atomic_load(&g_cur_frame), (unsigned long long)(fp >> 20), since, (unsigned long long)(av >> 20),
+-         (unsigned long long)(g_dev.currentAllocatedSize >> 20), (unsigned long long)(g_dev.recommendedMaxWorkingSetSize >> 20), (unsigned long)all.count, (unsigned long long)(total >> 20),
++         (unsigned long long)(rb_device_allocated_bytes(g_dev) / RB_WS_MIB), (unsigned long long)(g_dev.recommendedMaxWorkingSetSize >> 20), (unsigned long)all.count, (unsigned long long)(total >> 20),
+          (unsigned long long)kn[K_TEX], (unsigned long long)(kb[K_TEX] >> 20), (unsigned long long)views, (unsigned long long)kn[K_HEAP], (unsigned long long)(kb[K_HEAP] >> 20),
+          (unsigned long long)kn[K_POOL], (unsigned long long)(kb[K_POOL] >> 20), (unsigned long long)kn[K_STAGE], (unsigned long long)(kb[K_STAGE] >> 20),
+          (unsigned long long)kn[K_PVIEW], (unsigned long long)(kb[K_PVIEW] >> 20), kq,
+@@ -15653,6 +15669,10 @@ static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL re
+         long i = -1;
+         BOOL limited = background && rb_gov_on() && rb_gov_all_nvn2();
+         BOOL capacity = !limited || rb_registered_capacity();
++        // Even if a promoted row is over the optional cache quota, allow the
++        // primary nominal startup worker to claim it through its normal lease.
++        BOOL startupPrimary = !capacity && rb_startup_worker && w == 0 &&
++                              rb_spec_nominal_startup(rb_cached_thermal(), atomic_load(&rb_gov_room));
+         BOOL observedBusy=rb_cold_worker && (rb_disk_observed_busy() ||
+             atomic_load_explicit(&g_rb_registration_count,memory_order_relaxed));
+         BOOL registered = !required && w == 0 && capacity && rb_promoted_on();
+@@ -15683,7 +15703,7 @@ static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL re
+             [g_wu_q removeObjectAtIndex:0];
+         }
+         BOOL yieldToRegistration=rb_cold_worker && i<0 && ((w!=0 && g_wu_q.count) || observedBusy);
+-        BOOL defer = (!capacity && g_wu_q.count) || yieldToRegistration;
++        BOOL defer = (!capacity && !startupPrimary && g_wu_q.count) || yieldToRegistration;
+         int drained = required ? i < 0 && (!atomic_load(&g_wu_required_remaining) || atomic_load(next) >= n)
+                                : i < 0 && !g_wu_q.count && (atomic_load(next) >= n || (c && !atomic_load(&g_wu_remaining)));
+         os_unfair_lock_unlock(&g_wu_lock);
+@@ -15695,7 +15715,10 @@ static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL re
+             rb_spec_park_worker(ticket,w);
+             continue;
+         }
+-        if (i < 0 && w >= 0 && !rb_spec_take(w, lease)) {
++        // warm_prepare's foreground workers do not run inside rb_run_tiers.
++        // Its primary worker shares the nominal lease with strict verification.
++        int startup = background ? rb_startup_worker : RB_LEASE_FOREGROUND;
++        if (i < 0 && w >= 0 && !rb_spec_take_for(w, startup, lease)) {
+ #ifdef RB_REF_TEST_HELD_PICK
+             RB_REF_TEST_HELD_PICK(w);
+ #endif
+@@ -15705,7 +15728,7 @@ static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL re
+         if (dm_gfx_session_stopping() || nvn_be_stopping()) { rb_spec_done(lease); return -1; }
+         if (!required && i < 0) {
+             os_unfair_lock_lock(&g_wu_lock);
+-            if (capacity && g_wu_q.count) { i = g_wu_q[0].longValue; [g_wu_q removeObjectAtIndex:0]; }
++            if ((capacity || startupPrimary) && g_wu_q.count) { i = g_wu_q[0].longValue; [g_wu_q removeObjectAtIndex:0]; }
+             os_unfair_lock_unlock(&g_wu_lock);
+         }
+         int urgent = i >= 0;
+@@ -15740,7 +15763,7 @@ static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL re
+                 : rb_claim_row(&c[i]))) {
+             if (hint && coursePick) atomic_fetch_add_explicit(&rb_cup_claims,1,memory_order_relaxed);
+             rb_picked_registered = urgent && registered;
+-            rb_warm_context = urgent || hint != 0;
++            rb_warm_context = capacity && (urgent || hint != 0); // keep warm_task_'s cache cap on the startup floor
+             g_rb_picked_hint = hint != 0 && !routeHint;
+             if (g_rb_picked_hint) atomic_fetch_add(&g_rb_promoted,1);
+             int foreground_done = required && atomic_fetch_sub(&g_wu_required_remaining, 1) == 1;
+diff --git a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+index 412d514..93ef215 100644
+--- a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
++++ b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+@@ -98,8 +98,9 @@ static int sp_slot(uint32_t *out, uint64_t done, __strong id<MTLHeap> *made) {
+         unsigned pages = ht;
+         uint64_t budget = (uint64_t)rb_sparse_heap_target() * 256 * RB_WS_MIB;
+         if (rb_sparse_budget_on()) {
+-            uint64_t live_room = rb_ws_room(rb_ws_target(g_dev.recommendedMaxWorkingSetSize),
+-                                            g_dev.currentAllocatedSize, rb_metal_working_room());
++            uint64_t allocated = rb_device_allocated_bytes(g_dev);
++            uint64_t live_room = rb_ws_sample_room(rb_ws_target(g_dev.recommendedMaxWorkingSetSize),
++                                                   allocated, rb_device_sample_valid(allocated), rb_metal_working_room());
+             pages = rb_ws_heap_pages(ht, rb_sp_heap_bytes, budget, live_room);
+         }
+         MTLHeapDescriptor *hd = [MTLHeapDescriptor new];
+diff --git a/graphics/nvn/gfx/nvn/rb_memory_governor.inc b/graphics/nvn/gfx/nvn/rb_memory_governor.inc
+index b929091..fafd43e 100644
+--- a/graphics/nvn/gfx/nvn/rb_memory_governor.inc
++++ b/graphics/nvn/gfx/nvn/rb_memory_governor.inc
+@@ -8,6 +8,13 @@ static _Atomic uint64_t rb_ws_room_bytes = UINT64_MAX, rb_ws_recommended;
+ static int rb_working_set_on(void) {
+     return g_dev && !g_m3 && rb_pacing_setting(&rb_ws_option, "S2A_RB_METAL_WORKING_SET");
+ }
++static int rb_device_sample_valid(uint64_t allocated) {
++#if TARGET_OS_IPHONE
++    return rb_ws_sample_valid(allocated, NSProcessInfo.processInfo.physicalMemory);
++#else
++    return rb_ws_sample_valid(allocated, 0);
++#endif
++}
+ static uint64_t rb_metal_working_room(void) {
+     return rb_working_set_on() ? atomic_load(&rb_ws_room_bytes) : UINT64_MAX;
+ }
+@@ -67,10 +74,12 @@ static void rb_gov_sample(unsigned long event) {
+     room = rb_ios_headroom();
+ #endif
+     int protect_ws = rb_working_set_on();
+-    uint64_t allocated = protect_ws ? g_dev.currentAllocatedSize : 0;
+-    uint64_t recommended = protect_ws ? g_dev.recommendedMaxWorkingSetSize : 0;
++    id<MTLDevice> device = protect_ws ? g_dev : nil;
++    uint64_t allocated = rb_device_allocated_bytes(device);
++    int valid = device && rb_device_sample_valid(allocated);
++    uint64_t recommended = device.recommendedMaxWorkingSetSize;
+     uint64_t target = rb_ws_target(recommended);
+-    uint64_t metal_room = protect_ws ? rb_ws_room(target, allocated, room) : UINT64_MAX;
++    uint64_t metal_room = protect_ws ? rb_ws_sample_room(target, allocated, valid, room) : UINT64_MAX;
+     atomic_store(&rb_ws_recommended, recommended);
+     atomic_store(&rb_ws_room_bytes, metal_room);
+     atomic_store(&rb_gov_room,room);
+@@ -88,20 +97,23 @@ static void rb_gov_sample(unsigned long event) {
+     int was_stressed = 0, stressed = 0;
+ #endif
+     unsigned old = atomic_load(&rb_gov_plan), tier = RB_GOV_NORMAL;
+-    if ((protect_ws && allocated >= target) || now < rb_gov_critical_until || room <= (768ull << 20)) tier = RB_GOV_CRITICAL;
+-    else if (stressed || now < rb_gov_warn_until || (room == UINT64_MAX && !protect_ws) || room <= (2048ull << 20)) tier = RB_GOV_WARN;
++    if ((valid && allocated >= target) || now < rb_gov_critical_until || room <= (768ull << 20)) tier = RB_GOV_CRITICAL;
++    else if (stressed || now < rb_gov_warn_until || (room == UINT64_MAX && !valid) || room <= (2048ull << 20)) tier = RB_GOV_WARN;
+     unsigned before = old & 3u;
+     if (tier < before) {
+         uint64_t floor = before == RB_GOV_CRITICAL ? (1024ull << 20) : (2304ull << 20);
+-        if ((room == UINT64_MAX && !protect_ws) || room < floor || (protect_ws && metal_room < 256 * RB_WS_MIB)) rb_gov_recover_since = 0;
++        if ((room == UINT64_MAX && !valid) || room < floor || (protect_ws && metal_room < 256 * RB_WS_MIB)) rb_gov_recover_since = 0;
+         else if (!rb_gov_recover_since) rb_gov_recover_since = now;
+         if (!rb_gov_recover_since || now - rb_gov_recover_since < 10ull*NSEC_PER_SEC) tier = before;
+     } else rb_gov_recover_since = 0;
+     if (tier != before) rb_gov_recover_since = 0;
+-    if (protect_ws && (event || tier != before))
+-        MLOG("[RB-MEM-GOV] tier=%u metal_MiB=%llu recommended_MiB=%llu target_MiB=%llu remaining_MiB=%llu",
+-             tier, (unsigned long long)(allocated >> 20), (unsigned long long)(recommended >> 20),
+-             (unsigned long long)(target >> 20), (unsigned long long)(metal_room >> 20));
++    static int previous_valid = -1; // rb_gov_mu
++    if (protect_ws && (event || tier != before || valid != previous_valid))
++        MLOG("[RB-MEM-GOV] tier=%u metal_MiB=%lld recommended_MiB=%llu target_MiB=%llu remaining_MiB=%llu budget_source=%s",
++             tier, allocated == UINT64_MAX ? -1LL : (long long)(allocated / RB_WS_MIB), (unsigned long long)(recommended / RB_WS_MIB),
++             (unsigned long long)(target / RB_WS_MIB), (unsigned long long)(metal_room / RB_WS_MIB),
++             valid ? "metal+process" : "process");
++    previous_valid = protect_ws ? valid : -1;
+     unsigned ceiling = rb_gov_ceiling(tier,stressed);
+     unsigned mib = room == UINT64_MAX ? 64 : (unsigned)MIN((uint64_t)ceiling,MAX(16ull,(room >> 20)/8));
+     mib = MIN(ceiling,(mib / 16) * 16);
+diff --git a/graphics/nvn/gfx/nvn/rb_reference.inc b/graphics/nvn/gfx/nvn/rb_reference.inc
+index d338efd..ca9c412 100644
+--- a/graphics/nvn/gfx/nvn/rb_reference.inc
++++ b/graphics/nvn/gfx/nvn/rb_reference.inc
+@@ -222,7 +222,9 @@ static int rb_ref_admit_key(NSString *key, NSString **name, int *lease) {
+             usleep(10000); continue;
+         }
+         if (!have) return 0;
+-        if (rb_spec_take(0,lease)) { *name=file; return 1; }
++        // The last required row has released its lease before this single
++        // verifier runs. Reacquire on the same nominal startup allowance.
++        if (rb_spec_take_for(0, RB_LEASE_FOREGROUND, lease)) { *name=file; return 1; }
+ #ifdef RB_REF_TEST_PAUSE
+         RB_REF_TEST_PAUSE(2);
+ #endif
+diff --git a/graphics/nvn/gfx/nvn/rb_sparse_reclaim.inc b/graphics/nvn/gfx/nvn/rb_sparse_reclaim.inc
+index 380ef59..9812570 100644
+--- a/graphics/nvn/gfx/nvn/rb_sparse_reclaim.inc
++++ b/graphics/nvn/gfx/nvn/rb_sparse_reclaim.inc
+@@ -94,9 +94,10 @@ static void rb_sparse_maintain(void) {
+     static uint64_t last_report = UINT64_MAX;
+     if (last_report == UINT64_MAX || frame < last_report || frame - last_report >= 180 || retired) {
+         last_report = frame;
+-        MLOG("[RB-MEM-GOV] sparse active_heaps=%u heap_MiB=%llu target_MiB=%llu metal_MiB=%llu mandatory_overflow=%llu retired_heaps=%llu reclaimed_tiles=%llu refaulted_textures=%llu",
++        uint64_t allocated = rb_device_allocated_bytes(g_dev);
++        MLOG("[RB-MEM-GOV] sparse active_heaps=%u heap_MiB=%llu target_MiB=%llu metal_MiB=%lld mandatory_overflow=%llu retired_heaps=%llu reclaimed_tiles=%llu refaulted_textures=%llu",
+              atomic_load(&g_sp_heap_n), (unsigned long long)(rb_sp_heap_bytes >> 20),
+-             (unsigned long long)(budget >> 20), (unsigned long long)(g_dev.currentAllocatedSize >> 20),
++             (unsigned long long)(budget >> 20), allocated == UINT64_MAX ? -1LL : (long long)(allocated / RB_WS_MIB),
+              (unsigned long long)rb_sp_overflow, (unsigned long long)rb_sp_retired,
+              (unsigned long long)rb_sp_reclaimed, (unsigned long long)rb_sp_refaults);
+     }
+diff --git a/graphics/nvn/gfx/nvn/rb_spec_gate.h b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+index 00f12cb..affc990 100644
+--- a/graphics/nvn/gfx/nvn/rb_spec_gate.h
++++ b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+@@ -42,6 +42,14 @@ static inline int rb_spec_tier(int why) {
+ static inline int rb_spec_thermal_tier(int reason, int thermal, int strict) {
+     return strict && thermal >= 1 ? RB_SPEC_HOLD : rb_spec_tier(reason);
+ }
++// The background hot tier can run under either startup floor. Synchronous
++// foreground preparation and its strict archive proof can use only the
++// nominal floor; they retain the existing Fair/Serious admission policy.
++enum { RB_FLOOR_NONE, RB_FLOOR_HOT_TIER, RB_FLOOR_NOMINAL };
++enum { RB_LEASE_OPTIONAL, RB_LEASE_HOT_TIER, RB_LEASE_FOREGROUND };
++static inline int rb_spec_nominal_startup(int thermal, uint64_t available) {
++    return thermal == 0 && available != UINT64_MAX && available > (UINT64_C(3000) << 20);
++}
+ static inline int rb_spec_worker_allowed(int level, int worker) {
+     return level == RB_SPEC_RUN || (level == RB_SPEC_ONE && worker == 0);
+ }
+@@ -56,7 +64,7 @@ typedef struct {
+     _Atomic uint64_t epoch;
+     _Atomic int level;
+     unsigned limit;  // zero preserves unlimited legacy RUN
+-    int fair_startup;
++    int startup_floor;
+     unsigned active;  // protected by mutex, including leases granted in RUN
+ } rb_spec_gate;
+ #define RB_SPEC_GATE_INITIALIZER { PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, PTHREAD_COND_INITIALIZER, 0, RB_SPEC_RUN, 0, 0, 0 }
+@@ -70,11 +78,11 @@ static inline void rb_spec_wake(rb_spec_gate *gate) {
+     rb_spec_signal_locked(gate);
+     pthread_mutex_unlock(&gate->mutex);
+ }
+-static inline int rb_spec_publish_plan(rb_spec_gate *gate, int level, unsigned limit, int fair_startup) {
++static inline int rb_spec_publish_plan(rb_spec_gate *gate, int level, unsigned limit, int startup_floor) {
+     pthread_mutex_lock(&gate->mutex);
+     int old = atomic_exchange(&gate->level, level);
+-    if (level != old || gate->limit != limit || gate->fair_startup != fair_startup) rb_spec_signal_locked(gate);
+-    gate->fair_startup = fair_startup;
++    if (level != old || gate->limit != limit || gate->startup_floor != startup_floor) rb_spec_signal_locked(gate);
++    gate->startup_floor = startup_floor;
+     gate->limit = limit;
+     pthread_mutex_unlock(&gate->mutex);
+     return old;
+@@ -91,9 +99,11 @@ static inline int rb_spec_admit_startup(rb_spec_gate *gate, int worker, int star
+     pthread_mutex_lock(&gate->mutex);
+     int level = atomic_load(&gate->level);
+     unsigned limit = gate->limit;
+-    if (startup && level == RB_SPEC_RUN && limit == 2) limit = 4;
+-    int fair = gate->fair_startup && startup && worker == 0 && level == RB_SPEC_HOLD;
+-    int granted = (fair || rb_spec_worker_allowed(level, worker)) && (level == RB_SPEC_RUN || !gate->active) &&
++    if (startup == RB_LEASE_HOT_TIER && level == RB_SPEC_RUN && limit == 2) limit = 4;
++    int eligible = startup == RB_LEASE_HOT_TIER ||
++                   (startup == RB_LEASE_FOREGROUND && gate->startup_floor == RB_FLOOR_NOMINAL);
++    int floor = gate->startup_floor && eligible && worker == 0 && level == RB_SPEC_HOLD;
++    int granted = (floor || rb_spec_worker_allowed(level, worker)) && (level == RB_SPEC_RUN || !gate->active) &&
+                   (!limit || gate->active < limit);
+     if (granted) gate->active++;
+     pthread_mutex_unlock(&gate->mutex);
+@@ -116,7 +126,7 @@ static inline void rb_spec_release(rb_spec_gate *gate, int *lease) {
+     *lease = 0;
+     --gate->active;
+     if (gate->limit && atomic_load(&gate->level) == RB_SPEC_RUN) rb_spec_signal_locked(gate);
+-    else if (!gate->active && (atomic_load(&gate->level) == RB_SPEC_ONE || gate->fair_startup)) {
++    else if (!gate->active && (atomic_load(&gate->level) == RB_SPEC_ONE || gate->startup_floor)) {
+         atomic_fetch_add(&gate->epoch, 1);
+         pthread_cond_signal(&gate->primary);
+     }
+diff --git a/graphics/nvn/gfx/nvn/rb_working_set.h b/graphics/nvn/gfx/nvn/rb_working_set.h
+index ad03a48..0b097b5 100644
+--- a/graphics/nvn/gfx/nvn/rb_working_set.h
++++ b/graphics/nvn/gfx/nvn/rb_working_set.h
+@@ -12,6 +12,16 @@ static inline uint64_t rb_ws_room(uint64_t target, uint64_t metal, uint64_t proc
+     uint64_t remaining = target > metal ? target - metal : 0;
+     return remaining < process ? remaining : process;
+ }
++// On iOS a device allocation total above installed unified RAM cannot be
++// interpreted as resident bytes. Use independently measured process headroom
++// for that sample. Unknown headroom must never open unbounded optional work.
++static inline int rb_ws_sample_valid(uint64_t allocated, uint64_t physical) {
++    return allocated != UINT64_MAX && (!physical || allocated <= physical);
++}
++static inline uint64_t rb_ws_sample_room(uint64_t target, uint64_t allocated, int valid, uint64_t room) {
++    if (valid) return rb_ws_room(target, allocated, room);
++    return room == UINT64_MAX ? 0 : (room < target ? room : target);
++}
+ // Placement resources receive up to one seventh of the device recommendation.
+ // Express the target in 256-MiB units even if the user selects smaller heaps.
+ static inline unsigned rb_ws_sparse_target(uint64_t recommended, unsigned tier) {

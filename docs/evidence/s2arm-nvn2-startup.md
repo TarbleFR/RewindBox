@@ -50,3 +50,16 @@ Le [contrôle du moteur 0287](s2arm-fluidity-803/engine287-build.json) conserve 
 Le [banc du moteur 0293](s2arm-fluidity-803/engine293-build.json) a rouvert un PSO écrit en Fair et un autre écrit en Serious. Les deux images uploadées restent correctes sur 128 pixels avec le premier lot en vol. Le test d’uniformes mesure 288 octets de c1 initialisés, vérifie le pixel RGBA attendu et maintient 65 536 octets pour un accès opaque. Le backend Mac, les frameworks iOS arm64 et le pont UIKit compilent.
 
 L’[IPA privée 817 vérifiée](rewind817/nvn2-817.json) contient 97 images natives. Trois empreintes diffèrent de la 816. Outre Runner et S2ArmEngine, le pont rpcs3_internal_bridge reprend exactement l’empreinte des builds 811 à 815. Son répertoire source est identique entre les deux révisions de livraison. La cause de la différence de compilation de la 816 reste indéterminée. Les 48 identités imposées par le manifeste concordent.
+
+## Blocage au démarrage de la 817
+
+La trace signalée sur iPhone place le thread invité dans `nvn_be_prog_bound`, en attente du `dispatch_once` de la table des shaders. Sur le worker d’enregistrement qui détient ce jeton, `shmap_load_once` entre dans `warm_start_mode`. Six workers sont garés et le compteur reste à 0 sur 9 502.
+
+| Patch | Changement |
+| --- | --- |
+| 0294 | Le chargeur termine la table avant de la publier. Son initialisation et l’enregistrement des shaders ne lancent plus le préchauffage. Le premier bind abandonne son anticipation si la carte est froide, si un verrou est occupé ou si la file est pleine. Une file bornée traite les copies des stages. Le replay conserve la résolution à la demande. |
+| 0295 | Les deux diagnostics lisent les octets de `MTLDevice.currentAllocatedSize`. Une valeur supérieure à la RAM physique de l’iPhone reste visible dans le journal. Dans ce cas, le gouverneur utilise la marge du processus pour établir le budget. À température nominale et avec plus de 3 000 Mio disponibles, le préchauffage prioritaire dispose d’un worker. |
+| 0296 | Le moteur hébergé applique `DM_NVN_TBDR=0` dès la configuration. La première recherche de pipeline déclenche la lecture de l’index. Le thread de soumission peut poursuivre si l’index est froid ou si le verrou est occupé. Le hook de lecture anticipée avant `nnMain` est supprimé. |
+| 0297 | Pour une génération graphique déjà publiée, le pont reporte le contrôle d’intégrité des fichiers sur le thread hôte après l’initialisation des services. Une génération endommagée suit le chemin de réparation dans un autre répertoire. |
+
+Dans la 817, les lignes à 179 et 29 703 Mio lisaient déjà le compteur du même périphérique à deux moments distincts. La trace ne permet pas d’attribuer leur différence à une allocation précise. Le jalon de réservation de la fenêtre d’adresses précède le hook de lecture anticipée de la 817. Le délai de 23 à 80 s inclut aussi le travail de l’application avant la configuration du moteur. La durée du nouveau démarrage et la progression des premières recettes restent à mesurer sur A18 Pro.

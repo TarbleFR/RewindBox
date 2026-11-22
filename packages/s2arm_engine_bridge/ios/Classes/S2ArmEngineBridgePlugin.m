@@ -115,15 +115,25 @@ static NSString *S2ArmEngineDiagnosticsDirectory(NSString *documents, NSString *
 
 static void S2ArmExportGraphicsEvidence(S2ArmGraphicsGeneration *generation, NSString *session, NSString *phase) {
   if (!generation || !session) return;
-  NSString *documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
-  if (!documents.length) return;
-  NSTimeInterval exportStart = NSProcessInfo.processInfo.systemUptime;
-  BOOL copied = [generation writeEvidenceToDirectory:S2ArmEngineDiagnosticsDirectory(documents, generation.gid)
-                                              session:session phase:phase];
-  s2arm_journal("graphicsEvidence", copied ? "recorded" : "unavailable",
-                "\"gid\":\"%s\",\"session\":\"%s\",\"generation\":\"%s\",\"phase\":\"%s\",\"exportMs\":%llu",
-                generation.gid.UTF8String, session.UTF8String, generation.wire.lastPathComponent.UTF8String, phase.UTF8String,
-                (unsigned long long)((NSProcessInfo.processInfo.systemUptime - exportStart) * 1000));
+  // Diagnostics read from a session-scoped slot. Preserve phase order without
+  // making the launch thread enumerate previous sessions or copy tables.
+  static dispatch_queue_t exports;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    exports = dispatch_queue_create("rewindbox.s2arm.graphics-evidence",
+        dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0));
+  });
+  dispatch_async(exports, ^{ @autoreleasepool {
+    NSString *documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+    if (!documents.length) return;
+    NSTimeInterval exportStart = NSProcessInfo.processInfo.systemUptime;
+    BOOL copied = [generation writeEvidenceToDirectory:S2ArmEngineDiagnosticsDirectory(documents, generation.gid)
+                                                session:session phase:phase];
+    s2arm_journal("graphicsEvidence", copied ? "recorded" : "unavailable",
+                  "\"gid\":\"%s\",\"session\":\"%s\",\"generation\":\"%s\",\"phase\":\"%s\",\"exportMs\":%llu",
+                  generation.gid.UTF8String, session.UTF8String, generation.wire.lastPathComponent.UTF8String, phase.UTF8String,
+                  (unsigned long long)((NSProcessInfo.processInfo.systemUptime - exportStart) * 1000));
+  } });
 }
 
 static void S2ArmExportEngineLogs(void) {
@@ -184,8 +194,9 @@ static NSString *S2ArmEnginePath(void) {
 @property(nonatomic, strong) FlutterMethodChannel *channel;
 @property(nonatomic, strong) dispatch_queue_t workQueue;
 @property(atomic, strong, nullable) S2ArmGamePreparation *activePreparation;
-@property(nonatomic, strong) S2ArmGraphicsGeneration *graphicsGeneration; // serial workQueue
-@property(nonatomic) BOOL graphicsReady;
+@property(atomic, strong) S2ArmGraphicsGeneration *graphicsGeneration;
+@property(atomic) BOOL graphicsReady;
+@property(atomic, copy) int (^postInitGraphics)(void);
 @property(atomic, copy) NSString *graphicsSession;
 @property(atomic, strong) S2ArmGraphicsRetry *graphicsRetry;
 @property(atomic) BOOL graphicsCancelled;
@@ -698,6 +709,7 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
     [label.widthAnchor constraintLessThanOrEqualToAnchor:view.safeAreaLayoutGuide.widthAnchor],
     [label.heightAnchor constraintGreaterThanOrEqualToConstant:44]]];
   self.graphicsOverlay = label;
+  if (!status) return; // A committed receipt is being checked on the boot worker.
   NSString *session = self.graphicsSession;
   __weak S2ArmEngineBridgePlugin *weak = self;
   self.graphicsMonitor = [NSTimer scheduledTimerWithTimeInterval:0.2 repeats:YES block:^(NSTimer *timer) {
@@ -731,6 +743,48 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
   }];
 }
 
+// Called on the engine boot worker after S2A_Init and before guest dispatch.
+static int finishGraphicsAfterInit(void *context) { @autoreleasepool {
+  S2ArmEngineBridgePlugin *plugin = (__bridge S2ArmEngineBridgePlugin *)context;
+  int (^check)(void) = plugin.postInitGraphics;
+  plugin.postInitGraphics = nil;
+  return check ? check() : -1;
+} }
+// The existing validator either returns the same verified slot or selects a
+// separate pending replacement. Never expose a candidate to the renderer.
+static S2ArmGraphicsGeneration *verifyGraphicsCandidate(S2ArmEngineBridgePlugin *plugin, S2ArmGraphicsGeneration *candidate) {
+  BOOL (^cancel)(void) = ^BOOL { return graphicsCancelled((__bridge void *)plugin); };
+  S2ArmGraphicsGeneration *checked = [candidate verifyForLaunch:cancel];
+  if (checked && !checked.active) {
+    s2arm_journal("graphics", "repairGeneration", NULL);
+    if (![checked stage:cancel progress:^(NSUInteger files) {
+      graphicsProgress((__bridge void *)plugin, files, 0);
+    } error:NULL]) return nil;
+  }
+  return checked;
+}
+static BOOL selectGraphicsPaths(S2ArmGraphicsGeneration *generation, BOOL pendingGPU) {
+  NSString *profile = [generation.wire stringByAppendingPathComponent:@"pso_reference.tsv"];
+  if (setenv("DM_MSL_FALLBACK", [generation.wire stringByAppendingPathComponent:@"shaders"].fileSystemRepresentation, 1) ||
+      setenv("DM_PSO_USER", [generation.wire stringByAppendingPathComponent:@"pso_user.tsv"].fileSystemRepresentation, 1) ||
+      (pendingGPU ? setenv("S2A_RB_PREPARE_PROFILE", profile.fileSystemRepresentation, 1) : unsetenv("S2A_RB_PREPARE_PROFILE")) ||
+      (pendingGPU ? setenv("S2A_RB_GPU_GENERATION", generation.wire.lastPathComponent.fileSystemRepresentation, 1) : unsetenv("S2A_RB_GPU_GENERATION")))
+    return NO;
+  return YES;
+}
+- (int)prepareGraphicsInputs:(S2ArmGraphicsGeneration *)generation gameData:(NSString *)gameData prepare:(s2arm_graphics_prepare_fn)prepare {
+  uint64_t stages[8] = {0}; self.graphicsLastProgress = 0;
+  NSTimeInterval prepareStart = NSProcessInfo.processInfo.systemUptime;
+  int rc = prepare(generation.gid.UTF8String, generation.buildID.UTF8String, gameData.fileSystemRepresentation,
+                   generation.wire.fileSystemRepresentation, graphicsCancelled, (__bridge void *)self, stages,
+                   rb_s2arm_shader_inflate, graphicsProgress, rb_s2arm_shader_inflate_fd);
+  s2arm_journal("graphics", "stageInputs", "\"result\":%d,\"wanted\":%llu,\"recovered\":%llu,\"missing\":%llu,\"translated\":%llu,\"refused\":%llu,\"prepareMs\":%llu",
+                rc, (unsigned long long)stages[0], (unsigned long long)stages[3], (unsigned long long)stages[4],
+                (unsigned long long)stages[5], (unsigned long long)stages[6],
+                (unsigned long long)((NSProcessInfo.processInfo.systemUptime - prepareStart) * 1000));
+  S2ArmExportGraphicsEvidence(generation, self.graphicsSession, rc ? @"interrupted" : @"inputs");
+  return rc;
+}
 - (NSDictionary *)runLaunchWithGid:(NSString *)gid
                             images:(NSString *)images
                          moduleDir:(NSString *)moduleDir
@@ -837,27 +891,35 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
 
   S2ArmGraphicsGeneration *generation = self.graphicsGeneration;
   s2arm_graphics_status_fn graphicsStatus = NULL;
-  BOOL pendingGPU = generation && !self.graphicsReady;
+  if (generation.requiresVerification) {
+    uint32_t (*configSize)(void) = (uint32_t (*)(void))dlsym(engine, S2A_RB_GUEST_CONFIG_SIZE);
+    if (!configSize || configSize() < offsetof(s2a_rb_guest_config, prepare_graphics) + sizeof(((s2a_rb_guest_config *)0)->prepare_graphics)) {
+      // An older engine ignores appended ABI fields. Verify synchronously
+      // on its original pre-configure path before it can select this cache.
+      generation = verifyGraphicsCandidate(self, generation);
+      if (!generation) {
+        if (universal) [self finishGraphicsRetryHandshake];
+        self.graphicsRetry = [[S2ArmGraphicsRetry alloc] initWithEngine:engine game:gid paths:graphicsPaths];
+        return launchFail(self.graphicsCancelled ? S2ArmErrorCancelled : S2ArmErrorPrepareFailed, @"graphics", @"Graphics verification stopped.");
+      }
+      self.graphicsGeneration = generation;
+      self.graphicsReady = generation.active;
+      graphicsPaths = @[images, moduleDir, gameData, docs, generation.wire];
+    }
+  }
+  BOOL pendingGPU = generation && !generation.requiresVerification && !self.graphicsReady;
   if (generation) {
     if (![generation.gid isEqual:gid] || ![generation.gameDir isEqual:docs.stringByDeletingLastPathComponent])
       return launchFail(S2ArmErrorPrepareFailed, @"graphics", @"The planned graphics generation belongs to another game.");
     self.graphicsSession = NSUUID.UUID.UUIDString;
     setenv("S2A_RB_CUP_SESSION", self.graphicsSession.UTF8String, 1);
-    S2ArmExportGraphicsEvidence(generation, self.graphicsSession, pendingGPU ? @"starting" : @"reused");
+    if (!generation.requiresVerification)
+      S2ArmExportGraphicsEvidence(generation, self.graphicsSession, pendingGPU ? @"starting" : @"reused");
     if (pendingGPU) {
       s2arm_graphics_prepare_fn prepare = (s2arm_graphics_prepare_fn)dlsym(engine, S2ARM_GRAPHICS_PREPARE);
       graphicsStatus = (s2arm_graphics_status_fn)dlsym(engine, S2ARM_GRAPHICS_STATUS);
       if (!prepare || !graphicsStatus) return launchFail(@"engineAbiMissing", @"graphics", @"The verified graphics preparation entry points are missing.");
-      uint64_t stages[8] = {0}; self.graphicsLastProgress = 0;
-      NSTimeInterval prepareStart = NSProcessInfo.processInfo.systemUptime;
-      int rc = prepare(gid.UTF8String, generation.buildID.UTF8String, gameData.fileSystemRepresentation,
-                       generation.wire.fileSystemRepresentation, graphicsCancelled, (__bridge void *)self, stages,
-                       rb_s2arm_shader_inflate, graphicsProgress, rb_s2arm_shader_inflate_fd);
-      s2arm_journal("graphics", "stageInputs", "\"result\":%d,\"wanted\":%llu,\"recovered\":%llu,\"missing\":%llu,\"translated\":%llu,\"refused\":%llu,\"prepareMs\":%llu",
-                    rc, (unsigned long long)stages[0], (unsigned long long)stages[3], (unsigned long long)stages[4],
-                    (unsigned long long)stages[5], (unsigned long long)stages[6],
-                    (unsigned long long)((NSProcessInfo.processInfo.systemUptime - prepareStart) * 1000));
-      S2ArmExportGraphicsEvidence(generation, self.graphicsSession, rc ? @"interrupted" : @"inputs");
+      int rc = [self prepareGraphicsInputs:generation gameData:gameData prepare:prepare];
       if (rc) {
         // No guest session or code pages have been created. End this helper
         // transaction; a retry must pass the normal attach and probe again.
@@ -867,13 +929,9 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
                           @"Graphics preparation stopped before rendering. Its checkpoints were retained.");
       }
     }
-    NSString *profile = [generation.wire stringByAppendingPathComponent:@"pso_reference.tsv"];
-    if (setenv("DM_MSL_FALLBACK", [generation.wire stringByAppendingPathComponent:@"shaders"].fileSystemRepresentation, 1) ||
-        setenv("DM_PSO_USER", [generation.wire stringByAppendingPathComponent:@"pso_user.tsv"].fileSystemRepresentation, 1) ||
-        (pendingGPU ? setenv("S2A_RB_PREPARE_PROFILE", profile.fileSystemRepresentation, 1) : unsetenv("S2A_RB_PREPARE_PROFILE")) ||
-        (pendingGPU ? setenv("S2A_RB_GPU_GENERATION", generation.wire.lastPathComponent.fileSystemRepresentation, 1) : unsetenv("S2A_RB_GPU_GENERATION")))
+    if (!generation.requiresVerification && !selectGraphicsPaths(generation, pendingGPU))
       return launchFail(S2ArmErrorPrepareFailed, @"graphics", @"Could not select the graphics cache.");
-    s2arm_journal("graphics", pendingGPU ? "staged" : "verifiedGeneration", NULL);
+    s2arm_journal("graphics", generation.requiresVerification ? "awaitingPostInit" : pendingGPU ? "staged" : "verifiedGeneration", NULL);
   }
 
   if (pendingGPU && universal && (self.jitSession.finished || !S2ArmHostHasLiveDebugger())) {
@@ -910,6 +968,7 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
   config.ended_context = (__bridge void *)self;
   config.session_parked = s2arm_session_parked;   // patch 0010: Quit parks the session; the same game can resume
   config.parked_context = (__bridge void *)self;
+  config.prepare_graphics = generation.requiresVerification ? finishGraphicsAfterInit : NULL;
   char configError[600] = "";
   [self.graphicsRetry consume];
   self.graphicsRetry = nil;   // even a failed configure is not replayable
@@ -924,6 +983,36 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
   dispatch_sync(dispatch_get_main_queue(), ^{ vc = (__bridge UIViewController *)makeVC(); });
   if (!vc) return launchFail(@"engineViewFailed", @"viewController", @"The engine did not return a view controller.");
   s2arm_journal("viewController", "passed", NULL);
+
+  if (generation.requiresVerification) {
+    __weak S2ArmEngineBridgePlugin *weakSelf = self;
+    __weak UIViewController *weakViewController = vc;
+    NSString *session = self.graphicsSession;
+    self.postInitGraphics = ^int {
+      S2ArmEngineBridgePlugin *plugin = weakSelf;
+      if (!plugin || ![plugin.graphicsSession isEqual:session]) return -1;
+      S2ArmGraphicsGeneration *checked = verifyGraphicsCandidate(plugin, generation);
+      if (!checked) return -1;
+      s2arm_graphics_status_fn status = NULL;
+      if (!checked.active) {
+        s2arm_graphics_prepare_fn prepare = (s2arm_graphics_prepare_fn)dlsym(engine, S2ARM_GRAPHICS_PREPARE);
+        status = (s2arm_graphics_status_fn)dlsym(engine, S2ARM_GRAPHICS_STATUS);
+        if (!prepare || !status || [plugin prepareGraphicsInputs:checked gameData:gameData prepare:prepare]) return -1;
+      }
+      if (graphicsCancelled((__bridge void *)plugin) || !selectGraphicsPaths(checked, !checked.active)) return -1;
+      plugin.graphicsGeneration = checked;
+      plugin.graphicsReady = checked.active;
+      if (checked.active) S2ArmExportGraphicsEvidence(checked, session, @"reused");
+      dispatch_async(dispatch_get_main_queue(), ^{
+        UIViewController *visible = weakViewController;
+        if (!visible.view.window || ![session isEqual:plugin.graphicsSession]) return;
+        if (!checked.active) [plugin monitorGraphics:checked inView:visible.view status:status];
+        else { [plugin.graphicsOverlay removeFromSuperview]; plugin.graphicsOverlay = nil; }
+      });
+      s2arm_journal("graphics", checked.active ? "verifiedAfterInit" : "stagedAfterInit", NULL);
+      return 0;
+    };
+  }
 
   // Present on the main thread; the start runs in the presentation's completion (the view controller is then in a window),
   // and a semaphore carries its result back to this background thread.
@@ -949,13 +1038,17 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
                              return;
                            } else {
                              [self attachSessionMenuTo:vc stop:stop];
-                             if (pendingGPU) [self monitorGraphics:generation inView:vc.view status:graphicsStatus];
+                             if (pendingGPU || generation.requiresVerification)
+                               [self monitorGraphics:generation inView:vc.view status:graphicsStatus];
                            }
                            dispatch_semaphore_signal(done);
                          }];
   });
   dispatch_semaphore_wait(done, DISPATCH_TIME_FOREVER);
-  if (startRc != 0) return launchFail(@"engineStartFailed", @"start", startError);
+  if (startRc != 0) {
+    self.postInitGraphics = nil;
+    return launchFail(@"engineStartFailed", @"start", startError);
+  }
   S2ArmJournalSessionMemory("start", "passed", gid, self.graphicsSession, NO);
 
   if (universal) [self detachAfterBootServed:&plan];
@@ -1067,16 +1160,22 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
 // Main thread, once the engine started in its presented view controller.
 - (void)attachSessionMenuTo:(UIViewController *)vc stop:(s2a_rb_guest_stop_fn)stop {
   self.engineViewController = vc;
+  __weak S2ArmEngineBridgePlugin *weakSelf = self;
   self.sessionMenu = [[S2ArmSessionMenu alloc] initWithViewController:vc
                                                               strings:self.menuStrings ?: @{}
                                                                  stop:^{
                                                                    s2arm_journal("menu", "quit", NULL);
+                                                                   S2ArmEngineBridgePlugin *plugin = weakSelf;
+                                                                   if (plugin.graphicsGeneration.requiresVerification) {
+                                                                     [plugin.graphicsPause lock];
+                                                                     plugin.graphicsCancelled = YES;
+                                                                     [plugin.graphicsPause broadcast]; [plugin.graphicsPause unlock];
+                                                                   }
                                                                    // The engine stops on its own queue; session_ended follows.
                                                                    if (stop) stop("rewindbox-menu");
                                                                  }];
   self.sessionMenu.benchmarkContext = self.benchmarkContext;
   // Patch 0078: the frame-rate limit the player picks in the menu is in effect at once (the other settings still wait for the next start)
-  __weak S2ArmEngineBridgePlugin *weakSelf = self;
   if (dlsym(RTLD_DEFAULT, S2A_RB_GUEST_SET_FPS_LIMIT)) {
     self.sessionMenu.applyNow = ^BOOL(NSString *setting, id value) { return [weakSelf applyLiveSetting:setting value:value]; };
   }
