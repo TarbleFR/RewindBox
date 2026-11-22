@@ -1,0 +1,51 @@
+{
+ "build": 817,
+ "source": "947bff7a2502b65a5dcb4de2c1ab12cb35d7fb4f",
+ "sha256": "67d8102f392db80bfb77316774655bb124497e766a9b3eec14f1daefb9f46412",
+ "bytes": 333780388,
+ "pinSHA256": "e0c7f6cfd3e0354c9b4bfa772a470a138463a5f8d421d860ac0dcc0e723fc427",
+ "engineRun": 44960590356,
+ "engineFingerprint": "06b1b8d1d7378bebe7011b20dd9119c8d8581b936eaf97d85f19ff988680d021",
+ "engineSource": "8575a50b72014e0515322300ced557e5d4c8ffea",
+ "patchSeriesSHA256": "92f3734b78acb29da2e1e1dd29b9b1b15d5a3445f017be9d2dcbdfc8b9d8c2ff",
+ "patchCount": 293,
+ "lastPatch": {
+  "name": "0293-protect-recorded-clears-and-pressure-admission.patch",
+  "sha256": "1942e825bf492c51acf8f8a03fa2b6c8994e5ac85a7430a59b05b0e7025d21ba"
+ },
+ "chain": "0be3f28548fd",
+ "markers": [
+  "S2A_RB_REGISTER_LIBRARIES",
+  "S2A_RB_CAPTURE_COMPILED_MSL",
+  "S2A_RB_PREWARM_TIERS",
+  "S2A_RB_PSO_LIVE_LANE",
+  "S2A_RB_LOOK_BUDGET",
+  "S2A_RB_ARCHIVE_PREOPEN",
+  "S2A_RB_AUTO_PROFILE",
+  "S2A_RB_METAL_WORKING_SET",
+  "S2A_RB_SPARSE_HEAP_BUDGET",
+  "S2A_RB_UPLOAD_STAGING_RING",
+  "S2A_RB_GUEST_RANGE_PREFETCH",
+  "S2A_RB_UNIFORM_EXTENTS",
+  "S2A_RB_SAFE_TBDR",
+  "S2A_RB_THERMAL_PACING",
+  "S2A_RB_PROFILE_RESOURCES"
+ ],
+ "plist": {
+  "RBTestAsyncPSODefault": true
+ },
+ "baselineBuild": 816,
+ "baselineSha256": "096531279179802340d64c7b65bfdc16ccdf5cadaf8531dfba0fc7275412c415",
+ "run": 44962380742,
+ "attempt": 1,
+ "nativeImages": 97,
+ "bundles": 10,
+ "offlineValidators": 6,
+ "signaturesVerifiedByCI": 97,
+ "undeclaredImageChanges": [
+  "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge"
+ ],
+ "deviceFrames": 0,
+ "physicalIphoneTested": false,
+ "privateTransferVerified": true
+}
