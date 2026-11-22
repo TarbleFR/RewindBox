@@ -154,6 +154,27 @@ int main(void) { @autoreleasepool {
   put(replacement.wire, @"pso_reference.archives.tsv", rows);
   put(replacement.wire, @"pipelines/batches.tsv", rows);
   CHECK([replacement activateWithGPU:valid error:NULL] && plan(dir).active);
+  // Engine patches 0286 and 0301: a hosted title's archives live in a scoped
+  // directory, which the manifest of the strict proof names. The proof binds
+  // those files, not the read-only copies left in pipelines/.
+  NSString *scoped = @"pipelines-v2/0123456789abcdef0123456789abcdef01234567";
+  put(replacement.wire, @"pso_reference.archives.tsv", [@"D\t../pipelines\n" stringByAppendingString:rows]);
+  CHECK(![replacement activateWithGPU:valid error:NULL]);
+  put(replacement.wire, @"pso_reference.archives.tsv", [NSString stringWithFormat:@"D\t%@\n%@", scoped, rows]);
+  CHECK(![replacement activateWithGPU:valid error:NULL]);
+  put(replacement.wire, child(scoped,@"identity.json"),
+      @"{\"schema\":2,\"gpu\":\"same-device\",\"chain\":\"0be3f28548fd\",\"osBuild\":\"same-os\",\"title\":\"0400c3f00006e000\"}");
+  put(replacement.wire, child(scoped,batch), @"scoped archive fixture");
+  put(replacement.wire, child(scoped,@"batches.tsv"), rows);
+  CHECK([replacement activateWithGPU:valid error:NULL] && plan(dir).active);
+  put(replacement.wire, child(@"pipelines",batch), @"an unrelated legacy copy");
+  CHECK(plan(dir).active);
+  put(replacement.wire, child(scoped,batch), @"damaged scoped archive");
+  CHECK(!plan(dir).active);
+  put(replacement.wire, child(scoped,batch), @"scoped archive fixture");
+  put(replacement.wire, child(@"pipelines",batch), @"archive fixture");
+  put(replacement.wire, @"pso_reference.archives.tsv", rows);
+  CHECK([replacement activateWithGPU:valid error:NULL] && plan(dir).active);
   put(replacement.wire, child(@"pipelines",batch), @"damaged archive");
   CHECK(!plan(dir).active);
   put(replacement.wire, child(@"pipelines",batch), @"archive fixture");

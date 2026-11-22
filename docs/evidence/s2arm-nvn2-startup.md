@@ -111,3 +111,18 @@ Six relectures en lecture seule ont couvert les changements hors tests de 0270 �
 | `DM_NVN_TBDR=0` forcé dans `configure` n'agit que sur le chemin d'effacement legacy quand MRT est coupé, et écrase `env.txt`. | 0296 | Retiré ; le comportement redevient celui de la 817. |
 
 Constats laissés en l'état, sans effet sur le comportement observé ou rares : l'appel par soumission de `rb_guest_heat_monitor` pour un titre non éligible, le verrou d'échantillonnage du mode strict, l'écart entre `present_itv` et `nvn_present_fps` sous maintien thermique, le cache disque des stages pour un titre NVN1 hébergé, l'anneau d'upload éteint par le quota en Fair, la marge Metal inconnue avant le premier échantillon, la taille des tas sparse, le bilan `[rb-look-budget]` et la relance du bind anticipé après un trylock refusé.
+
+## Génération graphique jamais activée depuis la 817
+
+Journal de l'app, Mario Kart World : jusqu'à la 816, les lancements suivants restent en `reused` et `graphics verified`. À partir de la 817, chaque lancement repasse par `graphics copy` puis `graphics pending`. Le moteur refait donc la migration complète à chaque fois : `RewindBox reference: real functions 298/298, source library builds 281, exact PSOs 200/200, strict disk archive 200`, 498 lignes en premier plan, puis le reste en arrière-plan.
+
+Cause. Le patch 0286 active le stockage par jeu et par appareil des archives (`RB_PAR_STORAGE_SCOPE`) pour tout titre NVN2 hébergé. Les archives de pipelines passent de `pipelines/` à `pipelines-v2/<empreinte>/`. Le manifeste `pso_reference.archives.tsv` que le moteur écrit après sa preuve stricte ne liste que des noms de fichiers. Le pont les cherchait toujours sous `pipelines/`, avec `pipelines/identity.json` et `pipelines/batches.tsv`. `activateWithGPU` échouait donc sur « fichiers manquants » et `active.json` n'était jamais écrit.
+
+Correctif.
+
+- Patch moteur 0301 : le manifeste commence par `D\t<dossier>`, le dossier réellement ouvert par la preuve, relatif au cache graphique.
+- Pont : `outputsForCount` lit ce dossier (`pipelines` ou `pipelines-v2/<40 hex>`, rien d'autre) pour les archives, `identity.json` et `batches.tsv`. Un manifeste sans cette ligne garde `pipelines`, donc les générations activées avant la 817 restent valides.
+- Pont : une génération de remplacement copie aussi `pipelines-v2`, pour ne pas repartir sans archives.
+- Le journal `graphics incomplete` indique l'état de la preuve et l'origine du refus.
+
+Limite. Sur l'appareil, les bibliothèques de shaders viennent des sources MSL traduites : `static_air_directory=0`, aucun paquet AIR construit sur Mac. Un lancement vérifié recrée donc ces bibliothèques depuis leur source ; Metal n'expose pas d'export binaire d'une `MTLLibrary`. Ce correctif supprime la migration répétée et ses 281 compilations forcées. `msl_source_count` ne tombe pas à zéro pour autant.

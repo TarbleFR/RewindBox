@@ -1,0 +1,21 @@
+diff --git a/graphics/nvn/gfx/nvn/rb_reference.inc b/graphics/nvn/gfx/nvn/rb_reference.inc
+--- a/graphics/nvn/gfx/nvn/rb_reference.inc
++++ b/graphics/nvn/gfx/nvn/rb_reference.inc
+@@ -268,7 +268,16 @@ static void rb_ref_verify(RBReferenceProof *p) {
+         }
+     } }
+     BOOL ok=p->counts[0]==p->counts[1] && p->counts[2]==p->counts[3] && p->counts[3]==p->counts[4];
+-    if (ok) ok=[rb_ref_receipt(p->verifiedFiles) writeToFile:rb_ref_files(p->path) atomically:YES encoding:NSUTF8StringEncoding error:nil];
++    // The host hashes the files of this proof. Name the directory they were opened
++    // in (pipelines, or the scoped pipelines-v2/<identity>), relative to the manifest.
++    NSString *wire=[p->path.stringByDeletingLastPathComponent stringByAppendingString:@"/"];
++    NSString *directory=[g_par_dir hasPrefix:wire] ? [g_par_dir substringFromIndex:wire.length] : nil;
++    if (ok && !directory.length) {
++        MLOG("RewindBox reference: archive directory %s is outside the graphics cache",g_par_dir.UTF8String);
++        ok=NO;
++    }
++    if (ok) ok=[[NSString stringWithFormat:@"D\t%@\n%@",directory,rb_ref_receipt(p->verifiedFiles)]
++                   writeToFile:rb_ref_files(p->path) atomically:YES encoding:NSUTF8StringEncoding error:nil];
+     else [NSFileManager.defaultManager removeItemAtPath:rb_ref_files(p->path) error:nil];
+     os_unfair_lock_lock(&g_ref_lock); p->state=ok ? 1 : -1; [p->descriptors removeAllObjects]; os_unfair_lock_unlock(&g_ref_lock);
+     MLOG("RewindBox reference: real functions %llu/%llu, source library builds %llu, exact PSOs %llu/%llu, forced creations %llu, strict disk archive %llu, deferred unobserved descriptors %llu, verified mandatory coverage %d",

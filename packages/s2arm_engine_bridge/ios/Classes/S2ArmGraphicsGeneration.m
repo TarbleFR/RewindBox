@@ -61,6 +61,20 @@ static BOOL safeLeaf(id name) {
   return [name isKindOfClass:NSString.class] && [name length] > 0 &&
          [name isEqual:[name lastPathComponent]] && ![name hasPrefix:@"."];
 }
+// The engine keeps a title's device archives in pipelines/ or, scoped by game and
+// device (engine patches 0222 and 0286), in pipelines-v2/<identity digest>/.
+static BOOL archiveDirectory(NSString *name) {
+  if ([name isEqual:@"pipelines"]) return YES;
+  NSArray<NSString *> *parts = [name componentsSeparatedByString:@"/"];
+  return parts.count == 2 && [parts[0] isEqual:@"pipelines-v2"] && safeLeaf(parts[1]) && [parts[1] length] == 40 &&
+    [parts[1] rangeOfCharacterFromSet:[NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdef"].invertedSet].location == NSNotFound;
+}
+static BOOL storedArchiveIdentity(NSDictionary *stored) {
+  for (id name in stored)
+    if ([name isKindOfClass:NSString.class] && [name hasSuffix:@"/identity.json"] &&
+        archiveDirectory([name stringByDeletingLastPathComponent])) return YES;
+  return NO;
+}
 static BOOL genID(id value) {
   return [value isKindOfClass:NSString.class] && [value length] == 64 &&
     [value rangeOfCharacterFromSet:[NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdef"].invertedSet].location == NSNotFound;
@@ -136,7 +150,7 @@ static BOOL genID(id value) {
     NSDictionary *present = [pipelines isKindOfClass:NSNumber.class] ? [self outputsForCount:pipelines.unsignedLongLongValue] : nil;
     // Additional compatible stage inputs learned during gameplay are valid.
     BOOL matches = present && [stored isKindOfClass:NSDictionary.class] && stored.count &&
-                   stored[@"pso_reference.tsv"] && stored[@"pso_reference.archives.tsv"] && stored[@"pipelines/identity.json"];
+                   stored[@"pso_reference.tsv"] && stored[@"pso_reference.archives.tsv"] && storedArchiveIdentity(stored);
     if (matches) for (NSString *file in stored) if (![stored[file] isEqual:present[file]]) { matches = NO; break; }
     if (matches) {
       _active = YES; return self;
@@ -191,7 +205,7 @@ static BOOL genID(id value) {
     BOOL stageIndex = [name isEqual:@"stage-index-v1.tsv"] ||
                       ([name hasPrefix:@"stage-index-external-v1-"] && [name hasSuffix:@".tsv"]);
     BOOL stageProducts = [name isEqual:@"priority-stages-v1"];
-    if (!([name isEqual:@"shaders"] || [name isEqual:@"pipelines"] || [name isEqual:@"pso_user.tsv"] ||
+    if (!([name isEqual:@"shaders"] || [name isEqual:@"pipelines"] || [name isEqual:@"pipelines-v2"] || [name isEqual:@"pso_user.tsv"] ||
           [name hasPrefix:@"pso_user.tsv."] || stageIndex || stageProducts)) continue;
     NSMutableArray *todo = [NSMutableArray arrayWithObject:name];
     while (todo.count) {
@@ -233,23 +247,35 @@ static BOOL genID(id value) {
 - (NSDictionary *)outputsForCount:(uint64_t)expected {
   NSString *manifest = [_wire stringByAppendingPathComponent:@"pso_reference.archives.tsv"];
   NSString *text = [NSString stringWithContentsOfFile:manifest encoding:NSUTF8StringEncoding error:nil];
-  NSMutableSet *ids = [NSMutableSet set], *files = [NSMutableSet setWithObjects:@"pso_reference.tsv", @"pso_external.tsv", @"pso_reference.archives.tsv",
-                                                         @"pipelines/identity.json", nil];
+  NSMutableSet *ids = [NSMutableSet set], *files = [NSMutableSet setWithObjects:@"pso_reference.tsv", @"pso_external.tsv", @"pso_reference.archives.tsv", nil];
   NSMutableDictionary *batch = [NSMutableDictionary dictionary];
+  // "D\t<directory>" (engine patch 0301) names the directory the strict proof
+  // opened its archives in. A manifest without it predates scoped archives.
+  NSString *archives = @"pipelines";
+  NSMutableArray<NSString *> *leaves = [NSMutableArray array];
+  BOOL named = NO;
   for (NSString *line in [text componentsSeparatedByString:@"\n"]) {
     if (!line.length) continue;
     NSArray *fields = [line componentsSeparatedByString:@"\t"];
+    if (fields.count == 2 && [fields[0] isEqual:@"D"]) {
+      if (named || ids.count || !archiveDirectory(fields[1])) return nil;
+      archives = fields[1]; named = YES;
+      continue;
+    }
     if (fields.count != 2 || !safeLeaf(fields[0]) || !safeLeaf(fields[1]) || ![fields[1] hasSuffix:@".metalarchive"] ||
         [ids containsObject:fields[0]]) return nil;
     if ([fields[1] hasPrefix:@"batch-"]) batch[fields[0]] = fields[1];
     else if (![fields[1] isEqual:[fields[0] stringByAppendingString:@".metalarchive"]]) return nil;
-    [ids addObject:fields[0]]; [files addObject:[@"pipelines" stringByAppendingPathComponent:fields[1]]];
+    [ids addObject:fields[0]]; [leaves addObject:fields[1]];
   }
   if (!expected || ids.count != expected) return nil;
+  NSString *identityFile = [archives stringByAppendingPathComponent:@"identity.json"];
+  [files addObject:identityFile];
+  for (NSString *leaf in leaves) [files addObject:[archives stringByAppendingPathComponent:leaf]];
   if (batch.count) {
     // The live archive index is append-only. Check the selected mappings
     // while permitting unrelated entries learned during subsequent gameplay.
-    NSString *index = [_wire stringByAppendingPathComponent:@"pipelines/batches.tsv"];
+    NSString *index = [[_wire stringByAppendingPathComponent:archives] stringByAppendingPathComponent:@"batches.tsv"];
     FILE *f = fopen(index.fileSystemRepresentation, "r");
     if (!f) return nil;
     NSMutableDictionary *matched = [NSMutableDictionary dictionary];
@@ -283,7 +309,7 @@ static BOOL genID(id value) {
   for (NSString *name in files) {
     NSString *file = [_wire stringByAppendingPathComponent:name];
     NSString *hash;
-    if ([name isEqual:@"pipelines/identity.json"]) {
+    if ([name isEqual:identityFile]) {
       // The renderer also writes a localized OS display name. Its existing
       // compatibility check uses the OS build; changing system language does
       // not invalidate a strict archive hit.

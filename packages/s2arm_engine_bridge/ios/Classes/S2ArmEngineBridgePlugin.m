@@ -724,10 +724,12 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
       BOOL ready = rc == 1 && [generation activateWithGPU:counts error:&failure];
       plugin.graphicsReady = ready;
       S2ArmExportGraphicsEvidence(generation, session, ready ? @"verified" : @"incomplete");
+      // A refused activation names its cause: the engine's proof (status) or the published files.
       s2arm_journal("graphics", ready ? "activated" : "incomplete",
-                    "\"stages\":%llu,\"requestedStages\":%llu,\"strictPSO\":%llu,\"requestedPSO\":%llu,\"deferredRecipes\":%llu",
+                    "\"stages\":%llu,\"requestedStages\":%llu,\"strictPSO\":%llu,\"requestedPSO\":%llu,\"deferredRecipes\":%llu,\"status\":%d,\"refusal\":\"%s\"",
                     (unsigned long long)counts[1], (unsigned long long)counts[0], (unsigned long long)counts[4],
-                    (unsigned long long)counts[2], (unsigned long long)counts[5]);
+                    (unsigned long long)counts[2], (unsigned long long)counts[5], rc,
+                    ready ? "" : rc != 1 ? "engine proof incomplete" : failure ? "published files" : "");
       dispatch_async(dispatch_get_main_queue(), ^{
         if (plugin.graphicsOverlay != label) return;
         if (ready) { [label removeFromSuperview]; plugin.graphicsOverlay = nil; return; }
