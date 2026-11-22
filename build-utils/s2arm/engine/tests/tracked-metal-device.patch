@@ -96,3 +96,15 @@
  #ifndef NVN_SHADER_FLIGHT_IMPL
      g_warm_dict=[NSMutableDictionary dictionary];
  #endif
+--- a/graphics/nvn/tests/rb_reference_gpu.inc
++++ b/graphics/nvn/tests/rb_reference_gpu.inc
+@@ -161,6 +161,9 @@ static void reference_check(NSString *root,NSString *mode) {
+         GPU_CHECK([NSFileManager.defaultManager removeItemAtPath:[dir stringByAppendingPathComponent:[reference_vertex_b stringByAppendingPathExtension:@"metal"]] error:nil]);
+     }
+     if (active) {
++        // The tracked Mac GPU fixture is outside hosted NVN2 scope. Model its
++        // Fair registered-row lane, while unrelated work stays under HOLD.
++        registered_rows_enabled = 1;
+         reference_active_hold=YES; rb_spec_publish(&g_spec_gate,RB_SPEC_HOLD);
+         setenv("RB_TEST_GAME_BUILD",rb_ref_build,1); unsetenv("S2A_RB_PREPARE_PROFILE");
+         unsetenv("S2A_RB_GPU_GENERATION");
