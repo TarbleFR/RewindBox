@@ -1,4 +1,5 @@
 import 'package:achievement_translation/achievement_translation.dart';
+import '../services/startup_timeline.dart';
 import 'dart:async';
 /* DOLPHIN_ISOLATION_BEGIN: provider_import */
 import '../services/dolphin_internal_v2_service.dart';
@@ -217,6 +218,7 @@ class SqliteConfigProvider extends ChangeNotifier with WidgetsBindingObserver {
 
       // Establish the systems version baseline (no download — handled via dialog in app_screen).
       await SystemsUpdateService.initialize();
+      StartupTimeline.mark('database and settings');
 
       // CRITICAL: Always reload and sync system JSONs with the database at startup
       // to ensure that new cores or systems modified in assets are reflected,
@@ -224,9 +226,11 @@ class SqliteConfigProvider extends ChangeNotifier with WidgetsBindingObserver {
       _scanStatus = 'Syncing system databases...';
       notifyListeners();
       await SqliteService.loadAndSyncSystems();
+      StartupTimeline.mark('systems sync');
 
       // Refresh RetroAchievements data from SQL asset
       await SqliteService.instance.refreshRetroAchievementsData();
+      StartupTimeline.mark('RetroAchievements table');
 
       // Load initial data
       await _loadInitialData();

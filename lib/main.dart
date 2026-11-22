@@ -23,6 +23,8 @@ import 'package:neostation/providers/system_background_provider.dart';
 import 'package:neostation/providers/neo_assets_provider.dart';
 import 'package:neostation/widgets/app_lifecycle_handler.dart';
 import 'package:neostation/services/startup_theme_cache.dart';
+import 'package:neostation/services/startup_timeline.dart';
+import 'package:neostation/services/ui_refresh_rate_service.dart';
 // Startup animation is owned by RewindStartupRoot.
 import 'package:neostation/widgets/permission_check_wrapper.dart';
 import 'package:neostation/utils/custom_scroll_behavior.dart';
@@ -357,6 +359,7 @@ Future<void> _refreshBundledSkinsAfterStartup() async {
 }
 
 void main() async {
+  StartupTimeline.start();
   WidgetsFlutterBinding.ensureInitialized();
 
   // Render immediately. Cold boots can wait for removable storage before the
@@ -370,6 +373,12 @@ void main() async {
   final log = LoggerService.instance;
   await log.init();
   log.i('Starting RewindBox...');
+  StartupTimeline.mark('first frame and logger');
+  // Interface frames of 250 ms or more are logged from here on, so the
+  // startup animation is measured too (AppScreen starts it again: idempotent).
+  if (UiRefreshRateService.isSupportedPlatform) {
+    UiRefreshRateService.instance.startProbe();
+  }
 
   await AudioPolicyService().initialize();
 
@@ -380,6 +389,7 @@ void main() async {
   }
 
   await _cleanupRetiredThemePackages();
+  StartupTimeline.mark('audio session and storage');
 
   // iOS: re-activate access to any previously-linked external folder (e.g.
   // RetroArch's) before anything tries to scan it. Security-scoped bookmark
@@ -411,6 +421,7 @@ void main() async {
           linkFailure == null && IosLinkedLibraryFolders.unavailable.isEmpty,
     );
     // LIBRARY_RELOCATION_END: startup_folders
+    StartupTimeline.mark('library folders');
 
     // ARMSX2 is embedded in NeoStation. Its canonical library/data root is
     // NeoStation's own Files-visible Documents/ARMSX2 directory.
@@ -448,6 +459,7 @@ void main() async {
     }
     await Rpcs3LibraryService.initialize();
     await Rpcs3LaunchService.initialize();
+    StartupTimeline.mark('emulator storage');
 
     // External MeloNX synchronisation is retired. Existing cached metadata is
     // left untouched; Nintendo Switch games must be imported for the embedded
@@ -566,6 +578,7 @@ void main() async {
   // private copy, or none): codes only, into the app log.
   RetroAchievementsNativeClient.diagnostics = log.i;
   await RetroAchievementsSessionService.shared.initialize();
+  StartupTimeline.mark('files, language and RetroAchievements session');
 
   // Inicializar providers criticos
   final sqliteConfigProvider = SqliteConfigProvider();
@@ -574,6 +587,7 @@ void main() async {
   try {
     // 1. Initialize SqliteConfigProvider first so system state is synchronized.
     await sqliteConfigProvider.initialize();
+    StartupTimeline.mark('configuration');
     // LIBRARY_RELOCATION_BEGIN: startup_scan
     // Folders found at a new path are scanned now when no startup scan is due.
     if (IosLibraryRootRelocation.relocatedThisLaunch &&
@@ -594,6 +608,7 @@ void main() async {
       romFolders: sqliteConfigProvider.config.romFolders,
       availableSystems: sqliteConfigProvider.availableSystems,
     );
+    StartupTimeline.mark('game library');
 
     // Remove any Dreamcast rows/bookmarks left by the discontinued iFly
     // integration. This only targets paths recorded by that feature.
@@ -624,6 +639,7 @@ void main() async {
   } catch (e) {
     log.e('Error initializing database providers: $e');
   }
+  StartupTimeline.mark('library upkeep');
 
   // Inicializar listener de Android para tracking de tiempo de juego
   if (Platform.isAndroid) {
@@ -647,6 +663,7 @@ void main() async {
   if (themeProvider.interfaceStyle.style == InterfaceStyle.glacier) {
     await warmGlacierBackground();
   }
+  StartupTimeline.mark('theme');
 
   _rewindStartup.attach(
     MyApp(
@@ -656,6 +673,7 @@ void main() async {
       themeProvider: themeProvider,
     ),
   );
+  StartupTimeline.mark('interface attached');
 
   // Files-visible diagnostics and RPCS3 save mirrors are maintenance work, not
   // launch prerequisites. Run them only after the real NeoStation UI has

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'rewind_mark_path.dart';
+import '../services/startup_timeline.dart';
 
 /// Owns presentation only. Database, permissions and scanning continue normally.
 class RewindStartupController extends ChangeNotifier {
@@ -107,6 +108,7 @@ class _RewindStartupRootState extends State<RewindStartupRoot>
         _breath.stop();
         _activityTimer?.cancel();
         setState(() => _dismissed = true);
+        StartupTimeline.interactive();
       }
     });
     // Paint the static native mark first, then rewind its actual fragments.
@@ -174,6 +176,7 @@ class _RewindStartupRootState extends State<RewindStartupRoot>
         widget.controller.application != null &&
         !_openingStarted) {
       _openingStarted = true;
+      StartupTimeline.mark('content ready');
       _assembly.stop();
       _breath.stop();
       // No minimum intro duration: settle the current fragments while opening.

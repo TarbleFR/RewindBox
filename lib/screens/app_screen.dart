@@ -1,4 +1,5 @@
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:neostation/services/startup_timeline.dart';
 import '../widgets/header_layout.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -377,8 +378,17 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
       // A default launcher may be started before removable storage has mounted.
       // Let the startup scan wait for it rather than interpreting an empty SD
       // card as a library whose ROMs were deleted.
-      initialScan = configProvider.scanSystems(waitForAndroidStorage: true);
+      final scanStartedAt = StartupTimeline.elapsed;
+      final scan = configProvider.scanSystems(waitForAndroidStorage: true);
+      initialScan = scan;
       _log.i('AppScreen: initial startup scan started');
+      // Logged only; a failed scan is reported where the scan is awaited.
+      unawaited(
+        scan.then(
+          (_) => StartupTimeline.span('startup ROM scan', scanStartedAt),
+          onError: (Object _) {},
+        ),
+      );
     }
 
     unawaited(_fixRetroarchAndroidDefault());
