@@ -155,11 +155,7 @@ COMPOSED = sorted(set(COMPOSED) | {'src/Ryujinx.Graphics.Vulkan/BufferManager.cs
 from adapt_fifo_channel_retirement import BASELINE as FIFO_RETIREMENT, NV_CHANNEL  # noqa: E402
 from adapt_hogwarts_steady_render import BASELINE as HOGWARTS_RENDER  # noqa: E402
 from adapt_hogwarts_pipeline_replay import BASELINE as HOGWARTS_REPLAY  # noqa: E402
-from adapt_native_page_bounds import BASELINE as PAGE_BOUNDS  # noqa: E402
-from adapt_transient_pressure import BASELINE as TRANSIENT_PRESSURE  # noqa: E402
-from adapt_pipeline_creation_flights import BASELINE as PIPELINE_CREATION  # noqa: E402
 COMPOSED = sorted(set(COMPOSED) | (set(FIFO_RETIREMENT) - {NV_CHANNEL}) | set(HOGWARTS_RENDER) | set(HOGWARTS_REPLAY))
-COMPOSED = sorted(set(COMPOSED) | set(PAGE_BOUNDS) | set(TRANSIENT_PRESSURE) | set(PIPELINE_CREATION))
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs
 # (Ryujinx.Library) is outside the GPU assembly closure: it is composed and bound here, compiled by NativeAOT.
 COMPILED = sorted((set(COMPOSED) - {DMA_LIBRARY}) | {'src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs'})
@@ -207,9 +203,6 @@ INPUTS = ['test/melonx_fragmented_reads_test.py', 'test/melonx_fragmented_reads/
           'build-utils/melonx/adapt_private_span_lazy.py',
           'build-utils/melonx/adapt_fifo_channel_retirement.py', 'build-utils/melonx/adapt_hogwarts_steady_render.py',
           'build-utils/melonx/adapt_hogwarts_pipeline_replay.py',
-          'build-utils/melonx/adapt_native_page_bounds.py', 'build-utils/melonx/native-page-bounds.patch',
-          'build-utils/melonx/adapt_transient_pressure.py', 'build-utils/melonx/adapt_pipeline_creation_flights.py',
-          'build-utils/melonx/pipeline_creation_flights.patch',
           'test/melonx_adapter_control.py', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 # One fragment of a real anchor per adapted file; altering it must stop the whole adapter.
 DRIFT = {

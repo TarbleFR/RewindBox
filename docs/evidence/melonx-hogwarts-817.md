@@ -27,3 +27,18 @@ Sur les sources préparées, les sondes ont passé 669 vérifications de garde e
 ## IPA privée 818
 
 La [livraison 818](https://github.com/TarbleFR/RewindBox/actions/runs/44984443009) a produit une IPA de 333 784 213 octets, SHA-256 `b80b618a9441c1a48554856f4d67c57588ff4e458ccb28aea9e5ab06750df636`. Les quatre pièces téléchargées, les dix bundles et les 97 images ont été contrôlés. Les six validateurs hors ligne ont réussi. L’image MeloNX empaquetée correspond à l’empreinte publiée ci-dessus. Le helper JIT MeloNX, MeloNXJitSupport, StikJIT, leurs ponts et les deux images MoltenVK de MeloNX conservent leurs empreintes entre la 817 et la 818. Le lanceur et S2Arm embarquent les changements prévus. Une quatrième image, le pont Dolphin recompilé par Xcode, présente l’empreinte déjà livrée dans la 815. La source du pont et l’empreinte du Core Dolphin sont identiques à celles de la 817. [Comparaison signée](rewind818/signed-payload-identity.json) · [Rapport de vérification](rewind818/download818-verification.json).
+
+## Retour au Core 8988ced5 (22 novembre)
+
+À la demande du mainteneur, la Core `445896a0` de la 818 est retirée. Les sources et le pin reviennent à `8988ced5` (run 44753917742, artefact 14638435340, empreinte `1fc7f4af`, contrat `bd3b429d`), soit l'état des livraisons 803 à 817. Aucune recompilation n'est nécessaire.
+
+Ce que montrent les journaux iPhone 816, 817 et 818 :
+
+- La 818 contrôle les bornes à chaque accès mémoire de l'invité, pour tous les jeux.
+- Le thread de rendu de la 818 attend les compilations des workers, dans `Dispose` comme au premier usage.
+- Première session SSBU en 818 : `queueBackpressure` à 13,2 % du temps, contre 1,2 % en 817.
+- Aucune session SSBU n'écrit de cache de pipelines en 818, contre 16 écritures en 817.
+
+Les corrections Hogwarts de la 818 partent avec ce retour. Le plantage Hogwarts observé en 817 (`FHeartBeatThread`) est donc de nouveau attendu.
+
+La boucle de recompilation SSBU existait déjà avec cette Core : 181 recompilations sur 208 compilations en 816, 325 sur 337 en 817. Le cache principal n'atteint jamais `primaryReady` dans ces sessions. Ce retour ne la corrige pas.

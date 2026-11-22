@@ -3,7 +3,7 @@
 // each of these adapters that ORDER runs after adapt_pipeline_variant_replay on its files, so the final preparation's own
 // code runs here: the real PipelineVariantJournal (adapt_variant_journal_room: eviction order, the load's trim, the file's
 // compaction; adapt_queued_variant_record: states built for skipped draws and the draws that waited for them), the real
-// worker cache probe, keyed creation gate (or the earlier worker load wait), RenderStageTimer, and the real
+// PipelineCacheManager.WaitForMainLoadOnWorker and RenderStageTimer (adapt_queued_variant_record), and the real
 // BackgroundCompilationScheduler (adapt_compute_warmup_demand: which thread takes a demanded compile). Plan 748's
 // adapt_replay_integer_mask runs here too: the real PipelineState read of a variant and the journal's summary count. Host
 // only: no Vulkan device, no pipeline is created, times are host times.
@@ -214,46 +214,6 @@ static class LotScenarios
             };
         }
         {
-#if PIPELINE_CREATION_FLIGHTS
-            var manager = (PipelineCacheManager)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(PipelineCacheManager));
-            using var loaded = new ManualResetEventSlim(false);
-            typeof(PipelineCacheManager).GetField("_mainLoaded", Instance).SetValue(manager, loaded);
-            var mainLock = new System.Threading.Lock();
-            var flights = PipelineCreationFlights<PipelineUid>.For(new object());
-            PipelineUid same = new() { Id0 = 17 }, other = new() { Id0 = 19 };
-            flights.Enter(ref same, true);
-            using var probed = new ManualResetEventSlim();
-            bool cacheBusy = false, ownerBusy = false, otherCreated = false;
-            long joined = 0, callerTicks = PipelineCreationFlights<PipelineUid>.JoinedTicks;
-            var worker = new Thread(() =>
-            {
-                cacheBusy = manager.MainLoadPending && !manager.EnterMainCreation(mainLock, true, out _);
-                ownerBusy = !flights.Enter(ref same, false);
-                otherCreated = flights.Enter(ref other, false);
-                if (otherCreated) flights.Leave(ref other);
-                probed.Set();
-                long before = PipelineCreationFlights<PipelineUid>.JoinedTicks;
-                flights.Enter(ref same, true);
-                joined = PipelineCreationFlights<PipelineUid>.JoinedTicks - before;
-                flights.Leave(ref same);
-            }) { IsBackground = true };
-            bool progressed, waitingForOwner;
-            lock (mainLock)
-            {
-                worker.Start();
-                progressed = probed.Wait(3000);
-                waitingForOwner = progressed && SpinWait.SpinUntil(() =>
-                    (worker.ThreadState & System.Threading.ThreadState.WaitSleepJoin) != 0, 3000);
-            }
-            flights.Leave(ref same);
-            loaded.Set();
-            bool finished = worker.Join(3000);
-            bool waitedOnlyForOwner = waitingForOwner && finished && joined > 0 &&
-                PipelineCreationFlights<PipelineUid>.JoinedTicks == callerTicks;
-            require(progressed && cacheBusy && ownerBusy && otherCreated && waitedOnlyForOwner,
-                "pending cache: worker probed the busy cache, ran an independent variant, joined only the owned variant");
-            report["creationFlights"] = new { progressed, cacheBusy, ownerBusy, otherCreated, waitedOnlyForOwner };
-#else
             // The main cache's load never completes here: the worker waits until the deadline (300 ms), and that wait is added
             // to its own thread's sum only; once loaded, nothing is added.
             var manager = (PipelineCacheManager)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(PipelineCacheManager));
@@ -282,7 +242,6 @@ static class LotScenarios
             {
                 ["waitedMs"] = waitedMs, ["elapsedMs"] = elapsedMs, ["otherThreadTicks"] = otherThread, ["nothingOnceLoaded"] = nothingOnceLoaded,
             };
-#endif
         }
         {
             // The render stages line of a window: 7 async skips, 3 of them for a queued pipeline state.

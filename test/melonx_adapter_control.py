@@ -67,8 +67,7 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_shader_load_binary_release', 'adapt_streaming_memory', 'adapt_nextendo_data', 'adapt_buffer_mirror_windows',
          'adapt_cheat_report', 'adapt_descriptor_pool_lifetime', 'adapt_descriptor_and_block_usage', 'adapt_cached_shader_stages',
          'adapt_account_cache_import', 'adapt_xci_update_identity', 'adapt_hogwarts_frame_budget',
-         'adapt_fifo_channel_retirement', 'adapt_hogwarts_steady_render', 'adapt_hogwarts_pipeline_replay',
-         'adapt_native_page_bounds', 'adapt_transient_pressure', 'adapt_pipeline_creation_flights')
+         'adapt_fifo_channel_retirement', 'adapt_hogwarts_steady_render', 'adapt_hogwarts_pipeline_replay')
 
 
 def sha(path: Path) -> str:
@@ -82,41 +81,8 @@ class _NoDigests(dict):
         return []
 
 
-def _reverse_hogwarts_replay(module, tree, present):
-    # This recipe refines its own earlier replacements. Undo it in reverse edit order.
-    edits = []
-    original, baseline = module.once, module.BASELINE
-    try:
-        module.once = lambda path, old, new: edits.append((path, old, new))
-        module.BASELINE = _NoDigests(baseline)
-        module.apply(tree)
-    finally:
-        module.once, module.BASELINE = original, baseline
-    for path, old, new in reversed(edits):
-        if path.relative_to(tree).as_posix() in present:
-            text = path.read_text(encoding='utf-8-sig')
-            sort = '_ready.Sort((a, b) => CompareForPlayback(a.Record, b.Record));'
-            if new == '' and old == ' ' * 20 + sort:
-                suffix = '\n                }\n                _pendingOffers.Clear();'
-                old, new = old + suffix, suffix
-            elif new == '' and old == ' ' * 16 + sort:
-                prefix = '                if (!QueueReady(program, target))\n                {\n                    return;\n                }\n\n'
-                old, new = prefix + old, prefix
-            elif new == '            Pump();':
-                suffix = '\n        }\n\n        // A program created from the cache'
-                old, new = old + suffix, new + suffix
-            assert text.count(new) == 1, (str(path), new[:90], text.count(new))
-            path.write_text(text.replace(new, old), encoding='utf-8')
-
-
 def _reverse(module_name: str, tree: Path) -> None:
     module = importlib.import_module(module_name)
-    if hasattr(module, 'apply_selected'):
-        module.apply_selected(tree, module.BASELINE, reverse=True)
-        return
-    if module_name == 'adapt_hogwarts_pipeline_replay':
-        _reverse_hogwarts_replay(module, tree, module.BASELINE)
-        return
     original = module.once
 
     def undo(path, old, new):
@@ -211,9 +177,6 @@ def apply_present(target: Path, module_name: str, only=None) -> list:
         assert sha(target / name) == module.BASELINE[name], 'composition is not the pinned preparation: ' + name
     if not present:
         return []
-    if hasattr(module, 'apply_selected'):
-        module.apply_selected(target, present)
-        return present
     original = module.once
 
     def once_present(path, old, new):
@@ -236,12 +199,6 @@ def reverse_present(target: Path, module_name: str, only=None) -> list:
     present = [name for name in module.BASELINE if (target / name).exists() and (only is None or name in only)]
     if not present:
         return []
-    if hasattr(module, 'apply_selected'):
-        module.apply_selected(target, present, reverse=True)
-        return present
-    if module_name == 'adapt_hogwarts_pipeline_replay':
-        _reverse_hogwarts_replay(module, target, present)
-        return present
     original = module.once
 
     def undo_present(path, old, new):

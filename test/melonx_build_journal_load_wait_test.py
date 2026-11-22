@@ -24,7 +24,7 @@ SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, later_sharing, reverse_present  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_build_journal_load_wait', _HOLD)
@@ -80,18 +80,25 @@ check(lookup.index('_servedByMain = hit;') < lookup.index('if (!hit)'), 'the loo
 check(lookup.replace(method(control, '        private static void NoteMainCacheLookup(bool hit)').split('{', 1)[1], '') != lookup and
       method(control, '        private static void NoteMainCacheLookup(bool hit)').split('{', 1)[1] in lookup,
       'the delivered body of NoteMainCacheLookup follows, unchanged')
-later_edits = []
+later_mask = False
 if FINAL_PREPARATION:
-    # Compare the authenticated historical state with the final state's later edits reversed.
-    # The replay mask and the subsequent removal of the disk wait both change this file.
-    later_edits = [name for name in later_sharing('adapt_build_journal_load_wait') if S in __import__(name).BASELINE]
-    with tempfile.TemporaryDirectory(prefix='melonx-build-journal-load-wait-later-') as later_root:
-        tree = Path(later_root)
-        (tree / S).parent.mkdir(parents=True)
-        shutil.copyfile(FINAL_SOURCE / S, tree / S)
-        for name in reversed(later_edits):
-            check(reverse_present(tree, name, only=[S]) == [S], name + ' undone in PipelineState.cs')
-        check(read(tree, S) == candidate, 'later edits reverse to the exact historical build-journal postimage')
+    # Plan 748 rank 18 (after this adapter): adapt_replay_integer_mask reads a recorded variant with the draw's integer-format
+    # mask at the end of TryReadVariant (PipelineState.cs, none of the members this adapter edits). When it is wired its
+    # replacement is undone first (required once); no other later adapter edits PipelineState.cs.
+    from melonx_adapter_control import ORDER, reverse_present  # noqa: E402
+    later_mask = 'adapt_replay_integer_mask' in ORDER
+    check(files_edited_later('adapt_build_journal_load_wait') == ({S} if later_mask else set()),
+          'no later adapter edits PipelineState.cs but adapt_replay_integer_mask')
+    final_text = read(FINAL_SOURCE, S)
+    if later_mask:
+        with tempfile.TemporaryDirectory(prefix='melonx-build-journal-load-wait-later-') as later_root:
+            (Path(later_root) / S).parent.mkdir(parents=True)
+            shutil.copyfile(FINAL_SOURCE / S, Path(later_root) / S)
+            check(reverse_present(Path(later_root), 'adapt_replay_integer_mask', only=[S]) == [S],
+                  'adapt_replay_integer_mask undone in PipelineState.cs')
+            final_text = read(Path(later_root), S)
+    check(final_text == candidate, 'the final preparation is the control plus the adapter\'s replacements (then the later '
+          'adapt_replay_integer_mask\'s)')
 
 environment = dict(os.environ, DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1')
 pin = json.loads((ROOT / 'build-utils/melonx/source.json').read_text())
@@ -160,9 +167,8 @@ check(r['records'] == [expected_record], 'and only once in the session')
 
 inputs = ['build-utils/melonx/adapt_build_journal_load_wait.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_build_journal_load_wait_test.py', 'test/melonx_build_journal_load_wait/Program.cs', 'test/melonx_adapter_control.py']
-inputs.extend('build-utils/melonx/' + name + '.py' for name in later_edits)
-if 'adapt_pipeline_creation_flights' in later_edits:
-    inputs.append('build-utils/melonx/pipeline_creation_flights.patch')
+if later_mask:
+    inputs.append('build-utils/melonx/adapt_replay_integer_mask.py')
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core741Preparation',
                postimages={S: sha(FINAL_SOURCE / S)} if FINAL_PREPARATION else {}, physicalDeviceTested=False,
