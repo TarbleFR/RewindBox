@@ -18,53 +18,6 @@ import '../../repositories/system_repository.dart';
 class SqliteConfigService {
   static final _log = LoggerService.instance;
 
-  /// Counts valid ROM files within a given directory.
-  ///
-  /// Filters files based on valid extensions retrieved from the database
-  /// for the specified [systemId] (or all systems if null).
-  static Future<int> _countRomsInDirectory(
-    String directoryPath, {
-    String? systemId,
-    bool recursive = true,
-  }) async {
-    Set<String> validExtensions;
-    try {
-      if (systemId != null) {
-        validExtensions = await SqliteService.getExtensionsForSystem(systemId);
-      } else {
-        validExtensions = await SqliteService.getAllValidExtensions();
-      }
-    } catch (e) {
-      _log.e('Error getting extensions from DB: $e');
-      return 0;
-    }
-
-    try {
-      final directory = Directory(directoryPath);
-      final files = await directory
-          .list(recursive: recursive, followLinks: false)
-          .where((entity) => entity is File)
-          .cast<File>()
-          .toList();
-
-      int count = 0;
-      for (final file in files) {
-        String extension = path.extension(file.path).toLowerCase();
-        if (extension.startsWith('.')) {
-          extension = extension.substring(1);
-        }
-        if (validExtensions.contains(extension)) {
-          count++;
-        }
-      }
-
-      return count;
-    } catch (e) {
-      _log.e('Error counting ROMs in $directoryPath: $e');
-      return 0;
-    }
-  }
-
   /// Retrieves the platform-specific user data directory path.
   static Future<String> getUserDataPath() async {
     return await ConfigService.getUserDataPath();
@@ -311,8 +264,8 @@ class SqliteConfigService {
   /// Detects physical system folders within the configured ROM directories.
   ///
   /// Cross-references folder names against the internal system database
-  /// (primary and alternate names) and counts valid ROMs within each
-  /// discovered directory.
+  /// (primary and alternate names). Each detected system carries the ROM
+  /// count already in the library; the background scan refreshes it.
   static Future<List<SystemModel>> detectSystems({
     required List<String> romFolders,
     required List<SystemModel> availableSystems,
@@ -344,19 +297,13 @@ class SqliteConfigService {
           );
 
           if (matchingSystem != null) {
-            final romCount = await SqliteConfigService._countRomsInDirectory(
-              entity.path,
-              systemId: matchingSystem.id,
-              recursive: matchingSystem.recursiveScan,
-            );
-
             final systemId = matchingSystem.id.toString();
-            final existing = detectedSystemsMap[systemId];
-            if (existing != null) {
-              detectedSystemsMap[systemId] = existing.copyWith(
-                romCount: (existing.romCount) + romCount,
+            if (!detectedSystemsMap.containsKey(systemId)) {
+              // The library count the background scan refreshes; listing the
+              // same folders recursively here before that scan is redundant.
+              final romCount = await SqliteService.getRomCountForSystem(
+                systemId,
               );
-            } else {
               detectedSystemsMap[systemId] = matchingSystem.copyWith(
                 folderName: folderName,
                 detected: true,

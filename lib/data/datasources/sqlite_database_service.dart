@@ -381,11 +381,16 @@ class SqliteDatabaseService {
     // 399 transactions around them) into zero work. Entries whose row is
     // populated from the file itself are always re-upserted so a previously
     // failed extraction still gets another chance.
+    // A Switch 2 export is read again only until its title id is stored.
+    final identified = Platform.isIOS && system.id == 'switch2'
+        ? await _pathsWithTitleId(system.id!)
+        : const <String>{};
     final entriesToWrite = romEntries
         .where(
           (e) =>
               !cleanup.knownPaths.contains(e.path) ||
-              _needsMetadataExtraction(system.id!, e),
+              (_needsMetadataExtraction(system.id!, e) &&
+                  !identified.contains(e.path)),
         )
         .toList();
 
@@ -639,6 +644,16 @@ class SqliteDatabaseService {
     if (Platform.isIOS && systemId == 'switch2') return true;
     final lower = entry.filename.toLowerCase();
     return lower.endsWith('.psvita') || lower.endsWith('.steam');
+  }
+
+  static Future<Set<String>> _pathsWithTitleId(String systemId) async {
+    final db = await SqliteService.getDatabase();
+    final rows = await db.rawQuery(
+      "SELECT rom_path FROM user_roms WHERE app_system_id = ? "
+      "AND title_id IS NOT NULL AND trim(title_id) != ''",
+      [systemId],
+    );
+    return rows.map((row) => row['rom_path'].toString()).toSet();
   }
 
   /// Calculates a tuned batch size for insertions based on the total file count.
