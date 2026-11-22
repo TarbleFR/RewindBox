@@ -1,0 +1,206 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 11f8e24..6d00ea7 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -10612,6 +10612,8 @@ static uint64_t g_warm_t0;
+ static _Atomic int g_warm_running;   // Background warm-up has not finished yet (the loading screen on entering a run waits a little longer based on this, see mtl_warm_wait)
+ static _Atomic uint64_t g_warm_shaders, g_warm_rps, g_warm_cps, g_warm_skip_fz, g_warm_skip_stale;   // atomic: the prepare step's workers count them at once
+ static uint64_t g_warm_claim_shaders, g_warm_claim_rps, g_warm_claim_cps;
++static _Atomic uint64_t g_rb_demand_n, g_rb_demand_ns;   // pipelines built or awaited by the submit thread at their first draw, and that wait
++static _Atomic uint64_t g_rb_ready_base[3];              // the prewarm's claims and the front queue's moves and takes when this session began
+ static id<MTLFunction> bf_fn(NvShader *fs, const int *fx, uint8_t fbmask, const uint8_t *lmap);
+ static int rt_range_bindings_ro(NSDictionary *j);
+ static FILE *g_pso_record; static int g_pso_record_checked;
+@@ -14894,6 +14896,7 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+     // submit thread built itself when the pending table was full or inapplicable.
+     if (fu_build) atomic_fetch_add_explicit(&g_course_pso_wait_ns,fu_build,memory_order_relaxed);
+     const uint64_t first_use_ns = bp_now() - bt;
++    atomic_fetch_add_explicit(&g_rb_demand_n, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_rb_demand_ns, first_use_ns, memory_order_relaxed);
+     { uint64_t d_ = first_use_ns; g_bp_pso_n++; g_bp_pso_ns += d_; fe_sync_note(d_);
+       // 首遇等待诊断（11-02 怪猎真机第 63 / 65 秒整帧 180 ms：5 条管线不在归档、首遇跳过判不安全，提交线程等后台编完）：每次这样等过就记一行——
+       //   着色器对、归档键、等了多久、能不能跳（不能的原因看各目标：fresh = 这一帧清过 / 不读旧内容，steady = 前两帧都画过；存储写 = 着色器写存储），
+@@ -15711,7 +15714,8 @@ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
+ }
+ static void warm_urgent_end(void) { os_unfair_lock_lock(&g_wu_lock); g_rb_tier_binds=nil; memset(g_course_starters,0,sizeof g_course_starters); g_rb_draw_route_rows=nil; rb_draw_route_locked(); rb_course_rows_locked(nil); g_wu_pairs = nil; atomic_store(&g_ref_late_live,0); atomic_store(&g_ref_late_hints,0); [g_wu_q removeAllObjects]; os_unfair_lock_unlock(&g_wu_lock); }   // 标记数组留给还没退出的工人读（随下一次索引换掉）
+ // 工人领下一行：先急件，再按清单顺序；已领的跳过。→ 下标，-1 = 没有了
+-// Only lane zero bypasses optional admission for registered rows through Fair.
++// Registered rows bypass optional admission on the lanes rb_spec_registered_lanes
++// gives the thermal state (rb_spec_gate.h); every other lane needs a lease.
+ static _Thread_local BOOL rb_picked_registered;
+ static int rb_disk_observed_busy(void);
+ static BOOL rb_registered_capacity(void) {
+@@ -15748,16 +15752,16 @@ static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL re
+                               rb_spec_nominal_startup(rb_cached_thermal(), atomic_load(&rb_gov_room));
+         BOOL observedBusy=rb_cold_worker && (rb_disk_observed_busy() ||
+             atomic_load_explicit(&g_rb_registration_count,memory_order_relaxed));
+-        BOOL registered = !required && w == 0 && capacity && rb_promoted_on();
++        BOOL registered = !required && rb_spec_registered_worker(0, w) && capacity && rb_promoted_on();
+         if (registered) {
+             int thermal = rb_cached_thermal();
+ #ifdef RB_TEST_REGISTERED_ROWS
+-            if (RB_TEST_REGISTERED_ROWS()) thermal = 1;
++            if (RB_TEST_REGISTERED_ROWS()) thermal = RB_TEST_REGISTERED_ROWS();   // the test's value is the thermal state it stands in
+ #endif
+             // Registration has a fast path before rb_spec_take. Keep the
+             // same memory test here. A real draw retains its dedicated lane.
+             if (rb_working_set_on()) rb_gov_sample(0);
+-            registered = thermal <= 1 && rb_metal_working_room() && bp_now() >= atomic_load(&g_spec_pressure_until);
++            registered = rb_spec_registered_worker(thermal, w) && rb_metal_working_room() && bp_now() >= atomic_load(&g_spec_pressure_until);
+         }
+         os_unfair_lock_lock(&g_wu_lock);
+         _Atomic(uint8_t) *c = g_wu_claim;
+@@ -26715,6 +26719,15 @@ void nvn_be_stats(uint64_t *passes, uint64_t *draws) {
+     MLOG("[rb-urgent] frame=%llu workers=2 pending=%u peak=%u admitted=%llu saturated=%llu same_pass_lookahead=%llu",
+          (unsigned long long)frame,live,peak,(unsigned long long)accepted,(unsigned long long)full,
+          (unsigned long long)atomic_load_explicit(&g_rb_pass_ahead,memory_order_relaxed));
++    // Ready before the draw against built at the draw, for any title: the
++    // prewarm's claimed pipelines, the first-draw builds and their wait, and
++    // the registered rows moved to the front and taken from it.
++    MLOG("[rb-pso-ready] frame=%llu thermal=%d prepared=%llu demand=%llu demand_ms=%.1f front_moved=%llu front_taken=%llu",
++         (unsigned long long)frame,rb_cached_thermal(),(unsigned long long)(g_warm_claim_rps-atomic_load(&g_rb_ready_base[0])),
++         (unsigned long long)atomic_load_explicit(&g_rb_demand_n,memory_order_relaxed),
++         atomic_load_explicit(&g_rb_demand_ns,memory_order_relaxed)/1e6,
++         (unsigned long long)(atomic_load(&g_wu_bumped)-atomic_load(&g_rb_ready_base[1])),
++         (unsigned long long)(atomic_load(&g_wu_taken)-atomic_load(&g_rb_ready_base[2])));
+ }
+ // 本窗口（上次读后）画过的最大渲染目标：宽 / 高 / Metal 像素格式，读后清零（hle_nvn.c 每 300 帧那行带出）
+ void nvn_be_rt_window(uint32_t *w, uint32_t *h, uint32_t *fmt) { *w = g_rtw_w; *h = g_rtw_h; *fmt = g_rtw_fmt; g_rtw_w = g_rtw_h = g_rtw_fmt = 0; }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index db5dba3..4ace682 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -293,6 +293,9 @@ int nvn_be_shutdown_session(void) {
+     os_unfair_lock_lock(&g_rb_disk_mu);
+     g_rb_binary_dir = nil; atomic_store(&g_rb_disk_online,0);
+     atomic_store(&g_rb_air_hits,0); atomic_store(&g_rb_air_misses,0); atomic_store(&g_rb_air_rejects,0);
++    atomic_store(&g_rb_demand_n,0); atomic_store(&g_rb_demand_ns,0);
++    atomic_store(&g_rb_ready_base[0],g_warm_claim_rps); atomic_store(&g_rb_ready_base[1],atomic_load(&g_wu_bumped));
++    atomic_store(&g_rb_ready_base[2],atomic_load(&g_wu_taken));
+     atomic_store(&g_rb_disk_unlisted,0); atomic_store(&g_rb_disk_loaded,0); atomic_store(&g_rb_disk_invalid,0);
+     atomic_store(&g_rb_disk_listed,0); atomic_store(&g_rb_disk_listed_built,0);
+     atomic_store(&g_rb_disk_listed_reused,0); atomic_store(&g_rb_disk_listed_invalid,0);
+diff --git a/graphics/nvn/gfx/nvn/rb_spec_gate.h b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+index 19ee853..1738115 100644
+--- a/graphics/nvn/gfx/nvn/rb_spec_gate.h
++++ b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+@@ -53,6 +53,17 @@ static inline int rb_spec_nominal_startup(int thermal, uint64_t available) {
+ static inline int rb_spec_worker_allowed(int level, int worker) {
+     return level == RB_SPEC_RUN || (level == RB_SPEC_ONE && worker == 0);
+ }
++// A row the game registered in this session and drew in an earlier one is
++// requested work, not speculation: holding it does not avoid its build, the
++// first draw then makes it on the submit thread. Two lanes serve such rows
++// through Fair, one through Serious, none at Critical. Optional rows keep
++// their own admission, and the memory checks of the caller still apply.
++static inline unsigned rb_spec_registered_lanes(int thermal) {
++    return thermal <= 1 ? 2u : thermal == 2 ? 1u : 0u;
++}
++static inline int rb_spec_registered_worker(int thermal, int worker) {
++    return worker >= 0 && (unsigned)worker < rb_spec_registered_lanes(thermal);
++}
+ 
+ // Publish a tier and reserve work under the same mutex. A sensor reading or
+ // a queue hint observed before the lock is never an admission. The mutex is
+diff --git a/graphics/nvn/tests/t_nvn_warmbump.m b/graphics/nvn/tests/t_nvn_warmbump.m
+index 4ec598c..6f38f59 100644
+--- a/graphics/nvn/tests/t_nvn_warmbump.m
++++ b/graphics/nvn/tests/t_nvn_warmbump.m
+@@ -296,8 +296,10 @@ int main(int argc, char **argv) {
+         atomic_store(&g_spec_sampled, UINT64_MAX);
+         rb_spec_publish(&g_spec_gate, RB_SPEC_HOLD);
+         next = 0; warm_urgent_index(mk()); got = -9;
+-        // An actual registered pair goes ahead of the Fair HOLD on lane zero,
+-        // independent of the speculative cursor and without taking its lease.
++        // An actual registered pair goes ahead of the Fair HOLD on the lanes
++        // rb_spec_registered_lanes keeps for it, independent of the speculative
++        // cursor and without taking its lease. registered_rows_enabled stands
++        // in the thermal state: 1 Fair, 2 Serious.
+         registered_rows_enabled = 1;
+         warm_bump("b", "y");
+         int registered_lease = 0;
+@@ -305,12 +307,24 @@ int main(int argc, char **argv) {
+            rb_picked_registered && !registered_lease && !next &&
+            atomic_load(&g_spec_gate.level) == RB_SPEC_HOLD,
+            "registered pair admitted through Fair HOLD leaving optional backlog parked");
++        // A new index starts with free rows; the bind queues the pair once.
++        warm_urgent_index(mk()); warm_bump("b", "y"); rb_picked_registered = NO;
++        ck(g_wu_q.count == 1 && warm_pick(&next, 6, 1, &registered_lease) == 1 &&
++           rb_picked_registered && !registered_lease && !next,
++           "the second lane also serves a registered pair at Fair");
++        registered_rows_enabled = 2;
++        warm_urgent_index(mk()); warm_bump("b", "y"); rb_picked_registered = NO;
++        ck(g_wu_q.count == 1 && warm_pick(&next, 6, 0, &registered_lease) == 1 &&
++           rb_picked_registered && !registered_lease && !next &&
++           atomic_load(&g_spec_gate.level) == RB_SPEC_HOLD,
++           "lane zero keeps serving a registered pair at Serious");
+         registered_rows_enabled = 0;
++        // Lane two is never a registered lane: it stands for an ordinary worker below.
+         warm_urgent_index(mk());
+         uint64_t parks = atomic_load(&g_spec_parks);
+         dispatch_async(dispatch_get_global_queue(QOS_CLASS_DEFAULT, 0), ^{
+             int lease;
+-            atomic_store(&got, warm_pick(&next, 6, 1, &lease));
++            atomic_store(&got, warm_pick(&next, 6, 2, &lease));
+             rb_spec_done(&lease);
+             dispatch_semaphore_signal(done);
+         });
+@@ -325,16 +339,16 @@ int main(int argc, char **argv) {
+         warm_bump("a","x"); warm_bump("b","y"); warm_bump("c","z"); warm_bump("d","w"); warm_bump("e","v");
+         for (int j = 0; j < 6; j++) {
+             int lease;
+-            ck(warm_pick(&next, 6, 1, &lease) >= 0, "promoted row served");
++            ck(warm_pick(&next, 6, 2, &lease) >= 0, "promoted row served");
+             rb_spec_done(&lease);
+         }
+         rb_spec_publish(&g_spec_gate, RB_SPEC_HOLD);
+-        ck(warm_pick(&next, 6, 1, &(int){0}) == -1 && next == 0, "HOLD finishes when every row was taken from the front");
++        ck(warm_pick(&next, 6, 2, &(int){0}) == -1 && next == 0, "HOLD finishes when every row was taken from the front");
+ 
+         next = 0; warm_urgent_index(mk()); got = -9;
+         parks = atomic_load(&g_spec_parks);
+         dispatch_async(dispatch_get_global_queue(QOS_CLASS_DEFAULT, 0), ^{
+-            int lease; atomic_store(&got, warm_pick(&next, 6, 1, &lease)); rb_spec_done(&lease);
++            int lease; atomic_store(&got, warm_pick(&next, 6, 2, &lease)); rb_spec_done(&lease);
+             dispatch_semaphore_signal(done);
+         });
+         deadline = bp_now() + 3000000000ull;
+@@ -344,7 +358,7 @@ int main(int argc, char **argv) {
+         rb_spec_publish(&g_spec_gate, RB_SPEC_HOLD); got = -9;
+         parks = atomic_load(&g_spec_parks);
+         dispatch_async(dispatch_get_global_queue(QOS_CLASS_DEFAULT, 0), ^{
+-            int lease; atomic_store(&got, warm_pick(&next, 6, 1, &lease)); rb_spec_done(&lease);
++            int lease; atomic_store(&got, warm_pick(&next, 6, 2, &lease)); rb_spec_done(&lease);
+             dispatch_semaphore_signal(done);
+         });
+         deadline = bp_now() + 3000000000ull;
+diff --git a/graphics/nvn/tests/t_rb_spec_gate.c b/graphics/nvn/tests/t_rb_spec_gate.c
+index e521848..56de4f0 100644
+--- a/graphics/nvn/tests/t_rb_spec_gate.c
++++ b/graphics/nvn/tests/t_rb_spec_gate.c
+@@ -153,8 +153,26 @@ static void startup_parallelism(void) {
+     rb_spec_publish_limit(&local,RB_SPEC_HOLD,2);
+     assert(!rb_spec_admit_startup(&local,0,1));
+ }
++// Rows the game registered are requested work. The strict policy holds every
++// optional row from Fair on (rb_spec_thermal_tier), and these lanes are what
++// stays open beside it.
++static void registered_lanes(void) {
++    for (int thermal = 0; thermal < 4; ++thermal) {
++        assert(rb_spec_thermal_tier(rb_spec_reason(thermal, 0, UINT64_MAX, 0), thermal, 1) ==
++               (thermal ? RB_SPEC_HOLD : RB_SPEC_RUN));
++        assert(!rb_spec_registered_worker(thermal, -1));   // a caller outside the worker pool
++        assert(!rb_spec_registered_worker(thermal, 2) && !rb_spec_registered_worker(thermal, 3));
++    }
++    assert(rb_spec_registered_lanes(0) == 2 && rb_spec_registered_lanes(1) == 2);
++    assert(rb_spec_registered_worker(1, 0) && rb_spec_registered_worker(1, 1));
++    assert(rb_spec_registered_lanes(2) == 1);
++    assert(rb_spec_registered_worker(2, 0) && !rb_spec_registered_worker(2, 1));
++    assert(rb_spec_registered_lanes(3) == 0 && !rb_spec_registered_worker(3, 0));
++    puts("PASS registered rows keep two lanes through Fair, one at Serious, none at Critical");
++}
+ int main(void) {
+     startup_parallelism();
++    registered_lanes();
+     kart_limits();
+     const uint64_t floor = 768ull << 20;
+     assert(tier(0, 0, floor) == RB_SPEC_RUN);

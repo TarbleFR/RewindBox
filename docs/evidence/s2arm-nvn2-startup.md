@@ -132,3 +132,31 @@ Vérification. La série complète des patchs s'applique et les contrats du pont
 Observation sur iPhone, IPA 820 (sans ce correctif). Mario Kart World atteint la course (image 10804). Le journal du moteur montre la cause décrite ici : archives ouvertes dans `pipelines-v2/ea0c0edcf2611b6451499cb012059c15b4365266` (3348 pipelines, 194 Mo), sous le même dossier de génération que `pso_reference.tsv`, preuve stricte réussie (`strict disk archive 200`, statut 1), puis 498 lignes en premier plan et 9131 en arrière-plan. Pendant ce travail d'arrière-plan, le chargement de la course bloque : 161 soumissions attendent 6,8 s de compilation MSL à l'image 1166 (`submit_msl_blocked_ms=6815.529`). `draws_skipped_pso` reste à 0 sur tout le journal.
 
 Non mesuré. Aucune IPA ne contient encore ce correctif. Le second lancement (génération activée, `graphics verified`) et l'effet sur le blocage de l'image 1166 restent à observer sur iPhone.
+
+## Pipelines connus construits au dessin sous chauffe
+
+Journal iPhone d'une session Mario Kart World reçue après la livraison 821 (9 431 images, numéro de build absent du journal moteur). La ligne `RewindBox reference: real functions …` des lancements 817 à 820 n'y figure plus : la migration n'est pas refaite.
+
+Mesures de cette session.
+
+| Mesure | Valeur |
+|---|---|
+| Pipelines servis par l'archive | 2 037 sur 2 048 constructions |
+| Premiers dessins de pipelines | 1 170, dont 258 prêts d'avance et 912 construits au dessin |
+| Attente de ces 912 constructions | 2,8 s |
+| Compilations MSL sur le thread de soumission | 573, 8,7 s |
+| État thermique | Fair dès la première image, Serious à partir de l'image 3 300 environ |
+| Travail spéculatif suspendu | 3 695 mises en attente, 1 076 s cumulées |
+| Lignes avancées à l'enregistrement d'un programme | 2 275, dont 1 417 construites depuis la tête de file |
+
+Cause. La politique stricte suspend tout le préchauffage dès Fair (`rb_spec_thermal_tier`). Les lignes que le jeu vient d'enregistrer et qu'il a déjà dessinées lors d'une session précédente passaient par une seule voie jusqu'à Fair, et par aucune à Serious (`warm_pick_row`). Leur construction n'était donc pas évitée : elle était reportée au premier dessin, sur le thread de soumission. L'archive répond déjà presque toujours ; ce qui manquait est le moment de la construction.
+
+Patch 0302.
+
+- `rb_spec_gate.h` : `rb_spec_registered_lanes` donne les voies ouvertes à ces lignes, deux jusqu'à Fair, une à Serious, aucune à Critical. Les lignes facultatives gardent leur admission et les contrôles de mémoire Metal de l'appelant restent en place.
+- `warm_pick_row` applique cette règle à la place de « voie zéro, jusqu'à Fair ». Les lignes prises ainsi s'exécutent toujours dans le groupe à deux compilateurs.
+- `[rb-pso-ready]`, toutes les 300 images et pour tout titre NVN2 hébergé : `prepared`, `demand`, `demand_ms`, `front_moved`, `front_taken` depuis le début de la session.
+
+Aucune règle par titre. La clé de pipeline n'est pas modifiée : `pso_norm_masks` retire déjà du `pso_key` les attributs de sommet non lus, les flux inutilisés et l'état de fusion des cibles non écrites.
+
+Vérification. `t_rb_spec_gate.c` couvre la règle (deux voies jusqu'à Fair, une à Serious, aucune à Critical, aucune voie au-delà de la deuxième) et passe sur l'hôte. `t_nvn_warmbump.m` vérifie sur le GPU du Mac de CI que la deuxième voie sert une ligne enregistrée à Fair, que la voie zéro continue à Serious et qu'un worker ordinaire reste suspendu. Rien n'est mesuré sur iPhone avec ce patch : le rapport `prepared` / `demand` et la chauffe à Serious restent à observer.

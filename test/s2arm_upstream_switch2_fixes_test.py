@@ -127,7 +127,7 @@ if upstream and Path(upstream, '.git').exists():
 series = sorted(p.name for p in PATCHES.glob('*.patch'))
 check(len(series) >= 17 and series[14] == PATCH.name and series[16] == CRASH_PATCH.name, f'0015 and 0017 are the 15th and 17th engine patches: {series[13:17]}')
 notices = (ROOT / 'docs/s2arm-legal-notices.md').read_text(encoding='utf-8')
-span = f'RewindBox patches 0001–{len(series):04d}'   # the whole series as it stands
+span = f'RewindBox patches 0001–{series[-1][:4]}'   # the whole series as it stands: its last number, a withdrawn patch (0297) leaves a gap
 check(PATCH.name in notices and span in notices and all(c[:8] in notices for c in COMMITS),
       f'the legal notices list patch 0015, its four S2Arm commits and the series ({span})')
 check(CRASH_PATCH.name in notices and CRASH_COMMIT in notices, 'the legal notices list patch 0017 and its S2Arm commit')
