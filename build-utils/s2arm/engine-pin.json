@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "78b5bd0178bc265255f9ad5ed74db6b81304e33da1467698a8eb1cf8e01e996a",
+  "packagedFingerprint": "dc8d1af8ecbdb333bad8f736984cb3a7b4c104dc835b5edb5c8e192e211383ba",
   "producers": {
     "engine": {
-      "run": 44979639172,
+      "run": 45012035930,
       "attempt": 1,
-      "artifact": 14737762419,
-      "name": "s2arm-engine-framework-1f66a2d038887e3d0567e5aa9039be0a38913fbe",
-      "bytes": 25251776,
-      "sha256": "90a48f5896b5771354d17da9b064e0314134d5ec01f354bd4963acfff00c0dce",
-      "headSha": "1f66a2d038887e3d0567e5aa9039be0a38913fbe",
+      "artifact": 14750068498,
+      "name": "s2arm-engine-framework-2afbc8aacbecaa5a8cff1b2446a9460a60afe6c3",
+      "bytes": 25252488,
+      "sha256": "de67ba53837c5bbdc6a4bb67f68de3512120d77ef1c0e1f6930c220fe5473701",
+      "headSha": "2afbc8aacbecaa5a8cff1b2446a9460a60afe6c3",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-22T03:32:11Z",
+      "expiresAt": "2026-12-22T10:34:48Z",
       "members": {
-        "S2ArmEngine.framework.zip": "39f920d1485cc30ae4d5acc68952881443cba62e8d28db8d2384df4c5f02d063",
-        "NS2Pro.framework.zip": "81cb8eda98e58411272f9518989ffda56cb5a9eca025131794d495010fc086b6"
+        "S2ArmEngine.framework.zip": "2d503e7753b226f1c4e542bd35585b3d26fd7fc19d81597c6bdebdca01786256",
+        "NS2Pro.framework.zip": "be136a8d9d05fde2f4456b388ec8d9c7c0ffa96c638f31474b0c1e36fffe9380"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "90a48f5896b5771354d17da9b064e0314134d5ec01f354bd4963acfff00c0dce",
+    "engine": "de67ba53837c5bbdc6a4bb67f68de3512120d77ef1c0e1f6930c220fe5473701",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -78,8 +78,8 @@
       "fingerprint": "8a3320df120185bf7f88c4b46ee9ca6293fb1c10a869f38485bf02ed7ee88654"
     },
     "S2ArmEngine.framework/Headers/rb_guest.h": {
-      "sha256": "dde0fd5fa7fda61f3a498b3759e318da55e296200249c67ec7f078004465b860",
-      "bytes": 8043
+      "sha256": "8405853c1d2db2e74c4ea905015112b382f532b79a9f5dc2ba14b5f9d4a6cc0e",
+      "bytes": 7662
     },
     "S2ArmEngine.framework/Info.plist": {
       "sha256": "fff7a6d26519626cd7ef3d92e1bc3b3c53bfc22cd6002559a3c2673914f0028e",
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "45e22d2d226984a997d70887896b4e9bb0baff91bbdc9574ae5ba107eae88e0a",
-      "bytes": 115135400,
-      "fingerprint": "78b5bd0178bc265255f9ad5ed74db6b81304e33da1467698a8eb1cf8e01e996a"
+      "sha256": "fc0ebee33da8c6418b2fa7a2d2c90528f03929e3205a034d40050038e415bb43",
+      "bytes": 115135328,
+      "fingerprint": "dc8d1af8ecbdb333bad8f736984cb3a7b4c104dc835b5edb5c8e192e211383ba"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 44979639172,
+      "run": 45012035930,
       "attempt": 1,
-      "head_sha": "1f66a2d038887e3d0567e5aa9039be0a38913fbe",
+      "head_sha": "2afbc8aacbecaa5a8cff1b2446a9460a60afe6c3",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1329,11 +1329,7 @@
         },
         {
           "name": "0296-keep-hosted-bindless-stores-and-open-archives-on-demand.patch",
-          "sha256": "7f4cfe497d145375a420e9938bf16692a8b22005765a0868a3a74d2b8100da78"
-        },
-        {
-          "name": "0297-prepare-host-graphics-after-services-start.patch",
-          "sha256": "0c2933b57ac2cc5238fd549c9215164a4e5158b6588220c42b8fcc5c29dd78bc"
+          "sha256": "12e841d313ff4d706c5a899c5ca34f758bea4271c2ce9b0e533d1b66100a1bc3"
         },
         {
           "name": "0298-use-governor-sample-for-staging-growth.patch",
@@ -1342,11 +1338,15 @@
         {
           "name": "0299-cover-cold-and-contended-program-binds.patch",
           "sha256": "93d718295c6bebc0fad8b80a86004369a92eb33255f260af86e658dcf1701ccc"
+        },
+        {
+          "name": "0300-correct-startup-admission-lookahead-slots-and-shutdown-drains.patch",
+          "sha256": "5981d3418f35c910496c9463a37be9757a35e878cc85ca46836026b362acf6ba"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "39f920d1485cc30ae4d5acc68952881443cba62e8d28db8d2384df4c5f02d063",
-        "NS2Pro.framework.zip": "81cb8eda98e58411272f9518989ffda56cb5a9eca025131794d495010fc086b6"
+        "S2ArmEngine.framework.zip": "2d503e7753b226f1c4e542bd35585b3d26fd7fc19d81597c6bdebdca01786256",
+        "NS2Pro.framework.zip": "be136a8d9d05fde2f4456b388ec8d9c7c0ffa96c638f31474b0c1e36fffe9380"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
