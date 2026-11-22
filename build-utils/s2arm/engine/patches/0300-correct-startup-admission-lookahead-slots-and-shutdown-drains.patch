@@ -1,0 +1,188 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -417,9 +417,10 @@ __attribute__((weak)) void nvn_be_guest_range_hint(rb_guest_hint h) { (void)h; }
+ //   我方贴图在 Metal 侧另有一份，刷新是「CPU 写过这段」唯一的显式信号，照真机做成空操作会在关了脏页上传的配置里漏发布（贴图停在旧内容）
+ NVN(nvnMemoryPoolFlushMappedRange, void, const NVNmemoryPool *p, ptrdiff_t off, size_t n) {   // see ft_add
+     const pool_t *o = (const pool_t *)p;
+-    if (!o->mem || off<0 || (uint64_t)off>o->size || n>o->size-(uint64_t)off) return;
++    if (!o->mem) return;
+     ft_flush(o->mem + off, n);
+-    if (!(o->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL) && nvn_be_guest_hint_on())
++    if (!(o->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL) && off >= 0 && (uint64_t)off <= o->size &&
++        n <= o->size - (uint64_t)off && nvn_be_guest_hint_on())
+         nvn_be_guest_range_hint((rb_guest_hint){(uintptr_t)o->mem,o->size,off,n,RB_RANGE_FLUSH});
+ #if defined(__ANDROID__)
+     // 后端可选：内容变化通知（安卓直连用它推进资源账本的内容版本）。
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -16405,11 +16405,12 @@ static dispatch_queue_t rb_start_queue_locked(void) {
+     return g_rb_startup_q;
+ }
+ static void rb_startup_ready(int device,int depth) {
+-    // Opening a device archive does not depend on the guest depth convention.
+-    if (device && getenv("DM_NVN_SHMAP") && !nvn_be_stopping()) rb_archive_preopen_start();
+     os_unfair_lock_lock(&g_shpre_mu);
+     if (device) g_rb_device_ready=1;
+     if (depth) g_rb_depth_ready=1;
++    // Opening a device archive does not depend on the guest depth convention. The device
++    // outlives a park, so a resumed session opens its index at its depth configuration.
++    int open_archives = g_rb_device_ready && getenv("DM_NVN_SHMAP") && !nvn_be_stopping();
+     if (g_rb_device_ready && g_rb_depth_ready && !g_rb_startup_queued && !nvn_be_stopping() &&
+         getenv("DM_NVN_SHMAP") && rb_startup_tiers() && !rb_ref_path() && !prepare_on()) {
+         g_rb_startup_queued=1;
+@@ -16426,6 +16427,7 @@ static void rb_startup_ready(int device,int depth) {
+         } });
+     }
+     os_unfair_lock_unlock(&g_shpre_mu);
++    if (open_archives) rb_archive_preopen_start();
+ }
+ void nvn_be_depth_configured(void) { rb_startup_ready(0,1); }
+ // S2Arm pso harvest (S2A_PSO_HARVEST=<folder>, Mac only, shader line 10-26): the pack builds the package's pipeline archives without running the game ("no trial run at pack
+@@ -18523,19 +18525,27 @@ static int rb_look_formats(const p_set_rt *rt, uint32_t cf[8], uint32_t *df,
+ 
+ // Publish a normal pending-table reservation. Descriptor construction, variant
+ // selection and archive lookup belong to the worker, and a real draw can
+-// still promote the reservation by its canonical key. Never reclaim a slot
+-// holding a Metal object or wait for a compiler mutex on this path.
++// still promote the reservation by its canonical key. A reclaimed finished slot
++// releases its Metal object after g_pp_mu; never wait for a compiler mutex here.
+ static void rb_look_queue(const pso_key *key,NvShader *vs,NvShader *fs,int same_pass) {
+     if (pso_pair_miss(vs,fs) || !rb_pso_lanes()) return;
+     pso_key copy;
+     const pso_key *live;
+     if (rb_pso_probe(key,&copy,&live) || pthread_mutex_trylock(&g_pp_mu)) return;
+     int slot=-1, active=0, found=pso_pend_find_live(live);
++    __attribute__((objc_precise_lifetime)) id retired=nil;   // a reclaimed pipeline is released at return, after g_pp_mu
+     if (found<0) {
++        int finished=-1;
+         for (int i=0;i<PSO_PEND_MAX;i++) {
+             if (g_pp[i].used && !g_pp[i].done) active++;
+             if (!g_pp[i].used && slot<0) slot=i;
++            if (g_pp[i].used && g_pp[i].done && finished<0) finished=i;
+         }
++        // Full: reuse a finished prediction no draw took, as pso_pend_kick does.
++        if (slot<0 && finished>=0 && active<rb_look_cap() && bp_now()<g_look_budget.deadline) {
++            slot=finished; retired=g_pp[slot].ps; g_pp[slot].ps=nil; g_pp[slot].error=nil; g_pp_dropped++;
++        }
++        (void)retired;
+         if (slot>=0 && active<rb_look_cap() && bp_now()<g_look_budget.deadline) {
+             g_pp[slot].k=*live;
+             g_pp[slot].done=g_pp[slot].late=g_pp[slot].stuck=0;
+@@ -23007,7 +23017,7 @@ static void rb_compute_ahead(NvShader *cs) {
+         RBComputeSlot *slot=&g_async_compute[i];
+         if (rb_compute_match(slot,cs,fc,fn)) { pthread_mutex_unlock(&g_async_compute_mu); return; }
+         if (slot->shader && !slot->done) busy++;
+-        if (!free_slot && (!slot->shader || (!bounded && slot->done && frame-slot->frame>3))) free_slot=slot;
++        if (!free_slot && (!slot->shader || (slot->done && frame-slot->frame>3))) free_slot=slot;
+     }
+     int observed=rb_observed_workers_on(), lease=0;
+     if (!free_slot || busy>=RB_COMPUTE_IN_FLIGHT || (!observed && !rb_spec_take(0,&lease))) {
+@@ -23015,6 +23025,7 @@ static void rb_compute_ahead(NvShader *cs) {
+     }
+     NSString *key=bounded ? nil : par_ckey(cs,fc);
+     if (!bounded && !key) { pthread_mutex_unlock(&g_async_compute_mu); rb_spec_done(&lease); return; }
++    __attribute__((objc_precise_lifetime)) id retired=free_slot->result; (void)retired;   // released at return, after the slot lock
+     rb_compute_clear(free_slot);
+     free_slot->shader=cs; free_slot->function=fn; free_slot->fc=fc; free_slot->frame=frame;
+     if (!bounded) pthread_mutex_unlock(&g_async_compute_mu);
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -868,7 +868,7 @@ static void rb_archive_note_before_index(NSString *key, id desc) {
+     pthread_mutex_unlock(&g_par_mu);
+     id copy = [desc copy];
+     dispatch_group_async(rb_archive_jobs(), rb_archive_io(), ^{ @autoreleasepool {
+-        if (par_open_dir() && g_par_on) par_note(key, copy);
++        if (!nvn_be_stopping() && par_open_dir() && g_par_on) par_note(key, copy);
+         pthread_mutex_lock(&g_par_mu); [rb_before_index_keys removeObject:key]; pthread_mutex_unlock(&g_par_mu);
+     }});
+ }
+diff --git a/graphics/nvn/gfx/nvn/rb_archive_preopen.inc b/graphics/nvn/gfx/nvn/rb_archive_preopen.inc
+--- a/graphics/nvn/gfx/nvn/rb_archive_preopen.inc
++++ b/graphics/nvn/gfx/nvn/rb_archive_preopen.inc
+@@ -67,7 +67,7 @@ static id<MTLBinaryArchive> rb_archive_fetch(NSString *key, enum rb_archive_sour
+             [rb_open_pending addObject:cache];
+             atomic_fetch_add_explicit(&rb_cold_submit, 1, memory_order_relaxed);
+             dispatch_group_async(rb_archive_jobs(), rb_archive_io(), ^{ @autoreleasepool {
+-                rb_archive_fetch(key, source, NO);
++                if (!nvn_be_stopping()) rb_archive_fetch(key, source, NO);
+                 pthread_mutex_lock(&g_par_mu);
+                 [rb_open_pending removeObject:cache];
+                 pthread_mutex_unlock(&g_par_mu);
+@@ -128,7 +128,7 @@ static void rb_archive_preopen_start(void) {
+         NSArray *keys = seeds.array;
+         NSUInteger count = 0;
+         for (id key in keys) {
+-            if (++count > RB_STARTUP_KEYS || !RB_PAR_PREOPEN_ROOM()) break;
++            if (++count > RB_STARTUP_KEYS || !RB_PAR_PREOPEN_ROOM() || nvn_be_stopping()) break;
+             if (!rb_archive_key(key)) continue;
+             for (enum rb_archive_source src = RB_BUNDLE; src <= RB_LEGACY; ++src)
+                 if (rb_archive_fetch(key, src, NO)) { atomic_fetch_add(&rb_preopened, 1); break; }
+diff --git a/graphics/nvn/gfx/nvn/rb_guest_range.inc b/graphics/nvn/gfx/nvn/rb_guest_range.inc
+--- a/graphics/nvn/gfx/nvn/rb_guest_range.inc
++++ b/graphics/nvn/gfx/nvn/rb_guest_range.inc
+@@ -66,7 +66,8 @@ void nvn_be_guest_range_hint(rb_guest_hint h) {
+ }
+ static void rb_range_mark(dispatch_group_t closing) {
+     pthread_mutex_lock(&rb_ranges_lock);
+-    if (rb_ranges_queue) dispatch_group_async(closing,rb_ranges_queue,^{});
++    // The page queue also runs texture page jobs: drain it even without a range hint.
++    dispatch_group_async(closing,rb_guest_page_queue(),^{});
+     pthread_mutex_unlock(&rb_ranges_lock);
+ }
+ static void rb_range_reset(void) {
+diff --git a/graphics/nvn/gfx/nvn/rb_spec_gate.h b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+--- a/graphics/nvn/gfx/nvn/rb_spec_gate.h
++++ b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+@@ -42,9 +42,9 @@ static inline int rb_spec_tier(int why) {
+ static inline int rb_spec_thermal_tier(int reason, int thermal, int strict) {
+     return strict && thermal >= 1 ? RB_SPEC_HOLD : rb_spec_tier(reason);
+ }
+-// The background hot tier can run under either startup floor. Synchronous
+-// foreground preparation and its strict archive proof can use only the
+-// nominal floor; they retain the existing Fair/Serious admission policy.
++// The synchronous foreground preparation (the first submission waits for it)
++// uses worker 0 under either startup floor. The optional background hot tier
++// uses it only under the Fair floor, never to grow memory past the Metal room.
+ enum { RB_FLOOR_NONE, RB_FLOOR_HOT_TIER, RB_FLOOR_NOMINAL };
+ enum { RB_LEASE_OPTIONAL, RB_LEASE_HOT_TIER, RB_LEASE_FOREGROUND };
+ static inline int rb_spec_nominal_startup(int thermal, uint64_t available) {
+@@ -100,8 +100,8 @@ static inline int rb_spec_admit_startup(rb_spec_gate *gate, int worker, int star
+     int level = atomic_load(&gate->level);
+     unsigned limit = gate->limit;
+     if (startup == RB_LEASE_HOT_TIER && level == RB_SPEC_RUN && limit == 2) limit = 4;
+-    int eligible = startup == RB_LEASE_HOT_TIER ||
+-                   (startup == RB_LEASE_FOREGROUND && gate->startup_floor == RB_FLOOR_NOMINAL);
++    int eligible = startup == RB_LEASE_FOREGROUND ||
++                   (startup == RB_LEASE_HOT_TIER && gate->startup_floor == RB_FLOOR_HOT_TIER);
+     int floor = gate->startup_floor && eligible && worker == 0 && level == RB_SPEC_HOLD;
+     int granted = (floor || rb_spec_worker_allowed(level, worker)) && (level == RB_SPEC_RUN || !gate->active) &&
+                   (!limit || gate->active < limit);
+diff --git a/graphics/nvn/gfx/nvn/rb_stage_ring.inc b/graphics/nvn/gfx/nvn/rb_stage_ring.inc
+--- a/graphics/nvn/gfx/nvn/rb_stage_ring.inc
++++ b/graphics/nvn/gfx/nvn/rb_stage_ring.inc
+@@ -99,7 +99,9 @@ static id<MTLBuffer> rb_stage_take(size_t bytes,size_t *offset,int may_roll) {
+         }
+         // Backpressure at the memory ceiling only waits for one actual upload.
+         // The encoder thread can submit it even inside a geometry recording lane.
+-        if (slot<0 && oldest>=0 && may_roll) {
++        // With Metal room left, the caller's own staging buffer avoids waiting on
++        // an earlier frame's GPU work (the submit-thread stall patch 0082 removed).
++        if (slot<0 && oldest>=0 && may_roll && rb_metal_working_room()<plan.chunk) {
+             if (g_rb_started) rec_publish();
+             rb_stage_waits++; up_wait_zero(&rb_stage_busy[oldest]); slot=oldest;
+             if (rb_stage_buffers[slot].length>plan.chunk) return nil;
+diff --git a/runtime/src/rb_guest.c b/runtime/src/rb_guest.c
+--- a/runtime/src/rb_guest.c
++++ b/runtime/src/rb_guest.c
+@@ -100,8 +100,6 @@ __attribute__((visibility("default"), used)) int s2a_rb_guest_configure(const s2
+     if (why) return refuse(error, error_size, "launch context: %s", why);
+     // One hosted game per process. Keep user-facing switches available to the game's env.txt.
+     setenv("S2A_RB_DIRECT_GAME_ID", c->game_id, 1);
+-    // Hosted NVN can use bindless textures from the very first draw.
+-    setenv("DM_NVN_TBDR", "0", 1);
+     // Same reservation as S2Arm's constructor (vawin.c), now that main.npdm and the image pack are known; then the .NET GC limit,
+     //   which S2Arm's main sets right after the window (it reads the free low address space)
+     s2a_rb_guest_window_boot();

@@ -94,3 +94,20 @@ Pistes examinées et écartées :
 - `row.UTF8String + 2` est borné par `rb_pso_hot_read`, qui ne garde que des lignes `R\t` de 866 caractères.
 - `rb_device_allocated_bytes` enveloppe seulement `currentAllocatedSize`. Les lectures directes n’ont aucun effet sur le comportement.
 - La reprise d’une session ne rappelle pas le rappel de 0297.
+
+## Patch 0300 : incohérences de la vague 0270–0299
+
+Six relectures en lecture seule ont couvert les changements hors tests de 0270 à 0299 (`nvn_mtl.m` en trois parties, fichiers inclus, runtime, outils, ABI du pont). Chaque constat retenu a été vérifié dans le code avant correction.
+
+| Problème | Origine | Correction |
+| --- | --- | --- |
+| La préparation de référence obligatoire n'obtient aucun worker en Fair : la première soumission attend indéfiniment. C'est le motif du blocage 817 (« six workers garés, 0 sur 9 502 »). | 0291, 0295 | Le travail de premier plan prend le worker 0 sous tout plancher de démarrage. La file chaude facultative ne le prend que sous le plancher Fair, jamais sous pression Metal. |
+| Après un park/resume, l'index des archives ne se rouvre plus à l'avance. | 0294, 0296 | Ouverture à chaque configuration de profondeur ; le device survit au park. |
+| Les ouvertures d'archives ignorent l'arrêt alors que la fermeture les attend (jusqu'à 10 s). | 0286 | Elles s'arrêtent avec la session. |
+| La file des pages de textures n'est vidée à l'arrêt que si une indication de plage a été postée. `g_treg` peut être libéré avec un job en vol. | 0289 | La file est toujours vidée. |
+| Une plage de vidage hors limites saute aussi la publication des textures. | 0289 | La publication reste inconditionnelle ; seule l'indication de préchargement est bornée. |
+| L'anneau d'upload attend le GPU de l'image précédente dès que ses tranches sont occupées, et pas seulement à la limite mémoire. C'est le blocage que 0082 avait retiré. | 0289 | L'attente est réservée au cas où la marge Metal ne permet plus une tranche. |
+| En lecture anticipée bornée, les prédictions de rendu et de compute terminées mais non prises ne sont jamais rendues : la lecture anticipée s'éteint au fil de la session. | 0285 | Les emplacements terminés sont réutilisés. L'objet Metal est relâché après le verrou. |
+| `DM_NVN_TBDR=0` forcé dans `configure` n'agit que sur le chemin d'effacement legacy quand MRT est coupé, et écrase `env.txt`. | 0296 | Retiré ; le comportement redevient celui de la 817. |
+
+Constats laissés en l'état, sans effet sur le comportement observé ou rares : l'appel par soumission de `rb_guest_heat_monitor` pour un titre non éligible, le verrou d'échantillonnage du mode strict, l'écart entre `present_itv` et `nvn_present_fps` sous maintien thermique, le cache disque des stages pour un titre NVN1 hébergé, l'anneau d'upload éteint par le quota en Fair, la marge Metal inconnue avant le premier échantillon, la taille des tas sparse, le bilan `[rb-look-budget]` et la relance du bind anticipé après un trylock refusé.
