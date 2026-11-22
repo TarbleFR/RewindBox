@@ -358,6 +358,10 @@
       {
         "commit": "70b6675a203255d1b9f546366197e34f4871939d",
         "note": "Pin the rebuilt MoltenVK with the nine-part recipe (run 45041051603)."
+      },
+      {
+        "commit": "9d66c099ff1e1c1b1235f6566962bff3e4aef688",
+        "note": "MoltenVK lazy-load bench: the load is timed on the referenced loads only (test file; nothing of it is built into the IPA)."
       }
     ],
     "sourceOnly": [],
