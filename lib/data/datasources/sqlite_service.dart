@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:async';
 
+import 'package:crypto/crypto.dart' show sha256;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart'; // Required for rootBundle
 import 'package:path/path.dart' as path; // Required for path operations
@@ -4815,10 +4816,31 @@ class SqliteService {
     return cores.map((e) => e.toMap()).toList();
   }
 
+  /// Bundled SQL seed of [refreshRetroAchievementsData].
+  static const String _raSeedAsset = 'assets/data/ra_insert.sql';
+
   /// Refreshes the local RetroAchievements game database from bundled SQL assets.
+  ///
+  /// The table is rebuilt only when it was not built from this exact seed:
+  /// a SHA-256 of the bundled file (computed off the UI isolate) and the row
+  /// count it produced are kept in `app_seed_fingerprints`. Rebuilding it at
+  /// every launch parsed 6 MB of SQL and ran 17,819 inserts on the UI
+  /// isolate (the database is synchronous FFI) for an identical result. A new
+  /// seed (an app update), a missing marker, or a table whose row count no
+  /// longer matches rebuilds it exactly as before.
   Future<void> refreshRetroAchievementsData() async {
     try {
       final db = await database;
+      final seed = (await rootBundle.load(_raSeedAsset)).buffer.asUint8List();
+      final seedHash = await compute(_sha256Hex, seed);
+      final current = await _raGameCount(db);
+      final stored = await _seedFingerprint(db, 'ra_insert');
+      if (current > 0 && stored == '$seedHash:$current') {
+        _log.i(
+          'RetroAchievements database already current ($current games): refresh skipped',
+        );
+        return;
+      }
       await db.transaction((txn) async {
         _log.i('Refreshing local RetroAchievements game database...');
 
@@ -4826,12 +4848,13 @@ class SqliteService {
         await txn.execute('DELETE FROM app_ra_game_list');
 
         // Batch insert data from the SQL seed file.
-        await _executeSqlFileOptimized(
-          txn,
-          'assets/data/ra_insert.sql',
-          'ra_insert',
-        );
+        await _executeSqlFileOptimized(txn, _raSeedAsset, 'ra_insert');
       });
+      await _saveSeedFingerprint(
+        db,
+        'ra_insert',
+        '$seedHash:${await _raGameCount(db)}',
+      );
       _log.i('RetroAchievements database synchronized successfully.');
     } catch (e, stackTrace) {
       _log.e(
@@ -4842,4 +4865,43 @@ class SqliteService {
       // Non-critical: allow initialization to proceed even if this sync fails.
     }
   }
+
+  static Future<int> _raGameCount(DatabaseAdapter db) async {
+    final rows = await db.rawQuery('SELECT COUNT(*) AS n FROM app_ra_game_list');
+    return rows.isEmpty ? 0 : (rows.first['n'] as int? ?? 0);
+  }
+
+  /// Fingerprint of the bundled data last written into a table of this
+  /// database, by name; null when none was recorded. Kept in the database
+  /// itself, so a restored or moved database carries its own record.
+  static Future<String?> _seedFingerprint(
+    DatabaseAdapter db,
+    String name,
+  ) async {
+    await db.execute(_seedFingerprintTable);
+    final rows = await db.rawQuery(
+      'SELECT fingerprint FROM app_seed_fingerprints WHERE name = ?',
+      [name],
+    );
+    return rows.isEmpty ? null : rows.first['fingerprint']?.toString();
+  }
+
+  static Future<void> _saveSeedFingerprint(
+    DatabaseAdapter db,
+    String name,
+    String fingerprint,
+  ) async {
+    await db.execute(_seedFingerprintTable);
+    await db.rawInsert(
+      'INSERT OR REPLACE INTO app_seed_fingerprints (name, fingerprint) VALUES (?, ?)',
+      [name, fingerprint],
+    );
+  }
+
+  static const String _seedFingerprintTable =
+      'CREATE TABLE IF NOT EXISTS app_seed_fingerprints '
+      '(name TEXT PRIMARY KEY, fingerprint TEXT NOT NULL)';
 }
+
+/// SHA-256 of [bytes] in hexadecimal; run through `compute`, off the UI isolate.
+String _sha256Hex(Uint8List bytes) => sha256.convert(bytes).toString();
