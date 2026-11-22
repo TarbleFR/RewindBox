@@ -304,7 +304,9 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'loh-compaction-request': 'delivered', 'guest-break-context': 'delivered', 'kernel-wait-lifetime-final': 'delivered',
             # After IPA 771: the shader cache load keeps no host code of cached programs.
             'shader-load-binary-release': 'delivered', 'streaming-memory': 'delivered',
-            'nextendo-data': 'delivered', 'buffer-mirror-windows': 'delivered', 'cheat-report': 'delivered'}
+            'nextendo-data': 'delivered', 'buffer-mirror-windows': 'delivered', 'cheat-report': 'delivered',
+            # After IPA 820: a close cancels the queued compiles at the guest's stop; the loading thread's release keeps no session.
+            'guest-stop-compile-cancel': 'delivered', 'deferred-release-roots': 'delivered'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
 # Core 654: the collector (DIAGNOSTICS) is a reviewed change again, its gcEvent lines bound by the gc-events gate.
 CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES) |
@@ -919,7 +921,10 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_hogwarts_frame_budget.py',
                                                      'build-utils/melonx/adapt_fifo_channel_retirement.py',
                                                      'build-utils/melonx/adapt_hogwarts_steady_render.py',
-                                                     'build-utils/melonx/adapt_hogwarts_pipeline_replay.py'} and
+                                                     'build-utils/melonx/adapt_hogwarts_pipeline_replay.py',
+                                                     # After IPA 820: the close and the session retention.
+                                                     'build-utils/melonx/adapt_guest_stop_compile_cancel.py',
+                                                     'build-utils/melonx/adapt_deferred_release_roots.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -993,7 +998,7 @@ if not args.helpers_only:
     # After IPA 767: adapt_loh_compaction_request.py and adapt_guest_break_context.py join them (262); Switch.cs and
     # Syscall.cs are members already (228).
     # After IPA 771: adapt_shader_load_binary_release.py joins them (263); its two disk cache files are members already.
-    check(len(frozen['preparationInputs']) == 280 and len(frozen['preparedMembers']) == 245, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 282 and len(frozen['preparedMembers']) == 245, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

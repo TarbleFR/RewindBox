@@ -695,26 +695,48 @@ index 7eae64c..0ef8772 100644
  
  
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
-index c5b7499..eb342c1 100644
+index c5b7499..d9ff7da 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
-@@ -23,6 +23,7 @@
+@@ -23,7 +23,9 @@
  #include "MVKCodec.h"
  #include "MVKSmallVector.h"
  #include <MoltenVKShaderConverter/SPIRVToMSLConverter.h>
 +#include <MoltenVKShaderConverter/SPIRVReflection.h>
  #include <mutex>
++#include <atomic>
  
  #import <Metal/Metal.h>
-@@ -154,6 +155,7 @@ protected:
+ 
+@@ -122,7 +124,8 @@ public:
+ 	MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
+ 					 const mvk::SPIRVToMSLConversionResultInfo& resultInfo,
+ 					 const MVKCompressor<std::string> compressedMSL,
+-					 const std::vector<std::pair<uint32_t, MVKShaderMacroValue>>* specializationMacroDef = nullptr);
++					 const std::vector<std::pair<uint32_t, MVKShaderMacroValue>>* specializationMacroDef = nullptr,
++					 bool deferCompile = false);	// RewindBox: compiled at its first use (a library read from cache data)
+ 
+ 	MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
+ 					 const void* mslCompiledCodeData,
+@@ -149,11 +152,17 @@ protected:
+ 	void compressMSL(const std::string& msl);
+ 	void decompressMSL(std::string& msl);
+ 	MVKCompressor<std::string>& getCompressedMSL() { return _compressedMSL; }
++	void ensureCompiled();	// RewindBox: compiles a library whose compilation was deferred; any thread
+ 
+ 	MVKVulkanAPIDeviceObject* _owner;
  	id<MTLLibrary> _mtlLibrary;
  	MVKCompressor<std::string> _compressedMSL;
  	mvk::SPIRVToMSLConversionResultInfo _shaderConversionResultInfo;
 +	size_t _pipelineCacheEntrySize = 0;	// RewindBox: serialized size of this library's pipeline cache entry, 0 until counted
++	// RewindBox lazy cache libraries: the Metal library is not compiled yet (_mtlLibrary is nil until the first use);
++	// _compileLock serializes that compilation and a copy taken while it runs.
++	mutable std::mutex _compileLock;
++	std::atomic<bool> _compilePending{false};
  
  	/** When true, representing a library created with source, but never specialized */
  	bool _maySpecializeWithMacro;
-@@ -257,8 +259,20 @@ public:
+@@ -257,8 +266,20 @@ public:
  	bool convert(mvk::SPIRVToMSLConversionConfiguration* pShaderConfig,
                 mvk::SPIRVToMSLConversionResult& conversionResult);
  
@@ -737,7 +759,7 @@ index c5b7499..eb342c1 100644
  
      /** Sets the number of threads in a single compute kernel workgroup, per dimension. */
      void setWorkgroupSize(uint32_t x, uint32_t y, uint32_t z);
-@@ -274,9 +288,24 @@ protected:
+@@ -274,9 +295,24 @@ protected:
  	friend MVKShaderCacheIterator;
  
  	void propagateDebugName() override {}
@@ -764,7 +786,7 @@ index c5b7499..eb342c1 100644
  	MVKShaderModuleKey _key;
      std::mutex _accessLock;
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
-index 3aa44a4..28b84b1 100644
+index 3aa44a4..52efed3 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
 @@ -20,6 +20,11 @@
@@ -779,7 +801,126 @@ index 3aa44a4..28b84b1 100644
  
  using namespace std;
  using namespace mvk;
-@@ -357,11 +362,28 @@ MVKShaderLibrary* MVKShaderLibraryCache::findShaderLibrary(SPIRVToMSLConversionC
+@@ -73,6 +78,8 @@ MVKMTLFunction MVKShaderLibrary::getMTLFunction(const VkSpecializationInfo* pSpe
+ 												VkPipelineCreationFeedback* pShaderFeedback,
+ 												MVKShaderModule* shaderModule) {
+ 
++	ensureCompiled();	// RewindBox lazy cache libraries: a library read from cache data is compiled here, once
++
+ 	if ( !_mtlLibrary ) { return MVKMTLFunctionNull; }
+ 
+ 	id<MTLLibrary> lib = _mtlLibrary;
+@@ -213,18 +220,73 @@ MVKShaderLibrary::MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
+ MVKShaderLibrary::MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
+ 								   const SPIRVToMSLConversionResultInfo& resultInfo,
+ 								   const MVKCompressor<std::string> compressedMSL,
+-								   const vector<pair<uint32_t, MVKShaderMacroValue> >* specializationMacroDef) :
++								   const vector<pair<uint32_t, MVKShaderMacroValue> >* specializationMacroDef,
++								   bool deferCompile) :
+ 	MVKBaseDeviceObject(owner->getDevice()),
+ 	_owner(owner),
++	_mtlLibrary(nil),
+ 	_maySpecializeWithMacro(specializationMacroDef == nullptr) {
+ 
+ 	_shaderConversionResultInfo = resultInfo;
+ 	_compressedMSL = compressedMSL;
++	if (deferCompile && !specializationMacroDef) {
++		// RewindBox lazy cache libraries: nothing is decompressed or compiled until a pipeline asks for a function.
++		_compilePending.store(true, memory_order_release);
++		return;
++	}
+ 	string msl;
+ 	decompressMSL(msl);
+ 	compileLibrary(msl, specializationMacroDef);
+ }
+ 
++// RewindBox: MVKPipelineCache::readData() compiled every shader library of the data with Metal's compiler while the
++// cache was being created: one newLibraryWithSource per library, thousands for a game, before the cache could serve a
++// single lookup. IPA 816-820 (22 Nov 2026): the load of the main snapshot of Super Smash Bros. Ultimate and of Hogwarts
++// Legacy never completed within a session (49 to 169 s seen, the loading thread still inside the driver), where it took
++// 2.3 s and 1.3 s on IPA 786 with Metal's own library cache warm; the engine's workers then converted and compiled again
++// 89 to 98 % of the pipelines the snapshot held, and the load's compilations (31 to 52 % of those of the session) went
++// through the same compiler as the ones a draw waited for. A library read from cache data now keeps its compressed MSL
++// and is compiled the first time a pipeline asks it for a function (getMTLFunction), on that thread, once
++// (_compileLock); a library no pipeline uses in the session is never compiled. A compilation that produces no library
++// (Metal's compiler failed or timed out) leaves the library pending: the pipeline being created fails as it does when
++// a compilation fails, and the next use tries again. The data read and written, the keys and the lookups are unchanged.
++// MVK_CONFIG_REWINDBOX_EAGER_CACHE_LIBRARIES in the environment compiles at load as before (the control of the
++// benches; nothing sets it in the app).
++__attribute__((used)) static const char kRewindBoxLazyCacheLibraries[] =
++	"RewindBox lazy cache libraries: a library read from cache data is compiled at its first use, not at load";
++
++static std::atomic<uint64_t> rewindBoxLazyCompiles{0};
++static std::atomic<uint64_t> rewindBoxLazyCompileNanos{0};
++static std::atomic<uint64_t> rewindBoxLazyCompileFailures{0};
++
++void MVKShaderLibrary::ensureCompiled() {
++	if ( !_compilePending.load(memory_order_acquire) ) { return; }
++
++	lock_guard<mutex> lock(_compileLock);
++	if ( !_compilePending.load(memory_order_relaxed) ) { return; }
++
++	uint64_t startTime = mvkGetTimestamp();
++	string msl;
++	decompressMSL(msl);
++	compileLibrary(msl);
++	uint64_t nanos = mvkGetElapsedNanoseconds(startTime);
++
++	if (_mtlLibrary) {
++		_compilePending.store(false, memory_order_release);
++	} else {
++		rewindBoxLazyCompileFailures.fetch_add(1, memory_order_relaxed);
++	}
++
++	// One line every 256 compilations: how many libraries of cache data the session has used, and at what cost.
++	uint64_t total = rewindBoxLazyCompileNanos.fetch_add(nanos, memory_order_relaxed) + nanos;
++	uint64_t count = rewindBoxLazyCompiles.fetch_add(1, memory_order_relaxed) + 1;
++	if ((count & 255) == 0 || count == 1) {
++		MVKLogInfo("RewindBox lazy cache libraries: %llu compiled at first use in %llu ms (process totals), %llu without a library",
++				   (unsigned long long)count, (unsigned long long)(total / 1000000),
++				   (unsigned long long)rewindBoxLazyCompileFailures.load(memory_order_relaxed));
++	}
++}
++
+ void MVKShaderLibrary::compileLibrary(const string& msl,
+ 									  const vector<pair<uint32_t, MVKShaderMacroValue> >* specializationMacroDef) {
+ 	MVKShaderLibraryCompiler* slc = new MVKShaderLibraryCompiler(_owner);
+@@ -273,16 +335,33 @@ MVKShaderLibrary::MVKShaderLibrary(const MVKShaderLibrary& other) :
+ 	_maySpecializeWithMacro(other._maySpecializeWithMacro),
+ 	_specializationVariants(other._specializationVariants) {
+ 
+-	_mtlLibrary = [other._mtlLibrary retain];
++	// RewindBox lazy cache libraries: a copy (a merge into another cache) of a library not compiled yet is pending
++	// too and compiles on its own; one taken while the other compiles does not wait for it.
++	if (other._compilePending.load(memory_order_acquire)) {
++		unique_lock<mutex> lock(other._compileLock, try_to_lock);
++		if (lock.owns_lock()) {
++			_mtlLibrary = [other._mtlLibrary retain];
++			_compilePending.store(other._compilePending.load(memory_order_relaxed), memory_order_release);
++		} else {
++			_mtlLibrary = nil;
++			_compilePending.store(true, memory_order_release);
++		}
++	} else {
++		_mtlLibrary = [other._mtlLibrary retain];
++	}
+ 	_shaderConversionResultInfo = other._shaderConversionResultInfo;
+ 	_compressedMSL = other._compressedMSL;
+ }
+ 
+ MVKShaderLibrary& MVKShaderLibrary::operator=(const MVKShaderLibrary& other) {
++	if (this == &other) { return *this; }
++	// RewindBox lazy cache libraries: as the copy constructor; neither library is in use by a pipeline here.
++	lock_guard<mutex> lock(other._compileLock);
+ 	if (_mtlLibrary != other._mtlLibrary) {
+ 		[_mtlLibrary release];
+ 		_mtlLibrary = [other._mtlLibrary retain];
+ 	}
++	_compilePending.store(other._compilePending.load(memory_order_relaxed), memory_order_release);
+ 	_owner = other._owner;
+ 	_shaderConversionResultInfo = other._shaderConversionResultInfo;
+ 	_compressedMSL = other._compressedMSL;
+@@ -357,11 +436,28 @@ MVKShaderLibrary* MVKShaderLibraryCache::findShaderLibrary(SPIRVToMSLConversionC
  	return nullptr;
  }
  
@@ -809,16 +950,20 @@ index 3aa44a4..28b84b1 100644
  	return shLib;
  }
  
-@@ -370,7 +392,7 @@ MVKShaderLibrary* MVKShaderLibraryCache::addShaderLibrary(const SPIRVToMSLConver
+@@ -369,8 +465,10 @@ MVKShaderLibrary* MVKShaderLibraryCache::addShaderLibrary(const SPIRVToMSLConver
+ MVKShaderLibrary* MVKShaderLibraryCache::addShaderLibrary(const SPIRVToMSLConversionConfiguration* pShaderConfig,
  														  const SPIRVToMSLConversionResultInfo& resultInfo,
  														  const MVKCompressor<std::string> compressedMSL) {
- 	MVKShaderLibrary* shLib = new MVKShaderLibrary(_owner, resultInfo, compressedMSL);
+-	MVKShaderLibrary* shLib = new MVKShaderLibrary(_owner, resultInfo, compressedMSL);
 -	_shaderLibraries.emplace_back(*pShaderConfig, shLib);
++	// RewindBox lazy cache libraries: read from cache data, compiled at its first use.
++	static const bool eager = getenv("MVK_CONFIG_REWINDBOX_EAGER_CACHE_LIBRARIES") != nullptr;
++	MVKShaderLibrary* shLib = new MVKShaderLibrary(_owner, resultInfo, compressedMSL, nullptr, !eager);
 +	_shaderLibraries.emplace_back(rewindBoxCacheKey(*pShaderConfig), shLib);
  	return shLib;
  }
  
-@@ -379,7 +401,7 @@ void MVKShaderLibraryCache::merge(MVKShaderLibraryCache* other) {
+@@ -379,7 +477,7 @@ void MVKShaderLibraryCache::merge(MVKShaderLibraryCache* other) {
  	if ( !other ) { return; }
  	for (auto& otherPair : other->_shaderLibraries) {
  		if ( !findShaderLibrary(&otherPair.first) ) {
@@ -827,7 +972,7 @@ index 3aa44a4..28b84b1 100644
  			_shaderLibraries.back().second->_owner = _owner;
  		}
  	}
-@@ -393,6 +415,177 @@ MVKShaderLibraryCache::~MVKShaderLibraryCache() {
+@@ -393,6 +491,177 @@ MVKShaderLibraryCache::~MVKShaderLibraryCache() {
  #pragma mark -
  #pragma mark MVKShaderModule
  
@@ -1005,7 +1150,7 @@ index 3aa44a4..28b84b1 100644
  MVKMTLFunction MVKShaderModule::getMTLFunction(SPIRVToMSLConversionConfiguration* pShaderConfig,
  											   const VkSpecializationInfo* pSpecializationInfo,
  											   MVKPipeline* pipeline,
-@@ -421,8 +614,12 @@ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
+@@ -421,8 +690,12 @@ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
  	bool shouldLogCode = mvkCfg.debugMode;
  	bool shouldLogEstimatedGLSL = shouldLogCode && mvkCfg.shaderLogEstimatedGLSL;
  
@@ -1019,7 +1164,7 @@ index 3aa44a4..28b84b1 100644
  	addPerformanceInterval(getPerformanceStats().shaderCompilation.spirvToMSL, startTime);
  
  	const char* dumpDir = getMVKConfig().shaderDumpDir;
-@@ -444,7 +641,7 @@ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
+@@ -444,7 +717,7 @@ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
  		snprintf(path, sizeof(path), "%s/shader%s-%016zx.spv", dumpDir, type, _key.codeHash);
  		FILE* file = fopen(path, "wb");
  		if (file) {
@@ -1028,7 +1173,7 @@ index 3aa44a4..28b84b1 100644
  			fclose(file);
  		}
  		snprintf(path, sizeof(path), "%s/shader%s-%016zx.metal", dumpDir, type, _key.codeHash);
-@@ -504,7 +701,7 @@ MVKShaderModule::MVKShaderModule(MVKDevice* device,
+@@ -504,7 +777,7 @@ MVKShaderModule::MVKShaderModule(MVKDevice* device,
  			codeHash = mvkHash(pCreateInfo->pCode, spvCount);
  			addPerformanceInterval(getPerformanceStats().shaderCompilation.hashShaderCode, startTime);
  

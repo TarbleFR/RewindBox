@@ -29,6 +29,13 @@ CANDIDATE = ROOT / 'build-utils/melonx/moltenvk/rewindbox-moltenvk.patch'
 # from the tree. What stays: mergeload-* (RewindBox's flow: a staging cache from the mapping, merged into an empty main,
 # destroyed), where a copied load held the compressed MSL twice (+123.9 MiB at the load against +77.7 direct, +33.6
 # referenced), and the recipe's fourth part, one info line per loaded cache, checked for every mode.
+# 22 Nov, recipe's ninth part (lazy cache libraries): a library read from cache data is compiled at its first use, once,
+# and kept (the rejected candidate above compiled one MTLLibrary per function retrieval and kept none). IPA 816-820: the
+# load of a game's main snapshot, which compiled every library, no longer completed within a session. Every mode runs as
+# shipped (lazy) and once more with MVK_CONFIG_REWINDBOX_EAGER_CACHE_LIBRARIES (the control: compiled at the load, as
+# before). Required: lazy compiles nothing at the load beyond MoltenVK's own library, never more libraries than the
+# control over the whole run, finds every pipeline, converts nothing from SPIR-V again and writes the same bytes; its
+# load is at least four times shorter than the control's.
 OUT = ROOT / 'dist/melonx-mapped-cache'
 WORK = ROOT / '.mapped-cache'
 SHADERS = ROOT / 'test/melonx_metal_binary_archive/shaders.spvz'
@@ -72,11 +79,13 @@ def main():
     results = {}
     expected_line = {'copy': 'compressed MSL copied; pNext types none.',
                      'reference': "compressed MSL referenced in the caller's data; pNext types 0x52425831."}
-    for strategy in ('mapsave', 'mapload-copy', 'mapload-reference', 'mergeload-copy', 'mergeload-reference',
-                     'mapload-copy', 'mapload-reference', 'mergeload-copy', 'mergeload-reference'):
-        output = OUT / (strategy + '.json' if strategy == 'mapsave' else f'{strategy}-{len([k for k in results if k.startswith(strategy)])}.json')
+    loads = ('mapload-copy', 'mapload-reference', 'mergeload-copy', 'mergeload-reference')
+    for strategy, eager in [('mapsave', False)] + [(s, False) for s in loads] + [(s, True) for s in loads] + [(s, False) for s in loads]:
+        name = strategy + ('-eager' if eager else '')
+        output = OUT / (strategy + '.json' if strategy == 'mapsave' else f'{name}-{len([k for k in results if k.rsplit("-", 1)[0] == name])}.json')
         run = subprocess.run([str(binary), str(SHADERS), str(salt), str(output), strategy],
-                             capture_output=True, text=True, timeout=3600, env=environment)
+                             capture_output=True, text=True, timeout=3600,
+                             env=dict(environment, MVK_CONFIG_REWINDBOX_EAGER_CACHE_LIBRARIES='1') if eager else environment)
         if run.returncode:
             print(run.stdout[-3000:], run.stderr[-3000:], flush=True)
             raise SystemExit(f'{strategy}: exit {run.returncode}')
@@ -100,11 +109,19 @@ def main():
             assert r['dataHash'] == results[k.split('-')[0] + '-copy-0']['dataHash'], f'{k}: every mode loading the same file writes the same bytes'
         # MoltenVK compiles one library of its own when the device is created (run 42925818096: 963 compilations for
         # the 962 libraries of a load).
-        if k != 'mapsave':
-            assert r['mvkMslCompileAtLoad'] >= 962 and r['mvkMslCompile']['count'] == r['mvkMslCompileAtLoad'], f'{k}: compiled at the load only'
+        if k != 'mapsave' and '-eager-' in k:
+            assert r['mvkMslCompileAtLoad'] >= 962 and r['mvkMslCompile']['count'] == r['mvkMslCompileAtLoad'], f'{k}: the control compiles at the load only'
+        elif k != 'mapsave':
+            control = results[k.rsplit('-', 1)[0] + '-eager-0']
+            assert r['mvkMslCompileAtLoad'] <= 1, f'{k}: nothing of the data is compiled at the load'
+            assert 1 < r['mvkMslCompile']['count'] <= control['mvkMslCompile']['count'], f'{k}: each library used is compiled once, at its first use'
+            assert r['loadMs'] * 4 < control['loadMs'], f"{k}: the load no longer lasts as long as the compilations ({r['loadMs']} against {control['loadMs']} ms)"
     modes = sorted({k.rsplit('-', 1)[0] for k in results if k != 'mapsave'})
     summary = {mode: {'atLoad': [round(r['footprintAfterCreateMiB'] - r['footprintBeforeMiB'], 1) for k, r in results.items() if k.rsplit('-', 1)[0] == mode],
                       'afterPipelines': [round(r['footprintAfterPipelinesMiB'] - r['footprintBeforeMiB'], 1) for k, r in results.items() if k.rsplit('-', 1)[0] == mode],
+                      'loadMs': [round(r['loadMs'], 1) for k, r in results.items() if k.rsplit('-', 1)[0] == mode],
+                      'mslCompiledAtLoad': [r['mvkMslCompileAtLoad'] for k, r in results.items() if k.rsplit('-', 1)[0] == mode],
+                      'mslCompiled': [r['mvkMslCompile']['count'] for k, r in results.items() if k.rsplit('-', 1)[0] == mode],
                       'pipelinesMs': [round(r['createMs']) for k, r in results.items() if k.rsplit('-', 1)[0] == mode],
                       'oneMorePipelineMs': [round(r['newVariantsMs'] / max(1, r['newVariants']), 2) for k, r in results.items() if k.rsplit('-', 1)[0] == mode]}
                for mode in modes}

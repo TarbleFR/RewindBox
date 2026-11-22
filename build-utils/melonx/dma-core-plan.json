@@ -164,7 +164,9 @@
   "build-utils/melonx/adapt_hogwarts_frame_budget.py",
   "build-utils/melonx/adapt_fifo_channel_retirement.py",
   "build-utils/melonx/adapt_hogwarts_steady_render.py",
-  "build-utils/melonx/adapt_hogwarts_pipeline_replay.py"
+  "build-utils/melonx/adapt_hogwarts_pipeline_replay.py",
+  "build-utils/melonx/adapt_guest_stop_compile_cancel.py",
+  "build-utils/melonx/adapt_deferred_release_roots.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -489,7 +491,11 @@
   "test/melonx_shader_load_binary_release/CacheStages.cs",
   "build-utils/melonx/adapt_fifo_channel_retirement.py",
   "build-utils/melonx/adapt_hogwarts_steady_render.py",
-  "build-utils/melonx/adapt_hogwarts_pipeline_replay.py"
+  "build-utils/melonx/adapt_hogwarts_pipeline_replay.py",
+  "test/melonx_guest_stop_compile_cancel/Double.cs",
+  "test/melonx_guest_stop_compile_cancel/Program.cs",
+  "test/melonx_deferred_release_roots/Double.cs",
+  "test/melonx_deferred_release_roots/Program.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -5419,6 +5425,57 @@
     "src/Ryujinx.Library/EmbeddedAddonSelection.cs",
     "src/Ryujinx.Library/EmbeddedNsz.cs",
     "src/Ryujinx.Library/GameInfo.cs"
+   ]
+  },
+  {
+   "name": "guest-stop-compile-cancel",
+   "script": "test/melonx_guest_stop_compile_cancel_test.py",
+   "report": "guest-stop-compile-cancel-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "physicalDeviceTested": false,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "productionLibraryBuilt": true,
+    "reports.candidate.compiledDuringDrain": 0,
+    "reports.candidate.modulesDuringDrain": 0,
+    "reports.control.compiledDuringDrain": 170
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs",
+    "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs",
+    "src/Ryujinx.Library/Window/WindowBase.cs"
+   ]
+  },
+  {
+   "name": "deferred-release-roots",
+   "script": "test/melonx_deferred_release_roots_test.py",
+   "report": "deferred-release-roots-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 1800,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "physicalDeviceTested": false,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "productionVulkanAssemblyBuilt": true,
+    "reports.candidate.sessionsAlive": 0,
+    "reports.control.sessionsAlive": 11
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs"
    ]
   }
  ]

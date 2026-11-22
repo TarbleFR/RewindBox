@@ -463,7 +463,7 @@ int main(int argc, char** argv) {
         VkPipelineCache cache = VK_NULL_HANDLE;
         void* mapped = nullptr;
         size_t mappedSize = 0;
-        double before = footprintMiB(), afterCreate = 0;
+        double before = footprintMiB(), afterCreate = 0, loadMs = 0;
         uint32_t compiledAtLoad = 0;
         if (save) {
             check(vkCreatePipelineCache(c.device, &cacheInfo, nullptr, &cache), "vkCreatePipelineCache save");
@@ -480,6 +480,7 @@ int main(int argc, char** argv) {
             loadInfo.initialDataSize = mappedSize;
             loadInfo.pInitialData = mapped;
             before = footprintMiB();
+            double loadStart = nowMs();
             if (viaMerge) {
                 VkPipelineCache staging = VK_NULL_HANDLE;
                 check(vkCreatePipelineCache(c.device, &cacheInfo, nullptr, &cache), "vkCreatePipelineCache main");
@@ -489,6 +490,7 @@ int main(int argc, char** argv) {
             } else {
                 check(vkCreatePipelineCache(c.device, &loadInfo, nullptr, &cache), "vkCreatePipelineCache load");
             }
+            loadMs = nowMs() - loadStart;
             afterCreate = footprintMiB();
 #ifdef __APPLE__
             MVKPerformanceStatistics atLoad{};
@@ -549,7 +551,7 @@ int main(int argc, char** argv) {
              << ", \"footprintAfterPipelinesMiB\": " << afterPipelines << ", \"createMs\": " << createMs
              << ", \"footprintAfterNewVariantsMiB\": " << afterAgain << ", \"newVariants\": " << (int)c.fragments.size()
              << ", \"newVariantsMissing\": " << againMissing << ", \"newVariantsMs\": " << againMs
-             << ", \"mvkMslCompileAtLoad\": " << compiledAtLoad
+             << ", \"mvkMslCompileAtLoad\": " << compiledAtLoad << ", \"loadMs\": " << loadMs
              << ", \"dataHash\": \"" << std::hex << fnv(1469598103934665603ull, data.data(), written) << std::dec << "\"";
 #ifdef __APPLE__
         MVKPerformanceStatistics statistics{};
