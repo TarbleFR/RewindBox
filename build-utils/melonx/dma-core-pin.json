@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "8988ced5014dd23caae2eefac70b3d37f5a5b7f0",
-  "run": 44753917742,
-  "job": 136348582464,
+  "source": "445896a07bc071c0999de80f490fd1f93a9fc0ff",
+  "run": 44983505128,
+  "job": 137088932701,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14638435340,
-  "name": "MeloNX-engine-8988ced5014dd23caae2eefac70b3d37f5a5b7f0",
-  "bytes": 101260810,
-  "sha256": "5e157016cfd9197b1e682383b81c2eb256beafd686ea66a6cee3b2266b32f048",
-  "expiresAt": "2027-02-18T14:29:19Z",
+  "artifact": 14738552854,
+  "name": "MeloNX-engine-445896a07bc071c0999de80f490fd1f93a9fc0ff",
+  "bytes": 101298153,
+  "sha256": "f07affac51b776e151558858f82023116227837c2a6e6e3090765de55eb43324",
+  "expiresAt": "2027-02-20T04:05:35Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "b1c4fa43f9738a9b95c91b334f0ab6579f51d54ac5f880727f399eac3fe4c14f",
-      "bytes": 39179320
+      "sha256": "4a97317f69fdf2e716b2659fc9047103d57d3e9e2800676808335d244684b42c",
+      "bytes": 39212168
     },
     "iossimulator-arm64": {
-      "sha256": "1aab9fd21cd94102f2b7e003c10fc90f022dcde33793b190833078ce33ab34e9",
-      "bytes": 39502040
+      "sha256": "83c84933c17cbaa29e99062dfed452f751f4c5c7794c103b408e62605b3981e8",
+      "bytes": 39535144
     }
   },
   "identities": {
-    "ios-arm64": "ef5033e62f84e6fb46f3a062bfe7abbb6fdff48f579c41fd65571607f17cc53d",
-    "iossimulator-arm64": "99a8e566701466f24f8f1f686dbed458b78279e4cdb493c5f08b71bcfd3fae37"
+    "ios-arm64": "46f48d7c3700c0f588a9728c8af5ffa118f4cff6862843c243c2a3e5f033623e",
+    "iossimulator-arm64": "29601467f999e7e96ae7f670810d55f2ed479ad17e13e77b75932b704241c254"
   },
-  "contractSha256": "bd3b429d1d08df8a8612220ea700d7f74b0f898125f2d040212479711df07638",
-  "resultSha256": "109143bbddc66c3055e2bd3e5809fdc55bb38ed720f7e10df6b7689328a9de28",
-  "packagedFingerprint": "1fc7f4af847f17394ab43c19b230400251288db38c9e76def77efa51f16a843a",
+  "contractSha256": "8a36a7b409bd6eb9263ad451c3aa5267f3eb6bbc5d42271b9c2326a64a054390",
+  "resultSha256": "19feb485b753c621c35d32779c50f47d22b1e6eef35f9dada4d7924b425bd39e",
+  "packagedFingerprint": "8367f3d3c48ee62fbeeb9f26f3aed07c1fb6f55203fcf28d1f6958088e16a1a4",
   "replaces": {
-    "source": "bde1a21ccfab81be3db6aea4082ac8e0f8eeabd0",
-    "run": 44729801297,
-    "artifact": 14625314612,
-    "packagedFingerprint": "b442c28e806c3b54cde90de5257aa5a15337e3cd80291928f7cb26413cfed255",
-    "reason": "After IPA 801, SSBU online: the consented certificate rule reaches the secure server on port 60005, which the game names by the address the Smash login server returned (device journal: every attempt refused for hostname). Only that port of the session game address, only once the login server was reached; a chain to Nextendo roots is verified, the legacy private certificate needs the existing consent. Contract bd3b429d, build-smoke route. Not run on an iPhone; NEX login, NAT and matchmaking unproven."
+    "source": "8988ced5014dd23caae2eefac70b3d37f5a5b7f0",
+    "run": 44753917742,
+    "artifact": 14638435340,
+    "packagedFingerprint": "1fc7f4af847f17394ab43c19b230400251288db38c9e76def77efa51f16a843a",
+    "reason": "Hogwarts Legacy on iOS: enforce native page-table address bounds, avoid worker waits for the initial Vulkan pipeline cache, share concurrent pipeline creation, and reclaim idle temporary GPU resources under measured pressure. NativeAOT iOS and simulator verified; physical gameplay and memory peak remain unmeasured."
   }
 }
