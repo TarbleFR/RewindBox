@@ -794,7 +794,8 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
   // The engine bounds outstanding copies and retries failed writes.
   int shaderBytesProfile = setenv("S2A_RB_DSH_KEEP_MAPPED", "1", 0);
   int shaderQueueProfile = setenv("S2A_RB_SHADER_URGENT_UNIQUE", kartRender, 0);
-  int poolIndexProfile = setenv("S2A_RB_POOL_INDEX_UPDATE", kartRender, 0);
+  // The pool address index edit has no title in it (engine patches 0102 and 0304): every hosted game keeps it.
+  int poolIndexProfile = setenv("S2A_RB_POOL_INDEX_UPDATE", "1", 0);
   int textureViewsProfile = setenv("S2A_RB_TEX_FIT_FAST", kartRender, 0);
   int demandProbeProfile = setenv("S2A_RB_DEMAND_PROBE_BATCH", kartRender, 0);
   int audioReprimeProfile = setenv("S2A_RB_AUDIO_REPRIME", kartRender, 0);

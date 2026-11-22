@@ -1,0 +1,270 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 6d00ea7..d49b3e9 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -747,6 +747,20 @@ typedef struct { uintptr_t lo, hi; uintptr_t base; __unsafe_unretained id<MTLBuf
+ static pool_ent *g_pools; static int g_npool, g_cap;
+ static int g_pidx_ok, g_plast = -1;   // whether the address→pool index is valid, the last hit (pool_find)
+ static int g_rb_pidx_edit, g_rb_pidx_unique, g_rb_pidx_removed;
++static unsigned g_rb_pidx_streak;   // mutations since the last lookup validated the index
++static int *g_pidx; static int g_pidx_cap;
++#define RB_PIDX_LO(i) (g_pools[(i)].lo)
++#include "rb_pool_index.h"
++static int rb_pidx_on(void);
++static int rb_pidx_update(void);
++static void rb_pidx_note(int updated);
++// RewindBox (patch 0304): apply the edit the previous mutation left pending
++// before this one changes the table (rb_pool_index.h). Caller holds g_mu.
++static void rb_pidx_before_edit(void) {
++    if (rb_pidx_flush_allowed(g_pidx_ok, g_rb_pidx_edit, g_rb_pidx_streak, g_pidx_cap, g_npool) &&
++        rb_pidx_on() && rb_pidx_update()) { g_pidx_ok = 1; rb_pidx_note(1); }
++    g_rb_pidx_streak++;
++}
+ static NSMutableArray *g_keep;                  // Holds the buffer references (pool_ent has non-owning pointers)
+ static uint64_t g_pool_adds;
+ static int g_pool_res_n;   // registered pools already in the residency set (for the memory readout; under g_mu)
+@@ -1119,6 +1133,7 @@ static void nvn_be_pool_add_body(const void *mem, uint64_t size) {
+         MDIE("memory pool %p+%#llx: failed to create the zero-copy buffer over %#lx..%#lx", mem, (unsigned long long)size, (unsigned long)ha, (unsigned long)(ha + (b - a)));
+     }
+     pthread_mutex_lock(&g_mu);
++    rb_pidx_before_edit();
+     if (g_npool == g_cap) { int c = g_cap ? g_cap * 2 : 64;
+         if (!GROW(g_pools, (size_t)c * sizeof *g_pools, "memory pool table")) { pthread_mutex_unlock(&g_mu); MLOG("【红】 memory pool %p+%#llx not registered: its addresses resolve to nothing (draws using it are skipped)", mem, (unsigned long long)size); return; }
+         g_cap = c; }
+@@ -1135,6 +1150,7 @@ void nvn_be_pool_del(const void *mem) { @autoreleasepool { nvn_be_pool_del_body(
+ static void nvn_be_pool_del_body(const void *mem) {
+     g_reg_gen++;
+     pthread_mutex_lock(&g_mu);
++    rb_pidx_before_edit();   // before the last pool moves into the hole
+     // The no-copy buffer goes through deferred release (out of the residency set and unreferenced after submitted commands complete). It used to be removed only from g_keep while the residency set still held a strong reference: after the pool was freed the buffer stayed alive wrapping that guest memory,
+     // and a new pool at the same address wrapped it again. Engage's title demo cycles scenes; GPU allocated grew to 5.4 GB and resident memory to 3.6 GB in 850 s
+     for (int i = 0; i < g_npool; i++)
+@@ -1150,7 +1166,6 @@ static void nvn_be_pool_del_body(const void *mem) {
+ 
+ // Address → pool: the last hit first, then a binary search over indices sorted by start address, and a full linear scan only when that fails (pools overlapping).
+ // The Legend of Zelda: Breath of the Wild keeps about 1760 memory pools alive and every buffer binding of every draw looks one up; the old full scan took about 4% of the submit thread's samples (mtl_gpu_addr 222 / 6 s). Adding / removing pools invalidates the index, which is re-sorted when next used. Caller holds g_mu
+-static int *g_pidx; static int g_pidx_cap;
+ static int pidx_cmp(const void *a, const void *b) { uintptr_t x = g_pools[*(const int *)a].lo, y = g_pools[*(const int *)b].lo; return x < y ? -1 : x > y; }
+ // RewindBox (patch 0102): IPA 785 captured 11 pool_find and 7 pidx_cmp samples of
+ // 94 active samples on nx-83 in frames 610–727. A single mutation between lookups
+@@ -1165,27 +1180,7 @@ static int rb_pidx_update(void) {   // caller holds g_mu, capacity already check
+     int edit = g_rb_pidx_edit;
+     g_rb_pidx_edit = 0;
+     if (!edit) return 0;
+-    if (edit == 1) {
+-        int last = g_npool - 1, lo = 0, hi = last;
+-        uintptr_t address = g_pools[last].lo;
+-        while (lo < hi) {
+-            int mid = lo + (hi - lo) / 2;
+-            if (g_pools[g_pidx[mid]].lo < address) lo = mid + 1;
+-            else hi = mid;
+-        }
+-        if (lo < last && g_pools[g_pidx[lo]].lo == address) return 0;
+-        memmove(g_pidx + lo + 1, g_pidx + lo, (size_t)(last - lo) * sizeof *g_pidx);
+-        g_pidx[lo] = last;
+-        return 1;
+-    }
+-    int removed = g_rb_pidx_removed, at = -1;
+-    for (int i = 0; i <= g_npool; i++) {
+-        if (g_pidx[i] == removed) at = i;
+-        else if (g_pidx[i] == g_npool) g_pidx[i] = removed;   // previous last entry moved into the hole
+-    }
+-    if (at < 0) return 0;
+-    memmove(g_pidx + at, g_pidx + at + 1, (size_t)(g_npool - at) * sizeof *g_pidx);
+-    return 1;
++    return edit == 1 ? rb_pidx_insert(g_pidx, g_npool - 1) : rb_pidx_remove(g_pidx, g_npool, g_rb_pidx_removed);
+ }
+ static void rb_pidx_note(int updated) {   // independent of frame sampling
+     static uint64_t edits, sorts;
+@@ -1211,6 +1206,7 @@ static int pool_find(uint64_t addr, uint64_t len) {
+         if (enabled) rb_pidx_note(updated);
+         g_pidx_ok = 1;
+     }
++    g_rb_pidx_streak = 0;
+     int lo = 0, hi = g_npool - 1, hit = -1;   // the last one whose start ≤ addr
+     while (lo <= hi) { int m = (lo + hi) / 2; if (g_pools[g_pidx[m]].lo <= addr) { hit = m; lo = m + 1; } else hi = m - 1; }
+     if (hit >= 0 && addr + len <= g_pools[g_pidx[hit]].hi) return g_plast = g_pidx[hit];
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 4ace682..13ccfbe 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -207,7 +207,7 @@ int nvn_be_shutdown_session(void) {
+     [g_keep removeAllObjects]; g_dead_pools = nil;
+     free(g_pools); g_pools = NULL; g_npool = g_cap = g_pool_res_n = 0;
+     free(g_pidx); g_pidx = NULL; g_pidx_cap = g_pidx_ok = 0; g_plast = -1;
+-    g_rb_pidx_edit = g_rb_pidx_unique = 0;
++    g_rb_pidx_edit = g_rb_pidx_unique = 0; g_rb_pidx_streak = 0;
+     atomic_fetch_add(&g_pool_gen, 1); atomic_fetch_add(&g_reg_gen, 1); atomic_fetch_add(&g_ser_gen, 1);
+     // Keys for these caches include program/guest buffer identity. Reuse only
+     // the compiled shader cache (its keys are content hashes).
+diff --git a/graphics/nvn/gfx/nvn/rb_pool_index.h b/graphics/nvn/gfx/nvn/rb_pool_index.h
+new file mode 100644
+index 0000000..be331f7
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_pool_index.h
+@@ -0,0 +1,52 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++#include <stdint.h>
++#include <string.h>
++
++// Single edits of the pool address index: pool positions ordered by start
++// address. The includer defines RB_PIDX_LO(i), the start address of the pool
++// at position i, before this header. The pool table removes by moving its last
++// pool into the hole, so positions change as described at each function.
++
++// The pool at position `last` was appended: the table has last + 1 pools and
++// index[0..last) is sorted. Returns 0 and leaves the index as it was when
++// another pool starts at the same address: equal starts keep the full sort,
++// whose order among them the lookup's fallback scan does not depend on.
++static inline int rb_pidx_insert(int *index, int last) {
++    int lo = 0, hi = last;
++    uintptr_t address = RB_PIDX_LO(last);
++    while (lo < hi) {
++        int mid = lo + (hi - lo) / 2;
++        if (RB_PIDX_LO(index[mid]) < address) lo = mid + 1;
++        else hi = mid;
++    }
++    if (lo < last && RB_PIDX_LO(index[lo]) == address) return 0;
++    memmove(index + lo + 1, index + lo, (size_t)(last - lo) * sizeof *index);
++    index[lo] = last;
++    return 1;
++}
++
++// The pool at position `removed` was deleted and the pool that was at position
++// `count` (the last one) now stands there: the table has `count` pools and the
++// index still has count + 1 entries. Returns 0 when it does not hold `removed`.
++static inline int rb_pidx_remove(int *index, int count, int removed) {
++    int at = -1;
++    for (int i = 0; i <= count; i++) {
++        if (index[i] == removed) at = i;
++        else if (index[i] == count) index[i] = removed;   // the previous last pool moved into the hole
++    }
++    if (at < 0) return 0;
++    memmove(index + at, index + at + 1, (size_t)(count - at) * sizeof *index);
++    return 1;
++}
++
++// A second mutation before any lookup used to drop the pending edit, and the
++// next lookup sorted every pool again: a virtual run joined to its neighbour is
++// a removal and an addition, so it sorted each time. A mutation now applies the
++// pending edit first. A long burst with no lookup between (a scene being torn
++// down) stops doing so: one sort at the next lookup is cheaper than an O(n)
++// edit per mutation.
++enum { RB_PIDX_BURST = 32 };
++static inline int rb_pidx_flush_allowed(int valid, int pending, unsigned streak, int capacity, int pools) {
++    return !valid && pending && streak < RB_PIDX_BURST && capacity >= pools;
++}
+diff --git a/graphics/nvn/tests/t_rb_pool_index.c b/graphics/nvn/tests/t_rb_pool_index.c
+new file mode 100644
+index 0000000..5605522
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_pool_index.c
+@@ -0,0 +1,107 @@
++// SPDX-License-Identifier: Apache-2.0
++// Host-only checks of the single edits nvn_mtl.m applies to its pool address
++// index, replayed against a full sort after every step.
++#include <assert.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++enum { CAP = 512 };
++static uintptr_t starts[CAP];
++#define RB_PIDX_LO(i) (starts[(i)])
++#include "../gfx/nvn/rb_pool_index.h"
++
++static int count, idx[CAP], valid, pending, removed_at, unique = 1;
++static unsigned streak, sorts, edits;
++static uint64_t seed = 0x9e3779b97f4a7c15ull;
++static uint64_t next(void) { seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17; return seed; }
++static int by_start(const void *a, const void *b) {
++    uintptr_t x = starts[*(const int *)a], y = starts[*(const int *)b];
++    return x < y ? -1 : x > y;
++}
++static void expect_sorted(void) {
++    int ref[CAP];
++    for (int i = 0; i < count; i++) ref[i] = i;
++    qsort(ref, (size_t)count, sizeof *ref, by_start);
++    for (int i = 0; i < count; i++) assert(idx[i] == ref[i]);
++}
++// The renderer's sequence: a mutation first applies the pending edit, then
++// records its own; a lookup applies the pending edit or sorts.
++static int apply(void) {
++    int edit = pending; pending = 0;
++    if (!edit) return 0;
++    return edit == 1 ? rb_pidx_insert(idx, count - 1) : rb_pidx_remove(idx, count, removed_at);
++}
++static void before_edit(void) {
++    if (rb_pidx_flush_allowed(valid, pending, streak, CAP, count) && apply()) { valid = 1; edits++; }
++    streak++;
++}
++static void add(uintptr_t start) {
++    before_edit();
++    pending = valid && unique ? 1 : 0; valid = 0;
++    starts[count++] = start;
++}
++static void del(int at) {
++    before_edit();
++    starts[at] = starts[--count];
++    pending = valid && unique ? 2 : 0; removed_at = at; valid = 0;
++}
++static void lookup(void) {
++    if (!valid) {
++        if (apply()) edits++;
++        else {
++            for (int i = 0; i < count; i++) idx[i] = i;
++            qsort(idx, (size_t)count, sizeof *idx, by_start);
++            unique = 1;
++            for (int i = 1; unique && i < count; i++) if (starts[idx[i - 1]] == starts[idx[i]]) unique = 0;
++            sorts++;
++        }
++        valid = 1;
++    }
++    streak = 0;
++    if (unique) expect_sorted();
++}
++
++int main(void) {
++    // Direct edits: head, middle, tail, the last pool removed, the moved pool renumbered.
++    starts[0] = 40; starts[1] = 10; starts[2] = 30; idx[0] = 1; idx[1] = 2; idx[2] = 0; count = 3;
++    starts[3] = 20; count = 4; assert(rb_pidx_insert(idx, 3)); expect_sorted();
++    starts[4] = 5; count = 5; assert(rb_pidx_insert(idx, 4)); expect_sorted();
++    starts[5] = 50; count = 6; assert(rb_pidx_insert(idx, 5)); expect_sorted();
++    starts[6] = 30; int before[CAP]; memcpy(before, idx, sizeof before);
++    assert(!rb_pidx_insert(idx, 6) && !memcmp(before, idx, sizeof before));   // an equal start is left to the full sort
++    starts[1] = starts[--count]; assert(rb_pidx_remove(idx, count, 1)); expect_sorted();   // position 5 moved into 1
++    --count; assert(rb_pidx_remove(idx, count, count)); expect_sorted();                  // the last pool itself
++    assert(!rb_pidx_remove(idx, count, 77));
++    assert(rb_pidx_flush_allowed(0, 1, 0, CAP, 4) && rb_pidx_flush_allowed(0, 2, RB_PIDX_BURST - 1, 4, 4));
++    assert(!rb_pidx_flush_allowed(1, 1, 0, CAP, 4) && !rb_pidx_flush_allowed(0, 0, 0, CAP, 4));
++    assert(!rb_pidx_flush_allowed(0, 1, RB_PIDX_BURST, CAP, 4) && !rb_pidx_flush_allowed(0, 1, 0, 3, 4));
++
++    // A joined virtual run is a removal and an addition with no lookup between:
++    // 2000 of them, among single edits, cost no sort after the first build.
++    count = 0; valid = pending = 0; streak = 0; unique = 1;
++    for (int i = 0; i < 200; i++) add((uintptr_t)(next() >> 20) * 4096);
++    lookup();
++    unsigned built = sorts;
++    for (int step = 0; step < 2000; step++) {
++        del((int)(next() % (unsigned)count));
++        add((uintptr_t)(next() >> 20) * 4096);
++        if (next() & 1) { add((uintptr_t)(next() >> 20) * 4096); lookup(); del((int)(next() % (unsigned)count)); }
++        lookup();
++    }
++    assert(sorts == built && edits >= 4000);
++
++    // A teardown burst stops editing after RB_PIDX_BURST mutations and pays one sort.
++    unsigned edits_before = edits;
++    while (count > 60) del((int)(next() % (unsigned)count));
++    lookup();
++    assert(sorts == built + 1 && edits - edits_before == RB_PIDX_BURST - 1);
++
++    // Two pools with one start: every later mutation sorts until the tie is gone.
++    add(starts[0]); lookup(); assert(!unique && sorts == built + 2);
++    add(123456789); lookup(); assert(sorts == built + 3);
++    del(count - 2); lookup(); assert(unique && sorts == built + 4);
++    add(987654321); lookup(); assert(sorts == built + 4);
++    printf("PASS pool address index: %u single edits, %u sorts over bursts, joins, a teardown and an equal start\n", edits, sorts);
++    return 0;
++}

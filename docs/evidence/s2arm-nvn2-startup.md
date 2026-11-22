@@ -185,3 +185,27 @@ Ce qui ne change pas : le palier critique à 768 Mio de marge ou moins, l'averti
 
 Vérification. `t_rb_working_set.c` rejoue les valeurs des deux journaux (6265 Mio alloués, empreinte de 900 Mio : il reste la cible moins 900 Mio) et garde le cas saturé (empreinte au-dessus de la cible : aucune marge). `t_rb_gov_stress.c` vérifie que seule la compression active le plafond. Les deux passent sur l'hôte. Rien n'est mesuré sur iPhone : à observer, `tier=0` avec `prefetch=134217728 upload=134217728 texture=234881024` tant que la marge dépasse 2 Go et que la compression reste sous 512 Mio, et l'évolution de l'empreinte réelle.
 
+## Index d'adresses des pools : tris complets répétés
+
+Le moteur garde les pools mémoire triés par adresse pour retrouver celui d'une adresse invitée (`pool_find`). Le patch 0102 applique une modification isolée sans retrier. Relevés du journal, ligne « pool address index » :
+
+| Session Mario Kart World | Modifications isolées | Tris complets | Pools vivants |
+|---|---|---|---|
+| IPA 820 | 1 215 | 833 | 2 742 à l'image 300, environ 5 300 ensuite |
+| Session après la 821 | 1 239 | 809 | idem |
+
+Entre les images 826 et 907 de la seconde session, le moteur trie environ 1,8 fois par image. Chaque tri parcourt tous les pools sur le thread qui fait la recherche, le plus souvent celui de soumission, sous le verrou des pools.
+
+Cause. Une modification ne restait en attente que si l'index était valide. Une seconde modification avant toute recherche trouvait l'index invalide et abandonnait la première : la recherche suivante retriait tout. Un intervalle virtuel rattaché à son voisin est un retrait suivi d'un ajout, donc un tri à chaque fois.
+
+Patch 0304.
+
+- `rb_pool_index.h` porte les deux modifications (insertion du dernier pool, retrait avec déplacement du dernier) et la règle d'application.
+- Avant de modifier la table, `nvn_be_pool_add_body` et `nvn_be_pool_del_body` appliquent la modification laissée en attente par la précédente (`rb_pidx_before_edit`).
+- Au-delà de 32 modifications sans recherche (démontage d'une scène), le moteur cesse d'appliquer une à une et laisse un seul tri à la recherche suivante.
+- Deux pools qui commencent à la même adresse gardent le tri complet, comme avant.
+
+Pont. `S2A_RB_POOL_INDEX_UPDATE` valait `1` pour Mario Kart World et `0` pour tout autre titre, qui triait donc à chaque modification. Il vaut `1` pour tous.
+
+Vérification. `t_rb_pool_index.c` rejoue chaque modification contre un tri de référence : 2 000 rattachements mêlés à des modifications isolées sans aucun tri, un démontage (31 modifications appliquées puis un tri), et le cas de deux pools de même adresse. Il passe sur l'hôte avec gcc et clang. À observer sur iPhone : la part des « full sorts » dans la ligne du journal.
+
