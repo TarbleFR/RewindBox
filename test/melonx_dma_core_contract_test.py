@@ -304,7 +304,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'loh-compaction-request': 'delivered', 'guest-break-context': 'delivered', 'kernel-wait-lifetime-final': 'delivered',
             # After IPA 771: the shader cache load keeps no host code of cached programs.
             'shader-load-binary-release': 'delivered', 'streaming-memory': 'delivered',
-            'nextendo-data': 'delivered', 'buffer-mirror-windows': 'delivered', 'cheat-report': 'delivered'}
+            'nextendo-data': 'delivered', 'buffer-mirror-windows': 'delivered', 'cheat-report': 'delivered',
+            'native-guard-context': 'delivered', 'bounded-literal-memory': 'delivered'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
 # Core 654: the collector (DIAGNOSTICS) is a reviewed change again, its gcEvent lines bound by the gc-events gate.
 CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES) |
@@ -440,6 +441,9 @@ RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'pe
          # SyncManager.cs, which this core87 receipt declares; it is run again on the final sync manager against the delivered one.
          CORE87 + 'sync-allocation-checks.json'}
 # Production files that joined the prepared source with this increment (unadapted in the delivered Core).
+PAST_GUARD = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/'
+RERUN.update({PAST_GUARD + 'guard-context-checks.json',
+              PAST_GUARD + 'historical-1630/reused-literal/literal-memory-checks.json'})
 JOINED = {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
           # Core 639 (adapt_pipeline_warmup_parity): pinned upstream members that join the prepared source.
           'src/Ryujinx.Graphics.GAL/ProgramPipelineState.cs', 'src/Ryujinx.Graphics.Gpu/Shader/DiskCache/BinarySerializer.cs',
@@ -751,8 +755,14 @@ if not args.helpers_only:
                     'src/Ryujinx.Graphics.Vulkan/BufferManager.cs'})
     from adapt_fifo_channel_retirement import CHANNEL, MEMORY, NV_CHANNEL, PROCESSOR
     from adapt_hogwarts_steady_render import TEXTURE as THREADED_TEXTURE
+    from adapt_native_page_bounds import BASELINE as NATIVE_PAGE_BOUNDS
+    from adapt_transient_pressure import BASELINE as TRANSIENT_PRESSURE
+    from adapt_pipeline_creation_flights import BASELINE as PIPELINE_CREATION
     CHANGES.update({CHANNEL, MEMORY, NV_CHANNEL, PROCESSOR, THREADED_TEXTURE})
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 142 and
+    CHANGES.update(NATIVE_PAGE_BOUNDS)
+    CHANGES.update(TRANSIENT_PRESSURE)
+    CHANGES.update(PIPELINE_CREATION)
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 146 and
           set(frozen["productionAdditions"]) == {C768_ONLINE_ADDITION, C770_RUNTIME_YIELD_ADDITION, 'src/Ryujinx.Horizon/EmbeddedDeliveryCache.cs', 'src/Ryujinx.HLE/EmbeddedCheatReport.cs',
               'src/Ryujinx.Library/EmbeddedNsz.cs', 'src/Ryujinx.Graphics.Gpu/EmbeddedShaderMetadataReader.cs'}, "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
@@ -919,7 +929,12 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_hogwarts_frame_budget.py',
                                                      'build-utils/melonx/adapt_fifo_channel_retirement.py',
                                                      'build-utils/melonx/adapt_hogwarts_steady_render.py',
-                                                     'build-utils/melonx/adapt_hogwarts_pipeline_replay.py'} and
+                                                     'build-utils/melonx/adapt_hogwarts_pipeline_replay.py',
+                                                     'build-utils/melonx/adapt_native_page_bounds.py',
+                                                     'build-utils/melonx/native-page-bounds.patch',
+                                                     'build-utils/melonx/adapt_transient_pressure.py',
+                                                     'build-utils/melonx/adapt_pipeline_creation_flights.py',
+                                                     'build-utils/melonx/pipeline_creation_flights.patch'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -993,7 +1008,7 @@ if not args.helpers_only:
     # After IPA 767: adapt_loh_compaction_request.py and adapt_guest_break_context.py join them (262); Switch.cs and
     # Syscall.cs are members already (228).
     # After IPA 771: adapt_shader_load_binary_release.py joins them (263); its two disk cache files are members already.
-    check(len(frozen['preparationInputs']) == 280 and len(frozen['preparedMembers']) == 245, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 285 and len(frozen['preparedMembers']) == 245, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

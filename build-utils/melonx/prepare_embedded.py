@@ -243,6 +243,9 @@ from adapt_hogwarts_frame_budget import apply as adapt_hogwarts_frame_budget
 from adapt_fifo_channel_retirement import apply as adapt_fifo_channel_retirement
 from adapt_hogwarts_steady_render import apply as adapt_hogwarts_steady_render
 from adapt_hogwarts_pipeline_replay import apply as adapt_hogwarts_pipeline_replay
+from adapt_native_page_bounds import apply as adapt_native_page_bounds
+from adapt_transient_pressure import apply as adapt_transient_pressure
+from adapt_pipeline_creation_flights import apply as adapt_pipeline_creation_flights
 
 
 def replace_once(path, old, new):
@@ -787,6 +790,9 @@ def main():
     adapted += adapt_fifo_channel_retirement(source)
     adapted += adapt_hogwarts_steady_render(source)
     adapted += adapt_hogwarts_pipeline_replay(source)
+    adapted += adapt_native_page_bounds(source)
+    adapted += adapt_transient_pressure(source)
+    adapted += adapt_pipeline_creation_flights(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -952,7 +958,8 @@ def main():
                  'adapt_cheat_report.py', 'adapt_descriptor_pool_lifetime.py', 'adapt_descriptor_and_block_usage.py', 'adapt_cached_shader_stages.py', 'adapt_account_cache_import.py',
                  'adapt_xci_update_identity.py', 'adapt_hogwarts_frame_budget.py',
                  'adapt_fifo_channel_retirement.py', 'adapt_hogwarts_steady_render.py',
-                 'adapt_hogwarts_pipeline_replay.py']:
+                 'adapt_hogwarts_pipeline_replay.py', 'adapt_native_page_bounds.py', 'native-page-bounds.patch',
+                 'adapt_transient_pressure.py', 'adapt_pipeline_creation_flights.py', 'pipeline_creation_flights.patch']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

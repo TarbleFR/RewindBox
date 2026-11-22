@@ -103,6 +103,17 @@ LOT = {'adapt_compute_warmup_demand': 'COMPUTE_WARMUP_DEMAND', 'adapt_variant_jo
 LOT_PRESENT = [name for name in LOT if name in control_tools.ORDER]
 check(LOT_PRESENT == [name for name in LOT if name in LATER], 'every adapter of the lot in ORDER is a later adapter here: %s' % LATER)
 DEFINES = [LOT[name] for name in LOT_PRESENT]
+flights_present = 'adapt_pipeline_creation_flights' in LATER
+if flights_present:
+    DEFINES.append('PIPELINE_CREATION_FLIGHTS')
+    final_state = read(PREPARED, adapter.STATE)
+    for kind in ('Graphics', 'Compute'):
+        lookup = member(final_state, 'private static unsafe Result TryCreateFromMainCache(VulkanRenderer gd, Device device, '
+                        + kind + 'PipelineCreateInfo* info')
+        check('WaitForMainLoadOnWorker' not in lookup and
+              'EnterMainCreation(gd.PipelineCreationLock, true, out PipelineCache target)' in lookup and
+              'CreateFailOnPipelineCompileRequiredBitExt' in lookup,
+              kind + ' worker probes the live cache without waiting for disk hydration')
 SCHEDULER = VULKAN + 'BackgroundCompilationScheduler.cs'
 CONTROL = WORK / 'control'
 for name in adapter.BASELINE:
@@ -421,9 +432,13 @@ if 'adapt_queued_variant_record' in LOT_PRESENT:
           n['costOfFirstNote'] == 120, 'queued record: neither is a late creation, one line per state, the compile\'s cost: %s' % n)
     check('built for skipped draws 2 (compile 420 ms, without the main cache\'s load wait), draws that waited for them 2 (42 ms)' in n['summary'],
           'queued record: summary labels')
-    w = q['loadWait']
-    check(200 <= w['waitedMs'] <= w['elapsedMs'] + 5 and w['otherThreadTicks'] == 0 and w['nothingOnceLoaded'],
-          'queued record: a worker\'s main-load wait is summed on its own thread only: %s' % w)
+    if flights_present:
+        check(q['creationFlights'] == dict(progressed=True, cacheBusy=True, ownerBusy=True, otherCreated=True,
+                                           waitedOnlyForOwner=True), 'worker progresses during hydration and joins only its own variant')
+    else:
+        w = q['loadWait']
+        check(200 <= w['waitedMs'] <= w['elapsedMs'] + 5 and w['otherThreadTicks'] == 0 and w['nothingOnceLoaded'],
+              'queued record: a worker\'s main-load wait is summed on its own thread only: %s' % w)
     s = q['stageLine']
     check(s['split'] and s['reset'] and s['queued'] == 3, 'queued record: the stages line splits the async skips by cause: %s' % s)
     lot['queuedRecord'] = dict(builtForSkipped=n['builtForSkipped'], waitedForSkipped=n['waitedForSkipped'], stageLineSplit=s['split'])
@@ -471,6 +486,8 @@ if 'adapt_compute_warmup_demand' in LOT_PRESENT:
 inputs = ['build-utils/melonx/adapt_pipeline_variant_replay.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_pipeline_variant_replay_test.py', 'test/melonx_pipeline_variant_replay/Program.cs', 'test/melonx_adapter_control.py',
           'test/melonx_pipeline_variant_replay/Lot.cs'] + ['build-utils/melonx/' + name + '.py' for name in LOT_PRESENT]
+if flights_present:
+    inputs += ['build-utils/melonx/adapt_pipeline_creation_flights.py', 'build-utils/melonx/pipeline_creation_flights.patch']
 if 'adapt_draw_wait_lanes' in control_tools.ORDER:
     inputs.append('build-utils/melonx/adapt_draw_wait_lanes.py')
 # The final files the probe runs (the adapter's own, and the scheduler whose demand-queue rule the lot changed).
@@ -487,7 +504,7 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=True, sourc
                limitation='Host run of the production codec, journal and scheduler; no Vulkan device, so a replay creates nothing '
                           'and its cost is simulated. Whether replayed states are the ones a later draw asks for (built but missed '
                           'stays 0), the late creations saved, and launch time and memory on an iPhone are shown only by a device run. '
-                          'The lot after IPA 747: its journal, load-wait, render-stage and scheduler code runs here on the final source; '
+                          'The lot after IPA 747: its journal, worker cache timing, render-stage and scheduler code runs here on the final source; '
                           'the compute constructor\'s promotion runs on the final source in setprogram-warmup (its final variant: '
                           'demanded at creation, built on the demand thread, bound by the dispatch, compiled once). A skipped draw\'s '
                           'queued compile noting the state it built (ShaderCollection) and the PipelineBase increment of a draw that '
