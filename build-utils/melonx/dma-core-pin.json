@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "c82639d5c1be77db056e28d586e9bf805f6a0f5d",
-  "run": 45041051613,
-  "job": 137265365102,
+  "source": "64e49a84e35c45526653c3a886fb1ebadc489fc1",
+  "run": 45068342283,
+  "job": 137349443604,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14762201190,
-  "name": "MeloNX-engine-c82639d5c1be77db056e28d586e9bf805f6a0f5d",
-  "bytes": 101267715,
-  "sha256": "80b219c49593ee83bdcf9d582d5b6fa582d4e3d03fa8b086fd528e5d60674787",
-  "expiresAt": "2027-02-20T15:56:37Z",
+  "artifact": 14772662956,
+  "name": "MeloNX-engine-64e49a84e35c45526653c3a886fb1ebadc489fc1",
+  "bytes": 101330574,
+  "sha256": "d4776f2e3815f9a3010fb3104d74c1c11ff4592cd0adf5ed807c00fb29ae2a42",
+  "expiresAt": "2027-02-20T20:46:36Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "5c3baa732b65c551a6afa83b4c686eb42eb09ff17970c0cd468f364937faa2a9",
-      "bytes": 39195720
+      "sha256": "a0b87e815f425e57cb29e2e1483e138b09f2b0a36fbdb2e3243a180549a7c024",
+      "bytes": 39212184
     },
     "iossimulator-arm64": {
-      "sha256": "a96b91bcc7d75f4ee2d362c5efe1a87c615ab3b9f2366eed34929e15ba4b1b8e",
-      "bytes": 39502056
+      "sha256": "8df92217cee8faba2aa1f480362e11fd3ff42cf8900f15065c22c66319cd0751",
+      "bytes": 39535160
     }
   },
   "identities": {
-    "ios-arm64": "be4bdfc13502d462bd65666a48af5105ef154bdee4001b7df8d3d7fb32fd6e07",
-    "iossimulator-arm64": "b61808b3faa4363fa303d15c9339648c2e052b0bb27ae94b0a5096191e89b970"
+    "ios-arm64": "08b304e494459a53ebcb15db143b0f52c0fc30000295238bdcb4b1336810c2b7",
+    "iossimulator-arm64": "93a577a6db81b25e79f87f4402172074e34fb7d2034345834241fd818c838b70"
   },
-  "contractSha256": "4fa02e2a560d0ee6d926ab0d44ea3cda00d56f4230bc829f6817621d50ef1d69",
-  "resultSha256": "52cad6c2123a91d908ab41e370dbc7e2616c0a660d84594609eff3d76bd16e83",
-  "packagedFingerprint": "0af0298e85d0ce9a759bbe75119ac9cb6afbb05d0df893bc79ff70ac58d5c79d",
+  "contractSha256": "76b82fb868b8e7a604df3a99181b83e67ecb2b27941cd4e6f23a3f7c27e8ae08",
+  "resultSha256": "30d2064fdc09ba3b4db41800289d61b0c6de41f91b02ea064a5c576296ec60e0",
+  "packagedFingerprint": "97cccf78306236ec1285e3bf74534e13857a50399c9aacc6639beb3bd40af2dc",
   "replaces": {
-    "source": "0fe58d629ea3fd8f31c93031705bd2bb4267dce0",
-    "run": 45025628716,
-    "artifact": 14756136006,
-    "packagedFingerprint": "400ac08cca6cb190b323eba5f7ca879acfafc7b491bbe81892be64ea36bc6e90",
-    "reason": "After IPA 820 (journals of IPA 816-820): a close waited 13 s to more than 100 s for the render loop's drain, which disposed every program of the guest and waited for the compiles queued for each; every closed session of Super Smash Bros. Ultimate and Hogwarts Legacy stayed reachable through the device release left to the pipeline cache's loading thread. adapt_guest_stop_compile_cancel cancels the queued compiles when the guest is terminated; adapt_deferred_release_roots builds that release from a static method that captures no renderer. Contract updated without a full freeze (two fresh gates, 119 not re-executed), contract test and simulator sessions verified; not run on an iPhone. The lazy cache libraries are in the MoltenVK recipe (ninth part), pinned separately."
+    "source": "c82639d5c1be77db056e28d586e9bf805f6a0f5d",
+    "run": 45041051613,
+    "artifact": 14762201190,
+    "packagedFingerprint": "0af0298e85d0ce9a759bbe75119ac9cb6afbb05d0df893bc79ff70ac58d5c79d",
+    "reason": "After IPA 821 (journals of IPA 816-821): the guest executed nothing until the shader cache load ended (9.2-10.7 s for Super Smash Bros. Ultimate, 2.5 s for Hogwarts Legacy, followed by 4.2-6.2 s of guest boot), and the render thread created pipelines itself (24 s of 174 s of Hogwarts Legacy play for draws, 16 s for compute dispatches) while the replay of known variants built 2 of 2,028 behind the cache's warm-ups. adapt_guest_start_during_shader_load releases the guest once the loader holds its snapshot and holds infinite fence waits until the load ends; adapt_shader_code_table_load registers the loaded programs in the guest code tables together; adapt_render_thread_compile_relief queues a skippable draw's pipeline and waits at most 4 ms for it, runs replays before warm-ups and lets a compute dispatch join a running warm-up. Contract updated without a full freeze (124 gates executed on the final source, 85 passed, the 39 others failed before this lot), contract test and simulator sessions verified; not run on an iPhone."
   }
 }
