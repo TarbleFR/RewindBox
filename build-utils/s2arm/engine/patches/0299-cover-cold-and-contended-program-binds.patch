@@ -1,0 +1,65 @@
+diff --git a/graphics/nvn/tests/rb_registration_gpu.inc b/graphics/nvn/tests/rb_registration_gpu.inc
+index 19833e0..9abfd4a 100644
+--- a/graphics/nvn/tests/rb_registration_gpu.inc
++++ b/graphics/nvn/tests/rb_registration_gpu.inc
+@@ -2,9 +2,26 @@
+ // library before recording any command, even when the guest reuses its bytes.
+ extern uint64_t s2a_npdm_pid(const char *path);
+ extern void *h_nvnBootstrapLoader(const char *name);
++// The test thread owns the actual registration/enqueue mutex throughout the
++// bind. A blocking recorder cannot finish until after the assertion deadline.
++static void check_bind_during_registration(prog_t program) {
++    dispatch_semaphore_t returned = dispatch_semaphore_create(0);
++    os_unfair_lock_lock(&g_shpre_mu);
++    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
++        nvn_be_prog_bound(&program);
++        dispatch_semaphore_signal(returned);
++    });
++    long timedOut = dispatch_semaphore_wait(returned, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC));
++    os_unfair_lock_unlock(&g_shpre_mu);
++    GPU_CHECK(!timedOut && !g_rb_bind_q && !g_rb_bind_jobs && !g_rb_bind_bytes);
++}
+ static int test_registered_library(NSString *root, BOOL enabled) { @autoreleasepool {
+     setenv("S2A_RB_REGISTER_LIBRARIES",enabled ? "1" : "0",1);
+     setenv("S2A_RB_STAGE_DISK_WARM","0",1);
++    if (enabled) {
++        setenv("DM_NVN_SHPRE","1",1);
++        setenv("S2A_RB_BIND_AHEAD","1",1);
++    }
+     NSFileManager *fm = NSFileManager.defaultManager;
+     NSString *shaders = [root stringByAppendingPathComponent:@"docs/wire/0000000000000042/shaders"];
+     GPU_CHECK([fm createDirectoryAtPath:shaders withIntermediateDirectories:YES attributes:nil error:nil]);
+@@ -41,6 +58,13 @@ static int test_registered_library(NSString *root, BOOL enabled) { @autoreleasep
+                    writeToFile:[base stringByAppendingPathExtension:@"json"] atomically:YES]);
+         NVNprogram program={0};
+         struct { NVNshaderData sd; uint64_t ext; } slot={{(uint64_t)(uintptr_t)code,control},0};
++        if (enabled && i == 0) {
++            prog_t cold = {.nstage=1, .serial=1};
++            cold.sd[0] = slot.sd;
++            GPU_CHECK(!g_shmap_ready && !g_warm_started);
++            check_bind_during_registration(cold);
++            GPU_CHECK(!g_shmap_ready && !g_warm_started);  // No metadata read or prewarm on the recorder.
++        }
+         typedef NVNboolean (*set_fn)(NVNprogram *,int,const void *);
+         set_fn reg=(set_fn)h_nvnBootstrapLoader(entry[i]);
+         GPU_CHECK(reg && reg(&program,1,&slot));
+@@ -52,6 +76,19 @@ static int test_registered_library(NSString *root, BOOL enabled) { @autoreleasep
+         GPU_CHECK(g_rb_registration_loaded==i+1 && g_rb_registration_count==0);
+         NvShader *built=g_shcache[shader_identity(stage,5,0,0)];
+         GPU_CHECK(built && built->fn && built->fn.functionType==MTLFunctionTypeKernel);
++        if (i == 0) {
++            GPU_CHECK(g_shmap_ready && !g_warm_started);  // Registration published metadata independently.
++            code[0] = 1;  // Same bytes and known stage for the contended and uncontended calls.
++            prog_t hint;
++            memcpy(&hint, &program, sizeof hint);
++            check_bind_during_registration(hint);
++            uint64_t before = atomic_load(&g_rb_bound_progs);
++            nvn_be_prog_bound(&hint);
++            GPU_CHECK(g_rb_bind_q);
++            dispatch_sync(g_rb_bind_q,^{});
++            GPU_CHECK(g_rb_bound_progs == before + 1 && !g_rb_bind_jobs && !g_rb_bind_bytes);
++            puts("PASS cold and contended program binds returned with registration locked; released bind processed its stage");
++        }
+     }
+     if (!enabled) { puts("PASS disabled registration leaves preparation until the recorded bind"); return 0; }
+     GPU_CHECK(g_rb_registration_msl>0 && !g_bp_msl_n);

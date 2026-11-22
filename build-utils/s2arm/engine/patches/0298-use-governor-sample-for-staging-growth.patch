@@ -1,0 +1,17 @@
+diff --git a/graphics/nvn/gfx/nvn/rb_stage_ring.inc b/graphics/nvn/gfx/nvn/rb_stage_ring.inc
+--- a/graphics/nvn/gfx/nvn/rb_stage_ring.inc
++++ b/graphics/nvn/gfx/nvn/rb_stage_ring.inc
+@@ -46,8 +46,11 @@
+     if (rb_stage_test) return 1;
+ #endif
+     if (!rb_working_set_on()) return 1;
+-    uint64_t target=rb_ws_target(g_dev.recommendedMaxWorkingSetSize);
+-    return chunk<=rb_metal_working_room() && chunk<=rb_ws_room(target,g_dev.currentAllocatedSize,UINT64_MAX);
++    uint64_t target = rb_ws_target(g_dev.recommendedMaxWorkingSetSize);
++    uint64_t allocated = rb_device_allocated_bytes(g_dev);
++    uint64_t room = rb_ws_sample_room(target, allocated, rb_device_sample_valid(allocated),
++                                      rb_metal_working_room());
++    return chunk <= room;
+ }
+ static void rb_stage_trim(rb_stage_plan plan) {
+     for (int i=0;i<RB_STAGE_SLOTS;i++) {
