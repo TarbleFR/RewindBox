@@ -126,3 +126,5 @@ Correctif.
 - Le journal `graphics incomplete` indique l'état de la preuve et l'origine du refus.
 
 Limite. Sur l'appareil, les bibliothèques de shaders viennent des sources MSL traduites : `static_air_directory=0`, aucun paquet AIR construit sur Mac. Un lancement vérifié recrée donc ces bibliothèques depuis leur source ; Metal n'expose pas d'export binaire d'une `MTLLibrary`. Ce correctif supprime la migration répétée et ses 281 compilations forcées. `msl_source_count` ne tombe pas à zéro pour autant.
+
+Vérification. La série complète des patchs s'applique et les contrats du pont passent (`test/s2arm_engine_bridge_test.py`). Le pont compile pour iOS arm64 sur le commit `31d09fdd1` (run 45036469087). Le test hôte `test/s2arm_graphics_generation_host.sh` couvre le dossier `pipelines-v2` : refus de `D\t../pipelines`, refus si les fichiers nommés manquent, activation depuis le dossier nommé, invalidation quand une archive de ce dossier change, puis retour à un manifeste sans ligne `D`. La CI ne lance ce test que sur un commit marqué `[s2arm-first-race]` ; le commit `31d09fdd1` ne l'était pas, celui qui ajoute ce paragraphe l'est. Rien n'est mesuré sur iPhone.
