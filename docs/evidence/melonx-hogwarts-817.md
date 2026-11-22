@@ -42,3 +42,9 @@ Ce que montrent les journaux iPhone 816, 817 et 818 :
 Les corrections Hogwarts de la 818 partent avec ce retour. Le plantage Hogwarts observé en 817 (`FHeartBeatThread`) est donc de nouveau attendu.
 
 La boucle de recompilation SSBU existait déjà avec cette Core : 181 recompilations sur 208 compilations en 816, 325 sur 337 en 817. Le cache principal n'atteint jamais `primaryReady` dans ces sessions. Ce retour ne la corrige pas.
+
+## Retour de l'attente du cache principal à Hogwarts (22 novembre)
+
+Le commit `4086c77f` (Core `cf6396a2`, IPA 787) a étendu à tous les titres l'attente du cache principal avant le rejeu des variantes, qui ne valait que pour Hogwarts (`EncodingPolicy.IncrementalArrayDescriptors`). Il a aussi ajouté un `_primaryCacheReady.Reset()` avant la construction du journal. Depuis, SSBU n'atteint plus `primaryReady`, recompile environ 90 % de ses pipelines à chaque session, et sa fermeture dure 14 à 70 s (819 : 69,8 s entre `close begin` et `sessionResult`). L'IPA 786 (Core `6d8cb068`, juste avant ce commit) est la dernière où le cache principal SSBU se rechargeait (144 Mio en 2,3 s) et où les fermetures étaient propres.
+
+L'adaptateur `adapt_hogwarts_pipeline_replay.py` revient à son état d'avant `4086c77f` (`efe6c1da`). La sortie `PipelineCacheManager.cs` retrouve donc l'empreinte `1d370731` : aucun autre adaptateur n'a modifié ce fichier depuis. Le tri différé des variantes, ajouté par le même commit, part avec ce retour. Les correctifs Nextendo (443, 60005, compatibilité consentie) ne sont pas touchés.
