@@ -36,6 +36,22 @@ Constats, IPA 816 à 820 :
 La neuvième partie de la recette n'est pas le candidat mesuré et rejeté le 10 novembre (run 42925818096), qui compilait
 une bibliothèque Metal par récupération de fonction et n'en gardait aucune.
 
+## Mesures hors appareil (22 novembre)
+
+- Core `c82639d5` : run 45041051613 vert (deux cibles NativeAOT, ABI, sessions simulateur avec exécution de l'invité,
+  fermeture et libération), épingle `d07a8f1b0`.
+- MoltenVK, recette à neuf parties : run 45041051603 vert (iOS arm64, 9 marqueurs sur 9, binaire `7dc30a66`), épingle
+  `70b6675a2`.
+- Banc `melonx-mapped-cache` sur le Metal réel du runner macOS (962 bibliothèques, 2 400 pipelines, runs 45042023424 et
+  45043738439) : 1 compilation au chargement en paresseux contre 963 avec le contrôle, 963 au total dans les deux cas,
+  aucun pipeline manquant, rien reconverti depuis SPIR-V, les mêmes 44 125 810 octets écrits. Chargement référencé
+  (le flux de RewindBox) : 3 à 9 ms contre 144 à 164 ms, et +1,4 à +2,7 Mio d'empreinte au chargement contre +30,7 à
+  +32,0 Mio ; après création des pipelines l'empreinte est la même (103 à 105 Mio). Le cache de bibliothèques de Metal
+  y était chaud : 963 compilations en environ 150 ms, contre 71 s à la première création.
+- Banc `melonx-cache-keys` (run 45041051599) vert avec ce MoltenVK : pipelines retrouvés après rechargement, 24 dessins
+  dont les couleurs sont vérifiées.
+- IPA privée 821 : run 45043966397 vert (source `4cb224f57`), images modifiées vérifiées par la livraison.
+
 ## Durées de fermeture relevées (entre `guestStopped` et `gpuRelease`)
 
 | Session | Durée |
