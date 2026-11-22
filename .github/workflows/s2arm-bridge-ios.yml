@@ -29,6 +29,8 @@ name: S2Arm engine bridge (iOS compile)
       - test/s2arm_host_room_harness.c
       - test/s2arm_session_menu_test.py
       - test/s2arm_engine_bridge_test.py
+      - test/s2arm_graphics_generation_host.m
+      - test/s2arm_graphics_generation_host.sh
 permissions:
   contents: read
 concurrency:
