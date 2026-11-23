@@ -36,7 +36,10 @@ jobs:
 
       - name: Switch 2 import and library recognition
         if: env.IMPORT_ONLY == 'true'
-        run: flutter test test/s2arm_internal_service_test.dart test/switch2_export_content_test.dart
+        run: flutter test test/s2arm_internal_service_test.dart test/switch2_export_content_test.dart test/switch2_settings_locale_test.dart
+
+      - name: Mario Kart World never locked at 30 fps, no 30 fps limit (engine patch 0319, bridge, Flutter)
+        run: python3 -B test/s2arm_never_30_lock_test.py
 
       - name: Check the Switch 2 session handoff
         if: env.IMPORT_ONLY == 'true'

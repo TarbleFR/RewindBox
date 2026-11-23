@@ -67,7 +67,7 @@ class Settings(unittest.TestCase):
     def test_the_offered_values(self):
         values = block(SETTINGS, 'NSArray<NSString *> *S2ArmSettingsValues')
         for row in ('@[ @"0.5", @"0.75", @"1" ]', '@[ @"None", @"SmaaMedium", @"SmaaHigh" ]', '@[ @"Bilinear", @"Nearest" ]',
-                    '@[ @"30", @"60", @"120", @"0" ]'):
+                    '@[ @"60", @"120", @"0" ]'):
             self.assertIn(row, values)
         languages = re.findall(r'@"([A-Za-z]+)"', block(SETTINGS, 'static NSArray<NSString *> *GameLanguages'))
         self.assertEqual(languages, ['auto'] + LANGUAGES)

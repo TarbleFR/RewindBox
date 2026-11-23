@@ -1,0 +1,344 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 12fd0d137..98351e097 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -4063,6 +4063,9 @@ __attribute__((weak)) void nvn_be_rt_window(uint32_t *w, uint32_t *h, uint32_t *
+ __attribute__((weak)) void s2a_fps_cap_watch(void) {}
+ static int g_hz = -1, g_display_mode;
+ static _Atomic int g_game_itv = 1;   // when pacing by the game's interval, the interval the game currently sets (in game mode 2 = 30 fps; nvn_game_fps reports it to the graphics layer, which sets the display link from it)
++// RewindBox (patch 0319): the interval of the game's last present, for nvn_mtl.m's no-lock guard (rb_drs_escape_step); any thread
++int nvn_rb_game_interval(void);
++int nvn_rb_game_interval(void) { return atomic_load(&g_game_itv); }
+ void nvn_present_config(int hz, int display_mode) { g_hz = hz; g_display_mode = display_mode; }
+ static _Atomic uint64_t g_itv2_since;   // start of the game's current run of intervals >= 2 (now_ns; 0 = it is 1 now)
+ // The frame rate the game itself asks for: 30 in game mode when the present interval has been >= 2 for a full second (the display link follows at 30 Hz, nvn_be_fps_target), otherwise 60; back to 60 at once when the interval returns to 1. Intervals of 3 or more (20 fps or less) have no matching display-link mode and run at 30.
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index de5b853eb..8bdef2a35 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3096,6 +3096,54 @@ static int rb_drs_trial_now(uint64_t f, int fps) {
+              (unsigned long long)tr.trials, (unsigned long long)tr.kept);
+     return on;
+ }
++// RewindBox (patch 0319): the no-lock guard for a game that alternates intervals 1 and 2 (rb_adaptive_drs.h, rb_drs_escape_step). The bridge sets
++//   S2A_RB_DRS_NO_LOCK=1 for Mario Kart World. hle_nvn.c provides the interval of the game's last present.
++__attribute__((weak)) int nvn_rb_game_interval(void) { return 1; }
++static int rb_drs_guard_on(void) {
++    static int v = -1;   // completion handlers; the same value whoever reads it first
++    if (v < 0) {
++        const char *e = getenv("S2A_RB_DRS_NO_LOCK");
++        v = e && !strcmp(e, "1");
++        MLOG("[rb-guest-drs] no-lock guard %s (S2A_RB_DRS_NO_LOCK; patch 0319): no push below Serious, runs of fewer than %d frames past the 60 fps hold read the hold, "
++             "interval 2 reads the 60 fps hold until the game is back at 1 (%d frames at most, a rest of %d to %d frames after %d failures or a growing scene)",
++             v ? "on" : "off", RB_DRS_SPIKE_RUN, RB_DRS_ESCAPE_FRAMES, RB_DRS_ESCAPE_REST, RB_DRS_ESCAPE_REST_MAX, RB_DRS_ESCAPE_FAILS);
++    }
++    return v;
++}
++static rb_drs_escape g_rb_drs_escape;   // g_rb_floor_lock
++static _Atomic uint64_t g_rb_drs_over[DRS_N];   // by frame: the frame + 1 once one of its reports went past the 60 fps hold
++static _Atomic uint64_t g_rb_drs_spikes;   // reports past the hold that read it (rb_drs_spike_pass)
++static unsigned rb_drs_over_before(uint64_t f) {   // how many frames right before f went past the 60 fps hold, up to RB_DRS_SPIKE_RUN - 1
++    unsigned n = 0;
++    while (n + 1 < RB_DRS_SPIKE_RUN && f > n &&
++           atomic_load_explicit(&g_rb_drs_over[(f - 1 - n) % DRS_N], memory_order_relaxed) == f - n) ++n;
++    return n;
++}
++static int rb_drs_escape_now(uint64_t f) {
++    int allowed = atomic_load_explicit(&g_drs_state, memory_order_relaxed) < 3 && fps_override() <= 0 &&
++                  nvn_fps_limit() != 30 && !nvn_rb_video_paced();
++    int itv = nvn_rb_game_interval();
++    uint64_t px = rb_drs_scene_px(f);
++    os_unfair_lock_lock(&g_rb_floor_lock);
++    uint64_t escapes = g_rb_drs_escape.escapes, rests = g_rb_drs_escape.rests;
++    int on = rb_drs_escape_step(&g_rb_drs_escape, f, itv, px, allowed);
++    rb_drs_escape e = g_rb_drs_escape;
++    os_unfair_lock_unlock(&g_rb_floor_lock);
++    if ((e.escapes != escapes && (e.escapes <= 8 || !(e.escapes & (e.escapes - 1)))) || e.rests != rests)
++        MLOG("[rb-guest-drs] escape frame=%llu escapes=%llu returns=%llu fails=%llu ramps=%llu rests=%llu rest=%llu scene_px=%llu",
++             (unsigned long long)f, (unsigned long long)e.escapes, (unsigned long long)e.returns, (unsigned long long)e.fails,
++             (unsigned long long)e.ramps, (unsigned long long)e.rests, (unsigned long long)e.rest, (unsigned long long)px);
++    return on;
++}
++// A report past the frame's hold (or push): the frame's own time, except under the guard at 60 fps while fewer than RB_DRS_SPIKE_RUN frames in a row went past the 60 fps hold
++static uint64_t rb_drs_past(uint64_t f, uint64_t t, uint64_t top, uint64_t want, int spikes) {
++    if (!spikes || rb_drs_spike_pass(rb_drs_over_before(f))) return t;
++    uint64_t n = atomic_fetch_add_explicit(&g_rb_drs_spikes, 1, memory_order_relaxed) + 1;
++    if (!(n & (n - 1)) && n >= 16)
++        MLOG("[rb-guest-drs] spike reports=%llu frame=%llu ms=%.2f read_ms=%.2f", (unsigned long long)n, (unsigned long long)f,
++             (t - top) * (625./12e6), want * (625./12e6));
++    return top + want;
++}
+ // Configuration and observations are serialised by g_rb_heat_lock.
+ static double g_rb_drs_target = -1.;
+ static os_unfair_lock g_rb_heat_lock = OS_UNFAIR_LOCK_INIT;
+@@ -3175,16 +3223,21 @@ static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the ti
+     if (atomic_load(&g_drs[i].frame) != f + 1) return t;
+     uint64_t top = atomic_load(&g_drs[i].top); if (!top || t <= top) return t;
+     int fps = nvn_be_fps_target(); if (fps <= 0 || fps > 60) fps = 60;   // 30 / 60 (nvn_obj.h)
+-    if (rb_drs_trial_now(f, fps)) {   // RewindBox (patch 0309): the 60 fps hold whatever the time
+-        const uint64_t hold60 = 16600000ull * 12 / 625;
+-        return t - top < hold60 / 2 ? t : top + hold60;
++    const uint64_t hold60 = 16600000ull * 12 / 625;
++    if (rb_drs_trial_now(f, fps)) return top + rb_drs_cap_ticks(t - top, hold60);   // RewindBox (patch 0309): the 60 fps hold whatever the time
++    const int guard = rb_drs_guard_on();   // RewindBox (patch 0319)
++    if (guard) {
++        if (t - top >= hold60) atomic_store_explicit(&g_rb_drs_over[i], f + 1, memory_order_relaxed);
++        if (rb_drs_escape_now(f)) return top + rb_drs_cap_ticks(t - top, hold60);
+     }
+     uint64_t hold = 16600000ull * 60 / (uint64_t)fps * 12 / 625;   // 16.6 ms at 60 fps, in 19.2 MHz ticks
+     unsigned level = atomic_load_explicit(&g_rb_drs_level, memory_order_relaxed);
+-    uint64_t want = rb_drs_report_ticks(hot, atomic_load_explicit(&g_drs_state, memory_order_relaxed) >= 2, fps,
+-                                        level ? nvn_fps_limit() : 0, level, hold);
++    const int serious = atomic_load_explicit(&g_drs_state, memory_order_relaxed) >= 2;
++    if (guard) level = rb_drs_guard_level(1, serious, level);
++    uint64_t want = rb_drs_report_ticks(hot, serious, fps, level ? nvn_fps_limit() : 0, level, hold);
+     uint64_t seen = atomic_fetch_add(&g_drs_seen, 1) + 1;
+-    if (t - top >= want || t - top < hold / 2) return t;
++    if (t - top < hold / 2) return t;
++    if (t - top >= want) return rb_drs_past(f, t, top, want, guard && fps == 60);
+     // A push ends once it no longer lowers the game's size (rb_drs_floor_push). Critical keeps every push.
+     if (want > hold && atomic_load_explicit(&g_drs_state, memory_order_relaxed) < 3) {
+         uint64_t px = rb_drs_scene_px(f);
+@@ -3199,7 +3252,7 @@ static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the ti
+                  (unsigned long long)fl.rests, (unsigned long long)fl.resumes);
+         if (!push) {
+             want = hold;
+-            if (t - top >= want) return t;
++            if (t - top >= want) return rb_drs_past(f, t, top, want, guard && fps == 60);
+         }
+     }
+     if (hot) atomic_fetch_add(&g_drs_hot_raised, 1);   // RewindBox (patch 0087)
+diff --git a/graphics/nvn/gfx/nvn/rb_adaptive_drs.h b/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
+index d004ad775..9daf484cf 100644
+--- a/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
++++ b/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
+@@ -178,3 +178,93 @@ static inline int rb_drs_trial_step(rb_drs_trial *s, uint64_t frame, int fps, ui
+     s->until = frame + RB_DRS_TRIAL_FRAMES; s->next_at = 0; s->tried = 1; ++s->trials;
+     return s->decision = 1;
+ }
++// RewindBox (patch 0319): a game that alternates present intervals 1 and 2 (Mario Kart World; the
++// bridge sets S2A_RB_DRS_NO_LOCK=1 for it) never settles at 30 fps. IPA 825, iPhone 16 Pro Max at
++// Fair, frame rate setting "no limit" in all four sessions: within six frames of a frame that read
++// more than 16.67 ms the game asked for interval 2 in 19 to 36 % of cases, after one in its band in
++// 4 to 7 %. Those reads were resolution pushes (18.675 and 20.5 ms) and runs of one or two slow
++// frames (17 of 31 runs in frames 6279-7300 of the first session). Held a second at interval 2, the engine went to its 30 fps
++// hold and the system ran the GPU slower at that pace: the game read 33 to 40 ms and stayed at 30 fps
++// (17 to 22 during a screen recording) until a trial or a relaunch. The guard:
++//   - no push at Nominal or Fair (rb_drs_guard_level); the game still lowers its size from the slow
++//     frames it reads, and Serious and Critical keep their pushes;
++//   - a frame past the 60 fps hold reads the hold unless the RB_DRS_SPIKE_RUN - 1 frames before it
++//     went past it too (rb_drs_spike_pass): a shader compile or an upload no longer reads as a slow GPU;
++//   - when the game moves to interval 2, its reports read the 60 fps hold (rb_drs_cap_ticks) until it
++//     is back at interval 1 (rb_drs_escape_step). In the first session a game at interval 2 for three
++//     to five frames reading 16.6 ms came back without changing its size (frames 6601 and 6900); after
++//     a long stay at interval 2 the same reads grew the scene from 1248x700 to 1300x728 in 28 frames
++//     (trial at frame 7184), each step remaking 17 to 28 shared textures. An escape therefore ends when
++//     the scene grows, after RB_DRS_ESCAPE_FRAMES frames without an answer, or when the game is back at
++//     interval 1. A game back at 2 within RB_DRS_ESCAPE_SETTLE frames counts a failure; a timeout waits
++//     RB_DRS_ESCAPE_RETRY frames; RB_DRS_ESCAPE_FAILS failures in a row or a growing scene rest the
++//     escapes RB_DRS_ESCAPE_REST frames, twice as long each time up to RB_DRS_ESCAPE_REST_MAX. While
++//     they rest the hold follows the engine's target as before, and the trial above still runs.
++enum { RB_DRS_SPIKE_RUN = 3 };
++enum { RB_DRS_ESCAPE_FRAMES = 12, RB_DRS_ESCAPE_SETTLE = 60, RB_DRS_ESCAPE_FAILS = 3, RB_DRS_ESCAPE_RETRY = 30,
++       RB_DRS_ESCAPE_REST = 90, RB_DRS_ESCAPE_REST_MAX = 360 };
++// The level the reports use under the guard: none below Serious.
++static inline unsigned rb_drs_guard_level(int guard, int serious, unsigned level) {
++    return guard && !serious ? 0u : level;
++}
++// Whether a frame past the 60 fps hold reads its own time; over_before: the frames right before it
++// that went past the hold too.
++static inline int rb_drs_spike_pass(unsigned over_before) {
++    return over_before + 1 >= RB_DRS_SPIKE_RUN;
++}
++// The ticks after a frame's first TIMESTAMP_TOP that a report of `ticks` reads under the 60 fps hold
++// whatever its time (the trial of patch 0309 and the escape): its own time in the frame's first half.
++static inline uint64_t rb_drs_cap_ticks(uint64_t ticks, uint64_t hold60) {
++    return ticks < hold60 / 2 ? ticks : hold60;
++}
++typedef struct {
++    uint64_t seen, until, back_at, at1, next_at, rest, start_px;   // seen, until, back_at, at1: a frame + 1
++    uint64_t escapes, returns, fails, ramps, rests;
++    unsigned fail_run;
++    int decision;
++} rb_drs_escape;
++static inline void rb_drs_escape_fail(rb_drs_escape *s, uint64_t frame, int grew, uint64_t wait) {
++    ++s->fails;
++    if (grew) ++s->ramps;
++    if (grew || ++s->fail_run >= RB_DRS_ESCAPE_FAILS) {
++        s->rest = !s->rest ? RB_DRS_ESCAPE_REST : s->rest * 2 < RB_DRS_ESCAPE_REST_MAX ? s->rest * 2 : RB_DRS_ESCAPE_REST_MAX;
++        s->next_at = frame + s->rest; s->fail_run = 0; ++s->rests;
++    } else {
++        s->next_at = frame + wait;
++    }
++}
++// Whether the reports of `frame` read the 60 fps hold whatever their time. itv: the interval of the
++// game's last present. pixels: the frame's scene (0 = not known). allowed: the guard is on, no user
++// limit of 30, no video pacing, not Critical. Only interval 2 is escaped: 3 and more are a choice.
++// RB_DRS_ESCAPE_SETTLE frames in a row below interval 2, for whatever reason, clear the failures, the
++// rest and its length.
++static inline int rb_drs_escape_step(rb_drs_escape *s, uint64_t frame, int itv, uint64_t pixels, int allowed) {
++    if (s->seen == frame + 1) return s->decision;
++    s->seen = frame + 1;
++    if (!allowed) { s->until = s->back_at = 0; return s->decision = 0; }
++    if (itv != 2) {
++        if (s->until) {
++            s->until = 0;
++            if (itv < 2) { ++s->returns; s->back_at = frame + 1; }
++        }
++        if (itv < 2) {
++            if (!s->at1) s->at1 = frame + 1;
++            if (frame + 1 - s->at1 >= RB_DRS_ESCAPE_SETTLE) { s->back_at = 0; s->fail_run = 0; s->rest = 0; s->next_at = 0; }
++        } else {
++            s->at1 = 0;
++        }
++        return s->decision = 0;
++    }
++    s->at1 = 0;
++    if (s->until) {
++        const int grew = pixels && s->start_px && pixels * 100 > s->start_px * 101;
++        if (frame + 1 < s->until && !grew) return s->decision = 1;
++        s->until = 0;
++        rb_drs_escape_fail(s, frame, grew, RB_DRS_ESCAPE_RETRY);
++        return s->decision = 0;
++    }
++    if (s->back_at) { s->back_at = 0; rb_drs_escape_fail(s, frame, 0, 0); }   // back at 2 before it settled at 1
++    if (frame < s->next_at) return s->decision = 0;
++    s->until = frame + 1 + RB_DRS_ESCAPE_FRAMES; s->start_px = pixels; ++s->escapes;
++    return s->decision = 1;
++}
+diff --git a/graphics/nvn/tests/t_rb_adaptive_drs.c b/graphics/nvn/tests/t_rb_adaptive_drs.c
+index 9eba2f860..cd562293c 100644
+--- a/graphics/nvn/tests/t_rb_adaptive_drs.c
++++ b/graphics/nvn/tests/t_rb_adaptive_drs.c
+@@ -138,6 +138,72 @@ int main(void) {
+     for (int i = 0; i < RB_DRS_FLOOR_STALL; ++i) assert(rb_drs_floor_push(&menu, m++, 873600));
+     assert(menu.resting && menu.floor == 873600 && menu.wait == RB_DRS_FLOOR_RETRY && !rb_drs_floor_push(&menu, m + 1000000, 873600));
+     assert(!rb_drs_floor_push(&menu, m, 2073600) && rb_drs_floor_push(&menu, menu.retry_at, 2073600));   // above the floor: after the wait
++    // Patch 0319: Mario Kart World never settles at 30 fps under the guard.
++    assert(rb_drs_guard_level(1, 0, 2) == 0 && rb_drs_guard_level(1, 0, 1) == 0);   // no push at Nominal / Fair
++    assert(rb_drs_guard_level(1, 1, 2) == 2 && rb_drs_guard_level(0, 0, 2) == 2);   // Serious and no guard: as before
++    assert(rb_drs_report_ticks(1, 0, 60, 0, rb_drs_guard_level(1, 0, 2), 318720) == 318720);
++    assert(rb_drs_report_ticks(1, 1, 60, 0, rb_drs_guard_level(1, 1, 2), 318720) == 393600);
++    assert(!rb_drs_spike_pass(0) && !rb_drs_spike_pass(1) && rb_drs_spike_pass(2) && rb_drs_spike_pass(9));   // a third slow frame in a row reads its time
++    assert(rb_drs_cap_ticks(100000, 318720) == 100000 && rb_drs_cap_ticks(159359, 318720) == 159359);   // first half: its own time
++    assert(rb_drs_cap_ticks(159360, 318720) == 318720 && rb_drs_cap_ticks(700000, 318720) == 318720);   // then the 60 fps hold
++    rb_drs_escape es = {0};
++    uint64_t q = 20000;
++    const uint64_t px = 873600;
++    for (int i = 0; i < 100; ++i) assert(!rb_drs_escape_step(&es, q++, 1, px, 1));   // interval 1: nothing to do
++    for (int i = 0; i < 100; ++i) assert(!rb_drs_escape_step(&es, q++, 2, px, 0));   // not allowed: no escape
++    assert(!es.escapes && !es.until);
++    for (int i = 0; i < 100; ++i) assert(!rb_drs_escape_step(&es, q++, 1, px, 1));
++    // The game asks for interval 2: its reports read the 60 fps hold at once, once per frame.
++    assert(rb_drs_escape_step(&es, q, 2, px, 1) && es.escapes == 1 && es.until == q + 1 + RB_DRS_ESCAPE_FRAMES);
++    assert(rb_drs_escape_step(&es, q, 2, px, 1) && es.escapes == 1);
++    ++q;
++    assert(rb_drs_escape_step(&es, q++, 2, px, 1) && rb_drs_escape_step(&es, q++, 2, px, 1));
++    // Back at interval 1: the times as they are; RB_DRS_ESCAPE_SETTLE frames there count a success.
++    assert(!rb_drs_escape_step(&es, q, 1, px, 1) && es.returns == 1 && es.back_at == q + 1);
++    for (int i = 0; i < RB_DRS_ESCAPE_SETTLE + 1; ++i) assert(!rb_drs_escape_step(&es, q++, 1, px, 1));
++    assert(!es.back_at && !es.fails && !es.fail_run);
++    // Back at 2 later: a new escape right away.
++    assert(rb_drs_escape_step(&es, q++, 2, px, 1) && es.escapes == 2);
++    assert(!rb_drs_escape_step(&es, q++, 1, px, 1) && es.returns == 2);
++    // Back at 2 before it settled: a failure and an escape right away; the third failure in a row rests.
++    for (unsigned k = 1; k < RB_DRS_ESCAPE_FAILS; ++k) {
++        for (int i = 0; i < 10; ++i) assert(!rb_drs_escape_step(&es, q++, 1, px, 1));
++        assert(rb_drs_escape_step(&es, q++, 2, px, 1) && es.fail_run == k && es.fails == k);
++        assert(!rb_drs_escape_step(&es, q++, 1, px, 1));
++    }
++    for (int i = 0; i < 10; ++i) assert(!rb_drs_escape_step(&es, q++, 1, px, 1));
++    assert(!rb_drs_escape_step(&es, q, 2, px, 1) && es.rests == 1 && es.rest == RB_DRS_ESCAPE_REST && es.next_at == q + RB_DRS_ESCAPE_REST);
++    uint64_t rest_end = es.next_at;
++    for (++q; q < rest_end; ++q) assert(!rb_drs_escape_step(&es, q, 2, px, 1));   // resting: interval 2 as before
++    assert(rb_drs_escape_step(&es, q++, 2, px, 1) && es.escapes == RB_DRS_ESCAPE_FAILS + 2);
++    // No answer within RB_DRS_ESCAPE_FRAMES frames: a failure, the next escape RB_DRS_ESCAPE_RETRY frames later.
++    while (rb_drs_escape_step(&es, q, 2, px, 1)) ++q;
++    assert(es.fail_run == 1 && es.next_at == q + RB_DRS_ESCAPE_RETRY);
++    for (++q; q < es.next_at; ++q) assert(!rb_drs_escape_step(&es, q, 2, px, 1));
++    assert(rb_drs_escape_step(&es, q++, 2, px, 1));
++    // A scene that grows during an escape ends it and rests at once, twice as long as the last rest.
++    assert(!rb_drs_escape_step(&es, q, 2, px + px / 50, 1) && es.ramps == 1 && es.rests == 2 &&
++           es.rest == 2 * RB_DRS_ESCAPE_REST && es.next_at == q + 2 * RB_DRS_ESCAPE_REST);
++    ++q;
++    // Rests double up to RB_DRS_ESCAPE_REST_MAX.
++    for (int r = 0; r < 4; ++r) {
++        for (q = es.next_at; ; ++q) if (rb_drs_escape_step(&es, q, 2, px, 1)) break;
++        assert(!rb_drs_escape_step(&es, ++q, 2, 2 * px, 1));
++    }
++    assert(es.rest == RB_DRS_ESCAPE_REST_MAX && es.ramps == 5);
++    // A second at interval 1, for whatever reason, clears the rest and its length.
++    for (int i = 0; i < RB_DRS_ESCAPE_SETTLE + 1; ++i) assert(!rb_drs_escape_step(&es, ++q, 1, px, 1));
++    assert(!es.next_at && !es.rest && !es.fail_run);
++    assert(rb_drs_escape_step(&es, ++q, 2, px, 1));
++    // Intervals of 3 and more are the game's choice: no escape, and a running one ends.
++    assert(!rb_drs_escape_step(&es, ++q, 3, px, 1) && !es.until);
++    for (int i = 0; i < 200; ++i) assert(!rb_drs_escape_step(&es, ++q, 3, px, 1));
++    // A scene of unknown size never ends an escape early.
++    assert(!rb_drs_escape_step(&es, ++q, 1, px, 1));
++    for (int i = 0; i < RB_DRS_ESCAPE_SETTLE + 1; ++i) assert(!rb_drs_escape_step(&es, ++q, 1, 0, 1));
++    assert(rb_drs_escape_step(&es, ++q, 2, 0, 1));
++    for (int i = 1; i < RB_DRS_ESCAPE_FRAMES; ++i) assert(rb_drs_escape_step(&es, ++q, 2, i % 2 ? 0 : px, 1));
++    puts("PASS guest DRS no-lock guard: no push below Serious, spike runs, 60 fps hold at interval 2 until the game is back, relapses, timeouts, growing scene, doubled rests, settle");
+     puts("PASS guest DRS floor learning: no floor from a scene that never shrinks, doubled waits, floor from a push that shrank the scene");
+     puts("PASS guest DRS floor: unknown size, one count a frame, stall at the smallest size, rest at the floor, retry above it");
+     puts("PASS guest DRS: measured medians/tails, hold at Fair, 18.675/20.5 ms steps, Serious push, disjoint samples, invalid windows, hysteresis, 30 Hz and off");
+diff --git a/ios/Settings.bundle/Root.plist b/ios/Settings.bundle/Root.plist
+index e9bd450af..876d49504 100644
+--- a/ios/Settings.bundle/Root.plist
++++ b/ios/Settings.bundle/Root.plist
+@@ -128,9 +128,9 @@
+             <key>DefaultValue</key>
+             <string>0</string>
+             <key>Titles</key>
+-            <array><string>30 FPS</string><string>60 FPS</string><string>120 FPS</string><string>Unlimited</string></array>
++            <array><string>60 FPS</string><string>120 FPS</string><string>Unlimited</string></array>
+             <key>Values</key>
+-            <array><string>30</string><string>60</string><string>120</string><string>0</string></array>
++            <array><string>60</string><string>120</string><string>0</string></array>
+         </dict>
+         <dict>
+             <key>Type</key>
+diff --git a/ios/settings.m b/ios/settings.m
+index 0d648aa66..8a8969651 100644
+--- a/ios/settings.m
++++ b/ios/settings.m
+@@ -46,7 +46,7 @@ NSArray<NSDictionary *> *s2a_ios_graphics_options(void) {
+         @{@"key": @"S2AScalingFilter", @"title": S2AL(@"gfx.filter"), @"initial": @"Bilinear",
+           @"values": @[@"Bilinear", @"Nearest"], @"labels": @[S2AL(@"gfx.filter.bilinear"), S2AL(@"gfx.filter.nearest")]},
+         @{@"key": @"S2AFrameRateLimit", @"title": S2AL(@"gfx.fpsLimit"), @"initial": @"0",
+-          @"values": @[@"30", @"60", @"120", @"0"], @"labels": @[@"30", @"60", @"120", S2AL(@"gfx.fpsLimit.none")]}
++          @"values": @[@"60", @"120", @"0"], @"labels": @[@"60", @"120", S2AL(@"gfx.fpsLimit.none")]}   // RewindBox (patch 0319): no 30, a saved 30 reads as no limit
+     ];
+ }
+ 
+@@ -81,7 +81,7 @@ void s2a_ios_apply_graphics_settings(NSUserDefaults *defaults) {
+         {@"S2AResolutionScale", "S2A_RES_SCALE", @"1", @[@"0.5", @"0.75", @"1", @"1.5", @"2"]},
+         {@"S2AAntiAliasing", "S2A_ANTI_ALIASING", @"None", @[@"None", @"SmaaMedium", @"SmaaHigh"]},   // 不带 FXAA（10-30：NVIDIA FXAA 3.11 没有授权条款）；存过的 Fxaa 按无效值清除
+         {@"S2AScalingFilter", "S2A_SCALING_FILTER", @"Bilinear", @[@"Bilinear", @"Nearest"]},
+-        {@"S2AFrameRateLimit", "S2A_FPS", @"0", @[@"30", @"60", @"120", @"0"]},
++        {@"S2AFrameRateLimit", "S2A_FPS", @"0", @[@"60", @"120", @"0"]},   // RewindBox (patch 0319): a saved 30 is cleared like any invalid value; S2A_FPS=30 from the launch environment still applies
+     };
+ 
+     for (size_t i = 0; i < sizeof options / sizeof options[0]; i++) {
+diff --git a/runtime/tests/t_ios_settings.m b/runtime/tests/t_ios_settings.m
+index 1cb5764a5..677348678 100644
+--- a/runtime/tests/t_ios_settings.m
++++ b/runtime/tests/t_ios_settings.m
+@@ -208,6 +208,16 @@ int main(int argc, char **argv) {
+         }
+ 
+ 
++        // RewindBox (patch 0319): 30 is no longer offered. A 30 saved by an earlier build reads as no limit and is cleared.
++        check(![specs[keys[3]][@"Values"] containsObject:@"30"], @"S2AFrameRateLimit 不再提供 30");
++        for (NSDictionary *option in s2a_ios_graphics_options())
++            if ([option[@"key"] isEqual:keys[3]]) check(![option[@"values"] containsObject:@"30"] && [option[@"initial"] isEqual:@"0"], @"应用内帧率上限没有 30，默认不限");
++        [a setObject:@"30" forKey:keys[3]];
++        check([s2a_ios_graphics_snapshot(a)[keys[3]] isEqual:@"0"], @"保存过的 30 在设置页读作不限");
++        clear_environment();
++        s2a_ios_apply_graphics_settings(a);
++        check(getenv(variables[3]) && !strcmp(getenv(variables[3]), "0") && [a objectForKey:keys[3]] == nil, @"保存过的 30 按不限帧处理并清除");
++
+         // Switch 主机档与图形运行模式分别设置；偏好只在下次进程启动时导出。
+         {
+             NSString *key = @"S2ADockedMode";

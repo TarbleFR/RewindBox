@@ -49,7 +49,6 @@ static NSDictionary<NSString *, NSString *> *EnglishStrings(void) {
     @"menu.aaSmaaHigh" : @"SMAA high",
     @"menu.filterBilinear" : @"Smooth (bilinear)",
     @"menu.filterNearest" : @"Sharp (nearest)",
-    @"menu.fps30" : @"30 FPS",
     @"menu.fps60" : @"60 FPS",
     @"menu.fps120" : @"120 FPS",
     @"menu.fpsUnlimited" : @"No limit",
@@ -358,7 +357,7 @@ static UIView *FindView(UIView *view, NSString *identifier) {
     @"resolutionScale" : @{@"0.5" : @"menu.res050", @"0.75" : @"menu.res075", @"1" : @"menu.res100"},
     @"antiAliasing" : @{@"None" : @"menu.aaNone", @"SmaaMedium" : @"menu.aaSmaaMedium", @"SmaaHigh" : @"menu.aaSmaaHigh"},
     @"scalingFilter" : @{@"Bilinear" : @"menu.filterBilinear", @"Nearest" : @"menu.filterNearest"},
-    @"frameRateLimit" : @{@"30" : @"menu.fps30", @"60" : @"menu.fps60", @"120" : @"menu.fps120", @"0" : @"menu.fpsUnlimited"},
+    @"frameRateLimit" : @{@"60" : @"menu.fps60", @"120" : @"menu.fps120", @"0" : @"menu.fpsUnlimited"},   // no 30 (engine patch 0319)
   };
   if ([setting isEqualToString:@"gameLanguage"]) {
     if ([value isEqual:@"auto"]) return [self text:@"menu.languageAuto"];

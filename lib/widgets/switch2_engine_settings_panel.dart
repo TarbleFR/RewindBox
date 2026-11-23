@@ -76,7 +76,6 @@ class _Switch2EngineSettingsPanelState extends State<Switch2EngineSettingsPanel>
   };
   static const Map<String, String> _filterKeys = <String, String>{'Bilinear': 'filterBilinear', 'Nearest': 'filterNearest'};
   static const Map<String, String> _fpsKeys = <String, String>{
-    '30': 'fps30',
     '60': 'fps60',
     '120': 'fps120',
     '0': 'fpsUnlimited',

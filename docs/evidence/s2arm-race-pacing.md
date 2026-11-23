@@ -213,3 +213,53 @@ Essais possibles sans nouvelle IPA (`Documents/env.txt`, une ligne `CLÉ=VALEUR`
 
 - `S2A_WORKGROUP=1` : annonce une échéance par image au système. Avec lui, quitter ne met pas la session en veille : fermer l'app après l'essai.
 - `DM_NVN_BARRIER=game` : les passes de dessin sont ordonnées par les barrières du jeu, le travail des sommets d'une passe peut chevaucher les fragments de la précédente. Risque : un défaut d'image si le jeu lit au stade des sommets un résultat de la passe précédente sans barrière.
+
+## Patch 0319 : jamais de verrou à 30
+
+Réglage. Dans les quatre sessions 825, la limite d'images était sur « sans limite » : chaque journal porte `S2A_FPS 未设：不额外限帧` et `present pacing mode 0 → 1 (the base rate; S2A_FPS 0 …)`. Le 30 ne venait donc d'aucun réglage. Il venait du mode automatique du moteur : le jeu demande l'intervalle 2, et au bout d'une seconde le moteur passe au maintien de 33,2 ms ; à cette cadence, le système ralentit le GPU.
+
+Ce qui envoie le jeu à l'intervalle 2 (première session, images 6 279 à 7 300 de `frames.txt`, comparées aux changements d'intervalle du journal) :
+
+| Lecture du jeu à l'image précédente | Passage à l'intervalle 2, délai de 0 à 6 images |
+|---|---|
+| plus de 16,67 ms | 19 à 36 % |
+| 16,67 ms ou moins | 4 à 7 % |
+
+- Les lectures au-dessus de 16,67 ms à l'intervalle 1 sont des poussées de résolution (18,675 et 20,5 ms) ou de courtes séries d'images lentes : 17 séries sur 31 durent une ou deux images.
+- Trois à cinq images à l'intervalle 2 avec une lecture de 16,6 ms ramènent le jeu à l'intervalle 1 sans changer sa taille (images 6 601 et 6 900).
+- Après un long séjour à l'intervalle 2, les mêmes lectures font grossir la scène : de 1 248×700 à 1 300×728 en 28 images à l'essai de l'image 7 184 (patch 0309), et de 28 pixels en 4 images à la sortie de la récupération GPU de l'image 6 568. Chaque pas refait 17 à 28 textures partagées.
+
+Patch 0319 (`rb_adaptive_drs.h`, `rb_drs_hold`), activé par `S2A_RB_DRS_NO_LOCK=1`, que le pont pose pour Mario Kart World :
+
+- pas de poussée de résolution sous l'état Serious ; à Serious et Critical, les poussées restent ;
+- une image au-delà du maintien de 16,6 ms lit le maintien, sauf si les deux images précédentes l'ont dépassé aussi (`rb_drs_spike_pass`) ;
+- quand le jeu passe de l'intervalle 1 à 2, ses rapports lisent le maintien de 16,6 ms jusqu'à son retour à l'intervalle 1 (`rb_drs_escape_step`) :
+  - l'évasion dure au plus 12 images, et s'arrête si la scène grossit de plus de 1 % ;
+  - un retour à l'intervalle 2 moins de 60 images après la sortie compte comme un échec ; un jeu qui ne répond pas est réessayé 30 images plus tard ;
+  - 3 échecs de suite, ou une scène qui grossit, mettent les évasions au repos 90 images, puis deux fois plus à chaque repos, jusqu'à 360 ; 60 images d'affilée à l'intervalle 1 remettent tout à zéro ;
+  - pendant un repos, le maintien suit la cible du moteur comme avant, et l'essai du patch 0309 continue ;
+- ni l'intervalle 3, ni une limite de 30 posée par l'environnement, ni une vidéo, ni l'état Critical ne déclenchent d'évasion.
+
+L'option 30 disparaît des réglages du moteur (`ios/settings.m`, `Settings.bundle`), du pont (valeurs, menu en jeu, application en direct) et de Flutter (modèle, panneau, 12 langues). Une valeur 30 enregistrée par une IPA précédente est lue comme « sans limite », et le pont l'efface avant le démarrage du moteur.
+
+Verrou de non-régression :
+
+- `graphics/nvn/tests/t_rb_adaptive_drs.c` couvre la garde : poussée, séries, évasion, échecs, attente, scène qui grossit, repos doublés, remise à zéro, intervalle 3, taille inconnue. Il passe en local (gcc) et tourne dans la CI moteur (`[s2arm-thermal-checks]`).
+- `runtime/tests/t_ios_settings.m` vérifie qu'un 30 enregistré est lu « sans limite » et effacé.
+- `test/s2arm_never_30_lock_test.py` (13 cas, dans les workflows du pont et de la bibliothèque) échoue si :
+  - le patch 0319 manque ou ne passe plus par le maintien ;
+  - un patch ultérieur retire la garde ou propose de nouveau 30 ;
+  - le pont n'active plus la garde pour Mario Kart World ;
+  - 30 réapparaît dans le pont, le menu ou Flutter.
+  Deux mutations (30 remis dans le modèle Dart, garde retirée du profil) le font échouer.
+- `test/s2arm_internal_service_test.dart` : un 30 reçu du côté natif devient « sans limite ».
+
+Ce qui reste hors de portée. Si le GPU est réellement lent (enregistrement d'écran, état Serious prolongé), les évasions échouent et se mettent au repos : le jeu peut alors repasser à 30 pendant ce repos, au plus 12 secondes de suite, avant un nouvel essai. Rien n'est encore mesuré sur iPhone.
+
+À regarder dans le prochain journal :
+
+- `[rb-guest-drs] no-lock guard on` au démarrage ;
+- `[rb-guest-drs] escape frame= escapes= returns= fails= ramps= rests=` : les retours doivent suivre les évasions, avec peu d'échecs ;
+- `[rb-guest-drs] spike reports=` ;
+- la part d'images à l'intervalle 2 dans `the game sets present interval` ;
+- l'absence de lignes `dynamic resolution hold … 33.20 ms` hors des repos.

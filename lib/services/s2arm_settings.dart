@@ -19,7 +19,8 @@ class S2ArmSettings {
   static const List<String> scalingFilters = <String>['Bilinear', 'Nearest'];
 
   /// '0' means no limit.
-  static const List<String> frameRateLimits = <String>['30', '60', '120', '0'];
+  // No 30 (engine patch 0319): a 30 stored by an earlier build reads as no limit.
+  static const List<String> frameRateLimits = <String>['60', '120', '0'];
 
   /// The SystemLanguage names the native host accepts, besides 'auto'.
   static const List<String> gameLanguages = <String>[

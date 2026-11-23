@@ -17,8 +17,9 @@ NSDictionary<NSString *, id> *S2ArmSettingsSnapshot(void);
 // Validates and stores any subset of that map (unknown keys and values are ignored), then returns the new snapshot.
 NSDictionary<NSString *, id> *S2ArmSettingsApply(NSDictionary *changes);
 
-// Before the engine starts: exports the game language (or clears it for "auto") and turns on the engine's own brief
-// performance overlay, which S2ArmSessionMenu then shows or hides live according to performanceOverlay.
+// Before the engine starts: removes a frame-rate limit no longer offered (a stored 30 reads as no limit), exports the
+// game language (or clears it for "auto") and turns on the engine's own brief performance overlay, which
+// S2ArmSessionMenu then shows or hides live according to performanceOverlay.
 void S2ArmSettingsPrepareLaunch(void);
 
 // The values the in-game menu offers, in display order.

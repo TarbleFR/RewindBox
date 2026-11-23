@@ -28,7 +28,8 @@ NSArray<NSString *> *S2ArmSettingsValues(NSString *key) {
   if ([key isEqualToString:@"resolutionScale"]) return @[ @"0.5", @"0.75", @"1" ];
   if ([key isEqualToString:@"antiAliasing"]) return @[ @"None", @"SmaaMedium", @"SmaaHigh" ];
   if ([key isEqualToString:@"scalingFilter"]) return @[ @"Bilinear", @"Nearest" ];
-  if ([key isEqualToString:@"frameRateLimit"]) return @[ @"30", @"60", @"120", @"0" ];
+  // Engine patch 0319: no 30. Mario Kart World stayed locked at 30 fps in IPA 825 (never from this setting), and 30 is never chosen.
+  if ([key isEqualToString:@"frameRateLimit"]) return @[ @"60", @"120", @"0" ];
   if ([key isEqualToString:@"gameLanguage"]) return GameLanguages();
   return @[];
 }
@@ -91,7 +92,16 @@ void S2ArmSettingsSetPerformanceOverlay(BOOL on) {
   [NSUserDefaults.standardUserDefaults setBool:on forKey:kPerformanceOverlay];
 }
 
+// A frame-rate limit no longer offered (30, stored by IPA 826 and earlier) reads as no limit and is removed before the engine reads it.
+static void S2ArmSettingsForgetRetiredLimit(void) {
+  NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
+  id stored = [defaults objectForKey:kFrameRateLimit];
+  if (stored && !([stored isKindOfClass:NSString.class] && [S2ArmSettingsValues(@"frameRateLimit") containsObject:stored]))
+    [defaults removeObjectForKey:kFrameRateLimit];
+}
+
 void S2ArmSettingsPrepareLaunch(void) {
+  S2ArmSettingsForgetRetiredLimit();
   NSString *language = S2ArmSettingsSnapshot()[@"gameLanguage"];
   if ([language isEqualToString:@"auto"]) {
     unsetenv("S2A_SYSTEM_LANGUAGE");   // the engine then follows the iPhone's preferred languages (SystemLocale.cs)

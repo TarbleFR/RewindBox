@@ -512,6 +512,15 @@ void main() {
       expect([numbers.docked, numbers.widescreen, numbers.performanceOverlay], [true, false, true]);
     });
 
+    test('30 fps is never offered and a stored 30 reads as no limit (engine patch 0319)', () {
+      expect(S2ArmSettings.frameRateLimits, ['60', '120', '0']);
+      expect(S2ArmSettings.frameRateLimits, isNot(contains('30')));
+      expect(S2ArmSettings.defaults.frameRateLimit, '0');
+      expect(S2ArmSettings.fromMap(const {'frameRateLimit': '30'}).frameRateLimit, '0');
+      expect(S2ArmSettings.fromMap(const {'frameRateLimit': 30}).frameRateLimit, '0');
+      expect(S2ArmSettings.fromMap(const {'frameRateLimit': '60'}).frameRateLimit, '60');
+    });
+
     test('getSettings and setSettings round trip through the channel', () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
       addTearDown(() => debugDefaultTargetPlatformOverride = null);

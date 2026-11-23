@@ -853,6 +853,9 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
   int frameKeyProfile = setenv("S2A_RB_FRAME_SHADER_KEY", kartRender, 0);
   // IPA 786: 82 and 96 on-screen drops in successive 300-frame windows at guest 30 FPS.
   int displayTicksProfile = setenv("S2A_RB_LINK_GAME30", kartRender, 0);
+  // IPA 825: with no frame-rate limit set, Mario Kart World stayed at 30 fps for minutes once it had held present interval 2
+  // for a second (resolution pushes and one-frame spikes sent it there). Engine patch 0319 keeps it at 60 fps.
+  int noLockProfile = setenv("S2A_RB_DRS_NO_LOCK", kartRender, 0);
   int residencyCensusProfile = setenv("S2A_RB_RES_TOP_PER_FRAME", kartRender, 0);
   int shaderVariantProfile = setenv("S2A_RB_BOUND_SHADER_VARIANT", kartRender, 0);
   // IPA 786's automatic sampler held individual threads for up to 32.5 ms.
@@ -865,7 +868,7 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
                        textureViewsProfile || demandProbeProfile || audioReprimeProfile || feedbackProfile ||
                        pipelinePriorityProfile || shaderCompletionProfile || pipelineLookaheadProfile ||
                        uniformBoundsProfile || waitProbeProfile || frameKeyProfile ||
-                       displayTicksProfile || residencyCensusProfile || shaderVariantProfile || automaticProbeProfile ||
+                       displayTicksProfile || noLockProfile || residencyCensusProfile || shaderVariantProfile || automaticProbeProfile ||
                        saveRestoreProfile || saveTitleSlots;
   s2arm_journal("gameProfile", profileFailed ? "failed" : "selected",
                 "\"profile\":\"%s\"", fastFusion ? "fast-fusion" : marioKartWorld ? "mario-kart-world" : "default");
@@ -1144,6 +1147,7 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
 // Patch 0078 (engine): the limit changed during play. YES when the engine took it (from its next frame on).
 - (BOOL)applyLiveSetting:(NSString *)setting value:(id)value {
   if (![setting isEqualToString:@"frameRateLimit"] || ![value isKindOfClass:NSString.class]) return NO;
+  if (![S2ArmSettingsValues(@"frameRateLimit") containsObject:value]) return NO;   // engine patch 0319: never 30
   s2a_rb_guest_set_fps_limit_fn set = (s2a_rb_guest_set_fps_limit_fn)dlsym(RTLD_DEFAULT, S2A_RB_GUEST_SET_FPS_LIMIT);
   if (!set) return NO;
   int fps = [(NSString *)value intValue];
