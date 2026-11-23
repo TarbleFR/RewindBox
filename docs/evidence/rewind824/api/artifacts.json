@@ -1,0 +1,226 @@
+{
+  "total_count": 17,
+  "artifacts": [
+    {
+      "id": 14802510981,
+      "name": "RewindBox-Build824-6df22f051251ce5f03d65cdefd8084a3588446d2-attempt1-cold",
+      "size_in_bytes": 334740893,
+      "digest": "sha256:835ace22805549f211f86bd4915af3d2b6b176905111bb10e9e13ea0fec6bd05",
+      "expired": false,
+      "expires_at": "2026-12-07T08:47:35Z",
+      "workflow_run": {
+        "id": 45137359219,
+        "head_branch": "Claude",
+        "head_sha": "6df22f051251ce5f03d65cdefd8084a3588446d2"
+      }
+    },
+    {
+      "id": 14802381234,
+      "name": "RewindBox-Build824-6df22f051251ce5f03d65cdefd8084a3588446d2-attempt1-cold-part01",
+      "size_in_bytes": 83687150,
+      "digest": "sha256:91a4fd85df984b2118088954199a4b5a589d389b93e305f21a07a6434dea1988",
+      "expired": false,
+      "expires_at": "2026-12-07T08:47:59Z",
+      "workflow_run": {
+        "id": 45137359219,
+        "head_branch": "Claude",
+        "head_sha": "6df22f051251ce5f03d65cdefd8084a3588446d2"
+      }
+    },
+    {
+      "id": 14802261236,
+      "name": "RewindBox-Build824-6df22f051251ce5f03d65cdefd8084a3588446d2-attempt1-cold-recovery-part03",
+      "size_in_bytes": 83668462,
+      "digest": "sha256:522d4e25227834b246b1734813037200f7054ce59d973e389c2582cdad91f216",
+      "expired": false,
+      "expires_at": "2026-12-07T08:46:21Z",
+      "workflow_run": {
+        "id": 45137359219,
+        "head_branch": "Claude",
+        "head_sha": "6df22f051251ce5f03d65cdefd8084a3588446d2"
+      }
+    },
+    {
+      "id": 14802162344,
+      "name": "RewindBox-Build824-6df22f051251ce5f03d65cdefd8084a3588446d2-attempt1-cold-part00",
+      "size_in_bytes": 83687150,
+      "digest": "sha256:d102afa0568d33bd2748f87fd4f85a541ce236f9b4d4c5ebbec9290c4940f215",
+      "expired": false,
+      "expires_at": "2026-12-07T08:47:48Z",
+      "workflow_run": {
+        "id": 45137359219,
+        "head_branch": "Claude",
+        "head_sha": "6df22f051251ce5f03d65cdefd8084a3588446d2"
+      }
+    },
+    {
+      "id": 14802057746,
+      "name": "RewindBox-Build824-6df22f051251ce5f03d65cdefd8084a3588446d2-attempt1-cold-diagnostics",
+      "size_in_bytes": 7801565,
+      "digest": "sha256:b1dd79705393041a3ae09726701e633f879cceac7daea2b871b8104ebf9c507a",
+      "expired": false,
+      "expires_at": "2026-12-07T08:48:13Z",
+      "workflow_run": {
+        "id": 45137359219,
+        "head_branch": "Claude",
+        "head_sha": "6df22f051251ce5f03d65cdefd8084a3588446d2"
+      }
+    },
+    {
+      "id": 14801773069,
+      "name": "RewindBox-Build824-6df22f051251ce5f03d65cdefd8084a3588446d2-attempt1-cold-recovery-part00",
+      "size_in_bytes": 83668462,
+      "digest": "sha256:f04676a07e5cfb7c061119dc01e67cdde59e47e8c0f3464d3ac8a3bb1acdf564",
+      "expired": false,
+      "expires_at": "2026-12-07T08:46:12Z",
+      "workflow_run": {
+        "id": 45137359219,
+        "head_branch": "Claude",
+        "head_sha": "6df22f051251ce5f03d65cdefd8084a3588446d2"
+      }
+    },
+    {
+      "id": 14801693877,
+      "name": "RewindBox-Build824-6df22f051251ce5f03d65cdefd8084a3588446d2-attempt1-cold-part02",
+      "size_in_bytes": 83687150,
+      "digest": "sha256:880310d8b18f1ebf990dcf4ad5f4241fb71f0d4f2a7cc4363b9aa7c4fa2fef27",
+      "expired": false,
+      "expires_at": "2026-12-07T08:48:03Z",
+      "workflow_run": {
+        "id": 45137359219,
+        "head_branch": "Claude",
+        "head_sha": "6df22f051251ce5f03d65cdefd8084a3588446d2"
+      }
+    },
+    {
+      "id": 14801568684,
+      "name": "RewindBox-Build824-6df22f051251ce5f03d65cdefd8084a3588446d2-attempt1-cold-recovery-part01",
+      "size_in_bytes": 83668462,
+      "digest": "sha256:a2428aa6adccf59ac241b1371cb1608da869d0cb8ef6b72d8dfe0f5f2d73224c",
+      "expired": false,
+      "expires_at": "2026-12-07T08:46:15Z",
+      "workflow_run": {
+        "id": 45137359219,
+        "head_branch": "Claude",
+        "head_sha": "6df22f051251ce5f03d65cdefd8084a3588446d2"
+      }
+    },
+    {
+      "id": 14801544400,
+      "name": "RewindBox-Build824-6df22f051251ce5f03d65cdefd8084a3588446d2-attempt1-cold-part03",
+      "size_in_bytes": 83687150,
+      "digest": "sha256:3b0785323fdc19b3e1e462c7b0d5d6aea498084aed3dbaaaeaa8151359b165a7",
+      "expired": false,
+      "expires_at": "2026-12-07T08:48:08Z",
+      "workflow_run": {
+        "id": 45137359219,
+        "head_branch": "Claude",
+        "head_sha": "6df22f051251ce5f03d65cdefd8084a3588446d2"
+      }
+    },
+    {
+      "id": 14801475440,
+      "name": "RewindBox-Build824-6df22f051251ce5f03d65cdefd8084a3588446d2-attempt1-contract",
+      "size_in_bytes": 6279,
+      "digest": "sha256:12a0210f1fc9dee5ff57d392efab247b4c434c8a2ed33c33e9b524de23e169de",
+      "expired": false,
+      "expires_at": "2026-12-07T08:19:42Z",
+      "workflow_run": {
+        "id": 45137359219,
+        "head_branch": "Claude",
+        "head_sha": "6df22f051251ce5f03d65cdefd8084a3588446d2"
+      }
+    },
+    {
+      "id": 14801349258,
+      "name": "RewindBox-Build824-6df22f051251ce5f03d65cdefd8084a3588446d2-attempt1-cold-recovery-part02",
+      "size_in_bytes": 83668462,
+      "digest": "sha256:e0d2fffc1696f1bc0d7986a7bc7cbe0abd4e26578bdfd50cfe0eb364643114db",
+      "expired": false,
+      "expires_at": "2026-12-07T08:46:18Z",
+      "workflow_run": {
+        "id": 45137359219,
+        "head_branch": "Claude",
+        "head_sha": "6df22f051251ce5f03d65cdefd8084a3588446d2"
+      }
+    },
+    {
+      "id": 14801300057,
+      "name": "RewindBox-Build824-6df22f051251ce5f03d65cdefd8084a3588446d2-attempt1-component-libretro",
+      "size_in_bytes": 55568023,
+      "digest": "sha256:116a1926c7498def85e6a5dbfac52dfef6ab75a18cb0c889baeb4f6a15be47c4",
+      "expired": false,
+      "expires_at": "2027-02-21T08:17:01Z",
+      "workflow_run": {
+        "id": 45137359219,
+        "head_branch": "Claude",
+        "head_sha": "6df22f051251ce5f03d65cdefd8084a3588446d2"
+      }
+    },
+    {
+      "id": 14801240182,
+      "name": "RewindBox-Build824-6df22f051251ce5f03d65cdefd8084a3588446d2-attempt1-component-armsx2",
+      "size_in_bytes": 14043861,
+      "digest": "sha256:47a4f8d6fb227fdfa32f7e20c5ffe733724652632eec52fa28235ca554c1694c",
+      "expired": false,
+      "expires_at": "2027-02-21T08:17:01Z",
+      "workflow_run": {
+        "id": 45137359219,
+        "head_branch": "Claude",
+        "head_sha": "6df22f051251ce5f03d65cdefd8084a3588446d2"
+      }
+    },
+    {
+      "id": 14801106444,
+      "name": "RewindBox-Build824-6df22f051251ce5f03d65cdefd8084a3588446d2-attempt1-component-rpcs3-core",
+      "size_in_bytes": 30614285,
+      "digest": "sha256:2bea4aefcc29bf6de0dfc09ae4624a05d9f79f88b2831c06f4dda500cdd93554",
+      "expired": false,
+      "expires_at": "2027-02-21T08:17:01Z",
+      "workflow_run": {
+        "id": 45137359219,
+        "head_branch": "Claude",
+        "head_sha": "6df22f051251ce5f03d65cdefd8084a3588446d2"
+      }
+    },
+    {
+      "id": 14800511882,
+      "name": "RewindBox-Build824-6df22f051251ce5f03d65cdefd8084a3588446d2-attempt1-component-melonx-core",
+      "size_in_bytes": 101470269,
+      "digest": "sha256:8ddec8877c3d03a55de2bdbd1a6e553a02d0bf78f67155d95f2a6814b370f0c5",
+      "expired": false,
+      "expires_at": "2027-02-21T08:17:01Z",
+      "workflow_run": {
+        "id": 45137359219,
+        "head_branch": "Claude",
+        "head_sha": "6df22f051251ce5f03d65cdefd8084a3588446d2"
+      }
+    },
+    {
+      "id": 14799669603,
+      "name": "RewindBox-Build824-6df22f051251ce5f03d65cdefd8084a3588446d2-attempt1-component-dolphin",
+      "size_in_bytes": 11192276,
+      "digest": "sha256:427a73d34183e75c5c8a95c3e20060eeaa0eae6cb00f11506f7c15db9a2a7197",
+      "expired": false,
+      "expires_at": "2027-02-21T08:17:01Z",
+      "workflow_run": {
+        "id": 45137359219,
+        "head_branch": "Claude",
+        "head_sha": "6df22f051251ce5f03d65cdefd8084a3588446d2"
+      }
+    },
+    {
+      "id": 14799649845,
+      "name": "RewindBox-Build824-6df22f051251ce5f03d65cdefd8084a3588446d2-attempt1-component-melonx-dependencies",
+      "size_in_bytes": 49179302,
+      "digest": "sha256:64717d2f00492ba0aac77708c7af3fa3f8f85c5009e78de7fdd2357f80cde016",
+      "expired": false,
+      "expires_at": "2027-02-21T08:17:01Z",
+      "workflow_run": {
+        "id": 45137359219,
+        "head_branch": "Claude",
+        "head_sha": "6df22f051251ce5f03d65cdefd8084a3588446d2"
+      }
+    }
+  ]
+}
