@@ -408,9 +408,10 @@ void main() {
         <String, String>{'mupen64plus-cpucore': 'cached_interpreter'});
     expect(cores['ppsspp']!.noJitOverrides, <String, String>{'ppsspp_cpu_core': 'IR JIT'});
     // RewindBox's DeSmuME and Beetle PSX builds generate code only with the
-    // JIT interface, and then by default; without it the interpreter runs.
+    // JIT interface, and then by default; without it an interpreter runs
+    // (DeSmuME's cached interpreter).
     expect(cores['desmume']!.noJitOverrides, <String, String>{
-      'desmume_cpu_mode': 'interpreter',
+      'desmume_cpu_mode': 'cached',
       'desmume_jit_block_size': '12',
     });
     expect(cores['desmume']!.optionDefaults['desmume_cpu_mode'], 'jit');

@@ -264,10 +264,10 @@ def main():
     require(cores['azahar']['noJit'] == {'citra_use_cpu_jit': 'disabled', 'citra_use_shader_jit': 'disabled'},
             "RewindBox's Azahar build declares both JIT options: forced off without the JIT interface")
     # RewindBox's DeSmuME (AArch64 JIT) and Beetle PSX (Lightrec) builds: generated code by default with the JIT
-    # interface, the interpreter without it.
-    require(cores['desmume']['noJit'] == {'desmume_cpu_mode': 'interpreter', 'desmume_jit_block_size': '12'}
+    # interface, an interpreter without it (DeSmuME's cached interpreter, the interpreter's results).
+    require(cores['desmume']['noJit'] == {'desmume_cpu_mode': 'cached', 'desmume_jit_block_size': '12'}
             and cores['desmume']['defaults'].get('desmume_cpu_mode') == 'jit',
-            "RewindBox's DeSmuME build: JIT by default, the interpreter without the JIT interface")
+            "RewindBox's DeSmuME build: JIT by default, the cached interpreter without the JIT interface")
     for core_id, prefix in (('mednafen_psx_hw', 'beetle_psx_hw'), ('mednafen_psx', 'beetle_psx')):
         require(cores[core_id]['noJit'].get(prefix + '_cpu_dynarec') == 'disabled'
                 and cores[core_id]['defaults'].get(prefix + '_cpu_dynarec') == 'execute',
