@@ -214,11 +214,14 @@ jobs:
           S2A_BUILD_CACHE: ${{ runner.temp }}/s2arm-build-cache
         run: |
           set -euo pipefail
-          for fixture in graphics/nvn/tests/t_rb_{thermal_pacing,spec_gate,archive_index,display_hold,adaptive_drs}.c runtime/tests/t_rb_guest_heat.c; do
+          for fixture in graphics/nvn/tests/t_rb_{thermal_pacing,spec_gate,archive_index,display_hold,adaptive_drs}.c runtime/tests/t_rb_guest_heat.c \
+            graphics/nvn/tests/t_rb_{view_scope,rs_retire,audit_sample,bind_facts,fb_dirty,args_ubo,report_spread,interval_trace,bind_lane,dark_probe}.c; do
             binary="$RUNNER_TEMP/$(basename "$fixture" .c)"
             xcrun --sdk macosx clang -std=gnu11 -D_DARWIN_C_SOURCE -O2 -Wall -Wextra -Werror -pthread "$fixture" -o "$binary"
             "$binary"
           done
+          # RewindBox (patch 0320): the write count per tracked pool against the page generations, with real write faults
+          make native-test-rb_dirty_range
           make -C graphics/nvn mac
           xcrun lipo build/nvn/mac/libnvn.a -verify_arch arm64
           make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" \

@@ -1,0 +1,512 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 75977d1..34fbdd8 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3361,6 +3361,102 @@ __attribute__((weak)) void nvn_be_blocked_ns(uint64_t out[4]) { memset(out, 0, 4
+ __attribute__((weak)) double nvn_be_gpu_probe_ms(void) { return -1; }   // RewindBox (patch 0068): nvn_mtl.m; none elsewhere
+ static uint64_t g_fs_start, g_fs_wait;   // frame step (fstep_tick): when the first acquire after a present returned (the frame's start, 0 = none yet), and its pacing wait
+ uint64_t dm_nvn_frame_count(void) { return g_frame; }
++// RewindBox (patch 0328): a bounded trace of the frames around the game's requests for present interval 2 (rb_interval_trace.h). IPA 827 (Mario Kart World, iPhone 16
++//   Pro Max): out of a race, at 11.5 ms of GPU time, the game asks for interval 2 for one present every 6 to 8 frames (445 of 487 stays lasted one present), each costs
++//   a display tick, and the log has nothing per frame but the time from one present to the next. Noted here: when each frame began (rb_itv_acquired), its present, its
++//   waits, the interval and the hold it went with (rb_itv_presented), the timestamp reports the completion handlers wrote for it before and after the report hold
++//   (nvn_rb_itv_report, called by nvn_mtl.m) and the game's conversions of them against the guest clock at that call (rb_itv_converted). 9 presents after a present sent at
++//   interval 2 that follows one sent at interval 1, rb_itv_presented writes the six frames around it ("[rb-itv] episode=F frame=..."), 4 episodes and one group of frames
++//   far from any request ("[rb-itv] control=F frame=...") per 300 frames at most, and "[rb-itv] up to frame N: ..." with the counts of each 300 frames. No time the
++//   game reads or waits changes, and a title that never alternates writes nothing after the switch's line. S2A_RB_ITV_TRACE=0: nothing noted, no line
++#include "rb_interval_trace.h"
++static rb_itv_trace g_rb_itv; static pthread_mutex_t g_rb_itv_mu = PTHREAD_MUTEX_INITIALIZER;   // g_rb_itv_mu: every use of g_rb_itv
++static int rb_itv_on(void) {   // any thread
++    static _Atomic int v;   // 0: not read yet, 1: off, 2: on
++    int s = atomic_load_explicit(&v, memory_order_relaxed);
++    if (!s) {
++        const char *e = getenv("S2A_RB_ITV_TRACE"); int zero = 0;
++        s = e && !strcmp(e, "0") ? 1 : 2;
++        if (atomic_compare_exchange_strong(&v, &zero, s))
++            LOG("[rb-itv] interval-2 episode trace %s (S2A_RB_ITV_TRACE; patch 0328): %d frames kept, %d episodes and one control group written per %d frames at most",
++                s == 2 ? "on" : "off", RB_ITV_RING, RB_ITV_PER_WINDOW, RB_ITV_WINDOW);
++    }
++    return s == 2;
++}
++static void rb_itv_acquired(void) {   // the pacing owner's acquire has returned: the frame begins (its first one counts)
++    if (!rb_itv_on()) return;
++    const uint64_t at = guest_ns(), f = g_frame;
++    pthread_mutex_lock(&g_rb_itv_mu); rb_itv_begin(&g_rb_itv, f, at); pthread_mutex_unlock(&g_rb_itv_mu);
++}
++void nvn_rb_itv_report(uint64_t frame, uint32_t type, uint64_t raw_ticks, uint64_t read_ticks);
++void nvn_rb_itv_report(uint64_t frame, uint32_t type, uint64_t raw_ticks, uint64_t read_ticks) {   // nvn_mtl.m's completion handlers, as they write a TIMESTAMP_TOP or TIMESTAMP report
++    if (!rb_itv_on()) return;
++    const uint64_t at = guest_ns();
++    pthread_mutex_lock(&g_rb_itv_mu); rb_itv_report_note(&g_rb_itv, frame, type, raw_ticks, read_ticks, at); pthread_mutex_unlock(&g_rb_itv_mu);
++}
++static void rb_itv_converted(uint64_t ticks) {   // nvnDeviceGetTimestampInNanoseconds: the game reads a report's time
++    if (!rb_itv_on()) return;
++    const uint64_t at = guest_ns(), f = g_frame;
++    pthread_mutex_lock(&g_rb_itv_mu); rb_itv_read_note(&g_rb_itv, f, ticks, at); pthread_mutex_unlock(&g_rb_itv_mu);
++}
++static double rb_itv_ms(int64_t us) { return us == INT64_MIN ? -1. : (double)us / 1e3; }   // -1: not known
++// One line a frame of the group around `centre` (g: rb_itv_group's copy), written by the presenting thread without the lock. Times in ms after the frame began (its first
++//   acquire returned), -1 = not known. reports: kind:raw/read/ahead, the time after the frame's first TIMESTAMP_TOP on the busy GPU clock, the time written (kind held:
++//   the report hold changed it), and the written time less the guest clock when it was written. reads: +frames later:value/ahead, a conversion of one of those reports
++//   by the game, its value after that TIMESTAMP_TOP and less the guest clock at the call (+: the game is told a time its clock has not reached)
++static void rb_itv_write(const char *kind, uint64_t centre, const rb_itv_frame *g) {
++    for (unsigned i = 0; i + 1 < RB_ITV_GROUP; i++) {
++        const rb_itv_frame *r = &g[i], *next = &g[i + 1];
++        const int rel = (int)i - RB_ITV_BEFORE;
++        const unsigned long long frame = (unsigned long long)(centre + i - RB_ITV_BEFORE);
++        if (!r->frame) { LOG("[rb-itv] %s=%llu frame=%llu rel=%d missing", kind, (unsigned long long)centre, frame, rel); continue; }
++        char line[1024]; size_t o = 0;
++        o += (size_t)snprintf(line + o, sizeof line - o, "[rb-itv] %s=%llu frame=%llu rel=%d itv=%u hold=%u next_begin_ms=%.2f acquire_wait_ms=%.2f queue_wait_ms=%.2f present_ms=%.2f top_ms=%.2f gpu_ms=%.2f..%.2f shown_ms=%.2f reports=",
++                              kind, (unsigned long long)centre, frame, rel, (unsigned)r->interval, (unsigned)r->hold, rb_itv_ms(rb_itv_after_begin_us(r, next->frame ? next->begin_ns : 0)),
++                              r->acquire_wait_us / 1e3, r->queue_wait_us / 1e3, rb_itv_ms(rb_itv_after_begin_us(r, r->present_ns)), rb_itv_ms(rb_itv_after_begin_us(r, r->top_ns)),
++                              rb_itv_ms(rb_itv_after_begin_us(r, r->gpu0_ns)), rb_itv_ms(rb_itv_after_begin_us(r, r->gpu1_ns)), rb_itv_ms(rb_itv_after_begin_us(r, r->shown_ns)));
++        for (unsigned k = 0; k < r->reports && o < sizeof line - 128; k++) {
++            const rb_itv_report *p = &r->report[k];
++            o += (size_t)snprintf(line + o, sizeof line - o, "%s%s:%.2f/%.2f/%+.2f", k ? "," : "", p->type == 0x10 ? "top" : p->read_ticks != p->raw_ticks ? "held" : "ts",
++                                  rb_itv_ms(rb_itv_after_top_us(r, p->raw_ticks)), rb_itv_ms(rb_itv_after_top_us(r, p->read_ticks)), p->ahead_us / 1e3);
++        }
++        if (o < sizeof line - 128) o += (size_t)snprintf(line + o, sizeof line - o, "%s reads=", r->reports_lost ? ",more" : "");
++        for (unsigned k = 0; k < r->reads && o < sizeof line - 128; k++)
++            o += (size_t)snprintf(line + o, sizeof line - o, "%s+%u:%.2f/%+.2f", k ? "," : "", (unsigned)r->read[k].lag, r->read[k].read_us / 1e3, r->read[k].ahead_us / 1e3);
++        if (r->reads_lost && o < sizeof line - 128) snprintf(line + o, sizeof line - o, ",more");
++        LOG("%s", line);
++    }
++}
++// The present of frame f, on the presenting thread before the frame's waits are cleared. t0: the present call (host clock). interval: what it was sent with (0: not sent
++//   to a window texture). hold_ns: what it was queued for on screen. late_ticket: the present ticket of frame f - 8, whose GPU span and display time are known by now
++static void rb_itv_presented(uint64_t f, uint64_t t0, int interval, uint64_t hold_ns, uint64_t late_ticket) {
++    if (!rb_itv_on()) return;
++    const uint64_t guest = guest_ns(), host = now_ns(), off = host > guest ? host - guest : 0;   // what the host clock is ahead of the guest clock: the time the guest clock stood still
++    uint64_t g0 = 0, g1 = 0, shown_ns = 0;
++    if (f >= 8) {
++        if (!nvn_be_gpu_span(f - 8, &g0, &g1)) g0 = g1 = 0;
++        const double shown = late_ticket ? nvn_be_presented_time(late_ticket) : 0;   // seconds on the host clock; 0 not known, -1 discarded
++        if (shown > 0) shown_ns = (uint64_t)(shown * 1e9);
++    }
++    static rb_itv_frame group[RB_ITV_PER_WINDOW + 1][RB_ITV_GROUP];   // the presenting thread: what this present has to write
++    uint64_t centre[RB_ITV_PER_WINDOW + 1] = {0};
++    unsigned n = 0; int control = 0;
++    rb_itv_counts c = {0};
++    pthread_mutex_lock(&g_rb_itv_mu);
++    const int summary = rb_itv_window(&g_rb_itv, f, &c);
++    rb_itv_present(&g_rb_itv, f, t0 > off ? t0 - off : 0, interval, (unsigned)((hold_ns * 60 + 500000000ull) / 1000000000ull), g_acq_wait_ns, g_pq_wait_ns);
++    if (f >= 8) rb_itv_late(&g_rb_itv, f - 8, g0 > off ? g0 - off : 0, g1 > off ? g1 - off : 0, shown_ns > off ? shown_ns - off : 0);
++    while (n < RB_ITV_PER_WINDOW && rb_itv_take(&g_rb_itv, f, &centre[n])) { rb_itv_group(&g_rb_itv, centre[n], group[n]); n++; }
++    if (rb_itv_control(&g_rb_itv, f, &centre[n])) { rb_itv_group(&g_rb_itv, centre[n], group[n]); control = 1; }
++    pthread_mutex_unlock(&g_rb_itv_mu);
++    for (unsigned i = 0; i < n; i++) rb_itv_write("episode", centre[i], group[i]);
++    if (control) rb_itv_write("control", centre[n], group[n]);
++    if (summary)
++        LOG("[rb-itv] up to frame %llu: episodes=%llu one_present=%llu written=%llu over_budget=%llu lost=%llu controls=%llu; timestamp reads=%llu ahead_of_guest_clock=%llu (mean %.2f ms, max %.2f ms) unmatched=%llu; reports=%llu held=%llu",
++            (unsigned long long)f, (unsigned long long)c.episodes, (unsigned long long)c.one_present, (unsigned long long)c.printed, (unsigned long long)c.over_budget, (unsigned long long)c.lost,
++            (unsigned long long)c.controls, (unsigned long long)c.reads, (unsigned long long)c.reads_ahead, c.reads_ahead ? (double)c.ahead_sum_us / 1e3 / (double)c.reads_ahead : 0., c.ahead_max_us / 1e3,
++            (unsigned long long)c.reads_unmatched, (unsigned long long)c.reports, (unsigned long long)c.held);
++}
+ extern uint64_t g_t0_ns;   // Host process start point (main.c; same base as the UIMSG timestamps)
+ // The thread that presented last owns the frame pacing below. Another thread acquiring a swapchain texture (a loader drawing one frame of its
+ // own) does not sleep out the pacer: it only waits until the present thread has processed this texture's previous present. 10-31 TMNT (0100BB8017F24000):
+@@ -3438,6 +3534,7 @@ NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsyn
+     if (tk) { int phase=rb_lf_switch(RB_DISPLAY); uint64_t w0 = now_ns(); nvn_be_present_wait(tk); g_pq_wait_ns += now_ns() - w0; if (phase>=0) rb_lf_switch(phase); }
+     if (s) sync_publish((sync_t *)s, nvn_be_last_fence());   // The swapchain texture becomes available once the commits before this point have completed
+     if (!g_fs_start) { g_fs_start = now_ns(); g_fs_wait = pace_ns; }   // the frame starts when the first acquire after a present returns: on a display-link tick when on time
++    rb_itv_acquired();   // RewindBox (patch 0328): the frame's begin, for the interval-2 episode trace. S2A_RB_ITV_TRACE=0: nothing noted
+     return NVN_WINDOW_ACQUIRE_TEXTURE_RESULT_SUCCESS;
+ }
+ // The older API (NVN 53, Super Mario 3D World + Bowser's Fury): the queue waits for the texture on the GPU and no sync object is handed out. The host replays in submission order, so later commands already come after earlier presents; the same as WindowAcquireTexture without a sync object
+@@ -4436,6 +4533,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+     int crop[4]; dm_vi_layer_crop(crop); if (!crop[2] || !crop[3]) memcpy(crop, o->crop, sizeof crop);   // 上屏区域 = 系统窗口裁切：游戏最后设的显示层裁切，没设就是窗口自己的
+     if (idx >= 0 && idx < o->ntex && idx < 4 && nvn_frec_on()) { pthread_mutex_lock(&g_sub_mu); nvn_frec_present(CTX(o->tex[idx]), present_period(o) / 1e9, crop); pthread_mutex_unlock(&g_sub_mu); }   // 帧录：持提交锁落盘，这一帧之后的提交等它
+     uint64_t rb_sent_period = 0;
++    uint64_t rb_itv_hold_ns = 0;   // RewindBox (patch 0328): what the present is queued for on screen, for the interval-2 episode trace
+     int rb_sent_interval = o->interval, rb_sent = idx >= 0 && idx < o->ntex && idx < 4;
+     if (rb_sent) {
+         rb_sent_period = present_period(o);
+@@ -4453,6 +4551,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+                     (unsigned long long)state->filtered_frames, (unsigned long long)state->sustained_runs);
+         }
+         o->ticket[idx] = nvn_be_present_with_hold(CTX(o->tex[idx]), rb_sent_period / 1e9, crop, hold / 1e9);
++        rb_itv_hold_ns = hold;   // RewindBox (patch 0328)
+         atomic_store_explicit(&g_rb_itv2_run, rb_drs_itv_run(atomic_load_explicit(&g_rb_itv2_run, memory_order_relaxed), rb_sent_interval), memory_order_relaxed);   // RewindBox (patch 0327): one more present at interval 2, or none in a row
+     }
+     rb_present_samples *samples = &((rb_present_history *)o)->samples;
+@@ -4644,6 +4743,9 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+         uint64_t sw = atomic_exchange(&g_sub_wall_ns, 0); g_cpath[f % 16].f = f; g_cpath[f % 16].t = t0 - sw;
+         trow(f, "@sub_wall_ms", sw / 1e6); trow(f, "@sub_cpu_ms", atomic_exchange(&g_sub_cpu_ns, 0) / 1e6); trow(f, "@sub_instr", (double)atomic_exchange(&g_sub_instr, 0));
+     } else atomic_store(&g_nvn_ns, 0);
++    // RewindBox (patch 0328): the frame's present, waits, interval and hold into the interval-2 episode trace, which writes its lines here (a few groups of six per 300
++    //   frames at most, rb_itv_presented). S2A_RB_ITV_TRACE=0: nothing noted, no line
++    rb_itv_presented(f, t0, rb_sent ? rb_sent_interval : 0, rb_itv_hold_ns, o->presents > 8 ? samples->tickets[(o->presents - 8) % RB_PRESENT_HISTORY] : 0);
+     g_acq_wait_ns = g_pq_wait_ns = 0;
+     if (f >= 8) { double g = nvn_be_gpu_ms(f - 8); if (g >= 0) { tpush(3, g); trow(f - 8, "@gpu_ms", g); g_gpu_busy_ms += g; }   // GPU time is taken 8 frames late (already completed)
+         { lf_rec *r = &g_lf[(f - 8) % LFN];   // long-frame log (on by default, DM_LONGFRAME=0 turns it off): a line is printed only when the whole frame > 20 ms or GPU > 16.7 ms, and it is clearly above recent conditions
+@@ -5416,7 +5518,8 @@ NVN(nvnDeviceGetTextureHandle, NVNtextureHandle, const NVNdevice *d, int tex, in
+ // Handle for texel fetches only (Monster Hunter Rise): a fetch reads the texture descriptor and no sampler, so the handle is the texture ID with sampler ID 0
+ NVN(nvnDeviceGetTexelFetchHandle, NVNtextureHandle, const NVNdevice *d, int tex) { (void)d; return (NVNtextureHandle)(uint64_t)(uint32_t)tex; }
+ // Counter timestamps are 19.2 MHz GPU ticks (nvn_mtl.m gpu_ticks: ns × 12 / 625); convert back to ns. They used to be returned as is, about 52 times smaller than GetCurrentTimestampInNanoseconds, so subtracting one from the other gave garbage
+-NVN(nvnDeviceGetTimestampInNanoseconds, uint64_t, const NVNdevice *d, const NVNcounterData *c) { (void)d; return c->timestamp * 625 / 12; }
++// RewindBox (patch 0328): the call is noted for the interval-2 episode trace (rb_itv_converted: which report the game reads, and how far its time lies ahead of the guest clock now); the value is as before
++NVN(nvnDeviceGetTimestampInNanoseconds, uint64_t, const NVNdevice *d, const NVNcounterData *c) { (void)d; rb_itv_converted(c->timestamp); return c->timestamp * 625 / 12; }
+ // Current GPU time (ns): the same clock as the counter timestamps -- the guest clock (guest_ns, nvn_mtl.m gpu_ticks)
+ NVN(nvnDeviceGetCurrentTimestampInNanoseconds, uint64_t, const NVNdevice *d) { (void)d; return guest_ns(); }
+ NVN(nvnDeviceRegisterFastClearColor, NVNboolean, NVNdevice *d, const float *c, NVNformat f) { (void)d; (void)c; (void)f; return 1; }
+@@ -6217,6 +6320,7 @@ int dm_nvn_shutdown_session(void) {
+     atomic_store(&g_rb_interval_debounce, 0);
+     g_frame = 0; g_hz = -1; g_display_mode = 0; g_game_itv = 1;
+     atomic_store(&g_rb_itv2_run, 0);   // RewindBox (patch 0327)
++    pthread_mutex_lock(&g_rb_itv_mu); memset(&g_rb_itv, 0, sizeof g_rb_itv); pthread_mutex_unlock(&g_rb_itv_mu);   // RewindBox (patch 0328): the trace's frames are this session's
+     g_display_run = g_display_max_run = g_display_run2 = g_display_run3 = g_display_run5 = g_display_missed_slots = 0;
+     g_display_covered_s = 0;
+     g_display_gpu_known = g_display_gpu_early_late = g_display_trace_lines = 0;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 1c1b25a..3111a6a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3313,6 +3313,16 @@ static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the ti
+                                         (unsigned long long)n, (unsigned long long)seen, want * (625./12e6), hot, hold * (625./12e6), fps);
+     return top + want;   // RewindBox (patch 0087): want
+ }
++// RewindBox (patch 0328): the report hold with a note of what it did, for the trace of the frames around the game's requests for present interval 2 (hle_nvn.c
++//   nvn_rb_itv_report, rb_interval_trace.h; IPA 827: one request every 6 to 8 frames out of a race, and no record of what the game read before them). raw: the report's
++//   time on the busy GPU clock; the value returned and written is rb_drs_hold's, as before. hle_nvn.c has the strong definition; without it nothing is noted.
++//   S2A_RB_ITV_TRACE=0 (read by hle_nvn.c): nothing noted
++__attribute__((weak)) void nvn_rb_itv_report(uint64_t frame, uint32_t type, uint64_t raw_ticks, uint64_t read_ticks) { (void)frame; (void)type; (void)raw_ticks; (void)read_ticks; }
++static uint64_t rb_itv_hold(uint64_t f, uint32_t type, uint64_t raw) {
++    const uint64_t t = rb_drs_hold(f, type, raw);
++    if (raw && (type == 0 || type == 0x10)) nvn_rb_itv_report(f, type, raw, t);
++    return t;
++}
+ 
+ // ---------- Boot instrumentation (DM_BOOTPROF=1): metallib loading, pipeline creation (both happen synchronously during replay on the submit thread), texture upload, first-frame present ----------
+ static uint64_t bp_now(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return (uint64_t)t.tv_sec * 1000000000ull + t.tv_nsec; }
+@@ -4419,7 +4429,7 @@ uint64_t nvn_be_sub_commit(void) {
+                 for (int k = 0; k < l->n; k++) { sum += ((const uint64_t *)((__bridge id<MTLBuffer>)l->s[k].buf).contents)[l->s[k].slot]; CFRelease(l->s[k].buf); }
+                 free(l); uint64_t rec[2] = {sum, gpu_ticks()}; memcpy((void *)ops[i].addr, rec, sizeof rec);
+             }
+-            else { uint64_t t = rb_drs_hold(gpu_f, ops[i].type, rep_ticks(&ops[i], sc, seg_last, c0, c1, gpu_f)), rec[2] = {(ops[i].type == 0 || ops[i].type == 0x10) && !DM_GAME_RENDER_COND ? t : 0, t}; memcpy((void *)ops[i].addr, rec, sizeof rec);   // render_cond: a timestamp report's counter field is 0, as on the GPU (see rc_value)  RewindBox (patch 0068): gpu_f; RewindBox (patch 0083): rb_drs_hold
++            else { uint64_t t = rb_itv_hold(gpu_f, ops[i].type, rep_ticks(&ops[i], sc, seg_last, c0, c1, gpu_f)), rec[2] = {(ops[i].type == 0 || ops[i].type == 0x10) && !DM_GAME_RENDER_COND ? t : 0, t}; memcpy((void *)ops[i].addr, rec, sizeof rec);   // render_cond: a timestamp report's counter field is 0, as on the GPU (see rc_value)  RewindBox (patch 0068): gpu_f; RewindBox (patch 0083): rb_drs_hold; RewindBox (patch 0328): through rb_itv_hold, which notes the report
+                 if (ops[i].type == 0 || ops[i].type == 0x10) fsig_ts(gpu_f, t, ops[i].type == 0x10); }   // RewindBox (patch 0059)
+         }
+         if (fsa) {   // RewindBox (patch 0059): the words the GPU wrote for this piece's indirect draws, as they are now that it has run
+diff --git a/graphics/nvn/gfx/nvn/rb_interval_trace.h b/graphics/nvn/gfx/nvn/rb_interval_trace.h
+new file mode 100644
+index 0000000..06981c9
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_interval_trace.h
+@@ -0,0 +1,175 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0328): a bounded trace of the frames around the game's requests for present interval 2. Pure C: tests/t_rb_interval_trace.c.
++//   IPA 827 (Mario Kart World, iPhone 16 Pro Max): out of a race, at 11.5 ms of GPU time, the game asks for interval 2 once every 6 to 8 frames, for one present each
++//   time (445 of the 487 stays of the first session, 318 of 379 in the second), and every such request costs one display tick. The four frames before a request ran at the
++//   pace (16.63 to 16.72 ms from present to present) and nothing in the log tells what the game adds up: it has, per frame, only the time from one present to the next.
++//   This keeps the last RB_ITV_RING frames: when each began (its first acquire returned), its acquire and present-queue waits, its present and the interval and hold it was
++//   sent with, the timestamp reports the completion handlers wrote for it (the time on the busy GPU clock, the time written after the report hold of patches 0083 and 0319,
++//   and how far that written time lay ahead of the guest clock when it was written), the calls of nvnDeviceGetTimestampInNanoseconds that converted one of those reports
++//   (how many frames later, and how far its value lay ahead of the guest clock at that call), the GPU's real span and the time on screen. An episode is a present sent at
++//   interval 2 after one sent at interval 1. RB_ITV_DELAY presents later, when the GPU span and the display time of the frame after it are known, the frames from
++//   RB_ITV_BEFORE before it to RB_ITV_AFTER after it are handed out to be written, RB_ITV_PER_WINDOW episodes and one group of frames far from any request (the base rate)
++//   per RB_ITV_WINDOW frames at most; the others are counted. Records only: no time the game reads changes. The caller serialises every call (one lock).
++#pragma once
++#include <stdint.h>
++#include <string.h>
++
++enum { RB_ITV_RING = 32, RB_ITV_REPORTS = 6, RB_ITV_READS = 6, RB_ITV_BEFORE = 4, RB_ITV_AFTER = 1, RB_ITV_DELAY = 9,
++       RB_ITV_WINDOW = 300, RB_ITV_PER_WINDOW = 4, RB_ITV_PENDING = 8, RB_ITV_READ_BACK = 4,
++       RB_ITV_GROUP = RB_ITV_BEFORE + 1 + RB_ITV_AFTER + 1 };   // a group's frames and the one after them (for the last frame's length)
++_Static_assert(RB_ITV_DELAY + RB_ITV_BEFORE < RB_ITV_RING, "a group is still in the ring when it is written");
++
++// A TIMESTAMP_TOP (0x10) or TIMESTAMP (0) report as written: 19.2 MHz ticks on the busy GPU clock and after the hold, and the written time less the guest clock then (us).
++typedef struct { uint64_t raw_ticks, read_ticks; int32_t ahead_us; uint8_t type; } rb_itv_report;
++// A conversion of one of the frame's reports by the game: frames after the report's frame, its value after that frame's first TIMESTAMP_TOP and less the guest clock at the call (us).
++typedef struct { int32_t read_us, ahead_us; uint8_t lag; } rb_itv_read;
++typedef struct {
++    uint64_t frame;                                                    // the frame + 1 (0 = empty)
++    uint64_t begin_ns, present_ns, top_ns, gpu0_ns, gpu1_ns, shown_ns; // guest clock, 0 = not known: first acquire return, present call, first TIMESTAMP_TOP as written, the GPU's span, on screen
++    uint32_t acquire_wait_us, queue_wait_us;
++    uint8_t interval, hold, presented, reports, reads, reports_lost, reads_lost;
++    rb_itv_report report[RB_ITV_REPORTS];
++    rb_itv_read read[RB_ITV_READS];
++} rb_itv_frame;
++// What happened since the last summary.
++typedef struct {
++    uint64_t episodes, one_present, printed, over_budget, lost, controls;   // lost: the list of episodes waiting was full, the episode came too early for RB_ITV_BEFORE frames, or the ring had moved on
++    uint64_t reads, reads_ahead, reads_unmatched, reports, held;         // held: reports the hold changed
++    int64_t ahead_sum_us; int32_t ahead_max_us;                          // over the reads whose value lay ahead of the guest clock
++} rb_itv_counts;
++typedef struct {
++    rb_itv_frame ring[RB_ITV_RING];
++    uint64_t pending[RB_ITV_PENDING];                                  // episode frames + 1, oldest first
++    unsigned npending, printed_in_window, control_in_window, run2;     // run2: presents in a row sent at interval 2
++    uint64_t window, total_episodes;                                   // window: a frame / RB_ITV_WINDOW + 1 (0 = none yet)
++    int last_interval;                                                 // of the last present (0 = none yet)
++    rb_itv_counts n;
++} rb_itv_trace;
++
++static inline int32_t rb_itv_us(int64_t ns) { const int64_t us = ns / 1000; return us > INT32_MAX ? INT32_MAX : us < INT32_MIN ? INT32_MIN : (int32_t)us; }
++static inline uint64_t rb_itv_ticks_ns(uint64_t ticks) { return ticks * 625 / 12; }   // as nvnDeviceGetTimestampInNanoseconds
++static inline const rb_itv_frame *rb_itv_find(const rb_itv_trace *t, uint64_t frame) {
++    const rb_itv_frame *r = &t->ring[frame % RB_ITV_RING];
++    return r->frame == frame + 1 ? r : NULL;
++}
++// The frame's record for the game's own calls (acquire, present): made anew when the slot holds another frame, a later one too (a session that began again).
++static inline rb_itv_frame *rb_itv_claim(rb_itv_trace *t, uint64_t frame) {
++    rb_itv_frame *r = &t->ring[frame % RB_ITV_RING];
++    if (r->frame != frame + 1) { memset(r, 0, sizeof *r); r->frame = frame + 1; }
++    return r;
++}
++// The frame's record for a completion handler: NULL when the slot has gone to a later frame (a report that comes RB_ITV_RING frames late is not kept).
++static inline rb_itv_frame *rb_itv_slot(rb_itv_trace *t, uint64_t frame) {
++    rb_itv_frame *r = &t->ring[frame % RB_ITV_RING];
++    if (r->frame > frame + 1) return NULL;
++    if (r->frame != frame + 1) { memset(r, 0, sizeof *r); r->frame = frame + 1; }
++    return r;
++}
++// The frame's first acquire returned: the frame begins.
++static inline void rb_itv_begin(rb_itv_trace *t, uint64_t frame, uint64_t begin_ns) {
++    rb_itv_frame *r = rb_itv_claim(t, frame);
++    if (!r->begin_ns) r->begin_ns = begin_ns;
++}
++// The frame's present. interval: the interval it was sent with (0 = not sent to a window texture). hold: the 60 Hz ticks it was queued for. The waits: what the frame's
++// acquires waited for the pacing and for the present queue. Returns 1 when it is an episode: sent at interval 2 after a present sent at interval 1.
++static inline int rb_itv_present(rb_itv_trace *t, uint64_t frame, uint64_t present_ns, int interval, unsigned hold, uint64_t acquire_wait_ns, uint64_t queue_wait_ns) {
++    rb_itv_frame *r = rb_itv_claim(t, frame);
++    r->present_ns = present_ns; r->presented = 1;
++    r->interval = (uint8_t)(interval < 0 ? 0 : interval > 255 ? 255 : interval); r->hold = (uint8_t)(hold > 255 ? 255 : hold);
++    r->acquire_wait_us = (uint32_t)rb_itv_us((int64_t)(acquire_wait_ns > INT64_MAX ? INT64_MAX : acquire_wait_ns));
++    r->queue_wait_us = (uint32_t)rb_itv_us((int64_t)(queue_wait_ns > INT64_MAX ? INT64_MAX : queue_wait_ns));
++    const int episode = t->last_interval == 1 && interval == 2;
++    if (interval != 2 && t->run2 == 1) ++t->n.one_present;   // the stay that just ended lasted one present
++    t->run2 = interval == 2 ? t->run2 + 1 : 0;
++    t->last_interval = interval;
++    if (!episode) return 0;
++    ++t->n.episodes; ++t->total_episodes;
++    if (frame < RB_ITV_BEFORE || t->npending == RB_ITV_PENDING) { ++t->n.lost; return 1; }
++    t->pending[t->npending++] = frame + 1;
++    return 1;
++}
++// A TIMESTAMP_TOP or TIMESTAMP report of `frame` as its completion handler writes it. now_ns: the guest clock then.
++static inline void rb_itv_report_note(rb_itv_trace *t, uint64_t frame, unsigned type, uint64_t raw_ticks, uint64_t read_ticks, uint64_t now_ns) {
++    ++t->n.reports;
++    if (read_ticks != raw_ticks) ++t->n.held;
++    rb_itv_frame *r = rb_itv_slot(t, frame);
++    if (!r) return;
++    const uint64_t read_ns = rb_itv_ticks_ns(read_ticks);
++    if (type == 0x10 && (!r->top_ns || read_ns < r->top_ns)) r->top_ns = read_ns;
++    if (r->reports == RB_ITV_REPORTS) { if (r->reports_lost < 255) ++r->reports_lost; return; }
++    rb_itv_report *p = &r->report[r->reports++];
++    p->type = (uint8_t)type; p->raw_ticks = raw_ticks; p->read_ticks = read_ticks;
++    p->ahead_us = rb_itv_us((int64_t)read_ns - (int64_t)now_ns);
++}
++// The game converted a counter timestamp of `ticks` (nvnDeviceGetTimestampInNanoseconds) while it built `frame`. now_ns: the guest clock at the call. The report is found
++// by its value among the frames it can come from, this one and the RB_ITV_READ_BACK - 1 before it, the latest first.
++static inline void rb_itv_read_note(rb_itv_trace *t, uint64_t frame, uint64_t ticks, uint64_t now_ns) {
++    ++t->n.reads;
++    const uint64_t value_ns = rb_itv_ticks_ns(ticks);
++    const int32_t ahead = rb_itv_us((int64_t)value_ns - (int64_t)now_ns);
++    if (ahead > 0) { ++t->n.reads_ahead; t->n.ahead_sum_us += ahead; if (ahead > t->n.ahead_max_us) t->n.ahead_max_us = ahead; }
++    for (unsigned back = 0; back < RB_ITV_READ_BACK && back <= frame; ++back) {
++        rb_itv_frame *r = &t->ring[(frame - back) % RB_ITV_RING];
++        if (r->frame != frame - back + 1) continue;
++        for (unsigned i = 0; i < r->reports; ++i) {
++            if (r->report[i].read_ticks != ticks) continue;
++            if (r->reads == RB_ITV_READS) { if (r->reads_lost < 255) ++r->reads_lost; return; }
++            r->read[r->reads++] = (rb_itv_read){rb_itv_us((int64_t)value_ns - (int64_t)(r->top_ns ? r->top_ns : value_ns)), ahead, (uint8_t)back};
++            return;
++        }
++    }
++    ++t->n.reads_unmatched;
++}
++// What is known RB_ITV_DELAY - 1 presents after the frame: the GPU's span and the time on screen (guest clock; 0 = not known).
++static inline void rb_itv_late(rb_itv_trace *t, uint64_t frame, uint64_t gpu0_ns, uint64_t gpu1_ns, uint64_t shown_ns) {
++    rb_itv_frame *r = &t->ring[frame % RB_ITV_RING];
++    if (r->frame != frame + 1) return;
++    r->gpu0_ns = gpu0_ns; r->gpu1_ns = gpu1_ns; r->shown_ns = shown_ns;
++}
++// Once a present, first: the window of `frame`. Returns 1 when a window has ended and the trace has seen an episode: *out has the counts to write, and they start again.
++static inline int rb_itv_window(rb_itv_trace *t, uint64_t frame, rb_itv_counts *out) {
++    const uint64_t w = frame / RB_ITV_WINDOW + 1;
++    if (t->window == w) return 0;
++    const int due = t->window && t->total_episodes;
++    *out = t->n; memset(&t->n, 0, sizeof t->n);
++    t->window = w; t->printed_in_window = 0; t->control_in_window = 0;
++    return due;
++}
++// Once a present, until it returns 0: an episode whose frames are complete and that is to be written (its frame in *episode).
++static inline int rb_itv_take(rb_itv_trace *t, uint64_t frame, uint64_t *episode) {
++    while (t->npending && t->pending[0] - 1 + RB_ITV_DELAY <= frame) {
++        const uint64_t e = t->pending[0] - 1;
++        memmove(t->pending, t->pending + 1, (size_t)--t->npending * sizeof *t->pending);
++        if (frame - e + RB_ITV_BEFORE >= RB_ITV_RING || !rb_itv_find(t, e)) { ++t->n.lost; continue; }   // its first frame has left the ring, or the ring began again
++        if (t->printed_in_window >= RB_ITV_PER_WINDOW) { ++t->n.over_budget; continue; }
++        ++t->printed_in_window; ++t->n.printed; *episode = e;
++        return 1;
++    }
++    return 0;
++}
++// Once a present: one group a window of frames with no request in them nor in the RB_ITV_DELAY frames after its centre (every frame up to this present was sent at
++// interval 1), for the base rate; only in a session that has had an episode. Where the game asks every 6 to 8 frames there is none.
++static inline int rb_itv_control(rb_itv_trace *t, uint64_t frame, uint64_t *centre) {
++    if (t->control_in_window || !t->total_episodes || frame < RB_ITV_DELAY + RB_ITV_BEFORE) return 0;
++    const uint64_t c = frame - RB_ITV_DELAY;
++    for (uint64_t f = c - RB_ITV_BEFORE; f <= frame; ++f) {
++        const rb_itv_frame *r = rb_itv_find(t, f);
++        if (!r || !r->presented || r->interval != 1) return 0;
++    }
++    t->control_in_window = 1; ++t->n.controls; *centre = c;
++    return 1;
++}
++// The RB_ITV_GROUP records around `centre`, from RB_ITV_BEFORE frames before it on, copied out to be written without the lock; a frame not in the ring: frame 0.
++static inline void rb_itv_group(const rb_itv_trace *t, uint64_t centre, rb_itv_frame *out) {
++    for (unsigned i = 0; i < RB_ITV_GROUP; ++i) {
++        const rb_itv_frame *r = centre + i >= RB_ITV_BEFORE ? rb_itv_find(t, centre + i - RB_ITV_BEFORE) : NULL;
++        if (r) out[i] = *r; else memset(&out[i], 0, sizeof out[i]);
++    }
++}
++// For the lines: a guest clock time after the frame began, and a report's ticks after the frame's first TIMESTAMP_TOP, in us; INT64_MIN when one of the two is not known.
++static inline int64_t rb_itv_after_begin_us(const rb_itv_frame *r, uint64_t ns) {
++    return ns && r->begin_ns ? ((int64_t)ns - (int64_t)r->begin_ns) / 1000 : INT64_MIN;
++}
++static inline int64_t rb_itv_after_top_us(const rb_itv_frame *r, uint64_t ticks) {
++    return ticks && r->top_ns ? ((int64_t)rb_itv_ticks_ns(ticks) - (int64_t)r->top_ns) / 1000 : INT64_MIN;
++}
+diff --git a/graphics/nvn/tests/t_rb_interval_trace.c b/graphics/nvn/tests/t_rb_interval_trace.c
+new file mode 100644
+index 0000000..e7d2923
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_interval_trace.c
+@@ -0,0 +1,136 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0328): host-only checks of the trace of the frames around a request for present interval 2 (gfx/nvn/rb_interval_trace.h).
++#include <assert.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include "../gfx/nvn/rb_interval_trace.h"
++
++enum { MS = 19200 };                       // 19.2 MHz ticks in a millisecond
++static const uint64_t P = 320029;          // the display period measured in the IPA 827 logs (16.668 ms), in ticks
++static uint64_t ns(uint64_t ticks) { return rb_itv_ticks_ns(ticks); }
++// One frame as the IPA 827 lobby shows it: it begins on a tick after a 14.4 ms pacing wait, the GPU runs from +2.5 to +13.9 ms and writes its reports then, the last
++// two raised to the first TIMESTAMP_TOP + 16.6 ms by the report hold; the game presents 2.2 ms after the begin.
++static void build(rb_itv_trace *t, uint64_t f, uint64_t begin) {
++    rb_itv_begin(t, f, ns(begin));
++    rb_itv_begin(t, f, ns(begin) + 1);     // a second acquire of the frame does not move its begin
++    const uint64_t top = begin + 25 * MS / 10, done = ns(top + 114 * MS / 10);
++    rb_itv_report_note(t, f, 0x10, top, top, done);
++    rb_itv_report_note(t, f, 0, top + 3 * MS, top + 3 * MS, done);
++    rb_itv_report_note(t, f, 0, top + 92 * MS / 10, top + 166 * MS / 10, done);
++    rb_itv_report_note(t, f, 0, top + 114 * MS / 10, top + 166 * MS / 10, done);
++}
++int main(void) {
++    assert((int)RB_ITV_GROUP == (int)RB_ITV_BEFORE + 1 + (int)RB_ITV_AFTER + 1 && rb_itv_ticks_ns(12) == 625 && rb_itv_us(1999) == 1 && rb_itv_us(-2000) == -2);
++    assert(rb_itv_us(INT64_MAX) == INT32_MAX && rb_itv_us(INT64_MIN) == INT32_MIN);
++    rb_itv_trace *t = calloc(1, sizeof *t);
++    rb_itv_frame group[RB_ITV_GROUP];
++    rb_itv_counts sum;
++    assert(t);
++    uint64_t begin = 1000ull * 1000 * MS, e = 0, groups = 0, controls = 0, summaries = 0;
++    for (uint64_t f = 0; f < 900; ++f) {
++        const int interval = f >= 20 && f % 7 == 5 ? 2 : 1;                 // a one-present request every 7 frames from frame 26 on
++        build(t, f, begin);
++        if (f) {   // the game converts the last report of frame f - 1 while it builds f, 0.3 ms after it was written: 16.6 - 11.4 - 0.3 ms ahead of the guest clock
++            const rb_itv_frame *prev = rb_itv_find(t, f - 1);
++            assert(prev && prev->top_ns);
++            rb_itv_read_note(t, f, prev->report[3].read_ticks, prev->top_ns + ns(117 * MS / 10));
++        }
++        // The present hook, in its order: the window, the present, what is known 8 presents late, the episodes to write, the control group.
++        if (rb_itv_window(t, f, &sum)) {
++            ++summaries;
++            // Requests at frames 26, 33, ... 299 in the first window (the last one's stay ends in the next), 306 ... 593 in the second; a read and four reports a frame.
++            assert(f % RB_ITV_WINDOW == 0 && sum.printed == RB_ITV_PER_WINDOW && !sum.lost && sum.reads == RB_ITV_WINDOW && !sum.controls);
++            assert(sum.episodes == (f == 300 ? 40 : 42) && sum.one_present == (f == 300 ? 39 : 43) && sum.reads_ahead == sum.reads && !sum.reads_unmatched);
++            assert(sum.ahead_max_us == 4900 && sum.ahead_sum_us <= 4900 * (int64_t)sum.reads && sum.ahead_sum_us >= 4899 * (int64_t)sum.reads);   // to a nanosecond of rounding
++            assert(sum.reports == 4 * RB_ITV_WINDOW && sum.held == sum.reports / 2);
++            assert(sum.over_budget + sum.printed <= sum.episodes + 2 && sum.over_budget + sum.printed + 2 >= sum.episodes && !t->n.reads && !t->n.ahead_max_us && !t->printed_in_window);
++        }
++        assert(rb_itv_present(t, f, ns(begin + 22 * MS / 10), interval, (unsigned)interval, ns(144 * MS / 10), 0) == (interval == 2));
++        if (f >= 8) { const uint64_t b = rb_itv_find(t, f - 8)->begin_ns; rb_itv_late(t, f - 8, b + ns(25 * MS / 10), b + ns(139 * MS / 10), b + ns(3 * P)); }
++        while (rb_itv_take(t, f, &e)) {
++            ++groups;
++            assert(e + RB_ITV_DELAY == f || t->npending);   // written RB_ITV_DELAY presents after the request
++            rb_itv_group(t, e, group);
++            for (unsigned i = 0; i < RB_ITV_GROUP; ++i) assert(group[i].frame == e - RB_ITV_BEFORE + i + 1);
++            const rb_itv_frame *r = &group[RB_ITV_BEFORE], *before = &group[RB_ITV_BEFORE - 1], *after = &group[RB_ITV_BEFORE + 1];
++            assert(r->presented && r->interval == 2 && r->hold == 2 && before->interval == 1 && after->interval == 1);
++            assert(r->acquire_wait_us == 14400 && !r->queue_wait_us && rb_itv_after_begin_us(r, r->present_ns) == 2200);
++            assert(rb_itv_after_begin_us(r, r->top_ns) == 2500 && rb_itv_after_begin_us(r, r->gpu0_ns) == 2500 && rb_itv_after_begin_us(r, r->gpu1_ns) == 13900);
++            assert(rb_itv_after_begin_us(before, r->begin_ns) == 16668 && rb_itv_after_begin_us(r, after->begin_ns) == 2 * 16668);   // the request costs one tick
++            assert(rb_itv_after_begin_us(r, r->shown_ns) == 50004 && rb_itv_after_begin_us(after, after->gpu1_ns) == 13900);   // three ticks later; the frame after it is known too
++            assert(r->reports == 4 && !r->reports_lost && r->report[0].type == 0x10 && rb_itv_after_top_us(r, r->report[0].read_ticks) == 0);
++            assert(rb_itv_after_top_us(r, r->report[1].raw_ticks) == 3000 && rb_itv_after_top_us(r, r->report[1].read_ticks) == 3000 && r->report[1].ahead_us == -8400);
++            assert(rb_itv_after_top_us(r, r->report[3].raw_ticks) == 11400 && rb_itv_after_top_us(r, r->report[3].read_ticks) == 16600 && r->report[3].ahead_us == 5200);
++            assert(r->reads == 1 && r->read[0].lag == 1 && r->read[0].read_us == 16600 && r->read[0].ahead_us >= 4899 && r->read[0].ahead_us <= 4900);   // read one frame later, 4.9 ms before the guest clock got there
++            if (groups == 1) assert(e == 26);
++        }
++        if (rb_itv_control(t, f, &e)) { ++controls; assert(f < 26 + RB_ITV_DELAY); }   // with a request every 7 frames no group of frames is far from one
++        begin += interval == 2 ? 2 * P : P;
++    }
++    // 125 episodes in 900 frames: RB_ITV_PER_WINDOW written a window of 300, the others counted; nothing lost.
++    assert(t->total_episodes == 125 && groups == 3 * RB_ITV_PER_WINDOW && summaries == 2 && !controls);   // and none before the first request: the trace had seen no episode
++    assert(t->n.printed == RB_ITV_PER_WINDOW && t->n.episodes == 43 && t->n.one_present == 43 && !t->n.lost && t->npending <= 2);
++    // A calm stretch: one control group a window, RB_ITV_DELAY presents late, its frames all at interval 1.
++    for (uint64_t f = 900; f < 1500; ++f) {
++        build(t, f, begin);
++        rb_itv_window(t, f, &sum);
++        assert(!rb_itv_present(t, f, ns(begin + 22 * MS / 10), 1, 1, 0, 0));
++        assert(!rb_itv_take(t, f, &e) || e < 900);
++        if (rb_itv_control(t, f, &e)) {
++            ++controls;
++            assert(e + RB_ITV_DELAY == f && (f == 894 + 1 + RB_ITV_BEFORE + RB_ITV_DELAY || f == 1200));   // 14 frames after the last request at 894, then at once
++            rb_itv_group(t, e, group);
++            for (unsigned i = 0; i < RB_ITV_GROUP; ++i) assert(group[i].frame == e - RB_ITV_BEFORE + i + 1 && group[i].interval == 1);
++        }
++        begin += P;
++    }
++    assert(controls == 2 && t->n.one_present == 0);
++    // No episode yet: no control group and no summary to write (a title that never alternates writes nothing).
++    rb_itv_trace *u = calloc(1, sizeof *u);
++    assert(u);
++    for (uint64_t f = 0; f < 700; ++f) {
++        assert(!rb_itv_window(u, f, &sum) || (f == 600 && sum.episodes == 1 && sum.printed == 1));   // the window of the stay that began at frame 350
++        assert(!rb_itv_present(u, f, 1000 + f, f < 350 ? 1 : 2, 1, 0, 0) || f == 350);
++        assert(!rb_itv_control(u, f, &e) && (!rb_itv_take(u, f, &e) || e == 350));
++    }
++    assert(u->total_episodes == 1 && !u->n.printed && !u->n.one_present && u->run2 == 350);   // a stay, not a one-present request
++    assert(rb_itv_window(u, 900, &sum) && sum.episodes == 0 && sum.printed == 0);   // once the trace has seen an episode every window is summed up
++    // An episode in the first RB_ITV_BEFORE frames, and episodes beyond the waiting list, are counted lost; the list keeps the oldest.
++    memset(u, 0, sizeof *u);
++    assert(!rb_itv_present(u, 0, 1, 1, 1, 0, 0) && rb_itv_present(u, 1, 2, 2, 2, 0, 0) && u->n.lost == 1 && !u->npending);
++    for (uint64_t f = 10; f < 10 + 4 * RB_ITV_PENDING; ++f) rb_itv_present(u, f, f, f % 2 ? 2 : 1, 1, 0, 0);
++    assert(u->npending == RB_ITV_PENDING && u->pending[0] == 11 + 1 && u->n.lost == 1 + RB_ITV_PENDING && u->n.episodes == 1 + 2 * RB_ITV_PENDING);
++    // An episode read after its first frame has left the ring is counted lost, never written in part.
++    assert(!rb_itv_take(u, 3 * RB_ITV_RING, &e) && !u->npending && u->n.lost == 1 + 2 * RB_ITV_PENDING);
++    // A report that comes after its slot went to a later frame is not kept and leaves that frame's record alone; the game's own calls take the slot back (a new session).
++    memset(u, 0, sizeof *u);
++    rb_itv_begin(u, 100, 5000); rb_itv_report_note(u, 100, 0x10, 96, 96, 1);
++    rb_itv_report_note(u, 100 - RB_ITV_RING, 0, 48, 48, 1);
++    assert(rb_itv_find(u, 100) && rb_itv_find(u, 100)->reports == 1 && rb_itv_find(u, 100)->top_ns == 5000 && u->n.reports == 2);
++    rb_itv_read_note(u, 100, 96, 4000);
++    assert(rb_itv_find(u, 100)->reads == 1 && rb_itv_find(u, 100)->read[0].lag == 0 && rb_itv_find(u, 100)->read[0].ahead_us == 1 && u->n.reads_ahead == 1);
++    rb_itv_begin(u, 100 - RB_ITV_RING, 7);
++    assert(!rb_itv_find(u, 100) && rb_itv_find(u, 100 - RB_ITV_RING) && rb_itv_find(u, 100 - RB_ITV_RING)->begin_ns == 7 && !rb_itv_find(u, 100 - RB_ITV_RING)->reports);
++    // A report past the frame's room, a read of a value no report wrote and a read too many are counted, not written past the arrays.
++    memset(u, 0, sizeof *u);
++    for (unsigned i = 0; i < 2 * RB_ITV_REPORTS; ++i) rb_itv_report_note(u, 500, 0, 1000 + i, 2000 + i, 3000);
++    assert(rb_itv_find(u, 500)->reports == RB_ITV_REPORTS && rb_itv_find(u, 500)->reports_lost == RB_ITV_REPORTS && u->n.held == 2 * RB_ITV_REPORTS);
++    rb_itv_read_note(u, 500, 12345, 1);
++    assert(u->n.reads_unmatched == 1 && !rb_itv_find(u, 500)->reads);
++    for (unsigned i = 0; i < RB_ITV_READS + 3; ++i) rb_itv_read_note(u, 500 + RB_ITV_READ_BACK - 1, 2000, 1);   // found three frames back
++    assert(rb_itv_find(u, 500)->reads == RB_ITV_READS && rb_itv_find(u, 500)->reads_lost == 3 && rb_itv_find(u, 500)->read[0].lag == RB_ITV_READ_BACK - 1);
++    rb_itv_read_note(u, 500 + RB_ITV_READ_BACK, 2000, 1);   // one frame further back: not looked for
++    assert(u->n.reads_unmatched == 2);
++    // A group near the start and a frame the ring does not hold come out empty; times that are not known say so.
++    memset(u, 0, sizeof *u);
++    rb_itv_begin(u, 2, 1000); rb_itv_begin(u, 4, 3000);
++    rb_itv_group(u, 2, group);
++    assert(!group[0].frame && !group[1].frame && !group[2].frame && !group[3].frame && group[4].frame == 3 && !group[5].frame && group[6].frame == 5);
++    assert(rb_itv_after_begin_us(&group[4], 0) == INT64_MIN && rb_itv_after_begin_us(&group[0], 5000) == INT64_MIN && rb_itv_after_begin_us(&group[4], 3000000) == 2999);
++    assert(rb_itv_after_top_us(&group[4], 96) == INT64_MIN);
++    free(t); free(u);
++    puts("PASS interval trace: frames in a ring, an episode at a present sent at 2 after one at 1, written 9 presents late with the frames around it, 4 a window, "
++         "reports and their reads against the guest clock, a control group, late reports, restarts and full lists counted");
++    return 0;
++}

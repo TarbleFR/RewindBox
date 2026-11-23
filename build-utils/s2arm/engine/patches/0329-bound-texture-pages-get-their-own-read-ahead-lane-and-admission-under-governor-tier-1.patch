@@ -1,0 +1,730 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 3111a6a..420ddbe 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -6269,6 +6269,7 @@ static int rb_wn_sel(const tex_t *t, const uint64_t *bits, long np, uintptr_t h,
+ }
+ // The host pages of [p, p + n) not in memory (with bits: only those holding a page of bits), asked to be read ahead (MADV_WILLNEED) in runs; returns how many there were, RB_WN_NONE
+ //   when the span is not looked at. One window and far check for the span, then mincore by 64 host pages, skipping those that hold no selected page
++#include "rb_bind_lane.inc"   // RewindBox (patch 0329): the bound textures' page lane: switch, counters, measurements and 300-frame line (S2A_RB_BIND_LANE=0: as before)
+ #include "rb_read_ahead_feedback.inc"
+ static int g_tex_peek;
+ static uint64_t rb_wn_(const void *p, uint64_t n, const tex_t *t, const uint64_t *bits, long np, int demand) {
+@@ -7321,6 +7322,7 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+     res_add(mt);   // Both first upload and re-upload register residency here (Metal 4 does not make resources resident automatically; a missed registration = GPU address page fault)
+     int sparse = t->pool && nvn_sparse_pool(t->pool);
+     if (!sparse) { uint64_t rb_ab = rb_wn_demand(t->mem, t->L.size); rb_wn_note(t, rb_ab);   // RewindBox (patch 0070): its pages not in memory asked in runs before the hash and the deswizzle below read them (rb_wn)
++        rb_bl_probe = rb_ab;   // RewindBox (patch 0329): kept for the 300-frame line: whether a first upload found its pages in memory (rb_bl_first_upload; no log said it in IPA 827). S2A_RB_BIND_LANE=0: as before (stored, never read)
+         if (rb_ab && rb_ab != RB_WN_NONE) rb_pool_ahead(t); }   // RewindBox (patch 0089): and the pool around it
+     uint8_t *rb = NULL;   // RewindBox (patch 0016): the storage as the host may read it, when not all of it can be read (rb_pkg_bytes)
+     if (stamp) {   // no stamp: a one-time upload of content the CPU will not change (tex_init_fill), with no write tracking
+@@ -9006,6 +9008,7 @@ static id<MTLTexture> tex_mtl_for_pass(const tex_t *ct, id<MTLTexture> __strong
+         if (!pk->tex) { free(gr); return nil; }
+         pk->span = nvn_dirty_span(t->mem, t->L.size);
+         pk->seen = nvn_dirty_now(); g_pkg_uploads++; if (dirtycheck() && !pk->sparse) pk->hash = full_hash(t->mem, t->L.size);
++        rb_bl_first_upload(t, pk->sparse);   // RewindBox (patch 0329): the frames since its registration and whether its pages were in memory, for the 300-frame line (IPA 827 dated no registration after the start: rb_pf_post leaves before its counts while the read-ahead quota is 0). S2A_RB_BIND_LANE=0: nothing counted
+         if (pk->sparse) sparse_view(pk, t);
+         zb_report(t, pk->sparse ? (unsigned)pk->vbase : 0, "upload");
+         if (rb_capturing_upload && !have && !gn && !pk->sparse && pk->span) rb_cold_store(pk, t);
+@@ -9227,6 +9230,7 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+     zp_report(frame);   // RewindBox (patch 0060)
+     rb_range_report(frame);
+     rb_wn_line(frame);   // RewindBox (patch 0070): texture storage read ahead (before the line cap below: it says itself when anything moved)
++    rb_bl_line(frame);   // RewindBox (patch 0329): the bound textures' page lane and the registration-to-first-upload classes (rb_bind_lane.inc; one line when anything moved, none with S2A_RB_BIND_LANE=0)
+     }
+     if (!(rb_parts & RB_REPORT_MEM_MEMORY)) return;   // RewindBox (patch 0326): the capped memory line and what follows it are the last part
+     static unsigned long long last_rss, last_gpu, last_frame; static int lines; unsigned long long gpu = (unsigned long long)(g_dev.currentAllocatedSize >> 20);
+@@ -12642,6 +12646,7 @@ void nvn_be_reg_tex(int tid, const tex_t *t, const view_t *v) {
+     }
+     rs_registration_end(gate);
+     if (!same && t) rb_pf_post(t);   // RewindBox (patch 0070): its storage asked ahead of its first upload, off this thread (rb_pf_post)
++    if (!same && t) rb_bl_registered(t);   // RewindBox (patch 0329): the frame of a packaged texture's registration, which its first upload is measured from (rb_bind_lane.inc; outside the registration lock). S2A_RB_BIND_LANE=0: nothing kept
+     if (null_reads) MLOG("texture ID 0 registered (frame %llu) after %llu reads as an empty slot: those read 0, as hardware's first descriptor before it was written",
+                          (unsigned long long)atomic_load(&g_cur_frame), (unsigned long long)null_reads);
+     {   // DM_NVN_TREG_ID=n logs every registration of texture ID n: what it holds from then on, and when (the frame being recorded)
+diff --git a/graphics/nvn/gfx/nvn/rb_bind_lane.h b/graphics/nvn/gfx/nvn/rb_bind_lane.h
+new file mode 100644
+index 0000000..a03de10
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_bind_lane.h
+@@ -0,0 +1,157 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0329): the page lane of bound textures (nvn_mtl.m rb_bind_lane.inc, rb_texture_ahead.inc, rb_read_ahead_feedback.inc). Pure C: tests/t_rb_bind_lane.c.
++//   IPA 827 (Mario Kart World, iPhone A18 Pro): the pages of a texture the game binds in a command buffer it is recording were never asked ahead. The memory governor
++//   was at tier 1 before frame 1 (559 MB of compressed memory, 875-1,049 MB later), whose read-ahead quota is 0; and the lane those hints were counted in had spent
++//   its 256 trial pages (4,194,304 bytes) on buffer ranges, which only a texture upload can find useful: 256 expired, 0 useful, stopped before frame 300 for the
++//   session. A race start then had 8-16 frames of 50-276 ms with 2,740-3,586 texture pages not in memory, read one texture at a time on the submit thread.
++//   This header holds what can be checked without a device:
++//   1. the switch (S2A_RB_BIND_LANE: on unless "0") and where the lane replaces patch 0319's path;
++//   2. the lane's own admission: governor tier 0 or 1, room known and at least RB_BL_ROOM, memory not low, thermal state under 2, lane open, a texture of at most
++//      RB_BL_ITEM, and a fixed budget of RB_BL_FRAME bytes of texture storage looked at a frame, RB_BL_POSTS hints a frame and RB_BL_TRIAL pages asked and not yet
++//      judged, each halved at every level of the lane;
++//   3. the cohort rule that moves the level: patch 0193's (half or fewer of the pages found in memory by their upload: one level down, and stopped at the last level,
++//      with no page found, or when too many outcomes are unknown), with four additions for a lane whose pages are read in the same frame anyway: a cohort under
++//      RB_BL_MIN_SAMPLE pages gives no verdict, a cohort wholly resolved closes at a quarter of its trial, three quarters found gives a level back, and a stopped
++//      lane tries again RB_BL_RETEST frames later at the last level;
++//   4. the two measurements of the 300-frame line: the frames between a texture's registration and its first upload, and whether that upload found its pages in memory.
++//   S2A_RB_BIND_LANE=0: as before (rb_bl_route answers 0: patch 0319's shared lane and quota; nothing of this header is called).
++#pragma once
++#include <stdint.h>
++#include <stdlib.h>
++#include <string.h>
++
++// ---- 1. the switch and the route
++static inline int rb_bl_switch(const char *value) { return !(value && !strcmp(value, "0")); }
++// The lane replaces patch 0319's bind hints only where the governor's feedback tables run (they judge it) and the hint is a madvise of the texture's own pages
++// (another title's file-descriptor advice keeps its token bucket and the shared lane). 0: patch 0319's path, untouched.
++static inline int rb_bl_route(int on, int governor, int file_only) { return on && governor && !file_only; }
++
++// ---- 2. the budget of a level and the admission
++enum { RB_BL_TIER_NORMAL, RB_BL_TIER_WARN, RB_BL_TIER_CRITICAL };   // rb_gov_plan.h's RB_GOV_NORMAL, RB_GOV_WARN, RB_GOV_CRITICAL
++enum { RB_BL_MAX_LEVEL = 2, RB_BL_POSTS = 256, RB_BL_TRIAL = 1024, RB_BL_MIN_SAMPLE = 32, RB_BL_RETEST = 3600 };
++#define RB_BL_ITEM  (UINT64_C(1) << 20)      // one texture's storage (rb_texture_ahead.inc's RB_TX_PAGE_ITEM)
++#define RB_BL_FRAME (UINT64_C(16) << 20)     // texture storage looked at in a frame at level 0
++#define RB_BL_ROOM  (UINT64_C(1024) << 20)   // room under the process limit below which nothing is asked
++static inline unsigned rb_bl_level(unsigned level) { return level > RB_BL_MAX_LEVEL ? (unsigned)RB_BL_MAX_LEVEL : level; }
++static inline unsigned rb_bl_posts(unsigned level) { return (unsigned)RB_BL_POSTS >> rb_bl_level(level); }
++static inline unsigned rb_bl_trial(unsigned level) { return (unsigned)RB_BL_TRIAL >> rb_bl_level(level); }
++static inline uint64_t rb_bl_frame_bytes(unsigned level) { return RB_BL_FRAME >> rb_bl_level(level); }
++// A cohort whose pages all have their outcome closes once it holds a quarter of the trial, without waiting to be full or 300 frames old: a race start asks
++// several trials in a few hundred frames (IPA 827: 2,740-3,586 pages in 100-200 frames), and a verdict on 64 pages or more is one the rule below accepts.
++static inline unsigned rb_bl_cohort_pages(unsigned level) { return rb_bl_trial(level) / 4; }
++
++// What the submit thread publishes for the recording threads, which read one word and take no lock: the level, and whether the lane is stopped.
++enum { RB_BL_WORD_STOPPED = 4 };
++static inline unsigned rb_bl_word(unsigned level, int stopped) { return rb_bl_level(level) | (stopped ? (unsigned)RB_BL_WORD_STOPPED : 0u); }
++// Hints the recording threads may post in a frame: none while the lane is stopped or the governor is at its critical tier.
++static inline unsigned rb_bl_post_limit(unsigned word, unsigned tier) {
++    if ((word & RB_BL_WORD_STOPPED) || tier >= RB_BL_TIER_CRITICAL) return 0;
++    return rb_bl_posts(word & 3u);
++}
++// One of a frame's posts, taken by several recording threads without a lock: `word` holds frame << 16 | the posts taken in that frame (another frame's
++// count starts at 0). 1 and *next (the word to store, by compare and swap) when one is left under `limit`; 0 when the frame's posts are spent.
++static inline int rb_bl_post_take(uint64_t word, uint64_t frame, unsigned limit, uint64_t *next) {
++    uint64_t now = frame << 16;
++    unsigned used = (word & ~UINT64_C(0xffff)) == now ? (unsigned)(word & 0xffff) : 0;
++    if (used >= limit || used >= 0xffff) return 0;
++    *next = now | (used + 1);
++    return 1;
++}
++// A recording thread posts a (texture ID, serial) once: the mark it leaves, never 0 (an empty mark).
++enum { RB_BL_MARKS = 65536 };
++static inline uint32_t rb_bl_tag(uint64_t serial) { uint32_t tag = (uint32_t)(serial ^ (serial >> 32)); return tag ? tag : 1u; }
++
++enum { RB_BL_ADMIT, RB_BL_NO_TIER, RB_BL_NO_ROOM, RB_BL_NO_LOW, RB_BL_NO_HEAT, RB_BL_NO_STOPPED, RB_BL_NO_FULL, RB_BL_NO_ITEM, RB_BL_NO_BUDGET, RB_BL_REASONS };
++typedef struct { unsigned tier, level; uint64_t room; int mem_low, thermal, stopped, full; } rb_bl_state;   // room: UINT64_MAX = not known; full: the trial is spent
++typedef struct { uint64_t frame, bytes; } rb_bl_budget;   // texture storage looked at in `frame` (the page queue is serial: one writer)
++// RB_BL_ADMIT (0) when the page worker may look at `bytes` of a texture's storage in `frame`; else why not. A refusal charges nothing.
++static inline int rb_bl_admit(rb_bl_budget *b, const rb_bl_state *s, uint64_t frame, uint64_t bytes) {
++    if (s->tier >= RB_BL_TIER_CRITICAL) return RB_BL_NO_TIER;
++    if (s->room == UINT64_MAX || s->room < RB_BL_ROOM) return RB_BL_NO_ROOM;
++    if (s->mem_low) return RB_BL_NO_LOW;
++    if (s->thermal >= 2) return RB_BL_NO_HEAT;
++    if (s->stopped) return RB_BL_NO_STOPPED;
++    if (s->full) return RB_BL_NO_FULL;
++    if (!bytes || bytes > RB_BL_ITEM) return RB_BL_NO_ITEM;
++    uint64_t used = b->frame == frame ? b->bytes : 0, limit = rb_bl_frame_bytes(s->level);
++    if (used > limit || bytes > limit - used) return RB_BL_NO_BUDGET;
++    b->frame = frame; b->bytes = used + bytes;
++    return RB_BL_ADMIT;
++}
++
++// ---- 3. the cohort rule
++// A closed cohort: `opened` pages asked, `hits` of them found in memory and read by their texture's upload, `unknown` with no outcome (their pool went, or the
++// upload did not read them). The rest were still absent at their upload, or never used in 300 frames.
++enum { RB_BL_KEEP, RB_BL_GROW, RB_BL_SHRINK, RB_BL_STOP };
++static inline int rb_bl_verdict(unsigned opened, unsigned hits, unsigned unknown, unsigned level) {
++    uint64_t n = opened, h = hits, u = unknown;
++    if (n < RB_BL_MIN_SAMPLE) return RB_BL_KEEP;   // too few pages to judge; they cost at most RB_BL_MIN_SAMPLE pages in 300 frames
++    if (2 * h > n) return (4 * h >= 3 * n && level) ? RB_BL_GROW : RB_BL_KEEP;
++    if (2 * (h + u) > n || !h || level >= RB_BL_MAX_LEVEL) return RB_BL_STOP;
++    return RB_BL_SHRINK;
++}
++typedef struct { unsigned level; int stopped; uint64_t stop_frame; } rb_bl_lane;   // what the feedback table keeps of this lane
++static inline int rb_bl_close(rb_bl_lane *l, unsigned opened, unsigned hits, unsigned unknown, uint64_t frame) {
++    int verdict = rb_bl_verdict(opened, hits, unknown, l->level);
++    if (verdict == RB_BL_GROW) l->level--;
++    else if (verdict == RB_BL_SHRINK) l->level++;
++    else if (verdict == RB_BL_STOP) { l->stopped = 1; l->stop_frame = frame; }
++    return verdict;
++}
++// 1 when a stopped lane opens again for one more trial, at the last level (RB_BL_TRIAL >> RB_BL_MAX_LEVEL pages at most before the next verdict).
++static inline int rb_bl_reopen(rb_bl_lane *l, uint64_t frame) {
++    if (!l->stopped || frame < l->stop_frame || frame - l->stop_frame < RB_BL_RETEST) return 0;
++    l->stopped = 0; l->level = RB_BL_MAX_LEVEL;
++    return 1;
++}
++
++// ---- 4. the measurements
++// Frames from a texture's first registration to its first upload, in RB_BL_BUCKETS classes: 0, 1, 2-3, 4-15, 16-63, 64-255, 256-1023, 1024 and more, not known.
++// One slot per hashed serial. A slot keeps its last registration, and the frame of the newest registration it let go (replaced, or taken by its upload): an upload
++// that does not find its registration there was registered no later than that frame, if it was registered at all. That places it in the last class when every
++// registration its slot let go is at least 1,024 frames old (a session registers about 30,900 packaged textures at its start, more than the table holds), and in
++// "not known" otherwise.
++enum { RB_BL_SLOTS = 8192, RB_BL_BUCKETS = 9, RB_BL_LEAD_FAR = 7, RB_BL_LEAD_UNKNOWN = 8 };
++#define RB_BL_NOT_LOOKED UINT64_MAX   // the upload did not look at its pages (not wholly in the window's files, or read through a sparse pool's page table)
++typedef struct { uint64_t serial; uint32_t frame1, gone1; } rb_bl_slot;   // frame + 1 of the serial's first registration; of the newest registration let go (0: none)
++typedef struct { rb_bl_slot slot[RB_BL_SLOTS]; } rb_bl_table;
++typedef struct { uint64_t registered, uploads[RB_BL_BUCKETS], with_absent[RB_BL_BUCKETS], absent_pages[RB_BL_BUCKETS], resident, absent, not_looked; } rb_bl_window;
++static inline unsigned rb_bl_slot_of(uint64_t serial) { return (unsigned)((serial * UINT64_C(0x9e3779b97f4a7c15)) >> 51); }   // 13 bits: RB_BL_SLOTS
++static inline uint32_t rb_bl_frame1(uint64_t frame) { return frame >= UINT32_MAX - 1 ? UINT32_MAX : (uint32_t)frame + 1; }
++static inline unsigned rb_bl_bucket(uint64_t lead) {
++    if (lead < 2) return (unsigned)lead;
++    if (lead < 4) return 2;
++    if (lead < 16) return 3;
++    if (lead < 64) return 4;
++    if (lead < 256) return 5;
++    return lead < 1024 ? 6 : RB_BL_LEAD_FAR;
++}
++static inline void rb_bl_note_registered(rb_bl_table *t, rb_bl_window *w, uint64_t serial, uint64_t frame) {
++    if (!serial) return;
++    rb_bl_slot *e = &t->slot[rb_bl_slot_of(serial)];
++    if (e->serial == serial) return;   // registered again (another ID): the first registration starts the lead, and counts once
++    if (e->serial && e->frame1 > e->gone1) e->gone1 = e->frame1;
++    e->serial = serial; e->frame1 = rb_bl_frame1(frame);
++    w->registered++;
++}
++// A first upload of `serial` (0: a texture this table does not follow) in `frame`, which found `absent_pages` of its pages not in memory (RB_BL_NOT_LOOKED:
++// not looked at). Returns the class it was counted in. A registration is taken once.
++static inline unsigned rb_bl_note_upload(rb_bl_table *t, rb_bl_window *w, uint64_t serial, uint64_t frame, uint64_t absent_pages) {
++    unsigned b = RB_BL_LEAD_UNKNOWN;
++    uint32_t now1 = rb_bl_frame1(frame);
++    if (serial) {
++        rb_bl_slot *e = &t->slot[rb_bl_slot_of(serial)];
++        if (e->serial == serial) {
++            if (now1 >= e->frame1) {
++                b = rb_bl_bucket(now1 - e->frame1);
++                if (e->frame1 > e->gone1) e->gone1 = e->frame1;
++                e->serial = 0; e->frame1 = 0;
++            }
++        } else if (e->gone1 && now1 >= e->gone1 && now1 - e->gone1 >= 1024) b = RB_BL_LEAD_FAR;
++    }
++    w->uploads[b]++;
++    if (absent_pages == RB_BL_NOT_LOOKED) w->not_looked++;
++    else if (absent_pages) { w->absent++; w->with_absent[b]++; w->absent_pages[b] += absent_pages; }
++    else w->resident++;
++    return b;
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_bind_lane.inc b/graphics/nvn/gfx/nvn/rb_bind_lane.inc
+new file mode 100644
+index 0000000..5c592ae
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_bind_lane.inc
+@@ -0,0 +1,101 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0329): the pages of bound textures get a lane and an admission of their own. IPA 827 (Mario Kart World, iPhone A18 Pro, two sessions): a race
++//   start had 8-16 frames marked cause=submit of 50-276 ms, 210-383 ms of them first uploads on the submit thread, which found 2,740-3,586 of their host pages not
++//   in memory (4,223-4,504 in the frame that switches to the race) and waited for them one texture at a time. The hint patch 0185 gives for a texture the game binds
++//   in a command buffer it is recording (nvn_be_record_texture_pages) never ran: (a) the memory governor was at tier 1 before frame 1 and for the whole session
++//   (559 MB of compressed memory at the start, 875-1,049 MB later, over its 512 MB mark), whose read-ahead quota is 0, which rb_ra_scale, rb_tx_page_run's
++//   enough_room, rb_wn and rb_ra_advise all read; (b) the fair thermal state holds its speculative lease (rb_spec_take); (c) the "recorded-bind" lane it shares
++//   with the game's buffer ranges (rb_guest_range.inc) had spent its 256 trial pages, 4,194,304 bytes, on those ranges before frame 1, and only a texture upload
++//   can find a page useful (rb_ra_observe): 256 expired, 0 useful, stopped before frame 300 for the session.
++//   Rule now, for these hints only: they are counted in a lane of their own (RA_TEXBIND, "texture-bind" on the [RB-READ-AHEAD] lines), which buffer ranges neither
++//   spend nor judge, and admitted by rb_bind_lane.h instead of the read-ahead quota: governor tier 0 or 1, at least 1 GiB of known room, memory not low, thermal
++//   state under 2, at most 16 MiB of texture storage looked at a frame, 256 hints a frame and 1,024 pages asked and not yet judged, textures of at most 1 MiB,
++//   all halved at each level the lane's own cohorts take away (patch 0193's rule, on at least 32 pages; stopped, it tries again 3,600 frames later at a quarter).
++//   A hint asks the pager for pages the texture's first upload reads in the same frame anyway (madvise, clean pages of the window's files): what is read, uploaded
++//   and drawn does not change, only when the read starts. The upload still looks at its own pages and asks for those still missing, as before.
++//   The 300-frame line adds the two measurements no log has: the frames from a texture's registration to its first upload, and how many first uploads found
++//   their pages in memory (for every title, whatever the lane does). The lane itself takes over only where the governor's feedback tables run and the hint is a
++//   madvise: with the governor off, or another title's file-descriptor advice, patch 0319's path runs as it did. Its other conditions stay: an exact course
++//   profile (rb_course_exact), S2A_RB_PARK_COMPAT=1, S2A_RB_TEX_PREFETCH, S2A_RB_WILLNEED and S2A_RB_TEX_PAGE_HINTS not 0.
++//   S2A_RB_BIND_LANE=0: as before (the shared lane, the quota, the lease, 32 hints and 8 MiB a frame; no table written, no 300-frame line).
++//   Memory: rb_bl_leads 128 KiB and rb_bl_marks 256 KiB, both static; pages asked and not yet judged: 1,024 at most (16 MiB of 16 KiB pages), clean file pages
++//   the system takes back first, and none asked at the governor's critical tier, with memory low, under 1 GiB of room or from the serious thermal state.
++#include "rb_bind_lane.h"
++static int rb_bl_on(void) {   // any thread: the same value whoever reads it first
++    static _Atomic int v = -1; int x = atomic_load_explicit(&v, memory_order_relaxed);
++    if (x < 0) { x = rb_bl_switch(getenv("S2A_RB_BIND_LANE")); int was = -1;
++        if (atomic_compare_exchange_strong(&v, &was, x)) MLOG("[rb-bind-lane] bound textures' page lane %s (S2A_RB_BIND_LANE; patch 0329): %s", x ? "on" : "off",
++            x ? "own lane and admission under governor tiers 0 and 1, registration-to-upload line every 300 frames" : "the shared recorded-bind lane and the read-ahead quota, as before"); }
++    return x;
++}
++_Static_assert(RB_BL_NOT_LOOKED == RB_WN_NONE, "a look that was not made reads the same in both");
++static _Atomic unsigned rb_bl_published;            // rb_bl_word(level, stopped) of the lane: stored under rb_ra_lock by the sweep, read by the recording threads
++static _Atomic uint32_t rb_bl_marks[RB_BL_MARKS];   // rb_bl_tag of the serial last posted for a texture ID (its low 16 bits): a hint is posted once
++static _Atomic int rb_bl_marked;                    // a mark was written this session (rb_bl_reset then clears them)
++static _Atomic uint64_t rb_bl_frame_posts;          // frame << 16 | the hints posted in it (rb_bl_post_take)
++static _Atomic unsigned rb_bl_pending;              // hints posted and not yet run by the page queue
++static rb_bl_budget rb_bl_work;                     // the page queue's (serial): texture storage looked at in the current frame
++static _Atomic uint64_t rb_bl_posted, rb_bl_looked, rb_bl_hint_pages, rb_bl_busy, rb_bl_stale, rb_bl_outside, rb_bl_retests, rb_bl_refused[RB_BL_REASONS];
++static os_unfair_lock rb_bl_lock = OS_UNFAIR_LOCK_INIT;
++static rb_bl_table rb_bl_leads;         // rb_bl_lock
++static rb_bl_window rb_bl_counts;       // rb_bl_lock: since the last line
++static _Thread_local uint64_t rb_bl_probe;   // what the last look of pkg_upload_ on this thread found (rb_wn_demand's answer)
++static void rb_bl_publish(unsigned level, int stopped) { atomic_store_explicit(&rb_bl_published, rb_bl_word(level, stopped), memory_order_relaxed); }
++static void rb_bl_registered(const tex_t *t) {   // nvn_be_reg_tex (the game's threads): a packaged texture's first registration starts its lead
++    if (!t->serial || !t->has_layout || !t->mem || !rb_bl_on()) return;
++    uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    os_unfair_lock_lock(&rb_bl_lock);
++    rb_bl_note_registered(&rb_bl_leads, &rb_bl_counts, t->serial, frame);
++    os_unfair_lock_unlock(&rb_bl_lock);
++}
++static void rb_bl_first_upload(const tex_t *t, int sparse) {   // tex_mtl_for_pass, after t's first upload (pkg_upload_ left its look in rb_bl_probe; a sparse pool's texture has none)
++    if (!rb_bl_on()) return;
++    uint64_t absent = sparse ? RB_BL_NOT_LOOKED : rb_bl_probe, frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    os_unfair_lock_lock(&rb_bl_lock);
++    (void)rb_bl_note_upload(&rb_bl_leads, &rb_bl_counts, t->has_layout ? t->serial : 0, frame, absent);
++    os_unfair_lock_unlock(&rb_bl_lock);
++}
++// Every 300 frames (nvn_be_mem_stat), when a texture was registered or first uploaded or a hint posted since the last line; every count is since that line.
++//   lead_*: nine classes of the frames from registration to first upload: 0 / 1 / 2-3 / 4-15 / 16-63 / 64-255 / 256-1023 / 1024 and more / not known.
++static void rb_bl_line(unsigned long long frame) {
++    if (!rb_bl_on()) return;
++    os_unfair_lock_lock(&rb_bl_lock);
++    rb_bl_window w = rb_bl_counts;
++    rb_bl_counts = (rb_bl_window){0};
++    os_unfair_lock_unlock(&rb_bl_lock);
++    uint64_t posted = atomic_exchange_explicit(&rb_bl_posted, 0, memory_order_relaxed), looked = atomic_exchange_explicit(&rb_bl_looked, 0, memory_order_relaxed);
++    uint64_t pages = atomic_exchange_explicit(&rb_bl_hint_pages, 0, memory_order_relaxed), busy = atomic_exchange_explicit(&rb_bl_busy, 0, memory_order_relaxed);
++    uint64_t stale = atomic_exchange_explicit(&rb_bl_stale, 0, memory_order_relaxed), outside = atomic_exchange_explicit(&rb_bl_outside, 0, memory_order_relaxed);
++    uint64_t retests = atomic_exchange_explicit(&rb_bl_retests, 0, memory_order_relaxed), no[RB_BL_REASONS];
++    for (int i = 0; i < RB_BL_REASONS; i++) no[i] = atomic_exchange_explicit(&rb_bl_refused[i], 0, memory_order_relaxed);
++    uint64_t uploads = w.resident + w.absent + w.not_looked;
++    if (!(uploads + w.registered + posted)) return;
++    char lead[3][112];
++    for (int k = 0; k < 3; k++) {
++        const uint64_t *v = k == 0 ? w.uploads : k == 1 ? w.with_absent : w.absent_pages; int o = 0; lead[k][0] = 0;
++        for (int i = 0; i < RB_BL_BUCKETS && o < (int)sizeof lead[k] - 1; i++) o += snprintf(lead[k] + o, sizeof lead[k] - (size_t)o, "%s%llu", i ? "/" : "", (unsigned long long)v[i]);
++    }
++    unsigned word = atomic_load_explicit(&rb_bl_published, memory_order_relaxed);
++    MLOG("[rb-bind-lane] frame=%llu lane=%s level=%u registered=%llu first_uploads=%llu all_in_memory=%llu some_absent=%llu not_looked=%llu "
++         "lead_uploads=%s lead_with_absent=%s lead_absent_pages=%s hints=%llu looked=%llu hint_absent_pages=%llu busy=%llu stale=%llu outside=%llu "
++         "refused_tier=%llu refused_room=%llu refused_low=%llu refused_heat=%llu refused_stopped=%llu refused_full=%llu refused_item=%llu refused_budget=%llu retests=%llu",
++         frame, !rb_gov_on() ? "no-governor" : (word & RB_BL_WORD_STOPPED) ? "stopped" : "open", word & 3u, (unsigned long long)w.registered, (unsigned long long)uploads,
++         (unsigned long long)w.resident, (unsigned long long)w.absent, (unsigned long long)w.not_looked, lead[0], lead[1], lead[2],
++         (unsigned long long)posted, (unsigned long long)looked, (unsigned long long)pages, (unsigned long long)busy, (unsigned long long)stale, (unsigned long long)outside,
++         (unsigned long long)no[RB_BL_NO_TIER], (unsigned long long)no[RB_BL_NO_ROOM], (unsigned long long)no[RB_BL_NO_LOW], (unsigned long long)no[RB_BL_NO_HEAT],
++         (unsigned long long)no[RB_BL_NO_STOPPED], (unsigned long long)no[RB_BL_NO_FULL], (unsigned long long)no[RB_BL_NO_ITEM], (unsigned long long)no[RB_BL_NO_BUDGET],
++         (unsigned long long)retests);
++}
++static void rb_bl_reset(void) {   // rb_tx_reset: a session ended, its page queue drained and the feedback tables cleared
++    if (!rb_bl_on()) return;
++    if (atomic_exchange(&rb_bl_marked, 0)) for (unsigned i = 0; i < RB_BL_MARKS; ++i) atomic_store_explicit(&rb_bl_marks[i], 0, memory_order_relaxed);
++    rb_bl_work = (rb_bl_budget){0};
++    atomic_store(&rb_bl_published, 0); atomic_store(&rb_bl_frame_posts, 0); atomic_store(&rb_bl_pending, 0);
++    atomic_store(&rb_bl_posted, 0); atomic_store(&rb_bl_looked, 0); atomic_store(&rb_bl_hint_pages, 0); atomic_store(&rb_bl_busy, 0);
++    atomic_store(&rb_bl_stale, 0); atomic_store(&rb_bl_outside, 0); atomic_store(&rb_bl_retests, 0);
++    for (int i = 0; i < RB_BL_REASONS; i++) atomic_store(&rb_bl_refused[i], 0);
++    os_unfair_lock_lock(&rb_bl_lock);
++    memset(&rb_bl_leads, 0, sizeof rb_bl_leads);
++    rb_bl_counts = (rb_bl_window){0};
++    os_unfair_lock_unlock(&rb_bl_lock);
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc b/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc
+index a7424dd..0ba075f 100644
+--- a/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc
++++ b/graphics/nvn/gfx/nvn/rb_read_ahead_feedback.inc
+@@ -1,13 +1,18 @@
+ // SPDX-License-Identifier: Apache-2.0
+ // One entry per host page for which the kernel accepted speculative advice.
+ // Direct-map collisions suppress optional work. They never replace an unresolved page.
+-enum { RA_REGISTER=1, RA_NEIGHBOUR, RA_BIND, RA_LANES=4, RA_SLOTS=8192, RA_TRIAL=256 };
+-static const char *const rb_ra_names[RA_LANES]={"none","registration","pool-neighbour","recorded-bind"};
++// RewindBox (patch 0329): RA_TEXBIND, the pages of the textures the game binds (rb_bind_lane.inc), counted apart. IPA 827 (Mario Kart World): they shared RA_BIND
++//   with the game's buffer ranges (rb_guest_range.inc), whose pages no texture upload ever looks at: the ranges spent the 256 trial pages (4,194,304 bytes) before
++//   frame 1 and the lane closed with 256 expired, 0 useful, stopped for the session before frame 300. RA_LANES stays 4: the lanes of the benchmark's snapshot
++//   (rb_texture_stats.ahead[3], nvn_rb_texture_snapshot) and the size of a thread's candidate list. RA_ALL sizes the tables and the sweep.
++//   S2A_RB_BIND_LANE=0: nothing is ever asked on RA_TEXBIND, and texture binds use RA_BIND as before.
++enum { RA_REGISTER=1, RA_NEIGHBOUR, RA_BIND, RA_LANES=4, RA_TEXBIND=RA_LANES, RA_ALL, RA_SLOTS=8192, RA_TRIAL=256 };
++static const char *const rb_ra_names[RA_ALL]={"none","registration","pool-neighbour","recorded-bind","texture-bind"};
+ typedef struct { uintptr_t address; uint64_t seq, observer; unsigned owner; BOOL pending, raced; } rb_ra_page;
+ typedef struct { uint64_t issued, hit, absent, expired, duplicate, refused, unconfirmed, invalidated, censoredEnd;
+-    uint64_t firstFrame, cohorts; unsigned pending, opened, resolved, successes, unknown, level, stopReason; BOOL stopped; } rb_ra_lane;
++    uint64_t firstFrame, cohorts, stopFrame; unsigned pending, opened, resolved, successes, unknown, level, stopReason; BOOL stopped; } rb_ra_lane;   // stopFrame: RA_TEXBIND's (patch 0329)
+ static rb_ra_page rb_ra_pages[RA_SLOTS];
+-static rb_ra_lane rb_ra_lanes[RA_LANES];
++static rb_ra_lane rb_ra_lanes[RA_ALL];
+ static os_unfair_lock rb_ra_lock=OS_UNFAIR_LOCK_INIT;
+ static _Atomic uint64_t rb_ra_sequence=1;
+ static _Atomic unsigned rb_ra_open;
+@@ -16,6 +21,16 @@ static _Thread_local unsigned rb_ra_source;
+ static _Thread_local uint64_t rb_ra_issue_epoch;
+ static _Thread_local BOOL rb_ra_spec_upload, rb_ra_saw_absent;
+ static _Thread_local uint64_t rb_ra_wait_gen;
++// RewindBox (patch 0329): the two things the texture-bind lane does not take from the governor's read-ahead quota, which is 0 at tier 1 (IPA 827: the whole
++//   session). Its trial follows its own level (rb_bind_lane.h: 1,024 pages, halved at each level) and a cohort wholly resolved closes at a quarter of it; it is
++//   open at the governor's tiers 0 and 1 and closed at the critical tier. The other lanes: RA_TRIAL and the quota, as before.
++//   S2A_RB_BIND_LANE=0: as before (no page is ever asked on RA_TEXBIND, so only the older lanes' answers are read).
++static unsigned rb_ra_trial(unsigned owner,unsigned level) { return owner==RA_TEXBIND ? rb_bl_trial(level) : (unsigned)RA_TRIAL; }
++static unsigned rb_ra_cohort(unsigned owner,unsigned level) { return owner==RA_TEXBIND ? rb_bl_cohort_pages(level) : (unsigned)RA_TRIAL; }   // pages before a resolved cohort closes
++static int rb_ra_lane_open(unsigned owner) {
++    if (owner==RA_TEXBIND) return (atomic_load_explicit(&rb_gov_plan,memory_order_acquire) & 3u)<=RB_GOV_WARN;
++    return rb_gov_quota(RB_GOV_PREFETCH)!=0;
++}
+ // Submission diagnostics are independent of the optional benchmark generation.
+ // A cold upload's off-CPU duration is an upper bound including scheduling and
+ // other waits. Neither this clock nor process-wide page-ins times kernel faults.
+@@ -100,14 +115,34 @@ static void rb_ra_sweep(uint64_t frame,BOOL end) {
+     if (!end && frame>=last && frame-last<30) return;
+     last=end ? 0 : frame;
+     os_unfair_lock_lock(&rb_ra_lock);
+-    for (unsigned owner=1;owner<RA_LANES;owner++) {
++    for (unsigned owner=1;owner<RA_ALL;owner++) {
+         rb_ra_lane *l=&rb_ra_lanes[owner];
++        // RewindBox (patch 0329): a stopped texture-bind lane tries again RB_BL_RETEST frames later, at its last level (256 pages at most before the next
++        //   verdict): a stop decided in a menu must not hold through every race of the session, as the shared lane's did in IPA 827.
++        //   S2A_RB_BIND_LANE=0: as before (this lane never opens, so it never stops).
++        if (owner==RA_TEXBIND && !end && l->stopped && !l->opened && !l->pending) {
++            rb_bl_lane again={l->level,1,l->stopFrame};
++            if (rb_bl_reopen(&again,frame)) {
++                l->level=again.level;l->stopped=NO;rb_bl_publish(l->level,0);
++                atomic_fetch_add_explicit(&rb_bl_retests,1,memory_order_relaxed);
++            }
++        }
+         if (!l->opened || l->pending) continue;
+         BOOL expired=end || (frame>=l->firstFrame && frame-l->firstFrame>=300);
+-        if (!expired && (l->opened<RA_TRIAL || l->resolved<l->opened)) continue;
++        if (!expired && (l->opened<rb_ra_cohort(owner,l->level) || l->resolved<l->opened)) continue;
+         if (expired) for (unsigned i=0;i<RA_SLOTS;i++) if (rb_ra_pages[i].owner==owner) rb_ra_done(&rb_ra_pages[i],end ? -4 : -1);
+         unsigned total=l->opened,hits=l->successes;
+-        if (!end && 2u*hits<=total) {
++        if (owner==RA_TEXBIND) {
++            // RewindBox (patch 0329): the texture-bind lane's verdict (rb_bind_lane.h rb_bl_verdict): the rule below on a cohort of at least 32 pages, and a
++            //   level given back when three quarters of a cohort were found in memory. The recording threads read the result in one word (rb_bl_publish).
++            //   S2A_RB_BIND_LANE=0: as before (this lane has no cohort; the older lanes take the branch below).
++            if (!end) {
++                rb_bl_lane state={l->level,l->stopped,l->stopFrame};
++                if (rb_bl_close(&state,total,hits,l->unknown,frame)==RB_BL_STOP) l->stopReason=2u*(hits+l->unknown)>total ? 3 : !hits ? 1 : 2;
++                l->level=state.level;l->stopped=state.stopped ? YES : NO;l->stopFrame=state.stop_frame;
++                rb_bl_publish(l->level,l->stopped);
++            }
++        } else if (!end && 2u*hits<=total) {
+             if (2u*(hits+l->unknown)>total || !hits || l->level>=2) {
+                 l->stopped=YES;
+                 l->stopReason=2u*(hits+l->unknown)>total ? 3 : !hits ? 1 : 2;
+@@ -133,14 +168,16 @@ static unsigned rb_ra_scale(unsigned owner) {
+ }
+ // The input run consists exclusively of file-backed pages found absent by mincore.
+ // Split around outstanding hints and charge only pages accepted by madvise.
++// RewindBox (patch 0329): the quota tests are rb_ra_lane_open's and the trial rb_ra_trial's, so that the texture-bind lane can ask at the governor's tier 1
++//   (quota 0 in the whole of IPA 827's sessions). S2A_RB_BIND_LANE=0: as before; and with it on, the same answers as before for the three older lanes.
+ static void rb_ra_advise(uintptr_t a,size_t pages,size_t pg,unsigned source) {
+-    if (!rb_gov_quota(RB_GOV_PREFETCH)) return;
++    if (!rb_ra_lane_open(source)) return;
+     size_t i=0;
+     while (i<pages) {
+         os_unfair_lock_lock(&rb_ra_lock);
+         rb_ra_lane *l=&rb_ra_lanes[source];
+-        unsigned quota=RA_TRIAL-l->opened-l->pending;
+-        if (rb_ra_issue_epoch!=atomic_load(&rb_ra_backing_epoch) || l->stopped || !quota || !rb_gov_quota(RB_GOV_PREFETCH)) { os_unfair_lock_unlock(&rb_ra_lock); break; }
++        unsigned trial=rb_ra_trial(source,l->level),used=l->opened+l->pending,quota=trial>used ? trial-used : 0;
++        if (rb_ra_issue_epoch!=atomic_load(&rb_ra_backing_epoch) || l->stopped || !quota || !rb_ra_lane_open(source)) { os_unfair_lock_unlock(&rb_ra_lock); break; }
+         rb_ra_page *p=&rb_ra_pages[rb_ra_slot(a+i*pg,pg)];
+         if (p->owner) {
+             if (p->address==a+i*pg) l->duplicate++; else l->refused++;
+@@ -155,7 +192,7 @@ static void rb_ra_advise(uintptr_t a,size_t pages,size_t pg,unsigned source) {
+         }
+         l->pending+=(unsigned)n;atomic_fetch_add(&rb_ra_open,(unsigned)n);
+         os_unfair_lock_unlock(&rb_ra_lock);
+-        BOOL ok=rb_gov_quota(RB_GOV_PREFETCH) && rb_wn_issue(a+i*pg,n*pg);
++        BOOL ok=rb_ra_lane_open(source) && rb_wn_issue(a+i*pg,n*pg);
+         os_unfair_lock_lock(&rb_ra_lock);
+         for (size_t j=0;j<n;j++) {
+             p=&rb_ra_pages[rb_ra_slot(a+(i+j)*pg,pg)];
+@@ -199,3 +236,11 @@ static void rb_ra_finish(BOOL started,BOOL success) {
+     }
+     os_unfair_lock_unlock(&rb_ra_lock);r->count=0;r->token=0;
+ }
++// RewindBox (patch 0329): the texture-bind lane as the page worker reads it before it looks at a texture (rb_texture_ahead.inc rb_bl_page_run): its level, whether
++//   it is stopped, and whether its trial is spent (a look would then ask nothing). S2A_RB_BIND_LANE=0: not called.
++static void rb_ra_texbind_state(unsigned *level,int *stopped,int *full) {
++    os_unfair_lock_lock(&rb_ra_lock);
++    rb_ra_lane *l=&rb_ra_lanes[RA_TEXBIND];
++    *level=l->level;*stopped=l->stopped ? 1 : 0;*full=l->opened+l->pending>=rb_ra_trial(RA_TEXBIND,l->level);
++    os_unfair_lock_unlock(&rb_ra_lock);
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+index 3ffcb7c..c6c586d 100644
+--- a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
++++ b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+@@ -94,6 +94,92 @@ static void rb_tx_page_run(uint32_t id_, uint64_t serial, uint64_t posted_frame)
+     rb_spec_done(&lease);
+ }
+ 
++// RewindBox (patch 0329): the page hint of a bound texture on its own lane (rb_bind_lane.inc has the measurements of IPA 827 and the rule). As rb_tx_page_run
++//   above, on the same serial queue, with these differences: the admission is rb_bind_lane.h's (no read-ahead quota, which is 0 at the governor's tier 1, and no
++//   speculative lease, which the fair thermal state holds); the pages go to RA_TEXBIND through rb_wn_ itself (rb_wn refuses every span while the quota is 0);
++//   and a look the registration table was too busy for (the submit thread holds g_rmu through a draw's bindings, its first uploads included) takes its mark back,
++//   so that the texture's next recorded bind may ask again. S2A_RB_BIND_LANE=0: rb_tx_page_run alone, as before.
++static void rb_bl_page_run(uint32_t id_, uint64_t serial, uint64_t posted_frame) {
++    uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    if (frame - posted_frame > 2 || dm_gfx_session_stopping() || nvn_be_stopping() || atomic_load(&g_fu_waiting)) {
++        atomic_fetch_add_explicit(&rb_bl_stale, 1, memory_order_relaxed);
++        return;
++    }
++    uint64_t backingEpoch = atomic_load(&rb_ra_backing_epoch);   // before the look, as rb_tx_page_run: a pool finalized after it stops the asking (rb_ra_advise)
++    const void *mem = NULL;
++    uint64_t bytes = 0;
++    int busy = 1;
++    if (!pthread_mutex_trylock(&g_rmu)) {
++        if (!pthread_mutex_trylock(&g_smu)) {
++            busy = 0;
++            if (id_ < (unsigned)g_ntreg) {
++                const treg_t *r = &g_treg[id_];
++                const tex_t *t = &r->t;
++                if (r->ok && !r->gone && t->serial == serial && t->has_layout && t->mem && !t->d.flags && t->L.size &&
++                    nvn_hm_get(&g_tex_live, &serial) && !nvn_hm_get(&g_by_serial, &serial)) {
++                    mem = t->mem;
++                    bytes = t->L.size;
++                }
++            }
++            pthread_mutex_unlock(&g_smu);
++        }
++        pthread_mutex_unlock(&g_rmu);
++    }
++    if (busy) {
++        uint32_t tag = rb_bl_tag(serial);
++        atomic_compare_exchange_strong_explicit(&rb_bl_marks[id_ % RB_BL_MARKS], &tag, 0, memory_order_relaxed, memory_order_relaxed);
++        atomic_fetch_add_explicit(&rb_bl_busy, 1, memory_order_relaxed);
++        return;
++    }
++    if (!mem) return;   // made already, finalized, registered anew, or not a packaged texture: nothing to ask
++    rb_bl_state state = {.tier = 0, .level = 0, .room = 0, .mem_low = rb_mem_low(), .thermal = rb_cached_thermal(), .stopped = 0, .full = 0};
++    state.tier = atomic_load_explicit(&rb_gov_plan, memory_order_acquire) & 3u;   // after rb_mem_low, which samples the governor (at most twice a second)
++    state.room = atomic_load(&rb_gov_room);
++    rb_ra_texbind_state(&state.level, &state.stopped, &state.full);
++    int why = rb_bl_admit(&rb_bl_work, &state, frame, bytes);
++    if (why != RB_BL_ADMIT) {
++        atomic_fetch_add_explicit(&rb_bl_refused[why], 1, memory_order_relaxed);
++        return;
++    }
++    unsigned prior = rb_ra_source; uint64_t oldEpoch = rb_ra_issue_epoch;
++    rb_ra_source = RA_TEXBIND; rb_ra_issue_epoch = backingEpoch;
++    uint64_t pages = rb_wn_(mem, bytes, NULL, NULL, 0, 0);
++    rb_ra_source = prior; rb_ra_issue_epoch = oldEpoch;
++    if (pages == RB_WN_NONE) { atomic_fetch_add_explicit(&rb_bl_outside, 1, memory_order_relaxed); return; }
++    atomic_fetch_add_explicit(&rb_bl_looked, 1, memory_order_relaxed);
++    atomic_fetch_add_explicit(&rb_bl_hint_pages, pages, memory_order_relaxed);
++}
++// The recording threads' side, for every texture bind recorded (thousands a frame, on several threads): the texture ID's mark is read first, so a texture
++//   already asked about costs two loads; the lane's state is one more word (rb_bl_published); and a hint is posted with no lock (rb_tx_page's trylock would
++//   drop the hints of two threads recording at once): one of the frame's posts is taken by compare and swap, then the mark, whose taker alone posts.
++//   A mark is one per texture ID modulo RB_BL_MARKS: two IDs that far apart share one and may be posted again, within the frame's posts.
++static void rb_bl_record(uint32_t id_) {
++    if (id_ >= (1u << 20)) return;
++    uint64_t serial = atomic_load_explicit(&g_tser[id_], memory_order_acquire);
++    _Atomic uint32_t *mark = &rb_bl_marks[id_ % RB_BL_MARKS];
++    uint32_t tag = rb_bl_tag(serial);
++    if (!serial || atomic_load_explicit(mark, memory_order_relaxed) == tag) return;
++    if (!rb_course_exact() || !rb_park_compat() || !rb_pf_on() || !rb_wn_on() ||
++        dm_gfx_session_stopping() || nvn_be_stopping() || atomic_load(&g_fu_waiting)) return;
++    uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    if (!frame) return;
++    unsigned posts = rb_bl_post_limit(atomic_load_explicit(&rb_bl_published, memory_order_relaxed),
++                                      atomic_load_explicit(&rb_gov_plan, memory_order_relaxed) & 3u);
++    if (!posts || atomic_load_explicit(&rb_bl_pending, memory_order_relaxed) >= posts) return;   // stopped, the critical tier, or the page queue is behind
++    uint64_t taken = atomic_load_explicit(&rb_bl_frame_posts, memory_order_relaxed), next = 0;
++    do {
++        if (!rb_bl_post_take(taken, frame, posts, &next)) return;   // the frame's posts are spent: the texture's upload asks its own pages, as before
++    } while (!atomic_compare_exchange_weak_explicit(&rb_bl_frame_posts, &taken, next, memory_order_relaxed, memory_order_relaxed));
++    if (atomic_exchange_explicit(mark, tag, memory_order_relaxed) == tag) return;   // another thread recorded the same bind and posts it
++    atomic_store_explicit(&rb_bl_marked, 1, memory_order_relaxed);
++    atomic_fetch_add_explicit(&rb_bl_pending, 1, memory_order_relaxed);
++    atomic_fetch_add_explicit(&rb_bl_posted, 1, memory_order_relaxed);
++    dispatch_async(rb_guest_page_queue(), ^{ @autoreleasepool {
++        rb_bl_page_run(id_, serial, frame);
++        atomic_fetch_sub_explicit(&rb_bl_pending, 1, memory_order_relaxed);
++    } });
++}
++
+ // These independent process-launch controls isolate historical behavior on
+ // the candidate. The 803 rollback keeps its original environment semantics.
+ static BOOL rb_upload_ahead_allowed(void) {
+@@ -117,6 +203,10 @@ static BOOL rb_page_hints_allowed(void) {
+ void nvn_be_record_texture_pages(uint32_t id_) {
+     int file_only = rb_bind_file_hints();
+     if ((file_only || rb_tex_budget_on()) && !rb_page_hints_allowed()) return;
++    // RewindBox (patch 0329): with the governor on, a bound texture's pages have their own lane and admission (rb_bl_record above; rb_bind_lane.inc). IPA 827
++    //   (Mario Kart World): rb_ra_scale below answered 0 for the whole session (the read-ahead quota is 0 at the governor's tier 1, and the shared lane had been
++    //   stopped by buffer ranges before frame 300), so no bind ever gave a hint. S2A_RB_BIND_LANE=0: the lines below, as before.
++    if (rb_bl_route(rb_bl_on(), rb_gov_on(), file_only)) { rb_bl_record(id_); return; }
+     unsigned scale=rb_ra_scale(RA_BIND);
+     if (!scale) return;
+     if (id_ >= (1u << 20) || (!file_only && !rb_course_exact()) || !rb_park_compat() || !rb_pf_on() || !rb_wn_on() ||
+@@ -262,6 +352,7 @@ void nvn_be_advance_texture(void) {
+ 
+ static void rb_tx_reset(void) {
+     if (rb_gov_on()) rb_ra_sweep(atomic_load(&g_cur_frame),YES);
++    rb_bl_reset();   // RewindBox (patch 0329): the texture-bind lane's marks, counts and registration frames go with the session (the feedback tables were cleared just above)
+     // The page queue has already drained with the other window readers.
+     g_tx_page.post_frame = g_tx_page.work_frame = g_tx_page.work_bytes = 0;
+     g_tx_page.pending = g_tx_page.posted = 0;
+diff --git a/graphics/nvn/tests/t_rb_bind_lane.c b/graphics/nvn/tests/t_rb_bind_lane.c
+new file mode 100644
+index 0000000..e308ae0
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_bind_lane.c
+@@ -0,0 +1,171 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0329): host-only checks of the bound textures' page lane (gfx/nvn/rb_bind_lane.h): the switch and the route, the admission and its
++//   refusals, the per-frame budget, the cohort rule, and the registration-to-first-upload classes.
++#include <assert.h>
++#include <stdio.h>
++#include "../gfx/nvn/rb_bind_lane.h"
++
++#define MIB (UINT64_C(1) << 20)
++static rb_bl_state open_state(unsigned tier, unsigned level) {
++    rb_bl_state s = {.tier = tier, .level = level, .room = 3072 * MIB};
++    return s;
++}
++static rb_bl_table table;   // 128 KiB: not on the stack
++int main(void) {
++    // (1) the switch: on unless exactly "0"; the route: only with the governor's feedback tables and a madvise hint
++    assert(rb_bl_switch(NULL) && rb_bl_switch("") && rb_bl_switch("1") && rb_bl_switch("00") && rb_bl_switch("off"));
++    assert(!rb_bl_switch("0"));
++    assert(rb_bl_route(1, 1, 0));
++    assert(!rb_bl_route(0, 1, 0));   // S2A_RB_BIND_LANE=0: patch 0319's path
++    assert(!rb_bl_route(1, 0, 0));   // no governor: nothing would judge the lane
++    assert(!rb_bl_route(1, 1, 1));   // another title's file-descriptor advice
++
++    // (2) what a level allows: halved at each level, the last level held
++    assert(rb_bl_posts(0) == 256 && rb_bl_posts(1) == 128 && rb_bl_posts(2) == 64 && rb_bl_posts(9) == 64);
++    assert(rb_bl_trial(0) == 1024 && rb_bl_trial(1) == 512 && rb_bl_trial(2) == 256 && rb_bl_trial(3) == 256);
++    assert(rb_bl_frame_bytes(0) == 16 * MIB && rb_bl_frame_bytes(1) == 8 * MIB && rb_bl_frame_bytes(2) == 4 * MIB);
++    assert(rb_bl_cohort_pages(0) == 256 && rb_bl_cohort_pages(1) == 128 && rb_bl_cohort_pages(2) == 64);
++    for (unsigned level = 0; level < 4; level++) assert(rb_bl_cohort_pages(level) >= RB_BL_MIN_SAMPLE);   // a cohort that closes early is one the rule judges
++    assert(rb_bl_word(0, 0) == 0 && rb_bl_word(2, 0) == 2 && rb_bl_word(7, 0) == 2 && rb_bl_word(1, 1) == (1 | RB_BL_WORD_STOPPED));
++    assert(rb_bl_post_limit(rb_bl_word(0, 0), RB_BL_TIER_NORMAL) == 256);
++    assert(rb_bl_post_limit(rb_bl_word(1, 0), RB_BL_TIER_WARN) == 128);     // the governor's tier 1 does not close the lane
++    assert(rb_bl_post_limit(rb_bl_word(0, 0), RB_BL_TIER_CRITICAL) == 0);   // its critical tier does
++    assert(rb_bl_post_limit(rb_bl_word(0, 1), RB_BL_TIER_NORMAL) == 0);     // a stopped lane posts nothing
++    assert(rb_bl_tag(0x1234) == 0x1234 && rb_bl_tag(UINT64_C(0x500000005)) == 1 && rb_bl_tag(UINT64_C(1) << 32) == 1 && rb_bl_tag(0) == 1);
++    // a frame's posts: counted per frame, refused at the limit, and a level that fell within the frame refuses at once
++    uint64_t posts = 0, next = 0;
++    for (unsigned i = 0; i < 64; i++) { assert(rb_bl_post_take(posts, 7, 64, &next)); posts = next; }
++    assert(posts == ((UINT64_C(7) << 16) | 64));
++    assert(!rb_bl_post_take(posts, 7, 64, &next) && !rb_bl_post_take(posts, 7, 32, &next) && !rb_bl_post_take(posts, 7, 0, &next));
++    assert(rb_bl_post_take(posts, 7, 65, &next) && next == ((UINT64_C(7) << 16) | 65));
++    assert(rb_bl_post_take(posts, 8, 64, &next) && next == ((UINT64_C(8) << 16) | 1));   // the next frame starts at 0
++    assert(rb_bl_post_take(posts, 6, 64, &next) && next == ((UINT64_C(6) << 16) | 1));   // so does an earlier one (a new session's counter)
++    assert(!rb_bl_post_take(0, 0, 0, &next) && rb_bl_post_take(0, 0, 1, &next) && next == 1);
++    assert(!rb_bl_post_take((UINT64_C(9) << 16) | 0xffff, 9, 1u << 20, &next));          // the count never runs into the frame's bits
++
++    // (3) admission: tiers 0 and 1 with room, within the frame's budget
++    rb_bl_budget b = {0};
++    rb_bl_state s = open_state(RB_BL_TIER_WARN, 0);
++    assert(rb_bl_admit(&b, &s, 10, 256 * 1024) == RB_BL_ADMIT && b.frame == 10 && b.bytes == 256 * 1024);
++    s = open_state(RB_BL_TIER_NORMAL, 0);
++    assert(rb_bl_admit(&b, &s, 10, RB_BL_ITEM) == RB_BL_ADMIT && b.bytes == 256 * 1024 + RB_BL_ITEM);
++    // … and every refusal, none of which charges the budget
++    const rb_bl_budget before = b;
++    s = open_state(RB_BL_TIER_CRITICAL, 0);
++    assert(rb_bl_admit(&b, &s, 10, 4096) == RB_BL_NO_TIER);
++    s = open_state(RB_BL_TIER_WARN, 0); s.room = UINT64_MAX;
++    assert(rb_bl_admit(&b, &s, 10, 4096) == RB_BL_NO_ROOM);                 // room not known
++    s.room = RB_BL_ROOM - 1;
++    assert(rb_bl_admit(&b, &s, 10, 4096) == RB_BL_NO_ROOM);                 // under 1 GiB
++    s.room = RB_BL_ROOM;
++    assert(rb_bl_admit(&b, &s, 11, 4096) == RB_BL_ADMIT);                   // exactly 1 GiB is room; a new frame starts at 0
++    assert(b.frame == 11 && b.bytes == 4096);
++    b = before;
++    s = open_state(RB_BL_TIER_WARN, 0); s.mem_low = 1;
++    assert(rb_bl_admit(&b, &s, 10, 4096) == RB_BL_NO_LOW);
++    s = open_state(RB_BL_TIER_WARN, 0); s.thermal = 2;
++    assert(rb_bl_admit(&b, &s, 10, 4096) == RB_BL_NO_HEAT);
++    s.thermal = 1;
++    assert(rb_bl_admit(&b, &s, 12, 4096) == RB_BL_ADMIT);                   // the fair state does not hold it
++    b = before;
++    s = open_state(RB_BL_TIER_WARN, 0); s.stopped = 1;
++    assert(rb_bl_admit(&b, &s, 10, 4096) == RB_BL_NO_STOPPED);
++    s = open_state(RB_BL_TIER_WARN, 0); s.full = 1;
++    assert(rb_bl_admit(&b, &s, 10, 4096) == RB_BL_NO_FULL);
++    s = open_state(RB_BL_TIER_WARN, 0);
++    assert(rb_bl_admit(&b, &s, 10, 0) == RB_BL_NO_ITEM);
++    assert(rb_bl_admit(&b, &s, 10, RB_BL_ITEM + 1) == RB_BL_NO_ITEM);
++    assert(b.frame == before.frame && b.bytes == before.bytes);
++    // the frame's budget: 16 MiB at level 0, the one that would pass it is refused and charges nothing
++    b = (rb_bl_budget){0};
++    for (int i = 0; i < 16; i++) assert(rb_bl_admit(&b, &s, 20, RB_BL_ITEM) == RB_BL_ADMIT);
++    assert(b.bytes == RB_BL_FRAME);
++    assert(rb_bl_admit(&b, &s, 20, 4096) == RB_BL_NO_BUDGET && b.bytes == RB_BL_FRAME);
++    assert(rb_bl_admit(&b, &s, 21, 4096) == RB_BL_ADMIT && b.frame == 21 && b.bytes == 4096);   // the next frame
++    // a reduced lane has a quarter of it, and a budget already over it (the level fell within the frame) admits nothing
++    s = open_state(RB_BL_TIER_WARN, 2);
++    b = (rb_bl_budget){0};
++    for (int i = 0; i < 4; i++) assert(rb_bl_admit(&b, &s, 30, RB_BL_ITEM) == RB_BL_ADMIT);
++    assert(rb_bl_admit(&b, &s, 30, 4096) == RB_BL_NO_BUDGET);
++    b = (rb_bl_budget){30, 6 * MIB};
++    assert(rb_bl_admit(&b, &s, 30, 4096) == RB_BL_NO_BUDGET && b.bytes == 6 * MIB);
++
++    // (4) the cohort rule
++    assert(rb_bl_verdict(31, 0, 0, 0) == RB_BL_KEEP);        // under the sample: no verdict, even with nothing found
++    assert(rb_bl_verdict(32, 0, 0, 0) == RB_BL_STOP);        // nothing found
++    assert(rb_bl_verdict(100, 51, 0, 0) == RB_BL_KEEP);      // more than half
++    assert(rb_bl_verdict(100, 50, 0, 0) == RB_BL_SHRINK);    // half or fewer: one level down
++    assert(rb_bl_verdict(100, 50, 0, 1) == RB_BL_SHRINK);
++    assert(rb_bl_verdict(100, 50, 0, 2) == RB_BL_STOP);      // … stopped at the last level
++    assert(rb_bl_verdict(100, 30, 21, 0) == RB_BL_STOP);     // too many unknown outcomes to judge
++    assert(rb_bl_verdict(100, 30, 20, 0) == RB_BL_SHRINK);
++    assert(rb_bl_verdict(100, 75, 0, 0) == RB_BL_KEEP);      // nothing to give back at level 0
++    assert(rb_bl_verdict(100, 75, 0, 1) == RB_BL_GROW);      // three quarters: a level back
++    assert(rb_bl_verdict(100, 74, 0, 1) == RB_BL_KEEP);
++    assert(rb_bl_verdict(1024, 1024, 0, 2) == RB_BL_GROW);
++    rb_bl_lane l = {0};
++    assert(rb_bl_close(&l, 200, 90, 0, 1000) == RB_BL_SHRINK && l.level == 1 && !l.stopped);
++    assert(rb_bl_close(&l, 200, 90, 0, 1300) == RB_BL_SHRINK && l.level == 2 && !l.stopped);
++    assert(rb_bl_close(&l, 20, 0, 0, 1600) == RB_BL_KEEP && l.level == 2 && !l.stopped);
++    assert(rb_bl_close(&l, 200, 90, 0, 1900) == RB_BL_STOP && l.level == 2 && l.stopped && l.stop_frame == 1900);
++    // a stopped lane stays stopped until its re-test, which runs at the last level
++    assert(!rb_bl_reopen(&l, 1900 + RB_BL_RETEST - 1) && l.stopped);
++    assert(!rb_bl_reopen(&l, 100) && l.stopped);             // a frame counter that ran back opens nothing
++    assert(rb_bl_reopen(&l, 1900 + RB_BL_RETEST) && !l.stopped && l.level == RB_BL_MAX_LEVEL);
++    assert(!rb_bl_reopen(&l, 1900 + 2 * RB_BL_RETEST));      // an open lane has nothing to reopen
++    assert(rb_bl_close(&l, 256, 0, 0, 6000) == RB_BL_STOP && l.stopped && l.stop_frame == 6000);   // a re-test that finds nothing stops it again
++    assert(rb_bl_reopen(&l, 6000 + RB_BL_RETEST));
++    assert(rb_bl_close(&l, 256, 250, 0, 10000) == RB_BL_GROW && l.level == 1 && !l.stopped);       // one that works gives a level back
++    assert(rb_bl_close(&l, 512, 500, 0, 10300) == RB_BL_GROW && l.level == 0);
++    assert(rb_bl_close(&l, 1024, 1000, 0, 10600) == RB_BL_KEEP && l.level == 0);
++    l = (rb_bl_lane){0};
++    assert(rb_bl_close(&l, 64, 0, 0, 50) == RB_BL_STOP && l.level == 0 && l.stopped);              // nothing found stops at any level
++
++    // (5) the classes of the lead
++    const uint64_t edge[] = {0, 1, 2, 3, 4, 15, 16, 63, 64, 255, 256, 1023, 1024, UINT64_C(1) << 40};
++    const unsigned want[] = {0, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7};
++    for (unsigned i = 0; i < sizeof edge / sizeof edge[0]; i++) assert(rb_bl_bucket(edge[i]) == want[i]);
++    assert(rb_bl_frame1(0) == 1 && rb_bl_frame1(41) == 42 && rb_bl_frame1(UINT64_MAX) == UINT32_MAX);
++    for (uint64_t k = 1; k < 100000; k += 37) assert(rb_bl_slot_of(k) < RB_BL_SLOTS);
++    rb_bl_window w = {0};
++    // registered at frame 100, registered again under another ID at 150 (counted once, the first frame kept), uploaded at 163 with 5 pages absent
++    rb_bl_note_registered(&table, &w, 77, 100);
++    rb_bl_note_registered(&table, &w, 77, 150);
++    rb_bl_note_registered(&table, &w, 0, 150);   // no serial: nothing
++    assert(w.registered == 1);
++    assert(rb_bl_note_upload(&table, &w, 77, 163, 5) == 4);
++    assert(w.uploads[4] == 1 && w.with_absent[4] == 1 && w.absent_pages[4] == 5 && w.absent == 1 && !w.resident && !w.not_looked);
++    // a registration is taken once: a second "first upload" of the serial (its texture was dropped and made again) is not known, and its slot's only
++    // registration, let go 13 frames ago, is too recent to place it
++    assert(rb_bl_note_upload(&table, &w, 77, 163, 0) == RB_BL_LEAD_UNKNOWN && w.resident == 1);
++    // same frame: class 0; pages in memory; not looked at
++    rb_bl_note_registered(&table, &w, 78, 200);
++    assert(rb_bl_note_upload(&table, &w, 78, 200, 0) == 0 && w.resident == 2);
++    rb_bl_note_registered(&table, &w, 79, 200);
++    assert(rb_bl_note_upload(&table, &w, 79, 201, RB_BL_NOT_LOOKED) == 1 && w.not_looked == 1 && w.absent == 1 && w.resident == 2);
++    // a texture the table does not follow (serial 0), and one never registered in a slot that let nothing go
++    assert(rb_bl_note_upload(&table, &w, 0, 300, 2) == RB_BL_LEAD_UNKNOWN);
++    assert(rb_bl_note_upload(&table, &w, 123456, 300, 0) == RB_BL_LEAD_UNKNOWN);
++    // an upload before its registration's frame (the frame counter ran back): not known, and the registration stays
++    rb_bl_note_registered(&table, &w, 80, 500);
++    assert(rb_bl_note_upload(&table, &w, 80, 499, 0) == RB_BL_LEAD_UNKNOWN);
++    assert(rb_bl_note_upload(&table, &w, 80, 500 + 1023, 1) == 6);
++    // two serials of one slot: the second registration replaces the first; the first one's upload is placed by the frame the slot let go
++    uint64_t a = 1001, c = 0;
++    for (uint64_t k = a + 1; !c; k++) if (rb_bl_slot_of(k) == rb_bl_slot_of(a)) c = k;
++    memset(&table, 0, sizeof table); w = (rb_bl_window){0};
++    rb_bl_note_registered(&table, &w, a, 10);
++    rb_bl_note_registered(&table, &w, c, 20);
++    assert(w.registered == 2);
++    assert(rb_bl_note_upload(&table, &w, a, 10 + 1023, 0) == RB_BL_LEAD_UNKNOWN);   // let go 1,023 frames ago: could be class 6 or 7
++    assert(rb_bl_note_upload(&table, &w, a, 10 + 1024, 0) == RB_BL_LEAD_FAR);       // 1,024 frames: the last class whatever its own frame was
++    assert(rb_bl_note_upload(&table, &w, c, 25, 3) == 3);                           // the one the slot holds is exact
++    // … and once that one is taken, the slot's newest registration let go is frame 20
++    assert(rb_bl_note_upload(&table, &w, a, 20 + 1023, 0) == RB_BL_LEAD_UNKNOWN);
++    assert(rb_bl_note_upload(&table, &w, a, 20 + 1024, 0) == RB_BL_LEAD_FAR);
++    uint64_t total = 0;
++    for (int i = 0; i < RB_BL_BUCKETS; i++) total += w.uploads[i];
++    assert(total == 5 && w.resident == 4 && w.absent == 1 && w.absent_pages[3] == 3);
++    puts("t_rb_bind_lane: ok");
++    return 0;
++}

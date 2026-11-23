@@ -1,0 +1,904 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 420ddbe..127279c 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4303,6 +4303,101 @@ static void rb_bg_write(const char *path, char *buf, size_t len) {
+         free(buf); free(p); };
+     if (fsig_bg_on()) dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), job); else job();
+ }
++// RewindBox (patch 0331): a dark-frame probe ([rb-dark] lines; the rules are in rb_dark_probe.h, pure C: tests/t_rb_dark_probe.c). Mario Kart World on an iPhone with the A18 Pro
++//   GPU (IPA 827, two sessions) shows its lit scene going black for a frame or a few in races, the sky darker, the HUD and the flames intact. The flashes follow the game's scene-size steps:
++//   at each step 17 to 28 render-target textures take a new key and a new Metal texture that starts from zero, and live textures are dropped (1,760 textures made in 900 race
++//   frames of the first session after the install against 796 in 4,800 of the next one). No line tied one flash to one frame: the log had no per-frame record of the final image.
++//   The probe, on each Metal 4 present with a window: RB_DARK_ROWS one-row copies of the presented texture (rb_dark_rows: the middle of the picture, off the HUD's bands) into a
++//   shared buffer of the present slot, encoded in the present's own command buffer after its blit (the DM_NVN_REGLUM way: nothing waits for the GPU, the commit feedback reads
++//   the rows, and a slot's buffer is used again only after its present completed). Their mean luminance is judged in ticket order (rb_dark_probe_sample): an image under
++//   RB_DARK_PCT % of the median of the last RB_DARK_HIST images that were not dark is dark; at most RB_DARK_DIP_MAX dark images in a row, entered from and left to
++//   RB_DARK_BACK_PCT % of that level in one image each, are a dip: a "[rb-dark] dip" line with its frame, length and levels, the scene size and the frames since it changed,
++//   and the render-target textures made (tex_mtl_for_pass), dropped live (rb_alias_dead_note) and sampled before written (rb_fresh_read) in the dip's first frame and the
++//   RB_DARK_BACK before it. A run as short that fades in or out is "soft", a longer one "long", and one of RB_DARK_ADOPT images a "cut", taken as the new level (a hard cut
++//   to a dark scene, a fade out, a loading screen, a tunnel): none of them a flash, each one line when it ends. The first RB_DARK_SAY_DIPS dips and RB_DARK_SAY_OTHER others
++//   of each RB_DARK_WINDOW frames are written, the rest counted in the "[rb-dark] window" line. The picture is not changed.
++//   Cost, not measured on a device: a present gets one more compute encoder (two queue barriers, RB_DARK_ROWS copy commands; about 46 KB copied by the GPU from a 2560-wide
++//   source; an 8x8 render pass measured about 80 microseconds of GPU in the IPA 820 probes, a copy-only encoder is expected under that) and its feedback handler reads some
++//   1,400 texels; the replaying thread takes a lock for a few stores at each texture made or dropped and each new scene size, and a few loads at each pass's start. The table
++//   of new textures (rb_fresh_add) goes from 32 to RB_FRESH places: a size step makes up to 28 textures and a texture stays noted for 3 frames, so two steps close together
++//   can fill 32 places and the count of samplings before a write then misses some, which no line said; the window line now counts the textures left out (fresh_full). It also
++//   gives the GPU span of the present command buffers (present_cb_us, mean / max), the probe's encoder included. Default on for every title. S2A_RB_DARK_PROBE=0: as before
++//   (no encoder, no buffer, no handler, no note, 32 places; the only line is the one that says so)
++#include "rb_dark_probe.h"
++static os_unfair_lock g_rb_dark_lk = OS_UNFAIR_LOCK_INIT;   // a leaf lock: only the header's functions run under it
++static rb_dark_probe g_rb_dark;   // under g_rb_dark_lk
++static __strong id<MTLBuffer> g_rb_dark_buf[3];   // Metal 4 readback per present slot, as g_rl_buf (the presenting thread)
++static _Atomic uint64_t g_rb_dark_scene_key, g_rb_dark_fresh_full;   // the last frame and scene size noted (rb_dark_note_scene); new textures rb_fresh_add had no free place for
++static int rb_dark_on(void) {
++    static _Atomic int v = -1;   // any thread
++    int on = atomic_load_explicit(&v, memory_order_relaxed);
++    if (on < 0) {
++        const char *e = getenv("S2A_RB_DARK_PROBE");
++        on = !(e && !strcmp(e, "0"));
++        if (atomic_exchange(&v, on) < 0)   // the line once, whoever reads the switch first
++            MLOG("[rb-dark] probe %s (S2A_RB_DARK_PROBE; patch 0331): each Metal 4 present reads %d rows of the presented image back without waiting, an image under %d%% of the median "
++                 "of the last %d that were not dark is dark, up to %d dark images in a row entered from and left to %d%% of that level are a dip, written with the age of the scene's size "
++                 "and the render-target textures made, dropped and sampled before written in its frame and the %d before (%d dips and %d other runs in full per %d frames); S2A_RB_DARK_PROBE=0: as before",
++                 on ? "on" : "off", RB_DARK_ROWS, RB_DARK_PCT, RB_DARK_HIST, RB_DARK_DIP_MAX, RB_DARK_BACK_PCT, RB_DARK_BACK, RB_DARK_SAY_DIPS, RB_DARK_SAY_OTHER, RB_DARK_WINDOW);
++    }
++    return on;
++}
++static void rb_dark_note_tex(int kind, uint32_t w, uint32_t h, uint32_t d, uint32_t fmt) {   // any thread: a render-target texture made, dropped live or sampled before written, in the frame being replayed
++    if (!rb_dark_on()) return;
++    const uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    os_unfair_lock_lock(&g_rb_dark_lk); rb_dark_probe_tex(&g_rb_dark, f, kind, w, h, d, fmt); os_unfair_lock_unlock(&g_rb_dark_lk);
++}
++static void rb_dark_note_scene(uint64_t f, uint32_t w, uint32_t h) {   // the replaying thread, at a pass's start while the probe is on: frame f's largest colour target drawn with a depth buffer so far (the frame signature's)
++    const uint64_t key = (((f + 1) & 0xffffffull) << 40) | ((uint64_t)(w & 0xfffffu) << 20) | (uint64_t)(h & 0xfffffu);
++    if (atomic_load_explicit(&g_rb_dark_scene_key, memory_order_relaxed) == key) return;   // the frame and size of the pass before: no lock
++    atomic_store_explicit(&g_rb_dark_scene_key, key, memory_order_relaxed);
++    os_unfair_lock_lock(&g_rb_dark_lk); rb_dark_probe_scene(&g_rb_dark, f, w, h); os_unfair_lock_unlock(&g_rb_dark_lk);
++}
++static void rb_dark_session_reset(void) {   // nvn_session.inc: frame numbers start again at 0
++    os_unfair_lock_lock(&g_rb_dark_lk); memset(&g_rb_dark, 0, sizeof g_rb_dark); os_unfair_lock_unlock(&g_rb_dark_lk);
++    atomic_store_explicit(&g_rb_dark_scene_key, 0, memory_order_relaxed);
++}
++static int rb_dark_layout(MTLPixelFormat pf) {   // rb_dark_luma16's layout of a presented texture's texels; -1: not read
++    switch (pf) {
++        case MTLPixelFormatRGBA8Unorm: case MTLPixelFormatRGBA8Unorm_sRGB: return RB_DARK_RGBA8;
++        case MTLPixelFormatBGRA8Unorm: case MTLPixelFormatBGRA8Unorm_sRGB: return RB_DARK_BGRA8;
++        case MTLPixelFormatRGB10A2Unorm: return RB_DARK_RGB10A2;
++        case MTLPixelFormatBGR10A2Unorm: return RB_DARK_BGR10A2;
++        default: return -1;
++    }
++}
++// present_now, Metal 4 with a window, after the present blit in the present's own command buffer: the rows of the presented texture into the slot's buffer, in an encoder
++//   between queue barriers as the blit's is (enc_c_begin_on). Returns the texels the feedback handler reads (0: this image is not read) and sets their layout
++static size_t rb_dark_encode(id cb, id<MTLTexture> src, const int crop[4], int slot, int *layout) {
++    uint32_t x0 = 0, w = 0, y[RB_DARK_ROWS];
++    const int lay = (src.sampleCount == 1 && src.textureType == MTLTextureType2D) ? rb_dark_layout(src.pixelFormat) : -1;
++    if (lay < 0) {
++        static int said;   // the presenting thread only
++        if (!said++) MLOG("[rb-dark] the presented image is not read: pixel format %lu, texture type %lu, %lu samples (RGBA8, BGRA8, RGB10A2 and BGR10A2 2D textures only)",
++                          (unsigned long)src.pixelFormat, (unsigned long)src.textureType, (unsigned long)src.sampleCount);
++        return 0;
++    }
++    const int n = rb_dark_rows((uint32_t)src.width, (uint32_t)src.height, crop, &x0, &w, y);
++    if (!n) return 0;
++    id<MTLBuffer> b = g_rb_dark_buf[slot];
++    if (!b) { b = g_rb_dark_buf[slot] = [g_dev newBufferWithLength:RB_DARK_BYTES options:MTLResourceStorageModeShared]; if (!b) return 0; res_add(b); }
++    id e = enc_c_begin_on(cb, YES);
++    for (int i = 0; i < n; i++)
++        [e copyFromTexture:src sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(x0, y[i], 0) sourceSize:MTLSizeMake(w, 1, 1) toBuffer:b destinationOffset:(NSUInteger)i * w * 4 destinationBytesPerRow:(NSUInteger)w * 4 destinationBytesPerImage:(NSUInteger)w * 4];
++    enc_end_on(e, YES);
++    *layout = lay;
++    return (size_t)n * w;
++}
++static void rb_dark_sampled(id<MTLBuffer> b, size_t texels, int layout, uint64_t frame, uint64_t ticket, double gpu0, double gpu1) {   // the present's commit feedback (any thread): the rows are in b; gpu0 to gpu1, the present command buffer's GPU span in seconds
++    char txt[4096];
++    const unsigned luma = rb_dark_luma16(b.contents, texels, RB_DARK_STRIDE, layout);
++    const uint64_t full = atomic_load_explicit(&g_rb_dark_fresh_full, memory_order_relaxed);
++    const double us = (gpu0 > 0 && gpu1 > gpu0) ? (gpu1 - gpu0) * 1e6 : 0;   // the window line's present_cb_us: what the present costs the GPU with the probe's encoder in it
++    os_unfair_lock_lock(&g_rb_dark_lk);
++    int n = rb_dark_probe_sample(&g_rb_dark, ticket, frame, luma, us > 4e9 ? 4000000000u : (uint32_t)us, full, txt, sizeof txt);
++    os_unfair_lock_unlock(&g_rb_dark_lk);
++    for (const char *l = txt; n-- > 0; l += strlen(l) + 1) MLOG("[rb-dark] %s", l);   // outside the lock
++}
+ // RewindBox (patch 0067): new textures read before anything wrote them (EM5 of the 765 analysis). A texture made here whose content is not taken from its storage
+ //   (tex_init_fill returns 0: depth formats, a virtual pool, an explicit layout, no storage) starts as zeros, or undefined for what tex_zero_fill leaves (depth / stencil,
+ //   compressed, multisample, one made off the submit thread); on the console it holds what the storage held. Mario Kart World re-made 4 to 7 shared textures a frame in its
+@@ -4312,10 +4407,14 @@ static void rb_bg_write(const char *path, char *buf, size_t len) {
+ //   S2A_RB_FRESH_READS=0 notes none. A texture is the noted one when it has the same storage (start and size), size and format (review of this patch: storage overlap took
+ //   another texture over the same storage for it, and Mario Kart World aliases heavily, 13,800 takeovers in the 765 test). Cost: a load a sampled texture while none is noted
+ //   (most of the time), two more while some are (the noted storages' lowest and highest start), and a scan of RB_FRESH entries under a lock only for a start between them
+-enum { RB_FRESH = 32 };
++enum { RB_FRESH = 128 };   // RewindBox (patch 0331): 32 before, and still 32 with S2A_RB_DARK_PROBE=0 (rb_fresh_cap)
+ typedef struct { uint64_t lo, hi, ser, frame; uint32_t w, h, fmt; } rb_fresh_t;
+ static rb_fresh_t g_fresh[RB_FRESH]; static _Atomic int g_fresh_n; static os_unfair_lock g_fresh_lk = OS_UNFAIR_LOCK_INIT; static _Atomic uint64_t g_fresh_reads, g_fresh_lo, g_fresh_hi;   // lo / hi: the lowest and highest start noted (under the lock)
+ static int rb_fresh_on(void) { static int v = -1; if (v < 0) v = rb_env_on("S2A_RB_FRESH_READS"); return v; }
++// RewindBox (patch 0331): the places of the table. IPA 827: a scene-size step makes 17 to 28 textures anew and a texture stays noted for 3 frames (the IPA 825 ramp went
++//   from 1248x700 to 1300x728 in 28 frames), so 32 places can be short where the black flashes are, and a sampling before a write of a texture left out goes uncounted. 128
++//   while the dark-frame probe reads the count (the scan of rb_fresh_read is as long as the table is full). S2A_RB_DARK_PROBE=0: 32, as before
++static int rb_fresh_cap(void) { return rb_dark_on() ? RB_FRESH : 32; }
+ static int rb_fresh_is(const rb_fresh_t *e, const tex_t *t) { uint64_t lo = (uint64_t)(uintptr_t)t->mem; return e->lo == lo && e->hi == lo + t->L.size && e->w == t->d.width && e->h == t->d.height && e->fmt == (uint32_t)t->d.format; }
+ static void rb_fresh_set(int n) {   // under g_fresh_lk: n entries, and their bounds
+     uint64_t lo = ~0ull, hi = 0; for (int i = 0; i < n; i++) { lo = MIN(lo, g_fresh[i].lo); hi = MAX(hi, g_fresh[i].lo); }
+@@ -4328,9 +4427,11 @@ static int rb_fresh_maybe(const tex_t *t) {   // any thread, no lock: could t be
+ static void rb_fresh_add(const tex_t *t) {   // tex_mtl_ (any thread): a new texture whose content does not come from its storage
+     if (!t || !t->mem || !t->L.size || !rb_fresh_on() || !fsig_on()) return;
+     uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    const int cap = rb_fresh_cap();   // RewindBox (patch 0331): 128 places for the dark-frame probe's count, read before the lock. S2A_RB_DARK_PROBE=0: 32, as before
+     os_unfair_lock_lock(&g_fresh_lk); int n = atomic_load(&g_fresh_n), k = -1;
+     for (int i = 0; i < n && k < 0; i++) if (g_fresh[i].frame + 2 < f || rb_fresh_is(&g_fresh[i], t)) k = i;   // the place of one noted too long ago, or of the same texture made again
+-    if (k < 0) k = n < RB_FRESH ? n++ : (int)(f % RB_FRESH);
++    if (k < 0 && n >= cap && cap == RB_FRESH) atomic_fetch_add_explicit(&g_rb_dark_fresh_full, 1, memory_order_relaxed);   // RewindBox (patch 0331): a noted texture loses its place: the [rb-dark] window line says how many (fresh_full). S2A_RB_DARK_PROBE=0: as before
++    if (k < 0) k = n < cap ? n++ : (int)(f % (uint64_t)cap);   // RewindBox (patch 0331): cap places (rb_fresh_cap), RB_FRESH before. S2A_RB_DARK_PROBE=0: 32, as before
+     g_fresh[k] = (rb_fresh_t){(uint64_t)(uintptr_t)t->mem, (uint64_t)(uintptr_t)t->mem + t->L.size, t->serial, f, t->d.width, t->d.height, (uint32_t)t->d.format};
+     rb_fresh_set(n); os_unfair_lock_unlock(&g_fresh_lk);
+ }
+@@ -4348,6 +4449,7 @@ static void rb_fresh_read(const tex_t *t, const char *key, int stage) {   // enc
+     rb_fresh_set(n); os_unfair_lock_unlock(&g_fresh_lk);
+     if (!hit) return;
+     FSIG(fc_->fresh++);
++    rb_dark_note_tex(RB_DARK_FRESH, e.w, e.h, 0, e.fmt);   // RewindBox (patch 0331): each such sampling by frame, for the [rb-dark] line of a dark frame (IPA 827: the line below is written 17 times a session, its count never by frame). S2A_RB_DARK_PROBE=0: as before
+     uint64_t k = atomic_fetch_add(&g_fresh_reads, 1) + 1;
+     if (k <= 16 || !(k & (k - 1))) MLOG("RewindBox: texture ser=%llu %ux%u format %#x, made at frame %llu with no content from its storage, is sampled at frame %llu by shader %s (stage %d) before anything wrote it; %llu such samplings so far",
+                                         (unsigned long long)e.ser, e.w, e.h, e.fmt, (unsigned long long)e.frame, (unsigned long long)f, key ? key : "-", stage, (unsigned long long)k);
+@@ -4770,6 +4872,7 @@ static void alias_note_write(const tex_t *t) {   // gpw_mark: the texture's stor
+ //   were taken over by frame 5100 of the 765 test and no line said how many of them were live, nor which. The first 16 (then at powers of two) are named with the texture
+ //   that took the storage over, and each frame counts them (frames.txt). Caller holds g_smu; S2A_RB_FSIG_MORE=0 names none
+ static void rb_alias_dead_note(uint64_t ser, const alias_key *k, const alias_key *nk) {
++    rb_dark_note_tex(RB_DARK_DROPPED, k->d.width, k->d.height, k->d.depth, (uint32_t)k->d.format);   // RewindBox (patch 0331): each live texture dropped by frame, size and format, for the [rb-dark] line of a dark frame (IPA 827: 1,662 dropped between frames 3300 and 4500, named only at powers of two). S2A_RB_DARK_PROBE=0: as before
+     static uint64_t n; n++;
+     if (!fsig_more_on() || (n > 16 && (n & (n - 1)))) return;
+     nvn_texlayout kl, nl; nvn_tex_layout(&k->d, &kl); nvn_tex_layout(&nk->d, &nl);
+@@ -9127,6 +9230,7 @@ static id<MTLTexture> tex_mtl_for_pass(const tex_t *ct, id<MTLTexture> __strong
+     if (getenv("DM_NVN_TEXCPU") && t->pool && !(t->pool->flags & NVN_MEMORY_POOL_FLAGS_CPU_NO_ACCESS)) MLOG("non-swizzled texture on a CPU-visible pool ser=%llu %ux%ux%u format %#x target %d levels %u texture flags %#x pool flags %#x storage %p", (unsigned long long)t->serial, t->d.width, t->d.height, t->d.depth, t->d.format, t->d.target, t->d.levels, t->d.flags, t->pool->flags, (void *)t->mem);
+     res_add(mt);
+     if (!txr_back) FSIG(fc_->texnew++);   // RewindBox (patch 0059); patch 0071: made, not taken back
++    rb_dark_note_tex(RB_DARK_MADE, t->d.width, t->d.height, t->d.depth, (uint32_t)t->d.format);   // RewindBox (patch 0331): each shared texture made or taken back (its content starts anew either way) by frame, size and format, for the [rb-dark] line of a dark frame (IPA 827: 17 to 28 at each scene-size step). S2A_RB_DARK_PROBE=0: as before
+     pthread_mutex_lock(&g_smu);
+     if (!g_alias_set) g_alias_set = CFSetCreateMutable(NULL, 0, NULL);
+     alias_take_over(&ak);
+@@ -10427,6 +10531,7 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+          if (ct && pd.depthAttachment.texture && (uint64_t)ct.width * ct.height > (uint64_t)fc_->w * fc_->h) { fc_->w = (uint32_t)ct.width; fc_->h = (uint32_t)ct.height;
+              rb_drs_scene_note(atomic_load_explicit(&fc_->frame, memory_order_relaxed) - 1, (uint64_t)ct.width * ct.height); }
+          id<MTLTexture> pt = ct ?: pd.depthAttachment.texture; fsig_pass(pt ? (uint32_t)pt.width : 0, pt ? (uint32_t)pt.height : 0, pt ? (uint32_t)pt.pixelFormat : 0));   // RewindBox (patch 0063)
++    if (rb_dark_on()) FSIG(if (fc_->w) rb_dark_note_scene(atomic_load_explicit(&fc_->frame, memory_order_relaxed) - 1, fc_->w, fc_->h));   // RewindBox (patch 0331): the frame's scene size so far, for the age of the last size change in the [rb-dark] lines (IPA 827: the black flashes follow the scene-size steps). S2A_RB_DARK_PROBE=0: as before
+     { id<MTLTexture> lt = pd.colorAttachments[0].texture ?: pd.depthAttachment.texture;   // 本窗口画过的最大渲染目标（11-02 塞尔达户外落 30：看动态分辨率有没有把渲染尺寸抬上去）
+       if (lt && (uint64_t)lt.width * lt.height > (uint64_t)g_rtw_w * g_rtw_h) { g_rtw_w = (uint32_t)lt.width; g_rtw_h = (uint32_t)lt.height; g_rtw_fmt = (uint32_t)lt.pixelFormat; } }
+     if (enc_label_on()) { id<MTLTexture> lt = pd.colorAttachments[0].texture ?: pd.depthAttachment.texture ?: pd.stencilAttachment.texture; g_el_w = (int)lt.width; g_el_h = (int)lt.height; g_el_draws = 0; g_el_key[0] = 0; }
+@@ -26667,6 +26772,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+         pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_END();
+     }
+     id<MTL4CommandBuffer> cb = nil; id<MTLCommandBuffer> cb3 = nil;
++    size_t dark_texels = 0; int dark_layout = 0;   // RewindBox (patch 0331): the dark-frame probe's rows of this present (rb_dark_encode); 0 texels: not read. S2A_RB_DARK_PROBE=0: as before
+     if (g_m3) {
+         cb3 = [g_q3 commandBuffer];   // retained references: keeps the drawable and the source until it is done
+         ext_wait3(cb3);
+@@ -26684,6 +26790,10 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+             [e copyFromTexture:src sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(rx0, ry0, 0) sourceSize:MTLSizeMake(rw, rh, 1) toBuffer:b destinationOffset:0 destinationBytesPerRow:rw * 4 destinationBytesPerImage:rw * rh * 4];
+             enc_end_on(e, YES);
+         }
++        // RewindBox (patch 0331): the dark-frame probe reads a few rows of the image this present shows, after the present blit and behind a queue barrier, as DM_NVN_REGLUM
++        //   above (IPA 827: no per-frame record of the final image, so no black flash could be tied to a frame). Nothing waits: the feedback handler below reads the rows.
++        //   S2A_RB_DARK_PROBE=0: as before, no encoder
++        if (rb_dark_on()) dark_texels = rb_dark_encode(cb, src, crop, alloc_i, &dark_layout);
+         [cb endCommandBuffer];
+     } else MDIE("【红】 Metal 4 presentation requires macOS / iOS 26");
+     id o = fb_new();
+@@ -26691,7 +26801,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+     // including optional effects/readback, and cannot time that queue wait.
+     if (!g_m3 && !(ticket % 16) && rb_fx_tail_trace()) {
+         BOOL nearest = g_present_nearest && !g_present_aa && !g_present_fx;
+-        BOOL standalone = nearest && !rl_m4;
++        BOOL standalone = nearest && !rl_m4 && !dark_texels;   // RewindBox (patch 0331): the dark-frame probe's encoder is in this command buffer too: its present_cb_us is not the nearest blit's alone. S2A_RB_DARK_PROBE=0: as before
+         NSUInteger sw = src.width, sh = src.height, dw = dr.texture.width, dh = dr.texture.height;
+         NSUInteger sf = src.pixelFormat, df = dr.texture.pixelFormat;
+         int flip = atomic_load_explicit(&g_origin_ll, memory_order_relaxed), fbOnly = dr.texture.framebufferOnly;
+@@ -26706,6 +26816,11 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+     }
+     if (rl_m4) { id<MTLBuffer> b = g_rl_buf[alloc_i]; NSUInteger w = rw, h = rh; unsigned long long n = rn, tns = rtns;   // added before the slot-release handler below: the slot (and this buffer) is reused only after that one ran
+         fb_add(o, ^(id<MTL4CommitFeedback> f) { if (!f.error) rl_row(b.contents, w, h, n, tns); }); }
++    // RewindBox (patch 0331): the dark-frame probe's rows of this image, judged with its frame and ticket once the GPU has run the present (rb_dark_sampled: a dip is a run of at
++    //   most 8 dark images that starts from and comes back to the level). Added before the slot-release handler below, as DM_NVN_REGLUM's: the slot's buffer is encoded into
++    //   again only after that one ran. S2A_RB_DARK_PROBE=0: as before, no handler
++    if (dark_texels) { id<MTLBuffer> b = g_rb_dark_buf[alloc_i]; size_t texels = dark_texels; int layout = dark_layout;
++        fb_add(o, ^(id<MTL4CommitFeedback> f) { if (!f.error) rb_dark_sampled(b, texels, layout, frame, ticket, f.GPUStartTime, f.GPUEndTime); }); }
+     NvPresentAA *aa = g_present_aa ? g_present_aa_slots[alloc_i] : nil;
+     NvPresentFX *fxs = g_present_fx ? g_present_fx_slots[alloc_i] : nil;   // 这一帧没用 MetalFX 时也标：槽里的图只要在途就不能被下一次重建换掉
+     fb_add(o, ^(id<MTL4CommitFeedback> f) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 5fa2c79..02fda4e 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -354,6 +354,7 @@ int nvn_be_shutdown_session(void) {
+     memset(g_link20_ns, 0, sizeof g_link20_ns); atomic_store(&g_link20_unavailable, 0);
+     g_link_tick_ns = g_link_tick_n = g_link_dropped = g_link_held = g_link_started_tick = 0;   // 拍号与「上一帧开工拍号」一起从 0 起，否则新局每帧等满超时锁 30 帧
+     g_xv_npresent = 0; g_cur_frame = 0; g_present_n = 0; g_stat_pass = g_stat_draw = 0;
++    rb_dark_session_reset();   // RewindBox (patch 0331): the dark-frame probe's level and frames of context start again with the frame numbers (a new session's frame 40 is not the old one's: its texture counts would be added to the old frame's). S2A_RB_DARK_PROBE=0: as before, nothing was kept
+     g_nshotq = 0; g_td_list = nil; g_td_frames = nil;
+     free(g_td_owned_path); g_td_owned_path = NULL;
+     g_td_frame = -2; g_td_path = NULL; g_td_w = g_td_h = 0; g_td_done = 0; g_lp = nil;
+diff --git a/graphics/nvn/gfx/nvn/rb_dark_probe.h b/graphics/nvn/gfx/nvn/rb_dark_probe.h
+new file mode 100644
+index 0000000..cdbf996
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_dark_probe.h
+@@ -0,0 +1,369 @@
++// RewindBox (patch 0331): the dark-frame probe's rules (nvn_mtl.m rb_dark_*, the [rb-dark] lines). Pure C: tests/t_rb_dark_probe.c.
++//   Why: Mario Kart World on an iPhone with the A18 Pro GPU (IPA 827) shows its lit scene going black for a frame or a few in races (sky darker, HUD and flames intact). The flashes follow
++//   the game's scene-size steps, where 17 to 28 render-target textures are made anew from zero and live ones are dropped, but no line tied one flash to one frame: the log
++//   held no per-frame record of the final image.
++//   What is here: which rows of a presented image are read (rb_dark_rows) and their mean luminance (rb_dark_luma16); the rule that tells a short dark dip from a cut, a fade,
++//   a loading screen or a tunnel (rb_dark_feed, rb_dark_step); the last frames' scene size and render-target textures made, dropped live and sampled before written
++//   (rb_dark_ctx); the text of the lines and their bound (rb_dark_probe_sample). Nothing here touches the picture. S2A_RB_DARK_PROBE=0: as before (none of this is called)
++//   The rule: an image under RB_DARK_PCT % of the level (the median of the last RB_DARK_HIST images that were not dark, at least RB_DARK_FLOOR) is dark. A run of dark images is
++//     a dip   when it has at most RB_DARK_DIP_MAX images, the image before it was at RB_DARK_BACK_PCT % of the level or more and so is the first one after it (the flash);
++//     soft    when it is as short but was entered or left through the levels between (a quick fade, a cut to another level);
++//     long    when it is longer and ends before RB_DARK_ADOPT images;
++//     a cut   at its RB_DARK_ADOPT-th image: the dark picture is the level from there on (a hard cut to a dark scene, a fade out, a loading screen, a tunnel).
++//   Each run gives one event when it ends (a cut: when it is taken as the level), with its length
++#pragma once
++#include <stdint.h>
++#include <stdlib.h>
++#include <string.h>
++
++enum {
++    RB_DARK_ROWS = 6,              // rows read from a presented image: the lines at 3, 5, ... 13 sixteenths of its height (the HUD's top and bottom bands left out)
++    RB_DARK_ROW_TEXELS = 2048,     // texels of a row at most: the middle three quarters of the width, or its middle 2048 texels
++    RB_DARK_BYTES = RB_DARK_ROWS * RB_DARK_ROW_TEXELS * 4,   // a present slot's readback buffer
++    RB_DARK_STRIDE = 8,            // the CPU reads every 8th texel of the rows
++    RB_DARK_HIST = 15,             // the level: the median luminance of the last 15 images that were not dark
++    RB_DARK_WARM = 8,              // images before the level means anything (after a start, a pause, a dark scene taken as the new level)
++    RB_DARK_PCT = 55,              // an image under 55 % of the level is dark
++    RB_DARK_BACK_PCT = 80,         // a dip starts from and comes back to 80 % of the level or more, each in one image (a fade passes through the levels between)
++    RB_DARK_FLOOR = 12 * 16,       // no dark image under a level of 12 / 255: the scene is dark already
++    RB_DARK_DIP_MAX = 8,           // dark images in a row a dip has at most
++    RB_DARK_ADOPT = 30,            // dark images in a row after which the dark picture is the new level: a cut
++    RB_DARK_GAP = 120,             // tickets apart (either way) at which everything starts over: a pause, a new session
++    RB_DARK_DELAY = 2,             // a sample is judged once a ticket 2 later was seen: the handlers of three present slots may come out of order
++    RB_DARK_PEND = 4,              // samples waiting to be judged at most (RB_DARK_DELAY + 1 are ever in use)
++    RB_DARK_CTX = 64,              // frames of context kept
++    RB_DARK_TEV = 512,             // texture events kept (a size step makes 17 to 28 textures and drops as many; a run's context is taken at its first dark image)
++    RB_DARK_BACK = 3,              // a line gives the frame of the first dark image and the 3 before it
++    RB_DARK_DISTINCT = 64, RB_DARK_ITEMS = 24,   // distinct textures looked at for a line's list, and listed at most
++    RB_DARK_WINDOW = 300,          // frames of a summary line
++    RB_DARK_SAY_DIPS = 8, RB_DARK_SAY_OTHER = 4,   // lines written in full per window: dips; soft runs, long runs and cuts together. The rest is counted (unlogged=)
++    RB_DARK_SNAP = 800             // bytes of a run's context text
++};
++enum { RB_DARK_RGBA8 = 0, RB_DARK_BGRA8 = 1, RB_DARK_RGB10A2 = 2, RB_DARK_BGR10A2 = 3 };   // texel layouts of rb_dark_luma16 (4 bytes each)
++enum { RB_DARK_NONE = 0, RB_DARK_START = 1, RB_DARK_DIP = 2, RB_DARK_SOFT = 3, RB_DARK_LONG = 4, RB_DARK_CUT = 5 };
++enum { RB_DARK_MADE = 0, RB_DARK_DROPPED = 1, RB_DARK_FRESH = 2, RB_DARK_KINDS = 3 };   // a render-target texture made anew, a live one dropped as overwritten, a new one sampled before anything wrote it
++
++// ---------- the rows read and their luminance ----------
++// The rows of a sw x sh source shown through crop (NULL or 0 x 0: all of it): the same row span x0, w for each, and the rows' y. Returns RB_DARK_ROWS, or 0 for a crop
++// outside the source or one too small. The rows are symmetric about the middle: a window image stored bottom-up reads the same lines
++static inline int rb_dark_rows(uint32_t sw, uint32_t sh, const int crop[4], uint32_t *x0, uint32_t *w, uint32_t y[RB_DARK_ROWS]) {
++    uint64_t cx = 0, cy = 0, cw = sw, ch = sh;
++    if (crop && (crop[2] || crop[3])) {
++        if (crop[0] < 0 || crop[1] < 0 || crop[2] <= 0 || crop[3] <= 0) return 0;
++        cx = (uint64_t)crop[0]; cy = (uint64_t)crop[1]; cw = (uint64_t)crop[2]; ch = (uint64_t)crop[3];
++        if (cx + cw > sw || cy + ch > sh) return 0;
++    }
++    if (cw < 16 || ch < 16) return 0;
++    uint64_t rx = cx + cw / 8, rw = cw - 2 * (cw / 8);
++    if (rw > RB_DARK_ROW_TEXELS) { rx += (rw - RB_DARK_ROW_TEXELS) / 2; rw = RB_DARK_ROW_TEXELS; }
++    *x0 = (uint32_t)rx; *w = (uint32_t)rw;
++    for (int k = 0; k < RB_DARK_ROWS; k++) y[k] = (uint32_t)(cy + ch * (uint64_t)(3 + 2 * k) / 16);
++    return RB_DARK_ROWS;
++}
++// The mean over every stride-th texel of (54 R + 183 G + 19 B) >> 4: 0 to 4080, 16 times an 8-bit level (10-bit channels are taken at 8 bits). The stored values as they
++// are: an sRGB texture's bytes are not made linear
++static inline unsigned rb_dark_luma16(const uint8_t *px, size_t texels, size_t stride, int layout) {
++    uint64_t sum = 0; size_t n = 0;
++    if (!px) return 0;
++    if (!stride) stride = 1;
++    for (size_t i = 0; i < texels; i += stride, n++) {
++        const uint8_t *p = px + 4 * i; unsigned r, g, b;
++        if (layout == RB_DARK_RGB10A2 || layout == RB_DARK_BGR10A2) {
++            const uint32_t v = (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
++            const unsigned lo = (v & 0x3ffu) >> 2, mid = ((v >> 10) & 0x3ffu) >> 2, hi = ((v >> 20) & 0x3ffu) >> 2;
++            r = layout == RB_DARK_RGB10A2 ? lo : hi; g = mid; b = layout == RB_DARK_RGB10A2 ? hi : lo;
++        } else { r = p[layout == RB_DARK_BGRA8 ? 2 : 0]; g = p[1]; b = p[layout == RB_DARK_BGRA8 ? 0 : 2]; }
++        sum += (54u * r + 183u * g + 19u * b) >> 4;
++    }
++    return n ? (unsigned)(sum / n) : 0;
++}
++
++// ---------- the rule ----------
++typedef struct { uint64_t seq, frame; uint32_t luma; } rb_dark_smp;   // seq: its present ticket + 1 (0 = empty)
++typedef struct {
++    int kind;                         // RB_DARK_START: a run's first dark image; RB_DARK_DIP / RB_DARK_SOFT / RB_DARK_LONG: a run ended; RB_DARK_CUT: its RB_DARK_ADOPT-th image
++    uint64_t frame, ticket;           // the run's first dark image: the game's frame and its present ticket
++    uint64_t end_frame;               // the frame of the first image after the run (CUT: 0, the run goes on)
++    uint32_t len;                     // dark images in a row
++    uint32_t luma, level, in, back;   // the run's darkest image, the level it is set against, the image before the run, the first one after (CUT: 0)
++} rb_dark_ev;
++typedef struct {
++    uint16_t hist[RB_DARK_HIST]; uint8_t n, at;   // the last images that were not dark
++    rb_dark_smp pend[RB_DARK_PEND];   // samples not judged yet
++    uint64_t top, done;               // the highest seq fed; the seq of the last sample judged
++    uint32_t prev;                    // the luminance of the last sample judged, dark or not
++    uint32_t run, run_min, run_level, run_in; uint64_t run_frame, run_seq;   // the run of dark images under way
++    // counts since rb_dark_probe_sample's last window line
++    uint32_t sampled, dips, softs, longs, cuts, shallow, late, restarts;   // shallow: one-image falls from 90 % of the level or more to under 75 % that are not dark (the 55 % threshold may be too strict)
++    uint32_t dip_drop, low_drop;      // the deepest fall under the level, in percent of it: of the dips' darkest images; of any sample
++} rb_dark;
++
++static inline unsigned rb_dark_level(const rb_dark *s) {   // the median of the history (0: none)
++    uint16_t v[RB_DARK_HIST]; const unsigned n = s->n;
++    for (unsigned i = 0; i < n; i++) { const uint16_t x = s->hist[i]; unsigned j = i; while (j && v[j - 1] > x) { v[j] = v[j - 1]; j--; } v[j] = x; }
++    return n ? v[n / 2] : 0;
++}
++static inline void rb_dark_push(rb_dark *s, unsigned luma) {
++    s->hist[s->at] = (uint16_t)luma; s->at = (uint8_t)((s->at + 1) % RB_DARK_HIST);
++    if (s->n < RB_DARK_HIST) s->n++;
++}
++static inline void rb_dark_restart(rb_dark *s) {   // the level, the run and the samples waiting; the counts stay
++    s->n = s->at = 0; s->prev = 0; s->run = 0; s->top = s->done = 0; memset(s->pend, 0, sizeof s->pend);
++}
++static inline void rb_dark_ev_run(const rb_dark *s, rb_dark_ev *ev, int kind) {
++    ev->kind = kind; ev->frame = s->run_frame; ev->ticket = s->run_seq - 1; ev->len = s->run; ev->luma = s->run_min; ev->level = s->run_level; ev->in = s->run_in;
++}
++// One sample, in ticket order. *ev: what it ends or starts (kind RB_DARK_NONE: nothing)
++static inline void rb_dark_step(rb_dark *s, const rb_dark_smp *m, rb_dark_ev *ev) {
++    const unsigned luma = m->luma > 4080u ? 4080u : m->luma;
++    memset(ev, 0, sizeof *ev);
++    s->done = m->seq; s->sampled++;
++    if (s->n < RB_DARK_WARM) { rb_dark_push(s, luma); s->prev = luma; return; }
++    const unsigned med = rb_dark_level(s);
++    const int lit = med >= (unsigned)RB_DARK_FLOOR;
++    const int dark = lit && luma * 100u < med * (unsigned)RB_DARK_PCT;
++    if (lit && luma < med) {
++        const unsigned drop = 100u - luma * 100u / med;
++        if (drop > s->low_drop) s->low_drop = drop;
++        if (!dark && !s->run && luma * 100u < med * 75u && s->prev * 100u >= med * 90u) s->shallow++;
++    }
++    if (dark) {
++        if (!s->run) {
++            s->run = 1; s->run_seq = m->seq; s->run_frame = m->frame; s->run_level = med; s->run_min = luma; s->run_in = s->prev;
++            rb_dark_ev_run(s, ev, RB_DARK_START);
++        } else {
++            s->run++; if (luma < s->run_min) s->run_min = luma;
++            if (s->run >= (unsigned)RB_DARK_ADOPT) {   // dark for good: this picture is the level now, and coming back from it is no dip
++                rb_dark_ev_run(s, ev, RB_DARK_CUT);
++                s->n = s->at = 0; rb_dark_push(s, luma); s->run = 0; s->cuts++;
++            }
++        }
++    } else {
++        if (s->run) {
++            const int in_ok = s->run_in * 100u >= s->run_level * (unsigned)RB_DARK_BACK_PCT, back_ok = luma * 100u >= s->run_level * (unsigned)RB_DARK_BACK_PCT;
++            rb_dark_ev_run(s, ev, s->run > (unsigned)RB_DARK_DIP_MAX ? RB_DARK_LONG : in_ok && back_ok ? RB_DARK_DIP : RB_DARK_SOFT);
++            ev->back = luma; ev->end_frame = m->frame;
++            if (ev->kind == RB_DARK_DIP) {
++                const unsigned drop = 100u - s->run_min * 100u / s->run_level;   // run_level >= RB_DARK_FLOOR
++                s->dips++; if (drop > s->dip_drop) s->dip_drop = drop;
++            } else if (ev->kind == RB_DARK_SOFT) s->softs++;
++            else s->longs++;
++            s->run = 0;
++        }
++        rb_dark_push(s, luma);   // dark images never enter the level
++    }
++    s->prev = luma;
++}
++static inline int rb_dark_pend_min(const rb_dark *s) {
++    int k = -1;
++    for (int i = 0; i < RB_DARK_PEND; i++) if (s->pend[i].seq && (k < 0 || s->pend[i].seq < s->pend[k].seq)) k = i;
++    return k;
++}
++// A presented image's luminance, from its commit feedback (any order within RB_DARK_DELAY tickets). Returns the events of the samples it lets be judged, into out
++static inline int rb_dark_feed(rb_dark *s, uint64_t ticket, uint64_t frame, unsigned luma, rb_dark_ev out[RB_DARK_PEND]) {
++    const uint64_t q = ticket + 1; int n = 0, at = -1;
++    if (s->top && (q + RB_DARK_GAP < s->top || q > s->top + RB_DARK_GAP)) { rb_dark_restart(s); s->restarts++; }
++    if (q <= s->done) { s->late++; return 0; }   // judged past it already
++    for (int i = 0; i < RB_DARK_PEND; i++) { if (s->pend[i].seq == q) { s->late++; return 0; } if (!s->pend[i].seq && at < 0) at = i; }
++    if (at < 0) { s->late++; return 0; }   // not reached: at most RB_DARK_DELAY samples wait
++    s->pend[at].seq = q; s->pend[at].frame = frame; s->pend[at].luma = luma;
++    if (q > s->top) s->top = q;
++    for (;;) {
++        const int i = rb_dark_pend_min(s);
++        if (i < 0 || s->pend[i].seq + RB_DARK_DELAY > s->top || n >= RB_DARK_PEND) break;
++        rb_dark_step(s, &s->pend[i], &out[n]); s->pend[i].seq = 0;
++        if (out[n].kind) n++;
++    }
++    return n;
++}
++
++// ---------- the frames' context ----------
++typedef struct { uint64_t frame; uint32_t w, h, n[RB_DARK_KINDS]; } rb_dark_frm;   // frame: its number + 1 (0 = empty); w x h: the scene's size (0: none drawn)
++typedef struct { uint64_t frame; uint16_t w, h, d, fmt; uint8_t kind; } rb_dark_tev;   // a texture event; frame: its number + 1
++typedef struct {
++    rb_dark_frm f[RB_DARK_CTX]; rb_dark_tev ev[RB_DARK_TEV]; uint32_t ev_n;   // ev_n: events written so far
++    uint64_t top, closed;             // the newest frame noted + 1; frames below closed are whole and counted
++    uint32_t lw, lh;                  // the last whole scene frame's size
++    uint32_t steps, tot[RB_DARK_KINDS];   // since the last window line: frames whose scene has another size than the scene frame before; events by kind
++} rb_dark_ctx;
++
++static inline rb_dark_frm *rb_dark_ctx_open(rb_dark_ctx *c, uint64_t frame) {
++    if (frame + 1 + RB_DARK_CTX <= c->top) memset(c, 0, sizeof *c);   // frame numbers started again: a new session
++    rb_dark_frm *r = &c->f[frame % RB_DARK_CTX];
++    if (r->frame != frame + 1) { memset(r, 0, sizeof *r); r->frame = frame + 1; }
++    if (frame + 1 > c->top) {   // the frames before this one are whole: count their size steps (closed <= frame: it is the newest frame noted before, or 0)
++        uint64_t g = c->closed;
++        if (frame - g > RB_DARK_CTX - 1) g = frame - (RB_DARK_CTX - 1);
++        for (; g < frame; g++) {
++            const rb_dark_frm *p = &c->f[g % RB_DARK_CTX];
++            if (p->frame != g + 1 || !p->w) continue;
++            if (c->lw && (p->w != c->lw || p->h != c->lh)) c->steps++;
++            c->lw = p->w; c->lh = p->h;
++        }
++        c->closed = frame; c->top = frame + 1;
++    }
++    return r;
++}
++static inline uint16_t rb_dark_u16(uint32_t v) { return (uint16_t)(v > 0xffffu ? 0xffffu : v); }
++static inline void rb_dark_ctx_tex(rb_dark_ctx *c, uint64_t frame, int kind, uint32_t w, uint32_t h, uint32_t d, uint32_t fmt) {
++    if (kind < 0 || kind >= RB_DARK_KINDS) return;
++    rb_dark_frm *r = rb_dark_ctx_open(c, frame);
++    rb_dark_tev *e = &c->ev[c->ev_n++ % RB_DARK_TEV];
++    r->n[kind]++; c->tot[kind]++;
++    e->frame = frame + 1; e->w = rb_dark_u16(w); e->h = rb_dark_u16(h); e->d = rb_dark_u16(d); e->fmt = rb_dark_u16(fmt); e->kind = (uint8_t)kind;
++}
++static inline void rb_dark_ctx_scene(rb_dark_ctx *c, uint64_t frame, uint32_t w, uint32_t h) {   // the frame's largest colour target drawn with a depth buffer so far
++    rb_dark_frm *r = rb_dark_ctx_open(c, frame);
++    r->w = w; r->h = h;
++}
++// The age of the scene's size at frame: the frames since the scene first had the size it has there (0: it changed in that very frame), -1 when it did not change in the
++// frames kept or no scene is known. wh: that size, and the size before the change (0 x 0: none)
++static inline int rb_dark_ctx_size_age(const rb_dark_ctx *c, uint64_t frame, uint32_t wh[4]) {
++    uint64_t first = 0;
++    wh[0] = wh[1] = wh[2] = wh[3] = 0;
++    for (uint64_t k = 0; k < RB_DARK_CTX && k <= frame; k++) {
++        const rb_dark_frm *r = &c->f[(frame - k) % RB_DARK_CTX];
++        if (r->frame != frame - k + 1 || !r->w) continue;
++        if (!wh[0]) { wh[0] = r->w; wh[1] = r->h; first = frame - k; continue; }
++        if (r->w != wh[0] || r->h != wh[1]) { wh[2] = r->w; wh[3] = r->h; return (int)(frame - first); }
++        first = frame - k;
++    }
++    return -1;
++}
++
++// ---------- the lines ----------
++typedef struct { char *p, *end; } rb_dark_txt;   // end: the buffer's last byte, kept for the terminator
++static inline void rb_dark_puts(rb_dark_txt *t, const char *s) { while (*s && t->p < t->end) *t->p++ = *s++; *t->p = 0; }
++static inline void rb_dark_putu(rb_dark_txt *t, uint64_t v) {
++    char b[24]; int n = 0;
++    do { b[n++] = (char)('0' + (int)(v % 10)); v /= 10; } while (v);
++    while (n && t->p < t->end) *t->p++ = b[--n];
++    *t->p = 0;
++}
++static inline void rb_dark_putx(rb_dark_txt *t, uint64_t v) {
++    char b[20]; int n = 0;
++    do { b[n++] = "0123456789abcdef"[v & 15]; v >>= 4; } while (v);
++    rb_dark_puts(t, "0x");
++    while (n && t->p < t->end) *t->p++ = b[--n];
++    *t->p = 0;
++}
++static inline void rb_dark_putl(rb_dark_txt *t, unsigned luma16) {   // a luminance on the 0-255 scale, one decimal
++    const unsigned v = luma16 * 10u / 16u;
++    rb_dark_putu(t, v / 10); rb_dark_puts(t, "."); rb_dark_putu(t, v % 10);
++}
++static inline void rb_dark_kv(rb_dark_txt *t, const char *key, uint64_t v) { rb_dark_puts(t, key); rb_dark_putu(t, v); }
++static inline void rb_dark_kl(rb_dark_txt *t, const char *key, unsigned luma16) { rb_dark_puts(t, key); rb_dark_putl(t, luma16); }
++// A line starts only where a character and its terminator fit; a line that ends leaves the cursor past its terminator when another could start
++static inline int rb_dark_line_begin(const rb_dark_txt *t) { return t->p < t->end; }
++static inline void rb_dark_line_end(rb_dark_txt *t, int *lines) { *t->p = 0; if (t->p < t->end) { t->p++; *t->p = 0; } (*lines)++; }
++
++typedef struct { uint16_t w, h, d, fmt, n; uint8_t kind, age; } rb_dark_item;
++// The context of the image of frame: its scene size and that size's age, the texture events of the frame and the RB_DARK_BACK before it by kind (the frame first), and the
++// distinct textures among them (sampled before written first, then dropped, then made; each with its count and the frames before `frame` of its latest event)
++static inline void rb_dark_ctx_text(const rb_dark_ctx *c, uint64_t frame, char *out, size_t cap) {
++    static const char *const name[RB_DARK_KINDS] = {" made=", " dropped=", " fresh="};
++    static const uint8_t order[RB_DARK_KINDS] = {RB_DARK_FRESH, RB_DARK_DROPPED, RB_DARK_MADE}, upto[RB_DARK_KINDS] = {6, 15, RB_DARK_ITEMS};
++    static const char letter[RB_DARK_KINDS + 1] = "mdf";
++    rb_dark_txt t; uint32_t wh[4]; rb_dark_item it[RB_DARK_DISTINCT]; int ni = 0, listed = 0; uint32_t total = 0, shown = 0;
++    if (!cap) return;
++    t.p = out; t.end = out + cap - 1; *out = 0;
++    const int age = rb_dark_ctx_size_age(c, frame, wh);
++    rb_dark_kv(&t, "scene=", wh[0]); rb_dark_kv(&t, "x", wh[1]); rb_dark_kv(&t, " prev_scene=", wh[2]); rb_dark_kv(&t, "x", wh[3]);
++    if (age < 0) rb_dark_puts(&t, " size_age=none"); else rb_dark_kv(&t, " size_age=", (uint64_t)age);
++    for (int kind = 0; kind < RB_DARK_KINDS; kind++) {
++        rb_dark_puts(&t, name[kind]);
++        for (uint64_t k = 0; k <= RB_DARK_BACK; k++) {
++            const rb_dark_frm *r = k <= frame ? &c->f[(frame - k) % RB_DARK_CTX] : NULL;
++            if (k) rb_dark_puts(&t, "/");
++            rb_dark_putu(&t, r && r->frame == frame - k + 1 ? r->n[kind] : 0);
++        }
++    }
++    const uint32_t have = c->ev_n < RB_DARK_TEV ? c->ev_n : RB_DARK_TEV;
++    for (uint32_t k = 1; k <= have; k++) {   // the newest first
++        const rb_dark_tev *e = &c->ev[(c->ev_n - k) % RB_DARK_TEV];
++        if (!e->frame || e->frame - 1 > frame || e->frame - 1 + RB_DARK_BACK < frame) continue;
++        const uint8_t back = (uint8_t)(frame - (e->frame - 1));
++        int j = 0;
++        total++;
++        while (j < ni && (it[j].kind != e->kind || it[j].w != e->w || it[j].h != e->h || it[j].d != e->d || it[j].fmt != e->fmt)) j++;
++        if (j == ni) {
++            if (ni == RB_DARK_DISTINCT) continue;
++            it[ni].w = e->w; it[ni].h = e->h; it[ni].d = e->d; it[ni].fmt = e->fmt; it[ni].n = 0; it[ni].kind = e->kind; it[ni].age = back; ni++;
++        }
++        if (it[j].n < 0xffffu) it[j].n++;
++        if (back < it[j].age) it[j].age = back;
++    }
++    rb_dark_puts(&t, " tex=[");
++    for (int o = 0; o < RB_DARK_KINDS; o++) for (int j = 0; j < ni && listed < upto[o]; j++) {
++        if (it[j].kind != order[o]) continue;
++        const char l[3] = {letter[it[j].kind], ':', 0};
++        if (listed++) rb_dark_puts(&t, " ");
++        rb_dark_puts(&t, l); rb_dark_putu(&t, it[j].w); rb_dark_kv(&t, "x", it[j].h);
++        if (it[j].d > 1) rb_dark_kv(&t, "x", it[j].d);
++        rb_dark_puts(&t, "/"); rb_dark_putx(&t, it[j].fmt);
++        if (it[j].n > 1) rb_dark_kv(&t, "*", it[j].n);
++        rb_dark_kv(&t, "@", it[j].age);
++        shown += it[j].n;
++    }
++    rb_dark_kv(&t, "] more=", total - shown);
++}
++
++typedef struct {
++    rb_dark det; rb_dark_ctx ctx;
++    char snap[RB_DARK_SNAP];          // the context of the run under way, taken when its first dark image is judged
++    uint64_t win;                     // the window of the last sample fed: its frame / RB_DARK_WINDOW + 1 (0: none yet)
++    uint32_t said_dips, said_other, unlogged;   // lines written and left out since the last window line
++    uint64_t cb_sum; uint32_t cb_n, cb_max;     // the present command buffers' GPU time since the last window line, microseconds (with the probe's own encoder)
++} rb_dark_probe;
++
++static inline void rb_dark_probe_tex(rb_dark_probe *p, uint64_t frame, int kind, uint32_t w, uint32_t h, uint32_t d, uint32_t fmt) { rb_dark_ctx_tex(&p->ctx, frame, kind, w, h, d, fmt); }
++static inline void rb_dark_probe_scene(rb_dark_probe *p, uint64_t frame, uint32_t w, uint32_t h) { rb_dark_ctx_scene(&p->ctx, frame, w, h); }
++// The window's line, and its counts set back. fresh_full: new textures the back end's table of them had no place for, so far (their samplings before a write go uncounted)
++static inline void rb_dark_window_line(rb_dark_probe *p, uint64_t fresh_full, rb_dark_txt *t, int *lines) {
++    rb_dark *s = &p->det; rb_dark_ctx *c = &p->ctx;
++    if (s->sampled && rb_dark_line_begin(t)) {
++        rb_dark_kv(t, "window up_to_frame=", p->win * RB_DARK_WINDOW); rb_dark_kv(t, " sampled=", s->sampled); rb_dark_kv(t, " dips=", s->dips);
++        rb_dark_kv(t, " soft=", s->softs); rb_dark_kv(t, " long=", s->longs); rb_dark_kv(t, " cuts=", s->cuts); rb_dark_kv(t, " shallow=", s->shallow);
++        rb_dark_kv(t, " deepest_pct=", 100u - s->dip_drop); rb_dark_kv(t, " low_pct=", 100u - s->low_drop);
++        rb_dark_kl(t, " level=", s->n >= RB_DARK_WARM ? rb_dark_level(s) : 0);
++        rb_dark_kv(t, " steps=", c->steps); rb_dark_kv(t, " made=", c->tot[RB_DARK_MADE]); rb_dark_kv(t, " dropped=", c->tot[RB_DARK_DROPPED]);
++        rb_dark_kv(t, " fresh=", c->tot[RB_DARK_FRESH]); rb_dark_kv(t, " fresh_full=", fresh_full);
++        rb_dark_kv(t, " late=", s->late); rb_dark_kv(t, " restarts=", s->restarts); rb_dark_kv(t, " unlogged=", p->unlogged);
++        rb_dark_kv(t, " present_cb_us=", p->cb_n ? p->cb_sum / p->cb_n : 0); rb_dark_kv(t, "/", p->cb_max);
++        rb_dark_line_end(t, lines);
++    }
++    s->sampled = s->dips = s->softs = s->longs = s->cuts = s->shallow = s->late = s->restarts = s->dip_drop = s->low_drop = 0;
++    c->steps = 0; memset(c->tot, 0, sizeof c->tot);
++    p->said_dips = p->said_other = p->unlogged = 0;
++    p->cb_sum = 0; p->cb_n = p->cb_max = 0;
++}
++// A presented image: its present ticket, the game's frame it shows, its luminance (rb_dark_luma16), the GPU time of its present command buffer (microseconds; 0: not
++// known). Writes into out the lines to log, one after the other, each ended by a 0, and returns their number: a run's line when it ends (a cut's when it is taken as the
++// level), and the window's line when frame is in another window than the sample before
++static inline int rb_dark_probe_sample(rb_dark_probe *p, uint64_t ticket, uint64_t frame, unsigned luma, uint32_t cb_us, uint64_t fresh_full, char *out, size_t cap) {
++    rb_dark_txt t; rb_dark_ev ev[RB_DARK_PEND]; int lines = 0;
++    const uint64_t win = frame / RB_DARK_WINDOW + 1;
++    if (!cap) return 0;
++    t.p = out; t.end = out + cap - 1; *out = 0;
++    if (p->win && win != p->win) rb_dark_window_line(p, fresh_full, &t, &lines);
++    p->win = win;
++    if (cb_us) { p->cb_sum += cb_us; p->cb_n++; if (cb_us > p->cb_max) p->cb_max = cb_us; }
++    const int n = rb_dark_feed(&p->det, ticket, frame, luma, ev);
++    for (int i = 0; i < n; i++) {
++        const rb_dark_ev *e = &ev[i];
++        if (e->kind == RB_DARK_START) { rb_dark_ctx_text(&p->ctx, e->frame, p->snap, sizeof p->snap); continue; }
++        if (e->kind != RB_DARK_DIP && e->kind != RB_DARK_SOFT && e->kind != RB_DARK_LONG && e->kind != RB_DARK_CUT) continue;
++        uint32_t *said = e->kind == RB_DARK_DIP ? &p->said_dips : &p->said_other;
++        if (*said >= (uint32_t)(e->kind == RB_DARK_DIP ? RB_DARK_SAY_DIPS : RB_DARK_SAY_OTHER) || !rb_dark_line_begin(&t)) { p->unlogged++; continue; }
++        (*said)++;
++        rb_dark_puts(&t, e->kind == RB_DARK_DIP ? "dip" : e->kind == RB_DARK_SOFT ? "soft" : e->kind == RB_DARK_LONG ? "long" : "cut");
++        rb_dark_kv(&t, " frame=", e->frame); rb_dark_kv(&t, " ticket=", e->ticket); rb_dark_kv(&t, " len=", e->len);
++        if (e->kind == RB_DARK_CUT) rb_dark_puts(&t, "+"); else rb_dark_kv(&t, " end_frame=", e->end_frame);
++        rb_dark_kl(&t, " luma=", e->luma); rb_dark_kl(&t, " level=", e->level); rb_dark_kv(&t, " pct=", e->level ? e->luma * 100u / e->level : 0);
++        rb_dark_kl(&t, " in=", e->in);
++        if (e->kind != RB_DARK_CUT) rb_dark_kl(&t, " back=", e->back);
++        rb_dark_puts(&t, " "); rb_dark_puts(&t, p->snap);
++        rb_dark_line_end(&t, &lines);
++    }
++    return lines;
++}
+diff --git a/graphics/nvn/tests/t_rb_dark_probe.c b/graphics/nvn/tests/t_rb_dark_probe.c
+new file mode 100644
+index 0000000..4184a7c
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_dark_probe.c
+@@ -0,0 +1,304 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0331): host-only checks of the dark-frame probe's rules (gfx/nvn/rb_dark_probe.h): the rows read and their luminance, the dip rule against cuts, fades,
++//   loading screens and tunnels, samples out of order, the frames' context and the bounded [rb-dark] lines.
++#include <assert.h>
++#include <stdio.h>
++#include "../gfx/nvn/rb_dark_probe.h"
++
++typedef struct { int n[RB_DARK_CUT + 1]; rb_dark_ev last[RB_DARK_CUT + 1]; } tally;
++static rb_dark S; static tally Y; static uint64_t TK;   // TK: the next present ticket; the frame is the ticket - 1, as on the device
++static void fresh(void) { memset(&S, 0, sizeof S); memset(&Y, 0, sizeof Y); TK = 1; }
++static void feed_at(uint64_t ticket, unsigned luma16) {
++    rb_dark_ev ev[RB_DARK_PEND]; const int n = rb_dark_feed(&S, ticket, ticket - 1, luma16, ev);
++    assert(n >= 0 && n <= RB_DARK_PEND);
++    for (int i = 0; i < n; i++) { assert(ev[i].kind > RB_DARK_NONE && ev[i].kind <= RB_DARK_CUT); Y.n[ev[i].kind]++; Y.last[ev[i].kind] = ev[i]; }
++}
++static void show(unsigned level8, int count) { while (count-- > 0) feed_at(TK++, level8 * 16); }   // count images at an 8-bit level
++static unsigned rnd(void) { static uint32_t x = 2463534242u; x ^= x << 13; x ^= x >> 17; x ^= x << 5; return x; }
++
++static void t_rows(void) {
++    uint32_t x0, w, y[RB_DARK_ROWS];
++    // the device's window texture, shown whole: the middle three quarters of six lines between 3/16 and 13/16 of the height
++    assert(rb_dark_rows(2560, 1440, NULL, &x0, &w, y) == RB_DARK_ROWS && x0 == 320 && w == 1920);
++    assert(y[0] == 270 && y[1] == 450 && y[2] == 630 && y[3] == 810 && y[4] == 990 && y[5] == 1170);
++    for (int k = 0; k < RB_DARK_ROWS; k++) assert(y[k] + y[RB_DARK_ROWS - 1 - k] == 1440);   // a bottom-up image reads the same lines
++    { const int zero[4] = {0, 0, 0, 0}; uint32_t x1, w1, y1[RB_DARK_ROWS];
++      assert(rb_dark_rows(2560, 1440, zero, &x1, &w1, y1) == RB_DARK_ROWS && x1 == x0 && w1 == w && !memcmp(y1, y, sizeof y)); }   // a 0 x 0 crop: the whole source
++    { const int crop[4] = {320, 180, 1920, 1080};
++      assert(rb_dark_rows(2560, 1440, crop, &x0, &w, y) == RB_DARK_ROWS && x0 == 320 + 240 && w == 1440 && y[0] == 180 + 202 && y[5] == 180 + 877); }
++    // a wide source: the middle RB_DARK_ROW_TEXELS texels
++    assert(rb_dark_rows(3840, 2160, NULL, &x0, &w, y) == RB_DARK_ROWS && w == RB_DARK_ROW_TEXELS && x0 == 480 + (2880 - 2048) / 2);
++    // crops outside the source, and sources too small, are not read
++    { const int a[4] = {-1, 0, 100, 100}, b[4] = {0, 0, 2561, 1440}, c[4] = {2000, 0, 600, 100}, d[4] = {0, 1400, 100, 41}, e[4] = {0, 0, 0, 100}, f[4] = {0, 0, 15, 100};
++      assert(!rb_dark_rows(2560, 1440, a, &x0, &w, y) && !rb_dark_rows(2560, 1440, b, &x0, &w, y) && !rb_dark_rows(2560, 1440, c, &x0, &w, y));
++      assert(!rb_dark_rows(2560, 1440, d, &x0, &w, y) && !rb_dark_rows(2560, 1440, e, &x0, &w, y) && !rb_dark_rows(2560, 1440, f, &x0, &w, y));
++      assert(!rb_dark_rows(15, 1440, NULL, &x0, &w, y) && !rb_dark_rows(2560, 15, NULL, &x0, &w, y) && !rb_dark_rows(0, 0, NULL, &x0, &w, y)); }
++    // any source and crop: every copy stays inside the source and the buffer
++    for (int i = 0; i < 20000; i++) {
++        const uint32_t sw = 1 + rnd() % 5000, sh = 1 + rnd() % 3000;
++        int crop[4] = {(int)(rnd() % sw), (int)(rnd() % sh), 0, 0};
++        crop[2] = (int)(rnd() % (sw - (uint32_t)crop[0] + 1)); crop[3] = (int)(rnd() % (sh - (uint32_t)crop[1] + 1));
++        const int n = rb_dark_rows(sw, sh, i & 1 ? crop : NULL, &x0, &w, y);
++        if (!n) continue;
++        assert(n == RB_DARK_ROWS && w >= 12 && w <= RB_DARK_ROW_TEXELS && (uint64_t)x0 + w <= sw && (uint64_t)n * w * 4 <= RB_DARK_BYTES);
++        for (int k = 0; k < n; k++) { assert(y[k] < sh && (!k || y[k] > y[k - 1])); if ((i & 1) && (crop[2] || crop[3])) assert(y[k] >= (uint32_t)crop[1] && y[k] < (uint32_t)(crop[1] + crop[3]) && x0 >= (uint32_t)crop[0]); }
++    }
++}
++static void t_luma(void) {
++    uint8_t px[4 * 64], bg[4 * 64];
++    for (int i = 0; i < 64; i++) { px[4 * i] = 200; px[4 * i + 1] = 100; px[4 * i + 2] = 50; px[4 * i + 3] = 255; bg[4 * i] = 50; bg[4 * i + 1] = 100; bg[4 * i + 2] = 200; bg[4 * i + 3] = 7; }
++    assert(rb_dark_luma16(px, 64, 1, RB_DARK_RGBA8) == (54u * 200 + 183u * 100 + 19u * 50) >> 4);
++    assert(rb_dark_luma16(px, 64, 1, RB_DARK_RGBA8) == rb_dark_luma16(bg, 64, 1, RB_DARK_BGRA8));   // alpha is not read
++    assert(rb_dark_luma16(px, 64, 8, RB_DARK_RGBA8) == rb_dark_luma16(px, 64, 1, RB_DARK_RGBA8));
++    memset(px, 255, sizeof px); assert(rb_dark_luma16(px, 64, 1, RB_DARK_RGBA8) == 4080 && rb_dark_luma16(px, 64, 1, RB_DARK_RGB10A2) == 4080 && rb_dark_luma16(px, 64, 1, RB_DARK_BGR10A2) == 4080);
++    memset(px, 0, sizeof px); assert(rb_dark_luma16(px, 64, 1, RB_DARK_RGBA8) == 0 && rb_dark_luma16(px, 64, 1, RB_DARK_BGR10A2) == 0);
++    assert(rb_dark_luma16(px, 0, 1, RB_DARK_RGBA8) == 0 && rb_dark_luma16(NULL, 64, 1, RB_DARK_RGBA8) == 0 && rb_dark_luma16(px, 64, 0, RB_DARK_RGBA8) == 0);
++    // the stride reads texels 0, 8, 16, ...: one bright texel in eight
++    for (int i = 0; i < 64; i += 8) memset(px + 4 * i, 255, 4);
++    assert(rb_dark_luma16(px, 64, 8, RB_DARK_RGBA8) == 4080 && rb_dark_luma16(px, 64, 1, RB_DARK_RGBA8) == 4080 / 8);
++    // 10-bit texels, little-endian: red in the low bits of RGB10A2, blue in the low bits of BGR10A2
++    { const uint32_t red = 0x3ffu, green = 0x3ffu << 10, blue = 0x3ffu << 20; uint8_t r[4], g[4], b[4];
++      for (int i = 0; i < 4; i++) { r[i] = (uint8_t)(red >> (8 * i)); g[i] = (uint8_t)(green >> (8 * i)); b[i] = (uint8_t)(blue >> (8 * i)); }
++      assert(rb_dark_luma16(r, 1, 1, RB_DARK_RGB10A2) == (54u * 255) >> 4 && rb_dark_luma16(r, 1, 1, RB_DARK_BGR10A2) == (19u * 255) >> 4);
++      assert(rb_dark_luma16(g, 1, 1, RB_DARK_RGB10A2) == (183u * 255) >> 4 && rb_dark_luma16(g, 1, 1, RB_DARK_BGR10A2) == (183u * 255) >> 4);
++      assert(rb_dark_luma16(b, 1, 1, RB_DARK_RGB10A2) == (19u * 255) >> 4 && rb_dark_luma16(b, 1, 1, RB_DARK_BGR10A2) == (54u * 255) >> 4); }
++}
++static void none(void) { for (int k = 1; k <= RB_DARK_CUT; k++) assert(!Y.n[k]); }
++static void t_rule(void) {
++    // 1. nothing is reported while the level is being learnt
++    fresh(); show(5, 1); show(100, RB_DARK_WARM - 1); show(100, 4);
++    none();
++    // 2. one dark image between lit ones: a run starts, and ends as a dip of one image, with the levels around it
++    fresh(); for (int i = 0; i < 20; i++) show(100 + (unsigned)(i % 3), 1);
++    const uint64_t dark_ticket = TK;
++    show(30, 1); show(100, 1); assert(!Y.n[RB_DARK_START]);   // judged RB_DARK_DELAY tickets later
++    show(100, 2);
++    assert(Y.n[RB_DARK_START] == 1 && Y.n[RB_DARK_DIP] == 1 && !Y.n[RB_DARK_SOFT] && !Y.n[RB_DARK_LONG] && !Y.n[RB_DARK_CUT]);
++    { const rb_dark_ev *e = &Y.last[RB_DARK_DIP];
++      assert(e->ticket == dark_ticket && e->frame == dark_ticket - 1 && e->end_frame == dark_ticket && e->len == 1 && e->luma == 30 * 16 && e->back == 100 * 16);
++      assert(e->level >= 100 * 16 && e->level <= 102 * 16 && e->in >= 100 * 16 && e->in <= 102 * 16); }
++    assert(S.dips == 1 && S.dip_drop == 100 - 30 * 100 / 101 && S.low_drop == S.dip_drop);
++    // 3. the pattern of the IPA 825 recording: dark and lit images in turn, eight times; the dark ones never enter the level
++    for (int i = 0; i < 8; i++) { show(25 + (unsigned)i, 1); show(100, 1); }
++    show(100, 2);
++    assert(Y.n[RB_DARK_DIP] == 9 && Y.n[RB_DARK_START] == 9 && !Y.n[RB_DARK_SOFT] && !Y.n[RB_DARK_LONG] && rb_dark_level(&S) >= 100 * 16);
++    // 4. a dip of two, of RB_DARK_DIP_MAX images: its length is reported
++    show(10, 2); show(100, 3); assert(Y.n[RB_DARK_DIP] == 10 && Y.last[RB_DARK_DIP].len == 2 && Y.last[RB_DARK_DIP].luma == 10 * 16);
++    show(40, 1); show(20, RB_DARK_DIP_MAX - 1); show(95, 3);
++    assert(Y.n[RB_DARK_DIP] == 11 && Y.last[RB_DARK_DIP].len == RB_DARK_DIP_MAX && Y.last[RB_DARK_DIP].luma == 20 * 16 && Y.last[RB_DARK_DIP].back == 95 * 16 && !Y.n[RB_DARK_LONG]);
++    // 5. one image more is a long run, not a dip, however it starts and ends; RB_DARK_ADOPT - 1 images still are one
++    show(20, RB_DARK_DIP_MAX + 1); show(100, 5);
++    assert(Y.n[RB_DARK_DIP] == 11 && Y.n[RB_DARK_LONG] == 1 && Y.last[RB_DARK_LONG].len == RB_DARK_DIP_MAX + 1 && Y.last[RB_DARK_LONG].back == 100 * 16 && !Y.n[RB_DARK_SOFT] && !Y.n[RB_DARK_CUT]);
++    show(20, RB_DARK_ADOPT - 1); show(100, 5);
++    assert(Y.n[RB_DARK_LONG] == 2 && Y.last[RB_DARK_LONG].len == RB_DARK_ADOPT - 1 && !Y.n[RB_DARK_CUT] && Y.n[RB_DARK_DIP] == 11 && S.longs == 2);
++    // 6. a slow fade (3 % an image) is followed: no run at all
++    fresh(); show(100, 20);
++    { unsigned v = 100 * 16; for (int i = 0; i < 60; i++) { v = v * 97 / 100; feed_at(TK++, v); } }
++    none();
++    // 7. a fade to black in ten images, a loading screen, and a fade back: one run, a cut entered through the levels between; the black picture is the level then; no dip
++    fresh(); show(100, 30);
++    for (int i = 1; i <= 10; i++) show(100 - 10 * (unsigned)i, 1);
++    show(0, 90);
++    for (int i = 1; i <= 10; i++) show(10 * (unsigned)i, 1);
++    show(100, 30);
++    assert(!Y.n[RB_DARK_DIP] && Y.n[RB_DARK_CUT] == 1 && Y.n[RB_DARK_START] == 1 && !Y.n[RB_DARK_SOFT] && !Y.n[RB_DARK_LONG]);
++    assert(Y.last[RB_DARK_CUT].len == RB_DARK_ADOPT && Y.last[RB_DARK_CUT].in * 100 < Y.last[RB_DARK_CUT].level * RB_DARK_BACK_PCT && !Y.last[RB_DARK_CUT].end_frame);
++    // 8. a quick fade through black (five images down, two black, five up): short enough for a dip, but neither entered nor left in one image: soft
++    fresh(); show(100, 30);
++    show(80, 1); show(60, 1); show(40, 1); show(20, 1); show(0, 2); show(20, 1); show(40, 1); show(60, 1); show(80, 1); show(100, 10);
++    assert(!Y.n[RB_DARK_DIP] && Y.n[RB_DARK_SOFT] == 1 && !Y.n[RB_DARK_LONG] && !Y.n[RB_DARK_CUT] && Y.last[RB_DARK_SOFT].len == 6);
++    // 9. a hard cut to a dark scene and, 100 images later, a hard cut back: a cut at its RB_DARK_ADOPT-th image, then the new level; the cut back is no dip
++    fresh(); show(100, 30); show(20, 100); show(100, 40);
++    assert(!Y.n[RB_DARK_DIP] && !Y.n[RB_DARK_SOFT] && !Y.n[RB_DARK_LONG] && Y.n[RB_DARK_CUT] == 1 && Y.n[RB_DARK_START] == 1);
++    assert(Y.last[RB_DARK_CUT].in >= 100 * 16 && Y.last[RB_DARK_CUT].luma == 20 * 16 && rb_dark_level(&S) == 100 * 16);
++    //    ... and a dip in the dark scene itself is still seen against the dark scene's level
++    fresh(); show(100, 30); show(40, 60); show(5, 1); show(40, 4);
++    assert(Y.n[RB_DARK_DIP] == 1 && Y.last[RB_DARK_DIP].level == 40 * 16 && Y.last[RB_DARK_DIP].len == 1 && Y.n[RB_DARK_CUT] == 1);
++    // 10. a loading screen cut in and out in one image each, and a scene already black: nothing under the floor
++    fresh(); show(100, 30); show(0, 200); show(100, 60);
++    assert(!Y.n[RB_DARK_DIP] && !Y.n[RB_DARK_SOFT] && !Y.n[RB_DARK_LONG] && Y.n[RB_DARK_CUT] == 1);
++    fresh(); show(8, 30); show(1, 2); show(8, 5); show(0, 40); show(8, 5);
++    none();
++    // 11. a tunnel: twelve images down to a quarter, 200 inside, twelve images out
++    fresh(); show(120, 40);
++    for (int i = 1; i <= 12; i++) show(120 - (unsigned)(i * 90 / 12), 1);
++    show(30, 200);
++    for (int i = 1; i <= 12; i++) show(30 + (unsigned)(i * 90 / 12), 1);
++    show(120, 40);
++    assert(!Y.n[RB_DARK_DIP] && !Y.n[RB_DARK_LONG] && Y.n[RB_DARK_CUT] <= 1);
++    // 12. the thresholds: 55 % of the level is not dark, one step under is; a run that comes back to 79 % is soft, to 80 % a dip; one entered from 79 % is soft
++    fresh(); show(100, 20);
++    feed_at(TK++, 100 * 16 * RB_DARK_PCT / 100); show(100, 3); assert(!Y.n[RB_DARK_START]);
++    feed_at(TK++, 100 * 16 * RB_DARK_PCT / 100 - 1); show(100, 3); assert(Y.n[RB_DARK_START] == 1 && Y.n[RB_DARK_DIP] == 1);
++    show(30, 1); feed_at(TK++, 100 * 16 * RB_DARK_BACK_PCT / 100 - 1); show(100, 3); assert(Y.n[RB_DARK_DIP] == 1 && Y.n[RB_DARK_SOFT] == 1);
++    show(30, 1); feed_at(TK++, 100 * 16 * RB_DARK_BACK_PCT / 100); show(100, 3); assert(Y.n[RB_DARK_DIP] == 2 && Y.n[RB_DARK_SOFT] == 1);
++    feed_at(TK++, 100 * 16 * RB_DARK_BACK_PCT / 100 - 1); show(30, 1); show(100, 3); assert(Y.n[RB_DARK_DIP] == 2 && Y.n[RB_DARK_SOFT] == 2);
++    // 13. a fall that is not dark enough is counted as shallow, and the window's lowest image is kept
++    fresh(); show(100, 20); show(65, 1); show(100, 4);
++    none();
++    assert(S.shallow == 1 && S.low_drop == 35 && S.dip_drop == 0);
++    // 14. presents the display link merged away (tickets missing) change nothing
++    fresh(); for (int i = 0; i < 30; i++) { feed_at(TK, 100 * 16); TK += 1 + (uint64_t)(i % 3 == 0); }
++    feed_at(TK, 20 * 16); TK += 2; feed_at(TK, 100 * 16); TK += 2; feed_at(TK++, 100 * 16); show(100, 3);
++    assert(Y.n[RB_DARK_DIP] == 1 && Y.last[RB_DARK_DIP].len == 1);
++    // 15. feedback out of order within RB_DARK_DELAY tickets is put back in order: the same dips as in order
++    fresh(); show(100, 20);
++    { const unsigned v[12] = {100, 20, 100, 100, 20, 20, 100, 100, 100, 20, 100, 100}; const int order[12] = {1, 0, 2, 4, 3, 5, 7, 6, 8, 10, 9, 11};
++      for (int i = 0; i < 12; i++) feed_at(TK + (uint64_t)order[i], v[order[i]] * 16);
++      TK += 12; show(100, 3); }
++    assert(Y.n[RB_DARK_DIP] == 3 && Y.n[RB_DARK_START] == 3 && !Y.n[RB_DARK_SOFT] && S.late == 0);
++    //     ... a sample that comes after a ticket RB_DARK_DELAY + 1 later was judged is dropped and counted, as is one fed twice
++    feed_at(TK + 3, 100 * 16); feed_at(TK + 4, 100 * 16); feed_at(TK + 5, 100 * 16); feed_at(TK, 10 * 16); feed_at(TK + 5, 10 * 16);
++    assert(S.late == 2 && Y.n[RB_DARK_START] == 3);
++    TK += 6;
++    // 16. a pause (a gap of more than RB_DARK_GAP tickets) and a new session (tickets start again) start over: no dip across them
++    fresh(); show(100, 20); TK += RB_DARK_GAP + 5; show(10, 3); show(100, 3);
++    assert(S.restarts == 1 && !Y.n[RB_DARK_START]);
++    fresh(); TK = 5000; show(100, 20); TK = 1; show(10, 3); show(100, 3);
++    assert(S.restarts == 1 && !Y.n[RB_DARK_START] && S.late == 0);
++    // 17. a race with a level that drifts and flickers by a few percent, and 40 flashes of 1 to 8 images put in: each one found, nothing else
++    fresh();
++    { int put = 0, left = 0; unsigned base = 110, cur = 110;
++      for (int i = 0; i < 30000; i++) {
++          if (i % 97 == 0) base = 60 + rnd() % 120;   // another view, reached by steps of 1 / 255 an image
++          cur = cur + (base > cur) - (base < cur);
++          unsigned v = cur * 16 + rnd() % (cur * 16 / 20) - cur * 16 / 40;   // +- 2.5 %
++          if (!left && i > 100 && i % 700 == 350) { left = 1 + put % RB_DARK_DIP_MAX; put++; }
++          if (left) { v = v * (5 + rnd() % 40) / 100; left--; }   // the lit scene black: 5 to 44 % of the level
++          feed_at(TK++, v);
++      }
++      show(110, 3);
++      assert(put >= 40 && Y.n[RB_DARK_DIP] == put && Y.n[RB_DARK_START] == put && !Y.n[RB_DARK_CUT] && !Y.n[RB_DARK_LONG] && !Y.n[RB_DARK_SOFT]); }
++}
++static void t_context(void) {
++    static rb_dark_ctx c; uint32_t wh[4]; char txt[RB_DARK_SNAP];
++    memset(&c, 0, sizeof c);
++    assert(rb_dark_ctx_size_age(&c, 100, wh) == -1 && !wh[0] && !wh[2]);
++    // a frame's scene size is the last one noted for it (the 64 x 64 probe comes first); the same size for ten frames: no change known
++    for (uint64_t f = 100; f < 110; f++) { rb_dark_ctx_scene(&c, f, 64, 64); rb_dark_ctx_scene(&c, f, 1248, 700); }
++    assert(rb_dark_ctx_size_age(&c, 109, wh) == -1 && wh[0] == 1248 && wh[1] == 700 && !wh[2]);
++    // a step at frame 110, with the textures of a step: 3 made at 110, 2 dropped at 110 and 1 at 109, one sampled before it was written at 111
++    for (uint64_t f = 110; f < 114; f++) {
++        rb_dark_ctx_scene(&c, f, 64, 64); rb_dark_ctx_scene(&c, f, 1264, 708);
++        if (f == 110) { rb_dark_ctx_tex(&c, f, RB_DARK_MADE, 1264, 708, 1, 0x3f); rb_dark_ctx_tex(&c, f, RB_DARK_MADE, 1264, 708, 1, 0x3f); rb_dark_ctx_tex(&c, f, RB_DARK_MADE, 2048, 2048, 3, 0x35);
++                        rb_dark_ctx_tex(&c, f, RB_DARK_DROPPED, 1248, 700, 1, 0x3f); rb_dark_ctx_tex(&c, f, RB_DARK_DROPPED, 64, 64, 1, 0x3f); }
++        if (f == 111) rb_dark_ctx_tex(&c, f, RB_DARK_FRESH, 64, 64, 0, 0x3f);
++    }
++    rb_dark_ctx_tex(&c, 109, RB_DARK_DROPPED, 632, 354, 1, 0x29);   // a note of a frame a little behind still lands in its frame
++    rb_dark_ctx_tex(&c, 113, 7, 1, 1, 1, 1); rb_dark_ctx_tex(&c, 113, -1, 1, 1, 1, 1);   // no such kind: left out
++    assert(rb_dark_ctx_size_age(&c, 110, wh) == 0 && wh[0] == 1264 && wh[1] == 708 && wh[2] == 1248 && wh[3] == 700);
++    assert(rb_dark_ctx_size_age(&c, 113, wh) == 3 && wh[2] == 1248);
++    assert(rb_dark_ctx_size_age(&c, 109, wh) == -1);   // seen from before the step
++    rb_dark_ctx_text(&c, 111, txt, sizeof txt);
++    assert(!strcmp(txt, "scene=1264x708 prev_scene=1248x700 size_age=1 made=0/3/0/0 dropped=0/2/1/0 fresh=1/0/0/0 "
++                        "tex=[f:64x64/0x3f@0 d:632x354/0x29@2 d:64x64/0x3f@1 d:1248x700/0x3f@1 m:2048x2048x3/0x35@1 m:1264x708/0x3f*2@1] more=0"));
++    rb_dark_ctx_text(&c, 108, txt, sizeof txt);
++    assert(!strcmp(txt, "scene=1248x700 prev_scene=0x0 size_age=none made=0/0/0/0 dropped=0/0/0/0 fresh=0/0/0/0 tex=[] more=0"));
++    rb_dark_ctx_text(&c, 2, txt, sizeof txt);   // before anything: no frame before frame 0 is looked at
++    assert(!strcmp(txt, "scene=0x0 prev_scene=0x0 size_age=none made=0/0/0/0 dropped=0/0/0/0 fresh=0/0/0/0 tex=[] more=0"));
++    // size steps are counted as frames close, once each; a frame with no scene between two sizes does not hide the step
++    assert(c.steps == 1 && c.tot[RB_DARK_MADE] == 3 && c.tot[RB_DARK_DROPPED] == 3 && c.tot[RB_DARK_FRESH] == 1);
++    rb_dark_ctx_tex(&c, 114, RB_DARK_MADE, 8, 8, 8, 0x3f); rb_dark_ctx_scene(&c, 115, 1280, 720); rb_dark_ctx_scene(&c, 116, 1280, 720); rb_dark_ctx_scene(&c, 117, 1264, 708);
++    rb_dark_ctx_scene(&c, 118, 1264, 708);
++    assert(c.steps == 3 && rb_dark_ctx_size_age(&c, 116, wh) == 1 && wh[2] == 1264 && rb_dark_ctx_size_age(&c, 118, wh) == 1 && wh[2] == 1280);
++    // more distinct textures than a line lists: the list is cut and the rest counted; sizes over 65535 are clamped
++    memset(&c, 0, sizeof c);
++    for (uint32_t i = 0; i < 40; i++) { rb_dark_ctx_tex(&c, 50, RB_DARK_MADE, 100 + i, 50, 1, 0x25); rb_dark_ctx_tex(&c, 49, RB_DARK_DROPPED, 100 + i, 50, 1, 0x25); rb_dark_ctx_tex(&c, 48, RB_DARK_FRESH, 100 + i, 50, 0, 0x25); }
++    rb_dark_ctx_tex(&c, 50, RB_DARK_MADE, 70000, 70000, 70000, 0x12345);
++    rb_dark_ctx_text(&c, 50, txt, sizeof txt);
++    { int items = 0, kinds[3] = {0, 0, 0}; const char *q = strstr(txt, "tex=["), *end = q ? strchr(q, ']') : NULL;
++      assert(q && end && strlen(txt) < sizeof txt - 1);
++      for (q += 5; q < end; q++) if (q[1] == ':') { items++; kinds[*q == 'm' ? 0 : *q == 'd' ? 1 : 2]++; }
++      assert(items == RB_DARK_ITEMS && kinds[2] == 6 && kinds[1] == 9 && kinds[0] == 9);
++      assert(strstr(txt, " made=41/0/0/0 dropped=0/40/0/0 fresh=0/0/40/0 ") && strstr(end, "] more=97") && strstr(txt, "m:65535x65535x65535/0xffff@0")); }
++    // more events than the ring holds: the oldest are gone, nothing breaks; a line's text is cut to its buffer
++    for (uint32_t i = 0; i < 3 * RB_DARK_TEV; i++) rb_dark_ctx_tex(&c, 51 + i / 400, (int)(i % RB_DARK_KINDS), 1000 + i % 300, 500, 1, 0x3f);
++    rb_dark_ctx_text(&c, 51 + (3 * RB_DARK_TEV - 1) / 400, txt, sizeof txt);
++    assert(strlen(txt) < sizeof txt && strstr(txt, "tex=["));
++    { char small[40]; memset(small, 'Z', sizeof small); rb_dark_ctx_text(&c, 51, small, 24); assert(strlen(small) == 23 && small[24] == 'Z'); rb_dark_ctx_text(&c, 51, small, 1); assert(!small[0]); rb_dark_ctx_text(&c, 51, small, 0); }
++    // frame numbers that start again RB_DARK_CTX or more below the newest (a new session without the reset): everything is forgotten; a little below is the same session
++    rb_dark_ctx_scene(&c, 500, 1280, 720); rb_dark_ctx_scene(&c, 500 - RB_DARK_CTX + 1, 1280, 720);
++    assert(c.top == 501 && rb_dark_ctx_size_age(&c, 500, wh) == -1 && wh[0] == 1280);
++    rb_dark_ctx_scene(&c, 3, 1920, 1080);
++    assert(c.top == 4 && c.steps == 0 && c.tot[RB_DARK_MADE] == 0 && rb_dark_ctx_size_age(&c, 3, wh) == -1 && wh[0] == 1920);
++    rb_dark_ctx_text(&c, 3, txt, sizeof txt);
++    assert(!strcmp(txt, "scene=1920x1080 prev_scene=0x0 size_age=none made=0/0/0/0 dropped=0/0/0/0 fresh=0/0/0/0 tex=[] more=0"));
++}
++static int starts(const char *line, const char *with) { return !strncmp(line, with, strlen(with)); }
++// As nvn_mtl.m's rb_dark_sampled reads the lines
++static int lines_of(const char *out, size_t cap, int n, const char *line[], int max) {
++    int k = 0;
++    for (const char *l = out; n-- > 0; l += strlen(l) + 1) { assert(l >= out && l < out + cap && l + strlen(l) < out + cap); if (k < max) line[k] = l; k++; }
++    return k;
++}
++static void t_lines(void) {
++    static rb_dark_probe p; char out[4096], run[2048] = "", win[1024] = ""; const char *line[8]; uint64_t tk = 1; int n, nl = 0, dips = 0, cuts = 0, softs = 0, longs = 0, windows = 0;
++    memset(&p, 0, sizeof p);   // run, win: the last run line and the last window line written
++#define SAMPLE(level8) do { rb_dark_probe_scene(&p, tk - 1, 1264, 708); \
++        n = rb_dark_probe_sample(&p, tk, tk - 1, (unsigned)(level8) * 16, tk % 2 ? 0 : 100 + (uint32_t)(tk % 100), 5, out, sizeof out); tk++; \
++        nl = lines_of(out, sizeof out, n, line, 8); assert(nl <= 8); \
++        for (int i_ = 0; i_ < nl; i_++) { dips += !strncmp(line[i_], "dip ", 4); cuts += !strncmp(line[i_], "cut ", 4); softs += !strncmp(line[i_], "soft ", 5); \
++                                          longs += !strncmp(line[i_], "long ", 5); windows += !strncmp(line[i_], "window ", 7); \
++                                          assert(strlen(line[i_]) < sizeof win); memcpy(strncmp(line[i_], "window ", 7) ? run : win, line[i_], strlen(line[i_]) + 1); } } while (0)
++    for (int i = 0; i < 40; i++) SAMPLE(96);
++    assert(!dips && !windows);
++    // frame 39 drawn smaller (a step down, and a step up at frame 40) with the textures of the step, and the image of frame 41 dark: one dip line, with the context of frame 41
++    rb_dark_probe_scene(&p, 39, 1248, 700);
++    rb_dark_probe_tex(&p, 40, RB_DARK_MADE, 1264, 708, 1, 0x3f); rb_dark_probe_tex(&p, 40, RB_DARK_DROPPED, 64, 64, 1, 0x3f); rb_dark_probe_tex(&p, 41, RB_DARK_FRESH, 64, 64, 0, 0x3f);
++    for (int i = 0; i < 6; i++) { SAMPLE(i == 1 ? 12 : 96); if (dips) break; }
++    assert(dips == 1 && nl == 1 && tk == 46);
++    assert(!strcmp(run, "dip frame=41 ticket=42 len=1 end_frame=42 luma=12.0 level=96.0 pct=12 in=96.0 back=96.0 "
++                            "scene=1264x708 prev_scene=1248x700 size_age=1 made=0/1/0/0 dropped=0/1/0/0 fresh=1/0/0/0 tex=[f:64x64/0x3f@0 d:64x64/0x3f@1 m:1264x708/0x3f@1] more=0"));
++    // a long run: one line, when it ends
++    for (int i = 0; i < 20; i++) SAMPLE(20);
++    assert(!longs);
++    for (int i = 0; i < 12; i++) SAMPLE(96);
++    assert(dips == 1 && longs == 1 && !cuts && !softs);
++    assert(starts(run, "long frame=45 ticket=46 len=20 end_frame=65 luma=20.0 level=96.0 pct=20 in=96.0 back=96.0 scene=1264x708 prev_scene=1248x700 size_age=5 made=0/0/0/0 "));
++    // a quick fade through black: a soft line
++    SAMPLE(70); SAMPLE(30); SAMPLE(70); for (int i = 0; i < 4; i++) SAMPLE(96);
++    assert(dips == 1 && longs == 1 && softs == 1 && starts(run, "soft frame=78 ticket=79 len=1 end_frame=79 luma=30.0 level=96.0 pct=31 in=70.0 back=70.0 scene=1264x708 prev_scene=1248x700 size_age=38 "));
++    // twelve more dips before frame 220: RB_DARK_SAY_DIPS lines in the window, the rest counted
++    for (int k = 0; k < 12; k++) { SAMPLE(10); for (int i = 0; i < 5; i++) SAMPLE(96); }
++    assert(dips == RB_DARK_SAY_DIPS && !windows && tk - 1 < 220);
++    // a cut to a dark scene: one line, at its RB_DARK_ADOPT-th image, with the context of its first; the cut back is nothing
++    while (tk - 1 < 220) SAMPLE(96);
++    for (int i = 0; i < RB_DARK_ADOPT + RB_DARK_DELAY - 1; i++) SAMPLE(15);
++    assert(!cuts); SAMPLE(15);
++    assert(cuts == 1 && nl == 1 && !strcmp(run, "cut frame=220 ticket=221 len=30+ luma=15.0 level=96.0 pct=15 in=96.0 scene=1264x708 prev_scene=0x0 size_age=none made=0/0/0/0 dropped=0/0/0/0 fresh=0/0/0/0 tex=[] more=0"));
++    for (int i = 0; i < 15; i++) SAMPLE(15);
++    while (tk - 1 < 300) SAMPLE(96);
++    assert(cuts == 1 && longs == 1 && softs == 1 && dips == RB_DARK_SAY_DIPS && !windows);
++    // the window's line comes with the first sample of the next window: 298 judged (the last two samples wait for RB_DARK_DELAY tickets more)
++    SAMPLE(96);
++    assert(windows == 1 && nl == 1);
++    assert(!strcmp(win, "window up_to_frame=300 sampled=298 dips=13 soft=1 long=1 cuts=1 shallow=1 deepest_pct=10 low_pct=10 level=96.0 steps=2 made=1 dropped=1 fresh=1 "
++                            "fresh_full=5 late=0 restarts=0 unlogged=5 present_cb_us=149/198"));   // every other present's GPU time known: 100 to 198
++    // the next window starts from nothing: its dips are written again, and its line counts only its own
++    dips = 0; for (int k = 0; k < 3; k++) { SAMPLE(10); for (int i = 0; i < 5; i++) SAMPLE(96); }
++    assert(dips == 3);
++    while (tk - 1 < 600) SAMPLE(96);
++    SAMPLE(96);
++    assert(windows == 2 && !strcmp(win, "window up_to_frame=600 sampled=300 dips=3 soft=0 long=0 cuts=0 shallow=0 deepest_pct=10 low_pct=10 level=96.0 steps=0 made=0 dropped=0 fresh=0 "
++                                           "fresh_full=5 late=0 restarts=0 unlogged=0 present_cb_us=149/198"));
++    // soft runs, long runs and cuts share RB_DARK_SAY_OTHER lines a window
++    softs = 0; for (int k = 0; k < RB_DARK_SAY_OTHER + 3; k++) { SAMPLE(70); SAMPLE(30); SAMPLE(70); for (int i = 0; i < 4; i++) SAMPLE(96); }
++    assert(softs == RB_DARK_SAY_OTHER && p.unlogged == 3);
++    // a buffer too small for the lines: they are cut, never written past it, and the count still walks inside it
++    for (size_t cap = 0; cap < 200; cap += 7) {
++        static rb_dark_probe q; char small[256]; uint64_t t2 = 290; int total = 0;
++        memset(&q, 0, sizeof q); memset(small, 'Z', sizeof small);
++        for (int i = 0; i < 40; i++, t2++) {
++            const int m = rb_dark_probe_sample(&q, t2, t2 - 1, (i == 20 || i == 21 ? 10u : 96u) * 16, 0, 0, small, cap);
++            const char *ln[8]; assert(m >= 0 && m <= 2 && lines_of(small, cap ? cap : 1, m, ln, 8) == m); total += m;
++            for (size_t z = cap; z < sizeof small; z++) assert(small[z] == 'Z');
++        }
++        assert(cap < 2 ? total == 0 : total == 2);   // the window line of frame 300 and the dip
++    }
++#undef SAMPLE
++}
++int main(void) {
++    t_rows(); t_luma(); t_rule(); t_context(); t_lines();
++    puts("t_rb_dark_probe: ok");
++    return 0;
++}

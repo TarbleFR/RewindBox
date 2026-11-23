@@ -1,0 +1,335 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 9692faa..75977d1 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -4139,6 +4139,14 @@ static _Atomic int g_game_itv = 1;   // when pacing by the game's interval, the
+ // RewindBox (patch 0319): the interval of the game's last present, for nvn_mtl.m's no-lock guard (rb_drs_escape_step); any thread
+ int nvn_rb_game_interval(void);
+ int nvn_rb_game_interval(void) { return atomic_load(&g_game_itv); }
++// RewindBox (patch 0327): the presents in a row the game has sent at interval 2 (0 while its last one went at another interval), for the same guard. IPA 827, first
++//   session: 445 of the game's 487 stays at interval 2 lasted one present; each began an escape and the next one counted a failure, so the guard rested about 4,350 of
++//   6,848 frames and both stays of 83 and 85 frames began in a rest. nvn_mtl.m shows the guard interval 1 until this count reaches RB_DRS_ESCAPE_ARM (rb_drs_guard_itv,
++//   rb_adaptive_drs.h); counted once a present where its interval is read, on the presenting thread; any thread reads it. S2A_RB_DRS_FIX_BLIP=0 (nvn_mtl.m): not looked at
++#include "rb_adaptive_drs.h"
++static _Atomic unsigned g_rb_itv2_run;
++unsigned nvn_rb_itv2_presents(void);
++unsigned nvn_rb_itv2_presents(void) { return atomic_load_explicit(&g_rb_itv2_run, memory_order_relaxed); }
+ void nvn_present_config(int hz, int display_mode) { g_hz = hz; g_display_mode = display_mode; }
+ static _Atomic uint64_t g_itv2_since;   // start of the game's current run of intervals >= 2 (now_ns; 0 = it is 1 now)
+ // The frame rate the game itself asks for: 30 in game mode when the present interval has been >= 2 for a full second (the display link follows at 30 Hz, nvn_be_fps_target), otherwise 60; back to 60 at once when the interval returns to 1. Intervals of 3 or more (20 fps or less) have no matching display-link mode and run at 30.
+@@ -4445,6 +4453,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+                     (unsigned long long)state->filtered_frames, (unsigned long long)state->sustained_runs);
+         }
+         o->ticket[idx] = nvn_be_present_with_hold(CTX(o->tex[idx]), rb_sent_period / 1e9, crop, hold / 1e9);
++        atomic_store_explicit(&g_rb_itv2_run, rb_drs_itv_run(atomic_load_explicit(&g_rb_itv2_run, memory_order_relaxed), rb_sent_interval), memory_order_relaxed);   // RewindBox (patch 0327): one more present at interval 2, or none in a row
+     }
+     rb_present_samples *samples = &((rb_present_history *)o)->samples;
+     samples->tickets[o->presents % RB_PRESENT_HISTORY] = rb_sent ? o->ticket[idx] : 0;
+@@ -6207,6 +6216,7 @@ int dm_nvn_shutdown_session(void) {
+     g_rt_comp_ms = g_rt_period_ms = 0;
+     atomic_store(&g_rb_interval_debounce, 0);
+     g_frame = 0; g_hz = -1; g_display_mode = 0; g_game_itv = 1;
++    atomic_store(&g_rb_itv2_run, 0);   // RewindBox (patch 0327)
+     g_display_run = g_display_max_run = g_display_run2 = g_display_run3 = g_display_run5 = g_display_missed_slots = 0;
+     g_display_covered_s = 0;
+     g_display_gpu_known = g_display_gpu_early_late = g_display_trace_lines = 0;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index c35210a..1c1b25a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3083,19 +3083,61 @@ __attribute__((weak)) uint64_t nvn_rb_interval_changes(void) { return 0; }
+ __attribute__((weak)) int nvn_rb_video_paced(void);
+ static int fps_override(void);
+ static rb_drs_trial g_rb_drs_trial;   // g_rb_floor_lock
++// RewindBox (patch 0327): three corrections of the no-lock guard of patch 0319, each with its own switch (rb_adaptive_drs.h has the IPA 827 measurements): (a) the guard
++//   is shown the scene of a whole frame, not what the frame has drawn at its first report (the 64x64 probe: scene_px=4096 in 39 of 54 escape lines); (b) a trial of patch
++//   0309 that has lasted an escape's 12 frames ends once that scene has grown by more than a hundredth (13 steps of 4 pixels in the 28 frames of one IPA 825 trial);
++//   (c) the guard is shown interval 1 until the game has sent two presents in a row at interval 2 (445 of 487 stays lasted one present and rested the guard about 64 %
++//   of the first session). Read by the completion handlers, only where the guard is on (S2A_RB_DRS_NO_LOCK=1): the same value whoever reads it first.
++//   S2A_RB_DRS_FIX_SCENE=0, S2A_RB_DRS_FIX_TRIAL=0, S2A_RB_DRS_FIX_BLIP=0: each as before
++static int rb_drs_guard_on(void);
++static int rb_drs_fix_scene_on(void) {
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("S2A_RB_DRS_FIX_SCENE"); v = !(e && !strcmp(e, "0"));
++        MLOG("[rb-guest-drs] guard fix a %s (S2A_RB_DRS_FIX_SCENE; patch 0327): the scene the guard compares is %s", v ? "on" : "off", v ? "the last whole frame's" : "the frame's own so far, as before"); }
++    return v;
++}
++static int rb_drs_fix_trial_on(void) {
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("S2A_RB_DRS_FIX_TRIAL"); v = !(e && !strcmp(e, "0"));
++        MLOG("[rb-guest-drs] guard fix b %s (S2A_RB_DRS_FIX_TRIAL; patch 0327): a trial %s (%d frames; the first %d whatever the scene)", v ? "on" : "off",
++             v ? "ends once the scene is more than a hundredth larger than at its first frame" : "lasts its frames whatever the scene, as before", RB_DRS_TRIAL_FRAMES, RB_DRS_TRIAL_RAMP_AFTER); }
++    return v;
++}
++static int rb_drs_fix_blip_on(void) {
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("S2A_RB_DRS_FIX_BLIP"); v = !(e && !strcmp(e, "0"));
++        MLOG("[rb-guest-drs] guard fix c %s (S2A_RB_DRS_FIX_BLIP; patch 0327): the guard sees interval 2 %s", v ? "on" : "off", v ? "from the game's second present in a row there" : "as soon as the game asks for it, as before"); }
++    return v;
++}
++// hle_nvn.c provides the presents in a row the game has sent at interval 2; without it the guard sees the interval as it is
++__attribute__((weak)) unsigned nvn_rb_itv2_presents(void) { return RB_DRS_ESCAPE_ARM; }
++static uint64_t rb_drs_scene_seen(uint64_t f) {   // the scene of the last whole frame before f (its replay is over when a report of f completes); 0 = not known
++    return rb_drs_scene_pick(f >= 1 ? rb_drs_scene_px(f - 1) : 0, f >= 2 ? rb_drs_scene_px(f - 2) : 0);
++}
++static rb_drs_trial_ramp g_rb_drs_trial_ramp;   // g_rb_floor_lock
++static rb_drs_blip g_rb_drs_blip;   // g_rb_floor_lock
+ static int rb_drs_trial_now(uint64_t f, int fps) {
+     int allowed = atomic_load_explicit(&g_drs_state, memory_order_relaxed) < 3 && fps_override() <= 0 &&
+                   nvn_fps_limit() != 30 && !nvn_rb_video_paced();
+     uint64_t changes = nvn_rb_interval_changes();
++    const int stop_on = rb_drs_guard_on() && rb_drs_fix_trial_on();   // RewindBox (patch 0327): fix (b), under the guard only (rb_drs_trial_ramp_step)
++    const uint64_t seen_px = stop_on ? rb_drs_scene_seen(f) : 0;
+     os_unfair_lock_lock(&g_rb_floor_lock);
+     uint64_t trials = g_rb_drs_trial.trials;
+     int on = rb_drs_trial_step(&g_rb_drs_trial, f, fps, changes, allowed);
++    const uint64_t stops = g_rb_drs_trial_ramp.stops;
++    if (stop_on) on = rb_drs_trial_ramp_step(&g_rb_drs_trial, &g_rb_drs_trial_ramp, f, on, seen_px);   // RewindBox (patch 0327)
++    const rb_drs_trial_ramp ramp = g_rb_drs_trial_ramp;
+     rb_drs_trial tr = g_rb_drs_trial;
+     os_unfair_lock_unlock(&g_rb_floor_lock);
+     if (tr.trials != trials && (tr.trials <= 8 || !(tr.trials & (tr.trials - 1))))
+         MLOG("[rb-guest-drs] trial frame=%llu frames=%d waited=%llu trials=%llu kept=%llu",
+              (unsigned long long)f, RB_DRS_TRIAL_FRAMES, (unsigned long long)tr.wait,
+              (unsigned long long)tr.trials, (unsigned long long)tr.kept);
++    if (ramp.stops != stops && (ramp.stops <= 8 || !(ramp.stops & (ramp.stops - 1))))   // RewindBox (patch 0327)
++        MLOG("[rb-guest-drs] trial stopped frame=%llu start_px=%llu scene_px=%llu stops=%llu trials=%llu fps=%d",
++             (unsigned long long)f, (unsigned long long)ramp.start_px, (unsigned long long)seen_px,
++             (unsigned long long)ramp.stops, (unsigned long long)tr.trials, fps);
+     return on;
+ }
+ // RewindBox (patch 0319): the no-lock guard for a game that alternates intervals 1 and 2 (rb_adaptive_drs.h, rb_drs_escape_step). The bridge sets
+@@ -3125,16 +3167,24 @@ static int rb_drs_escape_now(uint64_t f) {
+     int allowed = atomic_load_explicit(&g_drs_state, memory_order_relaxed) < 3 && fps_override() <= 0 &&
+                   nvn_fps_limit() != 30 && !nvn_rb_video_paced();
+     int itv = nvn_rb_game_interval();
++    const int itv_game = itv;   // RewindBox (patch 0327): fix (c), a one-frame request for interval 2 is not shown to the guard (rb_drs_guard_itv)
++    if (rb_drs_fix_blip_on()) itv = rb_drs_guard_itv(itv, nvn_rb_itv2_presents());
+     uint64_t px = rb_drs_scene_px(f);
++    if (rb_drs_fix_scene_on()) px = rb_drs_scene_seen(f);   // RewindBox (patch 0327): fix (a), the scene of the last whole frame
+     os_unfair_lock_lock(&g_rb_floor_lock);
+     uint64_t escapes = g_rb_drs_escape.escapes, rests = g_rb_drs_escape.rests;
+     int on = rb_drs_escape_step(&g_rb_drs_escape, f, itv, px, allowed);
++    const uint64_t hidden = rb_drs_blip_note(&g_rb_drs_blip, f, itv_game, itv);   // RewindBox (patch 0327)
+     rb_drs_escape e = g_rb_drs_escape;
+     os_unfair_lock_unlock(&g_rb_floor_lock);
+     if ((e.escapes != escapes && (e.escapes <= 8 || !(e.escapes & (e.escapes - 1)))) || e.rests != rests)
+         MLOG("[rb-guest-drs] escape frame=%llu escapes=%llu returns=%llu fails=%llu ramps=%llu rests=%llu rest=%llu scene_px=%llu",
+              (unsigned long long)f, (unsigned long long)e.escapes, (unsigned long long)e.returns, (unsigned long long)e.fails,
+              (unsigned long long)e.ramps, (unsigned long long)e.rests, (unsigned long long)e.rest, (unsigned long long)px);
++    if (hidden && (hidden <= 2 || !(hidden & (hidden - 1))))   // RewindBox (patch 0327): fix (c), the frames at interval 2 the guard was not shown, with where the guard stands
++        MLOG("[rb-guest-drs] one-frame filter frame=%llu hidden_frames=%llu presents_at_2=%u escapes=%llu returns=%llu fails=%llu rests=%llu rest=%llu",
++             (unsigned long long)f, (unsigned long long)hidden, nvn_rb_itv2_presents(), (unsigned long long)e.escapes, (unsigned long long)e.returns,
++             (unsigned long long)e.fails, (unsigned long long)e.rests, (unsigned long long)e.rest);
+     return on;
+ }
+ // A report past the frame's hold (or push): the frame's own time, except under the guard at 60 fps while fewer than RB_DRS_SPIKE_RUN frames in a row went past the 60 fps hold
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index f6445b5..5fa2c79 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -345,6 +345,7 @@ int nvn_be_shutdown_session(void) {
+     for (unsigned i = 0; i < DRS_N; ++i) atomic_store(&g_rb_scene_px[i], 0);
+     g_rb_drs_floor = (rb_drs_floor){0};
+     g_rb_drs_trial = (rb_drs_trial){0};
++    g_rb_drs_trial_ramp = (rb_drs_trial_ramp){0}; g_rb_drs_blip = (rb_drs_blip){0};   // RewindBox (patch 0327): with the trial they count from
+     g_link_applied = 0; g_link_hold_until = g_link_vperiod = g_link_vhalf = 0;
+     g_rb_display_cadence = (rb_cadence_candidate){0};
+     g_link_pending = 0; g_link_pending_since = g_link_pending_period = 0;
+diff --git a/graphics/nvn/gfx/nvn/rb_adaptive_drs.h b/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
+index 9daf484..a38fc7c 100644
+--- a/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
++++ b/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
+@@ -268,3 +268,59 @@ static inline int rb_drs_escape_step(rb_drs_escape *s, uint64_t frame, int itv,
+     s->until = frame + 1 + RB_DRS_ESCAPE_FRAMES; s->start_px = pixels; ++s->escapes;
+     return s->decision = 1;
+ }
++// RewindBox (patch 0327): three corrections of the no-lock guard above, from the two IPA 827 sessions (Mario Kart World, iPhone 16 Pro Max at Fair). Nothing of patch 0319
++// changes: its callers hand rb_drs_escape_step another scene size and another interval, and end a trial of patch 0309 early. Each has a switch of its own, on by default.
++//   (a) The scene of a whole frame. rb_drs_escape_step decides at a frame's first report, when the replaying thread has opened only the frame's first pass with a depth
++//       buffer, the game's 64x64 environment probe: 39 of the 54 "escape" lines said scene_px=4096 and 5 said 0. "The scene grows" compared those 4,096 pixels with the
++//       873,600 of a later frame read later in its replay (ramps=2 and ramps=1 with no growth at all, each a rest at once), and from one probe to the next it saw no growth.
++//       rb_drs_scene_pick: the scene of the frame before, else of the one before that. S2A_RB_DRS_FIX_SCENE=0: the frame's own scene so far, as before.
++//   (b) A trial ends when the scene has grown. A game at interval 2 that reads the 60 fps hold takes it for half its budget and grows its scene by 4 to 8 pixels a frame
++//       until it is back at interval 1: IPA 825 went from 1248x700 to 1300x728 in the 28 frames of one trial (13 steps, each remaking 17 to 28 shared textures, and a
++//       race's black flashes follow such steps), the first IPA 827 session from 1248x700 to 1264x708 around the trial of frame 3954. Both trials of that session were
++//       answered within 5 frames (frames 3954 and 6654, the game back at interval 1 at 3959 and 6659), the escapes of short stays in 3 to 5.
++//       rb_drs_trial_ramp_step therefore leaves a trial the RB_DRS_TRIAL_RAMP_AFTER frames of an escape whatever the scene, so that no trial the game would have answered is lost (a trial is the only way out of a 30 fps lock while the escapes rest), and ends it from
++//       then on once the scene of a whole frame is more than a hundredth larger than at the trial's first frame, the rule of the escapes: an unanswered trial stops growing
++//       the scene at its 12th frame instead of its 30th, and an answered one stops capping the reports of a game that is back at interval 1 with a larger scene. Under the
++//       guard only. The trial's doubled wait applies as after any trial the game did not answer. S2A_RB_DRS_FIX_TRIAL=0: RB_DRS_TRIAL_FRAMES frames whatever the scene.
++//   (c) One-frame requests. 445 of the 487 stays at interval 2 of the first session lasted one present (318 of 379 in the second): the game was back at 1 before a report
++//       of that frame could have brought it back. Each began an escape, and the next request six to eight frames later counted "back at 2 before it settled": 50 of 51
++//       escapes failed, 17 rests a session, rest=360 from frame 1183 on, the guard resting about 4,350 of 6,848 frames. The two real stays of 83 and 85 frames (from
++//       frames 3876 and 6574) began in a rest, and the engine's target went to 30 with the hold at 33.2 ms for 60 frames each, until a trial. rb_drs_guard_itv shows the
++//       guard interval 1 until RB_DRS_ESCAPE_ARM presents in a row were sent at interval 2 (rb_drs_itv_run): a one-frame request starts nothing, counts no failure and
++//       breaks no settle; a stay is escaped from its second present, long before the second at interval 2 after which the engine's target follows it to 30.
++//       S2A_RB_DRS_FIX_BLIP=0: the game's interval as it is, as before.
++// (a) before1, before2: the scenes of the frames one and two before the frame the reports belong to (0 = not known).
++static inline uint64_t rb_drs_scene_pick(uint64_t before1, uint64_t before2) {
++    return before1 ? before1 : before2;
++}
++// (b) trial: the trial (rb_drs_trial.trials) start_px was taken in; stops: the trials the growth ended.
++enum { RB_DRS_TRIAL_RAMP_AFTER = RB_DRS_ESCAPE_FRAMES };
++typedef struct { uint64_t trial, start_px, stops; } rb_drs_trial_ramp;
++// The trial's answer for a report of `frame` after the growth stop. on: rb_drs_trial_step's answer for it. pixels: the scene of the last whole frame (0 = not known; a
++// trial whose first frame did not know it starts from the first frame that does). A stop ends the trial for rb_drs_trial_step too: no frame is before `until` from here
++// on, and this frame's other reports read its stored answer.
++static inline int rb_drs_trial_ramp_step(rb_drs_trial *s, rb_drs_trial_ramp *r, uint64_t frame, int on, uint64_t pixels) {
++    if (!on) return 0;
++    if (r->trial != s->trials) { r->trial = s->trials; r->start_px = pixels; return 1; }
++    if (!r->start_px) { r->start_px = pixels; return 1; }
++    if (frame + RB_DRS_TRIAL_FRAMES < s->until + RB_DRS_TRIAL_RAMP_AFTER) return 1;   // its first RB_DRS_TRIAL_RAMP_AFTER frames (until: the first frame + RB_DRS_TRIAL_FRAMES)
++    if (!pixels || pixels * 100 <= r->start_px * 101) return 1;
++    s->until = frame; s->decision = 0; ++r->stops;
++    return 0;
++}
++// (c) run: the presents in a row the game has sent at interval 2 so far (0 while its last one was sent at another interval).
++enum { RB_DRS_ESCAPE_ARM = 2 };
++static inline unsigned rb_drs_itv_run(unsigned run, int interval) {
++    return interval == 2 ? (run < 0xffffu ? run + 1 : run) : 0;
++}
++// The interval rb_drs_escape_step is shown: 1 for a game at interval 2 that has not yet sent RB_DRS_ESCAPE_ARM presents in a row there.
++static inline int rb_drs_guard_itv(int itv, unsigned run) {
++    return itv == 2 && run < RB_DRS_ESCAPE_ARM ? 1 : itv;
++}
++// The frames whose reports found the game at interval 2 and showed the guard 1. seen: a frame + 1. Returns the count when `frame` is a new one, else 0.
++typedef struct { uint64_t seen, frames; } rb_drs_blip;
++static inline uint64_t rb_drs_blip_note(rb_drs_blip *b, uint64_t frame, int itv_game, int itv_guard) {
++    if (itv_game == itv_guard || b->seen == frame + 1) return 0;
++    b->seen = frame + 1;
++    return ++b->frames;
++}
+diff --git a/graphics/nvn/tests/t_rb_adaptive_drs.c b/graphics/nvn/tests/t_rb_adaptive_drs.c
+index cd56229..36a241e 100644
+--- a/graphics/nvn/tests/t_rb_adaptive_drs.c
++++ b/graphics/nvn/tests/t_rb_adaptive_drs.c
+@@ -207,4 +207,128 @@ int main(void) {
+     puts("PASS guest DRS floor learning: no floor from a scene that never shrinks, doubled waits, floor from a push that shrank the scene");
+     puts("PASS guest DRS floor: unknown size, one count a frame, stall at the smallest size, rest at the floor, retry above it");
+     puts("PASS guest DRS: measured medians/tails, hold at Fair, 18.675/20.5 ms steps, Serious push, disjoint samples, invalid windows, hysteresis, 30 Hz and off");
++    // RewindBox (patch 0327), fix (a): the scene of a whole frame. The frame before, else the one before it, else unknown.
++    assert(rb_drs_scene_pick(873600, 2073600) == 873600 && rb_drs_scene_pick(0, 870000) == 870000 && rb_drs_scene_pick(0, 0) == 0);
++    {
++        // What patch 0319 was shown (IPA 827): 4,096 pixels at an escape's first report (the 64x64 probe), the frame's real scene at a later frame's later report.
++        // That is a ramp and a rest at once, with a scene that never changed size.
++        rb_drs_escape seen = {0};
++        uint64_t n = 100;
++        assert(rb_drs_escape_step(&seen, n, 2, 4096, 1) && seen.start_px == 4096);
++        assert(!rb_drs_escape_step(&seen, ++n, 2, 873600, 1) && seen.ramps == 1 && seen.rests == 1 && seen.next_at == n + RB_DRS_ESCAPE_REST);
++        // From one probe to the next it saw no growth: the escape ran its RB_DRS_ESCAPE_FRAMES frames while the scene went from 1248x700 to 1300x728.
++        rb_drs_escape blind = {0};
++        n = 100;
++        for (int i = 0; i < RB_DRS_ESCAPE_FRAMES; ++i) assert(rb_drs_escape_step(&blind, n++, 2, 4096, 1));
++        assert(!rb_drs_escape_step(&blind, n, 2, 4096, 1) && !blind.ramps && blind.fails == 1);
++        // Shown whole frames: the same size is no ramp, and one step of four pixels (1252x702, six thousandths more) is none either; the second (1256x704) ends the escape.
++        rb_drs_escape whole = {0};
++        n = 100;
++        assert(rb_drs_escape_step(&whole, n, 2, rb_drs_scene_pick(873600, 873600), 1) && whole.start_px == 873600);
++        assert(rb_drs_escape_step(&whole, ++n, 2, rb_drs_scene_pick(873600, 873600), 1));
++        assert(rb_drs_escape_step(&whole, ++n, 2, rb_drs_scene_pick(1252 * 702, 873600), 1) && !whole.ramps);
++        assert(rb_drs_escape_step(&whole, ++n, 2, rb_drs_scene_pick(0, 1252 * 702), 1));   // the frame before not known yet: the one before it
++        assert(!rb_drs_escape_step(&whole, ++n, 2, rb_drs_scene_pick(1256 * 704, 1252 * 702), 1) && whole.ramps == 1 && whole.rests == 1);
++    }
++    puts("PASS guest DRS guard fix a: the scene of the frame before or the one before it; no ramp from the 64x64 probe, a real one ends the escape at its second step");
++    // Fix (b): a trial has the frames of an escape whatever the scene; from then on it ends once the scene of a whole frame is more than a hundredth larger than at its first frame.
++    {
++        rb_drs_trial t2 = {0};
++        rb_drs_trial_ramp ramp = {0};
++        uint64_t k = 1000, c2 = 0;
++        for (int i = 0; i < 300; ++i) assert(!rb_drs_trial_ramp_step(&t2, &ramp, k, rb_drs_trial_step(&t2, k, 60, c2 += i % 2, 1), 873600) && ++k);   // alternating at 60: no trial, nothing kept
++        assert(t2.adaptive && !ramp.trial && !ramp.start_px && !ramp.stops);
++        assert(!rb_drs_trial_step(&t2, k, 30, c2, 1));   // the lock begins
++        for (++k; k < t2.next_at; ++k) assert(!rb_drs_trial_ramp_step(&t2, &ramp, k, rb_drs_trial_step(&t2, k, 30, c2, 1), 873600));
++        // The trial's first frame keeps its scene; every report of a frame gets the same answer.
++        assert(rb_drs_trial_ramp_step(&t2, &ramp, k, rb_drs_trial_step(&t2, k, 30, c2, 1), 873600) && t2.trials == 1 && ramp.trial == 1 && ramp.start_px == 873600);
++        assert(rb_drs_trial_ramp_step(&t2, &ramp, k, rb_drs_trial_step(&t2, k, 30, c2, 1), 873600));
++        const uint64_t first = k, until = t2.until;
++        assert(until == k + RB_DRS_TRIAL_FRAMES && (int)RB_DRS_TRIAL_RAMP_AFTER == (int)RB_DRS_ESCAPE_FRAMES && (int)RB_DRS_TRIAL_RAMP_AFTER < (int)RB_DRS_TRIAL_FRAMES);
++        // The frames of an escape: the game's answer is waited for whatever the scene does (IPA 827: both trials answered after 5 frames, the scene a few steps larger).
++        for (++k; k < first + RB_DRS_TRIAL_RAMP_AFTER; ++k)
++            assert(rb_drs_trial_ramp_step(&t2, &ramp, k, rb_drs_trial_step(&t2, k, 30, c2, 1), (1248 + 4 * (k - first)) * (700 + 2 * (k - first))) && t2.until == until);
++        // From then on: a frame whose scene is not known never ends it, nor does one step of four pixels (six thousandths more).
++        assert(rb_drs_trial_ramp_step(&t2, &ramp, k, rb_drs_trial_step(&t2, k, 30, c2, 1), 0));
++        ++k;
++        assert(rb_drs_trial_ramp_step(&t2, &ramp, k, rb_drs_trial_step(&t2, k, 30, c2, 1), 1252 * 702) && t2.until == until && !ramp.stops);
++        ++k;
++        // A scene two steps larger (1256x704): the trial ends there, for this report, for the frame's other reports and for rb_drs_trial_step.
++        assert(!rb_drs_trial_ramp_step(&t2, &ramp, k, rb_drs_trial_step(&t2, k, 30, c2, 1), 1256 * 704) && ramp.stops == 1 && t2.until == k && k < until);
++        assert(!rb_drs_trial_step(&t2, k, 30, c2, 1) && !rb_drs_trial_ramp_step(&t2, &ramp, k, 0, 1300 * 728) && ramp.stops == 1);
++        // Still at 30: the next trial waits twice as long, as after a trial the game did not answer, and starts from the scene it finds.
++        ++k;
++        assert(!rb_drs_trial_step(&t2, k, 30, c2, 1) && t2.wait == 2 * RB_DRS_TRIAL_WAIT && t2.next_at == k + 2 * RB_DRS_TRIAL_WAIT);
++        for (++k; k < t2.next_at; ++k) assert(!rb_drs_trial_ramp_step(&t2, &ramp, k, rb_drs_trial_step(&t2, k, 30, c2, 1), 1256 * 704));
++        assert(rb_drs_trial_ramp_step(&t2, &ramp, k, rb_drs_trial_step(&t2, k, 30, c2, 1), 1256 * 704) && t2.trials == 2 && ramp.trial == 2 && ramp.start_px == 1256 * 704);
++        // A scene that keeps its size: the trial runs its RB_DRS_TRIAL_FRAMES frames, through the game's answer (a target of 60).
++        for (int i = 1; i < RB_DRS_TRIAL_FRAMES; ++i) { ++k; assert(rb_drs_trial_ramp_step(&t2, &ramp, k, rb_drs_trial_step(&t2, k, i < 6 ? 30 : 60, c2, 1), 1256 * 704)); }
++        ++k;
++        assert(!rb_drs_trial_ramp_step(&t2, &ramp, k, rb_drs_trial_step(&t2, k, 60, c2, 1), 1256 * 704) && ramp.stops == 1);
++        // A trial whose first frame did not know the scene starts from the first frame that does.
++        rb_drs_trial t3 = {0};
++        rb_drs_trial_ramp r3 = {0};
++        t3.trials = 5; t3.until = 100 + RB_DRS_TRIAL_FRAMES;
++        assert(rb_drs_trial_ramp_step(&t3, &r3, 100, 1, 0) && r3.trial == 5 && !r3.start_px);
++        assert(rb_drs_trial_ramp_step(&t3, &r3, 101, 1, 873600) && r3.start_px == 873600);
++        assert(rb_drs_trial_ramp_step(&t3, &r3, 102, 1, 884000) && rb_drs_trial_ramp_step(&t3, &r3, 99 + RB_DRS_TRIAL_RAMP_AFTER, 1, 884000));   // larger, within its first frames
++        assert(rb_drs_trial_ramp_step(&t3, &r3, 100 + RB_DRS_TRIAL_RAMP_AFTER, 1, 880000));   // past them, under a hundredth
++        assert(!rb_drs_trial_ramp_step(&t3, &r3, 101 + RB_DRS_TRIAL_RAMP_AFTER, 1, 884000) && t3.until == 101 + RB_DRS_TRIAL_RAMP_AFTER && r3.stops == 1);
++        // The ramp of IPA 825 (13 steps of 4 pixels in 28 frames, the game not answering): the trial ends after its 12th frame, the scene 5 steps larger, not 13.
++        rb_drs_trial t4 = {0};
++        rb_drs_trial_ramp r4 = {0};
++        t4.trials = 1; t4.until = 7184 + RB_DRS_TRIAL_FRAMES;
++        uint64_t last_on = 0, steps_seen = 0;
++        for (uint64_t n = 7184; n < 7184 + RB_DRS_TRIAL_FRAMES; ++n) {
++            const uint64_t steps = (n - 7184) * 13 / 28;
++            if (!rb_drs_trial_ramp_step(&t4, &r4, n, n < t4.until, (1248 + 4 * steps) * (700 + 2 * steps))) break;
++            last_on = n; steps_seen = steps;
++        }
++        assert(last_on == 7184 + RB_DRS_TRIAL_RAMP_AFTER - 1 && steps_seen == 5 && r4.stops == 1 && t4.until == 7184 + RB_DRS_TRIAL_RAMP_AFTER);
++    }
++    puts("PASS guest DRS guard fix b: a trial keeps an escape's 12 frames, then ends once the scene is a hundredth larger; unknown scenes never end it; the next trial waits twice as long");
++    // Fix (c): a one-frame request for interval 2 is not shown to the guard.
++    assert(rb_drs_guard_itv(2, 0) == 1 && rb_drs_guard_itv(2, 1) == 1 && rb_drs_guard_itv(2, 2) == 2 && rb_drs_guard_itv(2, 900) == 2);
++    assert(rb_drs_guard_itv(3, 1) == 3 && rb_drs_guard_itv(1, 5) == 1 && rb_drs_guard_itv(0, 0) == 0);   // 3 and more stay the game's choice
++    assert(rb_drs_itv_run(0, 2) == 1 && rb_drs_itv_run(7, 2) == 8 && rb_drs_itv_run(7, 1) == 0 && rb_drs_itv_run(7, 3) == 0 && rb_drs_itv_run(0xffff, 2) == 0xffff);
++    for (int filter = 0; filter < 2; ++filter) {
++        // The lobby of IPA 827: a one-frame request every 7 frames for 2,900 frames, then a stay at interval 2.
++        rb_drs_escape lobby = {0};
++        rb_drs_blip blip = {0};
++        unsigned run = 0;
++        uint64_t first_on = 0, hidden = 0;
++        for (uint64_t n = 0; n < 3000; ++n) {
++            const int itv = n >= 2900 || n % 7 == 6 ? 2 : 1;
++            run = rb_drs_itv_run(run, itv);   // the present comes before the frame's reports are read here
++            const int shown = filter ? rb_drs_guard_itv(itv, run) : itv;
++            const int on = rb_drs_escape_step(&lobby, n, shown, 873600, 1);
++            if (rb_drs_blip_note(&blip, n, itv, shown)) ++hidden;
++            assert(!rb_drs_blip_note(&blip, n, itv, shown));   // a frame counts once
++            if (n < 2900 && filter) assert(!on && !lobby.escapes && !lobby.fails && !lobby.rests);
++            if (n >= 2900 && on && !first_on) { first_on = n; assert(lobby.escapes == 1 && !lobby.fails); }
++        }
++        // As before: the requests rest the guard for good, and no frame of the stay's first hundred reads the 60 fps hold.
++        if (!filter) assert(lobby.rests >= 9 && lobby.rest == RB_DRS_ESCAPE_REST_MAX && !first_on && !hidden && !blip.frames);
++        // With the fix: nothing before the stay, and the stay is escaped from its second present.
++        else assert(first_on == 2901 && hidden == 2900 / 7 + 1 && blip.frames == hidden);
++    }
++    {
++        // A stay the game leaves during its escape counts a return; a one-frame request soon after is no relapse, a second stay within the settle time still is.
++        rb_drs_escape stay = {0};
++        unsigned run = 0;
++        uint64_t n = 500;
++        for (int i = 0; i < 5; ++i, ++n) { run = rb_drs_itv_run(run, 2); assert(rb_drs_escape_step(&stay, n, rb_drs_guard_itv(2, run), 873600, 1) == (i > 0)); }
++        run = rb_drs_itv_run(run, 1);
++        assert(!rb_drs_escape_step(&stay, n++, rb_drs_guard_itv(1, run), 873600, 1) && stay.returns == 1 && stay.back_at);
++        for (int i = 0; i < 6; ++i, ++n) { run = rb_drs_itv_run(run, 1); assert(!rb_drs_escape_step(&stay, n, rb_drs_guard_itv(1, run), 873600, 1)); }
++        run = rb_drs_itv_run(run, 2);
++        assert(!rb_drs_escape_step(&stay, n++, rb_drs_guard_itv(2, run), 873600, 1) && !stay.fails && stay.back_at);   // one frame at 2
++        run = rb_drs_itv_run(run, 1);
++        assert(!rb_drs_escape_step(&stay, n++, rb_drs_guard_itv(1, run), 873600, 1) && !stay.fails);
++        run = rb_drs_itv_run(run, 2);
++        assert(!rb_drs_escape_step(&stay, n++, rb_drs_guard_itv(2, run), 873600, 1) && !stay.fails);
++        run = rb_drs_itv_run(run, 2);
++        assert(rb_drs_escape_step(&stay, n++, rb_drs_guard_itv(2, run), 873600, 1) && stay.fails == 1 && stay.fail_run == 1 && stay.escapes == 2);   // a stay again: a relapse, escaped at once
++    }
++    puts("PASS guest DRS guard fix c: one-frame requests start no escape and count no failure, a stay is escaped from its second present, relapses still count");
+ }

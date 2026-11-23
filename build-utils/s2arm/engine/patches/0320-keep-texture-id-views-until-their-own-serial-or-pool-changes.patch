@@ -1,0 +1,1039 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 98351e0..be2d078 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3341,6 +3341,7 @@ __attribute__((weak)) void dm_thread_lv_stats(uint64_t out[2][2][2]) { memset(ou
+ __attribute__((weak)) void dm_rb_rt_stats(int st[2], int pri[2]) { st[0] = st[1] = pri[0] = pri[1] = 0; }   // RewindBox (patch 0073): nvn_rec.h, the encode / uniform copy threads' policy
+ __attribute__((weak)) void nvn_be_race_costs(uint64_t v[4]) { memset(v,0,4*sizeof *v); }
+ __attribute__((weak)) void nvn_be_rb73_stats(uint64_t v[10]) { memset(v, 0, 10 * sizeof *v); }   // RewindBox (patch 0073): nvn_mtl.m, the encoding counts
++__attribute__((weak)) void nvn_be_view_scope_stats(uint64_t v[21]) { memset(v, 0, 21 * sizeof *v); }   // RewindBox (patch 0320): nvn_mtl.m, the texture-ID view counts (0 without the Metal back end)
+ __attribute__((weak)) void dm_yield_top(char *out, size_t n) { if (n) snprintf(out, n, "-"); }   // hle_thread.c: the threads that yielded most since the last call; none in graphics unit tests
+ __attribute__((weak)) void dm_thread_cpu(char *out, size_t n, double secs) { (void)secs; if (n) snprintf(out, n, "-"); }   // hle_thread.c: guest-thread CPU by Switch priority band since the last call
+ void nvn_be_res_stats(char *out, size_t n);
+@@ -3837,6 +3838,23 @@ static void tsummary(uint64_t frame) {
+           frame,(unsigned long long)(counts[0]-previous[0]),(unsigned long long)(counts[1]-previous[1]),
+           (unsigned long long)(counts[2]-previous[2]),(unsigned long long)(counts[3]-previous[3]));
+       memcpy(previous, counts, sizeof previous); }
++    // RewindBox (patch 0320): why texture-ID views were resolved again, beside the two lines that count them ("race cost" above, the patch 0073 line below). IPA 827
++    //   (Mario Kart World, iPhone A18 Pro, races): 700 to 1,570 resolved again a frame, 99.9 to 100% of them to the texture the view had, and no line said which
++    //   move sent them there. Per 300-frame window: the views the patch kept where patch 0319 resolved again, by what had moved; the resolutions of an existing view by
++    //   cause (their sum is the 0073 line's "resolved again" times the frames; 0 with the switch off); the serial tables' moves by class; texture Finalizes and the
++    //   tex_put calls that are not additions (counted with the switch off too, to compare). S2A_RB_VIEW_SCOPE=0: as before, with this line saying so
++    { static uint64_t previous[19]; uint64_t counts[21], d[19]; nvn_be_view_scope_stats(counts);
++      for (int i = 0; i < 19; i++) d[i] = counts[i] - previous[i];
++      LOG("[nvn] RewindBox (patch 0320) texture-ID views up to frame %llu: kept where patch 0319 resolved again %llu (tables unmoved %llu, across additions %llu, across other serials' moves %llu; %llu of them by their pool's write count); "
++          "resolved again for an unclassified table move %llu, a move in their serial's bucket %llu, their pool written %llu, no write count %llu, a block-compressed alias %llu, a finalized object %llu, "
++          "a view made off the submit thread %llu, a virtual or finalized pool %llu, placement sparse %llu, other %llu; table moves %llu (additions %llu, noted for a serial %llu, unclassified %llu); "
++          "texture Finalizes %llu, tex_put over a held or finalized serial %llu; "
++          "S2A_RB_VIEW_SCOPE %s, S2A_RB_VIEW_RANGE %s",
++          (unsigned long long)frame, (unsigned long long)(d[0] + d[1] + d[2]), (unsigned long long)d[0], (unsigned long long)d[1], (unsigned long long)d[2], (unsigned long long)d[3],
++          (unsigned long long)d[4], (unsigned long long)d[5], (unsigned long long)d[6], (unsigned long long)d[7], (unsigned long long)d[8], (unsigned long long)d[9],
++          (unsigned long long)d[10], (unsigned long long)d[11], (unsigned long long)d[12], (unsigned long long)d[13], (unsigned long long)d[14], (unsigned long long)d[15], (unsigned long long)d[16],
++          (unsigned long long)(d[14] - d[15] - d[16]), (unsigned long long)d[17], (unsigned long long)d[18], counts[19] ? "on" : "off", counts[20] ? "on" : "off");
++      memcpy(previous, counts, sizeof previous); }
+     power_line(frame);
+     { static uint64_t prev[4], pf; uint64_t v[4]; nvn_be_vbuf_stats(&v[0], &v[1], &v[2], &v[3]);
+       if (pf && frame > pf) { double nf = (double)(frame - pf);
+diff --git a/graphics/nvn/gfx/nvn/nvn_dirty.c b/graphics/nvn/gfx/nvn/nvn_dirty.c
+index 06764fa..958a507 100644
+--- a/graphics/nvn/gfx/nvn/nvn_dirty.c
++++ b/graphics/nvn/gfx/nvn/nvn_dirty.c
+@@ -60,7 +60,8 @@ enum { BLK_SHIFT = 10, BLK = 1 << BLK_SHIFT, NBLK = 256, MAX_RANGE = BLK * NBLK
+ // (Previously the first range containing the address was always taken: two SMBW ASTC 6x5 textures whose pool's first page is shared with a small preceding pool were judged untracked and re-uploaded on every use, about 6 MB per frame)
+ // RewindBox (patch 0025): sparse: per page, protected for a placement sparse tile (nvn_dirty_protect_sparse; seedds/nxnative 1d4b8e82, dm/gfx/nvn/nvn_dirty.c:31 at 0c078130, MIT,
+ //   Copyright (c) 2026 seedds). ovl (S2Arm adaptation): the pool overlaps another live one past the host page adjacent pools share, so find_span never answers it from its cache
+-typedef struct { uintptr_t base, end, mem; _Atomic uint8_t *state; _Atomic uint64_t *gen; _Atomic(_Atomic uint8_t *) sparse; size_t cap; _Atomic int live; _Atomic uint8_t ovl; } range_t;
++typedef struct { uintptr_t base, end, mem; _Atomic uint8_t *state; _Atomic uint64_t *gen; _Atomic(_Atomic uint8_t *) sparse; size_t cap; _Atomic int live; _Atomic uint8_t ovl;
++                 _Atomic uint64_t wseq; _Atomic uint32_t wbusy; } range_t;   // RewindBox (patch 0320): wseq / wbusy, the range's write count (rb_wseq_open)
+ static _Atomic(range_t *) g_blk[NBLK];
+ static inline range_t *rg(int i) { return &atomic_load_explicit(&g_blk[i >> BLK_SHIFT], memory_order_acquire)[i & (BLK - 1)]; }
+ static _Atomic int g_nr;
+@@ -291,6 +292,19 @@ static uintptr_t chunk_last_page(range_t *r, uintptr_t p) {
+ //   and in nvn_dirty_replace_range, which counts every page as rewritten. A failed mprotect keeps the mark (see nvn_dirty_sparse_writes). Atomics only: the fault path calls it
+ static _Atomic uint64_t g_sparse_writes;   // writes to pages protected for a placement sparse tile (nvn_dirty_sparse_writes)
+ static void sparse_note(range_t *r, uintptr_t p) { _Atomic uint8_t *sp = atomic_load(&r->sparse); if (sp && atomic_exchange(&sp[p], 0)) atomic_fetch_add(&g_sparse_writes, 1); }
++// RewindBox (patch 0320): a write count per range (a pool), beside the page generations. IPA 827 (Mario Kart World, iPhone A18 Pro, races): the game writes a protected page
++//   about once a frame (+332 / +316 / +312 write faults in the 300-frame windows 1200-1800), each write moves the one global generation (g_now), and every CPU-written texture
++//   ID then resolves again once a check period: 981 to 1,005 resolutions a frame, 99.9% of them finding the same texture (nvn_mtl.m tex_by_id, "same base"). The count lets a
++//   reader tell "a page somewhere was written" from "a page of this pool was": every store to a range's page generations (an unprotect: write fault, host pre-write, pool
++//   removal; nvn_dirty_replace_range) happens between rb_wseq_open, taken before its pages can be written, and rb_wseq_close, which gives the range a value of one sequence
++//   that is never reused nor reset. A reader takes wbusy, then wseq, BEFORE it looks at the range's pages; later, wbusy 0 and the same wseq mean that no generation of the
++//   range was stored in between (nvn_dirty_range_writes; t_rb_dirty_range.c). A counter, not a flag: two unprotects of one range overlap. Atomics only: the fault path
++//   calls these. Decided once, under g_slot_mu, by the first nvn_dirty_add_range (no range, so no unprotect, exists before it; getenv never runs in the fault handler).
++//   S2A_RB_VIEW_SCOPE=0 or S2A_RB_VIEW_RANGE=0: as before, nothing is counted and nvn_dirty_range_writes answers 0
++static _Atomic uint64_t g_wseq;
++static _Atomic int g_wseq_on = -1;   // -1 undecided (nothing counted, readers get 0), 0 off, 1 on
++static inline int rb_wseq_open(range_t *r) { if (atomic_load_explicit(&g_wseq_on, memory_order_relaxed) <= 0) return 0; atomic_fetch_add(&r->wbusy, 1); return 1; }
++static inline void rb_wseq_close(range_t *r, int open) { if (!open) return; atomic_store(&r->wseq, atomic_fetch_add(&g_wseq, 1) + 1); atomic_fetch_sub(&r->wbusy, 1); }
+ static int unprotect_span_pages(range_t *r, uintptr_t first, uintptr_t last) {
+     for (uintptr_t k = first; k <= last; ) {
+         uint8_t st = atomic_load(&r->state[k]);
+@@ -306,6 +320,7 @@ static int unprotect_span_pages(range_t *r, uintptr_t first, uintptr_t last) {
+         }
+         k++;
+     }
++    const int counted = rb_wseq_open(r);   // RewindBox (patch 0320): before the pages can be written
+     if (mp(r->base + (first << g_shift), (last - first + 1) << g_shift, PROT_READ | PROT_WRITE) != 0) {
+         // 失败：不推进代际，按认领前状态回退，并标记跟踪不可靠（跨 VMA 的 mprotect 可能部分成功，不能假定整段未变）
+         for (uintptr_t k = first; k <= last; k++) {
+@@ -314,10 +329,12 @@ static int unprotect_span_pages(range_t *r, uintptr_t first, uintptr_t last) {
+             else if (st == PG_BUSY_WRITABLE) atomic_store(&r->state[k], PG_NONE);
+         }
+         atomic_store(&g_track_unreliable, 1);
++        rb_wseq_close(r, counted);   // RewindBox (patch 0320): a failed mprotect may have landed in part
+         return 0;
+     }
+     const uint64_t g = atomic_fetch_add(&g_now, 1) + 1;
+     for (uintptr_t k = first; k <= last; k++) { atomic_store(&r->gen[k], g); sparse_note(r, k); atomic_store(&r->state[k], PG_NONE); }   // RewindBox (patch 0025): sparse_note
++    rb_wseq_close(r, counted);   // RewindBox (patch 0320): after the generations
+     return 1;
+ }
+ // 解除 p 所在的整块。块边界以所属映射为基准（chunk_first/last_page），不越界保护相邻内存。
+@@ -464,9 +481,11 @@ int nvn_dirty_replace_range(const void *mem, size_t size) {
+     uintptr_t np = (r->end - r->base) >> g_shift;
+     // 换底后内容可能整体变了：把整段标记为“在新代际上写过”，这样任何换底前取的 stamp
+     // 比较都会得到“脏”，缓存必须重新上传。归零会让人误判成“从没写过”（测试抓到的正是这点）。
++    const int counted = rb_wseq_open(r);   // RewindBox (patch 0320)
+     const uint64_t newg = atomic_fetch_add(&g_now, 1) + 1;
+     // RewindBox (patch 0025): a placement sparse tile's page counts as rewritten too (sparse_note); it is protected again below without its mark, which the tile's next look sets
+     for (uintptr_t k = 0; k < np; k++) { atomic_store(&r->state[k], PG_NONE); atomic_store(&r->gen[k], newg); sparse_note(r, k); }
++    rb_wseq_close(r, counted);   // RewindBox (patch 0320)
+     atomic_fetch_add(&g_mapping_gen, 1);
+     for (uintptr_t k = 0; k < np; ) {
+         uintptr_t first = chunk_first_page(r, k), last = chunk_last_page(r, k);
+@@ -492,6 +511,11 @@ void nvn_dirty_add_range(const void *mem, size_t size) {
+     if (!atomic_exchange(&g_hooks_on, 1)) { dm_fault_hook_register(on_fault); dm_guest_write_prep_register(prep_write); }   // before any page of this session is protected
+     atomic_fetch_add(&g_adds_total, 1);
+     pthread_mutex_lock(&g_slot_mu);
++    if (atomic_load(&g_wseq_on) < 0) {   // RewindBox (patch 0320): decided here, before the first range exists (see rb_wseq_open)
++        const char *scope = getenv("S2A_RB_VIEW_SCOPE"), *range = getenv("S2A_RB_VIEW_RANGE"); const int on = !(scope && !strcmp(scope, "0")) && !(range && !strcmp(range, "0"));
++        atomic_store(&g_wseq_on, on);
++        LOG("RewindBox (patch 0320): dirty-page tracking: write count per pool %s (S2A_RB_VIEW_SCOPE, S2A_RB_VIEW_RANGE; 0 cuts)", on ? "on" : "off, as before");
++    }
+     atomic_fetch_add(&g_table_epoch, 1);
+     int n = atomic_load(&g_nr);
+     int slot = -1;
+@@ -549,6 +573,7 @@ void nvn_dirty_add_range(const void *mem, size_t size) {
+         ovl = 1; atomic_store(&o->ovl, 1);
+     }
+     atomic_store(&r->ovl, ovl);
++    if (atomic_load(&g_wseq_on) > 0) atomic_store(&r->wseq, atomic_fetch_add(&g_wseq, 1) + 1);   // RewindBox (patch 0320): a new value for a new pool (wbusy stays with the unprotects that hold it)
+     if (slot == n) atomic_store(&g_nr, n + 1);
+     atomic_store_explicit(&r->live, 1, memory_order_release);
+     rix_insert(slot, base, end); rix_close();   // RewindBox (patch 0074)
+@@ -674,6 +699,21 @@ int nvn_dirty_since_cached(const void **span, const void *addr, size_t len, uint
+ }
+ int nvn_dirty_since_span(const void *span, const void *addr, size_t len, uint64_t stamp) { return nvn_dirty_since_cached(&span, addr, len, stamp); }
+ int nvn_dirty_since(const void *addr, size_t len, uint64_t stamp) { return nvn_dirty_since_span(NULL, addr, len, stamp); }
++// RewindBox (patch 0320): the write count of the one range that holds [addr, addr+len), its handle kept in *span as nvn_dirty_since_cached keeps it; 0 when no count can
++//   stand for the span's pages: switched off, untracked memory, tracking unreliable, an unprotect of the range under way, a pool that overlaps another (ovl), or a span
++//   wholly inside the range's first or last host page, which an adjacent pool's range may hold too (find_span's own rule: only outside these cases is the range holding a
++//   span unique, so it is the one whose page states and generations nvn_dirty_protect and nvn_dirty_since_span use for it). Take it BEFORE the look at the span's pages:
++//   the same non-zero value later means that no page generation of the range was stored in between, so nvn_dirty_since_span answers for the span what it answered then
++uint64_t nvn_dirty_range_writes(const void **span, const void *addr, size_t len) {
++    if (!len || atomic_load_explicit(&g_wseq_on, memory_order_relaxed) <= 0) return 0;
++    range_t *r = span_slot(*span); uintptr_t a = (uintptr_t)addr;
++    if (!r || !atomic_load_explicit(&r->live, memory_order_acquire) || a < r->base || a + len > r->end) { r = find_span(a, len); *span = r; }
++    if (!r || atomic_load(&g_track_unreliable) || atomic_load(&r->ovl)) return 0;
++    if (a + len <= r->base + g_pg || a + g_pg >= r->end) return 0;   // wholly inside the first or the last host page
++    if (atomic_load(&r->wbusy)) return 0;   // read before wseq: an unprotect that began earlier either shows here or has stored its generations and its count
++    const uint64_t w = atomic_load(&r->wseq);
++    return atomic_load_explicit(&r->live, memory_order_acquire) ? w : 0;
++}
+ // The write generation of each page of [addr, addr+len) (gens[k] = page k counted from the one holding addr; 0 = not written since tracking began); returns the page count, -1 = untracked / over n
+ long nvn_dirty_page_gens(const void *span, const void *addr, size_t len, uint64_t *gens, size_t n) {
+     if (!len) return 0;
+diff --git a/graphics/nvn/gfx/nvn/nvn_dirty.h b/graphics/nvn/gfx/nvn/nvn_dirty.h
+index 97e2195..e485f0b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_dirty.h
++++ b/graphics/nvn/gfx/nvn/nvn_dirty.h
+@@ -28,6 +28,9 @@ const void *nvn_dirty_span(const void *addr, size_t len);          // The tracke
+ // RewindBox (patch 0025): ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 229fc22c (dm/gfx/nvn/nvn_dirty.h:22 at 0c078130); *span may outlive the session (it is rechecked)
+ int nvn_dirty_since_cached(const void **span, const void *addr, size_t len, uint64_t stamp);   // nvn_dirty_since keeping the last range found in *span
+ int nvn_dirty_since_span(const void *span, const void *addr, size_t len, uint64_t stamp);   // nvn_dirty_since through a kept handle (rechecked, scanned again only if it no longer holds the span)
++// RewindBox (patch 0320): the write count of the tracked range (pool) holding the span, its handle kept in *span; 0 = no count stands for the span (see nvn_dirty.c).
++//   Taken before a look at the span's pages, the same non-zero value later means nvn_dirty_since_span answers what it answered then. S2A_RB_VIEW_SCOPE=0 or S2A_RB_VIEW_RANGE=0: always 0
++uint64_t nvn_dirty_range_writes(const void **span, const void *addr, size_t len);
+ long nvn_dirty_page_gens(const void *span, const void *addr, size_t len, uint64_t *gens, size_t n);   // write generation of each page of the span (0 = never written); page count, -1 = untracked / over n
+ size_t nvn_dirty_page_size(void);                                  // Host page size the tracking works in (16 KB on Apple systems: one page can hold several 4 KB-aligned NVN resources)
+ long nvn_dirty_written_pages(const void *span, const void *addr, size_t len, uint64_t stamp, uint64_t *bits, size_t nbits);   // bit k = page k of the span written after stamp; returns the page count, -1 = untracked / over nbits
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 8bdef2a..61ac200 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4786,6 +4786,37 @@ static int rb_mem_low(void) {
+ static int txr_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_TEX_REUSE"); v = !(e && !strcmp(e, "0")); } return v; }
+ // RewindBox (patch 0071): S2A_RB_VIEW_KEEP=0 drops a taken-over texture's views at once as before, and keeps type-bridging views (tex_fit) out of the view cache (vc_get)
+ static int rb_view_keep_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_VIEW_KEEP"); v = !(e && !strcmp(e, "0")); } return v; }
++// RewindBox (patch 0320): a texture ID's view follows what concerns it. IPA 827 (Mario Kart World, iPhone A18 Pro, races at 27 to 51 fps): 700 to 1,570 texture-ID views
++//   were resolved again every frame (tex_by_id's slow path, about 40,000 instructions a draw on the submit thread in all) and 99.9 to 100% of those resolutions found the
++//   texture the view already had ("race cost": same base 294,315 / 297,178 / 301,432, replaced 1 / 3 / 30 in the windows 1200-1800): an estimated 2.3 to 8.6 M
++//   instructions a frame, 5 to 11% of the submit thread. Three things moved the two process-wide counts a view depended on, every frame: a guest write to a protected page
++//   somewhere (about one a frame, write faults +332 / +316 / +312 in those windows), textures made (patch 0073 kept only GPU textures' views across those) and textures
++//   finalized (an unclassified move: every view). Now (the rule is rb_view_scope.h, its use tex_by_id):
++//   - a texture's Finalize is noted for its serial (serial_del_kind), as a program's and a re-upload already were (patch 0163): only the IDs of that serial's bucket resolve;
++//   - a CPU-written texture's view also stands across guest writes to other pools (nvn_dirty_range_writes: its own pool's write count, taken before the look that walked
++//     its pages and found them clean), across additions, and, block-compressed, across other serials' noted moves;
++//   - all of that only for a live texture object in an ordinary pool, last resolved on the submit thread; a compressed one only while its storage is on record as
++//     resolved with no GPU write through an uncompressed texture on record over it (rb_bcal_quiet). Every other case takes the slow path as before: an unclassified
++//     move (storage takeover, eviction, upgrade, the ring of finalized textures, a lost upload), a move in the serial's own bucket, a written pool, a placement
++//     sparse view, a virtual or finalized pool, a finalized object's descriptor (its resolutions keep its shared texture looked up and its ring entry held), a view
++//     last resolved off the submit thread (tex_mtl uploads and looks at nothing there: the submit thread's next use does).
++//   S2A_RB_VIEW_SCOPE=0: as before (Finalize unclassified, patch 0319's rule, no write count). S2A_RB_VIEW_RANGE=0: only the write count per pool is cut
++#include "rb_view_scope.h"
++static int rb_view_scope_on(void) {   // any thread, under g_smu or g_rmu or neither: the same value whoever reads it first
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("S2A_RB_VIEW_SCOPE"); v = !(e && !strcmp(e, "0"));
++        MLOG("RewindBox (patch 0320): texture-ID views follow their own serial and pool: %s (S2A_RB_VIEW_SCOPE; 0 cuts)", v ? "on" : "off, as before"); }
++    return v;
++}
++static int rb_view_range_on(void) {
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("S2A_RB_VIEW_RANGE"); v = rb_view_scope_on() && !(e && !strcmp(e, "0"));
++        MLOG("RewindBox (patch 0320): CPU-written texture views kept across guest writes to other pools: %s (S2A_RB_VIEW_RANGE; 0 cuts, and S2A_RB_VIEW_SCOPE=0)", v ? "on" : "off, as before"); }
++    return v;
++}
++static uint64_t g_rb_vs_kept[RB_VS_GLOBAL + 1], g_rb_vs_kept_range, g_rb_vs_why[RB_VS_WHY_N];   // g_rmu (tex_by_id): views this patch kept by table class, those of them by their pool's write count, slow paths by cause
++static uint64_t g_rb_ser_final, g_rb_put_other;   // g_smu: texture serials a Finalize took out of the table (serial_del_kind), tex_put calls that were not an addition (a held or finalized serial)
++static _Thread_local uint64_t t_rb_vs_clean;      // the serial of the CPU-written texture tex_mtl last walked the pages of and found clean (tex_mtl_for_pass); tex_by_id zeroes it before it asks
+ enum { TXR_MAX = 256, TXR_SERS = 4, TXR_IDLE = 900 };
+ #define TXR_BYTES (192ull << 20)   // a model (the scene sizes of the 765 profiles, the 19 colour targets of a size in the frame 2976 capture) takes back 38% of them with 64 MB, 71% with 128, 88% with 192
+ // RewindBox (patch 0086): a smaller pool, let go sooner. IPA 775 (Mario Kart World, iPhone17,2, races): 160 textures came into it and 3 were taken back ("reuse up to
+@@ -5067,7 +5098,13 @@ static void serial_del_kind(uint64_t k, BOOL program) {
+     if (old) {
+         if (alias_has(old)) defer_obj_unref(old); else defer_obj_release(old);
+         hm_del_id(&g_by_serial, &k);
+-        if (program) rb_serial_local_locked(k); else g_ser_gen++;
++        // RewindBox (patch 0320): a texture's entry leaving the table (Finalize or re-initialization, nvn_be_tex_release; a stale sRGB / linear view, tex_mtl_) changes
++        //   what this serial resolves to and no other serial's: tex_get(k') reads the entry of k' alone, and the object dropped here was either this serial's own (an
++        //   NvPkg, a buffer or twin view) or a shared texture the sharing table and its other serials keep (defer_obj_unref). Noted for its serial, as a program's is:
++        //   g_ser_gen moves by one as before (pool tables, passes and programs see the same move); the IDs of this serial's bucket resolve again, the others may
++        //   keep their view (tex_by_id). IPA 827: unclassified, it sent 700 to 1,570 views a frame down the slow path. S2A_RB_VIEW_SCOPE=0: as before
++        if (program || rb_view_scope_on()) rb_serial_local_locked(k); else g_ser_gen++;
++        if (!program) g_rb_ser_final++;
+     }
+     pthread_mutex_unlock(&g_smu);
+ }
+@@ -5148,7 +5185,7 @@ static void tex_put(uint64_t k, id o) {   // serials from 2^62 up are external t
+             ghost_trim(rb_mem_low() ? NGHOST_SMALL : NGHOST, 64); }
+     }
+     int rb_add = !old && m == &g_by_serial && !hm_get_id(&g_ghost, &k) && !hm_get_id(&g_ghost_active, &k);   // RewindBox (patch 0073): a serial no table held: every other serial resolves as before
+-    hm_put_id(m, &k, o); g_ser_gen++; if (rb_add) g_rb_ser_add++;
++    hm_put_id(m, &k, o); g_ser_gen++; if (rb_add) g_rb_ser_add++; else g_rb_put_other++;   // RewindBox (patch 0320): g_rb_put_other, a count only (the texture-ID view line): a put over a held or finalized serial stays an unclassified move, after which every view resolves again; IPA 827 does not say how many of its 700 to 1,570 resolutions a frame came from these. S2A_RB_VIEW_SCOPE=0: as before
+     if (m == &g_ghost && (active || (g_cb && on_sub_thread()))) hm_put_id(&g_ghost_active, &k, o);
+     pthread_mutex_unlock(&g_smu);
+ }
+@@ -8675,6 +8712,24 @@ static bcal_e *bcal_find(uint64_t k) {   // 这段存储的记账：正向缓存
+     if ((e = nvn_hm_get(&g_bcal, &k))) atomic_store_explicit(&g_bcal_wc[h], e, memory_order_release); else atomic_store_explicit(&g_bcal_neg[h], tag, memory_order_relaxed);
+     pthread_mutex_unlock(&g_bcal_mu); return e;
+ }
++// RewindBox (patch 0320): why patch 0163 left block-compressed textures out of its kept views, and when one may be kept. Resolving a compressed texture is not only a
++//   lookup: tex_mtl runs bcal_sync, which copies into it the levels a GPU write left in an uncompressed texture over the same storage (② of the note with g_bcal), and
++//   a view kept without resolving skips that. A later such write reaches the view caches only through ③ there (bcal_note: g_ser_gen moves, unclassified, when the storage
++//   is on record as resolved, g_bcal_seen), and bcal_sync puts the storage on record only in a submission on the submit thread. So a compressed texture's view is kept across
++//   classified moves and other pools' writes only while this holds: its storage is on record as resolved and no write record exists for it. Then the first GPU write
++//   through an uncompressed texture there makes a record with seen set and moves g_ser_gen unclassified, which sends the view down the slow path, where bcal_sync runs.
++//   Returns 0 when it does not hold, else g_bcal_cgen + 1 read under g_bcal_mu: every record made and every pool dropped moves g_bcal_cgen (bcal_note,
++//   bcal_drop_pool), so the same value later means neither happened since. Caller may hold g_rmu (as bcal_sync's callers do); takes g_bcal_mu only. IPA 827: patch
++//   0163's rule, which leaves compressed formats out, kept at most 5,056 views a 300-frame window ("local view reuse") while up to 474,355 were resolved again to the
++//   same texture ("same base"), and neither log has a "taken byte for byte" line (no such copy was made in those sessions). S2A_RB_VIEW_SCOPE=0: as before, never called
++static uint64_t rb_bcal_quiet(const tex_t *t) {
++    if (!t->mem || !t->pool) return 0;
++    uint64_t k = (uint64_t)(uintptr_t)t->mem, c = 0;
++    pthread_mutex_lock(&g_bcal_mu);
++    if (nvn_hm_get(&g_bcal_seen, &k) && !nvn_hm_get(&g_bcal, &k)) c = atomic_load(&g_bcal_cgen) + 1;
++    pthread_mutex_unlock(&g_bcal_mu);
++    return c;
++}
+ // 按层「未压缩贴图 → 缓冲 → BC 贴图」：todo 里的 n 层，拷过的记进 s（g_bcal_mu 下）
+ static void bcal_copy(const tex_t *t, id<MTLTexture> dst, NvPkg *pk, const tex_t *ew, const uint64_t elg[16], const unsigned *todo, unsigned n, bcal_s *s) {
+     id<MTLTexture> src = bcal_src(ew);
+@@ -8798,6 +8853,11 @@ static id<MTLTexture> tex_mtl_for_pass(const tex_t *ct, id<MTLTexture> __strong
+             uint64_t now = nvn_dirty_now();
+             int tracked = pk->span != NULL;   // kept from the upload: a texture's pool stays registered while the texture lives
+             int clean = tracked && (now == pk->seen || !nvn_dirty_since_span(pk->span, t->mem, t->L.size, pk->stamp));
++            // RewindBox (patch 0320): this look walks the texture's page generations (a guest write happened somewhere since its last look). Only such a look, ending clean,
++            //   lets tex_by_id record the pool's write count for the view: with now == pk->seen nothing is walked, and the look before may have been an upload that could
++            //   not be made (pkg_upload nil below: the old texture stays, its pages still written). IPA 827: 981 to 1,005 texture-ID resolutions a frame in
++            //   a race with about one protected page written a frame (windows 1200-1800). S2A_RB_VIEW_SCOPE=0: as before, the mark below is not read
++            const int rb_walked = tracked && now != pk->seen;
+             if (pk->sparse) { uint64_t g = nvn_sparse_gen(); clean = (now == pk->seen && g == pk->vseen) || !nvn_sparse_since(t->pool, (uint64_t)(uintptr_t)t->mem, t->L.size, pk->vgen, pk->stamp); pk->vseen = g; }
+             pk->seen = now;
+             if (!clean && tracked && !pk->sparse && pk->ph) {   // pages written since the upload: the texture's own bytes in them decide (see NvPkg ph)
+@@ -8842,6 +8902,7 @@ static id<MTLTexture> tex_mtl_for_pass(const tex_t *ct, id<MTLTexture> __strong
+                          (unsigned long long)t->serial, t->d.width, t->d.height, t->d.format, where, (unsigned long long)k, (unsigned long long)g_rb_cmp_n, (unsigned long long)(g_rb_cmp_bytes >> 20)); } }
+             if (clean && atomic_load_explicit(&g_up_lost_n, memory_order_relaxed) && up_lost_take(pk->tex)) { clean = 0; uint64_t k = atomic_load(&g_up_lost_redo); if (k <= 3 || !atomic_load(&g_up_lost_n)) MLOG("re-uploading a texture whose upload was dropped ser=%llu (%llu in total, %d left in the record)", (unsigned long long)t->serial, (unsigned long long)k, atomic_load(&g_up_lost_n)); }
+             if (clean) {
++                if (rb_walked) t_rb_vs_clean = t->serial;   // RewindBox (patch 0320): for tex_by_id (rb_view_scope_stamp)
+                 if (dirtycheck() && !pk->sparse && full_hash(t->mem, t->L.size) != pk->hash && !g_pkg_miss++)
+                     MLOG("【红】 dirty-page miss: texture ser=%llu pool content changed but was not detected", t->serial);
+                 return pk->view ? pk->view : pk->tex;
+@@ -12103,6 +12164,7 @@ void nvn_be_prog_release(prog_t *p) { if (p->serial) serial_del_kind(p->serial,
+ typedef struct { tex_t t; int ok; view_t v; int has_v; void *view; uint64_t alt_source_rid, view_rid, view_ser, view_dirty, view_ep; int view_pkg;   // view_pkg: CPU-written (packaged); only those depend on guest writes (view_dirty)
+                  uint32_t view_pf; uint8_t view_tt;                         // view's pixel format / texture type, read once when it is set (the P1-20 probe compares them per binding without a message send)
+                  uint64_t view_sa, view_local;                                          // RewindBox (patch 0073): g_rb_ser_add with view_ser (0: not taken)
++                 const void *view_span; uint64_t view_wq, view_bcq; uint8_t view_sub;   // RewindBox (patch 0320): view_wq: its pool's write count (nvn_dirty_range_writes through view_span) taken before the look that walked its pages and found them clean, 0 = none; view_bcq: rb_bcal_quiet at its last resolution, 0 = not quiet; view_sub: that resolution ran on the submit thread. All three written at each resolution (rb_view_scope_stamp)
+                  uint64_t view_sp_seq, view_sp_ep, view_sp_frame; uint8_t view_sp;   // RewindBox (patch 0031): view_sp: the view's base is a placement sparse texture (treg_sp_note); view_sp_seq: its pool's mapping log count (nvn_sparse_log_seq) taken before the look that validated the view; view_sp_ep: the check period (g_pkg_epoch) it was last found current in; TREG_SP_UNSEEN: no look on record; view_sp_frame: g_cur_frame at that look (TREG_SP_RELOOK). Read only while view is set
+                  void *alt, *alt_of; uint64_t alt_rid; uint8_t alt_type;   // alt: compatible view used when the shader's declared type differs from view (tex_fit), alt_of = the view it was built from
+                  void *ar, *ar_of; uint64_t ar_rid;                         // ar: the alpha-from-red view for the profile's alpha_from_red shaders (tex_alpha_red), ar_of = the view it was built from
+@@ -12606,6 +12668,18 @@ static void treg_sp_note(int tid, treg_t *rp, id<MTLTexture> base, uint64_t spq)
+         MLOG("RewindBox: texture ID %d ser=%llu (placement sparse) resolved off the submit thread: no look there, its mappings are followed at its next use on the submit thread (%llu so far)",
+              tid, (unsigned long long)rp->t.serial, (unsigned long long)g_treg_sp_off);
+ }
++// RewindBox (patch 0320): after tex_by_id's slow path kept or made an ID's view (tex_mtl resolved its texture just before): what the view may be kept by later. wq: its
++//   pool's write count taken BEFORE that tex_mtl (0: not asked, or none stands for it); it is recorded only when that tex_mtl walked the texture's pages and found them
++//   clean (t_rb_vs_clean), so that the same count later stands for "no page of it written since a look that found it clean". on: the switch. view_sub: off the
++//   submit thread tex_mtl hands out a CPU-written texture's existing copy unlooked, or a GPU texture in its place when it was never uploaded, and leaves the rest to
++//   the submit thread's next use; before this patch that use came at once (the tex_put of such a resolution is an addition, which sent a CPU-written texture's view
++//   down the slow path), so a view resolved there is not kept by the new rule. Caller holds g_rmu. IPA 827: 700 to 1,570 slow paths a frame come through here,
++//   99.9 to 100% of them with the texture the view had. S2A_RB_VIEW_SCOPE=0: as before, all three are 0 and unread
++static void rb_view_scope_stamp(treg_t *rp, int on, uint64_t wq) {
++    rp->view_wq = (wq && t_rb_vs_clean == rp->t.serial) ? wq : 0;
++    rp->view_bcq = (on && fmt_compressed(rp->t.d.format)) ? rb_bcal_quiet(&rp->t) : 0;
++    rp->view_sub = (uint8_t)(on && on_sub_thread());
++}
+ // RewindBox (patch 0073): rb_view_keep_on (S2A_RB_VIEW_KEEP, patch 0071) also governs the two view caches below; see tex_by_id
+ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+     if (g_tpool_n && tid >= g_tpool_n) { if (!g_stat_tex_oob++) MLOG("texture ID %d outside the pool (capacity %d) treated as an empty slot: reads 0", tid, g_tpool_n); return nil; }
+@@ -12625,13 +12699,25 @@ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+     //   stands; any other move (a texture replaced, dropped or taken over, a ghost, a CPU write, an upgrade), a CPU-written or placement sparse one, goes the slow path as before.
+     //   The two counts are read together under g_smu (tex_put moves both under it). S2A_RB_VIEW_KEEP=0 sends every move down the slow path as before
+     uint64_t sa = 0, local = 0, latest = 0;
++    // RewindBox (patch 0320): the view follows what concerns it (the measurement and the rule are with rb_view_scope_on and in rb_view_scope.h). Beside the counts above:
++    //   rb_live, the texture object is live (g_tex_live, read in the same hold of g_smu; external textures count as live): a finalized object's resolutions keep its
++    //   shared texture looked up (g_alias_seen, which spares it from a storage takeover) and its ring entry held for the submission (tex_get), so its view is never
++    //   kept by the new rule, nor across noted moves now that a Finalize is one; rb_wq, its pool's write count, for a CPU-written texture in an ordinary pool, taken
++    //   here, before tex_mtl below looks at its pages (a virtual pool's bytes live in other pools and follow its mappings, which move neither count: never asked).
++    //   A view kept by its pool's count is as one tex_mtl just found clean: view_dirty and view_ep say so, and the inline tests keep it for the period.
++    //   S2A_RB_VIEW_SCOPE=0: as before, the two lines of patches 0073 and 0163 decide alone and nothing below is read
++    const int rb_on = rb_view_keep_on() && rb_view_scope_on(), rb_scope = rb_on && rp->view != NULL;
++    const int rb_virtual = rb_scope && !rp->gone && rp->t.pool && (rp->t.pool->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL) != 0;
++    int rb_live = 0; uint64_t rb_wq = 0;
+     if (rb_view_keep_on()) {
+         pthread_mutex_lock(&g_smu);
+         sg = g_ser_gen;
+         sa = g_rb_ser_add;
+         local = g_view_epoch.writes;
+         latest = g_view_epoch.bucket[rb_view_bucket(rp->t.serial)];
++        if (rb_scope) rb_live = rp->t.serial >= (1ull << 62) || nvn_hm_get(&g_tex_live, &rp->t.serial) != NULL;   // RewindBox (patch 0320)
+         pthread_mutex_unlock(&g_smu);
++        if (rb_scope && rb_view_range_on() && rp->view_pkg && !rp->gone && !rb_virtual) rb_wq = nvn_dirty_range_writes(&rp->view_span, rp->t.mem, rp->t.L.size);   // RewindBox (patch 0320)
+         if (rp->view && rp->view_sa && !rp->view_sp) {
+             uint64_t adds = sa - rp->view_sa;
+             int additions_only = !rp->view_pkg && sg - rp->view_ser == adds;
+@@ -12639,14 +12725,25 @@ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+                 !fmt_compressed(rp->t.d.format) &&
+                 (!rp->view_pkg || rp->view_dirty == dg || rp->view_ep == g_pkg_epoch) &&
+                 rb_view_epoch_reusable(sg, rp->view_ser, adds, local, rp->view_local, latest);
+-            if (additions_only || local_only) {
++            int rb_keep = additions_only || local_only, rb_new = 0, rb_moves = RB_VS_GLOBAL, rb_data = RB_VS_DATA_NONE;
++            if (rb_scope) {   // RewindBox (patch 0320): rb_vs_why decides; rb_new: a view the two lines above would have sent down the slow path
++                rb_moves = rb_vs_moves(sg, sa, local, latest, rp->view_ser, rp->view_sa, rp->view_local);
++                rb_data = rb_vs_data(rp->view_pkg, dg, rp->view_dirty, g_pkg_epoch, rp->view_ep, rb_wq, rp->view_wq);
++                const unsigned rb_kind = (rp->gone ? RB_VS_GONE : 0) | (rb_virtual ? RB_VS_VIRTUAL : 0) | (fmt_compressed(rp->t.d.format) ? RB_VS_COMPRESSED : 0) |
++                    (rp->view_bcq && rp->view_bcq == atomic_load(&g_bcal_cgen) + 1 ? RB_VS_BC_QUIET : 0) | (rb_live ? RB_VS_LIVE : 0) | (rp->view_sub ? RB_VS_SUBMIT : 0);
++                const int rb_why = rb_vs_why(rb_moves, rb_data, rb_kind);
++                rb_new = rb_why == RB_VS_KEEP && !rb_keep; rb_keep = rb_why == RB_VS_KEEP;
++                if (!rb_keep) g_rb_vs_why[rb_why]++;
++            }
++            if (rb_keep) {
+                 rp->view_ser = sg;
+                 rp->view_sa = sa;
+                 rp->view_local = local;
+-                if (additions_only) g_rb_view_kept++; else g_rb_view_local_kept++;
++                if (rb_new) { g_rb_vs_kept[rb_moves]++; if (rb_data == RB_VS_DATA_RANGE) { rp->view_dirty = dg; rp->view_ep = g_pkg_epoch; g_rb_vs_kept_range++; } }
++                else if (additions_only) g_rb_view_kept++; else g_rb_view_local_kept++;
+                 return (__bridge id<MTLTexture>)rp->view;
+             }
+-        }
++        } else if (rb_scope) g_rb_vs_why[rp->view_sp ? RB_VS_WHY_SPARSE : RB_VS_WHY_GLOBAL]++;   // RewindBox (patch 0320): placement sparse, or its counts not taken (view_sa 0)
+         if (rp->view) g_rb_view_slow++;
+     }
+     // RewindBox (patch 0031): a placement sparse view's pool log count, taken before tex_mtl's look below as sg / dg are taken before the lookup (treg_sp_note records it). Counted here,
+@@ -12660,9 +12757,10 @@ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+     // Before, every guest write to any protected page sent every texture ID, render targets included, down this path
+     rp->view_pkg = (rp->t.has_layout || tex_cpu_written(rp->t.serial)) && rp->t.mem;
+     id<MTLTexture> resolved = nil;
++    t_rb_vs_clean = 0;   // RewindBox (patch 0320): tex_mtl below names this texture's serial there when it walked its pages and found them clean (rb_view_scope_stamp)
+     if (v) {   // The serial table or guest memory has changed: check whether the base texture was re-uploaded and replaced; if so the view is invalidated
+         id<MTLTexture> cur = resolved = tex_mtl(&rp->t);
+-        if ((cur || !txr_on()) && (cur == v || v.parentTexture == cur)) { rp->view_ser = sg; rp->view_sa = sa; rp->view_local = local; rp->view_dirty = dg; rp->view_ep = g_pkg_epoch; g_rb_view_same++; treg_sp_note(tid, rp, cur, spq); return v; }   // RewindBox (patch 0031): treg_sp_note; (patch 0073): view_sa; RewindBox (patch 0073): cur, nil is no match (a root view's object may serve another texture now, patch 0071's txr_take; S2A_RB_TEX_REUSE=0 as before)
++        if ((cur || !txr_on()) && (cur == v || v.parentTexture == cur)) { rp->view_ser = sg; rp->view_sa = sa; rp->view_local = local; rp->view_dirty = dg; rp->view_ep = g_pkg_epoch; rb_view_scope_stamp(rp, rb_on, rb_wq); g_rb_view_same++; treg_sp_note(tid, rp, cur, spq); return v; }   // RewindBox (patch 0031): treg_sp_note; (patch 0073): view_sa; RewindBox (patch 0073): cur, nil is no match (a root view's object may serve another texture now, patch 0071's txr_take; S2A_RB_TEX_REUSE=0 as before)
+         g_rb_view_changed++;
+         defer_obj_unref(v); CFRelease(rp->view); rp->view = NULL; rp->alt_source_rid = rp->view_rid = 0; v = nil;
+     }
+@@ -12737,6 +12835,7 @@ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+     }
+     rp->view = (void *)CFBridgingRetain(v); rp->view_rid = v.gpuResourceID._impl; rp->view_pf = (uint32_t)v.pixelFormat; rp->view_tt = (uint8_t)v.textureType; rp->view_ser = sg; rp->view_dirty = dg; rp->view_ep = g_pkg_epoch;
+     rp->view_sa = sa; rp->view_local = local;
++    rb_view_scope_stamp(rp, rb_on, rb_wq);   // RewindBox (patch 0320): as at the kept view above (rb_wq is 0 for an ID that had no view: its first look records none). S2A_RB_VIEW_SCOPE=0: as before
+     treg_sp_note(tid, rp, base, spq);   // RewindBox (patch 0031): a placement sparse base follows its pool's mappings (treg_sp_fresh)
+     return v;
+ }
+@@ -27019,6 +27118,19 @@ void nvn_be_race_costs(uint64_t v[4]) {
+     v[2] = g_rb_view_changed;
+     v[3] = g_rb_upload_medium;
+ }
++// RewindBox (patch 0320): cumulative counts for hle_nvn.c's texture-ID view line (its frame hook, no lock of this file held). v[0..3]: views this patch kept with the
++//   tables unmoved / across additions / across other serials' noted moves, and those of the three kept by their pool's write count; v[4..13]: slow paths of an existing
++//   view by cause (only counted with the switch on); v[14..16]: g_ser_gen's moves, and those of them that were additions and noted moves, read together;
++//   v[17], v[18]: texture serials a Finalize took out of the table, tex_put calls that were not an addition; v[19], v[20]: the two switches
++void nvn_be_view_scope_stats(uint64_t v[21]) {
++    v[0] = g_rb_vs_kept[RB_VS_SAME]; v[1] = g_rb_vs_kept[RB_VS_ADDS]; v[2] = g_rb_vs_kept[RB_VS_SCOPED]; v[3] = g_rb_vs_kept_range;
++    v[4] = g_rb_vs_why[RB_VS_WHY_GLOBAL]; v[5] = g_rb_vs_why[RB_VS_WHY_OWN]; v[6] = g_rb_vs_why[RB_VS_WHY_WRITTEN]; v[7] = g_rb_vs_why[RB_VS_WHY_UNVOUCHED]; v[8] = g_rb_vs_why[RB_VS_WHY_BC];
++    v[9] = g_rb_vs_why[RB_VS_WHY_DEAD]; v[10] = g_rb_vs_why[RB_VS_WHY_OFFTHREAD]; v[11] = g_rb_vs_why[RB_VS_WHY_POOL]; v[12] = g_rb_vs_why[RB_VS_WHY_SPARSE]; v[13] = g_rb_vs_why[RB_VS_WHY_OTHER];
++    pthread_mutex_lock(&g_smu);
++    v[14] = g_ser_gen - 1; v[15] = g_rb_ser_add - 1; v[16] = g_view_epoch.writes; v[17] = g_rb_ser_final; v[18] = g_rb_put_other;   // both counts start at 1
++    pthread_mutex_unlock(&g_smu);
++    v[19] = (uint64_t)rb_view_scope_on(); v[20] = (uint64_t)rb_view_range_on();
++}
+ void nvn_be_use_stats(uint64_t *call, uint64_t *skip) { *call = 0; *skip = 0; }
+ uint64_t nvn_be_ds_omit(void) { return g_stat_ds_omit; }
+ void nvn_be_bw(uint64_t *load, uint64_t *store, uint64_t *full) { *load = g_bw_load; *store = g_bw_store; *full = rb_pass_stats() ? g_rb_final_rw : g_pass_full_rw; }
+diff --git a/graphics/nvn/gfx/nvn/rb_view_scope.h b/graphics/nvn/gfx/nvn/rb_view_scope.h
+new file mode 100644
+index 0000000..f978fe7
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_view_scope.h
+@@ -0,0 +1,77 @@
++// RewindBox (patch 0320): when a texture ID's cached view stands without resolving its texture again (nvn_mtl.m tex_by_id, once its inline test has failed). Pure C:
++//   tests/t_rb_view_scope.c. IPA 827 (Mario Kart World, iPhone A18 Pro, races, 27 to 51 fps): 700 to 1,570 texture-ID views were resolved again every frame and 99.9 to 100%
++//   of those resolutions found the texture the view already had ("race cost": same base 294,315 / 297,178 / 301,432 against replaced 1 / 3 / 30 in the windows 1200-1800),
++//   an estimated 2.3 to 8.6 M instructions a frame of the submit thread. A view depended on two process-wide counts: the serial tables' generation (g_ser_gen), which every
++//   texture made or finalized moves, and the write-tracking generation (nvn_dirty_now), which every guest write to a protected page moves, and both moved every frame.
++//   The rule here asks what moved, for which serial and in which pool:
++//   - the tables (rb_vs_moves): nothing; only serials no table held were added (patch 0073's count); moves noted for other serials (patch 0163's buckets; with this patch
++//     a texture's Finalize is one); a move noted in this serial's bucket; or a move nobody classified (a storage takeover, an eviction, an upgrade, the ring of finalized
++//     textures, ...), after which every view resolves again, as before;
++//   - the bytes of a CPU-written texture (rb_vs_data): no guest write anywhere; looked at in this check period; writes elsewhere while its own pool's write count stands
++//     (nvn_dirty_range_writes, taken before the look that found its pages clean); its pool written; or no count standing for it.
++//   rb_vs_before is patch 0319's rule in these terms (S2A_RB_VIEW_SCOPE=0: as before, tex_by_id keeps its former lines). rb_vs_why is this patch's: what 0073 kept is kept
++//   (a GPU texture's view across additions); the rest is kept only for a live texture object in an ordinary pool whose bytes are vouched for, last resolved on the
++//   submit thread, and, block-compressed, only with nothing on record to copy into it from a GPU-written texture over its storage. Never kept: an unclassified move, a
++//   move in its own bucket, a written pool, a placement sparse view, a virtual (sparse) pool or a finalized one, a finalized texture object (its lookups keep its
++//   shared texture or its ring entry in use), a view last resolved off the submit thread (no upload and no look is made there: the submit thread's next use makes them)
++#pragma once
++#include <stdint.h>
++
++// The serial tables since the view was validated. ser, add, local: g_ser_gen, g_rb_ser_add, g_view_epoch.writes; bucket: g_view_epoch.bucket[] of the view's serial, the
++//   value g_ser_gen took at the last move noted there; all four read under g_smu. seen_*: what the view recorded then (seen_add 0: not recorded)
++enum { RB_VS_SAME = 0, RB_VS_ADDS, RB_VS_SCOPED, RB_VS_OWN, RB_VS_GLOBAL };
++static inline int rb_vs_moves(uint64_t ser, uint64_t add, uint64_t local, uint64_t bucket, uint64_t seen_ser, uint64_t seen_add, uint64_t seen_local) {
++    if (!seen_add) return RB_VS_GLOBAL;
++    const uint64_t moved = ser - seen_ser, adds = add - seen_add, noted = local - seen_local;
++    if (moved != adds + noted) return RB_VS_GLOBAL;   // at least one move was neither an addition nor noted for a serial
++    if (!moved) return RB_VS_SAME;
++    if (!noted) return RB_VS_ADDS;
++    return bucket <= seen_ser ? RB_VS_SCOPED : RB_VS_OWN;   // a bucket holds several serials: a move noted for any of them counts as this one's
++}
++
++// The bytes of a CPU-written (packaged) texture since the view was validated. range: its pool's write count now, 0 = none stands for it; seen_range: the count taken
++//   before the look that found its pages clean, 0 = none was (not asked, or that look did not end clean)
++enum { RB_VS_DATA_NONE = 0, RB_VS_DATA_SAME, RB_VS_DATA_PERIOD, RB_VS_DATA_RANGE, RB_VS_DATA_WRITTEN, RB_VS_DATA_UNVOUCHED };
++static inline int rb_vs_data(int pkg, uint64_t dirty, uint64_t seen_dirty, uint64_t period, uint64_t seen_period, uint64_t range, uint64_t seen_range) {
++    if (!pkg) return RB_VS_DATA_NONE;                           // a GPU texture: guest writes do not concern it
++    if (dirty == seen_dirty) return RB_VS_DATA_SAME;            // no guest write to any protected page
++    if (period == seen_period) return RB_VS_DATA_PERIOD;        // looked at in this check period
++    if (range && range == seen_range) return RB_VS_DATA_RANGE;  // writes elsewhere: no page generation of its pool was stored
++    return range && seen_range ? RB_VS_DATA_WRITTEN : RB_VS_DATA_UNVOUCHED;
++}
++
++// What the view is
++enum {
++    RB_VS_GONE = 1,         // its memory pool was finalized (treg_t gone)
++    RB_VS_SPARSE = 2,       // placement sparse (view_sp): it follows its pool's mappings (patch 0031)
++    RB_VS_VIRTUAL = 4,      // a virtual (sparse) pool: a mapping request changes what it reads and moves neither count
++    RB_VS_COMPRESSED = 8,   // block-compressed: resolving it also takes the levels a GPU write left in an uncompressed texture over its storage (bcal_sync)
++    RB_VS_BC_QUIET = 16,    // (compressed) its storage is on record as resolved, and no such write is: the first one moves g_ser_gen unclassified
++    RB_VS_LIVE = 32,        // its texture object is live (not finalized), or is an external texture
++    RB_VS_SUBMIT = 64       // its last resolution ran on the submit thread, where a CPU-written texture is uploaded and looked at (elsewhere tex_mtl hands out what exists)
++};
++
++// Patch 0319's rule: 1 = the view stands (additions_only || local_only)
++static inline int rb_vs_before(int moves, int data, unsigned kind) {
++    if (kind & RB_VS_SPARSE) return 0;
++    if (data == RB_VS_DATA_NONE && (moves == RB_VS_SAME || moves == RB_VS_ADDS)) return 1;   // patch 0073
++    return moves == RB_VS_SCOPED && !(kind & (RB_VS_GONE | RB_VS_VIRTUAL | RB_VS_COMPRESSED)) &&
++           (data == RB_VS_DATA_NONE || data == RB_VS_DATA_SAME || data == RB_VS_DATA_PERIOD);   // patch 0163
++}
++
++// Patch 0320's rule: RB_VS_KEEP = the view stands, else why it is resolved again (the counts of the 300-frame line)
++enum { RB_VS_KEEP = 0, RB_VS_WHY_GLOBAL, RB_VS_WHY_OWN, RB_VS_WHY_WRITTEN, RB_VS_WHY_POOL, RB_VS_WHY_DEAD, RB_VS_WHY_OFFTHREAD, RB_VS_WHY_BC, RB_VS_WHY_UNVOUCHED, RB_VS_WHY_SPARSE, RB_VS_WHY_OTHER, RB_VS_WHY_N };
++static inline int rb_vs_why(int moves, int data, unsigned kind) {
++    if (kind & RB_VS_SPARSE) return RB_VS_WHY_SPARSE;
++    if (moves == RB_VS_GLOBAL) return RB_VS_WHY_GLOBAL;
++    if (moves == RB_VS_OWN) return RB_VS_WHY_OWN;
++    if (data == RB_VS_DATA_NONE && moves != RB_VS_SCOPED) return RB_VS_KEEP;          // patch 0073, as before
++    if (data == RB_VS_DATA_WRITTEN) return RB_VS_WHY_WRITTEN;                         // its pool was written: its pages decide
++    if (kind & (RB_VS_GONE | RB_VS_VIRTUAL)) return RB_VS_WHY_POOL;
++    if (!(kind & RB_VS_LIVE)) return RB_VS_WHY_DEAD;
++    if (!(kind & RB_VS_SUBMIT)) return RB_VS_WHY_OFFTHREAD;
++    if ((kind & RB_VS_COMPRESSED) && !(kind & RB_VS_BC_QUIET)) return RB_VS_WHY_BC;
++    if (data == RB_VS_DATA_UNVOUCHED) return RB_VS_WHY_UNVOUCHED;
++    if (moves == RB_VS_SAME && data != RB_VS_DATA_RANGE) return RB_VS_WHY_OTHER;      // tables and bytes as recorded: the inline test's case, not this rule's
++    return RB_VS_KEEP;   // tables unmoved and the pool's count standing; additions or other serials' moves with the bytes vouched for (or a GPU texture's)
++}
+diff --git a/graphics/nvn/tests/t_rb_dirty_range.c b/graphics/nvn/tests/t_rb_dirty_range.c
+new file mode 100644
+index 0000000..c03bfc6
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_dirty_range.c
+@@ -0,0 +1,209 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0320): the write count per tracked range (nvn_dirty_range_writes) against the page generations it stands for (nvn_dirty_since), with real write
++//   faults. Built as t_dirty_chunk is: this file + gfx/nvn/nvn_dirty.c (runtime/tests/mk/rb_dirty_range.mk); no GPU, no game.
++#include "../gfx/nvn/nvn_dirty.h"
++#include <assert.h>
++#include <pthread.h>
++#include <signal.h>
++#include <stdatomic.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/mman.h>
++#include <sys/wait.h>
++#include <unistd.h>
++
++static int (*g_hook)(void *, int, void *);
++static void (*g_prep)(void *, size_t);
++void dm_fault_hook_register(int (*fn)(void *addr, int is_write, void *uc)) { g_hook = fn; }
++void dm_guest_write_prep_register(void (*fn)(void *addr, size_t len)) { g_prep = fn; }
++static void host_prepare(void *addr, size_t len) { if (g_prep) g_prep(addr, len); }   // the host's unprotect before it writes guest memory (dm_guest_write_prepare)
++static void guest_write(uint8_t *p, uint8_t v) { *(volatile uint8_t *)p = v; }   // volatile: the store, and the write fault it may take, stay where the test puts them
++void dm_log(const char *fmt, ...) { (void)fmt; }
++static void on_sig(int s, siginfo_t *si, void *uc) { if (g_hook && g_hook(si->si_addr, 1, uc)) return; signal(s, SIG_DFL); }
++extern int (*nvn_dirty_mp_hook)(void *addr, size_t len, int prot);
++static int g_fail_unprotect;
++static const void *g_probe_span; static uint8_t *g_probe_mem; static size_t g_probe_len;
++static volatile uint64_t g_probe_seen; static volatile int g_probes;   // volatile: stored from the write fault's handler
++static int test_hook(void *addr, size_t len, int prot) {   // called by the tracker in place of each mprotect's start: for an unprotect, between rb_wseq_open and the generations
++    (void)addr; (void)len;
++    if (!(prot & PROT_WRITE)) return 0;
++    if (g_probe_mem) { g_probe_seen = nvn_dirty_range_writes(&g_probe_span, g_probe_mem, g_probe_len); g_probes++; }
++    return g_fail_unprotect;
++}
++
++// The reader's protocol (nvn_mtl.m tex_by_id): the count is taken before the look at the pages, and kept only when that look left the texture clean against its stamp;
++//   the same non-zero count later stands for "clean" without a look.
++typedef struct { const void *span; uint64_t count, stamp; uint8_t *mem; size_t len; } view;
++static void view_validate(view *v) {   // the slow path
++    const uint64_t c = nvn_dirty_range_writes(&v->span, v->mem, v->len);
++    if (nvn_dirty_since(v->mem, v->len, v->stamp)) { nvn_dirty_protect(v->mem, v->len); v->stamp = nvn_dirty_now(); }   // as a re-upload: protect, stamp, then read
++    v->count = c;
++}
++static int view_kept(view *v) { const uint64_t c = nvn_dirty_range_writes(&v->span, v->mem, v->len); return c && c == v->count; }
++
++static _Atomic int g_stop; static _Atomic unsigned long g_writes;
++static uint8_t *g_wr_mem; static size_t g_wr_pages, g_wr_pg;
++static void *writer(void *arg) {   // writes a page of one pool now and then: a fault each time that page was protected again
++    unsigned s = (unsigned)(uintptr_t)arg;
++    while (!atomic_load(&g_stop)) {
++        s = s * 1664525u + 1013904223u; guest_write(g_wr_mem + (s >> 8) % g_wr_pages * g_wr_pg, (uint8_t)s); atomic_fetch_add(&g_writes, 1);
++        for (volatile unsigned spin = (s >> 16) & 0x3ff; spin; spin--) {}   // an uneven pause, so that the reader's looks fall before, inside and after an unprotect
++    }
++    return NULL;
++}
++
++// S2A_RB_VIEW_SCOPE=0 / S2A_RB_VIEW_RANGE=0 (a process of its own: the switch is read once): no count, and the tracking itself as before
++static int off_child(const char *name) {
++    setenv(name, "0", 1);
++    const size_t pg = (size_t)getpagesize();
++    uint8_t *m = mmap(NULL, 16 * pg, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
++    if (m == MAP_FAILED) return 2;
++    nvn_dirty_add_range(m, 16 * pg);
++    const void *span = NULL;
++    if (nvn_dirty_range_writes(&span, m + 2 * pg, 8 * pg) != 0) return 3;
++    nvn_dirty_protect(m + 2 * pg, 8 * pg);
++    const uint64_t st = nvn_dirty_now();
++    guest_write(m + 3 * pg, 1);   // a write fault, handled as before
++    if (!nvn_dirty_since(m + 2 * pg, 8 * pg, st) || nvn_dirty_now() == st) return 4;
++    if (nvn_dirty_range_writes(&span, m + 2 * pg, 8 * pg) != 0) return 5;
++    return 0;
++}
++static void off_case(const char *name) {
++    fflush(stdout);
++    const pid_t pid = fork();
++    assert(pid >= 0);
++    if (!pid) _exit(off_child(name));
++    int st = 0;
++    assert(waitpid(pid, &st, 0) == pid);
++    assert(WIFEXITED(st) && WEXITSTATUS(st) == 0);
++}
++
++int main(void) {
++    struct sigaction sa = {0}; sa.sa_sigaction = on_sig; sa.sa_flags = SA_SIGINFO;
++    sigaction(SIGBUS, &sa, NULL); sigaction(SIGSEGV, &sa, NULL);
++    off_case("S2A_RB_VIEW_SCOPE"); off_case("S2A_RB_VIEW_RANGE");   // before this process registers its first pool
++    unsetenv("S2A_RB_VIEW_SCOPE"); unsetenv("S2A_RB_VIEW_RANGE");   // the default: on
++
++    const size_t pg = (size_t)getpagesize();
++    uint8_t *m = mmap(NULL, 320 * pg, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
++    assert(m != MAP_FAILED);
++    uint8_t *A = m, *B = m + 64 * pg, *C = m + 160 * pg;   // three pools, apart
++    const void *none = NULL;
++    assert(nvn_dirty_range_writes(&none, A + 2 * pg, 8 * pg) == 0);   // before any pool is registered
++    nvn_dirty_add_range(A, 32 * pg); nvn_dirty_add_range(B, 32 * pg); nvn_dirty_add_range(C, 32 * pg);
++
++    // 1. a tracked span has a count, its own range's
++    const void *sa_ = NULL, *sb_ = NULL, *sc_ = NULL;
++    const uint64_t a0 = nvn_dirty_range_writes(&sa_, A + 2 * pg, 8 * pg), b0 = nvn_dirty_range_writes(&sb_, B + 2 * pg, 8 * pg), c0 = nvn_dirty_range_writes(&sc_, C + 2 * pg, 8 * pg);
++    assert(a0 && b0 && c0 && a0 != b0 && b0 != c0 && a0 != c0);
++    assert(sa_ == nvn_dirty_span(A + 2 * pg, 8 * pg) && sb_ == nvn_dirty_span(B + 2 * pg, 8 * pg));
++
++    // 2. a write fault in A moves A's count and the global generation; B's and C's counts stand
++    nvn_dirty_protect(A + 2 * pg, 8 * pg); nvn_dirty_protect(B + 2 * pg, 8 * pg);
++    assert(nvn_dirty_range_writes(&sa_, A + 2 * pg, 8 * pg) == a0);   // protecting stores no generation
++    const uint64_t g0 = nvn_dirty_now();
++    guest_write(A + 3 * pg + 5, 1);
++    const uint64_t a1 = nvn_dirty_range_writes(&sa_, A + 2 * pg, 8 * pg);
++    assert(nvn_dirty_now() > g0);                                      // what sends every CPU-written texture ID down the slow path today
++    assert(a1 && a1 != a0);                                            // MUST still invalidate: the written pool
++    assert(nvn_dirty_range_writes(&sa_, A + 20 * pg, 4 * pg) == a1);   // ... for every span of it, written page or not
++    assert(nvn_dirty_range_writes(&sb_, B + 2 * pg, 8 * pg) == b0 && nvn_dirty_range_writes(&sc_, C + 2 * pg, 8 * pg) == c0);
++    assert(nvn_dirty_since(A + 2 * pg, 8 * pg, g0) == 1 && nvn_dirty_since(B + 2 * pg, 8 * pg, g0) == 0);   // as the page generations say
++    guest_write(A + 3 * pg + 6, 2);                                    // the page is writable now: no fault, no generation, no count (as before: its texture is already dirty)
++    assert(nvn_dirty_range_writes(&sa_, A + 2 * pg, 8 * pg) == a1);
++
++    // 3. a host pre-write (a file read into guest memory) is a write too
++    const uint64_t b1 = nvn_dirty_range_writes(&sb_, B + 2 * pg, 8 * pg);
++    host_prepare(B + 4 * pg, 16); guest_write(B + 4 * pg, 7);
++    assert(nvn_dirty_range_writes(&sb_, B + 2 * pg, 8 * pg) != b1);
++    assert(nvn_dirty_range_writes(&sa_, A + 2 * pg, 8 * pg) == a1);
++    const uint64_t b2 = nvn_dirty_range_writes(&sb_, B + 2 * pg, 8 * pg);
++    host_prepare(B + 20 * pg, 16);                                     // over pages nobody protected: nothing is unprotected, nothing moves
++    assert(nvn_dirty_range_writes(&sb_, B + 2 * pg, 8 * pg) == b2);
++
++    // 4. no count stands for: untracked memory, a span no single range holds, a span wholly inside the first or the last host page of its range
++    const void *sx = NULL;
++    assert(nvn_dirty_range_writes(&sx, m + 40 * pg, pg) == 0);
++    sx = NULL; assert(nvn_dirty_range_writes(&sx, A + 30 * pg, 40 * pg) == 0);
++    sx = NULL; assert(nvn_dirty_range_writes(&sx, A + 16, 64) == 0);
++    sx = NULL; assert(nvn_dirty_range_writes(&sx, A + 32 * pg - 128, 64) == 0);
++    sx = NULL; assert(nvn_dirty_range_writes(&sx, A + 16, 2 * pg) != 0);            // from the first page into the second
++    sx = NULL; assert(nvn_dirty_range_writes(&sx, A + 30 * pg + 16, 2 * pg - 32) != 0);   // from the one before the last into the last
++    sx = NULL; assert(nvn_dirty_range_writes(&sx, A + 2 * pg, 0) == 0);
++    sx = sb_; assert(nvn_dirty_range_writes(&sx, A + 2 * pg, 8 * pg) == a1 && sx == sa_);   // a handle of another range is looked up again
++
++    // 5. a pool removed, then registered again over the same memory: never the old count
++    const uint64_t c1 = nvn_dirty_range_writes(&sc_, C + 2 * pg, 8 * pg);
++    nvn_dirty_remove_range(C);
++    assert(nvn_dirty_range_writes(&sc_, C + 2 * pg, 8 * pg) == 0);
++    nvn_dirty_add_range(C, 32 * pg);
++    const uint64_t c2 = nvn_dirty_range_writes(&sc_, C + 2 * pg, 8 * pg);
++    assert(c2 && c2 != c1 && c2 != c0);
++    assert(nvn_dirty_replace_range(C, 32 * pg) == 1);   // new backing under the same address: every page generation is stored anew
++    const uint64_t c3 = nvn_dirty_range_writes(&sc_, C + 2 * pg, 8 * pg);
++    assert(c3 && c3 != c2 && c3 != c1);
++
++    // 6. two pools sharing one host page (4 KB-aligned pools on a 16 KB-page host): a neighbour's write into the shared page moves the count of the range
++    //    whose texture is protected there
++    uint8_t *D = m + 200 * pg, *E = D + 8 * pg - pg / 2;   // D ends, and E starts, inside page 207
++    nvn_dirty_add_range(D, 8 * pg - pg / 2); nvn_dirty_add_range(E, 8 * pg);
++    const void *sd = NULL, *se = NULL;
++    const uint64_t d0 = nvn_dirty_range_writes(&sd, D + pg, 6 * pg + pg / 4), e0 = nvn_dirty_range_writes(&se, E + pg, 4 * pg);
++    assert(d0 && e0 && sd != se);
++    nvn_dirty_protect(D + pg, 6 * pg + pg / 4);   // reaches D's last page, the shared one
++    guest_write(E + 8, 3);                         // E's bytes in that host page
++    assert(nvn_dirty_range_writes(&sd, D + pg, 6 * pg + pg / 4) != d0);
++    assert(nvn_dirty_range_writes(&se, E + pg, 4 * pg) == e0);   // E protected nothing there: none of its generations was stored
++
++    // 7. a pool that overlaps another past a shared edge page: two ranges may hold one span, so neither count stands for it
++    uint8_t *F = m + 240 * pg;
++    nvn_dirty_add_range(F, 16 * pg);
++    const void *sf = NULL;
++    assert(nvn_dirty_range_writes(&sf, F + 2 * pg, 4 * pg) != 0);
++    nvn_dirty_add_range(F + 4 * pg, 8 * pg);       // inside F
++    assert(nvn_dirty_range_writes(&sf, F + 2 * pg, 4 * pg) == 0);
++    sf = NULL; assert(nvn_dirty_range_writes(&sf, F + 5 * pg, 2 * pg) == 0);
++
++    // 8. while an unprotect is under way (its mprotect not yet returned, its generations not yet stored) no count stands for its range; after it, a new one does
++    nvn_dirty_mp_hook = test_hook;
++    nvn_dirty_protect(A + 2 * pg, 8 * pg);
++    const uint64_t a2 = nvn_dirty_range_writes(&sa_, A + 2 * pg, 8 * pg);
++    g_probe_mem = A + 2 * pg; g_probe_len = 8 * pg; g_probe_seen = ~0ull; g_probes = 0;
++    guest_write(A + 5 * pg, 9);                    // a write fault
++    assert(g_probes == 1 && g_probe_seen == 0);
++    g_probe_seen = ~0ull; host_prepare(A + 7 * pg, 8); assert(g_probes == 2 && g_probe_seen == 0);   // a host pre-write
++    g_probe_mem = NULL;
++    const uint64_t a3 = nvn_dirty_range_writes(&sa_, A + 2 * pg, 8 * pg);
++    assert(a3 && a3 != a2 && a3 != a1 && a3 != a0);
++
++    // 9. the reader's protocol under concurrent writes: "the same count" never hides a page the look would report, and the pool nobody writes is kept every time
++    g_wr_mem = A; g_wr_pages = 32; g_wr_pg = pg;
++    view v = {.mem = A + 2 * pg, .len = 20 * pg}; nvn_dirty_protect(v.mem, v.len); v.stamp = nvn_dirty_now(); view_validate(&v);
++    view q = {.mem = B + 2 * pg, .len = 20 * pg}; nvn_dirty_protect(q.mem, q.len); q.stamp = nvn_dirty_now(); view_validate(&q);
++    pthread_t th[2]; for (int i = 0; i < 2; i++) assert(!pthread_create(&th[i], NULL, writer, (void *)(uintptr_t)(i + 1)));
++    unsigned long kept_a = 0, kept_b = 0, looks = 0, late = 0, rounds = 0;
++    for (; rounds < 1500000 || atomic_load(&g_writes) < 4000; rounds++) {   // long enough for the writers to have run, however the threads are scheduled
++        if (view_kept(&v)) {
++            kept_a++;
++            // a write may land right after the count was read (as it may right after a look): it must then show at the next one
++            if (nvn_dirty_since(v.mem, v.len, v.stamp)) { late++; assert(!view_kept(&v)); }
++        } else { view_validate(&v); looks++; }
++        if (view_kept(&q)) kept_b++; else view_validate(&q);
++    }
++    atomic_store(&g_stop, 1); for (int i = 0; i < 2; i++) pthread_join(th[i], NULL);
++    assert(kept_b == rounds);
++    assert(looks > 0);   // the written pool was looked at again
++    view_validate(&v); view_validate(&v);
++    assert(view_kept(&v) && !nvn_dirty_since(v.mem, v.len, v.stamp));   // once the writers stop, a look validates it and it is kept
++    printf("  written pool: kept %lu of %lu (a write landed right after the count %lu times), looked at %lu times; unwritten pool: kept %lu\n", kept_a, rounds, late, looks, kept_b);
++
++    // 10. tracking unreliable (an mprotect failed): no count stands for anything, as nvn_dirty_since answers "written" from then on
++    nvn_dirty_protect(B + 2 * pg, 2 * pg);
++    assert(nvn_dirty_range_writes(&sb_, B + 2 * pg, 8 * pg) != 0);
++    g_fail_unprotect = 1; host_prepare(B + 2 * pg, 16); g_fail_unprotect = 0;
++    assert(nvn_dirty_tracking_unreliable());
++    assert(nvn_dirty_range_writes(&sb_, B + 2 * pg, 8 * pg) == 0 && nvn_dirty_range_writes(&sa_, A + 2 * pg, 8 * pg) == 0);
++    puts("t_rb_dirty_range: ok");
++    return 0;
++}
+diff --git a/graphics/nvn/tests/t_rb_view_scope.c b/graphics/nvn/tests/t_rb_view_scope.c
+new file mode 100644
+index 0000000..e7b18e8
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_view_scope.c
+@@ -0,0 +1,329 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0320): host-only checks of the texture-ID view rule (gfx/nvn/rb_view_scope.h): patch 0319's rule in its terms, what the new rule adds and what it
++//   must still send to a resolution, and a replay of table moves and guest writes against a model of what a resolution would find.
++#include <assert.h>
++#include <stdio.h>
++#include <string.h>
++#include "../gfx/nvn/rb_view_epoch.h"
++#include "../gfx/nvn/rb_view_scope.h"
++
++enum { ALL_KINDS = 128 };
++static const int k_moves[] = {RB_VS_SAME, RB_VS_ADDS, RB_VS_SCOPED, RB_VS_OWN, RB_VS_GLOBAL};
++static const int k_data[] = {RB_VS_DATA_NONE, RB_VS_DATA_SAME, RB_VS_DATA_PERIOD, RB_VS_DATA_RANGE, RB_VS_DATA_WRITTEN, RB_VS_DATA_UNVOUCHED};
++static int data_vouched(int d) { return d == RB_VS_DATA_NONE || d == RB_VS_DATA_SAME || d == RB_VS_DATA_PERIOD || d == RB_VS_DATA_RANGE; }
++
++// ---- 1. patch 0319's lines (nvn_mtl.m tex_by_id at abedf64), transcribed on the values they read ----
++typedef struct {
++    uint64_t sg, sa, local, latest, dg, period;                                // now, under g_smu / at entry
++    uint64_t view_ser, view_sa, view_local, view_dirty, view_ep;              // the entry
++    int view_pkg, view_sp, gone, virtual_pool, compressed;
++} raw_t;
++static int before_lines(const raw_t *r) {
++    if (!(r->view_sa && !r->view_sp)) return 0;
++    uint64_t adds = r->sa - r->view_sa;
++    int additions_only = !r->view_pkg && r->sg - r->view_ser == adds;
++    int local_only = !r->gone && !r->virtual_pool &&
++        !r->compressed &&
++        (!r->view_pkg || r->view_dirty == r->dg || r->view_ep == r->period) &&
++        rb_view_epoch_reusable(r->sg, r->view_ser, adds, r->local, r->view_local, r->latest);
++    return additions_only || local_only;
++}
++static unsigned raw_kind(const raw_t *r, unsigned extra) {
++    return (r->gone ? RB_VS_GONE : 0) | (r->view_sp ? RB_VS_SPARSE : 0) | (r->virtual_pool ? RB_VS_VIRTUAL : 0) | (r->compressed ? RB_VS_COMPRESSED : 0) | extra;
++}
++static void check_before(void) {
++    unsigned long n = 0, kept = 0;
++    const uint64_t latests[] = {0, 4, 5, 6, 9};
++    for (uint64_t sg = 5; sg <= 9; sg++) for (uint64_t view_sa = 0; view_sa <= 3; view_sa += 3) for (uint64_t sa = 3; sa <= 6; sa++)
++    for (uint64_t local = 2; local <= 5; local++) for (unsigned li = 0; li < 5; li++) for (unsigned f = 0; f < 128; f++) {
++        raw_t r = {.sg = sg, .sa = sa, .local = local, .latest = latests[li], .dg = 40, .period = 7, .view_ser = 5, .view_sa = view_sa, .view_local = 2,
++                   .view_dirty = (f & 1) ? 40 : 39, .view_ep = (f & 2) ? 7 : 6, .view_pkg = !!(f & 4), .view_sp = !!(f & 8), .gone = !!(f & 16), .virtual_pool = !!(f & 32), .compressed = !!(f & 64)};
++        const int moves = rb_vs_moves(r.sg, r.sa, r.local, r.latest, r.view_ser, r.view_sa, r.view_local);
++        const uint64_t moved = r.sg - r.view_ser, adds = r.sa - r.view_sa, noted = r.local - r.view_local;
++        const int lines = before_lines(&r);
++        for (unsigned extra = 0; extra < 8; extra++) {   // patch 0319 read none of these three
++            const unsigned kind = raw_kind(&r, (extra & 1 ? RB_VS_LIVE : 0) | (extra & 2 ? RB_VS_BC_QUIET : 0) | (extra & 4 ? RB_VS_SUBMIT : 0));
++            for (uint64_t range = 0; range <= 2; range++) for (uint64_t seen_range = 0; seen_range <= 2; seen_range++) {
++                const int data = rb_vs_data(r.view_pkg, r.dg, r.view_dirty, r.period, r.view_ep, range, seen_range);
++                // without a count the data classes are patch 0319's own test of the bytes
++                if (!range) assert((data == RB_VS_DATA_NONE || data == RB_VS_DATA_SAME || data == RB_VS_DATA_PERIOD) == (!r.view_pkg || r.view_dirty == r.dg || r.view_ep == r.period));
++                const int old_data = rb_vs_data(r.view_pkg, r.dg, r.view_dirty, r.period, r.view_ep, 0, 0);   // patch 0319 had no count
++                assert(old_data == data || data == RB_VS_DATA_RANGE || data == RB_VS_DATA_WRITTEN);
++                const int before = rb_vs_before(moves, old_data, kind);
++                // The counts are read together under g_smu and each addition or noted move is a move, so moved >= adds + noted; there the two agree exactly.
++                //   Elsewhere (counts that could not have been read together) the class rule only keeps less
++                if (r.view_sa && moved >= adds + noted && adds + noted >= adds) assert(before == lines);
++                assert(!before || lines);
++                n++; kept += (unsigned long)before;
++            }
++        }
++    }
++    assert(n > 100000 && kept > 1000);
++}
++
++// ---- 2. the new rule over every class ----
++static void check_rule(void) {
++    int seen_why[RB_VS_WHY_N] = {0};
++    unsigned long added = 0, dropped = 0;
++    for (unsigned mi = 0; mi < 5; mi++) for (unsigned di = 0; di < 6; di++) for (unsigned kind = 0; kind < ALL_KINDS; kind++) {
++        const int moves = k_moves[mi], data = k_data[di];
++        const int why = rb_vs_why(moves, data, kind);
++        const int keep = why == RB_VS_KEEP;
++        const int old_data = data == RB_VS_DATA_RANGE ? RB_VS_DATA_WRITTEN : data;   // what patch 0319 saw where the new rule sees an unmoved count
++        const int before = rb_vs_before(moves, old_data, kind);
++        assert(why >= 0 && why < RB_VS_WHY_N);
++        seen_why[why]++;
++        // MUST still be resolved again, whatever else holds
++        if (moves == RB_VS_GLOBAL) assert(why == RB_VS_WHY_GLOBAL || why == RB_VS_WHY_SPARSE);          // a move nobody classified
++        if (moves == RB_VS_OWN) assert(why == RB_VS_WHY_OWN || why == RB_VS_WHY_SPARSE);                // its own serial, or one sharing its bucket
++        if (kind & RB_VS_SPARSE) assert(why == RB_VS_WHY_SPARSE);                                         // placement sparse
++        if (data == RB_VS_DATA_WRITTEN) assert(!keep);                                                    // its pool was written
++        if (data == RB_VS_DATA_UNVOUCHED) assert(!keep);                                                  // guest writes somewhere and no count standing for it
++        // what patch 0073 kept stays kept (a GPU texture's view across additions): no ID of today's fast keeps goes back to the slow path for those
++        if (data == RB_VS_DATA_NONE && (moves == RB_VS_SAME || moves == RB_VS_ADDS) && !(kind & RB_VS_SPARSE)) assert(keep && before);
++        // everything else that is kept: a live object last resolved on the submit thread, an ordinary pool, bytes vouched for, nothing to copy into a compressed one
++        if (keep && !(data == RB_VS_DATA_NONE && moves != RB_VS_SCOPED)) {
++            assert(kind & RB_VS_LIVE);
++            assert(kind & RB_VS_SUBMIT);
++            assert(!(kind & (RB_VS_GONE | RB_VS_VIRTUAL)));
++            assert(!(kind & RB_VS_COMPRESSED) || (kind & RB_VS_BC_QUIET));
++            assert(data_vouched(data));
++            assert(moves == RB_VS_SAME || moves == RB_VS_ADDS || moves == RB_VS_SCOPED);
++            if (moves == RB_VS_SAME) assert(data == RB_VS_DATA_RANGE);
++        }
++        // against patch 0319: the only views it kept that are now resolved are, across noted moves (a Finalize is one now), a finalized object's and one last
++        //   resolved off the submit thread
++        if (before && !keep) { assert(moves == RB_VS_SCOPED && (!(kind & RB_VS_LIVE) ? why == RB_VS_WHY_DEAD : !(kind & RB_VS_SUBMIT) && why == RB_VS_WHY_OFFTHREAD)); dropped++; }
++        if (keep && !before) added++;
++    }
++    for (int w = 0; w < RB_VS_WHY_N; w++) assert(seen_why[w] > 0);
++    assert(added > 0 && dropped > 0);
++
++    const unsigned live = RB_VS_LIVE | RB_VS_SUBMIT, bc = live | RB_VS_COMPRESSED, bcq = bc | RB_VS_BC_QUIET;
++    // the race's case: a block-compressed CPU-written texture of a live object in an ordinary pool
++    assert(rb_vs_why(RB_VS_SAME, RB_VS_DATA_RANGE, bcq) == RB_VS_KEEP);       // a guest write in another pool, tables unmoved
++    assert(rb_vs_why(RB_VS_ADDS, RB_VS_DATA_RANGE, bcq) == RB_VS_KEEP);       // ... and textures made meanwhile
++    assert(rb_vs_why(RB_VS_SCOPED, RB_VS_DATA_RANGE, bcq) == RB_VS_KEEP);     // ... and other textures finalized
++    assert(rb_vs_why(RB_VS_ADDS, RB_VS_DATA_SAME, bcq) == RB_VS_KEEP && rb_vs_why(RB_VS_SCOPED, RB_VS_DATA_PERIOD, bcq) == RB_VS_KEEP);
++    assert(!rb_vs_before(RB_VS_SAME, RB_VS_DATA_WRITTEN, bcq) && !rb_vs_before(RB_VS_ADDS, RB_VS_DATA_SAME, bcq) && !rb_vs_before(RB_VS_SCOPED, RB_VS_DATA_SAME, bcq));   // none of them before
++    assert(rb_vs_why(RB_VS_ADDS, RB_VS_DATA_SAME, live) == RB_VS_KEEP && !rb_vs_before(RB_VS_ADDS, RB_VS_DATA_SAME, live));   // uncompressed CPU-written, across additions
++    assert(rb_vs_why(RB_VS_SCOPED, RB_VS_DATA_NONE, bcq) == RB_VS_KEEP);      // a compressed GPU texture across noted moves
++    // and each reason it is not kept
++    assert(rb_vs_why(RB_VS_SAME, RB_VS_DATA_WRITTEN, bcq) == RB_VS_WHY_WRITTEN);        // the guest wrote its pool: the texture itself may have changed
++    assert(rb_vs_why(RB_VS_ADDS, RB_VS_DATA_WRITTEN, bcq) == RB_VS_WHY_WRITTEN);
++    assert(rb_vs_why(RB_VS_SCOPED, RB_VS_DATA_WRITTEN, live) == RB_VS_WHY_WRITTEN);
++    assert(rb_vs_why(RB_VS_SAME, RB_VS_DATA_UNVOUCHED, bcq) == RB_VS_WHY_UNVOUCHED);    // no count (shared edge page, overlapping pool, unprotect under way, last look not clean, switch off)
++    assert(rb_vs_why(RB_VS_GLOBAL, RB_VS_DATA_SAME, bcq) == RB_VS_WHY_GLOBAL);          // a takeover, an eviction, an upgrade, ...
++    assert(rb_vs_why(RB_VS_GLOBAL, RB_VS_DATA_NONE, live) == RB_VS_WHY_GLOBAL);
++    assert(rb_vs_why(RB_VS_OWN, RB_VS_DATA_RANGE, bcq) == RB_VS_WHY_OWN);               // its own re-upload or Finalize
++    assert(rb_vs_why(RB_VS_ADDS, RB_VS_DATA_RANGE, bc) == RB_VS_WHY_BC);                // a GPU write through an uncompressed texture is, or may come to be, on record over its storage
++    assert(rb_vs_why(RB_VS_SCOPED, RB_VS_DATA_SAME, bc) == RB_VS_WHY_BC);
++    assert(rb_vs_why(RB_VS_ADDS, RB_VS_DATA_RANGE, bcq & ~(unsigned)RB_VS_LIVE) == RB_VS_WHY_DEAD);   // a finalized object's descriptor still registered
++    assert(rb_vs_why(RB_VS_SCOPED, RB_VS_DATA_NONE, 0) == RB_VS_WHY_DEAD && rb_vs_before(RB_VS_SCOPED, RB_VS_DATA_NONE, 0));
++    assert(rb_vs_why(RB_VS_ADDS, RB_VS_DATA_SAME, bcq & ~(unsigned)RB_VS_SUBMIT) == RB_VS_WHY_OFFTHREAD);   // last resolved off the submit thread: nothing was uploaded or looked at there
++    assert(rb_vs_why(RB_VS_SCOPED, RB_VS_DATA_PERIOD, RB_VS_LIVE) == RB_VS_WHY_OFFTHREAD);
++    assert(rb_vs_why(RB_VS_ADDS, RB_VS_DATA_SAME, live | RB_VS_VIRTUAL) == RB_VS_WHY_POOL);            // a sparse pool: a mapping request moves no count
++    assert(rb_vs_why(RB_VS_SCOPED, RB_VS_DATA_SAME, live | RB_VS_GONE) == RB_VS_WHY_POOL);
++    assert(rb_vs_why(RB_VS_ADDS, RB_VS_DATA_NONE, RB_VS_SPARSE | live) == RB_VS_WHY_SPARSE);
++    assert(rb_vs_why(RB_VS_SAME, RB_VS_DATA_SAME, bcq) == RB_VS_WHY_OTHER);
++
++    // rb_vs_moves: additions, moves noted for others, the view's own bucket, a collision, an unclassified move, counts not taken
++    rb_view_epoch ep; memset(&ep, 0, sizeof ep);
++    uint64_t gen = 10, add = 4;
++    const uint64_t mine = 1000, other = 1001, clash = mine + RB_VIEW_BUCKETS * 131072ull;   // clash: another serial of mine's bucket
++    assert(rb_view_bucket(other) != rb_view_bucket(mine) && rb_view_bucket(clash) == rb_view_bucket(mine) && clash != mine);
++    const uint64_t s_gen = gen, s_add = add, s_local = ep.writes;
++#define MOVES() rb_vs_moves(gen, add, ep.writes, ep.bucket[rb_view_bucket(mine)], s_gen, s_add, s_local)
++    assert(MOVES() == RB_VS_SAME);
++    gen++; add++;                                    assert(MOVES() == RB_VS_ADDS);     // tex_put of a serial no table held
++    rb_view_note(&ep, other, ++gen);                 assert(MOVES() == RB_VS_SCOPED);   // another texture finalized (serial_del_kind, this patch) or re-uploaded
++    gen++; add++;                                    assert(MOVES() == RB_VS_SCOPED);
++    assert(rb_vs_moves(gen, add, ep.writes, ep.bucket[rb_view_bucket(mine)], s_gen, 0, s_local) == RB_VS_GLOBAL);   // counts not taken with the view
++    { rb_view_epoch e2 = ep; uint64_t g2 = gen; rb_view_note(&e2, mine, ++g2);
++      assert(rb_vs_moves(g2, add, e2.writes, e2.bucket[rb_view_bucket(mine)], s_gen, s_add, s_local) == RB_VS_OWN); }
++    { rb_view_epoch e2 = ep; uint64_t g2 = gen; rb_view_note(&e2, clash, ++g2);
++      assert(rb_vs_moves(g2, add, e2.writes, e2.bucket[rb_view_bucket(mine)], s_gen, s_add, s_local) == RB_VS_OWN); }
++    gen++;                                           assert(MOVES() == RB_VS_GLOBAL);   // S2A_RB_VIEW_SCOPE=0: what a texture's Finalize is, as before
++    rb_view_note(&ep, other, ++gen); gen++; add++;   assert(MOVES() == RB_VS_GLOBAL);   // nothing later undoes it
++#undef MOVES
++    // a move noted in the view's bucket before the view was validated does not count against it
++    { rb_view_epoch e2; memset(&e2, 0, sizeof e2); uint64_t g2 = 20; rb_view_note(&e2, mine, ++g2);
++      const uint64_t vg = g2, vl = e2.writes; rb_view_note(&e2, other, ++g2);
++      assert(rb_vs_moves(g2, 9, e2.writes, e2.bucket[rb_view_bucket(mine)], vg, 9, vl) == RB_VS_SCOPED); }
++
++    // rb_vs_data
++    assert(rb_vs_data(0, 2, 1, 2, 1, 0, 0) == RB_VS_DATA_NONE && rb_vs_data(0, 2, 1, 2, 1, 5, 4) == RB_VS_DATA_NONE);
++    assert(rb_vs_data(1, 7, 7, 2, 1, 5, 4) == RB_VS_DATA_SAME);
++    assert(rb_vs_data(1, 8, 7, 3, 3, 5, 4) == RB_VS_DATA_PERIOD);
++    assert(rb_vs_data(1, 8, 7, 3, 2, 5, 5) == RB_VS_DATA_RANGE);
++    assert(rb_vs_data(1, 8, 7, 3, 2, 6, 5) == RB_VS_DATA_WRITTEN);       // its pool written since
++    assert(rb_vs_data(1, 8, 7, 3, 2, 0, 5) == RB_VS_DATA_UNVOUCHED);     // no count now (an unprotect under way, tracking unreliable, the switch off)
++    assert(rb_vs_data(1, 8, 7, 3, 2, 5, 0) == RB_VS_DATA_UNVOUCHED);     // none taken at its last clean look
++    assert(rb_vs_data(1, 8, 7, 3, 2, 0, 0) == RB_VS_DATA_UNVOUCHED);     // never an "unmoved" count of 0
++}
++
++// ---- 3. a replay: table moves, guest writes and bindings against a model of what a resolution (tex_mtl) would do ----
++// Per texture the model holds what tex_mtl reads: whether a serial table holds it and which host texture (obj), its pages (written since its last look), the write
++//   generation at that look (NvPkg seen: with no guest write since, tex_mtl does not walk the pages again), its pool's mappings (a virtual pool), and the record of a GPU
++//   write through an uncompressed texture over its storage (compressed). The moves follow the patch's discipline: an addition moves both counts; a re-upload and, with
++//   the switch on, a Finalize are noted for their serial; everything else is unclassified. Two IDs read each texture.
++//   The oracle, at every view the patch's rule keeps and patch 0319's did not: a resolution now would give the view's host texture and would do nothing else (no
++//   upload, no mapping to follow, no level to copy). Mutants of the rule and of the stamps must each trip it.
++enum { NTEX = 96, NVIEW = 2 * NTEX, NPOOL = 8, NPROG = 8 };
++enum { MUT_NONE = 0, MUT_CLEAN_UNWALKED, MUT_KEEP_VIRTUAL, MUT_BC_ANY, MUT_FINALIZE_SILENT, MUT_ANY_THREAD, MUT_N };
++typedef struct {
++    uint64_t serial; int pool, pkg, compressed, live, in_table;
++    uint64_t obj;                         // the host texture a resolution gives
++    int page_dirty; uint64_t pk_seen;     // a page of it written since its last successful look or upload; the write generation at its last look
++    int standin;                          // (CPU-written) first needed off the submit thread: a GPU texture stands in until the submit thread uploads it
++    int bc_seen, bc_record, bc_unsynced;  // its storage on record as resolved; a GPU write on record over it; levels of that write not yet copied into it
++    uint64_t maps, maps_seen;             // (virtual pool) its mappings now, and at its last look
++} tex_m;
++typedef struct { int has; uint64_t seen_ser, seen_add, seen_local, seen_dirty, seen_period, seen_range; int pkg, bc_quiet, sub; uint64_t obj; } view_m;
++static struct {
++    tex_m t[NTEX]; view_m v[NVIEW];
++    uint64_t gen, add, dirty, period, wseq, next_serial, next_obj;
++    rb_view_epoch ep;
++    uint64_t pool_wseq[NPOOL]; int pool_virtual[NPOOL], pool_uncounted[NPOOL];   // uncounted: no count stands for its textures (a shared edge page, an overlapping pool)
++    unsigned rnd; int scope, mut;
++    unsigned long kept[RB_VS_GLOBAL + 1], kept_new, kept_range, why[RB_VS_WHY_N], fast, slow, reuploads, failed_uploads, bad;
++} M;
++static unsigned rnd(unsigned n) { M.rnd = M.rnd * 1664525u + 1013904223u; return (M.rnd >> 10) % n; }
++static void unclassified(void) { M.gen++; }
++static void noted(uint64_t serial) { rb_view_note(&M.ep, serial, ++M.gen); }
++static uint64_t range_now(const tex_m *t) { return M.pool_virtual[t->pool] || M.pool_uncounted[t->pool] ? 0 : M.pool_wseq[t->pool]; }   // nvn_dirty_range_writes
++static void put(tex_m *t) {   // tex_put
++    if (!t->in_table && t->live) { M.gen++; M.add++; } else unclassified();   // a live serial no table held; else a replacement, or a finalized serial (the ring)
++    t->in_table = 1;
++}
++// What tex_mtl would do now. look = 0: only say whether it would do anything but return the view's texture (the oracle); look = 1: do it. Returns that answer
++static int resolve_tex(tex_m *t, int look, int upload_fails, int on_submit_thread, int in_submission, int *walked_clean) {
++    int work = 0;
++    *walked_clean = 0;
++    if (!t->in_table) { work = 1; if (look) { t->obj = ++M.next_obj; put(t); t->page_dirty = 0; t->pk_seen = M.dirty; t->standin = t->pkg && !on_submit_thread; } }   // made (again): another host texture
++    else if (t->pkg && !on_submit_thread) { }                                                                 // off the submit thread: what exists is handed out, not looked at
++    else if (t->pkg && t->standin) { work = 1; if (look) { t->obj = ++M.next_obj; t->standin = 0; t->page_dirty = 0; t->pk_seen = M.dirty; unclassified(); } }   // uploaded at last: it replaces the stand-in (tex_put over a held serial)
++    else if (t->pkg) {
++        const int walked = M.dirty != t->pk_seen;   // tex_mtl: now == pk->seen, no walk
++        if (look) t->pk_seen = M.dirty;
++        if (walked && t->page_dirty) {
++            work = 1;
++            if (look && !upload_fails) { t->obj = ++M.next_obj; t->page_dirty = 0; noted(t->serial); M.reuploads++; }   // re-upload, noted for its serial (patch 0163)
++            else if (look) M.failed_uploads++;                                                                         // no memory for it: the old texture stays, its pages still dirty
++        } else if (walked || M.mut == MUT_CLEAN_UNWALKED) *walked_clean = !work;
++    }
++    if (M.pool_virtual[t->pool] && t->maps != t->maps_seen) { work = 1; if (look) t->maps_seen = t->maps; }   // its tiles / upload follow the mappings
++    if (t->compressed && on_submit_thread && in_submission) {   // bcal_sync: only there are the levels taken and the storage put on record
++        if (t->bc_unsynced) { work = 1; if (look) t->bc_unsynced = 0; }
++        if (look) t->bc_seen = 1;
++    }
++    return work;
++}
++static void resolve(int j) {   // tex_by_id's slow path
++    tex_m *t = &M.t[j % NTEX]; view_m *v = &M.v[j];
++    const uint64_t sg = M.gen, sa = M.add, sl = M.ep.writes, dg = M.dirty;   // taken before the look, as tex_by_id takes them
++    const uint64_t wq = M.scope && t->pkg ? range_now(t) : 0;                // ... and the pool's count
++    const int on_submit_thread = rnd(16) != 0, in_submission = rnd(8) != 0; int clean = 0;
++    resolve_tex(t, 1, rnd(8) == 0, on_submit_thread, in_submission, &clean);
++    v->has = 1; v->seen_ser = sg; v->seen_add = sa; v->seen_local = sl; v->seen_dirty = dg; v->seen_period = M.period; v->pkg = t->pkg; v->obj = t->obj;
++    v->seen_range = clean ? wq : 0;
++    v->bc_quiet = M.scope && t->compressed && t->bc_seen && !t->bc_record;   // rb_bcal_quiet
++    v->sub = on_submit_thread;
++    M.slow++;
++}
++static void use(int j) {   // a draw binds the ID
++    tex_m *t = &M.t[j % NTEX]; view_m *v = &M.v[j];
++    if (!v->has) { resolve(j); return; }
++    if (v->seen_ser == M.gen && (!v->pkg || v->seen_dirty == M.dirty || v->seen_period == M.period)) { M.fast++; return; }   // the inline test, as before
++    const uint64_t range = M.scope && v->pkg ? range_now(t) : 0;
++    const int moves = rb_vs_moves(M.gen, M.add, M.ep.writes, M.ep.bucket[rb_view_bucket(t->serial)], v->seen_ser, v->seen_add, v->seen_local);
++    const int data = rb_vs_data(v->pkg, M.dirty, v->seen_dirty, M.period, v->seen_period, range, v->seen_range);
++    unsigned kind = (M.pool_virtual[t->pool] ? RB_VS_VIRTUAL : 0) | (t->compressed ? RB_VS_COMPRESSED : 0) | (v->bc_quiet ? RB_VS_BC_QUIET : 0) | (t->live ? RB_VS_LIVE : 0) | (v->sub ? RB_VS_SUBMIT : 0);
++    const int before = rb_vs_before(moves, data == RB_VS_DATA_RANGE || data == RB_VS_DATA_WRITTEN || data == RB_VS_DATA_UNVOUCHED ? RB_VS_DATA_WRITTEN : data, kind);
++    unsigned asked = kind;
++    if (M.mut == MUT_KEEP_VIRTUAL) asked &= ~(unsigned)RB_VS_VIRTUAL;
++    if (M.mut == MUT_BC_ANY) asked |= RB_VS_BC_QUIET;
++    if (M.mut == MUT_ANY_THREAD) asked |= RB_VS_SUBMIT;
++    const int why = M.scope ? rb_vs_why(moves, data, asked) : before ? RB_VS_KEEP : RB_VS_WHY_OTHER;
++    if (why != RB_VS_KEEP) { M.why[why]++; resolve(j); return; }
++    int clean = 0;
++    // every kept view: the tables still hold the host texture it was validated against
++    if (!t->in_table || t->obj != v->obj) M.bad++;
++    if (!before) {
++        // kept by this patch alone: a resolution would do nothing. In a check period the bytes are not looked at twice, by the rule patch 0319 already has
++        tex_m probe = *t; if (data == RB_VS_DATA_PERIOD) probe.page_dirty = 0;
++        if (resolve_tex(&probe, 0, 0, 1, 1, &clean)) M.bad++;
++        M.kept_new++;
++    }
++    v->seen_ser = M.gen; v->seen_add = M.add; v->seen_local = M.ep.writes;
++    if (data == RB_VS_DATA_RANGE) { v->seen_dirty = M.dirty; v->seen_period = M.period; M.kept_range++; }
++    M.kept[moves]++;
++}
++static void replay(unsigned seed, int scope, int mut, unsigned long steps) {
++    memset(&M, 0, sizeof M);
++    M.rnd = seed; M.scope = scope; M.mut = mut; M.gen = 1; M.add = 1; M.dirty = 1; M.period = 1; M.next_serial = 100;
++    for (int p = 0; p < NPOOL; p++) { M.pool_wseq[p] = ++M.wseq; M.pool_virtual[p] = p == 6; M.pool_uncounted[p] = p == 7; }
++    for (int i = 0; i < NTEX; i++) M.t[i] = (tex_m){.serial = ++M.next_serial, .pool = i % NPOOL, .pkg = i % 5 != 0, .compressed = i % 3 != 0, .live = 1};
++    for (unsigned long s = 0; s < steps; s++) {
++        const unsigned e = rnd(10000); const int j = (int)rnd(NVIEW); tex_m *t = &M.t[j % NTEX];
++        if (e < 9000) use(j);
++        else if (e < 9400) { M.gen++; M.add++; }        // a texture no modelled ID reads is made and resolved: an addition
++        else if (e < 9550) {   // Finalize: its serial leaves the tables (serial_del_kind). Most of the time the game then registers a new object in the ID's place
++            if (t->live) {
++                t->live = 0;
++                if (t->in_table) { t->in_table = 0; if (M.mut == MUT_FINALIZE_SILENT) { /* nothing told */ } else if (M.scope) noted(t->serial); else unclassified(); }
++            }
++            if (rnd(5)) {
++                *t = (tex_m){.serial = ++M.next_serial, .pool = t->pool, .pkg = t->pkg, .compressed = t->compressed, .live = 1};
++                M.v[j % NTEX].has = M.v[j % NTEX + NTEX].has = 0;   // nvn_be_reg_tex with another texture drops the ID's view
++            }
++        }
++        else if (e < 9750) {   // the guest writes a protected page of this texture's pool: this texture's, or another's there
++            M.dirty++; if (!M.pool_virtual[t->pool]) M.pool_wseq[t->pool] = ++M.wseq;
++            if (rnd(3) == 0 && t->pkg) t->page_dirty = 1;
++        }
++        else if (e < 9900) M.period++;                   // the next submission, or a wait on another queue
++        else if (e < 9950) noted(900000 + rnd(NPROG));   // a program made or released
++        else if (e < 9955) {   // a move nobody classifies (takeover, eviction, upgrade, the ring letting go): serials leave the tables, their next resolution makes them anew
++            unclassified(); for (int k = 0; k < 3; k++) M.t[rnd(NTEX)].in_table = 0;
++        }
++        else if (e < 9965) {   // a GPU write through an uncompressed texture over a compressed one's storage (bcal_note): unclassified only where a compressed one was resolved
++            if (t->compressed) { t->bc_record = 1; t->bc_unsynced = 1; if (t->bc_seen) unclassified(); }
++        }
++        else if (M.pool_virtual[t->pool]) t->maps++;     // a mapping request in a virtual pool: no count moves
++    }
++}
++static void check_replay(void) {
++    unsigned long kept_new = 0, range = 0, why[RB_VS_WHY_N] = {0}, slow_on = 0, slow_off = 0, bad_mut[MUT_N] = {0};
++    for (unsigned seed = 1; seed <= 12; seed++) {
++        replay(seed, 0, MUT_NONE, 200000);   // patch 0319's rule and discipline (S2A_RB_VIEW_SCOPE=0)
++        assert(M.bad == 0 && M.kept_new == 0);
++        slow_off += M.slow;
++        replay(seed, 1, MUT_NONE, 200000);   // this patch's
++        assert(M.bad == 0);
++        assert(M.reuploads > 0 && M.failed_uploads > 0);   // textures the guest rewrote were found and uploaded again, or left to a later look
++        kept_new += M.kept_new; range += M.kept_range; slow_on += M.slow;
++        for (int w = 1; w < RB_VS_WHY_N; w++) why[w] += M.why[w];
++        for (int mut = MUT_NONE + 1; mut < MUT_N; mut++) { replay(seed, 1, mut, 200000); bad_mut[mut] += M.bad; }
++    }
++    assert(kept_new > 10000 && range > 1000);
++    assert(slow_on < slow_off);
++    assert(why[RB_VS_WHY_GLOBAL] && why[RB_VS_WHY_OWN] && why[RB_VS_WHY_WRITTEN] && why[RB_VS_WHY_POOL] && why[RB_VS_WHY_DEAD] && why[RB_VS_WHY_OFFTHREAD] && why[RB_VS_WHY_BC] && why[RB_VS_WHY_UNVOUCHED]);
++    // negative controls: each of these is wrong, and the replay shows it
++    assert(bad_mut[MUT_CLEAN_UNWALKED] > 0);        // a count recorded although that look did not walk the pages (an upload that failed just before left them dirty)
++    assert(bad_mut[MUT_KEEP_VIRTUAL] > 0);          // a virtual pool's texture kept across a mapping request
++    assert(bad_mut[MUT_BC_ANY] > 0);                // a compressed one kept with a GPU write on record, or its storage not on record as resolved
++    assert(bad_mut[MUT_FINALIZE_SILENT] > 0);       // a Finalize that moves nothing
++    assert(bad_mut[MUT_ANY_THREAD] > 0);            // a view last resolved off the submit thread kept: the upload its texture still waits for is put off
++    printf("  replay: resolutions %lu -> %lu; %lu views kept by this patch alone (%lu by their pool's write count); resolved again: unclassified move %lu, own bucket %lu, "
++           "pool written %lu, virtual pool %lu, finalized object %lu, off the submit thread %lu, compressed %lu, no count %lu\n", slow_off, slow_on, kept_new, range,
++           why[RB_VS_WHY_GLOBAL], why[RB_VS_WHY_OWN], why[RB_VS_WHY_WRITTEN], why[RB_VS_WHY_POOL], why[RB_VS_WHY_DEAD], why[RB_VS_WHY_OFFTHREAD], why[RB_VS_WHY_BC], why[RB_VS_WHY_UNVOUCHED]);
++}
++
++int main(void) {
++    check_before();
++    check_rule();
++    check_replay();
++    puts("t_rb_view_scope: ok");
++    return 0;
++}
+diff --git a/runtime/tests/mk/rb_dirty_range.mk b/runtime/tests/mk/rb_dirty_range.mk
+new file mode 100644
+index 0000000..a043adc
+--- /dev/null
++++ b/runtime/tests/mk/rb_dirty_range.mk
+@@ -0,0 +1,8 @@
++# native-test-rb_dirty_range: RewindBox (patch 0320), the write count per tracked range (nvn_dirty_range_writes) against the page generations, with real write faults; no GPU, no game
++NATIVE_TEST_OWN += rb_dirty_range
++.PHONY: native-test-rb_dirty_range
++native-test-rb_dirty_range:
++	@mkdir -p $(BUILD)/tests
++	$(CC) $(CFLAGS) -Iruntime/include -o $(BUILD)/tests/t_rb_dirty_range graphics/nvn/tests/t_rb_dirty_range.c graphics/nvn/gfx/nvn/nvn_dirty.c
++	$(BUILD)/tests/t_rb_dirty_range
++TEST_TARGETS += native-test-rb_dirty_range

@@ -1,0 +1,591 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index ede3b3d..bdbfbcb 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -10595,6 +10595,9 @@ static void shmap_load_once(void) {
+     NSDictionary *tess_variants;    // 域名 → @{library, flags, output_control_points}（json tess.variants）
+     id<MTLComputePipelineState> tess_pso[3];   // hull 计算核 PSO，按域各一份（tess_hull_pso：变体库是自己就用 fn，否则载 <key>_b_t<域>；该域首次曲面绘制时建）
+     uint8_t tess_dom_red;   // hull：哪些域已判定没有可用的核并报过红（位 = 域编码 0–2，位 3 = 未定义的域值 3；tess_hull_pso）
++    // RewindBox (patch 0325): what a rebuild in part needs of the block below (encode_args_): its bytes in the frame scratch and that scratch's generation, the serial table's
++    //   generation and the check period taken before its walk, the stage it was built for; rb_ab_keeps: 0 not looked at yet, 1 no binding of the shader is kept in a partial rebuild, 2 some are
++    const uint8_t *rb_ab_cpu; uint64_t rb_ab_agen, rb_ab_ser, rb_ab_pkg; uint8_t rb_ab_stage, rb_ab_keeps;
+     // The argument buffer encoded last time
+     id<MTLBuffer> ab_buf; uint64_t ab_gpu; size_t ab_off; uint64_t ab_pass, ab_size_sub, ab_pgen; uint32_t ab_binst;   // ab_pgen: g_psnap_gen when it was encoded (pool table addresses, pool_gpu)   // ABI2 additionally keys reuse by the submission owning its argument/support arenas
+     uint8_t ab_ub;   // #968: that encode bound an s2a_flags.yzw copy (ub_support, an arena block of its submission): reused only within the same submission (ab_size_sub)
+@@ -13381,12 +13384,34 @@ static uint64_t c2_handle(int stage, unsigned b) {
+     if (b >= C2_SEPTEX && b < C2_SAMP && !((b - C2_SEPTEX) & 7)) return S.tex[stage][NVN_SEPTEX_SLOT0 + (b - C2_SEPTEX) / 8];
+     return 0;
+ }
++// RewindBox (patch 0325): a stage's mark (g_args_dirty) has two values (rb_args_ubo.h): 1, RB_ARGS_FULL, which every site writes but two, and RB_ARGS_UNIFORM, which a clean
++//   stage takes when only a uniform binding of it changes: BindUniformBuffer (state_op OP_BIND_UBO) and an inline uniform update deferred in the pass (ubd_dirty below), which
++//   changes what a uniform binding resolves to and nothing else. encode_args_ may then rebuild the stage's block in part. IPA 827 (Mario Kart World, iPhone A18 Pro, in a
++//   race): a stage's block was rebuilt in full 1.28 to 1.43 times per draw, 4.4 to 5.7 texture bindings looked up again per draw, 76 to 93 % of the rebuilt blocks with a
++//   bounds table identical to the one before. Every reader of the mark tests non-zero; every other writer writes 1, which also takes RB_ARGS_UNIFORM back to full.
++//   g_rb_args_causes notes which of the main sites marked a stage since its last encode, for the [rb-args] line alone (no decision reads it).
++//   S2A_RB_ARGS_UBO_ONLY=0: the mark is always 1 and every rebuild a full walk, as before
++#include "rb_args_ubo.h"
++_Static_assert(RB_ARGS_FULL == 1 && RB_ARGS_CLEAN == 0, "rb_args_ubo.h: the marks the other sites write and test");
++static int rb_args_ubo_mode(void) {   // read on the replaying thread (state_op, ubd_dirty, encode_args_)
++    static int v = -1;
++    if (v < 0) {
++        v = rb_args_mode(getenv("S2A_RB_ARGS_UBO_ONLY"));
++        MLOG("RewindBox (patch 0325): argument blocks rebuilt in part when only uniform bindings or the base instance changed: %s (S2A_RB_ARGS_UBO_ONLY)",
++             v == RB_ARGS_MODE_OFF ? "off, every rebuild walks every binding as before" :
++             v == RB_ARGS_MODE_CHECK ? "check, each such rebuild is made in full and its kept entries compared with the block before: a difference stops the process" : "on");
++    }
++    return v;
++}
++static uint8_t g_rb_args_causes[6];   // RB_ARGS_C_* per stage
++static inline void rb_args_cause(int stage, unsigned cause) { g_rb_args_causes[stage] |= (uint8_t)cause; }
++static inline void rb_args_cause_all(unsigned cause) { for (int st = 0; st < 6; st++) g_rb_args_causes[st] |= (uint8_t)cause; }
+ // A deferred inline update changes what the draws after it read through the uniform bindings it overlaps (they get a shadow): the argument blocks of those stages are encoded again.
+ // Only those: marking every stage made each later draw encode all of its blocks again, which with the updates kept across passes cost about 1.5 ms a frame in Breath of the Wild
+ static uint8_t g_args_dirty[6];
+ static void ubd_dirty(uint64_t lo, uint64_t hi) {
+     for (int st = 0; st < 6; st++) { if (g_args_dirty[st]) continue;
+-        for (int r = 0; r < 16; r++) { const p_bind_buf *u = &S.ubo[st][r]; if (u->addr && lo < u->addr + u->size && u->addr < hi) { g_args_dirty[st] = 1; break; } } }
++        for (int r = 0; r < 16; r++) { const p_bind_buf *u = &S.ubo[st][r]; if (u->addr && lo < u->addr + u->size && u->addr < hi) { g_args_dirty[st] = rb_args_mark_uniform(RB_ARGS_CLEAN, rb_args_ubo_mode()); rb_args_cause(st, RB_ARGS_C_UNIFORM); break; } } }   // RewindBox (patch 0325): the stage was clean: uniform-only (1 with S2A_RB_ARGS_UBO_ONLY=0, as before)
+ }
+ // Resolved guest streams are separate from the table cache: vconv_bind may overwrite a stream's table slot.
+ // Take the pool generation before resolving, so a concurrent pool change forces a fresh lookup next time.
+@@ -17292,6 +17317,7 @@ static inline void args_sync_dirty(void) {
+     uint64_t reg = g_reg_gen, dirty = nvn_dirty_now();
+     if (reg != g_args_reg_seen || dirty != g_args_dirty_seen) {
+         g_args_reg_seen = reg; g_args_dirty_seen = dirty; args_dirty_all();
++        rb_args_cause_all(RB_ARGS_C_REGISTRY);   // RewindBox (patch 0325): for the [rb-args] line
+     }
+ }
+ // A task shader's slot i (object stage table g_ot; the mesh stage shares the vertex table, enc_r_vbuf). Recorded as enc_r_vbuf records g_vt (nvn_rec.h)
+@@ -17892,6 +17918,92 @@ static void audit_probe_report(uint64_t frame) {
+ }
+ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, int metal_vertex);
+ static int encode_args(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, int metal_vertex) { AP_B; int r = encode_args_(en, sh, nvn_stage, metal_vertex); AP_E(3); return r; }
++// RewindBox (patch 0325): a stage's argument block rebuilt in part (rb_args_ubo.h; the marks are with ubd_dirty and in state_op). IPA 827 (Mario Kart World, iPhone A18
++//   Pro, in a race): about 40,000 submit-thread instructions per draw; a marked stage walked every binding, 1.28 to 1.43 full walks per draw, although most marks came from
++//   uniform bindings alone. When rb_args_decide answers RB_ARGS_PARTIAL, encode_args_ starts from the bytes of the shader's previous block (still in this generation's
++//   frame scratch, which no cut or new submission has handed on) and its walk skips the bindings rb_args_kept names (samplers, and textures neither fetched as rows nor
++//   buffer textures); every other binding runs the code it always ran. What a kept entry reads, and why it cannot have changed: the stage's bound texture / sampler
++//   handles and pool bases (their binds mark the stage 1), the registrations and guest writes to texture storage (args_sync_dirty marks 1), the texture ID's view
++//   (tex_fast_rid answers from its record while the serial table's generation and the check period stand: both are compared with the values taken before the previous
++//   walk), a same-pass feedback substitution (fb_prepare marks the fragment stage), the pass (same serial). Excluded outright: the stages other than vertex and
++//   fragment; a shader whose block holds a table made from its textures per draw (exact ABI2 with texture entries, an unnorm support copy) or pool tables; pass dumps,
++//   resource checks, texture dumps, the widen core, folded textures and the other title's retained scale, whose per-binding work must run at every walk. Skipped with a
++//   kept entry, as the whole-block reuse always skipped them: the P1-20 probe, the fresh-read and frame-signature notes, rs_bind_check (its queue already holds what
++//   the previous walk of this pass queued). g_rb_args_owner: the shader whose encode last cleared each stage's mark, compared, never dereferenced.
++//   The [rb-args] line, every 300 frames, counts the rebuilds by rb_args_why's answer. S2A_RB_ARGS_UBO_ONLY=0: every rebuild is the full walk, as before; =check: a
++//   rebuild that would be in part is made in full and rb_args_check compares its kept entries with the previous block's
++_Static_assert((int)RB_AK_SAMP == (int)NVN_RB_SAMP && (int)RB_AK_TEX == (int)NVN_RB_TEX && (int)RB_AK_SAMPT == (int)NVN_RB_SAMPT && (int)RB_AK_SAMPI == (int)NVN_RB_SAMPI &&
++               (int)RB_AK_TYPE_TBUF == (int)MTLTextureTypeTextureBuffer, "rb_args_ubo.h constants");
++static __unsafe_unretained NvShader *g_rb_args_owner[6];
++static uint64_t g_rb_args_n[RB_ARGS_WHY_N], g_rb_args_clean, g_rb_args_checked, g_rb_args_report_sub;   // rebuilds by reason / in part with a clean stage (the base instance alone) / compared (=check) / the submission of the last look at the line
++static void rb_args_report(void) {   // once per submission, from its first rebuild: a line every 300 frames
++    static uint64_t last, n0[RB_ARGS_WHY_N], clean0, checked0, reuse0;
++    uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    if (frame < last) last = frame;   // a new session's frames start again
++    if (frame - last < 300) return;
++    uint64_t d[RB_ARGS_WHY_N], full = 0;
++    for (int w = 0; w < RB_ARGS_WHY_N; w++) { d[w] = g_rb_args_n[w] - n0[w]; n0[w] = g_rb_args_n[w]; if (w != RB_ARGS_PARTIAL) full += d[w]; }
++    const int mode = rb_args_ubo_mode();
++    MLOG("[rb-args] frame=%llu argument blocks since the last line: reused=%llu partial=%llu (of them stage clean, base instance only: %llu) full=%llu; full because: "
++         "first_in_pass=%llu textures_moved=%llu program=%llu handles=%llu storage=%llu push=%llu feedback=%llu registration_or_guest_write=%llu other_mark=%llu other_shader=%llu "
++         "shader_keeps_none_or_per_draw_table=%llu not_vertex_or_fragment=%llu diagnostic_mode=%llu switch_off=%llu; compared=%llu; S2A_RB_ARGS_UBO_ONLY %s (patch 0325%s)",
++         (unsigned long long)frame, (unsigned long long)(g_stat_args_reuse - reuse0), (unsigned long long)d[RB_ARGS_PARTIAL], (unsigned long long)(g_rb_args_clean - clean0), (unsigned long long)full,
++         (unsigned long long)d[RB_ARGS_WHY_FIRST], (unsigned long long)d[RB_ARGS_WHY_SERIAL], (unsigned long long)d[RB_ARGS_WHY_PROGRAM], (unsigned long long)d[RB_ARGS_WHY_HANDLES],
++         (unsigned long long)d[RB_ARGS_WHY_STORAGE], (unsigned long long)d[RB_ARGS_WHY_PUSH], (unsigned long long)d[RB_ARGS_WHY_FEEDBACK], (unsigned long long)d[RB_ARGS_WHY_REGISTRY],
++         (unsigned long long)d[RB_ARGS_WHY_OTHER], (unsigned long long)d[RB_ARGS_WHY_OWNER], (unsigned long long)d[RB_ARGS_WHY_SHADER], (unsigned long long)d[RB_ARGS_WHY_STAGE],
++         (unsigned long long)d[RB_ARGS_WHY_MODE], (unsigned long long)d[RB_ARGS_WHY_OFF], (unsigned long long)(g_rb_args_checked - checked0),
++         mode == RB_ARGS_MODE_OFF ? "0" : mode == RB_ARGS_MODE_CHECK ? "check" : "on",
++         mode == RB_ARGS_MODE_CHECK ? "; the partial ones were made in full and compared" : mode == RB_ARGS_MODE_ON ? "; a partial rebuild runs no P1-20 probe and no fresh-read note on the entries it keeps" : "");
++    last = frame - frame % 300; clean0 = g_rb_args_clean; checked0 = g_rb_args_checked; reuse0 = g_stat_args_reuse;
++}
++static int rb_args_shader_keeps(__unsafe_unretained NvShader *sh) {   // some binding of the shader is one a partial rebuild keeps (looked at once)
++    if (__builtin_expect(!sh->rb_ab_keeps, 0)) {
++        int n = 0;
++        for (int i = 0; i < sh->rf.nb; i++) n += rb_args_kept(sh->rf.b[i].kind, sh->rf.b[i].f1d, sh->rf.b[i].dtt);
++        sh->rb_ab_keeps = n ? 2 : 1;
++    }
++    return sh->rb_ab_keeps == 2;
++}
++// How this rebuild is made (RB_ARGS_PARTIAL, or in full and why), counted. *ser0 / *pkg0: the serial table's generation and the check period, taken here, before the walk,
++//   as tex_by_id takes them before its lookup: a move during the walk leaves the block recorded with the older value, and its next rebuild is a full one
++static int rb_args_decide(__unsafe_unretained NvShader *sh, int nvn_stage, int size_abi, uint64_t *ser0, uint64_t *pkg0) {
++    if (__builtin_expect(g_rb_args_report_sub != g_sub_serial, 0)) { g_rb_args_report_sub = g_sub_serial; rb_args_report(); }
++    *ser0 = atomic_load_explicit(&g_ser_gen, memory_order_relaxed); *pkg0 = g_pkg_epoch;
++    rb_args_gate g; memset(&g, 0, sizeof g);
++    g.mode = (uint8_t)rb_args_ubo_mode();
++    if (g.mode != RB_ARGS_MODE_OFF) {
++        g.stage = (uint8_t)nvn_stage;
++        g.dirty = g_args_dirty[nvn_stage];
++        g.causes = (uint8_t)(g_rb_args_causes[nvn_stage] | (nvn_stage == 1 && g_fb_n && g_fb_seq == g_draw_seq ? RB_ARGS_C_FEEDBACK : 0));
++        g.walk_all = passdump() || g_res_check_on || g_td_frame >= 0 || g_wd > 0 || g_fold_any || (rs_on() && rs_retain_on());
++        g.per_draw = size_abi || sh->ab_ub || sh->rf.pool;
++        g.kept = (uint8_t)rb_args_shader_keeps(sh);
++        g.have = sh->ab_buf != nil && sh->rb_ab_cpu != NULL;
++        g.same_pass = sh->ab_pass == g_pass.serial; g.same_sub = sh->ab_size_sub == g_sub_serial; g.same_arena = sh->rb_ab_agen == g_arena_gen; g.same_stage = sh->rb_ab_stage == nvn_stage;
++        g.same_views = sh->rb_ab_ser == *ser0 && sh->rb_ab_pkg == *pkg0;
++        g.owner = g_rb_args_owner[nvn_stage] == sh;
++    }
++    const int why = rb_args_why(&g);
++    g_rb_args_n[why]++;
++    if (why == RB_ARGS_PARTIAL && g.dirty == RB_ARGS_CLEAN) g_rb_args_clean++;
++    return why;
++}
++// S2A_RB_ARGS_UBO_ONLY=check: the full walk's entries (slots) against the previous block's (prev) for every binding a partial rebuild would have kept, and no unnorm copy
++//   where the previous block had none. A difference is an entry the partial rebuild would have handed to the GPU wrong: the process stops on it
++static void rb_args_check(__unsafe_unretained NvShader *sh, int nvn_stage, const uint64_t *slots, const uint8_t *prev, NSUInteger arg_len, int ub_on) {
++    g_rb_args_checked++;
++    if (ub_on) MDIE("RewindBox (patch 0325) S2A_RB_ARGS_UBO_ONLY=check: shader %s stage %d: the full walk binds an unnorm support copy, the block before had none (frame %llu, pass %llu)",
++                    sh->key, nvn_stage, (unsigned long long)atomic_load_explicit(&g_cur_frame, memory_order_relaxed), (unsigned long long)g_stat_pass);
++    for (int i = 0; i < sh->rf.nb; i++) {
++        const nvn_rbind *b = &sh->rf.b[i];
++        if (!rb_args_kept(b->kind, b->f1d, b->dtt) || 8 * ((NSUInteger)b->aid + 1) > arg_len || b->aid >= NVN_REFL_MAXARG) continue;
++        uint64_t was; memcpy(&was, prev + 8 * (size_t)b->aid, sizeof was);
++        if (was != slots[b->aid])
++            MDIE("RewindBox (patch 0325) S2A_RB_ARGS_UBO_ONLY=check: shader %s stage %d binding %d (kind %d, register %d, entry %d): the block before holds %#llx, the full walk gives %#llx (frame %llu, pass %llu): a partial rebuild would have kept the old entry",
++                 sh->key, nvn_stage, i, (int)b->kind, (int)b->reg, (int)b->aid, (unsigned long long)was, (unsigned long long)slots[b->aid],
++                 (unsigned long long)atomic_load_explicit(&g_cur_frame, memory_order_relaxed), (unsigned long long)g_stat_pass);
++    }
++}
+ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, int metal_vertex) {
+     if (!sh->arg_len) return 1;   // no argument buffer (shader_args_init)
+     args_sync_dirty();
+@@ -17904,11 +18016,17 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+     }
+     NSUInteger arg_len = sh->arg_len;
+     int size_abi = sh->size_abi && sh->size_exact && sh->nts;   // only exact ABI2 programs with texture entries build a per-draw table; without them the table follows the pass (size_abi_pass_support); legacy_1x keeps main's support buffer binding byte for byte (10-31 iPhone A/B: +6–11% CPU otherwise)
++    // RewindBox (patch 0325): in part (the kept entries from the previous block, the walk below skips their bindings), or in full; =check: in full, then compared
++    uint64_t rb_ser0, rb_pkg0;
++    const int rb_why = rb_args_decide(sh, nvn_stage, size_abi, &rb_ser0, &rb_pkg0);
++    const int rb_chk = rb_why == RB_ARGS_PARTIAL && rb_args_ubo_mode() == RB_ARGS_MODE_CHECK, rb_part = rb_why == RB_ARGS_PARTIAL && !rb_chk;
++    const uint8_t *const rb_prev = rb_why == RB_ARGS_PARTIAL ? sh->rb_ab_cpu : NULL;
+     if (size_abi) size_abi_begin(sh, nvn_stage);
+     uint32_t ubw[3] = {0, 0, 0};   // #968: this draw's s2a_flags.y / z / w (ub_note)
+     int p65_ul = 0, p65_hit = 0, p65_reg = 0, p65_k = 0; uint64_t p65_tb = 0, p65_av = 0;
+     int ul_aid = -1; uint64_t ubcap[NVN_UBOLEN_N]; for (int r = 0; r < NVN_UBOLEN_N; r++) ubcap[r] = UINT64_MAX;   // P1-65: bytes behind each uniform slot's pointer this draw (CBUF branch); the table is filled after the loop   // audit #1534 P1-65 probe: the shader has a bounds table / which risk points this table hit (1 widen copy, 2 pool end) / first hit
+     uint64_t slots[NVN_REFL_MAXARG]; memset(slots, 0, arg_len < sizeof slots ? arg_len : sizeof slots);   // only the bytes that are copied out (they used to be zeroed in full, before the reuse check too)
++    if (rb_part) memcpy(slots, rb_prev, arg_len < sizeof slots ? arg_len : sizeof slots);   // RewindBox (patch 0325): every entry as the previous block has it; the walk writes the ones it does not keep
+     #define USE(r, u) do { (void)(u); if (__builtin_expect(g_res_check_on, 0)) res_check((r), sh->key, reg); } while (0)
+     // DM_NVN_PASSDUMP: on the first new encode per pass per stage, records the shader key (K) and the actual source of each binding (B: UBO address / length / first 4 floats, texture ID and serial, or "dummy")
+     static uint64_t bl_pass[6]; static int bl_all = -1; if (bl_all < 0) bl_all = getenv("DM_NVN_PASSDUMP_ALL") != NULL;   // Record on every new encode (otherwise only the first time per pass per stage)
+@@ -17917,6 +18035,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+     pthread_mutex_lock(&g_rmu);   // The texture / sampler registration tables may be being grown or rewritten by the game thread
+     for (int i = 0; i < sh->rf.nb; i++) {
+         const nvn_rbind *b = &sh->rf.b[i];
++        if (rb_part && rb_args_kept(b->kind, b->f1d, b->dtt)) continue;   // RewindBox (patch 0325): a rebuild in part keeps this entry (rb_args_ubo.h): nothing it reads has changed since the block it was copied from
+         int reg = b->reg, aid = b->aid;
+         if (b->kind == NVN_RB_GEOMETRY) { slots[aid] = g_geo_bind[reg]; continue; }
+         if (b->kind == NVN_RB_UVX) { slots[aid] = uvx_fill(sh, nvn_stage); continue; }   // S2Arm widen 16:9 sampling remap (see uvx_fill)
+@@ -18221,13 +18340,18 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+         if (!passdump() && sh->ab_buf && sh->ab_size_sub == g_sub_serial && sh->ab_pass == g_pass.serial &&
+             nvn_stage != 5 && !memcmp((uint8_t *)sh->ab_buf.contents + sh->ab_off, slots, arg_len)) {
+             bind_args(en, nvn_stage, metal_vertex, sh->ab_buf, sh->ab_gpu, sh->ab_off, sh->rf.abi);
++            g_rb_args_owner[nvn_stage] = sh; g_rb_args_causes[nvn_stage] = 0;   // RewindBox (patch 0325): this shader's encode clears the stage's mark
+             g_args_dirty[nvn_stage] = 0; g_stat_args_reuse++; return 1;
+         }
+     }
++    if (rb_chk && sh->rb_ab_agen == g_arena_gen) rb_args_check(sh, nvn_stage, slots, rb_prev, arg_len, ub_on);   // RewindBox (patch 0325): S2A_RB_ARGS_UBO_ONLY=check (not when the walk itself cut the submission: the previous block's scratch may be in use again)
+     id<MTLBuffer> ab; size_t off = arena_alloc(arg_len, &ab);
+     memcpy(g_cur_arena->cpu + off, slots, arg_len);
+     bind_args(en, nvn_stage, metal_vertex, ab, g_cur_arena->gpu + off, off, sh->rf.abi);
+     sh->ab_buf = ab; sh->ab_gpu = g_cur_arena->gpu + off; sh->ab_off = off; sh->ab_pass = g_pass.serial; sh->ab_binst = g_draw_binst; sh->ab_size_sub = g_sub_serial; sh->ab_pgen = g_psnap_gen; sh->ab_ub = (uint8_t)ub_on; g_args_dirty[nvn_stage] = 0;
++    // RewindBox (patch 0325): what the next rebuild in part needs of this block, and whose encode cleared the stage's mark
++    sh->rb_ab_cpu = g_cur_arena->cpu + off; sh->rb_ab_agen = g_arena_gen; sh->rb_ab_ser = rb_ser0; sh->rb_ab_pkg = rb_pkg0; sh->rb_ab_stage = (uint8_t)nvn_stage;
++    g_rb_args_owner[nvn_stage] = sh; g_rb_args_causes[nvn_stage] = 0;
+     g_stat_args_enc++;
+     return 1;
+ }
+@@ -18680,15 +18804,16 @@ static int state_op(uint32_t op, const void *a, uint32_t size) {
+             if (pc->offset + pc->size > NVN2_PUSH_BYTES || !src) break;
+             memcpy(S.push[c][pc->slot & (NVN2_PUSH_SLOTS - 1)] + pc->offset, src, pc->size); S.push_ver[c][pc->slot & (NVN2_PUSH_SLOTS - 1)] = ++g_push_seq;
+             if (c) g_args_dirty[5] = 1; else memset(g_args_dirty, 1, 5);
++            for (int st = c ? 5 : 0; st < (c ? 6 : 5); st++) rb_args_cause(st, RB_ARGS_C_PUSH);   // RewindBox (patch 0325): for the [rb-args] line, as the notes below
+             break; }
+         case OP_SET_TEX_POOL: case OP_SET_SAMP_POOL: { int tex = op == OP_SET_TEX_POOL, b = nvn_dpool_base(((const p_set_pool *)a)->pool, tex);
+-            if (b != (tex ? S.tex_base : S.samp_base)) { if (tex) S.tex_base = b; else S.samp_base = b; args_dirty_all(); }
++            if (b != (tex ? S.tex_base : S.samp_base)) { if (tex) S.tex_base = b; else S.samp_base = b; args_dirty_all(); rb_args_cause_all(RB_ARGS_C_HANDLES); }   // RewindBox (patch 0325): rb_args_cause*, for the [rb-args] line
+             break; }
+         // The compute stage has a binding of its own: a compute bind used to replace the one bound program, so a draw after a dispatch found the compute program (or none) and was
+         // dropped, and a dispatch after a graphics bind found no compute shader. Hyrule Warriors: Age of Calamity interleaves them; its movie's NV12 → RGB draw was dropped and the intro played black
+         case OP_BIND_PROGRAM: { p_bind_program bpt_; const p_bind_program *bp_ = bind_program_rec(a, size, &bpt_); const prog_t *bpp = prog_live(bp_);
+-            if ((bp_->stages & 0x20) && bpp != S.cprog) { S.cprog = bpp; args_dirty_all(); }
+-            if (bp_->stages & 0x1f) { const prog_t *np = bind_stages(bpp, bp_->stages & 0x1f); if (np != S.prog) { S.prog = np; g_pso_dirty = 1; args_dirty_all(); } }
++            if ((bp_->stages & 0x20) && bpp != S.cprog) { S.cprog = bpp; args_dirty_all(); rb_args_cause_all(RB_ARGS_C_PROGRAM); }   // RewindBox (patch 0325): rb_args_cause*, for the [rb-args] line
++            if (bp_->stages & 0x1f) { const prog_t *np = bind_stages(bpp, bp_->stages & 0x1f); if (np != S.prog) { S.prog = np; g_pso_dirty = 1; args_dirty_all(); rb_args_cause_all(RB_ARGS_C_PROGRAM); } }   // RewindBox (patch 0325): rb_args_cause*, for the [rb-args] line
+             break; }
+         case OP_BIND_STATE: {
+             const p_bind_state *b = a; void *dst = NULL; size_t n = 0;
+@@ -18709,8 +18834,9 @@ static int state_op(uint32_t op, const void *a, uint32_t size) {
+             if (S.nattr != b->n || memcmp(S.attr, at, 4 * b->n)) { memcpy(S.attr, at, 4 * b->n); S.nattr = b->n; g_pso_dirty = 1; } break; }
+         case OP_BIND_VSTREAM: { const p_bind_vstream *b = a; if (S.nstream != b->n || memcmp(S.stream, b->st, 8 * b->n)) { memcpy(S.stream, b->st, 8 * b->n); S.nstream = b->n; g_pso_dirty = 1; } break; }
+         case OP_BIND_VBUF: { p_bind_vbuf t; const p_bind_vbuf *b = bind_vbuf_rec(a, size, &t); memcpy(&S.vbuf[b->first], b->r, sizeof *b->r * b->n); break; }
+-        case OP_BIND_UBO: { p_bind_buf bt; const p_bind_buf *b = bb_fresh(a, &bt); if (b->stage < 6 && b->index < 16 && memcmp(&S.ubo[b->stage][b->index], b, sizeof *b)) { S.ubo[b->stage][b->index] = *b; g_args_dirty[b->stage] = 1; } break; }
+-        case OP_BIND_SSBO: { p_bind_buf bt; const p_bind_buf *b = bb_fresh(a, &bt); if (b->stage < 6 && b->index < 16 && memcmp(&S.ssbo[b->stage][b->index], b, sizeof *b)) { S.ssbo[b->stage][b->index] = *b; g_args_dirty[b->stage] = 1; } break; }
++        // RewindBox (patch 0325): a uniform binding marks a clean stage RB_ARGS_UNIFORM and leaves a marked one as it is (rb_args_ubo.h); S2A_RB_ARGS_UBO_ONLY=0: 1, as before
++        case OP_BIND_UBO: { p_bind_buf bt; const p_bind_buf *b = bb_fresh(a, &bt); if (b->stage < 6 && b->index < 16 && memcmp(&S.ubo[b->stage][b->index], b, sizeof *b)) { S.ubo[b->stage][b->index] = *b; g_args_dirty[b->stage] = rb_args_mark_uniform(g_args_dirty[b->stage], rb_args_ubo_mode()); rb_args_cause(b->stage, RB_ARGS_C_UNIFORM); } break; }
++        case OP_BIND_SSBO: { p_bind_buf bt; const p_bind_buf *b = bb_fresh(a, &bt); if (b->stage < 6 && b->index < 16 && memcmp(&S.ssbo[b->stage][b->index], b, sizeof *b)) { S.ssbo[b->stage][b->index] = *b; g_args_dirty[b->stage] = 1; rb_args_cause(b->stage, RB_ARGS_C_STORAGE); } break; }   // RewindBox (patch 0325): rb_args_cause*, for the [rb-args] line
+         case OP_BIND_TEX: case OP_BIND_TEX1: { p_bind_handles t1; const p_bind_handles *b = bind_rec(op, a, &t1);
+             if (b->n < 0 || b->n > 32) {   // the recorder never writes more than 32 (bind_handles): the record was overwritten after it was recorded
+                 static int once; if (!once++) { const uint8_t *q = (const uint8_t *)a; char hx[3 * 96 + 1]; for (int k = 0; k < 96; k++) snprintf(hx + 3 * k, 4, "%02x ", q[k - 32]);
+@@ -18719,9 +18845,9 @@ static int state_op(uint32_t op, const void *a, uint32_t size) {
+             bh_fresh(b);
+             if (passdump()) for (int k = 0; k < b->n; k++) { int tid = (int)(b->h[k] & 0xfffff); if (tid) PD("T %llu bind st%d slot%d tid=%d sid=%d ser=%llu%s", g_stat_pass + 1, b->stage, b->first + k, tid, (int)(b->h[k] >> 20),
+                 tid < g_ntreg ? g_treg[tid].t.serial : 0ull, b->defer ? " deferred" : ""); }
+-            if (b->stage < 6 && b->first + b->n <= NTEX && memcmp(&S.tex[b->stage][b->first], b->h, 8 * b->n)) { memcpy(&S.tex[b->stage][b->first], b->h, 8 * b->n); g_args_dirty[b->stage] = 1; } break; }
+-        case OP_BIND_SAMP: { const p_bind_handles *b = a; bh_fresh(b); if (b->stage < 6 && b->first + b->n <= 128 && memcmp(&S.samp[b->stage][b->first], b->h, 8 * b->n)) { memcpy(&S.samp[b->stage][b->first], b->h, 8 * b->n); g_args_dirty[b->stage] = 1; } break; }
+-        case OP_BIND_IMG: { const p_bind_handles *b = a; bh_fresh(b); if (b->stage < 6 && b->first >= 0 && b->first + b->n <= 32) { if (memcmp(&S.img[b->stage][b->first], b->h, 8 * b->n)) { memcpy(&S.img[b->stage][b->first], b->h, 8 * b->n); g_args_dirty[b->stage] = 1; } } else RED_ONCE(31, "image slots out of range stage %d first %d count %d", b->stage, b->first, b->n); break; }
++            if (b->stage < 6 && b->first + b->n <= NTEX && memcmp(&S.tex[b->stage][b->first], b->h, 8 * b->n)) { memcpy(&S.tex[b->stage][b->first], b->h, 8 * b->n); g_args_dirty[b->stage] = 1; rb_args_cause(b->stage, RB_ARGS_C_HANDLES); } break; }   // RewindBox (patch 0325): rb_args_cause*, for the [rb-args] line
++        case OP_BIND_SAMP: { const p_bind_handles *b = a; bh_fresh(b); if (b->stage < 6 && b->first + b->n <= 128 && memcmp(&S.samp[b->stage][b->first], b->h, 8 * b->n)) { memcpy(&S.samp[b->stage][b->first], b->h, 8 * b->n); g_args_dirty[b->stage] = 1; rb_args_cause(b->stage, RB_ARGS_C_HANDLES); } break; }   // RewindBox (patch 0325): rb_args_cause*, for the [rb-args] line
++        case OP_BIND_IMG: { const p_bind_handles *b = a; bh_fresh(b); if (b->stage < 6 && b->first >= 0 && b->first + b->n <= 32) { if (memcmp(&S.img[b->stage][b->first], b->h, 8 * b->n)) { memcpy(&S.img[b->stage][b->first], b->h, 8 * b->n); g_args_dirty[b->stage] = 1; rb_args_cause(b->stage, RB_ARGS_C_HANDLES); } } else RED_ONCE(31, "image slots out of range stage %d first %d count %d", b->stage, b->first, b->n); break; }   // RewindBox (patch 0325): rb_args_cause*, for the [rb-args] line
+         case OP_STENCIL: {
+             const p_stencil *b = a;
+             if (b->which != 2) g_dss_dirty = 1;
+diff --git a/graphics/nvn/gfx/nvn/rb_args_ubo.h b/graphics/nvn/gfx/nvn/rb_args_ubo.h
+new file mode 100644
+index 0000000..4b3551c
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_args_ubo.h
+@@ -0,0 +1,97 @@
++// RewindBox (patch 0325): when a stage's argument block may be rebuilt in part, and which of its entries are then taken from the block before (nvn_mtl.m
++//   encode_args_). Pure C: tests/t_rb_args_ubo.c.
++//   IPA 827 (Mario Kart World, iPhone A18 Pro, in a race): about 40,000 submit-thread instructions per draw at 1,000 to 2,058 draws a frame; a stage's block was
++//   rebuilt in full 1.28 to 1.43 times per draw, looking up 4.4 to 5.7 texture bindings per draw again (views, type and format fits, checks, notes), while 76 to 93 %
++//   of the rebuilt blocks got a bounds table identical to the one before: the uniform buffers changed address, not shape. Until now any change marked the stage and
++//   a marked stage walked every binding.
++//   Rule. The mark has two values: RB_ARGS_FULL (anything), RB_ARGS_UNIFORM (only uniform buffer bindings changed: BindUniformBuffer, or an inline uniform update
++//   deferred inside the pass, which changes what a uniform binding resolves to). A full mark is never lowered. A marked stage is rebuilt in part when, since this
++//   same shader last encoded this same stage, in the same pass, submission and scratch generation, nothing but uniform bindings marked it (or nothing did and only
++//   the draw's base instance differs), and no texture was made, replaced or dropped meanwhile (the serial table's generation, which a storage taken over or
++//   swapped moves without marking any stage; the full walk then resolves each texture ID to the view it resolved to before). In part means: the walk skips the bindings rb_args_kept names, whose entries are copied from the shader's previous block,
++//   and runs every other binding's code exactly as the full walk does (uniform buffers, bounds tables, driver tables with the base instance, support buffer, storage
++//   buffers, push constants, handles read from uniform memory, …). Kept are the bindings whose entry depends only on the stage's bound texture and sampler handles
++//   and on registrations, each of which marks the stage in full when it changes: a sampler (SAMP, SAMPT, SAMPI) and a texture (TEX) that is neither fetched as rows
++//   nor a buffer texture. The existing reuse of a whole block rests on the same statement for every entry. Never in part: compute, geometry and tessellation blocks,
++//   a shader whose block holds a table made from its textures per draw, and while a diagnostic that walks every binding is on.
++//   S2A_RB_ARGS_UBO_ONLY=0: as before (the mark is always RB_ARGS_FULL, every rebuild a full walk). =check: every rebuild that would be in part is made in full
++//   and its kept entries compared with the previous block's; a difference stops the process with a line naming the shader, stage and entry. (The check can also
++//   stop on two views of the same texels: one texture ID read under two declared types in turn through a same-pass copy, or with S2A_RB_VIEW_KEEP=0, makes its
++//   bridging view again at each walk.)
++#pragma once
++#include <stdint.h>
++#include <string.h>
++
++enum { RB_ARGS_CLEAN = 0, RB_ARGS_FULL = 1, RB_ARGS_UNIFORM = 2 };          // g_args_dirty[stage]; every reader tests non-zero, every other writer writes 1
++enum { RB_ARGS_MODE_OFF = 0, RB_ARGS_MODE_ON = 1, RB_ARGS_MODE_CHECK = 2 };  // S2A_RB_ARGS_UBO_ONLY
++static inline int rb_args_mode(const char *env) {
++    if (!env) return RB_ARGS_MODE_ON;
++    if (!strcmp(env, "0")) return RB_ARGS_MODE_OFF;
++    if (!strcmp(env, "check")) return RB_ARGS_MODE_CHECK;
++    return RB_ARGS_MODE_ON;
++}
++// The mark after a uniform binding of the stage changed: a clean stage becomes uniform-only (full with the switch at 0), a marked one stays as it is
++static inline uint8_t rb_args_mark_uniform(uint8_t cur, int mode) {
++    return cur != RB_ARGS_CLEAN ? cur : mode != RB_ARGS_MODE_OFF ? RB_ARGS_UNIFORM : RB_ARGS_FULL;
++}
++
++enum { RB_AK_SAMP = 2, RB_AK_TEX = 3, RB_AK_SAMPT = 11, RB_AK_SAMPI = 15,   // nvn_refl.h NVN_RB_* (asserted equal in nvn_mtl.m and in the test)
++       RB_AK_TYPE_TBUF = 9 };                                               // MTLTextureTypeTextureBuffer (asserted in nvn_mtl.m)
++// 1 = a rebuild in part keeps this binding's entry from the previous block
++static inline int rb_args_kept(unsigned kind, unsigned f1d, unsigned dtt) {
++    if (kind == RB_AK_SAMP || kind == RB_AK_SAMPT || kind == RB_AK_SAMPI) return 1;
++    return kind == RB_AK_TEX && !f1d && dtt != RB_AK_TYPE_TBUF;
++}
++
++// What marked a stage since its last encode, for the counters (bits; a site not listed leaves none: "other")
++enum { RB_ARGS_C_UNIFORM = 1 << 0, RB_ARGS_C_PROGRAM = 1 << 1, RB_ARGS_C_HANDLES = 1 << 2, RB_ARGS_C_STORAGE = 1 << 3,
++       RB_ARGS_C_PUSH = 1 << 4, RB_ARGS_C_FEEDBACK = 1 << 5, RB_ARGS_C_REGISTRY = 1 << 6 };
++// How a rebuild is made: in part, or in full and why (the counters of the [rb-args] line, in this order)
++enum { RB_ARGS_PARTIAL = 0,
++       RB_ARGS_WHY_OFF,        // the switch is 0
++       RB_ARGS_WHY_STAGE,      // not a vertex or fragment block
++       RB_ARGS_WHY_MODE,       // a diagnostic or mode that walks every binding is on
++       RB_ARGS_WHY_SHADER,     // the shader keeps no entry, or its block holds a per-draw table
++       RB_ARGS_WHY_FIRST,      // no block of this shader for this stage in this pass, submission and scratch generation
++       RB_ARGS_WHY_SERIAL,     // a texture was made, replaced or dropped since that block, or the check period of CPU-written textures is another
++       RB_ARGS_WHY_PROGRAM,    // marked in full, by (first that applies): a program binding,
++       RB_ARGS_WHY_HANDLES,    //   a texture, sampler or image binding or a pool change,
++       RB_ARGS_WHY_STORAGE,    //   a storage buffer binding,
++       RB_ARGS_WHY_PUSH,       //   push constants,
++       RB_ARGS_WHY_FEEDBACK,   //   a same-pass feedback substitution,
++       RB_ARGS_WHY_REGISTRY,   //   a registration or a guest write to texture storage,
++       RB_ARGS_WHY_OTHER,      //   anything else (an internal draw, a state restore, …)
++       RB_ARGS_WHY_OWNER,      // not marked in full, but another shader encoded this stage since this one did
++       RB_ARGS_WHY_N };
++typedef struct {
++    uint8_t mode;         // RB_ARGS_MODE_*
++    uint8_t stage;        // nvn_stage
++    uint8_t dirty;        // g_args_dirty[stage], after the registration / guest-write generations were looked at
++    uint8_t causes;       // RB_ARGS_C_* noted for the stage since its last encode
++    uint8_t walk_all;     // a diagnostic or mode that needs every binding walked
++    uint8_t per_draw;     // the shader's block holds a table made per draw from its textures, or pool tables
++    uint8_t kept;         // the shader has a binding rb_args_kept names
++    uint8_t have;         // the shader has a previous block and its bytes
++    uint8_t same_pass, same_sub, same_arena, same_stage;   // … built in this pass, submission, scratch generation, for this stage
++    uint8_t same_views;   // … with the serial table's generation and the check period as they are now (a texture ID resolves to the view it resolved to then)
++    uint8_t owner;        // … and it is the shader whose encode last cleared this stage's mark
++} rb_args_gate;
++static inline int rb_args_why(const rb_args_gate *g) {
++    if (g->mode == RB_ARGS_MODE_OFF) return RB_ARGS_WHY_OFF;
++    if (g->stage > 1) return RB_ARGS_WHY_STAGE;
++    if (g->walk_all) return RB_ARGS_WHY_MODE;
++    if (g->per_draw || !g->kept) return RB_ARGS_WHY_SHADER;
++    if (!g->have || !g->same_pass || !g->same_sub || !g->same_arena || !g->same_stage) return RB_ARGS_WHY_FIRST;
++    if (!g->same_views) return RB_ARGS_WHY_SERIAL;
++    if (g->dirty != RB_ARGS_CLEAN && g->dirty != RB_ARGS_UNIFORM) {   // RB_ARGS_FULL, or a value this header does not know: in full
++        if (g->causes & RB_ARGS_C_PROGRAM) return RB_ARGS_WHY_PROGRAM;
++        if (g->causes & RB_ARGS_C_HANDLES) return RB_ARGS_WHY_HANDLES;
++        if (g->causes & RB_ARGS_C_STORAGE) return RB_ARGS_WHY_STORAGE;
++        if (g->causes & RB_ARGS_C_PUSH) return RB_ARGS_WHY_PUSH;
++        if (g->causes & RB_ARGS_C_FEEDBACK) return RB_ARGS_WHY_FEEDBACK;
++        if (g->causes & RB_ARGS_C_REGISTRY) return RB_ARGS_WHY_REGISTRY;
++        return RB_ARGS_WHY_OTHER;
++    }
++    if (!g->owner) return RB_ARGS_WHY_OWNER;
++    return RB_ARGS_PARTIAL;
++}
+diff --git a/graphics/nvn/tests/t_rb_args_ubo.c b/graphics/nvn/tests/t_rb_args_ubo.c
+new file mode 100644
+index 0000000..9be7ff3
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_args_ubo.c
+@@ -0,0 +1,241 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0325): host-only checks of the partial rebuild of a stage's argument block (gfx/nvn/rb_args_ubo.h): the switch's values, the two marks, the
++//   bindings kept, the gate's table, and a replay of the engine's bookkeeping (nvn_mtl.m state_op, ubd_dirty, args_sync_dirty, encode_args_) over a small model of
++//   what the walk reads, in which every block handed to the GPU, reused, rebuilt in part or in full, must equal a full walk of the state at that draw.
++#include <assert.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <string.h>
++#include "../gfx/nvn/nvn_refl.h"
++#include "../gfx/nvn/rb_args_ubo.h"
++
++_Static_assert((int)RB_AK_SAMP == (int)NVN_RB_SAMP && (int)RB_AK_TEX == (int)NVN_RB_TEX && (int)RB_AK_SAMPT == (int)NVN_RB_SAMPT && (int)RB_AK_SAMPI == (int)NVN_RB_SAMPI, "rb_args_ubo.h kinds");
++enum { TYPE_2D = 2, TYPE_TBUF = RB_AK_TYPE_TBUF };
++
++// ---------- the model ----------
++enum { NSH = 6, NB = 10, NREG = 4, NTEXID = 8 };
++typedef struct {
++    int nb, per_draw, drv0; nvn_rbind b[NB];
++    // what the engine keeps per shader (NvShader ab_* / rb_ab_*)
++    int have, ab_stage; uint64_t prev[NB], ab_pass, ab_sub, ab_agen, ab_ser, ab_pkg; uint32_t ab_binst;
++} shader;
++static struct {
++    // what the walk reads
++    uint64_t ubo[2][NREG], ubosz[2][NREG], shadow[2][NREG], ssbo[2]; int tex[2][NREG], samp[2][NREG];
++    uint64_t view[NTEXID], sampv[NTEXID], expand; uint32_t binst; int subst_tex; uint64_t subst_view;
++    // generations and the engine's own state
++    uint64_t pass, sub, agen, ser, pkg, reg, reg_seen; int walk_all;
++    uint8_t dirty[2], causes[2]; const shader *owner[2]; int cur[2];
++} W;
++static shader SH[NSH];
++static int g_mode, g_mut;   // g_mut: one guard deliberately broken (the replay must then catch a wrong block)
++enum { MUT_NONE, MUT_LOWER_FULL, MUT_NO_SERIAL, MUT_KEEP_ROWS, MUT_KEEP_UNIFORM_HANDLE, MUT_NO_OWNER, MUT_N };
++static unsigned long n_reuse, n_part, n_full, n_wrong, n_why[RB_ARGS_WHY_N], n_check, n_stale_reuse;
++
++static uint32_t rnd_state;
++static uint32_t rnd(void) { rnd_state = rnd_state * 1664525u + 1013904223u; return rnd_state >> 8; }
++
++// one binding's entry, as the full walk computes it from the state now
++static uint64_t entry(const shader *sh, int st, const nvn_rbind *b) {
++    (void)sh;
++    switch (b->kind) {
++    case NVN_RB_CBUF: return W.ubo[st][b->reg] * 3 + W.shadow[st][b->reg];                   // the binding's address, or a deferred update's shadow
++    case NVN_RB_UBOLEN: { uint64_t h = 0; for (int r = 0; r < NREG; r++) h = h * 31 + W.ubosz[st][r]; return h; }
++    case NVN_RB_TEX: { int id = W.tex[st][b->reg]; uint64_t v = W.view[id];
++        if (st == 1 && W.subst_tex == id) v = W.subst_view;                                  // same-pass feedback: the copy instead
++        if (b->f1d || b->dtt == TYPE_TBUF) v ^= W.expand << 32;                              // rows / buffer texture: an expanded copy that may be made again
++        return v; }
++    case NVN_RB_SAMP: case NVN_RB_SAMPT: case NVN_RB_SAMPI: return 1000 + W.sampv[W.samp[st][b->reg]];
++    case NVN_RB_TEXU: return W.view[W.ubo[st][b->reg] / 16 % NTEXID];                        // a handle read from uniform memory
++    case NVN_RB_SBUFP: return W.ssbo[st] * 5;
++    case NVN_RB_DRV0: return W.binst * 7ull + W.ssbo[st];                                    // the driver table holds the base instance
++    case NVN_RB_SUPPORT: return 42;
++    default: return 7;
++    }
++}
++static void full_walk(const shader *sh, int st, uint64_t *out) { for (int i = 0; i < sh->nb; i++) out[sh->b[i].aid] = entry(sh, st, &sh->b[i]); }
++static int kept(const nvn_rbind *b) {
++    if (g_mut == MUT_KEEP_ROWS && b->kind == NVN_RB_TEX) return 1;
++    if (g_mut == MUT_KEEP_UNIFORM_HANDLE && b->kind == NVN_RB_TEXU) return 1;
++    return rb_args_kept(b->kind, b->f1d, b->dtt);
++}
++// the engine's marks (state_op, ubd_dirty, args_sync_dirty)
++static void mark_full(int st, unsigned cause) { W.dirty[st] = RB_ARGS_FULL; W.causes[st] |= (uint8_t)cause; }
++static void mark_uniform(int st) {
++    W.dirty[st] = g_mut == MUT_LOWER_FULL && g_mode ? RB_ARGS_UNIFORM : rb_args_mark_uniform(W.dirty[st], g_mode);
++    W.causes[st] |= RB_ARGS_C_UNIFORM;
++}
++// encode_args_ for one stage
++static void encode(int st) {
++    shader *sh = &SH[W.cur[st]];
++    uint64_t want[NB] = {0}, slots[NB] = {0};
++    if (W.reg != W.reg_seen) { W.reg_seen = W.reg; mark_full(0, RB_ARGS_C_REGISTRY); mark_full(1, RB_ARGS_C_REGISTRY); }   // args_sync_dirty
++    full_walk(sh, st, want);
++    if (!W.dirty[st] && sh->have && sh->ab_pass == W.pass && !(sh->drv0 && sh->ab_binst != W.binst)) {   // the reuse of the whole block, as before the patch
++        n_reuse++;
++        if (memcmp(sh->prev, want, sizeof want)) n_stale_reuse++;   // the old reuse's own exposure (a storage replaced without a mark): not this patch's, and the same in every mode
++        return;
++    }
++    rb_args_gate g; memset(&g, 0, sizeof g);
++    g.mode = (uint8_t)g_mode; g.stage = (uint8_t)st; g.dirty = W.dirty[st]; g.causes = W.causes[st]; g.walk_all = (uint8_t)W.walk_all; g.per_draw = (uint8_t)sh->per_draw;
++    for (int i = 0; i < sh->nb; i++) g.kept |= (uint8_t)kept(&sh->b[i]);
++    g.have = (uint8_t)sh->have; g.same_pass = sh->ab_pass == W.pass; g.same_sub = sh->ab_sub == W.sub; g.same_arena = sh->ab_agen == W.agen; g.same_stage = sh->ab_stage == st;
++    g.same_views = g_mut == MUT_NO_SERIAL || (sh->ab_ser == W.ser && sh->ab_pkg == W.pkg);
++    g.owner = g_mut == MUT_NO_OWNER || W.owner[st] == sh;
++    int why = rb_args_why(&g);
++    n_why[why]++;
++    const uint64_t ser0 = W.ser, pkg0 = W.pkg;
++    if (why == RB_ARGS_PARTIAL && g_mode == RB_ARGS_MODE_CHECK) {   // made in full, the kept entries compared
++        full_walk(sh, st, slots); n_check++;
++        for (int i = 0; i < sh->nb; i++) if (kept(&sh->b[i]) && slots[sh->b[i].aid] != sh->prev[sh->b[i].aid]) n_wrong++;
++        n_full++;
++    } else if (why == RB_ARGS_PARTIAL) {
++        memcpy(slots, sh->prev, sizeof slots);
++        for (int i = 0; i < sh->nb; i++) { if (kept(&sh->b[i])) continue; slots[sh->b[i].aid] = entry(sh, st, &sh->b[i]); }
++        n_part++;
++    } else { full_walk(sh, st, slots); n_full++; }
++    if (memcmp(slots, want, sizeof want)) n_wrong++;
++    memcpy(sh->prev, slots, sizeof slots);
++    sh->have = 1; sh->ab_stage = st; sh->ab_pass = W.pass; sh->ab_sub = W.sub; sh->ab_agen = W.agen; sh->ab_ser = ser0; sh->ab_pkg = pkg0; sh->ab_binst = W.binst;
++    W.dirty[st] = RB_ARGS_CLEAN; W.causes[st] = 0; W.owner[st] = sh;
++}
++static void make_shaders(void) {
++    memset(SH, 0, sizeof SH);
++    for (int s = 0; s < NSH; s++) {
++        shader *sh = &SH[s]; int n = 0;
++        #define ADD(k, r) do { sh->b[n].kind = (k); sh->b[n].reg = (uint16_t)(r); sh->b[n].aid = (uint16_t)n; sh->b[n].dtt = TYPE_2D; n++; } while (0)
++        ADD(NVN_RB_CBUF, 0); ADD(NVN_RB_CBUF, 1); ADD(NVN_RB_UBOLEN, 0); ADD(NVN_RB_TEX, 0); ADD(NVN_RB_SAMPT, 0); ADD(NVN_RB_TEX, 1); ADD(NVN_RB_SAMP, 1); ADD(NVN_RB_SUPPORT, 0);
++        if (s == 1) { ADD(NVN_RB_DRV0, 0); sh->drv0 = 1; }                    // reads the base instance
++        if (s == 2) { ADD(NVN_RB_TEX, 2); sh->b[n - 1].f1d = 1; }             // a texture fetched as rows: not kept
++        if (s == 3) { ADD(NVN_RB_TEXU, 2); ADD(NVN_RB_SBUFP, 0); }            // a handle in uniform memory, a storage buffer: walked again
++        if (s == 4) sh->per_draw = 1;                                         // a per-draw table: never in part
++        if (s == 5) { ADD(NVN_RB_TEX, 3); sh->b[n - 1].dtt = TYPE_TBUF; ADD(NVN_RB_DRV0, 0); sh->drv0 = 1; }
++        #undef ADD
++        sh->nb = n; assert(n <= NB);
++    }
++}
++static void replay(int mode, int mut, uint32_t seed, long steps) {
++    g_mode = mode; g_mut = mut; rnd_state = seed;
++    n_reuse = n_part = n_full = n_wrong = n_check = n_stale_reuse = 0; memset(n_why, 0, sizeof n_why);
++    memset(&W, 0, sizeof W); make_shaders();
++    W.pass = W.sub = W.agen = W.ser = W.pkg = 1; W.subst_tex = -1; W.dirty[0] = W.dirty[1] = RB_ARGS_FULL; W.cur[1] = 1;
++    for (int i = 0; i < NTEXID; i++) { W.view[i] = 100 + (uint64_t)i; W.sampv[i] = (uint64_t)i; }
++    uint64_t next_view = 1000;
++    for (long step = 0; step < steps; step++) {
++        unsigned e = rnd() % 1000; int st = (int)(rnd() & 1), r = (int)(rnd() % NREG);
++        if (e < 420) { uint64_t a = 16 * (1 + rnd() % 64); if (W.ubo[st][r] != a) { W.ubo[st][r] = a; W.ubosz[st][r] = 16 * (1 + rnd() % 3); mark_uniform(st); } }   // BindUniformBuffer
++        else if (e < 470) { W.shadow[st][r]++; if (!W.dirty[st]) mark_uniform(st); }                                    // an inline update deferred in the pass (ubd_dirty)
++        else if (e < 520) { int id = (int)(rnd() % NTEXID); if (W.tex[st][r] != id) { W.tex[st][r] = id; mark_full(st, RB_ARGS_C_HANDLES); } }   // BindTexture
++        else if (e < 540) { int id = (int)(rnd() % NTEXID); if (W.samp[st][r] != id) { W.samp[st][r] = id; mark_full(st, RB_ARGS_C_HANDLES); } }
++        else if (e < 550) { W.ssbo[st] = rnd(); mark_full(st, RB_ARGS_C_STORAGE); }
++        else if (e < 600) { int s = (int)(rnd() % NSH); if (W.cur[st] != s) { W.cur[st] = s; mark_full(0, RB_ARGS_C_PROGRAM); mark_full(1, RB_ARGS_C_PROGRAM); } }   // BindProgram
++        else if (e < 615) { W.view[rnd() % NTEXID] = next_view++; W.ser++; }                                           // a storage taken over or swapped: no stage is marked
++        else if (e < 630) W.ser++;                                                                                      // a texture made: nothing bound changes
++        else if (e < 640) { W.view[rnd() % NTEXID] = next_view++; W.reg++; }                                            // a texture ID registered again
++        else if (e < 645) { W.sampv[rnd() % NTEXID] = next_view++; W.reg++; }                                           // a sampler ID registered again
++        else if (e < 650) { W.view[rnd() % NTEXID] = next_view++; W.pkg++; }                                            // a new check period: a CPU-written texture uploaded again
++        else if (e < 655) W.expand++;                                                                                   // an expanded copy made again (its cache turned over)
++        else if (e < 690) { W.pass++; }                                                                                 // a new pass
++        else if (e < 700) { W.sub++; W.agen++; W.pkg++; W.pass++; }                                                     // a new submission
++        else if (e < 705) { W.agen++; W.pass++; }                                                                       // a segment cut (no pass is open across one)
++        else if (e < 740) W.binst = rnd() % 4;                                                                          // the next draw's base instance
++        else if (e < 760) { int t = rnd() % 3 ? (int)(rnd() % NTEXID) : -1; uint64_t v = t < 0 ? 0 : 5000 + rnd() % 3;  // same-pass feedback (patch 0324's rule, or the old one: both mark)
++                            if (t != W.subst_tex || v != W.subst_view) { W.subst_tex = t; W.subst_view = v; mark_full(1, RB_ARGS_C_FEEDBACK); } }
++        else if (e < 763) W.walk_all = W.walk_all ? 0 : rnd() % 20 == 0;                                                // a diagnostic that walks every binding, on for a while
++        else if (e < 770) { mark_full(0, 0); mark_full(1, 0); }                                                         // an internal draw's args_dirty_all
++        else { encode(0); encode(1); }                                                                                  // a draw
++    }
++}
++
++int main(void) {
++    // ① the switch
++    assert(rb_args_mode(NULL) == RB_ARGS_MODE_ON && rb_args_mode("1") == RB_ARGS_MODE_ON && rb_args_mode("") == RB_ARGS_MODE_ON && rb_args_mode("yes") == RB_ARGS_MODE_ON);
++    assert(rb_args_mode("0") == RB_ARGS_MODE_OFF && rb_args_mode("check") == RB_ARGS_MODE_CHECK);
++    assert(rb_args_mode("00") == RB_ARGS_MODE_ON && rb_args_mode("Check") == RB_ARGS_MODE_ON);   // only the exact words
++    // ② the mark: a clean stage becomes uniform-only, a marked one is never lowered; with the switch at 0 the mark is the old one
++    assert(rb_args_mark_uniform(RB_ARGS_CLEAN, RB_ARGS_MODE_ON) == RB_ARGS_UNIFORM && rb_args_mark_uniform(RB_ARGS_CLEAN, RB_ARGS_MODE_CHECK) == RB_ARGS_UNIFORM);
++    assert(rb_args_mark_uniform(RB_ARGS_UNIFORM, RB_ARGS_MODE_ON) == RB_ARGS_UNIFORM);
++    assert(rb_args_mark_uniform(RB_ARGS_FULL, RB_ARGS_MODE_ON) == RB_ARGS_FULL && rb_args_mark_uniform(RB_ARGS_FULL, RB_ARGS_MODE_CHECK) == RB_ARGS_FULL);
++    assert(rb_args_mark_uniform(RB_ARGS_CLEAN, RB_ARGS_MODE_OFF) == RB_ARGS_FULL && rb_args_mark_uniform(RB_ARGS_FULL, RB_ARGS_MODE_OFF) == RB_ARGS_FULL);
++    // ③ the bindings kept: a sampler, and a texture that is neither fetched as rows nor a buffer texture; nothing else, whatever its other fields
++    for (unsigned kind = 0; kind <= NVN_RB_SAMPP + 1; kind++) for (unsigned f1d = 0; f1d < 3; f1d++) for (unsigned dtt = 0; dtt < 12; dtt++) {
++        int want = kind == NVN_RB_SAMP || kind == NVN_RB_SAMPT || kind == NVN_RB_SAMPI || (kind == NVN_RB_TEX && !f1d && dtt != TYPE_TBUF);
++        assert(rb_args_kept(kind, f1d, dtt) == want);
++    }
++    assert(!rb_args_kept(NVN_RB_CBUF, 0, TYPE_2D) && !rb_args_kept(NVN_RB_TEXU, 0, TYPE_2D) && !rb_args_kept(NVN_RB_SAMPU, 0, TYPE_2D) && !rb_args_kept(NVN_RB_TBUF, 0, TYPE_TBUF));
++    assert(!rb_args_kept(NVN_RB_IMG, 0, TYPE_2D) && !rb_args_kept(NVN_RB_DRV0, 0, 0) && !rb_args_kept(NVN_RB_DRV2, 0, 0) && !rb_args_kept(NVN_RB_SUPPORT, 0, 0) && !rb_args_kept(NVN_RB_UBOLEN, 0, 0));
++    assert(!rb_args_kept(NVN_RB_TEXD, 0, TYPE_2D) && !rb_args_kept(NVN_RB_SAMPD, 0, 0) && !rb_args_kept(NVN_RB_TEXA, 0, TYPE_2D) && !rb_args_kept(NVN_RB_SAMPA, 0, 0) && !rb_args_kept(NVN_RB_TEXP, 0, TYPE_2D));
++    // ④ the gate: one state that goes in part, then each field changed alone gives its reason
++    const rb_args_gate ok = {RB_ARGS_MODE_ON, 1, RB_ARGS_UNIFORM, RB_ARGS_C_UNIFORM, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1};
++    rb_args_gate g = ok; assert(rb_args_why(&g) == RB_ARGS_PARTIAL);
++    g = ok; g.stage = 0; assert(rb_args_why(&g) == RB_ARGS_PARTIAL);                               // the vertex stage too
++    g = ok; g.dirty = RB_ARGS_CLEAN; g.causes = 0; assert(rb_args_why(&g) == RB_ARGS_PARTIAL);     // nothing marked: only the base instance differs
++    g = ok; g.mode = RB_ARGS_MODE_CHECK; assert(rb_args_why(&g) == RB_ARGS_PARTIAL);               // the caller then walks in full and compares
++    g = ok; g.mode = RB_ARGS_MODE_OFF; assert(rb_args_why(&g) == RB_ARGS_WHY_OFF);
++    for (int st = 2; st < 6; st++) { g = ok; g.stage = (uint8_t)st; assert(rb_args_why(&g) == RB_ARGS_WHY_STAGE); }
++    g = ok; g.walk_all = 1; assert(rb_args_why(&g) == RB_ARGS_WHY_MODE);
++    g = ok; g.per_draw = 1; assert(rb_args_why(&g) == RB_ARGS_WHY_SHADER);
++    g = ok; g.kept = 0; assert(rb_args_why(&g) == RB_ARGS_WHY_SHADER);
++    g = ok; g.have = 0; assert(rb_args_why(&g) == RB_ARGS_WHY_FIRST);
++    g = ok; g.same_pass = 0; assert(rb_args_why(&g) == RB_ARGS_WHY_FIRST);
++    g = ok; g.same_sub = 0; assert(rb_args_why(&g) == RB_ARGS_WHY_FIRST);
++    g = ok; g.same_arena = 0; assert(rb_args_why(&g) == RB_ARGS_WHY_FIRST);
++    g = ok; g.same_stage = 0; assert(rb_args_why(&g) == RB_ARGS_WHY_FIRST);
++    g = ok; g.same_views = 0; assert(rb_args_why(&g) == RB_ARGS_WHY_SERIAL);
++    g = ok; g.owner = 0; assert(rb_args_why(&g) == RB_ARGS_WHY_OWNER);
++    g = ok; g.dirty = RB_ARGS_FULL; g.causes = 0; assert(rb_args_why(&g) == RB_ARGS_WHY_OTHER);
++    g = ok; g.dirty = RB_ARGS_FULL; assert(rb_args_why(&g) == RB_ARGS_WHY_OTHER);                  // a uniform cause alone does not explain a full mark
++    g = ok; g.dirty = 3; assert(rb_args_why(&g) == RB_ARGS_WHY_OTHER);                             // a value the header does not know: in full
++    { const int cause[6] = {RB_ARGS_C_REGISTRY, RB_ARGS_C_FEEDBACK, RB_ARGS_C_PUSH, RB_ARGS_C_STORAGE, RB_ARGS_C_HANDLES, RB_ARGS_C_PROGRAM};
++      const int why[6] = {RB_ARGS_WHY_REGISTRY, RB_ARGS_WHY_FEEDBACK, RB_ARGS_WHY_PUSH, RB_ARGS_WHY_STORAGE, RB_ARGS_WHY_HANDLES, RB_ARGS_WHY_PROGRAM};
++      unsigned acc = RB_ARGS_C_UNIFORM;
++      for (int i = 0; i < 6; i++) { acc |= (unsigned)cause[i]; g = ok; g.dirty = RB_ARGS_FULL; g.causes = (uint8_t)acc; assert(rb_args_why(&g) == why[i]); } }   // the first that applies, in the line's order
++    // … a full mark is in full whatever else holds, and the cause bits never make a rebuild partial
++    for (unsigned c = 0; c < 128; c++) { g = ok; g.dirty = RB_ARGS_FULL; g.causes = (uint8_t)c; assert(rb_args_why(&g) != RB_ARGS_PARTIAL);
++                                         g = ok; g.causes = (uint8_t)c; assert(rb_args_why(&g) == RB_ARGS_PARTIAL); }
++    // ⑤ the replay. On: no wrong block in 1.5 million events, rebuilds in part do happen, and each reason for a full walk occurs
++    replay(RB_ARGS_MODE_ON, MUT_NONE, 0x0325u, 1500000);
++    assert(n_wrong == 0 && n_part > 20000 && n_reuse > 0 && n_full > 0);
++    assert(n_why[RB_ARGS_WHY_OFF] == 0 && n_why[RB_ARGS_WHY_STAGE] == 0);
++    for (int w = RB_ARGS_WHY_MODE; w < RB_ARGS_WHY_N; w++) if (w != RB_ARGS_WHY_PUSH && w != RB_ARGS_WHY_OWNER) assert(n_why[w] > 0);
++    const unsigned long part_on = n_part, full_on = n_full, reuse_on = n_reuse;
++    // … other seeds
++    for (uint32_t seed = 1; seed <= 6; seed++) { replay(RB_ARGS_MODE_ON, MUT_NONE, seed * 7919u, 300000); assert(n_wrong == 0 && n_part > 0); }
++    // Off: never in part, the mark is never RB_ARGS_UNIFORM (every rebuild is the full walk, as before), and the same draws reuse the same blocks
++    replay(RB_ARGS_MODE_OFF, MUT_NONE, 0x0325u, 1500000);
++    assert(n_wrong == 0 && n_part == 0 && n_check == 0 && n_reuse == reuse_on && n_full == part_on + full_on);
++    assert(n_why[RB_ARGS_WHY_OFF] == n_full);
++    // Check: the same decisions as on, each would-be partial rebuild made in full, and the comparison never differs
++    replay(RB_ARGS_MODE_CHECK, MUT_NONE, 0x0325u, 1500000);
++    assert(n_wrong == 0 && n_part == 0 && n_check == part_on && n_full == part_on + full_on && n_reuse == reuse_on);
++    // ⑥ each guard matters: with one of them broken the replay hands out a wrong block (and the check mode's comparison sees it, where it is about a kept entry)
++    replay(RB_ARGS_MODE_ON, MUT_LOWER_FULL, 0x0325u, 300000); assert(n_wrong > 0);            // a uniform binding lowering a full mark
++    replay(RB_ARGS_MODE_ON, MUT_NO_SERIAL, 0x0325u, 300000); assert(n_wrong > 0);             // a texture's storage replaced without a mark
++    replay(RB_ARGS_MODE_ON, MUT_KEEP_ROWS, 0x0325u, 300000); assert(n_wrong > 0);             // a rows / buffer texture binding kept
++    replay(RB_ARGS_MODE_ON, MUT_KEEP_UNIFORM_HANDLE, 0x0325u, 300000); assert(n_wrong > 0);   // a handle read from uniform memory kept
++    replay(RB_ARGS_MODE_CHECK, MUT_NO_SERIAL, 0x0325u, 300000); assert(n_wrong > 0);
++    replay(RB_ARGS_MODE_CHECK, MUT_LOWER_FULL, 0x0325u, 300000); assert(n_wrong > 0);
++    // ⑦ the owner: shader A builds, a texture is bound, another shader B takes the stage without a program mark and builds (it consumes the mark), a uniform is
++    //   bound, A comes back: A's kept entries are older than the texture binding, so not in part; without the owner test A would hand out the old texture
++    for (int broken = 0; broken < 2; broken++) {
++        g_mode = RB_ARGS_MODE_ON; g_mut = broken ? MUT_NO_OWNER : MUT_NONE; n_wrong = n_part = n_full = n_reuse = 0; memset(n_why, 0, sizeof n_why);
++        memset(&W, 0, sizeof W); make_shaders(); W.pass = W.sub = W.agen = W.ser = W.pkg = 1; W.subst_tex = -1; W.dirty[0] = W.dirty[1] = RB_ARGS_FULL;
++        for (int i = 0; i < NTEXID; i++) { W.view[i] = 100 + (uint64_t)i; W.sampv[i] = (uint64_t)i; }
++        W.cur[1] = 0; encode(1);                                   // A, in full
++        W.cur[1] = 3; encode(1);                                   // B takes the stage unmarked: the old reuse test fails (B has no block), B builds in full
++        W.tex[1][0] = 5; mark_full(1, RB_ARGS_C_HANDLES); encode(1);   // a texture bound, B rebuilds and clears the mark
++        W.ubo[1][0] = 64; mark_uniform(1);
++        W.cur[1] = 0; encode(1);                                   // A again, the mark says uniform only
++        if (!broken) assert(n_wrong == 0 && n_part == 0 && n_why[RB_ARGS_WHY_OWNER] == 1);
++        else assert(n_wrong == 1 && n_part == 1);
++    }
++    // ⑧ the base instance alone: a shader that reads it and a clean stage go in part (the driver table is walked again), one that does not read it reuses
++    g_mode = RB_ARGS_MODE_ON; g_mut = MUT_NONE; n_wrong = n_part = n_full = n_reuse = 0; memset(n_why, 0, sizeof n_why);
++    memset(&W, 0, sizeof W); make_shaders(); W.pass = W.sub = W.agen = W.ser = W.pkg = 1; W.subst_tex = -1; W.dirty[0] = W.dirty[1] = RB_ARGS_FULL;
++    W.cur[0] = 1; encode(0); assert(n_full == 1);
++    W.binst = 3; encode(0); assert(n_part == 1 && n_wrong == 0 && SH[1].ab_binst == 3);
++    encode(0); assert(n_reuse == 1);
++    W.cur[0] = 0; W.dirty[0] = RB_ARGS_FULL; encode(0); W.binst = 2; encode(0); assert(n_reuse == 2 && n_wrong == 0);
++    puts("t_rb_args_ubo: ok");
++    return 0;
++}

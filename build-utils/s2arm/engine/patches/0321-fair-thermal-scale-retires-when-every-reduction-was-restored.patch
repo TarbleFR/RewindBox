@@ -1,0 +1,265 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 61ac200..de0a85d 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -5545,7 +5545,7 @@ static id<MTLTexture> tex_upgrade(const tex_t *t, id<MTLTexture> asked, MTLTextu
+     if (!upgraded) { RED_ONCE(45, "texture upgrade failed ser=%llu format %lu → %lu usage %#lx", t->serial, (unsigned long)base.pixelFormat, (unsigned long)view_pf, (unsigned long)d.usage); return asked; }
+     if (!root && (d.usage & MTLTextureUsageShaderAtomic)) tex_note_atomic(upgraded);
+     if (!root) res_add(upgraded);
+-    { NvRsInfo *ri = rs_info(base); if (ri) { rs_set_info_at(upgraded, ri->state, ri->cw, ri->ch, ri->scale); rs_info(upgraded)->fairScale = ri->fairScale; } }   // S2Arm internal resolution: same size, same record (nvn_rscale.inc)
++    { NvRsInfo *ri = rs_info(base); if (ri) { rs_set_info_at(upgraded, ri->state, ri->cw, ri->ch, ri->scale); rs_info(upgraded)->fairScale = ri->fairScale; ri->rbSettled = YES; } }   // S2Arm internal resolution: same size, same record (nvn_rscale.inc). RewindBox (patch 0321): rbSettled, the reduction goes on in the copy: the old record's end is neither a reduction that held nor a refusal (rb_rs_retire.h)
+     id<MTL4ComputeCommandEncoder> b = base.buffer ? nil : blit();
+     NSUInteger slices = base.textureType == MTLTextureType3D ? 1 : base.arrayLength * (base.textureType == MTLTextureTypeCube || base.textureType == MTLTextureTypeCubeArray ? 6 : 1);
+     for (NSUInteger l = 0; !base.buffer && l < base.mipmapLevelCount; l++) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_rscale.inc b/graphics/nvn/gfx/nvn/nvn_rscale.inc
+index 81f6b9a..6b4f9e4 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rscale.inc
++++ b/graphics/nvn/gfx/nvn/nvn_rscale.inc
+@@ -29,6 +29,44 @@ static double rs_setting(void) {
+ static _Atomic int rb_fair_seen;
+ static double rb_fair_factor, rb_fair_current = 1.;
+ static uint64_t rb_fair_sample_at, rb_fair_cool_since;
++// RewindBox (patch 0321): the Fair scale retires when it does nothing (rb_rs_retire.h). IPA 827 (Mario Kart World, iPhone A18 Pro): once the device reaches Fair,
++//   rs_on() stays true for the session; in a race each storage the scale reduces is restored to the game's size within the same frames (a vertex or inexact fragment
++//   shader reads it, or a sibling attachment cannot be reduced), so no pass is drawn smaller, yet every pass (rs_rts) and every texture binding of a full argument walk
++//   (rs_bind_check, rs_support) keeps asking, and each new target is created and copied twice more. Rule: after RB_RS_RETIRE_RUN such restorations in a row, with no
++//   reduction that held in between and no reduced storage alive (g_rb_rs_live: a reduced storage needs rs_on()), the scale is off until the next session: render
++//   targets keep the game's own size, as before the first Fair state. g_rb_rs_live counts the NvRsInfo records in state RS_SCALED (made in rs_set_info_at, gone in
++//   -dealloc, on any thread); g_rb_rs_held the Fair reductions that ended still reduced. S2A_RB_RS_RETIRE=0: as before (the counts are kept, nothing reads them).
++#include "rb_rs_retire.h"
++static _Atomic int g_rb_rs_live;
++static _Atomic uint64_t g_rb_rs_held;
++static rb_rs_retire g_rb_rs_retire;   // the submit thread's (rs_rescale_to, rs_rts, rb_fair_sample); cleared with the session
++static int rb_rs_retire_on(void) {
++    static int v = -1;
++    if (v < 0) {
++        const char *e = getenv("S2A_RB_RS_RETIRE");
++        v = !(e && !strcmp(e, "0"));
++        MLOG("[rb-fair-scale] retire rule %s (S2A_RB_RS_RETIRE; patch 0321): the Fair scale stops for the session after %d reductions in a row were each restored at once and no reduced storage is left",
++             v ? "on" : "off", RB_RS_RETIRE_RUN);
++    }
++    return v;
++}
++static int rb_fair_retire(void) {   // nvn_be_sub_begin, before the 500 ms sample: 1 = retired now
++    if (!atomic_load_explicit(&rb_fair_seen, memory_order_relaxed)) return 0;
++    int live = atomic_load_explicit(&g_rb_rs_live, memory_order_relaxed);
++    uint64_t pending = g_rb_rs_retire.pending;
++    if (!rb_rs_retire_step(&g_rb_rs_retire, rb_rs_retire_on(), 1, live, atomic_load_explicit(&g_rb_rs_held, memory_order_relaxed))) {
++        uint64_t n = g_rb_rs_retire.pending;
++        if (n != pending && !(n & (n - 1)))
++            MLOG("[rb-fair-scale] retire pending (patch 0321): %u reductions in a row restored at once, %d reduced storages still alive (%llu looks so far)",
++                 g_rb_rs_retire.run, live, (unsigned long long)n);
++        return 0;
++    }
++    rb_fair_factor = 1.; rb_fair_current = 1.;
++    atomic_store_explicit(&rb_fair_seen, 0, memory_order_relaxed);
++    MLOG("[rb-fair-scale] retired for this session (patch 0321, S2A_RB_RS_RETIRE): %u storages reduced, %u of them restored at once, the last %u in a row, none left reduced: render targets keep the game's size",
++         g_rb_rs_retire.reduced, g_rb_rs_retire.refused, g_rb_rs_retire.run);
++    return 1;
++}
+ static void rb_fair_sample(void) {
+     if (!nvn_rb_thermal_scope()) return;
+     if (rb_fair_factor == 0.) {
+@@ -38,6 +76,7 @@ static void rb_fair_sample(void) {
+         rb_fair_factor = ((!value || (end != value && !*end)) && v >= 0.5 && v < 1.) ? v : 1.;
+     }
+     if (rb_fair_factor >= 1.) return;
++    if (rb_fair_retire()) return;   // RewindBox (patch 0321)
+     uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+     if (rb_fair_sample_at && now - rb_fair_sample_at < 500000000ull) return;
+     rb_fair_sample_at = now;
+@@ -57,14 +96,23 @@ static inline int rs_on(void) { return atomic_load_explicit(&rb_fair_seen,memory
+ 
+ // 每份存储的缩放记录挂在 Metal 根贴图上（关联对象：存储释放时一起走，地址复用不会认错）
+ enum { RS_NONE = 0, RS_SCALED = 1, RS_BLACK = 2 };
+-@interface NvRsInfo : NSObject { @public int state; BOOL fairScale; NSUInteger cw, ch; double scale; uint32_t logged; } @end
+-@implementation NvRsInfo @end
++@interface NvRsInfo : NSObject { @public int state; BOOL fairScale; NSUInteger cw, ch; double scale; uint32_t logged;
++    BOOL rbSettled; } @end   // rbSettled: RewindBox (patch 0321), this record's Fair reduction is accounted for: rs_rescale_to restored the storage, or tex_upgrade passed the record on to the storage's copy
++@implementation NvRsInfo
++// RewindBox (patch 0321): state is set once (rs_set_info_at) before the record is attached; fairScale and rbSettled by the submit thread while its texture is alive
++- (void)dealloc {
++    if (state != RS_SCALED) return;
++    atomic_fetch_sub_explicit(&g_rb_rs_live, 1, memory_order_relaxed);
++    if (fairScale && !rbSettled) atomic_fetch_add_explicit(&g_rb_rs_held, 1, memory_order_relaxed);   // freed still reduced: this reduction held
++}
++@end
+ static char k_rs_info;
+ static id<MTLTexture> rs_root(id<MTLTexture> t0) { id<MTLTexture> t = t0; while (t.parentTexture) t = t.parentTexture; return t; }
+ static NvRsInfo *rs_info(id<MTLTexture> t) { return t ? objc_getAssociatedObject(rs_root(t), &k_rs_info) : nil; }
+ static int rs_state(id<MTLTexture> t) { if (!t || !rs_on()) return RS_NONE; NvRsInfo *i = rs_info(t); return i ? i->state : RS_NONE; }
+ static void rs_set_info_at(id<MTLTexture> t, int state, NSUInteger cw, NSUInteger ch, double scale) {
+     NvRsInfo *i = [NvRsInfo new]; i->state = state; i->cw = cw; i->ch = ch; i->scale = state == RS_SCALED ? scale : 1.0;
++    if (state == RS_SCALED) atomic_fetch_add_explicit(&g_rb_rs_live, 1, memory_order_relaxed);   // RewindBox (patch 0321): gone in -dealloc
+     objc_setAssociatedObject(rs_root(t), &k_rs_info, i, OBJC_ASSOCIATION_RETAIN);
+ }
+ // 这份存储相对画布的比例（没缩 = 1）
+diff --git a/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc b/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc
+index 5f3bcd0..bb8bc95 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc
++++ b/graphics/nvn/gfx/nvn/nvn_rscale_ops.inc
+@@ -6,15 +6,25 @@ static uint64_t g_rs_up, g_rs_down, g_rs_fail;   // 缩了 / 退回原尺寸 / 
+ // 把存储 base 换成按画布 × s（to_scaled）或画布原尺寸的新存储，内容用缩放拷贝带过去（Ryujinx SetScale：GetScaledHostTexture(copy) + ReplaceStorage），
+ //   所有表里指向旧存储的项换成新的（tex_swap_storage）。只在没有开着的渲染遍时调（copy_t2t_draw 自己收遍）。失败 = 旧存储不动、记成不缩（以后不再试）。返回新存储
+ #include "nvn_rb_drs_pool.inc"
++// RewindBox (patch 0321): a storage the Fair scale reduced goes back to the game's size (rs_rescale_to succeeded). Its record is marked, so that its -dealloc does not
++//   count it as a reduction that held; the thermal recovery's restoration (rs_rts, the device cooled: the reduction held until then) starts the run again, any other
++//   one (a reader or a sibling attachment that cannot take a reduced storage) extends it (rb_rs_retire.h). Submit thread
++static void rb_fair_undone(NvRsInfo *i, const char *why) {
++    i->rbSettled = YES;
++    if (why && !strcmp(why, "thermal recovery")) rb_rs_retire_held(&g_rb_rs_retire);
++    else rb_rs_retire_refused(&g_rb_rs_retire);
++}
+ static id<MTLTexture> rs_rescale_to(id<MTLTexture> base, double factor, const char *why) {
+     if (factor==1. && rb_drs_enabled() && rb_drs_owner(base)) return rb_drs_native_for(base,why);
+ 
+     if (!base || !(factor > 0 && factor <= 1)) return nil;
+     int to_scaled = factor < 1.0;
+     NvRsInfo *i = rs_info(base);
++    const int rb_undo = !to_scaled && i && i->state == RS_SCALED && i->fairScale;   // RewindBox (patch 0321): noted where the restoration succeeds (rb_fair_undone)
+     NSUInteger cw = i && i->state == RS_SCALED ? i->cw : base.width, ch = i && i->state == RS_SCALED ? i->ch : base.height;
+     NSUInteger w = to_scaled ? rs_up(cw, factor) : cw, h = to_scaled ? rs_up(ch, factor) : ch;
+-    if (w == base.width && h == base.height) { rs_set_info_at(base, to_scaled ? RS_SCALED : RS_BLACK, cw, ch, factor); rs_scene_replace(base, base); return base; }
++    if (w == base.width && h == base.height) { if (rb_undo) rb_fair_undone(i, why);   // RewindBox (patch 0321): before the record is replaced
++        rs_set_info_at(base, to_scaled ? RS_SCALED : RS_BLACK, cw, ch, factor); rs_scene_replace(base, base); return base; }
+     MTLTextureDescriptor *d = [MTLTextureDescriptor new];
+     d.textureType = base.textureType; d.pixelFormat = base.pixelFormat; d.width = w; d.height = h; d.depth = base.depth;
+     d.arrayLength = base.arrayLength; d.mipmapLevelCount = base.mipmapLevelCount; d.sampleCount = base.sampleCount;
+@@ -42,6 +52,7 @@ static id<MTLTexture> rs_rescale_to(id<MTLTexture> base, double factor, const ch
+              (unsigned long)base.width, (unsigned long)base.height, (unsigned long)w, (unsigned long)h);
+         return nil;
+     }
++    if (rb_undo) rb_fair_undone(i, why);   // RewindBox (patch 0321)
+     uint64_t k = to_scaled ? g_rs_up++ : g_rs_down++;
+     if (k < 12 || !(k & (k - 1))) MLOG("内部分辨率：存储 %lux%lu 格式 %lu %s %lux%lu（第 %llu 份%s%s）", (unsigned long)base.width, (unsigned long)base.height, (unsigned long)base.pixelFormat,
+                                        to_scaled ? "缩到" : "退回原尺寸", (unsigned long)w, (unsigned long)h, (unsigned long long)k + 1, why ? "；" : "", why ? why : "");
+@@ -147,6 +158,7 @@ static int rs_rts(int clear_only) {
+             id<MTLTexture> scaled = rs_rescale_to(b,desired,NULL);
+             if (!scaled) { block = 1; break; }
+             rs_info(scaled)->fairScale = desired < 1. && rs_setting() == 1.;
++            if (rs_info(scaled)->fairScale) rb_rs_retire_reduced(&g_rb_rs_retire);   // RewindBox (patch 0321): counted for the retire line
+         }
+     }
+     // Every active plane must agree. Keep the old root and its real factor if
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index b5226fd..f184ddb 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -169,6 +169,7 @@ int nvn_be_shutdown_session(void) {
+     os_unfair_lock_unlock(&g_rs_scene_lock);
+     g_rs_native_draw = 0; g_rs = -1;
+     rb_fair_factor = 0.; rb_fair_current = 1.; rb_fair_sample_at = rb_fair_cool_since = 0; atomic_store(&rb_fair_seen,0);
++    rb_rs_retire_reset(&g_rb_rs_retire);   // RewindBox (patch 0321): a retired Fair scale is armed again with the session (rb_fair_factor above); the counts of live records are the process's
+     // The retired session's descriptor registry and pools have been drained.
+     os_unfair_lock_lock(&g_rb_exposure_lock);
+     memset(&g_rb_descriptor_bytes, 0, sizeof g_rb_descriptor_bytes);
+diff --git a/graphics/nvn/gfx/nvn/rb_rs_retire.h b/graphics/nvn/gfx/nvn/rb_rs_retire.h
+new file mode 100644
+index 0000000..cab19c2
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_rs_retire.h
+@@ -0,0 +1,36 @@
++// RewindBox (patch 0321): when the Fair thermal render scale (patch 0277, nvn_rscale.inc rb_fair_sample) gives up for the session. Pure C: tests/t_rb_rs_retire.c.
++//   IPA 827 (Mario Kart World, iPhone A18 Pro): the first Fair state arms the 0.85 scale and rs_on() stays true for the rest of the session. In a race every storage the
++//   scale reduces is restored to the game's size within the same frames, for a reader or a sibling attachment that cannot take a reduced storage (second.log: the count
++//   of reductions and the count of restorations both reach 65), so nothing is drawn smaller, while each new target is created and copied twice more and every pass
++//   (rs_rts) and every texture binding of a full argument walk (rs_bind_check, rs_support) keeps asking. The same number of draws cost about 24 % more submit-thread
++//   instructions after the first Fair state than before it (scenes not identical: not proven to be this alone). In the menus some 1920x1080 targets do stay reduced
++//   (first.log, frames 2100 to 3300: 11 reductions, 2 restorations): there the scale works, and the rule below does not retire it while one is alive.
++//   Rule: the scale retires when the last RB_RS_RETIRE_RUN storages it reduced were each restored for such a refusal, with no reduction that held in between (a reduced
++//   storage freed still reduced, or one the thermal recovery restored), and no storage of any kind is left reduced (live == 0: rs_on() may only become false then, since a
++//   reduced storage read with rs_on() false would be taken for one of the game's size). Retired, the scale stays off until the next session.
++//   S2A_RB_RS_RETIRE=0: as before (the step always answers 0).
++#pragma once
++#include <stdint.h>
++#include <string.h>
++
++enum { RB_RS_RETIRE_RUN = 8 };
++typedef struct {
++    uint32_t reduced;     // storages the Fair scale reduced this session (the log line)
++    uint32_t refused;     // of them, restored because something could not take a reduced storage (the log line)
++    uint32_t run;         // refusals since the last reduction that held
++    uint64_t held_seen;   // the count of reductions that held, as of the last step
++    uint64_t pending;     // steps that found the run complete but a reduced storage still alive (the log line)
++} rb_rs_retire;
++
++static inline void rb_rs_retire_reset(rb_rs_retire *s) { memset(s, 0, sizeof *s); }
++static inline void rb_rs_retire_reduced(rb_rs_retire *s) { s->reduced++; }
++static inline void rb_rs_retire_refused(rb_rs_retire *s) { s->refused++; if (s->run < UINT32_MAX) s->run++; }
++static inline void rb_rs_retire_held(rb_rs_retire *s) { s->run = 0; }   // the thermal recovery restored one: its reduction held until the device cooled
++// One look, at the start of a submission (no pass open). on: the switch; armed: the Fair scale has reduced targets this session (rb_fair_seen); live: reduced storages alive
++//   right now, whoever reduced them; held: the running count of Fair reductions that ended still reduced. 1 = retire now
++static inline int rb_rs_retire_step(rb_rs_retire *s, int on, int armed, long live, uint64_t held) {
++    if (held != s->held_seen) { s->held_seen = held; s->run = 0; }   // one held since the last look: the scale does something, the run starts again
++    if (!on || !armed || s->run < RB_RS_RETIRE_RUN) return 0;
++    if (live != 0) { s->pending++; return 0; }   // not while a reduced storage exists (a negative count is a bookkeeping error: never retire on it)
++    return 1;
++}
+diff --git a/graphics/nvn/tests/t_rb_rs_retire.c b/graphics/nvn/tests/t_rb_rs_retire.c
+new file mode 100644
+index 0000000..129bbd0
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_rs_retire.c
+@@ -0,0 +1,62 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0321): host-only checks of the rule that retires the Fair thermal render scale (gfx/nvn/rb_rs_retire.h).
++#include <assert.h>
++#include <stdint.h>
++#include <stdio.h>
++#include "../gfx/nvn/rb_rs_retire.h"
++
++static void refuse(rb_rs_retire *s, int n) { for (int i = 0; i < n; i++) { rb_rs_retire_reduced(s); rb_rs_retire_refused(s); } }
++int main(void) {
++    rb_rs_retire s;
++    // ① the race of IPA 827: every reduction refused at once, nothing left reduced: retires at the 8th refusal, not before
++    rb_rs_retire_reset(&s);
++    for (int i = 1; i <= RB_RS_RETIRE_RUN; i++) {
++        refuse(&s, 1);
++        assert(rb_rs_retire_step(&s, 1, 1, 0, 0) == (i == RB_RS_RETIRE_RUN));
++    }
++    assert(s.reduced == RB_RS_RETIRE_RUN && s.refused == RB_RS_RETIRE_RUN && s.pending == 0);
++    // ② the switch at 0, or the scale never armed: never, whatever the run
++    rb_rs_retire_reset(&s); refuse(&s, 100);
++    assert(!rb_rs_retire_step(&s, 0, 1, 0, 0));
++    assert(!rb_rs_retire_step(&s, 1, 0, 0, 0));
++    assert(!rb_rs_retire_step(&s, 0, 0, 0, 0));
++    assert(rb_rs_retire_step(&s, 1, 1, 0, 0));
++    // ③ a reduced storage still alive: not now (rs_on() must stay true for it), counted as pending; retires once it is gone
++    rb_rs_retire_reset(&s); refuse(&s, RB_RS_RETIRE_RUN);
++    assert(!rb_rs_retire_step(&s, 1, 1, 1, 0) && s.pending == 1);
++    assert(!rb_rs_retire_step(&s, 1, 1, 3, 0) && s.pending == 2);
++    assert(!rb_rs_retire_step(&s, 1, 1, -1, 0) && s.pending == 3);   // a count gone negative never retires
++    assert(rb_rs_retire_step(&s, 1, 1, 0, 0));
++    // ④ a reduction that held (a storage freed still reduced: the menus of first.log) starts the run again
++    rb_rs_retire_reset(&s); refuse(&s, RB_RS_RETIRE_RUN - 1);
++    assert(!rb_rs_retire_step(&s, 1, 1, 0, 0));
++    refuse(&s, 1);
++    assert(!rb_rs_retire_step(&s, 1, 1, 0, 1) && s.run == 0);   // held moved 0 -> 1 between the two looks
++    refuse(&s, RB_RS_RETIRE_RUN - 1);
++    assert(!rb_rs_retire_step(&s, 1, 1, 0, 1));
++    refuse(&s, 1);
++    assert(rb_rs_retire_step(&s, 1, 1, 0, 1));
++    // … also when it is seen while the switch is off or the scale not armed (the count is still followed)
++    rb_rs_retire_reset(&s); refuse(&s, RB_RS_RETIRE_RUN);
++    assert(!rb_rs_retire_step(&s, 0, 1, 0, 5) && s.run == 0 && s.held_seen == 5);
++    assert(!rb_rs_retire_step(&s, 1, 1, 0, 5));
++    // ⑤ a storage the thermal recovery restored held too: the run starts again
++    rb_rs_retire_reset(&s); refuse(&s, RB_RS_RETIRE_RUN);
++    rb_rs_retire_held(&s);
++    assert(!rb_rs_retire_step(&s, 1, 1, 0, 0));
++    refuse(&s, RB_RS_RETIRE_RUN);
++    assert(rb_rs_retire_step(&s, 1, 1, 0, 0));
++    // ⑥ reductions that are not refused do not count (a scale that works never retires)
++    rb_rs_retire_reset(&s);
++    for (int i = 0; i < 1000; i++) rb_rs_retire_reduced(&s);
++    assert(!rb_rs_retire_step(&s, 1, 1, 0, 0) && s.reduced == 1000 && s.refused == 0);
++    // ⑦ a new session starts from nothing
++    refuse(&s, RB_RS_RETIRE_RUN);
++    rb_rs_retire_reset(&s);
++    assert(!rb_rs_retire_step(&s, 1, 1, 0, 0) && s.reduced == 0 && s.run == 0);
++    // ⑧ the run does not wrap
++    rb_rs_retire_reset(&s); s.run = UINT32_MAX; rb_rs_retire_refused(&s);
++    assert(s.run == UINT32_MAX && rb_rs_retire_step(&s, 1, 1, 0, 0));
++    puts("t_rb_rs_retire: ok");
++    return 0;
++}
