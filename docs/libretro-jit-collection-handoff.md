@@ -75,8 +75,16 @@ de T écrivait hors de sa table (STM et PUSH vers la RAM principale) depuis l'é
   collection), l'hôte de stockage des artefacts n'étant pas joignable depuis cette session ; la recette de
   livraison refait ces contrôles. `test/standard_delivery_contract_test.py` n'a pas été mené à son terme
   (interrompu après dix minutes).
-- **Image qui change** dans l'IPA : `Frameworks/desmume_libretro.framework/desmume_libretro`, en plus de celles de
-  la collection `416333ff`.
+- **Par rapport à la 828** (collection `66e232e0`, id 14850324552), trois cœurs changent, à déclarer « doit
+  changer » :
+  - `Frameworks/desmume_libretro.framework/desmume_libretro` (ce correctif) ;
+  - `Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro` et
+    `Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro` (triches PS1, `416333ff`, mêmes
+    empreintes que dans cette collection-là : `743ea699…` et `fbe2270f…`).
+  Azahar (`122f91a2…`, identique à la 828), les 31 autres cœurs, MoltenVK et les fichiers système sont retenus.
+- **Origine pour le manifeste** : `source` `ccd5f0476caa402823984be589185666d110e7a5`, `run` 45284351707 (essai 1,
+  succès), `artifact` 14872740403, `bytes` 56290109, `sha256` ci-dessus, `expiresAt` `2026-12-07T23:08:59Z`.
+  `ccd5f047` n'est alors plus différé.
 - **À regarder sur iPhone** : Animal Crossing, menu en jeu ouvert puis fermé plusieurs fois ; lignes `stall:` du
   journal de session ; `[rb-jit] … engine=jit` ; surcouche de performances (`EMU`) en ×1, ×5 et ×10.
 - **Non vérifié** : rien n'a tourné sur iPhone ; le lien entre l'écriture hors table et le gel au menu est cohérent,
