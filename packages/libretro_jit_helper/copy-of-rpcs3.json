@@ -1,0 +1,193 @@
+{
+  "schema": 1,
+  "purpose": "Every file of this package is the RPCS3 JIT helper file named here with exactly these replacements, applied in order (old text, new text, occurrences of the old text at that step), written by tools/libretro/derive_jit_helper.py. The debugger protocol (BRK #0xf00d commands 0 detach, 1 prepare region, 2 new breakpoints, 3 probe with nonce+1), the request fields and the reporter events are not renamed.",
+  "files": {
+    "packages/libretro_jit_helper/ios/Classes/LibretroJITRequestHandlerBase.swift": {
+      "source": "packages/rpcs3_jit_helper/ios/Classes/Rpcs3JITRequestHandlerBase.swift",
+      "sourceSha256": "7ffcf5dbd376cfc853f7a152ec9c147c92263d4e77d22742067cfc2a2580164d",
+      "replacements": [
+        [
+          "rpcs3RequestType",
+          "libretroRequestType",
+          3
+        ],
+        [
+          "com.neogamelab.neostation.rpcs3-jit-request",
+          "com.neogamelab.neostation.libretro-jit-request",
+          1
+        ],
+        [
+          "com.neogamelab.neostation.rpcs3.jit-helper",
+          "com.neogamelab.neostation.libretro.jit-helper",
+          2
+        ],
+        [
+          "Rpcs3JITRequestHandlerBase",
+          "LibretroJITRequestHandlerBase",
+          2
+        ],
+        [
+          "Rpcs3HelperReporter",
+          "LibretroHelperReporter",
+          3
+        ],
+        [
+          "Rpcs3HelperError",
+          "LibretroHelperError",
+          11
+        ],
+        [
+          "NeoStationRPCS3StikJIT",
+          "NeoStationLibretroStikJIT",
+          1
+        ],
+        [
+          "NeoStationRPCS3JIT",
+          "NeoStationLibretroJIT",
+          1
+        ],
+        [
+          "rpcs3-universal",
+          "libretro-universal",
+          2
+        ],
+        [
+          "NEOSTATION_DEBUGGER_ATTACHED_V1",
+          "NEOSTATION_LIBRETRO_DEBUGGER_ATTACHED_V1",
+          1
+        ],
+        [
+          "      // RPCS3 selects its mirrored Universal arena by OS version, not TXM\n      // detection. Even a non-TXM device on iOS 26 needs this script running\n      // when Core constructors request their executable regions.\n",
+          "      // The libretro host asks for the universal handshake by OS version\n      // (iOS 26.0 and later), not TXM detection, and issues the commands\n      // itself while it prepares the session's code arena.\n",
+          1
+        ],
+        [
+          "embedded RPCS3 engine",
+          "embedded libretro cores",
+          1
+        ],
+        [
+          "RPCS3",
+          "libretro",
+          8
+        ]
+      ]
+    },
+    "packages/libretro_jit_helper/ios/Classes/LibretroHelperJournal.swift": {
+      "source": "packages/rpcs3_jit_helper/ios/Classes/Rpcs3HelperJournal.swift",
+      "sourceSha256": "0c5ab07b04ba5f01d95d1e09a45c4c8fefcd35bf090683f42479472f0bd2982b",
+      "replacements": [
+        [
+          "Rpcs3HelperJournal",
+          "LibretroHelperJournal",
+          1
+        ],
+        [
+          "NEOSTATION_RPCS3_PREPARE_",
+          "NEOSTATION_LIBRETRO_PREPARE_",
+          1
+        ],
+        [
+          "NEOSTATION_DEBUGGER_",
+          "NEOSTATION_LIBRETRO_DEBUGGER_",
+          1
+        ],
+        [
+          "RPCS3_",
+          "LIBRETRO_",
+          2
+        ]
+      ]
+    },
+    "packages/libretro_jit_helper/ios/Resources/libretro-universal.js": {
+      "source": "packages/rpcs3_jit_helper/ios/Resources/rpcs3-universal.js",
+      "sourceSha256": "a57a40c181b8b8965a9ab98a08fdde861e48d00e818c76c3fc9cfd49057dbf51",
+      "replacements": [
+        [
+          "NEOSTATION_STIKJIT_UNIVERSAL_V1",
+          "NEOSTATION_LIBRETRO_STIKJIT_UNIVERSAL_V1",
+          3
+        ],
+        [
+          "NEOSTATION_DEBUGGER_ATTACHED_V1",
+          "NEOSTATION_LIBRETRO_DEBUGGER_ATTACHED_V1",
+          1
+        ],
+        [
+          "NEOSTATION_DEBUGGER_PROBE_V1",
+          "NEOSTATION_LIBRETRO_DEBUGGER_PROBE_V1",
+          1
+        ]
+      ]
+    },
+    "packages/libretro_jit_helper/ios/libretro_jit_helper.podspec": {
+      "source": "packages/rpcs3_jit_helper/ios/rpcs3_jit_helper.podspec",
+      "sourceSha256": "a2ccd002e1de024210b23fb4660a99ac1de237a34599a743d2c0a1de2e608ec0",
+      "replacements": [
+        [
+          "rpcs3_jit_helper",
+          "libretro_jit_helper",
+          2
+        ],
+        [
+          "helper for RewindBox RPCS3.",
+          "helper for RewindBox libretro cores.",
+          1
+        ],
+        [
+          "embedded PlayStation 3\nengine.",
+          "embedded libretro\ncores.",
+          1
+        ]
+      ]
+    },
+    "packages/libretro_jit_helper/extension/LibretroJITExtensionEntry.swift": {
+      "source": "native/rpcs3_internal_helper/Rpcs3JITExtensionEntry.swift",
+      "sourceSha256": "95bf84f8b6847e677be236ff0cdea8cf18448c1b7aed5bcad0f4df6b5cd8466f",
+      "replacements": [
+        [
+          "import rpcs3_jit_helper",
+          "import libretro_jit_helper",
+          1
+        ],
+        [
+          "Rpcs3JITRequestHandler",
+          "LibretroJITRequestHandler",
+          3
+        ]
+      ]
+    },
+    "packages/libretro_jit_helper/extension/Info.plist": {
+      "source": "native/rpcs3_internal_helper/Info.plist",
+      "sourceSha256": "f043e5d40ae591043fe7ac51f6e5feaea0103b923f454ae93ea45b10b30825b2",
+      "replacements": [
+        [
+          "RewindBox RPCS3 JIT Helper",
+          "RewindBox Libretro JIT Helper",
+          1
+        ],
+        [
+          "NeoStationRPCS3JITHelper",
+          "NeoStationLibretroJITHelper",
+          1
+        ],
+        [
+          "Rpcs3JITRequestHandler",
+          "LibretroJITRequestHandler",
+          1
+        ]
+      ]
+    },
+    "packages/libretro_jit_helper/LICENSE": {
+      "source": "packages/rpcs3_jit_helper/LICENSE",
+      "sourceSha256": "a3cbd576e4a0888f99907438a5612cbbb8deebb91d773331a423b8fb6c4460aa",
+      "replacements": [
+        [
+          "rpcs3_jit_helper",
+          "libretro_jit_helper",
+          1
+        ]
+      ]
+    }
+  }
+}

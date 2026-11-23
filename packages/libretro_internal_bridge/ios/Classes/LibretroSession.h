@@ -26,6 +26,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// (LibretroJitInstallIntoLibrary); empty for cores that switch by
 /// themselves.
 @property(nonatomic, copy) NSDictionary<NSString *, NSString *> *jitOverrides;
+/// YES for a core RewindBox builds with its JIT interface: a session that
+/// starts without it says so once (jitInterpreterNotice).
+@property(nonatomic, assign) BOOL jitExpected;
 /// Curated, translated settings: [{key, label, values: [{value, label}]}].
 @property(nonatomic, copy) NSArray<NSDictionary *> *coreSettings;
 @property(nonatomic, assign) BOOL achievementsAllowed;

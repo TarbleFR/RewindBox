@@ -85,7 +85,7 @@ static NSArray<NSString *> *LibretroRequiredUIText(void) {
     @"resolutionUnsupportedFooter", @"resolutionInapplicableFooter", @"resolutionEnlargement",
     @"resolutionEnlargementFooter", @"resolutionUpscalingShaders", @"resolutionFiltering",
     @"resolutionFilteringFooter", @"metalFXUpscaling", @"metalFXFooter", @"metalFXUnavailable",
-    @"metalFXShaderActive", @"metalFXPaused",
+    @"metalFXShaderActive", @"metalFXPaused", @"jitInterpreterNotice",
   ];
 }
 
@@ -719,6 +719,7 @@ static NSDictionary<NSString *, id> *Failure(NSString *code, NSString *message) 
       [arguments[@"noJitOverrides"] isKindOfClass:NSDictionary.class] ? arguments[@"noJitOverrides"] : @{};
   configuration.jitOverrides =
       [arguments[@"jitOverrides"] isKindOfClass:NSDictionary.class] ? arguments[@"jitOverrides"] : @{};
+  configuration.jitExpected = [arguments[@"jitExpected"] boolValue];
   configuration.coreSettings =
       [arguments[@"coreSettings"] isKindOfClass:NSArray.class] ? arguments[@"coreSettings"] : @[];
   configuration.achievementsAllowed = [arguments[@"achievementsAllowed"] boolValue];

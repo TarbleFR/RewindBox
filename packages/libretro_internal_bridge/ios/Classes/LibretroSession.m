@@ -646,9 +646,12 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     @"jitCapable" : @(LibretroJitUsableByCores() || _host.jitCapable),
     @"jitInterface" : @(_host.jitCapable && !LibretroJitUsableByCores()),
   };
+  const BOOL jitMissing = _configuration.jitExpected && !_host.jitCapable;
   dispatch_async(dispatch_get_main_queue(), ^{
     self->_started = YES;
     [self finishStartWithResult:success];
+    // A core built for the JIT interface that runs on its interpreter today.
+    if (jitMissing) [self showStatus:[self text:@"jitInterpreterNotice"]];
   });
 }
 
