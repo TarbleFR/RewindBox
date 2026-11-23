@@ -25,8 +25,29 @@ s'était déjà terminée sans retour au menu sur une IPA d'avant le JIT de DeSm
 - **Journal de session** pour le gel : `menu: opened after frame …`, `menu: closed, the game resumes`, et, si un
   jeu en cours ne produit plus d'image pendant 3, 10 puis 30 s, `stall: … emulation thread <état>, pc …, lr …`
   (image et symbole, ou « no image : JIT code or data »), puis `stall: frames again after …` s'il repart.
-- **Images qui changent** pour la prochaine IPA : `libretro_internal_bridge` et `App` ; la collection reste
-  `66e232e0` (aucun cœur ne change).
+- **Images qui changent** pour la prochaine IPA : `libretro_internal_bridge`, `App`, et les deux Beetle PSX de la
+  nouvelle collection ci-dessous.
+
+## Depuis la 828 : nouvelle collection pour les triches PS1 (feu vert du mainteneur)
+
+- **Correctif** `416333ff` (`native/beetle-psx`, détail dans son README) : une triche qui réécrit du code déjà
+  compilé par Lightrec prend effet ; Lightrec recompile ce code et reste actif, jamais de retour à l'interpréteur.
+  Vérifié sous qemu (fonction compilée qui renvoie 1 ; avec la triche `80040000 0002`, 2 dès la trame suivante ;
+  avant le correctif, 1 indéfiniment).
+- **Collection** : run [45280386958](https://github.com/TarbleFR/RewindBox/actions/runs/45280386958), artefact
+  `LibretroCores-416333ff6b623c789307b6679ca98c90a8c4c373`, id 14870941984, 56 287 018 octets, SHA-256
+  `8cc3950e6c87523fe865e95ac24380260f8a36fdf25b0b2db06ed21e5bba13c5`, disponible jusqu'au 7 décembre. Entrée ajoutée
+  à `COLLECTIONS`.
+- **Par rapport à `66e232e0` (IPA 828)** : seuls `mednafen_psx_libretro` et `mednafen_psx_hw_libretro` changent, avec
+  leur ligne de `LIBRETRO_CORES.txt` et `identity.json` ; DeSmuME, Azahar, les 31 autres cœurs, MoltenVK et les
+  fichiers système sont identiques à l'octet près.
+- **Vérifié dans cette session** : empreinte de l'artefact, `libretro_source_collections.verify` (4 cœurs compilés,
+  interface JIT et export d'installation), contrat d'options sur les 35 binaires, `standard_delivery_contract_test.py`
+  (120 tests, 4 ignorés).
+- **Manifeste de la livraison qui l'adopte** : `components.libretro.origin` vers cet artefact ; `images.mustChange` :
+  `Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro`,
+  `Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro`, `libretro_internal_bridge`, `App` ;
+  DeSmuME et Azahar restent retenus.
 
 ## La collection
 
