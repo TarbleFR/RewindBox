@@ -28,9 +28,9 @@ abstract final class NextendoServers {
   /// A lookup that takes longer counts as failed (the last good address stays).
   static const lookupTimeout = Duration(seconds: 5);
 
-  // Other authoritative game-server answers are useful when one edge serves the wrong certificate.
+  // The game server name's other answers: the engine keeps the one that takes a TLS handshake (any title).
   static const _addressesKey = 'rewindbox.nextendo.resolved.gameAddresses';
-  static Future<List<String>> smashAddresses(String primary, String nat, SharedPreferences? preferences) async {
+  static Future<List<String>> gameAddresses(String primary, String nat, SharedPreferences? preferences) async {
     final prefs = preferences ?? await SharedPreferences.getInstance();
     final answers = prefs.getStringList(_addressesKey) ?? const [];
     if (answers.isEmpty || answers.first != primary) return const [];

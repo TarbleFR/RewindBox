@@ -67,15 +67,15 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     /// in memory and is never journaled. An engine without the operation, or a refused request, leaves the game offline.
     /// The optional parts (adapt_nextendo_data) go with it when valid: the title's BCAT folder, the account's NSA
     /// (Animal Crossing: New Horizons) and the versions Nextendo's catalog accepts; a malformed one is left out and
-    /// journaled, never the launch's online play.
-    private func configureOnline(_ runtime: MeloNXRuntimeAPI, online: [String:Any]?) {
+    /// journaled, never the launch's online play. The title is the one the engine's preflight read from the game itself.
+    private func configureOnline(_ runtime: MeloNXRuntimeAPI, online: [String:Any]?, titleId: String?) {
         var request = "{}"
         if let online {
             // The PID is the account id the game reads (Nextendo's integration guide); the engine refuses a request without it.
             guard let token = online["nexToken"] as? String, token.hasPrefix("nx2."), token.utf8.count <= 1024,
                   let pid = (online["pid"] as? NSNumber)?.int64Value, pid > 0,
                   let server = online["serverAddress"] as? String, let nat = online["natAddress"] as? String,
-                  let data = try? JSONSerialization.data(withJSONObject:Self.onlineRequest(online,token:token,pid:pid,server:server,nat:nat)),
+                  let data = try? JSONSerialization.data(withJSONObject:Self.onlineRequest(online,token:token,pid:pid,server:server,nat:nat,titleId:titleId)),
                   let text = String(data:data,encoding:.utf8) else {
                 MeloNXLaunchJournal.record("online","skipped",detail:"The online request of this launch is malformed; the game starts offline.")
                 _ = try? runtime.content(path:"{}",operation:11)
@@ -95,17 +95,26 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     /// The engine's online request: the required parts, then each optional part Dart sent that is valid (adapt_nextendo_data).
     /// bcatDirectory: <Documents>/MeloNX/nextendo/bcat/<16 lowercase hex> exactly; nsa: 16 lowercase hex digits, not zero;
     /// acceptedVersions: at most 16 printable ASCII strings of at most 32 characters. Values are never journaled.
-    static func onlineRequest(_ online:[String:Any], token:String, pid:Int64, server:String, nat:String, root:URL? = nil) -> [String:Any] {
+    /// nexCompatibility: the player's consent, given once when online services were turned on, to the legacy private
+    /// certificate Nextendo's NEX game servers present (every NEX title); gameDnsAddresses: 2 to 4 answers of the game
+    /// server name, the configured address first. A Core of an earlier build understood both for SSBU only, under the
+    /// names smashPrivateTls and smashDnsAddresses: they are added for that title.
+    static func onlineRequest(_ online:[String:Any], token:String, pid:Int64, server:String, nat:String, titleId:String? = nil, root:URL? = nil) -> [String:Any] {
         var request:[String:Any] = ["nexToken":token,"pid":NSNumber(value:pid),"serverAddress":server,"natAddress":nat]
-        if online["smashPrivateTls"] as? Bool == true, online["titleId"] as? String == "01006a800016e000" {
-            request["smashPrivateTls"] = true
-            request["titleId"] = "01006a800016e000"
-        }
-        if let addresses = online["smashDnsAddresses"] as? [String], (2...4).contains(addresses.count),
-           addresses.first == server, addresses.allSatisfy({ $0.utf8.count <= 15 }) {
-            request["smashDnsAddresses"] = addresses
-        }
         func lowerHex16(_ text:String) -> Bool { text.utf8.count == 16 && text.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) } }
+        let title = titleId?.lowercased()
+        let game = title.flatMap { lowerHex16($0) ? $0 : nil }
+        let smash = game == "01006a800016e000"
+        if let game { request["titleId"] = game }
+        if online["nexCompatibility"] as? Bool == true {
+            request["nexCompatibility"] = true
+            if smash { request["smashPrivateTls"] = true }
+        }
+        if let addresses = online["gameDnsAddresses"] as? [String], (2...4).contains(addresses.count),
+           addresses.first == server, addresses.allSatisfy({ $0.utf8.count <= 15 }) {
+            request["gameDnsAddresses"] = addresses
+            if smash { request["smashDnsAddresses"] = addresses }
+        }
         if let value = online["bcatDirectory"] {
             // Both sides resolved (Dart and Swift can name the container through /var or /private/var).
             let base = (root ?? FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("MeloNX"))
@@ -461,7 +470,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                 guard isCurrent(token) else { return }
                 let settings = MeloNXHogwartsGraphics.resolve(requestedSettings,title:titleID)
                 try runtime.prepareGraphics(settings,universalJit:universal)
-                configureOnline(runtime,online:requestedOnline)
+                configureOnline(runtime,online:requestedOnline,titleId:titleID)
                 MeloNXLaunchJournal.record("configuration","hogwartsPolicy",detail:MeloNXHogwartsGraphics.diagnostic(settings,title:titleID))
                 var identity: [String:Any] = [:]
                 if let identityURL = Bundle.main.url(forResource:"MeloNX-native-identity",withExtension:"json"),

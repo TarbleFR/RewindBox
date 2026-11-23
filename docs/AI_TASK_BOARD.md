@@ -8,6 +8,8 @@
 
 20 novembre — [IPA privée 804 livrée et vérifiée](evidence/rewind804/delivery.json) : moteur S2Arm revu `f956b7d8`, instrumentation et restitution du tas hôte 0172–0176. Clé privée existante réutilisée, quatre pièces chiffrées et IPA finale vérifiées, 97 images vérifiées et 10 identifiants de bundles conservés. Les différences de relais des deux ponts recompilés sont expliquées ; aucun nouvel avertissement Xcode face à 803. Comparaison mémoire et temps d’image sur iPhone en attente, estimation inchangée.
 
+23 novembre — [Nextendo : un seul interrupteur, tous les jeux NEX](evidence/nextendo-online-all-games-2026-11-23.md). Certificat privé, serveur sécurisé par adresse et choix DNS étendus de SSBU à tout titre NEX ; écran réduit au compte et aux services en ligne. Core et app compilés localement (HLE/Library) ; NPLN non couvert ; iPhone non testé.
+
 21 novembre — Préchargement 0192–0197. Rendement par source et octets lus par le processus. Mesures sur iPhone en attente.
 
 21 novembre — Gouverneur mémoire 0186–0191. Suivi de dix minutes, seuils sur appareil en attente.

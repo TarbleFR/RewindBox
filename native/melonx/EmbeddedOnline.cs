@@ -32,8 +32,11 @@ namespace Ryujinx.HLE
     ///     nnex (the game token);
     ///   - TLS to one of the two addresses offers ALPN http/1.1 (h2 on NPLN hosts), sends the last host name redirected
     ///     there as SNI when the game gave none, and accepts only a chain to one of Nextendo's published roots that
-    ///     names the host. An explicitly consented SSBU session may instead accept the legacy private NEX certificate
-    ///     on its configured game address; this is reported as unverified compatibility, never verified TLS;
+    ///     names the host. A session whose request carries the player's consent (nexCompatibility, given once when the
+    ///     player turns online services on) may instead accept the legacy private certificate Nextendo's NEX game servers
+    ///     present, for every NEX title: on the game's NEX host (g<id>-lp1.*.srv.nintendo.net) and, once this session
+    ///     reached such a host, on the secure server the game then names by its address; only on Nextendo's addresses.
+    ///     This is reported as unverified compatibility, never as verified TLS;
     ///   - a refused or failed TLS handshake, to those addresses or any other host, is the game's connection error
     ///     (ConnectionAbort, also for a later read or write), never an exception through the service.
     /// RewindBox (adapt_nextendo_data), optional parts of the request: the host's folder of the launched title's BCAT data
@@ -58,12 +61,15 @@ namespace Ryujinx.HLE
             public long Pid;
             public IPAddress Server;
             public IPAddress Nat;
-            public IPAddress[] SmashCandidates;
-            public Task<IPAddress> SmashSelection;
-            public volatile IPAddress SmashServer;
-            public int SmashTlsState;
+            public IPAddress[] GameCandidates; // the game server name's DNS answers, the configured address first
+            public Lazy<Task<IPAddress>> GameSelection; // started by the first NEX host the game looks up
+            public string FirstNexHost; // that host: the SNI of the selection's handshakes
+            public volatile IPAddress GameServer;
+            public int NexLoginState; // the last NEX login handshake: 0 none, 1 verified, 2 refused, 3 legacy certificate by consent
+            public int NexReached; // 1 once this session reached a NEX host (verified or by consent); a later refusal keeps it
             public int TransportSequence;
-            public bool SmashPrivateTls;
+            public bool NexCompatibility;
+            public string TitleId; // 16 lowercase hex digits, journal only
             public readonly Dictionary<IPAddress, string> Resolved = new();
             public string BcatDirectory; // adapt_nextendo_data
             public long? Nsa; // adapt_nextendo_data
@@ -75,7 +81,7 @@ namespace Ryujinx.HLE
         public const int MaxAcceptedVersions = 16; // adapt_nextendo_data
         public const int MaxVersionLength = 32; // adapt_nextendo_data
 
-        private const string SmashHost = "g23380901-lp1.s.n.srv.nintendo.net";
+        // Requests of earlier builds named the consent after the first title it served (SSBU); still understood.
         private const string SmashTitle = "01006a800016e000";
 
         private static volatile Settings _settings; // the running session's
@@ -242,10 +248,6 @@ zdAq1CTeFUrJ6r/siw==
         {
             if (!firstProgram) return;
             Settings settings = _pending;
-            if (settings?.SmashCandidates is { Length: > 1 } candidates)
-            {
-                settings.SmashSelection = Task.Run(() => SelectSmashServer(candidates, settings.SmashPrivateTls));
-            }
             _settings = settings;
             _pending = null;
 
@@ -284,21 +286,32 @@ zdAq1CTeFUrJ6r/siw==
             IPAddress server = Address(Text(root, "serverAddress"), "serverAddress");
             IPAddress nat = Address(Text(root, "natAddress"), "natAddress");
             if (server.Equals(nat)) throw new FormatException("Online configuration: the server and NAT test addresses must differ.");
-            _pending = new Settings
+            string titleId = Text(root, "titleId");
+            if (titleId != null && (titleId.Length != 16 || !IsLowerHex(titleId))) titleId = null;
+            Settings settings = new()
             {
-                NexToken = token, Pid = pid, Server = server, Nat = nat,
-                SmashCandidates = SmashCandidates(root, server, nat),
-                SmashPrivateTls = Text(root, "titleId") == SmashTitle &&
-                    root.TryGetProperty("smashPrivateTls", out JsonElement consent) && consent.ValueKind == JsonValueKind.True,
+                NexToken = token, Pid = pid, Server = server, Nat = nat, TitleId = titleId,
+                GameCandidates = GameCandidates(root, server, nat),
+                NexCompatibility = True(root, "nexCompatibility") || (titleId == SmashTitle && True(root, "smashPrivateTls")),
                 BcatDirectory = BcatDirectory(root), Nsa = Nsa(root), AcceptedVersions = AcceptedVersions(root),
             };
+            if (settings.GameCandidates is { Length: > 1 } candidates)
+            {
+                bool compatibility = settings.NexCompatibility;
+                settings.GameSelection = new(() => Task.Run(() => SelectGameServer(candidates, settings.FirstNexHost, compatibility)));
+            }
+            _pending = settings;
             return true;
         }
 
-        // Only SSBU launches with multiple answers from the operator's game DNS name supply this field.
-        private static IPAddress[] SmashCandidates(JsonElement root, IPAddress server, IPAddress nat)
+        private static bool True(JsonElement root, string name) =>
+            root.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.True;
+
+        // The answers of the operator's game server name (2 to 4) when it has several, for any title.
+        private static IPAddress[] GameCandidates(JsonElement root, IPAddress server, IPAddress nat)
         {
-            if (!root.TryGetProperty("smashDnsAddresses", out JsonElement entries) ||
+            if ((!root.TryGetProperty("gameDnsAddresses", out JsonElement entries) &&
+                 !root.TryGetProperty("smashDnsAddresses", out entries)) ||
                 entries.ValueKind != JsonValueKind.Array || entries.GetArrayLength() > 4) return null;
             List<IPAddress> addresses = [server];
             foreach (JsonElement entry in entries.EnumerateArray())
@@ -311,12 +324,13 @@ zdAq1CTeFUrJ6r/siw==
             return addresses.ToArray();
         }
 
-        // No application data is sent. Start during guest startup and bound the whole race, including slow peers.
-        private static async Task<IPAddress> SelectSmashServer(IPAddress[] candidates, bool privateTls)
+        // No application data is sent: a TLS handshake to each answer with the game's own NEX host as SNI; the first that
+        // presents a certificate this session accepts wins. The whole race is bounded to two seconds, slow peers included.
+        private static async Task<IPAddress> SelectGameServer(IPAddress[] candidates, string host, bool compatibility)
         {
             using CancellationTokenSource deadline = new(TimeSpan.FromSeconds(2));
             List<Task<IPAddress>> probes = new(candidates.Length);
-            foreach (IPAddress address in candidates) probes.Add(VerifySmashRoute(address, privateTls, deadline.Token));
+            foreach (IPAddress address in candidates) probes.Add(VerifyGameRoute(address, host, compatibility, deadline.Token));
             try
             {
                 while (probes.Count != 0)
@@ -335,7 +349,7 @@ zdAq1CTeFUrJ6r/siw==
             }
         }
 
-        private static async Task<IPAddress> VerifySmashRoute(IPAddress address, bool privateTls, CancellationToken stop)
+        private static async Task<IPAddress> VerifyGameRoute(IPAddress address, string host, bool compatibility, CancellationToken stop)
         {
             try
             {
@@ -344,11 +358,11 @@ zdAq1CTeFUrJ6r/siw==
                 using SslStream tls = new(socket.GetStream(), false);
                 await tls.AuthenticateAsClientAsync(new SslClientAuthenticationOptions
                 {
-                    TargetHost = SmashHost,
+                    TargetHost = host,
                     ApplicationProtocols = [SslApplicationProtocol.Http11],
                     RemoteCertificateValidationCallback = (_, cert, chain, _) =>
-                        CertificateFailure(cert, chain, SmashHost, RootsForTests ?? TrustedRoots(), localChainOnly: true) == null ||
-                        (privateTls && IsLegacySmashCertificate(cert)),
+                        CertificateFailure(cert, chain, host, RootsForTests ?? TrustedRoots(), localChainOnly: true) == null ||
+                        (compatibility && IsLegacyNexCertificate(cert)),
                 }, stop).ConfigureAwait(false);
                 return address;
             }
@@ -480,14 +494,17 @@ zdAq1CTeFUrJ6r/siw==
             Settings settings = _settings;
             if (settings == null || string.IsNullOrEmpty(host)) return null;
             host = host.TrimEnd('.');
-            if (remember && settings.SmashSelection != null && string.Equals(host, SmashHost, StringComparison.OrdinalIgnoreCase))
-            {
-                IPAddress selected = settings.SmashSelection.GetAwaiter().GetResult();
-                settings.SmashServer = selected;
-                return Note(settings, selected, SmashHost);
-            }
             foreach (string pattern in _natHosts)
                 if (Matches(pattern, host)) return remember ? Note(settings, settings.Nat, host) : settings.Nat;
+            // A game's NEX host (any title) goes to the answer of the operator's game server name that took a TLS
+            // handshake, when that name has several; the first NEX host the game looks up starts the choice.
+            if (remember && settings.GameSelection != null && IsNexHost(host))
+            {
+                Interlocked.CompareExchange(ref settings.FirstNexHost, host, null);
+                IPAddress selected = settings.GameSelection.Value.GetAwaiter().GetResult();
+                settings.GameServer = selected;
+                return Note(settings, selected, host);
+            }
             foreach (string pattern in _serverHosts)
                 if (Matches(pattern, host)) return remember ? Note(settings, settings.Server, host) : settings.Server;
             return null;
@@ -505,7 +522,22 @@ zdAq1CTeFUrJ6r/siw==
             Settings settings = _settings;
             if (settings == null || address == null) return false;
             if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
-            return address.Equals(settings.Server) || address.Equals(settings.Nat) || address.Equals(settings.SmashServer);
+            return address.Equals(settings.Server) || address.Equals(settings.Nat) || address.Equals(settings.GameServer);
+        }
+
+        /// <summary>
+        /// A game's own NEX server name (PRUDP in a WebSocket over TLS, integration guide "Game servers"): "g", eight hex
+        /// digits, "-lp1.", then any labels under srv.nintendo.net (s.n for the game server, p for a Pia rendezvous).
+        /// </summary>
+        internal static bool IsNexHost(string host)
+        {
+            const string suffix = ".srv.nintendo.net";
+            if (string.IsNullOrEmpty(host) || host.Length < 14 + suffix.Length || host[0] is not ('g' or 'G') ||
+                !host.EndsWith(suffix, StringComparison.OrdinalIgnoreCase) ||
+                string.Compare(host, 9, "-lp1.", 0, 5, StringComparison.OrdinalIgnoreCase) != 0) return false;
+            for (int i = 1; i < 9; i++)
+                if (!Uri.IsHexDigit(host[i])) return false;
+            return true;
         }
 
         /// <summary>The host name last redirected to a server address, or null.</summary>
@@ -557,7 +589,7 @@ zdAq1CTeFUrJ6r/siw==
             if (settings == null) return (_, _) => { };
             int id = Interlocked.Increment(ref settings.TransportSequence);
             int failed = 0;
-            string route = string.Equals(host, SmashHost, StringComparison.OrdinalIgnoreCase) ? "ssbu" : "other";
+            string route = IsNexHost(host) ? "nex" : IPAddress.TryParse(host, out _) ? "address" : "other";
             return (status, detail) =>
             {
                 if (status == "failed" && Interlocked.Exchange(ref failed, 1) != 0) return;
@@ -686,64 +718,68 @@ zdAq1CTeFUrJ6r/siw==
             }
         }
 
-        /// <summary>Bind the optional SSBU exception to this session and this socket's actual destination.</summary>
+        /// <summary>Bind the consented NEX exception to this session and this socket's actual destination.</summary>
         public static RemoteCertificateValidationCallback CertificateValidator(IPAddress peer, int port)
         {
             Settings settings = _settings;
             if (peer?.IsIPv4MappedToIPv6 == true) peer = peer.MapToIPv4();
-            // The published SSBU auth and secure NEX ports. No NAT, arbitrary IP, account API or other title.
-            bool privateRoute = settings?.SmashPrivateTls == true && peer != null && (port == 443 || port == 60005) &&
-                !peer.Equals(settings.Nat) && (peer.Equals(settings.Server) || peer.Equals(settings.SmashServer));
-            // SSBU's secure NEX connection (port 60005) names its server by the IP address the Smash login server
-            // returned, not by the login host name (device journal of 20 November, IPA 801: "certificate refused for
-            // '<address>' (reason: hostname)" on every attempt). Under the same consent, that connection may take the
-            // legacy certificate only when the name is exactly this socket's address.
-            IPAddress secureEndpoint = privateRoute && port == 60005 ? peer : null;
+            // Nextendo's addresses only: the game server, the NAT test address (Mario Kart 8 Deluxe's NEX host is redirected
+            // there) and the game server answer chosen for this session. No other address, whatever its name.
+            bool nextendoPeer = settings != null && peer != null &&
+                (peer.Equals(settings.Server) || peer.Equals(settings.Nat) || peer.Equals(settings.GameServer));
             return (sender, certificate, chain, errors) =>
-                ValidateServerCertificate(sender, certificate, chain, errors, settings, privateRoute, secureEndpoint);
+                ValidateServerCertificate(sender, certificate, chain, errors, settings, nextendoPeer ? peer : null, port);
         }
 
         /// <summary>Strict validation when no session/socket scope is supplied.</summary>
         public static bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors errors)
-            => ValidateServerCertificate(sender, certificate, chain, errors, _settings, false, null);
+            => ValidateServerCertificate(sender, certificate, chain, errors, _settings, null, 0);
 
         private static bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain,
-            SslPolicyErrors errors, Settings settings, bool privateRoute, IPAddress secureEndpoint)
+            SslPolicyErrors errors, Settings settings, IPAddress nextendoPeer, int port)
         {
             string host = (sender as SslStream)?.TargetHostName;
             string failure = CertificateFailure(certificate, chain, host, RootsForTests ?? TrustedRoots());
             bool valid = failure == null;
-            bool smash = string.Equals(host, SmashHost, StringComparison.OrdinalIgnoreCase);
-            // The secure server's address only after this session reached the Smash login server (verified or by
-            // consent): the game learns that address from it.
-            bool secureServer = !smash && secureEndpoint != null && settings != null &&
-                Volatile.Read(ref settings.SmashTlsState) is 1 or 3 &&
-                IPAddress.TryParse(host, out IPAddress named) && named.Equals(secureEndpoint);
-            // A certificate chaining to Nextendo's published roots is verified on that address: only the name differs,
-            // and the name is the address itself.
-            bool secureVerified = !valid && secureServer && ReferenceEquals(settings, _settings) && failure == "hostname" &&
+            bool current = settings != null && ReferenceEquals(settings, _settings);
+            // The game's NEX login: its own host name, on one of Nextendo's addresses.
+            bool nexLogin = current && nextendoPeer != null && IsNexHost(host);
+            // The secure server the login server then gives: named by its address, which is this socket's own, on one of
+            // Nextendo's addresses, once this session reached a NEX host (verified or by consent). SSBU uses port 60005.
+            bool secureServer = current && nextendoPeer != null && !nexLogin &&
+                Volatile.Read(ref settings.NexReached) == 1 &&
+                IPAddress.TryParse(host, out IPAddress named) && named.Equals(nextendoPeer);
+            // A chain to Nextendo's published roots is verified there: only the name differs, and the name is the address.
+            bool secureVerified = !valid && secureServer && failure == "hostname" &&
                 CertificateFailure(certificate, chain, host, RootsForTests ?? TrustedRoots(), checkHostname: false) == null;
-            bool compatibility = !valid && !secureVerified && privateRoute && ReferenceEquals(settings, _settings) &&
-                (smash || secureServer) && IsLegacySmashCertificate(certificate);
+            bool compatibility = !valid && !secureVerified && settings?.NexCompatibility == true &&
+                (nexLogin || secureServer) && IsLegacyNexCertificate(certificate);
             if (secureServer && (secureVerified || compatibility))
             {
                 Logger.Warning?.Print(LogClass.ServiceSsl, secureVerified
-                    ? "Online play: SSBU secure server certificate verified against Nextendo's roots (address from the login server)."
-                    : "Online play: SSBU secure server certificate accepted by consent (unverified, legacy private certificate).");
+                    ? "Online play: NEX secure server certificate verified against Nextendo's roots (address from the login server)."
+                    : "Online play: NEX secure server certificate accepted by consent (unverified, legacy private certificate).");
             }
-            if (settings != null && ReferenceEquals(settings, _settings) && smash)
+            if (nexLogin)
             {
                 int state = valid ? 1 : compatibility ? 3 : 2;
-                if (Interlocked.Exchange(ref settings.SmashTlsState, state) != state)
-                    Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("smashTls", valid ? "accepted" : compatibility ? "compatibility" : "refused",
-                        detail: compatibility ? "unverified-private-certificate" : failure ?? "verified");
+                if (state != 2) Interlocked.Exchange(ref settings.NexReached, 1);
+                if (Interlocked.Exchange(ref settings.NexLoginState, state) != state)
+                {
+                    string outcome = valid ? "accepted" : compatibility ? "compatibility" : "refused";
+                    string detail = (compatibility ? "unverified-private-certificate" : failure ?? "verified") +
+                        $"; title={settings.TitleId ?? "unknown"}; port={port}";
+                    Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("nexTls", outcome, detail: detail);
+                }
             }
             if (!valid && !secureVerified && !compatibility)
             {
-                // On SSBU's secure port, say which certificate was presented (no certificate data is logged).
-                string presented = secureEndpoint == null ? string.Empty :
-                    $"; secure-port legacy-private-certificate={(IsLegacySmashCertificate(certificate) ? "yes" : "no")}" +
-                    $"; login={(settings == null ? 0 : Volatile.Read(ref settings.SmashTlsState))}";
+                // On a Nextendo address, say which certificate was presented and the login state (no certificate data).
+                string presented = nextendoPeer == null ? string.Empty :
+                    $"; legacy-private-certificate={(IsLegacyNexCertificate(certificate) ? "yes" : "no")}" +
+                    $"; consent={(settings?.NexCompatibility == true ? "yes" : "no")}" +
+                    $"; login={(settings == null ? 0 : Volatile.Read(ref settings.NexLoginState))}" +
+                    $"; reached={(settings == null ? 0 : Volatile.Read(ref settings.NexReached))}; port={port}";
                 Logger.Warning?.Print(LogClass.ServiceSsl,
                     $"Online play: certificate refused for '{host}' (reason: {failure}{presented}).");
             }
@@ -751,10 +787,10 @@ zdAq1CTeFUrJ6r/siw==
             return valid || secureVerified || compatibility;
         }
 
-        // This identifies the legacy certificate format, NOT the server's identity. Only the explicitly consented,
-        // socket-scoped SSBU route can use it. Never add this certificate to a trust store or learn a persistent pin
+        // This identifies the legacy certificate format, NOT the server's identity. Only the consented, session- and
+        // socket-scoped NEX routes above can use it. Never add this certificate to a trust store or learn a persistent pin
         // from an unverified connection. Missing, expired, renamed or SAN-bearing certificates keep the strict path.
-        private static bool IsLegacySmashCertificate(X509Certificate certificate)
+        private static bool IsLegacyNexCertificate(X509Certificate certificate)
         {
             if (certificate == null) return false;
             try

@@ -17,17 +17,23 @@ class NextendoLaunchOnline {
     required this.serverAddress,
     required this.natAddress,
     this.bcatDirectory,
-    this.smashDnsAddresses = const [],
-    this.smashPrivateTls = false,
+    this.gameDnsAddresses = const [],
+    this.nexCompatibility = false,
     this.nsa,
     this.acceptedVersions = const [],
   });
   final NextendoGameToken token;
   final String serverAddress;
   final String natAddress;
-  final List<String> smashDnsAddresses;
-  // Explicit consent, SSBU only, and only for the operator's DNS addresses.
-  final bool smashPrivateTls;
+
+  /// The answers of the operator's game server name (2 to 4, the configured
+  /// address first); the engine keeps the one that takes a TLS handshake.
+  final List<String> gameDnsAddresses;
+
+  /// The player's consent, given once by turning online services on: the
+  /// engine may accept the legacy private certificate Nextendo's NEX game
+  /// servers present, on Nextendo's addresses only, for every NEX title.
+  final bool nexCompatibility;
 
   /// The game's BCAT delivery data on the device ([NextendoBcat]); null when
   /// Nextendo has none for the title.
@@ -48,11 +54,8 @@ class NextendoLaunchOnline {
     'pid': token.pid,
     'serverAddress': serverAddress,
     'natAddress': natAddress,
-    if (smashDnsAddresses.length > 1) 'smashDnsAddresses': smashDnsAddresses,
-    if (smashPrivateTls) ...{
-      'smashPrivateTls': true,
-      'titleId': NextendoOnlinePlay.smashTitleId,
-    },
+    if (gameDnsAddresses.length > 1) 'gameDnsAddresses': gameDnsAddresses,
+    if (nexCompatibility) 'nexCompatibility': true,
     if (bcatDirectory != null) 'bcatDirectory': bcatDirectory,
     if (nsa != null) 'nsa': nsa,
     if (acceptedVersions.isNotEmpty) 'acceptedVersions': acceptedVersions,
@@ -60,66 +63,70 @@ class NextendoLaunchOnline {
 }
 
 /// Decides, at each Switch launch, whether the game starts with online play.
+///
+/// The player has one switch, online services. Turning it on is also the
+/// consent the game servers need (their legacy private certificate, accepted
+/// only on Nextendo's addresses); everything else is automatic at each launch:
+/// server addresses by name, the game token, the title's catalog versions, its
+/// BCAT data and, for Animal Crossing, the account id.
 abstract final class NextendoOnlinePlay {
-  // Only the actual guest handshake updates this, never the route probes or
-  // the account check. Keep its result across app restarts: signing in and
-  // resolving an address cannot clear a failed game-server handshake.
-  static const _smashTlsKey = 'rewindbox.nextendo.lastSmashTls';
-  static String? _lastSmashTls;
-  static Future<void> _smashTlsWrite = Future<void>.value();
-  static String? get lastSmashTls => _lastSmashTls;
-  static set lastSmashTls(String? value) {
+  // The last real game handshake on a NEX host (any title), kept across app
+  // restarts so the Nextendo screen can say a game was refused. Only the
+  // guest's own handshake updates it; no token, address or certificate.
+  static const _gameTlsKey = 'rewindbox.nextendo.lastGameTls';
+  static const _legacySmashTlsKey = 'rewindbox.nextendo.lastSmashTls';
+  static String? _lastGameTls;
+  static Future<void> _gameTlsWrite = Future<void>.value();
+  static String? get lastGameTls => _lastGameTls;
+  static set lastGameTls(String? value) {
     if (value == null || !const {'accepted', 'refused', 'compatibility'}.contains(value)) return;
-    _lastSmashTls = value;
+    _lastGameTls = value;
     // Serialize writes so a delayed refusal cannot overwrite a later success.
-    // No token, account identity, server address or certificate is stored.
-    _smashTlsWrite = _smashTlsWrite.then((_) async {
+    _gameTlsWrite = _gameTlsWrite.then((_) async {
       try {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_smashTlsKey, value);
+        await prefs.setString(_gameTlsKey, value);
       } on Object {
         // Storage failure must not interrupt the game's diagnostic callback.
       }
     });
   }
 
-  static Future<void> restoreSmashTls() async {
-    if (_lastSmashTls != null) return;
+  static Future<void> restoreGameTls() async {
+    if (_lastGameTls != null) return;
     try {
       final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString(_smashTlsKey);
+      final saved = prefs.getString(_gameTlsKey) ?? prefs.getString(_legacySmashTlsKey);
       if (saved == 'accepted' || saved == 'refused' || saved == 'compatibility') {
         // A live handshake received while reading preferences takes priority.
-        _lastSmashTls ??= saved;
+        _lastGameTls ??= saved;
       }
     } on Object {
       // The next guest handshake still updates the in-memory result.
     }
   }
 
-  static const _enabledKey = 'rewindbox.nextendo.onlinePlay';
-  static const _smashPrivateTlsKey = 'rewindbox.nextendo.smashPrivateTlsConsent.v1';
+  static const _servicesKey = 'rewindbox.nextendo.onlineServices.v2';
+  static const _legacyEnabledKey = 'rewindbox.nextendo.onlinePlay';
+  static const _legacySmashConsentKey = 'rewindbox.nextendo.smashPrivateTlsConsent.v1';
   static const _retail = ['.nsp', '.xci'];
-  static const smashTitleId = '01006a800016e000';
-
-  /// Off until the player accepts the warning in the Nextendo screen.
-  static Future<bool> smashPrivateTlsEnabled([SharedPreferences? preferences]) async =>
-      (preferences ?? await SharedPreferences.getInstance()).getBool(_smashPrivateTlsKey) ?? false;
-
-  static Future<void> setSmashPrivateTlsEnabled(bool value, [SharedPreferences? preferences]) async {
-    final saved = await (preferences ?? await SharedPreferences.getInstance()).setBool(_smashPrivateTlsKey, value);
-    if (!saved) throw StateError('Could not save SSBU compatibility consent.');
-  }
 
   /// Animal Crossing: New Horizons receives the account's BAAS user id.
   static const animalCrossingTitleId = '01006f8002326000';
 
-  /// On by default: signing in is the player's request to play online.
-  static Future<bool> enabled([SharedPreferences? preferences]) async =>
-      (preferences ?? await SharedPreferences.getInstance()).getBool(_enabledKey) ?? true;
+  /// Whether online services are on. Off until the player turns them on in
+  /// the Nextendo screen; an earlier build's SSBU consent with online play
+  /// left on counts as turned on.
+  static Future<bool> enabled([SharedPreferences? preferences]) async {
+    final prefs = preferences ?? await SharedPreferences.getInstance();
+    final value = prefs.getBool(_servicesKey);
+    if (value != null) return value;
+    return (prefs.getBool(_legacySmashConsentKey) ?? false) && (prefs.getBool(_legacyEnabledKey) ?? true);
+  }
 
   static Future<void> setEnabled(bool value, [SharedPreferences? preferences]) async {
-    await (preferences ?? await SharedPreferences.getInstance()).setBool(_enabledKey, value);
+    final saved = await (preferences ?? await SharedPreferences.getInstance()).setBool(_servicesKey, value);
+    if (!saved) throw StateError('Could not save the online services setting.');
   }
 
   /// At app start: looks the two server names up for a signed-in player with
@@ -198,9 +205,14 @@ abstract final class NextendoOnlinePlay {
         onSkipped?.call('pidMissing');
         return null;
       }
-      NextendoLaunchOnline authenticated({List<String> addresses = const [], String? directory, bool privateTls = false}) => NextendoLaunchOnline(
+      // Every title is handled alike; the operator's other answers go to the
+      // engine only when they came from the name lookup.
+      final addresses = settings.serverResolved
+          ? await NextendoServers.gameAddresses(settings.serverAddress, settings.natAddress, preferences)
+          : const <String>[];
+      NextendoLaunchOnline authenticated({String? directory}) => NextendoLaunchOnline(
         token: token, serverAddress: settings.serverAddress, natAddress: settings.natAddress,
-        smashDnsAddresses: addresses, bcatDirectory: directory, smashPrivateTls: privateTls,
+        gameDnsAddresses: addresses, bcatDirectory: directory, nexCompatibility: true,
       );
       remember(authenticated());
       unawaited(nextendo.markSession(token));
@@ -211,14 +223,9 @@ abstract final class NextendoOnlinePlay {
           // Title-specific data is optional. The game can still use the authenticated account.
         }
       }
-      final smashDns = titleId?.toLowerCase() == smashTitleId && settings.serverResolved;
-      final privateTls = smashDns && await smashPrivateTlsEnabled(preferences);
-      final addresses = smashDns
-          ? await NextendoServers.smashAddresses(settings.serverAddress, settings.natAddress, preferences)
-          : const <String>[];
       if (onAuthenticated != null) {
         final previous = dataRoot == null || titleId == null ? null : await NextendoBcat.installed(dataRoot, titleId);
-        remember(authenticated(addresses: addresses, directory: previous, privateTls: privateTls));
+        remember(authenticated(directory: previous));
       }
       final extras = await _gameData(
         settings: settings,
@@ -231,8 +238,8 @@ abstract final class NextendoOnlinePlay {
       );
       return NextendoLaunchOnline(
         token: token,
-        smashDnsAddresses: addresses,
-        smashPrivateTls: privateTls,
+        gameDnsAddresses: addresses,
+        nexCompatibility: true,
         serverAddress: settings.serverAddress,
         natAddress: settings.natAddress,
         bcatDirectory: extras.bcatDirectory,
