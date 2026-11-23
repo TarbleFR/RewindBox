@@ -1,67 +1,321 @@
 diff --git a/desmume/src/MMU.cpp b/desmume/src/MMU.cpp
-index 09d35972..353de261 100644
+index 09d35972..8716f140 100644
 --- a/desmume/src/MMU.cpp
 +++ b/desmume/src/MMU.cpp
-@@ -164,6 +164,9 @@ void mmu_log_debug_ARM7(u32 adr, const char *fmt, ...)
- //#define LOG_DIV
+@@ -790,10 +790,23 @@ void MMU_VRAM_unmap_all()
  
- MMU_struct MMU;
-+#ifdef HAVE_JIT
-+u32 mmu_dma_event_pending = 0;
+ static inline void MMU_VRAMmapControl(u8 block, u8 VRAMBankCnt)
+ {
++#ifdef REWINDBOX_LIBRETRO_JIT
++	// code compiled from shared WRAM or VRAM no longer matches what gets mapped there
++	if(block == 7)
++	{
++		if(MMU.WRAMCNT != (VRAMBankCnt & 3))
++			jit_invalidate_region(JIT_REGION_SWIRAM);
++	}
++	else
++	{
++		jit_invalidate_region(JIT_REGION_ARM9_LCDC);
++		jit_invalidate_region(JIT_REGION_ARM7_WRAM);
++	}
 +#endif
- MMU_struct_new MMU_new;
- MMU_struct_timing MMU_timing;
+ 	//handle WRAM, first of all
+ 	if(block == 7)
+ 	{
+-		MMU.WRAMCNT = VRAMBankCnt & 3;
++MMU.WRAMCNT = VRAMBankCnt & 3;
+ 		return;
+ 	}
  
-@@ -2190,7 +2193,13 @@ void DmaController::write32(const u32 val)
+@@ -2190,7 +2203,14 @@ void DmaController::write32(const u32 val)
  	//this dma may need to trigger now, so give it a chance
  	//if(!(wasRepeatMode && !repeatMode)) //this was an older test
  	if(!doNotStart)
 +	{
-+#ifdef HAVE_JIT
++#ifdef REWINDBOX_LIBRETRO_JIT
++		// TASEmulators/desmume#997: a JIT block ends after the store that armed this channel
 +		if(enable)
-+			mmu_dma_event_pending = 1;
++			jit_exit_request |= JIT_EXIT_DMA;
 +#endif
  		doSchedule();
 +	}
  
  	driver->DEBUG_UpdateIORegView(BaseDriver::EDEBUG_IOREG_DMA);
  }
+@@ -2349,8 +2369,13 @@ void DmaController::doCopy()
+ 
+ 	//freeze the ARM9 bus for the duration of this DMA
+ 	//thats not entirely accurate
+-	if(procnum==ARMCPU_ARM9) 
++	if(procnum==ARMCPU_ARM9)
++	{
+ 		nds.freezeBus |= (1<<(chan+1));
++#ifdef REWINDBOX_LIBRETRO_JIT
++		jit_exit_request |= JIT_EXIT_HALT;
++#endif
++	}
+ 		
+ 	//write back the addresses
+ 	saddr = src;
+@@ -4377,7 +4402,12 @@ void FASTCALL _MMU_ARM9_write32(u32 adr, u32 val)
+ 				case 0x40005B:
+ 				case 0x40005C:		// Individual Commands
+ 					if (gxFIFO.size > 254)
++					{
+ 						nds.freezeBus |= 1;
++#ifdef REWINDBOX_LIBRETRO_JIT
++						jit_exit_request |= JIT_EXIT_HALT;
++#endif
++					}
+ 					
+ 					((u32 *)(MMU.ARM9_REG))[(adr & 0xFFF) >> 2] = val;
+ 					gfx3d_sendCommand(adr, val);
 diff --git a/desmume/src/MMU.h b/desmume/src/MMU.h
-index 696d4d1a..d7bfd26f 100644
+index 696d4d1a..08ad7473 100644
 --- a/desmume/src/MMU.h
 +++ b/desmume/src/MMU.h
-@@ -503,6 +503,12 @@ struct MMU_struct_new
+@@ -503,6 +503,7 @@ struct MMU_struct_new
  };
  
  extern MMU_struct MMU;
 +
-+#ifdef HAVE_JIT
-+// RewindBox (TASEmulators/desmume#997): set when a CPU write arms a DMA channel, cleared after
-+// the sequencer ran the hardware events; a JIT block ends after a store that set it.
-+extern u32 mmu_dma_event_pending;
-+#endif
  extern MMU_struct_new MMU_new;
  
  
+diff --git a/desmume/src/MMU_timing.h b/desmume/src/MMU_timing.h
+index 2877ab89..bef7fc06 100644
+--- a/desmume/src/MMU_timing.h
++++ b/desmume/src/MMU_timing.h
+@@ -227,6 +227,8 @@ public:
+ 	{
+ 		m_lastAddress = ~0;
+ 	}
++	// RewindBox: the JIT accounts sequential fetches itself and writes this address where it must be right
++	u32 *LastAddressPtr() { return &m_lastAddress; }
+ 	FetchAccessUnit() { this->Reset(); }
+ 
+ 	void savestate(EMUFILE &os, int version)
 diff --git a/desmume/src/NDSSystem.cpp b/desmume/src/NDSSystem.cpp
-index 222b06de..f18979c7 100644
+index 222b06de..b5ff0de1 100644
 --- a/desmume/src/NDSSystem.cpp
 +++ b/desmume/src/NDSSystem.cpp
-@@ -2026,6 +2026,9 @@ void NDS_exec(s32 nb)
+@@ -1618,6 +1618,9 @@ void NDS_Reschedule()
+ {
+ 	IF_DEVELOPER(if(!sequencer.reschedule) DEBUG_statistics.sequencerExecutionCounters[0]++;);
+ 	sequencer.reschedule = true;
++#ifdef REWINDBOX_LIBRETRO_JIT
++	jit_exit_request |= JIT_EXIT_RESCHEDULE;
++#endif
+ }
+ 
+ FORCEINLINE u32 _fast_min32(u32 a, u32 b, u32 c, u32 d)
+@@ -1880,7 +1883,7 @@ static FORCEINLINE s32 minarmtime(s32 arm9, s32 arm7)
+ }
+ 
+ #ifdef HAVE_JIT
+-template<bool doarm9, bool doarm7, bool jit>
++template<bool doarm9, bool doarm7, int jit> // RewindBox: 0 interpreter, 1 JIT of T, 2 cached interpreter, 3 JIT
+ #else
+ template<bool doarm9, bool doarm7>
+ #endif
+@@ -1897,7 +1900,15 @@ static /*donotinline*/ std::pair<s32,s32> armInnerLoop(
+ 				arm9log();
+ 				debug();
+ #ifdef HAVE_JIT
+-				arm9 += armcpu_exec<ARMCPU_ARM9,jit>();
++#ifdef REWINDBOX_LIBRETRO_JIT
++				// as many instructions as this loop would run in a row, exactly as it would run them
++				if (jit == 2)
++					arm9 = jit_cached_run<ARMCPU_ARM9>(arm9, doarm7 ? arm7 : 0x7FFFFFFF, s32next, nds_timer_base);
++				else if (jit == 3)
++					arm9 = rb_jit_run<ARMCPU_ARM9>(arm9, doarm7 ? arm7 : 0x7FFFFFFF, s32next, nds_timer_base);
++				else
++#endif
++				arm9 += armcpu_exec<ARMCPU_ARM9,(jit != 0)>();
+ #else
+ 				arm9 += armcpu_exec<ARMCPU_ARM9>();
+ #endif
+@@ -1911,6 +1922,9 @@ static /*donotinline*/ std::pair<s32,s32> armInnerLoop(
+ 				arm9 = min(s32next, arm9 + kIrqWait);
+ 				nds.idleCycles[0] += arm9-temp;
+ 				if (gxFIFO.size < 255) nds.freezeBus &= ~1;
++#ifdef REWINDBOX_LIBRETRO_JIT
++				if (!nds.freezeBus) jit_exit_request &= ~JIT_EXIT_HALT;
++#endif
+ 			}
+ 		}
+ 		if(doarm7 && (!doarm9 || arm7 <= timer))
+@@ -1920,7 +1934,14 @@ static /*donotinline*/ std::pair<s32,s32> armInnerLoop(
+ 			{
+ 				arm7log();
+ #ifdef HAVE_JIT
+-				arm7 += (armcpu_exec<ARMCPU_ARM7,jit>()<<1);
++#ifdef REWINDBOX_LIBRETRO_JIT
++				if (jit == 2)
++					arm7 = jit_cached_run<ARMCPU_ARM7>(arm7, doarm9 ? arm9 : 0x7FFFFFFF, s32next, nds_timer_base);
++				else if (jit == 3)
++					arm7 = rb_jit_run<ARMCPU_ARM7>(arm7, doarm9 ? arm9 : 0x7FFFFFFF, s32next, nds_timer_base);
++				else
++#endif
++				arm7 += (armcpu_exec<ARMCPU_ARM7,(jit != 0)>()<<1);
+ #else
+ 				arm7 += (armcpu_exec<ARMCPU_ARM7>()<<1);
+ #endif
+@@ -2026,6 +2047,9 @@ void NDS_exec(s32 nb)
  
  			nds.cpuloopIterationCount++;
  			sequencer.execHardware();
-+#ifdef HAVE_JIT
-+			mmu_dma_event_pending = 0;
++#ifdef REWINDBOX_LIBRETRO_JIT
++			jit_exit_request = 0;
 +#endif
  
  			//break out once per frame
  			if(sequencer.nds_vblankEnded) break;
+@@ -2044,6 +2068,9 @@ void NDS_exec(s32 nb)
+ 			//printf("%d\n",(next-nds_timer));
+ 
+ 			sequencer.reschedule = false;
++#ifdef REWINDBOX_LIBRETRO_JIT
++			jit_exit_request = 0;
++#endif
+ 
+ 			//cast these down to 32bits so that things run faster on 32bit procs
+ 			u64 nds_timer_base = nds_timer;
+@@ -2059,9 +2086,19 @@ void NDS_exec(s32 nb)
+ 			#endif
+ 
+ #ifdef HAVE_JIT
++#ifdef REWINDBOX_LIBRETRO_JIT
+ 			std::pair<s32,s32> arm9arm7 = CommonSettings.use_jit
+-				? armInnerLoop<true,true,true>(nds_timer_base,s32next,arm9,arm7)
+-				: armInnerLoop<true,true,false>(nds_timer_base,s32next,arm9,arm7);
++				? (rb_jit_enabled
++					? armInnerLoop<true,true,3>(nds_timer_base,s32next,arm9,arm7)
++					: armInnerLoop<true,true,1>(nds_timer_base,s32next,arm9,arm7))
++				: jit_cached_interpreter
++				? armInnerLoop<true,true,2>(nds_timer_base,s32next,arm9,arm7)
++				: armInnerLoop<true,true,0>(nds_timer_base,s32next,arm9,arm7);
++#else
++			std::pair<s32,s32> arm9arm7 = CommonSettings.use_jit
++				? armInnerLoop<true,true,1>(nds_timer_base,s32next,arm9,arm7)
++				: armInnerLoop<true,true,0>(nds_timer_base,s32next,arm9,arm7);
++#endif
+ #else
+ 				std::pair<s32,s32> arm9arm7 = armInnerLoop<true,true>(nds_timer_base,s32next,arm9,arm7);
+ #endif
+@@ -3096,7 +3133,10 @@ void emu_halt(EmuHaltReasonCode reasonCode, NDSErrorTag errorTag)
+ 	wifiHandler->CommStop();
+ 	GPU->ForceFrameStop();
+ 	execute = false;
+-	
++#ifdef REWINDBOX_LIBRETRO_JIT
++	jit_exit_request |= JIT_EXIT_HALT;
++#endif
++
+ 	//printf("halting emu: ARM9 PC=%08X/%08X, ARM7 PC=%08X/%08X\n", NDS_ARM9.R[15], NDS_ARM9.instruct_adr, NDS_ARM7.R[15], NDS_ARM7.instruct_adr);
+ 	
+ #ifdef LOG_ARM9
 diff --git a/desmume/src/arm_jit.h b/desmume/src/arm_jit.h
-index 60f07adb..733b161a 100644
+index 60f07adb..b73733c5 100644
 --- a/desmume/src/arm_jit.h
 +++ b/desmume/src/arm_jit.h
-@@ -79,4 +79,31 @@ extern uintptr_t compiled_funcs[];
+@@ -46,7 +46,94 @@ template<int PROCNUM> u32 arm_jit_compile();
+ #define MAPPED_JIT_FUNCS
+ #endif
+ 
+-#ifdef MAPPED_JIT_FUNCS
++#if defined(MAPPED_JIT_FUNCS) && defined(REWINDBOX_LIBRETRO_JIT)
++// RewindBox: the table of compiled code is allocated page by page (16 KiB of guest memory each, shared by
++// the mirrors of a region) where code is compiled, instead of 68 MiB of static arrays that every store to
++// main RAM dirtied, even with the interpreter. Entries are 32 bits (half the size of a pointer). A store
++// invalidates every block it overlaps (a bit per 16 bytes of compiled code, block lists per 512 bytes), not
++// only the entry at its address, and ends the running block when it hits it (JIT_EXIT_SMC).
++#define JIT_PAGE_ENTRIES 8192 // one entry per halfword of a 16 KiB page
++#define JIT_PAGE_NONE 0xFFFF
++enum JitRegion
++{
++	JIT_REGION_ARM9_ITCM, JIT_REGION_MAIN_MEM, JIT_REGION_SWIRAM, JIT_REGION_ARM9_LCDC, JIT_REGION_ARM9_BIOS,
++	JIT_REGION_ARM7_BIOS, JIT_REGION_ARM7_ERAM, JIT_REGION_ARM7_WIRAM, JIT_REGION_ARM7_WRAM, JIT_REGION_COUNT
++};
++struct JIT_struct
++{
++	// entries of the page mapped at (adr >> 14): its own once allocated, a shared page of zeros before
++	static u32 *JIT_MEM[2][0x4000];
++};
++extern CACHE_ALIGN JIT_struct JIT;
++extern u16 jit_l1_page[2][0x4000];                  // page of each 16 KiB (JIT_PAGE_NONE: no code runs there)
++extern const u16 jit_region_first_page[JIT_REGION_COUNT];
++extern u8 *jit_page_codebits[];                     // a bit per 16 bytes holding compiled code (NULL: none)
++extern u32 jit_invalidate_sink;
++extern u32 jit_exit_request;                        // generated code leaves its block after a store when set
++#define JIT_EXIT_DMA 1                              // a store armed a DMA channel (cleared once hardware ran)
++#define JIT_EXIT_SMC 2                              // a store hit the running block (cleared before each block)
++#define JIT_EXIT_RESCHEDULE 4                       // NDS_Reschedule: the CPU loop must stop (cleared with it)
++#define JIT_EXIT_HALT 8                             // the bus froze or emulation stopped
++#define JIT_EXIT_WAIT9 16                           // the ARM9 waits for an IRQ
++#define JIT_EXIT_WAIT7 32                           // the ARM7 waits for an IRQ
++extern u32 *jit_current_slot[2];                    // table entry of the block each CPU runs
++// An entry is 0 (nothing) or a payload, a multiple of 4 and at least 8 (the offset of a block in the code
++// arena), or JIT_ENTRY_INTERPRET (one interpreter step: no code there, or code recompiled too often). Its
++// two low bits are the CPU (bit 0) and Thumb state (bit 1) it was made for: a lookup by the other CPU, or
++// in the other state, finds no block.
++#define JIT_ENTRY_TAG(PROCNUM, thumb) ((u32)(PROCNUM) | ((u32)(thumb) << 1))
++#define JIT_ENTRY_INTERPRET 4u
++extern u8 *jit_code_base;                           // execution address of arena offset 0
++template<int PROCNUM> u32 arm_jit_interpret();      // one interpreter step at instruct_adr
++// the table, shared by the JIT and the cached interpreter
++bool jit_table_set(u32 adr, int proc, u32 value);   // allocates the page; false where nothing runs
++void jit_register_block(int proc, u32 start, u32 bytes, u32 *slot);
++// a block with an entry at each of its `count` instructions, `stride` table entries apart
++void jit_register_block_entries(int proc, u32 start, u32 bytes, u32 *slot, u32 count, u32 stride);
++void jit_table_clear();                             // every entry, code bit and block forgotten
++bool jit_recompile_allowed(u32 adr);                // counts a compilation; false after 8 at one place
++
++// RewindBox: the cached interpreter (rb_cached.cpp), "cached" CPU mode: decoded blocks in ordinary memory,
++// run with the interpreter's exact behaviour (no executable memory)
++extern bool jit_cached_interpreter;
++template<int PROCNUM> s32 jit_cached_run(s32 t, const s32 limit, const s32 next, const u64 base);
++struct jit_cached_stats
++{
++	u64 blocks;      // blocks decoded
++	u64 interpreted; // addresses left to the interpreter after 8 decodings
++	u64 failures;    // blocks not stored (no memory)
++	u64 flushes;     // every block forgotten, past the memory cap
++	size_t bytes;    // bytes of blocks, live or dead
++};
++void jit_cached_get_stats(jit_cached_stats *stats);
++void jit_cached_clear();
++
++// RewindBox: the JIT of rb_jit.cpp ("jit_exact", "jit_fast"); "jit" runs the JIT of T (rb_jit_enabled false)
++extern bool rb_jit_enabled;
++extern bool rb_jit_exact;                           // exact mode: the interpreter's order of the two CPUs
++template<int PROCNUM> s32 rb_jit_run(s32 t, const s32 limit, const s32 next, const u64 base);
++u8 *jit_code_alloc(size_t bytes, u8 **rw);          // room in the arena (emptied first when full)
++void jit_code_flush(u8 *rx, size_t bytes);
++void rb_jit_write_stubs(u8 *rx, u8 *rw, void (*flush)(void *, size_t));
++void jit_invalidate_slow(u32 page, u32 unit);
++void jit_invalidate_region(int region);
++static inline u32 *jit_invalidate_page(u32 page, u32 entry)
++{
++	const u8 *bits = jit_page_codebits[page];
++	const u32 unit = entry >> 3;
++	if (bits && (bits[unit >> 3] & (1 << (unit & 7))))
++		jit_invalidate_slow(page, unit);
++	return &jit_invalidate_sink;
++}
++#define JIT_COMPILED_FUNC(adr, PROCNUM) JIT.JIT_MEM[PROCNUM][((adr)&0x0FFFC000)>>14][((adr)&0x00003FFE)>>1]
++// MMU write hooks: the blocks overlapping the write are invalidated, then "= 0" lands in a sink
++#define JIT_COMPILED_FUNC_PREMASKED(adr, PROCNUM, ofs) \
++	(*jit_invalidate_page(jit_l1_page[PROCNUM][(adr)>>14], (((adr)&0x00003FFE)>>1)+(ofs)))
++#define JIT_COMPILED_FUNC_KNOWNBANK(adr, bank, mask, ofs) \
++	(*jit_invalidate_page(jit_region_first_page[JIT_REGION_##bank] + (((((adr)&(mask))>>1)+(ofs))>>13), \
++	                      ((((adr)&(mask))>>1)+(ofs)) & (JIT_PAGE_ENTRIES-1)))
++#define JIT_MAPPED(adr, PROCNUM) (jit_l1_page[PROCNUM][(adr)>>14] != JIT_PAGE_NONE)
++#elif defined(MAPPED_JIT_FUNCS)
+ struct JIT_struct 
+ {
+ 	// only include the memory types that code can execute from
+@@ -79,4 +166,31 @@ extern uintptr_t compiled_funcs[];
  
  extern u32 saveBlockSizeJIT;
  
@@ -93,16 +347,107 @@ index 60f07adb..733b161a 100644
 +#endif
 +
  #endif
+diff --git a/desmume/src/armcpu.cpp b/desmume/src/armcpu.cpp
+index 9595ede5..0f6fca80 100644
+--- a/desmume/src/armcpu.cpp
++++ b/desmume/src/armcpu.cpp
+@@ -383,6 +383,9 @@ u32 armcpu_switchMode(armcpu_t *armcpu, u8 mode)
+ u32 armcpu_Wait4IRQ(armcpu_t *cpu)
+ {
+ 	cpu->freeze = (CPU_FREEZE_WAIT_IRQ | CPU_FREEZE_IE_IF);
++#ifdef REWINDBOX_LIBRETRO_JIT
++	jit_exit_request |= cpu->proc_ID ? JIT_EXIT_WAIT7 : JIT_EXIT_WAIT9;
++#endif
+ 	return 1;
+ }
+ 
+@@ -717,6 +720,40 @@ template u32 armcpu_exec<0>();
+ template u32 armcpu_exec<1>();
+ 
+ #ifdef HAVE_JIT
++#ifdef REWINDBOX_LIBRETRO_JIT
++// RewindBox: the state the interpreter keeps between instructions, rebuilt after JIT blocks without the
++// fetch timing (cache model, last fetch address) that armcpu_prefetch would also move
++template<u32 PROCNUM>
++static void arm_jit_sync_cpu()
++{
++	armcpu_t* const armcpu = &ARMPROC;
++	if (armcpu->CPSR.bits.T == 0)
++	{
++		const u32 cur = armcpu->instruct_adr & 0xFFFFFFFC;
++		armcpu->instruct_adr = cur;
++		armcpu->next_instruction = cur + 4;
++		armcpu->R[15] = cur + 8;
++		armcpu->instruction = _MMU_read32<PROCNUM, MMU_AT_CODE>(cur);
++	}
++	else
++	{
++		const u32 cur = armcpu->instruct_adr & 0xFFFFFFFE;
++		armcpu->instruct_adr = cur;
++		armcpu->next_instruction = cur + 2;
++		armcpu->R[15] = cur + 4;
++		armcpu->instruction = _MMU_read16<PROCNUM, MMU_AT_CODE>(cur);
++	}
++}
++
++void arm_jit_sync()
++{
++	// the interpreter and the cached interpreter keep that state themselves
++	if (!CommonSettings.use_jit)
++		return;
++	arm_jit_sync_cpu<0>();
++	arm_jit_sync_cpu<1>();
++}
++#else
+ void arm_jit_sync()
+ {
+ 	NDS_ARM7.next_instruction = NDS_ARM7.instruct_adr;
+@@ -724,6 +761,7 @@ void arm_jit_sync()
+ 	armcpu_prefetch<0>();
+ 	armcpu_prefetch<1>();
+ }
++#endif
+ 
+ template<int PROCNUM, bool jit>
+ u32 armcpu_exec()
+@@ -731,8 +769,25 @@ u32 armcpu_exec()
+ 	if (jit)
+ 	{
+ 		ARMPROC.instruct_adr &= ARMPROC.CPSR.bits.T?0xFFFFFFFE:0xFFFFFFFC;
++#ifdef REWINDBOX_LIBRETRO_JIT
++		// the entry of the block about to run (also for the invalidation of a block by its own stores),
++		// used only if it was made for this CPU in this ARM/Thumb state
++		u32 *slot = &JIT_COMPILED_FUNC(ARMPROC.instruct_adr, PROCNUM);
++		jit_current_slot[PROCNUM] = slot;
++		jit_exit_request &= ~JIT_EXIT_SMC;
++		const u32 e = *slot;
++		if ((e & 3) == JIT_ENTRY_TAG(PROCNUM, ARMPROC.CPSR.bits.T))
++		{
++			if (e >= 8)
++				return ((ArmOpCompiled)(jit_code_base + (e & ~3u)))();
++			if ((e & ~3u) == JIT_ENTRY_INTERPRET)
++				return arm_jit_interpret<PROCNUM>();
++		}
++		return arm_jit_compile<PROCNUM>();
++#else
+ 		ArmOpCompiled f = (ArmOpCompiled)JIT_COMPILED_FUNC(ARMPROC.instruct_adr, PROCNUM);
+ 		return f ? f() : arm_jit_compile<PROCNUM>();
++#endif
+ 	}
+ 
+ 	return armcpu_exec<PROCNUM>();
 diff --git a/desmume/src/frontend/libretro/Makefile.common b/desmume/src/frontend/libretro/Makefile.common
-index 489bafd4..85aef728 100644
+index 489bafd4..524858d8 100644
 --- a/desmume/src/frontend/libretro/Makefile.common
 +++ b/desmume/src/frontend/libretro/Makefile.common
-@@ -120,6 +120,10 @@ SOURCES_C += \
+@@ -120,6 +120,12 @@ SOURCES_C += \
  				 $(LIBRETRO_COMM_DIR)/vfs/vfs_implementation.c
  endif
  
 +ifeq ($(DESMUME_JIT_A64),1)
-+SOURCES_CXX += $(CORE_DIR)/utils/arm_jit/arm_jit_arm.cpp
++SOURCES_CXX += $(CORE_DIR)/utils/arm_jit/arm_jit_arm.cpp \
++	$(CORE_DIR)/utils/arm_jit/rb_cached.cpp \
++	$(CORE_DIR)/utils/arm_jit/rb_jit.cpp
 +endif
 +
  ifeq ($(DESMUME_JIT_ARM),1)
@@ -156,7 +501,7 @@ index 95592125..4b44ebcd 100644
     CXXFLAGS += -DHAVE_JIT
  endif
 diff --git a/desmume/src/frontend/libretro/libretro.cpp b/desmume/src/frontend/libretro/libretro.cpp
-index 2314af93..8153d3c0 100644
+index 2314af93..f768157e 100644
 --- a/desmume/src/frontend/libretro/libretro.cpp
 +++ b/desmume/src/frontend/libretro/libretro.cpp
 @@ -20,6 +20,10 @@
@@ -170,7 +515,7 @@ index 2314af93..8153d3c0 100644
  #include "streams/file_stream.h"
  
  #ifdef HAVE_OPENGL
-@@ -69,6 +73,67 @@ enum {
+@@ -69,6 +73,77 @@ enum {
  };
  
  retro_log_printf_t log_cb = NULL;
@@ -225,6 +570,16 @@ index 2314af93..8153d3c0 100644
 +static void rewindbox_jit_log_stats(const char *when)
 +{
 +   arm_jit_stats stats;
++   if (log_cb && !CommonSettings.use_jit && jit_cached_interpreter)
++   {
++      jit_cached_stats cached;
++      jit_cached_get_stats(&cached);
++      log_cb(RETRO_LOG_INFO, "[rb-jit] desmume %s cached=1 blocks=%llu bytes=%llu flushes=%llu "
++             "interpreted=%llu failures=%llu\n", when, (unsigned long long)cached.blocks,
++             (unsigned long long)cached.bytes, (unsigned long long)cached.flushes,
++             (unsigned long long)cached.interpreted, (unsigned long long)cached.failures);
++      return;
++   }
 +   if (!log_cb || !CommonSettings.use_jit)
 +      return;
 +   arm_jit_get_stats(&stats);
@@ -238,7 +593,28 @@ index 2314af93..8153d3c0 100644
  static retro_video_refresh_t video_cb = NULL;
  static retro_input_poll_t poll_cb = NULL;
  static retro_input_state_t input_cb = NULL;
-@@ -741,6 +806,24 @@ static void check_variables(bool first_boot)
+@@ -731,6 +806,20 @@ static void check_variables(bool first_boot)
+               CommonSettings.use_jit = true;
+           else if (!strcmp(var.value, "interpreter"))
+               CommonSettings.use_jit = false;
++#if defined(HAVE_JIT) && defined(REWINDBOX_LIBRETRO_JIT)
++          /* "jit_exact": RewindBox's JIT, the interpreter's results; "jit_fast" (not offered): its fast mode */
++          else if (!strcmp(var.value, "jit_exact") || !strcmp(var.value, "jit_fast"))
++          {
++              CommonSettings.use_jit = true;
++              rb_jit_enabled = true;
++              rb_jit_exact = !strcmp(var.value, "jit_exact");
++          }
++          else if (!strcmp(var.value, "cached"))
++          {
++              CommonSettings.use_jit = false;
++              jit_cached_interpreter = true;
++          }
++#endif
+       }
+      else
+      {
+@@ -741,6 +830,32 @@ static void check_variables(bool first_boot)
  #endif
       }
  
@@ -250,20 +626,28 @@ index 2314af93..8153d3c0 100644
 +         const bool wanted = CommonSettings.use_jit;
 +         if (wanted && !(arm_jit_has_code_arena() &&
 +               environ_cb(RETRO_ENVIRONMENT_GET_JIT_CAPABLE, &capable) && capable))
++         {
++            /* The cached interpreter gives the interpreter's results without executable memory */
 +            CommonSettings.use_jit = false;
++            jit_cached_interpreter = true;
++         }
++         if (CommonSettings.use_jit)
++            jit_cached_interpreter = false;
 +         if (log_cb)
 +            log_cb(RETRO_LOG_INFO, "[rb-jit] desmume installed=%d arena=%llu page=%llu "
-+                   "wanted=%d jit=%d\n", rewindbox_jit ? 1 : 0,
++                   "wanted=%d jit=%d cached=%d engine=%s\n", rewindbox_jit ? 1 : 0,
 +                   (unsigned long long)(rewindbox_jit ? rewindbox_jit->capacity : 0),
 +                   (unsigned long long)(rewindbox_jit ? rewindbox_jit->pageBytes : 0),
-+                   wanted ? 1 : 0, CommonSettings.use_jit ? 1 : 0);
++                   wanted ? 1 : 0, CommonSettings.use_jit ? 1 : 0, jit_cached_interpreter ? 1 : 0,
++                   !CommonSettings.use_jit ? (jit_cached_interpreter ? "cached" : "interpreter")
++                   : !rb_jit_enabled ? "jit" : rb_jit_exact ? "jit_exact" : "jit_fast");
 +      }
 +#endif
 +
  #ifdef HAVE_JIT
        var.key = "desmume_jit_block_size";
  
-@@ -2081,6 +2164,12 @@ void retro_run (void)
+@@ -2081,6 +2196,12 @@ void retro_run (void)
  
     NDS_exec<false>();
  
@@ -276,7 +660,7 @@ index 2314af93..8153d3c0 100644
     SPU_Emulate_user();
  
     static int previous_layout = LAYOUTS_MAX;
-@@ -2463,6 +2552,10 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
+@@ -2463,6 +2584,10 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
  
  void retro_unload_game (void)
  {
@@ -287,6 +671,25 @@ index 2314af93..8153d3c0 100644
      NDS_FreeROM();
      if (screen_buf)
         free(screen_buf);
+diff --git a/desmume/src/frontend/libretro/libretro_core_options.h b/desmume/src/frontend/libretro/libretro_core_options.h
+index 85043b8e..0dc24628 100644
+--- a/desmume/src/frontend/libretro/libretro_core_options.h
++++ b/desmume/src/frontend/libretro/libretro_core_options.h
+@@ -163,8 +163,14 @@ struct retro_core_option_v2_definition option_defs_us[] = {
+         "system",
+         {
+             { "interpreter",  NULL },
++#if defined(HAVE_JIT) && defined(REWINDBOX_LIBRETRO_JIT)
++            { "cached",   NULL },
++#endif
+ #ifdef HAVE_JIT
+             { "jit",   NULL },
++#endif
++#if defined(HAVE_JIT) && defined(REWINDBOX_LIBRETRO_JIT)
++            { "jit_exact",   NULL },
+ #endif
+             { NULL, NULL },
+         },
 diff --git a/desmume/src/thumb_instructions.cpp b/desmume/src/thumb_instructions.cpp
 index 2a6ed686..eabc5663 100644
 --- a/desmume/src/thumb_instructions.cpp
@@ -332,7 +735,7 @@ index d833a50f..65e515a5 100644
    
    output_w32(out, 0xD360FC00 | (X17_REG << 5) | lo); // lsr lo, x17, #32
 diff --git a/desmume/src/utils/arm_jit/arm_jit_arm.cpp b/desmume/src/utils/arm_jit/arm_jit_arm.cpp
-index 5ae2fe89..1c527ffc 100644
+index 5ae2fe89..eafd9246 100644
 --- a/desmume/src/utils/arm_jit/arm_jit_arm.cpp
 +++ b/desmume/src/utils/arm_jit/arm_jit_arm.cpp
 @@ -20,6 +20,10 @@
@@ -389,7 +792,365 @@ index 5ae2fe89..1c527ffc 100644
  
  #define tmp_reg R2
  #define tmp2_reg R3
-@@ -556,7 +535,7 @@ static GpVar bb_profiler_entry;
+@@ -271,50 +250,53 @@ static inline void get_flags(int reg, int v) {
+ #ifdef MAPPED_JIT_FUNCS
+ CACHE_ALIGN JIT_struct JIT;
+ 
+-uintptr_t *JIT_struct::JIT_MEM[2][0x4000] = {{0}};
++u32 *JIT_struct::JIT_MEM[2][0x4000] = {{0}};
+ 
+-static uintptr_t *JIT_MEM[2][32] = {
++// RewindBox: the region each 8 MiB of the address space maps to, as the static arrays did (same mirrors,
++// main RAM and shared WRAM shared by both CPUs); JIT_REGION_NONE: no code runs there.
++#define JIT_REGION_NONE 0xFF
++static const u8 JIT_MEM_REGION[2][32] = {
+ 	//arm9
+ 	{
+-		/* 0X*/	DUP2(JIT.ARM9_ITCM),
+-		/* 1X*/	DUP2(JIT.ARM9_ITCM), // mirror
+-		/* 2X*/	DUP2(JIT.MAIN_MEM),
+-		/* 3X*/	DUP2(JIT.SWIRAM),
+-		/* 4X*/	DUP2(NULL),
+-		/* 5X*/	DUP2(NULL),
+-		/* 6X*/		 NULL, 
+-					 JIT.ARM9_LCDC,	// Plain ARM9-CPU Access (LCDC mode) (max 656KB)
+-		/* 7X*/	DUP2(NULL),
+-		/* 8X*/	DUP2(NULL),
+-		/* 9X*/	DUP2(NULL),
+-		/* AX*/	DUP2(NULL),
+-		/* BX*/	DUP2(NULL),
+-		/* CX*/	DUP2(NULL),
+-		/* DX*/	DUP2(NULL),
+-		/* EX*/	DUP2(NULL),
+-		/* FX*/	DUP2(JIT.ARM9_BIOS)
++		/* 0X*/	DUP2(JIT_REGION_ARM9_ITCM),
++		/* 1X*/	DUP2(JIT_REGION_ARM9_ITCM), // mirror
++		/* 2X*/	DUP2(JIT_REGION_MAIN_MEM),
++		/* 3X*/	DUP2(JIT_REGION_SWIRAM),
++		/* 4X*/	DUP2(JIT_REGION_NONE),
++		/* 5X*/	DUP2(JIT_REGION_NONE),
++		/* 6X*/		 JIT_REGION_NONE,
++					 JIT_REGION_ARM9_LCDC,	// Plain ARM9-CPU Access (LCDC mode) (max 656KB)
++		/* 7X*/	DUP2(JIT_REGION_NONE),
++		/* 8X*/	DUP2(JIT_REGION_NONE),
++		/* 9X*/	DUP2(JIT_REGION_NONE),
++		/* AX*/	DUP2(JIT_REGION_NONE),
++		/* BX*/	DUP2(JIT_REGION_NONE),
++		/* CX*/	DUP2(JIT_REGION_NONE),
++		/* DX*/	DUP2(JIT_REGION_NONE),
++		/* EX*/	DUP2(JIT_REGION_NONE),
++		/* FX*/	DUP2(JIT_REGION_ARM9_BIOS)
+ 	},
+ 	//arm7
+ 	{
+-		/* 0X*/	DUP2(JIT.ARM7_BIOS),
+-		/* 1X*/	DUP2(NULL),
+-		/* 2X*/	DUP2(JIT.MAIN_MEM),
+-		/* 3X*/	     JIT.SWIRAM,
+-		             JIT.ARM7_ERAM,
+-		/* 4X*/	     NULL,
+-		             JIT.ARM7_WIRAM,
+-		/* 5X*/	DUP2(NULL),
+-		/* 6X*/		 JIT.ARM7_WRAM,		// VRAM allocated as Work RAM to ARM7 (max. 256K)
+-					 NULL,
+-		/* 7X*/	DUP2(NULL),
+-		/* 8X*/	DUP2(NULL),
+-		/* 9X*/	DUP2(NULL),
+-		/* AX*/	DUP2(NULL),
+-		/* BX*/	DUP2(NULL),
+-		/* CX*/	DUP2(NULL),
+-		/* DX*/	DUP2(NULL),
+-		/* EX*/	DUP2(NULL),
+-		/* FX*/	DUP2(NULL)
++		/* 0X*/	DUP2(JIT_REGION_ARM7_BIOS),
++		/* 1X*/	DUP2(JIT_REGION_NONE),
++		/* 2X*/	DUP2(JIT_REGION_MAIN_MEM),
++		/* 3X*/	     JIT_REGION_SWIRAM,
++		             JIT_REGION_ARM7_ERAM,
++		/* 4X*/	     JIT_REGION_NONE,
++		             JIT_REGION_ARM7_WIRAM,
++		/* 5X*/	DUP2(JIT_REGION_NONE),
++		/* 6X*/		 JIT_REGION_ARM7_WRAM,		// VRAM allocated as Work RAM to ARM7 (max. 256K)
++					 JIT_REGION_NONE,
++		/* 7X*/	DUP2(JIT_REGION_NONE),
++		/* 8X*/	DUP2(JIT_REGION_NONE),
++		/* 9X*/	DUP2(JIT_REGION_NONE),
++		/* AX*/	DUP2(JIT_REGION_NONE),
++		/* BX*/	DUP2(JIT_REGION_NONE),
++		/* CX*/	DUP2(JIT_REGION_NONE),
++		/* DX*/	DUP2(JIT_REGION_NONE),
++		/* EX*/	DUP2(JIT_REGION_NONE),
++		/* FX*/	DUP2(JIT_REGION_NONE)
+ 		}
+ };
+ 
+@@ -363,6 +345,36 @@ static u32 JIT_MASK[2][32] = {
+ 		}
+ };
+ 
++// Pages of 16 KiB per region (the masks above; main RAM 16 MiB, the size the MMU hooks can index)
++static const u16 JIT_REGION_PAGES[JIT_REGION_COUNT] = { 2, 1024, 2, 64, 2, 1, 4, 4, 16 };
++const u16 jit_region_first_page[JIT_REGION_COUNT] = { 0, 2, 1026, 1028, 1092, 1094, 1095, 1099, 1103 };
++#define JIT_TOTAL_PAGES 1119
++#define JIT_PAGE_UNITS 1024 // 16-byte units per page
++#define JIT_PAGE_CHUNKS 32  // 512-byte chunks per page
++
++u16 jit_l1_page[2][0x4000];
++static u32 *jit_page_entries[JIT_TOTAL_PAGES];
++u8 *jit_page_codebits[JIT_TOTAL_PAGES];
++static std::vector<u32> *jit_page_chunks[JIT_TOTAL_PAGES]; // block ids per 512-byte chunk
++static u32 jit_zero_page[JIT_PAGE_ENTRIES];                // read where a page has no table yet; never written
++u32 jit_invalidate_sink;
++u32 jit_exit_request;
++u32 *jit_current_slot[2];
++
++struct JitBlock
++{
++	u32 *slot;        // table entry of its first instruction
++	u16 nslots;       // its entries: slot[0], slot[stride], ...
++	u8 stride;
++	u16 page[2];      // the page(s) its code is in: a block may run into the next 16 KiB
++	u16 first[2];     // first and last 16-byte unit in each
++	u16 last[2];
++	u8 parts;
++	bool alive;
++};
++static std::vector<JitBlock> jit_blocks;
++static u32 jit_live_blocks;
++
+ static void init_jit_mem()
+ {
+ 	static bool inited = false;
+@@ -371,7 +383,193 @@ static void init_jit_mem()
+ 	inited = true;
+ 	for(int proc=0; proc<2; proc++)
+ 		for(int i=0; i<0x4000; i++)
+-			JIT.JIT_MEM[proc][i] = JIT_MEM[proc][i>>9] + (((i<<14) & JIT_MASK[proc][i>>9]) >> 1);
++		{
++			const u8 region = JIT_MEM_REGION[proc][i>>9];
++			if (region == JIT_REGION_NONE)
++			{
++				jit_l1_page[proc][i] = JIT_PAGE_NONE;
++				JIT.JIT_MEM[proc][i] = jit_zero_page;
++				continue;
++			}
++			const u32 page = jit_region_first_page[region] + (((i<<14) & JIT_MASK[proc][i>>9]) >> 14);
++			jit_l1_page[proc][i] = page;
++			JIT.JIT_MEM[proc][i] = jit_page_entries[page] ? jit_page_entries[page] : jit_zero_page;
++		}
++}
++
++// The table, code bits and block lists of a page, allocated where the first block is compiled; every
++// 16 KiB mapped to it then points there.
++static bool jit_page_alloc(u32 page)
++{
++	if (jit_page_entries[page])
++		return true;
++	u32 *entries = (u32 *)calloc(JIT_PAGE_ENTRIES, sizeof(u32));
++	u8 *bits = (u8 *)calloc(JIT_PAGE_UNITS / 8, 1);
++	std::vector<u32> *chunks = new (std::nothrow) std::vector<u32>[JIT_PAGE_CHUNKS];
++	if (!entries || !bits || !chunks)
++	{
++		free(entries);
++		free(bits);
++		delete[] chunks;
++		return false;
++	}
++	jit_page_entries[page] = entries;
++	jit_page_codebits[page] = bits;
++	jit_page_chunks[page] = chunks;
++	for (int proc = 0; proc < 2; proc++)
++		for (int i = 0; i < 0x4000; i++)
++			if (jit_l1_page[proc][i] == page)
++				JIT.JIT_MEM[proc][i] = entries;
++	return true;
++}
++
++bool jit_table_set(u32 adr, int proc, u32 value)
++{
++	const u32 page = jit_l1_page[proc][(adr & 0x0FFFC000) >> 14];
++	if (page == JIT_PAGE_NONE || !jit_page_alloc(page))
++		return false;
++	JIT_COMPILED_FUNC(adr, proc) = value;
++	return true;
++}
++
++static void jit_mark_units(u32 page, u32 first, u32 last, u32 id)
++{
++	u8 *bits = jit_page_codebits[page];
++	for (u32 unit = first; unit <= last; unit++)
++		bits[unit >> 3] |= 1 << (unit & 7);
++	for (u32 chunk = first >> 5; chunk <= (last >> 5); chunk++)
++		jit_page_chunks[page][chunk].push_back(id);
++}
++
++// Records a compiled block [start, start + bytes) of CPU proc whose table entry is slot.
++void jit_register_block(int proc, u32 start, u32 bytes, u32 *slot)
++{
++	jit_register_block_entries(proc, start, bytes, slot, 1, 1);
++}
++
++void jit_register_block_entries(int proc, u32 start, u32 bytes, u32 *slot, u32 count, u32 stride)
++{
++	const u32 end = start + bytes - 1;
++	const u32 p0 = jit_l1_page[proc][(start & 0x0FFFC000) >> 14];
++	const u32 p1 = jit_l1_page[proc][(end & 0x0FFFC000) >> 14];
++	if (p0 == JIT_PAGE_NONE || !jit_page_entries[p0])
++		return;
++	JitBlock b;
++	b.slot = slot;
++	b.nslots = (u16)count;
++	b.stride = (u8)stride;
++	b.alive = true;
++	b.page[0] = p0;
++	b.first[0] = (start & 0x3FFF) >> 4;
++	if ((end & 0x0FFFC000) == (start & 0x0FFFC000))
++	{
++		b.last[0] = (end & 0x3FFF) >> 4;
++		b.parts = 1;
++	}
++	else
++	{
++		b.last[0] = JIT_PAGE_UNITS - 1;
++		b.parts = 1;
++		if (p1 != JIT_PAGE_NONE && jit_page_alloc(p1))
++		{
++			b.page[1] = p1;
++			b.first[1] = 0;
++			b.last[1] = (end & 0x3FFF) >> 4;
++			b.parts = 2;
++		}
++	}
++	const u32 id = (u32)jit_blocks.size();
++	jit_blocks.push_back(b);
++	for (int p = 0; p < b.parts; p++)
++		jit_mark_units(b.page[p], b.first[p], b.last[p], id);
++	jit_live_blocks++;
++}
++
++static void jit_kill_block(JitBlock &b)
++{
++	b.alive = false;
++	for (u32 k = 0; k < b.nslots; k++)
++		b.slot[k * b.stride] = 0;
++	jit_live_blocks--;
++	// the running block may be this one (chained blocks do not record which one runs): leave it
++	jit_exit_request |= JIT_EXIT_SMC;
++}
++
++// A store hit a 16-byte unit holding compiled code: the blocks covering it are invalidated, then the
++// chunk's code bits are rebuilt from the blocks still alive.
++void jit_invalidate_slow(u32 page, u32 unit)
++{
++	std::vector<u32> &list = jit_page_chunks[page][unit >> 5];
++	for (size_t k = 0; k < list.size(); k++)
++	{
++		JitBlock &b = jit_blocks[list[k]];
++		if (!b.alive)
++			continue;
++		for (int p = 0; p < b.parts; p++)
++			if (b.page[p] == page && unit >= b.first[p] && unit <= b.last[p])
++			{
++				jit_kill_block(b);
++				break;
++			}
++	}
++	const u32 chunk = unit >> 5;
++	u8 *bits = jit_page_codebits[page];
++	memset(bits + chunk * 4, 0, 4);
++	size_t kept = 0;
++	for (size_t k = 0; k < list.size(); k++)
++	{
++		JitBlock &b = jit_blocks[list[k]];
++		if (!b.alive)
++			continue;
++		list[kept++] = list[k];
++		for (int p = 0; p < b.parts; p++)
++		{
++			if (b.page[p] != page)
++				continue;
++			const u32 lo = std::max<u32>(b.first[p], chunk * 32), hi = std::min<u32>(b.last[p], chunk * 32 + 31);
++			for (u32 u = lo; u <= hi; u++)
++				bits[u >> 3] |= 1 << (u & 7);
++		}
++	}
++	list.resize(kept);
++}
++
++// What is mapped in a region changed (shared WRAM, VRAM): every block compiled there is invalidated.
++void jit_invalidate_region(int region)
++{
++	const u32 first = jit_region_first_page[region];
++	for (u32 page = first; page < first + JIT_REGION_PAGES[region]; page++)
++	{
++		if (!jit_page_entries[page])
++			continue;
++		for (int chunk = 0; chunk < JIT_PAGE_CHUNKS; chunk++)
++		{
++			std::vector<u32> &list = jit_page_chunks[page][chunk];
++			for (size_t k = 0; k < list.size(); k++)
++				if (jit_blocks[list[k]].alive)
++					jit_kill_block(jit_blocks[list[k]]);
++			list.clear();
++		}
++		memset(jit_page_codebits[page], 0, JIT_PAGE_UNITS / 8);
++		memset(jit_page_entries[page], 0, JIT_PAGE_ENTRIES * sizeof(u32));
++	}
++}
++
++// Every table entry, code bit and block forgotten (a reset or a full arena); pages stay allocated.
++void jit_table_clear()
++{
++	for (u32 page = 0; page < JIT_TOTAL_PAGES; page++)
++	{
++		if (!jit_page_entries[page])
++			continue;
++		memset(jit_page_entries[page], 0, JIT_PAGE_ENTRIES * sizeof(u32));
++		memset(jit_page_codebits[page], 0, JIT_PAGE_UNITS / 8);
++		for (int chunk = 0; chunk < JIT_PAGE_CHUNKS; chunk++)
++			jit_page_chunks[page][chunk].clear();
++	}
++	jit_blocks.clear();
++	jit_live_blocks = 0;
++	jit_current_slot[0] = jit_current_slot[1] = NULL;
+ }
+ 
+ #else
+@@ -380,6 +578,18 @@ DS_ALIGN(4096) uintptr_t compiled_funcs[1<<26] = {0};
+ 
+ static u8 recompile_counts[(1<<26)/16];
+ 
++#ifdef MAPPED_JIT_FUNCS
++// RewindBox: one more compilation of the code at adr; false once it was compiled more than 8 times
++bool jit_recompile_allowed(u32 adr)
++{
++	const u32 mask_adr = (adr & 0x07FFFFFE) >> 4;
++	if (((recompile_counts[mask_adr >> 1] >> 4*(mask_adr & 1)) & 0xF) > 8)
++		return false;
++	recompile_counts[mask_adr >> 1] += 1 << 4*(mask_adr & 1);
++	return true;
++}
++#endif
++
+ static void emit_branch(int cond, uint64_t to);
+ static void _armlog(u8 proc, u32 addr, u32 opcode);
+ 
+@@ -426,6 +636,14 @@ static u32 DESMUME_FASTCALL OP_DECODE()
+ 
+ static const ArmOpCompiled op_decode[2][2] = { OP_DECODE<0,0>, OP_DECODE<0,1>, OP_DECODE<1,0>, OP_DECODE<1,1> };
+ 
++// RewindBox: the step a JIT_ENTRY_INTERPRET entry asks for
++template<int PROCNUM> u32 arm_jit_interpret()
++{
++	return op_decode[PROCNUM][cpu->CPSR.bits.T]();
++}
++template u32 arm_jit_interpret<0>();
++template u32 arm_jit_interpret<1>();
++
+ #define changeCPSR { \
+ 			emit_ptr(g_out, (uintptr_t)NDS_Reschedule, R3);\
+ 			callR3(g_out); \
+@@ -556,7 +774,7 @@ static GpVar bb_profiler_entry;
  	static unsigned int rhs_var; \
  	u32 imm2 = ((i>>7)&0x1F); \
  	reg_pos_ptr(0, rhs_reg, VALUE); \
@@ -398,7 +1159,7 @@ index 5ae2fe89..1c527ffc 100644
  	emit_asrs(g_out, rhs_reg, imm2); \
  	emit_movimm(g_out, imm2, imm_reg); \
  
-@@ -713,7 +692,6 @@ static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int populati
+@@ -713,7 +931,6 @@ static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int populati
  		if(REG_POS(i,12)==15) \
  		{ \
  			S_DST_R15; \
@@ -406,7 +1167,7 @@ index 5ae2fe89..1c527ffc 100644
  			return 1; \
  		} \
  		SET_NZCV(!symmetric); \
-@@ -724,7 +702,6 @@ static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int populati
+@@ -724,7 +941,6 @@ static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int populati
  		{ \
  			reg_ptr(15, tmp_reg, VALUE); \
  			emit_write_ptr32_regptrTO_regFROM(g_out, cpu_ptr(next_instruction, R1, ADDRESS), tmp_reg); \
@@ -414,7 +1175,7 @@ index 5ae2fe89..1c527ffc 100644
  		} \
  	} \
  	return 1;
-@@ -739,7 +716,6 @@ static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int populati
+@@ -739,7 +955,6 @@ static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int populati
  		if(REG_POS(i,12)==15) \
  		{ \
  			S_DST_R15; \
@@ -422,7 +1183,7 @@ index 5ae2fe89..1c527ffc 100644
  			return 1; \
  		} \
  		SET_NZCV(1); \
-@@ -749,7 +725,6 @@ static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int populati
+@@ -749,7 +964,6 @@ static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int populati
  		if(REG_POS(i,12)==15) \
  		{ \
  			emit_write_ptr32_regptrTO_regFROM(g_out, cpu_ptr(next_instruction, R1, ADDRESS), lhs); \
@@ -430,7 +1191,7 @@ index 5ae2fe89..1c527ffc 100644
  		} \
  	} \
  	return 1;
-@@ -776,7 +751,6 @@ static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int populati
+@@ -776,7 +990,6 @@ static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int populati
  	if(REG_POS(i,12)==15) \
  	{ \
  		S_DST_R15; \
@@ -438,7 +1199,7 @@ index 5ae2fe89..1c527ffc 100644
  		return 1; \
  	} \
  	SET_NZC; \
-@@ -1098,7 +1072,6 @@ static int OP_MOV_IMM_VAL(const u32 i) { OP_MOV(IMM_VAL); }
+@@ -1098,7 +1311,6 @@ static int OP_MOV_IMM_VAL(const u32 i) { OP_MOV(IMM_VAL); }
  	if(REG_POS(i,12)==15) \
  	{ \
  		S_DST_R15; \
@@ -446,7 +1207,7 @@ index 5ae2fe89..1c527ffc 100644
  		return 1; \
  	} \
  	if(!rhs_is_imm) \
-@@ -2487,7 +2460,7 @@ static void maskPrecalc(u32 _num)
+@@ -2487,7 +2699,7 @@ static void maskPrecalc(u32 _num)
  			mask = 0 ; set = 0 ;   /* (x & 0) == 0  is allways true (enabled) */  \
  		} \
  	}  \
@@ -455,7 +1216,7 @@ index 5ae2fe89..1c527ffc 100644
  }
  	switch(_num)
  	{
-@@ -3043,13 +3016,13 @@ static int OP_ASR_0(const u32 i)
+@@ -3043,13 +3255,13 @@ static int OP_ASR_0(const u32 i)
  {
  	u8 cf_change = 1;
  	if (_REG_NUM(i, 0) == _REG_NUM(i, 3)) {
@@ -471,7 +1232,7 @@ index 5ae2fe89..1c527ffc 100644
  		emit_write_ptr32_regptrTO_regFROM(g_out, reg_pos_thumb(0, R1, ADDRESS), rhs);
  	}
  	SET_NZC;
-@@ -3828,6 +3801,32 @@ static bool instr_uses_r15(u32 opcode)
+@@ -3828,6 +4040,32 @@ static bool instr_uses_r15(u32 opcode)
  		    || (xt & JIT_BYPASS);
  }
  
@@ -504,15 +1265,33 @@ index 5ae2fe89..1c527ffc 100644
  static bool instr_is_conditional(u32 opcode)
  {
  	if(bb_thumb) return false;
-@@ -4030,6 +4029,7 @@ static u32 compile_basicblock()
+@@ -4003,8 +4241,8 @@ static u32 compile_basicblock()
+ 
+ 	if (!JIT_MAPPED(start_adr & 0x0FFFFFFF, PROCNUM))
+ 	{
+-		printf("JIT: use unmapped memory address %08X\n", start_adr);
+-		return 1;
++		// RewindBox: no code is compiled where nothing executable is mapped; one interpreter step
++		return op_decode[PROCNUM][bb_thumb]();
+ 	}
+ 
+ 	jit_write();
+@@ -4030,10 +4268,13 @@ static u32 compile_basicblock()
  #endif
  
  	bb_constant_cycles = 0;
 +	bool bDmaCut = false;
++	u32 bb_count = 0;
  	for(u32 i=0, bEndBlock = 0; bEndBlock == 0; i++)
  	{
  		bb_adr = start_adr + (i * bb_opcodesize);
-@@ -4086,7 +4086,7 @@ static u32 compile_basicblock()
+-		if(bb_thumb)
++		bb_count = i + 1;
++if(bb_thumb)
+ 			opcode = _MMU_read16<PROCNUM, MMU_AT_CODE>(bb_adr);
+ 		else
+ 			opcode = _MMU_read32<PROCNUM, MMU_AT_CODE>(bb_adr);
+@@ -4086,7 +4327,7 @@ static u32 compile_basicblock()
  				if (cycles > 1)
  				{
  					JIT_COMMENT("cycles (%d)", cycles);
@@ -521,16 +1300,16 @@ index 5ae2fe89..1c527ffc 100644
  				}
  			emit_label(g_out, skip);
  		}
-@@ -4102,10 +4102,38 @@ static u32 compile_basicblock()
+@@ -4102,10 +4343,38 @@ static u32 compile_basicblock()
  			}
  		}
  
 +		if(!bEndBlock && instr_may_store(opcode))
 +		{
-+			// a store armed a DMA channel: leave the block after this instruction
++			// a store armed a DMA channel or hit this block: leave it after this instruction
 +			const u32 resume = bb_adr + bb_opcodesize;
 +			uint64_t no_dma = genlabel();
-+			emit_read_ptr32_reg(g_out, (uintptr_t)&mmu_dma_event_pending, R0);
++			emit_read_ptr32_reg(g_out, (uintptr_t)&jit_exit_request, R0);
 +			emit_cmpimm(g_out, R0, 0);
 +			emit_branch_label(g_out, no_dma, 0x0); // EQ
 +			emit_write_ptr32_regptrTO_immFROM(g_out, cpu_ptr(instruct_adr, R1, ADDRESS), resume);
@@ -544,7 +1323,7 @@ index 5ae2fe89..1c527ffc 100644
 +
  		interpreted_cycles += op_decode[PROCNUM][bb_thumb]();
 +
-+		if(!bEndBlock && mmu_dma_event_pending)
++		if(!bEndBlock && jit_exit_request)
 +		{
 +			// This first run (interpreted while compiling) armed a DMA channel: the block ends
 +			// here, so that the channel runs before the next instruction (TASEmulators/desmume#997)
@@ -561,19 +1340,87 @@ index 5ae2fe89..1c527ffc 100644
  	{
  		emit_var_copy32_reg(g_out, cpu_ptr(next_instruction, R1, VALUE), cpu_ptr(instruct_adr, R2, ADDRESS));
  	}
-@@ -4153,6 +4181,7 @@ template<int PROCNUM> u32 arm_jit_compile()
+@@ -4139,8 +4408,14 @@ static u32 compile_basicblock()
+ 	fflush(stderr);
+ #endif
+ 	
+-	JIT_COMPILED_FUNC(start_adr, PROCNUM) = (uintptr_t)f;
+-	
++	// RewindBox: the entry lives in an allocated page, tagged with this CPU and state; a compiled block is
++	// recorded for invalidation
++	const u32 tag = JIT_ENTRY_TAG(PROCNUM, bb_thumb);
++	if (f == op_decode[PROCNUM][bb_thumb])
++		jit_table_set(start_adr, PROCNUM, JIT_ENTRY_INTERPRET | tag);
++	else if (jit_table_set(start_adr, PROCNUM, (u32)((u8 *)f - jit_code_base) | tag))
++		jit_register_block(PROCNUM, start_adr, bb_count * bb_opcodesize, &JIT_COMPILED_FUNC(start_adr, PROCNUM));
++
+ 	return interpreted_cycles;
+ }
+ 
+@@ -4153,8 +4428,9 @@ template<int PROCNUM> u32 arm_jit_compile()
  	u32 mask_adr = (adr & 0x07FFFFFE) >> 4;
  	if(((recompile_counts[mask_adr >> 1] >> 4*(mask_adr & 1)) & 0xF) > 8)
  	{
 +		g_jit_stats.interpreted++;
  		ArmOpCompiled f = op_decode[PROCNUM][cpu->CPSR.bits.T];
- 		JIT_COMPILED_FUNC(adr, PROCNUM) = (uintptr_t)f;
+-		JIT_COMPILED_FUNC(adr, PROCNUM) = (uintptr_t)f;
++		jit_table_set(adr, PROCNUM, JIT_ENTRY_INTERPRET | JIT_ENTRY_TAG(PROCNUM, cpu->CPSR.bits.T));
  		return f();
+ 	}
+ 	recompile_counts[mask_adr >> 1] += 1 << 4*(mask_adr & 1);
+@@ -4172,7 +4448,7 @@ void arm_jit_reset(bool enable, bool suppress_msg)
+ #endif
+ 
+ 	if (!suppress_msg)
+-		printf("CPU mode: %s\n", enable?"JIT":"Interpreter");
++		printf("CPU mode: %s\n", enable ? "JIT" : jit_cached_interpreter ? "Cached interpreter" : "Interpreter");
+ 	saveBlockSizeJIT = CommonSettings.jit_max_block_size;
+ 
+ 	if (enable)
+@@ -4181,18 +4457,9 @@ void arm_jit_reset(bool enable, bool suppress_msg)
+ 
+ #ifdef MAPPED_JIT_FUNCS
+ 
+-		//these pointers are allocated by asmjit and need freeing
+-#define JITFREE(x)  for(int iii=0;iii<ARRAY_SIZE(x);iii++) if(x[iii]) x[iii] = NULL;
+-			JITFREE(JIT.MAIN_MEM);
+-			JITFREE(JIT.SWIRAM);
+-			JITFREE(JIT.ARM9_ITCM);
+-			JITFREE(JIT.ARM9_LCDC);
+-			JITFREE(JIT.ARM9_BIOS);
+-			JITFREE(JIT.ARM7_BIOS);
+-			JITFREE(JIT.ARM7_ERAM);
+-			JITFREE(JIT.ARM7_WIRAM);
+-			JITFREE(JIT.ARM7_WRAM);
+-		#undef JITFREE
++		// RewindBox: only the pages where code was compiled exist; clearing them forgets every block
++		jit_table_clear();
++		jit_cached_clear();
+ 		memset(recompile_counts, 0, sizeof(recompile_counts));
+ 		init_jit_mem();
+ #else
+@@ -4205,6 +4472,16 @@ void arm_jit_reset(bool enable, bool suppress_msg)
+ #endif
+ 		freeFuncs();
+ 	}
++#ifdef MAPPED_JIT_FUNCS
++	else if (jit_cached_interpreter)
++	{
++		// RewindBox: the cached interpreter uses the same table
++		jit_table_clear();
++		jit_cached_clear();
++		memset(recompile_counts, 0, sizeof(recompile_counts));
++		init_jit_mem();
++	}
++#endif
+ 
+ #if (PROFILER_JIT_LEVEL > 0)
+ 	reconstruct(&profiler_counter[0]);
 diff --git a/desmume/src/utils/arm_jit/emit_core.cpp b/desmume/src/utils/arm_jit/emit_core.cpp
-index 56190d26..959a9fae 100644
+index 56190d26..e8219891 100644
 --- a/desmume/src/utils/arm_jit/emit_core.cpp
 +++ b/desmume/src/utils/arm_jit/emit_core.cpp
-@@ -16,9 +16,15 @@
+@@ -16,9 +16,18 @@
  	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
  */
  
@@ -587,12 +1434,15 @@ index 56190d26..959a9fae 100644
 +	protected, unmapped or toggled between writable and executable here. When it is full,
 +	every table is emptied and the arena is rewound (arm_jit_reset), as T did when it mapped
 +	a new zone: blocks are not chained and are only compiled from the C dispatcher, so no
-+	generated code is on the stack at that point.
++	generated code is on the stack at that point. Table entries hold offsets from the start of
++	the arena; its first 256 bytes are never handed out: no block is at offset 0, and the entry
++	and exit stubs of rb_jit.cpp live there.
 +*/
++#define JIT_ARENA_RESERVED 256
  
  #define CHUNK_SIZE 6048*4
  
-@@ -44,89 +50,73 @@ static int g_TOTALBYTES = 0;
+@@ -44,89 +53,96 @@ static int g_TOTALBYTES = 0;
  u32 *g_PTR = NULL;
  t_bytes *g_currBlock = NULL;
  
@@ -635,6 +1485,7 @@ index 56190d26..959a9fae 100644
 +static size_t g_arena_used = 0;
 +static void (*g_arena_flush)(void *rx, size_t bytes) = NULL;
 +static arm_jit_stats g_jit_stats;
++u8 *jit_code_base = NULL;
 +
 +void arm_jit_set_code_arena(const arm_jit_code_arena *arena)
 +{
@@ -643,7 +1494,10 @@ index 56190d26..959a9fae 100644
 +	g_arena_rw = usable ? (u8 *)arena->rw : NULL;
 +	g_arena_bytes = usable ? arena->bytes : 0;
 +	g_arena_flush = usable ? arena->flush : NULL;
-+	g_arena_used = 0;
++	g_arena_used = JIT_ARENA_RESERVED;
++	jit_code_base = g_arena_rx;
++	if (usable)
++		rb_jit_write_stubs(g_arena_rx, g_arena_rw, g_arena_flush);
 +	memset(&g_jit_stats, 0, sizeof(g_jit_stats));
  }
  
@@ -678,7 +1532,7 @@ index 56190d26..959a9fae 100644
 +// than the whole arena (the interpreter then runs it).
 +static void *armjitarm_alloc_func(size_t size) {
 +    size = (size + 15) & ~(size_t)15;
-+    if (g_arena_bytes == 0 || size > g_arena_bytes)
++    if (g_arena_bytes == 0 || size > g_arena_bytes - JIT_ARENA_RESERVED)
 +        return NULL;
 +    if (size > g_arena_bytes - g_arena_used) {
 +        arm_jit_reset(true, true); // freeFuncs() rewinds the arena
@@ -701,10 +1555,28 @@ index 56190d26..959a9fae 100644
 -#else
 -		munmap((void *)it->first, (uintptr_t)it->second);
 -#endif  
--	}
++	g_arena_used = JIT_ARENA_RESERVED;
++}
++
++// RewindBox: room for `bytes` of code for rb_jit.cpp: the execution address, and in *rw where to write
++// it. NULL without room; a full arena is emptied first, as for T's blocks.
++u8 *jit_code_alloc(size_t bytes, u8 **rw)
++{
++	u8 *rx = (u8 *)armjitarm_alloc_func(bytes);
++	if (!rx) {
++		g_jit_stats.failures++;
++		return NULL;
+ 	}
 -	allFuncs.clear();
 -	g_curr_jit_block = NULL;
-+	g_arena_used = 0;
++	*rw = g_arena_rw + (rx - g_arena_rx);
++	g_jit_stats.blocks++;
++	return rx;
++}
++
++void jit_code_flush(u8 *rx, size_t bytes)
++{
++	g_arena_flush(rx, bytes);
  }
  
 +// The first chunk of every block (never freed) and, after a failed allocation, the scratch
@@ -718,11 +1590,6 @@ index 56190d26..959a9fae 100644
 -    if (! g_currBlock) {
 -        fprintf(stderr, "allocNewBlock failed\n");
 -        exit(0);
--    }
--    g_currBlock->next = (t_bytes *)malloc(sizeof(t_bytes));
--    if (! g_currBlock->next) {
--        fprintf(stderr, "allocNewBlock failed\n");
--        exit(0);
 +    t_bytes *next = g_allocFailed ? NULL : (t_bytes *)malloc(sizeof(t_bytes));
 +    if (! next) {
 +        g_allocFailed = true;
@@ -731,13 +1598,18 @@ index 56190d26..959a9fae 100644
 +        g_PTR = (u32*)&g_scratchChunk.data[0];
 +        return;
      }
+-    g_currBlock->next = (t_bytes *)malloc(sizeof(t_bytes));
+-    if (! g_currBlock->next) {
+-        fprintf(stderr, "allocNewBlock failed\n");
+-        exit(0);
+-    }
 -    g_currBlock = g_currBlock->next;
 +    g_currBlock->next = next;
 +    g_currBlock = next;
      g_PTR = (u32*)&g_currBlock->data[0];
      g_currBlock->next = NULL;
  }
-@@ -162,13 +152,8 @@ static  void emit_branch_label(t_bytes *out, uint64_t id, int cond) {
+@@ -162,13 +178,8 @@ static  void emit_branch_label(t_bytes *out, uint64_t id, int cond) {
  static t_bytes *g_last_bytes = NULL;
  
  t_bytes *allocBytes() {
@@ -753,7 +1625,7 @@ index 56190d26..959a9fae 100644
  
  	ret->next = NULL;
  
-@@ -192,6 +177,10 @@ void releaseBytes(t_bytes *bytes) {
+@@ -192,6 +203,10 @@ void releaseBytes(t_bytes *bytes) {
  }
  	
  JittedFunc createFunc(t_bytes *bytes) {
@@ -764,7 +1636,7 @@ index 56190d26..959a9fae 100644
      for (std::map<uint64_t, t_labelmap>::iterator lbl = g_LABELS.begin(); lbl != g_LABELS.end(); lbl++) {
          int nj = lbl->second.jumps.size();
          for (int i = 0; i < nj; i++) {
-@@ -200,8 +189,11 @@ JittedFunc createFunc(t_bytes *bytes) {
+@@ -200,8 +215,11 @@ JittedFunc createFunc(t_bytes *bytes) {
      }
  
      char *fn = (char *)armjitarm_alloc_func(g_TOTALBYTES);
@@ -778,7 +1650,7 @@ index 56190d26..959a9fae 100644
  
      int tot_bytes_acum = 0;
  
-@@ -219,13 +211,8 @@ JittedFunc createFunc(t_bytes *bytes) {
+@@ -219,13 +237,8 @@ JittedFunc createFunc(t_bytes *bytes) {
          curr_bytes = curr_bytes->next;
      }
  	
@@ -794,3 +1666,1836 @@ index 56190d26..959a9fae 100644
  	
  	return (JittedFunc)fn;
  }
+diff --git a/desmume/src/utils/arm_jit/rb_a64.h b/desmume/src/utils/arm_jit/rb_a64.h
+new file mode 100644
+index 00000000..f4513257
+--- /dev/null
++++ b/desmume/src/utils/arm_jit/rb_a64.h
+@@ -0,0 +1,248 @@
++/*
++	Copyright (C) 2026 RewindBox
++
++	This file is free software: you can redistribute it and/or modify
++	it under the terms of the GNU General Public License as published by
++	the Free Software Foundation, either version 2 of the License, or
++	(at your option) any later version.
++
++	This file is distributed in the hope that it will be useful,
++	but WITHOUT ANY WARRANTY; without even the implied warranty of
++	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++	GNU General Public License for more details.
++
++	You should have received a copy of the GNU General Public License
++	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
++*/
++
++// RewindBox: a small AArch64 assembler for the JIT (rb_jit.cpp). Code is assembled into a buffer with
++// local labels, then copied into the arena; every branch inside a block is PC-relative, and everything
++// outside it is reached through a register, so a block runs wherever it is copied.
++
++#ifndef RB_A64_H
++#define RB_A64_H
++
++#include <vector>
++#include "../../types.h"
++
++namespace rba64 {
++
++enum Cond { EQ = 0, NE, CS, CC, MI, PL, VS, VC, HI, LS, GE, LT, GT, LE, AL };
++enum Shift { LSL = 0, LSR = 1, ASR = 2, ROR = 3 };
++enum Extend { UXTW = 2, UXTX = 3, SXTW = 6 };
++static const int ZR = 31, SP = 31, LR = 30, FP = 29;
++
++// N:immr:imms of a logical immediate, or false when imm has none
++static inline bool logical_imm(u64 imm, bool is64, u32 *enc)
++{
++	if (!is64)
++	{
++		imm &= 0xFFFFFFFFull;
++		imm |= imm << 32;
++	}
++	if (imm == 0 || imm == ~0ull)
++		return false;
++	u32 size = 64;
++	while (size > 2)
++	{
++		const u32 half = size / 2;
++		const u64 m = (1ull << half) - 1;
++		if ((imm & m) != ((imm >> half) & m))
++			break;
++		size = half;
++	}
++	const u64 mask = size == 64 ? ~0ull : ((1ull << size) - 1);
++	const u64 elt = imm & mask;
++	u32 ones = 0;
++	for (u32 i = 0; i < size; i++)
++		ones += (elt >> i) & 1;
++	const u64 run = (1ull << ones) - 1; // ones < size here
++	u32 rot = 0;
++	for (; rot < size; rot++)
++	{
++		const u64 r = rot ? (((elt >> rot) | (elt << (size - rot))) & mask) : elt;
++		if (r == run)
++			break;
++	}
++	if (rot == size)
++		return false;
++	const u32 immr = (size - rot) & (size - 1);
++	const u32 imms = ((~(size - 1) << 1) | (ones - 1)) & 0x3F;
++	*enc = ((size == 64 ? 1u : 0u) << 12) | (immr << 6) | imms;
++	return true;
++}
++
++struct Asm
++{
++	std::vector<u32> code;
++	std::vector<long> labels; // word index, -1 while unbound
++	struct Fix { size_t at; int label; int kind; };
++	std::vector<Fix> fixes;
++	enum { FIX_B26, FIX_B19, FIX_B14 };
++
++	void w(u32 x) { code.push_back(x); }
++	size_t pos() const { return code.size(); }
++
++	int label() { labels.push_back(-1); return (int)labels.size() - 1; }
++	void bind(int l) { labels[l] = (long)code.size(); }
++	void fix(int l, int kind) { Fix f = { code.size(), l, kind }; fixes.push_back(f); }
++
++	// resolves the branches to local labels; false if one is out of range (cannot happen in a block)
++	bool finish()
++	{
++		for (size_t i = 0; i < fixes.size(); i++)
++		{
++			const Fix &f = fixes[i];
++			if (labels[f.label] < 0)
++				return false;
++			const long d = labels[f.label] - (long)f.at;
++			u32 &ins = code[f.at];
++			if (f.kind == FIX_B26)
++			{
++				if (d < -(1L << 25) || d >= (1L << 25)) return false;
++				ins |= (u32)d & 0x03FFFFFF;
++			}
++			else if (f.kind == FIX_B19)
++			{
++				if (d < -(1L << 18) || d >= (1L << 18)) return false;
++				ins |= ((u32)d & 0x7FFFF) << 5;
++			}
++			else
++			{
++				if (d < -(1L << 13) || d >= (1L << 13)) return false;
++				ins |= ((u32)d & 0x3FFF) << 5;
++			}
++		}
++		return true;
++	}
++
++	// ---- moves
++	void movz(int rd, u32 imm16, int hw, bool x) { w((x ? 0xD2800000u : 0x52800000u) | (hw << 21) | ((imm16 & 0xFFFF) << 5) | rd); }
++	void movk(int rd, u32 imm16, int hw, bool x) { w((x ? 0xF2800000u : 0x72800000u) | (hw << 21) | ((imm16 & 0xFFFF) << 5) | rd); }
++	void movn(int rd, u32 imm16, int hw, bool x) { w((x ? 0x92800000u : 0x12800000u) | (hw << 21) | ((imm16 & 0xFFFF) << 5) | rd); }
++	void mov32(int rd, u32 v)
++	{
++		if ((v & 0xFFFF0000u) == 0) { movz(rd, v, 0, false); return; }
++		if ((v & 0xFFFF) == 0) { movz(rd, v >> 16, 1, false); return; }
++		if ((v | 0xFFFF) == 0xFFFFFFFFu) { movn(rd, ~v & 0xFFFF, 0, false); return; }
++		u32 enc;
++		if (logical_imm(v, false, &enc)) { w(0x32000000u | (enc << 10) | (ZR << 5) | rd); return; } // ORR rd, wzr, #v
++		movz(rd, v & 0xFFFF, 0, false);
++		movk(rd, v >> 16, 1, false);
++	}
++	void mov64(int rd, u64 v)
++	{
++		if ((v >> 32) == 0) { mov32(rd, (u32)v); return; } // writing a W register clears the top half
++		bool first = true;
++		for (int hw = 0; hw < 4; hw++)
++		{
++			const u32 part = (u32)(v >> (16 * hw)) & 0xFFFF;
++			if (part == 0)
++				continue;
++			if (first) movz(rd, part, hw, true); else movk(rd, part, hw, true);
++			first = false;
++		}
++	}
++	void mov(int rd, int rm, bool x = false) { w((x ? 0xAA000000u : 0x2A000000u) | (rm << 16) | (ZR << 5) | rd); }
++	void mov_sp(int rd, int rn) { w(0x91000000u | (rn << 5) | rd); } // add xd, xn, #0 (works with sp)
++
++	// ---- arithmetic
++	void addi(int rd, int rn, u32 imm, bool x = false, bool s = false) { w((x ? 0x91000000u : 0x11000000u) | (s ? 0x20000000u : 0) | ((imm & 0xFFF) << 10) | (rn << 5) | rd); }
++	void subi(int rd, int rn, u32 imm, bool x = false, bool s = false) { w((x ? 0xD1000000u : 0x51000000u) | (s ? 0x20000000u : 0) | ((imm & 0xFFF) << 10) | (rn << 5) | rd); }
++	void cmpi(int rn, u32 imm, bool x = false) { subi(ZR, rn, imm, x, true); }
++	void addr(int rd, int rn, int rm, Shift sh = LSL, int amt = 0, bool x = false, bool s = false)
++	{ w((x ? 0x8B000000u : 0x0B000000u) | (s ? 0x20000000u : 0) | (sh << 22) | (rm << 16) | ((amt & 63) << 10) | (rn << 5) | rd); }
++	void subr(int rd, int rn, int rm, Shift sh = LSL, int amt = 0, bool x = false, bool s = false)
++	{ w((x ? 0xCB000000u : 0x4B000000u) | (s ? 0x20000000u : 0) | (sh << 22) | (rm << 16) | ((amt & 63) << 10) | (rn << 5) | rd); }
++	void cmpr(int rn, int rm, bool x = false) { subr(ZR, rn, rm, LSL, 0, x, true); }
++	void addx_ext(int rd, int rn, int rm, Extend e, int amt = 0) { w(0x8B200000u | (rm << 16) | (e << 13) | ((amt & 7) << 10) | (rn << 5) | rd); }
++	void adc(int rd, int rn, int rm, bool s = false) { w((s ? 0x3A000000u : 0x1A000000u) | (rm << 16) | (rn << 5) | rd); }
++	void sbc(int rd, int rn, int rm, bool s = false) { w((s ? 0x7A000000u : 0x5A000000u) | (rm << 16) | (rn << 5) | rd); }
++
++	// ---- logic (shifted register); opc: 0 AND, 1 ORR, 2 EOR, 3 ANDS; n inverts rm (BIC, ORN, EON, BICS)
++	void logr(int opc, bool n, int rd, int rn, int rm, Shift sh = LSL, int amt = 0, bool x = false)
++	{ w((x ? 0x8A000000u : 0x0A000000u) | (opc << 29) | (sh << 22) | (n ? 0x200000u : 0) | (rm << 16) | ((amt & 63) << 10) | (rn << 5) | rd); }
++	void andr(int rd, int rn, int rm) { logr(0, false, rd, rn, rm); }
++	void orr(int rd, int rn, int rm) { logr(1, false, rd, rn, rm); }
++	void eor(int rd, int rn, int rm) { logr(2, false, rd, rn, rm); }
++	void tst(int rn, int rm) { logr(3, false, ZR, rn, rm); }
++	// logical immediate; false when imm is not encodable (nothing emitted)
++	bool logi(int opc, int rd, int rn, u64 imm, bool x = false)
++	{
++		u32 enc;
++		if (!logical_imm(imm, x, &enc)) return false;
++		w((x ? 0x92000000u : 0x12000000u) | (opc << 29) | (enc << 10) | (rn << 5) | rd);
++		return true;
++	}
++	void andi(int rd, int rn, u64 imm, int tmp, bool x = false) { if (!logi(0, rd, rn, imm, x)) { x ? mov64(tmp, imm) : mov32(tmp, (u32)imm); logr(0, false, rd, rn, tmp, LSL, 0, x); } }
++	void orri(int rd, int rn, u64 imm, int tmp, bool x = false) { if (!logi(1, rd, rn, imm, x)) { x ? mov64(tmp, imm) : mov32(tmp, (u32)imm); logr(1, false, rd, rn, tmp, LSL, 0, x); } }
++	void eori(int rd, int rn, u64 imm, int tmp, bool x = false) { if (!logi(2, rd, rn, imm, x)) { x ? mov64(tmp, imm) : mov32(tmp, (u32)imm); logr(2, false, rd, rn, tmp, LSL, 0, x); } }
++	void tsti(int rn, u64 imm, int tmp, bool x = false) { if (!logi(3, ZR, rn, imm, x)) { x ? mov64(tmp, imm) : mov32(tmp, (u32)imm); logr(3, false, ZR, rn, tmp, LSL, 0, x); } }
++
++	// ---- bitfields and shifts (32-bit)
++	void ubfm(int rd, int rn, int immr, int imms, bool x = false) { w((x ? 0xD3400000u : 0x53000000u) | (immr << 16) | (imms << 10) | (rn << 5) | rd); }
++	void sbfm(int rd, int rn, int immr, int imms, bool x = false) { w((x ? 0x93400000u : 0x13000000u) | (immr << 16) | (imms << 10) | (rn << 5) | rd); }
++	void bfm(int rd, int rn, int immr, int imms, bool x = false) { w((x ? 0xB3400000u : 0x33000000u) | (immr << 16) | (imms << 10) | (rn << 5) | rd); }
++	void lsli(int rd, int rn, int s) { ubfm(rd, rn, (32 - s) & 31, 31 - s); }
++	void lsri(int rd, int rn, int s) { ubfm(rd, rn, s, 31); }
++	void asri(int rd, int rn, int s) { sbfm(rd, rn, s, 31); }
++	void rori(int rd, int rn, int s) { w(0x13800000u | (rn << 16) | ((s & 31) << 10) | (rn << 5) | rd); } // EXTR
++	void ubfx(int rd, int rn, int lsb, int width, bool x = false) { ubfm(rd, rn, lsb, lsb + width - 1, x); }
++	void sbfx(int rd, int rn, int lsb, int width, bool x = false) { sbfm(rd, rn, lsb, lsb + width - 1, x); }
++	void bfi(int rd, int rn, int lsb, int width, bool x = false) { bfm(rd, rn, (-lsb) & (x ? 63 : 31), width - 1, x); }
++	void lslv(int rd, int rn, int rm) { w(0x1AC02000u | (rm << 16) | (rn << 5) | rd); }
++	void lsrv(int rd, int rn, int rm) { w(0x1AC02400u | (rm << 16) | (rn << 5) | rd); }
++	void asrv(int rd, int rn, int rm) { w(0x1AC02800u | (rm << 16) | (rn << 5) | rd); }
++	void rorv(int rd, int rn, int rm) { w(0x1AC02C00u | (rm << 16) | (rn << 5) | rd); }
++	void lsrv64(int rd, int rn, int rm) { w(0x9AC02400u | (rm << 16) | (rn << 5) | rd); }
++	void clz(int rd, int rn) { w(0x5AC01000u | (rn << 5) | rd); }
++
++	// ---- multiply
++	void madd(int rd, int rn, int rm, int ra, bool x = false) { w((x ? 0x9B000000u : 0x1B000000u) | (rm << 16) | (ra << 10) | (rn << 5) | rd); }
++	void mul(int rd, int rn, int rm) { madd(rd, rn, rm, ZR); }
++	void smaddl(int rd, int rn, int rm, int ra) { w(0x9B200000u | (rm << 16) | (ra << 10) | (rn << 5) | rd); }
++	void umaddl(int rd, int rn, int rm, int ra) { w(0x9BA00000u | (rm << 16) | (ra << 10) | (rn << 5) | rd); }
++
++	// ---- conditional select
++	void csel(int rd, int rn, int rm, Cond c, bool x = false) { w((x ? 0x9A800000u : 0x1A800000u) | (rm << 16) | (c << 12) | (rn << 5) | rd); }
++	void csinc(int rd, int rn, int rm, Cond c, bool x = false) { w((x ? 0x9A800400u : 0x1A800400u) | (rm << 16) | (c << 12) | (rn << 5) | rd); }
++	void cset(int rd, Cond c) { csinc(rd, ZR, ZR, (Cond)(c ^ 1)); }
++
++	// ---- flags
++	void msr_nzcv(int rt) { w(0xD51B4200u | rt); }
++	void mrs_nzcv(int rt) { w(0xD53B4200u | rt); }
++
++	// ---- memory (unsigned scaled offset; off must be a multiple of the size and in range)
++	void ldrw(int rt, int rn, u32 off) { w(0xB9400000u | ((off >> 2) << 10) | (rn << 5) | rt); }
++	void strw(int rt, int rn, u32 off) { w(0xB9000000u | ((off >> 2) << 10) | (rn << 5) | rt); }
++	void ldrx(int rt, int rn, u32 off) { w(0xF9400000u | ((off >> 3) << 10) | (rn << 5) | rt); }
++	void strx(int rt, int rn, u32 off) { w(0xF9000000u | ((off >> 3) << 10) | (rn << 5) | rt); }
++	void ldrb(int rt, int rn, u32 off) { w(0x39400000u | (off << 10) | (rn << 5) | rt); }
++	void strb(int rt, int rn, u32 off) { w(0x39000000u | (off << 10) | (rn << 5) | rt); }
++	void ldrh(int rt, int rn, u32 off) { w(0x79400000u | ((off >> 1) << 10) | (rn << 5) | rt); }
++	void strh(int rt, int rn, u32 off) { w(0x79000000u | ((off >> 1) << 10) | (rn << 5) | rt); }
++	// register offset, index scaled by the access size when scaled
++	void ldrw_r(int rt, int rn, int rm, bool scaled) { w(0xB8606800u | (scaled ? 0x1000u : 0) | (rm << 16) | (rn << 5) | rt); }
++	void ldrx_r(int rt, int rn, int rm, bool scaled) { w(0xF8606800u | (scaled ? 0x1000u : 0) | (rm << 16) | (rn << 5) | rt); }
++	void strw_r(int rt, int rn, int rm, bool scaled) { w(0xB8206800u | (scaled ? 0x1000u : 0) | (rm << 16) | (rn << 5) | rt); }
++	void stp_pre(int r1, int r2, int rn, int off) { w(0xA9800000u | (((u32)(off / 8) & 0x7F) << 15) | (r2 << 10) | (rn << 5) | r1); }
++	void stp(int r1, int r2, int rn, int off) { w(0xA9000000u | (((u32)(off / 8) & 0x7F) << 15) | (r2 << 10) | (rn << 5) | r1); }
++	void ldp(int r1, int r2, int rn, int off) { w(0xA9400000u | (((u32)(off / 8) & 0x7F) << 15) | (r2 << 10) | (rn << 5) | r1); }
++	void ldp_post(int r1, int r2, int rn, int off) { w(0xA8C00000u | (((u32)(off / 8) & 0x7F) << 15) | (r2 << 10) | (rn << 5) | r1); }
++
++	// ---- branches
++	void b(int l) { fix(l, FIX_B26); w(0x14000000u); }
++	void bcond(Cond c, int l) { fix(l, FIX_B19); w(0x54000000u | c); }
++	void cbz(int rt, int l, bool x = false) { fix(l, FIX_B19); w((x ? 0xB4000000u : 0x34000000u) | rt); }
++	void cbnz(int rt, int l, bool x = false) { fix(l, FIX_B19); w((x ? 0xB5000000u : 0x35000000u) | rt); }
++	void tbz(int rt, int bit, int l) { fix(l, FIX_B14); w(0x36000000u | ((bit >> 5) << 31) | ((bit & 31) << 19) | rt); }
++	void tbnz(int rt, int bit, int l) { fix(l, FIX_B14); w(0x37000000u | ((bit >> 5) << 31) | ((bit & 31) << 19) | rt); }
++	void br(int rn) { w(0xD61F0000u | (rn << 5)); }
++	void blr(int rn) { w(0xD63F0000u | (rn << 5)); }
++	void ret() { w(0xD65F03C0u); }
++	void call(u64 fn, int tmp = 16) { mov64(tmp, fn); blr(tmp); }
++};
++
++} // namespace rba64
++
++#endif
+diff --git a/desmume/src/utils/arm_jit/rb_cached.cpp b/desmume/src/utils/arm_jit/rb_cached.cpp
+new file mode 100644
+index 00000000..bcab3223
+--- /dev/null
++++ b/desmume/src/utils/arm_jit/rb_cached.cpp
+@@ -0,0 +1,302 @@
++/*
++	Copyright (C) 2026 RewindBox
++
++	This file is free software: you can redistribute it and/or modify
++	it under the terms of the GNU General Public License as published by
++	the Free Software Foundation, either version 2 of the License, or
++	(at your option) any later version.
++
++	This file is distributed in the hope that it will be useful,
++	but WITHOUT ANY WARRANTY; without even the implied warranty of
++	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++	GNU General Public License for more details.
++
++	You should have received a copy of the GNU General Public License
++	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
++*/
++
++/*
++	RewindBox: cached interpreter (desmume_cpu_mode "cached"), for players without executable memory.
++
++	Decoded blocks ({handler, opcode, condition} per instruction) live in ordinary memory, are found through
++	the JIT table and are invalidated like compiled code (code bits, recompilation limit). Each instruction
++	runs exactly as armcpu_exec runs it: the state the prefetch leaves (instruct_adr, next_instruction, R15,
++	instruction), the condition, the handler, then the timing of the fetch of the next instruction
++	(MMU_codeFetchCycles, with its cache model) and max(execute, fetch). Only the decoding and the read of
++	the next opcode from memory are skipped.
++
++	A run of instructions goes on only while the CPU loop (armInnerLoop) would have given this CPU the next
++	instruction too: its time strictly below the other CPU's and below the next hardware event, no
++	reschedule, no halt. nds_timer advances as the loop would advance it. The emulated result is therefore
++	the interpreter's, cycle for cycle; the gain is the work the loop, the fetch and the decoder no longer
++	do for every instruction.
++*/
++
++#include <stdlib.h>
++#include <string.h>
++#include <vector>
++
++#include "../../types.h"
++#include "../../armcpu.h"
++#include "../../utils/bits.h"
++#include "../../instructions.h"
++#include "../../instruction_attributes.h"
++#include "../../MMU.h"
++#include "../../MMU_timing.h"
++#include "../../NDSSystem.h"
++#include "../../arm_jit.h"
++
++#if defined(HAVE_JIT) && defined(REWINDBOX_LIBRETRO_JIT)
++
++bool jit_cached_interpreter = false;
++
++struct CachedOp
++{
++	OpFunc fn;
++	u32 opcode;
++	u8 cond; // ARM condition field (0xE: always, also for Thumb)
++	u8 code; // CODE(opcode), for TEST_COND
++};
++
++struct CachedBlock
++{
++	u32 count;
++	CachedOp ops[1];
++};
++
++// A block's table entry holds (index + 2) << 2 with the tag in the two low bits.
++static std::vector<CachedBlock *> cached_blocks;
++static size_t cached_bytes;
++static jit_cached_stats cached_stats;
++
++#define CACHED_MAX_OPS 32
++#define CACHED_MAX_BYTES (24u << 20) // blocks, live or dead, beyond which everything is forgotten
++
++void jit_cached_clear()
++{
++	for (size_t i = 0; i < cached_blocks.size(); i++)
++		free(cached_blocks[i]);
++	cached_blocks.clear();
++	cached_bytes = 0;
++}
++
++void jit_cached_get_stats(jit_cached_stats *stats)
++{
++	*stats = cached_stats;
++	stats->bytes = cached_bytes;
++}
++
++// Same test as the JIT's: instructions after which the block's code ends.
++static bool cached_ends_block(u32 opcode, bool thumb)
++{
++	if (thumb)
++	{
++		const u32 x = thumb_attributes[opcode >> 6];
++		return (x & BRANCH_ALWAYS) || ((x & BRANCH_POS0) && ((opcode & 7) | ((opcode >> 4) & 8)) == 15) ||
++		       (x & BRANCH_SWI) || (x & JIT_BYPASS);
++	}
++	const u32 x = instruction_attributes[INSTRUCTION_INDEX(opcode)];
++	return (x & BRANCH_ALWAYS) || ((x & BRANCH_POS12) && REG_POS(opcode, 12) == 15) ||
++	       ((x & BRANCH_LDM) && BIT15(opcode)) || (x & BRANCH_SWI) || (x & JIT_BYPASS);
++}
++
++// Decodes the block at adr and installs it; NULL leaves the address to the interpreter.
++template<int PROCNUM>
++static CachedBlock *cached_build(u32 adr, u32 thumb)
++{
++	const u32 tag = JIT_ENTRY_TAG(PROCNUM, thumb);
++	if (!jit_recompile_allowed(adr))
++	{
++		jit_table_set(adr, PROCNUM, JIT_ENTRY_INTERPRET | tag);
++		cached_stats.interpreted++;
++		return NULL;
++	}
++	if (cached_bytes > CACHED_MAX_BYTES)
++	{
++		// No block is running here: forget them all (the pages of the table stay allocated)
++		jit_table_clear();
++		jit_cached_clear();
++		cached_stats.flushes++;
++	}
++
++	CachedOp ops[CACHED_MAX_OPS];
++	const u32 size = thumb ? 2 : 4;
++	u32 n = 0;
++	u32 pc = adr;
++	for (;;)
++	{
++		const u32 opcode = thumb ? _MMU_read16<PROCNUM, MMU_AT_CODE>(pc) : _MMU_read32<PROCNUM, MMU_AT_CODE>(pc);
++		CachedOp &op = ops[n++];
++		op.opcode = opcode;
++		if (thumb)
++		{
++			op.fn = thumb_instructions_set[PROCNUM][opcode >> 6];
++			op.cond = 0xE;
++			op.code = 0;
++		}
++		else
++		{
++			op.fn = arm_instructions_set[PROCNUM][INSTRUCTION_INDEX(opcode)];
++			op.cond = CONDITION(opcode);
++			op.code = CODE(opcode);
++		}
++		pc += size;
++		// a block stays within its 16 KiB page: the next one may be another region, or none
++		if (cached_ends_block(opcode, thumb) || n == CACHED_MAX_OPS || (pc & 0x3FFF) == 0)
++			break;
++	}
++
++	const size_t bytes = sizeof(CachedBlock) + (n - 1) * sizeof(CachedOp);
++	CachedBlock *b = (CachedBlock *)malloc(bytes);
++	if (!b)
++	{
++		cached_stats.failures++;
++		return NULL;
++	}
++	b->count = n;
++	memcpy(b->ops, ops, n * sizeof(CachedOp));
++	const u32 index = (u32)cached_blocks.size();
++	if (!jit_table_set(adr, PROCNUM, ((index + 2) << 2) | tag))
++	{
++		free(b);
++		return NULL;
++	}
++	cached_blocks.push_back(b);
++	cached_bytes += bytes;
++	cached_stats.blocks++;
++	jit_register_block(PROCNUM, adr, n * size, &JIT_COMPILED_FUNC(adr, PROCNUM));
++	return b;
++}
++
++// armcpu_prefetch, with the memory read of the opcode
++template<int PROCNUM>
++static FORCEINLINE u32 cached_prefetch(armcpu_t *cpu)
++{
++	u32 cur = cpu->next_instruction;
++	if (cpu->CPSR.bits.T == 0)
++	{
++		cur &= 0xFFFFFFFC;
++		cpu->instruct_adr = cur;
++		cpu->next_instruction = cur + 4;
++		cpu->R[15] = cur + 8;
++		cpu->instruction = _MMU_read32<PROCNUM, MMU_AT_CODE>(cur);
++		return MMU_codeFetchCycles<PROCNUM, 32>(cur);
++	}
++	cur &= 0xFFFFFFFE;
++	cpu->instruct_adr = cur;
++	cpu->next_instruction = cur + 2;
++	cpu->R[15] = cur + 4;
++	cpu->instruction = _MMU_read16<PROCNUM, MMU_AT_CODE>(cur);
++	// the ARM9 fetches Thumb code a word at a time (armcpu_prefetch's test is always true there)
++	return PROCNUM == 0 ? MMU_codeFetchCycles<PROCNUM, 32>(cur) : MMU_codeFetchCycles<PROCNUM, 16>(cur);
++}
++
++// Time of an instruction, in ARM9 cycles as the CPU loop counts it
++template<int PROCNUM>
++static FORCEINLINE s32 cached_time(u32 execute, u32 fetch)
++{
++	const u32 c = MMU_fetchExecuteCycles<PROCNUM>(execute, fetch);
++	return PROCNUM ? (s32)(c << 1) : (s32)c;
++}
++
++/*
++	Runs this CPU from time t: at least one instruction (armInnerLoop chose it), then more while the loop
++	would have chosen it again: t < limit (the other CPU's time; ties go to the other CPU or end the
++	iteration), t < next (the next hardware event), and no reschedule, halt or bus freeze. Returns the new
++	time.
++*/
++template<int PROCNUM>
++s32 jit_cached_run(s32 t, const s32 limit, const s32 next, const u64 base)
++{
++	armcpu_t *const cpu = &ARMPROC;
++	const u32 stop = JIT_EXIT_RESCHEDULE | JIT_EXIT_HALT | (PROCNUM ? JIT_EXIT_WAIT7 : JIT_EXIT_WAIT9);
++	bool first = true;
++
++#define CACHED_NEXT_OR_RETURN() \
++	if (!first) \
++	{ \
++		if (!(t < limit && t < next) || (jit_exit_request & stop)) \
++			return t; \
++		nds_timer = base + t; \
++	} \
++	first = false;
++
++	for (;;)
++	{
++		const u32 thumb = cpu->CPSR.bits.T;
++		const u32 adr = cpu->instruct_adr;
++		const u32 tag = JIT_ENTRY_TAG(PROCNUM, thumb);
++		u32 *slot = &JIT_COMPILED_FUNC(adr, PROCNUM);
++		const u32 e = *slot;
++		CachedBlock *b = NULL;
++		if ((e & 3) == tag && e >= 8)
++			b = cached_blocks[(e >> 2) - 2];
++		else if (e != (JIT_ENTRY_INTERPRET | tag) && JIT_MAPPED(adr & 0x0FFFFFFF, PROCNUM))
++		{
++			b = cached_build<PROCNUM>(adr, thumb);
++			slot = &JIT_COMPILED_FUNC(adr, PROCNUM);
++		}
++
++		// The opcode the interpreter prefetched is the one it would run: another writer (the other CPU,
++		// a DMA) may have changed memory since, and then the interpreter runs the old one
++		if (!b || b->ops[0].opcode != cpu->instruction)
++		{
++			CACHED_NEXT_OR_RETURN();
++			t += PROCNUM ? (s32)(armcpu_exec<PROCNUM>() << 1) : (s32)armcpu_exec<PROCNUM>();
++			continue;
++		}
++
++		jit_current_slot[PROCNUM] = slot;
++		jit_exit_request &= ~JIT_EXIT_SMC;
++		const CachedOp *op = b->ops;
++		const CachedOp *const end = op + b->count;
++		u32 pc = adr;
++		for (;;)
++		{
++			CACHED_NEXT_OR_RETURN();
++			u32 execute;
++			if (thumb || op->cond == 0xE || TEST_COND(op->cond, op->code, cpu->CPSR))
++				execute = op->fn(op->opcode);
++			else
++				execute = 1;
++			op++;
++			if (thumb)
++			{
++				if (cpu->next_instruction == pc + 2 && cpu->CPSR.bits.T && op != end &&
++				    !(jit_exit_request & JIT_EXIT_SMC))
++				{
++					// the next instruction is the next one of the block: the prefetch without its read
++					pc += 2;
++					cpu->instruct_adr = pc;
++					cpu->next_instruction = pc + 2;
++					cpu->R[15] = pc + 4;
++					cpu->instruction = op->opcode;
++					t += cached_time<PROCNUM>(execute, PROCNUM == 0 ? MMU_codeFetchCycles<PROCNUM, 32>(pc)
++					                                               : MMU_codeFetchCycles<PROCNUM, 16>(pc));
++					continue;
++				}
++			}
++			else if (cpu->next_instruction == pc + 4 && !cpu->CPSR.bits.T && op != end &&
++			         !(jit_exit_request & JIT_EXIT_SMC))
++			{
++				pc += 4;
++				cpu->instruct_adr = pc;
++				cpu->next_instruction = pc + 4;
++				cpu->R[15] = pc + 8;
++				cpu->instruction = op->opcode;
++				t += cached_time<PROCNUM>(execute, MMU_codeFetchCycles<PROCNUM, 32>(pc));
++				continue;
++			}
++			// a branch, the end of the block, or its invalidation: the interpreter's prefetch, then the
++			// block at the new address
++			t += cached_time<PROCNUM>(execute, cached_prefetch<PROCNUM>(cpu));
++			break;
++		}
++	}
++#undef CACHED_NEXT_OR_RETURN
++}
++
++template s32 jit_cached_run<0>(s32 t, const s32 limit, const s32 next, const u64 base);
++template s32 jit_cached_run<1>(s32 t, const s32 limit, const s32 next, const u64 base);
++
++#endif
+diff --git a/desmume/src/utils/arm_jit/rb_jit.cpp b/desmume/src/utils/arm_jit/rb_jit.cpp
+new file mode 100644
+index 00000000..5773f7e8
+--- /dev/null
++++ b/desmume/src/utils/arm_jit/rb_jit.cpp
+@@ -0,0 +1,1265 @@
++/*
++	Copyright (C) 2026 RewindBox
++
++	This file is free software: you can redistribute it and/or modify
++	it under the terms of the GNU General Public License as published by
++	the Free Software Foundation, either version 2 of the License, or
++	(at your option) any later version.
++
++	This file is distributed in the hope that it will be useful,
++	but WITHOUT ANY WARRANTY; without even the implied warranty of
++	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++	GNU General Public License for more details.
++
++	You should have received a copy of the GNU General Public License
++	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
++*/
++
++/*
++	RewindBox: AArch64 JIT (steps 3 and 4 of docs/desmume-arm64-jit-architecture.md).
++
++	A block is a run of guest instructions compiled into the code arena. For each instruction the code does
++	what armcpu_exec does: the state the prefetch leaves (instruct_adr, next_instruction, R15, instruction),
++	the ARM condition (tested natively: CPSR and AArch64 share NZCV), the handler of the interpreter (step 3,
++	"call-threaded") or native code (step 4), then the timing of the fetch of the next instruction and
++	max(execute, fetch). Cycles are therefore the interpreter's.
++
++	Blocks chain: at its end a block looks up the table entry of the next address and branches there while
++	this CPU may go on (its time below the other CPU's and the next hardware event, no exit request), so
++	whole loops run without returning to C. In exact mode the same test, and the update of nds_timer, come
++	after every instruction: the CPU loop's order of the two CPUs is kept, and the emulated result is the
++	interpreter's. In fast mode they come only between blocks.
++
++	Registers inside generated code (callee-saved, set by the entry stub):
++	  x19 armcpu_t *      w20 time t           w21 limit (min(other CPU, next event))
++	  x22 RbRun *         x23 &jit_exit_request x24 table level 1 of this CPU (JIT.JIT_MEM[P])
++	  x25 code arena base x26 nds_timer base    x27 &nds_timer      x28 leave stub
++	x0-x17 are scratch (the handlers may clobber them); x18 is never touched (reserved by Apple).
++
++	Code is only compiled from the C dispatcher, never from generated code, so a full arena can be emptied
++	at once: no block is on the stack then.
++*/
++
++#include <stddef.h>
++#include <stdlib.h>
++#include <string.h>
++#include <algorithm>
++
++#include "../../types.h"
++#include "../../armcpu.h"
++#include "../../utils/bits.h"
++#include "../../instructions.h"
++#include "../../instruction_attributes.h"
++#include "../../MMU.h"
++#include "../../MMU_timing.h"
++#include "../../NDSSystem.h"
++#include "../../arm_jit.h"
++#include "rb_a64.h"
++
++#if defined(HAVE_JIT) && defined(REWINDBOX_LIBRETRO_JIT)
++
++using namespace rba64;
++
++bool rb_jit_enabled = false;  // "jit_exact" or "jit_fast": this JIT; "jit": the JIT of T (step 0)
++bool rb_jit_exact = true;     // exact mode (see above); false: fast mode
++static int rb_jit_timing = -1; // CommonSettings.advanced_timing the arena's code was compiled for
++#ifdef RB_JIT_DEBUG
++// test builds: RB_JIT_NOFOLD (every fetch through the helper), RB_JIT_NOMID (an entry per block only),
++// RB_JIT_NONATIVE (every instruction through its handler)
++#include <stdio.h>
++static int rb_dbg_nofold = -1, rb_dbg_nomid = -1, rb_dbg_nonative = -1;
++static void rb_dbg_init()
++{
++	if (rb_dbg_nofold >= 0)
++		return;
++	rb_dbg_nofold = getenv("RB_JIT_NOFOLD") != NULL;
++	rb_dbg_nomid = getenv("RB_JIT_NOMID") != NULL;
++	rb_dbg_nonative = getenv("RB_JIT_NONATIVE") != NULL;
++	fprintf(stderr, "rbdbg nofold=%d nomid=%d nonative=%d\n", rb_dbg_nofold, rb_dbg_nomid, rb_dbg_nonative);
++}
++#endif
++
++// The run, x22 in generated code
++struct RbRun
++{
++	armcpu_t *cpu;          // 0
++	u32 **l1;               // 8
++	u8 *code;               // 16
++	u64 base;               // 24
++	s32 limit;              // 32
++	s32 t;                  // 36
++	u64 leave;              // 40
++	u32 *fetch_last;        // 48  address of this CPU's last code fetch (MMU_timing)
++	const OpFunc *arm;      // 56  arm_instructions_set[P]
++	const OpFunc *thumb;    // 64  thumb_instructions_set[P]
++	u64 fetch_seq_arm;      // 72
++	u64 fetch_seq_thumb;    // 80
++	u64 fetch_branch;       // 88
++};
++enum { RUN_FETCH_LAST = 48, RUN_ARM = 56, RUN_THUMB = 64, RUN_SEQ_ARM = 72, RUN_SEQ_THUMB = 80, RUN_BRANCH = 88 };
++
++#define RB_STUB_ENTER 16   // arena offsets of the stubs (in the reserved start of the arena)
++#define RB_STUB_LEAVE 128
++#define RB_MAX_INSTR 100
++
++typedef void (*RbEnterFn)(u8 *code, RbRun *run);
++
++static const u32 O_IA = (u32)offsetof(armcpu_t, instruct_adr);
++static const u32 O_NI = (u32)offsetof(armcpu_t, next_instruction);
++static const u32 O_INS = (u32)offsetof(armcpu_t, instruction);
++static const u32 O_R15 = (u32)offsetof(armcpu_t, R) + 15 * 4;
++static const u32 O_CPSR = (u32)offsetof(armcpu_t, CPSR);
++static const u32 O_R0 = (u32)offsetof(armcpu_t, R);
++
++// ---------------------------------------------------------------------------- stubs
++
++// Written into the reserved start of a new arena: enter(code, run) saves the callee-saved registers,
++// loads the run and branches to the code; leave stores the time and returns to enter's caller.
++void rb_jit_write_stubs(u8 *rx, u8 *rw, void (*flush)(void *, size_t))
++{
++	Asm a;
++	a.stp_pre(FP, LR, SP, -96);
++	a.mov_sp(FP, SP);
++	a.stp(19, 20, SP, 16);
++	a.stp(21, 22, SP, 32);
++	a.stp(23, 24, SP, 48);
++	a.stp(25, 26, SP, 64);
++	a.stp(27, 28, SP, 80);
++	a.mov(22, 1, true);
++	a.ldrx(19, 22, 0);
++	a.ldrx(24, 22, 8);
++	a.ldrx(25, 22, 16);
++	a.ldrx(26, 22, 24);
++	a.ldrw(21, 22, 32);
++	a.ldrw(20, 22, 36);
++	a.ldrx(28, 22, 40);
++	a.mov64(23, (u64)(uintptr_t)&jit_exit_request);
++	a.mov64(27, (u64)(uintptr_t)&nds_timer);
++	a.br(0);
++	memcpy(rw + RB_STUB_ENTER, &a.code[0], a.code.size() * 4);
++	flush(rx + RB_STUB_ENTER, a.code.size() * 4);
++
++	Asm l;
++	l.strw(20, 22, 36);
++	l.ldp(27, 28, SP, 80);
++	l.ldp(25, 26, SP, 64);
++	l.ldp(23, 24, SP, 48);
++	l.ldp(21, 22, SP, 32);
++	l.ldp(19, 20, SP, 16);
++	l.ldp_post(FP, LR, SP, 96);
++	l.ret();
++	memcpy(rw + RB_STUB_LEAVE, &l.code[0], l.code.size() * 4);
++	flush(rx + RB_STUB_LEAVE, l.code.size() * 4);
++	rb_jit_timing = -1;
++}
++
++// ---------------------------------------------------------------------------- helpers called by blocks
++
++// Timing of the fetch of the next instruction when it follows the one just run, where the compiler
++// could not work it out (the ARM9's instruction cache, at the start of a new line)
++template<int PROCNUM, int THUMB>
++static u32 rb_fetch_seq(u32 execute, u32 adr)
++{
++	const u32 fetch = (THUMB && PROCNUM == 1) ? MMU_codeFetchCycles<1, 16>(adr) : MMU_codeFetchCycles<PROCNUM, 32>(adr);
++	return MMU_fetchExecuteCycles<PROCNUM>(execute, fetch);
++}
++
++// After a branch (or any change of next_instruction): the interpreter's prefetch, without the read of the
++// opcode (the next block, or the C dispatcher, sets it)
++template<int PROCNUM>
++static u32 rb_fetch_branch(u32 execute)
++{
++	armcpu_t *const cpu = &ARMPROC;
++	u32 cur = cpu->next_instruction;
++	u32 fetch;
++	if (cpu->CPSR.bits.T == 0)
++	{
++		cur &= 0xFFFFFFFC;
++		cpu->instruct_adr = cur;
++		cpu->next_instruction = cur + 4;
++		cpu->R[15] = cur + 8;
++		fetch = MMU_codeFetchCycles<PROCNUM, 32>(cur);
++	}
++	else
++	{
++		cur &= 0xFFFFFFFE;
++		cpu->instruct_adr = cur;
++		cpu->next_instruction = cur + 2;
++		cpu->R[15] = cur + 4;
++		fetch = PROCNUM == 0 ? MMU_codeFetchCycles<PROCNUM, 32>(cur) : MMU_codeFetchCycles<PROCNUM, 16>(cur);
++	}
++	return MMU_fetchExecuteCycles<PROCNUM>(execute, fetch);
++}
++
++// ---------------------------------------------------------------------------- compiler
++
++struct RbIns
++{
++	u32 pc;
++	u32 op;
++	bool ends;  // may change the PC (or the CPU state): last of its block
++	bool fused; // second half of a Thumb BL right after its first half: compiled with it, no entry of its own
++};
++
++static bool rb_ends_block(u32 opcode, bool thumb)
++{
++	if (thumb)
++	{
++		const u32 x = thumb_attributes[opcode >> 6];
++		return (x & BRANCH_ALWAYS) || ((x & BRANCH_POS0) && ((opcode & 7) | ((opcode >> 4) & 8)) == 15) ||
++		       (x & BRANCH_SWI) || (x & JIT_BYPASS);
++	}
++	const u32 x = instruction_attributes[INSTRUCTION_INDEX(opcode)];
++	return (x & BRANCH_ALWAYS) || ((x & BRANCH_POS12) && REG_POS(opcode, 12) == 15) ||
++	       ((x & BRANCH_LDM) && BIT15(opcode)) || (x & BRANCH_SWI) || (x & JIT_BYPASS);
++}
++
++static bool rb_bypass(u32 opcode, bool thumb)
++{
++	return thumb ? (thumb_attributes[opcode >> 6] & JIT_BYPASS) != 0
++	             : (instruction_attributes[INSTRUCTION_INDEX(opcode)] & JIT_BYPASS) != 0;
++}
++
++// TEST_COND for condition 0xF (ARMv5's unconditional instructions) does not depend on the flags
++static int rb_cond_nv(u32 opcode)
++{
++	const int first = (arm_cond_table[0x0F] >> CODE(opcode)) & 1;
++	for (u32 flags = 1; flags < 16; flags++)
++		if (((arm_cond_table[(flags << 4) | 0x0F] >> CODE(opcode)) & 1) != first)
++			return -1;
++	return first;
++}
++
++struct RbCompiler
++{
++	Asm a;
++	int procnum;
++	bool thumb;
++	bool exact;
++	bool timing;    // CommonSettings.advanced_timing: fetch cycles count
++	u32 size;
++	u32 tag;
++	u32 exit_mask;
++	int l_dyn;      // shared tail after a branch: exit checks, then lookup of instruct_adr
++	s64 pending;    // address of the last code fetch not yet written to MMU_timing (-1: none)
++
++	void add_time() { a.addr(20, 20, 0, LSL, procnum ? 1 : 0); }
++
++	void store_last(u32 v)
++	{
++		a.ldrx(1, 22, RUN_FETCH_LAST);
++		a.mov32(2, v);
++		a.strw(2, 1, 0);
++	}
++	void flush_last()
++	{
++		if (pending >= 0)
++			store_last((u32)pending);
++		pending = -1;
++	}
++
++	// leaves with instruct_adr = adr (the C dispatcher completes the interpreter's state from it)
++	void leave_at(u32 adr)
++	{
++		a.mov32(1, adr);
++		a.strw(1, 19, O_IA);
++		a.br(28);
++	}
++
++	void store_timer()
++	{
++		a.addx_ext(1, 26, 20, SXTW);
++		a.strx(1, 27, 0);
++	}
++
++	// goes on at adr, known now: through its table entry, or out to C
++	void chain_static(u32 adr)
++	{
++		flush_last();
++		const int l_out = a.label();
++		a.cmpr(20, 21);
++		a.bcond(GE, l_out);
++		store_timer();
++		a.mov32(1, ((adr & 0x0FFFC000) >> 14) * 8);
++		a.ldrx_r(1, 24, 1, false);
++		a.mov32(2, ((adr & 0x3FFE) >> 1) * 4);
++		a.ldrw_r(1, 1, 2, false);
++		if (tag)
++			a.eori(1, 1, tag, 2);
++		a.tsti(1, 3, 2);
++		a.bcond(NE, l_out);
++		a.cmpi(1, 8);
++		a.bcond(CC, l_out);
++		a.addx_ext(1, 25, 1, UXTW);
++		a.br(1);
++		a.bind(l_out);
++		leave_at(adr);
++	}
++
++	// after a branch: instruct_adr and the Thumb bit are only known now
++	void emit_dyn_tail()
++	{
++		const int l_out = a.label();
++		a.bind(l_dyn);
++		a.ldrw(1, 23, 0);
++		a.tsti(1, exit_mask, 2);
++		a.bcond(NE, l_out);
++		a.cmpr(20, 21);
++		a.bcond(GE, l_out);
++		store_timer();
++		a.ldrw(1, 19, O_IA);
++		a.ubfx(2, 1, 14, 14);
++		a.ldrx_r(3, 24, 2, true);
++		a.ubfx(2, 1, 1, 13);
++		a.ldrw_r(3, 3, 2, true);
++		a.ldrw(4, 19, O_CPSR);
++		a.ubfx(4, 4, 5, 1);
++		a.lsli(4, 4, 1);
++		if (procnum)
++			a.orri(4, 4, 1, 5);
++		a.eor(3, 3, 4);
++		a.tsti(3, 3, 5);
++		a.bcond(NE, l_out);
++		a.cmpi(3, 8);
++		a.bcond(CC, l_out);
++		a.addx_ext(3, 25, 3, UXTW);
++		a.br(3);
++		a.bind(l_out);
++		a.br(28); // instruct_adr is already the target
++	}
++
++	/*
++		Cycles of the fetch of npc right after the fetch of pc, when the compiler can tell them: everything
++		but a new line of the ARM9's instruction cache in main RAM. _MMU_accesstime has no side effect
++		outside that cache; the fetch unit's last address is written later (pending).
++	*/
++	bool fold_fetch(u32 pc, u32 npc, u32 *cycles, u32 *last)
++	{
++		const bool r32 = procnum == 0 || !thumb;
++		const u32 mask = r32 ? 0xFFFFFFFCu : 0xFFFFFFFEu;
++		const u32 adr = npc & mask, prev = pc & mask;
++		const bool sequential = adr == prev + (r32 ? 4 : 2);
++		*last = adr;
++		if (procnum == 0 && adr < 0x02000000)
++		{
++			*cycles = 1; // ITCM
++			return true;
++		}
++		if (procnum == 0 && (adr & 0x0F000000) == 0x02000000)
++		{
++			// a hit if the previous fetch (pc, in main RAM too) was in the same cache set
++			if ((prev & 0x0F000000) != 0x02000000 || (adr & 0x7E0) != (prev & 0x7E0))
++				return false;
++			*cycles = 1;
++			return true;
++		}
++		if (procnum == 0)
++			*cycles = _MMU_accesstime<0, MMU_AT_CODE, 32, MMU_AD_READ, true>(adr, sequential);
++		else if (r32)
++			*cycles = _MMU_accesstime<1, MMU_AT_CODE, 32, MMU_AD_READ, true>(adr, sequential);
++		else
++			*cycles = _MMU_accesstime<1, MMU_AT_CODE, 16, MMU_AD_READ, true>(adr, sequential);
++		return true;
++	}
++
++	// w0 = max(w0, c)
++	void max_imm(u32 c)
++	{
++		if (c <= 1)
++		{
++			a.cmpi(0, 1);
++			a.csinc(0, 0, ZR, CS); // w0 >= 1 ? w0 : 1
++			return;
++		}
++		a.mov32(1, c);
++		a.cmpr(0, 1);
++		a.csel(0, 0, 1, CS);
++	}
++
++	// ------------------------------------------------------------------ step 4: native code
++	//
++	// Instructions that only touch registers and flags, and branches whose target is known, become AArch64
++	// code doing what their handler does (read in arm_instructions.cpp and thumb_instructions.cpp), with the
++	// handler's cycles as a constant. The opcode must map to the handler of its class (the same table entry
++	// as a canonical opcode of the class), or the handler is called as in step 3. Guest registers are read
++	// from and written to armcpu_t at each instruction: any instruction can be entered from outside.
++
++	static u32 ror32(u32 v, u32 s) { return s ? (v >> s) | (v << (32 - s)) : v; }
++
++	bool same_handler(u32 op, u32 canon) const
++	{
++		if (thumb)
++			return thumb_instructions_set[procnum][op >> 6] == thumb_instructions_set[procnum][canon >> 6];
++		return arm_instructions_set[procnum][INSTRUCTION_INDEX(op)] == arm_instructions_set[procnum][INSTRUCTION_INDEX(canon)];
++	}
++
++	// guest register n into wd (R15 reads as the interpreter's R15: pc + 8, or pc + 4 in Thumb)
++	void get_reg(int wd, u32 n, u32 pc)
++	{
++		if (n == 15)
++			a.mov32(wd, pc + (thumb ? 4 : 8));
++		else
++			a.ldrw(wd, 19, O_R0 + 4 * n);
++	}
++	void set_reg(int ws, u32 n) { a.strw(ws, 19, O_R0 + 4 * n); }
++
++	// host C = guest C (for ADC, SBC, RSC)
++	void load_carry()
++	{
++		a.ldrw(9, 19, O_CPSR);
++		a.andi(9, 9, 0xF0000000u, 10);
++		a.msr_nzcv(9);
++	}
++	// CPSR's N, Z, C, V from the host flags (arithmetic)
++	void flags_nzcv()
++	{
++		a.mrs_nzcv(9);
++		a.ldrw(10, 19, O_CPSR);
++		a.bfm(9, 10, 0, 27); // CPSR bits 0-27 under the host's N, Z, C, V
++		a.strw(9, 19, O_CPSR);
++	}
++	// CPSR's N and Z from the host flags; C: -1 unchanged, 0 or 1, 2 = bit 0 of w3; V unchanged
++	void flags_nz(int carry)
++	{
++		a.mrs_nzcv(9);
++		a.ldrw(10, 19, O_CPSR);
++		a.bfm(9, 10, 0, 29); // CPSR bits 0-29 (C and V among them) under the host's N and Z
++		if (carry == 0)
++			a.andi(9, 9, ~0x20000000u, 10);
++		else if (carry == 1)
++			a.orri(9, 9, 0x20000000u, 10);
++		else if (carry == 2)
++			a.bfi(9, 3, 29, 1);
++		a.strw(9, 19, O_CPSR);
++	}
++	void test_w0() { a.logr(3, false, ZR, 0, 0); } // tst w0, w0
++
++	void add_time_imm(u32 c)
++	{
++		const u32 v = procnum ? c * 2 : c;
++		a.addi(20, 20, v);
++	}
++
++	// After an instruction run natively with `e` execute cycles, going on with the next one
++	void native_tail(const RbIns &in, u32 e, bool last)
++	{
++		const u32 npc = in.pc + size;
++		u32 fc, flast;
++		if (!timing)
++			add_time_imm(e);
++#ifdef RB_JIT_DEBUG
++		else if (!rb_dbg_nofold && fold_fetch(in.pc, npc, &fc, &flast))
++#else
++		else if (fold_fetch(in.pc, npc, &fc, &flast))
++#endif
++		{
++			add_time_imm(std::max(e, fc));
++			pending = flast;
++		}
++		else
++		{
++			flush_last();
++			a.movz(0, e, 0, false);
++			a.mov32(1, npc);
++			a.ldrx(16, 22, thumb ? RUN_SEQ_THUMB : RUN_SEQ_ARM);
++			a.blr(16);
++			add_time();
++		}
++		if (last)
++		{
++			chain_static(npc);
++			return;
++		}
++		if (exact)
++		{
++			const int l_cont = a.label();
++			a.cmpr(20, 21);
++			a.bcond(LT, l_cont);
++			if (pending >= 0)
++				store_last((u32)pending);
++			leave_at(npc);
++			a.bind(l_cont);
++		}
++	}
++
++	// A branch to `target`, known now, with `e` execute cycles: the fetch there, then the block there
++	void branch_tail(u32 pc, u32 target, u32 e)
++	{
++		u32 fc, flast;
++		if (!timing)
++			add_time_imm(e);
++#ifdef RB_JIT_DEBUG
++		else if (!rb_dbg_nofold && fold_fetch(pc, target, &fc, &flast))
++#else
++		else if (fold_fetch(pc, target, &fc, &flast))
++#endif
++		{
++			add_time_imm(std::max(e, fc));
++			pending = flast;
++		}
++		else
++		{
++			flush_last();
++			a.movz(0, e, 0, false);
++			a.mov32(1, target);
++			a.ldrx(16, 22, thumb ? RUN_SEQ_THUMB : RUN_SEQ_ARM);
++			a.blr(16);
++			add_time();
++		}
++		chain_static(target);
++	}
++
++	// conditional code: host flags from CPSR, then a branch to l when the condition fails
++	void skip_unless(u32 cond, int l)
++	{
++		a.ldrw(9, 19, O_CPSR);
++		a.andi(9, 9, 0xF0000000u, 10);
++		a.msr_nzcv(9);
++		a.bcond((Cond)(cond ^ 1), l);
++	}
++
++	// ARM data processing with an immediate, or a register shifted by an immediate; Rd != PC
++	bool native_arm_dp(const RbIns &in, bool last)
++	{
++		const u32 i = in.op;
++		if ((i >> 26) & 3)
++			return false;
++		const u32 imm = (i >> 25) & 1, op = (i >> 21) & 0xF, S = (i >> 20) & 1;
++		const u32 Rn = (i >> 16) & 0xF, Rd = (i >> 12) & 0xF;
++		const bool test = op >= 8 && op <= 11;
++		const u32 cond = CONDITION(i);
++		if ((test && !S) || (!imm && (i & 0x10)) || (!test && Rd == 15) || cond == 0xF)
++			return false;
++		const u32 canon = 0xE0000000u | (imm << 25) | (op << 21) | (S << 20) | (imm ? 0 : (((i >> 5) & 3) << 5));
++		if (!same_handler(i, canon))
++			return false;
++
++		const bool logical = op == 0 || op == 1 || (op >= 8 && op <= 9) || op >= 12;
++		const bool want_carry = S && logical;
++		int l_skip = -1;
++		if (cond != 0xE)
++		{
++			l_skip = a.label();
++			skip_unless(cond, l_skip);
++		}
++
++		// operand 2 into w2, and the shifter's carry (-1: CPSR's)
++		int carry = -1;
++		if (imm)
++		{
++			const u32 rot = ((i >> 8) & 0xF) * 2;
++			const u32 val = ror32(i & 0xFF, rot);
++			a.mov32(2, val);
++			if (rot)
++				carry = (int)(val >> 31);
++		}
++		else
++		{
++			const u32 Rm = i & 0xF, sh = (i >> 5) & 3, amt = (i >> 7) & 0x1F;
++			get_reg(4, Rm, in.pc);
++			switch (sh)
++			{
++			case 0: // LSL
++				if (amt == 0)
++					a.mov(2, 4);
++				else
++				{
++					a.lsli(2, 4, amt);
++					if (want_carry) { a.ubfx(3, 4, 32 - amt, 1); carry = 2; }
++				}
++				break;
++			case 1: // LSR (#0: #32)
++				if (amt == 0)
++				{
++					a.movz(2, 0, 0, false);
++					if (want_carry) { a.lsri(3, 4, 31); carry = 2; }
++				}
++				else
++				{
++					a.lsri(2, 4, amt);
++					if (want_carry) { a.ubfx(3, 4, amt - 1, 1); carry = 2; }
++				}
++				break;
++			case 2: // ASR (#0: #32)
++				if (amt == 0)
++				{
++					a.asri(2, 4, 31);
++					if (want_carry) { a.lsri(3, 4, 31); carry = 2; }
++				}
++				else
++				{
++					a.asri(2, 4, amt);
++					if (want_carry) { a.ubfx(3, 4, amt - 1, 1); carry = 2; }
++				}
++				break;
++			default: // ROR (#0: RRX)
++				if (amt == 0)
++				{
++					a.ldrw(5, 19, O_CPSR);
++					a.ubfx(5, 5, 29, 1);
++					a.lsri(2, 4, 1);
++					a.logr(1, false, 2, 2, 5, LSL, 31); // orr w2, w2, w5, lsl #31
++					if (want_carry) { a.andi(3, 4, 1, 6); carry = 2; }
++				}
++				else
++				{
++					a.rori(2, 4, amt);
++					if (want_carry) { a.ubfx(3, 4, amt - 1, 1); carry = 2; }
++				}
++				break;
++			}
++		}
++		if (op != 13 && op != 15)
++			get_reg(1, Rn, in.pc);
++
++		const bool s = S != 0;
++		switch (op)
++		{
++		case 0: a.logr(s ? 3 : 0, false, 0, 1, 2); break;            // AND(S)
++		case 1: a.eor(0, 1, 2); if (s) test_w0(); break;             // EOR(S)
++		case 2: a.subr(0, 1, 2, LSL, 0, false, s); break;            // SUB(S)
++		case 3: a.subr(0, 2, 1, LSL, 0, false, s); break;            // RSB(S)
++		case 4: a.addr(0, 1, 2, LSL, 0, false, s); break;            // ADD(S)
++		case 5: load_carry(); a.adc(0, 1, 2, s); break;              // ADC(S)
++		case 6: load_carry(); a.sbc(0, 1, 2, s); break;              // SBC(S)
++		case 7: load_carry(); a.sbc(0, 2, 1, s); break;              // RSC(S)
++		case 8: a.logr(3, false, ZR, 1, 2); break;                   // TST
++		case 9: a.eor(0, 1, 2); test_w0(); break;                    // TEQ
++		case 10: a.subr(ZR, 1, 2, LSL, 0, false, true); break;       // CMP
++		case 11: a.addr(ZR, 1, 2, LSL, 0, false, true); break;       // CMN
++		case 12: a.orr(0, 1, 2); if (s) test_w0(); break;            // ORR(S)
++		case 13: a.mov(0, 2); if (s) test_w0(); break;               // MOV(S)
++		case 14: a.logr(s ? 3 : 0, true, 0, 1, 2); break;            // BIC(S)
++		default: a.logr(1, true, 0, ZR, 2); if (s) test_w0(); break; // MVN(S)
++		}
++		if (!test)
++			set_reg(0, Rd);
++		if (s)
++		{
++			if (logical)
++				flags_nz(carry);
++			else
++				flags_nzcv();
++		}
++		if (l_skip >= 0)
++			a.bind(l_skip);
++		native_tail(in, 1, last); // 1 cycle whether the condition held or not
++		return true;
++	}
++
++	// ARM B and BL (not BLX): the target is known
++	bool native_arm_branch(const RbIns &in)
++	{
++		const u32 i = in.op;
++		const u32 cond = CONDITION(i);
++		if (((i >> 25) & 7) != 5 || cond == 0xF)
++			return false;
++		const bool link = (i >> 24) & 1;
++		if (!same_handler(i, link ? 0xEB000000u : 0xEA000000u))
++			return false;
++		// B after "mov r12, r12" may print a no$gba message: left to the handler
++		if (!link)
++		{
++			const u32 last = procnum ? _MMU_read32<1, MMU_AT_DEBUG>(in.pc - 4) : _MMU_read32<0, MMU_AT_DEBUG>(in.pc - 4);
++			if (last == 0xE1A0C00Cu)
++				return false;
++		}
++		const u32 target = (in.pc + 8 + ((u32)((s32)(i << 8) >> 8) << 2)) & 0xFFFFFFFCu;
++		int l_nt = -1;
++		const s64 saved = pending;
++		if (cond != 0xE)
++		{
++			l_nt = a.label();
++			skip_unless(cond, l_nt);
++		}
++		if (link)
++		{
++			a.mov32(1, in.pc + 4);
++			set_reg(1, 14);
++		}
++		branch_tail(in.pc, target, 3);
++		if (l_nt >= 0)
++		{
++			a.bind(l_nt);
++			pending = saved;
++			native_tail(in, 1, true);
++		}
++		return true;
++	}
++
++	bool native_thumb(const RbIns &in, const RbIns *prev, bool last)
++	{
++		const u32 i = in.op;
++		const u32 pc = in.pc;
++		const u32 top5 = i >> 11;
++
++		if (top5 <= 2) // LSL, LSR, ASR #imm
++		{
++			const u32 Rd = i & 7, Rm = (i >> 3) & 7, amt = (i >> 6) & 0x1F;
++			if (!same_handler(i, (top5 << 11) | (amt ? 0x40 : 0)))
++				return false;
++			get_reg(4, Rm, pc);
++			int carry = 2;
++			if (top5 == 0)
++			{
++				if (amt == 0) { a.mov(0, 4); carry = -1; }
++				else { a.lsli(0, 4, amt); a.ubfx(3, 4, 32 - amt, 1); }
++			}
++			else if (top5 == 1)
++			{
++				if (amt == 0) { a.movz(0, 0, 0, false); a.lsri(3, 4, 31); }
++				else { a.lsri(0, 4, amt); a.ubfx(3, 4, amt - 1, 1); }
++			}
++			else
++			{
++				if (amt == 0) { a.asri(0, 4, 31); a.lsri(3, 4, 31); }
++				else { a.asri(0, 4, amt); a.ubfx(3, 4, amt - 1, 1); }
++			}
++			set_reg(0, Rd);
++			test_w0();
++			flags_nz(carry);
++			native_tail(in, 1, last);
++			return true;
++		}
++		if (top5 == 3) // ADD, SUB: register or 3-bit immediate
++		{
++			const u32 Rd = i & 7, Rn = (i >> 3) & 7, sub = (i >> 9) & 1, isimm = (i >> 10) & 1, v = (i >> 6) & 7;
++			if (!same_handler(i, 0x1800 | (isimm << 10) | (sub << 9)))
++				return false;
++			get_reg(1, Rn, pc);
++			if (isimm)
++				a.mov32(2, v);
++			else
++				get_reg(2, v, pc);
++			if (sub)
++				a.subr(0, 1, 2, LSL, 0, false, true);
++			else
++				a.addr(0, 1, 2, LSL, 0, false, true);
++			set_reg(0, Rd);
++			flags_nzcv();
++			native_tail(in, 1, last);
++			return true;
++		}
++		if (top5 >= 4 && top5 <= 7) // MOV, CMP, ADD, SUB #imm8
++		{
++			const u32 op = top5 - 4, Rd = (i >> 8) & 7, imm8 = i & 0xFF;
++			if (!same_handler(i, top5 << 11))
++				return false;
++			if (op == 0)
++			{
++				a.mov32(0, imm8);
++				set_reg(0, Rd);
++				// N = 0, Z = (imm8 == 0); C and V unchanged
++				a.ldrw(9, 19, O_CPSR);
++				a.andi(9, 9, 0x3FFFFFFFu, 10);
++				if (imm8 == 0)
++					a.orri(9, 9, 0x40000000u, 10);
++				a.strw(9, 19, O_CPSR);
++			}
++			else
++			{
++				get_reg(1, Rd, pc);
++				a.mov32(2, imm8);
++				if (op == 1)
++					a.subr(ZR, 1, 2, LSL, 0, false, true);
++				else if (op == 2)
++					a.addr(0, 1, 2, LSL, 0, false, true);
++				else
++					a.subr(0, 1, 2, LSL, 0, false, true);
++				if (op != 1)
++					set_reg(0, Rd);
++				flags_nzcv();
++			}
++			native_tail(in, 1, last);
++			return true;
++		}
++		if ((i >> 10) == 0x10) // ALU operations
++		{
++			const u32 op = (i >> 6) & 0xF, Rd = i & 7, Rm = (i >> 3) & 7;
++			if (op == 2 || op == 3 || op == 4 || op == 7 || op == 13) // shifts by register, MUL
++				return false;
++			if (!same_handler(i, 0x4000 | (op << 6)))
++				return false;
++			get_reg(1, Rd, pc);
++			get_reg(2, Rm, pc);
++			bool store = true, arith = false;
++			switch (op)
++			{
++			case 0: a.logr(3, false, 0, 1, 2); break;                         // AND
++			case 1: a.eor(0, 1, 2); test_w0(); break;                         // EOR
++			case 5: load_carry(); a.adc(0, 1, 2, true); arith = true; break;  // ADC
++			case 6: load_carry(); a.sbc(0, 1, 2, true); arith = true; break;  // SBC
++			case 8: a.logr(3, false, ZR, 1, 2); store = false; break;         // TST
++			case 9: a.subr(0, ZR, 2, LSL, 0, false, true); arith = true; break; // NEG
++			case 10: a.subr(ZR, 1, 2, LSL, 0, false, true); store = false; arith = true; break; // CMP
++			case 11: a.addr(ZR, 1, 2, LSL, 0, false, true); store = false; arith = true; break; // CMN
++			case 12: a.orr(0, 1, 2); test_w0(); break;                        // ORR
++			case 14: a.logr(3, true, 0, 1, 2); break;                         // BIC
++			default: a.logr(1, true, 0, ZR, 2); test_w0(); break;             // MVN
++			}
++			if (store)
++				set_reg(0, Rd);
++			if (arith)
++				flags_nzcv();
++			else
++				flags_nz(-1);
++			native_tail(in, 1, last);
++			return true;
++		}
++		if ((i >> 10) == 0x11) // ADD, CMP, MOV with high registers (BX left to the handler)
++		{
++			const u32 op = (i >> 8) & 3, Rd = (i & 7) | ((i >> 4) & 8), Rm = (i >> 3) & 0xF;
++			if (op == 3 || (op != 1 && Rd == 15))
++				return false;
++			if (!same_handler(i, 0x4400 | (op << 8) | (i & 0xC0)))
++				return false;
++			get_reg(2, Rm, pc);
++			if (op == 0)
++			{
++				get_reg(1, Rd, pc);
++				a.addr(0, 1, 2);
++				set_reg(0, Rd);
++			}
++			else if (op == 1)
++			{
++				get_reg(1, Rd, pc);
++				a.subr(ZR, 1, 2, LSL, 0, false, true);
++				flags_nzcv();
++			}
++			else
++				set_reg(2, Rd);
++			native_tail(in, 1, last);
++			return true;
++		}
++		if ((i >> 12) == 0xA) // ADD Rd, PC or SP, #imm8 * 4
++		{
++			const u32 sp = (i >> 11) & 1, Rd = (i >> 8) & 7, off = (i & 0xFF) << 2;
++			if (!same_handler(i, 0xA000 | (sp << 11)))
++				return false;
++			if (sp)
++			{
++				get_reg(1, 13, pc);
++				a.mov32(2, off);
++				a.addr(0, 1, 2);
++			}
++			else
++				a.mov32(0, ((pc + 4) & 0xFFFFFFFCu) + off);
++			set_reg(0, Rd);
++			native_tail(in, 1, last);
++			return true;
++		}
++		if ((i >> 8) == 0xB0) // ADD SP, #imm7 * 4 / SUB SP, #imm7 * 4
++		{
++			const u32 neg = (i >> 7) & 1, off = (i & 0x7F) << 2;
++			if (!same_handler(i, 0xB000 | (neg << 7)))
++				return false;
++			get_reg(1, 13, pc);
++			a.mov32(2, off);
++			if (neg)
++				a.subr(0, 1, 2);
++			else
++				a.addr(0, 1, 2);
++			set_reg(0, 13);
++			native_tail(in, 1, last);
++			return true;
++		}
++		if ((i >> 12) == 0xD && ((i >> 8) & 0xF) < 14) // B<cond>
++		{
++			const u32 cond = (i >> 8) & 0xF;
++			if (!same_handler(i, 0xD000 | (cond << 8)))
++				return false;
++			const u32 target = pc + 4 + ((u32)(s32)(s8)(i & 0xFF) << 1);
++			const int l_nt = a.label();
++			const s64 saved = pending;
++			skip_unless(cond, l_nt);
++			branch_tail(pc, target, 3);
++			a.bind(l_nt);
++			pending = saved;
++			native_tail(in, 1, true);
++			return true;
++		}
++		if (top5 == 0x1C) // B
++		{
++			if (!same_handler(i, 0xE000))
++				return false;
++			// no$gba message: "mov r12, r12" before, 0x6464 after
++			const u32 before = procnum ? _MMU_read16<1, MMU_AT_DEBUG>(pc - 2) : _MMU_read16<0, MMU_AT_DEBUG>(pc - 2);
++			if (before == 0x46E4)
++				return false;
++			const u32 target = pc + 4 + ((u32)((s32)(i << 21) >> 21) << 1);
++			branch_tail(pc, target, 1);
++			return true;
++		}
++		if (top5 == 0x1E) // BL, first half: LR = PC + (offset << 12)
++		{
++			if (!same_handler(i, 0xF000))
++				return false;
++			a.mov32(1, pc + 4 + ((u32)((s32)(i << 21) >> 21) << 12));
++			set_reg(1, 14);
++			native_tail(in, 1, last);
++			return true;
++		}
++		if (top5 == 0x1F) // BL, second half
++		{
++			if (!same_handler(i, 0xF800))
++				return false;
++			a.mov32(1, (pc + 2) | 1);
++			if (prev && (prev->op >> 11) == 0x1E && prev->pc + 2 == pc)
++			{
++				// right after its first half in this block (no entry here): the target is known
++				const u32 lr = prev->pc + 4 + ((u32)((s32)(prev->op << 21) >> 21) << 12);
++				set_reg(1, 14);
++				branch_tail(pc, lr + ((i & 0x7FF) << 1), 4);
++				return true;
++			}
++			get_reg(2, 14, pc);
++			a.addi(2, 2, (i & 0x7FF) << 1);
++			a.strw(2, 19, O_NI);
++			set_reg(1, 14);
++			if (pending >= 0)
++				store_last((u32)pending);
++			a.movz(0, 4, 0, false);
++			a.ldrx(16, 22, RUN_BRANCH);
++			a.blr(16);
++			add_time();
++			a.b(l_dyn);
++			return true;
++		}
++		return false;
++	}
++
++	bool emit_native(const RbIns &in, const RbIns *prev, bool last)
++	{
++#ifdef RB_JIT_DEBUG
++		if (rb_dbg_nonative)
++			return false;
++#endif
++		if (thumb)
++			return native_thumb(in, prev, last);
++		return native_arm_dp(in, last) || native_arm_branch(in);
++	}
++
++	// the handler of the interpreter (step 3); w0 = execute cycles. Returns false if the instruction
++	// cannot be compiled.
++	bool emit_call(const RbIns &in)
++	{
++		const u32 cond = thumb ? 0xE : CONDITION(in.op);
++		bool always = cond == 0xE;
++		if (cond == 0xF)
++		{
++			const int nv = rb_cond_nv(in.op);
++			if (nv < 0)
++				return false;
++			if (!nv)
++			{
++				a.movz(0, 1, 0, false);
++				return true;
++			}
++			always = true;
++		}
++		const int l_skip = a.label(), l_done = a.label();
++		if (!always)
++		{
++			a.ldrw(1, 19, O_CPSR);
++			a.andi(1, 1, 0xF0000000u, 2); // N, Z, C, V: the same bits in CPSR and in NZCV
++			a.msr_nzcv(1);
++			a.bcond((Cond)(cond ^ 1), l_skip);
++		}
++		a.ldrx(16, 22, thumb ? RUN_THUMB : RUN_ARM);
++		a.ldrx(16, 16, (thumb ? (in.op >> 6) : INSTRUCTION_INDEX(in.op)) * 8);
++		a.mov32(0, in.op);
++		a.blr(16);
++		if (!always)
++		{
++			a.b(l_done);
++			a.bind(l_skip);
++			a.movz(0, 1, 0, false); // condition false: 1 cycle
++			a.bind(l_done);
++		}
++		return true;
++	}
++
++	bool emit_ins(const RbIns &in, const RbIns *prev, bool last)
++	{
++		if (emit_native(in, prev, last))
++			return true;
++		const u32 npc = in.pc + size;
++		// the state the interpreter's prefetch left before this instruction (the opcode itself is only read
++		// by the handlers of undefined instructions); in exact mode, nds_timer as the CPU loop sets it
++		if (exact)
++			store_timer();
++		a.mov32(0, in.pc);
++		a.strw(0, 19, O_IA);
++		a.addi(1, 0, size);
++		a.strw(1, 19, O_NI);
++		a.addi(1, 0, size * 2);
++		a.strw(1, 19, O_R15);
++		if (rb_bypass(in.op, thumb))
++		{
++			a.mov32(1, in.op);
++			a.strw(1, 19, O_INS);
++		}
++
++		if (!emit_call(in))
++			return false;
++
++		// next instruction: the following one, or a branch. An instruction that may branch always takes the
++		// branch path, which reads the Thumb bit too (BX to the next address may change it).
++		const int l_branch = a.label();
++		const s64 before = pending;
++		if (in.ends)
++		{
++			if (before >= 0)
++				store_last((u32)before);
++			a.ldrx(16, 22, RUN_BRANCH);
++			a.blr(16);
++			add_time();
++			a.b(l_dyn);
++			return true;
++		}
++		a.ldrw(1, 19, O_NI);
++		a.mov32(2, npc);
++		a.cmpr(1, 2);
++		a.bcond(NE, l_branch);
++		u32 fc, flast;
++		if (!timing)
++			add_time(); // without advanced timing the fetch costs nothing and is not recorded
++#ifdef RB_JIT_DEBUG
++		else if (!rb_dbg_nofold && fold_fetch(in.pc, npc, &fc, &flast))
++#else
++		else if (fold_fetch(in.pc, npc, &fc, &flast))
++#endif
++		{
++			max_imm(fc);
++			add_time();
++			pending = flast;
++		}
++		else
++		{
++			flush_last(); // (uses w1 and w2)
++			a.mov32(1, npc);
++			a.ldrx(16, 22, thumb ? RUN_SEQ_THUMB : RUN_SEQ_ARM);
++			a.blr(16);
++			add_time();
++		}
++
++		// exit requests, and in exact mode the CPU loop's test before the next instruction
++		const int l_cont = a.label(), l_exit = a.label();
++		a.ldrw(1, 23, 0);
++		a.tsti(1, exit_mask, 2);
++		a.bcond(NE, l_exit);
++		if (exact && !last)
++		{
++			a.cmpr(20, 21);
++			a.bcond(GE, l_exit);
++		}
++		a.b(l_cont);
++		a.bind(l_exit);
++		if (pending >= 0)
++			store_last((u32)pending);
++		leave_at(npc);
++
++		a.bind(l_branch);
++		if (before >= 0)
++			store_last((u32)before);
++		a.ldrx(16, 22, RUN_BRANCH);
++		a.blr(16);
++		add_time();
++		a.b(l_dyn);
++
++		a.bind(l_cont);
++		if (last)
++			chain_static(npc);
++		return true;
++	}
++};
++
++// Emits the block at pc0 into the arena, with a table entry for each of its instructions (a run can
++// enter it anywhere); returns the entry at pc0 (0: left to the interpreter).
++template<int PROCNUM>
++static u32 rb_compile(u32 pc0, u32 thumb)
++{
++	const u32 tag = JIT_ENTRY_TAG(PROCNUM, thumb);
++	if (!jit_recompile_allowed(pc0))
++	{
++		jit_table_set(pc0, PROCNUM, JIT_ENTRY_INTERPRET | tag);
++		return JIT_ENTRY_INTERPRET | tag;
++	}
++
++	RbIns ins[RB_MAX_INSTR];
++	size_t start[RB_MAX_INSTR];
++	const u32 size = thumb ? 2 : 4;
++	const int maxn = std::max(1, std::min((int)CommonSettings.jit_max_block_size, RB_MAX_INSTR));
++	int n = 0;
++	u32 pc = pc0;
++	for (;;)
++	{
++		const u32 op = thumb ? _MMU_read16<PROCNUM, MMU_AT_CODE>(pc) : _MMU_read32<PROCNUM, MMU_AT_CODE>(pc);
++		ins[n].pc = pc;
++		ins[n].op = op;
++		ins[n].ends = rb_ends_block(op, thumb);
++		ins[n].fused = thumb && n > 0 && (op >> 11) == 0x1F && (ins[n - 1].op >> 11) == 0x1E;
++		n++;
++		pc += size;
++		if (ins[n - 1].ends || n == maxn || (pc & 0x3FFF) == 0)
++			break;
++	}
++
++	RbCompiler c;
++	c.procnum = PROCNUM;
++	c.thumb = thumb != 0;
++	c.exact = rb_jit_exact;
++	c.timing = CommonSettings.advanced_timing;
++	c.size = size;
++	c.tag = tag;
++	c.exit_mask = ~(u32)(PROCNUM ? JIT_EXIT_WAIT9 : JIT_EXIT_WAIT7);
++	c.l_dyn = c.a.label();
++	// Before each instruction the last code fetch was its own, whether the code got there from the
++	// instruction before (which may have left it unwritten) or from outside (which wrote it): writing it
++	// again is always right.
++	const u32 fetch_mask = (PROCNUM == 0 || !thumb) ? 0xFFFFFFFCu : 0xFFFFFFFEu;
++	for (int k = 0; k < n; k++)
++	{
++		start[k] = c.a.pos();
++		c.pending = c.timing ? (s64)(ins[k].pc & fetch_mask) : -1;
++		if (!c.emit_ins(ins[k], ins[k].fused ? &ins[k - 1] : NULL, k == n - 1))
++			return 0;
++	}
++	c.emit_dyn_tail();
++	if (!c.a.finish())
++		return 0;
++
++	u8 *rw;
++	const size_t bytes = c.a.code.size() * 4;
++	u8 *rx = jit_code_alloc(bytes, &rw);
++	if (!rx)
++		return 0;
++	memcpy(rw, &c.a.code[0], bytes);
++	jit_code_flush(rx, bytes);
++#ifdef RB_JIT_DEBUG
++	if (getenv("RB_JIT_DUMP"))
++	{
++		// test builds: every block appended to the file, after a header {magic, pc, cpu|thumb<<1, words}
++		FILE *f = fopen(getenv("RB_JIT_DUMP"), "ab");
++		if (f)
++		{
++			const u32 h[4] = { 0x4B4C4252u, pc0, (u32)PROCNUM | (thumb << 1), (u32)c.a.code.size() };
++			fwrite(h, 4, 4, f);
++			fwrite(&c.a.code[0], 4, c.a.code.size(), f);
++			fclose(f);
++		}
++	}
++#endif
++
++	int nent = n;
++#ifdef RB_JIT_DEBUG
++	if (rb_dbg_nomid)
++		nent = 1;
++#endif
++	for (int k = nent - 1; k >= 0; k--)
++		if (!ins[k].fused && !jit_table_set(ins[k].pc, PROCNUM, (u32)(rx + start[k] * 4 - jit_code_base) | tag))
++			return 0;
++	jit_register_block_entries(PROCNUM, pc0, n * size, &JIT_COMPILED_FUNC(pc0, PROCNUM), nent, size / 2);
++	return (u32)(rx - jit_code_base) | tag;
++}
++
++// ---------------------------------------------------------------------------- dispatcher
++
++// The interpreter's state between instructions, from instruct_adr (after generated code)
++template<int PROCNUM>
++static FORCEINLINE void rb_complete_state(armcpu_t *cpu)
++{
++	const u32 cur = cpu->instruct_adr;
++	if (cpu->CPSR.bits.T == 0)
++	{
++		cpu->next_instruction = cur + 4;
++		cpu->R[15] = cur + 8;
++		cpu->instruction = _MMU_read32<PROCNUM, MMU_AT_CODE>(cur);
++	}
++	else
++	{
++		cpu->next_instruction = cur + 2;
++		cpu->R[15] = cur + 4;
++		cpu->instruction = _MMU_read16<PROCNUM, MMU_AT_CODE>(cur);
++	}
++}
++
++/*
++	Like jit_cached_run: runs this CPU from time t, at least one instruction, then on while the CPU loop
++	would have given it the next instruction. Generated code goes on by itself through chained blocks;
++	this loop compiles what is missing, runs the interpreter where nothing is compiled, and checks again.
++*/
++template<int PROCNUM>
++s32 rb_jit_run(s32 t, const s32 limit, const s32 next, const u64 base)
++{
++	armcpu_t *const cpu = &ARMPROC;
++	const u32 stop = JIT_EXIT_RESCHEDULE | JIT_EXIT_HALT | (PROCNUM ? JIT_EXIT_WAIT7 : JIT_EXIT_WAIT9);
++#ifdef RB_JIT_DEBUG
++	rb_dbg_init();
++#endif
++	if (rb_jit_timing != (int)CommonSettings.advanced_timing)
++	{
++		// the code counts fetch cycles for one setting: compile it again for the other
++		if (rb_jit_timing >= 0)
++			arm_jit_reset(true, true);
++		rb_jit_timing = CommonSettings.advanced_timing;
++	}
++	RbRun run;
++	run.cpu = cpu;
++	run.l1 = (u32 **)JIT.JIT_MEM[PROCNUM];
++	run.code = jit_code_base;
++	run.base = base;
++	run.limit = std::min(limit, next);
++	run.leave = (u64)(uintptr_t)(jit_code_base + RB_STUB_LEAVE);
++	run.fetch_last = MMU_timing.armCodeFetch<PROCNUM>().LastAddressPtr();
++	run.arm = arm_instructions_set[PROCNUM];
++	run.thumb = thumb_instructions_set[PROCNUM];
++	run.fetch_seq_arm = (u64)(uintptr_t)&rb_fetch_seq<PROCNUM, 0>;
++	run.fetch_seq_thumb = (u64)(uintptr_t)&rb_fetch_seq<PROCNUM, 1>;
++	run.fetch_branch = (u64)(uintptr_t)&rb_fetch_branch<PROCNUM>;
++	const RbEnterFn enter = (RbEnterFn)(jit_code_base + RB_STUB_ENTER);
++	bool first = true;
++	for (;;)
++	{
++		if (!first)
++		{
++			if (!(t < limit && t < next) || (jit_exit_request & stop))
++				return t;
++			nds_timer = base + t;
++		}
++
++		const u32 thumb = cpu->CPSR.bits.T;
++		const u32 adr = cpu->instruct_adr;
++		const u32 tag = JIT_ENTRY_TAG(PROCNUM, thumb);
++		u32 e = JIT_COMPILED_FUNC(adr, PROCNUM);
++		if (!((e & 3) == tag && e >= 8))
++		{
++			if (e != (JIT_ENTRY_INTERPRET | tag) && JIT_MAPPED(adr & 0x0FFFFFFF, PROCNUM))
++				e = rb_compile<PROCNUM>(adr, thumb);
++			else
++				e = 0;
++		}
++		// The opcode the interpreter prefetched is the one it would run: the other CPU or a DMA may have
++		// changed memory since (within this run, every change of code ended it)
++		if (e < 8 || (first && cpu->instruction != (thumb ? (u32)_MMU_read16<PROCNUM, MMU_AT_CODE>(adr)
++		                                                    : _MMU_read32<PROCNUM, MMU_AT_CODE>(adr))))
++		{
++			first = false;
++			const u32 c = armcpu_exec<PROCNUM>();
++			t += PROCNUM ? (s32)(c << 1) : (s32)c;
++			continue;
++		}
++		first = false;
++		jit_exit_request &= ~JIT_EXIT_SMC;
++		run.t = t;
++		run.code = jit_code_base;
++		enter(jit_code_base + (e & ~3u), &run);
++		t = run.t;
++		rb_complete_state<PROCNUM>(cpu);
++	}
++}
++
++template s32 rb_jit_run<0>(s32 t, const s32 limit, const s32 next, const u64 base);
++template s32 rb_jit_run<1>(s32 t, const s32 limit, const s32 next, const u64 base);
++
++#endif

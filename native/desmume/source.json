@@ -23,7 +23,7 @@
     }
   },
   "patch": "native/desmume/arm64-jit-abi.patch",
-  "patchSHA256": "d4dffb1f7566dff4d7ac2206b04a459fe69451a6e31d0691acd0699ac8d36996",
+  "patchSHA256": "ce55baabfe81f962e1fb067437827d32c5b371632c157c1f0c0caef881b31c0b",
   "abiHeader": "packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h",
   "abiHeaderSHA256": "84c59f2484336fa3c64bc68b51177211094083fd411f0b488fee6b79bda6bc22",
   "abiHeaderInTree": "desmume/src/frontend/libretro/rewindbox/RewindBoxLibretroJit.h",
@@ -31,11 +31,14 @@
   "originalFilesSHA256": {
     "desmume/src/MMU.cpp": "cddbeca4d137938fe45a69a9b0971d4bfbe02d6464d5fe52d02db1afc507ee2b",
     "desmume/src/MMU.h": "1c2e960ea5ecd10bd04a20970acf524434136d83043e04c23ebbab4b5a70e9ac",
+    "desmume/src/MMU_timing.h": "9a30e5f62f63bcc12e762f605fa69858c17d05cd95f65d35c1ce7aa0f5c7f2ae",
     "desmume/src/NDSSystem.cpp": "c1a9762febcdc6a772dd83bd199154d33e6a0b67235d62993442adfc3481be87",
     "desmume/src/arm_jit.h": "89a63e7b89e4b596945bb5dd7aef8823dd89bb0d4a729b4a0784a4a12f3767fb",
+    "desmume/src/armcpu.cpp": "5f03fd468e3a20465940c8e6d0a2a4c9e01b68bff73ebbf0254deb31099c0389",
     "desmume/src/frontend/libretro/Makefile.common": "217ce3844f3ac227a81e2460ba4ba3a7573e0d34eaa7e8878beb81f496d9335b",
     "desmume/src/frontend/libretro/Makefile.libretro": "250c7ac009fd43b3fb6c8dde52278fb1fae36ec34760275976eaabe7e5c42cc9",
     "desmume/src/frontend/libretro/libretro.cpp": "bbc2088d35e06bcbb0080e680b024d1ea8068a633bbdb0cfb41806c9f7dc6efd",
+    "desmume/src/frontend/libretro/libretro_core_options.h": "f3a5782d09dd33533679b581ff826633821cd81195065fffb51a7ce47a517521",
     "desmume/src/thumb_instructions.cpp": "5873b60be914dff404c995cd4a32c8d2292eafa17abfd8321541a1f89bc5462b"
   },
   "sourceDateEpoch": 1795306701,
@@ -94,7 +97,8 @@
   "expectedStrings": [
     "desmume_cpu_mode",
     "desmume_jit_block_size",
-    "[rb-jit] desmume installed=%d"
+    "[rb-jit] desmume installed=%d",
+    "jit_exact"
   ],
   "forbiddenImports": [
     "_vm_protect",
