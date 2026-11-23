@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "3554d839cc1e61c05a99af8917c56e8b8ffb3f45",
-  "run": 45164554372,
-  "job": 137658040257,
+  "source": "7d45996a1db55cfe4bab30de59fa34134be033c3",
+  "run": 45169809047,
+  "job": 137676077895,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14814639258,
-  "name": "MeloNX-engine-3554d839cc1e61c05a99af8917c56e8b8ffb3f45",
-  "bytes": 101472130,
-  "sha256": "f5ba230ea114fc4db54e7e5e3700e05ab59cf96d2181962ab0e22cc244e6db73",
-  "expiresAt": "2027-02-21T11:22:07Z",
+  "artifact": 14817990520,
+  "name": "MeloNX-engine-7d45996a1db55cfe4bab30de59fa34134be033c3",
+  "bytes": 101483486,
+  "sha256": "fb61a205e4b3c0f9847fa3d61a815cc3b3b571f93121be1fb8549369ebbe3d4a",
+  "expiresAt": "2027-02-21T11:57:33Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "f6886cab8322b062a730edb8f52f5be7506d9fd477c6f72b341bd968e3bfb75b",
-      "bytes": 39294368
+      "sha256": "123f07dbb4ed79d3e63fb400567ba1eb1592e04eee3bb2947bea046c9be0c2f8",
+      "bytes": 39294424
     },
     "iossimulator-arm64": {
-      "sha256": "d53ff5e97ced11a95e220a79874805e23b16a7c84db1381d9dfc8d509f12cc0a",
-      "bytes": 39617976
+      "sha256": "b9aea4c435088d693d7f25e8487ae29264ccaca83d796f36a189fc5eac01fbb8",
+      "bytes": 39618024
     }
   },
   "identities": {
-    "ios-arm64": "bac202cb311eb91060bf0b86774c8e6f12d98d817f8454700577f29cfd1d8c49",
-    "iossimulator-arm64": "0e59dc7bf32bc2972b8550c7a4e458081ebda4dbe99878b840b5e4d2c8b42db1"
+    "ios-arm64": "08aef83755e473fbd70b7c8c438312750e077d6d8758fae67bacb88632ecffc5",
+    "iossimulator-arm64": "3b11d2d5faa86c613cb4a0dba99041b8b14ce73dd6dbe6a8c63959ae9f44fa92"
   },
-  "contractSha256": "ad733ec54cdb97443c4baa39612ad4a7fe09beb688707b897001cd19eb543495",
-  "resultSha256": "76aad2e7f93348d5e9108a21917fd2aad841f4e6f4ae4bc87563811abdc227fb",
-  "packagedFingerprint": "6336c7abff555a5f22ba80fad57a92f9c9e9cf2362f017aa3ff56e9eed16c1fb",
+  "contractSha256": "a5bc15c48bff572c1a1b1160448dc2985239151c58473e62534fcba289382b0b",
+  "resultSha256": "178ae66cfce2408ccf938af52ea8c7765082ef1eac8c95c9974150056291e205",
+  "packagedFingerprint": "751d13934db69972386285b2170fddf9a851b219c1af9a1f49fec420605f0034",
   "replaces": {
-    "source": "fcea4ea2d30f14f7b65fe84d98f4b302ecfcc384",
-    "run": 45130903131,
-    "artifact": 14797928225,
-    "packagedFingerprint": "3c7cf98b9ab49a4030c196b5cf2caa13320a821a13761ba6c95839d653168bf2",
-    "reason": "Nextendo online for every NEX title (3554d839): the consented legacy private certificate of Nextendo's NEX game servers, the secure server named by its address and the choice among the game server name's DNS answers, which only Super Smash Bros. Ultimate had, now apply to any title, on Nextendo's addresses only; the one online-services switch carries the consent. Built on fcea4ea2."
+    "source": "3554d839cc1e61c05a99af8917c56e8b8ffb3f45",
+    "run": 45164554372,
+    "artifact": 14814639258,
+    "packagedFingerprint": "6336c7abff555a5f22ba80fad57a92f9c9e9cf2362f017aa3ff56e9eed16c1fb",
+    "reason": "After IPA 824 (two Hogwarts Legacy sessions ended 47 and 48 s in by Unreal's heartbeat thread writing guest address 3, 25 s after the first gameplay frame): with an empty Metal cache each compute pipeline cost about 500 ms and the render thread waited for each one in turn (WaitForPipelineAtDraw, unbounded). adapt_compile_wait_guest_time holds the guest's clock (TickSource: CNTPCT, svcGetSystemTick, time services) while the render thread waits for a background pipeline compile beyond 33 ms, and from the start of a wait within 250 ms of a held one (GuestTimeHold.cs); pause freezes the clock's snapshot instead of stopping its stopwatch under concurrent readers. Built on Core 3554d839 (Nextendo online for every NEX title). All 136 gates pass on the final source; contract updated without a full freeze; contract test and simulator sessions verified; not run on an iPhone."
   }
 }
