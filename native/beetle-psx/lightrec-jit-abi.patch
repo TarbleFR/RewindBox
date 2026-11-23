@@ -725,7 +725,7 @@ index 27180d13..703f0bbc 100644
  
  #include <lightning-actual.h>
 diff --git a/libretro.c b/libretro.c
-index 54deaa53..66ba91b2 100644
+index 54deaa53..eee210fb 100644
 --- a/libretro.c
 +++ b/libretro.c
 @@ -62,6 +62,19 @@ retro_input_state_t dbg_input_state_cb = 0;
@@ -801,7 +801,27 @@ index 54deaa53..66ba91b2 100644
  #endif
  
  int32_t EventCycles = 128;
-@@ -2457,6 +2516,16 @@ static void SetDiscWrapper(const bool CD_TrayOpen) {
+@@ -2063,6 +2122,19 @@ static INLINE void MemPoke(int32_t timestamp, uint32_t A, uint32_t V, unsigned s
+ 
+ void PSX_MemPoke8(uint32_t A, uint8_t V)
+ {
++#ifdef HAVE_LIGHTREC
++   /* RewindBox: the periodic cheats (MDFNMP_ApplyPeriodicCheats) write main
++    * RAM here, outside the CPU's stores, so Lightrec never saw a cheat that
++    * rewrites an instruction it had already compiled. Only a byte that really
++    * changes clears the word around it: Lightrec recompiles that code and
++    * keeps running, a cheat never sends the game to the interpreter. */
++   if (psx_dynarec != DYNAREC_DISABLED && A < 0x00800000 && PSX_MemPeek8(A) != V)
++   {
++      MemPoke(0, A, V, 1, false);
++      CPU_LightrecClear((A & 0x1FFFFF) & ~3u, 1);
++      return;
++   }
++#endif
+    MemPoke(0, A, V, 1, false);
+ }
+ 
+@@ -2457,6 +2529,16 @@ static void SetDiscWrapper(const bool CD_TrayOpen) {
   * baseline POSIX semantics are required - MAP_FIXED_NOREPLACE (Linux 4.17+,
   * absent on XNU and the BSDs) is unnecessary, and destructive MAP_FIXED
   * probing at unowned addresses is never performed. */
@@ -818,7 +838,7 @@ index 54deaa53..66ba91b2 100644
  #ifndef MFD_HUGETLB
  #define MFD_HUGETLB 0x0004
  #endif
-@@ -2508,6 +2577,43 @@ static void SetDiscWrapper(const bool CD_TrayOpen) {
+@@ -2508,6 +2590,43 @@ static void SetDiscWrapper(const bool CD_TrayOpen) {
  #define MFAILED NULL
  #define NUM_MEM 4
  #define MEMFDTYPE HANDLE
@@ -862,7 +882,7 @@ index 54deaa53..66ba91b2 100644
  #elif defined(HAVE_SHM) || defined(HAVE_ASHMEM)
  
  static void * mmap_huge(void *addr, size_t length, int prot, int flags,
-@@ -2596,7 +2702,7 @@ int lightrec_try_map(MEMFDTYPE memfd, int i, uintptr_t inc_io_base, uintptr_t ma
+@@ -2596,7 +2715,7 @@ int lightrec_try_map(MEMFDTYPE memfd, int i, uintptr_t inc_io_base, uintptr_t ma
  
  	/* RAM, its mirrors and the code buffer form one contiguous block. */
  	mirror_block_size = (size_t)NUM_MEM * RAM_SIZE;
@@ -871,7 +891,7 @@ index 54deaa53..66ba91b2 100644
  		mirror_block_size += LIGHTREC_CODEBUFFER_SIZE;
  
  	/* Try to map at various io_base addresses*/
-@@ -2668,7 +2774,20 @@ int lightrec_try_map(MEMFDTYPE memfd, int i, uintptr_t inc_io_base, uintptr_t ma
+@@ -2668,7 +2787,20 @@ int lightrec_try_map(MEMFDTYPE memfd, int i, uintptr_t inc_io_base, uintptr_t ma
  		{
  			psx_mem = (uint8_t *)io_base;
  
@@ -893,7 +913,7 @@ index 54deaa53..66ba91b2 100644
  				/* The code buffer sits directly after the RAM
  				 * mirrors, inside the reserved block. */
  				map = MAP_CODE((void *)(io_base + NUM_MEM * RAM_SIZE), LIGHTREC_CODEBUFFER_SIZE, memfd, RAM_SIZE);
-@@ -2709,14 +2828,15 @@ err_unmap:
+@@ -2709,14 +2841,15 @@ err_unmap:
  		psx_mem = NULL;
  		psx_bios = NULL;
  		psx_scratch = NULL;
@@ -911,7 +931,7 @@ index 54deaa53..66ba91b2 100644
  			UNMAP(lightrec_codebuffer, LIGHTREC_CODEBUFFER_SIZE);
  			lightrec_codebuffer = NULL;
  		}
-@@ -2855,6 +2975,17 @@ int lightrec_init_mmap(void)
+@@ -2855,6 +2988,17 @@ int lightrec_init_mmap(void)
  		return 0;
  	}
  #endif
@@ -929,7 +949,7 @@ index 54deaa53..66ba91b2 100644
  
  	/* Try mapping at low address base */
  	ret = lightrec_try_map(memfd, start_i_32, inc_io_base_32, max_io_base_32);
-@@ -2877,6 +3008,10 @@ close_return:
+@@ -2877,6 +3021,10 @@ close_return:
  #endif
  #ifdef HAVE_WIN_SHM
  	CloseHandle(memfd);
@@ -940,7 +960,7 @@ index 54deaa53..66ba91b2 100644
  #endif
  	return ret;
  }
-@@ -2886,7 +3021,7 @@ void lightrec_free_mmap(void)
+@@ -2886,7 +3034,7 @@ void lightrec_free_mmap(void)
  	for (int i = 0; i < NUM_MEM; i++)
  		UNMAP((void *)((uintptr_t)psx_mem + i * RAM_SIZE), RAM_SIZE);
  
@@ -949,7 +969,7 @@ index 54deaa53..66ba91b2 100644
  		UNMAP(lightrec_codebuffer, LIGHTREC_CODEBUFFER_SIZE);
  
  	UNMAP(psx_bios, BIOS_SIZE);
-@@ -2989,7 +3124,8 @@ static void Cleanup(void)
+@@ -2989,7 +3137,8 @@ static void Cleanup(void)
     MainRAM    = NULL;
     ScratchRAM = NULL;
     BIOSROM    = NULL;
@@ -959,7 +979,7 @@ index 54deaa53..66ba91b2 100644
        lightrec_codebuffer = NULL;
  #else
     if (MainRAM)
-@@ -4564,6 +4700,12 @@ static void check_variables(bool startup)
+@@ -4564,6 +4713,12 @@ static void check_variables(bool startup)
     else
        psx_dynarec = DYNAREC_DISABLED;
  

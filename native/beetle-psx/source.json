@@ -18,7 +18,7 @@
     }
   ],
   "patch": "native/beetle-psx/lightrec-jit-abi.patch",
-  "patchSHA256": "d630c13236eeeac6404ec57425356508737c226dbc35db4da9936c42ab03ec8f",
+  "patchSHA256": "a6801060db86d2906615e662b0db7e23c349bffce7c8ff9f14bc2dab5b475a0a",
   "abiHeader": "packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h",
   "abiHeaderSHA256": "84c59f2484336fa3c64bc68b51177211094083fd411f0b488fee6b79bda6bc22",
   "abiHeaderInTree": "rewindbox/RewindBoxLibretroJit.h",

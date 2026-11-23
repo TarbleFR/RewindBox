@@ -1,6 +1,6 @@
 # Beetle PSX (10e4b0c6) : Lightrec avec l'interface JIT de RewindBox
 
-Correctif `lightrec-jit-abi.patch` (17 fichiers, +521/−108), un `git diff` contre
+Correctif `lightrec-jit-abi.patch` (17 fichiers, +534/−108), un `git diff` contre
 [libretro/beetle-psx-libretro@10e4b0c6](https://github.com/libretro/beetle-psx-libretro/tree/10e4b0c6ceae20daa65ddf436a4445dddd0982d2).
 Il active le dynarec Lightrec pour `platform=ios-arm64`, cœurs `mednafen_psx_hw` et `mednafen_psx`, sous le contrat
 de `packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h` : code écrit seulement par la vue RW,
@@ -101,6 +101,32 @@ cœur non corrigé reste bloqué ou plante sur les mêmes binaires.
 RAM Optimization », désactivée par défaut) reprend toujours dans un autre bloc : même risque, non corrigé.
 Les stockages placés dans un créneau de retard ne sont toujours pas contrôlés (seule l'entrée du mot écrit est
 invalidée), comme avant.
+
+## Triches : du code compilé réécrit par une triche
+
+**Symptôme.** Une triche GameShark (menu de triches libretro, `retro_cheat_set`) qui réécrit une instruction déjà
+compilée par Lightrec n'avait aucun effet : le bloc compilé gardait l'ancienne instruction. Les triches sur les
+données (vies, argent) n'étaient pas touchées.
+
+**Cause.** `MDFNMP_ApplyPeriodicCheats` écrit à chaque trame par `PSX_MemPoke8` → `MemPoke` → `MASMEM_WriteU8`,
+hors des stockages du processeur : Lightrec n'en voyait aucun (même défaut dans Beetle amont).
+
+**Correctif** (`libretro.c`, `PSX_MemPoke8`, sous `HAVE_LIGHTREC`). Quand le dynarec est actif et qu'un octet de la
+RAM principale change réellement, `CPU_LightrecClear(mot, 1)` invalide le mot qui le contient (et tout bloc qui le
+recouvre) : Lightrec recompile ce code et continue. Une triche ne fait jamais passer le jeu à l'interpréteur ; un
+octet déjà à la bonne valeur ne coûte rien. `retro_cheat_reset` ne remet aucun octet (il vide seulement la liste) :
+rien à invalider.
+
+**Vérifié hors appareil** (qemu-aarch64, cœur SW aarch64 Linux, frontend du banc avec l'ABI, 80 trames, triche
+posée avant la trame 31) : une fonction en RAM, compilée, renvoie 1 ; la triche `80040000 0002` remplace son
+immédiat par 2.
+
+| Cœur | `execute` (Lightrec) | `disabled` (interpréteur) |
+| --- | --- | --- |
+| Correctif précédent (`d630c132…`) | 1 jusqu'au bout : triche sans effet | 2 dès la trame 31 |
+| Ce correctif | 2 dès la trame 31, Lightrec reste actif | 2 dès la trame 31 |
+
+Aucun retour à l'interpréteur, aucun mauvais `flush` ; un `flush` de plus (le bloc recompilé).
 
 ## Non vérifié
 
