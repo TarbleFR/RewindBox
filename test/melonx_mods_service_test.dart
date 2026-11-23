@@ -108,6 +108,65 @@ void main() {
     expect(mods.single.enabled, isFalse);
   });
 
+  test("RewindBox's own folder (exefs patches and cheats) is never a mod: not listed, turned off, deleted or imported over", () async {
+    await MelonxModsService.importArchive(root, _smash, _zip(downloads, 'Skin.zip', {'romfs/a.bin': [1]}).path);
+    // What the Cheats & Enhancements page writes while an exefs mod and a cheat are on.
+    final patch = File(contents('RewindBox/exefs/fl4sh-120fps-v1-3-2-0.pchtxt'))
+      ..createSync(recursive: true)
+      ..writeAsStringSync('@nsobid-0123456789ABCDEF0123456789ABCDEF\n@enabled\n00001000 1F2003D5\n@stop\n');
+    final cheat = File(contents('RewindBox/cheats/0123456789ABCDEF.txt'))
+      ..createSync(recursive: true)
+      ..writeAsStringSync('[Infinite Health]\n04000000 00000000 00000001\n');
+    expect((await MelonxModsService.list(root, _smash)).map((m) => m.name), ['Skin']);
+
+    await expectLater(MelonxModsService.setEnabled(root, _smash, 'RewindBox', false), throwsA(isA<MelonxModException>()));
+    await MelonxModsService.delete(root, _smash, 'RewindBox');
+    expect(patch.existsSync() && cheat.existsSync(), isTrue, reason: 'the files the page recorded stay where it wrote them');
+    expect(Directory('${root.path}/mods/rewindbox-disabled').existsSync(), isFalse);
+
+    // A copy an older version let the player turn off is not offered either (turning it back on would apply codes the
+    // page may no longer track).
+    File('${root.path}/mods/rewindbox-disabled/$_smash/RewindBox/exefs/old-0.pchtxt')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('@nsobid-0123456789ABCDEF0123456789ABCDEF\n@stop\n');
+    expect((await MelonxModsService.list(root, _smash)).map((m) => m.name), ['Skin']);
+    await expectLater(MelonxModsService.setEnabled(root, _smash, 'RewindBox', true), throwsA(isA<MelonxModException>()));
+    expect(patch.existsSync(), isTrue);
+
+    // No archive takes the name, in any case: it is reserved (its own message), not an existing mod.
+    final named = _zip(downloads, 'named.zip', {'rewindbox/romfs/a.bin': [1]});
+    await expectLater(MelonxModsService.importArchive(root, _smash, named.path),
+        throwsA(isA<MelonxModException>().having((e) => (e.code, e.detail), 'code', ('reservedName', 'rewindbox'))));
+    expect(Directory('${root.path}/mods/contents/$_smash').listSync().map((e) => e.path.split('/').last).toSet(),
+        {'Skin', 'RewindBox'});
+    expect(MelonxModsService.ownFolder('RewindBox') && MelonxModsService.ownFolder('rewindbox'), isTrue);
+    expect(MelonxModsService.ownFolder('Skin'), isFalse);
+  });
+
+  test("a copy of RewindBox's folder an older version turned off is moved back only where asked and free, else "
+      'deleted', () async {
+    final copy = Directory('${root.path}/mods/rewindbox-disabled/$_smash/RewindBox');
+    final live = Directory(contents('RewindBox'));
+    expect(await MelonxModsService.reclaimOwnFolder(root, _smash, restore: true), isNull, reason: 'no copy');
+
+    File('${copy.path}/exefs/a-0.pchtxt').createSync(recursive: true);
+    expect(await MelonxModsService.reclaimOwnFolder(root, _smash.toUpperCase(), restore: true), isTrue);
+    expect(File('${live.path}/exefs/a-0.pchtxt').existsSync(), isTrue);
+    expect(Directory('${root.path}/mods/rewindbox-disabled').existsSync(), isFalse, reason: 'empty folders go too');
+
+    // Its place is taken (the page wrote it again), or nothing records it: deleted.
+    File('${copy.path}/exefs/b-0.pchtxt').createSync(recursive: true);
+    expect(await MelonxModsService.reclaimOwnFolder(root, _smash, restore: true), isFalse);
+    expect(File('${live.path}/exefs/b-0.pchtxt').existsSync() || copy.existsSync(), isFalse);
+    live.deleteSync(recursive: true);
+    File('${copy.path}/exefs/c-0.pchtxt').createSync(recursive: true);
+    await MelonxModsService.importArchive(root, _smash, _zip(downloads, 'Skin.zip', {'romfs/a.bin': [1]}).path);
+    await MelonxModsService.setEnabled(root, _smash, 'Skin', false);
+    expect(await MelonxModsService.reclaimOwnFolder(root, _smash, restore: false), isFalse);
+    expect(live.existsSync() || copy.existsSync(), isFalse);
+    expect((await MelonxModsService.list(root, _smash)).single.name, 'Skin', reason: "a player's mod turned off stays");
+  });
+
   test('delete removes the mod wherever it is; bad names are refused', () async {
     await MelonxModsService.importArchive(root, _smash, _zip(downloads, 'Skin.zip', {'romfs/a.bin': [1]}).path);
     await MelonxModsService.setEnabled(root, _smash, 'Skin', false);

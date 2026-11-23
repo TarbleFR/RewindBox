@@ -123,6 +123,17 @@ int main(int argc,const char **argv) { @autoreleasepool {
   CHECK(([[LibretroCheats matchGame:ff7 identity:@{@"console":@"psx",@"title":@"renamed",@"titleHints":@[@"Final Fantasy VII"]}] isEqual:@"candidate"]),"library metadata discovers renamed compressed discs as uncertain candidates");
   NSString *fake=[work stringByAppendingPathComponent:@"SCUS-94163.iso"];[UTF8(@"BOOT = cdrom:\\SCUS_941.63;1") writeToFile:fake atomically:YES];
   CHECK([LibretroCheats playStationSerialAtPath:fake]==nil,"serial text outside a valid ISO filesystem is not trusted");
+  // BOOT names the executable by its path: the serial is the name after the last
+  // separator, as the HD texture reader reads it (NeoTextureIdentity.h, PS1).
+  NSString *boot=[work stringByAppendingPathComponent:@"boot.iso"];
+  [Disc(2048,0,0,@"EXE\\SLPS_012.34") writeToFile:boot atomically:YES];
+  CHECK([[LibretroCheats playStationSerialAtPath:boot] isEqual:@"SLPS-01234"],"a BOOT executable in a subfolder still names the disc");
+  [Disc(2352,24,0,@"\\SLUS_012.34") writeToFile:boot atomically:YES];
+  CHECK([[LibretroCheats playStationSerialAtPath:boot] isEqual:@"SLUS-01234"],"a doubled BOOT backslash still names the disc");
+  [Disc(2048,0,0,@"SCUS94163") writeToFile:boot atomically:YES];
+  CHECK([[LibretroCheats playStationSerialAtPath:boot] isEqual:@"SCUS-94163"],"the serial's dash or underscore and its dot are optional");
+  [Disc(2048,0,0,@"SLUS_012.34\\MAIN.EXE") writeToFile:boot atomically:YES];
+  CHECK([LibretroCheats playStationSerialAtPath:boot]==nil,"a serial-named folder above another executable never names the disc");
   NSData *ff7data=[NSData dataWithContentsOfFile:[repo stringByAppendingPathComponent:@"test/fixtures/libretro_cheats/ff7-usa-original.cht"]];
   CHECK([[LibretroCheats gitBlobSHA:ff7data] isEqual:ff7[@"sha"]],"FFVII fixture is the unchanged reviewed upstream file");
   NSArray *ff7codes=[LibretroCheats parseCHT:ff7data error:&parseError];CHECK(ff7codes.count==19,"all actual FFVII CHT entries parse");

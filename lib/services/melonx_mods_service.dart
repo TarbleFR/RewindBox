@@ -5,6 +5,8 @@ import 'dart:isolate';
 import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as p;
 
+import 'enhancements/adapters/melonx_enhancement_adapter.dart';
+
 /// One mod of a Switch game, as the engine's ModLoader sees it.
 class MelonxMod {
   const MelonxMod({
@@ -43,13 +45,21 @@ class MelonxModException implements Exception {
 /// iOS moves the app's container, so RewindBox turns a mod off by moving its
 /// folder to `mods/rewindbox-disabled/<title id>/<mod>`, where the engine never
 /// looks, and back to turn it on (removing any mods.json entry that would keep
-/// it off). Mods that only carry cheats (RewindBox's own cheat folder included)
-/// are left to the Cheats screen and not listed.
+/// it off). Mods that only carry cheats are left to the Cheats screen and not
+/// listed. RewindBox's own folder ([ownFolder]) is never a mod here.
 abstract final class MelonxModsService {
   static const disabledFolder = 'rewindbox-disabled';
   static const maxFiles = 200000;
   static final _titleId = RegExp(r'^[0-9a-fA-F]{16}$');
   static final _kinds = {'romfs', 'exefs', 'cheats'};
+
+  /// Whether [name] is RewindBox's own folder of a game (`RewindBox`), where
+  /// the Cheats & Enhancements page writes its cheats and exefs patches and
+  /// records each file. It is not listed, turned off or deleted here, and no
+  /// import takes its name: turning it off moved RewindBox's files away while
+  /// the page still said Active, and an FPS mod lost its engine refresh (the
+  /// page now reclaims such a copy, see [reclaimOwnFolder]).
+  static bool ownFolder(String name) => name.toLowerCase() == MelonxEnhancementAdapter.modName.toLowerCase();
 
   /// A mod's folder name: printable, no path separator, not '.' or '..'.
   static bool validName(String name) =>
@@ -93,7 +103,8 @@ abstract final class MelonxModsService {
       final entries = await folder.list(followLinks: false).toList();
       entries.sort((a, b) => p.basename(a.path).toLowerCase().compareTo(p.basename(b.path).toLowerCase()));
       for (final entry in entries) {
-        if (entry is! Directory || p.basename(entry.path).startsWith('.')) continue;
+        // A copy of RewindBox's folder an older version let the player turn off stays hidden too.
+        if (entry is! Directory || p.basename(entry.path).startsWith('.') || ownFolder(p.basename(entry.path))) continue;
         final kinds = _kindsOf(entry);
         if (!kinds.contains('romfs') && !kinds.contains('exefs')) continue;
         mods.add(MelonxMod(
@@ -144,6 +155,7 @@ abstract final class MelonxModsService {
   /// Turns a mod on (back into the engine's folder) or off (out of it).
   static Future<void> setEnabled(Directory root, String titleId, String name, bool enabled) async {
     if (!validName(name)) throw const MelonxModException('invalidName');
+    if (ownFolder(name)) throw MelonxModException('missing', name);
     final on = Directory(p.join(contents(root, titleId).path, name));
     final off = Directory(p.join(disabled(root, titleId).path, name));
     final from = enabled ? off : on;
@@ -177,9 +189,43 @@ abstract final class MelonxModsService {
     }
   }
 
+  /// RewindBox's own folder of a game that an older version let the player
+  /// turn off here: moved to `rewindbox-disabled/<title id>/RewindBox`, where
+  /// the engine never looks, while the Cheats & Enhancements page still said
+  /// its codes were on. Moved back to the engine's folder when [restore] (the
+  /// page records files in it) and that place is free; deleted otherwise, as
+  /// RewindBox's own superseded or untracked copy. Null when there is no such
+  /// copy, true when it was moved back.
+  static Future<bool?> reclaimOwnFolder(Directory root, String titleId, {required bool restore}) async {
+    final parent = disabled(root, titleId);
+    if (!await parent.exists()) return null;
+    final copies = [
+      for (final entry in await parent.list(followLinks: false).toList())
+        if (entry is Directory && ownFolder(p.basename(entry.path))) entry,
+    ];
+    if (copies.isEmpty) return null;
+    final live = Directory(p.join(root.path, 'mods', 'contents', _id(titleId), MelonxEnhancementAdapter.modName));
+    var moved = false;
+    for (final copy in copies) {
+      if (restore && !moved && !await live.exists()) {
+        await live.parent.create(recursive: true);
+        await copy.rename(live.path);
+        moved = true;
+      } else {
+        await copy.delete(recursive: true);
+      }
+    }
+    for (final folder in [parent, parent.parent]) {
+      if (await folder.exists() && await folder.list().isEmpty) await folder.delete();
+    }
+    return moved;
+  }
+
+  /// Deletes a mod wherever it is; RewindBox's own folder in the engine's
+  /// folder is never deleted (only a copy an older version turned off).
   static Future<void> delete(Directory root, String titleId, String name) async {
     if (!validName(name)) throw const MelonxModException('invalidName');
-    for (final base in [contents(root, titleId), disabled(root, titleId)]) {
+    for (final base in [if (!ownFolder(name)) contents(root, titleId), disabled(root, titleId)]) {
       final dir = Directory(p.join(base.path, name));
       if (await dir.exists()) await dir.delete(recursive: true);
     }
@@ -192,9 +238,10 @@ abstract final class MelonxModsService {
   /// Atmosphère layout `…/contents/<title id>/[<mod>/]romfs/…`, whose title id
   /// must be this game's (or its update's). Several mods in one archive become
   /// several mods. Files outside those folders (readme, pictures) are skipped.
-  /// Absolute or parent paths, an existing name, another game's title id or an
-  /// archive without romfs/exefs refuse the whole import; nothing is left
-  /// behind. Runs in a background isolate (the files are streamed, not loaded).
+  /// Absolute or parent paths, an existing name, RewindBox's reserved one,
+  /// another game's title id or an archive without romfs/exefs refuse the
+  /// whole import; nothing is left behind. Runs in a background isolate (the
+  /// files are streamed, not loaded).
   static Future<List<String>> importArchive(Directory root, String titleId, String archivePath) async {
     final id = _id(titleId);
     final target = contents(root, id).path;
@@ -229,6 +276,8 @@ abstract final class MelonxModsService {
       }
       for (final name in plan.keys) {
         if (!validName(name)) return ('invalidName', name, const []);
+        // RewindBox's own folder name is reserved, whether or not it exists.
+        if (ownFolder(name)) return ('reservedName', name, const []);
         if (Directory(p.join(target, name)).existsSync()) return ('exists', name, const []);
       }
       for (final entry in plan.entries) {

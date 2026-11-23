@@ -1,48 +1,168 @@
 {
-  "index_sha256": "ac5ea1afd206fc9db3dc2e5a943e95e382ebdd751a8c22848622e61b6aaa0112",
-  "index_size": 172897,
+  "drift": {
+    "against": "2026-11-23T1806Z.aff2909036d7",
+    "engines": {
+      "armsx2": {
+        "ids_added": 0,
+        "ids_added_first": [],
+        "ids_removed": [],
+        "keys_added": [],
+        "keys_moved": {},
+        "keys_removed": []
+      },
+      "azahar": {
+        "ids_added": 0,
+        "ids_added_first": [],
+        "ids_removed": [],
+        "keys_added": [],
+        "keys_moved": {},
+        "keys_removed": []
+      },
+      "dolphin": {
+        "ids_added": 0,
+        "ids_added_first": [],
+        "ids_removed": [],
+        "keys_added": [],
+        "keys_moved": {},
+        "keys_removed": []
+      },
+      "melonx": {
+        "ids_added": 0,
+        "ids_added_first": [],
+        "ids_removed": [],
+        "keys_added": [
+          "0100E5500B020000"
+        ],
+        "keys_moved": {
+          "010055D009F78800": "010055D009F78000",
+          "01008CF01BAAC800": "01008CF01BAAC000",
+          "0100B28014132800": "0100B28014132000",
+          "0100DCA0064A6800": "0100DCA0064A6000",
+          "0100E5500B020800": "0100E5500B020000"
+        },
+        "keys_removed": [
+          "010055D009F78800",
+          "01008CF01BAAC800",
+          "0100B28014132800",
+          "0100DCA0064A6800",
+          "0100E5500B020800"
+        ]
+      },
+      "rpcs3": {
+        "ids_added": 0,
+        "ids_added_first": [],
+        "ids_removed": [],
+        "keys_added": [],
+        "keys_moved": {},
+        "keys_removed": []
+      }
+    }
+  },
+  "flags": {
+    "armsx2": {
+      "experimental": 7,
+      "noRefresh": 1
+    },
+    "azahar": {
+      "crashRisk": 5,
+      "experimental": 2
+    },
+    "dolphin": {
+      "experimental": 3
+    },
+    "melonx": {
+      "crashRisk": 204,
+      "default": 3447,
+      "dram8gb": 2,
+      "experimental": 151,
+      "heavy": 178,
+      "noRefresh": 610
+    },
+    "rpcs3": {
+      "crashRisk": 13,
+      "default": 1,
+      "experimental": 24
+    }
+  },
+  "index_sha256": "65351e2467af4e3a329843d47f2f49751e67e25cad0a8ee255715cdfbbc773f1",
+  "index_size": 172845,
   "published": {
-    "changed_bytes": 480156,
+    "changed_bytes": 2344062,
     "changed_shards": [
+      "armsx2-04",
+      "armsx2-07",
+      "armsx2-09",
+      "armsx2-17",
+      "armsx2-19",
+      "armsx2-27",
+      "armsx2-29",
       "azahar-00",
       "azahar-01",
-      "azahar-02",
-      "azahar-03",
-      "azahar-04",
-      "azahar-05",
-      "azahar-06",
-      "azahar-07",
-      "azahar-08",
-      "azahar-09",
       "azahar-10",
-      "azahar-11",
-      "azahar-12",
-      "azahar-13",
-      "azahar-14",
-      "azahar-15",
-      "azahar-16",
-      "azahar-17",
       "azahar-18",
-      "azahar-19",
       "azahar-20",
       "azahar-21",
-      "azahar-22",
       "azahar-23",
-      "azahar-24",
-      "azahar-25",
-      "azahar-26",
-      "azahar-27",
-      "azahar-28",
-      "azahar-29",
-      "azahar-30",
-      "azahar-31"
+      "dolphin-15",
+      "dolphin-18",
+      "dolphin-20",
+      "melonx-00",
+      "melonx-01",
+      "melonx-02",
+      "melonx-03",
+      "melonx-04",
+      "melonx-05",
+      "melonx-06",
+      "melonx-07",
+      "melonx-08",
+      "melonx-09",
+      "melonx-10",
+      "melonx-11",
+      "melonx-12",
+      "melonx-13",
+      "melonx-14",
+      "melonx-15",
+      "melonx-16",
+      "melonx-17",
+      "melonx-18",
+      "melonx-19",
+      "melonx-20",
+      "melonx-21",
+      "melonx-22",
+      "melonx-23",
+      "melonx-24",
+      "melonx-25",
+      "melonx-26",
+      "melonx-27",
+      "melonx-28",
+      "melonx-29",
+      "melonx-30",
+      "melonx-31",
+      "rpcs3-00",
+      "rpcs3-01",
+      "rpcs3-02",
+      "rpcs3-04",
+      "rpcs3-05",
+      "rpcs3-10",
+      "rpcs3-12",
+      "rpcs3-13",
+      "rpcs3-17",
+      "rpcs3-19",
+      "rpcs3-21",
+      "rpcs3-22",
+      "rpcs3-24",
+      "rpcs3-25",
+      "rpcs3-27",
+      "rpcs3-29",
+      "rpcs3-30",
+      "rpcs3-31"
     ],
-    "previous": "2026-11-23T1141Z.aaf71fb50e67",
+    "previous": "2026-11-23T1806Z.aff2909036d7",
     "removed_shards": [],
     "reused_engines": [
       "armsx2",
+      "azahar",
       "dolphin",
-      "melonx",
       "rpcs3"
     ]
   },
@@ -62,12 +182,27 @@
     "dolphin_fixes_skipped": 5,
     "dolphin_rejected_bodies": 94,
     "dolphin_skipped_files": 23,
+    "fl4sh_archives_unmatched_or_restricted": 4,
+    "fl4sh_cheat_entries": 13,
+    "fl4sh_combined_entries": 11,
+    "fl4sh_empty_patch_versions": 19,
+    "fl4sh_exefs_entries": 640,
+    "fl4sh_groups_not_installable": 87,
+    "melonx_alt_codes_not_compared": 2854,
+    "melonx_alt_entries": 18871,
+    "melonx_alt_groups": 5414,
+    "melonx_alt_joins_refused": 186,
+    "melonx_alt_titles": 840,
     "melonx_duplicate_cheats": 22367,
+    "melonx_entries_moved": 52,
+    "melonx_entries_without_latest_build": 21257,
     "melonx_exefs_entries": 388,
     "melonx_exefs_rejected": 15,
+    "melonx_group_alt": 18871,
     "melonx_group_display": 590,
     "melonx_group_fps": 261,
-    "melonx_group_none": 37181,
+    "melonx_group_none": 18310,
+    "melonx_names_balanced": 22,
     "melonx_rejected_cheats": 839,
     "melonx_rejected_titles": 8,
     "melonx_restricted_skipped": 224,
@@ -267,15 +402,20 @@
       "0100FFB015C6E000",
       "05450B00BA020000"
     ],
-    "melonx_titles_with_versions": 2101,
+    "melonx_titles_with_latest": 2249,
+    "melonx_titles_with_latest_build": 2242,
+    "melonx_titles_with_latest_display": 112,
+    "melonx_titles_with_versions": 2099,
+    "melonx_update_builds_left_to_namesake": 11,
+    "melonx_update_entries_renamed": 15,
     "rpcs3_artemis_duplicate": 1518,
     "rpcs3_artemis_entries": 1889,
     "rpcs3_artemis_rejected": 8,
     "rpcs3_artemis_unreadable": 9,
     "rpcs3_rejected": 2
   },
-  "revision": "2026-11-23T1806Z.aff2909036d7",
-  "shard_bytes": 3362351,
+  "revision": "2026-11-23T2139Z.3841bbdb0131",
+  "shard_bytes": 3489048,
   "totals": {
     "armsx2": {
       "entries": {
@@ -312,7 +452,7 @@
         "performance": 124,
         "ultrawide": 285
       },
-      "keys": 2340
+      "keys": 2336
     },
     "rpcs3": {
       "entries": {

@@ -1,0 +1,53 @@
+name: Cheats & Enhancements catalogue and adapters
+run-name: Enhancements catalogue and adapters • ${{ github.sha }}
+# 23 November 2026 (catalogue audit, X-B): the builder, the published revisions and five of the seven adapters
+# (RPCS3, ARMSX2, Dolphin, Azahar, Beetle PSX) were tested only by manual delivery jobs, and the Azahar and Beetle
+# tests ran nowhere. This runs, on every push that touches them: the data tests of the published catalogue (no entry
+# ID of a published revision lost, exclusive groups, per-entry flags, codes the engines run), the analyzer, every
+# adapter, catalogue, origin download and page test, and the twelve languages.
+'on':
+  push:
+    branches:
+    - Claude
+    paths:
+    - .github/workflows/enhancements-catalog-checks.yml
+    - tools/enhancements/**
+    - native/enhancements/**
+    - assets/data/enhancements_index.json.gz
+    - lib/services/enhancements/**
+    - lib/screens/enhancements/**
+    - lib/l10n/enhancements_locale.dart
+    - lib/services/melonx_mods_service.dart
+    - test/enhancement*
+    - test/melonx_mods_service_test.dart
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: enhancements-catalog-checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: The builder's YAML reader
+      run: python3 -m pip install --disable-pip-version-check PyYAML==6.0.3
+    - name: Published catalogue data (entry IDs kept, groups, flags, codes the engines run)
+      run: python3 test/enhancement_catalog_data_test.py
+    - uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.47.2'
+        channel: stable
+        cache: true
+    - name: Resolve Flutter dependencies
+      run: flutter pub get --enforce-lockfile
+    - name: Analyze the service, the adapters, the pages and their strings
+      run: flutter analyze --no-fatal-infos lib/services/enhancements lib/screens/enhancements lib/l10n/enhancements_locale.dart lib/services/melonx_mods_service.dart test/enhancement_*_test.dart test/enhancements_screen_test.dart test/melonx_mods_service_test.dart
+    - name: Adapters, catalogue, origin downloads and the page
+      run: flutter test test/enhancement_catalog_test.dart test/enhancement_origin_test.dart test/enhancement_melonx_adapter_test.dart test/enhancement_rpcs3_adapter_test.dart test/enhancement_armsx2_adapter_test.dart test/enhancement_dolphin_adapter_test.dart test/enhancement_azahar_adapter_test.dart test/enhancement_beetle_adapter_test.dart test/enhancements_screen_test.dart test/melonx_mods_service_test.dart
+    - name: Twelve languages
+      run: python3 test/localization_12_locale_coverage_test.py

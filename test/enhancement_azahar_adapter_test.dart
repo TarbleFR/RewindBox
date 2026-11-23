@@ -204,4 +204,37 @@ void main() {
     view = await service.open(row, '3ds', download: true);
     expect(view.activeCount, 0);
   });
+
+  test("the catalogue's flags reach the item for the page's warnings", () async {
+    final service = serviceWith({
+      'azahar': {
+        _record: {
+          'title': 'Fixture',
+          'credits': ['Fixture'],
+          'entries': [
+            {
+              'id': 'jump',
+              'cat': 'cheat',
+              'name': 'Jump Over Anything (D-pad. exiting map may crash)',
+              'source': 'sharkive-3ds',
+              'flags': ['crashRisk'],
+              'lines': ['DD000000 00000080', '20000000 00000001', 'D2000000 00000000'],
+            },
+            {
+              'id': 'coins',
+              'cat': 'cheat',
+              'name': 'Coins',
+              'source': 'sharkive-3ds',
+              'lines': ['20000000 00000001'],
+            },
+          ],
+        },
+      },
+    });
+    final view = await service.open(testGame(name: 'Fixture', romPath: game('Fixture.3ds', _ncsd(_record))), '3ds', download: true);
+    final jump = view.items.firstWhere((item) => item.id == 'jump');
+    expect(jump.payload['flags'], ['crashRisk']);
+    expect(jump.status, EnhancementStatus.available, reason: 'a warning, not a block');
+    expect(view.items.firstWhere((item) => item.id == 'coins').payload.containsKey('flags'), isFalse);
+  });
 }

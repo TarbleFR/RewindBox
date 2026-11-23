@@ -248,5 +248,43 @@ void main() {
       expect(view.items.every((item) => item.status == EnhancementStatus.incompatible), isTrue);
       expect(view.items.first.problem, EnhancementProblem.revisionMismatch);
     });
+
+    test("the catalogue's flags reach the item for the page's warnings", () async {
+      final fixture = EnhancementService(
+        catalog: fixtureCatalog(Directory(path.join(temp.path, 'fixture')), {
+          'armsx2': {
+            'SLUS-21050': {
+              'title': 'Burnout 3',
+              'files': <String, dynamic>{},
+              'entries': [
+                for (final (name, flags) in [('60 FPS BETA', ['experimental']), ('Widescreen 16:9', <String>[])])
+                  {
+                    'id': name.toLowerCase().replaceAll(' ', '-'),
+                    'cat': name.contains('FPS') ? 'fps' : 'ultrawide',
+                    'name': name,
+                    'crc': crc,
+                    'kind': 'patch',
+                    'source': 'armsx2-patches-zip',
+                    'author': 'Gabominated',
+                    'description': '',
+                    'group': '',
+                    if (flags.isNotEmpty) 'flags': flags,
+                  },
+              ],
+            },
+          },
+        }),
+        store: EnhancementStore(root: () async => Directory(path.join(temp.path, 'store'))),
+        adapters: [
+          Armsx2EnhancementAdapter(dataDirectory: () async => data, readIdentity: (_) async => Ps2DiscIdentity('SLUS-21050', crc)),
+        ],
+        texturesSupported: (_) => false,
+      );
+      final view = await fixture.open(testGame(name: 'Burnout 3', romPath: rom.path), 'ps2', download: true);
+      final fps = view.items.firstWhere((item) => item.name == '60 FPS BETA');
+      expect(fps.payload['flags'], ['experimental']);
+      expect(fps.payload['kind'], Armsx2EnhancementAdapter.patches);
+      expect(view.items.firstWhere((item) => item.name == 'Widescreen 16:9').payload.containsKey('flags'), isFalse);
+    });
   });
 }

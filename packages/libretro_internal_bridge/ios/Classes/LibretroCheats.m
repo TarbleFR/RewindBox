@@ -643,7 +643,13 @@ static uint32_t ISO32(const uint8_t *p) {
               [file seekToFileOffset:start + (unsigned long long)sector*stride + header];
               NSData *data = [file readDataOfLength:bytes];
               NSString *cnf = [[NSString alloc] initWithData:data encoding:NSASCIIStringEncoding];
-              NSRegularExpression *boot = [NSRegularExpression regularExpressionWithPattern:@"(?im)^\\s*BOOT\\s*=\\s*cdrom:\\\\?([A-Z]{4})[_-]([0-9]{3})\\.?([0-9]{2})(?:;1)?\\s*$" options:0 error:nil];
+              // The serial is the executable name after the last separator of the BOOT
+              // path, the rule of the HD texture reader (neo_texture_catalog,
+              // NeoTextureIdentity.h, PS1): a subfolder (cdrom:\EXE\SLPS_012.34;1) or a
+              // doubled backslash (cdrom:\\SLUS_012.34;1) still names the disc. Four
+              // letters, optional dash or underscore, three digits, optional dot, two
+              // digits, optional ;1. A PS2 disc names BOOT2 and never matches.
+              NSRegularExpression *boot = [NSRegularExpression regularExpressionWithPattern:@"(?im)^\\s*BOOT\\s*=\\s*cdrom:(?:[^\\r\\n]*[\\\\/])?([A-Z]{4})[_-]?([0-9]{3})\\.?([0-9]{2})(?:;1)?\\s*$" options:0 error:nil];
               NSTextCheckingResult *match = cnf ? [boot firstMatchInString:cnf options:0 range:NSMakeRange(0,cnf.length)] : nil;
               if (match) serial = [NSString stringWithFormat:@"%@-%@%@", [[cnf substringWithRange:[match rangeAtIndex:1]] uppercaseString], [cnf substringWithRange:[match rangeAtIndex:2]], [cnf substringWithRange:[match rangeAtIndex:3]]];
             }

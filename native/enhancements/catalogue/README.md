@@ -16,9 +16,11 @@ hand. Documentation: [`docs/ENHANCEMENTS.md`](../../../docs/ENHANCEMENTS.md).
 - `index.json.gz` and `shards/` at the root — the first publication
   (`2026-10-28.209508f70e51`), frozen for the apps that bundle it.
 - `VALIDATION.json` — totals of the newest revision, the inputs the builder
-  rejected, and what the publication changed.
+  rejected, the entry flags it counted, what the publication changed, and its
+  drift from the previous revision (entry IDs and keys removed, added or
+  moved, per engine; a removed ID stops the builder).
 
-The 21 pinned sources are listed with revisions and licences in the index
+The 22 pinned sources are listed with revisions and licences in the index
 (`sources`), in [`docs/ENHANCEMENTS.md`](../../../docs/ENHANCEMENTS.md) and in
 `NOTICE.md`. A source is hosted only when its licence allows redistribution;
 content the embedded engine already ships (ARMSX2 `patches.zip`) is

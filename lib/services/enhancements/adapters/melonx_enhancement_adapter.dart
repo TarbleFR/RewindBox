@@ -7,6 +7,7 @@ import 'package:path/path.dart' as path;
 import '../../../models/game_model.dart';
 import '../../logger_service.dart';
 import '../../melonx_internal_service.dart';
+import '../../melonx_mods_service.dart';
 import '../../nextendo/nextendo_engine_support.dart';
 import '../enhancement_adapter.dart';
 import '../enhancement_catalog.dart';
@@ -39,6 +40,15 @@ import '../enhancement_store.dart';
 /// Core binary) gets the code's target at launch ([launchRefresh]) while the
 /// code is on for the installed build; off, the player's VSync choice applies.
 /// An engine without the option is never sent it (it refuses unknown keys).
+/// A code the catalogue flags as the game's default (`Default 30 FPS`) or as
+/// not raising the frame-rate limit (`Dynamic Resolution Target 45 FPS`)
+/// never sets it; [sync] recomputes a refresh recorded before those flags.
+///
+/// The catalogue's flags go to each item's payload (`flags`). A mod that
+/// needs the expanded 8 GB DRAM layout is incompatible: RewindBox offers no
+/// such layout (one turned on before the flag shows as on, to be turned
+/// off). An entry whose builds are all older than the newest update the
+/// catalogue knows (`latest`) is marked `olderThan`, never blocked.
 class MelonxEnhancementAdapter extends EnhancementAdapter {
   MelonxEnhancementAdapter({
     Future<Directory> Function()? root,
@@ -123,6 +133,21 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
     final match = RegExp(r'(?<![0-9])([0-9]{2,3}) ?fps', caseSensitive: false).firstMatch(name);
     final value = match == null ? null : int.tryParse(match.group(1)!);
     return value != null && value >= minRefresh && value <= maxRefresh ? value : null;
+  }
+
+  /// The engine refresh an FPS entry asks for: its name's target, unless the
+  /// catalogue flags it as the game's default or as not raising the limit
+  /// (510 `Default` codes and 95 dynamic-resolution targets of the catalogue
+  /// of 23 November 2026 named one: `DRT 45 FPS` set 45 Hz on a 30 FPS game).
+  /// Null for other categories.
+  static int? entryRefresh(Map<String, dynamic> entry) {
+    final flags = EnhancementFlags.of(entry);
+    if (entry['cat'] != EnhancementCategory.fps.name ||
+        flags.contains(EnhancementFlags.restoresDefault) ||
+        flags.contains(EnhancementFlags.noRefresh)) {
+      return null;
+    }
+    return refreshTarget(entry['name']?.toString() ?? '');
   }
 
   /// The selected update of `<root>/games/<titleId>/updates.json` (a path
@@ -364,53 +389,156 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
         (bid: patch['bid'] as String, text: patch['text'] as String),
   ];
 
-  /// Game versions the catalogue names for each Build ID of [program]: the
-  /// display versions of the patch files (`1.3.2`) and switch-cheats-db's
-  /// update numbers (`v393216`; `v0` is the game itself). Empty for a
-  /// catalogue without them.
-  static Map<String, List<String>> releasesOf(Map<String, dynamic> record, String program) {
+  /// The record of [program] in a record [loadRecord] merged, else [record].
+  static Map<dynamic, dynamic> _programRecord(Map<String, dynamic> record, String program) {
     final programs = record['programs'];
-    final source = programs is Map && programs[program] is Map ? programs[program] as Map : record;
-    final raw = source['releases'];
-    final releases = <String, List<String>>{};
+    return programs is Map && programs[program] is Map ? programs[program] as Map : record;
+  }
+
+  /// Game versions the catalogue names for each Build ID of [program]:
+  /// switch-cheats-db's update numbers (ints, see [updateIndex]), then the
+  /// display versions of the patch files (`1.3.2`). Language-neutral: the
+  /// page names the updates. Empty for a catalogue without them.
+  static Map<String, List<Object>> releasesOf(Map<String, dynamic> record, String program) {
+    final raw = _programRecord(record, program)['releases'];
+    final releases = <String, List<Object>>{};
     if (raw is! Map) return releases;
     for (final release in raw.entries) {
       final build = buildIdOf(release.key);
       final value = release.value;
       if (build == null || value is! Map) continue;
-      final labels = <String>[
-        for (final version in (value['display'] as List? ?? const [])) ?displayVersionOf(version),
+      final labels = <Object>[
         for (final update in (value['update'] as List? ?? const []))
-          if (update is int && update >= 0) 'v$update',
+          if (update is int && update >= 0) update,
+        for (final version in (value['display'] as List? ?? const [])) ?displayVersionOf(version),
       ];
       if (labels.isNotEmpty) releases[build] = labels;
     }
     return releases;
   }
 
+  /// The update a versions.json number stands for: they count in steps of
+  /// 0x10000, so 393216 is update 6 and 0 the game itself. Null for another
+  /// value (shown raw, `v65537`).
+  static int? updateIndex(int update) => update >= 0 && update % 0x10000 == 0 ? update >> 16 : null;
+
+  /// The update numbers versions.json gives each Build ID of [program].
+  static Map<String, List<int>> updatesOf(Map<String, dynamic> record, String program) {
+    final raw = _programRecord(record, program)['releases'];
+    final updates = <String, List<int>>{};
+    if (raw is! Map) return updates;
+    for (final release in raw.entries) {
+      final build = buildIdOf(release.key);
+      final value = release.value;
+      if (build == null || value is! Map) continue;
+      final numbers = [
+        for (final update in (value['update'] as List? ?? const []))
+          if (update is int && update >= 0) update,
+      ];
+      if (numbers.isNotEmpty) updates[build] = numbers;
+    }
+    return updates;
+  }
+
+  /// The newest update the catalogue knows for [program] (versions.json's
+  /// `latest`): its update number, main Build ID and display version.
+  static SwitchLatest? latestOf(Map<String, dynamic> record, String program) {
+    final latest = _programRecord(record, program)['latest'];
+    final update = latest is Map ? latest['update'] : null;
+    if (update is! int || update < 0) return null;
+    return (update: update, build: buildIdOf(latest['build']), display: displayVersionOf(latest['display']));
+  }
+
+  /// Whether an entry is only for versions older than [latest]: none of its
+  /// [builds] is the newest known build and each has a lower update number.
+  /// A Build ID without one (a newer build, or the module an exefs mod
+  /// patches) leaves it unknown: not older.
+  static bool olderOnly(Iterable<String> builds, Map<String, List<int>> updates, SwitchLatest? latest) {
+    if (latest == null || latest.build == null || builds.isEmpty) return false;
+    for (final build in builds) {
+      final numbers = updates[build];
+      if (build == latest.build || numbers == null || numbers.any((update) => update >= latest.update)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// The payload mark of an entry made only for older versions (shown on the
+  /// page, never blocking: it still applies to the build it was made for).
+  static Map<String, dynamic>? _olderThan(Iterable<String> builds, _Catalogued known) {
+    final latest = known.latest;
+    if (!olderOnly(builds, known.updates, latest)) return null;
+    return {
+      'olderThan': {'update': latest!.update, 'display': ?latest.display},
+    };
+  }
+
   /// The catalogue's Build IDs whose display version is [version] (the one
   /// that runs, when the engine did not say which build it is).
-  static Set<String> buildsOfVersion(Map<String, List<String>> releases, String? version) {
+  static Set<String> buildsOfVersion(Map<String, List<Object>> releases, String? version) {
     final wanted = version?.trim().replaceFirst(RegExp('^[vV]'), '') ?? '';
     if (wanted.isEmpty) return const {};
     return {
       for (final release in releases.entries)
-        if (release.value.any((label) => label.replaceFirst(RegExp('^[vV]'), '') == wanted)) release.key,
+        if (release.value.any((label) => label is String && label.replaceFirst(RegExp('^[vV]'), '') == wanted))
+          release.key,
     };
   }
 
-  /// Build IDs with the game versions the catalogue knows for them.
-  static String describeBuilds(List<String> builds, Map<String, List<String>> releases) => [
-    for (final build in builds)
-      releases[build] == null ? build : '$build (${releases[build]!.take(4).join(', ')})',
+  /// Build IDs with the game versions the catalogue knows for them (at most
+  /// four each): update numbers named by [updateName], left out without it,
+  /// then display versions.
+  static String describeBuilds(
+    List<String> builds,
+    Map<dynamic, dynamic> releases, {
+    String Function(int update)? updateName,
+  }) => [
+    for (final build in builds) _describeBuild(build, releases[build], updateName),
   ].join(', ');
 
-  /// The exclusive group of an entry. A frame-rate mod is never one of the
-  /// display choices: catalogues up to 18 November 2026 read a game version in
-  /// its name (`120FPS v1.3.2`) as an aspect ratio and grouped it with the
-  /// resolution and ultrawide mods, so turning one of those on turned the
-  /// frame-rate mod off. Exefs frame-rate mods of one program patch the same
-  /// limit: one of them at a time.
+  static String _describeBuild(String build, Object? labels, String Function(int update)? updateName) {
+    final named = [
+      for (final label in labels is List ? labels : const [])
+        if (label is int) ?updateName?.call(label) else label.toString(),
+    ].take(4);
+    return named.isEmpty ? build : '$build (${named.join(', ')})';
+  }
+
+  /// The Compatibility line of an item, from its payload: `Title ID … ·
+  /// Build ID A (Update 6, 1.3.2) · installed …`. The page passes
+  /// [updateName] in its language; without it the line stays
+  /// language-neutral (display versions only).
+  static String compatibilityOf(Map<String, dynamic> payload, {String Function(int update)? updateName}) {
+    final builds = [for (final build in (payload['builds'] as List? ?? const [])) build.toString()];
+    final installed = payload['installedBuild'];
+    final version = payload['installedVersion'];
+    return [
+      'Title ID ${payload['program']}',
+      '${payload['exefs'] == true ? 'exefs ' : ''}Build ID '
+          '${describeBuilds(builds, payload['releases'] as Map? ?? const {}, updateName: updateName)}',
+      if (installed is String) 'installed $installed' else if (version is String) 'installed version $version',
+    ].join(' · ');
+  }
+
+  /// The payload part of the game versions the catalogue knows for [builds].
+  static Map<String, dynamic>? _releasesFor(Iterable<String> builds, _Catalogued known) {
+    final releases = {
+      for (final build in builds)
+        if (known.releases[build] != null) build: known.releases[build]!,
+    };
+    return releases.isEmpty ? null : {'releases': releases};
+  }
+
+  /// The exclusive group of an entry. Atmosphere codes of one record and
+  /// category that write the same targets share an `alt/<key>/<hash>` group
+  /// (catalogue of 23 November 2026), kept as is: one alternative of a
+  /// setting at a time (`60 FPS` or `45 FPS`). A frame-rate mod is never one
+  /// of the display choices: catalogues up to 18 November 2026 read a game
+  /// version in its name (`120FPS v1.3.2`) as an aspect ratio and grouped it
+  /// with the resolution and ultrawide mods, so turning one of those on
+  /// turned the frame-rate mod off. Exefs frame-rate mods of one program
+  /// patch the same limit: one of them at a time.
   static String exclusiveGroupOf(
     Map<String, dynamic> entry,
     String program,
@@ -432,10 +560,15 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
     final items = <EnhancementItem>[];
     final measured = _installedBuilds[identity.key];
     final version = _installedVersions[identity.key];
-    final applicationReleases = releasesOf(record, identity.key);
+    final catalogued = <String, _Catalogued>{};
+    _Catalogued known(String program) => catalogued[program] ??= (
+      releases: releasesOf(record, program),
+      updates: updatesOf(record, program),
+      latest: latestOf(record, program),
+    );
     // The engine did not say which build runs: the version that runs can
     // still name it through the catalogue's version list.
-    final inferred = measured == null ? buildsOfVersion(applicationReleases, version) : const <String>{};
+    final inferred = measured == null ? buildsOfVersion(known(identity.key).releases, version) : const <String>{};
     for (final entry in _entries(record)) {
       final id = entry['id']?.toString() ?? '';
       final name = entry['name']?.toString() ?? '';
@@ -445,21 +578,46 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       final application = program == identity.key;
       final installed = application ? measured : null;
       final candidates = application ? inferred : const <String>{};
-      final releases = application ? applicationReleases : releasesOf(record, program);
-      final ran = installed != null
-          ? ' · installed $installed'
-          : application && version != null
-          ? ' · installed version $version'
-          : '';
+      final versions = known(program);
+      final shownVersion = application && installed == null ? version : null;
       final unknown = application && installed == null && candidates.isEmpty;
+      // RewindBox offers no expanded DRAM layout: such a mod cannot apply.
+      final unsupported = EnhancementFlags.of(entry).contains(EnhancementFlags.dram8gb);
+      EnhancementProblem problemOf(bool matches) => !matches
+          ? EnhancementProblem.versionMismatch
+          : unsupported
+          ? EnhancementProblem.unsupportedSystem
+          : EnhancementProblem.none;
+      // A code turned on before the catalogue flagged it (8 GB DRAM) is still
+      // applied by the engine: it shows as on, with its problem, so the page
+      // can turn it off (any write drops it, see EnhancementService). One made
+      // for another build is not applied: incompatible.
+      EnhancementStatus statusOf(EnhancementProblem problem, EnhancementStatus usable) =>
+          problem == EnhancementProblem.none
+          ? usable
+          : problem != EnhancementProblem.versionMismatch && state?.active.contains(id) == true
+          ? EnhancementStatus.active
+          : EnhancementStatus.incompatible;
       final patches = _exefs(entry);
       if (patches.isNotEmpty) {
         // Exefs mods are written only while active: no installed state.
         final bids = {for (final patch in patches) patch.bid.substring(0, 16)}.toList()..sort();
-        final matches = installed != null ? bids.contains(installed) : candidates.isEmpty || bids.any(candidates.contains);
-        final target = category == EnhancementCategory.fps && installed != null && matches && _refreshTaken
-            ? refreshTarget(name)
-            : null;
+        final problem = problemOf(
+          installed != null ? bids.contains(installed) : candidates.isEmpty || bids.any(candidates.contains),
+        );
+        final target = installed != null && problem == EnhancementProblem.none && _refreshTaken ? entryRefresh(entry) : null;
+        final payload = <String, dynamic>{
+          'program': program,
+          'builds': bids,
+          'exefs': true,
+          ...?_releasesFor(bids, versions),
+          'installedBuild': ?installed,
+          'installedVersion': ?shownVersion,
+          'refreshHz': ?target,
+          if (unknown) 'buildUnknown': true,
+          ...EnhancementFlags.payload(entry),
+          ...?_olderThan(bids, versions),
+        };
         items.add(
           EnhancementItem(
             id: id,
@@ -467,20 +625,16 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
             category: category,
             name: name,
             sourceId: entry['source']?.toString() ?? '',
-            problem: matches ? EnhancementProblem.none : EnhancementProblem.versionMismatch,
-            status: !matches ? EnhancementStatus.incompatible : state?.active.contains(id) == true
-                ? EnhancementStatus.active
-                : EnhancementStatus.available,
-            compatibility: 'Title ID $program · exefs Build ID ${describeBuilds(bids, releases)}$ran',
+            author: entry['author']?.toString() ?? '',
+            problem: problem,
+            status: statusOf(
+              problem,
+              state?.active.contains(id) == true ? EnhancementStatus.active : EnhancementStatus.available,
+            ),
+            compatibility: compatibilityOf(payload),
             version: '${bids.length}',
             exclusiveGroup: exclusiveGroupOf(entry, program, category, exefs: true),
-            payload: {
-              'builds': bids,
-              'exefs': true,
-              'installedBuild': ?installed,
-              'refreshHz': ?target,
-              if (unknown) 'buildUnknown': true,
-            },
+            payload: payload,
           ),
         );
         continue;
@@ -490,12 +644,21 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       final buildList = builds.keys.toList()..sort();
       // The installed build is the application's main executable: a
       // collection's other programs run their own and keep their status.
-      final matches = installed != null
-          ? builds.containsKey(installed)
-          : candidates.isEmpty || buildList.any(candidates.contains);
-      final target = category == EnhancementCategory.fps && installed != null && matches && _refreshTaken
-          ? refreshTarget(name)
-          : null;
+      final problem = problemOf(
+        installed != null ? builds.containsKey(installed) : candidates.isEmpty || buildList.any(candidates.contains),
+      );
+      final target = installed != null && problem == EnhancementProblem.none && _refreshTaken ? entryRefresh(entry) : null;
+      final payload = <String, dynamic>{
+        'program': program,
+        'builds': buildList,
+        ...?_releasesFor(buildList, versions),
+        'installedBuild': ?installed,
+        'installedVersion': ?shownVersion,
+        'refreshHz': ?target,
+        if (unknown) 'buildUnknown': true,
+        ...EnhancementFlags.payload(entry),
+        ...?_olderThan(buildList, versions),
+      };
       items.add(
         EnhancementItem(
           id: id,
@@ -503,17 +666,13 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
           category: category,
           name: name,
           sourceId: entry['source']?.toString() ?? '',
-          status: matches ? EnhancementAdapter.statusOf(id, state) : EnhancementStatus.incompatible,
-          problem: matches ? EnhancementProblem.none : EnhancementProblem.versionMismatch,
-          compatibility: 'Title ID $program · Build ID ${describeBuilds(buildList, releases)}$ran',
+          author: entry['author']?.toString() ?? '',
+          status: statusOf(problem, EnhancementAdapter.statusOf(id, state)),
+          problem: problem,
+          compatibility: compatibilityOf(payload),
           version: '${buildList.length}',
           exclusiveGroup: exclusiveGroupOf(entry, program, category, exefs: false),
-          payload: {
-            'builds': buildList,
-            'installedBuild': ?installed,
-            'refreshHz': ?target,
-            if (unknown) 'buildUnknown': true,
-          },
+          payload: payload,
         ),
       );
     }
@@ -551,7 +710,8 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       for (final item in items)
         if (item.engine == EnhancementEngine.melonx && item.payload['installedBuild'] is String) item,
     ];
-    if (measured.isEmpty || measured.any((item) => item.status != EnhancementStatus.incompatible)) return null;
+    // A mod the engine cannot run (8 GB DRAM) is still made for this build.
+    if (measured.isEmpty || measured.any((item) => item.problem != EnhancementProblem.versionMismatch)) return null;
     final targets = <String>{
       for (final item in measured)
         for (final build in (item.payload['builds'] as List? ?? const [])) build.toString(),
@@ -575,6 +735,85 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
         : <String, dynamic>{};
     programs[program] = data;
     return data;
+  }
+
+  /// Before the page lists the codes, and before every write: RewindBox's
+  /// folder an older version let the player turn off is reclaimed, and the
+  /// engine refresh is recomputed from the record and the active codes. A
+  /// refresh recorded before the catalogue flagged `Default` and
+  /// dynamic-resolution codes kept sending their target at every launch until
+  /// a code of the game was switched. Only builds whose target changes are
+  /// rewritten, so the enable-list keys a kept build names stay those of the
+  /// files on disk. True when the refresh changed.
+  @override
+  Future<bool> sync(EnhancementGameIdentity identity, Map<String, dynamic> record, EnhancementGameState state) async {
+    await _reclaimOwnFolders(identity, record, state);
+    final previous = state.data['refresh'];
+    if (state.active.isEmpty && previous == null) return false;
+    final kept = {
+      for (final raw in _unavailableMods(record))
+        if (state.active.contains(raw['id']?.toString())) raw['id'].toString(),
+    };
+    _recordRefresh(identity, record, state, state.active, kept: kept);
+    final before = _targets(previous);
+    final after = _targets(state.data['refresh']);
+    if (before.length == after.length &&
+        before.entries.every((build) => after.containsKey(build.key) && after[build.key] == build.value)) {
+      if (previous == null) {
+        state.data.remove('refresh');
+      } else {
+        state.data['refresh'] = previous;
+      }
+      return false;
+    }
+    // Only the builds whose target changed are rewritten: a build whose target
+    // stays keeps its record as written (enable-list keys of the files on disk,
+    // even if the catalogue renamed a code since).
+    final current = state.data['refresh'];
+    if (previous is Map && current is Map) {
+      state.data['refresh'] = {
+        for (final build in current.entries)
+          build.key.toString(): previous[build.key] is Map && after[build.key.toString()] == before[build.key.toString()]
+              ? previous[build.key]
+              : build.value,
+      };
+    }
+    return true;
+  }
+
+  /// The target each build of a recorded refresh sets.
+  static Map<String, Object?> _targets(Object? refresh) => {
+    if (refresh is Map)
+      for (final build in refresh.entries) build.key.toString(): build.value is Map ? (build.value as Map)['hz'] : null,
+  };
+
+  /// Each program's RewindBox folder an older version let the player turn
+  /// off in the Mods dialog (moved to `mods/rewindbox-disabled`, where the
+  /// engine never looks, while the page still said its codes were on): moved
+  /// back while this state records files in it, else deleted. Never throws.
+  Future<void> _reclaimOwnFolders(
+    EnhancementGameIdentity identity,
+    Map<String, dynamic> record,
+    EnhancementGameState state,
+  ) async {
+    final programs = {
+      identity.key,
+      if (record['programs'] is Map)
+        for (final program in (record['programs'] as Map).keys) program.toString(),
+    };
+    for (final program in programs) {
+      try {
+        final root = await _root();
+        final folder = path.join((await _titleDirectory(program)).path, modName);
+        final recorded = state.files.keys.any((key) => path.isWithin(folder, resolveStateKey(root, key)));
+        final moved = await MelonxModsService.reclaimOwnFolder(root, program, restore: recorded);
+        if (moved != null) {
+          _log.i('Enhancements: RewindBox folder of $program ${moved ? 'moved back' : 'deleted'} from mods/rewindbox-disabled');
+        }
+      } on Object catch (error) {
+        _log.w('Enhancements: RewindBox folder of $program not reclaimed: $error');
+      }
+    }
   }
 
   @override
@@ -657,8 +896,7 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
         if (active.contains(entry['id'])) ?_groupOf(entry, identity),
     };
     final kept = <String>{};
-    for (final raw in (record['unavailable'] as List? ?? const [])) {
-      if (raw is! Map || raw['exefs'] != true || raw['cheat'] == true) continue;
+    for (final raw in _unavailableMods(record)) {
       final id = raw['id']?.toString() ?? '';
       if (!state.active.contains(id) || active.contains(id)) continue;
       final group = _groupOf(Map<String, dynamic>.from(raw), identity);
@@ -668,6 +906,12 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
     active.addAll(kept);
     return kept;
   }
+
+  /// The exefs mods [record] cannot offer now (see [_keepUnavailable]).
+  static List<Map<dynamic, dynamic>> _unavailableMods(Map<String, dynamic> record) => [
+    for (final raw in (record['unavailable'] as List? ?? const []))
+      if (raw is Map && raw['exefs'] == true && raw['cheat'] != true) raw,
+  ];
 
   String? _groupOf(Map<String, dynamic> entry, EnhancementGameIdentity identity) {
     final category = EnhancementCategory.parse(entry['cat']?.toString());
@@ -687,7 +931,9 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
 
   /// The engine refresh of the active FPS codes, per Build ID with the
   /// enable-list keys that carry it (read at launch by [launchRefresh]). Two
-  /// active codes with different targets for one build set none.
+  /// active codes with different targets for one build set none; a code
+  /// flagged as the game's default or as not raising the limit sets none
+  /// ([entryRefresh]).
   void _recordRefresh(
     EnhancementGameIdentity identity,
     Map<String, dynamic> record,
@@ -701,8 +947,8 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
     for (final entry in _entries(record)) {
       final id = entry['id']?.toString() ?? '';
       final name = entry['name']?.toString() ?? '';
-      if (!active.contains(id) || entry['cat'] != EnhancementCategory.fps.name) continue;
-      final target = refreshTarget(name);
+      if (!active.contains(id)) continue;
+      final target = entryRefresh(entry);
       if (target == null) continue;
       final program = (entry['program']?.toString() ?? identity.key).toLowerCase();
       // An exefs frame-rate mod (`120FPS v1.3.2`) raises the game's limit
@@ -1140,8 +1386,23 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       );
       await EnhancementFiles.deleteEmptyParents(Directory(path.join(titleDirectory.path, 'cheats')), contents);
     }
+    // A copy of RewindBox's folder an older version let the player turn off is RewindBox's too.
+    for (final program in {state.key, for (final program in programs.keys) program.toString()}) {
+      try {
+        await MelonxModsService.reclaimOwnFolder(root, program, restore: false);
+      } on Object catch (error) {
+        _log.w('Enhancements: RewindBox folder of $program in mods/rewindbox-disabled kept: $error');
+      }
+    }
     state.data.clear();
     state.installed = false;
     state.active.clear();
   }
 }
+
+/// The newest update versions.json knows for a Switch program: its update
+/// number, main Build ID and display version (from a patch file's name).
+typedef SwitchLatest = ({int update, String? build, String? display});
+
+/// The game versions the catalogue knows for one program.
+typedef _Catalogued = ({Map<String, List<Object>> releases, Map<String, List<int>> updates, SwitchLatest? latest});

@@ -5,7 +5,9 @@ import 'package:material_symbols_icons/symbols.dart';
 import '../../l10n/enhancements_locale.dart';
 import '../../models/game_model.dart';
 import '../../models/system_model.dart';
+import '../../services/enhancements/adapters/beetle_enhancement_adapter.dart';
 import '../../services/enhancements/adapters/melonx_enhancement_adapter.dart';
+import '../../services/enhancements/enhancement_adapter.dart';
 import '../../services/enhancements/enhancement_models.dart';
 import '../../services/enhancements/enhancement_service.dart';
 import '../../services/gamepad/gamepad_navigation_manager.dart';
@@ -38,6 +40,56 @@ class EnhancementsScreen extends StatefulWidget {
   final EnhancementService? service;
 
   static const String gamepadLayer = 'enhancements_screen';
+
+  /// A catalogue source's name as an entry shows it, without its description:
+  /// `HamletDuFromage/switch-cheats-db (GBAtemp main cheat file, …)` →
+  /// `HamletDuFromage/switch-cheats-db`.
+  static String sourceLabel(String name) {
+    final trimmed = name.trim();
+    final cut = trimmed.indexOf(' (');
+    return cut > 0 ? trimmed.substring(0, cut) : trimmed;
+  }
+
+  /// A versions.json update number as the page names it in [locale]:
+  /// `Update 6`, `Base game` for 0, the raw number for another value.
+  static String updateName(Locale locale, int update) {
+    final index = MelonxEnhancementAdapter.updateIndex(update);
+    if (index == null) return 'v$update';
+    if (index == 0) return EnhancementsLocale.forLocale(locale, EnhancementsLocale.baseGame);
+    return EnhancementsLocale.forLocale(locale, EnhancementsLocale.updateNumber).replaceAll('{n}', '$index');
+  }
+
+  /// What the page says when switching or restoring fails, in [locale].
+  static String errorText(Locale locale, Object error) {
+    String text(String key) => EnhancementsLocale.forLocale(locale, key);
+    if (error is! EnhancementException) return text(EnhancementsLocale.failed);
+    return switch (error.code) {
+      'user_file_present' => text(EnhancementsLocale.userFilePresent),
+      'version_unknown' => text(EnhancementsLocale.versionUnknown),
+      // A game's own options (Beetle PSX presets).
+      'player_value' => text(EnhancementsLocale.playerValue),
+      'player_keeps_on' => text(EnhancementsLocale.playerValueKeepsOn),
+      'options_unreadable' => text(EnhancementsLocale.optionsUnreadable).replaceAll('{file}', error.detail),
+      'session_active' => text(EnhancementsLocale.sessionActive),
+      _ => text(EnhancementsLocale.failed),
+    };
+  }
+
+  /// Entries on together with another choice of their exclusive group (saved
+  /// before the group existed, or set in an engine's own menu). Both stay on
+  /// until the player turns one off; the page warns on each.
+  static Set<String> conflicting(Iterable<EnhancementItem> items) {
+    final groups = <String, List<String>>{};
+    for (final item in items) {
+      if (item.status == EnhancementStatus.active && item.exclusiveGroup.isNotEmpty) {
+        groups.putIfAbsent(item.exclusiveGroup, () => []).add(item.id);
+      }
+    }
+    return {
+      for (final ids in groups.values)
+        if (ids.length > 1) ...ids,
+    };
+  }
 
   static Future<void> open(
     BuildContext context, {
@@ -78,6 +130,9 @@ class _EnhancementsScreenState extends State<EnhancementsScreen> {
   final Map<String, GlobalKey> _rowKeys = {};
 
   EnhancementGameView? _view;
+
+  /// Readable names of the catalogue's sources, by source ID.
+  Map<String, String> _sourceNames = const {};
   Object? _error;
   bool _loading = true;
   String? _busy;
@@ -138,9 +193,11 @@ class _EnhancementsScreenState extends State<EnhancementsScreen> {
         download: download,
         onProgress: _onProgress,
       );
+      final names = await _sourceNamesOf();
       if (!mounted) return;
       setState(() {
         _view = view;
+        _sourceNames = names;
         _category = _firstCategory(view);
       });
     } catch (error) {
@@ -159,6 +216,19 @@ class _EnhancementsScreenState extends State<EnhancementsScreen> {
   void _onProgress(int received, int total) {
     if (!mounted || total <= 0) return;
     setState(() => _progress = (received / total).clamp(0, 1).toDouble());
+  }
+
+  /// The catalogue's source names (already loaded by the index), each without
+  /// its description in parentheses; empty when the index cannot be read.
+  Future<Map<String, String>> _sourceNamesOf() async {
+    try {
+      return {
+        for (final source in (await _service.catalog.index()).sources)
+          if (source.name.trim().isNotEmpty) source.id: EnhancementsScreen.sourceLabel(source.name),
+      };
+    } on Object {
+      return const {};
+    }
   }
 
   List<EnhancementCategory> get _categories {
@@ -257,15 +327,99 @@ class _EnhancementsScreenState extends State<EnhancementsScreen> {
     EnhancementProblem.notInCatalogue => _t(EnhancementsLocale.notInCatalogue),
   };
 
-  String _errorText(Object error) {
-    if (error is EnhancementException && error.code == 'user_file_present') {
-      return _t(EnhancementsLocale.userFilePresent);
+  /// Why an entry cannot be turned on. A mod that needs the 8 GB DRAM layout
+  /// is unsupported by the engine as RewindBox embeds it: the page says why,
+  /// and asks to turn off one turned on before the catalogue flagged it. An
+  /// adapter can name its own words (`problemKey`, a Beetle preset blocked
+  /// by the game's own value or an unreadable options `file`).
+  String? _itemProblem(EnhancementItem item, List<String> flags) {
+    if (item.problem == EnhancementProblem.unsupportedSystem && flags.contains(EnhancementFlags.dram8gb)) {
+      return _t(_dram8gbText(item));
     }
-    if (error is EnhancementException && error.code == 'version_unknown') {
-      return _t(EnhancementsLocale.versionUnknown);
+    final own = item.payload['problemKey'];
+    if (item.problem != EnhancementProblem.none && own is String) {
+      return EnhancementsLocale.format(context, own, {'file': item.payload['file'] ?? ''});
     }
-    return _t(EnhancementsLocale.failed);
+    return _problemText(item.problem);
   }
+
+  /// RewindBox's own text for an entry (a Beetle preset's name, description
+  /// or source), in the page's language from the locale key its payload
+  /// names at [field]; [fallback] otherwise, as the catalogue's authors wrote it.
+  String _ownText(EnhancementItem item, String field, String fallback) {
+    final key = item.payload[field];
+    return key is String ? _t(key) : fallback;
+  }
+
+  static String _dram8gbText(EnhancementItem item) =>
+      item.status == EnhancementStatus.active ? EnhancementsLocale.dram8gbActive : EnhancementsLocale.dram8gbProblem;
+
+  /// The catalogue flags the page warns about, most serious first.
+  static const _shownFlags = [
+    EnhancementFlags.dram8gb,
+    EnhancementFlags.crashRisk,
+    EnhancementFlags.experimental,
+    EnhancementFlags.heavy,
+    EnhancementFlags.restoresDefault,
+  ];
+
+  /// Badge label, explanation, icon and color of one of [item]'s flags.
+  ({String label, String note, IconData icon, Color color}) _flag(ThemeData theme, EnhancementItem item, String flag) {
+    final warning = GlassBanner.accentFor(context, GlassBannerKind.warning);
+    return switch (flag) {
+      EnhancementFlags.dram8gb => (
+        label: _t(EnhancementsLocale.flagDram8gb),
+        note: _t(_dram8gbText(item)),
+        icon: Symbols.memory_rounded,
+        color: theme.colorScheme.error,
+      ),
+      EnhancementFlags.crashRisk => (
+        label: _t(EnhancementsLocale.flagCrashRisk),
+        note: _t(EnhancementsLocale.flagCrashRiskNote),
+        icon: Symbols.warning_rounded,
+        color: theme.colorScheme.error,
+      ),
+      EnhancementFlags.experimental => (
+        label: _t(EnhancementsLocale.flagExperimental),
+        note: _t(EnhancementsLocale.flagExperimentalNote),
+        icon: Symbols.science_rounded,
+        color: warning,
+      ),
+      EnhancementFlags.heavy => (
+        label: _t(EnhancementsLocale.flagHeavy),
+        note: _t(EnhancementsLocale.flagHeavyNote),
+        icon: Symbols.local_fire_department_rounded,
+        color: warning,
+      ),
+      _ => (
+        label: _t(EnhancementsLocale.flagDefault),
+        note: _t(EnhancementsLocale.flagDefaultNote),
+        icon: Symbols.settings_backup_restore_rounded,
+        color: GlassBanner.accentFor(context, GlassBannerKind.info),
+      ),
+    };
+  }
+
+  String _updateName(int update) => EnhancementsScreen.updateName(Localizations.localeOf(context), update);
+
+  /// A versions.json update as the page names it: `Update 6 (1.3.2)`.
+  String _updateLabel(Map<dynamic, dynamic> release) {
+    final label = _updateName(release['update'] as int);
+    final display = release['display'];
+    return display is String && display.isNotEmpty ? '$label ($display)' : label;
+  }
+
+  /// The Compatibility line in the page's language: a Switch code's game
+  /// updates, a Beetle preset's reasons and cores (the adapters' own lines
+  /// are language-neutral or English).
+  String _compatibility(EnhancementItem item) => switch (item.engine) {
+    EnhancementEngine.melonx when item.payload['program'] is String =>
+      MelonxEnhancementAdapter.compatibilityOf(item.payload, updateName: _updateName),
+    EnhancementEngine.beetle => BeetleEnhancementAdapter.compatibilityOf(item.payload, text: _t),
+    _ => item.compatibility,
+  };
+
+  String _errorText(Object error) => EnhancementsScreen.errorText(Localizations.localeOf(context), error);
 
   Future<void> _toggle(EnhancementItem item) async {
     final view = _view;
@@ -603,14 +757,20 @@ class _EnhancementsScreenState extends State<EnhancementsScreen> {
       }
     }
 
+    final conflicting = EnhancementsScreen.conflicting(view.items);
     for (final item in items) {
       final key = 'item:${item.id}';
       rows.add(_Row(key, item.canActivate || item.status == EnhancementStatus.active ? () => _toggle(item) : null));
-      children.add(keyed(key, _itemBubble(theme, glass, item, focused(key))));
+      children.add(keyed(key, _itemBubble(theme, glass, item, focused(key), conflict: conflicting.contains(item.id))));
       gap();
     }
 
-    if (view.identity.known && view.downloaded && !view.installed && view.items.isNotEmpty) {
+    // Beetle's presets ship with the cores: nothing to install.
+    if (view.identity.known &&
+        view.downloaded &&
+        !view.installed &&
+        view.items.isNotEmpty &&
+        engine != EnhancementEngine.beetle) {
       action('install', _t(EnhancementsLocale.install), Symbols.download_done_rounded, _busy == null ? _install : null);
     }
     if (view.installed || view.activeCount > 0) {
@@ -621,8 +781,9 @@ class _EnhancementsScreenState extends State<EnhancementsScreen> {
         _busy == null ? _restore : null,
       );
     }
-    if (view.credits.isNotEmpty && _category == EnhancementCategory.cheat) {
-      children.add(GlassSectionHeader(label: _t(EnhancementsLocale.credits)));
+    // The authors' notes (which codes not to combine, which crash) on every tab.
+    if (view.credits.isNotEmpty) {
+      children.add(GlassSectionHeader(label: _t(EnhancementsLocale.authorNotes)));
       for (final credit in view.credits) {
         children.add(
           Padding(
@@ -642,10 +803,17 @@ class _EnhancementsScreenState extends State<EnhancementsScreen> {
     return children;
   }
 
-  Widget _itemBubble(ThemeData theme, LiquidGlassTheme glass, EnhancementItem item, bool focused) {
+  Widget _itemBubble(ThemeData theme, LiquidGlassTheme glass, EnhancementItem item, bool focused, {bool conflict = false}) {
     final busy = _busy == item.id;
     final muted = theme.colorScheme.onSurface.withValues(alpha: 0.6);
-    final problem = _problemText(item.problem);
+    final listed = EnhancementFlags.ofItem(item);
+    final flags = [for (final flag in _shownFlags) if (listed.contains(flag)) _flag(theme, item, flag)];
+    final problem = _itemProblem(item, listed);
+    // A Switch code whose builds are all older than the newest update known.
+    final older = item.payload['olderThan'];
+    final olderText = older is Map && older['update'] is int
+        ? EnhancementsLocale.format(context, EnhancementsLocale.olderVersion, {'version': _updateLabel(older)})
+        : null;
     // Azahar codes that wait for a button combo (Gateway DD codes).
     final combos = [
       for (final combo in (item.payload['combo'] as List? ?? const []))
@@ -653,11 +821,13 @@ class _EnhancementsScreenState extends State<EnhancementsScreen> {
     ];
     final details = <String>[
       if (item.author.isNotEmpty) '${_t(EnhancementsLocale.author)}: ${item.author}',
-      '${_t(EnhancementsLocale.source)}: ${item.sourceId}',
-      '${_t(EnhancementsLocale.compatibility)}: ${item.compatibility}',
+      '${_t(EnhancementsLocale.source)}: ${_sourceNames[item.sourceId] ?? _ownText(item, 'sourceKey', item.sourceId)}',
+      '${_t(EnhancementsLocale.compatibility)}: ${_compatibility(item)}',
       if (combos.isNotEmpty)
         EnhancementsLocale.format(context, EnhancementsLocale.buttonCombo, {'keys': combos.join(' / ')}),
     ];
+    final small = theme.textTheme.bodySmall?.copyWith(fontSize: 7.5.r, color: muted);
+    final description = _ownText(item, 'descriptionKey', item.description);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: item.canActivate || item.status == EnhancementStatus.active ? () => _toggle(item) : null,
@@ -676,7 +846,7 @@ class _EnhancementsScreenState extends State<EnhancementsScreen> {
                     children: [
                       Flexible(
                         child: Text(
-                          item.name,
+                          _ownText(item, 'nameKey', item.name),
                           style: theme.textTheme.bodyLarge?.copyWith(
                             fontSize: 11.r,
                             fontWeight: FontWeight.w500,
@@ -692,10 +862,10 @@ class _EnhancementsScreenState extends State<EnhancementsScreen> {
                       ),
                     ],
                   ),
-                  if (item.description.isNotEmpty) ...[
+                  if (description.isNotEmpty) ...[
                     SizedBox(height: 2.r),
                     Text(
-                      item.description,
+                      description,
                       maxLines: focused ? 6 : 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyMedium?.copyWith(fontSize: 8.5.r, color: muted),
@@ -706,18 +876,40 @@ class _EnhancementsScreenState extends State<EnhancementsScreen> {
                     details.join(' · '),
                     maxLines: focused ? 4 : 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(fontSize: 7.5.r, color: muted),
+                    style: small,
                   ),
-                  if (problem != null)
-                    Text(
-                      problem,
-                      style: theme.textTheme.bodySmall?.copyWith(fontSize: 7.5.r, color: theme.colorScheme.error),
+                  if (flags.isNotEmpty) ...[
+                    SizedBox(height: 2.r),
+                    Wrap(
+                      spacing: 8.r,
+                      runSpacing: 2.r,
+                      children: [
+                        for (final flag in flags)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(flag.icon, size: 10.r, color: flag.color),
+                              SizedBox(width: 3.r),
+                              Text(
+                                flag.label,
+                                style: small?.copyWith(color: flag.color, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                      ],
                     ),
-                  if (item.exclusiveGroup.isNotEmpty && focused)
+                  ],
+                  if (problem != null) Text(problem, style: small?.copyWith(color: theme.colorScheme.error)),
+                  if (conflict)
                     Text(
-                      _t(EnhancementsLocale.exclusiveNote),
-                      style: theme.textTheme.bodySmall?.copyWith(fontSize: 7.5.r, color: muted),
+                      _t(EnhancementsLocale.exclusiveConflict),
+                      style: small?.copyWith(color: GlassBanner.accentFor(context, GlassBannerKind.warning)),
                     ),
+                  if (olderText != null) Text(olderText, style: small),
+                  if (item.exclusiveGroup.isNotEmpty && focused) Text(_t(EnhancementsLocale.exclusiveNote), style: small),
+                  if (focused)
+                    for (final flag in flags)
+                      if (flag.note != problem) Text(flag.note, style: small),
                 ],
               ),
             ),

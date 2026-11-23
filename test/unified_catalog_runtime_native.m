@@ -358,6 +358,76 @@ static void InGameDownloadChecks(NSString *root,BOOL exerciseUpdate) {
   NeoUnifiedCheatCatalog *reopened=[NeoUnifiedCheatCatalog new];reopened.storageDirectory=catalog.storageDirectory;reopened.bundledDirectory=bundle;reopened.fetch=catalog.fetch;
   CHECK([Load(reopened)[@"revision"] isEqual:@"later-user-update"],"same bundle generation retains a subsequent explicit catalogue update");
 }
+// PS1: the libretro reader hashes a disc's first track as rom-full; the builder
+// typed the same Redump track hashes redump-disc. No record is regenerated.
+static NSDictionary *PS1Reader(NSString *md5,NSString *sha1,NSString *scheme) {
+  return @{@"system":@"psx",@"title":@"renamed",@"identities":@[ID(@"md5",md5,scheme),ID(@"sha1",sha1,scheme),ID(@"serial",@"SLUS-01234",@"ps1-disc-serial")]};
+}
+static NSDictionary *PS1Matches(NeoUnifiedCheatCatalog *catalog,NSDictionary *identity) {
+  __block BOOL done=NO;NSMutableDictionary *found=[NSMutableDictionary dictionary];
+  [catalog gamesForIdentity:identity completion:^(NSArray *rows,NSError *error){
+    CHECK(!error,"PS1 discovery succeeds");for(NSDictionary *row in rows)found[row[@"id"]]=row[@"match"];done=YES;}];
+  Spin(^BOOL{return done;});return found;
+}
+static void PS1RedumpChecks(NSString *root) {
+  NSString *md5=@"1111aaaa2222bbbb3333cccc4444dddd",*sha1=@"1111aaaa2222bbbb3333cccc4444dddd5555eeee";
+  NSString *rev1MD5=@"9999ffff8888eeee7777dddd6666cccc",*rev1SHA1=@"9999ffff8888eeee7777dddd6666cccc5555bbbb";
+  NSArray *records=@[
+    @{@"id":@"ps1-redump",@"title":@"Example (USA)",@"identities":@[ID(@"md5",md5,@"redump-disc"),ID(@"sha1",sha1,@"redump-disc"),ID(@"serial",@"SLUS-01234",@"ps1-disc-serial")]},
+    @{@"id":@"ps1-rev1",@"title":@"Example (USA) (Rev 1)",@"identities":@[ID(@"md5",rev1MD5,@"redump-disc"),ID(@"sha1",rev1SHA1,@"redump-disc"),ID(@"serial",@"SLUS-01234",@"ps1-disc-serial")]},
+    @{@"id":@"ps1-serial",@"title":@"Example (USA) (Code Breaker)",@"identities":@[ID(@"serial",@"SLUS-01234",@"ps1-disc-serial")]}];
+  NSString *bundle=[root stringByAppendingPathComponent:@"ps1-bundle"];
+  [NSFileManager.defaultManager createDirectoryAtPath:[bundle stringByAppendingPathComponent:@"packs"] withIntermediateDirectories:YES attributes:nil error:NULL];
+  NSMutableArray *games=[NSMutableArray array],*packs=[NSMutableArray array];
+  for(NSDictionary *record in records){
+    NSString *gid=record[@"id"];NSMutableDictionary *game=[record mutableCopy];game[@"system"]=@"psx";game[@"revision"]=@"";
+    NSDictionary *program=@{@"id":@"lives",@"name":@"Infinite lives",@"code":@"80012345 0009",@"handler":@0,@"dialect":@"ps1-gameshark",@"status":@"available",@"enabled":@NO,@"dependencies":@[],@"parameters":@[]};
+    NSData *chunk=Bytes(@{@"schema_version":@1,@"game":game,@"cheats":@[program]});
+    NSData *expanded=Bytes(@{@"schema_version":@1,@"files":@[@{@"game_id":gid,@"data":[chunk base64EncodedStringWithOptions:0]}]});
+    NSData *compressed=Gzip(expanded);NSString *path=[NSString stringWithFormat:@"packs/%@.json.gz",gid];
+    // Packs are read from the bundled folder: every check below stays offline.
+    CHECK([compressed writeToFile:[bundle stringByAppendingPathComponent:path] atomically:YES],"write bundled PS1 pack");
+    game[@"pack_id"]=gid;game[@"path"]=[NSString stringWithFormat:@"games/%@.json",gid];game[@"sha256"]=Hash(chunk);game[@"size"]=@(chunk.length);
+    [games addObject:game];[packs addObject:@{@"id":gid,@"path":path,@"sha256":Hash(compressed),@"size":@(compressed.length),@"uncompressed_size":@(expanded.length),@"game_ids":@[gid]}];
+  }
+  CHECK([Bytes(@{@"schema_version":@1,@"catalogue_id":@"ps1-redump",@"revision":@"1",@"games":games,@"packs":packs}) writeToFile:[bundle stringByAppendingPathComponent:@"manifest.json"] atomically:YES],"write bundled PS1 index");
+  NSDictionary *redump=games[0],*rev1=games[1],*serialOnly=games[2];
+  NSDictionary *verified=PS1Reader(md5,sha1,@"rom-full"),*otherEdition=PS1Reader(rev1MD5,rev1SHA1,@"rom-full");
+  NSDictionary *modified=PS1Reader(@"0123456789abcdef0123456789abcdef",@"0123456789abcdef0123456789abcdef01234567",@"rom-full");
+  NSDictionary *singleFile=PS1Reader(@"fedcba9876543210fedcba9876543210",@"fedcba9876543210fedcba9876543210fedcba98",@"rom-full");
+  // Until the shared catalogue adopts an index, no reader hash is a Redump track.
+  CHECK([[NeoUnifiedCheatCatalog matchGame:redump identity:verified] isEqual:@"candidate"],"without an adopted index the PS1 dump stays a serial candidate");
+  // Session menus call the class matchers with the reader identity unchanged.
+  NeoUnifiedCheatCatalog *shared=NeoUnifiedCheatCatalog.sharedCatalog;
+  shared.storageDirectory=[root stringByAppendingPathComponent:@"ps1-shared"];shared.bundledDirectory=bundle;
+  shared.fetch=^(NSURL *url,NSUInteger limit,void(^completion)(NSData*,NSError*)){CHECK(NO,"PS1 Redump checks stay offline");};
+  CHECK([Load(shared)[@"games"] count]==3,"shared catalogue adopts the PS1 index");
+  CHECK([[NeoUnifiedCheatCatalog matchGame:redump identity:verified] isEqual:@"exact"],"serial plus the Redump first-track hash read as rom-full is exact");
+  CHECK(![NeoUnifiedCheatCatalog gameHasConflict:redump identity:verified],"the verified Redump edition is no conflict");
+  CHECK([[NeoUnifiedCheatCatalog matchGame:redump identity:modified] isEqual:@"candidate"],"a non-Redump hash keeps the serial candidate");
+  CHECK(![NeoUnifiedCheatCatalog gameHasConflict:redump identity:modified],"a non-Redump hash is never made a conflict");
+  CHECK(![NeoUnifiedCheatCatalog matchGame:redump identity:otherEdition],"the Redump hash of another record excludes this edition");
+  CHECK([NeoUnifiedCheatCatalog gameHasConflict:redump identity:otherEdition],"the Redump hash of another record is a known contradiction");
+  CHECK([[NeoUnifiedCheatCatalog matchGame:rev1 identity:otherEdition] isEqual:@"exact"],"that Redump hash selects its own edition of the serial");
+  CHECK([[NeoUnifiedCheatCatalog matchGame:redump identity:singleFile] isEqual:@"candidate"],"a single-file rip keeps the serial candidate");
+  CHECK(![NeoUnifiedCheatCatalog gameHasConflict:redump identity:singleFile],"a single-file rip is never made a conflict");
+  CHECK([[NeoUnifiedCheatCatalog matchGame:redump identity:PS1Reader(md5,sha1,@"container-file")] isEqual:@"candidate"],"only the reader's rom-full hash can be a Redump track");
+  CHECK([[NeoUnifiedCheatCatalog matchGame:serialOnly identity:verified] isEqual:@"candidate"],"a source without Redump hashes keeps its serial candidate");
+  // Instance queries read their own adopted index.
+  NeoUnifiedCheatCatalog *catalog=[NeoUnifiedCheatCatalog new];
+  catalog.storageDirectory=[root stringByAppendingPathComponent:@"ps1-cache"];catalog.bundledDirectory=bundle;catalog.fetch=shared.fetch;
+  CHECK([Load(catalog)[@"games"] count]==3,"PS1 index loads offline");
+  CHECK(([PS1Matches(catalog,verified) isEqual:@{@"ps1-redump":@"exact",@"ps1-serial":@"candidate"}]),"discovery lists the verified Redump edition as exact and never another Redump edition");
+  CHECK(([PS1Matches(catalog,otherEdition) isEqual:@{@"ps1-rev1":@"exact",@"ps1-serial":@"candidate"}]),"discovery follows the Redump edition actually dumped");
+  CHECK(([PS1Matches(catalog,modified) isEqual:@{@"ps1-redump":@"candidate",@"ps1-rev1":@"candidate",@"ps1-serial":@"candidate"}]),"a non-Redump dump keeps every edition of its serial as a candidate");
+  __block BOOL done=NO;
+  [catalog installAllForIdentity:verified progress:nil completion:^(NSDictionary *result,NSError *error){CHECK(!error && [result[@"installed_games"] unsignedIntegerValue]==3,"PS1 packs install offline from the bundled folder");done=YES;}];
+  Spin(^BOOL{return done;});
+  __block NSArray *native=nil;done=NO;
+  dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY,0),^{native=[catalog installedProgramsForIdentity:verified];done=YES;});
+  Spin(^BOOL{return done;});
+  CHECK(native.count==1 && [native[0][@"game"][@"id"] isEqual:@"ps1-redump"],"boot reader returns the verified Redump edition's installed programs only");
+}
 static void FullManifestMemoryProbe(NSString *path,NSUInteger expectedGames,NSUInteger expectedPacks) {
   NSString *root=[NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
   uint64_t before=Footprint();
@@ -401,6 +471,9 @@ int main(int argc,const char *argv[]) {@autoreleasepool{
   }
   IdentityChecks();NSString *root=[NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
   [NSFileManager.defaultManager createDirectoryAtPath:root withIntermediateDirectories:YES attributes:nil error:NULL];
-  RuntimeChecks(root);RejectionChecks(root);InGameDownloadChecks(root,!(argc==2 && strcmp(argv[1],"--queue-baseline")==0));[NSFileManager.defaultManager removeItemAtPath:root error:NULL];
+  RuntimeChecks(root);RejectionChecks(root);InGameDownloadChecks(root,!(argc==2 && strcmp(argv[1],"--queue-baseline")==0));
+  // Last: cheats476_regression.py builds this file against older catalogues and expects
+  // their earlier failures; the PS1 checks never run before those.
+  PS1RedumpChecks(root);[NSFileManager.defaultManager removeItemAtPath:root error:NULL];
   printf("Foundation unified catalogue: %lu behavioral checks passed\n",(unsigned long)checks);return 0;
 }}

@@ -5,6 +5,7 @@ import '../logger_service.dart';
 import '../texture_catalog_service.dart';
 import 'adapters/armsx2_enhancement_adapter.dart';
 import 'adapters/azahar_enhancement_adapter.dart';
+import 'adapters/beetle_enhancement_adapter.dart';
 import 'adapters/dolphin_enhancement_adapter.dart';
 import 'adapters/melonx_enhancement_adapter.dart';
 import 'adapters/rpcs3_enhancement_adapter.dart';
@@ -36,6 +37,7 @@ class EnhancementService {
              Armsx2EnhancementAdapter(),
              DolphinEnhancementAdapter(),
              AzaharEnhancementAdapter(),
+             BeetleEnhancementAdapter(),
            ],
        _texturesSupported = texturesSupported ?? TextureCatalogService.supports,
        _embeddedEngines = embeddedEngines ?? (() => Platform.isIOS);
@@ -136,15 +138,12 @@ class EnhancementService {
         );
     final probe = EnhancementGameState.fromJson(state.storeKey, state.toJson());
     if (await adapter.sync(identity, record, probe) && stored != null) {
-      // The engine's files are the truth (an in-game menu may have changed them).
+      // The engine's files are the truth (an in-game menu may have changed
+      // them), and so is the adapter's record of them (the MeloNX engine
+      // refresh). Synced again in the transaction: a write made meanwhile stays.
       await store.transaction((games) async {
         final current = games[identity.storeKey];
-        if (current != null) {
-          current
-            ..installed = probe.installed
-            ..active.clear()
-            ..active.addAll(probe.active);
-        }
+        if (current != null) await adapter.sync(identity, record, current);
       });
     }
     return EnhancementGameView(
@@ -193,8 +192,19 @@ class EnhancementService {
     });
   }
 
+  /// Whether [item] stays on when another entry is switched. One an adapter
+  /// shows as on with a problem (a MeloNX mod turned on before the catalogue
+  /// flagged its 8 GB DRAM layout) is dropped, and can only be turned off.
+  static bool _usable(EnhancementItem item) => item.canActivate && item.problem == EnhancementProblem.none;
+
+  static bool _onlyOff(EnhancementItem item) =>
+      item.status == EnhancementStatus.active && item.problem != EnhancementProblem.none;
+
   /// Turns one entry on or off. Entries sharing its exclusive group are
-  /// turned off first, so two aspect ratios never apply together.
+  /// turned off first, so two aspect ratios never apply together. Two choices
+  /// of one group already on together (saved before the group existed, or set
+  /// in an engine's own menu) stay on until the player turns one off: the
+  /// page warns on both.
   Future<EnhancementGameView> setActive(
     GameModel game,
     String systemFolder,
@@ -207,7 +217,7 @@ class EnhancementService {
     if (adapter == null || !view.identity.known) {
       throw const EnhancementException('unsupported');
     }
-    if (enabled && !item.canActivate) throw EnhancementException('incompatible', item.problem.name);
+    if (enabled && (!item.canActivate || _onlyOff(item))) throw EnhancementException('incompatible', item.problem.name);
     final record = await _record(adapter, view.identity, onProgress);
     final exclusive = item.exclusiveGroup.isEmpty
         ? const <String>{}
@@ -224,7 +234,7 @@ class EnhancementService {
         current.remove(item.id);
       }
       // Entries that no longer match this game are dropped, never kept on.
-      final compatible = {for (final other in view.items) if (other.canActivate) other.id};
+      final compatible = {for (final other in view.items) if (_usable(other)) other.id};
       return current.intersection(compatible.union({item.id}));
     });
     _log.i('Enhancements: ${item.id} ${enabled ? 'on' : 'off'} for ${view.identity.storeKey}');
@@ -241,7 +251,7 @@ class EnhancementService {
     final adapter = adapterFor(systemFolder);
     if (adapter == null || !view.identity.known) throw const EnhancementException('unsupported');
     final record = await _record(adapter, view.identity, onProgress);
-    final compatible = {for (final item in view.items) if (item.canActivate) item.id};
+    final compatible = {for (final item in view.items) if (_usable(item)) item.id};
     await _write(adapter, view.identity, record, (current) => current.intersection(compatible));
     return open(game, systemFolder, download: true);
   }

@@ -193,4 +193,44 @@ void main() {
     view = await service.open(game, 'ps3');
     expect(view.items.firstWhere((item) => item.name == 'Skip Intro Videos').status, EnhancementStatus.active);
   });
+
+  test("the catalogue's flags reach the item for the page's warnings", () async {
+    Map<String, dynamic> patch(String name, String cat, {List<String>? flags}) => {
+      'id': name.toLowerCase().replaceAll(' ', '-'),
+      'cat': cat,
+      'name': name,
+      'source': 'rpcs3-patches',
+      'author': 'illusion',
+      'notes': 'The game may crash above 500 FPS in loading screens.',
+      'flags': ?flags,
+      'targets': [
+        {
+          'versions': ['01.00'],
+          'hash': 'PPU-${'a' * 40}',
+          'title': 'The Last of Us',
+          'patch': [
+            ['be32', '0x00010000', '0x60000000'],
+          ],
+        },
+      ],
+    };
+    final fixture = EnhancementService(
+      catalog: fixtureCatalog(Directory(path.join(temp.path, 'fixture')), {
+        'rpcs3': {
+          'BCUS98174': {
+            'title': 'The Last of Us',
+            'entries': [patch('Unlock FPS', 'fps', flags: ['crashRisk']), patch('Disable Blur', 'graphics')],
+          },
+        },
+      }),
+      store: EnhancementStore(root: () async => Directory(path.join(temp.path, 'store'))),
+      adapters: [Rpcs3EnhancementAdapter(dataDirectory: () async => data, installedVersion: (_) async => '01.00')],
+      texturesSupported: (_) => false,
+    );
+    final view = await fixture.open(testGame(name: 'The Last of Us', titleId: 'BCUS98174'), 'ps3', download: true);
+    final fps = view.items.firstWhere((item) => item.name == 'Unlock FPS');
+    expect(fps.payload['flags'], ['crashRisk']);
+    expect(fps.status, EnhancementStatus.available, reason: 'a warning, not a block');
+    expect(view.items.firstWhere((item) => item.name == 'Disable Blur').payload.containsKey('flags'), isFalse);
+  });
 }
