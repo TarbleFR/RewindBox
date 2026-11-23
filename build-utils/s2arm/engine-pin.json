@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "a60a9ed940b12277dd73dec609cff033064d4c7e48f19adeda51b9139c4a5db9",
+  "packagedFingerprint": "812f4813e3226bd662bf0da49ba70dfe71e42aa2b35d1e3f539ccb320173d89f",
   "producers": {
     "engine": {
-      "run": 45098230085,
+      "run": 45115892568,
       "attempt": 1,
-      "artifact": 14784704158,
-      "name": "s2arm-engine-framework-57eb3ab6c62f958748d22f65a7bb8c90c5973c55",
-      "bytes": 25251686,
-      "sha256": "2e4f8cdd2c8612ef74fe012fe4c106ad801aaac9bfbce8e9084ceb5b5a1ebd43",
-      "headSha": "57eb3ab6c62f958748d22f65a7bb8c90c5973c55",
+      "artifact": 14792755785,
+      "name": "s2arm-engine-framework-f3c993c46782ae0dfe4db172824afeb089d4c047",
+      "bytes": 25253247,
+      "sha256": "c93428f0f026b2cabd49be006ca4a3d6581a28c7800d1aac6dd0019dc7db9bba",
+      "headSha": "f3c993c46782ae0dfe4db172824afeb089d4c047",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-23T02:26:53Z",
+      "expiresAt": "2026-12-23T05:29:56Z",
       "members": {
-        "S2ArmEngine.framework.zip": "eea9a5a6ad37ea6b5bbc02842e3a56fac054afc14928a559357f8877f2dca8e4",
-        "NS2Pro.framework.zip": "553738e527a84675b7010dedf70c37cd89d37d79d6731b5a053a3a2618c114c5"
+        "S2ArmEngine.framework.zip": "c9fb317ea2d4a3133f630dbe08ab181415c17a5f96d3d550488becdf03433d96",
+        "NS2Pro.framework.zip": "b346cd989bba1fc9776bdd8562748868840738bad2c881a8418e374b57143377"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "2e4f8cdd2c8612ef74fe012fe4c106ad801aaac9bfbce8e9084ceb5b5a1ebd43",
+    "engine": "c93428f0f026b2cabd49be006ca4a3d6581a28c7800d1aac6dd0019dc7db9bba",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "b80c11b90b857cb16c18cfb9721906e7f8c0a38118c2127f76c3822c348f3f15",
-      "bytes": 115135912,
-      "fingerprint": "a60a9ed940b12277dd73dec609cff033064d4c7e48f19adeda51b9139c4a5db9"
+      "sha256": "b9a1bff52f652a5048c7de10ce5c99ad0bcf40a2491c2673d83be1a08bb44f61",
+      "bytes": 115152744,
+      "fingerprint": "812f4813e3226bd662bf0da49ba70dfe71e42aa2b35d1e3f539ccb320173d89f"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45098230085,
+      "run": 45115892568,
       "attempt": 1,
-      "head_sha": "57eb3ab6c62f958748d22f65a7bb8c90c5973c55",
+      "head_sha": "f3c993c46782ae0dfe4db172824afeb089d4c047",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1370,11 +1370,23 @@
         {
           "name": "0307-end-a-size-push-once-the-game-is-at-its-smallest-size.patch",
           "sha256": "6283dfc52738ac829a8eee6a1e70d9cf16eb1b1eb114e6b328894de9af4f9872"
+        },
+        {
+          "name": "0308-give-a-settled-or-in-flight-stage-no-place-in-the-bind-ahead-lane.patch",
+          "sha256": "fe70804277ecc35f486c5305714f0c40b8d8ffb67659a28f781f35d6ef8d1b1b"
+        },
+        {
+          "name": "0309-offer-a-game-locked-at-interval-2-the-60-fps-hold-again.patch",
+          "sha256": "1737258b5ebbc4c942f5fe542fe8dc4661168941f4bc3d986f911fae0fe0cf0e"
+        },
+        {
+          "name": "0310-learn-the-size-floor-only-from-a-push-that-shrank-the-scene.patch",
+          "sha256": "2306c498404b96f4067e969b464bcf9055fba7b53570c14d4314ff27d24c8b76"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "eea9a5a6ad37ea6b5bbc02842e3a56fac054afc14928a559357f8877f2dca8e4",
-        "NS2Pro.framework.zip": "553738e527a84675b7010dedf70c37cd89d37d79d6731b5a053a3a2618c114c5"
+        "S2ArmEngine.framework.zip": "c9fb317ea2d4a3133f630dbe08ab181415c17a5f96d3d550488becdf03433d96",
+        "NS2Pro.framework.zip": "b346cd989bba1fc9776bdd8562748868840738bad2c881a8418e374b57143377"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
