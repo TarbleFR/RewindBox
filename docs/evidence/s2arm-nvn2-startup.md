@@ -219,3 +219,23 @@ Patch 0306. La file garde 128 enregistrements en attente ; les 8 Mio de copies d
 
 Limite. Un programme enregistré puis jamais dessiné coûte une compilation de fond de plus. Le gain sur les compilations au dessin n'est pas chiffrable avant une session : comparer `dropped`, `submit_msl_blocked_count` et `[rb-pso-ready] demand`.
 
+## File d'avance saturée par des étages déjà construits
+
+Relevé du mainteneur sur l'IPA 822 (lignes citées ; le journal complet n'a pas été reçu) : `[rb-bind-ahead] dropped=4096 waiting=128`. La file de 128 places du patch 0306 refuse donc encore des milliers d'enregistrements.
+
+Lecture du code et de la session précédente.
+
+- La place était réservée avant de connaître l'identité de l'étage. Seul un étage déjà en vol était écarté ; un étage déjà construit reprenait une place à chaque nouvel enregistrement.
+- Session après la 821 : 1 024 enregistrements mis en file pour 460 variantes construites. Plus de la moitié des tâches trouvaient l'étage déjà chargé.
+- Une seule voie série traduit puis compile.
+- La voie ne passe pas par le gouverneur du patch 0121 : ni `dm_shader_prepare_registration` ni `shader_load_depth` ne prennent de bail. La ligne `speculative_limit=0` à Fair concerne le préchauffage, pas cette voie.
+
+Patch 0308 (`rb_registration_plan.h`).
+
+- L'identité de l'étage (clé de 8 octets et mode de profondeur) est calculée d'abord, sur une copie de l'étage.
+- Un étage réglé par la voie (chargé, ou réseau tensoriel qu'elle ne construit jamais) ou en vol ne prend pas de place. Les étages réglés tiennent dans un ensemble de 32 768 cases, vidé à la fin de la session. Une traduction ou une compilation échouée est retentée à l'enregistrement suivant.
+- Une seconde voie travaille à Fair ou plus froid, quand la première a plus d'attente.
+- Le journal compte les enregistrements écartés comme connus : `[rb-bind-ahead] … dropped= known=`.
+
+Limites. Rien n'est mesuré sur iPhone. À caches froids, un premier chargement annonce plus d'étages nouveaux que deux voies n'en construisent : des refus restent attendus, et ces étages sont construits au premier dessin. Chaque enregistrement coûte désormais une copie et un hachage de l'étage sur le fil du jeu, y compris quand il est refusé. À lire : `dropped`, `known`, `variants_built` et `submit_msl_blocked_count`.
+

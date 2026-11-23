@@ -1,0 +1,180 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 4b1c4af..12fd0d1 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3278,7 +3278,12 @@ NVN(nvnWindowInitialize, NVNboolean, NVNwindow *w, const NVNwindowBuilder *b) {
+ NVN(nvnWindowGetNativeWindow, NVNnativeWindow, const NVNwindow *w) { return ((const win_t *)w)->native; }
+ NVN(nvnWindowGetPresentInterval, int, const NVNwindow *w) { return ((const win_t *)w)->interval; }   // Link's Awakening reads it back every frame
+ // RewindBox (patch 0059): the line says at which frame (Mario Kart World set it 1,135 times in the 5,968 frames of the IPA 762 run, and nothing told which frames)
+-NVN(nvnWindowSetPresentInterval, void, NVNwindow *w, int v) { if (((win_t *)w)->interval != v) LOG("[nvn] the game sets present interval %d → %d (frame %llu)", ((win_t *)w)->interval, v, (unsigned long long)dm_nvn_frame_count()); ((win_t *)w)->interval = v; }
++// RewindBox (patch 0309): the changes are counted too. A game that alternates its interval is a 60 fps title dropping frames; nvn_mtl.m
++//   offers it the 60 fps hold again once it has locked itself at interval 2 (rb_drs_trial_step)
++static _Atomic uint64_t g_rb_itv_changes;
++uint64_t nvn_rb_interval_changes(void);
++uint64_t nvn_rb_interval_changes(void) { return atomic_load_explicit(&g_rb_itv_changes, memory_order_relaxed); }
++NVN(nvnWindowSetPresentInterval, void, NVNwindow *w, int v) { if (((win_t *)w)->interval != v) { LOG("[nvn] the game sets present interval %d → %d (frame %llu)", ((win_t *)w)->interval, v, (unsigned long long)dm_nvn_frame_count()); atomic_fetch_add_explicit(&g_rb_itv_changes, 1, memory_order_relaxed); } ((win_t *)w)->interval = v; }
+ // 显示层裁切（nn::vi::SetLayerCrop，说明见 graphics/nvn/host_adapt.m s2a_vi_entry）：上屏取窗口贴图的区域。nvnWindowSetCrop 写的是同一个系统窗口裁切，谁最后写算谁
+ static pthread_mutex_t g_vi_mu = PTHREAD_MUTEX_INITIALIZER; static int g_vi_crop[4];
+ int32_t h_vi_set_layer_crop(void *layer, int32_t x, int32_t y, int32_t w, int32_t h) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 34ef140..506c7d4 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3072,6 +3072,27 @@ static uint64_t rb_drs_scene_px(uint64_t f) {
+     uint64_t v = atomic_load_explicit(&g_rb_scene_px[f % DRS_N], memory_order_relaxed);
+     return v >> 32 == ((f + 1) & UINT32_MAX) ? (uint32_t)v : 0;
+ }
++// RewindBox (patch 0309): a trial of the 60 fps hold for a game locked at interval 2 (rb_drs_trial_step). hle_nvn.c provides the strong
++//   definition of the count of present interval changes the game has made; without it no game is seen to alternate and none is tried.
++__attribute__((weak)) uint64_t nvn_rb_interval_changes(void) { return 0; }
++__attribute__((weak)) int nvn_rb_video_paced(void);
++static int fps_override(void);
++static rb_drs_trial g_rb_drs_trial;   // g_rb_floor_lock
++static int rb_drs_trial_now(uint64_t f, int fps) {
++    int allowed = atomic_load_explicit(&g_drs_state, memory_order_relaxed) < 3 && fps_override() <= 0 &&
++                  nvn_fps_limit() != 30 && !nvn_rb_video_paced();
++    uint64_t changes = nvn_rb_interval_changes();
++    os_unfair_lock_lock(&g_rb_floor_lock);
++    uint64_t trials = g_rb_drs_trial.trials;
++    int on = rb_drs_trial_step(&g_rb_drs_trial, f, fps, changes, allowed);
++    rb_drs_trial tr = g_rb_drs_trial;
++    os_unfair_lock_unlock(&g_rb_floor_lock);
++    if (tr.trials != trials && (tr.trials <= 8 || !(tr.trials & (tr.trials - 1))))
++        MLOG("[rb-guest-drs] trial frame=%llu frames=%d waited=%llu trials=%llu kept=%llu",
++             (unsigned long long)f, RB_DRS_TRIAL_FRAMES, (unsigned long long)tr.wait,
++             (unsigned long long)tr.trials, (unsigned long long)tr.kept);
++    return on;
++}
+ // Configuration and observations are serialised by g_rb_heat_lock.
+ static double g_rb_drs_target = -1.;
+ static os_unfair_lock g_rb_heat_lock = OS_UNFAIR_LOCK_INIT;
+@@ -3151,6 +3172,10 @@ static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the ti
+     if (atomic_load(&g_drs[i].frame) != f + 1) return t;
+     uint64_t top = atomic_load(&g_drs[i].top); if (!top || t <= top) return t;
+     int fps = nvn_be_fps_target(); if (fps <= 0 || fps > 60) fps = 60;   // 30 / 60 (nvn_obj.h)
++    if (rb_drs_trial_now(f, fps)) {   // RewindBox (patch 0309): the 60 fps hold whatever the time
++        const uint64_t hold60 = 16600000ull * 12 / 625;
++        return t - top < hold60 / 2 ? t : top + hold60;
++    }
+     uint64_t hold = 16600000ull * 60 / (uint64_t)fps * 12 / 625;   // 16.6 ms at 60 fps, in 19.2 MHz ticks
+     unsigned level = atomic_load_explicit(&g_rb_drs_level, memory_order_relaxed);
+     uint64_t want = rb_drs_report_ticks(hot, atomic_load_explicit(&g_drs_state, memory_order_relaxed) >= 2, fps,
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 5c3f67a..c646a5c 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -343,6 +343,7 @@ int nvn_be_shutdown_session(void) {
+     for (unsigned i = 0; i < DRS_N; ++i) { atomic_store(&g_drs[i].frame, 0); atomic_store(&g_drs[i].top, 0); }
+     for (unsigned i = 0; i < DRS_N; ++i) atomic_store(&g_rb_scene_px[i], 0);
+     g_rb_drs_floor = (rb_drs_floor){0};
++    g_rb_drs_trial = (rb_drs_trial){0};
+     g_link_applied = 0; g_link_hold_until = g_link_vperiod = g_link_vhalf = 0;
+     g_rb_display_cadence = (rb_cadence_candidate){0};
+     g_link_pending = 0; g_link_pending_since = g_link_pending_period = 0;
+diff --git a/graphics/nvn/gfx/nvn/rb_adaptive_drs.h b/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
+index cd296e8..71a632f 100644
+--- a/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
++++ b/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
+@@ -113,3 +113,53 @@ static inline int rb_drs_floor_push(rb_drs_floor *s, uint64_t frame, uint64_t pi
+     if (!s->floor || s->run_min < s->floor) s->floor = s->run_min;
+     return 1;
+ }
++// Once the game has asked for present interval 2 for a second, the hold follows
++// it to 33.2 ms and every report from 16.6 to 33.2 ms reads 33.2 ms. A game
++// that picks each frame's interval from the time it read cannot read a time
++// under its 60 fps budget again, and the GPU slows to that pace: an iPhone at
++// Fair drew the same 127 passes in 9.9 ms at interval 1 and in 24.5 ms inside
++// the lock, an 8x8 pass in 78 then 222 microseconds. A trial gives such a game
++// the 60 fps hold for RB_DRS_TRIAL_FRAMES frames. If the GPU keeps up the game
++// stays at interval 1; if not, its own readings send it back and the next
++// trial waits twice as long. Only a game seen to alternate its interval is
++// tried: a title that runs at 30 by design changes it a few times a session.
++enum { RB_DRS_TRIAL_FRAMES = 30, RB_DRS_TRIAL_WAIT = 60, RB_DRS_TRIAL_WAIT_MAX = 960,
++       RB_DRS_TRIAL_CHANGES = 8, RB_DRS_TRIAL_WINDOW = 600, RB_DRS_TRIAL_KEPT = 300 };
++typedef struct {
++    uint64_t seen, mark_frame, mark_changes, prior_changes;   // seen, mark_frame: a frame + 1
++    uint64_t wait, next_at, until, at60;                      // at60: the frame + 1 the target last became 60
++    uint64_t trials, kept;
++    int adaptive, tried, decision;
++} rb_drs_trial;
++// Whether the reports of `frame` take the 60 fps hold whatever their time.
++// fps: the engine's target (30 once the game holds interval 2). changes: the
++// present interval changes the game has made so far. allowed: no user limit,
++// no video pacing, not at Critical.
++static inline int rb_drs_trial_step(rb_drs_trial *s, uint64_t frame, int fps, uint64_t changes, int allowed) {
++    if (s->seen == frame + 1) return s->decision;
++    s->seen = frame + 1;
++    if (!s->mark_frame || frame + 1 - s->mark_frame >= RB_DRS_TRIAL_WINDOW) {
++        s->prior_changes = s->mark_frame ? changes - s->mark_changes : 0;
++        s->mark_frame = frame + 1; s->mark_changes = changes;
++    }
++    if (changes - s->mark_changes + s->prior_changes >= RB_DRS_TRIAL_CHANGES) s->adaptive = 1;
++    const int running = frame < s->until;
++    if (fps != 30) {
++        if (!s->at60) s->at60 = frame + 1;
++        if (s->tried && frame + 1 - s->at60 >= RB_DRS_TRIAL_KEPT) { s->tried = 0; s->wait = 0; ++s->kept; }
++        s->next_at = 0;
++        return s->decision = running;
++    }
++    s->at60 = 0;
++    if (running) return s->decision = 1;
++    if (!allowed || !s->adaptive) { s->next_at = 0; return s->decision = 0; }
++    if (!s->next_at) {
++        if (!s->wait) s->wait = RB_DRS_TRIAL_WAIT;
++        else if (s->tried) s->wait = s->wait * 2 < RB_DRS_TRIAL_WAIT_MAX ? s->wait * 2 : RB_DRS_TRIAL_WAIT_MAX;
++        s->next_at = frame + s->wait;
++        return s->decision = 0;
++    }
++    if (frame < s->next_at) return s->decision = 0;
++    s->until = frame + RB_DRS_TRIAL_FRAMES; s->next_at = 0; s->tried = 1; ++s->trials;
++    return s->decision = 1;
++}
+diff --git a/graphics/nvn/tests/t_rb_adaptive_drs.c b/graphics/nvn/tests/t_rb_adaptive_drs.c
+index a7cfcc6..a33543c 100644
+--- a/graphics/nvn/tests/t_rb_adaptive_drs.c
++++ b/graphics/nvn/tests/t_rb_adaptive_drs.c
+@@ -79,6 +79,44 @@ int main(void) {
+     assert(rb_drs_floor_push(&fl, g++, 2073600) && rb_drs_floor_push(&fl, g++, 1500000) && rb_drs_floor_push(&fl, g++, 873600));
+     for (int i = 0; i < RB_DRS_FLOOR_STALL; ++i) assert(rb_drs_floor_push(&fl, g++, 873600));
+     assert(fl.resting && fl.rests == 3 && fl.floor == 873600 && !rb_drs_floor_push(&fl, g + 100000, 873600));
++    // A game locked at 30 is offered the 60 fps hold: only one that alternates
++    // its interval, after 60 frames, for 30 frames, twice as late after a failure.
++    rb_drs_trial tr = {0};
++    uint64_t h = 1000, ch = 0;
++    for (int i = 0; i < 2000; ++i) assert(!rb_drs_trial_step(&tr, h++, 30, 3, 1));   // 30 by design: three changes in all
++    assert(!tr.adaptive && !tr.trials);
++    for (int i = 0; i < 300; ++i) assert(!rb_drs_trial_step(&tr, h++, 60, ch += i % 2, 1));   // alternating at 60
++    assert(tr.adaptive && !tr.trials && !tr.tried);
++    assert(!rb_drs_trial_step(&tr, h, 30, ch, 1) && tr.next_at == h + RB_DRS_TRIAL_WAIT);   // the lock begins
++    assert(!rb_drs_trial_step(&tr, h, 30, ch, 1));   // a frame counts once
++    for (++h; h < tr.next_at; ++h) assert(!rb_drs_trial_step(&tr, h, 30, ch, 1));
++    assert(rb_drs_trial_step(&tr, h, 30, ch, 1) && tr.trials == 1 && tr.until == h + RB_DRS_TRIAL_FRAMES);
++    assert(rb_drs_trial_step(&tr, h, 30, ch, 1));
++    // The game answers with interval 1: the trial's remaining frames keep the hold at a target of 60.
++    uint64_t end = tr.until;
++    for (++h; h < end; ++h) assert(rb_drs_trial_step(&tr, h, 60, ch, 1));
++    assert(!rb_drs_trial_step(&tr, h++, 60, ch, 1));   // then the times as they are
++    for (int i = 0; i < 100; ++i) assert(!rb_drs_trial_step(&tr, h++, 60, ch, 1));
++    assert(tr.tried && !tr.kept);
++    // Back at 30 before 300 frames at 60: the next trial waits twice as long, up to 960 frames.
++    for (uint64_t wait = 2 * RB_DRS_TRIAL_WAIT;; wait = wait * 2 < RB_DRS_TRIAL_WAIT_MAX ? wait * 2 : RB_DRS_TRIAL_WAIT_MAX) {
++        assert(!rb_drs_trial_step(&tr, h, 30, ch, 1) && tr.wait == wait && tr.next_at == h + wait);
++        for (++h; h < tr.next_at; ++h) assert(!rb_drs_trial_step(&tr, h, 30, ch, 1));
++        for (int i = 0; i < RB_DRS_TRIAL_FRAMES; ++i) assert(rb_drs_trial_step(&tr, h++, 30, ch, 1));   // the game does not answer
++        if (wait == RB_DRS_TRIAL_WAIT_MAX && tr.trials >= 8) break;
++    }
++    assert(tr.wait == RB_DRS_TRIAL_WAIT_MAX);
++    // A user limit, a video or Critical: no trial, and none pending when it lifts.
++    for (int i = 0; i < 3000; ++i) assert(!rb_drs_trial_step(&tr, h++, 30, ch, 0));
++    uint64_t before = tr.trials;
++    assert(!rb_drs_trial_step(&tr, h, 30, ch, 1) && tr.next_at == h + RB_DRS_TRIAL_WAIT_MAX && tr.trials == before);
++    for (++h; h < tr.next_at; ++h) assert(!rb_drs_trial_step(&tr, h, 30, ch, 1));
++    assert(rb_drs_trial_step(&tr, h++, 30, ch, 1) && tr.trials == before + 1);
++    // 300 frames at 60 after a trial: it held, and a later lock starts from the first wait again.
++    for (int i = 0; i < RB_DRS_TRIAL_KEPT + RB_DRS_TRIAL_FRAMES; ++i) rb_drs_trial_step(&tr, h++, 60, ch, 1);
++    assert(tr.kept == 1 && !tr.tried && !tr.wait);
++    assert(!rb_drs_trial_step(&tr, h, 30, ch, 1) && tr.next_at == h + RB_DRS_TRIAL_WAIT);
++    puts("PASS guest DRS trial: only an alternating game, 60 then 30 frames, hold kept through the answer, doubled waits, limits, a kept trial");
+     puts("PASS guest DRS floor: unknown size, one count a frame, stall at the smallest size, rest at the floor, retry above it");
+     puts("PASS guest DRS: measured medians/tails, hold at Fair, 18.675/20.5 ms steps, Serious push, disjoint samples, invalid windows, hysteresis, 30 Hz and off");
+ }

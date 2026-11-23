@@ -1,0 +1,308 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index d0d2b14..5c3f67a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -55,6 +55,7 @@ static int session_wait_backend(void) {
+     if (g_rb_disk_q) dispatch_group_async(prefetch_done,g_rb_disk_q,^{});
+     if (g_rb_bind_q) dispatch_group_async(prefetch_done,g_rb_bind_q,^{});
+     if (g_rb_registration_q) dispatch_group_async(prefetch_done,g_rb_registration_q,^{});
++    if (g_rb_registration_q2) dispatch_group_async(prefetch_done,g_rb_registration_q2,^{});
+     if (g_rb_export_q) dispatch_group_async(prefetch_done,g_rb_export_q,^{});
+     if (g_rb_startup_q) dispatch_group_async(prefetch_done,g_rb_startup_q,^{});
+     os_unfair_lock_unlock(&g_shpre_mu);
+@@ -416,6 +417,8 @@ void nvn_be_begin_session(void) {
+     atomic_store(&g_rb_urgent_continue, 0);
+     atomic_store(&g_rb_pass_lookahead, 0);
+     atomic_store(&g_rb_pass_ahead, 0);
++    memset(&g_rb_registered, 0, sizeof g_rb_registered);   // RewindBox (patch 0308): the next session settles its own stages
++    atomic_store(&g_rb_registration_dropped, 0); atomic_store(&g_rb_registration_known, 0);
+     atomic_store(&g_shpre_stopping, 0);
+     os_unfair_lock_unlock(&g_shpre_mu);
+     atomic_store(&g_link_stop, 0); atomic_store(&g_present_discard, 0);
+diff --git a/graphics/nvn/gfx/nvn/rb_registration.inc b/graphics/nvn/gfx/nvn/rb_registration.inc
+index 4a65a87..05c09db 100644
+--- a/graphics/nvn/gfx/nvn/rb_registration.inc
++++ b/graphics/nvn/gfx/nvn/rb_registration.inc
+@@ -4,8 +4,11 @@
+ // the current bytes, and serial/psnap keys are never published here.
+ extern int dm_shader_prepare_registration(const char *,const uint8_t *,uint32_t,
+                                           const uint8_t *,uint32_t) __attribute__((weak_import));
+-static dispatch_queue_t g_rb_registration_q;
++#include "rb_registration_plan.h"
++static dispatch_queue_t g_rb_registration_q, g_rb_registration_q2;   // the second lane: rb_reg_lane
+ static NSMutableSet<NSString *> *g_rb_registering; // protected by g_shpre_mu
++static rb_reg_known g_rb_registered;               // protected by g_shpre_mu
++static unsigned g_rb_registration_lane[2];         // protected by g_shpre_mu
+ static size_t g_rb_registration_bytes;
+ static _Atomic unsigned g_rb_registration_count;
+ static _Atomic uint64_t g_rb_registration_queued, g_rb_registration_loaded, g_rb_registration_msl;
+@@ -15,8 +18,12 @@ static _Atomic int g_rb_register_option;
+ // count and the first draw built the stage on the submit thread (an iPhone
+ // session: 573 source compiles there, 8.7 s). Keep this many waiting; the
+ // 8 MiB of snapshots stay the memory bound, and a refusal is counted.
++// RewindBox (patch 0308): with 128 places the next session refused 4,096
++// registrations. Most places went to stages already built (460 variants built
++// out of 1,024 queued): a stage the lane has settled or holds in flight takes
++// none now (rb_registration_plan.h), and a second lane works at Fair or cooler.
+ enum { RB_REGISTRATION_DEPTH = 128 };
+-static _Atomic uint64_t g_rb_registration_dropped;
++static _Atomic uint64_t g_rb_registration_dropped, g_rb_registration_known;
+ 
+ static BOOL rb_read_stage_header(const NVNshaderData *sd, uint8_t ctl[NVN2_CTL_COPY],
+                             uint32_t *nctl, uint32_t *ncode) {
+@@ -39,52 +46,55 @@ static void rb_register_shader(const NVNshaderData *sd, int depth) {
+     uint8_t control[NVN2_CTL_COPY];
+     uint32_t nctl, ncode;
+     if (!rb_read_stage_header(sd, control, &nctl, &ncode) || !rb_addr_mapped(sd->data, ncode)) return;
++    if (atomic_load(&g_shpre_stopping)) return;
+     const size_t bytes = (size_t)nctl + ncode, limit = 8u << 20;
+-    // Reserve before copying, including concurrent registering game threads.
+-    os_unfair_lock_lock(&g_shpre_mu);
+-    BOOL stopping = atomic_load(&g_shpre_stopping);
+-    BOOL admitted = !stopping && g_rb_registration_count < RB_REGISTRATION_DEPTH &&
+-                    bytes <= limit - g_rb_registration_bytes;
+-    if (admitted) { g_rb_registration_bytes += bytes; ++g_rb_registration_count; }
+-    unsigned waiting = g_rb_registration_count;
+-    os_unfair_lock_unlock(&g_shpre_mu);
+-    if (!admitted) {
+-        if (stopping) return;
+-        uint64_t dropped = atomic_fetch_add(&g_rb_registration_dropped,1) + 1;
+-        if (!(dropped & (dropped-1))) MLOG("[rb-bind-ahead] dropped=%llu waiting=%u stage_bytes=%zu",
+-            (unsigned long long)dropped,waiting,bytes);
+-        return;
+-    }
+-
++    // The identity comes first: it tells a stage the lane has already served.
++    // The copy is one stage, 8 MiB at most, per registering game thread.
+     NSData *snapshot = rb_stage_snapshot(sd, control, nctl, ncode);
+     const uint8_t *payload = snapshot.bytes;
+-    NSString *key = nil;
+-    if (payload) {
+-        uint8_t digest[8];
+-        nvn2_key(payload,payload+nctl,digest);
+-        char hex[17];
+-        for (int i=0;i<8;++i) snprintf(hex + 2*i,3,"%02x",digest[i]);
+-        key = @(hex);
+-    }
++    if (!payload) return;
++    uint8_t digest[8];
++    nvn2_key(payload,payload+nctl,digest);
++    char hex[17];
++    for (int i=0;i<8;++i) snprintf(hex + 2*i,3,"%02x",digest[i]);
++    NSString *key = @(hex);
++    NSString *identity = [key stringByAppendingFormat:@"/%d",depth];
++    const uint64_t settled_id = rb_reg_identity(digest,depth);
+     // Commands already bound, watched draws, and demanded PSOs use other
+     // workers. A burst of speculative registrations cannot occupy their queue.
+     os_unfair_lock_lock(&g_shpre_mu);
+-    NSString *identity = key ? [key stringByAppendingFormat:@"/%d",depth] : nil;
+-    if (!key || atomic_load(&g_shpre_stopping) || [g_rb_registering containsObject:identity]) {
+-        g_rb_registration_bytes -= bytes;
+-        BOOL idle=--g_rb_registration_count==0;
++    if (atomic_load(&g_shpre_stopping)) { os_unfair_lock_unlock(&g_shpre_mu); return; }
++    int verdict = rb_reg_verdict(rb_reg_known_has(&g_rb_registered,settled_id),
++                                 [g_rb_registering containsObject:identity],
++                                 g_rb_registration_count,RB_REGISTRATION_DEPTH,
++                                 bytes,g_rb_registration_bytes,limit);
++    if (verdict != RB_REG_ADMIT) {
++        unsigned waiting = g_rb_registration_count;
+         os_unfair_lock_unlock(&g_shpre_mu);
+-        if (idle) RB_OBSERVED_IDLE();
++        if (verdict == RB_REG_KNOWN) atomic_fetch_add(&g_rb_registration_known,1);
++        if (verdict != RB_REG_FULL) return;
++        uint64_t dropped = atomic_fetch_add(&g_rb_registration_dropped,1) + 1;
++        if (!(dropped & (dropped-1))) MLOG("[rb-bind-ahead] dropped=%llu waiting=%u stage_bytes=%zu",
++            (unsigned long long)dropped,waiting,bytes);
+         return;
+     }
++    g_rb_registration_bytes += bytes; ++g_rb_registration_count;
+     if (!g_rb_registration_q) {
+         g_rb_registration_q = dispatch_queue_create("s2a.nvn2.register",
+             dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,QOS_CLASS_USER_INITIATED,0));
+         g_rb_registering = [NSMutableSet set];
+     }
++    const unsigned lane = rb_reg_lane(rb_cached_thermal(),g_rb_registration_lane[0],g_rb_registration_lane[1]);
++    if (lane && !g_rb_registration_q2)
++        g_rb_registration_q2 = dispatch_queue_create("s2a.nvn2.register.2",
++            dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,QOS_CLASS_USER_INITIATED,0));
++    ++g_rb_registration_lane[lane];
+     [g_rb_registering addObject:identity];
+     uint64_t queued = atomic_fetch_add(&g_rb_registration_queued,1) + 1;
+-    dispatch_async(g_rb_registration_q, ^{ @autoreleasepool {
++    dispatch_async(lane ? g_rb_registration_q2 : g_rb_registration_q, ^{ @autoreleasepool {
++        // Settled: the stage is loaded, or it is one this lane never builds.
++        // A failed translation or build is tried again at the next registration.
++        BOOL settled = NO;
+         if (!nvn_be_stopping()) {
+             const uint8_t *ctl = snapshot.bytes, *code = ctl+nctl;
+             shmap_load_metadata();
+@@ -101,24 +111,29 @@ static void rb_register_shader(const NVNshaderData *sd, int depth) {
+                     NSString *pc = [key stringByAppendingString:@"_b"];
+                     int built = 0;
+                     uint64_t before = t_rb_msl_n;
+-                    if (shader_loadable(pc) && shader_load_depth(pc,st,0,stage_depth_moded(st) && depth,&built,NULL) && built)
+-                        atomic_fetch_add(&g_rb_registration_loaded,1);
++                    if (shader_loadable(pc) && shader_load_depth(pc,st,0,stage_depth_moded(st) && depth,&built,NULL)) {
++                        settled = YES;
++                        if (built) atomic_fetch_add(&g_rb_registration_loaded,1);
++                    }
+                     atomic_fetch_add(&g_rb_registration_msl,t_rb_msl_n-before);
+-                }
++                } else settled = st >= 0;
+             }
+         }
+         os_unfair_lock_lock(&g_shpre_mu);
+         [g_rb_registering removeObject:identity];
++        if (settled) rb_reg_known_add(&g_rb_registered,settled_id);
+         g_rb_registration_bytes -= bytes;
++        --g_rb_registration_lane[lane];
+         BOOL idle=--g_rb_registration_count==0;
+         os_unfair_lock_unlock(&g_shpre_mu);
+         if (idle) RB_OBSERVED_IDLE();
+     }});
+     os_unfair_lock_unlock(&g_shpre_mu);
+-    if (!(queued & (queued-1))) MLOG("[rb-bind-ahead] registered=%llu variants_built=%llu msl_compiles=%llu dropped=%llu",
++    if (!(queued & (queued-1))) MLOG("[rb-bind-ahead] registered=%llu variants_built=%llu msl_compiles=%llu dropped=%llu known=%llu",
+         (unsigned long long)queued,(unsigned long long)atomic_load(&g_rb_registration_loaded),
+         (unsigned long long)atomic_load(&g_rb_registration_msl),
+-        (unsigned long long)atomic_load(&g_rb_registration_dropped));
++        (unsigned long long)atomic_load(&g_rb_registration_dropped),
++        (unsigned long long)atomic_load(&g_rb_registration_known));
+ }
+ 
+ void nvn_be_registered_stages(const prog_t *program) {
+diff --git a/graphics/nvn/gfx/nvn/rb_registration_plan.h b/graphics/nvn/gfx/nvn/rb_registration_plan.h
+new file mode 100644
+index 0000000..a96982f
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_registration_plan.h
+@@ -0,0 +1,53 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <stdint.h>
++#include <string.h>
++
++// What the bind-ahead lane does with one registered stage (rb_registration.inc).
++// A game registers the same stage with many programs, and again at every load.
++// The lane used to queue each of them: an iPhone session built 460 variants out
++// of 1,024 queued registrations, and with 128 places 4,096 more were refused.
++// A stage the lane has settled, or holds in flight, takes no place.
++enum { RB_REG_ADMIT, RB_REG_KNOWN, RB_REG_IN_FLIGHT, RB_REG_FULL };
++static inline int rb_reg_verdict(int known, int in_flight, unsigned waiting, unsigned depth,
++                                 size_t bytes, size_t held, size_t limit) {
++    if (known) return RB_REG_KNOWN;
++    if (in_flight) return RB_REG_IN_FLIGHT;
++    return waiting < depth && held <= limit && bytes <= limit - held ? RB_REG_ADMIT : RB_REG_FULL;
++}
++
++// The stages the lane has settled this session: the 8-byte stage key with the
++// depth mode folded in. Open addressing, never emptied one by one. Past three
++// quarters full it takes no more, and a later stage is queued as before.
++enum { RB_REG_KNOWN_SLOTS = 1 << 15 };
++typedef struct { uint64_t slot[RB_REG_KNOWN_SLOTS]; unsigned count; } rb_reg_known;
++static inline uint64_t rb_reg_identity(const uint8_t key[8], int depth) {
++    uint64_t v;
++    memcpy(&v, key, sizeof v);
++    if (depth) v ^= UINT64_C(0x9e3779b97f4a7c15);
++    return v ? v : 1;
++}
++static inline unsigned rb_reg_slot(uint64_t identity) {
++    return (unsigned)((identity * UINT64_C(0xff51afd7ed558ccd)) >> 49) & (RB_REG_KNOWN_SLOTS - 1);
++}
++static inline int rb_reg_known_has(const rb_reg_known *set, uint64_t identity) {
++    for (unsigned i = rb_reg_slot(identity), n = 0; n < RB_REG_KNOWN_SLOTS; i = (i + 1) & (RB_REG_KNOWN_SLOTS - 1), ++n) {
++        if (set->slot[i] == identity) return 1;
++        if (!set->slot[i]) return 0;
++    }
++    return 0;
++}
++static inline int rb_reg_known_add(rb_reg_known *set, uint64_t identity) {
++    if (set->count >= RB_REG_KNOWN_SLOTS / 4 * 3) return 0;
++    for (unsigned i = rb_reg_slot(identity);; i = (i + 1) & (RB_REG_KNOWN_SLOTS - 1)) {
++        if (set->slot[i] == identity) return 1;
++        if (!set->slot[i]) { set->slot[i] = identity; ++set->count; return 1; }
++    }
++}
++
++// Two lanes while the device is at Fair or cooler, one above: the stage is
++// built at its first draw otherwise, on the submit thread. The second lane
++// takes a registration only when the first has more waiting.
++static inline unsigned rb_reg_lane(int thermal, unsigned first, unsigned second) {
++    return thermal <= 1 && first > second ? 1u : 0u;
++}
+diff --git a/graphics/nvn/tests/rb_registration_gpu.inc b/graphics/nvn/tests/rb_registration_gpu.inc
+index 9abfd4a..ff45797 100644
+--- a/graphics/nvn/tests/rb_registration_gpu.inc
++++ b/graphics/nvn/tests/rb_registration_gpu.inc
+@@ -74,6 +74,13 @@ static int test_registered_library(NSString *root, BOOL enabled) { @autoreleasep
+         GPU_CHECK(g_rb_registration_q);
+         dispatch_sync(g_rb_registration_q,^{});
+         GPU_CHECK(g_rb_registration_loaded==i+1 && g_rb_registration_count==0);
++        {   // RewindBox (patch 0308): the same stage registered again takes no place in the lane.
++            uint64_t queued=g_rb_registration_queued, known=g_rb_registration_known;
++            code[0]-=64;
++            GPU_CHECK(reg(&program,1,&slot));
++            code[0]+=64;
++            GPU_CHECK(g_rb_registration_queued==queued && g_rb_registration_known==known+1 && g_rb_registration_count==0);
++        }
+         NvShader *built=g_shcache[shader_identity(stage,5,0,0)];
+         GPU_CHECK(built && built->fn && built->fn.functionType==MTLFunctionTypeKernel);
+         if (i == 0) {
+diff --git a/graphics/nvn/tests/t_rb_registration_plan.c b/graphics/nvn/tests/t_rb_registration_plan.c
+new file mode 100644
+index 0000000..7447f0a
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_registration_plan.c
+@@ -0,0 +1,52 @@
++// SPDX-License-Identifier: MIT
++#include "../gfx/nvn/rb_registration_plan.h"
++#include <assert.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++int main(void) {
++    const size_t limit = 8u << 20;
++    // A settled or in-flight stage takes no place, even with the lane full.
++    assert(rb_reg_verdict(1, 0, 128, 128, 4096, limit, limit) == RB_REG_KNOWN);
++    assert(rb_reg_verdict(1, 1, 0, 128, 4096, 0, limit) == RB_REG_KNOWN);
++    assert(rb_reg_verdict(0, 1, 128, 128, 4096, limit, limit) == RB_REG_IN_FLIGHT);
++    assert(rb_reg_verdict(0, 0, 0, 128, 4096, 0, limit) == RB_REG_ADMIT);
++    assert(rb_reg_verdict(0, 0, 127, 128, 4096, 0, limit) == RB_REG_ADMIT);
++    assert(rb_reg_verdict(0, 0, 128, 128, 4096, 0, limit) == RB_REG_FULL);
++    assert(rb_reg_verdict(0, 0, 3, 128, 4096, limit - 4096, limit) == RB_REG_ADMIT);
++    assert(rb_reg_verdict(0, 0, 3, 128, 4097, limit - 4096, limit) == RB_REG_FULL);
++    assert(rb_reg_verdict(0, 0, 3, 128, 1, limit + 1, limit) == RB_REG_FULL);   // no wrap of the room left
++
++    // The depth mode is part of the identity, and no identity is the empty slot.
++    const uint8_t key[8] = {1, 2, 3, 4, 5, 6, 7, 8}, zero[8] = {0};
++    assert(rb_reg_identity(key, 0) != rb_reg_identity(key, 1));
++    assert(rb_reg_identity(zero, 0) == 1 && rb_reg_identity(zero, 1));
++
++    rb_reg_known *set = calloc(1, sizeof *set);
++    assert(set && !rb_reg_known_has(set, rb_reg_identity(key, 0)));
++    assert(rb_reg_known_add(set, rb_reg_identity(key, 0)) && set->count == 1);
++    assert(rb_reg_known_add(set, rb_reg_identity(key, 0)) && set->count == 1);
++    assert(rb_reg_known_has(set, rb_reg_identity(key, 0)) && !rb_reg_known_has(set, rb_reg_identity(key, 1)));
++    // 20,000 stages: every one found again, none invented, colliding slots included.
++    uint64_t v = 0x243f6a8885a308d3ull;
++    for (unsigned i = 0; i < 20000; ++i) {
++        v = v * 6364136223846793005ull + 1442695040888963407ull;
++        assert(rb_reg_known_add(set, v | 1));
++    }
++    v = 0x243f6a8885a308d3ull;
++    for (unsigned i = 0; i < 20000; ++i) {
++        v = v * 6364136223846793005ull + 1442695040888963407ull;
++        assert(rb_reg_known_has(set, v | 1) && !rb_reg_known_has(set, (v | 1) ^ 2));
++    }
++    // Past three quarters full it refuses, keeps what it holds and still ends its searches.
++    for (uint64_t extra = 2; set->count < RB_REG_KNOWN_SLOTS / 4 * 3; extra += 2) rb_reg_known_add(set, extra << 20);
++    assert(!rb_reg_known_add(set, UINT64_C(0x7777777777777777)) && !rb_reg_known_has(set, UINT64_C(0x7777777777777777)));
++    assert(rb_reg_known_has(set, rb_reg_identity(key, 0)));
++    free(set);
++
++    // The second lane only under Fair or cooler, and only when the first has more waiting.
++    assert(rb_reg_lane(0, 0, 0) == 0 && rb_reg_lane(1, 0, 0) == 0);
++    assert(rb_reg_lane(0, 1, 0) == 1 && rb_reg_lane(1, 5, 4) == 1 && rb_reg_lane(1, 4, 4) == 0);
++    assert(rb_reg_lane(2, 9, 0) == 0 && rb_reg_lane(3, 9, 0) == 0);
++    puts("PASS bind-ahead plan: settled and in-flight stages take no place, byte and count bounds, known set, lanes by thermal state");
++}

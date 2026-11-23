@@ -94,3 +94,25 @@ Limites. Rien n'est mesuré sur iPhone. Dans ces fenêtres le travail par image 
 
 Constat sans cause établie. Dans les fenêtres 3900 à 5700, l'horloge moyenne du fil de soumission est de 1,34 à 2,02 GHz pour 12,7 à 22,5 ms de CPU par image, et la sonde GPU fixe lit 0,20 à 0,31 ms. Dans les fenêtres 6000 et suivantes, la sonde lit 0,64 à 1,23 ms et l'horloge monte de 2,19 à 3,58 GHz pour 8,8 à 10,5 ms de CPU. Le calcul temps réel déclaré n'explique pas l'horloge basse : des sessions antérieures à 15 ms déclarés montrent 1,4 à 2,4 GHz dans les fenêtres lourdes.
 
+## Verrou à 30 images par seconde et GPU ralenti à cette cadence
+
+Mécanisme. Quand le jeu demande l'intervalle 2 pendant une seconde, `nvn_game_fps` passe à 30 et le maintien du temps GPU lu par le jeu passe à 33,2 ms. Tout rapport TIMESTAMP de 16,6 à 33,2 ms lit alors 33,2 ms. Le jeu choisit l'intervalle de chaque image d'après ce temps : il ne peut plus lire un temps sous son budget de 16,67 ms.
+
+Mesure. Les sondes GPU intégrées (`RewindBox GPU-only probe`, une image, sans suspension de thread) donnent le temps de chaque encodeur.
+
+| Session | Image | Régime | Passes de rendu | Rendu | 1248×700 | 2048×2048 | 16×16 | 8×8 |
+|---|---|---|---|---|---|---|---|---|
+| IPA 820, Fair | 1322 | intervalle 1 | 127 | 9,86 ms | 4,01 ms (10 passes) | 0,58 ms (3) | 0,38 ms (3) | 0,31 ms (4) |
+| IPA 820, Fair | 3842 | verrou à 30 | 133 | 24,47 ms | 8,75 ms (8) | 1,54 ms (3) | 1,06 ms (3) | 0,89 ms (4) |
+| Après 821, Serious | 5642 | entrée dans le verrou | 124 | 24,56 ms | 10,41 ms (7) | 1,44 ms (3) | 0,86 ms (3) | 0,70 ms (4) |
+
+Lecture. Les mêmes passes sont 2,2 à 2,9 fois plus lentes dans le verrou, y compris des passes de 8×8 pixels : c'est la fréquence du GPU qui baisse à cette cadence, pas la charge qui monte. Le temps lu par le jeu reste donc au-dessus de 16,67 ms et le verrou se maintient. Dans la session après la 821, il dure de l'image 5638 à la fin (3 793 images).
+
+Patch 0309 (`rb_drs_trial_step`). Un essai rend au jeu le maintien de 16,6 ms pendant 30 images, quel que soit le temps réel. Le jeu repasse à l'intervalle 1 ; si le GPU suit à cette cadence, il y reste. Sinon ses propres lectures le renvoient à l'intervalle 2 et l'essai suivant attend deux fois plus (60 images, puis jusqu'à 960). Après 300 images à 60, l'essai est compté comme tenu et l'attente repart de 60. Seul un jeu qui alterne ses intervalles (8 changements en 1 200 images au plus) est essayé : un titre à 30 par choix n'en change que quelques fois. Pas d'essai sous un plafond utilisateur de 30, pendant une vidéo ni à l'état Critical. Journal : `[rb-guest-drs] trial frame= frames= waited= trials= kept=`.
+
+Limites. Rien n'est mesuré sur iPhone. Si le système bride réellement le GPU, l'essai échoue : environ une seconde à l'intervalle 1 sans gain, puis retour au verrou. Chaque essai fait changer deux fois le mode du display link. Le gain attendu est la sortie du verrou quand seul le ralentissement de cadence le maintenait.
+
+Répartition du temps GPU à l'intervalle 1 (image 1322). Les passes de scène à 1248×700 pèsent 4,0 ms sur 9,9 ms ; une centaine de passes plus petites se partagent le reste, une passe de 8×8 coûtant près de 80 microsecondes. Baisser la résolution de la scène agit donc sur 40 % du temps GPU au plus. Le coût fixe par passe est la piste suivante ; il n'est pas traité ici. L'élision des stores reste hors service pour les titres hébergés (lecteurs d'attachements par handles : durée de vie non prouvable), et ce verrou n'a pas de forçage.
+
+Fil de soumission, audit. Il tourne à 100 % sur les cœurs performance, sous une politique temps réel de priorité 97. Le calcul déclaré n'explique pas son horloge : des sessions à 15 ms déclarés montrent 1,4 à 2,4 GHz dans les fenêtres lourdes, comme les sessions à 2 ms. L'horloge suit l'état du GPU (voir plus haut) : basse quand le GPU travaille à pleine fréquence, haute quand il est ralenti. Aucun réglage de QoS ou de placement ne ressort comme cause. Le groupe de travail (`S2A_WORKGROUP`), qui annonce une échéance par image au système, reste hors service parce qu'il fait refuser la mise en veille de la session ; aucune mesure de course n'existe avec lui actif depuis l'IPA 783. Essai possible sur iPhone, un réglage à la fois dans `Documents/env.txt` : `S2A_WORKGROUP=1`, puis comparer `mean clock`, `CPU energy` et les images par seconde dans les fenêtres de course. La fermeture du jeu ne passe alors pas par la mise en veille : quitter l'app après l'essai.
+
