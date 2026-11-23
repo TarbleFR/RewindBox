@@ -23,7 +23,7 @@
     }
   },
   "patch": "native/desmume/arm64-jit-abi.patch",
-  "patchSHA256": "ce55baabfe81f962e1fb067437827d32c5b371632c157c1f0c0caef881b31c0b",
+  "patchSHA256": "139231f83cac87da76afada388a3277a6277487769f99738ca1ca6fef266b1a1",
   "abiHeader": "packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h",
   "abiHeaderSHA256": "84c59f2484336fa3c64bc68b51177211094083fd411f0b488fee6b79bda6bc22",
   "abiHeaderInTree": "desmume/src/frontend/libretro/rewindbox/RewindBoxLibretroJit.h",
@@ -39,7 +39,10 @@
     "desmume/src/frontend/libretro/Makefile.libretro": "250c7ac009fd43b3fb6c8dde52278fb1fae36ec34760275976eaabe7e5c42cc9",
     "desmume/src/frontend/libretro/libretro.cpp": "bbc2088d35e06bcbb0080e680b024d1ea8068a633bbdb0cfb41806c9f7dc6efd",
     "desmume/src/frontend/libretro/libretro_core_options.h": "f3a5782d09dd33533679b581ff826633821cd81195065fffb51a7ce47a517521",
-    "desmume/src/thumb_instructions.cpp": "5873b60be914dff404c995cd4a32c8d2292eafa17abfd8321541a1f89bc5462b"
+    "desmume/src/thumb_instructions.cpp": "5873b60be914dff404c995cd4a32c8d2292eafa17abfd8321541a1f89bc5462b",
+    "desmume/src/GPU.cpp": "62e960190e6f6fc28bc4b3b08d3da16d256433dadba12fa9f0bb5a5cc25645dc",
+    "desmume/src/rasterize.cpp": "b291363181d5bacb94f6a216abb6b73475706927027064825b79e0cb3b00d4ca",
+    "desmume/src/rasterize.h": "c3c2d925fa2cf8a04dea08b3484ba488e2a4c4729112f860931df8f6f2c4988c"
   },
   "sourceDateEpoch": 1795306701,
   "buildCommands": {
@@ -98,7 +101,8 @@
     "desmume_cpu_mode",
     "desmume_jit_block_size",
     "[rb-jit] desmume installed=%d",
-    "jit_exact"
+    "jit_exact",
+    "as many rasterizer threads as the device has cores"
   ],
   "forbiddenImports": [
     "_vm_protect",

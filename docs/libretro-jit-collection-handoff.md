@@ -49,6 +49,24 @@ s'était déjà terminée sans retour au menu sur une IPA d'avant le JIT de DeSm
   `Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro`, `libretro_internal_bridge`, `App` ;
   DeSmuME et Azahar restent retenus.
 
+## Après la 828 : cœur DeSmuME corrigé, à compiler et à adopter
+
+*23 novembre 2026, session « JIT DS et ×10 ».* Le gel d'Animal Crossing a une cause trouvée hors appareil : le JIT
+de T écrivait hors de sa table (STM et PUSH vers la RAM principale) depuis l'étape 1, donc depuis la collection
+`66e232e0` de la 828. Détail, reproduction et correctif : section 15 de
+[desmume-arm64-jit-architecture.md](desmume-arm64-jit-architecture.md).
+
+- **Correctif** `native/desmume/arm64-jit-abi.patch` (`139231f8…`, 20 fichiers) : écritures multi-registres par le
+  crochet d'invalidation ; rendu plus rapide en haute résolution interne (effacement, tranches entrelacées, couche
+  3D, conversion de sortie) ; `desmume_num_cores` à `auto` par défaut.
+- **Catalogue** : inchangé. `auto` est la valeur par défaut du cœur lui-même ; RewindBox ne règle pas cette option.
+- **À compiler** par la route source-cores (commit marqué `[libretro-source-cores]`), puis à adopter dans
+  `COLLECTIONS`. Seul `desmume_libretro` change par rapport à la collection en cours.
+- **À regarder sur iPhone** : Animal Crossing, menu en jeu ouvert puis fermé plusieurs fois ; lignes `stall:` du
+  journal de session ; `[rb-jit] … engine=jit` ; surcouche de performances (`EMU`) en ×1, ×5 et ×10.
+- **Non vérifié** : rien n'a tourné sur iPhone ; le lien entre l'écriture hors table et le gel au menu est cohérent,
+  pas prouvé.
+
 ## La collection
 
 - **Source.** Route source-cores de `.github/workflows/libretro-cores.yml`, commit `66e232e0`.

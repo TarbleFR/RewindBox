@@ -5,7 +5,8 @@ Cœur libretro [libretro/desmume@95b4d798](https://github.com/libretro/desmume/t
 DeSmuME, que le fork libretro n'a jamais importé, puis corrigé et branché sur
 `packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h`. S'y ajoutent les étapes 1 à 4 de
 [docs/desmume-arm64-jit-architecture.md](../../docs/desmume-arm64-jit-architecture.md) (sections 13 et 14) :
-couche commune, interpréteur en cache, JIT RewindBox à appels puis natif.
+couche commune, interpréteur en cache, JIT RewindBox à appels puis natif ; puis (section 15) le correctif du gel
+de l'IPA 828 et un rendu plus rapide en haute résolution interne.
 
 ## Ce que la compilation assemble
 
@@ -13,8 +14,9 @@ couche commune, interpréteur en cache, JIT RewindBox à appels puis natif.
    `emit_core.cpp` et `arm64_emit.cpp` de
    [TASEmulators/desmume@b549f71b](https://github.com/TASEmulators/desmume/tree/b549f71b83287f265b6d74b9e77ef5d98a617190),
    pris à cette révision et vérifiés par SHA-256. `arm_emit.cpp` (ARM 32 bits) n'est pas pris.
-2. **Correctif** `arm64-jit-abi.patch` (17 fichiers, +2 702/−208), un `git diff` contre l'arbre libretro plus ces
-   trois fichiers d'origine. Il crée `utils/arm_jit/rb_cached.cpp`, `rb_a64.h` et `rb_jit.cpp`.
+2. **Correctif** `arm64-jit-abi.patch` (20 fichiers, +3 048/−241), un `git diff` contre l'arbre libretro plus ces
+   trois fichiers d'origine. Il crée `utils/arm_jit/rb_cached.cpp`, `rb_a64.h` et `rb_jit.cpp`, et modifie aussi le
+   rendu (`rasterize.cpp`, `rasterize.h`, `GPU.cpp`) et la sortie du frontend.
 3. **En-tête ABI** hors du correctif, copié par la compilation dans
    `desmume/src/frontend/libretro/rewindbox/RewindBoxLibretroJit.h`.
 
@@ -49,6 +51,11 @@ couche commune, interpréteur en cache, JIT RewindBox à appels puis natif.
 | TASEmulators/desmume#998 | Instruction conditionnelle exécutée, de n cycles fixes : n au lieu de 0. Écriture de r15 par une opération de données : +2 cycles comptés une seule fois. |
 | TASEmulators/desmume#997 | Une écriture qui arme un DMA fait sortir le bloc, état synchronisé ; la première exécution d'un bloc, interprétée pendant sa compilation, s'arrête aussi là. |
 | `MMU_timing.h` | Accès à la dernière adresse de fetch, que le JIT RewindBox écrit là où elle doit être juste. |
+| Écritures multi-registres du JIT de T (`OP_LDM_STM_main`), **correctif du gel de la 828** | T mettait à zéro deux entrées de la taille d'un pointeur à `&JIT_COMPILED_FUNC(adr)` et avançait de deux pointeurs par mot. Sur la table par pages de l'étape 1 (entrées de 32 bits), chaque STM/PUSH vers la RAM principale écrivait donc au-delà des entrées de la page, ou de la page de zéros partagée : mémoire voisine écrasée. Ces écritures passent maintenant par le crochet d'invalidation (`JIT_COMPILED_FUNC_KNOWNBANK`), comme dans `MMU.h`. |
+| Rastériseur logiciel (`rasterize.cpp`, `rasterize.h`) | Effacement plan par plan (`std::fill_n`, `memset`) au lieu d'un appel par pixel. Avec des fils : l'image est découpée en tranches de groupes de lignes entrelacés (quatre tranches par fil) que les fils prennent à un compteur commun, au lieu d'une bande fixe par fil ; chaque fil efface une tranche juste avant de la dessiner. À la résolution de la console, le fil d'émulation dessine lui-même, comme sans fils. L'image ne change pas. |
+| Composition de la couche 3D (`GPU.cpp`) | Chemin sans appel ni branchement pour le cas courant (copie simple, image 15 bits, pas de fenêtre), que le compilateur vectorise. Mêmes pixels que `_PixelCopy`. |
+| Sortie du frontend (`libretro.cpp`) | À partir de 512×384, la conversion en RGB565 des deux écrans est partagée avec trois fils d'aide. |
+| `desmume_num_cores` | Nouvelle valeur `auto`, valeur par défaut : un fil de rastériseur par cœur de l'appareil (8 au plus). |
 
 ## Vérification hors appareil
 
@@ -86,6 +93,37 @@ qemu pénalise surtout les appels indirects.
 
 Le binaire iOS n'a pas tourné sur iPhone : à mesurer avec les lignes `[rb-jit]`.
 
+### Gel de la 828 et rendu (section 15 du document d'architecture)
+
+Banc refait pour cette vérification, toujours manuel et non livré :
+- cœur Linux AArch64 compilé avec clang, `char` signé et le choix de registres d'Apple (`x23` à la place de `x18`,
+  comme `__APPLE__` dans `arm64_emit.cpp`), sous qemu-aarch64, arène memfd vue en RW et en RX ;
+- 45 homebrews DS publics qui démarrent (exemples de dsgmLib, dont quatre en 3D, tutoriels libnds, rockwrestler) ;
+- variante du cœur avec contrôles de bornes (`-fsanitize=bounds-strict,null`, `_GLIBCXX_ASSERTIONS`) et un contrôle
+  des tables du JIT après chaque bloc ;
+- cœur x86-64 natif sans SIMD pour les mesures et pour ThreadSanitizer ; horloge figée (`LD_PRELOAD`), car plusieurs
+  homebrews tirent leurs nombres aléatoires de l'horloge émulée.
+
+| Vérification | Résultat |
+|---|---|
+| 828, `jit`, variante contrôlée | Table du JIT écrasée dès le premier homebrew 3D : après le bloc Thumb `STMIA r3!,{r0}` à `0x02020DB0` (boucle de mise à zéro), `jit_page_chunks[0]` vaut zéro ; plantage à la remise à zéro suivante des tables |
+| Correctif, `jit`, variante contrôlée, 4 homebrews 3D, état sauvegardé puis rechargé | Aucune écriture hors table, aucun plantage |
+| Correctif, `jit` contre `interpreter`, 45 homebrews, 240 images | 44 dernières images identiques, 1 écart de minutage (affichage de texte en cours), aucun plantage |
+| Rendu, x86-64 et AArch64, ×1 à ×10, 1 à 4 fils et `auto`, 4 scènes | Images et son identiques à ceux du cœur de la 828 |
+| ThreadSanitizer, 4 fils, ×3 | Aucune course nouvelle (reste celle des compteurs d'usage du cache de textures, déjà dans le cœur) |
+
+Temps d'une image de la scène 3D « Galaxy » (dsgmLib), interpréteur, Xeon 2,1 GHz à 4 processeurs virtuels. Ce ne
+sont pas des mesures iPhone :
+
+| Résolution interne | Cœur de la 828 (1 fil, réglage livré) | Ce cœur (`auto` : 4 fils) |
+|---|---|---|
+| ×1 (256×192) | 4,2 ms | 3,8 ms |
+| ×3 (768×576) | 8,7 ms | 7,9 ms |
+| ×5 (1280×960) | 22,1 ms | 10,9 ms |
+| ×10 (2560×1920) | 82,6 ms | 29,5 ms |
+
+Avec 4 fils réglés à la main, le cœur de la 828 mettait 45,4 ms en ×10.
+
 ## Limites connues
 
 - **`jit` (T).** Temps du fetch non compté et entrelacement des deux CPU par bloc : le temps émulé diffère un peu
@@ -97,6 +135,11 @@ Le binaire iOS n'a pas tourné sur iPhone : à mesurer avec les lignes `[rb-jit]
   sépare encore du JIT de T.
 - **Mémoire.** Table d'environ 32 Kio par page de 16 Kio où du code a tourné ; blocs de l'interpréteur en cache
   plafonnés à 24 Mio, puis oubliés.
+- **Haute résolution interne.** Le rendu reste logiciel. En ×10, la 3D, sa composition et la sortie traitent
+  4,9 millions de pixels par écran et par image : la fluidité dépend de la scène, et rien n'est mesuré sur iPhone.
+  Restent sur le fil d'émulation : la composition de la couche 3D et des couches 2D au-dessus d'elle, et
+  l'agrandissement de l'écran sans 3D. Un rendu 3D par le GPU demanderait le moteur OpenGL ES 3 de T
+  (`OGLRender_ES3.cpp`), que le fork libretro n'a pas.
 
 ## Licences
 

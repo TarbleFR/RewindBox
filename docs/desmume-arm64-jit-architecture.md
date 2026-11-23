@@ -2,7 +2,8 @@
 
 *23 novembre 2026 — branche `Claude`. **Étapes 0 à 4 réalisées** (sections 13 et 14) : JIT AArch64 de T sur
 l'ABI, couche commune, interpréteur en cache, JIT RewindBox à appels puis natif, dans `native/desmume`, vérifiés
-hors appareil ; rien mesuré sur iPhone. Décisions du mainteneur : « DS : garder DeSmuME, soit inventif et conçois
+hors appareil ; rien mesuré sur iPhone. **Section 15** : cause et correctif du gel de l'IPA 828, rendu plus rapide
+en haute résolution interne. Décisions du mainteneur : « DS : garder DeSmuME, soit inventif et conçois
 l'architecture », « fini de concevoir l'architecture JIT pour la DS », « vas jusqu'au bout », puis « fini toute les
 étapes de l'architecture pour le JIT ». Sources relues : libretro/desmume `95b4d798` (**L**), TASEmulators/desmume
 `b549f71b` (**T**), melonDS `ff972523`, oaknut `94c726ce`. Les chiffres de gain sont des estimations ou des
@@ -597,3 +598,72 @@ Tirée de la 826.
   - Pour que le JIT RewindBox dépasse celui de T : accès mémoire natifs (DTCM, RAM principale, cache de données en
     ligne), recherche en ligne dans le cache d'instructions, vivacité des drapeaux, multiplications, LDM/STM.
   - Livraison de la collection dans une IPA : session des livraisons.
+
+## 15. État : gel de l'IPA 828 corrigé, rendu en haute résolution (23 novembre 2026)
+
+Demande du mainteneur : « le JIT fait planter la console », et une résolution interne jusqu'à ×10 (2560×1920) sans
+ralentissement. Retour de l'iPhone sur la 828 : Animal Crossing figé à l'ouverture du menu en jeu
+([passation](libretro-jit-collection-handoff.md)). Les journaux fournis ne contenaient que des sessions MeloNX : la
+cause a été cherchée hors appareil.
+
+### 15.1 Cause du gel : une écriture hors table dans le JIT de T
+
+- **Défaut.** `OP_LDM_STM_main` (`arm_jit_arm.cpp`), le chemin rapide des STM et PUSH du JIT de T, écrit lui-même
+  dans la table des blocs : deux zéros de la taille d'un pointeur à `&JIT_COMPILED_FUNC(adr)`, puis un pas de deux
+  pointeurs par mot. C'était juste pour la table d'origine (une entrée de 8 octets par demi-mot). L'étape 1 a
+  remplacé cette table par des pages de 8 192 entrées de 32 bits et une page de zéros partagée, « jamais écrite » ;
+  ce chemin n'avait pas été repris.
+- **Effet.** Chaque écriture multi-registres vers la RAM principale effaçait 16 octets au lieu de 8 et avançait deux
+  fois trop vite : en fin de page (ou en début, pour un PUSH), elle sortait des entrées de la page, ou de la page de
+  zéros, et mettait à zéro la mémoire voisine. Les boucles de copie et de mise à zéro des jeux passent par là à
+  chaque frontière de 16 Kio.
+- **Pourquoi le banc de la section 14 ne l'a pas vu.** Sous Linux, ces zéros tombaient sur des en-têtes de blocs
+  `malloc` jamais relus ou sur des variables voisines sans effet ; la ROM de test ne faisait pas de STM en fin de
+  page. Sur iPhone, ils tombent dans le tas de l'application : le gel à l'ouverture du menu, qui alloue beaucoup,
+  est cohérent avec cette cause. Ce lien n'est pas prouvé sur appareil.
+- **Reproduction.** Cœur compilé avec contrôles de bornes et contrôle des tables après chaque bloc, homebrew
+  « MarioKart » de dsgmLib, mode `jit` : après le bloc Thumb à `0x02020DB0` (`STMIA r3!,{r0}` ; `SUB r1,#1` ; `BNE`,
+  avec r3 = `0x02077FFC`), `jit_page_chunks[0]` est nul, puis `jit_table_clear` plante. Quatre homebrews 3D sur
+  quatre.
+- **Correctif.** Ces écritures passent par le crochet d'invalidation des autres chemins
+  (`JIT_COMPILED_FUNC_KNOWNBANK(adr, MAIN_MEM, …)`) : les blocs touchés sont invalidés, le bloc en cours sort après
+  l'instruction. Aucun autre accès direct à la table ne reste dans le cœur.
+- **Pistes écartées.** Choix de registres d'Apple (`x23` pour `x18`), reproduit sur le banc : sans effet. Préparation
+  de l'arène par l'aide JIT : même script que S2Arm. États sauvegardés, remise à zéro et changement de résolution en
+  jeu sous JIT : corrects. Trois plantages SIGSEGV du journal MetricKit fourni : hors sessions MeloNX, sans pile ;
+  deux datent d'avant la première IPA avec le JIT de DeSmuME, aucun n'est attribuable à DeSmuME.
+
+### 15.2 Rendu en haute résolution interne
+
+Le profil du cœur de la 828 en ×10 (un seul fil de rastériseur, le réglage livré) :
+
+| Part du fil d'émulation | Cause |
+| --- | --- |
+| environ 45 % | attente de l'effacement du tampon 3D, fait par un appel par pixel sur sept plans |
+| environ 25 % | attente du rastériseur ; avec plusieurs fils, une bande fixe par fil laissait presque tout le travail à la moitié d'entre eux quand la scène est au milieu de l'écran |
+| environ 20 % | composition de la couche 3D, pixel par pixel |
+| environ 10 % | conversion de l'image en RGB565 |
+
+Changements, tous sans effet sur l'image (vérifié au bit près, [README](../native/desmume/README.md)) :
+
+- effacement plan par plan, fait par chaque fil juste avant de dessiner sa tranche ;
+- tranches de lignes entrelacées prises à un compteur commun : charge égale où que soit la scène, et un cœur lent
+  prend moins de tranches au lieu de retenir l'image ;
+- `desmume_num_cores` vaut `auto` par défaut (un fil par cœur) : RewindBox ne réglait pas cette option, restée à 1 ;
+- chemin vectorisable pour la composition de la couche 3D dans son cas courant ;
+- conversion de sortie partagée avec trois fils d'aide ;
+- à la résolution de la console, le fil d'émulation dessine lui-même (réveiller les fils coûtait plus que le dessin).
+
+Mesures hors appareil (scène « Galaxy », x86-64 à 2,1 GHz, 4 processeurs virtuels) : ×10 de 82,6 à 29,5 ms par
+image, ×5 de 22,1 à 10,9 ms, ×1 inchangé. Aucune mesure iPhone.
+
+### 15.3 Limites
+
+- **×10 n'est pas garanti fluide.** Le rendu reste logiciel : en ×10, chaque image traite 4,9 millions de pixels par
+  écran. Une scène 3D plein écran avec recouvrement coûte plusieurs fois la scène mesurée.
+- **Au-delà de la définition de l'écran.** Deux écrans DS empilés en ×10 font 2560×3840 ; un iPhone 16 Pro
+  (2622×1206) affiche chaque écran DS à ×4,7 en portrait et ×6,3 en paysage au plus : au-delà, l'image est réduite à
+  l'affichage (lissage), pas plus détaillée.
+- **Suite possible.** Composer la couche 3D hors du fil d'émulation, ou rendre la 3D par le GPU (moteur OpenGL ES 3
+  de T, absent du fork libretro, et composition côté hôte).
+- **Reste sur le fil d'émulation** : composition des couches, agrandissement de l'écran sans 3D.

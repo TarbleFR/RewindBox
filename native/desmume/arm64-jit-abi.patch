@@ -1,3 +1,44 @@
+diff --git a/desmume/src/GPU.cpp b/desmume/src/GPU.cpp
+index 026bf14c..0eedf587 100644
+--- a/desmume/src/GPU.cpp
++++ b/desmume/src/GPU.cpp
+@@ -7342,6 +7342,36 @@ void GPUEngineA::RenderLine_Layer3D(GPUEngineCompositorInfo &compInfo)
+ 	{
+ 		size_t i = 0;
+ 		
++#ifndef ENABLE_SSE2
++		// RewindBox: the usual case (plain copy to the 15-bit picture, no window test) as one loop without
++		// branches or calls, which the compiler vectorizes (this build has no SIMD path of its own). It
++		// writes what _PixelCopy writes: a 3D pixel with a non-zero alpha replaces the picture's pixel and
++		// its layer. At 2560x1920 this layer is 4.9 million pixels a frame on the emulation thread.
++		if ( (COMPOSITORMODE == GPUCompositorMode_Copy) && (OUTPUTFORMAT == NDSColorFormat_BGR555_Rev) && !WILLPERFORMWINDOWTEST )
++		{
++			const size_t pixCount = compInfo.line.pixelCount;
++			u16 *__restrict dstColor16 = compInfo.target.lineColor16;
++			u8 *__restrict dstLayerID = compInfo.target.lineLayerID;
++			const u8 layerID = (u8)compInfo.renderState.selectedLayerID;
++			
++			for (; i < pixCount; i++)
++			{
++				const FragmentColor src = srcLinePtr[i];
++				const bool pass = (src.a != 0);
++				const u16 color16 = (u16)(R6G6B6TORGB15(src.r, src.g, src.b) | 0x8000);
++				dstColor16[i] = (pass) ? color16 : dstColor16[i];
++				dstLayerID[i] = (pass) ? layerID : dstLayerID[i];
++			}
++			
++			// The state the general loop leaves
++			srcLinePtr += pixCount;
++			compInfo.target.xCustom = (pixCount > 0) ? compInfo.line.widthCustom : 0;
++			compInfo.target.lineColor16 += pixCount;
++			compInfo.target.lineColor32 += pixCount;
++			compInfo.target.lineLayerID += pixCount;
++		}
++#endif
++		
+ #ifdef ENABLE_SSE2
+ 		const size_t ssePixCount = (compInfo.line.pixelCount - (compInfo.line.pixelCount % 16));
+ 		const __m128i srcEffectEnableMask = compInfo.renderState.srcEffectEnable_SSE2[GPULayerID_BG0];
 diff --git a/desmume/src/MMU.cpp b/desmume/src/MMU.cpp
 index 09d35972..8716f140 100644
 --- a/desmume/src/MMU.cpp
@@ -501,11 +542,15 @@ index 95592125..4b44ebcd 100644
     CXXFLAGS += -DHAVE_JIT
  endif
 diff --git a/desmume/src/frontend/libretro/libretro.cpp b/desmume/src/frontend/libretro/libretro.cpp
-index 2314af93..f768157e 100644
+index 2314af93..03514138 100644
 --- a/desmume/src/frontend/libretro/libretro.cpp
 +++ b/desmume/src/frontend/libretro/libretro.cpp
-@@ -20,6 +20,10 @@
+@@ -18,8 +18,14 @@
+ #include "emufile.h"
+ #include "common.h"
  #include "path.h"
++#include "utils/task.h"
++#include <features/features_cpu.h>
  
  #include "libretro_core_options.h"
 +#if defined(HAVE_JIT) && defined(REWINDBOX_LIBRETRO_JIT)
@@ -515,7 +560,7 @@ index 2314af93..f768157e 100644
  #include "streams/file_stream.h"
  
  #ifdef HAVE_OPENGL
-@@ -69,6 +73,77 @@ enum {
+@@ -69,6 +75,77 @@ enum {
  };
  
  retro_log_printf_t log_cb = NULL;
@@ -593,7 +638,98 @@ index 2314af93..f768157e 100644
  static retro_video_refresh_t video_cb = NULL;
  static retro_input_poll_t poll_cb = NULL;
  static retro_input_state_t input_cb = NULL;
-@@ -731,6 +806,20 @@ static void check_variables(bool first_boot)
+@@ -369,14 +446,84 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
+    }
+ }
+ 
++/* RewindBox: at a high internal resolution the conversion of both screens (9.8 million pixels at
++   2560x1920) runs on helper threads as well: at that point of the frame the rasterizer's threads have
++   nothing to do. Each part converts its own rows: the picture is the same. */
++#define SWAP_HELPERS_MAX 3
++#define SWAP_THREADED_MIN_PIXELS (512 * 384)
++struct SwapPart
++{
++   uint16_t *dst;
++   const uint16_t *src;
++   int width;
++   int height;
++   int out_stride;
++   int in_stride;
++};
++static Task *swap_helpers = NULL;
++static int swap_helper_count = 0;
++
++static void *swap_part_run(void *arg)
++{
++   const SwapPart *part = (const SwapPart *)arg;
++   conv_0rgb1555_rb_swapped_rgb565(part->dst, part->src, part->width, part->height,
++                                   part->out_stride, part->in_stride);
++   return NULL;
++}
++
++static void swap_helpers_stop(void)
++{
++   for (int i = 0; i < swap_helper_count; i++)
++   {
++      swap_helpers[i].finish();
++      swap_helpers[i].shutdown();
++   }
++   delete[] swap_helpers;
++   swap_helpers = NULL;
++   swap_helper_count = 0;
++}
++
+ static void SwapScreen(uint16_t *dst, const uint16_t *src, uint32_t pitch)
+ {
+-   conv_0rgb1555_rb_swapped_rgb565(dst,
+-                                   src,
+-                                   GPU_LR_FRAMEBUFFER_NATIVE_WIDTH,
+-                                   GPU_LR_FRAMEBUFFER_NATIVE_HEIGHT,
+-                                   pitch,
+-                                   GPU_LR_FRAMEBUFFER_NATIVE_WIDTH);
++   const int width  = GPU_LR_FRAMEBUFFER_NATIVE_WIDTH;
++   const int height = GPU_LR_FRAMEBUFFER_NATIVE_HEIGHT;
++   int wanted = (int)CommonSettings.num_cores - 1;
++
++   if (wanted > SWAP_HELPERS_MAX)
++      wanted = SWAP_HELPERS_MAX;
++   if (wanted < 1 || width * height < SWAP_THREADED_MIN_PIXELS)
++   {
++      conv_0rgb1555_rb_swapped_rgb565(dst, src, width, height, pitch, width);
++      return;
++   }
++
++   if (swap_helper_count != wanted)
++   {
++      swap_helpers_stop();
++      swap_helpers = new Task[wanted];
++      for (int i = 0; i < wanted; i++)
++         swap_helpers[i].start(false);
++      swap_helper_count = wanted;
++   }
++
++   SwapPart parts[SWAP_HELPERS_MAX + 1];
++   const int count = wanted + 1;
++   const int rows  = height / count;
++   for (int i = 0; i < count; i++)
++   {
++      const int first = i * rows;
++      parts[i].dst        = dst + (size_t)first * pitch;
++      parts[i].src        = src + (size_t)first * width;
++      parts[i].width      = width;
++      parts[i].height     = (i == count - 1) ? height - first : rows;
++      parts[i].out_stride = (int)pitch;
++      parts[i].in_stride  = width;
++   }
++   for (int i = 0; i < wanted; i++)
++      swap_helpers[i].execute(&swap_part_run, &parts[i]);
++   swap_part_run(&parts[wanted]);
++   for (int i = 0; i < wanted; i++)
++      swap_helpers[i].finish();
+ }
+ 
+ static void SwapScreen_32(uint32_t *dst, const uint32_t *src, uint32_t pitch)
+@@ -731,6 +878,20 @@ static void check_variables(bool first_boot)
                CommonSettings.use_jit = true;
            else if (!strcmp(var.value, "interpreter"))
                CommonSettings.use_jit = false;
@@ -614,7 +750,7 @@ index 2314af93..f768157e 100644
        }
       else
       {
-@@ -741,6 +830,32 @@ static void check_variables(bool first_boot)
+@@ -741,6 +902,32 @@ static void check_variables(bool first_boot)
  #endif
       }
  
@@ -647,7 +783,34 @@ index 2314af93..f768157e 100644
  #ifdef HAVE_JIT
        var.key = "desmume_jit_block_size";
  
-@@ -2081,6 +2196,12 @@ void retro_run (void)
+@@ -892,7 +1079,17 @@ static void check_variables(bool first_boot)
+    var.key = "desmume_num_cores";
+ 
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+-       CommonSettings.num_cores = var.value ? strtol(var.value, 0, 10) : 1;
++   {
++       if (!strcmp(var.value, "auto"))
++       {
++           /* RewindBox: one rasterizer thread a core of the device, 8 at most (they share the picture in
++              slices, so a slower core only takes fewer of them) */
++           const unsigned cores = cpu_features_get_core_amount();
++           CommonSettings.num_cores = (cores < 1) ? 1 : (cores > 8) ? 8 : cores;
++       }
++       else
++           CommonSettings.num_cores = strtol(var.value, 0, 10);
++   }
+    else
+        CommonSettings.num_cores = 1;
+ 
+@@ -1576,6 +1773,7 @@ void retro_deinit(void)
+        tex = 0;
+     }
+ #endif
++    swap_helpers_stop();
+     NDS_DeInit();
+ 
+ #ifdef PERF_TEST
+@@ -2081,6 +2279,12 @@ void retro_run (void)
  
     NDS_exec<false>();
  
@@ -660,7 +823,7 @@ index 2314af93..f768157e 100644
     SPU_Emulate_user();
  
     static int previous_layout = LAYOUTS_MAX;
-@@ -2463,6 +2584,10 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
+@@ -2463,6 +2667,10 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
  
  void retro_unload_game (void)
  {
@@ -672,10 +835,31 @@ index 2314af93..f768157e 100644
      if (screen_buf)
         free(screen_buf);
 diff --git a/desmume/src/frontend/libretro/libretro_core_options.h b/desmume/src/frontend/libretro/libretro_core_options.h
-index 85043b8e..0dc24628 100644
+index 85043b8e..b8975976 100644
 --- a/desmume/src/frontend/libretro/libretro_core_options.h
 +++ b/desmume/src/frontend/libretro/libretro_core_options.h
-@@ -163,8 +163,14 @@ struct retro_core_option_v2_definition option_defs_us[] = {
+@@ -138,17 +138,18 @@ struct retro_core_option_v2_definition option_defs_us[] = {
+         "desmume_num_cores",
+         "CPU Cores",
+         NULL,
+-        "Set the amount of CPU cores to use.",
++        "Set the amount of CPU cores to use. 'auto' uses as many rasterizer threads as the device has cores.",
+         NULL,
+         "system",
+         {
++            { "auto", NULL },
+             { "1",  NULL },
+             { "2",  NULL },
+             { "3",  NULL },
+             { "4",  NULL },
+             { NULL, NULL },
+         },
+-        "1"
++        "auto"
+     },
+     {
+         "desmume_cpu_mode",
+@@ -163,8 +164,14 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          "system",
          {
              { "interpreter",  NULL },
@@ -690,6 +874,377 @@ index 85043b8e..0dc24628 100644
  #endif
              { NULL, NULL },
          },
+diff --git a/desmume/src/rasterize.cpp b/desmume/src/rasterize.cpp
+index e42ef256..152567f8 100644
+--- a/desmume/src/rasterize.cpp
++++ b/desmume/src/rasterize.cpp
+@@ -1036,7 +1036,7 @@ void RasterizerUnit<RENDERER>::_runscanlines(const POLYGON_ATTR polyAttr, const
+ 	//HACK: special handling for horizontal line poly
+ 	if ( USELINEHACK && (left->Height == 0) && (right->Height == 0) && (left->Y < framebufferHeight) && (left->Y >= 0) )
+ 	{
+-		const bool draw = ( !SLI || ((left->Y >= this->_SLI_startLine) && (left->Y < this->_SLI_endLine)) );
++		const bool draw = ( !SLI || ((left->Y >= this->_SLI_startLine) && (left->Y < this->_SLI_endLine) && ((this->_sliceOfLine == NULL) || (this->_sliceOfLine[left->Y] == this->_sliceIndex))) );
+ 		if (draw)
+ 		{
+ #ifdef ENABLE_SSE2
+@@ -1049,7 +1049,7 @@ void RasterizerUnit<RENDERER>::_runscanlines(const POLYGON_ATTR polyAttr, const
+ 
+ 	while (Height--)
+ 	{
+-		const bool draw = ( !SLI || ((left->Y >= this->_SLI_startLine) && (left->Y < this->_SLI_endLine)) );
++		const bool draw = ( !SLI || ((left->Y >= this->_SLI_startLine) && (left->Y < this->_SLI_endLine) && ((this->_sliceOfLine == NULL) || (this->_sliceOfLine[left->Y] == this->_sliceIndex))) );
+ 		if (draw)
+ 		{
+ #ifdef ENABLE_SSE2
+@@ -1249,6 +1249,8 @@ void RasterizerUnit<RENDERER>::SetSLI(u32 startLine, u32 endLine, bool debug)
+ 	this->_debug_thisPoly = debug;
+ 	this->_SLI_startLine = startLine;
+ 	this->_SLI_endLine = endLine;
++	this->_sliceOfLine = NULL;
++	this->_sliceIndex = 0;
+ }
+ 
+ template<bool RENDERER>
+@@ -1367,11 +1369,52 @@ void* _HACK_Viewer_ExecUnit(void *arg)
+ 	return 0;
+ }
+ 
++// RewindBox: a rasterizer thread draws slice after slice until none is left (every line of the picture
++// when the renderer has no slices: one thread)
++template<bool RENDERER> template<bool USELINEHACK>
++void RasterizerUnit<RENDERER>::RenderSlices()
++{
++	const u8 *sliceOfLine = this->_softRender->GetSliceOfLine();
++	if (sliceOfLine == NULL)
++	{
++		this->_sliceOfLine = NULL;
++		if (this->_softRender->IsDrawingInline())
++		{
++			// the whole picture in one pass, whatever band this unit has among the threads
++			const u32 bandStart = this->_SLI_startLine;
++			const u32 bandEnd = this->_SLI_endLine;
++			this->_SLI_startLine = 0;
++			this->_SLI_endLine = (u32)this->_softRender->GetFramebufferHeight();
++			this->template Render<true, USELINEHACK>();
++			this->_SLI_startLine = bandStart;
++			this->_SLI_endLine = bandEnd;
++			return;
++		}
++		this->template Render<true, USELINEHACK>();
++		return;
++	}
++	
++	this->_SLI_startLine = 0;
++	this->_SLI_endLine = (u32)this->_softRender->GetFramebufferHeight();
++	this->_sliceOfLine = sliceOfLine;
++	for (;;)
++	{
++		const s32 slice = this->_softRender->TakeSlice();
++		if (slice < 0)
++		{
++			break;
++		}
++		this->_sliceIndex = (u8)slice;
++		this->_softRender->ClearSliceIfPending((u8)slice);
++		this->template Render<true, USELINEHACK>();
++	}
++}
++
+ template <bool USELINEHACK>
+ void* SoftRasterizer_RunRasterizerUnit(void *arg)
+ {
+ 	RasterizerUnit<true> *unit = (RasterizerUnit<true> *)arg;
+-	unit->Render<true, USELINEHACK>();
++	unit->RenderSlices<USELINEHACK>();
+ 	
+ 	return 0;
+ }
+@@ -1748,6 +1791,13 @@ SoftRasterizerRenderer::SoftRasterizerRenderer()
+ 	
+ 	_HACK_viewer_rasterizerUnit.SetSLI(0, _framebufferHeight, false);
+ 	
++	_sliceOfLine = NULL;
++	_sliceTableHeight = 0;
++	_sliceCount = 0;
++	_sliceNext = 0;
++	_clearInSlices = false;
++	_drawInline = false;
++	
+ 	const size_t coreCount = CommonSettings.num_cores;
+ 	_threadCount = coreCount;
+ 	
+@@ -1841,10 +1891,92 @@ SoftRasterizerRenderer::~SoftRasterizerRenderer()
+ 	delete[] this->_task;
+ 	this->_task = NULL;
+ 	
++	free(this->_sliceOfLine);
++	this->_sliceOfLine = NULL;
++	
+ 	delete this->_framebufferAttributes;
+ 	this->_framebufferAttributes = NULL;
+ }
+ 
++// RewindBox: four slices a thread, each made of groups of lines spread over the whole picture, so that
++// every slice holds about the same work wherever the scene is and a thread on a faster core takes more of
++// them. Which thread draws a line does not change the picture: a pixel only depends on its own history.
++#define SOFTRASTERIZER_SLICES_PER_THREAD 4
++#define SOFTRASTERIZER_GROUPS_PER_SLICE 8
++
++void SoftRasterizerRenderer::_UpdateSlices()
++{
++	const u32 sliceCount = (this->_threadCount > 0) ? (u32)std::min<size_t>(this->_threadCount * SOFTRASTERIZER_SLICES_PER_THREAD, 255) : 0;
++	if ( (sliceCount == this->_sliceCount) && (this->_sliceTableHeight == this->_framebufferHeight) )
++	{
++		return;
++	}
++	
++	free(this->_sliceOfLine);
++	this->_sliceOfLine = NULL;
++	this->_sliceCount = 0;
++	this->_sliceTableHeight = this->_framebufferHeight;
++	if ( (sliceCount == 0) || (this->_framebufferHeight == 0) )
++	{
++		return;
++	}
++	
++	u8 *table = (u8 *)malloc(this->_framebufferHeight);
++	if (table == NULL)
++	{
++		return; // each thread then draws its band, as before
++	}
++	
++	size_t groupLines = this->_framebufferHeight / ((size_t)sliceCount * SOFTRASTERIZER_GROUPS_PER_SLICE);
++	if (groupLines == 0)
++	{
++		groupLines = 1;
++	}
++	for (size_t y = 0; y < this->_framebufferHeight; y++)
++	{
++		table[y] = (u8)((y / groupLines) % sliceCount);
++	}
++	
++	this->_sliceOfLine = table;
++	this->_sliceCount = sliceCount;
++}
++
++// RewindBox: the lines of one slice take the clear values (the frame's clear, when it was left to the
++// threads): the thread that draws them next still has them in its cache, and the emulation thread no
++// longer waits for a clear of the whole framebuffer before the drawing starts.
++void SoftRasterizerRenderer::ClearSliceIfPending(const u8 slice)
++{
++	if (!this->_clearInSlices)
++	{
++		return;
++	}
++	
++	const u8 *sliceOfLine = this->_sliceOfLine;
++	const size_t h = this->_sliceTableHeight;
++	const size_t w = this->_framebufferWidth;
++	for (size_t y = 0; y < h; )
++	{
++		if (sliceOfLine[y] != slice)
++		{
++			y++;
++			continue;
++		}
++		
++		const size_t first = y;
++		while ( (y < h) && (sliceOfLine[y] == slice) )
++		{
++			y++;
++		}
++		this->ClearUsingValues_Execute(first * w, y * w);
++	}
++}
++
++s32 SoftRasterizerRenderer::TakeSlice()
++{
++	const s32 slice = atomic_inc_32(&this->_sliceNext) - 1;
++	return (slice < (s32)this->_sliceCount) ? slice : -1;
++}
++
+ Render3DError SoftRasterizerRenderer::InitTables()
+ {
+ 	static bool needTableInit = true;
+@@ -2022,6 +2154,12 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
+ 	{
+ 		this->_task[i].finish();
+ 	}
++	this->_clearInSlices = false;
++	
++	// RewindBox: at the console's own resolution a frame is drawn sooner than the threads are woken and
++	// waited for (state, clear, geometry, post-processing: four hand-overs a frame): this thread draws
++	// it, exactly as a renderer without threads does
++	this->_drawInline = (this->_threadCount > 0) && (this->_framebufferPixCount <= (GPU_FRAMEBUFFER_NATIVE_WIDTH * GPU_FRAMEBUFFER_NATIVE_HEIGHT));
+ 	
+ 	// Keep the current render states for later use
+ 	this->currentRenderState = (GFX3D_State *)&engine.renderState;
+@@ -2029,7 +2167,7 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
+ 	this->_clippedPolyOpaqueCount = engine.clippedPolyOpaqueCount;
+ 	this->_clippedPolyList = engine.clippedPolyList;
+ 	
+-	const bool doMultithreadedStateSetup = (this->_threadCount >= 2);
++	const bool doMultithreadedStateSetup = (this->_threadCount >= 2) && !this->_drawInline;
+ 	
+ 	if (doMultithreadedStateSetup)
+ 	{
+@@ -2070,18 +2208,33 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
+ Render3DError SoftRasterizerRenderer::RenderGeometry(const GFX3D_State &renderState, const POLYLIST *polyList, const INDEXLIST *indexList)
+ {
+ 	// Render the geometry
+-	if (this->_threadCount > 0)
++	if ( (this->_threadCount > 0) && !this->_drawInline )
+ 	{
++		this->_UpdateSlices();
++		this->_sliceNext = 0;
++		
++		// RewindBox: at the console's own resolution a frame is drawn sooner than every thread is woken:
++		// one thread takes all the slices there, four at twice the resolution, all of them above
++		size_t activeThreads = this->_threadCount;
++		if (this->_sliceOfLine != NULL)
++		{
++			const size_t scaleSquared = this->_framebufferPixCount / (GPU_FRAMEBUFFER_NATIVE_WIDTH * GPU_FRAMEBUFFER_NATIVE_HEIGHT);
++			if (scaleSquared < activeThreads)
++			{
++				activeThreads = (scaleSquared < 1) ? 1 : scaleSquared;
++			}
++		}
++		
+ 		if (this->_enableLineHack)
+ 		{
+-			for (size_t i = 0; i < this->_threadCount; i++)
++			for (size_t i = 0; i < activeThreads; i++)
+ 			{
+ 				this->_task[i].execute(&SoftRasterizer_RunRasterizerUnit<true>, &this->_rasterizerUnit[i]);
+ 			}
+ 		}
+ 		else
+ 		{
+-			for (size_t i = 0; i < this->_threadCount; i++)
++			for (size_t i = 0; i < activeThreads; i++)
+ 			{
+ 				this->_task[i].execute(&SoftRasterizer_RunRasterizerUnit<false>, &this->_rasterizerUnit[i]);
+ 			}
+@@ -2345,16 +2498,36 @@ Render3DError SoftRasterizerRenderer::ClearUsingImage(const u16 *__restrict colo
+ 
+ void SoftRasterizerRenderer::ClearUsingValues_Execute(const size_t startPixel, const size_t endPixel)
+ {
+-	for (size_t i = startPixel; i < endPixel; i++)
+-	{
+-		this->_framebufferColor[i] = this->_clearColor6665;
+-		this->_framebufferAttributes->SetAtIndex(i, this->_clearAttributes);
+-	}
++	// RewindBox: each of the eight planes is filled in one go (the compiler and the C library vectorize
++	// these fills) instead of one call a pixel writing to all of them: at 2560x1920 the clear of the
++	// 4.9 million pixels was the longest wait of the emulation thread.
++	const size_t count = endPixel - startPixel;
++	FragmentAttributesBuffer *attr = this->_framebufferAttributes;
++	std::fill_n(this->_framebufferColor + startPixel, count, this->_clearColor6665);
++	std::fill_n(attr->depth + startPixel, count, this->_clearAttributes.depth);
++	memset(attr->opaquePolyID + startPixel, this->_clearAttributes.opaquePolyID, count);
++	memset(attr->translucentPolyID + startPixel, this->_clearAttributes.translucentPolyID, count);
++	memset(attr->stencil + startPixel, this->_clearAttributes.stencil, count);
++	memset(attr->isFogged + startPixel, this->_clearAttributes.isFogged, count);
++	memset(attr->isTranslucentPoly + startPixel, this->_clearAttributes.isTranslucentPoly, count);
++	memset(attr->polyFacing + startPixel, this->_clearAttributes.polyFacing, count);
+ }
+ 
+ Render3DError SoftRasterizerRenderer::ClearUsingValues(const FragmentColor &clearColor6665, const FragmentAttributes &clearAttributes)
+ {
+-	const bool doMultithreadedClear = (this->_threadCount > 0);
++	const bool doMultithreadedClear = (this->_threadCount > 0) && !this->_drawInline;
++	
++	if (doMultithreadedClear)
++	{
++		// RewindBox: with slices, the threads clear while they draw (ClearSliceIfPending); Render() always
++		// goes on to RenderGeometry(), which starts them
++		this->_UpdateSlices();
++		if (this->_sliceOfLine != NULL)
++		{
++			this->_clearInSlices = true;
++			return RENDER3DERROR_NOERR;
++		}
++	}
+ 	
+ 	if (doMultithreadedClear)
+ 	{
+@@ -2434,12 +2607,16 @@ Render3DError SoftRasterizerRenderer::EndRender(const u64 frameCount)
+ 	{
+ 		if (this->_enableEdgeMark || this->_enableFog)
+ 		{
+-			this->_threadPostprocessParam[0].enableEdgeMarking = this->_enableEdgeMark;
+-			this->_threadPostprocessParam[0].enableFog = this->_enableFog;
+-			this->_threadPostprocessParam[0].fogColor = this->currentRenderState->fogColor;
+-			this->_threadPostprocessParam[0].fogAlphaOnly = this->currentRenderState->enableFogAlphaOnly;
++			// RewindBox: every line (with threads, the first parameters only cover the first band)
++			SoftRasterizerPostProcessParams param = this->_threadPostprocessParam[0];
++			param.startLine = 0;
++			param.endLine = this->_framebufferHeight;
++			param.enableEdgeMarking = this->_enableEdgeMark;
++			param.enableFog = this->_enableFog;
++			param.fogColor = this->currentRenderState->fogColor;
++			param.fogAlphaOnly = this->currentRenderState->enableFogAlphaOnly;
+ 			
+-			this->RenderEdgeMarkingAndFog(this->_threadPostprocessParam[0]);
++			this->RenderEdgeMarkingAndFog(param);
+ 		}
+ 	}
+ 	
+diff --git a/desmume/src/rasterize.h b/desmume/src/rasterize.h
+index becafc0e..869434d5 100644
+--- a/desmume/src/rasterize.h
++++ b/desmume/src/rasterize.h
+@@ -103,6 +103,10 @@ protected:
+ 	bool _debug_thisPoly;
+ 	u32 _SLI_startLine;
+ 	u32 _SLI_endLine;
++	// RewindBox: with rasterizer threads, the lines this unit draws in the current pass are those of one
++	// slice (see SoftRasterizerRenderer::_sliceOfLine); NULL: every line of [_SLI_startLine, _SLI_endLine)
++	const u8 *_sliceOfLine;
++	u8 _sliceIndex;
+ 	
+ 	SoftRasterizerRenderer *_softRender;
+ 	SoftRasterizerTexture *_currentTexture;
+@@ -132,6 +136,7 @@ public:
+ 	void SetSLI(u32 startLine, u32 endLine, bool debug);
+ 	void SetRenderer(SoftRasterizerRenderer *theRenderer);
+ 	template<bool SLI, bool USELINEHACK> FORCEINLINE void Render();
++	template<bool USELINEHACK> void RenderSlices();
+ };
+ 
+ #if defined(ENABLE_AVX2)
+@@ -158,6 +163,18 @@ protected:
+ 	size_t _customLinesPerThread;
+ 	size_t _customPixelsPerThread;
+ 	
++	// RewindBox: the picture is cut into _sliceCount slices of interleaved groups of lines
++	// (_sliceOfLine[y]); each rasterizer thread takes the next slice (_sliceNext) until none is left.
++	// A fixed band a thread gave half of the threads nearly all of the work when the scene sat in the
++	// middle of the screen, and a slow core held the whole frame back.
++	u8 *_sliceOfLine;
++	size_t _sliceTableHeight;
++	u32 _sliceCount;
++	volatile s32 _sliceNext;
++	bool _clearInSlices; // this frame's clear is left to the threads: each clears a slice, then draws it
++	bool _drawInline;    // this frame is drawn by the calling thread (the console's own resolution)
++	void _UpdateSlices();
++	
+ 	u8 fogTable[32768];
+ 	FragmentColor edgeMarkTable[8];
+ 	bool edgeMarkDisabled[8];
+@@ -191,6 +208,12 @@ public:
+ 	SoftRasterizerRenderer();
+ 	virtual ~SoftRasterizerRenderer();
+ 	
++	// RewindBox: the next slice to rasterize, or -1 when every slice is taken
++	s32 TakeSlice();
++	const u8* GetSliceOfLine() const { return (this->_drawInline) ? NULL : this->_sliceOfLine; }
++	bool IsDrawingInline() const { return this->_drawInline; }
++	void ClearSliceIfPending(const u8 slice);
++	
+ 	virtual ClipperMode GetPreferredPolygonClippingMode() const;
+ 	
+ 	void performViewportTransforms();
 diff --git a/desmume/src/thumb_instructions.cpp b/desmume/src/thumb_instructions.cpp
 index 2a6ed686..eabc5663 100644
 --- a/desmume/src/thumb_instructions.cpp
@@ -735,7 +1290,7 @@ index d833a50f..65e515a5 100644
    
    output_w32(out, 0xD360FC00 | (X17_REG << 5) | lo); // lsr lo, x17, #32
 diff --git a/desmume/src/utils/arm_jit/arm_jit_arm.cpp b/desmume/src/utils/arm_jit/arm_jit_arm.cpp
-index 5ae2fe89..eafd9246 100644
+index 5ae2fe89..68789d13 100644
 --- a/desmume/src/utils/arm_jit/arm_jit_arm.cpp
 +++ b/desmume/src/utils/arm_jit/arm_jit_arm.cpp
 @@ -20,6 +20,10 @@
@@ -1207,7 +1762,33 @@ index 5ae2fe89..eafd9246 100644
  		return 1; \
  	} \
  	if(!rhs_is_imm) \
-@@ -2487,7 +2699,7 @@ static void maskPrecalc(u32 _num)
+@@ -2131,20 +2343,19 @@ static FORCEINLINE DESMUME_FASTCALL u32 OP_LDM_STM_main(u32 adr, u64 regs, int n
+ #ifdef ENABLE_ADVANCED_TIMING
+ 	cycles = 0;
+ #endif
+-	uintptr_t *func = (uintptr_t *)&JIT_COMPILED_FUNC(adr, PROCNUM);
++	// RewindBox: the table is paged and its entries are 32 bits: a store to main RAM (the only memory
++	// this path writes with null_compiled) goes through the invalidation hook, as in MMU.h. T wrote two
++	// pointer-sized zeros at &JIT_COMPILED_FUNC(adr) and stepped by two pointers a word: on the paged
++	// table that ran past the page's entries, or past the shared page of zeros.
+ 
+ #define OP(j) { \
+ 	/* no need to zero functions in DTCM, since we can't execute from it */ \
+ 	if(null_compiled && store) \
+-	{ \
+-		*func = 0; \
+-		*(func+1) = 0; \
+-	} \
++		JIT_COMPILED_FUNC_KNOWNBANK(adr, MAIN_MEM, _MMU_MAIN_MEM_MASK32, 0) = 0; \
+ 	int Rd = ((uintptr_t)regs >> (j*4)) & 0xF; \
+ 	if(store) *(u32*)ptr = cpu->R[Rd]; \
+ 	else cpu->R[Rd] = *(u32*)ptr; \
+ 	ADV_CYCLES; \
+-	func += 2*dir; \
+ 	adr += 4*dir; \
+ 	ptr += 4*dir; }
+ 
+@@ -2487,7 +2698,7 @@ static void maskPrecalc(u32 _num)
  			mask = 0 ; set = 0 ;   /* (x & 0) == 0  is allways true (enabled) */  \
  		} \
  	}  \
@@ -1216,7 +1797,7 @@ index 5ae2fe89..eafd9246 100644
  }
  	switch(_num)
  	{
-@@ -3043,13 +3255,13 @@ static int OP_ASR_0(const u32 i)
+@@ -3043,13 +3254,13 @@ static int OP_ASR_0(const u32 i)
  {
  	u8 cf_change = 1;
  	if (_REG_NUM(i, 0) == _REG_NUM(i, 3)) {
@@ -1232,7 +1813,7 @@ index 5ae2fe89..eafd9246 100644
  		emit_write_ptr32_regptrTO_regFROM(g_out, reg_pos_thumb(0, R1, ADDRESS), rhs);
  	}
  	SET_NZC;
-@@ -3828,6 +4040,32 @@ static bool instr_uses_r15(u32 opcode)
+@@ -3828,6 +4039,32 @@ static bool instr_uses_r15(u32 opcode)
  		    || (xt & JIT_BYPASS);
  }
  
@@ -1265,7 +1846,7 @@ index 5ae2fe89..eafd9246 100644
  static bool instr_is_conditional(u32 opcode)
  {
  	if(bb_thumb) return false;
-@@ -4003,8 +4241,8 @@ static u32 compile_basicblock()
+@@ -4003,8 +4240,8 @@ static u32 compile_basicblock()
  
  	if (!JIT_MAPPED(start_adr & 0x0FFFFFFF, PROCNUM))
  	{
@@ -1276,7 +1857,7 @@ index 5ae2fe89..eafd9246 100644
  	}
  
  	jit_write();
-@@ -4030,10 +4268,13 @@ static u32 compile_basicblock()
+@@ -4030,10 +4267,13 @@ static u32 compile_basicblock()
  #endif
  
  	bb_constant_cycles = 0;
@@ -1291,7 +1872,7 @@ index 5ae2fe89..eafd9246 100644
  			opcode = _MMU_read16<PROCNUM, MMU_AT_CODE>(bb_adr);
  		else
  			opcode = _MMU_read32<PROCNUM, MMU_AT_CODE>(bb_adr);
-@@ -4086,7 +4327,7 @@ static u32 compile_basicblock()
+@@ -4086,7 +4326,7 @@ static u32 compile_basicblock()
  				if (cycles > 1)
  				{
  					JIT_COMMENT("cycles (%d)", cycles);
@@ -1300,7 +1881,7 @@ index 5ae2fe89..eafd9246 100644
  				}
  			emit_label(g_out, skip);
  		}
-@@ -4102,10 +4343,38 @@ static u32 compile_basicblock()
+@@ -4102,10 +4342,38 @@ static u32 compile_basicblock()
  			}
  		}
  
@@ -1340,7 +1921,7 @@ index 5ae2fe89..eafd9246 100644
  	{
  		emit_var_copy32_reg(g_out, cpu_ptr(next_instruction, R1, VALUE), cpu_ptr(instruct_adr, R2, ADDRESS));
  	}
-@@ -4139,8 +4408,14 @@ static u32 compile_basicblock()
+@@ -4139,8 +4407,14 @@ static u32 compile_basicblock()
  	fflush(stderr);
  #endif
  	
@@ -1357,7 +1938,7 @@ index 5ae2fe89..eafd9246 100644
  	return interpreted_cycles;
  }
  
-@@ -4153,8 +4428,9 @@ template<int PROCNUM> u32 arm_jit_compile()
+@@ -4153,8 +4427,9 @@ template<int PROCNUM> u32 arm_jit_compile()
  	u32 mask_adr = (adr & 0x07FFFFFE) >> 4;
  	if(((recompile_counts[mask_adr >> 1] >> 4*(mask_adr & 1)) & 0xF) > 8)
  	{
@@ -1368,7 +1949,7 @@ index 5ae2fe89..eafd9246 100644
  		return f();
  	}
  	recompile_counts[mask_adr >> 1] += 1 << 4*(mask_adr & 1);
-@@ -4172,7 +4448,7 @@ void arm_jit_reset(bool enable, bool suppress_msg)
+@@ -4172,7 +4447,7 @@ void arm_jit_reset(bool enable, bool suppress_msg)
  #endif
  
  	if (!suppress_msg)
@@ -1377,7 +1958,7 @@ index 5ae2fe89..eafd9246 100644
  	saveBlockSizeJIT = CommonSettings.jit_max_block_size;
  
  	if (enable)
-@@ -4181,18 +4457,9 @@ void arm_jit_reset(bool enable, bool suppress_msg)
+@@ -4181,18 +4456,9 @@ void arm_jit_reset(bool enable, bool suppress_msg)
  
  #ifdef MAPPED_JIT_FUNCS
  
@@ -1399,7 +1980,7 @@ index 5ae2fe89..eafd9246 100644
  		memset(recompile_counts, 0, sizeof(recompile_counts));
  		init_jit_mem();
  #else
-@@ -4205,6 +4472,16 @@ void arm_jit_reset(bool enable, bool suppress_msg)
+@@ -4205,6 +4471,16 @@ void arm_jit_reset(bool enable, bool suppress_msg)
  #endif
  		freeFuncs();
  	}
