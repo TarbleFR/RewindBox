@@ -78,6 +78,9 @@ with tempfile.TemporaryDirectory(prefix='unified-native-') as tmp:
 - (NSInteger)touchLayoutKind:(UIView*)control;
 - (NSString*)touchLayoutName:(UIView*)control;
 - (void)cancelTouchInteractions;
+// Skins hidden by a controller (2a77c25ef): DolphinTouchOverlay.swift exports both.
+@property(nonatomic,copy) void (^stateHandler)(void);
+@property(nonatomic) BOOL padHiddenBySkin;
 @end
 ''')
     sdk=subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-path'],text=True).strip()

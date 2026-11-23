@@ -10,6 +10,8 @@ NS_ASSUME_NONNULL_BEGIN
 FOUNDATION_EXPORT const LibretroSize LibretroMenuButtonSize;  // 44 x 40
 /// Distance kept between the menu button and what it avoids (points).
 FOUNDATION_EXPORT const double LibretroMenuButtonClearance;  // 6
+/// Space between the performance button and the menu button (points).
+FOUNDATION_EXPORT const double LibretroChromeButtonGap;  // 8
 
 /// The game view's own controls ("chrome") over a laid-out skin: where the
 /// menu button goes, and what the controls editor starts from. Portable
@@ -41,6 +43,23 @@ FOUNDATION_EXPORT const double LibretroMenuButtonClearance;  // 6
                                 viewSize:(LibretroSize)viewSize
                               safeInsets:(LibretroInsets)safeInsets
                          controlsVisible:(BOOL)controlsVisible;
+
+/// Frame of the performance button (LibretroMenuButtonSize), which turns the
+/// performance overlay on or off. `menuFrame` is the menu button's frame
+/// (menuButtonFrameForLayout:...), `menuVisible` NO when the skin draws its
+/// own menu control instead. Rules:
+/// - with the menu button shown, just left of it (LibretroChromeButtonGap
+///   between them) when that frame is inside the safe area and free; else
+///   the free frame closest to it, the menu button counting as one more
+///   obstacle that is never covered, with the menu button's rules otherwise
+///   (touch screens, then the shown controls, same margins and costs);
+/// - with the menu button hidden, the menu button's own place, which is free.
++ (LibretroRect)performanceButtonFrameForLayout:(nullable LibretroSkinLayoutResult *)layout
+                                       viewSize:(LibretroSize)viewSize
+                                     safeInsets:(LibretroInsets)safeInsets
+                                controlsVisible:(BOOL)controlsVisible
+                                      menuFrame:(LibretroRect)menuFrame
+                                    menuVisible:(BOOL)menuVisible;
 
 /// "Commandes › Déplacer et redimensionner": the overrides the editor starts
 /// from, and comes back to after "Reset", for `layoutKey`

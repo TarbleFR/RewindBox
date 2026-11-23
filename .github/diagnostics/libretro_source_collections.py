@@ -28,6 +28,13 @@ COLLECTIONS = {
                       name='LibretroCores-6cd6a89bfdaded3e52400d4640fff4ac17f1c6d9', bytes=56247458,
                       sha256='0b1d6bb6ce002ca39d15f8c0185cc513fa492bfcdd044e465b165fae7bf21125',
                       cores=('azahar', 'desmume', 'mednafen_psx', 'mednafen_psx_hw')),
+    # DeSmuME with steps 1 to 4 of its JIT (native/desmume at 66e232e0): common layer, cached interpreter ("cached",
+    # and the fallback without JIT), RewindBox JIT ("jit_exact"); Azahar and both Beetle PSX binaries are identical to
+    # those of 14839590544.
+    14850324552: dict(run=45237317896, source='66e232e00b980d5495c6d2d30233b13831596858',
+                      name='LibretroCores-66e232e00b980d5495c6d2d30233b13831596858', bytes=56286779,
+                      sha256='b5816595ae8d02c4c493404e1803b7a73661ce4eedd0f41c9c74d00b7a65af26',
+                      cores=('azahar', 'desmume', 'mednafen_psx', 'mednafen_psx_hw')),
 }
 
 

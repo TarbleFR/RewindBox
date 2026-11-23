@@ -224,11 +224,12 @@ abstract final class LibretroCoreCatalog {
       // RewindBox builds DeSmuME from source with the AArch64 JIT of
       // TASEmulators/desmume on its JIT interface (native/desmume): the JIT
       // runs only when the libretro JIT helper prepared the code arena and the
-      // core installed it, and is then the default. Without the JIT the
-      // interpreter is forced for the session and the block size keeps its
-      // default. The core reads both options when the game starts.
+      // core installed it, and is then the default. Without the JIT the cached
+      // interpreter is forced for the session (the interpreter's results,
+      // faster) and the block size keeps its default. The core reads both
+      // options when the game starts.
       optionDefaults: {'desmume_cpu_mode': 'jit'},
-      noJitOverrides: {'desmume_cpu_mode': 'interpreter', 'desmume_jit_block_size': '12'},
+      noJitOverrides: {'desmume_cpu_mode': 'cached', 'desmume_jit_block_size': '12'},
       resolution: LibretroResolutionDeclaration(
         libraryName: 'DeSmuME',
         key: 'desmume_internal_resolution',

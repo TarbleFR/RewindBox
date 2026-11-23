@@ -41,6 +41,7 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   NSString *_cacheDirectory;
   LibretroMetalView *_metalView;
   UIButton *_menuButton;
+  UIButton *_performanceButton;
   UILabel *_statusLabel;
   UIActivityIndicatorView *_spinner;
   LibretroTouchDiagnosticsView *_diagnosticsView;
@@ -96,8 +97,9 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
     _cacheDirectory = [cacheDirectory copy];
     _touchControlsEnabled = YES;
     _controlsOpacity = 0.75;
-    // Replaced by the translated label before the view loads (LibretroSession).
+    // Replaced by the translated labels before the view loads (LibretroSession).
     _menuAccessibilityLabel = @"";
+    _performanceAccessibilityLabel = @"";
     // Replaced by the session's language before the view appears (LibretroSession).
     _uiLocale = @"en";
     _allowedOrientations = UIInterfaceOrientationMaskAllButUpsideDown;
@@ -128,7 +130,8 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   self.view = root;
   UIViewAutoresizing flexible = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
 
-  // Stack: picture, skin, touches, menu button, edit toolbar, status, spinner.
+  // Stack: picture, skin, touches, menu and performance buttons, edit toolbar,
+  // performance overlay, status, spinner.
   _metalView = [[LibretroMetalView alloc] initWithFrame:root.bounds];
   _metalView.autoresizingMask = flexible;
   _metalView.contentScaleFactor = UIScreen.mainScreen.nativeScale;
@@ -168,6 +171,18 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   [_menuButton addTarget:self action:@selector(menuPressed) forControlEvents:UIControlEventTouchUpInside];
   [root addSubview:_menuButton];
 
+  // Beside the menu button (LibretroChromeLayout): the performance overlay
+  // in one tap, green while it shows.
+  _performanceButton = [UIButton buttonWithType:UIButtonTypeSystem];
+  [_performanceButton setImage:[UIImage systemImageNamed:@"chart.xyaxis.line"] forState:UIControlStateNormal];
+  _performanceButton.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.35];
+  _performanceButton.layer.cornerRadius = 20;
+  _performanceButton.accessibilityIdentifier = @"libretro-performance-button";
+  _performanceButton.accessibilityLabel = _performanceAccessibilityLabel;
+  [_performanceButton addTarget:self action:@selector(performancePressed) forControlEvents:UIControlEventTouchUpInside];
+  [root addSubview:_performanceButton];
+  [self updatePerformanceButton];
+
   _statusLabel = [[UILabel alloc] initWithFrame:CGRectZero];
   _statusLabel.textColor = UIColor.whiteColor;
   _statusLabel.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.65];
@@ -205,6 +220,11 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
 - (void)setMenuAccessibilityLabel:(NSString *)menuAccessibilityLabel {
   _menuAccessibilityLabel = [menuAccessibilityLabel copy];
   _menuButton.accessibilityLabel = _menuAccessibilityLabel;
+}
+
+- (void)setPerformanceAccessibilityLabel:(NSString *)performanceAccessibilityLabel {
+  _performanceAccessibilityLabel = [performanceAccessibilityLabel copy];
+  _performanceButton.accessibilityLabel = _performanceAccessibilityLabel;
 }
 
 - (void)applicationWillResignActive {
@@ -526,12 +546,24 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   CGRect bounds = self.view.bounds;
   BOOL hidden = _editing || (_hasMenuItem && !_controlsHidden);
   _menuButton.hidden = hidden;
-  if (!hidden) {
+  // The performance button stays while the skin draws its own menu control:
+  // it then takes our menu button's place.
+  _performanceButton.hidden = _editing;
+  if (!_editing) {
+    LibretroSize viewSize = [self layoutViewSize];
+    LibretroInsets safeInsets = [self layoutSafeInsets];
     LibretroRect frame = [LibretroChromeLayout menuButtonFrameForLayout:_layout
-                                                               viewSize:[self layoutViewSize]
-                                                             safeInsets:[self layoutSafeInsets]
+                                                               viewSize:viewSize
+                                                             safeInsets:safeInsets
                                                         controlsVisible:!_controlsHidden];
-    _menuButton.frame = CGRectMake(frame.x, frame.y, frame.w, frame.h);
+    if (!hidden) _menuButton.frame = LibretroCGRectFromRect(frame);
+    LibretroRect performance = [LibretroChromeLayout performanceButtonFrameForLayout:_layout
+                                                                            viewSize:viewSize
+                                                                          safeInsets:safeInsets
+                                                                     controlsVisible:!_controlsHidden
+                                                                           menuFrame:frame
+                                                                         menuVisible:!hidden];
+    _performanceButton.frame = LibretroCGRectFromRect(performance);
   }
   _spinner.center = CGPointMake(CGRectGetMidX(bounds), CGRectGetMidY(bounds));
   if (_editBar != nil && !_editBar.hidden) [self layoutEditBar];
@@ -545,7 +577,16 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   if (self.isViewLoaded) [self applyPerformanceOverlay];
 }
 
+/// Green chart while the overlay shows, the menu button's white otherwise.
+- (void)updatePerformanceButton {
+  BOOL on = self.performanceOverlayEnabled;
+  _performanceButton.tintColor = on ? UIColor.systemGreenColor : [UIColor colorWithWhite:1.0 alpha:0.85];
+  _performanceButton.accessibilityTraits =
+      on ? (UIAccessibilityTraitButton | UIAccessibilityTraitSelected) : UIAccessibilityTraitButton;
+}
+
 - (void)applyPerformanceOverlay {
+  [self updatePerformanceButton];
   if (!self.performanceOverlayEnabled) {
     [_performanceOverlay removeFromSuperview];
     _performanceOverlay = nil;
@@ -572,15 +613,22 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   [self layoutPerformanceOverlay];
 }
 
-/// Top-left corner of the safe area; below the menu button when the button
-/// is there (LibretroChromeLayout can move it beside a touch screen).
+/// Top-left corner of the safe area; below the menu and performance buttons
+/// when they are there (LibretroChromeLayout can move them beside a touch
+/// screen). Two passes: moving below one button can meet the other.
 - (void)layoutPerformanceOverlay {
   if (_performanceOverlay == nil) return;
   UIEdgeInsets insets = self.view.safeAreaInsets;
   CGRect frame = _performanceOverlay.frame;
   frame.origin = CGPointMake(insets.left + 8, insets.top + 8);
-  if (!_menuButton.hidden && CGRectIntersectsRect(CGRectInset(frame, -4, -4), _menuButton.frame)) {
-    frame.origin.y = CGRectGetMaxY(_menuButton.frame) + 8;
+  UIButton *buttons[] = {_menuButton, _performanceButton};
+  for (int pass = 0; pass < 2; pass++) {
+    for (size_t index = 0; index < sizeof(buttons) / sizeof(buttons[0]); index++) {
+      UIButton *button = buttons[index];
+      if (button != nil && !button.hidden && CGRectIntersectsRect(CGRectInset(frame, -4, -4), button.frame)) {
+        frame.origin.y = CGRectGetMaxY(button.frame) + 8;
+      }
+    }
   }
   _performanceOverlay.frame = frame;
 }
@@ -628,6 +676,7 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   self.menuHandler = nil;
   self.activeHandler = nil;
   self.performanceLinesProvider = nil;
+  self.performanceHandler = nil;
   [_displayLink invalidate];
   _displayLink = nil;
   [_overlay releaseAllTouches];
@@ -682,6 +731,12 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   if (self.presentedViewController != nil || _editing) return;
   [_overlay releaseAllTouches];
   if (self.menuHandler != nil) self.menuHandler();
+}
+
+- (void)performancePressed {
+  if (self.presentedViewController != nil || _editing) return;
+  void (^handler)(void) = self.performanceHandler;
+  if (handler != nil) handler();
 }
 
 #pragma mark - Controls editing
@@ -936,6 +991,10 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
 #pragma mark - Status
 
 - (void)showStatus:(NSString *)message {
+  [self showStatus:message duration:2.5];
+}
+
+- (void)showStatus:(NSString *)message duration:(NSTimeInterval)seconds {
   if (message.length == 0 || !self.isViewLoaded) return;
   NSUInteger generation = ++_statusGeneration;
   _statusLabel.text = message;
@@ -944,10 +1003,16 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   CGFloat top = insets.top + 10;
   if (_editing && _editBar != nil) {
     top = CGRectGetMaxY(_editBar.frame) + 10;
-  } else if (!_menuButton.hidden && CGRectGetMinY(_menuButton.frame) <= insets.top + 10) {
-    // Below the menu button while it is in the top row (not when it moved
-    // down beside a touch screen).
-    top = CGRectGetMaxY(_menuButton.frame) + 10;
+  } else {
+    // Below the menu and performance buttons while they are in the top row
+    // (not when they moved down beside a touch screen).
+    UIButton *buttons[] = {_menuButton, _performanceButton};
+    for (size_t index = 0; index < sizeof(buttons) / sizeof(buttons[0]); index++) {
+      UIButton *button = buttons[index];
+      if (button != nil && !button.hidden && CGRectGetMinY(button.frame) <= insets.top + 10) {
+        top = MAX(top, CGRectGetMaxY(button.frame) + 10);
+      }
+    }
   }
   CGSize fit = [_statusLabel sizeThatFits:CGSizeMake(bounds.size.width * 0.7, 80)];
   CGFloat width = MIN(bounds.size.width * 0.8, fit.width + 32);
@@ -957,13 +1022,26 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
                      self->_statusLabel.alpha = 1;
                    }];
   UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, message);
-  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(seconds * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
     if (generation != self->_statusGeneration) return;
     [UIView animateWithDuration:0.3
                      animations:^{
                        self->_statusLabel.alpha = 0;
                      }];
   });
+}
+
+- (void)hideStatusIfShowing:(NSString *)message {
+  if (!self.isViewLoaded || message.length == 0 || _statusLabel.alpha == 0 ||
+      ![_statusLabel.text isEqualToString:message]) {
+    return;
+  }
+  // A newer generation: the pending fade of this message does nothing.
+  ++_statusGeneration;
+  [UIView animateWithDuration:0.2
+                   animations:^{
+                     self->_statusLabel.alpha = 0;
+                   }];
 }
 
 - (void)setLoading:(BOOL)loading {

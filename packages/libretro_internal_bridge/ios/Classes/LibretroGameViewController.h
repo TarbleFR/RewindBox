@@ -95,14 +95,19 @@ typedef NSDictionary<NSString *, NSDictionary *> * (^LibretroControlsOverridesPr
 /// controls: touch areas, fingers, inputs sent and the state the core read.
 @property(nonatomic, assign) BOOL touchDiagnosticsEnabled;
 /// Performance overlay (LibretroPerformanceOverlay) at the top-left of the
-/// safe area, below the menu button when that corner holds it. Refreshed
-/// twice a second from the display link with the lines
+/// safe area, below the menu and performance buttons when that corner holds
+/// them. Refreshed twice a second from the display link with the lines
 /// performanceLinesProvider returns; stays on the iPhone, like the status
-/// line, while the picture is on a TV.
+/// line, while the picture is on a TV. The performance button (chart, beside
+/// the menu button, LibretroChromeLayout) shows it green while it is on.
 @property(nonatomic, assign) BOOL performanceOverlayEnabled;
 @property(nonatomic, copy, nullable) NSArray<NSString *> * (^performanceLinesProvider)(void);
+/// Performance button pressed: the session turns the overlay on or off.
+@property(nonatomic, copy, nullable) void (^performanceHandler)(void);
 @property(nonatomic, assign) CGFloat controlsOpacity;
 @property(nonatomic, copy) NSString *menuAccessibilityLabel;
+/// Translated label of the performance button (VoiceOver).
+@property(nonatomic, copy) NSString *performanceAccessibilityLabel;
 /// Orientations allowed while the game is shown.
 @property(nonatomic, assign) UIInterfaceOrientationMask allowedOrientations;
 
@@ -131,6 +136,11 @@ typedef NSDictionary<NSString *, NSDictionary *> * (^LibretroControlsOverridesPr
                                     reset:(void (^)(void))reset;
 
 - (void)showStatus:(NSString *)message;
+/// Same, kept on screen for `seconds` (showStatus: keeps it 2.5 s).
+- (void)showStatus:(NSString *)message duration:(NSTimeInterval)seconds;
+/// Fades the status line out now when it shows `message` (another message
+/// that replaced it stays).
+- (void)hideStatusIfShowing:(NSString *)message;
 - (void)setLoading:(BOOL)loading;
 - (void)stopInputPolling;
 
