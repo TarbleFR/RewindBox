@@ -12,7 +12,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: neostation-actions-history-cleanup
+  group: rewindbox-actions-history-cleanup
   cancel-in-progress: false
 
 jobs:
@@ -21,7 +21,7 @@ jobs:
       github.repository == 'TarbleFR/RewindBox' &&
       github.ref == 'refs/heads/Claude' &&
       github.event_name == 'push' &&
-      github.event.before == '21dd9e0459000a91fb7f449a6b4a70380dc5d7dc' &&
+      github.event.before == '19b8affb83ebc749fabf325144138c305053d257' &&
       contains(github.event.head_commit.message, '[actions-cleanup-2026-11-23]')
     runs-on: ubuntu-24.04
     timeout-minutes: 180
@@ -43,7 +43,7 @@ jobs:
         run: >-
           python -u build-utils/maintenance/cleanup_actions.py
           --plan build-utils/maintenance/actions-cleanup-2026-11-23.json
-          --expected-plan-sha256 0f9946a9545cb3be6b04d5e7379ddc39d5750fefa3c29757a00be15b65bd3159
+          --expected-plan-sha256 35ef02aaeb8665afe935753f4cb5ad0d8bd1fcdd0579db3428ce38ad6ea705c5
           --execute
       - name: Preserve the cleanup receipt
         if: always()
