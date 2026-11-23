@@ -26,8 +26,17 @@
   PipelineBase.cs, PipelineCacheManager.cs, VulkanRenderer.cs, ProgramQueue.cs, SetProgramCommand.cs,
   ThreadedRenderer.cs, DmaClass.cs) ; seize fichiers seulement diffèrent entre les deux arbres. MoltenVK est identique
   de 821 à 828 (même identité normalisée dans `docs/evidence/rewind82x/signed-payload-identity.json`).
-- Ce qui a vidé le cache entre 04 h 55 et 08 h 59 UTC n'est pas identifié (une mise à jour d'iOS l'invalide ; non
-  vérifié). Les installations de 825 et de 828 ne l'ont pas vidé.
+- Ce qui a vidé le cache entre 04 h 55 et 08 h 59 UTC : cause la plus probable, non prouvée sur iOS. Comparaison des
+  manifestes de livraison : entre 822 et 824, l'application ne change que par le Core MeloNX `fcea4ea2` et par S2Arm
+  (patchs 0308 à 0311, et le bridge `d4525af9e` du 23 novembre à 07 h 57 UTC, livré dans la 824). Ce bridge fait
+  passer `MTL_SHADER_CACHE_SIZE` de 64 Mio à 1 Gio. Cette variable borne le cache du compilateur Metal de
+  l'application, qui est commun à tous ses émulateurs. Jusqu'à la 823 (une IPA S2Arm), une session Switch 2 tournait
+  donc avec un cache borné à 64 Mio, alors que les pipelines de Hogwarts le dépassent largement. Depuis la 824, la borne
+  est de 1 Gio : le cache se remplit d'une session à l'autre (tableau ci-dessus) et les installations de 825 et 828 ne
+  l'ont pas vidé. Une mise à jour d'iOS l'invaliderait aussi (non vérifié).
+- Le moteur de la 823 est celui de la 822 (`8d810e8f`). Le commit `7d45996a` d'une autre session indique que le
+  mainteneur a vu la même fin « avec l'IPA précédente ». Si c'était la 823, le gel ne vient pas du diff du moteur
+  822 → 824, mais du cache Metal vide.
 
 ## 2. Le gel : signature mesurée
 
@@ -80,7 +89,14 @@ Lecture au premier essai :
 python3 tools/melonx/stall_report.py MeloNX-performance.log --pid <pid> --symbols ios-arm64/Ryujinx.Library.symbols.txt.gz
 ```
 
-## 6. Expérience décisive sans nouvelle IPA
+## 6. Retour au moteur de la 822 (demande du mainteneur)
+
+Commit `e776bfd45` : le moteur de la 822 à l'identique (`fcea4ea2` et `7d45996a` annulés), plus le seul
+`EmbeddedOnline.cs` de Nextendo (`3554d839`), compilé par `melonx-core.yml` (run 45283827082). L'IPA de diagnostic
+(Core de ce run, bridge `fb88bf8f0`, S2Arm à 1 Gio) est confiée à la session S2Arm. Si Hogwarts gèle encore, les
+relevés « #F » donnent l'appel exact.
+
+## 7. Expérience décisive sans nouvelle IPA
 
 Réinstaller l'IPA 822 telle quelle et lancer Hogwarts une fois :
 - s'il gèle au même point (36 dessins, 5 dispatchs), la cause n'est pas dans le diff 822 → 824 mais dans un défaut
