@@ -369,7 +369,16 @@
       }
     ],
     "sourceOnly": [],
-    "promotedCommits": []
+    "promotedCommits": [
+      {
+        "commit": "86970b20f3ec1b8617d547cb0161bf61b01e9a87",
+        "note": "Libretro lines deferred since 726 (b06888a9), promoted for the two files the libretro work merged in 24ab55fe1 builds on (user choice: ship the libretro work in 825)",
+        "paths": [
+          "lib/services/libretro_internal_service.dart",
+          "packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m"
+        ]
+      }
+    ]
   },
   "images": {
     "added": [],
