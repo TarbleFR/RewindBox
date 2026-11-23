@@ -60,8 +60,23 @@ de T écrivait hors de sa table (STM et PUSH vers la RAM principale) depuis l'é
   crochet d'invalidation ; rendu plus rapide en haute résolution interne (effacement, tranches entrelacées, couche
   3D, conversion de sortie) ; `desmume_num_cores` à `auto` par défaut.
 - **Catalogue** : inchangé. `auto` est la valeur par défaut du cœur lui-même ; RewindBox ne règle pas cette option.
-- **À compiler** par la route source-cores (commit marqué `[libretro-source-cores]`), puis à adopter dans
-  `COLLECTIONS`. Seul `desmume_libretro` change par rapport à la collection en cours.
+- **Collection compilée** : run [45284351707](https://github.com/TarbleFR/RewindBox/actions/runs/45284351707)
+  (commit `ccd5f047`), artefact `LibretroCores-ccd5f0476caa402823984be589185666d110e7a5`, id 14872740403,
+  56 290 109 octets, SHA-256 `2255194bbbfc91c989aa9334bc73fe387dbb693a8d67c052cfa677baa8cee6bb`, disponible jusqu'au
+  7 décembre. Entrée ajoutée à `COLLECTIONS`. **C'est la collection à livrer** à la place de `416333ff` (id
+  14870941984), dont le DeSmuME est celui de la 828.
+- **Ce qui change** par rapport à `416333ff` : `desmume_libretro` seul, 4 666 008 octets (au lieu de 4 665 664),
+  SHA-256 `72778e09…d240ea`. Azahar, Beetle PSX et Beetle PSX HW ont les mêmes empreintes que dans le run
+  45280386958 ; le constructeur annonce 232 autres fichiers inchangés.
+- **Vérifié** : empreinte et taille de l'artefact (API GitHub) ; contrôles du constructeur dans le run (épingles,
+  fichiers d'origine, Mach-O iOS 14.0, exports, chaînes attendues dont celle de `auto`, imports interdits) ;
+  identités imprimées par le run ; origine acceptée par `libretro_source_collections.collection()`.
+- **Non vérifié ici** : la collection décompressée (contrat d'options sur les 35 binaires, vérificateur de
+  collection), l'hôte de stockage des artefacts n'étant pas joignable depuis cette session ; la recette de
+  livraison refait ces contrôles. `test/standard_delivery_contract_test.py` n'a pas été mené à son terme
+  (interrompu après dix minutes).
+- **Image qui change** dans l'IPA : `Frameworks/desmume_libretro.framework/desmume_libretro`, en plus de celles de
+  la collection `416333ff`.
 - **À regarder sur iPhone** : Animal Crossing, menu en jeu ouvert puis fermé plusieurs fois ; lignes `stall:` du
   journal de session ; `[rb-jit] … engine=jit` ; surcouche de performances (`EMU`) en ×1, ×5 et ×10.
 - **Non vérifié** : rien n'a tourné sur iPhone ; le lien entre l'écriture hors table et le gel au menu est cohérent,
