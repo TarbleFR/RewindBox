@@ -182,6 +182,21 @@ class ReferenceGuardTest(unittest.TestCase):
         self.assertEqual(len(api.deleted), len(targets) - 1)
         self.assertEqual(api.deleted[:50], targets[:50])
 
+    def test_citations_the_reviewed_file_already_held_do_not_protect(self):
+        runs, plan, api = self.guarded()
+        targets = sorted(r["id"] for r in runs[300:])
+        old, new = targets[2], targets[5]
+        api.blobs["2" * 40] = blob("2" * 40, f"see run {old}")
+        head = "e" * 40
+        api.blobs["7" * 40] = blob("7" * 40, f"see run {old}, then run {new}")
+        api.trees[head] = tree(**{PLAN_PATH: "1" * 40, "README.md": "7" * 40})
+        api.claude_sha = head
+        result = self.run_cleanup(api, plan)
+        self.assertEqual(result["status"], "completed")
+        self.assertIn(new, api.runs)
+        self.assertNotIn(old, api.runs)
+        self.assertEqual(len(api.deleted), len(targets) - 1)
+
     def test_unchanged_claude_reads_no_blob_and_deletes_every_target(self):
         runs, plan, api = self.guarded()
         result = self.run_cleanup(api, plan)
@@ -631,6 +646,28 @@ class CleanupSafetyTest(unittest.TestCase):
         second = self.run_cleanup(api, plan_for(runs))
         self.assertEqual(second["deleted_run_ids"], [])
 
+    def test_delete_server_error_keeps_that_run_and_continues(self):
+        runs = records(305)
+        api = FakeAPI(runs)
+        failing = runs[-2]["id"]
+        api.responses[failing] = 500
+        result = self.run_cleanup(api, plan_for(runs))
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["server_error_run_ids"], [failing])
+        self.assertIn(failing, api.runs)
+        self.assertEqual(sorted(result["deleted_run_ids"]), sorted(r["id"] for r in runs[300:] if r["id"] != failing))
+        self.assertEqual(api.deleted.count(failing), 1)
+
+    def test_repeated_server_errors_stop_the_cleanup(self):
+        runs = records(320)
+        api = FakeAPI(runs)
+        for run in runs[300:]:
+            api.responses[run["id"]] = 503
+        with self.assertRaisesRegex(cleanup.SafetyError, "Repeated GitHub server errors"):
+            self.run_cleanup(api, plan_for(runs))
+        self.assertEqual(len(api.deleted), cleanup.MAX_SERVER_ERROR_RUNS + 1)
+        self.assertEqual(len(api.runs), 320)
+
     def test_candidate_limit_fails_closed_instead_of_truncating(self):
         runs = records(304)
         api = FakeAPI(runs)
@@ -827,6 +864,24 @@ class RateLimitTest(unittest.TestCase):
         self.assertEqual(sum(pauses), 60)
         self.assertEqual(revalidated, [100001])
         self.assertEqual(opener.calls, 2)
+
+    def test_server_errors_are_retried_with_bounded_pauses(self):
+        api, pauses, opener = self.client([(500, {}, b""), (502, {}, b""), (204, {}, b"")])
+        self.assertEqual(api.delete_run(100001), 204)
+        self.assertEqual(pauses, [15.0, 30.0])
+        api, pauses, opener = self.client([(503, {}, b""), (200, {}, b"{}")])
+        self.assertEqual(api.get_json(cleanup.PREFIX + "/git/ref/heads/main"), {})
+        self.assertEqual(pauses, [15.0])
+        api, pauses, opener = self.client([(500, {}, b"")] * 4)
+        self.assertEqual(api.delete_run(100001), 500)
+        self.assertEqual((pauses, opener.calls), ([15.0, 30.0, 45.0], 4))
+        api, pauses, opener = self.client([(504, {}, b"")] * 4)
+        with self.assertRaisesRegex(cleanup.SafetyError, "GET failed with HTTP 504"):
+            api.get_json(cleanup.PREFIX + "/git/ref/heads/main")
+        api, pauses, opener = self.client([(501, {}, b"")])
+        with self.assertRaisesRegex(cleanup.SafetyError, "HTTP 501"):
+            api.delete_run(100001)
+        self.assertEqual(opener.calls, 1)
 
     def test_retry_after_is_respected_and_permission_error_is_not_retried(self):
         api, pauses, opener = self.client([(429, {"Retry-After": "90"}, b""), (200, {}, b"{}")])

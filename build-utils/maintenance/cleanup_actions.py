@@ -7,8 +7,9 @@ written to the progress journal. This script does not build or publish anything.
 
 A plan keeps at least the newest 300 runs of each listing (more when its
 keep_recent says so). With a reference_guard, Claude may advance while the plan
-runs: every file a later commit changes is read, and a target it cites (run or
-artifact ID) is kept.
+runs: every file a later commit changes is read, and a target it newly cites
+(run or artifact ID) is kept. A GitHub server error is retried a bounded number
+of times; a run whose DELETE keeps failing is kept.
 """
 
 from __future__ import annotations
@@ -41,6 +42,10 @@ MAX_WAIT_SECONDS = 150 * 60
 MAX_RUNTIME_SECONDS = 170 * 60  # Leave ten minutes for the workflow's evidence upload.
 LISTING_ATTEMPTS = 6  # Pushes create runs while the pages are read: a moved listing is read again.
 LISTING_SETTLE_SECONDS = 20.0
+SERVER_ERRORS = frozenset({500, 502, 503, 504})
+SERVER_RETRIES = 3  # A repeated DELETE is idempotent: an applied one then answers 404.
+SERVER_RETRY_SECONDS = 15.0
+MAX_SERVER_ERROR_RUNS = 10  # Runs kept after repeated server errors before the cleanup stops.
 SHA_RE = re.compile(r"[0-9a-f]{40}\Z")
 ID_RE = re.compile(rb"(?<![0-9])[0-9]{11}(?![0-9])")
 PLAN_PATH_RE = re.compile(r"build-utils/maintenance/[A-Za-z0-9._-]+\.json\Z")
@@ -299,6 +304,7 @@ class GitHubAPI:
         if not ((method == "GET" and allowed_get) or (method == "DELETE" and allowed_delete)):
             raise SafetyError("Request is outside the fixed cleanup API allowlist")
         retries = 0
+        server_retries = 0
         while True:
             self.ensure_time()
             if self.remaining == 0 and self.reset is not None:
@@ -347,6 +353,13 @@ class GitHubAPI:
                 retries += 1
                 self._wait_for_request(method, path, delay, f"HTTP {status} rate limit, retry {retries}/4")
                 continue
+            if status in SERVER_ERRORS and server_retries < SERVER_RETRIES:
+                server_retries += 1
+                self.progress(f"GitHub HTTP {status} on {method}; retry {server_retries}/{SERVER_RETRIES}", flush=True)
+                self.ensure_time()
+                self.sleep(SERVER_RETRY_SECONDS * server_retries)
+                self.ensure_time()
+                continue
             return status, body
 
     def get_json(self, path: str) -> dict:
@@ -364,7 +377,7 @@ class GitHubAPI:
     def delete_run(self, run_id: int) -> int:
         positive_id(run_id)
         status, _ = self.request("DELETE", PREFIX + f"/actions/runs/{run_id}")
-        if status not in (204, 404, 409):
+        if status not in (204, 404, 409) and status not in SERVER_ERRORS:
             raise SafetyError(f"DELETE run {run_id} failed with HTTP {status}")
         return status
 
@@ -437,13 +450,14 @@ def check_refs(api, expected_claude_sha: str, main_sha: str, *, allow_claude_adv
 
 
 class ReferenceGuard:
-    """Claude may advance during a long cleanup; a target a later commit cites is kept.
+    """Claude may advance during a long cleanup; a target a later commit newly cites is kept.
 
     The files of the executing commit are the reviewed baseline: the plan was computed
     against them. At each check every blob of the current Claude tree that differs
     from that baseline is read in full; an 11-digit number naming a remaining target
-    run, or one of its artifacts, protects that run. An incomplete tree, an unreadable
-    blob or a changed or removed plan stops the cleanup.
+    run, or one of its artifacts, that the baseline version of the same path did not
+    hold protects that run. An incomplete tree, an unreadable blob or a changed or
+    removed plan stops the cleanup.
     """
 
     def __init__(self, api, plan: dict, executing_sha: str):
@@ -459,6 +473,11 @@ class ReferenceGuard:
         self.checked = executing_sha
         self.blobs: dict[str, set[int]] = {}
         self.referenced: set[int] = set()
+
+    def cited(self, blob: str) -> set[int]:
+        if blob not in self.blobs:
+            self.blobs[blob] = self.scan(blob)
+        return self.blobs[blob]
 
     def tree(self, sha: str) -> dict[str, str]:
         if not SHA_RE.fullmatch(sha or ""):
@@ -498,11 +517,14 @@ class ReferenceGuard:
             raise SafetyError("The reviewed plan changed or disappeared on Claude; no further deletion is authorized")
         found: set[int] = set()
         for path, blob in current.items():
-            if self.baseline.get(path) == blob:
+            before = self.baseline.get(path)
+            if before == blob:
                 continue
-            if blob not in self.blobs:
-                self.blobs[blob] = self.scan(blob)
-            found |= self.blobs[blob]
+            cited = self.cited(blob)
+            if cited and before is not None:
+                # Citations the reviewed version of this file already held were judged by the plan.
+                cited = cited - self.cited(before)
+            found |= cited
         self.checked = head
         new = found - self.referenced
         self.referenced |= found
@@ -646,7 +668,7 @@ class Journal:
                       "plan_sha256": plan_sha256, "execute": execute,
                       "started_at": iso_now(), "status": "starting",
                       "deleted_run_ids": [], "already_absent_run_ids": [],
-                      "conflict_run_ids": [], "delete_attempts": 0}
+                      "conflict_run_ids": [], "server_error_run_ids": [], "delete_attempts": 0}
         self.save()
 
     def write_json(self, name: str, value: object) -> None:
@@ -679,7 +701,8 @@ class Journal:
                  f"- DELETE attempts: {s['delete_attempts']}",
                  f"- Deleted (HTTP 204): {len(s['deleted_run_ids'])}",
                  f"- Already absent (HTTP 404): {len(s['already_absent_run_ids'])}",
-                 f"- Preserved after conflict (HTTP 409): {len(s['conflict_run_ids'])}"]
+                 f"- Preserved after conflict (HTTP 409): {len(s['conflict_run_ids'])}",
+                 f"- Preserved after repeated server errors (HTTP 5xx): {len(s.get('server_error_run_ids', []))}"]
         for name in ("initial_total", "final_total", "initial_candidate_count", "remaining_candidate_count", "error"):
             if name in s:
                 lines.append(f"- {name}: {s[name]}")
@@ -793,6 +816,13 @@ def run_cleanup(api, plan: dict, journal: Journal, *, execute: bool = False,
             elif status == 409:
                 journal.state["conflict_run_ids"].append(rid)
                 sticky.setdefault(rid, set()).add("delete_conflict")
+            elif status in SERVER_ERRORS:
+                # Still listed after the bounded retries: kept, never reported as deleted.
+                journal.state["server_error_run_ids"].append(rid)
+                sticky.setdefault(rid, set()).add("delete_server_error")
+                if len(journal.state["server_error_run_ids"]) > MAX_SERVER_ERROR_RUNS:
+                    journal.event("delete_result", run_id=rid, http_status=status)
+                    raise SafetyError("Repeated GitHub server errors on DELETE; no further deletion is attempted")
             else:
                 raise SafetyError("Unexpected DELETE response")
             journal.event("delete_result", run_id=rid, http_status=status)
