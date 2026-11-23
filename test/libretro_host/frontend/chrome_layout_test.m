@@ -7,7 +7,10 @@
 // area, never comes near a touch screen (laid-out touch-screen container or
 // touch-screen item), never covers a shown control's touch area, and keeps
 // its usual place whenever that place is free (always for single-screen
-// consoles). Synthetic layouts check the rules behind it.
+// consoles). Synthetic layouts check the rules behind it. The performance
+// button keeps the same distances, never covers the menu button, sits just
+// left of it whenever that place is free and takes its place when the skin
+// draws its own menu control.
 //
 // Controls editor: at console scope the editor starts from the console's
 // own layout (never the game's), so saving there keeps the console's other
@@ -152,6 +155,71 @@ static LibretroRect CheckMenuButton(NSString *console, LibretroSkinLayoutResult 
   return frame;
 }
 
+/// Checks the performance button beside `menu` over one laid-out default
+/// skin: same size, inside the safe area, never near the menu button or a
+/// touch screen, never over a shown control, just left of the menu button
+/// whenever that place is free; our menu button's place when the skin draws
+/// its own menu control.
+static void CheckPerformanceButton(LibretroSkinLayoutResult *layout, LibretroSize view, LibretroInsets insets,
+                                   BOOL controlsVisible, LibretroRect menu, NSString *tag) {
+  LibretroRect frame = [LibretroChromeLayout performanceButtonFrameForLayout:layout
+                                                                    viewSize:view
+                                                                  safeInsets:insets
+                                                             controlsVisible:controlsVisible
+                                                                   menuFrame:menu
+                                                                 menuVisible:YES];
+  LibretroRect safeArea =
+      LibretroRectMake(insets.left, insets.top, view.w - insets.left - insets.right, view.h - insets.top - insets.bottom);
+  double clearance = LibretroMenuButtonClearance;
+  if (fabs(frame.w - LibretroMenuButtonSize.w) > 1e-9 || fabs(frame.h - LibretroMenuButtonSize.h) > 1e-9) {
+    Fail(tag, [@"performance button resized " stringByAppendingString:Describe(frame)]);
+  }
+  if (!Inside(frame, safeArea)) {
+    Fail(tag, [@"performance button outside the safe area " stringByAppendingString:Describe(frame)]);
+  }
+  if (Near(frame, menu, clearance)) {
+    Fail(tag, [NSString stringWithFormat:@"performance button %@ on the menu button %@", Describe(frame),
+                                         Describe(menu)]);
+  }
+  LibretroRect beside = LibretroRectMake(menu.x - LibretroChromeButtonGap - menu.w, menu.y, menu.w, menu.h);
+  // The rule's margins: 10 points from the safe area's sides, 6 from its top and bottom.
+  BOOL besideFree = beside.x >= insets.left + 10 - 1e-9 && beside.y >= insets.top + 6 - 1e-9 &&
+                    beside.x + beside.w <= view.w - insets.right - 10 + 1e-9 &&
+                    beside.y + beside.h <= view.h - insets.bottom - 6 + 1e-9;
+  for (LibretroLaidOutScreen *screen in layout.screens) {
+    if (!screen.touchScreen) continue;
+    if (Near(frame, screen.container, clearance)) {
+      Fail(tag, [NSString stringWithFormat:@"performance button %@ on the touch screen %@", Describe(frame),
+                                           Describe(screen.container)]);
+    }
+    if (Near(beside, screen.container, clearance)) besideFree = NO;
+  }
+  for (LibretroLaidOutItem *laidOut in layout.items) {
+    BOOL touch = laidOut.item.kind == LibretroSkinItemKindTouchScreen;
+    if (!touch && !controlsVisible) continue;
+    LibretroRect area = touch ? laidOut.frame : laidOut.hitFrame;
+    if (Near(frame, area, clearance)) {
+      Fail(tag, [NSString stringWithFormat:@"performance button %@ over %@ %@", Describe(frame),
+                                           laidOut.item.identifier, Describe(area)]);
+    }
+    if (Near(beside, area, clearance) || (touch && Near(beside, laidOut.hitFrame, clearance))) besideFree = NO;
+  }
+  if (besideFree && !Same(frame, beside)) {
+    Fail(tag, [NSString stringWithFormat:@"performance button moved to %@ although %@ is free", Describe(frame),
+                                         Describe(beside)]);
+  }
+  LibretroRect alone = [LibretroChromeLayout performanceButtonFrameForLayout:layout
+                                                                    viewSize:view
+                                                                  safeInsets:insets
+                                                             controlsVisible:controlsVisible
+                                                                   menuFrame:menu
+                                                                 menuVisible:NO];
+  if (!Same(alone, menu)) {
+    Fail(tag, [NSString stringWithFormat:@"skin with its own menu control: performance button at %@, not %@",
+                                         Describe(alone), Describe(menu)]);
+  }
+}
+
 static void TestDefaultSkins(void) {
   NSArray<NSValue *> *devices = Devices();
   for (NSString *console in [LibretroDefaultSkins consoles]) {
@@ -194,6 +262,7 @@ static void TestDefaultSkins(void) {
                                                            real, name ?: @"default", swapped ? @" swapped" : @"",
                                                            visible ? @"shown" : @"hidden"];
                 LibretroRect frame = CheckMenuButton(console, layout, view, insets, visible == 1, tag);
+                CheckPerformanceButton(layout, view, insets, visible == 1, frame, tag);
                 LibretroRect preferred = [LibretroChromeLayout preferredMenuButtonFrameForViewSize:view
                                                                                          safeInsets:insets];
                 if (!Same(frame, preferred)) moved++;
@@ -204,7 +273,8 @@ static void TestDefaultSkins(void) {
         }
       }
     }
-    CHECK(failures == before, @"%@: menu button clear of the touch screen and the controls in %d layouts (%d moved)",
+    CHECK(failures == before,
+          @"%@: menu and performance buttons clear of the touch screen and the controls in %d layouts (%d moved)",
           console, layouts, moved);
     if (dual) CHECK(moved > 0, @"%@: some arrangements need another place for the menu button", console);
   }
@@ -409,6 +479,50 @@ static void TestRules(void) {
   LibretroSkinLayoutResult *wider = Layout(@[ Screen(LibretroRectMake(100, 0, 600, 400), YES) ], @[]);
   frame = [LibretroChromeLayout menuButtonFrameForLayout:wider viewSize:wide safeInsets:notch controlsVisible:YES];
   CHECK(Same(frame, centre), @"no room beside it inside the safe area: the preferred place %@", Describe(frame));
+
+  // Performance button: left of the menu button, 8 points away, same size.
+  LibretroRect performance = [LibretroChromeLayout performanceButtonFrameForLayout:nil
+                                                                          viewSize:view
+                                                                        safeInsets:none
+                                                                   controlsVisible:YES
+                                                                         menuFrame:preferred
+                                                                       menuVisible:YES];
+  CHECK(Same(performance, LibretroRectMake(346 - 8 - 44, 6, 44, 40)), @"performance: left of the menu button %@",
+        Describe(performance));
+  performance = [LibretroChromeLayout performanceButtonFrameForLayout:nil
+                                                             viewSize:view
+                                                           safeInsets:none
+                                                      controlsVisible:YES
+                                                            menuFrame:preferred
+                                                          menuVisible:NO];
+  CHECK(Same(performance, preferred), @"performance: the menu button's place when the skin draws its own %@",
+        Describe(performance));
+  // A shown control where it would go: the closest free place (it slides
+  // left past the control), never on the menu button; hidden, ignored.
+  LibretroLaidOutItem *left =
+      Item(@"x", LibretroSkinItemKindButton, LibretroRectMake(280, 0, 40, 60), LibretroRectMake(280, 0, 40, 60));
+  LibretroSkinLayoutResult *occupied = Layout(@[], @[ left ]);
+  LibretroRect menu = [LibretroChromeLayout menuButtonFrameForLayout:occupied
+                                                            viewSize:view
+                                                          safeInsets:none
+                                                     controlsVisible:YES];
+  CHECK(Same(menu, preferred), @"performance: the menu button keeps its place %@", Describe(menu));
+  performance = [LibretroChromeLayout performanceButtonFrameForLayout:occupied
+                                                             viewSize:view
+                                                           safeInsets:none
+                                                      controlsVisible:YES
+                                                            menuFrame:menu
+                                                          menuVisible:YES];
+  CHECK(Same(performance, LibretroRectMake(280 - 6 - 44, 6, 44, 40)),
+        @"performance: past a shown control, off the menu button %@", Describe(performance));
+  performance = [LibretroChromeLayout performanceButtonFrameForLayout:occupied
+                                                             viewSize:view
+                                                           safeInsets:none
+                                                      controlsVisible:NO
+                                                            menuFrame:menu
+                                                          menuVisible:YES];
+  CHECK(Same(performance, LibretroRectMake(346 - 8 - 44, 6, 44, 40)), @"performance: hidden controls are ignored %@",
+        Describe(performance));
 }
 
 static void TestControlsEditor(NSString *work) {

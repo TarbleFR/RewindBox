@@ -4,6 +4,7 @@
 
 const LibretroSize LibretroMenuButtonSize = {44, 40};
 const double LibretroMenuButtonClearance = 6;
+const double LibretroChromeButtonGap = 8;
 
 /// Distance from the left and right sides of the safe area.
 static const double kSideMargin = 10;
@@ -105,6 +106,33 @@ static BOOL ClosestFreeFrame(LibretroRect preferred, NSData *obstacles, Libretro
   return found;
 }
 
+/// What a chrome button avoids over `layout`: the touch screens (laid-out
+/// touch-screen containers and touch-screen items) always, the controls'
+/// touch areas while they are shown.
+static void CollectObstacles(LibretroSkinLayoutResult *layout, BOOL controlsVisible, NSMutableData *touch,
+                             NSMutableData *controls) {
+  for (LibretroLaidOutScreen *screen in layout.screens) {
+    if (screen.touchScreen) AppendObstacle(touch, screen.container);
+  }
+  for (LibretroLaidOutItem *laidOut in layout.items) {
+    if (laidOut.item.kind == LibretroSkinItemKindTouchScreen) {
+      AppendObstacle(touch, laidOut.frame);
+      AppendObstacle(touch, laidOut.hitFrame);
+    } else if (controlsVisible) {
+      AppendObstacle(controls, laidOut.hitFrame);
+    }
+  }
+}
+
+/// YES when `frame` lies inside the area ClosestFreeFrame searches.
+static BOOL InsideSearchArea(LibretroRect frame, LibretroSize viewSize, LibretroInsets insets) {
+  double minX = FiniteOrZero(insets.left) + kSideMargin;
+  double maxX = FiniteOrZero(viewSize.w) - FiniteOrZero(insets.right) - frame.w - kSideMargin;
+  double minY = FiniteOrZero(insets.top) + kTopMargin;
+  double maxY = FiniteOrZero(viewSize.h) - FiniteOrZero(insets.bottom) - frame.h - kTopMargin;
+  return frame.x >= minX - 1e-9 && frame.x <= maxX + 1e-9 && frame.y >= minY - 1e-9 && frame.y <= maxY + 1e-9;
+}
+
 @implementation LibretroChromeLayout
 
 + (LibretroRect)preferredMenuButtonFrameForViewSize:(LibretroSize)viewSize safeInsets:(LibretroInsets)safeInsets {
@@ -123,17 +151,7 @@ static BOOL ClosestFreeFrame(LibretroRect preferred, NSData *obstacles, Libretro
   if (layout == nil) return preferred;
   NSMutableData *touch = [NSMutableData data];
   NSMutableData *controls = [NSMutableData data];
-  for (LibretroLaidOutScreen *screen in layout.screens) {
-    if (screen.touchScreen) AppendObstacle(touch, screen.container);
-  }
-  for (LibretroLaidOutItem *laidOut in layout.items) {
-    if (laidOut.item.kind == LibretroSkinItemKindTouchScreen) {
-      AppendObstacle(touch, laidOut.frame);
-      AppendObstacle(touch, laidOut.hitFrame);
-    } else if (controlsVisible) {
-      AppendObstacle(controls, laidOut.hitFrame);
-    }
-  }
+  CollectObstacles(layout, controlsVisible, touch, controls);
   NSMutableData *everything = [touch mutableCopy];
   [everything appendData:controls];
   if (IsFree(preferred, (const LibretroRect *)everything.bytes, everything.length / sizeof(LibretroRect))) {
@@ -142,6 +160,34 @@ static BOOL ClosestFreeFrame(LibretroRect preferred, NSData *obstacles, Libretro
   LibretroRect frame = preferred;
   if (ClosestFreeFrame(preferred, everything, viewSize, safeInsets, &frame)) return frame;
   // Nowhere clear of the controls: at least the touch screens stay free.
+  if (controls.length > 0 && ClosestFreeFrame(preferred, touch, viewSize, safeInsets, &frame)) return frame;
+  return preferred;
+}
+
++ (LibretroRect)performanceButtonFrameForLayout:(LibretroSkinLayoutResult *)layout
+                                       viewSize:(LibretroSize)viewSize
+                                     safeInsets:(LibretroInsets)safeInsets
+                                controlsVisible:(BOOL)controlsVisible
+                                      menuFrame:(LibretroRect)menuFrame
+                                    menuVisible:(BOOL)menuVisible {
+  LibretroSize button = LibretroMenuButtonSize;
+  // The skin draws its own menu control: our menu button's place is free.
+  if (!menuVisible) return LibretroRectMake(menuFrame.x, menuFrame.y, button.w, button.h);
+  LibretroRect preferred =
+      LibretroRectMake(menuFrame.x - LibretroChromeButtonGap - button.w, menuFrame.y, button.w, button.h);
+  NSMutableData *touch = [NSMutableData data];
+  NSMutableData *controls = [NSMutableData data];
+  if (layout != nil) CollectObstacles(layout, controlsVisible, touch, controls);
+  // Never over the menu button, even where the controls have to be covered.
+  AppendObstacle(touch, menuFrame);
+  NSMutableData *everything = [touch mutableCopy];
+  [everything appendData:controls];
+  if (InsideSearchArea(preferred, viewSize, safeInsets) &&
+      IsFree(preferred, (const LibretroRect *)everything.bytes, everything.length / sizeof(LibretroRect))) {
+    return preferred;
+  }
+  LibretroRect frame = preferred;
+  if (ClosestFreeFrame(preferred, everything, viewSize, safeInsets, &frame)) return frame;
   if (controls.length > 0 && ClosestFreeFrame(preferred, touch, viewSize, safeInsets, &frame)) return frame;
   return preferred;
 }

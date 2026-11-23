@@ -1043,7 +1043,7 @@ abstract final class LibretroLocale {
       'metalFXShaderActive': 'Inactif tant qu’un shader est actif',
       'metalFXPaused': 'En pause : appareil trop chaud',
       'jitInterpreterNotice': 'JIT indisponible : ce jeu tourne avec l’interpréteur (vérifiez LocalDevVPN et le fichier d’appairage).',
-      'jitStatusActive': 'JIT actif',
+      'jitStatusActive': 'JIT activé',
       'jitStatusInactive': 'JIT inactif : interpréteur',
       'jitStatusGranted': 'JIT accordé au cœur',
       'jitStatusNone': 'Sans JIT : interpréteur du cœur',

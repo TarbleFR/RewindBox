@@ -43,8 +43,10 @@
 
 #include <mach/mach_time.h>
 #import <objc/message.h>
+#include <dlfcn.h>
 #include <mach/mach.h>
 #include <math.h>
+#include <pthread.h>
 #include <stdatomic.h>
 
 static const NSInteger kStateSlots = 5;
@@ -69,6 +71,14 @@ static const int64_t kMetalFXResumeSeconds = 30;
 static const NSUInteger kStartupFrames = 60;
 static const double kStartupSeconds = 5.0;
 static const double kStartupFrameCap = 0.25;
+/// The JIT mode is shown once the game has run this many frames (about a
+/// third of a second), for this long.
+static const NSUInteger kJitStatusFrames = 20;
+static const NSTimeInterval kJitStatusSeconds = 5.0;
+/// Stall watch: a running game that produced no frame for this long is
+/// noted in the session journal, with where its emulation thread is; again
+/// at each later mark, three notes at most per stall.
+static const double kStallMarks[] = {3.0, 10.0, 30.0};
 /// Error lines of the core quoted in a LIBRETRO_CORE_STOPPED failure.
 static const NSUInteger kStartupErrorLines = 4;
 /// Changes of the produced frame size written to the session journal.
@@ -89,6 +99,56 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   UIViewController *root = presenter.view.window.rootViewController;
   [root setNeedsUpdateOfSupportedInterfaceOrientations];
   if (presenter != nil && presenter != root) [presenter setNeedsUpdateOfSupportedInterfaceOrientations];
+}
+
+/// An address of the process for the stall journal: its image and offset,
+/// and the nearest symbol dladdr knows. A return address may carry
+/// pointer-authentication bits: without an image as is, it is tried again
+/// without them (47- then 39-bit addresses). Outside every image (JIT code,
+/// the heap) it stays a bare address.
+static NSString *LibretroDescribeAddress(uintptr_t address) {
+  if (address == 0) return @"0";
+  const uintptr_t candidates[] = {address, address & 0x00007FFFFFFFFFFFull, address & 0x0000007FFFFFFFFFull};
+  for (size_t index = 0; index < sizeof(candidates) / sizeof(candidates[0]); index++) {
+    Dl_info info;
+    if (candidates[index] == 0 || !dladdr((const void *)candidates[index], &info) || info.dli_fname == NULL) continue;
+    uintptr_t value = candidates[index];
+    NSString *image = [NSString stringWithUTF8String:info.dli_fname].lastPathComponent ?: @"?";
+    NSString *place = [NSString stringWithFormat:@"%@+0x%lx", image, (unsigned long)(value - (uintptr_t)info.dli_fbase)];
+    if (info.dli_sname == NULL || info.dli_saddr == NULL) return place;
+    return [NSString stringWithFormat:@"%@ (%s+0x%lx)", place, info.dli_sname,
+                                      (unsigned long)(value - (uintptr_t)info.dli_saddr)];
+  }
+  return [NSString stringWithFormat:@"0x%lx (no image: JIT code or data)", (unsigned long)address];
+}
+
+/// Where `thread` is, for the stall journal: its run state and CPU use, its
+/// program counter and return address. The thread is suspended only while
+/// its registers are read; nothing is allocated meanwhile (it may hold the
+/// allocator's lock), the addresses are described once it runs again.
+static NSString *LibretroThreadPlace(mach_port_t thread) {
+  if (thread == MACH_PORT_NULL) return @"not running frames";
+  NSString *state = @"state unknown";
+  thread_basic_info_data_t basic;
+  mach_msg_type_number_t basicCount = THREAD_BASIC_INFO_COUNT;
+  if (thread_info(thread, THREAD_BASIC_INFO, (thread_info_t)&basic, &basicCount) == KERN_SUCCESS) {
+    static const char *const states[] = {"?", "running", "stopped", "waiting", "uninterruptible", "halted"};
+    const int run = basic.run_state >= 1 && basic.run_state <= 5 ? basic.run_state : 0;
+    state = [NSString stringWithFormat:@"%s, cpu %.0f %%", states[run], basic.cpu_usage * 100.0 / TH_USAGE_SCALE];
+  }
+#if defined(__arm64__)
+  arm_thread_state64_t registers;
+  mach_msg_type_number_t count = ARM_THREAD_STATE64_COUNT;
+  if (thread_suspend(thread) != KERN_SUCCESS) return [state stringByAppendingString:@", not suspended"];
+  const kern_return_t got = thread_get_state(thread, ARM_THREAD_STATE64, (thread_state_t)&registers, &count);
+  thread_resume(thread);
+  if (got != KERN_SUCCESS) return [state stringByAppendingString:@", registers unreadable"];
+  const uintptr_t pc = (uintptr_t)arm_thread_state64_get_pc(registers);
+  const uintptr_t lr = (uintptr_t)arm_thread_state64_get_lr(registers);
+  return [NSString stringWithFormat:@"%@, pc %@, lr %@", state, LibretroDescribeAddress(pc), LibretroDescribeAddress(lr)];
+#else
+  return state;
+#endif
 }
 
 @implementation LibretroSessionConfiguration
@@ -178,6 +238,16 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   uint64_t _perfLastFrames;
   uint64_t _perfLastBusyTicks;
   NSArray<NSString *> *_perfLines;
+  // JIT mode shown at the start of the game (emulation thread).
+  BOOL _jitStatusShown;
+  // Stall watch (main thread, journal only): the emulation thread's Mach
+  // port while it runs frames (threadMain), the frame count last seen, when
+  // it last changed, and the reports already written for this stall.
+  _Atomic(mach_port_t) _emulationPort;
+  NSTimer *_stallTimer;
+  uint64_t _stallFrames;
+  CFTimeInterval _stallSince;
+  NSUInteger _stallReports;
   BOOL _started;
   NSArray<NSString *> *_finalLog;
 
@@ -332,6 +402,80 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   _controller.performanceOverlayEnabled = on;
 }
 
+/// Main thread: the performance button beside the menu button. Kept for
+/// the next games, like the menu's switch.
+- (void)togglePerformanceOverlay {
+  if (_menu != nil || _closing) return;
+  BOOL on = !_performanceOverlay;
+  [self setPerformanceOverlay:on];
+  [NSUserDefaults.standardUserDefaults setBool:on forKey:@"libretro.performanceOverlay"];
+  [_journal note:[NSString stringWithFormat:@"performance: overlay %@ from its button", on ? @"on" : @"off"]];
+}
+
+#pragma mark - Stall watch
+
+/// Main thread, once the core is loaded: every second, checks that a running
+/// game still produces frames (stall notes in the session journal only).
+- (void)startStallWatch {
+  [_stallTimer invalidate];
+  _stallFrames = atomic_load(&_perfFrames);
+  _stallSince = CACurrentMediaTime();
+  _stallReports = 0;
+  __weak LibretroSession *weakSelf = self;
+  _stallTimer = [NSTimer scheduledTimerWithTimeInterval:1.0
+                                                repeats:YES
+                                                  block:^(NSTimer *timer) {
+                                                    LibretroSession *session = weakSelf;
+                                                    if (session == nil) {
+                                                      [timer invalidate];
+                                                      return;
+                                                    }
+                                                    [session watchFrames];
+                                                  }];
+}
+
+- (void)stopStallWatch {
+  [_stallTimer invalidate];
+  _stallTimer = nil;
+}
+
+/// Main thread, every second. A game paused (menu, background, controls
+/// editor, stop) or not started yet is not stalled. Otherwise no new frame
+/// for kStallMarks[n] seconds writes the n-th note: where the emulation
+/// thread is (LibretroThreadPlace); a stall that ends is noted too.
+- (void)watchFrames {
+  if (_closing) {
+    [self stopStallWatch];
+    return;
+  }
+  const uint64_t frames = atomic_load(&_perfFrames);
+  const CFTimeInterval now = CACurrentMediaTime();
+  if (frames != _stallFrames) {
+    if (_stallReports > 0) {
+      [_journal note:[NSString stringWithFormat:@"stall: frames again after %.1f s (frame %llu)", now - _stallSince,
+                                                (unsigned long long)frames]];
+    }
+    _stallFrames = frames;
+    _stallSince = now;
+    _stallReports = 0;
+    return;
+  }
+  [_condition lock];
+  const BOOL paused = _menuPaused || _backgroundPaused || _stopRequested || _coreStopRequested;
+  [_condition unlock];
+  if (paused || _editingControls || frames == 0) {
+    _stallSince = now;
+    return;
+  }
+  const NSUInteger marks = sizeof(kStallMarks) / sizeof(kStallMarks[0]);
+  if (_stallReports >= marks || now - _stallSince < kStallMarks[_stallReports]) return;
+  _stallReports++;
+  NSString *place = LibretroThreadPlace(atomic_load(&_emulationPort));
+  [_journal note:[NSString stringWithFormat:@"stall: no frame for %.1f s after frame %llu (menu asked %d); "
+                                            @"emulation thread %@",
+                                            now - _stallSince, (unsigned long long)frames, _menuPausePending, place]];
+}
+
 /// Main thread, twice a second while the overlay shows (game view's display
 /// link). Technical lines, not translated: frames the core ran per second and
 /// that rate against the core's own, the time the emulation thread spent on a
@@ -456,6 +600,10 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     LibretroSession *session = weakSelf;
     return session != nil ? [session performanceLines] : @[];
   };
+  _controller.performanceAccessibilityLabel = [self text:@"performanceOverlay"];
+  _controller.performanceHandler = ^{
+    [weakSelf togglePerformanceOverlay];
+  };
   [self setPerformanceOverlay:_performanceOverlay];
   _controller.menuHandler = ^{
     [weakSelf openMenu];
@@ -537,6 +685,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 - (void)stopWithCompletion:(dispatch_block_t)completion {
   NSAssert(NSThread.isMainThread, @"Session stop must run on main");
   _closing = YES;
+  [self stopStallWatch];
   [_controller stopInputPolling];
   if (completion != nil) [_stopCompletions addObject:[completion copy]];
   // The picture comes back to the iPhone before the core is asked to stop.
@@ -555,6 +704,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 - (void)finishStop {
   [self endAchievementSession];
   _closing = YES;
+  [self stopStallWatch];
   _thread = nil;
   // unloadCore retained the PSP ownership record outside the rolling log.
   if (_finalLog == nil) _finalLog = _host.recentLog;
@@ -598,6 +748,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 - (void)failStartWithResult:(NSDictionary<NSString *, id> *)result {
   [self endAchievementSession];
   _closing = YES;
+  [self stopStallWatch];
   _thread = nil;
   _finalLog = result[@"log"];
   LibretroGameViewController *controller = _controller;
@@ -671,10 +822,13 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   }
   [_journal note:[NSString stringWithFormat:@"run: %@ %@ loaded, renderer %@", _host.libraryName ?: @"",
                                             _host.libraryVersion ?: @"", [self rendererName]]];
+  atomic_store(&_emulationPort, pthread_mach_thread_np(pthread_self()));
   dispatch_async(dispatch_get_main_queue(), ^{
     [self->_controller setLoading:NO];
+    [self startStallWatch];
   });
   [self runLoop];
+  atomic_store(&_emulationPort, (mach_port_t)MACH_PORT_NULL);
   [_condition lock];
   BOOL coreStopped = _coreStopRequested && !_stopRequested;
   [_condition unlock];
@@ -746,18 +900,35 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     @"jitCapable" : @(LibretroJitUsableByCores() || _host.jitCapable),
     @"jitInterface" : @(_host.jitCapable && !LibretroJitUsableByCores()),
   };
-  // The JIT mode the game started with: what the core reported, else the
-  // capability it was given (a core built for the JIT interface that runs on
-  // its interpreter today keeps its LocalDevVPN notice).
-  NSString *jitStatus = [self jitStatusText];
   [_journal note:[NSString stringWithFormat:@"jit: engine=%@ active=%d capable=%d expected=%d",
                                             _host.jitReportedEngine ?: @"unreported", _host.jitReportedActive,
                                             _host.jitCapable, _configuration.jitExpected]];
+  // Shown after kJitStatusFrames already; here only when the game was left
+  // before them (then not shown: the game is closing).
+  [self showJitStatus];
   dispatch_async(dispatch_get_main_queue(), ^{
     self->_started = YES;
     [self finishStartWithResult:success];
-    // Not while the game is closing (left before the startup period ended).
-    if (!self->_closing) [self showStatus:jitStatus];
+  });
+}
+
+/// Emulation thread, once, as the game starts (kJitStatusFrames): the JIT
+/// mode it runs with, kJitStatusSeconds on screen. What the core reported,
+/// else the capability it was given (a core built for the JIT interface that
+/// runs on its interpreter today keeps its LocalDevVPN notice).
+- (void)showJitStatus {
+  if (_jitStatusShown) return;
+  _jitStatusShown = YES;
+  NSString *status = [self jitStatusText];
+  const unsigned long frames = (unsigned long)_startupFrames;
+  LibretroSessionJournal *journal = _journal;
+  __weak LibretroSession *weakSelf = self;
+  dispatch_async(dispatch_get_main_queue(), ^{
+    LibretroSession *session = weakSelf;
+    // Not while the game is closing (left before the status came).
+    if (session == nil || session->_closing) return;
+    [session->_controller showStatus:status duration:kJitStatusSeconds];
+    [journal note:[NSString stringWithFormat:@"jit: shown after %lu frames: %@", frames, status]];
   });
 }
 
@@ -796,6 +967,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   *lastFrame = now;
   _startupFrames++;
   if (_host.shutdownRequested) return;
+  if (_startupFrames == kJitStatusFrames) [self showJitStatus];
   if (_startupFrames >= kStartupFrames && _startupSeconds >= kStartupSeconds) [self confirmStartup];
 }
 
@@ -3432,6 +3604,8 @@ static BOOL LibretroMetalFXMustPause(NSProcessInfo *info) {
   }
   [_controller.overlay releaseAllTouches];
   [self setMenuPaused:YES];
+  [_journal note:[NSString stringWithFormat:@"menu: opened after frame %llu",
+                                            (unsigned long long)atomic_load(&_perfFrames)]];
   [_input reset];
   // Skins are listed again at each opening; the frontend pages live as long
   // as this menu.
@@ -3464,6 +3638,7 @@ static BOOL LibretroMetalFXMustPause(NSProcessInfo *info) {
                              self->_menu = nil;
                              self->_frontendMenu = nil;
                              [self setMenuPaused:NO];
+                             [self->_journal note:@"menu: closed, the game resumes"];
                            }];
 }
 

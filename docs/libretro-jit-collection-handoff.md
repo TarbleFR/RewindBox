@@ -4,7 +4,26 @@
 d'ipa c'est une autre session qui la fera ». Cette session n'a lancé aucune livraison.*
 
 *La collection précédente, `LibretroCores-6cd6a89b…` (id 14839590544, étape 0 de DeSmuME), est livrée dans
-l'IPA 827. Celle-ci la remplace.*
+l'IPA 827. Celle-ci la remplace ; elle est livrée dans l'IPA 828.*
+
+## Depuis la 828 : retours de l'iPhone, app seulement
+
+Essai de la 828 par le mainteneur : DeSmuME démarre ; aucun message ne disait que le JIT était activé ; l'activation
+de la surcouche passait par le menu ; Animal Crossing s'est figé à l'ouverture du menu en jeu (la même session
+s'était déjà terminée sans retour au menu sur une IPA d'avant le JIT de DeSmuME).
+
+- **Message JIT** : affiché dès la 20ᵉ image du jeu, pendant 5 s (avant : à la confirmation du démarrage, vers 5 s,
+  pendant 2,5 s) ; en français « JIT activé · DeSmuME (jit) ». Le journal de session note `jit: shown after …`.
+- **Bouton de performances** à côté du bouton de menu (icône `chart.xyaxis.line`, comme Dolphin et RPCS3), vert
+  quand la surcouche est affichée ; un toucher l'affiche ou la masque, réglage conservé. Placement par
+  `LibretroChromeLayout` (jamais sur un écran tactile, une commande visible ou le bouton de menu ; à la place du
+  bouton de menu quand l'habillage dessine son propre menu) ; vérifié sur tous les habillages par défaut par
+  `test/libretro_host/frontend/chrome_layout_test.m`. Le réglage du menu reste.
+- **Journal de session** pour le gel : `menu: opened after frame …`, `menu: closed, the game resumes`, et, si un
+  jeu en cours ne produit plus d'image pendant 3, 10 puis 30 s, `stall: … emulation thread <état>, pc …, lr …`
+  (image et symbole, ou « no image : JIT code or data »), puis `stall: frames again after …` s'il repart.
+- **Images qui changent** pour la prochaine IPA : `libretro_internal_bridge` et `App` ; la collection reste
+  `66e232e0` (aucun cœur ne change).
 
 ## La collection
 
@@ -63,14 +82,15 @@ l'IPA 827. Celle-ci la remplace.*
 
 ## À regarder sur iPhone
 
-- **Indicateur JIT au lancement** (environ 5 s après le début du jeu, ligne d'état de 2,5 s), d'après ce que le cœur
-  rapporte lui-même :
-  - « JIT actif · DeSmuME (jit) », « JIT actif · Beetle PSX HW (lightrec) », « JIT actif · Azahar (dynarmic) » ;
+- **Indicateur JIT au lancement** (dès la 20ᵉ image du jeu, ligne d'état de 5 s), d'après ce que le cœur rapporte
+  lui-même :
+  - « JIT activé · DeSmuME (jit) », « JIT activé · Beetle PSX HW (lightrec) », « JIT activé · Azahar (dynarmic) » ;
   - « JIT inactif : interpréteur · … » si le cœur a choisi un interpréteur alors que le JIT était là ;
   - sans LocalDevVPN : l'avis « JIT indisponible » de toujours ;
   - cœurs officiels : « Sans JIT : interpréteur du cœur · … ».
   - Le journal de session note `jit: engine=… active=… capable=… expected=…`.
-- **Surcouche de performances** (menu en jeu, « Affichage des performances »), en haut à gauche :
+- **Surcouche de performances** (bouton à côté du bouton de menu, ou menu en jeu, « Affichage des performances »),
+  en haut à gauche :
   - `FPS` et vitesse par rapport au rythme du cœur ;
   - `EMU` : temps du fil d'émulation par image ;
   - `GPU`, `RAM` (empreinte de l'app), `BAT`, `JIT` (moteur rapporté).
