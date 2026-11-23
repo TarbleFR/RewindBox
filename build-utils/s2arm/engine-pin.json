@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "2caea615c19ea995778db76dec3e4452f2522a5ca5100b3c55b71b24187841b6",
+  "packagedFingerprint": "a60a9ed940b12277dd73dec609cff033064d4c7e48f19adeda51b9139c4a5db9",
   "producers": {
     "engine": {
-      "run": 45060097526,
+      "run": 45098230085,
       "attempt": 1,
-      "artifact": 14769571463,
-      "name": "s2arm-engine-framework-6191ee52348ce76b74130e9acb894e8aaa93b3b6",
-      "bytes": 25252472,
-      "sha256": "0338527ed5cc6affd06077f2faf1ef86d7eed467da2731b60e6742584b3f38cf",
-      "headSha": "6191ee52348ce76b74130e9acb894e8aaa93b3b6",
+      "artifact": 14784704158,
+      "name": "s2arm-engine-framework-57eb3ab6c62f958748d22f65a7bb8c90c5973c55",
+      "bytes": 25251686,
+      "sha256": "2e4f8cdd2c8612ef74fe012fe4c106ad801aaac9bfbce8e9084ceb5b5a1ebd43",
+      "headSha": "57eb3ab6c62f958748d22f65a7bb8c90c5973c55",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-22T19:32:46Z",
+      "expiresAt": "2026-12-23T02:26:53Z",
       "members": {
-        "S2ArmEngine.framework.zip": "6367441b6d2d8c26ad18d6eee82b92f5ebde56df73f5f3b2a51c2666273a0104",
-        "NS2Pro.framework.zip": "dfe1da11aa163c8dda9e9d7d564105b181a6fcb59aeca220b0e65dbf557301d5"
+        "S2ArmEngine.framework.zip": "eea9a5a6ad37ea6b5bbc02842e3a56fac054afc14928a559357f8877f2dca8e4",
+        "NS2Pro.framework.zip": "553738e527a84675b7010dedf70c37cd89d37d79d6731b5a053a3a2618c114c5"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "0338527ed5cc6affd06077f2faf1ef86d7eed467da2731b60e6742584b3f38cf",
+    "engine": "2e4f8cdd2c8612ef74fe012fe4c106ad801aaac9bfbce8e9084ceb5b5a1ebd43",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "5e4d7723a2ca1c2363826b8e4e1f4b3db1822f1ff7da188e1abf13f0b5818d77",
-      "bytes": 115135768,
-      "fingerprint": "2caea615c19ea995778db76dec3e4452f2522a5ca5100b3c55b71b24187841b6"
+      "sha256": "b80c11b90b857cb16c18cfb9721906e7f8c0a38118c2127f76c3822c348f3f15",
+      "bytes": 115135912,
+      "fingerprint": "a60a9ed940b12277dd73dec609cff033064d4c7e48f19adeda51b9139c4a5db9"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45060097526,
+      "run": 45098230085,
       "attempt": 1,
-      "head_sha": "6191ee52348ce76b74130e9acb894e8aaa93b3b6",
+      "head_sha": "57eb3ab6c62f958748d22f65a7bb8c90c5973c55",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1362,11 +1362,19 @@
         {
           "name": "0305-keep-the-guest-timestamp-hold-at-fair-without-measured-gpu-pressure.patch",
           "sha256": "0f432d0fe61a0d42ee97713141d62b2d4b6fdc8e8d60b0cb8375642fa4a01d86"
+        },
+        {
+          "name": "0306-keep-more-program-registrations-waiting-and-count-refusals.patch",
+          "sha256": "0e4a21a9ac51e0dd64f12831aa070f3dd08e1d6b39889455f976dcc495abbcfc"
+        },
+        {
+          "name": "0307-end-a-size-push-once-the-game-is-at-its-smallest-size.patch",
+          "sha256": "6283dfc52738ac829a8eee6a1e70d9cf16eb1b1eb114e6b328894de9af4f9872"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "6367441b6d2d8c26ad18d6eee82b92f5ebde56df73f5f3b2a51c2666273a0104",
-        "NS2Pro.framework.zip": "dfe1da11aa163c8dda9e9d7d564105b181a6fcb59aeca220b0e65dbf557301d5"
+        "S2ArmEngine.framework.zip": "eea9a5a6ad37ea6b5bbc02842e3a56fac054afc14928a559357f8877f2dca8e4",
+        "NS2Pro.framework.zip": "553738e527a84675b7010dedf70c37cd89d37d79d6731b5a053a3a2618c114c5"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
