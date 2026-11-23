@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "812f4813e3226bd662bf0da49ba70dfe71e42aa2b35d1e3f539ccb320173d89f",
+  "packagedFingerprint": "036b4d585631efd419aca2a865537d0fcf76b54b7b7813f15629268459b9ace5",
   "producers": {
     "engine": {
-      "run": 45115892568,
+      "run": 45134845578,
       "attempt": 1,
-      "artifact": 14792755785,
-      "name": "s2arm-engine-framework-f3c993c46782ae0dfe4db172824afeb089d4c047",
-      "bytes": 25253247,
-      "sha256": "c93428f0f026b2cabd49be006ca4a3d6581a28c7800d1aac6dd0019dc7db9bba",
-      "headSha": "f3c993c46782ae0dfe4db172824afeb089d4c047",
+      "artifact": 14799847367,
+      "name": "s2arm-engine-framework-d4525af9e5958fa0f6343cb9903d6f1a0d9da141",
+      "bytes": 25255162,
+      "sha256": "d2b47e4589ef70390f3a560ebdcd992aa3e44253f2e7a553f7cc57ab1f385977",
+      "headSha": "d4525af9e5958fa0f6343cb9903d6f1a0d9da141",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-23T05:29:56Z",
+      "expiresAt": "2026-12-23T08:08:59Z",
       "members": {
-        "S2ArmEngine.framework.zip": "c9fb317ea2d4a3133f630dbe08ab181415c17a5f96d3d550488becdf03433d96",
-        "NS2Pro.framework.zip": "b346cd989bba1fc9776bdd8562748868840738bad2c881a8418e374b57143377"
+        "S2ArmEngine.framework.zip": "db5a6abff2c452927b97562e778db5811fb43b9fec990b3aa0aa6ac98e02f8d7",
+        "NS2Pro.framework.zip": "35a34b80852a9ffd346fb2b3cd9c1379fd4a900f0ae8c4e4d3c124567987c243"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "c93428f0f026b2cabd49be006ca4a3d6581a28c7800d1aac6dd0019dc7db9bba",
+    "engine": "d2b47e4589ef70390f3a560ebdcd992aa3e44253f2e7a553f7cc57ab1f385977",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "b9a1bff52f652a5048c7de10ce5c99ad0bcf40a2491c2673d83be1a08bb44f61",
-      "bytes": 115152744,
-      "fingerprint": "812f4813e3226bd662bf0da49ba70dfe71e42aa2b35d1e3f539ccb320173d89f"
+      "sha256": "001a6ec6e926ec9dddf93c326e7234bd18fd1534cbe2f53bdfd3c97b6c0c3615",
+      "bytes": 115152816,
+      "fingerprint": "036b4d585631efd419aca2a865537d0fcf76b54b7b7813f15629268459b9ace5"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45115892568,
+      "run": 45134845578,
       "attempt": 1,
-      "head_sha": "f3c993c46782ae0dfe4db172824afeb089d4c047",
+      "head_sha": "d4525af9e5958fa0f6343cb9903d6f1a0d9da141",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1382,11 +1382,15 @@
         {
           "name": "0310-learn-the-size-floor-only-from-a-push-that-shrank-the-scene.patch",
           "sha256": "2306c498404b96f4067e969b464bcf9055fba7b53570c14d4314ff27d24c8b76"
+        },
+        {
+          "name": "0311-prepare-registered-stages-only-while-registrations-trickle.patch",
+          "sha256": "8a9d9863b5b3e9fa6f88bb618f044302cdfeb33d374cd4ac93d05029656a0300"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "c9fb317ea2d4a3133f630dbe08ab181415c17a5f96d3d550488becdf03433d96",
-        "NS2Pro.framework.zip": "b346cd989bba1fc9776bdd8562748868840738bad2c881a8418e374b57143377"
+        "S2ArmEngine.framework.zip": "db5a6abff2c452927b97562e778db5811fb43b9fec990b3aa0aa6ac98e02f8d7",
+        "NS2Pro.framework.zip": "35a34b80852a9ffd346fb2b3cd9c1379fd4a900f0ae8c4e4d3c124567987c243"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
