@@ -25,6 +25,7 @@ import argparse
 import hashlib
 import json
 import os
+import plistlib
 import shutil
 import subprocess
 import sys
@@ -123,18 +124,40 @@ def fetch_archive(spec: dict, work: Path) -> Path:
     return work / spec['root']
 
 
+def fetch_git(spec: dict, work: Path) -> Path:
+    """A shallow checkout of exactly the pinned commit (fetched by its id, which GitHub serves for any reachable
+    commit); the id authenticates the tree."""
+    target = work / spec['root']
+    if not target.exists():
+        work.mkdir(parents=True, exist_ok=True)
+        run(['git', 'init', '-q', target])
+        run(['git', '-C', target, 'fetch', '-q', '--depth', '1', spec['url'], spec['revision']])
+        run(['git', '-C', target, '-c', 'advice.detachedHead=false', 'checkout', '-q', 'FETCH_HEAD'])
+    return target
+
+
 def prepare_source(pin: dict, work: Path) -> Path:
     if digest(ROOT / pin['patch']) != pin['patchSHA256']:
         raise SystemExit('patch hash differs from its pin: ' + pin['patch'])
     if digest(ROOT / pin['abiHeader']) != pin['abiHeaderSHA256']:
         raise SystemExit('ABI header hash differs from its pin: ' + pin['abiHeader'])
-    source = fetch_archive(pin['sourceArchive'], work)
-    commit = (source / 'GIT-COMMIT').read_text().strip()
+    if 'sourceArchive' in pin:
+        source = fetch_archive(pin['sourceArchive'], work)
+        commit = (source / 'GIT-COMMIT').read_text().strip()
+    else:
+        source = fetch_git(pin['sourceGit'], work)
+        commit = subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD'], text=True).strip()
     if commit != pin['revision']:
         raise SystemExit(f'source revision {commit} differs from the pin {pin["revision"]}')
     run(['git', 'apply', '--check', ROOT / pin['patch']], cwd=source)
     run(['git', 'apply', ROOT / pin['patch']], cwd=source)
     in_tree = source / pin['abiHeaderInTree']
+    if pin.get('abiHeaderCopied'):
+        # A patch that does not carry the header itself includes it from this path.
+        if in_tree.exists():
+            raise SystemExit('the patched tree already has ' + pin['abiHeaderInTree'])
+        in_tree.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / pin['abiHeader'], in_tree)
     if digest(in_tree) != pin['abiHeaderSHA256']:
         raise SystemExit('the patched tree does not carry the pinned ABI header: ' + pin['abiHeaderInTree'])
     return source
@@ -154,6 +177,19 @@ def build_cmake(pin: dict, source: Path, work: Path) -> Path:
     binary = build / spec['output']
     run(['strip', *spec.get('strip', []), binary])
     return binary
+
+
+def build_make(pin: dict, source: Path, work: Path) -> Path:
+    spec = pin['build']
+    log = work / f'{pin["core"]}-build.log'
+    jobs = subprocess.check_output(['sysctl', '-n', 'hw.ncpu'], text=True).strip()
+    run(['make', '-C', source, '-f', spec.get('makefile', 'Makefile'), f'-j{jobs}', *spec['make']], log=log)
+    binary = source / spec['output']
+    run(['strip', *spec.get('strip', []), binary])
+    return binary
+
+
+BUILDERS = {'cmake': build_cmake, 'make': build_make}
 
 
 def check_binary(pin: dict, binary: Path) -> dict:
@@ -187,6 +223,14 @@ def install(pin: dict, binary: Path, info: dict, identity: dict, output: Path) -
         raise SystemExit('the base collection has no ' + relative)
     shutil.copy2(binary, target)
     target.chmod(0o755)
+    changed = {relative, 'Libretro-Licenses/LIBRETRO_CORES.txt'}
+    # The framework's MinimumOSVersion is the binary's, as build_cores.py writes it.
+    plist_path = output / f'Frameworks/{framework}.framework/Info.plist'
+    plist = plistlib.loads(plist_path.read_bytes())
+    if plist.get('MinimumOSVersion') != info['minimumOS']:
+        plist['MinimumOSVersion'] = info['minimumOS']
+        plist_path.write_bytes(plistlib.dumps(plist))
+        changed.add(plist_path.relative_to(output).as_posix())
     record = next(core for core in identity['cores'] if core['id'] == pin['core'])
     original = dict(record)
     for key in ('archive', 'archiveSha256', 'url', 'thinnedFromFat', 'iosJitCompiledOut'):
@@ -195,19 +239,21 @@ def install(pin: dict, binary: Path, info: dict, identity: dict, output: Path) -
         sha256=digest(target), bytes=target.stat().st_size, minimumOS=info['minimumOS'],
         dependencies=info['dependencies'], installName=info['id'], compiled=True,
         source=pin['upstream'] + '/tree/' + pin['revision'], sourceRevision=pin['revision'],
-        sourceArchive=pin['sourceArchive']['url'], sourceArchiveSha256=pin['sourceArchive']['sha256'],
         sourcePatch=pin['patch'], sourcePatchSha256=pin['patchSHA256'], jitInterface=1,
         jitArenaBytes=pin['jitArenaBytes'],
     )
+    if 'sourceArchive' in pin:
+        record.update(sourceArchive=pin['sourceArchive']['url'], sourceArchiveSha256=pin['sourceArchive']['sha256'])
     identity.setdefault('sourceCores', {})[pin['core']] = {
         'pin': pin, 'originalCore': original, 'compiledCoreSHA256': record['sha256'],
         'xcode': subprocess.check_output(['xcodebuild', '-version'], text=True).strip(),
     }
     notices = output / 'Libretro-Licenses/LIBRETRO_CORES.txt'
+    origin = pin['sourceArchive']['url'] if 'sourceArchive' in pin else pin['sourceGit']['url'] + ' ' + pin['revision']
     notices.write_text(notices.read_text() + (
-        f'\n{pin["core"]} is built by RewindBox from {record["source"]} ({pin["sourceArchive"]["url"]}) with '
+        f'\n{pin["core"]} is built by RewindBox from {record["source"]} ({origin}) with '
         f'the modifications in {pin["patch"]} (RewindBox JIT interface, RewindBoxLibretroJit.h): {pin["license"]}.\n'))
-    return {relative, 'Libretro-Licenses/LIBRETRO_CORES.txt'}
+    return changed
 
 
 def main(argv=None) -> int:
@@ -244,9 +290,10 @@ def main(argv=None) -> int:
     for name in names:
         pin = json.loads(PINS[name].read_text())
         source = prepare_source(pin, work / name)
-        if pin['build']['kind'] != 'cmake':
-            raise SystemExit(f'{name}: build kind {pin["build"]["kind"]} is not handled yet')
-        binary = build_cmake(pin, source, work / name)
+        builder = BUILDERS.get(pin['build']['kind'])
+        if builder is None:
+            raise SystemExit(f'{name}: unknown build kind {pin["build"]["kind"]}')
+        binary = builder(pin, source, work / name)
         info = check_binary(pin, binary)
         changed |= install(pin, binary, info, identity, output)
         print(f'{name}: compiled {digest(binary)} ({binary.stat().st_size} bytes, minimum iOS {info["minimumOS"]})',
