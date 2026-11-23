@@ -1,0 +1,99 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 506c7d4..dd189c9 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3191,8 +3191,8 @@ static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the ti
+         rb_drs_floor fl = g_rb_drs_floor;
+         os_unfair_lock_unlock(&g_rb_floor_lock);
+         if (fl.rests != rests && !(fl.rests & (fl.rests - 1)))
+-            MLOG("[rb-guest-drs] floor frame=%llu scene_px=%llu floor_px=%llu rests=%llu resumes=%llu",
+-                 (unsigned long long)f, (unsigned long long)px, (unsigned long long)fl.floor,
++            MLOG("[rb-guest-drs] floor frame=%llu scene_px=%llu floor_px=%llu wait=%llu rests=%llu resumes=%llu",
++                 (unsigned long long)f, (unsigned long long)px, (unsigned long long)fl.floor, (unsigned long long)fl.wait,
+                  (unsigned long long)fl.rests, (unsigned long long)fl.resumes);
+         if (!push) {
+             want = hold;
+diff --git a/graphics/nvn/gfx/nvn/rb_adaptive_drs.h b/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
+index 71a632f..d004ad7 100644
+--- a/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
++++ b/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
+@@ -91,9 +91,15 @@ static inline uint64_t rb_drs_report_ticks(int hot, int serious, int fps, int ca
+ // RB_DRS_FLOOR_STALL pushed frames without a smaller scene end the push. It
+ // resumes RB_DRS_FLOOR_RETRY frames later at the earliest, and only while the
+ // scene is more than a tenth above the smallest size a push ended at.
+-enum { RB_DRS_FLOOR_STALL = 24, RB_DRS_FLOOR_RETRY = 600 };
++// RewindBox (patch 0310): only a push that made the scene smaller shows the
++// game's smallest size. The first session with patch 0307 learned 1920x1080 as
++// the floor from a menu whose scene never shrinks ("floor frame=1022
++// scene_px=2073600 floor_px=2073600 rests=1 resumes=0") and never pushed a
++// race again. A push that changes nothing is tried again after twice the wait,
++// up to RB_DRS_FLOOR_RETRY_MAX frames.
++enum { RB_DRS_FLOOR_STALL = 24, RB_DRS_FLOOR_RETRY = 600, RB_DRS_FLOOR_RETRY_MAX = 4800 };
+ typedef struct {
+-    uint64_t floor, run_min, retry_at, counted, rests, resumes;
++    uint64_t floor, run_min, run_from, stuck, wait, retry_at, counted, rests, resumes;
+     unsigned stall;
+     int resting;
+ } rb_drs_floor;
+@@ -102,15 +108,24 @@ typedef struct {
+ static inline int rb_drs_floor_push(rb_drs_floor *s, uint64_t frame, uint64_t pixels) {
+     if (!pixels) return 1;
+     if (s->resting) {
+-        if (pixels * 10 <= s->floor * 11 || frame < s->retry_at) return 0;
++        if (s->floor && pixels * 10 <= s->floor * 11) return 0;   // at the game's smallest size
++        if (frame < s->retry_at) return 0;
++        if (pixels * 10 > s->stuck * 11) s->wait = 0;   // larger than where the last push ended: the first wait again
+         s->resting = 0; s->run_min = 0; s->stall = 0; ++s->resumes;
+     }
+     if (s->counted == frame + 1) return 1;
+     s->counted = frame + 1;
+-    if (!s->run_min || pixels < s->run_min) { s->run_min = pixels; s->stall = 0; return 1; }
++    if (!s->run_min) { s->run_from = s->run_min = pixels; s->stall = 0; return 1; }
++    if (pixels < s->run_min) { s->run_min = pixels; s->stall = 0; return 1; }
+     if (++s->stall < RB_DRS_FLOOR_STALL) return 1;
+-    s->resting = 1; s->retry_at = frame + RB_DRS_FLOOR_RETRY; ++s->rests;
+-    if (!s->floor || s->run_min < s->floor) s->floor = s->run_min;
++    s->resting = 1; s->stuck = s->run_min; ++s->rests;
++    if (s->run_min < s->run_from) {
++        if (!s->floor || s->run_min < s->floor) s->floor = s->run_min;
++        s->wait = RB_DRS_FLOOR_RETRY;
++    } else {
++        s->wait = !s->wait ? RB_DRS_FLOOR_RETRY : s->wait * 2 < RB_DRS_FLOOR_RETRY_MAX ? s->wait * 2 : RB_DRS_FLOOR_RETRY_MAX;
++    }
++    s->retry_at = frame + s->wait;
+     return 1;
+ }
+ // Once the game has asked for present interval 2 for a second, the hold follows
+diff --git a/graphics/nvn/tests/t_rb_adaptive_drs.c b/graphics/nvn/tests/t_rb_adaptive_drs.c
+index a33543c..9eba2f8 100644
+--- a/graphics/nvn/tests/t_rb_adaptive_drs.c
++++ b/graphics/nvn/tests/t_rb_adaptive_drs.c
+@@ -117,6 +117,28 @@ int main(void) {
+     assert(tr.kept == 1 && !tr.tried && !tr.wait);
+     assert(!rb_drs_trial_step(&tr, h, 30, ch, 1) && tr.next_at == h + RB_DRS_TRIAL_WAIT);
+     puts("PASS guest DRS trial: only an alternating game, 60 then 30 frames, hold kept through the answer, doubled waits, limits, a kept trial");
++    // A scene that never shrinks teaches no floor (the menu of the first session
++    // with patch 0307), and a push that changes nothing waits twice as long.
++    rb_drs_floor menu = {0};
++    uint64_t m = 5000;
++    for (int i = 0; i <= RB_DRS_FLOOR_STALL; ++i) assert(rb_drs_floor_push(&menu, m++, 2073600));
++    assert(menu.resting && !menu.floor && menu.wait == RB_DRS_FLOOR_RETRY && menu.retry_at == m - 1 + RB_DRS_FLOOR_RETRY);
++    assert(!rb_drs_floor_push(&menu, m, 2073600) && !rb_drs_floor_push(&menu, m, 873600));   // the race starts: not yet
++    m = menu.retry_at;
++    for (uint64_t wait = 2 * RB_DRS_FLOOR_RETRY; wait <= RB_DRS_FLOOR_RETRY_MAX; wait *= 2) {
++        for (int i = 0; i <= RB_DRS_FLOOR_STALL; ++i) assert(rb_drs_floor_push(&menu, m++, 873600));   // already as small as it goes
++        assert(menu.resting && !menu.floor && menu.wait == wait && menu.retry_at == m - 1 + wait);
++        m = menu.retry_at;
++    }
++    for (int i = 0; i <= RB_DRS_FLOOR_STALL; ++i) assert(rb_drs_floor_push(&menu, m++, 873600));
++    assert(menu.wait == RB_DRS_FLOOR_RETRY_MAX && !menu.floor);
++    // The game raises its size: the next push shrinks it, the floor is known and the push rests there.
++    m = menu.retry_at;
++    assert(rb_drs_floor_push(&menu, m++, 1500000) && !menu.wait && rb_drs_floor_push(&menu, m++, 1100000) && rb_drs_floor_push(&menu, m++, 873600));
++    for (int i = 0; i < RB_DRS_FLOOR_STALL; ++i) assert(rb_drs_floor_push(&menu, m++, 873600));
++    assert(menu.resting && menu.floor == 873600 && menu.wait == RB_DRS_FLOOR_RETRY && !rb_drs_floor_push(&menu, m + 1000000, 873600));
++    assert(!rb_drs_floor_push(&menu, m, 2073600) && rb_drs_floor_push(&menu, menu.retry_at, 2073600));   // above the floor: after the wait
++    puts("PASS guest DRS floor learning: no floor from a scene that never shrinks, doubled waits, floor from a push that shrank the scene");
+     puts("PASS guest DRS floor: unknown size, one count a frame, stall at the smallest size, rest at the floor, retry above it");
+     puts("PASS guest DRS: measured medians/tails, hold at Fair, 18.675/20.5 ms steps, Serious push, disjoint samples, invalid windows, hysteresis, 30 Hz and off");
+ }

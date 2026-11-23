@@ -221,21 +221,32 @@ Limite. Un programme enregistré puis jamais dessiné coûte une compilation de 
 
 ## File d'avance saturée par des étages déjà construits
 
-Relevé du mainteneur sur l'IPA 822 (lignes citées ; le journal complet n'a pas été reçu) : `[rb-bind-ahead] dropped=4096 waiting=128`. La file de 128 places du patch 0306 refuse donc encore des milliers d'enregistrements.
+Session Mario Kart World sur l'IPA 822 (journal `549fdcf9`, moteur 0001–0307, Fair au lancement puis Serious vers l'image 1000).
 
-Lecture du code et de la session précédente.
+| Mesure | Valeur |
+|---|---|
+| Enregistrements mis en file avant l'image 300 | 512 |
+| Enregistrements refusés avant l'image 300 (`waiting=128`) | 5 850, dont plus de 4 096 avant la première image |
+| Mis en file sur la session, variantes réellement construites | 1 024, 211 |
+| Images longues des 900 premières images : nouveaux pipelines et bibliothèques | 94 et 21, 17,5 s |
+| Dont compilations MSL sur le fil de soumission | 21, 4,1 s |
+| Durée des fenêtres de 300 images 300, 600 et 900 | 12,4 s, 12,1 s et 13,0 s (5,0 s à 60 images par seconde) |
+| Images longues après l'image 2700 : nouveaux pipelines | 22, 0,76 s |
 
-- La place était réservée avant de connaître l'identité de l'étage. Seul un étage déjà en vol était écarté ; un étage déjà construit reprenait une place à chaque nouvel enregistrement.
-- Session après la 821 : 1 024 enregistrements mis en file pour 460 variantes construites. Plus de la moitié des tâches trouvaient l'étage déjà chargé.
-- Une seule voie série traduit puis compile.
-- La voie ne passe pas par le gouverneur du patch 0121 : ni `dm_shader_prepare_registration` ni `shader_load_depth` ne prennent de bail. La ligne `speculative_limit=0` à Fair concerne le préchauffage, pas cette voie.
+Lecture.
+
+- Le jeu enregistre ses programmes en une rafale au démarrage. La place était réservée avant de connaître l'identité de l'étage : seul un étage déjà en vol était écarté, et un étage déjà chargé reprenait une place à chaque enregistrement. Quatre tâches sur cinq trouvaient leur étage déjà chargé.
+- Une seule voie série traduit puis compile ; 128 places ne tiennent pas la rafale.
+- La voie ne passe pas par le gouverneur du patch 0121 : ni `dm_shader_prepare_registration` ni `shader_load_depth` ne prennent de bail. La ligne `speculative_limit=0` à Fair concerne le préchauffage.
+- Dans les 900 premières images, un pipeline construit au dessin coûte environ 140 ms et une compilation MSL 200 ms, contre 14 à 35 ms plus tard : le fil de soumission attend derrière les compilations d'arrière-plan du démarrage. Ce point n'est pas traité ici.
 
 Patch 0308 (`rb_registration_plan.h`).
 
 - L'identité de l'étage (clé de 8 octets et mode de profondeur) est calculée d'abord, sur une copie de l'étage.
-- Un étage réglé par la voie (chargé, ou réseau tensoriel qu'elle ne construit jamais) ou en vol ne prend pas de place. Les étages réglés tiennent dans un ensemble de 32 768 cases, vidé à la fin de la session. Une traduction ou une compilation échouée est retentée à l'enregistrement suivant.
+- Un étage déjà chargé (par n'importe quel chemin, une fois la table des étages lue), réglé par la voie ou en vol ne prend pas de place. Les étages réglés tiennent dans un ensemble de 32 768 cases, vidé à la fin de la session. Une traduction ou une compilation échouée est retentée à l'enregistrement suivant.
+- La file tient 2 048 enregistrements et 32 Mio de copies (9 Ko en moyenne par étage dans ce journal).
 - Une seconde voie travaille à Fair ou plus froid, quand la première a plus d'attente.
 - Le journal compte les enregistrements écartés comme connus : `[rb-bind-ahead] … dropped= known=`.
 
-Limites. Rien n'est mesuré sur iPhone. À caches froids, un premier chargement annonce plus d'étages nouveaux que deux voies n'en construisent : des refus restent attendus, et ces étages sont construits au premier dessin. Chaque enregistrement coûte désormais une copie et un hachage de l'étage sur le fil du jeu, y compris quand il est refusé. À lire : `dropped`, `known`, `variants_built` et `submit_msl_blocked_count`.
+Limites. Rien n'est mesuré sur iPhone avec ce patch. Chaque enregistrement coûte désormais une copie et un hachage de l'étage sur le fil du jeu, y compris quand il est refusé ou connu. Une seconde voie ajoute une compilation concurrente pendant le démarrage. À lire : `dropped`, `known`, `variants_built`, les compilations MSL sur le fil de soumission et la durée des fenêtres 300 à 900.
 

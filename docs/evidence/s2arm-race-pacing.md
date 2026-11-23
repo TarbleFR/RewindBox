@@ -116,3 +116,27 @@ Répartition du temps GPU à l'intervalle 1 (image 1322). Les passes de scène �
 
 Fil de soumission, audit. Il tourne à 100 % sur les cœurs performance, sous une politique temps réel de priorité 97. Le calcul déclaré n'explique pas son horloge : des sessions à 15 ms déclarés montrent 1,4 à 2,4 GHz dans les fenêtres lourdes, comme les sessions à 2 ms. L'horloge suit l'état du GPU (voir plus haut) : basse quand le GPU travaille à pleine fréquence, haute quand il est ralenti. Aucun réglage de QoS ou de placement ne ressort comme cause. Le groupe de travail (`S2A_WORKGROUP`), qui annonce une échéance par image au système, reste hors service parce qu'il fait refuser la mise en veille de la session ; aucune mesure de course n'existe avec lui actif depuis l'IPA 783. Essai possible sur iPhone, un réglage à la fois dans `Documents/env.txt` : `S2A_WORKGROUP=1`, puis comparer `mean clock`, `CPU energy` et les images par seconde dans les fenêtres de course. La fermeture du jeu ne passe alors pas par la mise en veille : quitter l'app après l'essai.
 
+## Session IPA 822 sur iPhone : patchs 0302 à 0307 observés
+
+Journal `549fdcf9`, Mario Kart World, 7 800 images, Fair au lancement, Serious de l'image 1000 environ à la fin.
+
+| Point | Observé |
+|---|---|
+| Gouverneur mémoire (0303) | `tier=0`, `resident_MiB=232`, quotas non bridés |
+| Index des pools (0304) | 4 083 modifications isolées appliquées, 13 tris complets |
+| Pipelines des programmes annoncés (0302) | `front_moved=289 front_taken=289` ; 197 pipelines construits au dessin (5,27 s), dont 99 dans les 900 premières images (4,72 s) |
+| Poussée arrêtée au plancher (0307), course hors verrou à Serious | 6 à 44 images sur 300 à l'intervalle 2 (106 à 124 avant), 41,4 à 52,1 images par seconde (27,6 à 43,8 avant) |
+| Verrou à 30 images par seconde | fenêtres 3900 à 5100 et 7200 à 7800 : 26,4 à 27,8 images par seconde, GPU p50 33,1 à 34,6 ms, sonde GPU 0,80 à 1,37 ms |
+| Sortie du verrou sans changement d'état thermique | fenêtre 5400 : 56,2 images par seconde, GPU p50 10,1 ms, sonde 0,19 ms, toujours à Serious |
+| Fil de soumission, même charge (71 à 73 M d'instructions par image) | 9,4 ms à 2,94 GHz et 1,97 W dans la fenêtre 5400 ; 18,7 ms à 1,36 GHz et 0,82 W dans la fenêtre 5700 |
+
+Lecture.
+
+- Le verrou occupe 2 360 images sur 7 800 (fenêtres 3900 à 5100 et 7200 à 7800) alors que le même état thermique donne 56 images par seconde juste après : c'est le cas visé par le patch 0309.
+- Hors verrou, la cadence suit l'horloge du fil de soumission. Elle retombe à 1,33–1,41 GHz en quelques secondes dès que le GPU travaille à pleine fréquence, ce qui borne la course à 41–49 images par seconde. Aucun réglage du moteur n'explique cette horloge.
+- Le plancher du patch 0307 a été appris dans un menu : `floor frame=1022 scene_px=2073600 floor_px=2073600 rests=1 resumes=0`. La scène d'un menu ne rétrécit pas ; 1920×1080 a été pris pour la plus petite taille du jeu et plus aucune course n'a été poussée.
+
+Patch 0310. Seule une poussée qui a fait rétrécir la scène apprend le plancher. Une poussée sans effet est retentée après une attente doublée (600 images, jusqu'à 4 800) ; l'attente repart de 600 quand la scène dépasse de plus d'un dixième la taille où la dernière poussée s'est arrêtée. Journal : `[rb-guest-drs] floor … wait=`.
+
+Sonde GPU de cette session (demandée à l'image 2160, 81 ms d'image moyenne pendant un chargement) : non exploitée.
+
