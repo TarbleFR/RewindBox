@@ -158,10 +158,10 @@ index 75977d1..34fbdd8 100644
      g_display_covered_s = 0;
      g_display_gpu_known = g_display_gpu_early_late = g_display_trace_lines = 0;
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 1c1b25a..3111a6a 100644
+index 9666f32..e014d9a 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
-@@ -3313,6 +3313,16 @@ static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the ti
+@@ -3318,6 +3318,16 @@ static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the ti
                                          (unsigned long long)n, (unsigned long long)seen, want * (625./12e6), hot, hold * (625./12e6), fps);
      return top + want;   // RewindBox (patch 0087): want
  }
@@ -178,7 +178,7 @@ index 1c1b25a..3111a6a 100644
  
  // ---------- Boot instrumentation (DM_BOOTPROF=1): metallib loading, pipeline creation (both happen synchronously during replay on the submit thread), texture upload, first-frame present ----------
  static uint64_t bp_now(void) { struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return (uint64_t)t.tv_sec * 1000000000ull + t.tv_nsec; }
-@@ -4419,7 +4429,7 @@ uint64_t nvn_be_sub_commit(void) {
+@@ -4424,7 +4434,7 @@ uint64_t nvn_be_sub_commit(void) {
                  for (int k = 0; k < l->n; k++) { sum += ((const uint64_t *)((__bridge id<MTLBuffer>)l->s[k].buf).contents)[l->s[k].slot]; CFRelease(l->s[k].buf); }
                  free(l); uint64_t rec[2] = {sum, gpu_ticks()}; memcpy((void *)ops[i].addr, rec, sizeof rec);
              }
