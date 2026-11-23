@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 829,
   "status": "draft",
-  "note": "Private test build for Mario Kart World on the S2Arm engine: patches 0320 to 0331 on the verified 828 (docs/evidence/s2arm-mkw-60-0320-0331.md). The submit thread does less work per draw (texture-ID views kept until their own serial or pool changes, argument blocks rebuilt in part, audit probes sampled, per-shader binding facts, the Fair thermal scale retired when it holds nothing), the 300-frame summary no longer stalls one frame, the 0319 no-lock guard ignores one-frame interval-2 requests and stops an answered trial that grows the scene, bound textures' pages are read ahead at governor tier 1, and the log gains a dark-frame detector and a per-episode interval-2 trace. Every patch has its S2A_RB_* switch. Nothing is measured on an iPhone yet. Also in: the libretro JIT status and performance button, the libretro collection LibretroCores-416333ff (Beetle PSX Lightrec cheat fix; only the two Beetle PSX cores differ from 828), the NeoStation enhancements and HD texture identities, and the MeloNX bridge stall records. The MeloNX Core is the engine of IPA 822 with Nextendo kept (source e776bfd4, pin 7e48f06e, artifact 14869999889), asked for by the MeloNX session for the Hogwarts Legacy freeze. Deferred to the delivery that carries its rebuilt core: the DeSmuME core source change ccd5f047.",
+  "note": "Private test build for Mario Kart World on the S2Arm engine: patches 0320 to 0331 on the verified 828 (docs/evidence/s2arm-mkw-60-0320-0331.md). The submit thread does less work per draw (texture-ID views kept until their own serial or pool changes, argument blocks rebuilt in part, audit probes sampled, per-shader binding facts, the Fair thermal scale retired when it holds nothing), the 300-frame summary no longer stalls one frame, the 0319 no-lock guard ignores one-frame interval-2 requests and stops an answered trial that grows the scene, bound textures' pages are read ahead at governor tier 1, and the log gains a dark-frame detector and a per-episode interval-2 trace. Every patch has its S2A_RB_* switch. Nothing is measured on an iPhone yet. Also in: the libretro JIT status and performance button, the libretro collection LibretroCores-ccd5f047 (DeSmuME JIT block table fix for the DS freeze of 828 with faster rendering, and the Beetle PSX Lightrec cheat fix; DeSmuME and the two Beetle PSX cores differ from 828), the NeoStation enhancements and HD texture identities, and the MeloNX bridge stall records. The MeloNX Core is the engine of IPA 822 with Nextendo kept (source e776bfd4, pin 7e48f06e, artifact 14869999889), asked for by the MeloNX session for the Hogwarts Legacy freeze.",
   "base": {
     "source": "859382b55d2a9cc13b846aed556cbbd07d3f3391",
     "tree": "f869315ae6c96a40cb54f0ba400814ac754029cc",
@@ -162,15 +162,15 @@
       "origin": {
         "workflow": ".github/workflows/libretro-cores.yml",
         "branch": "Claude",
-        "source": "416333ff6b623c789307b6679ca98c90a8c4c373",
-        "run": 45280386958,
+        "source": "ccd5f0476caa402823984be589185666d110e7a5",
+        "run": 45284351707,
         "attempt": 1,
         "runConclusion": "success",
-        "artifact": 14870941984,
-        "name": "LibretroCores-416333ff6b623c789307b6679ca98c90a8c4c373",
-        "bytes": 56287018,
-        "sha256": "8cc3950e6c87523fe865e95ac24380260f8a36fdf25b0b2db06ed21e5bba13c5",
-        "expiresAt": "2026-12-07T22:47:24Z"
+        "artifact": 14872740403,
+        "name": "LibretroCores-ccd5f0476caa402823984be589185666d110e7a5",
+        "bytes": 56290109,
+        "sha256": "2255194bbbfc91c989aa9334bc73fe387dbb693a8d67c052cfa677baa8cee6bb",
+        "expiresAt": "2026-12-07T23:08:59Z"
       },
       "jitHelper": true
     },
@@ -342,7 +342,7 @@
       },
       {
         "commit": "a6d3c53c2d0e6540a5edc5dd1fe13b64d31ed1fc",
-        "note": "Delivery-line merge bringing 416333ff (Beetle PSX Lightrec: a cheat that rewrites compiled code takes effect) and fc3fb6fb (adoption of the collection built from it, LibretroCores-416333ff, artifact 14870941984, run 45280386958: only mednafen_psx and mednafen_psx_hw differ from the collection of 828; reviewed entry and handoff by the libretro session)"
+        "note": "Delivery-line merge bringing 416333ff (Beetle PSX Lightrec: a cheat that rewrites compiled code takes effect) and fc3fb6fb (reviewed entry of the collection built from it; the IPA takes the later collection LibretroCores-ccd5f047, built on top of 416333ff, whose two Beetle PSX cores are byte-identical)"
       },
       {
         "commit": "cfc91c3b4995aeb295b068e2411154164c7728e5",
@@ -357,21 +357,23 @@
         "note": "Delivery-line merge bringing 2e6d3b46 (tools/melonx/stall_report.py names MoltenVK frames; not in the IPA) and 46a40aeb (Hogwarts freeze note)"
       },
       {
+        "commit": "99a56eed0aa6cec3929ec7274a34b520350505b9",
+        "note": "Delivery-line merge bringing ccd5f047 (DeSmuME core source by the DeSmuME JIT session: the AArch64 JIT no longer writes outside its block table, the freeze of a DS game at the in-game menu on IPA 828; faster software rendering at high internal resolutions). In the IPA through the collection LibretroCores-ccd5f047 adopted by 560d6738"
+      },
+      {
         "commit": "c4309c315cd8ace4ef6d2118afc55e012d23520e",
         "note": "Delivery-line merge bringing 714b438e: S2Arm engine pin, run 45281444784, artifact 14871615611, sha256 c717e153da979b1d7552414e9caa3342ddb6415bf0493e21a9fa68538db5840b, 329 patches (0001-0319, 0320-0329, 0331)"
       },
       {
         "commit": "edf4dc6694885cd4884e77dfa0cd167f52dd39fc",
         "note": "Delivery-line merge bringing 7e48f06e: MeloNX Core pin by the MeloNX session, source e776bfd4, run 45283827082, job 138074850945, artifact 14869999889 (MeloNX-engine-e776bfd4, 101,383,678 bytes); its symbol map Ryujinx.Library.symbols.txt.gz is in that artifact"
-      }
-    ],
-    "sourceOnly": [
+      },
       {
-        "commit": "99a56eed0aa6cec3929ec7274a34b520350505b9",
-        "targetBuild": 830,
-        "note": "Delivery-line merge bringing ccd5f047 (DeSmuME core source: the JIT no longer writes outside its block table). Deferred until a collection built from it is adopted"
+        "commit": "cf7d0a0abdde14ff7a5c5280d40aa5dbd779d91a",
+        "note": "Delivery-line merge bringing 560d6738 and f04add5a (reviewed entry of the libretro collection LibretroCores-ccd5f047 in COLLECTIONS, handoff note; no product path)"
       }
     ],
+    "sourceOnly": [],
     "promotedCommits": []
   },
   "images": {
@@ -417,8 +419,7 @@
         "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro",
         "Frameworks/mesen_libretro.framework/mesen_libretro",
         "Frameworks/MoltenVK.framework/MoltenVK",
-        "Frameworks/azahar_libretro.framework/azahar_libretro",
-        "Frameworks/desmume_libretro.framework/desmume_libretro"
+        "Frameworks/azahar_libretro.framework/azahar_libretro"
       ],
       "melonx-dependencies": [
         "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec",
@@ -445,6 +446,7 @@
       "Frameworks/App.framework/App",
       "Frameworks/MeloNXCore.framework/MeloNXCore",
       "Frameworks/S2ArmEngine.framework/S2ArmEngine",
+      "Frameworks/desmume_libretro.framework/desmume_libretro",
       "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
       "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro",
       "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro",
