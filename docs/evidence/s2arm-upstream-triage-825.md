@@ -28,15 +28,15 @@
 | 0312 | `5863a69cf`, `cb6853c50` (clé), `50f032a62` | Textures partagées : clé normalisée, orphelines gardées tant qu'un identifiant les lit | CI : test C pur, compilation iOS |
 | 0314 | `864e92cf1` | Une écriture de stencil ne force plus une nouvelle copie de la profondeur | CI : test C pur, tests GPU |
 | 0316 | `cbf37ad7d` | Tas de compteurs construit même avec le fil d'encodage : moins de soumissions quand le GPU est occupé | CI : tests GPU (compilation) |
-| 0317 | `892454c0e`, `464e19898`, `9e2a24ed4` (partie hors instantanés), `185de53d7`, `bdaf69d07`, `b56e1c8b0`, `59f257104`, `08fd71f8a`, `6b1a22267`, `8d1bae402` (décodeur) | Stabilité du runtime, détaillée ci-dessous | CI : tests du runtime |
+| 0317 | `892454c0e`, `464e19898`, `185de53d7`, `08fd71f8a`, `6b1a22267`, `8d1bae402` (décodeur) ; les bouts feuille (`bdaf69d07`, `b56e1c8b0`, `59f257104`) et le nettoyage de session (`9e2a24ed4`) ont été retirés après l’échec du run 45161270894 | Stabilité du runtime, détaillée ci-dessous | CI : tests du runtime |
 
 Détail du patch 0317 :
 
 - **Défaut de page en concurrence.** Un défaut de page que personne ne réclame est ré-exécuté si la page est déjà accessible, au plus 8 fois de suite. L'amont l'a vu en SIGBUS sur 4 jeux, dont un jeu de course first-party.
 - **Attente de synchronisation.** `WaitSynchronization` épingle les événements dès l'entrée : un événement dont la poignée est fermée pendant l'attente n'arrête plus le jeu en fin de vidéo (2001-0114). Notre 0157 rendait ce cas systématique.
-- **Fuites au park et à la reprise.** Le démontage de session s'exécute sous un pool d'autorelease, et les textures fantômes sortent du jeu de résidence.
+- **Fuites au park et à la reprise.** Retiré après l’échec du run 45161270894, à réexaminer.
 - **`MapMemory`** repasse par une copie sur `EACCES`.
-- **Alignement de pile.** Des « bouts feuille » réalignent la pile sur 16 octets avant la libc et les 189 fonctions NVN laissées sur la pile du jeu. Coût annoncé par l'amont : +0,5 ns par appel, sur les fils du jeu.
+- **Alignement de pile.** Retiré après l’échec du run 45161270894, à réexaminer.
 - **`SetHeapSize`** met x1 à 0 en cas d'échec.
 - **Paires exclusives « far ».** Une paire avec `xzr` est maintenant émulée au lieu de faire planter (SIGSEGV).
 - **Décodeur vidéo.** Gardes contre un `malloc` NULL.
@@ -119,3 +119,22 @@ Détail du patch 0317 :
   - sortie brute `_exit(0)` (`48d48e8a2`), contraire à 0006 ;
   - codecs construits en « auto » (`9c9959340`).
 - **Sans objet sur iOS :** Android, OpenHarmony, Vulkan, PC, macOS, Windows, interface amont.
+
+## Mesures utiles faites pendant ce lot
+
+Ce ne sont pas des mesures sur iPhone des nouveaux patchs. Ce sont des relevés du journal de la session 824 (`c758810c`, 9 000 images) et des résultats de tests.
+
+- **Pipelines construits à la demande :** 576 pipelines, 7 221,5 ms d'attente au total.
+  - 8 constructions de 50 ms ou plus font 5 369 ms (74 %), dont une seule de 3 822,6 ms à l'image 1010 ; 367 pipelines ont pris moins de 1 ms (archive).
+  - Images 300 à 600 : 354 premières utilisations, 2 798 ms. Parmi elles, 106 clés jamais vues (1 857,5 ms), 47 déjà attendues dans une session antérieure (254 ms) et 201 déjà préparées dans une session antérieure (686,5 ms).
+  - Les clés sont stables d'une session à l'autre : 374 des 576 reviennent.
+- **Mémoire Metal :** à l'image 1018, Metal tient 8 983 Mo pour 5 461 Mo recommandés. Une partie vient sans doute des buffers sans copie comptés en entier (amont `af995916f`). Ce chiffre nourrit le gouverneur.
+- **Anticipation des pipelines :** au plus 2,063 ms par soumission pour un budget de 2 ms (42 refus, 2 dépassements, 89 340 recherches négatives). Environ 2 soumissions par image (18 000 à l'image 9 000).
+- **Trafic des passes :** 191 Mio chargés et autant stockés par image pour un atlas creux dont les passes durent quelques dizaines de µs. La passe principale (7,5 Mio par ouverture) est rouverte 6 à 11 fois par image. Les copies de profondeur sont sous-comptées d'environ 5 fois.
+- **Textures partagées :** 2 659 reprises de stockage, dont 2 655 d'objets vivants ; 157 textures écrites par le GPU libérées comme orphelines (271 Mo) ; 154 écritures GPU dans des textures embarquées. Aucun dessin sauté.
+- **Erreurs GPU :** une seule rafale, d'environ 40 tampons rejetés « victime d'une récupération GPU ». Elle survient vers l'image 6836 (180 s), application probablement en arrière-plan (CPU 0,04 W) et chaleur Serious. Rien à voir avec les clippings en course.
+- **Mario Kart World et le traducteur :** le journal montre des pipelines tâche/maillage, mais aucune variante de sortie typée. Le port amont `2a0343454` ne lui apporterait donc presque rien.
+- **Tests :**
+  - `t_rb_alias_key` (8 cas), `t_rb_warm_order` (dont un mélange de 9 018 lignes) et `t_rb_dsnap_rule` passent en local avec gcc, clang et les sanitizers, puis sur la CI ;
+  - runs 45153497523, 45155914850 et 45156872271 réussis ;
+  - run 45161270894 en échec, voir 0317 plus haut.
