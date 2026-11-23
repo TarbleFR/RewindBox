@@ -34,7 +34,11 @@ Le dépôt amont S2Arm a corrigé ces mécanismes entre le 18 et le 22 novembre 
 - Clé normalisée comme en amont, à partir de la disposition déjà calculée à l'initialisation de la texture (`t->L`), sans calcul supplémentaire par dessin. `S2A_RB_ALIAS_LAYOUT_KEY=0` rétablit l'ancienne clé.
 - Le passage des orphelines et la restitution d'adresses gardent les textures que lit un identifiant enregistré : sa vue, les vues faites pour un autre type, l'alpha depuis le rouge ou une classe d'image, et leurs textures de base. `g_rmu` est pris avant `g_smu`, comme partout. `S2A_RB_ORPHAN_ID_HELD=0` rétablit l'ancien comportement.
 - Journal : `[alias] near-miss` pour deux clés qui commencent au même stockage (champs qui diffèrent ; les 32 premières, puis aux puissances de deux) et une ligne `RewindBox (patch 0312): …` quand ses compteurs bougent.
-- Test : `t_nvn_alias_orphan` ⑤ (échantillons 0 et 1), ⑥ (identifiant enregistré, puis contre-épreuve après désenregistrement) et ⑦ (disposition des blocs), en Metal 4 et Metal 3, lancé par l'étape GPU des contrôles de shaders.
+- La normalisation de la clé est dans `rb_alias_key.h`, en C pur, et `nvn_mtl.m` l'appelle.
+- Tests :
+  - `t_rb_alias_key` (C pur) vérifie 8 cas. Les échantillons 0 et 1 donnent la même clé. Une disposition embarquée qui retombe sur la même hauteur de blocs aussi. Une hauteur de blocs différente donne une autre clé. `MINIMAL_LAYOUT` prend la clé automatique en 1920×1024 et la clé à blocs d'un GOB en 1920×1080. L'alignement de largeur embarqué reste dans la clé, comme la profondeur de blocs en 3D. Les textures linéaires et les tampons gardent leur description. Le format, la taille, les niveaux et la cible séparent toujours deux clés. Une seconde normalisation ne change rien. Il passe en local avec gcc, clang et les sanitizers d'adresses et de comportement indéfini, et il tourne dans la liste des tests C purs de la CI.
+  - `t_nvn_alias_orphan` ⑤ (échantillons), ⑥ (identifiant enregistré, puis contre-épreuve après désenregistrement) et ⑦ (disposition des blocs), en Metal 4 et Metal 3, ne tournent que sur un Mac réel. Sur le GPU virtuel des machines de la CI, `mtl_init` s'arrête à la création du `MTLResidencySet` (run 45150625321) ; ce test est donc retiré de l'étape GPU.
+- Compilation iOS du patch vérifiée (job macos-15 du run 45148099154).
 
 Non porté, avec la raison :
 

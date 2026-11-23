@@ -108,7 +108,7 @@ jobs:
         run: |
           set -euo pipefail
           source_tree="$RUNNER_TEMP/s2arm"
-          for fixture in spec_gate stage_input pso_trace archive_index local_stage look_budget working_set upload_stream file_hint pool_index registration_plan; do
+          for fixture in spec_gate stage_input pso_trace archive_index local_stage look_budget working_set upload_stream file_hint pool_index registration_plan alias_key; do
             xcrun --sdk macosx clang -std=gnu11 -D_DARWIN_C_SOURCE -O2 -Wall -Wextra -pthread \
               "$source_tree/graphics/nvn/tests/t_rb_$fixture.c" -o "$RUNNER_TEMP/t_rb_$fixture"
             "$RUNNER_TEMP/t_rb_$fixture"
@@ -351,8 +351,6 @@ jobs:
             build/tests/t_nvn_warmbump --course-gpu || status=1
           fi
           build/tests/t_nvn_shader_flight || status=1
-          # RewindBox (patch 0312): shared textures over one storage (sample count, block layout key) and the ones registered texture IDs still read, Metal 4 and 3
-          make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" native-test-nvn_alias_orphan || status=1
           bash "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/test_native_stage_recovery.sh" "$PWD" "$RUNNER_TEMP/t_dsh_stats" || status=1
           exit "$status"
       - name: Read back a texture prepared from an earlier recorded bind

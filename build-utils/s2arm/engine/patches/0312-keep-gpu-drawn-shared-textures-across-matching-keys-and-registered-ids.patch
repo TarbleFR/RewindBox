@@ -1,8 +1,8 @@
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 8d135c5..9feeed8 100644
+index 8d135c5..569125a 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
-@@ -4543,7 +4543,23 @@ typedef struct { uint64_t pool; int64_t off; nvn_texdesc d; } alias_key;
+@@ -4543,7 +4543,21 @@ typedef struct { uint64_t pool; int64_t off; nvn_texdesc d; } alias_key;
  // texture lacks is added in place (tex_mtl → tex_upgrade)
  enum { ALIAS_USE_FLAGS = NVN_TEXTURE_FLAGS_IMAGE | NVN_TEXTURE_FLAGS_COMPRESSIBLE | NVN_TEXTURE_FLAGS_ADAPTIVE_ZCULL | NVN_TEXTURE_FLAGS_DEPTH16_PREFER_FAST_CLEAR | NVN_TEXTURE_FLAGS_ZCULL_SUPPORT_STENCIL };
  static int mtl_fmt_depth(MTLPixelFormat f);
@@ -12,22 +12,20 @@ index 8d135c5..9feeed8 100644
 +//   computed with the description at TextureInitialize): two objects over one storage that resolve to the same layout read the same bytes. Keyed apart they were two Metal
 +//   textures, and using one evicted the other as overwritten storage (alias_take_over): a live object rebuilt then reads what the GPU drew there as zero until the game draws
 +//   it again (IPA 824, Mario Kart World, 9,000 frames: 2,659 such takeovers, 2,655 of them of live objects). S2A_RB_ALIAS_LAYOUT_KEY=0: the key as before
++#include "rb_alias_key.h"
++_Static_assert(RB_ALIAS_FLAG_LINEAR == NVN_TEXTURE_FLAGS_LINEAR && RB_ALIAS_FLAG_LINEAR_RT == NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET &&
++               RB_ALIAS_FLAG_MINIMAL_LAYOUT == NVN_TEXTURE_FLAGS_MINIMAL_LAYOUT && RB_ALIAS_TARGET_BUFFER == NVN_TEXTURE_TARGET_BUFFER, "rb_alias_key.h constants");
 +static int rb_alias_layout_key(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_ALIAS_LAYOUT_KEY"); v = !(e && !strcmp(e, "0")); } return v; }
 +static void alias_key_of(alias_key *k, const tex_t *t) {
 +    memset(k, 0, sizeof *k); k->pool = (uint64_t)(uintptr_t)t->pool; k->off = t->off; k->d = t->d; k->d.flags &= ~(uint32_t)ALIAS_USE_FLAGS;
 +    if (!rb_alias_layout_key()) return;
-+    if (k->d.samples == 0) k->d.samples = 1;
-+    if (k->d.target != NVN_TEXTURE_TARGET_BUFFER && !(k->d.flags & (NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET))) {
-+        nvn_texlayout L; if (t->L.size) L = t->L; else nvn_tex_layout(&t->d, &L);
-+        unsigned wa = k->d.pkg_layout ? ((unsigned)(k->d.pkg_layout - 1) >> 8) & 0xf : 0;   // the packaged width alignment stays in the key
-+        k->d.pkg_layout = (int)((L.tileH & 0xf) | ((L.tileD & 0xf) << 4) | (wa << 8)) + 1;
-+        k->d.flags &= ~(uint32_t)NVN_TEXTURE_FLAGS_MINIMAL_LAYOUT;
-+    }
++    nvn_texlayout L; if (t->L.size) L = t->L; else nvn_tex_layout(&t->d, &L);
++    rb_alias_desc_norm(&k->d, &L);   // rb_alias_key.h
 +}
  static nvn_hmap g_alias = {.klen = sizeof(alias_key)};
  static nvn_hmap g_alias_seen = {.klen = sizeof(alias_key)};   // key → g_fence + 1 at its last lookup or creation (alias_take_over spares entries looked up lately)
  static nvn_hmap g_alias_wrote = {.klen = sizeof(alias_key)};   // key → g_fence + 1 at its last GPU write (gpw_mark), under g_smu
-@@ -4809,6 +4825,21 @@ static id<MTLTexture> txr_take(const alias_key *k, MTLTextureDescriptor *d, uint
+@@ -4809,6 +4823,21 @@ static id<MTLTexture> txr_take(const alias_key *k, MTLTextureDescriptor *d, uint
      pthread_mutex_unlock(&g_smu);
      return t;
  }
@@ -49,7 +47,7 @@ index 8d135c5..9feeed8 100644
  static void alias_take_over(const alias_key *nk) {
      nvn_texlayout L; nvn_tex_layout(&nk->d, &L);
      uint32_t ndead = 0;   // RewindBox (patch 0067): live objects' textures dropped by this call
-@@ -4818,6 +4849,7 @@ static void alias_take_over(const alias_key *nk) {
+@@ -4818,6 +4847,7 @@ static void alias_take_over(const alias_key *nk) {
      for (uint32_t i = 0; i < g_alias.cap && n < 16; i++) {
          if (!g_alias.vals[i]) continue;
          alias_key k; memcpy(&k, g_alias.keys + (size_t)i * g_alias.klen, sizeof k);
@@ -57,7 +55,7 @@ index 8d135c5..9feeed8 100644
          if (k.pool != nk->pool || !memcmp(&k, nk, sizeof k) || k.off >= hi) continue;
          nvn_texlayout kl; nvn_tex_layout(&k.d, &kl);
          uint64_t seen = (uint64_t)(uintptr_t)nvn_hm_get(&g_alias_seen, &k);
-@@ -4864,6 +4896,18 @@ static int alias_orph_cand(uint32_t i, CFSetRef held, alias_key *k) {   // calle
+@@ -4864,6 +4894,18 @@ static int alias_orph_cand(uint32_t i, CFSetRef held, alias_key *k) {   // calle
      uint64_t seen = (uint64_t)(uintptr_t)nvn_hm_get(&g_alias_seen, k);
      return !alias_recent(seen) && !(k->d.flags & (NVN_TEXTURE_FLAGS_DISPLAY | NVN_TEXTURE_FLAGS_VIDEO_DECODE));
  }
@@ -76,7 +74,7 @@ index 8d135c5..9feeed8 100644
  static CFMutableSetRef alias_held(void) {   // caller holds g_smu: what live objects and finalized serials still resolve to
      CFMutableSetRef held = CFSetCreateMutable(NULL, 0, NULL);
      nvn_hmap *hm[] = {&g_by_serial, &g_ghost, &g_ghost_active};
-@@ -4881,17 +4925,21 @@ static uint64_t alias_orph_drop(const alias_key *k, int why) {   // caller holds
+@@ -4881,17 +4923,21 @@ static uint64_t alias_orph_drop(const alias_key *k, int why) {   // caller holds
      return b;
  }
  static uint64_t alias_orph_evict(void *ctx, uint64_t want) {   // the low-region ledger's give-back callback (it holds its own lock; g_smu may be held by the thread that asked: then nothing this time)
@@ -102,7 +100,7 @@ index 8d135c5..9feeed8 100644
      uint64_t freed = 0;
      while (freed < rest && n) { uint32_t m = 0; for (uint32_t j = 1; j < n; j++) if (seen[j] < seen[m]) m = j;   // least recently looked up first; RewindBox (patch 0071 review): rest
          freed += alias_orph_drop(&ks[m], 2); ks[m] = ks[n - 1]; seen[m] = seen[n - 1]; n--; }
-@@ -4907,18 +4955,21 @@ static void alias_orphan_pass(void) {
+@@ -4907,18 +4953,21 @@ static void alias_orphan_pass(void) {
          const s2a_lowva_api *(*get)(void) = (const s2a_lowva_api *(*)(void))dlsym(RTLD_DEFAULT, "s2a_lowva"); const s2a_lowva_api *lv = get ? get() : NULL;
          if (lv && lv->size >= sizeof(s2a_lowva_api) && lv->version == S2A_LOWVA_VERSION) { g_orph_lv = lv; g_orph_lv_me = lv->user("unreferenced shared textures", alias_orph_evict, NULL); } } }
      typedef struct { alias_key k; const uint8_t *mem; uint64_t size; } cand_t;
@@ -127,7 +125,7 @@ index 8d135c5..9feeed8 100644
      for (uint32_t j = 0; j < nc; j++) alias_orph_drop(&cache[j], 0);
      pthread_mutex_unlock(&g_smu);
      uint32_t nr = 0;
-@@ -4926,13 +4977,25 @@ static void alias_orphan_pass(void) {
+@@ -4926,13 +4975,25 @@ static void alias_orphan_pass(void) {
          uint64_t *runs = NULL, b = 0; int n = gpw_stale(wr[j].mem, wr[j].size, &runs, &b); free(runs);
          if (n == 0) wr[nr++] = wr[j];
      }
@@ -155,7 +153,7 @@ index 8d135c5..9feeed8 100644
  }
  static __unsafe_unretained id serial_get(uint64_t k) { pthread_mutex_lock(&g_smu); __unsafe_unretained id o = hm_get_id(&g_by_serial, &k); pthread_mutex_unlock(&g_smu); return o; }
  static void serial_put_kind(uint64_t k, id o, BOOL program) {
-@@ -11975,6 +12038,22 @@ typedef struct { tex_t t; int ok; view_t v; int has_v; void *view; uint64_t alt_
+@@ -11975,6 +12036,22 @@ typedef struct { tex_t t; int ok; view_t v; int has_v; void *view; uint64_t alt_
                   uint8_t tt1, gone;   // tt1: Metal texture type + 1 a pool walk found here (0 = not looked; pool_gpu skips the ID in tables of another type); gone: its memory pool was finalized (treg_drop_pool_views), until registered again
                   int ser_next, ser_prev; } treg_t;   // the other IDs registered with the same texture serial (g_treg_ser), as ID + 1, 0 = none
  static treg_t *g_treg; static int g_ntreg;
@@ -178,6 +176,28 @@ index 8d135c5..9feeed8 100644
  // RewindBox (patch 0070): for each texture tex[q] (NULL: not asked), the texture IDs that hold it: as their view, the views made from it for another type, alpha from red or an image
  //   class (alt, ar, im: a view kept after its ID's view was made anew holds the base it was made from), or as the parent of one of those. For the resident top (res_top: "; ..."
  //   into o[q]). One walk of the IDs for all of them, at most four pointer compares and one parentTexture per view held; takes g_rmu only if free (res_top may run under it)
+diff --git a/graphics/nvn/gfx/nvn/rb_alias_key.h b/graphics/nvn/gfx/nvn/rb_alias_key.h
+new file mode 100644
+index 0000000..fdbda14
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_alias_key.h
+@@ -0,0 +1,16 @@
++// RewindBox (patch 0312): the description part of the shared-texture key (nvn_mtl.m alias_key_of), made the same for two objects whose
++//   storage is laid out the same (after upstream S2Arm 5863a69cf and cb6853c50). Pure C: tests/t_rb_alias_key.c.
++//   - sample count 0 and 1 are both single-sampled;
++//   - a block-linear texture keeps the block height and depth its layout resolves to (nvn_tex_layout: packaged layout, MINIMAL_LAYOUT or the
++//     automatic choice) in pkg_layout, its packaged width alignment, and drops MINIMAL_LAYOUT; linear textures and buffers are left as they are
++#pragma once
++#include <stdint.h>
++#include "nvn_tex.h"
++enum { RB_ALIAS_FLAG_LINEAR = 0x10, RB_ALIAS_FLAG_LINEAR_RT = 0x40, RB_ALIAS_FLAG_MINIMAL_LAYOUT = 0x200, RB_ALIAS_TARGET_BUFFER = 0xA };
++static inline void rb_alias_desc_norm(nvn_texdesc *d, const nvn_texlayout *L) {
++    if (d->samples == 0) d->samples = 1;
++    if (d->target == RB_ALIAS_TARGET_BUFFER || (d->flags & (RB_ALIAS_FLAG_LINEAR | RB_ALIAS_FLAG_LINEAR_RT))) return;
++    unsigned wa = d->pkg_layout ? ((unsigned)(d->pkg_layout - 1) >> 8) & 0xfu : 0;
++    d->pkg_layout = (int)((L->tileH & 0xfu) | ((L->tileD & 0xfu) << 4) | (wa << 8)) + 1;
++    d->flags &= ~RB_ALIAS_FLAG_MINIMAL_LAYOUT;
++}
 diff --git a/graphics/nvn/tests/t_nvn_alias_orphan.m b/graphics/nvn/tests/t_nvn_alias_orphan.m
 index b48d68a..39645a9 100644
 --- a/graphics/nvn/tests/t_nvn_alias_orphan.m
@@ -235,3 +255,86 @@ index b48d68a..39645a9 100644
          printf("%s t_nvn_alias_orphan: %u checks %u failures; backend Metal%d\n", failures ? "✗" : "✓", checks, failures, g_m3 ? 3 : 4);
          return failures != 0;
      }
+diff --git a/graphics/nvn/tests/t_rb_alias_key.c b/graphics/nvn/tests/t_rb_alias_key.c
+new file mode 100644
+index 0000000..984f818
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_alias_key.c
+@@ -0,0 +1,77 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0312): host-only checks of the shared-texture key description (gfx/nvn/rb_alias_key.h). Two objects whose storage the layout
++// code (nvn_tex.c) lays out the same must get the same key; two that differ in block height, depth or packaged width alignment must not.
++#include <assert.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <string.h>
++#include "../gfx/nvn/nvn_tex.c"
++#include "../gfx/nvn/rb_alias_key.h"
++
++enum { T2D = 1, T3D = 2, T2D_ARRAY = 4, TMS = 5, TBUFFER = 10, RGBA8 = 0x25 };
++
++static nvn_texdesc desc(int target, int flags, int samples, uint32_t w, uint32_t h, uint32_t z, int pkg) {
++    nvn_texdesc d; memset(&d, 0, sizeof d);
++    d.target = target; d.format = RGBA8; d.flags = flags; d.samples = samples;
++    d.width = w; d.height = h; d.depth = z; d.levels = 1; d.pkg_layout = pkg;
++    return d;
++}
++static nvn_texdesc norm(nvn_texdesc d) { nvn_texlayout L; nvn_tex_layout(&d, &L); rb_alias_desc_norm(&d, &L); return d; }
++static int same(nvn_texdesc a, nvn_texdesc b) { a = norm(a); b = norm(b); return !memcmp(&a, &b, sizeof a); }
++static unsigned tile_h(nvn_texdesc d) { nvn_texlayout L; nvn_tex_layout(&d, &L); return L.tileH; }
++
++int main(void) {
++    // ① sample count 0 and 1 are both single-sampled (upstream 5863a69cf)
++    assert(same(desc(T2D, 0, 0, 1920, 1080, 1, 0), desc(T2D, 0, 1, 1920, 1080, 1, 0)));
++    assert(!same(desc(TMS, 0, 4, 1920, 1080, 1, 0), desc(TMS, 0, 1, 1920, 1080, 1, 0)));
++
++    // ② the automatic layout and the packaged layout that resolves to the same block height (upstream cb6853c50)
++    nvn_texdesc a = desc(T2D, 0, 1, 1920, 1080, 1, 0);
++    unsigned th = tile_h(a);
++    assert(th == 4);
++    assert(same(a, desc(T2D, 0, 1, 1920, 1080, 1, (int)th + 1)));
++    // … but not one whose packaged block height differs
++    assert(!same(a, desc(T2D, 0, 1, 1920, 1080, 1, (int)(th - 1) + 1)));
++
++    // ③ MINIMAL_LAYOUT: the automatic key when the driver keeps its block height (1920x1024: no larger than with 1-GOB blocks), the packaged
++    //    1-GOB key when it does not (1920x1080: 1152 rows with 16-GOB blocks against 1080)
++    nvn_texdesc a1 = desc(T2D, 0, 1, 1920, 1024, 1, 0), m1 = desc(T2D, RB_ALIAS_FLAG_MINIMAL_LAYOUT, 1, 1920, 1024, 1, 0);
++    assert(tile_h(a1) > 0 && tile_h(m1) == tile_h(a1) && same(m1, a1));
++    nvn_texdesc m = desc(T2D, RB_ALIAS_FLAG_MINIMAL_LAYOUT, 1, 1920, 1080, 1, 0);
++    assert(tile_h(m) == 0 && !same(m, a));
++    assert(same(m, desc(T2D, 0, 1, 1920, 1080, 1, 0 + 1)));
++
++    // ④ the packaged width alignment (bits 8–11) stays in the key
++    assert(!same(desc(T2D, 0, 1, 1920, 1080, 1, (int)th + 1), desc(T2D, 0, 1, 1920, 1080, 1, (int)(th | (2u << 8)) + 1)));
++    nvn_texdesc wa = norm(desc(T2D, 0, 1, 1920, 1080, 1, (int)(th | (2u << 8)) + 1));
++    assert((((unsigned)(wa.pkg_layout - 1) >> 8) & 0xf) == 2);
++
++    // ⑤ 3D textures keep their block depth
++    nvn_texdesc v = desc(T3D, 0, 1, 128, 128, 64, 0);
++    nvn_texlayout VL; nvn_tex_layout(&v, &VL);
++    assert(VL.tileD > 0);
++    assert(same(v, desc(T3D, 0, 1, 128, 128, 64, (int)(VL.tileH | (VL.tileD << 4)) + 1)));
++    assert(!same(v, desc(T3D, 0, 1, 128, 128, 64, (int)(VL.tileH | ((VL.tileD - 1) << 4)) + 1)));
++
++    // ⑥ linear textures and buffers keep their description (only the sample count is normalized)
++    nvn_texdesc lin = desc(T2D, RB_ALIAS_FLAG_LINEAR, 0, 256, 256, 1, 0), n = norm(lin);
++    assert(n.samples == 1 && n.pkg_layout == 0 && n.flags == RB_ALIAS_FLAG_LINEAR);
++    nvn_texdesc lrt = desc(T2D, RB_ALIAS_FLAG_LINEAR_RT | RB_ALIAS_FLAG_MINIMAL_LAYOUT, 1, 256, 256, 1, 0); n = norm(lrt);
++    assert(n.pkg_layout == 0 && n.flags == (RB_ALIAS_FLAG_LINEAR_RT | RB_ALIAS_FLAG_MINIMAL_LAYOUT));
++    nvn_texdesc buf = desc(TBUFFER, 0, 0, 4096, 1, 1, 0); n = norm(buf);
++    assert(n.pkg_layout == 0 && n.flags == 0 && n.samples == 1);
++
++    // ⑦ every other field (format, size, levels, target) still separates two keys
++    nvn_texdesc o = a; o.format = 0x3D; assert(!same(a, o));
++    o = a; o.width = 1632; assert(!same(a, o));
++    o = a; o.levels = 2; assert(!same(a, o));
++    o = desc(T2D_ARRAY, 0, 1, 1920, 1080, 1, 0); assert(!same(a, o));
++
++    // ⑧ normalizing twice changes nothing
++    for (int i = 0; i < 4; i++) {
++        nvn_texdesc s = i == 0 ? a : i == 1 ? m : i == 2 ? v : lin, x = norm(s), y = norm(x);
++        assert(!memcmp(&x, &y, sizeof x));
++    }
++    puts("t_rb_alias_key: ok");
++    return 0;
++}
