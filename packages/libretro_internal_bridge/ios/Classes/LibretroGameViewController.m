@@ -478,6 +478,10 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   if (_overlay.controlsDisabled != hidden) _overlay.controlsDisabled = hidden;
   if (hidden == _controlsHidden) return;
   _controlsHidden = hidden;
+  id<LibretroGameViewLayoutSource> source = self.layoutSource;
+  if ([source respondsToSelector:@selector(gameViewControlsHiddenDidChange:)]) {
+    [source gameViewControlsHiddenDidChange:hidden];
+  }
   // A controller coming or going (or the touch controls switch) swaps the
   // skin and the game alone (gameOnlyRepresentation...): lay out again,
   // which also redraws the skin.

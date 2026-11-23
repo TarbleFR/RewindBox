@@ -230,6 +230,8 @@ static void DOLReceiveAchievement(uint64_t session, uint32_t achievementID, cons
 }
 
 @interface DOLDolphinViewController : UIViewController
+/// The skin's orientations, or landscape while a controller hides the skin.
+- (UIInterfaceOrientationMask)skinOrientationMask;
 @property(nonatomic, readonly) MTKView* metalView;
 @property(nonatomic, copy, nullable) dispatch_block_t closeHandler;
 @property(nonatomic, copy, nullable) dispatch_block_t menuHandler;
@@ -465,6 +467,32 @@ static void DOLReceiveAchievement(uint64_t session, uint32_t achievementID, cons
   self.touchOverlay.padHiddenBySkin = shown;
   [self placeRenderSurface];
   [self placeSessionChrome];
+  [self syncSkinOrientation];
+}
+
+// The skin's orientations apply only while the skin can show. A connected
+// controller (the console's preference) hides it: the session then turns as
+// without a skin (landscape), so a portrait-only skin no longer keeps a
+// controller player upright. The locked surface is fitted, never stretched,
+// in the other orientation (placeRenderSurface). The editor shows the skin.
+- (UIInterfaceOrientationMask)skinOrientationMask {
+  DOLSkinOverlay* skin = self.skinOverlay;
+  if (skin == nil) return UIInterfaceOrientationMaskLandscape;
+  if (!self.touchEditing &&
+      NeoTouchControlsShouldHide([self touchConsole], self.controllerMonitor.connected, YES, NO, NO)) {
+    return UIInterfaceOrientationMaskLandscape;
+  }
+  return skin.supportedOrientationMask;
+}
+
+- (void)syncSkinOrientation {
+  DOLSkinOverlay* skin = self.skinOverlay;
+  // Only while presented: the dismissal releases the application mask (0).
+  if (skin == nil || !skin.portraitAvailable || self.presentingViewController == nil || self.isBeingDismissed) return;
+  const UIInterfaceOrientationMask mask = [self skinOrientationMask];
+  if (DOLOrientationGameMask() == mask) return;
+  DOLOrientationSetGameMask(mask);
+  [self setNeedsUpdateOfSupportedInterfaceOrientations];
 }
 
 // The session's floating buttons never cover the skin's controls
@@ -548,7 +576,7 @@ static void DOLReceiveAchievement(uint64_t session, uint32_t achievementID, cons
     // landscape surface, later fitted into the upright skin's screen with bands above
     // and below.
     CGRect settled = self.view.bounds;
-    if (DOLPolicyBoundsWillTurn((unsigned)skin.supportedOrientationMask, settled.size.width, settled.size.height)) {
+    if (DOLPolicyBoundsWillTurn((unsigned)[self skinOrientationMask], settled.size.width, settled.size.height)) {
       settled = CGRectMake(0, 0, settled.size.height, settled.size.width);
     }
     const BOOL skinShown = !self.touchEditing &&
@@ -698,8 +726,7 @@ static void DOLReceiveAchievement(uint64_t session, uint32_t achievementID, cons
   // Portrait skins (docs/dolphin-skins.md): portrait only for a portrait-only
   // skin, both for a skin with two layouts, landscape without a skin. UIKit
   // intersects this with the application mask (DOLOrientation).
-  if (self.skinOverlay != nil) return self.skinOverlay.supportedOrientationMask;
-  return UIInterfaceOrientationMaskLandscape;
+  return [self skinOrientationMask];
 }
 
 @end
@@ -1615,7 +1642,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       // session with a portrait skin changes anything; it is released in the
       // dismissal completion (cleanupSharedResourcesAndUI), also after a failure.
       if (controller.skinOverlay.portraitAvailable) {
-        DOLOrientationSetGameMask(controller.skinOverlay.supportedOrientationMask);
+        DOLOrientationSetGameMask([controller skinOrientationMask]);
       }
       [root presentViewController:controller animated:NO completion:nil];
       metalReady = controller.presentingViewController == root && root.presentedViewController == controller;

@@ -89,6 +89,8 @@ static UIViewController* ARMSX2RootViewController(void) {
 @end
 
 @interface Armsx2GameViewController : UIViewController
+/// The skin's orientations, or every one while a controller hides the skin.
+- (UIInterfaceOrientationMask)skinOrientationMask;
 @property(nonatomic, assign) const NeoARMSX2API* api;
 @property(nonatomic, assign) UIView* coreView;
 /// The external-display adapter while the session is attached to the
@@ -286,14 +288,35 @@ static UIViewController* ARMSX2RootViewController(void) {
   self.menuButton.hidden = shown && skin.hasMenuControl;
   self.controlsView.hidden = hiddenByPolicy || shown;
   [self placeRenderSurface];
+  [self syncSkinOrientation];
+}
+
+// The skin's orientations apply only while the skin can show: a controller
+// (or the Touch Controls switch) hides it, then the game turns with the phone
+// as without a skin, and a portrait-only skin no longer keeps a controller
+// player upright. The editor shows the skin, so it keeps the skin's mask.
+- (UIInterfaceOrientationMask)skinOrientationMask {
+  ARMSX2SkinOverlay* skin = self.skinOverlay;
+  if (!skin.hasSkin) return UIInterfaceOrientationMaskAllButUpsideDown;
+  const BOOL hidden = NeoTouchControlsShouldHide(@"ps2", self.controllerMonitor.connected,
+                                                 self.touchControlsVisible, NO, self.touchEditing);
+  return hidden ? UIInterfaceOrientationMaskAllButUpsideDown : skin.supportedOrientationMask;
+}
+
+- (void)syncSkinOrientation {
+  // Only while presented: the dismissal releases the application mask (0).
+  if (!self.skinOverlay.hasSkin || self.closing || self.presentingViewController == nil || self.isBeingDismissed) return;
+  const UIInterfaceOrientationMask mask = [self skinOrientationMask];
+  if (ARMSX2OrientationGameMask() == mask) return;
+  ARMSX2OrientationSetGameMask(mask);
+  [self setNeedsUpdateOfSupportedInterfaceOrientations];
 }
 
 // Skins: the session follows the orientations the player chose
 // (ARMSX2SkinOverlay.supportedOrientationMask); the application mask is
 // given to ARMSX2Orientation before the presentation.
 - (UIInterfaceOrientationMask)supportedInterfaceOrientations {
-  if (self.skinOverlay.hasSkin) return self.skinOverlay.supportedOrientationMask;
-  return UIInterfaceOrientationMaskAllButUpsideDown;
+  return [self skinOrientationMask];
 }
 
 - (void)setTouchGameKey:(NSString*)touchGameKey {
@@ -1500,7 +1523,7 @@ static UIViewController* ARMSX2RootViewController(void) {
       // nothing changes. Released in dismissGameControllerWithCompletion,
       // after a stop and after a failed launch alike.
       if (controller.skinOverlay.hasSkin) {
-        ARMSX2OrientationSetGameMask(controller.skinOverlay.supportedOrientationMask);
+        ARMSX2OrientationSetGameMask([controller skinOrientationMask]);
       }
       [root presentViewController:controller animated:NO completion:nil];
       self.gameController = controller;
