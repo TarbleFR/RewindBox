@@ -1,9 +1,10 @@
 # DeSmuME : architecture d'un JIT AArch64 pour RewindBox
 
-*23 novembre 2026 — branche `Claude`. **Étape 0 réalisée** (section 13) : JIT AArch64 de T sur l'ABI,
-`native/desmume`, compilé par la route source-cores, vérifié hors appareil ; rien mesuré sur iPhone. Décisions du
-mainteneur : « DS : garder DeSmuME, soit inventif et conçois l'architecture », « fini de concevoir l'architecture
-JIT pour la DS », puis « vas jusqu'au bout ». Sources relues : libretro/desmume `95b4d798` (**L**), TASEmulators/desmume
+*23 novembre 2026 — branche `Claude`. **Étapes 0 à 4 réalisées** (sections 13 et 14) : JIT AArch64 de T sur
+l'ABI, couche commune, interpréteur en cache, JIT RewindBox à appels puis natif, dans `native/desmume`, vérifiés
+hors appareil ; rien mesuré sur iPhone. Décisions du mainteneur : « DS : garder DeSmuME, soit inventif et conçois
+l'architecture », « fini de concevoir l'architecture JIT pour la DS », « vas jusqu'au bout », puis « fini toute les
+étapes de l'architecture pour le JIT ». Sources relues : libretro/desmume `95b4d798` (**L**), TASEmulators/desmume
 `b549f71b` (**T**), melonDS `ff972523`, oaknut `94c726ce`. Les chiffres de gain sont des estimations ou des
 affirmations d'auteurs, jamais des mesures RewindBox.*
 
@@ -459,8 +460,8 @@ Tirée de la 826.
 
 1. **Réglage visible par jeu** (`requiresJit`, section 10) pour DeSmuME, Azahar et Beetle. Recommandé.
 2. **Taille de l'arène** : 32 Mio au départ, ajustée d'après les lignes `[rb-jit]`.
-3. **Calendrier.** Étape 0 faite (section 13) ; sa livraison revient à la session qui fait les IPA. Puis l'ordre
-   1 → 2 → 3 → 4 de la section 3, selon la part CPU mesurée.
+3. **Calendrier.** Étapes 0 à 4 faites (sections 13 et 14) ; leur livraison revient à la session qui fait les
+   IPA. La suite dépend des mesures sur iPhone (section 14, « Reste à faire »).
 
 ## 13. État : étape 0 réalisée (23 novembre 2026)
 
@@ -508,4 +509,89 @@ Tirée de la 826.
 - **Reste à faire.**
   - Mesures sur iPhone : critères 2 à 5 de la section 7.5.
   - Livraison par la session IPA.
-  - Étapes 1 à 4 de la section 3.
+  - Étapes 1 à 4 de la section 3 : faites, section 14.
+
+## 14. État : étapes 1 à 4 réalisées (23 novembre 2026)
+
+- **Code.** Le correctif `native/desmume/arm64-jit-abi.patch` passe à 17 fichiers (+2 702/−208), dont trois
+  nouveaux : `utils/arm_jit/rb_cached.cpp` (étape 2), `rb_a64.h` et `rb_jit.cpp` (étapes 3 et 4). L'épingle
+  vérifie aussi `armcpu.cpp`, `MMU_timing.h` et `libretro_core_options.h`. Détail dans le
+  [README](../native/desmume/README.md).
+- **Modes de CPU** (`desmume_cpu_mode`) :
+
+  | Valeur | Moteur | Résultat |
+  | --- | --- | --- |
+  | `interpreter` | Interpréteur de DeSmuME | Référence |
+  | `cached` | Interpréteur en cache (étape 2), sans mémoire exécutable | Identique à l'interpréteur, au cycle près |
+  | `jit` | JIT de T (étape 0) sur la couche commune (étape 1) | Le plus rapide ; fetch non compté, entrelacement par bloc |
+  | `jit_exact` | JIT RewindBox (étapes 3 et 4), mode exact | Identique à l'interpréteur, au cycle près |
+  | `jit_fast` (non proposé) | JIT RewindBox, mode rapide | Cycles exacts, entrelacement par bloc |
+
+  - `jit` ou `jit_exact` sans JIT disponible : interpréteur en cache.
+  - Journal de démarrage : `[rb-jit] desmume … cached=… engine=…`.
+- **Étape 1, couche commune.**
+  - Table par pages de 16 Kio allouées à la demande, entrées de 32 bits : décalage dans l'arène, étiquette
+    CPU/Thumb vérifiée à chaque lecture.
+  - Invalidation précise : bit de code par 16 octets, listes de blocs par 512 octets ; une écriture tue tous les
+    blocs qu'elle touche et fait sortir le bloc en cours (section 8).
+  - Crochets WRAMCNT et VRAM ; PC hors région : un pas d'interpréteur.
+  - Demandes de sortie : DMA, code modifié, `NDS_Reschedule`, bus gelé, `emu_halt`, attente d'IRQ par CPU.
+  - `arm_jit_sync` sans effet de bord.
+- **Étape 2, interpréteur en cache.** Blocs décodés {gestionnaire, opcode, condition} en mémoire ordinaire. Chaque
+  instruction s'exécute comme dans `armcpu_exec`. Une course continue tant que la boucle CPU aurait donné
+  l'instruction suivante à ce CPU (temps inférieur à celui de l'autre CPU et au prochain événement), et
+  `nds_timer` avance comme elle : le résultat est celui de l'interpréteur, au cycle près.
+- **Étapes 3 et 4, JIT RewindBox.**
+  - Encodeur AArch64 maison (`rb_a64.h`) au lieu d'oaknut : une centaine d'encodages suffisent.
+  - Stubs d'entrée et de sortie dans les 256 premiers octets de l'arène ; x19 à x28 portent l'état d'une course
+    (CPU, temps, limite, table, arène, `nds_timer`).
+  - Étape 3 : appel du gestionnaire de chaque instruction, condition testée en natif, cycles de l'interpréteur. Le
+    temps du fetch est calculé à la compilation, sauf aux changements de ligne du cache d'instructions de l'ARM9,
+    qui passent par une aide.
+  - Étape 4 : code natif pour les opérations de données ARM (immédiat ou registre décalé par une constante, avec
+    ou sans drapeaux, conditionnelles), les opérations Thumb (décalages, additions, ALU, registres hauts, pile) et
+    les branchements B, BL, B<cond> et BL Thumb, enchaînés directement vers leur cible. Le gestionnaire doit être
+    celui de la classe, sinon l'instruction reste à l'étape 3.
+  - Blocs enchaînés par la table ; entrée possible à chaque instruction.
+  - Mode exact : test de la boucle CPU et `nds_timer` avant chaque instruction. Mode rapide : entre les blocs.
+- **Écarts avec les sections 2 et 7.**
+  - Pas de registres invités fixes dans x20 à x27 : chaque instruction relit et réécrit `armcpu_t`, ce qui permet
+    d'entrer n'importe où dans un bloc.
+  - Drapeaux réécrits dans CPSR à chaque instruction ; pas encore d'analyse de vivacité.
+  - Accès mémoire, multiplications, décalages par registre, LDM/STM : encore par le gestionnaire.
+  - Le moteur `jit` reste celui de T, le plus rapide mesuré.
+- **Vérification hors appareil** (banc de la section 13, ROM complétée : code modifié dans le bloc en cours et au
+  milieu d'un autre bloc, remappage WRAMCNT, code en mémoire de palette, balayage de 2 Mio, compteur de temps émulé
+  par CPU) :
+
+  | Configuration | Résultat, comparé à l'interpréteur |
+  | --- | --- |
+  | Étape 0 seule | 85 relevés sur 4 488 différents (code modifié, remappage) |
+  | `jit`, blocs de 1, 12 et 100, arène de 4 Mio | 4 493 sur 4 493 identiques |
+  | `cached` | RAM identique octet pour octet, compteurs identiques ; états sauvegardés et chargement d'un état identiques |
+  | `jit_exact`, blocs de 1, 12 et 100, arène de 8 Mio rembobinée | RAM et compteurs identiques |
+  | `jit_fast` | 4 493 sur 4 493 identiques ; temps émulé à quelques cycles près |
+  | `jit` demandé, hôte sans JIT | Interpréteur en cache, RAM identique |
+
+  Le même arbre, reconstruit par le constructeur à partir de l'épingle, est identique fichier par fichier.
+- **Vitesse sous qemu** (ROM de mesure, 300 images, deux CPU toujours occupés). Ce ne sont pas des mesures
+  iPhone : qemu pénalise surtout les appels indirects.
+
+  | Mode | Temps | Par rapport à l'interpréteur |
+  | --- | --- | --- |
+  | `interpreter` | 67,1 s | 1 |
+  | `cached` | 54,3 s | 1,24× |
+  | `jit_exact` | 75,8 s | 0,89× |
+  | `jit_fast` | 21,9 s | 3,1× |
+  | `jit` | 8,7 s | 7,7× |
+
+  - Sans le temps du fetch (`desmume_advanced_timing` désactivé), `jit_fast` passe à 18,9 s.
+  - `jit_exact` rend la main à l'autre CPU presque à chaque instruction quand les deux tournent : c'est un mode
+    de compatibilité.
+- **Catalogue.** Sans JIT, la surcharge de l'app passera de `interpreter` à `cached` avec la collection qui porte
+  ce binaire (même résultat, plus rapide).
+- **Reste à faire.**
+  - Mesures sur iPhone, puis choix du moteur par défaut d'après elles.
+  - Pour que le JIT RewindBox dépasse celui de T : accès mémoire natifs (DTCM, RAM principale, cache de données en
+    ligne), recherche en ligne dans le cache d'instructions, vivacité des drapeaux, multiplications, LDM/STM.
+  - Compilation iOS par la route source-cores et nouvelle collection.

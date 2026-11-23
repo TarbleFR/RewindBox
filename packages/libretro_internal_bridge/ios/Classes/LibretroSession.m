@@ -10,6 +10,7 @@
 #import "LibretroCheatMenu.h"
 #import "LibretroCoreOptions.h"
 #import "LibretroDefaultSkins.h"
+#import <GameController/GameController.h>
 #import "LibretroFrontendMenu.h"
 #import "LibretroFrontendStore.h"
 #import "LibretroGLRenderer.h"
@@ -782,6 +783,15 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
                                  _touchControls && !_input.hasPhysicalController);
 }
 
+/// A controller the input polling will use (extended gamepad), already
+/// before its first poll: the session opens in the right orientation.
+static BOOL LibretroExtendedControllerConnected(void) {
+  for (GCController *controller in GCController.controllers) {
+    if (controller.extendedGamepad != nil) return YES;
+  }
+  return NO;
+}
+
 /// Orientations of the game on screen, from the skins the player CHOSE
 /// (LibretroSelectedOrientationMask): only portrait chosen, portrait only; only
 /// landscape chosen, landscape only; both or none, the usual rotation.
@@ -790,6 +800,12 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 /// Vulkan landscape exception wins. Main thread.
 - (UIInterfaceOrientationMask)gameOrientationMask {
   if (_legacyLandscapeOnly) return UIInterfaceOrientationMaskLandscape;
+  // No skin on screen (a controller drives the game, or touch controls off:
+  // gameOnlyRepresentation...): the chosen skins' orientations no longer
+  // apply, the game turns with the phone. The editor keeps its own lock.
+  if (!_editingControls && (!_touchControls || _input.hasPhysicalController || LibretroExtendedControllerConnected())) {
+    return UIInterfaceOrientationMaskAllButUpsideDown;
+  }
   BOOL iPad = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad;
   __weak LibretroSession *weakSelf = self;
   return (UIInterfaceOrientationMask)LibretroSelectedOrientationMask(
@@ -802,6 +818,12 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
       ^BOOL(LibretroSkin *skin, LibretroSkinOrientation orientation) {
         return [weakSelf skin:skin usableInOrientation:orientation iPad:iPad];
       });
+}
+
+/// The game view's controls were shown or hidden (controller connected or
+/// gone, touch controls switch): the orientation lock follows. Main thread.
+- (void)gameViewControlsHiddenDidChange:(BOOL)hidden {
+  [self refreshOrientationLock];
 }
 
 /// Applies the mask after a skin change, a refused skin or a stop of the
@@ -2483,6 +2505,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     NSLog(@"[Libretro] controls layout %@ not saved", layoutKey);
   }
   _editingControls = NO;
+  // A controller may have been connected while editing: no skin, free turn.
+  [self refreshOrientationLock];
   [self setMenuPaused:NO];
   if (gameKey == nil && [LibretroChromeLayout game:[self gameScopeKey]
                                 hasOwnLayoutForKey:layoutKey

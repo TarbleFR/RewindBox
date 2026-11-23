@@ -30,6 +30,9 @@ NS_ASSUME_NONNULL_BEGIN
                                                             viewSize:(LibretroSize)size
                                                           safeInsets:(LibretroInsets)insets
                                                                 iPad:(BOOL)iPad;
+/// The controls were hidden or shown again (controller, touch switch,
+/// editor): the orientation lock depends on whether a skin is on screen.
+- (void)gameViewControlsHiddenDidChange:(BOOL)hidden;
 @required
 /// User layout overrides for the shown representation.
 - (nullable NSDictionary<NSString *, NSDictionary *> *)layoutOverridesForRepresentation:

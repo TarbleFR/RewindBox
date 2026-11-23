@@ -65,6 +65,11 @@ require('LibretroSelectedOrientationMask(' in mask and '[self gameScopeKey]' in 
 require('failedSkins' in mask and 'importedSkinWithIdentifier' in mask and 'report:NO' in mask,
         'a refused skin does not load and the load is quiet')
 require('usableInOrientation' in mask, 'usability is judged per chosen skin and orientation')
+require('_input.hasPhysicalController' in mask and 'LibretroExtendedControllerConnected()' in mask
+        and '!_editingControls' in mask,
+        'no skin on screen (controller, touch off): the chosen skins no longer lock the orientation')
+require('[self refreshOrientationLock]' in body(session, '- (void)gameViewControlsHiddenDidChange:'),
+        'the lock follows the controls being hidden or shown')
 selection = read(LIB / 'LibretroOrientationSelection.m')
 require('LibretroSettingSkinPortrait' in selection and 'LibretroSettingSkinLandscape' in selection
         and 'valueForKey:key console:console game:' in selection,
@@ -88,9 +93,15 @@ plugin = read(DOL / 'DolphinInternalBridgePlugin.mm')
 overlay = read(DOL / 'DOLSkinOverlay.mm')
 require('DOLOrientationInstall();' in body(plugin, '+ (void)registerWithRegistrar:'), 'coordinator installed at registration')
 supported = body(plugin, '- (UIInterfaceOrientationMask)supportedInterfaceOrientations')
-require('self.skinOverlay.supportedOrientationMask' in supported and 'portraitAvailable' not in supported,
+require('[self skinOrientationMask]' in supported, 'the game controller mask is the skin mask helper')
+skin_mask = body(plugin, '- (UIInterfaceOrientationMask)skinOrientationMask {')
+require('skin.supportedOrientationMask' in skin_mask and 'portraitAvailable' not in skin_mask,
         'controller mask comes from the policy, not from portraitAvailable alone')
-set_at = plugin.index('DOLOrientationSetGameMask(controller.skinOverlay.supportedOrientationMask);')
+require('NeoTouchControlsShouldHide(' in skin_mask and 'UIInterfaceOrientationMaskLandscape' in skin_mask
+        and '!self.touchEditing' in skin_mask,
+        'a skin hidden by a connected controller no longer locks the orientation (landscape, as without a skin)')
+require('[self syncSkinOrientation];' in body(plugin, '- (void)syncSkinOverlay {'), 'the lock follows the controller')
+set_at = plugin.index('DOLOrientationSetGameMask([controller skinOrientationMask]);')
 present_at = plugin.index('[root presentViewController:controller animated:NO completion:nil];')
 require(set_at < present_at and present_at - set_at < 400, 'app mask set right before the presentation')
 cleanup = body(plugin, '- (void)cleanupSharedResourcesAndUI')
@@ -127,7 +138,7 @@ a2_plugin = read(A2 / 'Armsx2InternalBridgePlugin.mm')
 a2_menu = read(A2 / 'Armsx2SessionMenu.mm')
 a2_overlay = read(A2 / 'ARMSX2SkinOverlay.mm')
 require('ARMSX2OrientationInstall();' in body(a2_plugin, '+ (void)registerWithRegistrar:'), 'ARMSX2 coordinator installed')
-set_at = a2_plugin.index('ARMSX2OrientationSetGameMask(controller.skinOverlay.supportedOrientationMask);')
+set_at = a2_plugin.index('ARMSX2OrientationSetGameMask([controller skinOrientationMask]);')
 present_at = a2_plugin.index('[root presentViewController:controller animated:NO completion:nil];')
 require(set_at < present_at and present_at - set_at < 200, 'ARMSX2: app mask set right before the presentation')
 require('if (controller.skinOverlay.hasSkin)' in a2_plugin[set_at - 80:set_at], 'ARMSX2: only a session with a skin changes the mask')
@@ -136,7 +147,11 @@ require('ARMSX2OrientationSetGameMask(0);' in release[release.index('releaseView
 require('dismissGameController];' in body(a2_plugin, '- (void)failTransaction:'), 'ARMSX2: a failed launch goes through the same release')
 require('ARMSX2OrientationGameMask()' in body(a2_menu, '- (UIInterfaceOrientationMask)supportedInterfaceOrientations'),
         'the ARMSX2 session menu follows the session mask')
-require('supportedOrientationMask' in body(a2_plugin, '- (UIInterfaceOrientationMask)supportedInterfaceOrientations'), 'ARMSX2 game controller mask')
+require('[self skinOrientationMask]' in body(a2_plugin, '- (UIInterfaceOrientationMask)supportedInterfaceOrientations'), 'ARMSX2 game controller mask')
+a2_mask = body(a2_plugin, '- (UIInterfaceOrientationMask)skinOrientationMask {')
+require('skin.supportedOrientationMask' in a2_mask and 'NeoTouchControlsShouldHide(' in a2_mask,
+        'ARMSX2: a skin hidden by a controller no longer locks the orientation')
+require('[self syncSkinOrientation];' in body(a2_plugin, '- (void)syncSkinOverlay {'), 'ARMSX2: the lock follows the controller')
 require('ARMSX2PolicyMask(_portrait != nil, _landscape != nil)' in a2_overlay, 'ARMSX2 overlay uses the choice-based policy')
 require('api->set_button' in a2_plugin and 'skin.buttonChanged' in a2_plugin and 'skin.sticksChanged' in a2_plugin,
         'ARMSX2 skin inputs reach the Core pad')
