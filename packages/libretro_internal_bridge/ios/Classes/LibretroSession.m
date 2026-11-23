@@ -55,6 +55,10 @@ static const double kImportedSkinOpacity = 0.7;
 static const double kMinimumOpacity = 0.15;
 /// Redraws of the last frame used to measure a shader preset.
 static const NSUInteger kShaderMeasureIterations = 30;
+/// MetalFX upscaling: NSUserDefaults key prefix of the per-core choice, and
+/// how long the device must stay cool enough before a paused MetalFX resumes.
+static NSString *const kMetalFXDefaultsPrefix = @"libretro.metalfx.";
+static const int64_t kMetalFXResumeSeconds = 30;
 /// Startup period: the launch is reported successful once the core has run
 /// this many frames and this long (frame-to-frame time, at most 0.25 s per
 /// frame, pauses excluded). Before that, a core that stops by itself (PPSSPP
@@ -156,6 +160,11 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   unsigned _diskIndex;
   NSArray<NSString *> *_diskLabels;
   BOOL _smooth;
+  // MetalFX upscaling (main thread): the core's choice, whether it is paused
+  // by heat or Low Power Mode, and the pending resume it waits for.
+  BOOL _metalFX;
+  BOOL _metalFXSuspended;
+  NSUInteger _metalFXResumeToken;
   BOOL _touchControls;
   BOOL _touchDiagnostics;
   BOOL _started;
@@ -322,6 +331,12 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     self, NSProcessInfo.processInfo.operatingSystemVersionString,
     NSProcessInfo.processInfo.physicalMemory, TARGET_OS_SIMULATOR]];
   [self systemDiagnostic:[NSNotification notificationWithName:@"session-start" object:nil]];
+  for (NSString *name in @[NSProcessInfoThermalStateDidChangeNotification, NSProcessInfoPowerStateDidChangeNotification]) {
+    [NSNotificationCenter.defaultCenter addObserver:self
+                                           selector:@selector(metalFXConditionsChanged:)
+                                               name:name
+                                             object:nil];
+  }
   for (NSString *name in @[UIApplicationDidReceiveMemoryWarningNotification,
       UIApplicationWillResignActiveNotification, UIApplicationDidEnterBackgroundNotification,
       UIApplicationDidBecomeActiveNotification, UIApplicationWillTerminateNotification,
@@ -364,6 +379,11 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   }
   _presenter.smooth = _smooth;
   _presenter.diagnosticHandler = ^(NSString *event) { [diagnosticJournal note:event]; };
+  _metalFX = _presenter.metalFXSupported && [NSUserDefaults.standardUserDefaults boolForKey:[self metalFXDefaultsKey]];
+  _presenter.metalFXEnabled = _metalFX;
+  [self updateMetalFXSuspension];
+  [_journal note:[NSString stringWithFormat:@"[rb-metalfx] supported=%d enabled=%d suspended=%d core=%@",
+    _presenter.metalFXSupported, _metalFX, _metalFXSuspended, _configuration.coreId ?: @""]];
   [_journal note:[NSString stringWithFormat:@"controller=%p renderer=%p presenter=%p layer=%p ready device=%@",
     _controller, _controller.skinRenderer, _presenter, _metalLayer, _presenter.device.name]];
   void (^actions)(LibretroFrontendAction, BOOL) = ^(LibretroFrontendAction action, BOOL pressed) {
@@ -3078,6 +3098,20 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
                                                                     rows:@[ smooth ]];
   filtering.footer = [self text:@"resolutionFilteringFooter"];
   [sections addObject:filtering];
+
+  // MetalFX upscaling: the core's choice, shown for every core.
+  LibretroMenuRow *metalFX = [LibretroMenuRow toggleWithTitle:[self text:@"metalFXUpscaling"]
+                                                           on:_metalFX
+                                                       toggle:^(LibretroMenuPage *page, BOOL on) {
+                                                         [weakSelf setMetalFX:on];
+                                                         [page rebuild];
+                                                       }];
+  metalFX.identifier = @"libretro-resolution-metalfx";
+  metalFX.enabled = _screensAndShadersAvailable && _presenter.metalFXSupported;
+  metalFX.detail = [self metalFXStatusText];
+  LibretroMenuSection *upscaler = [LibretroMenuSection sectionWithTitle:nil rows:@[ metalFX ]];
+  upscaler.footer = _screensAndShadersAvailable ? [self text:@"metalFXFooter"] : [self text:@"shaderUnavailable"];
+  [sections addObject:upscaler];
   return sections;
 }
 
@@ -3089,6 +3123,106 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   _vulkan.smooth = on;
   [NSUserDefaults.standardUserDefaults setBool:on forKey:@"libretro.smooth"];
   [self requestRedraw];
+}
+
+#pragma mark - MetalFX upscaling (main thread)
+
+/// The choice is kept per core: it suits 3D cores far more than pixel art.
+- (NSString *)metalFXDefaultsKey {
+  NSString *core = _configuration.coreId.length > 0 ? _configuration.coreId : (_host.libraryName ?: @"");
+  return [kMetalFXDefaultsPrefix stringByAppendingString:core];
+}
+
+/// Why the choice has no effect right now; nil when it applies.
+- (nullable NSString *)metalFXStatusText {
+  if (_presenter == nil || !_presenter.metalFXSupported) return [self text:@"metalFXUnavailable"];
+  if (!_metalFX) return nil;
+  if (_presenter.activePresetIdentifier != nil) return [self text:@"metalFXShaderActive"];
+  if (_metalFXSuspended) return [self text:@"metalFXPaused"];
+  return nil;
+}
+
+- (void)setMetalFX:(BOOL)on {
+  if (_presenter == nil || !_presenter.metalFXSupported) return;
+  _metalFX = on;
+  _presenter.metalFXEnabled = on;
+  [NSUserDefaults.standardUserDefaults setBool:on forKey:[self metalFXDefaultsKey]];
+  [_journal note:[NSString stringWithFormat:@"[rb-metalfx] %@ for %@ (menu) suspended=%d shader=%@",
+    on ? @"enabled" : @"disabled", _configuration.coreId ?: @"", _metalFXSuspended,
+    _presenter.activePresetIdentifier ?: @"none"]];
+  [self requestRedraw];
+  if (on) [self measureMetalFX];
+}
+
+/// Heat (Serious or Critical) and Low Power Mode pause MetalFX at once; it
+/// resumes only after kMetalFXResumeSeconds without either.
+- (void)metalFXConditionsChanged:(NSNotification *)notification {
+  __weak LibretroSession *weakSelf = self;
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [weakSelf updateMetalFXSuspension];
+  });
+}
+
+- (void)updateMetalFXSuspension {
+  NSProcessInfo *info = NSProcessInfo.processInfo;
+  const NSProcessInfoThermalState thermal = info.thermalState;
+  const BOOL lowPower = info.lowPowerModeEnabled;
+  if (thermal >= NSProcessInfoThermalStateSerious || lowPower) {
+    _metalFXResumeToken++;
+    if (!_metalFXSuspended) {
+      _metalFXSuspended = YES;
+      _presenter.metalFXSuspended = YES;
+      [_journal note:[NSString stringWithFormat:@"[rb-metalfx] bypass reason=%@ thermal=%ld low_power=%d enabled=%d",
+        lowPower ? @"low-power" : @"thermal", (long)thermal, lowPower, _metalFX]];
+    }
+    return;
+  }
+  if (!_metalFXSuspended) return;
+  const NSUInteger token = ++_metalFXResumeToken;
+  __weak LibretroSession *weakSelf = self;
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, kMetalFXResumeSeconds * (int64_t)NSEC_PER_SEC),
+                 dispatch_get_main_queue(), ^{
+    LibretroSession *session = weakSelf;
+    if (session == nil || token != session->_metalFXResumeToken) return;
+    NSProcessInfo *now = NSProcessInfo.processInfo;
+    if (now.thermalState >= NSProcessInfoThermalStateSerious || now.lowPowerModeEnabled) return;
+    session->_metalFXSuspended = NO;
+    session->_presenter.metalFXSuspended = NO;
+    [session->_journal note:[NSString stringWithFormat:@"[rb-metalfx] resumed after %llds thermal=%ld enabled=%d",
+      (long long)kMetalFXResumeSeconds, (long)now.thermalState, session->_metalFX]];
+  });
+}
+
+/// After MetalFX is switched on in the menu: the last frame's GPU time with
+/// MetalFX and with the standard picture, in the session journal.
+- (void)measureMetalFX {
+  if (!_loaded || !_screensAndShadersAvailable) return;
+  __weak LibretroSession *weakSelf = self;
+  [self enqueue:^{
+    LibretroSession *session = weakSelf;
+    if (session == nil) return;
+    [session->_condition lock];
+    const BOOL active = !session->_backgroundPaused && !session->_stopRequested;
+    [session->_condition unlock];
+    if (!active) return;
+    const BOOL gl = session->_gl != nil;
+    if (gl) dispatch_semaphore_wait(session->_glFrameSemaphore, DISPATCH_TIME_FOREVER);
+    NSDictionary<NSString *, NSNumber *> *times = [session->_presenter measureMetalFXGPUTime:kShaderMeasureIterations];
+    if (gl) dispatch_semaphore_signal(session->_glFrameSemaphore);
+    if (times != nil) {
+      [session->_journal note:[NSString stringWithFormat:@"[rb-metalfx] gpu_ms metalfx=%.3f standard=%.3f "
+                                                         @"redraws=%lu texture_bytes=%lu",
+        times[@"metalfx"].doubleValue, times[@"standard"].doubleValue, (unsigned long)kShaderMeasureIterations,
+        (unsigned long)session->_presenter.metalFXTextureBytes]];
+    } else {
+      [session->_journal note:[NSString stringWithFormat:@"[rb-metalfx] gpu_ms not measured reason=%@",
+        session->_presenter.metalFXFailureCode ?: @"no-frame-or-shader"]];
+    }
+    // The scalers now exist: the paused picture behind the menu shows them.
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [weakSelf requestRedraw];
+    });
+  }];
 }
 
 #pragma mark - Menu (main thread)

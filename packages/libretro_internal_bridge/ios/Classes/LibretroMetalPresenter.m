@@ -1,8 +1,18 @@
 #import "LibretroMetalPresenter.h"
 
+#import "LibretroMetalFXPolicy.h"
 #import "LibretroShaderLibrary.h"
 
 #import <neo_shader_kit/NeoSlangRenderer.h>
+
+// MetalFX classes are looked up by name at run time: a GPU or an SDK without
+// them (Simulator, CI) simply reports the upscaler unsupported.
+#if __has_include(<MetalFX/MetalFX.h>)
+#import <MetalFX/MetalFX.h>
+#define LIBRETRO_HAS_METALFX 1
+#else
+#define LIBRETRO_HAS_METALFX 0
+#endif
 
 #include <math.h>
 #include <os/lock.h>
@@ -23,6 +33,11 @@
 #define LIBRETRO_SHADER_SLOTS 16
 /// Largest 2D texture of the Apple GPUs NeoStation runs on.
 #define LIBRETRO_MAX_TEXTURE_SIZE 16384
+/// Screens that can each have a MetalFX scaler (DS and 3DS use two).
+#define LIBRETRO_METALFX_SCREENS 4
+/// Consecutive frames asking a screen for the same sizes before its scaler is
+/// built: a rotation animates through several drawable sizes.
+#define LIBRETRO_METALFX_STABLE_FRAMES 2
 
 /// Diagnostics only (session log); never shown to the user.
 static NSString *const kLibretroPresenterErrorDomain = @"LibretroMetalPresenter";
@@ -182,8 +197,345 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
   return values;
 }
 
+#pragma mark - MetalFX spatial upscaling
+
+/// The MetalFX spatial descriptor class when this GPU supports it.
+static Class LibretroMetalFXDescriptorClass(id<MTLDevice> device) {
+#if LIBRETRO_HAS_METALFX
+  if (device == nil) return Nil;
+  if (@available(iOS 16.0, macOS 13.0, *)) {
+    Class descriptor = NSClassFromString(@"MTLFXSpatialScalerDescriptor");
+    if (descriptor != Nil && [descriptor respondsToSelector:@selector(supportsDevice:)] &&
+        [descriptor supportsDevice:device]) {
+      return descriptor;
+    }
+  }
+#endif
+  return Nil;
+}
+
+/// One screen's scaler with its two private textures, built together off the
+/// emulation thread and never changed afterwards (the scaler's per-frame
+/// properties aside, set on the emulation thread). A command buffer that
+/// encodes it keeps it until the GPU has finished with it.
+@interface LibretroMetalFXScreen : NSObject
+@property(nonatomic, strong) id scaler;  // id<MTLFXSpatialScaler>
+@property(nonatomic, strong) id<MTLTexture> input;
+@property(nonatomic, strong) id<MTLTexture> output;
+@property(nonatomic, assign) LibretroMetalFXSize inputSize;
+@property(nonatomic, assign) LibretroMetalFXSize outputSize;
+@end
+
+@implementation LibretroMetalFXScreen
+@end
+
+/// Scaler and textures enlarging `input` to `output`; nil with a METALFX_*
+/// code in `failure`.
+static LibretroMetalFXScreen *LibretroMetalFXBuildScreen(id<MTLDevice> device, Class descriptorClass,
+                                                         LibretroMetalFXSize input, LibretroMetalFXSize output,
+                                                         NSString **failure) {
+#if LIBRETRO_HAS_METALFX
+  if (@available(iOS 16.0, macOS 13.0, *)) {
+    if (descriptorClass == Nil) {
+      *failure = @"METALFX_UNSUPPORTED";
+      return nil;
+    }
+    MTLFXSpatialScalerDescriptor *descriptor = [descriptorClass new];
+    descriptor.colorTextureFormat = MTLPixelFormatBGRA8Unorm;
+    descriptor.outputTextureFormat = MTLPixelFormatBGRA8Unorm;
+    descriptor.inputWidth = input.width;
+    descriptor.inputHeight = input.height;
+    descriptor.outputWidth = output.width;
+    descriptor.outputHeight = output.height;
+    // Gamma-encoded 8-bit pictures, like the drawable.
+    descriptor.colorProcessingMode = MTLFXSpatialScalerColorProcessingModePerceptual;
+    id<MTLFXSpatialScaler> scaler = [descriptor newSpatialScalerWithDevice:device];
+    if (scaler == nil) {
+      *failure = @"METALFX_CREATE";
+      return nil;
+    }
+    MTLTextureDescriptor *inputDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                                                                             width:input.width
+                                                                                            height:input.height
+                                                                                         mipmapped:NO];
+    inputDescriptor.usage = scaler.colorTextureUsage | MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
+    inputDescriptor.storageMode = MTLStorageModePrivate;
+    MTLTextureDescriptor *outputDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                                                                              width:output.width
+                                                                                             height:output.height
+                                                                                          mipmapped:NO];
+    outputDescriptor.usage = scaler.outputTextureUsage | MTLTextureUsageShaderRead;
+    outputDescriptor.storageMode = MTLStorageModePrivate;
+    id<MTLTexture> inputTexture = [device newTextureWithDescriptor:inputDescriptor];
+    id<MTLTexture> outputTexture = [device newTextureWithDescriptor:outputDescriptor];
+    if (inputTexture == nil || outputTexture == nil) {
+      *failure = @"METALFX_MEMORY";
+      return nil;
+    }
+    inputTexture.label = @"Libretro MetalFX input";
+    outputTexture.label = @"Libretro MetalFX output";
+    LibretroMetalFXScreen *screen = [LibretroMetalFXScreen new];
+    screen.scaler = scaler;
+    screen.input = inputTexture;
+    screen.output = outputTexture;
+    screen.inputSize = input;
+    screen.outputSize = output;
+    return screen;
+  }
+#endif
+  *failure = @"METALFX_UNSUPPORTED";
+  return nil;
+}
+
+/// The MetalFX scalers of the presenter's screens. Each frame the emulation
+/// thread asks for the screen states it needs; a missing one is built on a
+/// serial queue once the same sizes were asked for
+/// LIBRETRO_METALFX_STABLE_FRAMES frames in a row, so no frame waits for a
+/// scaler (its screen shows the standard picture meanwhile). Sizes that
+/// failed to build are not tried again until they change.
+@interface LibretroMetalFXUpscaler : NSObject
+- (instancetype)initWithDevice:(id<MTLDevice>)device descriptorClass:(Class)descriptorClass;
+/// Read on the build queue: atomic.
+@property(atomic, copy, nullable) void (^diagnosticHandler)(NSString *event);
+/// Emulation thread. The state enlarging `content` texels to `output`
+/// pixels for screen `index`; nil with a METALFX_* code while it is built,
+/// could not be built or does not apply. `synchronous` builds it at once
+/// (game paused).
+- (nullable LibretroMetalFXScreen *)screenAtIndex:(NSUInteger)index
+                                          content:(LibretroMetalFXSize)content
+                                           output:(LibretroMetalFXSize)output
+                                      synchronous:(BOOL)synchronous
+                                          failure:(NSString *_Nullable *_Nonnull)failure;
+/// Emulation thread: encodes `screen`'s scaler reading `content` texels of
+/// its input texture; returns its output texture.
+- (nullable id<MTLTexture>)encodeScreen:(LibretroMetalFXScreen *)screen
+                                content:(LibretroMetalFXSize)content
+                                 buffer:(id<MTLCommandBuffer>)buffer;
+/// Releases the states of screens from `count` on.
+- (void)keepScreens:(NSUInteger)count;
+/// Releases every state; builds in flight are discarded.
+- (void)reset;
+@property(atomic, readonly) NSUInteger textureBytes;
+@end
+
+@implementation LibretroMetalFXUpscaler {
+  id<MTLDevice> _device;
+  Class _descriptorClass;
+  dispatch_queue_t _queue;
+  os_unfair_lock _lock;
+  // Under _lock.
+  LibretroMetalFXScreen *_built[LIBRETRO_METALFX_SCREENS];
+  BOOL _building[LIBRETRO_METALFX_SCREENS];
+  LibretroMetalFXSize _failedInput[LIBRETRO_METALFX_SCREENS];
+  LibretroMetalFXSize _failedOutput[LIBRETRO_METALFX_SCREENS];
+  NSString *_failedCode[LIBRETRO_METALFX_SCREENS];
+  uint64_t _generation;
+  NSUInteger _bytes;
+  // Emulation thread: the sizes asked last and for how many frames in a row.
+  LibretroMetalFXSize _askedInput[LIBRETRO_METALFX_SCREENS];
+  LibretroMetalFXSize _askedOutput[LIBRETRO_METALFX_SCREENS];
+  NSUInteger _askedFrames[LIBRETRO_METALFX_SCREENS];
+}
+
+- (instancetype)initWithDevice:(id<MTLDevice>)device descriptorClass:(Class)descriptorClass {
+  self = [super init];
+  if (self == nil) return nil;
+  _device = device;
+  _descriptorClass = descriptorClass;
+  _lock = OS_UNFAIR_LOCK_INIT;
+  _queue = dispatch_queue_create(
+      "rewindbox.libretro.metalfx",
+      dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0));
+  return self;
+}
+
+- (NSUInteger)textureBytes {
+  os_unfair_lock_lock(&_lock);
+  const NSUInteger bytes = _bytes;
+  os_unfair_lock_unlock(&_lock);
+  return bytes;
+}
+
+/// Under _lock.
+- (void)recountLocked {
+  NSUInteger bytes = 0;
+  for (NSUInteger index = 0; index < LIBRETRO_METALFX_SCREENS; index++) {
+    LibretroMetalFXScreen *screen = _built[index];
+    if (screen == nil) continue;
+    bytes += (screen.inputSize.width * screen.inputSize.height + screen.outputSize.width * screen.outputSize.height) * 4;
+  }
+  _bytes = bytes;
+}
+
+- (nullable LibretroMetalFXScreen *)screenAtIndex:(NSUInteger)index
+                                          content:(LibretroMetalFXSize)content
+                                           output:(LibretroMetalFXSize)output
+                                      synchronous:(BOOL)synchronous
+                                          failure:(NSString *_Nullable *_Nonnull)failure {
+  *failure = nil;
+  if (index >= LIBRETRO_METALFX_SCREENS) {
+    *failure = @"METALFX_SCREENS";
+    return nil;
+  }
+  os_unfair_lock_lock(&_lock);
+  LibretroMetalFXScreen *current = _built[index];
+  const BOOL building = _building[index];
+  const uint64_t generation = _generation;
+  const LibretroMetalFXSize failedInput = _failedInput[index];
+  const LibretroMetalFXSize failedOutput = _failedOutput[index];
+  NSString *failedCode = _failedCode[index];
+  os_unfair_lock_unlock(&_lock);
+
+  const LibretroMetalFXSize none = LibretroMetalFXSizeMake(0, 0);
+  const LibretroMetalFXSize allocation =
+      LibretroMetalFXInputAllocation(content, current != nil ? current.inputSize : none, output);
+  if (LibretroMetalFXSizeIsEmpty(allocation)) {
+    *failure = @"METALFX_RATIO";
+    return nil;
+  }
+  if (current != nil && LibretroMetalFXSizeEqual(current.inputSize, allocation) &&
+      LibretroMetalFXSizeEqual(current.outputSize, output)) {
+    return current;
+  }
+  if (failedCode != nil && LibretroMetalFXSizeEqual(failedInput, allocation) &&
+      LibretroMetalFXSizeEqual(failedOutput, output)) {
+    *failure = failedCode;
+    return nil;
+  }
+  if (LibretroMetalFXSizeEqual(_askedInput[index], allocation) && LibretroMetalFXSizeEqual(_askedOutput[index], output)) {
+    _askedFrames[index]++;
+  } else {
+    _askedInput[index] = allocation;
+    _askedOutput[index] = output;
+    _askedFrames[index] = 1;
+  }
+  if (synchronous) {
+    NSString *code = nil;
+    LibretroMetalFXScreen *screen = [self buildScreenAtIndex:index
+                                                       input:allocation
+                                                      output:output
+                                                  generation:generation
+                                                asynchronous:NO
+                                                     failure:&code];
+    if (screen == nil) *failure = code ?: @"METALFX_CREATE";
+    return screen;
+  }
+  if (!building && _askedFrames[index] >= LIBRETRO_METALFX_STABLE_FRAMES) {
+    os_unfair_lock_lock(&_lock);
+    const BOOL start = !_building[index] && generation == _generation;
+    if (start) _building[index] = YES;
+    os_unfair_lock_unlock(&_lock);
+    if (start) {
+      __weak LibretroMetalFXUpscaler *weakSelf = self;
+      dispatch_async(_queue, ^{
+        NSString *code = nil;
+        [weakSelf buildScreenAtIndex:index
+                               input:allocation
+                              output:output
+                          generation:generation
+                        asynchronous:YES
+                             failure:&code];
+      });
+    }
+  }
+  *failure = @"METALFX_PENDING";
+  return nil;
+}
+
+/// Builds and installs a screen state unless reset meanwhile.
+- (nullable LibretroMetalFXScreen *)buildScreenAtIndex:(NSUInteger)index
+                                                 input:(LibretroMetalFXSize)input
+                                                output:(LibretroMetalFXSize)output
+                                            generation:(uint64_t)generation
+                                          asynchronous:(BOOL)asynchronous
+                                               failure:(NSString *_Nullable *_Nonnull)failure {
+  const CFTimeInterval start = CACurrentMediaTime();
+  NSString *code = nil;
+  LibretroMetalFXScreen *screen = LibretroMetalFXBuildScreen(_device, _descriptorClass, input, output, &code);
+  const double milliseconds = (CACurrentMediaTime() - start) * 1000.0;
+  BOOL installed = NO;
+  NSUInteger bytes = 0;
+  os_unfair_lock_lock(&_lock);
+  if (asynchronous) _building[index] = NO;
+  const BOOL discarded = generation != _generation;
+  if (!discarded) {
+    if (screen != nil) {
+      _built[index] = screen;
+      _failedCode[index] = nil;
+      installed = YES;
+    } else {
+      _failedInput[index] = input;
+      _failedOutput[index] = output;
+      _failedCode[index] = code;
+    }
+    [self recountLocked];
+    bytes = _bytes;
+  }
+  os_unfair_lock_unlock(&_lock);
+  void (^diagnostic)(NSString *) = self.diagnosticHandler;
+  if (diagnostic != nil) {
+    diagnostic([NSString stringWithFormat:@"[rb-metalfx] screen=%lu in=%lux%lu out=%lux%lu %@ create_ms=%.1f "
+                                          @"texture_bytes=%lu%@",
+                                          (unsigned long)index, (unsigned long)input.width,
+                                          (unsigned long)input.height, (unsigned long)output.width,
+                                          (unsigned long)output.height,
+                                          screen != nil ? @"built" : [@"failed " stringByAppendingString:code ?: @""],
+                                          milliseconds, (unsigned long)bytes, discarded ? @" discarded" : @""]];
+  }
+  *failure = code;
+  return installed ? screen : nil;
+}
+
+- (nullable id<MTLTexture>)encodeScreen:(LibretroMetalFXScreen *)screen
+                                content:(LibretroMetalFXSize)content
+                                 buffer:(id<MTLCommandBuffer>)buffer {
+#if LIBRETRO_HAS_METALFX
+  if (@available(iOS 16.0, macOS 13.0, *)) {
+    id<MTLFXSpatialScaler> scaler = screen.scaler;
+    scaler.colorTexture = screen.input;
+    scaler.inputContentWidth = MIN(content.width, screen.inputSize.width);
+    scaler.inputContentHeight = MIN(content.height, screen.inputSize.height);
+    scaler.outputTexture = screen.output;
+    [scaler encodeToCommandBuffer:buffer];
+    // The scaler is not retained by the command buffer: keep it until done.
+    [buffer addCompletedHandler:^(__unused id<MTLCommandBuffer> completed) {
+      (void)screen;
+    }];
+    return screen.output;
+  }
+#endif
+  return nil;
+}
+
+- (void)keepScreens:(NSUInteger)count {
+  os_unfair_lock_lock(&_lock);
+  for (NSUInteger index = count; index < LIBRETRO_METALFX_SCREENS; index++) {
+    _built[index] = nil;
+    _failedCode[index] = nil;
+  }
+  [self recountLocked];
+  os_unfair_lock_unlock(&_lock);
+  for (NSUInteger index = count; index < LIBRETRO_METALFX_SCREENS; index++) _askedFrames[index] = 0;
+}
+
+- (void)reset {
+  os_unfair_lock_lock(&_lock);
+  _generation++;
+  for (NSUInteger index = 0; index < LIBRETRO_METALFX_SCREENS; index++) {
+    _built[index] = nil;
+    _failedCode[index] = nil;
+  }
+  _bytes = 0;
+  os_unfair_lock_unlock(&_lock);
+  for (NSUInteger index = 0; index < LIBRETRO_METALFX_SCREENS; index++) _askedFrames[index] = 0;
+}
+
+@end
+
 @interface LibretroMetalPresenter ()
 @property(atomic, copy, readwrite, nullable) NSString *slangFailureCode;
+@property(atomic, readwrite) BOOL metalFXActive;
+@property(atomic, copy, readwrite, nullable) NSString *metalFXFailureCode;
 @end
 
 /// The preceding selection stays alive until a provisional slang frame has
@@ -274,6 +626,16 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
 
   // Immutable after init.
   NSArray<LibretroPresenterScreen *> *_defaultScreens;
+  // MetalFX: the upscaler exists only when the GPU supports it (immutable
+  // after init); the rest is emulation-thread state.
+  LibretroMetalFXUpscaler *_metalFX;
+  // Its screens may hold textures (released once it is no longer wanted).
+  BOOL _metalFXHeld;
+  BOOL _metalFXDrewLastFrame;
+  // measureMetalFXGPUTime: 1 forces MetalFX, -1 the standard picture.
+  NSInteger _metalFXOverride;
+  // measureMetalFXGPUTime: missing scalers are built at once.
+  BOOL _metalFXSynchronous;
 }
 
 - (nullable instancetype)initWithLayer:(CAMetalLayer *)layer {
@@ -320,6 +682,10 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
                                                          container:LibretroRectUnit
                                                             format:LibretroScreenFormatOriginal
                                                        touchScreen:NO] ];
+  Class metalFXDescriptor = LibretroMetalFXDescriptorClass(_device);
+  _metalFXSupported = metalFXDescriptor != Nil;
+  if (_metalFXSupported) _metalFX = [[LibretroMetalFXUpscaler alloc] initWithDevice:_device
+                                                                     descriptorClass:metalFXDescriptor];
   return self;
 }
 
@@ -1014,6 +1380,7 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
                                      height:(unsigned)height
                                     flipped:(BOOL)flipped {
   if (_slangProgram != nil) {
+    [self noteMetalFXDrawn:NO failure:nil];
     return [self encodeSlangScreens:screens
                              buffer:buffer
                              target:target
@@ -1021,6 +1388,21 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
                               width:width
                              height:height
                             flipped:flipped];
+  }
+  if ([self wantsMetalFX]) {
+    NSString *failure = nil;
+    NSArray<NSValue *> *upscaled = [self encodeMetalFXScreens:screens
+                                                       buffer:buffer
+                                                       target:target
+                                                      texture:texture
+                                                        width:width
+                                                       height:height
+                                                      flipped:flipped
+                                                      failure:&failure];
+    [self noteMetalFXDrawn:upscaled != nil failure:failure];
+    if (upscaled != nil) return upscaled;
+  } else {
+    [self noteMetalFXDrawn:NO failure:nil];
   }
   id<MTLRenderCommandEncoder> encoder = [buffer renderCommandEncoderWithDescriptor:ClearingPass(target)];
   NSArray<NSValue *> *mappings = [self encodeScreens:screens
@@ -1186,6 +1568,229 @@ static NSArray *SlangValues(NeoSlangProgram *program, NSDictionary<NSString *, N
   }
   [encoder endEncoding];
   return [mappings copy];
+}
+
+#pragma mark - MetalFX (emulation thread)
+
+- (void)setDiagnosticHandler:(void (^)(NSString *))diagnosticHandler {
+  _diagnosticHandler = [diagnosticHandler copy];
+  _metalFX.diagnosticHandler = _diagnosticHandler;
+}
+
+- (NSUInteger)metalFXTextureBytes {
+  return _metalFX.textureBytes;
+}
+
+/// MetalFX for this frame: supported, no built-in preset (a slang program is
+/// handled before), enabled and not suspended, or forced by a measurement.
+- (BOOL)wantsMetalFX {
+  if (_metalFX == nil || _presetPipeline != nil || _metalFXOverride < 0) return NO;
+  if (_metalFXOverride > 0) return YES;
+  return self.metalFXEnabled && !self.metalFXSuspended;
+}
+
+/// After each frame: the GPU time median restarts when frames switch between
+/// MetalFX and the standard picture; textures are released once MetalFX is
+/// no longer wanted; the failure code is logged when it changes.
+- (void)noteMetalFXDrawn:(BOOL)drawn failure:(nullable NSString *)failure {
+  if (_metalFX == nil) return;
+  if (drawn != _metalFXDrewLastFrame) {
+    _metalFXDrewLastFrame = drawn;
+    self.metalFXActive = drawn;
+    os_unfair_lock_lock(&_lock);
+    _gpuGeneration++;
+    _gpuSampleCount = 0;
+    _gpuSampleNext = 0;
+    os_unfair_lock_unlock(&_lock);
+  }
+  const BOOL wanted = [self wantsMetalFX];
+  if (wanted) {
+    _metalFXHeld = YES;
+  } else if (_metalFXHeld && _metalFXOverride == 0) {
+    _metalFXHeld = NO;
+    [_metalFX reset];
+  }
+  NSString *code = wanted ? failure : nil;
+  NSString *previous = self.metalFXFailureCode;
+  if (code != previous && ![code isEqualToString:previous]) {
+    self.metalFXFailureCode = code;
+    void (^diagnostic)(NSString *) = self.diagnosticHandler;
+    if (diagnostic != nil && _metalFXOverride == 0) {
+      diagnostic([NSString stringWithFormat:@"[rb-metalfx] %@", code != nil ? [@"standard picture " stringByAppendingString:code]
+                                                                     : (wanted ? @"every screen upscaled" : @"off")]);
+    }
+  }
+}
+
+/// MetalFX: for each screen, its part of the frame is copied at its own texel
+/// size into the scaler's private input (nearest, upright), enlarged by its
+/// MTLFXSpatialScaler towards the screen's place in whole pixels (along the
+/// picture's axes, capped, LibretroMetalFXPolicy.h), then drawn there with
+/// the rotation: 1:1 nearest when the scaler reached the place's size,
+/// linear for the rest. A screen without a ready scaler shows the standard
+/// picture; nil (`failure` set) when no screen could use MetalFX, so the
+/// caller draws the standard picture unchanged.
+- (nullable NSArray<NSValue *> *)encodeMetalFXScreens:(NSArray<LibretroPresenterScreen *> *)screens
+                                               buffer:(id<MTLCommandBuffer>)buffer
+                                               target:(id<MTLTexture>)target
+                                              texture:(id<MTLTexture>)texture
+                                                width:(unsigned)width
+                                               height:(unsigned)height
+                                              flipped:(BOOL)flipped
+                                              failure:(NSString *_Nullable *_Nonnull)failureOut {
+  *failureOut = nil;
+  const double outputWidth = (double)target.width;
+  const double outputHeight = (double)target.height;
+  const unsigned rotation = self.rotation % 4;
+  const BOOL quarterTurn = (rotation % 2) == 1;
+  const double textureWidth = (double)MAX(texture.width, (NSUInteger)1);
+  const double textureHeight = (double)MAX(texture.height, (NSUInteger)1);
+  const double frameWidth = fmin((double)width, textureWidth);
+  const double frameHeight = fmin((double)height, textureHeight);
+  double coreAspect = (double)self.aspectRatio;
+  if (!(coreAspect > 0.0) || isinf(coreAspect)) coreAspect = frameWidth / frameHeight;
+  const BOOL smooth = self.smooth;
+
+  const NSUInteger count = screens.count;
+  [_metalFX keepScreens:count];
+  NSMutableArray<NSValue *> *mappings = [NSMutableArray arrayWithCapacity:count];
+  NSMutableArray *results = [NSMutableArray arrayWithCapacity:count];  // id<MTLTexture> or NSNull
+  NSMutableArray<NSValue *> *outputs = [NSMutableArray arrayWithCapacity:count];
+  NSMutableArray<NSNumber *> *nearest = [NSMutableArray arrayWithCapacity:count];
+  NSString *failure = nil;
+  BOOL upscaledScreen = NO;
+  for (NSUInteger index = 0; index < count; index++) {
+    LibretroPresenterScreen *screen = screens[index];
+    LibretroScreenMapping mapping;
+    memset(&mapping, 0, sizeof(mapping));
+    mapping.rotation = rotation;
+    const LibretroRect source = LibretroRectIntersection(screen.source, LibretroRectUnit);
+    mapping.source = source;
+    const LibretroRect container = screen.container;
+    LibretroRect output = LibretroRectMake(0.0, 0.0, 0.0, 0.0);
+    if (RectIsUsable(source) && RectIsUsable(container)) {
+      const LibretroRect containerPixels = LibretroRectMake(container.x * outputWidth, container.y * outputHeight,
+                                                            container.w * outputWidth, container.h * outputHeight);
+      output = LibretroFitScreen(containerPixels, LibretroSourceAspect(coreAspect, source, rotation), screen.format);
+      // Whole pixels: the scaler's output is drawn 1:1 when it has this size.
+      const double left = round(output.x);
+      const double top = round(output.y);
+      output = LibretroRectMake(left, top, round(output.x + output.w) - left, round(output.y + output.h) - top);
+    }
+    id result = NSNull.null;
+    BOOL oneToOne = NO;
+    if (RectIsUsable(output) && output.w >= 1.0 && output.h >= 1.0) {
+      mapping.output = LibretroRectMake(output.x / outputWidth, output.y / outputHeight, output.w / outputWidth,
+                                        output.h / outputHeight);
+      const LibretroMetalFXSize content = LibretroMetalFXSizeMake((NSUInteger)MAX(1L, lround(source.w * frameWidth)),
+                                                                  (NSUInteger)MAX(1L, lround(source.h * frameHeight)));
+      // Along the picture's own axes: a quarter turn swaps the drawn sides.
+      const double alongWidth = quarterTurn ? output.h : output.w;
+      const double alongHeight = quarterTurn ? output.w : output.h;
+      const LibretroMetalFXSize scaled = LibretroMetalFXOutputSize(content, alongWidth, alongHeight);
+      NSString *screenFailure = nil;
+      LibretroMetalFXScreen *state = nil;
+      if (LibretroMetalFXSizeIsEmpty(scaled)) {
+        screenFailure = @"METALFX_RATIO";
+      } else {
+        state = [_metalFX screenAtIndex:index
+                                content:content
+                                 output:scaled
+                            synchronous:_metalFXSynchronous
+                                failure:&screenFailure];
+      }
+      if (state != nil) {
+        MTLRenderPassDescriptor *copy = [MTLRenderPassDescriptor renderPassDescriptor];
+        copy.colorAttachments[0].texture = state.input;
+        copy.colorAttachments[0].loadAction = MTLLoadActionDontCare;
+        copy.colorAttachments[0].storeAction = MTLStoreActionStore;
+        id<MTLRenderCommandEncoder> encoder = [buffer renderCommandEncoderWithDescriptor:copy];
+        // The content at the texture's origin, where the scaler reads it.
+        [encoder setViewport:(MTLViewport){0.0, 0.0, (double)content.width, (double)content.height, 0.0, 1.0}];
+        [encoder setRenderPipelineState:_passthroughPipeline];
+        [encoder setFragmentTexture:texture atIndex:0];
+        [encoder setFragmentSamplerState:_nearest atIndex:0];
+        const simd_float4 quad[4] = {
+            {-1.0f, 1.0f, 0.0f, 0.0f}, {-1.0f, -1.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 0.0f}, {1.0f, -1.0f, 1.0f, 1.0f}};
+        LibretroShaderUniforms uniforms;
+        memset(&uniforms, 0, sizeof(uniforms));
+        SetPartUniforms(&uniforms, source, frameWidth, frameHeight, textureWidth, textureHeight, flipped);
+        [encoder setVertexBytes:quad length:sizeof(quad) atIndex:0];
+        [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:0];
+        [encoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
+        [encoder endEncoding];
+        id<MTLTexture> upscaled = [_metalFX encodeScreen:state content:content buffer:buffer];
+        if (upscaled != nil) {
+          result = upscaled;
+          oneToOne = (double)upscaled.width == alongWidth && (double)upscaled.height == alongHeight;
+          upscaledScreen = YES;
+        } else {
+          screenFailure = @"METALFX_UNSUPPORTED";
+        }
+      }
+      if (result == NSNull.null && failure == nil) failure = screenFailure;
+    }
+    [mappings addObject:MappingValue(mapping)];
+    [results addObject:result];
+    [outputs addObject:[NSValue valueWithBytes:&output objCType:@encode(LibretroRect)]];
+    [nearest addObject:@(oneToOne)];
+  }
+  *failureOut = failure;
+  if (!upscaledScreen) return nil;
+
+  id<MTLRenderCommandEncoder> encoder = [buffer renderCommandEncoderWithDescriptor:ClearingPass(target)];
+  [encoder setRenderPipelineState:_passthroughPipeline];
+  for (NSUInteger index = 0; index < count; index++) {
+    LibretroRect output;
+    [outputs[index] getValue:&output size:sizeof(output)];
+    if (!RectIsUsable(output) || output.w < 1.0 || output.h < 1.0) continue;
+    simd_float4 quad[4];
+    RotatedQuad(quad, output, outputWidth, outputHeight, rotation);
+    LibretroShaderUniforms uniforms;
+    memset(&uniforms, 0, sizeof(uniforms));
+    id result = results[index];
+    if (result != NSNull.null) {
+      id<MTLTexture> upscaled = result;
+      SetPartUniforms(&uniforms, LibretroRectUnit, (double)upscaled.width, (double)upscaled.height,
+                      (double)upscaled.width, (double)upscaled.height, NO);
+      [encoder setFragmentTexture:upscaled atIndex:0];
+      // Beyond the scaler's cap the rest of the enlargement is always linear.
+      [encoder setFragmentSamplerState:nearest[index].boolValue ? _nearest : _linear atIndex:0];
+    } else {
+      const LibretroRect source = LibretroRectIntersection(screens[index].source, LibretroRectUnit);
+      SetPartUniforms(&uniforms, source, frameWidth, frameHeight, textureWidth, textureHeight, flipped);
+      [encoder setFragmentTexture:texture atIndex:0];
+      [encoder setFragmentSamplerState:smooth ? _linear : _nearest atIndex:0];
+    }
+    [encoder setVertexBytes:quad length:sizeof(quad) atIndex:0];
+    [encoder setFragmentBytes:&uniforms length:sizeof(uniforms) atIndex:0];
+    [encoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
+  }
+  [encoder endEncoding];
+  return [mappings copy];
+}
+
+- (nullable NSDictionary<NSString *, NSNumber *> *)measureMetalFXGPUTime:(NSUInteger)iterations {
+  if (_metalFX == nil || _slangProgram != nil || _presetPipeline != nil || _lastTexture == nil || iterations == 0) {
+    return nil;
+  }
+  _metalFXOverride = 1;
+  _metalFXSynchronous = YES;
+  const double upscaled = [self measureLastFrameGPUTime:iterations];
+  const BOOL drawn = _metalFXDrewLastFrame;
+  _metalFXSynchronous = NO;
+  _metalFXOverride = -1;
+  const double standard = drawn ? [self measureLastFrameGPUTime:iterations] : 0.0;
+  _metalFXOverride = 0;
+  // Forced frames do not describe the frames to come.
+  os_unfair_lock_lock(&_lock);
+  _gpuGeneration++;
+  _gpuSampleCount = 0;
+  _gpuSampleNext = 0;
+  os_unfair_lock_unlock(&_lock);
+  [self noteMetalFXDrawn:NO failure:nil];
+  if (!drawn || !(upscaled > 0.0) || !(standard > 0.0)) return nil;
+  return @{@"metalfx" : @(upscaled), @"standard" : @(standard)};
 }
 
 /// One draw per screen into the current render pass of a target of
