@@ -211,6 +211,16 @@ typedef struct {
 /// (see textureReplacementFilesInSaveFolder:).
 @property(nonatomic, readonly) NSInteger hdTexturesRecognized;
 @property(nonatomic, readonly) NSInteger hdTexturesApplied;
+/// The CPU engine the core itself reports in its log, never inferred from
+/// the arena or the options: nil until it reported. DeSmuME's "[rb-jit]
+/// desmume ..." line ("jit", "jit_exact", "jit_fast", "cached" or
+/// "interpreter"; "jit" or "interpreter" from its jit= field before engine=
+/// existed), Azahar's "[rb-jit] installed=... cpu=..." line ("dynarmic" or
+/// "interpreter"), Beetle PSX's Lightrec lines ("lightrec" when its code
+/// buffer is in the RewindBox arena, "interpreter" once Lightrec stopped).
+@property(nonatomic, copy, readonly, nullable) NSString *jitReportedEngine;
+/// YES when that engine runs generated code.
+@property(nonatomic, readonly) BOOL jitReportedActive;
 /// Replacement files Beetle PSX HW lists in `folder` of the core's save
 /// directory, by its own rule (rhi_tt.c read_texture_directory: a flat folder
 /// of "<hex>-<hex>.<ext>", ext png, dds, webp, jpg, jpeg, bmp or tga in any

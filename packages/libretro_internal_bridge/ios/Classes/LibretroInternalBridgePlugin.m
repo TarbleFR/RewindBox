@@ -85,7 +85,8 @@ static NSArray<NSString *> *LibretroRequiredUIText(void) {
     @"resolutionUnsupportedFooter", @"resolutionInapplicableFooter", @"resolutionEnlargement",
     @"resolutionEnlargementFooter", @"resolutionUpscalingShaders", @"resolutionFiltering",
     @"resolutionFilteringFooter", @"metalFXUpscaling", @"metalFXFooter", @"metalFXUnavailable",
-    @"metalFXShaderActive", @"metalFXPaused", @"jitInterpreterNotice",
+    @"metalFXShaderActive", @"metalFXPaused", @"jitInterpreterNotice", @"jitStatusActive", @"jitStatusInactive",
+    @"jitStatusGranted", @"jitStatusNone", @"performanceOverlay", @"performanceOverlayFooter",
   ];
 }
 

@@ -150,6 +150,8 @@ static bool ManagedOptionsDeclared(LibretroCoreHost *host, BOOL declared) {
   NSMutableArray<NSString *> *_log;
   NSInteger _hdTexturesRecognized;  // guarded by _log
   NSInteger _hdTexturesApplied;
+  NSString *_jitReportedEngine;      // guarded by _log
+  BOOL _jitReportedActive;
   BOOL _supportsAchievements;
   BOOL _shutdownRequested;
   uint64_t _serializationQuirks;
@@ -235,7 +237,49 @@ static bool ManagedOptionsDeclared(LibretroCoreHost *host, BOOL declared) {
     [_log addObject:line];
     if (_log.count > kRecentLogLimit) [_log removeObjectsInRange:NSMakeRange(0, _log.count - kRecentLogLimit)];
     [self noteTextureReplacementLine:line];
+    [self noteJitLine:line];
   }
+}
+
+// Value of `key` ("cpu=") in a log line, up to the next space; nil without it.
+static NSString *LibretroLogField(NSString *line, NSString *key) {
+  NSRange start = [line rangeOfString:key];
+  if (start.location == NSNotFound) return nil;
+  NSUInteger from = NSMaxRange(start);
+  NSRange space = [line rangeOfString:@" " options:0 range:NSMakeRange(from, line.length - from)];
+  NSUInteger to = space.location == NSNotFound ? line.length : space.location;
+  return [[line substringWithRange:NSMakeRange(from, to - from)]
+      stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+}
+
+// The CPU engine the core reports (see jitReportedEngine). Called under _log.
+- (void)noteJitLine:(NSString *)line {
+  if ([line rangeOfString:@"[rb-jit] desmume installed="].location != NSNotFound) {
+    NSString *engine = LibretroLogField(line, @"engine=");
+    if (engine.length == 0) engine = [LibretroLogField(line, @"jit=") isEqualToString:@"1"] ? @"jit" : @"interpreter";
+    _jitReportedEngine = [engine copy];
+    _jitReportedActive = [engine hasPrefix:@"jit"];
+  } else if ([line rangeOfString:@"[rb-jit] installed="].location != NSNotFound) {
+    NSString *cpu = LibretroLogField(line, @"cpu=");
+    if (cpu.length == 0) return;
+    _jitReportedEngine = [cpu copy];
+    _jitReportedActive = [cpu isEqualToString:@"dynarmic"];
+  } else if ([line rangeOfString:@"Lightrec codebuffer runs at"].location != NSNotFound &&
+             [line rangeOfString:@"(RewindBox JIT arena)"].location != NSNotFound) {
+    _jitReportedEngine = @"lightrec";
+    _jitReportedActive = YES;
+  } else if ([line rangeOfString:@"Lightrec stopped"].location != NSNotFound) {
+    _jitReportedEngine = @"interpreter";
+    _jitReportedActive = NO;
+  }
+}
+
+- (NSString *)jitReportedEngine {
+  @synchronized(_log) { return _jitReportedEngine; }
+}
+
+- (BOOL)jitReportedActive {
+  @synchronized(_log) { return _jitReportedActive; }
 }
 
 // Beetle PSX HW's texture tracker (rhi_tt.c): "num hd textures: %d" when its

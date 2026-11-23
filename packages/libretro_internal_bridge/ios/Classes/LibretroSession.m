@@ -169,6 +169,15 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   NSUInteger _metalFXResumeToken;
   BOOL _touchControls;
   BOOL _touchDiagnostics;
+  // Performance overlay: frames run and the time they took (emulation
+  // thread), read twice a second by performanceLines (main thread).
+  BOOL _performanceOverlay;
+  _Atomic uint64_t _perfFrames;
+  _Atomic uint64_t _perfBusyTicks;
+  uint64_t _perfLastTime;
+  uint64_t _perfLastFrames;
+  uint64_t _perfLastBusyTicks;
+  NSArray<NSString *> *_perfLines;
   BOOL _started;
   NSArray<NSString *> *_finalLog;
 
@@ -270,6 +279,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     _touchControls =
         [defaults objectForKey:@"libretro.touchControls"] != nil ? [defaults boolForKey:@"libretro.touchControls"] : YES;
     _touchDiagnostics = [defaults boolForKey:@"libretro.touchDiagnostics"];
+    _performanceOverlay = [defaults boolForKey:@"libretro.performanceOverlay"];
     _resolutionRules = [[LibretroResolutionRules alloc] initWithDictionary:configuration.resolutionRules];
   }
   return self;
@@ -308,6 +318,90 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   kern_return_t status = task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&memory, &count);
   [_journal note:[NSString stringWithFormat:@"system: %@ thermal=%ld footprint=%llu task-info=%d", notification.name,
     (long)NSProcessInfo.processInfo.thermalState, (unsigned long long)memory.phys_footprint, status]];
+}
+
+#pragma mark - Performance overlay and JIT status
+
+/// Main thread. Turns the performance overlay on or off (menu, launch).
+- (void)setPerformanceOverlay:(BOOL)on {
+  _performanceOverlay = on;
+  // The battery level is read only while the overlay shows it.
+  if (on) UIDevice.currentDevice.batteryMonitoringEnabled = YES;
+  _perfLastTime = 0;
+  _perfLines = nil;
+  _controller.performanceOverlayEnabled = on;
+}
+
+/// Main thread, twice a second while the overlay shows (game view's display
+/// link). Technical lines, not translated: frames the core ran per second and
+/// that rate against the core's own, the time the emulation thread spent on a
+/// frame ("EMU": retro_run and its presentation, the wait for the previous
+/// OpenGL frame included), the GPU time of a presented frame,
+/// the app's memory footprint, the battery and the CPU engine the core
+/// reported (LibretroCoreHost.jitReportedEngine).
+- (NSArray<NSString *> *)performanceLines {
+  static mach_timebase_info_data_t timebase;
+  if (timebase.denom == 0) mach_timebase_info(&timebase);
+  const uint64_t now = mach_absolute_time();
+  const uint64_t frames = atomic_load(&_perfFrames);
+  const uint64_t busy = atomic_load(&_perfBusyTicks);
+  const double seconds = (double)(now - _perfLastTime) * timebase.numer / timebase.denom / 1e9;
+  if (_perfLastTime != 0 && seconds < 0.25 && _perfLines != nil) return _perfLines;
+  const BOOL first = _perfLastTime == 0;
+  const uint64_t ranFrames = frames - _perfLastFrames;
+  const double busyMs = (double)(busy - _perfLastBusyTicks) * timebase.numer / timebase.denom / 1e6;
+  _perfLastTime = now;
+  _perfLastFrames = frames;
+  _perfLastBusyTicks = busy;
+  NSMutableArray<NSString *> *lines = [NSMutableArray array];
+  if (first) {
+    [lines addObject:@"FPS -"];
+  } else {
+    const double fps = ranFrames / MAX(seconds, 0.001);
+    const double target = _presenter.coreFPS > 1.0f ? _presenter.coreFPS : 60.0;
+    [lines addObject:[NSString stringWithFormat:@"FPS %.1f  %.0f %%", fps, fps / target * 100.0]];
+    if (ranFrames > 0) [lines addObject:[NSString stringWithFormat:@"EMU %.1f ms", busyMs / ranFrames]];
+  }
+  const double gpu = _presenter.gpuMilliseconds;
+  if (gpu > 0) [lines addObject:[NSString stringWithFormat:@"GPU %.1f ms", gpu]];
+  task_vm_info_data_t memory = {0};
+  mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
+  if (task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&memory, &count) == KERN_SUCCESS) {
+    NSString *size = [NSByteCountFormatter stringFromByteCount:(long long)memory.phys_footprint
+                                                    countStyle:NSByteCountFormatterCountStyleMemory];
+    [lines addObject:[@"RAM " stringByAppendingString:size]];
+  }
+  const float battery = UIDevice.currentDevice.batteryLevel;
+  if (battery >= 0) [lines addObject:[NSString stringWithFormat:@"BAT %.0f %%", battery * 100.0f]];
+  [lines addObject:[@"JIT " stringByAppendingString:[self jitOverlayValue]]];
+  _perfLines = [lines copy];
+  return _perfLines;
+}
+
+/// The CPU engine for the overlay: what the core reported, else what the
+/// host granted it ("granted": the core received the JIT capability but did
+/// not report its engine; "off": no JIT capability).
+- (NSString *)jitOverlayValue {
+  NSString *engine = _host.jitReportedEngine;
+  if (engine.length > 0) return engine;
+  return _host.jitCapable ? @"granted" : @"off";
+}
+
+/// The JIT status shown when the game starts (translated label, then the
+/// core and its engine as technical identifiers). The core's own report
+/// decides "active" or "inactive" (docs/PROJECT_RULES.md: arena, helper and
+/// actual JIT execution are separate facts); without a report, the
+/// capability the host gave it.
+- (NSString *)jitStatusText {
+  NSString *engine = _host.jitReportedEngine;
+  NSString *core = _host.libraryName.length > 0 ? _host.libraryName : (_configuration.coreId ?: @"");
+  if (_configuration.jitExpected && !_host.jitCapable) return [self text:@"jitInterpreterNotice"];
+  if (engine.length > 0) {
+    NSString *label = [self text:_host.jitReportedActive ? @"jitStatusActive" : @"jitStatusInactive"];
+    return [NSString stringWithFormat:@"%@ · %@ (%@)", label, core, engine];
+  }
+  return [NSString stringWithFormat:@"%@ · %@", [self text:_host.jitCapable ? @"jitStatusGranted" : @"jitStatusNone"],
+                                    core];
 }
 
 - (void)startFromViewController:(UIViewController *)presenter
@@ -358,6 +452,11 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   _controller.allowedOrientations = [self gameOrientationMask];
   _controller.layoutSource = self;
   __weak LibretroSession *weakSelf = self;
+  _controller.performanceLinesProvider = ^NSArray<NSString *> * {
+    LibretroSession *session = weakSelf;
+    return session != nil ? [session performanceLines] : @[];
+  };
+  [self setPerformanceOverlay:_performanceOverlay];
   _controller.menuHandler = ^{
     [weakSelf openMenu];
   };
@@ -647,12 +746,18 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     @"jitCapable" : @(LibretroJitUsableByCores() || _host.jitCapable),
     @"jitInterface" : @(_host.jitCapable && !LibretroJitUsableByCores()),
   };
-  const BOOL jitMissing = _configuration.jitExpected && !_host.jitCapable;
+  // The JIT mode the game started with: what the core reported, else the
+  // capability it was given (a core built for the JIT interface that runs on
+  // its interpreter today keeps its LocalDevVPN notice).
+  NSString *jitStatus = [self jitStatusText];
+  [_journal note:[NSString stringWithFormat:@"jit: engine=%@ active=%d capable=%d expected=%d",
+                                            _host.jitReportedEngine ?: @"unreported", _host.jitReportedActive,
+                                            _host.jitCapable, _configuration.jitExpected]];
   dispatch_async(dispatch_get_main_queue(), ^{
     self->_started = YES;
     [self finishStartWithResult:success];
-    // A core built for the JIT interface that runs on its interpreter today.
-    if (jitMissing) [self showStatus:[self text:@"jitInterpreterNotice"]];
+    // Not while the game is closing (left before the startup period ended).
+    if (!self->_closing) [self showStatus:jitStatus];
   });
 }
 
@@ -1115,7 +1220,10 @@ static BOOL LibretroExtendedControllerConnected(void) {
         lastStartupFrame = 0;
         continue;
       }
+      uint64_t frameStart = mach_absolute_time();
       [self runOneFrame];
+      atomic_fetch_add(&_perfBusyTicks, mach_absolute_time() - frameStart);
+      atomic_fetch_add(&_perfFrames, 1);
       if (_ppssppViewsReleased && !_ppssppMemorySettled) [self notePPSSPPMemory];
       if (!_startupConfirmed) [self countStartupFrame:&lastStartupFrame];
       double fps = _host.avInfo.timing.fps > 1.0 ? _host.avInfo.timing.fps : 60.0;
@@ -3469,6 +3577,21 @@ static BOOL LibretroMetalFXMustPause(NSProcessInfo *info) {
   LibretroMenuRow *textures = [self hdTexturesRow];
   if (textures != nil) [extras addObject:textures];
   [sections addObject:[LibretroMenuSection sectionWithTitle:nil rows:extras]];
+
+  LibretroMenuRow *performance = [LibretroMenuRow toggleWithTitle:[self text:@"performanceOverlay"]
+                                                               on:_performanceOverlay
+                                                           toggle:^(__unused LibretroMenuPage *page, BOOL on) {
+                                                             LibretroSession *session = weakSelf;
+                                                             if (session == nil) return;
+                                                             [session setPerformanceOverlay:on];
+                                                             [NSUserDefaults.standardUserDefaults
+                                                                 setBool:on
+                                                                  forKey:@"libretro.performanceOverlay"];
+                                                           }];
+  performance.identifier = @"libretro-performance-overlay-toggle";
+  LibretroMenuSection *performanceSection = [LibretroMenuSection sectionWithTitle:nil rows:@[ performance ]];
+  performanceSection.footer = [self text:@"performanceOverlayFooter"];
+  [sections addObject:performanceSection];
 
   // Developer diagnostics of the touch chain (finger, control, command sent,
   // state the core read): a lit button is never taken as proof.
