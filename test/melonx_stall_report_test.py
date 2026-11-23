@@ -2,10 +2,30 @@
 """tools/melonx/stall_report.py: the [MeloNX:stall] records of one session, the engine's threads named with a symbol map.
 
 A synthetic journal: two sessions whose records share labels (#1.0, #F1.0), rows without a context after each header,
-an end line per stall, and a Core symbol map of three functions. Nothing is read from a device.
+an end line per stall, a Core symbol map of three functions, and a thin 64-bit Mach-O image (a __TEXT segment based at
+0x100000000, a symbol table with two defined functions, an undefined symbol and a debugging entry) standing for the
+MoltenVK framework binary. Nothing is read from a device.
 """
+
+
+def macho(path, symbols):
+    """A Mach-O header, LC_SEGMENT_64 __TEXT at 0x100000000, LC_SYMTAB; `symbols` = [(name, type, section, value)]."""
+    strings = b'\0' + b''.join(name.encode() + b'\0' for name, _, _, _ in symbols)
+    header_size, segment_size, symtab_size = 32, 72, 24
+    symbol_offset = header_size + segment_size + symtab_size
+    string_offset = symbol_offset + 16 * len(symbols)
+    data = struct.pack('<IiiIIIII', 0xFEEDFACF, 0x0100000C, 0, 6, 2, segment_size + symtab_size, 0, 0)
+    data += struct.pack('<II16sQQQQiiII', 0x19, segment_size, b'__TEXT', 0x100000000, 0x10000, 0, 0x10000, 5, 5, 0, 0)
+    data += struct.pack('<IIIIII', 0x2, symtab_size, symbol_offset, len(symbols), string_offset, len(strings))
+    index = 1
+    for name, kind, section, value in symbols:
+        data += struct.pack('<IBBHQ', index, kind, section, 0, value)
+        index += len(name) + 1
+    Path(path).write_bytes(data + strings)
+
 import gzip
 import json
+import struct
 import subprocess
 import sys
 import tempfile
@@ -34,6 +54,9 @@ with tempfile.TemporaryDirectory(prefix='melonx-stall-report-') as directory:
                      '0000000000002000 T _Ryujinx_Graphics_GAL_Ryujinx_Graphics_GAL_Multithreading_Resources_ProgramQueue__WaitForProgram\n'
                      '0000000000003000 T _Ryujinx_Graphics_GAL_Ryujinx_Graphics_GAL_Multithreading_ThreadedRenderer__RenderLoop\n'
                      '0000000000004000 d _someData\n')
+    moltenvk = work / 'MeloNXMoltenVKStandalone'
+    macho(moltenvk, [('_vkQueueSubmit', 0x0F, 1, 0x100002000), ('__ZN8MVKQueue6submitEv', 0x0E, 1, 0x100003000),
+                     ('_dispatch_semaphore_wait', 0x01, 0, 0), ('debug.o', 0x66, 0, 0x100000100)])
     render = 't11 NeoStation.MeloNX.Render W s0 p47/47 c+0.0 pc=libsystem_kernel.dylib+0x65f8 lr=libsystem_pthread.dylib+0x1dd0 ' \
              'bt=MeloNXCore+0x1010,MeloNXCore+0x2040,MeloNXCore+0x3008,MeloNXMoltenVKStandalone+0x90d84'
     gpu = 't12 GPU.MainThread W s0 p47/47 c+0.1 pc=libsystem_kernel.dylib+0x65f8 lr=libsystem_pthread.dylib+0x1dd0 bt=MeloNXCore+0x1004'
@@ -79,6 +102,18 @@ with tempfile.TemporaryDirectory(prefix='melonx-stall-report-') as directory:
     check(first['threads'][0]['pc'] == 'libsystem_kernel.dylib+0x65f8' and first['threads'][0]['state'] == 'W' and
           second['threads'][0]['cpu'] == '+0.2', (first, second))
     check(call['threads'][0]['pc'] == 'Ryujinx_Graphics_GAL_Ryujinx_Graphics_GAL_Multithreading_ThreadedRenderer__RenderLoop', call)
+
+    # Another image named from its own Mach-O binary: defined section symbols only, by offset from __TEXT.
+    with_moltenvk = json.loads(run('--pid', '100', '--symbols', str(symbols), '--map', f'MeloNXMoltenVKStandalone={moltenvk}', '--json'))
+    check(with_moltenvk['images'] == ['MeloNXCore', 'MeloNXMoltenVKStandalone'] and
+          with_moltenvk['records'][1]['threads'][0]['frames'][-1] == '_ZN8MVKQueue6submitEv', with_moltenvk['records'][1]['threads'][0])
+    text_map = work / 'moltenvk.symbols.txt'
+    text_map.write_text('0000000000002000 T _vkQueueSubmit\n')
+    by_text = json.loads(run('--pid', '100', '--map', f'MeloNXMoltenVKStandalone={text_map}', '--json'))
+    check(by_text['records'][1]['threads'][0]['frames'][-1] == 'vkQueueSubmit' and
+          by_text['records'][1]['threads'][0]['frames'][0] == 'MeloNXCore+0x1010', by_text['records'][1]['threads'][0])
+    bad = subprocess.run([sys.executable, '-I', str(TOOL), str(journal), '--map', 'nothing'], capture_output=True, text=True, timeout=60)
+    check(bad.returncode == 2 and 'IMAGE=PATH' in bad.stderr, bad)
 
     other_session = json.loads(run('--pid', '200', '--json'))
     check(not other_session['named'] and [record['label'] for record in other_session['records']] == ['#F1.0'] and
