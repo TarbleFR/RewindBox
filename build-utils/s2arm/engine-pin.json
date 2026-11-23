@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "036b4d585631efd419aca2a865537d0fcf76b54b7b7813f15629268459b9ace5",
+  "packagedFingerprint": "2ea415f58e995f01ab8bdb242e79cd3f6b14fe12c8b3140c435d9fc98774a08b",
   "producers": {
     "engine": {
-      "run": 45134845578,
-      "attempt": 1,
-      "artifact": 14799847367,
-      "name": "s2arm-engine-framework-d4525af9e5958fa0f6343cb9903d6f1a0d9da141",
-      "bytes": 25255162,
-      "sha256": "d2b47e4589ef70390f3a560ebdcd992aa3e44253f2e7a553f7cc57ab1f385977",
-      "headSha": "d4525af9e5958fa0f6343cb9903d6f1a0d9da141",
+      "run": 45163398115,
+      "attempt": 2,
+      "artifact": 14818930915,
+      "name": "s2arm-engine-framework-0acf127638f724bc0eec61bc0cf3cd2d22c138a0",
+      "bytes": 25261851,
+      "sha256": "79dfffd9e69caa0a15800b7238e62884a51b2164d3904e711f4352dcda478567",
+      "headSha": "0acf127638f724bc0eec61bc0cf3cd2d22c138a0",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-23T08:08:59Z",
+      "expiresAt": "2026-12-23T12:35:58Z",
       "members": {
-        "S2ArmEngine.framework.zip": "db5a6abff2c452927b97562e778db5811fb43b9fec990b3aa0aa6ac98e02f8d7",
-        "NS2Pro.framework.zip": "35a34b80852a9ffd346fb2b3cd9c1379fd4a900f0ae8c4e4d3c124567987c243"
+        "S2ArmEngine.framework.zip": "deebcdcd339b6605b34386ceb5395848d44bb8b5e4b8f8031834dcfe14f203d1",
+        "NS2Pro.framework.zip": "df641e8b74b59c6109ba61921406a3639964db9b37c72ff185a0078482a2701c"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "d2b47e4589ef70390f3a560ebdcd992aa3e44253f2e7a553f7cc57ab1f385977",
+    "engine": "79dfffd9e69caa0a15800b7238e62884a51b2164d3904e711f4352dcda478567",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "001a6ec6e926ec9dddf93c326e7234bd18fd1534cbe2f53bdfd3c97b6c0c3615",
-      "bytes": 115152816,
-      "fingerprint": "036b4d585631efd419aca2a865537d0fcf76b54b7b7813f15629268459b9ace5"
+      "sha256": "f7e7bf96f497ad02690b8d16c89bffe59246fbae99817e1828e2f48a2d6672db",
+      "bytes": 115156264,
+      "fingerprint": "2ea415f58e995f01ab8bdb242e79cd3f6b14fe12c8b3140c435d9fc98774a08b"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45134845578,
-      "attempt": 1,
-      "head_sha": "d4525af9e5958fa0f6343cb9903d6f1a0d9da141",
+      "run": 45163398115,
+      "attempt": 2,
+      "head_sha": "0acf127638f724bc0eec61bc0cf3cd2d22c138a0",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1386,11 +1386,39 @@
         {
           "name": "0311-prepare-registered-stages-only-while-registrations-trickle.patch",
           "sha256": "8a9d9863b5b3e9fa6f88bb618f044302cdfeb33d374cd4ac93d05029656a0300"
+        },
+        {
+          "name": "0312-keep-gpu-drawn-shared-textures-across-matching-keys-and-registered-ids.patch",
+          "sha256": "9736f3989b40603bb1c4cfd4e74008047624249ef135a663424cb412aad984f1"
+        },
+        {
+          "name": "0313-order-the-generic-prewarm-by-recorded-first-use-and-log-long-waits.patch",
+          "sha256": "f7024a298761621c10ac3e14a38ce4b22fff26545090464ef6b4052353cca8ff"
+        },
+        {
+          "name": "0314-keep-the-depth-copy-across-stencil-writes-to-its-depth-view.patch",
+          "sha256": "a2ef538292d85319700adf507b1a363ee496648e22b4f506a3198288b39fc4c4"
+        },
+        {
+          "name": "0315-read-the-clock-less-often-in-the-pipeline-lookahead-and-binds.patch",
+          "sha256": "a41963052324ea3bc12d03ed172bc05a1686ed334e6462984fda98697aa872ef"
+        },
+        {
+          "name": "0316-build-the-counter-heap-with-the-encode-thread-on.patch",
+          "sha256": "158ab7bc7fee23f583364680efaeaa00b7da88e801ef7ccd1a11db9cd521d366"
+        },
+        {
+          "name": "0317-take-upstream-runtime-and-session-stability-fixes.patch",
+          "sha256": "c4306de946742bf337a5989482aeaaaea55ecbd2fa0036e88630d78b37aca86a"
+        },
+        {
+          "name": "0318-take-upstream-camera-audio-font-quarantine-and-submit-fixes.patch",
+          "sha256": "78bb19be159eb383713d5431582436d367ef2d4d77c50b1a7b4df2fe5be91840"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "db5a6abff2c452927b97562e778db5811fb43b9fec990b3aa0aa6ac98e02f8d7",
-        "NS2Pro.framework.zip": "35a34b80852a9ffd346fb2b3cd9c1379fd4a900f0ae8c4e4d3c124567987c243"
+        "S2ArmEngine.framework.zip": "deebcdcd339b6605b34386ceb5395848d44bb8b5e4b8f8031834dcfe14f203d1",
+        "NS2Pro.framework.zip": "df641e8b74b59c6109ba61921406a3639964db9b37c72ff185a0078482a2701c"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
