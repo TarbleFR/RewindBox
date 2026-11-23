@@ -405,6 +405,62 @@ indépendant et peut avancer pendant l'étude de faisabilité de C et D.
 5. **Arène JIT.** Une par session pour commencer (conseillé) ou une pour toute la durée du processus ?
 6. **Lot F** selon les mesures du lot 0 ?
 
+## 8. Décisions du 23 novembre 2026 et avancement
+
+Décisions du mainteneur :
+1. MetalFX pour tous les cœurs.
+2. Azahar : compilation RewindBox de la même version.
+3. PS1 : étude Lightrec, puis intégration si elle est possible.
+4. DS : garder DeSmuME et en concevoir le JIT.
+
+| Lot | État | Preuve |
+| --- | --- | --- |
+| A. MetalFX Spatial | **Codé.** Étape du présentateur (`LibretroMetalFXPolicy.h`, `LibretroMetalFXUpscaler` dans `LibretroMetalPresenter.m`), réglage par cœur sur la page « Résolution et image », pause thermique, mesure A/B au journal, cinq libellés en douze langues. | Compilation et édition de liens iPhone de tout le pont : contrôle libretro, run [45175436955](https://github.com/TarbleFR/RewindBox/actions/runs/45175436955), source `aed29a8`. **Non vérifié sur iPhone.** |
+| B. Hôte JIT libretro | **Codé, inactif** tant qu'aucun cœur n'annonce d'arène (`jitArenaBytes` vaut 0 partout) :<br>• ABI `RewindBoxLibretroJit.h` v1 ;<br>• arène `LibretroJitArena.m` ;<br>• session du helper `LibretroJitSession.m` ;<br>• transaction `LibretroJitBridge.m` (méthodes `prepareJit` et `releaseJit`) ;<br>• point d'accroche `libraryOpened` de l'hôte ;<br>• paquet `packages/libretro_jit_helper`, copie tracée du helper RPCS3 (`tools/libretro/derive_jit_helper.py`, `copy-of-rpcs3.json`) ;<br>• `build-utils/configure_libretro_ios.py` ;<br>• étape Dart (route LocalDevVPN, appairage, faits journalisés) ;<br>• avis `jitInterpreterNotice`. | Même compilation iPhone pour la partie native. Les 586 tests Dart du contrôle libretro passent localement. Le helper n'est pas encore ajouté par la livraison (validateurs et étape Xcode à brancher avec le premier cœur JIT). |
+| C. Azahar JIT | Étude de la recette de compilation et des correctifs en cours. | — |
+| D. Beetle PSX (Lightrec) | **Faisable avec un correctif modeste** (ci-dessous). | Étude des sources (Beetle `10e4b0c6`, Lightrec vendu, GNU Lightning vendu, pcsx_rearmed). |
+| E. DeSmuME | Conception du JIT AArch64 en cours. | — |
+
+### 8.1 Lightrec : résultat de l'étude (23 novembre)
+
+- **Pas de support existant.** GNU Lightning et Lightrec écrivent le code à l'adresse où il s'exécute. La seule
+  bascule W^X de Lightning est `mprotect`, interdite par le contrat.
+- **Liste fermée des endroits où l'adresse du code compte** (AArch64) :
+  - retour de `jit_emit` et de `jit_address` (fonctions des blocs, distributeur, points d'entrée) ;
+  - sauts et appels absolus (`jmpi`, `calli`, relatifs au pc d'écriture) ;
+  - adresses d'étiquettes chargées en constantes ;
+  - vidage du cache sur la plage d'écriture ;
+  - métadonnées TLSF dans le tampon.
+- **Pourquoi le correctif reste petit.** Pas de chaînage de blocs, pas de réécriture du code émis (une
+  recompilation émet ailleurs et le reaper libère l'ancien bloc), pas d'ADR/ADRP ni de pool de littéraux.
+  Un seul décalage « exécution − écriture » par état JIT suffit.
+- **Correctif estimé** (estimations de l'étude) :
+  - GNU Lightning, AArch64 seul, 40 à 70 lignes : `jit_set_code_exec`, cibles absolues, étiquettes, vidage,
+    `HAVE_MMAP 0` sur iOS ;
+  - Lightrec, 20 à 40 lignes : `lightrec_set_code_exec_offset`, conversions RX/RW, `isb` après l'installation
+    d'un bloc compilé par un fil de travail ;
+  - Beetle, 120 à 200 lignes :
+    - `HAVE_LIGHTREC = 1` en iOS et `rewindbox_libretro_jit_install` ;
+    - un seul `allocate` de 16 Mio par ouverture ;
+    - tampon indépendant de la réussite de la disposition mémoire PS1 ;
+    - `exit(1)` remplacé par un repli sur l'interpréteur ;
+    - reprise du correctif amont `ed9dabc6` (double libération au second chargement d'un jeu) ;
+    - vues mémoire par `shm_open` si le bac à sable l'accepte, sinon par Mach `vm_remap`.
+- **Arène : 16 Mio**, en une allocation. La table de correspondance de 5 Mio reste hors de l'arène. Aucun
+  gestionnaire de signaux.
+- **Options.**
+  - `beetle_psx_hw_cpu_dynarec` / `beetle_psx_cpu_dynarec` : `disabled`, `execute`, `run_interpreter`.
+  - Surcharges : `disabled` sans JIT, `execute` avec l'ABI.
+  - `dynarec_invalidate`, `dynarec_eventcycles` et voisines restent celles du cœur.
+- **Licences.**
+  - Lightrec : LGPL-2.1-or-later. GNU Lightning : LGPL-3.0-or-later. Fichiers Mednafen : GPL-2.0-or-later.
+  - Le binaire avec Lightrec doit donc être distribué sous GPLv3, ce qui est compatible avec RewindBox.
+  - Doute restant : quelques fichiers sans mention de licence, couverts par le COPYING GPLv2 du dépôt.
+- **Comportement.**
+  - Dynarec moins précis que l'interpréteur, selon le cœur lui-même.
+  - Les codes de triche qui modifient du code MIPS n'atteignent pas les blocs déjà compilés.
+  - Le gain n'est pas mesuré : il porte sur le temps CPU et la chauffe.
+
 ## Sources consultées
 
 - **Pont libretro** : `LibretroMetalPresenter.{h,m}`, `LibretroVulkanRenderer.{h,m}`, `LibretroGLRenderer.m`,
