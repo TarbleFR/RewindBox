@@ -241,7 +241,7 @@
       "cores": [
         "azahar"
       ],
-      "source_release": "https://github.com/azahar-emu/azahar/releases/tag/2127.0-alpha1"
+      "source_release": "https://github.com/azahar-emu/azahar/releases/tag/2127.0-rc5"
     },
     {
       "component": "MoltenVK",

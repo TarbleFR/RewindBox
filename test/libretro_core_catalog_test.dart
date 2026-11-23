@@ -391,9 +391,12 @@ void main() {
 
   test('cores that generate machine code fall back to interpreters without JIT', () {
     final cores = LibretroCoreCatalog.cores;
-    // Both JITs are compiled off in the official iOS alpha. The packaging
-    // check pins that binary and rejects the removed JIT option keys.
-    expect(cores['azahar']!.noJitOverrides, isEmpty);
+    // RewindBox's Azahar build declares both JIT options; without the JIT
+    // interface they are forced off and FastInterp runs.
+    expect(cores['azahar']!.noJitOverrides, <String, String>{
+      'citra_use_cpu_jit': 'disabled',
+      'citra_use_shader_jit': 'disabled',
+    });
     expect(cores['azahar']!.optionDefaults['citra_use_fastinterp'], 'enabled');
     final fast = cores['azahar']!.settings.singleWhere(
       (setting) => setting.key == 'citra_use_fastinterp',

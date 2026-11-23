@@ -261,8 +261,8 @@ def main():
             'no-JIT overrides were not parsed')
     require(cores['azahar']['defaults'].get('citra_use_fastinterp') == 'enabled',
             'FastInterp must default on without locking the user choice')
-    require(not cores['azahar']['noJit'],
-            'official iOS alpha compiles both JITs off and removes those options')
+    require(cores['azahar']['noJit'] == {'citra_use_cpu_jit': 'disabled', 'citra_use_shader_jit': 'disabled'},
+            "RewindBox's Azahar build declares both JIT options: forced off without the JIT interface")
     if args.cores is None:
         print('Catalog parsed:', len(cores), 'cores; binary contract needs --cores')
         return

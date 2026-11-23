@@ -154,7 +154,10 @@ void main() {
       {'value': 'enabled', 'label': 'Enabled'},
       {'value': 'disabled', 'label': 'Disabled'},
     ]);
-    expect(request['noJitOverrides'], isEmpty);
+    expect(request['noJitOverrides'], <String, String>{
+      'citra_use_cpu_jit': 'disabled',
+      'citra_use_shader_jit': 'disabled',
+    });
     final languageValues = (settings[1]['values'] as List).cast<Map<Object?, Object?>>();
     expect(languageValues.map((value) => value['value']).toList(), contains('Traditional Chinese'));
     expect(languageValues.firstWhere((value) => value['value'] == 'Traditional Chinese')['label'],

@@ -97,9 +97,11 @@ license compatibility. Adding attribution alone is not a compliance clearance.
 `license-sources.json` records immutable upstream revisions and SHA-256 hashes
 for the retrieved license documents. Those are **license reference snapshots**,
 not attestations that those revisions produced the buildbot binaries. Azahar
-2127.0-alpha1 is separately pinned to its official release and source revision
-`5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6`; its upstream license was checked
-against that exact revision.
+is built by RewindBox from the official source of 2127.0-rc5 (revision
+`6f293a24daa292bd02b4ffee1a2adb5435e1ae00`, archive `azahar-unified-source-2127.0-rc5.tar.xz`)
+with `native/azahar/rewindbox-jit.patch` (the RewindBox JIT interface). Its
+upstream license is the same text at that revision and at the 2127.0-alpha1
+revision `5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6` of the license snapshot.
 
 `Libretro-native-identity.json` in the IPA records the downloaded archives,
 pre-signing binary hashes, retrieval dates and upstream repositories. The

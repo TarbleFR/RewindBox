@@ -704,15 +704,19 @@ package (MIT), and EPUB/XHTML parsing uses the Dart
 [html](https://pub.dev/packages/html) (BSD-3-Clause) and
 [xml](https://pub.dev/packages/xml) (MIT) packages.
 
-## Azahar 2127.0-alpha1 — embedded Nintendo 3DS core
+## Azahar 2127.0-rc5 — embedded Nintendo 3DS core, built by RewindBox
 
-NeoStation Build 453 replaces its 3DS libretro core with the unmodified official
-iOS ARM64 release of [Azahar](https://github.com/azahar-emu/azahar/releases/tag/2127.0-alpha1).
-This version is licensed under **GPLv3 or later**, with the license included in
-the application under `Libretro-Licenses/Azahar-LICENSE.txt`.
-Source revision: `5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6`.
-The release provides the complete source archive with dependencies:
-[azahar-unified-source-2127.0-alpha1.tar.xz](https://github.com/azahar-emu/azahar/releases/download/2127.0-alpha1/azahar-unified-source-2127.0-alpha1.tar.xz).
+RewindBox builds its 3DS libretro core from the official source of
+[Azahar 2127.0-rc5](https://github.com/azahar-emu/azahar/releases/tag/2127.0-rc5)
+(source revision `6f293a24daa292bd02b4ffee1a2adb5435e1ae00`) with the modifications in
+`native/azahar/rewindbox-jit.patch` of the RewindBox source repository: the
+RewindBox JIT interface, through which the core takes its code buffers from the
+executable memory the application prepares and runs its CPU and shader JIT only
+when that interface is installed. This version is licensed under **GPLv3 or
+later**, with the license included in the application under
+`Libretro-Licenses/Azahar-LICENSE.txt`. The release provides the complete source
+archive with dependencies (dynarmic 0BSD, oaknut MIT among them):
+[azahar-unified-source-2127.0-rc5.tar.xz](https://github.com/azahar-emu/azahar/releases/download/2127.0-rc5/azahar-unified-source-2127.0-rc5.tar.xz).
 FastInterp is credited to warmenhoven and the Azahar contributors.
 The other embedded libretro cores retain their existing versions and licenses.
 

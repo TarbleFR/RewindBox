@@ -337,10 +337,14 @@ abstract final class LibretroCoreCatalog {
         'app',
       },
       preferredHardwareContext: LibretroHardwareContext.vulkan,
-      // Official 2127.0-alpha1 iOS builds compile CPU and shader JIT off;
-      // they no longer declare either JIT option. FastInterp uses no JIT.
-      // A stored disabled choice wins over this default on the next launch.
+      // RewindBox builds Azahar 2127.0-rc5 from source with its JIT interface
+      // (native/azahar): the CPU (dynarmic) and shader JIT run only when the
+      // libretro JIT helper prepared the code arena and the core installed it;
+      // both options then keep the user's choice (enabled by default). Without
+      // the JIT they are forced off for the session and FastInterp runs, which
+      // uses no JIT. A stored disabled FastInterp choice wins over its default.
       optionDefaults: {'citra_use_fastinterp': 'enabled'},
+      noJitOverrides: {'citra_use_cpu_jit': 'disabled', 'citra_use_shader_jit': 'disabled'},
       resolution: LibretroResolutionDeclaration(
         libraryName: 'Azahar',
         key: 'citra_resolution_factor',
