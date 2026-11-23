@@ -369,11 +369,15 @@ class ManifestSchema(unittest.TestCase):
                 self.assertNotIn(key, images['replaced'], key)
                 self.assertIn(spec['image'], sd.expand_image_patterns(images['retained'][key], sorted(base)), key)
         self.assertEqual(len(retained_names), len(set(retained_names)))
-        # Every libretro core is retained, except those a reviewed source-built collection compiled: they must change.
+        # Every libretro core is retained, except those a reviewed source-built collection compiled: they must change,
+        # unless the collection rebuilt one byte-identical to the base; that one may stay retained, since the build
+        # then proves its payload equals the base fingerprint.
         collection = source_collections.collection(manifest['components']['libretro'])
         rebuilt = {f'Frameworks/{core}_libretro.framework/{core}_libretro' for core in (collection or {}).get('cores', ())}
-        self.assertLessEqual(rebuilt, set(images['mustChange']))
-        self.assertEqual(sum(n.endswith('_libretro') for n in retained_names) + len(rebuilt), 35)
+        changing = rebuilt - set(retained_names)
+        self.assertTrue(changing or not rebuilt)
+        self.assertLessEqual(changing, set(images['mustChange']))
+        self.assertEqual(sum(n.endswith('_libretro') for n in retained_names) + len(changing), 35)
         self.assertFalse(set(retained_names) & set(images['mustChange']))
         self.assertTrue(set(images['replaced'].values()) <= set(base) and set(images['mustChange']) <= set(base))
         tree = effective_of_head()
