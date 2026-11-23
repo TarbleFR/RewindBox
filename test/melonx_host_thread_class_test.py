@@ -10,8 +10,7 @@ threads, raised to the user-interactive class since Core 609, run at 47 and spen
 
 Static: the control is the Core 731 set of eight files; the candidate differs by the adapter's nine replacements (the
 helper in NanosleepPool.cs, and the call as the first statement of eight thread bodies); the bodies are the entry points
-of the threads named; nothing else in the tree calls the helper but the one later thread body reviewed below
-(adapt_shader_cache_parallel_read's read-ahead threads); HostThreadQos is unchanged.
+of the threads named; nothing else in the tree calls the helper; HostThreadQos is unchanged.
 Executed: the production Ryujinx.HLE project (with Ryujinx.Audio and Ryujinx.Common) is built from the control and from
 the candidate. test/melonx_host_thread_class/Program.cs loads the side's assemblies and runs each real thread body on
 its own thread (on an uninitialized object: the first statements run, then the body ends as the control's does):
@@ -38,8 +37,7 @@ FINAL_SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--can
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import ORDER, control_source, files_edited_later, postimage, reverse_present, use_authenticated_libhac_feed  # noqa: E402
-import importlib  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later, use_authenticated_libhac_feed  # noqa: E402
 _HOLD = []
 CONTROL_SOURCE, FINAL_PREPARATION = control_source(FINAL_SOURCE, 'adapt_host_thread_class', _HOLD)
 import adapt_host_thread_class as adapter  # noqa: E402
@@ -136,59 +134,16 @@ for name, signature, start, thread in SITES:
     check(after == before[:brace] + indent + adapter.CALL + before[brace:], thread + ': the call is the body\'s first statement and its only change')
     check(final[name].count(start) == 1 and control[name].count(start) == 1, thread + ': the body is the entry point of the thread the file starts')
 sources = list((FINAL_SOURCE / 'src').rglob('*.cs'))
-callers = {path.relative_to(FINAL_SOURCE).as_posix(): path.read_text(encoding='utf-8-sig', errors='replace').count('HostThreadClass.RaiseCurrentThread()')
-           for path in sources}
-callers = {name: count for name, count in callers.items() if count}
+calls = sum(path.read_text(encoding='utf-8-sig', errors='replace').count('HostThreadClass.RaiseCurrentThread()') for path in sources)
 declared = sum(path.read_text(encoding='utf-8-sig', errors='replace').count('class HostThreadClass') for path in sources)
-# After IPA 821 a later adapter calls the helper too, from a thread body of its own: adapt_shader_cache_parallel_read's
-# threads that read the disk shader cache ahead of the GPU thread ask the class that thread already has (HostThreadQos),
-# so that the launch does not wait for threads of the default class. Reviewed here and bound to that adapter: it runs
-# later, the file is its own, the file as it found it called nothing, and its call is, as for the eight bodies, the
-# first statement of the entry point of the threads the file starts. Any other caller in the tree fails this gate.
-LATER_CALLERS = {'adapt_shader_cache_parallel_read': ('src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheHostStorage.cs',
-                                                      '            private void ReadAheadThread()', 'Thread thread = new(ReadAheadThread)')}
-check(callers == {**{site[0]: 1 for site in SITES}, **{name: 1 for name, _, _ in LATER_CALLERS.values()}} and declared == 1,
-      'the tree calls the helper from these eight bodies and from the reviewed later thread body only, and declares it once: %s' % callers)
-for later_adapter, (name, signature, start) in LATER_CALLERS.items():
-    later_module = importlib.import_module(later_adapter)
-    check(ORDER.index(later_adapter) > ORDER.index('adapt_host_thread_class') and name in later_module.BASELINE and name not in adapter.BASELINE,
-          later_adapter + ' runs after this adapter and the file is its own')
-    found = Path(tempfile.mkdtemp(prefix='melonx-host-thread-class-later-'))
-    # The adapter's files as it left them (later adapters sharing them reversed), then as it found them.
-    check(postimage(later_adapter, FINAL_SOURCE, found) is not None and reverse_present(found, later_adapter) == list(later_module.BASELINE) and
-          all(sha(found / file) == digest for file, digest in later_module.BASELINE.items()) and
-          'HostThreadClass' not in text(found, name), 'the file as ' + later_adapter + ' found it (its pinned bytes) calls nothing')
-    shutil.rmtree(found)
-    body = member(text(FINAL_SOURCE, name), signature)
-    statements = [line.strip() for line in body[body.index('{\n') + 2:].splitlines() if line.strip() and not line.strip().startswith('//')]
-    check(statements[0] == adapter.CALL.strip().split(' //')[0] and text(FINAL_SOURCE, name).count(start) == 1,
-          later_adapter + ': the call is the first statement of the entry point of the threads the file starts')
+check(calls == 8 and declared == 1, 'the tree calls the helper from these eight bodies only and declares it once')
 block = final[adapter.SLEEP][final[adapter.SLEEP].index(adapter.HELPER_BEGIN):final[adapter.SLEEP].index(adapter.HELPER_END)]
-# The renderer is not this adapter's file, and more adapters edit it than the four listed above (after IPA 821,
-# adapt_hogwarts_steady_render retires the render loop's commands in batches, inside adapt_render_command_clock's text).
-# Derived instead of listed: the final preparation with every later adapter sharing this adapter's files reversed, latest
-# first (postimage; adapt_wait_spin_bound shares KThread.cs and brings the renderer in), holds the control's renderer and
-# this adapter's own eight files; control_source() proved that re-applying those adapters gives the final preparation.
-# HostThreadQos and its callers are then read in the final renderer itself.
-_own_tree = Path(tempfile.mkdtemp(prefix='melonx-host-thread-class-own-'))
-_later = postimage('adapt_host_thread_class', FINAL_SOURCE, _own_tree)
-check('adapt_wait_spin_bound' in _later and all(name in _later for name in ('adapt_pinned_command_queue', 'adapt_render_command_clock', 'adapt_draw_wait_lanes')) and
-      text(_own_tree, RENDERER) == text(CONTROL_SOURCE, RENDERER) and text(_own_tree, RENDERER) != text(FINAL_SOURCE, RENDERER),
-      'the renderer with the later adapters reversed is the control\'s')
-check(all(text(_own_tree, name) == final[name] for name in adapter.BASELINE),
-      'the later replacements undone by hand in this adapter\'s files are all the later edits of them (derived postimage)')
-shutil.rmtree(_own_tree)
-renderer, control_renderer = text(FINAL_SOURCE, RENDERER), text(CONTROL_SOURCE, RENDERER)
+renderer = without_later(RENDERER, text(FINAL_SOURCE, RENDERER))
 check('public const uint UserInteractive = 0x21;' in block and 'private const uint UserInteractive = 0x21;' in renderer and
       'EntryPoint = "pthread_set_qos_class_self_np"' in block and 'EntryPoint = "pthread_set_qos_class_self_np"' in renderer and
       'result = SetClass(UserInteractive, 0);' in block,
       'the class and the call are those of the render and GPU threads (HostThreadQos)')
-qos = 'public static partial class HostThreadQos'
-calling = lambda source: [line.strip() for line in source.splitlines() if 'HostThreadQos.RaiseCurrentThread();' in line]
-check(member(renderer, qos) == member(control_renderer, qos) and calling(renderer) == calling(control_renderer) and len(calling(renderer)) >= 1 and
-      member(renderer, 'public void RunLoop(ThreadStart gpuLoop)').count('HostThreadQos.RaiseCurrentThread();') ==
-      member(control_renderer, 'public void RunLoop(ThreadStart gpuLoop)').count('HostThreadQos.RaiseCurrentThread();') == len(calling(renderer)),
-      'HostThreadQos and its callers are unchanged, in the final renderer as in the control\'s')
+check(renderer == text(CONTROL_SOURCE, RENDERER) and renderer.count('HostThreadQos.RaiseCurrentThread();') >= 1, 'HostThreadQos and its callers are unchanged')
 check(block.count('ApplePlatform = ') == 1 and block.count('SetClass = ') == 1 and
       sum(path.read_text(encoding='utf-8-sig', errors='replace').count('HostThreadClass.SetClass') +
           path.read_text(encoding='utf-8-sig', errors='replace').count('HostThreadClass.ApplePlatform') for path in sources) == 0,

@@ -71,11 +71,7 @@ sys.path.insert(0, str(ROOT / 'test'))
 from melonx_adapter_control import ORDER, apply_present  # noqa: E402
 
 ALL = [*adapter.NAMES, *host.NAMES]
-# Files of this composition each post-631 adapter edits, in preparation order (PR #153 lot, then PR #154 lot): the
-# reviewed notes of the lots before adapt_hogwarts_frame_budget. They stay binding for the adapters they name (a noted adapter that
-# starts or stops editing a file of this composition is refused); the expectation for the whole preparation order,
-# adapters added after these notes included, is derived from each adapter's pinned files (lot_files below), and the
-# composition is then required to be the final prepared source byte for byte.
+# Files of this composition each post-631 adapter edits, in preparation order (PR #153 lot, then PR #154 lot).
 LOT_FILES = {
     'adapt_pipeline_warmup_parity': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'],
     'adapt_device_short_trim': ['src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs'],
@@ -326,14 +322,6 @@ LOT_FILES = {
     'adapt_cheat_report': [],
 }
 
-
-
-def lot_files():
-    """For every adapter of the preparation order, the files of this composition it pins (its BASELINE), in its order."""
-    import importlib
-    return {name: [file for file in importlib.import_module(name).BASELINE if file in ALL] for name in ORDER}
-
-
 checks = 0
 
 
@@ -379,7 +367,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
         after[adapter.LIBRARY].replace(queued.LIBRARY_ANCHOR, queued.HUNKS[queued.LIBRARY][0][1]), encoding='utf-8')
     lots = {name: apply_present(expected_final, name) for name in ORDER}
     print(json.dumps({'lotFiles': lots}), flush=True)
-    check(lots == lot_files() and set(LOT_FILES) <= set(ORDER) and all(lots[name] == files for name, files in LOT_FILES.items()) and
+    check(lots == LOT_FILES and
           all((composed / p).read_bytes() == (expected_final / p).read_bytes() for p in ALL),
           'the final composition adds only the queued syncpoint Library line and the PR #153, #154 and #156 hunks (its follow-up and new lot included)')
     postimages = {p: sha(composed / p) for p in ALL}

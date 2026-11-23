@@ -28,7 +28,7 @@ dispatch, compiled once.
 Writes dist/melonx/setprogram-warmup-checks.json.
 """
 from pathlib import Path
-import difflib, hashlib, importlib, json, os, re, shutil, subprocess, sys, tempfile
+import difflib, hashlib, json, os, re, shutil, subprocess, sys, tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
@@ -128,15 +128,12 @@ COLLECTION_MEMBERS = [
     'private void WaitForBackgroundPipelineQueue()']
 # The final preparation's members around them (adapt_sibling_pipelines), real; Final.cs doubles the variant journal.
 FINAL_COLLECTION_MEMBERS = ['private bool TryGetOwnGraphicsPipeline(', 'private void TakeSiblingGraphicsPipeline(',
-                            'private Auto<DisposablePipeline> LendGraphicsPipeline(', 'private static PipelineCodeIdentity ComputeCodeIdentity(',
-                            # After IPA 821 (adapt_render_thread_compile_relief): the short wait of a draw that may skip, real.
-                            'public bool TryWaitBrieflyForQueuedGraphicsPipeline(']
+                            'private Auto<DisposablePipeline> LendGraphicsPipeline(', 'private static PipelineCodeIdentity ComputeCodeIdentity(']
 FINAL_SIBLING_TYPES = '    // RewindBox (adapt_sibling_pipelines): what makes two programs on one pipeline layout entry the same host program.\n'
 FINAL_DOUBLED = ('PipelineVariantJournal.ITarget.Schedule(', 'private async Task OfferRecordedVariants()', 'private void CancelVariantReplays()',
                  'internal void NoteLateVariant(', 'private void NoteQueuedVariant(', 'internal void NotePipelineBound(')
 BASE_CTOR = '        public ShaderCollection(\n            VulkanRenderer gd,\n            Device device,\n            ShaderSource[] shaders,'
 STATE_CTOR = '        public ShaderCollection(\n            VulkanRenderer gd,\n            Device device,\n            ShaderSource[] sources,'
-PRIVATE_CTOR = '        private ShaderCollection(VulkanRenderer gd, Device device, ShaderSource[] shaders, ResourceLayout resourceLayout,'
 LAYOUT_CUT = ('            bool usePushDescriptors = !isMinimal &&', '            _compileTask = compileInBackground && startBackgroundTask')
 
 
@@ -156,19 +153,12 @@ def extract(work, final=False):
     header_start = collection.index(declaration + '\n    {\n') + len(declaration + '\n    {\n')
     header = collection[header_start:collection.index(BASE_CTOR)]
     base = member(collection, BASE_CTOR)
-    delegating = []
-    if LAYOUT_CUT[0] not in base:
-        # Final preparation, after IPA 800 (adapt_hogwarts_pipeline_replay): the public constructor only delegates to a
-        # private one, which holds the body and hands out the program's code identity. Both are compiled, real.
-        check(final and collection.count(PRIVATE_CTOR) == 1 and ': this(gd, device, shaders, resourceLayout,' in base and
-              base.rstrip().endswith('{\n        }'), 'final: the public base constructor delegates to the private one')
-        delegating, base = [base], member(collection, PRIVATE_CTOR)
     cut = base[base.index(LAYOUT_CUT[0]):base.index(LAYOUT_CUT[1])]
     check('_plce = gd.PipelineLayoutCache.GetOrCreate(' in cut and '            Stages = stages;\n' in cut and '_compileTask' not in cut,
           'the base constructor part left out is the descriptor layout part only')
     base = base.replace(cut, '            _plce = new PipelineLayoutCacheEntry(); // RewindBox fixture: no descriptor layout\n'
                                   '            Stages = stages;\n\n')
-    members = [header, *delegating, base, member(collection, STATE_CTOR)]
+    members = [header, base, member(collection, STATE_CTOR)]
     signatures = COLLECTION_MEMBERS + (['public bool TryWaitForBackgroundComputePipeline('] if 'TryWaitForBackgroundComputePipeline(' in collection else [])
     members += [member(collection, s) for s in signatures + (FINAL_COLLECTION_MEMBERS if final else [])]
     shader_members = [region(shader, '        private readonly VulkanRenderer _gd;', '        public readonly Task CompileTask;')]
@@ -449,26 +439,16 @@ if FINAL_RUN:
     check(demand_lines and all(line in final_lines for line in demand_lines),
           'final: every code line adapt_compute_warmup_demand adds to ShaderCollection.cs is compiled and executed by the fixture: '
           + str([line for line in demand_lines if line not in final_lines][:3]))
-    scheduler_final = (FINAL_SOURCE / SCHEDULER).read_text(encoding='utf-8-sig')
-    # After IPA 760, adapt_draw_wait_lanes (later in ORDER) declares fields after the flag's and adds one block to TryTake and
-    # one to Promote; after IPA 821, adapt_guest_stop_compile_cancel and adapt_render_thread_compile_relief edit the file too
-    # (a cancellation without the join; a queue lane for recorded states, which TryTake reads between the two others). The
-    # rule compared is the compute lot's, on the file as that adapter left it: derived, the final preparation with every
-    # later adapter sharing its files reversed, latest first (postimage). Every code line the rule adds is also required
-    # in the final file itself, which the fixture runs whole. The fixture's render thread is not a bound render thread,
-    # so its draws wait as before the lanes.
-    with tempfile.TemporaryDirectory(prefix='melonx-setprogram-warmup-demand-') as demand_tree:
-        demand_later = postimage('adapt_compute_warmup_demand', FINAL_SOURCE, Path(demand_tree))
-        scheduler_text = (Path(demand_tree) / SCHEDULER).read_text(encoding='utf-8-sig')
-    scheduler_editors = [name for name in demand_later if SCHEDULER in importlib.import_module(name).BASELINE]
-    check(('adapt_draw_wait_lanes' not in ORDER or scheduler_editors[:1] == ['adapt_draw_wait_lanes']) and
-          (scheduler_text != scheduler_final) == bool(scheduler_editors),
-          'final: the later adapters editing the scheduler start with adapt_draw_wait_lanes: %s' % scheduler_editors)
-    rule_lines = [line for path, old, new in demand.PAIRS if path == demand.SCHEDULER
-                  for line in new.splitlines() if line not in old.splitlines() and line.strip() and not line.strip().startswith('//')]
-    check(rule_lines and all(line in scheduler_final.splitlines() for line in rule_lines),
-          'final: every code line of the demand-queue rule is in the final BackgroundCompilationScheduler.cs: '
-          + str([line for line in rule_lines if line not in scheduler_final.splitlines()][:3]))
+    scheduler_text = (FINAL_SOURCE / SCHEDULER).read_text(encoding='utf-8-sig')
+    # After IPA 760: adapt_draw_wait_lanes (later in ORDER) declares fields after the flag's and adds one block to TryTake
+    # and one to Promote. Its replacements in this file are undone first (each required once): the rule compared is the
+    # compute lot's. The fixture's render thread is not a bound render thread, so its draws wait as before.
+    if 'adapt_draw_wait_lanes' in ORDER:
+        import adapt_draw_wait_lanes as draw_wait  # noqa: E402
+        for path, old, new in reversed(draw_wait.PAIRS):
+            if path == SCHEDULER:
+                check(scheduler_text.count(new) == 1, 'final: adapt_draw_wait_lanes: each replacement once in ' + SCHEDULER)
+                scheduler_text = scheduler_text.replace(new, old)
     check(executed_whole.get(SCHEDULER) == hashlib.sha256((FINAL_SOURCE / SCHEDULER).read_bytes()).hexdigest()
           and all(scheduler_text.count(new) == 1 for path, old, new in demand.PAIRS if path == demand.SCHEDULER),
           'final: the fixture runs the final BackgroundCompilationScheduler.cs whole, with the demand-queue rule')

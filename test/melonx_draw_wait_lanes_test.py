@@ -25,13 +25,6 @@ Not executed here: the two call sites in ShaderCollection.cs (the setprogram-war
 members, these two included, on its own doubles), Metal's compiler, and anything on a device. Whether Metal compiles two
 pipelines at once as fast as one is read from the next IPA's journals.
 Writes dist/melonx/draw-wait-lanes-checks.json.
-
-Later adapters edit four of the five files (derived from their file lists: files_edited_later; after IPA 821,
-adapt_guest_stop_compile_cancel and adapt_render_thread_compile_relief edit the scheduler: a cancellation without the
-join, a queue lane for recorded states between the high and the low priority ones). The candidate (control plus this
-adapter) must then be the final preparation with exactly those later adapters reversed (postimage), byte for byte, and a
-third variant, `final`, builds the final preparation's Vulkan assembly and runs the same fixture and the same checks on
-the final preparation's whole scheduler and program queue: what this adapter gives must still hold there.
 """
 from pathlib import Path
 import hashlib, json, os, re, shutil, subprocess, sys, tempfile
@@ -41,7 +34,7 @@ sys.dont_write_bytecode = True
 SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, files_edited_later, later_sharing, postimage  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_draw_wait_lanes', _HOLD)
@@ -93,35 +86,22 @@ def counters(text):
 for name, expected in adapter.BASELINE.items():
     check(sha(SOURCE / name) == expected, 'the control is the adapter\'s pinned preparation: ' + name)
 
-# This adapter's files that a later adapter also edits (derived): with any, the candidate is no longer the final
-# preparation and the final preparation is built and executed as a third variant.
-EDITED_LATER = files_edited_later('adapt_draw_wait_lanes') if FINAL_PREPARATION else set()
-LATER = later_sharing('adapt_draw_wait_lanes') if FINAL_PREPARATION else []
-VARIANTS = ('control', 'candidate', 'final') if EDITED_LATER else ('control', 'candidate')
-check(EDITED_LATER <= set(adapter.BASELINE) and adapter.QUEUE not in EDITED_LATER, 'no later adapter edits the program queue')
-
 environment = dict(os.environ, DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1')
 texts, digests, reports, assemblies, executed = {}, {}, {}, {}, {}
 with tempfile.TemporaryDirectory(prefix='melonx-draw-wait-lanes-') as temporary:
-    for variant in VARIANTS:
+    for variant in ('control', 'candidate'):
         work = Path(temporary).resolve() / variant
-        shutil.copytree(FINAL_SOURCE if variant == 'final' else SOURCE, work, ignore=shutil.ignore_patterns('.git', 'bin', 'obj'), symlinks=True)
+        shutil.copytree(SOURCE, work, ignore=shutil.ignore_patterns('.git', 'bin', 'obj'), symlinks=True)
         if variant == 'candidate':
             changed = adapter.apply(work)
             check(sorted(p.relative_to(work).as_posix() for p in changed) == sorted(adapter.BASELINE), 'the adapter edits its five files only')
             if FINAL_PREPARATION:
-                # The final preparation with the later adapters sharing these files reversed, latest first (each to the
-                # bytes its BASELINE pins): this adapter's own postimage. control_source() proved the forward direction.
-                own = Path(temporary).resolve() / 'own-postimage'
-                check(postimage('adapt_draw_wait_lanes', FINAL_SOURCE, own) == LATER, 'the later adapters reversed are those sharing these files')
+                check(files_edited_later('adapt_draw_wait_lanes') == set() or not files_edited_later('adapt_draw_wait_lanes'),
+                      'no later adapter edits these files: the candidate is the final preparation')
                 for name in adapter.BASELINE:
-                    check((work / name).read_bytes() == (own / name).read_bytes(),
-                          'the final preparation, later adapters reversed, is the control plus the adapter: ' + name)
-                    check(name in EDITED_LATER or (work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(),
-                          'the final preparation is the control plus the adapter: ' + name)
+                    check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'the final preparation is the control plus the adapter: ' + name)
         texts[variant] = {name: (work / name).read_text(encoding='utf-8-sig') for name in adapter.BASELINE}
-        if variant != 'final':
-            digests[variant] = tree_digests(work)
+        digests[variant] = tree_digests(work)
         result = subprocess.run([DOTNET, 'build', str(work / (VULKAN + 'Ryujinx.Graphics.Vulkan.csproj')), '-c', 'Release', '-nologo', '-m:1',
                                  '-p:NuGetAudit=false'], capture_output=True, text=True, timeout=2400, env=environment, cwd=work)
         if result.returncode:
@@ -142,7 +122,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-draw-wait-lanes-') as temporary:
         (fixture / 'Fixture.csproj').write_text(
             '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>'
             '<Nullable>disable</Nullable><NuGetAudit>false</NuGetAudit><ImplicitUsings>disable</ImplicitUsings>'
-            '<NoWarn>CS0649;CS0414;CS0169;CS8321</NoWarn>' + ('<DefineConstants>LANES</DefineConstants>' if variant != 'control' else '')
+            '<NoWarn>CS0649;CS0414;CS0169;CS8321</NoWarn>' + ('<DefineConstants>LANES</DefineConstants>' if variant == 'candidate' else '')
             + '</PropertyGroup></Project>\n')
         result = subprocess.run([DOTNET, 'build', str(fixture / 'Fixture.csproj'), '-c', 'Release', '-nologo', '-p:NuGetAudit=false'],
                                 capture_output=True, text=True, timeout=900, env=environment, cwd=fixture)
@@ -213,109 +193,63 @@ loop = member(threaded_k, 'public void RunLoop(ThreadStart gpuLoop)')
 check(loop.index('RenderThreadPrograms.Bind(Programs);') < loop.index('RenderLoop();') < loop.index('RenderThreadPrograms.Bind(null);') < loop.index('_renderLoopExited.Set();'),
       'the render thread is bound for the time of its loop and unbound in the finally, before the exit is signalled')
 
-# --- Static, final preparation: what later adapters left of this adapter's own members.
-if 'final' in texts:
-    final = texts['final']
-    scheduler_f, collection_f, pipeline_f = final[adapter.SCHEDULER], final[adapter.COLLECTION], final[adapter.PIPELINE]
-    for signature in ('public void Promote(Task task)', 'public void BeginDrawWait(Task task)',
-                      'public void EndDrawWait(Task task)', 'public bool TryCancel(Task task)', 'private void WorkerLoop(int workerIndex, bool demandOnly)',
-                      'private static void Drain(', 'private sealed class WorkItem', 'public Task ScheduleShaderCompile(',
-                      'private static int GetBackgroundCompileThreadCount()'):
-        check(member(scheduler_f, signature) == member(scheduler_k, signature), 'final scheduler, the candidate\'s member: ' + signature)
-    # After IPA 824 (adapt_compile_wait_guest_time): the wait's body is WaitForPipelineAtDrawHeld, unchanged; WaitForPipelineAtDraw
-    # holds the guest's clock around it and nothing else.
-    held_f = 'private void WaitForPipelineAtDrawHeld(Task task)'
-    wait_k = member(scheduler_k, 'public void WaitForPipelineAtDraw(Task task)')
-    if held_f in scheduler_f:
-        check(member(scheduler_f, held_f).replace(held_f, 'public void WaitForPipelineAtDraw(Task task)') == wait_k and
-              re.search(r'long hold = CompileWaitGuestTime\.Begin\(\);\s*try\s*\{\s*WaitForPipelineAtDrawHeld\(task\);\s*\}\s*finally\s*\{\s*'
-                        r'CompileWaitGuestTime\.End\(hold\);\s*\}\s*\}$', member(scheduler_f, 'public void WaitForPipelineAtDraw(Task task)')) is not None,
-              'final scheduler: the candidate\'s wait, held around and otherwise unchanged')
-    else:
-        check(member(scheduler_f, 'public void WaitForPipelineAtDraw(Task task)') == wait_k, 'final scheduler, the candidate\'s member: WaitForPipelineAtDraw')
-    take_f = member(scheduler_f, 'private WorkItem TryTake(bool demandOnly)')
-    lanes_before, lanes_final = '_highPriorityQueue.First ?? _lowPriorityQueue.First;', '_highPriorityQueue.First ?? _prebuildQueue.First ?? _lowPriorityQueue.First;'
-    check(take_f.count(block) == 1 and take_k.count(lanes_before) == 1 and take_f.count(lanes_final) == 1 and
-          take_f.replace(lanes_final, lanes_before) == take_k,
-          'final TryTake is the candidate\'s (its block for the demand thread included) plus the lane of recorded states, taken after the high priority compiles')
-    check(scheduler_f.count('_promotedInFlight = ') == 2 and '_pipelineQueue.BeginDrawWait(task);' in scheduler_f and
-          '_shaderQueue.BeginDrawWait' not in scheduler_f and 'public const int DrawWaitSliceMs = %d;' % adapter.SLICE_MS in scheduler_f,
-          'final scheduler: the record of a promoted compile, the pipeline queue only, the same slice')
-    check(collection_f.count('_gd.BackgroundCompilationScheduler.WaitForPipelineAtDraw(task)') == 2 and
-          'WaitForPipelineAtDraw(task);' in member(collection_f, 'public bool TryWaitForBackgroundGraphicsPipeline(') and
-          'WaitForPipelineAtDraw(task);' in member(collection_f, 'public bool TryWaitForBackgroundComputePipeline(') and
-          member(collection_f, 'public bool TryWaitForBackgroundGraphicsPipeline(') == member(collection_k, 'public bool TryWaitForBackgroundGraphicsPipeline(') and
-          'public bool CanBindWhileIncomplete => CompilesInBackground && AllowAsyncCompileSkip;' in collection_f,
-          'final ShaderCollection: the two waits of a draw and of a dispatch call it, nothing else does; the draw\'s wait is the candidate\'s')
-    # adapt_render_thread_compile_relief rewrites CreatePipeline (a draw that may skip no longer creates its pipeline on
-    # the render thread; its own gate executes that). The draws that wait still wait without a bound, through the lanes.
-    check(len(re.findall(r'TryWaitForBackgroundGraphicsPipeline\(\s*ref key,\s*Timeout\.Infinite,', pipeline_f)) == 2
-          and pipeline_f.count('TryWaitForBackgroundGraphicsPipeline(') == 2 and collection_f.count('TryWaitForBackgroundGraphicsPipeline(') == 1,
-          'final PipelineBase: both draw callers wait without a bound')
-    check(final[adapter.QUEUE] == candidate[adapter.QUEUE] and
-          member(final[adapter.THREADED], 'public void RunLoop(ThreadStart gpuLoop)') == loop,
-          'final: the program queue and the render thread\'s binding are the candidate\'s')
+# --- Executed: control and candidate on the same doubles.
+c, k = reports['control'], reports['candidate']
+P = COMPILE_MS
+check(c['processors'] == k['processors'] == 6 and c['pipelineWorkers'] == k['pipelineWorkers'] == 1, 'one pipeline worker, as on a six-core iPhone')
+for scenario, count in (('burst', 5), ('pair', 2), ('single', 1), ('burstPromotedFirst', 5), ('pairPromotedFirst', 2)):
+    for variant, r in (('control', c[scenario]), ('candidate', k[scenario])):
+        where = scenario + ' (' + variant + '): '
+        check(r['compiles'] == count and r['compiledOnce'] and r['notified'] == count, where + 'each pipeline is compiled once: ' + str(r['compiles']))
+        check(r['createdOnce'] and r['createdOnRenderThread'] and r['createdInOrder'], where + 'each program is created once, by the render thread, in the queue\'s order')
+        check(r['drawnInOrder'] and r['everyDrawAfterItsPipeline'], where + 'draws in order, none before its own pipeline exists')
+        check(r['onDemandThread'] + r['onWorker'] == count and r['demandCache'] in ([], [1]), where + 'compiled by the worker or the demand thread, each in its own cache')
+cb, kb = c['burst'], k['burst']
+check(cb['onWorker'] == 5 and cb['overlappedMs'] == 0 and cb['totalMs'] >= 4.6 * P and cb['createdBeforeFirstDrawEnd'] == 1,
+      'control, five new programs: created after each wait, compiled one after the other by the worker: %s ms' % cb['totalMs'])
+check(kb['createdBeforeFirstDrawEnd'] == 5 and kb['onDemandThread'] >= 2 and kb['overlappedMs'] >= 1.5 * P and kb['totalMs'] <= 3.4 * P,
+      'candidate, five new programs: all created during the first wait, two compiles at a time: %s ms' % kb['totalMs'])
+burst_text = counters(kb['text'])
+check(3 <= burst_text['waits'] <= 5 and burst_text['created'] == 4 and burst_text['ahead'] == kb['onDemandThread'] and counters(kb['textAgain']) == dict(waits=0, ms=0.0, created=0, ahead=0),
+      'the journal clause counts the waits (a draw whose compile was started ahead may find it done), the programs created during them and '
+      'the compiles started ahead, then starts again: ' + kb['text'])
+check(c['pair']['totalMs'] >= 1.8 * P and k['pair']['totalMs'] <= 1.3 * P and k['pair']['overlappedMs'] >= 0.8 * P,
+      'two new programs: %s ms, then %s ms' % (c['pair']['totalMs'], k['pair']['totalMs']))
+check(abs(k['single']['totalMs'] - c['single']['totalMs']) <= 0.2 * P and k['single']['totalMs'] >= 0.95 * P and counters(k['single']['text'])['ahead'] == 0,
+      'one new program: the wait is the compile, as before (%s / %s ms)' % (c['single']['totalMs'], k['single']['totalMs']))
+for scenario in ('burstPromotedFirst', 'pairPromotedFirst'):
+    check(k[scenario]['totalMs'] <= c[scenario]['totalMs'] + 0.15 * P, scenario + ': never longer than the control (%s / %s ms)' % (c[scenario]['totalMs'], k[scenario]['totalMs']))
+check(k['burstPromotedFirst']['totalMs'] <= 3.4 * P and k['pairPromotedFirst']['totalMs'] <= 1.3 * P,
+      'the promotion before any thread took the warm-up: the same overlap (%s, %s ms)' % (k['burstPromotedFirst']['totalMs'], k['pairPromotedFirst']['totalMs']))
 
-# --- Executed: control and candidate on the same doubles; then control and the final preparation, the same checks.
-for lanes in VARIANTS[1:]:
-    def verify(condition, message, lanes=lanes):
-        check(condition, message if lanes == 'candidate' else 'final preparation: ' + message)
-    c, k = reports['control'], reports[lanes]
-    P = COMPILE_MS
-    verify(c['processors'] == k['processors'] == 6 and c['pipelineWorkers'] == k['pipelineWorkers'] == 1, 'one pipeline worker, as on a six-core iPhone')
-    for scenario, count in (('burst', 5), ('pair', 2), ('single', 1), ('burstPromotedFirst', 5), ('pairPromotedFirst', 2)):
-        for variant, r in (('control', c[scenario]), ('candidate', k[scenario])):
-            where = scenario + ' (' + variant + '): '
-            verify(r['compiles'] == count and r['compiledOnce'] and r['notified'] == count, where + 'each pipeline is compiled once: ' + str(r['compiles']))
-            verify(r['createdOnce'] and r['createdOnRenderThread'] and r['createdInOrder'], where + 'each program is created once, by the render thread, in the queue\'s order')
-            verify(r['drawnInOrder'] and r['everyDrawAfterItsPipeline'], where + 'draws in order, none before its own pipeline exists')
-            verify(r['onDemandThread'] + r['onWorker'] == count and r['demandCache'] in ([], [1]), where + 'compiled by the worker or the demand thread, each in its own cache')
-    cb, kb = c['burst'], k['burst']
-    verify(cb['onWorker'] == 5 and cb['overlappedMs'] == 0 and cb['totalMs'] >= 4.6 * P and cb['createdBeforeFirstDrawEnd'] == 1,
-          'control, five new programs: created after each wait, compiled one after the other by the worker: %s ms' % cb['totalMs'])
-    verify(kb['createdBeforeFirstDrawEnd'] == 5 and kb['onDemandThread'] >= 2 and kb['overlappedMs'] >= 1.5 * P and kb['totalMs'] <= 3.4 * P,
-          'candidate, five new programs: all created during the first wait, two compiles at a time: %s ms' % kb['totalMs'])
-    burst_text = counters(kb['text'])
-    verify(3 <= burst_text['waits'] <= 5 and burst_text['created'] == 4 and burst_text['ahead'] == kb['onDemandThread'] and counters(kb['textAgain']) == dict(waits=0, ms=0.0, created=0, ahead=0),
-          'the journal clause counts the waits (a draw whose compile was started ahead may find it done), the programs created during them and '
-          'the compiles started ahead, then starts again: ' + kb['text'])
-    verify(c['pair']['totalMs'] >= 1.8 * P and k['pair']['totalMs'] <= 1.3 * P and k['pair']['overlappedMs'] >= 0.8 * P,
-          'two new programs: %s ms, then %s ms' % (c['pair']['totalMs'], k['pair']['totalMs']))
-    verify(abs(k['single']['totalMs'] - c['single']['totalMs']) <= 0.2 * P and k['single']['totalMs'] >= 0.95 * P and counters(k['single']['text'])['ahead'] == 0,
-          'one new program: the wait is the compile, as before (%s / %s ms)' % (c['single']['totalMs'], k['single']['totalMs']))
-    for scenario in ('burstPromotedFirst', 'pairPromotedFirst'):
-        verify(k[scenario]['totalMs'] <= c[scenario]['totalMs'] + 0.15 * P, scenario + ': never longer than the control (%s / %s ms)' % (c[scenario]['totalMs'], k[scenario]['totalMs']))
-    verify(k['burstPromotedFirst']['totalMs'] <= 3.4 * P and k['pairPromotedFirst']['totalMs'] <= 1.3 * P,
-          'the promotion before any thread took the warm-up: the same overlap (%s, %s ms)' % (k['burstPromotedFirst']['totalMs'], k['pairPromotedFirst']['totalMs']))
-
-    verify(c['reserved']['threads'] == k['reserved']['threads'] == [WORKER] * 3 and counters(k['reserved']['text']) == dict(waits=0, ms=0.0, created=0, ahead=0),
-          'no draw waits: the demand thread takes no high priority compile')
-    cp, kp = c['precedence'], k['precedence']
-    verify(cp['aThread'] == kp['aThread'] == WORKER and cp['bThread'] == WORKER and not cp['bStartedDuringWait'] and kp['bThread'] == DEMAND and kp['bStartedDuringWait'],
-          'a draw waits for a compile the worker runs: the demand thread starts the next one (control: it waits)')
-    verify(cp['yBeforeC'] and kp['yBeforeC'] and kp['yStartAfterFirstEndMs'] <= 0.25 * P and counters(kp['text'])['ahead'] == 1,
-          'a compile demanded while both threads are busy is taken by the first thread free, before the queued one: %s ms after it' % kp['yStartAfterFirstEndMs'])
-    verify(cp['yStartAfterDemandMs'] <= 0.25 * P, 'control: the idle demand thread took that compile at once (the cost named by the adapter): %s / %s ms'
-          % (cp['yStartAfterDemandMs'], kp['yStartAfterDemandMs']))
-    for r in (c['afterAwaited'], k['afterAwaited']):
-        verify(r['xThread'] == DEMAND and r['lThread'] == WORKER and r['hThread'] == WORKER and r['hAfterL'],
-              'an awaited compile that runs on the demand thread: once it completes that thread takes no high priority compile')
-    verify(counters(k['afterAwaited']['text'])['ahead'] == 0, 'none started ahead in that case')
-    for r in (c['notQueuedYet'], k['notQueuedYet']):
-        verify(r['xThread'] == DEMAND and r['tThread'] == WORKER and r['xStartAfterQueuedMs'] <= 0.25 * P,
-              'a draw whose compile is not queued yet: the demand thread stays free and takes it at once (%s ms after it is queued)' % r['xStartAfterQueuedMs'])
-    verify(counters(k['notQueuedYet']['text'])['ahead'] == 0, 'none started ahead in that case either')
-    u = k['unbound']
-    verify(u['bound'] is False and u['created'] == 0 and u['requestCreated'] is False and u['completed'] is True and u['queuedThread'] == WORKER and
-          counters(u['text']) == dict(waits=0, ms=0.0, created=0, ahead=0),
-          'a thread that is not the bound render thread waits as before: nothing created, nothing started ahead, nothing counted')
-    f = k['failure']
-    verify(f['thrown'] == f['expected'] == 'System.AggregateException < System.InvalidOperationException: compile failed' and f['queuedThread'] == WORKER,
-          'a failed compile is thrown as Wait() throws it; the wait is over for the queue')
-    verify(k['reentrant'] == dict(outer=2, nested=0, firstCreations=1, secondCreations=1), 'a creation that asks again from inside itself creates nothing more')
-    idle = k['idle']
-    verify(idle['sliceMs'] == adapter.SLICE_MS and 1.9 * P <= idle['elapsedMs'] <= 2.3 * P and idle['processorMs'] <= 0.4 * idle['elapsedMs'],
-          'a wait with nothing queued sleeps in slices: %s ms of processor for the whole process in %s ms' % (idle['processorMs'], idle['elapsedMs']))
+check(c['reserved']['threads'] == k['reserved']['threads'] == [WORKER] * 3 and counters(k['reserved']['text']) == dict(waits=0, ms=0.0, created=0, ahead=0),
+      'no draw waits: the demand thread takes no high priority compile')
+cp, kp = c['precedence'], k['precedence']
+check(cp['aThread'] == kp['aThread'] == WORKER and cp['bThread'] == WORKER and not cp['bStartedDuringWait'] and kp['bThread'] == DEMAND and kp['bStartedDuringWait'],
+      'a draw waits for a compile the worker runs: the demand thread starts the next one (control: it waits)')
+check(cp['yBeforeC'] and kp['yBeforeC'] and kp['yStartAfterFirstEndMs'] <= 0.25 * P and counters(kp['text'])['ahead'] == 1,
+      'a compile demanded while both threads are busy is taken by the first thread free, before the queued one: %s ms after it' % kp['yStartAfterFirstEndMs'])
+check(cp['yStartAfterDemandMs'] <= 0.25 * P, 'control: the idle demand thread took that compile at once (the cost named by the adapter): %s / %s ms'
+      % (cp['yStartAfterDemandMs'], kp['yStartAfterDemandMs']))
+for r in (c['afterAwaited'], k['afterAwaited']):
+    check(r['xThread'] == DEMAND and r['lThread'] == WORKER and r['hThread'] == WORKER and r['hAfterL'],
+          'an awaited compile that runs on the demand thread: once it completes that thread takes no high priority compile')
+check(counters(k['afterAwaited']['text'])['ahead'] == 0, 'none started ahead in that case')
+for r in (c['notQueuedYet'], k['notQueuedYet']):
+    check(r['xThread'] == DEMAND and r['tThread'] == WORKER and r['xStartAfterQueuedMs'] <= 0.25 * P,
+          'a draw whose compile is not queued yet: the demand thread stays free and takes it at once (%s ms after it is queued)' % r['xStartAfterQueuedMs'])
+check(counters(k['notQueuedYet']['text'])['ahead'] == 0, 'none started ahead in that case either')
+u = k['unbound']
+check(u['bound'] is False and u['created'] == 0 and u['requestCreated'] is False and u['completed'] is True and u['queuedThread'] == WORKER and
+      counters(u['text']) == dict(waits=0, ms=0.0, created=0, ahead=0),
+      'a thread that is not the bound render thread waits as before: nothing created, nothing started ahead, nothing counted')
+f = k['failure']
+check(f['thrown'] == f['expected'] == 'System.AggregateException < System.InvalidOperationException: compile failed' and f['queuedThread'] == WORKER,
+      'a failed compile is thrown as Wait() throws it; the wait is over for the queue')
+check(k['reentrant'] == dict(outer=2, nested=0, firstCreations=1, secondCreations=1), 'a creation that asks again from inside itself creates nothing more')
+idle = k['idle']
+check(idle['sliceMs'] == adapter.SLICE_MS and 1.9 * P <= idle['elapsedMs'] <= 2.3 * P and idle['processorMs'] <= 0.4 * idle['elapsedMs'],
+      'a wait with nothing queued sleeps in slices: %s ms of processor for the whole process in %s ms' % (idle['processorMs'], idle['elapsedMs']))
 
 inputs = ['build-utils/melonx/adapt_draw_wait_lanes.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_draw_wait_lanes_test.py',
           'test/melonx_draw_wait_lanes/Double.cs', 'test/melonx_draw_wait_lanes/Program.cs', 'test/melonx_adapter_control.py']
@@ -330,8 +264,6 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPA
                everyPipelineCompiledOnce=True, demandedCompilesKeepPrecedence=True, demandThreadReservedWithoutDrawWait=True,
                singleCompileWaitUnchanged=True, awaitedCompileNotQueuedLeavesDemandThreadFree=True,
                plainWaitOffTheRenderThread=True, callSitesExecutedHere=False, reports=reports,
-               finalPreparationExecuted='final' in reports or FINAL_PREPARATION, executedVariants=list(VARIANTS),
-               filesEditedLater=sorted(EDITED_LATER), laterAdapters=LATER,
                inputs={path: sha(ROOT / path) for path in inputs},
                limitation='Host execution of the real scheduler and program queue with a timed compile double (no Vulkan, no MoltenVK, '
                           'no Metal compiler). It proves which compiles run during a draw\'s wait and that no draw precedes its '

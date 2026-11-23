@@ -22,7 +22,7 @@ from adapt_pipeline_checkpoint_pacing import apply, RELATIVE, BEFORE, DIRTY_BEFO
 from adapt_host_qos_pipeline_budget import PIPELINE_BUDGET_NEW, PIPELINE_BUDGET_OLD
 sys.path.insert(0,str(ROOT/'test'))
 import importlib
-from melonx_adapter_control import ORDER, apply_present, reverse_present
+from melonx_adapter_control import ORDER, reverse_present
 # Core 661: adapters later in the preparation that edit this file (adapt_teardown_cache: the main cache saved before
 # program disposal) are reversed first, latest first, then the declared observers; each runs its own gate.
 LATER=[name for name in ORDER if RELATIVE in importlib.import_module(name).BASELINE]
@@ -46,12 +46,6 @@ with tempfile.TemporaryDirectory(prefix='melonx-pipeline-checkpoint-') as tempor
                     for name in reversed(LATER):
                         assert reverse_present(Path(later_root),name,only=[RELATIVE])==[RELATIVE],name
                     plain=copy.read_text()
-                    # reverse_present may put back an adapter's recorded preimage instead of undoing its text in the
-                    # final file: the same adapters applied forward again, each on the bytes it pins, must give the
-                    # final file back byte for byte, so that `plain` is bound to the final preparation.
-                    for name in LATER:
-                        assert apply_present(Path(later_root),name,only=[RELATIVE])==[RELATIVE],name
-                    assert copy.read_bytes()==(CANDIDATE/RELATIVE).read_bytes(),'the final pipeline class is not the reversed file plus the later adapters'
                 hooks=[
                     ('using PD = Ryujinx.Common.EmbeddedPerformanceDiagnostics;\n',''),
                     ('            using var sizeMeasurement = PD.Measure(PD.Phase.CacheSizeProbe);\n',''),
@@ -78,23 +72,6 @@ with tempfile.TemporaryDirectory(prefix='melonx-pipeline-checkpoint-') as tempor
         run=subprocess.run([os.environ.get('DOTNET','dotnet'),'run','--project',str(work),'-c','Release','-v','q','--',variant],cwd=work,text=True,capture_output=True,timeout=120)
         if run.returncode:print(run.stdout,run.stderr);run.check_returncode()
         reports[variant]=json.loads(next(line for line in run.stdout.splitlines() if line.startswith('{')))
-        if variant=='candidate' and CANDIDATE:
-            # The final manager reads the encoding policy since Core 771 (later adapters: adapt_hogwarts_frame_budget,
-            # adapt_hogwarts_pipeline_replay; the fixture's EncodingPolicy double). The run above has it off, as every
-            # title but the one the launch sets it for; the same build runs again with it on: the checkpoint pacing and
-            # every scenario's assertions must hold either way.
-            base_text=(CANDIDATE/'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs').read_text(encoding='utf-8-sig')
-            policy=base_text[base_text.index('    public static class EncodingPolicy'):base_text.index('    static class RenderDetail')]
-            assert 'public static bool BindingSizedDescriptorScratch { get; set; }\n' in policy and 'public static bool IncrementalArrayDescriptors { get; set; }\n' in policy,'the policy flags of the final source, off unless set'
-            used=set(__import__('re').findall(r'EncodingPolicy\.(\w+)',final))
-            assert used<={'BindingSizedDescriptorScratch','IncrementalArrayDescriptors'},'policy member the double lacks: '+str(used)
-            run=subprocess.run([os.environ.get('DOTNET','dotnet'),'run','--no-build','--project',str(work),'-c','Release','-v','q','--',variant,'on'],cwd=work,text=True,capture_output=True,timeout=120)
-            if run.returncode:print(run.stdout,run.stderr);run.check_returncode()
-            reports['candidatePolicyOn']=json.loads(next(line for line in run.stdout.splitlines() if line.startswith('{')))
-    if CANDIDATE:
-        on=reports['candidatePolicyOn']
-        assert on['scenarios']==reports['candidate']['scenarios'] and on['assertions']==reports['candidate']['assertions'],'the encoding policy changes the scenarios or their assertions'
-        assert on['results'][0]['exportsIncludingFinal']==2 and on['results'][0]['creationProbes']==193,'the encoding policy changes the checkpoint pacing'
     assert reports['control']['scenarios']==reports['candidate']['scenarios']
     assert reports['control']['assertions']==reports['candidate']['assertions']
     assert reports['control']['results'][0]['exportsIncludingFinal']==193
@@ -109,8 +86,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-pipeline-checkpoint-') as tempor
         else:raise AssertionError('source drift accepted')
         assert sha(path)==before,'mutation before drift rejection'
 local=['build-utils/melonx/adapt_pipeline_checkpoint_pacing.py','build-utils/melonx/adapt_host_qos_pipeline_budget.py','test/melonx_pipeline_checkpoint_test.py','test/melonx_pipeline_checkpoint/Program.cs','test/melonx_pipeline_checkpoint/Boundaries.cs']
-if CANDIDATE:local+=['test/melonx_adapter_control.py',*('build-utils/melonx/'+name+'.py' for name in LATER)]
 bindings=[dict(variant='candidate',reportPath=['compiledSourceInputs','candidate',RELATIVE],productionPath=RELATIVE)]
 if CANDIDATE:bindings.append(dict(variant='candidate',reportPath=['compiledSourceInputs','candidate','EmbeddedPerformanceDiagnostics.cs'],productionPath=collector))
-receipt=dict(result='passed',encodingPolicyRuns=['off','on'] if CANDIDATE else [],laterAdaptersReapplied=LATER if CANDIDATE else [],sourceKind='baselinePreparedWithFinalInstrumentedCandidate' if CANDIDATE else 'baselinePrepared',physicalDeviceTested=False,fpsGainProven=False,completeProductionClasses=True,vulkanBoundaryDoubled=True,realFileMappingAndSnapshots=True,adapterIdempotent=True,sourceDriftControlsPassed=negatives,reports=reports,inputs={p:sha(ROOT/p) for p in local},upstreamInputs=preimages,preimages=preimages,postimages=postimages,compiledSourceInputs=compiled,compiledBindings=bindings)
+receipt=dict(result='passed',sourceKind='baselinePreparedWithFinalInstrumentedCandidate' if CANDIDATE else 'baselinePrepared',physicalDeviceTested=False,fpsGainProven=False,completeProductionClasses=True,vulkanBoundaryDoubled=True,realFileMappingAndSnapshots=True,adapterIdempotent=True,sourceDriftControlsPassed=negatives,reports=reports,inputs={p:sha(ROOT/p) for p in local},upstreamInputs=preimages,preimages=preimages,postimages=postimages,compiledSourceInputs=compiled,compiledBindings=bindings)
 out=ROOT/'dist/melonx/pipeline-checkpoint-checks.json';out.parent.mkdir(parents=True,exist_ok=True);out.write_text(json.dumps(receipt,indent=2)+'\n');print(json.dumps(receipt))

@@ -65,9 +65,6 @@ namespace Ryujinx.Graphics.GAL
     {
         public Ryujinx.Graphics.Shader.ShaderStage Stage;
         public byte[] BinaryCode; // read by the final preparation's code identities (adapt_pipeline_build_journal, adapt_sibling_pipelines)
-        // The final preparation's ShaderSource holds its binary as a segment (BinaryCode is the whole array then); its code
-        // identity reads the segment.
-        public System.ArraySegment<byte> BinarySegment => BinaryCode == null ? default : new System.ArraySegment<byte>(BinaryCode);
         public string Code;
         public bool FailModule;
     }

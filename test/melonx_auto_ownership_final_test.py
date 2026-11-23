@@ -12,12 +12,9 @@ stored as struct DependantEntry. This gate reruns that proof on the final source
 (test/melonx_auto_ownership_final, FINAL defined for the candidate):
 - control: Auto.cs and CommandBufferPool.cs of the delivered tree (Core da2525a1);
 - candidate: the same two files of the final preparation;
-- both: BitMap.cs, BitMapStruct.cs, CommandBufferScoped.cs, IArray.cs and StructArrayHelpers.cs of the variant's own tree
-  (the delivered ones for the control, the final ones for the candidate), Auto.cs compiled whole; from the variant's
-  CommandBufferPool.cs, AddDependant, the dependant release loop of WaitAndDecrementRef and (candidate) the
-  DependantEntry struct are inserted verbatim. A shared source the final preparation changed is the delivered one plus
-  exactly the later adapters of melonx_adapter_control.ORDER that pin it (applied forward, each on its pinned bytes;
-  since Core 811 adapt_buffer_mirror_windows adds BitMapStruct.SignalSet<TState>); every other one is byte-identical.
+- both: BitMap.cs, BitMapStruct.cs, CommandBufferScoped.cs, IArray.cs and StructArrayHelpers.cs of the final preparation
+  (byte-identical to the delivered ones), Auto.cs compiled whole; from the variant's CommandBufferPool.cs, AddDependant,
+  the dependant release loop of WaitAndDecrementRef and (candidate) the DependantEntry struct are inserted verbatim.
 Static: the final preparation is the delivered tree plus adapt_command_buffer_ownership and adapt_signalled_fence_release
 in these files (melonx_adapter_control.control_source, each replacement once, the control exactly the final with them
 undone). Executed: every historical scenario, plus the diamond (root.Get, and the leaf used first), and a child disposed
@@ -41,8 +38,7 @@ sys.path.insert(0, str(ROOT / 'test'))
 import adapt_command_buffer_ownership as ownership  # noqa: E402
 import adapt_signalled_fence_release as signalled  # noqa: E402
 import adapt_release_passes as release_passes  # noqa: E402
-import importlib  # noqa: E402
-from melonx_adapter_control import ORDER, _NoDigests, apply_present, control_source, files_edited_later, later_sharing  # noqa: E402
+from melonx_adapter_control import _NoDigests, control_source, files_edited_later, later_sharing  # noqa: E402
 
 MODULE = 'adapt_command_buffer_ownership'
 AUTO, POOL = ownership.AUTO, ownership.POOL
@@ -238,25 +234,8 @@ def main():
     check(same_bytes((control / AUTO).read_bytes(), control_auto), 'the delivered Auto.cs is the final one with the replacements undone')
     check(same_bytes((control / POOL).read_bytes(), control_pool),
           'the delivered CommandBufferPool.cs is the final one with both adapters\' replacements undone')
-    # The other production sources: the final ones are the delivered ones, or the delivered ones plus the later adapters
-    # that pin them, applied forward in preparation order (apply_present requires each file to be the adapter's pinned
-    # bytes first). Derived from ORDER: an edit outside the ordered adapters still fails here.
-    shared_adapters = [name for name in ORDER[ORDER.index(MODULE) + 1:] if set(importlib.import_module(name).BASELINE) & set(SHARED)]
-    shared_changed = {}
-    with tempfile.TemporaryDirectory(prefix='melonx-auto-ownership-shared-') as temporary:
-        forward = Path(temporary)
-        for relative in SHARED:
-            (forward / relative).parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(control / relative, forward / relative)
-        for name in shared_adapters:
-            for relative in apply_present(forward, name, only=set(SHARED)):
-                shared_changed.setdefault(relative, []).append(name)
-        for relative in SHARED:
-            check((forward / relative).read_bytes() == (final_source / relative).read_bytes(),
-                  'the final shared source is the delivered one plus the later ordered adapters pinning it ' +
-                  str(shared_changed.get(relative, [])) + ': ' + relative)
-            check(((control / relative).read_bytes() == (final_source / relative).read_bytes()) == (relative not in shared_changed),
-                  'a shared source differs from the delivered one exactly where a later ordered adapter edits it: ' + relative)
+    for relative in SHARED:
+        check((control / relative).read_bytes() == (final_source / relative).read_bytes(), 'unchanged shared source: ' + relative)
     # The adapter's own premises, on the final Vulkan backend: Auto<T> the only IAutoPrivate, WaitAndDecrementRef the
     # only caller of DecrementReferenceCount(cbIndex), ReservedCommandBuffer.Dependants read nowhere else.
     for path in sorted((final_source / 'src/Ryujinx.Graphics.Vulkan').rglob('*.cs')):
@@ -267,10 +246,7 @@ def main():
                   'DecrementReferenceCount(cbIndex) outside the pool: ' + path.name)
         if path.name != 'CommandBufferPool.cs':
             check('.Dependants' not in text, '.Dependants outside the pool: ' + path.name)
-    # Each variant runs on the shared sources of its own tree: the delivered proof for the control, the final one for
-    # the candidate (identical reports are then required with the later adapters' edits of those sources included).
-    shared = {'control': {relative: (control / relative).read_bytes() for relative in SHARED},
-              'final': {relative: (final_source / relative).read_bytes() for relative in SHARED}}
+    shared = {relative: (final_source / relative).read_bytes() for relative in SHARED}
 
     # --- executed ---
     reports, compiled, extracted = {}, {}, {}
@@ -280,7 +256,7 @@ def main():
                                                (control / POOL).read_text(encoding='utf-8-sig')),
                                               ('final', final_auto, final_pool)):
             reports[variant], compiled[variant], extracted[variant] = run_variant(base / variant, variant, auto_text,
-                                                                                  pool_text, shared[variant])
+                                                                                  pool_text, shared)
             print(json.dumps({variant: reports[variant]}, sort_keys=True), flush=True)
         sdk = subprocess.run([DOTNET, '--version'], cwd=base / 'final', text=True, capture_output=True).stdout.strip()
 
@@ -297,15 +273,10 @@ def main():
     check(compiled['control'][AUTO] == sha(control / AUTO) and compiled['final'][AUTO] == sha(final_source / AUTO),
           'each variant compiles its production Auto.cs byte for byte')
     for relative in (*SHARED, 'Program.cs'):
-        if relative in shared_changed:
-            check(compiled['control'][relative] == sha(control / relative) and compiled['final'][relative] == sha(final_source / relative)
-                  and compiled['control'][relative] != compiled['final'][relative],
-                  'each variant compiles its own tree\'s shared source, edited later by ' + str(shared_changed[relative]) + ': ' + relative)
-        else:
-            check(compiled['control'][relative] == compiled['final'][relative], 'the same compiled source in both variants: ' + relative)
+        check(compiled['control'][relative] == compiled['final'][relative], 'the same compiled source in both variants: ' + relative)
 
     inputs = ['build-utils/melonx/adapt_command_buffer_ownership.py', 'build-utils/melonx/adapt_signalled_fence_release.py',
-              'build-utils/melonx/adapt_release_passes.py', *('build-utils/melonx/' + name + '.py' for name in shared_adapters),
+              'build-utils/melonx/adapt_release_passes.py',
               'build-utils/melonx/adapt_session.py', 'test/melonx_auto_ownership_final_test.py',
               'test/melonx_auto_ownership_final/Program.cs', 'test/melonx_auto_ownership_final/Boundaries.cs',
               'test/melonx_adapter_control.py']
@@ -313,7 +284,7 @@ def main():
         result='passed', checks=checks, finalPreparationBound=True, sourceKind='finalPreparationWithReversedControl',
         physicalDeviceTested=False, nativeDriverTested=False, completeProductionAuto=True, completeProductionBitmaps=True,
         commandTransportAndNativeCompletionDoubled=True, concurrentOwnershipMutationsTested=False,
-        concurrentAtomicRefcountsTested=True, laterAdapters=later, sharedSourcesEditedLater=shared_changed,
+        concurrentAtomicRefcountsTested=True, laterAdapters=later,
         preimages={AUTO: sha(control / AUTO), POOL: sha(control / POOL)},
         postimages={AUTO: sha(final_source / AUTO), POOL: sha(final_source / POOL)},
         compiledSources=compiled, extractedFromPool=extracted, reports=reports,

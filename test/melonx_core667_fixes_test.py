@@ -77,28 +77,6 @@ def ignore_tree(base):
     return ignore
 
 
-def placed(name):
-    """The prepared `name` as prepare_embedded placed it, before the ordered adapters that pin it edited that copy
-    (Core 771 adapt_hogwarts_frame_budget, Core 826 adapt_jit_arena_usage_journal on EmbeddedRuntime.cs): the final file
-    with those adapters reversed, latest first (melonx_adapter_control.reverse_present: the recorded preimage, else each
-    replacement undone), each time the bytes the adapter pins; the same adapters applied forward to it, each on its
-    pinned bytes, must give the final file back byte for byte. Derived from ORDER: an edit of the prepared copy by
-    anything else still fails the comparison with this checkout. Returns (text, adapters in preparation order)."""
-    adapters = [later for later in control_tools.ORDER if name in __import__(later).BASELINE]
-    tree = WORK / 'placed'
-    (tree / name).parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(FINAL_SOURCE / name, tree / name)
-    for later in reversed(adapters):
-        check(control_tools.reverse_present(tree, later, only={name}) == [name] and sha(tree / name) == __import__(later).BASELINE[name],
-              name + ' with ' + later + ' reversed is the file that adapter pins')
-    text = read(tree, name)
-    for later in adapters:
-        control_tools.apply_present(tree, later, only={name})
-    check((tree / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(),
-          'the final ' + name + ' is the placed file plus exactly the ordered adapters pinning it: ' + str(adapters))
-    return text, adapters
-
-
 def git_show(path):
     return subprocess.run(['git', '-C', str(ROOT), 'show', core667_native.CORE663_SOURCE + ':' + path],
                           capture_output=True, text=True, check=True).stdout
@@ -124,13 +102,9 @@ for name in reversed(NAMES):
 for module in ADAPTERS:
     for name, expected in module.BASELINE.items():
         check(sha(CONTROL / name) == expected, 'control is the Core 663 preparation: ' + name)
-NATIVE_LATER = {}
 for name, native in core667_native.NATIVE.items():
-    # Since Core 771 ordered adapters edit the prepared copy after it is placed: the comparison with this checkout is made
-    # on the file as it was placed (placed(): those adapters reversed, and re-applied to reproduce the final bytes).
-    final_text, NATIVE_LATER[name] = placed(name)
-    check(final_text == (ROOT / native).read_text(encoding='utf-8'), 'final preparation holds this checkout\'s ' + native +
-          ' (before ' + str(NATIVE_LATER[name]) + ')')
+    final_text = read(FINAL_SOURCE, name)
+    check(final_text == (ROOT / native).read_text(encoding='utf-8'), 'final preparation holds this checkout\'s ' + native)
     # Core 733 (core733_native) changed the diagnostics export in the runtime after this lot: reversed first, exactly;
     # the diagnostics-snapshot-reuse gate covers that change.
     lot_text = core733_native.reverse(final_text, name) if name in core733_native.EDITS else final_text
@@ -330,12 +304,11 @@ inputs = ['build-utils/melonx/adapt_buffer_array_barriers.py', 'build-utils/melo
           'build-utils/melonx/adapt_session.py',
           'native/melonx/EmbeddedRuntime.cs', 'native/melonx/EmbeddedLaunchPreflight.cs', 'test/melonx_core667_fixes_test.py',
           'test/melonx_core667_fixes/Program.cs', 'test/melonx_core667_fixes/StubMoltenVK.c', 'test/melonx_adapter_control.py',
-          'build-utils/melonx/adapt_array_barrier_epoch.py',
-          *sorted({'build-utils/melonx/' + later + '.py' for adapters in NATIVE_LATER.values() for later in adapters})]
+          'build-utils/melonx/adapt_array_barrier_epoch.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=True, sourceKind='finalPreparationWithReversedControl',
                postimages={p: sha(FINAL_SOURCE / p) for p in POSTIMAGES}, reports=reports, sdk=sdk, host=platform.system(),
-               libHacFeedSwitched=feeds, nativeFilesEditedLater=NATIVE_LATER,
+               libHacFeedSwitched=feeds,
                physicalDeviceTested=False, gameTested=False, productionAssembliesBuilt=['Ryujinx.Graphics.Vulkan', 'Ryujinx.Graphics.Gpu'],
                inputs={p: sha(ROOT / p) for p in inputs},
                limitation='Host probe: the production array barrier calls, MoltenVK configuration write (test double of '

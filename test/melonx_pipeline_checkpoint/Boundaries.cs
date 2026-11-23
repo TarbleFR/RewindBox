@@ -95,13 +95,6 @@ namespace Ryujinx.Graphics.Vulkan {
         public bool SupportsPipelineCreationCacheControl(Vk api) => true;
     }
     static class VulkanRenderer { public static Func<string> PipelineCacheScope; }
-    // The encoding policy of PipelineBase.cs, which the final manager reads since Core 771 (adapt_hogwarts_frame_budget,
-    // adapt_hogwarts_pipeline_replay): the two flags, declared there without initializers (the test checks it), so off
-    // unless the launched title sets them. The candidate's second run sets them (argument "on").
-    public static class EncodingPolicy {
-        public static bool BindingSizedDescriptorScratch { get; set; }
-        public static bool IncrementalArrayDescriptors { get; set; }
-    }
     static class VulkanResultExtensions {
         public static void ThrowOnError(this Result result) {
             if (result != Result.Success) throw new VulkanException(result);

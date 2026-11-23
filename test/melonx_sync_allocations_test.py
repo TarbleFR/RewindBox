@@ -59,26 +59,7 @@ if '--candidate-source' in sys.argv:
     for old, new in pairs:
         assert rebuilt.count(old) == 1, old[:60]
         rebuilt = rebuilt.replace(old, new)
-    # Adapters after adapt_submit_causes in the preparation order may edit the sync manager again (derived, not listed):
-    # each is taken out of the final file, latest first, down to the bytes it pins; re-applied in order they must give
-    # the final file back byte for byte. What is left (adapt_submit_causes' own postimage) must be the delivered file
-    # plus the submission counters. What is compiled and run below as "final" is the final file, later adapters included.
-    import importlib
-    sys.path.insert(0, str(ROOT / 'test'))
-    from melonx_adapter_control import apply_present, later_sharing, reverse_present
-    LATER = [name for name in later_sharing('adapt_submit_causes') if SYNC in importlib.import_module(name).BASELINE]
-    with tempfile.TemporaryDirectory(prefix='melonx-sync-allocations-chain-') as chain:
-        chain = Path(chain)
-        held = chain / SYNC
-        held.parent.mkdir(parents=True)
-        shutil.copyfile(FINAL / SYNC, held)
-        for name in reversed(LATER):
-            assert reverse_present(chain, name, only={SYNC}) == [SYNC], name
-        own = held.read_text(encoding='utf-8-sig')
-        for name in LATER:
-            assert apply_present(chain, name, only={SYNC}) == [SYNC], name
-        assert held.read_bytes() == (FINAL / SYNC).read_bytes(), 'the final sync manager is not the submission counters\' postimage plus the later adapters'
-    assert len(pairs) == 2 and rebuilt == own, 'the final sync manager is the delivered one plus the submission counters'
+    assert len(pairs) == 2 and rebuilt == final, 'the final sync manager is the delivered one plus the submission counters'
     assert causes.TAG in final and causes.TAG not in delivered
     for relative in FILES:
         if relative != SYNC:
@@ -123,12 +104,10 @@ if '--candidate-source' in sys.argv:
     assert doubles['delivered'] == {'submittingSyncs': 0, 'waitingSyncs': 0}, 'the delivered file has no counter'
     assert doubles['final']['submittingSyncs'] > 0 and doubles['final']['waitingSyncs'] > 0, 'the final file counts both kinds'
     inputs = ['build-utils/melonx/adapt_submit_causes.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_sync_allocations_test.py',
-              'test/melonx_sync_allocations/Program.cs', 'test/melonx_sync_allocations/Boundaries.cs',
-              'test/melonx_adapter_control.py', *('build-utils/melonx/' + name + '.py' for name in LATER)]
+              'test/melonx_sync_allocations/Program.cs', 'test/melonx_sync_allocations/Boundaries.cs']
     report = dict(result='passed', finalPreparationBound=True, sourceKind='deliveredPreparedWithFinalCandidate', physicalDeviceTested=False,
                   completeProductionSyncAndBitmapClasses=True, sameFunctionalDigest=True, sameAllocations=True, checks=f['checks'],
                   scenarios=f['scenarios'], reports=reports, stageTimerDouble=doubles, sdk=pin['dotnet'], tieredCompilation=False,
-                  laterAdaptersReapplied=LATER,
                   boundaries='native fences and command buffers doubled; RenderStageTimer is a counting double',
                   preimages={SYNC: digest(SOURCE / SYNC)}, postimages={SYNC: digest(FINAL / SYNC)},
                   supportInputs={p: digest(FINAL / p) for p in FILES if p != SYNC}, compiledSourceInputs=compiled,

@@ -314,19 +314,7 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             # Second lot after IPA 821: the background collector lets foreground collections through, the shader cache is
             # read ahead of its consumer, the variant journal holds a session's states, the JIT arena's use is journaled.
             'variant-journal-capacity': 'delivered', 'jit-arena-usage-journal': 'delivered',
-            'bgc-suspension-pending': 'delivered', 'shader-cache-parallel-read': 'delivered',
-            # After IPA 822: GPU-thread buffer texture lookups, sync queries that do not queue behind a waiter, large
-            # buffers outside the managed heap, compaction under device pressure, one interface enumeration per 5 s, and
-            # three measurement-only journals (Vulkan memory rounding, descriptor set reuse).
-            'vulkan-memory-rounding-journal': 'delivered',
-            'unblocked-sync-queries': 'delivered',
-            'buffer-texture-bindings': 'delivered',
-            'descriptor-set-reuse-journal': 'delivered',
-            'large-buffer-native': 'delivered',
-            'device-pressure-compaction': 'delivered',
-            'network-interface-snapshot': 'delivered',
-            # After IPA 824: the guest's clock holds during a pipeline compile wait on its GPU path.
-            'compile-wait-guest-time': 'delivered'}
+            'bgc-suspension-pending': 'delivered', 'shader-cache-parallel-read': 'delivered'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
 # Core 654: the collector (DIAGNOSTICS) is a reviewed change again, its gcEvent lines bound by the gc-events gate.
 CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES) |
@@ -532,14 +520,6 @@ JOINED = JOINED | C825_CODE_TABLES
 # prepared source.
 C826_GUEST_STORAGE = 'src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheGuestStorage.cs'
 JOINED = JOINED | {C826_GUEST_STORAGE}
-# After IPA 822 (adapt_network_interface_snapshot): Ryujinx.Common's NetworkHelpers.cs joins the prepared source.
-C828_NETWORK_HELPERS = 'src/Ryujinx.Common/Utilities/NetworkHelpers.cs'
-JOINED = JOINED | {C828_NETWORK_HELPERS}
-# After IPA 824 (adapt_compile_wait_guest_time): Ryujinx.Cpu's TickSource.cs joins the prepared source; GuestTimeHold.cs
-# (Ryujinx.Common) is added.
-C829_GUEST_CLOCK = {'src/Ryujinx.Cpu/TickSource.cs'}
-C829_GUEST_TIME_HOLD = 'src/Ryujinx.Common/GuestTimeHold.cs'
-JOINED = JOINED | C829_GUEST_CLOCK
 # Core 749 candidate (adapt_darwin_timed_waits): Ryujinx.Common's PreciseSleepHelper.cs joins the prepared source.
 C749_TIMED_WAITS = 'src/Ryujinx.Common/PreciseSleep/PreciseSleepHelper.cs'
 JOINED = JOINED | {C749_TIMED_WAITS}
@@ -804,14 +784,9 @@ if not args.helpers_only:
     # storage (adapt_shader_cache_parallel_read).
     CHANGES.update({'src/Ryujinx.Cpu/LightningJit/Translator.cs', 'src/Ryujinx.Cpu/LightningJit/Cache/DualMappedNoWxCache.cs',
                     'src/Ryujinx.Memory/DualMappedJitAllocator.cs', C826_GUEST_STORAGE})
-    # After IPA 822: GAL's SyncMap.cs (adapt_unblocked_sync_queries) and NetworkHelpers.cs (adapt_network_interface_snapshot).
-    CHANGES.update({'src/Ryujinx.Graphics.GAL/Multithreading/SyncMap.cs', C828_NETWORK_HELPERS})
-    # After IPA 824: TickSource.cs (adapt_compile_wait_guest_time).
-    CHANGES.update(C829_GUEST_CLOCK)
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 154 and
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 151 and
           set(frozen["productionAdditions"]) == {C768_ONLINE_ADDITION, C770_RUNTIME_YIELD_ADDITION, 'src/Ryujinx.Horizon/EmbeddedDeliveryCache.cs', 'src/Ryujinx.HLE/EmbeddedCheatReport.cs',
-              'src/Ryujinx.Library/EmbeddedNsz.cs', 'src/Ryujinx.Graphics.Gpu/EmbeddedShaderMetadataReader.cs',
-              C829_GUEST_TIME_HOLD}, "Unexpected production scope")
+              'src/Ryujinx.Library/EmbeddedNsz.cs', 'src/Ryujinx.Graphics.Gpu/EmbeddedShaderMetadataReader.cs'}, "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -988,17 +963,7 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_variant_journal_capacity.py',
                                                      'build-utils/melonx/adapt_jit_arena_usage_journal.py',
                                                      'build-utils/melonx/adapt_bgc_suspension_pending.py',
-                                                     'build-utils/melonx/adapt_shader_cache_parallel_read.py',
-                                                     # After IPA 822.
-                                                     'build-utils/melonx/adapt_vulkan_memory_rounding_journal.py',
-                                                     'build-utils/melonx/adapt_unblocked_sync_queries.py',
-                                                     'build-utils/melonx/adapt_buffer_texture_bindings.py',
-                                                     'build-utils/melonx/adapt_descriptor_set_reuse_journal.py',
-                                                     'build-utils/melonx/adapt_large_buffer_native.py',
-                                                     'build-utils/melonx/adapt_device_pressure_compaction.py',
-                                                     'build-utils/melonx/adapt_network_interface_snapshot.py',
-                                                     # After IPA 824.
-                                                     'build-utils/melonx/adapt_compile_wait_guest_time.py'} and
+                                                     'build-utils/melonx/adapt_shader_cache_parallel_read.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -1076,11 +1041,7 @@ if not args.helpers_only:
     # (249), the nine other files they edit are members already.
     # Second lot after IPA 821: four adapters join them (289); DiskCacheGuestStorage.cs joins the members (250), the
     # seven other files they edit are members already.
-    # After IPA 822: seven adapters join them (296); NetworkHelpers.cs joins the members (251), the ten other files they
-    # edit are members already.
-    # After IPA 824: one adapter joins them (297); TickSource.cs and GuestTimeHold.cs join the members (253), the scheduler
-    # is a member already.
-    check(len(frozen['preparationInputs']) == 297 and len(frozen['preparedMembers']) == 253, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 289 and len(frozen['preparedMembers']) == 250, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -1251,13 +1212,6 @@ if not args.helpers_only:
     OUTSIDE_GPU.add(NV_CHANNEL)
     # After IPA 821: ArmProcessContext.cs (Ryujinx.HLE) is outside the GPU closure; guest-start-during-shader-load builds it.
     OUTSIDE_GPU.add('src/Ryujinx.HLE/HOS/ArmProcessContext.cs')
-    # After IPA 822: NetworkHelpers.cs, EmbeddedMemory.cs and nifm's IGeneralService.cs are outside the GPU closure;
-    # network-interface-snapshot and device-pressure-compaction build them.
-    OUTSIDE_GPU |= {C828_NETWORK_HELPERS, 'src/Ryujinx.Library/EmbeddedMemory.cs',
-                    'src/Ryujinx.HLE/HOS/Services/Nifm/StaticService/IGeneralService.cs'}
-    # After IPA 824: TickSource.cs (Ryujinx.Cpu) is outside the GPU closure; compile-wait-guest-time builds it (the HLE and
-    # Vulkan assemblies).
-    OUTSIDE_GPU |= C829_GUEST_CLOCK
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
           CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
@@ -1334,11 +1288,7 @@ if not args.helpers_only:
                                             # Nextendo online lot: its five HLE files likewise (nifm-network-watch).
                                             path not in C768_NEXTENDO_ONLINE and path not in {SERVICE_CREATOR, CHEAT_MOD_LOADER, CHEAT_TAMPER} and
                                             # After IPA 759: Ryujinx.Library.csproj likewise (runtime-yield reverses it).
-                                            path not in C770_RUNTIME_YIELD and
-                                            # After IPA 822: NetworkHelpers.cs likewise (network-interface-snapshot rebuilds its control).
-                                            path != C828_NETWORK_HELPERS and
-                                            # After IPA 824: TickSource.cs likewise (compile-wait-guest-time).
-                                            path not in C829_GUEST_CLOCK}},
+                                            path not in C770_RUNTIME_YIELD}},
                         'ada': arrays_frozen['controlUnadaptedMembers']['ada']},
           'Control-only upstream inventories differ from the arrays contract plus the files joining the prepared source')
     rejects(lambda: verify.check_control_inventories({**frozen, 'controlUnadaptedMembers': {k: v for k, v in unadapted.items() if k != 'ada'}}),

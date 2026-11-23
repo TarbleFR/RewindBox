@@ -25,8 +25,7 @@ policy on):
 - already reached: no wait; policy off: the control's behaviour; a GPU-side WaitOnSyncpoint keeps the 1 s cap and its
   error line; the counters line is bounded (64 notable lines a session, then every 256 forced waits).
 Static: the candidate's files are the preparation once the adapter's replacements are undone, the final preparation's
-files are the candidate's once the later adapters sharing them are reversed (derived: postimage), its GPFifoDevice.cs as
-adapt_queued_3d_syncpoints left it is the candidate's once that adapter's replacements are undone (each once), WaitOnSyncpoint
+GPFifoDevice.cs is the candidate's once adapt_queued_3d_syncpoints' replacements are undone (each once), WaitOnSyncpoint
 and the GPU-side callers (GPFifoClass, Host1xClass) are unchanged, the flag is off by default and the Library assigns it
 once from the launched title. No device. Writes dist/melonx/forced-syncpoint-wait-checks.json.
 """
@@ -37,7 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, files_edited_later, later_sharing, postimage, use_authenticated_libhac_feed  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later, later_sharing, use_authenticated_libhac_feed  # noqa: E402
 import importlib  # noqa: E402
 import adapt_queued_3d_syncpoints as queued_3d  # noqa: E402
 _HOLD = []
@@ -102,28 +101,13 @@ with tempfile.TemporaryDirectory(prefix='melonx-forced-syncpoint-wait-') as temp
                 for name in BASELINE:
                     if name not in later:
                         check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
-                # Later adapters edit five of these files. Next lot: adapt_queued_3d_syncpoints processes the queued
-                # syncpoints after each GPFIFO entry in GPFifoDevice.cs; after it, adapt_fifo_channel_retirement edits
-                # that file too. The expectation is derived instead of listed: the final preparation with every later
-                # adapter sharing these files reversed, latest first (postimage: each back to the bytes its BASELINE
-                # pins), must be exactly this candidate, file for file and byte for byte; control_source() proved that
-                # re-applying them gives the final preparation. For GPFifoDevice.cs, adapt_queued_3d_syncpoints'
-                # replacements are still each undone once, on the file as that adapter left it.
+                # Next lot: adapt_queued_3d_syncpoints, the only later adapter that edits GPFifoDevice.cs, processes the
+                # queued syncpoints after each GPFIFO entry. Its replacements in that file are undone from the final text
+                # (each required once): what is left is exactly this candidate's GPFifoDevice.cs.
                 device = adapt_forced_syncpoint_wait.GPFIFO_DEVICE
-                editors = [m for m in later_sharing('adapt_forced_syncpoint_wait') if device in importlib.import_module(m).BASELINE]
-                check(editors[:1] == ['adapt_queued_3d_syncpoints'] and device in later,
-                      'adapt_queued_3d_syncpoints is the first later adapter that edits GPFifoDevice.cs: %s' % editors)
-                own = Path(temporary).resolve() / 'own-postimage'
-                check(postimage('adapt_forced_syncpoint_wait', FINAL_SOURCE, own) == later_sharing('adapt_forced_syncpoint_wait'),
-                      'the later adapters reversed are those sharing these files')
-                for name in BASELINE:
-                    check((work / name).read_bytes() == (own / name).read_bytes(),
-                          'final preparation is the adapter, later adapters reversed: ' + name)
-                queued_tree = Path(temporary).resolve() / 'queued-3d-postimage'
-                postimage('adapt_queued_3d_syncpoints', FINAL_SOURCE, queued_tree)
-                final = (queued_tree / device).read_text(encoding='utf-8-sig')
-                check((final != (FINAL_SOURCE / device).read_text(encoding='utf-8-sig')) == (len(editors) > 1),
-                      'GPFifoDevice.cs as adapt_queued_3d_syncpoints left it differs from the final one only if a later adapter edits it')
+                check([m for m in later_sharing('adapt_forced_syncpoint_wait') if device in importlib.import_module(m).BASELINE] ==
+                      ['adapt_queued_3d_syncpoints'], 'no later adapter edits GPFifoDevice.cs but adapt_queued_3d_syncpoints')
+                final = (FINAL_SOURCE / device).read_text(encoding='utf-8-sig')
                 for path, old, new in reversed(queued_3d.PAIRS):
                     if path == device:
                         check(final.count(new) == 1, 'adapt_queued_3d_syncpoints: each replacement once in ' + device)

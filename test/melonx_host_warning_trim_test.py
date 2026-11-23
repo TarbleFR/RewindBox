@@ -24,15 +24,6 @@ throwing one included. CheckHostMemory once a second: the periodic trim is escal
 less, at most once every 30 s; a reading above 7 % or unknown ends the run (6 % keeps it); a 300 s host pause counts as 2 s of play; at 6 % it
 is never escalated; under this process's own pressure the escalated trim is the delivered full one; the trim line reads
 the escalation or the Critical level.
-
-Core 771 (adapt_hogwarts_frame_budget) then edits GpuContext.cs, and adapt_hogwarts_steady_render and
-adapt_guest_start_during_shader_load after it: adapt_device_critical_trim's own postimage is rebuilt (the later adapters
-reversed, melonx_adapter_control.postimage) and must be that adapter on its pinned baseline; between it and the final
-preparation the executed text differs by one replacement only, adapt_hogwarts_frame_budget's periodic gate (with paced
-strict syncs, Hogwarts Legacy, the periodic trim starts at ColdTextureDevicePercent, 10 %, instead of 7 %). The two
-production declarations that gate reads are compiled verbatim. Executed in both modes: without paced strict syncs every
-expectation above holds unchanged (and 9 % trims nothing); with them 9 % runs the flush-free trim every 10 s, 11 % nothing,
-this process's own pressure the delivered full trim, and the escalation keeps its 30 s at 5 % or less and its interval.
 """
 from pathlib import Path
 import hashlib, json, os, shutil, subprocess, sys, tempfile
@@ -41,7 +32,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import ORDER, control_source, files_edited_later, later_sharing, postimage, use_authenticated_libhac_feed  # noqa: E402
+from melonx_adapter_control import ORDER, control_source, files_edited_later, use_authenticated_libhac_feed  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_host_warning_trim', _HOLD)
@@ -49,12 +40,6 @@ import adapt_host_warning_trim  # noqa: E402
 from adapt_host_warning_trim import apply, BASELINE  # noqa: E402
 
 CONTEXT = 'src/Ryujinx.Graphics.Gpu/GpuContext.cs'
-# adapt_hogwarts_frame_budget's replacement in CheckHostMemory (its text; checked against the adapter's source below).
-PERIODIC_OLD = '            if (device >= 0 && device <= DeviceShortPercent && now - _lastDeviceShortTrim >= DeviceShortTrimIntervalMs)'
-PERIODIC_NEW = '''            // At 8–10% in Hogwarts, release only resources the existing warning path can free without a flush.
-            // The critical/escalation thresholds and the process headroom guard still apply in TrimCaches.
-            int shortPercent = PaceStrictHostSyncs ? ColdTextureDevicePercent : DeviceShortPercent;
-            if (device >= 0 && device <= shortPercent && now - _lastDeviceShortTrim >= DeviceShortTrimIntervalMs)'''
 DOTNET = os.environ.get('DOTNET', 'dotnet')
 checks = 0
 
@@ -184,38 +169,14 @@ check(all(reports['candidate'][i]['device'] in range(8, 13) and reports['candida
 critical = dict(executed=False)
 if FINAL_PREPARATION and 'adapt_device_critical_trim' in ORDER:
     import adapt_device_critical_trim as critical_adapter  # noqa: E402
-    # Later adapters edit adapt_device_critical_trim's files (derived, not listed): its own postimage is the final
-    # preparation with them reversed, latest first; control_source's forward check above already proved that the control
-    # plus adapt_host_warning_trim and every later adapter of its closure (these included) is the final preparation.
+    check(files_edited_later('adapt_device_critical_trim') == set(), 'no later adapter edits adapt_device_critical_trim\'s files')
     final_text = (FINAL_SOURCE / CONTEXT).read_text(encoding='utf-8-sig')
-    with tempfile.TemporaryDirectory(prefix='melonx-device-critical-post-') as temporary:
-        critical_later = postimage('adapt_device_critical_trim', FINAL_SOURCE, Path(temporary))
-        post_text = (Path(temporary) / CONTEXT).read_text(encoding='utf-8-sig')
-    critical_direct = [name for name in critical_later if set(__import__(name).BASELINE) & set(critical_adapter.BASELINE)]
-    check(files_edited_later('adapt_device_critical_trim') == set().union(
-          *(set(__import__(name).BASELINE) & set(critical_adapter.BASELINE) for name in critical_direct)) and
-          set(critical_later) <= set(later_sharing('adapt_host_warning_trim')), 'the later adapters editing adapt_device_critical_trim\'s files are those of '
-          'this gate\'s reversed closure: ' + str(critical_direct))
-    check((post_text == final_text) == (CONTEXT not in files_edited_later('adapt_device_critical_trim')),
-          'GpuContext.cs differs from adapt_device_critical_trim\'s postimage exactly when a later adapter pins it')
-
-    def trim_text(text):
-        host_member = member(text, 'public void CheckHostMemory()')
-        return text[text.index('        private const ulong TrimMiB'):text.index(host_member) + len(host_member)]
-
-    # The executed text (TrimMiB to the end of CheckHostMemory): the later adapters change one condition of it,
-    # adapt_hogwarts_frame_budget's periodic gate; anything else fails here.
-    budget_source = (ROOT / 'build-utils/melonx/adapt_hogwarts_frame_budget.py').read_text(encoding='utf-8')
-    check(PERIODIC_OLD in budget_source and PERIODIC_NEW in budget_source, 'the periodic gate pair is adapt_hogwarts_frame_budget\'s')
-    check(trim_text(post_text).count(PERIODIC_OLD) == 1 and trim_text(post_text).replace(PERIODIC_OLD, PERIODIC_NEW) == trim_text(final_text),
-          'from TrimMiB to the end of CheckHostMemory the final preparation is adapt_device_critical_trim\'s postimage but for '
-          'adapt_hogwarts_frame_budget\'s periodic gate')
-    undone = post_text
+    undone = final_text
     for old, new in reversed(critical_adapter.EDITS[CONTEXT]):
         check(undone.count(new) == 1, 'adapt_device_critical_trim replacement once: ' + new.strip().splitlines()[0][:60])
         undone = undone.replace(new, old)
     check(hashlib.sha256(undone.encode('utf-8')).hexdigest() == critical_adapter.BASELINE[CONTEXT],
-          'GpuContext.cs with the later adapters reversed is adapt_device_critical_trim on its pinned baseline')
+          'the final GpuContext.cs is adapt_device_critical_trim on its pinned baseline')
     final_trim = member(final_text, 'public void TrimCaches(MemoryPressureLevel level, bool escalated = false)')
     host = member(final_text, 'public void CheckHostMemory()')
     check(final_trim.count('bool freeOnly = deviceShort && available >= ComfortableHeadroomBytes;') == 1 and
@@ -231,15 +192,8 @@ if FINAL_PREPARATION and 'adapt_device_critical_trim' in ORDER:
           final_trim.index('_lastEscalatedTrim = now;'), 'an escalation is noted only when the trim passes the 2 s interval')
     check(host.count('TrimCaches(') == 1 and
           'TrimCaches(device <= DeviceCriticalPercent ? MemoryPressureLevel.Critical : MemoryPressureLevel.Warning, escalated);' in host and
-          'device >= 0 && device <= DeviceShortPercent && now - _lastDeviceShortTrim >= DeviceShortTrimIntervalMs' in
-          member(post_text, 'public void CheckHostMemory()') and host.count(PERIODIC_NEW) == 1 and host.count('shortPercent') == 2,
-          'the periodic trim keeps its gate and level; only the escalation is added, then (adapt_hogwarts_frame_budget) the gate '
-          'is ColdTextureDevicePercent with paced strict syncs and DeviceShortPercent without')
-    # The two production declarations the periodic gate now reads lie outside the compiled range: taken verbatim.
-    declarations = ['        public static bool PaceStrictHostSyncs { get; set; }\n', '        private const int ColdTextureDevicePercent = 10;\n']
-    for declaration in declarations:
-        check(final_text.count(declaration) == 1 and declaration not in trim_text(final_text) and
-              final_text.count(declaration.split(' = ')[0].split(' {')[0] + ' ') == 1, 'one production declaration: ' + declaration.strip())
+          'device >= 0 && device <= DeviceShortPercent && now - _lastDeviceShortTrim >= DeviceShortTrimIntervalMs' in host,
+          'the periodic trim keeps its gate and level; only the escalation is added')
     start = final_text.index('        private const ulong TrimMiB')
     end = final_text.index(host) + len(host)
     with tempfile.TemporaryDirectory(prefix='melonx-device-critical-trim-') as temporary:
@@ -248,7 +202,7 @@ if FINAL_PREPARATION and 'adapt_device_critical_trim' in ORDER:
         shutil.copyfile(ROOT / 'test/melonx_host_warning_trim/Final.cs', fixture / 'Program.cs')
         (fixture / 'Trim.cs').write_text('using Ryujinx.Common.Logging;\nusing Ryujinx.Memory;\nusing System;\n\n'
                                          'namespace Ryujinx.Graphics.Gpu\n{\n    public partial class GpuContextUnderTest\n    {\n'
-                                         + final_text[start:end] + '\n\n' + ''.join(declarations) + '    }\n}\n')
+                                         + final_text[start:end] + '\n    }\n}\n')
         (fixture / 'Probe.csproj').write_text('''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>
 <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><Nullable>disable</Nullable><NoWarn>CS0414;CS0649</NoWarn>
 </PropertyGroup></Project>
@@ -306,28 +260,13 @@ if FINAL_PREPARATION and 'adapt_device_critical_trim' in ORDER:
     check(trims('sixPercent') == [(s, FREE) for s in range(1, 92, 10)], 'at 6 %: periodic flush-free trims, never escalated')
     check(final['escalation']['coldPasses'] == 125 and final['escalation']['reports'] == 5 and final['escalation']['epoch'] == 126 and
           final['pause']['epoch'] == 47, 'the rest of CheckHostMemory runs as before: a cold pass per check, a report every 30 s, the play clock')
-    # adapt_hogwarts_frame_budget's periodic gate. Without paced strict syncs (every title but Hogwarts Legacy): everything
-    # above, and nothing at 9 %. With them: the periodic trim from 10 % down, flush-free at a comfortable headroom, the
-    # delivered full trim under this process's own pressure; the escalation keeps its 30 s of play at 5 % or less.
-    check(trims('ninePercent') == [] and final['ninePercent']['coldPasses'] == 45, 'without paced strict syncs 9 % runs no periodic trim, as delivered')
-    check(trims('pacedNinePercent') == [(s, FREE) for s in (1, 11, 21, 31, 41)],
-          'paced strict syncs, 9 %: the flush-free trim every 10 s, never escalated: ' + json.dumps(trims('pacedNinePercent')))
-    check(trims('pacedElevenPercent') == [], 'paced strict syncs, 11 %: no periodic trim (above ColdTextureDevicePercent)')
-    check(trims('pacedOwnPressure') == [(s, WARNING) for s in (1, 11, 21, 31, 41)],
-          'paced strict syncs, 9 % under this process\'s own pressure: the delivered full trim (TrimCaches\' headroom guard)')
-    check(trims('pacedEscalation') == [(s, FREES_ESCALATED if s in (41, 71, 101) else FREE) for s in range(1, 122, 10)],
-          'paced strict syncs: the periodic trim starts at 8 % (second 1); the escalation still needs 30 s of play at 5 % or less '
-          '(the run starts at second 10: second 41), then every 30 s: ' + json.dumps(trims('pacedEscalation')))
-    check(final['pacedFlagRestored'] is False, 'the fixture leaves paced strict syncs off after the paced timelines')
     critical = dict(executed=True, criticalFreesForReal=True, ownPressureUnchanged=True, flagClearedAlways=True,
-                    escalationSeconds=[40, 70, 110], pauseCountsTwoSeconds=True, unknownReadingEndsRun=True,
-                    laterAdaptersEditingItsFiles=critical_direct, pacedPeriodicGatePercent=10, unpacedPeriodicGateUnchanged=True)
+                    escalationSeconds=[40, 70, 110], pauseCountsTwoSeconds=True, unknownReadingEndsRun=True)
 
 inputs = ['build-utils/melonx/adapt_host_warning_trim.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_adapter_control.py',
           'test/melonx_host_warning_trim_test.py', 'test/melonx_host_warning_trim/Program.cs']
 if critical['executed']:
-    inputs += ['build-utils/melonx/adapt_device_critical_trim.py', 'test/melonx_host_warning_trim/Final.cs',
-               'build-utils/melonx/adapt_hogwarts_frame_budget.py']
+    inputs += ['build-utils/melonx/adapt_device_critical_trim.py', 'test/melonx_host_warning_trim/Final.cs']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core658Preparation',
