@@ -366,6 +366,10 @@
       {
         "commit": "24ab55fe1ecb7b56dac415f8cdae370fad6a93e9",
         "note": "Merge of the other sessions' work pushed on Claude since 824: 3554d839c MeloNX Core 3554d839 from the Nextendo session: one switch for online services, SSBU online handling for every NEX title; 13bfb96ce Scraper: eShop catalogues by program ID, tolerant title matching (another session); c3c517caf Pin of MeloNX Core 3554d839 (run 45164554372, artifact 14814639258); 7d45996a1 MeloNX Core 7d45996a from the MeloNX session: guest clock held while the render thread waits for a pipeline compile; 1c2d50d9a Pin of MeloNX Core 7d45996a (run 45169809047, artifact 14817990520); 8391717e0 Libretro: MetalFX spatial upscaling in the embedded presenter (another session, no device test); 5eec725c8 Libretro: MetalFX build diagnostic call closed (another session); aed29a878 Libretro: JIT host (code arena, helper session, ABI) (another session, no device test); f9f06391f Libretro: JIT helper package, its Xcode configuration script and the Dart launch step (another session; the helper extension is not wired into this build)"
+      },
+      {
+        "commit": "d9982b55c7eb6af48ceb1911cafb32c87eaa408e",
+        "note": "Merge of two later commits of the other sessions: 71591625a (libretro JIT transaction codes named RB_JIT_*, not launch errors) and 789708a97 (documentation)"
       }
     ],
     "sourceOnly": [],
