@@ -366,6 +366,15 @@ with tempfile.TemporaryDirectory(prefix='melonx-submit-causes-') as temporary:
                       texts[adapter.BASE].count('SkippableDrawWait.TakeText(); // RewindBox (adapt_render_thread_compile_relief)') == 1,
                       'final: the skippable-draw waits are one class of the final scheduler, read once by the render-stage line')
                 counters += '\n' + skippable
+            if '    static class CompileWaitGuestTime\n' in scheduler:
+                # After IPA 824: adapt_compile_wait_guest_time appends the hold text to the draw-wait clause, read through
+                # the class it declares in the same file (AppContext, empty when unset): compiled with the timer too.
+                first = scheduler.index('    static class CompileWaitGuestTime\n')
+                glue = scheduler[first:scheduler.index('\n    }\n', first) + len('\n    }\n')]
+                check(scheduler.count('    static class CompileWaitGuestTime\n') == 1 and 'public static string TakeText()' in glue and
+                      'CompileWaitGuestTime.TakeText(); // RewindBox (adapt_compile_wait_guest_time)' in counters,
+                      'final: the hold text is read by the draw-wait clause from one class of the final scheduler')
+                counters += '\n' + glue
             text = text.replace('//__RENDER_STAGE_TIMER__\n', '').replace(
                 timer_text(texts[adapter.BASE]), timer_text(texts[adapter.BASE]) + '\n' + counters.replace('Interlocked.', 'System.Threading.Interlocked.'))
         if candidate_build:

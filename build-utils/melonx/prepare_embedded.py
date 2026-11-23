@@ -259,6 +259,7 @@ from adapt_descriptor_set_reuse_journal import apply as adapt_descriptor_set_reu
 from adapt_large_buffer_native import apply as adapt_large_buffer_native
 from adapt_device_pressure_compaction import apply as adapt_device_pressure_compaction
 from adapt_network_interface_snapshot import apply as adapt_network_interface_snapshot
+from adapt_compile_wait_guest_time import apply as adapt_compile_wait_guest_time
 
 
 def replace_once(path, old, new):
@@ -819,6 +820,7 @@ def main():
     adapted += adapt_large_buffer_native(source)
     adapted += adapt_device_pressure_compaction(source)
     adapted += adapt_network_interface_snapshot(source)
+    adapted += adapt_compile_wait_guest_time(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -990,7 +992,8 @@ def main():
                  'adapt_variant_journal_capacity.py', 'adapt_jit_arena_usage_journal.py',
                  'adapt_bgc_suspension_pending.py', 'adapt_shader_cache_parallel_read.py',
                  'adapt_vulkan_memory_rounding_journal.py', 'adapt_unblocked_sync_queries.py', 'adapt_buffer_texture_bindings.py',
-                 'adapt_descriptor_set_reuse_journal.py', 'adapt_large_buffer_native.py', 'adapt_device_pressure_compaction.py', 'adapt_network_interface_snapshot.py']:
+                 'adapt_descriptor_set_reuse_journal.py', 'adapt_large_buffer_native.py', 'adapt_device_pressure_compaction.py', 'adapt_network_interface_snapshot.py',
+                 'adapt_compile_wait_guest_time.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

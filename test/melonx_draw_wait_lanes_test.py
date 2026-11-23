@@ -217,11 +217,22 @@ check(loop.index('RenderThreadPrograms.Bind(Programs);') < loop.index('RenderLoo
 if 'final' in texts:
     final = texts['final']
     scheduler_f, collection_f, pipeline_f = final[adapter.SCHEDULER], final[adapter.COLLECTION], final[adapter.PIPELINE]
-    for signature in ('public void Promote(Task task)', 'public void WaitForPipelineAtDraw(Task task)', 'public void BeginDrawWait(Task task)',
+    for signature in ('public void Promote(Task task)', 'public void BeginDrawWait(Task task)',
                       'public void EndDrawWait(Task task)', 'public bool TryCancel(Task task)', 'private void WorkerLoop(int workerIndex, bool demandOnly)',
                       'private static void Drain(', 'private sealed class WorkItem', 'public Task ScheduleShaderCompile(',
                       'private static int GetBackgroundCompileThreadCount()'):
         check(member(scheduler_f, signature) == member(scheduler_k, signature), 'final scheduler, the candidate\'s member: ' + signature)
+    # After IPA 824 (adapt_compile_wait_guest_time): the wait's body is WaitForPipelineAtDrawHeld, unchanged; WaitForPipelineAtDraw
+    # holds the guest's clock around it and nothing else.
+    held_f = 'private void WaitForPipelineAtDrawHeld(Task task)'
+    wait_k = member(scheduler_k, 'public void WaitForPipelineAtDraw(Task task)')
+    if held_f in scheduler_f:
+        check(member(scheduler_f, held_f).replace(held_f, 'public void WaitForPipelineAtDraw(Task task)') == wait_k and
+              re.search(r'long hold = CompileWaitGuestTime\.Begin\(\);\s*try\s*\{\s*WaitForPipelineAtDrawHeld\(task\);\s*\}\s*finally\s*\{\s*'
+                        r'CompileWaitGuestTime\.End\(hold\);\s*\}\s*\}$', member(scheduler_f, 'public void WaitForPipelineAtDraw(Task task)')) is not None,
+              'final scheduler: the candidate\'s wait, held around and otherwise unchanged')
+    else:
+        check(member(scheduler_f, 'public void WaitForPipelineAtDraw(Task task)') == wait_k, 'final scheduler, the candidate\'s member: WaitForPipelineAtDraw')
     take_f = member(scheduler_f, 'private WorkItem TryTake(bool demandOnly)')
     lanes_before, lanes_final = '_highPriorityQueue.First ?? _lowPriorityQueue.First;', '_highPriorityQueue.First ?? _prebuildQueue.First ?? _lowPriorityQueue.First;'
     check(take_f.count(block) == 1 and take_k.count(lanes_before) == 1 and take_f.count(lanes_final) == 1 and
