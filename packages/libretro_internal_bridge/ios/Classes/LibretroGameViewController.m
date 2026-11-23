@@ -1031,6 +1031,19 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   });
 }
 
+- (void)hideStatusIfShowing:(NSString *)message {
+  if (!self.isViewLoaded || message.length == 0 || _statusLabel.alpha == 0 ||
+      ![_statusLabel.text isEqualToString:message]) {
+    return;
+  }
+  // A newer generation: the pending fade of this message does nothing.
+  ++_statusGeneration;
+  [UIView animateWithDuration:0.2
+                   animations:^{
+                     self->_statusLabel.alpha = 0;
+                   }];
+}
+
 - (void)setLoading:(BOOL)loading {
   if (loading) {
     [_spinner startAnimating];

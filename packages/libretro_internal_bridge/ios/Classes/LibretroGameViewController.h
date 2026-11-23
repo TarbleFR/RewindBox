@@ -138,6 +138,9 @@ typedef NSDictionary<NSString *, NSDictionary *> * (^LibretroControlsOverridesPr
 - (void)showStatus:(NSString *)message;
 /// Same, kept on screen for `seconds` (showStatus: keeps it 2.5 s).
 - (void)showStatus:(NSString *)message duration:(NSTimeInterval)seconds;
+/// Fades the status line out now when it shows `message` (another message
+/// that replaced it stays).
+- (void)hideStatusIfShowing:(NSString *)message;
 - (void)setLoading:(BOOL)loading;
 - (void)stopInputPolling;
 

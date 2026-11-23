@@ -12,8 +12,11 @@ Essai de la 828 par le mainteneur : DeSmuME démarre ; aucun message ne disait q
 de la surcouche passait par le menu ; Animal Crossing s'est figé à l'ouverture du menu en jeu (la même session
 s'était déjà terminée sans retour au menu sur une IPA d'avant le JIT de DeSmuME).
 
-- **Message JIT** : affiché dès la 20ᵉ image du jeu, pendant 5 s (avant : à la confirmation du démarrage, vers 5 s,
-  pendant 2,5 s) ; en français « JIT activé · DeSmuME (jit) ». Le journal de session note `jit: shown after …`.
+- **Message JIT** : prêt dès la 20ᵉ image du jeu, affiché 5 s (2,5 s pour un cœur sans JIT) ; en français « JIT activé
+  · DeSmuME (jit) ». Il partage le haut de l'écran avec l'état RetroAchievements du lancement : quand celui-ci est
+  attendu (RetroAchievements activé ou demandé), le message JIT l'attend (5 s au plus) et s'affiche une fois ses
+  notifications parties ; une notification qui arrive pendant le message JIT le remplace, il revient après. Journal :
+  `jit: ready after …`, puis `jit: shown: …`.
 - **Bouton de performances** à côté du bouton de menu (icône `chart.xyaxis.line`, comme Dolphin et RPCS3), vert
   quand la surcouche est affichée ; un toucher l'affiche ou la masque, réglage conservé. Placement par
   `LibretroChromeLayout` (jamais sur un écran tactile, une commande visible ou le bouton de menu ; à la place du

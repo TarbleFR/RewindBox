@@ -76,6 +76,9 @@ static const double kStartupFrameCap = 0.25;
 /// third of a second), for this long (2.5 s for a core without any JIT).
 static const NSUInteger kJitStatusFrames = 20;
 static const NSTimeInterval kJitStatusSeconds = 5.0;
+/// Longest wait for the RetroAchievements launch status before the JIT mode
+/// shows anyway (that status comes 3 s after the game view appears).
+static const NSTimeInterval kJitStatusAchievementWait = 5.0;
 /// Stall watch: a running game that produced no frame for this long is
 /// noted in the session journal, with where its emulation thread is; again
 /// at each later mark, three notes at most per stall.
@@ -241,6 +244,18 @@ static NSString *LibretroThreadPlace(mach_port_t thread) {
   NSArray<NSString *> *_perfLines;
   // JIT mode shown at the start of the game (emulation thread).
   BOOL _jitStatusShown;
+  // The JIT mode on screen (main thread). It shares the top centre with the
+  // RetroAchievements launch status: it waits for that status while one is
+  // expected and comes once its toasts are gone; a toast arriving while the
+  // JIT mode shows takes the place, the JIT mode comes back after it.
+  NSString *_jitStatusText;
+  NSTimeInterval _jitStatusSeconds;
+  CFTimeInterval _jitStatusWaitUntil;
+  CFTimeInterval _jitStatusVisibleUntil;
+  CFTimeInterval _achievementToastsUntil;
+  BOOL _achievementStatusSeen;
+  BOOL _jitStatusDone;
+  NSUInteger _jitStatusGeneration;
   // Stall watch (main thread, journal only): the emulation thread's Mach
   // port while it runs frames (threadMain), the frame count last seen, when
   // it last changed, and the reports already written for this stall.
@@ -925,14 +940,74 @@ static NSString *LibretroThreadPlace(mach_port_t thread) {
   const BOOL jitCore = _host.jitReportedEngine.length > 0 || _host.jitCapable || _configuration.jitExpected;
   const NSTimeInterval seconds = jitCore ? kJitStatusSeconds : 2.5;
   const unsigned long frames = (unsigned long)_startupFrames;
-  LibretroSessionJournal *journal = _journal;
+  [_journal note:[NSString stringWithFormat:@"jit: ready after %lu frames: %@", frames, status]];
   __weak LibretroSession *weakSelf = self;
   dispatch_async(dispatch_get_main_queue(), ^{
     LibretroSession *session = weakSelf;
     // Not while the game is closing (left before the status came).
     if (session == nil || session->_closing) return;
-    [session->_controller showStatus:status duration:seconds];
-    [journal note:[NSString stringWithFormat:@"jit: shown after %lu frames: %@", frames, status]];
+    [session queueJitStatus:status seconds:seconds];
+  });
+}
+
+#pragma mark - JIT mode after the RetroAchievements launch status (main thread)
+
+/// The JIT mode is ready. The RetroAchievements launch status (top centre
+/// too) comes RBRAStatusInitialDelay (3 s) after the game view appears,
+/// only for players who turned RetroAchievements on or asked for it: the
+/// JIT mode waits for it at most kJitStatusAchievementWait seconds.
+- (void)queueJitStatus:(NSString *)status seconds:(NSTimeInterval)seconds {
+  _jitStatusText = [status copy];
+  _jitStatusSeconds = seconds;
+  const BOOL expected =
+      [_achievementSession[@"enabled"] boolValue] || [_achievementSession[@"requested"] boolValue];
+  _jitStatusWaitUntil = expected ? CACurrentMediaTime() + kJitStatusAchievementWait : 0;
+  [self updateJitStatus];
+}
+
+/// A RetroAchievements toast of `duration` seconds was queued on the game
+/// view: the toasts follow each other, each 1 to 8 s (AchievementToastPresenter).
+- (void)noteAchievementToast:(NSTimeInterval)duration {
+  const CFTimeInterval now = CACurrentMediaTime();
+  _achievementStatusSeen = YES;
+  _achievementToastsUntil = MAX(now, _achievementToastsUntil) + MIN(8.0, MAX(1.0, duration)) + 0.4;
+  if (!_jitStatusDone && _jitStatusVisibleUntil > now) {
+    // The toast takes the top centre: the JIT mode comes back after it.
+    [_controller hideStatusIfShowing:_jitStatusText];
+    _jitStatusVisibleUntil = 0;
+  }
+  [self updateJitStatus];
+}
+
+/// Shows the JIT mode once nothing it waits for remains, else checks again then.
+- (void)updateJitStatus {
+  if (_jitStatusText == nil || _jitStatusDone || _closing) return;
+  const CFTimeInterval now = CACurrentMediaTime();
+  if (_jitStatusVisibleUntil > now) return;
+  CFTimeInterval at = _achievementToastsUntil;
+  if (!_achievementStatusSeen) at = MAX(at, _jitStatusWaitUntil);
+  if (at > now + 0.01) {
+    [self checkJitStatusAt:at];
+    return;
+  }
+  [_controller showStatus:_jitStatusText duration:_jitStatusSeconds];
+  _jitStatusVisibleUntil = now + _jitStatusSeconds;
+  [_journal note:[@"jit: shown: " stringByAppendingString:_jitStatusText]];
+  [self checkJitStatusAt:_jitStatusVisibleUntil + 0.05];
+}
+
+- (void)checkJitStatusAt:(CFTimeInterval)when {
+  const NSUInteger generation = ++_jitStatusGeneration;
+  const double delay = MAX(0.0, when - CACurrentMediaTime());
+  __weak LibretroSession *weakSelf = self;
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    LibretroSession *session = weakSelf;
+    if (session == nil || generation != session->_jitStatusGeneration) return;
+    if (session->_jitStatusVisibleUntil > 0 && CACurrentMediaTime() >= session->_jitStatusVisibleUntil - 0.01) {
+      session->_jitStatusDone = YES;
+      return;
+    }
+    [session updateJitStatus];
   });
 }
 
@@ -1571,6 +1646,8 @@ static BOOL LibretroExtendedControllerConnected(void) {
     LibretroGameViewController *controller = owner;
     if (session == nil || controller == nil || session->_controller != controller) return;
     [session->_journal note:[NSString stringWithFormat:@"retroachievements: status %@", key]];
+    // The JIT mode shares the top centre: it comes after this toast.
+    [session noteAchievementToast:duration];
     RBAchievementPresent(controller, 0, title, message, @"", duration, 3, ^UIView* {
       UIViewController* surfaceOwner = owner;
       NeoExternalDisplayCoordinator* display = NeoExternalDisplayCoordinator.shared;
