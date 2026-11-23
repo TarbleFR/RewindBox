@@ -57,6 +57,33 @@ service answers `engineMissing`: the playlist is listed but unavailable and noth
   The Japanese cover, French screenshot and background are downloaded directly from Nintendo, with no ScreenScraper
   credentials sent and no media bundled. The fallback fills empty metadata and keeps existing artwork except
   square console-icon placeholders; it does not mark a publisher-only result as fully scraped.
+- **Nintendo's eShop catalogues (23 Nov 2026, maintainer).** Reported: nothing at all came back for The Legend
+  of Zelda: Ocarina of Time (Switch 2, released 5 November 2026). ScreenScraper lists 76 Switch 2 games, 0 ROMs,
+  and not this one; the exact name comparison also missed the games it lists under its own spelling
+  (`Legend of Zelda - Breath of the Wild -Nintendo Switch 2 Edition-, The` for the game's
+  `The Legend of Zelda: Breath of the Wild – Nintendo Switch 2 Edition`); the publisher entries knew one game.
+  `NintendoEshopCatalogue` now asks the search behind nintendo.com/fr-fr (`searching.nintendo-europe.com`) for the
+  program ID of the export's NPDM (`application_id_s`, an exact match). Measured on 23 November 2026, 729 of its 747
+  Switch 2 entries carry it; a "Nintendo Switch 2 Edition" carries its Switch game's ID, and the Switch 2 entry is
+  taken. It is read in the scraping language (fr, en, de, it, es, nl, pt, else en). It gives the title, description,
+  genre, publisher, release date and players, and the 16:9 banner (asked at 1600, then 1280 px) as fanart. The
+  Japanese search (`search.nintendo.jp`, platform `05_BEE`) is asked for the export's Japanese title (title entry 2
+  of control.nacp), then the European title. Its item is taken only for the same title (`sameTitleKey`). It gives a
+  1920 × 1080 screenshot without text, its hero picture as a second fanart, and, for Nintendo's own games, the
+  Japanese case (`software_img_package.webp`, checked first). Nintendo's title is also a second spelling for
+  ScreenScraper's search. Names compare without case, accents, ™/®, punctuation, a leading or trailing "The",
+  "Nintendo Switch 2 Edition", and with roman numerals II-X as digits. ScreenScraper stays first. Nintendo fills
+  what it lacks: the whole game when it does not know it, else the empty metadata and the missing cover, fanart or
+  screenshot. Nothing already present is replaced, except the console icons imported as covers. Switch games
+  (`switch`) get the same, by their title ID (row, or `[ID]` in the file name): the European PEGI packshot as cover,
+  the 2:1 banner as fanart, the Japanese catalogue only for the European title. Only with "extra sources" (the
+  existing box-sources setting, on by default), as the publisher entries in the batch. Nothing changes without a
+  ScreenScraper account, nor in the interface. Only the ID or a title is sent; requests are spaced by 250 ms and
+  answers kept for the session (a failed request is asked again). Pictures come from `www.nintendo.com` and
+  `img-eshop.cdn.nintendo.net` through the catalogue's client, never ScreenScraper's quota. These endpoints are
+  public but undocumented: if they change, scraping falls back to ScreenScraper alone. Checked by
+  `test/nintendo_eshop_catalogue_test.dart` and `test/scraper_nintendo_catalogue_flow_test.dart`, against synthetic
+  answers: nothing of Nintendo's is in the repository.
 - **Launch title.** After IPA 790 displayed `131072` before Fire Emblem's first frame, both the preparation dialog
   and the native loading view use the resolved title. Patch 0120 accepts it separately from the prepared
   control data, so this also works for games that already have a prepared directory.

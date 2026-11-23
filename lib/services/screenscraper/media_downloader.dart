@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:neostation/services/logger_service.dart';
 
@@ -11,6 +10,7 @@ import 'rom_hasher.dart';
 import 'media_placeholder.dart';
 import 'media_resolver.dart';
 import 'screenscraper_client.dart';
+import '../nintendo_eshop_catalogue.dart';
 
 /// Media asset downloader for ScreenScraper.
 ///
@@ -100,10 +100,12 @@ class ScreenscraperMediaDownloader {
       }
 
       final uri = Uri.parse(url);
-      final publisherMedia = systemFolder == 'switch2' &&
-          uri.scheme == 'https' && uri.host == 'www.nintendo.com';
+      // Pictures from Nintendo's catalogues and the publisher entries are
+      // fetched directly, never through ScreenScraper's client and quota.
+      final publisherMedia = uri.scheme == 'https' &&
+          NintendoEshopCatalogue.pictureHosts.contains(uri.host);
       final response = publisherMedia
-          ? await http.get(uri).timeout(const Duration(seconds: 15))
+          ? await NintendoEshopCatalogue.fetchPicture(uri)
           : await ScreenscraperClient.httpGetWithRetry(
               uri,
               timeout: const Duration(seconds: 60),
