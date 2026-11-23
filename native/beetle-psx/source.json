@@ -1,0 +1,167 @@
+{
+  "schema": 1,
+  "upstream": "https://github.com/libretro/beetle-psx-libretro",
+  "revision": "10e4b0c6ceae20daa65ddf436a4445dddd0982d2",
+  "sourceGit": {
+    "url": "https://github.com/libretro/beetle-psx-libretro.git",
+    "revision": "10e4b0c6ceae20daa65ddf436a4445dddd0982d2",
+    "root": "beetle-psx-libretro"
+  },
+  "cherryPicks": [
+    {
+      "commit": "ed9dabc61813f51ad30a678f5746362c8dde8b9d",
+      "files": [
+        "mednafen/psx/cpu.c",
+        "mednafen/psx/gte.c"
+      ],
+      "why": "lightrec_plugin_shutdown hands the GTE bank back and clears lightrec_state/lightrec_regs: no double destroy on a second game load"
+    }
+  ],
+  "patch": "native/beetle-psx/lightrec-jit-abi.patch",
+  "patchSHA256": "6bcf1800b9d4024600c40364dced32fbcd5c46e3391de378706818f080850a80",
+  "abiHeader": "packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h",
+  "abiHeaderSHA256": "84c59f2484336fa3c64bc68b51177211094083fd411f0b488fee6b79bda6bc22",
+  "abiHeaderInTree": "rewindbox/RewindBoxLibretroJit.h",
+  "abiHeaderCopied": true,
+  "originalFilesSHA256": {
+    "Makefile": "9a0f047e4843d9fc19650b5908ee23e03fd7e029e5461c77f9da15f822699543",
+    "deps/lightning/include/lightning.h.in": "8d63a5a3c27e39eb9e676051ddd90c0635c3cce48d7c713e3f8b7378f2f6cf6e",
+    "deps/lightning/include/lightning/jit_private.h": "2c4b10ac5cc4d281218cd79e204bd1a805c2aa0957d2fce7f27d2f41dab4b741",
+    "deps/lightning/lib/jit_aarch64-cpu.c": "4c84153b9385f1352315bea33ff0c331fd2e2102ae3cf0aeb06e6d028833470c",
+    "deps/lightning/lib/jit_aarch64.c": "78bad162baece3dabb8574cb1146c2fe3914310f18d5379acdbf14fac5eafa79",
+    "deps/lightning/lib/lightning.c": "af5400692f022392d0aeb4b60a8b0ac793ccc0713b4a49a8f7766d50a6b165ca",
+    "deps/lightrec/lightrec-private.h": "a0e8fbf007a1c07189780e0b1255b0c9f1a0c8fad7e6b455030d02a7fc599485",
+    "deps/lightrec/lightrec.c": "36b83b04e99e9a00da6aa212c2564ac235dabdd3124f5a02e47f0cd4949870a6",
+    "deps/lightrec/lightrec.h": "685dc398c7f237b54586a6d1bc5e1c6bca6b6656c9b40419c9a1194b9d41ce5d",
+    "deps/lightrec/recompiler.c": "7d6d01150f07f31ec49a8a37927c082805d7fcef71208e488eac4c0484510947",
+    "include/lightning-actual.h": "f8ad552bbf6f3b6eb30be3427ed0688cc91fc49f3866be5e05ce604f7738d771",
+    "include/lightning.h": "88b576f116b3275f87f711cb35abf4abf6aade2a93175d2352d689246c03ca15",
+    "libretro.c": "9923fe0bc41904291b04c378309bb8361114d24042b2f7e46a36d2c5436dbf3d",
+    "mednafen/psx/cpu.c": "9ca50b543887aabd8615627aefad733e5a9cdcda61e0d0dbf43f19b7c408d01a",
+    "mednafen/psx/cpu.h": "e4dfe0bc1c3809be38869a2c9fc67bbd33d74b189b750e42d151d43525da3f4d",
+    "mednafen/psx/gte.c": "e7ef6b1cd9cbc8030114c8975048863e7e25513147b87bbf06e53705560f5061"
+  },
+  "buildCommands": {
+    "prepare": [
+      "git apply --check native/beetle-psx/lightrec-jit-abi.patch",
+      "git apply native/beetle-psx/lightrec-jit-abi.patch",
+      "mkdir -p rewindbox && cp packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h rewindbox/RewindBoxLibretroJit.h"
+    ],
+    "mednafen_psx_hw": "make -j$(sysctl -n hw.ncpu) platform=ios-arm64 HAVE_HW=1 HAVE_LIGHTREC=1 THREADED_RECOMPILER=1 LIGHTREC_CODEBUFFER_SIZE=16777216 && strip -x mednafen_psx_hw_libretro_ios.dylib",
+    "between": "make clean (or a separate tree per core: the objects differ with HAVE_HW)",
+    "mednafen_psx": "make -j$(sysctl -n hw.ncpu) platform=ios-arm64 HAVE_LIGHTREC=1 THREADED_RECOMPILER=1 LIGHTREC_CODEBUFFER_SIZE=16777216 && strip -x mednafen_psx_libretro_ios.dylib",
+    "defines": "With platform=ios-arm64 and HAVE_LIGHTREC=1 the patched Makefile adds -DREWINDBOX_LIBRETRO_JIT -DLIGHTREC_CODEBUFFER_SIZE=$(LIGHTREC_CODEBUFFER_SIZE); Makefile.common adds -DHAVE_LIGHTREC -DENABLE_THREADED_COMPILER=1. No HAVE_SHM on iOS."
+  },
+  "cores": [
+    {
+      "core": "mednafen_psx_hw",
+      "framework": "mednafen_psx_hw_libretro",
+      "build": {
+        "kind": "make",
+        "make": [
+          "platform=ios-arm64",
+          "IPHONEMINVER=-miphoneos-version-min=14.0",
+          "HAVE_HW=1",
+          "HAVE_LIGHTREC=1",
+          "THREADED_RECOMPILER=1",
+          "LIGHTREC_CODEBUFFER_SIZE=16777216"
+        ],
+        "output": "mednafen_psx_hw_libretro_ios.dylib",
+        "strip": [
+          "-x"
+        ]
+      },
+      "expectedStrings": [
+        "beetle_psx_hw_cpu_dynarec",
+        "Lightrec codebuffer runs at"
+      ],
+      "jitOverrides": {
+        "beetle_psx_hw_cpu_dynarec": "execute"
+      },
+      "noJitOverrides": {
+        "beetle_psx_hw_cpu_dynarec": "disabled"
+      }
+    },
+    {
+      "core": "mednafen_psx",
+      "framework": "mednafen_psx_libretro",
+      "build": {
+        "kind": "make",
+        "make": [
+          "platform=ios-arm64",
+          "IPHONEMINVER=-miphoneos-version-min=14.0",
+          "HAVE_LIGHTREC=1",
+          "THREADED_RECOMPILER=1",
+          "LIGHTREC_CODEBUFFER_SIZE=16777216"
+        ],
+        "output": "mednafen_psx_libretro_ios.dylib",
+        "strip": [
+          "-x"
+        ]
+      },
+      "expectedStrings": [
+        "beetle_psx_cpu_dynarec",
+        "Lightrec codebuffer runs at"
+      ],
+      "jitOverrides": {
+        "beetle_psx_cpu_dynarec": "execute"
+      },
+      "noJitOverrides": {
+        "beetle_psx_cpu_dynarec": "disabled"
+      }
+    }
+  ],
+  "expectedExports": [
+    "_rewindbox_libretro_jit_install",
+    "_retro_api_version",
+    "_retro_cheat_reset",
+    "_retro_cheat_set",
+    "_retro_deinit",
+    "_retro_get_memory_data",
+    "_retro_get_memory_size",
+    "_retro_get_region",
+    "_retro_get_system_av_info",
+    "_retro_get_system_info",
+    "_retro_init",
+    "_retro_load_game",
+    "_retro_load_game_special",
+    "_retro_reset",
+    "_retro_run",
+    "_retro_serialize",
+    "_retro_serialize_size",
+    "_retro_set_audio_sample",
+    "_retro_set_audio_sample_batch",
+    "_retro_set_controller_port_device",
+    "_retro_set_environment",
+    "_retro_set_input_poll",
+    "_retro_set_input_state",
+    "_retro_set_video_refresh",
+    "_retro_unload_game",
+    "_retro_unserialize"
+  ],
+  "forbiddenImports": [
+    "_vm_protect",
+    "_mach_vm_protect",
+    "_pthread_jit_write_protect_np",
+    "_task_set_exception_ports",
+    "_mach_msg"
+  ],
+  "jitArenaBytes": 16777216,
+  "license": "GPL-2.0 (Beetle PSX, Mednafen); Lightrec LGPL-2.1-or-later; GNU Lightning LGPL-3.0-or-later; ABI header MIT; RewindBox changes in native/beetle-psx/lightrec-jit-abi.patch",
+  "noticeLicense": "GPLv3 (Mednafen and Beetle PSX GPLv2+, Lightrec LGPL-2.1+, GNU Lightning LGPL-3.0+; license texts Lightrec-COPYING.txt, GNU-Lightning-COPYING.LESSER.txt, GNU-Lightning-COPYING.txt)",
+  "identityLicense": "GPLv3",
+  "licenseFiles": [
+    {
+      "from": "deps/lightrec/COPYING",
+      "to": "Libretro-Licenses/Lightrec-COPYING.txt"
+    },
+    {
+      "from": "deps/lightning/COPYING.LESSER",
+      "to": "Libretro-Licenses/GNU-Lightning-COPYING.LESSER.txt"
+    },
+    {
+      "from": "deps/lightning/COPYING",
+      "to": "Libretro-Licenses/GNU-Lightning-COPYING.txt"
+    }
+  ]
+}

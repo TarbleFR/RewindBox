@@ -57,9 +57,8 @@
   ],
   "jitArenaBytes": 134217728,
   "license": "GPL-3.0-or-later (Azahar); dynarmic 0BSD, oaknut MIT; RewindBox changes in native/azahar/rewindbox-jit.patch",
+  "noticeLicense": "GPLv3+",
   "noticeLines": {
-    "Azahar is the unmodified official iOS release;": "Azahar is built by RewindBox from its official source with the JIT patch named below; other cores retain their buildbot identity.",
-    "- azahar: ": "- azahar: GPLv3+ - https://github.com/azahar-emu/azahar/tree/6f293a24daa292bd02b4ffee1a2adb5435e1ae00 - sha256 {sha256}",
     "Azahar 2127.0-alpha1 (GPLv3 or later).": "Azahar 2127.0-rc5 (GPLv3 or later).",
     "Source and dependencies: https://github.com/azahar-emu/azahar/": "Source and dependencies: https://github.com/azahar-emu/azahar/releases/download/2127.0-rc5/azahar-unified-source-2127.0-rc5.tar.xz"
   }

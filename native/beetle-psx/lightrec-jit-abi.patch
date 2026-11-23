@@ -1,0 +1,985 @@
+diff --git a/Makefile b/Makefile
+index 9dbd0be4..d3abf82f 100644
+--- a/Makefile
++++ b/Makefile
+@@ -217,6 +217,17 @@ else ifneq (,$(findstring ios,$(platform)))
+       IPHONEMINVER = -miphoneos-version-min=5.0
+    endif
+    HAVE_LIGHTREC = 0
++   # `make HAVE_LIGHTREC=1` (a command-line value wins over the line above)
++   # builds Lightrec for RewindBox's JIT interface only: the code buffer is
++   # a block of the executable memory the host prepares, handed over by
++   # rewindbox_libretro_jit_install() (rewindbox/RewindBoxLibretroJit.h, put
++   # into this tree by the build); without it the dynarec stays off. The
++   # core never maps executable memory itself.
++   ifeq ($(HAVE_LIGHTREC), 1)
++      LIGHTREC_CODEBUFFER_SIZE ?= 16777216
++      FLAGS += -DREWINDBOX_LIBRETRO_JIT \
++               -DLIGHTREC_CODEBUFFER_SIZE=$(LIGHTREC_CODEBUFFER_SIZE)
++   endif
+    # Every iOS device has NEON (the armv7 baseline is Cortex-A8 class,
+    # and arm64 includes it architecturally).
+    FLAGS += -DGPU_HAVE_NEON=1
+diff --git a/deps/lightning/include/lightning.h.in b/deps/lightning/include/lightning.h.in
+index 8fb270a1..366fd3b0 100644
+--- a/deps/lightning/include/lightning.h.in
++++ b/deps/lightning/include/lightning.h.in
+@@ -1420,6 +1420,12 @@ extern void _jit_realize(jit_state_t*);
+ extern jit_pointer_t _jit_get_code(jit_state_t*, jit_word_t*);
+ #define jit_set_code(u,v)	_jit_set_code(_jit,u,v)
+ extern void _jit_set_code(jit_state_t*, jit_pointer_t, jit_word_t);
++/* The code jit_set_code() writes at PTR runs at PTR + U (a second view of
++ * the same pages): jit_address() and every absolute code address are then
++ * execution addresses, and the caller invalidates the instruction cache
++ * at the execution address. aarch64 only; 0 (the default) is one view. */
++#define jit_set_code_exec(u)	_jit_set_code_exec(_jit,u)
++extern void _jit_set_code_exec(jit_state_t*, jit_word_t);
+ #define jit_get_data(u,v)	_jit_get_data(_jit,u,v)
+ extern jit_pointer_t _jit_get_data(jit_state_t*, jit_word_t*, jit_word_t*);
+ #define jit_set_data(u,v,w)	_jit_set_data(_jit,u,v,w)
+diff --git a/deps/lightning/include/lightning/jit_private.h b/deps/lightning/include/lightning/jit_private.h
+index d350bab4..dab6eab1 100644
+--- a/deps/lightning/include/lightning/jit_private.h
++++ b/deps/lightning/include/lightning/jit_private.h
+@@ -799,6 +799,8 @@ struct jit_state {
+ 	jit_word_t	 length;
+         /* PROTECTED bytes starting at PTR are mprotect'd. */
+         jit_word_t       protect;
++	/* The code written at PTR runs at PTR + EXEC (jit_set_code_exec). */
++	jit_word_t	 exec;
+     } code;
+     struct {
+ 	jit_uint8_t	*ptr;
+diff --git a/deps/lightning/lib/jit_aarch64-cpu.c b/deps/lightning/lib/jit_aarch64-cpu.c
+index 6a5805fa..c138abdd 100644
+--- a/deps/lightning/lib/jit_aarch64-cpu.c
++++ b/deps/lightning/lib/jit_aarch64-cpu.c
+@@ -2726,13 +2726,15 @@ _jmpi(jit_state_t *_jit, jit_word_t i0)
+ {
+     jit_int32_t		reg;
+     jit_word_t		d, w;
++    /* I0 is a written address, like the pc: the distance is the same
++     * where the code runs, the absolute target is not */
+     w = _jit->pc.w;
+     d = (i0 - w) >> 2;
+     if (s26_p(d))
+ 	B(d);
+     else {
+ 	reg = jit_get_reg(jit_class_gpr|jit_class_nospill);
+-	movi(rn(reg), i0);
++	movi(rn(reg), i0 + _jit->code.exec);
+ 	jmpr(rn(reg));
+ 	jit_unget_reg(reg);
+     }
+@@ -2756,13 +2758,14 @@ _calli(jit_state_t *_jit, jit_word_t i0)
+ {
+     jit_int32_t		reg;
+     jit_word_t		d, w;
++    /* I0 is a written address, as in _jmpi() */
+     w = _jit->pc.w;
+     d = (i0 - w) >> 2;
+     if (s26_p(d))
+ 	BL(d);
+     else {
+ 	reg = jit_get_reg(jit_class_gpr);
+-	movi(rn(reg), i0);
++	movi(rn(reg), i0 + _jit->code.exec);
+ 	callr(rn(reg));
+ 	jit_unget_reg(reg);
+     }
+@@ -3041,6 +3044,8 @@ _patch_at(jit_state_t *_jit, jit_word_t instr, jit_word_t label)
+ 	u.i[0] = i.w;
+     }
+     else if (ffc == (A64_MOVZ|XS)) {
++	/* An absolute code address: where the label runs */
++	label += _jit->code.exec;
+ 	i.imm16.b = label;
+ 	u.i[0] = i.w;
+ 	i.w = u.i[1];
+diff --git a/deps/lightning/lib/jit_aarch64.c b/deps/lightning/lib/jit_aarch64.c
+index 0c5a40c5..57d639c3 100644
+--- a/deps/lightning/lib/jit_aarch64.c
++++ b/deps/lightning/lib/jit_aarch64.c
+@@ -1630,10 +1630,12 @@ _emit_code(jit_state_t *_jit)
+ 	    case jit_code_movi:
+ 		if (node->flag & jit_flag_node) {
+ 		    temp = node->v.n;
+-		    if (temp->code == jit_code_data ||
+-			(temp->code == jit_code_label &&
+-			 (temp->flag & jit_flag_patch)))
++		    if (temp->code == jit_code_data)
+ 			movi(rn(node->u.w), temp->u.w);
++		    else if (temp->code == jit_code_label &&
++			     (temp->flag & jit_flag_patch))
++			/* Where the label runs (jit_set_code_exec) */
++			movi(rn(node->u.w), temp->u.w + _jit->code.exec);
+ 		    else {
+ 			assert(temp->code == jit_code_label ||
+ 			       temp->code == jit_code_epilog);
+@@ -1913,7 +1915,8 @@ _emit_code(jit_state_t *_jit)
+ 		}
+ 		else {
+ 		    jit_check_frame();
+-		    jmpi(node->u.w);
++		    /* An execution address: jmpi() takes written ones */
++		    jmpi(node->u.w - _jit->code.exec);
+ 		}
+ 		break;
+ 	    case jit_code_callr:
+@@ -1939,7 +1942,8 @@ _emit_code(jit_state_t *_jit)
+ 		    }
+ 		}
+ 		else
+-		    calli(node->u.w);
++		    /* An execution address: calli() takes written ones */
++		    calli(node->u.w - _jit->code.exec);
+ 		break;
+ 	    case jit_code_prolog:
+ 		_jitc->function = _jitc->functions.ptr + node->w.w;
+@@ -2183,7 +2187,10 @@ _emit_code(jit_state_t *_jit)
+ 	patch_at(word, value);
+     }
+ 
+-    jit_flush(_jit->code.ptr, _jit->pc.uc);
++    /* With a separate execution address, the caller invalidates the
++     * instruction cache there (jit_set_code_exec) */
++    if (!_jit->code.exec)
++	jit_flush(_jit->code.ptr, _jit->pc.uc);
+ 
+     return (_jit->code.ptr);
+ }
+diff --git a/deps/lightning/lib/lightning.c b/deps/lightning/lib/lightning.c
+index 656e5f7b..53d59bc3 100644
+--- a/deps/lightning/lib/lightning.c
++++ b/deps/lightning/lib/lightning.c
+@@ -699,7 +699,8 @@ _jit_address(jit_state_t *_jit, jit_node_t *node)
+ 	   (node->code == jit_code_note || node->code == jit_code_name ||
+ 	    /* If another special fixed marker, returned by jit_indirect() */
+ 	    (node->code == jit_code_label && (node->flag & jit_flag_use) != 0)));
+-    return ((jit_pointer_t)node->u.w);
++    /* Where the code runs (jit_set_code_exec) */
++    return ((jit_pointer_t)(node->u.w + _jit->code.exec));
+ }
+ 
+ jit_node_t *
+@@ -2454,6 +2455,18 @@ _jit_set_code(jit_state_t *_jit, jit_pointer_t ptr, jit_word_t length)
+     _jit->user_code = 1;
+ }
+ 
++void
++_jit_set_code_exec(jit_state_t *_jit, jit_word_t exec)
++{
++    assert(!_jitc->emit);
++#if !defined(__aarch64__)
++    /* Only the aarch64 backend emits for a separate execution address */
++    if (exec)
++	abort();
++#endif
++    _jit->code.exec = exec;
++}
++
+ jit_pointer_t
+ _jit_get_data(jit_state_t *_jit, jit_word_t *data_size, jit_word_t *note_size)
+ {
+@@ -2553,7 +2566,10 @@ _jit_emit(jit_state_t *_jit)
+ 		    node->flag &= ~jit_flag_patch;
+ 	    }
+ #if !HAVE_MMAP
++	    /* The caller's buffer is too small: it retries with a larger
++	     * one, there is nothing to grow here */
+ 	    assert(_jit->user_code);
++	    goto fail;
+ #else
+ 	    if (_jit->user_code)
+ 		goto fail;
+@@ -2628,10 +2644,8 @@ _jit_emit(jit_state_t *_jit)
+ 
+     return (_jit->code.ptr);
+ 
+-#if HAVE_MMAP
+ fail:
+     return (NULL);
+-#endif /* HAVE_MMAP */
+ }
+ 
+ void
+diff --git a/deps/lightrec/lightrec-private.h b/deps/lightrec/lightrec-private.h
+index 16fc2cc2..9aec8499 100644
+--- a/deps/lightrec/lightrec-private.h
++++ b/deps/lightrec/lightrec-private.h
+@@ -224,6 +224,10 @@ struct lightrec_state {
+ 	struct lightrec_cstate *cstate;
+ 	struct reaper *reaper;
+ 	void *tlsf;
++	/* Code is written in the code buffer and runs this far from it
++	 * (lightrec_set_code_exec_offset); the allocators only ever see
++	 * written addresses, everything else the executed ones. */
++	intptr_t code_exec_offset;
+ 	void (*eob_wrapper_func)(void);
+ 	void (*interpreter_func)(void);
+ 	void (*ds_check_func)(void);
+diff --git a/deps/lightrec/lightrec.c b/deps/lightrec/lightrec.c
+index 6a10b3e5..cbb62d95 100644
+--- a/deps/lightrec/lightrec.c
++++ b/deps/lightrec/lightrec.c
+@@ -1166,6 +1166,28 @@ static void * get_next_block_func(struct lightrec_state *state, u32 pc)
+ 	return func;
+ }
+ 
++/* Distance from the written code buffer to its execution view, for the
++ * states lightrec_init() creates next. */
++static intptr_t lightrec_next_code_exec_offset;
++
++void lightrec_set_code_exec_offset(intptr_t offset)
++{
++	lightrec_next_code_exec_offset = offset;
++}
++
++/* Where code written at CODE runs, and back. */
++static inline void * lightrec_code_exec(const struct lightrec_state *state,
++					void *code)
++{
++	return code ? (void *)((uintptr_t)code + state->code_exec_offset) : NULL;
++}
++
++static inline void * lightrec_code_written(const struct lightrec_state *state,
++					   void *fn)
++{
++	return fn ? (void *)((uintptr_t)fn - state->code_exec_offset) : NULL;
++}
++
+ /* Threaded: each worker owns a code arena and the emulation thread only
+  * frees (routed to the owner), so no lock is needed; see recompiler.c.
+  * Non-threaded: one TLSF over the whole code buffer. */
+@@ -1237,6 +1259,14 @@ static void * lightrec_emit_code(struct lightrec_state *state,
+ 	else
+ 		jit_set_data(NULL, 0, JIT_DISABLE_DATA | JIT_DISABLE_NOTE);
+ 
++#if defined(HAVE_MMAP) && !HAVE_MMAP
++	/* This Lightning never maps code itself: no code buffer, no code */
++	if (!has_code_buffer) {
++		pr_err("No code buffer: no code is generated\n");
++		return NULL;
++	}
++#endif
++
+ 	if (has_code_buffer) {
+ 		jit_get_code(&code_size);
+ 
+@@ -1270,6 +1300,10 @@ static void * lightrec_emit_code(struct lightrec_state *state,
+ 		}
+ 
+ 		jit_set_code(code, code_size);
++
++		/* Written here, emitted for the address where it runs */
++		if (state->code_exec_offset)
++			jit_set_code_exec(state->code_exec_offset);
+ 	}
+ 
+ 	alloc = code;
+@@ -1287,6 +1321,9 @@ static void * lightrec_emit_code(struct lightrec_state *state,
+ 	if (has_code_buffer) {
+ 		lightrec_realloc_code(state, arena, code, (size_t) new_code_size);
+ 
++		/* Everything but the allocator uses the executed address */
++		code = lightrec_code_exec(state, code);
++
+ 		pr_debug("Creating code block at address 0x%" PRIxPTR ", "
+ 			 "code size: %" PRIuPTR " new: %" PRIuPTR "\n",
+ 			 (uintptr_t) code, code_size, new_code_size);
+@@ -1915,7 +1952,7 @@ static void lightrec_free_function(struct lightrec_state *state, void *fn)
+ {
+ 	if (lightrec_has_code_buffer(state)) {
+ 		pr_debug("Freeing code block at 0x%" PRIxPTR "\n", (uintptr_t) fn);
+-		lightrec_free_code(state, fn);
++		lightrec_free_code(state, lightrec_code_written(state, fn));
+ 	}
+ }
+ 
+@@ -2050,7 +2087,8 @@ int lightrec_compile_block_code(struct lightrec_cstate *cstate,
+ 	c = lightrec_malloc(state, MEM_FOR_LIGHTREC,
+ 			    sizeof(*c) + cstate->nb_targets * sizeof(c->targets[0]));
+ 	if (!c) {
+-		lightrec_free_code_own(state, cstate->arena, new_fn);
++		lightrec_free_code_own(state, cstate->arena,
++				       lightrec_code_written(state, new_fn));
+ 		lightrec_unregister(MEM_FOR_CODE, new_code_size);
+ 		block->_jit = oldjit;
+ 		jit_clear_state();
+@@ -2464,6 +2502,8 @@ struct lightrec_state * lightrec_init(char *argv0,
+ 	const struct lightrec_mem_map *codebuf_map = &maps[PSX_MAP_CODE_BUFFER];
+ 	const struct lightrec_mem_map *map;
+ 	struct lightrec_state *state;
++	intptr_t exec_offset = lightrec_next_code_exec_offset;
++	bool has_codebuf, exec_view_ok = false;
+ 	uintptr_t addr;
+ 	void *tlsf = NULL;
+ 	bool with_32bit_lut = false;
+@@ -2480,8 +2520,22 @@ struct lightrec_state * lightrec_init(char *argv0,
+ 	else
+ 		pr_debug("No optional cop2_notify callback in lightrec_ops\n");
+ 
+-	if (ENABLE_CODE_BUFFER && nb > PSX_MAP_CODE_BUFFER
+-	    && codebuf_map->address) {
++	has_codebuf = ENABLE_CODE_BUFFER && nb > PSX_MAP_CODE_BUFFER
++		&& codebuf_map->address;
++
++	/* A separate execution view needs the code buffer, a code_inv
++	 * callback to invalidate the instruction cache there, and
++	 * Lightning's aarch64 backend. */
++#if defined(__aarch64__)
++	exec_view_ok = has_codebuf && ops->code_inv;
++#endif
++	if (exec_offset && !exec_view_ok) {
++		pr_err("Cannot run the code buffer from another view\n");
++		return NULL;
++	}
++
++	if (has_codebuf) {
++		/* The allocator's metadata lives in the written view */
+ 		if (!ENABLE_THREADED_COMPILER) {
+ 			tlsf = tlsf_create_with_pool(codebuf_map->address,
+ 						     codebuf_map->length);
+@@ -2491,8 +2545,10 @@ struct lightrec_state * lightrec_init(char *argv0,
+ 			}
+ 		}
+ 
++		/* The code LUT holds executed addresses */
+ 		if (__WORDSIZE == 64) {
+-			addr = (uintptr_t) codebuf_map->address + codebuf_map->length - 1;
++			addr = (uintptr_t) codebuf_map->address + exec_offset
++				+ codebuf_map->length - 1;
+ 			with_32bit_lut = addr == (u32) addr;
+ 		}
+ 	}
+@@ -2511,6 +2567,7 @@ struct lightrec_state * lightrec_init(char *argv0,
+ 	lightrec_register(MEM_FOR_LIGHTREC, sizeof(*state) + lut_size);
+ 
+ 	state->tlsf = tlsf;
++	state->code_exec_offset = exec_offset;
+ 	state->with_32bit_lut = with_32bit_lut;
+ 	state->in_delay_slot_n = 0xff;
+ 	state->cycles_per_op = 2;
+@@ -2589,6 +2646,11 @@ struct lightrec_state * lightrec_init(char *argv0,
+ 	if (state->with_32bit_lut)
+ 		pr_info("Using 32-bit LUT\n");
+ 
++	if (state->code_exec_offset)
++		pr_info("Code buffer written at 0x%" PRIxPTR ", run at 0x%" PRIxPTR "\n",
++			(uintptr_t) codebuf_map->address,
++			(uintptr_t) codebuf_map->address + state->code_exec_offset);
++
+ 	return state;
+ 
+ err_free_dispatcher:
+diff --git a/deps/lightrec/lightrec.h b/deps/lightrec/lightrec.h
+index 57bee122..c6b838c2 100644
+--- a/deps/lightrec/lightrec.h
++++ b/deps/lightrec/lightrec.h
+@@ -143,6 +143,13 @@ struct lightrec_registers {
+ 	u32 cp2c[32];
+ };
+ 
++/* The code buffer (PSX_MAP_CODE_BUFFER) is written at its address and runs
++ * at that address + offset: a second, read-execute view of the same pages.
++ * Every code address lightrec hands out or jumps to is then in that view,
++ * and ops->code_inv, required, invalidates it. Applies to the states
++ * lightrec_init() creates afterwards; 0, the default, is a single view. */
++__api void lightrec_set_code_exec_offset(intptr_t offset);
++
+ __api struct lightrec_state *lightrec_init(char *argv0,
+ 					   const struct lightrec_mem_map *map,
+ 					   size_t nb,
+diff --git a/deps/lightrec/recompiler.c b/deps/lightrec/recompiler.c
+index 9cf21b4c..d6c5177b 100644
+--- a/deps/lightrec/recompiler.c
++++ b/deps/lightrec/recompiler.c
+@@ -536,6 +536,13 @@ void lightrec_recompiler_install(struct recompiler *rec)
+ 		lightrec_free(rec->state, MEM_FOR_LIGHTREC,
+ 			      sizeof(*c) + c->nb_targets * sizeof(c->targets[0]), c);
+ 	}
++
++#if defined(__aarch64__)
++	/* The workers invalidated the instruction cache after writing the
++	 * code; this core may still hold instructions it fetched earlier at
++	 * the same addresses, from code freed since. */
++	__asm__ volatile("isb" ::: "memory");
++#endif
+ }
+ 
+ /* ------------------------------------------------------------------ */
+diff --git a/include/lightning-actual.h b/include/lightning-actual.h
+index f669f68c..e9015fd4 100644
+--- a/include/lightning-actual.h
++++ b/include/lightning-actual.h
+@@ -1420,6 +1420,12 @@ extern void _jit_realize(jit_state_t*);
+ extern jit_pointer_t _jit_get_code(jit_state_t*, jit_word_t*);
+ #define jit_set_code(u,v)	_jit_set_code(_jit,u,v)
+ extern void _jit_set_code(jit_state_t*, jit_pointer_t, jit_word_t);
++/* The code jit_set_code() writes at PTR runs at PTR + U (a second view of
++ * the same pages): jit_address() and every absolute code address are then
++ * execution addresses, and the caller invalidates the instruction cache
++ * at the execution address. aarch64 only; 0 (the default) is one view. */
++#define jit_set_code_exec(u)	_jit_set_code_exec(_jit,u)
++extern void _jit_set_code_exec(jit_state_t*, jit_word_t);
+ #define jit_get_data(u,v)	_jit_get_data(_jit,u,v)
+ extern jit_pointer_t _jit_get_data(jit_state_t*, jit_word_t*, jit_word_t*);
+ #define jit_set_data(u,v,w)	_jit_set_data(_jit,u,v,w)
+diff --git a/include/lightning.h b/include/lightning.h
+index 27180d13..703f0bbc 100644
+--- a/include/lightning.h
++++ b/include/lightning.h
+@@ -1,3 +1,11 @@
++#ifdef REWINDBOX_LIBRETRO_JIT
++/* RewindBox's JIT interface (rewindbox/RewindBoxLibretroJit.h): Lightning
++ * only writes into the code buffer Lightrec hands it with jit_set_code(),
++ * and never maps memory or changes its protections itself. */
++#undef HAVE_MMAP
++#define HAVE_MMAP 0
++#else
+ #define HAVE_MMAP 1
++#endif
+ 
+ #include <lightning-actual.h>
+diff --git a/libretro.c b/libretro.c
+index 54deaa53..66ba91b2 100644
+--- a/libretro.c
++++ b/libretro.c
+@@ -62,6 +62,19 @@ retro_input_state_t dbg_input_state_cb = 0;
+ #ifdef HAVE_WIN_SHM
+ #include <windows.h>
+ #endif
++
++#if defined(__APPLE__) && defined(REWINDBOX_LIBRETRO_JIT) && \
++    !defined(HAVE_SHM) && !defined(HAVE_ASHMEM)
++/* iOS: the RAM views are Mach VM remaps (lightrec_init_mmap), no POSIX
++ * shared memory */
++#define HAVE_MACH_VM
++#include <mach/mach.h>
++#include <mach/vm_map.h>
++#endif
++
++#ifdef REWINDBOX_LIBRETRO_JIT
++#include "rewindbox/RewindBoxLibretroJit.h"
++#endif
+ #endif /* HAVE_LIGHTREC */
+ 
+ #if __APPLE__
+@@ -173,6 +186,52 @@ uint8_t     *lightrec_codebuffer = NULL;
+ #if defined(HAVE_ASHMEM)
+ int memfd;
+ #endif
++
++#ifdef REWINDBOX_LIBRETRO_JIT
++/* RewindBox's JIT interface (rewindbox/RewindBoxLibretroJit.h, copied from
++ * RewindBox by the build). The host prepares the executable memory before
++ * it opens the core and hands it over right after dlopen: Lightrec's code
++ * buffer is one block of it, taken once per open, written at
++ * lightrec_codebuffer and run rewindbox_jit_exec_offset bytes away. Without
++ * it no code is generated: the dynarec stays off. */
++static const RewindBoxLibretroJitV1 *rewindbox_jit;
++intptr_t rewindbox_jit_exec_offset;
++
++RETRO_API int rewindbox_libretro_jit_install(const RewindBoxLibretroJitV1 *jit)
++{
++   uint64_t rx = 0, rw = 0;
++
++   /* A new open: what an earlier one installed went with it */
++   rewindbox_jit             = NULL;
++   rewindbox_jit_exec_offset = 0;
++   lightrec_codebuffer       = NULL;
++
++   if (!jit || jit->version != REWINDBOX_LIBRETRO_JIT_VERSION ||
++       jit->structBytes != sizeof(*jit) ||
++       !jit->allocate || !jit->flush || !jit->available ||
++       !jit->pageBytes || (jit->pageBytes & (jit->pageBytes - 1)))
++      return -1;
++
++   /* The whole code buffer at once: the arena never grows, and a full
++    * buffer is flushed and reused by Lightrec */
++   if (jit->available() < LIGHTREC_CODEBUFFER_SIZE ||
++       jit->allocate(LIGHTREC_CODEBUFFER_SIZE, &rx, &rw) != 0 ||
++       !rx || !rw || ((rx | rw) & (jit->pageBytes - 1)))
++      return -1;
++
++   rewindbox_jit             = jit;
++   rewindbox_jit_exec_offset = (intptr_t)(rx - rw);
++   lightrec_codebuffer       = (uint8_t *)(uintptr_t)rw;
++   return 0;
++}
++
++/* lightrec_ops.code_inv: new code is invalidated where it runs */
++void rewindbox_jit_flush(void *addr, uint32_t bytes)
++{
++   if (rewindbox_jit && addr && bytes)
++      rewindbox_jit->flush((uint64_t)(uintptr_t)addr, bytes);
++}
++#endif
+ #endif
+ 
+ int32_t EventCycles = 128;
+@@ -2457,6 +2516,16 @@ static void SetDiscWrapper(const bool CD_TrayOpen) {
+  * baseline POSIX semantics are required - MAP_FIXED_NOREPLACE (Linux 4.17+,
+  * absent on XNU and the BSDs) is unnecessary, and destructive MAP_FIXED
+  * probing at unowned addresses is never performed. */
++/* The code buffer belongs to this layout, mapped read-write-execute after
++ * the RAM mirrors - except with RewindBox's JIT interface, where it is a
++ * block of the host's arena (rewindbox_libretro_jit_install), never mapped
++ * or unmapped here. */
++#ifdef REWINDBOX_LIBRETRO_JIT
++#define LAYOUT_CODE_BUFFER 0
++#else
++#define LAYOUT_CODE_BUFFER ENABLE_CODE_BUFFER
++#endif
++
+ #ifndef MFD_HUGETLB
+ #define MFD_HUGETLB 0x0004
+ #endif
+@@ -2508,6 +2577,43 @@ static void SetDiscWrapper(const bool CD_TrayOpen) {
+ #define MFAILED NULL
+ #define NUM_MEM 4
+ #define MEMFDTYPE HANDLE
++#elif defined(HAVE_MACH_VM)
++/* Darwin without POSIX shared memory (shm_open is not proven in the iOS
++ * app sandbox). The RAM is one Mach VM region, made and released by
++ * lightrec_init_mmap(); each view is a vm_remap() of it with copy = FALSE,
++ * so the four views are the same pages. Reservations, BIOS and scratchpad
++ * are plain mmap() as in the shared memory case below; nothing executable
++ * is ever mapped here. */
++static void *mach_view(void *addr, size_t size, vm_address_t ram)
++{
++	vm_address_t view = (vm_address_t)addr;
++	vm_prot_t cur = VM_PROT_NONE, max = VM_PROT_NONE;
++
++	/* Replaces this process' own reservation at ADDR (phase 2 below) */
++	if (vm_remap(mach_task_self(), &view, size, 0,
++		     VM_FLAGS_FIXED | VM_FLAGS_OVERWRITE, mach_task_self(),
++		     ram, FALSE, &cur, &max, VM_INHERIT_NONE) != KERN_SUCCESS)
++		return MAP_FAILED;
++
++	return (void *)view;
++}
++
++#define RESERVE(addr, size) \
++	mmap(addr, size, PROT_NONE, \
++	MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0)
++#define UNRESERVE(addr, size) munmap(addr, size)
++#define HAVE_RESERVATION 1
++#define MAP(addr,size,fd,offset)\
++	mmap(addr,size, PROT_READ | PROT_WRITE, \
++	MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0)
++#define MAP_SHM(addr, size, fd, offset) \
++	mach_view(addr, size, fd)
++/* Never: the code buffer comes from RewindBox's JIT arena */
++#define MAP_CODE(addr, size, fd, offset) MAP_FAILED
++#define UNMAP(addr, size) munmap(addr, size)
++#define MFAILED MAP_FAILED
++#define NUM_MEM 4
++#define MEMFDTYPE vm_address_t
+ #elif defined(HAVE_SHM) || defined(HAVE_ASHMEM)
+ 
+ static void * mmap_huge(void *addr, size_t length, int prot, int flags,
+@@ -2596,7 +2702,7 @@ int lightrec_try_map(MEMFDTYPE memfd, int i, uintptr_t inc_io_base, uintptr_t ma
+ 
+ 	/* RAM, its mirrors and the code buffer form one contiguous block. */
+ 	mirror_block_size = (size_t)NUM_MEM * RAM_SIZE;
+-	if (ENABLE_CODE_BUFFER)
++	if (LAYOUT_CODE_BUFFER)
+ 		mirror_block_size += LIGHTREC_CODEBUFFER_SIZE;
+ 
+ 	/* Try to map at various io_base addresses*/
+@@ -2668,7 +2774,20 @@ int lightrec_try_map(MEMFDTYPE memfd, int i, uintptr_t inc_io_base, uintptr_t ma
+ 		{
+ 			psx_mem = (uint8_t *)io_base;
+ 
+-			if (ENABLE_CODE_BUFFER) {
++#ifdef HAVE_MACH_VM
++			{
++				/* The views must be the same pages, not copies */
++				volatile uint8_t *ram = psx_mem;
++
++				ram[0] = 0x5a;
++				if (ram[RAM_SIZE] != 0x5a || ram[2 * RAM_SIZE] != 0x5a ||
++				    ram[3 * RAM_SIZE] != 0x5a)
++					goto err_unmap;
++				ram[0] = 0;
++			}
++#endif
++
++			if (LAYOUT_CODE_BUFFER) {
+ 				/* The code buffer sits directly after the RAM
+ 				 * mirrors, inside the reserved block. */
+ 				map = MAP_CODE((void *)(io_base + NUM_MEM * RAM_SIZE), LIGHTREC_CODEBUFFER_SIZE, memfd, RAM_SIZE);
+@@ -2709,14 +2828,15 @@ err_unmap:
+ 		psx_mem = NULL;
+ 		psx_bios = NULL;
+ 		psx_scratch = NULL;
+-		lightrec_codebuffer = NULL;
++		if (LAYOUT_CODE_BUFFER)
++			lightrec_codebuffer = NULL;
+ 		UNRESERVE(bios, BIOS_SIZE);
+ err_release_scratch:
+ 		UNRESERVE(scratch, SCRATCH_SIZE);
+ err_release_mirrors:
+ 		UNRESERVE((void *)io_base, mirror_block_size);
+ #else
+-		if(lightrec_codebuffer){
++		if(LAYOUT_CODE_BUFFER && lightrec_codebuffer){
+ 			UNMAP(lightrec_codebuffer, LIGHTREC_CODEBUFFER_SIZE);
+ 			lightrec_codebuffer = NULL;
+ 		}
+@@ -2855,6 +2975,17 @@ int lightrec_init_mmap(void)
+ 		return 0;
+ 	}
+ #endif
++#ifdef HAVE_MACH_VM
++	/* The RAM every view maps (mach_view) */
++	vm_address_t memfd = 0;
++
++	if (vm_allocate(mach_task_self(), &memfd, RAM_SIZE,
++			VM_FLAGS_ANYWHERE) != KERN_SUCCESS)
++	{
++		log_cb(RETRO_LOG_ERROR, "Failed to allocate the RAM for its views\n");
++		return 0;
++	}
++#endif
+ 
+ 	/* Try mapping at low address base */
+ 	ret = lightrec_try_map(memfd, start_i_32, inc_io_base_32, max_io_base_32);
+@@ -2877,6 +3008,10 @@ close_return:
+ #endif
+ #ifdef HAVE_WIN_SHM
+ 	CloseHandle(memfd);
++#endif
++#ifdef HAVE_MACH_VM
++	/* The views keep the pages */
++	vm_deallocate(mach_task_self(), memfd, RAM_SIZE);
+ #endif
+ 	return ret;
+ }
+@@ -2886,7 +3021,7 @@ void lightrec_free_mmap(void)
+ 	for (int i = 0; i < NUM_MEM; i++)
+ 		UNMAP((void *)((uintptr_t)psx_mem + i * RAM_SIZE), RAM_SIZE);
+ 
+-	if (lightrec_codebuffer)
++	if (LAYOUT_CODE_BUFFER && lightrec_codebuffer)
+ 		UNMAP(lightrec_codebuffer, LIGHTREC_CODEBUFFER_SIZE);
+ 
+ 	UNMAP(psx_bios, BIOS_SIZE);
+@@ -2989,7 +3124,8 @@ static void Cleanup(void)
+    MainRAM    = NULL;
+    ScratchRAM = NULL;
+    BIOSROM    = NULL;
+-   if(lightrec_codebuffer)
++   /* RewindBox's code buffer stays for the next game of this open */
++   if(LAYOUT_CODE_BUFFER && lightrec_codebuffer)
+       lightrec_codebuffer = NULL;
+ #else
+    if (MainRAM)
+@@ -4564,6 +4700,12 @@ static void check_variables(bool startup)
+    else
+       psx_dynarec = DYNAREC_DISABLED;
+ 
++#ifdef REWINDBOX_LIBRETRO_JIT
++   /* Without RewindBox's JIT arena no code is generated at all */
++   if (!lightrec_codebuffer)
++      psx_dynarec = DYNAREC_DISABLED;
++#endif
++
+    var.key = BEETLE_OPT(dynarec_invalidate);
+ 
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+diff --git a/mednafen/psx/cpu.c b/mednafen/psx/cpu.c
+index 7c67e17f..e68cf009 100644
+--- a/mednafen/psx/cpu.c
++++ b/mednafen/psx/cpu.c
+@@ -59,6 +59,15 @@ extern uint8_t *lightrec_codebuffer;
+ static struct lightrec_state *lightrec_state;
+ uint8_t next_interpreter;
+ static struct lightrec_registers *lightrec_regs;
++/* Lightrec could not start or stopped on a fault: Beetle's interpreter
++ * runs the rest of the game (see lightrec_plugin_fail). */
++static bool lightrec_failed;
++#ifdef REWINDBOX_LIBRETRO_JIT
++/* libretro.c: the code buffer is a block of RewindBox's JIT arena, written
++ * at lightrec_codebuffer and run this far from it. */
++extern intptr_t rewindbox_jit_exec_offset;
++extern void rewindbox_jit_flush(void *addr, uint32_t bytes);
++#endif
+ #endif
+ 
+ extern bool psx_gte_overclock;
+@@ -204,6 +213,7 @@ static int32_t CPU_RunReal(PS_CPU *self, int32_t timestamp_in);
+ static int     lightrec_plugin_init(PS_CPU *self);
+ static int32_t lightrec_plugin_execute(PS_CPU *self, int32_t timestamp);
+ static void    lightrec_plugin_shutdown(void);
++static void    lightrec_plugin_fail(const char *why);
+ #endif
+ 
+ /* Local typedef so the body matches the pre-conversion code. */
+@@ -237,6 +247,11 @@ PS_CPU *CPU_New(void)
+ 
+    pgxpMode = PGXP_GetModes();
+ 
++#ifdef HAVE_LIGHTREC
++   /* A new game may use the dynarec again */
++   lightrec_failed = false;
++#endif
++
+    return self;
+ }
+ 
+@@ -285,7 +300,9 @@ void CPU_AssertIRQ_method(PS_CPU *self, unsigned which, bool asserted)
+    assert(which <= 5);
+ 
+ #ifdef HAVE_LIGHTREC
+-   if(psx_dynarec != DYNAREC_DISABLED)
++   /* lightrec_regs only exists while lightrec runs: the option can be
++    * on before lightrec_plugin_init, or after lightrec gave up. */
++   if(psx_dynarec != DYNAREC_DISABLED && lightrec_regs)
+    {
+       lightrec_regs->cp0[CP0REG_CAUSE] &= ~(1 << (10 + which));
+ 
+@@ -2924,8 +2941,16 @@ int32_t CPU_Run(PS_CPU *self, int32_t timestamp_in)
+    if (next_interpreter > 0)
+       next_interpreter--;
+ 
+-   if (psx_dynarec != DYNAREC_DISABLED)
+-      return lightrec_plugin_execute(self, timestamp_in);
++   if (psx_dynarec != DYNAREC_DISABLED && lightrec_state)
++   {
++      int32_t timestamp = lightrec_plugin_execute(self, timestamp_in);
++
++      if (psx_dynarec != DYNAREC_DISABLED)
++         return timestamp;
++
++      /* lightrec gave up during the frame: the interpreter ends it */
++      timestamp_in = timestamp;
++   }
+ #endif
+    return CPU_RunReal(self, timestamp_in);
+ }
+@@ -3585,12 +3610,19 @@ static void enable_ram(struct lightrec_state *state, _Bool enable)
+ static struct lightrec_ops ops = {
+ 	.cop2_op = cop2_op,
+ 	.enable_ram = enable_ram,
++#ifdef REWINDBOX_LIBRETRO_JIT
++	/* New code is invalidated where it runs, by the host */
++	.code_inv = rewindbox_jit_flush,
++#endif
+ };
+ 
+ static struct lightrec_ops pgxp_ops = {
+ 	.cop2_notify = pgxp_cop2_notify,
+ 	.cop2_op = cop2_op,
+ 	.enable_ram = enable_ram,
++#ifdef REWINDBOX_LIBRETRO_JIT
++	.code_inv = rewindbox_jit_flush,
++#endif
+ };
+ 
+ static int lightrec_plugin_init(PS_CPU *self)
+@@ -3603,11 +3635,16 @@ static int lightrec_plugin_init(PS_CPU *self)
+ 
+    (void)self;
+ 
+-   if (lightrec_state)
++   if (lightrec_failed)
+    {
+-      GTE_SwitchRegisters(false,lightrec_regs->cp2d);
+-      lightrec_destroy(lightrec_state);
++      /* Not again for this game: the interpreter keeps running */
++      psx_dynarec  = DYNAREC_DISABLED;
++      prev_dynarec = DYNAREC_DISABLED;
++      return -1;
+    }
++
++   if (lightrec_state)
++      lightrec_plugin_shutdown();
+    else
+    {
+       log_cb(RETRO_LOG_INFO, "Lightrec map addresses: M=0x%lx, P=0x%lx, R=0x%lx, H=0x%lx\n",
+@@ -3621,27 +3658,46 @@ static int lightrec_plugin_init(PS_CPU *self)
+          log_cb(RETRO_LOG_INFO, "Lightrec codebuffer address: 0x%lx, size: %uMB (0x%08x)\n",
+                 lightrec_codebuffer, LIGHTREC_CODEBUFFER_SIZE/(1024*1024),
+                 LIGHTREC_CODEBUFFER_SIZE);
++#ifdef REWINDBOX_LIBRETRO_JIT
++         log_cb(RETRO_LOG_INFO, "Lightrec codebuffer runs at 0x%lx (RewindBox JIT arena)\n",
++                (uintptr_t) lightrec_codebuffer + rewindbox_jit_exec_offset);
++#endif
+       }
+    }
+ 
++#ifdef REWINDBOX_LIBRETRO_JIT
++   /* Code is only ever generated in RewindBox's JIT arena */
++   if (!lightrec_codebuffer)
++   {
++      lightrec_plugin_fail("no JIT arena");
++      return -1;
++   }
++#endif
++
+    lightrec_map[PSX_MAP_KERNEL_USER_RAM].address = psxM;
+ 
++   /* lightrec_map outlives the game: nothing may stay from a previous
++    * memory layout */
+    if (psx_mmap == 4)
+    {
+       lightrec_map[PSX_MAP_MIRROR1].address = psxM + 0x200000;
+       lightrec_map[PSX_MAP_MIRROR2].address = psxM + 0x400000;
+       lightrec_map[PSX_MAP_MIRROR3].address = psxM + 0x600000;
+    }
++   else
++   {
++      lightrec_map[PSX_MAP_MIRROR1].address = NULL;
++      lightrec_map[PSX_MAP_MIRROR2].address = NULL;
++      lightrec_map[PSX_MAP_MIRROR3].address = NULL;
++   }
+ 
+    lightrec_map[PSX_MAP_BIOS].address          = psxR;
+    lightrec_map[PSX_MAP_SCRATCH_PAD].address   = psxH;
+    lightrec_map[PSX_MAP_PARALLEL_PORT].address = psxP;
+ 
+-   if(lightrec_codebuffer)
+-   {
+-      lightrec_map[PSX_MAP_CODE_BUFFER].address = lightrec_codebuffer;
+-      lightrec_map[PSX_MAP_CODE_BUFFER].length = LIGHTREC_CODEBUFFER_SIZE;
+-   }
++   lightrec_map[PSX_MAP_CODE_BUFFER].address = lightrec_codebuffer;
++   lightrec_map[PSX_MAP_CODE_BUFFER].length  =
++      lightrec_codebuffer ? LIGHTREC_CODEBUFFER_SIZE : 0;
+ 
+    if (PGXP_GetModes() & (PGXP_MODE_MEMORY | PGXP_MODE_GTE))
+    {
+@@ -3673,9 +3729,18 @@ static int lightrec_plugin_init(PS_CPU *self)
+       cop_ops = &ops;
+    }
+ 
++#ifdef REWINDBOX_LIBRETRO_JIT
++   lightrec_set_code_exec_offset(rewindbox_jit_exec_offset);
++#endif
+    lightrec_state = lightrec_init(name,
+          lightrec_map, ARRAY_SIZE(lightrec_map), cop_ops);
+ 
++   if (!lightrec_state)
++   {
++      lightrec_plugin_fail("lightrec_init failed");
++      return -1;
++   }
++
+    lightrec_regs = lightrec_get_registers(lightrec_state);
+ 
+    uint32_t flags = (psx_dynarec_invalidate?LIGHTREC_OPT_INV_DMA_ONLY:0) |
+@@ -3709,6 +3774,7 @@ static int32_t lightrec_plugin_execute(PS_CPU *self, int32_t timestamp)
+    uint32_t LDWhich;
+    uint32_t LDValue;
+    uint32_t      flags;
++   bool          fault = false;
+ 
+    (void)self;
+    (void)new_PC_mask;
+@@ -3762,7 +3828,10 @@ static int32_t lightrec_plugin_execute(PS_CPU *self, int32_t timestamp)
+          else
+             log_cb(RETRO_LOG_ERROR, "Segfault at cycle 0x%08x\n", timestamp);
+ 
+-         exit(1);
++         /* Never exit() the frontend: the registers go back to Beetle
++          * below and its interpreter goes on from PC (CPU_Run) */
++         fault = true;
++         break;
+       }
+       else if (flags & LIGHTREC_EXIT_SYSCALL)
+       {
+@@ -3808,6 +3877,9 @@ static int32_t lightrec_plugin_execute(PS_CPU *self, int32_t timestamp)
+ 
+    ACTIVE_TO_BACKING;
+ 
++   if (fault)
++      lightrec_plugin_fail("fault");
++
+    return timestamp;
+ }
+ 
+@@ -3820,7 +3892,26 @@ void CPU_LightrecClear_method(PS_CPU *self, uint32_t addr, uint32_t size)
+ 
+ static void lightrec_plugin_shutdown(void)
+ {
++   /* The GTE runs on lightrec's register bank: take it back first */
++   GTE_SwitchRegisters(false, lightrec_regs->cp2d);
+    lightrec_destroy(lightrec_state);
++   lightrec_state = NULL;
++   lightrec_regs  = NULL;
++}
++
++/* Beetle's interpreter runs the rest of the game: lightrec could not
++ * start, or stopped on a fault it cannot recover from. The CPU registers
++ * are Beetle's already; the GTE bank comes back with the shutdown. */
++static void lightrec_plugin_fail(const char *why)
++{
++   log_cb(RETRO_LOG_ERROR, "Lightrec stopped (%s): the interpreter takes over\n", why);
++
++   if (lightrec_state)
++      lightrec_plugin_shutdown();
++
++   lightrec_failed = true;
++   psx_dynarec     = DYNAREC_DISABLED;
++   prev_dynarec    = DYNAREC_DISABLED;
+ }
+ 
+ #endif
+diff --git a/mednafen/psx/cpu.h b/mednafen/psx/cpu.h
+index 70953aaf..ff7c760a 100644
+--- a/mednafen/psx/cpu.h
++++ b/mednafen/psx/cpu.h
+@@ -38,8 +38,13 @@
+ 
+ /* 8MB should rarely fill up (4 IPI average for entire 2MB ram), 0 will disable, 1 will fill and clean the buffer quickly, good for finding issues with codebuffer cleanup */
+ #ifndef LIGHTREC_CODEBUFFER_SIZE
++#ifdef REWINDBOX_LIBRETRO_JIT
++/* One block of RewindBox's JIT arena, taken once per core open */
++#define LIGHTREC_CODEBUFFER_SIZE (16*1024*1024)
++#else
+ #define LIGHTREC_CODEBUFFER_SIZE 8*1024*1024
+ #endif
++#endif
+ 
+ enum DYNAREC {DYNAREC_DISABLED, DYNAREC_EXECUTE, DYNAREC_RUN_INTERPRETER};
+ #endif
+diff --git a/mednafen/psx/gte.c b/mednafen/psx/gte.c
+index e823abb9..2b2f9152 100644
+--- a/mednafen/psx/gte.c
++++ b/mednafen/psx/gte.c
+@@ -165,23 +165,18 @@ static uint32_t FLAGS;	      /* Overflow flags generated by the GTE commands */
+ #include "../../beetle_psx_globals.h"
+ 
+ /* For lightrec compatibility regs pointer must contain 64*32bits,
+-   with CR directly after DR, use_regs will use provided regs instead
+-   of internal REG[64] for DR/CR location data will be copied between
+-   REG[64] and regs pointer to sync them to lightrec*/
++   with CR directly after DR. use_regs moves DR/CR into the provided
++   bank, otherwise back into the internal REG[64]. The bank DR points at
++   is the live one: its contents are carried over to the new bank, and a
++   bank that is not live is never copied from. */
+ void GTE_SwitchRegisters(bool use_regs, uint32_t *regs)
+ {
+-   if(use_regs)
+-   {
+-      memcpy(regs,REG,sizeof(REG));
+-      DR = regs;
+-      CR = regs+CR_OFFSET;
+-   }
+-   else
+-   {
+-      memcpy(REG,regs,sizeof(REG));
+-      DR = REG;
+-      CR = REG+CR_OFFSET;
+-   }
++   uint32_t *bank = use_regs ? regs : REG;
++
++   if (DR != bank)
++      memcpy(bank, DR, sizeof(REG));
++   DR = bank;
++   CR = bank + CR_OFFSET;
+ }
+ 
+ static INLINE uint8_t Sat5(int16_t cc)

@@ -40,7 +40,26 @@ import build_cores as package  # noqa: E402  (Mach-O, exports and dependency che
 
 PINS = {
     'azahar': ROOT / 'native/azahar/source.json',
+    # One source, two cores (native/beetle-psx/source.json "cores"): each is built in its own tree.
+    'mednafen_psx_hw': ROOT / 'native/beetle-psx/source.json',
+    'mednafen_psx': ROOT / 'native/beetle-psx/source.json',
 }
+BUILDBOT_LINE = 'other cores retain their buildbot identity.'
+
+
+def load_pin(name: str) -> dict:
+    """The pin of one core: a single-core pin as written, or the shared fields of a multi-core pin with its entry."""
+    pin = json.loads(PINS[name].read_text())
+    variants = pin.pop('cores', None)
+    pin.pop('buildCommands', None)  # documentation of the commands this script runs
+    if variants is None:
+        if pin['core'] != name:
+            raise SystemExit(f'{PINS[name]} pins {pin["core"]}, not {name}')
+        return pin
+    matches = [variant for variant in variants if variant['core'] == name]
+    if len(matches) != 1:
+        raise SystemExit(f'{PINS[name]} has {len(matches)} entries for {name}')
+    return {**pin, **matches[0]}
 
 
 def digest(path: Path) -> str:
@@ -149,6 +168,9 @@ def prepare_source(pin: dict, work: Path) -> Path:
         commit = subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD'], text=True).strip()
     if commit != pin['revision']:
         raise SystemExit(f'source revision {commit} differs from the pin {pin["revision"]}')
+    for path, sha in pin.get('originalFilesSHA256', {}).items():
+        if digest(source / path) != sha:
+            raise SystemExit(f'{path} differs from the file the patch was written for')
     run(['git', 'apply', '--check', ROOT / pin['patch']], cwd=source)
     run(['git', 'apply', ROOT / pin['patch']], cwd=source)
     in_tree = source / pin['abiHeaderInTree']
@@ -215,7 +237,7 @@ def check_binary(pin: dict, binary: Path) -> dict:
     return info
 
 
-def install(pin: dict, binary: Path, info: dict, identity: dict, output: Path) -> set[str]:
+def install(pin: dict, binary: Path, info: dict, identity: dict, output: Path, source: Path) -> set[str]:
     framework = pin['framework']
     relative = f'Frameworks/{framework}.framework/{framework}'
     target = output / relative
@@ -240,6 +262,8 @@ def install(pin: dict, binary: Path, info: dict, identity: dict, output: Path) -
         record['sourceCommit'] = pin['revision']
     if 'version' in pin:
         record['version'] = pin['version']
+    if 'identityLicense' in pin:
+        record['license'] = pin['identityLicense']
     record.update(
         sha256=digest(target), bytes=target.stat().st_size, minimumOS=info['minimumOS'],
         dependencies=info['dependencies'], installName=info['id'], compiled=True,
@@ -254,9 +278,12 @@ def install(pin: dict, binary: Path, info: dict, identity: dict, output: Path) -
         'xcode': subprocess.check_output(['xcodebuild', '-version'], text=True).strip(),
     }
     notices = output / 'Libretro-Licenses/LIBRETRO_CORES.txt'
-    # Lines of the base notice that described the replaced binary, each found by its exact prefix.
+    # Lines of the base notice that described the replaced binary, each found by its exact prefix: the core's own
+    # line of the list, then those its pin names.
     lines = notices.read_text().split('\n')
-    for prefix, replacement in pin.get('noticeLines', {}).items():
+    own = {f'- {pin["core"]}: ': f'- {pin["core"]}: {pin["noticeLicense"]} - {pin["upstream"]}/tree/{pin["revision"]} '
+                                 f'- sha256 {{sha256}}'}
+    for prefix, replacement in {**own, **pin.get('noticeLines', {})}.items():
         hits = [index for index, line in enumerate(lines) if line.startswith(prefix)]
         if len(hits) != 1:
             raise SystemExit(f'{pin["core"]}: notice prefix {prefix!r} matches {len(hits)} lines, not one')
@@ -266,7 +293,30 @@ def install(pin: dict, binary: Path, info: dict, identity: dict, output: Path) -
     notices.write_text(notices.read_text() + (
         f'\n{pin["core"]} is built by RewindBox from {record["source"]} ({origin}) with '
         f'the modifications in {pin["patch"]} (RewindBox JIT interface, RewindBoxLibretroJit.h): {pin["license"]}.\n'))
+    # License texts of the libraries the build adds (none of them is in the base collection).
+    for entry in pin.get('licenseFiles', []):
+        target_text = output / entry['to']
+        if not target_text.parent.samefile(output / 'Libretro-Licenses'):
+            raise SystemExit('license files go to Libretro-Licenses/: ' + entry['to'])
+        if target_text.exists() and target_text.read_bytes() != (source / entry['from']).read_bytes():
+            raise SystemExit('another text already has the name ' + entry['to'])
+        shutil.copy2(source / entry['from'], target_text)
+        changed.add(entry['to'])
     return changed
+
+
+def note_rebuilt(output: Path, names: list[str]) -> None:
+    """The notice's sentence on which cores keep their buildbot identity names the cores rebuilt here."""
+    notices = output / 'Libretro-Licenses/LIBRETRO_CORES.txt'
+    lines = notices.read_text().split('\n')
+    hits = [index for index, line in enumerate(lines) if line.endswith(BUILDBOT_LINE)]
+    if len(hits) != 1:
+        raise SystemExit(f'the notice has {len(hits)} lines ending with {BUILDBOT_LINE!r}, not one')
+    listed = names[0] if len(names) == 1 else ', '.join(names[:-1]) + ' and ' + names[-1]
+    lines[hits[0]] = (f'{listed} {"is" if len(names) == 1 else "are"} built by RewindBox from '
+                      f'{"its" if len(names) == 1 else "their"} official source with the JIT '
+                      f'{"patch" if len(names) == 1 else "patches"} named at the end; {BUILDBOT_LINE}')
+    notices.write_text('\n'.join(lines))
 
 
 def main(argv=None) -> int:
@@ -301,16 +351,17 @@ def main(argv=None) -> int:
     shutil.copytree(base, output)
     changed: set[str] = set()
     for name in names:
-        pin = json.loads(PINS[name].read_text())
+        pin = load_pin(name)
         source = prepare_source(pin, work / name)
         builder = BUILDERS.get(pin['build']['kind'])
         if builder is None:
             raise SystemExit(f'{name}: unknown build kind {pin["build"]["kind"]}')
         binary = builder(pin, source, work / name)
         info = check_binary(pin, binary)
-        changed |= install(pin, binary, info, identity, output)
+        changed |= install(pin, binary, info, identity, output, source)
         print(f'{name}: compiled {digest(binary)} ({binary.stat().st_size} bytes, minimum iOS {info["minimumOS"]})',
               flush=True)
+    note_rebuilt(output, names)
     for name, sha in before.items():
         if name not in changed and digest(output / name) != sha:
             raise SystemExit('a file outside the rebuilt cores changed: ' + name)

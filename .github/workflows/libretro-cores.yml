@@ -8,6 +8,7 @@ name: Libretro cores for RewindBox
     - build-utils/libretro/**
     - build-utils/libretro_source_cores.py
     - native/azahar/**
+    - native/beetle-psx/**
   workflow_dispatch:
 permissions:
   contents: read
@@ -79,7 +80,7 @@ jobs:
     - name: Build the pinned source cores
       # The bundle holds original.zip (the producer archive 825.json retains) and republication.json; the script
       # checks both against the manifest's pin before it unpacks the base collection.
-      run: python3 build-utils/libretro_source_cores.py --base-bundle dist/libretro-base --manifest build-utils/delivery/825.json --output dist/libretro --work "$RUNNER_TEMP/source-cores" --cores azahar
+      run: python3 build-utils/libretro_source_cores.py --base-bundle dist/libretro-base --manifest build-utils/delivery/825.json --output dist/libretro --work "$RUNNER_TEMP/source-cores" --cores azahar,mednafen_psx_hw,mednafen_psx
     - name: Show the packaged identity
       run: |
         python3 - <<'PY'
