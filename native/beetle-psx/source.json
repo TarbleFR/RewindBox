@@ -18,7 +18,7 @@
     }
   ],
   "patch": "native/beetle-psx/lightrec-jit-abi.patch",
-  "patchSHA256": "6bcf1800b9d4024600c40364dced32fbcd5c46e3391de378706818f080850a80",
+  "patchSHA256": "d630c13236eeeac6404ec57425356508737c226dbc35db4da9936c42ab03ec8f",
   "abiHeader": "packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h",
   "abiHeaderSHA256": "84c59f2484336fa3c64bc68b51177211094083fd411f0b488fee6b79bda6bc22",
   "abiHeaderInTree": "rewindbox/RewindBoxLibretroJit.h",
@@ -30,6 +30,7 @@
     "deps/lightning/lib/jit_aarch64-cpu.c": "4c84153b9385f1352315bea33ff0c331fd2e2102ae3cf0aeb06e6d028833470c",
     "deps/lightning/lib/jit_aarch64.c": "78bad162baece3dabb8574cb1146c2fe3914310f18d5379acdbf14fac5eafa79",
     "deps/lightning/lib/lightning.c": "af5400692f022392d0aeb4b60a8b0ac793ccc0713b4a49a8f7766d50a6b165ca",
+    "deps/lightrec/emitter.c": "0c0bea099e345179222625cf5d57b4b0e8626d50ed5643b99f13ef88e834d64a",
     "deps/lightrec/lightrec-private.h": "a0e8fbf007a1c07189780e0b1255b0c9f1a0c8fad7e6b455030d02a7fc599485",
     "deps/lightrec/lightrec.c": "36b83b04e99e9a00da6aa212c2564ac235dabdd3124f5a02e47f0cd4949870a6",
     "deps/lightrec/lightrec.h": "685dc398c7f237b54586a6d1bc5e1c6bca6b6656c9b40419c9a1194b9d41ce5d",

@@ -97,10 +97,26 @@ index 6a5805fa..c138abdd 100644
  	u.i[0] = i.w;
  	i.w = u.i[1];
 diff --git a/deps/lightning/lib/jit_aarch64.c b/deps/lightning/lib/jit_aarch64.c
-index 0c5a40c5..57d639c3 100644
+index 0c5a40c5..16a5145b 100644
 --- a/deps/lightning/lib/jit_aarch64.c
 +++ b/deps/lightning/lib/jit_aarch64.c
-@@ -1630,10 +1630,12 @@ _emit_code(jit_state_t *_jit)
+@@ -69,8 +69,15 @@ static void _compute_framesize(jit_state_t*);
+ #define patch(instr, node)		_patch(_jit, instr, node)
+ static void _patch(jit_state_t*,jit_word_t,jit_node_t*);
+ 
++#if defined(__APPLE__)
++/* Darwin has no __clear_cache to link against (Xcode's iOS SDK and
++ * runtime lack it): its own call cleans the data cache and invalidates
++ * the instruction cache. */
++#  include <libkern/OSCacheControl.h>
++#else
+ /* libgcc */
+ extern void __clear_cache(void *, void *);
++#endif
+ 
+ #define PROTO				1
+ #  include "jit_aarch64-cpu.c"
+@@ -1630,10 +1637,12 @@ _emit_code(jit_state_t *_jit)
  	    case jit_code_movi:
  		if (node->flag & jit_flag_node) {
  		    temp = node->v.n;
@@ -116,7 +132,7 @@ index 0c5a40c5..57d639c3 100644
  		    else {
  			assert(temp->code == jit_code_label ||
  			       temp->code == jit_code_epilog);
-@@ -1913,7 +1915,8 @@ _emit_code(jit_state_t *_jit)
+@@ -1913,7 +1922,8 @@ _emit_code(jit_state_t *_jit)
  		}
  		else {
  		    jit_check_frame();
@@ -126,7 +142,7 @@ index 0c5a40c5..57d639c3 100644
  		}
  		break;
  	    case jit_code_callr:
-@@ -1939,7 +1942,8 @@ _emit_code(jit_state_t *_jit)
+@@ -1939,7 +1949,8 @@ _emit_code(jit_state_t *_jit)
  		    }
  		}
  		else
@@ -136,7 +152,7 @@ index 0c5a40c5..57d639c3 100644
  		break;
  	    case jit_code_prolog:
  		_jitc->function = _jitc->functions.ptr + node->w.w;
-@@ -2183,7 +2187,10 @@ _emit_code(jit_state_t *_jit)
+@@ -2183,7 +2194,10 @@ _emit_code(jit_state_t *_jit)
  	patch_at(word, value);
      }
  
@@ -148,6 +164,18 @@ index 0c5a40c5..57d639c3 100644
  
      return (_jit->code.ptr);
  }
+@@ -2202,7 +2216,11 @@ jit_flush(void *fptr, void *tptr)
+     s = sysconf(_SC_PAGE_SIZE);
+     f = (jit_word_t)fptr & -s;
+     t = (((jit_word_t)tptr) + s - 1) & -s;
++#  if defined(__APPLE__)
++    sys_icache_invalidate((void *)f, (size_t)(t - f));
++#  else
+     __clear_cache((void *)f, (void *)t);
++#  endif
+ #endif
+ }
+ 
 diff --git a/deps/lightning/lib/lightning.c b/deps/lightning/lib/lightning.c
 index 656e5f7b..53d59bc3 100644
 --- a/deps/lightning/lib/lightning.c
@@ -203,8 +231,172 @@ index 656e5f7b..53d59bc3 100644
  }
  
  void
+diff --git a/deps/lightrec/emitter.c b/deps/lightrec/emitter.c
+index a1177a17..8c8eaa37 100644
+--- a/deps/lightrec/emitter.c
++++ b/deps/lightrec/emitter.c
+@@ -1380,13 +1380,24 @@ static void rec_exit_early(struct lightrec_cstate *state,
+ 
+ /* Emit a check of the per-page cached-code flags for the target address
+  * of a store opcode. If the page contains cached code that has not been
+- * re-validated since it was installed, exit the block early with
+- * LIGHTREC_EXIT_CODE_INV; lightrec_execute() will re-validate the blocks
+- * overlapping the written address and resume execution at this store
+- * opcode, whose page check will then pass. This catches stores that
+- * patch the interior of an already-cached block, which the inline LUT
+- * invalidation cannot detect. The hot path costs a few ALU ops, one
+- * 8-bit load and one normally-not-taken branch. */
++ * re-validated since it was installed, record the written address and
++ * request a LIGHTREC_EXIT_CODE_INV exit the way lightrec_set_exit_flags()
++ * does: the remaining cycle budget is zeroed, the store and the rest of
++ * the block run, and the next cycle check (a local loop back-edge or the
++ * end of the block) returns to lightrec_execute(), which re-validates the
++ * blocks overlapping the written range before any other block runs. This
++ * catches stores that patch the interior of an already-cached block,
++ * which the inline LUT invalidation cannot detect.
++ *
++ * The block is not left at the store itself: resuming there in another
++ * block needs every register in the register file, and the optimizer
++ * only guarantees that at the block's sync points (it discards dirty
++ * values that are dead within the block, defers LUI values to their
++ * reader, folds known constants into later opcodes...).
++ *
++ * The hot path costs a few ALU ops, one load and one normally-not-taken
++ * branch; the cold path only uses the temporaries allocated here, so the
++ * register cache is the same on both paths. */
+ static void rec_store_invalidate_blocks(struct lightrec_cstate *cstate,
+ 					const struct block *block,
+ 					u16 offset)
+@@ -1394,9 +1405,8 @@ static void rec_store_invalidate_blocks(struct lightrec_cstate *cstate,
+ 	struct regcache *reg_cache = cstate->reg_cache;
+ 	union code c = block->opcode_list[offset].c;
+ 	jit_state_t *_jit = block->_jit;
+-	jit_node_t *no_code;
+-	struct native_register *regs_backup;
+-	u8 tmp, tmp2, rs;
++	jit_node_t *no_code, *skip;
++	u8 addr, tmp, tmp2, rs;
+ 
+ 	/* Stores that the optimizer proved can never hit code do not need
+ 	 * the check. Note that this deliberately does not depend on the
+@@ -1405,25 +1415,26 @@ static void rec_store_invalidate_blocks(struct lightrec_cstate *cstate,
+ 	if (op_flag_no_invalidate(block->opcode_list[offset].flags))
+ 		return;
+ 
+-	/* Exiting the block from a delay slot would lose the branch;
+-	 * skip the check there. */
++	/* Stores in branch delay slots are not checked; only the inline
++	 * invalidation of the written word applies to them. */
+ 	if (offset > 0 && has_delay_slot(block->opcode_list[offset - 1].c))
+ 		return;
+ 
+ 	rs = lightrec_alloc_reg_in(reg_cache, _jit, c.i.rs, 0);
++	addr = lightrec_alloc_reg_temp(reg_cache, _jit);
+ 	tmp = lightrec_alloc_reg_temp(reg_cache, _jit);
+ 	tmp2 = lightrec_alloc_reg_temp(reg_cache, _jit);
+ 
+ 	if (c.i.imm)
+-		jit_addi(tmp, rs, (s16)c.i.imm);
++		jit_addi(addr, rs, (s16)c.i.imm);
+ 	else
+-		jit_movr(tmp, rs);
++		jit_movr(addr, rs);
+ 
+ 	lightrec_free_reg(reg_cache, rs);
+ 
+-	/* Word index within RAM */
+-	jit_andi(tmp, tmp, 0x1FFFFF);
+-	jit_rshi_u(tmp, tmp, 2);
++	/* Byte offset within RAM, then word index */
++	jit_andi(addr, addr, 0x1FFFFF);
++	jit_rshi_u(tmp, addr, 2);
+ 
+ 	/* Load the bitmap word */
+ 	jit_rshi_u(tmp2, tmp, 5);
+@@ -1435,30 +1446,36 @@ static void rec_store_invalidate_blocks(struct lightrec_cstate *cstate,
+ 	jit_andi(tmp, tmp, 0x1f);
+ 	jit_rshr_u(tmp2, tmp2, tmp);
+ 
+-	lightrec_free_reg(reg_cache, tmp);
+-
+ 	no_code = jit_bmci(tmp2, 1);
+ 
+-	lightrec_free_reg(reg_cache, tmp2);
+-
+-	regs_backup = lightrec_regcache_enter_branch(reg_cache);
++	/* Cold path: widen the range of written cached code... */
++	jit_ldxi_ui(tmp, LIGHTREC_REG_STATE, lightrec_offset(code_inv_lo));
++	skip = jit_bler_u(tmp, addr);
++	jit_stxi_i(lightrec_offset(code_inv_lo), LIGHTREC_REG_STATE, addr);
++	jit_patch(skip);
+ 
+-	/* Cold path: record the store opcode and exit the block at the
+-	 * current PC. The end-of-block emission performs the register
+-	 * sync; any spill code it emits lives in this branched-over
+-	 * region and the register cache state is restored below, so the
+-	 * hot path is unaffected. */
+-	tmp2 = lightrec_alloc_reg_temp(reg_cache, _jit);
+-	jit_movi(tmp2, c.opcode);
+-	jit_stxi_i(lightrec_offset(code_inv_op), LIGHTREC_REG_STATE, tmp2);
+-	lightrec_free_reg(reg_cache, tmp2);
++	jit_ldxi_ui(tmp, LIGHTREC_REG_STATE, lightrec_offset(code_inv_hi));
++	skip = jit_bger_u(tmp, addr);
++	jit_stxi_i(lightrec_offset(code_inv_hi), LIGHTREC_REG_STATE, addr);
++	jit_patch(skip);
+ 
+-	rec_exit_early(cstate, block, offset, LIGHTREC_EXIT_CODE_INV,
+-		       get_ds_pc(block, offset, 0));
++	/* ...flag it... */
++	jit_ldxi_ui(tmp, LIGHTREC_REG_STATE, lightrec_offset(exit_flags));
++	jit_ori(tmp, tmp, LIGHTREC_EXIT_CODE_INV);
++	jit_stxi_i(lightrec_offset(exit_flags), LIGHTREC_REG_STATE, tmp);
+ 
+-	lightrec_regcache_leave_branch(reg_cache, regs_backup);
++	/* ...and end the cycle budget here, as rec_exit_early() does */
++	jit_ldxi_i(tmp, LIGHTREC_REG_STATE, lightrec_offset(target_cycle));
++	jit_subr(tmp, tmp, LIGHTREC_REG_CYCLE);
++	jit_movi(LIGHTREC_REG_CYCLE, 0);
++	jit_stxi_i(lightrec_offset(target_cycle), LIGHTREC_REG_STATE, tmp);
++	jit_stxi_i(lightrec_offset(current_cycle), LIGHTREC_REG_STATE, tmp);
+ 
+ 	jit_patch(no_code);
++
++	lightrec_free_reg(reg_cache, tmp2);
++	lightrec_free_reg(reg_cache, tmp);
++	lightrec_free_reg(reg_cache, addr);
+ }
+ 
+ static void rec_store_memory(struct lightrec_cstate *cstate,
+@@ -2489,7 +2506,10 @@ static void rec_exit_early(struct lightrec_cstate *state,
+ 
+ 	tmp = lightrec_alloc_reg_temp(reg_cache, _jit);
+ 
+-	jit_movi(tmp, exit_code);
++	/* Keep what was requested before in this block (a pending
++	 * LIGHTREC_EXIT_CODE_INV must still be handled) */
++	jit_ldxi_ui(tmp, LIGHTREC_REG_STATE, lightrec_offset(exit_flags));
++	jit_ori(tmp, tmp, exit_code);
+ 	jit_stxi_i(lightrec_offset(exit_flags), LIGHTREC_REG_STATE, tmp);
+ 
+ 	jit_ldxi_i(tmp, LIGHTREC_REG_STATE, lightrec_offset(target_cycle));
+@@ -3019,11 +3039,14 @@ static void rec_cp0_RFE(struct lightrec_cstate *state,
+ 	jit_stxi_i(lightrec_offset(regs.cp0[12]), LIGHTREC_REG_STATE, status);
+ 
+ 	/* Exit dynarec in case there's a software interrupt.
+-	 * exit_flags = !!(status & cause & 0x0300) & status; */
++	 * exit_flags |= !!(status & cause & 0x0300) & status;
++	 * (|=: a pending LIGHTREC_EXIT_CODE_INV must survive) */
+ 	jit_andr(tmp, tmp, status);
+ 	jit_andi(tmp, tmp, 0x0300);
+ 	jit_nei(tmp, tmp, 0);
+ 	jit_andr(tmp, tmp, status);
++	jit_ldxi_ui(status, LIGHTREC_REG_STATE, lightrec_offset(exit_flags));
++	jit_orr(tmp, tmp, status);
+ 	jit_stxi_i(lightrec_offset(exit_flags), LIGHTREC_REG_STATE, tmp);
+ 
+ 	lightrec_free_reg(reg_cache, status);
 diff --git a/deps/lightrec/lightrec-private.h b/deps/lightrec/lightrec-private.h
-index 16fc2cc2..9aec8499 100644
+index 16fc2cc2..edae0ce4 100644
 --- a/deps/lightrec/lightrec-private.h
 +++ b/deps/lightrec/lightrec-private.h
 @@ -224,6 +224,10 @@ struct lightrec_state {
@@ -218,11 +410,66 @@ index 16fc2cc2..9aec8499 100644
  	void (*eob_wrapper_func)(void);
  	void (*interpreter_func)(void);
  	void (*ds_check_func)(void);
+@@ -245,8 +249,9 @@ struct lightrec_state {
+ 	 * can be re-validated. */
+ 	u16 nb_blocks_in_page[CODE_NB_PAGES];
+ 
+-	/* Store opcode that triggered a LIGHTREC_EXIT_CODE_INV exit. */
+-	u32 code_inv_op;
++	/* RAM offsets of the first and last stores into cached code since
++	 * the last LIGHTREC_EXIT_CODE_INV was handled (lo > hi: none). */
++	u32 code_inv_lo, code_inv_hi;
+ 
+ 	/* Opcode and guest PC that triggered a LIGHTREC_EXIT_SPGP_SLOW exit:
+ 	 * an unprovable $sp/$gp access (SP_GP_HIT_RAM opt) whose runtime
 diff --git a/deps/lightrec/lightrec.c b/deps/lightrec/lightrec.c
-index 6a10b3e5..cbb62d95 100644
+index 6a10b3e5..35b6d22b 100644
 --- a/deps/lightrec/lightrec.c
 +++ b/deps/lightrec/lightrec.c
-@@ -1166,6 +1166,28 @@ static void * get_next_block_func(struct lightrec_state *state, u32 pc)
+@@ -449,10 +449,6 @@ static void lightrec_rw_helper(struct lightrec_state *state,
+ 	}
+ }
+ 
+-/* Handle a LIGHTREC_EXIT_CODE_INV exit: a compiled store opcode is about
+- * to write into a page that contains cached code. Re-validate the cached
+- * blocks overlapping the written address, then execution resumes at the
+- * store opcode, whose page check will now pass. */
+ static void lightrec_handle_spgp_slow(struct lightrec_state *state)
+ {
+ 	union code c;
+@@ -499,18 +495,23 @@ static void lightrec_handle_spgp_slow(struct lightrec_state *state)
+ 	state->curr_pc = state->spgp_slow_pc + 4;
+ }
+ 
++/* Handle a LIGHTREC_EXIT_CODE_INV request: compiled stores wrote into
++ * pages that contain cached code (rec_store_invalidate_blocks), and the
++ * block that ran them has ended. Re-validate the cached blocks overlapping
++ * the written range before any other block runs. */
+ static void lightrec_handle_code_inv(struct lightrec_state *state)
+ {
+-	union code c;
+-	u32 kaddr;
++	u32 lo = state->code_inv_lo & ~3, hi = state->code_inv_hi & ~3;
+ 
+-	c.opcode = state->code_inv_op;
+-	kaddr = kunseg(state->regs.gpr[c.i.rs] + (s16)c.i.imm) & 0x1ffffc;
++	state->code_inv_lo = UINT32_MAX;
++	state->code_inv_hi = 0;
+ 
+-	/* 8 bytes: covers the unaligned SWU case as well. The walk expands
+-	 * the range to whole pages, so a bulk overwrite of cached code
+-	 * takes this path once per page. */
+-	lightrec_invalidate_blocks_in_range(state->block_cache, kaddr, 8);
++	/* 8 bytes past the last word: covers the unaligned SWU case as well.
++	 * The walk expands the range to whole pages, so a bulk overwrite of
++	 * cached code takes this path once per page. */
++	if (lo <= hi)
++		lightrec_invalidate_blocks_in_range(state->block_cache, lo,
++						    hi - lo + 8);
+ }
+ 
+ static void lightrec_rw_cb(struct lightrec_state *state, u32 arg)
+@@ -1166,6 +1167,28 @@ static void * get_next_block_func(struct lightrec_state *state, u32 pc)
  	return func;
  }
  
@@ -251,7 +498,7 @@ index 6a10b3e5..cbb62d95 100644
  /* Threaded: each worker owns a code arena and the emulation thread only
   * frees (routed to the owner), so no lock is needed; see recompiler.c.
   * Non-threaded: one TLSF over the whole code buffer. */
-@@ -1237,6 +1259,14 @@ static void * lightrec_emit_code(struct lightrec_state *state,
+@@ -1237,6 +1260,14 @@ static void * lightrec_emit_code(struct lightrec_state *state,
  	else
  		jit_set_data(NULL, 0, JIT_DISABLE_DATA | JIT_DISABLE_NOTE);
  
@@ -266,7 +513,7 @@ index 6a10b3e5..cbb62d95 100644
  	if (has_code_buffer) {
  		jit_get_code(&code_size);
  
-@@ -1270,6 +1300,10 @@ static void * lightrec_emit_code(struct lightrec_state *state,
+@@ -1270,6 +1301,10 @@ static void * lightrec_emit_code(struct lightrec_state *state,
  		}
  
  		jit_set_code(code, code_size);
@@ -277,7 +524,7 @@ index 6a10b3e5..cbb62d95 100644
  	}
  
  	alloc = code;
-@@ -1287,6 +1321,9 @@ static void * lightrec_emit_code(struct lightrec_state *state,
+@@ -1287,6 +1322,9 @@ static void * lightrec_emit_code(struct lightrec_state *state,
  	if (has_code_buffer) {
  		lightrec_realloc_code(state, arena, code, (size_t) new_code_size);
  
@@ -287,7 +534,7 @@ index 6a10b3e5..cbb62d95 100644
  		pr_debug("Creating code block at address 0x%" PRIxPTR ", "
  			 "code size: %" PRIuPTR " new: %" PRIuPTR "\n",
  			 (uintptr_t) code, code_size, new_code_size);
-@@ -1915,7 +1952,7 @@ static void lightrec_free_function(struct lightrec_state *state, void *fn)
+@@ -1915,7 +1953,7 @@ static void lightrec_free_function(struct lightrec_state *state, void *fn)
  {
  	if (lightrec_has_code_buffer(state)) {
  		pr_debug("Freeing code block at 0x%" PRIxPTR "\n", (uintptr_t) fn);
@@ -296,7 +543,7 @@ index 6a10b3e5..cbb62d95 100644
  	}
  }
  
-@@ -2050,7 +2087,8 @@ int lightrec_compile_block_code(struct lightrec_cstate *cstate,
+@@ -2050,7 +2088,8 @@ int lightrec_compile_block_code(struct lightrec_cstate *cstate,
  	c = lightrec_malloc(state, MEM_FOR_LIGHTREC,
  			    sizeof(*c) + cstate->nb_targets * sizeof(c->targets[0]));
  	if (!c) {
@@ -306,7 +553,40 @@ index 6a10b3e5..cbb62d95 100644
  		lightrec_unregister(MEM_FOR_CODE, new_code_size);
  		block->_jit = oldjit;
  		jit_clear_state();
-@@ -2464,6 +2502,8 @@ struct lightrec_state * lightrec_init(char *argv0,
+@@ -2337,19 +2376,23 @@ u32 lightrec_execute(struct lightrec_state *state, u32 pc, u32 target_cycle)
+ 			 * it. */
+ 			lightrec_handle_spgp_slow(state);
+ 
+-			state->exit_flags = LIGHTREC_EXIT_NORMAL;
+-			state->target_cycle = target_cycle;
+-			continue;
++			state->exit_flags &= ~LIGHTREC_EXIT_SPGP_SLOW;
++		} else if (likely(!(state->exit_flags & LIGHTREC_EXIT_CODE_INV))) {
++			break;
+ 		}
+ 
+-		if (likely(!(state->exit_flags & LIGHTREC_EXIT_CODE_INV)))
+-			break;
++		if (state->exit_flags & LIGHTREC_EXIT_CODE_INV) {
++			/* Stores of the block that just ended wrote into cached
++			 * code: re-validate those blocks before running any. */
++			lightrec_handle_code_inv(state);
++
++			state->exit_flags &= ~LIGHTREC_EXIT_CODE_INV;
++		}
+ 
+-		/* A store is about to overwrite cached code; re-validate
+-		 * the affected blocks and resume at the store opcode. */
+-		lightrec_handle_code_inv(state);
++		/* Anything else requested meanwhile is for the caller */
++		if (state->exit_flags != LIGHTREC_EXIT_NORMAL)
++			break;
+ 
+-		state->exit_flags = LIGHTREC_EXIT_NORMAL;
+ 		state->target_cycle = target_cycle;
+ 	} while (state->current_cycle < state->target_cycle);
+ 
+@@ -2464,6 +2507,8 @@ struct lightrec_state * lightrec_init(char *argv0,
  	const struct lightrec_mem_map *codebuf_map = &maps[PSX_MAP_CODE_BUFFER];
  	const struct lightrec_mem_map *map;
  	struct lightrec_state *state;
@@ -315,7 +595,7 @@ index 6a10b3e5..cbb62d95 100644
  	uintptr_t addr;
  	void *tlsf = NULL;
  	bool with_32bit_lut = false;
-@@ -2480,8 +2520,22 @@ struct lightrec_state * lightrec_init(char *argv0,
+@@ -2480,8 +2525,22 @@ struct lightrec_state * lightrec_init(char *argv0,
  	else
  		pr_debug("No optional cop2_notify callback in lightrec_ops\n");
  
@@ -340,7 +620,7 @@ index 6a10b3e5..cbb62d95 100644
  		if (!ENABLE_THREADED_COMPILER) {
  			tlsf = tlsf_create_with_pool(codebuf_map->address,
  						     codebuf_map->length);
-@@ -2491,8 +2545,10 @@ struct lightrec_state * lightrec_init(char *argv0,
+@@ -2491,8 +2550,10 @@ struct lightrec_state * lightrec_init(char *argv0,
  			}
  		}
  
@@ -352,15 +632,18 @@ index 6a10b3e5..cbb62d95 100644
  			with_32bit_lut = addr == (u32) addr;
  		}
  	}
-@@ -2511,6 +2567,7 @@ struct lightrec_state * lightrec_init(char *argv0,
+@@ -2511,8 +2572,10 @@ struct lightrec_state * lightrec_init(char *argv0,
  	lightrec_register(MEM_FOR_LIGHTREC, sizeof(*state) + lut_size);
  
  	state->tlsf = tlsf;
 +	state->code_exec_offset = exec_offset;
  	state->with_32bit_lut = with_32bit_lut;
  	state->in_delay_slot_n = 0xff;
++	state->code_inv_lo = UINT32_MAX;
  	state->cycles_per_op = 2;
-@@ -2589,6 +2646,11 @@ struct lightrec_state * lightrec_init(char *argv0,
+ 	state->cycles_per_op_mem = 0;
+ 
+@@ -2589,6 +2652,11 @@ struct lightrec_state * lightrec_init(char *argv0,
  	if (state->with_32bit_lut)
  		pr_info("Using 32-bit LUT\n");
  
