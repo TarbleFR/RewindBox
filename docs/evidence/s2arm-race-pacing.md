@@ -246,8 +246,9 @@ Verrou de non-régression :
 
 - `graphics/nvn/tests/t_rb_adaptive_drs.c` couvre la garde : poussée, séries, évasion, échecs, attente, scène qui grossit, repos doublés, remise à zéro, intervalle 3, taille inconnue. Il passe en local (gcc) et tourne dans la CI moteur (`[s2arm-thermal-checks]`).
 - `runtime/tests/t_ios_settings.m` vérifie qu'un 30 enregistré est lu « sans limite » et effacé.
-- `test/s2arm_never_30_lock_test.py` (13 cas, dans les workflows du pont et de la bibliothèque) échoue si :
+- `test/s2arm_never_30_lock_test.py` (14 cas, dans les workflows du pont et de la bibliothèque) échoue si :
   - le patch 0319 manque ou ne passe plus par le maintien ;
+  - l'épingle du moteur livré ne contient plus ce patch 0319 à l'octet près ;
   - un patch ultérieur retire la garde ou propose de nouveau 30 ;
   - le pont n'active plus la garde pour Mario Kart World ;
   - 30 réapparaît dans le pont, le menu ou Flutter.

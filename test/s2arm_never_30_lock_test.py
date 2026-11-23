@@ -73,6 +73,13 @@ class EnginePatch(unittest.TestCase):
         self.assertIn('<array><string>60</string><string>120</string><string>0</string></array>', new)
         self.assertIn('保存过的 30 按不限帧处理并清除', new)
 
+    def test_the_pinned_engine_carries_the_guard(self):
+        import hashlib, json
+        pin = json.loads((ROOT / 'build-utils/s2arm/engine-pin.json').read_text())
+        patches = {p['name']: p['sha256'] for p in pin['identity']['sourceIdentity']['patches']}
+        self.assertEqual(patches.get(GUARD), hashlib.sha256((PATCHES / GUARD).read_bytes()).hexdigest(),
+                         'the delivered engine is built with this exact patch 0319')
+
     def test_no_later_patch_undoes_it(self):
         later = sorted(p for p in PATCHES.glob('*.patch') if number(p) > 319)
         for path in later:
