@@ -1,0 +1,378 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index cd651ab..8d135c5 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -26784,6 +26784,7 @@ void nvn_be_stats(uint64_t *passes, uint64_t *draws) {
+          atomic_load_explicit(&g_rb_demand_ns,memory_order_relaxed)/1e6,
+          (unsigned long long)(atomic_load(&g_wu_bumped)-atomic_load(&g_rb_ready_base[1])),
+          (unsigned long long)(atomic_load(&g_wu_taken)-atomic_load(&g_rb_ready_base[2])));
++    rb_registration_report(frame);   // RewindBox (patch 0311)
+ }
+ // 本窗口（上次读后）画过的最大渲染目标：宽 / 高 / Metal 像素格式，读后清零（hle_nvn.c 每 300 帧那行带出）
+ void nvn_be_rt_window(uint32_t *w, uint32_t *h, uint32_t *fmt) { *w = g_rtw_w; *h = g_rtw_h; *fmt = g_rtw_fmt; g_rtw_w = g_rtw_h = g_rtw_fmt = 0; }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index c646a5c..b5226fd 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -55,7 +55,6 @@ static int session_wait_backend(void) {
+     if (g_rb_disk_q) dispatch_group_async(prefetch_done,g_rb_disk_q,^{});
+     if (g_rb_bind_q) dispatch_group_async(prefetch_done,g_rb_bind_q,^{});
+     if (g_rb_registration_q) dispatch_group_async(prefetch_done,g_rb_registration_q,^{});
+-    if (g_rb_registration_q2) dispatch_group_async(prefetch_done,g_rb_registration_q2,^{});
+     if (g_rb_export_q) dispatch_group_async(prefetch_done,g_rb_export_q,^{});
+     if (g_rb_startup_q) dispatch_group_async(prefetch_done,g_rb_startup_q,^{});
+     os_unfair_lock_unlock(&g_shpre_mu);
+@@ -418,8 +417,7 @@ void nvn_be_begin_session(void) {
+     atomic_store(&g_rb_urgent_continue, 0);
+     atomic_store(&g_rb_pass_lookahead, 0);
+     atomic_store(&g_rb_pass_ahead, 0);
+-    memset(&g_rb_registered, 0, sizeof g_rb_registered);   // RewindBox (patch 0308): the next session settles its own stages
+-    atomic_store(&g_rb_registration_dropped, 0); atomic_store(&g_rb_registration_known, 0);
++    rb_registration_reset();   // RewindBox (patch 0311): the next session settles and reads its own stages
+     atomic_store(&g_shpre_stopping, 0);
+     os_unfair_lock_unlock(&g_shpre_mu);
+     atomic_store(&g_link_stop, 0); atomic_store(&g_present_discard, 0);
+diff --git a/graphics/nvn/gfx/nvn/rb_registration.inc b/graphics/nvn/gfx/nvn/rb_registration.inc
+index 5ed47dd..3970cfe 100644
+--- a/graphics/nvn/gfx/nvn/rb_registration.inc
++++ b/graphics/nvn/gfx/nvn/rb_registration.inc
+@@ -5,29 +5,29 @@
+ extern int dm_shader_prepare_registration(const char *,const uint8_t *,uint32_t,
+                                           const uint8_t *,uint32_t) __attribute__((weak_import));
+ #include "rb_registration_plan.h"
+-static dispatch_queue_t g_rb_registration_q, g_rb_registration_q2;   // the second lane: rb_reg_lane
++#include <dirent.h>
++static dispatch_queue_t g_rb_registration_q;
+ static NSMutableSet<NSString *> *g_rb_registering; // protected by g_shpre_mu
+ static rb_reg_known g_rb_registered;               // protected by g_shpre_mu
+-static unsigned g_rb_registration_lane[2];         // protected by g_shpre_mu
+ static size_t g_rb_registration_bytes;
+ static _Atomic unsigned g_rb_registration_count;
+ static _Atomic uint64_t g_rb_registration_queued, g_rb_registration_loaded, g_rb_registration_msl;
+ static _Atomic int g_rb_register_option;
+ // RewindBox (patch 0306): a course load registers programs faster than the
+-// lane builds them. Past 32 waiting, a registration was dropped without a
+-// count and the first draw built the stage on the submit thread (an iPhone
+-// session: 573 source compiles there, 8.7 s). Keep this many waiting; the
+-// 8 MiB of snapshots stay the memory bound, and a refusal is counted.
+-// RewindBox (patch 0308): with 128 places the session on IPA 822 queued 512
+-// registrations and refused 5,850 before frame 300: the game registers its
+-// programs in one burst at boot. 21 stages were then compiled on the submit
+-// thread in the first 900 frames (4.1 s of long frames). Of 1,024 queued over
+-// the session 211 needed a build: the places went to stages already loaded.
+-// A stage that is loaded, settled by the lane or in flight takes no place now
+-// (rb_registration_plan.h), the lane holds a boot burst (the snapshots average
+-// 9 KB; 32 MiB bound them), and a second lane works at Fair or cooler.
+-enum { RB_REGISTRATION_DEPTH = 2048, RB_REGISTRATION_BYTES = 32u << 20 };
+-static _Atomic uint64_t g_rb_registration_dropped, g_rb_registration_known;
++// lane builds them, and a refusal was not counted.
++// RewindBox (patch 0308): a stage that is loaded, settled by the lane or in
++// flight takes no place; the identity comes first.
++// RewindBox (patch 0311): the lane prepares a stage only while the game
++// registers a few at a time (rb_reg_verdict). The session after patch 0308
++// (2,048 places, two lanes) compiled 4,240 stage libraries from source,
++// 1,905 s of compiler time at 400 to 1,300 ms each, all session long; the
++// cold prewarm, which yields while the lane holds work, prepared no pipeline
++// from frame 300 to 1200, and the first course compiled 60 libraries on the
++// submit thread in one 24-second frame. A stage in a burst is left to the
++// prewarm's recorded rows and to its first draw: counted known when its
++// translation is on disk, deferred when not. dropped counts only the byte bound.
++enum { RB_REGISTRATION_TRICKLE = 16 };
++static _Atomic uint64_t g_rb_registration_dropped, g_rb_registration_known, g_rb_registration_deferred;
+ // Whether the stage's shader is already in the cache, whoever built it. Read
+ // only once the stage map is loaded: a registration never loads it itself.
+ static BOOL rb_registered_stage_loaded(NSString *key, int depth) {
+@@ -41,6 +41,39 @@ static BOOL rb_registered_stage_loaded(NSString *key, int depth) {
+     os_unfair_lock_unlock(&g_shader_lock);
+     return loaded;
+ }
++// The translations already on disk, read once a session from the folder's
++// names at the first burst (rb_reg_translation_name): no file is opened.
++static rb_reg_known g_rb_translated;               // protected by g_rb_translated_mu
++static int g_rb_translated_read;                   // protected by g_rb_translated_mu
++static pthread_mutex_t g_rb_translated_mu = PTHREAD_MUTEX_INITIALIZER;
++static int rb_registered_translated(const uint8_t key[8]) {
++    pthread_mutex_lock(&g_rb_translated_mu);
++    if (!g_rb_translated_read) {
++        g_rb_translated_read = 1;
++        const char *dir = getenv("DM_MSL_FALLBACK");
++        DIR *folder = dir && *dir && strcmp(dir,"/dev/null") ? opendir(dir) : NULL;
++        if (folder) {
++            for (struct dirent *entry; (entry = readdir(folder));) {
++                uint64_t id;
++                if (rb_reg_translation_name(entry->d_name,&id)) rb_reg_known_add(&g_rb_translated,id);
++            }
++            closedir(folder);
++        }
++        MLOG("[rb-bind-ahead] translations_on_disk=%u",g_rb_translated.count);
++    }
++    int known = rb_reg_known_has(&g_rb_translated,rb_reg_identity(key,0));
++    pthread_mutex_unlock(&g_rb_translated_mu);
++    return known;
++}
++static void rb_registration_reset(void) {   // the session is stopped: no registration runs
++    memset(&g_rb_registered, 0, sizeof g_rb_registered);
++    pthread_mutex_lock(&g_rb_translated_mu);
++    memset(&g_rb_translated, 0, sizeof g_rb_translated);
++    g_rb_translated_read = 0;
++    pthread_mutex_unlock(&g_rb_translated_mu);
++    atomic_store(&g_rb_registration_dropped, 0); atomic_store(&g_rb_registration_known, 0);
++    atomic_store(&g_rb_registration_deferred, 0);
++}
+ 
+ static BOOL rb_read_stage_header(const NVNshaderData *sd, uint8_t ctl[NVN2_CTL_COPY],
+                             uint32_t *nctl, uint32_t *ncode) {
+@@ -64,7 +97,7 @@ static void rb_register_shader(const NVNshaderData *sd, int depth) {
+     uint32_t nctl, ncode;
+     if (!rb_read_stage_header(sd, control, &nctl, &ncode) || !rb_addr_mapped(sd->data, ncode)) return;
+     if (atomic_load(&g_shpre_stopping)) return;
+-    const size_t bytes = (size_t)nctl + ncode, limit = RB_REGISTRATION_BYTES;
++    const size_t bytes = (size_t)nctl + ncode, limit = 8u << 20;
+     // The identity comes first: it tells a stage the lane has already served.
+     // The copy is one stage, 8 MiB at most, per registering game thread.
+     NSData *snapshot = rb_stage_snapshot(sd, control, nctl, ncode);
+@@ -85,16 +118,20 @@ static void rb_register_shader(const NVNshaderData *sd, int depth) {
+     if (loaded) rb_reg_known_add(&g_rb_registered,settled_id);
+     int verdict = rb_reg_verdict(loaded || rb_reg_known_has(&g_rb_registered,settled_id),
+                                  [g_rb_registering containsObject:identity],
+-                                 g_rb_registration_count,RB_REGISTRATION_DEPTH,
++                                 g_rb_registration_count,RB_REGISTRATION_TRICKLE,
+                                  bytes,g_rb_registration_bytes,limit);
+     if (verdict != RB_REG_ADMIT) {
+         unsigned waiting = g_rb_registration_count;
+         os_unfair_lock_unlock(&g_shpre_mu);
+         if (verdict == RB_REG_KNOWN) atomic_fetch_add(&g_rb_registration_known,1);
+-        if (verdict != RB_REG_FULL) return;
+-        uint64_t dropped = atomic_fetch_add(&g_rb_registration_dropped,1) + 1;
+-        if (!(dropped & (dropped-1))) MLOG("[rb-bind-ahead] dropped=%llu waiting=%u stage_bytes=%zu",
+-            (unsigned long long)dropped,waiting,bytes);
++        else if (verdict == RB_REG_BURST) {
++            if (rb_registered_translated(digest)) atomic_fetch_add(&g_rb_registration_known,1);
++            else atomic_fetch_add(&g_rb_registration_deferred,1);
++        } else if (verdict == RB_REG_FULL) {
++            uint64_t dropped = atomic_fetch_add(&g_rb_registration_dropped,1) + 1;
++            if (!(dropped & (dropped-1))) MLOG("[rb-bind-ahead] dropped=%llu waiting=%u stage_bytes=%zu",
++                (unsigned long long)dropped,waiting,bytes);
++        }
+         return;
+     }
+     g_rb_registration_bytes += bytes; ++g_rb_registration_count;
+@@ -103,14 +140,9 @@ static void rb_register_shader(const NVNshaderData *sd, int depth) {
+             dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,QOS_CLASS_USER_INITIATED,0));
+         g_rb_registering = [NSMutableSet set];
+     }
+-    const unsigned lane = rb_reg_lane(rb_cached_thermal(),g_rb_registration_lane[0],g_rb_registration_lane[1]);
+-    if (lane && !g_rb_registration_q2)
+-        g_rb_registration_q2 = dispatch_queue_create("s2a.nvn2.register.2",
+-            dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,QOS_CLASS_USER_INITIATED,0));
+-    ++g_rb_registration_lane[lane];
+     [g_rb_registering addObject:identity];
+     uint64_t queued = atomic_fetch_add(&g_rb_registration_queued,1) + 1;
+-    dispatch_async(lane ? g_rb_registration_q2 : g_rb_registration_q, ^{ @autoreleasepool {
++    dispatch_async(g_rb_registration_q, ^{ @autoreleasepool {
+         // A first use the submit thread waits for goes first: the lane takes its
+         // next stage after it, as a warm worker does (fu_yield_wait).
+         if (fu_yield_on() && atomic_load(&g_fu_waiting)) fu_yield_wait();
+@@ -145,17 +177,29 @@ static void rb_register_shader(const NVNshaderData *sd, int depth) {
+         [g_rb_registering removeObject:identity];
+         if (settled) rb_reg_known_add(&g_rb_registered,settled_id);
+         g_rb_registration_bytes -= bytes;
+-        --g_rb_registration_lane[lane];
+         BOOL idle=--g_rb_registration_count==0;
+         os_unfair_lock_unlock(&g_shpre_mu);
+         if (idle) RB_OBSERVED_IDLE();
+     }});
+     os_unfair_lock_unlock(&g_shpre_mu);
+-    if (!(queued & (queued-1))) MLOG("[rb-bind-ahead] registered=%llu variants_built=%llu msl_compiles=%llu dropped=%llu known=%llu",
++    if (!(queued & (queued-1))) MLOG("[rb-bind-ahead] registered=%llu variants_built=%llu msl_compiles=%llu dropped=%llu known=%llu deferred=%llu",
+         (unsigned long long)queued,(unsigned long long)atomic_load(&g_rb_registration_loaded),
+         (unsigned long long)atomic_load(&g_rb_registration_msl),
+         (unsigned long long)atomic_load(&g_rb_registration_dropped),
+-        (unsigned long long)atomic_load(&g_rb_registration_known));
++        (unsigned long long)atomic_load(&g_rb_registration_known),
++        (unsigned long long)atomic_load(&g_rb_registration_deferred));
++}
++// Every 300 frames when a count moved: what the lane did with the registrations.
++static void rb_registration_report(uint64_t frame) {
++    static uint64_t last[4];
++    const uint64_t now[4] = {atomic_load(&g_rb_registration_queued), atomic_load(&g_rb_registration_known),
++                             atomic_load(&g_rb_registration_deferred), atomic_load(&g_rb_registration_dropped)};
++    if (!memcmp(now,last,sizeof now)) return;
++    memcpy(last,now,sizeof now);
++    MLOG("[rb-bind-ahead] frame=%llu registered=%llu variants_built=%llu msl_compiles=%llu known=%llu deferred=%llu dropped=%llu",
++         (unsigned long long)frame,(unsigned long long)now[0],(unsigned long long)atomic_load(&g_rb_registration_loaded),
++         (unsigned long long)atomic_load(&g_rb_registration_msl),(unsigned long long)now[1],(unsigned long long)now[2],
++         (unsigned long long)now[3]);
+ }
+ 
+ void nvn_be_registered_stages(const prog_t *program) {
+diff --git a/graphics/nvn/gfx/nvn/rb_registration_plan.h b/graphics/nvn/gfx/nvn/rb_registration_plan.h
+index a96982f..c939669 100644
+--- a/graphics/nvn/gfx/nvn/rb_registration_plan.h
++++ b/graphics/nvn/gfx/nvn/rb_registration_plan.h
+@@ -5,20 +5,25 @@
+ 
+ // What the bind-ahead lane does with one registered stage (rb_registration.inc).
+ // A game registers the same stage with many programs, and again at every load.
+-// The lane used to queue each of them: an iPhone session built 460 variants out
+-// of 1,024 queued registrations, and with 128 places 4,096 more were refused.
+-// A stage the lane has settled, or holds in flight, takes no place.
+-enum { RB_REG_ADMIT, RB_REG_KNOWN, RB_REG_IN_FLIGHT, RB_REG_FULL };
+-static inline int rb_reg_verdict(int known, int in_flight, unsigned waiting, unsigned depth,
++// RewindBox (patch 0311): the lane prepares a stage only while registrations
++// come a few at a time, when a draw of them is likely near. Mario Kart World
++// registers every program at boot: with 2,048 places and two lanes (patch
++// 0308) the lane compiled about 2,000 stages no draw used, all session long,
++// and the cold prewarm, which yields to a busy lane, stood still. A stage in
++// a burst is left to the prewarm's recorded rows and to its first draw.
++enum { RB_REG_ADMIT, RB_REG_KNOWN, RB_REG_IN_FLIGHT, RB_REG_BURST, RB_REG_FULL };
++// known: the stage is loaded or the lane settled it this session.
++static inline int rb_reg_verdict(int known, int in_flight, unsigned waiting, unsigned trickle,
+                                  size_t bytes, size_t held, size_t limit) {
+     if (known) return RB_REG_KNOWN;
+     if (in_flight) return RB_REG_IN_FLIGHT;
+-    return waiting < depth && held <= limit && bytes <= limit - held ? RB_REG_ADMIT : RB_REG_FULL;
++    if (waiting >= trickle) return RB_REG_BURST;
++    return held <= limit && bytes <= limit - held ? RB_REG_ADMIT : RB_REG_FULL;
+ }
+ 
+-// The stages the lane has settled this session: the 8-byte stage key with the
+-// depth mode folded in. Open addressing, never emptied one by one. Past three
+-// quarters full it takes no more, and a later stage is queued as before.
++// A set of stage identities: the 8-byte stage key, with the depth mode folded
++// in for the stages the lane settled. Open addressing, never emptied one by
++// one. Past three quarters full it takes no more.
+ enum { RB_REG_KNOWN_SLOTS = 1 << 15 };
+ typedef struct { uint64_t slot[RB_REG_KNOWN_SLOTS]; unsigned count; } rb_reg_known;
+ static inline uint64_t rb_reg_identity(const uint8_t key[8], int depth) {
+@@ -45,9 +50,19 @@ static inline int rb_reg_known_add(rb_reg_known *set, uint64_t identity) {
+     }
+ }
+ 
+-// Two lanes while the device is at Fair or cooler, one above: the stage is
+-// built at its first draw otherwise, on the submit thread. The second lane
+-// takes a registration only when the first has more waiting.
+-static inline unsigned rb_reg_lane(int thermal, unsigned first, unsigned second) {
+-    return thermal <= 1 && first > second ? 1u : 0u;
++// A translation on disk is "<16 lower-case hex digits>_b.json" in the folder
++// DM_MSL_FALLBACK names (reflection beside "<key>_b.metal"). Its identity has
++// no depth mode: one translation serves both depth variants.
++static inline int rb_reg_translation_name(const char *name, uint64_t *identity) {
++    static const char suffix[] = "_b.json";
++    if (!name || strlen(name) != 16 + sizeof suffix - 1 || strcmp(name + 16, suffix)) return 0;
++    uint8_t key[8];
++    for (int i = 0; i < 16; ++i) {
++        char c = name[i];
++        int v = c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : -1;
++        if (v < 0) return 0;
++        if (i & 1) key[i / 2] |= (uint8_t)v; else key[i / 2] = (uint8_t)(v << 4);
++    }
++    *identity = rb_reg_identity(key, 0);
++    return 1;
+ }
+diff --git a/graphics/nvn/tests/rb_registration_gpu.inc b/graphics/nvn/tests/rb_registration_gpu.inc
+index ff45797..2c6b98f 100644
+--- a/graphics/nvn/tests/rb_registration_gpu.inc
++++ b/graphics/nvn/tests/rb_registration_gpu.inc
+@@ -104,5 +104,38 @@ static int test_registered_library(NSString *root, BOOL enabled) { @autoreleasep
+     NSArray *files=[fm contentsOfDirectoryAtPath:[shaders stringByAppendingPathComponent:@"rb-compiled-msl-v1"] error:nil];
+     GPU_CHECK(files.count>0 && !g_rb_export_failed && !g_rb_export_dropped);
+     puts("PASS registration and extended registration build Metal libraries before commands, keep mutable guest keys independent, and capture compiler inputs");
++    {   // RewindBox (patch 0311): a burst is left alone. With the lane held and its sixteen
++        // places taken, a stage translated on disk counts known and an untranslated one deferred.
++        typedef NVNboolean (*set_fn)(NVNprogram *,int,const void *);
++        set_fn reg=(set_fn)h_nvnBootstrapLoader("nvnProgramSetShaders");
++        GPU_CHECK(reg && g_rb_registration_q && !g_rb_registration_count);
++        dispatch_semaphore_t gate=dispatch_semaphore_create(0);
++        dispatch_async(g_rb_registration_q,^{ dispatch_semaphore_wait(gate,DISPATCH_TIME_FOREVER); });
++        const uint64_t queued=g_rb_registration_queued, known=g_rb_registration_known, deferred=g_rb_registration_deferred;
++        for (unsigned j=0;j<RB_REGISTRATION_TRICKLE+2;++j) {
++            code[0]=(uint8_t)(100+j);
++            uint8_t key[8]; nvn2_key(control,code,key);
++            char hex[17]; for (unsigned b=0;b<8;++b) snprintf(hex+2*b,3,"%02x",key[b]);
++            NSString *stage=[@(hex) stringByAppendingString:@"_b"];
++            if (j<=RB_REGISTRATION_TRICKLE) {   // every stage but the last is translated on disk
++                NSString *base=[shaders stringByAppendingPathComponent:stage];
++                write_test_text([base stringByAppendingPathExtension:@"metal"],source);
++                NSDictionary *refl=@{@"chain":@DMSH_CHAIN,@"xfp":@(s2a_dsh_xfp()),@"route":@"B",
++                    @"stage":@"cs",@"key":stage,@"entry":@"main0",@"bindings":@[]};
++                GPU_CHECK([[NSJSONSerialization dataWithJSONObject:refl options:0 error:nil]
++                           writeToFile:[base stringByAppendingPathExtension:@"json"] atomically:YES]);
++            }
++            NVNprogram program={0};
++            struct { NVNshaderData sd; uint64_t ext; } slot={{(uint64_t)(uintptr_t)code,control},0};
++            GPU_CHECK(reg(&program,1,&slot));
++        }
++        GPU_CHECK(g_rb_registration_queued==queued+RB_REGISTRATION_TRICKLE && g_rb_registration_count==RB_REGISTRATION_TRICKLE);
++        GPU_CHECK(g_rb_registration_known==known+1 && g_rb_registration_deferred==deferred+1 && !g_rb_registration_dropped);
++        GPU_CHECK(g_rb_translated_read && g_rb_translated.count>=RB_REGISTRATION_TRICKLE+1);
++        dispatch_semaphore_signal(gate);
++        dispatch_sync(g_rb_registration_q,^{});
++        GPU_CHECK(!g_rb_registration_count && !g_rb_registration_bytes && !g_bp_msl_n);
++        puts("PASS a burst leaves the lane at sixteen registrations: translated on disk counts known, untranslated deferred");
++    }
+     return 0;
+ } }
+diff --git a/graphics/nvn/tests/t_rb_registration_plan.c b/graphics/nvn/tests/t_rb_registration_plan.c
+index 7447f0a..6ddbbff 100644
+--- a/graphics/nvn/tests/t_rb_registration_plan.c
++++ b/graphics/nvn/tests/t_rb_registration_plan.c
+@@ -6,18 +6,21 @@
+ 
+ int main(void) {
+     const size_t limit = 8u << 20;
+-    // A settled or in-flight stage takes no place, even with the lane full.
+-    assert(rb_reg_verdict(1, 0, 128, 128, 4096, limit, limit) == RB_REG_KNOWN);
+-    assert(rb_reg_verdict(1, 1, 0, 128, 4096, 0, limit) == RB_REG_KNOWN);
+-    assert(rb_reg_verdict(0, 1, 128, 128, 4096, limit, limit) == RB_REG_IN_FLIGHT);
+-    assert(rb_reg_verdict(0, 0, 0, 128, 4096, 0, limit) == RB_REG_ADMIT);
+-    assert(rb_reg_verdict(0, 0, 127, 128, 4096, 0, limit) == RB_REG_ADMIT);
+-    assert(rb_reg_verdict(0, 0, 128, 128, 4096, 0, limit) == RB_REG_FULL);
+-    assert(rb_reg_verdict(0, 0, 3, 128, 4096, limit - 4096, limit) == RB_REG_ADMIT);
+-    assert(rb_reg_verdict(0, 0, 3, 128, 4097, limit - 4096, limit) == RB_REG_FULL);
+-    assert(rb_reg_verdict(0, 0, 3, 128, 1, limit + 1, limit) == RB_REG_FULL);   // no wrap of the room left
++    // A loaded, settled or in-flight stage takes no place, whatever the lane holds.
++    assert(rb_reg_verdict(1, 0, 16, 16, 4096, limit, limit) == RB_REG_KNOWN);
++    assert(rb_reg_verdict(1, 1, 0, 16, 4096, 0, limit) == RB_REG_KNOWN);
++    assert(rb_reg_verdict(0, 1, 16, 16, 4096, limit, limit) == RB_REG_IN_FLIGHT);
++    // A few at a time: prepared. Sixteen waiting: a burst, left to the prewarm and the draw.
++    assert(rb_reg_verdict(0, 0, 0, 16, 4096, 0, limit) == RB_REG_ADMIT);
++    assert(rb_reg_verdict(0, 0, 15, 16, 4096, 0, limit) == RB_REG_ADMIT);
++    assert(rb_reg_verdict(0, 0, 16, 16, 4096, 0, limit) == RB_REG_BURST);
++    assert(rb_reg_verdict(0, 0, 5000, 16, 4096, 0, limit) == RB_REG_BURST);
++    // The bytes the snapshots hold stay bounded, with no wrap of the room left.
++    assert(rb_reg_verdict(0, 0, 3, 16, 4096, limit - 4096, limit) == RB_REG_ADMIT);
++    assert(rb_reg_verdict(0, 0, 3, 16, 4097, limit - 4096, limit) == RB_REG_FULL);
++    assert(rb_reg_verdict(0, 0, 3, 16, 1, limit + 1, limit) == RB_REG_FULL);
+ 
+-    // The depth mode is part of the identity, and no identity is the empty slot.
++    // The depth mode is part of a settled identity, and no identity is the empty slot.
+     const uint8_t key[8] = {1, 2, 3, 4, 5, 6, 7, 8}, zero[8] = {0};
+     assert(rb_reg_identity(key, 0) != rb_reg_identity(key, 1));
+     assert(rb_reg_identity(zero, 0) == 1 && rb_reg_identity(zero, 1));
+@@ -44,9 +47,20 @@ int main(void) {
+     assert(rb_reg_known_has(set, rb_reg_identity(key, 0)));
+     free(set);
+ 
+-    // The second lane only under Fair or cooler, and only when the first has more waiting.
+-    assert(rb_reg_lane(0, 0, 0) == 0 && rb_reg_lane(1, 0, 0) == 0);
+-    assert(rb_reg_lane(0, 1, 0) == 1 && rb_reg_lane(1, 5, 4) == 1 && rb_reg_lane(1, 4, 4) == 0);
+-    assert(rb_reg_lane(2, 9, 0) == 0 && rb_reg_lane(3, 9, 0) == 0);
+-    puts("PASS bind-ahead plan: settled and in-flight stages take no place, byte and count bounds, known set, lanes by thermal state");
++    // A translation's file name gives the key the lane computes from the stage bytes.
++    char name[32];
++    for (int i = 0; i < 8; ++i) snprintf(name + 2 * i, 3, "%02x", key[i]);
++    snprintf(name + 16, sizeof name - 16, "_b.json");
++    uint64_t id = 0;
++    assert(rb_reg_translation_name(name, &id) && id == rb_reg_identity(key, 0));
++    assert(rb_reg_translation_name("a85bb73550307c8a_b.json", &id));
++    const uint8_t a85b[8] = {0xa8, 0x5b, 0xb7, 0x35, 0x50, 0x30, 0x7c, 0x8a};
++    assert(id == rb_reg_identity(a85b, 0));
++    // Anything else in the folder is not a translation.
++    const char *others[] = {"a85bb73550307c8a_b.metal", "a85bb73550307c8a_b.json.tmp", "A85BB73550307C8A_b.json",
++                            "a85bb73550307c8_b.json", "a85bb73550307c8ag_b.json", "a85bb73550307c8z_b.json",
++                            "a85bb73550307c8a.json", "rb-compiled-msl-v1", ".", "..", ""};
++    for (unsigned i = 0; i < sizeof others / sizeof *others; ++i) assert(!rb_reg_translation_name(others[i], &id));
++    assert(!rb_reg_translation_name(NULL, &id));
++    puts("PASS bind-ahead plan: known and in-flight stages take no place, trickle admitted, burst left alone, byte bound, sets, translation names");
+ }

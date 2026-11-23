@@ -251,3 +251,34 @@ Patch 0308 (`rb_registration_plan.h`).
 
 Limites. Rien n'est mesuré sur iPhone avec ce patch. Chaque enregistrement coûte désormais une copie et un hachage de l'étage sur le fil du jeu, y compris quand il est refusé ou connu. Une compilation déjà lancée par une voie n'est pas interrompue : une première utilisation peut encore la croiser. À lire : `dropped`, `known`, `variants_built`, les compilations MSL sur le fil de soumission et la durée des fenêtres 300 à 900.
 
+## File d'avance devenue une compilation continue (patch 0308) et cache du compilateur Metal
+
+Session Mario Kart World sur l'IPA 823 (journal `f909c983`, moteur 0001–0310, 22 200 images, Nominal au lancement, Fair de l'image 1 374 à 17 400, puis Serious).
+
+| Mesure | IPA 822 (`549fdcf9`) | IPA 823 (`f909c983`) |
+|---|---|---|
+| Bibliothèques compilées depuis la source dans la session | 3 785, 50 s cumulées | 4 240, 1 905 s cumulées |
+| Durée moyenne d'une compilation | 13 ms | 449 ms |
+| Compilations après l'image 2 100 | 7 | 10 à 50 par fenêtre de 300 images jusqu'à la fin, 370 à 1 340 ms en moyenne par fenêtre |
+| Pipelines préparés d'avance, images 300 à 1 200 (Nominal, menu) | — | figés à 412 |
+| Pire image | 3,1 s | 24,2 s (image 1 374 : 143 pipelines et 60 bibliothèques sur le fil de soumission, 18,1 s de compilation) |
+
+Lecture.
+
+- Le patch 0308 a porté la file à 2 048 places avec deux voies. Mario Kart World annonce tous ses programmes au démarrage : la file s'est remplie d'étages qu'aucun dessin n'utilise, et les deux voies les ont compilés pendant toute la session.
+- La préparation froide (patch 0284) cède le pas tant que la file contient un enregistrement (`observedBusy`). Avec une file de 2 048 places, elle n'a rien préparé pendant tout le menu, et la première course a tout compilé sur le fil de soumission.
+- Les compilations du fil de soumission sont bimodales : 1 ms au p10, 182 ms (822) et 315 ms (823) au p50, jusqu'à 580 ms au p90. Avant la première image, l'IPA 822 a compilé 3 558 bibliothèques en 2,6 ms chacune : ce sont des réponses du cache du compilateur Metal. La place qu'elles y occupent n'est pas mesurée.
+
+Patch 0311 (`rb_registration_plan.h`).
+
+- Une seule voie. Elle prépare un étage seulement tant que moins de 16 enregistrements attendent : des annonces au compte-gouttes, quand un dessin est probablement proche.
+- Dans une rafale, l'étage est laissé aux lignes enregistrées de la préparation et à son premier dessin. Il est compté `known` si sa traduction est sur disque (noms du dossier lus une fois par session, aucun fichier ouvert), `deferred` sinon. `dropped` ne compte plus que la borne de 8 Mio de copies.
+- La file reste courte : la préparation froide ne cède plus le pas que quelques instants.
+- Journal : `[rb-bind-ahead] translations_on_disk=` une fois, puis toutes les 300 images quand un compte bouge, `[rb-bind-ahead] frame= registered= variants_built= msl_compiles= known= deferred= dropped=`.
+
+Cache du compilateur Metal (pont). iOS ne permet pas d'enregistrer une `MTLLibrary` compilée ; l'archive des pipelines n'évite que la compilation des pipelines. Ce qui garde les bibliothèques d'un lancement à l'autre, c'est le cache du compilateur Metal de l'application. Le `main` du moteur le limitait à 64 Mio (`MTL_SHADER_CACHE_SIZE`), et le pont faisait de même. Une session de Mario Kart World en compile environ 4 000. Le pont fixe désormais 1 Gio. D'après un relevé tiers par désassemblage sur macOS (non documenté par Apple, iOS non vérifié), c'est la valeur par défaut et le maximum honoré ; 0 coupe le cache.
+
+Limites. Rien n'est mesuré sur iPhone. Le premier lancement après la mise à jour peut encore compiler à froid ce que le cache de 64 Mio avait perdu. Le cache peut occuper jusqu'à environ 2 Go dans `Library/Caches` (deux fichiers), que iOS peut purger. Les compilations faites au démarrage restent nécessaires : l'archive a besoin des bibliothèques de ses pipelines. À lire : la durée de `msl_source_ms` rapportée au nombre au premier affichage et dans les fenêtres, `[rb-pso-ready] prepared` pendant le menu, les images longues aux chargements de course, `known`, `deferred` et `dropped`.
+
+Sources du relevé tiers : [sharpemu-mac, issue 50](https://github.com/sharpemu/sharpemu-mac/issues/50) ; emplacement du cache : [gist aras-p](https://gist.github.com/aras-p/5a9ae8f1f7d9998f732aff26dfa62617).
+

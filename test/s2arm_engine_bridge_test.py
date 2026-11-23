@@ -63,7 +63,20 @@ set_shader = plugin.index('setenv("MTL_SHADER_CACHE_SIZE"')
 dlopen = plugin.index('dlopen(enginePath.fileSystemRepresentation, RTLD_NOW | RTLD_GLOBAL)')
 check(read_melonx < refuse_melonx < mark < dlopen, 'MeloNX flag read and refusal come before the mark and the dlopen')
 check(set_gc < dlopen and set_shader < dlopen and mark < dlopen, 'the engine environment and the flag are set before the dlopen')
-check('"2000000"' in plugin and '"67108864"' in plugin, 'the GC segment size and the Metal shader cache size are the study values')
+check('"2000000"' in plugin and '"1073741824"' in plugin and '"67108864"' not in plugin,
+      'the GC segment size is the study value and the Metal compiler cache keeps 1 GiB (the most Metal honours)')
+# Documents/env.txt goes before every default this bridge sets, with the engine's reading rules.
+env_file = plugin.index('static void S2ArmApplyEnvFile(void)')
+env_body = plugin[env_file:plugin.index('\n}\n', env_file)]
+apply_env = plugin.index('S2ArmApplyEnvFile();')
+check(apply_env < set_gc < set_shader and apply_env < plugin.index('setenv("S2A_WORKGROUP"') and
+      apply_env < plugin.index('setenv("S2A_RB_PARK_COMPAT"') and apply_env < plugin.index('setenv("S2A_RB_POOL_INDEX_UPDATE"'),
+      'env.txt is applied before the engine environment, the park mode and the title profile')
+check('setenv(line, eq + 1, 0)' in env_body and "line[0] == '#'" in env_body and "c == '_'" in env_body and
+      'getenv(line)' in env_body and '"S2A_DOCS"' in env_body and '@"env.txt"' in env_body and 'length <= 255' in env_body,
+      'env.txt follows the engine reader: no overwrite, comments, [A-Z0-9_] keys, the same Documents root')
+check('\\"keys\\":\\"%s\\"' in env_body and 'eq + 1' not in env_body[env_body.index('s2arm_journal'):],
+      'the journal names the env.txt keys, never their values')
 check('RTLD_NOW | RTLD_GLOBAL' in plugin and 'RTLD_LOCAL' not in plugin,
       'the engine is opened RTLD_NOW | RTLD_GLOBAL (85 internal dlsym(RTLD_DEFAULT))')
 check(plugin.index('engineRestartRequired') and 'melonxCoreLoaded' in plugin, 'MeloNX loaded refuses with a restart error')

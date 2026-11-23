@@ -91,8 +91,10 @@ ARMSX2 bridges are `.mm`, where a comparison is a C++ `bool`. Not observed on a 
 3. Prove the debugger round-trip (command 3 with the session nonce) before the `dlopen`, as the RPCS3 loader does.
 4. Prepare the spare pool: R|X pages for the code the game loads after the detach (later NROs), filled with command 1 in
    chunks of at most 16 MiB while the helper is attached.
-5. `setenv("DOTNET_GCSegmentSize","2000000",0)` and `setenv("MTL_SHADER_CACHE_SIZE","67108864",0)` (the engine's `main`,
-   study § 9.1), select the workgroup default from `S2A_RB_PARK_COMPAT`, call `rb_s2arm_engine_mark_loading()`, then `dlopen(S2ArmEngine, RTLD_NOW | RTLD_GLOBAL)` (the engine looks up
+5. Apply `Documents/env.txt` with the engine's reading rules (`KEY=VALUE`, `#` comments, no overwrite), then
+   `setenv("DOTNET_GCSegmentSize","2000000",0)` (the engine's `main`, study § 9.1) and `setenv("MTL_SHADER_CACHE_SIZE","1073741824",0)`
+   (the engine's `main` set 64 MiB; 1 GiB keeps a Mario Kart World session's stage libraries in the per-app Metal compiler cache
+   between launches), select the workgroup default from `S2A_RB_PARK_COMPAT`, call `rb_s2arm_engine_mark_loading()`, then `dlopen(S2ArmEngine, RTLD_NOW | RTLD_GLOBAL)` (the engine looks up
    85 of its own functions with `dlsym(RTLD_DEFAULT)`, so it must be global). Its exports are restricted to the guest entry points and the names it looks up by string (`build-utils/s2arm/engine/export_list.py`), so its third-party symbols (glslang, whose weak definitions DolphinCore also carries) are not coalesced with another engine's.
 6. `s2a_rb_guest_configure(&config, …)` with the prepared paths and `prepare_code = s2arm_code_prepare`.
 7. Main thread: present `s2a_rb_guest_make_view_controller()` full screen; the start runs in the presentation completion.

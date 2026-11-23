@@ -25,13 +25,55 @@ static NSString *const kChannel = @"neostation/s2arm_internal";
 static NSString *const kProgressMethod = @"prepareProgress";
 // The engine's main sets these before it loads the runtime (host_main.c:450-452, study § 9.1).
 static NSString *const kGcSegmentSize = @"2000000";
-static NSString *const kShaderCacheSize = @"67108864";
+// MTL_SHADER_CACHE_SIZE bounds the per-app Metal compiler cache, which keeps compiled stage
+// libraries between launches (iOS has no public way to save an MTLLibrary). The engine's main
+// lowered it to 64 MiB. A Mario Kart World session compiles about 4,000 stage libraries; on the
+// submit thread one took 1 ms (p10) or 180 to 580 ms (p50 to p90): answered by the cache or not.
+// 1 GiB is the default and the largest value Metal honours, by a third-party disassembly of
+// macOS's Metal (a larger value is clamped to it; 0 turns the cache off); iOS is not verified.
+static NSString *const kShaderCacheSize = @"1073741824";
 static NSTimeInterval const kHelperConnectTimeout = 30.0;
 static NSTimeInterval const kAttachTimeout = 600.0;   // first use may mount a DDI, as for the RPCS3 helper
 static NSTimeInterval const kCompletionTimeout = 120.0;
 static uint64_t const kBootQuiesceNs = 2000000000ull;   // 2 s with no hook activity after boot code served = detach
 
 static void s2arm_session_ended(int code, const char *reason, void *context);
+
+// Documents/env.txt applied before this bridge's own defaults, with the rules of the engine's
+// reader (runtime/src/envfile.c): KEY=VALUE per line, '#' comments, KEY in [A-Z0-9_], the value
+// to the end of the line, setenv(..., 0). The engine reads the same file at its dlopen and only
+// fills what is unset, so a switch this bridge sets (S2A_WORKGROUP, the title profile) could not be
+// tried from env.txt. Order now: an explicit launch environment, then env.txt, then the defaults.
+// The journal names the keys, never their values.
+static void S2ArmApplyEnvFile(void) {
+  const char *root = getenv("S2A_DOCS"), *home = getenv("HOME");
+  NSString *base = home && *home ? @(home) : @".";
+  NSString *docs = root && *root ? @(root) : [base stringByAppendingPathComponent:@"Documents"];
+  FILE *file = fopen([docs stringByAppendingPathComponent:@"env.txt"].fileSystemRepresentation, "r");
+  if (!file) return;
+  char line[2048];
+  unsigned applied = 0, kept = 0, rejected = 0;
+  NSMutableArray<NSString *> *keys = [NSMutableArray array];
+  while (fgets(line, sizeof line, file)) {
+    size_t n = strlen(line);
+    while (n && (line[n - 1] == '\n' || line[n - 1] == '\r')) line[--n] = 0;
+    if (!n || line[0] == '#') continue;
+    char *eq = strchr(line, '=');
+    size_t length = eq ? (size_t)(eq - line) : 0;
+    BOOL valid = length > 0 && length <= 255;
+    for (size_t i = 0; valid && i < length; ++i) {
+      char c = line[i];
+      valid = (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+    }
+    if (!valid) { ++rejected; continue; }
+    *eq = 0;
+    if (getenv(line)) { ++kept; continue; }
+    if (setenv(line, eq + 1, 0) == 0) { ++applied; [keys addObject:@(line)]; }
+  }
+  fclose(file);
+  s2arm_journal("envFile", "read", "\"applied\":%u,\"kept\":%u,\"rejected\":%u,\"keys\":\"%s\"", applied, kept, rejected,
+                [keys componentsJoinedByString:@","].UTF8String);
+}
 static void s2arm_session_parked(const char *reason, void *context);
 
 // Cheap launch-time identity; no game bytes or private paths enter the report.
@@ -770,6 +812,7 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
   if (jit) return jit;
 
   // Environment the engine's main sets, then the flag before the dlopen, then the dlopen (RTLD_NOW | RTLD_GLOBAL).
+  S2ArmApplyEnvFile();   // env.txt before the defaults below: they never replace a value it gives
   setenv("DOTNET_GCSegmentSize", kGcSegmentSize.UTF8String, 0);
   setenv("MTL_SHADER_CACHE_SIZE", kShaderCacheSize.UTF8String, 0);
   // IPA 783: the engine refused to park with the workgroup enabled (-2), then took 304 ms for terminal shutdown.
