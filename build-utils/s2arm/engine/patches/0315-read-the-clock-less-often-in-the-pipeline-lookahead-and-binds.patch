@@ -1,0 +1,88 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index dd62b31..de3bcb1 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -18073,7 +18073,7 @@ static void rec_bad_red(const char *who, const uint8_t *p, op_hdr h, const uint8
+     MLOG("【红】 command record at %p is not one of ours (%s): op %u size %u; handle %p, list %p + %#lx, previous record %p op %u size %u, call depth %d: that list ends here; bytes: %s",
+          p, who, h.op, h.size, g_exec_top, list, list ? (unsigned long)(p - list) : 0ul, prev, ph.op, ph.size, g_ret_n, hx);
+ }
+-typedef struct { const uint8_t *p, *ret[sizeof g_ret / sizeof *g_ret]; int ret_n, rest_i, bad; } fz_cursor;   // ret: same capacity as the replay return stack it is copied from
++typedef struct { const uint8_t *p, *ret[sizeof g_ret / sizeof *g_ret]; int ret_n, rest_i, bad; unsigned tick; } fz_cursor;   // tick: RewindBox (patch 0315), commands read since the last clock check   // ret: same capacity as the replay return stack it is copied from
+ // Lookahead starting from the op after the current draw, carrying the replay return stack so that sub-list boundaries are correctly crossed.
+ // Every lookahead that may run while inside a CALL sub-list must use this; a bare {.p = g_exec_next} with ret_n=0 would cross an OP_END by consuming g_rest instead of returning to the caller.
+ static inline fz_cursor fz_cursor_from_exec(void) {
+@@ -18085,7 +18085,8 @@ static inline fz_cursor fz_cursor_from_exec(void) {
+ }
+ static int fz_next_until(fz_cursor *c, const uint8_t **out, op_hdr *oh, const void **oa, uint64_t deadline) {
+     for (int guard = 0; guard < 1000000; guard++) {
+-        if (!c->p || (deadline && bp_now() >= deadline)) return 0;
++        // RewindBox (patch 0315): the deadline is read every 8 commands, not at each (one clock_gettime per command of the lookahead: its scans ran up to the 2 ms budget)
++        if (!c->p || (deadline && !(c->tick++ & 7) && bp_now() >= deadline)) return 0;
+         op_hdr h; memcpy(&h, c->p, sizeof h); const void *a = c->p + 8;
+         if (rec_bad(h)) { if (!deadline) rec_bad_red("lookahead fz_next", c->p, h, NULL, NULL); c->p = NULL; c->bad = 1; return 0; }
+         switch (h.op) {
+@@ -18606,6 +18607,7 @@ static int rb_look_again_on(void);
+ static void rb_look_scan(const pso_key *current);
+ static uint64_t g_look_scan_libs;
+ static uint64_t g_look_memo_hits, g_look_refused, g_look_max_ns, g_look_overruns;
++static uint64_t g_look_total_ns, g_look_scans_n;   // RewindBox (patch 0315): every bounded scan's time on the submit thread
+ static void pso_predict_rest(const pso_key *current) {
+     if (!g_exec_next) return;
+     uint64_t t0 = bp_now(), x0 = g_tex_mtl_n;
+@@ -18613,7 +18615,8 @@ static void pso_predict_rest(const pso_key *current) {
+         if (!rb_look_begin(&g_look_budget,g_sub_serial,t0,rb_look_again_on())) { g_look_refused++; return; }
+         g_look_scan_libs=atomic_load_explicit(&g_rb_lib_done,memory_order_relaxed);
+         g_look_try_only=1; rb_look_scan(current); g_look_try_only=0;
+-        rb_look_finish(&g_look_budget,bp_now());
++        uint64_t t1=bp_now(); g_look_total_ns+=t1-g_look_budget.start; g_look_scans_n++;   // RewindBox (patch 0315)
++        rb_look_finish(&g_look_budget,t1);
+         if (g_look_budget.spent > g_look_max_ns) g_look_max_ns=g_look_budget.spent;
+         if (g_look_budget.spent > RB_LOOK_BUDGET_NS) g_look_overruns++;
+     } else pso_predict_rest_(current);
+@@ -18813,7 +18816,7 @@ static void rb_look_scan(const pso_key *current) {
+             break;
+         case OP_DISPATCH:
+             if (compute && !compute->unres && !g_se_any && !g_fold_any &&
+-                rb_observed_workers_on() && bp_now()<deadline) rb_compute_ahead(compute->sh[5]);
++                rb_observed_workers_on()) rb_compute_ahead(compute->sh[5]);   // RewindBox (patch 0315): fz_next_until keeps the deadline
+             break;
+         case OP_DRAW: case OP_DRAW_IDX: {
+             if (!formats || !graphics || graphics->unres || !graphics->sh[0] ||
+@@ -18821,7 +18824,7 @@ static void rb_look_scan(const pso_key *current) {
+             if (h.op==OP_DRAW) { p_draw d; if (draw_rec(a,h.size,&d)->prim==DM_PRIM_MESH_TASKS) break; }
+             pso_key k; pso_key_fill(&k,graphics->sh[0],graphics->sh[1],cf,df,sf,samples,0);
+             p_draw_idx idx;
+-            if (bp_now()<deadline) rb_look_queue(&k,graphics->sh[0],graphics->sh[1],
++            rb_look_queue(&k,graphics->sh[0],graphics->sh[1],   // RewindBox (patch 0315): fz_next_until keeps the deadline
+                 next && rb_same_pass_draw(current,&k,draw_idx_rec(a,h.size,&idx),graphics));
+             break;
+         }
+@@ -23278,9 +23281,10 @@ static int rb_compute_drain(const struct timespec *deadline) {
+         }
+         rb_compute_clear(slot);
+     }
+-    if (g_look_budget.scans) MLOG("[rb-look-budget] max_submission_ms=%.3f budget_ms=2.0 refused=%llu overruns=%llu negative_hits=%llu",
++    if (g_look_budget.scans) MLOG("[rb-look-budget] max_submission_ms=%.3f budget_ms=2.0 refused=%llu overruns=%llu negative_hits=%llu scans=%llu total_ms=%.1f per_frame_ms=%.3f",
+         g_look_max_ns/1e6,(unsigned long long)g_look_refused,(unsigned long long)g_look_overruns,
+-        (unsigned long long)g_look_memo_hits);
++        (unsigned long long)g_look_memo_hits,(unsigned long long)g_look_scans_n,g_look_total_ns/1e6,   // RewindBox (patch 0315): scans and their time, per frame over the session
++        atomic_load(&g_cur_frame) ? g_look_total_ns/1e6/(double)atomic_load(&g_cur_frame) : 0.);
+     atomic_store(&g_look_budget_option,0);
+     g_look_budget=(rb_look_budget){0};
+     memset(g_look_missing,0,sizeof g_look_missing);
+diff --git a/graphics/nvn/gfx/nvn/rb_pso_recent.inc b/graphics/nvn/gfx/nvn/rb_pso_recent.inc
+index d2815f0..87ba775 100644
+--- a/graphics/nvn/gfx/nvn/rb_pso_recent.inc
++++ b/graphics/nvn/gfx/nvn/rb_pso_recent.inc
+@@ -43,7 +43,10 @@ static void rb_pso_bound(id ps) {
+     if (!on_sub_thread()) return;
+     RBPSOLifetime *life = objc_getAssociatedObject(ps,&rb_pso_lifetime_key);
+     if (!life) return;
+-    life->touched = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
++    // RewindBox (patch 0315): the time is read once a submission (it ages pipelines idle for seconds), not at every pipeline change of the submit thread
++    static uint64_t sub = UINT64_MAX, now;
++    if (sub != g_sub_serial) { sub = g_sub_serial; now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW); }
++    life->touched = now;
+     if (life->recorded || !life->identity) return;
+     life->recorded = YES;
+     if (!rb_bound_this_session) rb_bound_this_session = [NSMutableOrderedSet orderedSet];

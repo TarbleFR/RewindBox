@@ -1,0 +1,84 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index de3bcb1..307c516 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -24205,12 +24205,13 @@ static int rb_next_draw_may_cut(void) {
+ static void sub_cut_begin(void) { g_cut_draw0 = g_stat_draw; }
+ // Segment times without the segments (upstream reference implementation, MIT). A report in segment mode takes the GPU start or end of the segment it fell in, and what a game's controller makes of those depends on where the boundaries lie.
+ // So the boundaries stay every cut_draws() draws, each with a GPU timestamp, whether or not the host commits there (sub_cut): the game reads what it read, and a GPU still busy gets no extra command buffer.
+-// Metal 3 and the encode thread record their encoders without such a write: with them each boundary stays a commit
++// Metal 3 records its encoders without such a write: with it each boundary stays a commit. The encode thread writes them as recorded (nvn_rec.h RO_R_TS / RO_C_TS): it was left without
++//   the heap, so with the encode thread on (the default) every 64-draw boundary committed and DM_NVN_CUT_BUSY never applied (upstream reference implementation, MIT, 3304d6a0)
+ enum { TS_SLOTS = 4096 };   // the largest timestamp heap Metal makes
+ static uint32_t g_ts_next; static int g_ts_state, g_ts_s0;   // state: 0 not tried, 1 on, -1 off; s0: the slot of this submission's first boundary
+ static int ts_on(void) {
+     if (!g_ts_state) { g_ts_state = -1;
+-        if (seg_ts() && !g_m3 && !rec_on()) { NSError *er = nil;
++        if (seg_ts() && !g_m3) { NSError *er = nil;
+             g_ts_heap = ts_heap_new(TS_SLOTS, &er);
+             if (g_ts_heap) g_ts_state = 1; else MLOG("【红】 counter timestamps: no counter heap (%s): every segment boundary stays a commit", er.description.UTF8String); } }
+     return g_ts_state > 0;
+diff --git a/graphics/nvn/tests/t_nvn_cut_busy.m b/graphics/nvn/tests/t_nvn_cut_busy.m
+index 794e23e..8bfb1a5 100644
+--- a/graphics/nvn/tests/t_nvn_cut_busy.m
++++ b/graphics/nvn/tests/t_nvn_cut_busy.m
+@@ -7,6 +7,8 @@
+ //   ③ 先后：段 0 始 ≤ 段 0 末 = 段 1 始 ≤ 段 2 始 ≤ 段 2 末（整次提交的 GPU 结束），全部落在提交前后两次读钟之间
+ //   ④ DM_NVN_CUT_BUSY=0：GPU 忙也提交（计数 +1）
+ //   ⑤ 段的绘制数从提交开始算：提交一开始就画进沿用的目标 64 次（中间没有切段点），第一个切段点就该提交（旧代码从第一次切段点才开始数 → 不提交）
++//   ⑥ 编码线程开（iPhone / Mac 缺省，DM_NVN_ENC_THREAD=1）同样走 ①②③：计数器堆的时间戳经录制流在编码线程上写（nvn_rec.h RO_R_TS / RO_C_TS）。
++//      旧代码编码线程开时不建计数器堆（ts_on 要求 !rec_on()），「忙就只留边界」进不去，每 64 笔真提交一次（照上游 3304d6a0）→ ① 红
+ // 「GPU 忙」用在途计数 g_seg_inflight 直接置 1 模拟（真实在途的命令缓冲回报时间不可控）；其余都是真 Metal 4 设备、真提交、真时间戳。
+ // 反证：去掉 sub_cut 里「忙就只留边界」那段 → ① 红（忙时也提交 1 次、只留边界 0 个）；② ③ 照绿（提交的切段点同样记边界时间戳）
+ #include "../gfx/nvn/nvn_mtl.m"
+@@ -26,11 +28,12 @@ static void reach_cut(void) { g_stat_draw+=64; sub_cut(); }   // as many draws a
+ enum { JIT = 19 };
+ static int le(uint64_t a, uint64_t b) { return a <= b + JIT; }
+ 
+-static int child(int busy_on) {
++static int child(int mode) {   // 1 缺省（编码线程关）、2 缺省 + 编码线程开、0 DM_NVN_CUT_BUSY=0
++    int busy_on=mode!=0, enc=mode==2;
+     alarm(60);
+-    unsetenv("NXGAL_BE"); setenv("DM_NVN_ENC_THREAD","0",1); setenv("DM_NVN_GPU_TS","segment",1); setenv("DM_NVN_CUT","64",1);
++    unsetenv("NXGAL_BE"); setenv("DM_NVN_ENC_THREAD",enc?"1":"0",1); setenv("DM_NVN_GPU_TS","segment",1); setenv("DM_NVN_CUT","64",1);
+     if (busy_on) unsetenv("DM_NVN_CUT_BUSY"); else setenv("DM_NVN_CUT_BUSY","0",1);
+-    mtl_init(); REQUIRE(!g_m3); REQUIRE(!rec_on()); REQUIRE(seg_ts());
++    mtl_init(); REQUIRE(!g_m3); REQUIRE(rec_on()==enc); REQUIRE(seg_ts());
+     NSError *e=nil; MTLCompileOptions *o=[MTLCompileOptions new]; o.languageVersion=MTLLanguageVersion2_3;
+     id<MTLLibrary> lib=[g_dev newLibraryWithSource:@"#include <metal_stdlib>\nusing namespace metal;\n"
+         "struct Args { device uint *out [[id(0)]]; };\n"
+@@ -52,7 +55,7 @@ static int child(int busy_on) {
+           CHECK(k1==k0+1,"⑤ 提交开始后先画 64 次、第一个切段点：提交 %llu 次（期望 1）",(unsigned long long)(k1-k0)); }
+         printf("%s t_nvn_cut_busy 子进程（DM_NVN_CUT_BUSY=0）：%u 项，%u 项失败\n",failures?"✗":"✓",checks,failures); return failures!=0;
+     }
+-    REQUIRE(ts_on());
++    CHECK(ts_on(),"%s编码线程%s：建了计数器堆（ts_on）",enc?"⑥ ":"",enc?"开":"关"); if (!ts_on()) return 1;
+     for (int i=0;i<200 && atomic_load(&g_seg_inflight);i++) usleep(10000);   // the warm-up submissions of mtl_init have reported back
+     REQUIRE(!atomic_load(&g_seg_inflight));
+     uint64_t t_before=gpu_ticks();
+@@ -74,7 +77,7 @@ static int child(int busy_on) {
+     printf("  报告（19.2 MHz）：段0 始 %llu、段0 末 %llu、段1 始 %llu、段2 始 %llu、段2 末 %llu；提交前 %llu、等完后 %llu\n",(unsigned long long)r0,(unsigned long long)r1,(unsigned long long)r2,(unsigned long long)r3,(unsigned long long)r4,(unsigned long long)t_before,(unsigned long long)t_after);
+     CHECK(r1 && le(r1,r2) && le(r2,r1),"② 段 0 末 = 段 1 始（同一边界，容 %d 个滴答换算误差）：%llu / %llu（差 %lld）",JIT,(unsigned long long)r1,(unsigned long long)r2,(long long)(r2-r1));
+     CHECK(le(t_before,r0) && le(r0,r1) && le(r2,r3) && le(r3,r4) && le(r4,t_after),"③ 先后（容 %d 个滴答）：提交前 ≤ 段0 始 ≤ 段0 末，段1 始 ≤ 段2 始 ≤ 段2 末 ≤ 等完后",JIT);
+-    printf("%s t_nvn_cut_busy 子进程（缺省）：%u 项，%u 项失败\n",failures?"✗":"✓",checks,failures);
++    printf("%s t_nvn_cut_busy 子进程（缺省%s）：%u 项，%u 项失败\n",failures?"✗":"✓",enc?"、编码线程开":"、编码线程关",checks,failures);
+     return failures!=0;
+ }
+ 
+@@ -82,12 +85,13 @@ int main(int argc, char **argv) { @autoreleasepool {
+     setvbuf(stdout,NULL,_IOLBF,0);
+     if (argc==3 && !strcmp(argv[1],"--child")) return child(atoi(argv[2]));
+     unsigned bad=0;
+-    for (int busy=1; busy>=0; busy--) {
++    static const char *const modes[3]={"1","2","0"};
++    for (int m=0; m<3; m++) {
+         fflush(NULL); pid_t pid=fork(); REQUIRE(pid>=0);
+-        if (!pid) { execl(argv[0],argv[0],"--child",busy?"1":"0",(char *)NULL); _exit(127); }
++        if (!pid) { execl(argv[0],argv[0],"--child",modes[m],(char *)NULL); _exit(127); }
+         int st=0; pid_t w; do { w=waitpid(pid,&st,0); } while (w<0 && errno==EINTR); REQUIRE(w==pid);
+         bad+=!(WIFEXITED(st) && WEXITSTATUS(st)==0);
+     }
+-    printf("%s t_nvn_cut_busy：缺省 / DM_NVN_CUT_BUSY=0 两个子进程，%u 个不过（分段提交 GPU 忙时只留时间戳边界）\n",bad?"✗":"✓",bad);
++    printf("%s t_nvn_cut_busy：缺省（编码线程关 / 开）/ DM_NVN_CUT_BUSY=0 三个子进程，%u 个不过（分段提交 GPU 忙时只留时间戳边界）\n",bad?"✗":"✓",bad);
+     return bad!=0;
+ } }
