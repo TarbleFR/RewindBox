@@ -1022,12 +1022,26 @@ def build_shader_fixtures(app, official=False):
     return directory
 
 
+def disc_reader_build(sources):
+    """The .chd/.cso reader the podspec compiles besides rcheevos (NEOSTATION_RA_DISC_READER_V1, as
+    test/libretro_ios_syntax_test.py): its C units with the pinned libchdr, the libchdr include path and the podspec's
+    defines. Sources older than the reader (Build 453) have none of them."""
+    libchdr = sources / 'ThirdParty/libchdr'
+    units = sorted((sources / 'Classes').glob('*.c'))
+    if not libchdr.is_dir():
+        return units, [], []
+    units += sorted((libchdr / 'src').glob('*.c'))
+    units += sorted((libchdr / 'deps').glob('lzma-*/src/LzmaDec.c')) + sorted((libchdr / 'deps').glob('zstd-*/zstddeclib.c'))
+    return units, [libchdr / 'include'], ['CHDR_SYSTEM_ZLIB=1', 'ZSTD_DISABLE_ASM=1']
+
+
 def compile_probe(sources, sdk, work, app):
     # <pod/Name.h> resolves as the bridge sees its pods: their public
     # headers and nothing else (test/libretro_ios_syntax_test.py).
     include = stage_dependency_headers(work)
+    reader_units, reader_includes, reader_defines = disc_reader_build(sources)
     includes = [sources / 'Classes', sources / 'ThirdParty/include', sources / 'ThirdParty/include/libretro',
-                sources / 'ThirdParty/rcheevos/include', sources / 'ThirdParty/rcheevos/src', include]
+                sources / 'ThirdParty/rcheevos/include', sources / 'ThirdParty/rcheevos/src', include, *reader_includes]
     base = ['xcrun', '--sdk', 'iphonesimulator', 'clang', '-target', TARGET, '-isysroot', sdk, '-O1',
             '-Wno-deprecated-declarations']
     sanitizer = os.environ.get('NEOSTATION_SIMULATOR_ASAN') == '1'
@@ -1035,11 +1049,12 @@ def compile_probe(sources, sdk, work, app):
         base += ['-fsanitize=address', '-fno-omit-frame-pointer', '-DNEOSTATION_ADDRESS_SANITIZER=1']
     for include in includes:
         base += ['-I', str(include)]
-    for define in DEFINES:
+    for define in (*DEFINES, *reader_defines):
         base += ['-D', define]
     if imports_shader_kit(sources):
         base += ['-DNEOSTATION_SHADER_SESSION_PROBE=1']
     units = [path for path in sorted((sources / 'Classes').glob('*.m')) if path.name != 'LibretroInternalBridgePlugin.m']
+    units += reader_units
     units += achievement_boundary_units(sources)
     units += cheat_catalog_units(sources)
     units += [EXTERNAL_DISPLAY / name for name in EXTERNAL_DISPLAY_SOURCES]

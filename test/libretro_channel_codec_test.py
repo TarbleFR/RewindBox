@@ -47,7 +47,7 @@ HARNESS = ROOT / 'test/libretro_channel_codec/main.m'
 ENVELOPES = ROOT / 'test/libretro_session_envelopes.dart'
 sys.path.insert(0, str(ROOT / 'test'))
 from libretro_simulator_probe import (  # noqa: E402
-    DEFINES, EXTERNAL_DISPLAY, EXTERNAL_DISPLAY_SOURCES, FRAMEWORKS, TARGET, imports_shader_kit, pick_device,
+    DEFINES, EXTERNAL_DISPLAY, disc_reader_build, EXTERNAL_DISPLAY_SOURCES, FRAMEWORKS, TARGET, imports_shader_kit, pick_device,
     sdk_path, cheat_catalog_units)
 from libretro_ios_syntax_test import stage_dependency_headers  # noqa: E402
 from neo_shader_kit_ios_build import compile_kit, podspec_frameworks  # noqa: E402
@@ -104,17 +104,19 @@ def simulator_slice(root):
 
 def build(sources, flutter_slice, sdk, work, log):
     include = stage_dependency_headers(work)
+    # The disc reader and libchdr the plugin links (rb_hash_*), as the podspec compiles them.
+    reader_units, reader_includes, reader_defines = disc_reader_build(sources)
     includes = [sources / 'Classes', sources / 'ThirdParty/include', sources / 'ThirdParty/include/libretro',
-                sources / 'ThirdParty/rcheevos/include', sources / 'ThirdParty/rcheevos/src', include]
+                sources / 'ThirdParty/rcheevos/include', sources / 'ThirdParty/rcheevos/src', include, *reader_includes]
     base = ['xcrun', '--sdk', 'iphonesimulator', 'clang', '-target', TARGET, '-isysroot', sdk, '-O1',
             '-Wno-deprecated-declarations', '-F', str(flutter_slice)]
     for path in includes:
         base += ['-I', str(path)]
-    for define in DEFINES:
+    for define in (*DEFINES, *reader_defines):
         base += ['-D', define]
     # Every bridge source, the plugin included (the probe leaves it out: it
     # has no Flutter.framework).
-    units = sorted((sources / 'Classes').glob('*.m'))
+    units = sorted((sources / 'Classes').glob('*.m')) + reader_units
     from libretro_ios_syntax_test import achievement_boundary_units
     units += achievement_boundary_units(sources)
     units += cheat_catalog_units(sources)
