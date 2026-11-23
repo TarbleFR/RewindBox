@@ -79,6 +79,11 @@ Vidéo de 7,45 s et journal `de0a5911`. L'enregistrement commence à l'image 6 5
   - La scène change de taille : 1 248×700, puis 1 268×712, 1 276×716, puis retour à 1 248×700.
   - L'image 6 572 porte 52 conditions au lieu de 8, dont 31 effacements écartés.
   - La passe principale est coupée en deux aux images 6 575, 6 580 et 6 585.
+- **Signatures image par image (`frames.txt` de la même session).**
+  - Le blocage se place entre l'image 6 567 et la suivante : 10 080 473 µs avant la première commande de l'image 6 568.
+  - Les images 6 528 à 6 567 ont des listes normales : 1 087 à 1 362 dessins, 133 passes (139 tous les 51 images environ), aucun dessin sauté, 8 conditions sauf aux changements de taille de la scène (29 à 52 conditions, dont 14 à 31 effacements écartés, aux images 6 528, 6 530, 6 531, 6 572, 6 574, 6 575, 6 578 et 6 579). Rien dans le flux de commandes ne marque une image noire.
+  - Durée GPU rendue au jeu : 33 à 42 ms par image de 6 528 à 6 567, puis 10 à 16 ms dès la reprise (16 180, 11 114, 10 782, 10 036, 10 136 µs), puis le plancher de 16,6 ms du maintien. La charge est la même (1 062 à 1 410 dessins, scène 1 248×700). Le GPU était donc ralenti, pas surchargé, et la réinitialisation l'a rendu rapide.
+  - Session 824 : même enchaînement, avec un verrou à 30 avant la récupération (fenêtres 5 701–6 600, 27 à 28 images par seconde) et 57 à 58 images par seconde juste après (6 901–7 800).
 - **Suite :**
   - savoir si les flashs arrivent aussi sans gel ;
   - à la prochaine récupération, consigner l'état de chaque encodeur des tampons rejetés et la liste des tampons en vol, pour désigner le travail fautif.
