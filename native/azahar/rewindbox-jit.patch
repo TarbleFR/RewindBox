@@ -316,7 +316,7 @@ index 0000000..fa70a90
 +
 +#endif /* REWINDBOX_LIBRETRO_JIT_H */
 diff --git a/src/citra_libretro/citra_libretro.cpp b/src/citra_libretro/citra_libretro.cpp
-index c912308..6ddf5a3 100644
+index 54df4dc..7968ca2 100644
 --- a/src/citra_libretro/citra_libretro.cpp
 +++ b/src/citra_libretro/citra_libretro.cpp
 @@ -32,6 +32,9 @@
@@ -329,7 +329,7 @@ index c912308..6ddf5a3 100644
  
  #include "common/arch.h"
  #if CITRA_ARCH(x86_64)
-@@ -99,6 +102,11 @@ void retro_deinit() {
+@@ -100,6 +103,11 @@ void retro_deinit() {
  
      delete emu_instance;
  
@@ -341,7 +341,7 @@ index c912308..6ddf5a3 100644
      Common::Log::Stop();
  }
  
-@@ -512,6 +520,9 @@ bool retro_load_game(const struct retro_game_info* info) {
+@@ -522,6 +530,9 @@ bool retro_load_game(const struct retro_game_info* info) {
      }
  #endif
  
@@ -758,10 +758,10 @@ index 0000000..d67de00
 +
 +} // namespace RewindBoxJit
 diff --git a/src/common/settings.h b/src/common/settings.h
-index 5ffc065..5f53adc 100644
+index 1d8e0f3..2a3fd9a 100644
 --- a/src/common/settings.h
 +++ b/src/common/settings.h
-@@ -485,6 +485,9 @@ struct Values {
+@@ -513,6 +513,9 @@ struct Values {
      // Core
      Setting<bool> use_cpu_jit{true, Keys::use_cpu_jit};
      Setting<bool> use_fastinterp{true, Keys::use_fastinterp};
@@ -900,10 +900,10 @@ index 76b92f4..1165a10 100644
  
  } // namespace Pica::Shader
 diff --git a/src/video_core/shader/shader_jit_a64_compiler.cpp b/src/video_core/shader/shader_jit_a64_compiler.cpp
-index 5db5cbe..ebbcccd 100644
+index bdc0f85..79031f8 100644
 --- a/src/video_core/shader/shader_jit_a64_compiler.cpp
 +++ b/src/video_core/shader/shader_jit_a64_compiler.cpp
-@@ -1046,8 +1046,8 @@ void JitShader::Compile(const std::array<u32, MAX_PROGRAM_CODE_LENGTH>* program_
+@@ -1053,8 +1053,8 @@ void JitShader::Compile(const std::array<u32, MAX_PROGRAM_CODE_LENGTH>* program_
      program = reinterpret_cast<CompiledShader*>(reinterpret_cast<std::byte*>(code_mem->ptr()) +
                                                  program_offset);
  

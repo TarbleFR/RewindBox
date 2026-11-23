@@ -3,16 +3,17 @@
   "core": "azahar",
   "framework": "azahar_libretro",
   "upstream": "https://github.com/azahar-emu/azahar",
-  "tag": "2127.0-alpha1",
-  "revision": "5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6",
+  "tag": "2127.0-rc5",
+  "version": "2127.0-rc5",
+  "revision": "6f293a24daa292bd02b4ffee1a2adb5435e1ae00",
   "sourceArchive": {
-    "url": "https://github.com/azahar-emu/azahar/releases/download/2127.0-alpha1/azahar-unified-source-2127.0-alpha1.tar.xz",
-    "sha256": "5a45c813fc371f6a1d2721ce614225650728a7d6be22dc52e6b55718534590f9",
-    "bytes": 43056616,
-    "root": "azahar-unified-source-2127.0-alpha1"
+    "url": "https://github.com/azahar-emu/azahar/releases/download/2127.0-rc5/azahar-unified-source-2127.0-rc5.tar.xz",
+    "sha256": "09a441d9bae04c01143c393aaa3168231072bce65943cfd7b9c6565030479cb7",
+    "bytes": 43174580,
+    "root": "azahar-unified-source-2127.0-rc5"
   },
   "patch": "native/azahar/rewindbox-jit.patch",
-  "patchSHA256": "83571ac965a1966c2b5eed9903fa773cc2977202470fc0793795142532abfc62",
+  "patchSHA256": "5671c1b6761bd4879aa0b4ef36e4a50151aa628a200de872dc6041af5831de88",
   "abiHeader": "packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h",
   "abiHeaderSHA256": "84c59f2484336fa3c64bc68b51177211094083fd411f0b488fee6b79bda6bc22",
   "abiHeaderInTree": "src/citra_libretro/RewindBoxLibretroJit.h",
@@ -44,8 +45,8 @@
     "_rewindbox_libretro_jit_install"
   ],
   "expectedStrings": [
-    "2127.0-alpha1",
-    "5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6",
+    "2127.0-rc5",
+    "6f293a24daa292bd02b4ffee1a2adb5435e1ae00",
     "citra_use_cpu_jit",
     "citra_use_shader_jit",
     "citra_use_fastinterp"
@@ -55,5 +56,11 @@
     "_mach_msg"
   ],
   "jitArenaBytes": 134217728,
-  "license": "GPL-3.0-or-later (Azahar); dynarmic 0BSD, oaknut MIT; RewindBox changes in native/azahar/rewindbox-jit.patch"
+  "license": "GPL-3.0-or-later (Azahar); dynarmic 0BSD, oaknut MIT; RewindBox changes in native/azahar/rewindbox-jit.patch",
+  "noticeLines": {
+    "Azahar is the unmodified official iOS release;": "Azahar is built by RewindBox from its official source with the JIT patch named below; other cores retain their buildbot identity.",
+    "- azahar: ": "- azahar: GPLv3+ - https://github.com/azahar-emu/azahar/tree/6f293a24daa292bd02b4ffee1a2adb5435e1ae00 - sha256 {sha256}",
+    "Azahar 2127.0-alpha1 (GPLv3 or later).": "Azahar 2127.0-rc5 (GPLv3 or later).",
+    "Source and dependencies: https://github.com/azahar-emu/azahar/": "Source and dependencies: https://github.com/azahar-emu/azahar/releases/download/2127.0-rc5/azahar-unified-source-2127.0-rc5.tar.xz"
+  }
 }

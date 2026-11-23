@@ -1,13 +1,44 @@
-# Azahar 2127.0-alpha1 avec le JIT de RewindBox
+# Azahar 2127.0-rc5 avec le JIT de RewindBox
 
-Correctif `rewindbox-jit.patch` (17 fichiers, +479/−66) appliqué à la source officielle `5f3306d1`.
+Correctif `rewindbox-jit.patch` (17 fichiers, +479/−66) appliqué à la source officielle 2127.0-rc5, révision `6f293a24`
+(tête de `master` au 21 novembre 2026).
 
-- **Source.** Archive « unified source » de la version, avec tous les sous-modules, vérifiée par son SHA-256.
+- **Source.** Archive « unified source » de la release, avec tous les sous-modules, vérifiée par son SHA-256 :
+  `09a441d9…79cb7`, 43 174 580 octets, identique au fichier `.sha256sum` publié.
 - **Compilation.** Même recette que l'amont (`.github/workflows/libretro.yml`, job `libretro-ios`), par
   `build-utils/libretro_source_cores.py`, appelé par le job `source-cores` de
   `.github/workflows/libretro-cores.yml`.
 - **Licence.** GPL-3.0-or-later. dynarmic est sous 0BSD, oaknut sous MIT, l'en-tête ABI sous MIT. Les fichiers
   modifiés sont ceux du correctif (GPLv3 § 5).
+
+## Version choisie
+
+Décision du mainteneur, 23 novembre 2026 : « la dernière version d'Azahar sans attendre ». Le correctif, écrit
+d'abord pour 2127.0-alpha1 (`5f3306d1`), a été régénéré sur la rc5 :
+- il s'appliquait déjà sans conflit (seulement des décalages de lignes) ;
+- son contenu est identique, hors positions des blocs et lignes d'index ;
+- sur les 17 fichiers, seuls `citra_libretro.cpp`, `settings.h` et `shader_jit_a64_compiler.cpp` avaient changé en
+  amont, sans recouvrement avec le correctif ;
+- dynarmic et oaknut n'ont pas bougé.
+
+Apports de l'amont entre alpha1 et rc5 qui atteignent le cœur libretro (94 commits, la plupart pour Android et Qt) :
+- **performances :**
+  - JIT de shaders AArch64 plus efficace (écritures masquées, #2597) ;
+  - travail GPU limité aux images du jeu (#2755) ;
+  - sources de latence (#2700) ;
+  - réglage de l'avance sur le GPU (#2793, désactivé par défaut) ;
+- **précision :**
+  - GSP (#2678), son CSND (#2680) ;
+  - interpréteur Thumb (#2710) ;
+  - états de sauvegarde avec modules LLE (#2730) ;
+  - limite de temps CPU, services boss et nwm, cache de textures, proctex Vulkan ;
+- **nouveautés :**
+  - MSAA (#2053), sans option libretro ;
+  - ROM groupées `.bcci`/`.bcxi` dans les extensions du cœur ;
+  - plugins v3, signature des contenus chiffrés.
+
+**États de sauvegarde.** `System::LoadStateBuffer` refuse un état créé par une autre révision. Les états faits avec
+Azahar 2127.0-alpha1 ne se chargent donc plus. Les sauvegardes internes des jeux ne sont pas concernées.
 
 ## Ce que change le correctif
 
@@ -48,24 +79,24 @@ Correctif `rewindbox-jit.patch` (17 fichiers, +479/−66) appliqué à la source
 | Old 3DS | 2 × 32 Mio d'application + 2 × 2 Mio inactifs + 16 Mio de shaders | 96 Mio |
 | New 3DS | 4 × 24 Mio + 4 × 2 Mio + 16 Mio | 128 Mio |
 
-## Ce qui reste identique à la version officielle
+## Identité et notice
 
-- Révision `5f3306d1`, d'où des états de sauvegarde compatibles : `LoadStateBuffer` exige cette révision exacte.
-- Version, iOS 14.0 minimum, dépendances et version du cache de shaders.
-
-Diffèrent : la date de compilation, la chaîne `describe` et le SDK (Xcode 26.3). En plus : un export et deux
-options.
+`libretro_source_cores.py` remplace dans la collection le binaire, son enregistrement d'identité (`version`
+2127.0-rc5, `sourceCommit`, source, correctif, `jitInterface: 1`, `jitArenaBytes`) et, dans
+`Libretro-Licenses/LIBRETRO_CORES.txt`, les lignes qui décrivaient la release officielle (`noticeLines` de
+`source.json`) ; il y ajoute la provenance du binaire. Les notices de l'application (`NOTICE.md`,
+`assets/legal/THIRD_PARTY_NOTICES.md`, `assets/legal/libretro/`) changent avec la livraison qui adopte ce binaire.
 
 ## Ce qui n'est pas vérifié
 
-Vérifié jusqu'ici :
-- application du correctif sur l'archive ;
-- compilation syntaxique des unités modifiées avec `-DIOS` ;
-- banc hôte Linux de l'arène et de la séparation écriture/exécution d'oaknut ;
+Vérifié :
+- application du correctif sur l'archive rc5 et empreinte de l'en-tête ABI dans l'arbre ;
+- compilation iOS de la même version du correctif sur alpha1 (run 45182286491) ;
+- banc hôte Linux de l'arène et de la séparation écriture/exécution d'oaknut (sur alpha1) ;
 - assemblage du spin-lock pour arm64-apple-ios14.0.
 
 Pas encore vérifié :
-- la compilation iOS ;
+- la compilation iOS sur rc5 (demandée au job `source-cores`) ;
 - le fonctionnement sur iPhone ;
 - la fréquence des vidages de cache à 24–32 Mio et le nombre réel de shaders par jeu. Les lignes `[rb-jit]` du
   journal les mesureront.

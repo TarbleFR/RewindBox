@@ -233,8 +233,13 @@ def install(pin: dict, binary: Path, info: dict, identity: dict, output: Path) -
         changed.add(plist_path.relative_to(output).as_posix())
     record = next(core for core in identity['cores'] if core['id'] == pin['core'])
     original = dict(record)
-    for key in ('archive', 'archiveSha256', 'url', 'thinnedFromFat', 'iosJitCompiledOut'):
+    # What described the downloaded binary (its archive, HTTP headers, compiled-out JIT) no longer applies.
+    for key in ('archive', 'archiveSha256', 'url', 'thinnedFromFat', 'iosJitCompiledOut', 'lastModified', 'etag'):
         record.pop(key, None)
+    if 'sourceCommit' in record:
+        record['sourceCommit'] = pin['revision']
+    if 'version' in pin:
+        record['version'] = pin['version']
     record.update(
         sha256=digest(target), bytes=target.stat().st_size, minimumOS=info['minimumOS'],
         dependencies=info['dependencies'], installName=info['id'], compiled=True,
@@ -249,6 +254,14 @@ def install(pin: dict, binary: Path, info: dict, identity: dict, output: Path) -
         'xcode': subprocess.check_output(['xcodebuild', '-version'], text=True).strip(),
     }
     notices = output / 'Libretro-Licenses/LIBRETRO_CORES.txt'
+    # Lines of the base notice that described the replaced binary, each found by its exact prefix.
+    lines = notices.read_text().split('\n')
+    for prefix, replacement in pin.get('noticeLines', {}).items():
+        hits = [index for index, line in enumerate(lines) if line.startswith(prefix)]
+        if len(hits) != 1:
+            raise SystemExit(f'{pin["core"]}: notice prefix {prefix!r} matches {len(hits)} lines, not one')
+        lines[hits[0]] = replacement.replace('{sha256}', record['sha256'])
+    notices.write_text('\n'.join(lines))
     origin = pin['sourceArchive']['url'] if 'sourceArchive' in pin else pin['sourceGit']['url'] + ' ' + pin['revision']
     notices.write_text(notices.read_text() + (
         f'\n{pin["core"]} is built by RewindBox from {record["source"]} ({origin}) with '
