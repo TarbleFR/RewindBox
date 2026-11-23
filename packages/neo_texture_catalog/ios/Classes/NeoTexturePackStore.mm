@@ -1139,11 +1139,41 @@ static BOOL MatchesRange(NSString *text, unsigned long long start, unsigned long
 - (NSDictionary *)activate:(id<NeoTextureEngine>)engine identity:(NSDictionary *)identity targets:(NSArray *)targets {
   NSMutableDictionary *result = [@{@"installed": targets} mutableCopy];
   if (!identity) return result;
+  // HD textures off for the game before: RewindBox turns them on, and records it so that removing the
+  // game's last pack turns them off again (a switch the player had turned on is never recorded).
+  NSDictionary *before = [engine activationForIdentity:identity];
   NSError *error = nil;
   const BOOL enabled = [engine setActivation:YES identity:identity error:&error];
   result[@"activated"] = @(enabled);
   if (!enabled) result[@"activation_error"] = error.userInfo[@"key"] ?: @"writeFailed";
+  else if ([before[@"known"] boolValue]) [self recordSwitchOf:engine identity:identity before:before];
   return result;
+}
+
+// What RewindBox changed for a game when it switched a libretro engine on, recorded under the game's
+// own pack folder: "at" when it turned the option itself on (never when the option was already on,
+// even if another core kept it from applying: `optionEnabled`), and "core", the core the game
+// started with when switching on selected another one for it (Beetle PSX HW, Mesen). Other
+// engines' switches are not recorded.
+- (void)recordSwitchOf:(id<NeoTextureEngine>)engine identity:(NSDictionary *)identity before:(NSDictionary *)before {
+  NSString *gameKey = NeoTexString(identity[@"gameKey"]), *folder = [engine folderForIdentity:identity];
+  if (!gameKey.length || !folder.length) return;
+  id option = before[@"optionEnabled"] ?: before[@"enabled"];
+  const BOOL optionWasOn = [option isKindOfClass:NSNumber.class] && [option boolValue];
+  NSMutableDictionary *record = [NSMutableDictionary dictionary];
+  if (!optionWasOn) record[@"at"] = @((long long)NSDate.date.timeIntervalSince1970);
+  if (NeoTexString(before[@"selects"]).length && NeoTexString(before[@"core"]).length) record[@"core"] = before[@"core"];
+  if (record.count) NeoTexSetSwitchedOn(engine.engineID, folder, gameKey, record);
+}
+
+// The player switched the game's textures on or off on the page: the switch is theirs from now on.
+// The core the game had before RewindBox selected another one stays recorded, to be offered back
+// when the last pack goes.
+- (void)switchSetByPlayerForIdentity:(NSDictionary *)identity engine:(id<NeoTextureEngine>)engine {
+  NSString *gameKey = NeoTexString(identity[@"gameKey"]), *folder = identity ? [engine folderForIdentity:identity] : nil;
+  if (!gameKey.length || !folder.length) return;
+  NSString *core = NeoTexString(NeoTexSwitchedOn(engine.engineID, folder)[gameKey][@"core"]);
+  NeoTexSetSwitchedOn(engine.engineID, folder, gameKey, core.length ? @{@"core": core} : nil);
 }
 
 // Stages with `extract`, validates, writes manifests and swaps the folders in.
@@ -1466,18 +1496,41 @@ static BOOL MatchesRange(NSString *text, unsigned long long start, unsigned long
 }
 
 - (void)removeInstalled:(NeoTextureInstalled *)installed engine:(id<NeoTextureEngine>)engine completion:(void (^)(NSError *))completion {
+  [self removeInstalled:installed engine:engine outcome:^(NSDictionary *result, NSError *error) { completion(error); }];
+}
+
+- (void)removeInstalled:(NeoTextureInstalled *)installed engine:(id<NeoTextureEngine>)engine
+                outcome:(void (^)(NSDictionary *, NSError *))completion {
   NSString *relative = NeoTexString(installed[@"folder"]);
   dispatch_async(_work, ^{
     const BOOL removed = Delegates(engine) ? [[engine removeInstalledPack:installed][@"success"] boolValue]
                                            : relative.length && NeoTexSafeRelativePath(relative, 160, 2) &&
                                                  NeoTextureInstall::Remove(Std(engine.texturesRoot), Std(relative));
     if (removed && [engine respondsToSelector:@selector(didChangePackFolder:)]) [engine didChangePackFolder:relative];
+    NSDictionary *result = removed ? [self switchOffAfterRemoving:relative engine:engine] : nil;
     NSError *error = removed ? nil : PackError(NeoTexturePackErrorWrite, @"removeFailed", nil);
     dispatch_async(dispatch_get_main_queue(), ^{
-      completion(error);
+      completion(result, error);
       [[NSNotificationCenter defaultCenter] postNotificationName:NeoTextureCatalogDidChangeNotification object:self userInfo:@{@"pack": relative}];
     });
   });
+}
+
+// The games whose switch RewindBox turned on when it installed a pack in `folder` (their own pack
+// folder): once no pack is left there, the switch goes off again. A switch the player set (no "at")
+// stays as it is. "cores": the core each such game started with before RewindBox selected the
+// pack's engine for it, for the page to offer back, whoever set the switch since.
+- (NSDictionary *)switchOffAfterRemoving:(NSString *)folder engine:(id<NeoTextureEngine>)engine {
+  NSMutableArray *off = [NSMutableArray array], *cores = [NSMutableArray array];
+  NSDictionary<NSString *, NSDictionary *> *games = NeoTexSwitchedOn(engine.engineID, folder);
+  if (!games.count || [self installedAt:folder engine:engine]) return @{@"switchedOff": off, @"cores": cores};
+  for (NSString *gameKey in [games.allKeys sortedArrayUsingSelector:@selector(compare:)]) {
+    NSDictionary *record = games[gameKey];
+    if (record[@"at"] && [engine setActivation:NO identity:@{@"gameKey": gameKey} error:nil]) [off addObject:gameKey];
+    NeoTexSetSwitchedOn(engine.engineID, folder, gameKey, nil);
+    if (NeoTexString(record[@"core"]).length) [cores addObject:@{@"gameKey": gameKey, @"core": record[@"core"]}];
+  }
+  return @{@"switchedOff": off, @"cores": cores};
 }
 
 @end

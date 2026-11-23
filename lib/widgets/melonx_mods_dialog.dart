@@ -51,6 +51,7 @@ class _MelonxModsDialogState extends State<MelonxModsDialog> {
         'noMod' => 'errNoMod',
         'wrongGame' => 'errWrongGame',
         'exists' => 'errExists',
+        'reservedName' => 'errReserved',
         'unsafePath' || 'invalidArchive' || 'tooManyFiles' || 'invalidName' => 'errArchive',
         _ => 'errFailed',
       };

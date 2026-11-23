@@ -210,7 +210,7 @@ class DolphinEnhancementAdapter extends EnhancementAdapter {
               '${identity.key}${identity.revision == null ? '' : ' rev ${identity.revision}'} · '
               '${sections[entry['kind']]}',
           exclusiveGroup: entry['group']?.toString() ?? '',
-          payload: {'kind': entry['kind']},
+          payload: {'kind': entry['kind'], ...EnhancementFlags.payload(entry)},
         ),
       );
     }

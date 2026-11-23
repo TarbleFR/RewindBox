@@ -30,8 +30,10 @@ static UIViewController *TopViewController(void) {
 }
 
 // Asks the app to start a game with another libretro core (Mesen for an NES
-// HD pack): NeoStation's own per-game engine choice, kept by Dart. Called by
-// the page off the main thread; waits for the answer (5 s at most).
+// HD pack, Beetle PSX HW for a PS1 one, or the game's earlier core once the
+// last pack RewindBox switched on is removed): NeoStation's own per-game
+// engine choice, kept by Dart. Called by the page off the main thread; waits
+// for the answer (5 s at most).
 - (BOOL (^)(NSString *, NSString *))coreSelector {
   __weak FlutterMethodChannel *weakChannel = self.channel;
   return ^BOOL(NSString *gameKey, NSString *core) {

@@ -25,6 +25,11 @@
 //    <texture root>/<content name>-texture-replacements/<hash>-<palette>.<ext>,
 //    the root being the core's save directory (HD Texture Folder "save",
 //    locked by NeoStation). Switch: Track + Replace Textures, per game.
+//    Beetle PSX (the software renderer a game may be set to) replaces no
+//    texture: switching a pack on selects Beetle PSX HW for that game.
+//  A per-game switch RewindBox turned on when it installed a pack is turned
+//  off again when the game's last pack is removed (NeoTexturePackStore),
+//  never one the player set.
 //  Mesen libretro (libretro/Mesen 0102910, HdPackLoader.cpp, libretro.cpp):
 //    <system>/HdPacks/<loaded file name without extension>/hires.txt, the
 //    PNG, OGG and IPS/UPS/BPS files it names; format <ver> 106 at most.
@@ -572,7 +577,16 @@ static NSDictionary *Asking(NSDictionary *inspection) {
 @property(nonatomic, copy) NSDictionary<NSString *, NSString *> *companions;
 @property(nonatomic, copy) NSString *_Nullable (^sessionReader)(NSString *key, NSString *gameKey);
 @property(nonatomic, copy) BOOL (^sessionWriter)(NSString *key, NSString *value, NSString *gameKey);
+/// The one core of the system that reads these packs when a game may start with another one
+/// (Beetle PSX HW for the PS1, Mesen for the NES); nil when every core of the system reads them.
+@property(nonatomic, copy) NSString *packCore;
+/// Selects an engine for a game in NeoStation's own engine choice (gameKey, core id) -> success.
+@property(nonatomic, copy) BOOL (^coreSelector)(NSString *gameKey, NSString *core);
+@property(nonatomic, strong) NSMutableDictionary<NSString *, NSString *> *selectedCores;
 - (nullable NSString *)valueForOption:(NSString *)key gameKey:(NSString *)gameKey scope:(NSString *_Nullable *_Nullable)scope;
+- (NSString *)coreForIdentity:(NSDictionary *)identity;
+- (BOOL)startsWithOtherCore:(NSDictionary *)identity;
+- (BOOL)selectCore:(NSString *)core gameKey:(NSString *)gameKey;
 @end
 @implementation NeoTextureLibretro
 - (NSString *)engineID { return self.identifier; }
@@ -650,6 +664,45 @@ static NSDictionary *Asking(NSDictionary *inspection) {
   if ([core isKindOfClass:NSDictionary.class] && [core[key] isKindOfClass:NSString.class]) return core[key];
   return nil;
 }
+/// The engine this game starts with: what this page selected, else what NeoStation gave it (empty: unknown).
+- (NSString *)coreForIdentity:(NSDictionary *)identity {
+  NSString *gameKey = NeoTexString(identity[@"gameKey"]);
+  @synchronized(self) { if (gameKey.length && self.selectedCores[gameKey]) return self.selectedCores[gameKey]; }
+  return NeoTexString(identity[@"libretroCore"]);
+}
+/// The game is known to start with a core that does not read these packs.
+- (BOOL)startsWithOtherCore:(NSDictionary *)identity {
+  NSString *core = [self coreForIdentity:identity];
+  return self.packCore.length && core.length && ![core isEqualToString:self.packCore];
+}
+/// Records `core` as the game's engine in NeoStation's own engine choice (the selector waits for
+/// the app's answer: never on the main thread).
+- (BOOL)selectCore:(NSString *)core gameKey:(NSString *)gameKey {
+  if (!core.length || !gameKey.length || !self.coreSelector || !self.coreSelector(gameKey, core)) return NO;
+  @synchronized(self) {
+    if (!self.selectedCores) self.selectedCores = [NSMutableDictionary dictionary];
+    self.selectedCores[gameKey] = core;
+  }
+  return YES;
+}
+- (BOOL)canSelectLibretroCore { return self.packCore.length && self.coreSelector != nil; }
+- (BOOL)selectLibretroCore:(NSString *)core identity:(NSDictionary *)identity {
+  return self.packCore.length && [self selectCore:core gameKey:NeoTexString(identity[@"gameKey"])];
+}
+// A folder RewindBox did not install (no NeoStation-pack.json), copied by hand into
+// load/textures/<Title ID>: its pack.json is checked as an installation checks it (CheckAzaharPack),
+// its images left undecoded, since Azahar stops the game at every start on one it cannot read. nil
+// for the other engines, a game without a folder (or the empty one Azahar recreates) and a pack
+// RewindBox installed (checked then).
+- (NSString *)handMadePackProblem:(NSDictionary *)identity {
+  if (![self.identifier isEqualToString:@"azahar"]) return nil;
+  NSString *folder = [self folderForIdentity:identity];
+  if (!folder) return nil;
+  NSString *path = [self.root stringByAppendingPathComponent:folder];
+  if ([NSFileManager.defaultManager fileExistsAtPath:[path stringByAppendingPathComponent:NeoTexManifestName]]) return nil;
+  const std::string problem = NeoTextureInstall::CheckAzaharPack(path.fileSystemRepresentation ?: "", false);
+  return problem.empty() ? nil : [NSString stringWithUTF8String:problem.c_str()];
+}
 - (NSDictionary *)activationForIdentity:(NSDictionary *)identity {
   NSString *gameKey = NeoTexString(identity[@"gameKey"]);
   if (!gameKey.length) return @{@"known": @NO, @"reason": @"noGameKey", @"setting": self.optionKey};
@@ -671,6 +724,8 @@ static NSDictionary *Asking(NSDictionary *inspection) {
 - (BOOL)setActivation:(BOOL)enabled identity:(NSDictionary *)identity error:(NSError **)error {
   NSString *gameKey = NeoTexString(identity[@"gameKey"]);
   if (!gameKey.length || gameKey.length > 600) { if (error) *error = EngineError(@"noGameKey"); return NO; }
+  NSString *problem = enabled ? [self handMadePackProblem:identity] : nil;
+  if (problem) { if (error) *error = EngineError(problem); return NO; }
   NSString *value = enabled ? self.onValue : self.offValue;
   NSDictionary<NSString *, NSString *> *companions = enabled ? (self.companions ?: @{}) : @{};
   // While this game runs, the session's option store owns its entry (and
@@ -738,11 +793,21 @@ static NSDictionary *Asking(NSDictionary *inspection) {
   // Both options ship disabled; replacing needs both.
   BOOL enabled = [replace isEqualToString:@"enabled"] && [track isEqualToString:@"enabled"];
   NSString *scope = [replaceScope isEqualToString:@"game"] || [trackScope isEqualToString:@"game"] ? @"game" : @"default";
+  // A game set to Beetle PSX, the software renderer, replaces no texture whatever its options say:
+  // off, and switching on also makes it start with Beetle PSX HW (as Mesen for an NES game).
+  if ([self startsWithOtherCore:identity])
+    return @{@"known": @YES, @"enabled": @NO, @"scope": scope, @"appliesAt": @"next-launch", @"setting": setting,
+             @"reason": @"beetleHWEngine", @"core": [self coreForIdentity:identity], @"selects": self.packCore,
+             @"optionEnabled": @(enabled)};
   return @{@"known": @YES, @"enabled": @(enabled), @"scope": scope, @"appliesAt": @"next-launch", @"setting": setting};
 }
 - (BOOL)setActivation:(BOOL)enabled identity:(NSDictionary *)identity error:(NSError **)error {
   NSString *gameKey = NeoTexString(identity[@"gameKey"]);
   if (!gameKey.length || gameKey.length > 600) { if (error) *error = EngineError(@"noGameKey"); return NO; }
+  if (enabled && [self startsWithOtherCore:identity] && ![self selectCore:self.packCore gameKey:gameKey]) {
+    if (error) *error = EngineError(@"beetleHWNotSelected");
+    return NO;
+  }
   NSString *value = enabled ? @"enabled" : @"disabled";
   // Dumping stays off (locked by the session); tracking only serves replacing.
   if (self.sessionWriter && self.sessionWriter(kBeetleTrackOption, value, gameKey) &&
@@ -813,9 +878,6 @@ static uint64_t MesenMemoryBudget(void) {
 }
 
 @interface NeoTextureMesen : NeoTextureLibretro
-/// Selects an engine for a game in NeoStation's own engine choice (gameKey, core id) -> success.
-@property(nonatomic, copy) BOOL (^coreSelector)(NSString *gameKey, NSString *core);
-@property(nonatomic, strong) NSMutableDictionary<NSString *, NSString *> *selectedCores;
 @end
 @implementation NeoTextureMesen
 - (NeoTextureInstall::Engine)installEngine { return NeoTextureInstall::Engine::mesen; }
@@ -832,12 +894,6 @@ static uint64_t MesenMemoryBudget(void) {
   if (!checked.problem.empty()) return [NSString stringWithUTF8String:checked.problem.c_str()];
   return checked.decodedBytes > MesenMemoryBudget() ? @"memoryTooLarge" : nil;
 }
-/// The engine this game starts with: what this page selected, else what NeoStation gave it.
-- (NSString *)coreForIdentity:(NSDictionary *)identity {
-  NSString *gameKey = NeoTexString(identity[@"gameKey"]);
-  @synchronized(self) { if (gameKey.length && self.selectedCores[gameKey]) return self.selectedCores[gameKey]; }
-  return NeoTexString(identity[@"libretroCore"]);
-}
 - (NSDictionary *)activationForIdentity:(NSDictionary *)identity {
   NSString *gameKey = NeoTexString(identity[@"gameKey"]);
   if (!gameKey.length) return @{@"known": @NO, @"reason": @"noGameKey", @"setting": kMesenOption};
@@ -845,22 +901,18 @@ static uint64_t MesenMemoryBudget(void) {
   NSString *value = [self valueForOption:kMesenOption gameKey:gameKey scope:&scope];
   // The core ships the option enabled: a pack folder of this game is read unless it is turned off.
   BOOL enabled = !value || [value isEqualToString:@"enabled"];
-  NSString *core = [self coreForIdentity:identity];
-  if (core.length && ![core isEqualToString:@"mesen"])
+  if ([self startsWithOtherCore:identity])
     return @{@"known": @YES, @"enabled": @NO, @"scope": scope, @"appliesAt": @"next-launch", @"setting": kMesenOption,
-             @"reason": @"mesenEngine"};
+             @"reason": @"mesenEngine", @"core": [self coreForIdentity:identity], @"selects": self.packCore,
+             @"optionEnabled": @(enabled)};
   return @{@"known": @YES, @"enabled": @(enabled), @"scope": scope, @"appliesAt": @"next-launch", @"setting": kMesenOption};
 }
 - (BOOL)setActivation:(BOOL)enabled identity:(NSDictionary *)identity error:(NSError **)error {
   NSString *gameKey = NeoTexString(identity[@"gameKey"]);
   if (!gameKey.length || gameKey.length > 600) { if (error) *error = EngineError(@"noGameKey"); return NO; }
-  NSString *core = [self coreForIdentity:identity];
-  if (enabled && core.length && ![core isEqualToString:@"mesen"]) {
-    if (!self.coreSelector || !self.coreSelector(gameKey, @"mesen")) { if (error) *error = EngineError(@"mesenNotSelected"); return NO; }
-    @synchronized(self) {
-      if (!self.selectedCores) self.selectedCores = [NSMutableDictionary dictionary];
-      self.selectedCores[gameKey] = @"mesen";
-    }
+  if (enabled && [self startsWithOtherCore:identity] && ![self selectCore:self.packCore gameKey:gameKey]) {
+    if (error) *error = EngineError(@"mesenNotSelected");
+    return NO;
   }
   return [super setActivation:enabled identity:identity error:error];
 }
@@ -918,12 +970,19 @@ static uint64_t MesenMemoryBudget(void) {
   return engine;
 }
 + (id<NeoTextureEngine>)beetleWithSaveDirectory:(NSString *)saveDirectory configDirectory:(NSString *)configDirectory {
+  return [self beetleWithSaveDirectory:saveDirectory configDirectory:configDirectory coreSelector:nil];
+}
++ (id<NeoTextureEngine>)beetleWithSaveDirectory:(NSString *)saveDirectory configDirectory:(NSString *)configDirectory
+                                    coreSelector:(BOOL (^)(NSString *, NSString *))coreSelector {
   NeoTextureBeetle *engine = [NeoTextureBeetle new];
   engine.identifier = @"beetle";
   engine.coreLibrary = @"Beetle PSX HW";
   engine.optionKey = kBeetleReplaceOption;
   engine.root = saveDirectory.stringByStandardizingPath;
   engine.configDirectory = configDirectory.stringByStandardizingPath;
+  // Beetle PSX, the software renderer a PS1 game may be set to, replaces no texture.
+  engine.packCore = @"mednafen_psx_hw";
+  engine.coreSelector = coreSelector;
   return engine;
 }
 + (id<NeoTextureEngine>)mesenWithSystemDirectory:(NSString *)systemDirectory configDirectory:(NSString *)configDirectory
@@ -937,6 +996,8 @@ static uint64_t MesenMemoryBudget(void) {
   // FolderUtilities::SetHomeFolder(system directory), then GetHdPackFolder: <home>/HdPacks.
   engine.root = [systemDirectory.stringByStandardizingPath stringByAppendingPathComponent:@"HdPacks"];
   engine.configDirectory = configDirectory.stringByStandardizingPath;
+  // Nestopia, the NES default, reads no HD pack.
+  engine.packCore = @"mesen";
   engine.coreSelector = coreSelector;
   return engine;
 }

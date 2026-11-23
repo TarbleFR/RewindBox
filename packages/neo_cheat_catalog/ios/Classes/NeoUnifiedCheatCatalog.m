@@ -260,6 +260,45 @@ static NSDictionary *Identities(id value) {
   }
   return result;
 }
+// PS1: the libretro reader hashes a disc's first track (the first BINARY file
+// of its CUE) as rom-full; the builder typed the same Redump track hashes
+// redump-disc. A rom-full MD5/SHA-1 is that Redump track only when the exact
+// value is a redump-disc hash of a psx record of the adopted index. A
+// single-file or other rip never is, so no Redump identity or conflict is made up.
+static NSSet *RedumpDiscHashes(NSArray *games) {
+  NSMutableSet *hashes=[NSMutableSet set];
+  for(NSDictionary *game in games) {
+    // Scheme first: System() folds, and only a few hundred records qualify.
+    BOOL redump=NO;
+    for(id row in Array(game[@"identities"]))
+      if([row isKindOfClass:NSDictionary.class] && [String(row[@"scheme"]) caseInsensitiveCompare:@"redump-disc"]==NSOrderedSame){redump=YES;break;}
+    if(!redump || ![System(game[@"system"]) isEqualToString:@"psx"])continue;
+    NSDictionary *ids=Identities(game[@"identities"]);
+    for(NSString *type in @[@"md5",@"sha1"])
+      for(NSString *value in ids[[type stringByAppendingString:@"|redump-disc"]])
+        [hashes addObject:[NSString stringWithFormat:@"%@|%@",type,value]];
+  }
+  return [hashes copy];
+}
+static NSDictionary *RedumpTrackIdentity(NSDictionary *identity, NSSet *hashes) {
+  if(!hashes.count || ![identity isKindOfClass:NSDictionary.class] || ![System(identity[@"system"]) isEqualToString:@"psx"])return identity;
+  NSDictionary *known=Identities(identity[@"identities"]);
+  NSMutableArray *rows=[Array(identity[@"identities"]) mutableCopy];NSUInteger count=rows.count;
+  for(NSString *type in @[@"md5",@"sha1"]) {
+    NSString *track=[type stringByAppendingString:@"|redump-disc"];
+    for(NSString *value in known[[type stringByAppendingString:@"|rom-full"]])
+      if(![known[track] containsObject:value] && [hashes containsObject:[NSString stringWithFormat:@"%@|%@",type,value]])
+        [rows addObject:@{@"type":type,@"value":value,@"scheme":@"redump-disc"}];
+  }
+  if(rows.count==count)return identity;
+  NSMutableDictionary *copy=[identity mutableCopy];copy[@"identities"]=[rows copy];return [copy copy];
+}
+// Menus and browsers call the class matchers with the reader identity as is:
+// they read the shared catalogue's adopted index. Instance queries use their own.
+static NSSet *SharedRedumpHashes;
+static NSSet *SharedRedumpDiscHashes(void) {
+  NSSet *hashes=nil;@synchronized(NeoUnifiedCheatCatalog.class){hashes=SharedRedumpHashes;}return hashes;
+}
 static NSData *InflateBounded(NSData *data, NSUInteger expected, NSUInteger limit, NSError **error) {
   if (!expected || expected > limit || data.length > (limit==ManifestLimit ? ManifestCompressedLimit : PackLimit)) {
     if (error) *error = Failure(6,@"Pack exceeds its expansion limit"); return nil;
@@ -354,12 +393,14 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   BOOL _downloadRequested;
   NSDictionary *_installationProgress;
   NSTimeInterval _lastProgressNotification;
+  NSSet *_redumpDiscHashes;
   BOOL _loading;
   BOOL _installing;
+  BOOL _shared;
 }
 @end
 @implementation NeoUnifiedCheatCatalog
-+ (instancetype)sharedCatalog { static NeoUnifiedCheatCatalog *catalog; static dispatch_once_t once; dispatch_once(&once,^{catalog=[self new];}); return catalog; }
++ (instancetype)sharedCatalog { static NeoUnifiedCheatCatalog *catalog; static dispatch_once_t once; dispatch_once(&once,^{catalog=[self new];catalog->_shared=YES;}); return catalog; }
 - (instancetype)init {
   if (!(self=[super init])) return nil;
   _queue=dispatch_queue_create("org.neostation.cheats.unified",
@@ -387,7 +428,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   _packJobs=[NSMutableDictionary dictionary];
   return self;
 }
-+ (BOOL)gameHasConflict:(NSDictionary *)game identity:(NSDictionary *)identity {
++ (BOOL)gameHasConflict:(NSDictionary *)game normalizedIdentity:(NSDictionary *)identity {
   if (![game isKindOfClass:NSDictionary.class] || ![identity isKindOfClass:NSDictionary.class]) return YES;
   NSString *system=System(game[@"system"]), *requested=System(identity[@"system"]);
   if (system.length && requested.length && ![system isEqualToString:requested]) return YES;
@@ -399,10 +440,10 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   for(NSString *key in left)if(right[key] && ![left[key] intersectsSet:right[key]])return YES;
   return NO;
 }
-+ (NSString *)matchGame:(NSDictionary *)game identity:(NSDictionary *)identity {
++ (NSString *)matchGame:(NSDictionary *)game normalizedIdentity:(NSDictionary *)identity {
   if (![game isKindOfClass:NSDictionary.class] || ![identity isKindOfClass:NSDictionary.class]) return nil;
   NSString *system=System(game[@"system"]), *requested=System(identity[@"system"]);
-  if (!system.length || !requested.length || ![system isEqualToString:requested] || [self gameHasConflict:game identity:identity]) return nil;
+  if (!system.length || !requested.length || ![system isEqualToString:requested] || [self gameHasConflict:game normalizedIdentity:identity]) return nil;
   NSString *gr=Revision(game[@"revision"]), *ir=Revision(identity[@"revision"]);
   NSDictionary *left=Identities(game[@"identities"]), *right=Identities(identity[@"identities"]);
   BOOL overlap=NO, strong=NO, serial=NO, ppu=NO, versionedID=NO, complete=YES;
@@ -420,7 +461,8 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
         [key isEqualToString:@"n64_header|n64-crc1-crc2-country"] ||
         [key isEqualToString:@"executable_hash|duckstation-game-hash"] ||
         [key isEqualToString:@"md5|rom-full"] || [key isEqualToString:@"sha1|rom-full"] ||
-        [key isEqualToString:@"sha256|rom-full"] || [key isEqualToString:@"crc32|rom-full"]) strong=YES;
+        [key isEqualToString:@"sha256|rom-full"] || [key isEqualToString:@"crc32|rom-full"] ||
+        [key isEqualToString:@"md5|redump-disc"] || [key isEqualToString:@"sha1|redump-disc"]) strong=YES;
     // Emulator-specific hashes only match the same explicitly named scheme.
     if ([key isEqualToString:@"sha1|nes-prg"] || [key isEqualToString:@"sha256|bsnes-cartridge"] ||
         [key isEqualToString:@"sha1|mesen-sha1-cheat"]) strong=YES;
@@ -432,6 +474,12 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   if (overlap) return @"candidate";
   NSString *a=Fold(String(game[@"title"])), *b=Fold(String(identity[@"title"]));
   return a.length && b.length && (TitleContains(a,b) || TitleContains(b,a)) ? @"candidate" : nil;
+}
++ (BOOL)gameHasConflict:(NSDictionary *)game identity:(NSDictionary *)identity {
+  return [self gameHasConflict:game normalizedIdentity:RedumpTrackIdentity(identity,SharedRedumpDiscHashes())];
+}
++ (NSString *)matchGame:(NSDictionary *)game identity:(NSDictionary *)identity {
+  return [self matchGame:game normalizedIdentity:RedumpTrackIdentity(identity,SharedRedumpDiscHashes())];
 }
 
 #pragma mark - Manifest and disk index (serial I/O queue)
@@ -529,6 +577,8 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
 - (void)adoptManifest:(NSDictionary *)manifest {
   _manifest=manifest;
   _readyPacks=nil;
+  _redumpDiscHashes=RedumpDiscHashes(Array(manifest[@"games"]));
+  if(_shared){@synchronized(NeoUnifiedCheatCatalog.class){SharedRedumpHashes=_redumpDiscHashes;}}
   NSDictionary *canonical=[self gamesByID:manifest];
   // A persisted install index contains repeated metadata. Reuse matching
   // current records so it does not retain a second full catalogue tree.
@@ -958,10 +1008,10 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
       });
       if(!manifest){dispatch_async(self->_queue,^{[self finishInstallation:nil error:refreshError ?: Failure(1,@"No catalogue index is available")];});return;}
       NSMutableSet *priority=[NSMutableSet set];
-      __block NSArray *priorityGames=@[];
-      if(identity)dispatch_sync(self->_queue,^{priorityGames=[self poolForIdentity:identity];});
+      __block NSArray *priorityGames=@[];__block NSDictionary *requested=identity;
+      if(identity)dispatch_sync(self->_queue,^{requested=RedumpTrackIdentity(identity,self->_redumpDiscHashes);priorityGames=[self poolForIdentity:requested];});
       for (NSDictionary *game in priorityGames) {
-        if ([System(game[@"system"]) isEqual:System(identity[@"system"])] && [self.class matchGame:game identity:identity])
+        if ([System(game[@"system"]) isEqual:System(requested[@"system"])] && [self.class matchGame:game normalizedIdentity:requested])
           [priority addObject:game[@"pack_id"]];
       }
       NSArray *packs=[Array(manifest[@"packs"]) sortedArrayUsingComparator:^NSComparisonResult(NSDictionary *a,NSDictionary *b) {
@@ -1006,9 +1056,10 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
       if (local) [self adoptManifest:local];
     }
     [self effectiveGames]; NSMutableArray *found=[NSMutableArray array];
-    for (NSDictionary *game in [self poolForIdentity:identity]) {
+    NSDictionary *requested=RedumpTrackIdentity(identity,self->_redumpDiscHashes);
+    for (NSDictionary *game in [self poolForIdentity:requested]) {
       if (found.count>=64) break;
-      if (![[self.class matchGame:game identity:identity] isEqual:@"exact"] || ![self hasChunk:game verify:NO]) continue;
+      if (![[self.class matchGame:game normalizedIdentity:requested] isEqual:@"exact"] || ![self hasChunk:game verify:NO]) continue;
       NSData *data=ReadBounded([self chunkPath:game],ChunkLimit);
       if (data.length!=[game[@"size"] unsignedIntegerValue] || ![Digest(data) isEqual:String(game[@"sha256"]).lowercaseString]) continue;
       NSArray *programs=[self validatedCheats:data game:game error:nil];
@@ -1024,13 +1075,14 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   [self loadWithCompletion:^(NSDictionary *manifest,NSError *error){if(!manifest){completion(@[],error);return;}
     dispatch_async(self->_queue,^{NSMutableArray *matches=[NSMutableArray array];
       [self effectiveGames];
-      NSArray *pool=[self poolForIdentity:requested];
-      BOOL identified=Identities(requested[@"identities"]).count>0;
+      NSDictionary *normalized=RedumpTrackIdentity(requested,self->_redumpDiscHashes);
+      NSArray *pool=[self poolForIdentity:normalized];
+      BOOL identified=Identities(normalized[@"identities"]).count>0;
       if(!identified)[self prepareTitleSearch];
-      NSArray *words=TitleWords(String(requested[@"title"])),*ids=Array(requested[@"identities"]);
+      NSArray *words=TitleWords(String(normalized[@"title"])),*ids=Array(normalized[@"identities"]);
       for(NSDictionary *game in pool){@autoreleasepool{
         if(!identified && !RawIdentityOverlap(game,ids) && !FoldedTitleContains(self->_searchTitles[game[@"id"]],words))continue;
-        NSString *match=[self.class matchGame:game identity:requested];
+        NSString *match=[self.class matchGame:game normalizedIdentity:normalized];
         if(match){NSMutableDictionary *row=[[self decoratedGame:game] mutableCopy];row[@"match"]=match;[matches addObject:row];}
       }}
       [matches sortUsingComparator:^NSComparisonResult(NSDictionary *a,NSDictionary *b){NSInteger x=[a[@"match"] isEqual:@"exact"]?0:1,y=[b[@"match"] isEqual:@"exact"]?0:1;

@@ -36,7 +36,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// {known: whether the engine's setting can be read and written for this game,
 /// enabled, scope: game|default, appliesAt: next-launch|live, reason: when unknown,
-/// setting: human-readable engine key}.
+/// setting: human-readable engine key; selects and core: the libretro core switching
+/// on makes the game start with, and the one it starts with now, when they differ}.
 - (NSDictionary *)activationForIdentity:(NSDictionary *)identity;
 - (BOOL)setActivation:(BOOL)enabled identity:(NSDictionary *)identity error:(NSError **)error;
 
@@ -92,6 +93,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// identity in the unified form, with "identity_source": session, disc or
 /// name; "name" means read from the file name, to be confirmed). nil if none.
 - (nullable NSDictionary *)recordedIdentityForGamePath:(NSString *)path;
+/// Libretro engines whose packs one core of the system reads (Beetle PSX HW for
+/// the PS1, Mesen for the NES): whether this page can change a game's core (the
+/// app's core selector; none in a game), and the change itself, recorded in
+/// NeoStation's own engine choice (identity: its gameKey). Blocks: off main.
+- (BOOL)canSelectLibretroCore;
+- (BOOL)selectLibretroCore:(NSString *)core identity:(NSDictionary *)identity;
 @end
 
 /// Engine adapters built into this pod. Each class documents the engine
@@ -120,6 +127,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// Beetle PSX HW: root = the core's save directory (<Documents>/Libretro/Saves/Beetle PSX HW),
 /// where it reads <content name>-texture-replacements (HD Texture Folder "save").
 + (id<NeoTextureEngine>)beetleWithSaveDirectory:(NSString *)saveDirectory configDirectory:(NSString *)configDirectory;
+/// Same, with `coreSelector` as for Mesen: a game set to Beetle PSX (the software
+/// renderer, which replaces no texture) starts with Beetle PSX HW once a pack is
+/// switched on for it; nil where the engine cannot be changed.
++ (id<NeoTextureEngine>)beetleWithSaveDirectory:(NSString *)saveDirectory
+                                configDirectory:(NSString *)configDirectory
+                                   coreSelector:(nullable BOOL (^)(NSString *gameKey, NSString *core))coreSelector;
 /// Mesen (NES): the libretro system directory, whose HdPacks/<ROM file name>
 /// folders Mesen reads; config = <Documents>/Libretro/Config. `coreSelector`
 /// (gameKey, core id) -> success selects the engine of a game in NeoStation's

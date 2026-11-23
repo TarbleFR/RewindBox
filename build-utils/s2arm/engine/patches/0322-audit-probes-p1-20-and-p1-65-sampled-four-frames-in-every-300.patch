@@ -1,0 +1,187 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index de0a85d..ca34f33 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1627,6 +1627,7 @@ static void ts_sub_begin(void);   // segment boundary timestamps (ts_on, before
+ static void sub_cut_begin(void);   // the segment draw count starts with the submission (before sub_cut)
+ static void dsnap_stale(void);   // #387 (with fb_prepare)
+ static void rb_fair_sample(void);
++static void rb_audit_sub_begin(void);   // RewindBox (patch 0322): whether the audit probes run in this submission (defined with them, before encode_args)
+ void nvn_be_sub_begin(void) {
+     rb_sub_open(1);   // RewindBox (patch 0071): a submission is open (waits for the pressure handler's idle release, rb_press_release)
+     dsnap_stale();   // #387: depth may change between submissions (CPU writes, other queues)
+@@ -1636,6 +1637,7 @@ void nvn_be_sub_begin(void) {
+     rb_guest_heat_monitor();
+ #endif
+     rb_fair_sample();
++    rb_audit_sub_begin();   // RewindBox (patch 0322)
+     g_sub_serial++; g_pkg_epoch++; g_sub_vgen = nvn_sparse_gen(); wd_sub_begin(); g_seg = 0; seg_clk_put(g_sclk); g_sclk = NULL; rc_retire(); g_rc_npend = 0; g_rc_skip = 0;   // RewindBox (patch 0031): g_sub_vgen
+     defer_drain();
+     defer_reset();
+@@ -17695,6 +17697,29 @@ static uint64_t lb_fill(NvShader *sh, int nvn_stage) {
+ //   比的是后面 tex_fit / img_fit / tbuf_as_2d 改造之前的原样纹理；1D 取数按行读的缓冲纹理（f1d）是有意的，不计。库元数据里记了「缺类型按 2D」的槽另计一类（sh->d2d）。
+ //   首例每个着色器键一行（键 / 阶段 / 槽 / 声明 / 实际），全局封顶 64 行，超了只计数
+ static uint64_t g_p20_checked, g_p20_type, g_p20_type_d2d, g_p20_cls; static unsigned g_p20_shown;
++// RewindBox (patch 0322): the two passive probes of audit #1534 (P1-20 here, P1-65 below) sampled. IPA 827 (Mario Kart World, iPhone A18 Pro, in a race): P1-20 compared
++//   4,427 to 9,955 texture bindings a frame and P1-65 counted 1,313 to 2,699 bounds tables a frame on the submit thread, and neither counted a hit in the 48 lines of
++//   the two sessions. Rule (rb_audit_sample.h): the probes run in every frame of a session's first 300, then in the last 4 frames of every 300, the ones just before
++//   the audit line; a submission keeps the answer taken when it began (nvn_be_sub_begin). Only the probes' counts and first-case lines are sampled: the bounds table's
++//   cap (ubcap) and every binding are computed as before. The audit line states the sampling and the frames probed. S2A_RB_AUDIT_SAMPLE=0: as before
++#include "rb_audit_sample.h"
++static int g_rb_audit_live = 1;   // the probes run in this submission (1 before the first one: a test that encodes without a submission is probed)
++static rb_audit_frames g_rb_audit_frames;   // the frames probed so far (the audit line)
++static int rb_audit_sample_on(void) {
++    static int v = -1;
++    if (v < 0) {
++        const char *e = getenv("S2A_RB_AUDIT_SAMPLE");
++        v = !(e && !strcmp(e, "0"));
++        MLOG("RewindBox (patch 0322): audit probes P1-20 / P1-65 %s (S2A_RB_AUDIT_SAMPLE): %s",
++             v ? "sampled" : "in every frame", v ? "every frame of the first 300, then the last 4 frames of every 300; the audit line gives the frames probed" : "as before");
++    }
++    return v;
++}
++static void rb_audit_sub_begin(void) {
++    uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    g_rb_audit_live = rb_audit_live(frame, rb_audit_sample_on());
++    if (g_rb_audit_live) rb_audit_frame(&g_rb_audit_frames, frame);
++}
+ static __attribute__((noinline, cold)) void p20_note(NvShader *sh, int st, const nvn_rbind *b, unsigned tt, unsigned pf, int tm, int cm) {
+     int d2d = b->kind == NVN_RB_TEX && b->reg < 256 && (sh->d2d[b->reg >> 6] >> (b->reg & 63) & 1);
+     if (tm) { g_p20_type++; if (d2d) g_p20_type_d2d++; }
+@@ -17822,10 +17847,13 @@ static void audit_probe_report(uint64_t frame) {
+     uint64_t sum = g_p65_tables + g_p65_wd + g_p65_pool + g_p20_checked + g_p20_type + g_p20_cls;
+     if (any && sum == sum0 && frame - last_frame < 3000) return;
+     any = 1; sum0 = sum; last_frame = frame;
++    char rb_sampled[192] = "";   // RewindBox (patch 0322): the counts are those of the frames probed; nothing added with S2A_RB_AUDIT_SAMPLE=0
++    if (rb_audit_sample_on()) snprintf(rb_sampled, sizeof rb_sampled, "; sampled (S2A_RB_AUDIT_SAMPLE, patch 0322): counted in %llu frames so far, the first %d of the session in full, then the last %d of every %d",
++                                       (unsigned long long)g_rb_audit_frames.frames, RB_AUDIT_PERIOD, RB_AUDIT_LIVE, RB_AUDIT_PERIOD);
+     MLOG("audit probes up to frame %llu: P1-65 bounds tables built %llu, longer than the bytes behind the pointer: widen rewritten copy %llu, past the pool buffer end %llu; "
+-         "P1-20 texture / image bindings checked %llu, declared type differs %llu (of them typed 2D by default offline %llu), pixel class differs %llu",
++         "P1-20 texture / image bindings checked %llu, declared type differs %llu (of them typed 2D by default offline %llu), pixel class differs %llu%s",
+          (unsigned long long)frame, (unsigned long long)g_p65_tables, (unsigned long long)g_p65_wd, (unsigned long long)g_p65_pool,
+-         (unsigned long long)g_p20_checked, (unsigned long long)g_p20_type, (unsigned long long)g_p20_type_d2d, (unsigned long long)g_p20_cls);
++         (unsigned long long)g_p20_checked, (unsigned long long)g_p20_type, (unsigned long long)g_p20_type_d2d, (unsigned long long)g_p20_cls, rb_sampled);
+ }
+ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, int metal_vertex);
+ static int encode_args(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, int metal_vertex) { AP_B; int r = encode_args_(en, sh, nvn_stage, metal_vertex); AP_E(3); return r; }
+@@ -17876,7 +17904,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+                 else if (ubp_get(u->addr, u->addr + ul, &g, &c)) { gpu = g; ubq_gpu(g_ubp_q); }   // the GPU reads it: its copies go now
+                 else RED_ONCE(92, "a uniform update deferred inside the pass covers only part of the binding (stage %d cb%d): the content before the update is read", nvn_stage, reg); }
+             if (reg < NVN_UBOLEN_N) { ubcap[reg] = pk ? pav : ul;   // pk 0: a deferred-update shadow covers exactly the read range ul
+-              if (pk) { uint64_t tb = (uint64_t)ubolen_vec4_cap(u, ubcap[reg]) * 16; if (__builtin_expect(tb > pav, 0)) { if (!p65_hit) { p65_k = pk; p65_reg = reg; p65_tb = tb; p65_av = pav; } p65_hit |= pk; } } }   // probe: the table actually written vs the bytes behind the pointer (0 once capped)   // the bounds table lets the shader read tb bytes
++              if (pk && g_rb_audit_live) { uint64_t tb = (uint64_t)ubolen_vec4_cap(u, ubcap[reg]) * 16; if (__builtin_expect(tb > pav, 0)) { if (!p65_hit) { p65_k = pk; p65_reg = reg; p65_tb = tb; p65_av = pav; } p65_hit |= pk; } } }   // probe: the table actually written vs the bytes behind the pointer (0 once capped)   // the bounds table lets the shader read tb bytes
+             if (bl) {
+                 PD("B %llu st%d cb reg%d addr=%#llx size=%llu pool=%#llx+%#llx f=%g,%g,%g,%g", g_stat_pass, nvn_stage, reg, (unsigned long long)u->addr, (unsigned long long)u->size,
+                    (unsigned long long)(u->addr - mo), (unsigned long long)mo, ((float *)u->addr)[0], ((float *)u->addr)[1], ((float *)u->addr)[2], ((float *)u->addr)[3]);
+@@ -17925,7 +17953,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+             int tid = b->kind == NVN_RB_TEXU ? ubo_tex_id(ubo_packed(nvn_stage, b)) : (int)(tex_slot_h(S.tex[nvn_stage], S.img[nvn_stage], reg) & 0xfffff);
+             if (b->unb && b->kind == NVN_RB_TEX) ub_note(ubw, b->unb - 1, tid);   // the texture registered at this ID, as the NVN driver writes its descriptor
+             void *tv = NULL; uint64_t trid = tex_fast_rid(tid, &tv); __unsafe_unretained id<MTLTexture> t = (__bridge id<MTLTexture>)tv;
+-            if (tv) p20_check(sh, nvn_stage, b, tid, tv);   // audit #1534 P1-20 probe: declared type / class against the texture as registered (before any fitting below)
++            if (tv && g_rb_audit_live) p20_check(sh, nvn_stage, b, tid, tv);   // audit #1534 P1-20 probe: declared type / class against the texture as registered (before any fitting below). RewindBox (patch 0322): in the frames probed
+             if (!t && tid >= 0 && b->kind == NVN_RB_TEX && (b->dtt == (uint8_t)MTLTextureTypeTextureBuffer || (b->f1d && b->dtt == (uint8_t)MTLTextureType2D)))   // buffer textures of an expanded format: expanded copy, as 2D rows for wrapped 1D fetches (see tbuf_expand)
+                 t = tbuf_expand(tid, b->dtt != (uint8_t)MTLTextureTypeTextureBuffer ? (b->f1d == 2 ? 2 : 1) : 0, &trid);
+             // A folded linear texture (tex_linear) holds its texels at other places: only the variant that reads it as folded may see it (se_want sets g_fold_sh); main0 reads 0 there
+@@ -17961,7 +17989,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+             //   (as gpw_mark_view below); upstream e2b76d4e image_prepare (dm/gfx/nvn/nvn_mtl.m:8670) noted every image. Not an ID whose pool was finalized (gone: its pool object is no longer one)
+             if (b->rw && tid >= 0 && tid < g_ntreg && g_treg[tid].ok && !g_treg[tid].gone) nvn_be_tex_gpu_written(&g_treg[tid].t, "a shader image store");
+             void *tv = NULL; uint64_t trid = tex_fast_rid(tid, &tv); __unsafe_unretained id<MTLTexture> t = (__bridge id<MTLTexture>)tv;
+-            if (tv) p20_check(sh, nvn_stage, b, tid, tv);   // audit #1534 P1-20 probe (as for the textures above)
++            if (tv && g_rb_audit_live) p20_check(sh, nvn_stage, b, tid, tv);   // audit #1534 P1-20 probe (as for the textures above; patch 0322)
+             __unsafe_unretained id<MTLTexture> size_view = t;
+             if (t && g_fold_any && fold_tid_ok(tid) >= 0) { RED_ONCE(142, "folded linear texture ser=%llu bound to an image slot (shader %s): the dummy image instead (first case)", (unsigned long long)g_treg[tid].t.serial, sh->key); t = nil; }
+             if (passdump()) PD("W %llu st%d reg%d tid=%d %s ser=%llu", g_stat_pass, nvn_stage, reg, tid, t ? "real" : "dummy", t && tid < g_ntreg ? g_treg[tid].t.serial : 0ull);
+@@ -18140,7 +18168,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+     #undef USE
+     pthread_mutex_unlock(&g_rmu);
+     if (ul_aid >= 0) slots[ul_aid] = len_fill(sh, nvn_stage, NVN_RB_UBOLEN, ubcap);
+-    if (p65_ul) p65_count(sh, nvn_stage, p65_hit, p65_k, p65_reg, p65_tb, p65_av);
++    if (p65_ul && g_rb_audit_live) p65_count(sh, nvn_stage, p65_hit, p65_k, p65_reg, p65_tb, p65_av);   // RewindBox (patch 0322): in the frames probed
+     int ub_on = (ubw[0] | ubw[1] | ubw[2]) != 0;
+     if (ub_on) {   // #968: this stage's own copy of its support buffer with the bits; none set = the same buffer as before, byte for byte
+         uint64_t ug; const uint8_t *uc = ub_support(nvn_stage, sb_base_cpu(sh, nvn_stage), ubw, &ug);
+diff --git a/graphics/nvn/gfx/nvn/rb_audit_sample.h b/graphics/nvn/gfx/nvn/rb_audit_sample.h
+new file mode 100644
+index 0000000..6d34f7b
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_audit_sample.h
+@@ -0,0 +1,22 @@
++// RewindBox (patch 0322): in which frames the passive audit probes P1-20 / P1-65 run (nvn_mtl.m p20_check, p65_count; audit #1534). Pure C: tests/t_rb_audit_sample.c.
++//   IPA 827 (Mario Kart World, iPhone A18 Pro, in a race): P1-20 compared 4,427 to 9,955 texture bindings a frame (4.4 to 5.7 per draw) and P1-65 counted 1,313 to 2,699
++//   bounds tables a frame (1.28 to 1.43 per draw), on the submit thread, whose instructions bound the frame rate once the device is at Fair; neither probe counted a
++//   hit in the 48 lines of the two sessions (the bounds table is capped since audit #1646, so P1-65 cannot count one any more).
++//   Rule: the probes run in every frame of the first RB_AUDIT_PERIOD (a session's first shaders, and the tests, are probed as before), then in the last RB_AUDIT_LIVE
++//   frames of every RB_AUDIT_PERIOD: the frames just before the audit line, which is written every 300 frames. The line states the sampling and the number of frames
++//   probed, so a count divided by the frames probed is still a per-frame rate. S2A_RB_AUDIT_SAMPLE=0: as before, every binding of every frame.
++#pragma once
++#include <stdint.h>
++
++enum { RB_AUDIT_PERIOD = 300, RB_AUDIT_LIVE = 4 };
++// 1 = the probes run in frame `frame`. sample: the switch (0 = every frame, as before)
++static inline int rb_audit_live(uint64_t frame, int sample) {
++    if (!sample) return 1;
++    return frame < RB_AUDIT_PERIOD || frame % RB_AUDIT_PERIOD >= RB_AUDIT_PERIOD - RB_AUDIT_LIVE;
++}
++// The frames probed so far, each counted once however many submissions it has (the audit line's "probed in N frames")
++typedef struct { uint64_t frames, last; int any; } rb_audit_frames;
++static inline void rb_audit_frame(rb_audit_frames *c, uint64_t frame) {
++    if (c->any && c->last == frame) return;
++    c->any = 1; c->last = frame; c->frames++;
++}
+diff --git a/graphics/nvn/tests/t_rb_audit_sample.c b/graphics/nvn/tests/t_rb_audit_sample.c
+new file mode 100644
+index 0000000..8183699
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_audit_sample.c
+@@ -0,0 +1,51 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0322): host-only checks of the frames in which the passive audit probes run (gfx/nvn/rb_audit_sample.h).
++#include <assert.h>
++#include <stdint.h>
++#include <stdio.h>
++#include "../gfx/nvn/rb_audit_sample.h"
++
++int main(void) {
++    // ① the switch at 0: every frame, as before
++    for (uint64_t f = 0; f < 3000; f++) assert(rb_audit_live(f, 0) == 1);
++    assert(rb_audit_live(UINT64_MAX, 0) == 1);
++    // ② sampled: all of the first 300 frames (frame 0 is where the engine's own probe test encodes)
++    for (uint64_t f = 0; f < RB_AUDIT_PERIOD; f++) assert(rb_audit_live(f, 1) == 1);
++    // ③ after them: exactly the last 4 frames of each 300, and never the frame the line is written in
++    for (uint64_t w = 1; w < 40; w++) {
++        int n = 0;
++        for (uint64_t f = w * RB_AUDIT_PERIOD; f < (w + 1) * RB_AUDIT_PERIOD; f++) {
++            int live = rb_audit_live(f, 1);
++            assert(live == (f % RB_AUDIT_PERIOD >= 296));
++            n += live;
++        }
++        assert(n == RB_AUDIT_LIVE);
++        assert(!rb_audit_live(w * RB_AUDIT_PERIOD, 1));            // 300, 600, …: not probed
++        assert(!rb_audit_live(w * RB_AUDIT_PERIOD + 295, 1));      // the frame before the sampled ones: not probed
++        assert(rb_audit_live(w * RB_AUDIT_PERIOD + 296, 1));
++        assert(rb_audit_live((w + 1) * RB_AUDIT_PERIOD - 1, 1));   // the frame just before the next line
++    }
++    // … any 300 consecutive frames past the first 300 hold exactly 4 probed ones
++    for (uint64_t s = RB_AUDIT_PERIOD; s < 5 * RB_AUDIT_PERIOD; s += 37) {
++        int n = 0;
++        for (uint64_t f = s; f < s + RB_AUDIT_PERIOD; f++) n += rb_audit_live(f, 1);
++        assert(n == RB_AUDIT_LIVE);
++    }
++    // ④ a frame far into a session, and any non-zero switch value reads as on
++    assert(!rb_audit_live(1000000, 1) && rb_audit_live(1000000 + 296 - 1000000 % 300, 1));
++    assert(!rb_audit_live(450, 2) && rb_audit_live(598, 2));
++    // ⑤ the frames probed: each counted once, whatever the number of submissions; a session that starts again at frame 0 counts on
++    rb_audit_frames c = {0, 0, 0};
++    rb_audit_frame(&c, 0); rb_audit_frame(&c, 0); rb_audit_frame(&c, 0);
++    assert(c.frames == 1);
++    rb_audit_frame(&c, 1); rb_audit_frame(&c, 1); rb_audit_frame(&c, 2);
++    assert(c.frames == 3);
++    rb_audit_frame(&c, 0);
++    assert(c.frames == 4 && c.last == 0);
++    // … driven as the engine does (a look per submission, three submissions a frame): 300 + 4 per later window
++    rb_audit_frames d = {0, 0, 0};
++    for (uint64_t f = 0; f < 10 * RB_AUDIT_PERIOD; f++) for (int sub = 0; sub < 3; sub++) if (rb_audit_live(f, 1)) rb_audit_frame(&d, f);
++    assert(d.frames == RB_AUDIT_PERIOD + 9 * RB_AUDIT_LIVE);
++    puts("t_rb_audit_sample: ok");
++    return 0;
++}

@@ -1292,7 +1292,7 @@
    "in_app": true
   },
   "engine": "dolphin",
-  "availability": "manual",
+  "availability": "available",
   "family": "wii-smg2-4k-izeplayz",
   "scope": "complete"
  },
@@ -1335,7 +1335,7 @@
    "in_app": true
   },
   "engine": "dolphin",
-  "availability": "manual",
+  "availability": "available",
   "family": "wii-smg2-4k-izeplayz",
   "scope": "complete"
  },

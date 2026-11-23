@@ -1,0 +1,277 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index be2d078..9692faa 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3445,6 +3445,51 @@ NVN(nvnQueueAcquireTexture, NVNqueueAcquireTextureResult, NVNqueue *q, NVNwindow
+     (void)q; return h_nvnWindowAcquireTexture(w, NULL, idx) == NVN_WINDOW_ACQUIRE_TEXTURE_RESULT_SUCCESS ? (NVNqueueAcquireTextureResult)0 : (NVNqueueAcquireTextureResult)1;
+ }
+ 
++// RewindBox (patch 0326): the 300-frame summary no longer runs inside one present call. IPA 827 (Mario Kart World, iPhone 16 Pro Max): 21 of the 26 window boundaries of the
++//   second session were long frames, 58 to 126 ms in a race (frame 4800: 125.7 ms, 122.2 ms of them this thread's CPU after its present was sent), 23 to 34 ms out of one.
++//   The work stays on this thread (nvn_be_mem_stat lets shared textures go between two submissions and takes the submit path's locks; tsummary reads this thread's policy
++//   and windows), cut in the parts of rb_report_spread.h, RB_REPORT_STRIDE frames apart: tsummary's timing lines on the boundary frame, then power_line, then
++//   nvn_be_mem_stat's four parts (nvn_be_mem_stat_part). Every line keeps the boundary frame it is named after. Each part is timed; the last one writes
++//   "[rb-report] frame= ... block_ms=" with what the block took in all and by part (wall clock / this thread's CPU). S2A_RB_REPORT_SPREAD=0: as before (one block, no line)
++#include "rb_report_spread.h"
++static int rb_report_spread_on(void) {   // the presenting thread
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("S2A_RB_REPORT_SPREAD"); v = !(e && !strcmp(e, "0"));
++        LOG("[rb-report] 300-frame summary %s (S2A_RB_REPORT_SPREAD; patch 0326): %d parts, %d frames apart when spread", v ? "spread over several frames, each part timed" : "in one block on the boundary frame, as before", RB_REPORT_PARTS, RB_REPORT_STRIDE); }
++    return v;
++}
++void nvn_be_mem_stat(unsigned long long, unsigned long long);
++// nvn_mtl.m has the strong definition. A backend without parts runs the whole of nvn_be_mem_stat with the first of them
++__attribute__((weak)) void nvn_be_mem_stat_part(unsigned long long frame, unsigned long long real_frame, unsigned long long rss_mb, unsigned parts) {
++    (void)real_frame; if (parts & RB_REPORT_MEM_ORPHANS) nvn_be_mem_stat(frame, rss_mb);
++}
++static rb_report_cost g_rb_report_cost;   // the presenting thread
++static void rb_report_done(uint64_t label, unsigned part, uint64_t wall0, uint64_t cpu0) {   // a part that began at wall0 / cpu0 has run
++    if (!rb_report_cost_note(&g_rb_report_cost, label, part, now_ns() - wall0, clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - cpu0)) return;
++    const rb_report_cost *c = &g_rb_report_cost;
++    LOG("[rb-report] frame=%llu spread=1 parts=%u/%d stride=%d block_ms=%.2f block_cpu_ms=%.2f worst_part_ms=%.2f timing_ms=%.2f/%.2f power_ms=%.2f/%.2f orphans_ms=%.2f/%.2f counts_ms=%.2f/%.2f reuse_ms=%.2f/%.2f memory_ms=%.2f/%.2f",
++        (unsigned long long)label, rb_report_cost_parts(c), RB_REPORT_PARTS, RB_REPORT_STRIDE, rb_report_cost_wall(c) / 1e6, rb_report_cost_cpu(c) / 1e6, rb_report_cost_worst(c) / 1e6,
++        c->wall_ns[RB_REPORT_TIMING] / 1e6, c->cpu_ns[RB_REPORT_TIMING] / 1e6, c->wall_ns[RB_REPORT_POWER] / 1e6, c->cpu_ns[RB_REPORT_POWER] / 1e6,
++        c->wall_ns[RB_REPORT_ORPHANS] / 1e6, c->cpu_ns[RB_REPORT_ORPHANS] / 1e6, c->wall_ns[RB_REPORT_COUNTS] / 1e6, c->cpu_ns[RB_REPORT_COUNTS] / 1e6,
++        c->wall_ns[RB_REPORT_REUSE] / 1e6, c->cpu_ns[RB_REPORT_REUSE] / 1e6, c->wall_ns[RB_REPORT_MEMORY] / 1e6, c->cpu_ns[RB_REPORT_MEMORY] / 1e6);
++}
++// The part of nvn_be_mem_stat due after this present, if any (dump_frame, g_frame counted). The resident memory is read for each part; the memory watchdog stays with the
++//   part that writes the memory line
++static void rb_report_mem_parts(void) {
++    const uint64_t frame = g_frame, label = rb_report_label(frame);
++    for (unsigned part = RB_REPORT_ORPHANS; part < RB_REPORT_PARTS; part++) {
++        if (!rb_report_due(frame, part, 1)) continue;
++        task_vm_info_data_t vi; mach_msg_type_number_t cnt = TASK_VM_INFO_COUNT;
++        if (task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&vi, &cnt) != KERN_SUCCESS) continue;
++        unsigned long long mb = (unsigned long long)(vi.phys_footprint >> 20);
++        const uint64_t wall0 = now_ns(), cpu0 = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID);
++        nvn_be_mem_stat_part(label, frame, mb, rb_report_mem_bit(part));
++        rb_report_done(label, part, wall0, cpu0);
++        if (part != RB_REPORT_MEMORY) continue;
++        static long cap = -1; if (cap < 0) { const char *e = getenv("DM_MEM_CAP_GB"); cap = e ? atol(e) : DM_MEM_CAP_DEFAULT_GB; }
++        if (cap > 0 && mb > (unsigned long long)cap * 1024) { LOG("【红】 memory watchdog: resident %llu MB over the limit of %ld GB (frame %llu), exiting", mb, cap, (unsigned long long)frame); _exit(86); }
++    }
++}
+ // Frame boundary: on each present, print / write to disk the call count of each NVN function for this frame
+ static uint64_t g_prev[NVN_NFUNC];
+ static FILE *g_tsv;
+@@ -3493,6 +3538,9 @@ static void dump_frame(void) {
+     g_frame++; cs_dump();
+     // Every 300 frames read resident memory and hand it to the graphics layer to print the memory readout line (nvn_be_mem_stat, low frequency, capped). Memory watchdog: when resident memory exceeds the cap, log a failure and exit on its own. On by default only on the Mac host (24 GB: runaway host memory
+     // drags the whole machine into a kernel panic, which happened twice with other programs on the same machine), or set for tests with DM_MEM_CAP_GB=<integer>; the player's iOS app has no cap (exiting before the system kills it is pointless and only adds another kind of crash)
++    // RewindBox (patch 0326): one part of nvn_be_mem_stat a frame, from 8 frames after the boundary on (rb_report_mem_parts). S2A_RB_REPORT_SPREAD=0: as before
++    if (rb_report_spread_on()) rb_report_mem_parts();
++    else
+     if (g_frame % 300 == 0) { task_vm_info_data_t vi; mach_msg_type_number_t cnt = TASK_VM_INFO_COUNT;
+         if (task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&vi, &cnt) == KERN_SUCCESS) { unsigned long long mb = (unsigned long long)(vi.phys_footprint >> 20); void nvn_be_mem_stat(unsigned long long, unsigned long long); nvn_be_mem_stat(g_frame, mb);
+             static long cap = -1; if (cap < 0) { const char *e = getenv("DM_MEM_CAP_GB"); cap = e ? atol(e) : DM_MEM_CAP_DEFAULT_GB; }
+@@ -3855,7 +3903,7 @@ static void tsummary(uint64_t frame) {
+           (unsigned long long)d[10], (unsigned long long)d[11], (unsigned long long)d[12], (unsigned long long)d[13], (unsigned long long)d[14], (unsigned long long)d[15], (unsigned long long)d[16],
+           (unsigned long long)(d[14] - d[15] - d[16]), (unsigned long long)d[17], (unsigned long long)d[18], counts[19] ? "on" : "off", counts[20] ? "on" : "off");
+       memcpy(previous, counts, sizeof previous); }
+-    power_line(frame);
++    if (!rb_report_spread_on()) power_line(frame);   // RewindBox (patch 0326): a part of its own RB_REPORT_STRIDE frames later when the summary is spread (rb_report_summary_parts). S2A_RB_REPORT_SPREAD=0: here, as before
+     { static uint64_t prev[4], pf; uint64_t v[4]; nvn_be_vbuf_stats(&v[0], &v[1], &v[2], &v[3]);
+       if (pf && frame > pf) { double nf = (double)(frame - pf);
+           LOG("[nvn] vertex bindings up to frame %llu: per frame address lookups %.0f / reused %.0f, vertex table writes %.0f / skipped %.0f", frame,
+@@ -3914,6 +3962,13 @@ static void tsummary(uint64_t frame) {
+ 
+ #endif
+ }
++// RewindBox (patch 0326): tsummary's two parts when the 300-frame summary is spread (rb_report_spread_on): its timing lines on the boundary frame, where their windows
++//   end as before, and power_line RB_REPORT_STRIDE frames later, both named after the boundary and timed (rb_report_done). After dump_frame, g_frame counted
++static void rb_report_summary_parts(void) {
++    const uint64_t frame = g_frame, label = rb_report_label(frame);
++    if (rb_report_due(frame, RB_REPORT_TIMING, 1)) { const uint64_t wall0 = now_ns(), cpu0 = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID); tsummary(label); rb_report_done(label, RB_REPORT_TIMING, wall0, cpu0); }
++    if (rb_report_due(frame, RB_REPORT_POWER, 1)) { const uint64_t wall0 = now_ns(), cpu0 = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID); power_line(label); rb_report_done(label, RB_REPORT_POWER, wall0, cpu0); }
++}
+ // DM_SLOWFRAME=1 (test switch, read over the log port on a real device): per-frame timings are first stored in a ring of the last 16 frames; dropped frames are judged 8 frames late (GPU / on-screen present times are back by then),
+ // and only for dropped frames is one line "[slowframe]\t<frame number>\t@<name>=<value>..." written to the log, plus one denominator line every 300 frames. No per-frame file is written: the log tee fsyncs every line, and writing line by line would disturb the readings
+ #define SRN 16
+@@ -4632,6 +4687,9 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+     s2a_qp_frame((uint32_t)(dr - prev_draw), g_vid.on, dm_fps_state && __atomic_load_n((uint32_t *)(dm_fps_state + 4), __ATOMIC_RELAXED), atomic_load(&g_game_itv));
+     prev_in = t0; prev_pass = ps; prev_draw = dr;
+     dump_frame();
++    // RewindBox (patch 0326): tsummary in two parts (rb_report_summary_parts): its timing lines on the boundary frame, power_line RB_REPORT_STRIDE frames later. S2A_RB_REPORT_SPREAD=0: as before
++    if (rb_report_spread_on()) rb_report_summary_parts();
++    else
+     if (g_frame % TWIN == 0) tsummary(g_frame);
+ #if defined(__APPLE__)
+     if (nvn_rb_observe_direct_interval)
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index bdbfbcb..c35210a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9114,9 +9114,28 @@ void nvn_be_mem_kinds(uint64_t *priv_tex, uint64_t *priv_buf, uint64_t *pool_len
+     }
+ }
+ static void rb_shadow_report(unsigned long long frame);
++// RewindBox (patch 0326): nvn_be_mem_stat in parts, for a frame hook that spreads the 300-frame summary over several frames (hle_nvn.c rb_report_mem_parts, rb_report_spread.h).
++//   IPA 827 (Mario Kart World, iPhone 16 Pro Max): the summary took 58 to 126 ms of one race frame, 110 to 122 ms of the presenting thread's CPU at the two boundaries
++//   where the memory line walked its 4,700 serial objects. parts: RB_REPORT_MEM_* bits. frame: the window's boundary, what the lines say and count their intervals from;
++//   real_frame: the frame count now, for the idle test of the shared textures kept for reuse (rb_reuse_report compares it with g_cur_frame stamps). Same thread, same
++//   order and same locks as the whole function, which a caller without parts still gets (S2A_RB_REPORT_SPREAD=0)
++#include "rb_report_spread.h"
++static unsigned g_rb_mem_parts = RB_REPORT_MEM_ALL;   // the frame hook's thread: the parts this call of nvn_be_mem_stat runs
++static unsigned long long g_rb_mem_real_frame;   // the frame count now when frame is a boundary that has passed (0: frame is the count)
++void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb);
++void nvn_be_mem_stat_part(unsigned long long frame, unsigned long long real_frame, unsigned long long rss_mb, unsigned parts);
++void nvn_be_mem_stat_part(unsigned long long frame, unsigned long long real_frame, unsigned long long rss_mb, unsigned parts) {
++    g_rb_mem_parts = parts & RB_REPORT_MEM_ALL; g_rb_mem_real_frame = real_frame;
++    nvn_be_mem_stat(frame, rss_mb);
++    g_rb_mem_parts = RB_REPORT_MEM_ALL; g_rb_mem_real_frame = 0;
++}
+ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
++    const unsigned rb_parts = g_rb_mem_parts;   // RewindBox (patch 0326): every part unless nvn_be_mem_stat_part asked for some
++    if (rb_parts & RB_REPORT_MEM_ORPHANS) {   // RewindBox (patch 0326)
+     if (rb_shadow_on()) rb_shadow_report(frame);
+     alias_orphan_pass();   // #357: before the line cap below, which only limits the readout
++    }
++    if (rb_parts & RB_REPORT_MEM_COUNTS) {   // RewindBox (patch 0326)
+     nvn_mem_detail(frame);   // before the line cap below: the detailed accounting has its own interval and must not be starved by the 400-line budget
+     fb_report(frame); samp_report(frame); audit_probe_report(frame); rs_retain_report(frame);
+     if (rb_live_on() || rb_tile_enabled(RB_TILE_LIVE)) {
+@@ -9142,10 +9161,14 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+         MLOG("[fence-wake] cumulative frame=%llu pendingPolls=%llu positiveWaitSleeps=%llu fenceBroadcasts=%llu segmentCompletionsWithSleepers=%llu",
+              frame, (unsigned long long)pending_polls, (unsigned long long)sleeps,
+              (unsigned long long)broadcasts, (unsigned long long)segments);
++    }
++    if (rb_parts & RB_REPORT_MEM_REUSE) {   // RewindBox (patch 0326)
+     rb_reuse_report(frame);   // RewindBox (patch 0071)
+     zp_report(frame);   // RewindBox (patch 0060)
+     rb_range_report(frame);
+     rb_wn_line(frame);   // RewindBox (patch 0070): texture storage read ahead (before the line cap below: it says itself when anything moved)
++    }
++    if (!(rb_parts & RB_REPORT_MEM_MEMORY)) return;   // RewindBox (patch 0326): the capped memory line and what follows it are the last part
+     static unsigned long long last_rss, last_gpu, last_frame; static int lines; unsigned long long gpu = (unsigned long long)(g_dev.currentAllocatedSize >> 20);
+     unsigned long long dr = rss_mb > last_rss ? rss_mb - last_rss : last_rss - rss_mb, dg = gpu > last_gpu ? gpu - last_gpu : last_gpu - gpu;
+     if (lines >= 400 || (lines && dr < 64 && dg < 64 && frame - last_frame < 3000)) return; lines++; last_rss = rss_mb; last_gpu = gpu; last_frame = frame;
+@@ -21314,7 +21337,8 @@ static void rb_reuse_report(uint64_t frame) {
+     static uint64_t p[15];
+     pthread_mutex_lock(&g_smu);
+     txr_press();   // review: txr_press
+-    for (int i = g_txr_n - 1; i >= 0; i--) if (frame - g_txr[i].frame > txr_idle_frames()) txr_out(i, 0);   // RewindBox (patch 0086): txr_idle_frames
++    const uint64_t rb_now = g_rb_mem_real_frame ? g_rb_mem_real_frame : frame;   // RewindBox (patch 0326): the frame count now when frame names a boundary a few frames back (nvn_be_mem_stat_part); a texture kept since then is not idle
++    for (int i = g_txr_n - 1; i >= 0; i--) if (rb_now - g_txr[i].frame > txr_idle_frames()) txr_out(i, 0);   // RewindBox (patch 0086): txr_idle_frames
+     int tn = g_txr_n; uint64_t tb = g_txr_bytes, gmf = g_ghost_miss_frame; unsigned gn = g_ghost.n;
+     uint64_t v[15] = {g_txr_kept, g_txr_back, g_txr_back_key, g_txr_out, g_txr_press, g_ghost_unheld, g_ghost_miss_gone, g_snp_depth.made, g_snp_color.made, g_fit_made, g_init_copy_n, atomic_load(&g_rb_low_n),
+                       g_snp_depth.taken, g_snp_color.taken, g_fit_kept};
+diff --git a/graphics/nvn/gfx/nvn/rb_report_spread.h b/graphics/nvn/gfx/nvn/rb_report_spread.h
+new file mode 100644
+index 0000000..1333b24
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_report_spread.h
+@@ -0,0 +1,49 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0326): the 300-frame summary in parts, one part a frame. Pure C: tests/t_rb_report_spread.c.
++//   IPA 827 (Mario Kart World, iPhone 16 Pro Max): the frame hook ran the whole summary (nvn_be_mem_stat, then tsummary) inside one present call. In the second session 21 of the
++//   26 window boundaries were long frames, 58 to 126 ms in a race (frames 4200 and 4800: 115.8 and 125.7 ms, 110 and 122 ms of them the presenting thread's CPU), and still
++//   23 to 34 ms out of a race at 3.2 to 3.8 GHz. The work stays on the presenting thread: nvn_be_mem_stat lets shared textures go between two submissions (alias_orphan_pass,
++//   rb_reuse_report) and takes the locks the submit path takes (g_rmu, g_smu, g_mu, g_res_mu), and tsummary reads that thread's own policy and windows. It is cut in
++//   RB_REPORT_PARTS parts instead, RB_REPORT_STRIDE frames apart, each one timed. A part keeps a window of exactly RB_REPORT_PERIOD frames and its lines keep the boundary
++//   frame they are named after (a multiple of RB_REPORT_PERIOD); only the timing part runs on the boundary itself, so its percentile windows are the frames they were.
++//   S2A_RB_REPORT_SPREAD=0: one block on the boundary frame, as before.
++#pragma once
++#include <stdint.h>
++#include <string.h>
++
++enum { RB_REPORT_PERIOD = 300, RB_REPORT_STRIDE = 4 };
++// The parts, in the order they run. TIMING: tsummary less its power lines. POWER: power_line. The other four are nvn_be_mem_stat's.
++enum { RB_REPORT_TIMING, RB_REPORT_POWER, RB_REPORT_ORPHANS, RB_REPORT_COUNTS, RB_REPORT_REUSE, RB_REPORT_MEMORY, RB_REPORT_PARTS };
++// nvn_be_mem_stat's parts as nvn_be_mem_stat_part takes them: the unreferenced shared textures (alias_orphan_pass), the counter lines, the reuse pools and read-ahead
++// lines (rb_reuse_report lets idle kept textures go), and the capped memory line with what follows it.
++enum { RB_REPORT_MEM_ORPHANS = 1, RB_REPORT_MEM_COUNTS = 2, RB_REPORT_MEM_REUSE = 4, RB_REPORT_MEM_MEMORY = 8,
++       RB_REPORT_MEM_ALL = RB_REPORT_MEM_ORPHANS | RB_REPORT_MEM_COUNTS | RB_REPORT_MEM_REUSE | RB_REPORT_MEM_MEMORY };
++_Static_assert((RB_REPORT_PARTS - 1) * RB_REPORT_STRIDE < RB_REPORT_PERIOD, "the parts of one window end before the next boundary");
++
++// Whether `part` runs in the present that made the frame count `frame` (the count after the present, 1 for the first). spread 0: every part on the boundary.
++static inline int rb_report_due(uint64_t frame, unsigned part, int spread) {
++    if (part >= RB_REPORT_PARTS || frame < RB_REPORT_PERIOD) return 0;
++    return frame % RB_REPORT_PERIOD == (spread ? (uint64_t)part * RB_REPORT_STRIDE : 0);
++}
++// The boundary frame the part's lines are named after when it runs at `frame`.
++static inline uint64_t rb_report_label(uint64_t frame) { return frame - frame % RB_REPORT_PERIOD; }
++// The nvn_be_mem_stat bit of a part (0 for the two tsummary parts).
++static inline unsigned rb_report_mem_bit(unsigned part) {
++    return part == RB_REPORT_ORPHANS ? RB_REPORT_MEM_ORPHANS : part == RB_REPORT_COUNTS ? RB_REPORT_MEM_COUNTS :
++           part == RB_REPORT_REUSE ? RB_REPORT_MEM_REUSE : part == RB_REPORT_MEMORY ? RB_REPORT_MEM_MEMORY : 0;
++}
++// What the parts of one window took: wall clock and the thread's CPU time, in ns. `done`: one bit a part noted.
++typedef struct { uint64_t label, wall_ns[RB_REPORT_PARTS], cpu_ns[RB_REPORT_PARTS]; unsigned done; } rb_report_cost;
++// A part of the window `label` took wall_ns / cpu_ns. Returns 1 when this was the window's last part: the cost line is due.
++static inline int rb_report_cost_note(rb_report_cost *c, uint64_t label, unsigned part, uint64_t wall_ns, uint64_t cpu_ns) {
++    if (part >= RB_REPORT_PARTS) return 0;
++    if (c->label != label || part == RB_REPORT_TIMING) { memset(c, 0, sizeof *c); c->label = label; }   // a window begins with its first part (a session may have ended between two)
++    c->wall_ns[part] += wall_ns; c->cpu_ns[part] += cpu_ns; c->done |= 1u << part;
++    return part == RB_REPORT_PARTS - 1;
++}
++static inline uint64_t rb_report_cost_wall(const rb_report_cost *c) { uint64_t s = 0; for (unsigned i = 0; i < RB_REPORT_PARTS; ++i) s += c->wall_ns[i]; return s; }
++static inline uint64_t rb_report_cost_cpu(const rb_report_cost *c) { uint64_t s = 0; for (unsigned i = 0; i < RB_REPORT_PARTS; ++i) s += c->cpu_ns[i]; return s; }
++// The longest part: what one frame pays at most when the parts are spread.
++static inline uint64_t rb_report_cost_worst(const rb_report_cost *c) { uint64_t m = 0; for (unsigned i = 0; i < RB_REPORT_PARTS; ++i) if (c->wall_ns[i] > m) m = c->wall_ns[i]; return m; }
++// How many parts the window has noted (RB_REPORT_PARTS for a whole one; fewer after a session that began between two parts).
++static inline unsigned rb_report_cost_parts(const rb_report_cost *c) { unsigned n = 0; for (unsigned i = 0; i < RB_REPORT_PARTS; ++i) n += c->done >> i & 1u; return n; }
+diff --git a/graphics/nvn/tests/t_rb_report_spread.c b/graphics/nvn/tests/t_rb_report_spread.c
+new file mode 100644
+index 0000000..7de4fa4
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_report_spread.c
+@@ -0,0 +1,59 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0326): host-only checks of the 300-frame summary's schedule and cost record (gfx/nvn/rb_report_spread.h).
++#include <assert.h>
++#include <stdint.h>
++#include <stdio.h>
++#include "../gfx/nvn/rb_report_spread.h"
++
++int main(void) {
++    // S2A_RB_REPORT_SPREAD=0: every part on the boundary frame and on no other, as the frame hook's own tests (g_frame % 300 == 0, frame counts from 1).
++    for (uint64_t f = 1; f <= 3000; ++f)
++        for (unsigned p = 0; p < RB_REPORT_PARTS; ++p) {
++            assert(rb_report_due(f, p, 0) == (f % 300 == 0));
++            if (rb_report_due(f, p, 0)) assert(rb_report_label(f) == f);
++        }
++    // Spread: each part once a window, RB_REPORT_PERIOD frames after its last run, never two parts in one frame, none before frame 300, in the order of the enum,
++    // RB_REPORT_STRIDE frames apart, each named after the boundary just passed; the timing part on the boundary itself.
++    uint64_t last[RB_REPORT_PARTS] = {0}, runs[RB_REPORT_PARTS] = {0};
++    unsigned expect = 0;
++    for (uint64_t f = 1; f <= 3000; ++f) {
++        unsigned due = 0, which = 0;
++        for (unsigned p = 0; p < RB_REPORT_PARTS; ++p) if (rb_report_due(f, p, 1)) { ++due; which = p; }
++        assert(due <= 1);
++        if (!due) continue;
++        assert(f >= RB_REPORT_PERIOD && which == expect);
++        expect = (expect + 1) % RB_REPORT_PARTS;
++        assert(rb_report_label(f) % RB_REPORT_PERIOD == 0 && rb_report_label(f) + which * RB_REPORT_STRIDE == f);
++        if (last[which]) assert(f - last[which] == RB_REPORT_PERIOD);
++        last[which] = f; ++runs[which];
++        if (which == RB_REPORT_TIMING) assert(f % RB_REPORT_PERIOD == 0);
++    }
++    for (unsigned p = 0; p < RB_REPORT_PARTS; ++p) assert(runs[p] == 3000 / RB_REPORT_PERIOD || (runs[p] == 3000 / RB_REPORT_PERIOD - 1 && p));
++    assert(runs[RB_REPORT_TIMING] == 10 && !rb_report_due(299, 0, 1) && !rb_report_due(0, 0, 1) && !rb_report_due(0, 0, 0) && !rb_report_due(8, RB_REPORT_ORPHANS, 1));
++    assert(!rb_report_due(300, RB_REPORT_PARTS, 1) && !rb_report_due(300, RB_REPORT_PARTS, 0));   // no such part
++    // The last part of a window ends before the next boundary, whatever the stride.
++    assert((RB_REPORT_PARTS - 1) * RB_REPORT_STRIDE < RB_REPORT_PERIOD);
++    // nvn_be_mem_stat's four parts are four different bits that make RB_REPORT_MEM_ALL; the two tsummary parts have none.
++    unsigned bits = 0;
++    for (unsigned p = 0; p < RB_REPORT_PARTS; ++p) { unsigned b = rb_report_mem_bit(p); assert(!(bits & b)); bits |= b; }
++    assert(bits == RB_REPORT_MEM_ALL && !rb_report_mem_bit(RB_REPORT_TIMING) && !rb_report_mem_bit(RB_REPORT_POWER) && !rb_report_mem_bit(RB_REPORT_PARTS));
++    assert(rb_report_mem_bit(RB_REPORT_ORPHANS) == RB_REPORT_MEM_ORPHANS && rb_report_mem_bit(RB_REPORT_MEMORY) == RB_REPORT_MEM_MEMORY);
++    // The cost record: the block is the sum of its parts, the worst part is what one frame pays, the line is due with the last part.
++    rb_report_cost c;
++    memset(&c, 0, sizeof c);
++    static const uint64_t wall[RB_REPORT_PARTS] = {8100000, 5000000, 22100000, 1900000, 800000, 23500000};
++    for (unsigned p = 0; p < RB_REPORT_PARTS; ++p) {
++        const int last_part = rb_report_cost_note(&c, 4800, p, wall[p], wall[p] - 100000);
++        assert(last_part == (p == RB_REPORT_PARTS - 1) && rb_report_cost_parts(&c) == p + 1);
++    }
++    assert(c.label == 4800 && rb_report_cost_wall(&c) == 61400000 && rb_report_cost_cpu(&c) == 61400000 - 6 * 100000 && rb_report_cost_worst(&c) == 23500000);
++    // A new window starts from nothing; so does the first part of a window with the same name (a session that began again between two parts).
++    assert(!rb_report_cost_note(&c, 5100, RB_REPORT_TIMING, 7, 5));
++    assert(c.label == 5100 && rb_report_cost_wall(&c) == 7 && rb_report_cost_cpu(&c) == 5 && rb_report_cost_parts(&c) == 1);
++    assert(!rb_report_cost_note(&c, 5100, RB_REPORT_POWER, 3, 2) && rb_report_cost_wall(&c) == 10);
++    assert(!rb_report_cost_note(&c, 5100, RB_REPORT_TIMING, 1, 1) && rb_report_cost_wall(&c) == 1 && rb_report_cost_parts(&c) == 1);
++    assert(rb_report_cost_note(&c, 5400, RB_REPORT_MEMORY, 9, 9) && rb_report_cost_parts(&c) == 1 && rb_report_cost_wall(&c) == 9);   // a window whose other parts never ran
++    assert(!rb_report_cost_note(&c, 5400, RB_REPORT_PARTS, 1, 1) && rb_report_cost_wall(&c) == 9);   // no such part: nothing noted
++    puts("PASS report spread: one block with the switch off, six parts 4 frames apart from the boundary on, labels, memory bits, cost of the block and of its worst part");
++    return 0;
++}

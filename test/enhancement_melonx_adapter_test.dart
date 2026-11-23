@@ -18,11 +18,13 @@ import 'enhancement_test_support.dart';
 const _title = '0100000000010000';
 const _line = '04000000 00000000 00000001';
 
-Map<String, dynamic> _cheat(String name, List<String> builds, {String cat = 'cheat'}) => {
+Map<String, dynamic> _cheat(String name, List<String> builds, {String cat = 'cheat', String? group, List<String>? flags}) => {
   'id': name.toLowerCase().replaceAll(RegExp('[^a-z0-9]+'), '-'),
   'cat': cat,
   'name': name,
   'source': 'fixture',
+  'group': ?group,
+  'flags': ?flags,
   'builds': {
     for (final build in builds) build: [_line],
   },
@@ -83,7 +85,41 @@ final _records = <String, Map<String, dynamic>>{
     _cheat('FPS Unlock', [_update], cat: 'fps'),
     _cheat('P1 0% damage', [_older]),
   ]),
+  // Shaped like the catalogue's Romancing SaGa 2 record of 23 November 2026: Atmosphere alternatives of one setting
+  // share an alt/ group, entries carry flags, versions.json's newest update is `latest`.
+  _saga: {
+    ..._record('Saga', [
+      _cheat('60 FPS', [_sagaBuild], cat: 'fps', group: 'alt/$_saga/ec9a9418ab'),
+      _cheat('45 FPS', [_sagaBuild], cat: 'fps', group: 'alt/$_saga/ec9a9418ab'),
+      _cheat('Default 30 FPS', [_sagaBuild], cat: 'fps', flags: ['default', 'noRefresh']),
+      _cheat('Dynamic Resolution Target 45 FPS', [_sagaBuild], cat: 'fps', group: 'alt/$_saga/9f7305ba5c', flags: ['noRefresh']),
+      _cheat('Bloom OFF', [_sagaBuild], cat: 'graphics', group: 'alt/$_saga/384d6f935e'),
+      _cheat('Bloom ON', [_sagaBuild], cat: 'graphics', group: 'alt/$_saga/384d6f935e'),
+      _cheat('AA High (Crash If TAAU ON)', [_sagaBuild], cat: 'graphics', flags: ['crashRisk']),
+      _cheat('Docked RRS 240% (4K 2160p)', [_sagaBuild], cat: 'graphics', flags: ['heavy']),
+      {
+        ..._exefsFor('7680x4320 Docked v1.0.2 (USE 8GB DRAM MEMORY LAYOUT)', 'graphics', 'display/$_saga', _sagaBuild),
+        'flags': ['dram8gb', 'heavy'],
+        'author': 'Fl4sh9174',
+      },
+      _cheat('Infinite HP', [_sagaOld, _sagaBuild]),
+      _cheat('Max Gold', [_sagaBuild, _sagaLatest]),
+      _cheat('Max EXP', [_sagaBuild, _sagaUnknown]),
+    ]),
+    'releases': {
+      _sagaOld: {'display': ['1.0.1'], 'update': [65536]},
+      _sagaBuild: {'update': [131072]},
+      _sagaLatest: {'display': ['1.0.3'], 'update': [196608]},
+    },
+    'latest': {'update': 196608, 'build': _sagaLatest, 'display': '1.0.3'},
+  },
 };
+
+const _saga = '0100A5A5A5A5A000';
+const _sagaOld = 'B2B2B2B2B2B2B2B2';
+const _sagaBuild = 'A1A1A1A1A1A1A1A1';
+const _sagaLatest = 'C3C3C3C3C3C3C3C3';
+const _sagaUnknown = 'D4D4D4D4D4D4D4D4';
 
 // Shaped like the published Mario Strikers record: Fl4sh9174 mods whose names carry the game version
 // (`v1.3.2`), all of them grouped as display choices by the catalogue of 18 November 2026.
@@ -707,6 +743,53 @@ void main() {
       expect(await launch(), isNull, reason: 'its patch file is gone');
     });
 
+    test("RewindBox's folder an older version turned off comes back while its files are recorded; a stale copy is "
+        'deleted', () async {
+      final service = serviceFor({'titleId': _strikers, 'version': '1.3.2', 'buildId': _strikersBuild});
+      Future<int?> launch() => MelonxEnhancementAdapter.launchRefresh(
+        strikers.romPath!,
+        states: service.store.all,
+        root: () async => root,
+        metadata: (_) async => {'titleId': _strikers, 'buildId': _strikersBuild},
+        inspectUpdate: (_, _) async => throw StateError('none selected'),
+        supported: () async => true,
+      );
+      final live = Directory(path.join(root.path, 'mods', 'contents', _strikers.toLowerCase(), 'RewindBox'));
+      final copy = Directory(path.join(root.path, 'mods', 'rewindbox-disabled', _strikers.toLowerCase(), 'RewindBox'));
+      // What MelonxModsService.setEnabled(root, title, 'RewindBox', false) of an older version did.
+      void turnedOffInModsDialog() {
+        copy.parent.createSync(recursive: true);
+        live.renameSync(copy.path);
+      }
+
+      var view = await service.open(strikers, 'switch', download: true);
+      view = await service.setActive(strikers, 'switch', view, named(view, '120FPS v1.3.2'), true);
+      turnedOffInModsDialog();
+      expect(await launch(), isNull, reason: 'the engine no longer finds the patch the page shows as on');
+      view = await service.open(strikers, 'switch', download: true);
+      expect(live.existsSync() && !copy.existsSync(), isTrue, reason: 'moved back: the state records its files');
+      expect(Directory(path.join(root.path, 'mods', 'rewindbox-disabled')).existsSync(), isFalse);
+      expect(active(view), {'120FPS v1.3.2'});
+      expect(await launch(), 120);
+
+      // A copy left while the page wrote the folder again is RewindBox's own, superseded: deleted.
+      File(path.join(copy.path, 'exefs', 'old-0.pchtxt')).createSync(recursive: true);
+      view = await service.open(strikers, 'switch', download: true);
+      expect(copy.existsSync(), isFalse);
+      expect(File(path.join(live.path, 'exefs', 'fl4sh-120fps-v1-3-2-0.pchtxt')).existsSync(), isTrue);
+
+      // Restoring the game removes such a copy with the rest.
+      turnedOffInModsDialog();
+      await service.restore(view.identity.storeKey);
+      expect(copy.existsSync() || live.existsSync(), isFalse);
+      // Nothing records a copy left without a state: deleted, never moved back (the engine would apply an exefs
+      // patch the page shows as off).
+      File(path.join(copy.path, 'exefs', 'fl4sh-120fps-v1-3-2-0.pchtxt')).createSync(recursive: true);
+      view = await service.open(strikers, 'switch', download: true);
+      expect(copy.existsSync() || live.existsSync(), isFalse);
+      expect(active(view), isEmpty);
+    });
+
     test('a selected update that cannot be found leaves the build unknown, not the game file\'s', () async {
       File(path.join(root.path, 'games', _strikers.toLowerCase(), 'updates.json'))
         ..createSync(recursive: true)
@@ -736,7 +819,10 @@ void main() {
       final mod = named(view, '120FPS v1.3.2');
       expect(mod.status, EnhancementStatus.incompatible);
       expect(mod.problem, EnhancementProblem.versionMismatch);
-      expect(mod.compatibility, 'Title ID $_strikers · exefs Build ID $_strikersBuild (1.3.2, v196608) · installed version 1.3.0');
+      expect(mod.compatibility, 'Title ID $_strikers · exefs Build ID $_strikersBuild (1.3.2) · installed version 1.3.0',
+          reason: 'language-neutral: the page names the updates');
+      expect(MelonxEnhancementAdapter.compatibilityOf(mod.payload, updateName: (update) => 'U${update >> 16}'),
+          'Title ID $_strikers · exefs Build ID $_strikersBuild (U3, 1.3.2) · installed version 1.3.0');
       expect(mod.payload.containsKey('refreshHz'), isFalse, reason: 'only a build the engine reports raises the refresh');
       expect(MelonxEnhancementAdapter.buildUnknown(view.items), isFalse);
       await expectLater(
@@ -840,11 +926,297 @@ void main() {
 
     test('catalogue versions read from a record, and names that only carry a version', () {
       final releases = MelonxEnhancementAdapter.releasesOf(_records[_strikers]!, _strikers);
-      expect(releases, {_strikersBuild: ['1.3.2', 'v196608'], _strikersOld: ['1.3.0']});
+      expect(releases, {_strikersBuild: [196608, '1.3.2'], _strikersOld: ['1.3.0']});
       expect(MelonxEnhancementAdapter.buildsOfVersion(releases, 'v1.3.2'), {_strikersBuild});
+      expect(MelonxEnhancementAdapter.buildsOfVersion(releases, '196608'), isEmpty, reason: 'an update number is no version');
       expect(MelonxEnhancementAdapter.buildsOfVersion(releases, null), isEmpty);
       expect(MelonxEnhancementAdapter.describeBuilds([_strikersOld, 'AAAAAAAAAAAAAAAA'], releases),
           '$_strikersOld (1.3.0), AAAAAAAAAAAAAAAA');
+    });
+  });
+
+  group('catalogue flags, alternatives and game versions', () {
+    final saga = testGame(name: 'Saga', romPath: '/Documents/MeloNX/roms/switch/saga.nsp');
+    EnhancementService serviceFor(String? build) => EnhancementService(
+      catalog: fixtureCatalog(Directory(path.join(temp.path, 'cache')), {'melonx': _records}),
+      store: EnhancementStore(root: () async => Directory(path.join(temp.path, 'store'))),
+      adapters: [
+        MelonxEnhancementAdapter(
+          root: () async => root,
+          metadata: (_) async => {'titleId': _saga, 'version': '1.0.2', 'buildId': ?build},
+          refreshSupported: () async => true,
+        ),
+      ],
+      texturesSupported: (_) => false,
+    );
+    EnhancementItem named(EnhancementGameView view, String name) => view.items.firstWhere((item) => item.name == name);
+    Set<String> active(EnhancementGameView view) => {
+      for (final item in view.items)
+        if (item.status == EnhancementStatus.active) item.name,
+    };
+
+    test('Atmosphere alternatives of one setting share an alt group: turning one on turns the other off', () async {
+      final service = serviceFor(_sagaBuild);
+      var view = await service.open(saga, 'switch', download: true);
+      expect(named(view, '60 FPS').exclusiveGroup, 'alt/$_saga/ec9a9418ab');
+      expect(named(view, '45 FPS').exclusiveGroup, named(view, '60 FPS').exclusiveGroup);
+      expect(named(view, 'Bloom ON').exclusiveGroup, 'alt/$_saga/384d6f935e');
+      expect(named(view, 'Bloom OFF').exclusiveGroup, named(view, 'Bloom ON').exclusiveGroup);
+      expect(named(view, 'Default 30 FPS').exclusiveGroup, isEmpty, reason: 'not an alternative of the same writes');
+      expect(
+        MelonxEnhancementAdapter.exclusiveGroupOf({'group': 'alt/$_saga/ec9a9418ab'}, _saga, EnhancementCategory.fps, exefs: false),
+        'alt/$_saga/ec9a9418ab',
+        reason: 'only display/ groups are dropped from an FPS cheat',
+      );
+
+      view = await service.setActive(saga, 'switch', view, named(view, '60 FPS'), true);
+      view = await service.setActive(saga, 'switch', view, named(view, 'Default 30 FPS'), true);
+      view = await service.setActive(saga, 'switch', view, named(view, '45 FPS'), true);
+      expect(active(view), {'45 FPS', 'Default 30 FPS'}, reason: '60 FPS is turned off, the ungrouped code stays');
+      view = await service.setActive(saga, 'switch', view, named(view, 'Bloom OFF'), true);
+      view = await service.setActive(saga, 'switch', view, named(view, 'Bloom ON'), true);
+      expect(active(view), {'45 FPS', 'Default 30 FPS', 'Bloom ON'});
+
+      // Only the chosen alternative of each setting is in the engine's file.
+      final file = File(path.join(root.path, 'mods', 'contents', _saga.toLowerCase(), 'RewindBox', 'cheats', '$_sagaBuild.txt'));
+      expect(MelonxEnhancementAdapter.parseCheatNames(file.readAsStringSync()), ['45 FPS', 'Default 30 FPS', 'Bloom ON']);
+    });
+
+    test('a code flagged as the game default or as not raising the limit never sets the engine refresh', () async {
+      final service = serviceFor(_sagaBuild);
+      Future<int?> launch() => MelonxEnhancementAdapter.launchRefresh(
+        saga.romPath!,
+        states: service.store.all,
+        root: () async => root,
+        metadata: (_) async => {'titleId': _saga, 'buildId': _sagaBuild},
+        inspectUpdate: (_, _) async => throw StateError('none selected'),
+        supported: () async => true,
+      );
+      expect(MelonxEnhancementAdapter.entryRefresh({'cat': 'fps', 'name': '60 FPS'}), 60);
+      expect(MelonxEnhancementAdapter.entryRefresh({'cat': 'fps', 'name': 'Default 30 FPS', 'flags': ['default']}), isNull);
+      expect(MelonxEnhancementAdapter.entryRefresh({'cat': 'fps', 'name': 'FPS Counter 60 FPS', 'flags': ['noRefresh']}), isNull);
+      expect(MelonxEnhancementAdapter.entryRefresh({'cat': 'graphics', 'name': '60 FPS'}), isNull);
+
+      var view = await service.open(saga, 'switch', download: true);
+      expect(named(view, '60 FPS').payload['refreshHz'], 60);
+      expect(named(view, 'Default 30 FPS').payload.containsKey('refreshHz'), isFalse);
+      expect(named(view, 'Dynamic Resolution Target 45 FPS').payload.containsKey('refreshHz'), isFalse);
+
+      view = await service.setActive(saga, 'switch', view, named(view, 'Default 30 FPS'), true);
+      view = await service.setActive(saga, 'switch', view, named(view, 'Dynamic Resolution Target 45 FPS'), true);
+      expect(MelonxEnhancementAdapter.engineRefresh(view.items), isNull);
+      expect(await launch(), isNull);
+      expect((await service.store.game('melonx:$_saga'))!.data.containsKey('refresh'), isFalse);
+
+      // With a code that raises the limit, its target alone counts: the others' 30 and 45 are no conflict.
+      view = await service.setActive(saga, 'switch', view, named(view, '60 FPS'), true);
+      expect(active(view), {'60 FPS', 'Default 30 FPS', 'Dynamic Resolution Target 45 FPS'});
+      expect(MelonxEnhancementAdapter.engineRefresh(view.items), 60);
+      expect(await launch(), 60);
+      final refresh = (await service.store.game('melonx:$_saga'))!.data['refresh'] as Map;
+      expect(refresh[_sagaBuild], {'hz': 60, 'program': _saga.toLowerCase(), 'keys': ['$_sagaBuild-<60 FPS Cheat>']});
+    });
+
+    test('a refresh recorded before the flags is recomputed when the page opens', () async {
+      final service = serviceFor(_sagaBuild);
+      Future<int?> launch() => MelonxEnhancementAdapter.launchRefresh(
+        saga.romPath!,
+        states: service.store.all,
+        root: () async => root,
+        metadata: (_) async => {'titleId': _saga, 'buildId': _sagaBuild},
+        inspectUpdate: (_, _) async => throw StateError('none selected'),
+        supported: () async => true,
+      );
+      Future<void> recorded(Map<String, dynamic>? refresh) => service.store.transaction((games) async {
+        final data = games['melonx:$_saga']!.data;
+        refresh == null ? data.remove('refresh') : data['refresh'] = refresh;
+      });
+      Map<String, dynamic> target(int hz, List<String> names) => {
+        _sagaBuild: {'hz': hz, 'program': _saga.toLowerCase(), 'keys': [for (final name in names) '$_sagaBuild-<$name Cheat>']},
+      };
+      var view = await service.open(saga, 'switch', download: true);
+      view = await service.setActive(saga, 'switch', view, named(view, 'Dynamic Resolution Target 45 FPS'), true);
+
+      // What the previous build recorded for that code: 45 Hz at every launch, though the page said nothing.
+      await recorded(target(45, ['Dynamic Resolution Target 45 FPS']));
+      expect(await launch(), 45);
+      view = await service.open(saga, 'switch', download: true);
+      expect(await launch(), isNull, reason: 'opening the page recomputes it from the flagged record');
+      expect((await service.store.game('melonx:$_saga'))!.data.containsKey('refresh'), isFalse);
+
+      // 60 FPS with Default 30 FPS: the previous build saw two targets and set none; 60 now applies.
+      view = await service.setActive(saga, 'switch', view, named(view, 'Default 30 FPS'), true);
+      view = await service.setActive(saga, 'switch', view, named(view, '60 FPS'), true);
+      await recorded(null);
+      expect(await launch(), isNull);
+      view = await service.open(saga, 'switch', download: true);
+      expect(await launch(), 60);
+
+      // A target that did not change keeps its record as written (the enable-list keys on disk).
+      final kept = target(60, ['60 FPS', 'Default 30 FPS']);
+      await recorded(kept);
+      await service.open(saga, 'switch', download: true);
+      expect((await service.store.game('melonx:$_saga'))!.data['refresh'], kept);
+
+      // Another build's stale target goes; the build whose target stays keeps the keys written for it (a code
+      // renamed by a later catalogue still names the file on disk).
+      final written = target(60, ['60 FPS (older name)']);
+      await recorded({...written, '0123456789ABCDEF': {'hz': 45, 'program': _saga.toLowerCase(), 'keys': <String>[]}});
+      await service.open(saga, 'switch', download: true);
+      expect((await service.store.game('melonx:$_saga'))!.data['refresh'], written);
+    });
+
+    test('a mod turned on before it was flagged 8 GB DRAM shows as on with its problem, and can be turned off', () async {
+      const name = '7680x4320 Docked v1.0.2 (USE 8GB DRAM MEMORY LAYOUT)';
+      // The catalogue before 23 November 2026 did not flag it.
+      final unflagged = {
+        ..._records,
+        _saga: {
+          ..._records[_saga]!,
+          'entries': [
+            for (final entry in _records[_saga]!['entries'] as List)
+              if ((entry as Map)['name'] == name) ({...entry}..remove('flags')) else entry,
+          ],
+        },
+      };
+      final store = EnhancementStore(root: () async => Directory(path.join(temp.path, 'store')));
+      EnhancementService serving(Map<String, Map<String, dynamic>> records, String cache) => EnhancementService(
+        catalog: fixtureCatalog(Directory(path.join(temp.path, cache)), {'melonx': records}),
+        store: store,
+        adapters: [
+          MelonxEnhancementAdapter(
+            root: () async => root,
+            metadata: (_) async => {'titleId': _saga, 'version': '1.0.2', 'buildId': _sagaBuild},
+            refreshSupported: () async => true,
+          ),
+        ],
+        texturesSupported: (_) => false,
+      );
+      final before = serving(unflagged, 'cache-before');
+      final after = serving(_records, 'cache-after');
+      var view = await before.open(saga, 'switch', download: true);
+      view = await before.setActive(saga, 'switch', view, named(view, name), true);
+      final patch = File(path.join(root.path, 'mods', 'contents', _saga.toLowerCase(), 'RewindBox', 'exefs',
+          '${named(view, name).id}-0.pchtxt'));
+      expect(patch.existsSync(), isTrue);
+
+      // Flagged now, and still applied by the engine: on, with its problem, never turned on again.
+      view = await after.open(saga, 'switch', download: true);
+      var dram = named(view, name);
+      expect((dram.status, dram.problem), (EnhancementStatus.active, EnhancementProblem.unsupportedSystem));
+      expect(view.activeCount, 1);
+      await expectLater(
+        after.setActive(saga, 'switch', view, dram, true),
+        throwsA(isA<EnhancementException>().having((e) => e.code, 'code', 'incompatible')),
+      );
+      view = await after.setActive(saga, 'switch', view, dram, false);
+      dram = named(view, name);
+      expect(dram.status, EnhancementStatus.incompatible);
+      expect(patch.existsSync(), isFalse, reason: 'turned off: its patch file is removed');
+      expect((await store.game('melonx:$_saga'))!.active, isEmpty);
+
+      // Any other change for the game drops it too, like a code made for another build.
+      view = await before.open(saga, 'switch', download: true);
+      view = await before.setActive(saga, 'switch', view, named(view, name), true);
+      view = await after.open(saga, 'switch', download: true);
+      view = await after.setActive(saga, 'switch', view, named(view, 'Bloom ON'), true);
+      expect(active(view), {'Bloom ON'});
+      expect(patch.existsSync(), isFalse);
+    });
+
+    test('two alternatives already on together stay on until the player turns one off', () async {
+      final service = serviceFor(_sagaBuild);
+      var view = await service.open(saga, 'switch', download: true);
+      view = await service.setActive(saga, 'switch', view, named(view, '60 FPS'), true);
+      // Saved before the alt groups existed (or chosen in the engine's own menu): both alternatives on.
+      await service.store.transaction((games) async => games['melonx:$_saga']!.active.add(named(view, '45 FPS').id));
+      view = await service.open(saga, 'switch', download: true);
+      expect(active(view), {'60 FPS', '45 FPS'});
+      // No silent choice: an unrelated change keeps both (the page warns on both rows); the player keeps one.
+      view = await service.setActive(saga, 'switch', view, named(view, 'Bloom ON'), true);
+      expect(active(view), {'60 FPS', '45 FPS', 'Bloom ON'});
+      view = await service.setActive(saga, 'switch', view, named(view, '45 FPS'), false);
+      expect(active(view), {'60 FPS', 'Bloom ON'});
+    });
+
+    test('flags reach the payload; a mod that needs the 8 GB DRAM layout cannot be turned on', () async {
+      final service = serviceFor(_sagaBuild);
+      final view = await service.open(saga, 'switch', download: true);
+      expect(named(view, 'AA High (Crash If TAAU ON)').payload['flags'], ['crashRisk']);
+      expect(named(view, 'Docked RRS 240% (4K 2160p)').payload['flags'], ['heavy']);
+      expect(named(view, 'Default 30 FPS').payload['flags'], ['default', 'noRefresh']);
+      expect(named(view, 'Bloom ON').payload.containsKey('flags'), isFalse);
+
+      final dram = named(view, '7680x4320 Docked v1.0.2 (USE 8GB DRAM MEMORY LAYOUT)');
+      expect(dram.payload['flags'], ['dram8gb', 'heavy']);
+      expect(dram.author, 'Fl4sh9174');
+      expect(dram.status, EnhancementStatus.incompatible, reason: 'made for this build, but RewindBox has no 8 GB layout');
+      expect(dram.problem, EnhancementProblem.unsupportedSystem);
+      await expectLater(
+        service.setActive(saga, 'switch', view, dram, true),
+        throwsA(isA<EnhancementException>().having((e) => e.code, 'code', 'incompatible')),
+      );
+      expect(MelonxEnhancementAdapter.unmatchedBuild(view.items), isNull);
+      // Without the engine's build too.
+      final unknown = await serviceFor(null).open(saga, 'switch', download: true);
+      expect(named(unknown, dram.name).problem, EnhancementProblem.unsupportedSystem);
+
+      // Only codes made for another build make the page say none is for the installed game.
+      EnhancementItem measured(EnhancementProblem problem) => EnhancementItem(
+        id: problem.name,
+        engine: EnhancementEngine.melonx,
+        category: EnhancementCategory.graphics,
+        name: problem.name,
+        sourceId: 'fixture',
+        status: EnhancementStatus.incompatible,
+        problem: problem,
+        payload: const {'installedBuild': _sagaLatest, 'builds': [_sagaBuild]},
+      );
+      expect(MelonxEnhancementAdapter.unmatchedBuild([measured(EnhancementProblem.versionMismatch)]), isNotNull);
+      expect(
+        MelonxEnhancementAdapter.unmatchedBuild([
+          measured(EnhancementProblem.versionMismatch),
+          measured(EnhancementProblem.unsupportedSystem),
+        ]),
+        isNull,
+      );
+    });
+
+    test('update numbers read as updates; codes only for older versions are marked, never blocked', () async {
+      expect(MelonxEnhancementAdapter.updateIndex(0), 0, reason: 'the game itself');
+      expect(MelonxEnhancementAdapter.updateIndex(393216), 6);
+      expect(MelonxEnhancementAdapter.updateIndex(65537), isNull);
+      final releases = MelonxEnhancementAdapter.releasesOf(_records[_saga]!, _saga);
+      expect(releases[_sagaOld], [65536, '1.0.1']);
+      String updateName(int update) => update == 0 ? 'Base' : 'U${update >> 16}';
+      expect(MelonxEnhancementAdapter.describeBuilds([_sagaOld, _sagaBuild], releases, updateName: updateName),
+          '$_sagaOld (U1, 1.0.1), $_sagaBuild (U2)');
+      expect(MelonxEnhancementAdapter.describeBuilds([_sagaOld, _sagaBuild], releases), '$_sagaOld (1.0.1), $_sagaBuild',
+          reason: 'no English label in the adapter: the page names the updates');
+      expect(MelonxEnhancementAdapter.describeBuilds(['A', 'B'], {'A': [0, 65536, 131072, 196608, '1.0.0'], 'B': ['x']},
+          updateName: updateName), 'A (Base, U1, U2, U3), B (x)', reason: 'four labels at most');
+      final latest = MelonxEnhancementAdapter.latestOf(_records[_saga]!, _saga)!;
+      expect((latest.update, latest.build, latest.display), (196608, _sagaLatest, '1.0.3'));
+      final updates = MelonxEnhancementAdapter.updatesOf(_records[_saga]!, _saga);
+      expect(MelonxEnhancementAdapter.olderOnly([_sagaOld, _sagaBuild], updates, latest), isTrue);
+      expect(MelonxEnhancementAdapter.olderOnly([_sagaBuild, _sagaLatest], updates, latest), isFalse);
+      expect(MelonxEnhancementAdapter.olderOnly([_sagaBuild, _sagaUnknown], updates, latest), isFalse,
+          reason: 'a build without an update number may be newer');
+      expect(MelonxEnhancementAdapter.olderOnly([_sagaOld], updates, null), isFalse);
+
+      // The installed build is the update-2 build: an older code still applies to it.
+      final view = await serviceFor(_sagaBuild).open(saga, 'switch', download: true);
+      final hp = named(view, 'Infinite HP');
+      expect(hp.status, EnhancementStatus.available);
+      expect(hp.payload['olderThan'], {'update': 196608, 'display': '1.0.3'});
+      expect(hp.compatibility, 'Title ID $_saga · Build ID $_sagaBuild, $_sagaOld (1.0.1) · installed $_sagaBuild');
+      expect(hp.payload['releases'], {_sagaOld: [65536, '1.0.1'], _sagaBuild: [131072]});
+      expect(MelonxEnhancementAdapter.compatibilityOf(hp.payload, updateName: updateName),
+          'Title ID $_saga · Build ID $_sagaBuild (U2), $_sagaOld (U1, 1.0.1) · installed $_sagaBuild');
+      expect(named(view, 'Max Gold').payload.containsKey('olderThan'), isFalse, reason: 'made for the newest build too');
+      expect(named(view, 'Max EXP').payload.containsKey('olderThan'), isFalse);
+      expect(named(view, '7680x4320 Docked v1.0.2 (USE 8GB DRAM MEMORY LAYOUT)').payload['olderThan'], isNotNull,
+          reason: 'an exefs mod is marked the same way');
     });
   });
 }

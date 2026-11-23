@@ -109,4 +109,52 @@ void main() {
     await service.restore(view.identity.storeKey);
     expect(revision.readAsStringSync(), contains('[Gecko_Disabled]\n\$16:9 Widescreen'));
   });
+
+  test("the catalogue's flags reach the item for the page's warnings", () async {
+    final fixture = EnhancementService(
+      catalog: fixtureCatalog(Directory(path.join(temp.path, 'fixture')), {
+        'dolphin': {
+          'GGTE01': {
+            'title': 'Chibi-Robo!',
+            'defaults': <String, dynamic>{},
+            'entries': [
+              {
+                'id': 'experimental-60fps',
+                'cat': 'fps',
+                'name': 'Experimental 60fps',
+                'label': 'Experimental 60fps [Minty Meeo]',
+                'kind': 'gecko',
+                'source': 'dolphin-gamesettings',
+                'group': '',
+                'flags': ['experimental'],
+              },
+              {
+                'id': 'widescreen',
+                'cat': 'ultrawide',
+                'name': '16:9 Widescreen',
+                'label': '16:9 Widescreen',
+                'kind': 'gecko',
+                'source': 'dolphin-gamesettings',
+                'group': '',
+              },
+            ],
+          },
+        },
+      }),
+      store: EnhancementStore(root: () async => Directory(path.join(temp.path, 'store'))),
+      adapters: [
+        DolphinEnhancementAdapter(
+          userDirectory: () async => user,
+          nativeIdentity: (gamePath, system) async => {'system': system, 'gameId': 'GGTE01'},
+        ),
+      ],
+      texturesSupported: (_) => false,
+    );
+    final rom = File(path.join(temp.path, 'chibi.iso'))..writeAsBytesSync([0]);
+    final view = await fixture.open(testGame(name: 'Chibi-Robo!', romPath: rom.path), 'gc', download: true);
+    final fps = view.items.firstWhere((item) => item.name == 'Experimental 60fps');
+    expect(fps.payload['flags'], ['experimental']);
+    expect(fps.payload['kind'], 'gecko');
+    expect(view.items.firstWhere((item) => item.name == '16:9 Widescreen').payload.containsKey('flags'), isFalse);
+  });
 }

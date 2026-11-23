@@ -583,7 +583,7 @@
   },
   "system": "3ds",
   "engine": "azahar",
-  "availability": "manual",
+  "availability": "available",
   "install": {
    "folders": [
     {
@@ -644,7 +644,7 @@
   },
   "system": "3ds",
   "engine": "azahar",
-  "availability": "manual",
+  "availability": "available",
   "install": {
    "folders": [
     {
@@ -701,7 +701,7 @@
   },
   "system": "3ds",
   "engine": "azahar",
-  "availability": "manual",
+  "availability": "available",
   "install": {
    "folders": [
     {
@@ -758,7 +758,7 @@
   },
   "system": "3ds",
   "engine": "azahar",
-  "availability": "manual",
+  "availability": "available",
   "install": {
    "folders": [
     {

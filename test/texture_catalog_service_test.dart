@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neo_texture_catalog/neo_texture_catalog.dart';
 import 'package:neostation/l10n/texture_catalog_locale.dart';
+import 'package:neostation/models/game_model.dart';
+import 'package:neostation/models/system_model.dart';
 import 'package:neostation/services/libretro_internal_service.dart';
 import 'package:neostation/services/texture_catalog_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -78,6 +81,65 @@ void main() {
     expect(await LibretroInternalService.coreChoiceFor('nes', 'Contra (USA).nes'), 'mesen');
     expect(await LibretroInternalService.coreChoiceFor('snes', 'Game (USA).sfc'), isNull);
     expect((await SharedPreferences.getInstance()).getKeys().length, 2);
+  });
+
+  test('the default engine of a system clears the game\'s choice: Beetle PSX HW for a PS1 pack, Nestopia again', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    // A PS1 game set to Beetle PSX (software renderer): switching its pack on asks for Beetle PSX HW,
+    // the system's default, recorded as the Emulator settings record it (no choice).
+    await LibretroInternalService.setCoreChoice('ps1', 'Castle (USA).cue', 'mednafen_psx');
+    expect(await TextureCatalogService.selectCore('ps1/Castle (USA).cue', 'mednafen_psx_hw'), isTrue);
+    expect(await LibretroInternalService.coreChoiceFor('ps1', 'Castle (USA).cue'), isNull);
+    // Offered back once the game's last pack is deleted.
+    expect(await TextureCatalogService.selectCore('ps1/Castle (USA).cue', 'mednafen_psx'), isTrue);
+    expect(await LibretroInternalService.coreChoiceFor('ps1', 'Castle (USA).cue'), 'mednafen_psx');
+    // An NES game RewindBox moved to Mesen for a pack returns to Nestopia, the default.
+    expect(await TextureCatalogService.selectCore('nes/Contra (USA).nes', 'mesen'), isTrue);
+    expect(await TextureCatalogService.selectCore('nes/Contra (USA).nes', 'nestopia'), isTrue);
+    expect(await LibretroInternalService.coreChoiceFor('nes', 'Contra (USA).nes'), isNull);
+    // Another system's default is refused and changes nothing.
+    expect(await TextureCatalogService.selectCore('ps1/Castle (USA).cue', 'nestopia'), isFalse);
+    expect(await TextureCatalogService.selectCore('nes/Contra (USA).nes', 'mednafen_psx_hw'), isFalse);
+    expect(await LibretroInternalService.coreChoiceFor('ps1', 'Castle (USA).cue'), 'mednafen_psx');
+    expect(await LibretroInternalService.coreChoiceFor('nes', 'Contra (USA).nes'), isNull);
+    expect((await SharedPreferences.getInstance()).getKeys().length, 1);
+  });
+
+  test('a PS1 game\'s page carries the engine it starts with', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    TextureCatalogService.debugIsIOS = true;
+    final root = await Directory.systemTemp.createTemp('texture_catalog_service_');
+    addTearDown(() => root.delete(recursive: true));
+    const paths = MethodChannel('plugins.flutter.io/path_provider');
+    messenger.setMockMethodCallHandler(paths, (_) async => root.path);
+    addTearDown(() => messenger.setMockMethodCallHandler(paths, null));
+    final opened = <Map<Object?, Object?>>[];
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'open') opened.add(Map<Object?, Object?>.from(call.arguments as Map));
+      return true;
+    });
+    GameModel game(String romname, String folder) => GameModel(romname: romname, realname: romname, name: romname, year: '',
+        developer: '', publisher: '', genre: '', players: '', rating: 0, romPath: '/roms/$folder/$romname');
+    const ps1 = SystemModel(id: 'ps1', folderName: 'ps1', realName: 'PlayStation', iconImage: '', color: '#000000');
+    final castle = game('Castle (USA).cue', 'ps1');
+    expect(await TextureCatalogService.openGame(system: ps1, game: castle), isTrue);
+    expect(opened.single['system'], 'ps1');
+    expect(opened.single['gameKey'], 'ps1/Castle (USA).cue');
+    // Beetle PSX HW, the system's default, reads the pack.
+    expect(opened.single['libretroCore'], 'mednafen_psx_hw');
+    // Set to Beetle PSX (software renderer), which replaces no texture: the page says so and offers Beetle PSX HW.
+    await LibretroInternalService.setCoreChoice('ps1', 'Castle (USA).cue', 'mednafen_psx');
+    expect(await TextureCatalogService.openGame(system: ps1, game: castle), isTrue);
+    expect(opened.last['libretroCore'], 'mednafen_psx');
+    // The NES page names the game's engine as before; a PSP game has one engine and names none.
+    const nes = SystemModel(id: 'nes', folderName: 'nes', realName: 'NES', iconImage: '', color: '#000000');
+    expect(await TextureCatalogService.openGame(system: nes, game: game('Contra (USA).nes', 'nes')), isTrue);
+    expect(opened.last['libretroCore'], 'nestopia');
+    const psp = SystemModel(id: 'psp', folderName: 'psp', realName: 'PSP', iconImage: '', color: '#000000');
+    expect(await TextureCatalogService.openGame(system: psp, game: game('Stories (Europe).iso', 'psp')), isTrue);
+    expect(opened.last['system'], 'psp');
+    expect(opened.last.containsKey('libretroCore'), isFalse);
+    expect(opened.length, 4);
   });
 
   test('the native page asks for Mesen through the plugin channel', () async {

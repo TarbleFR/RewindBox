@@ -15,7 +15,9 @@ int main(int argc, char** argv) {
   else return 64;
   std::string folder = r.folder;  // an N64 ROM name has spaces: printed as "+" (one field per word)
   for (char& c : folder) if (c == ' ') c = '+';
-  std::printf("value=%s folder=%s revision=%s crc=%s region=%s format=%s problem=%s\n", r.value.c_str(), folder.c_str(),
-              r.revision.c_str(), r.crc.c_str(), r.region.c_str(), r.format.c_str(), r.problem.c_str());
+  // type and scheme: the pair the catalogue matches on (type|scheme), as the app indexes it.
+  std::printf("system=%s type=%s scheme=%s value=%s folder=%s revision=%s crc=%s region=%s format=%s problem=%s\n", r.system.c_str(),
+              r.type.c_str(), r.scheme.c_str(), r.value.c_str(), folder.c_str(), r.revision.c_str(), r.crc.c_str(), r.region.c_str(),
+              r.format.c_str(), r.problem.c_str());
   return r.ok() ? 0 : 1;
 }

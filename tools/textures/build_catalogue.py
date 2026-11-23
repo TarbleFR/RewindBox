@@ -18,7 +18,8 @@ page), and the app's own installer put real textures into the engine's
 layout. Its size and SHA-256 are the ones measured; nothing is re-hosted.
 A pack whose author does not publish a file the app can fetch is "manual"
 (page link). A pack whose verification failed is listed as manual with the
-reason, or left out when its file is gone.
+reason, or left out when its file is gone. A source's own "availability" is
+only what its reviewer expects: generation fails when it is not the published one.
 
 A pack published on a file host (download.verify in its source) normally
 stays a page link. When CI fetched the author's file and installed it with
@@ -58,6 +59,22 @@ ENGINE = {'ps2': 'armsx2', 'gc': 'dolphin', 'wii': 'dolphin', 'psp': 'ppsspp', '
           'ps1': 'beetle', 'nes': 'mesen'}
 KEEP = ('id', 'system', 'systems', 'engine', 'title', 'version', 'games', 'authors', 'page_url', 'source_id',
         'licence', 'credits', 'requirements', 'notes')
+# Exact identities, stricter than the app's token rule (which keeps a malformed ID that can never match):
+# the identity each system's packs must name, and the forms the app reads from a game.
+IDENTITY_SCHEMES = {'3ds': ('title_id', '3ds-title-id'), 'ps1': ('serial', 'ps1-disc-serial'),
+                    'psp': ('disc_id', 'psp-param-sfo-disc-id')}
+# A base title Azahar names its load/textures folder after (%016X): an application (00040000) or a
+# demo (00040002). Updates (0004000E) and DLC (0004008C) are not games (NeoTextureIdentity.h).
+TITLE_ID = re.compile(r'^0004000[02][0-9A-F]{8}$')
+# The SYSTEM.CNF BOOT serial as the app reads it (NeoTextureIdentity.h PS1).
+PS1_SERIAL = re.compile(r'^[A-Z]{4}-[0-9]{5}$')
+# The PARAM.SFO DISC_ID as the app reads it and names PPSSPP's folder after (NeoTextureIdentity.h PSP).
+PSP_DISC_ID = re.compile(r'^[A-Z]{4}[0-9]{5}$')
+# The region the app gives a PS1 serial prefix (NeoTextureIdentity.h PS1 and PS2Region).
+PS1_REGIONS = {**dict.fromkeys(('SLUS', 'SCUS', 'SLUD', 'SCUD'), 'USA'),
+               **dict.fromkeys(('SLES', 'SCES', 'SLED', 'SCED'), 'Europe'),
+               **dict.fromkeys(('SLPS', 'SLPM', 'SCPS', 'SCPM', 'SIPS', 'SLAJ', 'SCAJ', 'PAPX', 'PCPX'), 'Japan'),
+               **dict.fromkeys(('SLKA', 'SCKA'), 'Korea')}
 # Verification problems that leave a usable page for the user (the file exists but
 # the installers cannot take it as published): listed as manual with the reason.
 MANUAL_REASONS = {
@@ -380,7 +397,11 @@ def serialize(index):
 
 
 def validate(index):
-    """The same rules as NeoTextureCatalog +validatedIndex: a pack the app would reject fails here."""
+    """The same rules as NeoTextureCatalog +validatedIndex: a pack the app would reject fails here.
+
+    Publication rules stricter than the app's: the exact identity forms of 3DS, PS1 and PSP packs, PS1
+    regions that agree with their serial prefixes, and install folders the engine reads (Beetle: the
+    loaded game's own folder; Azahar: one of the pack's title IDs)."""
     https = re.compile(r'^https://[^\s]+$')
     sha = re.compile(r'^[0-9a-f]{64}$')
     token = re.compile(r'^[A-Za-z0-9._-]{1,120}$')
@@ -394,8 +415,11 @@ def validate(index):
             fail(f'{where}: page, authors or games')
         if any(not a or len(a) > 120 for a in pack['authors']):
             fail(f'{where}: author')
+        if ENGINE.get(pack['system']) != pack['engine']:
+            fail(f'{where}: engine {pack["engine"]} does not run {pack["system"]}')
         if pack.get('systems') and (pack['system'] not in pack['systems'] or any(ENGINE[s] != pack['engine'] for s in pack['systems'])):
             fail(f'{where}: systems')
+        scheme = IDENTITY_SCHEMES.get(pack['system'])
         for game in pack['games']:
             if not game.get('title') or not game.get('identities') or len(game['identities']) > 16:
                 fail(f'{where}: game')
@@ -404,6 +428,24 @@ def validate(index):
                     fail(f'{where}: identity type/scheme')
                 if not re.match(r'^[A-Za-z0-9-]{1,40}$', identity['value']):
                     fail(f'{where}: identity value {identity["value"]}')
+                if scheme and (identity['type'], identity['scheme']) != scheme:
+                    fail(f'{where}: {pack["system"]} identity {identity["type"]}/{identity["scheme"]}, expected {"/".join(scheme)}')
+                if identity['scheme'] == '3ds-title-id' and not TITLE_ID.match(identity['value']):
+                    fail(f'{where}: 3DS title ID {identity["value"]} is not 16 upper-case hex digits of an application '
+                         '(00040000) or a demo (00040002)')
+                if identity['scheme'] == 'ps1-disc-serial' and not PS1_SERIAL.match(identity['value']):
+                    fail(f'{where}: PS1 serial {identity["value"]} is not in the form SLUS-00067')
+                if identity['scheme'] == 'psp-param-sfo-disc-id' and not PSP_DISC_ID.match(identity['value']):
+                    fail(f'{where}: PSP disc ID {identity["value"]} is not four letters and five digits (ULUS10041)')
+            if pack['system'] == 'ps1' and game.get('regions'):
+                # The app matches a disc exactly only in a declared region, the one its serial prefix gives.
+                serials = {identity['value']: PS1_REGIONS.get(identity['value'][:4]) for identity in game['identities']}
+                unknown = sorted(serial for serial, region in serials.items() if not region)
+                if unknown:
+                    fail(f'{where}: no region is known for the prefix of {", ".join(unknown)}: declare no regions for {game["title"]}')
+                if not isinstance(game['regions'], list) or set(game['regions']) != set(serials.values()):
+                    fail(f'{where}: regions {game["regions"]} of {game["title"]} disagree with its serials '
+                         f'({", ".join(f"{serial} {region}" for serial, region in sorted(serials.items()))})')
         download = pack['download']
         verified = download.get('verified')
         if verified is not None:
@@ -448,6 +490,8 @@ def validate(index):
             if not 0 < install['files'] <= 2000000 or not 0 < install['bytes'] <= 256 << 30 or not 1 <= len(install['folders']) <= 16:
                 fail(f'{where}: install totals')
             targets = set()
+            own = {folder_id('azahar', identity) for game in pack['games'] for identity in game['identities']} \
+                if pack['engine'] == 'azahar' else set()
             for folder in install['folders']:
                 if folder['from'] and not folder['from'].endswith('/'):
                     fail(f'{where}: from {folder["from"]}')
@@ -455,11 +499,29 @@ def validate(index):
                 if not 1 <= len(parts) <= 2 or any(p in ('', '.', '..') for p in parts) or folder['to'].lower() in targets:
                     fail(f'{where}: to {folder["to"]}')
                 targets.add(folder['to'].lower())
+                # Beetle reads only <content name>-texture-replacements of the loaded game; Azahar one folder per title ID.
+                if pack['engine'] == 'beetle' and folder['to'] != '{id}':
+                    fail(f'{where}: to {folder["to"]}: a Beetle pack installs into the folder of the game it is chosen for ({{id}})')
+                if pack['engine'] == 'azahar' and '{id}' not in folder['to'] and folder['to'] not in own:
+                    fail(f'{where}: to {folder["to"]} is not one of its title IDs ({", ".join(sorted(own))})')
                 for prefix in folder.get('exclude', []):
                     if not prefix.endswith('/'):
                         fail(f'{where}: exclude {prefix}')
     if len(index['packs']) > 5000:
         fail('too many packs')
+
+
+def declared_availability(entries, index):
+    """Sources whose declared availability is not the one published.
+
+    The build decides availability from the download and its verification record; a source's
+    "availability" only states what its reviewer expects. A stale one (a pack declared manual that
+    installs in one tap, or the reverse) misleads the next review. Entries left out of the index
+    (failed or pending verification) publish nothing to compare."""
+    published = {pack['id']: pack['availability'] for pack in index['packs']}
+    return [f'{entry["id"]} declares {entry["availability"]}, published {published[entry["id"]]}'
+            for entry in entries if 'availability' in entry and entry['id'] in published and
+            entry['availability'] != published[entry['id']]]
 
 
 CONSOLE_NAMES = {'ps2': 'PlayStation 2 (ARMSX2)', 'gc': 'GameCube (Dolphin)', 'wii': 'Wii (Dolphin)',
@@ -593,6 +655,9 @@ def main():
     if pending and not args.allow_pending:
         fail('unverified automatable packs: ' + ', '.join(pending))
     validate(index)
+    contradictions = declared_availability(entries, index)
+    if contradictions:
+        fail('declared availability differs from the published one, correct the source: ' + '; '.join(contradictions))
     data, compressed = serialize(index)
     if len(data) > 16 << 20 or len(compressed) > 4 << 20:
         fail('index too large for the app')

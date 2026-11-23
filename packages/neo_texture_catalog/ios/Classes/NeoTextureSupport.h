@@ -32,7 +32,11 @@ NSString *NeoTexCanonicalSystem(id _Nullable system);
 /// The N64 ROM header name a catalogue identity writes in hexadecimal
 /// (n64-rom-name-hex), when it is a usable folder name; nil otherwise.
 NSString *_Nullable NeoTexN64RomName(NSString *_Nullable hex);
-/// type|scheme -> set of upper-case values (PS2 serials without separators).
+/// The type the catalogue gives an identity of this scheme. The reader typed PSP disc IDs
+/// "game_id" in earlier builds and identities.json keeps what it read (its key has no version):
+/// psp-param-sfo-disc-id is disc_id whatever it says; other schemes keep their type.
+NSString *NeoTexIdentityType(NSString *scheme, NSString *type);
+/// type|scheme -> set of upper-case values (PS2 serials without separators), types as NeoTexIdentityType.
 NSDictionary<NSString *, NSSet<NSString *> *> *NeoTexTypedIdentities(id _Nullable identities);
 NSSet<NSString *> *NeoTexRegions(id _Nullable regions);
 /// Lower case, no diacritics, punctuation or bracketed region tags.
@@ -60,6 +64,14 @@ NSString *NeoTexRegistryPath(void);
 void NeoTexSetRegistryPath(NSString *_Nullable path);
 NSDictionary *_Nullable NeoTexRegistryEntry(NSString *engine, NSString *folder);
 void NeoTexRegistrySet(NSString *engine, NSString *folder, NSDictionary *_Nullable entry);
+
+/// Per-game switches RewindBox turned on itself when it installed a pack (a libretro engine's
+/// option, per game key), in the same file under "switched_on": engine + the game's own pack
+/// folder -> {game key: {at, core}}, "core" being the libretro core the game started with before
+/// RewindBox selected the pack's engine for it. Never a switch the player set: the page drops a
+/// game's record when the player switches it.
+NSDictionary<NSString *, NSDictionary *> *NeoTexSwitchedOn(NSString *engine, NSString *folder);
+void NeoTexSetSwitchedOn(NSString *engine, NSString *folder, NSString *gameKey, NSDictionary *_Nullable record);
 
 #ifdef __cplusplus
 }

@@ -701,3 +701,38 @@ PT.update({
     'engineNotice.mesen': 'Os pacotes HD de NES são lidos pelo motor Mesen; os feitos para o Mesen 2 (um formato acima de 106) não. O motor de um jogo pode ser trocado nos ajustes dele (Emulador).',
     'importHelp.mesen': 'Use um pacote HD do Mesen feito para este arquivo ROM: hires.txt com suas imagens PNG (um ZIP, 7z, RAR ou pasta). Instalado em {folder}.',
 })
+
+# A PS1 game set to Beetle PSX (software renderer) moves to Beetle PSX HW for its pack; once the
+# last pack RewindBox switched on is deleted, the game is offered its earlier engine back.
+ES.update({
+    'activation.beetleHWEngine': 'Al activarlo, este juego también se iniciará con Beetle PSX HW: Beetle PSX, el renderizado por software elegido para este juego, no reemplaza ninguna textura.',
+    'error.beetleHWNotSelected': 'No se pudo elegir Beetle PSX HW para este juego. Elige Beetle PSX HW en los ajustes del juego (Emulador) y luego activa el paquete.',
+    'restoreCoreTitle': '¿Volver al motor anterior?',
+    'restoreCoreMessage': 'RewindBox había hecho que este juego se iniciara con {engine} para leer su paquete HD, ya eliminado. Antes se iniciaba con {core}: ¿volver a iniciarlo con {core}?',
+    'restoreCoreAction': 'Usar {core}',
+    'error.coreNotSelected': 'No se pudo cambiar el motor del juego. Elígelo en los ajustes del juego (Emulador).',
+})
+DE.update({
+    'activation.beetleHWEngine': 'Beim Einschalten startet dieses Spiel auch mit Beetle PSX HW: Beetle PSX, der für dieses Spiel gewählte Software-Renderer, ersetzt keine Texturen.',
+    'error.beetleHWNotSelected': 'Beetle PSX HW konnte für dieses Spiel nicht gewählt werden. Wähle Beetle PSX HW in den Spieleinstellungen (Emulator) und schalte dann das Paket ein.',
+    'restoreCoreTitle': 'Zur vorherigen Engine zurückkehren?',
+    'restoreCoreMessage': 'RewindBox hatte dieses Spiel mit {engine} starten lassen, um sein inzwischen gelöschtes HD-Paket zu lesen. Vorher startete es mit {core}: wieder mit {core} starten?',
+    'restoreCoreAction': '{core} verwenden',
+    'error.coreNotSelected': 'Die Engine des Spiels konnte nicht geändert werden. Wähle sie in den Spieleinstellungen (Emulator).',
+})
+IT.update({
+    'activation.beetleHWEngine': 'Attivandolo, questo gioco si avvierà anche con Beetle PSX HW: Beetle PSX, il rendering software scelto per questo gioco, non sostituisce alcuna texture.',
+    'error.beetleHWNotSelected': 'Impossibile scegliere Beetle PSX HW per questo gioco. Scegli Beetle PSX HW nelle impostazioni del gioco (Emulatore), poi attiva il pacchetto.',
+    'restoreCoreTitle': 'Tornare al motore precedente?',
+    'restoreCoreMessage': 'RewindBox aveva fatto avviare questo gioco con {engine} per leggere il suo pacchetto HD, ora eliminato. Prima si avviava con {core}: avviarlo di nuovo con {core}?',
+    'restoreCoreAction': 'Usa {core}',
+    'error.coreNotSelected': 'Impossibile cambiare il motore del gioco. Sceglilo nelle impostazioni del gioco (Emulatore).',
+})
+PT.update({
+    'activation.beetleHWEngine': 'Ao ativar, este jogo também passa a iniciar com o Beetle PSX HW: o Beetle PSX, renderizador por software escolhido para este jogo, não substitui nenhuma textura.',
+    'error.beetleHWNotSelected': 'Não foi possível escolher o Beetle PSX HW para este jogo. Escolha o Beetle PSX HW nos ajustes do jogo (Emulador) e depois ative o pacote.',
+    'restoreCoreTitle': 'Voltar ao motor anterior?',
+    'restoreCoreMessage': 'O RewindBox tinha feito este jogo iniciar com o {engine} para ler o pacote HD dele, agora excluído. Antes ele iniciava com o {core}: iniciar com o {core} de novo?',
+    'restoreCoreAction': 'Usar {core}',
+    'error.coreNotSelected': 'Não foi possível trocar o motor do jogo. Escolha-o nos ajustes do jogo (Emulador).',
+})

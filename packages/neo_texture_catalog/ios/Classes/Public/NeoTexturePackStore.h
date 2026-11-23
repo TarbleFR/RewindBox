@@ -114,6 +114,18 @@ typedef NSDictionary<NSString *, id> NeoTextureInstalled;
 - (void)removeInstalled:(NeoTextureInstalled *)installed
                  engine:(id<NeoTextureEngine>)engine
              completion:(void (^)(NSError *_Nullable error))completion;
+/// Same, with what the removal changed besides the folder: {switchedOff: [gameKey],
+/// cores: [{gameKey, core}]}. The per-game switch RewindBox turned on when it installed
+/// a pack for a game is turned off again once no pack is left in that game's folder;
+/// a switch the player set is never changed. "cores": the libretro core such a game
+/// started with before RewindBox selected the pack's engine for it (Nestopia before
+/// Mesen), for the page to offer back (-[NeoTextureEngine selectLibretroCore:identity:]).
+- (void)removeInstalled:(NeoTextureInstalled *)installed
+                 engine:(id<NeoTextureEngine>)engine
+                outcome:(void (^)(NSDictionary *_Nullable result, NSError *_Nullable error))completion;
+/// The player switched HD textures on or off for this game: no removal changes that
+/// switch afterwards. Off the main thread.
+- (void)switchSetByPlayerForIdentity:(NSDictionary *)identity engine:(id<NeoTextureEngine>)engine;
 
 /// Size and SHA-256 verification of a downloaded file, streamed.
 + (nullable NSString *)sha256OfFile:(NSString *)path size:(unsigned long long *_Nullable)size;

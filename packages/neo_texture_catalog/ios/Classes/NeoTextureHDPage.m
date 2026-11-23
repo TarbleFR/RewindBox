@@ -92,6 +92,14 @@ static NSString *Fill(NSString *text, NSDictionary *values) {
   return text;
 }
 
+// The names the app gives the libretro cores a game is moved between for a pack (and the Beetle
+// PSX HW adapter's own ID); nil for any other.
+static NSString *CoreName(NSString *core) {
+  NSDictionary *names = @{@"nestopia": @"Nestopia", @"mesen": @"Mesen", @"mednafen_psx": @"Beetle PSX",
+                          @"mednafen_psx_hw": @"Beetle PSX HW", @"beetle": @"Beetle PSX HW"};
+  return names[NeoTexString(core)];
+}
+
 #pragma mark - Rows
 
 @interface NTRow : NSObject
@@ -135,6 +143,7 @@ static NSString *Fill(NSString *text, NSDictionary *values) {
 - (void)alert:(NSString *)title message:(NSString *)message;
 - (void)confirm:(NSString *)title message:(NSString *)message action:(NSString *)action destructive:(BOOL)destructive
            then:(void (^)(void))then;
+- (void)offerCoreAfterRemoval:(NSDictionary *)result engine:(id<NeoTextureEngine>)engine;
 @end
 @implementation NeoTextureTablePage
 - (NSString *)t:(NSString *)key { return Text(key, self.locale); }
@@ -217,6 +226,30 @@ static NSString *Fill(NSString *text, NSDictionary *values) {
   [alert addAction:[UIAlertAction actionWithTitle:action style:destructive ? UIAlertActionStyleDestructive : UIAlertActionStyleDefault
                                           handler:^(UIAlertAction *a) { then(); }]];
   [self presentViewController:alert animated:YES completion:nil];
+}
+// After a removal (-[NeoTexturePackStore removeInstalled:engine:outcome:]): a game RewindBox had
+// moved to the pack's engine when it switched the pack on (Mesen for an NES game, Beetle PSX HW for
+// a PS1 game set to Beetle PSX) is offered its earlier engine back; Nestopia also runs its cheats.
+// Never in a game, where the engine cannot be changed.
+- (void)offerCoreAfterRemoval:(NSDictionary *)result engine:(id<NeoTextureEngine>)engine {
+  id offers = result[@"cores"];
+  NSDictionary *offer = [offers isKindOfClass:NSArray.class] ? [offers firstObject] : nil;
+  NSString *gameKey = NeoTexString(offer[@"gameKey"]), *core = NeoTexString(offer[@"core"]);
+  NSString *name = CoreName(core), *current = CoreName(engine.engineID);
+  if (!gameKey.length || !name.length || !current.length || ![engine respondsToSelector:@selector(canSelectLibretroCore)] ||
+      ![engine canSelectLibretroCore] || ![engine respondsToSelector:@selector(selectLibretroCore:identity:)]) return;
+  __weak typeof(self) weakSelf = self;
+  [self confirm:[self t:@"restoreCoreTitle"] message:[self t:@"restoreCoreMessage" with:@{@"engine": current, @"core": name}]
+         action:[self t:@"restoreCoreAction" with:@{@"core": name}] destructive:NO then:^{
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+      // The app's core selector waits for its answer: never on the main thread.
+      const BOOL selected = [engine selectLibretroCore:core identity:@{@"gameKey": gameKey}];
+      dispatch_async(dispatch_get_main_queue(), ^{
+        NeoTextureTablePage *page = weakSelf;
+        if (!selected) [page alert:[page t:@"title"] message:[page t:@"error.coreNotSelected"]];
+      });
+    });
+  }];
 }
 @end
 
@@ -495,9 +528,11 @@ static NSString *HostName(NSString *host) {
     remove.run = ^{
       [weakSelf confirm:[weakSelf t:@"confirmRemoveTitle"] message:[weakSelf t:@"confirmRemoveMessage" with:@{@"folder": NeoTexString(installed[@"folder"])}]
                  action:[weakSelf t:@"remove"] destructive:YES then:^{
-        [NeoTexturePackStore.sharedStore removeInstalled:installed engine:weakSelf.engine completion:^(NSError *error) {
+        id<NeoTextureEngine> engine = weakSelf.engine;
+        [NeoTexturePackStore.sharedStore removeInstalled:installed engine:engine outcome:^(NSDictionary *result, NSError *error) {
           if (error) [weakSelf alert:[weakSelf t:@"title"] message:ErrorText(error, weakSelf.locale)];
           [weakSelf reload];
+          [weakSelf offerCoreAfterRemoval:result engine:engine];
         }];
       }];
     };
@@ -712,8 +747,11 @@ static NSString *AbsolutePath(id value) {
   // directory: PPSSPP's memory stick, and Azahar's user folder below it.
   if ([engineID isEqualToString:@"ppsspp"]) engine = [NeoTextureEngines ppssppWithSaveDirectory:[saves stringByAppendingPathComponent:@"PPSSPP"] configDirectory:config];
   else if ([engineID isEqualToString:@"azahar"]) engine = [NeoTextureEngines azaharWithUserDirectory:[saves stringByAppendingPathComponent:@"Azahar/Azahar"] configDirectory:config];
-  // Beetle reads its packs from its own save directory (HD Texture Folder "save").
-  else if ([engineID isEqualToString:@"beetle"]) engine = [NeoTextureEngines beetleWithSaveDirectory:[saves stringByAppendingPathComponent:@"Beetle PSX HW"] configDirectory:config];
+  // Beetle reads its packs from its own save directory (HD Texture Folder "save"); a game set to
+  // Beetle PSX (software renderer) is switched to Beetle PSX HW through the app's core selector.
+  else if ([engineID isEqualToString:@"beetle"])
+    engine = [NeoTextureEngines beetleWithSaveDirectory:[saves stringByAppendingPathComponent:@"Beetle PSX HW"] configDirectory:config
+                                           coreSelector:options[@"coreSelector"]];
   if (engine && (options[@"sessionReader"] || options[@"sessionWriter"]))
     [NeoTextureEngines setLibretroSessionReader:options[@"sessionReader"] writer:options[@"sessionWriter"] forEngine:engine];
   return engine;
@@ -1044,6 +1082,8 @@ static NSString *AbsolutePath(id value) {
   dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
     NSError *error = nil;
     const BOOL ok = [engine setActivation:on identity:identity error:&error];
+    // The player's own choice from now on: removing the game's last pack never turns it off.
+    if (ok) [NeoTexturePackStore.sharedStore switchSetByPlayerForIdentity:identity engine:engine];
     dispatch_async(dispatch_get_main_queue(), ^{
       if (!ok) [self alert:[self t:@"title"] message:ErrorText(error, self.locale)];
       [self reload];
@@ -1073,9 +1113,11 @@ static NSString *AbsolutePath(id value) {
   __weak typeof(self) weakSelf = self;
   [self confirm:[self t:@"confirmRemoveTitle"] message:[self t:@"confirmRemoveMessage" with:@{@"folder": NeoTexString(installed[@"folder"])}]
          action:[self t:@"remove"] destructive:YES then:^{
-    [NeoTexturePackStore.sharedStore removeInstalled:installed engine:weakSelf.engine completion:^(NSError *error) {
+    id<NeoTextureEngine> engine = weakSelf.engine;
+    [NeoTexturePackStore.sharedStore removeInstalled:installed engine:engine outcome:^(NSDictionary *result, NSError *error) {
       if (error) [weakSelf alert:[weakSelf t:@"title"] message:ErrorText(error, weakSelf.locale)];
       [weakSelf reload];
+      [weakSelf offerCoreAfterRemoval:result engine:engine];
     }];
   }];
 }

@@ -119,7 +119,7 @@ class Armsx2EnhancementAdapter extends EnhancementAdapter {
           author: entry['author']?.toString() ?? '',
           compatibility: '${identity.key} · CRC $crc',
           exclusiveGroup: entry['group']?.toString() ?? '',
-          payload: {'crc': crc, 'kind': cheat ? cheats : patches},
+          payload: {'crc': crc, 'kind': cheat ? cheats : patches, ...EnhancementFlags.payload(entry)},
         ),
       );
     }

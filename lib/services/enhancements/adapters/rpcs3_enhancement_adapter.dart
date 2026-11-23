@@ -132,6 +132,7 @@ class Rpcs3EnhancementAdapter extends EnhancementAdapter {
           compatibility: '${identity.key} · APP_VER ${versions.join(', ')}',
           version: entry['patch_version']?.toString() ?? '',
           exclusiveGroup: entry['group']?.toString() ?? '',
+          payload: EnhancementFlags.payload(entry),
         ),
       );
     }

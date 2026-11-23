@@ -28,6 +28,19 @@ static NSDictionary *Identity(NSString *system, NSString *type, NSString *scheme
   return identity;
 }
 
+// A cached identity as the catalogue types it: an entry an earlier build wrote types a PSP disc ID
+// "game_id" (NeoTexIdentityType), and the cache key has no version that would drop it.
+static NSArray *CanonicalIdentities(NSArray *identities) {
+  NSMutableArray *typed = [NSMutableArray array];
+  for (id entry in identities) {
+    if (![entry isKindOfClass:NSDictionary.class]) continue;
+    NSMutableDictionary *identity = [entry mutableCopy];
+    identity[@"type"] = NeoTexIdentityType(NeoTexString(identity[@"scheme"]), NeoTexString(identity[@"type"]));
+    [typed addObject:identity];
+  }
+  return typed;
+}
+
 @implementation NeoTextureIdentityReader
 
 + (void)setCachePath:(NSString *)path {
@@ -83,6 +96,7 @@ static NSDictionary *Identity(NSString *system, NSString *type, NSString *scheme
     if ([cached isKindOfClass:NSDictionary.class]) {
       if ([cached[@"problem"] isKindOfClass:NSString.class]) { if (problem) *problem = cached[@"problem"]; return nil; }
       NSMutableDictionary *identity = [cached mutableCopy];
+      if ([cached[@"identities"] isKindOfClass:NSArray.class]) identity[@"identities"] = CanonicalIdentities(cached[@"identities"]);
       if (title.length) identity[@"title"] = title;
       identity[@"path"] = path;
       return identity;

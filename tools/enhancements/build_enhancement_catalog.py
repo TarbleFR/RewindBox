@@ -36,6 +36,10 @@ that changes no shard publishes nothing.
 The first publication (`index.json.gz` and `shards/` at the root, record
 format 1) is frozen: the apps that bundle it do not read PS2 records by
 reference, and keep exactly what they have.
+
+A publication never drops an entry ID of the previous one unless
+ID_REMOVAL_ALLOWLIST names it with its reason; VALIDATION.json reports the
+IDs and keys each engine removed, added or moved (`drift`).
 """
 import argparse
 import collections
@@ -66,6 +70,9 @@ SHARDS_PER_ENGINE = 32
 #   2  PS2 records may point into their sources' files (`origin`, files with `parts`)
 #   3  Switch exefs patches may point to a source's .pchtxt file (`exefs: [{bid, o, size, sha256}]`)
 #   4  Switch pointers may select a named, bounded member of a pinned ZIP.
+# Optional fields an older app ignores keep the format: entry `flags` (every engine), Switch `author`, `notes`
+# and the record's `latest` update (23 November 2026). Switch `alt/` groups are ordinary `group` values: every
+# format-4 app applies them as exclusive groups.
 FORMAT = 4
 ENGINES = ('melonx', 'rpcs3', 'armsx2', 'dolphin', 'azahar')
 
@@ -365,6 +372,133 @@ def display_group(scope, name, category):
     return ''
 
 
+# ---------------------------------------------------------------- flags
+
+# One vocabulary for every engine (`flags`, sorted, only when not empty), read from the author's own words:
+# a flag repeats what a name, label, note or description says, never a measured effect.
+#   default       restores the game's own value (`Default 30 FPS`, `AA High (Default TAA)`, `Restore Code`), in
+#                 every console mode: never one mode's default (`(Docked's Default)`), which changes the other mode
+#   noRefresh     a frame-rate entry that does not raise the frame cap (`Dynamic Resolution Target 45 FPS`)
+#   experimental  experimental, WIP, beta or test code
+#   crashRisk     the author says it can crash or freeze the game (`Crash If TAAU ON`)
+#   heavy         renders 2160 lines or more (4K, 8K, 2160p, 3840x2160, 6880x2880)
+#   dram8gb       needs the expanded (8 GB) DRAM memory layout
+FLAGS = ('crashRisk', 'default', 'dram8gb', 'experimental', 'heavy', 'noRefresh')
+FLAG_DEFAULT = re.compile(
+    # `Default X`, `01. Default X`, `(v1.2.0) Default X`, an RPCS3 choice `— Default FOV(70)`; not a menu
+    r"(?:^(?:\(v[\d.]+\)\s*|[\d#№]+\s*[-.):]?\s*)?(?:new\s+)?|—\s*)defaults?\b"
+    r"(?!\s+(?:settings?|options?|menus?|screens?)\b)"
+    r"|\(\s*default\s*(?:[),]|$)|,\s*default\s*\)|\(\s*default\s+[a-z]\s*\)"  # (Default) (Default, alt) (alt, default)
+    r"|\bhandheld(?:'s)? (?:&|and|/) docked(?:'s)? default\b|\bdefault range\b"  # (Handheld's & Docked's Default)
+    r"|[\s-]default\s*(?:@\S+\s*)?$|\bdefault \(\d[^)]*\)\s*$|\breturns? (?:to )?default\b"
+    # `Restore Code`, `(Restore Code)`, `1(Restore Code)`, `MASTER OFF/RESTORE CODE`; not a note on another code
+    # (`60 FPS (Disable + Restore Code for 30FPS)`)
+    r"|^\W*(?:[\d#№]+\W*|\S+\s+)?(?:\w+/)?restore code\b", re.I)
+# `(Default TAA)` names the standard TAA method of a UE4 anti-aliasing choice (against `(Faster TAA)`), not the
+# game's setting. `2x default` is a multiplier, `Default HUD` a variant of an ultrawide mod, `(Default Resolution)` what a mod keeps.
+# A name that gives one console mode's default (`Default Handheld RRS 75% (540p)`, `(Docked's Default)`,
+# `Handheld/Default Docked`, `(720p Docked's Default)` beside handheld words) changes the game in the other mode;
+# MeloNX runs handheld unless the player docks it. Both modes (`Default Handheld/Docked RRS 100% (720p)`,
+# `(Handheld's & Docked's Default)`, `Default RSS 100% (720p HH, 1080p D)`) are the game's default.
+MODE_HANDHELD = re.compile(r"\bhand-?held\b|\bportable\b|\bundocked\b|(?-i:\bHH\b|\bH\.)", re.I)
+MODE_DOCKED = re.compile(r"\bdock(?:ed)?\b|\bTV\b|(?-i:\bD\.|(?<=\dp )D\b)", re.I)
+ONE_MODE_DEFAULT = re.compile(r"\w\W*\bdefault (?:for )?(?:hand-?held|dock(?:ed)?)\b"
+                              r"|(?<![&/] )(?<!and )\b(?:hand-?held|dock(?:ed)?)'s default\b", re.I)
+FLAG_NO_REFRESH = re.compile(r'\b(?:dynamic resolution|DR[ST])(?: target)? \d{2,3} ?fps\b|\bresolution target\b'
+                             r'|\bDR[ST] target\b|\bfps (?:counter|display|meter)\b|\b(?:show|display)\w* fps\b'
+                             r'|\bspeed fix for\b', re.I)
+# `Split screen untested` and `Always Gold License Test` say nothing of the code itself.
+FLAG_EXPERIMENTAL = re.compile(
+    r'\bexperimental\b|\bwip\b|\bwork in progress\b|\(\s*beta\s*\)|\bbeta\s*$|\bbeta (?:version|build)\b'
+    r'|\(\s*test\b[^)]*\)|\(\s*untested\s*\)|(?:^|[.!?]\s+)untested\b|\bnot (?:yet )?tested\b(?! with)'
+    r'|\bneeds? (?:further |more )?testing\b', re.I)
+# Read per sentence. `Crash Mode` (Burnout), `Infinite Crash Guard`, `Version 3.0 Fixes Crash in ...` and
+# `No Crashes` are no risk; `Turn on 1st or the game will crash` is about the codes that need this one.
+FLAG_CRASH = re.compile(
+    r'\bcrash(?:es)? if\b|\bcrash(?:es)? (?:in|on|when|while|during|after)\b|\(softlock\)'
+    r'|\b(?:may|might|can|could|will|would)\s+(?:also\s+|possibly\s+)?(?:cause\s+(?:a\s+|the\s+)?(?:game\s+)?)?'
+    r'(?:crash|softlock)|\b(?:may|might|will|would) freeze\b(?! (?:enem|foe|time|the time))', re.I)
+FLAG_CRASH_NOT = re.compile(r'\b(?:fix(?:es|ed)?|prevents?|avoids?)\b[^.;]*\b(?:crash|freez|hang|softlock)'
+                            r'|\b(?:crash|freeze|hang|softlock)\s*fix|\bturn(?:ed)? on (?:1st|first)\b'
+                            r'|\b(?:needs? to|must|has to) be (?:turned )?(?:on|enabled|activated)\b[^.]*\bbefore\b', re.I)
+FLAG_DRAM = re.compile(r'\b[68] ?gb (?:of )?(?:dram|ram|memory)\b|\bdram\b[^.]*\blayout\b'
+                       r'|\b(?:extended|expanded|alternative) memory layout\b|\bmemory layout\b[^.]*\b[68] ?gb\b', re.I)
+# A render size: `4K`, `2160p`, `3840x2160`. A shadow map size (`4K Shadow Resolution`) is not one.
+FLAG_HEAVY = re.compile(r'(?<![\w.])(\d{1,2}) ?k(?!\w)(?! ?shadow)|(?<![\w.])(\d{4}) ?p\b'
+                        r'|(?<![\w.])\d{3,5} ?[x×] ?(\d{3,4})(?![\w.])', re.I)
+HEAVY_LINES = 2160
+
+
+def heavy(text):
+    """Whether a label names a render of 2160 lines or more."""
+    for match in FLAG_HEAVY.finditer(text):
+        if re.search(r'shadows?\W*(?:res\w*|quality|map)?\W*$', text[:match.start()], re.I):
+            continue
+        kilo, lines, height = match.groups()
+        if (kilo and int(kilo) >= 4) or (lines and int(lines) >= HEAVY_LINES) or (height and int(height) >= HEAVY_LINES):
+            return True
+    return False
+
+
+def one_mode(name):
+    """Whether a name gives the game's default of one console mode only."""
+    handheld, docked = bool(MODE_HANDHELD.search(name)), bool(MODE_DOCKED.search(name))
+    return handheld != docked or (handheld and bool(ONE_MODE_DEFAULT.search(name)))
+
+
+def entry_flags(entry, said=()):
+    """Flags of one entry from its name, and from what its author says of it ([said]: notes, label,
+    description). The name alone decides what it restores, refreshes and renders."""
+    name = entry.get('name') or ''
+    text = ' '.join([name, *(str(part) for part in said if part)])
+    flags = set()
+    if FLAG_DEFAULT.search(name) and not one_mode(name):
+        flags.add('default')
+    if entry.get('cat') == 'fps' and ('default' in flags or FLAG_NO_REFRESH.search(name)):
+        flags.add('noRefresh')
+    if FLAG_EXPERIMENTAL.search(text):
+        flags.add('experimental')
+    if any(FLAG_CRASH.search(sentence) and not FLAG_CRASH_NOT.search(sentence)
+           for sentence in re.split(r'(?<=[.!?])\s+', text)):
+        flags.add('crashRisk')
+    if entry.get('cat') != 'cheat' and heavy(name):
+        flags.add('heavy')
+    if FLAG_DRAM.search(text):
+        flags.add('dram8gb')
+    return sorted(flags)
+
+
+# A Switch title's notes name the code they warn about: `[Use TAAU] only for use with [AA Mode = TAA] &
+# [AA Medium], else will crash the game` (ChanseyIsTheBest, Hazerou).
+CREDIT_CRASH = re.compile(r'\[([^\[\]]{2,80})\] only for use with [^.]*?\b(?:else|otherwise)\b[^.]*?'
+                          r'\b(?:will|may|can|might) crash', re.I)
+
+
+def credited_crashes(credits):
+    """Code names a title's notes say crash the game outside their conditions."""
+    return {match.group(1).strip().casefold() for credit in credits for match in CREDIT_CRASH.finditer(str(credit))}
+
+
+def finish_flags(engine, records):
+    """Flags of every entry of an engine, built or reused (idempotent); returns the count of each flag."""
+    counts = collections.Counter()
+    for record in records.values():
+        crashes = credited_crashes(record.get('credits', ())) if engine == 'melonx' else set()
+        for entry in record['entries']:
+            said = [entry.get(field) for field in ('notes', 'label', 'description')]
+            flags = set(entry_flags(entry, said))
+            if crashes:
+                base = re.sub(r'^default\s+', '', entry['name'].casefold())
+                if any(base == name or base.startswith((name + ' ', name + '(')) for name in crashes):
+                    flags.add('crashRisk')
+            if flags:
+                entry['flags'] = sorted(flags)
+            else:
+                entry.pop('flags', None)
+            counts.update(flags)
+    return dict(sorted(counts.items()))
+
+
 # ---------------------------------------------------------------- inputs
 
 def fetch_git(cache, source_id, offline):
@@ -434,6 +568,191 @@ def switch_lines(body):
     if not lines or len(lines) > 512:
         return None
     return lines
+
+
+# What an Atmosphere code stores to, read the way Ryujinx compiles it (Ryujinx.HLE/HOS/Tamper): each cheat is its
+# own program, one instruction per line, its sixteen registers start at 0 and keep their values between frames.
+# A value is (terms, offset): a sum of symbolic terms (a memory region's base, a value loaded from an address,
+# another operation) plus a 64-bit constant. Two codes that store to the same terms, offsets, widths and
+# conditions write the same memory: they are alternatives of one setting. A register a code never sets reads 0,
+# but Atmosphere runs a title's master code and enabled cheats as one program, where it holds what they left: a
+# store must start from a memory region, and one through such a register alone (`640F0000 …` after a master code
+# that loads R13 to R15) is never compared. Added to a region (type 0's `R`: `04010000 …` beside `04000000 …`), it
+# is the 0 the author relies on. Only the opcodes below are modelled; any other (loops, register conditions,
+# saves, key holds of type C4, pauses) leaves a code out of grouping.
+ATMOSPHERE_WIDTHS = {1, 2, 4, 8}
+ATMOSPHERE_ARITHMETIC = ('add', 'sub', 'mul', 'lsh', 'rsh', 'and', 'or', 'not', 'xor', 'mov')
+U64 = (1 << 64) - 1
+
+
+def atmosphere_instruction(line):
+    """One Atmosphere instruction as a tuple, or None when it is not one of the modelled encodings."""
+    words = line.split()
+    nib = ''.join(words)
+    if not words or any(len(word) != 8 for word in words):
+        return None
+    kind, width = nib[0], int(nib[1], 16)
+    if kind == '0':  # 0TMR00AA AAAAAAAA VVVVVVVV (VVVVVVVV): store a value to region M + register R + A
+        region = int(nib[2], 16)
+        if width in ATMOSPHERE_WIDTHS and region <= 3 and nib[4:6] == '00' and len(words) == (4 if width == 8 else 3):
+            return ('store', width, region, int(nib[3], 16), int(nib[6:16], 16))
+    elif kind == '1':  # 1TMC00AA AAAAAAAA VVVVVVVV (VVVVVVVV): begin a block run when memory compares to a value
+        region, condition = int(nib[2], 16), int(nib[3], 16)
+        if width in ATMOSPHERE_WIDTHS and region <= 3 and 1 <= condition <= 6 and nib[4:6] == '00' and \
+                len(words) == (4 if width == 8 else 3):
+            return ('if', 'memory', width, region, condition, int(nib[6:16], 16), int(nib[16:], 16))
+    elif kind == '2':  # 20000000 ends a block, 21000000 starts its else part
+        if line in ('20000000', '21000000'):
+            return ('end',) if line == '20000000' else ('else',)
+    elif kind == '4':  # 400R0000 VVVVVVVV VVVVVVVV: register R = V
+        if nib[1:3] == '00' and nib[4:8] == '0000' and len(words) == 3:
+            return ('set', int(nib[3], 16), int(nib[8:24], 16))
+    elif kind == '5':  # 5TMRI0AA AAAAAAAA: R = [region M + A] (I=0) or [R + A] (I=1)
+        region, mode = int(nib[2], 16), nib[4]
+        if width in ATMOSPHERE_WIDTHS and region <= 3 and mode in '01' and nib[5] == '0' and len(words) == 2:
+            return ('load', width, region, int(nib[3], 16), mode == '1', int(nib[6:16], 16))
+    elif kind == '6':  # 6T0RIor0 VVVVVVVV VVVVVVVV: store V to [R (+ r)], then R += T when I
+        if width in ATMOSPHERE_WIDTHS and nib[2] == '0' and nib[4] in '01' and nib[5] in '01' and nib[7] == '0' and \
+                len(words) == 3:
+            return ('store_at', width, int(nib[3], 16), nib[4] == '1', nib[5] == '1', int(nib[6], 16))
+    elif kind == '7':  # 7T0RC000 VVVVVVVV: R = R op V
+        operation = int(nib[4], 16)
+        if width in ATMOSPHERE_WIDTHS and nib[2] == '0' and operation <= 4 and nib[5:8] == '000' and len(words) == 2:
+            register = int(nib[3], 16)
+            return ('math', width, ATMOSPHERE_ARITHMETIC[operation], register, register, None, int(nib[8:16], 16))
+    elif kind == '8':  # 8kkkkkkk: begin a block run while these keys are held
+        if len(words) == 1:
+            return ('if', 'keys', int(nib[1:8], 16))
+    elif kind == '9':  # 9TCRS0s0: R = S op s; 9TCRS100 VVVVVVVV (VVVVVVVV): R = S op V
+        operation = int(nib[2], 16)
+        if width in ATMOSPHERE_WIDTHS and operation <= 9:
+            target, left = int(nib[3], 16), int(nib[4], 16)
+            if nib[5] == '0' and nib[7] == '0' and len(words) == 1:
+                return ('math', width, ATMOSPHERE_ARITHMETIC[operation], target, left, int(nib[6], 16), None)
+            if nib[5] == '1' and nib[6:8] == '00' and len(words) == (3 if width == 8 else 2):
+                return ('math', width, ATMOSPHERE_ARITHMETIC[operation], target, left, None, int(nib[8:], 16))
+    elif kind == 'A':  # ATSRIOxa (aaaaaaaa): store register S to the address offset type O gives, R += T when I
+        offset, extra = int(nib[5], 16), int(nib[6], 16)
+        immediate = offset in (2, 4, 5)
+        if width in ATMOSPHERE_WIDTHS and nib[4] in '01' and offset <= 5 and len(words) == (2 if immediate else 1) \
+                and (offset < 3 or extra <= 3) and (immediate or nib[7] == '0'):
+            return ('store_reg', width, int(nib[2], 16), int(nib[3], 16), nib[4] == '1', offset, extra,
+                    int(nib[7:], 16) if immediate else 0)
+    return None
+
+
+def _value_add(a, b):
+    return tuple(sorted(a[0] + b[0])), (a[1] + b[1]) & U64
+
+
+def _value_math(name, width, a, b):
+    """A register after an arithmetic opcode: exact on constants and 64-bit offsets, symbolic otherwise."""
+    if name == 'mov':
+        return a
+    if name == 'add' and width == 8:
+        return _value_add(a, b)
+    if name == 'sub' and width == 8 and not b[0]:
+        return a[0], (a[1] - b[1]) & U64
+    if not a[0] and not b[0] and name != 'not':
+        x, y = a[1], b[1]
+        result = {'add': x + y, 'sub': x - y, 'mul': x * y, 'lsh': x << (y & 63), 'rsh': x >> (y & 63),
+                  'and': x & y, 'or': x | y, 'xor': x ^ y}[name]
+        return (), result & ((1 << (8 * width)) - 1)
+    return (('op', name, width, a, b),), 0
+
+
+def anchored(value):
+    """Whether an address starts from a memory region, directly or through a pointer loaded from one."""
+    return any(term[0] == 'region' or (term[0] == 'load' and anchored(term[2]))
+               or (term[0] == 'op' and (anchored(term[3]) or anchored(term[4]))) for term in value[0])
+
+
+def atmosphere_writes(lines):
+    """The memory an Atmosphere code stores to: a frozenset of (conditions, width, address), whatever the
+    values. None when the code uses an encoding not modelled here, reads a register its previous run left
+    (or one set in a block that has ended), stores to an address no memory region anchors, leaves a block
+    open, or stores nothing."""
+    program = [atmosphere_instruction(line) for line in lines]
+    if not program or None in program:
+        return None
+    assigned = set()
+    for op in program:
+        if op[0] in ('set', 'math'):
+            assigned.add(op[1] if op[0] == 'set' else op[3])
+        elif op[0] == 'load':
+            assigned.add(op[3])
+        elif op[0] == 'store_at' and op[3]:
+            assigned.add(op[2])
+        elif op[0] == 'store_reg' and op[4]:
+            assigned.add(op[3])
+    registers, blocks, stores = {}, [], set()
+
+    def read(register):
+        if register not in registers:
+            if register in assigned:
+                raise LookupError
+            return (), 0  # an address built on it alone is never compared (anchored)
+        value, where = registers[register]
+        if tuple(blocks[:len(where)]) != where:
+            raise LookupError
+        return value
+
+    def write(register, value):
+        registers[register] = (value, tuple(blocks))
+
+    def region(number):
+        return (('region', number),), 0
+
+    try:
+        for op in program:
+            kind = op[0]
+            if kind == 'store':
+                _, width, number, register, offset = op
+                stores.add((tuple(blocks), width, _value_add(_value_add(region(number), read(register)), ((), offset))))
+            elif kind == 'if':
+                blocks.append(op)
+            elif kind == 'end':
+                blocks.pop()
+            elif kind == 'else':
+                if blocks[-1][0] == 'else':
+                    return None
+                blocks[-1] = ('else', blocks[-1])
+            elif kind == 'set':
+                write(op[1], ((), op[2]))
+            elif kind == 'load':
+                _, width, number, register, relative, offset = op
+                base = read(register) if relative else region(number)
+                write(register, ((('load', width, _value_add(base, ((), offset))),), 0))
+            elif kind == 'store_at':
+                _, width, register, increment, offset, offset_register = op
+                address = read(register)
+                if offset:
+                    address = _value_add(address, read(offset_register))
+                stores.add((tuple(blocks), width, address))
+                if increment:
+                    write(register, _value_add(read(register), ((), width)))
+            elif kind == 'math':
+                _, width, name, target, left, right, immediate = op
+                write(target, _value_math(name, width, read(left), read(right) if right is not None else ((), immediate)))
+            else:  # store_reg
+                _, width, source, register, increment, offset, extra, immediate = op
+                read(source)
+                if offset in (0, 1, 2):
+                    address = read(register)
+                    if offset == 1:
+                        address = _value_add(address, read(extra))
+                else:
+                    address = region(extra) if offset == 4 else _value_add(region(extra), read(register))
+                if offset in (2, 4, 5):
+                    address = _value_add(address, ((), immediate))
+                stores.add((tuple(blocks), width, address))
+                if increment:
+                    write(register, _value_add(read(register), ((), width)))
+    except (LookupError, IndexError):
+        return None
+    if blocks or not stores or not all(anchored(address) for _, _, address in stores):
+        return None
+    return frozenset(stores)
 
 
 def switch_name(raw):
@@ -616,8 +935,9 @@ def build_melonx_exefs(root, source_id, titles, restricted, stats):
         # The first source's IDs are published: they keep their shape; a later source's ID carries its source.
         identity = ('melonx', tid, 'exefs', mod['name'].casefold()) if not bracket else \
             ('melonx', tid, 'exefs', source_id, mod['name'].casefold())
+        # The mod's author: the people its readme credits, else the repository's owner.
         entry = {'id': stable_id(*identity), 'cat': category, 'name': mod['name'],
-                 'source': source_id, 'exefs': patches}
+                 'source': source_id, 'exefs': patches, 'author': clean_label(stated or author, 200)}
         record['entries'][key] = entry
         stats['melonx_exefs_entries'] += 1
 
@@ -673,6 +993,7 @@ def build_melonx_zip(root, titles, restricted, stats):
                     continue
                 patches = {}
                 cheats = {}
+                bodies = {}
                 has_empty_patch = False
                 for layout, parts, item in items:
                     raw = archive.read(item)
@@ -717,6 +1038,7 @@ def build_melonx_zip(root, titles, restricted, stats):
                                 valid = False
                                 break
                             builds[bid] = {**member, 'k': section}
+                            bodies[(section, bid)] = sections[section]
                         if not valid:
                             break
                     else:
@@ -739,7 +1061,12 @@ def build_melonx_zip(root, titles, restricted, stats):
                             name = clean_label(section[1:-1], 120)
                             if not name or not switch_name(section):
                                 continue
-                            pending[('cheat', folder, section)] = (name, {'builds': builds})
+                            writes = {bid: atmosphere_writes([line.upper() for line in bodies[(section, bid)]])
+                                      for bid in builds}
+                            stats['melonx_alt_codes_not_compared'] += sum(value is None for value in writes.values())
+                            writes = {bid: value for bid, value in writes.items() if value is not None}
+                            pending[('cheat', folder, section)] = (name, {'builds': builds,
+                                                                          **({'_writes': writes} if writes else {})})
                         continue
                 stats['fl4sh_groups_not_installable'] += 1
             if not pending:
@@ -830,6 +1157,12 @@ def build_melonx(scdb, matias, stats, exefs=(), archives=None):
                         stats['melonx_duplicate_cheats'] += 1
                         continue
                     entry['builds'][build] = pointer
+                    # What the code stores to, for the alternatives' groups; never published.
+                    writes = atmosphere_writes(lines)
+                    if writes is not None:
+                        entry.setdefault('_writes', {})[build] = writes
+                    else:
+                        stats['melonx_alt_codes_not_compared'] += 1
                     seen.add(body)
                     used = True
             if used:
@@ -923,22 +1256,234 @@ def switch_releases(tid, record, versions):
     return releases
 
 
+def switch_latest(tid, record, versions):
+    """The newest update versions.json knows for a title: its number (`update`, `v393216`; update 6 is
+    393216 >> 16), the Build ID of its main executable (`build`) when listed, and the display version a patch
+    file of that build is named after (`display`). Kept as published without versions.json (a reused record)."""
+    if versions is None:
+        return record.get('latest')
+    known = versions.get(tid) or versions.get(tid.lower())
+    number = known.get('latest') if isinstance(known, dict) else None
+    if not isinstance(number, int) or isinstance(number, bool) or number < 0:
+        return None
+    latest = {'update': number}
+    build = known.get(str(number))
+    if isinstance(build, str) and SWITCH_BUILD.match(build.upper()):
+        latest['build'] = build.upper()
+        display = (record.get('releases') or {}).get(latest['build'], {}).get('display')
+        if display:
+            latest['display'] = display[-1]
+    return latest
+
+
+def fold_switch_updates(records, versions, stats):
+    """A record keyed by an update's Title ID (low 13 bits 0x800) joins its application's record: the app looks
+    only the application's Title ID up (these entries were never offered until 23 November 2026), and Ryujinx
+    reads an update's cheats and patches from the application's folder. Entries keep their IDs. A name the
+    application already uses gets ` (update)`; a build its namesake already has under that name stays with the
+    namesake (the builder's rule for one name), unless the entry would be left without a build. Idempotent."""
+    for key in sorted(records):
+        number = int(key, 16)
+        if number & 0x1FFF != 0x800:
+            continue
+        application = '%016X' % (number & ~0x1FFF)
+        source = records.pop(key)
+        record = records.get(application)
+        if record is None:
+            title = switch_title(versions or {}, application) or (source['title'] if source['title'] != key else '')
+            record = records[application] = {'title': title or application, 'credits': [], 'origin': [],
+                                             'master': {}, 'entries': []}
+        base = len(record['origin'])
+        record['origin'].extend(source['origin'])
+
+        def rebased(pointer):
+            return {**pointer, 'o': pointer['o'] + base}
+        for build, pointer in sorted(source['master'].items()):
+            record['master'].setdefault(build, rebased(pointer))  # one master per build: the first, as built
+        namesakes = {entry['name'].casefold(): entry for entry in record['entries']}
+        labels = set(namesakes)
+        for entry in source['entries']:
+            entry = dict(entry)
+            if 'builds' in entry:
+                entry['builds'] = {build: rebased(pointer) for build, pointer in entry['builds'].items()}
+            if 'exefs' in entry:
+                entry['exefs'] = [rebased(patch) for patch in entry['exefs']]
+            namesake = namesakes.get(entry['name'].casefold())
+            if namesake is not None:
+                if 'builds' in entry and 'builds' in namesake and 'exefs' not in entry and 'exefs' not in namesake:
+                    own = {build: pointer for build, pointer in entry['builds'].items() if build not in namesake['builds']}
+                    if own and len(own) < len(entry['builds']):
+                        stats['melonx_update_builds_left_to_namesake'] += len(entry['builds']) - len(own)
+                        entry['builds'] = own
+                        if '_writes' in entry:
+                            entry['_writes'] = {build: value for build, value in entry['_writes'].items() if build in own}
+                entry['name'] = azahar_label(entry['name'], '(update)', labels)
+                stats['melonx_update_entries_renamed'] += 1
+            else:
+                labels.add(entry['name'].casefold())
+            namesakes[entry['name'].casefold()] = entry
+            record['entries'].append(entry)
+        record['credits'].extend(credit for credit in source['credits'] if credit not in record['credits'])
+        record['entries'].sort(key=lambda e: (e['cat'], e['name'].casefold()))
+        stats.setdefault('melonx_keys_moved', {})[key] = application
+        stats['melonx_entries_moved'] += len(source['entries'])
+
+
+def balanced_label(text):
+    """A label whose square brackets were half removed (`Unlock FPS v1.3.2] Ryujinx`, from the folder
+    `[Unlock FPS v1.3.2] Ryujinx`), read as the folder meant it: the first bracketed part is the name, the
+    rest a qualifier (`Unlock FPS v1.3.2 (Ryujinx)`). Each ` - ` part of a label is read on its own."""
+    parts = []
+    for part in text.split(' - '):
+        chunks = [chunk.strip() for chunk in re.split(r'[\[\]]', part) if chunk.strip()]
+        rest = ' '.join(chunks[1:])
+        if rest.startswith('(') and rest.endswith(')') and rest.count('(') == 1:
+            rest = rest[1:-1].strip()
+        parts.append(f'{chunks[0]} ({rest})' if rest else chunks[0] if chunks else part)
+    return clean_label(' - '.join(parts), 120)
+
+
+def brackets_balanced(text):
+    depth = 0
+    for char in text:
+        depth += {'[': 1, ']': -1}.get(char, 0)
+        if depth < 0:
+            return False
+    return depth == 0
+
+
+def fl4sh_folder(entry):
+    """The folder names a Fl4sh9174 mod has in its archive (`[Unlock FPS v1.3.2] Ryujinx`), from a member."""
+    for pointer in [*entry.get('exefs', ()), *entry.get('builds', {}).values()]:
+        parts = str(pointer.get('member', '')).split('/')
+        for index, part in enumerate(parts):
+            if index and part.lower() in ('exefs', 'romfs', 'cheats'):
+                return parts[:index]
+    return None
+
+
+def balance_switch_name(entry, labels, stats):
+    """A name with broken square brackets, mended; the author's whole folder name goes to the notes."""
+    if brackets_balanced(entry['name']):
+        return
+    fixed = balanced_label(entry['name'])
+    if not fixed or fixed.casefold() in labels or not brackets_balanced(fixed):
+        stats['melonx_names_left_unbalanced'] += 1
+        return
+    folder = fl4sh_folder(entry)
+    original = ' - '.join(folder) if folder else entry['name']
+    labels.discard(entry['name'].casefold())
+    labels.add(fixed.casefold())
+    entry['name'] = fixed
+    entry['notes'] = clean_label(' '.join(filter(None, [original, entry.get('notes')])), 400)
+    stats['melonx_names_balanced'] += 1
+
+
+def switch_alternatives(tid, record, stats):
+    """Exclusive groups of Atmosphere alternatives: cheat-file entries of one category whose codes store to the
+    same memory, with the same widths and conditions, on a build they share (30/45/60 FPS, resolution or AA
+    choices); the values differ. Entries linked through other builds join the same group, but a group never holds
+    two codes that store to different memory on a build both have: one collision, often an error of the source
+    file (Monster Hunter Rise `dog speed 2x` and `1p hitrange 1.5x` on one update), never joins codes that another
+    shared build tells apart. Only the group's name is published (`alt/<Title ID>/<digest>`, the digest of the
+    smallest write set its members share); an entry keeps a group it already has, and a group needs two entries
+    without one."""
+    entries = [entry for entry in record['entries'] if 'exefs' not in entry and entry.get('_writes')]
+    parent = list(range(len(entries)))
+    # What the members of each group store to, per build: two groups join only when they agree on every build.
+    writes_of = [dict(entry['_writes']) for entry in entries]
+
+    def find(index):
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+    holders, refused = collections.defaultdict(list), set()
+    for index, entry in enumerate(entries):
+        for build, writes in sorted(entry['_writes'].items()):
+            key = (entry['cat'], build, writes)
+            for other in holders[key]:
+                one, two = find(other), find(index)
+                if one == two:
+                    continue
+                small, large = sorted((writes_of[one], writes_of[two]), key=len)
+                if any(large.get(shared, value) != value for shared, value in small.items()):
+                    refused.add((other, index))
+                    continue
+                parent[two] = one
+                writes_of[one].update(writes_of[two])
+            holders[key].append(index)
+    stats['melonx_alt_joins_refused'] += len(refused)
+    members = collections.defaultdict(list)
+    for index in range(len(entries)):
+        members[find(index)].append(index)
+    grouped, names = 0, set()
+    for group in sorted(members.values()):
+        free = [entries[index] for index in group if not entries[index].get('group')]
+        if len(free) < 2:
+            continue
+        held = collections.Counter((entries[index]['cat'], build, writes)
+                                   for index in group for build, writes in entries[index]['_writes'].items())
+        text = min('\x1f'.join([cat, build, *sorted(repr(store) for store in writes)])
+                   for (cat, build, writes), count in held.items() if count > 1)
+        name = f'alt/{tid}/' + hashlib.sha1(text.encode()).hexdigest()[:10]
+        if name in names:  # another group stores there too, but a shared build tells the two apart
+            name = f'alt/{tid}/' + hashlib.sha1(f'{text}\x1f{free[0]["id"]}'.encode()).hexdigest()[:10]
+        assert name not in names, name
+        names.add(name)
+        for entry in free:
+            entry['group'] = name
+        grouped += len(free)
+        stats['melonx_alt_groups'] += 1
+    if grouped:
+        stats['melonx_alt_entries'] += grouped
+        stats['melonx_alt_titles'] += 1
+
+
 def finish_melonx(records, versions, stats):
-    """Groups and game versions of every Switch record, built or reused (idempotent)."""
+    """Update records folded into their application, names, authors, groups and game versions of every
+    Switch record, built or reused (idempotent). A reused record has no code: it keeps its `alt/` groups."""
+    fold_switch_updates(records, versions, stats)
     for tid, record in records.items():
+        labels = {entry['name'].casefold() for entry in record['entries']}
+        for entry in record['entries']:
+            balance_switch_name(entry, labels, stats)
+            author = SOURCES.get(entry.get('source'), {}).get('author')
+            if author:
+                entry.setdefault('author', author)
+        built = any('_writes' in entry for entry in record['entries'])
         for entry in record['entries']:
             group = switch_group(tid, entry)
             if group:
                 entry['group'] = group
-            else:
+            elif built or not entry.get('group', '').startswith('alt/'):
                 entry.pop('group', None)
+        if built:
+            switch_alternatives(tid, record, stats)
+        for entry in record['entries']:
+            entry.pop('_writes', None)
+            group = entry.get('group', '')
             stats['melonx_group_' + (group.split('/')[0] if group else 'none')] += 1
+        record['entries'].sort(key=lambda e: (e['cat'], e['name'].casefold()))
         releases = switch_releases(tid, record, versions)
         if releases:
             record['releases'] = releases
             stats['melonx_titles_with_versions'] += 1
         else:
             record.pop('releases', None)
+        latest = switch_latest(tid, record, versions)
+        if latest:
+            record['latest'] = latest
+            stats['melonx_titles_with_latest'] += 1
+            stats['melonx_titles_with_latest_build'] += 'build' in latest
+            stats['melonx_titles_with_latest_display'] += 'display' in latest
+            if 'build' in latest:
+                # Entries made for older updates only: none of their builds is the newest one.
+                stats['melonx_entries_without_latest_build'] += sum(
+                    1 for entry in record['entries']
+                    if latest['build'] not in {*entry.get('builds', {}), *(p['bid'][:16] for p in entry.get('exefs', ()))})
+        else:
+            record.pop('latest', None)
 
 
 # ---------------------------------------------------------------- RPCS3
@@ -1797,6 +2342,33 @@ def published_shards(index, folder):
     return shards
 
 
+# Entry IDs a new revision may drop, per engine: {engine: {id: reason}}. A player's state names entries by ID:
+# an ID that disappears leaves an active code on the player's files that the page no longer shows. Empty:
+# no publication has dropped one (test/enhancement_catalog_data_test.py checks the previous revision).
+ID_REMOVAL_ALLOWLIST = {}
+
+
+def catalogue_drift(previous_shards, engines, moved):
+    """Per engine, what this revision changes against the published one: entry IDs removed and added, keys
+    removed and added, and keys moved into another (an update's Title ID folded into its application's)."""
+    previous = collections.defaultdict(dict)
+    for data in previous_shards.values():
+        shard = json.loads(gzip.decompress(data))
+        previous[shard['engine']].update(shard['keys'])
+    report = {}
+    for engine, records in engines.items():
+        old = previous.get(engine, {})
+        old_ids = {entry['id'] for record in old.values() for entry in record['entries']}
+        new_ids = {entry['id'] for record in records.values() for entry in record['entries']}
+        added = sorted(new_ids - old_ids)
+        report[engine] = {
+            'ids_removed': sorted(old_ids - new_ids), 'ids_added': len(added), 'ids_added_first': added[:200],
+            'keys_removed': sorted(set(old) - set(records)), 'keys_added': sorted(set(records) - set(old)),
+            'keys_moved': {key: target for key, target in sorted(moved.items()) if engine == 'melonx'},
+        }
+    return report
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--cache', type=Path, required=True)
@@ -1844,6 +2416,17 @@ def main():
             engines[engine] = build_dolphin(git, stats)
         if engine == 'rpcs3':
             merge_rpcs3_artemis(engines[engine], [(git[s], s) for s in ARTEMIS_SOURCES], stats)
+    flags = {engine: finish_flags(engine, records) for engine, records in engines.items()}
+    for record in engines['melonx'].values():
+        assert not any(key.startswith('_') for entry in record['entries'] for key in entry), 'a code leaked'
+    # An entry ID a player may have turned on is never dropped silently (docs/ENHANCEMENTS.md, Publication).
+    drift = catalogue_drift(previous_shards, engines, stats.pop('melonx_keys_moved', {}))
+    lost = {engine: [i for i in report['ids_removed'] if i not in ID_REMOVAL_ALLOWLIST.get(engine, {})]
+            for engine, report in drift.items()}
+    if any(lost.values()):
+        raise SystemExit('entry IDs of the published revision would disappear: '
+                         + json.dumps({engine: ids for engine, ids in lost.items() if ids}) +
+                         '; keep them, or list each in ID_REMOVAL_ALLOWLIST with its reason')
     index_engines, shard_meta, shard_bytes, totals = {}, {}, {}, {}
     for engine, records in engines.items():
         grouped = {}
@@ -1907,11 +2490,13 @@ def main():
             if key.split('_')[0] in reuse:
                 rejections[key] = value
     report = {'revision': revision, 'index_sha256': hashlib.sha256(packed).hexdigest(),
-              'index_size': len(packed), 'totals': totals, 'rejections': rejections,
+              'index_size': len(packed), 'totals': totals, 'rejections': rejections, 'flags': flags,
               'shard_bytes': sum(m['size'] for m in shard_meta.values()),
               'published': {'previous': previous['revision'] if previous else None, 'reused_engines': sorted(reuse),
                             'changed_shards': changed, 'removed_shards': removed,
-                            'changed_bytes': sum(len(shard_bytes[shard]) for shard in changed)}}
+                            'changed_bytes': sum(len(shard_bytes[shard]) for shard in changed)},
+              # Against the previous revision: IDs and keys removed, added or moved, per engine.
+              'drift': {'against': previous['revision'] if previous else None, 'engines': drift}}
     validation.write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
     print(json.dumps({k: v for k, v in report.items() if k != 'rejections'}, indent=2, sort_keys=True))
 

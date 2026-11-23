@@ -77,6 +77,46 @@ abstract class EnhancementAdapter {
   }
 }
 
+/// Per-entry flags of the catalogue (`flags`: sorted, present only when not
+/// empty), set by tools/enhancements from the entry's name and its author's
+/// notes. Every adapter copies them into its item's payload (`flags`) for the
+/// page's warnings.
+abstract final class EnhancementFlags {
+  /// The author says the code can crash or freeze the game.
+  static const crashRisk = 'crashRisk';
+
+  /// The code writes the game's own value (`Default 30 FPS`).
+  static const restoresDefault = 'default';
+
+  /// Needs the expanded 8 GB DRAM layout, which RewindBox does not offer.
+  static const dram8gb = 'dram8gb';
+
+  /// Experimental, work in progress, beta or untested.
+  static const experimental = 'experimental';
+
+  /// Renders 2160 lines or more (4K, 8K).
+  static const heavy = 'heavy';
+
+  /// An FPS-category entry that does not raise the frame-rate limit (a
+  /// dynamic-resolution target, an FPS counter).
+  static const noRefresh = 'noRefresh';
+
+  /// The flags of a catalogue entry.
+  static List<String> of(Map<String, dynamic> entry) => [
+    for (final flag in (entry['flags'] as List? ?? const []))
+      if (flag is String && flag.isNotEmpty) flag,
+  ];
+
+  /// The payload field of an entry's flags; empty when it has none.
+  static Map<String, dynamic> payload(Map<String, dynamic> entry) {
+    final flags = of(entry);
+    return flags.isEmpty ? const {} : {'flags': flags};
+  }
+
+  /// The flags an adapter put in [item]'s payload.
+  static List<String> ofItem(EnhancementItem item) => of(item.payload);
+}
+
 /// Small file helpers shared by adapters.
 abstract final class EnhancementFiles {
   static String digest(List<int> bytes) => sha256.convert(bytes).toString();

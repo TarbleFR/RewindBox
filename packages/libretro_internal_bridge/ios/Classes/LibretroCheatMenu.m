@@ -77,7 +77,7 @@ static NSString *GameKey(NSDictionary *game) {
       // time invalidates it; no hashing or index traversal blocks the launch queue.
       NSString *identityPath = [LibretroCheats identityContentPath:contentPath];
       NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath:identityPath error:nil];
-      NSString *fingerprint = [NSString stringWithFormat:@"6|%@|%@|%@|%@|%@|%@", identityPath, console, core,
+      NSString *fingerprint = [NSString stringWithFormat:@"7|%@|%@|%@|%@|%@|%@", identityPath, console, core,
         attributes[NSFileSize], @([attributes[NSFileModificationDate] timeIntervalSince1970]), attributes[NSFileSystemFileNumber]];
       NSString *cacheKey = [LibretroCheats digest:[fingerprint dataUsingEncoding:NSUTF8StringEncoding]];
       NSString *cacheFile = [[directory stringByAppendingPathComponent:@"Identity"] stringByAppendingPathComponent:[cacheKey stringByAppendingPathExtension:@"json"]];

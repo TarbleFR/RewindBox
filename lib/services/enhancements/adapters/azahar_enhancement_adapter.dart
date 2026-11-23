@@ -262,6 +262,7 @@ class AzaharEnhancementAdapter extends EnhancementAdapter {
           payload: {
             if (entry['combo'] is List) 'combo': entry['combo'],
             'forUpdate': forUpdate(entry),
+            ...EnhancementFlags.payload(entry),
           },
         ),
       );

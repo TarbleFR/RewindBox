@@ -1,0 +1,289 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index ca34f33..2311f72 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -10558,6 +10558,7 @@ static void shmap_load_once(void) {
+     MLOG("shader route B (translated Switch originals): shader map %lu entries (%s), metallib directory %s", (unsigned long)g_shmap.count, path.UTF8String, g_msl_dir.UTF8String);
+ }
+ 
++#include "rb_bind_facts.h"   // RewindBox (patch 0323): NvShader's rb_bf
+ @interface NvShader : NSObject { @public id<MTLLibrary> ft_lib; uint8_t ft_tried; id<MTLLibrary> bf_lib; uint8_t bf_tried;   // bf_lib: the readable-tile version <key>_bf, looked up once by name (bf_fn)
+     id<MTLFunction> fn, tf_fn, fn_u, geo_fn;   // fn_u: the integer-output entry point (dmsh_build.py fs_uint), for pipelines whose unsigned integer attachments are exactly u_mask (pso_desc)
+     uint8_t rb_shadow_n;
+@@ -10597,6 +10598,7 @@ static void shmap_load_once(void) {
+     // The argument buffer encoded last time
+     id<MTLBuffer> ab_buf; uint64_t ab_gpu; size_t ab_off; uint64_t ab_pass, ab_size_sub, ab_pgen; uint32_t ab_binst;   // ab_pgen: g_psnap_gen when it was encoded (pool table addresses, pool_gpu)   // ABI2 additionally keys reuse by the submission owning its argument/support arenas
+     uint8_t ab_ub;   // #968: that encode bound an s2a_flags.yzw copy (ub_support, an arena block of its submission): reused only within the same submission (ab_size_sub)
++    rb_bind_facts rb_bf;   // RewindBox (patch 0323): what the per-draw walks over rf.b ask, made at first use (rb_shader_facts)
+     uint8_t rb_bi;   // RewindBox (patch 0066): a vertex shader's base instance: 0 not rewritten (the library container, S2A_RB_BASE_INSTANCE=0, or the rewrite refused by Metal), 1 compiled here with no read of c0 + 0x644 in its rasterizing entries, 2 compiled here with them replaced
+     id<MTLLibrary> bflib; int bflib_tried; NSMutableDictionary<NSString *, id<MTLFunction>> *bffn;   // bflib: readable-tile version <key>_bf (merge B step 2)
+     uint64_t mis[4];   // mis: texture slots 0-255 already reported for a type mismatch (tex_mis_note)
+@@ -10607,6 +10609,33 @@ static void shmap_load_once(void) {
+ @implementation NvShader
+ - (void)dealloc { free(rf.c1); free(rf.b); }
+ @end
++// RewindBox (patch 0323): per-shader binding facts (rb_bind_facts.h). IPA 827 (Mario Kart World, iPhone A18 Pro): 1,000 to 2,058 draws a frame in a race at about
++//   40,000 submit-thread instructions each; every draw walked all the bindings of its stages in tba_prepare, udc_note_draw and swrite_note, and those of its fragment
++//   stage in fb_prepare with a lock and unlock of g_rmu per texture binding, for answers that depend on the reflection alone (nothing writes rf.b after the shader is
++//   loaded). Rule: the facts are made at the shader's first use on the replaying thread (the four callers run there, one submission at a time), and made again when
++//   rf.b or rf.nb is another (a shader a test builds by hand); each caller then does what its loop did. S2A_RB_BIND_FACTS=0: as before, the loops
++_Static_assert((int)RB_BF_TEX == (int)NVN_RB_TEX && (int)RB_BF_IMG == (int)NVN_RB_IMG && (int)RB_BF_SBUFP == (int)NVN_RB_SBUFP && (int)RB_BF_IMGA == (int)NVN_RB_IMGA &&
++               (int)RB_BF_IMGU == (int)NVN_RB_IMGU && (int)RB_BF_GMEM == (int)NVN_RB_GMEM && (int)RB_BF_TYPE_2D == (int)MTLTextureType2D, "rb_bind_facts.h constants");
++static int rb_bind_facts_on(void) {
++    static int v = -1;
++    if (v < 0) {
++        const char *e = getenv("S2A_RB_BIND_FACTS");
++        v = !(e && !strcmp(e, "0"));
++        MLOG("RewindBox (patch 0323): per-shader binding facts %s (S2A_RB_BIND_FACTS): %s",
++             v ? "on" : "off", v ? "the per-draw walks of tba_prepare, udc_note_draw, swrite_note and fb_prepare ask them; fb_prepare reads its textures' serials under one lock" : "the four loops as before");
++    }
++    return v;
++}
++static __attribute__((noinline)) void rb_shader_facts_make(__unsafe_unretained NvShader *sh) {
++    rb_bind_facts f; rb_bind_facts_begin(&f, sh->rf.b, (uint32_t)sh->rf.nb);
++    for (int i = 0; i < sh->rf.nb; i++) { const nvn_rbind *b = &sh->rf.b[i]; rb_bind_facts_add(&f, (unsigned)i, b->kind, b->rw, b->f1d, b->dtt); }
++    rb_bind_facts_end(&f);
++    sh->rb_bf = f;
++}
++static inline const rb_bind_facts *rb_shader_facts(__unsafe_unretained NvShader *sh) {
++    if (__builtin_expect(!rb_bind_facts_current(&sh->rb_bf, sh->rf.b, (uint32_t)sh->rf.nb), 0)) rb_shader_facts_make(sh);
++    return &sh->rb_bf;
++}
+ #include "nvn_pso_skey.h"
+ #include "nvn_pfkind.h"
+ #include "nvn_geometry.h"
+@@ -13401,7 +13430,9 @@ static void bare_dims(NSUInteger *w, NSUInteger *h) {
+ // back (the dialog boxes had holes the size of their text)
+ static void swrite_note(NvProg *pr) {
+     if (!pr || g_pass_swrite) return;
++    const int rb_facts = rb_bind_facts_on();   // RewindBox (patch 0323): the loop's answer from the shader's facts (rb_bind_facts.h swrite); S2A_RB_BIND_FACTS=0: the loop
+     for (int st = 0; st < 6; st++) { __unsafe_unretained NvShader *sh = pr->sh[st]; if (!sh) continue;
++        if (rb_facts) { if (rb_shader_facts(sh)->swrite) { g_pass_swrite = 1; return; } continue; }
+         for (int i = 0; i < sh->rf.nb; i++) if (sh->rf.b[i].rw && (sh->rf.b[i].kind == NVN_RB_IMG || sh->rf.b[i].kind == NVN_RB_IMGU || sh->rf.b[i].kind == NVN_RB_IMGA || sh->rf.b[i].kind == NVN_RB_SBUFP || sh->rf.b[i].kind == NVN_RB_GMEM)) { g_pass_swrite = 1; return; } }
+ }
+ // S2Arm (10-30): the written marks and the unwritten-attachment store (udc_on) no longer hang on tbdr_on(). They need no reader inference (an attachment this pass did not write
+@@ -13429,15 +13460,19 @@ static void udc_encode(void) {
+ }
+ static void udc_note_draw(NvProg *pr) {
+     g_udc_precise = 1;
++    const int rb_facts = rb_bind_facts_on();   // RewindBox (patch 0323): the two loops' answers from each shader's facts (rb_bind_facts.h image, image_rw), stage by stage as before; S2A_RB_BIND_FACTS=0: the loops
+     if (tbdr_on()) {
+         if (R.has_rt) for (int i = 0; i < R.rt.n && i < 8; i++) if (R.rt.color[i]) { zskip_del(R.rt.color[i]->serial); g_zskip_cand_ok[i] = 0; }   // Zero-source set: once really drawn it is no longer all zeros
+-        if (pr) for (int st = 0; st < 6; st++) { __unsafe_unretained NvShader *sh = pr->sh[st]; if (!sh) continue; for (int i = 0; i < sh->rf.nb; i++) if (sh->rf.b[i].kind == NVN_RB_IMG || sh->rf.b[i].kind == NVN_RB_IMGU) { zskip_clear(); break; } }
++        if (pr) for (int st = 0; st < 6; st++) { __unsafe_unretained NvShader *sh = pr->sh[st]; if (!sh) continue;
++            if (rb_facts) { if (rb_shader_facts(sh)->image) zskip_clear(); continue; }
++            for (int i = 0; i < sh->rf.nb; i++) if (sh->rf.b[i].kind == NVN_RB_IMG || sh->rf.b[i].kind == NVN_RB_IMGU) { zskip_clear(); break; } }
+     }   // Image slots are writable: conservatively clear
+     int image_write = 0;
+     uint32_t shader_color_mask = 0;
+     if (pr) for (int st = 0; st < 6; st++) { __unsafe_unretained NvShader *sh = pr->sh[st]; if (!sh) continue;
+         if (st == 1) shader_color_mask = sh->rf.color_mask;
+-        for (int i = 0; i < sh->rf.nb; i++) if ((sh->rf.b[i].kind == NVN_RB_IMG || sh->rf.b[i].kind == NVN_RB_IMGU) && sh->rf.b[i].rw) { image_write = 1; break; }
++        if (rb_facts) image_write = rb_shader_facts(sh)->image_rw;
++        else for (int i = 0; i < sh->rf.nb; i++) if ((sh->rf.b[i].kind == NVN_RB_IMG || sh->rf.b[i].kind == NVN_RB_IMGU) && sh->rf.b[i].rw) { image_write = 1; break; }
+         if (image_write) break;
+     }
+     if (R.has_rt) for (int i = 1; i < R.rt.n && i < 8; i++)   // a slot attached twice (left unattached) really written: the writes are lost (see rt_dup_slot)
+@@ -18377,8 +18412,10 @@ static int tba_copy(int tid, int exact) {
+ //   or the compute shader (dispatch, stage 5)
+ static void tba_prepare(NvShader *x0, NvShader *x1, NvShader *x2, NvShader *x3, NvShader *x4, int compute) {
+     NvShader *sh[5] = {x0, x1, x2, x3, x4}; int made = 0;
++    const int rb_facts = rb_bind_facts_on();   // RewindBox (patch 0323)
+     for (int again = 0; again < 2; again++) { uint64_t ep = g_wr_epoch;   // RewindBox (patch 0077): once more when a copy landed the deferred updates (tba_copy): the copies found before it held the old epoch
+     for (int k = 0; k < 5; k++) { NvShader *x = sh[k]; if (!x) continue; int stage = compute ? 5 : k;
++        if (rb_facts && !rb_shader_facts(x)->f1d_tex2d) continue;   // RewindBox (patch 0323): no binding of this shader passes the test below (rb_bind_facts.h f1d_tex2d); S2A_RB_BIND_FACTS=0: every binding is tested
+         for (int i = 0; i < x->rf.nb; i++) { const nvn_rbind *b = &x->rf.b[i];
+             if (b->kind != NVN_RB_TEX || !b->f1d || (MTLTextureType)b->dtt != MTLTextureType2D) continue;
+             made |= tba_copy((int)(tex_slot_h(S.tex[stage], S.img[stage], b->reg) & 0xfffff), b->f1d == 2); } }
+@@ -21191,9 +21228,23 @@ static void fb_prepare(NvProg *pr) {
+     id<MTLTexture> cbase[4] = {nil}, csnap[4] = {nil}; NSUInteger ckey[4][4]; int ncopy = 0, settled = 0;   // ④ copies of this draw by real subresource (base, levels, slices); clears landed
+     // 贴图槽表是 0..NTEX-1（256）：原先只查 128 号以下，从 128 号以上读自己附件的绘制（#839：一款动作游戏的 FXAA 从 128 号槽读正在写的场景图）不换快照、原地边读边写，
+     //   Metal 下读到写到一半的块，NaN / Inf 进场景，经泛光扩散、色调映射查表后整屏发绿带黑块
+-    for (int i = 0; i < fs->rf.nb && g_fb_n < 4; i++) { const nvn_rbind *b = &fs->rf.b[i]; if (b->kind != NVN_RB_TEX || b->reg >= NTEX) continue;
++    // RewindBox (patch 0323): the loop visits the shader's TEX bindings only, in binding order (rb_bind_facts.h tex[]; the test below still skips a register past the
++    //   table), and their texture IDs' serials are read under one hold of g_rmu before it instead of one lock and unlock per binding (IPA 827: 4.4 to 5.7 texture
++    //   bindings per draw). Nothing the loop does on this thread registers a texture ID; another thread registering one meanwhile is seen at one moment instead of at
++    //   one per binding, as it could already fall between two of those. More TEX bindings than the list holds, or S2A_RB_BIND_FACTS=0: every binding, a lock each, as before
++    const rb_bind_facts *rb_bf = rb_bind_facts_on() ? rb_shader_facts(fs) : NULL;
++    const int rb_nt = rb_bf && !rb_bf->tex_over ? (int)rb_bf->ntex : -1;   // -1: the loop as before
++    uint64_t rb_ser[RB_BF_TEX_MAX];
++    if (rb_nt > 0) {
++        pthread_mutex_lock(&g_rmu);
++        for (int k = 0; k < rb_nt; k++) { int kt = (int)(tex_slot_h(S.tex[1], S.img[1], fs->rf.b[rb_bf->tex[k]].reg) & 0xfffff); rb_ser[k] = kt < g_ntreg && g_treg[kt].ok ? g_treg[kt].t.serial : 0; }
++        pthread_mutex_unlock(&g_rmu);
++    }
++    for (int rb_i = 0; rb_i < (rb_nt >= 0 ? rb_nt : fs->rf.nb) && g_fb_n < 4; rb_i++) { const int i = rb_nt >= 0 ? (int)rb_bf->tex[rb_i] : rb_i; const nvn_rbind *b = &fs->rf.b[i]; if (b->kind != NVN_RB_TEX || b->reg >= NTEX) continue;
+         int tid = (int)(tex_slot_h(S.tex[1], S.img[1], b->reg) & 0xfffff);
+-        pthread_mutex_lock(&g_rmu); uint64_t ser = tid < g_ntreg && g_treg[tid].ok ? g_treg[tid].t.serial : 0; pthread_mutex_unlock(&g_rmu);
++        uint64_t ser;
++        if (rb_nt >= 0) ser = rb_ser[rb_i];
++        else { pthread_mutex_lock(&g_rmu); ser = tid < g_ntreg && g_treg[tid].ok ? g_treg[tid].t.serial : 0; pthread_mutex_unlock(&g_rmu); }
+         if (!ser) continue;
+         // #387 the pass's own depth attachment sampled in the same pass. NVN reads the depth buffer as it is in memory (legal, and unchanged while depth writes are off);
+         //   Metal leaves sampling a texture that is an attachment of the open pass undefined: a long pass stores tiles back mid-pass (partial renders) while later draws read them.
+diff --git a/graphics/nvn/gfx/nvn/rb_bind_facts.h b/graphics/nvn/gfx/nvn/rb_bind_facts.h
+new file mode 100644
+index 0000000..e9db1fb
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_bind_facts.h
+@@ -0,0 +1,41 @@
++// RewindBox (patch 0323): what four per-draw walks over a shader's bindings ask, answered once per shader (nvn_mtl.m rb_shader_facts). Pure C: tests/t_rb_bind_facts.c.
++//   IPA 827 (Mario Kart World, iPhone A18 Pro, in a race): 1,000 to 2,058 draws a frame at about 40,000 submit-thread instructions each, on a core clocked at 1.3 to
++//   1.6 GHz once the device is at Fair. Every draw walked all bindings of all its stages in tba_prepare (a TEX binding fetched as 2D rows?), udc_note_draw (an image
++//   binding? a written one?), swrite_note (a written image or storage binding?) and, for the fragment stage, fb_prepare (which bindings are textures?), with a
++//   lock and unlock of the registration mutex per texture binding there. The answers depend only on the reflection, which nothing writes after the shader is loaded.
++//   Rule: the facts are made at a shader's first use and made again if its binding array or count is another (the tests build shaders by hand); each walk asks the
++//   facts and does exactly what its loop did. tex[] lists the TEX bindings in binding order, whatever their register (fb_prepare still tests the register); past
++//   RB_BF_TEX_MAX of them tex_over is set and fb_prepare walks all bindings as before. S2A_RB_BIND_FACTS=0: as before, the four loops.
++#pragma once
++#include <stdint.h>
++#include <string.h>
++
++enum { RB_BF_TEX = 3, RB_BF_IMG = 4, RB_BF_SBUFP = 6, RB_BF_IMGA = 19, RB_BF_IMGU = 29, RB_BF_GMEM = 30,   // nvn_refl.h NVN_RB_* (asserted equal in nvn_mtl.m and in the test)
++       RB_BF_TYPE_2D = 2,                                                                                   // MTLTextureType2D (asserted in nvn_mtl.m)
++       RB_BF_TEX_MAX = 32 };
++typedef struct {
++    uint8_t ready;
++    uint8_t swrite;      // a binding with rw is IMG, IMGU, IMGA, SBUFP or GMEM (swrite_note)
++    uint8_t image;       // a binding is IMG or IMGU (udc_note_draw: the zero-source set)
++    uint8_t image_rw;    // … and has rw (udc_note_draw: image_write)
++    uint8_t f1d_tex2d;   // a TEX binding has f1d and declares a 2D texture (tba_prepare)
++    uint8_t tex_over;    // more TEX bindings than tex[] holds
++    uint8_t ntex;        // TEX bindings listed in tex[], in binding order (fb_prepare)
++    uint16_t tex[RB_BF_TEX_MAX];   // their indices in the binding array
++    uint32_t nb;         // the binding count the facts were made from
++    const void *src;     // … and the binding array
++} rb_bind_facts;
++
++static inline void rb_bind_facts_begin(rb_bind_facts *f, const void *src, uint32_t nb) { memset(f, 0, sizeof *f); f->src = src; f->nb = nb; }
++// One binding, in binding order. index: its place in the array
++static inline void rb_bind_facts_add(rb_bind_facts *f, unsigned index, unsigned kind, unsigned rw, unsigned f1d, unsigned dtt) {
++    if (rw && (kind == RB_BF_IMG || kind == RB_BF_IMGU || kind == RB_BF_IMGA || kind == RB_BF_SBUFP || kind == RB_BF_GMEM)) f->swrite = 1;
++    if (kind == RB_BF_IMG || kind == RB_BF_IMGU) { f->image = 1; if (rw) f->image_rw = 1; }
++    if (kind != RB_BF_TEX) return;
++    if (f1d && dtt == RB_BF_TYPE_2D) f->f1d_tex2d = 1;
++    if (f->ntex < RB_BF_TEX_MAX && index <= UINT16_MAX) f->tex[f->ntex++] = (uint16_t)index;
++    else f->tex_over = 1;
++}
++static inline void rb_bind_facts_end(rb_bind_facts *f) { f->ready = 1; }
++// 1 = the facts were made from this array and count (0 for a shader never examined, or one whose array was replaced)
++static inline int rb_bind_facts_current(const rb_bind_facts *f, const void *src, uint32_t nb) { return f->ready && f->src == src && f->nb == nb; }
+diff --git a/graphics/nvn/tests/t_rb_bind_facts.c b/graphics/nvn/tests/t_rb_bind_facts.c
+new file mode 100644
+index 0000000..71684d1
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_bind_facts.c
+@@ -0,0 +1,113 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0323): host-only checks of the per-shader binding facts (gfx/nvn/rb_bind_facts.h) against the four loops they stand for, copied here from
++//   nvn_mtl.m as they were (swrite_note, udc_note_draw's two, tba_prepare's test, fb_prepare's test), over the real binding record (nvn_refl.h).
++#include <assert.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include "../gfx/nvn/nvn_refl.h"
++#include "../gfx/nvn/rb_bind_facts.h"
++
++_Static_assert((int)RB_BF_TEX == (int)NVN_RB_TEX && (int)RB_BF_IMG == (int)NVN_RB_IMG && (int)RB_BF_SBUFP == (int)NVN_RB_SBUFP && (int)RB_BF_IMGA == (int)NVN_RB_IMGA &&
++               (int)RB_BF_IMGU == (int)NVN_RB_IMGU && (int)RB_BF_GMEM == (int)NVN_RB_GMEM, "rb_bind_facts.h kinds");
++enum { TYPE_2D = 2, TYPE_3D = 7, NTEX = 256 };   // MTLTextureType2D / 3D, nvn_mtl.m NTEX
++
++// the glue of nvn_mtl.m rb_shader_facts_make
++static void facts_of(rb_bind_facts *f, const nvn_rbind *b, int nb) {
++    rb_bind_facts_begin(f, b, (uint32_t)nb);
++    for (int i = 0; i < nb; i++) rb_bind_facts_add(f, (unsigned)i, b[i].kind, b[i].rw, b[i].f1d, b[i].dtt);
++    rb_bind_facts_end(f);
++}
++// the loops as nvn_mtl.m had them
++static int ref_swrite(const nvn_rbind *b, int nb) {
++    for (int i = 0; i < nb; i++) if (b[i].rw && (b[i].kind == NVN_RB_IMG || b[i].kind == NVN_RB_IMGU || b[i].kind == NVN_RB_IMGA || b[i].kind == NVN_RB_SBUFP || b[i].kind == NVN_RB_GMEM)) return 1;
++    return 0;
++}
++static int ref_image(const nvn_rbind *b, int nb) { for (int i = 0; i < nb; i++) if (b[i].kind == NVN_RB_IMG || b[i].kind == NVN_RB_IMGU) return 1; return 0; }
++static int ref_image_rw(const nvn_rbind *b, int nb) { for (int i = 0; i < nb; i++) if ((b[i].kind == NVN_RB_IMG || b[i].kind == NVN_RB_IMGU) && b[i].rw) return 1; return 0; }
++static int ref_f1d(const nvn_rbind *b, int nb) {
++    for (int i = 0; i < nb; i++) { if (b[i].kind != NVN_RB_TEX || !b[i].f1d || b[i].dtt != TYPE_2D) continue; return 1; }
++    return 0;
++}
++static int ref_fb_list(const nvn_rbind *b, int nb, int *out) {   // fb_prepare: the bindings its loop does not skip, in order
++    int n = 0;
++    for (int i = 0; i < nb; i++) { if (b[i].kind != NVN_RB_TEX || b[i].reg >= NTEX) continue; out[n++] = i; }
++    return n;
++}
++static int facts_fb_list(const rb_bind_facts *f, const nvn_rbind *b, int *out) {   // the same through tex[], as fb_prepare walks it
++    int n = 0;
++    for (int k = 0; k < f->ntex; k++) { int i = f->tex[k]; if (b[i].kind != NVN_RB_TEX || b[i].reg >= NTEX) continue; out[n++] = i; }
++    return n;
++}
++static uint32_t rnd_state = 0x0323u;
++static uint32_t rnd(void) { rnd_state = rnd_state * 1664525u + 1013904223u; return rnd_state >> 8; }
++
++int main(void) {
++    rb_bind_facts f;
++    // ① no bindings: nothing set, ready, current for (NULL, 0) only
++    facts_of(&f, NULL, 0);
++    assert(f.ready && !f.swrite && !f.image && !f.image_rw && !f.f1d_tex2d && !f.tex_over && f.ntex == 0);
++    assert(rb_bind_facts_current(&f, NULL, 0));
++    nvn_rbind one[1] = {{0}};
++    assert(!rb_bind_facts_current(&f, one, 0) && !rb_bind_facts_current(&f, NULL, 1));
++    // … a record never examined (all zero, as a new shader object's) is not current, even for (NULL, 0)
++    rb_bind_facts z; memset(&z, 0, sizeof z);
++    assert(!rb_bind_facts_current(&z, NULL, 0));
++    // ② each kind alone, with and without rw, f1d 0 / 1 / 2, 2D and another type: every fact equals its loop
++    for (unsigned kind = 0; kind <= NVN_RB_SAMPP + 1; kind++) for (unsigned rw = 0; rw < 2; rw++) for (unsigned f1d = 0; f1d < 3; f1d++) for (unsigned t = 0; t < 2; t++) {
++        nvn_rbind b[1] = {{0}}; b[0].kind = (uint8_t)kind; b[0].rw = (uint8_t)rw; b[0].f1d = (uint8_t)f1d; b[0].dtt = t ? TYPE_2D : TYPE_3D;
++        facts_of(&f, b, 1);
++        assert(f.swrite == ref_swrite(b, 1) && f.image == ref_image(b, 1) && f.image_rw == ref_image_rw(b, 1) && f.f1d_tex2d == ref_f1d(b, 1));
++        assert(f.ntex == (kind == NVN_RB_TEX) && !f.tex_over);
++    }
++    // … the cases that must stay 0: rw on a kind that is not a store (CBUF, TEX, SAMP, UBOP, TBUF), f1d on a kind that is not TEX, f1d on a TEX declared 3D
++    { nvn_rbind b[5] = {{0}}; b[0].kind = NVN_RB_CBUF; b[1].kind = NVN_RB_TEX; b[2].kind = NVN_RB_SAMP; b[3].kind = NVN_RB_UBOP; b[4].kind = NVN_RB_TBUF;
++      for (int i = 0; i < 5; i++) { b[i].rw = 1; b[i].dtt = TYPE_2D; }
++      b[0].f1d = b[2].f1d = b[3].f1d = b[4].f1d = 1;
++      facts_of(&f, b, 5);
++      assert(!f.swrite && !f.image && !f.image_rw && !f.f1d_tex2d && f.ntex == 1 && f.tex[0] == 1);
++      b[1].f1d = 2; b[1].dtt = TYPE_3D; facts_of(&f, b, 5); assert(!f.f1d_tex2d);
++      b[1].dtt = TYPE_2D; facts_of(&f, b, 5); assert(f.f1d_tex2d); }
++    // … a read-only image is an image but neither a written image nor a store; a read-only storage buffer is no store
++    { nvn_rbind b[2] = {{0}}; b[0].kind = NVN_RB_IMGU; b[1].kind = NVN_RB_SBUFP; facts_of(&f, b, 2); assert(f.image && !f.image_rw && !f.swrite); }
++    // ③ random binding arrays (every kind, registers up to 300, up to 80 bindings): the facts and the fragment list equal the loops, order included
++    for (int round = 0; round < 20000; round++) {
++        int nb = (int)(rnd() % 81);
++        nvn_rbind *b = calloc((size_t)(nb ? nb : 1), sizeof *b); assert(b);
++        int ntex_all = 0;
++        for (int i = 0; i < nb; i++) {
++            b[i].kind = (uint8_t)(rnd() % 3 ? NVN_RB_CBUF + rnd() % NVN_RB_SAMPP : NVN_RB_TEX);   // a third of them textures
++            b[i].rw = (uint8_t)(rnd() % 4 == 0); b[i].f1d = (uint8_t)(rnd() % 8 == 0 ? 1 + rnd() % 2 : 0);
++            b[i].dtt = (uint8_t)(rnd() % 3 ? TYPE_2D : TYPE_3D); b[i].reg = (uint16_t)(rnd() % 301); b[i].aid = (uint16_t)i;
++            ntex_all += b[i].kind == NVN_RB_TEX;
++        }
++        facts_of(&f, b, nb);
++        assert(rb_bind_facts_current(&f, b, (uint32_t)nb));
++        assert(f.swrite == ref_swrite(b, nb) && f.image == ref_image(b, nb) && f.image_rw == ref_image_rw(b, nb) && f.f1d_tex2d == ref_f1d(b, nb));
++        assert(f.tex_over == (ntex_all > RB_BF_TEX_MAX));
++        assert(f.ntex == (ntex_all > RB_BF_TEX_MAX ? RB_BF_TEX_MAX : ntex_all));
++        if (!f.tex_over) {   // fb_prepare uses the list only then
++            int want[81], got[81], nw = ref_fb_list(b, nb, want), ng = facts_fb_list(&f, b, got);
++            assert(nw == ng);
++            for (int k = 0; k < nw; k++) assert(want[k] == got[k]);
++        }
++        free(b);
++    }
++    // ④ the list's capacity: 32 TEX bindings fit, the 33rd sets tex_over and the list stays the first 32
++    { nvn_rbind b[40] = {{0}}; for (int i = 0; i < 40; i++) b[i].kind = NVN_RB_TEX;
++      facts_of(&f, b, RB_BF_TEX_MAX); assert(!f.tex_over && f.ntex == RB_BF_TEX_MAX && f.tex[RB_BF_TEX_MAX - 1] == RB_BF_TEX_MAX - 1);
++      facts_of(&f, b, RB_BF_TEX_MAX + 1); assert(f.tex_over && f.ntex == RB_BF_TEX_MAX);
++      facts_of(&f, b, 40); assert(f.tex_over && f.ntex == RB_BF_TEX_MAX); }
++    // ⑤ a register changed in place after the facts were made (the engine's own fb_pin test moves a texture to slot 128): the list holds indices, the walk reads the
++    //   register as it is now, so a binding moved past the table is skipped and one moved inside it is kept
++    { nvn_rbind b[3] = {{0}}; b[0].kind = NVN_RB_TEX; b[0].reg = 0; b[1].kind = NVN_RB_SAMPT; b[2].kind = NVN_RB_TEX; b[2].reg = 5;
++      facts_of(&f, b, 3);
++      int got[3], want[3];
++      b[0].reg = 128; assert(facts_fb_list(&f, b, got) == 2 && ref_fb_list(b, 3, want) == 2 && got[0] == 0 && got[1] == 2);
++      b[2].reg = 300; assert(facts_fb_list(&f, b, got) == 1 && ref_fb_list(b, 3, want) == 1 && got[0] == want[0]); }
++    // ⑥ another array or another count: not current (made again by the caller)
++    { nvn_rbind a[2] = {{0}}, c[2] = {{0}}; facts_of(&f, a, 2);
++      assert(rb_bind_facts_current(&f, a, 2) && !rb_bind_facts_current(&f, c, 2) && !rb_bind_facts_current(&f, a, 1)); }
++    puts("t_rb_bind_facts: ok");
++    return 0;
++}

@@ -701,3 +701,38 @@ KO.update({
     'engineNotice.mesen': 'NES HD 팩은 Mesen 엔진이 읽습니다. Mesen 2용 팩(106보다 높은 형식)은 읽지 않습니다. 게임의 엔진은 해당 설정(에뮬레이터)에서 바꿀 수 있습니다.',
     'importHelp.mesen': '이 ROM 파일용으로 만든 Mesen HD 팩을 사용하세요: hires.txt와 PNG 이미지(ZIP, 7z, RAR 또는 폴더). {folder}에 설치됩니다.',
 })
+
+# A PS1 game set to Beetle PSX (software renderer) moves to Beetle PSX HW for its pack; once the
+# last pack RewindBox switched on is deleted, the game is offered its earlier engine back.
+ZH.update({
+    'activation.beetleHWEngine': '开启后，此游戏也将使用 Beetle PSX HW 启动：为此游戏选择的软件渲染器 Beetle PSX 不会替换任何纹理。',
+    'error.beetleHWNotSelected': '无法为此游戏选择 Beetle PSX HW。请在游戏设置（模拟器）中选择 Beetle PSX HW，然后开启此包。',
+    'restoreCoreTitle': '恢复之前的引擎？',
+    'restoreCoreMessage': 'RewindBox 曾让此游戏使用 {engine} 启动以读取其高清包，该包现已删除。此游戏之前使用 {core} 启动：要重新使用 {core} 启动吗？',
+    'restoreCoreAction': '使用 {core}',
+    'error.coreNotSelected': '无法更改游戏的引擎。请在游戏设置（模拟器）中选择。',
+})
+ZH_HANT.update({
+    'activation.beetleHWEngine': '開啟後，此遊戲也會改用 Beetle PSX HW 啟動：為此遊戲選擇的軟體算繪器 Beetle PSX 不會取代任何材質。',
+    'error.beetleHWNotSelected': '無法為此遊戲選擇 Beetle PSX HW。請在遊戲設定（模擬器）中選擇 Beetle PSX HW，然後開啟此包。',
+    'restoreCoreTitle': '恢復先前的引擎？',
+    'restoreCoreMessage': 'RewindBox 曾讓此遊戲改用 {engine} 啟動以讀取其高畫質包，該包現已刪除。此遊戲先前以 {core} 啟動：要再次以 {core} 啟動嗎？',
+    'restoreCoreAction': '改用 {core}',
+    'error.coreNotSelected': '無法變更遊戲的引擎。請在遊戲設定（模擬器）中選擇。',
+})
+JA.update({
+    'activation.beetleHWEngine': 'オンにすると、このゲームはBeetle PSX HWで起動するようにもなります：このゲームに選ばれているソフトウェアレンダラーのBeetle PSXはテクスチャを置き換えません。',
+    'error.beetleHWNotSelected': 'このゲームにBeetle PSX HWを選択できませんでした。ゲームの設定（エミュレーター）でBeetle PSX HWを選んでから、パックをオンにしてください。',
+    'restoreCoreTitle': '以前のエンジンに戻しますか？',
+    'restoreCoreMessage': 'RewindBoxは、このゲームのHDパック（削除済み）を読み込むため、{engine}で起動するようにしていました。以前は{core}で起動していました：再び{core}で起動しますか？',
+    'restoreCoreAction': '{core}を使う',
+    'error.coreNotSelected': 'ゲームのエンジンを変更できませんでした。ゲームの設定（エミュレーター）で選んでください。',
+})
+KO.update({
+    'activation.beetleHWEngine': '켜면 이 게임은 Beetle PSX HW로 시작하게도 됩니다. 이 게임에 선택된 소프트웨어 렌더러인 Beetle PSX는 텍스처를 교체하지 않습니다.',
+    'error.beetleHWNotSelected': '이 게임에 Beetle PSX HW를 선택할 수 없습니다. 게임 설정(에뮬레이터)에서 Beetle PSX HW를 선택한 다음 팩을 켜세요.',
+    'restoreCoreTitle': '이전 엔진으로 되돌릴까요?',
+    'restoreCoreMessage': 'RewindBox는 이 게임의 HD 팩(이제 삭제됨)을 읽기 위해 {engine}(으)로 시작하도록 했습니다. 이전에는 {core}(으)로 시작했습니다. 다시 {core}(으)로 시작할까요?',
+    'restoreCoreAction': '{core} 사용',
+    'error.coreNotSelected': '게임의 엔진을 바꿀 수 없습니다. 게임 설정(에뮬레이터)에서 선택하세요.',
+})

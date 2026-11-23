@@ -179,6 +179,7 @@ class _EnhancementsCatalogScreenState extends State<EnhancementsCatalogScreen> {
     'armsx2' => 'ARMSX2 (PS2)',
     'dolphin' => 'Dolphin (GameCube / Wii)',
     'azahar' => 'Azahar (3DS)',
+    'beetle' => 'Beetle PSX (PS1)',
     _ => engine,
   };
 
