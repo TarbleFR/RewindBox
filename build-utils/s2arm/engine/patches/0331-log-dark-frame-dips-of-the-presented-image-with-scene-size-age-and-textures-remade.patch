@@ -1,8 +1,8 @@
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 420ddbe..127279c 100644
+index b9425af..8c6d01e 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
-@@ -4303,6 +4303,101 @@ static void rb_bg_write(const char *path, char *buf, size_t len) {
+@@ -4308,6 +4308,101 @@ static void rb_bg_write(const char *path, char *buf, size_t len) {
          free(buf); free(p); };
      if (fsig_bg_on()) dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), job); else job();
  }
@@ -104,7 +104,7 @@ index 420ddbe..127279c 100644
  // RewindBox (patch 0067): new textures read before anything wrote them (EM5 of the 765 analysis). A texture made here whose content is not taken from its storage
  //   (tex_init_fill returns 0: depth formats, a virtual pool, an explicit layout, no storage) starts as zeros, or undefined for what tex_zero_fill leaves (depth / stencil,
  //   compressed, multisample, one made off the submit thread); on the console it holds what the storage held. Mario Kart World re-made 4 to 7 shared textures a frame in its
-@@ -4312,10 +4407,14 @@ static void rb_bg_write(const char *path, char *buf, size_t len) {
+@@ -4317,10 +4412,14 @@ static void rb_bg_write(const char *path, char *buf, size_t len) {
  //   S2A_RB_FRESH_READS=0 notes none. A texture is the noted one when it has the same storage (start and size), size and format (review of this patch: storage overlap took
  //   another texture over the same storage for it, and Mario Kart World aliases heavily, 13,800 takeovers in the 765 test). Cost: a load a sampled texture while none is noted
  //   (most of the time), two more while some are (the noted storages' lowest and highest start), and a scan of RB_FRESH entries under a lock only for a start between them
@@ -120,7 +120,7 @@ index 420ddbe..127279c 100644
  static int rb_fresh_is(const rb_fresh_t *e, const tex_t *t) { uint64_t lo = (uint64_t)(uintptr_t)t->mem; return e->lo == lo && e->hi == lo + t->L.size && e->w == t->d.width && e->h == t->d.height && e->fmt == (uint32_t)t->d.format; }
  static void rb_fresh_set(int n) {   // under g_fresh_lk: n entries, and their bounds
      uint64_t lo = ~0ull, hi = 0; for (int i = 0; i < n; i++) { lo = MIN(lo, g_fresh[i].lo); hi = MAX(hi, g_fresh[i].lo); }
-@@ -4328,9 +4427,11 @@ static int rb_fresh_maybe(const tex_t *t) {   // any thread, no lock: could t be
+@@ -4333,9 +4432,11 @@ static int rb_fresh_maybe(const tex_t *t) {   // any thread, no lock: could t be
  static void rb_fresh_add(const tex_t *t) {   // tex_mtl_ (any thread): a new texture whose content does not come from its storage
      if (!t || !t->mem || !t->L.size || !rb_fresh_on() || !fsig_on()) return;
      uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
@@ -133,7 +133,7 @@ index 420ddbe..127279c 100644
      g_fresh[k] = (rb_fresh_t){(uint64_t)(uintptr_t)t->mem, (uint64_t)(uintptr_t)t->mem + t->L.size, t->serial, f, t->d.width, t->d.height, (uint32_t)t->d.format};
      rb_fresh_set(n); os_unfair_lock_unlock(&g_fresh_lk);
  }
-@@ -4348,6 +4449,7 @@ static void rb_fresh_read(const tex_t *t, const char *key, int stage) {   // enc
+@@ -4353,6 +4454,7 @@ static void rb_fresh_read(const tex_t *t, const char *key, int stage) {   // enc
      rb_fresh_set(n); os_unfair_lock_unlock(&g_fresh_lk);
      if (!hit) return;
      FSIG(fc_->fresh++);
@@ -141,7 +141,7 @@ index 420ddbe..127279c 100644
      uint64_t k = atomic_fetch_add(&g_fresh_reads, 1) + 1;
      if (k <= 16 || !(k & (k - 1))) MLOG("RewindBox: texture ser=%llu %ux%u format %#x, made at frame %llu with no content from its storage, is sampled at frame %llu by shader %s (stage %d) before anything wrote it; %llu such samplings so far",
                                          (unsigned long long)e.ser, e.w, e.h, e.fmt, (unsigned long long)e.frame, (unsigned long long)f, key ? key : "-", stage, (unsigned long long)k);
-@@ -4770,6 +4872,7 @@ static void alias_note_write(const tex_t *t) {   // gpw_mark: the texture's stor
+@@ -4775,6 +4877,7 @@ static void alias_note_write(const tex_t *t) {   // gpw_mark: the texture's stor
  //   were taken over by frame 5100 of the 765 test and no line said how many of them were live, nor which. The first 16 (then at powers of two) are named with the texture
  //   that took the storage over, and each frame counts them (frames.txt). Caller holds g_smu; S2A_RB_FSIG_MORE=0 names none
  static void rb_alias_dead_note(uint64_t ser, const alias_key *k, const alias_key *nk) {
@@ -149,7 +149,7 @@ index 420ddbe..127279c 100644
      static uint64_t n; n++;
      if (!fsig_more_on() || (n > 16 && (n & (n - 1)))) return;
      nvn_texlayout kl, nl; nvn_tex_layout(&k->d, &kl); nvn_tex_layout(&nk->d, &nl);
-@@ -9127,6 +9230,7 @@ static id<MTLTexture> tex_mtl_for_pass(const tex_t *ct, id<MTLTexture> __strong
+@@ -9132,6 +9235,7 @@ static id<MTLTexture> tex_mtl_for_pass(const tex_t *ct, id<MTLTexture> __strong
      if (getenv("DM_NVN_TEXCPU") && t->pool && !(t->pool->flags & NVN_MEMORY_POOL_FLAGS_CPU_NO_ACCESS)) MLOG("non-swizzled texture on a CPU-visible pool ser=%llu %ux%ux%u format %#x target %d levels %u texture flags %#x pool flags %#x storage %p", (unsigned long long)t->serial, t->d.width, t->d.height, t->d.depth, t->d.format, t->d.target, t->d.levels, t->d.flags, t->pool->flags, (void *)t->mem);
      res_add(mt);
      if (!txr_back) FSIG(fc_->texnew++);   // RewindBox (patch 0059); patch 0071: made, not taken back
@@ -157,7 +157,7 @@ index 420ddbe..127279c 100644
      pthread_mutex_lock(&g_smu);
      if (!g_alias_set) g_alias_set = CFSetCreateMutable(NULL, 0, NULL);
      alias_take_over(&ak);
-@@ -10427,6 +10531,7 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+@@ -10432,6 +10536,7 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
           if (ct && pd.depthAttachment.texture && (uint64_t)ct.width * ct.height > (uint64_t)fc_->w * fc_->h) { fc_->w = (uint32_t)ct.width; fc_->h = (uint32_t)ct.height;
               rb_drs_scene_note(atomic_load_explicit(&fc_->frame, memory_order_relaxed) - 1, (uint64_t)ct.width * ct.height); }
           id<MTLTexture> pt = ct ?: pd.depthAttachment.texture; fsig_pass(pt ? (uint32_t)pt.width : 0, pt ? (uint32_t)pt.height : 0, pt ? (uint32_t)pt.pixelFormat : 0));   // RewindBox (patch 0063)
@@ -165,7 +165,7 @@ index 420ddbe..127279c 100644
      { id<MTLTexture> lt = pd.colorAttachments[0].texture ?: pd.depthAttachment.texture;   // 本窗口画过的最大渲染目标（11-02 塞尔达户外落 30：看动态分辨率有没有把渲染尺寸抬上去）
        if (lt && (uint64_t)lt.width * lt.height > (uint64_t)g_rtw_w * g_rtw_h) { g_rtw_w = (uint32_t)lt.width; g_rtw_h = (uint32_t)lt.height; g_rtw_fmt = (uint32_t)lt.pixelFormat; } }
      if (enc_label_on()) { id<MTLTexture> lt = pd.colorAttachments[0].texture ?: pd.depthAttachment.texture ?: pd.stencilAttachment.texture; g_el_w = (int)lt.width; g_el_h = (int)lt.height; g_el_draws = 0; g_el_key[0] = 0; }
-@@ -26667,6 +26772,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+@@ -26672,6 +26777,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
          pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_END();
      }
      id<MTL4CommandBuffer> cb = nil; id<MTLCommandBuffer> cb3 = nil;
@@ -173,7 +173,7 @@ index 420ddbe..127279c 100644
      if (g_m3) {
          cb3 = [g_q3 commandBuffer];   // retained references: keeps the drawable and the source until it is done
          ext_wait3(cb3);
-@@ -26684,6 +26790,10 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+@@ -26689,6 +26795,10 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
              [e copyFromTexture:src sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(rx0, ry0, 0) sourceSize:MTLSizeMake(rw, rh, 1) toBuffer:b destinationOffset:0 destinationBytesPerRow:rw * 4 destinationBytesPerImage:rw * rh * 4];
              enc_end_on(e, YES);
          }
@@ -184,7 +184,7 @@ index 420ddbe..127279c 100644
          [cb endCommandBuffer];
      } else MDIE("【红】 Metal 4 presentation requires macOS / iOS 26");
      id o = fb_new();
-@@ -26691,7 +26801,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+@@ -26696,7 +26806,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
      // including optional effects/readback, and cannot time that queue wait.
      if (!g_m3 && !(ticket % 16) && rb_fx_tail_trace()) {
          BOOL nearest = g_present_nearest && !g_present_aa && !g_present_fx;
@@ -193,7 +193,7 @@ index 420ddbe..127279c 100644
          NSUInteger sw = src.width, sh = src.height, dw = dr.texture.width, dh = dr.texture.height;
          NSUInteger sf = src.pixelFormat, df = dr.texture.pixelFormat;
          int flip = atomic_load_explicit(&g_origin_ll, memory_order_relaxed), fbOnly = dr.texture.framebufferOnly;
-@@ -26706,6 +26816,11 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+@@ -26711,6 +26821,11 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
      }
      if (rl_m4) { id<MTLBuffer> b = g_rl_buf[alloc_i]; NSUInteger w = rw, h = rh; unsigned long long n = rn, tns = rtns;   // added before the slot-release handler below: the slot (and this buffer) is reused only after that one ran
          fb_add(o, ^(id<MTL4CommitFeedback> f) { if (!f.error) rl_row(b.contents, w, h, n, tns); }); }

@@ -34,10 +34,10 @@ index 9692faa..75977d1 100644
      g_display_covered_s = 0;
      g_display_gpu_known = g_display_gpu_early_late = g_display_trace_lines = 0;
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index c35210a..1c1b25a 100644
+index c35210a..9666f32 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
-@@ -3083,19 +3083,61 @@ __attribute__((weak)) uint64_t nvn_rb_interval_changes(void) { return 0; }
+@@ -3083,19 +3083,66 @@ __attribute__((weak)) uint64_t nvn_rb_interval_changes(void) { return 0; }
  __attribute__((weak)) int nvn_rb_video_paced(void);
  static int fps_override(void);
  static rb_drs_trial g_rb_drs_trial;   // g_rb_floor_lock
@@ -46,19 +46,23 @@ index c35210a..1c1b25a 100644
 +//   0309 that has lasted an escape's 12 frames ends once that scene has grown by more than a hundredth (13 steps of 4 pixels in the 28 frames of one IPA 825 trial);
 +//   (c) the guard is shown interval 1 until the game has sent two presents in a row at interval 2 (445 of 487 stays lasted one present and rested the guard about 64 %
 +//   of the first session). Read by the completion handlers, only where the guard is on (S2A_RB_DRS_NO_LOCK=1): the same value whoever reads it first.
-+//   S2A_RB_DRS_FIX_SCENE=0, S2A_RB_DRS_FIX_TRIAL=0, S2A_RB_DRS_FIX_BLIP=0: each as before
++//   S2A_RB_DRS_FIX_TRIAL=0, S2A_RB_DRS_FIX_BLIP=0: each as before. (a) is off unless S2A_RB_DRS_FIX_SCENE=1: with the real scene the guard's written rule "an escape
++//   ends and rests when the scene grows" takes effect, where IPA 827 compared 4096 with 4096 and let 49 of 51 and 52 of 54 escapes run to the game's answer; a game that
++//   grows its scene by a hundredth before it answers would rest the escapes at once (90 to 360 frames) and could sit at 30 meanwhile. To be tried on the device first.
++//   (b) only stops a trial the game has answered (rb_drs_trial_ramp_answered): an unanswered trial keeps its 30 frames.
 +static int rb_drs_guard_on(void);
++__attribute__((weak)) int nvn_rb_game_interval(void);   // RewindBox (patch 0327): defined below, read by the trial's growth stop
 +static int rb_drs_fix_scene_on(void) {
 +    static int v = -1;
-+    if (v < 0) { const char *e = getenv("S2A_RB_DRS_FIX_SCENE"); v = !(e && !strcmp(e, "0"));
-+        MLOG("[rb-guest-drs] guard fix a %s (S2A_RB_DRS_FIX_SCENE; patch 0327): the scene the guard compares is %s", v ? "on" : "off", v ? "the last whole frame's" : "the frame's own so far, as before"); }
++    if (v < 0) { const char *e = getenv("S2A_RB_DRS_FIX_SCENE"); v = e && !strcmp(e, "1");   // off unless asked for: see the note above
++        MLOG("[rb-guest-drs] guard fix a %s (S2A_RB_DRS_FIX_SCENE=1 turns it on; patch 0327): the scene the guard compares is %s", v ? "on" : "off", v ? "the last whole frame's" : "the frame's own so far, as before"); }
 +    return v;
 +}
 +static int rb_drs_fix_trial_on(void) {
 +    static int v = -1;
 +    if (v < 0) { const char *e = getenv("S2A_RB_DRS_FIX_TRIAL"); v = !(e && !strcmp(e, "0"));
 +        MLOG("[rb-guest-drs] guard fix b %s (S2A_RB_DRS_FIX_TRIAL; patch 0327): a trial %s (%d frames; the first %d whatever the scene)", v ? "on" : "off",
-+             v ? "ends once the scene is more than a hundredth larger than at its first frame" : "lasts its frames whatever the scene, as before", RB_DRS_TRIAL_FRAMES, RB_DRS_TRIAL_RAMP_AFTER); }
++             v ? "the game has answered ends once the scene is more than a hundredth larger than at its first frame" : "lasts its frames whatever the scene, as before", RB_DRS_TRIAL_FRAMES, RB_DRS_TRIAL_RAMP_AFTER); }
 +    return v;
 +}
 +static int rb_drs_fix_blip_on(void) {
@@ -80,11 +84,12 @@ index c35210a..1c1b25a 100644
      uint64_t changes = nvn_rb_interval_changes();
 +    const int stop_on = rb_drs_guard_on() && rb_drs_fix_trial_on();   // RewindBox (patch 0327): fix (b), under the guard only (rb_drs_trial_ramp_step)
 +    const uint64_t seen_px = stop_on ? rb_drs_scene_seen(f) : 0;
++    const int answer_itv = stop_on ? nvn_rb_game_interval() : 2;   // RewindBox (patch 0327): the interval of the game's last present (2: the trial is not answered yet)
      os_unfair_lock_lock(&g_rb_floor_lock);
      uint64_t trials = g_rb_drs_trial.trials;
      int on = rb_drs_trial_step(&g_rb_drs_trial, f, fps, changes, allowed);
 +    const uint64_t stops = g_rb_drs_trial_ramp.stops;
-+    if (stop_on) on = rb_drs_trial_ramp_step(&g_rb_drs_trial, &g_rb_drs_trial_ramp, f, on, seen_px);   // RewindBox (patch 0327)
++    if (stop_on) on = rb_drs_trial_ramp_answered(&g_rb_drs_trial, &g_rb_drs_trial_ramp, f, on, seen_px, answer_itv);   // RewindBox (patch 0327)
 +    const rb_drs_trial_ramp ramp = g_rb_drs_trial_ramp;
      rb_drs_trial tr = g_rb_drs_trial;
      os_unfair_lock_unlock(&g_rb_floor_lock);
@@ -99,7 +104,7 @@ index c35210a..1c1b25a 100644
      return on;
  }
  // RewindBox (patch 0319): the no-lock guard for a game that alternates intervals 1 and 2 (rb_adaptive_drs.h, rb_drs_escape_step). The bridge sets
-@@ -3125,16 +3167,24 @@ static int rb_drs_escape_now(uint64_t f) {
+@@ -3125,16 +3172,24 @@ static int rb_drs_escape_now(uint64_t f) {
      int allowed = atomic_load_explicit(&g_drs_state, memory_order_relaxed) < 3 && fps_override() <= 0 &&
                    nvn_fps_limit() != 30 && !nvn_rb_video_paced();
      int itv = nvn_rb_game_interval();
@@ -137,10 +142,10 @@ index f6445b5..5fa2c79 100644
      g_rb_display_cadence = (rb_cadence_candidate){0};
      g_link_pending = 0; g_link_pending_since = g_link_pending_period = 0;
 diff --git a/graphics/nvn/gfx/nvn/rb_adaptive_drs.h b/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
-index 9daf484..a38fc7c 100644
+index 9daf484..8cf9ce0 100644
 --- a/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
 +++ b/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
-@@ -268,3 +268,59 @@ static inline int rb_drs_escape_step(rb_drs_escape *s, uint64_t frame, int itv,
+@@ -268,3 +268,69 @@ static inline int rb_drs_escape_step(rb_drs_escape *s, uint64_t frame, int itv,
      s->until = frame + 1 + RB_DRS_ESCAPE_FRAMES; s->start_px = pixels; ++s->escapes;
      return s->decision = 1;
  }
@@ -184,6 +189,16 @@ index 9daf484..a38fc7c 100644
 +    s->until = frame; s->decision = 0; ++r->stops;
 +    return 0;
 +}
++// The growth stop only once the game has answered the trial. itv: the interval of the game's last present. A trial is the only way out of a 30 lock while the escapes
++// rest, so a trial the game has not answered (still at interval 2) keeps its RB_DRS_TRIAL_FRAMES frames whatever the scene, as in patch 0309: stopped at its 12th frame,
++// a game that answers between the 13th and the 30th would stay locked and the next trial would wait twice as long. IPA 827, first session: the trial of frame 3954 was
++// answered at frame 3959 and the scene went on growing to frame 3984; that growth after the answer is what the stop ends. The first frame's scene is kept either way.
++static inline int rb_drs_trial_ramp_answered(rb_drs_trial *s, rb_drs_trial_ramp *r, uint64_t frame, int on, uint64_t pixels, int itv) {
++    if (itv != 2) return rb_drs_trial_ramp_step(s, r, frame, on, pixels);
++    if (on && r->trial != s->trials) { r->trial = s->trials; r->start_px = pixels; }
++    else if (on && !r->start_px) r->start_px = pixels;
++    return on;
++}
 +// (c) run: the presents in a row the game has sent at interval 2 so far (0 while its last one was sent at another interval).
 +enum { RB_DRS_ESCAPE_ARM = 2 };
 +static inline unsigned rb_drs_itv_run(unsigned run, int interval) {
@@ -201,10 +216,10 @@ index 9daf484..a38fc7c 100644
 +    return ++b->frames;
 +}
 diff --git a/graphics/nvn/tests/t_rb_adaptive_drs.c b/graphics/nvn/tests/t_rb_adaptive_drs.c
-index cd56229..36a241e 100644
+index cd56229..4bbfbb3 100644
 --- a/graphics/nvn/tests/t_rb_adaptive_drs.c
 +++ b/graphics/nvn/tests/t_rb_adaptive_drs.c
-@@ -207,4 +207,128 @@ int main(void) {
+@@ -207,4 +207,153 @@ int main(void) {
      puts("PASS guest DRS floor learning: no floor from a scene that never shrinks, doubled waits, floor from a push that shrank the scene");
      puts("PASS guest DRS floor: unknown size, one count a frame, stall at the smallest size, rest at the floor, retry above it");
      puts("PASS guest DRS: measured medians/tails, hold at Fair, 18.675/20.5 ms steps, Serious push, disjoint samples, invalid windows, hysteresis, 30 Hz and off");
@@ -266,6 +281,31 @@ index cd56229..36a241e 100644
 +        for (int i = 1; i < RB_DRS_TRIAL_FRAMES; ++i) { ++k; assert(rb_drs_trial_ramp_step(&t2, &ramp, k, rb_drs_trial_step(&t2, k, i < 6 ? 30 : 60, c2, 1), 1256 * 704)); }
 +        ++k;
 +        assert(!rb_drs_trial_ramp_step(&t2, &ramp, k, rb_drs_trial_step(&t2, k, 60, c2, 1), 1256 * 704) && ramp.stops == 1);
++        // A trial the game has not answered (its last present still at interval 2) keeps its RB_DRS_TRIAL_FRAMES frames however the scene grows; the first frame's
++        // scene is kept, and the stop applies from the frame the game answers (after the trial's first RB_DRS_TRIAL_RAMP_AFTER frames).
++        {
++            rb_drs_trial t4 = {0};
++            rb_drs_trial_ramp r4 = {0};
++            t4.trials = 7; t4.until = 500 + RB_DRS_TRIAL_FRAMES;
++            for (uint64_t q = 500; q < 500 + RB_DRS_TRIAL_FRAMES; ++q)
++                assert(rb_drs_trial_ramp_answered(&t4, &r4, q, 1, (1248 + 4 * (q - 500)) * (700 + 2 * (q - 500)), 2) && t4.until == 500 + RB_DRS_TRIAL_FRAMES && !r4.stops);
++            assert(r4.trial == 7 && r4.start_px == 1248 * 700);
++            assert(!rb_drs_trial_ramp_answered(&t4, &r4, 500 + RB_DRS_TRIAL_FRAMES, 0, 1400 * 780, 2) && !r4.stops);   // over by itself
++            rb_drs_trial t5 = {0};
++            rb_drs_trial_ramp r5 = {0};
++            t5.trials = 8; t5.until = 600 + RB_DRS_TRIAL_FRAMES;
++            for (uint64_t q = 600; q < 605; ++q) assert(rb_drs_trial_ramp_answered(&t5, &r5, q, 1, (1248 + 4 * (q - 600)) * (700 + 2 * (q - 600)), 2));   // not answered yet
++            assert(r5.start_px == 1248 * 700);
++            for (uint64_t q = 605; q < 600 + RB_DRS_TRIAL_RAMP_AFTER; ++q)   // answered at its sixth frame: its first RB_DRS_TRIAL_RAMP_AFTER frames still run
++                assert(rb_drs_trial_ramp_answered(&t5, &r5, q, 1, (1248 + 4 * (q - 600)) * (700 + 2 * (q - 600)), 1) && !r5.stops);
++            assert(!rb_drs_trial_ramp_answered(&t5, &r5, 600 + RB_DRS_TRIAL_RAMP_AFTER, 1, 1296 * 724, 1) && r5.stops == 1 && t5.until == 600 + RB_DRS_TRIAL_RAMP_AFTER);
++            rb_drs_trial t6 = {0};
++            rb_drs_trial_ramp r6 = {0};
++            t6.trials = 9; t6.until = 700 + RB_DRS_TRIAL_FRAMES;
++            assert(rb_drs_trial_ramp_answered(&t6, &r6, 700, 1, 0, 2) && r6.trial == 9 && !r6.start_px);   // scene not known at its first frame
++            assert(rb_drs_trial_ramp_answered(&t6, &r6, 701, 1, 1248 * 700, 2) && r6.start_px == 1248 * 700);
++            assert(rb_drs_trial_ramp_answered(&t6, &r6, 702, 1, 1300 * 728, 3) && !r6.stops);   // interval 3 counts as an answer, inside the first frames
++        }
 +        // A trial whose first frame did not know the scene starts from the first frame that does.
 +        rb_drs_trial t3 = {0};
 +        rb_drs_trial_ramp r3 = {0};

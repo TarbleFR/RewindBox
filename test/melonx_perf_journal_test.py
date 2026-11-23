@@ -137,6 +137,26 @@ check(journal.index('            stalls.start()\n') < journal.index('    func st
       'queue.async { [self] in\n            stalls.stop()\n' in journal, 'watch started with the journal and stopped with it')
 watch_only = journal[journal.index('final class MeloNXStallWatch {'):journal.index('final class MeloNXMemoryBreakdown {')]
 check(watch_only.count('MeloNXStdioCapture.appendLine(') == 2, 'the stall watch writes its two lines')
+# Render path stall watch (IPA 824-828, Hogwarts Legacy: the render and GPU threads stood still 25 s while every engine
+# call of the journal returned, so the watch recorded nothing). From the presentation counts it already reads, the
+# journal asks for frame stall records: none before the session's first frame, none while paused, one per stage; the
+# watch records them on its own thread, two stalls at most, with up to 32 return addresses.
+check('static var frameStallStagesMs: [Double] = [2000, 5000, 12000]' in watch_only and 'static let maxFrameStalls = 2' in watch_only and
+      'static let frameStallFrames = 32' in watch_only, 'frame stall bounds')
+check('        previousShown = shown\n        noteFrameStall(frames:frames, paused:isPaused, fifoPercent:fifoPercent)\n' in journal and
+      journal.count('noteFrameStall(') == 2 and journal.count('stalls.frameStall(') == 1 and journal.count('stalls.frameStallEnded(') == 1,
+      'the journal asks for frame stall records once per sample')
+frame_note = journal[journal.index('    private func noteFrameStall('):journal.index('    private func sample() {')]
+check('if frames > 0 || (paused && lastFrameAt != nil) {' in frame_note and 'guard let last = lastFrameAt else { return }' in frame_note and
+      'stalledMs >= stages[frameStallStage]' in frame_note and 'frameStallStage += 1' in frame_note and
+      all(name not in frame_note for name in ('fps(', 'audio(', 'memory(', 'presentation(')),
+      'no record before the first frame, while paused or before its stage; no engine call')
+check('for request in frameRequests { recordFrameStall(request) }' in watch_only and
+      'frameStallRecorded = frameStalls < Self.maxFrameStalls' in watch_only and
+      'Self.frames(from:state.__fp, limit:frameLimit)' in watch_only and
+      'record(label:label, frameLimit:Self.maxFrames, previous:&previousCpu)' in watch_only and
+      'record(label:label, frameLimit:Self.frameStallFrames, previous:&frameStallCpu)' in watch_only,
+      'frame stalls recorded by the watch thread, bounded, with the call stalls\' own recorder')
 
 # Memory breakdown (lot 9, RAM): the footprint's ledgers and regions, bounded, from its own utility queue, started and
 # stopped with the journal; it reads the process's own VM map and calls no engine closure.
@@ -712,6 +732,72 @@ exit(0)
         check(gone == dict(run=0, wait=0, missed=80, own=[], stack=[], waiting=[]), 'a thread that does not exist: ' + hot_lines[3])
         check(all(len(row['own']) <= 32 and len(row['stack']) <= 48 and len(row['waiting']) <= 12 for row in rows.values()) and
               all(len(line) < 6144 for line in hot_lines), 'bounded lists')
+
+        # Render path stall watch: frames, then a stall of 1.8 s (three records and its end), frames, a stall of 0.48 s
+        # ended by a pause (one record and its end), frames, a third stall (over the budget: nothing), with the stages
+        # shortened to 300, 700 and 1200 ms; engine calls return at once, so no call stall is recorded.
+        frame_log = work / 'frame.log'
+        (work / 'framestall').mkdir()
+        (work / 'framestall' / 'main.swift').write_text(r'''import Foundation
+import Darwin
+let path = CommandLine.arguments[1]
+MeloNXStallWatch.frameStallStagesMs = [300, 700, 1200]
+let gate = DispatchSemaphore(value:0)
+var depthSeen = 0
+// A wait 20 calls deep, as an engine thread parked in the runtime's wait is: more than a call stall's eight addresses.
+@inline(never) func deep(_ depth: Int) {
+    if depth == 0 { gate.wait() } else { deep(depth - 1) }
+    depthSeen &+= depth
+}
+let waiter = Thread { deep(20) }
+waiter.name = "Frame Waiter"
+waiter.start()
+let lock = NSLock()
+var shown = MeloNXPerfJournal.Presentation()
+var presenting = true
+func presentFrames(_ value: Bool) { lock.lock(); presenting = value; lock.unlock() }
+let journal = MeloNXPerfJournal(path:path, interval:0.05, lineLimit:1000,
+    fps:{ ["gameFps":0.0,"gameFrameTimeMs":0.0,"fifoPercent":100.0] },
+    presentation:{ lock.lock(); if presenting { shown.frames += 1 }; let value = shown; lock.unlock(); return value },
+    audio:{ nil })
+journal.start()
+usleep(400_000)
+presentFrames(false); usleep(1_800_000)
+presentFrames(true); usleep(400_000)
+presentFrames(false); usleep(480_000)
+journal.setPaused(true); usleep(400_000)
+journal.setPaused(false); presentFrames(true); usleep(400_000)
+presentFrames(false); usleep(600_000)
+presentFrames(true); usleep(400_000)
+journal.stop()
+usleep(400_000)
+gate.signal()
+exit(0)
+''')
+        frame_executable = work / 'framestall' / 'framestall'
+        subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', str(CLASSES / 'MeloNXStandaloneParity.swift'),
+                        str(CLASSES / 'MeloNXPerfJournal.swift'), str(CLASSES / 'MeloNXHotSpots.swift'), str(work / 'framestall' / 'main.swift'),
+                        '-o', str(frame_executable)], check=True)
+        result = subprocess.run([str(frame_executable), str(frame_log)], capture_output=True, text=True, timeout=120)
+        check(result.returncode == 0, result)
+        frame_lines = [line.removeprefix('[MeloNX:stall] ') for line in frame_log.read_text().splitlines() if line.startswith('[MeloNX:stall] ')]
+        print('\n'.join(line[:300] for line in frame_lines if ' t' not in line[:8] or 'Frame_Waiter' in line), flush=True)
+        frame_headers = [line for line in frame_lines if re.match(r'#F\d+\.\d+ no frame for \d+ ms, FIFO 100 %, \d+ threads', line)]
+        check([h.split(' ')[0] for h in frame_headers] == ['#F1.0', '#F1.1', '#F1.2', '#F2.0'], frame_headers)
+        stalled = [int(re.search(r'no frame for (\d+) ms', h).group(1)) for h in frame_headers]
+        check(300 <= stalled[0] < stalled[1] < stalled[2] and stalled[1] >= 700 and stalled[2] >= 1200 and stalled[3] >= 300, frame_headers)
+        frame_ends = [line for line in frame_lines if re.match(r'#F\d+ end: ', line)]
+        check(len(frame_ends) == 2 and re.match(r'#F1 end: a frame again after [\d.]+ ms$', frame_ends[0].split(' context=')[0]) and
+              re.match(r'#F2 end: paused after [\d.]+ ms$', frame_ends[1].split(' context=')[0]), frame_ends)
+        check(float(re.search(r'after ([\d.]+) ms', frame_ends[0]).group(1)) >= 1200, frame_ends)
+        check(not any(line.startswith(('#F3', '#1')) for line in frame_lines), 'the third stall is over the budget; no call stall')
+        waiter_rows = [line for line in frame_lines if line.startswith('#F1.0 t') and ' Frame_Waiter ' in line]
+        check(len(waiter_rows) == 1 and re.search(r' Frame_Waiter W s0 p\d+/\d+ c[\d.]+ pc=libsystem_kernel\.dylib\+0x[0-9a-f]+ ', waiter_rows[0]),
+              waiter_rows)
+        check(all(len(re.search(r' bt=(\S+)', line).group(1).split(',')) <= 32 for line in frame_lines if ' bt=' in line) and
+              len(re.search(r' bt=(\S+)', waiter_rows[0]).group(1).split(',')) > 8,
+              'frame stall rows: the waiter\'s deeper than a call stall\'s eight return addresses, every row at most 32')
+        check(not any(' RewindBox.MeloNX.StallWa ' in line for line in frame_lines), 'the watch does not list itself')
 
         # Memory breakdown: 96 MiB tagged app-specific 3 (64 MiB written) and 32 MiB of shared memory tagged
         # app-specific 4, written and mapped twice more without a tag (mach_vm_remap takes none): one object, counted

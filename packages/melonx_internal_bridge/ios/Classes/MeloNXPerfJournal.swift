@@ -52,7 +52,8 @@ import Darwin
 //   sw=    context switches / system calls / wakeups by interrupt, per second
 //   th= lp= thermal state and Low Power Mode; "paused" while the game is paused
 // "[MeloNX:stall]" lines (MeloNXStallWatch, below): every thread of the process while one of these engine calls
-// has been in flight 300 ms, 1.3 s and 3.3 s, then the call's duration.
+// has been in flight 300 ms, 1.3 s and 3.3 s, then the call's duration; "#F" records, every thread again when a running
+// game has presented no frame for 2, 5 and 12 s after its first one, then how that stall ended.
 // "[MeloNX:memory]" lines (MeloNXMemoryBreakdown, below): the footprint's ledgers and regions, every 60 s.
 // "[MeloNX:hot]" lines (MeloNXHotSpots.swift): where the busiest threads are, sampled for 3 s when the game runs slow
 // and when it runs on target.
@@ -152,6 +153,10 @@ final class MeloNXPerfJournal {
     private var totalStarved: Int64 = 0, totalStarvedNs: Int64 = 0
     private let profileOnlyWhenCool: Bool
     private var hottest = 0
+    // RewindBox (render path stall watch): when the last frame was presented (nil before the session's first one) and how
+    // many of MeloNXStallWatch.frameStallStagesMs the current frame stall has reached.
+    private var lastFrameAt: Double?
+    private var frameStallStage = 0
     // in= comes from the running session's input router (one at a time); the
     // router installs it with its controls and removes it when it closes.
     private static let inputLock = NSLock()
@@ -424,6 +429,27 @@ final class MeloNXPerfJournal {
         }
     }
 
+    // RewindBox (render path stall watch): no frame presented for one of MeloNXStallWatch.frameStallStagesMs, after the
+    // session's first frame and while the game runs, asks the stall watch to record every thread; the first frame after a
+    // stall it was asked about ends that stall, and so does a pause, which does not count: the clock starts again after it.
+    // Measurement only (IPA 824-828, Hogwarts Legacy: the render and GPU threads stood still from t=22 s until the game's
+    // watchdog ended it 25 s later, while every engine call of this journal returned, so no stall was recorded).
+    private func noteFrameStall(frames: UInt64, paused: Bool, fifoPercent: Double?) {
+        let now = ProcessInfo.processInfo.systemUptime
+        if frames > 0 || (paused && lastFrameAt != nil) {
+            if frameStallStage > 0 { stalls.frameStallEnded(afterMs:(now - (lastFrameAt ?? now)) * 1000, paused:frames == 0) }
+            lastFrameAt = now
+            frameStallStage = 0
+            return
+        }
+        guard let last = lastFrameAt else { return }
+        let stalledMs = (now - last) * 1000
+        let stages = MeloNXStallWatch.frameStallStagesMs
+        guard frameStallStage < stages.count, stalledMs >= stages[frameStallStage] else { return }
+        stalls.frameStall(stage:frameStallStage, stalledMs:stalledMs, fifoPercent:fifoPercent.map { Int($0.rounded()) })
+        frameStallStage += 1
+    }
+
     private func sample() {
         let now = ProcessInfo.processInfo.systemUptime
         lock.lock(); let isPaused = paused; lock.unlock()
@@ -435,8 +461,9 @@ final class MeloNXPerfJournal {
         let engine = MeloNXEngineCallClass.interactive { fps() }
         let callMs = (ProcessInfo.processInfo.systemUptime - callStart) * 1000
         stalls.exit()
+        let fifoPercent = engine["fifoPercent"] as? Double // RewindBox (render path stall watch)
         if let rate = engine["gameFps"] as? Double {
-            let time = engine["gameFrameTimeMs"] as? Double ?? 0, fifo = engine["fifoPercent"] as? Double ?? 0
+            let time = engine["gameFrameTimeMs"] as? Double ?? 0, fifo = fifoPercent ?? 0
             fields.append("fps=\(Self.decimal(rate))/\(Self.decimal(time))/\(Int(fifo.rounded()))")
             // Boot seconds before the first measured frame read 0.
             if !isPaused && rate > 0 { fpsTotal += rate; fpsCount += 1 }
@@ -449,6 +476,7 @@ final class MeloNXPerfJournal {
         let over20 = shown.over20 &- previousShown.over20, over40 = shown.over40 &- previousShown.over40
         let over50 = shown.over50 &- previousShown.over50, over100 = shown.over100 &- previousShown.over100
         previousShown = shown
+        noteFrameStall(frames:frames, paused:isPaused, fifoPercent:fifoPercent)
         totalFrames &+= frames; totalOver20 &+= over20; totalOver40 &+= over40
         fields.append("pres=\(frames)/\(Self.decimal(shown.maxGapMs))/\(over20)/\(over40)")
         totalOver50 &+= over50; totalOver100 &+= over100
@@ -609,6 +637,13 @@ final class MeloNXStallWatch {
     static let stagesMs: [Double] = [300, 1300, 3300]
     static let maxStalls = 6
     static let maxFrames = 8
+    // RewindBox (render path stall watch): no frame presented for these times of a running game after its first frame
+    // (MeloNXPerfJournal.noteFrameStall): every thread is recorded, with up to frameStallFrames return addresses (a
+    // thread parked in the runtime's wait spends its first eight in the wait itself), for at most maxFrameStalls stalls
+    // per journal. A variable so that a test can shorten them.
+    static var frameStallStagesMs: [Double] = [2000, 5000, 12000]
+    static let maxFrameStalls = 2
+    static let frameStallFrames = 32
     static let addressMask: UInt64 = 0x0000_FFFF_FFFF_FFFF
     private static let timebase: mach_timebase_info_data_t = {
         var info = mach_timebase_info_data_t()
@@ -623,9 +658,14 @@ final class MeloNXStallWatch {
     private var callStart: UInt64 = 0, callName = ""
     private var flagged: UInt64 = 0, flaggedEnd: UInt64 = 0
     private var running = false
+    // Guarded by lock (render path stall watch): the frame stall records and ends the journal asked for, in order.
+    private enum FrameStallRequest { case record(stage: Int, stalledMs: Double, fifoPercent: Int?), end(afterMs: Double, paused: Bool) }
+    private var frameStallRequests: [FrameStallRequest] = []
     // Confined to the watch thread.
     private var watched: UInt64 = 0, watchedName = "", stage = 0, stalls = 0
     private var previousCpu: [UInt64: UInt64] = [:]
+    private var frameStalls = 0, frameStallRecorded = false
+    private var frameStallCpu: [UInt64: UInt64] = [:]
 
     init(path: String, context: [String:String]) {
         self.path = path; self.context = context
@@ -648,6 +688,15 @@ final class MeloNXStallWatch {
         lock.unlock()
     }
 
+    // RewindBox (render path stall watch): from the journal's queue; the watch thread records them at its next look.
+    func frameStall(stage: Int, stalledMs: Double, fifoPercent: Int?) {
+        lock.lock(); frameStallRequests.append(.record(stage:stage, stalledMs:stalledMs, fifoPercent:fifoPercent)); lock.unlock()
+    }
+
+    func frameStallEnded(afterMs: Double, paused: Bool) {
+        lock.lock(); frameStallRequests.append(.end(afterMs:afterMs, paused:paused)); lock.unlock()
+    }
+
     func start() {
         lock.lock(); defer { lock.unlock() }
         guard !running else { return }
@@ -666,7 +715,10 @@ final class MeloNXStallWatch {
             usleep(50_000)
             lock.lock()
             let alive = running, start = callStart, name = callName, ended = flaggedEnd
+            let frameRequests = frameStallRequests
+            frameStallRequests.removeAll()
             lock.unlock()
+            for request in frameRequests { recordFrameStall(request) }
             if watched != 0 && start != watched {
                 let took = ended != 0 ? Self.decimal(Self.milliseconds(ended &- watched)) : "?"
                 header("#\(stalls) end: \(watchedName) returned after \(took) ms")
@@ -695,6 +747,36 @@ final class MeloNXStallWatch {
     }
 
     private func snapshot(age: Double) {
+        let label = "#\(stalls).\(stage)"
+        record(label:label, frameLimit:Self.maxFrames, previous:&previousCpu) { "\(label) \(watchedName) in flight \(Int(age)) ms, \($0) threads" }
+    }
+
+    // RewindBox (render path stall watch): a stall's first stage opens it within the budget; its later stages and its end
+    // are written only for a stall that was opened.
+    private func recordFrameStall(_ request: FrameStallRequest) {
+        switch request {
+        case let .record(stallStage, stalledMs, fifoPercent):
+            if stallStage == 0 {
+                frameStallRecorded = frameStalls < Self.maxFrameStalls
+                guard frameStallRecorded else { return }
+                frameStalls += 1
+                frameStallCpu = [:]
+            }
+            guard frameStallRecorded else { return }
+            let label = "#F\(frameStalls).\(stallStage)"
+            let fifo = fifoPercent.map { "\($0)" } ?? "-"
+            record(label:label, frameLimit:Self.frameStallFrames, previous:&frameStallCpu) {
+                "\(label) no frame for \(Int(stalledMs)) ms, FIFO \(fifo) %, \($0) threads"
+            }
+        case let .end(afterMs, paused):
+            guard frameStallRecorded else { return }
+            frameStallRecorded = false
+            header("#F\(frameStalls) end: \(paused ? "paused" : "a frame again") after \(Self.decimal(afterMs)) ms")
+        }
+    }
+
+    // Every thread of the process once: read first, then written, the header (given the thread count) before the rows.
+    private func record(label: String, frameLimit: Int, previous: inout [UInt64: UInt64], header title: (Int) -> String) {
         var list: thread_act_array_t?
         var count: mach_msg_type_number_t = 0
         guard task_threads(mach_task_self_, &list, &count) == KERN_SUCCESS, let list else { return }
@@ -719,7 +801,7 @@ final class MeloNXStallWatch {
             let id = identifier.thread_id
             let used = extended.pth_user_time &+ extended.pth_system_time
             cpu[id] = used
-            let spent = previousCpu[id].map { "+" + Self.decimal(Double(used &- $0) / 1e6) } ?? Self.decimal(Double(used) / 1e6)
+            let spent = previous[id].map { "+" + Self.decimal(Double(used &- $0) / 1e6) } ?? Self.decimal(Double(used) / 1e6)
             var bytes = extended.pth_name
             var name = withUnsafeBytes(of:&bytes) { raw in String(decoding:raw.prefix(while:{ $0 != 0 }), as:UTF8.self) }
             name = String(name.map { $0.isWhitespace || $0 == ":" || $0 == "/" ? "_" : $0 }.prefix(24))
@@ -736,15 +818,15 @@ final class MeloNXStallWatch {
             }
             if read == KERN_SUCCESS {
                 text += " pc=" + Self.place(state.__pc, &places) + " lr=" + Self.place(state.__lr, &places)
-                let frames = Self.frames(from:state.__fp)
+                let frames = Self.frames(from:state.__fp, limit:frameLimit)
                 if !frames.isEmpty { text += " bt=" + frames.map { Self.place($0, &places) }.joined(separator:",") }
             }
             #endif
             lines.append(text)
         }
-        previousCpu = cpu
-        header("#\(stalls).\(stage) \(watchedName) in flight \(Int(age)) ms, \(lines.count) threads")
-        for line in lines { _ = MeloNXStdioCapture.appendLine("[MeloNX:stall] #\(stalls).\(stage) " + line, to:path, limit:MeloNXPerfJournal.fileLimit) }
+        previous = cpu
+        header(title(lines.count))
+        for line in lines { _ = MeloNXStdioCapture.appendLine("[MeloNX:stall] \(label) " + line, to:path, limit:MeloNXPerfJournal.fileLimit) }
     }
 
     private static func state(_ value: Int32) -> String {

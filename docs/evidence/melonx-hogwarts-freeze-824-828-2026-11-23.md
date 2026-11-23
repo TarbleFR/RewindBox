@@ -1,0 +1,88 @@
+# Hogwarts Legacy, IPA 824 à 828 : gel à t≈22 s — ce qui est prouvé, ce qui ne l'est pas
+
+23 novembre 2026. Sources : journaux privés de l'appareil (performance, core, stderr, crash, launch) des sessions
+822 (pid 12224, Hogwarts ; 12544, SSBU), 824 (13605, 13625 Hogwarts ; 13995, 14467 SSBU), 825 (15452 SSBU) et
+828 (17014, 17066 Hogwarts). Seuls des comptes et des durées sont repris ici.
+
+## 1. L'effondrement « ×200 » des pipelines compute : le cache Metal du système était vide
+
+- 822 : 535 pipelines compute construits en 1 212 ms dans la première fenêtre de 5 s (2,3 ms chacun).
+- 824/828 : après une première fenêtre plus ou moins rapide, 5 à 14 constructions par fenêtre, 450 à 650 ms chacune,
+  une seule à la fois, en continu jusqu'à la fin de la session.
+- La première session 824 (13605) est la seule où la création du périphérique GPU a pris 541,5 ms (1 à 3 ms partout
+  ailleurs, 822 compris) : les shaders internes de MoltenVK y ont été recompilés.
+- Le cache se remplit exactement au rythme des compilations des sessions précédentes :
+
+| Session | Constructions compute « rapides » au départ | Total compilé par la session précédente |
+|---|---|---|
+| 13605 (824) | 8 | — (822 : 539) |
+| 13625 (824) | 113 | 105 (+ fin de session non journalisée) |
+| 17014 (828) | 198 | 189 |
+| 17066 (828) | 285 | 281 |
+
+  Chaque session démarre avec ce que la précédente a compilé : ce sont des compilations Metal mises en cache par le
+  système, pas un ralentissement du moteur.
+- Le code de compilation et de liaison est identique entre 822 et 828 (ShaderCollection.cs, PipelineState.cs,
+  PipelineBase.cs, PipelineCacheManager.cs, VulkanRenderer.cs, ProgramQueue.cs, SetProgramCommand.cs,
+  ThreadedRenderer.cs, DmaClass.cs) ; seize fichiers seulement diffèrent entre les deux arbres. MoltenVK est identique
+  de 821 à 828 (même identité normalisée dans `docs/evidence/rewind82x/signed-payload-identity.json`).
+- Ce qui a vidé le cache entre 04 h 55 et 08 h 59 UTC n'est pas identifié (une mise à jour d'iOS l'invalide ; non
+  vérifié). Les installations de 825 et de 828 ne l'ont pas vidé.
+
+## 2. Le gel : signature mesurée
+
+- Dans les quatre sessions figées, le fil de rendu s'arrête après exactement 36 dessins, 18 constructions de pipelines
+  graphiques et 5 dispatchs (17014 : 118 dessins, 5 dispatchs), quel que soit l'état du cache (8 à 285 pipelines
+  rapides). Le point d'arrêt est donc fixe dans le flux de commandes du jeu.
+- Ensuite : aucun dessin, aucun dispatch, fil de rendu sous 1 % de CPU (en attente, pas en boucle) ; le fil GPU reste
+  dans `gpuDispatch` (17014 : le fil de présentation dans `frameWait`).
+- Aucune phase mesurée n'est en cours sur ces fils : ni `syncInvoke`, ni `queueBackpressure` (la file de commandes
+  n'est pas pleine), ni `bufferReadback`, ni `queryReadback`, ni construction de pipeline par le fil de rendu (le
+  compteur `computePipelineBuild` en cours reste à 1 avec un âge qui repart de zéro : c'est le travailleur qui
+  enchaîne ses compilations).
+- Aucun shader n'est traduit au moment du gel : 28 recherches dans le cache de shaders, 32,9 Ko alloués en tout ; le
+  cache disque (2 120 programmes) est le même dans toutes les sessions. Aucun programme créé en jeu n'est en cause.
+- Le blocage du minuteur de 828 (`adapt_compile_wait_guest_time`) ne s'est jamais engagé : le fil de rendu n'attendait
+  pas dans `WaitForPipelineAtDraw`.
+- Le SIGABRT de `FHeartBeatThread` à t=47–51 s est le chien de garde de 25 s d'Unreal Engine, une conséquence.
+
+## 3. Attentes du fil de rendu écartées par ces mesures
+
+- Attente d'une compilation promue (dessin ou dispatch) : servie par le fil « demand » ou par le travailleur après au
+  plus une compilation ; le fil « demand » est resté inactif et aucune compilation ne dure.
+- Construction de pipeline sur le fil de rendu (verrou du cache principal) : elle serait mesurée.
+- Attente de liaison d'un programme créé en jeu (`CheckProgramLink` → `_compileTask.Wait()`) : aucun programme n'est
+  créé en jeu ; les programmes du cache n'attendent que leurs modules, compilés au chargement.
+- Libération d'un programme : uniquement à la fermeture.
+- `SyncManager` (824, `adapt_unblocked_sync_queries`) : l'ordre des verrous `_handles` → handle est le même partout ;
+  la 824 retire une attente au lieu d'en ajouter.
+- Compactage sous pression mémoire (824) : 0 compactage pendant les sessions figées.
+
+## 4. Ce qui n'est pas prouvé
+
+L'appel exact dans lequel le fil de rendu attend. Aucun journal ne peut le montrer : les journaux du fil de rendu
+sont écrits par ce fil lui-même (dernier à 22,26 s), et l'observateur natif des blocages ne relevait les piles que
+lorsqu'un appel du journal au moteur restait bloqué, ce qui n'arrive pas ici. Les attentes restantes non mesurées
+sont des attentes de fence (`CommandBufferPool.WaitAndDecrementRef`, `StagingBuffer.WaitFreeCompleted`) et les appels
+dans MoltenVK/Metal ; aucune n'est désignée par les journaux actuels.
+
+## 5. Ce qui a été ajouté pour le prouver au premier essai
+
+Commit fb88bf8f0 (bridge, mesure seule) : quand un jeu en cours n'a présenté aucune image depuis 2, 5 et 12 s après sa
+première image, l'observateur relève chaque fil du processus (état, CPU, 32 adresses de retour) ; deux gels au plus
+par journal, puis la fin du gel. `tools/melonx/stall_report.py` nomme les adresses du moteur avec la carte des
+symboles de l'artefact du Core (vérifié sur la capture de la 822 : `ThreadedRenderer.RenderLoop`,
+`GPFifoDevice.WaitForCommands`, `WorkerQueue.WorkerLoop`).
+
+Lecture au premier essai :
+
+```bash
+python3 tools/melonx/stall_report.py MeloNX-performance.log --pid <pid> --symbols ios-arm64/Ryujinx.Library.symbols.txt.gz
+```
+
+## 6. Expérience décisive sans nouvelle IPA
+
+Réinstaller l'IPA 822 telle quelle et lancer Hogwarts une fois :
+- s'il gèle au même point (36 dessins, 5 dispatchs), la cause n'est pas dans le diff 822 → 824 mais dans un défaut
+  latent révélé par le cache Metal vide ;
+- s'il atteint le menu, la cause est dans les seize fichiers qui diffèrent entre les deux moteurs.
