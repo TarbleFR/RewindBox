@@ -160,6 +160,11 @@ COMPOSED = sorted(set(COMPOSED) | (set(FIFO_RETIREMENT) - {NV_CHANNEL}) | set(HO
 # already), so the final GPU build binds them.
 from adapt_shader_code_table_load import BASELINE as SHADER_CODE_TABLES  # noqa: E402
 COMPOSED = sorted(set(COMPOSED) | set(SHADER_CODE_TABLES))
+# Second lot after IPA 821: the JIT arena's three files of the GPU closure (Ryujinx.Cpu, Ryujinx.Memory) and the disk
+# cache's guest storage join the composition, so the final GPU build binds them. EmbeddedRuntime.cs is Ryujinx.Library's.
+from adapt_jit_arena_usage_journal import BASELINE as JIT_ARENA_USAGE  # noqa: E402
+from adapt_shader_cache_parallel_read import BASELINE as SHADER_CACHE_READ  # noqa: E402
+COMPOSED = sorted(set(COMPOSED) | {name for name in JIT_ARENA_USAGE if not name.startswith('src/Ryujinx.Library/')} | set(SHADER_CACHE_READ))
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs
 # (Ryujinx.Library) is outside the GPU assembly closure: it is composed and bound here, compiled by NativeAOT.
 COMPILED = sorted((set(COMPOSED) - {DMA_LIBRARY}) | {'src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs'})

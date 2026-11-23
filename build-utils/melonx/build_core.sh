@@ -86,6 +86,12 @@ if ! grep -aq 'RewindBox runtime yield 1: sched_yield is thread_switch(0, 0, 0) 
   exit 1
 fi
 echo "RewindBox runtime yield: $MELONX_RUNTIME binds sched_yield to its own definition (thread_switch and swtch_pri imported)"
+# adapt_bgc_suspension_pending: the same C file holds the collector's suspension flag at 1 during a background collection.
+if ! grep -aq 'RewindBox suspension pending 1: g_fSuspensionPending is 1 while a background collection runs' "$CORE"; then
+  echo "RewindBox suspension pending: the marker is missing from $MELONX_RUNTIME" >&2
+  exit 1
+fi
+echo "RewindBox suspension pending: $MELONX_RUNTIME linked against the collector's g_fSuspensionPending"
 otool -L "$CORE" > "$TASK_ROOT/dist/melonx/dependencies.txt"
 xcrun vtool -show-build "$CORE" > "$TASK_ROOT/dist/melonx/platform.txt"
 cp LICENSE.txt "$TASK_ROOT/dist/melonx/MeloNX-LICENSE.txt"

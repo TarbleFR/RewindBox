@@ -310,7 +310,11 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             # After IPA 821: no compile on the render thread for a skippable draw, the guest starts during the shader load,
             # the guest code tables are filled once at the end of the load.
             'render-thread-compile-relief': 'delivered', 'guest-start-during-shader-load': 'delivered',
-            'shader-code-table-load': 'delivered'}
+            'shader-code-table-load': 'delivered',
+            # Second lot after IPA 821: the background collector lets foreground collections through, the shader cache is
+            # read ahead of its consumer, the variant journal holds a session's states, the JIT arena's use is journaled.
+            'variant-journal-capacity': 'delivered', 'jit-arena-usage-journal': 'delivered',
+            'bgc-suspension-pending': 'delivered', 'shader-cache-parallel-read': 'delivered'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
 # Core 654: the collector (DIAGNOSTICS) is a reviewed change again, its gcEvent lines bound by the gc-events gate.
 CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES) |
@@ -512,6 +516,10 @@ C825_CODE_TABLES = {'src/Ryujinx.Graphics.Gpu/Shader/HashTable/PartitionHashTabl
                     'src/Ryujinx.Graphics.Gpu/Shader/ShaderCacheHashTable.cs',
                     'src/Ryujinx.Graphics.Gpu/Shader/ComputeShaderCacheHashTable.cs'}
 JOINED = JOINED | C825_CODE_TABLES
+# Second lot after IPA 821 (adapt_shader_cache_parallel_read): the guest storage of the disk shader cache joins the
+# prepared source.
+C826_GUEST_STORAGE = 'src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheGuestStorage.cs'
+JOINED = JOINED | {C826_GUEST_STORAGE}
 # Core 749 candidate (adapt_darwin_timed_waits): Ryujinx.Common's PreciseSleepHelper.cs joins the prepared source.
 C749_TIMED_WAITS = 'src/Ryujinx.Common/PreciseSleep/PreciseSleepHelper.cs'
 JOINED = JOINED | {C749_TIMED_WAITS}
@@ -772,7 +780,11 @@ if not args.helpers_only:
                     'src/Ryujinx.Graphics.Gpu/Shader/HashTable/PartitionedHashTable.cs',
                     'src/Ryujinx.Graphics.Gpu/Shader/ShaderCacheHashTable.cs',
                     'src/Ryujinx.Graphics.Gpu/Shader/ComputeShaderCacheHashTable.cs'})
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 147 and
+    # Second lot after IPA 821: the JIT arena's three files (adapt_jit_arena_usage_journal) and the disk cache's guest
+    # storage (adapt_shader_cache_parallel_read).
+    CHANGES.update({'src/Ryujinx.Cpu/LightningJit/Translator.cs', 'src/Ryujinx.Cpu/LightningJit/Cache/DualMappedNoWxCache.cs',
+                    'src/Ryujinx.Memory/DualMappedJitAllocator.cs', C826_GUEST_STORAGE})
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 151 and
           set(frozen["productionAdditions"]) == {C768_ONLINE_ADDITION, C770_RUNTIME_YIELD_ADDITION, 'src/Ryujinx.Horizon/EmbeddedDeliveryCache.cs', 'src/Ryujinx.HLE/EmbeddedCheatReport.cs',
               'src/Ryujinx.Library/EmbeddedNsz.cs', 'src/Ryujinx.Graphics.Gpu/EmbeddedShaderMetadataReader.cs'}, "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
@@ -946,7 +958,12 @@ if not args.helpers_only:
                                                      # After IPA 821: stutter and launch time.
                                                      'build-utils/melonx/adapt_render_thread_compile_relief.py',
                                                      'build-utils/melonx/adapt_guest_start_during_shader_load.py',
-                                                     'build-utils/melonx/adapt_shader_code_table_load.py'} and
+                                                     'build-utils/melonx/adapt_shader_code_table_load.py',
+                                                     # Second lot after IPA 821: collection pauses, launch, variant journal.
+                                                     'build-utils/melonx/adapt_variant_journal_capacity.py',
+                                                     'build-utils/melonx/adapt_jit_arena_usage_journal.py',
+                                                     'build-utils/melonx/adapt_bgc_suspension_pending.py',
+                                                     'build-utils/melonx/adapt_shader_cache_parallel_read.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -1022,7 +1039,9 @@ if not args.helpers_only:
     # After IPA 771: adapt_shader_load_binary_release.py joins them (263); its two disk cache files are members already.
     # After IPA 821, launch and stutter lot: three adapters join them (285); the four code table files join the members
     # (249), the nine other files they edit are members already.
-    check(len(frozen['preparationInputs']) == 285 and len(frozen['preparedMembers']) == 249, 'Wrong final composition')
+    # Second lot after IPA 821: four adapters join them (289); DiskCacheGuestStorage.cs joins the members (250), the
+    # seven other files they edit are members already.
+    check(len(frozen['preparationInputs']) == 289 and len(frozen['preparedMembers']) == 250, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

@@ -70,7 +70,9 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_account_cache_import', 'adapt_xci_update_identity', 'adapt_hogwarts_frame_budget',
          'adapt_fifo_channel_retirement', 'adapt_hogwarts_steady_render', 'adapt_hogwarts_pipeline_replay',
          'adapt_guest_stop_compile_cancel', 'adapt_deferred_release_roots',
-         'adapt_render_thread_compile_relief', 'adapt_guest_start_during_shader_load', 'adapt_shader_code_table_load')
+         'adapt_render_thread_compile_relief', 'adapt_guest_start_during_shader_load', 'adapt_shader_code_table_load',
+         'adapt_variant_journal_capacity', 'adapt_jit_arena_usage_journal',
+         'adapt_bgc_suspension_pending', 'adapt_shader_cache_parallel_read')
 
 
 def sha(path: Path) -> str:

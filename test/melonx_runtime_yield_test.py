@@ -27,7 +27,7 @@ changes on the iPhone is read from the next IPA's [MeloNX:hot] lines.
 Writes dist/melonx/runtime-yield-checks.json.
 """
 from pathlib import Path
-import hashlib, json, os, shutil, subprocess, sys, tempfile
+import hashlib, importlib, json, os, shutil, subprocess, sys, tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.dont_write_bytecode = True
@@ -35,6 +35,7 @@ SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
 from melonx_adapter_control import control_source  # noqa: E402
+import melonx_adapter_control  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_runtime_yield', _HOLD)
@@ -90,8 +91,23 @@ with tempfile.TemporaryDirectory(prefix='melonx-runtime-yield-') as temporary:
     c_source = (applied / adapter.C_FILE).read_text()
     check(c_source == adapter.C_SOURCE, 'the C file is the adapter text')
     if FINAL_PREPARATION:
-        check((FINAL_SOURCE / adapter.PROJECT).read_bytes() == (applied / adapter.PROJECT).read_bytes() and
-              (FINAL_SOURCE / adapter.C_FILE).read_bytes() == (applied / adapter.C_FILE).read_bytes(),
+        # The C file is written by this adapter and is not in its BASELINE, so the adapter control does not reverse the
+        # adapters that edit it afterwards (adapt_bgc_suspension_pending): they are applied to a copy of this adapter's
+        # file, in preparation order, and that copy must be the final preparation's.
+        later_c = work / 'later-c'
+        (later_c / adapter.C_FILE).parent.mkdir(parents=True)
+        shutil.copyfile(applied / adapter.C_FILE, later_c / adapter.C_FILE)
+        ORDER = melonx_adapter_control.ORDER  # read here: a runner may extend it after the import
+        for later in ORDER[ORDER.index('adapt_runtime_yield') + 1:]:
+            module = importlib.import_module(later)
+            if adapter.C_FILE in module.BASELINE:
+                check(list(module.BASELINE) == [adapter.C_FILE], later + ' edits the C file only')
+                module.apply(later_c)
+        # The project is edited again by a later adapter (adapt_account_cache_import): the adapter control's forward
+        # check already proved that the control plus this adapter plus the later ones is the final preparation.
+        check((adapter.PROJECT in melonx_adapter_control.files_edited_later('adapt_runtime_yield') or
+               (FINAL_SOURCE / adapter.PROJECT).read_bytes() == (applied / adapter.PROJECT).read_bytes()) and
+              (FINAL_SOURCE / adapter.C_FILE).read_bytes() == (later_c / adapter.C_FILE).read_bytes(),
               'the final preparation holds the adapter postimages')
     try:
         adapter.apply(applied)

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Gate of adapt_bgc_suspension_pending: a NativeAOT executable with the official runtime pack and the Core's own
+       sched_yield (the C file of the tree under test) among its link inputs, as Ryujinx.Library.csproj links it. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <NuGetAudit>false</NuGetAudit>
+    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The engine's two collector settings (adapt_gc). -->
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
+    <RuntimeHostConfigurationOption Include="System.GC.HighMemoryPercent" Value="99" />
+    <LinkerArg Include="&quot;$(ProbeYieldObject)&quot;" Condition=" '$(ProbeYieldObject)' != '' " />
+    <LinkerArg Include="&quot;$(ProbeShimObject)&quot;" Condition=" '$(ProbeShimObject)' != '' " />
+  </ItemGroup>
+</Project>

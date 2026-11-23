@@ -248,6 +248,10 @@ from adapt_deferred_release_roots import apply as adapt_deferred_release_roots
 from adapt_render_thread_compile_relief import apply as adapt_render_thread_compile_relief
 from adapt_guest_start_during_shader_load import apply as adapt_guest_start_during_shader_load
 from adapt_shader_code_table_load import apply as adapt_shader_code_table_load
+from adapt_variant_journal_capacity import apply as adapt_variant_journal_capacity
+from adapt_jit_arena_usage_journal import apply as adapt_jit_arena_usage_journal
+from adapt_bgc_suspension_pending import apply as adapt_bgc_suspension_pending
+from adapt_shader_cache_parallel_read import apply as adapt_shader_cache_parallel_read
 
 
 def replace_once(path, old, new):
@@ -797,6 +801,10 @@ def main():
     adapted += adapt_render_thread_compile_relief(source)
     adapted += adapt_guest_start_during_shader_load(source)
     adapted += adapt_shader_code_table_load(source)
+    adapted += adapt_variant_journal_capacity(source)
+    adapted += adapt_jit_arena_usage_journal(source)
+    adapted += adapt_bgc_suspension_pending(source)
+    adapted += adapt_shader_cache_parallel_read(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -964,7 +972,9 @@ def main():
                  'adapt_fifo_channel_retirement.py', 'adapt_hogwarts_steady_render.py',
                  'adapt_hogwarts_pipeline_replay.py', 'adapt_guest_stop_compile_cancel.py',
                  'adapt_deferred_release_roots.py', 'adapt_render_thread_compile_relief.py',
-                 'adapt_guest_start_during_shader_load.py', 'adapt_shader_code_table_load.py']:
+                 'adapt_guest_start_during_shader_load.py', 'adapt_shader_code_table_load.py',
+                 'adapt_variant_journal_capacity.py', 'adapt_jit_arena_usage_journal.py',
+                 'adapt_bgc_suspension_pending.py', 'adapt_shader_cache_parallel_read.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
