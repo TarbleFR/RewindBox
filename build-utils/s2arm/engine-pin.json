@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "2ea415f58e995f01ab8bdb242e79cd3f6b14fe12c8b3140c435d9fc98774a08b",
+  "packagedFingerprint": "aa905c6138df6a3f9be5b110ada7b760a1f451a04ce73f0666754ce947b46b6d",
   "producers": {
     "engine": {
-      "run": 45163398115,
-      "attempt": 2,
-      "artifact": 14818930915,
-      "name": "s2arm-engine-framework-0acf127638f724bc0eec61bc0cf3cd2d22c138a0",
-      "bytes": 25261851,
-      "sha256": "79dfffd9e69caa0a15800b7238e62884a51b2164d3904e711f4352dcda478567",
-      "headSha": "0acf127638f724bc0eec61bc0cf3cd2d22c138a0",
+      "run": 45212529373,
+      "attempt": 1,
+      "artifact": 14838303507,
+      "name": "s2arm-engine-framework-d2df56d830095f030373409e28c79a7a9d31d295",
+      "bytes": 25266315,
+      "sha256": "572f5d450f1fd5a061beefead02ca75227838edd9b3ca5df932f611b3c00bec8",
+      "headSha": "d2df56d830095f030373409e28c79a7a9d31d295",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-23T12:35:58Z",
+      "expiresAt": "2026-12-23T16:26:50Z",
       "members": {
-        "S2ArmEngine.framework.zip": "deebcdcd339b6605b34386ceb5395848d44bb8b5e4b8f8031834dcfe14f203d1",
-        "NS2Pro.framework.zip": "df641e8b74b59c6109ba61921406a3639964db9b37c72ff185a0078482a2701c"
+        "S2ArmEngine.framework.zip": "e3c836333a6032dd597161e792695e24dbdfb5e2116dc22858e5b0489fa9df62",
+        "NS2Pro.framework.zip": "1f9811ce69eed36d7dea3b45acb282c840d12f31a5871e65425f1b8e708cfdce"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "79dfffd9e69caa0a15800b7238e62884a51b2164d3904e711f4352dcda478567",
+    "engine": "572f5d450f1fd5a061beefead02ca75227838edd9b3ca5df932f611b3c00bec8",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "f7e7bf96f497ad02690b8d16c89bffe59246fbae99817e1828e2f48a2d6672db",
-      "bytes": 115156264,
-      "fingerprint": "2ea415f58e995f01ab8bdb242e79cd3f6b14fe12c8b3140c435d9fc98774a08b"
+      "sha256": "f935f36da88a8f75674e0e570f3e0d085acb23361e0c004fe4e75bef95fecd88",
+      "bytes": 115156496,
+      "fingerprint": "aa905c6138df6a3f9be5b110ada7b760a1f451a04ce73f0666754ce947b46b6d"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45163398115,
-      "attempt": 2,
-      "head_sha": "0acf127638f724bc0eec61bc0cf3cd2d22c138a0",
+      "run": 45212529373,
+      "attempt": 1,
+      "head_sha": "d2df56d830095f030373409e28c79a7a9d31d295",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1414,11 +1414,15 @@
         {
           "name": "0318-take-upstream-camera-audio-font-quarantine-and-submit-fixes.patch",
           "sha256": "78bb19be159eb383713d5431582436d367ef2d4d77c50b1a7b4df2fe5be91840"
+        },
+        {
+          "name": "0319-never-lock-an-alternating-game-at-30-and-drop-the-30-limit.patch",
+          "sha256": "1911b80a9d2409d520e51b1f1df5e5537d33e6ff0533f9fed099819fdee7960b"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "deebcdcd339b6605b34386ceb5395848d44bb8b5e4b8f8031834dcfe14f203d1",
-        "NS2Pro.framework.zip": "df641e8b74b59c6109ba61921406a3639964db9b37c72ff185a0078482a2701c"
+        "S2ArmEngine.framework.zip": "e3c836333a6032dd597161e792695e24dbdfb5e2116dc22858e5b0489fa9df62",
+        "NS2Pro.framework.zip": "1f9811ce69eed36d7dea3b45acb282c840d12f31a5871e65425f1b8e708cfdce"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
