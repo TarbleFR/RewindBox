@@ -66,7 +66,7 @@ Vidéo de 7,45 s et journal `de0a5911`. L'enregistrement commence à l'image 6 5
   - Les images 6 544 à 6 566 durent 55 à 108 ms. L'image 6 568 dure ensuite 10,09 s : de l'image 6 550 à l'image 6 574, l'horloge du jeu avance de 11,6 s.
   - Le moteur reçoit alors 5 erreurs de tampons de commandes, toutes « Discarded (victim of GPU error/recovery) » (`kIOGPUCommandBufferCallbackErrorInnocentVictim`).
   - Aucun tampon du moteur ne porte d'erreur de blocage, de délai ou de faute de page. Sinon le moteur se serait arrêté par sécurité (`mtl_gpu_cb_error`), ce qu'il n'a pas fait. Le travail fautif n'est pas identifié : rien n'exclut qu'il vienne d'un autre processus.
-  - L'image figée de la vidéo correspond à ce blocage. L'alignement exact entre les images de la vidéo et celles du journal reste incertain de quelques secondes : le flash précède le gel d'environ 1,4 s, sans que le journal dise ce qui l'a produit.
+  - Le joueur voit les flashs sans gel et continue de jouer : le flash et cette récupération sont deux choses distinctes. La vidéo de 7,45 s est un extrait d'un enregistrement de 41 s (images 6 543 à 7 294, `frames.txt`), et son image figée n'est pas forcément ce blocage.
 - **Pas introduit par 0312–0318.**
   - La même récupération apparaît dans la session 824 (`c758810c`, vers l'image 6 832, 15 tampons rejetés comme victimes, sans enregistrement d'écran) et le 16 novembre (`801d9562`).
   - Les sessions 822 (`549fdcf9`, 7 800 images), 823 (`f909c983`, 22 200 images) et la relance 825 (`b7d5aa42`, 11 100 images) n'en ont aucune.
@@ -84,6 +84,16 @@ Vidéo de 7,45 s et journal `de0a5911`. L'enregistrement commence à l'image 6 5
   - Les images 6 528 à 6 567 ont des listes normales : 1 087 à 1 362 dessins, 133 passes (139 tous les 51 images environ), aucun dessin sauté, 8 conditions sauf aux changements de taille de la scène (29 à 52 conditions, dont 14 à 31 effacements écartés, aux images 6 528, 6 530, 6 531, 6 572, 6 574, 6 575, 6 578 et 6 579). Rien dans le flux de commandes ne marque une image noire.
   - Durée GPU rendue au jeu : 33 à 42 ms par image de 6 528 à 6 567, puis 10 à 16 ms dès la reprise (16 180, 11 114, 10 782, 10 036, 10 136 µs), puis le plancher de 16,6 ms du maintien. La charge est la même (1 062 à 1 410 dessins, scène 1 248×700). Le GPU était donc ralenti, pas surchargé, et la réinitialisation l'a rendu rapide.
   - Session 824 : même enchaînement, avec un verrou à 30 avant la récupération (fenêtres 5 701–6 600, 27 à 28 images par seconde) et 57 à 58 images par seconde juste après (6 901–7 800).
+- **Les flashs et les changements de taille de la scène.**
+  - Chaque changement de taille refait 17 à 28 textures partagées et fait perdre leur texture à jusqu'à 73 objets vivants dans la même image (`frames.txt`, colonnes « shared textures made » et « live textures dropped as overwritten »). C'est le cas aux images 6 527–6 531, 6 572–6 575 et 7 188–7 217.
+  - L'essai de retour à 60 (patch 0309) de l'image 7 184 en déclenche une rampe :
+    - le moteur rapporte 16,6 ms au jeu pendant 30 images ;
+    - le jeu repasse à l'intervalle 1 à l'image 7 189 et agrandit sa scène de 4 pixels presque à chaque image (1 248×700 puis 1 300×728) ;
+    - il recrée 17 à 28 textures à chaque pas ;
+    - à la fin de l'essai (images 7 214–7 217), il revient à 1 248×700 et à l'intervalle 2.
+  - Si l'extrait se termine avec l'enregistrement, ses images noires (2,78 à 3,47 s) tombent pendant cette rampe, et leur alternance suit celle des images qui recréent des textures. C'est une déduction, pas une preuve.
+  - Mécanisme possible : une texture refaite sur une mémoire déjà écrite par le GPU part de zéro pour ces zones (sur la console, elle garde les anciens octets). Une passe qui la lit avant que le jeu la réécrive rend une image noire. Le compteur « samplings of new textures nothing wrote yet » (0 partout) ne suit que les textures créées sans contenu tiré de leur mémoire : il ne couvre pas ce cas.
 - **Suite :**
-  - savoir si les flashs arrivent aussi sans gel ;
+  - détecter automatiquement une image dont la scène devient sombre et consigner ce qui a changé dans cette image (taille, textures refaites, conditions), voire la capturer ;
+  - empêcher les essais de retour à 60 de déclencher une rampe de taille ;
   - à la prochaine récupération, consigner l'état de chaque encodeur des tampons rejetés et la liste des tampons en vol, pour désigner le travail fautif.
