@@ -105,6 +105,14 @@ def probes(index):
     probe(gc('GMSE01', 'Super Mario Sunshine'), 'dolphin', exact=['gc-sms-uhd-4k-dds-qashto', 'gc-sms-hd-texture-extras-chasem'],
           absent=['gc-kirby-air-ride-uhd-qashto'])
     probe(gc('GMSP01', 'Super Mario Sunshine'), 'dolphin', exact=['gc-sms-uhd-1080-dds-qashto'])
+    n3ds = lambda value, title: {'system': '3ds', 'title': title, 'identities': [{'type': 'title_id', 'scheme': '3ds-title-id', 'value': value}]}
+    # 3DS Title IDs are exact: another game whose title begins like a pack's is never offered it; the same
+    # title under a Title ID the pack does not name (another region) is, for confirmation.
+    probe(n3ds('00040000000E5C00', 'Shin Megami Tensei IV'), 'azahar', exact=['3ds-smt4-hd-aspenvesper'])
+    probe(n3ds('00040000000AAA00', 'Shin Megami Tensei IV'), 'azahar', candidate=['3ds-smt4-hd-aspenvesper'])
+    probe(n3ds('00040000000BBB00', 'Shin Megami Tensei IV: Apocalypse'), 'azahar',
+          absent=['3ds-smt4-hd-aspenvesper', '3ds-smt4-ps-buttons-aspenvesper', '3ds-smt4-ps-buttons-flipped-aspenvesper'])
+    probe(n3ds('00040000000CCC00', "Luigi's Mansion"), 'azahar', absent=['3ds-luigis-mansion-dark-moon-upscaled-linuxkafe'])
     probe(gc('GP7E01', 'Mario Party 7'), 'dolphin', candidate=['gc-mario-party-7-hd-najatski'])
     probe(gc('GZ2E01', 'Super Mario Sunshine'), 'dolphin', candidate=['gc-sms-uhd-4k-dds-qashto'])  # title only: to confirm
     psp = lambda value, title: {'system': 'psp', 'title': title, 'identities': [{'type': 'disc_id', 'scheme': 'psp-param-sfo-disc-id', 'value': value}]}

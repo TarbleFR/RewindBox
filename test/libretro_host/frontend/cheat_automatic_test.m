@@ -74,6 +74,26 @@ int main(int argc,const char **argv) { @autoreleasepool {
   CHECK([[LibretroCheats identityAtPath:cue console:@"psx" core:@"mednafen_psx_hw"][@"md5"] isEqual:identity[@"md5"]],"renamed CUE hashes actual track content");
   [UTF8(@"FILE \"../outside.bin\" BINARY\n") writeToFile:cue atomically:YES];
   CHECK([[LibretroCheats identityContentPath:cue] isEqual:cue],"CUE traversal never reads another folder");
+  // Multi-disc games start from an M3U playlist: its first disc identifies the game (comments skipped,
+  // the CUE resolved to its track); a CloneCD descriptor is the .img next to it.
+  NSString *track=[work stringByAppendingPathComponent:@"Disc 1.bin"];[UTF8(@"disc one") writeToFile:track atomically:YES];
+  NSString *disc=[work stringByAppendingPathComponent:@"Disc 1.cue"];
+  [UTF8(@"FILE \"Disc 1.bin\" BINARY\n  TRACK 01 MODE2/2352\n") writeToFile:disc atomically:YES];
+  NSString *m3u=[work stringByAppendingPathComponent:@"Game.m3u"];
+  [UTF8(@"#EXTM3U\n\n Disc 1.cue \nDisc 2.cue\n") writeToFile:m3u atomically:YES];
+  CHECK([[LibretroCheats identityContentPath:m3u] isEqual:track],"M3U resolves its first disc's track");
+  [UTF8(@"../Disc 1.cue\n") writeToFile:m3u atomically:YES];
+  CHECK([[LibretroCheats identityContentPath:m3u] isEqual:m3u],"M3U traversal never reads another folder");
+  [UTF8(@"Game.m3u\n") writeToFile:m3u atomically:YES];
+  CHECK([[LibretroCheats identityContentPath:m3u] isEqual:m3u],"an M3U naming a playlist is not followed");
+  NSString *chd=[work stringByAppendingPathComponent:@"Disc 1.chd"];[UTF8(@"MComprHD") writeToFile:chd atomically:YES];
+  [UTF8(@"Disc 1.chd\n") writeToFile:m3u atomically:YES];
+  CHECK([[LibretroCheats identityContentPath:m3u] isEqual:m3u],"an M3U of CHD discs keeps its own identity");
+  NSString *ccd=[work stringByAppendingPathComponent:@"Clone.ccd"],*img=[work stringByAppendingPathComponent:@"Clone.img"];
+  [UTF8(@"[CloneCD]\nVersion=3\n") writeToFile:ccd atomically:YES];
+  CHECK([[LibretroCheats identityContentPath:ccd] isEqual:ccd],"a CCD without its image keeps its own identity");
+  [UTF8(@"clone image") writeToFile:img atomically:YES];
+  CHECK([[LibretroCheats identityContentPath:ccd] isEqual:img],"a CCD resolves the image next to it");
   CHECK(([LibretroCheats codesForCheat:@{@"code":@"80012345 007F+30010000 00FF",@"handler":@0} core:@"mednafen_psx_hw" console:@"psx"].count==1),"PSX program preserves bounded simple GameShark writes");
   // Contract replaced: PSX conditions (D0-D3/E0-E3) and repeaters (5000) are now reviewed and
   // stay grouped with their write in one native call (test/unified_identity_test.m).
