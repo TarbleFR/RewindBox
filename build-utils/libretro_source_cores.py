@@ -106,6 +106,7 @@ def unpack_republished(bundle: Path, manifest: Path, work: Path) -> tuple[Path, 
 
 
 def fetch_archive(spec: dict, work: Path) -> Path:
+    work.mkdir(parents=True, exist_ok=True)
     archive = work / Path(spec['url']).name
     if not archive.exists():
         request = urllib.request.Request(spec['url'], headers={'User-Agent': 'RewindBox-core-build'})
