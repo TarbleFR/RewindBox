@@ -1,3 +1,51 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 34ef140..b5d4b27 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -14515,6 +14515,22 @@ enum { FU_YIELD_MAX_MS = 3000 };
+ static _Atomic int g_warm_busy;
+ static _Atomic uint64_t g_fu_yield_n, g_fu_yield_ns;
+ static int fu_yield_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_PSO_FU_YIELD"); v = !(e && !strcmp(e, "0")); } return v; }
++// RewindBox (patch 0308): the wait itself, shared by the warm workers (warm_pick_row) and the bind-ahead lanes (rb_registration.inc), which
++//   compiled their stages beside a first use until now: on IPA 822 a pipeline built at its draw took about 140 ms in the first 900 frames
++//   and 14 to 35 ms later. Any worker, before it takes new work: at most FU_YIELD_MAX_MS, and not past a stop
++static void fu_yield_wait(void) {
++    uint64_t t0 = bp_now(), deadline = t0 + FU_YIELD_MAX_MS * 1000000ull;
++    atomic_fetch_add(&g_fu_yield_n, 1);
++    pthread_mutex_lock(&g_fu_mu);
++    atomic_fetch_add(&g_fu_waiters, 1);
++    while (atomic_load(&g_fu_waiting) && !dm_gfx_session_stopping() && !nvn_be_stopping()) {
++        uint64_t now = bp_now();
++        if (now >= deadline || rb_cond_wait_for(&g_fu_cv, &g_fu_mu, deadline - now) != 0) break;
++    }
++    atomic_fetch_sub(&g_fu_waiters, 1);
++    pthread_mutex_unlock(&g_fu_mu);
++    atomic_fetch_add(&g_fu_yield_ns, bp_now() - t0);
++}
+ // Submit-thread result of the last take. A negative result still belongs to the
+ // build that actually ran, including the compiler's information on a required variant.
+ static NSError *g_async_render_error;
+@@ -15754,19 +15770,7 @@ static BOOL rb_registered_capacity(void) {
+ static long warm_pick_row(_Atomic long *next, long n, int w, int *lease, BOOL required, BOOL background) {
+     *lease = 0;
+     for (;;) {
+-        if ((fu_yield_on() || rb_cold_worker) && atomic_load(&g_fu_waiting)) {
+-            uint64_t t0 = bp_now(), deadline = t0 + FU_YIELD_MAX_MS * 1000000ull;
+-            atomic_fetch_add(&g_fu_yield_n, 1);
+-            pthread_mutex_lock(&g_fu_mu);
+-            atomic_fetch_add(&g_fu_waiters, 1);
+-            while (atomic_load(&g_fu_waiting) && !dm_gfx_session_stopping() && !nvn_be_stopping()) {
+-                uint64_t now = bp_now();
+-                if (now >= deadline || rb_cond_wait_for(&g_fu_cv, &g_fu_mu, deadline - now) != 0) break;
+-            }
+-            atomic_fetch_sub(&g_fu_waiters, 1);
+-            pthread_mutex_unlock(&g_fu_mu);
+-            atomic_fetch_add(&g_fu_yield_ns, bp_now() - t0);
+-        }
++        if ((fu_yield_on() || rb_cold_worker) && atomic_load(&g_fu_waiting)) fu_yield_wait();
+         uint64_t ticket = atomic_load(&g_spec_gate.epoch);
+         if (dm_gfx_session_stopping() || nvn_be_stopping()) return -1;
+         if (rb_cold_worker && atomic_load(&g_fu_waiting)) continue;
 diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
 index d0d2b14..5c3f67a 100644
 --- a/graphics/nvn/gfx/nvn/nvn_session.inc
@@ -20,7 +68,7 @@ index d0d2b14..5c3f67a 100644
      os_unfair_lock_unlock(&g_shpre_mu);
      atomic_store(&g_link_stop, 0); atomic_store(&g_present_discard, 0);
 diff --git a/graphics/nvn/gfx/nvn/rb_registration.inc b/graphics/nvn/gfx/nvn/rb_registration.inc
-index 4a65a87..a74d1ed 100644
+index 4a65a87..5ed47dd 100644
 --- a/graphics/nvn/gfx/nvn/rb_registration.inc
 +++ b/graphics/nvn/gfx/nvn/rb_registration.inc
 @@ -4,8 +4,11 @@
@@ -68,7 +116,7 @@ index 4a65a87..a74d1ed 100644
  
  static BOOL rb_read_stage_header(const NVNshaderData *sd, uint8_t ctl[NVN2_CTL_COPY],
                              uint32_t *nctl, uint32_t *ncode) {
-@@ -39,52 +63,57 @@ static void rb_register_shader(const NVNshaderData *sd, int depth) {
+@@ -39,52 +63,60 @@ static void rb_register_shader(const NVNshaderData *sd, int depth) {
      uint8_t control[NVN2_CTL_COPY];
      uint32_t nctl, ncode;
      if (!rb_read_stage_header(sd, control, &nctl, &ncode) || !rb_addr_mapped(sd->data, ncode)) return;
@@ -151,13 +199,16 @@ index 4a65a87..a74d1ed 100644
      uint64_t queued = atomic_fetch_add(&g_rb_registration_queued,1) + 1;
 -    dispatch_async(g_rb_registration_q, ^{ @autoreleasepool {
 +    dispatch_async(lane ? g_rb_registration_q2 : g_rb_registration_q, ^{ @autoreleasepool {
++        // A first use the submit thread waits for goes first: the lane takes its
++        // next stage after it, as a warm worker does (fu_yield_wait).
++        if (fu_yield_on() && atomic_load(&g_fu_waiting)) fu_yield_wait();
 +        // Settled: the stage is loaded, or it is one this lane never builds.
 +        // A failed translation or build is tried again at the next registration.
 +        BOOL settled = NO;
          if (!nvn_be_stopping()) {
              const uint8_t *ctl = snapshot.bytes, *code = ctl+nctl;
              shmap_load_metadata();
-@@ -101,24 +130,29 @@ static void rb_register_shader(const NVNshaderData *sd, int depth) {
+@@ -101,24 +133,29 @@ static void rb_register_shader(const NVNshaderData *sd, int depth) {
                      NSString *pc = [key stringByAppendingString:@"_b"];
                      int built = 0;
                      uint64_t before = t_rb_msl_n;

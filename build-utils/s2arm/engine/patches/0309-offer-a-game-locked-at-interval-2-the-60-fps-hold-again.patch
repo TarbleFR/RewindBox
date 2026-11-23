@@ -17,7 +17,7 @@ index 4b1c4af..12fd0d1 100644
  static pthread_mutex_t g_vi_mu = PTHREAD_MUTEX_INITIALIZER; static int g_vi_crop[4];
  int32_t h_vi_set_layer_crop(void *layer, int32_t x, int32_t y, int32_t w, int32_t h) {
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 34ef140..506c7d4 100644
+index b5d4b27..0117413 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -3072,6 +3072,27 @@ static uint64_t rb_drs_scene_px(uint64_t f) {

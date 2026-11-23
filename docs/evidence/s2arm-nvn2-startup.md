@@ -238,7 +238,7 @@ Lecture.
 - Le jeu enregistre ses programmes en une rafale au démarrage. La place était réservée avant de connaître l'identité de l'étage : seul un étage déjà en vol était écarté, et un étage déjà chargé reprenait une place à chaque enregistrement. Quatre tâches sur cinq trouvaient leur étage déjà chargé.
 - Une seule voie série traduit puis compile ; 128 places ne tiennent pas la rafale.
 - La voie ne passe pas par le gouverneur du patch 0121 : ni `dm_shader_prepare_registration` ni `shader_load_depth` ne prennent de bail. La ligne `speculative_limit=0` à Fair concerne le préchauffage.
-- Dans les 900 premières images, un pipeline construit au dessin coûte environ 140 ms et une compilation MSL 200 ms, contre 14 à 35 ms plus tard : le fil de soumission attend derrière les compilations d'arrière-plan du démarrage. Ce point n'est pas traité ici.
+- Dans les 900 premières images, un pipeline construit au dessin coûte environ 140 ms et une compilation MSL 200 ms, contre 14 à 35 ms plus tard : le fil de soumission attend derrière les compilations d'arrière-plan du démarrage. Les ouvriers de préchauffage cèdent déjà la place pendant une première utilisation (`g_fu_waiting`) ; la voie d'avance ne le faisait pas.
 
 Patch 0308 (`rb_registration_plan.h`).
 
@@ -246,7 +246,8 @@ Patch 0308 (`rb_registration_plan.h`).
 - Un étage déjà chargé (par n'importe quel chemin, une fois la table des étages lue), réglé par la voie ou en vol ne prend pas de place. Les étages réglés tiennent dans un ensemble de 32 768 cases, vidé à la fin de la session. Une traduction ou une compilation échouée est retentée à l'enregistrement suivant.
 - La file tient 2 048 enregistrements et 32 Mio de copies (9 Ko en moyenne par étage dans ce journal).
 - Une seconde voie travaille à Fair ou plus froid, quand la première a plus d'attente.
+- Avant de prendre un étage, une voie attend la fin d'une première utilisation en cours sur le fil de soumission, comme un ouvrier de préchauffage (`fu_yield_wait`, 3 s au plus).
 - Le journal compte les enregistrements écartés comme connus : `[rb-bind-ahead] … dropped= known=`.
 
-Limites. Rien n'est mesuré sur iPhone avec ce patch. Chaque enregistrement coûte désormais une copie et un hachage de l'étage sur le fil du jeu, y compris quand il est refusé ou connu. Une seconde voie ajoute une compilation concurrente pendant le démarrage. À lire : `dropped`, `known`, `variants_built`, les compilations MSL sur le fil de soumission et la durée des fenêtres 300 à 900.
+Limites. Rien n'est mesuré sur iPhone avec ce patch. Chaque enregistrement coûte désormais une copie et un hachage de l'étage sur le fil du jeu, y compris quand il est refusé ou connu. Une compilation déjà lancée par une voie n'est pas interrompue : une première utilisation peut encore la croiser. À lire : `dropped`, `known`, `variants_built`, les compilations MSL sur le fil de soumission et la durée des fenêtres 300 à 900.
 
