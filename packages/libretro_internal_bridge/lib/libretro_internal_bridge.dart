@@ -94,6 +94,31 @@ class LibretroInternalBridge {
     );
   }
 
+  /// Before a launch whose core RewindBox built with its JIT interface: the
+  /// libretro JIT helper transaction prepares the session's code arena of
+  /// [bytes]. The answer lists each fact separately (helperConnected,
+  /// pidAttached, prepared, executableProbe, nonceProbe, detached,
+  /// helperCompleted, debuggerReleased, capacity); `success` only when all
+  /// of them hold. A failure keeps the core's interpreter.
+  static Future<Map<String, dynamic>> prepareJit({
+    required String pairingFilePath,
+    required int bytes,
+  }) async =>
+      Map<String, dynamic>.from(
+        await _channel.invokeMapMethod<String, dynamic>('prepareJit', <String, Object?>{
+              'pairingFilePath': pairingFilePath,
+              'bytes': bytes,
+            }) ??
+            const <String, dynamic>{},
+      );
+
+  /// Releases a prepared code arena the launch did not use.
+  static Future<Map<String, dynamic>> releaseJit() async =>
+      Map<String, dynamic>.from(
+        await _channel.invokeMapMethod<String, dynamic>('releaseJit') ??
+            const <String, dynamic>{},
+      );
+
   static Future<Map<String, dynamic>> stop() async =>
       Map<String, dynamic>.from(
         await _channel.invokeMapMethod<String, dynamic>('stop') ??

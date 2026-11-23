@@ -127,6 +127,37 @@ NS_ASSUME_NONNULL_BEGIN
 /// GPU memory held by the slang chains (diagnostics), bytes.
 @property(atomic, readonly) NSUInteger slangTextureBytes;
 
+/// MetalFX spatial upscaling (Build of 23 November 2026). Each screen's part
+/// of the frame is copied into a private texture, enlarged by its own
+/// MTLFXSpatialScaler towards the screen's place (LibretroMetalFXPolicy.h),
+/// then composed like the standard picture (rotation, format, touch mapping
+/// unchanged). Never combined with a shader: an active built-in preset or
+/// slang program draws as before. Scalers are built off the emulation
+/// thread; until one is ready its screen shows the standard picture.
+
+/// YES when this GPU offers MetalFX spatial upscaling (never in the
+/// Simulator or on the CI's paravirtual GPU).
+@property(nonatomic, readonly) BOOL metalFXSupported;
+/// Any thread; takes effect at the next draw. Ignored when unsupported.
+@property(atomic, assign) BOOL metalFXEnabled;
+/// Any thread. While YES (device hot, Low Power Mode) the standard picture is
+/// drawn and the MetalFX textures are released; the choice is kept.
+@property(atomic, assign) BOOL metalFXSuspended;
+/// YES when the last frame drew at least one screen through MetalFX.
+@property(atomic, readonly) BOOL metalFXActive;
+/// Why the last frame with MetalFX enabled drew a screen without it
+/// (METALFX_PENDING, METALFX_RATIO, METALFX_CREATE, METALFX_MEMORY,
+/// METALFX_SCREENS); nil when every screen used it. Log and status only.
+@property(atomic, copy, readonly, nullable) NSString *metalFXFailureCode;
+/// GPU memory held by the MetalFX scalers' textures (diagnostics), bytes.
+@property(atomic, readonly) NSUInteger metalFXTextureBytes;
+/// Emulation thread, game paused: builds the scalers the last frame needs at
+/// once, then returns the median GPU time of the last frame drawn
+/// `iterations` times with MetalFX ("metalfx") and with the standard picture
+/// ("standard"), in milliseconds. nil when there is no frame, MetalFX is
+/// unsupported, a shader is active, or no screen can use it.
+- (nullable NSDictionary<NSString *, NSNumber *> *)measureMetalFXGPUTime:(NSUInteger)iterations;
+
 /// Median GPU time of the presenter's command buffers over the last 120
 /// frames, in milliseconds; 0 until measured.
 @property(atomic, readonly) double gpuMilliseconds;

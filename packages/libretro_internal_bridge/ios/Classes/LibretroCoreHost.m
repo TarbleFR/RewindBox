@@ -741,6 +741,10 @@ static bool HostEnvironment(unsigned command, void *data) {
 
 #pragma mark - Core loading
 
+- (BOOL)jitCapable {
+  return _jitCapable;
+}
+
 - (BOOL)loadCore:(NSError **)error {
   if (gActiveHost != nil && gActiveHost != self) {
     if (error) *error = HostError(LibretroHostErrorCoreIncompatible, @"another libretro core is still loaded");
@@ -799,6 +803,10 @@ static bool HostEnvironment(unsigned command, void *data) {
     _library = NULL;
     return NO;
   }
+  // The JIT answer for this open (RewindBox's code arena handed to a core
+  // that exports its install function), before any core option is read.
+  BOOL (^libraryOpened)(void *, BOOL) = self.libraryOpened;
+  if (libraryOpened != nil) _jitCapable = libraryOpened(_library, _jitCapable);
   struct retro_system_info info;
   memset(&info, 0, sizeof(info));
   _symbols.retro_get_system_info(&info);

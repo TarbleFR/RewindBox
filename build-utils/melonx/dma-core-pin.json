@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "fcea4ea2d30f14f7b65fe84d98f4b302ecfcc384",
-  "run": 45130903131,
-  "job": 137545919725,
+  "source": "7d45996a1db55cfe4bab30de59fa34134be033c3",
+  "run": 45169809047,
+  "job": 137676077895,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14797928225,
-  "name": "MeloNX-engine-fcea4ea2d30f14f7b65fe84d98f4b302ecfcc384",
-  "bytes": 101469067,
-  "sha256": "29b5876fa4da8ce7a6146907b0a8d28133c2fc4f44ddbea6b33645082b0405d9",
-  "expiresAt": "2027-02-21T07:24:49Z",
+  "artifact": 14817990520,
+  "name": "MeloNX-engine-7d45996a1db55cfe4bab30de59fa34134be033c3",
+  "bytes": 101483486,
+  "sha256": "fb61a205e4b3c0f9847fa3d61a815cc3b3b571f93121be1fb8549369ebbe3d4a",
+  "expiresAt": "2027-02-21T11:57:33Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "663a759ade90a81f4408266c0c275f479be8b170e94254164e7914ee54601927",
-      "bytes": 39294368
+      "sha256": "123f07dbb4ed79d3e63fb400567ba1eb1592e04eee3bb2947bea046c9be0c2f8",
+      "bytes": 39294424
     },
     "iossimulator-arm64": {
-      "sha256": "d7f6229822c8b28afb394c0ca0ffd3c5db18871adfb214db1f56a27d20b580b6",
-      "bytes": 39617976
+      "sha256": "b9aea4c435088d693d7f25e8487ae29264ccaca83d796f36a189fc5eac01fbb8",
+      "bytes": 39618024
     }
   },
   "identities": {
-    "ios-arm64": "826fa6eed8b397183b7b050171aee77be9a3529d0ed4d16b6cf205f9e5d07742",
-    "iossimulator-arm64": "1b152b0bb46848a049abf82cc8c2847b46e688d678f6bdd03619dd2309258efa"
+    "ios-arm64": "08aef83755e473fbd70b7c8c438312750e077d6d8758fae67bacb88632ecffc5",
+    "iossimulator-arm64": "3b11d2d5faa86c613cb4a0dba99041b8b14ce73dd6dbe6a8c63959ae9f44fa92"
   },
-  "contractSha256": "0eccf2794639a12723935f0ff1c68522a7777e9ba5fc8af2c0f285c7b531fbb0",
-  "resultSha256": "7f0b621cd9a0e39150b9d3d32b7134585ae0d63705e701593af8a75467601db3",
-  "packagedFingerprint": "3c7cf98b9ab49a4030c196b5cf2caa13320a821a13761ba6c95839d653168bf2",
+  "contractSha256": "a5bc15c48bff572c1a1b1160448dc2985239151c58473e62534fcba289382b0b",
+  "resultSha256": "178ae66cfce2408ccf938af52ea8c7765082ef1eac8c95c9974150056291e205",
+  "packagedFingerprint": "751d13934db69972386285b2170fddf9a851b219c1af9a1f49fec420605f0034",
   "replaces": {
-    "source": "8d810e8fc8ee3cfd19fde2eb279a018ed44edb0b",
-    "run": 45105667251,
-    "artifact": 14787343979,
-    "packagedFingerprint": "2dd1b5be1c196b47210d0529c0f44d77742a653aafee230bc51eb6c2ada8ad2a",
-    "reason": "After IPA 822 (journal of a 96 s Hogwarts Legacy session): the GPU was busy 30 % of the time while the CPU threads drained in turn; the GPU thread looked buffer textures up again on every draw (adapt_buffer_texture_bindings reuses the lookup while nothing invalidated it), sync queries queued behind guest threads waiting on the GPU (adapt_unblocked_sync_queries), the large object heap regrew to 474 MiB with 228 MiB free (adapt_large_buffer_native keeps large temporary buffers in native memory; adapt_device_pressure_compaction compacts when the device has 10 % or less available), and .NET threw on the missing /etc/resolv.conf at every interface enumeration (adapt_network_interface_snapshot). Three journals are measurement only (descriptor set reuse, Vulkan memory rounding, JIT arena lines that the privacy filter no longer hides). The 38 gates with stale expectations are repaired; all 135 gates pass on the final source; contract updated without a full freeze; contract test and simulator sessions verified; not run on an iPhone."
+    "source": "3554d839cc1e61c05a99af8917c56e8b8ffb3f45",
+    "run": 45164554372,
+    "artifact": 14814639258,
+    "packagedFingerprint": "6336c7abff555a5f22ba80fad57a92f9c9e9cf2362f017aa3ff56e9eed16c1fb",
+    "reason": "After IPA 824 (two Hogwarts Legacy sessions ended 47 and 48 s in by Unreal's heartbeat thread writing guest address 3, 25 s after the first gameplay frame): with an empty Metal cache each compute pipeline cost about 500 ms and the render thread waited for each one in turn (WaitForPipelineAtDraw, unbounded). adapt_compile_wait_guest_time holds the guest's clock (TickSource: CNTPCT, svcGetSystemTick, time services) while the render thread waits for a background pipeline compile beyond 33 ms, and from the start of a wait within 250 ms of a held one (GuestTimeHold.cs); pause freezes the clock's snapshot instead of stopping its stopwatch under concurrent readers. Built on Core 3554d839 (Nextendo online for every NEX title). All 136 gates pass on the final source; contract updated without a full freeze; contract test and simulator sessions verified; not run on an iPhone."
   }
 }

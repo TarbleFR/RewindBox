@@ -18,6 +18,7 @@ import 'game_box/game_box_preferences.dart';
 import 'game_box/game_box_sources.dart';
 import 'screenscraper/region_config.dart';
 import 'game_manual_french_sources.dart';
+import 'nintendo_eshop_catalogue.dart';
 import 'screenscraper/rom_hasher.dart';
 import 'screenscraper/media_resolver.dart';
 import 'screenscraper/screenscraper_client.dart';
@@ -407,6 +408,7 @@ class ScreenScraperService {
     int? maxDailyRequests,
     String? gameName,
     String? serialNumber,
+    List<String?> alternativeNames = const [],
   }) async {
     try {
       final credentials = _cachedCredentials ?? await getSavedCredentials();
@@ -483,7 +485,7 @@ class ScreenScraperService {
         if (data['header']['success'].toString() == 'true') {
           final results = data['response'];
           final gameInfo = isSwitch2
-              ? _findSwitch2GameByName(results['jeux'], cleanRomName)
+              ? findSwitch2GameByName(results['jeux'], [cleanRomName, ...alternativeNames])
               : results['jeu'];
           if (isSwitch2 && gameInfo == null) return null;
           return {
@@ -506,15 +508,23 @@ class ScreenScraperService {
     }
   }
 
-  static Map<String, dynamic>? _findSwitch2GameByName(Object? games, String title) {
+  /// The game of a title search whose name is one of [titles], written the
+  /// same way or not: ScreenScraper lists `Legend of Zelda - Breath of the
+  /// Wild -Nintendo Switch 2 Edition-, The` where the game and Nintendo say
+  /// `The Legend of Zelda: Breath of the Wild – Nintendo Switch 2 Edition`
+  /// (NintendoEshopCatalogue.sameTitleKey).
+  @visibleForTesting
+  static Map<String, dynamic>? findSwitch2GameByName(Object? games, List<String?> titles) {
     if (games is! List) return null;
-    String normalize(String name) =>
-        name.toLowerCase().replaceAll(RegExp(r"[\s:.'’\-™®]+"), '');
-    final wanted = normalize(title);
+    final wanted = {
+      for (final title in titles)
+        if ((title?.trim() ?? '').isNotEmpty) NintendoEshopCatalogue.sameTitleKey(title!),
+    }..remove('');
+    if (wanted.isEmpty) return null;
     for (final game in games.whereType<Map<String, dynamic>>()) {
       final names = game['noms'];
       if (names is List && names.whereType<Map>().any(
-        (name) => normalize(name['text']?.toString() ?? '') == wanted,
+        (name) => wanted.contains(NintendoEshopCatalogue.sameTitleKey(name['text']?.toString() ?? '')),
       )) {
         return game;
       }
@@ -700,22 +710,82 @@ class ScreenScraperService {
   static Map<String, dynamic>? _switch2PublisherGame(String romPath, String? programId) =>
       Switch2PublisherCatalogue.gameInfo(Switch2ExportContent.titleId(romPath) ?? programId);
 
+  /// Systems whose games Nintendo's eShop catalogues can describe.
+  static bool hasNintendoCatalogue(String appSystemId) =>
+      appSystemId == 'switch2' || appSystemId == 'switch';
+
+  /// What Nintendo says of a Switch 2 export or a Switch game, in the shape of
+  /// a ScreenScraper `jeu`, or null (docs/s2arm-switch2-library.md, Scraping).
+  /// The entries chosen by hand come first; then the eShop catalogues, by the
+  /// program ID of the export's NPDM, the row's title ID or the `[ID]` of its
+  /// file name, and for the Japanese one by the game's Japanese title.
+  static Future<Map<String, dynamic>?> _nintendoGame({
+    required String appSystemId,
+    required String romPath,
+    String? filename,
+    String? programId,
+    String? title,
+    String? language,
+  }) async {
+    if (appSystemId == 'switch2') {
+      final curated = _switch2PublisherGame(romPath, programId);
+      if (curated != null) return curated;
+      return NintendoEshopCatalogue.gameInfo(
+        programId: Switch2ExportContent.titleId(romPath) ?? programId,
+        switch2: true,
+        language: language,
+        titles: [Switch2ExportContent.japaneseTitle(romPath), title],
+      );
+    }
+    if (appSystemId != 'switch') return null;
+    // A Switch game only by its ID: titles are too often shared with ports.
+    final id = [
+      programId,
+      NintendoEshopCatalogue.programIdInName(filename),
+      NintendoEshopCatalogue.programIdInName(romPath),
+    ].firstWhere(
+      (v) => v != null && NintendoEshopCatalogue.programIdPattern.hasMatch(v),
+      orElse: () => null,
+    );
+    if (id == null) return null;
+    return NintendoEshopCatalogue.gameInfo(programId: id, switch2: false, language: language);
+  }
+
+  /// Media settings Nintendo's catalogues can fill.
+  static const Set<String> nintendoMediaTypes = {'box2D', 'fanart', 'ss'};
+
+  /// The first name of a ScreenScraper-shaped `jeu`, or null.
+  @visibleForTesting
+  static String? firstNameOf(Map<String, dynamic>? gameInfo) {
+    final names = gameInfo?['noms'];
+    if (names is! List) return null;
+    for (final name in names.whereType<Map>()) {
+      final text = name['text']?.toString().trim() ?? '';
+      if (text.isNotEmpty) return text;
+    }
+    return null;
+  }
+
   static Set<String> _downloadedOrExistingMedia(Map<String, dynamic> result) => {
     ...(result['downloadedTypes'] as List).cast<String>(),
     ...(result['existingTypes'] as List).cast<String>(),
   };
 
+  /// Fills the empty metadata and the missing [mediaTypes] of a game from a
+  /// publisher entry or Nintendo's catalogues ([_nintendoGame]); what a scrape
+  /// already gave is kept, except the console icons imported as covers.
   static Future<({bool useful, int added})> _fillSwitch2FromPublisher(
     Map<String, dynamic> gameInfo, {
     required String filename,
     required String romPath,
     required List<String> mediaTypes,
     required bool fillMetadata,
+    String system = 'switch2',
+    String? systemFolder,
     String? preferredLanguage,
     bool Function()? shouldCancel,
     void Function(double)? onProgress,
   }) async {
-    const system = 'switch2';
     if (shouldCancel?.call() ?? false) return (useful: false, added: 0);
     var metadataAvailable = false;
     if (fillMetadata) {
@@ -736,7 +806,7 @@ class ScreenScraperService {
           await ScraperRepository.updateGameMetadata(system, filename, missing);
     }
     final media = await ScreenscraperMediaDownloader.downloadGameMedia(
-      system, filename, gameInfo['medias'] as List<dynamic>, 1,
+      systemFolder ?? system, filename, gameInfo['medias'] as List<dynamic>, 1,
       appSystemId: system,
       preferredLanguage: preferredLanguage,
       allowedMediaTypes: mediaTypes,
@@ -863,13 +933,41 @@ class ScreenScraperService {
       final isMeloNxVirtual = lowerRomPath.startsWith('melonx://');
       final isRpcs3Virtual = lowerRomPath.startsWith('rpcs3-library://');
       var effectiveGameName = gameName;
+      final preferredLanguage = (await getSavedCredentials())?['preferred_language']?.toString() ??
+          (isSwitch2 ? WidgetsBinding.instance.platformDispatcher.locale.languageCode : 'en');
+      // Nintendo's catalogues, asked at most once per scrape, with the other
+      // sources (docs/s2arm-switch2-library.md, Scraping).
+      final nintendoSources =
+          hasNintendoCatalogue(appSystemId) && await GameBoxPreferences.scrapeExtraSources();
+      Map<String, dynamic>? nintendo = publisher;
+      var nintendoAsked = publisher != null || !nintendoSources;
+      Future<Map<String, dynamic>?> nintendoGame() async {
+        if (!nintendoAsked) {
+          nintendoAsked = true;
+          nintendo = await _nintendoGame(
+            appSystemId: appSystemId,
+            romPath: romPath,
+            filename: romName,
+            programId: serialNumber,
+            title: effectiveGameName,
+            language: preferredLanguage,
+          );
+        }
+        return nintendo;
+      }
+
+      String? officialTitle;
       if (isSwitch2) {
         effectiveGameName = Switch2ExportContent.resolvedTitle(
           romPath,
           programId: serialNumber,
           fallback: gameName,
         );
-        if (effectiveGameName == null && publisher == null) {
+        // Nintendo's own title, found by the program ID: a name for an export
+        // without one, and a second spelling for ScreenScraper's search.
+        officialTitle = firstNameOf(await nintendoGame());
+        effectiveGameName ??= officialTitle;
+        if (effectiveGameName == null && nintendo == null) {
           return {'success': false, 'message': AppLocale.scrapeGameNotFound};
         }
       }
@@ -900,6 +998,7 @@ class ScreenScraperService {
               ? effectiveGameName
               : null,
           serialNumber: isRpcs3Virtual ? serialNumber : null,
+          alternativeNames: [officialTitle],
         );
         if (gameInfoResult != null && gameInfoResult['gameInfo'] != null) break;
         attempts++;
@@ -919,8 +1018,6 @@ class ScreenScraperService {
         );
       }
 
-      final preferredLanguage = (await getSavedCredentials())?['preferred_language']?.toString() ??
-          (isSwitch2 ? WidgetsBinding.instance.platformDispatcher.locale.languageCode : 'en');
       final scraperConfig = await getScraperConfig();
       final saveMetadata = scraperConfig['scrape_metadata'] as bool? ?? true;
       final filename = isSwitch2 && !romName.toLowerCase().endsWith('.npdm')
@@ -928,14 +1025,17 @@ class ScreenScraperService {
           : romName;
       final allowedMediaTypes = await ScraperRepository.getEnabledMediaTypes();
       if (gameInfoResult == null || gameInfoResult['gameInfo'] == null) {
-        if (publisher != null) {
+        final source = await nintendoGame();
+        if (source != null) {
           onProgress?.call(AppLocale.downloadingImages, 0.2);
           final fallback = await _fillSwitch2FromPublisher(
-            publisher,
+            source,
             filename: filename,
             romPath: romPath,
             mediaTypes: allowedMediaTypes,
             fillMetadata: saveMetadata,
+            system: appSystemId,
+            systemFolder: systemFolder,
             preferredLanguage: preferredLanguage,
             onProgress: (p) => onProgress?.call(AppLocale.downloadingImages, 0.2 + (p * 0.8)),
           );
@@ -1004,17 +1104,23 @@ class ScreenScraperService {
           successfulTypes,
         );
       }
-      if (publisher != null) {
-        final available = _downloadedOrExistingMedia(downloadResult);
-        final missing = ScreenscraperMediaDownloader.expandMediaTypes(allowedMediaTypes)
-            .where((type) => !available.contains(type))
-            .toList();
+      // What ScreenScraper lacks, from the publisher entry or Nintendo.
+      final available = _downloadedOrExistingMedia(downloadResult);
+      final missing = ScreenscraperMediaDownloader.expandMediaTypes(allowedMediaTypes)
+          .where((type) => !available.contains(type))
+          .toList();
+      final source = publisher != null || missing.any(nintendoMediaTypes.contains)
+          ? await nintendoGame()
+          : null;
+      if (source != null) {
         final fallback = await _fillSwitch2FromPublisher(
-          publisher,
+          source,
           filename: filename,
           romPath: romPath,
           mediaTypes: missing,
           fillMetadata: saveMetadata,
+          system: appSystemId,
+          systemFolder: systemFolder,
           preferredLanguage: preferredLanguage,
         );
         mediaSuccess = mediaSuccess || fallback.useful;
@@ -1593,6 +1699,32 @@ class ScreenScraperService {
         };
       }
 
+      // Nintendo's catalogues, asked at most once per game, with the other
+      // sources (docs/s2arm-switch2-library.md, Scraping).
+      Map<String, dynamic>? nintendo;
+      var nintendoAsked = !extraSources || !hasNintendoCatalogue(appSystemId);
+      Future<Map<String, dynamic>?> nintendoGame() async {
+        if (!nintendoAsked) {
+          nintendoAsked = true;
+          nintendo = await _nintendoGame(
+            appSystemId: appSystemId,
+            romPath: romPath,
+            filename: filename,
+            programId: titleId,
+            title: effectiveTitleName,
+            language: preferredLanguage,
+          );
+        }
+        return nintendo;
+      }
+
+      // A Switch 2 export: Nintendo's own title, found by its program ID, names
+      // an export without one and is a second spelling for ScreenScraper.
+      String? officialTitle;
+      if (isSwitch2) {
+        officialTitle = firstNameOf(await nintendoGame());
+        effectiveTitleName ??= officialTitle;
+      }
       if (isSwitch2 && effectiveTitleName == null) {
         return {'success': false, 'cancelled': false, 'requests': 0};
       }
@@ -1613,6 +1745,7 @@ class ScreenScraperService {
             ? effectiveTitleName
             : null,
         serialNumber: isRpcs3Virtual ? titleId : null,
+        alternativeNames: [officialTitle],
       );
       var gameInfo = gameResult?['gameInfo'];
       int requestsMade = 1;
@@ -1707,7 +1840,7 @@ class ScreenScraperService {
         _log.w('Scraper: $systemFolder/$filename: not found on ScreenScraper');
       }
 
-      final publisher = isSwitch2 && extraSources ? _switch2PublisherGame(romPath, titleId) : null;
+      final publisher = gameInfo == null ? await nintendoGame() : null;
       if (gameInfo == null && publisher != null) {
         final fallback = await _fillSwitch2FromPublisher(
           publisher,
@@ -1715,6 +1848,8 @@ class ScreenScraperService {
           romPath: romPath,
           mediaTypes: await ScraperRepository.getEnabledMediaTypes(),
           fillMetadata: scraperConfig['scrape_metadata'] as bool? ?? true,
+          system: appSystemId,
+          systemFolder: systemFolder,
           preferredLanguage: preferredLanguage,
           shouldCancel: shouldCancel,
         );
@@ -1798,17 +1933,22 @@ class ScreenScraperService {
             };
           }
 
-          if (publisher != null) {
-            final available = _downloadedOrExistingMedia(res);
-            final missing = ScreenscraperMediaDownloader.expandMediaTypes(allowedTypes)
-                .where((type) => !available.contains(type))
-                .toList();
+          // What ScreenScraper lacks, from the publisher entry or Nintendo.
+          final available = _downloadedOrExistingMedia(res);
+          final missing = ScreenscraperMediaDownloader.expandMediaTypes(allowedTypes)
+              .where((type) => !available.contains(type) && !ownedTypes.contains(type))
+              .toList();
+          final curated = isSwitch2 && extraSources && _switch2PublisherGame(romPath, titleId) != null;
+          final source = curated || missing.any(nintendoMediaTypes.contains) ? await nintendoGame() : null;
+          if (source != null) {
             final fallback = await _fillSwitch2FromPublisher(
-              publisher,
+              source,
               filename: filename,
               romPath: romPath,
               mediaTypes: missing,
               fillMetadata: scraperConfig['scrape_metadata'] as bool? ?? true,
+              system: appSystemId,
+              systemFolder: systemFolder,
               preferredLanguage: preferredLanguage,
               shouldCancel: shouldCancel,
             );

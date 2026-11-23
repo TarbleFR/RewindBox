@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/switch_online_locale.dart';
 import '../services/logger_service.dart';
@@ -12,12 +11,12 @@ import '../services/nextendo/nextendo_online_play.dart';
 import '../services/nextendo/nextendo_servers.dart';
 import '../services/nextendo/nextendo_service.dart';
 
-/// The player's Nextendo Network account in RewindBox: sign-in on
-/// nextendo.network, the linked identity, and the three conditions of online
-/// play shown apart (account, game servers, engine) with the action each
-/// missing one needs. The online switch only turns on when all three hold. The
-/// server addresses are looked up by name ([NextendoServers]); the maintainer's
-/// fields only show while no lookup has ever succeeded.
+/// The player's Nextendo Network screen: one button for the account (sign in
+/// on nextendo.network, or sign out) and one switch for online services.
+/// Everything else is automatic: the server addresses are looked up by name,
+/// the engine, the account and the last game connection are checked in the
+/// background and summed up in one line, and each launch of a compatible game
+/// gets its token, versions, BCAT data and account id by itself.
 class NextendoDialog extends StatefulWidget {
   const NextendoDialog({super.key, this.service, this.engineSupported});
   final NextendoService? service;
@@ -33,15 +32,13 @@ class _NextendoDialogState extends State<NextendoDialog> {
   NextendoCatalog? _catalog;
   bool _catalogLoaded = false;
   NextendoAccount? _account;
-  bool _online = true;
-  bool _smashPrivateTls = false;
-  bool? _engine; // null while the engine binary is checked
+  bool _online = false;
   bool _busy = false;
-  String? _message;
-  bool _messageIsError = false;
-  final _clientId = TextEditingController();
-  final _server = TextEditingController();
-  final _nat = TextEditingController();
+  bool _checking = false;
+  String? _status; // the one line under the switch; null while nothing was checked
+  bool _statusIsError = false;
+  String? _message; // an action that failed (sign-in, switch)
+  int _checkGeneration = 0;
 
   NextendoService get _service => widget.service ?? NextendoService.instance;
   String _text(String key, [Map<String, Object?> parameters = const {}]) => SwitchOnlineLocale.text(context, key, parameters);
@@ -52,18 +49,9 @@ class _NextendoDialogState extends State<NextendoDialog> {
     _load();
   }
 
-  @override
-  void dispose() {
-    _clientId.dispose();
-    _server.dispose();
-    _nat.dispose();
-    super.dispose();
-  }
-
   Future<void> _load() async {
     try {
-      await NextendoOnlinePlay.restoreSmashTls();
-      await NextendoServers.refresh();
+      await NextendoOnlinePlay.restoreGameTls();
       unawaited(NextendoCatalogStore.current().then((catalog) {
         if (mounted) {
           setState(() {
@@ -75,42 +63,25 @@ class _NextendoDialogState extends State<NextendoDialog> {
       final config = await NextendoConfig.load();
       final account = config.canSignIn ? await _service.restore(config) : null;
       final online = await NextendoOnlinePlay.enabled();
-      final smashPrivateTls = await NextendoOnlinePlay.smashPrivateTlsEnabled();
-      unawaited((widget.engineSupported ?? NextendoEngineSupport.supported)().then((supported) {
-        if (mounted) setState(() => _engine = supported);
-      }, onError: (Object _) {
-        if (mounted) setState(() => _engine = false);
-      }));
       if (!mounted) return;
       setState(() {
         _config = config;
         _account = account;
         _online = online;
-        _smashPrivateTls = smashPrivateTls;
-        _clientId.text = config.clientId;
-        _server.text = config.serverAddress;
-        _nat.text = config.natAddress;
       });
+      if (account != null && online) unawaited(_check());
     } catch (error) {
       if (mounted) _fail(error);
     }
   }
 
-  void _fail(Object error) {
-    final String text;
-    if (error is NextendoException) {
-      text = _text(error.code, {'detail': error.detail});
-    } else if (error is FormatException && const {'clientId', 'serverAddress', 'natAddress', 'sameAddresses'}.contains(error.message)) {
-      text = _text('nextendoInvalid_${error.message}');
-    } else {
-      LoggerService.instance.w('Nextendo action failed: ${error.runtimeType}');
-      text = _text('nextendoFailed');
-    }
-    setState(() {
-      _message = text;
-      _messageIsError = true;
-    });
+  String _errorText(Object error) {
+    if (error is NextendoException) return _text(error.code, {'detail': error.detail});
+    LoggerService.instance.w('Nextendo action failed: ${error.runtimeType}');
+    return _text('nextendoFailed');
   }
+
+  void _fail(Object error) => setState(() => _message = _errorText(error));
 
   Future<void> _run(Future<void> Function() action) async {
     if (_busy) return;
@@ -127,223 +98,165 @@ class _NextendoDialogState extends State<NextendoDialog> {
     }
   }
 
-  Future<void> _signIn() => _run(() async {
+  Future<NextendoAccount?> _signInNow() async {
     final account = await _service.signIn(_config!);
     if (mounted) setState(() => _account = account);
+    return account;
+  }
+
+  Future<void> _signIn() => _run(() async {
+    await _signInNow();
+    if (_online) unawaited(_check());
   });
 
   Future<void> _signOut() => _run(() async {
     await _service.signOut(_config!);
-    if (mounted) setState(() => _account = null);
-  });
-
-  /// The first missing condition of online play, as the action it needs; null
-  /// when the servers and the engine are ready (the account is signed in here).
-  String? _missing(NextendoConfig config) {
-    if (!config.serversConfigured) {
-      return _text(config.serversIssue == 'same' ? 'nextendoActionServersSame' : 'nextendoActionServers');
+    if (mounted) {
+      setState(() {
+        _account = null;
+        _status = null;
+      });
     }
-    if (_engine == false) return _text('nextendoActionEngine');
-    if (_engine == null) return _text('nextendoStatusEngineChecking');
-    return null;
-  }
-
-  /// Nextendo's answer for the account, then what this build still lacks. An
-  /// accepted account is never presented as a working match.
-  Future<void> _check() => _run(() async {
-    final config = _config!;
-    final status = await _service.onlineStatus(await _service.gameToken(config));
-    if (!mounted) return;
-    final known = const {'unknown', 'disabled', 'suspended', 'unverified', 'discord_unlinked', 'elsewhere'}.contains(status.reason);
-    final missing = _missing(config);
-    final smashTlsRefused = NextendoOnlinePlay.lastSmashTls == 'refused';
-    setState(() {
-      _messageIsError = !status.allowed || missing != null || smashTlsRefused;
-      _message = !status.allowed
-          ? _text(known ? 'nextendoReason_${status.reason}' : 'nextendoReason_other', {'detail': status.reason})
-          : missing != null
-          ? _text('nextendoAllowedNotReady', {'cause': missing})
-          : smashTlsRefused
-          ? _text('nextendoSmashTlsRejected')
-          : NextendoOnlinePlay.lastSmashTls == 'compatibility'
-          ? _text('nextendoSmashTlsCompatibility')
-          : _text('nextendoAllowedReady');
-    });
   });
 
-  Future<void> _setSmashPrivateTls(bool value) => _run(() async {
+  /// The single switch. Turning it on signs the player in first when needed
+  /// and asks once for the consent the game servers need.
+  Future<void> _setOnline(bool value) async {
+    if (_busy) return;
     if (value) {
+      if (_account == null) await _run(_signInNow);
+      if (_account == null || !mounted) return;
       final accepted = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           scrollable: true,
-          title: Text(_text('nextendoSmashPrivateTls')),
-          content: Text(_text('nextendoSmashPrivateTlsWarning')),
+          title: Text(_text('nextendoConsentTitle')),
+          content: Text(_text('nextendoConsentBody')),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context, false), child: Text(_text('cancel'))),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(_text('nextendoSmashPrivateTlsAccept'))),
+            FilledButton(
+              key: const ValueKey('nextendo-consent-accept'),
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(_text('nextendoConsentAccept')),
+            ),
           ],
         ),
       );
       if (accepted != true || !mounted) return;
     }
-    await NextendoOnlinePlay.setSmashPrivateTlsEnabled(value);
-    if (mounted) {
+    await _run(() async {
+      await NextendoOnlinePlay.setEnabled(value);
+      if (!mounted) return;
       setState(() {
-        _smashPrivateTls = value;
-        _messageIsError = false;
-        _message = _text('nextendoOnlinePlayHint');
+        _online = value;
+        _status = null;
       });
-    }
-  });
-
-  Widget _status(bool? ok, String text, [String? action]) {
-    final colors = Theme.of(context).colorScheme;
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      dense: true,
-      leading: Icon(
-        ok == null ? Icons.hourglass_empty : (ok ? Icons.check_circle : Icons.cancel),
-        color: ok == null ? null : (ok ? colors.primary : colors.error),
-      ),
-      title: Text(text),
-      subtitle: action == null ? null : Text(action),
-    );
+    });
+    if (value && _online && mounted) unawaited(_check());
   }
 
-  Future<void> _saveLocal() => _run(() async {
-    final previous = _config!;
-    final config = await NextendoConfig.saveLocal(clientId: _clientId.text, serverAddress: _server.text, natAddress: _nat.text);
-    // A session belongs to the application that opened it: with another
-    // client identifier the previous one is closed on Nextendo's side too.
-    if (previous.clientId != config.clientId && _account != null) await _service.signOut(previous);
-    final account = config.canSignIn ? await _service.restore(config) : null;
-    if (!mounted) return;
+  /// Everything the player no longer sets by hand, checked in the background:
+  /// the server names, the engine, the account on Nextendo's side and the last
+  /// game connection. One line says what is ready or the first thing that is not.
+  Future<void> _check() async {
+    final generation = ++_checkGeneration;
     setState(() {
-      _config = config;
-      _account = account;
-      _messageIsError = false;
-      _message = _text('nextendoSaved');
+      _checking = true;
+      _status = null;
     });
-  });
+    String status;
+    var error = true;
+    try {
+      await NextendoServers.refresh();
+      final config = await NextendoConfig.load();
+      final engine = await (widget.engineSupported ?? NextendoEngineSupport.supported)();
+      if (!config.serversConfigured) {
+        status = _text('nextendoServicesServers');
+      } else if (!engine) {
+        status = _text('nextendoServicesEngine');
+      } else {
+        final answer = await _service.onlineStatus(await _service.gameToken(config));
+        const known = {'unknown', 'disabled', 'suspended', 'unverified', 'discord_unlinked', 'elsewhere'};
+        if (!answer.allowed) {
+          status = _text(known.contains(answer.reason) ? 'nextendoReason_${answer.reason}' : 'nextendoReason_other', {'detail': answer.reason});
+        } else if (NextendoOnlinePlay.lastGameTls == 'refused') {
+          status = _text('nextendoServicesGameRefused');
+        } else {
+          status = _text('nextendoServicesReady');
+          error = false;
+        }
+      }
+      if (mounted) _config = config;
+    } catch (failure) {
+      status = mounted ? _errorText(failure) : '';
+    }
+    if (!mounted || generation != _checkGeneration) return;
+    setState(() {
+      _checking = false;
+      _status = status;
+      _statusIsError = error;
+    });
+  }
 
-  List<Widget> _accountSection(NextendoConfig config) {
+  Widget _accountSection() {
     final account = _account;
     if (account == null) {
-      return [
-        if (!config.canSignIn) Text(_text('nextendoNotConfigured')),
-        const SizedBox(height: 8),
-        FilledButton.icon(
+      return Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: FilledButton.icon(
           key: const ValueKey('nextendo-sign-in'),
-          onPressed: _busy || !config.canSignIn ? null : _signIn,
+          onPressed: _busy ? null : _signIn,
           icon: const Icon(Icons.login),
           label: Text(_text('nextendoSignIn')),
         ),
-        TextButton(
-          onPressed: () => launchUrl(Uri.parse('${NextendoConfig.apiBase}/register.html'), mode: LaunchMode.externalApplication),
-          child: Text(_text('nextendoCreateAccount')),
-        ),
-      ];
+      );
     }
-    return [
-      ListTile(
-        contentPadding: EdgeInsets.zero,
-        leading: const CircleAvatar(child: Icon(Icons.person)),
-        title: Text(_text('nextendoSignedInAs', {'name': account.shownName})),
-        subtitle: Text([
-          if (account.shownName != account.username) account.username,
-          if (account.friendCode.isNotEmpty) '${_text('nextendoFriendCode')}: ${account.friendCode}',
-        ].join('\n')),
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const CircleAvatar(child: Icon(Icons.person)),
+      title: Text(_text('nextendoSignedInAs', {'name': account.shownName})),
+      subtitle: Text([
+        if (account.shownName != account.username) account.username,
+        if (account.friendCode.isNotEmpty) '${_text('nextendoFriendCode')}: ${account.friendCode}',
+      ].join('\n')),
+      trailing: TextButton(
+        key: const ValueKey('nextendo-sign-out'),
+        onPressed: _busy ? null : _signOut,
+        child: Text(_text('nextendoSignOut')),
       ),
-      Text(_text('nextendoStatusTitle'), style: Theme.of(context).textTheme.titleSmall),
-      _status(true, _text('nextendoStatusAccount')),
-      if (config.serversConfigured)
-        _status(true, _text('nextendoStatusServersOk'))
-      else if (config.serversIssue == 'same')
-        _status(false, _text('nextendoStatusServersSame'), _text('nextendoActionServersSame'))
-      else
-        _status(false, _text('nextendoStatusServersMissing'), _text('nextendoActionServers')),
-      if (NextendoOnlinePlay.lastSmashTls == 'refused')
-        _status(false, _text('nextendoSmashTlsRejected')),
-      if (NextendoOnlinePlay.lastSmashTls == 'compatibility')
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          dense: true,
-          leading: const Icon(Icons.info_outline),
-          title: Text(_text('nextendoSmashTlsCompatibility')),
-        ),
-      if (_engine == null)
-        _status(null, _text('nextendoStatusEngineChecking'))
-      else if (_engine!)
-        _status(true, _text('nextendoStatusEngineOk'))
-      else
-        _status(false, _text('nextendoStatusEngineMissing'), _text('nextendoActionEngine')),
-      Builder(builder: (context) {
-        final missing = _missing(config);
-        return SwitchListTile(
-          key: const ValueKey('nextendo-online-play'),
-          contentPadding: EdgeInsets.zero,
-          title: Text(_text('nextendoOnlinePlay')),
-          subtitle: Text(missing ?? _text('nextendoOnlinePlayHint')),
-          value: _online && missing == null,
-          onChanged: _busy || missing != null
-              ? null
-              : (value) async {
-                  await NextendoOnlinePlay.setEnabled(value);
-                  if (mounted) setState(() => _online = value);
-                },
-        );
-      }),
-      if (_smashPrivateTls || NextendoOnlinePlay.lastSmashTls != null)
-        SwitchListTile(
-          key: const ValueKey('nextendo-smash-private-tls'),
-          contentPadding: EdgeInsets.zero,
-          title: Text(_text('nextendoSmashPrivateTls')),
-          subtitle: Text(_text('nextendoSmashPrivateTlsHint')),
-          value: _smashPrivateTls,
-          onChanged: _busy || (!_smashPrivateTls && (_engine != true || !config.serverResolved))
-              ? null : _setSmashPrivateTls,
-        ),
-      Wrap(
-        spacing: 8,
-        children: [
-          OutlinedButton(onPressed: _busy ? null : _check, child: Text(_text('nextendoCheck'))),
-          TextButton(onPressed: _busy ? null : _signOut, child: Text(_text('nextendoSignOut'))),
-        ],
-      ),
-    ];
+    );
   }
 
-  /// Only while the server addresses are neither in the build nor found by
-  /// name: the maintainer enters values for a test. A value the build carries
-  /// or a lookup found is shown and cannot be changed here.
-  Widget _registration(NextendoConfig config) => ExpansionTile(
-    tilePadding: EdgeInsets.zero,
-    title: Text(_text('nextendoRegistration')),
-    children: [
-      Text(_text('nextendoRegistrationHint', {'redirect': NextendoConfig.registeredRedirect})),
-      for (final field in [
-        (_clientId, 'nextendoClientId', config.clientIdFromBuild),
-        (_server, 'nextendoServer', config.serverFromBuild || config.serverResolved),
-        (_nat, 'nextendoNat', config.natFromBuild || config.natResolved),
-      ])
-        TextField(
-          controller: field.$1,
-          enabled: !field.$3,
-          autocorrect: false,
-          enableSuggestions: false,
-          keyboardType: field.$2 == 'nextendoClientId' ? TextInputType.text : const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(labelText: _text(field.$2)),
-        ),
-      Align(
-        alignment: AlignmentDirectional.centerEnd,
-        child: TextButton(onPressed: _busy ? null : _saveLocal, child: Text(_text('save'))),
+  Widget _servicesSection() {
+    final colors = Theme.of(context).colorScheme;
+    final String line;
+    if (!_online) {
+      line = _text(_account == null ? 'nextendoServicesSignIn' : 'nextendoServicesOff');
+    } else if (_account == null) {
+      line = _text('nextendoServicesSignIn');
+    } else if (_checking || _status == null) {
+      line = _text('nextendoServicesChecking');
+    } else {
+      line = _status!;
+    }
+    final problem = _online && _account != null && !_checking && _status != null && _statusIsError;
+    return SwitchListTile(
+      key: const ValueKey('nextendo-online-services'),
+      contentPadding: EdgeInsets.zero,
+      secondary: Icon(
+        !_online || _account == null ? Icons.public_off : (problem ? Icons.error_outline : Icons.public),
+        color: problem ? colors.error : (_online && _account != null && !_checking && _status != null ? colors.primary : null),
       ),
-    ],
-  );
+      title: Text(_text('nextendoOnlineServices')),
+      subtitle: Text(line, style: problem ? TextStyle(color: colors.error) : null),
+      value: _online && _account != null,
+      onChanged: _busy || _config == null || !_config!.canSignIn ? null : _setOnline,
+    );
+  }
 
   /// Nextendo's signed catalog: each game and the exact version its servers
-  /// accept. NPLN titles also need online patches RewindBox does not apply yet.
+  /// accept. Information only; NPLN titles also need Nextendo's signed online
+  /// patches, which RewindBox does not apply yet.
   Widget _games() {
     final catalog = _catalog;
     return ExpansionTile(
@@ -381,20 +294,21 @@ class _NextendoDialogState extends State<NextendoDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(_text('nextendoIntro')),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               if (config == null && _message == null) const Center(child: CircularProgressIndicator()),
-              if (config != null) ..._accountSection(config),
+              if (config != null && !config.canSignIn) Text(_text('nextendoNotConfigured')),
+              if (config != null && config.canSignIn) ...[
+                _accountSection(),
+                _servicesSection(),
+              ],
               if (_busy) const Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator()),
-              if (_message != null) Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(_message!, style: _messageIsError ? TextStyle(color: Theme.of(context).colorScheme.error) : null),
-              ),
+              if (_message != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(_message!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                ),
               const SizedBox(height: 8),
-              Text(_text('nextendoGames'), style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 4),
-              Text(_text('nextendoLimits'), style: Theme.of(context).textTheme.bodySmall),
               _games(),
-              if (config != null && !config.serversAutomatic) _registration(config),
             ],
           ),
         ),

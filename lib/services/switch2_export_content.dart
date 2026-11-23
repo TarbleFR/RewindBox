@@ -269,6 +269,17 @@ abstract final class Switch2ExportContent {
     return isGenericTitle(name) ? null : name;
   }
 
+  /// The export's Japanese title (title entry 2 of its control data), the
+  /// name the Japanese eShop lists the game under; null when it has none.
+  static String? japaneseTitle(String npdmPath) {
+    final japanese = languages.indexOf('Japanese');
+    for (final control in _controls(exportFolder(npdmPath), includeExportRoot: true)) {
+      final name = titleEntry(control.nacp, japanese).name;
+      if (!isGenericTitle(name)) return name;
+    }
+    return null;
+  }
+
   /// Display fallback when the export has no identifiable title.
   static String libraryTitle(String npdmPath, {Locale? locale}) =>
       resolvedTitle(npdmPath, locale: locale) ?? path.basename(exportFolder(npdmPath));

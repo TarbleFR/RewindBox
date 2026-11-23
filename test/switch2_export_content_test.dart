@@ -199,6 +199,15 @@ void main() {
       expect(Switch2ExportContent.libraryTitle(npdmPath, locale: const Locale('en')), 'Mario Kart World');
     });
 
+    test('the Japanese title, for the Japanese eShop', () {
+      final npdmPath = write('Game/base/exefs/main.npdm', npdm());
+      expect(Switch2ExportContent.japaneseTitle(npdmPath), isNull);
+      write('Game/base/control.nacp', nacp(titles: {0: ('Hylian Quest', 'Nintendo')}));
+      expect(Switch2ExportContent.japaneseTitle(npdmPath), isNull, reason: 'no Japanese entry');
+      write('Game/base/control.nacp', nacp(titles: {0: ('Hylian Quest', 'Nintendo'), 2: ('ハイリアクエスト', '任天堂')}));
+      expect(Switch2ExportContent.japaneseTitle(npdmPath), 'ハイリアクエスト');
+    });
+
     test('a numbered export is identified by metadata or by its verified program ID', () {
       const french = Locale('fr');
       final known = write('131072/base/exefs/main.npdm', npdm(programId: 0x04007EF01F8AE000));

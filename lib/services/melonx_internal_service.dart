@@ -73,10 +73,11 @@ abstract final class MelonxInternalService {
       }
       if (call.method == 'launchDiagnostic'  && call.arguments is Map) {
         final event = Map<String, dynamic>.from(call.arguments as Map);
-        if (event['stage'] == 'smashTls') {
+        // A game's handshake on its NEX host ('smashTls' from a Core of an earlier build).
+        if (event['stage'] == 'nexTls' || event['stage'] == 'smashTls') {
           final state = event['status'];
           if (state == 'accepted' || state == 'refused' || state == 'compatibility') {
-            NextendoOnlinePlay.lastSmashTls = state as String;
+            NextendoOnlinePlay.lastGameTls = state as String;
           }
         }
         // A retained donor refuses the next Switch session until the native side

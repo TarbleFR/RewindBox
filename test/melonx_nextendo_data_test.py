@@ -97,8 +97,11 @@ check(cache.count('FileAccess.Read') == 1 and 'FileAccess.Write' not in cache an
 
 bridge = (ROOT / 'packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift').read_text()
 builder = bridge[bridge.index('static func onlineRequest('):bridge.index('private func startDiagnostics(')]
-check('withJSONObject:Self.onlineRequest(online,token:token,pid:pid,server:server,nat:nat)' in bridge,
-      'the bridge sends the request its validating builder makes')
+check('withJSONObject:Self.onlineRequest(online,token:token,pid:pid,server:server,nat:nat,titleId:titleId)' in bridge and
+      'configureOnline(runtime,online:requestedOnline,titleId:titleID)' in bridge,
+      'the bridge sends the request its validating builder makes, with the title the engine preflight read')
+check('request["nexCompatibility"] = true' in builder and 'request["gameDnsAddresses"] = addresses' in builder and
+      'if let game { request["titleId"] = game }' in builder, 'the bridge forwards the consent, the DNS answers and the title')
 for key in ('bcatDirectory', 'nsa', 'acceptedVersions'):
     check(f'online["{key}"]' in builder and f'request["{key}"]' in builder, 'the bridge forwards ' + key + ' after its check')
 check('resolvingSymlinksInPath()' in builder and 'lowerHex16' in builder and 'versions.count <= 16' in builder,

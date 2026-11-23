@@ -19,7 +19,9 @@ import 'libretro_3ds_containers.dart';
 import 'libretro_3ds_language.dart';
 import 'libretro_core_catalog.dart';
 import 'libretro_resolution.dart';
+import 'local_dev_vpn_route_service.dart';
 import 'neostation_rom_library.dart';
+import 'pairing_file_service.dart';
 import 'retro_achievements_session_service.dart';
 import 'logger_service.dart';
 import 'libretro_bios_catalog.dart';
@@ -331,6 +333,46 @@ abstract final class LibretroInternalService {
     return choice != null && allowed.contains(choice) ? choice : binding.coreId;
   }
 
+  /// The libretro JIT helper transaction for [core], when RewindBox built it
+  /// with its JIT interface ([LibretroCore.jitArenaBytes] > 0): manual
+  /// LocalDevVPN route, stored pairing file, then the native transaction,
+  /// whose facts are logged one by one. Never inferred from a route or a
+  /// previous launch; any missing step keeps the core's interpreter and never
+  /// blocks the game.
+  static Future<bool> _prepareJit(LibretroCore core) async {
+    if (core.jitArenaBytes <= 0 || !Platform.isIOS) return false;
+    try {
+      await LocalDevVpnRouteService.ensureReachable();
+    } catch (error) {
+      _log.i('libretro JIT: LocalDevVPN route unavailable ($error); ${core.id} keeps its interpreter');
+      return false;
+    }
+    if (!await PairingFileService.hasStoredPairingFile()) {
+      _log.i('libretro JIT: no stored pairing file; ${core.id} keeps its interpreter');
+      return false;
+    }
+    try {
+      final pairing = await PairingFileService.storedFile();
+      final facts = await LibretroInternalBridge.prepareJit(
+        pairingFilePath: pairing.path,
+        bytes: core.jitArenaBytes,
+      );
+      final success = facts['success'] == true;
+      _log.i(
+        'libretro JIT for ${core.id}: success=$success code=${facts['code'] ?? ''} '
+        'mode=${facts['mode']} helper=${facts['helperConnected']} attached=${facts['pidAttached']} '
+        'prepared=${facts['prepared']} probe=${facts['executableProbe']} nonce=${facts['nonceProbe']} '
+        'detached=${facts['detached']} completed=${facts['helperCompleted']} '
+        'released=${facts['debuggerReleased']} capacity=${facts['capacity']} '
+        'ms=${facts['elapsedMs']} ${facts['arena'] ?? ''} ${facts['message'] ?? ''}',
+      );
+      return success;
+    } catch (error) {
+      _log.w('libretro JIT for ${core.id} failed ($error); interpreter kept');
+      return false;
+    }
+  }
+
   static Future<LibretroLaunchOutcome> launch({
     required SystemModel system,
     required GameModel game,
@@ -388,6 +430,9 @@ abstract final class LibretroInternalService {
         );
       }
     }
+    // RewindBox's JIT interface: a core RewindBox builds with its JIT gets the
+    // session's code arena from the libretro JIT helper before the launch.
+    final jitPrepared = await _prepareJit(core);
     final raService = RetroAchievementsSessionService.shared;
     var raLaunch = await raService.prepareLaunch(engine: 'libretro', system: key,
       core: coreId, language: locale.toLanguageTag(), contentPath: romPath);
@@ -413,6 +458,8 @@ abstract final class LibretroInternalService {
       'uiText': LibretroLocale.nativeUI(locale),
       'optionDefaults': await _optionDefaultsFor(core, locale),
       'noJitOverrides': core.noJitOverrides,
+      'jitOverrides': jitPrepared ? core.jitOverrides : const <String, String>{},
+      'jitExpected': core.jitArenaBytes > 0,
       'lockedOptions': core.lockedOptions,
       'coreSettings': LibretroLocale.coreSettings(locale, core),
       // Internal resolution (Build 455): how the session recognizes the
@@ -454,6 +501,8 @@ abstract final class LibretroInternalService {
       }
       final log = result['log'];
       await raService.finishLaunch(raLaunch);
+      // A code arena prepared for a launch that did not start is not kept.
+      if (jitPrepared) await LibretroInternalBridge.releaseJit();
       final details = <String>[
         'Core: $coreId',
         'Code: ${result['code'] ?? 'unknown'}',
