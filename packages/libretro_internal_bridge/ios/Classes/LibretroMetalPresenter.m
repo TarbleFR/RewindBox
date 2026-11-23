@@ -480,7 +480,7 @@ static LibretroMetalFXScreen *LibretroMetalFXBuildScreen(id<MTLDevice> device, C
                                           (unsigned long)input.height, (unsigned long)output.width,
                                           (unsigned long)output.height,
                                           screen != nil ? @"built" : [@"failed " stringByAppendingString:code ?: @""],
-                                          milliseconds, (unsigned long)bytes, discarded ? @" discarded" : @""]];
+                                          milliseconds, (unsigned long)bytes, discarded ? @" discarded" : @""]);
   }
   *failure = code;
   return installed ? screen : nil;
