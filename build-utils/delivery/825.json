@@ -374,15 +374,81 @@
       {
         "commit": "d9982b55c7eb6af48ceb1911cafb32c87eaa408e",
         "note": "Merge of two later commits of the other sessions: 71591625a (libretro JIT transaction codes named RB_JIT_*, not launch errors) and 789708a97 (documentation)"
+      },
+      {
+        "commit": "ab44467c0baab35ce995b3612e5f6a93729c1c1b",
+        "note": "Libretro session: Azahar 2127.0-alpha1 source build with the RewindBox JIT interface (build tooling; the delivery keeps the retained libretro bundle)"
+      },
+      {
+        "commit": "c698c904d19567ddee3cf461f1424f275a6cc55b",
+        "note": "Libretro session: source-cores job unpacks the republished bundle first (build tooling)"
+      },
+      {
+        "commit": "319de815ed3c1fdbc1afffe5230e0df22b2ecae1",
+        "note": "Libretro session: the JIT helper starts only for a packaged core that carries the JIT interface"
+      },
+      {
+        "commit": "8e18e937d39c62a736a7bdc9a42c5b3a05f29955",
+        "note": "Libretro session: source-cores job creates the core work directory first (build tooling)"
       }
     ],
     "sourceOnly": [],
     "promotedCommits": [
       {
         "commit": "b06888a98dad1e8cb96cb4eaa929250da471cc14",
-        "note": "Achievements work deferred since 726 (b06888a9), promoted for the libretro bridge plugin the merged libretro work in 24ab55fe1 builds on (user choice: ship the libretro work in 825)",
+        "note": "Native part of the achievements work deferred since 726 (b06888a9: libretro bridge plugin, RBDiscHashReader, libchdr with its notices, podspec), promoted because the libretro work merged in 24ab55fe1 builds on this bridge (user choice: ship the libretro work in 825); its Dart part stays deferred",
         "paths": [
-          "packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m"
+          "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.m",
+          "packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m",
+          "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.c",
+          "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/LICENSE.txt",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/NEOSTATION_NOTICE.md",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/README.md",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/LICENSE",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/LzmaDec.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/7zTypes.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/LzmaDec.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/LzmaDec.c",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/real/LzmaDec.c",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd_errors.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstddeclib.c",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/dr_libs/dr_flac.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/bitstream.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/cdrom.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chd.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chdconfig.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/coretypes.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/flac.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/huffman.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/macros.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_avhuff.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdfl.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdlz.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzl.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzs.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_flac.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_huff.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_lzma.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zlib.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zstd.h",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_bitstream.c",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_cdrom.c",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_chd.c",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_avhuff.c",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdfl.c",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdlz.c",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzl.c",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzs.c",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_flac.c",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_huff.c",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_lzma.c",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zlib.c",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zstd.c",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_flac.c",
+          "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_huffman.c",
+          "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec"
         ]
       },
       {
@@ -393,8 +459,8 @@
         ]
       }
     ],
-    "freezeCommit": "01a44f851070bcb41700cbe45953228d903db08a",
-    "freezeTree": "f62b2cff79f46b8d9b56f662e82ee36745b47bb4",
+    "freezeCommit": "98700e3ed457586c84a45b64b55f9adc4777ef1a",
+    "freezeTree": "f7276432edf8a3205bf531488c1f60831f7aded7",
     "baseEffectiveDigest": "c684c382c6cb33bb6c7789112f2796a2dec967ebc26aab61272668f2184ed4ae",
     "inheritedDeferredPaths": [
       "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json",
@@ -574,56 +640,6 @@
       "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-29.json.gz",
       "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-30.json.gz",
       "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-31.json.gz",
-      "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.m",
-      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.c",
-      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/LICENSE.txt",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/NEOSTATION_NOTICE.md",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/README.md",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/LICENSE",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/LzmaDec.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/7zTypes.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/LzmaDec.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/LzmaDec.c",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/real/LzmaDec.c",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd_errors.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstddeclib.c",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/dr_libs/dr_flac.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/bitstream.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/cdrom.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chd.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chdconfig.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/coretypes.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/flac.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/huffman.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/macros.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_avhuff.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdfl.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdlz.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzl.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzs.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_flac.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_huff.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_lzma.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zlib.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zstd.h",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_bitstream.c",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_cdrom.c",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_chd.c",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_avhuff.c",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdfl.c",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdlz.c",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzl.c",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzs.c",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_flac.c",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_huff.c",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_lzma.c",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zlib.c",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zstd.c",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_flac.c",
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_huffman.c",
-      "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec",
       "source.json",
       "test/actions_cleanup_test.py",
       "test/libretro_ios_syntax_test.py",
@@ -662,7 +678,7 @@
         "commit": "b06888a98dad1e8cb96cb4eaa929250da471cc14",
         "subject": "feat(achievements): recognize more games (.chd/.cso, library hash = in-game hash, online lookup) [skip ci]",
         "role": "promoted",
-        "productPaths": 1,
+        "productPaths": 51,
         "partial": true
       },
       {
@@ -775,6 +791,48 @@
         "subject": "[skip ci] The 825 draft reviews the merge of the latest libretro and documentation commits",
         "role": "recipe",
         "productPaths": 0
+      },
+      {
+        "commit": "03ee49e2f08cbb552cf52c2ffdd8f990f56ed96e",
+        "subject": "[ipa-delivery:825] Build the private RewindBox IPA with S2Arm engine patches 0312-0318, MeloNX Core 7d45996a and the merged session work",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "ab44467c0baab35ce995b3612e5f6a93729c1c1b",
+        "subject": "[libretro-source-cores] Build Azahar 2127.0-alpha1 from source with the RewindBox JIT interface",
+        "role": "reviewed",
+        "productPaths": 4
+      },
+      {
+        "commit": "c698c904d19567ddee3cf461f1424f275a6cc55b",
+        "subject": "[libretro-source-cores] Unpack the republished libretro bundle before building Azahar from source",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "319de815ed3c1fdbc1afffe5230e0df22b2ecae1",
+        "subject": "Start the libretro JIT helper only for a packaged core that carries the JIT interface",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "8e18e937d39c62a736a7bdc9a42c5b3a05f29955",
+        "subject": "[libretro-source-cores] Create the core's work directory before fetching its source archive",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "4ad1e1f1490a05aa7d0d0dcbefb65c7a212c7de1",
+        "subject": "[skip ci] Redraft 825: promote the native bridge part of b06888a9 the libretro bridge needs (RBDiscHashReader.h missing in run 45179246589)",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "98700e3ed457586c84a45b64b55f9adc4777ef1a",
+        "subject": "[skip ci] The 825 draft reviews the latest libretro session commits",
+        "role": "recipe",
+        "productPaths": 0
       }
     ],
     "deferred": {},
@@ -783,6 +841,11 @@
         "mode": "100644",
         "gitBlob": "888bd6072b5f195d34dd38ecff020ac0d2fcb201",
         "sha256": "1bfbfdf617fe63c7b3ad83fd3278e8df8506716f67b140c7d287bd56f5404a41"
+      },
+      "build-utils/libretro_source_cores.py": {
+        "mode": "100644",
+        "gitBlob": "7f28d27c00722b34177a97481b43fc6fbc616084",
+        "sha256": "c29d4abb6920061d8d6992dc12a2dc177ad340842f64a50b0d28a51fc7eec6f1"
       },
       "build-utils/melonx/adapt_compile_wait_guest_time.py": {
         "mode": "100644",
@@ -866,13 +929,13 @@
       },
       "lib/services/libretro_core_catalog.dart": {
         "mode": "100644",
-        "gitBlob": "c8b5edefcf59ab92e4bb98303bc12c1fc753073b",
-        "sha256": "0d76770ce21b1a9368953a4c004a5d24a324748b176067e7c4b1e03cb87dde9d"
+        "gitBlob": "30d0c819c7c116e27978234bc3b74a2519df817b",
+        "sha256": "a71258e5ea8d6fbaad71c59b5b606a435c84b0ea2f420b23b7dc4ae2610dfb45"
       },
       "lib/services/libretro_internal_service.dart": {
         "mode": "100644",
-        "gitBlob": "94db9430292a0f990a8bb4d2075f6c25dbd1ee5c",
-        "sha256": "04c60c60bcbb408da2e9efb4c7d8c5d73d31a8959201456f3d21114e61c90453"
+        "gitBlob": "848398a4c6ee66e87887abb8aafa7355875e13c3",
+        "sha256": "b0030a4f9a212ac0a7d8ed45a43900ce27ffef04213c43619f2ee3a2a8ce91d3"
       },
       "lib/services/melonx_internal_service.dart": {
         "mode": "100644",
@@ -914,10 +977,30 @@
         "gitBlob": "58566975837a280e3205b50717e2e65a1277d9d4",
         "sha256": "a5720677addae6744bf5d49737156e4b3153833fd40b24aab06b695edde85d02"
       },
+      "native/azahar/README.md": {
+        "mode": "100644",
+        "gitBlob": "e23c9d5ed055b5cddf85898362cb42c7f2d4b78f",
+        "sha256": "d8f5f2bb7cb99b6d9122856fcfb817675562d5f01f228da3c30bb17e552eda77"
+      },
+      "native/azahar/rewindbox-jit.patch": {
+        "mode": "100644",
+        "gitBlob": "3e232a3049f35a1ac4098a1f84dd38ffd6a6f967",
+        "sha256": "83571ac965a1966c2b5eed9903fa773cc2977202470fc0793795142532abfc62"
+      },
+      "native/azahar/source.json": {
+        "mode": "100644",
+        "gitBlob": "b7af64ab3f6c38148db3f4997745b438b454dbad",
+        "sha256": "c1f7ea5278132a1935bb8260aba7f736d1f0e5dba59f8b70e6c2271030933fb5"
+      },
       "native/melonx/EmbeddedOnline.cs": {
         "mode": "100644",
         "gitBlob": "f659e9e90e49eaaf2d14e00ee02922e3b30d370b",
         "sha256": "65c23d14fd2f0532a9d017d0822921286d585dac51b662055eb346bac5d53f77"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.m": {
+        "mode": "100644",
+        "gitBlob": "3bae02c12d41c7508564be43579a23f94f4f997f",
+        "sha256": "af5379f50fff84d0698ba96b453372f6e7443b5db695a58c08ec53745097086b"
       },
       "packages/libretro_internal_bridge/ios/Classes/LibretroCoreHost.h": {
         "mode": "100644",
@@ -999,10 +1082,255 @@
         "gitBlob": "102fdf3351b37fee4116ba23c5f27f85dc695b67",
         "sha256": "553b621ce0a081809a80d8f729cb3d58ed8a12401fc3cd0d2d04f21e5d9acbc8"
       },
+      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.c": {
+        "mode": "100644",
+        "gitBlob": "5346ad6ae5d8365bfebe421e84e558c9b73f8e22",
+        "sha256": "bde4e1872f98a8c2e4b43e6838600cc6a46f70591811e10b38015b8420416a04"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.h": {
+        "mode": "100644",
+        "gitBlob": "9d60178667e2844bfe8a6e6e9d4d0fde831c0558",
+        "sha256": "333587eb7398891fba8f00dea408a2f146706d921df7bafa27cd49e0bfc82be8"
+      },
       "packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h": {
         "mode": "100644",
         "gitBlob": "fa70a9057d7553a533e621e7abd329960b20fddb",
         "sha256": "84c59f2484336fa3c64bc68b51177211094083fd411f0b488fee6b79bda6bc22"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/LICENSE.txt": {
+        "mode": "100644",
+        "gitBlob": "1c36e5b593498866a8ea21aa968c180acac3b967",
+        "sha256": "e3989a7aee74a91b8cdbdfe204a6b8d03288863ec7533a21c51f1a987ba73539"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/NEOSTATION_NOTICE.md": {
+        "mode": "100644",
+        "gitBlob": "0ecf90473b938ca26c2e9691ac90e3ae69639536",
+        "sha256": "75e93309b5042be43b9153c2912f931adcbf7a2e58e4f5b137425521366490fb"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/README.md": {
+        "mode": "100644",
+        "gitBlob": "940920a53624e4c44b0f8fb154f4c88abda80e73",
+        "sha256": "131b330692e1adcf1f3c1e02a6d0259ca74e521b62707615edd1006934b45af4"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/LICENSE": {
+        "mode": "100644",
+        "gitBlob": "5f57051693886e063b523267829fee2abbd419ce",
+        "sha256": "06721414a6decad6d6677feb470f01f47126e154d895d85bc1e17628697715e5"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/LzmaDec.h": {
+        "mode": "100644",
+        "gitBlob": "0aeba2d5f827087c6e118ed72c074c4ab1321588",
+        "sha256": "fa85869a8d2fff5ceccff456b6e980204cadc97430aa2142adab4a26be549647"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/7zTypes.h": {
+        "mode": "100644",
+        "gitBlob": "8aaabc8fbca8b49ba73ede50b65f3a7d97d829da",
+        "sha256": "b166eeaf8e4cab98c1403177736a127c55c5665c4be8897b777d237cb3e36763"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/LzmaDec.h": {
+        "mode": "100644",
+        "gitBlob": "b0ce28fa02a1adc422b7269c4e6d2c2d26fc60b9",
+        "sha256": "3aaf07b4ae4173a2d103179455dc7089b5ddbc7fc3db3c0e40964a7499c69266"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/LzmaDec.c": {
+        "mode": "100644",
+        "gitBlob": "4772470af2daa31947894f73ea25fedfd25dd8ac",
+        "sha256": "63f5f06b029623f8ac9f691a04297a2b2a3d19c880c091719e4db2f20bea2662"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/real/LzmaDec.c": {
+        "mode": "100644",
+        "gitBlob": "ceeec5196af233511e50f409064f748ffdc65d4b",
+        "sha256": "e9eaa3b0106c4c08da8080e40c9e32cf20c4bb6f1ec34ea394becec325d71d11"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd.h": {
+        "mode": "100644",
+        "gitBlob": "b8c0644a7ec6533916e06aa8392a2727cbe55573",
+        "sha256": "9b4bc8245565c98ccfc61c07749928b57e7c0f6fddb0530c4f6aa1971893d88b"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd_errors.h": {
+        "mode": "100644",
+        "gitBlob": "8ebc95cbb2ab882027a3e6cc92cdd5abc1a0dee4",
+        "sha256": "66a8c3f71d12ea6e797e4f622f31f3f8f81c41b36f48cad4f5de7d8bfb6aac0a"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstddeclib.c": {
+        "mode": "100644",
+        "gitBlob": "a7623f8a417a55dcd08882a772358b94b55e7caa",
+        "sha256": "e1dc239cb4bcf3c00a0462fdbe5f3e3c78f907c4f8cb02c048807d754bdc51b5"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/dr_libs/dr_flac.h": {
+        "mode": "100644",
+        "gitBlob": "051f37c66e5394203efa80e7d048579b4540c078",
+        "sha256": "111144e778f55738db6851cb226015c419e00d04b916a09506d4856d9cff945c"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/bitstream.h": {
+        "mode": "100644",
+        "gitBlob": "60f20649739c7f66a43019a40efaaede252da2d7",
+        "sha256": "fc48799ca3df009a9e114772e69be8f2bea634e4e3c64e128bda6cfbf314020f"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/cdrom.h": {
+        "mode": "100644",
+        "gitBlob": "680aa39576f8960cd93ad58f82c78e696fcbf670",
+        "sha256": "eea4668fdb548cbd4cd6ac033441c7725eb0623a8cd0ea966a064f3b5328495b"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chd.h": {
+        "mode": "100644",
+        "gitBlob": "f07c374e8708ffa388c6519fa79b8613c5fd819a",
+        "sha256": "a318ad8a93050bbe33fdc18dcddc1b433d1840d2f09e42166e090ad5838f5fe4"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chdconfig.h": {
+        "mode": "100644",
+        "gitBlob": "eac64917d39fbfaa5dfcc150e5d4d6b2284ccbd0",
+        "sha256": "b0397b337d9631d1f59c401bab29ddda3dbe9154721efdc3627a8a082136cb51"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/coretypes.h": {
+        "mode": "100644",
+        "gitBlob": "11692d70b9cd9fd924a4fb9680598c33951c5d38",
+        "sha256": "f573f4ddf8960bff863d1e8f3513acad71a22807a18eccb634a4a4519cb88d72"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/flac.h": {
+        "mode": "100644",
+        "gitBlob": "49a3ba90bf44ee3907afe4e9d69cf755656f1757",
+        "sha256": "e333975b5ce21afa3d918e769b264df20b18eb7ed8e0388a7e1920790ebd9fc2"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/huffman.h": {
+        "mode": "100644",
+        "gitBlob": "8bfacd05601144dacbf80b9aa9a24f07f2bc08aa",
+        "sha256": "6794c036b503fec9b97d1defd7f284b8e54aec94e6ab1d7a432a2ee84c5013c4"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/macros.h": {
+        "mode": "100644",
+        "gitBlob": "445b3b247af4e719026e84cdb664cc88d0b5f068",
+        "sha256": "99724cf310cb46c2fbfb558ed1005397a6c4b43864f11ace628b0f7bc8cd72e6"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_avhuff.h": {
+        "mode": "100644",
+        "gitBlob": "774d1f290619f32f1315359283588e7c6dac3889",
+        "sha256": "d13a9d4cb334e3667de8e1f1f057080d9df27a18f3f8208b3b8a8cc047c9ad5d"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdfl.h": {
+        "mode": "100644",
+        "gitBlob": "a495bf673d9c1c7e055a4fa7476f4950f8469c93",
+        "sha256": "18974d70e7c8703846034ca7a73fd3fc041dbea56c9caa3fc22caa8bab75e0ab"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdlz.h": {
+        "mode": "100644",
+        "gitBlob": "2b6796823e4b10e492c9b5fc2a4e7c1d3fcb28e0",
+        "sha256": "936fed6ad6b71228e719d5226ae1cad85486830fcc40da9e3eaba6dcaca6a5c7"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzl.h": {
+        "mode": "100644",
+        "gitBlob": "6db871840a802daaea17df61603710ea271132f8",
+        "sha256": "b18491b60e7130bb8d5253bdebb6d5b4e1930853b5785849bce9b0d7321a94b5"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzs.h": {
+        "mode": "100644",
+        "gitBlob": "a34d33d9f0a4e503b63141e63f7a06e9bd534184",
+        "sha256": "b3138357a7463bd044d72f568a891ffbc0802f502a5f2e5440a52f07da167687"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_flac.h": {
+        "mode": "100644",
+        "gitBlob": "93c2af1f2de4a971dcb1f274a5d35623eee71aee",
+        "sha256": "6e431bfee6d6604192a99a9ccdcf9040e9d56e218bbb23086bc5e42024a5eb0f"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_huff.h": {
+        "mode": "100644",
+        "gitBlob": "dcd669cf4b5b66b5af72bf2d5c04dd095c36c605",
+        "sha256": "0ceedce46afe7b581f0d9779d511653dd435f4601d428b6fdd8daf7e6f3789ed"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_lzma.h": {
+        "mode": "100644",
+        "gitBlob": "821862e6644742c541d30014f95da38da283efdf",
+        "sha256": "97f1f51c9ce547ec85d8a0c7aff3024b635e35ce37e347172cdae8ea0056f5c7"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zlib.h": {
+        "mode": "100644",
+        "gitBlob": "f36b430a5d4b273d7ac4b840c9180368b0de4bc6",
+        "sha256": "eef6562dc312a0eda5ca41f9ad1d035cb6aafbb065bbeafbd655d115ec83c640"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zstd.h": {
+        "mode": "100644",
+        "gitBlob": "a90e52cc06aedcad7b33c479ac04d0f3e667e830",
+        "sha256": "c10f7be9073c790fa9f9f4cb8404f918487fe91ad40ecfc4c8e2acb19b347c62"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_bitstream.c": {
+        "mode": "100644",
+        "gitBlob": "4fb1c63b2f67f4d925e2c662acdd2c44493f92dd",
+        "sha256": "02ec6d7c55e41b1ebfea5874d1aec2ffaabc086df102e19154e7e023a6bd0a76"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_cdrom.c": {
+        "mode": "100644",
+        "gitBlob": "2282aa292d8aa40580f16384f8b53d5fafb026df",
+        "sha256": "7fc4515eb3598d88797b2786a560bd497720eb82f9b8c6391ba4ab7a74f5e351"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_chd.c": {
+        "mode": "100644",
+        "gitBlob": "d69fbed34ecd89ced9aec8692e4460f197fedc0b",
+        "sha256": "8c1cfd8f26c3cded7b727b59059953c55b97b2c4d3fca129e19dd4157f450b14"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_avhuff.c": {
+        "mode": "100644",
+        "gitBlob": "5f3a44321cc4b92e9928bb37660c4c1ed691a598",
+        "sha256": "9504a303dd4cfc26befe866861d2bd2b7dbaf35b67185f73a6f81fbb5b13148c"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdfl.c": {
+        "mode": "100644",
+        "gitBlob": "fe98d92b4214c0766755feacb44f8ad811349632",
+        "sha256": "11e9b5e9a6982024a892130fde58f243936719162f951d33b48aa3b2b29ff78a"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdlz.c": {
+        "mode": "100644",
+        "gitBlob": "4018a89d28361a6e217f8746e5304a76719797a9",
+        "sha256": "8e62e01993aec7e27e847f1008ea6dec476de25b4800083abf6502d8c6952393"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzl.c": {
+        "mode": "100644",
+        "gitBlob": "8fdb721841155a2e794343cf16f7aededec181eb",
+        "sha256": "e14acfe1c44cb69bd24b052e386b81b36fc7f5f7f1a062b9a1e41de0088f985d"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzs.c": {
+        "mode": "100644",
+        "gitBlob": "6679202e03eefef5068a8fa29d7b2f3feec8fd4c",
+        "sha256": "4fbe14e3727fcd6ed592be406ca1ea6d9c074bd3f6acca57100af07dcaf1e301"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_flac.c": {
+        "mode": "100644",
+        "gitBlob": "32aa7221debd5e07536017c40cb273db231104ce",
+        "sha256": "feafae3d2e5c342f35ae1c3d941028c7acc594c319f53d225d1c56592fc78697"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_huff.c": {
+        "mode": "100644",
+        "gitBlob": "6453d6857d7b5773c533bec486d45b14d39a4f6f",
+        "sha256": "b8ea9c56c436a4dfa9e97a8f78e0caad3ec490a375acb0ecc617d22cdbd91f73"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_lzma.c": {
+        "mode": "100644",
+        "gitBlob": "bd308541f05193d687853cd2f9dfff187876234e",
+        "sha256": "912932f585dc12b8f399b49b718a3c9533049efa2393b42d51240a22813d8fcd"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zlib.c": {
+        "mode": "100644",
+        "gitBlob": "6d299fe369a2a45495976e7537d77f3c60803bfd",
+        "sha256": "f15fee532e749dfd6933291e2fb36736b62c71a8986b2b7afdb3bfd6bc0d1961"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zstd.c": {
+        "mode": "100644",
+        "gitBlob": "5390d5d415aaadaf78a5a630b81c90e00af2464c",
+        "sha256": "92efc390845a76d027cf2c3bbaae0c7643109f3b3654fea07ed01871a9a3b76a"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_flac.c": {
+        "mode": "100644",
+        "gitBlob": "2d1ad10e255deaa65a6debad641afb01b203756e",
+        "sha256": "ee8dc53130ee5a86df4a783e6f55cdb5cba6856e340c7e7feff40ff314461cc7"
+      },
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_huffman.c": {
+        "mode": "100644",
+        "gitBlob": "16d96b5f627f6a69dd407fc1f17b51cd232a91d9",
+        "sha256": "1d9617d27ec324674157dbe3e8284ed7ea32d6c6cf5b802996086559cef249f2"
+      },
+      "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec": {
+        "mode": "100644",
+        "gitBlob": "ae523dec31bb3f92d036ecc25ba68733f2ce731c",
+        "sha256": "11ae877f20731ea9b2dda5a23b036a5ed1cd8320cad1869e2e4cbebb46d5c33d"
       },
       "packages/libretro_internal_bridge/lib/libretro_internal_bridge.dart": {
         "mode": "100644",
@@ -1352,64 +1680,6 @@
       "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-29.json.gz": null,
       "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-30.json.gz": null,
       "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-31.json.gz": null,
-      "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.m": {
-        "mode": "100644",
-        "gitBlob": "b8307182d8117c9f06b8afb835039cae7399d831",
-        "sha256": "020d56ac77755233604186c1e9f4ea5496702cc2b16645d1e434f8c3f8e9a8b9"
-      },
-      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.c": null,
-      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/LICENSE.txt": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/NEOSTATION_NOTICE.md": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/README.md": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/LICENSE": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/LzmaDec.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/7zTypes.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/LzmaDec.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/LzmaDec.c": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/real/LzmaDec.c": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd_errors.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstddeclib.c": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/dr_libs/dr_flac.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/bitstream.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/cdrom.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chd.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chdconfig.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/coretypes.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/flac.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/huffman.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/macros.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_avhuff.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdfl.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdlz.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzl.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzs.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_flac.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_huff.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_lzma.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zlib.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zstd.h": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_bitstream.c": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_cdrom.c": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_chd.c": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_avhuff.c": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdfl.c": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdlz.c": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzl.c": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzs.c": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_flac.c": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_huff.c": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_lzma.c": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zlib.c": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zstd.c": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_flac.c": null,
-      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_huffman.c": null,
-      "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec": {
-        "mode": "100644",
-        "gitBlob": "1c4589fea4ca0e3b002bfec28d65d9cf2f82e157",
-        "sha256": "2da2d0822c0488e5367db85a6eb696df8cd6b27e6cef30fd4ff9a55bea29bdab"
-      },
       "source.json": null,
       "test/actions_cleanup_test.py": {
         "mode": "100644",
@@ -1430,8 +1700,8 @@
       "test/ra_disc_hash_reader_test.py": null,
       "test/retro_achievements_identification_test.dart": null
     },
-    "effectiveDigest": "896bc08cc1fa4cfab06ff122f08cf5bdace723544b477f7cddf0307477a2c881",
-    "productFiles": 9314,
+    "effectiveDigest": "b657e0445db024f5868449d89e970bc8fe22cbb9745c99e508ba59946f90f606",
+    "productFiles": 9366,
     "embeddedRecipeInputs": {
       "LICENSE.md": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
       "NOTICE.md": "79149cf353be62ab4fdeb08633f797ac970f0129de8e7ce6f36a64dd19dabcb6",
@@ -1696,8 +1966,8 @@
   ],
   "s2armAsyncPSOTestDefault": true,
   "frozen": {
-    "at": "2026-11-23T12:57:03Z",
-    "commit": "01a44f851070bcb41700cbe45953228d903db08a",
+    "at": "2026-11-23T13:19:03Z",
+    "commit": "98700e3ed457586c84a45b64b55f9adc4777ef1a",
     "tool": "standard_delivery.py freeze",
     "inCI": false
   }
