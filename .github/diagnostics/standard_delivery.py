@@ -551,6 +551,8 @@ def manifest_errors(value):
         check(value['components'].get(key, {}).get('mode') == 'retain', f'components.{key} must be retained')
     for key in ('libretro', 'melonx-dependencies'):
         check(value['components'].get(key, {}).get('mode') == 'retain-archive', f'components.{key} must be a retained archive')
+    check(isinstance(value['components'].get('libretro', {}).get('jitHelper', False), bool),
+          'components.libretro.jitHelper (optional) must be a Boolean')
     seen = set()
     for key, spec in value['components'].items():
         if 'changedInputs' not in spec:
@@ -1134,8 +1136,9 @@ def engine_operation(operation, key=None, app=None):
     manifest = ci_manifest()
     if operation == 'engines':
         keys = sorted(engine_components(manifest))
-        write_outputs(**{name: 'true' for name in keys})
-        return dict(engines=keys)
+        helper = {'libretro-jit-helper': 'true'} if libretro_jit_helper(manifest) else {}
+        write_outputs(**{name: 'true' for name in keys}, **helper)
+        return dict(engines=keys, **({'libretroJitHelper': True} if helper else {}))
     if operation == 'engine-present':
         return dict(present=key in engine_components(manifest))
     if operation == 'download-engine':
@@ -1143,6 +1146,47 @@ def engine_operation(operation, key=None, app=None):
     if operation == 'verify-engine':
         return save(f'standard-engine-{key}-evidence.json', engine_evidence(key, manifest))
     return save(f'standard-engine-{key}-embedded.json', engine_embed(key, manifest, app))
+
+
+# --- libretro JIT helper (opt-in) ----------------------------------------------------------------------
+# components.libretro.jitHelper: true adds the libretro cores' JIT helper extension (packages/libretro_jit_helper,
+# configured by build-utils/configure_libretro_ios.py and compiled with the application). Absent, nothing of it runs
+# and the delivery is the one of before. After compilation its identity file is written at the app root where, like an
+# engine's, it adds the helper to the validators' closed extension sets (validate_single_ipa_distribution
+# IDENTITY_ENGINES).
+LIBRETRO_JIT_SOURCE = 'packages/libretro_jit_helper'
+LIBRETRO_JIT_SCRIPT = 'libretro-universal.js'
+
+
+def libretro_jit_helper(manifest):
+    """Whether the manifest opts in to the libretro JIT helper (components.libretro.jitHelper is true)."""
+    return manifest['components'].get('libretro', {}).get('jitHelper') is True
+
+
+def libretro_jit_helper_identity(app, manifest=None, root=ROOT):
+    """libretro-jit-helper APP, after compilation: the application carries the helper with its contract and the script
+    of its package; its identity file is then written at the app root (the package files by digest)."""
+    from validate_single_ipa_distribution import LIBRETRO_JIT_EXTENSIONS, LIBRETRO_JIT_IDENTITY
+    manifest = ci_manifest() if manifest is None else manifest
+    require(libretro_jit_helper(manifest), 'The manifest does not opt in to the libretro JIT helper')
+    root, app = Path(root), Path(app)
+    (bundle, contract), = LIBRETRO_JIT_EXTENSIONS.items()
+    helper = app / 'PlugIns' / bundle
+    require((helper / 'Info.plist').is_file(), f'The application does not carry {bundle}')
+    host, info = plistlib.loads((app / 'Info.plist').read_bytes()), plistlib.loads((helper / 'Info.plist').read_bytes())
+    require(info.get('CFBundleIdentifier') == host.get('CFBundleIdentifier', '') + contract['bundleSuffix'] and
+            info.get(contract['marker']) == '1' and
+            info.get('NSExtension', {}).get('NSExtensionPrincipalClass') == contract['principalClass'],
+            f'{bundle} does not carry the libretro JIT helper contract')
+    script = (helper / LIBRETRO_JIT_SCRIPT).read_bytes()
+    require(script == (root / LIBRETRO_JIT_SOURCE / 'ios/Resources' / LIBRETRO_JIT_SCRIPT).read_bytes(),
+            f'{bundle}/{LIBRETRO_JIT_SCRIPT} differs from its package source')
+    sources = {path.relative_to(root).as_posix(): sha_file(path)
+               for path in sorted((root / LIBRETRO_JIT_SOURCE).rglob('*')) if path.is_file()}
+    record = dict(component='libretro', build=manifest['build'], jitHelper=dict(bundle=bundle, **contract),
+                  scriptSHA256=sha(script), sources=sources, physicalDeviceTested=False)
+    (app / LIBRETRO_JIT_IDENTITY).write_text(json.dumps(record, indent=2) + '\n')
+    return dict(identityFile=LIBRETRO_JIT_IDENTITY, identity=record)
 
 
 def melonx_component(manifest):
@@ -2657,6 +2701,7 @@ def validate(ipa):
     from delivery_benchmark import payload_fingerprint
     from validate_neoplay_ipa import validate as neoplay
     from validate_shader_compiler_ipa import validate as shaders
+    from validate_single_ipa_distribution import LIBRETRO_JIT_IDENTITY
     from verify_ipa import macho
     manifest = ci_manifest()
     melonx = melonx_component(manifest)
@@ -2695,6 +2740,8 @@ def validate(ipa):
         melonx_result = melonx.engine_ipa(archive, root)
         engine_results = {key: engine_ipa(archive, root, key, manifest, receipt['components'][key])
                           for key in engine_components(manifest)}
+        require((root + LIBRETRO_JIT_IDENTITY in archive.namelist()) is libretro_jit_helper(manifest),
+                f'The packaged {LIBRETRO_JIT_IDENTITY} disagrees with components.libretro.jitHelper of the manifest')
         for kind in retained.NATIVES:
             spec = manifest['components'][kind]
             name = retained.CORE_NAMES[kind]
@@ -3552,7 +3599,7 @@ CI_OPERATIONS = ('materialize', 'source-contract', 'baseline', 'tests', 'await-t
                  'install-rpcs3', 'rpcs3-exports', 'embed-rpcs3-source', 'component-runs', 'dolphin', 'armsx2',
                  'authenticate-dolphin', 'authenticate-armsx2',
                  'download-libretro', 'libretro', 'download-melonx-dependencies', 'download-melonx', 'melonx-evidence',
-                 'engines', 'engine-present', 'download-engine', 'verify-engine', 'embed-engine',
+                 'engines', 'engine-present', 'download-engine', 'verify-engine', 'embed-engine', 'libretro-jit-helper',
                  'neoswap-host', 'embed', 'structure', 'seal', 'validate', 'diff-check', 'republish')
 LOCAL_OPERATIONS = ('freeze', 'trigger-paths', 'record')
 OPERATIONS = CI_OPERATIONS + LOCAL_OPERATIONS + ('contract',)
@@ -3613,6 +3660,9 @@ def main(argv=None):
         if operation == 'engine-present' and not result['present']:
             print(json.dumps(result, indent=2))
             return 1
+    elif operation == 'libretro-jit-helper':
+        require(rest, 'Missing application path')
+        result = save('standard-libretro-jit-helper.json', libretro_jit_helper_identity(Path(rest[0])))
     elif operation == 'neoswap-host':
         result = neoswap_host()
     elif operation in ('embed', 'structure', 'validate'):

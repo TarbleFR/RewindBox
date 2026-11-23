@@ -61,19 +61,27 @@ def is_s2arm(node):
     return any(isinstance(child, ast.Name) and child.id.startswith('S2ARM_') for child in ast.walk(node))
 
 
+def is_libretro_jit(node):
+    return any(isinstance(child, ast.Name) and child.id.startswith('LIBRETRO_JIT_') for child in ast.walk(node))
+
+
 def stripped_tree():
-    """The current validator's syntax tree without the S2Arm statements (three constants, one table entry)."""
+    """The current validator's syntax tree without the S2Arm statements (three constants, one table entry) and
+    without the libretro JIT helper's, added the same way on 23 November 2026 (two constants, one table entry)."""
     tree = ast.parse((ROOT / PATH).read_text())
-    removed = [node for node in tree.body if isinstance(node, ast.Assign) and
-               all(isinstance(target, ast.Name) and target.id.startswith('S2ARM_') for target in node.targets)]
-    tree.body = [node for node in tree.body if node not in removed]
+    assigned = lambda prefix: [node for node in tree.body if isinstance(node, ast.Assign) and all(
+        isinstance(target, ast.Name) and target.id.startswith(prefix) for target in node.targets)]
+    removed, libretro = assigned('S2ARM_'), assigned('LIBRETRO_JIT_')
+    tree.body = [node for node in tree.body if node not in removed and node not in libretro]
     table = next(node.value for node in tree.body if isinstance(node, ast.Assign) and
                  [getattr(target, 'id', None) for target in node.targets] == ['IDENTITY_ENGINES'])
-    entries = [(key, value) for key, value in zip(table.keys, table.values) if not is_s2arm(key)]
+    entries = [(key, value) for key, value in zip(table.keys, table.values)
+               if not is_s2arm(key) and not is_libretro_jit(key)]
     entries_removed = len(table.keys) - len(entries)
     table.keys, table.values = [key for key, _ in entries], [value for _, value in entries]
-    if len(removed) != 3 or entries_removed != 1 or is_s2arm(tree):
-        raise AssertionError(f'unexpected S2Arm statements: {len(removed)} constants, {entries_removed} table entries')
+    if len(removed) != 3 or len(libretro) != 2 or entries_removed != 2 or is_s2arm(tree) or is_libretro_jit(tree):
+        raise AssertionError(f'unexpected identity-engine statements: {len(removed)} S2Arm and {len(libretro)} '
+                             f'libretro constants, {entries_removed} table entries')
     return tree
 
 

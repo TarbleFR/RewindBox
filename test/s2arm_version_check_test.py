@@ -41,6 +41,8 @@ WORKFLOW = '.github/workflows/standard-delivery.yml'
 # The common workflow with the identity table, before the S2Arm entry (origin/Claude at b4ef45fc).
 PRE_CHANGE_BLOB = '83a6da3d9915995eff1e8f78088e4f94da8f9525'
 ENTRY = ", 'S2Arm-native-identity.json': ['S2ArmJITHelper.appex']"
+# Added the same way on 23 November 2026 (the opt-in libretro JIT helper); also removed for the comparison.
+LIBRETRO_ENTRY = ", 'Libretro-JIT-helper-identity.json': ['LibretroJITHelper.appex']"
 STEP = 'Verify final signed legal bundle and application and extension versions'
 OPEN, CLOSE = "python3 - <<'PYVERSION'\n", '\nPYVERSION\n'
 APP = 'Payload/NeoStation.app/'
@@ -67,10 +69,10 @@ def pre_change_text():
 
 
 def stripped_script(script):
-    """The step without the S2Arm entry of its ENGINE_HELPERS table."""
-    if script.count(ENTRY) != 1:
-        raise AssertionError('the step does not carry the S2Arm entry exactly once')
-    return script.replace(ENTRY, '')
+    """The step without the S2Arm entry of its ENGINE_HELPERS table (nor the libretro JIT helper's)."""
+    if script.count(ENTRY) != 1 or script.count(LIBRETRO_ENTRY) != 1:
+        raise AssertionError('the step does not carry the S2Arm and libretro entries exactly once')
+    return script.replace(ENTRY, '').replace(LIBRETRO_ENTRY, '')
 
 
 def bundle(version=BUILD, marketing=VERSION, identifier='com.neogamelab.neostation'):

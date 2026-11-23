@@ -92,7 +92,14 @@ class IdentityEngines(unittest.TestCase):
             'S2Arm-native-identity.json': (
             {'S2ArmJITHelper.appex': {'bundleSuffix': '.s2armjithelper', 'principalClass': 'S2ArmJITRequestHandler',
                                       'marker': 'NeoStationS2ArmJITHelper'}},
-            ('Frameworks/S2ArmEngine.framework/S2ArmEngine', 'Frameworks/NS2Pro.framework/NS2Pro'))})
+            ('Frameworks/S2ArmEngine.framework/S2ArmEngine', 'Frameworks/NS2Pro.framework/NS2Pro')),
+            # The libretro cores' JIT helper, compiled with the application when the manifest opts in
+            # (components.libretro.jitHelper): no image of its own.
+            'Libretro-JIT-helper-identity.json': (
+            {'LibretroJITHelper.appex': {'bundleSuffix': '.libretrojithelper',
+                                         'principalClass': 'LibretroJITRequestHandler',
+                                         'marker': 'NeoStationLibretroJITHelper'}},
+            ())})
         helper = plistlib.loads((ROOT / 'native/xenia_internal_helper/Info.plist').read_bytes())
         contract = validator.XENIA_EXTENSIONS['XeniaJITHelper.appex']
         self.assertEqual(helper['NSExtension']['NSExtensionPrincipalClass'], contract['principalClass'])

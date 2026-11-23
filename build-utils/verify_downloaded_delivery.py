@@ -37,7 +37,7 @@ for _part in ('.github/diagnostics', 'build-utils', 'packages/dolphin_internal_b
 
 import standard_delivery as sd  # noqa: E402
 from delivery_benchmark import payload_fingerprint  # noqa: E402
-from validate_single_ipa_distribution import IDENTITY_ENGINES  # noqa: E402
+from validate_single_ipa_distribution import IDENTITY_ENGINES, LIBRETRO_JIT_IDENTITY  # noqa: E402
 
 PART_MEMBERS = {'data.bin', 'format.json', 'password.rsa', 'manifest.json'}
 FORMAT = {'cipher': 'AES-256-CBC PBKDF2 200000', 'keyEnvelope': 'RSA OAEP SHA256', 'content': 'tar',
@@ -194,13 +194,15 @@ def effective_checkout(repo, manifest, source, target):
 def packaged_engine_helpers(archive, root, bundles, manifest, read_effective_source):
     """The JIT helpers of the engines packaged with their identity file (validate_single_ipa_distribution
     IDENTITY_ENGINES), each present in `bundles`. The identity files are exactly those of the manifest's pinned
-    engines, and each names its pinned payload, which the packaged image carries (docs/xenios-playlist.md)."""
+    engines, and each names its pinned payload, which the packaged image carries (docs/xenios-playlist.md), plus the
+    libretro JIT helper's when the manifest opts in (components.libretro.jitHelper)."""
     names = set(archive.namelist())
     present = [identity for identity in IDENTITY_ENGINES if root + identity in names]
     helpers = [helper for identity in present for helper in IDENTITY_ENGINES[identity][0]]
     require(all('PlugIns/' + helper + '/Info.plist' in bundles for helper in helpers), 'Missing engine helper')
     pinned = sd.engine_components(manifest)
-    require({spec['identityFile'] for spec in pinned.values()} == set(present),
+    opted = {LIBRETRO_JIT_IDENTITY} if manifest['components'].get('libretro', {}).get('jitHelper') is True else set()
+    require({spec['identityFile'] for spec in pinned.values()} | opted == set(present),
             'The packaged engine identities differ from the pinned engines of the manifest')
     for key, spec in pinned.items():
         pin_raw = read_effective_source(spec['pin'])

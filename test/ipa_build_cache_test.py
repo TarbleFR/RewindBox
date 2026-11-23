@@ -200,7 +200,12 @@ class Recipe(unittest.TestCase):
         # 15 November 2026: 1f53f7013 added the optional Nextendo server defines to the application job (two
         # secrets in its environment and ten lines in 'Prepare emulator build definitions', the block the delivery
         # contract pins as NEXTENDO_DEFINES); nothing else differs from the workflow of delivery 751 (4a77e2d5...).
-        self.assertEqual(hashlib.sha256(reduced.encode()).hexdigest(), '24d1e8240ed7ddb4f88c2aa6319ef20ba26d6de412ce8872864911ae85f0faa9')
+        # 23 November 2026: the opt-in libretro JIT helper (components.libretro.jitHelper of the manifest) added two
+        # steps gated by steps.engines.outputs.libretro-jit-helper ('Add the libretro JIT helper extension to the
+        # generated host' after the S2Arm helper step, 'Write the libretro JIT helper identity into the built
+        # application' after the S2Arm embed step) and the Libretro-JIT-helper-identity.json entry of ENGINE_HELPERS in
+        # the version step; a manifest without the key runs neither step and the same version check.
+        self.assertEqual(hashlib.sha256(reduced.encode()).hexdigest(), '35dd09995a069c3c323e2cedb5d58ce0638e701c1ad23d45da83d580421d556b')
         self.assertLess(workflow.index(names[3]), workflow.index('    - name: Compile Release device binary'))
         self.assertLess(workflow.index('neostation-fast-xcodebuild.log"\n', workflow.index('    - name: Compile Release device binary')),
                         workflow.index(names[4]))

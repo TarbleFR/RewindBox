@@ -66,7 +66,19 @@ S2ARM_EXTENSIONS = {
     },
 }
 S2ARM_IMAGES = ('Frameworks/S2ArmEngine.framework/S2ArmEngine', 'Frameworks/NS2Pro.framework/NS2Pro')
-IDENTITY_ENGINES = {XENIA_IDENTITY: (XENIA_EXTENSIONS, XENIA_IMAGES), S2ARM_IDENTITY: (S2ARM_EXTENSIONS, S2ARM_IMAGES)}
+# The libretro cores' JIT helper, compiled with the application only when the delivery manifest opts in
+# (components.libretro.jitHelper; standard_delivery.py libretro-jit-helper writes the identity file). No image of its
+# own beyond the helper: the cores belong to the retained libretro component.
+LIBRETRO_JIT_IDENTITY = 'Libretro-JIT-helper-identity.json'
+LIBRETRO_JIT_EXTENSIONS = {
+    'LibretroJITHelper.appex': {
+        'bundleSuffix': '.libretrojithelper',
+        'principalClass': 'LibretroJITRequestHandler',
+        'marker': 'NeoStationLibretroJITHelper',
+    },
+}
+IDENTITY_ENGINES = {XENIA_IDENTITY: (XENIA_EXTENSIONS, XENIA_IMAGES), S2ARM_IDENTITY: (S2ARM_EXTENSIONS, S2ARM_IMAGES),
+                    LIBRETRO_JIT_IDENTITY: (LIBRETRO_JIT_EXTENSIONS, ())}
 PACKET_TUNNEL_EXTENSION_POINT = 'com.apple.networkextension.packet-tunnel'
 SHARE_EXTENSION_POINT = 'com.apple.share-services'
 DONOR_EXTENSION_POINT = 'com.apple.ar.viewer'

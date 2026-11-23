@@ -597,6 +597,14 @@ jobs:
         python3 build-utils/s2arm/configure_s2arm_ios.py
         python3 build-utils/delivery_metrics.py s2arm_cocoa_pods env -u BUNDLE_GEMFILE -u BUNDLE_PATH pod install --project-directory=ios
         python3 build-utils/s2arm/configure_s2arm_ios.py check-pods
+    - name: Add the libretro JIT helper extension to the generated host
+      if: ${{ steps.engines.outputs.libretro-jit-helper == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 build-utils/configure_libretro_ios.py
+        python3 build-utils/delivery_metrics.py libretro_jit_cocoa_pods env -u BUNDLE_GEMFILE -u BUNDLE_PATH pod install --project-directory=ios
+        python3 build-utils/configure_libretro_ios.py check-pods
     - name: Align application and extension versions to the pubspec version
       run: python3 build-utils/stamp_host_version.py
     - name: Verify the reviewed NeoSwap host source is the source CocoaPods will compile
@@ -729,6 +737,9 @@ jobs:
         ditto dist/s2arm/licenses "$APP/Legal/S2Arm"
         python3 -B .github/diagnostics/standard_delivery.py embed-engine s2arm "$APP"
         python3 build-utils/embed_legal_bundle.py --validate-only --app "$APP" --dolphin-sha "$DOLPHIN_SHA"
+    - name: Write the libretro JIT helper identity into the built application
+      if: ${{ steps.engines.outputs.libretro-jit-helper == 'true' }}
+      run: python3 -B .github/diagnostics/standard_delivery.py libretro-jit-helper build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
     - name: Wait for and authenticate the test jobs and the fresh delivery contract
       run: python3 -B .github/diagnostics/standard_delivery.py await-tests
     - name: Embed the build identity, the replaced Core proofs and exact retained provenance
@@ -807,7 +818,7 @@ jobs:
         from pathlib import Path
         # Identity file -> the JIT helpers it adds; equal to IDENTITY_ENGINES of
         # build-utils/validate_single_ipa_distribution.py (test/ipa_identity_engines_test.py).
-        ENGINE_HELPERS = {'Xenia-native-identity.json': ['XeniaJITHelper.appex'], 'S2Arm-native-identity.json': ['S2ArmJITHelper.appex']}
+        ENGINE_HELPERS = {'Xenia-native-identity.json': ['XeniaJITHelper.appex'], 'S2Arm-native-identity.json': ['S2ArmJITHelper.appex'], 'Libretro-JIT-helper-identity.json': ['LibretroJITHelper.appex']}
         version = next(line.partition(':')[2].strip().strip('"' + chr(39)).split('+')[0]
                        for line in Path('pubspec.yaml').read_text().splitlines() if line.startswith('version:'))
         with zipfile.ZipFile('dist/' + os.environ['IPA_NAME'] + '.ipa') as archive:
