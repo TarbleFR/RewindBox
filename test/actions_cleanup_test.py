@@ -5,6 +5,7 @@ All API calls are fakes. These tests do not contact GitHub or delete anything.
 
 from __future__ import annotations
 
+import base64
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 import importlib.util
@@ -56,6 +57,8 @@ def context():
 class FakeAPI:
     def __init__(self, runs):
         self.runs = {r["id"]: deepcopy(r) for r in runs}
+        self.trees = {}
+        self.blobs = {}
         self.deleted = []
         self.requests = []
         self.responses = {}
@@ -65,6 +68,10 @@ class FakeAPI:
 
     def get_json(self, path):
         self.requests.append(("GET", path))
+        if '/git/trees/' in path:
+            return deepcopy(self.trees[path.split('/git/trees/')[1].split('?')[0]])
+        if '/git/blobs/' in path:
+            return deepcopy(self.blobs[path.rsplit('/', 1)[1]])
         if '/artifacts?' in path:
             return {'total_count': 0, 'artifacts': []}
         if '/jobs?' in path:
@@ -93,6 +100,148 @@ class FakeAPI:
 
     def pace(self):
         pass
+
+
+PLAN_PATH = "build-utils/maintenance/actions-cleanup-test.json"
+
+
+def large_records(count):
+    """records() with 11-digit IDs, the size of real run IDs that the reference guard reads."""
+    runs = records(count)
+    for run in runs:
+        run["id"] += 45000000000 - 100000
+    return runs
+
+
+def tree(**files):
+    return {"truncated": False, "tree": [{"path": path, "type": "blob", "sha": sha}
+                                         for path, sha in files.items()]}
+
+
+def blob(sha, text):
+    data = text.encode()
+    return {"sha": sha, "encoding": "base64", "size": len(data), "content": base64.b64encode(data).decode()}
+
+
+class ReferenceGuardTest(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+
+    def guarded(self, count=320, artifacts=None):
+        runs = large_records(count)
+        plan = plan_for(runs, keep_recent=300,
+                        reference_guard={"plan_path": PLAN_PATH, "target_artifacts": artifacts or {}})
+        api = FakeAPI(runs)
+        api.trees[EXEC_SHA] = tree(**{PLAN_PATH: "1" * 40, "README.md": "2" * 40})
+        return runs, plan, api
+
+    def run_cleanup(self, api, plan):
+        env, ev = context()
+        journal = cleanup.Journal(Path(self.directory.name), "f" * 64, True)
+        return cleanup.run_cleanup(api, plan, journal, execute=True, environment=env, event=ev)
+
+    def advance(self, api, files, after):
+        """Claude moves to a new head after `after` deletions; `files` are its changed blobs."""
+        head = "e" * 40
+        listing = dict({PLAN_PATH: "1" * 40, "README.md": "2" * 40})
+        for index, (path, text) in enumerate(files.items()):
+            sha = format(index + 3, "x") * 40
+            listing[path] = sha
+            api.blobs[sha] = blob(sha, text)
+        api.trees[head] = tree(**listing)
+        api.after_delete = lambda a, rid: setattr(a, "claude_sha", head) if len(a.deleted) == after else None
+
+    def test_claude_may_advance_but_newly_cited_targets_are_kept(self):
+        runs, plan, api = self.guarded(artifacts={"14000000001": None})
+        targets = [r["id"] for r in runs[300:]]
+        plan["reference_guard"]["target_artifacts"] = {"14000000001": targets[0]}
+        cited_run, cited_by_artifact = targets[3], targets[0]
+        self.advance(api, {"build-utils/xenia/core-pin.json": f'{{"run": {cited_run}}}',
+                           "docs/note.md": "artifact 14000000001, unrelated 12345678901 and job 137566720848"},
+                     after=0)
+        api.after_delete = None
+        api.claude_sha = "e" * 40  # Claude moved before the first DELETE.
+        result = self.run_cleanup(api, plan)
+        self.assertEqual(result["status"], "completed")
+        self.assertIn(cited_run, api.runs)
+        self.assertIn(cited_by_artifact, api.runs)
+        self.assertEqual(sorted(api.deleted), sorted(set(targets) - {cited_run, cited_by_artifact}))
+        self.assertTrue(all(run["id"] in api.runs for run in runs[:300]))
+        events = (Path(self.directory.name) / "progress.jsonl").read_text()
+        self.assertIn("protected_new_reference", events)
+
+    def test_reference_found_at_a_later_check_preserves_the_rest_of_the_chunk(self):
+        runs, plan, api = self.guarded(count=420)
+        targets = sorted((r["id"] for r in runs[300:]))  # Oldest first: the deletion order.
+        cited = targets[-1]
+        self.advance(api, {"build-utils/rpcs3/core-pin.json": str(cited)}, after=50)
+        result = self.run_cleanup(api, plan)
+        self.assertEqual(result["status"], "completed")
+        self.assertIn(cited, api.runs)
+        self.assertEqual(len(api.deleted), len(targets) - 1)
+        self.assertEqual(api.deleted[:50], targets[:50])
+
+    def test_unchanged_claude_reads_no_blob_and_deletes_every_target(self):
+        runs, plan, api = self.guarded()
+        result = self.run_cleanup(api, plan)
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(len(api.deleted), 20)
+        self.assertFalse([path for method, path in api.requests if "/git/blobs/" in str(path)])
+
+    def test_changed_or_removed_plan_and_incomplete_reads_stop(self):
+        for change in ("plan", "removed", "truncated", "size", "main"):
+            with self.subTest(change=change):
+                runs, plan, api = self.guarded(count=400)
+                head = "e" * 40
+                files = {PLAN_PATH: "9" * 40, "README.md": "2" * 40}
+                if change == "removed":
+                    files.pop(PLAN_PATH)
+                if change == "size":
+                    files = {PLAN_PATH: "1" * 40, "README.md": "8" * 40}
+                    api.blobs["8" * 40] = dict(blob("8" * 40, "text"), size=99)
+                api.trees[head] = tree(**files)
+                if change == "truncated":
+                    api.trees[head]["truncated"] = True
+                def move(a, rid):
+                    if len(a.deleted) == 50:
+                        if change == "main":
+                            a.main_sha = "e" * 40
+                        else:
+                            a.claude_sha = head
+                api.after_delete = move
+                with self.assertRaises(cleanup.SafetyError):
+                    self.run_cleanup(api, plan)
+                self.assertEqual(len(api.deleted), 50)
+
+    def test_guard_configuration_is_exact(self):
+        runs = large_records(305)
+        targets = [r["id"] for r in runs[300:]]
+        base = {"plan_path": PLAN_PATH, "target_artifacts": {"14000000001": targets[0]}}
+        cleanup.validate_plan(plan_for(runs, reference_guard=deepcopy(base)))
+        bad = [dict(base, plan_path="docs/plan.json"), dict(base, extra=True),
+               dict(base, target_artifacts={"1400000000": targets[0]}),
+               dict(base, target_artifacts={"14000000001": 1})]
+        for guard in bad:
+            with self.subTest(guard=guard), self.assertRaises(cleanup.SafetyError):
+                cleanup.validate_plan(plan_for(runs, reference_guard=guard))
+        protected = plan_for(runs, reference_guard=deepcopy(base),
+                             protected_runs=[{"id": targets[0], "reasons": ["dependency"]}])
+        with self.assertRaises(cleanup.SafetyError):
+            cleanup.validate_plan(protected)
+        for policy in ({"skipped_only": True}, {"preserve_artifacts": True}):
+            with self.subTest(policy=policy), self.assertRaises(cleanup.SafetyError):
+                cleanup.validate_plan(plan_for(runs, reference_guard=deepcopy(base), **policy))
+
+    def test_plan_keeps_at_least_300_and_may_keep_500(self):
+        runs = records(505)
+        api = FakeAPI(runs)
+        result = self.run_cleanup(api, plan_for(runs, keep_recent=500))
+        self.assertEqual(sorted(api.deleted), [r["id"] for r in runs[500:]][::-1])
+        self.assertEqual(result["deleted_run_ids"], sorted(r["id"] for r in runs[500:]))
+        self.assertTrue(all(run["id"] in api.runs for run in runs[:500]))
+        with self.assertRaisesRegex(cleanup.SafetyError, "at least the newest 300"):
+            cleanup.validate_plan(plan_for(runs, keep_recent=299))
 
 
 class CleanupSafetyTest(unittest.TestCase):
@@ -536,12 +685,37 @@ class CleanupSafetyTest(unittest.TestCase):
                         response["total_count"] += 1
                     if path.endswith("page=1"):
                         first_calls[0] += 1
-                        if kind == "first_page" and first_calls[0] == 2:
+                        if kind == "first_page" and first_calls[0] % 2 == 0:
                             response["workflow_runs"] = response["workflow_runs"][1:]
                     return response
                 api.get_json = moved
                 with self.assertRaises(cleanup.SafetyError):
                     self.run_cleanup(api, plan_for(runs))
+                self.assertEqual(api.deleted, [])
+                # Every attempt is a complete new read; none of them is used.
+                self.assertEqual(first_calls[0], cleanup.LISTING_ATTEMPTS * (2 if kind == "first_page" else 1))
+
+    def test_a_listing_moved_once_is_read_again_in_full(self):
+        runs = records(301)
+        for kind in ("count", "first_page", "duplicate"):
+            with self.subTest(kind=kind):
+                api = FakeAPI(runs)
+                original = api.get_json
+                pages = []
+                def moved(path):
+                    response = original(path)
+                    pages.append(path.rsplit("=", 1)[-1])
+                    if len(pages) == 2 and kind == "count":
+                        response["total_count"] += 1
+                    if len(pages) == 2 and kind == "duplicate":
+                        response["workflow_runs"][0] = deepcopy(runs[99])
+                    if len(pages) == 5 and kind == "first_page":
+                        response["workflow_runs"] = response["workflow_runs"][1:]
+                    return response
+                api.get_json = moved
+                result = self.run_cleanup(api, plan_for(runs), execute=False)
+                self.assertEqual(result["initial_candidate_count"], 1)
+                self.assertGreater(pages.count("1"), 2)
                 self.assertEqual(api.deleted, [])
 
     def test_expired_plan_and_invalid_host_fail_before_network(self):
@@ -680,7 +854,11 @@ class RateLimitTest(unittest.TestCase):
         for method, path in (("DELETE", cleanup.PREFIX + "/actions/artifacts/1"),
                              ("POST", cleanup.PREFIX + "/actions/runs/1"),
                              ("DELETE", "/repos/Other/repo/actions/runs/1"),
-                             ("DELETE", cleanup.PREFIX + "/actions/runs/1?other=1")):
+                             ("DELETE", cleanup.PREFIX + "/actions/runs/1?other=1"),
+                             ("DELETE", cleanup.PREFIX + "/git/blobs/" + "a" * 40),
+                             ("GET", cleanup.PREFIX + "/git/trees/" + "a" * 40),
+                             ("GET", cleanup.PREFIX + "/git/trees/Claude?recursive=1"),
+                             ("GET", cleanup.PREFIX + "/git/blobs/" + "a" * 39)):
             with self.subTest(path=path), self.assertRaises(cleanup.SafetyError):
                 api.request(method, path)
         self.assertEqual(opener.calls, 0)

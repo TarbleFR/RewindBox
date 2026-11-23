@@ -4,11 +4,17 @@
 Dry-run is the default. The only permitted mutation is DELETE of a completed
 workflow run listed in the reviewed snapshot. No token or API response body is
 written to the progress journal. This script does not build or publish anything.
+
+A plan keeps at least the newest 300 runs of each listing (more when its
+keep_recent says so). With a reference_guard, Claude may advance while the plan
+runs: every file a later commit changes is read, and a target it cites (run or
+artifact ID) is kept.
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 import hashlib
@@ -27,13 +33,17 @@ REPOSITORY = "TarbleFR/RewindBox"
 BRANCH = "Claude"
 API_URL = "https://api.github.com"
 PREFIX = f"/repos/{REPOSITORY}"
-KEEP_RECENT = 300
-MAX_DELETIONS = 1925
+KEEP_RECENT = 300  # Minimum; a plan may keep more (keep_recent).
+MAX_DELETIONS = 2700
 REFRESH_EVERY = 250
 CHECK_REFS_EVERY = 50
 MAX_WAIT_SECONDS = 150 * 60
 MAX_RUNTIME_SECONDS = 170 * 60  # Leave ten minutes for the workflow's evidence upload.
+LISTING_ATTEMPTS = 6  # Pushes create runs while the pages are read: a moved listing is read again.
+LISTING_SETTLE_SECONDS = 20.0
 SHA_RE = re.compile(r"[0-9a-f]{40}\Z")
+ID_RE = re.compile(rb"(?<![0-9])[0-9]{11}(?![0-9])")
+PLAN_PATH_RE = re.compile(r"build-utils/maintenance/[A-Za-z0-9._-]+\.json\Z")
 RUN_IDENTITY_FIELDS = ('id', 'created_at', 'head_sha', 'path', 'status', 'conclusion',
                        'run_attempt', 'updated_at')
 COMPLETED_CONCLUSIONS = {'action_required', 'cancelled', 'failure', 'neutral', 'skipped',
@@ -42,6 +52,10 @@ COMPLETED_CONCLUSIONS = {'action_required', 'cancelled', 'failure', 'neutral', '
 
 class SafetyError(RuntimeError):
     """An invariant failed; no further DELETE is allowed."""
+
+
+class ListingMoved(SafetyError):
+    """Runs were created or removed while the listing pages were read."""
 
 
 def utc_now() -> datetime:
@@ -110,8 +124,8 @@ def validate_plan(plan: object, now: datetime | None = None) -> dict:
             raise SafetyError(f"Invalid {field}")
     if timestamp(plan.get("expires_at")) <= (now or utc_now()):
         raise SafetyError("Cleanup plan has expired")
-    if type(plan.get("keep_recent")) is not int or plan["keep_recent"] != KEEP_RECENT:
-        raise SafetyError("The plan must preserve the newest 300 runs")
+    if type(plan.get("keep_recent")) is not int or plan["keep_recent"] < KEEP_RECENT:
+        raise SafetyError("The plan must preserve at least the newest 300 runs")
     limit = plan.get("max_deletions")
     if type(limit) is not int or not 0 <= limit <= MAX_DELETIONS:
         raise SafetyError("Deletion limit exceeds the authorized bound")
@@ -148,7 +162,28 @@ def validate_plan(plan: object, now: datetime | None = None) -> dict:
         protected_ids = set(ids)
         if any(r.get('conclusion') != 'skipped' and r['id'] not in protected_ids for r in runs):
             raise SafetyError('Skipped-only policy must explicitly protect every other conclusion')
+    if 'reference_guard' in plan:
+        validate_reference_guard(plan, set(ids))
     return plan
+
+
+def validate_reference_guard(plan: dict, protected_ids: set[int]) -> None:
+    guard = plan['reference_guard']
+    if not isinstance(guard, dict) or set(guard) != {'plan_path', 'target_artifacts'}:
+        raise SafetyError('reference_guard needs exactly plan_path and target_artifacts')
+    if plan.get('skipped_only') is True or plan.get('preserve_artifacts') is True:
+        raise SafetyError('reference_guard is a separate policy from skipped_only and preserve_artifacts')
+    if not isinstance(guard['plan_path'], str) or not PLAN_PATH_RE.fullmatch(guard['plan_path']):
+        raise SafetyError('reference_guard plan_path must name the reviewed maintenance plan')
+    artifacts = guard['target_artifacts']
+    if not isinstance(artifacts, dict):
+        raise SafetyError('reference_guard target_artifacts must map artifact IDs to target runs')
+    targets = {run['id'] for run in plan['snapshot_runs']} - protected_ids
+    for artifact, run in artifacts.items():
+        if not isinstance(artifact, str) or not artifact.isdigit() or len(artifact) != 11:
+            raise SafetyError('reference_guard artifact IDs must be 11-digit strings')
+        if positive_id(run) not in targets:
+            raise SafetyError('reference_guard maps an artifact to a run that is not a target')
 
 
 def validate_execution_context(plan: dict, environment: dict, event: dict) -> str:
@@ -257,6 +292,8 @@ class GitHubAPI:
                        or re.fullmatch(re.escape(PREFIX) + r"/actions/runs/[1-9][0-9]*", path)
                        or re.fullmatch(re.escape(PREFIX) + r"/actions/runs/[1-9][0-9]*/artifacts\?per_page=100", path)
                        or re.fullmatch(re.escape(PREFIX) + r"/actions/runs/[1-9][0-9]*/jobs\?filter=all&per_page=100(?:&page=[1-9][0-9]*)?", path)
+                       or re.fullmatch(re.escape(PREFIX) + r"/git/trees/[0-9a-f]{40}\?recursive=1", path)
+                       or re.fullmatch(re.escape(PREFIX) + r"/git/blobs/[0-9a-f]{40}", path)
                        or path in (PREFIX + "/git/ref/heads/Claude", PREFIX + "/git/ref/heads/main"))
         allowed_delete = re.fullmatch(re.escape(PREFIX) + r"/actions/runs/[1-9][0-9]*", path)
         if not ((method == "GET" and allowed_get) or (method == "DELETE" and allowed_delete)):
@@ -335,9 +372,32 @@ class GitHubAPI:
         self.ensure_time()
         self.sleep(1.0)
 
+    def settle(self, seconds: float) -> None:
+        """A pause before a moved listing is read again (not a quota wait)."""
+        self.ensure_time()
+        self.sleep(seconds)
+        self.ensure_time()
+
 
 def list_all_runs(api) -> list[dict]:
-    """Unfiltered complete pagination, never interleaved with our deletions."""
+    """Unfiltered complete pagination, never interleaved with our deletions.
+
+    A listing that moved while its pages were read is discarded and read again in
+    full; only a complete and stable listing is ever used for a selection.
+    """
+    for attempt in range(1, LISTING_ATTEMPTS + 1):
+        try:
+            return list_all_runs_once(api)
+        except ListingMoved:
+            if attempt == LISTING_ATTEMPTS:
+                raise
+            settle = getattr(api, "settle", None)
+            if settle is not None:
+                settle(LISTING_SETTLE_SECONDS * attempt)
+    raise SafetyError("Unreachable listing state")
+
+
+def list_all_runs_once(api) -> list[dict]:
     first = api.get_json(PREFIX + "/actions/runs?per_page=100&page=1")
     total = first.get("total_count")
     if type(total) is not int or total < 0:
@@ -346,22 +406,22 @@ def list_all_runs(api) -> list[dict]:
     for page in range(1, max(1, (total + 99) // 100) + 1):
         response = first if page == 1 else api.get_json(PREFIX + f"/actions/runs?per_page=100&page={page}")
         if response.get("total_count") != total:
-            raise SafetyError("Run count changed during pagination; refusing cleanup")
+            raise ListingMoved("Run count changed during pagination; refusing cleanup")
         part = response.get("workflow_runs")
         if not isinstance(part, list) or len(part) != min(100, max(0, total - len(runs))):
-            raise SafetyError("Incomplete or shifted pagination")
+            raise ListingMoved("Incomplete or shifted pagination")
         runs.extend(validate_run(item) for item in part)
     if len(runs) != total:
-        raise SafetyError("Unique enumeration does not match total_count")
+        raise ListingMoved("Unique enumeration does not match total_count")
     # Across GitHub workers, timestamps may invert while IDs stay stable.
     # Detect shifted/duplicate pages, then sort the complete set locally.
     if len({run['id'] for run in runs}) != len(runs):
-        raise SafetyError('Duplicate run IDs: pagination moved; refusing cleanup')
+        raise ListingMoved('Duplicate run IDs: pagination moved; refusing cleanup')
     # Detect insertion/deletion at the first-page boundary while later pages
     # were read. There is no API transaction spanning this listing and DELETE.
     check = api.get_json(PREFIX + "/actions/runs?per_page=100&page=1")
     if check.get("total_count") != total or [r.get("id") for r in check.get("workflow_runs", [])] != [r["id"] for r in runs[:100]]:
-        raise SafetyError("First page moved during pagination; refusing cleanup")
+        raise ListingMoved("First page moved during pagination; refusing cleanup")
     return sorted(runs, key=run_key, reverse=True)
 
 
@@ -376,6 +436,90 @@ def check_refs(api, expected_claude_sha: str, main_sha: str, *, allow_claude_adv
             raise SafetyError(f"{branch} SHA changed; no further deletion is authorized")
 
 
+class ReferenceGuard:
+    """Claude may advance during a long cleanup; a target a later commit cites is kept.
+
+    The files of the executing commit are the reviewed baseline: the plan was computed
+    against them. At each check every blob of the current Claude tree that differs
+    from that baseline is read in full; an 11-digit number naming a remaining target
+    run, or one of its artifacts, protects that run. An incomplete tree, an unreadable
+    blob or a changed or removed plan stops the cleanup.
+    """
+
+    def __init__(self, api, plan: dict, executing_sha: str):
+        self.api = api
+        self.plan_path = plan["reference_guard"]["plan_path"]
+        protected = {item["id"] for item in plan["protected_runs"]}
+        self.watch = {run["id"]: run["id"] for run in plan["snapshot_runs"] if run["id"] not in protected}
+        for artifact, run in plan["reference_guard"]["target_artifacts"].items():
+            self.watch[int(artifact)] = run
+        self.baseline = self.tree(executing_sha)
+        if self.plan_path not in self.baseline:
+            raise SafetyError("The executing commit does not contain the reviewed plan")
+        self.checked = executing_sha
+        self.blobs: dict[str, set[int]] = {}
+        self.referenced: set[int] = set()
+
+    def tree(self, sha: str) -> dict[str, str]:
+        if not SHA_RE.fullmatch(sha or ""):
+            raise SafetyError("Invalid commit SHA for the reference guard")
+        response = self.api.get_json(PREFIX + f"/git/trees/{sha}?recursive=1")
+        entries = response.get("tree")
+        if response.get("truncated") is not False or not isinstance(entries, list):
+            raise SafetyError("Incomplete Claude tree; later references cannot be excluded")
+        result = {}
+        for entry in entries:
+            if not isinstance(entry, dict) or not isinstance(entry.get("path"), str):
+                raise SafetyError("Malformed Claude tree entry")
+            if entry.get("type") == "blob":
+                if not SHA_RE.fullmatch(entry.get("sha") or ""):
+                    raise SafetyError("Malformed Claude blob entry")
+                result[entry["path"]] = entry["sha"]
+        return result
+
+    def scan(self, blob: str) -> set[int]:
+        response = self.api.get_json(PREFIX + f"/git/blobs/{blob}")
+        if response.get("sha") != blob or response.get("encoding") != "base64" or not isinstance(response.get("content"), str):
+            raise SafetyError("Unreadable Claude blob; later references cannot be excluded")
+        try:
+            data = base64.b64decode(response["content"], validate=False)
+        except (ValueError, TypeError) as exc:
+            raise SafetyError("Undecodable Claude blob") from exc
+        if type(response.get("size")) is not int or len(data) != response["size"]:
+            raise SafetyError("Truncated Claude blob; later references cannot be excluded")
+        return {self.watch[int(found)] for found in ID_RE.findall(data) if int(found) in self.watch}
+
+    def check(self, head: str) -> set[int]:
+        """Runs newly cited by Claude at `head`, relative to the executing commit."""
+        if head == self.checked:
+            return set()
+        current = self.tree(head)
+        if current.get(self.plan_path) != self.baseline[self.plan_path]:
+            raise SafetyError("The reviewed plan changed or disappeared on Claude; no further deletion is authorized")
+        found: set[int] = set()
+        for path, blob in current.items():
+            if self.baseline.get(path) == blob:
+                continue
+            if blob not in self.blobs:
+                self.blobs[blob] = self.scan(blob)
+            found |= self.blobs[blob]
+        self.checked = head
+        new = found - self.referenced
+        self.referenced |= found
+        return new
+
+
+def check_refs_guarded(api, guard: ReferenceGuard, main_sha: str, sticky: dict[int, set[str]], journal) -> None:
+    claude = api.get_json(PREFIX + "/git/ref/heads/Claude").get("object", {}).get("sha")
+    if not SHA_RE.fullmatch(claude or ""):
+        raise SafetyError("Invalid Claude SHA")
+    if api.get_json(PREFIX + "/git/ref/heads/main").get("object", {}).get("sha") != main_sha:
+        raise SafetyError("main SHA changed; no further deletion is authorized")
+    for run_id in sorted(guard.check(claude)):
+        sticky.setdefault(run_id, set()).add("referenced_after_plan")
+        journal.event("protected_new_reference", run_id=run_id, claude_sha=claude)
+
+
 def refresh_selection(plan: dict, current: list[dict], sticky: dict[int, set[str]],
                       observations: dict[int, dict], executing_run: int | None) -> list[dict]:
     snapshot = {r["id"]: r for r in plan["snapshot_runs"]}
@@ -386,8 +530,9 @@ def refresh_selection(plan: dict, current: list[dict], sticky: dict[int, set[str
             sticky.setdefault(run["id"], set()).add("active_in_snapshot")
     if executing_run is not None:
         sticky.setdefault(executing_run, set()).add("executing_cleanup_run")
-    for run in current[:KEEP_RECENT]:
-        sticky.setdefault(run["id"], set()).add("current_recent_300")
+    keep = plan["keep_recent"]
+    for run in current[:keep]:
+        sticky.setdefault(run["id"], set()).add(f"current_recent_{keep}")
     candidates = []
     for run in current:
         rid = run["id"]
@@ -538,7 +683,7 @@ class Journal:
         for name in ("initial_total", "final_total", "initial_candidate_count", "remaining_candidate_count", "error"):
             if name in s:
                 lines.append(f"- {name}: {s[name]}")
-        lines += ["", "Only reviewed snapshot IDs were eligible. The newest 300 in each current",
+        lines += ["", f"Only reviewed snapshot IDs were eligible. The newest {s.get('keep_recent', KEEP_RECENT)} in each current",
                   "listing, explicit dependencies, new IDs and active/changed runs",
                   "were protected. A concurrent change after a listing is not an API transaction.", ""]
         (self.output / "summary.md").write_text("\n".join(lines), encoding="utf-8")
@@ -550,11 +695,20 @@ def run_cleanup(api, plan: dict, journal: Journal, *, execute: bool = False,
     validate_plan(plan)
     expected_sha = validate_execution_context(plan, environment, event or {}) if execute else None
     executing_run = int(environment["GITHUB_RUN_ID"]) if environment.get("GITHUB_RUN_ID", "").isdigit() else None
-    if execute:
-        check_refs(api, expected_sha, plan["main_sha"], allow_claude_advance=plan.get("skipped_only") is True)
-    current = list_all_runs(api)
     sticky: dict[int, set[str]] = {}
     observations: dict[int, dict] = {}
+    journal.state["keep_recent"] = plan["keep_recent"]
+    guard = ReferenceGuard(api, plan, expected_sha) if execute and "reference_guard" in plan else None
+
+    def refs() -> None:
+        if guard is not None:
+            check_refs_guarded(api, guard, plan["main_sha"], sticky, journal)
+        else:
+            check_refs(api, expected_sha, plan["main_sha"], allow_claude_advance=plan.get("skipped_only") is True)
+
+    if execute:
+        refs()
+    current = list_all_runs(api)
     candidates = refresh_selection(plan, current, sticky, observations, executing_run)
     if len(candidates) > plan["max_deletions"]:
         raise SafetyError("Candidate count exceeds the reviewed maximum; refusing all deletions")
@@ -575,7 +729,7 @@ def run_cleanup(api, plan: dict, journal: Journal, *, execute: bool = False,
 
     def revalidate_after_quota_pause(run_id: int) -> None:
         validate_plan(plan)
-        check_refs(api, expected_sha, plan["main_sha"], allow_claude_advance=plan.get("skipped_only") is True)
+        refs()
         fresh = list_all_runs(api)
         eligible = refresh_selection(plan, fresh, sticky, observations, executing_run)
         journal.event("quota_resume_revalidated", total=len(fresh), candidate_count=len(eligible))
@@ -602,8 +756,12 @@ def run_cleanup(api, plan: dict, journal: Journal, *, execute: bool = False,
             if journal.state["delete_attempts"] >= plan["max_deletions"]:
                 raise SafetyError("Deletion attempt bound reached")
             if journal.state["delete_attempts"] % CHECK_REFS_EVERY == 0:
-                check_refs(api, expected_sha, plan["main_sha"], allow_claude_advance=plan.get("skipped_only") is True)
+                refs()
             rid = run["id"]
+            if "referenced_after_plan" in sticky.get(rid, ()):
+                # A commit pushed after the plan cites this run: it stays.
+                journal.event("preserved_new_reference", run_id=rid)
+                continue
             # Defense in depth: never let a changed selection produce a new ID.
             if rid in sticky or rid not in {r["id"] for r in plan["snapshot_runs"]} or run["status"] != "completed":
                 raise SafetyError("Deletion target failed the final snapshot membership guard")
@@ -643,13 +801,13 @@ def run_cleanup(api, plan: dict, journal: Journal, *, execute: bool = False,
                       f"{len(journal.state['deleted_run_ids'])} deleted; "
                       f"{len(journal.state['conflict_run_ids'])} conflicts retained", flush=True)
             api.pace()
-        check_refs(api, expected_sha, plan["main_sha"], allow_claude_advance=plan.get("skipped_only") is True)
+        refs()
         current = list_all_runs(api)
         candidates = refresh_selection(plan, current, sticky, observations, executing_run)
         journal.state["remaining_candidate_count"] = len([r for r in candidates if r["id"] not in attempted])
         journal.state["final_total"] = len(current)
         journal.event("refreshed", total=len(current), remaining=journal.state["remaining_candidate_count"])
-    check_refs(api, expected_sha, plan["main_sha"], allow_claude_advance=plan.get("skipped_only") is True)
+    refs()
     # Even an empty initial candidate list gets a final independent enumeration.
     current = list_all_runs(api)
     candidates = refresh_selection(plan, current, sticky, observations, executing_run)
