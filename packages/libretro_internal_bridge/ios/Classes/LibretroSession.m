@@ -3188,8 +3188,15 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   if (on) [self measureMetalFX];
 }
 
-/// Heat (Serious or Critical) and Low Power Mode pause MetalFX at once; it
-/// resumes only after kMetalFXResumeSeconds without either.
+/// Only a Critical thermal state pauses MetalFX, at once; it resumes
+/// kMetalFXResumeSeconds after the state drops below Critical. Serious is
+/// common on a warm iPhone (the DS session of IPA 825 was Serious from its
+/// start and never showed MetalFX, which costs about 2 ms of GPU there), and
+/// the user's choice wins over Low Power Mode.
+static BOOL LibretroMetalFXMustPause(NSProcessInfo *info) {
+  return info.thermalState >= NSProcessInfoThermalStateCritical;
+}
+
 - (void)metalFXConditionsChanged:(NSNotification *)notification {
   __weak LibretroSession *weakSelf = self;
   dispatch_async(dispatch_get_main_queue(), ^{
@@ -3201,13 +3208,13 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   NSProcessInfo *info = NSProcessInfo.processInfo;
   const NSProcessInfoThermalState thermal = info.thermalState;
   const BOOL lowPower = info.lowPowerModeEnabled;
-  if (thermal >= NSProcessInfoThermalStateSerious || lowPower) {
+  if (LibretroMetalFXMustPause(info)) {
     _metalFXResumeToken++;
     if (!_metalFXSuspended) {
       _metalFXSuspended = YES;
       _presenter.metalFXSuspended = YES;
-      [_journal note:[NSString stringWithFormat:@"[rb-metalfx] bypass reason=%@ thermal=%ld low_power=%d enabled=%d",
-        lowPower ? @"low-power" : @"thermal", (long)thermal, lowPower, _metalFX]];
+      [_journal note:[NSString stringWithFormat:@"[rb-metalfx] bypass reason=thermal thermal=%ld low_power=%d enabled=%d",
+        (long)thermal, lowPower, _metalFX]];
     }
     return;
   }
@@ -3219,7 +3226,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     LibretroSession *session = weakSelf;
     if (session == nil || token != session->_metalFXResumeToken) return;
     NSProcessInfo *now = NSProcessInfo.processInfo;
-    if (now.thermalState >= NSProcessInfoThermalStateSerious || now.lowPowerModeEnabled) return;
+    if (LibretroMetalFXMustPause(now)) return;
     session->_metalFXSuspended = NO;
     session->_presenter.metalFXSuspended = NO;
     [session->_journal note:[NSString stringWithFormat:@"[rb-metalfx] resumed after %llds thermal=%ld enabled=%d",
