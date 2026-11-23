@@ -1,8 +1,8 @@
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 3111a6a..420ddbe 100644
+index e014d9a..b9425af 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
-@@ -6269,6 +6269,7 @@ static int rb_wn_sel(const tex_t *t, const uint64_t *bits, long np, uintptr_t h,
+@@ -6274,6 +6274,7 @@ static int rb_wn_sel(const tex_t *t, const uint64_t *bits, long np, uintptr_t h,
  }
  // The host pages of [p, p + n) not in memory (with bits: only those holding a page of bits), asked to be read ahead (MADV_WILLNEED) in runs; returns how many there were, RB_WN_NONE
  //   when the span is not looked at. One window and far check for the span, then mincore by 64 host pages, skipping those that hold no selected page
@@ -10,7 +10,7 @@ index 3111a6a..420ddbe 100644
  #include "rb_read_ahead_feedback.inc"
  static int g_tex_peek;
  static uint64_t rb_wn_(const void *p, uint64_t n, const tex_t *t, const uint64_t *bits, long np, int demand) {
-@@ -7321,6 +7322,7 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
+@@ -7326,6 +7327,7 @@ static id<MTLTexture> pkg_upload_(const tex_t *t, uint64_t *stamp, id<MTLTexture
      res_add(mt);   // Both first upload and re-upload register residency here (Metal 4 does not make resources resident automatically; a missed registration = GPU address page fault)
      int sparse = t->pool && nvn_sparse_pool(t->pool);
      if (!sparse) { uint64_t rb_ab = rb_wn_demand(t->mem, t->L.size); rb_wn_note(t, rb_ab);   // RewindBox (patch 0070): its pages not in memory asked in runs before the hash and the deswizzle below read them (rb_wn)
@@ -18,7 +18,7 @@ index 3111a6a..420ddbe 100644
          if (rb_ab && rb_ab != RB_WN_NONE) rb_pool_ahead(t); }   // RewindBox (patch 0089): and the pool around it
      uint8_t *rb = NULL;   // RewindBox (patch 0016): the storage as the host may read it, when not all of it can be read (rb_pkg_bytes)
      if (stamp) {   // no stamp: a one-time upload of content the CPU will not change (tex_init_fill), with no write tracking
-@@ -9006,6 +9008,7 @@ static id<MTLTexture> tex_mtl_for_pass(const tex_t *ct, id<MTLTexture> __strong
+@@ -9011,6 +9013,7 @@ static id<MTLTexture> tex_mtl_for_pass(const tex_t *ct, id<MTLTexture> __strong
          if (!pk->tex) { free(gr); return nil; }
          pk->span = nvn_dirty_span(t->mem, t->L.size);
          pk->seen = nvn_dirty_now(); g_pkg_uploads++; if (dirtycheck() && !pk->sparse) pk->hash = full_hash(t->mem, t->L.size);
@@ -26,7 +26,7 @@ index 3111a6a..420ddbe 100644
          if (pk->sparse) sparse_view(pk, t);
          zb_report(t, pk->sparse ? (unsigned)pk->vbase : 0, "upload");
          if (rb_capturing_upload && !have && !gn && !pk->sparse && pk->span) rb_cold_store(pk, t);
-@@ -9227,6 +9230,7 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+@@ -9232,6 +9235,7 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
      zp_report(frame);   // RewindBox (patch 0060)
      rb_range_report(frame);
      rb_wn_line(frame);   // RewindBox (patch 0070): texture storage read ahead (before the line cap below: it says itself when anything moved)
@@ -34,7 +34,7 @@ index 3111a6a..420ddbe 100644
      }
      if (!(rb_parts & RB_REPORT_MEM_MEMORY)) return;   // RewindBox (patch 0326): the capped memory line and what follows it are the last part
      static unsigned long long last_rss, last_gpu, last_frame; static int lines; unsigned long long gpu = (unsigned long long)(g_dev.currentAllocatedSize >> 20);
-@@ -12642,6 +12646,7 @@ void nvn_be_reg_tex(int tid, const tex_t *t, const view_t *v) {
+@@ -12647,6 +12651,7 @@ void nvn_be_reg_tex(int tid, const tex_t *t, const view_t *v) {
      }
      rs_registration_end(gate);
      if (!same && t) rb_pf_post(t);   // RewindBox (patch 0070): its storage asked ahead of its first upload, off this thread (rb_pf_post)
