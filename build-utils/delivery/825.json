@@ -370,6 +370,22 @@
       {
         "commit": "d9982b55c7eb6af48ceb1911cafb32c87eaa408e",
         "note": "Merge of two later commits of the other sessions: 71591625a (libretro JIT transaction codes named RB_JIT_*, not launch errors) and 789708a97 (documentation)"
+      },
+      {
+        "commit": "ab44467c0baab35ce995b3612e5f6a93729c1c1b",
+        "note": "Libretro session: Azahar 2127.0-alpha1 source build with the RewindBox JIT interface (build tooling; the delivery keeps the retained libretro bundle)"
+      },
+      {
+        "commit": "c698c904d19567ddee3cf461f1424f275a6cc55b",
+        "note": "Libretro session: source-cores job unpacks the republished bundle first (build tooling)"
+      },
+      {
+        "commit": "319de815ed3c1fdbc1afffe5230e0df22b2ecae1",
+        "note": "Libretro session: the JIT helper starts only for a packaged core that carries the JIT interface"
+      },
+      {
+        "commit": "8e18e937d39c62a736a7bdc9a42c5b3a05f29955",
+        "note": "Libretro session: source-cores job creates the core work directory first (build tooling)"
       }
     ],
     "sourceOnly": [],
