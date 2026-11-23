@@ -35,6 +35,12 @@ COLLECTIONS = {
                       name='LibretroCores-66e232e00b980d5495c6d2d30233b13831596858', bytes=56286779,
                       sha256='b5816595ae8d02c4c493404e1803b7a73661ce4eedd0f41c9c74d00b7a65af26',
                       cores=('azahar', 'desmume', 'mednafen_psx', 'mednafen_psx_hw')),
+    # Beetle PSX and Beetle PSX HW: a cheat that rewrites code Lightrec compiled takes effect (native/beetle-psx at
+    # 416333ff); DeSmuME and Azahar are identical to those of 14850324552.
+    14870941984: dict(run=45280386958, source='416333ff6b623c789307b6679ca98c90a8c4c373',
+                      name='LibretroCores-416333ff6b623c789307b6679ca98c90a8c4c373', bytes=56287018,
+                      sha256='8cc3950e6c87523fe865e95ac24380260f8a36fdf25b0b2db06ed21e5bba13c5',
+                      cores=('azahar', 'desmume', 'mednafen_psx', 'mednafen_psx_hw')),
 }
 
 
