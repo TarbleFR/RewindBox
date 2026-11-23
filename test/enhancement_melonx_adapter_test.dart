@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/services/enhancements/adapters/melonx_enhancement_adapter.dart';
 import 'package:neostation/services/enhancements/enhancement_models.dart';
@@ -61,6 +64,19 @@ final _records = <String, Map<String, dynamic>>{
   ]),
   // A fighting game shaped like the catalogue's Smash Bros. record: FPS codes named after their target, for the
   // update's build and an older one.
+  _strikers: {
+    ..._record('Mario Strikers: Battle League', [
+      _exefsFor('120FPS v1.3.2', 'fps', 'display/$_strikers', _strikersBuild),
+      _exefsFor('60 FPS v1.3.2', 'fps', 'display/$_strikers', _strikersBuild),
+      _exefsFor('1920x1080 v1.3.2', 'graphics', 'display/$_strikers', _strikersBuild),
+      _exefsFor('21.9 Ultrawide v1.3.2', 'ultrawide', 'display/$_strikers', _strikersBuild),
+      _cheat('Infinite Stamina', [_strikersOld]),
+    ]),
+    'releases': {
+      _strikersBuild: {'display': ['1.3.2'], 'update': [196608]},
+      _strikersOld: {'display': ['1.3.0']},
+    },
+  },
   _fighter: _record('Fighter', [
     _cheat('120 FPS (Emulator)', [_update, _older], cat: 'fps'),
     _cheat('30 FPS', [_update, _older], cat: 'fps'),
@@ -68,6 +84,26 @@ final _records = <String, Map<String, dynamic>>{
     _cheat('P1 0% damage', [_older]),
   ]),
 };
+
+// Shaped like the published Mario Strikers record: Fl4sh9174 mods whose names carry the game version
+// (`v1.3.2`), all of them grouped as display choices by the catalogue of 18 November 2026.
+const _strikers = '010019401051C000';
+const _strikersBuild = '2E90F0815B1F92A1';
+const _strikersOld = '7F7710633C020A32';
+
+Map<String, dynamic> _exefsFor(String name, String cat, String group, String build) {
+  final bid = '$build${'0' * 16}';
+  return {
+    'id': 'fl4sh-${name.toLowerCase().replaceAll(RegExp('[^a-z0-9]+'), '-')}',
+    'cat': cat,
+    'name': name,
+    'source': 'fixture',
+    'group': group,
+    'exefs': [
+      {'bid': bid, 'text': '@nsobid-$bid\n@enabled\n00001000 1F2003D5\n@stop\n'},
+    ],
+  };
+}
 
 const _fighter = '0100F1F1F1F1E000';
 const _base = '1111222233334444';
@@ -466,7 +502,8 @@ void main() {
       expect(view.items.map((item) => item.status).toSet(), {EnhancementStatus.available});
       expect(view.items.every((item) => item.problem == EnhancementProblem.none), isTrue);
       expect(view.items.firstWhere((item) => item.name == 'Infinite Health').compatibility,
-          'Title ID $_title · Build ID B424BE150A8E7D78, F5DCCDDB37E97724');
+          'Title ID $_title · Build ID B424BE150A8E7D78, F5DCCDDB37E97724 · installed version 1.3.0');
+      expect(MelonxEnhancementAdapter.buildUnknown(view.items), isTrue, reason: 'the page says it cannot tell');
       expect(MelonxEnhancementAdapter.unmatchedBuild(view.items), isNull);
       expect(MelonxEnhancementAdapter.buildIdOf('0000000000000000'), isNull);
       expect(MelonxEnhancementAdapter.buildIdOf('b9b166df1db90baf'), 'B9B166DF1DB90BAF');
@@ -598,6 +635,216 @@ void main() {
       ]);
       expect(MelonxEnhancementAdapter.refreshSupportedIn(bundle.path), isTrue);
       expect(MelonxEnhancementAdapter.refreshSupportedIn(path.join(temp.path, 'none')), isFalse);
+    });
+  });
+
+  group('frame-rate mods and game versions', () {
+    final strikers = testGame(name: 'Mario Strikers', romPath: '/Documents/MeloNX/roms/switch/strikers.nsp');
+    EnhancementService serviceFor(Map<String, dynamic> metadata, {Map<String, dynamic>? update, bool refresh = true}) =>
+        EnhancementService(
+          catalog: fixtureCatalog(Directory(path.join(temp.path, 'cache')), {'melonx': _records}),
+          store: EnhancementStore(root: () async => Directory(path.join(temp.path, 'store'))),
+          adapters: [
+            MelonxEnhancementAdapter(
+              root: () async => root,
+              metadata: (_) async => metadata,
+              inspectUpdate: (_, _) async => update ?? (throw StateError('unreadable')),
+              refreshSupported: () async => refresh,
+            ),
+          ],
+          texturesSupported: (_) => false,
+        );
+    EnhancementItem named(EnhancementGameView view, String name) => view.items.firstWhere((item) => item.name == name);
+    Set<String> active(EnhancementGameView view) => {
+      for (final item in view.items)
+        if (item.status == EnhancementStatus.active) item.name,
+    };
+
+    test('a frame-rate mod stays on with a resolution or ultrawide mod; frame-rate mods exclude each other', () async {
+      final service = serviceFor({'titleId': _strikers, 'version': '1.3.2', 'buildId': _strikersBuild});
+      var view = await service.open(strikers, 'switch', download: true);
+      expect(named(view, '120FPS v1.3.2').exclusiveGroup, 'fps/$_strikers');
+      expect(named(view, '1920x1080 v1.3.2').exclusiveGroup, 'display/$_strikers');
+
+      view = await service.setActive(strikers, 'switch', view, named(view, '120FPS v1.3.2'), true);
+      view = await service.setActive(strikers, 'switch', view, named(view, '1920x1080 v1.3.2'), true);
+      expect(active(view), {'120FPS v1.3.2', '1920x1080 v1.3.2'}, reason: 'the resolution mod no longer turns the 120 FPS mod off');
+      view = await service.setActive(strikers, 'switch', view, named(view, '21.9 Ultrawide v1.3.2'), true);
+      expect(active(view), {'120FPS v1.3.2', '21.9 Ultrawide v1.3.2'}, reason: 'display choices still exclude each other');
+
+      // Kept across a new opening of the page (the store and the written patch files agree).
+      view = await service.open(strikers, 'switch', download: true);
+      expect(active(view), {'120FPS v1.3.2', '21.9 Ultrawide v1.3.2'});
+      final exefs = Directory(path.join(root.path, 'mods', 'contents', _strikers.toLowerCase(), 'RewindBox', 'exefs'));
+      expect(exefs.listSync().map((file) => path.basename(file.path)).toSet(),
+          {'fl4sh-120fps-v1-3-2-0.pchtxt', 'fl4sh-21-9-ultrawide-v1-3-2-0.pchtxt'});
+
+      view = await service.setActive(strikers, 'switch', view, named(view, '60 FPS v1.3.2'), true);
+      expect(active(view), {'60 FPS v1.3.2', '21.9 Ultrawide v1.3.2'}, reason: 'one frame-rate mod at a time');
+    });
+
+    test('an exefs frame-rate mod on for the build that runs sets the engine refresh at launch', () async {
+      final service = serviceFor({'titleId': _strikers, 'version': '1.3.2', 'buildId': _strikersBuild});
+      Future<int?> launch() => MelonxEnhancementAdapter.launchRefresh(
+        strikers.romPath!,
+        states: service.store.all,
+        root: () async => root,
+        metadata: (_) async => {'titleId': _strikers, 'buildId': _strikersBuild},
+        inspectUpdate: (_, _) async => throw StateError('none selected'),
+        supported: () async => true,
+      );
+      var view = await service.open(strikers, 'switch', download: true);
+      expect(named(view, '120FPS v1.3.2').payload['refreshHz'], 120);
+      view = await service.setActive(strikers, 'switch', view, named(view, '120FPS v1.3.2'), true);
+      expect(MelonxEnhancementAdapter.engineRefresh(view.items), 120);
+      expect(await launch(), 120);
+      final refresh = (await service.store.game('melonx:$_strikers'))!.data['refresh'] as Map;
+      expect(refresh[_strikersBuild]['exefs'], ['fl4sh-120fps-v1-3-2-0.pchtxt']);
+
+      File(path.join(root.path, 'mods', 'contents', _strikers.toLowerCase(), 'RewindBox', 'exefs',
+              'fl4sh-120fps-v1-3-2-0.pchtxt'))
+          .deleteSync();
+      expect(await launch(), isNull, reason: 'its patch file is gone');
+    });
+
+    test('a selected update that cannot be found leaves the build unknown, not the game file\'s', () async {
+      File(path.join(root.path, 'games', _strikers.toLowerCase(), 'updates.json'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('{"selected":"addons/${_strikers.toLowerCase()}/gone.nsp"}');
+      expect(
+        await MelonxEnhancementAdapter.installedBuild(
+          root: root,
+          titleId: _strikers,
+          baseBuild: _strikersOld,
+          inspectUpdate: (_, _) async => {'buildId': _strikersBuild},
+        ),
+        isNull,
+      );
+      final view = await serviceFor({'titleId': _strikers, 'version': '1.3.0', 'buildId': _strikersOld})
+          .open(strikers, 'switch', download: true);
+      expect(named(view, 'Infinite Stamina').status, EnhancementStatus.available,
+          reason: 'the game file\'s build is not what runs: nothing is claimed');
+      expect(view.identity.version, isNull, reason: 'the update\'s version is unknown');
+      expect(view.items.any((item) => item.payload.containsKey('installedBuild')), isFalse);
+      expect(MelonxEnhancementAdapter.buildUnknown(view.items), isTrue);
+    });
+
+    test('without the engine\'s Build ID, the version that runs names its build through the catalogue', () async {
+      final view = await serviceFor({'titleId': _strikers, 'version': '1.3.0'}).open(strikers, 'switch', download: true);
+      expect(view.identity.version, '1.3.0');
+      expect(named(view, 'Infinite Stamina').status, EnhancementStatus.available);
+      final mod = named(view, '120FPS v1.3.2');
+      expect(mod.status, EnhancementStatus.incompatible);
+      expect(mod.problem, EnhancementProblem.versionMismatch);
+      expect(mod.compatibility, 'Title ID $_strikers · exefs Build ID $_strikersBuild (1.3.2, v196608) · installed version 1.3.0');
+      expect(mod.payload.containsKey('refreshHz'), isFalse, reason: 'only a build the engine reports raises the refresh');
+      expect(MelonxEnhancementAdapter.buildUnknown(view.items), isFalse);
+      await expectLater(
+        serviceFor({'titleId': _strikers, 'version': '1.3.0'}).setActive(strikers, 'switch', view, mod, true),
+        throwsA(isA<EnhancementException>().having((e) => e.code, 'code', 'incompatible')),
+      );
+
+      // An update reports its display version: that is the version that runs.
+      final file = File(path.join(root.path, 'addons', _strikers.toLowerCase(), 'update.nsp'))..createSync(recursive: true);
+      File(path.join(root.path, 'games', _strikers.toLowerCase(), 'updates.json'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('{"selected":"${path.relative(file.path, from: root.path)}"}');
+      final updated = await serviceFor({'titleId': _strikers, 'version': '1.3.0'}, update: {'displayVersion': '1.3.2'})
+          .open(strikers, 'switch', download: true);
+      expect(updated.identity.version, '1.3.2');
+      expect(named(updated, '120FPS v1.3.2').status, EnhancementStatus.available);
+      expect(named(updated, 'Infinite Stamina').status, EnhancementStatus.incompatible);
+    });
+
+    test('an active exefs mod whose patch file cannot be fetched stays on while another entry is switched', () async {
+      const origin = 'https://raw.githubusercontent.com/example/pchtxt/0123456789012345678901234567890123456789/';
+      final bid = '$_strikersBuild${'0' * 16}';
+      final files = <String, Uint8List>{};
+      Map<String, dynamic> mod(String name, String cat, int index) {
+        final text = '@nsobid-$bid\n@enabled\n0000${index}000 1F2003D5\n@stop\n';
+        final bytes = Uint8List.fromList(utf8.encode(text));
+        files['${origin}Strikers/$_strikers/$name/exefs/1.3.2.pchtxt'] = bytes;
+        return {
+          'id': 'origin-${name.toLowerCase()}',
+          'cat': cat,
+          'name': name,
+          'source': 'pchtxt',
+          'exefs': [
+            {'bid': bid, 'o': index, 'size': bytes.length, 'sha256': sha256.convert(bytes).toString()},
+          ],
+        };
+      }
+      final entries = [mod('120FPS', 'fps', 0), mod('1440p', 'graphics', 1), mod('Disable DOF', 'graphics', 2)];
+      final records = {
+        'melonx': {
+          _strikers: {
+            'title': 'Strikers',
+            'master': <String, dynamic>{},
+            'credits': <String>[],
+            'entries': entries,
+            'origin': [
+              for (final entry in entries)
+                {
+                  'source': 'pchtxt',
+                  'path': 'Strikers/$_strikers/${entry['name']}/exefs/1.3.2.pchtxt',
+                  'size': files['${origin}Strikers/$_strikers/${entry['name']}/exefs/1.3.2.pchtxt']!.length,
+                  'sha256': sha256
+                      .convert(files['${origin}Strikers/$_strikers/${entry['name']}/exefs/1.3.2.pchtxt']!)
+                      .toString(),
+                },
+            ],
+          },
+        },
+      };
+      final sources = [
+        {'id': 'pchtxt', 'name': 'Example', 'url': 'https://example.org', 'license': 'None', 'origin': origin, 'engines': ['melonx'], 'revision': 'x'},
+      ];
+      EnhancementService serving(String cache, Map<String, Uint8List> served) => EnhancementService(
+        catalog: fixtureCatalog(Directory(path.join(temp.path, cache)), records, sources: sources, origins: served),
+        store: EnhancementStore(root: () async => Directory(path.join(temp.path, 'store'))),
+        adapters: [
+          MelonxEnhancementAdapter(
+            root: () async => root,
+            metadata: (_) async => {'titleId': _strikers, 'buildId': _strikersBuild},
+            refreshSupported: () async => true,
+          ),
+        ],
+        texturesSupported: (_) => false,
+      );
+      final exefs = Directory(path.join(root.path, 'mods', 'contents', _strikers.toLowerCase(), 'RewindBox', 'exefs'));
+
+      var online = serving('cache-online', files);
+      var view = await online.open(strikers, 'switch', download: true);
+      view = await online.setActive(strikers, 'switch', view, named(view, '120FPS'), true);
+      expect(File(path.join(exefs.path, 'origin-120fps-0.pchtxt')).existsSync(), isTrue);
+
+      // A new device cache, offline for the 120 FPS patch file: the mod is not listed, and turning another entry on
+      // keeps it on, with its file and the refresh it sets.
+      final offline = serving('cache-offline', {
+        for (final file in files.entries)
+          if (!file.key.contains('/120FPS/')) file.key: file.value,
+      });
+      view = await offline.open(strikers, 'switch', download: true);
+      expect(view.items.map((item) => item.name), isNot(contains('120FPS')));
+      view = await offline.setActive(strikers, 'switch', view, named(view, '1440p'), true);
+      final state = (await offline.store.game('melonx:$_strikers'))!;
+      expect(state.active, {'origin-120fps', 'origin-1440p'});
+      expect(File(path.join(exefs.path, 'origin-120fps-0.pchtxt')).existsSync(), isTrue);
+      expect((state.data['refresh'] as Map)[_strikersBuild]['hz'], 120);
+
+      // Back online: listed and on as before; another frame-rate choice would replace it as usual.
+      online = serving('cache-online', files);
+      view = await online.open(strikers, 'switch', download: true);
+      expect(active(view), {'120FPS', '1440p'});
+    });
+
+    test('catalogue versions read from a record, and names that only carry a version', () {
+      final releases = MelonxEnhancementAdapter.releasesOf(_records[_strikers]!, _strikers);
+      expect(releases, {_strikersBuild: ['1.3.2', 'v196608'], _strikersOld: ['1.3.0']});
+      expect(MelonxEnhancementAdapter.buildsOfVersion(releases, 'v1.3.2'), {_strikersBuild});
+      expect(MelonxEnhancementAdapter.buildsOfVersion(releases, null), isEmpty);
+      expect(MelonxEnhancementAdapter.describeBuilds([_strikersOld, 'AAAAAAAAAAAAAAAA'], releases),
+          '$_strikersOld (1.3.0), AAAAAAAAAAAAAAAA');
     });
   });
 }

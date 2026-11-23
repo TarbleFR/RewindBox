@@ -1,8 +1,8 @@
 {
-  "index_sha256": "04a868fc91c210b6693866d1e1676a123e71a70387872a2c8b647a993bc7764c",
-  "index_size": 167902,
+  "index_sha256": "959274efc6f2a0a01cef8203147d0330a3a5bfd719f2bb6060db1f55919f4f91",
+  "index_size": 166630,
   "published": {
-    "changed_bytes": 1442680,
+    "changed_bytes": 1549525,
     "changed_shards": [
       "melonx-00",
       "melonx-01",
@@ -11,10 +11,12 @@
       "melonx-04",
       "melonx-05",
       "melonx-06",
+      "melonx-07",
       "melonx-08",
       "melonx-09",
       "melonx-10",
       "melonx-11",
+      "melonx-12",
       "melonx-13",
       "melonx-14",
       "melonx-15",
@@ -35,7 +37,7 @@
       "melonx-30",
       "melonx-31"
     ],
-    "previous": "2026-11-17T1313Z.50379e12bf9d",
+    "previous": "2026-11-18T0203Z.194be1570540",
     "removed_shards": [],
     "reused_engines": [
       "armsx2",
@@ -62,6 +64,9 @@
     "melonx_duplicate_cheats": 22367,
     "melonx_exefs_entries": 388,
     "melonx_exefs_rejected": 15,
+    "melonx_group_display": 590,
+    "melonx_group_fps": 261,
+    "melonx_group_none": 37181,
     "melonx_rejected_cheats": 839,
     "melonx_rejected_titles": 8,
     "melonx_restricted_skipped": 224,
@@ -261,14 +266,15 @@
       "0100FFB015C6E000",
       "05450B00BA020000"
     ],
+    "melonx_titles_with_versions": 2101,
     "rpcs3_artemis_duplicate": 1518,
     "rpcs3_artemis_entries": 1889,
     "rpcs3_artemis_rejected": 8,
     "rpcs3_artemis_unreadable": 9,
     "rpcs3_rejected": 2
   },
-  "revision": "2026-11-18T0203Z.194be1570540",
-  "shard_bytes": 2853760,
+  "revision": "2026-11-23T1141Z.aaf71fb50e67",
+  "shard_bytes": 2882195,
   "totals": {
     "armsx2": {
       "entries": {

@@ -26,12 +26,14 @@ import '../enhancement_store.dart';
 /// The installed build: an engine from the cheat report lot answers the main
 /// executable's Build ID of the game file (`metadata`, `buildId`) and of an
 /// update (`inspectUpdate`, `buildId`), in the cheat files' 16-digit form. The
-/// selected update (`games/<title id>/updates.json`) is what runs. When it is
-/// known, a code of the application whose catalogue Build IDs do not include it
-/// is shown incompatible (the engine would skip it silently); without it (an
-/// older engine) nothing changes.
+/// selected update (`games/<title id>/updates.json`) is what runs; a selected
+/// update that cannot be read leaves the build unknown. When it is known, a
+/// code of the application whose catalogue Build IDs do not include it is shown
+/// incompatible (the engine would skip it silently). Without it, the display
+/// version that runs names the build through the catalogue's game versions
+/// (`releases`); when neither is known, the page says it cannot tell.
 ///
-/// An FPS code with a target (`120 FPS`) only raises the game's own limit; the
+/// An FPS code or exefs mod with a target (`120 FPS`) only raises the game's own limit; the
 /// engine still presents at the Switch's 60 Hz unless its refresh follows. An
 /// engine that takes the `vsyncFps` graphics option (its marker text is in the
 /// Core binary) gets the code's target at launch ([launchRefresh]) while the
@@ -69,6 +71,9 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
   /// The installed main Build ID of each identified application (null: not
   /// known) and whether the engine takes `vsyncFps`, from the last [identify].
   final _installedBuilds = <String, String?>{};
+
+  /// The display version that runs (the selected update's), when known.
+  final _installedVersions = <String, String?>{};
   bool _refreshTaken = false;
 
   static final _titleId = RegExp(r'^[0-9A-Fa-f]{16}$');
@@ -122,15 +127,20 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
 
   /// The selected update of `<root>/games/<titleId>/updates.json` (a path
   /// relative to [root] or absolute under it), when its file exists.
-  static Future<String?> selectedUpdate(Directory root, String titleId) async {
+  static Future<String?> selectedUpdate(Directory root, String titleId) async =>
+      (await _updateSelection(root, titleId)).path;
+
+  /// Whether an update is selected for [titleId], and its file when it lies
+  /// under [root] and exists.
+  static Future<({bool selected, String? path})> _updateSelection(Directory root, String titleId) async {
     final file = File(path.join(root.path, 'games', titleId.toLowerCase(), 'updates.json'));
-    if (!await file.exists() || await file.length() > 1024 * 1024) return null;
+    if (!await file.exists() || await file.length() > 1024 * 1024) return (selected: false, path: null);
     final decoded = jsonDecode(await file.readAsString());
     final selected = decoded is Map ? decoded['selected'] : null;
-    if (selected is! String || selected.isEmpty) return null;
+    if (selected is! String || selected.isEmpty) return (selected: false, path: null);
     final absolute = path.isAbsolute(selected) ? selected : path.normalize(path.join(root.path, selected));
-    if (!path.isWithin(root.path, absolute)) return null;
-    return await File(absolute).exists() ? absolute : null;
+    if (!path.isWithin(root.path, absolute) || !await File(absolute).exists()) return (selected: true, path: null);
+    return (selected: true, path: absolute);
   }
 
   /// The main Build ID of what runs for [titleId]: the selected update's when
@@ -141,14 +151,36 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
     required String titleId,
     required String? baseBuild,
     required Future<Map<String, dynamic>> Function(String updatePath, String titleId) inspectUpdate,
+  }) async =>
+      (await installedRelease(root: root, titleId: titleId, baseBuild: baseBuild, inspectUpdate: inspectUpdate))
+          .build;
+
+  /// The Build ID and display version of what runs for [titleId]. An update
+  /// that is selected but whose file cannot be found or read leaves both
+  /// unknown: the game file's build is not what runs then (a code made for it
+  /// would be shown as compatible with the update). Never throws.
+  static Future<({String? build, String? version})> installedRelease({
+    required Directory root,
+    required String titleId,
+    required String? baseBuild,
+    String? baseVersion,
+    required Future<Map<String, dynamic>> Function(String updatePath, String titleId) inspectUpdate,
   }) async {
     try {
-      final update = await selectedUpdate(root, titleId);
-      if (update == null) return baseBuild;
-      return buildIdOf((await inspectUpdate(update, titleId.toLowerCase()))['buildId']);
+      final update = await _updateSelection(root, titleId);
+      if (!update.selected) return (build: baseBuild, version: baseVersion);
+      if (update.path == null) return (build: null, version: null);
+      final report = await inspectUpdate(update.path!, titleId.toLowerCase());
+      return (build: buildIdOf(report['buildId']), version: displayVersionOf(report['displayVersion']));
     } on Object {
-      return null;
+      return (build: null, version: null);
     }
+  }
+
+  /// A display version as the engine reports it (`1.3.2`), or null.
+  static String? displayVersionOf(Object? value) {
+    final text = value?.toString().replaceAll('\u0000', '').trim() ?? '';
+    return text.isEmpty || text.length > 32 ? null : text;
   }
 
   @override
@@ -211,6 +243,11 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
         for (final program in programs.values)
           for (final credit in (program['credits'] as List? ?? const [])) credit.toString(),
       }.toList(),
+      'unavailable': [
+        for (final program in programs.entries)
+          for (final entry in (program.value['unavailable'] as List? ?? const []))
+            if (entry is Map) {...Map<String, dynamic>.from(entry), 'program': program.key},
+      ],
     };
   }
 
@@ -250,16 +287,27 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       );
     }
     // Only an engine that reports the game file's Build ID tells which build
-    // runs; an older one keeps every code as before.
+    // runs; an older one keeps every code as before. The version shown is the
+    // one that runs: the selected update's, unknown when it cannot be read.
     String? installed;
-    if (read && baseBuild != null) {
+    if (read) {
       try {
-        installed = await installedBuild(root: await _root(), titleId: titleId, baseBuild: baseBuild, inspectUpdate: _inspectUpdate);
+        final release = await installedRelease(
+          root: await _root(),
+          titleId: titleId,
+          baseBuild: baseBuild,
+          baseVersion: version,
+          inspectUpdate: _inspectUpdate,
+        );
+        installed = baseBuild == null ? null : release.build;
+        version = release.version;
       } on Object {
         installed = null;
+        version = null;
       }
     }
     _installedBuilds[titleId] = installed;
+    _installedVersions[titleId] = version;
     try {
       _refreshTaken = installed != null && await _refreshSupported();
     } on Object {
@@ -316,6 +364,65 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
         (bid: patch['bid'] as String, text: patch['text'] as String),
   ];
 
+  /// Game versions the catalogue names for each Build ID of [program]: the
+  /// display versions of the patch files (`1.3.2`) and switch-cheats-db's
+  /// update numbers (`v393216`; `v0` is the game itself). Empty for a
+  /// catalogue without them.
+  static Map<String, List<String>> releasesOf(Map<String, dynamic> record, String program) {
+    final programs = record['programs'];
+    final source = programs is Map && programs[program] is Map ? programs[program] as Map : record;
+    final raw = source['releases'];
+    final releases = <String, List<String>>{};
+    if (raw is! Map) return releases;
+    for (final release in raw.entries) {
+      final build = buildIdOf(release.key);
+      final value = release.value;
+      if (build == null || value is! Map) continue;
+      final labels = <String>[
+        for (final version in (value['display'] as List? ?? const [])) ?displayVersionOf(version),
+        for (final update in (value['update'] as List? ?? const []))
+          if (update is int && update >= 0) 'v$update',
+      ];
+      if (labels.isNotEmpty) releases[build] = labels;
+    }
+    return releases;
+  }
+
+  /// The catalogue's Build IDs whose display version is [version] (the one
+  /// that runs, when the engine did not say which build it is).
+  static Set<String> buildsOfVersion(Map<String, List<String>> releases, String? version) {
+    final wanted = version?.trim().replaceFirst(RegExp('^[vV]'), '') ?? '';
+    if (wanted.isEmpty) return const {};
+    return {
+      for (final release in releases.entries)
+        if (release.value.any((label) => label.replaceFirst(RegExp('^[vV]'), '') == wanted)) release.key,
+    };
+  }
+
+  /// Build IDs with the game versions the catalogue knows for them.
+  static String describeBuilds(List<String> builds, Map<String, List<String>> releases) => [
+    for (final build in builds)
+      releases[build] == null ? build : '$build (${releases[build]!.take(4).join(', ')})',
+  ].join(', ');
+
+  /// The exclusive group of an entry. A frame-rate mod is never one of the
+  /// display choices: catalogues up to 18 November 2026 read a game version in
+  /// its name (`120FPS v1.3.2`) as an aspect ratio and grouped it with the
+  /// resolution and ultrawide mods, so turning one of those on turned the
+  /// frame-rate mod off. Exefs frame-rate mods of one program patch the same
+  /// limit: one of them at a time.
+  static String exclusiveGroupOf(
+    Map<String, dynamic> entry,
+    String program,
+    EnhancementCategory category, {
+    required bool exefs,
+  }) {
+    final group = entry['group']?.toString() ?? '';
+    if (category != EnhancementCategory.fps) return group;
+    if (exefs) return 'fps/${program.toUpperCase()}';
+    return group.startsWith('display/') ? '' : group;
+  }
+
   @override
   List<EnhancementItem> items(
     EnhancementGameIdentity identity,
@@ -323,18 +430,36 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
     EnhancementGameState? state,
   ) {
     final items = <EnhancementItem>[];
+    final measured = _installedBuilds[identity.key];
+    final version = _installedVersions[identity.key];
+    final applicationReleases = releasesOf(record, identity.key);
+    // The engine did not say which build runs: the version that runs can
+    // still name it through the catalogue's version list.
+    final inferred = measured == null ? buildsOfVersion(applicationReleases, version) : const <String>{};
     for (final entry in _entries(record)) {
       final id = entry['id']?.toString() ?? '';
       final name = entry['name']?.toString() ?? '';
       final category = EnhancementCategory.parse(entry['cat']?.toString());
       if (id.isEmpty || category == null) continue;
       final program = entry['program']?.toString() ?? identity.key;
-      final installed = program == identity.key ? _installedBuilds[identity.key] : null;
+      final application = program == identity.key;
+      final installed = application ? measured : null;
+      final candidates = application ? inferred : const <String>{};
+      final releases = application ? applicationReleases : releasesOf(record, program);
+      final ran = installed != null
+          ? ' · installed $installed'
+          : application && version != null
+          ? ' · installed version $version'
+          : '';
+      final unknown = application && installed == null && candidates.isEmpty;
       final patches = _exefs(entry);
       if (patches.isNotEmpty) {
         // Exefs mods are written only while active: no installed state.
-        final bids = [for (final patch in patches) patch.bid.substring(0, 16)]..sort();
-        final matches = installed == null || bids.contains(installed);
+        final bids = {for (final patch in patches) patch.bid.substring(0, 16)}.toList()..sort();
+        final matches = installed != null ? bids.contains(installed) : candidates.isEmpty || bids.any(candidates.contains);
+        final target = category == EnhancementCategory.fps && installed != null && matches && _refreshTaken
+            ? refreshTarget(name)
+            : null;
         items.add(
           EnhancementItem(
             id: id,
@@ -346,11 +471,16 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
             status: !matches ? EnhancementStatus.incompatible : state?.active.contains(id) == true
                 ? EnhancementStatus.active
                 : EnhancementStatus.available,
-            compatibility:
-                'Title ID ${entry['program'] ?? identity.key} · exefs Build ID ${bids.join(', ')}',
+            compatibility: 'Title ID $program · exefs Build ID ${describeBuilds(bids, releases)}$ran',
             version: '${bids.length}',
-            exclusiveGroup: entry['group']?.toString() ?? '',
-            payload: {'builds': bids, 'exefs': true},
+            exclusiveGroup: exclusiveGroupOf(entry, program, category, exefs: true),
+            payload: {
+              'builds': bids,
+              'exefs': true,
+              'installedBuild': ?installed,
+              'refreshHz': ?target,
+              if (unknown) 'buildUnknown': true,
+            },
           ),
         );
         continue;
@@ -360,7 +490,9 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       final buildList = builds.keys.toList()..sort();
       // The installed build is the application's main executable: a
       // collection's other programs run their own and keep their status.
-      final matches = installed == null || builds.containsKey(installed);
+      final matches = installed != null
+          ? builds.containsKey(installed)
+          : candidates.isEmpty || buildList.any(candidates.contains);
       final target = category == EnhancementCategory.fps && installed != null && matches && _refreshTaken
           ? refreshTarget(name)
           : null;
@@ -373,20 +505,27 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
           sourceId: entry['source']?.toString() ?? '',
           status: matches ? EnhancementAdapter.statusOf(id, state) : EnhancementStatus.incompatible,
           problem: matches ? EnhancementProblem.none : EnhancementProblem.versionMismatch,
-          compatibility:
-              'Title ID $program · Build ID ${buildList.join(', ')}${installed == null ? '' : ' · installed $installed'}',
+          compatibility: 'Title ID $program · Build ID ${describeBuilds(buildList, releases)}$ran',
           version: '${buildList.length}',
-          exclusiveGroup: entry['group']?.toString() ?? '',
+          exclusiveGroup: exclusiveGroupOf(entry, program, category, exefs: false),
           payload: {
             'builds': buildList,
             'installedBuild': ?installed,
             'refreshHz': ?target,
+            if (unknown) 'buildUnknown': true,
           },
         ),
       );
     }
     return items;
   }
+
+  /// Whether the build that runs could not be read, so the page cannot tell
+  /// which of the application's codes apply (each applies only to the Build
+  /// ID its Compatibility names).
+  static bool buildUnknown(Iterable<EnhancementItem> items) => items.any(
+    (item) => item.engine == EnhancementEngine.melonx && item.payload['buildUnknown'] == true,
+  );
 
   @override
   List<String> credits(Map<String, dynamic> record) => [
@@ -463,6 +602,7 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       );
     }
 
+    final kept = _keepUnavailable(identity, record, state, active);
     final root = await _root();
     _rebaseStateFiles(root, state);
 
@@ -491,13 +631,59 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       }
     }
     for (final stale in state.files.keys.where((p) => !written.contains(p)).toList()) {
+      if (_heldBy(stale, kept)) continue;
       if (await EnhancementFiles.deleteIfOwned(File(resolveStateKey(root, stale)), state.files[stale]!)) {
         state.files.remove(stale);
       }
     }
-    _recordRefresh(identity, record, state, active);
+    _recordRefresh(identity, record, state, active, kept: kept);
     state.installed = true;
   }
+
+  /// Exefs mods the record cannot offer now (a source file that could not be
+  /// fetched: the newest catalogue lists another patch file for the mod, and
+  /// the device is offline) stay as they are while they were on and no other
+  /// choice of their group is turned on: their files stay as written and the
+  /// engine still applies them. Turning another entry on used to remove them.
+  /// They are added to [active]; returns them.
+  Set<String> _keepUnavailable(
+    EnhancementGameIdentity identity,
+    Map<String, dynamic> record,
+    EnhancementGameState state,
+    Set<String> active,
+  ) {
+    final taken = <String>{
+      for (final entry in _entries(record))
+        if (active.contains(entry['id'])) ?_groupOf(entry, identity),
+    };
+    final kept = <String>{};
+    for (final raw in (record['unavailable'] as List? ?? const [])) {
+      if (raw is! Map || raw['exefs'] != true || raw['cheat'] == true) continue;
+      final id = raw['id']?.toString() ?? '';
+      if (!state.active.contains(id) || active.contains(id)) continue;
+      final group = _groupOf(Map<String, dynamic>.from(raw), identity);
+      if (group != null && taken.contains(group)) continue;
+      kept.add(id);
+    }
+    active.addAll(kept);
+    return kept;
+  }
+
+  String? _groupOf(Map<String, dynamic> entry, EnhancementGameIdentity identity) {
+    final category = EnhancementCategory.parse(entry['cat']?.toString());
+    if (category == null) return null;
+    final group = exclusiveGroupOf(
+      entry,
+      entry['program']?.toString() ?? identity.key,
+      category,
+      exefs: entry['exefs'] is List || entry['exefs'] == true,
+    );
+    return group.isEmpty ? null : group;
+  }
+
+  /// Whether a recorded file is an exefs patch of a kept mod.
+  static bool _heldBy(String key, Set<String> kept) =>
+      path.split(key).contains('exefs') && kept.any((id) => path.basename(key).startsWith('$id-'));
 
   /// The engine refresh of the active FPS codes, per Build ID with the
   /// enable-list keys that carry it (read at launch by [launchRefresh]). Two
@@ -506,28 +692,56 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
     EnhancementGameIdentity identity,
     Map<String, dynamic> record,
     EnhancementGameState state,
-    Set<String> active,
-  ) {
+    Set<String> active, {
+    Set<String> kept = const {},
+  }) {
+    final previous = state.data['refresh'];
     final refresh = <String, Map<String, dynamic>>{};
     final conflicts = <String>{};
     for (final entry in _entries(record)) {
       final id = entry['id']?.toString() ?? '';
       final name = entry['name']?.toString() ?? '';
-      if (!active.contains(id) || entry['cat'] != EnhancementCategory.fps.name || !_safeName(name)) continue;
+      if (!active.contains(id) || entry['cat'] != EnhancementCategory.fps.name) continue;
       final target = refreshTarget(name);
       if (target == null) continue;
       final program = (entry['program']?.toString() ?? identity.key).toLowerCase();
-      for (final build in _builds(entry).keys) {
+      // An exefs frame-rate mod (`120FPS v1.3.2`) raises the game's limit
+      // like a cheat does: it carries the patch files it writes for a build.
+      final patches = _exefs(entry);
+      final builds = patches.isNotEmpty
+          ? {for (final patch in patches) patch.bid.substring(0, 16)}
+          : _safeName(name)
+          ? _builds(entry).keys.toSet()
+          : const <String>{};
+      for (final build in builds) {
         final current = refresh[build];
         if (current != null && current['hz'] != target) {
           conflicts.add(build);
           continue;
         }
         final value = refresh[build] ??= {'hz': target, 'program': program, 'keys': <String>[]};
-        (value['keys'] as List<String>).add(programKey(build, name));
+        if (patches.isEmpty) {
+          (value['keys'] as List<String>).add(programKey(build, name));
+          continue;
+        }
+        final files = (value['exefs'] as List<String>?) ?? (value['exefs'] = <String>[]);
+        for (var index = 0; index < patches.length; index++) {
+          if (patches[index].bid.startsWith(build)) files.add('$id-$index.pchtxt');
+        }
       }
     }
     conflicts.forEach(refresh.remove);
+    // A kept mod (see _keepUnavailable) keeps the refresh its files carry.
+    if (previous is Map && kept.isNotEmpty) {
+      for (final value in previous.entries) {
+        final files = [
+          for (final file in (value.value is Map ? (value.value as Map)['exefs'] as List? ?? const [] : const []))
+            if (kept.any((id) => file.toString().startsWith('$id-'))) file.toString(),
+        ];
+        if (files.isEmpty || refresh.containsKey(value.key)) continue;
+        refresh[value.key.toString()] = {...Map<String, dynamic>.from(value.value as Map), 'keys': <String>[], 'exefs': files};
+      }
+    }
     if (refresh.isEmpty) {
       state.data.remove('refresh');
     } else {
@@ -579,17 +793,38 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       if (hz is! int || hz < minRefresh || hz > maxRefresh || !_titleId.hasMatch(program)) return null;
       final keys = {for (final key in (entry['keys'] as List? ?? const [])) key.toString()};
       final title = path.join(directory.path, 'mods', 'contents', program);
-      final enabled = File(path.join(title, 'cheats', 'enabled.txt'));
-      final file = File(path.join(title, modName, 'cheats', '$build.txt'));
-      if (!await enabled.exists() || !await file.exists()) return null;
-      final listed = {for (final line in await enabled.readAsLines()) line.trim()};
-      final written = {for (final name in parseCheatNames(await file.readAsString())) programKey(build!, name)};
-      if (!keys.any((key) => listed.contains(key) && written.contains(key))) return null;
+      if (!await _exefsWritten(title, build!, entry['exefs']) && !await _cheatListed(title, build, keys)) return null;
       if (!await (supported ?? engineTakesRefresh)()) return null;
       return hz;
     } on Object {
       return null;
     }
+  }
+
+  /// Whether the engine installs one of [keys] for [build]: RewindBox's cheat
+  /// file of that build holds it and the enable list names it.
+  static Future<bool> _cheatListed(String title, String build, Set<String> keys) async {
+    if (keys.isEmpty) return false;
+    final enabled = File(path.join(title, 'cheats', 'enabled.txt'));
+    final file = File(path.join(title, modName, 'cheats', '$build.txt'));
+    if (!await enabled.exists() || !await file.exists()) return false;
+    final listed = {for (final line in await enabled.readAsLines()) line.trim()};
+    final written = {for (final name in parseCheatNames(await file.readAsString())) programKey(build, name)};
+    return keys.any((key) => listed.contains(key) && written.contains(key));
+  }
+
+  /// Whether one of the exefs patch files an active frame-rate mod writes for
+  /// [build] is on disk, headed by that executable's Build ID (the engine
+  /// applies a `.pchtxt` only to the executable its `@nsobid-` line names).
+  static Future<bool> _exefsWritten(String title, String build, Object? files) async {
+    for (final name in (files as List? ?? const [])) {
+      final file = name.toString();
+      if (path.basename(file) != file || !file.endsWith('.pchtxt')) continue;
+      final patch = File(path.join(title, modName, 'exefs', file));
+      if (!await patch.exists() || await patch.length() > 64 * 1024) continue;
+      if ((await patch.readAsString()).startsWith('@nsobid-$build')) return true;
+    }
+    return false;
   }
 
   /// The recorded files are keyed relative to the MeloNX root. iOS can move

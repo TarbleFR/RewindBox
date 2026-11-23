@@ -53,6 +53,7 @@ class EnhancementsLocale {
   static const buildNote = 'buildNote';
   static const engineRefresh = 'engineRefresh';
   static const unmatchedBuild = 'unmatchedBuild';
+  static const buildUnknown = 'buildUnknown';
   static const source = 'source';
   static const compatibility = 'compatibility';
   static const author = 'author';
@@ -144,6 +145,7 @@ class EnhancementsLocale {
       buildNote: 'The engine applies a code only to the Build ID of the installed game version.',
       engineRefresh: 'While this code is on, the engine refreshes at {hz} Hz from the next start. The frame rate reached depends on the device.',
       unmatchedBuild: 'None of these codes is for the installed game (build {build}). The catalogue has them for build {targets}: they apply only to the game version they were made for.',
+      buildUnknown: 'RewindBox could not read which build of the game runs (the selected update, for example), so it cannot tell which codes apply: each one works only with the game version under its Compatibility.',
       source: 'Source',
       compatibility: 'Compatibility',
       author: 'Author',
@@ -209,6 +211,7 @@ class EnhancementsLocale {
       buildNote: 'Le moteur n\'applique un code qu\'au Build ID de la version installée du jeu.',
       engineRefresh: 'Tant que ce code est actif, le moteur se rafraîchit à {hz} Hz dès le prochain démarrage. La fréquence d\'images atteinte dépend de l\'appareil.',
       unmatchedBuild: 'Aucun de ces codes ne correspond au jeu installé (build {build}). Le catalogue les propose pour le build {targets} : ils ne s\'appliquent qu\'à la version du jeu pour laquelle ils ont été faits.',
+      buildUnknown: 'RewindBox n\'a pas pu lire quel build du jeu est lancé (par exemple la mise à jour sélectionnée) : il ne peut donc pas indiquer quels codes s\'appliquent. Chacun ne fonctionne qu\'avec la version du jeu indiquée dans sa Compatibilité.',
       source: 'Source',
       compatibility: 'Compatibilité',
       author: 'Auteur',
@@ -274,6 +277,7 @@ class EnhancementsLocale {
       buildNote: 'Die Engine wendet einen Code nur auf die Build-ID der installierten Spielversion an.',
       engineRefresh: 'Solange dieser Code aktiv ist, läuft die Engine ab dem nächsten Start mit {hz} Hz. Welche Bildrate erreicht wird, hängt vom Gerät ab.',
       unmatchedBuild: 'Keiner dieser Codes passt zum installierten Spiel (Build {build}). Der Katalog hat sie für Build {targets}: Sie gelten nur für die Spielversion, für die sie gemacht wurden.',
+      buildUnknown: 'RewindBox konnte nicht lesen, welcher Build des Spiels läuft (zum Beispiel das gewählte Update), und kann daher nicht sagen, welche Codes gelten: Jeder funktioniert nur mit der Spielversion unter seiner Kompatibilität.',
       source: 'Quelle',
       compatibility: 'Kompatibilität',
       author: 'Autor',
@@ -339,6 +343,7 @@ class EnhancementsLocale {
       buildNote: 'El motor solo aplica un código al Build ID de la versión instalada del juego.',
       engineRefresh: 'Mientras este código esté activo, el motor funciona a {hz} Hz desde el próximo inicio. La tasa de fotogramas alcanzada depende del dispositivo.',
       unmatchedBuild: 'Ninguno de estos códigos es para el juego instalado (build {build}). El catálogo los tiene para la build {targets}: solo se aplican a la versión del juego para la que se hicieron.',
+      buildUnknown: 'RewindBox no pudo leer qué build del juego se ejecuta (por ejemplo, la actualización seleccionada), así que no puede indicar qué códigos se aplican: cada uno solo funciona con la versión del juego indicada en su Compatibilidad.',
       source: 'Fuente',
       compatibility: 'Compatibilidad',
       author: 'Autor',
@@ -404,6 +409,7 @@ class EnhancementsLocale {
       buildNote: 'Il motore applica un codice solo al Build ID della versione installata del gioco.',
       engineRefresh: 'Finché questo codice è attivo, il motore funziona a {hz} Hz dal prossimo avvio. La frequenza di fotogrammi raggiunta dipende dal dispositivo.',
       unmatchedBuild: 'Nessuno di questi codici è per il gioco installato (build {build}). Il catalogo li ha per la build {targets}: si applicano solo alla versione del gioco per cui sono stati fatti.',
+      buildUnknown: 'RewindBox non è riuscito a leggere quale build del gioco viene eseguita (ad esempio l\'aggiornamento selezionato), quindi non può dire quali codici si applicano: ognuno funziona solo con la versione del gioco indicata nella sua Compatibilità.',
       source: 'Fonte',
       compatibility: 'Compatibilità',
       author: 'Autore',
@@ -469,6 +475,7 @@ class EnhancementsLocale {
       buildNote: 'O motor só aplica um código ao Build ID da versão instalada do jogo.',
       engineRefresh: 'Enquanto este código estiver ativo, o motor funciona a {hz} Hz a partir do próximo início. A taxa de quadros alcançada depende do dispositivo.',
       unmatchedBuild: 'Nenhum destes códigos é para o jogo instalado (build {build}). O catálogo os tem para a build {targets}: só se aplicam à versão do jogo para a qual foram feitos.',
+      buildUnknown: 'O RewindBox não conseguiu ler qual build do jogo é executada (por exemplo, a atualização selecionada), por isso não pode indicar quais códigos se aplicam: cada um só funciona com a versão do jogo indicada em sua Compatibilidade.',
       source: 'Fonte',
       compatibility: 'Compatibilidade',
       author: 'Autor',
@@ -534,6 +541,7 @@ class EnhancementsLocale {
       buildNote: 'Движок применяет код только к Build ID установленной версии игры.',
       engineRefresh: 'Пока этот код включён, движок со следующего запуска работает на {hz} Гц. Достигнутая частота кадров зависит от устройства.',
       unmatchedBuild: 'Ни один из этих кодов не подходит к установленной игре (сборка {build}). В каталоге они для сборки {targets}: они работают только с той версией игры, для которой созданы.',
+      buildUnknown: 'RewindBox не смог определить, какая сборка игры запускается (например, выбранное обновление), поэтому не может сказать, какие коды подходят: каждый работает только с версией игры, указанной в его совместимости.',
       source: 'Источник',
       compatibility: 'Совместимость',
       author: 'Автор',
@@ -599,6 +607,7 @@ class EnhancementsLocale {
       buildNote: 'Mesin hanya menerapkan kode pada Build ID versi game yang terpasang.',
       engineRefresh: 'Selama kode ini aktif, mesin berjalan pada {hz} Hz sejak mulai berikutnya. Frame rate yang tercapai bergantung pada perangkat.',
       unmatchedBuild: 'Tidak ada kode ini yang cocok dengan game terpasang (build {build}). Katalog menyediakannya untuk build {targets}: kode hanya berlaku pada versi game tempat kode dibuat.',
+      buildUnknown: 'RewindBox tidak dapat membaca build game yang berjalan (misalnya pembaruan yang dipilih), jadi tidak dapat menunjukkan kode mana yang berlaku: setiap kode hanya berfungsi dengan versi game pada Kompatibilitasnya.',
       source: 'Sumber',
       compatibility: 'Kompatibilitas',
       author: 'Pembuat',
@@ -664,6 +673,7 @@ class EnhancementsLocale {
       buildNote: 'エンジンはインストールされたゲームバージョンの Build ID にのみコードを適用します。',
       engineRefresh: 'このコードが有効な間、次回の起動からエンジンのリフレッシュレートは {hz} Hz になります。実際のフレームレートはデバイスによって異なります。',
       unmatchedBuild: 'これらのコードはいずれもインストール済みのゲーム（ビルド {build}）用ではありません。カタログのコードはビルド {targets} 用です。作成対象のゲームバージョンにのみ適用されます。',
+      buildUnknown: 'RewindBox は起動するゲームのビルド（選択中のアップデートなど）を読み取れなかったため、どのコードが適用されるか判断できません。各コードは互換性に記載されたゲームバージョンでのみ動作します。',
       source: 'ソース',
       compatibility: '互換性',
       author: '作者',
@@ -729,6 +739,7 @@ class EnhancementsLocale {
       buildNote: '엔진은 설치된 게임 버전의 Build ID에만 코드를 적용합니다.',
       engineRefresh: '이 코드가 켜져 있는 동안 다음 실행부터 엔진 주사율이 {hz} Hz로 설정됩니다. 실제 프레임 속도는 기기에 따라 다릅니다.',
       unmatchedBuild: '이 코드 중 설치된 게임(빌드 {build})용은 없습니다. 카탈로그의 코드는 빌드 {targets}용이며, 제작된 게임 버전에만 적용됩니다.',
+      buildUnknown: 'RewindBox가 실행되는 게임 빌드(예: 선택한 업데이트)를 읽지 못해 어떤 코드가 적용되는지 알 수 없습니다. 각 코드는 호환성에 표시된 게임 버전에서만 작동합니다.',
       source: '출처',
       compatibility: '호환성',
       author: '제작자',
@@ -794,6 +805,7 @@ class EnhancementsLocale {
       buildNote: '引擎只会将代码应用于已安装游戏版本的 Build ID。',
       engineRefresh: '启用此代码期间，引擎从下次启动起以 {hz} Hz 刷新。实际帧率取决于设备。',
       unmatchedBuild: '这些代码都不适用于已安装的游戏（构建 {build}）。目录中的代码适用于构建 {targets}：它们只适用于其制作时对应的游戏版本。',
+      buildUnknown: 'RewindBox 无法读取运行的游戏构建（例如所选更新），因此无法判断哪些代码适用：每个代码仅适用于其兼容性中列出的游戏版本。',
       source: '来源',
       compatibility: '兼容性',
       author: '作者',
@@ -859,6 +871,7 @@ class EnhancementsLocale {
       buildNote: '引擎只會將代碼套用於已安裝遊戲版本的 Build ID。',
       engineRefresh: '啟用此代碼期間，引擎從下次啟動起以 {hz} Hz 更新。實際影格率取決於裝置。',
       unmatchedBuild: '這些代碼都不適用於已安裝的遊戲（組建 {build}）。目錄中的代碼適用於組建 {targets}：它們只適用於其製作時對應的遊戲版本。',
+      buildUnknown: 'RewindBox 無法讀取執行的遊戲組建（例如所選更新），因此無法判斷哪些代碼適用：每個代碼僅適用於其相容性中列出的遊戲版本。',
       source: '來源',
       compatibility: '相容性',
       author: '作者',

@@ -588,6 +588,9 @@ class _EnhancementsScreenState extends State<EnhancementsScreen> {
               kind: GlassBannerKind.warning,
             );
           }
+          if (MelonxEnhancementAdapter.buildUnknown(view.items)) {
+            banner(_t(EnhancementsLocale.buildUnknown), kind: GlassBannerKind.warning);
+          }
           final refresh = MelonxEnhancementAdapter.engineRefresh(view.items);
           if (_category == EnhancementCategory.fps && refresh != null) {
             banner(EnhancementsLocale.format(context, EnhancementsLocale.engineRefresh, {'hz': refresh}));

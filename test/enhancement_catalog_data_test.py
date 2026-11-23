@@ -17,7 +17,7 @@ UNSAFE_SWITCH_NAME = re.compile(r'//|[#;\[\]{}\r\n]')
 CATALOGUE = ROOT / 'native/enhancements/catalogue'
 sys.path.insert(0, str(ROOT / 'tools/enhancements'))
 from classify import classify  # noqa: E402
-from build_enhancement_catalog import RPCS3_TYPES  # noqa: E402
+from build_enhancement_catalog import RPCS3_TYPES, SWITCH_DISPLAY, SWITCH_VERSION, switch_group  # noqa: E402
 
 
 
@@ -258,6 +258,36 @@ class CatalogueData(unittest.TestCase):
                     self.assertTrue(all(re.match(pattern, line) for line in entry['body']), entry['name'])
                     self.assertNotEqual(entry['source'], 'dolphin-gamesettings', 'engine codes ship without a body')
 
+    def test_switch_groups_and_game_versions_in_the_catalogue(self):
+        titles = with_versions = 0
+        for title, record in self.records('melonx'):
+            titles += 1
+            builds = set()
+            for entry in record['entries']:
+                group = entry.get('group', '')
+                if entry['cat'] == 'fps':
+                    self.assertFalse(group.startswith('display/'), entry['name'])
+                    self.assertEqual(group, f'fps/{title}' if 'exefs' in entry else '', entry['name'])
+                if group.startswith('display/'):
+                    self.assertEqual(group, f'display/{title}')
+                builds.update(entry.get('builds', {}))
+                builds.update(patch['bid'][:16] for patch in entry.get('exefs', ()))
+            releases = record.get('releases')
+            if releases is None:
+                continue
+            with_versions += 1
+            self.assertTrue(set(releases) <= builds, 'versions only for the builds of its entries')
+            for build, value in releases.items():
+                self.assertRegex(build, r'^[0-9A-F]{16}$')
+                self.assertTrue(value)
+                self.assertTrue(set(value) <= {'display', 'update'})
+                for version in value.get('display', ()):
+                    self.assertRegex(version, r'^\d+(\.\d+)+$')
+                self.assertEqual(value.get('update', []), sorted(set(value.get('update', []))))
+                self.assertTrue(all(isinstance(n, int) and n >= 0 for n in value.get('update', [])))
+            self.assertNotRegex(record['title'], '[\u2122\u00ae\u00a9]')
+        self.assertGreater(with_versions, titles // 2, 'most titles know the game version of their builds')
+
     def test_sources_carry_attribution(self):
         sources = {s['id']: s for s in self.index['sources']}
         self.assertEqual(set(sources), {
@@ -277,6 +307,32 @@ class CatalogueData(unittest.TestCase):
 
 
 class Classification(unittest.TestCase):
+    def test_switch_groups_keep_frame_rate_mods_apart_from_display_choices(self):
+        # A game version in a name (`120FPS v1.3.2`) was read as an aspect ratio until the catalogue of
+        # 18 November 2026: turning a resolution or ultrawide mod on turned the frame-rate mod off.
+        tid = '010019401051C000'
+        exefs = [{'bid': '2E90F0815B1F92A1' + '0' * 16, 'o': 0, 'size': 1, 'sha256': '0' * 64}]
+        cases = [
+            ('120FPS v1.3.2', 'fps', exefs, f'fps/{tid}'),
+            ('Unlock FPS v1.3.2] Ryujinx', 'fps', exefs, f'fps/{tid}'),
+            ('60 FPS', 'fps', None, ''),
+            ('1920x1080 v1.3.2', 'graphics', exefs, f'display/{tid}'),
+            ('21.9 Ultrawide v1.0.103.9', 'ultrawide', exefs, f'display/{tid}'),
+            ("Aspect Ratio - 21'9", 'ultrawide', exefs, f'display/{tid}'),
+            ('Improved Camera Widescreen v1.0.1', 'ultrawide', exefs, f'display/{tid}'),
+            ('Disable Dof v4.0.1', 'graphics', exefs, ''),
+            ('Level of Detail v13.0.5', 'graphics', exefs, ''),
+            ('Increased FOV v1.3.3', 'ultrawide', exefs, ''),
+            ('Ultrawide 21:9', 'ultrawide', None, f'display/{tid}'),
+            ('Infinite Health', 'cheat', None, ''),
+        ]
+        for name, cat, patches, expected in cases:
+            entry = {'name': name, 'cat': cat, 'source': 'fl4sh-zip' if patches else 'switch-cheats-db',
+                     **({'exefs': patches} if patches else {})}
+            self.assertEqual(switch_group(tid, entry), expected, name)
+        self.assertEqual(SWITCH_VERSION.sub(' ', 'Speed UP v2.3.0').strip(), 'Speed UP')
+        self.assertIsNone(SWITCH_DISPLAY.search(SWITCH_VERSION.sub(' ', '60FPS Split Screen v4.0.1')))
+
     def test_labels(self):
         cases = {
             '60 FPS': 'fps', 'Unlock FPS': 'fps', '50/60 FPS': 'fps',

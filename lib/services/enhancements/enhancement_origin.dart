@@ -232,46 +232,73 @@ abstract final class EnhancementOrigin {
       if (lines != null) master[build.key.toString()] = lines;
     }
     final entries = <Map<String, dynamic>>[];
+    // Entries this record cannot offer now (a source file that could not be fetched or verified).
+    final unavailable = <Map<String, dynamic>>[];
     for (final raw in (record['entries'] as List? ?? const [])) {
       if (raw is! Map) continue;
       final entry = Map<String, dynamic>.from(raw);
-      final exefs = entry['exefs'];
-      if (exefs is List) {
-        // Exefs patches: each pointer names a .pchtxt file of the source. The text the adapter
-        // writes is rebuilt as the builder did and must have the listed size and SHA-256.
-        final patches = <Map<String, dynamic>>[];
-        for (final patch in exefs) {
-          if (patch is! Map) continue;
-          if (patch['text'] is String) {
-            patches.add(Map<String, dynamic>.from(patch));
-            continue;
-          }
-          final index = patch['o'];
-          if (index is! int || index < 0 || index >= contents.length) continue;
-          final bytes = patch.containsKey('member') ? member(index, patch) : contents[index];
-          final text = bytes == null ? null : pchtxtText(bytes);
-          if (text == null || !text.startsWith('@nsobid-${patch['bid']}\n')) continue;
-          final encoded = utf8.encode(text);
-          if (encoded.length != patch['size'] || sha256.convert(encoded).toString() != patch['sha256']) continue;
-          patches.add({'bid': patch['bid'], 'text': text});
-        }
-        // Like a cheat, a mod is kept only with every patch it was published with.
-        if (patches.isEmpty || patches.length != exefs.length) continue;
-        entry['exefs'] = patches;
-        if (!entry.containsKey('builds')) {
-          entries.add(entry);
+      final kept = entries.length;
+      _resolveSwitchEntry(entry, entries, contents, member, read);
+      if (entries.length == kept && entry['id'] != null) {
+        unavailable.add({
+          'id': entry['id'].toString(),
+          'cat': entry['cat'],
+          if (entry['group'] != null) 'group': entry['group'],
+          'exefs': entry['exefs'] is List,
+          'cheat': entry.containsKey('builds'),
+        });
+      }
+    }
+    return {
+      ...record,
+      'master': master,
+      'entries': entries,
+      if (unavailable.isNotEmpty) 'unavailable': unavailable,
+    };
+  }
+
+  static void _resolveSwitchEntry(
+    Map<String, dynamic> entry,
+    List<Map<String, dynamic>> entries,
+    List<Uint8List> contents,
+    Uint8List? Function(int index, Map patch) member,
+    List<String>? Function(String build, Object? pointer) read,
+  ) {
+    final exefs = entry['exefs'];
+    if (exefs is List) {
+      // Exefs patches: each pointer names a .pchtxt file of the source. The text the adapter
+      // writes is rebuilt as the builder did and must have the listed size and SHA-256.
+      final patches = <Map<String, dynamic>>[];
+      for (final patch in exefs) {
+        if (patch is! Map) continue;
+        if (patch['text'] is String) {
+          patches.add(Map<String, dynamic>.from(patch));
           continue;
         }
+        final index = patch['o'];
+        if (index is! int || index < 0 || index >= contents.length) continue;
+        final bytes = patch.containsKey('member') ? member(index, patch) : contents[index];
+        final text = bytes == null ? null : pchtxtText(bytes);
+        if (text == null || !text.startsWith('@nsobid-${patch['bid']}\n')) continue;
+        final encoded = utf8.encode(text);
+        if (encoded.length != patch['size'] || sha256.convert(encoded).toString() != patch['sha256']) continue;
+        patches.add({'bid': patch['bid'], 'text': text});
       }
-      final builds = <String, dynamic>{};
-      for (final build in (entry['builds'] as Map? ?? const {}).entries) {
-        final lines = read(build.key.toString(), build.value);
-        if (lines != null) builds[build.key.toString()] = lines;
+      // Like a cheat, a mod is kept only with every patch it was published with.
+      if (patches.isEmpty || patches.length != exefs.length) return;
+      entry['exefs'] = patches;
+      if (!entry.containsKey('builds')) {
+        entries.add(entry);
+        return;
       }
-      // An entry is kept only with every build it was published for.
-      if (builds.isEmpty || builds.length != (entry['builds'] as Map).length) continue;
-      entries.add({...entry, 'builds': builds});
     }
-    return {...record, 'master': master, 'entries': entries};
+    final builds = <String, dynamic>{};
+    for (final build in (entry['builds'] as Map? ?? const {}).entries) {
+      final lines = read(build.key.toString(), build.value);
+      if (lines != null) builds[build.key.toString()] = lines;
+    }
+    // An entry is kept only with every build it was published for.
+    if (builds.isEmpty || builds.length != (entry['builds'] as Map).length) return;
+    entries.add({...entry, 'builds': builds});
   }
 }

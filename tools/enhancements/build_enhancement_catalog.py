@@ -80,9 +80,9 @@ SOURCES = {
         'name': 'HamletDuFromage/switch-cheats-db (GBAtemp main cheat file, ChanseyIsTheBest 60 FPS/graphics)',
         'url': 'https://github.com/HamletDuFromage/switch-cheats-db',
         'git': 'https://github.com/HamletDuFromage/switch-cheats-db.git',
-        'revision': '109766ab21c784150287c83ff85c02ab9512dccb',
+        'revision': '4e19981a5c57aee3545ced66e158aa9e7fefa045',
         'origin': 'https://raw.githubusercontent.com/HamletDuFromage/switch-cheats-db/'
-                  '109766ab21c784150287c83ff85c02ab9512dccb/',
+                  '4e19981a5c57aee3545ced66e158aa9e7fefa045/',
         'license': 'No licence; the codes belong to the authors credited in each title. Not hosted by '
                    'RewindBox: the app downloads the original file of each title from this repository and '
                    'revision. Titles whose authors restrict distribution are left out.',
@@ -104,9 +104,9 @@ SOURCES = {
         'name': 'KeatonTheBot/switch-pchtxt-mods (exefs patches: resolution, frame rate, effects)',
         'url': 'https://github.com/KeatonTheBot/switch-pchtxt-mods',
         'git': 'https://github.com/KeatonTheBot/switch-pchtxt-mods.git',
-        'revision': 'e882d7a8273783a981efcb2eeb38a580307bbce4',
+        'revision': '13f0e6559136ead857e7c66d53f1ef1775d339f4',
         'origin': 'https://raw.githubusercontent.com/KeatonTheBot/switch-pchtxt-mods/'
-                  'e882d7a8273783a981efcb2eeb38a580307bbce4/',
+                  '13f0e6559136ead857e7c66d53f1ef1775d339f4/',
         'license': 'No licence; the patches belong to KeatonTheBot. Not hosted by RewindBox: the app downloads each '
                    'patch file from this repository and revision.',
         'engines': ['melonx'],
@@ -460,7 +460,14 @@ def switch_restricted_titles(scdb, matias):
 
 PCHTXT_HEADER = re.compile(r'^@nsobid-([0-9A-Fa-f]{32,64})$')
 # Choices that patch the same values of a game (render resolution, aspect ratio): one at a time.
-SWITCH_DISPLAY = re.compile(r'\b\d{3,4}p\b|\b\d{3,4} ?x ?\d{3,4}\b|\b[24581]K\b|ultra ?wide|\b\d{1,2} ?[:.] ?\d{1,2}\b|\bSSAA\b', re.I)
+SWITCH_DISPLAY = re.compile(r'\b\d{3,4}p\b|\b\d{3,4} ?x ?\d{3,4}\b|\b[24581]K\b|ultra ?wide|wide ?screen|\baspect\b|'
+                            r'\b(?:4|5|15|16|17|18|19|20|21|24|32|40|43) ?[:.] ?(?:3|4|9|10)\b|\bSSAA\b', re.I)
+# A game version in a label (`v1.3.2`, `1.0.19975`, `V4.04b`) is not an aspect ratio. Until the catalogue of
+# 18 November 2026 one put frame-rate and effect mods (`120FPS v1.3.2`, `Disable Dof v4.0.1`) among the display
+# choices of their title, so turning a resolution or ultrawide mod on turned them off.
+SWITCH_VERSION = re.compile(r'(?<![\w.])v?\d+(?:\.\d+){2,}[a-z]?(?![\w.])|(?<![\w.])v\d+(?:\.\d+)+[a-z]?(?![\w.])', re.I)
+# The display version a Switch patch file is named after (`1.3.2.pchtxt`).
+SWITCH_PATCH_VERSION = re.compile(r'^v?(\d+(?:\.\d+)+)\.pchtxt$', re.I)
 BRACKET_TITLE = re.compile(r'^(?:.* )?\[(0100[0-9A-Fa-f]{12})\]$')
 VERSION_NAME = re.compile(r'^v?\d+(?:\.\d+)+$', re.I)
 
@@ -598,8 +605,6 @@ def build_melonx_exefs(root, source_id, titles, restricted, stats):
             ('melonx', tid, 'exefs', source_id, mod['name'].casefold())
         entry = {'id': stable_id(*identity), 'cat': category, 'name': mod['name'],
                  'source': source_id, 'exefs': patches}
-        if SWITCH_DISPLAY.search(mod['name']):
-            entry['group'] = f'display/{tid}'
         record['entries'][key] = entry
         stats['melonx_exefs_entries'] += 1
 
@@ -738,8 +743,6 @@ def build_melonx_zip(root, titles, restricted, stats):
                     label = clean_label(f'{label} (Fl4sh9174 · {" / ".join(key[1])})', 180)
                 category = classify(label, 'cheat' if key[0] == 'cheat' else 'graphics')
                 entry = {'id': identity, 'name': label, 'source': source, 'cat': category, **payload}
-                if SWITCH_DISPLAY.search(label):
-                    entry['group'] = f'display/{tid}'
                 record['entries'][identity] = entry
                 stats['fl4sh_' + key[0] + '_entries'] += 1
 
@@ -826,18 +829,103 @@ def build_melonx(scdb, matias, stats, exefs=(), archives=None):
         build_melonx_exefs(root, source_id, titles, restricted, stats)
     if archives is not None:
         build_melonx_zip(archives, titles, restricted, stats)
+    versions = switch_versions(scdb)
     out = {}
     for tid, record in sorted(titles.items()):
         entries = sorted(record['entries'].values(), key=lambda e: (e['cat'], e['name'].casefold()))
         if not entries:
             continue
-        for entry in entries:
-            group = entry.get('group') or display_group(tid, entry['name'], entry['cat'])
+        out[tid] = {'title': switch_title(versions, tid) or record['title'] or tid, 'credits': record['credits'],
+                    'origin': record['origin'], 'master': record['master'], 'entries': entries}
+    finish_melonx(out, versions, stats)
+    return out
+
+
+def switch_versions(scdb):
+    """switch-cheats-db's versions.json at the pinned revision: per Title ID, the main Build ID of each
+    update number (`0` the game itself) and the title's name."""
+    path = scdb / 'versions.json'
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_bytes())
+    return data if isinstance(data, dict) else {}
+
+
+def switch_title(versions, tid):
+    """The game's own name in versions.json (marks removed), or ''. The cheat files' headers name an author's
+    file (`Mario Kart 8 Deluxe 1.7.1 by Xtatu speed mod`, `1`), not the game."""
+    known = versions.get(tid) or versions.get(tid.lower())
+    title = known.get('title') if isinstance(known, dict) else None
+    return clean_label(re.sub('[\u2122\u00ae\u00a9]', '', title), 120) if isinstance(title, str) else ''
+
+
+def switch_group(tid, entry):
+    """Exclusive group of a Switch entry. The resolution and aspect-ratio mods of a title are one choice
+    (`display/`); its exefs frame-rate mods patch the same frame limit and are another (`fps/`). A frame-rate
+    mod is never a display choice, and a game version in a name is not an aspect ratio."""
+    label = SWITCH_VERSION.sub(' ', entry['name'])
+    exefs = 'exefs' in entry
+    if entry['cat'] == 'fps':
+        return f'fps/{tid}' if exefs else ''
+    if (exefs or entry.get('source') == 'fl4sh-zip') and SWITCH_DISPLAY.search(label):
+        return f'display/{tid}'
+    return display_group(tid, label, entry['cat'])
+
+
+def version_key(text):
+    return tuple(int(part) for part in text.split('.'))
+
+
+def switch_releases(tid, record, versions):
+    """Game versions the catalogue knows for the Build IDs of a title's entries: the display version each
+    patch file is named after (`1.3.2.pchtxt`) and switch-cheats-db's update numbers. Without versions.json
+    (a reused record), the update numbers already published are kept."""
+    builds, display, updates = set(), collections.defaultdict(set), collections.defaultdict(set)
+    for entry in record['entries']:
+        builds.update(entry.get('builds', {}))
+        for patch in entry.get('exefs', ()):
+            build = patch['bid'][:16].upper()
+            builds.add(build)
+            name = (patch.get('member') or record['origin'][patch['o']]['path']).rsplit('/', 1)[-1]
+            match = SWITCH_PATCH_VERSION.match(name)
+            if match:
+                display[build].add(match.group(1))
+    if versions is None:
+        for build, value in (record.get('releases') or {}).items():
+            updates[build].update(value.get('update', ()))
+    else:
+        known = versions.get(tid) or versions.get(tid.lower())
+        for number, build in (known.items() if isinstance(known, dict) else ()):
+            if str(number).isdigit() and isinstance(build, str) and SWITCH_BUILD.match(build.upper()):
+                updates[build.upper()].add(int(number))
+    releases = {}
+    for build in sorted(builds):
+        value = {}
+        if display[build]:
+            value['display'] = sorted(display[build], key=version_key)
+        if updates[build]:
+            value['update'] = sorted(updates[build])
+        if value:
+            releases[build] = value
+    return releases
+
+
+def finish_melonx(records, versions, stats):
+    """Groups and game versions of every Switch record, built or reused (idempotent)."""
+    for tid, record in records.items():
+        for entry in record['entries']:
+            group = switch_group(tid, entry)
             if group:
                 entry['group'] = group
-        out[tid] = {'title': record['title'] or tid, 'credits': record['credits'], 'origin': record['origin'],
-                    'master': record['master'], 'entries': entries}
-    return out
+            else:
+                entry.pop('group', None)
+            stats['melonx_group_' + (group.split('/')[0] if group else 'none')] += 1
+        releases = switch_releases(tid, record, versions)
+        if releases:
+            record['releases'] = releases
+            stats['melonx_titles_with_versions'] += 1
+        else:
+            record.pop('releases', None)
 
 
 # ---------------------------------------------------------------- RPCS3
@@ -1560,6 +1648,8 @@ def main():
             for name, data in previous_shards.items():
                 if name.startswith(engine + '-'):
                     records.update(json.loads(gzip.decompress(data))['keys'])
+            if engine == 'melonx':
+                finish_melonx(records, None, stats)
             engines[engine] = records
         elif engine == 'melonx':
             engines[engine] = build_melonx(git['switch-cheats-db'],

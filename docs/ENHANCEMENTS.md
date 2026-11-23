@@ -229,7 +229,16 @@ those patches stable.
     they are dropped at the next write.
   - ARMSX2: another disc revision (another CRC) shows that serial's patches
     as Incompatible.
-  - MeloNX: the Build ID match is enforced by the engine itself.
+  - MeloNX: the engine applies a code only to the Build ID it was made for.
+    The page reads the Build ID that runs (the game file's, or the selected
+    update's) and shows a code for another build as Incompatible; it cannot
+    be turned on. A selected update whose file cannot be found or read
+    leaves the build unknown, never the game file's (until 23 November 2026
+    the game file's build was assumed, and codes for it looked compatible
+    with the update). Without the engine's Build ID, the display version
+    that runs (the update's, `displayVersion`) names its build through the
+    catalogue's game versions (`releases`). When neither is known, the page
+    says that it cannot tell which codes apply.
 - **Dolphin entries.** Only enhancements are listed. Gameplay codes stay in
   the unified cheat catalogue, compatibility fixes stay the engine's
   decision, and codes the engine enables by default are not offered. A code
@@ -238,9 +247,16 @@ those patches stable.
 - **Exclusive choices.** Entries that rewrite the same values exclude each
   other: RPCS3 author groups and enum choices; aspect-ratio entries of one
   game (`16:9`, `21:9`, `3440x1440`, "ultrawide"…) on every engine; Switch
-  exefs resolution and aspect mods (one display mod), and exefs frame-rate
-  mods (one at a time); a PS2 cheat renamed because the engine already uses
-  its name (`Widescreen 16:9 (Aero)`) and its namesake.
+  exefs resolution and aspect mods (one display mod, `display/<Title ID>`),
+  and exefs frame-rate mods (one at a time, `fps/<Title ID>`); a PS2 cheat
+  renamed because the engine already uses its name (`Widescreen 16:9
+  (Aero)`) and its namesake. A frame-rate mod is never a display choice, and
+  a game version in a name (`120FPS v1.3.2`) is not an aspect ratio: until
+  the catalogue of 23 November 2026 that version put 151 frame-rate mods and
+  110 effect, cheat and performance mods (`Disable Dof v4.0.1`, `Level of
+  Detail v1.2.0`) in the display group of their title, so turning a
+  resolution or ultrawide mod on turned a 120 FPS mod off. The app applies
+  the same rule to frame-rate mods of an older cached catalogue.
 - **ARMSX2 files.** Nothing is written to `patches/`: a file there makes
   PCSX2 skip the engine's `patches.zip` for that game. When the player has
   such a file, the engine's patches are shown as Incompatible ("A file of
@@ -252,8 +268,10 @@ those patches stable.
 
 ## Sources
 
-20 pinned sources, 52,489 entries (catalogue revision
-`2026-11-17T1313Z.50379e12bf9d`; 47,184 entries from 11 sources in
+21 pinned sources, 53,153 entries (catalogue revision
+`2026-11-23T1141Z.aaf71fb50e67`, the same entries as
+`2026-11-18T0203Z.194be1570540`; 52,489 entries in
+`2026-11-17T1313Z.50379e12bf9d`, 47,184 entries from 11 sources in
 `2026-10-28.209508f70e51`). A source is hosted only when its licence allows
 redistribution; content the embedded engine already ships is referenced by
 name; a source without a licence is read by reference (see Origin download
@@ -263,8 +281,8 @@ of `python3 tools/catalogues/report.py`.
 
 | Engine | Source | Revision | Entries | Licence |
 | --- | --- | --- | ---: | --- |
-| MeloNX | [HamletDuFromage/switch-cheats-db](https://github.com/HamletDuFromage/switch-cheats-db) (GBAtemp main cheat file, ChanseyIsTheBest 60 FPS/graphics) | `109766ab21c7` | 36,980 | none: **not hosted**, downloaded from the source by the app |
-| MeloNX | [KeatonTheBot/switch-pchtxt-mods](https://github.com/KeatonTheBot/switch-pchtxt-mods) (exefs patches: resolution, frame rate, effects) | `e882d7a82737` | 250 | none: **not hosted**, downloaded from the source by the app |
+| MeloNX | [HamletDuFromage/switch-cheats-db](https://github.com/HamletDuFromage/switch-cheats-db) (GBAtemp main cheat file, ChanseyIsTheBest 60 FPS/graphics) | `4e19981a5c57` | 36,980 | none: **not hosted**, downloaded from the source by the app |
+| MeloNX | [KeatonTheBot/switch-pchtxt-mods](https://github.com/KeatonTheBot/switch-pchtxt-mods) (exefs patches: resolution, frame rate, effects) | `13f0e6559136` | 250 | none: **not hosted**, downloaded from the source by the app |
 | MeloNX | [StevensND/switch-port-mods](https://github.com/StevensND/switch-port-mods) (exefs patches: frame rate, resolution, aspect ratio) | `774e7f7c8556` | 99 | none, re-upload forbidden by the author: **not hosted**, downloaded from the source by the app |
 | MeloNX | [StevensND/ue4-emuswitch-60fps](https://github.com/StevensND/ue4-emuswitch-60fps) (exefs patches of Unreal Engine games) | `53c69bf93c2f` | 39 | none, re-upload forbidden by the author: **not hosted**, downloaded from the source by the app |
 | RPCS3 | [RPCS3 game patches](https://wiki.rpcs3.net/index.php?title=Help:Game_Patches) via `rpcs3.net/compatibility?patch&api=v1&v=1.2` | content `f1f3cab0c8fe…` | 3,643 | CC BY-SA 4.0 (browser-verified 28 October 2026; page-specific exceptions apply) |
@@ -288,8 +306,8 @@ Engines' entry totals:
 
 | Engine | Games | Entries | Cheats | FPS | Ultrawide | Graphics | Performance |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| MeloNX | 2,306 | 37,230 | 22,446 | 1,420 | 69 | 13,173 | 122 |
-| RPCS3 | 964 | 3,643 | 1,592 | 643 | 694 | 702 | 12 |
+| MeloNX | 2,340 | 38,032 | 22,457 | 1,666 | 285 | 13,500 | 124 |
+| RPCS3 | 1,139 | 5,532 | 3,468 | 645 | 694 | 707 | 18 |
 | ARMSX2 | 4,618 | 9,251 | 977 | 1,670 | 5,384 | 1,209 | 11 |
 | Dolphin | 282 files | 338 | — | 62 | 216 | 33 | 27 |
 
@@ -492,15 +510,56 @@ Not done here:
 - The 60 FPS entries are their authors' work. Their notes are shown, and the
   FPS tab asks the player to turn off any patch that speeds a game up.
 
+## Fixes of 23 November 2026
+
+- **A 120 FPS mod stays on.** Switch exefs frame-rate mods have their own
+  exclusive group (`fps/<Title ID>`); resolution, aspect-ratio and
+  ultrawide mods keep theirs (`display/<Title ID>`), now matched on the name
+  without its game version and with `aspect` and `widescreen` choices
+  (`Aspect Ratio - 21'9`). Regrouped from the published records, nothing
+  else changed: 151 frame-rate mods left a display group and 110 more joined
+  their frame-rate group; 104 effect mods, 4 FOV mods, 4 cheats and 2
+  performance mods left a display group; 32 aspect-ratio choices joined one.
+- **A 120 FPS mod reaches 120 Hz.** An exefs frame-rate mod with a target in
+  its name sets the engine refresh (`vsyncFps`) like an FPS cheat: only on an
+  engine that takes it, for the Build ID that runs, while its patch file for
+  that build is on disk. Until now only Atmosphere cheats did, and an exefs
+  `120FPS` mod ran at the engine's 60 Hz.
+- **An active mod is not lost offline.** An exefs mod the record cannot offer
+  now (the newest catalogue lists another patch file for it and the device
+  is offline) keeps its files and stays on when another entry is switched,
+  unless a choice of its group is turned on. Before, its files were deleted.
+- **Game versions and names.** Each Switch record lists, per Build ID of its
+  entries, the display version its patch files are named after (`1.3.2`)
+  and switch-cheats-db's update numbers (`versions.json`; `v0` is the game
+  itself): 2,101 titles, 3,168 builds with an update number and 328 with a
+  display version. The page shows them next to the Build IDs. 1,739 titles
+  take the game's own name from `versions.json` instead of the header of an
+  author's file (`Mario Kart 8 Deluxe 1.7.1 by Xtatu speed mod`, `1`).
+- **Newer sources, nothing removed.** switch-cheats-db `4e19981a5c57` (one
+  title file updated) and KeatonTheBot `13f0e6559136` (version 1.0.8 of
+  Trails in the Sky 1st Chapter for 12 of its mods). Every entry ID of the
+  previous revision is in the new one; the per-category totals are equal.
+  The newer Dolphin upstream, Slippi and MPN revisions add no entry and stay
+  pinned. Only the 32 Switch shards changed.
+
+Checks: `python3 test/enhancement_catalog_data_test.py` (10 tests, 2 new:
+Switch groups and game versions), `flutter test` on the enhancement files
+and `test/melonx_engine_refresh_test.dart` (67 tests, 6 new in
+`test/enhancement_melonx_adapter_test.dart`), `dart analyze` on the changed
+files. Not run on an iPhone; no IPA built.
+
 ## Limitations
 
 - **Libretro cores (PSP, PS1, N64…).** Their FPS and widescreen cheats
   (CWCheat+, DuckStation) stay in the unified cheat catalogue of the in-game
   menu. The page has no Libretro adapter yet.
 - **MeloNX.** Codes come from switch-cheats-db at download time, so a game
-  needs the network once, like any shard. Without an engine rebuild the installed game's Build ID is not known before launch:
-  every build's codes would be installed and the engine keeps only the
-  matching file.
+  needs the network once, like any shard. An engine older than the cheat
+  report lot (IPA 779) does not report the Build ID: the page then tells
+  which builds a code is for, with their game versions, but cannot check
+  them; the engine still keeps only the matching file. A collection's other
+  programs are never checked (their builds are not reported).
 - **RPCS3.** The installed APP_VER must be known to the library: launch the
   game once. Configurable range values use the author's default.
 - **ARMSX2.** Compressed images (CHD, CSO, ZSO, GZ) cannot be identified in
