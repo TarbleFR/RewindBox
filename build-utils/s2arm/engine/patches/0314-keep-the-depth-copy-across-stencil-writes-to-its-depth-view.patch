@@ -1,0 +1,130 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index e4e337b..dd62b31 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -20876,7 +20876,9 @@ static void fb_report(uint64_t frame) {   // every 300 frames: hits per layer an
+ // #387 the depth snapshot of the pass's own depth attachment, kept while that depth stays unchanged: draws after the first that sample it read the same copy (one copy and
+ //   one pass break for a run of halo draws instead of one per draw). It goes stale when the depth or stencil may change: a draw writing depth or stencil to it, a depth / stencil
+ //   clear, a render-target change, a copy or buffer clear (storage may alias) and a new submission. Own storage: fb_snap_shape's slots are reused in place by other copies
+-static struct { uint64_t ser; __unsafe_unretained id<MTLTexture> src; __strong id<MTLTexture> use; int valid; } g_dsnap;
++static struct { uint64_t ser; __unsafe_unretained id<MTLTexture> src; __strong id<MTLTexture> use; int valid, stencil; } g_dsnap;   // stencil: RewindBox (patch 0314), the copy is read through a stencil view
++#include "rb_dsnap_rule.h"
++_Static_assert(RB_DSNAP_OP_KEEP == NVN_STENCIL_OP_KEEP, "rb_dsnap_rule.h KEEP");
+ static void dsnap_stale(void) { g_dsnap.valid = 0; }
+ // RewindBox (patch 0057): the storage is one of a few kept by shape, the least recently used one giving way to a new shape. It was one texture, made again whenever the shape
+ //   asked differed from the last one's, and Mario Kart World samples three depth attachments of its own passes in a frame (1248x700, 624x350 and 312x175 on IPA 762, a dozen
+@@ -20971,7 +20973,10 @@ static void fb_prepare(NvProg *pr) {
+     fsig_tex_reset();   // RewindBox (patch 0067): the textures this draw samples are noted from here (fsig_tex_note)
+     {   // a draw that may write depth / stencil changes what the copy holds: stale before it (its own sampling copies the depth as it is) and after it (its writes land after its reads)
+         static int after; if (after) { dsnap_stale(); after = 0; }
+-        if ((S.ds.dt && S.ds.dw) || (S.ds.st && (S.st_wmask[0] || S.st_wmask[1]))) { dsnap_stale(); after = 1; } }
++        // RewindBox (patch 0314, upstream S2Arm 864e92cf1): a stencil write stales a copy read through a stencil view only, and counts only when an op is not KEEP (rb_dsnap_rule.h)
++        static int strict = -1; if (strict < 0) strict = getenv("DM_NVN_DSNAP_STRICT") != NULL;
++        const rb_dsnap_draw dd = {S.ds.dt, S.ds.dw, S.ds.st, S.st_wmask[0], S.st_wmask[1], {S.ds.fail_f, S.ds.zfail_f, S.ds.zpass_f, S.ds.fail_b, S.ds.zfail_b, S.ds.zpass_b}};
++        if (rb_dsnap_stales(&dd, strict, g_dsnap.stencil)) { dsnap_stale(); after = 1; } }
+     if (!g_enc) memset(g_fb_dirty, 0, sizeof g_fb_dirty);   // no pass open: the last one ended and its writes are in memory (g_fb_dirty is only reset when a pass opens; a stale 1 sent the first self-sampling draw of the next pass to ④)
+     if (g_fbc.forcing) { g_fbt.on = 1; memcpy(g_fbt.fx, g_fbc.fx, sizeof g_fbt.fx); g_fbt.fbmask = g_fbc.fbmask; memcpy(g_fbt.lmap, g_fbc.lmap, 8); g_fbt.fn = g_fbc.fn; return; }   // 双画检查的第二遍：强制 ⑤
+     if (g_fb_rebind) { args_dirty_all(); g_fb_rebind = 0; }   // the previous draw had a substituted binding: re-encode with the original bindings this time
+@@ -21028,6 +21033,11 @@ static void fb_prepare(NvProg *pr) {
+             if (g_fb_use[g_fb_n] && g_fb_use[g_fb_n] != use) defer_obj_unref(g_fb_use[g_fb_n]);
+             g_fb_src[g_fb_n] = t; g_fb_use[g_fb_n] = use; g_fb_rid[g_fb_n] = use.gpuResourceID._impl; g_fb_n++; g_fb_hits++; g_fb_count++; g_fb_depth++;
+             g_dsnap.ser = ser; g_dsnap.src = t; g_dsnap.use = use; g_dsnap.valid = 1;
++            { MTLPixelFormat vf = use.pixelFormat; g_dsnap.stencil = vf == MTLPixelFormatStencil8 || vf == MTLPixelFormatX32_Stencil8   // RewindBox (patch 0314)
++#if TARGET_OS_OSX
++                || vf == MTLPixelFormatX24_Stencil8
++#endif
++                ; }
+             if (g_fb_depth == 1 || g_fb_depth == 100 || g_fb_depth % 100000 == 0) MLOG("same-pass depth sampling: draw %llu (shader %s) samples its pass's depth attachment ser=%llu (%lux%lu format %lu); the pass ends and it reads a copy (%llu so far)",
+                 (unsigned long long)g_draw_seq, fs->key, (unsigned long long)ser, (unsigned long)base.width, (unsigned long)base.height, (unsigned long)base.pixelFormat, (unsigned long long)g_fb_depth);
+             PD("N %llu same-pass depth sampling: depth attachment ser=%llu sampled at slot %d; the pass ends and this draw reads a copy", g_stat_pass, (unsigned long long)ser, b->reg);
+diff --git a/graphics/nvn/gfx/nvn/rb_dsnap_rule.h b/graphics/nvn/gfx/nvn/rb_dsnap_rule.h
+new file mode 100644
+index 0000000..fcb47fa
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_dsnap_rule.h
+@@ -0,0 +1,18 @@
++// RewindBox (patch 0314): when a draw makes the same-pass depth copy (#387, nvn_mtl.m g_dsnap) stale, after upstream S2Arm 864e92cf1. Pure C: tests/t_rb_dsnap_rule.c.
++//   A draw writing depth always does. A stencil write only matters to a copy read through a stencil view (the copy is a texture of its own; a depth view of it holds the depth
++//   plane, which a stencil write leaves as it was), and it counts only when a stencil op is not KEEP (sd_note's wwhy 5). A deferred lighting pass (one light volume per draw,
++//   stencil test on, depth writes off, each draw sampling the depth) used to end the pass and copy the whole depth for every light. strict (DM_NVN_DSNAP_STRICT=1): the old rule,
++//   any stencil write mask
++#pragma once
++enum { RB_DSNAP_OP_KEEP = 0x1 };   // NVN_STENCIL_OP_KEEP
++typedef struct { int depth_test, depth_write, stencil_test; unsigned wmask_front, wmask_back; int ops[6]; } rb_dsnap_draw;   // ops: fail, zfail, zpass front then back
++static inline int rb_dsnap_stencil_writes(const rb_dsnap_draw *d, int strict) {
++    if (!d->stencil_test || !(d->wmask_front || d->wmask_back)) return 0;
++    if (strict) return 1;
++    for (int i = 0; i < 6; i++) if (d->ops[i] != RB_DSNAP_OP_KEEP) return 1;
++    return 0;
++}
++static inline int rb_dsnap_stales(const rb_dsnap_draw *d, int strict, int copy_reads_stencil) {
++    if (d->depth_test && d->depth_write) return 1;
++    return rb_dsnap_stencil_writes(d, strict) && (strict || copy_reads_stencil);
++}
+diff --git a/graphics/nvn/tests/t_nvn_feedback_snapshot.m b/graphics/nvn/tests/t_nvn_feedback_snapshot.m
+index 974fbae..d1b8828 100644
+--- a/graphics/nvn/tests/t_nvn_feedback_snapshot.m
++++ b/graphics/nvn/tests/t_nvn_feedback_snapshot.m
+@@ -168,6 +168,14 @@ static void depth_case(NvProg *reader, prog_t *reader_p, tex_t *depth, tex_t *b,
+     S.ds.dt=1; S.ds.dw=1; S.ds.df=8; g_pso_dirty=1; draw(triangle,NULL);   // writes depth (and samples it: a fresh copy of the depth before this draw)
+     S.ds.dw=0; g_pso_dirty=1; uint64_t c2=g_fb_depth; draw(triangle,NULL);
+     CHECK(g_fb_depth-c2==1,"after a depth-writing draw the next sampling draw copies again (new copies %llu)",(unsigned long long)(g_fb_depth-c2));
++    // Stencil writes leave the depth plane a depth-view copy holds as it was: with the stencil test on and an op that writes (REPLACE on pass, write mask 0xff),
++    //   two more sampling draws still read the copy (a deferred lighting pass: one light volume per draw, stencil on, depth writes off). The old rule copied for each
++    uint64_t sc=g_fb_depth, sr=g_fb_depth_reuse, sp=g_stat_pass;
++    S.ds.st=1; S.st_wmask[0]=S.st_wmask[1]=0xff; S.ds.zpass_f=S.ds.zpass_b=NVN_STENCIL_OP_REPLACE; g_pso_dirty=1;
++    draw(triangle,NULL); draw(triangle,NULL);
++    CHECK(g_fb_depth==sc && g_fb_depth_reuse-sr==2 && g_stat_pass==sp,"stencil-writing draws sampling the depth: reuse the depth-view copy (new copies %llu, reuses %llu, passes opened %llu)",
++        (unsigned long long)(g_fb_depth-sc),(unsigned long long)(g_fb_depth_reuse-sr),(unsigned long long)(g_stat_pass-sp));
++    S.ds.st=0; S.ds.zpass_f=S.ds.zpass_b=NVN_STENCIL_OP_KEEP; g_pso_dirty=1;
+     finish(); CHECK(!mtl_last_commit_error(),"depth attachment sampled in its own pass: submission completes without a Metal error");
+     // Audit P2-247: a whole-surface depth clear with no pass open is only recorded (R.clear_d, folded into the next pass's load action). A draw sampling that depth in the pass must
+     //   see the cleared value, as on the Switch the clear is in memory before the draw runs: the copy is taken after the clear lands. Expected 0.75 (the clear), never the old 0.25
+diff --git a/graphics/nvn/tests/t_rb_dsnap_rule.c b/graphics/nvn/tests/t_rb_dsnap_rule.c
+new file mode 100644
+index 0000000..d6b99dd
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_dsnap_rule.c
+@@ -0,0 +1,42 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0314): host-only checks of the same-pass depth copy's staleness rule (gfx/nvn/rb_dsnap_rule.h, after upstream S2Arm 864e92cf1).
++#include <assert.h>
++#include <stdio.h>
++#include "../gfx/nvn/rb_dsnap_rule.h"
++
++enum { KEEP = RB_DSNAP_OP_KEEP, REPLACE = 0x3 };
++static rb_dsnap_draw draw(int dt, int dw, int st, unsigned wf, unsigned wb, int op) {
++    rb_dsnap_draw d = {dt, dw, st, wf, wb, {KEEP, KEEP, KEEP, KEEP, KEEP, KEEP}};
++    if (op) d.ops[2] = op;   // zpass front
++    return d;
++}
++int main(void) {
++    // ① a depth-writing draw stales the copy, whatever the view and the rule
++    rb_dsnap_draw w = draw(1, 1, 0, 0, 0, 0);
++    assert(rb_dsnap_stales(&w, 0, 0) && rb_dsnap_stales(&w, 1, 0) && rb_dsnap_stales(&w, 0, 1));
++    // … not when the depth test is off (no depth write happens)
++    rb_dsnap_draw nt = draw(0, 1, 0, 0, 0, 0);
++    assert(!rb_dsnap_stales(&nt, 0, 0));
++    // ② the deferred lighting draw: stencil test on, write mask 0xff, REPLACE on pass, depth writes off
++    rb_dsnap_draw light = draw(1, 0, 1, 0xff, 0xff, REPLACE);
++    assert(rb_dsnap_stencil_writes(&light, 0));
++    assert(!rb_dsnap_stales(&light, 0, 0));   // a depth-view copy stays current
++    assert(rb_dsnap_stales(&light, 0, 1));    // a stencil-view copy goes stale
++    assert(rb_dsnap_stales(&light, 1, 0));    // DM_NVN_DSNAP_STRICT=1: the old rule
++    // ③ a write mask with every op KEEP writes nothing: not even a stencil-view copy goes stale (the old rule still staled it)
++    rb_dsnap_draw keep = draw(1, 0, 1, 0xff, 0, 0);
++    assert(!rb_dsnap_stencil_writes(&keep, 0) && !rb_dsnap_stales(&keep, 0, 1));
++    assert(rb_dsnap_stales(&keep, 1, 0));
++    // ④ each of the six ops counts, front and back
++    for (int i = 0; i < 6; i++) {
++        rb_dsnap_draw d = draw(0, 0, 1, i < 3 ? 0xff : 0, i < 3 ? 0 : 0xff, 0);
++        d.ops[i] = REPLACE;
++        assert(rb_dsnap_stencil_writes(&d, 0) && rb_dsnap_stales(&d, 0, 1) && !rb_dsnap_stales(&d, 0, 0));
++    }
++    // ⑤ no stencil test, or a zero write mask: no stencil write
++    rb_dsnap_draw off = draw(1, 0, 0, 0xff, 0xff, REPLACE), mask0 = draw(1, 0, 1, 0, 0, REPLACE);
++    assert(!rb_dsnap_stales(&off, 0, 1) && !rb_dsnap_stales(&off, 1, 1));
++    assert(!rb_dsnap_stales(&mask0, 0, 1) && !rb_dsnap_stales(&mask0, 1, 1));
++    puts("t_rb_dsnap_rule: ok");
++    return 0;
++}

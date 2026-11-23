@@ -108,7 +108,7 @@ jobs:
         run: |
           set -euo pipefail
           source_tree="$RUNNER_TEMP/s2arm"
-          for fixture in spec_gate stage_input pso_trace archive_index local_stage look_budget working_set upload_stream file_hint pool_index registration_plan alias_key; do
+          for fixture in spec_gate stage_input pso_trace archive_index local_stage look_budget working_set upload_stream file_hint pool_index registration_plan alias_key warm_order dsnap_rule; do
             xcrun --sdk macosx clang -std=gnu11 -D_DARWIN_C_SOURCE -O2 -Wall -Wextra -pthread \
               "$source_tree/graphics/nvn/tests/t_rb_$fixture.c" -o "$RUNNER_TEMP/t_rb_$fixture"
             "$RUNNER_TEMP/t_rb_$fixture"

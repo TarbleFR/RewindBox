@@ -1,0 +1,328 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 569125a..e4e337b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -14337,7 +14337,7 @@ static uint64_t g_async_seen_programs[RB_ASYNC_SEEN_WORDS];
+ static unsigned g_async_frame_probes;
+ static int g_async_early;
+ #define PSO_PEND_MAX 384
+-static struct { pso_key k; id<MTLRenderPipelineState> ps; NSError *error; int used, done, late, stuck; } g_pp[PSO_PEND_MAX];   // late: the submit thread already waited its limit for it once (pso_pend_take); stuck: a draw that cannot be skipped waited the unsafe cap for it
++static struct { pso_key k; id<MTLRenderPipelineState> ps; NSError *error; int used, done, late, stuck; uint8_t rb_way; uint64_t rb_began, rb_build_ns, rb_compile_ns; } g_pp[PSO_PEND_MAX];   // rb_*: RewindBox (patch 0313), set by ppq_build with done   // late: the submit thread already waited its limit for it once (pso_pend_take); stuck: a draw that cannot be skipped waited the unsafe cap for it
+ static pthread_mutex_t g_pp_mu = PTHREAD_MUTEX_INITIALIZER; static pthread_cond_t g_pp_cv = PTHREAD_COND_INITIALIZER;
+ static uint64_t g_pp_submit_mark, g_pp_kicked, g_pp_taken, g_pp_dropped;   // Whether this submission has already been predicted (by submission serial); cumulative kicked / taken / dropped untaken (pso_pend_kick) counts
+ // RewindBox (patch 0069): every pipeline kicked to the background went to the global queue at once, without bound, and a draw that needed its own waited for it behind the others
+@@ -14371,7 +14371,7 @@ static int rb_pso_lanes(void) {   // read once (submit thread)
+ static dispatch_block_t rb_test_pso_owner;
+ #endif
+ static void ppq_build(int slot, id payload, NSString *requestedKey) {   // a lane or a block started at once; d / pkey were taken out of g_ppq under g_pp_mu
+-    id<MTLRenderPipelineState> ps; NSError *e=nil;
++    id<MTLRenderPipelineState> ps; NSError *e=nil; uint64_t b0=0;
+     @autoreleasepool {
+         // One builder owns this descriptor and slot until it publishes done.
+         // Demand supplies a descriptor. A bounded prediction supplies the
+@@ -14391,9 +14391,12 @@ static void ppq_build(int slot, id payload, NSString *requestedKey) {   // a lan
+ #ifdef RB_TEST_FIRST_FRAME
+         if (rb_test_pso_owner) rb_test_pso_owner();
+ #endif
+-        ps=par_render(d,pkey,&e);
++        b0=bp_now(); ps=par_render(d,pkey,&e);
+     }
+-    pthread_mutex_lock(&g_pp_mu); g_pp[slot].ps = ps; g_pp[slot].error = rb_async_pso() ? e : nil; g_pp[slot].done = 1; pthread_cond_broadcast(&g_pp_cv); pthread_mutex_unlock(&g_pp_mu);
++    uint64_t b1=bp_now();
++    pthread_mutex_lock(&g_pp_mu); g_pp[slot].ps = ps; g_pp[slot].error = rb_async_pso() ? e : nil;
++    g_pp[slot].rb_way=rb_par_last_way; g_pp[slot].rb_began=b0; g_pp[slot].rb_build_ns=b0 ? b1-b0 : 0; g_pp[slot].rb_compile_ns=rb_par_last_compile_ns;   // RewindBox (patch 0313)
++    g_pp[slot].done = 1; pthread_cond_broadcast(&g_pp_cv); pthread_mutex_unlock(&g_pp_mu);
+ }
+ static int ppq_waiting(int i) { return i >= 0 && g_pp[i].used && !g_pp[i].done && !g_ppq[i].run && g_ppq[i].d; }   // caller holds g_pp_mu
+ // Leave the descriptor in its slot until the selected worker actually starts.
+@@ -14637,6 +14640,21 @@ static void fu_yield_wait(void) {
+ // build that actually ran, including the compiler's information on a required variant.
+ static NSError *g_async_render_error;
+ static int g_async_render_built;
++// RewindBox (patch 0313): every wait of a second or more for a pipeline of the table, with how its build got it. IPA 824 (Mario Kart World, frame 1010): one required
++//   pipeline held the submit thread 3,817 ms and the journal could not tell an archive miss compiled cold from a build that stalled (no per-key archive result; the first-use
++//   wait line is written for waits 1-64 and powers of two only). Caller holds g_pp_mu
++static _Atomic uint64_t g_rb_long_waits, g_rb_long_wait_ns;
++static void rb_long_wait_note(int at, uint64_t w0, uint64_t w1, int required, int may_skip) {
++    if (w1 - w0 < 1000000000ull) return;
++    uint64_t n = atomic_fetch_add_explicit(&g_rb_long_waits, 1, memory_order_relaxed) + 1;
++    atomic_fetch_add_explicit(&g_rb_long_wait_ns, w1 - w0, memory_order_relaxed);
++    const char *way = !g_pp[at].done ? "not finished when the wait ended" : g_pp[at].rb_way == 1 ? "found it in a pipeline archive" : g_pp[at].rb_way == 2 ? "compiled it (no archive held it)" :
++                      g_pp[at].rb_way == 3 ? "waited for the same pipeline another thread was building" : "came from a build that did not go through the archive";
++    double began = g_pp[at].done && g_pp[at].rb_began ? ((double)g_pp[at].rb_began - (double)w0) / 1e6 : 0;
++    MLOG("【红】 RewindBox (patch 0313): long pipeline wait #%llu frame %llu: %.0f ms (%s); its build %s, %.1f ms in all, %.1f ms of them in the compiler, starting %.0f ms %s the wait",
++         (unsigned long long)n, (unsigned long long)atomic_load(&g_cur_frame), (w1 - w0) / 1e6, required ? "required" : may_skip ? "skippable" : "not skippable", way,
++         g_pp[at].rb_build_ns / 1e6, g_pp[at].rb_compile_ns / 1e6, began < 0 ? -began : began, began < 0 ? "before" : "after");
++}
+ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out, int may_skip) {   // Called by the submit thread: if it is in the table, wait for it to finish compiling and take it; otherwise return nil. *timed_out: 1 = past its own limit (late), 2 = the frame's budget ran out
+     g_async_render_built=0; g_async_render_error=nil;
+     const int required = rb_course_exact() || (!may_skip && (rb_async_pso() ||
+@@ -14671,6 +14689,7 @@ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out
+             if (lw) g_rb_lw_ns+=waited; else g_pp_bud_ns+=waited;
+             atomic_fetch_add_explicit(&g_course_pso_wait_ns,waited,memory_order_relaxed); }   // RewindBox (patch 0069): lw charges its own allowance
+         if (blk && !may_skip && bp_now() - w0 > (uint64_t)pso_wait_ms() * 1000000ull) { static unsigned n; if (n++ < 8) MLOG("【红】 a draw that cannot be skipped (its target keeps content across frames) waited %.0f ms for its pipeline to compile%s", (bp_now() - w0) / 1e6, g_pp[at].done ? "" : ": past DM_NVN_PSO_UNSAFE_WAIT_MS, skipped after all (the picture may be wrong until the pipeline arrives)"); }
++        if (blk) rb_long_wait_note(at, w0, bp_now(), required, may_skip);   // RewindBox (patch 0313): caller holds g_pp_mu
+         if (g_pp[at].done) {
+             ps=g_pp[at].ps; g_async_render_built=1; g_async_render_error=g_pp[at].error;
+             g_pp[at].ps=nil; g_pp[at].error=nil; g_pp[at].used=0;
+@@ -15047,7 +15066,7 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+       //   着色器对、归档键、等了多久、能不能跳（不能的原因看各目标：fresh = 这一帧清过 / 不读旧内容，steady = 前两帧都画过；存储写 = 着色器写存储），
+       //   据此分出「下一帧会被重画满」与「真正累积（历史 / 贴花 / 图集）」两类目标，再定跳过判据。前 64 次逐条，之后 2 的幂次
+       static uint64_t nw; uint64_t k_ = ++nw;
+-      if (d_ >= 4000000ull && (k_ <= 64 || !(k_ & (k_ - 1)))) {
++      if (d_ >= 4000000ull && (k_ <= 64 || !(k_ & (k_ - 1)) || d_ >= 1000000000ull)) {   // RewindBox (patch 0313): a wait of a second or more is always written
+           char tg[400]; int o = 0; tg[0] = 0;
+           for (int i = 0; i < R.rt.n && o < (int)sizeof tg - 80; i++) if (R.rt.color[i])
+               o += snprintf(tg + o, sizeof tg - o, " c%d ser=%llu %ux%u fmt=%#x fresh=%d steady=%d", i, (unsigned long long)R.rt.color[i]->serial, R.rt.color[i]->d.width, R.rt.color[i]->d.height, R.rt.color[i]->d.format, rt_fresh_now(R.rt.color[i]), rt_seen_steady(R.rt.color[i]));
+@@ -15093,7 +15112,7 @@ static NSString *warm_key(const char *s, size_t n) {
+ // shaders, so one worker builds them one after the other). The tasks keep the lists' order (a pair at its first line). shader_load shares successful objects and in-flight loads
+ // with prefetch and runtime, without negatively caching failures. After the upstream reference implementation (MIT) warm_parse / warm_task
+ #include "rb_reference.inc"
+-@interface WarmTask : NSObject { @public RBReferenceProof *reference; NSString *referenceIdentity; BOOL externalOnly, recent; uint8_t cupRank,drawRank; NSString *drawCue; uint64_t drawWait; int kind, stage, fc; uint32_t pad; NSString *key, *vkey, *fkey, *tkey; NSMutableArray<NSData *> *rs; } @end   // fc: a C line's sampler-emulation bits this GPU runs (#800, warm_parse)
++@interface WarmTask : NSObject { @public RBReferenceProof *reference; NSString *referenceIdentity; BOOL externalOnly, recent, drawSeen; uint8_t cupRank,drawRank; NSString *drawCue; uint64_t drawWait, drawFrame; int kind, stage, fc; uint32_t pad; NSString *key, *vkey, *fkey, *tkey; NSMutableArray<NSData *> *rs; } @end   // fc: a C line's sampler-emulation bits this GPU runs (#800, warm_parse)
+ @implementation WarmTask @end
+ static _Atomic long g_warm_done;   // lines done (the prepare step's progress)
+ static _Atomic int g_wp_phase, g_wp_why, g_wp_play; static _Atomic long g_wp_total; static _Atomic uint64_t g_wp_t0;
+@@ -15642,6 +15661,10 @@ static const char *rb_par_game_build(void) {
+ // The lists' lines as tasks; *lines: the lines they hold
+ // Two phases share canonical row identities. The external file is only opened
+ // by the cold phase after all accepted hot rows have finished.
++#include "rb_warm_order.h"
++static int rb_warm_first_use_on(void) {   // RewindBox (patch 0313): S2A_RB_WARM_FIRST_USE=0 keeps the earlier order
++    static int v=-1; if (v<0) { const char *e=getenv("S2A_RB_WARM_FIRST_USE"); v=!(e && !strcmp(e,"0")); } return v;
++}
+ static NSArray<WarmTask *> *warm_parse_list(NSArray<NSString *> *paths, long *lines,
+         NSMutableSet<NSString *> *seen, NSString *requestedReference, BOOL hotPhase, BOOL coldPhase) {
+     NSMutableArray<WarmTask *> *tasks = [NSMutableArray array];
+@@ -15737,6 +15760,7 @@ static NSArray<WarmTask *> *warm_parse_list(NSArray<NSString *> *paths, long *li
+                     const rb_draw_history_entry *entry=data.bytes;
+                     const rb_draw_record *r=&entry->preferred;
+                     t->drawCue=@(r->cue); t->drawWait=r->wait_ns; t->drawRank=rb_draw_rank(r);
++                    t->drawSeen=YES; t->drawFrame=MIN(entry->first.frame,r->frame);   // RewindBox (patch 0313): the frame of its first recorded draw
+                     if (!t->drawRank && [t->drawCue isEqual:firstCue]) t->drawRank=1;
+                     if (courseTrial>=0) {
+                         // A startup first draw can still qualify without any course cue.
+@@ -15773,6 +15797,26 @@ static NSArray<WarmTask *> *warm_parse_list(NSArray<NSString *> *paths, long *li
+     *lines = n;
+     if (history.count) MLOG("RewindBox cup pipeline history: %lu exact recipes, %lu previous waits scheduled ahead of the generic list",
+         (unsigned long)history.count,(unsigned long)startup);
++    // RewindBox (patch 0313): the generic list by recorded first use (rb_warm_order.h), the rows that waited before past the first RB_PSO_HOT_LIMIT among them
++    if (history.count && tasks.count > 1 && rb_warm_first_use_on()) {
++        unsigned nt=(unsigned)tasks.count, recorded=0, ahead=0; uint64_t lo=UINT64_MAX, hi=0;
++        rb_warm_slot *slots=calloc(nt,sizeof *slots); unsigned *order=calloc(nt,sizeof *order), *scratch=calloc(nt,sizeof *scratch);
++        if (slots && order && scratch) {
++            for (unsigned i=0;i<nt;i++) {
++                WarmTask *t=tasks[i];
++                slots[i]=(rb_warm_slot){.kind=t->kind,.recorded=t->drawSeen && t->kind==1,.frame=t->drawFrame,.wait=t->drawWait};
++                if (slots[i].recorded) { recorded++; lo=MIN(lo,t->drawFrame); hi=MAX(hi,t->drawFrame); }
++                else ahead+=t->kind==2 || t->kind==4;
++            }
++            rb_warm_first_use_order(slots,nt,order,scratch);
++            NSMutableArray<WarmTask *> *sorted=[NSMutableArray arrayWithCapacity:nt];
++            for (unsigned i=0;i<nt;i++) [sorted addObject:tasks[order[i]]];
++            tasks=sorted;
++            MLOG("RewindBox (patch 0313): generic prewarm list by recorded first use: %u compute and mesh rows first, then %u recorded rows by first draw (frames %llu-%llu), then %u other rows",
++                 ahead,recorded,(unsigned long long)(recorded ? lo : 0),(unsigned long long)hi,nt-ahead-recorded);
++        }
++        free(slots); free(order); free(scratch);
++    }
+     if (hot.count) MLOG("RewindBox (patch 0109): prewarm promoted %lu previously slow pipelines from %lu recorded priorities",
+                         (unsigned long)priority.count, (unsigned long)hot.count);
+     if (referenceTasks.count) {
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+index 9c94293..530b2f3 100644
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -950,13 +950,18 @@ static void par_slow_end(ParSlow *w, int ok) {
+     atomic_store(&w->done, 1);
+     par_slow_release(w);
+ }
++// RewindBox (patch 0313): how this thread's last par_render got its pipeline, for the required lane's long waits (nvn_mtl.m ppq_build, pso_pend_take):
++//   1 from an archive, 2 compiled (rb_par_last_compile_ns in the compiler), 3 the same key another thread was building
++static _Thread_local uint8_t rb_par_last_way; static _Thread_local uint64_t rb_par_last_compile_ns;
+ // Build a render pipeline through the archive. key = par_rkey(...), nil = not archived (built as before)
+ static id<MTLRenderPipelineState> par_render(MTLRenderPipelineDescriptor *d, NSString *key, NSError **e) {
+     rb_archive_note_startup(key);
++    rb_par_last_way = 0; rb_par_last_compile_ns = 0;
+     id got; ParFlight *mine;
+     if (par_fl_enter(key, &got, &mine)) {
+         if (got || RB_PAR_SCOPED()) {
+             if (!got && e) *e = mine->failure;
++            rb_par_last_way = 3;
+             return got;
+         }
+         mine = nil;  // historical unscoped behavior retries failures with the caller's descriptor
+@@ -1030,14 +1035,14 @@ static id<MTLRenderPipelineState> par_render_(MTLRenderPipelineDescriptor *d, NS
+         d.binaryArchives = @[b];
+         id<MTLRenderPipelineState> ps = [g_dev newRenderPipelineStateWithDescriptor:d options:MTLPipelineOptionFailOnBinaryArchiveMiss reflection:nil error:nil];
+         d.binaryArchives = nil;
+-        if (ps) { rb_pso_track(ps, RB_RENDER, key, YES); par_count(1); par_scope_result(0, 1); return ps; }
++        if (ps) { rb_pso_track(ps, RB_RENDER, key, YES); par_count(1); par_scope_result(0, 1); rb_par_last_way = 1; return ps; }
+     }
+     id<MTLBinaryArchive> a = rebuild ? nil : par_archive_for(key);
+     if (a) {
+         d.binaryArchives = @[a];
+         id<MTLRenderPipelineState> ps = [g_dev newRenderPipelineStateWithDescriptor:d options:MTLPipelineOptionFailOnBinaryArchiveMiss reflection:nil error:nil];
+         d.binaryArchives = nil;
+-        if (ps) { rb_pso_track(ps, RB_RENDER, key, YES); par_count(1); par_scope_result(0, 1); return ps; }
++        if (ps) { rb_pso_track(ps, RB_RENDER, key, YES); par_count(1); par_scope_result(0, 1); rb_par_last_way = 1; return ps; }
+         par_drop(key);
+     }
+     id<MTLBinaryArchive> legacy = rebuild ? nil : par_legacy_for(key);
+@@ -1047,7 +1052,7 @@ static id<MTLRenderPipelineState> par_render_(MTLRenderPipelineDescriptor *d, NS
+         d.binaryArchives = nil;
+         if (ps) {
+             rb_pso_track(ps, RB_RENDER, key, YES);
+-            par_count(1); par_scope_result(0, 1);
++            par_count(1); par_scope_result(0, 1); rb_par_last_way = 1;
+             par_note(key, d);  // promote only a descriptor that strictly reopened on this GPU
+             return ps;
+         }
+@@ -1056,8 +1061,9 @@ static id<MTLRenderPipelineState> par_render_(MTLRenderPipelineDescriptor *d, NS
+         pthread_mutex_unlock(&g_par_mu);
+     }
+     if (key && g_par_on) { par_count(0); par_scope_result(0, 0); }
+-    uint64_t started = RB_PAR_MEASURE() ? bp_now() : 0;
++    uint64_t started = RB_PAR_MEASURE() ? bp_now() : 0, rb_c0 = bp_now();
+     id<MTLRenderPipelineState> ps = [g_dev newRenderPipelineStateWithDescriptor:d error:e];
++    rb_par_last_way = 2; rb_par_last_compile_ns = bp_now() - rb_c0;
+     par_scope_build(0, started);
+     if (ps && rebuild) atomic_fetch_add(&g_par_reference_created,1);
+     rb_pso_track(ps, RB_RENDER, key, NO);
+diff --git a/graphics/nvn/gfx/nvn/rb_warm_order.h b/graphics/nvn/gfx/nvn/rb_warm_order.h
+new file mode 100644
+index 0000000..e94d833
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_warm_order.h
+@@ -0,0 +1,39 @@
++// RewindBox (patch 0313): the order of the generic prewarm list in a session with a draw history (nvn_mtl.m warm_parse_list). Pure C: tests/t_rb_warm_order.c.
++//   IPA 824 (Mario Kart World): the history's rows came after pso_user.tsv's rows, in hash order, and the rows that had waited before, past the first 64, came last of all,
++//   so 248 recorded pipelines first drawn in frames 300-600 were not built in time (0.94 s of waits). Now:
++//   1. compute and mesh rows, in list order (the history has no compute rows);
++//   2. the rows the history recorded, by the frame of their first draw (the earlier of its two records), then by their longest recorded wait;
++//   3. every other row, in list order.
++//   The sort is stable: rows that tie keep the list's order.
++#pragma once
++#include <stdint.h>
++#include <stdlib.h>
++#include <string.h>
++enum { RB_WARM_ROW_LIBRARY = 0, RB_WARM_ROW_RENDER = 1, RB_WARM_ROW_COMPUTE = 2, RB_WARM_ROW_MESH = 4 };
++typedef struct { int kind, recorded; uint64_t frame, wait; } rb_warm_slot;
++static inline int rb_warm_group(const rb_warm_slot *s) {
++    if (s->kind == RB_WARM_ROW_COMPUTE || s->kind == RB_WARM_ROW_MESH) return 0;
++    return s->recorded ? 1 : 2;
++}
++static inline int rb_warm_before(const rb_warm_slot *s, unsigned a, unsigned b) {   // a strictly before b (ties keep the list order)
++    int ga = rb_warm_group(&s[a]), gb = rb_warm_group(&s[b]);
++    if (ga != gb) return ga < gb;
++    if (ga != 1) return 0;
++    if (s[a].frame != s[b].frame) return s[a].frame < s[b].frame;
++    return s[a].wait > s[b].wait;
++}
++// out[i] = the index of the row placed i-th; tmp: n entries of scratch. Bottom-up merge sort: O(n log n), stable
++static inline void rb_warm_first_use_order(const rb_warm_slot *s, unsigned n, unsigned *out, unsigned *tmp) {
++    for (unsigned i = 0; i < n; i++) out[i] = i;
++    unsigned *src = out, *dst = tmp;
++    for (unsigned w = 1; w < n; w *= 2) {
++        for (unsigned lo = 0; lo < n; lo += 2 * w) {
++            unsigned mid = lo + w < n ? lo + w : n, hi = lo + 2 * w < n ? lo + 2 * w : n, i = lo, j = mid, k = lo;
++            while (i < mid && j < hi) dst[k++] = rb_warm_before(s, src[j], src[i]) ? src[j++] : src[i++];
++            while (i < mid) dst[k++] = src[i++];
++            while (j < hi) dst[k++] = src[j++];
++        }
++        unsigned *t = src; src = dst; dst = t;
++    }
++    if (src != out) memcpy(out, src, (size_t)n * sizeof *out);
++}
+diff --git a/graphics/nvn/tests/t_rb_warm_order.c b/graphics/nvn/tests/t_rb_warm_order.c
+new file mode 100644
+index 0000000..c7bbe2d
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_warm_order.c
+@@ -0,0 +1,86 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0313): host-only checks of the generic prewarm list's order by recorded first use (gfx/nvn/rb_warm_order.h).
++#include <assert.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include "../gfx/nvn/rb_warm_order.h"
++
++static rb_warm_slot row(int kind, int recorded, uint64_t frame, uint64_t wait) { return (rb_warm_slot){kind, recorded, frame, wait}; }
++static void order(const rb_warm_slot *s, unsigned n, unsigned *out) {
++    unsigned *tmp = malloc((n ? n : 1) * sizeof *tmp);
++    assert(tmp);
++    rb_warm_first_use_order(s, n, out, tmp);
++    free(tmp);
++}
++static void expect(const rb_warm_slot *s, unsigned n, const unsigned *want) {
++    unsigned got[64];
++    assert(n <= 64);
++    order(s, n, got);
++    for (unsigned i = 0; i < n; i++) {
++        if (got[i] != want[i]) { fprintf(stderr, "position %u: row %u, expected row %u\n", i, got[i], want[i]); assert(0); }
++    }
++}
++static uint64_t seed = 0x9e3779b97f4a7c15ull;
++static uint64_t next(void) { seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17; return seed; }
++
++int main(void) {
++    // ① IPA 824's shape: pso_user rows (library, render, compute) then history rows in hash order, then the rows that waited before past the first 64
++    const rb_warm_slot a[] = {
++        row(RB_WARM_ROW_LIBRARY, 0, 0, 0),        // 0 pso_user library
++        row(RB_WARM_ROW_RENDER, 0, 0, 0),         // 1 pso_user render row the history does not hold
++        row(RB_WARM_ROW_COMPUTE, 0, 0, 0),        // 2 pso_user compute
++        row(RB_WARM_ROW_RENDER, 1, 900, 0),       // 3 history, first drawn at frame 900
++        row(RB_WARM_ROW_RENDER, 1, 10, 0),        // 4 frame 10
++        row(RB_WARM_ROW_RENDER, 1, 400, 0),       // 5 frame 400
++        row(RB_WARM_ROW_MESH, 1, 5, 0),           // 6 mesh row: kept with compute, ahead
++        row(RB_WARM_ROW_RENDER, 1, 400, 7000000), // 7 frame 400, waited 7 ms before: ahead of row 5
++        row(RB_WARM_ROW_LIBRARY, 0, 0, 0),        // 8 another library
++    };
++    const unsigned wa[] = {2, 6, 4, 7, 5, 3, 0, 1, 8};
++    expect(a, 9, wa);
++
++    // ② ties keep the list's order (stable), in every group
++    const rb_warm_slot b[] = {
++        row(RB_WARM_ROW_RENDER, 1, 50, 0), row(RB_WARM_ROW_LIBRARY, 0, 0, 0), row(RB_WARM_ROW_RENDER, 1, 50, 0),
++        row(RB_WARM_ROW_COMPUTE, 0, 0, 0), row(RB_WARM_ROW_LIBRARY, 0, 0, 0), row(RB_WARM_ROW_RENDER, 1, 50, 0), row(RB_WARM_ROW_COMPUTE, 0, 0, 0),
++    };
++    const unsigned wb[] = {3, 6, 0, 2, 5, 1, 4};
++    expect(b, 7, wb);
++
++    // ③ nothing recorded: the list's order with compute and mesh rows first
++    const rb_warm_slot c[] = { row(RB_WARM_ROW_LIBRARY, 0, 0, 0), row(RB_WARM_ROW_RENDER, 0, 0, 0), row(RB_WARM_ROW_MESH, 0, 0, 0) };
++    const unsigned wc[] = {2, 0, 1};
++    expect(c, 3, wc);
++
++    // ④ empty and single lists
++    unsigned one[1];
++    order(c, 0, one);
++    order(c, 1, one); assert(one[0] == 0);
++
++    // ⑤ 9,018 rows (IPA 824's hot list): a permutation, in group order, recorded rows by frame then by wait, ties in list order
++    enum { N = 9018 };
++    rb_warm_slot *s = malloc(N * sizeof *s); unsigned *o = malloc(N * sizeof *o), *seen = calloc(N, sizeof *seen);
++    assert(s && o && seen);
++    for (unsigned i = 0; i < N; i++) {
++        unsigned r = (unsigned)(next() % 10);
++        int kind = r < 3 ? RB_WARM_ROW_LIBRARY : r < 9 ? RB_WARM_ROW_RENDER : (next() & 1) ? RB_WARM_ROW_COMPUTE : RB_WARM_ROW_MESH;
++        s[i] = row(kind, kind == RB_WARM_ROW_RENDER && (next() % 4) != 0, next() % 1200, (next() % 3) ? 0 : next() % 50000000);
++    }
++    order(s, N, o);
++    for (unsigned i = 0; i < N; i++) { assert(o[i] < N && !seen[o[i]]); seen[o[i]] = 1; }
++    for (unsigned i = 1; i < N; i++) {
++        const rb_warm_slot *p = &s[o[i - 1]], *q = &s[o[i]];
++        int gp = rb_warm_group(p), gq = rb_warm_group(q);
++        assert(gp <= gq);
++        if (gp != gq) continue;
++        if (gp == 1 && (p->frame != q->frame || p->wait != q->wait)) {
++            assert(p->frame < q->frame || (p->frame == q->frame && p->wait > q->wait));
++            continue;
++        }
++        assert(o[i - 1] < o[i]);   // same group and same key: list order
++    }
++    puts("t_rb_warm_order: ok");
++    free(s); free(o); free(seen);
++    return 0;
++}
