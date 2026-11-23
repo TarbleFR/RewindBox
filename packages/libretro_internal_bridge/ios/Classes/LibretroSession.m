@@ -18,6 +18,7 @@
 #import "LibretroInputMap.h"
 #import "LibretroInputState.h"
 #import "LibretroJit.h"
+#import "LibretroJitArena.h"
 #import "LibretroMetalPresenter.h"
 #import "LibretroOrientation.h"
 #import "LibretroOrientationPolicy.h"
@@ -642,7 +643,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     @"libraryName" : _host.libraryName ?: @"",
     @"libraryVersion" : _host.libraryVersion ?: @"",
     @"hardwareRendering" : [self rendererName],
-    @"jitCapable" : @(LibretroJitUsableByCores()),
+    @"jitCapable" : @(LibretroJitUsableByCores() || _host.jitCapable),
+    @"jitInterface" : @(_host.jitCapable && !LibretroJitUsableByCores()),
   };
   dispatch_async(dispatch_get_main_queue(), ^{
     self->_started = YES;
@@ -899,6 +901,28 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   __weak LibretroSession *weakSession = self;
   _host.optionsDeclared = ^(LibretroCoreOptions *options) {
     [weakSession applyNativeResolutionDefault:options];
+  };
+  // RewindBox's JIT interface (RewindBoxLibretroJit.h): the code arena the
+  // libretro helper transaction prepared before this launch goes to a core
+  // that exports its install function. That core may then generate code: its
+  // no-JIT interpreter overrides give way to its JIT settings, if any. An
+  // arena the core does not take is released at once; the answer then stays
+  // the measured legacy one (LibretroJitUsableByCores).
+  LibretroSessionJournal *jitJournal = _journal;
+  NSDictionary<NSString *, NSString *> *jitOverrides = configuration.jitOverrides;
+  __weak LibretroCoreHost *weakHost = _host;
+  _host.libraryOpened = ^BOOL(void *library, BOOL legacyCapable) {
+    if (LibretroJitInstallIntoLibrary(library)) {
+      weakHost.initialSessionOverrides = jitOverrides.count > 0 ? jitOverrides : nil;
+      [jitJournal note:[@"load: JIT interface 1 installed; " stringByAppendingString:LibretroJitArenaReport()]];
+      return YES;
+    }
+    if (libretro_jit_arena_ready()) {
+      [jitJournal note:[@"load: JIT arena not taken by this core, released; "
+                           stringByAppendingString:LibretroJitArenaReport()]];
+      libretro_jit_arena_release();
+    }
+    return legacyCapable;
   };
   NSError *error = nil;
   if (![_host loadCore:&error]) return [self failureFromError:error];
@@ -1192,6 +1216,13 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
         [journal note:@"teardown: renderer released"];
       }];
   host.teardownObserver = nil;
+  // The core is closed: its code arena (if any) is released with it.
+  LibretroJitArenaStats jitStats;
+  libretro_jit_arena_stats(&jitStats);
+  if (jitStats.state != LIBRETRO_JIT_ARENA_OFF) {
+    [_journal note:[@"teardown: " stringByAppendingString:LibretroJitArenaReport()]];
+    libretro_jit_arena_release();
+  }
   if (_ppssppViewsReleased) {
     // PPSSPP unmapped its views and freed its arena in retro_unload_game.
     _ppssppViewsReleased = NO;

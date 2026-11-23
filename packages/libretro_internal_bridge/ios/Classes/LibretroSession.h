@@ -21,6 +21,11 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, copy) NSDictionary<NSString *, NSString *> *optionDefaults;
 /// Interpreter settings forced while cores cannot use JIT.
 @property(nonatomic, copy) NSDictionary<NSString *, NSString *> *noJitOverrides;
+/// Session settings that select the core's code generator, applied only when
+/// the core accepted RewindBox's JIT interface for this session
+/// (LibretroJitInstallIntoLibrary); empty for cores that switch by
+/// themselves.
+@property(nonatomic, copy) NSDictionary<NSString *, NSString *> *jitOverrides;
 /// Curated, translated settings: [{key, label, values: [{value, label}]}].
 @property(nonatomic, copy) NSArray<NSDictionary *> *coreSettings;
 @property(nonatomic, assign) BOOL achievementsAllowed;

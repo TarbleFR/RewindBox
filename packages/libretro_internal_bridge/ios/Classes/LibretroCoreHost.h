@@ -113,6 +113,16 @@ typedef struct {
 /// defaults given then with `applyDefaultsBeforeInit:` reach a core that
 /// reads its options only in retro_init.
 @property(nonatomic, copy, nullable) void (^optionsDeclared)(LibretroCoreOptions *options);
+/// Called by `loadCore:` right after dlopen, the symbols and the API version
+/// check, before the option store, retro_set_environment and retro_init, on
+/// the loading thread, with the core's dlopen handle and the JIT answer given
+/// at init. Returns what RETRO_ENVIRONMENT_GET_JIT_CAPABLE reports for this
+/// open (a core that accepted RewindBox's JIT interface may generate code);
+/// it may also set `initialSessionOverrides`. Nil keeps the init value.
+@property(nonatomic, copy, nullable) BOOL (^libraryOpened)(void *library, BOOL jitCapable);
+/// What RETRO_ENVIRONMENT_GET_JIT_CAPABLE reports: the init value, or the
+/// answer `libraryOpened` gave for this open.
+@property(nonatomic, readonly) BOOL jitCapable;
 
 /// dlopen, symbol resolution, API version check, callbacks, retro_init.
 - (BOOL)loadCore:(NSError *_Nullable *_Nullable)error;

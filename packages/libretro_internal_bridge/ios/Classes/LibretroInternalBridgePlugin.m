@@ -6,6 +6,8 @@
 #import "LibretroFrontendStore.h"
 #import "LibretroGeometry.h"
 #import "LibretroJit.h"
+#import "LibretroJitArena.h"
+#import "LibretroJitBridge.h"
 #import "LibretroOrientation.h"
 #import "LibretroSession.h"
 #import "LibretroSkin.h"
@@ -320,8 +322,34 @@ static NSDictionary<NSString *, id> *Failure(NSString *code, NSString *message) 
       @"sessionActive" : @(self.session.active),
       @"debugged" : @(LibretroHostIsDebugged()),
       @"jitCapable" : @(LibretroJitUsableByCores()),
+      @"jitArena" : LibretroJitArenaReport(),
       @"log" : self.session != nil ? self.session.recentLog : (self.lastLog ?: @[]),
     });
+    return;
+  }
+  if ([call.method isEqualToString:@"prepareJit"]) {
+    // Before a launch whose core RewindBox built with its JIT interface: the
+    // libretro helper transaction prepares the session's code arena. Its
+    // facts are returned separately; a failure keeps the interpreter.
+    if (self.session.active || self.launching) {
+      result(@{@"success" : @NO, @"code" : @"LIBRETRO_JIT_SESSION_ACTIVE",
+               @"message" : @"A libretro game is running."});
+      return;
+    }
+    NSDictionary *arguments = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments : @{};
+    NSString *pairing = [arguments[@"pairingFilePath"] isKindOfClass:NSString.class] ? arguments[@"pairingFilePath"] : @"";
+    NSNumber *bytes = [arguments[@"bytes"] isKindOfClass:NSNumber.class] ? arguments[@"bytes"] : nil;
+    [[LibretroJitBridge shared] prepareWithPairingFile:pairing
+                                                 bytes:bytes != nil ? bytes.unsignedLongLongValue : 0
+                                            completion:^(NSDictionary<NSString *, id> *facts) {
+                                              result(facts);
+                                            }];
+    return;
+  }
+  if ([call.method isEqualToString:@"releaseJit"]) {
+    // A prepared arena the launch did not use (launch cancelled or refused).
+    if (!self.session.active && !self.launching && ![LibretroJitBridge shared].busy) libretro_jit_arena_release();
+    result(@{@"success" : @YES, @"arena" : LibretroJitArenaReport()});
     return;
   }
   if ([call.method isEqualToString:@"stop"]) {
@@ -689,6 +717,8 @@ static NSDictionary<NSString *, id> *Failure(NSString *code, NSString *message) 
       [arguments[@"optionDefaults"] isKindOfClass:NSDictionary.class] ? arguments[@"optionDefaults"] : @{};
   configuration.noJitOverrides =
       [arguments[@"noJitOverrides"] isKindOfClass:NSDictionary.class] ? arguments[@"noJitOverrides"] : @{};
+  configuration.jitOverrides =
+      [arguments[@"jitOverrides"] isKindOfClass:NSDictionary.class] ? arguments[@"jitOverrides"] : @{};
   configuration.coreSettings =
       [arguments[@"coreSettings"] isKindOfClass:NSArray.class] ? arguments[@"coreSettings"] : @[];
   configuration.achievementsAllowed = [arguments[@"achievementsAllowed"] boolValue];
