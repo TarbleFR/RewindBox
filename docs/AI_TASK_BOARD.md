@@ -8,6 +8,8 @@
 
 20 novembre — [IPA privée 804 livrée et vérifiée](evidence/rewind804/delivery.json) : moteur S2Arm revu `f956b7d8`, instrumentation et restitution du tas hôte 0172–0176. Clé privée existante réutilisée, quatre pièces chiffrées et IPA finale vérifiées, 97 images vérifiées et 10 identifiants de bundles conservés. Les différences de relais des deux ponts recompilés sont expliquées ; aucun nouvel avertissement Xcode face à 803. Comparaison mémoire et temps d’image sur iPhone en attente, estimation inchangée.
 
+23 novembre — [Hogwarts 824–828 : gel à t≈22 s](evidence/melonx-hogwarts-freeze-824-828-2026-11-23.md). Compilations compute ×200 = cache Metal du système vide (remplissage prouvé session par session) ; code de compilation et MoltenVK identiques à la 822. Appel exact du gel non visible dans les journaux : relevé des piles « aucune image depuis 2/5/12 s » ajouté au bridge (fb88bf8f0) et outil `tools/melonx/stall_report.py`. Mesure sur iPhone en attente.
+
 23 novembre — [Nextendo : un seul interrupteur, tous les jeux NEX](evidence/nextendo-online-all-games-2026-11-23.md). Certificat privé, serveur sécurisé par adresse et choix DNS étendus de SSBU à tout titre NEX ; écran réduit au compte et aux services en ligne. Core et app compilés localement (HLE/Library) ; NPLN non couvert ; iPhone non testé.
 
 23 novembre — [Grand nettoyage Actions, 500 dernières exécutions gardées](actions-history-cleanup-2026-11-23.md) : 2 584 exécutions supprimées en deux passages, reçus et relecture complète vérifiés ; 940 restent, dont 416 anciennes encore utilisées (épinglages, manifeste 826, routes actives, `main`, non terminées). 3 008 artefacts détachés (131 Go) attendent la purge différée de GitHub. Lanceur ponctuel retiré.
