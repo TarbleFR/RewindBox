@@ -424,7 +424,10 @@
     "mustChange": [
       "Frameworks/MeloNXCore.framework/MeloNXCore",
       "Frameworks/S2ArmEngine.framework/S2ArmEngine",
-      "Runner"
+      "Runner",
+      "Frameworks/App.framework/App",
+      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge"
     ]
   },
   "tests": {
