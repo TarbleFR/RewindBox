@@ -265,6 +265,11 @@ int main(int argc, char **argv) {
     id<NeoTextureEngine> azahar = [NeoTextureEngines azaharWithUserDirectory:[saves stringByAppendingPathComponent:@"Azahar/Azahar"] configDirectory:config];
     NSMutableDictionary *ocarina = [Identity(@"3ds", @"title_id", @"3ds-title-id", @"0004000000033500", @"Synthetic Ocarina") mutableCopy];
     ocarina[@"gameKey"] = @"3ds/Synthetic Ocarina";
+    // Azahar recreates load/textures/<Title ID>/ empty whenever custom textures are on: that folder is
+    // neither a manual pack nor a conflict for the install below.
+    [FM() createDirectoryAtPath:[saves stringByAppendingPathComponent:@"Azahar/Azahar/load/textures/0004000000033500"]
+    withIntermediateDirectories:YES attributes:nil error:nil];
+    CHECK([store installedForIdentity:ocarina engine:azahar].count == 0, "an empty engine folder is not a manual pack");
     outcome = Install(store, packs[@"azahar"], azahar, ocarina, NO, NO);
     CHECK(!outcome.error, "azahar install: %s", outcome.error.description.UTF8String);
     NSString *n3dsFolder = [saves stringByAppendingPathComponent:@"Azahar/Azahar/load/textures/0004000000033500"];

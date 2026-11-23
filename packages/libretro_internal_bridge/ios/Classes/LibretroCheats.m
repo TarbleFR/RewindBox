@@ -559,11 +559,41 @@ static NSString *FBBlock(NSDictionary *program) {
   // Nestopia and Snes9x use 256-byte stack buffers. Each call receives one bounded code.
   return result.count > 0 && result.count <= 100 ? result : nil;
 }
+// A file named by a descriptor (CUE track, M3U disc): relative, in the descriptor's folder, regular.
+static NSString *DescriptorMember(NSString *descriptor, NSString *relative) {
+  if (!relative.length || relative.isAbsolutePath || [relative.pathComponents containsObject:@".."] || [relative containsString:@"\\"]) return nil;
+  NSString *member = [descriptor.stringByDeletingLastPathComponent stringByAppendingPathComponent:relative];
+  NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath:member error:nil];
+  return [attributes[NSFileType] isEqual:NSFileTypeRegular] ? member : nil;
+}
 // A CUE describes tracks, not game bytes. Resolve its first binary track without
-// accepting absolute paths, traversal or a different directory. CHD/playlists
-// are deliberately left uncertain; their compressed/wrapper hash is not a ROM hash.
+// accepting absolute paths, traversal or a different directory. An M3U playlist
+// (multi-disc games) is its first disc, a CloneCD descriptor (.ccd) the .img next
+// to it, both only when that resolves to a raw image whose serial can be read.
+// CHD stays uncertain; its compressed hash is not a ROM hash.
 + (NSString *)identityContentPath:(NSString *)path {
-  if (![path.pathExtension.lowercaseString isEqual:@"cue"]) return path;
+  NSString *extension = path.pathExtension.lowercaseString;
+  if ([extension isEqual:@"m3u"]) {
+    NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath:path error:nil];
+    NSString *list = attributes && [attributes fileSize] <= 65536 ? [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil] : nil;
+    for (NSString *raw in [list componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet]) {
+      NSString *line = [raw stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet];
+      if (!line.length || [line hasPrefix:@"#"]) continue;
+      NSString *disc = DescriptorMember(path, line);
+      if (!disc || [disc.pathExtension.lowercaseString isEqual:@"m3u"]) return path;
+      NSString *image = [self identityContentPath:disc];
+      return [@[@"bin", @"iso", @"img"] containsObject:image.pathExtension.lowercaseString] ? image : path;
+    }
+    return path;
+  }
+  if ([extension isEqual:@"ccd"]) {
+    for (NSString *suffix in @[@"img", @"IMG"]) {
+      NSString *image = DescriptorMember(path, [path.lastPathComponent.stringByDeletingPathExtension stringByAppendingPathExtension:suffix]);
+      if (image) return image;
+    }
+    return path;
+  }
+  if (![extension isEqual:@"cue"]) return path;
   NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath:path error:nil];
   if (!attributes || [attributes fileSize] > 1024u * 1024u) return path;
   NSString *cue = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
@@ -573,11 +603,7 @@ static NSString *FBBlock(NSDictionary *program) {
   NSTextCheckingResult *match = [file firstMatchInString:cue options:0 range:NSMakeRange(0,cue.length)];
   if (!match) return path;
   NSRange capture = [match rangeAtIndex:1]; if (capture.location == NSNotFound) capture = [match rangeAtIndex:2];
-  NSString *relative = [cue substringWithRange:capture];
-  if (relative.isAbsolutePath || [relative.pathComponents containsObject:@".."] || [relative containsString:@"\\"]) return path;
-  NSString *track = [path.stringByDeletingLastPathComponent stringByAppendingPathComponent:relative];
-  NSDictionary *trackAttributes = [NSFileManager.defaultManager attributesOfItemAtPath:track error:nil];
-  return [trackAttributes[NSFileType] isEqual:NSFileTypeRegular] ? track : path;
+  return DescriptorMember(path, [cue substringWithRange:capture]) ?: path;
 }
 static uint32_t ISO32(const uint8_t *p) {
   return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);

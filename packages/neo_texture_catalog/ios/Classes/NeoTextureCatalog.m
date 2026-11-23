@@ -477,10 +477,12 @@ static NSDictionary *ValidatedPack(id value) {
     // The same game in another region or revision: never assumed compatible,
     // only offered for an explicit confirmation when the titles agree.
     NSString *title = NeoTexFoldTitle(entry[@"title"]);
+    // A 3DS Title ID is exact for each region: a pack naming other Title IDs is offered only for the
+    // same title, never for a title it begins with ("Shin Megami Tensei IV" is not "... IV: Apocalypse").
+    const BOOL exactIDs = differentID && declared[@"title_id|3ds-title-id"] && wanted[@"title_id|3ds-title-id"];
     BOOL titleMatches = title.length >= 4 && gameTitle.length >= 4 &&
-        ([title isEqualToString:gameTitle] || [title hasPrefix:gameTitle] || [gameTitle hasPrefix:title]);
+        ([title isEqualToString:gameTitle] || (!exactIDs && ([title hasPrefix:gameTitle] || [gameTitle hasPrefix:title])));
     if (titleMatches || sameID) candidate = YES;
-    (void)differentID;
   }
   return candidate ? @"candidate" : nil;
 }

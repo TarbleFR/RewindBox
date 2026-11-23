@@ -990,6 +990,9 @@ static BOOL MatchesRange(NSString *text, unsigned long long start, unsigned long
     BOOL directory = NO;
     if (![NSFileManager.defaultManager fileExistsAtPath:path isDirectory:&directory] || !directory) continue;
     NSDictionary *manifest = [self manifestAt:path];
+    // A folder without a texture is no pack to protect: Azahar recreates load/textures/<Title ID>/
+    // empty whenever custom textures are on, Beetle keeps only its prefetch journal there.
+    if (!manifest && !NeoTextureInstall::HasTextures(EngineKind(engine), Std(path))) continue;
     if (![manifest[@"pack_id"] isEqual:pack[@"id"]])
       return @{@"folder": target, @"title": NeoTexString(manifest[@"title"]), @"manual": @(manifest == nil)};
   }
@@ -1425,6 +1428,8 @@ static BOOL MatchesRange(NSString *text, unsigned long long start, unsigned long
   if (![NSFileManager.defaultManager fileExistsAtPath:path isDirectory:&directory] || !directory) return nil;
   if (!NeoTexNoLinksBelow(engine.texturesRoot, path)) return nil;
   NSMutableDictionary *installed = [[self manifestAt:path] mutableCopy];
+  // An engine-made folder without a texture is not a manual pack (see conflictForPack:).
+  if (!installed && !NeoTextureInstall::HasTextures(EngineKind(engine), Std(path))) return nil;
   if (!installed) installed = [@{@"manual": @YES, @"title": relative} mutableCopy];
   else installed[@"manual"] = @NO;
   if (!installed[@"pack_id"] && ![installed[@"manual"] boolValue]) {
