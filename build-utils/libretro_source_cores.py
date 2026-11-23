@@ -13,6 +13,11 @@ core never changes what an earlier delivery retained; a manifest that adopts the
 inputs (this script, native/<core>/) itself.
 
     python3 build-utils/libretro_source_cores.py --base DIR --output DIR --work DIR --cores azahar[,beetle_psx_hw...]
+    python3 build-utils/libretro_source_cores.py --base-bundle DIR --manifest build-utils/delivery/N.json ...
+
+--base-bundle takes what actions/download-artifact gives for a delivery's republished libretro component
+(RewindBox-Build<N>-<sha>-attempt<A>-component-libretro: original.zip and republication.json); both must name the
+archive the manifest retains (components.libretro.origin: bytes and SHA-256), which is then unpacked as the base.
 """
 from __future__ import annotations
 
@@ -25,6 +30,7 @@ import subprocess
 import sys
 import tarfile
 import urllib.request
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -69,6 +75,34 @@ def verify_base(base: Path) -> dict:
             raise SystemExit('base file differs from identity.json: ' + name)
     print(f'Base collection authenticated: {len(identity["cores"])} cores, {len(listed)} files', flush=True)
     return identity
+
+
+def unpack_republished(bundle: Path, manifest: Path, work: Path) -> tuple[Path, dict]:
+    spec = json.loads(manifest.read_text())['components']['libretro']
+    origin = spec['origin']
+    members = sorted(p.name for p in bundle.iterdir())
+    if members != ['original.zip', 'republication.json']:
+        raise SystemExit(f'unexpected republished bundle members: {members}')
+    record = json.loads((bundle / 'republication.json').read_text())
+    archive = bundle / 'original.zip'
+    original = record.get('original') or {}
+    if (record.get('schema') != 1 or record.get('kind') != 'libretro' or original.get('artifact') != origin['artifact']
+            or original.get('sha256') != origin['sha256'] or record.get('contentSHA256') != origin['sha256']
+            or archive.stat().st_size != origin['bytes'] or digest(archive) != origin['sha256']):
+        raise SystemExit('the republished bundle is not the libretro archive ' + manifest.name + ' retains')
+    target = work / 'base'
+    if target.exists():
+        shutil.rmtree(target)
+    with zipfile.ZipFile(archive) as content:
+        for member in content.infolist():
+            name = Path(member.filename)
+            if name.is_absolute() or '..' in name.parts or (member.external_attr >> 16) & 0o170000 == 0o120000:
+                raise SystemExit('unsafe member in the retained archive: ' + member.filename)
+        content.extractall(target)
+    print(f'Retained archive {origin["artifact"]} ({origin["sha256"]}) unpacked from the republished bundle', flush=True)
+    named = manifest.relative_to(ROOT).as_posix() if manifest.is_relative_to(ROOT) else str(manifest)
+    return target, dict(manifest=named, origin=origin,
+                        republished=spec.get('republished'))
 
 
 def fetch_archive(spec: dict, work: Path) -> Path:
@@ -177,12 +211,15 @@ def install(pin: dict, binary: Path, info: dict, identity: dict, output: Path) -
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--base', required=True)
+    base_source = parser.add_mutually_exclusive_group(required=True)
+    base_source.add_argument('--base', help='an unpacked collection, identity.json at its root')
+    base_source.add_argument('--base-bundle', help="a delivery's republished libretro component (with --manifest)")
+    parser.add_argument('--manifest', help='the delivery manifest whose retained libretro archive the bundle holds')
     parser.add_argument('--output', required=True)
     parser.add_argument('--work', required=True)
     parser.add_argument('--cores', required=True, help='comma-separated core ids among: ' + ', '.join(PINS))
     args = parser.parse_args(argv)
-    base, output, work = (Path(value).resolve() for value in (args.base, args.output, args.work))
+    output, work = Path(args.output).resolve(), Path(args.work).resolve()
     names = [name for name in args.cores.split(',') if name]
     unknown = sorted(set(names) - set(PINS))
     if unknown:
@@ -190,7 +227,16 @@ def main(argv=None) -> int:
     if output.exists():
         raise SystemExit('output already exists; use a fresh directory')
     work.mkdir(parents=True, exist_ok=True)
+    retained = None
+    if args.base_bundle:
+        if not args.manifest:
+            raise SystemExit('--base-bundle needs --manifest')
+        base, retained = unpack_republished(Path(args.base_bundle).resolve(), Path(args.manifest).resolve(), work)
+    else:
+        base = Path(args.base).resolve()
     identity = verify_base(base)
+    if retained is not None:
+        identity['sourceCoresBase'] = retained
     before = dict(identity['files'])
     shutil.copytree(base, output)
     changed: set[str] = set()

@@ -76,15 +76,10 @@ jobs:
         run-id: 44733205671
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path: dist/libretro-base
-    - name: Locate the retained collection
-      id: base
-      run: |
-        identity="$(find dist/libretro-base -maxdepth 4 -name identity.json | head -1)"
-        test -n "$identity"
-        echo "dir=$(dirname "$identity")" >> "$GITHUB_OUTPUT"
-        python3 -c "import json,sys; i=json.load(open(sys.argv[1])); print('base host commit', i['host_commit'], 'cores', len(i['cores']), 'files', len(i['files']))" "$identity"
     - name: Build the pinned source cores
-      run: python3 build-utils/libretro_source_cores.py --base "${{ steps.base.outputs.dir }}" --output dist/libretro --work "$RUNNER_TEMP/source-cores" --cores azahar
+      # The bundle holds original.zip (the producer archive 825.json retains) and republication.json; the script
+      # checks both against the manifest's pin before it unpacks the base collection.
+      run: python3 build-utils/libretro_source_cores.py --base-bundle dist/libretro-base --manifest build-utils/delivery/825.json --output dist/libretro --work "$RUNNER_TEMP/source-cores" --cores azahar
     - name: Show the packaged identity
       run: |
         python3 - <<'PY'
