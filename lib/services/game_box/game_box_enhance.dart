@@ -11,6 +11,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:neostation/services/game_box/game_box_media.dart';
+import 'package:neostation/services/game_box/game_box_preferences.dart';
 import 'package:neostation/services/game_box/game_box_sharp_scan.dart';
 import 'package:neostation/services/ios_library_root_relocation.dart';
 import 'package:neostation/services/logger_service.dart';
@@ -177,14 +178,47 @@ class GameBoxEnhance {
   static const int version = 2;
 
   /// Corrected copies are shown (the viewer's "Sharp text"); off, the
-  /// originals are.
-  static bool enabled = true;
+  /// originals are. Read from the preference at the first look-up of the
+  /// library's boxes ([cached], [prepareSoon]) unless set before; the boxes
+  /// on screen follow a change ([changes]).
+  static bool get enabled => _enabled;
+  static set enabled(bool value) {
+    _enabledKnown = true;
+    if (value == _enabled) return;
+    _enabled = value;
+    _changes.add('');
+  }
+
+  static bool _enabled = true;
+  static bool _enabledKnown = false;
+
+  static Future<void> _knowEnabled() async {
+    if (_enabledKnown) return;
+    final value = await GameBoxPreferences.sharpText();
+    if (!_enabledKnown) enabled = value;
+  }
+
+  /// Paths whose corrected copy has just become available, from [prepare]
+  /// or [cached]; an empty path when [enabled] changed. The library's boxes
+  /// listen to it to swap their scan for its copy.
+  static Stream<String> get changes => _changes.stream;
+  static final StreamController<String> _changes = StreamController<String>.broadcast();
 
   @visibleForTesting
   static Directory? debugDirectory;
 
   static final Map<String, GameBoxEnhanced?> _ready = {};
   static final Map<String, Future<GameBoxEnhanced?>> _running = {};
+  static final Map<String, Future<(GameBoxEnhanced?,)?>> _looking = {};
+
+  /// How long the selection must rest on a game before its box is corrected
+  /// in the background ([prepareSoon]): longer than the steps of a held
+  /// direction, so that browsing never starts a correction.
+  static const Duration settleDelay = Duration(milliseconds: 700);
+
+  static Timer? _soonTimer;
+  static int _soonGeneration = 0;
+  static Future<void>? _soonRunning;
 
   /// Number of ×2 steps for a picture [width] × [height]: enough for its long
   /// side to reach [readableSide], without passing [maxSide]; 0 when it is
@@ -212,13 +246,23 @@ class GameBoxEnhance {
   static void evict(String path) {
     _ready.remove(path);
     _running.remove(path);
+    _looking.remove(path);
   }
 
   @visibleForTesting
   static void clearMemory() {
     _ready.clear();
     _running.clear();
+    _looking.clear();
+    _soonTimer?.cancel();
+    _soonTimer = null;
+    _soonGeneration++;
+    _soonRunning = null;
   }
+
+  /// Whether a background correction waits for the selection to rest.
+  @visibleForTesting
+  static bool get debugSoonPending => _soonTimer != null;
 
   static Future<Directory> _directory() async {
     final override = debugDirectory;
@@ -235,8 +279,70 @@ class GameBoxEnhance {
     return _running[path] ??= _prepare(path).then((r) {
       _running.remove(path);
       _ready[path] = r;
+      if (r != null) _changes.add(path);
       return r;
     });
+  }
+
+  /// The corrected copy of [path] when it was made before, in this run or an
+  /// earlier one, read from the cache only: a picture never examined is not
+  /// examined here ([prepare] does it). The library's boxes ask it, so that
+  /// a copy made once shows everywhere, after a restart too.
+  static Future<GameBoxEnhanced?> cached(String path) async {
+    if (_ready.containsKey(path)) return _ready[path];
+    final running = _running[path];
+    if (running != null) return running;
+    await _knowEnabled();
+    // The block body matters: returning the removed future would make the
+    // look-up wait for itself.
+    final found = await (_looking[path] ??= _lookUp(path).whenComplete(() {
+      _looking.remove(path);
+    }));
+    if (found == null) return null;
+    if (!_ready.containsKey(path)) {
+      _ready[path] = found.$1;
+      if (found.$1 != null) _changes.add(path);
+    }
+    return _ready[path];
+  }
+
+  /// Corrects [paths] (the selected game's front and back) in the background
+  /// once the selection rests on them: each call replaces the previous one
+  /// and restarts the wait of [delay], so nothing starts while the selection
+  /// keeps moving; one picture at a time, from the cache when it was done
+  /// before. The box then opens already sharp, and the library shows the
+  /// copy ([changes]). Nothing is done when [enabled] is off; an empty list
+  /// only cancels what was waiting.
+  static void prepareSoon(Iterable<String?> paths, {Duration delay = settleDelay}) {
+    final list = <String>[
+      for (final path in paths)
+        if (path != null && path.isNotEmpty) path,
+    ];
+    final generation = ++_soonGeneration;
+    _soonTimer?.cancel();
+    _soonTimer = null;
+    if (list.isEmpty) return;
+    _soonTimer = Timer(delay, () {
+      _soonTimer = null;
+      _runSoon(list, generation);
+    });
+  }
+
+  static Future<void> _runSoon(List<String> paths, int generation) async {
+    await _knowEnabled();
+    for (final path in paths) {
+      // A correction under way ends first (its isolate is not stopped); the
+      // newest selection then takes over.
+      while (_soonRunning != null) {
+        await _soonRunning;
+      }
+      if (generation != _soonGeneration || !enabled) return;
+      if (_ready.containsKey(path)) continue;
+      final run = prepare(path).then<void>((_) {}, onError: (_) {});
+      _soonRunning = run;
+      await run;
+      if (identical(_soonRunning, run)) _soonRunning = null;
+    }
   }
 
   /// The name a picture's corrected copy is filed under: its path inside
@@ -251,36 +357,43 @@ class GameBoxEnhance {
     return 'container:${parts.relative}';
   }
 
+  /// Where the copy and the report of [path] are filed, or null when the
+  /// picture is not examined (unreadable, or too large to need it).
+  static Future<_CacheEntry?> _entryOf(String path) async {
+    final size = GameBoxImageSize.of(path);
+    if (size == null || size.width * size.height > maxExaminedPixels) return null;
+    final stat = await File(path).stat();
+    if (stat.type == FileSystemEntityType.notFound) return null;
+    final dir = await _directory();
+    final owner = sha1.convert(utf8.encode(cacheOwnerName(path))).toString().substring(0, 16);
+    final key = sha1
+        .convert(utf8.encode('${stat.size}|${stat.modified.millisecondsSinceEpoch}|v$version'))
+        .toString()
+        .substring(0, 12);
+    return _CacheEntry(dir, owner, key, size.width.round(), size.height.round());
+  }
+
+  /// What the cache knows of [path]: null when it was never examined (or
+  /// its copy is gone), `(null,)` when it has no defect, else its copy.
+  static Future<(GameBoxEnhanced?,)?> _lookUp(String path) async {
+    try {
+      final entry = await _entryOf(path);
+      return entry == null ? null : await entry.read();
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Future<GameBoxEnhanced?> _prepare(String path) async {
     try {
-      final size = GameBoxImageSize.of(path);
-      if (size == null || size.width * size.height > maxExaminedPixels) return null;
+      final entry = await _entryOf(path);
+      if (entry == null) return null;
+      final known = await entry.read();
+      if (known != null) return known.$1;
+      final (dir, owner, key, sw, sh) = (entry.dir, entry.owner, entry.key, entry.sourceWidth, entry.sourceHeight);
       final file = File(path);
-      final stat = await file.stat();
-      final dir = await _directory();
-      final owner = sha1.convert(utf8.encode(cacheOwnerName(path))).toString().substring(0, 16);
-      final key = sha1
-          .convert(utf8.encode('${stat.size}|${stat.modified.millisecondsSinceEpoch}|v$version'))
-          .toString()
-          .substring(0, 12);
-      final target = File(p.join(dir.path, '$owner-$key.png'));
-      final report = File(p.join(dir.path, '$owner-$key.json'));
-      final sw = size.width.round(), sh = size.height.round();
-      if (await report.exists()) {
-        final diagnosis = GameBoxImageDiagnosis.fromJson(jsonDecode(await report.readAsString()));
-        if (diagnosis != null && diagnosis.defects.isEmpty) return null;
-        final done = await target.exists() ? GameBoxImageSize.of(target.path) : null;
-        if (diagnosis != null && done != null) {
-          return GameBoxEnhanced(
-            path: target.path,
-            sourceWidth: sw,
-            sourceHeight: sh,
-            width: done.width.round(),
-            height: done.height.round(),
-            diagnosis: diagnosis,
-          );
-        }
-      }
+      final target = entry.target;
+      final report = entry.report;
       final bytes = await file.readAsBytes();
       final jpeg = bytes.length > 2 && bytes[0] == 0xFF && bytes[1] == 0xD8;
       final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
@@ -952,5 +1065,43 @@ class GameBoxEnhance {
       }
     }
     return GameBoxPixels(ow, oh, result);
+  }
+}
+
+/// The files of one picture in the cache of [GameBoxEnhance]: its report
+/// (what was found) and its corrected copy, named after the picture and its
+/// size and date.
+class _CacheEntry {
+  _CacheEntry(this.dir, this.owner, this.key, this.sourceWidth, this.sourceHeight);
+
+  final Directory dir;
+  final String owner;
+  final String key;
+  final int sourceWidth;
+  final int sourceHeight;
+
+  File get target => File(p.join(dir.path, '$owner-$key.png'));
+  File get report => File(p.join(dir.path, '$owner-$key.json'));
+
+  /// `(null,)` for a picture examined without defect, `(copy,)` for one
+  /// corrected, null when it must be examined (no report, or its copy gone).
+  Future<(GameBoxEnhanced?,)?> read() async {
+    if (!await report.exists()) return null;
+    final diagnosis = GameBoxImageDiagnosis.fromJson(jsonDecode(await report.readAsString()));
+    if (diagnosis == null) return null;
+    if (diagnosis.defects.isEmpty) return (null,);
+    final copy = target;
+    final done = await copy.exists() ? GameBoxImageSize.of(copy.path) : null;
+    if (done == null) return null;
+    return (
+      GameBoxEnhanced(
+        path: copy.path,
+        sourceWidth: sourceWidth,
+        sourceHeight: sourceHeight,
+        width: done.width.round(),
+        height: done.height.round(),
+        diagnosis: diagnosis,
+      ),
+    );
   }
 }

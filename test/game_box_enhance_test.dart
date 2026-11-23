@@ -15,6 +15,7 @@ import 'package:neostation/services/game_box/game_box_enhance.dart';
 import 'package:neostation/services/game_box/game_box_media.dart';
 import 'package:neostation/services/game_box/game_box_sharp_scan.dart';
 import 'package:neostation/services/game_box/game_box_sources.dart';
+import 'package:neostation/widgets/game_box/game_box_card.dart';
 import 'package:path/path.dart' as p;
 
 /// Print-like test card: dark strokes of several widths on a light panel,
@@ -242,6 +243,111 @@ void main() {
         final reports = GameBoxEnhance.debugDirectory!.listSync().map((f) => p.extension(f.path)).toList();
         expect(reports, ['.json'], reason: 'examined once, no copy');
       });
+    });
+  });
+
+  // docs/game-box-3d.md § 28: the copies show everywhere, made in the
+  // background once the selection rests.
+  group('everywhere in the library', () {
+    late Directory dir;
+    setUp(() {
+      dir = Directory.systemTemp.createTempSync('gbenh');
+      GameBoxEnhance.debugDirectory = Directory(p.join(dir.path, 'enhanced'));
+      GameBoxEnhance.clearMemory();
+      GameBoxEnhance.enabled = true;
+    });
+    tearDown(() {
+      GameBoxEnhance.debugDirectory = null;
+      GameBoxEnhance.clearMemory();
+      GameBoxEnhance.enabled = true;
+      dir.deleteSync(recursive: true);
+    });
+
+    Future<File> degraded(String name) async => File(p.join(dir.path, 'media', 'psp', 'box2d', '$name.png'))
+      ..createSync(recursive: true)
+      ..writeAsBytesSync(await _png(_blurred(_card(160, 184), sigma: 0.8)));
+
+    testWidgets('a copy made earlier is found by a look-up, which never examines a picture', (tester) async {
+      await tester.runAsync(() async {
+        final original = await degraded('Quest');
+        expect(await GameBoxEnhance.cached(original.path), isNull);
+        final cache = GameBoxEnhance.debugDirectory!;
+        expect(cache.existsSync() ? cache.listSync() : const <FileSystemEntity>[], isEmpty,
+            reason: 'a look-up examines nothing');
+        expect(GameBoxEnhance.sourceOf(original.path), original.path);
+
+        final made = await GameBoxEnhance.prepare(original.path);
+        GameBoxEnhance.clearMemory(); // a restart
+        final announced = GameBoxEnhance.changes.firstWhere((path) => path == original.path);
+        final found = await GameBoxEnhance.cached(original.path);
+        expect(found?.path, made!.path);
+        expect(await announced.timeout(const Duration(seconds: 2)), original.path,
+            reason: 'the boxes on screen are told');
+        expect(GameBoxEnhance.sourceOf(original.path), made.path);
+      });
+    });
+
+    testWidgets('the selected box is corrected once the selection rests, never while it moves', (tester) async {
+      await tester.runAsync(() async {
+        final passed = await degraded('Passed'), rested = await degraded('Rested');
+        final done = GameBoxEnhance.changes.firstWhere((path) => path == rested.path);
+        const wait = Duration(milliseconds: 80);
+        GameBoxEnhance.prepareSoon([passed.path], delay: wait);
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        GameBoxEnhance.prepareSoon([rested.path, null], delay: wait);
+        expect(GameBoxEnhance.debugSoonPending, isTrue);
+        await done.timeout(const Duration(seconds: 60));
+        expect(GameBoxEnhance.of(rested.path), isNotNull);
+        expect(await GameBoxEnhance.cached(passed.path), isNull, reason: 'the game passed over was never examined');
+
+        // Leaving the list drops what waits; "Sharp text" off corrects nothing.
+        GameBoxEnhance.prepareSoon([passed.path], delay: wait);
+        GameBoxEnhance.prepareSoon(const []);
+        expect(GameBoxEnhance.debugSoonPending, isFalse);
+        GameBoxEnhance.enabled = false;
+        GameBoxEnhance.prepareSoon([passed.path], delay: wait);
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+        expect(await GameBoxEnhance.cached(passed.path), isNull);
+      });
+    });
+
+    testWidgets('the library box shows the copy made earlier, and the scan again with "Sharp text" off',
+        (tester) async {
+      late File original;
+      late GameBoxEnhanced made;
+      await tester.runAsync(() async {
+        original = await degraded('Quest');
+        made = (await GameBoxEnhance.prepare(original.path))!;
+      });
+      GameBoxEnhance.clearMemory(); // a restart
+      Iterable<String> files() => tester.widgetList<Image>(find.byType(Image)).map((image) {
+            var provider = image.image;
+            if (provider is ResizeImage) provider = provider.imageProvider;
+            return provider is FileImage ? provider.file.path : '';
+          });
+      await tester.pumpWidget(MaterialApp(
+        home: Center(
+          child: SizedBox(
+            width: 300,
+            height: 400,
+            child: GameBoxCard(frontPath: original.path, title: 'Quest', systemId: 'psp'),
+          ),
+        ),
+      ));
+      expect(files(), contains(original.path));
+      for (var i = 0; i < 40 && !files().contains(made.path); i++) {
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+        await tester.pump();
+      }
+      expect(files(), contains(made.path));
+      expect(files(), isNot(contains(original.path)));
+
+      GameBoxEnhance.enabled = false;
+      await tester.pump();
+      await tester.pump();
+      expect(files(), contains(original.path));
+      expect(files(), isNot(contains(made.path)));
+      await tester.pumpWidget(const SizedBox());
     });
   });
 

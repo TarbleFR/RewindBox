@@ -15,7 +15,7 @@ Référence visuelle : la vidéo YouTube `teVZ90DnkbQ` n'a pas pu être consult�
 ## 1. Vues concernées et pile graphique
 
 - **Vues concernées** (Build 493) : le carrousel en style de carte « Boîte » (`gameCarouselCardStyle == 'box'`, `my_games_carousel.dart`), la grille dans ce même style (`my_games_grid.dart`), la vue Liste (miniatures des lignes, `game_list_view.dart`, et onglet « Jaquette » du panneau de détails, `game_details_box2d_tab.dart`). Le style « Fanart » du carrousel et de la grille ne change pas (cartes plates, halo conservé).
-- **Composants communs** : `GameBoxCard` (boîtier au repos, sans geste ; en grille et en liste avec la largeur de décodage de l'ancienne jaquette plate, `decodeWidth`, et une seule facette par coin arrondi), `GameBoxLibrary` (`lib/widgets/game_box/game_box_library.dart` : chemins des scans mis en cache par jeu et version des illustrations, profils, ouverture de la visionneuse, « Jouer » avec ouverture) et la même visionneuse `GameBoxInspector` pour les trois vues.
+- **Composants communs** : `GameBoxCard` (boîtier au repos, sans geste ; en grille et en liste avec la largeur de décodage de l'ancienne jaquette plate, `decodeWidth`, et trois facettes par coin arrondi au lieu de huit, éclairées comme une courbe, § 29), `GameBoxLibrary` (`lib/widgets/game_box/game_box_library.dart` : chemins des scans mis en cache par jeu et version des illustrations, profils, ouverture de la visionneuse, « Jouer » avec ouverture) et la même visionneuse `GameBoxInspector` pour les trois vues.
 - **Pile graphique** : celle des couvertures de livres 3D de la Bibliothèque (Build 443/447) — des widgets Flutter transformés par des `Matrix4` en perspective, sans dépendance nouvelle ni moteur 3D. Chaque face est un widget (image, surface neutre ou peinture) placé par sa propre matrice ; les faces tournées vers l'arrière sont écartées et les autres peintes de la plus éloignée à la plus proche. Un boîtier fermé est convexe : l'élimination des faces arrière suffit. Ouvert, le corps, le support et le couvercle sont peints dans un ordre de calques défini par famille (le volet d'une boîte en carton passe derrière la cartouche une fois rabattu). Un moteur 3D natif (SceneKit dans une vue de plateforme) a été écarté : coût de composition des vues de plateforme Flutter sur iOS, navigation à la manette et accessibilité à refaire, et aucun test possible hors appareil, alors que le rendu `Matrix4` se teste et se photographie dans `flutter test`.
 - Modules : `lib/widgets/game_box/game_box_geometry.dart` (modèle, poses, projection, ouverture), `game_box_scene.dart` (faces), `game_box_surfaces.dart` (surfaces neutres, disque, cartouche, intérieur, charnière), `game_box_card.dart` (carte du carrousel), `lib/screens/game_box/game_box_inspector.dart` (visionneuse), `box_back_reader_screen.dart` (lecture), `lib/services/game_box/` (profils, médias, éditions, lecture du texte).
 
@@ -159,7 +159,7 @@ Lanceur : `python3 test/game_box_targeted_test.py --part host|native` (verdicts 
 
 ## 11. Ouvrir la boîte et la notice (Build 493)
 
-**« Ouvrir la boîte »** (visionneuse ; clic du stick droit) est distinct de « Jouer » : le boîtier s'aligne sur la pose d'ouverture et s'ouvre (0,95 s), sans rien lancer. Dans un boîtier plastique (DVD, Blu-ray, UMD, cristal, cartes, Mega Drive), le disque reste sur son moyeu et la carte ou la cartouche dans son logement ; dans une boîte en carton, la cartouche sort par le haut et la notice dépasse derrière elle, pour que les deux se voient. On peut zoomer, déplacer et regarder un peu autour (lacet de −0,5 à +0,45 rad autour de la pose, inclinaison −0,12 à 0,9) ; le boîtier ouvert ne tourne jamais jusqu'à son dos. « Refermer la boîte », B ou Retour le referment et le remettent dans sa pose d'avant. « Jouer » depuis la boîte ouverte garde l'angle et ne fait plus que sortir le support avant la transition habituelle.
+**« Ouvrir la boîte »** (visionneuse ; clic du stick droit) est distinct de « Jouer » : le boîtier s'aligne sur la pose d'ouverture et s'ouvre (0,95 s), sans rien lancer. Dans un boîtier plastique (DVD, Blu-ray, UMD, cristal, cartes, Mega Drive), le disque reste sur son moyeu et la carte ou la cartouche dans son logement ; dans une boîte en carton, la cartouche sort par le haut et la notice dépasse derrière elle, pour que les deux se voient. On peut zoomer, déplacer et regarder un peu autour (lacet de −0,5 à +0,45 rad autour de la pose, inclinaison −0,12 à 0,9) ; le boîtier ouvert ne tourne jamais jusqu'à son dos. « Refermer la boîte », B ou Retour le referment et le remettent dans sa pose d'avant. « Jouer » depuis la boîte ouverte garde l'angle et ne fait plus que sortir le support avant la transition habituelle. Un toucher sur le disque ou la cartouche, ou Y, le sort de la boîte et le montre sous tous les angles (§ 30).
 
 **La notice dans le boîtier.** Elle n'existe que si le PDF est sur l'appareil : aucun livret n'est dessiné sans document (`GameBoxModel.booklet` nul). C'est le même fichier que Réglages du jeu › Notice : `GameModel.getManualPath` résolu par le `FileProvider` (`media/<système>/manuals/<jeu>.pdf`), par le service commun `GameManualService`, que l'onglet Notice utilise désormais aussi ; rien n'est copié ni mis en cache à côté.
 - Placement : boîtier à charnière (DVD, Blu-ray, UMD, cartes, Mega Drive) — à l'intérieur du panneau avant, couverture vers le lecteur une fois le panneau ouvert, lisible à l'endroit, entre les attaches ; boîtier cristal — dans le couvercle, sous l'emplacement de l'encart avant, à droite de la charnière ; boîte en carton — debout derrière la cartouche, sortie par l'ouverture jusqu'à dépasser de 14 mm la cartouche levée. Tant que le panneau n'est pas tourné vers le lecteur, la notice est peinte sous lui.
@@ -655,3 +655,102 @@ Jusqu'ici, ScreenScraper était la seule source des notices. Quand la langue de 
 **Limites.**
 - Un gabarit reproduit la mise en page d'origine, pas le visuel propre à un jeu : bandeaux, personnages et mentions légales ne sont pas inventés. Seul un scan (tranche ou feuille complète) donne la tranche exacte. « Récupérer les faces du boîtier » les cherche (ScreenScraper `box-2D-side` et `box-texture`, GameTDB pour Nintendo).
 - Le rabat du dessous d'une vraie boîte porte des mentions légales : il reste volontairement sobre.
+
+## 28. Jaquettes nettes partout : copies corrigées retrouvées et préparées d'avance (23 novembre 2026)
+
+**Constat (mesuré, banc `flutter test --enable-impeller`, vue 390 × 488 à 3×).**
+- Sur un bon scan, le rendu 3D ne rend pas le texte flou. Impeller lit les images avec un biais de niveau de détail de −0,475 (`kDefaultMipBias`, `impeller/compiler/shader_lib/impeller/constants.glsl`) : jusqu'à une réduction d'environ 1,39×, c'est la pleine résolution qui est lue. Rendue « à la taille exacte », la face avant d'un scan Switch de 1166 px n'est pas plus nette qu'aujourd'hui. Étendre au recto le rendu du dos (§ 12) n'apporterait donc rien : c'est écarté.
+- Les jaquettes floues sont des scans de basse définition (PSP en 512 px, PC Engine en 400 px), agrandis 1,5 à 2× à l'écran. La correction du § 22 les rend lisibles : « www.pegi.info » se lit sur la PSP. Mais :
+  - elle n'était calculée qu'à l'ouverture de la vue détaillée, en 3,5 à 9,2 s par image la première fois (mesuré dans le conteneur de développement, pas sur iPhone), si bien qu'on voyait d'abord l'original ;
+  - le carrousel, la grille, la liste et l'onglet Jaquette ne s'en servaient jamais, sauf pour un jeu ouvert pendant la même session, alors que la copie restait en cache sur l'appareil.
+
+**Changement.**
+1. `GameBoxEnhance.cached(path)` relit le rapport et la copie déjà faits, sans jamais examiner une image. Chaque boîte de la bibliothèque (`GameBoxCard`) le demande pour sa face avant et sa tranche, y compris après un redémarrage.
+2. `GameBoxEnhance.prepareSoon([recto, verso])` corrige en arrière-plan le jeu sur lequel la sélection se pose :
+   - rien ne démarre tant que la sélection bouge (attente de 700 ms relancée à chaque pas) ;
+   - l'attente est annulée pendant un défilement rapide et en quittant la liste ;
+   - une image à la fois, dans un isolate.
+   L'appel est fait par `_performBackgroundOperationsForSelectedGame`, par où passent le carrousel, la grille et la liste. La boîte s'ouvre ensuite déjà nette.
+3. `GameBoxEnhance.changes` annonce chaque copie prête ; la boîte concernée remplace son scan sans clignotement (`gaplessPlayback`). Le réglage « Texte net » est lu au premier usage et suivi en direct : désactivé, ce sont les originaux partout.
+
+**Vérification.** `test/game_box_enhance_test.dart`, groupe « everywhere in the library » :
+- une recherche dans le cache n'examine rien ;
+- une copie faite avant est retrouvée et annoncée ;
+- le jeu seulement survolé n'est jamais corrigé, celui où la sélection se pose l'est ;
+- « Texte net » désactivé : rien n'est fait et la boîte montre l'original.
+
+**Limites.**
+- Un texte de moins d'environ 2 px par trait dans l'original reste illisible ; seule une meilleure source aide. Exemple vérifié : l'image de boîte du catalogue Nintendo Europe n'existe qu'en 500 px.
+- Non mesuré sur iPhone : charge du processeur pendant la pause sur un jeu, temps de correction.
+
+## 29. Coins arrondis lisses (23 novembre 2026)
+
+**Constat.** Chaque coin arrondi était fait de 3 facettes plates (1 dans la grille et la liste), chacune d'une seule teinte. De trois quarts, le coin paraissait biseauté.
+
+**Changement.**
+- 8 facettes par coin dans la vue détaillée et le carrousel, 3 dans la grille et la liste (`GameBoxModel.cornerSegments`).
+- Chaque facette d'une surface courbe porte les normales de ses deux bords (`BoxFace.normalStart`, `normalEnd`). `BoxProjector.project` en tire l'ombrage de chaque bord (`shadeStart`, `shadeEnd`), que `GameBoxFaceLight` peint en dégradé (`darkenEnd`). Deux facettes voisines ont ainsi la même teinte sur leur bord commun : la courbe n'a plus de marche. La tranche des disques est éclairée de la même façon (§ 30).
+- La lumière d'une face reste dans son contour (coins arrondis du boîtier, cercle d'un disque) : plus de petits coins sombres quand la boîte tourne.
+- Coût : 18 → 38 faces par boîte dans la vue détaillée et le carrousel, 10 → 18 dans la grille et la liste.
+
+**Vérification.** `test/game_box_geometry_test.dart` :
+- 32 facettes de coin (12 avec 3) ;
+- teinte continue entre facettes, et avec les côtés droits, sous trois poses ;
+- le test de centrage échantillonne maintenant les arcs du recto et du verso ; il ne prenait que leurs bouts droits, que 8 facettes contournent.
+
+## 30. Disques et cartouches en volume, sortis de la boîte et vus sous tous les angles (23 novembre 2026)
+
+**Avant.** Le disque était une face plate sans épaisseur, invisible par la tranche et sans face gravée ; la cartouche, un simple pavé. On ne pouvait ni les sortir ni voir leur dos.
+
+**Le support est un solide** (`GameBoxModel.supportFaces`).
+- **Disque** (CD, DVD, BD, mini-disque GameCube) : face étiquette (le `support-2D` scrapé, comme avant), face gravée dessinée, tranche de 1,2 mm en 48 facettes éclairées comme une courbe (16 dans les vignettes).
+- **Cartouches, cartes, HuCARD, UMD, disquette, cassette** : bloc aux coins arrondis de leur coque (rayon du style de la console), coin coupé à 45° pour la Game Boy, recto et verso détourés.
+- **Dos dessinés**, faute de scan :
+  - face gravée irisée, noire pour la PlayStation, dont l'arc-en-ciel reste tourné vers la lumière ;
+  - dos de cartouche avec panneau moulé, vis et fente, ou contacts selon la famille ;
+  - contacts dorés des cartes ;
+  - UMD vue par sa fenêtre ;
+  - disquette et cassette sobres.
+  Aucune étiquette n'est inventée.
+
+**Le prendre en main.**
+- **Sortir** : boîte ouverte, un toucher sur le disque ou la cartouche, ou **Y** à la manette. Une carte quitte d'abord son clip. Le support vient face à la caméra, centré, son plus grand encombrement (diamètre ou diagonale) occupant 72 % du petit côté de la vue (420 ms). La boîte reste ouverte au même angle, assombrie derrière lui ; un zoom éventuel est ramené à 1.
+- **Tourner** : il tourne librement dans tous les sens.
+  - Au doigt : glisser à droite tourne sa face vers la droite, glisser vers le bas montre son dessus.
+  - Au pavé directionnel ou aux sticks : par sixièmes de tour.
+  - **Y** le retourne.
+  - Les boutons « Face avant » et « Face arrière » du panneau le présentent de face ou de dos.
+  - Pincer zoome ; double toucher ou clic du stick gauche le recentre.
+- **Remettre** : **B**, Retour, un toucher à côté de lui ou le clic du stick droit le remettent à sa place (380 ms), en le ramenant de face en chemin. « Refermer la boîte », « Lire la notice » et « Jouer » le remettent d'abord en place.
+- Avec « Réduire les animations », il passe directement d'un état à l'autre.
+- Lecteur d'écran : « Disque — titre du jeu » (ou cartouche, carte de jeu) pendant qu'il est tenu.
+
+**Géométrie.**
+- `BoxOpening` gagne trois valeurs :
+  - `supportTake` : avancement de la sortie ;
+  - `supportTakeTarget` : position tenue, calculée par `BoxProjector.supportTakeTarget` comme pour la notice ;
+  - `supportSpin` : rotation autour du centre du support et des axes de l'écran.
+- Le cadrage de la boîte ne bouge pas pendant que le support est sorti.
+- `BoxProjector.hitsSupport` ne retient un disque que dans son cercle, et ignore la partie d'une cartouche cachée par la boîte en carton.
+- Une carte DS de 3 cm doit remplir la vue d'une boîte ouverte cadrée petite : le support peut donc venir plus près de la caméra que la notice (20 % de la distance au lieu de 30 %).
+
+**Vérification.**
+- `test/game_box_support_test.dart` (7 tests) :
+  - solides : épaisseur, tranche continue, coins, coin coupé de la Game Boy ;
+  - position tenue : centrée, de face, à 72 % ;
+  - cadrage inchangé ;
+  - rotation autour des axes de l'écran, dos lisible et non inversé ;
+  - toucher dans le cercle seulement, jamais derrière la boîte ;
+  - retour à la position d'origine.
+- `test/game_box_manual_inspector_test.dart`, groupe « the disc held up to the camera » (4 tests) :
+  - toucher, rotation au doigt, « Face arrière », Retour ;
+  - Y, Y, puis Retour arrière (B) ; toucher à côté ;
+  - « Refermer la boîte » depuis le disque tenu ;
+  - « Réduire les animations ».
+- Rendus manuels (banc hors dépôt, étiquette de synthèse) : disque PS2, carte DS, cartouches SNES et Game Boy, UMD ; de face, tournés, par la tranche et de dos.
+
+**Limites.**
+- Le dos d'un disque ou d'une cartouche n'a pas de source : il est dessiné de façon générique par famille, ce n'est pas celui du jeu.
+- Les `support-2D` de ScreenScraper varient (scan à plat, photo avec un fond, cartouche entière). La face avant les montre comme avant, sans détourage supplémentaire.
+- Pas d'élan après un lancer du doigt : le support s'arrête là où on le lâche.
+- Non observé sur iPhone, ni la fluidité ni le rendu : aucune IPA ne contient encore ce changement.

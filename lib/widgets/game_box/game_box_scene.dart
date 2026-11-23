@@ -232,7 +232,16 @@ class GameBoxScene extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             if (groundShadow) _shadow(projector, size),
-            for (final f in faces)
+            for (final (i, f) in faces.indexed) ...[
+              // The box steps back behind the support held up to the camera
+              // (docs/game-box-3d.md § 30).
+              if (opening.supportTake > 0 && f.part.id == 'support' && (i == 0 || faces[i - 1].part.id != 'support'))
+                Positioned.fill(
+                  key: const ValueKey('game_box_support_scrim'),
+                  child: IgnorePointer(
+                    child: ColoredBox(color: Color.fromRGBO(6, 7, 10, 0.6 * _eased(opening.supportTake))),
+                  ),
+                ),
               Positioned(
                 left: 0,
                 top: 0,
@@ -246,10 +255,16 @@ class GameBoxScene extends StatelessWidget {
                   ),
                 ),
               ),
+            ],
           ],
         ),
       );
     });
+  }
+
+  static double _eased(double t) {
+    final c = t.clamp(0.0, 1.0);
+    return c * c * (3 - 2 * c);
   }
 
   Widget _shadow(BoxProjector projector, Size size) {
@@ -278,10 +293,18 @@ class GameBoxScene extends StatelessWidget {
   Widget _lit(ProjectedFace f, Widget child) {
     final light = lightOf(f);
     if (light.isEmpty) return child;
-    return Stack(fit: StackFit.expand, children: [
+    final lit = Stack(fit: StackFit.expand, children: [
       child,
       IgnorePointer(child: CustomPaint(painter: light)),
     ]);
+    // The light stays on the face's own outline: a disc's circle, the
+    // rounded corners of a shell or a case (docs/game-box-3d.md § 30).
+    final surface = f.face.surface;
+    final flatSupport = surface == BoxSurface.supportFront || surface == BoxSurface.supportBack;
+    if (flatSupport && (model.fittedSupportSize?.$4 ?? false)) return ClipOval(child: lit);
+    final r = f.face.cornerRadius * f.pxPerMm;
+    if (r > 0.5) return ClipRRect(borderRadius: BorderRadius.circular(r), child: lit);
+    return lit;
   }
 
   /// Light on [f]: the shade of its orientation, then, on the outside of
@@ -294,8 +317,14 @@ class GameBoxScene extends StatelessWidget {
   @visibleForTesting
   GameBoxFaceLight lightOf(ProjectedFace f) {
     final surface = f.face.surface;
-    final darkenBase = (1 - f.shade).clamp(0.0, 0.5).toDouble();
-    if (!_outside(surface)) return GameBoxFaceLight(darken: darkenBase);
+    double darkenOf(double shade) => (1 - shade).clamp(0.0, 0.5).toDouble();
+    final darkenBase = darkenOf(f.shade);
+    // A facet of a curved surface is lit from one border to the other
+    // (§ 29): its neighbours meet it without a step.
+    final curved = f.shadeStart != null && f.shadeEnd != null;
+    final darkenStart = curved ? darkenOf(f.shadeStart!) : darkenBase;
+    final darkenEnd = curved ? darkenOf(f.shadeEnd!) : null;
+    if (!_outside(surface)) return GameBoxFaceLight(darken: darkenStart, darkenEnd: darkenEnd);
     final side = surface != BoxSurface.front && surface != BoxSurface.back;
     final tone = _materialTone(f);
     final dark = tone == null ? 0.0 : ((0.3 - tone.computeLuminance()) / 0.3).clamp(0.0, 1.0).toDouble();
@@ -320,7 +349,8 @@ class GameBoxScene extends StatelessWidget {
     final depthAlongV = f.face.v.z.abs() > 0.9;
     final sharp = _profile.cornerRadius <= 0.01;
     return GameBoxFaceLight(
-      darken: darkenBase * (1 - 0.55 * dark),
+      darken: darkenStart * (1 - 0.55 * dark),
+      darkenEnd: darkenEnd == null ? null : darkenEnd * (1 - 0.55 * dark),
       sheen: sheen,
       rim: rim,
       rimWidth: (f.pxPerMm * 0.45).clamp(0.7, 2.2).toDouble(),
@@ -464,12 +494,9 @@ class GameBoxScene extends StatelessWidget {
       case BoxSurface.bookletSpine:
         return const CustomPaint(painter: GameBoxBookletPaperPainter(spine: true));
       case BoxSurface.supportBack:
+        return _supportBack(f);
       case BoxSurface.supportEdge:
-        if (_profile.disc != null) {
-          // The data side of a disc (PlayStation discs are black).
-          return ColoredBox(color: _profile.id == 'ps1' ? const Color(0xFF101012) : const Color(0xFFB8BDC4));
-        }
-        return ColoredBox(color: _profile.cartridge?.bodyColor ?? const Color(0xFF3A3A3E));
+        return ColoredBox(color: _supportEdgeColor);
     }
   }
 
@@ -777,6 +804,46 @@ class GameBoxScene extends StatelessWidget {
       case GameBoxSupportKind.none:
         return const SizedBox.shrink();
     }
+  }
+
+  /// The back of the support, drawn (docs/game-box-3d.md § 30): no scan of
+  /// it exists.
+  Widget _supportBack(ProjectedFace f) {
+    switch (_profile.support) {
+      case GameBoxSupportKind.disc:
+      case GameBoxSupportKind.miniDisc:
+      case GameBoxSupportKind.umd:
+        // The rainbow stays toward the light: against the face's turn.
+        final m = f.matrix.storage;
+        return GameBoxDiscDataFace(
+          style: _profile.disc ?? const GameBoxDiscStyle(id: 'cd', diameter: 120),
+          // PlayStation discs are black.
+          black: _profile.id == 'ps1',
+          sheenAngle: -math.atan2(m[1], m[0]),
+        );
+      case GameBoxSupportKind.cartridge:
+      case GameBoxSupportKind.card:
+      case GameBoxSupportKind.hucard:
+        final style = _profile.cartridge;
+        if (style == null) return GameBoxMediaBack(kind: _profile.support);
+        return GameBoxCartridgeBack(style: style);
+      case GameBoxSupportKind.floppy:
+      case GameBoxSupportKind.cassette:
+        return GameBoxMediaBack(kind: _profile.support);
+      case GameBoxSupportKind.none:
+        return const SizedBox.shrink();
+    }
+  }
+
+  /// The rim of a disc (black on the first PlayStation), a UMD's shell, a
+  /// cartridge's plastic.
+  Color get _supportEdgeColor {
+    final disc = _profile.disc;
+    if (disc != null) {
+      if (disc.shell) return const Color(0xFF2A2A30);
+      return _profile.id == 'ps1' ? const Color(0xFF1A1A1E) : const Color(0xFFC9CED6);
+    }
+    return _profile.cartridge?.bodyColor ?? const Color(0xFF3A3A3E);
   }
 
   // Images --------------------------------------------------------------------

@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import 'package:neostation/services/game_box/game_box_enhance.dart';
 import 'package:neostation/services/game_box/game_box_media.dart';
 import 'package:neostation/services/game_box/game_box_preferences.dart';
 import 'package:neostation/widgets/game_box/game_box_art_loader.dart';
@@ -16,10 +18,10 @@ import 'package:neostation/widgets/game_box/game_box_scene.dart';
 ///
 /// Only the front and the spine are decoded. The carousel decodes them at its
 /// usual size; the grid and the list pass [decodeWidth], the size their flat
-/// cover already used, and get a [compact] box (one facet per rounded corner,
-/// no sleeve reflection), so a screen of small boxes costs about what the flat
-/// covers did.
-class GameBoxCard extends StatelessWidget {
+/// cover already used, and get a [compact] box (three facets per rounded
+/// corner instead of eight, lit as one curve; no sleeve reflection), so a
+/// screen of small boxes costs about what the flat covers did.
+class GameBoxCard extends StatefulWidget {
   const GameBoxCard({
     super.key,
     required this.frontPath,
@@ -46,26 +48,66 @@ class GameBoxCard extends StatelessWidget {
   bool get compact => decodeWidth != null;
 
   @override
-  Widget build(BuildContext context) {
-    final size = GameBoxImageSize.of(frontPath);
-    final aspect = size == null || size.height == 0 ? null : size.width / size.height;
-    // Rigid cases keep their physical size; only cardboard boxes (and tall
-    // jewel inserts) follow their art (docs/game-box-3d.md § 13).
-    final profile = GameBoxProfiles.of(systemId).withFrontAspect(aspect);
-    final media = GameBoxLocalMedia(front: frontPath, spine: spinePath);
-    final art = GameBoxArtSet(media: media, title: title)
-        .art(detailed: false, compactWidth: decodeWidth, profile: profile);
-    return ExcludeSemantics(
-      child: GameBoxScene(
-        model: GameBoxModel(profile, cornerSegments: compact ? 1 : 3),
-        art: art,
-        pose: pose,
-        rotationSafeFit: false,
-        fitPadding: fitPadding,
-      ),
-    );
-  }
+  State<GameBoxCard> createState() => _GameBoxCardState();
 
   /// Whether a spine scan exists for [path] (cheap check cached by callers).
   static bool exists(String path) => path.isNotEmpty && File(path).existsSync();
+}
+
+/// Shows the corrected copy of a degraded scan once it exists
+/// (docs/game-box-3d.md § 22 and § 28): one made earlier is looked up in the
+/// cache, one made now (the selection rested on the game, or its box was
+/// opened) replaces the scan as soon as it is ready.
+class _GameBoxCardState extends State<GameBoxCard> {
+  StreamSubscription<String>? _changes;
+
+  @override
+  void initState() {
+    super.initState();
+    _changes = GameBoxEnhance.changes.listen((path) {
+      if (!mounted) return;
+      if (path.isEmpty || path == widget.frontPath || path == widget.spinePath) setState(() {});
+    });
+    _lookUp();
+  }
+
+  @override
+  void didUpdateWidget(GameBoxCard old) {
+    super.didUpdateWidget(old);
+    if (old.frontPath != widget.frontPath || old.spinePath != widget.spinePath) _lookUp();
+  }
+
+  @override
+  void dispose() {
+    _changes?.cancel();
+    super.dispose();
+  }
+
+  /// A copy found in the cache arrives through [GameBoxEnhance.changes].
+  void _lookUp() {
+    for (final path in [widget.frontPath, widget.spinePath]) {
+      if (path != null && path.isNotEmpty) unawaited(GameBoxEnhance.cached(path));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = GameBoxImageSize.of(widget.frontPath);
+    final aspect = size == null || size.height == 0 ? null : size.width / size.height;
+    // Rigid cases keep their physical size; only cardboard boxes (and tall
+    // jewel inserts) follow their art (docs/game-box-3d.md § 13).
+    final profile = GameBoxProfiles.of(widget.systemId).withFrontAspect(aspect);
+    final media = GameBoxLocalMedia(front: widget.frontPath, spine: widget.spinePath);
+    final art = GameBoxArtSet(media: media, title: widget.title)
+        .art(detailed: false, compactWidth: widget.decodeWidth, profile: profile);
+    return ExcludeSemantics(
+      child: GameBoxScene(
+        model: GameBoxModel(profile, cornerSegments: widget.compact ? 3 : 8),
+        art: art,
+        pose: widget.pose,
+        rotationSafeFit: false,
+        fitPadding: widget.fitPadding,
+      ),
+    );
+  }
 }

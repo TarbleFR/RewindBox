@@ -163,14 +163,31 @@ extension _SecondaryDisplay on _SystemGamesListState {
     if (_selectedGame == null || !mounted || _previewIsSuppressed) return;
 
     // Nothing heavy while the selection moves: it all runs once it rests
-    // (the _fastNavEndTimer of the host calls back with force).
-    if (!_selectionSettled && !force) return;
+    // (the _fastNavEndTimer of the host calls back with force). A box
+    // correction waiting for the previous game is dropped.
+    if (!_selectionSettled && !force) {
+      GameBoxEnhance.prepareSoon(const []);
+      return;
+    }
 
+    _prepareSharpBox(_selectedGame!);
     _loadLocalizedDescription();
     _startVideoTimer();
     _updateBackground(_selectedGame!);
     _updateSecondaryDisplay(_selectedGame!);
     _updateMusicDucking();
+  }
+
+  /// The selected game's front and back are corrected in the background
+  /// once the selection rests on it (docs/game-box-3d.md § 28): its box opens
+  /// already sharp, and the library shows the copies.
+  void _prepareSharpBox(GameModel game) {
+    if (widget.system.folderName == 'music') return;
+    final folder = GameBoxLibrary.folderFor(game, widget.system, isAllMode: _isAllModeList);
+    GameBoxEnhance.prepareSoon([
+      GameBoxLibrary.mediaPath(game, folder, GameBoxMediaKind.front.folder, _fileProvider),
+      GameBoxLibrary.mediaPath(game, folder, GameBoxMediaKind.back.folder, _fileProvider),
+    ]);
   }
 
   /// Synchronizes selection metadata and assets with secondary hardware displays.

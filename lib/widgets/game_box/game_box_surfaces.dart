@@ -424,7 +424,7 @@ class GameBoxDiscFace extends StatelessWidget {
     );
     if (style.shell) {
       disc = CustomPaint(
-        painter: _UmdShellPainter(),
+        painter: const _UmdShellPainter(),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(4, 5, 4, 9),
           child: disc,
@@ -497,6 +497,8 @@ class _DiscPainter extends CustomPainter {
 }
 
 class _UmdShellPainter extends CustomPainter {
+  const _UmdShellPainter();
+
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
@@ -522,6 +524,272 @@ class _UmdShellPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_UmdShellPainter old) => false;
+}
+
+/// The data side of a disc (docs/game-box-3d.md § 30), drawn: no scan of it
+/// is ever fetched. The recording area, silver (black on the first
+/// PlayStation), spreads a rainbow that stays toward the light while the
+/// disc turns ([sheenAngle]: radians, against the turn of the face on
+/// screen); a mirror band and the clear hub surround the hole. A UMD shows
+/// it through its shell.
+class GameBoxDiscDataFace extends StatelessWidget {
+  const GameBoxDiscDataFace({super.key, required this.style, this.black = false, this.sheenAngle = 0});
+
+  final GameBoxDiscStyle style;
+  final bool black;
+  final double sheenAngle;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget disc = CustomPaint(
+      painter: _DiscDataPainter(holeFraction: style.hole / style.diameter, black: black, sheenAngle: sheenAngle),
+      child: const SizedBox.expand(),
+    );
+    if (style.shell) {
+      disc = CustomPaint(
+        painter: const _UmdShellPainter(),
+        child: Padding(padding: const EdgeInsets.fromLTRB(4, 5, 4, 9), child: disc),
+      );
+    }
+    return disc;
+  }
+}
+
+class _DiscDataPainter extends CustomPainter {
+  _DiscDataPainter({required this.holeFraction, required this.black, required this.sheenAngle});
+
+  final double holeFraction;
+  final bool black;
+  final double sheenAngle;
+
+  static const _bands = [
+    Color(0x00FFFFFF), Color(0x55FF5E7A), Color(0x55FFC94D), Color(0x5543D6A8), Color(0x553FA2FF), Color(0x55A66BFF),
+    Color(0x00FFFFFF), Color(0x00FFFFFF), Color(0x55FF5E7A), Color(0x55FFC94D), Color(0x5543D6A8), Color(0x553FA2FF),
+    Color(0x55A66BFF), Color(0x00FFFFFF),
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    final r = size.shortestSide / 2;
+    if (r <= 0) return;
+    final rect = Rect.fromCircle(center: c, radius: r);
+    canvas.save();
+    canvas.clipPath(Path()
+      ..fillType = PathFillType.evenOdd
+      ..addOval(rect)
+      ..addOval(Rect.fromCircle(center: c, radius: r * holeFraction)));
+    // Recording area, a little lighter toward its middle.
+    canvas.drawCircle(
+      c,
+      r,
+      Paint()
+        ..shader = RadialGradient(
+          colors: black
+              ? const [Color(0xFF2B2B33), Color(0xFF17171C), Color(0xFF0E0E12)]
+              : const [Color(0xFFE4E8EE), Color(0xFFC6CCD4), Color(0xFFAEB5BF)],
+          stops: const [0.35, 0.7, 1],
+        ).createShader(rect),
+    );
+    // The rainbow of the tracks, turned with the light, fainter on black.
+    final rainbow = Paint()
+      ..shader = SweepGradient(colors: _bands, transform: GradientRotation(sheenAngle)).createShader(rect);
+    if (black) rainbow.color = const Color(0x99000000);
+    canvas.drawCircle(c, r * 0.985, rainbow);
+    // Outer edge, mirror band and clear hub.
+    canvas.drawCircle(
+      c,
+      r * 0.992,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(0.6, r * 0.016)
+        ..color = black ? const Color(0xFF3A3A44) : const Color(0xFF9EA6B1),
+    );
+    canvas.drawCircle(c, r * 0.39, Paint()..color = black ? const Color(0xFF34343C) : const Color(0xFFF1F3F6));
+    canvas.drawCircle(c, r * 0.31, Paint()..color = const Color(0xB3D3D8DE));
+    canvas.drawCircle(
+      c,
+      r * holeFraction * 1.25,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(0.5, r * 0.012)
+        ..color = const Color(0x66FFFFFF),
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_DiscDataPainter old) =>
+      old.holeFraction != holeFraction || old.black != black || old.sheenAngle != sheenAngle;
+}
+
+/// The back of a cartridge or card (docs/game-box-3d.md § 30), drawn: no scan
+/// of it is fetched. The shell of the console's family in its colour, seen
+/// from behind (the Game Boy's cut corner on the left), a recessed panel, a
+/// screw, and the contacts where that family shows them; never a label.
+class GameBoxCartridgeBack extends StatelessWidget {
+  const GameBoxCartridgeBack({super.key, required this.style});
+
+  final GameBoxCartridgeStyle style;
+
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(painter: _CartridgeBackPainter(style), child: const SizedBox.expand());
+}
+
+class _CartridgeBackPainter extends CustomPainter {
+  _CartridgeBackPainter(this.style);
+  final GameBoxCartridgeStyle style;
+
+  static const _cards = {'ds', '3ds', 'switch', 'switch2', 'vita'};
+  static const _bareContacts = {'gb', 'gba', 'gg', 'lynx'};
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final radius = Radius.circular(size.width * style.cornerRadius / style.width);
+    final body = Path();
+    if (style.cutCorner) {
+      // Seen from behind, the cut corner is at the bottom left.
+      final cut = size.width * 0.12;
+      body
+        ..moveTo(rect.left + radius.x, rect.top)
+        ..lineTo(rect.right - radius.x, rect.top)
+        ..quadraticBezierTo(rect.right, rect.top, rect.right, rect.top + radius.y)
+        ..lineTo(rect.right, rect.bottom - radius.y)
+        ..quadraticBezierTo(rect.right, rect.bottom, rect.right - radius.x, rect.bottom)
+        ..lineTo(rect.left + cut, rect.bottom)
+        ..lineTo(rect.left, rect.bottom - cut)
+        ..lineTo(rect.left, rect.top + radius.y)
+        ..quadraticBezierTo(rect.left, rect.top, rect.left + radius.x, rect.top)
+        ..close();
+    } else {
+      body.addRRect(RRect.fromRectAndRadius(rect, radius));
+    }
+    final shell = _shade(style.bodyColor, 0.92);
+    canvas.drawPath(body, Paint()..color = shell);
+    canvas.drawPath(
+      body,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(0.8, size.width * 0.008)
+        ..color = _shade(style.bodyColor, 0.68),
+    );
+    final card = _cards.contains(style.id);
+    final hucard = style.id == 'hucard';
+    // A recessed panel moulded in the shell.
+    final panel = Rect.fromLTRB(
+      size.width * 0.12,
+      size.height * (card ? 0.30 : 0.10),
+      size.width * 0.88,
+      size.height * (card ? 0.88 : 0.70),
+    );
+    final panelRadius = Radius.circular(size.width * 0.03);
+    canvas.drawRRect(RRect.fromRectAndRadius(panel, panelRadius), Paint()..color = _shade(style.bodyColor, 0.86));
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(panel, panelRadius),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(0.6, size.width * 0.006)
+        ..color = _shade(style.bodyColor, 0.74),
+    );
+    final gold = Paint()..color = const Color(0xFFD2B04C);
+    if (card || hucard) {
+      // Contacts in a row along one edge: the top of a card, the end of a HuCARD.
+      final count = hucard ? 20 : 10;
+      final top = hucard ? size.height * 0.86 : size.height * 0.06;
+      final height = size.height * (hucard ? 0.09 : 0.16);
+      final left = size.width * 0.14, span = size.width * 0.72;
+      final step = span / count;
+      for (var i = 0; i < count; i++) {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(left + i * step + step * 0.18, top, step * 0.64, height),
+            Radius.circular(step * 0.12),
+          ),
+          gold,
+        );
+      }
+      return;
+    }
+    // A screw, then the board's edge at the bottom: its contacts show on the
+    // handhelds, a dark slot hides them on the home consoles.
+    final screw = Offset(size.width / 2, size.height * 0.78);
+    final sr = size.width * 0.035;
+    canvas.drawCircle(screw, sr, Paint()..color = _shade(style.bodyColor, 0.6));
+    canvas.drawLine(
+      screw - Offset(sr * 0.6, 0),
+      screw + Offset(sr * 0.6, 0),
+      Paint()
+        ..strokeWidth = math.max(0.6, sr * 0.3)
+        ..color = _shade(style.bodyColor, 0.4),
+    );
+    final slot = Rect.fromLTRB(size.width * 0.1, size.height * 0.88, size.width * 0.9, size.height * 0.985);
+    canvas.drawRect(slot, Paint()..color = _shade(style.bodyColor, 0.35));
+    if (_bareContacts.contains(style.id)) {
+      const count = 16;
+      final step = slot.width / count;
+      for (var i = 0; i < count; i++) {
+        canvas.drawRect(
+          Rect.fromLTWH(slot.left + i * step + step * 0.2, slot.top + slot.height * 0.2, step * 0.6, slot.height * 0.7),
+          gold,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_CartridgeBackPainter old) => old.style != style;
+}
+
+/// The back of a floppy disk or a cassette (§ 30), drawn and plain: the
+/// floppy's metal hub and shutter, the cassette's reels and window.
+class GameBoxMediaBack extends StatelessWidget {
+  const GameBoxMediaBack({super.key, required this.kind});
+
+  final GameBoxSupportKind kind;
+
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(painter: _MediaBackPainter(kind), child: const SizedBox.expand());
+}
+
+class _MediaBackPainter extends CustomPainter {
+  _MediaBackPainter(this.kind);
+  final GameBoxSupportKind kind;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final metal = Paint()..color = const Color(0xFFA9ADB4);
+    if (kind == GameBoxSupportKind.floppy) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, Radius.circular(size.width * 0.03)),
+        Paint()..color = const Color(0xFF2B2D33),
+      );
+      canvas.drawRect(Rect.fromLTWH(size.width * 0.28, 0, size.width * 0.46, size.height * 0.30), metal);
+      canvas.drawCircle(Offset(size.width / 2, size.height * 0.58), size.width * 0.14, metal);
+      canvas.drawCircle(Offset(size.width / 2, size.height * 0.58), size.width * 0.05, Paint()..color = const Color(0xFF55585E));
+      return;
+    }
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(size.width * 0.04)),
+      Paint()..color = const Color(0xFF26272B),
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(size.width * 0.22, size.height * 0.3, size.width * 0.56, size.height * 0.24),
+        Radius.circular(size.width * 0.02),
+      ),
+      Paint()..color = const Color(0xFF3B3D44),
+    );
+    final reel = Paint()..color = const Color(0xFF111114);
+    canvas.drawCircle(Offset(size.width * 0.33, size.height * 0.42), size.height * 0.08, reel);
+    canvas.drawCircle(Offset(size.width * 0.67, size.height * 0.42), size.height * 0.08, reel);
+  }
+
+  @override
+  bool shouldRepaint(_MediaBackPainter old) => old.kind != kind;
 }
 
 /// The face of a cartridge or card.
@@ -864,6 +1132,7 @@ class GameBoxBookletPaperPainter extends CustomPainter {
 class GameBoxFaceLight extends CustomPainter {
   const GameBoxFaceLight({
     this.darken = 0,
+    this.darkenEnd,
     this.sheen = 0,
     this.rim = 0,
     this.rimWidth = 1,
@@ -873,6 +1142,10 @@ class GameBoxFaceLight extends CustomPainter {
   });
 
   final double darken;
+
+  /// [darken] at x = width when it changes across the face (a facet of a
+  /// curved surface, § 29): painted as a gradient from [darken] at x = 0.
+  final double? darkenEnd;
   final double sheen;
   final double rim;
   final double rimWidth;
@@ -886,12 +1159,22 @@ class GameBoxFaceLight extends CustomPainter {
   /// Corner radius of the face's outline (logical pixels).
   final double radius;
 
-  bool get isEmpty => darken < 0.004 && sheen < 0.004 && rim < 0.01;
+  bool get isEmpty => darken < 0.004 && (darkenEnd ?? 0) < 0.004 && sheen < 0.004 && rim < 0.01;
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
-    if (darken >= 0.004) {
+    final end = darkenEnd;
+    if (end != null && (end - darken).abs() >= 0.002) {
+      canvas.drawRect(
+        rect,
+        Paint()
+          ..shader = ui.Gradient.linear(rect.centerLeft, rect.centerRight, [
+            Color.fromRGBO(0, 0, 0, darken.clamp(0.0, 0.6)),
+            Color.fromRGBO(0, 0, 0, end.clamp(0.0, 0.6)),
+          ]),
+      );
+    } else if (darken >= 0.004) {
       canvas.drawRect(rect, Paint()..color = Color.fromRGBO(0, 0, 0, darken.clamp(0.0, 0.6)));
     }
     if (sheen >= 0.004) {
@@ -940,7 +1223,8 @@ class GameBoxFaceLight extends CustomPainter {
 
   @override
   bool shouldRepaint(GameBoxFaceLight old) =>
-      old.darken != darken || old.sheen != sheen || old.rim != rim || old.rimWidth != rimWidth ||
+      old.darken != darken || old.darkenEnd != darkenEnd || old.sheen != sheen || old.rim != rim ||
+      old.rimWidth != rimWidth ||
       old.rimVertical != rimVertical || old.rimHorizontal != rimHorizontal || old.radius != radius;
 }
 

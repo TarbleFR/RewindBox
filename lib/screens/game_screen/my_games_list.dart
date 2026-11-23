@@ -77,6 +77,8 @@ import '../../widgets/switch_playlist_empty_state.dart';
 import '../../constants/system_folder_names.dart';
 import '../../utils/artwork_cache.dart';
 import '../../utils/game_list_update.dart';
+import '../../services/game_box/game_box_enhance.dart';
+import '../../services/game_box/game_box_media.dart';
 import '../../widgets/game_box/game_box_library.dart';
 
 import 'package:neostation/themes/chrome_surface.dart';
@@ -336,6 +338,8 @@ class _SystemGamesListState extends State<SystemGamesList> {
 
   @override
   void dispose() {
+    // A box correction still waiting for the selection is dropped.
+    GameBoxEnhance.prepareSoon(const []);
     FrontendMediaGate.instance.unregister(this);
     FrontendMediaGate.instance.removeListener(_onFrontendMediaGateChanged);
     UserActivityMonitor.instance.removeListener(_userActivityListener);

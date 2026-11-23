@@ -157,8 +157,12 @@ enum GameBoxInsideState {
   moving,
   open,
 
-  /// The manual is being taken out, read, or put back.
+  /// The manual or the support is being taken out, read, or put back.
   taking,
+
+  /// The disc or cartridge is held up to the camera, turned freely
+  /// (docs/game-box-3d.md § 30).
+  holding,
 }
 
 @visibleForTesting
@@ -229,6 +233,10 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   // Inside of the box (docs/game-box-3d.md § 11).
   GameBoxInsideState _inside = GameBoxInsideState.closed;
   GameBoxInsideState get inside => _inside;
+
+  /// How far the box is open, and where its support is held (§ 30).
+  @visibleForTesting
+  BoxOpening get opening => _opening;
   BoxPose _poseBeforeOpen = BoxPose.rest;
   double _openYaw = 0;
   String? _manualPath;
@@ -240,6 +248,14 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   double _manualProgress = 0;
   bool _readingManual = false;
   final Set<AnimationController> _transient = {};
+
+  // The support held up to the camera (docs/game-box-3d.md § 30): the
+  // opening it was taken from, and the turn it is brought to.
+  BoxOpening? _beforeHolding;
+  AnimationController? _holdTurn;
+  BoxM3 _turnFrom = BoxM3.identity;
+  BoxM3 _turnGoal = BoxM3.identity;
+  Offset _lastFocal = Offset.zero;
 
   // Gesture bookkeeping.
   BoxPose _gestureStart = BoxPose.rest;
@@ -265,10 +281,12 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
       if (mounted && v != _sharpText) setState(() => _sharpText = v);
     });
     _gamepadNav = GamepadNavigation(
-      onNavigateLeft: () => _turn(_isOpen ? 0.2 : math.pi / 4),
-      onNavigateRight: () => _turn(_isOpen ? -0.2 : -math.pi / 4),
-      onNavigateUp: () => _tilt(_isOpen ? -0.15 : -0.3),
-      onNavigateDown: () => _tilt(_isOpen ? 0.15 : 0.3),
+      // A held support turns about the screen's axes, a sixth of a turn
+      // per step (docs/game-box-3d.md § 30).
+      onNavigateLeft: () => _holding ? _turnHeld(aboutY: math.pi / 6) : _turn(_isOpen ? 0.2 : math.pi / 4),
+      onNavigateRight: () => _holding ? _turnHeld(aboutY: -math.pi / 6) : _turn(_isOpen ? -0.2 : -math.pi / 4),
+      onNavigateUp: () => _holding ? _turnHeld(aboutX: -math.pi / 6) : _tilt(_isOpen ? -0.15 : -0.3),
+      onNavigateDown: () => _holding ? _turnHeld(aboutX: math.pi / 6) : _tilt(_isOpen ? 0.15 : 0.3),
       onLeftBumper: () => _zoomBy(-0.5),
       onRightBumper: () => _zoomBy(0.5),
       onSelectItem: play,
@@ -283,12 +301,20 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
           _downloadManual();
         }
       },
+      // Y turns the closed box round; in the open box it takes the disc or
+      // cartridge, then turns it round while it is held.
       onFavorite: () {
-        if (_inside == GameBoxInsideState.closed) _goTo(_facingBack ? BoxPose.front : BoxPose.back);
+        if (_inside == GameBoxInsideState.closed) {
+          _goTo(_facingBack ? BoxPose.front : BoxPose.back);
+        } else if (_isOpen) {
+          takeSupport();
+        } else if (_holding) {
+          _turnHeld(aboutY: math.pi, duration: const Duration(milliseconds: 380));
+        }
       },
       onSettings: _chooseLanguage,
-      onLeftStickClick: () => _isOpen ? _recenter() : _goTo(BoxPose.rest),
-      onRightStickClick: () => _isOpen ? closeBox() : openBox(),
+      onLeftStickClick: () => _holding ? _resetHeld() : (_isOpen ? _recenter() : _goTo(BoxPose.rest)),
+      onRightStickClick: () => _holding ? putSupportBack() : (_isOpen ? closeBox() : openBox()),
       onSelectButton: _showOptions,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -320,6 +346,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     _poseAnim.dispose();
     _spin.dispose();
     _open.dispose();
+    _holdTurn?.dispose();
     for (final c in _transient) {
       c.dispose();
     }
@@ -543,9 +570,14 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   /// open and not taking its manual.
   bool get _interactive =>
       _phase == GameBoxInspectorPhase.inspecting &&
-      (_inside == GameBoxInsideState.closed || _inside == GameBoxInsideState.open);
+      (_inside == GameBoxInsideState.closed ||
+          _inside == GameBoxInsideState.open ||
+          _inside == GameBoxInsideState.holding);
 
   bool get _isOpen => _phase == GameBoxInspectorPhase.inspecting && _inside == GameBoxInsideState.open;
+
+  /// The disc or cartridge is held up to the camera (§ 30).
+  bool get _holding => _phase == GameBoxInspectorPhase.inspecting && _inside == GameBoxInsideState.holding;
 
   /// An open box is looked into from the front: it turns and tilts a little,
   /// never round to its back.
@@ -630,7 +662,13 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     _gestureStart = _pose;
     _gestureFocal = d.focalPoint;
     _gestureLocalFocal = d.localFocalPoint;
-    _rotating = d.pointerCount < 2 && _pose.zoom <= 1.05;
+    _lastFocal = d.focalPoint;
+    // A held support turns under one finger at any zoom; two pinch.
+    _rotating = d.pointerCount < 2 && (_holding || _pose.zoom <= 1.05);
+    if (_holding) {
+      _holdTurn?.stop();
+      _turnGoal = _opening.supportSpin;
+    }
   }
 
   void _onScaleUpdate(ScaleUpdateDetails d) {
@@ -660,6 +698,17 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
           ));
       return;
     }
+    // A held support turns about the screen's axes under the finger, as far
+    // as it is dragged, in any direction (§ 30).
+    if (_holding) {
+      final step = d.focalPoint - _lastFocal;
+      _lastFocal = d.focalPoint;
+      final k = 3.4 / width;
+      final spin = heldTurn(_opening.supportSpin, aboutX: step.dy * k, aboutY: -step.dx * k);
+      _turnGoal = spin;
+      setState(() => _opening = _opening.copyWith(supportSpin: spin));
+      return;
+    }
     // One finger at zoom 1: turn the box (free yaw, bounded pitch). Dragging
     // right turns the front to the right, as on a turntable.
     final k = 3.4 / width;
@@ -686,6 +735,10 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
 
   void _onDoubleTap() {
     if (!_interactive) return;
+    if (_holding) {
+      _resetHeld();
+      return;
+    }
     if (_pose.zoom > 1.05) {
       _goTo(_pose.copyWith(zoom: 1, panX: 0, panY: 0));
       return;
@@ -702,11 +755,22 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     ));
   }
 
-  /// A tap on the manual lying in the open box takes it.
+  /// A tap on the manual lying in the open box takes it, a tap on the disc
+  /// or cartridge holds it up to the camera; once it is held, a tap beside
+  /// it puts it back (§ 30).
   void _onTapUp(TapUpDetails d) {
-    if (!_isOpen || _manualPath == null) return;
     final projector = _projector(_viewport);
-    if (projector != null && projector.hitsBooklet(d.localPosition)) takeManual();
+    if (projector == null) return;
+    if (_holding) {
+      if (!projector.hitsSupport(d.localPosition)) putSupportBack();
+      return;
+    }
+    if (!_isOpen) return;
+    if (_manualPath != null && projector.hitsBooklet(d.localPosition)) {
+      takeManual();
+    } else if (projector.hitsSupport(d.localPosition)) {
+      takeSupport();
+    }
   }
 
   // Actions -----------------------------------------------------------------
@@ -718,6 +782,8 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     switch (_inside) {
       case GameBoxInsideState.open:
         closeBox();
+      case GameBoxInsideState.holding:
+        putSupportBack();
       case GameBoxInsideState.closed:
         Navigator.of(context).maybePop();
       case GameBoxInsideState.moving:
@@ -1050,7 +1116,8 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
 
   /// Closes the inspected box and turns it back the way it was.
   Future<void> closeBox() async {
-    if (!_isOpen) return;
+    if (_holding) await putSupportBack();
+    if (!mounted || !_isOpen) return;
     _stopMotion();
     final start = _pose;
     final from = _opening;
@@ -1083,8 +1150,9 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   /// manual reader, and puts it back once the reader closes: the same box,
   /// still open, at the same angle.
   Future<void> takeManual() async {
+    if (_holding) await putSupportBack();
     final path = _manualPath;
-    if (path == null || !_isOpen) return;
+    if (!mounted || path == null || !_isOpen) return;
     _stopMotion();
     final rest = _opening;
     setState(() => _inside = GameBoxInsideState.taking);
@@ -1141,6 +1209,135 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   /// Downloads a missing manual with the same ScreenScraper path as Game
   /// Settings › Manual (credentials, language, regions, quota). On success
   /// it appears in the open box at once.
+  /// Takes the disc or cartridge out of the open box and holds it up to the
+  /// camera, facing it squarely (docs/game-box-3d.md § 30): a touch on it,
+  /// or Y. It is then turned freely; Back, B or a touch beside it puts it
+  /// back where it was.
+  Future<void> takeSupport() async {
+    final model = _model;
+    if (!_isOpen || model == null || model.fittedSupportSize == null || _viewport.isEmpty) return;
+    _stopMotion();
+    final rest = _opening;
+    setState(() => _inside = GameBoxInsideState.taking);
+    // Cards and cartridges come off their clip first.
+    if (model.supportLifts && rest.support < 1) {
+      await _animate(const Duration(milliseconds: 160), (t) {
+        setState(() => _opening = rest.copyWith(support: rest.support + (1 - rest.support) * t));
+      });
+      if (!mounted) return;
+    }
+    final lifted = _opening;
+    // Held at the box's own scale: a zoom on the box is undone on the way.
+    final fromPose = _pose;
+    final heldPose = _pose.copyWith(zoom: 1, panX: 0, panY: 0);
+    final target = BoxProjector(
+      model: model,
+      viewport: _viewport,
+      pose: heldPose,
+      opening: lifted,
+      outlineBlend: _outline,
+    ).supportTakeTarget();
+    if (target == null) {
+      setState(() {
+        _opening = rest;
+        _inside = GameBoxInsideState.open;
+      });
+      return;
+    }
+    _turnGoal = BoxM3.identity;
+    await _animate(const Duration(milliseconds: 420), (t) {
+      final e = Curves.easeInOutCubic.transform(t);
+      setState(() {
+        _pose = BoxPose.lerp(fromPose, heldPose, e);
+        _opening = lifted.copyWith(supportTake: e, supportTakeTarget: target, supportSpin: BoxM3.identity);
+      });
+    });
+    if (!mounted) return;
+    setState(() {
+      _pose = heldPose;
+      _opening = lifted.copyWith(supportTake: 1, supportTakeTarget: target, supportSpin: BoxM3.identity);
+      _beforeHolding = rest;
+      _inside = GameBoxInsideState.holding;
+    });
+  }
+
+  /// Puts the held support back where it was taken from, turning it back
+  /// on the way; the box stays open, at the same angle.
+  Future<void> putSupportBack() async {
+    if (!_holding) return;
+    _holdTurn?.stop();
+    _stopMotion();
+    final held = _opening;
+    final rest = _beforeHolding ?? held.copyWith(supportTake: 0);
+    final fromPose = _pose;
+    final toPose = _pose.copyWith(zoom: 1, panX: 0, panY: 0);
+    setState(() => _inside = GameBoxInsideState.taking);
+    await _animate(const Duration(milliseconds: 380), (t) {
+      final e = Curves.easeInOutCubic.transform(t);
+      setState(() {
+        _pose = BoxPose.lerp(fromPose, toPose, e);
+        _opening = held.copyWith(supportTake: 1 - e);
+      });
+    });
+    if (!mounted) return;
+    if ((held.support - rest.support).abs() > 0.001) {
+      final from = held.support;
+      await _animate(const Duration(milliseconds: 160), (t) {
+        setState(() => _opening = rest.copyWith(support: from + (rest.support - from) * t));
+      });
+      if (!mounted) return;
+    }
+    setState(() {
+      _pose = toPose;
+      _opening = rest;
+      _beforeHolding = null;
+      _turnGoal = BoxM3.identity;
+      _inside = GameBoxInsideState.open;
+    });
+  }
+
+  /// [spin] turned further about the screen's axes: [aboutX] (positive shows
+  /// the top) after [aboutY] (positive turns the front to the left).
+  @visibleForTesting
+  static BoxM3 heldTurn(BoxM3 spin, {double aboutX = 0, double aboutY = 0}) =>
+      BoxM3.rotationX(aboutX) * BoxM3.rotationY(aboutY) * spin;
+
+  /// Turns the held support by a step (buttons, gamepad), from where the last
+  /// step was going, so that quick steps add up.
+  void _turnHeld({double aboutX = 0, double aboutY = 0, Duration duration = const Duration(milliseconds: 240)}) {
+    if (!_holding) return;
+    _turnHeldTo(heldTurn(_turnGoal, aboutX: aboutX, aboutY: aboutY), duration: duration);
+  }
+
+  void _turnHeldTo(BoxM3 goal, {Duration duration = const Duration(milliseconds: 240)}) {
+    if (!_holding) return;
+    _turnGoal = goal;
+    if (_reduceMotion) {
+      _holdTurn?.stop();
+      setState(() => _opening = _opening.copyWith(supportSpin: goal));
+      return;
+    }
+    _turnFrom = _opening.supportSpin;
+    final c = _holdTurn ??= AnimationController(vsync: this)..addListener(_holdTurnTick);
+    c.duration = duration;
+    c.forward(from: 0);
+  }
+
+  void _holdTurnTick() {
+    final c = _holdTurn;
+    if (!mounted || c == null || !_holding) return;
+    final t = Curves.easeOutCubic.transform(c.value);
+    final q = BoxQuat.slerp(BoxQuat.fromMatrix(_turnFrom), BoxQuat.fromMatrix(_turnGoal), t);
+    setState(() => _opening = _opening.copyWith(supportSpin: q.matrix));
+  }
+
+  /// The held support faces the camera again, unzoomed.
+  void _resetHeld() {
+    if (!_holding) return;
+    _turnHeldTo(BoxM3.identity, duration: const Duration(milliseconds: 320));
+    if (_zoomed) _goTo(_pose.copyWith(zoom: 1, panX: 0, panY: 0));
+  }
+
   Future<void> _downloadManual() async {
     final system = widget.subject.system;
     if (!_canDownloadManual || system == null) return;
@@ -1189,6 +1386,10 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   Future<void> play() async {
     if (_phase != GameBoxInspectorPhase.inspecting) return;
     if (_inside == GameBoxInsideState.moving || _inside == GameBoxInsideState.taking) return;
+    if (_holding) {
+      await putSupportBack();
+      if (!mounted || _phase != GameBoxInspectorPhase.inspecting || _inside != GameBoxInsideState.open) return;
+    }
     if (!GameBoxLaunchGate.tryEnter()) return;
     _stopMotion();
     setState(() => _phase = GameBoxInspectorPhase.opening);
@@ -1532,9 +1733,11 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
         );
       }
       final face = _faceName(context);
-      final label = _inside == GameBoxInsideState.closed
-          ? GameBoxLocale.format(context, GameBoxLocale.semanticsBox, {'title': _game.name, 'face': face})
-          : GameBoxLocale.format(context, GameBoxLocale.semanticsOpenBox, {'title': _game.name});
+      final held = _holding ? _heldLabel(context) : null;
+      final label = held ??
+          (_inside == GameBoxInsideState.closed
+              ? GameBoxLocale.format(context, GameBoxLocale.semanticsBox, {'title': _game.name, 'face': face})
+              : GameBoxLocale.format(context, GameBoxLocale.semanticsOpenBox, {'title': _game.name}));
       return Stack(fit: StackFit.expand, children: [
         Semantics(
           label: label,
@@ -1580,6 +1783,20 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
         ),
       ),
     );
+  }
+
+  /// "Disc — title" while the disc, cartridge or card is held (§ 30).
+  String? _heldLabel(BuildContext context) {
+    final key = switch (_profile?.support) {
+      GameBoxSupportKind.disc || GameBoxSupportKind.miniDisc || GameBoxSupportKind.umd => GameBoxLocale.supportDisc,
+      GameBoxSupportKind.card => GameBoxLocale.supportCard,
+      GameBoxSupportKind.cartridge || GameBoxSupportKind.hucard => GameBoxLocale.supportCartridge,
+      _ => null,
+    };
+    if (key == null) return null;
+    final name = GameBoxLocale.text(context, key);
+    final shown = name.isEmpty ? name : name[0].toUpperCase() + name.substring(1);
+    return '$shown — ${_game.name}';
   }
 
   String _faceName(BuildContext context) {
@@ -1721,17 +1938,32 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
                 label: Text(GameBoxLocale.text(context, GameBoxLocale.openBox)),
               ),
           ],
+          // The held support's sides (§ 30), as the box's.
+          if (_holding) ...[
+            OutlinedButton.icon(
+              key: const ValueKey('game_box_support_front'),
+              onPressed: () => _turnHeldTo(BoxM3.identity, duration: const Duration(milliseconds: 320)),
+              icon: const Icon(Icons.flip_to_front),
+              label: Text(GameBoxLocale.text(context, GameBoxLocale.front)),
+            ),
+            OutlinedButton.icon(
+              key: const ValueKey('game_box_support_back'),
+              onPressed: () => _turnHeldTo(BoxM3.rotationY(math.pi), duration: const Duration(milliseconds: 380)),
+              icon: const Icon(Icons.flip_to_back),
+              label: Text(GameBoxLocale.text(context, GameBoxLocale.back)),
+            ),
+          ],
           if (open) ...[
             OutlinedButton.icon(
               key: const ValueKey('game_box_close'),
-              onPressed: _isOpen ? closeBox : null,
+              onPressed: _isOpen || _holding ? closeBox : null,
               icon: const Icon(Icons.inventory_2),
               label: Text(GameBoxLocale.text(context, GameBoxLocale.closeBox)),
             ),
             if (_manualPath != null)
               FilledButton.tonalIcon(
                 key: const ValueKey('game_box_read_manual'),
-                onPressed: _isOpen ? takeManual : null,
+                onPressed: _isOpen || _holding ? takeManual : null,
                 icon: const Icon(Icons.menu_book_rounded),
                 label: Text(GameBoxLocale.text(context, GameBoxLocale.readManual)),
               )

@@ -237,6 +237,8 @@ class BoxFace {
     required this.height,
     this.source = const Rect.fromLTWH(0, 0, 1, 1),
     this.cornerRadius = 0,
+    this.normalStart,
+    this.normalEnd,
   });
 
   final String id;
@@ -247,6 +249,14 @@ class BoxFace {
   final double width;
   final double height;
 
+  /// Normals of the curved surface this narrow face stands for, at its
+  /// borders u = 0 and u = [width] (a facet of a rounded corner, of the rim
+  /// of a disc): its light goes from one to the other, so that neighbouring
+  /// facets meet without a step and the corner reads as one curve
+  /// (docs/game-box-3d.md § 29). Null for a flat face.
+  final BoxV3? normalStart;
+  final BoxV3? normalEnd;
+
   /// The part of the surface's image shown on this face (fractions). The
   /// spine is split between the opening panel and the body of the box.
   final Rect source;
@@ -256,6 +266,21 @@ class BoxFace {
 
   BoxV3 get normal => v.cross(u).normalized;
   BoxV3 get center => origin + u * (width / 2) + v * (height / 2);
+
+  /// The same face moved by [offset] (mm).
+  BoxFace moved(BoxV3 offset) => BoxFace(
+        id: id,
+        surface: surface,
+        origin: origin + offset,
+        u: u,
+        v: v,
+        width: width,
+        height: height,
+        source: source,
+        cornerRadius: cornerRadius,
+        normalStart: normalStart,
+        normalEnd: normalEnd,
+      );
 }
 
 /// A group of faces moved together (the body, the lid, the support).
@@ -381,6 +406,9 @@ class BoxOpening {
     this.booklet = 0,
     this.take = 0,
     this.takeTarget,
+    this.supportTake = 0,
+    this.supportTakeTarget,
+    this.supportSpin = BoxM3.identity,
   });
   final double lid;
   final double support;
@@ -397,16 +425,42 @@ class BoxOpening {
   /// [BoxProjector.bookletTakeTarget]).
   final BoxRigid? takeTarget;
 
+  /// The disc or cartridge on its way to the camera (0 = in the box, 1 = at
+  /// [supportTakeTarget], held in front of the viewer; docs/game-box-3d.md
+  /// § 30).
+  final double supportTake;
+
+  /// Where the support is held, in box coordinates (see
+  /// [BoxProjector.supportTakeTarget]); it faces the camera squarely there.
+  final BoxRigid? supportTakeTarget;
+
+  /// How the held support is turned, about its centre and the axes of the
+  /// screen (x right, y down, z away from the viewer): any side can be
+  /// brought to the front.
+  final BoxM3 supportSpin;
+
   static const closed = BoxOpening();
   bool get isClosed => lid <= 0 && support <= 0;
 
-  BoxOpening copyWith({double? lid, double? support, double? booklet, double? take, BoxRigid? takeTarget}) =>
+  BoxOpening copyWith({
+    double? lid,
+    double? support,
+    double? booklet,
+    double? take,
+    BoxRigid? takeTarget,
+    double? supportTake,
+    BoxRigid? supportTakeTarget,
+    BoxM3? supportSpin,
+  }) =>
       BoxOpening(
         lid: lid ?? this.lid,
         support: support ?? this.support,
         booklet: booklet ?? this.booklet,
         take: take ?? this.take,
         takeTarget: takeTarget ?? this.takeTarget,
+        supportTake: supportTake ?? this.supportTake,
+        supportTakeTarget: supportTakeTarget ?? this.supportTakeTarget,
+        supportSpin: supportSpin ?? this.supportSpin,
       );
 }
 
@@ -422,11 +476,12 @@ class GameBoxBooklet {
 
 /// The model of one retail box: body, opening panel and support.
 class GameBoxModel {
-  GameBoxModel(this.profile, {this.booklet, this.cornerSegments = 3});
+  GameBoxModel(this.profile, {this.booklet, this.cornerSegments = 8});
 
   final GameBoxProfile profile;
 
-  /// Facets of each rounded corner; small boxes of the grid and list use one.
+  /// Facets of each rounded corner, lit as one curve (§ 29); the small boxes
+  /// of the grid and list use three.
   final int cornerSegments;
 
   /// The manual lying in the box, when the game has one.
@@ -530,6 +585,8 @@ class GameBoxModel {
             v: towardBack ? pz : nz,
             width: (pb - pa).length,
             height: d,
+            normalStart: BoxV3(math.cos(a), math.sin(a), 0),
+            normalEnd: BoxV3(math.cos(b), math.sin(b), 0),
           ));
         }
       }
@@ -813,74 +870,196 @@ class GameBoxModel {
     return (sw * fit, sh * fit, math.min(st * fit, depth * 0.8), round);
   }
 
-  /// Rest position of the support in box coordinates, before it lifts.
+  /// The support's size once fitted in the box (mm): width, height,
+  /// thickness and whether it is round.
+  (double, double, double, bool)? get fittedSupportSize => _fittedSupportSize;
+
+  /// Rounded corners of the support's shell (mm): a cartridge's or card's
+  /// own, a UMD's, a floppy's, a cassette's; none for a disc.
+  double get _supportCornerRadius {
+    final size = _fittedSupportSize;
+    if (size == null || size.$4) return 0;
+    final (sw, sh, _, _) = size;
+    final c = profile.cartridge;
+    final radius = switch (profile.support) {
+      GameBoxSupportKind.umd => 6.0,
+      GameBoxSupportKind.floppy => 1.5,
+      GameBoxSupportKind.cassette => 3.0,
+      _ => c == null || c.width <= 0 ? 3.0 : c.cornerRadius * sw / c.width,
+    };
+    return radius.clamp(0.0, math.min(sw, sh) / 2).toDouble();
+  }
+
+  /// Faces of the support as a solid (docs/game-box-3d.md § 30), centred on
+  /// [center], its label toward −z: the viewer, when it lies in an open case.
+  ///
+  /// A disc has its thickness: the label, the data side and a rim of narrow
+  /// faces lit as one curve. A cartridge, card, UMD, floppy or cassette is a
+  /// block with the rounded corners of its shell (the Game Boy cartridge's
+  /// corner cut at 45°), its front and back clipped to that outline.
+  List<BoxFace> supportFaces({BoxV3 center = BoxV3.zero}) {
+    final size = _fittedSupportSize;
+    if (size == null) return const [];
+    final (sw, sh, st, round) = size;
+    final r = _supportCornerRadius;
+    final faces = <BoxFace>[
+      BoxFace(
+        id: 'support.front', surface: BoxSurface.supportFront,
+        origin: BoxV3(-sw / 2, -sh / 2, -st / 2), u: const BoxV3(1, 0, 0), v: const BoxV3(0, 1, 0),
+        width: sw, height: sh, cornerRadius: r,
+      ),
+      BoxFace(
+        id: 'support.back', surface: BoxSurface.supportBack,
+        origin: BoxV3(sw / 2, -sh / 2, st / 2), u: const BoxV3(-1, 0, 0), v: const BoxV3(0, 1, 0),
+        width: sw, height: sh, cornerRadius: r,
+      ),
+    ];
+    final sides = _OutlineSides('support', st);
+    if (round) {
+      sides.arc(Offset.zero, sw / 2, 0, 2 * math.pi, cornerSegments >= 8 ? 48 : 16, prefix: 'rim');
+    } else {
+      final cut = (profile.cartridge?.cutCorner ?? false) && profile.support == GameBoxSupportKind.cartridge
+          ? math.max(r, sw * 0.12)
+          : 0.0;
+      sides.roundedRect(sw, sh, r, cut: cut, segments: cornerSegments);
+    }
+    faces.addAll(sides.faces);
+    if (center == BoxV3.zero) return faces;
+    return [for (final f in faces) f.moved(center)];
+  }
+
+  /// Rest position of the support in box coordinates, before it lifts; once
+  /// taken ([BoxOpening.supportTake]), it comes to the camera and turns as
+  /// it is held.
   BoxPart? supportPart(BoxOpening opening, {required double trayZ}) {
     final size = _fittedSupportSize;
     if (size == null) return null;
     final (sw, sh, st, round) = size;
     final lift = _ease(opening.support);
+    final BoxV3 centre;
+    final int layer;
     switch (profile.caseKind) {
       case GameBoxCaseKind.cardboard:
         // Standing inside, facing the front; rises through the top opening.
         final bottomY = height / 2 - 2;
         final rise = sh * 0.62 * lift;
-        final y0 = bottomY - sh - rise;
-        final faces = cuboid(
-          'support',
-          BoxV3(-sw / 2, y0, -st / 2),
-          BoxV3(sw / 2, y0 + sh, st / 2),
-          front: BoxSurface.supportFront,
-          back: BoxSurface.supportBack,
-          left: BoxSurface.supportEdge,
-          right: BoxSurface.supportEdge,
-          top: BoxSurface.supportEdge,
-          bottom: BoxSurface.supportEdge,
-        );
-        return BoxPart(id: 'support', faces: faces, layer: 2);
+        centre = BoxV3(0, bottomY - sh / 2 - rise, 0);
+        layer = 2;
       case GameBoxCaseKind.keepCase:
       case GameBoxCaseKind.jewelCase:
       case GameBoxCaseKind.clamshell:
         // Lying on the tray. Small cards sit in the upper right like the clip
-        // of a DS case; discs are centred on their hub.
+        // of a DS case; discs are centred on their hub, just above the tray.
         final cx = round || sw > width * 0.6 ? 0.0 : width * 0.18;
         final cy = round || sh > height * 0.6 ? 0.0 : -height * 0.12;
         final out = supportLifts ? (6 + st) * lift : 0.0;
-        final z0 = trayZ - (round ? 0.25 : st) - out;
         final upward = supportLifts ? sh * 0.10 * lift : 0.0;
-        if (round) {
-          return BoxPart(
-            id: 'support',
-            cull: false,
-            layer: 1,
-            faces: [
-              BoxFace(
-                id: 'support.front', surface: BoxSurface.supportFront,
-                origin: BoxV3(cx - sw / 2, cy - sh / 2, z0), u: const BoxV3(1, 0, 0),
-                v: const BoxV3(0, 1, 0), width: sw, height: sh,
-              ),
-            ],
-          );
-        }
-        final faces = cuboid(
-          'support',
-          BoxV3(cx - sw / 2, cy - sh / 2 - upward, z0),
-          BoxV3(cx + sw / 2, cy + sh / 2 - upward, z0 + st),
-          front: BoxSurface.supportFront,
-          back: BoxSurface.supportBack,
-          left: BoxSurface.supportEdge,
-          right: BoxSurface.supportEdge,
-          top: BoxSurface.supportEdge,
-          bottom: BoxSurface.supportEdge,
-        );
-        return BoxPart(id: 'support', faces: faces, layer: 1);
+        final z = round ? trayZ - 0.25 - st / 2 : trayZ - st / 2 - out;
+        centre = BoxV3(cx, cy - upward, z);
+        layer = 1;
       case GameBoxCaseKind.flat:
         return null;
     }
+    final faces = supportFaces(center: centre);
+    final target = opening.supportTakeTarget;
+    if (target == null || opening.supportTake <= 0) {
+      return BoxPart(id: 'support', faces: faces, layer: layer);
+    }
+    // From where it lies to the camera in a straight line, turning on the
+    // way into the way it is held.
+    final rest = BoxRigid.translate(centre);
+    final held = target.compose(BoxRigid(opening.supportSpin, BoxV3.zero));
+    return BoxPart(
+      id: 'support',
+      faces: faces,
+      transform: BoxRigid.lerp(rest, held, _ease(opening.supportTake)).compose(BoxRigid.translate(centre * -1)),
+      // The box keeps its framing while the support is out.
+      frameTransform: BoxRigid.identity,
+      // Taken toward the camera, it is nearer than everything else.
+      layer: 6,
+    );
   }
 
   static double _ease(double t) {
     final c = t.clamp(0.0, 1.0);
     return c * c * (3 - 2 * c);
+  }
+}
+
+/// Narrow faces standing on an outline drawn in the plane z = 0 (mm, y
+/// down), [depth] deep and centred on it: the sides of a cartridge's shell,
+/// the rim of a disc (docs/game-box-3d.md § 30). A straight run is one face;
+/// a curved run is several, each lit from one border to the other (§ 29).
+/// The outline is walked clockwise on screen.
+class _OutlineSides {
+  _OutlineSides(this.prefix, this.depth);
+
+  final String prefix;
+  final double depth;
+  final faces = <BoxFace>[];
+  var _n = 0;
+
+  static const _pz = BoxV3(0, 0, 1), _nz = BoxV3(0, 0, -1);
+
+  void side(Offset a, Offset b, {BoxV3? normalA, BoxV3? normalB, String kind = 'side'}) {
+    final pa = BoxV3(a.dx, a.dy, 0), pb = BoxV3(b.dx, b.dy, 0);
+    final length = (pb - pa).length;
+    if (length < 1e-6) return;
+    final u = (pb - pa).normalized;
+    final out = BoxV3(u.y, -u.x, 0);
+    // The depth runs so that v × u points outward.
+    final towardBack = _pz.cross(u).dot(out) > 0;
+    faces.add(BoxFace(
+      id: '$prefix.$kind${_n++}',
+      surface: BoxSurface.supportEdge,
+      origin: BoxV3(pa.x, pa.y, towardBack ? -depth / 2 : depth / 2),
+      u: u,
+      v: towardBack ? _pz : _nz,
+      width: length,
+      height: depth,
+      normalStart: normalA,
+      normalEnd: normalB,
+    ));
+  }
+
+  /// [segments] faces along the arc of [radius] about [centre], from the
+  /// angle [start] to [end] (radians; y down, so growing clockwise).
+  void arc(Offset centre, double radius, double start, double end, int segments, {String prefix = 'side'}) {
+    for (var i = 0; i < segments; i++) {
+      final a = start + (end - start) * i / segments;
+      final b = start + (end - start) * (i + 1) / segments;
+      side(
+        centre + Offset(math.cos(a), math.sin(a)) * radius,
+        centre + Offset(math.cos(b), math.sin(b)) * radius,
+        normalA: BoxV3(math.cos(a), math.sin(a), 0),
+        normalB: BoxV3(math.cos(b), math.sin(b), 0),
+        kind: prefix,
+      );
+    }
+  }
+
+  /// A [w] × [h] rectangle centred on the origin, its corners rounded by
+  /// [r]; with [cut], its bottom-right corner is cut off at 45° instead.
+  void roundedRect(double w, double h, double r, {double cut = 0, int segments = 8}) {
+    final l = -w / 2, t = -h / 2, rt = w / 2, b = h / 2;
+    final rr = r > 0.05 ? r : 0.0;
+    void corner(Offset c, double start) {
+      if (rr > 0) arc(c, rr, start, start + math.pi / 2, math.max(1, segments));
+    }
+    side(Offset(l + rr, t), Offset(rt - rr, t));
+    corner(Offset(rt - rr, t + rr), 1.5 * math.pi);
+    if (cut > 0) {
+      side(Offset(rt, t + rr), Offset(rt, b - cut));
+      side(Offset(rt, b - cut), Offset(rt - cut, b));
+      side(Offset(rt - cut, b), Offset(l + rr, b));
+    } else {
+      side(Offset(rt, t + rr), Offset(rt, b - rr));
+      corner(Offset(rt - rr, b - rr), 0);
+      side(Offset(rt - rr, b), Offset(l + rr, b));
+    }
+    corner(Offset(l + rr, b - rr), 0.5 * math.pi);
+    side(Offset(l, b - rr), Offset(l, t + rr));
+    corner(Offset(l + rr, t + rr), math.pi);
   }
 }
 
@@ -896,10 +1075,17 @@ class ProjectedFace {
     required this.depth,
     required this.pxPerMm,
     this.facing = 1,
+    this.shadeStart,
+    this.shadeEnd,
   });
 
   final BoxFace face;
   final BoxPart part;
+
+  /// [shade] at the borders u = 0 and u = width of a facet of a curved
+  /// surface ([BoxFace.normalStart]); null for a flat face.
+  final double? shadeStart;
+  final double? shadeEnd;
 
   /// Maps the face's local logical pixels (0..width, 0..height) to the
   /// viewport.
@@ -1140,6 +1326,75 @@ class BoxProjector {
     return BoxRigid(inverse, inverse.apply(BoxV3(x, y, z)));
   }
 
+  /// Where the support goes when it is taken (docs/game-box-3d.md § 30): in
+  /// front of the camera, facing it squarely, centred in the viewport, its
+  /// largest extent (a disc's diameter, the diagonal of anything else, which
+  /// a turn may show) filling [fill] of the viewport's smaller side; in box
+  /// coordinates for this pose. Its axes are then the screen's, so a turn
+  /// of the held support ([BoxOpening.supportSpin]) is a turn about them.
+  BoxRigid? supportTakeTarget({double fill = 0.72}) {
+    final size = model.fittedSupportSize;
+    if (size == null || viewport.isEmpty) return null;
+    final (w, h, _, round) = size;
+    final extent = round ? w : math.sqrt(w * w + h * h);
+    if (extent <= 0) return null;
+    final s = scale * pose.zoom.clamp(BoxPose.minZoom * 0.3, BoxPose.maxZoom);
+    final f = focal;
+    final want = math.min(viewport.width, viewport.height) * fill / extent;
+    var z = (s / want - 1) * f / s;
+    // A small card comes closer than the manual may: an open box is framed
+    // small, and a DS card needs about a quarter of the distance to fill the
+    // view. Nearer, its turns would swell its near edge too much.
+    z = math.max(z, (0.2 - 1) * f / s);
+    final wz = 1 + z * s / f;
+    final x = -(pose.panX + offsetX) * wz / s;
+    final y = -(pose.panY + offsetY) * wz / s;
+    final inverse = pose.rotation.transposed;
+    return BoxRigid(inverse, inverse.apply(BoxV3(x, y, z)));
+  }
+
+  /// Whether [point] falls on the support as it is seen now (a disc within
+  /// its circle): a face drawn over it (the front of a cardboard box, the
+  /// manual) takes the tap.
+  bool hitsSupport(Offset point) {
+    final faces = project();
+    final round = model.fittedSupportSize?.$4 ?? false;
+    var index = -1;
+    for (var i = faces.length - 1; i >= 0; i--) {
+      final f = faces[i];
+      if (f.part.id != 'support' || !_contains(f, point)) continue;
+      final flat = f.face.surface == BoxSurface.supportFront || f.face.surface == BoxSurface.supportBack;
+      if (round && flat) {
+        final local = _local(f, point);
+        if (local != null && (local - Offset(f.width / 2, f.height / 2)).distance > f.width / 2) continue;
+      }
+      index = i;
+      break;
+    }
+    if (index < 0) return false;
+    for (final f in faces.skip(index + 1)) {
+      if (f.part.id != 'support' && _contains(f, point)) return false;
+    }
+    return true;
+  }
+
+  /// The point of [f]'s plane (its local logical pixels) seen at [point].
+  static Offset? _local(ProjectedFace f, Offset point) {
+    final m = f.matrix.storage;
+    // Screen = H · (x, y, 1) with H = [m0 m4 m12; m1 m5 m13; m3 m7 m15].
+    final a = m[0], b = m[4], c = m[12];
+    final d = m[1], e = m[5], g = m[13];
+    final h = m[3], i = m[7], j = m[15];
+    final det = a * (e * j - g * i) - b * (d * j - g * h) + c * (d * i - e * h);
+    if (det.abs() < 1e-12) return null;
+    final X = point.dx, Y = point.dy;
+    final x = (e * j - g * i) * X + (c * i - b * j) * Y + (b * g - c * e);
+    final y = (g * h - d * j) * X + (a * j - c * h) * Y + (c * d - a * g);
+    final w = (d * i - e * h) * X + (b * h - a * i) * Y + (a * e - b * d);
+    if (w.abs() < 1e-12) return null;
+    return Offset(x / w, y / w);
+  }
+
   /// Centre of the support on screen, when the profile has one.
   Offset? get supportCenter {
     for (final part in model.parts(opening)) {
@@ -1225,8 +1480,10 @@ class BoxProjector {
         if (part.cull && !facing) continue;
         final distance = toFace.length;
         final squareness = distance <= 0 ? 1.0 : (-n.dot(toFace) / distance).abs();
-        final lambert = n.dot(light);
-        final shade = (0.62 + 0.38 * lambert) / (0.62 + 0.38 * frontLight);
+        double shadeOf(BoxV3 normal) =>
+            ((0.62 + 0.38 * normal.dot(light)) / (0.62 + 0.38 * frontLight)).clamp(0.55, 1.0).toDouble();
+        final shade = shadeOf(n);
+        final ns = face.normalStart, ne = face.normalEnd;
         final m = Matrix4(
           u.x, u.y, u.z, 0,
           v.x, v.y, v.z, 0,
@@ -1239,10 +1496,12 @@ class BoxProjector {
           matrix: viewProjection.multiplied(m),
           width: face.width * s,
           height: face.height * s,
-          shade: shade.clamp(0.55, 1.0).toDouble(),
+          shade: shade,
           depth: distance,
           pxPerMm: s,
           facing: squareness.clamp(0.0, 1.0).toDouble(),
+          shadeStart: ns == null ? null : shadeOf(toView.applyVector(ns).normalized),
+          shadeEnd: ne == null ? null : shadeOf(toView.applyVector(ne).normalized),
         ));
       }
       visible.sort((a, b) => b.depth.compareTo(a.depth));

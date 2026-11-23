@@ -16,6 +16,10 @@ import 'package:neostation/services/game_box/game_box_manual.dart';
 import 'package:neostation/services/game_box/game_box_media.dart';
 import 'package:neostation/services/game_launch_manager.dart';
 import 'package:neostation/services/game_manual_service.dart';
+import 'package:neostation/services/sfx_service.dart';
+import 'package:neostation/services/game_box/game_box_profile.dart';
+import 'package:neostation/widgets/game_box/game_box_geometry.dart';
+import 'package:neostation/widgets/game_box/game_box_scene.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -354,6 +358,109 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(readerPaths, [manualPath]);
+  });
+
+  // docs/game-box-3d.md § 30: the disc taken out and turned all round.
+  group('the disc held up to the camera', () {
+    Offset disc(WidgetTester tester, GameBoxInspectorState state) {
+      final projector = BoxProjector(
+        model: GameBoxModel(GameBoxProfile.forSystem('ps2')),
+        viewport: state.viewport,
+        pose: state.pose,
+        opening: state.opening,
+        outlineBlend: 1,
+      );
+      return tester.getTopLeft(find.byType(GameBoxScene)) + projector.supportCenter!;
+    }
+
+    testWidgets('a touch on the disc holds it up; it turns under the finger; Back puts it back', (tester) async {
+      var plays = 0;
+      final state = await open(tester, onPlay: () => plays++);
+      await openBox(tester);
+      final yaw = state.pose.yaw;
+      await tester.tapAt(disc(tester, state));
+      // A single tap counts once a double tap can no longer follow (300 ms).
+      await _frames(tester, const Duration(milliseconds: 1100));
+      expect(state.inside, GameBoxInsideState.holding);
+      expect(state.opening.supportTake, 1);
+      expect(find.byKey(const ValueKey('game_box_support_scrim')), findsOneWidget, reason: 'the box steps back');
+
+      // Dragged to the right, its label turns to the right; the box stays.
+      await tester.dragFrom(tester.getCenter(find.byType(GameBoxScene)), const Offset(160, 0));
+      await _frames(tester, const Duration(milliseconds: 100));
+      final label = state.opening.supportSpin.apply(const BoxV3(0, 0, -1));
+      expect(label.x, greaterThan(0.3));
+      expect(state.pose.yaw, closeTo(yaw, 1e-9), reason: 'the box itself does not turn');
+      // Its back, by the panel's button.
+      await tester.tap(find.byKey(const ValueKey('game_box_support_back')));
+      await _frames(tester, const Duration(milliseconds: 600));
+      expect(state.opening.supportSpin.apply(const BoxV3(0, 0, -1)).z, closeTo(1, 1e-6), reason: 'label away');
+
+      await tester.tap(back);
+      await _frames(tester, const Duration(milliseconds: 800));
+      expect(state.inside, GameBoxInsideState.open, reason: 'put back, the box still open');
+      expect(state.opening.supportTake, 0);
+      expect(state.pose.yaw, closeTo(yaw, 1e-9));
+      expect(find.byKey(const ValueKey('game_box_support_scrim')), findsNothing);
+      expect(plays, 0);
+    });
+
+    testWidgets('Y takes the disc and turns it round, B puts it back; a touch beside it too', (tester) async {
+      SfxService().setEnabled(false);
+      addTearDown(() => SfxService().setEnabled(true));
+      final state = await open(tester, onPlay: () {});
+      await openBox(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyY);
+      await _frames(tester, const Duration(milliseconds: 700));
+      expect(state.inside, GameBoxInsideState.holding);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyY);
+      await _frames(tester, const Duration(milliseconds: 600));
+      expect(state.opening.supportSpin.apply(const BoxV3(0, 0, -1)).z, closeTo(1, 1e-6), reason: 'turned round');
+      await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+      await _frames(tester, const Duration(milliseconds: 800));
+      expect(state.inside, GameBoxInsideState.open);
+
+      await tester.tapAt(disc(tester, state));
+      // A single tap counts once a double tap can no longer follow (300 ms).
+      await _frames(tester, const Duration(milliseconds: 1100));
+      expect(state.inside, GameBoxInsideState.holding);
+      final scene = tester.getRect(find.byType(GameBoxScene));
+      await tester.tapAt(scene.topLeft + const Offset(6, 6));
+      await _frames(tester, const Duration(milliseconds: 1100));
+      expect(state.inside, GameBoxInsideState.open, reason: 'a touch beside it puts it back');
+    });
+
+    testWidgets('Close and Play from the held disc put it back first', (tester) async {
+      var plays = 0;
+      final state = await open(tester, onPlay: () => plays++);
+      await openBox(tester);
+      await tester.tapAt(disc(tester, state));
+      // A single tap counts once a double tap can no longer follow (300 ms).
+      await _frames(tester, const Duration(milliseconds: 1100));
+      expect(state.inside, GameBoxInsideState.holding);
+      await tester.tap(find.byKey(const ValueKey('game_box_close')));
+      await _frames(tester, const Duration(milliseconds: 1600));
+      expect(state.inside, GameBoxInsideState.closed);
+      expect(state.opening.supportTake, 0);
+      expect(plays, 0);
+    });
+
+    testWidgets('Reduce Motion: taken and put back without movement', (tester) async {
+      final state = await open(tester, onPlay: () {}, reduceMotion: true);
+      await tester.tap(find.byKey(const ValueKey('game_box_open')));
+      await tester.pump();
+      await tester.pump();
+      expect(state.inside, GameBoxInsideState.open);
+      await tester.tapAt(disc(tester, state));
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pump();
+      expect(state.inside, GameBoxInsideState.holding);
+      expect(state.opening.supportTake, 1);
+      await tester.tap(back);
+      await tester.pump();
+      await tester.pump();
+      expect(state.inside, GameBoxInsideState.open);
+    });
   });
 
   testWidgets('the back can be seen flat, full size, with its real resolution', (tester) async {

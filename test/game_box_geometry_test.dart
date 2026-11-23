@@ -81,10 +81,43 @@ void main() {
 
     test('rounded keep cases have corner faces; jewel cases are square', () {
       final keep = ps2.parts(BoxOpening.closed).first.faces;
-      expect(keep.where((f) => f.id.contains('.corner.')), hasLength(12));
+      expect(keep.where((f) => f.id.contains('.corner.')), hasLength(32), reason: 'eight facets per corner');
+      final small = GameBoxModel(ps2.profile, cornerSegments: 3).parts(BoxOpening.closed).first.faces;
+      expect(small.where((f) => f.id.contains('.corner.')), hasLength(12), reason: 'three in the grid and list');
       final jewel = GameBoxModel(GameBoxProfile.forSystem('ps1')).parts(BoxOpening.closed).first.faces;
       expect(jewel.where((f) => f.id.contains('.corner.')), isEmpty);
       expect(jewel.where((f) => f.surface == BoxSurface.spineRight), hasLength(1));
+    });
+
+    // docs/game-box-3d.md § 29: a rounded corner reads as one curve.
+    test('the facets of a rounded corner are lit as one curve, without a step', () {
+      for (final model in [ps2, GameBoxModel(ps2.profile, cornerSegments: 3)]) {
+        for (final pose in [BoxPose.rest, const BoxPose(yaw: -2.4, pitch: 0.5), const BoxPose(yaw: 0.9, pitch: -0.6)]) {
+          final faces = {
+            for (final f in BoxProjector(model: model, viewport: const Size(400, 500), pose: pose).project())
+              f.face.id: f,
+          };
+          final n = model.cornerSegments;
+          for (final corner in ['tl', 'tr', 'br', 'bl']) {
+            for (var i = 0; i + 1 < n; i++) {
+              final a = faces['body.corner.$corner$i'], b = faces['body.corner.$corner${i + 1}'];
+              if (a == null || b == null) continue; // one of them faces away
+              expect(a.shadeEnd, closeTo(b.shadeStart!, 1e-9), reason: '$corner $i/${i + 1} at $pose');
+              expect(a.shadeStart, isNotNull);
+            }
+          }
+          // The curve ends where the straight side begins, at its light.
+          final first = faces['body.corner.tl0'], spine = faces['body.left'];
+          if (first != null && spine != null) {
+            expect(first.shadeStart, closeTo(spine.shade, 1e-9), reason: 'spine meets its corner at $pose');
+          }
+          final last = faces['body.corner.tl${n - 1}'], top = faces['body.top'];
+          if (last != null && top != null) {
+            expect(last.shadeEnd, closeTo(top.shade, 1e-9), reason: 'top meets its corner at $pose');
+          }
+          expect(faces['body.front']?.shadeStart, isNull, reason: 'a flat face has one light');
+        }
+      }
     });
 
     test('pose interpolation takes the shortest way round', () {
@@ -100,13 +133,20 @@ void main() {
       var minX = double.infinity, maxX = -double.infinity;
       var minY = double.infinity, maxY = -double.infinity;
       for (final f in pr.project()) {
-        // A rounded front or back reaches its outline at the ends of its
-        // straight edges, not at the corners of its rectangle.
+        // A rounded front or back reaches its outline along its rounded
+        // corners, not at the corners of its rectangle: its arcs are
+        // sampled (the facets beside them may face away).
         final r = f.face.surface == BoxSurface.front || f.face.surface == BoxSurface.back ? f.face.cornerRadius : 0.0;
         final w = f.face.width, h = f.face.height;
+        final local = <(double, double)>[
+          (r, 0.0), (w - r, 0.0), (w, r), (w, h - r), (w - r, h), (r, h), (0.0, h - r), (0.0, r),
+          if (r > 0)
+            for (final (cx, cy, start) in [(r, r, math.pi), (w - r, r, 1.5 * math.pi), (w - r, h - r, 0.0), (r, h - r, 0.5 * math.pi)])
+              for (var k = 1; k < 12; k++)
+                (cx + r * math.cos(start + k * math.pi / 24), cy + r * math.sin(start + k * math.pi / 24)),
+        ];
         final points = [
-          for (final (x, y) in [(r, 0.0), (w - r, 0.0), (w, r), (w, h - r), (w - r, h), (r, h), (0.0, h - r), (0.0, r)])
-            pr.screenPoint(f.part.id, f.face.origin + f.face.u * x + f.face.v * y)!,
+          for (final (x, y) in local) pr.screenPoint(f.part.id, f.face.origin + f.face.u * x + f.face.v * y)!,
         ];
         for (final o in points) {
           minX = math.min(minX, o.dx);
