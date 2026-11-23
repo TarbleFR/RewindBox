@@ -45,7 +45,6 @@ class LibretroCore {
     this.preferredHardwareContext = LibretroHardwareContext.none,
     this.optionDefaults = const <String, String>{},
     this.noJitOverrides = const <String, String>{},
-    this.jitArenaBytes = 0,
     this.jitOverrides = const <String, String>{},
     this.lockedOptions = const <String, String>{},
     this.settings = const <LibretroCuratedSetting>[],
@@ -71,15 +70,13 @@ class LibretroCore {
   final Map<String, String> optionDefaults;
   final Map<String, String> noJitOverrides;
 
-  /// Code arena the libretro JIT helper prepares before each launch, in
-  /// bytes, for a core RewindBox builds with its JIT interface
-  /// (RewindBoxLibretroJit.h); 0 for every other core, which then never
-  /// starts the helper.
-  final int jitArenaBytes;
-
   /// Session values that select the core's code generator, applied only when
-  /// the core accepted the JIT interface (cores that switch by themselves
-  /// need none).
+  /// the core accepted RewindBox's JIT interface (RewindBoxLibretroJit.h);
+  /// they then replace [noJitOverrides]. Cores that decide by themselves
+  /// once the interface is installed need none. Whether a packaged core has
+  /// the interface, and the arena it needs, comes from the core collection's
+  /// identity (`LibretroInternalService.bundledJitArenaBytes`), never from
+  /// this catalog.
   final Map<String, String> jitOverrides;
 
   /// Core options NeoStation imposes for the whole session, before

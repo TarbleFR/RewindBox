@@ -333,14 +333,55 @@ abstract final class LibretroInternalService {
     return choice != null && allowed.contains(choice) ? choice : binding.coreId;
   }
 
-  /// The libretro JIT helper transaction for [core], when RewindBox built it
-  /// with its JIT interface ([LibretroCore.jitArenaBytes] > 0): manual
-  /// LocalDevVPN route, stored pairing file, then the native transaction,
-  /// whose facts are logged one by one. Never inferred from a route or a
-  /// previous launch; any missing step keeps the core's interpreter and never
-  /// blocks the game.
-  static Future<bool> _prepareJit(LibretroCore core) async {
-    if (core.jitArenaBytes <= 0 || !Platform.isIOS) return false;
+  /// Code arena, in bytes, of [coreId] when this build packages it with
+  /// RewindBox's JIT interface: its record in the core collection's identity
+  /// (`Runner.app/Libretro-native-identity.json`, embedded by the delivery)
+  /// carries `jitInterface: 1` and `jitArenaBytes`, which
+  /// build-utils/libretro_source_cores.py writes for the cores RewindBox
+  /// compiles itself. 0 for every other core (official binaries), which then
+  /// never starts the JIT helper.
+  static Future<int> bundledJitArenaBytes(String coreId) async {
+    if (!Platform.isIOS) return 0;
+    final arenas = await (_jitArenas ??= _readJitArenas());
+    return arenas[coreId] ?? 0;
+  }
+
+  static Future<Map<String, int>>? _jitArenas;
+
+  static Future<Map<String, int>> _readJitArenas() async {
+    try {
+      final file = File(path.join(path.dirname(Platform.resolvedExecutable), 'Libretro-native-identity.json'));
+      return jitArenasFromIdentity(jsonDecode(await file.readAsString()));
+    } catch (error) {
+      _log.i('libretro JIT: core identity unreadable ($error); every core keeps its interpreter');
+      return const <String, int>{};
+    }
+  }
+
+  /// The code arenas a core collection identity declares, by core id: only
+  /// records with `jitInterface: 1` and a positive `jitArenaBytes`.
+  static Map<String, int> jitArenasFromIdentity(Object? identity) {
+    final cores = identity is Map ? identity['cores'] : null;
+    if (cores is! List) return const <String, int>{};
+    return <String, int>{
+      for (final core in cores)
+        if (core is Map &&
+            core['id'] is String &&
+            core['jitInterface'] == 1 &&
+            core['jitArenaBytes'] is int &&
+            (core['jitArenaBytes'] as int) > 0)
+          core['id'] as String: core['jitArenaBytes'] as int,
+    };
+  }
+
+  /// The libretro JIT helper transaction for [core], when this build packages
+  /// it with RewindBox's JIT interface ([arenaBytes] > 0, from
+  /// [bundledJitArenaBytes]): manual LocalDevVPN route, stored pairing file,
+  /// then the native transaction, whose facts are logged one by one. Never
+  /// inferred from a route or a previous launch; any missing step keeps the
+  /// core's interpreter and never blocks the game.
+  static Future<bool> _prepareJit(LibretroCore core, int arenaBytes) async {
+    if (arenaBytes <= 0 || !Platform.isIOS) return false;
     try {
       await LocalDevVpnRouteService.ensureReachable();
     } catch (error) {
@@ -355,7 +396,7 @@ abstract final class LibretroInternalService {
       final pairing = await PairingFileService.storedFile();
       final facts = await LibretroInternalBridge.prepareJit(
         pairingFilePath: pairing.path,
-        bytes: core.jitArenaBytes,
+        bytes: arenaBytes,
       );
       final success = facts['success'] == true;
       _log.i(
@@ -432,7 +473,8 @@ abstract final class LibretroInternalService {
     }
     // RewindBox's JIT interface: a core RewindBox builds with its JIT gets the
     // session's code arena from the libretro JIT helper before the launch.
-    final jitPrepared = await _prepareJit(core);
+    final jitArenaBytes = await bundledJitArenaBytes(coreId);
+    final jitPrepared = await _prepareJit(core, jitArenaBytes);
     final raService = RetroAchievementsSessionService.shared;
     var raLaunch = await raService.prepareLaunch(engine: 'libretro', system: key,
       core: coreId, language: locale.toLanguageTag(), contentPath: romPath);
@@ -459,7 +501,7 @@ abstract final class LibretroInternalService {
       'optionDefaults': await _optionDefaultsFor(core, locale),
       'noJitOverrides': core.noJitOverrides,
       'jitOverrides': jitPrepared ? core.jitOverrides : const <String, String>{},
-      'jitExpected': core.jitArenaBytes > 0,
+      'jitExpected': jitArenaBytes > 0,
       'lockedOptions': core.lockedOptions,
       'coreSettings': LibretroLocale.coreSettings(locale, core),
       // Internal resolution (Build 455): how the session recognizes the
