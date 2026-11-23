@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "build": 828,
-  "status": "draft",
+  "status": "frozen",
   "note": "Private test build: libretro JIT steps 1 to 4 for DeSmuME (collection LibretroCores-66e232e0, run 45237317896: DeSmuME's AArch64 JIT, cached interpreter without the JIT helper), the JIT mode shown when a libretro game starts and a libretro performance overlay; game box covers with discs and cartridges turned in 360 degrees (58f73018, deferred since 826); NeoStation fixes (Switch 120 FPS mod kept on, 3DS cheats through Azahar's cheat file, PS1 multi-disc identity, 3DS empty folders); skins no longer lock the orientation behind a controller. S2Arm engine (patches 0001-0319), MeloNX, RPCS3, Dolphin, ARMSX2, Xenia and the other cores as in 827. Physical-device behaviour unmeasured.",
   "base": {
     "source": "9f2dee5af94b5b1d23ec81ef84563eb29e7ff994",
@@ -383,7 +383,2301 @@
         ],
         "note": "Game box covers: discs and cartridges turned in 360 degrees, sharp covers, smooth corners (another session, validated by the maintainer); deferred since 826"
       }
-    ]
+    ],
+    "freezeCommit": "59ca2e2e080f3925760027441fc233202669437d",
+    "freezeTree": "a8b858851911c894f46967fd61990e9956f79258",
+    "baseEffectiveDigest": "9c67a75d6fc90cfb7d0113660805ef76407c05619dcd0258432cb8ba505d077f",
+    "inheritedDeferredPaths": [
+      "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-10.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-13-bulk.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-23-pass2.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-23.json",
+      "build-utils/maintenance/cleanup_actions.py",
+      "build-utils/melonx/metal-archive/README.md",
+      "build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch",
+      "build-utils/s2arm/engine/benchmarks/README.md",
+      "build-utils/s2arm/engine/benchmarks/coreml/IOSApp.swift",
+      "build-utils/s2arm/engine/benchmarks/coreml/Main.swift",
+      "build-utils/s2arm/engine/benchmarks/coreml/ReconstructionBench.swift",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/README.md",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.manifest.json",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Data/com.apple.CoreML/weights/weight.bin",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Manifest.json",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.manifest.json",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Data/com.apple.CoreML/weights/weight.bin",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Manifest.json",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/generate_probe.py",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/requirements.txt",
+      "build-utils/s2arm/engine/benchmarks/coreml/run_macos.sh",
+      "build-utils/s2arm/engine/benchmarks/ga.c",
+      "build-utils/s2arm/engine/benchmarks/ga_guard.c",
+      "build-utils/s2arm/engine/benchmarks/push_bench.c",
+      "build-utils/s2arm/engine/benchmarks/push_selective.c",
+      "build-utils/s2arm/engine/benchmarks/rid_bench.m",
+      "build-utils/s2arm/engine/benchmarks/run_coreml.py",
+      "build-utils/s2arm/engine/benchmarks/run_cpu.py",
+      "build-utils/s2arm/engine/benchmarks/ubo_bench.c",
+      "build-utils/s2arm/engine/benchmarks/ubo_guard.c",
+      "native/enhancements/catalogue/r/2026-11-16T2112Z.a85f516925ab/index.json.gz",
+      "native/enhancements/catalogue/r/2026-11-16T2139Z.d8b055350a6c/index.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/index.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-00.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-01.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-02.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-03.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-04.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-05.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-06.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-07.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-08.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-09.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-10.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-11.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-12.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-13.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-14.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-15.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-16.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-17.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-18.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-19.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-20.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-21.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-22.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-23.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-24.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-25.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-26.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-27.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-28.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-29.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-30.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-31.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-00.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-01.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-02.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-03.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-04.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-05.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-06.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-07.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-08.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-09.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-10.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-11.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-12.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-13.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-14.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-15.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-16.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-17.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-18.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-19.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-20.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-21.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-22.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-23.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-24.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-25.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-26.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-27.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-28.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-29.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-30.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-31.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-00.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-01.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-02.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-03.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-04.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-05.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-06.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-07.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-08.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-09.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-10.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-11.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-12.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-13.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-14.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-15.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-16.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-17.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-18.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-19.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-20.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-21.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-22.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-23.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-24.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-25.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-26.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-27.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-28.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-29.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-30.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-31.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-00.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-01.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-02.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-03.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-04.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-05.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-06.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-07.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-08.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-09.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-10.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-11.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-12.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-13.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-14.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-15.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-16.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-17.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-18.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-19.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-20.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-21.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-22.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-23.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-24.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-25.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-26.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-27.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-28.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-29.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-30.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-31.json.gz",
+      "source.json",
+      "test/actions_cleanup_test.py",
+      "test/melonx_metal_binary_archive/generate_shaders.py",
+      "test/melonx_metal_binary_archive/metal_probe.mm",
+      "test/melonx_metal_binary_archive/mvk_archive_test.cpp",
+      "test/melonx_metal_binary_archive/run_mvk.py",
+      "test/melonx_metal_binary_archive/run_probe.py",
+      "test/melonx_metal_binary_archive/shaders.spvz"
+    ],
+    "recipeDefinitionSHA256": "bb612f4a43186a801232ffa15ad61fcd22e4df60e31a7392b69cd7ab094f2b2a",
+    "recipeDefinition": {
+      "prefixes": [
+        ".github/",
+        "docs/",
+        ".claude/",
+        "build-utils/delivery/"
+      ],
+      "files": [
+        "build-utils/rpcs3/core-pin.json",
+        "build-utils/melonx/reads-core-pin.json",
+        "build-utils/melonx/arrays-core-pin.json",
+        "build-utils/melonx/dma-core-pin.json",
+        "test/standard_delivery_contract_test.py",
+        "build-utils/verify_downloaded_delivery.py"
+      ],
+      "globs": [
+        "build-utils/delivery-*-recipient.pem"
+      ],
+      "rootMarkdown": true
+    },
+    "commits": [
+      {
+        "commit": "5f424ddac1f73fba4c44e7559fdb7176f12941ec",
+        "subject": "feat(notifications): the bell announces newer Cheats & Enhancements and HD texture catalogues",
+        "role": "promoted",
+        "productPaths": 1,
+        "partial": true
+      },
+      {
+        "commit": "58f730185507afa8a935f0489b09b5e6d3464336",
+        "subject": "feat(game-box): sharp covers everywhere, smooth corners, supports held and turned in 3D [skip ci]",
+        "role": "promoted",
+        "productPaths": 12,
+        "partial": true
+      },
+      {
+        "commit": "c45e65662b527becac6f7e7f5d7ca84f3bee4a65",
+        "subject": "fix(enhancements): a Switch 120 FPS mod stays on and reaches 120 Hz; installed version checks and game versions",
+        "role": "reviewed",
+        "productPaths": 139
+      },
+      {
+        "commit": "2a77c25ef3b5f2617bedd193b1520db1d6572e90",
+        "subject": "fix(skins): a skin hidden by a controller no longer locks the orientation",
+        "role": "reviewed",
+        "productPaths": 6
+      },
+      {
+        "commit": "c0da9d5c9be559ae2179aee9d2cc9ed352aa15d5",
+        "subject": "[skip ci] Record the private IPA 827 delivery (run 45218995176, verified offline, sent)",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "ebc2d40d1ea4f7f649beff7560947cc566762297",
+        "subject": "[s2arm-library] Lock the delivered S2Arm engine pin to the exact patch 0319",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "56bedad80c408809a0b08c31f7808f32fadac248",
+        "subject": "[skip ci] IPA 827 on iPhone: the 30 fps lock is gone, the submit thread limits races",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "66e232e00b980d5495c6d2d30233b13831596858",
+        "subject": "[libretro-source-cores] DeSmuME JIT steps 1 to 4: common layer, cached interpreter, RewindBox JIT",
+        "role": "reviewed",
+        "productPaths": 3
+      },
+      {
+        "commit": "6c10d94dc370c170b12ea7a9a500608afab35969",
+        "subject": "Libretro: show the JIT mode when a game starts, and a performance overlay",
+        "role": "reviewed",
+        "productPaths": 9
+      },
+      {
+        "commit": "be054d21030a46082fc393d25ab7022662bdc55b",
+        "subject": "Merge remote-tracking branch 'origin/Claude' into Claude",
+        "role": "reviewed",
+        "productPaths": 188,
+        "merge": true
+      },
+      {
+        "commit": "b8833e35ffec892f63b3099ace38f18c5c79a468",
+        "subject": "Adopt the libretro collection with DeSmuME JIT steps 1 to 4: reviewed entry, cached interpreter without JIT",
+        "role": "reviewed",
+        "productPaths": 3
+      },
+      {
+        "commit": "517e426db3b9010361abd118a0ff5ebcd099abad",
+        "subject": "Merge remote-tracking branch 'origin/Claude' into Claude",
+        "role": "reviewed",
+        "productPaths": 6,
+        "merge": true
+      },
+      {
+        "commit": "fb08269c76adf3e066e7d5726d555bf84376c831",
+        "subject": "docs(desmume): the iOS build and the collection of steps 1 to 4 are done [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "59ca2e2e080f3925760027441fc233202669437d",
+        "subject": "[skip ci] Draft the private RewindBox 828 delivery (game box 360 view, NeoStation, DeSmuME JIT collection 66e232e0)",
+        "role": "recipe",
+        "productPaths": 0
+      }
+    ],
+    "deferred": {},
+    "effective": {
+      "assets/data/enhancements_index.json.gz": {
+        "mode": "100644",
+        "gitBlob": "2c24bb16f14e22388421d7d77c92b7bc26c7d828",
+        "sha256": "ac5ea1afd206fc9db3dc2e5a943e95e382ebdd751a8c22848622e61b6aaa0112"
+      },
+      "lib/l10n/enhancements_locale.dart": {
+        "mode": "100644",
+        "gitBlob": "de56674d4ea22bcc9ab299a9290740d284667f43",
+        "sha256": "27d3951786c0e4f55c80764c53f761529c8af75d8a5466790fefaae4b34489bc"
+      },
+      "lib/l10n/libretro_locale.dart": {
+        "mode": "100644",
+        "gitBlob": "c4dd076ce73f54019148c66f76072bafee7fa74c",
+        "sha256": "2143aefeaaa2a18644de7c5b6ca68a66fdfe0841e5bdeb2f26674d354f0e10be"
+      },
+      "lib/screens/enhancements/enhancements_catalog_screen.dart": {
+        "mode": "100644",
+        "gitBlob": "12cd40959805e69704c35ba7eeda36cc065864d8",
+        "sha256": "33babedf23c8b2b94835e199f1644281213f9c79a2b2524ad712a7f0b1d1c2d4"
+      },
+      "lib/screens/enhancements/enhancements_screen.dart": {
+        "mode": "100644",
+        "gitBlob": "685489cd3bac965e507fe1c68564f00d6559d273",
+        "sha256": "90a49f6c8d44ecb2de2f5cd2d72093f58d5088e06b750d562d3b24bfc75c1e1c"
+      },
+      "lib/screens/game_box/game_box_inspector.dart": {
+        "mode": "100644",
+        "gitBlob": "c85511c53b97a443b3ea9c565c6670abda5b3072",
+        "sha256": "0da3f739009254d058b2e91b6cf2a64e4afa9b02067887522a30eb25b68dc9ab"
+      },
+      "lib/screens/game_screen/my_games_list.dart": {
+        "mode": "100644",
+        "gitBlob": "b166a7735ed7a0de9d75b58c42dd833583d02c37",
+        "sha256": "92b990488bc53d2f3993e96a6ad9f1e8de583ea85f011740f5cfefecd26c666b"
+      },
+      "lib/screens/game_screen/my_games_list/secondary_display.dart": {
+        "mode": "100644",
+        "gitBlob": "ab6a4d1f0321ec15a43eb5d803839b35ad9084e5",
+        "sha256": "b61f5bdef35d12963f21252755212a193b7933db3a4b62b6c1574b8017fc3205"
+      },
+      "lib/services/enhancements/adapters/azahar_enhancement_adapter.dart": {
+        "mode": "100644",
+        "gitBlob": "e666efefe9a30fc988ea1c9559e50e88ead75a30",
+        "sha256": "139fe67b07ea5e0c509a175f5a6f675bd4b213dfab842e10d7e4b5d461cd3e4c"
+      },
+      "lib/services/enhancements/adapters/melonx_enhancement_adapter.dart": {
+        "mode": "100644",
+        "gitBlob": "073195b4c1eae5011ae9f9f1dd5c8ad22790b7d4",
+        "sha256": "b7d641db90572a0ff7ee515f42507d60e9eeb6f546d7a3c7c4c78357316bfcfd"
+      },
+      "lib/services/enhancements/enhancement_models.dart": {
+        "mode": "100644",
+        "gitBlob": "8523595c001a55277c77328a7ddf54bebd783761",
+        "sha256": "6566a38b69566f63400eea5de5072eb889d4bdf652b646141d874a31551c6856"
+      },
+      "lib/services/enhancements/enhancement_origin.dart": {
+        "mode": "100644",
+        "gitBlob": "e86035c04881bd33b6a35991eeed24d2ecbc6c1c",
+        "sha256": "1f0a74a81894a2fb6138b4ae701d10152bf71d140dc3ac9e0db24b4401ba8fac"
+      },
+      "lib/services/enhancements/enhancement_service.dart": {
+        "mode": "100644",
+        "gitBlob": "e06e4b60bbae7ba02706881040ac3f5ad4519494",
+        "sha256": "a29e9de48891a5700dcbb6c5479907f08234f3dc1709e09f5f0ea0487c0b0d62"
+      },
+      "lib/services/game_box/game_box_enhance.dart": {
+        "mode": "100644",
+        "gitBlob": "cc77691edd37abfe7eebc0c6ab664b3111aec2da",
+        "sha256": "a1d38cedeee9673146b2b440e646d5494b39a8629432713aecc2906399023aca"
+      },
+      "lib/services/libretro_core_catalog.dart": {
+        "mode": "100644",
+        "gitBlob": "014d9846f221b8b02ddcb5827785dd490eae9f3e",
+        "sha256": "bf8a3c0afd6640a6771d083a5ee73da274cab29253eb1a3b3c64676f709b9af3"
+      },
+      "lib/widgets/game_box/game_box_card.dart": {
+        "mode": "100644",
+        "gitBlob": "d96adb64eed66a1dad1105521815a01916eb2a78",
+        "sha256": "578371c3ffd1d3acbc516c5cbfd8bbdcc6e9bd1f1a76fd196a537e6e7d808c41"
+      },
+      "lib/widgets/game_box/game_box_geometry.dart": {
+        "mode": "100644",
+        "gitBlob": "3fe9012b8c6a397ecaaad9f1cdcf2f30ce8ecbe9",
+        "sha256": "f3bac0141a406a34c6630153fe8e23091d5f72954d8c86dcf14d1efd01d84dcd"
+      },
+      "lib/widgets/game_box/game_box_scene.dart": {
+        "mode": "100644",
+        "gitBlob": "d2bc5ca07aa7d6e68e8e56b9375be90357eae7ea",
+        "sha256": "1e873f75ea454929277efe53c0e68e6760c85cd7d209f21bb220533d06af354c"
+      },
+      "lib/widgets/game_box/game_box_surfaces.dart": {
+        "mode": "100644",
+        "gitBlob": "6fd6495cf73e8cffe1752627650592b7b0c46bf9",
+        "sha256": "3619b3ae44423fc9248fc59f5f7740ee8ba21a3f2598a1d710d1cfd5aa0e81ed"
+      },
+      "native/desmume/README.md": {
+        "mode": "100644",
+        "gitBlob": "571c7404d3d804bf1aeae41cb7decf2958e7db8a",
+        "sha256": "07252b6eed3944878a9ffa2dddaee942a2e4036e14b0e012f97e6796c9b7fa32"
+      },
+      "native/desmume/arm64-jit-abi.patch": {
+        "mode": "100644",
+        "gitBlob": "59ce45c167cc85243e9262fc55c61529c57d103d",
+        "sha256": "ce55baabfe81f962e1fb067437827d32c5b371632c157c1f0c0caef881b31c0b"
+      },
+      "native/desmume/source.json": {
+        "mode": "100644",
+        "gitBlob": "2b77e55382a1d0f78f0c795bd828a38bc51963cc",
+        "sha256": "e74cb532c9b6b04b67c50b68a0ea44d09bf1f7df4c0a5aed24724f610b0f38f0"
+      },
+      "native/enhancements/catalogue/VALIDATION.json": {
+        "mode": "100644",
+        "gitBlob": "59b2cf47cc343ab0273158a2d82f855178aaffb4",
+        "sha256": "c74c98581790b62afb391fcce71d91d7ff6546d91c65b2f1db6084381e863f6a"
+      },
+      "native/enhancements/catalogue/r/2026-11-18T0203Z.194be1570540/index.json.gz": {
+        "mode": "100644",
+        "gitBlob": "2c24bb16f14e22388421d7d77c92b7bc26c7d828",
+        "sha256": "ac5ea1afd206fc9db3dc2e5a943e95e382ebdd751a8c22848622e61b6aaa0112"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/index.json.gz": {
+        "mode": "100644",
+        "gitBlob": "2c24bb16f14e22388421d7d77c92b7bc26c7d828",
+        "sha256": "ac5ea1afd206fc9db3dc2e5a943e95e382ebdd751a8c22848622e61b6aaa0112"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-00.json.gz": {
+        "mode": "100644",
+        "gitBlob": "4f7db3bfdf8caf2ba9589e07904ad13d943622c6",
+        "sha256": "33d46f5d5dc8f458c9bb4d56761c5a326444e2b37af6e071ee217f4a3e954447"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-01.json.gz": {
+        "mode": "100644",
+        "gitBlob": "5fe62c69196287729fed3533fdaf7c57a3746369",
+        "sha256": "2ea8ef643a75574b876f67bad355c76e72ae6564b784fb147108da72a45bd743"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-02.json.gz": {
+        "mode": "100644",
+        "gitBlob": "7bab0fdbecce81a5a942dd50b52ea0ea3bd5768f",
+        "sha256": "e49cc9a3cbad27b7a65d0b56c0b6ef324f3ae9c30143b50cfc4174a978863e6e"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-03.json.gz": {
+        "mode": "100644",
+        "gitBlob": "c2370d92a29b0899570794899a03b7bc9bc5ab29",
+        "sha256": "7caa1ebe11b190470a2b819afd519f959460ca8fdcdf96d887c837140059297d"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-04.json.gz": {
+        "mode": "100644",
+        "gitBlob": "9b57a85636da1b5acfcc86a331e871580ebcf0f2",
+        "sha256": "a45629b5efe2a9e7271986278b9f64b10e1955281c7d7b6d878a8b0040a60be5"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-05.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3b1322b3c668805dca8a6f852be7963de35bb436",
+        "sha256": "14da5603a7b76f519f65ea16807b8c320331e3273aef974f69f952b69e95bae7"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-06.json.gz": {
+        "mode": "100644",
+        "gitBlob": "e88f66400f0ae9e00dfe9039102cd6f70821294f",
+        "sha256": "178f9aacb8d10f830804837709dfa3474eb7b7fc3146ab311ab6e2f570047975"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-07.json.gz": {
+        "mode": "100644",
+        "gitBlob": "d08e38c84c8e898445d22c63d620a88ceda6b403",
+        "sha256": "d296099fc91ec801322f36b76cd34eb2ac037687a804902ad4ab60a45e2ff4db"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-08.json.gz": {
+        "mode": "100644",
+        "gitBlob": "5bee1e612094e9d38e893ac450025d2dea04fa79",
+        "sha256": "4902cbb9e83765ee4de838d8bdb849658fd49cfb772d2975857e91e50470b6b2"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-09.json.gz": {
+        "mode": "100644",
+        "gitBlob": "9746e5a1f83118d433f324ac6b4094dcc46e3801",
+        "sha256": "adc2d4507baa9f5c8241afa6a19369f63bb67da95abc4fe9fe9e6fa11135cfaf"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-10.json.gz": {
+        "mode": "100644",
+        "gitBlob": "af5f42e741007a57de691547bd7e9206f69e96d7",
+        "sha256": "e60789bd87dd49810fef76b015353d42ab7624bc0b188d9e59e5fdf5d5514ac1"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-11.json.gz": {
+        "mode": "100644",
+        "gitBlob": "ef319c4995804284da76b775745b72e8f39ea16e",
+        "sha256": "b1bfc95c9b352633c874e0c581d0c914d30b11fb22c4b9e280530d411075d50d"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-12.json.gz": {
+        "mode": "100644",
+        "gitBlob": "c9aa654157fdf066ad90806e1ebc22dd44e51ef9",
+        "sha256": "a6322fce4729f978d53645a11dcf444da83774d6bf01d0d7a20828adbfec6ace"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-13.json.gz": {
+        "mode": "100644",
+        "gitBlob": "07c2fd67bc3a225257804d040636614dab519d97",
+        "sha256": "d38b7b1b5e52cbb3938ce0d1d901f1d73b1b00be731cd90f76efd5127d6aec5b"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-14.json.gz": {
+        "mode": "100644",
+        "gitBlob": "5142ff5c198f3aae4743fdd5e4b4c4bd8937f812",
+        "sha256": "d52d5fbb9c2ad57332801d2c95f153825d80b65aea09a60f81611b06ab33b4a1"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-15.json.gz": {
+        "mode": "100644",
+        "gitBlob": "15971f26ea5f25fd748dbddf2da26f26bf953bbf",
+        "sha256": "a371e3f80372263a5dc7c78d6404b4ac4b4d0d7d35ffd0e23527a3239ef7969d"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-16.json.gz": {
+        "mode": "100644",
+        "gitBlob": "fc765b58a46ae9667af353c967dda8e2e4c91b29",
+        "sha256": "157d44015395e5fd1cbf66c84277d74cf6a585ce4bbf10dc6287587dcd16f3d9"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-17.json.gz": {
+        "mode": "100644",
+        "gitBlob": "86ded0f37d8d9cd4dae7973eef003dde573718f3",
+        "sha256": "bb0ab8cd413168fa5972aa2bcb2d03e70c4f19bae3fed579801571ccaae9e1ca"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-18.json.gz": {
+        "mode": "100644",
+        "gitBlob": "eed5d5e29ec728c4c25583639e455fad882b678c",
+        "sha256": "e426eaf07307bf2c1a56349b7a9637b897fb85484bec5d861dd1276109d41b6d"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-19.json.gz": {
+        "mode": "100644",
+        "gitBlob": "330eb9fd521c8587797f05272246fc0ab3c89cca",
+        "sha256": "79b8812e3945eb71931a388bea65df58418617e5464f1fb45e8703f1a8395b14"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-20.json.gz": {
+        "mode": "100644",
+        "gitBlob": "03299b05b20b59e7cb248ff3423996672670f5e4",
+        "sha256": "8fde6bb0b21f3a9be8010373290030b7ea110f588a22e3d6211863a8f02b4cec"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-21.json.gz": {
+        "mode": "100644",
+        "gitBlob": "b46ac3ba930b7337bc0213ca98457b5b9d0aeb6d",
+        "sha256": "07bd45312f69f454277987a01d3b29e62dd0070d990da1bc9f3753303bae742b"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-22.json.gz": {
+        "mode": "100644",
+        "gitBlob": "33c526c8a5446f27b165c74d7c4b6e05362da630",
+        "sha256": "349e938246d977bb9d90ccf8c16c91b9cc8f92d29d041ffd1fb738296cf5a626"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-23.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3fabfef4b9b072ab25053a147fd5381004e3c831",
+        "sha256": "b261200167dc4caa610c300e400ea97d8264561f053829d90b5ce706c29f5f09"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-24.json.gz": {
+        "mode": "100644",
+        "gitBlob": "ea23c45f78c81c83075c69172d0b8b73392919ab",
+        "sha256": "f022df936f6356eed05bf250cfe3daeedc73fa98d722f2afcbcfcb87011a7cb6"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-25.json.gz": {
+        "mode": "100644",
+        "gitBlob": "ba04970781519e02b3ac97bd9d3692febf641314",
+        "sha256": "13867d5b75b9600dcad557ef1abaa1493c6e96e7792a9b80bdd60c2f08145930"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-26.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3b931f2c0701b93eeb44080765797350ff6f9d7b",
+        "sha256": "a1e5ecc116532cbcb695827de7ab3eb97b05e291362faf07b87c562267719437"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-27.json.gz": {
+        "mode": "100644",
+        "gitBlob": "5a06ced7efd3be1968d2e2cf9fc39830da9fc171",
+        "sha256": "1090c30ce263b0f3bf6b6b3eff9796c7109fa8b7eeec620cf45b574be89bffec"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-28.json.gz": {
+        "mode": "100644",
+        "gitBlob": "235711aca5aaa5945808cd5bf517cf084ae2bfed",
+        "sha256": "4d438894bf10542508907e71861d6f1adbf55fdd20b48d65beea1b9fa19d3bcd"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-29.json.gz": {
+        "mode": "100644",
+        "gitBlob": "7b97119b16c39c8af7285d50b8af388d9e965478",
+        "sha256": "fae7b4c07cc9e855b354f1bf3fa39b190fd83b0c4ec558eecb18363a96e6301f"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-30.json.gz": {
+        "mode": "100644",
+        "gitBlob": "c61b6adfbd6e749f22258070a7218fbc3b82153d",
+        "sha256": "4286e357b813f664057d174c38e3fd3e05bf17b86f8918cb49045e729e690a24"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/armsx2-31.json.gz": {
+        "mode": "100644",
+        "gitBlob": "5fe2f41c4b8a5195e04380ffcb86b92f9196ac62",
+        "sha256": "31036304b09c2e7deca3cab401273064fcb73d118cfb9b8e3e1a712c5c3772dc"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-00.json.gz": {
+        "mode": "100644",
+        "gitBlob": "11b46ae01d00c6153081558bcdc5455d9d5b23ca",
+        "sha256": "1d40a9d6c2b8c564292d588dba698ba253885ff5325dcc11c31ac03bc1c8e416"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-01.json.gz": {
+        "mode": "100644",
+        "gitBlob": "6700f41f9f1f24c653df6462424aae8af6a5f07c",
+        "sha256": "85e8040d32eba2fc33870bfdafad0213b5dd658c2843d7c0c62d151d79a4d01c"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-02.json.gz": {
+        "mode": "100644",
+        "gitBlob": "ecc34b48c0e0f03f69b24c80dbbcae29f8d19b7c",
+        "sha256": "eada510090602a4a744ed92ecc9abd72237893043706bc6ac609584af17d5c91"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-03.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a3703c9069572efd16c5a68278d1af9236df0d59",
+        "sha256": "db098b1742dc75706771b8fdde877ad5790fae68500548f1cd31e4a909eba666"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-04.json.gz": {
+        "mode": "100644",
+        "gitBlob": "0d470b0d574077965c6f175144c072a25c96f365",
+        "sha256": "d1794d72c734a35538e76b8edabdf8698c7a9731c0d371e1b91cc03779b5d4d4"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-05.json.gz": {
+        "mode": "100644",
+        "gitBlob": "e339fad0ccd874531a2451ad01186e22c70f4c7c",
+        "sha256": "2aafc1d1c5106d7ea02a3539d73ad13ba43d614f85c3a4609b455fb160f55705"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-06.json.gz": {
+        "mode": "100644",
+        "gitBlob": "bf01b318c1a0106e79dd229025fb2c457d4c0abf",
+        "sha256": "4e028b3c389a2f3687d911a8be4624096404429a79e380e42e9d556f59ef4fe1"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-07.json.gz": {
+        "mode": "100644",
+        "gitBlob": "95cbb6ec4f8142163a97bb05e8a7742107e3b56f",
+        "sha256": "00146766f88f41733bb217537591f9227d4cd586490cfc0f767a35dcbc3035a7"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-08.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a8cbcd3060b5ea4fa339e1b4127570992fa584a7",
+        "sha256": "67ffb170b17e254da50d74903d93df52db5351ddf6623b184fb03beddd175685"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-09.json.gz": {
+        "mode": "100644",
+        "gitBlob": "76747f1e302e44b8b5e6b0b105e2cb1d8271ed24",
+        "sha256": "d4b103eee5f9cb37039a57bef6d6c4ba04417acbf9ac05e960d7856e7e2797e6"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-10.json.gz": {
+        "mode": "100644",
+        "gitBlob": "6d1f58c5b26e3ab1e85146957395d2da7169784e",
+        "sha256": "27161e30c9dd0848f6db3396e7f5840d34655cf08c41ff422ad3f5bd7c43337f"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-11.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a0470a1e7929af3ce6779af3d64e0a79ab00705c",
+        "sha256": "ae9f63089833803a897409557be4862a2ff69937d25d67972eb193e3b54616fd"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-12.json.gz": {
+        "mode": "100644",
+        "gitBlob": "d251132826eb403888751673e7b7d9530dd86a3e",
+        "sha256": "502c4903849f905b869342ea1cce5e9dcff0c76278924678948fe461c4e11e1f"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-13.json.gz": {
+        "mode": "100644",
+        "gitBlob": "19526cbceb281f2551d092a7431a3fcb92113683",
+        "sha256": "a0cd72c801d0526bd3dfa6613fa755dbf45db5447f125c903bcf961dee8f592b"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-14.json.gz": {
+        "mode": "100644",
+        "gitBlob": "c062116f93a828227e79bb2154f458d0629dc91d",
+        "sha256": "0873e09cef5089e5fbeb68b5ed223896920df6f08b739b438f40585f8d08817c"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-15.json.gz": {
+        "mode": "100644",
+        "gitBlob": "f4beed79e62b3548c5dcfa8238e4e3d3f4f5b400",
+        "sha256": "2ead40445231a2455625bca06d506ef6881cb978b77ecf114bcc7a4195ac208e"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-16.json.gz": {
+        "mode": "100644",
+        "gitBlob": "4bd619ac992d9471d80fed88016f71f8bc64e01d",
+        "sha256": "b76879935636f0d32dd98a43ad7395b568a816935d38fe41928c989ce280870a"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-17.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a5b45a333e6839877d9ca947ec4283e967df0ce6",
+        "sha256": "ea2467a88a2ef7726de93302732cadb323f4112a5c966fc634701c7c85b16746"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-18.json.gz": {
+        "mode": "100644",
+        "gitBlob": "c123376878f4b8570a1411b19b9a4006c029bff7",
+        "sha256": "98e8434dc2a029a21c7cfd2fac583bb32cd4cf01528dfa199074be54a68453cb"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-19.json.gz": {
+        "mode": "100644",
+        "gitBlob": "7901477ac9da353aaf8a396c10d9f67452602d37",
+        "sha256": "2b9b3773574d0de3943b4ecf29b65e343574e359227c4ce158ea259b9d7cba99"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-20.json.gz": {
+        "mode": "100644",
+        "gitBlob": "00aced06e2fe75d47555305c6994d8075e702e19",
+        "sha256": "4c7574492c06069a2656aec2543c38a970dd193c8183660741e0ea8b1e8cae91"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-21.json.gz": {
+        "mode": "100644",
+        "gitBlob": "d4de7abdc3458183d3371e8faa72d9099bc3b75a",
+        "sha256": "ced5a5f54d9137b45a644c4b4236d0b95e1aa3a8cb05974063b357910aec3e34"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-22.json.gz": {
+        "mode": "100644",
+        "gitBlob": "5957fdcc5fa67c403de76e93b12e6c43736bede6",
+        "sha256": "68b1261a082e556fdd8d3e7252add3b23b7467ad35710967be7df50abc0d0462"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-23.json.gz": {
+        "mode": "100644",
+        "gitBlob": "2098063e58da8b13a8b1aa0e515de4c0a71ce98d",
+        "sha256": "0febe330ca64b73b34f3a67fb55e6fb4615f1fd16154f447c535d1823c89a142"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-24.json.gz": {
+        "mode": "100644",
+        "gitBlob": "148f43932219d3b62d0102b817975cb7830af631",
+        "sha256": "fcf6101c8394d70b5207524ad8ecd70fbe62e6b41d7c6fd65234d83c8fc02a8c"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-25.json.gz": {
+        "mode": "100644",
+        "gitBlob": "d66d8a9db1d2845c925ae7dc1f37b1cafca2b711",
+        "sha256": "4b1dcf4dab6217df8c072721161f36d8d45c3214a411f7bee4b977104c8551c4"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-26.json.gz": {
+        "mode": "100644",
+        "gitBlob": "8759fd706fc404a95328ca1776159015b6174431",
+        "sha256": "cbe95dc4ffd583129f1d0ce3c7b915758db6ae5f330fa932a113382e41f6e581"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-27.json.gz": {
+        "mode": "100644",
+        "gitBlob": "e374da86d35c43ce09da9e4a7d2371154c96dc9a",
+        "sha256": "46ad4d2a55f5b3d0ab7d4e89b2df7677b162e76fd5f3233cb92fa14d8d75ac9a"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-28.json.gz": {
+        "mode": "100644",
+        "gitBlob": "0222ec62ca8d3f0dc12ca452878caa7099eec33f",
+        "sha256": "470bbb19de1b5d3c8d3ee3be2009a75e8672a85feb4c3ad5ccdabdefb20f6d0c"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-29.json.gz": {
+        "mode": "100644",
+        "gitBlob": "e910af3a41ae68ca328f6357694c5fd8ca56c21c",
+        "sha256": "66a794487d118b57cc85a848248dad2d4f96476788b8c8717c04edbab2300135"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-30.json.gz": {
+        "mode": "100644",
+        "gitBlob": "87b1b7ccc2b5da0b8ccef71627307b2bb5eba41b",
+        "sha256": "e86ae42ac8721c43a847f4712eb7fe24e74aaba04a1080ce44023fe216322e91"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/dolphin-31.json.gz": {
+        "mode": "100644",
+        "gitBlob": "bf89bf51f283b7a4d74bdeb2fa3138371ea0ad24",
+        "sha256": "d605c10ffa7633c67fac6474a01ffa48194eaeaf8c4f4507557535d6a1d3c6a8"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-00.json.gz": {
+        "mode": "100644",
+        "gitBlob": "03d927a3622bc2ee6ae336e18351a72105b8054f",
+        "sha256": "602fb528f39c8588838689844e12e36df5fc28629d104ec7be90cae7fe736c00"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-01.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a2a0df903a0f280dcf18d95d16a917baf8772e3f",
+        "sha256": "ce5eb82d5e63ae78bd62b04e9f71ded449ed82a9f7e55ea657e13a37d0fc5f19"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-02.json.gz": {
+        "mode": "100644",
+        "gitBlob": "54794240d1d3a526696a9284f4cce2c0deb78e0d",
+        "sha256": "8d89e6b309bfc0510feeb924eac96e911fea6ea9b9ba8c4c56e98b1f97065fa6"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-03.json.gz": {
+        "mode": "100644",
+        "gitBlob": "404aa265e35b968f3e81e6675dcd2093084b636a",
+        "sha256": "e3b792eed30e46adde240aa32d28a4e524a2c3aadb28db546e71095fd42ed068"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-04.json.gz": {
+        "mode": "100644",
+        "gitBlob": "59fc4e370954e1ee9f75dd4efebc16eede27f29a",
+        "sha256": "c231d7a80d122e34fd51a4b934f8e12a82002af2499d1f2171138015e80c787d"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-05.json.gz": {
+        "mode": "100644",
+        "gitBlob": "f575de75265b6ebe40af7039d53cb221713b76e3",
+        "sha256": "fa4c3f447df8281c83356e5b677bc4830468545a3fd91e142a63dfd1e4dc93e0"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-06.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a40054d4d4caf0f5fe4383559b5a37f588c2c931",
+        "sha256": "bd9cb0a92ead0772fcb3efe86e5fd74a5754a9acd309423df4514a59f7d15b1b"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-07.json.gz": {
+        "mode": "100644",
+        "gitBlob": "1b67aff87400d6e5adfecaf7b147dd0cb9d45fb0",
+        "sha256": "9501f8ebc6b762f9a3df1b70b4ccb95f1ddf1a0f3368e02a74820abefcaf66dd"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-08.json.gz": {
+        "mode": "100644",
+        "gitBlob": "b179b1411611024d19dc94963cc3b36f41c3d990",
+        "sha256": "2f9cc7afcc66939b0687f3e550c920d0e093f6b4a15d65101dc981201ca68b54"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-09.json.gz": {
+        "mode": "100644",
+        "gitBlob": "6173b8ca742a1d208506804cd6e81bf014836d40",
+        "sha256": "db89bba4c81e05cfc2614cc5c061e21478810a63c09fd074119b6062b087b72c"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-10.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a6ec222032f187631642cb2475a831db36cc5b7e",
+        "sha256": "594d13b74eed2bfb3b4bd65d1090054db5e14b3ba8e9442b3382de79d0430970"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-11.json.gz": {
+        "mode": "100644",
+        "gitBlob": "12fd3b96501552836d8bf51408bfb492b10bf1f8",
+        "sha256": "ac9d588fdc00c6e9122e94159e04f25e88e6a1346d4ca50dd7b3423b2c2753a9"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-12.json.gz": {
+        "mode": "100644",
+        "gitBlob": "ede6cf045e817df537e3768f0a8b7967dbd1123b",
+        "sha256": "0178950ceb9ebf74cac5afdb3af623e4665bea525d9cd3ec9d4ab5bb3dc2649c"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-13.json.gz": {
+        "mode": "100644",
+        "gitBlob": "6af8f8d0ba12e82e7be117c4f7d97ed9d5fa9580",
+        "sha256": "81d885feab9d0c948a2063b9a53dfdd56ec4c25e998bdbc23f34e2e50a5d95c6"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-14.json.gz": {
+        "mode": "100644",
+        "gitBlob": "afd2050a568566bbc9f6eaac9d2b9a67c749a43c",
+        "sha256": "6f25103e4b6ecd25fdc1de8251f5d0165bca3b93d8bf3c19c53644fe7dc2fdc8"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-15.json.gz": {
+        "mode": "100644",
+        "gitBlob": "4d771de75550465b3822dbe522a76d04a13f22b3",
+        "sha256": "32fc99573947567cd6062c6a0548439e96d7e1af89832ac3e9bf7f5c36b558c8"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-16.json.gz": {
+        "mode": "100644",
+        "gitBlob": "564124d9f5da661c162dc55f3b2cde1b3cfec0dd",
+        "sha256": "adf7312ed3d4e4aefd44f17ae22632e4cfce4d79c9a52d36d4c345fa32290efb"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-17.json.gz": {
+        "mode": "100644",
+        "gitBlob": "5a25cd939d127f34f65e9481f8ec239dbb9f244e",
+        "sha256": "2f0ac8f0d0234cb99166f2c0afd4d7d3d0df0f7636a51ed267cdddb646b6f9e8"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-18.json.gz": {
+        "mode": "100644",
+        "gitBlob": "f0c76cf22f90121a6d83a75fb26b11d12ef7488e",
+        "sha256": "dc0a4210b91bef14aeaa8e9de02cc8ad51c5856ef625fc470f18eca1194a71a8"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-19.json.gz": {
+        "mode": "100644",
+        "gitBlob": "28523ebe0d1893c1e5db8f41d5bcde81f4fda397",
+        "sha256": "d72e410a39a5ba91ba6faed57df9125264b02c1a82b1ee23b1a1e01728b06fad"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-20.json.gz": {
+        "mode": "100644",
+        "gitBlob": "904ae0f15d742f064044d9b6ae6056e7281380c2",
+        "sha256": "ec6375f8afbe8a235c8212075fea7cf7e8f429cc09722de54b5b7703ab0ec83b"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-21.json.gz": {
+        "mode": "100644",
+        "gitBlob": "84698885ae7ef833e2928b4d0fddb44d30ed5720",
+        "sha256": "63db3651379771124642c1adc5ee1c8907bbd298c3d42cb33772fd60a930e51e"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-22.json.gz": {
+        "mode": "100644",
+        "gitBlob": "e7a7df5e088d75886b7a0042087425819b4ad0a5",
+        "sha256": "24fc87b9f97a573f9639e39dab0000b7cdeb42832fc04a5334eb5b2d1b1bcceb"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-23.json.gz": {
+        "mode": "100644",
+        "gitBlob": "eaf12facfa4e4f712f545c7026569ba5c85b4a75",
+        "sha256": "99c542d3543a95d9c2ea841a3aaef7fabb874500c37648326a24e5c08c493616"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-24.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3572d3aeff5453ebf6c52030a98d0bf01823b3bd",
+        "sha256": "9175aa4f284edba5010f5cffa2283cdd2c7cb760fa3b2c51401e9c0516a9d84a"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-25.json.gz": {
+        "mode": "100644",
+        "gitBlob": "2ce8feb4b1051393b25407a0cc0e20841cee8e98",
+        "sha256": "8d171658f2b606b03557d2e63245e910e90efada2d6d8f89ad99dfaa5e0877c8"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-26.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a0f8c5b1b170c25fb1c7362a21a9f380d8bea3a7",
+        "sha256": "0cf9a4a664845056d65f5851341e7710de2ef96f00c3f73ea465fca7341da73f"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-27.json.gz": {
+        "mode": "100644",
+        "gitBlob": "e4637b585a99829a0fc7e6a727447aea7fcbe2f7",
+        "sha256": "5c702f9f76cda228002ddc53baf3c742980642a134a6a3b46c1be31f4396cfed"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-28.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3a890bf203c46e0afd37175896dcb5369089b95a",
+        "sha256": "b6d1e058a0c96d3cf47d6b3e5dc08c295960c9a2efd4fac84617f7adaa4a9ac0"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-29.json.gz": {
+        "mode": "100644",
+        "gitBlob": "b3884fac56ecaca62a77bc5ca7eedda9d79fc76f",
+        "sha256": "d528dd0fd7d9dcb75d54b9186311c4cc7ec6a499f8c925f7ea1b0d3582806c24"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-30.json.gz": {
+        "mode": "100644",
+        "gitBlob": "df70e5d8063f90f6abcf6e080a09ce4faab2dd46",
+        "sha256": "b8fa35dd2ee75af07494112cbcefac41c49fa74fb454949f354a32daad599a6f"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/melonx-31.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3c0a1e7ff672337910455692ac94456e2f17c3d4",
+        "sha256": "42fc4ee2096b40ec801265436805dd531ba96e7881313e07cab6852b54ee92bc"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-00.json.gz": {
+        "mode": "100644",
+        "gitBlob": "e1e83ee6db34416045c267475b0349ede32fe0d8",
+        "sha256": "1c0ae5136b6b32612cdf1a63a3402ba6fb39b4125bc2216ffe805088db18ed1c"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-01.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a836fe0b7bd3f2c9a2dbbf6c1e9d19e3e75b697a",
+        "sha256": "18bf024569183027ce260696f1f697d715c4dece35c14ab20d58e56c1e5497f8"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-02.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3744ae78b4d5c220d6ee81ec7fdd437b6ec6b3c9",
+        "sha256": "169fd2a1968879cc91f67ec242790890872cca8d4086792c30cfbab0849c960d"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-03.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3d13db29ac443f3d437d8c31a0d31d9250b003a8",
+        "sha256": "c61aeb00f1d474d5772c598971b5f75180bd685b9962cc93383610a7411988c2"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-04.json.gz": {
+        "mode": "100644",
+        "gitBlob": "31d50527dde1e786d8a6316885e4c70d3632cdd3",
+        "sha256": "0317a66fb3a9380ddf7989b0b2930535748e3060fd6aebe5cd95a5f00b10141f"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-05.json.gz": {
+        "mode": "100644",
+        "gitBlob": "416371cb3015065f3647828f6086f9a93a424888",
+        "sha256": "9d62a2483958830a639debdc3d9cd996e445535969b533e8c9c90638d4f0f4b8"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-06.json.gz": {
+        "mode": "100644",
+        "gitBlob": "c683f4e7c363e194cad4c255f2ced20892db44f3",
+        "sha256": "502512c8b1749a7a548e1e0cde0928c3f43c307ebf7402cdad9bf1c7ed6de78a"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-07.json.gz": {
+        "mode": "100644",
+        "gitBlob": "34f30699d8eb658e257977d2cad197947cd9f3b9",
+        "sha256": "93d1b286d58cd85c5d595518767d1450df287a73641e6bcf484cb77109b1ca87"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-08.json.gz": {
+        "mode": "100644",
+        "gitBlob": "ed7f2ec209316c7e4a1691728a310498c8e3c453",
+        "sha256": "11f8c4b2d8f0f7d12bb7d40055e0ca4faaf6edf374656f71c4bae5e7735c932b"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-09.json.gz": {
+        "mode": "100644",
+        "gitBlob": "0024ea6ca0e213dd98f03c1bb63bee202e95ce1d",
+        "sha256": "d609ee4420c7c36bc4168dcab988694311474b45bec5dcd4dd2e13232e133e35"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-10.json.gz": {
+        "mode": "100644",
+        "gitBlob": "cda2dfa8dfd63907685316da383f5c0e1efe47fa",
+        "sha256": "cd72c4d9eb7b619e184c5adeeb1f8a3e461b1c903cc68d94044cb1727d88e222"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-11.json.gz": {
+        "mode": "100644",
+        "gitBlob": "57050ac247609311735b0dd614599515497e1f4f",
+        "sha256": "bc9bfdf9b72350403a7d3c9cc57fa7570a83de40398dbab82c673f77e00dbc3d"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-12.json.gz": {
+        "mode": "100644",
+        "gitBlob": "fe457c4fea19025d80c3a2dccbbb5d8b7eb18d89",
+        "sha256": "c99427a65fb16307e038996840fbad347c733f80ef8cb25e9a8dbf71e86cc63a"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-13.json.gz": {
+        "mode": "100644",
+        "gitBlob": "f86637a35ae04da7ada183cecf82d86757d2a88b",
+        "sha256": "7eba5eafc9f87791b3dc30f3cc482cefb6f6e99c009999ed843eba4c0ac13ed1"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-14.json.gz": {
+        "mode": "100644",
+        "gitBlob": "5f679aa3d6188386073b7f9450be6bec2bda441c",
+        "sha256": "ed2b004f5b255bebe2998975f514c3485520462741e99993c494a3ac749ec562"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-15.json.gz": {
+        "mode": "100644",
+        "gitBlob": "854680309364508221427d1b17cd2c9ae2fec706",
+        "sha256": "5b358832e53891080b73184c97cf40d77d4cf6ffb2edf4e5f1f67b4dc993f04a"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-16.json.gz": {
+        "mode": "100644",
+        "gitBlob": "f9801be2d92a53aa530e29591b4b328b0b53d1c6",
+        "sha256": "b703d74c0afe99fc84dc8dd86195b45c3f658d90ba671bae17dd5f0933183d84"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-17.json.gz": {
+        "mode": "100644",
+        "gitBlob": "51bfaec41a890f427e5d3591ef28413a1452431b",
+        "sha256": "85204d5f272bcfa9c4969ab8d047b181bcfcf7f91b958863e45179ddf2c3a200"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-18.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a05cac908985b33a6c4506585494883e5a78c867",
+        "sha256": "19224982a3bcdb911b5d248aed09913eae89e42d278be3ab8d4448261daddf4d"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-19.json.gz": {
+        "mode": "100644",
+        "gitBlob": "d17aafff9f284357e4ecef33c4baea801307f8b9",
+        "sha256": "865b0b7f8541516927f932a6134bf1e0fb703ea19bc023e3f1ae431e3b83d000"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-20.json.gz": {
+        "mode": "100644",
+        "gitBlob": "318435f8dd59930bf5d893ba402716bf0fc88daa",
+        "sha256": "8291ae1037edb9fa49081c586d139ed04167eb4791d3fa7fb561cc41552bf6fd"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-21.json.gz": {
+        "mode": "100644",
+        "gitBlob": "ffc4a0d97fb4f94f8bc8a70451fbfcb241aa9f74",
+        "sha256": "44bebe31d5f9cc96515ebf763eeb14f56d129ee3c1a2a0f66dba9ab3b31ec6d9"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-22.json.gz": {
+        "mode": "100644",
+        "gitBlob": "0e6f14ccc5969ec7be0b217c215082aad691c2cc",
+        "sha256": "240211ae02dd6b5b7b2e4cecaa5c0c83f76a5dd900dfa0abf7d9795c1fbd7ee0"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-23.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3162cdedf3b3da83dea5d668057f5741524902b9",
+        "sha256": "c0871aa693b42a56e9d9587f38d877b1f9f4c81a9a0fbb89758d854e897d5480"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-24.json.gz": {
+        "mode": "100644",
+        "gitBlob": "24fe18c6de107a72f20a337761aa8e5b14aeefce",
+        "sha256": "c10c38fa2d54a978057c15941d204caf807cb2315f26958c6d7b035a5e5f2b18"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-25.json.gz": {
+        "mode": "100644",
+        "gitBlob": "d9019594506f3381c8a1e48acd99e594b3e4358a",
+        "sha256": "f649d2f1c6761bb93575f04d01ccee7b96d738925c1569f8bbaecd45fd1a360b"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-26.json.gz": {
+        "mode": "100644",
+        "gitBlob": "ab445e51be8a07187a7a4296c9a661bf38571ed5",
+        "sha256": "6655db1fb640869157cb6fbc1b4ae6a55d7f6d355c3ccf9773b2782e3fae8860"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-27.json.gz": {
+        "mode": "100644",
+        "gitBlob": "04f466639bc43eaebfa26cb20159705e8f17b2e2",
+        "sha256": "0dc3860baaaa4ce68319321c9bf4e26c353496b54c7bca80fe9a6c7d6def9ea4"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-28.json.gz": {
+        "mode": "100644",
+        "gitBlob": "b08e4c5502b501a1352cb24189aa66d83aff1e3b",
+        "sha256": "0e7ee3f0b44202120ff0a53b51d2873ca879a094050b1b8e3d5b957336a44bbb"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-29.json.gz": {
+        "mode": "100644",
+        "gitBlob": "e08fd0446e99de6a7ca8a1a8cfc4b17222fb53e2",
+        "sha256": "17ecf24577b3e79d1df20c14e57bf9e2cb102120590856d356823e9e379c335c"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-30.json.gz": {
+        "mode": "100644",
+        "gitBlob": "d6533ee7e970ee7eab974417d30a1ae94d2222d4",
+        "sha256": "a080fcc2e847e13477ea8fdc222606f8bfafade9aada3644fe4833ec2d1d8d36"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1141Z.aaf71fb50e67/shards/rpcs3-31.json.gz": {
+        "mode": "100644",
+        "gitBlob": "db6bcd35daed09a11d0957cbbfc010e1b5042774",
+        "sha256": "4db3e8e95f1652fe8befea971366d108a0d5df36ce5e117426dc825f606f6217"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/index.json.gz": {
+        "mode": "100644",
+        "gitBlob": "2c24bb16f14e22388421d7d77c92b7bc26c7d828",
+        "sha256": "ac5ea1afd206fc9db3dc2e5a943e95e382ebdd751a8c22848622e61b6aaa0112"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-00.json.gz": {
+        "mode": "100644",
+        "gitBlob": "4f7db3bfdf8caf2ba9589e07904ad13d943622c6",
+        "sha256": "33d46f5d5dc8f458c9bb4d56761c5a326444e2b37af6e071ee217f4a3e954447"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-01.json.gz": {
+        "mode": "100644",
+        "gitBlob": "5fe62c69196287729fed3533fdaf7c57a3746369",
+        "sha256": "2ea8ef643a75574b876f67bad355c76e72ae6564b784fb147108da72a45bd743"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-02.json.gz": {
+        "mode": "100644",
+        "gitBlob": "7bab0fdbecce81a5a942dd50b52ea0ea3bd5768f",
+        "sha256": "e49cc9a3cbad27b7a65d0b56c0b6ef324f3ae9c30143b50cfc4174a978863e6e"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-03.json.gz": {
+        "mode": "100644",
+        "gitBlob": "c2370d92a29b0899570794899a03b7bc9bc5ab29",
+        "sha256": "7caa1ebe11b190470a2b819afd519f959460ca8fdcdf96d887c837140059297d"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-04.json.gz": {
+        "mode": "100644",
+        "gitBlob": "9b57a85636da1b5acfcc86a331e871580ebcf0f2",
+        "sha256": "a45629b5efe2a9e7271986278b9f64b10e1955281c7d7b6d878a8b0040a60be5"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-05.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3b1322b3c668805dca8a6f852be7963de35bb436",
+        "sha256": "14da5603a7b76f519f65ea16807b8c320331e3273aef974f69f952b69e95bae7"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-06.json.gz": {
+        "mode": "100644",
+        "gitBlob": "e88f66400f0ae9e00dfe9039102cd6f70821294f",
+        "sha256": "178f9aacb8d10f830804837709dfa3474eb7b7fc3146ab311ab6e2f570047975"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-07.json.gz": {
+        "mode": "100644",
+        "gitBlob": "d08e38c84c8e898445d22c63d620a88ceda6b403",
+        "sha256": "d296099fc91ec801322f36b76cd34eb2ac037687a804902ad4ab60a45e2ff4db"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-08.json.gz": {
+        "mode": "100644",
+        "gitBlob": "5bee1e612094e9d38e893ac450025d2dea04fa79",
+        "sha256": "4902cbb9e83765ee4de838d8bdb849658fd49cfb772d2975857e91e50470b6b2"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-09.json.gz": {
+        "mode": "100644",
+        "gitBlob": "9746e5a1f83118d433f324ac6b4094dcc46e3801",
+        "sha256": "adc2d4507baa9f5c8241afa6a19369f63bb67da95abc4fe9fe9e6fa11135cfaf"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-10.json.gz": {
+        "mode": "100644",
+        "gitBlob": "af5f42e741007a57de691547bd7e9206f69e96d7",
+        "sha256": "e60789bd87dd49810fef76b015353d42ab7624bc0b188d9e59e5fdf5d5514ac1"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-11.json.gz": {
+        "mode": "100644",
+        "gitBlob": "ef319c4995804284da76b775745b72e8f39ea16e",
+        "sha256": "b1bfc95c9b352633c874e0c581d0c914d30b11fb22c4b9e280530d411075d50d"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-12.json.gz": {
+        "mode": "100644",
+        "gitBlob": "c9aa654157fdf066ad90806e1ebc22dd44e51ef9",
+        "sha256": "a6322fce4729f978d53645a11dcf444da83774d6bf01d0d7a20828adbfec6ace"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-13.json.gz": {
+        "mode": "100644",
+        "gitBlob": "07c2fd67bc3a225257804d040636614dab519d97",
+        "sha256": "d38b7b1b5e52cbb3938ce0d1d901f1d73b1b00be731cd90f76efd5127d6aec5b"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-14.json.gz": {
+        "mode": "100644",
+        "gitBlob": "5142ff5c198f3aae4743fdd5e4b4c4bd8937f812",
+        "sha256": "d52d5fbb9c2ad57332801d2c95f153825d80b65aea09a60f81611b06ab33b4a1"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-15.json.gz": {
+        "mode": "100644",
+        "gitBlob": "15971f26ea5f25fd748dbddf2da26f26bf953bbf",
+        "sha256": "a371e3f80372263a5dc7c78d6404b4ac4b4d0d7d35ffd0e23527a3239ef7969d"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-16.json.gz": {
+        "mode": "100644",
+        "gitBlob": "fc765b58a46ae9667af353c967dda8e2e4c91b29",
+        "sha256": "157d44015395e5fd1cbf66c84277d74cf6a585ce4bbf10dc6287587dcd16f3d9"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-17.json.gz": {
+        "mode": "100644",
+        "gitBlob": "86ded0f37d8d9cd4dae7973eef003dde573718f3",
+        "sha256": "bb0ab8cd413168fa5972aa2bcb2d03e70c4f19bae3fed579801571ccaae9e1ca"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-18.json.gz": {
+        "mode": "100644",
+        "gitBlob": "eed5d5e29ec728c4c25583639e455fad882b678c",
+        "sha256": "e426eaf07307bf2c1a56349b7a9637b897fb85484bec5d861dd1276109d41b6d"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-19.json.gz": {
+        "mode": "100644",
+        "gitBlob": "330eb9fd521c8587797f05272246fc0ab3c89cca",
+        "sha256": "79b8812e3945eb71931a388bea65df58418617e5464f1fb45e8703f1a8395b14"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-20.json.gz": {
+        "mode": "100644",
+        "gitBlob": "03299b05b20b59e7cb248ff3423996672670f5e4",
+        "sha256": "8fde6bb0b21f3a9be8010373290030b7ea110f588a22e3d6211863a8f02b4cec"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-21.json.gz": {
+        "mode": "100644",
+        "gitBlob": "b46ac3ba930b7337bc0213ca98457b5b9d0aeb6d",
+        "sha256": "07bd45312f69f454277987a01d3b29e62dd0070d990da1bc9f3753303bae742b"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-22.json.gz": {
+        "mode": "100644",
+        "gitBlob": "33c526c8a5446f27b165c74d7c4b6e05362da630",
+        "sha256": "349e938246d977bb9d90ccf8c16c91b9cc8f92d29d041ffd1fb738296cf5a626"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-23.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3fabfef4b9b072ab25053a147fd5381004e3c831",
+        "sha256": "b261200167dc4caa610c300e400ea97d8264561f053829d90b5ce706c29f5f09"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-24.json.gz": {
+        "mode": "100644",
+        "gitBlob": "ea23c45f78c81c83075c69172d0b8b73392919ab",
+        "sha256": "f022df936f6356eed05bf250cfe3daeedc73fa98d722f2afcbcfcb87011a7cb6"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-25.json.gz": {
+        "mode": "100644",
+        "gitBlob": "ba04970781519e02b3ac97bd9d3692febf641314",
+        "sha256": "13867d5b75b9600dcad557ef1abaa1493c6e96e7792a9b80bdd60c2f08145930"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-26.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3b931f2c0701b93eeb44080765797350ff6f9d7b",
+        "sha256": "a1e5ecc116532cbcb695827de7ab3eb97b05e291362faf07b87c562267719437"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-27.json.gz": {
+        "mode": "100644",
+        "gitBlob": "5a06ced7efd3be1968d2e2cf9fc39830da9fc171",
+        "sha256": "1090c30ce263b0f3bf6b6b3eff9796c7109fa8b7eeec620cf45b574be89bffec"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-28.json.gz": {
+        "mode": "100644",
+        "gitBlob": "235711aca5aaa5945808cd5bf517cf084ae2bfed",
+        "sha256": "4d438894bf10542508907e71861d6f1adbf55fdd20b48d65beea1b9fa19d3bcd"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-29.json.gz": {
+        "mode": "100644",
+        "gitBlob": "7b97119b16c39c8af7285d50b8af388d9e965478",
+        "sha256": "fae7b4c07cc9e855b354f1bf3fa39b190fd83b0c4ec558eecb18363a96e6301f"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-30.json.gz": {
+        "mode": "100644",
+        "gitBlob": "c61b6adfbd6e749f22258070a7218fbc3b82153d",
+        "sha256": "4286e357b813f664057d174c38e3fd3e05bf17b86f8918cb49045e729e690a24"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/armsx2-31.json.gz": {
+        "mode": "100644",
+        "gitBlob": "5fe2f41c4b8a5195e04380ffcb86b92f9196ac62",
+        "sha256": "31036304b09c2e7deca3cab401273064fcb73d118cfb9b8e3e1a712c5c3772dc"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-00.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3a5ddd21cdead0cef5330fa10977a532e464b87e",
+        "sha256": "41fbcb7238c37995f0451f5bf972ccf5841f052e9e2e86a5208d260085653c97"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-01.json.gz": {
+        "mode": "100644",
+        "gitBlob": "70b4f1a68250a17619947ffa15fa94a5b089fcda",
+        "sha256": "44152e51a4a9557d7a3ac00ac8202f2410587869aadfd48e977365023ed83788"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-02.json.gz": {
+        "mode": "100644",
+        "gitBlob": "bb440240a16a446c316061d5d65b2cb5240a4d28",
+        "sha256": "0d8d37bdd42b1445b2f3c2d26672ef8f348c5b25b943d0c47707cedcd0108fd9"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-03.json.gz": {
+        "mode": "100644",
+        "gitBlob": "657ea65390238ec851ab1ceefe5d97315edc6d16",
+        "sha256": "a0ed1973b36de1f5e0f26249eeff4ae3c0696d99e76fd674a867f2134a46bf9f"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-04.json.gz": {
+        "mode": "100644",
+        "gitBlob": "191872acdeca64996cd394c6fdefe0629a1ffad3",
+        "sha256": "8c31888e75ce12a8020c61c7f09cf4ae8c5c3978e7746933d8dc86ce94a65f73"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-05.json.gz": {
+        "mode": "100644",
+        "gitBlob": "81747035f320338d668922861e7b5183887f1b48",
+        "sha256": "21b25d6a67308d251940f5dd153148aa9bf753f6a63784265058d630be0b7bc8"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-06.json.gz": {
+        "mode": "100644",
+        "gitBlob": "46c97c393ca8de63ff5731def7e1fd0a0f2605bf",
+        "sha256": "20275e37345bc5add5189cebc18cf2573bd954379d454f8292d1b4d6f761b82e"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-07.json.gz": {
+        "mode": "100644",
+        "gitBlob": "efab6b160adb0a2a7c85b2cb72ecddf5d6626550",
+        "sha256": "0510a9f35a627ec21e43bd6203bf5c3d0a4cf1b7e739e110c7e4258b2d0c8a41"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-08.json.gz": {
+        "mode": "100644",
+        "gitBlob": "8c4a8c08625927efa19925e8ab3b871996aee4ad",
+        "sha256": "f4954d395dfb63f557dc4483e864199c8d6896d629fa171ba34b01866d48cbab"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-09.json.gz": {
+        "mode": "100644",
+        "gitBlob": "e6e8848afe9aa4f5dc34d5d09b401fef67d6036e",
+        "sha256": "b62d7c50285ff096c25edaa07cbc99b1f35d9bc113826063756e9e4cd1e96bb2"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-10.json.gz": {
+        "mode": "100644",
+        "gitBlob": "f727008e9d454f7c0e7117ae68c6998ea21858fd",
+        "sha256": "f1772c06ab17836b62fb50365cb73ae5c2180b8d84013c6802655dc18836d534"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-11.json.gz": {
+        "mode": "100644",
+        "gitBlob": "f00323df06fda7a37e117ea843d8e7c0424c5494",
+        "sha256": "06fdda39912f23056cf90ba65a82b1e8c2916a3061bccc0031c696ba7f0808a7"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-12.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a9ea9133d77c1d89c194d511528c8212c0eedd50",
+        "sha256": "ba523e1e100f59b62e1d8e192586a7d379b27654b6cdcd80fc955d1bfd15e281"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-13.json.gz": {
+        "mode": "100644",
+        "gitBlob": "cf102ab662028a1afcf52e2c7a52a310bb95680b",
+        "sha256": "697ad7533696ff007b207a243d5b458ef249151e555118f24b030cd786943560"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-14.json.gz": {
+        "mode": "100644",
+        "gitBlob": "60544798354dfc379dd04a8b19e6418a5f597b70",
+        "sha256": "5e12c7f341448af0f6ebe8a61a9f13236bafea9a98bf6e54d1d2748f14043274"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-15.json.gz": {
+        "mode": "100644",
+        "gitBlob": "904f8106838af7c0c73a7659df53908f2aa87ed0",
+        "sha256": "840ee65dfa18b3e4923babf22a39477fd5c02874bb7912a7f3cba896fe05cae1"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-16.json.gz": {
+        "mode": "100644",
+        "gitBlob": "85f7359ab7886b47381ec2960e2f3d9c5ac5de68",
+        "sha256": "efee6e850a319d5e85be7302e8bddc9d6657fe0ce0e9fc5dfaeafd5bc2b49177"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-17.json.gz": {
+        "mode": "100644",
+        "gitBlob": "6e6b373195d681304972edfb6382c7601f268311",
+        "sha256": "896a7473838316358beea466352cdeebb9dce68c679a3fe9acdae12de1314283"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-18.json.gz": {
+        "mode": "100644",
+        "gitBlob": "539be15eaa940a03b393aa143a15b6a1ef3e97ba",
+        "sha256": "4ce754f486b564d37ac2e74c171acaf8a6d6069b45845cb6bfb754ea0059b165"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-19.json.gz": {
+        "mode": "100644",
+        "gitBlob": "c0fd32f4c90c8d0d5854a9e4ac5b130752b83bcd",
+        "sha256": "dc1d6dc381195c0c768946b51f691404b8a72d73046edf6b8bb740175e96a884"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-20.json.gz": {
+        "mode": "100644",
+        "gitBlob": "55a202d4c30b885321d9e3a9832e19c353416d29",
+        "sha256": "89fa17a742221b1cadecb61307e5587f826d134b7f5858bb429c8a7ea50cc106"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-21.json.gz": {
+        "mode": "100644",
+        "gitBlob": "e185c2aa32636552d15b878f74acfc745c3829b5",
+        "sha256": "736f1287ec9904f6251a20b0ecb51711d8ca9d0d72b63e221dc81985add4bd8b"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-22.json.gz": {
+        "mode": "100644",
+        "gitBlob": "664dca957c5714ec68717defe811e99f21adeb30",
+        "sha256": "9b6d49672e1891827b609abefcb1d8bfbb25cd7c3fd49cd4629afbfd60de570a"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-23.json.gz": {
+        "mode": "100644",
+        "gitBlob": "1020a1358300ff1708aa9f12ec8f685616ff54c2",
+        "sha256": "dfcdc3b0c23ebc4d3606716a12545e312af5d655face59dec34aaca8f226cb09"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-24.json.gz": {
+        "mode": "100644",
+        "gitBlob": "8f1e72d0d9373a1d6c70c9cc46ecc0c0578bd763",
+        "sha256": "ec15f37b824d5220b89ae0c49dbece034e93ff1abd4e761c246dcb2df9b41130"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-25.json.gz": {
+        "mode": "100644",
+        "gitBlob": "89d88fe220697a83254d7d9a8348d7d5b66888ee",
+        "sha256": "9a685bb07ffa23388bd793d7f4ec2b986a9374672df6fbbb7cf64d7193210915"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-26.json.gz": {
+        "mode": "100644",
+        "gitBlob": "ec148fe88c5eefa3db67bbaff317aaf2bf79c8db",
+        "sha256": "c3cecad4e1e7d4c45bb4eef6a63e337880fea53d813d7030cebf4e19bfb5ae25"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-27.json.gz": {
+        "mode": "100644",
+        "gitBlob": "0f306f035075137d37d8d5c48c8c0edc5bc862c8",
+        "sha256": "0ff32b390dd77f4a7a9f17ea70324d39309774d345b08ce8a6ede7f388486b11"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-28.json.gz": {
+        "mode": "100644",
+        "gitBlob": "4723937d29f769b2d471db1d0cd3471f9dd480fd",
+        "sha256": "1d2f8ac4fa4a9e268b88e41c4d85465d6c6be8b0c412b40e000465484540359e"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-29.json.gz": {
+        "mode": "100644",
+        "gitBlob": "f5e0703040ff8737a890ebf69ea272d16a8a6be8",
+        "sha256": "901fd54eed23dd2a61096d0951052b6aab332e24377798628f0202e9740ec97d"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-30.json.gz": {
+        "mode": "100644",
+        "gitBlob": "019e2c1a5ad66f0d001e03630c047d3b8ca35a29",
+        "sha256": "2d241246b6aad319064a5c3fa59b8fab53bc56333a8fb2116d9bd6e08baa3d38"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/azahar-31.json.gz": {
+        "mode": "100644",
+        "gitBlob": "b8f3e60f27497d8f406b98496703601102200cf8",
+        "sha256": "32d7fb4ef70f0e03d3d93cc52c29f426a86bce789fba97cc23b2306108d372f1"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-00.json.gz": {
+        "mode": "100644",
+        "gitBlob": "11b46ae01d00c6153081558bcdc5455d9d5b23ca",
+        "sha256": "1d40a9d6c2b8c564292d588dba698ba253885ff5325dcc11c31ac03bc1c8e416"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-01.json.gz": {
+        "mode": "100644",
+        "gitBlob": "6700f41f9f1f24c653df6462424aae8af6a5f07c",
+        "sha256": "85e8040d32eba2fc33870bfdafad0213b5dd658c2843d7c0c62d151d79a4d01c"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-02.json.gz": {
+        "mode": "100644",
+        "gitBlob": "ecc34b48c0e0f03f69b24c80dbbcae29f8d19b7c",
+        "sha256": "eada510090602a4a744ed92ecc9abd72237893043706bc6ac609584af17d5c91"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-03.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a3703c9069572efd16c5a68278d1af9236df0d59",
+        "sha256": "db098b1742dc75706771b8fdde877ad5790fae68500548f1cd31e4a909eba666"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-04.json.gz": {
+        "mode": "100644",
+        "gitBlob": "0d470b0d574077965c6f175144c072a25c96f365",
+        "sha256": "d1794d72c734a35538e76b8edabdf8698c7a9731c0d371e1b91cc03779b5d4d4"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-05.json.gz": {
+        "mode": "100644",
+        "gitBlob": "e339fad0ccd874531a2451ad01186e22c70f4c7c",
+        "sha256": "2aafc1d1c5106d7ea02a3539d73ad13ba43d614f85c3a4609b455fb160f55705"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-06.json.gz": {
+        "mode": "100644",
+        "gitBlob": "bf01b318c1a0106e79dd229025fb2c457d4c0abf",
+        "sha256": "4e028b3c389a2f3687d911a8be4624096404429a79e380e42e9d556f59ef4fe1"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-07.json.gz": {
+        "mode": "100644",
+        "gitBlob": "95cbb6ec4f8142163a97bb05e8a7742107e3b56f",
+        "sha256": "00146766f88f41733bb217537591f9227d4cd586490cfc0f767a35dcbc3035a7"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-08.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a8cbcd3060b5ea4fa339e1b4127570992fa584a7",
+        "sha256": "67ffb170b17e254da50d74903d93df52db5351ddf6623b184fb03beddd175685"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-09.json.gz": {
+        "mode": "100644",
+        "gitBlob": "76747f1e302e44b8b5e6b0b105e2cb1d8271ed24",
+        "sha256": "d4b103eee5f9cb37039a57bef6d6c4ba04417acbf9ac05e960d7856e7e2797e6"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-10.json.gz": {
+        "mode": "100644",
+        "gitBlob": "6d1f58c5b26e3ab1e85146957395d2da7169784e",
+        "sha256": "27161e30c9dd0848f6db3396e7f5840d34655cf08c41ff422ad3f5bd7c43337f"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-11.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a0470a1e7929af3ce6779af3d64e0a79ab00705c",
+        "sha256": "ae9f63089833803a897409557be4862a2ff69937d25d67972eb193e3b54616fd"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-12.json.gz": {
+        "mode": "100644",
+        "gitBlob": "d251132826eb403888751673e7b7d9530dd86a3e",
+        "sha256": "502c4903849f905b869342ea1cce5e9dcff0c76278924678948fe461c4e11e1f"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-13.json.gz": {
+        "mode": "100644",
+        "gitBlob": "19526cbceb281f2551d092a7431a3fcb92113683",
+        "sha256": "a0cd72c801d0526bd3dfa6613fa755dbf45db5447f125c903bcf961dee8f592b"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-14.json.gz": {
+        "mode": "100644",
+        "gitBlob": "c062116f93a828227e79bb2154f458d0629dc91d",
+        "sha256": "0873e09cef5089e5fbeb68b5ed223896920df6f08b739b438f40585f8d08817c"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-15.json.gz": {
+        "mode": "100644",
+        "gitBlob": "f4beed79e62b3548c5dcfa8238e4e3d3f4f5b400",
+        "sha256": "2ead40445231a2455625bca06d506ef6881cb978b77ecf114bcc7a4195ac208e"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-16.json.gz": {
+        "mode": "100644",
+        "gitBlob": "4bd619ac992d9471d80fed88016f71f8bc64e01d",
+        "sha256": "b76879935636f0d32dd98a43ad7395b568a816935d38fe41928c989ce280870a"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-17.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a5b45a333e6839877d9ca947ec4283e967df0ce6",
+        "sha256": "ea2467a88a2ef7726de93302732cadb323f4112a5c966fc634701c7c85b16746"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-18.json.gz": {
+        "mode": "100644",
+        "gitBlob": "c123376878f4b8570a1411b19b9a4006c029bff7",
+        "sha256": "98e8434dc2a029a21c7cfd2fac583bb32cd4cf01528dfa199074be54a68453cb"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-19.json.gz": {
+        "mode": "100644",
+        "gitBlob": "7901477ac9da353aaf8a396c10d9f67452602d37",
+        "sha256": "2b9b3773574d0de3943b4ecf29b65e343574e359227c4ce158ea259b9d7cba99"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-20.json.gz": {
+        "mode": "100644",
+        "gitBlob": "00aced06e2fe75d47555305c6994d8075e702e19",
+        "sha256": "4c7574492c06069a2656aec2543c38a970dd193c8183660741e0ea8b1e8cae91"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-21.json.gz": {
+        "mode": "100644",
+        "gitBlob": "d4de7abdc3458183d3371e8faa72d9099bc3b75a",
+        "sha256": "ced5a5f54d9137b45a644c4b4236d0b95e1aa3a8cb05974063b357910aec3e34"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-22.json.gz": {
+        "mode": "100644",
+        "gitBlob": "5957fdcc5fa67c403de76e93b12e6c43736bede6",
+        "sha256": "68b1261a082e556fdd8d3e7252add3b23b7467ad35710967be7df50abc0d0462"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-23.json.gz": {
+        "mode": "100644",
+        "gitBlob": "2098063e58da8b13a8b1aa0e515de4c0a71ce98d",
+        "sha256": "0febe330ca64b73b34f3a67fb55e6fb4615f1fd16154f447c535d1823c89a142"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-24.json.gz": {
+        "mode": "100644",
+        "gitBlob": "148f43932219d3b62d0102b817975cb7830af631",
+        "sha256": "fcf6101c8394d70b5207524ad8ecd70fbe62e6b41d7c6fd65234d83c8fc02a8c"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-25.json.gz": {
+        "mode": "100644",
+        "gitBlob": "d66d8a9db1d2845c925ae7dc1f37b1cafca2b711",
+        "sha256": "4b1dcf4dab6217df8c072721161f36d8d45c3214a411f7bee4b977104c8551c4"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-26.json.gz": {
+        "mode": "100644",
+        "gitBlob": "8759fd706fc404a95328ca1776159015b6174431",
+        "sha256": "cbe95dc4ffd583129f1d0ce3c7b915758db6ae5f330fa932a113382e41f6e581"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-27.json.gz": {
+        "mode": "100644",
+        "gitBlob": "e374da86d35c43ce09da9e4a7d2371154c96dc9a",
+        "sha256": "46ad4d2a55f5b3d0ab7d4e89b2df7677b162e76fd5f3233cb92fa14d8d75ac9a"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-28.json.gz": {
+        "mode": "100644",
+        "gitBlob": "0222ec62ca8d3f0dc12ca452878caa7099eec33f",
+        "sha256": "470bbb19de1b5d3c8d3ee3be2009a75e8672a85feb4c3ad5ccdabdefb20f6d0c"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-29.json.gz": {
+        "mode": "100644",
+        "gitBlob": "e910af3a41ae68ca328f6357694c5fd8ca56c21c",
+        "sha256": "66a794487d118b57cc85a848248dad2d4f96476788b8c8717c04edbab2300135"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-30.json.gz": {
+        "mode": "100644",
+        "gitBlob": "87b1b7ccc2b5da0b8ccef71627307b2bb5eba41b",
+        "sha256": "e86ae42ac8721c43a847f4712eb7fe24e74aaba04a1080ce44023fe216322e91"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/dolphin-31.json.gz": {
+        "mode": "100644",
+        "gitBlob": "bf89bf51f283b7a4d74bdeb2fa3138371ea0ad24",
+        "sha256": "d605c10ffa7633c67fac6474a01ffa48194eaeaf8c4f4507557535d6a1d3c6a8"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-00.json.gz": {
+        "mode": "100644",
+        "gitBlob": "03d927a3622bc2ee6ae336e18351a72105b8054f",
+        "sha256": "602fb528f39c8588838689844e12e36df5fc28629d104ec7be90cae7fe736c00"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-01.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a2a0df903a0f280dcf18d95d16a917baf8772e3f",
+        "sha256": "ce5eb82d5e63ae78bd62b04e9f71ded449ed82a9f7e55ea657e13a37d0fc5f19"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-02.json.gz": {
+        "mode": "100644",
+        "gitBlob": "54794240d1d3a526696a9284f4cce2c0deb78e0d",
+        "sha256": "8d89e6b309bfc0510feeb924eac96e911fea6ea9b9ba8c4c56e98b1f97065fa6"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-03.json.gz": {
+        "mode": "100644",
+        "gitBlob": "404aa265e35b968f3e81e6675dcd2093084b636a",
+        "sha256": "e3b792eed30e46adde240aa32d28a4e524a2c3aadb28db546e71095fd42ed068"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-04.json.gz": {
+        "mode": "100644",
+        "gitBlob": "59fc4e370954e1ee9f75dd4efebc16eede27f29a",
+        "sha256": "c231d7a80d122e34fd51a4b934f8e12a82002af2499d1f2171138015e80c787d"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-05.json.gz": {
+        "mode": "100644",
+        "gitBlob": "f575de75265b6ebe40af7039d53cb221713b76e3",
+        "sha256": "fa4c3f447df8281c83356e5b677bc4830468545a3fd91e142a63dfd1e4dc93e0"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-06.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a40054d4d4caf0f5fe4383559b5a37f588c2c931",
+        "sha256": "bd9cb0a92ead0772fcb3efe86e5fd74a5754a9acd309423df4514a59f7d15b1b"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-07.json.gz": {
+        "mode": "100644",
+        "gitBlob": "1b67aff87400d6e5adfecaf7b147dd0cb9d45fb0",
+        "sha256": "9501f8ebc6b762f9a3df1b70b4ccb95f1ddf1a0f3368e02a74820abefcaf66dd"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-08.json.gz": {
+        "mode": "100644",
+        "gitBlob": "b179b1411611024d19dc94963cc3b36f41c3d990",
+        "sha256": "2f9cc7afcc66939b0687f3e550c920d0e093f6b4a15d65101dc981201ca68b54"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-09.json.gz": {
+        "mode": "100644",
+        "gitBlob": "6173b8ca742a1d208506804cd6e81bf014836d40",
+        "sha256": "db89bba4c81e05cfc2614cc5c061e21478810a63c09fd074119b6062b087b72c"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-10.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a6ec222032f187631642cb2475a831db36cc5b7e",
+        "sha256": "594d13b74eed2bfb3b4bd65d1090054db5e14b3ba8e9442b3382de79d0430970"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-11.json.gz": {
+        "mode": "100644",
+        "gitBlob": "12fd3b96501552836d8bf51408bfb492b10bf1f8",
+        "sha256": "ac9d588fdc00c6e9122e94159e04f25e88e6a1346d4ca50dd7b3423b2c2753a9"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-12.json.gz": {
+        "mode": "100644",
+        "gitBlob": "ede6cf045e817df537e3768f0a8b7967dbd1123b",
+        "sha256": "0178950ceb9ebf74cac5afdb3af623e4665bea525d9cd3ec9d4ab5bb3dc2649c"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-13.json.gz": {
+        "mode": "100644",
+        "gitBlob": "6af8f8d0ba12e82e7be117c4f7d97ed9d5fa9580",
+        "sha256": "81d885feab9d0c948a2063b9a53dfdd56ec4c25e998bdbc23f34e2e50a5d95c6"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-14.json.gz": {
+        "mode": "100644",
+        "gitBlob": "afd2050a568566bbc9f6eaac9d2b9a67c749a43c",
+        "sha256": "6f25103e4b6ecd25fdc1de8251f5d0165bca3b93d8bf3c19c53644fe7dc2fdc8"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-15.json.gz": {
+        "mode": "100644",
+        "gitBlob": "4d771de75550465b3822dbe522a76d04a13f22b3",
+        "sha256": "32fc99573947567cd6062c6a0548439e96d7e1af89832ac3e9bf7f5c36b558c8"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-16.json.gz": {
+        "mode": "100644",
+        "gitBlob": "564124d9f5da661c162dc55f3b2cde1b3cfec0dd",
+        "sha256": "adf7312ed3d4e4aefd44f17ae22632e4cfce4d79c9a52d36d4c345fa32290efb"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-17.json.gz": {
+        "mode": "100644",
+        "gitBlob": "5a25cd939d127f34f65e9481f8ec239dbb9f244e",
+        "sha256": "2f0ac8f0d0234cb99166f2c0afd4d7d3d0df0f7636a51ed267cdddb646b6f9e8"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-18.json.gz": {
+        "mode": "100644",
+        "gitBlob": "f0c76cf22f90121a6d83a75fb26b11d12ef7488e",
+        "sha256": "dc0a4210b91bef14aeaa8e9de02cc8ad51c5856ef625fc470f18eca1194a71a8"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-19.json.gz": {
+        "mode": "100644",
+        "gitBlob": "28523ebe0d1893c1e5db8f41d5bcde81f4fda397",
+        "sha256": "d72e410a39a5ba91ba6faed57df9125264b02c1a82b1ee23b1a1e01728b06fad"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-20.json.gz": {
+        "mode": "100644",
+        "gitBlob": "904ae0f15d742f064044d9b6ae6056e7281380c2",
+        "sha256": "ec6375f8afbe8a235c8212075fea7cf7e8f429cc09722de54b5b7703ab0ec83b"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-21.json.gz": {
+        "mode": "100644",
+        "gitBlob": "84698885ae7ef833e2928b4d0fddb44d30ed5720",
+        "sha256": "63db3651379771124642c1adc5ee1c8907bbd298c3d42cb33772fd60a930e51e"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-22.json.gz": {
+        "mode": "100644",
+        "gitBlob": "e7a7df5e088d75886b7a0042087425819b4ad0a5",
+        "sha256": "24fc87b9f97a573f9639e39dab0000b7cdeb42832fc04a5334eb5b2d1b1bcceb"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-23.json.gz": {
+        "mode": "100644",
+        "gitBlob": "eaf12facfa4e4f712f545c7026569ba5c85b4a75",
+        "sha256": "99c542d3543a95d9c2ea841a3aaef7fabb874500c37648326a24e5c08c493616"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-24.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3572d3aeff5453ebf6c52030a98d0bf01823b3bd",
+        "sha256": "9175aa4f284edba5010f5cffa2283cdd2c7cb760fa3b2c51401e9c0516a9d84a"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-25.json.gz": {
+        "mode": "100644",
+        "gitBlob": "2ce8feb4b1051393b25407a0cc0e20841cee8e98",
+        "sha256": "8d171658f2b606b03557d2e63245e910e90efada2d6d8f89ad99dfaa5e0877c8"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-26.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a0f8c5b1b170c25fb1c7362a21a9f380d8bea3a7",
+        "sha256": "0cf9a4a664845056d65f5851341e7710de2ef96f00c3f73ea465fca7341da73f"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-27.json.gz": {
+        "mode": "100644",
+        "gitBlob": "e4637b585a99829a0fc7e6a727447aea7fcbe2f7",
+        "sha256": "5c702f9f76cda228002ddc53baf3c742980642a134a6a3b46c1be31f4396cfed"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-28.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3a890bf203c46e0afd37175896dcb5369089b95a",
+        "sha256": "b6d1e058a0c96d3cf47d6b3e5dc08c295960c9a2efd4fac84617f7adaa4a9ac0"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-29.json.gz": {
+        "mode": "100644",
+        "gitBlob": "b3884fac56ecaca62a77bc5ca7eedda9d79fc76f",
+        "sha256": "d528dd0fd7d9dcb75d54b9186311c4cc7ec6a499f8c925f7ea1b0d3582806c24"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-30.json.gz": {
+        "mode": "100644",
+        "gitBlob": "df70e5d8063f90f6abcf6e080a09ce4faab2dd46",
+        "sha256": "b8fa35dd2ee75af07494112cbcefac41c49fa74fb454949f354a32daad599a6f"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/melonx-31.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3c0a1e7ff672337910455692ac94456e2f17c3d4",
+        "sha256": "42fc4ee2096b40ec801265436805dd531ba96e7881313e07cab6852b54ee92bc"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-00.json.gz": {
+        "mode": "100644",
+        "gitBlob": "e1e83ee6db34416045c267475b0349ede32fe0d8",
+        "sha256": "1c0ae5136b6b32612cdf1a63a3402ba6fb39b4125bc2216ffe805088db18ed1c"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-01.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a836fe0b7bd3f2c9a2dbbf6c1e9d19e3e75b697a",
+        "sha256": "18bf024569183027ce260696f1f697d715c4dece35c14ab20d58e56c1e5497f8"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-02.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3744ae78b4d5c220d6ee81ec7fdd437b6ec6b3c9",
+        "sha256": "169fd2a1968879cc91f67ec242790890872cca8d4086792c30cfbab0849c960d"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-03.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3d13db29ac443f3d437d8c31a0d31d9250b003a8",
+        "sha256": "c61aeb00f1d474d5772c598971b5f75180bd685b9962cc93383610a7411988c2"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-04.json.gz": {
+        "mode": "100644",
+        "gitBlob": "31d50527dde1e786d8a6316885e4c70d3632cdd3",
+        "sha256": "0317a66fb3a9380ddf7989b0b2930535748e3060fd6aebe5cd95a5f00b10141f"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-05.json.gz": {
+        "mode": "100644",
+        "gitBlob": "416371cb3015065f3647828f6086f9a93a424888",
+        "sha256": "9d62a2483958830a639debdc3d9cd996e445535969b533e8c9c90638d4f0f4b8"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-06.json.gz": {
+        "mode": "100644",
+        "gitBlob": "c683f4e7c363e194cad4c255f2ced20892db44f3",
+        "sha256": "502512c8b1749a7a548e1e0cde0928c3f43c307ebf7402cdad9bf1c7ed6de78a"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-07.json.gz": {
+        "mode": "100644",
+        "gitBlob": "34f30699d8eb658e257977d2cad197947cd9f3b9",
+        "sha256": "93d1b286d58cd85c5d595518767d1450df287a73641e6bcf484cb77109b1ca87"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-08.json.gz": {
+        "mode": "100644",
+        "gitBlob": "ed7f2ec209316c7e4a1691728a310498c8e3c453",
+        "sha256": "11f8c4b2d8f0f7d12bb7d40055e0ca4faaf6edf374656f71c4bae5e7735c932b"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-09.json.gz": {
+        "mode": "100644",
+        "gitBlob": "0024ea6ca0e213dd98f03c1bb63bee202e95ce1d",
+        "sha256": "d609ee4420c7c36bc4168dcab988694311474b45bec5dcd4dd2e13232e133e35"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-10.json.gz": {
+        "mode": "100644",
+        "gitBlob": "cda2dfa8dfd63907685316da383f5c0e1efe47fa",
+        "sha256": "cd72c4d9eb7b619e184c5adeeb1f8a3e461b1c903cc68d94044cb1727d88e222"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-11.json.gz": {
+        "mode": "100644",
+        "gitBlob": "57050ac247609311735b0dd614599515497e1f4f",
+        "sha256": "bc9bfdf9b72350403a7d3c9cc57fa7570a83de40398dbab82c673f77e00dbc3d"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-12.json.gz": {
+        "mode": "100644",
+        "gitBlob": "fe457c4fea19025d80c3a2dccbbb5d8b7eb18d89",
+        "sha256": "c99427a65fb16307e038996840fbad347c733f80ef8cb25e9a8dbf71e86cc63a"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-13.json.gz": {
+        "mode": "100644",
+        "gitBlob": "f86637a35ae04da7ada183cecf82d86757d2a88b",
+        "sha256": "7eba5eafc9f87791b3dc30f3cc482cefb6f6e99c009999ed843eba4c0ac13ed1"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-14.json.gz": {
+        "mode": "100644",
+        "gitBlob": "5f679aa3d6188386073b7f9450be6bec2bda441c",
+        "sha256": "ed2b004f5b255bebe2998975f514c3485520462741e99993c494a3ac749ec562"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-15.json.gz": {
+        "mode": "100644",
+        "gitBlob": "854680309364508221427d1b17cd2c9ae2fec706",
+        "sha256": "5b358832e53891080b73184c97cf40d77d4cf6ffb2edf4e5f1f67b4dc993f04a"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-16.json.gz": {
+        "mode": "100644",
+        "gitBlob": "f9801be2d92a53aa530e29591b4b328b0b53d1c6",
+        "sha256": "b703d74c0afe99fc84dc8dd86195b45c3f658d90ba671bae17dd5f0933183d84"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-17.json.gz": {
+        "mode": "100644",
+        "gitBlob": "51bfaec41a890f427e5d3591ef28413a1452431b",
+        "sha256": "85204d5f272bcfa9c4969ab8d047b181bcfcf7f91b958863e45179ddf2c3a200"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-18.json.gz": {
+        "mode": "100644",
+        "gitBlob": "a05cac908985b33a6c4506585494883e5a78c867",
+        "sha256": "19224982a3bcdb911b5d248aed09913eae89e42d278be3ab8d4448261daddf4d"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-19.json.gz": {
+        "mode": "100644",
+        "gitBlob": "d17aafff9f284357e4ecef33c4baea801307f8b9",
+        "sha256": "865b0b7f8541516927f932a6134bf1e0fb703ea19bc023e3f1ae431e3b83d000"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-20.json.gz": {
+        "mode": "100644",
+        "gitBlob": "318435f8dd59930bf5d893ba402716bf0fc88daa",
+        "sha256": "8291ae1037edb9fa49081c586d139ed04167eb4791d3fa7fb561cc41552bf6fd"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-21.json.gz": {
+        "mode": "100644",
+        "gitBlob": "ffc4a0d97fb4f94f8bc8a70451fbfcb241aa9f74",
+        "sha256": "44bebe31d5f9cc96515ebf763eeb14f56d129ee3c1a2a0f66dba9ab3b31ec6d9"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-22.json.gz": {
+        "mode": "100644",
+        "gitBlob": "0e6f14ccc5969ec7be0b217c215082aad691c2cc",
+        "sha256": "240211ae02dd6b5b7b2e4cecaa5c0c83f76a5dd900dfa0abf7d9795c1fbd7ee0"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-23.json.gz": {
+        "mode": "100644",
+        "gitBlob": "3162cdedf3b3da83dea5d668057f5741524902b9",
+        "sha256": "c0871aa693b42a56e9d9587f38d877b1f9f4c81a9a0fbb89758d854e897d5480"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-24.json.gz": {
+        "mode": "100644",
+        "gitBlob": "24fe18c6de107a72f20a337761aa8e5b14aeefce",
+        "sha256": "c10c38fa2d54a978057c15941d204caf807cb2315f26958c6d7b035a5e5f2b18"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-25.json.gz": {
+        "mode": "100644",
+        "gitBlob": "d9019594506f3381c8a1e48acd99e594b3e4358a",
+        "sha256": "f649d2f1c6761bb93575f04d01ccee7b96d738925c1569f8bbaecd45fd1a360b"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-26.json.gz": {
+        "mode": "100644",
+        "gitBlob": "ab445e51be8a07187a7a4296c9a661bf38571ed5",
+        "sha256": "6655db1fb640869157cb6fbc1b4ae6a55d7f6d355c3ccf9773b2782e3fae8860"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-27.json.gz": {
+        "mode": "100644",
+        "gitBlob": "04f466639bc43eaebfa26cb20159705e8f17b2e2",
+        "sha256": "0dc3860baaaa4ce68319321c9bf4e26c353496b54c7bca80fe9a6c7d6def9ea4"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-28.json.gz": {
+        "mode": "100644",
+        "gitBlob": "b08e4c5502b501a1352cb24189aa66d83aff1e3b",
+        "sha256": "0e7ee3f0b44202120ff0a53b51d2873ca879a094050b1b8e3d5b957336a44bbb"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-29.json.gz": {
+        "mode": "100644",
+        "gitBlob": "e08fd0446e99de6a7ca8a1a8cfc4b17222fb53e2",
+        "sha256": "17ecf24577b3e79d1df20c14e57bf9e2cb102120590856d356823e9e379c335c"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-30.json.gz": {
+        "mode": "100644",
+        "gitBlob": "d6533ee7e970ee7eab974417d30a1ae94d2222d4",
+        "sha256": "a080fcc2e847e13477ea8fdc222606f8bfafade9aada3644fe4833ec2d1d8d36"
+      },
+      "native/enhancements/catalogue/r/2026-11-23T1806Z.aff2909036d7/shards/rpcs3-31.json.gz": {
+        "mode": "100644",
+        "gitBlob": "db6bcd35daed09a11d0957cbbfc010e1b5042774",
+        "sha256": "4db3e8e95f1652fe8befea971366d108a0d5df36ce5e117426dc825f606f6217"
+      },
+      "packages/armsx2_internal_bridge/ios/Classes/Armsx2InternalBridgePlugin.mm": {
+        "mode": "100644",
+        "gitBlob": "52840e22f432b1e8489bdd83346456818d96a0cf",
+        "sha256": "ebf8b9034c5aea007b1a8712d76a211394b4f7f6b02e8d916aa1b22230629003"
+      },
+      "packages/dolphin_internal_bridge/ios/Classes/DolphinInternalBridgePlugin.mm": {
+        "mode": "100644",
+        "gitBlob": "cf9b4e57d668d89aac91acb29a00a7a8dad24558",
+        "sha256": "486a6399b8067939427dbe73efb0060aa1e668d2474a08c8ab8afb1abb8a94cb"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/LibretroCheats.m": {
+        "mode": "100644",
+        "gitBlob": "28d2b0aa5b9b908fa0a09a47f0e27f978baf8e02",
+        "sha256": "1f98c8d2773f57ec596b507566ff0c1b47cce0c036137430025f4e23461acb17"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/LibretroCoreHost.h": {
+        "mode": "100644",
+        "gitBlob": "d1ea19f3db462f48032fe0dff32c68d356180eaa",
+        "sha256": "29f7a32bba805300e670a96ebeb99d2cc95461b5fcd65a5de26c6463d54cc1a5"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/LibretroCoreHost.m": {
+        "mode": "100644",
+        "gitBlob": "0e00f98b76ea41f685c1bd2f5bde759cbbaca238",
+        "sha256": "6b9876e425909e0d459ec41ff8d3fc4ad61c2cca1691ee92de514033173276c6"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/LibretroGameViewController.h": {
+        "mode": "100644",
+        "gitBlob": "ae4a9d48cd0cc896d6dceea6734cdace7090594a",
+        "sha256": "66acfabf753871832e360996fca7e5da324fa948325c6e72b8cb85d38c2db0fa"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/LibretroGameViewController.m": {
+        "mode": "100644",
+        "gitBlob": "feef0a8f080f246ee1e976043a17213f1ad5033d",
+        "sha256": "e0699794f1059f6a9d49ccab30e49e8e7f344db0311a37b801f78d8540f3ae65"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m": {
+        "mode": "100644",
+        "gitBlob": "77c15359ccfcbc74e5a72b703279170a0a833555",
+        "sha256": "0366e76d97232f2417d5e60bdd93f5a625192ae07e59f12c7825fcda1aac4fda"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/LibretroPerformanceOverlay.h": {
+        "mode": "100644",
+        "gitBlob": "e73352a4953d09853351a7b2f58d54f6f2040b65",
+        "sha256": "ae4759d90e0c6ffce83a071df8ab202e4a874bd8b43a2531a08b3b9c85532eb3"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/LibretroPerformanceOverlay.m": {
+        "mode": "100644",
+        "gitBlob": "ee8a703b0e65d2767089cd54d806c0d6523f5065",
+        "sha256": "4b2ea6ead99bd9007128648d859ce7014add396fd581b292df01c0e90bf51008"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/LibretroSession.m": {
+        "mode": "100644",
+        "gitBlob": "b3c1da8ad71a665612536ce8d72724e3fb8f9965",
+        "sha256": "14e575fc7a2bbf2beb0826b883a0199d2dd9035d7a94fbe24d9b68dfeb9f4286"
+      },
+      "packages/neo_texture_catalog/ios/Classes/NeoTextureCatalog.m": {
+        "mode": "100644",
+        "gitBlob": "294035d13d4a2cc39c065058de9603421f3e1e29",
+        "sha256": "a91beebf80875baf4d707fb7921996a1fefb354f2177de79d73f8d28e26ff318"
+      },
+      "packages/neo_texture_catalog/ios/Classes/NeoTextureEngines.mm": {
+        "mode": "100644",
+        "gitBlob": "bf1dce71c8e8e0ab3334ad916bf81e4132fbdd54",
+        "sha256": "f3f84bacc8af1eec39dd725b2da02e497ab76fb913ed9542100ef971ccdd256c"
+      },
+      "packages/neo_texture_catalog/ios/Classes/NeoTextureInstall.h": {
+        "mode": "100644",
+        "gitBlob": "b356599d33a5e337d03fc20c94ede286a33ba8ba",
+        "sha256": "b70fbff5394b0b7d93c47d050117e044505380bc830d78cfdcdba57314fb07e7"
+      },
+      "packages/neo_texture_catalog/ios/Classes/NeoTexturePackStore.mm": {
+        "mode": "100644",
+        "gitBlob": "b2a6b979c42d0895384d195ac7e8d6b94dbc315f",
+        "sha256": "b0aa8c9e175ccf75aa74271eeba9ad52f2b6b022d6de4827bad70265afa19aa2"
+      },
+      "packages/neo_texture_catalog/ios/Classes/Public/NeoTextureEngine.h": {
+        "mode": "100644",
+        "gitBlob": "39a097870b72c19c904910f707e484f5536bfcf3",
+        "sha256": "35f8d6a28c1294fc55bf8bcc3d712f858173f0745d566829b82dd39bc0bf70af"
+      },
+      "packages/neo_texture_catalog/ios/Resources/labels.json": {
+        "mode": "100644",
+        "gitBlob": "60cbec85f59e69e4a03a6baee77dc6024d47f4b6",
+        "sha256": "ce2df0a143ee235738ae52ac35a1f89b45817c2c470edbaa24cc42c45cfb1be1"
+      },
+      "test/enhancement_azahar_adapter_test.dart": {
+        "mode": "100644",
+        "gitBlob": "1f3ec9f4828b822d7f724463da4219b711b8fcc0",
+        "sha256": "ae2ccb8925e665a0a94fba948cc5bd2def271c881c602688518cdf665ab8c02e"
+      },
+      "test/enhancement_catalog_data_test.py": {
+        "mode": "100644",
+        "gitBlob": "9cda05122014736c1d24b3eab43f0e5d7dfec25e",
+        "sha256": "3b7e763b609d423c5026140d981adaa48b6401fc4b849bd54fc821751912a520"
+      },
+      "test/enhancement_melonx_adapter_test.dart": {
+        "mode": "100644",
+        "gitBlob": "675b4fdc397eda88cd930cbb305e8078832e1518",
+        "sha256": "37d6d745bc7e6de21e7fde70cc5fcc362f2e72c89629af4ed71d1382b9c78b9f"
+      },
+      "test/game_box_enhance_test.dart": {
+        "mode": "100644",
+        "gitBlob": "f34d5f7a945b4d6299053b091dd820a951a324eb",
+        "sha256": "b0b3af8abbcb9045944a9b9c4cba9564c5a0b211fa43f0752b1d3d958b93d0f6"
+      },
+      "test/game_box_geometry_test.dart": {
+        "mode": "100644",
+        "gitBlob": "741b00dfbb5dc7bc639b81ee33d515c47f6db921",
+        "sha256": "f14944569f8df3247280c9bab8bf0d17440133dbaff5758684bc2eb8ec2ea936"
+      },
+      "test/game_box_manual_inspector_test.dart": {
+        "mode": "100644",
+        "gitBlob": "9aca62bfc2697fddde9a7d72d241f7e35bf1ee9a",
+        "sha256": "41d93c3276f0eea7aa600a10aa448bfd9eb558d14d89d0a41e5f445ad80eeaad"
+      },
+      "test/game_box_support_test.dart": {
+        "mode": "100644",
+        "gitBlob": "cbbb229cf712fb6436d4e15a224d76e174a34ceb",
+        "sha256": "70e0877662e4b05f5b106a4bb64086381a43c6dae62383039b9d88a58120dae8"
+      },
+      "test/libretro_core_catalog_test.dart": {
+        "mode": "100644",
+        "gitBlob": "20942ab95f3c8ceabe80770b4b96a73df3128518",
+        "sha256": "b048a3e78f075316d63468f6f5866ebeaf0b75d32c3b7549dd90a06b4e2f7845"
+      },
+      "test/libretro_core_options_test.py": {
+        "mode": "100644",
+        "gitBlob": "4407c981e6117de96b0fa467f59e43bde4f1da4e",
+        "sha256": "0e1e0d9584cbc8e5ec44217fb210e923fc90e1be13c82950a73beab4472ac524"
+      },
+      "test/libretro_host/frontend/cheat_automatic_test.m": {
+        "mode": "100644",
+        "gitBlob": "6dce0f731efa1b89373d5ffd223a7d84fa2b996e",
+        "sha256": "e939648186ab9386c517be877c737a228ccb313bdd5825fb5167c475dcfa6e2b"
+      },
+      "test/native/texture_install_driver.cpp": {
+        "mode": "100644",
+        "gitBlob": "0948a74835eca61064786c27f70c894929ef9e12",
+        "sha256": "b37ef7fff52a5bb5b896df7e1bcc6f9eee6366216aced049342a603c0b85a574"
+      },
+      "test/s2arm_never_30_lock_test.py": {
+        "mode": "100644",
+        "gitBlob": "15d43b510c23a176bdffb51bfab4ce0b85b5dd84",
+        "sha256": "cfa64e9c6180118df91394b52ed3c3052d03269e9de47544011d92b3a5f784a9"
+      },
+      "test/skin_portrait_lock_contract_test.py": {
+        "mode": "100644",
+        "gitBlob": "92e30a73dd582986b40a6a30e520293f12e2a407",
+        "sha256": "686833566181341032494daa297488164f4fd22149d7e609286b6ec292fe9fe8"
+      },
+      "test/texture_catalog_native_test.py": {
+        "mode": "100644",
+        "gitBlob": "3cb16b74a3d48c98cac31ee025ffd18262e96e35",
+        "sha256": "fa0ec1f3981734488623d9ee9ba891d2c4e1a029af64542c7db4c651b8dacd56"
+      },
+      "test/texture_catalog_store_test.mm": {
+        "mode": "100644",
+        "gitBlob": "8ec1445e3b880ecf602906574f7a67deda5207b1",
+        "sha256": "2c64b24ffaeb6895be72abe80c77cfedb2ffe31081558bf1ddec2d71f312b1f2"
+      },
+      "test/texture_install_test.py": {
+        "mode": "100644",
+        "gitBlob": "43ebebe92702a0c8e463ab5bb5706087192eaebe",
+        "sha256": "1ccf7420e8673852755afc6c151a5ace8c0c36ac4f22ec9997def6dc38f609ad"
+      },
+      "test/texture_verify_checks_test.py": {
+        "mode": "100644",
+        "gitBlob": "40753b4e0a3ff5e4a865b53940814980c5cdfd1e",
+        "sha256": "7752fe80146039fa7e122db30a4f5db780eed8b24ff0152eb49832e8e59933c3"
+      },
+      "tools/enhancements/build_enhancement_catalog.py": {
+        "mode": "100644",
+        "gitBlob": "310f202c98a29b421361e2a34e29231827f7e3ab",
+        "sha256": "a15eac06d76b60da90d215ad195f68a4fbe67081374071f1fdc09bf2a79bea70"
+      },
+      "tools/textures/labels_cjk.py": {
+        "mode": "100644",
+        "gitBlob": "d4e59962c6ebad913fd221959c5c3f64ea13bf49",
+        "sha256": "35b662a10b53c53f5631ad3ce5b9add9f44f3ac4728beb2545712efc1583e16a"
+      },
+      "tools/textures/labels_en_fr.py": {
+        "mode": "100644",
+        "gitBlob": "36fe40356f8f642da1dc431d2809d6a702a1fb7c",
+        "sha256": "e20ee5096838db2e40b1c2a57540bf73ae245fa7f5db23e8ad8b84933114055a"
+      },
+      "tools/textures/labels_es_de_it_pt.py": {
+        "mode": "100644",
+        "gitBlob": "b6f6d63cfd6124b9625bb94c239eedac900ad4c9",
+        "sha256": "c435fd607f4a1ed90dca4b3f3729f7000634ee3ec91c049e2500577b02f5671d"
+      },
+      "tools/textures/labels_ru_id.py": {
+        "mode": "100644",
+        "gitBlob": "1cb13f9ba81601fa4a8066a73cd7072b10fb8c47",
+        "sha256": "ff2e6d5c9d10da39593972a0123ddf078339d79830f0ec6ddec185fa33a32ac4"
+      },
+      "tools/textures/native/texture_verify.cpp": {
+        "mode": "100644",
+        "gitBlob": "bbfc04e0c91b39ae8e906805270b5f7b0663b663",
+        "sha256": "cc1d973ad6d3db28b7f7bc7a74b8b5e4fbf6074f0dc02ed2c9fefc3cabba258f"
+      },
+      "tools/textures/verify_packs.py": {
+        "mode": "100644",
+        "gitBlob": "8dcc8b8c0f4326da7c2e1595136dae75aae0c928",
+        "sha256": "97563d3e00c647df3ffb8d7dbca431552fcccbd8575052574c29a3262cfccb72"
+      }
+    },
+    "restore": {
+      "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-10.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-13-bulk.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-23-pass2.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-23.json": null,
+      "build-utils/maintenance/cleanup_actions.py": {
+        "mode": "100644",
+        "gitBlob": "d9d9eebd0b5f280598442a336aaf958cc9d033b6",
+        "sha256": "9e491611b6146032815aac0b8934e6edbdbc14e2f817350c006e7e8541773b97"
+      },
+      "build-utils/melonx/metal-archive/README.md": null,
+      "build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch": null,
+      "build-utils/s2arm/engine/benchmarks/README.md": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/IOSApp.swift": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/Main.swift": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/ReconstructionBench.swift": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/README.md": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.manifest.json": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Data/com.apple.CoreML/model.mlmodel": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Data/com.apple.CoreML/weights/weight.bin": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Manifest.json": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.manifest.json": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Data/com.apple.CoreML/model.mlmodel": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Data/com.apple.CoreML/weights/weight.bin": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Manifest.json": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/generate_probe.py": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/requirements.txt": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/run_macos.sh": null,
+      "build-utils/s2arm/engine/benchmarks/ga.c": null,
+      "build-utils/s2arm/engine/benchmarks/ga_guard.c": null,
+      "build-utils/s2arm/engine/benchmarks/push_bench.c": null,
+      "build-utils/s2arm/engine/benchmarks/push_selective.c": null,
+      "build-utils/s2arm/engine/benchmarks/rid_bench.m": null,
+      "build-utils/s2arm/engine/benchmarks/run_coreml.py": null,
+      "build-utils/s2arm/engine/benchmarks/run_cpu.py": null,
+      "build-utils/s2arm/engine/benchmarks/ubo_bench.c": null,
+      "build-utils/s2arm/engine/benchmarks/ubo_guard.c": null,
+      "native/enhancements/catalogue/r/2026-11-16T2112Z.a85f516925ab/index.json.gz": {
+        "mode": "100644",
+        "gitBlob": "93c81ad2f4f9e33d61a61f57259ec8595c62ae12",
+        "sha256": "ef2f17505620e6e5c38154f2289196b3fdf69bc524991c83112ecfb7b956a7e8"
+      },
+      "native/enhancements/catalogue/r/2026-11-16T2139Z.d8b055350a6c/index.json.gz": {
+        "mode": "100644",
+        "gitBlob": "93c81ad2f4f9e33d61a61f57259ec8595c62ae12",
+        "sha256": "ef2f17505620e6e5c38154f2289196b3fdf69bc524991c83112ecfb7b956a7e8"
+      },
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/index.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-31.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-31.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-31.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-31.json.gz": null,
+      "source.json": null,
+      "test/actions_cleanup_test.py": {
+        "mode": "100644",
+        "gitBlob": "b45856faaeaea9078ae6f1fab4f4dc420b3c2704",
+        "sha256": "3436f073837177c60de87fa823bcd4c46a3f06e78e06636713ac7daa2d4b78b0"
+      },
+      "test/melonx_metal_binary_archive/generate_shaders.py": null,
+      "test/melonx_metal_binary_archive/metal_probe.mm": null,
+      "test/melonx_metal_binary_archive/mvk_archive_test.cpp": null,
+      "test/melonx_metal_binary_archive/run_mvk.py": null,
+      "test/melonx_metal_binary_archive/run_probe.py": null,
+      "test/melonx_metal_binary_archive/shaders.spvz": null
+    },
+    "effectiveDigest": "f6b4f4c6032b1250cbb49a17f6126c05148ab9f4d6e5118aeede0c2148093223",
+    "productFiles": 9677,
+    "embeddedRecipeInputs": {
+      "LICENSE.md": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "NOTICE.md": "3943d6fb637c747d3ab7c8b0ec54108a6c44afa8666dd99a06d7e871bfbbcf58",
+      "docs/CHEAT_CATALOG_SOURCES.md": "b99792de4c9e917758628869bfc948ca8f653f47cb926378f3d8ad61d9c755f1",
+      "docs/ENGINE_CORRESPONDING_SOURCES.md": "d79c0a19a08dccedf3c7e1c65fdea6ae307e7dbd0b1c310430e9de7a7a5c4dd5",
+      "docs/HD_TEXTURE_CATALOG_SOURCES.md": "ca835a124356907c6ba68067a2399d55ba9326988e0fb732978cd4fe910d4392",
+      "docs/HD_TEXTURE_SOURCES_AND_CREDITS.md": "058e36570f6b4b3e374ea790dad6d684192e65b526fe64dd7f40f09dda0c4041",
+      "docs/LEGAL_AND_CREDITS.md": "93546aa59f01bc3191984d3f02375693505dff003c229eacb47242c0de1c2603",
+      "docs/OVERLAY_SOURCES_AND_CREDITS.md": "463aeaf75b5f39f058e7bc1fbb80fefddc9a977cc5ba3a0bdfe70b565d70ef20",
+      "docs/PACKAGE_SOURCES_AND_LICENSES.md": "2fdae2151390207cab5953651448e181912e9270347f7fe5129a211f2056e21c",
+      "docs/PPSSPP_SOURCE_AND_LICENSE_AUDIT.md": "fbeced8b72541b2ba8aac27334f749c6f870aff7506b1efde8de6958ff600e2e",
+      "docs/SOURCE_CODE_ACCESS.md": "93aa12f4cd110446325a63ff0c5c85c3daa01d543cd361643f112161dfcf490c",
+      "docs/evidence/achievement-translation-declarations-2026-10-31.json": "c8edd7472b7944348e39499ef1d2a59cd4e8a9e91338c3d7da46c8baf582df6b",
+      "docs/evidence/engine-source-license-audit-2026-10-21.json": "866e0a743ddaa4881fd8428dbce235c252e0773fb58ddefaaf1cef364d7607fd",
+      "docs/evidence/modified-sources-since-0.0.8-2026-10-21.json": "18a2c562d9271554e54644aeea3c66e7b498c8e5761f3532f04e8f5be2d4e9e7",
+      "docs/evidence/package-sources-license-audit-2026-10-21.json": "348c5c7840a9262e095519b46aca8d632341ba82483c386a96653108f4a8b72c",
+      "docs/evidence/pocket-originals-declarations-2026-11-03.json": "37388cacfd4623de2d580476e6d5f48a50daf8af449c42aed75fb4a4164e5641",
+      "docs/evidence/ppsspp-source-license-audit-2026-10-21.json": "34d4df4576cac7a5c2a6b1e89bed95e98870165146e11b058fd624cf009946ce",
+      "docs/evidence/retro-achievements-session-declarations-2026-11-01.json": "7d341d4f57dfdfc4abe32a6b8f6845ba4d6236f32615fc0eed848c9b9679ad1e",
+      "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json": "3c391df6cfc68f6ee4aa3691f8c4e8e2fcd37fc9d596060fbb7946ab7810c924",
+      "docs/evidence/rpcs3-retroachievements-declarations-2026-11-02.json": "12abf0d5396a77c8457da822d328bcee5d68338058afc848df51fc73ea15b876",
+      "docs/licenses/cheats/Admentus-Enhancement-Codes-Credits.txt": "ea9f46181d8a6eed2c318a2795f73ff1dfa2a838f8992d6b07be74ed0d9fb93b",
+      "docs/licenses/cheats/Admentus-Enhancement-Codes-LICENSE.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "docs/licenses/cheats/Mupen64Plus-GPL-2.0.txt": "6774e66e59957ebf1da6c9e22be4e7b97fb169a534ab37e085e92831ff414fdd",
+      "docs/licenses/cheats/Mupen64Plus-mupencheat-header.txt": "39023c3dc42e1f1ea6085d79d44bdf9b59adf5846137496f9d73268f6ae7ecd5",
+      "docs/licenses/cheats/README.md": "191a16de4712ffb71f9604f0ed480b5ef1105e6f139575e77cff4b1b4d0dc340",
+      "docs/licenses/cheats/TAbdiukov-PPSSPP-patches-LICENCE.txt": "47a7bfd6b3e12546207665bcd53558b4087ac04fbcfc2592966968a3adab7987",
+      "docs/licenses/cheats/artemis-LICENSE.txt": "6a3e4ba999067b1c412f1740282bc077f8edf5f7178ea085acb5f5cca6fecb46",
+      "docs/licenses/cheats/provenance.json": "6a1ed0158a9f2c2c4f4ebed42b1c5e963baeac0c7c56fddfc4e84bf3c98ee843",
+      "docs/licenses/cheats/szTheory-NDS-Cheat-Databases-LICENSE.txt": "20b067f86de375aae6db0f283ab2e65de24d537733b89bd58432c101259d84cf",
+      "docs/licenses/cheats/tyler-EMERALD-NOTICE.txt": "868b4e7215a9a5835be022dc4d3c469ea18ce71598b20280d02b7b4c83f8621e",
+      "docs/licenses/cheats/tyler-GPL-3.0-LICENSE.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "docs/licenses/rpcs3-wiki-2026-10-28.json": "e844cbcf720d9f8af0f6dc38bb1dd9fed67bd2c83e17299db21cff95e2a54628",
+      "docs/licenses/rpcs3-wiki-2026-10-28.md": "6ae6c89711313c17a0f4585b02760688b75114dd76e6e994a40d9acdaadaf075",
+      "docs/retroarch-rollback-2026-10-08.md": "0d76d77ba6e51bfeda4c84388cf0fa8eb25af3c221943a4d41999a6692eeea0c"
+    }
   },
   "images": {
     "added": [],
@@ -463,6 +2757,164 @@
       "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
       "Frameworks/neo_texture_catalog.framework/neo_texture_catalog",
       "Runner"
+    ],
+    "baseImages": [
+      "Frameworks/ARMSX2Core.framework/ARMSX2Core",
+      "Frameworks/App.framework/App",
+      "Frameworks/DolphinCore.framework/DolphinCore",
+      "Frameworks/Flutter.framework/Flutter",
+      "Frameworks/GTMSessionFetcher.framework/GTMSessionFetcher",
+      "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec",
+      "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil",
+      "Frameworks/MeloNXCore.framework/MeloNXCore",
+      "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport",
+      "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK",
+      "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone",
+      "Frameworks/MeloNXSDL3.framework/MeloNXSDL3",
+      "Frameworks/MoltenVK.framework/MoltenVK",
+      "Frameworks/NS2Pro.framework/NS2Pro",
+      "Frameworks/PDFium.framework/PDFium",
+      "Frameworks/S2ArmEngine.framework/S2ArmEngine",
+      "Frameworks/StikJIT.framework/StikJIT",
+      "Frameworks/XeniaCore.framework/XeniaCore",
+      "Frameworks/a5200_libretro.framework/a5200_libretro",
+      "Frameworks/achievement_translation.framework/achievement_translation",
+      "Frameworks/ardens_libretro.framework/ardens_libretro",
+      "Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+      "Frameworks/azahar_libretro.framework/azahar_libretro",
+      "Frameworks/battery_plus.framework/battery_plus",
+      "Frameworks/desmume_libretro.framework/desmume_libretro",
+      "Frameworks/device_info_plus.framework/device_info_plus",
+      "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "Frameworks/external_display.framework/external_display",
+      "Frameworks/external_folder_access.framework/external_folder_access",
+      "Frameworks/fbneo_libretro.framework/fbneo_libretro",
+      "Frameworks/file_picker.framework/file_picker",
+      "Frameworks/flutter_7zip.framework/flutter_7zip",
+      "Frameworks/flutter_localization.framework/flutter_localization",
+      "Frameworks/flutter_secure_storage_darwin.framework/flutter_secure_storage_darwin",
+      "Frameworks/freechaf_libretro.framework/freechaf_libretro",
+      "Frameworks/freeintv_libretro.framework/freeintv_libretro",
+      "Frameworks/gambatte_libretro.framework/gambatte_libretro",
+      "Frameworks/gamepads_darwin.framework/gamepads_darwin",
+      "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro",
+      "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro",
+      "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro",
+      "Frameworks/gw_libretro.framework/gw_libretro",
+      "Frameworks/handy_libretro.framework/handy_libretro",
+      "Frameworks/libRPCS3Core.dylib",
+      "Frameworks/libmetalirconverter.dylib",
+      "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
+      "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro",
+      "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro",
+      "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro",
+      "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro",
+      "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro",
+      "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro",
+      "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro",
+      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "Frameworks/mesen_libretro.framework/mesen_libretro",
+      "Frameworks/mgba_libretro.framework/mgba_libretro",
+      "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro",
+      "Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog",
+      "Frameworks/neo_shader_kit.framework/neo_shader_kit",
+      "Frameworks/neo_swap.framework/neo_swap",
+      "Frameworks/neo_texture_catalog.framework/neo_texture_catalog",
+      "Frameworks/neo_touch_layout.framework/neo_touch_layout",
+      "Frameworks/nestopia_libretro.framework/nestopia_libretro",
+      "Frameworks/o2em_libretro.framework/o2em_libretro",
+      "Frameworks/objective_c.framework/objective_c",
+      "Frameworks/package_info_plus.framework/package_info_plus",
+      "Frameworks/pdfium_flutter.framework/pdfium_flutter",
+      "Frameworks/picodrive_libretro.framework/picodrive_libretro",
+      "Frameworks/pokemini_libretro.framework/pokemini_libretro",
+      "Frameworks/potator_libretro.framework/potator_libretro",
+      "Frameworks/ppsspp_libretro.framework/ppsspp_libretro",
+      "Frameworks/prosystem_libretro.framework/prosystem_libretro",
+      "Frameworks/retro_achievements_session.framework/retro_achievements_session",
+      "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+      "Frameworks/sameduck_libretro.framework/sameduck_libretro",
+      "Frameworks/share_plus.framework/share_plus",
+      "Frameworks/shared_preferences_foundation.framework/shared_preferences_foundation",
+      "Frameworks/snes9x_libretro.framework/snes9x_libretro",
+      "Frameworks/sqlite3.framework/sqlite3",
+      "Frameworks/stella_libretro.framework/stella_libretro",
+      "Frameworks/stikjit_bridge.framework/stikjit_bridge",
+      "Frameworks/url_launcher_ios.framework/url_launcher_ios",
+      "Frameworks/uzem_libretro.framework/uzem_libretro",
+      "Frameworks/video_player_avfoundation.framework/video_player_avfoundation",
+      "Frameworks/wakelock_plus.framework/wakelock_plus",
+      "Frameworks/wasm4_libretro.framework/wasm4_libretro",
+      "Frameworks/xenia_internal_bridge.framework/xenia_internal_bridge",
+      "PlugIns/ARMSX2JITHelper.appex/ARMSX2JITHelper",
+      "PlugIns/DolphinJITHelper.appex/DolphinJITHelper",
+      "PlugIns/LibretroJITHelper.appex/LibretroJITHelper",
+      "PlugIns/MeloNXJITHelper.appex/MeloNXJITHelper",
+      "PlugIns/MeloNXRamDonor.appex/MeloNXRamDonor",
+      "PlugIns/NeoSwapDonor.appex/NeoSwapDonor",
+      "PlugIns/NeoSwapPageRelay.appex/NeoSwapPageRelay",
+      "PlugIns/RPCS3JITHelper.appex/RPCS3JITHelper",
+      "PlugIns/S2ArmJITHelper.appex/S2ArmJITHelper",
+      "PlugIns/XeniaJITHelper.appex/XeniaJITHelper",
+      "Runner"
+    ],
+    "retainedFingerprints": {
+      "Frameworks/ARMSX2Core.framework/ARMSX2Core": "fab55193e509583b03c0e5b33ae8d8812745b5410d138a53e3779b6257f370d4",
+      "Frameworks/DolphinCore.framework/DolphinCore": "640e4389559c800087b3d4b2a2748b4c11307ae6a79bc72f59d55430ccddd6fc",
+      "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec": "cad556ba3651eece2068166f1fb61671d33d56ff68444475865a0055d316c01d",
+      "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil": "15acad8827f4dc80c453647c5196c91e393c8eb52e3f6367d1838454f7dee1c9",
+      "Frameworks/MeloNXCore.framework/MeloNXCore": "751d13934db69972386285b2170fddf9a851b219c1af9a1f49fec420605f0034",
+      "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport": "b85104bbc6e7464cd949b1cbf51989b6c3d6af16bddc10c33728cacca043700e",
+      "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK": "ea81c0e4728457b9e2fa6faf6360232467bda505f5f2c3927376fe7535083aac",
+      "Frameworks/MeloNXSDL3.framework/MeloNXSDL3": "cfd1e95b4fe64309b8f16efd2b2d3134cef3390cd6d5172bb13c4b8520aba942",
+      "Frameworks/MoltenVK.framework/MoltenVK": "7cbd35be66c78e741768528c7b0fbf3cf20f5b468dc5361893033d4924741520",
+      "Frameworks/NS2Pro.framework/NS2Pro": "8a3320df120185bf7f88c4b46ee9ca6293fb1c10a869f38485bf02ed7ee88654",
+      "Frameworks/S2ArmEngine.framework/S2ArmEngine": "aa905c6138df6a3f9be5b110ada7b760a1f451a04ce73f0666754ce947b46b6d",
+      "Frameworks/XeniaCore.framework/XeniaCore": "5adfe13dde3c681773d4f1be915f8a7d03fad5db2d6db23fd8ac040d3b23b613",
+      "Frameworks/a5200_libretro.framework/a5200_libretro": "cfa6fedeb2b2ae954565491f0e103c67d62c0168edf3480fc08a301a9ca1a19b",
+      "Frameworks/ardens_libretro.framework/ardens_libretro": "5b1b62c69036580263c57d482cb8be16faa793a42614b556b5a32c7ff08ababc",
+      "Frameworks/azahar_libretro.framework/azahar_libretro": "a767798c92486915b8b00dd8e29317dcc47e6016ed4bcd8c6a321076facc7625",
+      "Frameworks/fbneo_libretro.framework/fbneo_libretro": "18102405bbe565cbba25fc822871ba87bee1db7dda5cf1da02302f6904ce5aec",
+      "Frameworks/freechaf_libretro.framework/freechaf_libretro": "fd60db6eac893840535a18cf3e025730a5682814120f4aacf339f437c37aab1c",
+      "Frameworks/freeintv_libretro.framework/freeintv_libretro": "dcccda5d6ca628c30dea61694cbe3115f4d35e04eef1615875b69ed02d15b9c1",
+      "Frameworks/gambatte_libretro.framework/gambatte_libretro": "3e803dca4a105e7d8469c3cd1ec79c41c5fe5d87137ebe3a91afbafc25957e30",
+      "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro": "9f5496ac38b3b464ac3dfe0b2d90c0ac5a1a365fe6c160e07d5f67be0b8a276e",
+      "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro": "e732f8a67cce93ad7bf2a3ad0c27bd8c6444882cb6ab67855b2354f1e838c7c1",
+      "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro": "145e71994f9cf2d7b72bd8e30ba49a348099aebb805450e7736619dee916b904",
+      "Frameworks/gw_libretro.framework/gw_libretro": "1561851ab719f3c1063bce1059d93982bd6fd0ad7ed8fa99144961ccd8fbd7c0",
+      "Frameworks/handy_libretro.framework/handy_libretro": "7a46ec1712e3e0f95db8a2c04c6626cc0882c374d904c4e1673d9e7781fcad31",
+      "Frameworks/libRPCS3Core.dylib": "57693835b7c0d41656a6fa6ef98361cc07e1469312242953fd48a6afa0cc92e4",
+      "Frameworks/libmetalirconverter.dylib": "c7f9161b2bb302c77f2ecc07d7f440a883c1a5016da947ab997d2e24fe1cf8db",
+      "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro": "7a22292d47f0d92c7fcc75c9b4b72b71172edd0f11132d5edc20afc11ae36c3f",
+      "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro": "e9f0abcb0f5b71111a6631e4e29f3ee0387325af3804e20a2a7a2717ec51a354",
+      "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro": "ad5aa730fb7862d5185da7b4c66fea236bbbdeb981d83f1be856800e5d675887",
+      "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro": "3aacbc0396e20a9b1186307c74eac58331e7e5efdbbd90f73998a276e6429b3d",
+      "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro": "d1bf3a1fb6433cf40c9384644f77d2b0c9bc72678f3479dee59ff360e6509f59",
+      "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro": "8eb3437fa0c5e247c15c959a18a9d3179f7646d1c616f6d6d6dc07ad59d70d16",
+      "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro": "29cce20057b765de6d99d962ea5e55a1a4a47e86cee83255e6d16b0e1ba0c545",
+      "Frameworks/mesen_libretro.framework/mesen_libretro": "e76d6c1dd46f8eb51a5478a1a21b2808d79bae0c7175199594b0f6781ee38684",
+      "Frameworks/mgba_libretro.framework/mgba_libretro": "a8f8613a1895d58cbac8effd04ccd84bb6dbb4c59a60cbc18efc2bf268a6d181",
+      "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro": "ba845fc8a78edf87639a750203b2d09eb0fd294cd7969473115ad816f9280286",
+      "Frameworks/nestopia_libretro.framework/nestopia_libretro": "847be8672c95558feebe0be55bdf3264e7e241009451b11a023a835b44d3e0ef",
+      "Frameworks/o2em_libretro.framework/o2em_libretro": "535cdf027548eab1117dff0522d9a589ac403d996e8fc569b81996c5bc3f1209",
+      "Frameworks/picodrive_libretro.framework/picodrive_libretro": "65d6dc5a241efda5ea1965443b3c9fe1e763538a36e14ca290d9ec571377d9e1",
+      "Frameworks/pokemini_libretro.framework/pokemini_libretro": "c1c03e755afc328ba64bfce2f8491f8838d224e6f9685a73f2bd060c67b4ff6e",
+      "Frameworks/potator_libretro.framework/potator_libretro": "19a67f1d4f65a819cc87cb1576d7348a8eb1451e1b509aad25d7d73636fea681",
+      "Frameworks/ppsspp_libretro.framework/ppsspp_libretro": "377f669eacb492181ca3681e6ccd017bea78263b45320a575d8172dab2bd88c1",
+      "Frameworks/prosystem_libretro.framework/prosystem_libretro": "82b4af35d8c61093d1e7edb0f6c3eeca361acb4b8c96d3e83ddf3ffbad5150af",
+      "Frameworks/sameduck_libretro.framework/sameduck_libretro": "f648c6efc1455c280441c1f70dd62d3f2451a6e36b57268f3acf7ed6ff2256cb",
+      "Frameworks/snes9x_libretro.framework/snes9x_libretro": "e0326b241edce3f8860b85e3a08684806e611e292a21204534456b3af08ba788",
+      "Frameworks/stella_libretro.framework/stella_libretro": "a44e78a4e58dc481233737681fa3547ecebdfef0178219de8213aa067e8cf368",
+      "Frameworks/uzem_libretro.framework/uzem_libretro": "ae053a29eff0b1490f7cedd6af8a79d0df45950ef71fd604a93703ceaa039d93",
+      "Frameworks/wasm4_libretro.framework/wasm4_libretro": "41dec5ccf2fdb0153db049f027424f42993ae0c83df61e4bd1db24b0cf9a4dde"
+    },
+    "replacedFingerprints": {},
+    "derivedMustChange": [
+      "Frameworks/App.framework/App",
+      "Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+      "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
+      "Frameworks/neo_texture_catalog.framework/neo_texture_catalog"
     ]
   },
   "tests": {
@@ -490,5 +2942,11 @@
     "libretro",
     "melonx-dependencies"
   ],
-  "s2armAsyncPSOTestDefault": true
+  "s2armAsyncPSOTestDefault": true,
+  "frozen": {
+    "at": "2026-11-23T19:29:34Z",
+    "commit": "59ca2e2e080f3925760027441fc233202669437d",
+    "tool": "standard_delivery.py freeze",
+    "inCI": false
+  }
 }
