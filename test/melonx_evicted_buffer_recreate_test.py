@@ -78,19 +78,14 @@ LATER = control_tools.postimage('adapt_evicted_buffer_recreate', FINAL_SOURCE, P
 import adapt_buffer_last_hit as _hit  # noqa: E402
 # IPA 740 lot: adapt_buffer_hit_sets then turns that memo into two-way sets emptied per removed buffer.
 import adapt_buffer_hit_sets as _sets  # noqa: E402
-# LATER is later_sharing's closure: since adapt_device_critical_trim (which also edits GpuContext.cs and AutoDeleteCache.cs)
-# it holds adapters that reach BufferCache.cs only through another adapter's other files and edit none of this adapter's
-# files (derived here, not listed); they are reversed and re-applied below with the others, and the final preparation
-# must be reproduced byte for byte. The reviewed list is the adapters that edit BufferCache.cs itself.
-DIRECT = [later for later in LATER if set(__import__(later).BASELINE) & set(adapter.BASELINE)]
-check(DIRECT in ([], ['adapt_cold_buffer_trim'], ['adapt_cold_buffer_trim', 'adapt_buffer_last_hit'],
+check(LATER in ([], ['adapt_cold_buffer_trim'], ['adapt_cold_buffer_trim', 'adapt_buffer_last_hit'],
                 ['adapt_cold_buffer_trim', 'adapt_buffer_last_hit', 'adapt_buffer_hit_sets'],
                 # Next lot: adapt_merged_buffer_order (the merge overload adds the merged buffer; no member compiled here).
                 ['adapt_cold_buffer_trim', 'adapt_buffer_last_hit', 'adapt_buffer_hit_sets', 'adapt_merged_buffer_order'],
                 # Plan 748 rank 11: adapt_device_critical_trim (Trim's byCapacity; Trim is not compiled here).
                 ['adapt_cold_buffer_trim', 'adapt_buffer_last_hit', 'adapt_buffer_hit_sets', 'adapt_merged_buffer_order',
                  'adapt_device_critical_trim']),
-      'the later adapters editing the file are known: %s' % DIRECT)
+      'the later adapters sharing the file are known: %s' % LATER)
 _ADDED = _hit.ADDED.replace(_sets.TABLE_OLD, _sets.TABLE_NEW) if 'adapt_buffer_hit_sets' in LATER else _hit.ADDED
 check(_sets.TABLE_OLD in _hit.ADDED, 'the two-way sets replace the last-hit members')
 for name in adapter.BASELINE:
@@ -199,7 +194,6 @@ sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, chec
 receipt = dict(result='passed', checks=checks, finalPreparationBound=True, sourceKind='finalPreparationWithReversedControl',
                postimages={n: sha(FINAL_SOURCE / n) for n in adapter.BASELINE}, reports=reports, compiledSources=compiled, sdk=sdk,
                host=platform.system(), physicalDeviceTested=False, gameTested=False, inputs={n: sha(ROOT / n) for n in inputs},
-               laterAdaptersEditingTheFile=DIRECT, laterAdaptersReversed=LATER,
                limitation='Host fixture of the real BufferCache.cs members with doubles for the physical buffer, the range list and '
                           'the creation bodies. The IPA 674 abort is known only from a device run.')
 out = ROOT / 'dist/melonx/evicted-buffer-recreate-checks.json'

@@ -13,7 +13,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 import adapt_streaming_memory as adapter
-from melonx_adapter_control import control_source, files_edited_later, later_sharing, postimage
+from melonx_adapter_control import control_source
 
 
 def method(source, signature):
@@ -67,23 +67,14 @@ def main():
         control, reversed_final = control_source(final, 'adapt_streaming_memory', temporary_trees)
         assert reversed_final
     with tempfile.TemporaryDirectory() as temp:
-        forward = Path(temp) / 'forward'
+        forward = Path(temp)
         for name in adapter.BASELINE:
             (forward / name).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(control / name, forward / name)
         adapter.apply(forward)
-        # Later adapters edit some of these files (files_edited_later): the adapter's own postimage is the final
-        # preparation with exactly those later adapters reversed, latest first (postimage). Control plus this adapter
-        # must be that postimage for every file, and the final preparation's bytes where no later adapter edits it.
-        own = Path(temp) / 'postimage'
-        later = postimage('adapt_streaming_memory', final, own)
-        edited_later = files_edited_later('adapt_streaming_memory')
-        assert later == later_sharing('adapt_streaming_memory') and edited_later <= set(adapter.BASELINE)
         for name in adapter.BASELINE:
             # Path.write_text uses host line endings on Windows. Compare the actual source text.
-            assert (forward / name).read_text('utf-8') == (own / name).read_text('utf-8'), name
-            if name not in edited_later:
-                assert (forward / name).read_text('utf-8') == (final / name).read_text('utf-8'), name
+            assert (forward / name).read_text('utf-8') == (final / name).read_text('utf-8')
     results = {}
     keys = ['commonBytes', 'threeAliasPagesBytes', 'uploadAllocatedBytes', 'directAllocatedBytes', 'threadedAllocatedBytes']
     with tempfile.TemporaryDirectory() as temp:

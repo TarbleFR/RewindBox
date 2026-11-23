@@ -72,10 +72,7 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_guest_stop_compile_cancel', 'adapt_deferred_release_roots',
          'adapt_render_thread_compile_relief', 'adapt_guest_start_during_shader_load', 'adapt_shader_code_table_load',
          'adapt_variant_journal_capacity', 'adapt_jit_arena_usage_journal',
-         'adapt_bgc_suspension_pending', 'adapt_shader_cache_parallel_read',
-         'adapt_vulkan_memory_rounding_journal', 'adapt_unblocked_sync_queries', 'adapt_buffer_texture_bindings',
-         'adapt_descriptor_set_reuse_journal', 'adapt_large_buffer_native', 'adapt_device_pressure_compaction', 'adapt_network_interface_snapshot',
-         'adapt_compile_wait_guest_time')
+         'adapt_bgc_suspension_pending', 'adapt_shader_cache_parallel_read')
 
 
 def sha(path: Path) -> str:

@@ -8,19 +8,14 @@ scratch helper, and the constructor sizes that the fixtures' scratch doubles mir
 """
 from pathlib import Path
 import hashlib
-import importlib
 import json
-import shutil
 import subprocess
 import sys
-import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
-sys.path.insert(0, str(ROOT / 'test'))
 import adapt_host_qos_pipeline_budget as host  # noqa: E402
 from adapt_descriptor_updates import method  # noqa: E402
-from melonx_adapter_control import ORDER, apply_present, reverse_present  # noqa: E402
 
 RELATIVE = host.DESCRIPTOR_UPDATER
 CONSTANTS = 'src/Ryujinx.Graphics.Vulkan/Constants.cs'
@@ -37,12 +32,9 @@ FINAL_SIZES = ('_textures = new DescriptorImageInfo[Constants.MaxTextureBindings
                '_images = new DescriptorImageInfo[Constants.MaxImageBindings * 2];',
                '_bufferTextures = new BufferView[Constants.MaxTextureBindings * 2];',
                '_bufferImages = new BufferView[Constants.MaxImageBindings * 2];')
-# The adapters of the preparation order that edit DescriptorSetUpdater.cs: all of them run after the encoding hunks
-# (adapt_host_qos_pipeline_budget is a Core 631 step). Derived, so that an adapter added to the order is taken out and
-# re-applied below without a list to extend here.
-LATER = [name for name in ORDER if RELATIVE in importlib.import_module(name).BASELINE]
 INPUTS = ['test/melonx_descriptor_encoding_final.py', 'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
-          *('build-utils/melonx/' + name + '.py' for name in LATER), 'test/melonx_adapter_control.py',
+          'build-utils/melonx/adapt_same_program_descriptors.py', 'build-utils/melonx/adapt_extra_set_binds.py',
+          'build-utils/melonx/adapt_extra_array_dirty.py',
           'test/melonx_scalar_texture_descriptors/Encoding.cs']
 
 
@@ -57,37 +49,28 @@ def restore(body):
     return body
 
 
-def without_later(candidate_root):
-    """The final DescriptorSetUpdater without the adapters of the preparation order that edit it after the encoding hunks
-    (LATER: Core 705 adapt_same_program_descriptors, Core 715 adapt_extra_set_binds, Core 723 adapt_extra_array_dirty,
-    then adapt_buffer_mirror_windows, adapt_descriptor_and_block_usage, adapt_hogwarts_frame_budget and
-    adapt_hogwarts_steady_render). Each is taken out latest first, down to the bytes it pins (its recorded preimage, or
-    its replacements undone, each present once); re-applied in order to what is left they must give the final file back
-    byte for byte, so the final file is exactly the returned text plus those adapters.
-
-    Limit, as since Core 705: the members these fixtures compile and run are the returned text's, the encoding hunks on
-    the delivered members; what the later adapters change in the same members (SetProgram, Rebind, SetImage, the extra
-    set binds) is not executed here. The first four have a gate of their own; on 23 November 2026 the plan has none that
-    executes the last three's DescriptorSetUpdater edits."""
-    final = Path(candidate_root) / RELATIVE
-    with tempfile.TemporaryDirectory(prefix='melonx-descriptor-encoding-chain-') as chain:
-        chain = Path(chain)
-        held = chain / RELATIVE
-        held.parent.mkdir(parents=True)
-        shutil.copyfile(final, held)
-        for name in reversed(LATER):
-            assert reverse_present(chain, name, only={RELATIVE}) == [RELATIVE], name
-        text = held.read_text(encoding='utf-8-sig')
-        for name in LATER:
-            assert apply_present(chain, name, only={RELATIVE}) == [RELATIVE], name
-        assert held.read_bytes() == final.read_bytes(), 'the final DescriptorSetUpdater is not the encoding postimage plus the later adapters of the preparation order'
+def without_later(text):
+    """The final DescriptorSetUpdater without the replacements of later adapters that edit other members (Core 705
+    adapt_same_program_descriptors: SetProgram and the template commit; Core 715 adapt_extra_set_binds: the extra set
+    binds of UpdateAndBindDescriptorSets and BindExtraSets; Core 723 adapt_extra_array_dirty: the separate-array dirty bit,
+    undone first as the latest; their own gates execute them)."""
+    import adapt_same_program_descriptors as later
+    import adapt_extra_set_binds as extra
+    import adapt_extra_array_dirty as dirty
+    for old, new in reversed(dirty.PAIRS):
+        assert text.count(new) <= 1, new[:80]
+        text = text.replace(new, old)
+    for old, new in ((extra.LOOP_OLD, extra.LOOP_NEW), (extra.SIGNATURE_OLD, extra.SIGNATURE_NEW), (extra.CALL_OLD, extra.CALL_NEW),
+                     (later.SET_PROGRAM_OLD, later.SET_PROGRAM_NEW), (later.COMMIT_OLD, later.COMMIT_NEW)):
+        assert text.count(new) <= 1, new[:80]
+        text = text.replace(new, old)
     return text
 
 
 def check_sources(control_root, candidate_root, signatures):
     """The delivered and final DescriptorSetUpdater: members, encoding hunks, scratch sizes and policy declaration."""
     control = (Path(control_root) / RELATIVE).read_text(encoding='utf-8-sig')
-    candidate = without_later(candidate_root)
+    candidate = without_later((Path(candidate_root) / RELATIVE).read_text(encoding='utf-8-sig'))
     for old, new in host.DESCRIPTOR_UPDATER_HUNKS:
         assert control.count(old) == 1 and candidate.count(new) == 1 and candidate.count(old) == (old in new), old[:80]
     assert restore(candidate) == control, 'the final DescriptorSetUpdater differs from the delivered one beyond the encoding hunks'

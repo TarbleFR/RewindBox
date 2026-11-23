@@ -1,7 +1,6 @@
 // Probe for adapt_sibling_pipelines, built against the production Ryujinx.Graphics.Vulkan (test-only InternalsVisibleTo).
 // Real code under test: PipelineSiblings<T>, PipelineLoans<T>, PipelineCodeIdentity, PipelineSiblingsJournal.IsReportCount,
-// Auto<T> and ShaderCollection.ComputeCodeIdentity / ComputeStableHash (reflection; where a later adapter removed
-// ComputeStableHash, the delivered member spliced into Probe by the test). Program is the test's stand-in for
+// Auto<T> and ShaderCollection.ComputeCodeIdentity / ComputeStableHash (reflection). Program is the test's stand-in for
 // ShaderCollection: its table, lock and call order are the production members' (the Python side compares the statements).
 // "shared" false runs the control's lookup (no sibling). No Vulkan object is created.
 using Ryujinx.Graphics.GAL;
@@ -453,21 +452,12 @@ static class Probe
         return new { programsReleased, layoutReleased, releasedWhileLayoutLives };
     }
 
-    // The delivered ShaderCollection.ComputeStableHash, verbatim, spliced by the test when the production assembly no
-    // longer declares it (adapt_cached_shader_stages: StableHash = identity.First); nothing otherwise.
-//__DELIVERED_STABLE_HASH__
-
     // --- 6. the production code identity ---
     static object Identity()
     {
         Type collection = typeof(Auto<>).Assembly.GetType("Ryujinx.Graphics.Vulkan.ShaderCollection", true);
         MethodInfo identity = collection.GetMethod("ComputeCodeIdentity", BindingFlags.NonPublic | BindingFlags.Static);
-        // The stable hash the journals of earlier sessions are keyed by: the production member while it exists, else the
-        // delivered member spliced above (exactly one of the two).
-        MethodInfo production = collection.GetMethod("ComputeStableHash", BindingFlags.NonPublic | BindingFlags.Static);
-        MethodInfo delivered = typeof(Probe).GetMethod("ComputeStableHash", BindingFlags.NonPublic | BindingFlags.Static);
-        Require((production == null) != (delivered == null), "one stable hash member");
-        MethodInfo stable = production ?? delivered;
+        MethodInfo stable = collection.GetMethod("ComputeStableHash", BindingFlags.NonPublic | BindingFlags.Static);
         Random random = new(5);
         byte[] vertex = new byte[2048], fragment = new byte[4096];
         random.NextBytes(vertex);
@@ -502,8 +492,7 @@ static class Probe
         Require(sameCodeEqual && byteDiffers && stageDiffers && orderDiffers && countDiffers && firstIsStableHash && lengthAndStages &&
                 distinct == 2000, "identity");
 
-        return new { sameCodeEqual, byteDiffers, stageDiffers, orderDiffers, countDiffers, firstIsStableHash, lengthAndStages, distinct,
-                     stableHashIsProductionMember = production != null };
+        return new { sameCodeEqual, byteDiffers, stageDiffers, orderDiffers, countDiffers, firstIsStableHash, lengthAndStages, distinct };
     }
 
     static int Main()

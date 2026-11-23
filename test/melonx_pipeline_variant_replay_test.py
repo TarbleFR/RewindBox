@@ -221,28 +221,23 @@ if 'adapt_compute_warmup_demand' in LOT_PRESENT:
           state_ctor.index(promote) < state_ctor.index('? BackgroundCompilation()'),
           'compute warm-up demand: a play-time compute program is promoted in its constructor, before its warm-up starts')
     final_scheduler = read(PREPARED, SCHEDULER)
-    # After IPA 760, adapt_draw_wait_lanes (later in ORDER) declares a field after the flag's and adds one block to TryTake,
-    # for the demand thread while a draw waits; after IPA 821, adapt_guest_stop_compile_cancel and
-    # adapt_render_thread_compile_relief edit the file too (the latter gives the replays their own queue lane, which
-    # TryTake reads between the high and the low priority ones). The rule compared is the compute lot's, on the file as
-    # that adapter left it: derived, the final preparation with every later adapter sharing its files reversed, latest
-    # first (postimage); the flag is counted in the final file itself, which the probe runs.
-    demand_tree = WORK / 'compute-demand-postimage'
-    demand_later = control_tools.postimage('adapt_compute_warmup_demand', FINAL_SOURCE, demand_tree)
-    demand_scheduler = read(demand_tree, SCHEDULER)
-    scheduler_editors = [name for name in demand_later if SCHEDULER in __import__(name).BASELINE]
-    check(('adapt_draw_wait_lanes' not in control_tools.ORDER or scheduler_editors[:1] == ['adapt_draw_wait_lanes']) and
-          (demand_scheduler != final_scheduler) == bool(scheduler_editors),
-          'the later adapters editing the scheduler start with adapt_draw_wait_lanes: %s' % scheduler_editors)
+    # After IPA 760: adapt_draw_wait_lanes (later in ORDER) declares a field after the flag's and adds one block to TryTake,
+    # for the demand thread while a draw waits. Its replacements in this file are undone first (each required once): the
+    # rule compared is the compute lot's; the flag is counted in the final file itself.
+    demand_scheduler = final_scheduler
+    if 'adapt_draw_wait_lanes' in control_tools.ORDER:
+        import adapt_draw_wait_lanes as draw_wait  # noqa: E402
+        for path, old, new in reversed(draw_wait.PAIRS):
+            if path == SCHEDULER:
+                check(demand_scheduler.count(new) == 1, 'adapt_draw_wait_lanes: each replacement once in ' + SCHEDULER)
+                demand_scheduler = demand_scheduler.replace(new, old)
     check(demand_scheduler.count(compute_demand.TAKE_NEW) == 1 and demand_scheduler.count(compute_demand.FIELD_NEW) == 1 and
           final_scheduler.count('_demandThreadWaiting') == (compute_demand.FIELD_NEW + compute_demand.TAKE_NEW).count('_demandThreadWaiting'),
           'compute warm-up demand: the demand-queue rule is the final scheduler\'s TryTake (the flag is read and set there only)')
 if 'adapt_queued_variant_record' in LOT_PRESENT:
-    # After IPA 821 (adapt_render_thread_compile_relief) the queued-state skip follows the draw's short wait for its queued
-    # compile, one block deeper: the two counts are still adjacent statements, at whatever indentation.
     check(final_draws.count('RenderStageTimer.AsyncQueuedSkips++;') == 1 and final_draws.count('RenderStageTimer.AsyncSkips++;') == 3 and
-          len(re.findall(r'RenderStageTimer\.AsyncSkips\+\+; // RewindBox \(adapt_pipeline_failure_identity\)\n +RenderStageTimer\.AsyncQueuedSkips\+\+;',
-                         final_draws)) == 1,
+          ('RenderStageTimer.AsyncSkips++; // RewindBox (adapt_pipeline_failure_identity)\n'
+           '                                RenderStageTimer.AsyncQueuedSkips++;') in final_draws,
           'queued record: the queued-state skip is counted with its async skip, the two other skips are shader modules not ready')
     compile_queued = member(final_program, 'private async Task CompileQueuedGraphicsPipeline(')
     check(compile_queued.count('NoteQueuedVariant(ref state, pipeline, colorSlots, compileTicks);') == 1 and
@@ -293,19 +288,6 @@ if 'adapt_replay_integer_mask' in LOT_PRESENT:
           final_manager.count('Journal: {_records.Count} of {MaxRecords} states, given up for') == 1,
           'integer mask: one count in the variants summary, the journal sentence kept')
 
-# --- The journal's bounds in the final source: this adapter writes 2048 states and 2 MiB (checked above on its
-# postimage); adapt_variant_journal_room makes the file 4 MiB; adapt_variant_journal_capacity (after IPA 821: Hogwarts
-# Legacy gave up 378 recorded states for new ones in one session) makes them 4096 states and 8 MiB. The probe runs the
-# final source: its scenarios and the checks below follow the final bounds, read here and reported by the probe.
-final_journal = read(PREPARED, adapter.MANAGER)
-final_journal = final_journal[final_journal.index('sealed class PipelineVariantJournal'):]
-MAX_RECORDS = [int(n) for n in re.findall(r'internal const int MaxRecords = (\d+);', final_journal)]
-MAX_FILE_MIB = [int(n) for n in re.findall(r'internal const long MaxFileBytes = (\d+)L \* 1024 \* 1024;', final_journal)]
-expected_bounds = ((4096, 8) if 'adapt_variant_journal_capacity' in LATER else (2048, 4) if 'adapt_variant_journal_room' in LATER else (2048, 2))
-check((MAX_RECORDS, MAX_FILE_MIB) == ([expected_bounds[0]], [expected_bounds[1]]),
-      'the final journal\'s bounds are those of the last adapter that sets them: %s states, %s MiB' % (MAX_RECORDS, MAX_FILE_MIB))
-MAX_RECORDS, MAX_FILE_BYTES = MAX_RECORDS[0], MAX_FILE_MIB[0] * 1024 * 1024
-
 # --- Executed: the production Vulkan assembly of the candidate, then the probe on it ---
 work = WORK / 'tree'
 shutil.copytree(FINAL_SOURCE, work, ignore=shutil.ignore_patterns('.git', 'bin', 'obj'), symlinks=True)
@@ -346,7 +328,6 @@ check(run.returncode == 0, 'probe runs')
 r = json.loads(next(line for line in reversed(run.stdout.splitlines()) if line.startswith('{')))
 print(json.dumps(r, indent=1)[:6000], flush=True)
 check(r['requireFailures'] == 0, 'probe requirements')
-check(r['journalBounds'] == dict(maxRecords=MAX_RECORDS, maxFileBytes=MAX_FILE_BYTES), 'the probe ran the final journal\'s bounds: %s' % r['journalBounds'])
 
 c = r['codec']
 check(r['codecFields'] == r['stateProperties'] == 49, 'the schema names the 49 key properties')
@@ -366,9 +347,7 @@ check(r['otherSchemaLoaded'] == 0, 'a journal of another schema is not read')
 s = r['stale']
 check(s['session'] == 10 and s['loaded'] == 9 and s['dropped'] >= 1, 'a variant older than 8 sessions is dropped, one met again kept: %s' % s)
 b = r['bounds']
-# 52 states more than the bound are met; the file holds the bound's states in at most 1 KiB each (2 MiB for 2048).
-check(b['reloaded'] == MAX_RECORDS and b['fileBytes'] <= MAX_RECORDS * 1024 <= MAX_FILE_BYTES,
-      'at most %d variants, in at most 1 KiB each and under the file bound: %s' % (MAX_RECORDS, b))
+check(b['reloaded'] == 2048 and b['fileBytes'] <= 2 * 1024 * 1024, 'at most 2048 variants and 2 MiB: %s' % b)
 check(b['backgroundConstructorMs'] <= 50 and b['loadMs'] <= 2000, 'the load is off the startup path and short: %s' % b)
 
 rl = r['relaunch']
@@ -417,22 +396,19 @@ lot = {}
 if 'adapt_variant_journal_room' in LOT_PRESENT:
     j = r['journalRoom']
     e = j['evict']
-    check(e['loaded'] == MAX_RECORDS and e['givenUpForNew'] == 300 and e['noneMetGivenUp'] and e['firstInEvictionOrder'],
+    check(e['loaded'] == 2048 and e['givenUpForNew'] == 300 and e['noneMetGivenUp'] and e['firstInEvictionOrder'],
           'journal room: 300 new states into a full journal give up 300 states not met this session, first in eviction order: %s' % e)
-    check(e['backWithHistory'] and e['usedReplayBack'] and e['evicted'] == 311 and e['held'] == MAX_RECORDS,
+    check(e['backWithHistory'] and e['usedReplayBack'] and e['evicted'] == 311 and e['held'] == 2048,
           'journal room: a given-up state met again or bound comes back with its history, the bound kept: %s' % e)
-    check(e['loadedNext'] == MAX_RECORDS and e['givenUpAtLoad'] == 300 and e['nextLoadKeepsSessionJournal'],
+    check(e['loadedNext'] == 2048 and e['givenUpAtLoad'] == 300 and e['nextLoadKeepsSessionJournal'],
           'journal room: the next load gives up exactly the session\'s 300 and keeps its journal: %s' % e)
-    check('Journal: %d of %d states, given up for newer states 311 (at the load 0), not recorded 0, compactions 0, '
-          'lines not written 0 (adapt_pipeline_variant_replay, adapt_variant_journal_room)' % (MAX_RECORDS, MAX_RECORDS) in e['summary'],
-          'journal room: summary line')
-    check(j['full'] == dict(held=MAX_RECORDS, notRecorded=52, evicted=0), 'journal room: a journal full of the session\'s states counts 52 not recorded')
+    check('Journal: 2048 of 2048 states, given up for newer states 311 (at the load 0), not recorded 0, compactions 0, '
+          'lines not written 0 (adapt_pipeline_variant_replay, adapt_variant_journal_room)' in e['summary'], 'journal room: summary line')
+    check(j['full'] == dict(held=2048, notRecorded=52, evicted=0), 'journal room: a journal full of the session\'s states counts 52 not recorded')
     c = j['compact']
-    # A bound's worth of the largest variants is more than half the file bound (past the 2 MiB this adapter wrote, for
-    # 2048), so their refreshes cannot be appended: the file is compacted and stays under the bound.
-    check(c['compactions'] >= 1 and c['linesNotWritten'] == 0 and c['bytesAfterSession2'] <= MAX_FILE_BYTES and
-          c['bytesAfterSession1'] > MAX_FILE_BYTES // 2 >= 2 * 1024 * 1024 and c['loadedNext'] == MAX_RECORDS and c['refreshed'] == MAX_RECORDS,
-          'journal room: %d largest variants (past half the file bound) and their refreshes fit, compacted, nothing lost: %s' % (MAX_RECORDS, c))
+    check(c['compactions'] >= 1 and c['linesNotWritten'] == 0 and c['bytesAfterSession2'] <= 4 * 1024 * 1024 and
+          c['bytesAfterSession1'] > 2 * 1024 * 1024 and c['loadedNext'] == 2048 and c['refreshed'] == 2048,
+          'journal room: 2048 largest variants (past the old 2 MiB) and their refreshes fit, compacted, nothing lost: %s' % c)
     check(j['order']['strictTotal'] and j['order']['states'] > 100, 'journal room: the eviction order is total')
     lot['journalRoom'] = dict(evicted=e['evicted'], givenUpAtLoad=e['givenUpAtLoad'], notRecordedWhenAllMet=j['full']['notRecorded'],
                               compactionLinesNotWritten=c['linesNotWritten'], refreshedAfterCompaction=c['refreshed'])
@@ -464,7 +440,7 @@ if 'adapt_replay_integer_mask' in LOT_PRESENT:
     check(m['r16'] == dict(recordedMask=0, readMask=2, asDrawn=True, counted=1), 'integer mask: the R16_UINT case: %s' % m['r16'])
     j = m['journal']
     check(j['planned'] == j['replayed'] == j['keysAsDrawn'] == 9 and j['recomputed'] == 3 and j['nextSession'] == 0 and
-          'still planned 0 of 9, integer masks recomputed 3. Journal: 9 of %d states' % MAX_RECORDS in j['summary'] and
+          'still planned 0 of 9, integer masks recomputed 3. Journal: 9 of 2048 states' in j['summary'] and
           ', integer masks recomputed 0. Journal: ' in j['nextSummary'],
           'integer mask: 9 replays read with their draws\' keys, the summary counts the session\'s 3, the next session 0: %s' % j)
     lot['integerMask'] = dict(galFormats=m['table']['galFormats'], drawStatesUncounted=k['uncounted'], otherMaskReadAsDrawn=k['readAsDrawn'],
@@ -504,7 +480,6 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=True, sourc
                productionVulkanAssemblyBuilt=True, editedFileWarnings=warnings,
                postimages={n: sha(PREPARED / n) for n in EXECUTED}, testedPostimages={n: sha(POST / n) for n in adapter.BASELINE},
                report=r, demandReport=demand, laterLot=lot, laterLotDefines=DEFINES,
-               finalJournalBounds=dict(maxRecords=MAX_RECORDS, maxFileBytes=MAX_FILE_BYTES),
                journalRoomExecuted='journalRoom' in lot, queuedVariantRecordExecuted='queuedRecord' in lot,
                demandQueueRuleExecuted='demandQueue' in lot, integerMaskExecuted='integerMask' in lot,
                sdk=sdk, host=platform.system(), physicalDeviceTested=False, gameTested=False,

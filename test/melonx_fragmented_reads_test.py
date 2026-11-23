@@ -165,8 +165,6 @@ COMPOSED = sorted(set(COMPOSED) | set(SHADER_CODE_TABLES))
 from adapt_jit_arena_usage_journal import BASELINE as JIT_ARENA_USAGE  # noqa: E402
 from adapt_shader_cache_parallel_read import BASELINE as SHADER_CACHE_READ  # noqa: E402
 COMPOSED = sorted(set(COMPOSED) | {name for name in JIT_ARENA_USAGE if not name.startswith('src/Ryujinx.Library/')} | set(SHADER_CACHE_READ))
-# After IPA 822: adapt_unblocked_sync_queries's GAL SyncMap.cs joins the composition, so the final GPU build binds it.
-COMPOSED = sorted(set(COMPOSED) | {'src/Ryujinx.Graphics.GAL/Multithreading/SyncMap.cs'})
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs
 # (Ryujinx.Library) is outside the GPU assembly closure: it is composed and bound here, compiled by NativeAOT.
 COMPILED = sorted((set(COMPOSED) - {DMA_LIBRARY}) | {'src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs'})

@@ -4,19 +4,8 @@ namespace Silk.NET.Vulkan { class Vk { } struct Device { } }
 namespace Ryujinx.Common.Logging
 {
     enum LogClass { Gpu }
-    sealed class LogTarget
-    {
-        public int Errors;
-        public void PrintMsg(LogClass kind, string text) { Errors++; }
-        // adapt_unblocked_sync_queries: the sync manager's 5 s journal line (Logger.Warning?.Print).
-        public void Print(LogClass kind, string text, [System.Runtime.CompilerServices.CallerMemberName] string caller = "") { }
-    }
-    static class Logger { public static LogTarget Error = new(); public static LogTarget Warning = new(); }
-}
-namespace Ryujinx.Graphics.GAL.Multithreading
-{
-    // adapt_unblocked_sync_queries: the GAL counter of waits for a sync not created yet, read by the journal line.
-    static class SyncAvailabilityWaits { public static void Take(out long calls, out long ticks, out long longest) { calls = ticks = longest = 0; } }
+    sealed class LogTarget { public int Errors; public void PrintMsg(LogClass kind, string text) { Errors++; } }
+    static class Logger { public static LogTarget Error = new(); }
 }
 namespace Ryujinx.Graphics.Vulkan
 {

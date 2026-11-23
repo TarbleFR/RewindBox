@@ -43,9 +43,7 @@ FINAL_PREPARATION = '--candidate-source' in sys.argv
 FINAL_SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1]).resolve() if FINAL_PREPARATION else None
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
-sys.path.insert(0, str(ROOT / 'test'))
 import core733_native as native_edits  # noqa: E402
-from melonx_adapter_control import ORDER, apply_present, reverse_present  # noqa: E402
 
 DOTNET = os.environ.get('DOTNET', 'dotnet')
 HARNESS = ROOT / 'test/melonx_diagnostics_snapshot_reuse'
@@ -82,47 +80,12 @@ def member(source, signature):
     raise AssertionError(signature)
 
 
-def placed(name):
-    """The final preparation's `name` as prepare_embedded placed it, before the ordered adapters that pin it edited that
-    copy (Core 771 adapt_hogwarts_frame_budget, Core 826 adapt_jit_arena_usage_journal on EmbeddedRuntime.cs): the final
-    file with those adapters reversed, latest first (melonx_adapter_control.reverse_present: the recorded preimage, else
-    each replacement undone), each time the bytes the adapter pins; the same adapters applied forward to it, each on its
-    pinned bytes, must give the final file back byte for byte. Derived from ORDER: an edit of the prepared copy by
-    anything else still fails the comparison with this checkout. Returns (bytes, adapters in preparation order)."""
-    adapters = [later for later in ORDER if name in __import__(later).BASELINE]
-    with tempfile.TemporaryDirectory(prefix='melonx-diagnostics-snapshot-placed-') as temporary:
-        tree = Path(temporary)
-        (tree / name).parent.mkdir(parents=True)
-        shutil.copyfile(FINAL_SOURCE / name, tree / name)
-        for later in reversed(adapters):
-            check(reverse_present(tree, later, only={name}) == [name] and sha(tree / name) == __import__(later).BASELINE[name],
-                  name + ' with ' + later + ' reversed is the file that adapter pins')
-        data = (tree / name).read_bytes()
-        for later in adapters:
-            apply_present(tree, later, only={name})
-        check((tree / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(),
-              'the final ' + name + ' is the placed file plus exactly the ordered adapters pinning it: ' + str(adapters))
-    return data, adapters
-
-
 # --- Static: the exact scope ---
 candidate = {name: path.read_text(encoding='utf-8-sig') for name, path in NATIVE.items()}
 control = {name: (BASELINE_SOURCE / name).read_text(encoding='utf-8-sig') for name in NATIVE}
-EDITED_LATER = {}
 if FINAL_PREPARATION:
     for name, path in NATIVE.items():
-        # Since Core 771 ordered adapters edit the prepared runtime after it is placed: the comparison with this checkout
-        # is made on the file as it was placed (placed(): those adapters reversed, and re-applied to reproduce the final
-        # bytes); a file no ordered adapter pins is compared as it is.
-        data, EDITED_LATER[name] = placed(name)
-        check(data == path.read_bytes(), 'the final preparation holds this checkout\'s ' + name + ' (before ' + str(EDITED_LATER[name]) + ')')
-    # What the fixtures compile from the runtime (the export) and the whole journal are the final preparation's own text.
-    check(not EDITED_LATER[JOURNAL] and (FINAL_SOURCE / JOURNAL).read_bytes() == NATIVE[JOURNAL].read_bytes(),
-          'no later adapter edits the journal: the final one is this checkout\'s, byte for byte')
-    check(member((FINAL_SOURCE / RUNTIME).read_text(encoding='utf-8-sig'),
-                 '    public static unsafe int EmbeddedDiagnostics(byte* output, int capacity)') ==
-          member(candidate[RUNTIME], '    public static unsafe int EmbeddedDiagnostics(byte* output, int capacity)'),
-          'the later adapters ' + str(EDITED_LATER[RUNTIME]) + ' leave the diagnostics export of the final runtime as this checkout\'s')
+        check((FINAL_SOURCE / name).read_bytes() == path.read_bytes(), 'the final preparation holds this checkout\'s ' + name)
 journal, runtime = candidate[JOURNAL], candidate[RUNTIME]
 check(JOURNAL == native_edits.JOURNAL and RUNTIME == native_edits.RUNTIME and {name: str(path.relative_to(ROOT)) for name, path in NATIVE.items()} == native_edits.NATIVE and
       OLD_SNAPSHOT.startswith(MARKER) and native_edits.SNAPSHOT_NEW.startswith(MARKER), 'the pairs are those of these two files')
@@ -265,14 +228,13 @@ if FINAL_PREPARATION:
 shutil.rmtree(WORK)
 
 inputs = ['native/melonx/EmbeddedLaunchDiagnostics.cs', 'native/melonx/EmbeddedRuntime.cs', 'build-utils/melonx/core733_native.py',
-          'test/melonx_diagnostics_snapshot_reuse_test.py', 'test/melonx_diagnostics_snapshot_reuse/Program.cs',
-          *sorted({'build-utils/melonx/' + later + '.py' for adapters in EDITED_LATER.values() for later in adapters})]
+          'test/melonx_diagnostics_snapshot_reuse_test.py', 'test/melonx_diagnostics_snapshot_reuse/Program.cs']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparation' if FINAL_PREPARATION else 'checkoutAgainstBaseline',
                postimages={name: sha(FINAL_SOURCE / name) for name in NATIVE} if FINAL_PREPARATION else {},
                preimages={name: sha(BASELINE_SOURCE / name) for name in NATIVE},
-               productionCommonBuilt=built, nativeFilesEditedLater=EDITED_LATER,
+               productionCommonBuilt=built,
                comparison=dict(steps=fk['steps'], sameAnswersAsControl=fk['digest'] == fc['digest'],
                                snapshotBytes=ak['snapshotBytes'], controlBytesPerQuietPoll=ac['quietBytesPerPoll'],
                                candidateBytesPerQuietPoll=ak['quietBytesPerPoll'], controlBytesPerChangingPoll=ac['changingBytesPerPoll'],

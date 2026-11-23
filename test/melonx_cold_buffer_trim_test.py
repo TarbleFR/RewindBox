@@ -39,7 +39,7 @@ FINAL_SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--can
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import ORDER, control_source, files_edited_later, later_sharing, postimage  # noqa: E402
+from melonx_adapter_control import ORDER, control_source, files_edited_later  # noqa: E402
 _HOLD = []
 CONTROL_SOURCE, FINAL_PREPARATION = control_source(FINAL_SOURCE, 'adapt_cold_buffer_trim', _HOLD)
 import adapt_cold_buffer_trim as adapter  # noqa: E402
@@ -131,14 +131,6 @@ def without_later(source):
 for name, expected in adapter.BASELINE.items():
     check(sha(CONTROL_SOURCE / name) == expected, 'control is the Core 729 preparation: ' + name)
 control_cache, final_cache = text(CONTROL_SOURCE, CACHE), without_later(text(FINAL_SOURCE, CACHE))
-# The hand-written chain above is the derived one: the final preparation with every later adapter sharing these files
-# reversed (postimage) holds the same BufferCache.cs, and Buffer.cs is no later adapter's.
-_own_tree = Path(tempfile.mkdtemp(prefix='melonx-cold-buffer-trim-own-'))
-_later = postimage('adapt_cold_buffer_trim', FINAL_SOURCE, _own_tree)
-check(_later == later_sharing('adapt_cold_buffer_trim') and text(_own_tree, CACHE) == final_cache and
-      text(_own_tree, BUFFER) == text(FINAL_SOURCE, BUFFER),
-      'the later adapters undone by hand are all those editing these files (derived postimage)')
-shutil.rmtree(_own_tree)
 control_buffer, final_buffer = text(CONTROL_SOURCE, BUFFER), text(FINAL_SOURCE, BUFFER)
 rebuilt = control_cache
 for name, old, new in adapter.PAIRS:
@@ -177,30 +169,7 @@ check('private const ulong TrimFloorDivisor = 8;' in final_cache and 'private co
 check(trim_final.count('EnforceCapacity(null, target);') == 1 and trim_final.count('EvictCold(target);') == 1 and
       re.search(r'if \(HostMemoryBudget\.AvailableBytes >= DeviceShortOnlyHeadroomBytes\)\s*\{\s*EvictCold\(target\);\s*\}\s*else\s*\{\s*EnforceCapacity\(null, target\);\s*\}', trim_final) is not None,
       'cold eviction with the comfortable headroom, upstream eviction otherwise')
-# GpuContext.cs is not this adapter's file. After adapt_device_critical_trim, other adapters edit it again (the Hogwarts
-# lots: the 10 % short reading while its strict syncs are paced, the report submissions, the frame budget; the guest
-# start during the shader load), inside the text adapt_device_critical_trim wrote in CheckHostMemory. So its
-# replacements are undone on the file as that adapter left it: the final preparation with exactly the later adapters
-# sharing its files reversed, latest first (postimage). What this gate reads below is in TrimCaches, the buffer trim's
-# caller: that member is required to be, in the final preparation, the one adapt_device_critical_trim left.
-if CRITICAL and FINAL_PREPARATION:
-    _critical_tree = Path(tempfile.mkdtemp(prefix='melonx-cold-buffer-trim-critical-'))
-    _after_critical = postimage('adapt_device_critical_trim', FINAL_SOURCE, _critical_tree)
-    critical_context, critical_cache = text(_critical_tree, CONTEXT), text(_critical_tree, CACHE)
-    shutil.rmtree(_critical_tree)
-    final_context = text(FINAL_SOURCE, CONTEXT)
-    check(_after_critical == later_sharing('adapt_device_critical_trim') and critical_cache == text(FINAL_SOURCE, CACHE),
-          'no adapter after adapt_device_critical_trim edits BufferCache.cs')
-    trim_caches = 'public void TrimCaches(MemoryPressureLevel level, bool escalated = false)'
-    check(member(final_context, trim_caches) == member(critical_context, trim_caches) and final_context.count('BufferCache.Trim(') == 1 and
-          all(final_context.count(line) == critical_context.count(line) == 1 for line in (
-              'private const ulong ComfortableHeadroomBytes = 768 * TrimMiB;', 'private const ulong TrimMiB = 1024 * 1024;',
-              'private int _coldTextureAgeSeconds = ColdTextureInitialAgeSeconds;')) and
-          re.findall(r'ColdTextureInitialAgeSeconds = \d+;', final_context) == re.findall(r'ColdTextureInitialAgeSeconds = \d+;', critical_context),
-          'the final TrimCaches, its one buffer trim call and the constants read below are those adapt_device_critical_trim left')
-else:
-    critical_context = text(FINAL_SOURCE, CONTEXT)
-context = without_critical(critical_context, CONTEXT)
+context = without_critical(text(FINAL_SOURCE, CONTEXT), CONTEXT)
 check('private const ulong ComfortableHeadroomBytes = 768 * TrimMiB;' in context and 'private const ulong TrimMiB = 1024 * 1024;' in context and
       'private const ulong DeviceShortOnlyHeadroomBytes = 768 * MiB;' in block,
       'the threshold is the one at or above which TrimCaches runs only because the device is short')

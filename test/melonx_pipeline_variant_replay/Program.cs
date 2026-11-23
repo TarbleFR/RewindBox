@@ -317,16 +317,10 @@ void WaitFile(string path, long minimum)
 }
 
 {
-    // Bounds: 52 distinct late states more than the journal's bound in one session keep the bound's count (2048 as
-    // adapt_pipeline_variant_replay writes it, 4096 with adapt_variant_journal_capacity), and the file stays under 1 KiB
-    // a state (2 MiB for 2048), under the file bound.
-    report["journalBounds"] = new Dictionary<string, object>
-    {
-        ["maxRecords"] = PipelineVariantJournal.MaxRecords, ["maxFileBytes"] = PipelineVariantJournal.MaxFileBytes,
-    };
+    // Bounds: 2100 distinct late states in one session keep 2048, and the file stays under 2 MiB.
     var journal = Open("bounds");
-    for (int i = 0; i < PipelineVariantJournal.MaxRecords + 52; i++) journal.NoteLate(0x3000UL + (ulong)(i % 300), Variant(1000 + i), 60, false);
-    WaitFile(JournalPath("bounds"), 16 + PipelineVariantJournal.MaxRecords * 40L);
+    for (int i = 0; i < 2100; i++) journal.NoteLate(0x3000UL + (ulong)(i % 300), Variant(1000 + i), 60, false);
+    WaitFile(JournalPath("bounds"), 16 + 2048L * 40);
     var watch = Stopwatch.StartNew();
     var reopened = Open("bounds");
     long loadMs = watch.ElapsedMilliseconds;

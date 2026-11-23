@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import ORDER, apply_present, control_source, later_sharing, reverse_present, use_authenticated_libhac_feed  # noqa: E402
+from melonx_adapter_control import control_source, use_authenticated_libhac_feed  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_guest_fault_context', _HOLD)
@@ -71,29 +71,6 @@ def member(text, signature):
     raise AssertionError(signature)
 
 
-def placed(name):
-    """The final preparation's `name` as prepare_embedded placed it, before the ordered adapters that pin it edited that
-    copy (Core 771 adapt_hogwarts_frame_budget, Core 826 adapt_jit_arena_usage_journal on EmbeddedRuntime.cs): the final
-    file with those adapters reversed, latest first (melonx_adapter_control.reverse_present: the recorded preimage, else
-    each replacement undone), each time the bytes the adapter pins; the same adapters applied forward to it, each on its
-    pinned bytes, must give the final file back byte for byte. Derived from ORDER: an edit of the prepared copy by
-    anything else still fails the comparison with this checkout. Returns (bytes, adapters in preparation order)."""
-    adapters = [later for later in ORDER if name in __import__(later).BASELINE]
-    with tempfile.TemporaryDirectory(prefix='melonx-guest-fault-placed-') as temporary:
-        tree = Path(temporary)
-        (tree / name).parent.mkdir(parents=True)
-        shutil.copyfile(FINAL_SOURCE / name, tree / name)
-        for later in reversed(adapters):
-            check(reverse_present(tree, later, only={name}) == [name] and sha(tree / name) == __import__(later).BASELINE[name],
-                  name + ' with ' + later + ' reversed is the file that adapter pins')
-        data = (tree / name).read_bytes()
-        for later in adapters:
-            apply_present(tree, later, only={name})
-        check((tree / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(),
-              'the final ' + name + ' is the placed file plus exactly the ordered adapters pinning it: ' + str(adapters))
-    return data, adapters
-
-
 for name, expected in BASELINE.items():
     check(sha(SOURCE / name) == expected, 'not the Core 658 preparation: ' + name)
 if FINAL_PREPARATION and sha(SOURCE / RUNTIME) != RUNTIME_BASELINE:
@@ -111,31 +88,8 @@ if FINAL_PREPARATION and sha(SOURCE / RUNTIME) != RUNTIME_BASELINE:
     preflight = SOURCE / core667_native.PREFLIGHT
     preflight.write_text(core667_native.reverse(preflight.read_text(encoding='utf-8-sig'), core667_native.PREFLIGHT), encoding='utf-8')
 check(sha(SOURCE / RUNTIME) == RUNTIME_BASELINE, 'not the Core 658 EmbeddedRuntime.cs')
-RUNTIME_LATER, DEPENDANTS = [], []
 if FINAL_PREPARATION:
-    # Later adapters call what this adapter adds from files that are not its own (Core 771 adapt_guest_break_context:
-    # Syscall.cs calls GuestFaultContext.Capture), so the control, which has no GuestFaultContext, cannot build with them.
-    # Derived: every final source naming the class besides this adapter's file and the runtime must be pinned by a later
-    # ordered adapter; those adapters (and the later ones sharing their files) are reversed in the control, latest first,
-    # each file then the bytes its adapter pins, and re-applied in the candidate, which must be the final preparation.
-    users = sorted(str(path.relative_to(FINAL_SOURCE)) for path in (FINAL_SOURCE / 'src').rglob('*.cs')
-                   if 'GuestFaultContext' in path.read_text(encoding='utf-8-sig', errors='replace'))
-    users = [name for name in users if name not in (KERNEL, RUNTIME)]
-    callers = [later for later in ORDER[ORDER.index('adapt_guest_fault_context') + 1:] if set(__import__(later).BASELINE) & set(users)]
-    check(set(users) <= set().union(set(), *(set(__import__(later).BASELINE) for later in callers)),
-          'every other final source naming GuestFaultContext is pinned by a later ordered adapter: ' + str(users))
-    DEPENDANTS = [later for later in ORDER if later in callers or any(later in later_sharing(caller) for caller in callers)]
-    for later in reversed(DEPENDANTS):
-        names = reverse_present(SOURCE, later)
-        check(sorted(names) == sorted(__import__(later).BASELINE) and all(sha(SOURCE / name) == __import__(later).BASELINE[name] for name in names),
-              'control: ' + later + ' reversed gives the files it pins')
-    left = [str(path.relative_to(SOURCE)) for path in (SOURCE / 'src').rglob('*.cs')
-            if 'GuestFaultContext' in path.read_text(encoding='utf-8-sig', errors='replace')]
-    check(left == [], 'the control names GuestFaultContext nowhere: ' + str(left))
-    # Since Core 771 ordered adapters edit the prepared copy after it is placed: the comparison with this checkout is made
-    # on the file as it was placed (placed(): those adapters reversed, and re-applied to reproduce the final bytes).
-    placed_runtime, RUNTIME_LATER = placed(RUNTIME)
-    check(placed_runtime == (ROOT / NATIVE_RUNTIME).read_bytes(), 'final preparation holds this EmbeddedRuntime.cs (before ' + str(RUNTIME_LATER) + ')')
+    check((FINAL_SOURCE / RUNTIME).read_bytes() == (ROOT / NATIVE_RUNTIME).read_bytes(), 'final preparation holds this EmbeddedRuntime.cs')
 
 texts, reports, crashes = {}, {}, {}
 with tempfile.TemporaryDirectory(prefix='melonx-guest-fault-') as temporary:
@@ -150,15 +104,6 @@ with tempfile.TemporaryDirectory(prefix='melonx-guest-fault-') as temporary:
             if FINAL_PREPARATION:
                 for name in BASELINE:
                     check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
-                # The later adapters reversed in the control, forward again: the candidate is the final preparation there.
-                for later in DEPENDANTS:
-                    check(sorted(apply_present(work, later)) == sorted(__import__(later).BASELINE), 'candidate: ' + later + ' re-applied to its pinned files')
-                for name in sorted(set().union(set(), *(set(__import__(later).BASELINE) for later in DEPENDANTS))):
-                    check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(),
-                          'candidate: the later adapters re-applied give the final preparation: ' + name)
-                # The candidate builds and runs the final preparation's own runtime (this checkout's plus RUNTIME_LATER,
-                # proved above); the static comparison below is made on the placed file, whose subscriptions are the final ones.
-                shutil.copyfile(FINAL_SOURCE / RUNTIME, work / RUNTIME)
         texts[variant] = {name: (work / name).read_text(encoding='utf-8-sig') for name in (KERNEL, RUNTIME)}
         result = subprocess.run([DOTNET, 'build', str(work / 'src/Ryujinx.Library/Ryujinx.Library.csproj'), '-c', 'Release', '-nologo',
                                  '-m:1', '-p:NuGetAudit=false'], capture_output=True, text=True, timeout=2400, env=ENVIRONMENT, cwd=work)
@@ -215,12 +160,6 @@ check(not re.search(r'\.Write<|(?<!Volatile)\.Write\(|SetActivity|Pause|Map\(|Un
 check('GetX(' not in CONTEXT_CLASS and 'GetGuestRegisterPrintout' in CONTEXT_CLASS and
       all(register in CONTEXT_CLASS for register in ('"FP:"', '"LR:"', '"SP:"', '"PC:"')), 'only FP, LR, SP and PC kept')
 runtime = candidate[RUNTIME]
-if FINAL_PREPARATION:
-    signature = 'private static void EmbeddedSubscribeDiagnostics()'
-    check(runtime == (FINAL_SOURCE / RUNTIME).read_text(encoding='utf-8-sig'), 'the candidate ran the final preparation\'s EmbeddedRuntime.cs')
-    runtime = placed_runtime.decode('utf-8-sig')
-    check(member(runtime, signature) == member(candidate[RUNTIME], signature),
-          'the later adapters ' + str(RUNTIME_LATER) + ' leave the subscriptions of the placed runtime as they are')
 # Core 667 (core667_native): this gate reads its own subscription on the Core 663 runtime; the Core 667 gate covers the rest.
 # Core 733 (core733_native): the diagnostics export's change is reversed first; the diagnostics-snapshot-reuse gate covers it.
 runtime = core667_native.reverse(core733_native.reverse(runtime, core733_native.RUNTIME), core667_native.RUNTIME)
@@ -267,15 +206,14 @@ check(unit['hugeLength'] == 3600, 'text cut at 3600 characters')
 
 inputs = ['build-utils/melonx/adapt_guest_fault_context.py', 'build-utils/melonx/adapt_session.py', NATIVE_RUNTIME,
           'test/melonx_guest_fault_context_test.py', FIXTURE, 'test/melonx_adapter_control.py',
-          'build-utils/melonx/core667_native.py', 'build-utils/melonx/core733_native.py',
-          *('build-utils/melonx/' + later + '.py' for later in [*RUNTIME_LATER, *DEPENDANTS])]
+          'build-utils/melonx/core667_native.py', 'build-utils/melonx/core733_native.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core658Preparation',
                sourceBaseline=dict(BASELINE, **{RUNTIME: RUNTIME_BASELINE}),
                postimages={p: sha(FINAL_SOURCE / p) for p in [*BASELINE, RUNTIME]} if FINAL_PREPARATION else {},
                sdk=sdk, physicalDeviceTested=False, productionLibraryBuilt=True, productionHleAssemblyBuilt=True,
-               guestContextSample=guest, unit=unit, runtimeEditedLater=RUNTIME_LATER, laterAdaptersCallingTheContext=DEPENDANTS,
+               guestContextSample=guest, unit=unit,
                crashLines={side: {mode: len(v['rows']) for mode, v in crashes[side].items()} for side in crashes},
                inputs={p: sha(ROOT / p) for p in inputs},
                limitation='JIT runtime on Linux, not NativeAOT on iOS: the device crash handler runs on the faulting guest thread '

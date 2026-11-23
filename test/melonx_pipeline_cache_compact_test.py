@@ -148,45 +148,12 @@ SENSITIVITY = {
     'noCall': manager_k.replace(adapter.CALL_NEW, adapter.CALL_OLD + '                _ = (Action<long>)CompactMainAfterLoad;\n'),
     'alwaysCompact': manager_k.replace(ALWAYS_OLD, '            return dataBytes > 0;\n'),
 }
-# Core 771 (adapt_hogwarts_pipeline_replay): the final PipelineCacheManager.cs reads EncodingPolicy.IncrementalArrayDescriptors
-# (the title policy declared in PipelineBase.cs: Hogwarts Legacy only). A variant whose manager reads the policy compiles
-# the production class itself, verbatim from its tree (no double of it). 'final' runs with the policy off, as every other
-# title; 'finalIncremental' runs the same final file with the policy on (set before Main by a module initializer), the
-# title the device evidence of this adapter comes from: both must give the candidate's report.
-POLICY_ON = ('namespace Ryujinx.Graphics.Vulkan\n{\n    static class FixturePolicyOn\n    {\n'
-             '        [System.Runtime.CompilerServices.ModuleInitializer]\n'
-             '        internal static void Set()\n        {\n'
-             '            EncodingPolicy.IncrementalArrayDescriptors = true;\n'
-             '            System.Console.Error.WriteLine("fixture title policy on: " + EncodingPolicy.IncrementalArrayDescriptors);\n'
-             '        }\n    }\n}\n')
-
-
-def encoding_policy(tree):
-    base = (tree / (VULKAN + 'PipelineBase.cs')).read_text(encoding='utf-8-sig')
-    check(base.count('    public static class EncodingPolicy\n') == 1, 'one EncodingPolicy class in the tree\'s PipelineBase.cs')
-    first = base.index('    public static class EncodingPolicy\n')
-    text = base[first:base.index('\n    }\n', first) + len('\n    }\n')]
-    members = [line.strip() for line in text.splitlines() if line.strip() and not line.strip().startswith('///')]
-    check(members[:2] == ['public static class EncodingPolicy', '{'] and members[-1] == '}' and
-          'public static bool IncrementalArrayDescriptors { get; set; }' in members and
-          all(line.startswith('public static bool ') and line.endswith(' { get; set; }') for line in members[2:-1]),
-          'the production EncodingPolicy is a set of plain flags (off unless the title sets them)')
-    return 'namespace Ryujinx.Graphics.Vulkan\n{\n' + text + '}\n'
-
-
-FINAL_VARIANTS = ('final', 'finalIncremental') if FINAL_RUN else ()
-reports, policies = {}, {}
-for variant in ('control', 'candidate', *SENSITIVITY) + FINAL_VARIANTS:
-    tree = CONTROL_SOURCE if variant == 'control' else FINAL_SOURCE if variant in FINAL_VARIANTS else CANDIDATE
+reports = {}
+for variant in ('control', 'candidate', *SENSITIVITY) + (('final',) if FINAL_RUN else ()):
+    tree = CONTROL_SOURCE if variant == 'control' else FINAL_SOURCE if variant == 'final' else CANDIDATE
     fixture = WORK / ('fixture-' + variant)
     fixture.mkdir()
     shutil.copyfile(tree / MANAGER, fixture / 'PipelineCacheManager.cs')
-    policies[variant] = 'EncodingPolicy.' in (tree / MANAGER).read_text(encoding='utf-8-sig')
-    if policies[variant]:
-        (fixture / 'EncodingPolicy.cs').write_text(encoding_policy(tree), encoding='utf-8')
-    if variant == 'finalIncremental':
-        check(policies[variant], 'the final manager reads the title policy')
-        (fixture / 'FixturePolicyOn.cs').write_text(POLICY_ON, encoding='utf-8')
     if variant in SENSITIVITY:
         (fixture / 'PipelineCacheManager.cs').write_text(SENSITIVITY[variant])
     shutil.copyfile(tree / (VULKAN + 'VulkanException.cs'), fixture / 'VulkanException.cs')
@@ -201,13 +168,11 @@ for variant in ('control', 'candidate', *SENSITIVITY) + FINAL_VARIANTS:
     if build.returncode:
         print('\n'.join(line for line in build.stdout.splitlines() if ': error ' in line)[:6000], flush=True)
     check(build.returncode == 0, variant + ' fixture builds with the real PipelineCacheManager.cs')
-    run = subprocess.run([DOTNET, str(fixture / 'bin/Release/net10.0/Fixture.dll'), 'final' if variant in FINAL_VARIANTS else variant],
+    run = subprocess.run([DOTNET, str(fixture / 'bin/Release/net10.0/Fixture.dll'), variant],
                          capture_output=True, text=True, timeout=900, env=environment, cwd=fixture)
     if run.returncode:
         print(run.stdout[-4000:], run.stderr[-4000:], flush=True)
     check(run.returncode == 0, variant + ' fixture runs')
-    check(('fixture title policy on: True' in run.stderr) == (variant == 'finalIncremental'),
-          variant + ': the title policy is on in the finalIncremental run only')
     reports[variant] = json.loads(run.stdout.strip().splitlines()[-1])
     print(variant, json.dumps({k: v for k, v in reports[variant].items() if k != 'warnings'}), flush=True)
 
@@ -272,11 +237,6 @@ if FINAL_RUN:
         {key: value for key, value in k.items() if key != 'variant'}
     check(final_equal, 'final: the final PipelineCacheManager.cs gives the candidate\'s report in every scenario (decisions, sizes, '
           'records, next launches, warnings): ' + json.dumps({key: value for key, value in reports['final'].items() if value != k.get(key)})[:1500])
-    check(policies == {variant: variant in FINAL_VARIANTS for variant in reports},
-          'only the final manager reads the title policy (adapt_hogwarts_pipeline_replay); the control and the candidate have none')
-    check(executed['finalIncremental'] == executed['final'] and reports['finalIncremental'] == reports['final'],
-          'final, Hogwarts Legacy\'s policy on (EncodingPolicy.IncrementalArrayDescriptors): the same final file gives the same report in '
-          'every scenario: ' + json.dumps({key: value for key, value in reports['finalIncremental'].items() if value != reports['final'].get(key)})[:1500])
 
 inputs = ['build-utils/melonx/adapt_pipeline_cache_compact.py', 'build-utils/melonx/adapt_session.py',
           'build-utils/melonx/moltenvk/rewindbox-moltenvk.patch',
@@ -292,9 +252,6 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPA
                                nextLaunchReadsControl=cm['nextLaunchReadBytes'], sensitivityVariantsFailed=2),
                reports=reports, sdk=sdk, host=platform.system(), physicalDeviceTested=False, productionVulkanSourceExecuted=True,
                finalPreparationExecuted=bool(FINAL_RUN), finalReportEqualsCandidate=final_equal, executedManagers=executed,
-               finalReportEqualsCandidateWithTitlePolicyOn=(
-                   {key: value for key, value in reports['finalIncremental'].items() if key != 'variant'} ==
-                   {key: value for key, value in k.items() if key != 'variant'}) if FINAL_RUN else None, titlePolicyRead=policies,
                driverModel='a cache created from data keeps each whole entry at a sixteenth of its length (the cache key of the '
                            'recipe patch\'s fifth part); the real sizes and memory are the melonx-cache-keys run',
                inputs={name: sha(ROOT / name) for name in inputs},

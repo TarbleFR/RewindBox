@@ -34,7 +34,7 @@ SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, files_edited_later, later_sharing, postimage  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later, postimage  # noqa: E402
 import adapt_sibling_pipelines as adapter  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
@@ -104,44 +104,11 @@ with tempfile.TemporaryDirectory(prefix='melonx-sibling-pipelines-') as temporar
         check(sha(candidate / path) == digest, 'not touched: ' + path)
 
     postimages = {}
-    join_call = 'Join(_plce, ComputeCodeIdentity(sources), this)'
     if FINAL_PREPARATION:
         # The tree built and executed as the candidate is the final preparation itself (later adapters included).
         final_text = (FINAL_SOURCE / name).read_text(encoding='utf-8-sig')
-        # Core 811 lot: adapt_cached_shader_stages, a later adapter, edits two lines inside this adapter's texts: the
-        # constructor joins the group with the identity the base constructor already computed from the same sources
-        # (ComputeCodeIdentity once per program instead of twice), and ComputeCodeIdentity hashes the stage's binary
-        # segment instead of a copy of it. Each of this adapter's replacements must be in the final preparation once, as
-        # written or with exactly those reviewed edits (the pairs are that adapter's own, read in its source); any other
-        # edit inside them still fails here. The composition itself is proved below (postimage) and the final tree executed.
-        inside = (('adapt_cached_shader_stages', 'Join(_plce, ComputeCodeIdentity(sources), this)', 'Join(_plce, identity, this)'),
-                  ('adapt_cached_shader_stages',
-                   '                byte[] code = shader.BinaryCode ?? System.Text.Encoding.UTF8.GetBytes(shader.Code ?? string.Empty);',
-                   '                ReadOnlySpan<byte> code = shader.BinarySegment.Array != null\n'
-                   '                    ? shader.BinarySegment.AsSpan()\n'
-                   '                    : System.Text.Encoding.UTF8.GetBytes(shader.Code ?? string.Empty);'))
-        shipped = [new for _, new in adapter.PAIRS]
-        for label, old, new in inside:
-            source = (ROOT / 'build-utils/melonx' / (label + '.py')).read_text(encoding='utf-8')
-            check(old in source and new in source and label in later_sharing('adapt_sibling_pipelines') and name in __import__(label).BASELINE,
-                  label + ', a later adapter pinning ' + name + ', makes this replacement: ' + old.strip()[:60])
-            check(sum(text.count(old) for text in shipped) == 1 and final_text.count(old) == 0 and final_text.count(new) == 1,
-                  label + ': one site inside this adapter\'s texts, replaced in the final preparation: ' + old.strip()[:60])
-            shipped = [text.replace(old, new) for text in shipped]
-        edited_inside = [index for index, (_, new) in enumerate(adapter.PAIRS) if shipped[index] != new]
-        check([adapter.PAIRS[index][1] for index in edited_inside] == [adapter.CTOR_NEW, adapter.LOOKUP_NEW],
-              'the later edits fall inside the constructor\'s join and the lookup block (ComputeCodeIdentity) only')
-        for (_, new), text in zip(adapter.PAIRS, shipped):
-            check(final_text.count(text) == 1, 'replacement in the final preparation' +
-                  (' (with adapt_cached_shader_stages\' reviewed edit)' if text != new else '') + ': ' + new.strip().splitlines()[0][:70])
-        # The identity joined is still the one of this program's sources: computed once by the base constructor the
-        # program constructor delegates to with `sources`, and handed back.
-        delegated = final_text[final_text.index('            bool playTimeWarmUp = false) : this('):final_text.index('            _state = state;')]
-        check(final_text.count('            identity = ComputeCodeIdentity(shaders);\n') == 1 and
-              delegated.count('                sources,\n') == 1 and delegated.count('startBackgroundTask: false, out var identity)') == 1 and
-              final_text.count('Join(_plce, identity, this)') == 1,
-              'the group is joined with ComputeCodeIdentity of the program\'s own sources')
-        join_call = 'Join(_plce, identity, this)'
+        for _, new in adapter.PAIRS:
+            check(final_text.count(new) == 1, 'replacement in the final preparation: ' + new.strip().splitlines()[0][:70])
         if name not in files_edited_later('adapt_sibling_pipelines'):
             check((candidate / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
         else:
@@ -164,13 +131,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-sibling-pipelines-') as temporar
           'a specialization differs on the whole attribute type table and on every fragment output type, read by the stages or not')
     manager = (candidate / (VULKAN + 'PipelineCacheManager.cs')).read_text(encoding='utf-8-sig')
     offer = member(manager, 'public void Offer(ulong program, ITarget target)')
-    # Core 771 (adapt_hogwarts_pipeline_replay) moved the hand-over of Offer into QueueReady, which Offer calls for the
-    # offered program (and the load for the offers that came before it): read there when Offer delegates.
-    queue = offer
-    if 'if (!QueueReady(program, target))' in offer:
-        queue = member(manager, 'private bool QueueReady(ulong program, ITarget target)')
-        check('_plan.Remove(' not in offer and '_ready.Add(' not in offer, 'Offer hands over through QueueReady only')
-    check('if (!_plan.Remove(program, out List<Record> records))' in queue and '_ready.Add((record, target));' in queue,
+    check('if (!_plan.Remove(program, out List<Record> records))' in offer and '_ready.Add((record, target));' in offer,
           'the journal hands a code\'s recorded states to the first program that offers it')
     check('LateAfterBuilt++; // built this session, yet the draw missed it' in manager, 'the journal counts a state built yet created by a draw')
     control_lookup = member(before, 'public bool TryGetGraphicsPipeline(ref PipelineUid key, out Auto<DisposablePipeline> pipeline)')
@@ -215,7 +176,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-sibling-pipelines-') as temporar
           'a disposed program leaves its group, closes its loans under its lock, gives back what it took, disposes what it owns')
     check(after.count('PipelineSiblings<ShaderCollection>.Join(') == 1 and
           '            if (!IsCompute)\n            {\n                // RewindBox (adapt_sibling_pipelines)\n'
-          '                _siblings = PipelineSiblings<ShaderCollection>.' + join_call + ';' in after and
+          '                _siblings = PipelineSiblings<ShaderCollection>.Join(_plce, ComputeCodeIdentity(sources), this);' in after and
           after.index('ProgramPipelineState state,\n            bool fromCache,') < after.index('PipelineSiblings<ShaderCollection>.Join('),
           'only guest graphics programs join, by layout entry and code identity')
     helpers = after[after.index('    internal readonly record struct PipelineCodeIdentity('):]
@@ -236,21 +197,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-sibling-pipelines-') as temporar
         '</Project>', '  <ItemGroup><InternalsVisibleTo Include="MeloNXSiblingProbe" /></ItemGroup>\n</Project>'))
     probe = base / 'probe'
     probe.mkdir()
-    # Core 811 lot (adapt_cached_shader_stages): the final ShaderCollection no longer declares ComputeStableHash; its
-    # StableHash is the identity's first half. The probe then compares the production identity with the delivered
-    # ComputeStableHash, taken verbatim from this adapter's control: the key of the journals written by earlier sessions.
-    program_text = (ROOT / 'test/melonx_sibling_pipelines/Program.cs').read_text(encoding='utf-8')
-    check(program_text.count('//__DELIVERED_STABLE_HASH__\n') == 1, 'one splice point for the delivered stable hash')
-    stable_signature = 'private static ulong ComputeStableHash(ShaderSource[] shaders)'
-    production_stable = stable_signature in after
-    delivered_stable = ''
-    if not production_stable:
-        check(before.count(stable_signature) == 1 and before.count('            StableHash = ComputeStableHash(shaders);\n') == 1 and
-              'ComputeStableHash' not in after and len(re.findall(r'\bStableHash = ', after)) == 1 and
-              after.count('            identity = ComputeCodeIdentity(shaders);\n            StableHash = identity.First;\n') == 1,
-              'the final program\'s stable hash is its code identity\'s first half, set once; the control\'s is ComputeStableHash')
-        delivered_stable = member(before, stable_signature) + '\n'
-    (probe / 'Program.cs').write_text(program_text.replace('//__DELIVERED_STABLE_HASH__\n', delivered_stable), encoding='utf-8')
+    shutil.copyfile(ROOT / 'test/melonx_sibling_pipelines/Program.cs', probe / 'Program.cs')
     (probe / 'MeloNXSiblingProbe.csproj').write_text(f'''<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><Nullable>disable</Nullable>
@@ -299,10 +246,8 @@ for ss in r['stressShared']:
     check(ss['taken'] > 0 and ss['replaced'] > 0 and ss['created'] < sc['created'] * 0.6,
           'candidate: states come from siblings; fewer creations than the control (%d against %d)' % (ss['created'], sc['created']))
 check(all(r['retention'].values()), 'nothing keeps a disposed program or a dropped layout entry reachable: %s' % r['retention'])
-check(all(value is True for key, value in r['identity'].items() if key not in ('distinct', 'stableHashIsProductionMember')) and
-      r['identity']['distinct'] == 2000 and r['identity']['stableHashIsProductionMember'] is production_stable,
-      'the code identity (its first half the stable hash: the production member, or the delivered one where a later adapter '
-      'removed it): %s' % r['identity'])
+check(all(value is True for key, value in r['identity'].items() if key != 'distinct') and r['identity']['distinct'] == 2000,
+      'the code identity: %s' % r['identity'])
 check(r['reportCounts'] == [1, 8, 64, 512], 'the journal line is written at the 1st, 8th, 64th, 512th pipeline taken: %s' % r['reportCounts'])
 
 inputs = ['build-utils/melonx/adapt_sibling_pipelines.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_sibling_pipelines_test.py',
