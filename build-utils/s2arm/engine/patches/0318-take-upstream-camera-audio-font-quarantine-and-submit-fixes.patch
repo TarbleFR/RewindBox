@@ -1,0 +1,1109 @@
+diff --git a/compat/tree/src/Ryujinx.Audio/Renderer/Dsp/Command/PerformanceCommand.cs b/compat/tree/src/Ryujinx.Audio/Renderer/Dsp/Command/PerformanceCommand.cs
+index c5d7d8e..a91a7de 100644
+--- a/compat/tree/src/Ryujinx.Audio/Renderer/Dsp/Command/PerformanceCommand.cs
++++ b/compat/tree/src/Ryujinx.Audio/Renderer/Dsp/Command/PerformanceCommand.cs
+@@ -30,7 +30,10 @@ namespace Ryujinx.Audio.Renderer.Dsp.Command
+ 
+         public PerformanceCommand Initialize(ref PerformanceEntryAddresses performanceEntryAddresses, Type performanceType, int nodeId)
+         {
+-            if (PerformanceEntryAddresses is not null)
++            // 同一对 Start / End 命令共用一个 PerformanceEntryAddresses（CommandGenerator 取一次条目、生成两条命令），只由 End 那条在被复用时归还。
++            //   原先两条各还一次：池子每轮取 1 还 2、只涨不缩，同一对象在池里多份；不限大小的 ConcurrentBag 一路扩容，
++            //   玩几分钟到十几分钟后在 LocalPush 托管 OOM（#668，Mac 退出码 134）
++            if (PerformanceEntryAddresses is not null && PerformanceType == Type.End)
+             {
+                 PerformanceEntryAddresses.PerformanceEntryAddressesPool.Release(PerformanceEntryAddresses);
+             }
+diff --git a/compat/tree/src/Ryujinx.HLE/HOS/Services/Nfc/Nfp/NfpManager/INfp.cs b/compat/tree/src/Ryujinx.HLE/HOS/Services/Nfc/Nfp/NfpManager/INfp.cs
+index a2748a2..25de4e3 100644
+--- a/compat/tree/src/Ryujinx.HLE/HOS/Services/Nfc/Nfp/NfpManager/INfp.cs
++++ b/compat/tree/src/Ryujinx.HLE/HOS/Services/Nfc/Nfp/NfpManager/INfp.cs
+@@ -167,29 +167,47 @@ namespace Ryujinx.HLE.HOS.Services.Nfc.Nfp
+                 }
+             }
+ 
+-            _cancelTokenSource = new CancellationTokenSource();
++            // S2Arm: the loop owns its token (a second StartDetection used to swap the field under a running loop, which then never stopped),
++            //   polls at frame rate instead of spinning a core while no tag is present, and skips a pass when the device list is being changed.
++            _cancelTokenSource?.Cancel();
++            CancellationTokenSource cancelTokenSource = new();
++            _cancelTokenSource = cancelTokenSource;
++            CancellationToken token = cancelTokenSource.Token;
+             Task.Run(() =>
+             {
+-                while (true)
++                while (!token.IsCancellationRequested)
+                 {
+-                    if (_cancelTokenSource.Token.IsCancellationRequested)
++                    bool found = false;
++                    try
+                     {
+-                        break;
+-                    }
++                        var devices = context.Device?.System?.NfpDevices;
+ 
+-                    for (int i = 0; i < context.Device.System.NfpDevices.Count; i++)
+-                    {
+-                        if (context.Device.System.NfpDevices[i].State == NfpDeviceState.TagFound)
++                        for (int i = 0; devices != null && i < devices.Count; i++)
+                         {
+-                            context.Device.System.NfpDevices[i].SignalActivate();
+-                            Thread.Sleep(125); // NOTE: Simulate amiibo scanning delay.
+-                            context.Device.System.NfpDevices[i].SignalDeactivate();
++                            NfpDevice device = devices[i];
++
++                            if (device != null && device.State == NfpDeviceState.TagFound)
++                            {
++                                device.SignalActivate();
++                                Thread.Sleep(125); // NOTE: Simulate amiibo scanning delay.
++                                device.SignalDeactivate();
++                                found = true;
+ 
+-                            break;
++                                break;
++                            }
+                         }
+                     }
++                    catch (ArgumentOutOfRangeException)
++                    {
++                        // The device list shrank under us: look again on the next pass.
++                    }
++
++                    if (!found)
++                    {
++                        Thread.Sleep(16);
++                    }
+                 }
+-            }, _cancelTokenSource.Token);
++            }, token);
+ 
+             return ResultCode.Success;
+         }
+diff --git a/compat/tree/src/Ryujinx.HLE/HOS/Services/Sdb/Pl/SharedFontManager.cs b/compat/tree/src/Ryujinx.HLE/HOS/Services/Sdb/Pl/SharedFontManager.cs
+index 8ae3e21..cda8372 100644
+--- a/compat/tree/src/Ryujinx.HLE/HOS/Services/Sdb/Pl/SharedFontManager.cs
++++ b/compat/tree/src/Ryujinx.HLE/HOS/Services/Sdb/Pl/SharedFontManager.cs
+@@ -88,16 +88,7 @@ namespace Ryujinx.HLE.HOS.Services.Sdb.Pl
+ 
+                             FontInfo fileInfo = new((int)fontOffset, fileData.Length);
+ 
+-                            WriteMagicAndSize(fontOffset, fileData.Length);
+-
+-                            fontOffset += 8;
+-
+-                            uint fileStart = fontOffset;
+-
+-                            for (; fontOffset - fileStart < fileData.Length; fontOffset++)
+-                            {
+-                                _storage.GetRef<byte>(fontOffset) = fileData[fontOffset - fileStart];
+-                            }
++                            PutFont(ref fontOffset, fileData);
+ 
+                             return fileInfo;
+                         }
+@@ -123,16 +114,7 @@ namespace Ryujinx.HLE.HOS.Services.Sdb.Pl
+ 
+                             FontInfo info = new((int)fontOffset, data.Length);
+ 
+-                            WriteMagicAndSize(fontOffset, data.Length);
+-
+-                            fontOffset += 8;
+-
+-                            uint start = fontOffset;
+-
+-                            for (; fontOffset - start < data.Length; fontOffset++)
+-                            {
+-                                _storage.GetRef<byte>(fontOffset) = data[fontOffset - start];
+-                            }
++                            PutFont(ref fontOffset, data);
+ 
+                             return info;
+                         }
+@@ -207,27 +189,58 @@ namespace Ryujinx.HLE.HOS.Services.Sdb.Pl
+             return MemoryMarshal.CreateReadOnlySpan(ref _storage.GetRef<byte>(0), (int)_fontEnd);
+         }
+ 
+-        private byte[] DecryptFont(Stream bfttfStream)
++        // S2Arm（11-17 D-FCMF：Switch 2 游戏取内置字体 2010 等了 190 秒、黑屏）：一个字体 = 8 字节头 + 解密后的正文，整块写进字体共享内存。
++        //   上游逐字节 GetRef 写 1700 多万次；写之前先核放得下（上游写完全部字体才核总长，超了已经写出字体区）
++        private void PutFont(ref uint fontOffset, byte[] data)
++        {
++            if ((ulong)fontOffset + 8 + (ulong)data.Length > (ulong)Horizon.FontSize)
++            {
++                throw new InvalidSystemResourceException("The sum of all fonts size exceed the shared memory size. " +
++                                                         $"Please make sure that the fonts don't exceed {Horizon.FontSize} bytes in total. (actual size: {(ulong)fontOffset + 8 + (ulong)data.Length} bytes so far).");
++            }
++
++            WriteMagicAndSize(fontOffset, data.Length);
++
++            fontOffset += 8;
++
++            data.AsSpan().CopyTo(MemoryMarshal.CreateSpan(ref _storage.GetRef<byte>(fontOffset), data.Length));
++
++            fontOffset += (uint)data.Length;
++        }
++
++        // S2Arm（同上）：上游循环条件每圈取一次 bfttfStream.Length——文件流上每次都是一次 fstat（约 17.5 MB 字体 = 440 万次）；游戏库在外接盘 / 网络盘上时
++        //   一次 fstat 慢一个数量级，字体初始化拖到几分钟，游戏一直等字体、黑屏（玩家现场栈正停在 fstat）。改为整份读进来一次、在内存里逐字异或（小端，同上游 BinaryReader / BinaryWriter）
++        private static byte[] DecryptFont(Stream bfttfStream)
+         {
+             static uint KXor(uint data) => data ^ FontKey;
+ 
+-            using BinaryReader reader = new(bfttfStream);
+-            using RecyclableMemoryStream ttfStream = MemoryStreamManager.Shared.GetStream();
+-            using BinaryWriter output = new(ttfStream);
++            long length = bfttfStream.Length;
++
++            if (length < 8)
++            {
++                throw new InvalidDataException("Error: Input file is not in BFTTF format!");
++            }
++
++            byte[] raw = new byte[length];
++
++            bfttfStream.ReadExactly(raw);
+ 
+-            if (KXor(reader.ReadUInt32()) != BFTTFMagic)
++            if (KXor(BinaryPrimitives.ReadUInt32LittleEndian(raw)) != BFTTFMagic)
+             {
+                 throw new InvalidDataException("Error: Input file is not in BFTTF format!");
+             }
+ 
+-            bfttfStream.Position += 4;
++            int words = (int)((length - 8) / 4);
++            byte[] ttf = new byte[words * 4];
++            ReadOnlySpan<uint> src = MemoryMarshal.Cast<byte, uint>(raw.AsSpan(8, words * 4));
++            Span<uint> dst = MemoryMarshal.Cast<byte, uint>(ttf.AsSpan());
+ 
+-            for (int i = 0; i < (bfttfStream.Length - 8) / 4; i++)
++            for (int i = 0; i < words; i++)
+             {
+-                output.Write(KXor(reader.ReadUInt32()));
++                dst[i] = BitConverter.IsLittleEndian ? KXor(src[i]) : BinaryPrimitives.ReverseEndianness(KXor(BinaryPrimitives.ReverseEndianness(src[i])));
+             }
+ 
+-            return ttfStream.ToArray();
++            return ttf;
+         }
+     }
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn2.c b/graphics/nvn/gfx/nvn/nvn2.c
+index aa170ae..0cc8b3f 100644
+--- a/graphics/nvn/gfx/nvn/nvn2.c
++++ b/graphics/nvn/gfx/nvn/nvn2.c
+@@ -1,5 +1,6 @@
+ // NVN2（Switch 2）宿主侧：平台判别、nvnDeviceGetInteger 的 NVN2 答复、着色器键（nvn2.h）
+ // 设备值表与驱动常量的读法移植自 参考实现（MIT）hle_nvn.c g_devinfo2 / loader.c dm_sdk_nvn2_item（c4b0618c、163a9905）
++#include <dlfcn.h>
+ #include "nvn2.h"
+ #include "../../host/dm.h"
+ #include "../tex/nvn_deswizzle.h"
+@@ -331,10 +332,15 @@ static uint64_t cam_destroy_alias(uint16_t handle) {
+     if (!atomic_exchange(&said, 1)) LOG("nn::camera::sdk::DestroyAliasOutputBufferPool：宿主没有摄像头，空操作");
+     return 0;
+ }
+-static uint64_t cam_create_ctx(void **out_handle) {
++// CreateCameraContext(UniqueNativeHandle*)：输出参数是 32 位会话句柄（同 nxnative hle_sf.c：SDK 22.2.0 sdk+0x2c42c0 只写 4 字节）。游戏之后经它发 HIPC：
++//   原先写 0 → 游戏对句柄 0 SendSyncRequest、会话不在会话表 → sdk 中止（诊断 #0148a6，0400C3F00006E000 在 iPad 上 5 局 Break 都在这一步后）。
++//   现在向服务层要一个「没插摄像头的主机」会话（services/S2A.Services/CameraNoDevice.cs S2A_CameraSessionOpen）；服务层没链（原生单测）时照旧写 0
++static uint64_t cam_create_ctx(uint32_t *out_handle) {
++    uint32_t (*open)(void) = (uint32_t (*)(void))dlsym(RTLD_DEFAULT, "S2A_CameraSessionOpen");
++    uint32_t h = open ? open() : 0;
+     static _Atomic int said;
+-    if (!atomic_exchange(&said, 1)) LOG("nn::camera::sdk::CreateCameraContext：宿主没有摄像头，输出参数写 NULL");
+-    if (out_handle) *out_handle = NULL;
++    if (!atomic_exchange(&said, 1)) LOG("nn::camera::sdk::CreateCameraContext：宿主没有摄像头，给「没插摄像头」会话 %#x（0 = 服务层没起）", h);
++    if (out_handle) *out_handle = h;
+     return 0;
+ }
+ static uint64_t cam_destroy_ctx(void) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 307c516..de5b853 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1427,11 +1427,12 @@ static _Atomic int rb_ub_setting;
+ static int rb_ub_ranges; // submit owner, sampled after Metal initialization
+ static uint64_t rb_ub_subpage_saved, rb_ub_overlay_saved;
+ enum { SBW_N = 16384, SBW_PAGES = 4096 };
++static uint16_t g_sbw_list[SBW_N];   // RewindBox (upstream S2Arm 905e91390): the slots this submission took, in order (g_nsbw of them); gw_commit reads these, not all SBW_N slots
+ static struct { uint64_t page; uint32_t gen; uint8_t src; uint16_t begin, end; } g_sbwp[SBW_N]; static int g_nsbw, g_sbw_over;   // src: SBW_* bits; pages in the set this submission; over: a write could not be kept (too large, set full, size not known)
+ static int sbw_slot(uint64_t pg, int add) {   // open addressing; −1 = not there (or no room to add)
+     unsigned h = (unsigned)((pg * 0x9E3779B97F4A7C15ull) >> 50) & (SBW_N - 1);
+     for (int i = 0; i < 64; i++, h = (h + 1) & (SBW_N - 1)) {
+-        if (g_sbwp[h].gen != g_pend_gen) { if (!add) return -1; g_sbwp[h].page = pg; g_sbwp[h].gen = g_pend_gen; g_sbwp[h].src = 0; g_sbwp[h].begin = 4096; g_sbwp[h].end = 0; g_nsbw++; return (int)h; }
++        if (g_sbwp[h].gen != g_pend_gen) { if (!add) return -1; g_sbwp[h].page = pg; g_sbwp[h].gen = g_pend_gen; g_sbwp[h].src = 0; g_sbwp[h].begin = 4096; g_sbwp[h].end = 0; g_sbw_list[g_nsbw++] = (uint16_t)h; return (int)h; }
+         if (g_sbwp[h].page == pg) return (int)h; }
+     return -1;
+ }
+@@ -2490,7 +2491,7 @@ static id<MTLBuffer> g_ubs_buf; static size_t g_ubs_off, g_ubs_size;
+ // made of them alone, latest first per byte (exactly what the GPU would read, whatever earlier frames still have in flight); when they cover only part of it, the rest comes from memory (ubp_get).
+ // The real copies are encoded in order when the pass ends (rp_end), so later passes and the CPU see them as before. The pass still ends before a draw that would need more: a partly covered binding
+ // whose rest memory cannot give, or a read of the deferred data through a vertex, index, indirect or storage buffer (ubd_conflict). Also on in TBDR mode (see ubd_on). DM_NVN_UB_DEFER=0 turns it off
+-static size_t arena_alloc(size_t n, id<MTLBuffer> *buf); static inline void args_dirty_all(void); static void ubd_dirty(uint64_t lo, uint64_t hi);
++static size_t arena_alloc(size_t n, __strong id<MTLBuffer> *buf); static inline void args_dirty_all(void); static void ubd_dirty(uint64_t lo, uint64_t hi);
+ typedef struct { uint64_t lo, hi, gpu; size_t off; __unsafe_unretained id<MTLBuffer> buf; uint32_t seq; } ubd_ent;   // data at buf + off (the ubs ring; a ring block replaced meanwhile lives until this submission completes); seq: order deferred
+ enum { UBD_MAX = 512 };
+ static ubd_ent g_ubd[UBD_MAX]; static int g_nubd;   // in the order deferred (ubd_flush lands them so)
+@@ -2631,9 +2632,11 @@ static void gw_commit(uint64_t fence) {
+     uint64_t done = g_done;
+     if ((g_pend_over || g_sbw_over) && fence > g_gw_all) g_gw_all = fence;
+     for (int e = 0; e < g_npend; e++) gw_put(g_pend_lo[e], g_pend_hi[e], fence, done);
+-    if (g_nsbw) for (int i = 0; i < SBW_N; i++) if (g_sbwp[i].gen == g_pend_gen) {
+-        uint64_t base = g_sbwp[i].page << 12;
+-        gw_put(base + g_sbwp[i].begin, base + g_sbwp[i].end, fence, done);
++    // RewindBox (upstream S2Arm 905e91390): the pages this submission noted, not a scan of the 16,384 slots (24 bytes each with 0207's byte range: 384 KiB a submission;
++    //   upstream measured 42.8-43.9k -> 38.7-39.3k submit-thread instructions a draw on another title). pend_reset clears g_nsbw with the generation
++    for (int i = 0; i < g_nsbw; i++) { unsigned h = g_sbw_list[i];
++        uint64_t base = g_sbwp[h].page << 12;
++        gw_put(base + g_sbwp[h].begin, base + g_sbwp[h].end, fence, done);
+     }
+ }
+ // The writes queued in this submission from index since on that overlap [a, b), newest first, into out (room for every entry a lookup can meet); -1 when they cannot all be told
+@@ -10754,10 +10757,19 @@ enum { QUAR_MAX = 16 };
+ static NSMutableSet<NSString *> *g_quar; static NSMutableArray<NSString *> *g_quar_new; static pthread_mutex_t g_quar_mu = PTHREAD_MUTEX_INITIALIZER; static int g_quar_n;
+ static int quar_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_NVN_QUARANTINE"); v = !(e && !strcmp(e, "0")); } return v; }
+ static NSString *quar_path(void) { NSString *u = pso_user_path(); return u ? [u.stringByDeletingLastPathComponent stringByAppendingPathComponent:@"gpu_quarantine.tsv"] : nil; }
++// File version (11-21, #327): a file written before it blamed the program pairs of every faulted commit, GPU memory exhaustion too — the first out-of-memory commit of
++//   a run pinned the pairs it had just built, and every later run skipped them from the start (a whole scene black from the first controllable frame, the opening
++//   logo half drawn: Trails in the Sky the 1st, iPhone 15 Pro Max). Such a file cannot tell an out-of-memory entry from a real fault, so it is dropped and relearned:
++//   a pair that really faults is pinned again the first time it does
++#define QUAR_HEAD "# gpu_quarantine v2: program pairs whose first commit faulted (not GPU memory exhaustion)"
+ static void quar_load(void) {   // caller holds g_quar_mu
+     if (g_quar) return;
+     g_quar = [NSMutableSet set]; g_quar_new = [NSMutableArray array];
+     NSString *p = quar_path(), *t = p ? [NSString stringWithContentsOfFile:p encoding:NSUTF8StringEncoding error:nil] : nil;
++    if (t.length && ![t hasPrefix:@QUAR_HEAD]) {
++        NSUInteger old = 0; for (NSString *l in [t componentsSeparatedByString:@"\n"]) old += l.length && ![l hasPrefix:@"#"];
++        [NSFileManager.defaultManager removeItemAtPath:p error:nil]; t = nil;
++        MLOG("GPU error quarantine: %s was written before out-of-memory faults were told apart (%lu program pairs, possibly pinned by memory exhaustion only): dropped, relearned from now on", p.UTF8String, (unsigned long)old); }
+     for (NSString *l in [t componentsSeparatedByString:@"\n"]) if (l.length && ![l hasPrefix:@"#"]) [g_quar addObject:l];
+     g_quar_n = (int)g_quar.count;
+     if (g_quar_n) MLOG("GPU error quarantine: %d program pairs skipped from the start (%s)", g_quar_n, p.UTF8String);
+@@ -10777,14 +10789,23 @@ static NSArray<NSString *> *quar_take(void) {   // submit thread, at commit: thi
+     pthread_mutex_lock(&g_quar_mu); quar_load(); NSArray *a = g_quar_new.count ? [g_quar_new copy] : nil; [g_quar_new removeAllObjects]; pthread_mutex_unlock(&g_quar_mu);
+     return a;
+ }
++// GPU memory exhaustion is no program's fault: whatever the commit built would have faulted the same with any shader (kIOGPUCommandBufferCallbackErrorOutOfMemory,
++//   Metal 3 MTLCommandBufferErrorOutOfMemory; Metal 4 nests the reason in its underlying errors, which the description carries)
++static int quar_blameless(NSError *err) {
++    if (!err) return 0;
++    if ([err.domain isEqualToString:MTLCommandBufferErrorDomain] && err.code == MTLCommandBufferErrorOutOfMemory) return 1;
++    return [err.description containsString:@"OutOfMemory"] || [err.description containsString:@"Insufficient Memory"];
++}
+ static void quar_fault(NSArray<NSString *> *sus, NSError *err) {   // completion: a commit faulted
+     if (!quar_on()) return;
++    if (quar_blameless(err)) { static int n; if (n++ < 4) MLOG("GPU error quarantine: the commit ran out of GPU memory, no program pair blamed (%lu new in it)", (unsigned long)sus.count); return; }
+     if (!sus.count || sus.count > QUAR_MAX) { static int n; if (n++ < 8) MLOG("【红】 GPU error quarantine: the faulted commit first built %lu pipelines, %s (%s)", (unsigned long)sus.count, sus.count ? "too many to pin, nothing skipped" : "none new, nothing skipped", err.localizedDescription.UTF8String); return; }
+     pthread_mutex_lock(&g_quar_mu);
+     NSMutableArray *add = [NSMutableArray array]; for (NSString *q in sus) if (![g_quar containsObject:q]) { [g_quar addObject:q]; [add addObject:q]; }
+     g_quar_n = (int)g_quar.count;
+     NSString *p = quar_path();
+-    if (add.count && p) { FILE *f = fopen(p.fileSystemRepresentation, "a"); if (f) { for (NSString *q in add) fprintf(f, "%s\n", q.UTF8String); fclose(f); } }
++    if (add.count && p) { int fresh = ![NSFileManager.defaultManager fileExistsAtPath:p];
++        FILE *f = fopen(p.fileSystemRepresentation, "a"); if (f) { if (fresh) fprintf(f, "%s\n", QUAR_HEAD); for (NSString *q in add) fprintf(f, "%s\n", q.UTF8String); fclose(f); } }
+     pthread_mutex_unlock(&g_quar_mu);
+     for (NSString *q in add) MLOG("【红】 GPU error quarantine: program pair %s skipped from now on (the faulted commit first built its pipeline; %s)", q.UTF8String, p ? "remembered for later runs" : "this run only");
+ }
+@@ -13122,7 +13143,9 @@ static void arena_seg_done(uint64_t sf) {
+     pthread_cond_broadcast(&g_cv);  // arena and error waiters have separate predicates
+     pthread_mutex_unlock(&g_mu);
+ }
+-static size_t arena_alloc(size_t n, id<MTLBuffer> *buf) {
++// RewindBox (upstream S2Arm 9ca83e5b1): buf is __strong. An unqualified id * out-parameter is __autoreleasing under ARC, which put the arena buffer in the autorelease
++//   pool at every call, a few per draw (upstream: autorelease 2.63% -> 1.73% of replay time). Every caller passes a strong local
++static size_t arena_alloc(size_t n, __strong id<MTLBuffer> *buf) {
+     n = (n + 255) & ~(size_t)255; g_arena_seg += n;
+     if (!g_cur_arena || g_cur_arena->used + n > g_cur_arena->len) {
+         pthread_mutex_lock(&g_mu); g_cur_arena = arena_new(n); pthread_mutex_unlock(&g_mu);
+@@ -13132,7 +13155,7 @@ static size_t arena_alloc(size_t n, id<MTLBuffer> *buf) {
+ }
+ // Keep the logical vertex-zero pointer inside a real MTLBuffer. Only the payload
+ // is populated; vertex_id still includes first/baseVertex and skips the prefix.
+-static size_t arena_alloc_origin(size_t n, uint64_t prefix, id<MTLBuffer> *buf) {
++static size_t arena_alloc_origin(size_t n, uint64_t prefix, __strong id<MTLBuffer> *buf) {   // RewindBox (upstream 9ca83e5b1): __strong, as arena_alloc
+     if (!m3_origin_on() || !prefix) return arena_alloc(n, buf);
+     uint64_t limit = g_dev.maxBufferLength;
+     if (prefix > SIZE_MAX - 255 || n > SIZE_MAX - 255) MDIE("buffer-origin scratch size overflow");
+diff --git a/graphics/nvn/tests/t_nvn2.c b/graphics/nvn/tests/t_nvn2.c
+index ba04d59..83dece0 100644
+--- a/graphics/nvn/tests/t_nvn2.c
++++ b/graphics/nvn/tests/t_nvn2.c
+@@ -276,10 +276,10 @@ int main(void) {
+         // camera CreateAliasOutputBufferPool(UserImageHandle, unsigned)：句柄按值。按客人约定传句柄 1：不当地址写（原先写地址 1 → 信号 11，审计 P1-145），回 0
+         uint64_t (*cam_alias)(uint16_t, uint32_t) = (uint64_t (*)(uint16_t, uint32_t))s2a_nv_entry("_ZN2nn6camera3sdk27CreateAliasOutputBufferPoolENS_3gsv15UserImageHandleEj");
+         CHECK(cam_alias && !nvn2_red_of(cam_alias)); CHECK(!dies_alias(cam_alias)); CHECK(cam_alias(1, 4) == 0);
+-        // camera CreateCameraContext：输出参数写 NULL
+-        void (*cam_ctx)(void **) = (void (*)(void **))s2a_nv_entry("_ZN2nn6camera3sdk19CreateCameraContextEPNS_5gsdrv18UniqueNativeHandleE");
++        // camera CreateCameraContext：输出参数是 32 位句柄，只写 4 字节；服务层没链（本单测）时句柄 0
++        void (*cam_ctx)(uint32_t *) = (void (*)(uint32_t *))s2a_nv_entry("_ZN2nn6camera3sdk19CreateCameraContextEPNS_5gsdrv18UniqueNativeHandleE");
+         CHECK(cam_ctx && !nvn2_red_of(cam_ctx));
+-        void *p = (void *)0x5a5a; cam_ctx(&p); CHECK(p == NULL);
++        uint32_t ch[2] = {0x5a5a, 0xa5a5}; cam_ctx(ch); CHECK(ch[0] == 0 && ch[1] == 0xa5a5);
+         // 其他 chat / camera 接口仍是红桩
+         void *cg = s2a_nv_entry("_ZN2nn4chat3gsv10InitializeEv");
+         CHECK(cg && nvn2_red_of(cg) && strstr(nvn2_red_of(cg), "GameChat"));
+diff --git a/graphics/nvn/tests/t_nvn_draw_fallback.m b/graphics/nvn/tests/t_nvn_draw_fallback.m
+index 11a91e9..f863164 100644
+--- a/graphics/nvn/tests/t_nvn_draw_fallback.m
++++ b/graphics/nvn/tests/t_nvn_draw_fallback.m
+@@ -2,7 +2,8 @@
+ //   ① GPU 报错隔离：提交前新建的程序对是嫌疑；非无辜受害的报错 → 嫌疑全部隔离、quar_has 命中、写进 gpu_quarantine.tsv；新进程读文件同样命中（以后的局也跳过）
+ //      嫌疑超过 QUAR_MAX（16）对 → 一个也不隔离；隔离之后新建的不受影响
+ //   ② 编译服务失败（XPC 连接中断 / 超时）判为暂时性，管线本身的错（线程组内存超限）不算
+-//   反证：改前的 nvn_mtl.m 没有 quar_* / pso_err_transient，本单测编不过
++//   ③ GPU 内存用满（错误码 8 / 描述 OutOfMemory）不隔离；④ 旧版（没有版本头）的隔离文件读时作废重学
++//   反证：改前的 nvn_mtl.m 没有 quar_* / pso_err_transient，本单测编不过；去掉 quar_blameless 那行 → ③ 红；去掉版本头判断 → ④ 红
+ #include "../gfx/nvn/nvn_mtl.m"
+ #include <sys/wait.h>
+ 
+@@ -24,11 +25,25 @@ int main(void) {
+         quar_fault(many, nil);
+         VERIFY(![g_quar containsObject:many[0]], "① 嫌疑 17 对（> 16）：一个也不隔离");
+         NSString *f = [NSString stringWithContentsOfFile:[@(dir) stringByAppendingPathComponent:@"gpu_quarantine.tsv"] encoding:NSUTF8StringEncoding error:nil];
+-        VERIFY([f isEqualToString:@"aaaaaaaaaaaaaaaa\tbbbbbbbbbbbbbbbb\n"], "① 写进 gpu_quarantine.tsv（实得「%s」）", f.UTF8String);
++        VERIFY([f isEqualToString:@QUAR_HEAD "\naaaaaaaaaaaaaaaa\tbbbbbbbbbbbbbbbb\n"], "① 写进 gpu_quarantine.tsv（版本头 + 那一对，实得「%s」）", f.UTF8String);
+         pid_t c = fork();
+         if (c == 0) { g_quar = nil; g_quar_n = 0; _exit(quar_has(va, fa) && !quar_has(vb, fb) ? 0 : 1); }
+         int st = 0; waitpid(c, &st, 0);
+         VERIFY(WIFEXITED(st) && !WEXITSTATUS(st), "① 新进程读文件：那一对一开局就跳过");
++        // ③ GPU 内存用满不怪程序（#327 空之轨迹：显存满那次提交新建的程序对被隔离、以后每局开局就跳过 → 一进游戏就黑、开头 logo 残缺）：
++        //   Metal 3 错误码 8 / Metal 4 描述里的 OutOfMemory → 不隔离；④ 旧版文件（没有版本头）→ 读的时候整份作废、隔离表空、文件删掉
++        { NvShader *vc = sh("eeeeeeeeeeeeeeee_b"), *fc = sh("ffffffffffffffff_b"); quar_built(vc, fc); NSArray *s3 = quar_take();
++          quar_fault(s3, [NSError errorWithDomain:MTLCommandBufferErrorDomain code:MTLCommandBufferErrorOutOfMemory userInfo:nil]);
++          VERIFY(!quar_has(vc, fc), "③ Metal 3 显存不足（错误码 8）：不隔离");
++          quar_fault(s3, [NSError errorWithDomain:@"MTL4CommandQueueErrorDomain" code:1 userInfo:@{NSLocalizedDescriptionKey: @"Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)"}]);
++          VERIFY(!quar_has(vc, fc), "③ Metal 4 显存不足（描述里 OutOfMemory）：不隔离"); }
++        { NSString *qp = [@(dir) stringByAppendingPathComponent:@"gpu_quarantine.tsv"];
++          [@"1111111111111111\t2222222222222222\n" writeToFile:qp atomically:YES encoding:NSUTF8StringEncoding error:nil];
++          pid_t c4 = fork();
++          if (c4 == 0) { g_quar = nil; g_quar_n = 0; NvShader *v1 = sh("1111111111111111_b"), *f1 = sh("2222222222222222_b");
++              int hit = quar_has(v1, f1); _exit(!hit && g_quar_n == 0 && ![NSFileManager.defaultManager fileExistsAtPath:qp] ? 0 : 1); }
++          int s4 = 0; waitpid(c4, &s4, 0);
++          VERIFY(WIFEXITED(s4) && !WEXITSTATUS(s4), "④ 旧版隔离文件（没有版本头）：作废重学、开局不跳过、文件删掉"); }
+         NSError *(^E)(NSString *) = ^(NSString *d) { return [NSError errorWithDomain:@"t" code:1 userInfo:@{NSLocalizedDescriptionKey: d}]; };
+         VERIFY(pso_err_transient(E(@"Compilation failed due to an interrupted connection: XPC_ERROR_CONNECTION_INTERRUPTED. This error occurred after multiple retries.")), "② 巫师3 那条（XPC 连接中断）判暂时性");
+         VERIFY(!pso_err_transient(E(@"Threadgroup memory size (36880) exceeds the maximum threadgroup memory allowed (32768)")) && !pso_err_transient(nil), "② 管线本身的错 / 无错误不算暂时性");
+diff --git a/ios/diagredact.m b/ios/diagredact.m
+index 7939b59..0e9e616 100644
+--- a/ios/diagredact.m
++++ b/ios/diagredact.m
+@@ -50,8 +50,7 @@ static NSString *redact_assignments(NSString *s) {
+     return result;
+ }
+ 
+-char *s2a_diag_redact(const char *text) {
+-    if (!text) return NULL;
++static char *redact_one(const char *text) {
+     @autoreleasepool {
+         NSString *s = [[NSString alloc] initWithUTF8String:text];
+         if (!s) return NULL;
+@@ -91,3 +90,40 @@ char *s2a_diag_redact(const char *text) {
+         return utf8 ? strdup(utf8) : NULL;
+     }
+ }
++
++// 按行边界分块逐块脱敏（11-14 诊断 D-GT8W：几 MB 的日志整份变成 NSString 后每条规则整份拷贝一遍，
++//   iPad 上导出诊断时 stringByReplacingMatchesInString 内部分配失败——NSMallocException / appendString: nil——App 崩掉，最需要诊断的玩家导不出包）。
++//   规则全在一行之内（redact_assignments 遇换行停、各正则的字符类都排除换行），按换行切块与整份处理结果逐字节相同；
++//   一块失败整份返回 NULL（调用方拒绝写出原文，不漏敏感信息）
++#define REDACT_CHUNK (256u << 10)
++char *s2a_diag_redact(const char *text) {
++    if (!text) return NULL;
++    size_t n = strlen(text);
++    if (n <= REDACT_CHUNK) return redact_one(text);
++    size_t cap = n + n / 8 + 64, len = 0; char *out = malloc(cap);
++    if (!out) return NULL;
++    for (size_t at = 0; at < n; ) {
++        size_t end = at + REDACT_CHUNK < n ? at + REDACT_CHUNK : n;
++        if (end < n) {   // 切在这一块里最后一个换行之后；整块没有换行（超长单行）就整行带上
++            const char *nl = NULL;
++            for (const char *q = text + end - 1; q >= text + at; q--) if (*q == '\n') { nl = q; break; }
++            if (nl) end = (size_t)(nl - text) + 1;
++            else { const char *f = strchr(text + end, '\n'); end = f ? (size_t)(f - text) + 1 : n; }
++        }
++        char *piece = malloc(end - at + 1);
++        if (!piece) { free(out); return NULL; }
++        memcpy(piece, text + at, end - at); piece[end - at] = 0;
++        char *clean = redact_one(piece); free(piece);
++        if (!clean) { free(out); return NULL; }
++        size_t m = strlen(clean);
++        if (len + m + 1 > cap) {
++            size_t nc = (len + m + 1) * 2; char *grown = realloc(out, nc);
++            if (!grown) { free(clean); free(out); return NULL; }
++            out = grown; cap = nc;
++        }
++        memcpy(out + len, clean, m); len += m; free(clean);
++        at = end;
++    }
++    out[len] = 0;
++    return out;
++}
+diff --git a/runtime/src/far.c b/runtime/src/far.c
+index 8165738..e7c98de 100644
+--- a/runtime/src/far.c
++++ b/runtime/src/far.c
+@@ -315,7 +315,11 @@ int s2a_far_fault(void *ctx, uint64_t fa, int w) {
+         uint64_t ea = 0, len = 0;
+         int ok = w ? s2a_emul_store_regs(insn, &r, delta, lo, hi, NULL, &ea, &len) : s2a_emul_load_regs(insn, &r, delta, lo, hi, NULL, &ea, &len);
+         if (!ok && len && len <= FPG && (ea & ~(FPG - 1)) != ((ea + len - 1) & ~(FPG - 1))) {   // 跨页：两页影子并排进槽再试
+-            uint64_t pg = ea & ~(FPG - 1); uint8_t *p1 = g2h(pg, NULL, NULL), *p2 = g2h(pg + FPG, NULL, NULL), *sl = p1 && p2 ? pair_slot(p1, p2) : NULL;
++            uint64_t pg = ea & ~(FPG - 1); uint8_t *p1 = g2h(pg, NULL, NULL), *p2 = g2h(pg + FPG, NULL, NULL);
++            // 前一页是窗口的最后一页（远端紧接窗口末尾）：窗口里游戏地址就是宿主地址，拿它本身和远端首页的影子并排。
++            //   11-14 D-52P7：LDR X8,[X10,X11] 读窗口末尾前 4 字节起的 8 字节，后半落进远端首页，原先这一页取不到影子 → 代执行不了 → SIGSEGV（玩 87 分钟后）
++            if (!p1 && p2 && pg + FPG == g_lo) p1 = (uint8_t *)(uintptr_t)pg;
++            uint8_t *sl = p1 && p2 ? pair_slot(p1, p2) : NULL;
+             if (sl) { delta = (uint64_t)(uintptr_t)sl - pg; lo = pg; hi = pg + 2 * FPG;
+                 ok = w ? s2a_emul_store_regs(insn, &r, delta, lo, hi, NULL, NULL, NULL) : s2a_emul_load_regs(insn, &r, delta, lo, hi, NULL, NULL, NULL); }
+         }
+diff --git a/runtime/src/svc_mem.c b/runtime/src/svc_mem.c
+index 29a1168..0dbc81c 100644
+--- a/runtime/src/svc_mem.c
++++ b/runtime/src/svc_mem.c
+@@ -1020,8 +1020,12 @@ static uint8_t *punch_at(uint64_t hp) { return g_punch_pend + (hp - L.win_base)
+ // 还页走懒清零（持 g_mu）：[a, a + n) 全在文件后备窗口里才接，改成不可访问并记待清零；接了返回 1
+ static int punch_defer_locked(uint64_t a, uint64_t n) {
+     if (!punch_defer_on() || !L.win_size || !s2a_guest_in_file(a, n) || a < L.win_base || a + n > L.win_base + L.win_size || (a | n) & (HPG - 1)) return 0;
++    // 待清零表先分配、分不出就不走懒清零（返回 0：调用方走 s2a_guest_zero 立即清零）。诊断#0ed154（8 GB iPad、低区耗尽、errno 12 ×22）：
++    //   原先 mprotect 后才 calloc、不判空，calloc 回空后按页号写进空指针（读 0xfebb），宿主在还页路径上崩
++    if (!g_punch_pend && !(g_punch_pend = calloc(L.win_size / HPG, 1))) {
++        static int once; if (!once++) LOG("【红】懒清零待清零表 %llu KB 分配失败（errno=%d），改走立即清零", (unsigned long long)(L.win_size / HPG >> 10), errno);
++        return 0; }
+     if (mprotect((void *)a, n, PROT_NONE)) die("懒清零 mprotect errno=%d", errno);
+-    if (!g_punch_pend) g_punch_pend = calloc(L.win_size / HPG, 1);
+     for (uint64_t p = a; p < a + n; p += HPG) { uint8_t *b = punch_at(p); if (!*b) { *b = 1; g_punch_pending_n++; } }
+     return 1;
+ }
+@@ -1419,6 +1423,23 @@ static int svc_mem_impl(int num, uint64_t *regs, uint64_t orig) {
+         uint64_t page = memory_protection_page();
+         if (!page) { regs[0] = 0xD401; return 1; }
+         uint64_t lo = widen ? a & ~(page - 1) : (a + page - 1) & ~(page - 1), hi = widen ? (a + n + page - 1) & ~(page - 1) : (a + n) & ~(page - 1);
++        // #815 / #523（0100FA501AF90000，补丁 @rugal7699）：游戏把模块映像（main / subsdk / sdk / NRO）里的一段收紧成只读后，游戏 SDK 自己的 nn::ro 装 NRO 时
++        //   还会往这段（main+0x579508）写 → SIGBUS。模块映像里的收紧只记游戏可见权限（下面 perm_set 照记，QueryMemory 照回只读），
++        //   不改宿主保护；S2A_MOD_RELRO_ENFORCE=1 恢复旧行为。放宽（widen）照旧。
++        {
++            static int enforce = -1;
++            if (enforce < 0) { const char *ev = getenv("S2A_MOD_RELRO_ENFORCE"); enforce = ev && *ev == '1'; }
++            module_t *mm = n ? module_of((const void *)(uintptr_t)a) : NULL;
++            int in_mod = !widen && mm && module_of((const void *)(uintptr_t)(a + n - 1)) == mm;
++            uint64_t mb = mm ? (uint64_t)(uintptr_t)mm->base : 0;
++            static _Atomic int said;   // 只记模块映像内的收紧（游戏可能频繁改别处权限），每局至多 16 行
++            if (in_mod && atomic_fetch_add(&said, 1) < 16)
++                LOG("SetMemoryPermission %s+%#llx 大小 %#llx 权限 %u → 宿主 [%#llx, %#llx)%s",
++                    mm->name, (unsigned long long)(a - mb), (unsigned long long)n, p,
++                    (unsigned long long)(lo - mb), (unsigned long long)(hi > lo ? hi - mb : lo - mb),
++                    !enforce ? "（模块映像内收紧：只记游戏权限，宿主保持可写）" : "（S2A_MOD_RELRO_ENFORCE=1：照旧设宿主只读）");
++            if (in_mod && !enforce) hi = lo;   // 跳过下面的宿主 mprotect / prot_changed
++        }
+         // 远端（别名区伸出宿主窗口的那段）只是承诺：页的保护由远端探针 / 翻译层管，这里不改宿主保护
+         uint64_t we = L.win_base + L.win_size; if (hi > we && lo < we && s2a_far_has(we, hi - we)) hi = we; else if (lo >= we && s2a_far_has(lo, hi - lo)) hi = lo;
+         if (hi > lo) {
+diff --git a/runtime/src/tdump.c b/runtime/src/tdump.c
+index 5beaccd..f21da02 100644
+--- a/runtime/src/tdump.c
++++ b/runtime/src/tdump.c
+@@ -44,22 +44,8 @@ static void walk(uint64_t pc, uint64_t lr, uint64_t fp) {
+         fp = nfp;
+     }
+ }
+-// 取证：每线程全寄存器 x0–x28；落在游戏模块的寄存器标「模块+偏移」归属并读指向的两个字
+-// （崩溃调试用：nx-92 查表帧 callee-saved x26 指向表指针页、填表线程的寄存器等，事后从这些推表/桶，不写死游戏偏移）。
+-// async-safe：where 走 module_of、读内存走 rd（vm_read_overwrite，坏指针不会再崩）。
+-static void dump_regs(const arm_thread_state64_t *st) {
+-    for (int i = 0; i < 29; i += 4)
+-        out("    x%-2d %016llx %016llx %016llx %016llx", i, (unsigned long long)st->__x[i], i + 1 < 29 ? (unsigned long long)st->__x[i + 1] : 0ull,
+-            i + 2 < 29 ? (unsigned long long)st->__x[i + 2] : 0ull, i + 3 < 29 ? (unsigned long long)st->__x[i + 3] : 0ull);
+-    char b[192];
+-    for (int i = 0; i < 29; i++) {
+-        uint64_t v = VA(st->__x[i]);
+-        if (v < 0x100000000ull || !module_of((void *)v)) continue;
+-        where(v, b, sizeof b);
+-        uint64_t w0 = 0, w8 = 0; rd(v, &w0); rd(v + 8, &w8);
+-        out("    x%-2d → %s  [%016llx %016llx]", i, b, (unsigned long long)w0, (unsigned long long)w8);
+-    }
+-}
++// 取证（collect / 打印段）：每线程全寄存器 x0–x28；落在游戏模块的寄存器标「模块+偏移」归属并带它指向的两个字
++//   （崩溃调试用：查表帧 callee-saved 寄存器指向表指针页之类，事后从这些推表 / 桶，不写死游戏偏移）
+ static const char *qos_name(int q) {
+     switch (q) { case QOS_CLASS_USER_INTERACTIVE: return "UI"; case QOS_CLASS_USER_INITIATED: return "USER_INITIATED"; case QOS_CLASS_UTILITY: return "UTILITY";
+         case QOS_CLASS_BACKGROUND: return "BACKGROUND"; case QOS_CLASS_DEFAULT: return "DEFAULT"; default: return "未定"; }
+@@ -68,6 +54,37 @@ static const char *run_name(int s) {
+     switch (s) { case TH_STATE_RUNNING: return "在跑"; case TH_STATE_STOPPED: return "停"; case TH_STATE_WAITING: return "等待"; case TH_STATE_UNINTERRUPTIBLE: return "不可中断等待"; case TH_STATE_HALTED: return "终止"; default: return "?"; }
+ }
+ 
++// 挂起期间只做内核调用（thread_info / thread_get_state / vm_read_overwrite），结果放进预先分配好的静态表；全部放行之后才符号化、写日志。
++//   原先挂起后边取边打：dladdr 要 dyld 锁、pthread_from_mach_thread_np / pthread_get_qos_class_np 要 pthread 内部锁、日志控制台要它的锁，
++//   被挂起的线程正好持着其中一把就把发起现场的线程卡死（11-14：停帧看门打到一半断、后续现场全没出）
++enum { TD_MAX = 512, TD_FR = 48 };
++typedef struct {
++    thread_t th; int self, have, unint, regs; uint64_t tid; int run, pri; double ut; char name[64];
++    arm_thread_state64_t st; uint64_t fr[TD_FR]; int nfr; uint64_t rw[29][2];
++} td_ent;
++static td_ent g_td[TD_MAX];
++static void collect(td_ent *e) {   // 线程已挂起：只许内核调用
++    thread_extended_info_data_t ei; mach_msg_type_number_t c = THREAD_EXTENDED_INFO_COUNT;
++    e->have = thread_info(e->th, THREAD_EXTENDED_INFO, (thread_info_t)&ei, &c) == KERN_SUCCESS;
++    if (e->have) { e->run = ei.pth_run_state; e->pri = ei.pth_curpri; e->ut = ei.pth_user_time / 1e9; memcpy(e->name, ei.pth_name, sizeof e->name); e->name[sizeof e->name - 1] = 0; }
++    thread_identifier_info_data_t ii; c = THREAD_IDENTIFIER_INFO_COUNT;
++    e->tid = thread_info(e->th, THREAD_IDENTIFIER_INFO, (thread_info_t)&ii, &c) == KERN_SUCCESS ? ii.thread_id : 0;
++    if (e->self) return;
++    // 内核里不可中断等待的线程不取寄存器：thread_get_state 要等它走到可停的点，出不来就把本线程一起卡死（同 thread.c s2a_thread_dump）
++    if (e->have && e->run == TH_STATE_UNINTERRUPTIBLE) { e->unint = 1; return; }
++    mach_msg_type_number_t sc = ARM_THREAD_STATE64_COUNT;
++    if (thread_get_state(e->th, ARM_THREAD_STATE64, (thread_state_t)&e->st, &sc) != KERN_SUCCESS) return;
++    e->regs = 1;
++    uint64_t fp = arm_thread_state64_get_fp(e->st);
++    for (e->nfr = 0; e->nfr < TD_FR && fp; e->nfr++) {
++        uint64_t nfp, ret;
++        if (!rd(fp, &nfp) || !rd(fp + 8, &ret) || !VA(ret)) break;
++        e->fr[e->nfr] = VA(ret);
++        if (nfp <= fp) { e->nfr++; break; }
++        fp = nfp;
++    }
++    for (int i = 0; i < 29; i++) { uint64_t v = VA(e->st.__x[i]); if (v >= 0x100000000ull) { rd(v, &e->rw[i][0]); rd(v + 8, &e->rw[i][1]); } }
++}
+ int s2a_dump_threads(const char *why) {
+     static pthread_mutex_t mu = PTHREAD_MUTEX_INITIALIZER;
+     pthread_mutex_lock(&mu);
+@@ -78,24 +95,39 @@ int s2a_dump_threads(const char *why) {
+     if (task_threads(mach_task_self(), &th, &n) != KERN_SUCCESS) { out("取线程表失败"); n = 0; }
+     thread_t self = mach_thread_self();
+     out("===== 全线程现场：%s（%u 条线程%s%s）=====", why, n, path[0] ? "，另写 " : "", path);
+-    for (mach_msg_type_number_t i = 0; i < n; i++) if (th[i] != self) thread_suspend(th[i]);
+-    for (mach_msg_type_number_t i = 0; i < n; i++) {
+-        thread_extended_info_data_t ei; mach_msg_type_number_t c = THREAD_EXTENDED_INFO_COUNT;
+-        int have = thread_info(th[i], THREAD_EXTENDED_INFO, (thread_info_t)&ei, &c) == KERN_SUCCESS;
+-        thread_identifier_info_data_t ii; c = THREAD_IDENTIFIER_INFO_COUNT;
+-        uint64_t tid = thread_info(th[i], THREAD_IDENTIFIER_INFO, (thread_info_t)&ii, &c) == KERN_SUCCESS ? ii.thread_id : 0;
+-        pthread_t pt = pthread_from_mach_thread_np(th[i]); qos_class_t qc_ = QOS_CLASS_UNSPECIFIED; int rel = 0;
++    mach_msg_type_number_t m = n < TD_MAX ? n : TD_MAX;
++    memset(g_td, 0, sizeof g_td);
++    for (mach_msg_type_number_t i = 0; i < m; i++) { g_td[i].th = th[i]; g_td[i].self = th[i] == self; }
++    for (mach_msg_type_number_t i = 0; i < m; i++) if (!g_td[i].self) thread_suspend(th[i]);
++    for (mach_msg_type_number_t i = 0; i < m; i++) collect(&g_td[i]);
++    for (mach_msg_type_number_t i = 0; i < m; i++) if (!g_td[i].self) thread_resume(th[i]);
++    // 以下全部线程已放行：符号化（dladdr）、取 QoS（pthread）、写日志都安全
++    if (n > m) out("线程 %u 条，只记前 %u 条", n, m);
++    for (mach_msg_type_number_t i = 0; i < m; i++) {
++        td_ent *e = &g_td[i];
++        pthread_t pt = pthread_from_mach_thread_np(e->th); qos_class_t qc_ = QOS_CLASS_UNSPECIFIED; int rel = 0;
+         if (pt) pthread_get_qos_class_np(pt, &qc_, &rel);
+-        int q = (int)qc_;
+-        out("线程 %u/%u tid %llu「%s」%s 优先级 %d QoS %s 用户态 %.2f s%s", i + 1, n, (unsigned long long)tid, have && ei.pth_name[0] ? ei.pth_name : "无名",
+-            have ? run_name(ei.pth_run_state) : "?", have ? ei.pth_curpri : -1, qos_name(q), have ? ei.pth_user_time / 1e9 : 0.0, th[i] == self ? "（本线程，发起现场）" : "");
+-        if (th[i] == self) { walk((uint64_t)__builtin_return_address(0), 0, (uint64_t)__builtin_frame_address(0)); continue; }
+-        arm_thread_state64_t st; mach_msg_type_number_t sc = ARM_THREAD_STATE64_COUNT;
+-        if (thread_get_state(th[i], ARM_THREAD_STATE64, (thread_state_t)&st, &sc) != KERN_SUCCESS) { out("    取寄存器失败"); continue; }
+-        walk(arm_thread_state64_get_pc(st), arm_thread_state64_get_lr(st), arm_thread_state64_get_fp(st));
+-        dump_regs(&st);
++        out("线程 %u/%u tid %llu「%s」%s 优先级 %d QoS %s 用户态 %.2f s%s", i + 1, n, (unsigned long long)e->tid, e->have && e->name[0] ? e->name : "无名",
++            e->have ? run_name(e->run) : "?", e->have ? e->pri : -1, qos_name((int)qc_), e->have ? e->ut : 0.0, e->self ? "（本线程，发起现场）" : "");
++        if (e->self) { walk((uint64_t)__builtin_return_address(0), 0, (uint64_t)__builtin_frame_address(0)); continue; }
++        if (e->unint) { out("    在内核里不可中断等待，不取寄存器（取了会卡住本线程）"); continue; }
++        if (!e->regs) { out("    取寄存器失败"); continue; }
++        char b[256];
++        where(VA(arm_thread_state64_get_pc(e->st)), b, sizeof b); out("    pc %s", b);
++        where(VA(arm_thread_state64_get_lr(e->st)), b, sizeof b); out("    lr %s", b);
++        for (int k = 0; k < e->nfr; k++) { where(e->fr[k], b, sizeof b); out("    #%d %s", k, b); }
++        const arm_thread_state64_t *st = &e->st;
++        for (int r = 0; r < 29; r += 4)
++            out("    x%-2d %016llx %016llx %016llx %016llx", r, (unsigned long long)st->__x[r], r + 1 < 29 ? (unsigned long long)st->__x[r + 1] : 0ull,
++                r + 2 < 29 ? (unsigned long long)st->__x[r + 2] : 0ull, r + 3 < 29 ? (unsigned long long)st->__x[r + 3] : 0ull);
++        for (int r = 0; r < 29; r++) {
++            uint64_t v = VA(st->__x[r]);
++            if (v < 0x100000000ull || !module_of((void *)v)) continue;
++            where(v, b, sizeof b);
++            out("    x%-2d → %s  [%016llx %016llx]", r, b, (unsigned long long)e->rw[r][0], (unsigned long long)e->rw[r][1]);
++        }
+     }
+-    for (mach_msg_type_number_t i = 0; i < n; i++) { if (th[i] != self) thread_resume(th[i]); mach_port_deallocate(mach_task_self(), th[i]); }
++    for (mach_msg_type_number_t i = 0; i < n; i++) mach_port_deallocate(mach_task_self(), th[i]);
+     if (n) vm_deallocate(mach_task_self(), (vm_address_t)th, n * sizeof *th);
+     mach_port_deallocate(mach_task_self(), self);
+     out("===== 现场完 =====");
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index 5cdaec1..5b8ceaa 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -3785,8 +3785,14 @@ void s2a_thread_dump(void) {
+             uint64_t pc = 0, lr = 0, fp = 0; int run = !atomic_load(&t->in_svc);
+             if (!run) fp = t->last_fp;
+             else if (t->mport && thread_suspend(t->mport) == KERN_SUCCESS) {
++                // 停住后先看宿主线程的运行状态：在内核里不可中断等待（缺页读写文件、驱动调用之类）时 thread_get_state 要等它走到可停的点，
++                //   一直出不来就把看门线程也卡死（11-14 一台测试设备卡在第 17515 帧：线程表打到第 4 条就断，宿主栈和后两次现场都没出）。这种线程不取寄存器、标出来——
++                //   「客体代码里却卡在内核」正是要找的卡点
++                thread_basic_info_data_t bi; mach_msg_type_number_t bc = THREAD_BASIC_INFO_COUNT;
++                int unint = thread_info(t->mport, THREAD_BASIC_INFO, (thread_info_t)&bi, &bc) == KERN_SUCCESS && bi.run_state == TH_STATE_UNINTERRUPTIBLE;
+                 arm_thread_state64_t st; mach_msg_type_number_t n = ARM_THREAD_STATE64_COUNT;
+-                if (thread_get_state(t->mport, ARM_THREAD_STATE64, (thread_state_t)&st, &n) == KERN_SUCCESS) {
++                if (unint) LOG("    【红】这条线程不在系统调用里，宿主线程却在内核里不可中断等待（缺页读写文件 / 驱动调用之类），不取寄存器（取了会把看门线程一起卡住）");
++                else if (thread_get_state(t->mport, ARM_THREAD_STATE64, (thread_state_t)&st, &n) == KERN_SUCCESS) {
+                     pc = arm_thread_state64_get_pc(st); lr = arm_thread_state64_get_lr(st); fp = arm_thread_state64_get_fp(st); }
+                 thread_resume(t->mport);
+             }
+diff --git a/runtime/tests/mk/tdump_stress.mk b/runtime/tests/mk/tdump_stress.mk
+new file mode 100644
+index 0000000..ae94c32
+--- /dev/null
++++ b/runtime/tests/mk/tdump_stress.mk
+@@ -0,0 +1,8 @@
++# native-test-tdump_stress：全线程现场挂起期间不调要锁的函数，不会被持锁的被挂起线程卡死（runtime/build.mk 末尾按 runtime/tests/mk/*.mk 收进来）
++NATIVE_TEST_OWN += tdump_stress
++.PHONY: native-test-tdump_stress
++native-test-tdump_stress:
++	@mkdir -p $(BUILD)/tests
++	$(CC) $(CFLAGS) $(NATIVE_INC) -DS2A_UNIT_TEST -o $(BUILD)/tests/t_tdump_stress runtime/tests/t_tdump_stress.c runtime/src/tdump.c
++	$(BUILD)/tests/t_tdump_stress
++TEST_TARGETS += native-test-tdump_stress
+diff --git a/runtime/tests/t_far.c b/runtime/tests/t_far.c
+index 1a5e46b..253e1e4 100644
+--- a/runtime/tests/t_far.c
++++ b/runtime/tests/t_far.c
+@@ -25,8 +25,9 @@ int main(void) {
+     // 影子区：布局给的堆区（窗口里的不可访问保留，这里自己占 64 MiB，没有堆）；远端：只取地址、不预先映射，s2a_far_set 自己把空洞占成不可访问
+     const uint64_t SH = 64 * MB; uint8_t *sraw = mmap(NULL, SH + 2 * MB, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
+     uint8_t *shadow = (uint8_t *)(((uint64_t)sraw + 2 * MB - 1) & ~(2 * MB - 1));   // 同真实布局：堆区起止按 2 MiB 对齐
+-    uint8_t *raw = mmap(NULL, SPAN + 2 * MB, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0); munmap(raw, SPAN + 2 * MB);
+-    uint64_t G = ((uint64_t)raw + 2 * MB - 1) & ~(2 * MB - 1);   // 远端起点按 2 MiB 对齐（同布局：别名区伸出窗口处在 GiB 边界上）
++    uint8_t *raw = mmap(NULL, SPAN + 4 * MB, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
++    uint64_t G = ((uint64_t)raw + 0x4000 + 2 * MB - 1) & ~(2 * MB - 1);   // 远端起点按 2 MiB 对齐（同布局：别名区伸出窗口处在 GiB 边界上）
++    munmap((void *)G, SPAN);   // 只把远端那段放出去（s2a_far_set 自己占）；G 下方那页仍是本单测的保留，跨窗口末尾用例拿它当窗口末页
+     s2a_far_set(G, G + SPAN, (uint64_t)shadow, (uint64_t)shadow + SH);
+     typedef struct { uint64_t lo; int64_t *dir; } far_desc_t;   // 同 far.c s2a_far_desc 布局（C# Native.FarDesc 照它声明）
+     const far_desc_t *fd = s2a_far_desc_get();
+@@ -52,6 +53,22 @@ int main(void) {
+     { memset(h0 + 0x80, 0xFF, 64); __asm__ volatile("dc zva, %0" :: "r"(G + 0x80) : "memory");
+       uint64_t z = 0; for (int i = 0; i < 64; i++) z |= h0[0x80 + i]; EQ("DC ZVA 清影子 64 字节", 0, z); }
+     __asm__ volatile("dc civac, %0" :: "r"(G + 0x100) : "memory"); EQ("DC CIVAC 跳过不崩", 0, g_refused);
++    {   // 11-14 D-52P7：跨窗口末尾的访存（前半在窗口最后一页、后半在远端首页影子）：窗口里游戏地址 = 宿主地址，与远端首页影子并排进槽代执行。
++        //   期望从两边各写了什么直接推：窗口页末 4 字节 11 22 33 44、影子首 4 字节 55 66 77 88 → 8 字节读 = 0x8877665544332211；
++        //   写 8 字节 0xA1..A8 → 窗口页末 4 字节 A1 A2 A3 A4、影子首 4 字节 A5 A6 A7 A8。反证：去掉 far.c 窗口末页那行，两项都被拒绝（走崩溃老路）
++        uint8_t *W = (uint8_t *)(G - 0x4000);   // 本单测自己保留的那页（raw 里 G 下方）
++        if (mprotect(W, 0x4000, PROT_READ | PROT_WRITE)) { bad++; printf("✗ 窗口末页改可读写失败\n"); }
++        else {
++            memcpy(W + 0x3FFC, "\x11\x22\x33\x44", 4); memcpy(h0, "\x55\x66\x77\x88", 4);
++            uint64_t v = 0, zero = 0; g_refused = 0;
++            if (!sigsetjmp(g_jb, 1)) __asm__ volatile("ldr %0, [%1, %2]" : "=r"(v) : "r"(G - 4), "r"(zero) : "memory");
++            EQ("跨窗口末尾读 8 字节（寄存器偏移 LDR）：不拒绝", 0, g_refused); EQ("跨窗口末尾读 8 字节：前半窗口页、后半远端影子", 0x8877665544332211ull, v);
++            uint64_t x = 0xA8A7A6A5A4A3A2A1ull; g_refused = 0;
++            if (!sigsetjmp(g_jb, 1)) __asm__ volatile("str %0, [%1, %2]" :: "r"(x), "r"(G - 4), "r"(zero) : "memory");
++            EQ("跨窗口末尾写 8 字节：不拒绝", 0, g_refused); EQ("跨窗口末尾写：窗口页末 4 字节", 0xA4A3A2A1u, *(uint32_t *)(W + 0x3FFC)); EQ("跨窗口末尾写：影子首 4 字节", 0xA8A7A6A5u, *(uint32_t *)h0);
++            mprotect(W, 0x4000, PROT_NONE);
++        }
++    }
+     g_refused = 0; if (!sigsetjmp(g_jb, 1)) { (void)*(volatile uint64_t *)(G + 4 * MB); }
+     EQ("碰没映射的远端地址：拒绝代执行（走崩溃老路）", 1, g_refused);
+     { EQ("给页 [G+2M−16K, +16K)：与 [G+2M, …) 相邻", 0, s2a_far_map(G + 2 * MB - 0x4000, 0x4000));   // 第一块已分，只放开影子页
+diff --git a/runtime/tests/t_svc_mem.c b/runtime/tests/t_svc_mem.c
+index 758f689..4ce883d 100644
+--- a/runtime/tests/t_svc_mem.c
++++ b/runtime/tests/t_svc_mem.c
+@@ -46,7 +46,7 @@ int s2a_thread_alive_count(void) { return 0; } void s2a_thread_set_npdm(int c, i
+ int s2a_svc_check_perm(const uint64_t perm[3], char *out, size_t cap) { (void)perm; if (cap) out[0] = 0; return 0; } int s2a_svc_ryu_missing(int n) { (void)n; return 0; }   // gate.c：NPDM 许可比对（本测不链 gate.c）
+ uint64_t guest_tick(void) { return 0; }
+ static uint64_t g_t_hz = 19200000; void s2a_guest_tick_hz_set(uint64_t hz) { g_t_hz = hz; } uint64_t s2a_guest_tick_hz(void) { return g_t_hz; }   // os.c 替身（本测不链 os.c）
+-uint64_t s2a_ns_to_tick(uint64_t ns) { return (uint64_t)((unsigned __int128)ns * g_t_hz / 1000000000u); } module_t *module_of(const void *p) { (void)p; return NULL; }
++uint64_t s2a_ns_to_tick(uint64_t ns) { return (uint64_t)((unsigned __int128)ns * g_t_hz / 1000000000u); } static module_t g_tmod; module_t *module_of(const void *p) { uint64_t x = (uint64_t)p; return g_tmod.base && x >= (uint64_t)g_tmod.base && x < (uint64_t)g_tmod.base + g_tmod.size ? &g_tmod : NULL; }
+ void s2a_window_get(uint64_t *b, uint64_t *s) { *b = *s = 0; } void s2a_window_trim(uint64_t s) { (void)s; } int s2a_guest_zero(uint64_t a, uint64_t n) { (void)a; (void)n; return 0; }
+ // #258 懒清零的桩：g_gfile=1 时把 [g_gfile_lo, g_gfile_hi) 当成文件后备窗口（没有文件后备时还页照旧换匿名占位）
+ static int g_gfile; static uint64_t g_gfile_lo, g_gfile_hi;
+@@ -320,6 +320,21 @@ int main(void) {
+             CHECK(s2a_loader_store64(xp, 0x6666) == -1 && xp[0] == 0x5555, "装载器不写可执行页（签名代码页同类）：回 -1、内容不变");
+             munmap(xp, 0x4000);
+             memset(r, 0, sizeof r); r[0] = (uint64_t)(hz + 0x8000); r[1] = 0x4000; r[2] = 3; svc_mem(0x02, r, 0);
++            // #815（0100FA501AF90000，补丁 @rugal7699）：游戏把模块映像里的一段收紧成只读后，游戏 SDK 自己的 nn::ro 还往里写（不经装载器）→ SIGBUS。
++            //   期望（手写）：这段落在一个已载入模块的映像里 → 收紧回成功、游戏查到的权限是「读」，但宿主页仍可写（子进程直接写不被杀）；
++            //   不在任何模块映像里的同样请求照旧设宿主只读（直接写被杀）；放宽回读写照旧
++            strcpy(g_tmod.name, "main"); g_tmod.base = hz + 0x8000; g_tmod.size = 0x8000;
++            memset(r, 0, sizeof r); r[0] = (uint64_t)(hz + 0x8000); r[1] = 0x4000; r[2] = 1; svc_mem(0x02, r, 0); uint64_t mrc = r[0];
++            s2a_mem_query((uint64_t)slot, &mi);
++            int md = DIES_STORE(slot);
++            CHECK(mrc == 0 && mi.perm == 1 && !md, "模块映像内收紧只读：回 %#llx、游戏看到的权限 %u（应 1）、宿主直接写被杀 %d（应 0：宿主保持可写）",
++                  (unsigned long long)mrc, mi.perm, md);
++            memset(r, 0, sizeof r); r[0] = (uint64_t)(hz + 0x8000); r[1] = 0x4000; r[2] = 3; svc_mem(0x02, r, 0);
++            g_tmod.base = NULL; g_tmod.size = 0;
++            memset(r, 0, sizeof r); r[0] = (uint64_t)(hz + 0x8000); r[1] = 0x4000; r[2] = 1; svc_mem(0x02, r, 0);
++            int od = DIES_STORE(slot);
++            CHECK(r[0] == 0 && od, "不在模块映像里的收紧照旧设宿主只读：直接写被杀 %d（应 1）", od);
++            memset(r, 0, sizeof r); r[0] = (uint64_t)(hz + 0x8000); r[1] = 0x4000; r[2] = 3; svc_mem(0x02, r, 0);
+             #undef DIES_STORE
+         }
+         #undef PHYS
+diff --git a/runtime/tests/t_tdump_stress.c b/runtime/tests/t_tdump_stress.c
+new file mode 100644
+index 0000000..e73a624
+--- /dev/null
++++ b/runtime/tests/t_tdump_stress.c
+@@ -0,0 +1,43 @@
++// 全线程现场 s2a_dump_threads（压力）不能在「别的线程已挂起」时调要锁的函数（11-14 停帧看门打到一半断）。
++// 夹具：一条线程不停建 / 收线程（pthread 线程表锁，pthread_from_mach_thread_np 要它），一条不停 dlopen / dlclose（dyld 写锁，dladdr 要它），
++//   两条 malloc / free，一条阻塞在条件变量上；连打 300 次现场。
++// 期望（按原理，不跑被测实现推）：挂起期间只做内核调用的实现每次都打完（出「现场完」），30 秒看门不触发；
++//   挂起后边取边 dladdr 的旧实现会碰上被挂起的线程正持着 dyld 锁 → 本线程卡死 → 看门退出 2（负对照手动换回旧 tdump.c 看）
++#include "../src/native.h"
++#include <dlfcn.h>
++#include <pthread.h>
++#include <signal.h>
++#include <stdatomic.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <unistd.h>
++module_t *module_of(const void *p) { (void)p; return NULL; }
++int s2a_dump_threads(const char *why);
++static atomic_int g_stop;
++static void *noop(void *a) { return a; }
++static void *spin_threads(void *a) { (void)a; while (!atomic_load(&g_stop)) { pthread_t x; if (!pthread_create(&x, NULL, noop, NULL)) pthread_join(x, NULL); } return NULL; }
++static void *spin_dlopen(void *a) { (void)a; while (!atomic_load(&g_stop)) { void *h = dlopen("/usr/lib/libz.1.dylib", RTLD_NOW | RTLD_LOCAL); if (h) dlclose(h); } return NULL; }
++static void *spin_malloc(void *a) { (void)a; while (!atomic_load(&g_stop)) { void *p = malloc(4096); if (p) memset(p, 1, 64); free(p); } return NULL; }
++static pthread_mutex_t mu = PTHREAD_MUTEX_INITIALIZER; static pthread_cond_t cv = PTHREAD_COND_INITIALIZER;
++static void *block(void *a) { (void)a; pthread_mutex_lock(&mu); while (!atomic_load(&g_stop)) pthread_cond_wait(&cv, &mu); pthread_mutex_unlock(&mu); return NULL; }
++static void *watchdog(void *a) { (void)a; sleep(30); fprintf(stderr, "✗ t_tdump_stress：30 秒没打完 300 次现场（卡死）\n"); _exit(2); return NULL; }
++int main(void) {
++    char tmpl[] = "/tmp/t_tdump_stress_XXXXXX"; int fd = mkstemp(tmpl); if (fd < 0) return 1;
++    g_s2a_logfd = fd;   // 现场行写临时文件，事后数
++    pthread_t t[5];
++    pthread_create(&t[0], NULL, spin_threads, NULL); pthread_create(&t[1], NULL, spin_dlopen, NULL);
++    pthread_create(&t[2], NULL, spin_malloc, NULL); pthread_create(&t[3], NULL, spin_malloc, NULL);
++    pthread_create(&t[4], NULL, block, NULL);
++    pthread_t w; pthread_create(&w, NULL, watchdog, NULL);
++    int rounds = 300, min_threads = 1 << 30;
++    for (int i = 0; i < rounds; i++) { int n = s2a_dump_threads("t_tdump_stress"); if (n < min_threads) min_threads = n; }
++    atomic_store(&g_stop, 1); pthread_mutex_lock(&mu); pthread_cond_broadcast(&cv); pthread_mutex_unlock(&mu);
++    for (int i = 0; i < 5; i++) pthread_join(t[i], NULL);
++    lseek(fd, 0, SEEK_SET); size_t cap = 1 << 26; char *buf = malloc(cap); ssize_t len = read(fd, buf, cap - 1); close(fd); unlink(tmpl);
++    if (len < 0) len = 0; buf[len] = 0;
++    int heads = 0, tails = 0; for (char *p = buf; (p = strstr(p, "===== 全线程现场")); p++) heads++; for (char *p = buf; (p = strstr(p, "===== 现场完")); p++) tails++;
++    int ok = heads == rounds && tails == rounds && min_threads >= 7;   // 主线程 + 5 条夹具线程 + 看门线程（建收线程那条瞬时还会多一条）
++    printf("%s t_tdump_stress：%d 次现场，开头 %d / 结尾 %d（期望各 %d），每次至少 %d 条线程（期望 ≥ 7），没有卡死\n", ok ? "✓" : "✗", rounds, heads, tails, rounds, min_threads);
++    return ok ? 0 : 1;
++}
+diff --git a/services/S2A.Services.Tests/AudioPerfEntryPoolTest.cs b/services/S2A.Services.Tests/AudioPerfEntryPoolTest.cs
+new file mode 100644
+index 0000000..ec60e32
+--- /dev/null
++++ b/services/S2A.Services.Tests/AudioPerfEntryPoolTest.cs
+@@ -0,0 +1,69 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright 2026 S2Arm contributors
++using Ryujinx.Audio.Renderer.Dsp.Command;
++using Ryujinx.Audio.Renderer.Server.Performance;
++using Ryujinx.Common;
++using System;
++using System.Collections.Concurrent;
++using System.Collections.Generic;
++using System.Linq;
++using System.Reflection;
++
++namespace S2A.Services.Tests
++{
++    // 音频性能统计条目池（#668：Mac 玩几分钟到十几分钟后音频线程托管 OOM，栈在 PerformanceCommand.Initialize → ConcurrentBag.LocalPush）。
++    //   CommandGenerator 每对 Start / End 命令只取一个 PerformanceEntryAddresses、两条命令共用；命令被复用时归还旧条目。
++    //   期望手算：每轮取 1 个、还 1 个，池里的条目数恒 ≤ 1、没有同一对象的多份。跑 1000 轮：
++    //   修前两条命令各还一次 → 每轮净涨 1，池里约 1000 个、全是重复引用；修后 ≤ 1、无重复
++    static class AudioPerfEntryPoolTest
++    {
++        const int Rounds = 1000;
++
++        static ConcurrentBag<PerformanceEntryAddresses> Items() =>
++            (ConcurrentBag<PerformanceEntryAddresses>)typeof(ObjectPool<PerformanceEntryAddresses>)
++                .GetField("_items", BindingFlags.NonPublic | BindingFlags.Instance)!
++                .GetValue(PerformanceEntryAddresses.PerformanceEntryAddressesPool)!;
++
++        [SoloTest("--audio-perf-entry-pool")]
++        private static int Run()
++        {
++            var pool = PerformanceEntryAddresses.PerformanceEntryAddressesPool;
++            pool.Clear();
++            var start = new PerformanceCommand();
++            var end = new PerformanceCommand();
++            for (int i = 0; i < Rounds; i++)
++            {
++                PerformanceEntryAddresses entry = pool.Allocate();   // 同 PerformanceManagerGeneric.GetNextEntry
++                start.Initialize(ref entry, PerformanceCommand.Type.Start, 0);   // 同 CommandBuffer.GeneratePerformance，命令从池里复用
++                end.Initialize(ref entry, PerformanceCommand.Type.End, 0);
++            }
++
++            var items = Items().ToArray();
++            int distinct = new HashSet<PerformanceEntryAddresses>(items, ReferenceEqualityComparer.Instance).Count;
++            int bad = 0;
++            bool small = items.Length <= 1;
++            if (!small) bad++;
++            Console.WriteLine($"{(small ? "✓" : "✗")} {Rounds} 轮 Start / End 共用条目后池里 {items.Length} 个（期望 ≤ 1，修前约 {Rounds}）");
++            bool unique = distinct == items.Length;
++            if (!unique) bad++;
++            Console.WriteLine($"{(unique ? "✓" : "✗")} 池里没有同一对象的多份：{items.Length} 个里不同对象 {distinct} 个");
++
++            // 负对照：End 被复用时确实归还了（不是两条都不还、靠漏掉对象让池子不涨）
++            pool.Clear();
++            start = new PerformanceCommand(); end = new PerformanceCommand();   // 新命令：上面循环里的 End 还拿着最后一轮的条目，复用时会先还那一个
++            PerformanceEntryAddresses held = pool.Allocate();
++            start.Initialize(ref held, PerformanceCommand.Type.Start, 0);
++            end.Initialize(ref held, PerformanceCommand.Type.End, 0);
++            PerformanceEntryAddresses none = null;
++            start.Initialize(ref none, PerformanceCommand.Type.Start, 0);
++            end.Initialize(ref none, PerformanceCommand.Type.End, 0);
++            var back = Items().ToArray();
++            bool returned = back.Length == 1 && ReferenceEquals(back[0], held);
++            if (!returned) bad++;
++            Console.WriteLine($"{(returned ? "✓" : "✗")} End 复用时把共用条目还回池里恰好一次（池里 {back.Length} 个）");
++
++            pool.Clear();
++            return bad == 0 ? 0 : 1;
++        }
++    }
++}
+diff --git a/services/S2A.Services.Tests/CameraNoDeviceTest.cs b/services/S2A.Services.Tests/CameraNoDeviceTest.cs
+new file mode 100644
+index 0000000..f8b42dc
+--- /dev/null
++++ b/services/S2A.Services.Tests/CameraNoDeviceTest.cs
+@@ -0,0 +1,68 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright 2026 S2Arm contributors
++using Ryujinx.HLE;
++using Ryujinx.HLE.HOS;
++using Ryujinx.HLE.HOS.Kernel.Process;
++using System;
++using System.Reflection;
++using System.Runtime.CompilerServices;
++
++namespace S2A.Services.Tests
++{
++    // 诊断 #0148a6：Switch 2 摄像头会话（nn::camera::sdk::CreateCameraContext 给游戏的句柄）按「接口有、没插摄像头的主机」答。
++    // 期望值照 nxnative dm/host/hle_sf.c camera_answer（MIT）手写，不跑被测实现推：命令 3 / 4 成功；21 成功并复制 1 个事件句柄；
++    //   29（QueryDeviceConnection）与其它命令回 0x7c4（没检测到摄像头设备）；都不报红
++    static unsafe class CameraNoDeviceTest
++    {
++        static int _events;
++        static ulong EvCreate(uint* r, uint* w) { _events++; if (r != null) *r = 0x8100u + (uint)_events; return 0xE000u + (ulong)_events; }
++        static uint EvDup(ulong ev) => 0x9000;
++
++        static void Set(object o, string field, object v) =>
++            o.GetType().GetField($"<{field}>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(o, v);
++
++        [SoloTest("--camera-no-device")]
++        public static int Run()
++        {
++            var d = (Dispatcher)RuntimeHelpers.GetUninitializedObject(typeof(Dispatcher));
++            var device = (Switch)RuntimeHelpers.GetUninitializedObject(typeof(Switch));
++            Set(device, "Configuration", RuntimeHelpers.GetUninitializedObject(typeof(HleConfiguration)));
++            Set(d, "Device", device);
++            var server = new KProcess(null);
++            server.HandleTable.Initialize(32);
++            Set(d, "ServerProcess", server);
++            var target = new CameraNoDevice();
++            var create = Native.EventCreate; var dup = Native.EventDupRead;
++            int cases = 0, failures = 0;
++            long red0 = Red.Total;
++            try
++            {
++                Native.EventCreate = &EvCreate; Native.EventDupRead = &EvDup;
++                void Case(uint cmd, uint expected, int copies)
++                {
++                    cases++;
++                    byte* buffer = stackalloc byte[0x100];
++                    Msg.Cmif(cmd).Write(buffer);
++                    uint kr = target.Process(d, buffer, 0x100);
++                    Reply r = Reply.Parse(buffer);
++                    bool ok = kr == 0 && r.Result == expected && r.Copy.Count == copies && r.Move.Count == 0;
++                    if (!ok) failures++;
++                    Console.WriteLine($"{(ok ? "✓" : "✗")} 摄像头会话 命令 {cmd}：期望 结果 0x{expected:x}、复制句柄 {copies} → 内核 0x{kr:x}、结果 0x{r.Result:x}、复制 {r.Copy.Count}、移交 {r.Move.Count}");
++                }
++                Case(3, 0, 0);       // 打开设备
++                Case(21, 0, 1);      // 摄像头事件：永不触发的事件读端
++                Case(29, 0x7c4, 0);  // QueryDeviceConnection：没插
++                Case(7, 0x7c4, 0);   // 其它命令
++                Case(21, 0, 1);      // 再取一次事件：同一个事件再发读端
++                Case(4, 0, 0);       // 关闭
++            }
++            finally { Native.EventCreate = create; Native.EventDupRead = dup; }
++            cases++;
++            bool once = _events == 1, quiet = Red.Total == red0;
++            if (!(once && quiet)) failures++;
++            Console.WriteLine($"{(once && quiet ? "✓" : "✗")} 摄像头会话：原生事件只建 1 个（实 {_events}）、报红 +0（实 +{Red.Total - red0}）");
++            Console.WriteLine($"{(failures == 0 ? "✓" : "✗")} camera-no-device：{cases - failures}/{cases} 项符合");
++            return failures == 0 ? 0 : 1;
++        }
++    }
++}
+diff --git a/services/S2A.Services.Tests/SharedFontDecryptTest.cs b/services/S2A.Services.Tests/SharedFontDecryptTest.cs
+new file mode 100644
+index 0000000..2519fcc
+--- /dev/null
++++ b/services/S2A.Services.Tests/SharedFontDecryptTest.cs
+@@ -0,0 +1,76 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright 2026 S2Arm contributors
++using System;
++using System.Buffers.Binary;
++using System.IO;
++using System.Reflection;
++using System.Runtime.CompilerServices;
++
++namespace S2A.Services.Tests
++{
++    // 共享字体解密（Ryujinx.HLE SharedFontManager.DecryptFont）对文件流只取一次长度（11-17 D-FCMF：Switch 2 游戏取内置字体 2010 等了 190 秒、黑屏，
++    //   玩家现场栈停在 fstat——上游循环条件每 4 字节取一次 Stream.Length，文件流上每次一次 fstat，17.5 MB 字体约 440 万次）。
++    //   期望值不跑被测实现：造一份 BFTTF（头 = 魔数 ^ 键、长度字、正文按公开格式每 4 字节异或 0x06186249），正文明文按下标手造；
++    //   计数流数 Length 被读几次。期望：解出的正文与明文逐字节同；Length 读 1 次（上游写法是 正文字数 + 1 次）
++    public static partial class Program
++    {
++        private sealed class LengthCountingStream(byte[] data) : MemoryStream(data, writable: false)
++        {
++            public int LengthReads;
++
++            public override long Length
++            {
++                get
++                {
++                    LengthReads++;
++                    return base.Length;
++                }
++            }
++        }
++
++        [SoloTest("--shared-font-decrypt")]
++        private static int SharedFontDecrypt()
++        {
++            const uint Key = 0x06186249, Magic = 0x18029a7f;
++            const int Words = 250_000;   // 1 MB 正文：上游写法要读 25 万次 Length
++            byte[] plain = new byte[Words * 4];
++            for (int i = 0; i < plain.Length; i++)
++            {
++                plain[i] = (byte)(i * 31 + 7);
++            }
++
++            byte[] file = new byte[8 + plain.Length];
++            BinaryPrimitives.WriteUInt32LittleEndian(file, Magic ^ Key);
++            BinaryPrimitives.WriteUInt32LittleEndian(file.AsSpan(4), BinaryPrimitives.ReverseEndianness((uint)plain.Length) ^ Key);
++            for (int w = 0; w < Words; w++)
++            {
++                BinaryPrimitives.WriteUInt32LittleEndian(file.AsSpan(8 + w * 4), BinaryPrimitives.ReadUInt32LittleEndian(plain.AsSpan(w * 4)) ^ Key);
++            }
++
++            Type mgr = typeof(Ryujinx.HLE.Switch).Assembly.GetType("Ryujinx.HLE.HOS.Services.Sdb.Pl.SharedFontManager", throwOnError: true)!;
++            MethodInfo decrypt = mgr.GetMethod("DecryptFont", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance)!;
++            // 实例方法（上游写法）不读成员：造一个未初始化实例来调，负对照才能量到长度读取次数
++            object? self = decrypt.IsStatic ? null : RuntimeHelpers.GetUninitializedObject(mgr);
++
++            using LengthCountingStream stream = new(file);
++            byte[] got = (byte[])decrypt.Invoke(self, [stream])!;
++
++            int bad = 0;
++            if (got.Length != plain.Length)
++            {
++                bad++;
++            }
++            else
++            {
++                for (int i = 0; i < plain.Length; i++)
++                {
++                    bad += got[i] != plain[i] ? 1 : 0;
++                }
++            }
++
++            bool ok = bad == 0 && stream.LengthReads == 1;
++            Console.WriteLine($"{(ok ? "✓" : "✗")} 共享字体解密：正文 {plain.Length} 字节逐字节同（期望 0 处不同 → 真结果 {bad} 处）；文件长度读 {stream.LengthReads} 次（期望 1 次，上游写法 {Words + 1} 次）");
++            return ok ? 0 : 1;
++        }
++    }
++}
+diff --git a/services/S2A.Services/CameraNoDevice.cs b/services/S2A.Services/CameraNoDevice.cs
+new file mode 100644
+index 0000000..244cfe3
+--- /dev/null
++++ b/services/S2A.Services/CameraNoDevice.cs
+@@ -0,0 +1,93 @@
++using Microsoft.IO;
++using Ryujinx.Common.Memory;
++using Ryujinx.HLE.HOS.Ipc;
++using Ryujinx.HLE.HOS.Kernel.Threading;
++using System;
++using System.Buffers;
++using System.Runtime.InteropServices;
++
++namespace S2A.Services
++{
++    // Switch 2 摄像头会话（GameChat 视频用的 USB 摄像头）：nn::camera::sdk::CreateCameraContext 本来向图形系统的用户会话（gsv）要一个到摄像头服务的会话、
++    //   当 UniqueNativeHandle（32 位句柄）交给游戏，游戏再用 SDK 的 HIPC 客户端经这个会话跟摄像头说话。宿主没有 gsv 会话，原先输出参数写 0：
++    //   游戏对句柄 0 发 SendSyncRequest，会话不在会话表 → sdk 中止（诊断 #0148a6：一款 Switch 2 游戏 0400C3F00006E000 在 iPad 上 5 局都在这里 Break）。
++    // 这里给一个真会话，按「接口有、没插摄像头的主机」答（做法与依据照 nxnative dm/host/hle_sf.c camera_answer，MIT）：
++    //   命令 3（打开设备，名字 "Default"）、4（关闭）成功；21（摄像头事件）复制一个永不触发的事件的读端；其余（含 29 QueryDeviceConnection）回 0x7c4 =「没检测到摄像头设备」。
++    sealed class CameraNoDevice : SessionTarget
++    {
++        private const uint NoDevice = 0x7c4;
++        private KEvent _event;
++        private static int s_said;
++
++        public override string Name => "camera(gsv)";
++
++        public override unsafe uint Process(Dispatcher d, byte* msg, int size)
++        {
++            IpcMessage request = new(new ReadOnlySpan<byte>(msg, Math.Min(size, 0x100)), (long)msg);
++            IpcMessage response = new();
++            Dispatcher.Streams s = Dispatcher.ThreadStreams;
++
++            if (request.Type is IpcMessageType.CmifCloseSession or IpcMessageType.TipcCloseSession) return 0;
++
++            if (request.Type is IpcMessageType.CmifControl or IpcMessageType.CmifControlWithContext)
++            {
++                s.Resp.SetLength(0);
++                Control(d, BitConverter.ToUInt32(request.RawData, 8), response, s);
++                response.RawData = s.Resp.ToArray();
++                Write(msg, response);
++                return 0;
++            }
++
++            if (request.Type is not (IpcMessageType.CmifRequest or IpcMessageType.CmifRequestWithContext))
++            {
++                Red.Report($"摄像头会话：消息类型未支持 {request.Type}");
++                return 0xF601;
++            }
++
++            uint cmd = BitConverter.ToUInt32(request.RawData, 8);
++            uint result = cmd switch { 3 or 4 or 21 => 0, _ => NoDevice };
++            int eventHandle = 0;
++
++            if (cmd == 21)
++            {
++                _event ??= new KEvent(d.Kernel);
++                var rc = d.ServerProcess.HandleTable.GenerateHandle(_event.ReadableEvent, out eventHandle);
++                if (rc != Ryujinx.Horizon.Common.Result.Success) { Red.Report($"摄像头会话：事件句柄分配失败 {rc.ErrorCode}"); result = NoDevice; eventHandle = 0; }
++            }
++
++            if (System.Threading.Interlocked.Exchange(ref s_said, 1) == 0)
++                Console.Error.WriteLine($"[s2a] 摄像头会话：宿主没有摄像头，按「没插摄像头」答（首个命令 {cmd} → 0x{result:x}；3 / 4 成功、21 给永不触发的事件、其余 0x7c4）");
++
++            s.Resp.SetLength(0);
++            s.Writer.Write(IpcMagic.Sfco);
++            s.Writer.Write((long)result);
++            response.Type = IpcMessageType.CmifResponse;
++            response.RawData = s.Resp.ToArray();
++
++            if (eventHandle != 0)
++            {
++                response.HandleDesc = IpcHandleDesc.MakeCopy(eventHandle);
++                uint kr = d.TranslateResponseHandles(response.HandleDesc);
++                if (kr != 0) return kr;
++            }
++
++            Write(msg, response);
++            return 0;
++        }
++
++        private static unsafe void Write(byte* msg, IpcMessage response)
++        {
++            RecyclableMemoryStream rs = response.GetStream((long)msg, 0);
++            try { rs.GetReadOnlySequence().CopyTo(new Span<byte>(msg, (int)rs.Length)); }
++            finally { MemoryStreamManager.Shared.ReleaseStream(rs); }
++        }
++
++        // 原生层 nn::camera::sdk::CreateCameraContext（graphics/nvn/gfx/nvn/nvn2.c）调：建一个摄像头会话，回游戏句柄（0 = 服务层没起）
++        [UnmanagedCallersOnly(EntryPoint = "S2A_CameraSessionOpen")]
++        private static uint Open()
++        {
++            Dispatcher d = Dispatcher.Instance;
++            return d == null ? 0 : d.NewSessionHandle(new CameraNoDevice());
++        }
++    }
++}
