@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "64e49a84e35c45526653c3a886fb1ebadc489fc1",
-  "run": 45068342283,
-  "job": 137349443604,
+  "source": "8d810e8fc8ee3cfd19fde2eb279a018ed44edb0b",
+  "run": 45105667251,
+  "job": 137466241673,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14772662956,
-  "name": "MeloNX-engine-64e49a84e35c45526653c3a886fb1ebadc489fc1",
-  "bytes": 101330574,
-  "sha256": "d4776f2e3815f9a3010fb3104d74c1c11ff4592cd0adf5ed807c00fb29ae2a42",
-  "expiresAt": "2027-02-20T20:46:36Z",
+  "artifact": 14787343979,
+  "name": "MeloNX-engine-8d810e8fc8ee3cfd19fde2eb279a018ed44edb0b",
+  "bytes": 101382011,
+  "sha256": "ff46cfeac7fc322f05f3db8d62afb25681d1a6a95ebb2f80f8b74c483f92662d",
+  "expiresAt": "2027-02-21T03:23:11Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "a0b87e815f425e57cb29e2e1483e138b09f2b0a36fbdb2e3243a180549a7c024",
-      "bytes": 39212184
+      "sha256": "1691ba55d5c10e5f42d701ee2894bb5ad24ef0835290d61c3b6a35951dfc6bae",
+      "bytes": 39245032
     },
     "iossimulator-arm64": {
-      "sha256": "8df92217cee8faba2aa1f480362e11fd3ff42cf8900f15065c22c66319cd0751",
-      "bytes": 39535160
+      "sha256": "66904f2b8c1e38a42605b3dfc7a5af421fd9bd39ccdadb766a2d453e010c811f",
+      "bytes": 39568264
     }
   },
   "identities": {
-    "ios-arm64": "08b304e494459a53ebcb15db143b0f52c0fc30000295238bdcb4b1336810c2b7",
-    "iossimulator-arm64": "93a577a6db81b25e79f87f4402172074e34fb7d2034345834241fd818c838b70"
+    "ios-arm64": "0f1e2c997274e53f8dfbef5f210ed7d4dde83b25c8b907ded6c318ad8d80ca96",
+    "iossimulator-arm64": "5d7b5fea4d2492d8c695605b8913ff961df172dbfc80686c5d810f4217ca45ea"
   },
-  "contractSha256": "76b82fb868b8e7a604df3a99181b83e67ecb2b27941cd4e6f23a3f7c27e8ae08",
-  "resultSha256": "30d2064fdc09ba3b4db41800289d61b0c6de41f91b02ea064a5c576296ec60e0",
-  "packagedFingerprint": "97cccf78306236ec1285e3bf74534e13857a50399c9aacc6639beb3bd40af2dc",
+  "contractSha256": "3ccf1b20d47dcd340e36ea3338a942ac3edc1c6cba912397dbc6a73e209a164b",
+  "resultSha256": "8b71d471cc0b11169f46d512c03ebaf766b4092f75155eb2a55057f993a1f4e8",
+  "packagedFingerprint": "2dd1b5be1c196b47210d0529c0f44d77742a653aafee230bc51eb6c2ada8ad2a",
   "replaces": {
-    "source": "c82639d5c1be77db056e28d586e9bf805f6a0f5d",
-    "run": 45041051613,
-    "artifact": 14762201190,
-    "packagedFingerprint": "0af0298e85d0ce9a759bbe75119ac9cb6afbb05d0df893bc79ff70ac58d5c79d",
-    "reason": "After IPA 821 (journals of IPA 816-821): the guest executed nothing until the shader cache load ended (9.2-10.7 s for Super Smash Bros. Ultimate, 2.5 s for Hogwarts Legacy, followed by 4.2-6.2 s of guest boot), and the render thread created pipelines itself (24 s of 174 s of Hogwarts Legacy play for draws, 16 s for compute dispatches) while the replay of known variants built 2 of 2,028 behind the cache's warm-ups. adapt_guest_start_during_shader_load releases the guest once the loader holds its snapshot and holds infinite fence waits until the load ends; adapt_shader_code_table_load registers the loaded programs in the guest code tables together; adapt_render_thread_compile_relief queues a skippable draw's pipeline and waits at most 4 ms for it, runs replays before warm-ups and lets a compute dispatch join a running warm-up. Contract updated without a full freeze (124 gates executed on the final source, 85 passed, the 39 others failed before this lot), contract test and simulator sessions verified; not run on an iPhone."
+    "source": "64e49a84e35c45526653c3a886fb1ebadc489fc1",
+    "run": 45068342283,
+    "artifact": 14772662956,
+    "packagedFingerprint": "97cccf78306236ec1285e3bf74534e13857a50399c9aacc6639beb3bd40af2dc",
+    "reason": "Second lot after IPA 821 (journals of IPA 816-821): ephemeral collections paused 318-1,736 ms while promoting under 16 MiB because the background collector's thread yields to a foreground collection only while g_fSuspensionPending is above zero and NativeAOT 10.0.0 never raises it (adapt_bgc_suspension_pending holds it at 1 during a background collection, from the Core's own sched_yield; no runtime code replaced); 72 % of the shader cache load was serial Brotli decompression on the GPU thread (adapt_shader_cache_parallel_read reads ahead on one to three threads, consumed in order); a session evicted 378 pipeline states from a journal of 2,048 (adapt_variant_journal_capacity: 4,096); adapt_jit_arena_usage_journal journals the arena's preparation time and peak use without changing its size. Contract updated without a full freeze (128 gates executed on the final source, 90 passed, the 38 others failed before this lot), contract test and simulator sessions verified; the iOS link resolved the collector's symbol; not run on an iPhone."
   }
 }
