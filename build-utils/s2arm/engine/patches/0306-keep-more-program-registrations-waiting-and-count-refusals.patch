@@ -1,0 +1,53 @@
+diff --git a/graphics/nvn/gfx/nvn/rb_registration.inc b/graphics/nvn/gfx/nvn/rb_registration.inc
+index 1187141..4a65a87 100644
+--- a/graphics/nvn/gfx/nvn/rb_registration.inc
++++ b/graphics/nvn/gfx/nvn/rb_registration.inc
+@@ -10,6 +10,13 @@ static size_t g_rb_registration_bytes;
+ static _Atomic unsigned g_rb_registration_count;
+ static _Atomic uint64_t g_rb_registration_queued, g_rb_registration_loaded, g_rb_registration_msl;
+ static _Atomic int g_rb_register_option;
++// RewindBox (patch 0306): a course load registers programs faster than the
++// lane builds them. Past 32 waiting, a registration was dropped without a
++// count and the first draw built the stage on the submit thread (an iPhone
++// session: 573 source compiles there, 8.7 s). Keep this many waiting; the
++// 8 MiB of snapshots stay the memory bound, and a refusal is counted.
++enum { RB_REGISTRATION_DEPTH = 128 };
++static _Atomic uint64_t g_rb_registration_dropped;
+ 
+ static BOOL rb_read_stage_header(const NVNshaderData *sd, uint8_t ctl[NVN2_CTL_COPY],
+                             uint32_t *nctl, uint32_t *ncode) {
+@@ -35,11 +42,19 @@ static void rb_register_shader(const NVNshaderData *sd, int depth) {
+     const size_t bytes = (size_t)nctl + ncode, limit = 8u << 20;
+     // Reserve before copying, including concurrent registering game threads.
+     os_unfair_lock_lock(&g_shpre_mu);
+-    BOOL admitted = !atomic_load(&g_shpre_stopping) && g_rb_registration_count < 32 &&
++    BOOL stopping = atomic_load(&g_shpre_stopping);
++    BOOL admitted = !stopping && g_rb_registration_count < RB_REGISTRATION_DEPTH &&
+                     bytes <= limit - g_rb_registration_bytes;
+     if (admitted) { g_rb_registration_bytes += bytes; ++g_rb_registration_count; }
++    unsigned waiting = g_rb_registration_count;
+     os_unfair_lock_unlock(&g_shpre_mu);
+-    if (!admitted) return;
++    if (!admitted) {
++        if (stopping) return;
++        uint64_t dropped = atomic_fetch_add(&g_rb_registration_dropped,1) + 1;
++        if (!(dropped & (dropped-1))) MLOG("[rb-bind-ahead] dropped=%llu waiting=%u stage_bytes=%zu",
++            (unsigned long long)dropped,waiting,bytes);
++        return;
++    }
+ 
+     NSData *snapshot = rb_stage_snapshot(sd, control, nctl, ncode);
+     const uint8_t *payload = snapshot.bytes;
+@@ -100,9 +115,10 @@ static void rb_register_shader(const NVNshaderData *sd, int depth) {
+         if (idle) RB_OBSERVED_IDLE();
+     }});
+     os_unfair_lock_unlock(&g_shpre_mu);
+-    if (!(queued & (queued-1))) MLOG("[rb-bind-ahead] registered=%llu variants_built=%llu msl_compiles=%llu",
++    if (!(queued & (queued-1))) MLOG("[rb-bind-ahead] registered=%llu variants_built=%llu msl_compiles=%llu dropped=%llu",
+         (unsigned long long)queued,(unsigned long long)atomic_load(&g_rb_registration_loaded),
+-        (unsigned long long)atomic_load(&g_rb_registration_msl));
++        (unsigned long long)atomic_load(&g_rb_registration_msl),
++        (unsigned long long)atomic_load(&g_rb_registration_dropped));
+ }
+ 
+ void nvn_be_registered_stages(const prog_t *program) {

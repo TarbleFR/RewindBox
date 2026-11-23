@@ -209,3 +209,13 @@ Pont. `S2A_RB_POOL_INDEX_UPDATE` valait `1` pour Mario Kart World et `0` pour to
 
 Vérification. `t_rb_pool_index.c` rejoue chaque modification contre un tri de référence : 2 000 rattachements mêlés à des modifications isolées sans aucun tri, un démontage (31 modifications appliquées puis un tri), et le cas de deux pools de même adresse. Il passe sur l'hôte avec gcc et clang. À observer sur iPhone : la part des « full sorts » dans la ligne du journal.
 
+## Enregistrements de programmes abandonnés pendant un chargement
+
+Quand le jeu enregistre un programme (`ProgramSetShaders`), une voie série construit ses étages en avance (`rb_register_shader`). Au-delà de 32 enregistrements en attente, les suivants étaient abandonnés sans compteur ; le premier dessin construisait alors l'étage sur le thread de soumission.
+
+Session Mario Kart World après la 821 : 512 enregistrements admis à l'image 871 et 1 024 à l'image 3 076 ; de 256 à 512, les admissions (16 par seconde) égalent le débit de la voie, signe d'une file pleine pendant le chargement. Dans la même session, 573 compilations MSL ont eu lieu sur le thread de soumission (8,7 s) et les images les plus longues en viennent (1 960 ms pour trois bibliothèques à l'image 1147). Le journal ne dit pas combien d'enregistrements ont été abandonnés.
+
+Patch 0306. La file garde 128 enregistrements en attente ; les 8 Mio de copies d'étages restent la borne mémoire. Un refus est compté : `[rb-bind-ahead] … dropped=` et une ligne `dropped= waiting= stage_bytes=` aux puissances de deux.
+
+Limite. Un programme enregistré puis jamais dessiné coûte une compilation de fond de plus. Le gain sur les compilations au dessin n'est pas chiffrable avant une session : comparer `dropped`, `submit_msl_blocked_count` et `[rb-pso-ready] demand`.
+
