@@ -1,0 +1,237 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 8d135c5..9feeed8 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4543,7 +4543,23 @@ typedef struct { uint64_t pool; int64_t off; nvn_texdesc d; } alias_key;
+ // texture lacks is added in place (tex_mtl → tex_upgrade)
+ enum { ALIAS_USE_FLAGS = NVN_TEXTURE_FLAGS_IMAGE | NVN_TEXTURE_FLAGS_COMPRESSIBLE | NVN_TEXTURE_FLAGS_ADAPTIVE_ZCULL | NVN_TEXTURE_FLAGS_DEPTH16_PREFER_FAST_CLEAR | NVN_TEXTURE_FLAGS_ZCULL_SUPPORT_STENCIL };
+ static int mtl_fmt_depth(MTLPixelFormat f);
+-static void alias_key_of(alias_key *k, const tex_t *t) { memset(k, 0, sizeof *k); k->pool = (uint64_t)(uintptr_t)t->pool; k->off = t->off; k->d = t->d; k->d.flags &= ~(uint32_t)ALIAS_USE_FLAGS; }
++// RewindBox (patch 0312): keys that differ only where the storage does not (after upstream S2Arm 5863a69cf and cb6853c50, its #427 and #674). Sample count 0 and 1 are
++//   both single-sampled; a block-linear texture's packaged layout, MINIMAL_LAYOUT and the automatic choice all resolve to the block height and depth its layout uses (t->L,
++//   computed with the description at TextureInitialize): two objects over one storage that resolve to the same layout read the same bytes. Keyed apart they were two Metal
++//   textures, and using one evicted the other as overwritten storage (alias_take_over): a live object rebuilt then reads what the GPU drew there as zero until the game draws
++//   it again (IPA 824, Mario Kart World, 9,000 frames: 2,659 such takeovers, 2,655 of them of live objects). S2A_RB_ALIAS_LAYOUT_KEY=0: the key as before
++static int rb_alias_layout_key(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_ALIAS_LAYOUT_KEY"); v = !(e && !strcmp(e, "0")); } return v; }
++static void alias_key_of(alias_key *k, const tex_t *t) {
++    memset(k, 0, sizeof *k); k->pool = (uint64_t)(uintptr_t)t->pool; k->off = t->off; k->d = t->d; k->d.flags &= ~(uint32_t)ALIAS_USE_FLAGS;
++    if (!rb_alias_layout_key()) return;
++    if (k->d.samples == 0) k->d.samples = 1;
++    if (k->d.target != NVN_TEXTURE_TARGET_BUFFER && !(k->d.flags & (NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET))) {
++        nvn_texlayout L; if (t->L.size) L = t->L; else nvn_tex_layout(&t->d, &L);
++        unsigned wa = k->d.pkg_layout ? ((unsigned)(k->d.pkg_layout - 1) >> 8) & 0xf : 0;   // the packaged width alignment stays in the key
++        k->d.pkg_layout = (int)((L.tileH & 0xf) | ((L.tileD & 0xf) << 4) | (wa << 8)) + 1;
++        k->d.flags &= ~(uint32_t)NVN_TEXTURE_FLAGS_MINIMAL_LAYOUT;
++    }
++}
+ static nvn_hmap g_alias = {.klen = sizeof(alias_key)};
+ static nvn_hmap g_alias_seen = {.klen = sizeof(alias_key)};   // key → g_fence + 1 at its last lookup or creation (alias_take_over spares entries looked up lately)
+ static nvn_hmap g_alias_wrote = {.klen = sizeof(alias_key)};   // key → g_fence + 1 at its last GPU write (gpw_mark), under g_smu
+@@ -4809,6 +4825,21 @@ static id<MTLTexture> txr_take(const alias_key *k, MTLTextureDescriptor *d, uint
+     pthread_mutex_unlock(&g_smu);
+     return t;
+ }
++// RewindBox (patch 0312): a new shared texture that starts where another key's does, the two descriptions differing (after upstream S2Arm 5863a69cf's near-miss line): which
++//   fields keep them two textures. The first 32, then at powers of two; differ= names the fields (layout: packaged layout or MINIMAL_LAYOUT only)
++static _Atomic uint64_t g_rb_alias_near;
++static void rb_alias_near_miss(const alias_key *a_, const alias_key *b_) {
++    uint64_t n = atomic_fetch_add_explicit(&g_rb_alias_near, 1, memory_order_relaxed) + 1;
++    if (n > 32 && (n & (n - 1))) return;
++    const nvn_texdesc *a = &a_->d, *b = &b_->d;
++    int layout = a->pkg_layout != b->pkg_layout || ((a->flags ^ b->flags) & NVN_TEXTURE_FLAGS_MINIMAL_LAYOUT);
++    MLOG("[alias] near-miss %llu: pool=%#llx off=%#llx a=[t%d f%#x %ux%ux%u lv%u s%d stride%u pkg%d flags%#x] b=[t%d f%#x %ux%ux%u lv%u s%d stride%u pkg%d flags%#x] differ=%s%s%s%s%s%s%s%s",
++         (unsigned long long)n, (unsigned long long)a_->pool, (unsigned long long)a_->off, a->target, a->format, a->width, a->height, a->depth, a->levels, a->samples, a->stride, a->pkg_layout, a->flags,
++         b->target, b->format, b->width, b->height, b->depth, b->levels, b->samples, b->stride, b->pkg_layout, b->flags,
++         a->target != b->target ? "target " : "", a->format != b->format ? "format " : "", a->width != b->width || a->height != b->height || a->depth != b->depth ? "size " : "",
++         a->levels != b->levels ? "levels " : "", a->samples != b->samples ? "samples " : "", a->stride != b->stride ? "stride " : "", layout ? "layout " : "",
++         (a->flags & ~(uint32_t)NVN_TEXTURE_FLAGS_MINIMAL_LAYOUT) != (b->flags & ~(uint32_t)NVN_TEXTURE_FLAGS_MINIMAL_LAYOUT) ? "flags" : "");
++}
+ static void alias_take_over(const alias_key *nk) {
+     nvn_texlayout L; nvn_tex_layout(&nk->d, &L);
+     uint32_t ndead = 0;   // RewindBox (patch 0067): live objects' textures dropped by this call
+@@ -4818,6 +4849,7 @@ static void alias_take_over(const alias_key *nk) {
+     for (uint32_t i = 0; i < g_alias.cap && n < 16; i++) {
+         if (!g_alias.vals[i]) continue;
+         alias_key k; memcpy(&k, g_alias.keys + (size_t)i * g_alias.klen, sizeof k);
++        if (k.pool == nk->pool && k.off == nk->off && memcmp(&k, nk, sizeof k)) rb_alias_near_miss(&k, nk);   // RewindBox (patch 0312)
+         if (k.pool != nk->pool || !memcmp(&k, nk, sizeof k) || k.off >= hi) continue;
+         nvn_texlayout kl; nvn_tex_layout(&k.d, &kl);
+         uint64_t seen = (uint64_t)(uintptr_t)nvn_hm_get(&g_alias_seen, &k);
+@@ -4864,6 +4896,18 @@ static int alias_orph_cand(uint32_t i, CFSetRef held, alias_key *k) {   // calle
+     uint64_t seen = (uint64_t)(uintptr_t)nvn_hm_get(&g_alias_seen, k);
+     return !alias_recent(seen) && !(k->d.flags & (NVN_TEXTURE_FLAGS_DISPLAY | NVN_TEXTURE_FLAGS_VIDEO_DECODE));
+ }
++// RewindBox (patch 0312): a texture-ID registration keeps the shared texture its views read (after upstream S2Arm 50f032a62, its #674). The orphan pass counted only live
++//   objects and finalized serials: a texture a registered ID still names through its view (or a view made from it: another type, alpha from red, an image class) was let go
++//   as unreferenced, and that ID's next read made it anew over storage whose GPU-drawn content no longer existed anywhere (it reads as zero). The caller holds g_rmu (taken
++//   before g_smu, as everywhere) and g_smu. S2A_RB_ORPHAN_ID_HELD=0: as before
++static pthread_mutex_t g_rmu;
++static CFMutableSetRef rb_alias_held_ids(void);
++static _Atomic uint64_t g_rb_orph_id_held;   // orphan candidates kept because a registered texture ID still reads them
++static int rb_orph_id_held_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_ORPHAN_ID_HELD"); v = !(e && !strcmp(e, "0")); } return v; }
++static int rb_orph_id_kept(CFSetRef ids, uint32_t i) {   // caller holds g_smu: entry i is read by a registered ID (counted)
++    if (!ids || !CFSetContainsValue(ids, g_alias.vals[i])) return 0;
++    atomic_fetch_add_explicit(&g_rb_orph_id_held, 1, memory_order_relaxed); return 1;
++}
+ static CFMutableSetRef alias_held(void) {   // caller holds g_smu: what live objects and finalized serials still resolve to
+     CFMutableSetRef held = CFSetCreateMutable(NULL, 0, NULL);
+     nvn_hmap *hm[] = {&g_by_serial, &g_ghost, &g_ghost_active};
+@@ -4881,17 +4925,21 @@ static uint64_t alias_orph_drop(const alias_key *k, int why) {   // caller holds
+     return b;
+ }
+ static uint64_t alias_orph_evict(void *ctx, uint64_t want) {   // the low-region ledger's give-back callback (it holds its own lock; g_smu may be held by the thread that asked: then nothing this time)
+-    (void)ctx; if (pthread_mutex_trylock(&g_smu)) return 0;
++    (void)ctx;
++    int ids_on = rb_orph_id_held_on();   // RewindBox (patch 0312): g_rmu first (taken before g_smu, as everywhere); either busy: nothing this time
++    if (ids_on && pthread_mutex_trylock(&g_rmu)) return 0;
++    if (pthread_mutex_trylock(&g_smu)) { if (ids_on) pthread_mutex_unlock(&g_rmu); return 0; }
+     uint64_t kept = 0;   // RewindBox (patch 0071 review): the shared textures kept for reuse go first, oldest first (losing one costs an allocation; an orphan's GPU-written content is lost)
+     while (kept < want && g_txr_n) { int x = 0; for (int i = 1; i < g_txr_n; i++) if (g_txr[i].tick < g_txr[x].tick) x = i; kept += g_txr[x].bytes; txr_out(x, 1); }
+     if (kept < want) atomic_store(&g_snp_give, 1);   // and the snapshot pools at the next submission end (snp_maint)
+     uint64_t rest = want - MIN(want, kept);   // what the orphans below are asked for
+-    CFMutableSetRef held = alias_held();
++    CFMutableSetRef held = alias_held(), ids = ids_on ? rb_alias_held_ids() : NULL;   // RewindBox (patch 0312)
++    if (ids_on) pthread_mutex_unlock(&g_rmu);
+     uint32_t n = 0; alias_key *ks = g_alias.n ? malloc(g_alias.n * sizeof *ks) : NULL; uint64_t *seen = g_alias.n ? malloc(g_alias.n * sizeof *seen) : NULL;
+     for (uint32_t i = 0; ks && seen && i < g_alias.cap; i++) { alias_key k;
+-        if (!alias_orph_cand(i, held, &k) || !nvn_hm_get(&g_alias_wrote, &k)) continue;
++        if (!alias_orph_cand(i, held, &k) || !nvn_hm_get(&g_alias_wrote, &k) || rb_orph_id_kept(ids, i)) continue;
+         ks[n] = k; seen[n++] = (uint64_t)(uintptr_t)nvn_hm_get(&g_alias_seen, &k); }
+-    CFRelease(held);
++    CFRelease(held); if (ids) CFRelease(ids);
+     uint64_t freed = 0;
+     while (freed < rest && n) { uint32_t m = 0; for (uint32_t j = 1; j < n; j++) if (seen[j] < seen[m]) m = j;   // least recently looked up first; RewindBox (patch 0071 review): rest
+         freed += alias_orph_drop(&ks[m], 2); ks[m] = ks[n - 1]; seen[m] = seen[n - 1]; n--; }
+@@ -4907,18 +4955,21 @@ static void alias_orphan_pass(void) {
+         const s2a_lowva_api *(*get)(void) = (const s2a_lowva_api *(*)(void))dlsym(RTLD_DEFAULT, "s2a_lowva"); const s2a_lowva_api *lv = get ? get() : NULL;
+         if (lv && lv->size >= sizeof(s2a_lowva_api) && lv->version == S2A_LOWVA_VERSION) { g_orph_lv = lv; g_orph_lv_me = lv->user("unreferenced shared textures", alias_orph_evict, NULL); } } }
+     typedef struct { alias_key k; const uint8_t *mem; uint64_t size; } cand_t;
++    const int ids_on = rb_orph_id_held_on();   // RewindBox (patch 0312): the registered IDs' views, under g_rmu taken before g_smu
++    if (ids_on) pthread_mutex_lock(&g_rmu);
+     pthread_mutex_lock(&g_smu);
+-    CFMutableSetRef held = alias_held();
++    CFMutableSetRef held = alias_held(), ids = ids_on ? rb_alias_held_ids() : NULL;
++    if (ids_on) pthread_mutex_unlock(&g_rmu);
+     uint32_t nc = 0, nw = 0; alias_key *cache = g_alias.n ? malloc(g_alias.n * sizeof *cache) : NULL; cand_t *wr = g_alias.n ? malloc(g_alias.n * sizeof *wr) : NULL;
+     int64_t wbytes = 0;
+     for (uint32_t i = 0; cache && wr && i < g_alias.cap; i++) { alias_key k;
+-        if (!alias_orph_cand(i, held, &k)) continue;
++        if (!alias_orph_cand(i, held, &k) || rb_orph_id_kept(ids, i)) continue;
+         if (!nvn_hm_get(&g_alias_wrote, &k)) { cache[nc++] = k; continue; }
+         const pool_t *p = (const pool_t *)(uintptr_t)k.pool; nvn_texlayout L; nvn_tex_layout(&k.d, &L);
+         wbytes += (int64_t)res_bytes((__bridge id)g_alias.vals[i]);
+         if (p && p->mem && L.size) wr[nw++] = (cand_t){k, p->mem + k.off, L.size};
+     }
+-    CFRelease(held);
++    CFRelease(held); if (ids) CFRelease(ids);
+     for (uint32_t j = 0; j < nc; j++) alias_orph_drop(&cache[j], 0);
+     pthread_mutex_unlock(&g_smu);
+     uint32_t nr = 0;
+@@ -4926,13 +4977,25 @@ static void alias_orphan_pass(void) {
+         uint64_t *runs = NULL, b = 0; int n = gpw_stale(wr[j].mem, wr[j].size, &runs, &b); free(runs);
+         if (n == 0) wr[nr++] = wr[j];
+     }
+-    if (nr) { pthread_mutex_lock(&g_smu); CFMutableSetRef h2 = alias_held();
++    if (nr) { if (ids_on) pthread_mutex_lock(&g_rmu);
++        pthread_mutex_lock(&g_smu); CFMutableSetRef h2 = alias_held(), i2 = ids_on ? rb_alias_held_ids() : NULL;
++        if (ids_on) pthread_mutex_unlock(&g_rmu);
+         for (uint32_t j = 0; j < nr; j++) { void *v = nvn_hm_get(&g_alias, &wr[j].k); uint64_t seen = (uint64_t)(uintptr_t)nvn_hm_get(&g_alias_seen, &wr[j].k);
+             if (!v || CFSetContainsValue(h2, v) || alias_recent(seen)) continue;   // taken up again meanwhile
++            if (i2 && CFSetContainsValue(i2, v)) { atomic_fetch_add_explicit(&g_rb_orph_id_held, 1, memory_order_relaxed); continue; }   // RewindBox (patch 0312): a registered ID still reads it
+             wbytes -= (int64_t)alias_orph_drop(&wr[j].k, 1); }
+-        CFRelease(h2); pthread_mutex_unlock(&g_smu); }
++        CFRelease(h2); if (i2) CFRelease(i2); pthread_mutex_unlock(&g_smu); }
+     if (g_orph_lv) { pthread_mutex_lock(&g_smu); int64_t d = wbytes - g_orph_noted; g_orph_noted = wbytes; pthread_mutex_unlock(&g_smu); if (d) g_orph_lv->note(g_orph_lv_me, d); }   // attribution: the ledger asks the largest holders first
+     free(cache); free(wr);
++    {   // RewindBox (patch 0312): what the registered IDs kept and the near misses, when they moved (every 300 frames at most: the frame hook)
++        static uint64_t held0 = UINT64_MAX, near0 = UINT64_MAX;
++        const uint64_t held = atomic_load_explicit(&g_rb_orph_id_held, memory_order_relaxed), nm = atomic_load_explicit(&g_rb_alias_near, memory_order_relaxed);
++        if (held != held0 || nm != near0) {
++            held0 = held; near0 = nm;
++            MLOG("RewindBox (patch 0312): unreferenced-texture passes that kept a shared texture a registered texture ID still reads: %llu in all; new keys starting at another key's storage with another description: %llu in all (layout key %s)",
++                 (unsigned long long)held, (unsigned long long)nm, rb_alias_layout_key() ? "on" : "off (S2A_RB_ALIAS_LAYOUT_KEY=0)");
++        }
++    }
+ }
+ static __unsafe_unretained id serial_get(uint64_t k) { pthread_mutex_lock(&g_smu); __unsafe_unretained id o = hm_get_id(&g_by_serial, &k); pthread_mutex_unlock(&g_smu); return o; }
+ static void serial_put_kind(uint64_t k, id o, BOOL program) {
+@@ -11975,6 +12038,22 @@ typedef struct { tex_t t; int ok; view_t v; int has_v; void *view; uint64_t alt_
+                  uint8_t tt1, gone;   // tt1: Metal texture type + 1 a pool walk found here (0 = not looked; pool_gpu skips the ID in tables of another type); gone: its memory pool was finalized (treg_drop_pool_views), until registered again
+                  int ser_next, ser_prev; } treg_t;   // the other IDs registered with the same texture serial (g_treg_ser), as ID + 1, 0 = none
+ static treg_t *g_treg; static int g_ntreg;
++// RewindBox (patch 0312): what the registered texture IDs read (alias_held's partner): each live registration's view and the views made from it for another type, alpha from
++//   red or an image class, with the textures they were made from (a view's parent, up to its base). Caller holds g_rmu and g_smu
++static CFMutableSetRef rb_alias_held_ids(void) {
++    CFMutableSetRef held = CFSetCreateMutable(NULL, 0, NULL);
++    for (int i = 0; i < g_ntreg; i++) {
++        const treg_t *r = &g_treg[i];
++        if (!r->ok || r->gone) continue;
++        void *vs[4] = {r->view, r->alt, r->ar, r->im};
++        for (int j = 0; j < 4; j++) {
++            if (!vs[j]) continue;
++            CFSetAddValue(held, vs[j]);
++            for (id<MTLTexture> p = ((__bridge id<MTLTexture>)vs[j]).parentTexture; p; p = p.parentTexture) CFSetAddValue(held, (__bridge const void *)p);
++        }
++    }
++    return held;
++}
+ // RewindBox (patch 0070): for each texture tex[q] (NULL: not asked), the texture IDs that hold it: as their view, the views made from it for another type, alpha from red or an image
+ //   class (alt, ar, im: a view kept after its ID's view was made anew holds the base it was made from), or as the parent of one of those. For the resident top (res_top: "; ..."
+ //   into o[q]). One walk of the IDs for all of them, at most four pointer compares and one parentTexture per view held; takes g_rmu only if free (res_top may run under it)
+diff --git a/graphics/nvn/tests/t_nvn_alias_orphan.m b/graphics/nvn/tests/t_nvn_alias_orphan.m
+index b48d68a..39645a9 100644
+--- a/graphics/nvn/tests/t_nvn_alias_orphan.m
++++ b/graphics/nvn/tests/t_nvn_alias_orphan.m
+@@ -7,6 +7,13 @@
+ //   ② A 写过、Finalize、闲 → 两遍都留着（存储没被改）；CPU 只改其中一小段 → 仍留着（其余 GPU 写过的块还在）；CPU 改写整段存储 → 放（rewritten +1）
+ //   ③ C 写过、Finalize、闲，存储没动 → 低区账本要地址（腾退回调）→ 放（for the low-region ledger +1），原 Metal 贴图 GPU 做完后释放
+ //   ④ E 写过、对象一直活着 → CPU 改写整段存储、账本要地址 → 都留着（活对象由覆写规则管，不归这里）
++// RewindBox (patch 0312), expectations written from NVN's storage semantics (after upstream S2Arm 5863a69cf / 50f032a62 / cb6853c50):
++//   ⑤ one storage, two objects whose descriptions differ only by sample count 0 (+ IMAGE) and 1: one Metal texture; a third with another format: another texture, and the
++//      near-miss counter moves (same storage start, another description)
++//   ⑥ a GPU-written texture whose objects are finalized but whose texture ID is still registered (its cached view): kept by the orphan pass and the ledger; once the ID is
++//      unregistered, the pass lets it go
++//   ⑦ one storage, an automatic MINIMAL_LAYOUT object and a packaged one whose layout is the block height / depth the first resolves to: one Metal texture; a packaged layout
++//      that resolves otherwise: another texture
+ #include "../gfx/nvn/nvn_mtl.m"
+ 
+ static unsigned checks, failures;
+@@ -63,6 +70,38 @@ int main(void) {
+         static tex_t E; make(&E, 16 << 20, 512); id<MTLTexture> e0 = tex_mtl(&E); gpw_mark(&E, 0, 0, 1, 0, 0, 0, 0); submit(); idle();
+         memset(E.mem, 5, E.L.size); alias_orphan_pass(); alias_orph_evict(NULL, UINT64_MAX); settle();
+         CHECK(tex_get(E.serial) == e0, "④ 活对象：存储被改写、账本要地址都留着");
++        // ⑤ RewindBox (patch 0312)
++        static tex_t W, Rd, F; make(&W, 24 << 20, 64); make(&Rd, 24 << 20, 64); make(&F, 24 << 20, 64);
++        W.d.samples = 0; W.d.flags |= NVN_TEXTURE_FLAGS_IMAGE; Rd.d.samples = 1; F.d.samples = 1; F.d.format = NVN_FORMAT_RGBA16F;
++        nvn_tex_layout(&W.d, &W.L); nvn_tex_layout(&Rd.d, &Rd.L); nvn_tex_layout(&F.d, &F.L);
++        uint64_t nm0 = atomic_load(&g_rb_alias_near);
++        id<MTLTexture> mw = tex_mtl(&W), mr = tex_mtl(&Rd), mf = tex_mtl(&F);
++        CHECK(mw && mw == mr, "⑤ sample count 0 + IMAGE and sample count 1 over one storage: one Metal texture (%p / %p)", (__bridge void *)mw, (__bridge void *)mr);
++        CHECK(mf && mf != mw, "⑤ counter-check: another format over the same storage: another texture");
++        CHECK(atomic_load(&g_rb_alias_near) > nm0, "⑤ the near-miss counter moved (+%llu)", (unsigned long long)(atomic_load(&g_rb_alias_near) - nm0));
++        // ⑥ RewindBox (patch 0312)
++        static tex_t D; make(&D, 28 << 20, 256); id<MTLTexture> d0 = tex_mtl(&D); gpw_mark(&D, 0, 0, 1, 0, 0, 0, 0);
++        nvn_be_reg_tex(10, &D, NULL); submit(); nvn_be_tex_release(&D); submit();
++        pthread_mutex_lock(&g_rmu); id<MTLTexture> d1 = tex_by_id(10); pthread_mutex_unlock(&g_rmu); idle();
++        uint64_t rw6 = g_alias_orph_rw, v6 = g_alias_orph_valve, h6 = atomic_load(&g_rb_orph_id_held);
++        memset(D.mem, 4, D.L.size); alias_orphan_pass(); alias_orph_evict(NULL, UINT64_MAX); settle();
++        pthread_mutex_lock(&g_rmu); id<MTLTexture> d2 = tex_by_id(10); pthread_mutex_unlock(&g_rmu);
++        CHECK(d1 && d2 == d1 && g_alias_orph_rw == rw6 && g_alias_orph_valve == v6 && atomic_load(&g_rb_orph_id_held) > h6,
++              "⑥ finalized, GPU-written, its texture ID still registered: kept (same view %d, rewritten +%llu, ledger +%llu, kept by an ID +%llu)",
++              d2 == d1, (unsigned long long)(g_alias_orph_rw - rw6), (unsigned long long)(g_alias_orph_valve - v6), (unsigned long long)(atomic_load(&g_rb_orph_id_held) - h6));
++        (void)d0;
++        d1 = d2 = nil;
++        nvn_be_unreg_tex_range(10, 1); idle(); alias_orphan_pass(); settle();
++        CHECK(g_alias_orph_rw == rw6 + 1, "⑥ counter-check: once the ID is unregistered the pass lets it go (+%llu, expected +1)", (unsigned long long)(g_alias_orph_rw - rw6));
++        // ⑦ RewindBox (patch 0312)
++        static tex_t M, P, Q; make(&M, 20 << 20, 256); make(&P, 20 << 20, 256); make(&Q, 20 << 20, 256);
++        M.d.flags |= NVN_TEXTURE_FLAGS_MINIMAL_LAYOUT; nvn_tex_layout(&M.d, &M.L);
++        P.d.pkg_layout = (int)((M.L.tileH & 0xf) | ((M.L.tileD & 0xf) << 4)) + 1; nvn_tex_layout(&P.d, &P.L);
++        Q.d.pkg_layout = (int)(((M.L.tileH + 1) & 0xf) | ((M.L.tileD & 0xf) << 4)) + 1; nvn_tex_layout(&Q.d, &Q.L);
++        REQUIRE(P.L.tileH == M.L.tileH && P.L.tileD == M.L.tileD && Q.L.tileH != M.L.tileH);
++        id<MTLTexture> mm = tex_mtl(&M), mp = tex_mtl(&P), mq = tex_mtl(&Q);
++        CHECK(mm && mm == mp, "⑦ MINIMAL_LAYOUT (block height log2 %u) and the packaged layout it resolves to, one storage: one Metal texture (%p / %p)", M.L.tileH, (__bridge void *)mm, (__bridge void *)mp);
++        CHECK(mq && mq != mm, "⑦ counter-check: a packaged layout that resolves otherwise (block height log2 %u): another texture", Q.L.tileH);
+         printf("%s t_nvn_alias_orphan: %u checks %u failures; backend Metal%d\n", failures ? "✗" : "✓", checks, failures, g_m3 ? 3 : 4);
+         return failures != 0;
+     }

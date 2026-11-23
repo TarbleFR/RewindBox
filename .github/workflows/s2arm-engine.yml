@@ -351,6 +351,8 @@ jobs:
             build/tests/t_nvn_warmbump --course-gpu || status=1
           fi
           build/tests/t_nvn_shader_flight || status=1
+          # RewindBox (patch 0312): shared textures over one storage (sample count, block layout key) and the ones registered texture IDs still read, Metal 4 and 3
+          make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" native-test-nvn_alias_orphan || status=1
           bash "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/test_native_stage_recovery.sh" "$PWD" "$RUNNER_TEMP/t_dsh_stats" || status=1
           exit "$status"
       - name: Read back a texture prepared from an earlier recorded bind
