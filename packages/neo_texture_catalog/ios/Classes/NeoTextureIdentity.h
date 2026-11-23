@@ -8,8 +8,9 @@
 //          (2048 or raw 2352-byte sectors) or CSO/ZSO.
 //   GC/Wii: game ID and revision (disc header bytes 0..5 and 7) from ISO/GCM,
 //          WBFS, CISO, GCZ, WIA and RVZ.
-//   PSP:   PARAM.SFO DISC_ID / DISC_VERSION (PPSSPP's game ID) from ISO,
-//          CSO, ZSO or PBP; UMD_DATA.BIN as a fallback.
+//   PSP:   PARAM.SFO DISC_ID / DISC_VERSION (PPSSPP's game ID, typed
+//          disc_id as in the catalogue) from ISO, CSO, ZSO or PBP;
+//          UMD_DATA.BIN as a fallback.
 //   PS1:   SYSTEM.CNF BOOT serial (SLUS-00067) from a CUE's first file, a
 //          CCD's image, an M3U's first disc or a BIN/ISO/IMG (2048 or raw 2352-byte
 //          sectors); CHD, PBP and ECM are compressed: no serial, title only.
@@ -523,7 +524,9 @@ inline bool DiscID(std::string raw, std::string& out) {
 
 inline Result PSP(const std::string& path) {
   Result r;
-  r.system = "psp"; r.type = "game_id"; r.scheme = "psp-param-sfo-disc-id";
+  // Typed as the catalogue types it (disc_id). Earlier builds read "game_id", which no PSP pack
+  // matched by ID; identities.json keeps what they read, and NeoTexIdentityType corrects it.
+  r.system = "psp"; r.type = "disc_id"; r.scheme = "psp-param-sfo-disc-id";
   Reader reader(path);
   if (!reader.good()) { r.problem = "unreadable"; return r; }
   unsigned char h[40] = {0};

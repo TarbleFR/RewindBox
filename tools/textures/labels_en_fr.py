@@ -352,3 +352,22 @@ FR.update({
     'engineNotice.mesen': 'Les packs HD NES sont lus par le moteur Mesen ; les packs conçus pour Mesen 2 (un format au-delà de 106) ne le sont pas. Le moteur d’un jeu se change dans ses réglages (Émulateur).',
     'importHelp.mesen': 'Utilisez un pack HD Mesen conçu pour ce fichier ROM : hires.txt avec ses images PNG (ZIP, 7z, RAR ou dossier). Installé dans {folder}.',
 })
+
+# A PS1 game set to Beetle PSX (software renderer) moves to Beetle PSX HW for its pack; once the
+# last pack RewindBox switched on is deleted, the game is offered its earlier engine back.
+EN.update({
+    'activation.beetleHWEngine': 'Switching on also makes this game start with Beetle PSX HW: Beetle PSX, the software renderer chosen for this game, replaces no texture.',
+    'error.beetleHWNotSelected': 'Beetle PSX HW could not be selected for this game. Choose Beetle PSX HW in the game’s settings (Emulator), then switch the pack on.',
+    'restoreCoreTitle': 'Change the engine back?',
+    'restoreCoreMessage': 'RewindBox had made this game start with {engine} to read its HD pack, now deleted. It started with {core} before: start it with {core} again?',
+    'restoreCoreAction': 'Use {core}',
+    'error.coreNotSelected': 'The game’s engine could not be changed. Choose it in the game’s settings (Emulator).',
+})
+FR.update({
+    'activation.beetleHWEngine': 'L’activation fait aussi démarrer ce jeu avec Beetle PSX HW : Beetle PSX, le rendu logiciel choisi pour ce jeu, ne remplace aucune texture.',
+    'error.beetleHWNotSelected': 'Beetle PSX HW n’a pas pu être choisi pour ce jeu. Choisissez Beetle PSX HW dans les réglages du jeu (Émulateur), puis activez le pack.',
+    'restoreCoreTitle': 'Revenir au moteur précédent ?',
+    'restoreCoreMessage': 'RewindBox avait fait démarrer ce jeu avec {engine} pour lire son pack HD, désormais supprimé. Il démarrait avant avec {core} : le faire de nouveau démarrer avec {core} ?',
+    'restoreCoreAction': 'Utiliser {core}',
+    'error.coreNotSelected': 'Le moteur du jeu n’a pas pu être changé. Choisissez-le dans les réglages du jeu (Émulateur).',
+})

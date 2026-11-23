@@ -1,10 +1,15 @@
 """Game identity readers of the HD texture catalogue
 (packages/neo_texture_catalog/ios/Classes/NeoTextureIdentity.h), exercised on
 synthetic images built here: no commercial game is used. Each case checks the
-identifier the engine names its texture folder after.
+identifier the engine names its texture folder after, and the type and scheme
+the catalogue matches it on: each reader's pair must be the one the bundled
+catalogue publishes for its system (a PSP disc ID typed "game_id" matched no
+pack by ID).
 """
+import gzip
 import hashlib
 import io
+import json
 import os
 import shutil
 import struct
@@ -17,6 +22,25 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CLASSES = ROOT / 'packages/neo_texture_catalog/ios/Classes'
+BUNDLED = ROOT / 'packages/neo_texture_catalog/ios/Resources/manifest.json.gz'
+# What each reader types its identifier as (NeoTextureIdentity.h), the type|scheme key the app matches on.
+TYPED = {'ps2': ('serial', 'ps2-disc-serial'), 'ps1': ('serial', 'ps1-disc-serial'), 'gc': ('game_id', 'dolphin-disc-game-id'),
+         'wii': ('game_id', 'dolphin-disc-game-id'), 'psp': ('disc_id', 'psp-param-sfo-disc-id'), '3ds': ('title_id', '3ds-title-id'),
+         'n64': ('rom_name', 'n64-rom-name-hex'), 'nes': ('sha1', 'nes-rom-sha1')}
+# A Dolphin pack may also name the region-free family (GZ2): the app derives it from the disc's game ID.
+REGION_FREE = ('game_id', 'dolphin-region-free-id')
+
+
+def catalogue_pairs():
+    """The (type, scheme) pairs the bundled catalogue publishes, per system."""
+    index = json.loads(gzip.decompress(BUNDLED.read_bytes()))
+    pairs = {}
+    for pack in index['packs']:
+        for system in pack.get('systems') or [pack['system']]:
+            for game in pack['games']:
+                for identity in game['identities']:
+                    pairs.setdefault(system, set()).add((identity['type'], identity['scheme']))
+    return pairs
 
 
 def iso9660(files):
@@ -202,6 +226,13 @@ def main():
         driver = build_driver(temp)
         count = [0]
 
+        printed = {}
+
+        def typed(kind, fields):
+            # Every reader, read or refused, names its system, type and scheme.
+            assert fields.get('system') == kind and (fields.get('type'), fields.get('scheme')) == TYPED[kind], (kind, fields)
+            printed.setdefault(kind, set()).add((fields['type'], fields['scheme']))
+
         def check(kind, data, expect, ok=True):
             count[0] += 1
             path = temp / f'g{count[0]}'
@@ -210,6 +241,7 @@ def main():
             assert 'runtime error' not in result.stderr and 'Sanitizer' not in result.stderr, result.stderr
             fields = dict(item.split('=', 1) for item in result.stdout.split())
             assert (result.returncode == 0) == ok, (kind, result.stdout)
+            typed(kind, fields)
             for key, value in expect.items():
                 assert fields.get(key) == value, (kind, key, fields)
             return fields
@@ -244,6 +276,7 @@ def main():
             assert 'runtime error' not in result.stderr and 'Sanitizer' not in result.stderr, result.stderr
             fields = dict(item.split('=', 1) for item in result.stdout.split())
             assert (result.returncode == 0) == ok, ('ps1', entry, result.stdout)
+            typed('ps1', fields)
             for key, value in expect.items():
                 assert fields.get(key) == value, ('ps1', entry, key, fields)
 
@@ -304,15 +337,20 @@ def main():
         # PSP: PARAM.SFO DISC_ID / DISC_VERSION, PBP, UMD_DATA.BIN fallback.
         param = sfo({'DISC_ID': 'ULUS10041', 'DISC_VERSION': '1.01', 'TITLE': 'Synthetic'})
         image = iso9660({'PSP_GAME/PARAM.SFO': param, 'UMD_DATA.BIN': b'ULUS-10041|0000000000000000|0001|G'})
-        expect = {'value': 'ULUS10041', 'folder': 'ULUS10041', 'revision': '1.01', 'region': 'USA'}
+        # Typed disc_id, as all the catalogue's PSP identities: "game_id" matched none of them by ID.
+        expect = {'type': 'disc_id', 'scheme': 'psp-param-sfo-disc-id', 'value': 'ULUS10041', 'folder': 'ULUS10041',
+                  'revision': '1.01', 'region': 'USA'}
         check('psp', image, {**expect, 'format': 'iso'})
         check('psp', ciso(image), {**expect, 'format': 'cso'})
         check('psp', ciso(image, lz4=True), {**expect, 'format': 'zso'})
         pbp = b'\x00PBP' + struct.pack('<I', 0x10000) + struct.pack('<8I', *([40, 40 + len(param)] + [40 + len(param)] * 6)) + param
         check('psp', pbp, {'value': 'ULUS10041', 'revision': '1.01', 'format': 'pbp'})
         umd_only = iso9660({'UMD_DATA.BIN': b'ULES-01234|0000000000000000|0001|G'})
-        check('psp', umd_only, {'value': 'ULES01234', 'region': 'Europe'})
+        check('psp', umd_only, {'type': 'disc_id', 'value': 'ULES01234', 'region': 'Europe'})
         check('psp', iso9660({'X.BIN': b'1'}), {'problem': 'noDiscID'}, ok=False)
+        # The European disc the catalogue's Liberty City Stories packs name (ULES00151).
+        lcs = iso9660({'PSP_GAME/PARAM.SFO': sfo({'DISC_ID': 'ULES00151', 'DISC_VERSION': '1.00'})})
+        check('psp', lcs, {'type': 'disc_id', 'scheme': 'psp-param-sfo-disc-id', 'value': 'ULES00151', 'region': 'Europe'})
 
         # 3DS: program ID from NCSD/NCCH, title ID from the CIA TMD; updates refused.
         program = 0x0004000000033500
@@ -380,6 +418,7 @@ def main():
             assert 'runtime error' not in result.stderr and 'Sanitizer' not in result.stderr, result.stderr
             fields = dict(item.split('=', 1) for item in result.stdout.split())
             assert (result.returncode == 0) == ok, (name, result.stdout)
+            typed('nes', fields)
             for key, value in expect.items():
                 assert fields.get(key) == value, (name, key, fields)
 
@@ -400,12 +439,23 @@ def main():
         nes('nothing.zip', empty.getvalue(), {'problem': 'unsupportedFormat'}, ok=False)
         nes('game.7z', b'7z\xbc\xaf\x27\x1c' + bytes(64), {'problem': 'unsupportedFormat'}, ok=False)
         nes('.hidden.nes', rom, {'problem': 'contentName'}, ok=False)
+
+        # Each reader's type|scheme is the one the catalogue publishes for its system (the Dolphin
+        # region-free family aside, derived from the disc's game ID): a pair no pack declares can
+        # never match by ID.
+        assert printed.keys() == TYPED.keys(), sorted(printed)
+        published = catalogue_pairs()
+        for system, pair in TYPED.items():
+            assert printed[system] == {pair}, (system, printed[system])
+            if system in published:
+                assert published[system] - {REGION_FREE} == {pair}, (system, sorted(published[system]), pair)
+        assert {'psp', 'ps1', '3ds', 'ps2', 'gc', 'wii', 'n64', 'nes'} <= published.keys(), sorted(published)
         print(f'PASS texture identity: {count[0]} synthetic images (PS2 ISO/raw MODE1/MODE2/CSO/ZSO serial + ELF CRC; '
               'PS1 BIN/ISO/CUE/M3U/CCD SYSTEM.CNF serial, CHD/PBP/PS2 disc/no SYSTEM.CNF/escaping CUE refused; '
               'GC/Wii ISO/WBFS/CISO/WIA/RVZ/GCZ/WAD ID + revision; PSP ISO/CSO/ZSO/PBP/UMD_DATA disc ID; '
               '3DS NCSD/NCCH/CIA program ID, update refused; N64 z64/v64/n64 ROM name, unusable names refused; '
               'NES ROM SHA-1 and content name, from the file or the first NES entry of a ZIP; '
-              'unreadable inputs reported)')
+              'unreadable inputs reported; every reader typed as the bundled catalogue types its system, PSP disc_id)')
 
 
 if __name__ == '__main__':

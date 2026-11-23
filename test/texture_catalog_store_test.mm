@@ -62,6 +62,20 @@ static NSError *Remove(NeoTexturePackStore *store, NSDictionary *installed, id<N
   return failure;
 }
 
+// A removal with what it changed besides the folder: {switchedOff, cores}.
+static Outcome RemoveOutcome(NeoTexturePackStore *store, NSDictionary *installed, id<NeoTextureEngine> engine) {
+  __block Outcome outcome{};
+  Wait(60, ^(dispatch_block_t done) {
+    [store removeInstalled:installed engine:engine outcome:^(NSDictionary *result, NSError *error) {
+      CHECK(NSThread.isMainThread, "removal completion off the main thread");
+      outcome.result = result;
+      outcome.error = error;
+      done();
+    }];
+  });
+  return outcome;
+}
+
 static NSDictionary *Identity(NSString *system, NSString *type, NSString *scheme, NSString *value, NSString *title) {
   return @{@"system": system, @"title": title, @"identities": @[@{@"type": type, @"scheme": scheme, @"value": value}]};
 }
@@ -277,6 +291,26 @@ int main(int argc, char **argv) {
           Files(n3dsFolder).description.UTF8String);
     CHECK([JSON([config stringByAppendingPathComponent:@"Games/Azahar.json"])[@"games"][@"3ds/Synthetic Ocarina"][@"citra_custom_textures"] isEqual:@"enabled"],
           "azahar per-game option");
+    // A folder copied by hand into load/textures/<Title ID> (no RewindBox manifest) is checked when HD textures are
+    // switched on for its game: a pack.json Azahar would stop on at every start is refused, its images left undecoded.
+    NSMutableDictionary *handMade = [Identity(@"3ds", @"title_id", @"3ds-title-id", @"0004000000044600", @"Synthetic Hand") mutableCopy];
+    handMade[@"gameKey"] = @"3ds/Synthetic Hand";
+    NSString *handFolder = [saves stringByAppendingPathComponent:@"Azahar/Azahar/load/textures/0004000000044600"];
+    [FM() createDirectoryAtPath:handFolder withIntermediateDirectories:YES attributes:nil error:nil];
+    [@"not decoded when switched on" writeToFile:[handFolder stringByAppendingPathComponent:@"tex1_8x8_0123456789ABCDEF_12.png"] atomically:YES
+                                        encoding:NSUTF8StringEncoding error:nil];
+    NSString *handJSON = [handFolder stringByAppendingPathComponent:@"pack.json"];
+    [@"{\"options\": {\"skip_mipmap\": \"false\", \"flip_png_files\": true, \"use_new_hash\": true}}" writeToFile:handJSON atomically:YES
+                                                                                                         encoding:NSUTF8StringEncoding error:nil];
+    NSString *azaharGames = [config stringByAppendingPathComponent:@"Games/Azahar.json"];
+    NSError *handError = nil;
+    CHECK(![azahar setActivation:YES identity:handMade error:&handError] && [handError.userInfo[@"key"] isEqual:@"packJsonInvalid"] &&
+          !JSON(azaharGames)[@"games"][@"3ds/Synthetic Hand"], "a hand-made pack Azahar cannot load is refused: %s", handError.description.UTF8String);
+    CHECK([azahar setActivation:NO identity:handMade error:nil], "switching off is never refused");
+    [@"{\"options\": {\"skip_mipmap\": false, \"flip_png_files\": true, \"use_new_hash\": true}}" writeToFile:handJSON atomically:YES
+                                                                                                       encoding:NSUTF8StringEncoding error:nil];
+    CHECK([azahar setActivation:YES identity:handMade error:nil] &&
+          [JSON(azaharGames)[@"games"][@"3ds/Synthetic Hand"][@"citra_custom_textures"] isEqual:@"enabled"], "a valid hand-made pack is switched on");
 
     // 4c'. Mupen64Plus-Next (GLideN64): <System>/Mupen64plus/hires_texture/<ROM name>, per-game
     // core options True/False with the full alpha channel and the enhanced storage.
@@ -345,6 +379,8 @@ int main(int argc, char **argv) {
     activation = [mesen activationForIdentity:quest];
     CHECK([activation[@"known"] isEqual:@YES] && [activation[@"enabled"] isEqual:@NO] && [activation[@"reason"] isEqual:@"mesenEngine"] &&
           [activation[@"setting"] isEqual:@"mesen_hdpacks"], "mesen off while the game starts with Nestopia %s", activation.description.UTF8String);
+    CHECK([activation[@"core"] isEqual:@"nestopia"] && [activation[@"selects"] isEqual:@"mesen"], "the engine switching on selects %s",
+          activation.description.UTF8String);
     outcome = Install(store, packs[@"mesen2"], mesen, quest, NO, NO);
     CHECK([outcome.error.userInfo[@"key"] isEqual:@"formatTooNew"] && !Exists([libretroSystem stringByAppendingPathComponent:@"HdPacks/Synthetic Quest (USA)"]),
           "a Mesen 2 pack (format 108) is refused before anything is installed: %s", outcome.error.description.UTF8String);
@@ -371,9 +407,23 @@ int main(int argc, char **argv) {
     onMesen[@"libretroCore"] = @"mesen";
     onMesen[@"gameKey"] = @"nes/Other (USA)";
     CHECK([[mesen activationForIdentity:onMesen][@"enabled"] isEqual:@YES], "a game already on Mesen: the core's default is on");
+    CHECK([NeoTexSwitchedOn(@"mesen", @"Synthetic Quest (USA)")[@"nes/Synthetic Quest (USA)"][@"core"] isEqual:@"nestopia"],
+          "RewindBox records the switch it turned on and the engine the game started with");
     rows = [store installedForIdentity:quest engine:mesen];
-    CHECK(rows.count == 1 && !Remove(store, rows.firstObject, mesen) && !Exists(nesFolder) &&
-          Exists([libretroSystem stringByAppendingPathComponent:@"HdPacks"]), "mesen removal limited to the ROM folder");
+    Outcome nesRemoval = rows.count == 1 ? RemoveOutcome(store, rows.firstObject, mesen) : Outcome{};
+    CHECK(rows.count == 1 && !nesRemoval.error && !Exists(nesFolder) && Exists([libretroSystem stringByAppendingPathComponent:@"HdPacks"]),
+          "mesen removal limited to the ROM folder");
+    // Its last pack gone, the switch RewindBox turned on is off again and Nestopia, which also runs the
+    // game's cheats, is offered back through the same selector.
+    CHECK([nesRemoval.result[@"switchedOff"] isEqual:(@[@"nes/Synthetic Quest (USA)"])] &&
+          [nesRemoval.result[@"cores"] isEqual:(@[@{@"gameKey": @"nes/Synthetic Quest (USA)", @"core": @"nestopia"}])] &&
+          [JSON([config stringByAppendingPathComponent:@"Games/Mesen.json"])[@"games"][@"nes/Synthetic Quest (USA)"][@"mesen_hdpacks"] isEqual:@"disabled"],
+          "mesen removal outcome %s", nesRemoval.result.description.UTF8String);
+    CHECK(!NeoTexSwitchedOn(@"mesen", @"Synthetic Quest (USA)").count, "the record goes with the pack");
+    CHECK([mesen canSelectLibretroCore] && [mesen selectLibretroCore:@"nestopia" identity:@{@"gameKey": @"nes/Synthetic Quest (USA)"}] &&
+          [selected.lastObject isEqual:@"nes/Synthetic Quest (USA)=nestopia"], "Nestopia offered back through the selector: %s",
+          selected.description.UTF8String);
+    CHECK([[mesen activationForIdentity:quest][@"reason"] isEqual:@"mesenEngine"], "back on Nestopia, the switch says Mesen reads the packs");
 
     // 4e. Beetle PSX HW: <Saves>/Beetle PSX HW/<content name>-texture-replacements (the
     // core's HD Texture Folder "save"), next to the game's memory cards; Track + Replace per game.
@@ -426,6 +476,119 @@ int main(int argc, char **argv) {
     CHECK([[NSData dataWithContentsOfFile:[beetleSaves stringByAppendingPathComponent:@"Castle (USA).mcr"]] isEqualToData:card] &&
           [[NSData dataWithContentsOfFile:[beetleSaves stringByAppendingPathComponent:@"Castle (USA).1.mcr"]] isEqualToData:card],
           "memory cards kept byte for byte");
+    // RewindBox turned the game's switch on when it installed the pack: removing its last pack turns Track + Replace
+    // Textures off again ("Will probably crash in most games" upstream, for nothing left to replace).
+    NSMutableDictionary *moon = [castle mutableCopy];
+    moon[@"path"] = @"/Library/roms/psx/Moon (USA).cue";
+    moon[@"gameKey"] = @"psx/Moon (USA).cue";
+    outcome = Install(store, packs[@"beetle"], beetle, moon, NO, NO);
+    NSDictionary *moonRecord = NeoTexSwitchedOn(@"beetle", @"Moon (USA)-texture-replacements")[@"psx/Moon (USA).cue"];
+    CHECK(!outcome.error && [outcome.result[@"activated"] boolValue] && moonRecord && !moonRecord[@"core"],
+          "the switch RewindBox turned on is recorded: %s %s", outcome.error.description.UTF8String, moonRecord.description.UTF8String);
+    rows = [store installedForIdentity:moon engine:beetle];
+    Outcome moonRemoval = rows.count == 1 ? RemoveOutcome(store, rows.firstObject, beetle) : Outcome{};
+    NSDictionary *moonOptions = JSON(beetleStore)[@"games"][@"psx/Moon (USA).cue"];
+    CHECK(rows.count == 1 && !moonRemoval.error && [moonRemoval.result[@"switchedOff"] isEqual:(@[@"psx/Moon (USA).cue"])] &&
+          ![moonRemoval.result[@"cores"] count] && [moonOptions[@"beetle_psx_hw_track_textures"] isEqual:@"disabled"] &&
+          [moonOptions[@"beetle_psx_hw_replace_textures"] isEqual:@"disabled"], "removal switches off what RewindBox switched on: %s %s",
+          moonRemoval.result.description.UTF8String, moonOptions.description.UTF8String);
+    // A switch the player turned on, before the pack or after RewindBox did, stays on when the pack goes.
+    NSMutableDictionary *sun = [castle mutableCopy];
+    sun[@"path"] = @"/Library/roms/psx/Sun (USA).cue";
+    sun[@"gameKey"] = @"psx/Sun (USA).cue";
+    CHECK([beetle setActivation:YES identity:sun error:nil], "the player switches Sun on");
+    [store switchSetByPlayerForIdentity:sun engine:beetle];
+    outcome = Install(store, packs[@"beetle"], beetle, sun, NO, NO);
+    CHECK(!outcome.error && !NeoTexSwitchedOn(@"beetle", @"Sun (USA)-texture-replacements").count, "a switch already on is not recorded: %s",
+          outcome.error.description.UTF8String);
+    NSMutableDictionary *star = [castle mutableCopy];
+    star[@"path"] = @"/Library/roms/psx/Star (USA).cue";
+    star[@"gameKey"] = @"psx/Star (USA).cue";
+    outcome = Install(store, packs[@"beetle"], beetle, star, NO, NO);
+    CHECK(!outcome.error && NeoTexSwitchedOn(@"beetle", @"Star (USA)-texture-replacements").count == 1, "Star switched on by RewindBox: %s",
+          outcome.error.description.UTF8String);
+    CHECK([beetle setActivation:NO identity:star error:nil] && [beetle setActivation:YES identity:star error:nil], "the player switches Star off and on");
+    [store switchSetByPlayerForIdentity:star engine:beetle];
+    CHECK(!NeoTexSwitchedOn(@"beetle", @"Star (USA)-texture-replacements").count, "the player's own switch drops the record");
+    for (NSDictionary *game in @[sun, star]) {
+      rows = [store installedForIdentity:game engine:beetle];
+      Outcome kept = rows.count == 1 ? RemoveOutcome(store, rows.firstObject, beetle) : Outcome{};
+      NSDictionary *options = JSON(beetleStore)[@"games"][game[@"gameKey"]];
+      CHECK(rows.count == 1 && !kept.error && ![kept.result[@"switchedOff"] count] && [options[@"beetle_psx_hw_track_textures"] isEqual:@"enabled"] &&
+            [options[@"beetle_psx_hw_replace_textures"] isEqual:@"enabled"], "the player's switch stays on: %s %s", kept.result.description.UTF8String,
+            options.description.UTF8String);
+    }
+    // A game set to Beetle PSX, the software renderer, replaces no texture: its switch is off with the reason, and
+    // switching on (or installing) moves it to Beetle PSX HW through the app's engine choice, never without it.
+    NSMutableArray<NSString *> *psxAsked = [NSMutableArray array];
+    __block BOOL psxAnswer = NO;
+    id<NeoTextureEngine> beetleLibrary = [NeoTextureEngines beetleWithSaveDirectory:beetleSaves configDirectory:config
+                                                                         coreSelector:^BOOL(NSString *gameKey, NSString *core) {
+                                                                           [psxAsked addObject:[NSString stringWithFormat:@"%@=%@", gameKey, core]];
+                                                                           return psxAnswer;
+                                                                         }];
+    NSMutableDictionary *soft = [castle mutableCopy];
+    soft[@"path"] = @"/Library/roms/psx/Soft (USA).cue";
+    soft[@"gameKey"] = @"psx/Soft (USA).cue";
+    soft[@"libretroCore"] = @"mednafen_psx";
+    activation = [beetleLibrary activationForIdentity:soft];
+    CHECK([activation[@"known"] isEqual:@YES] && [activation[@"enabled"] isEqual:@NO] && [activation[@"reason"] isEqual:@"beetleHWEngine"] &&
+          [activation[@"core"] isEqual:@"mednafen_psx"] && [activation[@"selects"] isEqual:@"mednafen_psx_hw"], "beetle off on Beetle PSX %s",
+          activation.description.UTF8String);
+    NSError *softError = nil;
+    CHECK(![beetle setActivation:YES identity:soft error:&softError] && [softError.userInfo[@"key"] isEqual:@"beetleHWNotSelected"] &&
+          !JSON(beetleStore)[@"games"][@"psx/Soft (USA).cue"], "without the app's selector nothing is written: %s", softError.description.UTF8String);
+    softError = nil;
+    CHECK(![beetleLibrary setActivation:YES identity:soft error:&softError] && [softError.userInfo[@"key"] isEqual:@"beetleHWNotSelected"] &&
+          [psxAsked isEqualToArray:(@[@"psx/Soft (USA).cue=mednafen_psx_hw"])] && !JSON(beetleStore)[@"games"][@"psx/Soft (USA).cue"],
+          "a refused selection writes nothing: %s", psxAsked.description.UTF8String);
+    psxAnswer = YES;
+    outcome = Install(store, packs[@"beetle"], beetleLibrary, soft, NO, NO);
+    CHECK(!outcome.error && [outcome.result[@"activated"] boolValue] && [psxAsked.lastObject isEqual:@"psx/Soft (USA).cue=mednafen_psx_hw"],
+          "installing moves the game to Beetle PSX HW: %s %s", outcome.result.description.UTF8String, psxAsked.description.UTF8String);
+    activation = [beetleLibrary activationForIdentity:soft];
+    CHECK([activation[@"enabled"] isEqual:@YES] && !activation[@"reason"], "beetle on once Beetle PSX HW is selected %s", activation.description.UTF8String);
+    CHECK([NeoTexSwitchedOn(@"beetle", @"Soft (USA)-texture-replacements")[@"psx/Soft (USA).cue"][@"core"] isEqual:@"mednafen_psx"],
+          "the engine the game started with is recorded");
+    rows = [store installedForIdentity:soft engine:beetleLibrary];
+    Outcome softRemoval = rows.count == 1 ? RemoveOutcome(store, rows.firstObject, beetleLibrary) : Outcome{};
+    CHECK(rows.count == 1 && !softRemoval.error &&
+          [softRemoval.result[@"cores"] isEqual:(@[@{@"gameKey": @"psx/Soft (USA).cue", @"core": @"mednafen_psx"}])] &&
+          [JSON(beetleStore)[@"games"][@"psx/Soft (USA).cue"][@"beetle_psx_hw_replace_textures"] isEqual:@"disabled"],
+          "removal offers Beetle PSX back: %s", softRemoval.result.description.UTF8String);
+    // Options the player had turned on for a game later set to Beetle PSX: installing records only the earlier engine,
+    // and removing leaves the player's options on while still offering that engine back.
+    NSMutableDictionary *glow = [castle mutableCopy];
+    glow[@"path"] = @"/Library/roms/psx/Glow (USA).cue";
+    glow[@"gameKey"] = @"psx/Glow (USA).cue";
+    CHECK([beetle setActivation:YES identity:glow error:nil], "the player switches Glow on");
+    glow[@"libretroCore"] = @"mednafen_psx";
+    outcome = Install(store, packs[@"beetle"], beetleLibrary, glow, NO, NO);
+    NSDictionary *glowRecord = NeoTexSwitchedOn(@"beetle", @"Glow (USA)-texture-replacements")[@"psx/Glow (USA).cue"];
+    CHECK(!outcome.error && !glowRecord[@"at"] && [glowRecord[@"core"] isEqual:@"mednafen_psx"],
+          "options already on are not RewindBox's: %s", glowRecord.description.UTF8String);
+    rows = [store installedForIdentity:glow engine:beetleLibrary];
+    Outcome glowRemoval = rows.count == 1 ? RemoveOutcome(store, rows.firstObject, beetleLibrary) : Outcome{};
+    CHECK(rows.count == 1 && !glowRemoval.error && ![glowRemoval.result[@"switchedOff"] count] &&
+          [glowRemoval.result[@"cores"] isEqual:(@[@{@"gameKey": @"psx/Glow (USA).cue", @"core": @"mednafen_psx"}])] &&
+          [JSON(beetleStore)[@"games"][@"psx/Glow (USA).cue"][@"beetle_psx_hw_replace_textures"] isEqual:@"enabled"],
+          "the player's options stay on, the earlier engine is offered: %s", glowRemoval.result.description.UTF8String);
+    // The player switches a game RewindBox moved to Beetle PSX HW: the switch is theirs, the earlier engine is still offered.
+    NSMutableDictionary *dusk = [castle mutableCopy];
+    dusk[@"path"] = @"/Library/roms/psx/Dusk (USA).cue";
+    dusk[@"gameKey"] = @"psx/Dusk (USA).cue";
+    dusk[@"libretroCore"] = @"mednafen_psx";
+    outcome = Install(store, packs[@"beetle"], beetleLibrary, dusk, NO, NO);
+    [store switchSetByPlayerForIdentity:dusk engine:beetleLibrary];
+    NSDictionary *duskRecord = NeoTexSwitchedOn(@"beetle", @"Dusk (USA)-texture-replacements")[@"psx/Dusk (USA).cue"];
+    CHECK(!outcome.error && !duskRecord[@"at"] && [duskRecord[@"core"] isEqual:@"mednafen_psx"], "a player toggle keeps the earlier engine: %s",
+          duskRecord.description.UTF8String);
+    rows = [store installedForIdentity:dusk engine:beetleLibrary];
+    Outcome duskRemoval = rows.count == 1 ? RemoveOutcome(store, rows.firstObject, beetleLibrary) : Outcome{};
+    CHECK(rows.count == 1 && !duskRemoval.error && ![duskRemoval.result[@"switchedOff"] count] &&
+          [duskRemoval.result[@"cores"] isEqual:(@[@{@"gameKey": @"psx/Dusk (USA).cue", @"core": @"mednafen_psx"}])],
+          "removal offers the earlier engine after a player toggle: %s", duskRemoval.result.description.UTF8String);
+    CHECK(![beetle canSelectLibretroCore] && [beetleLibrary canSelectLibretroCore], "only a page with the app's selector offers an engine back");
 
     // 4f. A manual pack whose author's file was verified on CI (download.verified): never
     // downloaded, installed only from that exact file chosen by the user; any other file refused.
@@ -523,6 +686,37 @@ int main(int argc, char **argv) {
     NSDictionary *read = [NeoTextureIdentityReader identityForPath:fixtures[@"gcDisc"] system:@"gc" title:@"Synthetic" problem:&problem];
     CHECK([read[@"identities"][0][@"value"] isEqual:@"GZ2E01"] && [read[@"revision"] isEqual:@"2"], "identity %s (%s)", read.description.UTF8String,
           problem.UTF8String);
+    // PSP: the reader types a disc ID as the catalogue does (disc_id). ULES00151 read from its PARAM.SFO is exact for
+    // the Liberty City Stories pack under an unrelated title, so by its ID alone; an identities.json entry an earlier
+    // build typed "game_id" still matches.
+    NSDictionary *(^pspMatches)(NSDictionary *) = ^NSDictionary *(NSDictionary *identity) {
+      NSMutableDictionary *found = [NSMutableDictionary dictionary];
+      for (NSDictionary *row in [catalogue packsForIdentity:identity engine:@"ppsspp"]) found[row[@"id"]] = row[@"match"];
+      return found;
+    };
+    [NeoTextureIdentityReader setCachePath:[work stringByAppendingPathComponent:@"identities-psp.json"]];
+    NSString *pspProblem = nil;
+    NSDictionary *stories = [NeoTextureIdentityReader identityForPath:fixtures[@"pspDisc"] system:@"psp" title:@"Synthetic PSP disc" problem:&pspProblem];
+    NSDictionary *storiesID = [stories[@"identities"] firstObject];
+    CHECK([storiesID[@"type"] isEqual:@"disc_id"] && [storiesID[@"scheme"] isEqual:@"psp-param-sfo-disc-id"] && [storiesID[@"value"] isEqual:@"ULES00151"],
+          "psp identity %s (%s)", stories.description.UTF8String, pspProblem.UTF8String);
+    NSDictionary *pspFound = pspMatches(stories);
+    CHECK([pspFound[@"psp-gta-lcs-weapon-icons-original"] isEqual:@"exact"] && !pspFound[@"psp-gta-vcs-weapon-icons-original"],
+          "ULES00151 read by the reader is exact: %s", pspFound.description.UTF8String);
+    NSDictionary *pspAttributes = [FM() attributesOfItemAtPath:fixtures[@"pspDisc"] error:nil];
+    NSString *legacyKey = [NSString stringWithFormat:@"psp|%@|%llu|%.0f", fixtures[@"pspDisc"], pspAttributes.fileSize,
+                                                     pspAttributes.fileModificationDate.timeIntervalSince1970];
+    NSDictionary *legacy = @{@"entries": @{legacyKey: @{@"system": @"psp", @"regions": @[@"Europe"], @"format": @"iso",
+                                                      @"identities": @[@{@"type": @"game_id", @"scheme": @"psp-param-sfo-disc-id", @"value": @"ULES00151"}]}}};
+    NSString *legacyCache = [work stringByAppendingPathComponent:@"identities-psp-legacy.json"];
+    [[NSJSONSerialization dataWithJSONObject:legacy options:0 error:nil] writeToFile:legacyCache atomically:YES];
+    [NeoTextureIdentityReader setCachePath:legacyCache];
+    NSDictionary *cachedStories = [NeoTextureIdentityReader identityForPath:fixtures[@"pspDisc"] system:@"psp" title:@"Synthetic PSP disc" problem:nil];
+    CHECK([[cachedStories[@"identities"] firstObject][@"type"] isEqual:@"disc_id"] &&
+          [pspMatches(cachedStories)[@"psp-gta-lcs-weapon-icons-original"] isEqual:@"exact"], "a cached game_id is read as disc_id: %s",
+          cachedStories.description.UTF8String);
+    CHECK([NeoTexTypedIdentities(@[@{@"type": @"game_id", @"scheme": @"psp-param-sfo-disc-id", @"value": @"ULES00151"}])[@"disc_id|psp-param-sfo-disc-id"]
+              containsObject:@"ULES00151"], "the matcher types a PSP disc ID disc_id whatever it was cached as");
 
     printf("%s texture catalogue store: %d checks, %d failures\n", failures ? "FAIL" : "PASS", checks, failures);
     return failures ? 1 : 0;

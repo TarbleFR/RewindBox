@@ -12,7 +12,13 @@ with the Build 485 ARMSX2 store linked as in the app, then runs them on:
   and Beetle PSX HW folders and their per-game core options (Beetle: the
   folder named after the loaded file, next to the memory cards, which stay);
   ARMSX2 ZIP and 7z handed to its own store; a manual pack whose author's file
-  was verified on CI, installed from that exact file only (Build 489).
+  was verified on CI, installed from that exact file only (Build 489);
+- the per-game switch: off again once the last pack RewindBox switched on is
+  removed, never one the player set; a PS1 game set to Beetle PSX moved to
+  Beetle PSX HW and an NES game to Mesen through the app's engine choice, the
+  earlier engine offered back; a hand-made Azahar pack.json refused;
+- a PSP disc read by the production reader (ULES00151, typed disc_id) and a
+  cache entry an earlier build typed game_id, both exact on the real catalogue.
 Needs Foundation: macOS only; elsewhere it fails instead of reporting a pass.
 """
 from pathlib import Path
@@ -32,6 +38,7 @@ sys.path.insert(0, str(ROOT / 'test'))
 sys.path.insert(0, str(ROOT / 'tools/textures'))
 import texture_7z_writer as sz  # noqa: E402
 from count_packs import native_one_tap  # noqa: E402
+from texture_identity_test import iso9660, sfo  # noqa: E402
 
 POD = ROOT / 'packages/neo_texture_catalog/ios'
 CLASSES = POD / 'Classes'
@@ -119,6 +126,9 @@ def probes(index):
     probe(psp('ULES00151', 'Grand Theft Auto: Liberty City Stories'), 'ppsspp', exact=['psp-gta-lcs-weapon-icons-original'],
           absent=['psp-gta-vcs-weapon-icons-original'])
     probe(psp('ULUS10160', 'Grand Theft Auto: Vice City Stories'), 'ppsspp', exact=['psp-gta-vcs-asi-factory', 'psp-gta-vcs-weapon-icons-white'])
+    # The type earlier builds gave a PSP disc ID (still in identities.json): matched as disc_id, under any title.
+    legacy = {'system': 'psp', 'title': 'Synthetic disc', 'identities': [{'type': 'game_id', 'scheme': 'psp-param-sfo-disc-id', 'value': 'ULES00151'}]}
+    probe(legacy, 'ppsspp', exact=['psp-gta-lcs-weapon-icons-original'], absent=['psp-gta-vcs-weapon-icons-original'])
     ps2 = {'system': 'ps2', 'title': 'Metal Gear Solid 2: Substance', 'identities': [{'type': 'serial', 'scheme': 'ps2-disc-serial', 'value': 'SLUS-20554'}]}
     probe(ps2, 'armsx2', exact=['ps2-mgs2-hd-ui-nathanhigley'])
     pal = {**ps2, 'identities': [{'type': 'serial', 'scheme': 'ps2-disc-serial', 'value': 'SLES-50383'}], 'regions': ['Europe']}
@@ -265,11 +275,14 @@ def main() -> int:
                                  [{'from': 'SLUS-21137/replacements/', 'to': '{id}/replacements'}], 2)
         disc = fixtures / 'zelda.iso'
         disc.write_bytes(disc_header('GZ2E01', 2))
+        # A PSP disc whose PARAM.SFO names ULES00151 (Liberty City Stories, Europe), read by the app's reader.
+        psp_disc = fixtures / 'stories.iso'
+        psp_disc.write_bytes(iso9660({'PSP_GAME/PARAM.SFO': sfo({'DISC_ID': 'ULES00151', 'DISC_VERSION': '1.00'})}))
         description = {
             'bundledManifest': str(BUNDLED), 'bundledPackCount': len(index['packs']),
             'bundledAvailableCount': sum(1 for p in index['packs'] if native_one_tap(p)),
             'matches': probes(index), 'served': served, 'packs': packs, 'gcDisc': str(disc), 'n64Rom': str(fixtures / 'kart.v64'),
-            'nesRom': str(fixtures / 'Synthetic Quest (USA).nes'),
+            'nesRom': str(fixtures / 'Synthetic Quest (USA).nes'), 'pspDisc': str(psp_disc),
             'hostedFile': str(hosted), 'otherFile': str(other),
         }
         (base / 'fixtures.json').write_text(json.dumps(description, indent=1))

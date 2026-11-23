@@ -189,6 +189,7 @@ those patches stable.
 | **ARMSX2** (PS2) | Serial and boot-ELF CRC read from the image (`Ps2DiscIdentity`: ISO 2048, BIN 2352 MODE1/MODE2; same algorithm as PCSX2 and `NeoTextureIdentity::PS2`) | Patches of the engine's own `patches.zip`: only `Enable = <name>` in `[Patches]` of `Documents/ARMSX2/gamesettings/<SERIAL>_<CRC>.ini` (a `Disable = <name>` line is lifted and put back on restore). Licensed cheats (CookiePLMonster, AeroWidescreen, MIT): `cheats/<SERIAL>_<CRC>_rewindbox.pnach`, written only while one is on and carrying the MIT notices, plus `Enable = <name>` in `[Cheats]` and `[EmuCore] EnableCheats = true` in the same INI (the previous value is restored) | PCSX2 patch loader at boot (ARMSX2 `9d989ca9`, `pcsx2/Patch.cpp`): the zip is read only while `patches/` holds no file for the game, so RewindBox never writes there; the same INI and keys as the in-game Patches and Cheats pages |
 | **Dolphin** (GameCube/Wii) | Game ID from the native `saveIdentity` (DiscIO, no core start); revision from the image header (ISO/GCM, CISO, WBFS, RVZ/WIA) | `$name` lines in `[OnFrame_Enabled]`/`[Gecko_Enabled]`/`[ActionReplay_Enabled]` of `User/GameSettings/<GAMEID>.ini`. A code the engine does not ship (from upstream Dolphin, Ishiiruka, Slippi, MPN or Admentus64) is also written with its body into `[Gecko]`/`[ActionReplay]`/`[OnFrame]` while it is on, and removed when it is off. A matching `_Disabled` line (also in the in-game menu's `<GAMEID>r<rev>.ini`) is lifted and put back on restore. `[Core] EnableCheats = True` in `User/Config/Dolphin.ini` for Gecko/AR | Dolphin merges the user INIs over the engine's own `Sys/GameSettings` (dolphin-ios `7cac5416`) at boot |
 | **Azahar** (3DS, libretro core 2127.0-rc5) | Title ID read from the game file: NCSD partition 0 or NCCH header (program ID at `0x118`), CIA content 0 after the certificate chain, ticket and TMD; an update (`0004000E`) or DLC (`0004008C`) maps to its application (`00040000`), a demo (`00040002`) keeps its own ID. Compressed `.zcci`/`.zcxi` and homebrew (`.3dsx`, `.elf`) have no readable identity | `<Libretro saves>/Azahar/Azahar/cheats/<TITLE ID>.txt` (Gateway sections `[name]`, `*citra_enabled`, the code lines), holding only the codes the player turned on; deleted when none is | Azahar `System::Load` reads that file when the game starts (`core.cpp`), and only enabled sections run. A code made for an update is offered once the update is installed in Azahar's SD card (`sdmc/Nintendo 3DS/<id0>/<id1>/title/0004000e/<low>`) |
+| **Beetle PSX** (PS1, Beetle PSX HW and Beetle PSX) — built-in presets, no download | The per-game key the launch passes (`ps1/<file name>`); the serial read from `SYSTEM.CNF` (BIN/IMG/ISO, a CUE's first track, a CCD's image, an M3U's first disc) for the compatibility line; the core the game starts with (`coreChoiceFor`) | Only the options of the presets turned on, in the game's entry of `Config/Games/Beetle PSX HW.json` and `Beetle PSX.json` (both cores, so a core switch keeps them; the MDEC filter only for Beetle PSX HW). A value the player chose is never replaced; restore removes only the values RewindBox added that still hold its value | The libretro host's per-game option layer at the next start (`LibretroCoreHost`, `Config/Games/<library>.json`) |
 | **Libretro** | — | — | HD textures through the existing page; cheats through the existing in-game menu |
 
 ### Safety rules shared by the adapters
@@ -269,9 +270,11 @@ those patches stable.
 
 ## Sources
 
-21 pinned sources, 53,153 entries (catalogue revision
-`2026-11-23T1141Z.aaf71fb50e67`, the same entries as
-`2026-11-18T0203Z.194be1570540`; 52,489 entries in
+22 pinned sources, 65,367 entries (catalogue revision
+`2026-11-23T2139Z.3841bbdb0131`: the 53,153 entries of
+`2026-11-23T1141Z.aaf71fb50e67` and the 12,214 Azahar codes of
+`2026-11-23T1806Z.aff2909036d7`, regrouped and flagged, none removed;
+53,153 entries in `2026-11-18T0203Z.194be1570540`; 52,489 entries in
 `2026-11-17T1313Z.50379e12bf9d`, 47,184 entries from 11 sources in
 `2026-10-28.209508f70e51`). A source is hosted only when its licence allows
 redistribution; content the embedded engine already ships is referenced by
@@ -308,7 +311,7 @@ Engines' entry totals:
 
 | Engine | Games | Entries | Cheats | FPS | Ultrawide | Graphics | Performance |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| MeloNX | 2,340 | 38,032 | 22,457 | 1,666 | 285 | 13,500 | 124 |
+| MeloNX | 2,336 | 38,032 | 22,457 | 1,666 | 285 | 13,500 | 124 |
 | RPCS3 | 1,139 | 5,532 | 3,468 | 645 | 694 | 707 | 18 |
 | ARMSX2 | 4,618 | 9,251 | 977 | 1,670 | 5,384 | 1,209 | 11 |
 | Dolphin | 282 files | 338 | — | 62 | 216 | 33 | 27 |
@@ -352,9 +355,12 @@ Not integrated after research (28 October 2026):
   - Small RPCS3 repos add only gameplay patches.
 - **No engine:** Flycast widescreen tables (no Dreamcast core).
 - **Unified cheat catalogue (in-game menu):** PSP CWCheat+ (2,519 FPS and
-  widescreen programs) and DuckStation `patches/` (PS1, 128 new) are
-  libretro-core content. Their FPS and widescreen programs reach players
+  widescreen programs) is libretro-core content: its programs reach players
   through the existing in-game cheat menu, not this page (see Limitations).
+  DuckStation `patches/` (PS1) is not imported anywhere: the unified
+  catalogue reads only DuckStation's `cheats/`, and most of those patches use
+  code types Beetle PSX refuses (A7, 90). PS1 enhancements come from the
+  Beetle PSX presets instead.
 
 ## Rights
 
@@ -468,6 +474,12 @@ Publication never rewrites a file an app may still ask for.
   replaced the published one in place, and an app with the older index
   refused it (`shard_integrity`) until its user checked for updates.
 - A run that changes no shard and no source publishes nothing.
+- No entry ID of the published revision may disappear: the builder stops
+  before writing anything (`ID_REMOVAL_ALLOWLIST`, empty, would have to name
+  it with a reason), and `VALIDATION.json` records the drift against the
+  previous revision (IDs and keys removed, added or moved, per engine).
+  The previous revision is the one the bundled index names (`base_url`), so a
+  revision built but never published is replaced, not stacked.
 
 Checks run in this change:
 
@@ -584,11 +596,133 @@ test/texture_install_test.py` (139 checks with g++ and clang++, ASan/UBSan),
 `python3 test/texture_verify_checks_test.py`, `python3
 tools/textures/labels.py --check`. Not run on an iPhone; no IPA built.
 
+## Switch, PS1 and HD packs (23 November 2026, evening)
+
+Catalogue revision `2026-11-23T2139Z.3841bbdb0131` (previous
+`2026-11-23T1806Z.aff2909036d7`): no entry ID removed or added in any
+engine; 67 shards changed; record format 4 unchanged.
+
+- **Update Title IDs folded into their game (Switch).** Five records were
+  keyed by an update ID (`…800`) the page never asks for. Their 52 entries
+  now sit under the application, with the same IDs: Luigi's Mansion 3
+  (60/120/240 FPS v1.4.0), Zelda: Echoes of Wisdom (15), Fire Emblem: Three
+  Houses (3), Samurai Warriors 5 (23; 15 names the game already used end in
+  "(update)"), Neko Navy (3, new key).
+- **Alternatives exclude each other (Switch).** Atmosphere codes of one
+  title and one category that store to the same memory on a build they
+  share are alternatives of one setting (30/45/60 FPS, resolutions, AA
+  modes): they get one exclusive group (`alt/<Title ID>/<hash>`), so turning
+  one on turns the others off. A group never holds two codes that store to
+  different memory on a build both have. Only group IDs are published, never
+  code. 18,871 entries in 5,414 groups over 840 titles (FPS 1,230, graphics
+  12,752, cheats 4,845, ultrawide 26, performance 18). Exefs mods keep their
+  `fps/` and `display/` groups. Two alternatives a player had turned on
+  together before are flagged on the page until one is turned off.
+- **Flags for every engine.** One vocabulary, from the entry's name and the
+  author's notes: `default` (restores the game's own value in every console
+  mode), `noRefresh` (an FPS-tab code that does not raise the frame cap,
+  `Dynamic Resolution Target 45 FPS`), `experimental`, `crashRisk`, `heavy`
+  (renders 2160 lines or more), `dram8gb`. Counts: Switch default 3,447,
+  noRefresh 610, crashRisk 204, experimental 151, heavy 178, dram8gb 2;
+  PS3 crashRisk 13, experimental 24, default 1; PS2 experimental 7,
+  noRefresh 1; Dolphin experimental 3; 3DS crashRisk 5, experimental 2. The
+  page shows them as localized badges with a sentence each. A `default` or
+  `noRefresh` code never sets the engine refresh (a `Default 30 FPS` code
+  used to set 30 Hz); a refresh an older build recorded for one is corrected
+  when the page opens. A mod that needs the 8 GB DRAM layout, which
+  RewindBox does not offer, cannot be turned on; one already on shows its
+  problem and can be turned off.
+- **Versions.** Each Switch record keeps the latest update switch-cheats-db
+  knows (2,249 of 2,336 records). The page names updates ("Update 6
+  (1.3.2)", "Base game") instead of raw numbers and marks codes made only for
+  older versions, without blocking a code whose build matches.
+- **Names and authors.** 22 Fl4sh mod names with broken brackets are
+  repaired, the author's folder name kept in the notes; the 1,052 exefs mods
+  carry their author. The author's notes (credits) show on every tab, and the
+  source line shows the source's name.
+- **RewindBox's own Switch folder.** The Mods dialog no longer lists
+  `contents/<Title ID>/RewindBox` as a player's mod (turning it off used to
+  break the page's codes). A copy an older version moved to
+  `rewindbox-disabled` is moved back, or deleted when stale. A mod folder
+  named RewindBox cannot be imported (reserved name, 12 languages).
+- **PS1 enhancements: Beetle PSX presets.** Seven presets, in 12
+  languages, with their performance and stability notes: widescreen hack
+  16:9 (ultrawide); PGXP geometry, or geometry with perspective-correct
+  textures (one group); MDEC chroma filter (Beetle PSX HW only); GTE
+  overclock; CPU 150 % or 200 % (one group). The option values were checked
+  against the pinned core source (10e4b0c6); the internal resolution stays
+  with its own setting. Presets the core of the game does not read are kept
+  but not applied; a game sent to the RetroArch app shows them all
+  incompatible.
+- **HD packs, PS1 and 3DS.** The catalogue generator refuses a 3DS Title ID
+  that is not 16 hex digits of an application or demo, a PS1 serial not in
+  `SLUS-00067` form or whose declared region contradicts its prefix, a
+  fixed install target that is not one of the pack's IDs, and an engine that
+  does not run the pack's system. A declared availability that contradicts
+  the published one fails generation (14 source declarations corrected; the
+  manifest is unchanged). `test/texture_catalogue_continuation_test.py`
+  checks these invariants on the published manifest and runs on CI.
+- **PS1 cheats, exact match in the unified catalogue.** 345 PS1 records
+  (3,238 programs) name their disc by the Redump hashes of track 1, which the
+  in-game menu hashes too but under another scheme: none could ever be exact.
+  The catalogue now accepts a track-1 hash as the Redump one when that exact
+  value is in the manifest's Redump set (never for another console or a
+  container hash), so these records match exactly; no data was regenerated.
+  The PS1 serial is also read from a `BOOT` line naming a subfolder or a
+  doubled backslash (`cdrom:\\SLUS_012.34;1`), like the HD reader does.
+- **HD packs: engine and switch coherence.** A PS1 game set to Beetle PSX
+  (software) is told the pack needs Beetle PSX HW and can switch to it,
+  like Mesen for NES. Removing the last pack of a game turns its per-game
+  texture option off again when RewindBox had turned it on (Beetle track and
+  replace, Azahar, PPSSPP, Mupen64Plus, Mesen); an option the player set or
+  switched since stays. When RewindBox had moved the game to another core
+  (Beetle PSX HW, Mesen), the page offers the previous one back. Packs
+  installed before this version carry no record: their switch stays on
+  after removal, as before. Switching on a 3DS
+  pack copied by hand checks its `pack.json` first. PSP identities are
+  typed as the catalogue types them (`disc_id`): 217 of the 231 PSP pack
+  identities now match exactly instead of none, the rest stay offered for
+  confirmation.
+- **CI.** `.github/workflows/enhancements-catalog-checks.yml` runs the data
+  tests, the analyzer, every adapter, catalogue, origin and page test and the
+  twelve languages on each push that touches the catalogue, the builder or
+  the page; the Azahar and Beetle tests ran nowhere before.
+
+Checks: `python3 test/enhancement_catalog_data_test.py` (21 tests),
+`flutter test` on every enhancement, MeloNX mods and refresh, page and HD
+service file (141 tests), `flutter analyze` (no issue),
+`python3 test/texture_install_test.py` (143 checks, g++ and clang++),
+`test/texture_identity_test.py`, `test/texture_catalogue_continuation_test.py`,
+`tools/textures/build_catalogue.py --check`, `tools/textures/labels.py
+--check`, the unified catalogue Python tests and
+`test/localization_12_locale_coverage_test.py`. The Objective-C changes
+(unified PS1 matching, HD pack store, engines, page) and their new cases in
+`test/unified_catalog_runtime_native.m`, `cheat_automatic_test.m` and
+`texture_catalog_store_test.mm` are compiled and run only by the macOS CI.
+Nothing was run on an iPhone; no IPA was built.
+
 ## Limitations
 
 - **Libretro cores (PSP, PS1, N64…).** Their FPS and widescreen cheats
   (CWCheat+, DuckStation) stay in the unified cheat catalogue of the in-game
-  menu. The page has no Libretro adapter yet, except Azahar (3DS).
+  menu. The page has no Libretro adapter yet, except Azahar (3DS) and the
+  Beetle PSX presets (PS1).
+- **Beetle PSX presets.** Applied at the next start. Their in-game effect
+  (widescreen with the original screen format, PGXP cost with Lightrec,
+  MDEC filter on MoltenVK, overclock speed) was not observed on an iPhone;
+  the option keys are checked against the pinned core source (10e4b0c6), not
+  the shipped binaries. If `Enhancements/state.json` is lost, values
+  RewindBox wrote look like the player's and stay.
+- **Switch exclusive groups.** Alternatives are found from the codes' stores
+  to a memory region; a code storing through a register set by another code
+  or the master code is not compared (2,854 codes), and the greedy grouping
+  can leave two true alternatives in separate groups. An Atmosphere FPS
+  cheat and an exefs FPS mod of one build still do not exclude each other.
+  Whether MeloNX keeps registers between cheat programs (codes relying on
+  the master code's registers) was not checked in the engine.
+- **Switch refresh.** A refresh an older build recorded for a code now
+  flagged `default` or `noRefresh` is corrected when the game's page opens
+  or a code is switched, not at launch.
 - **Azahar.** Compressed images (`.zcci`, `.zcxi`) and homebrew carry no
   identity readable here: their codes are not offered. A code is applied
   at the next game start.

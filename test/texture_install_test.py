@@ -360,6 +360,18 @@ def main():
         (sub / 'b.png').write_bytes(real_png(8, 2))
         (sub / 'c.dds').write_bytes(DDS)
         assert run('azaharcheck', citra, 'images') == (0, 'problem=')
+        # Switching a game's HD textures on checks a folder copied by hand into load/textures/<Title ID>
+        # (no RewindBox manifest) the same way, its images left undecoded (NeoTextureEngines setActivation):
+        # no folder yet and the empty folder Azahar recreates are no pack to refuse; a broken pack.json is.
+        assert run('azaharcheck', temp / 'azahar-no-folder') == (0, 'problem='), 'a game without a folder can be switched on'
+        hand = temp / 'azahar-by-hand'
+        hand.mkdir()
+        assert run('azaharcheck', hand) == (0, 'problem='), 'the empty folder Azahar recreates'
+        (hand / 'tex1_a.png').write_bytes(b'not decoded at activation')
+        (hand / 'pack.json').write_text('{"options": {"skip_mipmap": "false", "flip_png_files": true, "use_new_hash": true}}')
+        assert run('azaharcheck', hand) == (1, 'problem=packJsonInvalid'), 'a string where Azahar reads a boolean'
+        (hand / 'pack.json').write_text('{' + options + '}')
+        assert run('azaharcheck', hand) == (0, 'problem='), 'a valid hand-made pack is switched on'
 
         # Refusals leave the installed pack untouched and no staging behind.
         before = sorted(p.name for p in (dolphin / 'GZ2E01').iterdir())

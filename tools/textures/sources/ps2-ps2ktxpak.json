@@ -39,7 +39,7 @@
   },
   "system": "ps2",
   "engine": "armsx2",
-  "availability": "manual",
+  "availability": "available",
   "source_url": "https://gbatemp.net/members/thomasweissenfluh.720616/",
   "scope": "complete"
  },
@@ -1612,7 +1612,7 @@
   },
   "system": "ps2",
   "engine": "armsx2",
-  "availability": "manual",
+  "availability": "available",
   "source_url": "https://gbatemp.net/members/darthdarklord.659744/",
   "scope": "partial"
  },
@@ -6863,7 +6863,7 @@
   },
   "system": "ps2",
   "engine": "armsx2",
-  "availability": "manual",
+  "availability": "available",
   "source_url": "https://gbatemp.net/members/maximocapcom.770928/",
   "scope": "complete"
  },
@@ -8359,7 +8359,7 @@
   },
   "system": "ps2",
   "engine": "armsx2",
-  "availability": "manual",
+  "availability": "available",
   "source_url": "https://gbatemp.net/members/joekoh27.696520/",
   "scope": "partial"
  },
@@ -24341,7 +24341,7 @@
   },
   "system": "ps2",
   "engine": "armsx2",
-  "availability": "manual",
+  "availability": "available",
   "source_url": "https://gbatemp.net/members/maximocapcom.770928/",
   "scope": "partial"
  },
@@ -24385,7 +24385,7 @@
   },
   "system": "ps2",
   "engine": "armsx2",
-  "availability": "manual",
+  "availability": "available",
   "source_url": "https://gbatemp.net/members/darthdarklord.659744/",
   "scope": "partial"
  },
@@ -24605,7 +24605,7 @@
   },
   "system": "ps2",
   "engine": "armsx2",
-  "availability": "manual",
+  "availability": "available",
   "source_url": "https://gbatemp.net/members/darthdarklord.659744/",
   "scope": "partial"
  },

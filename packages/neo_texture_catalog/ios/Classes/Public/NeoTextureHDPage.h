@@ -50,7 +50,10 @@ NS_ASSUME_NONNULL_BEGIN
 ///               (+ revision, crc) in the engine's own terms, or
 ///   gamePath    the game file (identity read from it; the engine's record first)
 ///   gameKey     libretro "<system>/<rom file>" of the game (per-game core options)
-///   games       console page: [{path, title, gameKey}] of the console's library
+///   libretroCore the core the game starts with (NES, PS1: one core reads their packs) and
+///   coreSelector the app's engine choice, (gameKey, core) -> success, which switching a pack
+///               on uses to select that core (none in a game)
+///   games       console page: [{path, title, gameKey, libretroCore}] of the console's library
 ///   dolphinUser Dolphin user directory; armsx2Data ARMSX2 data folder and
 ///   armsx2Host  the running game's ARMSX2TextureHost; libretroSaves and
 ///   libretroConfig the libretro Saves and Config folders, libretroSystem its

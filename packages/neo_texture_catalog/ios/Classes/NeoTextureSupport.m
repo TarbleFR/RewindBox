@@ -111,6 +111,10 @@ NSString *NeoTexEngineForSystem(NSString *system) {
   return nil;
 }
 
+NSString *NeoTexIdentityType(NSString *scheme, NSString *type) {
+  return [scheme isEqualToString:@"psp-param-sfo-disc-id"] ? @"disc_id" : type;
+}
+
 NSDictionary *NeoTexTypedIdentities(id identities) {
   NSMutableDictionary *result = [NSMutableDictionary dictionary];
   if (![identities isKindOfClass:NSArray.class]) return result;
@@ -123,6 +127,8 @@ NSDictionary *NeoTexTypedIdentities(id identities) {
                 stringByReplacingOccurrencesOfString:@"_" withString:@""] stringByReplacingOccurrencesOfString:@"." withString:@""];
     }
     if (!type.length || !scheme.length || !value.length) continue;
+    // A PSP disc ID cached as "game_id" by an earlier build still meets the catalogue's disc_id.
+    type = NeoTexIdentityType(scheme, type);
     NSString *key = [NSString stringWithFormat:@"%@|%@", type, scheme];
     NSMutableSet *set = result[key] ?: [NSMutableSet set];
     [set addObject:value];
@@ -343,6 +349,44 @@ void NeoTexRegistrySet(NSString *engine, NSString *folder, NSDictionary *entry) 
     // Bounded: a library of several thousand games still fits.
     while (entries.count > 8000) [entries removeObjectForKey:[entries.allKeys sortedArrayUsingSelector:@selector(compare:)].firstObject];
     document[@"entries"] = entries;
+    document[@"schema"] = @1;
+    NeoTexWriteAtomic(NeoTexJSONData(document), path, nil);
+  }
+}
+
+#pragma mark - Switches RewindBox turned on
+
+static NSString *const SwitchedOnKey = @"switched_on";
+
+NSDictionary *NeoTexSwitchedOn(NSString *engine, NSString *folder) {
+  NSMutableDictionary *records = [NSMutableDictionary dictionary];
+  if (!engine.length || !folder.length) return records;
+  @synchronized(RegistryLock()) {
+    NSDictionary *all = NeoTexJSONDictionary(NeoTexReadBounded(NeoTexRegistryPath(), 4 << 20))[SwitchedOnKey];
+    NSDictionary *games = [all isKindOfClass:NSDictionary.class] ? all[RegistryKey(engine, folder)] : nil;
+    if (![games isKindOfClass:NSDictionary.class]) return records;
+    for (id gameKey in games)
+      if ([gameKey isKindOfClass:NSString.class] && [gameKey length] && [games[gameKey] isKindOfClass:NSDictionary.class]) records[gameKey] = games[gameKey];
+  }
+  return records;
+}
+
+void NeoTexSetSwitchedOn(NSString *engine, NSString *folder, NSString *gameKey, NSDictionary *record) {
+  if (!engine.length || !folder.length || !gameKey.length) return;
+  @synchronized(RegistryLock()) {
+    NSString *path = NeoTexRegistryPath();
+    NSMutableDictionary *document = [NeoTexJSONDictionary(NeoTexReadBounded(path, 4 << 20)) mutableCopy] ?: [NSMutableDictionary dictionary];
+    NSMutableDictionary *all = [document[SwitchedOnKey] isKindOfClass:NSDictionary.class] ? [document[SwitchedOnKey] mutableCopy] : [NSMutableDictionary dictionary];
+    NSString *key = RegistryKey(engine, folder);
+    NSMutableDictionary *games = [all[key] isKindOfClass:NSDictionary.class] ? [all[key] mutableCopy] : [NSMutableDictionary dictionary];
+    // Nothing changes (a switch the player set has no record): the file is left as it is.
+    if (record ? [games[gameKey] isEqual:record] : !games[gameKey]) return;
+    if (record) games[gameKey] = record;
+    else [games removeObjectForKey:gameKey];
+    if (games.count) all[key] = games;
+    else [all removeObjectForKey:key];
+    while (all.count > 8000) [all removeObjectForKey:[all.allKeys sortedArrayUsingSelector:@selector(compare:)].firstObject];
+    document[SwitchedOnKey] = all;
     document[@"schema"] = @1;
     NeoTexWriteAtomic(NeoTexJSONData(document), path, nil);
   }

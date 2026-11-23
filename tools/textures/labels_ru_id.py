@@ -351,3 +351,22 @@ ID.update({
     'engineNotice.mesen': 'Paket HD NES dibaca oleh mesin Mesen; paket untuk Mesen 2 (format di atas 106) tidak. Mesin sebuah game dapat diubah di pengaturannya (Emulator).',
     'importHelp.mesen': 'Gunakan paket HD Mesen yang dibuat untuk berkas ROM ini: hires.txt dengan gambar PNG-nya (ZIP, 7z, RAR, atau folder). Dipasang di {folder}.',
 })
+
+# A PS1 game set to Beetle PSX (software renderer) moves to Beetle PSX HW for its pack; once the
+# last pack RewindBox switched on is deleted, the game is offered its earlier engine back.
+RU.update({
+    'activation.beetleHWEngine': 'При включении эта игра также будет запускаться в Beetle PSX HW: Beetle PSX, программный рендерер, выбранный для этой игры, не заменяет текстуры.',
+    'error.beetleHWNotSelected': 'Не удалось выбрать Beetle PSX HW для этой игры. Выберите Beetle PSX HW в настройках игры (Эмулятор), затем включите пакет.',
+    'restoreCoreTitle': 'Вернуть прежний движок?',
+    'restoreCoreMessage': 'RewindBox запускал эту игру в {engine}, чтобы читать её HD-пакет, который теперь удалён. Раньше она запускалась в {core}: снова запускать её в {core}?',
+    'restoreCoreAction': 'Использовать {core}',
+    'error.coreNotSelected': 'Не удалось сменить движок игры. Выберите его в настройках игры (Эмулятор).',
+})
+ID.update({
+    'activation.beetleHWEngine': 'Mengaktifkannya juga membuat game ini dimulai dengan Beetle PSX HW: Beetle PSX, perender perangkat lunak yang dipilih untuk game ini, tidak mengganti tekstur apa pun.',
+    'error.beetleHWNotSelected': 'Beetle PSX HW tidak dapat dipilih untuk game ini. Pilih Beetle PSX HW di pengaturan game (Emulator), lalu aktifkan paketnya.',
+    'restoreCoreTitle': 'Kembali ke mesin sebelumnya?',
+    'restoreCoreMessage': 'RewindBox membuat game ini dimulai dengan {engine} untuk membaca paket HD-nya, yang kini sudah dihapus. Sebelumnya game ini dimulai dengan {core}: mulai lagi dengan {core}?',
+    'restoreCoreAction': 'Gunakan {core}',
+    'error.coreNotSelected': 'Mesin game tidak dapat diubah. Pilih di pengaturan game (Emulator).',
+})

@@ -69,9 +69,11 @@ abstract final class TextureCatalogService {
   static String _gameKey(String systemFolder, String romname) =>
       '${LibretroCoreCatalog.canonicalSystem(folderName: systemFolder)}/$romname';
 
-  /// NES packs are read by Mesen only: the page shows whether a game starts
-  /// with it, and switching a pack on selects it ([selectCore]).
-  static bool _choosesCore(String textureSystem) => textureSystem == 'nes';
+  /// NES packs are read by Mesen only, PS1 packs by Beetle PSX HW only (not
+  /// by Beetle PSX, the software renderer a game may be set to): the page
+  /// shows whether a game starts with that engine, and switching a pack on
+  /// selects it ([selectCore]).
+  static bool _choosesCore(String textureSystem) => textureSystem == 'nes' || textureSystem == 'ps1';
 
   /// The core a game starts with: its own choice, else its system's default.
   static Future<String?> _coreFor(String systemKey, String romname) async {
@@ -83,15 +85,18 @@ abstract final class TextureCatalogService {
 
   /// The page's request to start a game (`<system>/<rom name>`) with [core]:
   /// recorded as that game's engine choice when its system offers the core.
+  /// The system's default core clears the choice, as the game's Emulator
+  /// settings do: Beetle PSX HW for a PS1 pack, or Nestopia again once the
+  /// last pack of an NES game RewindBox had moved to Mesen is deleted.
   @visibleForTesting
   static Future<bool> selectCore(String gameKey, String core) async {
     final slash = gameKey.indexOf('/');
     if (slash <= 0 || slash == gameKey.length - 1) return false;
     final systemKey = gameKey.substring(0, slash), romname = gameKey.substring(slash + 1);
     final binding = LibretroCoreCatalog.bindingFor(systemKey);
-    if (binding == null || !binding.alternatives.contains(core)) return false;
+    if (binding == null || (core != binding.coreId && !binding.alternatives.contains(core))) return false;
     try {
-      await LibretroInternalService.setCoreChoice(systemKey, romname, core);
+      await LibretroInternalService.setCoreChoice(systemKey, romname, core == binding.coreId ? null : core);
       _log.i('HD textures: $gameKey now starts with $core');
       return true;
     } catch (error) {
