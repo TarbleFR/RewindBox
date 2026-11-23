@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "aa905c6138df6a3f9be5b110ada7b760a1f451a04ce73f0666754ce947b46b6d",
+  "packagedFingerprint": "e3f827591be74e97b71d14f16e95b9add3b4bfb0262ffa50f969ac7a19d4af11",
   "producers": {
     "engine": {
-      "run": 45212529373,
+      "run": 45281444784,
       "attempt": 1,
-      "artifact": 14838303507,
-      "name": "s2arm-engine-framework-d2df56d830095f030373409e28c79a7a9d31d295",
-      "bytes": 25266315,
-      "sha256": "572f5d450f1fd5a061beefead02ca75227838edd9b3ca5df932f611b3c00bec8",
-      "headSha": "d2df56d830095f030373409e28c79a7a9d31d295",
+      "artifact": 14871615611,
+      "name": "s2arm-engine-framework-3d66c1fb1f7a67bdbed7471b8f2bbb42e004a838",
+      "bytes": 25291844,
+      "sha256": "c717e153da979b1d7552414e9caa3342ddb6415bf0493e21a9fa68538db5840b",
+      "headSha": "3d66c1fb1f7a67bdbed7471b8f2bbb42e004a838",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-23T16:26:50Z",
+      "expiresAt": "2026-12-23T22:57:56Z",
       "members": {
-        "S2ArmEngine.framework.zip": "e3c836333a6032dd597161e792695e24dbdfb5e2116dc22858e5b0489fa9df62",
-        "NS2Pro.framework.zip": "1f9811ce69eed36d7dea3b45acb282c840d12f31a5871e65425f1b8e708cfdce"
+        "S2ArmEngine.framework.zip": "21238c8df44579b11581d215d0406c78c8a53bc4e0f53db0d34494695081714b",
+        "NS2Pro.framework.zip": "4b7747f2ac67ee189a30ffd6c29129f5f50dbcc64a2233038f88364fb4c10079"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "572f5d450f1fd5a061beefead02ca75227838edd9b3ca5df932f611b3c00bec8",
+    "engine": "c717e153da979b1d7552414e9caa3342ddb6415bf0493e21a9fa68538db5840b",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "f935f36da88a8f75674e0e570f3e0d085acb23361e0c004fe4e75bef95fecd88",
-      "bytes": 115156496,
-      "fingerprint": "aa905c6138df6a3f9be5b110ada7b760a1f451a04ce73f0666754ce947b46b6d"
+      "sha256": "6fc0c4ca01a568e2b006bd6162c365c4152e47f9e81459b9d05fddb4a6a821c8",
+      "bytes": 115210608,
+      "fingerprint": "e3f827591be74e97b71d14f16e95b9add3b4bfb0262ffa50f969ac7a19d4af11"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45212529373,
+      "run": 45281444784,
       "attempt": 1,
-      "head_sha": "d2df56d830095f030373409e28c79a7a9d31d295",
+      "head_sha": "3d66c1fb1f7a67bdbed7471b8f2bbb42e004a838",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1418,11 +1418,55 @@
         {
           "name": "0319-never-lock-an-alternating-game-at-30-and-drop-the-30-limit.patch",
           "sha256": "1911b80a9d2409d520e51b1f1df5e5537d33e6ff0533f9fed099819fdee7960b"
+        },
+        {
+          "name": "0320-keep-texture-id-views-until-their-own-serial-or-pool-changes.patch",
+          "sha256": "0f9a190bbb1174e18252c500d5d555b2d8d7b9d64ea302334e267f1c63e0132e"
+        },
+        {
+          "name": "0321-fair-thermal-scale-retires-when-every-reduction-was-restored.patch",
+          "sha256": "545b8d0fe05cba8388ea617f72d2b85bcb71e72a3456eeb170ce078ed3068b3c"
+        },
+        {
+          "name": "0322-audit-probes-p1-20-and-p1-65-sampled-four-frames-in-every-300.patch",
+          "sha256": "cacc8e83550a0ed6d7a229d5eb1f350af5a80e2fd96acf52e98e37065284c4d8"
+        },
+        {
+          "name": "0323-per-shader-binding-facts-replace-four-per-draw-binding-walks.patch",
+          "sha256": "5ffc260243a1bc70235c6f7f5b6549993ae5c73877fd9fac27b37913e1f84ce7"
+        },
+        {
+          "name": "0324-same-pass-feedback-draws-mark-only-the-fragment-argument-block.patch",
+          "sha256": "21d4d90f7f17c685be5553ee0a2b7832a6d717e88095c7f8d896d42e91fd3ac8"
+        },
+        {
+          "name": "0325-argument-block-rebuilt-in-part-when-only-uniform-bindings-changed.patch",
+          "sha256": "0ce1e79723dc60eae58d9a42241b60a5a18a1ebf329da2edfc9368df950d5897"
+        },
+        {
+          "name": "0326-spread-the-300-frame-summary-over-six-frames-and-time-each-part.patch",
+          "sha256": "1f67b48315ae2570287afbfb3c9e54961cac9b5498a4d72737bbf1bf3ad34050"
+        },
+        {
+          "name": "0327-show-the-no-lock-guard-whole-frame-scenes-and-real-stays-and-stop-a-growing-trial.patch",
+          "sha256": "758d132d1afffc807e3ff032843fd77f4ec1c89b6b638a6608210809f0f9c682"
+        },
+        {
+          "name": "0328-trace-the-frames-around-each-request-for-present-interval-2.patch",
+          "sha256": "a0867a8bd78c1b34d6938449bb8f81d5a4f1183a230671903ab3d64c48282311"
+        },
+        {
+          "name": "0329-bound-texture-pages-get-their-own-read-ahead-lane-and-admission-under-governor-tier-1.patch",
+          "sha256": "956b346cff1ae2885ff830879edbed32a6cbf0dfc4f20fa03b5bb3503eeec9c0"
+        },
+        {
+          "name": "0331-log-dark-frame-dips-of-the-presented-image-with-scene-size-age-and-textures-remade.patch",
+          "sha256": "92ffda2ca450406308006d83e56dfba27aaf73d7c0ba955fac24f52ad621950e"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "e3c836333a6032dd597161e792695e24dbdfb5e2116dc22858e5b0489fa9df62",
-        "NS2Pro.framework.zip": "1f9811ce69eed36d7dea3b45acb282c840d12f31a5871e65425f1b8e708cfdce"
+        "S2ArmEngine.framework.zip": "21238c8df44579b11581d215d0406c78c8a53bc4e0f53db0d34494695081714b",
+        "NS2Pro.framework.zip": "4b7747f2ac67ee189a30ffd6c29129f5f50dbcc64a2233038f88364fb4c10079"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
