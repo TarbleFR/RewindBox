@@ -24,9 +24,9 @@ All original authors retain their rights. No endorsement or relicensing is impli
 | Genesis Plus GX Wide | Sega 8/16-bit widescreen | Genesis Plus GX authors and Wide contributors | [Non-commercial; additional component notices](genesis_plus_gx_wide-LICENSE.txt) |
 | PicoDrive | Sega / Mega-CD / 32X | notaz and authors listed in AUTHORS | [Custom non-commercial (legacy MAME-style), not a blanket GPL grant](picodrive-COPYING) |
 | FinalBurn Neo | Arcade / Neo Geo | Team FBNeo, Final Burn and MAME contributors | [FBNeo non-commercial; no monetary profit or donation solicitation for projects using its source](fbneo-src-license.txt) |
-| DeSmuME | Nintendo DS | DeSmuME and libretro contributors | [GPLv2; per-file terms apply](desmume-license.txt) |
+| DeSmuME | Nintendo DS | DeSmuME and libretro contributors; AArch64 JIT by Patrick Herlihy (byte4byte) and the DeSmuME team | [GPLv2 or later per file; the RewindBox build with the JIT is distributed under GPLv3](desmume-license.txt) |
 | Mupen64Plus-Next | Nintendo 64 | Mupen64Plus, GLideN64 and libretro contributors | [GPLv2; component notices apply](mupen64plus_next-LICENSE) |
-| Beetle PSX / Beetle PSX HW | PlayStation | Mednafen and libretro contributors | [GPLv2; component notices apply](beetle_psx-COPYING) |
+| Beetle PSX / Beetle PSX HW | PlayStation | Mednafen and libretro contributors; Lightrec by Paul Cercueil; GNU Lightning by the Free Software Foundation | [GPLv2; component notices apply; the RewindBox builds with Lightrec ([LGPL-2.1+](LGPL-2.1.txt), [upstream COPYING](beetle_psx-lightrec-COPYING)) and GNU Lightning ([LGPL-3.0+](beetle_psx-lightning-COPYING.LESSER), [GPLv3 text](beetle_psx-lightning-COPYING)) are distributed under GPLv3](beetle_psx-COPYING) |
 | PPSSPP | PSP | Henrik Rydgård and PPSSPP contributors | [GPLv2 or later; bundled assets and dependencies retain their terms](ppsspp-LICENSE.TXT) |
 | Azahar | Nintendo 3DS | Azahar, Citra, Lime3DS, PabloMK7; FastInterp by warmenhoven and contributors | [GPLv3 or later; component notices apply](azahar-LICENSE.txt) |
 | Beetle PCE Fast | PC Engine / TurboGrafx-16 / CD | Mednafen and libretro contributors | [GPLv2; component notices apply](beetle_pce_fast-COPYING) |
@@ -102,6 +102,17 @@ is built by RewindBox from the official source of 2127.0-rc5 (revision
 with `native/azahar/rewindbox-jit.patch` (the RewindBox JIT interface). Its
 upstream license is the same text at that revision and at the 2127.0-alpha1
 revision `5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6` of the license snapshot.
+DeSmuME is built by RewindBox from libretro/desmume
+`95b4d798731caa809125b6c3c11d17cc332ff6ef` (the revision of its license snapshot)
+with `utils/arm_jit` of TASEmulators/desmume `b549f71b83287f265b6d74b9e77ef5d98a617190`
+and `native/desmume/arm64-jit-abi.patch` (its AArch64 JIT on the RewindBox JIT
+interface); `arm_jit.h` is GPL-3.0-or-later, so this build is distributed under
+GPLv3. Beetle PSX and Beetle PSX HW are built by RewindBox from
+`10e4b0c6ceae20daa65ddf436a4445dddd0982d2` (the revision of their license snapshot)
+with `native/beetle-psx/lightrec-jit-abi.patch` (Lightrec on the RewindBox JIT
+interface), distributed under GPLv3 with GNU Lightning; Lightrec's source files
+are LGPL-2.1-or-later (SPDX) while its upstream `COPYING` holds the LGPL 2.0
+text, so `LGPL-2.1.txt` is included as well.
 
 `Libretro-native-identity.json` in the IPA records the downloaded archives,
 pre-signing binary hashes, retrieval dates and upstream repositories. The

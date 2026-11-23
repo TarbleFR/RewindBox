@@ -1,8 +1,9 @@
 # DeSmuME : architecture d'un JIT AArch64 pour RewindBox
 
-*23 novembre 2026 — branche `Claude`. Conception terminée : aucun code du cœur modifié ni compilé, rien mesuré.
-Décisions du mainteneur : « DS : garder DeSmuME, soit inventif et conçois l'architecture », puis « fini de concevoir
-l'architecture JIT pour la DS ». Sources relues : libretro/desmume `95b4d798` (**L**), TASEmulators/desmume
+*23 novembre 2026 — branche `Claude`. **Étape 0 réalisée** (section 13) : JIT AArch64 de T sur l'ABI,
+`native/desmume`, compilé par la route source-cores, vérifié hors appareil ; rien mesuré sur iPhone. Décisions du
+mainteneur : « DS : garder DeSmuME, soit inventif et conçois l'architecture », « fini de concevoir l'architecture
+JIT pour la DS », puis « vas jusqu'au bout ». Sources relues : libretro/desmume `95b4d798` (**L**), TASEmulators/desmume
 `b549f71b` (**T**), melonDS `ff972523`, oaknut `94c726ce`. Les chiffres de gain sont des estimations ou des
 affirmations d'auteurs, jamais des mesures RewindBox.*
 
@@ -458,5 +459,49 @@ Tirée de la 826.
 
 1. **Réglage visible par jeu** (`requiresJit`, section 10) pour DeSmuME, Azahar et Beetle. Recommandé.
 2. **Taille de l'arène** : 32 Mio au départ, ajustée d'après les lignes `[rb-jit]`.
-3. **Calendrier.** Étape 0 après les livraisons 826 (Azahar) et 827 (Beetle), puis l'ordre 1 → 2 → 3 → 4 de la
-   section 3, selon la part CPU mesurée.
+3. **Calendrier.** Étape 0 faite (section 13) ; sa livraison revient à la session qui fait les IPA. Puis l'ordre
+   1 → 2 → 3 → 4 de la section 3, selon la part CPU mesurée.
+
+## 13. État : étape 0 réalisée (23 novembre 2026)
+
+- **Code.** `native/desmume/` contient l'épingle `source.json`, le correctif `arm64-jit-abi.patch` (11 fichiers,
+  +310/−142) et un [README](../native/desmume/README.md).
+  - Les trois fichiers du JIT de T sont importés à `b549f71b` par `importFiles`, nouveau dans
+    `build-utils/libretro_source_cores.py`, avec leurs SHA-256 vérifiés. Le correctif ne porte que nos changements.
+  - Le constructeur gagne aussi `build.directory` (make dans `desmume/src/frontend/libretro`) et `sourceDateEpoch`.
+    Celui-ci donne une date de compilation fixe : une recompilation de la même épingle redonne le même binaire,
+    ce qui vaut aussi pour Azahar et Beetle.
+- **Écarts avec les sections 7 à 10.**
+  - Vidage de l'arène immédiat, comme T, sans `munmap` (section 7.2).
+  - `IOSMINVER` vaut toujours 8.0 par défaut dans le Makefile ; l'épingle passe `IOSMINVER=14.0`.
+  - Défauts corrigés en plus de #997, #998 et #1002 :
+    - retenue d'`ASR #32` aussi en ARM (opérations de données avec S) ;
+    - +2 cycles comptés deux fois pour les écritures de r15 par une opération de données ;
+    - la première exécution d'un bloc, interprétée pendant sa compilation, s'arrête aussi après une écriture qui
+      arme un DMA (sinon le premier transfert se perdait).
+  - Le défaut 1 du #998 (cycles lus sans initialisation) n'existe pas dans la version AArch64 : le repli sur
+    l'interpréteur écrit `bb_cycles`.
+  - Journal : `[rb-jit] desmume installed=… arena=… page=… wanted=… jit=…` au démarrage, puis
+    `blocks used capacity flushes interpreted failures` toutes les 30 s de jeu et au déchargement.
+  - Section 8 non faite : ni sortie sur écriture dans le bloc en cours, ni MCR p15 c7 comme point de sortie. Le
+    comportement du JIT amont est conservé.
+  - Section 10 faite pour le catalogue (JIT par défaut ; interpréteur et taille de bloc 12 sans JIT). Le réglage
+    visible par jeu n'est pas fait (décision 1).
+- **Vérification hors appareil**, banc manuel non livré :
+  - le cœur compilé pour Linux AArch64, sous qemu, dans un frontend libretro avec une arène memfd vue en RW et en
+    RX ;
+  - une ROM DS de test écrite pour l'occasion.
+
+  | Configuration | Résultat |
+  | --- | --- |
+  | Avant correctifs | 249 relevés sur 4 380 différaient de l'interpréteur |
+  | Après correctifs, blocs de 1, 12 et 100 | 4 396 sur 4 396 identiques |
+  | Arène de 4 Mio | Rembobinages corrects |
+  | Sans interface ou hôte sans capacité JIT | Interpréteur |
+
+  Le même arbre, reconstruit par le constructeur à partir de l'épingle, donne les mêmes résultats.
+- **Compilation iOS** : route source-cores, run [45213717171](https://github.com/TarbleFR/RewindBox/actions/runs/45213717171).
+- **Reste à faire.**
+  - Mesures sur iPhone : critères 2 à 5 de la section 7.5.
+  - Livraison par la session IPA.
+  - Étapes 1 à 4 de la section 3.

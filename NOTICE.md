@@ -718,6 +718,39 @@ later**, with the license included in the application under
 archive with dependencies (dynarmic 0BSD, oaknut MIT among them):
 [azahar-unified-source-2127.0-rc5.tar.xz](https://github.com/azahar-emu/azahar/releases/download/2127.0-rc5/azahar-unified-source-2127.0-rc5.tar.xz).
 FastInterp is credited to warmenhoven and the Azahar contributors.
+
+## DeSmuME — embedded Nintendo DS core, built by RewindBox
+
+RewindBox builds its Nintendo DS libretro core from
+[libretro/desmume](https://github.com/libretro/desmume/tree/95b4d798731caa809125b6c3c11d17cc332ff6ef)
+(source revision `95b4d798731caa809125b6c3c11d17cc332ff6ef`) with the AArch64 JIT
+of the DeSmuME team (`desmume/src/utils/arm_jit`, by Patrick Herlihy of byte4byte
+and the DeSmuME team) taken from
+[TASEmulators/desmume](https://github.com/TASEmulators/desmume/tree/b549f71b83287f265b6d74b9e77ef5d98a617190)
+(revision `b549f71b83287f265b6d74b9e77ef5d98a617190`), and the modifications in
+`native/desmume/arm64-jit-abi.patch` of the RewindBox source repository: the
+RewindBox JIT interface, through which the JIT writes its code into the executable
+memory the application prepares and runs only when that interface is installed,
+and corrections to the JIT and the interpreter. DeSmuME's files are licensed under
+GPLv2 or later and `arm_jit.h` under GPLv3 or later, so this build is distributed
+under **GPLv3**; the license texts are in `Libretro-Licenses/` and
+`assets/legal/libretro/desmume-license.txt`.
+
+## Beetle PSX and Beetle PSX HW — embedded PlayStation cores, built by RewindBox
+
+RewindBox builds both PlayStation libretro cores from
+[libretro/beetle-psx-libretro](https://github.com/libretro/beetle-psx-libretro/tree/10e4b0c6ceae20daa65ddf436a4445dddd0982d2)
+(source revision `10e4b0c6ceae20daa65ddf436a4445dddd0982d2`) with its Lightrec
+dynarec (Paul Cercueil, LGPL-2.1-or-later) and GNU Lightning (Free Software
+Foundation, LGPL-3.0-or-later), and the modifications in
+`native/beetle-psx/lightrec-jit-abi.patch` of the RewindBox source repository: the
+RewindBox JIT interface, through which Lightrec writes its code into the executable
+memory the application prepares and runs only when that interface is installed.
+Beetle PSX and Mednafen are licensed under GPLv2 or later; with GNU Lightning these
+builds are distributed under **GPLv3**. The texts of Lightrec and GNU Lightning
+are in `Libretro-Licenses/` and `assets/legal/libretro/` (Lightrec's upstream
+`COPYING` holds the LGPL 2.0 text; `LGPL-2.1.txt` is included for its
+LGPL-2.1-or-later source headers).
 The other embedded libretro cores retain their existing versions and licenses.
 
 ## Shader kit, menu music and controller catalogs

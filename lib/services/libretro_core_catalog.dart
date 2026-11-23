@@ -221,7 +221,14 @@ abstract final class LibretroCoreCatalog {
       id: 'desmume',
       displayName: 'DeSmuME',
       extensions: {'nds', 'ids', 'bin'},
-      noJitOverrides: {'desmume_cpu_mode': 'interpreter'},
+      // RewindBox builds DeSmuME from source with the AArch64 JIT of
+      // TASEmulators/desmume on its JIT interface (native/desmume): the JIT
+      // runs only when the libretro JIT helper prepared the code arena and the
+      // core installed it, and is then the default. Without the JIT the
+      // interpreter is forced for the session and the block size keeps its
+      // default. The core reads both options when the game starts.
+      optionDefaults: {'desmume_cpu_mode': 'jit'},
+      noJitOverrides: {'desmume_cpu_mode': 'interpreter', 'desmume_jit_block_size': '12'},
       resolution: LibretroResolutionDeclaration(
         libraryName: 'DeSmuME',
         key: 'desmume_internal_resolution',
@@ -286,10 +293,22 @@ abstract final class LibretroCoreCatalog {
         'beetle_psx_hw_hd_cache_vram_budget': '512',
         'beetle_psx_hw_hd_cache_ram_budget': '512',
       },
-      // No no-JIT override: the pinned iOS builds of both Beetle PSX cores
-      // have no Lightrec dynarec option, and test/libretro_core_options_test.py
-      // flags one if a future core build adds it. Build 455: the "Resolution
-      // and picture" page replaces the curated resolution setting.
+      // RewindBox builds both Beetle PSX cores from source with Lightrec on its
+      // JIT interface (native/beetle-psx): the dynarec runs only when the
+      // libretro JIT helper prepared the code arena and the core installed it,
+      // and is then the default (execute). Without the JIT it is forced off for
+      // the session and the dynarec tuning options keep their defaults.
+      optionDefaults: {'beetle_psx_hw_cpu_dynarec': 'execute'},
+      noJitOverrides: {
+        'beetle_psx_hw_cpu_dynarec': 'disabled',
+        'beetle_psx_hw_dynarec_invalidate': 'full',
+        'beetle_psx_hw_dynarec_eventcycles': '128',
+        'beetle_psx_hw_dynarec_spu_samples': '1',
+        'beetle_psx_hw_dynarec_spgp_opt': 'disabled',
+        'beetle_psx_hw_dynarec_op_cycles': '2',
+      },
+      // Build 455: the "Resolution and picture" page replaces the curated
+      // resolution setting.
       resolution: LibretroResolutionDeclaration(
         libraryName: 'Beetle PSX HW',
         key: 'beetle_psx_hw_internal_resolution',
@@ -302,6 +321,16 @@ abstract final class LibretroCoreCatalog {
       displayName: 'Beetle PSX',
       extensions: {'cue', 'toc', 'm3u', 'ccd', 'exe', 'pbp', 'chd', 'bin'},
       biosAnyOf: ['scph5500.bin', 'scph5501.bin', 'scph5502.bin'],
+      // Lightrec as for Beetle PSX HW (native/beetle-psx).
+      optionDefaults: {'beetle_psx_cpu_dynarec': 'execute'},
+      noJitOverrides: {
+        'beetle_psx_cpu_dynarec': 'disabled',
+        'beetle_psx_dynarec_invalidate': 'full',
+        'beetle_psx_dynarec_eventcycles': '128',
+        'beetle_psx_dynarec_spu_samples': '1',
+        'beetle_psx_dynarec_spgp_opt': 'disabled',
+        'beetle_psx_dynarec_op_cycles': '2',
+      },
       // The software renderer scales the picture too.
       resolution: LibretroResolutionDeclaration(
         libraryName: 'Beetle PSX',

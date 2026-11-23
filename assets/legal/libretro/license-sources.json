@@ -160,7 +160,7 @@
       "component": "desmume",
       "repository": "https://github.com/libretro/desmume",
       "license_reference_revision": "95b4d798731caa809125b6c3c11d17cc332ff6ef",
-      "binary_source_revision_attested": false,
+      "binary_source_revision_attested": true,
       "files": [
         {
           "path": "desmume-license.txt",
@@ -171,7 +171,8 @@
       ],
       "cores": [
         "desmume"
-      ]
+      ],
+      "source_build": "RewindBox build: libretro/desmume 95b4d798731caa809125b6c3c11d17cc332ff6ef, utils/arm_jit (arm_jit_arm.cpp, emit_core.cpp, arm64_emit.cpp) of TASEmulators/desmume b549f71b83287f265b6d74b9e77ef5d98a617190, native/desmume/arm64-jit-abi.patch; distributed under GPLv3 (arm_jit.h is GPL-3.0-or-later)"
     },
     {
       "component": "mupen64plus_next",
@@ -194,19 +195,38 @@
       "component": "beetle_psx",
       "repository": "https://github.com/libretro/beetle-psx-libretro",
       "license_reference_revision": "10e4b0c6ceae20daa65ddf436a4445dddd0982d2",
-      "binary_source_revision_attested": false,
+      "binary_source_revision_attested": true,
       "files": [
         {
           "path": "beetle_psx-COPYING",
           "upstream_path": "COPYING",
           "source_url": "https://raw.githubusercontent.com/libretro/beetle-psx-libretro/10e4b0c6ceae20daa65ddf436a4445dddd0982d2/COPYING",
           "sha256": "a6996dcf0c334281f734560926e079b2dbbd5b78e81c0ca00a413ec01e1cd2fb"
+        },
+        {
+          "path": "beetle_psx-lightrec-COPYING",
+          "upstream_path": "deps/lightrec/COPYING",
+          "source_url": "https://raw.githubusercontent.com/libretro/beetle-psx-libretro/10e4b0c6ceae20daa65ddf436a4445dddd0982d2/deps/lightrec/COPYING",
+          "sha256": "d7bf9d064ac3e5840f9dd02422b7eeec4f1fd03f37fadbd043602be5e882304f"
+        },
+        {
+          "path": "beetle_psx-lightning-COPYING.LESSER",
+          "upstream_path": "deps/lightning/COPYING.LESSER",
+          "source_url": "https://raw.githubusercontent.com/libretro/beetle-psx-libretro/10e4b0c6ceae20daa65ddf436a4445dddd0982d2/deps/lightning/COPYING.LESSER",
+          "sha256": "a853c2ffec17057872340eee242ae4d96cbf2b520ae27d903e1b2fef1a5f9d1c"
+        },
+        {
+          "path": "beetle_psx-lightning-COPYING",
+          "upstream_path": "deps/lightning/COPYING",
+          "source_url": "https://raw.githubusercontent.com/libretro/beetle-psx-libretro/10e4b0c6ceae20daa65ddf436a4445dddd0982d2/deps/lightning/COPYING",
+          "sha256": "fc82ca8b6fdb18d4e3e85cfd8ab58d1bcd3f1b29abe782895abd91d64763f8e7"
         }
       ],
       "cores": [
         "mednafen_psx",
         "mednafen_psx_hw"
-      ]
+      ],
+      "source_build": "RewindBox build: libretro/beetle-psx-libretro 10e4b0c6ceae20daa65ddf436a4445dddd0982d2 with Lightrec and GNU Lightning, native/beetle-psx/lightrec-jit-abi.patch; distributed under GPLv3 (Lightrec LGPL-2.1-or-later per its SPDX headers, text in LGPL-2.1.txt; GNU Lightning LGPL-3.0-or-later)"
     },
     {
       "component": "ppsspp",
@@ -657,6 +677,10 @@
     {
       "path": "RA-disc-reader-NOTICES.txt",
       "sha256": "950a634cb3457b37263c6a5601b9390ea2d83f0c85a1f96b63d719abeb6616cc"
+    },
+    {
+      "path": "LGPL-2.1.txt",
+      "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30"
     }
   ]
 }

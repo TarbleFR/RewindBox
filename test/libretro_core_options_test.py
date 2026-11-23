@@ -257,12 +257,21 @@ def main():
                                           ({declared['key']} if declared else set()))
         require(not overlap, f'{core_id}: locked options {sorted(overlap)} are also defaults or settings')
     require(all(entry['noJit'] for core_id, entry in cores.items()
-                if core_id in ('mupen64plus_next', 'ppsspp', 'desmume')),
+                if core_id in ('mupen64plus_next', 'ppsspp', 'desmume', 'mednafen_psx_hw', 'mednafen_psx')),
             'no-JIT overrides were not parsed')
     require(cores['azahar']['defaults'].get('citra_use_fastinterp') == 'enabled',
             'FastInterp must default on without locking the user choice')
     require(cores['azahar']['noJit'] == {'citra_use_cpu_jit': 'disabled', 'citra_use_shader_jit': 'disabled'},
             "RewindBox's Azahar build declares both JIT options: forced off without the JIT interface")
+    # RewindBox's DeSmuME (AArch64 JIT) and Beetle PSX (Lightrec) builds: generated code by default with the JIT
+    # interface, the interpreter without it.
+    require(cores['desmume']['noJit'] == {'desmume_cpu_mode': 'interpreter', 'desmume_jit_block_size': '12'}
+            and cores['desmume']['defaults'].get('desmume_cpu_mode') == 'jit',
+            "RewindBox's DeSmuME build: JIT by default, the interpreter without the JIT interface")
+    for core_id, prefix in (('mednafen_psx_hw', 'beetle_psx_hw'), ('mednafen_psx', 'beetle_psx')):
+        require(cores[core_id]['noJit'].get(prefix + '_cpu_dynarec') == 'disabled'
+                and cores[core_id]['defaults'].get(prefix + '_cpu_dynarec') == 'execute',
+                f"RewindBox's {core_id} build: Lightrec by default, off without the JIT interface")
     if args.cores is None:
         print('Catalog parsed:', len(cores), 'cores; binary contract needs --cores')
         return

@@ -407,6 +407,27 @@ void main() {
     expect(cores['mupen64plus_next']!.noJitOverrides,
         <String, String>{'mupen64plus-cpucore': 'cached_interpreter'});
     expect(cores['ppsspp']!.noJitOverrides, <String, String>{'ppsspp_cpu_core': 'IR JIT'});
-    expect(cores['desmume']!.noJitOverrides, <String, String>{'desmume_cpu_mode': 'interpreter'});
+    // RewindBox's DeSmuME and Beetle PSX builds generate code only with the
+    // JIT interface, and then by default; without it the interpreter runs.
+    expect(cores['desmume']!.noJitOverrides, <String, String>{
+      'desmume_cpu_mode': 'interpreter',
+      'desmume_jit_block_size': '12',
+    });
+    expect(cores['desmume']!.optionDefaults['desmume_cpu_mode'], 'jit');
+    for (final prefix in <String, String>{
+      'mednafen_psx_hw': 'beetle_psx_hw',
+      'mednafen_psx': 'beetle_psx',
+    }.entries) {
+      final p = prefix.value;
+      expect(cores[prefix.key]!.noJitOverrides, <String, String>{
+        '${p}_cpu_dynarec': 'disabled',
+        '${p}_dynarec_invalidate': 'full',
+        '${p}_dynarec_eventcycles': '128',
+        '${p}_dynarec_spu_samples': '1',
+        '${p}_dynarec_spgp_opt': 'disabled',
+        '${p}_dynarec_op_cycles': '2',
+      }, reason: prefix.key);
+      expect(cores[prefix.key]!.optionDefaults['${p}_cpu_dynarec'], 'execute', reason: prefix.key);
+    }
   });
 }
