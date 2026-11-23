@@ -1,0 +1,61 @@
+{
+ "repository": "TarbleFR/RewindBox",
+ "run": 45195675761,
+ "attempt": 1,
+ "source": "10da90d792396732ed2740a928e59bedcc16b0ee",
+ "workflow": ".github/workflows/actions-cleanup-2026-11-23.yml",
+ "conclusion": "success",
+ "job": 137765349795,
+ "jobConclusion": "success",
+ "steps": [
+  {
+   "name": "Set up job",
+   "conclusion": "success"
+  },
+  {
+   "name": "Read the exact maintenance commit",
+   "conclusion": "success"
+  },
+  {
+   "name": "Check deletion safeguards",
+   "conclusion": "success"
+  },
+  {
+   "name": "Apply the bounded cleanup plan",
+   "conclusion": "success"
+  },
+  {
+   "name": "Preserve the cleanup receipt",
+   "conclusion": "success"
+  },
+  {
+   "name": "Publish the execution summary",
+   "conclusion": "success"
+  },
+  {
+   "name": "Post Read the exact maintenance commit",
+   "conclusion": "success"
+  },
+  {
+   "name": "Complete job",
+   "conclusion": "success"
+  }
+ ],
+ "artifact": {
+  "id": 14833681643,
+  "name": "Actions-history-cleanup-45195675761",
+  "size_in_bytes": 1053701,
+  "created_at": "2026-11-23T15:29:34Z",
+  "expires_at": "2027-02-21T14:34:35Z",
+  "digest": "sha256:36b3c371252f270d3d3875bd06399eef56ad2ff7d3f77ef1bdd976cee003ba49"
+ },
+ "zipMembers": [
+  "dry-run.json",
+  "progress.jsonl",
+  "receipt.json",
+  "remaining-runs.json",
+  "summary.md"
+ ],
+ "plan": "build-utils/maintenance/actions-cleanup-2026-11-23-pass2.json",
+ "planSha256": "2d9ab31661146e2bf6b7f3d3302d5db76fc5a8bdf96e13f114333697ed3b9541"
+}

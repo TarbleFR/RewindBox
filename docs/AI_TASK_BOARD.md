@@ -10,6 +10,8 @@
 
 23 novembre — [Nextendo : un seul interrupteur, tous les jeux NEX](evidence/nextendo-online-all-games-2026-11-23.md). Certificat privé, serveur sécurisé par adresse et choix DNS étendus de SSBU à tout titre NEX ; écran réduit au compte et aux services en ligne. Core et app compilés localement (HLE/Library) ; NPLN non couvert ; iPhone non testé.
 
+23 novembre — [Grand nettoyage Actions, 500 dernières exécutions gardées](actions-history-cleanup-2026-11-23.md) : 2 584 exécutions supprimées en deux passages, reçus et relecture complète vérifiés ; 940 restent, dont 416 anciennes encore utilisées (épinglages, manifeste 826, routes actives, `main`, non terminées). 3 008 artefacts détachés (131 Go) attendent la purge différée de GitHub. Lanceur ponctuel retiré.
+
 21 novembre — Préchargement 0192–0197. Rendement par source et octets lus par le processus. Mesures sur iPhone en attente.
 
 21 novembre — Gouverneur mémoire 0186–0191. Suivi de dix minutes, seuils sur appareil en attente.
