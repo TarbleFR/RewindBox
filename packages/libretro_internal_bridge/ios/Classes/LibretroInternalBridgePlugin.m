@@ -332,7 +332,7 @@ static NSDictionary<NSString *, id> *Failure(NSString *code, NSString *message) 
     // libretro helper transaction prepares the session's code arena. Its
     // facts are returned separately; a failure keeps the interpreter.
     if (self.session.active || self.launching) {
-      result(@{@"success" : @NO, @"code" : @"LIBRETRO_JIT_SESSION_ACTIVE",
+      result(@{@"success" : @NO, @"code" : @"RB_JIT_SESSION_ACTIVE",
                @"message" : @"A libretro game is running."});
       return;
     }

@@ -74,29 +74,29 @@ static NSMutableDictionary<NSString *, id> *LibretroJitFacts(BOOL universal) {
   };
   if (@available(iOS 17.4, *)) {
   } else {
-    refuse(@"LIBRETRO_JIT_OS", @"The libretro JIT helper requires iOS 17.4 or newer.");
+    refuse(@"RB_JIT_OS", @"The libretro JIT helper requires iOS 17.4 or newer.");
     return;
   }
   if (!LibretroJitHostHasGetTaskAllow()) {
-    refuse(@"LIBRETRO_JIT_ENTITLEMENT", @"This RewindBox installation does not preserve get-task-allow.");
+    refuse(@"RB_JIT_ENTITLEMENT", @"This RewindBox installation does not preserve get-task-allow.");
     return;
   }
   if (pairingFilePath.length == 0 || ![NSFileManager.defaultManager isReadableFileAtPath:pairingFilePath]) {
-    refuse(@"LIBRETRO_JIT_PAIRING", @"Import a readable pairing file before enabling JIT.");
+    refuse(@"RB_JIT_PAIRING", @"Import a readable pairing file before enabling JIT.");
     return;
   }
   if (bytes == 0 || bytes > LIBRETRO_JIT_MAX_CAPACITY) {
-    refuse(@"LIBRETRO_JIT_CAPACITY", @"The requested code arena size is not supported.");
+    refuse(@"RB_JIT_CAPACITY", @"The requested code arena size is not supported.");
     return;
   }
   if (LibretroJitHostHasLiveDebugger()) {
     // Another engine's helper (or an external debugger) is attached: never attach over it.
-    refuse(@"LIBRETRO_JIT_DEBUGGER_BUSY", @"Another debugger is attached to RewindBox.");
+    refuse(@"RB_JIT_DEBUGGER_BUSY", @"Another debugger is attached to RewindBox.");
     return;
   }
   @synchronized(self) {
     if (self.busy) {
-      refuse(@"LIBRETRO_JIT_BUSY", @"A libretro JIT transaction is already running.");
+      refuse(@"RB_JIT_BUSY", @"A libretro JIT transaction is already running.");
       return;
     }
     self.busy = YES;
@@ -131,29 +131,29 @@ static NSMutableDictionary<NSString *, id> *LibretroJitFacts(BOOL universal) {
                                                          options:NSDataReadingMappedIfSafe
                                                            error:nil];
     if (pairingData.length == 0) {
-      finish(@"LIBRETRO_JIT_PAIRING", @"The stored pairing file could not be read.");
+      finish(@"RB_JIT_PAIRING", @"The stored pairing file could not be read.");
       return;
     }
     NSError *error = nil;
     session = [[LibretroJitSession alloc] initWithError:&error];
     if (session == nil) {
-      finish(@"LIBRETRO_JIT_HELPER", error.localizedDescription ?: @"Could not prepare the libretro JIT helper.");
+      finish(@"RB_JIT_HELPER", error.localizedDescription ?: @"Could not prepare the libretro JIT helper.");
       return;
     }
     session.requiresCoreHandshake = universal;
     [session startReader];
     if (![session launchHelperWithPairingData:pairingData error:&error]) {
-      finish(@"LIBRETRO_JIT_HELPER", error.localizedDescription ?: @"Could not launch the libretro JIT helper.");
+      finish(@"RB_JIT_HELPER", error.localizedDescription ?: @"Could not launch the libretro JIT helper.");
       return;
     }
     if (![session waitUntilConnected:kLibretroJitConnectTimeout]) {
-      finish(@"LIBRETRO_JIT_HELPER_CONNECT",
+      finish(@"RB_JIT_HELPER_CONNECT",
              session.finalMessage.length > 0 ? session.finalMessage : @"The libretro JIT helper did not connect.");
       return;
     }
     facts[@"helperConnected"] = @YES;
     if (![session waitUntilAttached:kLibretroJitAttachTimeout]) {
-      finish(@"LIBRETRO_JIT_ATTACH",
+      finish(@"RB_JIT_ATTACH",
              session.finalMessage.length > 0 ? session.finalMessage : @"StikJIT did not attach to RewindBox.");
       return;
     }
@@ -175,16 +175,16 @@ static NSMutableDictionary<NSString *, id> *LibretroJitFacts(BOOL universal) {
       const BOOL completed = [session waitUntilFinished:kLibretroJitCompleteTimeout] && session.success;
       facts[@"helperCompleted"] = @(completed);
       if (!prepared) {
-        finish(@"LIBRETRO_JIT_PREPARE", @"The code arena could not be prepared.");
+        finish(@"RB_JIT_PREPARE", @"The code arena could not be prepared.");
       } else if (!nonceProbe) {
-        finish(@"LIBRETRO_JIT_NONCE", @"The helper did not answer the session's nonce.");
+        finish(@"RB_JIT_NONCE", @"The helper did not answer the session's nonce.");
       } else if (!detached || !completed) {
-        finish(@"LIBRETRO_JIT_DETACH", session.finalMessage.length > 0 ? session.finalMessage
+        finish(@"RB_JIT_DETACH", session.finalMessage.length > 0 ? session.finalMessage
                                                                         : @"The helper did not complete after the detach.");
       } else if (LibretroJitHostHasLiveDebugger()) {
-        finish(@"LIBRETRO_JIT_DEBUGGER_LEFT", @"A debugger is still attached after the detach.");
+        finish(@"RB_JIT_DEBUGGER_LEFT", @"A debugger is still attached after the detach.");
       } else if (!libretro_jit_arena_ready()) {
-        finish(@"LIBRETRO_JIT_PREPARE", @"The code arena is not ready.");
+        finish(@"RB_JIT_PREPARE", @"The code arena is not ready.");
       } else {
         finish(nil, @"JIT ready for the libretro core.");
       }
@@ -195,12 +195,12 @@ static NSMutableDictionary<NSString *, id> *LibretroJitFacts(BOOL universal) {
     const BOOL completed = [session waitUntilFinished:kLibretroJitCompleteTimeout] && session.success;
     facts[@"helperCompleted"] = @(completed);
     if (!completed) {
-      finish(@"LIBRETRO_JIT_ATTACH",
+      finish(@"RB_JIT_ATTACH",
              session.finalMessage.length > 0 ? session.finalMessage : @"StikJIT did not complete the classic attach.");
       return;
     }
     if (!LibretroHostIsDebugged()) {
-      finish(@"LIBRETRO_JIT_NOT_DEBUGGED", @"StikJIT detached without leaving RewindBox JIT-enabled.");
+      finish(@"RB_JIT_NOT_DEBUGGED", @"StikJIT detached without leaving RewindBox JIT-enabled.");
       return;
     }
     const BOOL prepared = libretro_jit_arena_prepare(bytes, 0) == 0;
@@ -209,9 +209,9 @@ static NSMutableDictionary<NSString *, id> *LibretroJitFacts(BOOL universal) {
     libretro_jit_arena_stats(&stats);
     facts[@"executableProbe"] = @(stats.executableProbe != 0);
     if (!prepared || !libretro_jit_arena_ready()) {
-      finish(@"LIBRETRO_JIT_PREPARE", @"The code arena could not be prepared.");
+      finish(@"RB_JIT_PREPARE", @"The code arena could not be prepared.");
     } else if (LibretroJitHostHasLiveDebugger()) {
-      finish(@"LIBRETRO_JIT_DEBUGGER_LEFT", @"A debugger is still attached after the classic attach.");
+      finish(@"RB_JIT_DEBUGGER_LEFT", @"A debugger is still attached after the classic attach.");
     } else {
       finish(nil, @"JIT ready for the libretro core.");
     }
