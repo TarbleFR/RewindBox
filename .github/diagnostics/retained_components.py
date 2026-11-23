@@ -448,6 +448,30 @@ def download_archive(kind, spec, api=None, download=None):
     return value
 
 
+# Libretro collections the source-cores route rebuilt from the retained collection
+# (build-utils/libretro_source_cores.py: the base authenticated file by file, the pinned patched sources of these cores
+# compiled with the RewindBox JIT interface, every other file unchanged), each reviewed before a delivery adopts it.
+LIBRETRO_SOURCE_ROUTE = '.github/workflows/libretro-cores.yml'
+LIBRETRO_SOURCE_COLLECTIONS = {
+    14824217397: dict(run=45186888197, source='ee0654160122fb639ea50ce990d866d302d6d6d4',
+                      name='LibretroCores-ee0654160122fb639ea50ce990d866d302d6d6d4', bytes=55658336,
+                      sha256='c5fc92e5ce1db5f0bf947fd020d8ffe5404a5062fac392ecc7e692426025c1d8',
+                      cores=('azahar',)),
+}
+
+
+def libretro_source_collection(spec):
+    """The reviewed source-built collection a libretro component retains, None for a buildbot collection."""
+    origin = spec['origin']
+    if origin['workflow'] != LIBRETRO_SOURCE_ROUTE:
+        return None
+    collection = LIBRETRO_SOURCE_COLLECTIONS.get(origin['artifact'])
+    require(collection is not None and all(origin[key] == collection[key] for key in
+                                           ('run', 'source', 'name', 'bytes', 'sha256')),
+            'Unreviewed libretro source collection: ' + str(origin['artifact']))
+    return collection
+
+
 def verify_libretro(spec):
     """The retained libretro runtime: digests, source identity and exported ABI (delivered inline check)."""
     sys.path[:0] = [str(ROOT / 'packages/dolphin_internal_bridge/ci'), str(ROOT / 'build-utils')]
@@ -463,12 +487,23 @@ def verify_libretro(spec):
         require(sha((root / relative).read_bytes()) == digest, 'Libretro file differs: ' + relative)
     required = {'_retro_api_version', '_retro_init', '_retro_deinit', '_retro_run', '_retro_load_game',
                 '_retro_unload_game'}
+    collection = libretro_source_collection(spec)
+    compiled = sorted(core['id'] for core in identity['cores'] if core.get('compiled'))
+    require(compiled == sorted(collection['cores'] if collection else ()),
+            'Libretro cores compiled from source differ from the reviewed collection: ' + repr(compiled))
+    for core in identity['cores']:
+        if core.get('compiled'):
+            require(core.get('jitInterface') == 1 and core.get('jitArenaBytes', 0) > 0,
+                    'A source-built libretro core lacks its JIT interface record: ' + core['id'])
     for core in identity['cores']:
         binary = root / 'Frameworks' / f"{core['id']}_libretro.framework" / f"{core['id']}_libretro"
         require(sha(binary.read_bytes()) == core['sha256'], 'Libretro core differs: ' + core['id'])
         image = macho(binary.read_bytes())
         require(image['platform'] == 2 and image['fileType'] == 6, 'Wrong libretro Mach-O: ' + core['id'])
         require(required <= set(image['definedSymbols']), 'Libretro ABI export missing: ' + core['id'])
+        if core.get('compiled'):
+            require('_rewindbox_libretro_jit_install' in image['definedSymbols'],
+                    'Source-built libretro core without its JIT install export: ' + core['id'])
         binary.chmod(0o755)
     (root / 'Frameworks/MoltenVK.framework/MoltenVK').chmod(0o755)
     fast_path = ROOT / 'build/fast-native/identity.json'

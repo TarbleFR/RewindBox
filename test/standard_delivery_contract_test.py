@@ -368,7 +368,11 @@ class ManifestSchema(unittest.TestCase):
                 self.assertNotIn(key, images['replaced'], key)
                 self.assertIn(spec['image'], sd.expand_image_patterns(images['retained'][key], sorted(base)), key)
         self.assertEqual(len(retained_names), len(set(retained_names)))
-        self.assertEqual(sum(n.endswith('_libretro') for n in retained_names), 35)
+        # Every libretro core is retained, except those a reviewed source-built collection compiled: they must change.
+        collection = retained.libretro_source_collection(manifest['components']['libretro'])
+        rebuilt = {f'Frameworks/{core}_libretro.framework/{core}_libretro' for core in (collection or {}).get('cores', ())}
+        self.assertLessEqual(rebuilt, set(images['mustChange']))
+        self.assertEqual(sum(n.endswith('_libretro') for n in retained_names) + len(rebuilt), 35)
         self.assertFalse(set(retained_names) & set(images['mustChange']))
         self.assertTrue(set(images['replaced'].values()) <= set(base) and set(images['mustChange']) <= set(base))
         tree = effective_of_head()
@@ -508,6 +512,11 @@ class Components(unittest.TestCase):
                          json.loads((ROOT / 'build-utils/armsx2/source.json').read_bytes())['revision'])
         for kind in retained.ARCHIVES:
             origin, pin = components[kind]['origin'], delivered609.RETAINED_ARCHIVES[kind]
+            collection = retained.libretro_source_collection(components[kind]) if kind == 'libretro' else None
+            if collection is not None:
+                # A reviewed collection rebuilt from the 609 one by the source-cores route.
+                pin = dict(collection, artifact=origin['artifact'], destination=pin['destination'])
+                self.assertNotIn('republished', components[kind])
             self.assertEqual({k: origin[k] for k in ('artifact', 'run', 'source', 'name', 'bytes', 'sha256')},
                              {k: pin[k] for k in ('artifact', 'run', 'source', 'name', 'bytes', 'sha256')})
             self.assertEqual(components[kind]['destination'], pin['destination'])
