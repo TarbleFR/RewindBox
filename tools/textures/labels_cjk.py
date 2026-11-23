@@ -652,6 +652,7 @@ KO = {
 ZH.update({
     'error.missingHires': '此 Mesen 高清包的根目录中没有 hires.txt。',
     'error.formatTooNew': '此高清包是为 Mesen 2 制作的（格式新于 106）：RewindBox 的 Mesen 引擎无法读取。',
+    'error.packJsonInvalid': 'Azahar 无法读取此 3DS 高清包的 pack.json（JSON 无效、缺少选项或纹理键无效）：游戏每次启动都会停止。',
     'error.missingFiles': '归档中缺少此包的 hires.txt 列出的图像。',
     'error.memoryTooLarge': '此高清包所需的内存超出此设备能提供的范围：Mesen 会在游戏启动时载入包中的全部图像。',
     'error.mesenNotSelected': '无法为此游戏选择 Mesen。请在游戏设置（模拟器）中选择 Mesen，然后开启此包。',
@@ -664,6 +665,7 @@ ZH.update({
 ZH_HANT.update({
     'error.missingHires': '此 Mesen 高畫質包的根目錄中沒有 hires.txt。',
     'error.formatTooNew': '此高畫質包是為 Mesen 2 製作的（格式新於 106）：RewindBox 的 Mesen 引擎無法讀取。',
+    'error.packJsonInvalid': 'Azahar 無法讀取此 3DS 高畫質包的 pack.json（JSON 無效、缺少選項或材質鍵無效）：遊戲每次啟動都會停止。',
     'error.missingFiles': '封存檔中缺少此包的 hires.txt 所列出的影像。',
     'error.memoryTooLarge': '此高畫質包所需的記憶體超出這部裝置能提供的範圍：Mesen 會在遊戲啟動時載入包內的所有影像。',
     'error.mesenNotSelected': '無法為此遊戲選擇 Mesen。請在遊戲設定（模擬器）中選擇 Mesen，然後開啟此包。',
@@ -676,6 +678,7 @@ ZH_HANT.update({
 JA.update({
     'error.missingHires': 'このMesen HDパックのルートにhires.txtがありません。',
     'error.formatTooNew': 'このHDパックはMesen 2用です（106より新しい形式）：RewindBoxのMesenエンジンでは読み込めません。',
+    'error.packJsonInvalid': 'Azaharはこの3DS HDパックのpack.jsonを読み込めません（無効なJSON、オプションの欠落、または無効なテクスチャキー）：起動するたびにゲームが停止します。',
     'error.missingFiles': 'このパックのhires.txtが指定している画像がアーカイブにありません。',
     'error.memoryTooLarge': 'このHDパックには、このデバイスが割り当てられる以上のメモリが必要です：Mesenはゲーム起動時にパックのすべての画像を読み込みます。',
     'error.mesenNotSelected': 'このゲームにMesenを選択できませんでした。ゲームの設定（エミュレーター）でMesenを選んでから、パックをオンにしてください。',
@@ -688,6 +691,7 @@ JA.update({
 KO.update({
     'error.missingHires': '이 Mesen HD 팩의 최상위 폴더에 hires.txt가 없습니다.',
     'error.formatTooNew': '이 HD 팩은 Mesen 2용입니다(106보다 새로운 형식). RewindBox의 Mesen 엔진은 읽을 수 없습니다.',
+    'error.packJsonInvalid': 'Azahar가 이 3DS HD 팩의 pack.json을 읽을 수 없습니다(잘못된 JSON, 누락된 옵션 또는 잘못된 텍스처 키). 시작할 때마다 게임이 멈춥니다.',
     'error.missingFiles': '이 팩의 hires.txt가 지정한 이미지가 압축 파일에 없습니다.',
     'error.memoryTooLarge': '이 HD 팩에는 이 기기가 내줄 수 있는 것보다 많은 메모리가 필요합니다. Mesen은 게임을 시작할 때 팩의 모든 이미지를 불러옵니다.',
     'error.mesenNotSelected': '이 게임에 Mesen을 선택할 수 없습니다. 게임 설정(에뮬레이터)에서 Mesen을 선택한 다음 팩을 켜세요.',

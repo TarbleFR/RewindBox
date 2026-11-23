@@ -328,6 +328,7 @@ ID = {
 RU.update({
     'error.missingHires': 'В корне этого HD-пакета Mesen нет файла hires.txt.',
     'error.formatTooNew': 'Этот HD-пакет создан для Mesen 2 (формат новее 106): движок Mesen в RewindBox не может его прочитать.',
+    'error.packJsonInvalid': 'Azahar не может прочитать pack.json этого HD-пакета 3DS (неверный JSON, нет нужных параметров или неверный ключ текстуры): игра останавливалась бы при каждом запуске.',
     'error.missingFiles': 'В архиве нет изображений, указанных в hires.txt этого пакета.',
     'error.memoryTooLarge': 'Этому HD-пакету нужно больше памяти, чем может выделить устройство: Mesen загружает все изображения пакета при запуске игры.',
     'error.mesenNotSelected': 'Не удалось выбрать Mesen для этой игры. Выберите Mesen в настройках игры (Эмулятор), затем включите пакет.',
@@ -340,6 +341,7 @@ RU.update({
 ID.update({
     'error.missingHires': 'Paket HD Mesen ini tidak memiliki hires.txt di akarnya.',
     'error.formatTooNew': 'Paket HD ini dibuat untuk Mesen 2 (format lebih baru dari 106): mesin Mesen di RewindBox tidak dapat membacanya.',
+    'error.packJsonInvalid': 'Azahar tidak dapat membaca pack.json paket HD 3DS ini (JSON tidak valid, opsi hilang, atau kunci tekstur tidak valid): game akan berhenti setiap kali dimulai.',
     'error.missingFiles': 'Gambar yang disebut oleh hires.txt paket ini tidak ada di arsip.',
     'error.memoryTooLarge': 'Paket HD ini memerlukan lebih banyak memori daripada yang dapat diberikan perangkat ini: Mesen memuat semua gambar paket saat game dimulai.',
     'error.mesenNotSelected': 'Mesen tidak dapat dipilih untuk game ini. Pilih Mesen di pengaturan game (Emulator), lalu aktifkan paketnya.',

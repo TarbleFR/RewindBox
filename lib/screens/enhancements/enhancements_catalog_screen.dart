@@ -178,6 +178,7 @@ class _EnhancementsCatalogScreenState extends State<EnhancementsCatalogScreen> {
     'rpcs3' => 'RPCS3 (PS3)',
     'armsx2' => 'ARMSX2 (PS2)',
     'dolphin' => 'Dolphin (GameCube / Wii)',
+    'azahar' => 'Azahar (3DS)',
     _ => engine,
   };
 

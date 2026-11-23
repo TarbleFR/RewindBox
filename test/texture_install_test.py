@@ -231,9 +231,19 @@ def main():
 
         n3ds = temp / 'Libretro/Saves/Azahar/Azahar/load/textures'
         n3ds.mkdir(parents=True)
-        pack = zip_of('a.zip', [('0004000000033500/pack.json', b'{"options":{}}'), ('0004000000033500/tex1_a.png', PNG)])
+        # A pack.json without its three options (Azahar's get<bool> would throw at every start) or an image
+        # that does not decode is refused before anything is replaced.
+        pack = zip_of('a.zip', [('0004000000033500/pack.json', b'{"options":{}}'), ('0004000000033500/tex1_a.png', real_png(4, 4))])
+        code, out = run('install', 'azahar', n3ds, pack, '0004000000033500/=0004000000033500')
+        assert code == 5 and 'packJsonInvalid' in out and not (n3ds / '0004000000033500').exists(), out
+        options = b'{"options": {"skip_mipmap": false, "flip_png_files": false, "use_new_hash": true}}'
+        pack = zip_of('a2.zip', [('0004000000033500/pack.json', options), ('0004000000033500/tex1_a.png', PNG)])
+        code, out = run('install', 'azahar', n3ds, pack, '0004000000033500/=0004000000033500')
+        assert code == 5 and 'archiveDamaged' in out and not (n3ds / '0004000000033500').exists(), out
+        pack = zip_of('a3.zip', [('0004000000033500/pack.json', options), ('0004000000033500/tex1_a.png', real_png(4, 4))])
         code, out = run('install', 'azahar', n3ds, pack, '0004000000033500/=0004000000033500')
         assert code == 0 and (n3ds / '0004000000033500/pack.json').exists(), out
+        assert not list(n3ds.glob('.neostation-*'))
 
         n64 = temp / 'Libretro/System/Mupen64plus/hires_texture'
         n64.mkdir(parents=True)
@@ -302,6 +312,54 @@ def main():
         assert 'problem=archiveDamaged' in run('mesencheck', mesen2)[1]
         assert 'problem=missingHires' in run('mesencheck', temp / 'Libretro/System')[1]
         assert run('remove', nes, 'Contra (U)')[0] == 0 and not (nes / 'Contra (U)').exists()
+
+        # Azahar stops at every start on a pack.json its loader cannot read (nlohmann parse, then unchecked
+        # get<bool>, stoull(key, 16), get<vector<string>>) or on an image that does not decode.
+        citra = temp / 'azahar-pack'
+        citra.mkdir()
+        (citra / 'tex1_a.png').write_bytes(real_png(4, 4))
+        assert run('azaharcheck', citra, 'images') == (0, 'problem='), 'the legacy layout has no pack.json'
+        options = '"options": {"skip_mipmap": false, "flip_png_files": true, "use_new_hash": true}'
+        for good in ['﻿{' + options + '}', '{' + options + ', "textures": null}',
+                     '{' + options + ',\n // a comment\n /* another */ "textures": {"0x1A2B": "a.png", " +00ffeeddccbbaa99": ["b.png", "c.png"],'
+                     ' "-1": "d.png", "0x": "e.png", "0000000000000000ffffffffffffffff": "f.png", "7": 5, "8": {"x": 1}}}',
+                     '{' + options + ', "textures": [["a.png"], "b.png", 3], "extra": [1.5e3, -0, "\\u00e9\\ud83d\\ude00"]}']:
+            (citra / 'pack.json').write_text(good)
+            assert run('azaharcheck', citra) == (0, 'problem='), good
+        for bad in ['', '{', '[1, 2]', '{"options": {}}', '{' + options + '} trailing', '{' + options + ', }',
+                    '{"options": {"skip_mipmap": "no", "flip_png_files": true, "use_new_hash": true}}',
+                    '{"options": {"skip_mipmap": false, "flip_png_files": true}}', '{"options": null}',
+                    '{' + options + ', "textures": {"zz": "a.png"}}', '{' + options + ', "textures": {"": "a.png"}}',
+                    '{' + options + ', "textures": {"10000000000000000": "a.png"}}',
+                    '{' + options + ', "textures": {"1": ["a.png", 2]}}', '{' + options + ', "textures": "a.png"}',
+                    '{' + options + ', "textures": 7}', '{' + options + ' # comment\n}', '{' + options + ', "x": 01}',
+                    '{' + options + ', "x": "\\ud800"}', '{' + options + ', "x": "a\tb"}', '{' + options + ' /* open']:
+            (citra / 'pack.json').write_text(bad)
+            assert run('azaharcheck', citra) == (1, 'problem=packJsonInvalid'), bad
+        (citra / 'pack.json').write_bytes(b'{' + options.encode() + b', "textures": {"1": "\xff.png"}}')
+        assert run('azaharcheck', citra) == (1, 'problem=packJsonInvalid'), 'nlohmann refuses malformed UTF-8'
+        (citra / 'pack.json').write_text('{' + options + '}')
+        sub = citra / 'tex'
+        sub.mkdir()
+        damaged = bytearray(real_png(4, 4))
+        damaged[-5] ^= 1                                    # the IEND CRC
+        (sub / 'b.png').write_bytes(bytes(damaged))
+        assert run('azaharcheck', citra) == (0, 'problem='), 'a catalogue pack\'s images were decoded on CI'
+        assert run('azaharcheck', citra, 'images') == (1, 'problem=archiveDamaged')
+        def png_with(idat):
+            def chunk(kind, data):
+                return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data) & 0xffffffff)
+            return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 4, 4, 8, 6, 0, 0, 0)) + chunk(b'IDAT', idat) +
+                    chunk(b'IEND', b''))
+        pixels = zlib.compress(b''.join(b'\x00' + bytes(16) for _ in range(4)))
+        assert png_with(pixels) == real_png(4, 4)
+        for broken in [real_png(4, 4)[:40], b'\x89PNG\r\n\x1a\n' + bytes(32), real_png(0, 4), png_with(pixels[:-6]),
+                       png_with(b'not a zlib stream')]:
+            (sub / 'b.png').write_bytes(broken)
+            assert run('azaharcheck', citra, 'images') == (1, 'problem=archiveDamaged'), broken[:24]
+        (sub / 'b.png').write_bytes(real_png(8, 2))
+        (sub / 'c.dds').write_bytes(DDS)
+        assert run('azaharcheck', citra, 'images') == (0, 'problem=')
 
         # Refusals leave the installed pack untouched and no staging behind.
         before = sorted(p.name for p in (dolphin / 'GZ2E01').iterdir())

@@ -13,7 +13,9 @@ byte-joined, as the app does), then install it with the app's own code:
            engine requires: Dolphin tex1_ names and DDS block formats; PPSSPP
            textures.ini (hash type, [hashes] targets, exact case as iOS
            reads folders); Azahar pack.json (the booleans the engine reads
-           without a fallback) and that every PNG decompresses;
+           without a fallback, the textures table it reads with stoull) and
+           that every PNG decompresses, then the app's own refusal
+           (texture_verify azaharcheck);
   Mupen64Plus-Next, Beetle PSX HW, Mesen
            NeoTextureInstall, then the names their cores read and, for
            Mesen, the adapter's own check (hires.txt format 106 at most,
@@ -253,15 +255,49 @@ def check_ppsspp(folder):
     return report, problems
 
 
-def check_azahar(folder):
+def stoull_accepts(key):
+    """What std::stoull(key, &idx, 16) reads without throwing: whitespace, a sign, an optional 0x, then hex
+    digits whose value fits 64 bits (Azahar names each texture of pack.json this way)."""
+    hexdigits = '0123456789abcdefABCDEF'
+    i = 0
+    while i < len(key) and key[i] in ' \t\n\v\f\r':
+        i += 1
+    if i < len(key) and key[i] in '+-':
+        i += 1
+    if i + 2 < len(key) and key[i] == '0' and key[i + 1] in 'xX' and key[i + 2] in hexdigits:
+        i += 2
+    first = i
+    while i < len(key) and key[i] in hexdigits:
+        i += 1
+    return i > first and len(key[first:i].lstrip('0')) <= 16
+
+
+def azahar_textures_ok(textures):
+    """The textures table as Azahar reads it: absent or null, an object of stoull keys or a list; a list value
+    must hold only strings (get<std::vector<std::string>> throws otherwise), other values are only logged."""
+    def files_ok(value):
+        return not isinstance(value, list) or all(isinstance(item, str) for item in value)
+    if textures is None:
+        return True
+    if isinstance(textures, list):
+        return all(files_ok(value) for value in textures)
+    return isinstance(textures, dict) and all(stoull_accepts(key) and files_ok(value) for key, value in textures.items())
+
+
+def check_azahar(folder, driver=None):
     problems, report = [], {}
     pack = Path(folder) / 'pack.json'
+    skip_mipmap = False
     if pack.exists():
         try:
-            options = json.loads(strip_comments(pack.read_text(encoding='utf-8', errors='replace'))).get('options', {})
+            data = json.loads(strip_comments(pack.read_text(encoding='utf-8', errors='replace')))
+            options = data.get('options', {})
             report['pack_json'] = {key: options.get(key) for key in ('skip_mipmap', 'flip_png_files', 'use_new_hash')}
             if not all(isinstance(options.get(key), bool) for key in ('skip_mipmap', 'flip_png_files', 'use_new_hash')):
                 problems.append('packJsonOptions')
+            skip_mipmap = options.get('skip_mipmap') is True
+            if not azahar_textures_ok(data.get('textures')):
+                problems.append('packJsonTextures')
         except Exception as error:
             report['pack_json_error'] = str(error)[:120]
             problems.append('packJsonInvalid')
@@ -274,8 +310,17 @@ def check_azahar(folder):
     if bad:
         problems.append('badPng')
     report['dds'] = sum(1 for _ in Path(folder).rglob('*.dds'))
-    if report['dds'] and not pack.exists():
-        report['ddsIgnored'] = True
+    if report['dds'] and (not pack.exists() or skip_mipmap):
+        report['ddsIgnored'] = True  # the engine also skips DDS when skip_mipmap is set
+    if driver:
+        # The app's own refusal (NeoTextureInstall::CheckAzaharPack): a pack it would refuse is not published.
+        code, output = run(driver, 'azaharcheck', str(folder))
+        native = next((line[len('problem='):] for line in output.splitlines() if line.startswith('problem=')), None)
+        report['appCheck'] = native if code == 0 else f'exit {code}'
+        if code or native is None:
+            problems.append('appCheckFailed')
+        elif native:
+            problems.append({'archiveDamaged': 'badPng'}.get(native, native))
     return report, problems
 
 
@@ -440,7 +485,8 @@ def verify(entry, driver, work, max_bytes):
         folder = root / target
         count, size, formats = folder_stats(folder)
         installed.append({'from': source, 'to': target, 'exclude': excluded, 'files': count, 'bytes': size, 'formats': formats})
-        checker = {'dolphin': check_dolphin, 'ppsspp': check_ppsspp, 'azahar': check_azahar, 'mupen64plus': check_mupen64plus,
+        checker = {'dolphin': check_dolphin, 'ppsspp': check_ppsspp, 'azahar': lambda path: check_azahar(path, driver),
+                   'mupen64plus': check_mupen64plus,
                    'beetle': check_beetle, 'mesen': lambda path: check_mesen(path, driver, entry)}[engine]
         folder_report, folder_problems = checker(folder)
         report[target] = folder_report

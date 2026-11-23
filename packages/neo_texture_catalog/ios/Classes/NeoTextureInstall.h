@@ -8,6 +8,7 @@
 #include "NeoTextureSevenZip.h"
 #include "NeoTextureRAR.h"
 #include <algorithm>
+#include <cctype>
 #include <cerrno>
 #include <cstdio>
 #include <dirent.h>
@@ -772,6 +773,316 @@ inline bool Remove(const std::string& root, const std::string& relative) {
   const size_t slash = relative.rfind('/');
   if (slash != std::string::npos) ::rmdir((root + "/" + relative.substr(0, slash)).c_str());  // only when empty
   return true;
+}
+
+// Azahar (2127.0-rc5, CustomTexManager::ReadConfig) reads pack.json with
+// nlohmann::json::parse(text, nullptr, false, true) — comments allowed, no
+// exception — and then uses the result without a single check:
+// options["skip_mipmap" | "flip_png_files" | "use_new_hash"].get<bool>() and
+// std::stoull(key, &idx, 16) on every texture key, and
+// get<std::vector<std::string>>() on an array. A pack.json that is not JSON,
+// lacks one of the three booleans, types one as a string, names a texture by
+// a key stoull rejects or lists a non-string file throws an exception the
+// libretro core does not catch: the game stops at every start. A damaged PNG
+// stops it too (verify_packs.py png_ok). CheckAzaharPack refuses such a pack
+// before it replaces anything: "packJsonInvalid" or "archiveDamaged".
+namespace AzaharJSON {
+struct Value {
+  enum class Kind { null, boolean, number, string, array, object } kind = Kind::null;
+  bool boolean = false;
+  std::vector<Value> items;                            // array
+  std::vector<std::pair<std::string, Value>> members;  // object, in order (the last of a repeated key wins)
+  const Value* member(const std::string& key) const {
+    for (auto it = members.rbegin(); it != members.rend(); ++it)
+      if (it->first == key) return &it->second;
+    return nullptr;
+  }
+};
+
+class Parser {
+ public:
+  explicit Parser(const std::string& text) : text_(text) {
+    if (text_.compare(0, 3, "\xEF\xBB\xBF") == 0) pos_ = 3;  // a UTF-8 BOM is skipped
+  }
+  bool Parse(Value* out) {
+    if (!Skip() || !ParseValue(out, 0) || !Skip()) return false;
+    return pos_ == text_.size();
+  }
+
+ private:
+  const std::string& text_;
+  size_t pos_ = 0;
+
+  // Whitespace and the comments nlohmann accepts with ignore_comments.
+  bool Skip() {
+    while (pos_ < text_.size()) {
+      const char c = text_[pos_];
+      if (c == ' ' || c == '\t' || c == '\n' || c == '\r') { ++pos_; continue; }
+      if (c != '/' || pos_ + 1 >= text_.size()) return true;
+      if (text_[pos_ + 1] == '/') {
+        const size_t end = text_.find_first_of("\n\r", pos_ + 2);
+        pos_ = end == std::string::npos ? text_.size() : end;
+      } else if (text_[pos_ + 1] == '*') {
+        const size_t end = text_.find("*/", pos_ + 2);
+        if (end == std::string::npos) return false;
+        pos_ = end + 2;
+      } else {
+        return true;
+      }
+    }
+    return true;
+  }
+  bool Literal(const char* word) {
+    const size_t n = std::strlen(word);
+    if (text_.compare(pos_, n, word) != 0) return false;
+    pos_ += n;
+    return true;
+  }
+  static bool Hex4(const std::string& text, size_t at, unsigned* out) {
+    if (at + 4 > text.size()) return false;
+    unsigned value = 0;
+    for (size_t i = at; i < at + 4; ++i) {
+      const char c = text[i];
+      value <<= 4;
+      if (c >= '0' && c <= '9') value |= unsigned(c - '0');
+      else if (c >= 'a' && c <= 'f') value |= unsigned(c - 'a' + 10);
+      else if (c >= 'A' && c <= 'F') value |= unsigned(c - 'A' + 10);
+      else return false;
+    }
+    *out = value;
+    return true;
+  }
+  static void Append(std::string* out, unsigned code) {
+    if (code < 0x80) { *out += char(code); return; }
+    if (code < 0x800) { *out += char(0xC0 | (code >> 6)); *out += char(0x80 | (code & 0x3F)); return; }
+    if (code < 0x10000) {
+      *out += char(0xE0 | (code >> 12)); *out += char(0x80 | ((code >> 6) & 0x3F)); *out += char(0x80 | (code & 0x3F));
+      return;
+    }
+    *out += char(0xF0 | (code >> 18)); *out += char(0x80 | ((code >> 12) & 0x3F));
+    *out += char(0x80 | ((code >> 6) & 0x3F)); *out += char(0x80 | (code & 0x3F));
+  }
+  // A JSON string: escapes as JSON defines them, well-formed UTF-8, no control character.
+  bool ParseString(std::string* out) {
+    if (pos_ >= text_.size() || text_[pos_] != '"') return false;
+    ++pos_;
+    while (pos_ < text_.size()) {
+      const unsigned char c = (unsigned char)text_[pos_];
+      if (c == '"') { ++pos_; return true; }
+      if (c < 0x20) return false;
+      if (c == '\\') {
+        if (++pos_ >= text_.size()) return false;
+        const char e = text_[pos_++];
+        switch (e) {
+          case '"': *out += '"'; break;
+          case '\\': *out += '\\'; break;
+          case '/': *out += '/'; break;
+          case 'b': *out += '\b'; break;
+          case 'f': *out += '\f'; break;
+          case 'n': *out += '\n'; break;
+          case 'r': *out += '\r'; break;
+          case 't': *out += '\t'; break;
+          case 'u': {
+            unsigned code = 0;
+            if (!Hex4(text_, pos_, &code)) return false;
+            pos_ += 4;
+            if (code >= 0xDC00 && code <= 0xDFFF) return false;
+            if (code >= 0xD800 && code <= 0xDBFF) {
+              unsigned low = 0;
+              if (text_.compare(pos_, 2, "\\u") != 0 || !Hex4(text_, pos_ + 2, &low) || low < 0xDC00 || low > 0xDFFF) return false;
+              pos_ += 6;
+              code = 0x10000 + ((code - 0xD800) << 10) + (low - 0xDC00);
+            }
+            Append(out, code);
+            break;
+          }
+          default: return false;
+        }
+        continue;
+      }
+      // UTF-8 sequence (RFC 3629: no overlong form, no surrogate, at most U+10FFFF).
+      size_t n = c < 0x80 ? 1 : (c >= 0xC2 && c <= 0xDF) ? 2 : (c >= 0xE0 && c <= 0xEF) ? 3 : (c >= 0xF0 && c <= 0xF4) ? 4 : 0;
+      if (!n || pos_ + n > text_.size()) return false;
+      for (size_t i = 1; i < n; ++i)
+        if (((unsigned char)text_[pos_ + i] & 0xC0) != 0x80) return false;
+      const unsigned char second = (unsigned char)(n > 1 ? text_[pos_ + 1] : 0);
+      if ((c == 0xE0 && second < 0xA0) || (c == 0xED && second > 0x9F) || (c == 0xF0 && second < 0x90) || (c == 0xF4 && second > 0x8F))
+        return false;
+      out->append(text_, pos_, n);
+      pos_ += n;
+    }
+    return false;
+  }
+  bool ParseNumber() {
+    const size_t start = pos_;
+    if (pos_ < text_.size() && text_[pos_] == '-') ++pos_;
+    auto digits = [&]() { size_t n = 0; while (pos_ < text_.size() && std::isdigit((unsigned char)text_[pos_])) { ++pos_; ++n; } return n; };
+    if (pos_ < text_.size() && text_[pos_] == '0') ++pos_;
+    else if (!digits()) return false;
+    if (pos_ < text_.size() && text_[pos_] == '.') { ++pos_; if (!digits()) return false; }
+    if (pos_ < text_.size() && (text_[pos_] == 'e' || text_[pos_] == 'E')) {
+      ++pos_;
+      if (pos_ < text_.size() && (text_[pos_] == '+' || text_[pos_] == '-')) ++pos_;
+      if (!digits()) return false;
+    }
+    return pos_ > start;
+  }
+  bool ParseValue(Value* out, int depth) {
+    if (depth > 64 || pos_ >= text_.size()) return false;
+    const char c = text_[pos_];
+    if (c == '{') {
+      out->kind = Value::Kind::object;
+      ++pos_;
+      if (!Skip()) return false;
+      if (pos_ < text_.size() && text_[pos_] == '}') { ++pos_; return true; }
+      while (true) {
+        std::string key;
+        Value value;
+        if (!Skip() || !ParseString(&key) || !Skip() || pos_ >= text_.size() || text_[pos_++] != ':' || !Skip() ||
+            !ParseValue(&value, depth + 1) || !Skip() || pos_ >= text_.size())
+          return false;
+        out->members.emplace_back(std::move(key), std::move(value));
+        const char next = text_[pos_++];
+        if (next == '}') return true;
+        if (next != ',') return false;
+      }
+    }
+    if (c == '[') {
+      out->kind = Value::Kind::array;
+      ++pos_;
+      if (!Skip()) return false;
+      if (pos_ < text_.size() && text_[pos_] == ']') { ++pos_; return true; }
+      while (true) {
+        Value value;
+        if (!Skip() || !ParseValue(&value, depth + 1) || !Skip() || pos_ >= text_.size()) return false;
+        out->items.push_back(std::move(value));
+        const char next = text_[pos_++];
+        if (next == ']') return true;
+        if (next != ',') return false;
+      }
+    }
+    if (c == '"') { out->kind = Value::Kind::string; std::string ignored; return ParseString(&ignored); }
+    if (Literal("true")) { out->kind = Value::Kind::boolean; out->boolean = true; return true; }
+    if (Literal("false")) { out->kind = Value::Kind::boolean; return true; }
+    if (Literal("null")) { out->kind = Value::Kind::null; return true; }
+    out->kind = Value::Kind::number;
+    return ParseNumber();
+  }
+};
+
+// What std::stoull(key, &idx, 16) accepts without throwing: leading
+// whitespace, a sign, an optional 0x, then at least one hex digit, the value
+// fitting 64 bits.
+inline bool StoullAccepts(const std::string& key) {
+  size_t i = 0;
+  while (i < key.size() && (key[i] == ' ' || (key[i] >= '\t' && key[i] <= '\r'))) ++i;
+  if (i < key.size() && (key[i] == '+' || key[i] == '-')) ++i;
+  if (i + 2 < key.size() && key[i] == '0' && (key[i + 1] == 'x' || key[i + 1] == 'X') && std::isxdigit((unsigned char)key[i + 2])) i += 2;
+  const size_t first = i;
+  while (i < key.size() && std::isxdigit((unsigned char)key[i])) ++i;
+  if (i == first) return false;
+  size_t significant = first;
+  while (significant < i - 1 && key[significant] == '0') ++significant;
+  return i - significant <= 16;
+}
+}  // namespace AzaharJSON
+
+// The pack.json rules above; an absent pack.json is the legacy layout.
+inline bool AzaharPackJsonOK(const std::string& path) {
+  NeoTextureArchive::File file;
+  if (!file.open(path)) return true;
+  if (file.length() > (32ULL << 20)) return false;
+  std::string text(size_t(file.length()), '\0');
+  if (!text.empty() && !file.read(0, &text[0], text.size())) return false;
+  AzaharJSON::Value root;
+  if (!AzaharJSON::Parser(text).Parse(&root) || root.kind != AzaharJSON::Value::Kind::object) return false;
+  const AzaharJSON::Value* options = root.member("options");
+  if (!options || options->kind != AzaharJSON::Value::Kind::object) return false;
+  for (const char* key : {"skip_mipmap", "flip_png_files", "use_new_hash"}) {
+    const AzaharJSON::Value* value = options->member(key);
+    if (!value || value->kind != AzaharJSON::Value::Kind::boolean) return false;
+  }
+  const AzaharJSON::Value* textures = root.member("textures");
+  if (!textures || textures->kind == AzaharJSON::Value::Kind::null) return true;
+  auto files = [](const AzaharJSON::Value& value) {
+    // A string or a list of strings is read; anything else is only logged by the engine.
+    if (value.kind != AzaharJSON::Value::Kind::array) return true;
+    for (const auto& item : value.items)
+      if (item.kind != AzaharJSON::Value::Kind::string) return false;
+    return true;
+  };
+  if (textures->kind == AzaharJSON::Value::Kind::array) {
+    for (const auto& item : textures->items)
+      if (!files(item)) return false;
+    return true;
+  }
+  if (textures->kind != AzaharJSON::Value::Kind::object) return false;
+  for (const auto& [key, value] : textures->members)
+    if (!AzaharJSON::StoullAccepts(key) || !files(value)) return false;
+  return true;
+}
+
+// The whole PNG decodes: signature, IHDR first with a size, every chunk's
+// CRC, the IDAT stream inflating to its end, then IEND.
+inline bool PNGDecodes(const std::string& path) {
+  NeoTextureArchive::File file;
+  static const unsigned char signature[8] = {137, 80, 78, 71, 13, 10, 26, 10};
+  unsigned char head[8] = {0};
+  if (!file.open(path) || file.length() < 8 || !file.read(0, head, 8) || std::memcmp(head, signature, 8)) return false;
+  z_stream stream{};
+  if (inflateInit(&stream) != Z_OK) return false;
+  struct Ender { z_stream* s; ~Ender() { inflateEnd(s); } } ender{&stream};
+  std::vector<unsigned char> chunk, sink(1 << 16);
+  uint64_t offset = 8;
+  bool first = true, ended = false;
+  while (offset + 12 <= file.length()) {
+    unsigned char header[8];
+    if (!file.read(offset, header, 8)) return false;
+    const uint32_t length = uint32_t(header[0]) << 24 | uint32_t(header[1]) << 16 | uint32_t(header[2]) << 8 | header[3];
+    if (length > (1u << 30) || offset + 12 + length > file.length()) return false;
+    chunk.resize(length + 4);
+    if (!file.read(offset + 4, chunk.data(), length + 4)) return false;
+    unsigned char crc[4];
+    if (!file.read(offset + 8 + length, crc, 4)) return false;
+    const uLong expected = uLong(crc[0]) << 24 | uLong(crc[1]) << 16 | uLong(crc[2]) << 8 | crc[3];
+    if (crc32(0L, chunk.data(), uInt(length + 4)) != expected) return false;
+    const std::string kind(reinterpret_cast<const char*>(chunk.data()), 4);
+    if (first) {
+      if (kind != "IHDR" || length < 8) return false;
+      const unsigned char* data = chunk.data() + 4;
+      if (!(data[0] | data[1] | data[2] | data[3]) || !(data[4] | data[5] | data[6] | data[7])) return false;
+      first = false;
+    } else if (kind == "IDAT" && !ended) {
+      stream.next_in = chunk.data() + 4;
+      stream.avail_in = uInt(length);
+      while (stream.avail_in) {
+        stream.next_out = sink.data();
+        stream.avail_out = uInt(sink.size());
+        const int status = inflate(&stream, Z_NO_FLUSH);
+        if (status == Z_STREAM_END) { ended = true; break; }
+        if (status != Z_OK) return false;
+      }
+    } else if (kind == "IEND") {
+      return ended;
+    }
+    offset += 12 + length;
+  }
+  return false;
+}
+
+// A staged Azahar pack: "packJsonInvalid", "archiveDamaged" (a PNG that does
+// not decode, checked when `images` is set) or "" when the engine can load it.
+inline std::string CheckAzaharPack(const std::string& folder, bool images) {
+  if (!AzaharPackJsonOK(folder + "/pack.json")) return "packJsonInvalid";
+  if (!images) return "";
+  std::error_code error;
+  for (std::filesystem::recursive_directory_iterator walker(folder, error), end; !error && walker != end; walker.increment(error)) {
+    if (!walker->is_regular_file(error)) continue;
+    const std::string relative = std::filesystem::relative(walker->path(), folder, error).generic_string();
+    if (error || !IsTexture(Engine::azahar, relative) || Extension(relative) != "png") continue;
+    if (!PNGDecodes(walker->path().string())) return "archiveDamaged";
+  }
+  return error ? "archiveDamaged" : "";
 }
 
 }  // namespace NeoTextureInstall

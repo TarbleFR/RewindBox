@@ -3,6 +3,7 @@
 //   install <engine> <root> <archive|folder> <from=to[|exclude]...>...   (folder when it is a directory)
 //   remove <root> <relative> | recover <root> | accepts <engine> <path>
 //   mesencheck <folder>   (CheckMesenPack: version, decoded bytes, ROM SHA-1s, problem)
+//   azaharcheck <folder> [images]   (CheckAzaharPack: problem)
 #include "NeoTextureInstall.h"
 #include <cstdio>
 #include <fstream>
@@ -35,6 +36,11 @@ int main(int argc, char** argv) {
     std::printf("\n");
     return pack.problem.empty() ? 0 : 1;
   }
+  if (command == "azaharcheck") {
+    const std::string problem = CheckAzaharPack(argv[2], argc > 3 && std::string(argv[3]) == "images");
+    std::printf("problem=%s\n", problem.c_str());
+    return problem.empty() ? 0 : 1;
+  }
   if (command == "recover") { Recover(argv[2]); return 0; }
   if (command == "remove") return Remove(argv[2], argv[3]) ? 0 : 1;
   if (command == "install") {
@@ -60,9 +66,17 @@ int main(int argc, char** argv) {
       return 3;
     }
     if (const std::string bad = VerifySignatures(staged); !bad.empty()) { std::printf("signature %s\n", bad.c_str()); RemoveTree(staged.staging); return 4; }
-    // The store refuses a staged folder without a texture (problemWithStagedFolder).
-    for (const auto& folder : staged.folders)
-      if (IsDirectory(folder) && !HasTextures(engine, folder)) { std::printf("commit noTextures\n"); RemoveTree(staged.staging); return 5; }
+    // The store refuses a staged folder without a texture, and an Azahar pack the core would stop on
+    // (problemWithStagedFolder; the driver installs as an import, whose images are decoded).
+    for (const auto& folder : staged.folders) {
+      if (!IsDirectory(folder)) continue;
+      if (!HasTextures(engine, folder)) { std::printf("commit noTextures\n"); RemoveTree(staged.staging); return 5; }
+      if (const std::string bad = engine == Engine::azahar ? CheckAzaharPack(folder, true) : ""; !bad.empty()) {
+        std::printf("commit %s\n", bad.c_str());
+        RemoveTree(staged.staging);
+        return 5;
+      }
+    }
     std::string problem;
     if (!Commit(root, staged, targets, &problem)) { std::printf("commit %s\n", problem.c_str()); RemoveTree(staged.staging); return 5; }
     uint64_t files = 0;

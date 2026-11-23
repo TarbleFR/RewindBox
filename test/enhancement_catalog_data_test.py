@@ -17,7 +17,8 @@ UNSAFE_SWITCH_NAME = re.compile(r'//|[#;\[\]{}\r\n]')
 CATALOGUE = ROOT / 'native/enhancements/catalogue'
 sys.path.insert(0, str(ROOT / 'tools/enhancements'))
 from classify import classify  # noqa: E402
-from build_enhancement_catalog import RPCS3_TYPES, SWITCH_DISPLAY, SWITCH_VERSION, switch_group  # noqa: E402
+from build_enhancement_catalog import (RPCS3_TYPES, SWITCH_DISPLAY, SWITCH_VERSION, azahar_lines,  # noqa: E402
+                                      switch_group)
 
 
 
@@ -288,6 +289,38 @@ class CatalogueData(unittest.TestCase):
             self.assertNotRegex(record['title'], '[\u2122\u00ae\u00a9]')
         self.assertGreater(with_versions, titles // 2, 'most titles know the game version of their builds')
 
+    def test_azahar_records_hold_codes_azahar_runs(self):
+        # Sharkive (GPL-3.0) is hosted: each code line is checked here against Azahar's Gateway interpreter,
+        # exactly as the adapter writes it to cheats/<Title ID>.txt.
+        sources = {s['id']: s for s in self.index['sources']}
+        self.assertIn('GPL-3.0', sources['sharkive-3ds']['license'])
+        titles = entries = 0
+        for title, record in self.records('azahar'):
+            titles += 1
+            self.assertRegex(title, r'^0004000[02][0-9A-F]{8}$')
+            self.assertTrue(record['credits'])
+            ids, names = set(), set()
+            for entry in record['entries']:
+                entries += 1
+                self.assertEqual(entry['source'], 'sharkive-3ds')
+                self.assertNotIn(entry['id'], ids)
+                ids.add(entry['id'])
+                self.assertNotIn(entry['name'].casefold(), names, 'one name per code of a title')
+                names.add(entry['name'].casefold())
+                self.assertTrue(entry['name'] and '\n' not in entry['name'] and entry['name'] == entry['name'].strip())
+                self.assertIn(entry['cat'], ('cheat', 'fps', 'ultrawide', 'graphics', 'performance'))
+                self.assertEqual(azahar_lines(entry['lines']), entry['lines'], entry['name'])
+                for version in entry.get('versions', []):
+                    self.assertRegex(version, r'^\d+\.\d+(\.\d+)?$')
+                for combo in entry.get('combo', []):
+                    self.assertTrue(combo)
+                    self.assertTrue(set(combo) <= {'A', 'B', 'Select', 'Start', 'Right', 'Left', 'Up', 'Down', 'R', 'L',
+                                                    'X', 'Y', 'Circle Right', 'Circle Left', 'Circle Up', 'Circle Down'})
+                if 'update' in entry:
+                    self.assertIs(entry['update'], True)
+        self.assertGreater(titles, 600)
+        self.assertGreater(entries, 12000)
+
     def test_sources_carry_attribution(self):
         sources = {s['id']: s for s in self.index['sources']}
         self.assertEqual(set(sources), {
@@ -296,9 +329,9 @@ class CatalogueData(unittest.TestCase):
             'armsx2-patches-zip', 'cookieplmonster-ccc', 'aerowidescreen-pcsx2',
             'pcsx2-patches', 'peterdelta-pcsx2', 'gabominated-pcsx2', 'nethersx2-cheats',
             'dolphin-gamesettings', 'dolphin-upstream', 'ishiiruka-gamesettings', 'slippi-gamesettings',
-            'mpn-gamesettings', 'admentus-enhancement-codes'})
+            'mpn-gamesettings', 'admentus-enhancement-codes', 'sharkive-3ds'})
         used = set()
-        for engine in ('melonx', 'rpcs3', 'armsx2', 'dolphin'):
+        for engine in ('melonx', 'rpcs3', 'armsx2', 'dolphin', 'azahar'):
             for _, record in self.records(engine):
                 used.update(entry['source'] for entry in record['entries'])
         self.assertEqual(used, set(sources), 'every declared source contributes and none is undeclared')

@@ -188,6 +188,7 @@ those patches stable.
 | **RPCS3** (PS3) | Serial from the library row, APP_VER from the installed title (`Rpcs3LibraryService`) | Pending records in `Data/NeoStationUnifiedCheats/state.json`, the bridge's existing staging file | `RPCS3UnifiedCheats applyPendingWhileStoppedForTitle` before every boot: Core YAML validation, `patches/<SERIAL>_patch.yml`, Core `set_enabled(serial, hash, title, version, description)`; the Core matches the PPU hash |
 | **ARMSX2** (PS2) | Serial and boot-ELF CRC read from the image (`Ps2DiscIdentity`: ISO 2048, BIN 2352 MODE1/MODE2; same algorithm as PCSX2 and `NeoTextureIdentity::PS2`) | Patches of the engine's own `patches.zip`: only `Enable = <name>` in `[Patches]` of `Documents/ARMSX2/gamesettings/<SERIAL>_<CRC>.ini` (a `Disable = <name>` line is lifted and put back on restore). Licensed cheats (CookiePLMonster, AeroWidescreen, MIT): `cheats/<SERIAL>_<CRC>_rewindbox.pnach`, written only while one is on and carrying the MIT notices, plus `Enable = <name>` in `[Cheats]` and `[EmuCore] EnableCheats = true` in the same INI (the previous value is restored) | PCSX2 patch loader at boot (ARMSX2 `9d989ca9`, `pcsx2/Patch.cpp`): the zip is read only while `patches/` holds no file for the game, so RewindBox never writes there; the same INI and keys as the in-game Patches and Cheats pages |
 | **Dolphin** (GameCube/Wii) | Game ID from the native `saveIdentity` (DiscIO, no core start); revision from the image header (ISO/GCM, CISO, WBFS, RVZ/WIA) | `$name` lines in `[OnFrame_Enabled]`/`[Gecko_Enabled]`/`[ActionReplay_Enabled]` of `User/GameSettings/<GAMEID>.ini`. A code the engine does not ship (from upstream Dolphin, Ishiiruka, Slippi, MPN or Admentus64) is also written with its body into `[Gecko]`/`[ActionReplay]`/`[OnFrame]` while it is on, and removed when it is off. A matching `_Disabled` line (also in the in-game menu's `<GAMEID>r<rev>.ini`) is lifted and put back on restore. `[Core] EnableCheats = True` in `User/Config/Dolphin.ini` for Gecko/AR | Dolphin merges the user INIs over the engine's own `Sys/GameSettings` (dolphin-ios `7cac5416`) at boot |
+| **Azahar** (3DS, libretro core 2127.0-rc5) | Title ID read from the game file: NCSD partition 0 or NCCH header (program ID at `0x118`), CIA content 0 after the certificate chain, ticket and TMD; an update (`0004000E`) or DLC (`0004008C`) maps to its application (`00040000`), a demo (`00040002`) keeps its own ID. Compressed `.zcci`/`.zcxi` and homebrew (`.3dsx`, `.elf`) have no readable identity | `<Libretro saves>/Azahar/Azahar/cheats/<TITLE ID>.txt` (Gateway sections `[name]`, `*citra_enabled`, the code lines), holding only the codes the player turned on; deleted when none is | Azahar `System::Load` reads that file when the game starts (`core.cpp`), and only enabled sections run. A code made for an update is offered once the update is installed in Azahar's SD card (`sdmc/Nintendo 3DS/<id0>/<id1>/title/0004000e/<low>`) |
 | **Libretro** | — | — | HD textures through the existing page; cheats through the existing in-game menu |
 
 ### Safety rules shared by the adapters
@@ -301,6 +302,7 @@ of `python3 tools/catalogues/report.py`.
 | Dolphin | [project-slippi/Ishiiruka](https://github.com/project-slippi/Ishiiruka) GameSettings | `07b2d287a1f0` | 1 | GPL-2.0+ |
 | Dolphin | [MarioPartyNetplay/Dolphin-MPN](https://github.com/MarioPartyNetplay/Dolphin-MPN) GameSettings | `cb414b1d6521` | 9 | GPL-2.0+ |
 | Dolphin | [Admentus64/Enhancement-Codes](https://github.com/Admentus64/Enhancement-Codes) (GameCube discs) | `f8e9ad12d904` | 37 | GPL-3.0 |
+| Azahar | [FlagBrew/Sharkive](https://github.com/FlagBrew/Sharkive) (`3ds/` Gateway codes) | `aeab5fd3b001` | 12,214 | GPL-3.0 |
 
 Engines' entry totals:
 
@@ -310,6 +312,7 @@ Engines' entry totals:
 | RPCS3 | 1,139 | 5,532 | 3,468 | 645 | 694 | 707 | 18 |
 | ARMSX2 | 4,618 | 9,251 | 977 | 1,670 | 5,384 | 1,209 | 11 |
 | Dolphin | 282 files | 338 | — | 62 | 216 | 33 | 27 |
+| Azahar | 637 | 12,214 | 12,177 | — | 4 | — | 33 |
 
 Removed on 28 October 2026 because they grant no licence to redistribute
 their codes (the earlier revision `2026-10-28.f5ee4d557b15` listed 57,841
@@ -386,6 +389,9 @@ server code.
   (1,518 left out), a name already taken is suffixed "(Artemis)".
 - **CookiePLMonster, AeroWidescreen.** MIT. The installed cheat file and
   the catalogue shard carry each copyright and permission notice.
+- **FlagBrew/Sharkive.** GPL-3.0 (the repository's LICENSE): the 3DS code
+  lines are redistributed under that licence, credited to the Sharkive
+  contributors in each record and in `NOTICE.md`.
 - **Dolphin GameSettings (dolphin-ios, dolphin-emu, Ishiiruka, Slippi, MPN)**
   GPL-2.0-or-later, **Admentus64** GPL-3.0: code bodies are redistributed
   under those licences with their credits.
@@ -549,11 +555,43 @@ and `test/melonx_engine_refresh_test.dart` (67 tests, 6 new in
 `test/enhancement_melonx_adapter_test.dart`), `dart analyze` on the changed
 files. Not run on an iPhone; no IPA built.
 
+## 3DS and HD packs (23 November 2026)
+
+- **3DS cheats on the page.** A new Azahar adapter writes the codes the
+  player turns on into the file the core reads at game start
+  (`cheats/<TITLE ID>.txt`), keyed by the Title ID read from the game file,
+  never by its name. The libretro cheat callback of the shipped core does
+  nothing, which is why Sharkive was not published until now.
+- **Only codes Azahar runs.** The builder keeps a code only when every line
+  is `XXXXXXXX YYYYYYYY` with a type the core knows (`0`–`E`, `D0`–`DD`), and
+  an `E` patch has the `ceil(Y/8)` lines the core reads after it (a shorter
+  one would make it read past the code). A code whose button condition
+  (`DD`) uses a key the core does not report is not listed; the others show
+  their combination (`L + R`). Codes of update files (`0004000E`) join their
+  game, flagged as needing the update.
+- **No crash on an HD pack Azahar cannot load.** The core reads `pack.json`
+  without any fallback (three booleans, `stoull` keys, string lists) and
+  stops on a PNG that does not decode, at every start. Before replacing
+  anything, the installer now refuses such a pack (`packJsonInvalid`,
+  `archiveDamaged`, 12 languages): `pack.json` always, every PNG of an
+  imported pack (catalogue images are decoded on CI). The CI verifier runs
+  the same check (`texture_verify azaharcheck`) and the textures table.
+
+Checks: `python3 test/enhancement_catalog_data_test.py` (11 tests),
+`flutter test` on the enhancement files (74 tests, 7 new in
+`test/enhancement_azahar_adapter_test.dart`), `python3
+test/texture_install_test.py` (139 checks with g++ and clang++, ASan/UBSan),
+`python3 test/texture_verify_checks_test.py`, `python3
+tools/textures/labels.py --check`. Not run on an iPhone; no IPA built.
+
 ## Limitations
 
 - **Libretro cores (PSP, PS1, N64…).** Their FPS and widescreen cheats
   (CWCheat+, DuckStation) stay in the unified cheat catalogue of the in-game
-  menu. The page has no Libretro adapter yet.
+  menu. The page has no Libretro adapter yet, except Azahar (3DS).
+- **Azahar.** Compressed images (`.zcci`, `.zcxi`) and homebrew carry no
+  identity readable here: their codes are not offered. A code is applied
+  at the next game start.
 - **MeloNX.** Codes come from switch-cheats-db at download time, so a game
   needs the network once, like any shard. An engine older than the cheat
   report lot (IPA 779) does not report the Build ID: the page then tells
