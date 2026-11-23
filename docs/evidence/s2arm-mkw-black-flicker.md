@@ -53,3 +53,32 @@ Rien n'est mesuré sur iPhone. Le lien entre ces reprises de stockage et les cli
 - `evicted with pools …, on storage takeover N (live objects that lost theirs N)` : 2 659 et 2 655 sur l'IPA 824 ;
 - les lignes `[alias] near-miss` : les champs qui séparent encore deux clés d'un même stockage ;
 - la ligne `RewindBox (patch 0312): …` : passages qui ont gardé une texture lue par un identifiant, et nombre de quasi-collisions.
+
+## IPA 825 : flash noir et récupération GPU
+
+Vidéo de 7,45 s et journal `de0a5911`. L'enregistrement commence à l'image 6 543 (197,25 s).
+
+- **Ce que montre la vidéo.**
+  - Entre 2,78 et 3,47 s, 8 images noires alternent avec des images normales.
+  - Sur une image noire, la scène éclairée a disparu (sol, kart, personnage, décor). Le ciel reste visible mais plus sombre, avec les silhouettes du décor. Les flammes, les traits de vitesse et le HUD sont intacts.
+  - De 4,87 à 6,73 s, l'image est figée (écart moyen entre images de 0,02 à 0,3 sur 255), puis l'écran s'assombrit jusqu'à la fin.
+- **Ce que montre le journal.**
+  - Les images 6 544 à 6 566 durent 55 à 108 ms. L'image 6 568 dure ensuite 10,09 s : de l'image 6 550 à l'image 6 574, l'horloge du jeu avance de 11,6 s.
+  - Le moteur reçoit alors 5 erreurs de tampons de commandes, toutes « Discarded (victim of GPU error/recovery) » (`kIOGPUCommandBufferCallbackErrorInnocentVictim`).
+  - Aucun tampon du moteur ne porte d'erreur de blocage, de délai ou de faute de page. Sinon le moteur se serait arrêté par sécurité (`mtl_gpu_cb_error`), ce qu'il n'a pas fait. Le travail fautif n'est pas identifié : rien n'exclut qu'il vienne d'un autre processus.
+  - L'image figée de la vidéo correspond à ce blocage. L'alignement exact entre les images de la vidéo et celles du journal reste incertain de quelques secondes : le flash précède le gel d'environ 1,4 s, sans que le journal dise ce qui l'a produit.
+- **Pas introduit par 0312–0318.**
+  - La même récupération apparaît dans la session 824 (`c758810c`, vers l'image 6 832, 15 tampons rejetés comme victimes, sans enregistrement d'écran) et le 16 novembre (`801d9562`).
+  - Les sessions 822 (`549fdcf9`, 7 800 images), 823 (`f909c983`, 22 200 images) et la relance 825 (`b7d5aa42`, 11 100 images) n'en ont aucune.
+- **Écartés par le journal :**
+  - saut à la première utilisation : `draws_skipped_pso` et `draws_skipped_shlib` à 0 dans toutes les lignes ;
+  - attachements non chargés : aucune erreur de prévision (`not loaded but written`) ;
+  - drapeaux `gpu-pass` : sans effet, mode tuiles coupé ;
+  - préchauffage : il ne tourne plus pendant les courses.
+- **Juste après la récupération (images 6 572 à 6 585, après la fin de la vidéo).**
+  - La scène change de taille : 1 248×700, puis 1 268×712, 1 276×716, puis retour à 1 248×700.
+  - L'image 6 572 porte 52 conditions au lieu de 8, dont 31 effacements écartés.
+  - La passe principale est coupée en deux aux images 6 575, 6 580 et 6 585.
+- **Suite :**
+  - savoir si les flashs arrivent aussi sans gel ;
+  - à la prochaine récupération, consigner l'état de chaque encodeur des tampons rejetés et la liste des tampons en vol, pour désigner le travail fautif.

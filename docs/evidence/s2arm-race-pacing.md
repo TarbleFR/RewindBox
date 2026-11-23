@@ -163,3 +163,37 @@ Leviers restants, non intégrés faute de mesure sur iPhone.
 
 - Le groupe de travail : `S2A_WORKGROUP=1` dans `Documents/env.txt`, possible à partir de l'IPA 824 (le pont applique désormais env.txt avant ses propres valeurs). Il annonce au système une échéance par image. Sur Silksong, il a porté les cœurs performance de 1,9 à 3,5 GHz, et la puissance de 1,69 à 2,47 W à 60 images par seconde dans les deux cas. Il ne prend pas d'intervalle à Serious (patch 0088) et se met au repos à Fair après 120 images à l'heure (patch 0093, profil Mario Kart World). Avec lui, Quitter ne met pas la session en veille : fermer l'app après l'essai. Un essai à la fois, à comparer sur `mean clock`, la puissance CPU et les images par seconde des fenêtres de course.
 - Le coût par dessin : pour 60 images par seconde à 1,26 GHz, le fil de soumission devrait passer sous 21 M de cycles par image (17 à 26 M dans ces courses), et le GPU rester sous 16,7 ms (14 à 16 ms). Un profil CPU de course dit où partent les instructions : une capture d'écran pendant une course suffit (patch 0045) ; 10 secondes après, 6 secondes de profil sont écrites dans `Documents/Diagnostics/S2Arm/captures/<capture>/cpuprof.txt`.
+
+## Sessions IPA 825 sur iPhone : verrou à 30 et récupération GPU
+
+Journaux `de0a5911` (première session, 7 300 images, enregistrement d'écran à partir de l'image 6 543) et `b7d5aa42` (relance, 11 100 images), Mario Kart World, moteur 0001–0318, Fair pendant les courses. Comparés à la session 824 (`c758810c`). Fenêtres de course de 300 images ; « au verrou » : 98 images ou plus à l'intervalle 2.
+
+| Session | Fenêtres surtout à l'intervalle 1 | Fenêtres au verrou | GPU p50 des images longues, période 16,7 / 33,3 ms |
+|---|---|---|---|
+| 824 | 39 à 58 images par seconde | 27 à 40 (15 dans la fenêtre du blocage GPU) | 14,3 / 30,4 ms |
+| 825, première | 27 à 42 | 22 à 27 (14 pendant l'enregistrement et le blocage GPU) | 13,7 / 25,1 ms |
+| 825, relance | 39 à 60, dont 52 à 60 après l'image 3 900 | 27 à 41 | 13,0 / 34,0 ms |
+
+Lecture.
+
+- Dans la relance, les fenêtres lentes sont celles où le jeu reste à l'intervalle 2 (111 à 266 images sur 300). Le GPU y est occupé 820 à 935 ms par seconde.
+- À la période de 33,3 ms, le temps GPU par image est 2 à 2,6 fois plus long dans les trois sessions, 824 comprise. Les mêmes passes de 32×32 à un dessin prennent 0,25 ms à l'image 3 242 et 0,58 ms à l'image 5 642 de la relance. C'est le mécanisme décrit plus haut (GPU ralenti à cette cadence), pas une régression des patchs 0312–0318.
+- La première session est lente aussi hors verrou : 27 à 42 images par seconde quand le jeu reste surtout à l'intervalle 1, contre 52 à 60 dans la relance après l'image 3 900. Ses images longues sont des attentes du jeu (`guest_sync`, attente p50 51 ms, 14 ms dans la relance) : le fil principal attend ses fils de travail (`rb-mkw-wait-path`, réveil par les fils 179 à 183).
+- Ces attentes suivent la relecture de la mémoire invité depuis ses fichiers de secours (`[写盘]`, par 10 secondes) :
+  - première session, toute la course jusqu'à l'image 6 400 : 133 à 688 Mo ;
+  - relance : 490 à 885 Mo jusqu'à l'image 4 000, à 39–42 images par seconde, puis 0 à 414 Mo, à 52–60 hors verrou ;
+  - 824 : 361 à 813 Mo de l'image 3 400 à 4 900 (42 à 54 images par seconde), puis 89 à 203 Mo jusqu'à l'image 8 800.
+  Une relance repart d'une mémoire libre, ce qui peut expliquer qu'elle soit plus rapide. La corrélation ne prouve pas la cause : à mesurer en isolant la pagination.
+- Essais de sortie (patch 0309) : un tenu au quatrième essai de la relance, deux au sixième de la première session.
+- Le groupe de travail est resté éteint dans les deux sessions (`帧间隔工作组：关（S2A_WORKGROUP=0）`) : il n'a toujours pas été mesuré en course.
+- Barrières : 22 400 à 30 600 barrières complètes à l'entrée des passes de dessin par fenêtre de 300 images après le chargement, soit 75 à 100 par image (profil sans `game.tsv`, `draw_barriers` à `full`).
+- Pendant l'enregistrement d'écran (images 6 544 à 6 566), les images durent 55 à 108 ms.
+- Patch 0316 : les fins de segment survenues pendant qu'un fil du jeu dort passent de 11 402 (824, 9 000 images) à 205 et 622. Il y a moins de segments soumis quand le GPU est occupé. Les attentes de clôture du jeu ne se libèrent qu'à la fin de la soumission entière, avec ou sans 0316 : aucun lien avec la baisse n'est établi.
+- Préchauffage : il plafonne à 1 925 pipelines préparés dès l'image 2 100 (première session) et n'avance plus pendant les courses.
+
+Récupération GPU de la première session : l'image 6 568 dure 10,09 s, puis 5 tampons de commandes sont rendus en erreur « Discarded (victim of GPU error/recovery) » (`kIOGPUCommandBufferCallbackErrorInnocentVictim`). Voir [Clippings noirs fugaces](s2arm-mkw-black-flicker.md#ipa-825--flash-noir-et-récupération-gpu).
+
+Essais possibles sans nouvelle IPA (`Documents/env.txt`, une ligne `CLÉ=VALEUR`, un essai à la fois, à comparer sur les fenêtres de course) :
+
+- `S2A_WORKGROUP=1` : annonce une échéance par image au système. Avec lui, quitter ne met pas la session en veille : fermer l'app après l'essai.
+- `DM_NVN_BARRIER=game` : les passes de dessin sont ordonnées par les barrières du jeu, le travail des sommets d'une passe peut chevaucher les fragments de la précédente. Risque : un défaut d'image si le jeu lit au stade des sommets un résultat de la passe précédente sans barrière.
