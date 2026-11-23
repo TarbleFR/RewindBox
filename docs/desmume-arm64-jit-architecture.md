@@ -588,10 +588,12 @@ Tirée de la 826.
   - Sans le temps du fetch (`desmume_advanced_timing` désactivé), `jit_fast` passe à 18,9 s.
   - `jit_exact` rend la main à l'autre CPU presque à chaque instruction quand les deux tournent : c'est un mode
     de compatibilité.
-- **Catalogue.** Sans JIT, la surcharge de l'app passera de `interpreter` à `cached` avec la collection qui porte
-  ce binaire (même résultat, plus rapide).
+- **Collection et catalogue.** Compilé pour iOS par la route source-cores (run 45237317896) : collection
+  `LibretroCores-66e232e0…`, adoptée dans les sources ([passation](libretro-jit-collection-handoff.md)). Sans JIT, la
+  surcharge de l'app passe de `interpreter` à `cached` (même résultat, plus rapide). Au lancement d'un jeu, l'app
+  affiche le moteur que le cœur rapporte (`engine=`).
 - **Reste à faire.**
   - Mesures sur iPhone, puis choix du moteur par défaut d'après elles.
   - Pour que le JIT RewindBox dépasse celui de T : accès mémoire natifs (DTCM, RAM principale, cache de données en
     ligne), recherche en ligne dans le cache d'instructions, vivacité des drapeaux, multiplications, LDM/STM.
-  - Compilation iOS par la route source-cores et nouvelle collection.
+  - Livraison de la collection dans une IPA : session des livraisons.
