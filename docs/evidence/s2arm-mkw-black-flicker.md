@@ -92,6 +92,7 @@ Vidéo de 7,45 s et journal `de0a5911`. L'enregistrement commence à l'image 6 5
     - il recrée 17 à 28 textures à chaque pas ;
     - à la fin de l'essai (images 7 214–7 217), il revient à 1 248×700 et à l'intervalle 2.
   - Si l'extrait se termine avec l'enregistrement, ses images noires (2,78 à 3,47 s) tombent pendant cette rampe, et leur alternance suit celle des images qui recréent des textures. C'est une déduction, pas une preuve.
+  - Quatrième session (`ae389695`), aucun flash d'après le joueur : aucun essai 0309, et après le départ de la course presque plus de reprises de stockage (0 à 15 par fenêtre de 300 images, contre 100 à 570 dans les deux sessions où il en voyait).
   - Mécanisme possible : une texture refaite sur une mémoire déjà écrite par le GPU part de zéro pour ces zones (sur la console, elle garde les anciens octets). Une passe qui la lit avant que le jeu la réécrive rend une image noire. Le compteur « samplings of new textures nothing wrote yet » (0 partout) ne suit que les textures créées sans contenu tiré de leur mémoire : il ne couvre pas ce cas.
 - **Suite :**
   - détecter automatiquement une image dont la scène devient sombre et consigner ce qui a changé dans cette image (taille, textures refaites, conditions), voire la capturer ;

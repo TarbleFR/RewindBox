@@ -191,6 +191,22 @@ Lecture.
 - Patch 0316 : les fins de segment survenues pendant qu'un fil du jeu dort passent de 11 402 (824, 9 000 images) à 205 et 622. Il y a moins de segments soumis quand le GPU est occupé. Les attentes de clôture du jeu ne se libèrent qu'à la fin de la soumission entière, avec ou sans 0316 : aucun lien avec la baisse n'est établi.
 - Préchauffage : il plafonne à 1 925 pipelines préparés dès l'image 2 100 (première session) et n'avance plus pendant les courses.
 
+Quatrième session, sans aucun réglage changé (`ae389695`, 11 846 images, PeachBeach puis course) : aucun flash, 47 à 56 images par seconde en course, sauf la fenêtre 4 201–4 500 (24,6, 91 images à l'intervalle 2).
+
+| Session | Compilations MSL depuis le source | Essais 0309 | Reprises de stockage en course | Régime en course |
+|---|---|---|---|---|
+| 825, première après l'installation | 2 665, 169,6 s (dont environ 240 de 400 à 770 ms, images 900 à 1 800) | 6 | 126 à 572 par fenêtre, toute la course | verrou presque continu |
+| 825, relance | 1 471, 16,2 s | 4 | 108 à 469 par fenêtre | verrou par phases |
+| 825, quatrième | 2 245, 11,4 s | 0 | 393 puis 191 au départ, puis 0 à 15 par fenêtre | jamais au verrou |
+
+- Deux régimes du système en course :
+  - GPU à pleine fréquence (600 à 660 ms occupées par seconde, 11 à 14 ms par image) et cœurs performance à 1,3–1,9 GHz : 47 à 60 images par seconde ;
+  - GPU ralenti (800 à 930 ms, 30 à 35 ms par image) et cœurs performance à 3,1–3,8 GHz : 27 à 35 images par seconde, le jeu à l'intervalle 2.
+  La quatrième session reste dans le premier ; les deux autres tombent dans le second, où les essais 0309 relancent des rampes de taille.
+- Après l'installation d'une IPA, le cache du compilateur Metal de l'app repart froid. La première session compile 15 fois plus longtemps que les suivantes, surtout dans les menus et la balade libre, sur des fils de fond, pas sur le fil de soumission (0 à 2 s par session). Les attentes de premier usage diminuent aussi d'une session à l'autre (22, 15, puis 10).
+- Plancher de taille (patch 0310) : appris à l'image 4 150 de la quatrième session (`floor_px=873600`), jamais dans la relance (`floor_px=0`).
+- La mémoire ne distingue pas les sessions : mémoire disponible 2,4 à 3,2 Go, mémoire compressée 0,8 à 1,1 Go, relecture de 280 à 1 140 Mo par 10 s au départ de chaque course.
+
 Récupération GPU de la première session : l'image 6 568 dure 10,09 s, puis 5 tampons de commandes sont rendus en erreur « Discarded (victim of GPU error/recovery) » (`kIOGPUCommandBufferCallbackErrorInnocentVictim`). Voir [Clippings noirs fugaces](s2arm-mkw-black-flicker.md#ipa-825--flash-noir-et-récupération-gpu).
 
 Essais possibles sans nouvelle IPA (`Documents/env.txt`, une ligne `CLÉ=VALEUR`, un essai à la fois, à comparer sur les fenêtres de course) :
