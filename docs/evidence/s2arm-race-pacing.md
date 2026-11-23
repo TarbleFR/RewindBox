@@ -114,7 +114,7 @@ Limites. Rien n'est mesuré sur iPhone. Si le système bride réellement le GPU,
 
 Répartition du temps GPU à l'intervalle 1 (image 1322). Les passes de scène à 1248×700 pèsent 4,0 ms sur 9,9 ms ; une centaine de passes plus petites se partagent le reste, une passe de 8×8 coûtant près de 80 microsecondes. Baisser la résolution de la scène agit donc sur 40 % du temps GPU au plus. Le coût fixe par passe est la piste suivante ; il n'est pas traité ici. L'élision des stores reste hors service pour les titres hébergés (lecteurs d'attachements par handles : durée de vie non prouvable), et ce verrou n'a pas de forçage.
 
-Fil de soumission, audit. Il tourne à 100 % sur les cœurs performance, sous une politique temps réel de priorité 97. Le calcul déclaré n'explique pas son horloge : des sessions à 15 ms déclarés montrent 1,4 à 2,4 GHz dans les fenêtres lourdes, comme les sessions à 2 ms. L'horloge suit l'état du GPU (voir plus haut) : basse quand le GPU travaille à pleine fréquence, haute quand il est ralenti. Aucun réglage de QoS ou de placement ne ressort comme cause. Le groupe de travail (`S2A_WORKGROUP`), qui annonce une échéance par image au système, reste hors service parce qu'il fait refuser la mise en veille de la session ; aucune mesure de course n'existe avec lui actif depuis l'IPA 783. Essai possible sur iPhone, un réglage à la fois dans `Documents/env.txt` : `S2A_WORKGROUP=1`, puis comparer `mean clock`, `CPU energy` et les images par seconde dans les fenêtres de course. La fermeture du jeu ne passe alors pas par la mise en veille : quitter l'app après l'essai.
+Fil de soumission, audit. Il tourne à 100 % sur les cœurs performance, sous une politique temps réel de priorité 97. Le calcul déclaré n'explique pas son horloge : des sessions à 15 ms déclarés montrent 1,4 à 2,4 GHz dans les fenêtres lourdes, comme les sessions à 2 ms. L'horloge suit l'état du GPU (voir plus haut) : basse quand le GPU travaille à pleine fréquence, haute quand il est ralenti. Aucun réglage de QoS ou de placement ne ressort comme cause. Le groupe de travail (`S2A_WORKGROUP`), qui annonce une échéance par image au système, reste hors service parce qu'il fait refuser la mise en veille de la session ; aucune mesure de course n'existe avec lui actif depuis l'IPA 783. Essai proposé alors : `S2A_WORKGROUP=1` dans `Documents/env.txt`. Correction : jusqu'à l'IPA 823, le pont posait cette variable avant le chargement du moteur, et le moteur ne lit env.txt que pour compléter ; l'essai n'avait donc aucun effet. Il devient possible avec l'IPA 824 (voir « Session IPA 823 sur iPhone : course, fil de soumission et verrou »).
 
 ## Session IPA 822 sur iPhone : patchs 0302 à 0307 observés
 
@@ -140,3 +140,26 @@ Patch 0310. Seule une poussée qui a fait rétrécir la scène apprend le planch
 
 Sonde GPU de cette session (demandée à l'image 2160, 81 ms d'image moyenne pendant un chargement) : non exploitée.
 
+## Session IPA 823 sur iPhone : course, fil de soumission et verrou
+
+Journal `f909c983`, Mario Kart World, moteur 0001–0310, 22 200 images, Fair de l'image 1 374 à 17 400, puis Serious. Fenêtres de 300 images.
+
+| Fenêtres | État | Images par seconde | Soumission + présentation, p50 | GPU, p50 | Horloge du fil de soumission |
+|---|---|---|---|---|---|
+| 3 600–4 500 et 11 400–13 500 | Fair | 55,0 à 60,0 | — | — | 1,62 à 2,00 GHz |
+| Course, 6 000–6 900 | Fair | 33,4 à 39,3 | 17,7 à 21,5 ms | 14,2 à 16,2 ms | 1,26 à 1,31 GHz |
+| Courses, 7 200–11 100 et 14 400–17 100 | Fair | 23,8 à 50,0 | — | — | 1,26 à 1,52 GHz |
+| Verrou à 30, 18 300–19 800 | Serious | 25,7 à 28,6 | 11,7 à 17,8 ms | 31,6 à 35,1 ms | 1,68 à 1,93 GHz |
+| 20 100–21 300 | Serious | 38,1 à 50,7 | 15,7 à 20,9 ms | 11,4 à 15,4 ms | 1,27 à 1,38 GHz |
+
+Lecture.
+
+- En course, le fil de soumission est le premier verrou : soumission et présentation prennent 17,7 à 21,5 ms par image quand le GPU en prend 14,2 à 16,2, et le fil travaille 13,5 à 19,6 ms de CPU par image dans les fenêtres à 1,26–1,32 GHz. Son travail est celui de l'IPA 822 : au p50 des fenêtres de course, 45 500 instructions par dessin, 1 418 dessins et 66 M d'instructions par image (822 : 44 500, 1 492 et 65 M). Le coût par dessin est stable depuis le 14 novembre (41 000 à 56 000 au p50 selon les sessions). Ce qui change, c'est l'horloge que le système lui donne : 1,26 à 1,52 GHz dans les courses lentes, 1,6 à 2,0 GHz dans les fenêtres qui tiennent 55 à 60 images par seconde.
+- Les compilations de fond du patch 0308 (20 à 90 toutes les 10 secondes) couvrent aussi bien les fenêtres à 60 que les fenêtres lentes : elles n'expliquent pas l'horloge. Le patch 0311 les retire.
+- Verrou à 30 (patch 0309) : 7 essais, 2 tenus (images 18 208 et 21 708), attente doublée de 60 à 480 images entre deux échecs, comme prévu. Les fenêtres 18 300–19 800 restent au verrou parce que le GPU y est ralenti : de l'image 18 600 à 19 800, la sonde fixe prend 0,82 à 1,18 ms, contre 0,27 à 0,36 ms dans les fenêtres hors verrou.
+- Plancher de résolution (patch 0310) : aucun appris (`floor_px=0`) ; les poussées sans effet ont été retentées avec une attente doublée, de 600 à 4 800 images.
+
+Leviers restants, non intégrés faute de mesure sur iPhone.
+
+- Le groupe de travail : `S2A_WORKGROUP=1` dans `Documents/env.txt`, possible à partir de l'IPA 824 (le pont applique désormais env.txt avant ses propres valeurs). Il annonce au système une échéance par image. Sur Silksong, il a porté les cœurs performance de 1,9 à 3,5 GHz, et la puissance de 1,69 à 2,47 W à 60 images par seconde dans les deux cas. Il ne prend pas d'intervalle à Serious (patch 0088) et se met au repos à Fair après 120 images à l'heure (patch 0093, profil Mario Kart World). Avec lui, Quitter ne met pas la session en veille : fermer l'app après l'essai. Un essai à la fois, à comparer sur `mean clock`, la puissance CPU et les images par seconde des fenêtres de course.
+- Le coût par dessin : pour 60 images par seconde à 1,26 GHz, le fil de soumission devrait passer sous 21 M de cycles par image (17 à 26 M dans ces courses), et le GPU rester sous 16,7 ms (14 à 16 ms). Un profil CPU de course dit où partent les instructions : une capture d'écran pendant une course suffit (patch 0045) ; 10 secondes après, 6 secondes de profil sont écrites dans `Documents/Diagnostics/S2Arm/captures/<capture>/cpuprof.txt`.
