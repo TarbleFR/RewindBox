@@ -94,6 +94,13 @@ typedef NSDictionary<NSString *, NSDictionary *> * (^LibretroControlsOverridesPr
 /// Developer touch diagnostics (LibretroTouchDiagnosticsView) above the
 /// controls: touch areas, fingers, inputs sent and the state the core read.
 @property(nonatomic, assign) BOOL touchDiagnosticsEnabled;
+/// Performance overlay (LibretroPerformanceOverlay) at the top-left of the
+/// safe area, below the menu button when that corner holds it. Refreshed
+/// twice a second from the display link with the lines
+/// performanceLinesProvider returns; stays on the iPhone, like the status
+/// line, while the picture is on a TV.
+@property(nonatomic, assign) BOOL performanceOverlayEnabled;
+@property(nonatomic, copy, nullable) NSArray<NSString *> * (^performanceLinesProvider)(void);
 @property(nonatomic, assign) CGFloat controlsOpacity;
 @property(nonatomic, copy) NSString *menuAccessibilityLabel;
 /// Orientations allowed while the game is shown.

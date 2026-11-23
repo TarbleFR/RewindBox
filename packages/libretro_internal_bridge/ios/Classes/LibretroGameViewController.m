@@ -5,6 +5,7 @@
 
 #import "LibretroChromeLayout.h"
 #import "LibretroInputState.h"
+#import "LibretroPerformanceOverlay.h"
 #import "LibretroRenderSurface.h"
 #import "LibretroSkinRenderer.h"
 #import "LibretroTouchDiagnosticsView.h"
@@ -43,6 +44,8 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   UILabel *_statusLabel;
   UIActivityIndicatorView *_spinner;
   LibretroTouchDiagnosticsView *_diagnosticsView;
+  LibretroPerformanceOverlay *_performanceOverlay;
+  CFTimeInterval _performanceRefreshed;
   CADisplayLink *_displayLink;
   NSUInteger _statusGeneration;
   BOOL _inputPollingStopped;
@@ -187,6 +190,7 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
 - (void)viewDidLoad {
   [super viewDidLoad];
   [self applyTouchDiagnostics];
+  [self applyPerformanceOverlay];
   NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
   [center addObserver:self
              selector:@selector(applicationWillResignActive)
@@ -531,6 +535,54 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   }
   _spinner.center = CGPointMake(CGRectGetMidX(bounds), CGRectGetMidY(bounds));
   if (_editBar != nil && !_editBar.hidden) [self layoutEditBar];
+  [self layoutPerformanceOverlay];
+}
+
+#pragma mark - Performance overlay
+
+- (void)setPerformanceOverlayEnabled:(BOOL)performanceOverlayEnabled {
+  _performanceOverlayEnabled = performanceOverlayEnabled;
+  if (self.isViewLoaded) [self applyPerformanceOverlay];
+}
+
+- (void)applyPerformanceOverlay {
+  if (!self.performanceOverlayEnabled) {
+    [_performanceOverlay removeFromSuperview];
+    _performanceOverlay = nil;
+    return;
+  }
+  if (_performanceOverlay == nil) {
+    _performanceOverlay = [[LibretroPerformanceOverlay alloc] initWithFrame:CGRectZero];
+    // Under the status line: a message stays readable over the numbers.
+    [self.view insertSubview:_performanceOverlay belowSubview:_statusLabel];
+  }
+  _performanceRefreshed = 0;
+  [self refreshPerformanceOverlay];
+}
+
+/// Display link: new lines twice a second.
+- (void)refreshPerformanceOverlay {
+  if (_performanceOverlay == nil) return;
+  CFTimeInterval now = CACurrentMediaTime();
+  if (_performanceRefreshed != 0 && now - _performanceRefreshed < 0.5) return;
+  _performanceRefreshed = now;
+  NSArray<NSString *> * (^provider)(void) = self.performanceLinesProvider;
+  NSArray<NSString *> *lines = provider != nil ? provider() : nil;
+  [_performanceOverlay showLines:lines.count > 0 ? lines : @[ @"FPS -" ]];
+  [self layoutPerformanceOverlay];
+}
+
+/// Top-left corner of the safe area; below the menu button when the button
+/// is there (LibretroChromeLayout can move it beside a touch screen).
+- (void)layoutPerformanceOverlay {
+  if (_performanceOverlay == nil) return;
+  UIEdgeInsets insets = self.view.safeAreaInsets;
+  CGRect frame = _performanceOverlay.frame;
+  frame.origin = CGPointMake(insets.left + 8, insets.top + 8);
+  if (!_menuButton.hidden && CGRectIntersectsRect(CGRectInset(frame, -4, -4), _menuButton.frame)) {
+    frame.origin.y = CGRectGetMaxY(_menuButton.frame) + 8;
+  }
+  _performanceOverlay.frame = frame;
 }
 
 #pragma mark - Touch diagnostics
@@ -575,6 +627,7 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   self.screenMappingsProvider = nil;
   self.menuHandler = nil;
   self.activeHandler = nil;
+  self.performanceLinesProvider = nil;
   [_displayLink invalidate];
   _displayLink = nil;
   [_overlay releaseAllTouches];
@@ -594,6 +647,7 @@ static LibretroRect LibretroRectFromCGRect(CGRect rect) {
   [self updateControlsVisibility];
   NSArray<NSValue *> * (^provider)(void) = self.screenMappingsProvider;
   if (provider != nil) [self refreshTouchScreenMappings:provider()];
+  [self refreshPerformanceOverlay];
   if (menuRequested && !_editing && self.presentedViewController == nil) [self menuPressed];
 }
 
