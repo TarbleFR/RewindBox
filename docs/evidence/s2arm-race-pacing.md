@@ -264,3 +264,35 @@ Ce qui reste hors de portée. Si le GPU est réellement lent (enregistrement d'�
 - `[rb-guest-drs] spike reports=` ;
 - la part d'images à l'intervalle 2 dans `the game sets present interval` ;
 - l'absence de lignes `dynamic resolution hold … 33.20 ms` hors des repos.
+
+## IPA 827 sur iPhone : le verrou est levé, le fil de soumission limite la course
+
+Journaux `c8b81008` (première session après l'installation, 6 600 images) et `83631c2b` (8 100 images), Mario Kart World, moteur 0001–0319, état Fair en course, groupe de travail éteint (`S2A_WORKGROUP=0`).
+
+Le patch 0319 agit comme prévu :
+
+- la garde est active (`no-lock guard on`) ;
+- le maintien ne passe plus jamais à 33,2 ms (toutes les lignes `dynamic resolution hold` sont à 16,6 ms) ;
+- 49 retours à l'intervalle 1 sur 51 évasions dans `c8b81008`, 52 sur 54 dans `83631c2b`.
+
+Les échecs comptés sont des demandes d'une seule image qui reviennent dans la seconde.
+
+Ce qui limite encore la course :
+
+| Fenêtres (≥ 1 000 dessins par image) | Dessins par image | Instructions par dessin | CPU de soumission par image | Horloge | Images par seconde |
+|---|---|---|---|---|---|
+| 825, bonne session `ae389695` | 978 à 2 055 | 40 400 à 47 500 (96 200 au départ) | 10,0 à 16,3 ms (26,5 au départ) | 1,33 à 2,16 GHz | 44 à 56 (24 au départ) |
+| 827, `c8b81008`, départ de course | 2 035 à 2 058 | 39 000 à 40 600 | 17,8 à 18,0 ms | 1,58 à 1,60 GHz | 27 |
+| 827, `83631c2b` | 985 à 2 044 | 38 900 à 47 600 | 12,9 à 19,5 ms | 1,33 à 1,49 GHz | 36 à 51 |
+
+- Quand le GPU travaille 600 à 650 ms par seconde, le système donne 1,3 à 1,5 GHz au fil de soumission. Hors course (159 dessins par image), le même fil tourne à 3,2–3,8 GHz pour 1,5 ms par image.
+- Le jeu attend ce fil : appels NVN de soumission et présentation à 14–20 ms au p50 par image dans `83631c2b`, contre 1,8 ms quand la scène est légère.
+- Coûts relevés par image en course, dans les deux sessions :
+  - 700 à 1 570 vues de textures par ID recalculées (33 à 41 conservées) ;
+  - 720 à 1 107 écritures de tables de fragments et de calcul ;
+  - 126 à 138 barrières complètes à l'entrée des passes ;
+  - 2 à 5 soumissions coupées ;
+  - 4 à 8 copies d'attachement lu par sa propre passe (4,3 à 6,8 Mo).
+- Départs de course : jusqu'à 2 058 dessins par image. S'y ajoutent les relectures de la mémoire invitée (jusqu'à 1 182 Mo et 108 000 pages par 10 s) et les premiers envois de textures sur le fil de soumission (jusqu'à 52 par image, 42 ms) : images de 30 à 84 ms marquées `cause=submit`. La lecture anticipée par liaisons enregistrées s'arrête d'elle-même (`useful=0 stopped=1`).
+- Hors course, avec un GPU à 11,5 ms, le jeu demande l'intervalle 2 pour une seule image, toutes les 6 à 8 images (445 épisodes d'une image sur 487 dans `c8b81008`). Le motif existait dans la 825 (6 à 7 % des images). Aucun épisode quand le GPU est à 8,5 ms. Le déclencheur n'est ni le temps lu (16,6 ms), ni la latence d'affichage. Données image par image à recueillir.
+- Flashes noirs : aucune erreur GPU dans ces sessions. Ils suivent les changements de taille de scène : 4 096 recréations de textures à la même adresse (`[alias] near-miss`) vers l'image 6 600 dans `c8b81008` (1660×932 puis environ 1270×714 au départ de course), comme la première session 825 ; 1 024 dans la bonne session et dans `83631c2b`.
