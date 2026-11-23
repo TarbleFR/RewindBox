@@ -11,6 +11,7 @@
 #import "LibretroCoreOptions.h"
 #import "LibretroDefaultSkins.h"
 #import <GameController/GameController.h>
+#import <QuartzCore/QuartzCore.h>
 #import "LibretroFrontendMenu.h"
 #import "LibretroFrontendStore.h"
 #import "LibretroGLRenderer.h"
@@ -72,7 +73,7 @@ static const NSUInteger kStartupFrames = 60;
 static const double kStartupSeconds = 5.0;
 static const double kStartupFrameCap = 0.25;
 /// The JIT mode is shown once the game has run this many frames (about a
-/// third of a second), for this long.
+/// third of a second), for this long (2.5 s for a core without any JIT).
 static const NSUInteger kJitStatusFrames = 20;
 static const NSTimeInterval kJitStatusSeconds = 5.0;
 /// Stall watch: a running game that produced no frame for this long is
@@ -920,6 +921,9 @@ static NSString *LibretroThreadPlace(mach_port_t thread) {
   if (_jitStatusShown) return;
   _jitStatusShown = YES;
   NSString *status = [self jitStatusText];
+  // A core without any JIT only says so briefly.
+  const BOOL jitCore = _host.jitReportedEngine.length > 0 || _host.jitCapable || _configuration.jitExpected;
+  const NSTimeInterval seconds = jitCore ? kJitStatusSeconds : 2.5;
   const unsigned long frames = (unsigned long)_startupFrames;
   LibretroSessionJournal *journal = _journal;
   __weak LibretroSession *weakSelf = self;
@@ -927,7 +931,7 @@ static NSString *LibretroThreadPlace(mach_port_t thread) {
     LibretroSession *session = weakSelf;
     // Not while the game is closing (left before the status came).
     if (session == nil || session->_closing) return;
-    [session->_controller showStatus:status duration:kJitStatusSeconds];
+    [session->_controller showStatus:status duration:seconds];
     [journal note:[NSString stringWithFormat:@"jit: shown after %lu frames: %@", frames, status]];
   });
 }
