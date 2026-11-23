@@ -40,6 +40,9 @@ void main() {
       'menu.res075', 'menu.res100', 'menu.aaNone', 'menu.aaSmaaMedium', 'menu.aaSmaaHigh', 'menu.filterBilinear',
       'menu.filterNearest', 'menu.fps60', 'menu.fps120', 'menu.fpsUnlimited', 'menu.modeHandheld',
       'menu.modeDocked', 'menu.formatWide', 'menu.format169', 'menu.languageAuto', 'menu.liveNow',
+      // The in-game benchmark (b56627d0b, 20 November).
+      'menu.benchmark', 'menu.benchmarkFailed', 'menu.benchmarkInstructions', 'menu.benchmarkInterrupted',
+      'menu.benchmarkInvalid', 'menu.benchmarkSaved', 'menu.benchmarkScenario', 'menu.benchmarkStart',
     ];
     for (final code in codes) {
       final strings = Switch2SettingsLocale.menuStrings(code);
