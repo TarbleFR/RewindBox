@@ -1,0 +1,916 @@
+diff --git a/externals/dynarmic/src/dynarmic/CMakeLists.txt b/externals/dynarmic/src/dynarmic/CMakeLists.txt
+index b234cd2..495cd2b 100644
+--- a/externals/dynarmic/src/dynarmic/CMakeLists.txt
++++ b/externals/dynarmic/src/dynarmic/CMakeLists.txt
+@@ -447,6 +447,9 @@ endif()
+ 
+ if (WIN32)
+     target_sources(dynarmic PRIVATE backend/exception_handler_windows.cpp)
++elseif (CMAKE_SYSTEM_NAME MATCHES "^(iOS|tvOS|visionOS)$")
++    # No fastmem on Apple embedded targets: never take over the task's exception ports.
++    target_sources(dynarmic PRIVATE backend/exception_handler_generic.cpp)
+ elseif (APPLE)
+     find_path(MACH_EXC_DEFS_DIR "mach/mach_exc.defs")
+     if (NOT MACH_EXC_DEFS_DIR)
+diff --git a/externals/dynarmic/src/dynarmic/backend/arm64/address_space.cpp b/externals/dynarmic/src/dynarmic/backend/arm64/address_space.cpp
+index 2c7ae77..029799c 100644
+--- a/externals/dynarmic/src/dynarmic/backend/arm64/address_space.cpp
++++ b/externals/dynarmic/src/dynarmic/backend/arm64/address_space.cpp
+@@ -23,7 +23,7 @@ namespace Dynarmic::Backend::Arm64 {
+ AddressSpace::AddressSpace(size_t code_cache_size)
+         : code_cache_size(code_cache_size)
+         , mem(code_cache_size)
+-        , code(mem.ptr(), mem.ptr())
++        , code(mem.wptr(), mem.ptr())
+         , fastmem_manager(exception_handler) {
+     ASSERT_MSG(code_cache_size <= 128 * 1024 * 1024, "code_cache_size > 128 MiB not currently supported");
+ 
+@@ -136,7 +136,7 @@ void AddressSpace::Link(EmittedBlockInfo& block_info) {
+     using namespace oaknut::util;
+ 
+     for (auto [ptr_offset, target] : block_info.relocations) {
+-        CodeGenerator c{mem.ptr(), mem.ptr()};
++        CodeGenerator c{mem.wptr(), mem.ptr()};
+         c.set_xptr(reinterpret_cast<u32*>(block_info.entry_point + ptr_offset));
+ 
+         switch (target) {
+@@ -276,7 +276,7 @@ void AddressSpace::LinkBlockLinks(const CodePtr entry_point, const CodePtr targe
+     using namespace oaknut::util;
+ 
+     for (auto [ptr_offset, type] : block_relocations_list) {
+-        CodeGenerator c{mem.ptr(), mem.ptr()};
++        CodeGenerator c{mem.wptr(), mem.ptr()};
+         c.set_xptr(reinterpret_cast<u32*>(entry_point + ptr_offset));
+ 
+         switch (type) {
+diff --git a/externals/dynarmic/src/dynarmic/common/spin_lock_arm64.cpp b/externals/dynarmic/src/dynarmic/common/spin_lock_arm64.cpp
+index ccf807e..a15f77c 100644
+--- a/externals/dynarmic/src/dynarmic/common/spin_lock_arm64.cpp
++++ b/externals/dynarmic/src/dynarmic/common/spin_lock_arm64.cpp
+@@ -3,9 +3,8 @@
+  * SPDX-License-Identifier: 0BSD
+  */
+ 
+-#include <mutex>
++#include <cstdint>
+ 
+-#include <oaknut/code_block.hpp>
+ #include <oaknut/oaknut.hpp>
+ 
+ #include "dynarmic/backend/arm64/abi.h"
+@@ -35,52 +34,28 @@ void EmitSpinLockUnlock(oaknut::CodeGenerator& code, oaknut::XReg ptr) {
+     code.STLR(WZR, ptr);
+ }
+ 
+-namespace {
+-
+-struct SpinLockImpl {
+-    SpinLockImpl();
+-
+-    void Initialize();
+-
+-    oaknut::CodeBlock mem;
+-    oaknut::CodeGenerator code;
+-
+-    void (*lock)(volatile int*);
+-    void (*unlock)(volatile int*);
+-};
+-
+-std::once_flag flag;
+-SpinLockImpl impl;
+-
+-SpinLockImpl::SpinLockImpl()
+-        : mem{4096}
+-        , code{mem.ptr(), mem.ptr()} {}
+-
+-void SpinLockImpl::Initialize() {
+-    mem.unprotect();
+-
+-    lock = code.xptr<void (*)(volatile int*)>();
+-    EmitSpinLockLock(code, X0);
+-    code.RET();
+-
+-    unlock = code.xptr<void (*)(volatile int*)>();
+-    EmitSpinLockUnlock(code, X0);
+-    code.RET();
+-
+-    mem.protect();
+-    mem.invalidate_all();
+-}
+-
+-}  // namespace
+-
++// Same instruction sequences as above, compiled ahead of time instead of being emitted into a
++// static RX block at load time (which needed mmap + mprotect toggling).
+ void SpinLock::Lock() {
+-    std::call_once(flag, &SpinLockImpl::Initialize, impl);
+-    impl.lock(&storage);
++    std::uint32_t tmp;
++    const std::uint32_t one = 1;
++    __asm__ volatile(
++        "   sevl\n"
++        "1: wfe\n"
++        "2: ldaxr %w[tmp], [%[ptr]]\n"
++        "   cbnz  %w[tmp], 1b\n"
++        "   stxr  %w[tmp], %w[one], [%[ptr]]\n"
++        "   cbnz  %w[tmp], 2b\n"
++        : [tmp] "=&r"(tmp)
++        : [ptr] "r"(&storage), [one] "r"(one)
++        : "memory");
+ }
+ 
+ void SpinLock::Unlock() {
+-    std::call_once(flag, &SpinLockImpl::Initialize, impl);
+-    impl.unlock(&storage);
++    __asm__ volatile("stlr wzr, [%[ptr]]"
++                     :
++                     : [ptr] "r"(&storage)
++                     : "memory");
+ }
+ 
+ }  // namespace Dynarmic
+diff --git a/externals/oaknut/include/oaknut/code_block.hpp b/externals/oaknut/include/oaknut/code_block.hpp
+index bfa87d9..0450d52 100644
+--- a/externals/oaknut/include/oaknut/code_block.hpp
++++ b/externals/oaknut/include/oaknut/code_block.hpp
+@@ -23,11 +23,32 @@
+ 
+ namespace oaknut {
+ 
++/// Optional provider of dual-mapped code memory (RewindBox). When installed, every CodeBlock
++/// takes its memory from it: ptr() is the executable view, wptr() the writable alias of the same
++/// pages. Such memory is never mmap'd, mprotect'ed or munmap'ed by oaknut.
++struct ExternalCodeAllocator {
++    /// Returns the executable address and stores the writable alias in *wptr, or nullptr.
++    std::uint32_t* (*allocate)(std::size_t size, std::uint32_t** wptr);
++    void (*release)(std::uint32_t* xptr, std::size_t size);
++    /// Instruction cache maintenance on the executable view.
++    void (*flush)(std::uint32_t* xptr, std::size_t size);
++};
++
++inline const ExternalCodeAllocator* g_external_code_allocator = nullptr;
++
+ class CodeBlock {
+ public:
+     explicit CodeBlock(std::size_t size)
+         : m_size(size)
+     {
++        if (const ExternalCodeAllocator* external = g_external_code_allocator) {
++            m_memory = external->allocate(size, &m_wmemory);
++            if (m_memory == nullptr)
++                throw std::bad_alloc{};
++            m_external = external;
++            return;
++        }
++
+ #if defined(_WIN32)
+         m_memory = (std::uint32_t*)VirtualAlloc(nullptr, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+ #elif defined(__APPLE__)
+@@ -46,6 +67,7 @@ public:
+ 
+         if (m_memory == nullptr)
+             throw std::bad_alloc{};
++        m_wmemory = m_memory;
+     }
+ 
+     ~CodeBlock()
+@@ -53,6 +75,11 @@ public:
+         if (m_memory == nullptr)
+             return;
+ 
++        if (m_external) {
++            m_external->release(m_memory, m_size);
++            return;
++        }
++
+ #if defined(_WIN32)
+         VirtualFree((void*)m_memory, 0, MEM_RELEASE);
+ #else
+@@ -65,13 +92,22 @@ public:
+     CodeBlock(CodeBlock&&) = delete;
+     CodeBlock& operator=(CodeBlock&&) = delete;
+ 
++    /// Executable view.
+     std::uint32_t* ptr() const
+     {
+         return m_memory;
+     }
+ 
++    /// Writable view (the same as ptr() unless an ExternalCodeAllocator provided the memory).
++    std::uint32_t* wptr() const
++    {
++        return m_wmemory;
++    }
++
+     void protect()
+     {
++        if (m_external)
++            return;
+ #if defined(__APPLE__) && !TARGET_OS_IPHONE
+         pthread_jit_write_protect_np(1);
+ #elif defined(__APPLE__) || defined(__NetBSD__) || defined(__OpenBSD__)
+@@ -81,6 +117,8 @@ public:
+ 
+     void unprotect()
+     {
++        if (m_external)
++            return;
+ #if defined(__APPLE__) && !TARGET_OS_IPHONE
+         pthread_jit_write_protect_np(0);
+ #elif defined(__APPLE__) || defined(__NetBSD__) || defined(__OpenBSD__)
+@@ -88,8 +126,13 @@ public:
+ #endif
+     }
+ 
++    /// `mem` is an address in the executable view.
+     void invalidate(std::uint32_t* mem, std::size_t size)
+     {
++        if (m_external) {
++            m_external->flush(mem, size);
++            return;
++        }
+ #if defined(__APPLE__)
+         sys_icache_invalidate(mem, size);
+ #elif defined(_WIN32)
+@@ -136,7 +179,9 @@ public:
+     }
+ 
+ protected:
+-    std::uint32_t* m_memory;
++    std::uint32_t* m_memory = nullptr;
++    std::uint32_t* m_wmemory = nullptr;
++    const ExternalCodeAllocator* m_external = nullptr;
+     std::size_t m_size = 0;
+ };
+ 
+diff --git a/src/citra_libretro/CMakeLists.txt b/src/citra_libretro/CMakeLists.txt
+index e28f994..9dd6046 100644
+--- a/src/citra_libretro/CMakeLists.txt
++++ b/src/citra_libretro/CMakeLists.txt
+@@ -13,10 +13,14 @@ add_library(citra_libretro_common OBJECT
+         environment.cpp
+         environment.h
+         core_settings.cpp
+-        core_settings.h)
++        core_settings.h
++        $<$<BOOL:${IOS}>:rewindbox_jit.cpp rewindbox_jit.h RewindBoxLibretroJit.h>)
+ 
+ target_compile_definitions(citra_libretro_common PRIVATE HAVE_LIBRETRO)
+ target_link_libraries(citra_libretro_common PRIVATE citra_common citra_core video_core libretro tsl::robin_map)
++if(IOS)
++    target_link_libraries(citra_libretro_common PRIVATE oaknut)
++endif()
+ if(ENABLE_OPENGL)
+     target_link_libraries(citra_libretro_common PRIVATE glad)
+ endif()
+diff --git a/src/citra_libretro/RewindBoxLibretroJit.h b/src/citra_libretro/RewindBoxLibretroJit.h
+new file mode 100644
+index 0000000..fa70a90
+--- /dev/null
++++ b/src/citra_libretro/RewindBoxLibretroJit.h
+@@ -0,0 +1,46 @@
++/*
++ * Versioned C ABI between RewindBox's libretro host and the libretro cores RewindBox builds with their JIT
++ * (Azahar's dynarmic, Beetle PSX's Lightrec, DeSmuME). The host prepares the session's executable memory
++ * itself, before it opens the core, under the app's JIT contract (packages/libretro_internal_bridge,
++ * LibretroJitArena.c); a patched core takes its code buffers from it instead of mapping executable memory.
++ *
++ * Contract for the core:
++ * - Code is written only through `rw` and executed only at `rx`: the same physical pages at two addresses.
++ *   Never make those pages writable and executable at once, never change their protections, never map
++ *   executable memory itself (iOS 26 forbids it once the debugger has detached).
++ * - After writing code through `rw`, call `flush(rx, bytes)` before executing it.
++ * - `allocate` hands out page-aligned blocks out of a fixed `capacity` that never grows: a full code cache is
++ *   cleared and reused by the core. Blocks stay valid until the core is closed (after retro_deinit).
++ * - The host calls REWINDBOX_LIBRETRO_JIT_INSTALL_SYMBOL right after dlopen, before retro_set_environment and
++ *   retro_init, at most once per open, only when the arena is ready. A return of 0 means the core will use the
++ *   interface; the host then answers RETRO_ENVIRONMENT_GET_JIT_CAPABLE with true. Any other value, or no
++ *   such symbol, keeps the core's interpreter.
++ *
++ * Plain C with fixed-width fields and no ownership inferred from addresses, like NeoStationPSPMemory.h.
++ * License: MIT (this header only), so that it can be copied into the cores' sources.
++ */
++#ifndef REWINDBOX_LIBRETRO_JIT_H
++#define REWINDBOX_LIBRETRO_JIT_H
++
++#include <stdint.h>
++
++#define REWINDBOX_LIBRETRO_JIT_VERSION 1u
++#define REWINDBOX_LIBRETRO_JIT_INSTALL_SYMBOL "rewindbox_libretro_jit_install"
++
++typedef struct RewindBoxLibretroJitV1 {
++  uint32_t version;     /* REWINDBOX_LIBRETRO_JIT_VERSION */
++  uint32_t structBytes; /* sizeof(RewindBoxLibretroJitV1) */
++  uint64_t pageBytes;   /* allocation granule (16 KiB) */
++  uint64_t capacity;    /* bytes prepared for this session */
++  /* A page-aligned block of at least `bytes`: *rx executes, *rw writes the same pages.
++   * 0 on success; -1 (outputs untouched) when the capacity left is too small. Thread-safe. */
++  int (*allocate)(uint64_t bytes, uint64_t *rx, uint64_t *rw);
++  /* Instruction-cache invalidation of [rx, rx + bytes) after writing it through its rw alias. */
++  void (*flush)(uint64_t rx, uint64_t bytes);
++  /* Bytes still available to allocate. */
++  uint64_t (*available)(void);
++} RewindBoxLibretroJitV1;
++
++typedef int (*RewindBoxLibretroJitInstall)(const RewindBoxLibretroJitV1 *jit);
++
++#endif /* REWINDBOX_LIBRETRO_JIT_H */
+diff --git a/src/citra_libretro/citra_libretro.cpp b/src/citra_libretro/citra_libretro.cpp
+index c912308..6ddf5a3 100644
+--- a/src/citra_libretro/citra_libretro.cpp
++++ b/src/citra_libretro/citra_libretro.cpp
+@@ -32,6 +32,9 @@
+ #include "citra_libretro/core_settings.h"
+ #include "citra_libretro/environment.h"
+ #include "citra_libretro/input/input_factory.h"
++#ifdef IOS
++#include "citra_libretro/rewindbox_jit.h"
++#endif
+ 
+ #include "common/arch.h"
+ #if CITRA_ARCH(x86_64)
+@@ -99,6 +102,11 @@ void retro_deinit() {
+ 
+     delete emu_instance;
+ 
++#ifdef IOS
++    LibRetro::ResetJitPlan();
++    RewindBoxJit::Shutdown();
++#endif
++
+     Common::Log::Stop();
+ }
+ 
+@@ -512,6 +520,9 @@ bool retro_load_game(const struct retro_game_info* info) {
+     }
+ #endif
+ 
++#ifdef IOS
++    LibRetro::ResetJitPlan();
++#endif
+     UpdateSettings();
+ 
+     // If using HW rendering, don't actually load the game here. azahar wants
+diff --git a/src/citra_libretro/core_settings.cpp b/src/citra_libretro/core_settings.cpp
+index 7b43e31..533cca6 100644
+--- a/src/citra_libretro/core_settings.cpp
++++ b/src/citra_libretro/core_settings.cpp
+@@ -6,6 +6,10 @@
+ 
+ #include "citra_libretro/core_settings.h"
+ #include "citra_libretro/environment.h"
++#ifdef IOS
++#include <optional>
++#include "citra_libretro/rewindbox_jit.h"
++#endif
+ 
+ #include "common/file_util.h"
+ #include "common/settings.h"
+@@ -144,7 +148,6 @@ static constexpr retro_core_option_v2_category option_categories[] = {
+ 
+ static constexpr retro_core_option_v2_definition option_definitions[] = {
+     // CPU Category
+-#ifndef IOS
+     {
+         config::cpu::use_cpu_jit,
+         "Enable CPU JIT",
+@@ -161,7 +164,6 @@ static constexpr retro_core_option_v2_definition option_definitions[] = {
+         },
+         config::enabled
+     },
+-#endif
+     {
+         config::cpu::use_fastinterp,
+         "Use Fast Interpreter",
+@@ -330,7 +332,6 @@ static constexpr retro_core_option_v2_definition option_definitions[] = {
+         },
+         config::enabled
+     },
+-#ifndef IOS
+     {
+         config::graphics::use_shader_jit,
+         "Enable Shader JIT",
+@@ -346,7 +347,6 @@ static constexpr retro_core_option_v2_definition option_definitions[] = {
+         },
+         config::enabled
+     },
+-#endif
+     {
+         config::graphics::shaders_accurate_mul,
+         "Accurate Shader Multiplication",
+@@ -843,12 +843,9 @@ void RegisterCoreOptions(void) {
+ }
+ 
+ static void ParseCpuOptions(void) {
++    // On iOS this is only the request; ApplyJitPlan() decides.
+     Settings::values.use_cpu_jit =
+-#ifdef IOS
+-        false;
+-#else
+         LibRetro::FetchVariable(config::cpu::use_cpu_jit, config::enabled) == config::enabled;
+-#endif
+ 
+     Settings::values.use_fastinterp =
+         LibRetro::FetchVariable(config::cpu::use_fastinterp, config::enabled) == config::enabled;
+@@ -988,13 +985,10 @@ static void ParseGraphicsOptions(void) {
+     Settings::values.use_hw_shader = LibRetro::FetchVariable(config::graphics::use_hw_shader,
+                                                              config::enabled) == config::enabled;
+ 
++    // On iOS this is only the request; ApplyJitPlan() decides.
+     Settings::values.use_shader_jit =
+-#ifdef IOS
+-        false;
+-#else
+         LibRetro::FetchVariable(config::graphics::use_shader_jit, config::enabled) ==
+         config::enabled;
+-#endif
+ 
+     Settings::values.shaders_accurate_mul =
+         LibRetro::FetchVariable(config::graphics::shaders_accurate_mul, config::enabled) ==
+@@ -1157,6 +1151,35 @@ static void ParseInputOptions(void) {
+     }
+ }
+ 
++#ifdef IOS
++// Decided once per loaded game: the CPU backend and the arena partition cannot change while
++// code blocks are alive (the options say "Restart required").
++static std::optional<RewindBoxJit::Plan> jit_plan;
++
++void ResetJitPlan() {
++    jit_plan.reset();
++}
++
++static void ApplyJitPlan() {
++    if (!jit_plan) {
++        const bool installed = RewindBoxJit::IsInstalled();
++        const bool capable = installed && LibRetro::CanUseJIT();
++        const unsigned cores = Settings::values.is_new_3ds.GetValue() ? 4 : 2;
++        jit_plan = capable ? RewindBoxJit::MakePlan(Settings::values.use_cpu_jit.GetValue(),
++                                                    Settings::values.use_shader_jit.GetValue(),
++                                                    cores)
++                           : RewindBoxJit::Plan{};
++        LOG_INFO(Frontend, "[rb-jit] installed={} capable={} cpu={} shader={}", installed,
++                 capable, jit_plan->cpu_jit ? "dynarmic" : "interpreter",
++                 jit_plan->shader_jit ? "jit" : "interpreter");
++    }
++    Settings::values.use_cpu_jit = jit_plan->cpu_jit;
++    Settings::values.use_shader_jit = jit_plan->shader_jit;
++    Settings::values.dynarmic_code_cache_size = jit_plan->app_code_cache;
++    Settings::values.dynarmic_idle_code_cache_size = jit_plan->idle_code_cache;
++}
++#endif
++
+ void ParseCoreOptions(void) {
+     // Override default values that aren't user-selectable and aren't correct for the core
+     Settings::values.enable_audio_stretching = false;
+@@ -1175,6 +1198,9 @@ void ParseCoreOptions(void) {
+     ParseLayoutOptions();
+     ParseStorageOptions();
+     ParseInputOptions();
++#ifdef IOS
++    ApplyJitPlan();
++#endif
+ }
+ 
+ } // namespace LibRetro
+diff --git a/src/citra_libretro/core_settings.h b/src/citra_libretro/core_settings.h
+index ecb695f..b74b75a 100644
+--- a/src/citra_libretro/core_settings.h
++++ b/src/citra_libretro/core_settings.h
+@@ -37,5 +37,9 @@ struct CoreSettings {
+ 
+ void RegisterCoreOptions(void);
+ void ParseCoreOptions(void);
++#ifdef IOS
++/// Forget the JIT decision of the previous game (RewindBox arena).
++void ResetJitPlan(void);
++#endif
+ 
+ } // namespace LibRetro
+diff --git a/src/citra_libretro/libretro.osx.def b/src/citra_libretro/libretro.osx.def
+index 53a556a..c8efb3d 100644
+--- a/src/citra_libretro/libretro.osx.def
++++ b/src/citra_libretro/libretro.osx.def
+@@ -25,3 +25,4 @@ _retro_unload_game
+ _retro_get_region
+ _retro_get_memory_data
+ _retro_get_memory_size
++_rewindbox_libretro_jit_install
+diff --git a/src/citra_libretro/rewindbox_jit.cpp b/src/citra_libretro/rewindbox_jit.cpp
+new file mode 100644
+index 0000000..1387a61
+--- /dev/null
++++ b/src/citra_libretro/rewindbox_jit.cpp
+@@ -0,0 +1,216 @@
++// Copyright 2026 RewindBox contributors
++// Licensed under GPLv2 or any later version
++// Refer to the misc/licenses/gplv2.txt file included.
++
++// Code memory for dynarmic and the Pica shader JIT, taken from the arena that the RewindBox host
++// prepares before loading the core (RX view + RW alias of the same pages). oaknut::CodeBlock asks
++// this file for memory while an arena is installed, so no JIT code is ever mmap'd or mprotect'ed.
++
++#include <algorithm>
++#include <iterator>
++#include <map>
++#include <mutex>
++#include <oaknut/code_block.hpp>
++
++#include "citra_libretro/rewindbox_jit.h"
++#include "common/logging/log.h"
++
++namespace RewindBoxJit {
++namespace {
++
++constexpr std::size_t MiB = std::size_t{1} << 20;
++constexpr std::size_t kSmallAlign = 256;      // Pica shaders (sub-page blocks)
++constexpr std::size_t kMinCapacity = 16 * MiB;
++
++struct Region {
++    std::map<std::size_t, std::size_t> free; // offset -> length, coalesced
++
++    void Reset(std::size_t begin, std::size_t end) {
++        free.clear();
++        if (end > begin) {
++            free.emplace(begin, end - begin);
++        }
++    }
++};
++
++std::mutex g_mutex;
++RewindBoxLibretroJitV1 g_abi{};
++std::uintptr_t g_rx = 0;
++std::uintptr_t g_rw = 0;
++std::size_t g_capacity = 0;
++std::size_t g_live = 0;
++bool g_installed = false;
++Region g_cpu;    // dynarmic code caches (>= 1 MiB each)
++Region g_shader; // Pica shader programs
++
++std::size_t AlignUp(std::size_t value, std::size_t align) {
++    return (value + align - 1) / align * align;
++}
++
++std::size_t AlignFor(std::size_t size) {
++    return size >= MiB ? static_cast<std::size_t>(g_abi.pageBytes) : kSmallAlign;
++}
++
++Region& RegionFor(std::size_t size) {
++    return size >= MiB ? g_cpu : g_shader;
++}
++
++std::uint32_t* Allocate(std::size_t size, std::uint32_t** wptr) {
++    std::lock_guard lock{g_mutex};
++    if (!g_installed || size == 0) {
++        return nullptr;
++    }
++    const std::size_t align = AlignFor(size);
++    const std::size_t want = AlignUp(size, align);
++    Region& region = RegionFor(size);
++    for (auto it = region.free.begin(); it != region.free.end(); ++it) {
++        const auto [offset, length] = *it;
++        const std::size_t start = AlignUp(offset, align);
++        if (start + want > offset + length) {
++            continue;
++        }
++        region.free.erase(it);
++        if (start > offset) {
++            region.free.emplace(offset, start - offset);
++        }
++        if (offset + length > start + want) {
++            region.free.emplace(start + want, offset + length - start - want);
++        }
++        ++g_live;
++        *wptr = reinterpret_cast<std::uint32_t*>(g_rw + start);
++        return reinterpret_cast<std::uint32_t*>(g_rx + start);
++    }
++    LOG_WARNING(Frontend, "[rb-jit] arena full: {} bytes requested", size);
++    return nullptr;
++}
++
++void Release(std::uint32_t* xptr, std::size_t size) {
++    std::lock_guard lock{g_mutex};
++    std::size_t start = reinterpret_cast<std::uintptr_t>(xptr) - g_rx;
++    std::size_t length = AlignUp(size, AlignFor(size));
++    Region& region = RegionFor(size);
++    auto next = region.free.lower_bound(start);
++    if (next != region.free.begin()) {
++        const auto prev = std::prev(next);
++        if (prev->first + prev->second == start) {
++            start = prev->first;
++            length += prev->second;
++            region.free.erase(prev);
++        }
++    }
++    if (next != region.free.end() && start + length == next->first) {
++        length += next->second;
++        region.free.erase(next);
++    }
++    region.free.emplace(start, length);
++    --g_live;
++}
++
++void Flush(std::uint32_t* xptr, std::size_t size) {
++    g_abi.flush(reinterpret_cast<std::uintptr_t>(xptr), size);
++}
++
++constexpr oaknut::ExternalCodeAllocator kAllocator{&Allocate, &Release, &Flush};
++
++} // namespace
++
++bool IsInstalled() {
++    std::lock_guard lock{g_mutex};
++    return g_installed;
++}
++
++Plan MakePlan(bool want_cpu_jit, bool want_shader_jit, unsigned num_cores) {
++    std::lock_guard lock{g_mutex};
++    Plan plan{};
++    if (!g_installed || g_live != 0 || num_cores == 0) {
++        return plan;
++    }
++    constexpr std::size_t idle = 2 * MiB;  // > prelude + the 1 MiB dynarmic keeps free
++    constexpr std::size_t slack = 8 * MiB; // one extra small cache (e.g. an LLE applet)
++    std::size_t shader = want_shader_jit ? std::min(16 * MiB, g_capacity / 4 / MiB * MiB) : 0;
++    const auto app_for = [&](std::size_t shader_bytes) -> std::size_t {
++        const std::size_t fixed = shader_bytes + num_cores * idle + slack;
++        if (!want_cpu_jit || g_capacity <= fixed) {
++            return 0;
++        }
++        return std::min(32 * MiB, (g_capacity - fixed) / num_cores / MiB * MiB);
++    };
++    std::size_t app = app_for(shader);
++    if (want_cpu_jit && app < 8 * MiB && shader != 0 && app_for(0) >= 8 * MiB) {
++        shader = 0; // the CPU JIT matters more than the shader JIT
++        app = app_for(0);
++    }
++    plan.cpu_jit = app >= 8 * MiB;
++    plan.app_code_cache = plan.cpu_jit ? app : 0;
++    plan.idle_code_cache = plan.cpu_jit ? idle : 0;
++    plan.shader_jit = shader != 0;
++    plan.shader_bytes = shader;
++    g_cpu.Reset(0, g_capacity - shader);
++    g_shader.Reset(g_capacity - shader, g_capacity);
++    LOG_INFO(Frontend, "[rb-jit] arena={} cores={} cpu_jit={} app_cache={} idle_cache={} "
++             "shader_jit={} shader_bytes={}", g_capacity, num_cores, plan.cpu_jit,
++             plan.app_code_cache, plan.idle_code_cache, plan.shader_jit, plan.shader_bytes);
++    return plan;
++}
++
++void Shutdown() {
++    std::lock_guard lock{g_mutex};
++    if (g_live != 0) {
++        LOG_ERROR(Frontend, "[rb-jit] {} code blocks still alive at deinit", g_live);
++        return; // keep the allocator: those blocks will still be released into it
++    }
++    oaknut::g_external_code_allocator = nullptr;
++    g_installed = false;
++    g_abi = {};
++    g_rx = g_rw = 0;
++    g_capacity = 0;
++    g_cpu.Reset(0, 0);
++    g_shader.Reset(0, 0);
++}
++
++} // namespace RewindBoxJit
++
++extern "C" __attribute__((visibility("default"))) int rewindbox_libretro_jit_install(
++    const RewindBoxLibretroJitV1* abi) {
++    using namespace RewindBoxJit;
++    std::lock_guard lock{g_mutex};
++    if (g_live != 0) {
++        return -7; // a game is running on the current arena
++    }
++    oaknut::g_external_code_allocator = nullptr;
++    g_installed = false;
++    if (abi == nullptr) {
++        return 0;
++    }
++    if (abi->version != 1) {
++        return -2;
++    }
++    if (abi->structBytes < sizeof(RewindBoxLibretroJitV1)) {
++        return -3;
++    }
++    const std::uint64_t page = abi->pageBytes;
++    if (page < 4096 || page > MiB || (page & (page - 1)) != 0) {
++        return -4;
++    }
++    if (abi->capacity < kMinCapacity || abi->capacity % page != 0 || abi->capacity > 1024 * MiB) {
++        return -5;
++    }
++    if (abi->allocate == nullptr || abi->flush == nullptr) {
++        return -1;
++    }
++    std::uint64_t rx = 0;
++    std::uint64_t rw = 0;
++    if (abi->allocate(abi->capacity, &rx, &rw) != 0 || rx == 0 || rw == 0 || rx == rw ||
++        rx % page != 0 || rw % page != 0) {
++        return -6;
++    }
++    g_abi = *abi;
++    g_rx = static_cast<std::uintptr_t>(rx);
++    g_rw = static_cast<std::uintptr_t>(rw);
++    g_capacity = static_cast<std::size_t>(abi->capacity);
++    g_cpu.Reset(0, g_capacity);
++    g_shader.Reset(g_capacity, g_capacity);
++    g_installed = true;
++    oaknut::g_external_code_allocator = &kAllocator;
++    return 0;
++}
+diff --git a/src/citra_libretro/rewindbox_jit.h b/src/citra_libretro/rewindbox_jit.h
+new file mode 100644
+index 0000000..d67de00
+--- /dev/null
++++ b/src/citra_libretro/rewindbox_jit.h
+@@ -0,0 +1,33 @@
++// Copyright 2026 RewindBox contributors
++// Licensed under GPLv2 or any later version
++// Refer to the misc/licenses/gplv2.txt file included.
++
++#pragma once
++
++#include <cstddef>
++
++#include "citra_libretro/RewindBoxLibretroJit.h" // verbatim copy of the host header (MIT)
++
++/// Exported (libretro.osx.def); called by the host right after dlopen. 0 = the arena is taken.
++extern "C" int rewindbox_libretro_jit_install(const RewindBoxLibretroJitV1* abi);
++
++namespace RewindBoxJit {
++
++struct Plan {
++    bool cpu_jit = false;
++    bool shader_jit = false;
++    std::size_t app_code_cache = 0;  ///< per dynarmic instance bound to a process page table
++    std::size_t idle_code_cache = 0; ///< per dynarmic instance created for the initial null table
++    std::size_t shader_bytes = 0;    ///< region reserved for Pica shader code
++};
++
++/// A valid ABI v1 arena was installed for this dlopen session.
++bool IsInstalled();
++
++/// Partitions the arena for one game. Only valid while no code block is alive.
++Plan MakePlan(bool want_cpu_jit, bool want_shader_jit, unsigned num_cores);
++
++/// retro_deinit: forget the arena (the host frees it after dlclose).
++void Shutdown();
++
++} // namespace RewindBoxJit
+diff --git a/src/common/settings.h b/src/common/settings.h
+index 5ffc065..5f53adc 100644
+--- a/src/common/settings.h
++++ b/src/common/settings.h
+@@ -485,6 +485,9 @@ struct Values {
+     // Core
+     Setting<bool> use_cpu_jit{true, Keys::use_cpu_jit};
+     Setting<bool> use_fastinterp{true, Keys::use_fastinterp};
++    /// Set by a frontend that provides a bounded code arena (RewindBox); 0 = dynarmic default.
++    std::size_t dynarmic_code_cache_size = 0;
++    std::size_t dynarmic_idle_code_cache_size = 0;
+     SwitchableSetting<s32, true> cpu_clock_percentage{100, 5, 400, Keys::cpu_clock_percentage};
+     SwitchableSetting<bool> is_new_3ds{true, Keys::is_new_3ds};
+     SwitchableSetting<bool> lle_applets{true, Keys::lle_applets};
+diff --git a/src/core/arm/dynarmic/arm_dynarmic.cpp b/src/core/arm/dynarmic/arm_dynarmic.cpp
+index 216b409..adda842 100644
+--- a/src/core/arm/dynarmic/arm_dynarmic.cpp
++++ b/src/core/arm/dynarmic/arm_dynarmic.cpp
+@@ -4,10 +4,12 @@
+ 
+ #include <csignal>
+ #include <cstring>
++#include <new>
+ #include <dynarmic/interface/A32/a32.h>
+ #include <dynarmic/interface/optimization_flags.h>
+ #include "common/assert.h"
+ #include "common/microprofile.h"
++#include "common/settings.h"
+ #include "core/arm/dynarmic/arm_dynarmic.h"
+ #include "core/arm/dynarmic/arm_dynarmic_cp15.h"
+ #include "core/arm/dynarmic/arm_exclusive_monitor.h"
+@@ -338,6 +340,14 @@ void ARM_Dynarmic::SetPageTable(const std::shared_ptr<Memory::PageTable>& page_t
+         SaveContext(ctx);
+     }
+ 
++    // Code caches come from a fixed arena on some frontends: drop the instances of page tables
++    // nobody else holds any more (exited processes, e.g. LLE applets; the initial null table).
++    if (Settings::values.dynarmic_code_cache_size != 0) {
++        std::erase_if(jits, [this](const auto& entry) {
++            return entry.first != current_page_table && entry.first.use_count() <= 1;
++        });
++    }
++
+     auto iter = jits.find(current_page_table);
+     if (iter != jits.end()) {
+         jit = iter->second.get();
+@@ -370,7 +380,25 @@ std::unique_ptr<Dynarmic::A32::Jit> ARM_Dynarmic::MakeJit() {
+     config.processor_id = GetID();
+     config.global_monitor = &exclusive_monitor.monitor;
+ 
+-    return std::make_unique<Dynarmic::A32::Jit>(config);
++    const std::size_t requested = current_page_table
++                                      ? Settings::values.dynarmic_code_cache_size
++                                      : Settings::values.dynarmic_idle_code_cache_size;
++    if (requested == 0) {
++        return std::make_unique<Dynarmic::A32::Jit>(config);
++    }
++    // Bounded arena: prefer a smaller cache to a failed session.
++    for (const std::size_t size : {requested, std::size_t{8} << 20, std::size_t{2} << 20}) {
++        if (size > requested) {
++            continue;
++        }
++        config.code_cache_size = size;
++        try {
++            return std::make_unique<Dynarmic::A32::Jit>(config);
++        } catch (const std::bad_alloc&) {
++            LOG_WARNING(Core_ARM11, "No room for a {} byte JIT code cache", size);
++        }
++    }
++    throw std::bad_alloc{};
+ }
+ 
+ } // namespace Core
+diff --git a/src/video_core/shader/shader_jit.cpp b/src/video_core/shader/shader_jit.cpp
+index 6405635..b02eb24 100644
+--- a/src/video_core/shader/shader_jit.cpp
++++ b/src/video_core/shader/shader_jit.cpp
+@@ -5,8 +5,10 @@
+ #include "common/arch.h"
+ #if CITRA_ARCH(x86_64) || CITRA_ARCH(arm64)
+ 
++#include <new>
+ #include "common/assert.h"
+ #include "common/hash.h"
++#include "common/logging/log.h"
+ #include "common/microprofile.h"
+ #include "video_core/shader/shader.h"
+ #include "video_core/shader/shader_jit.h"
+@@ -34,9 +36,20 @@ void JitEngine::SetupBatch(ShaderSetup& setup, u32 entry_point) {
+     auto iter = cache.find(cache_key);
+     if (iter != cache.end()) {
+         setup.cached_shader = iter->second.get();
++    } else if (code_memory_full) {
++        setup.cached_shader = nullptr;
+     } else {
+         auto shader = std::make_unique<JitShader>();
+-        shader->Compile(&setup.GetProgramCode(), &setup.GetSwizzleData());
++        try {
++            shader->Compile(&setup.GetProgramCode(), &setup.GetSwizzleData());
++        } catch (const std::bad_alloc&) {
++            LOG_WARNING(HW_GPU, "Shader JIT code memory exhausted after {} shaders, "
++                                "interpreting new shaders",
++                        cache.size());
++            code_memory_full = true;
++            setup.cached_shader = nullptr;
++            return;
++        }
+         setup.cached_shader = shader.get();
+         cache.emplace_hint(iter, cache_key, std::move(shader));
+     }
+@@ -45,7 +58,9 @@ void JitEngine::SetupBatch(ShaderSetup& setup, u32 entry_point) {
+ MICROPROFILE_DECLARE(GPU_Shader);
+ 
+ void JitEngine::Run(const ShaderSetup& setup, ShaderUnit& state) const {
+-    ASSERT(setup.cached_shader != nullptr);
++    if (setup.cached_shader == nullptr) {
++        return fallback.Run(setup, state);
++    }
+ 
+     MICROPROFILE_SCOPE(GPU_Shader);
+ 
+diff --git a/src/video_core/shader/shader_jit.h b/src/video_core/shader/shader_jit.h
+index 76b92f4..1165a10 100644
+--- a/src/video_core/shader/shader_jit.h
++++ b/src/video_core/shader/shader_jit.h
+@@ -11,6 +11,7 @@
+ #include <unordered_map>
+ #include "common/common_types.h"
+ #include "video_core/shader/shader.h"
++#include "video_core/shader/shader_interpreter.h"
+ 
+ namespace Pica::Shader {
+ 
+@@ -26,6 +27,8 @@ public:
+ 
+ private:
+     std::unordered_map<u64, std::unique_ptr<JitShader>> cache;
++    InterpreterEngine fallback; ///< new shaders once code memory is exhausted
++    bool code_memory_full = false;
+ };
+ 
+ } // namespace Pica::Shader
+diff --git a/src/video_core/shader/shader_jit_a64_compiler.cpp b/src/video_core/shader/shader_jit_a64_compiler.cpp
+index 5db5cbe..ebbcccd 100644
+--- a/src/video_core/shader/shader_jit_a64_compiler.cpp
++++ b/src/video_core/shader/shader_jit_a64_compiler.cpp
+@@ -1046,8 +1046,8 @@ void JitShader::Compile(const std::array<u32, MAX_PROGRAM_CODE_LENGTH>* program_
+     program = reinterpret_cast<CompiledShader*>(reinterpret_cast<std::byte*>(code_mem->ptr()) +
+                                                 program_offset);
+ 
+-    // Copy to executable memory
+-    std::memcpy(code_mem->ptr(), code_vec.data(), code_vec.size() * sizeof(u32));
++    // Copy to executable memory (through its writable alias when the memory is dual-mapped)
++    std::memcpy(code_mem->wptr(), code_vec.data(), code_vec.size() * sizeof(u32));
+ 
+     // Memory is ready to execute
+     code_mem->protect();

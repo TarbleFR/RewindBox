@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "core": "azahar",
+  "framework": "azahar_libretro",
+  "upstream": "https://github.com/azahar-emu/azahar",
+  "tag": "2127.0-alpha1",
+  "revision": "5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6",
+  "sourceArchive": {
+    "url": "https://github.com/azahar-emu/azahar/releases/download/2127.0-alpha1/azahar-unified-source-2127.0-alpha1.tar.xz",
+    "sha256": "5a45c813fc371f6a1d2721ce614225650728a7d6be22dc52e6b55718534590f9",
+    "bytes": 43056616,
+    "root": "azahar-unified-source-2127.0-alpha1"
+  },
+  "patch": "native/azahar/rewindbox-jit.patch",
+  "patchSHA256": "83571ac965a1966c2b5eed9903fa773cc2977202470fc0793795142532abfc62",
+  "abiHeader": "packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h",
+  "abiHeaderSHA256": "84c59f2484336fa3c64bc68b51177211094083fd411f0b488fee6b79bda6bc22",
+  "abiHeaderInTree": "src/citra_libretro/RewindBoxLibretroJit.h",
+  "build": {
+    "kind": "cmake",
+    "configureUnsetEnv": [
+      "GITHUB_ACTIONS"
+    ],
+    "configure": [
+      "-DENABLE_LIBRETRO=ON",
+      "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
+      "-DCMAKE_C_FLAGS=-DIOS",
+      "-DCMAKE_CXX_FLAGS=-DIOS",
+      "-DIOS=ON",
+      "-DCMAKE_SYSTEM_NAME=iOS",
+      "-DCMAKE_OSX_DEPLOYMENT_TARGET=14.0",
+      "-DCITRA_USE_PRECOMPILED_HEADERS=OFF",
+      "-DCMAKE_OSX_ARCHITECTURES=arm64",
+      "-DENABLE_OPT=OFF"
+    ],
+    "target": "citra_libretro",
+    "config": "Release",
+    "output": "bin/Release/azahar_libretro.dylib",
+    "strip": [
+      "-x"
+    ]
+  },
+  "expectedExports": [
+    "_rewindbox_libretro_jit_install"
+  ],
+  "expectedStrings": [
+    "2127.0-alpha1",
+    "5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6",
+    "citra_use_cpu_jit",
+    "citra_use_shader_jit",
+    "citra_use_fastinterp"
+  ],
+  "forbiddenImports": [
+    "_task_set_exception_ports",
+    "_mach_msg"
+  ],
+  "jitArenaBytes": 134217728,
+  "license": "GPL-3.0-or-later (Azahar); dynarmic 0BSD, oaknut MIT; RewindBox changes in native/azahar/rewindbox-jit.patch"
+}

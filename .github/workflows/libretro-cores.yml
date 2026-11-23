@@ -6,6 +6,8 @@ name: Libretro cores for RewindBox
     paths:
     - .github/workflows/libretro-cores.yml
     - build-utils/libretro/**
+    - build-utils/libretro_source_cores.py
+    - native/azahar/**
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,6 +17,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   cores:
+    # Official buildbot route. A commit marked [libretro-source-cores] runs only the source route below.
+    if: ${{ !contains(github.event.head_commit.message, '[libretro-source-cores]') }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -50,4 +54,57 @@ jobs:
         name: LibretroCores-${{ github.sha }}
         path: dist/libretro/
         if-no-files-found: error
+        retention-days: 14
+  source-cores:
+    # Cores RewindBox builds from their pinned, patched source with its JIT interface
+    # (build-utils/libretro_source_cores.py, native/<core>/source.json), on the collection the current delivery
+    # retains: every other core, MoltenVK and system file stays byte for byte.
+    if: ${{ github.repository == 'TarbleFR/RewindBox' && contains(github.event.head_commit.message, '[libretro-source-cores]') }}
+    runs-on: macos-15
+    timeout-minutes: 150
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '26.3'
+    - name: Retrieve the libretro collection the current delivery retains (republished by Build 801)
+      uses: actions/download-artifact@v4
+      with:
+        name: RewindBox-Build801-f1d0df55a93680a4bd9b43922af1375cf0d66715-attempt1-component-libretro
+        run-id: 44733205671
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path: dist/libretro-base
+    - name: Locate the retained collection
+      id: base
+      run: |
+        identity="$(find dist/libretro-base -maxdepth 4 -name identity.json | head -1)"
+        test -n "$identity"
+        echo "dir=$(dirname "$identity")" >> "$GITHUB_OUTPUT"
+        python3 -c "import json,sys; i=json.load(open(sys.argv[1])); print('base host commit', i['host_commit'], 'cores', len(i['cores']), 'files', len(i['files']))" "$identity"
+    - name: Build the pinned source cores
+      run: python3 build-utils/libretro_source_cores.py --base "${{ steps.base.outputs.dir }}" --output dist/libretro --work "$RUNNER_TEMP/source-cores" --cores azahar
+    - name: Show the packaged identity
+      run: |
+        python3 - <<'PY'
+        import json
+        identity = json.loads(open('dist/libretro/identity.json').read())
+        for core in identity['cores']:
+            if core.get('compiled'):
+                print(core['id'], core['sha256'], core['bytes'], core['minimumOS'], core.get('jitInterface'))
+        PY
+        du -sh dist/libretro
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
+      with:
+        name: LibretroCores-${{ github.sha }}
+        path: dist/libretro/
+        if-no-files-found: error
+        retention-days: 14
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
+      if: always()
+      with:
+        name: libretro-source-cores-logs-${{ github.sha }}
+        path: ${{ runner.temp }}/source-cores/*/*-build.log
+        if-no-files-found: warn
         retention-days: 14
