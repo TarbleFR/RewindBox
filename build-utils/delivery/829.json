@@ -1,0 +1,483 @@
+{
+  "schema": 1,
+  "build": 829,
+  "status": "draft",
+  "note": "Private test build for Mario Kart World on the S2Arm engine: patches 0320 to 0331 on the verified 828 (docs/evidence/s2arm-mkw-60-0320-0331.md). The submit thread does less work per draw (texture-ID views kept until their own serial or pool changes, argument blocks rebuilt in part, audit probes sampled, per-shader binding facts, the Fair thermal scale retired when it holds nothing), the 300-frame summary no longer stalls one frame, the 0319 no-lock guard ignores one-frame interval-2 requests and stops an answered trial that grows the scene, bound textures' pages are read ahead at governor tier 1, and the log gains a dark-frame detector and a per-episode interval-2 trace. Every patch has its S2A_RB_* switch. Nothing is measured on an iPhone yet. Also in: the libretro JIT status and performance button, the libretro collection LibretroCores-416333ff (Beetle PSX Lightrec cheat fix; only the two Beetle PSX cores differ from 828), the NeoStation enhancements and HD texture identities, and the MeloNX bridge stall records. The MeloNX Core is the engine of IPA 822 with Nextendo kept (source e776bfd4, pin 7e48f06e, artifact 14869999889), asked for by the MeloNX session for the Hogwarts Legacy freeze. Deferred to the delivery that carries its rebuilt core: the DeSmuME core source change ccd5f047.",
+  "base": {
+    "source": "859382b55d2a9cc13b846aed556cbbd07d3f3391",
+    "tree": "f869315ae6c96a40cb54f0ba400814ac754029cc",
+    "run": 45249524422,
+    "attempt": 1,
+    "build": 828,
+    "workflow": ".github/workflows/standard-delivery.yml",
+    "jobs": {
+      "preflight": {
+        "name": "preflight",
+        "id": 137955155757
+      },
+      "application": {
+        "name": "application",
+        "id": 137956451966
+      }
+    },
+    "receipt": {
+      "path": "docs/evidence/rewind828/delivery.json",
+      "sha256": "b583a058f40d1eb86955bf505e93ed2e8b7601af1f170a6f368809079ed0f6b9",
+      "proofFiles": 12
+    },
+    "identity": {
+      "path": "docs/evidence/rewind828/signed-payload-identity.json",
+      "sha256": "be7dc7318a0914ac2235a88d81a47e8192a1c0aa537fc6ac1eb8638b27abe65f",
+      "images": 98
+    },
+    "ipa": {
+      "name": "RewindBox-828.ipa",
+      "producerName": "RewindBox-Build828-859382b55d2a9cc13b846aed556cbbd07d3f3391-cold.ipa",
+      "bytes": 334798580,
+      "sha256": "8e388c889b199b872ec09b0d58ac8ab94a88116230aebb5cc5be96c01b3a0f08"
+    }
+  },
+  "components": {
+    "rpcs3": {
+      "mode": "replace",
+      "verifier": ".github/diagnostics/rpcs3_core_component.py",
+      "pin": "build-utils/rpcs3/core-pin.json",
+      "image": "Frameworks/libRPCS3Core.dylib",
+      "producerRoute": "RPCS3 Core route (.github/workflows/rpcs3-core610.yml driven by build-utils/rpcs3/core-build.json, build 948)",
+      "unchangedFromBase": true,
+      "pinSha256": "cab77771931c520d15b9b8c9af1663e79b0033202abd9ed1d5b9bb620e2c1937"
+    },
+    "melonx": {
+      "mode": "replace",
+      "verifier": ".github/diagnostics/melonx_dma_core_component.py",
+      "pin": "build-utils/melonx/dma-core-pin.json",
+      "packaging": "build-utils/melonx/package_runtime.py",
+      "image": "Frameworks/MeloNXCore.framework/MeloNXCore",
+      "producerRoute": ".github/workflows/melonx-core.yml"
+    },
+    "dolphin": {
+      "mode": "retain",
+      "retainedSince": 608,
+      "image": "Frameworks/DolphinCore.framework/DolphinCore",
+      "payloadFingerprint": "640e4389559c800087b3d4b2a2748b4c11307ae6a79bc72f59d55430ccddd6fc",
+      "upstreamRevision": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+      "legalFolder": "Dolphin-session608",
+      "inputs": "rewind608_producers.input_paths",
+      "origin": {
+        "workflow": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+        "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+        "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+        "run": 41293321826,
+        "attempt": 1,
+        "runConclusion": "failure",
+        "job": 124810929735,
+        "jobName": "Build608 Dolphin arm64",
+        "steps": [
+          "Patch and compile Dolphin Core",
+          "Materialize and validate Dolphin framework",
+          "Bind608 native inputs and compiled payload"
+        ],
+        "artifact": 13078193437,
+        "name": "RewindBox608-dolphin-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+        "bytes": 11191038,
+        "sha256": "9d32c236c79c43cd57053b000dfaba94c4e0d6f627bd04a657f74b36dd58c064",
+        "expiresAt": "2026-11-15T09:41:57Z"
+      },
+      "consumedBy": {
+        "build": 608,
+        "receipt": "docs/evidence/rewind608/delivery.json",
+        "sha256": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b"
+      },
+      "republished": {
+        "build": 801,
+        "source": "f1d0df55a93680a4bd9b43922af1375cf0d66715",
+        "run": 44733205671,
+        "attempt": 1,
+        "job": 136278997506,
+        "artifact": 14626973057,
+        "name": "RewindBox-Build801-f1d0df55a93680a4bd9b43922af1375cf0d66715-attempt1-component-dolphin",
+        "bytes": 11192276,
+        "sha256": "bf727eb8cdd7dc3e08ca24d52a362230c41c2e39c6b2ff23886e0e88fd26b63a"
+      },
+      "inheritedChangedInputs": [
+        {
+          "path": "packages/dolphin_internal_bridge/ci/verify_ipa.py",
+          "baseBlob": "6032458096236bcf75fc007d208d4ba177dd3216",
+          "newBlob": "613eed254edce2cbaf54460a020be34a6a82136c",
+          "commit": "c0aae7294abe2deca32af68e1438e4f6bfa465cb",
+          "build": 727
+        }
+      ]
+    },
+    "armsx2": {
+      "mode": "retain",
+      "retainedSince": 608,
+      "image": "Frameworks/ARMSX2Core.framework/ARMSX2Core",
+      "payloadFingerprint": "fab55193e509583b03c0e5b33ae8d8812745b5410d138a53e3779b6257f370d4",
+      "upstreamRevision": "9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe",
+      "legalFolder": "ARMSX2-session608",
+      "inputs": "rewind608_producers.input_paths",
+      "origin": {
+        "workflow": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+        "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+        "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+        "run": 41293321826,
+        "attempt": 1,
+        "runConclusion": "failure",
+        "job": 124810929747,
+        "jobName": "Build608 ARMSX2 ABI9 arm64",
+        "steps": [
+          "Compile native core and verify binary ABI",
+          "Bind608 native inputs and compiled payload"
+        ],
+        "artifact": 13078023872,
+        "name": "RewindBox608-armsx2-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+        "bytes": 14042625,
+        "sha256": "e4354b47eee93d5dc8d53be070a88cc83ceb8b31ff4f7ccdca2eb2c2067b8763",
+        "expiresAt": "2026-11-15T09:57:51Z"
+      },
+      "consumedBy": {
+        "build": 608,
+        "receipt": "docs/evidence/rewind608/delivery.json",
+        "sha256": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b"
+      },
+      "republished": {
+        "build": 801,
+        "source": "f1d0df55a93680a4bd9b43922af1375cf0d66715",
+        "run": 44733205671,
+        "attempt": 1,
+        "job": 136278997506,
+        "artifact": 14627137411,
+        "name": "RewindBox-Build801-f1d0df55a93680a4bd9b43922af1375cf0d66715-attempt1-component-armsx2",
+        "bytes": 14043861,
+        "sha256": "b6783bcbce6785c91d2202d0c010e6cec6e5c9c7e411b2a0518f6e6c4bb7ce57"
+      }
+    },
+    "libretro": {
+      "mode": "retain-archive",
+      "destination": "dist/libretro",
+      "inputs": [
+        "build-utils/libretro/"
+      ],
+      "origin": {
+        "workflow": ".github/workflows/libretro-cores.yml",
+        "branch": "Claude",
+        "source": "416333ff6b623c789307b6679ca98c90a8c4c373",
+        "run": 45280386958,
+        "attempt": 1,
+        "runConclusion": "success",
+        "artifact": 14870941984,
+        "name": "LibretroCores-416333ff6b623c789307b6679ca98c90a8c4c373",
+        "bytes": 56287018,
+        "sha256": "8cc3950e6c87523fe865e95ac24380260f8a36fdf25b0b2db06ed21e5bba13c5",
+        "expiresAt": "2026-12-07T22:47:24Z"
+      },
+      "jitHelper": true
+    },
+    "melonx-dependencies": {
+      "mode": "retain-archive",
+      "destination": "dist/melonx-native",
+      "inputs": [
+        "build-utils/melonx/native-dependencies.json"
+      ],
+      "origin": {
+        "workflow": ".github/workflows/melonx-native-dependencies.yml",
+        "branch": "work/melonx-embedded-20261022",
+        "source": "66737aa9c959eb5915264bf178f179bda8643314",
+        "run": 39854858591,
+        "attempt": 1,
+        "runConclusion": "success",
+        "artifact": 12458409441,
+        "name": "MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314",
+        "bytes": 49178074,
+        "sha256": "12a1e4c7bf1c970c218ebddead965a51c3aa57af4d0e1fb5c0523ca8b1340261",
+        "expiresAt": "2026-11-05T21:09:37Z"
+      },
+      "republished": {
+        "build": 801,
+        "source": "f1d0df55a93680a4bd9b43922af1375cf0d66715",
+        "run": 44733205671,
+        "attempt": 1,
+        "job": 136278997506,
+        "artifact": 14626614561,
+        "name": "RewindBox-Build801-f1d0df55a93680a4bd9b43922af1375cf0d66715-attempt1-component-melonx-dependencies",
+        "bytes": 49179302,
+        "sha256": "e05d6cd58e43cd00d32869e509dd5dddb9043037dc975553b05a3c1740dc1460"
+      }
+    },
+    "melonx-upstream": {
+      "mode": "pinned-source",
+      "inputs": [
+        "build-utils/melonx/source.json",
+        "build-utils/melonx/vendor_controller.py"
+      ],
+      "tree": "82a29e6f593f6244869481e9a489b8d5154175fe",
+      "controller": "c049ce88a5635bddcd88e1965c42aa8fc92fe961"
+    },
+    "stikjit": {
+      "mode": "pinned-source",
+      "inputs": [
+        "build-utils/stikjit/",
+        "build-utils/patch_stikjit_rpcs3.py",
+        "build-utils/patch_stikjit_compat.py",
+        "build-utils/install_patched_stikjit.py",
+        "build-utils/build_patched_stikjit.py"
+      ],
+      "cacheKeySuffix": "37844950677"
+    },
+    "donor": {
+      "mode": "pinned-release",
+      "build": 527,
+      "release": "0.0.9",
+      "asset": "RewindBox-Build527.ipa",
+      "assetId": 673430199,
+      "url": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.9/RewindBox-Build527.ipa",
+      "bytes": 186673707,
+      "sha256": "884a44dea6e627fc9cd774d296dc2abf1ef683ca01572651d5c0e3425bd9756e",
+      "preparer": "build-utils/prepare_release527_native_runtime.py"
+    },
+    "xenia": {
+      "mode": "pinned-engine",
+      "pin": "build-utils/xenia/core-pin.json",
+      "verifier": "build-utils/xenia/core_pin.py",
+      "identityFile": "Xenia-native-identity.json",
+      "frameworks": [
+        "Frameworks/XeniaCore.framework"
+      ],
+      "image": "Frameworks/XeniaCore.framework/XeniaCore",
+      "sideImages": [
+        {
+          "path": "Frameworks/libmetalirconverter.dylib",
+          "source": "build-utils/xenia/source.json#shader_converter.upstream_mirror"
+        }
+      ],
+      "extensions": [
+        "XeniaJITHelper.appex"
+      ],
+      "legalFolders": [
+        "Legal/XeniOS",
+        "Legal/MetalShaderConverter"
+      ],
+      "checks": [
+        "build-utils/xenia/check_app_shader_converter.py"
+      ],
+      "producers": {
+        "engine": {
+          "workflow": ".github/workflows/xenia-core.yml",
+          "branch": "Claude"
+        }
+      },
+      "unchangedFromBase": true,
+      "pinSha256": "efe5d6e1a0afa5a6b7346725de20e534c4247caa892f58583df5d1d0e7479300"
+    },
+    "s2arm": {
+      "mode": "pinned-engine",
+      "pin": "build-utils/s2arm/engine-pin.json",
+      "verifier": "build-utils/s2arm/engine_pin.py",
+      "identityFile": "S2Arm-native-identity.json",
+      "frameworks": [
+        "Frameworks/S2ArmEngine.framework",
+        "Frameworks/NS2Pro.framework"
+      ],
+      "image": "Frameworks/S2ArmEngine.framework/S2ArmEngine",
+      "sideImages": [],
+      "extensions": [
+        "S2ArmJITHelper.appex"
+      ],
+      "legalFolders": [
+        "Legal/S2Arm"
+      ],
+      "checks": [
+        "build-utils/s2arm/check_app.py"
+      ],
+      "producers": {
+        "engine": {
+          "workflow": ".github/workflows/s2arm-engine.yml",
+          "branch": "Claude"
+        },
+        "prepare": {
+          "workflow": ".github/workflows/s2arm-core.yml",
+          "branch": "Claude",
+          "subdir": "prepare"
+        },
+        "sysdata": {
+          "workflow": ".github/workflows/s2arm-prepare.yml",
+          "branch": "work/s2arm-switch2-prototype-20261110",
+          "subdir": "sysdata"
+        }
+      },
+      "podLibraries": [
+        "s2arm_engine_bridge"
+      ],
+      "appResources": [
+        {
+          "path": "S2ArmSystemData/SHA256SUMS",
+          "binary": "sysdata/SHA256SUMS"
+        }
+      ],
+      "pinSha256": "62215a758f407dc62cf9a6c1f8f7611a16fe8b9fe8bbb1931aa8c9aee6175e1f"
+    }
+  },
+  "product": {
+    "reviewedCommits": [
+      {
+        "commit": "d3a2b53da658fc91d26955fe5e39ee822e595251",
+        "note": "Native test stub: the DOLTouchOverlay stub declares stateHandler and padHiddenBySkin (tests only)"
+      },
+      {
+        "commit": "c94972c19f76d003992ee2bc833822288cb01553",
+        "note": "Libretro: performance button beside the menu button, JIT mode shown as the game starts, stall journal (libretro session; bridge, locale)"
+      },
+      {
+        "commit": "00c67963c4ef85a0c95da09653461b8bed40f304",
+        "note": "Libretro: the JIT mode stays 5 s for a JIT core, 2.5 s for a core without any JIT (libretro session; bridge)"
+      },
+      {
+        "commit": "cc07e1c7035e8fb66276b5fd99848132f7058bcc",
+        "note": "Libretro: the JIT mode comes after the RetroAchievements launch status (libretro session; bridge)"
+      },
+      {
+        "commit": "9491cba2f0b384104f52d1ccec18b95cc31562a3",
+        "note": "Delivery-line merge bringing 265218c8 and 0c789d65 (NeoStation: Switch alternatives and flags, PS1 Beetle presets, exact PS1 unified cheats, strict PS1/3DS HD texture identities, PSP disc IDs) and d614bdbe (S2Arm engine patches 0320 to 0331 with their fixtures, CI list, legal span, evidence note and board row)"
+      },
+      {
+        "commit": "a6d3c53c2d0e6540a5edc5dd1fe13b64d31ed1fc",
+        "note": "Delivery-line merge bringing 416333ff (Beetle PSX Lightrec: a cheat that rewrites compiled code takes effect) and fc3fb6fb (adoption of the collection built from it, LibretroCores-416333ff, artifact 14870941984, run 45280386958: only mednafen_psx and mednafen_psx_hw differ from the collection of 828; reviewed entry and handoff by the libretro session)"
+      },
+      {
+        "commit": "cfc91c3b4995aeb295b068e2411154164c7728e5",
+        "note": "Delivery-line merge bringing fb88bf8f (MeloNX bridge: stall records of every thread when a running game presents no frame; measurement only), 3d66c1fb (S2Arm patch 0327 after review: a trial stops only once answered, the scene fix is opt-in), 84f38395 (829 recipient public key) and 68726b40 (Hogwarts freeze note)"
+      },
+      {
+        "commit": "4b1ebbf393a4e2501da368beb07855d4b09db3cb",
+        "note": "Delivery-line merge bringing e776bfd4 (MeloNX Core source by the MeloNX session: the engine of IPA 822, where Hogwarts Legacy still reached the game, with Nextendo EmbeddedOnline.cs kept; contract and adaptations of the Core pinned by 7e48f06e)"
+      },
+      {
+        "commit": "c9911fcf60e52b89fee1fc38b48eb4613eca8897",
+        "note": "Delivery-line merge bringing 2e6d3b46 (tools/melonx/stall_report.py names MoltenVK frames; not in the IPA) and 46a40aeb (Hogwarts freeze note)"
+      },
+      {
+        "commit": "c4309c315cd8ace4ef6d2118afc55e012d23520e",
+        "note": "Delivery-line merge bringing 714b438e: S2Arm engine pin, run 45281444784, artifact 14871615611, sha256 c717e153da979b1d7552414e9caa3342ddb6415bf0493e21a9fa68538db5840b, 329 patches (0001-0319, 0320-0329, 0331)"
+      },
+      {
+        "commit": "edf4dc6694885cd4884e77dfa0cd167f52dd39fc",
+        "note": "Delivery-line merge bringing 7e48f06e: MeloNX Core pin by the MeloNX session, source e776bfd4, run 45283827082, job 138074850945, artifact 14869999889 (MeloNX-engine-e776bfd4, 101,383,678 bytes); its symbol map Ryujinx.Library.symbols.txt.gz is in that artifact"
+      }
+    ],
+    "sourceOnly": [
+      {
+        "commit": "99a56eed0aa6cec3929ec7274a34b520350505b9",
+        "targetBuild": 830,
+        "note": "Delivery-line merge bringing ccd5f047 (DeSmuME core source: the JIT no longer writes outside its block table). Deferred until a collection built from it is adopted"
+      }
+    ],
+    "promotedCommits": []
+  },
+  "images": {
+    "added": [],
+    "removed": [],
+    "retained": {
+      "dolphin": [
+        "Frameworks/DolphinCore.framework/DolphinCore"
+      ],
+      "armsx2": [
+        "Frameworks/ARMSX2Core.framework/ARMSX2Core"
+      ],
+      "libretro": [
+        "Frameworks/nestopia_libretro.framework/nestopia_libretro",
+        "Frameworks/snes9x_libretro.framework/snes9x_libretro",
+        "Frameworks/gambatte_libretro.framework/gambatte_libretro",
+        "Frameworks/mgba_libretro.framework/mgba_libretro",
+        "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro",
+        "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro",
+        "Frameworks/picodrive_libretro.framework/picodrive_libretro",
+        "Frameworks/fbneo_libretro.framework/fbneo_libretro",
+        "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro",
+        "Frameworks/ppsspp_libretro.framework/ppsspp_libretro",
+        "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro",
+        "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro",
+        "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro",
+        "Frameworks/handy_libretro.framework/handy_libretro",
+        "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro",
+        "Frameworks/stella_libretro.framework/stella_libretro",
+        "Frameworks/prosystem_libretro.framework/prosystem_libretro",
+        "Frameworks/a5200_libretro.framework/a5200_libretro",
+        "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro",
+        "Frameworks/pokemini_libretro.framework/pokemini_libretro",
+        "Frameworks/gw_libretro.framework/gw_libretro",
+        "Frameworks/sameduck_libretro.framework/sameduck_libretro",
+        "Frameworks/potator_libretro.framework/potator_libretro",
+        "Frameworks/ardens_libretro.framework/ardens_libretro",
+        "Frameworks/wasm4_libretro.framework/wasm4_libretro",
+        "Frameworks/uzem_libretro.framework/uzem_libretro",
+        "Frameworks/freechaf_libretro.framework/freechaf_libretro",
+        "Frameworks/freeintv_libretro.framework/freeintv_libretro",
+        "Frameworks/o2em_libretro.framework/o2em_libretro",
+        "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro",
+        "Frameworks/mesen_libretro.framework/mesen_libretro",
+        "Frameworks/MoltenVK.framework/MoltenVK",
+        "Frameworks/azahar_libretro.framework/azahar_libretro",
+        "Frameworks/desmume_libretro.framework/desmume_libretro"
+      ],
+      "melonx-dependencies": [
+        "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec",
+        "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil",
+        "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport",
+        "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK",
+        "Frameworks/MeloNXSDL3.framework/MeloNXSDL3"
+      ],
+      "xenia": [
+        "Frameworks/XeniaCore.framework/XeniaCore",
+        "Frameworks/libmetalirconverter.dylib"
+      ],
+      "s2arm": [
+        "Frameworks/NS2Pro.framework/NS2Pro"
+      ],
+      "rpcs3": [
+        "Frameworks/libRPCS3Core.dylib"
+      ]
+    },
+    "replaced": {
+      "melonx": "Frameworks/MeloNXCore.framework/MeloNXCore"
+    },
+    "mustChange": [
+      "Frameworks/App.framework/App",
+      "Frameworks/MeloNXCore.framework/MeloNXCore",
+      "Frameworks/S2ArmEngine.framework/S2ArmEngine",
+      "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
+      "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro",
+      "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro",
+      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog",
+      "Frameworks/neo_texture_catalog.framework/neo_texture_catalog",
+      "Runner"
+    ]
+  },
+  "tests": {
+    "flutter": {
+      "mode": "not-run",
+      "commands": [],
+      "reason": "Application build and private delivery validation. Device benchmark pending."
+    },
+    "native": {
+      "mode": "not-run",
+      "commands": [],
+      "reason": "Application build and private delivery validation. Device benchmark pending."
+    },
+    "awaitMinutes": 75
+  },
+  "recipient": {
+    "path": "build-utils/delivery-829-recipient.pem",
+    "sha256": "fa6fe2e0481df808cc26252b81b6c103050712c69f368de59f9ea88e1e0e2c4c"
+  },
+  "republish": [
+    "rpcs3-core",
+    "melonx-core",
+    "dolphin",
+    "armsx2",
+    "libretro",
+    "melonx-dependencies"
+  ],
+  "s2armAsyncPSOTestDefault": true
+}
