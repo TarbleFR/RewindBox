@@ -42,6 +42,7 @@
     "mednafen/psx/cpu.h": "e4dfe0bc1c3809be38869a2c9fc67bbd33d74b189b750e42d151d43525da3f4d",
     "mednafen/psx/gte.c": "e7ef6b1cd9cbc8030114c8975048863e7e25513147b87bbf06e53705560f5061"
   },
+  "sourceDateEpoch": 1791296138,
   "buildCommands": {
     "prepare": [
       "git apply --check native/beetle-psx/lightrec-jit-abi.patch",

@@ -1,0 +1,796 @@
+diff --git a/desmume/src/MMU.cpp b/desmume/src/MMU.cpp
+index 09d35972..353de261 100644
+--- a/desmume/src/MMU.cpp
++++ b/desmume/src/MMU.cpp
+@@ -164,6 +164,9 @@ void mmu_log_debug_ARM7(u32 adr, const char *fmt, ...)
+ //#define LOG_DIV
+ 
+ MMU_struct MMU;
++#ifdef HAVE_JIT
++u32 mmu_dma_event_pending = 0;
++#endif
+ MMU_struct_new MMU_new;
+ MMU_struct_timing MMU_timing;
+ 
+@@ -2190,7 +2193,13 @@ void DmaController::write32(const u32 val)
+ 	//this dma may need to trigger now, so give it a chance
+ 	//if(!(wasRepeatMode && !repeatMode)) //this was an older test
+ 	if(!doNotStart)
++	{
++#ifdef HAVE_JIT
++		if(enable)
++			mmu_dma_event_pending = 1;
++#endif
+ 		doSchedule();
++	}
+ 
+ 	driver->DEBUG_UpdateIORegView(BaseDriver::EDEBUG_IOREG_DMA);
+ }
+diff --git a/desmume/src/MMU.h b/desmume/src/MMU.h
+index 696d4d1a..d7bfd26f 100644
+--- a/desmume/src/MMU.h
++++ b/desmume/src/MMU.h
+@@ -503,6 +503,12 @@ struct MMU_struct_new
+ };
+ 
+ extern MMU_struct MMU;
++
++#ifdef HAVE_JIT
++// RewindBox (TASEmulators/desmume#997): set when a CPU write arms a DMA channel, cleared after
++// the sequencer ran the hardware events; a JIT block ends after a store that set it.
++extern u32 mmu_dma_event_pending;
++#endif
+ extern MMU_struct_new MMU_new;
+ 
+ 
+diff --git a/desmume/src/NDSSystem.cpp b/desmume/src/NDSSystem.cpp
+index 222b06de..f18979c7 100644
+--- a/desmume/src/NDSSystem.cpp
++++ b/desmume/src/NDSSystem.cpp
+@@ -2026,6 +2026,9 @@ void NDS_exec(s32 nb)
+ 
+ 			nds.cpuloopIterationCount++;
+ 			sequencer.execHardware();
++#ifdef HAVE_JIT
++			mmu_dma_event_pending = 0;
++#endif
+ 
+ 			//break out once per frame
+ 			if(sequencer.nds_vblankEnded) break;
+diff --git a/desmume/src/arm_jit.h b/desmume/src/arm_jit.h
+index 60f07adb..733b161a 100644
+--- a/desmume/src/arm_jit.h
++++ b/desmume/src/arm_jit.h
+@@ -79,4 +79,31 @@ extern uintptr_t compiled_funcs[];
+ 
+ extern u32 saveBlockSizeJIT;
+ 
++#ifdef REWINDBOX_LIBRETRO_JIT
++// RewindBox: the executable arena the AArch64 JIT writes its code into (the libretro
++// frontend takes it from RewindBoxLibretroJit.h): written through rw, run at rx, the same
++// pages at two addresses, flush(rx, bytes) after each write. Without one there is no JIT.
++struct arm_jit_code_arena
++{
++	void *rx;
++	void *rw;
++	size_t bytes;
++	void (*flush)(void *rx, size_t bytes);
++};
++
++struct arm_jit_stats
++{
++	u64 blocks;      // blocks compiled into the arena
++	u64 failures;    // blocks left to the interpreter: no room in the arena or in memory
++	u64 interpreted; // addresses handed to the interpreter after 8 recompilations
++	u64 flushes;     // full arena emptied and rewound
++	size_t used;     // bytes in use
++	size_t capacity; // arena bytes
++};
++
++void arm_jit_set_code_arena(const arm_jit_code_arena *arena); // NULL: none
++bool arm_jit_has_code_arena();
++void arm_jit_get_stats(arm_jit_stats *stats);
++#endif
++
+ #endif
+diff --git a/desmume/src/frontend/libretro/Makefile.common b/desmume/src/frontend/libretro/Makefile.common
+index 489bafd4..85aef728 100644
+--- a/desmume/src/frontend/libretro/Makefile.common
++++ b/desmume/src/frontend/libretro/Makefile.common
+@@ -120,6 +120,10 @@ SOURCES_C += \
+ 				 $(LIBRETRO_COMM_DIR)/vfs/vfs_implementation.c
+ endif
+ 
++ifeq ($(DESMUME_JIT_A64),1)
++SOURCES_CXX += $(CORE_DIR)/utils/arm_jit/arm_jit_arm.cpp
++endif
++
+ ifeq ($(DESMUME_JIT_ARM),1)
+ SOURCES_CXX += \
+ 	$(CORE_DIR)/utils/arm_arm/arm_gen.cpp \
+diff --git a/desmume/src/frontend/libretro/Makefile.libretro b/desmume/src/frontend/libretro/Makefile.libretro
+index 95592125..4b44ebcd 100644
+--- a/desmume/src/frontend/libretro/Makefile.libretro
++++ b/desmume/src/frontend/libretro/Makefile.libretro
+@@ -230,17 +230,16 @@ else ifneq (,$(findstring ios,$(platform)))
+    CXXFLAGS = -DUSE_POSIX_MEMALIGN -D__RETRO_ARM__ -DAPPLE_ATOMICS -D__IOS__
+    fpic := -fPIC
+    SHARED := -dynamiclib
++   # IOSMINVER (make IOSMINVER=14.0) sets the minimum iOS version
+    ifeq ($(platform),$(filter $(platform),ios9 ios-arm64))
+-      CC       += -miphoneos-version-min=8.0
+-      CXX      += -miphoneos-version-min=8.0
+-      CFLAGS   += -miphoneos-version-min=8.0
+-      CXXFLAGS += -miphoneos-version-min=8.0
++      IOSMINVER ?= 8.0
+    else
+-      CC       += -miphoneos-version-min=5.0
+-      CXX      += -miphoneos-version-min=5.0
+-      CFLAGS   += -miphoneos-version-min=5.0
+-      CXXFLAGS += -miphoneos-version-min=5.0
++      IOSMINVER ?= 5.0
+    endif
++   CC       += -miphoneos-version-min=$(IOSMINVER)
++   CXX      += -miphoneos-version-min=$(IOSMINVER)
++   CFLAGS   += -miphoneos-version-min=$(IOSMINVER)
++   CXXFLAGS += -miphoneos-version-min=$(IOSMINVER)
+ 
+ # tvOS
+ else ifeq ($(platform), tvos-arm64)
+@@ -583,6 +582,17 @@ else
+ 
+ endif
+ 
++# `make DESMUME_JIT_A64=1` (AArch64 only) builds the AArch64 JIT of TASEmulators/desmume
++# (utils/arm_jit) for RewindBox's JIT interface: its code goes into the executable memory
++# the host prepares and hands over through rewindbox_libretro_jit_install()
++# (rewindbox/RewindBoxLibretroJit.h, put into this tree by the build). Without it the
++# interpreter runs. The core never maps executable memory itself.
++ifeq ($(DESMUME_JIT_A64),1)
++   DESMUME_JIT = 0
++   DESMUME_JIT_ARM = 0
++   CXXFLAGS += -DHAVE_JIT -DREWINDBOX_LIBRETRO_JIT
++endif
++
+ ifeq ($(DESMUME_JIT_ARM),1)
+    CXXFLAGS += -DHAVE_JIT
+ endif
+diff --git a/desmume/src/frontend/libretro/libretro.cpp b/desmume/src/frontend/libretro/libretro.cpp
+index 2314af93..8153d3c0 100644
+--- a/desmume/src/frontend/libretro/libretro.cpp
++++ b/desmume/src/frontend/libretro/libretro.cpp
+@@ -20,6 +20,10 @@
+ #include "path.h"
+ 
+ #include "libretro_core_options.h"
++#if defined(HAVE_JIT) && defined(REWINDBOX_LIBRETRO_JIT)
++#include "arm_jit.h"
++#include "rewindbox/RewindBoxLibretroJit.h"
++#endif
+ #include "streams/file_stream.h"
+ 
+ #ifdef HAVE_OPENGL
+@@ -69,6 +73,67 @@ enum {
+ };
+ 
+ retro_log_printf_t log_cb = NULL;
++
++#if defined(HAVE_JIT) && defined(REWINDBOX_LIBRETRO_JIT)
++#ifndef RETRO_ENVIRONMENT_GET_JIT_CAPABLE
++#define RETRO_ENVIRONMENT_GET_JIT_CAPABLE 74
++#endif
++/* RewindBox's JIT interface (rewindbox/RewindBoxLibretroJit.h, copied from RewindBox by
++   the build). The host prepares the executable memory before it opens the core and hands
++   it over right after dlopen: the AArch64 JIT (utils/arm_jit) takes all of it at once and
++   writes its code there. Without it no code is generated and the interpreter runs,
++   whatever desmume_cpu_mode says. */
++#define REWINDBOX_JIT_MIN_BYTES (4u << 20)
++static const RewindBoxLibretroJitV1 *rewindbox_jit = NULL;
++static unsigned rewindbox_jit_frames = 0;
++
++static void rewindbox_jit_flush(void *rx, size_t bytes)
++{
++   if (rewindbox_jit && rx && bytes)
++      rewindbox_jit->flush((uint64_t)(uintptr_t)rx, (uint64_t)bytes);
++}
++
++extern "C" RETRO_API int rewindbox_libretro_jit_install(const RewindBoxLibretroJitV1 *jit)
++{
++   uint64_t rx = 0, rw = 0, bytes = 0;
++
++   /* A new open: what an earlier one installed went with it */
++   rewindbox_jit = NULL;
++   arm_jit_set_code_arena(NULL);
++
++   if (!jit || jit->version != REWINDBOX_LIBRETRO_JIT_VERSION ||
++       jit->structBytes != sizeof(*jit) ||
++       !jit->allocate || !jit->flush || !jit->available ||
++       !jit->pageBytes || (jit->pageBytes & (jit->pageBytes - 1)))
++      return -1;
++
++   /* All of the arena the host prepared (jitArenaBytes of the core's identity): it never
++      grows, and a full one is emptied and reused */
++   bytes = jit->available() & ~(jit->pageBytes - 1);
++   if (bytes < REWINDBOX_JIT_MIN_BYTES || jit->allocate(bytes, &rx, &rw) != 0 ||
++       !rx || !rw || ((rx | rw) & (jit->pageBytes - 1)))
++      return -1;
++
++   rewindbox_jit = jit;
++   arm_jit_code_arena arena = { (void *)(uintptr_t)rx, (void *)(uintptr_t)rw,
++                                (size_t)bytes, rewindbox_jit_flush };
++   arm_jit_set_code_arena(&arena);
++   return 0;
++}
++
++static void rewindbox_jit_log_stats(const char *when)
++{
++   arm_jit_stats stats;
++   if (!log_cb || !CommonSettings.use_jit)
++      return;
++   arm_jit_get_stats(&stats);
++   log_cb(RETRO_LOG_INFO, "[rb-jit] desmume %s jit=1 blocks=%llu used=%llu capacity=%llu "
++          "flushes=%llu interpreted=%llu failures=%llu\n", when,
++          (unsigned long long)stats.blocks, (unsigned long long)stats.used,
++          (unsigned long long)stats.capacity, (unsigned long long)stats.flushes,
++          (unsigned long long)stats.interpreted, (unsigned long long)stats.failures);
++}
++#endif
+ static retro_video_refresh_t video_cb = NULL;
+ static retro_input_poll_t poll_cb = NULL;
+ static retro_input_state_t input_cb = NULL;
+@@ -741,6 +806,24 @@ static void check_variables(bool first_boot)
+ #endif
+      }
+ 
++#if defined(HAVE_JIT) && defined(REWINDBOX_LIBRETRO_JIT)
++      {
++         /* Generated code only with RewindBox's JIT interface and a frontend that
++            reports JIT capability */
++         bool capable = false;
++         const bool wanted = CommonSettings.use_jit;
++         if (wanted && !(arm_jit_has_code_arena() &&
++               environ_cb(RETRO_ENVIRONMENT_GET_JIT_CAPABLE, &capable) && capable))
++            CommonSettings.use_jit = false;
++         if (log_cb)
++            log_cb(RETRO_LOG_INFO, "[rb-jit] desmume installed=%d arena=%llu page=%llu "
++                   "wanted=%d jit=%d\n", rewindbox_jit ? 1 : 0,
++                   (unsigned long long)(rewindbox_jit ? rewindbox_jit->capacity : 0),
++                   (unsigned long long)(rewindbox_jit ? rewindbox_jit->pageBytes : 0),
++                   wanted ? 1 : 0, CommonSettings.use_jit ? 1 : 0);
++      }
++#endif
++
+ #ifdef HAVE_JIT
+       var.key = "desmume_jit_block_size";
+ 
+@@ -2081,6 +2164,12 @@ void retro_run (void)
+ 
+    NDS_exec<false>();
+ 
++#if defined(HAVE_JIT) && defined(REWINDBOX_LIBRETRO_JIT)
++   /* Every 30 s of emulated time (60 frames a second) */
++   if (++rewindbox_jit_frames % 1800 == 0)
++      rewindbox_jit_log_stats("running");
++#endif
++
+    SPU_Emulate_user();
+ 
+    static int previous_layout = LAYOUTS_MAX;
+@@ -2463,6 +2552,10 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
+ 
+ void retro_unload_game (void)
+ {
++#if defined(HAVE_JIT) && defined(REWINDBOX_LIBRETRO_JIT)
++    rewindbox_jit_log_stats("unload");
++    rewindbox_jit_frames = 0;
++#endif
+     NDS_FreeROM();
+     if (screen_buf)
+        free(screen_buf);
+diff --git a/desmume/src/thumb_instructions.cpp b/desmume/src/thumb_instructions.cpp
+index 2a6ed686..eabc5663 100644
+--- a/desmume/src/thumb_instructions.cpp
++++ b/desmume/src/thumb_instructions.cpp
+@@ -537,7 +537,7 @@ TEMPLATE static  u32 FASTCALL OP_NEG(const u32 i)
+ {
+ 	u32 Rm = cpu->R[REG_NUM(i, 3)];
+ 
+-	cpu->R[REG_NUM(i, 0)] = (u32)((s32)0 - (s32)Rm);
++	cpu->R[REG_NUM(i, 0)] = (u32)0 - Rm; // unsigned: no overflow at INT_MIN
+ 	
+ 	cpu->CPSR.bits.N = BIT31(cpu->R[REG_NUM(i, 0)]);
+ 	cpu->CPSR.bits.Z = (cpu->R[REG_NUM(i, 0)] == 0);
+diff --git a/desmume/src/utils/arm_jit/arm64_emit.cpp b/desmume/src/utils/arm_jit/arm64_emit.cpp
+index d833a50f..65e515a5 100644
+--- a/desmume/src/utils/arm_jit/arm64_emit.cpp
++++ b/desmume/src/utils/arm_jit/arm64_emit.cpp
+@@ -1078,7 +1078,7 @@ static void emit_smlawb(t_bytes *out, u_int hi, u_int lo, u_int rs1, u_int rs2)
+ }
+ static void emit_smlawt(t_bytes *out, u_int hi, u_int lo, u_int rs1, u_int rs2)
+ {
+-  output_w32(out, 0x93403C00 | (rs1 << 5) | X18_REG); // SBFX x18, x0, #0, #16
++  output_w32(out, 0x93507C00 | (rs1 << 5) | X18_REG); // SBFX x18, rs1, #16, #16: top halfword (TASEmulators/desmume#1002)
+ 
+   output_w32(out, 0x9B207C00|(X18_REG<<16)|(rs2<<5)|14);
+   emit_asr64(out, X14_REG, 16);
+@@ -1218,7 +1218,7 @@ static void emit_umlal(t_bytes *out, u_int hi, u_int lo, u_int rs1, u_int rs2)
+  
+   output_w32(out, 0xB3607C00 | (lo << 5) | X17_REG); // BFI x17, xhi, #32, #32
+ 
+-  output_w32(out, 0x9B200000 | (rs2 << 16) | (rs1 << 5) | (X17_REG << 10) | X17_REG); // UMADDL x17, w#, w#, x17
++  output_w32(out, 0x9BA00000 | (rs2 << 16) | (rs1 << 5) | (X17_REG << 10) | X17_REG); // UMADDL x17, w#, w#, x17 (was SMADDL, TASEmulators/desmume#1002)
+ 
+   output_w32(out, 0xD360FC00 | (X17_REG << 5) | lo); // lsr lo, x17, #32
+   emit_mov(out, X17_REG, hi);
+@@ -1229,7 +1229,7 @@ static void emit_umlals(t_bytes *out, u_int hi, u_int lo, u_int rs1, u_int rs2)
+ 
+   output_w32(out, 0xB3607C00 | (lo << 5) | X17_REG); // BFI x17, xhi, #32, #32
+ 
+-  output_w32(out, 0x9B200000 | (rs2 << 16) | (rs1 << 5) | (X17_REG << 10) | X17_REG); // UMADDL x17, w#, w#, x17
++  output_w32(out, 0x9BA00000 | (rs2 << 16) | (rs1 << 5) | (X17_REG << 10) | X17_REG); // UMADDL x17, w#, w#, x17 (was SMADDL, TASEmulators/desmume#1002)
+   emit_cmpx64(out, X17_REG);
+   
+   output_w32(out, 0xD360FC00 | (X17_REG << 5) | lo); // lsr lo, x17, #32
+diff --git a/desmume/src/utils/arm_jit/arm_jit_arm.cpp b/desmume/src/utils/arm_jit/arm_jit_arm.cpp
+index 5ae2fe89..1c527ffc 100644
+--- a/desmume/src/utils/arm_jit/arm_jit_arm.cpp
++++ b/desmume/src/utils/arm_jit/arm_jit_arm.cpp
+@@ -20,6 +20,10 @@
+ 
+ #ifdef HAVE_JIT
+ 
++#ifndef DESMUME_FASTCALL // libretro/desmume names it FASTCALL
++#define DESMUME_FASTCALL FASTCALL
++#endif
++
+ #define PTR_STORE_REG 11
+ 
+ #include <map>
+@@ -44,39 +48,14 @@ static const char *disassemble(u32 opcode);
+ #ifdef __aarch64__
+ #include "arm64_emit.cpp"
+ #else
+-#include "arm_emit.cpp"
++#error "RewindBox builds the AArch64 emitter only (arm_emit.cpp is not imported)"
+ #endif
+ t_bytes *g_out = NULL;
+ 
+-#ifdef __APPLE__
+-#include <sys/mman.h>
+-#include <pthread.h>
+-static int g_jitWrite = 0;
+-void jit_exec() {
+-	if (g_jitWrite) {
+-#if defined(MAC_OS_VERSION_11_0) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_VERSION_11_0)
+-		if (__builtin_available(macOS 11.0, *)) {
+-			pthread_jit_write_protect_np(1);
+-		}
+-#endif
+-		g_jitWrite = 0;
+-	}
+-}
+-
+-void jit_write() {
+-	if (! g_jitWrite) {
+-#if defined(MAC_OS_VERSION_11_0) && (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_VERSION_11_0)
+-		if (__builtin_available(macOS 11.0, *)) {
+-			pthread_jit_write_protect_np(0);
+-		}
+-#endif
+-		g_jitWrite = 1;
+-	}
+-}
+-#else
++// RewindBox: code is written through the arena's writable view, never by toggling
++// pthread_jit_write_protect_np on executable pages.
+ #define jit_write(...)
+ #define jit_exec(...)
+-#endif
+ 
+ #define tmp_reg R2
+ #define tmp2_reg R3
+@@ -556,7 +535,7 @@ static GpVar bb_profiler_entry;
+ 	static unsigned int rhs_var; \
+ 	u32 imm2 = ((i>>7)&0x1F); \
+ 	reg_pos_ptr(0, rhs_reg, VALUE); \
+-	if (!imm2) imm2 = 31; \
++	if (!imm2) imm2 = 32; /* ASR #32: carry = bit 31 */ \
+ 	emit_asrs(g_out, rhs_reg, imm2); \
+ 	emit_movimm(g_out, imm2, imm_reg); \
+ 
+@@ -713,7 +692,6 @@ static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int populati
+ 		if(REG_POS(i,12)==15) \
+ 		{ \
+ 			S_DST_R15; \
+-			emit_inc_ptr_imm(g_out, (uintptr_t)&bb_total_cycles, 2); \
+ 			return 1; \
+ 		} \
+ 		SET_NZCV(!symmetric); \
+@@ -724,7 +702,6 @@ static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int populati
+ 		{ \
+ 			reg_ptr(15, tmp_reg, VALUE); \
+ 			emit_write_ptr32_regptrTO_regFROM(g_out, cpu_ptr(next_instruction, R1, ADDRESS), tmp_reg); \
+-			emit_inc_ptr_imm(g_out, (uintptr_t)&bb_total_cycles, 2); \
+ 		} \
+ 	} \
+ 	return 1;
+@@ -739,7 +716,6 @@ static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int populati
+ 		if(REG_POS(i,12)==15) \
+ 		{ \
+ 			S_DST_R15; \
+-			emit_inc_ptr_imm(g_out, (uintptr_t)&bb_total_cycles, 2); \
+ 			return 1; \
+ 		} \
+ 		SET_NZCV(1); \
+@@ -749,7 +725,6 @@ static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int populati
+ 		if(REG_POS(i,12)==15) \
+ 		{ \
+ 			emit_write_ptr32_regptrTO_regFROM(g_out, cpu_ptr(next_instruction, R1, ADDRESS), lhs); \
+-			emit_inc_ptr_imm(g_out, (uintptr_t)&bb_total_cycles, 2); \
+ 		} \
+ 	} \
+ 	return 1;
+@@ -776,7 +751,6 @@ static void emit_MMU_aluMemCycles(int alu_cycles, void *mem_cycles, int populati
+ 	if(REG_POS(i,12)==15) \
+ 	{ \
+ 		S_DST_R15; \
+-		emit_inc_ptr_imm(g_out, (uintptr_t)&bb_total_cycles, 2); \
+ 		return 1; \
+ 	} \
+ 	SET_NZC; \
+@@ -1098,7 +1072,6 @@ static int OP_MOV_IMM_VAL(const u32 i) { OP_MOV(IMM_VAL); }
+ 	if(REG_POS(i,12)==15) \
+ 	{ \
+ 		S_DST_R15; \
+-		emit_inc_ptr_imm(g_out, (uintptr_t)&bb_total_cycles, 2); \
+ 		return 1; \
+ 	} \
+ 	if(!rhs_is_imm) \
+@@ -2487,7 +2460,7 @@ static void maskPrecalc(u32 _num)
+ 			mask = 0 ; set = 0 ;   /* (x & 0) == 0  is allways true (enabled) */  \
+ 		} \
+ 	}  \
+-	armcp15_setSingleRegionAccess(&cp15, num, mask, set) ;  \
++	cp15.setSingleRegionAccess(num, mask, set) ;  \
+ }
+ 	switch(_num)
+ 	{
+@@ -3043,13 +3016,13 @@ static int OP_ASR_0(const u32 i)
+ {
+ 	u8 cf_change = 1;
+ 	if (_REG_NUM(i, 0) == _REG_NUM(i, 3)) {
+-		emit_asrs(g_out, reg_pos_thumb(0, R1, VALUE), 31);
++		emit_asrs(g_out, reg_pos_thumb(0, R1, VALUE), 32); // ASR #32: carry = bit 31
+ 		emit_write_ptr32_regptrTO_regFROM(g_out, CACHED_PTR(reg_pos_thumb(0, R2, ADDRESS)), R1); // TAGCHECK
+ 	}
+ 	else
+ 	{
+ 		reg_pos_thumb(3, rhs, VALUE);
+-		emit_asrs(g_out, rhs, 31);
++		emit_asrs(g_out, rhs, 32); // ASR #32: carry = bit 31
+ 		emit_write_ptr32_regptrTO_regFROM(g_out, reg_pos_thumb(0, R1, ADDRESS), rhs);
+ 	}
+ 	SET_NZC;
+@@ -3828,6 +3801,32 @@ static bool instr_uses_r15(u32 opcode)
+ 		    || (xt & JIT_BYPASS);
+ }
+ 
++// RewindBox: instructions that write memory (and may therefore arm a DMA channel)
++static bool instr_may_store(u32 opcode)
++{
++	if(bb_thumb)
++	{
++		const u32 op = opcode & 0xFFFF;
++		return ((op & 0xF000) == 0x5000 && ((op >> 9) & 7) <= 2) // STR/STRH/STRB, register offset
++		    || ((op & 0xE800) == 0x6000)                          // STR/STRB, immediate offset
++		    || ((op & 0xF800) == 0x8000)                          // STRH, immediate offset
++		    || ((op & 0xF800) == 0x9000)                          // STR, SP-relative
++		    || ((op & 0xFE00) == 0xB400)                          // PUSH
++		    || ((op & 0xF800) == 0xC000);                         // STMIA
++	}
++	if(CONDITION(opcode) == 0xF)
++		return false;
++	if((opcode & 0x0C100000) == 0x04000000)                   // STR/STRB
++		return true;
++	if((opcode & 0x0E100000) == 0x08000000)                   // STM
++		return true;
++	if((opcode & 0x0FB00FF0) == 0x01000090)                   // SWP/SWPB
++		return true;
++	if((opcode & 0x0E000090) == 0x00000090 && (opcode & 0x60)) // STRH/STRD (L clear)
++		return !(opcode & (1 << 20)) && (((opcode >> 5) & 3) == 1 || ((opcode >> 5) & 3) == 3);
++	return false;
++}
++
+ static bool instr_is_conditional(u32 opcode)
+ {
+ 	if(bb_thumb) return false;
+@@ -4030,6 +4029,7 @@ static u32 compile_basicblock()
+ #endif
+ 
+ 	bb_constant_cycles = 0;
++	bool bDmaCut = false;
+ 	for(u32 i=0, bEndBlock = 0; bEndBlock == 0; i++)
+ 	{
+ 		bb_adr = start_adr + (i * bb_opcodesize);
+@@ -4086,7 +4086,7 @@ static u32 compile_basicblock()
+ 				if (cycles > 1)
+ 				{
+ 					JIT_COMMENT("cycles (%d)", cycles);
+-					emit_inc_ptr_imm(g_out, (uintptr_t)&bb_total_cycles, -1);
++					emit_inc_ptr_imm(g_out, (uintptr_t)&bb_total_cycles, cycles - 1);
+ 				}
+ 			emit_label(g_out, skip);
+ 		}
+@@ -4102,10 +4102,38 @@ static u32 compile_basicblock()
+ 			}
+ 		}
+ 
++		if(!bEndBlock && instr_may_store(opcode))
++		{
++			// a store armed a DMA channel: leave the block after this instruction
++			const u32 resume = bb_adr + bb_opcodesize;
++			uint64_t no_dma = genlabel();
++			emit_read_ptr32_reg(g_out, (uintptr_t)&mmu_dma_event_pending, R0);
++			emit_cmpimm(g_out, R0, 0);
++			emit_branch_label(g_out, no_dma, 0x0); // EQ
++			emit_write_ptr32_regptrTO_immFROM(g_out, cpu_ptr(instruct_adr, R1, ADDRESS), resume);
++			emit_write_ptr32_regptrTO_immFROM(g_out, cpu_ptr(next_instruction, R1, ADDRESS), resume);
++			if (bb_constant_cycles > 0)
++				emit_inc_ptr_imm(g_out, (uintptr_t)&bb_total_cycles, bb_constant_cycles);
++			emit_read_ptr32_reg(g_out, (uintptr_t)&bb_total_cycles, R0);
++			emit_endfunc(g_out);
++			emit_label(g_out, no_dma);
++		}
++
+ 		interpreted_cycles += op_decode[PROCNUM][bb_thumb]();
++
++		if(!bEndBlock && mmu_dma_event_pending)
++		{
++			// This first run (interpreted while compiling) armed a DMA channel: the block ends
++			// here, so that the channel runs before the next instruction (TASEmulators/desmume#997)
++			const u32 resume = bb_adr + bb_opcodesize;
++			emit_write_ptr32_regptrTO_immFROM(g_out, cpu_ptr(instruct_adr, R1, ADDRESS), resume);
++			emit_write_ptr32_regptrTO_immFROM(g_out, cpu_ptr(next_instruction, R1, ADDRESS), resume);
++			bDmaCut = true;
++			break;
++		}
+ 	}
+ 
+-	if(!instr_does_prefetch(opcode))
++	if(!bDmaCut && !instr_does_prefetch(opcode))
+ 	{
+ 		emit_var_copy32_reg(g_out, cpu_ptr(next_instruction, R1, VALUE), cpu_ptr(instruct_adr, R2, ADDRESS));
+ 	}
+@@ -4153,6 +4181,7 @@ template<int PROCNUM> u32 arm_jit_compile()
+ 	u32 mask_adr = (adr & 0x07FFFFFE) >> 4;
+ 	if(((recompile_counts[mask_adr >> 1] >> 4*(mask_adr & 1)) & 0xF) > 8)
+ 	{
++		g_jit_stats.interpreted++;
+ 		ArmOpCompiled f = op_decode[PROCNUM][cpu->CPSR.bits.T];
+ 		JIT_COMPILED_FUNC(adr, PROCNUM) = (uintptr_t)f;
+ 		return f();
+diff --git a/desmume/src/utils/arm_jit/emit_core.cpp b/desmume/src/utils/arm_jit/emit_core.cpp
+index 56190d26..959a9fae 100644
+--- a/desmume/src/utils/arm_jit/emit_core.cpp
++++ b/desmume/src/utils/arm_jit/emit_core.cpp
+@@ -16,9 +16,15 @@
+ 	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
+ */
+ 
+-#ifdef __APPLE__
+-#include <libkern/OSCacheControl.h>
+-#endif
++/*
++	RewindBox: generated code goes into one executable arena that the libretro frontend
++	hands over (arm_jit_set_code_arena, from RewindBox's JIT interface). It is written
++	through `rw` and executed at `rx`, two views of the same pages, and is never mapped,
++	protected, unmapped or toggled between writable and executable here. When it is full,
++	every table is emptied and the arena is rewound (arm_jit_reset), as T did when it mapped
++	a new zone: blocks are not chained and are only compiled from the C dispatcher, so no
++	generated code is on the stack at that point.
++*/
+ 
+ #define CHUNK_SIZE 6048*4
+ 
+@@ -44,89 +50,73 @@ static int g_TOTALBYTES = 0;
+ u32 *g_PTR = NULL;
+ t_bytes *g_currBlock = NULL;
+ 
+-std::map<JittedFunc, u_int> allFuncs;
+-
+-#ifndef MAP_ANONYMOUS
+-	#ifdef MAP_ANON
+-		#define MAP_ANONYMOUS MAP_ANON
+-	#else
+-		#define MAP_ANONYMOUS 0
+-	#endif
+-#endif
+-
+-#ifndef MAP_JIT
+-	#define MAP_JIT 0
+-#endif
+-
+-static void* alloc_executable_memory(size_t size) {
+-#if defined(_WIN32) && ! defined(__ANDROID__)
+-  void *ptr = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+-  if (! ptr) {
+-    MessageBoxA(NULL, "VirtualAlloc failed", "Error", MB_OK);
+-    return NULL;
+-  }
+-#else
+-  void *ptr = mmap(NULL, size,
+-                   PROT_READ | PROT_WRITE | PROT_EXEC,
+-                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT, -1, 0);
+-  if (ptr == (void*)-1 || ! ptr) {  
+-    return NULL;
+-  }
+-#endif
+-  
+-  allFuncs.insert(std::pair<JittedFunc,int>((JittedFunc)ptr, size));
+-
+-  return ptr;
++static u8 *g_arena_rx = NULL;
++static u8 *g_arena_rw = NULL;
++static size_t g_arena_bytes = 0;
++static size_t g_arena_used = 0;
++static void (*g_arena_flush)(void *rx, size_t bytes) = NULL;
++static arm_jit_stats g_jit_stats;
++
++void arm_jit_set_code_arena(const arm_jit_code_arena *arena)
++{
++	const bool usable = arena && arena->rx && arena->rw && arena->flush && arena->bytes;
++	g_arena_rx = usable ? (u8 *)arena->rx : NULL;
++	g_arena_rw = usable ? (u8 *)arena->rw : NULL;
++	g_arena_bytes = usable ? arena->bytes : 0;
++	g_arena_flush = usable ? arena->flush : NULL;
++	g_arena_used = 0;
++	memset(&g_jit_stats, 0, sizeof(g_jit_stats));
+ }
+ 
+-static char *g_curr_jit_block = NULL;
+-static char *g_curr_jit_ptr = NULL;
+-static int g_curr_jit_size = 0;
++bool arm_jit_has_code_arena()
++{
++	return g_arena_bytes != 0;
++}
+ 
+-static void *armjitarm_alloc_func(size_t size) {
+-    if (! g_curr_jit_block || (uintptr_t)((uintptr_t)g_curr_jit_ptr + (uintptr_t)size) > (uintptr_t)((uintptr_t)g_curr_jit_block + (uintptr_t)g_curr_jit_size)) {
+-        if (g_curr_jit_block) {
+-            printf("RESETTING JIT\n");
+-            arm_jit_reset(1);
+-            //return NULL;
+-        }
++void arm_jit_get_stats(arm_jit_stats *stats)
++{
++	*stats = g_jit_stats;
++	stats->used = g_arena_used;
++	stats->capacity = g_arena_bytes;
++}
+ 
+-        int memsize = 4 * 10000000;
+-        g_curr_jit_block = (char *)alloc_executable_memory(memsize);
+-        if (! g_curr_jit_block) return NULL;
+-        g_curr_jit_ptr = g_curr_jit_block;
+-        g_curr_jit_size = memsize;
++// Execution address of `size` bytes of new code; NULL without an arena or for a block larger
++// than the whole arena (the interpreter then runs it).
++static void *armjitarm_alloc_func(size_t size) {
++    size = (size + 15) & ~(size_t)15;
++    if (g_arena_bytes == 0 || size > g_arena_bytes)
++        return NULL;
++    if (size > g_arena_bytes - g_arena_used) {
++        arm_jit_reset(true, true); // freeFuncs() rewinds the arena
++        g_jit_stats.flushes++;
+     }
+-
+-    char *ptr = g_curr_jit_ptr;
+-    g_curr_jit_ptr += size;
+-    return ptr;
++    u8 *rx = g_arena_rx + g_arena_used;
++    g_arena_used += size;
++    return rx;
+ }
+ 
+ static  void freeFuncs() {
+-	std::map<JittedFunc, u_int>::iterator it;
+-	for (it=allFuncs.begin(); it!=allFuncs.end(); ++it) {
+-#if defined(_WIN32) && ! defined(__ANDROID__)
+-        VirtualFree((void *)it->first, 0, MEM_RELEASE); 
+-#else
+-		munmap((void *)it->first, (uintptr_t)it->second);
+-#endif  
+-	}
+-	allFuncs.clear();
+-	g_curr_jit_block = NULL;
++	g_arena_used = 0;
+ }
+ 
++// The first chunk of every block (never freed) and, after a failed allocation, the scratch
++// chunk the rest of that block is written to: no exit(), the block is abandoned instead
++// (createFunc returns NULL and the interpreter runs it).
++static t_bytes g_firstChunk;
++static t_bytes g_scratchChunk;
++static bool g_allocFailed = false;
++
+ static void allocNewBlock() {
+-    if (! g_currBlock) {
+-        fprintf(stderr, "allocNewBlock failed\n");
+-        exit(0);
+-    }
+-    g_currBlock->next = (t_bytes *)malloc(sizeof(t_bytes));
+-    if (! g_currBlock->next) {
+-        fprintf(stderr, "allocNewBlock failed\n");
+-        exit(0);
++    t_bytes *next = g_allocFailed ? NULL : (t_bytes *)malloc(sizeof(t_bytes));
++    if (! next) {
++        g_allocFailed = true;
++        g_currBlock = &g_scratchChunk;
++        g_scratchChunk.next = NULL;
++        g_PTR = (u32*)&g_scratchChunk.data[0];
++        return;
+     }
+-    g_currBlock = g_currBlock->next;
++    g_currBlock->next = next;
++    g_currBlock = next;
+     g_PTR = (u32*)&g_currBlock->data[0];
+     g_currBlock->next = NULL;
+ }
+@@ -162,13 +152,8 @@ static  void emit_branch_label(t_bytes *out, uint64_t id, int cond) {
+ static t_bytes *g_last_bytes = NULL;
+ 
+ t_bytes *allocBytes() {
+-    t_bytes *ret;	
+-    if (g_last_bytes) ret = g_last_bytes;
+-	else ret = (t_bytes *)malloc(sizeof(t_bytes));
+-    if (! ret) {
+-        fprintf(stderr, "allocBytes failed\n");
+-        exit(0);
+-    }
++    t_bytes *ret = &g_firstChunk;
++    g_allocFailed = false;
+ 
+ 	ret->next = NULL;
+ 
+@@ -192,6 +177,10 @@ void releaseBytes(t_bytes *bytes) {
+ }
+ 	
+ JittedFunc createFunc(t_bytes *bytes) {
++    if (g_allocFailed) {
++        g_jit_stats.failures++;
++        return NULL;
++    }
+     for (std::map<uint64_t, t_labelmap>::iterator lbl = g_LABELS.begin(); lbl != g_LABELS.end(); lbl++) {
+         int nj = lbl->second.jumps.size();
+         for (int i = 0; i < nj; i++) {
+@@ -200,8 +189,11 @@ JittedFunc createFunc(t_bytes *bytes) {
+     }
+ 
+     char *fn = (char *)armjitarm_alloc_func(g_TOTALBYTES);
+-    char *fn_ptr = fn;
+-    if (! fn) return NULL;
++    if (! fn) {
++        g_jit_stats.failures++;
++        return NULL;
++    }
++    char *fn_ptr = (char *)g_arena_rw + (fn - (char *)g_arena_rx); // written here, run at fn
+ 
+     int tot_bytes_acum = 0;
+ 
+@@ -219,13 +211,8 @@ JittedFunc createFunc(t_bytes *bytes) {
+         curr_bytes = curr_bytes->next;
+     }
+ 	
+-#if defined(_WIN32) && ! defined(__ANDROID__)
+-	FlushInstructionCache(GetCurrentProcess(), fn, g_TOTALBYTES);
+-#elif defined(__APPLE__)
+-	sys_icache_invalidate(fn, g_TOTALBYTES);
+-#else
+-	__builtin___clear_cache((char*)fn, (char*)fn + g_TOTALBYTES);
+-#endif
++	g_arena_flush(fn, g_TOTALBYTES);
++	g_jit_stats.blocks++;
+ 	
+ 	return (JittedFunc)fn;
+ }

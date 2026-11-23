@@ -18,6 +18,11 @@ inputs (this script, native/<core>/) itself.
 --base-bundle takes what actions/download-artifact gives for a delivery's republished libretro component
 (RewindBox-Build<N>-<sha>-attempt<A>-component-libretro: original.zip and republication.json); both must name the
 archive the manifest retains (components.libretro.origin: bytes and SHA-256), which is then unpacked as the base.
+
+A pin may also name files to take from another repository at a pinned revision before its patch applies
+(importFiles: each file's SHA-256 is checked), the directory make runs in (build.directory), and the time its
+build records (sourceDateEpoch, exported as SOURCE_DATE_EPOCH, so that a rebuild of the same pin gives the same
+binary).
 """
 from __future__ import annotations
 
@@ -43,6 +48,7 @@ PINS = {
     # One source, two cores (native/beetle-psx/source.json "cores"): each is built in its own tree.
     'mednafen_psx_hw': ROOT / 'native/beetle-psx/source.json',
     'mednafen_psx': ROOT / 'native/beetle-psx/source.json',
+    'desmume': ROOT / 'native/desmume/source.json',
 }
 BUILDBOT_LINE = 'other cores retain their buildbot identity.'
 
@@ -155,6 +161,35 @@ def fetch_git(spec: dict, work: Path) -> Path:
     return target
 
 
+def import_files(pin: dict, source: Path, work: Path) -> None:
+    """Files of another repository at its pinned revision, copied to the same paths of the tree before the patch
+    applies (importFiles: sourceGit and the SHA-256 of each file); none may already be in the tree."""
+    spec = pin.get('importFiles')
+    if not spec:
+        return
+    donor = fetch_git(spec['sourceGit'], work)
+    commit = subprocess.check_output(['git', '-C', str(donor), 'rev-parse', 'HEAD'], text=True).strip()
+    if commit != spec['sourceGit']['revision']:
+        raise SystemExit(f'imported revision {commit} differs from the pin {spec["sourceGit"]["revision"]}')
+    for path, sha in spec['files'].items():
+        if digest(donor / path) != sha:
+            raise SystemExit(f'{path} of {spec["sourceGit"]["url"]} differs from its pin')
+        target = source / path
+        if target.exists():
+            raise SystemExit('the source tree already has ' + path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(donor / path, target)
+
+
+def build_env(pin: dict, unset=()) -> dict:
+    env = dict(os.environ)
+    for name in unset:
+        env.pop(name, None)
+    if 'sourceDateEpoch' in pin:
+        env['SOURCE_DATE_EPOCH'] = str(int(pin['sourceDateEpoch']))
+    return env
+
+
 def prepare_source(pin: dict, work: Path) -> Path:
     if digest(ROOT / pin['patch']) != pin['patchSHA256']:
         raise SystemExit('patch hash differs from its pin: ' + pin['patch'])
@@ -171,6 +206,7 @@ def prepare_source(pin: dict, work: Path) -> Path:
     for path, sha in pin.get('originalFilesSHA256', {}).items():
         if digest(source / path) != sha:
             raise SystemExit(f'{path} differs from the file the patch was written for')
+    import_files(pin, source, work)
     run(['git', 'apply', '--check', ROOT / pin['patch']], cwd=source)
     run(['git', 'apply', ROOT / pin['patch']], cwd=source)
     in_tree = source / pin['abiHeaderInTree']
@@ -188,14 +224,12 @@ def prepare_source(pin: dict, work: Path) -> Path:
 def build_cmake(pin: dict, source: Path, work: Path) -> Path:
     spec = pin['build']
     log = work / f'{pin["core"]}-build.log'
-    env = dict(os.environ)
-    for name in spec.get('configureUnsetEnv', []):
-        env.pop(name, None)
+    env = build_env(pin, spec.get('configureUnsetEnv', []))
     build = source / 'build/ios-arm64'
     run(['cmake', '-S', source, '-B', build, *spec['configure']], env=env, log=log)
     jobs = subprocess.check_output(['sysctl', '-n', 'hw.ncpu'], text=True).strip()
     run(['cmake', '--build', build, '--target', spec['target'], '--config', spec['config'], '--parallel', jobs],
-        log=log)
+        env=env, log=log)
     binary = build / spec['output']
     run(['strip', *spec.get('strip', []), binary])
     return binary
@@ -205,7 +239,9 @@ def build_make(pin: dict, source: Path, work: Path) -> Path:
     spec = pin['build']
     log = work / f'{pin["core"]}-build.log'
     jobs = subprocess.check_output(['sysctl', '-n', 'hw.ncpu'], text=True).strip()
-    run(['make', '-C', source, '-f', spec.get('makefile', 'Makefile'), f'-j{jobs}', *spec['make']], log=log)
+    # make runs in build.directory of the tree (its root by default); output is relative to the root
+    run(['make', '-C', source / spec.get('directory', '.'), '-f', spec.get('makefile', 'Makefile'), f'-j{jobs}',
+         *spec['make']], env=build_env(pin), log=log)
     binary = source / spec['output']
     run(['strip', *spec.get('strip', []), binary])
     return binary

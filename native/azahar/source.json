@@ -17,6 +17,7 @@
   "abiHeader": "packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h",
   "abiHeaderSHA256": "84c59f2484336fa3c64bc68b51177211094083fd411f0b488fee6b79bda6bc22",
   "abiHeaderInTree": "src/citra_libretro/RewindBoxLibretroJit.h",
+  "sourceDateEpoch": 1795224268,
   "build": {
     "kind": "cmake",
     "configureUnsetEnv": [
