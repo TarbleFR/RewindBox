@@ -1,9 +1,19 @@
 # DeSmuME : architecture d'un JIT AArch64 pour RewindBox
 
-*23 novembre 2026 — branche `Claude`. Conception seulement : aucun code du cœur modifié ni compilé, rien mesuré.
-Décision du mainteneur : « DS : garder DeSmuME, soit inventif et conçois l'architecture ». Sources relues :
-libretro/desmume `95b4d798` (**L**), TASEmulators/desmume `b549f71b` (**T**), melonDS `ff972523`, oaknut
-`94c726ce`. Les chiffres de gain sont des estimations ou des affirmations d'auteurs, jamais des mesures RewindBox.*
+*23 novembre 2026 — branche `Claude`. Conception terminée : aucun code du cœur modifié ni compilé, rien mesuré.
+Décisions du mainteneur : « DS : garder DeSmuME, soit inventif et conçois l'architecture », puis « fini de concevoir
+l'architecture JIT pour la DS ». Sources relues : libretro/desmume `95b4d798` (**L**), TASEmulators/desmume
+`b549f71b` (**T**), melonDS `ff972523`, oaknut `94c726ce`. Les chiffres de gain sont des estimations ou des
+affirmations d'auteurs, jamais des mesures RewindBox.*
+
+*Les sections 1 à 6 posent l'architecture. Les sections 7 à 12 la rendent directement réalisable avec ce qui existe
+désormais dans RewindBox, livré ou prêt à l'être :*
+- *l'ABI `RewindBoxLibretroJit.h` v1 et l'arène préparée par StikJIT ;*
+- *l'aide `LibretroJITHelper.appex`, déclenchée par l'identité de la collection ;*
+- *la route `build-utils/libretro_source_cores.py` ;*
+- *la table des collections revues `.github/diagnostics/libretro_source_collections.py`.*
+
+*Elles reprennent aussi les leçons d'Azahar 2127.0-rc5 et de Beetle/Lightrec.*
 
 ## En bref
 
@@ -136,8 +146,9 @@ jamais `armcpu_exec` ni `OP_DECODE`, qui refont le fetch.
 
 ### 2.5 Arène, état et options
 
-- **Installation.** `rewindbox_libretro_jit_install` copie l'ABI. Au premier `retro_init` en mode JIT, un seul
-  `allocate` de 32 à 64 Mio est fait ; il dure jusqu'à la fermeture du cœur.
+- **Installation.** `rewindbox_libretro_jit_install` copie l'ABI, puis fait aussitôt un seul `allocate` de toute
+  la capacité préparée (32 Mio par défaut, section 7.2). Ce bloc dure jusqu'à la fermeture du cœur. L'hôte appelle
+  cette fonction juste après `dlopen`, avant `retro_set_environment` et `retro_init`, donc avant toute option.
 - **Remises à zéro.** `NDS_Reset` et le chargement d'un état ne font que rembobiner les pointeurs.
 - **Arène pleine.** Un drapeau est levé ; le vidage n'a lieu qu'à un point sûr du distributeur (aucun bloc JIT sur
   la pile). Jamais de `munmap` ni de `mprotect`.
@@ -212,7 +223,240 @@ jamais `armcpu_exec` ni `OP_DECODE`, qui refont le fetch.
 - **Triche et états.** `cheatSystem.cpp` (98-124, 1041-1049) ; `saves.cpp` (985-987).
 - **Nouveaux fichiers.** `utils/arm64_jit/*` : arène, table, front-end, invalidation, distributeur, interpréteur
   en cache, émetteurs, aides.
-- **Côté RewindBox.**
-  - Catalogue : `jitArenaBytes` (32 à 64 Mio) et `jitOverrides` (`desmume_cpu_mode: jit`).
-  - La surcharge sans JIT existante (`interpreter`) est conservée.
-  - Nouvelle route de compilation depuis la source, comme Beetle et Azahar.
+- **Côté RewindBox.** Voir la section 10 :
+  - taille de l'arène dans l'épingle, donc dans l'identité de la collection, et non dans le catalogue ;
+  - surcharges sans JIT ;
+  - réglage visible par jeu ;
+  - route de compilation depuis la source, comme Azahar et Beetle.
+
+## 7. Étape 0 en détail : le JIT de T sur l'ABI RewindBox
+
+### 7.1 Ce qui est importé, et ce qui ne l'est pas
+
+- **Fichiers repris de T `b549f71b` (GPL-2.0-or-later).**
+  - `utils/arm_jit/arm_jit_arm.cpp`, 4 374 lignes. Il inclut lui-même `emit_core.cpp` (231 lignes) et, en
+    AArch64, `arm64_emit.cpp` (1 949 lignes).
+  - `arm_emit.cpp`, l'émetteur ARM 32 bits (1 316 lignes), n'est pas compilé.
+  - T compile `arm_jit_arm.cpp` à la place de `arm_jit.cpp` et d'AsmJit dès que la cible est ARM
+    (`frontend/posix/meson.build:202-205`).
+- **Ce qui ne change pas dans L.**
+  - L'API `arm_jit.h` (`arm_jit_reset`, `arm_jit_sync`, `arm_jit_compile<P>`, `ArmOpCompiled`). Elle ne diffère
+    de T que par la macro `FASTCALL`/`DESMUME_FASTCALL` : un `#define` de compatibilité suffit.
+  - Les points d'appel du distributeur (`armcpu.cpp`).
+- **Fonctionnement de T à garder en tête.**
+  - La première exécution d'un bloc se fait dans l'interpréteur, pendant sa compilation
+    (`arm_jit_arm.cpp:4105`).
+  - **Chaque bloc est une fonction `u32 f()` qui rend ses cycles au distributeur C.** Il n'y a pas de chaînage :
+    aucun code JIT n'est sur la pile pendant une compilation.
+  - Si la copie échoue, `compile_basicblock` retombe sur `op_decode` (l'interpréteur) pour ce bloc
+    (`arm_jit_arm.cpp:4127-4134`).
+- **Déjà correct pour Apple dans T.**
+  - x18, réservé par Apple, est remplacé par x23 (`arm64_emit.cpp:63-67`). Le prologue de chaque bloc sauvegarde
+    x23 avec x19 à x24 (`save()`/`restore()`, `arm64_emit.cpp:1785-1800`).
+  - Les adresses absolues passent par `movz/movk` + `blr`. Les sauts vers les étiquettes sont résolus dans le
+    tampon avant la copie (`createFunc`, `emit_core.cpp:194-200`) : un bloc peut donc être copié n'importe où.
+- **Ce qui est retiré.** `jit_write()`/`jit_exec()` (`pthread_jit_write_protect_np`, `arm_jit_arm.cpp:51-79`)
+  deviennent vides : l'écriture passe par l'alias RW, l'exécution par la vue RX, sans bascule W^X.
+
+### 7.2 Mémoire du code : une seule arène, jamais de `mmap` exécutable
+
+Dans T (`emit_core.cpp`) :
+- chaque bloc est d'abord assemblé dans des morceaux `malloc` de 24 192 octets ;
+- `createFunc` le copie ensuite dans une zone de 40 000 000 octets projetée en RWX avec `MAP_JIT` ;
+- au débordement, `armjitarm_alloc_func` appelle `arm_jit_reset(1)` en pleine compilation. Les tables sont
+  vidées, `freeFuncs()` libère toutes les zones (`munmap`), puis une nouvelle zone est projetée
+  (`emit_core.cpp:86-104`).
+
+Ce vidage immédiat est sûr parce qu'aucun bloc n'est sur la pile pendant une compilation (section 7.1). Sur
+l'ABI :
+
+| T | Étape 0 |
+| --- | --- |
+| `alloc_executable_memory` : `mmap` RWX `MAP_JIT` (`emit_core.cpp:61-80`) | Supprimé. Un seul `allocate` de toute la capacité, à l'installation ; le bloc reste valide jusqu'à la fermeture du cœur |
+| `armjitarm_alloc_func` : bump ; au débordement, `arm_jit_reset(1)` et nouvelle zone | Bump aligné sur 16 octets dans l'arène. Arène pleine : `arm_jit_reset(true)`, rembobinage (`used = 0`) et nouvel essai, comme T mais sans `munmap`. Un compteur de vidages est tenu. Un bloc plus grand que l'arène : `NULL`, donc l'interpréteur |
+| `createFunc` : `memcpy` dans la zone, puis `sys_icache_invalidate` | `memcpy` dans `rw + used`, `abi->flush(rx + used, n)`, retour de `rx + used`. Aucun `sys_icache_invalidate`, `__clear_cache` ni `FlushInstructionCache` ne subsiste |
+| `freeFuncs` : `munmap` de chaque zone | Rembobinage seulement |
+| `allocBytes` et `allocNewBlock` : `exit(0)` si `malloc` échoue (`emit_core.cpp:119-132` et `164-171`) | Échec propagé, puis interpréteur pour ce bloc |
+
+- **Vidage différé.** Le vidage à un point sûr du distributeur (section 2.5) ne devient obligatoire qu'avec le
+  chaînage des blocs (B en mode rapide, C). À l'étape 0, le vidage immédiat de T suffit.
+- **Taille.** 32 Mio par défaut, au champ `jitArenaBytes` de l'épingle.
+  - T projette 40 Mo par zone, et une nouvelle zone à chaque vidage. Nous vidons une arène fixe et mesurons.
+  - Les lignes `[rb-jit]` (section 9) diront s'il faut monter à 48 ou 64 Mio. Le plafond de l'hôte est 512 Mio
+    (`LIBRETRO_JIT_MAX_CAPACITY`, `LibretroJitArena.h:28`).
+- **Installation.** L'hôte appelle `rewindbox_libretro_jit_install(abi)`, exporté par
+  `frontend/libretro/libretro.cpp`, juste après `dlopen`, avant `retro_set_environment` et `retro_init`. La
+  fonction :
+  - vérifie la version 1, `structBytes`, une page qui est une puissance de deux et une capacité suffisante ;
+  - puis fait l'unique `allocate`.
+
+  Sans installation, `CommonSettings.use_jit` reste faux quoi que demande l'option.
+- **Règle d'activation**, reprise de la section 2.5 :
+  `use_jit = (desmume_cpu_mode == "jit") && GET_JIT_CAPABLE && ABI installée && arène allouée`.
+  - L'hôte ne répond `GET_JIT_CAPABLE = true` que si l'installation a réussi (`LibretroSession.m:917`,
+    `LibretroCoreHost.m:731`).
+  - L ne lit `desmume_cpu_mode` et `desmume_jit_block_size` qu'au premier démarrage
+    (`check_variables(first_boot)`, `libretro.cpp:718-751`). Un changement s'applique donc au lancement suivant.
+
+### 7.3 Correctifs fonctionnels inclus dans l'étape 0
+
+- **#1002.**
+  - UMLAL est émis comme SMADDL : corriger le signe.
+  - SMLAWT : prendre la moitié haute.
+  - Retenue d'`ASR #0` en Thumb : `ASR #32`, comme l'interpréteur.
+  - `OP_NEG` à INT_MIN : aligner le JIT sur le résultat du matériel, et non sur l'indéfini du C.
+- **#998.** Cycles : appliquer la règle `max(exécution, fetch)` de l'interpréteur avec `advanced_timing`, dans le
+  même ordre.
+- **#997.** Après chaque instruction d'accès mémoire, vérifier le drapeau d'arrêt (armement DMA, `NDS_Reschedule`,
+  freezeBus) et sortir du bloc avec un état synchronisé.
+- **Cache d'instructions de l'ARM9.** Les MCR p15, c7 (maintenance de cache) terminent le bloc et vident les blocs
+  marqués (section 8).
+- **Méthode.** Chaque correctif est vérifié au banc différentiel instruction par instruction (outil manuel, comme
+  #998) avant d'être intégré.
+
+### 7.4 Compilation par la route RewindBox
+
+Épingle `native/desmume/source.json`, sur le modèle de `native/beetle-psx/source.json` :
+
+| Champ | Valeur |
+| --- | --- |
+| `core`, `framework` | `desmume`, `desmume_libretro` |
+| `upstream`, `sourceGit`, `revision` | `https://github.com/libretro/desmume`, révision `95b4d798`, à revalider sur `master` au moment du code |
+| `patch`, `patchSHA256` | `native/desmume/arm64-jit-abi.patch` : import de T, adaptations des sections 7.1 à 7.3, frontend libretro, Makefile |
+| `originalFilesSHA256` | Empreintes des fichiers de L que le correctif modifie |
+| `abiHeaderInTree`, `abiHeaderCopied` | `desmume/src/frontend/libretro/rewindbox/RewindBoxLibretroJit.h`, `true` |
+| `build` | `kind: make`, `directory: desmume/src/frontend/libretro` (le Makefile suppose `CORE_DIR := ../..`), `makefile: Makefile.libretro`, `make: [platform=ios-arm64, DESMUME_JIT_A64=1]`, `output: desmume/src/frontend/libretro/desmume_libretro_ios.dylib`, `strip: [-x]` |
+| iOS minimum | 14.0, comme Azahar et Beetle. Pour `ios9` et `ios-arm64`, `Makefile.libretro:233-237` code 8.0 en dur dans `CC`, `CXX`, `CFLAGS` et `CXXFLAGS` : le correctif le remplace par `IOSMINVER ?= 14.0`. Beetle passe le sien en variable de make (`IPHONEMINVER`) |
+| `expectedExports` | `_rewindbox_libretro_jit_install` et les `_retro_*` |
+| `expectedStrings` | `desmume_cpu_mode`, `desmume_jit_block_size` |
+| `forbiddenImports` | `_pthread_jit_write_protect_np`, `_vm_protect`, `_mach_vm_protect`, `_task_set_exception_ports`, `_mach_msg`, `___clear_cache` (le SDK iOS ne l'a pas : c'est l'échec de lien de Beetle, run 45191228672) |
+| `jitArenaBytes` | 33 554 432 |
+| `noticeLicense`, `identityLicense` | « GPLv3 (DeSmuME GPLv2+, JIT AArch64 de TASEmulators GPLv2+, cadre JIT libretro GPLv3+) », `GPLv3` |
+| `licenseFiles` | `license.txt` (texte GPLv2 fourni par L) |
+
+- **Extension du constructeur.** `build_make` accepte un champ `directory` (`make -C <source>/<directory>`) ;
+  `output` reste relatif à la racine. Ces quelques lignes viennent avec l'épingle.
+- **Ce que le constructeur vérifie déjà** :
+  - empreintes de l'archive, du correctif, de l'en-tête et des fichiers d'origine ;
+  - Mach-O iOS, dépendances et exports ;
+  - imports interdits ;
+  - réécriture de la notice et de l'identité.
+- **Contrôle à ajouter dans le correctif.** Aucune occurrence de `MAP_JIT` ni de `PROT_EXEC` dans les fichiers
+  compilés (`grep` dans la revue du correctif).
+
+### 7.5 Critères d'acceptation de l'étape 0
+
+1. **Compilation.**
+   - Le job `source-cores` est vert, et l'identité porte `compiled`, `jitInterface: 1` et `jitArenaBytes`.
+   - Les exports sont présents et aucun import interdit n'apparaît.
+   - `test/libretro_core_options_test.py --cores` passe avec les surcharges de la section 10.
+2. **Sur iPhone, JIT prêt.**
+   - Les lignes `[rb-jit] desmume installed=1 …` puis `[rb-jit] desmume jit=1 …` apparaissent (section 9).
+   - Le nombre de vidages et de replis reste bas sur dix jeux de référence :
+     - 2D : New Super Mario Bros., Castlevania ;
+     - 3D : Mario Kart DS, Zelda Phantom Hourglass ;
+     - overlays et ARM7 chargé : Pokémon Platine, Animal Crossing Wild World, Advance Wars Dual Strike ;
+     - trois autres choisis par le mainteneur.
+   - Chacun est joué dix minutes sans défaut nouveau.
+3. **États.** Une sauvegarde d'état faite en JIT se recharge en interpréteur, et inversement : l'état du JIT n'est
+   jamais sérialisé.
+4. **Sans JIT.** Le comportement est identique à aujourd'hui : interpréteur, avec l'avis `jitInterpreterNotice`.
+5. **Mesure.** Part CPU par image avant et après (`os_signpost`, section 4). Aucun gain n'est annoncé sans elle.
+
+## 8. Code automodifiant, overlays et cache d'instructions
+
+Leçon de Lightrec (Beetle, `485411bb`). Sortir d'un bloc au milieu d'une écriture et reprendre dans un nouveau
+bloc n'est juste que si tous les registres de l'invité sont à jour en mémoire. Un optimiseur qui retarde ou
+supprime des écritures de registres casse cette hypothèse.
+
+- **Étapes 0, A et B.** L'état est en mémoire (`armcpu_t`) à chaque frontière d'instruction : toute sortie est sûre.
+- **Étape C.** Les registres restent dans x20-x27 : chaque sortie anticipée passe par l'épilogue qui écrit les
+  paires (`STP`) avant de rendre la main.
+- **Règle d'écriture dans le code.**
+  - Une écriture qui touche le bitmap de code marque la plage.
+  - Si la plage recoupe le bloc en cours au-delà du PC courant, le bloc se termine juste après l'écriture :
+    PC = instruction suivante, état synchronisé, sortie vers le distributeur.
+  - Sinon, l'exécution continue.
+  - Le distributeur retire les blocs marqués avant toute nouvelle recherche.
+- **ARM9 (ARM946E-S).** Il a un cache d'instructions. Après avoir chargé un overlay, les jeux nettoient le
+  cache de données (MCR p15, c7, c10 ou c14), puis invalident le cache d'instructions (MCR p15, c7, c5). Toute
+  MCR p15, c7 est un point de sortie ; l'invalidation c7, c5 est aussi un point de validation.
+- **ARM7.** Il n'a pas de cache : la règle d'écriture suffit.
+- **Remappages.** Les remappages VRAM et WRAMCNT invalident les plages concernées (nouveaux crochets,
+  section 2.1).
+- **Triche.** Mêmes chemins : l'invalidation précise remplace la remise à zéro globale de
+  `cheatSystem.cpp:1041-1049`.
+- **Recompilations répétées.** Garder le repli de T : après huit recompilations d'une même adresse, ce bloc reste
+  interprété (`recompile_counts`, `arm_jit_arm.cpp:4147-4162`).
+
+## 9. Fils d'exécution et diagnostic
+
+- **Un seul fil.** Le JIT tourne sur le fil d'émulation de la session libretro. Pas de compilation en arrière-plan
+  aux étapes 0 à 3, donc aucune course entre écriture RW et exécution RX. L'entrelacement ARM9/ARM7 est celui
+  d'aujourd'hui.
+- **Journal**, au format des lignes `[rb-jit]` d'Azahar :
+  - à l'installation : `[rb-jit] desmume installed=1 arena=33554432 page=16384` ;
+  - toutes les 30 secondes de jeu et à la fermeture :
+    `[rb-jit] desmume jit=1 blocks=… used=… flushes=… recompiles=… fallbacks=… interp_blocks=…` ;
+  - sans interface : `[rb-jit] desmume installed=0 jit=0`.
+- **Usage.** Régler la taille de l'arène, repérer les jeux qui vident en rafale et documenter chaque essai sur
+  iPhone.
+
+## 10. Côté RewindBox
+
+- **Catalogue (`lib/services/libretro_core_catalog.dart`).**
+  - `noJitOverrides` : `desmume_cpu_mode: interpreter` (existant) et `desmume_jit_block_size: 12`, sa valeur par
+    défaut. Le contrat d'options l'exige, car la clé contient « jit ».
+  - `optionDefaults` : `desmume_cpu_mode: jit`. La valeur par défaut de L est `interpreter`.
+  - Pas de `jitOverrides` : avec le JIT, le choix de l'utilisateur prime ; sans, la surcharge impose
+    l'interpréteur pour la session.
+- **Réglage visible par jeu.** Réponse à la question du mainteneur : « aucune option visible ».
+  - `LibretroCuratedSetting` gagne un attribut `requiresJit`. La session native n'affiche le réglage que si le cœur
+    a accepté l'interface (`_host.jitCapable`).
+  - Le choix est enregistré dans la couche par jeu de `LibretroCoreOptions.m` (`Config/Games/<cœur>.json`). Les
+    surcharges sans JIT passent avant cette couche : sans JIT, l'interpréteur s'impose quel que soit le choix
+    enregistré.
+  - Il s'applique au redémarrage du jeu, comme le dit déjà le pied du menu en jeu (L ne relit pas l'option,
+    section 7.2).
+  - Pour DeSmuME : « Processeur : JIT / Interpréteur », en douze langues.
+  - Le même mécanisme sert à Azahar (`citra_use_cpu_jit`) et à Beetle (`beetle_psx(_hw)_cpu_dynarec` :
+    `execute`, `disabled`).
+- **Arène.** Aucune taille dans le catalogue. Elle vient de l'identité embarquée (`jitInterface`,
+  `jitArenaBytes`), comme pour Azahar ; l'aide n'est lancée que pour un cœur qui la porte.
+- **Collection.** `PINS` de `libretro_source_cores.py` gagne `desmume`, et le job `source-cores` construit
+  `azahar,mednafen_psx_hw,mednafen_psx,desmume`.
+- **Livraison.**
+  - L'artefact retenu est ajouté à `COLLECTIONS` dans `.github/diagnostics/libretro_source_collections.py`, avec
+    `cores` complété de `desmume`.
+  - Jamais dans `retained_components.py`, entrée figée du Core MeloNX : la 826 a échoué sur ce point
+    (run 45195605335).
+  - Le manifeste suit la liste de la section 11.
+
+## 11. Liste de contrôle de livraison
+
+Tirée de la 826.
+
+1. Télécharger l'artefact du job `source-cores` et contrôler :
+   - les identités ;
+   - la notice (lignes réécrites) ;
+   - les textes de licence ;
+   - `test/libretro_core_options_test.py --cores` sur la collection réelle.
+2. Commit produit :
+   - surcharges et réglages du catalogue ;
+   - tests Dart et Python qui les attendent ;
+   - notices de l'application (`NOTICE.md`, `assets/legal/THIRD_PARTY_NOTICES.md`,
+     `assets/legal/libretro/LIBRETRO_CORES.md`, `license-sources.json`) ;
+   - `embed_legal_bundle.py --validate-only`.
+3. Manifeste :
+   - `components.libretro.origin` vers le run `source-cores`, `jitHelper: true` ;
+   - `images.retained.libretro` qui nomme les cœurs non reconstruits ;
+   - chaque framework reconstruit sous `images.mustChange` ;
+   - travaux concurrents classés (revus ou « source seulement »).
+4. Contrat hors ligne, gel, `trigger-paths`, file de livraison vide, puis commit `[ipa-delivery:N]`.
+
+## 12. Décisions restantes pour le mainteneur
+
+1. **Réglage visible par jeu** (`requiresJit`, section 10) pour DeSmuME, Azahar et Beetle. Recommandé.
+2. **Taille de l'arène** : 32 Mio au départ, ajustée d'après les lignes `[rb-jit]`.
+3. **Calendrier.** Étape 0 après les livraisons 826 (Azahar) et 827 (Beetle), puis l'ordre 1 → 2 → 3 → 4 de la
+   section 3, selon la part CPU mesurée.
