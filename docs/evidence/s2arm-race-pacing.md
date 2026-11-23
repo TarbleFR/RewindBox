@@ -71,3 +71,26 @@ Ce qui reste hors de ce patch.
 
 Vérification. `t_rb_adaptive_drs.c` couvre les trois cas (maintien à Fair, pas de 18,675 et 20,5 ms, poussée à Serious, plafond de cadence de l'utilisateur) et passe sur l'hôte. À observer sur iPhone, à Fair : la part d'images à l'intervalle 2 dans `the game sets present interval`, les lignes `dynamic resolution hold … raised to`, la taille des cibles du jeu, et le délai avant Serious, qui peut se raccourcir puisque le jeu garde plus souvent 60 images par seconde.
 
+## Poussée de résolution maintenue au plancher du jeu
+
+Depuis le patch 0087, à l'état thermique Serious, chaque rapport TIMESTAMP de fin d'image lit au moins 18,68 ms (20,5 ms au niveau 2). Le jeu baisse alors sa taille de rendu et demande l'intervalle de présentation 2 pour l'image suivante.
+
+Session Mario Kart World après la 821 (moteur 0001–0301), état Serious, fenêtres de 300 images de 3900 à 5700 :
+
+| Mesure | Valeur |
+|---|---|
+| Taille de scène | 1248×700 sur les 300 images des fenêtres 3900, 4200 et 5400 |
+| Images demandées à l'intervalle 2 | 106 à 124 sur 300 (166 à la fenêtre 5700) |
+| Images affichées par seconde | 27,6 à 43,8 |
+| GPU p50 | 12,3 à 16,9 ms |
+| Soumission p50 | 12,0 à 23,6 ms |
+| Travail par image p50 | 20,8 à 27,9 ms |
+
+À 1248×700 le jeu est à sa plus petite taille : la poussée ne réduit plus rien et ne produit que des images sautées.
+
+Patch 0307. Une poussée cesse après 24 images poussées sans scène plus petite. Elle reprend au plus tôt 600 images plus tard, et seulement si la scène dépasse de plus d'un dixième la plus petite taille où une poussée s'est arrêtée. La taille de scène est la plus grande cible couleur dessinée avec une profondeur, déjà relevée par les signatures d'images ; inconnue, l'image est poussée comme avant. L'état Critical garde chaque poussée. Journal : `[rb-guest-drs] floor frame= scene_px= floor_px= rests= resumes=`.
+
+Limites. Rien n'est mesuré sur iPhone. Dans ces fenêtres le travail par image dépasse 16,67 ms : le fil de soumission reste la limite, le gain attendu est la fin des intervalles 2 imposés, pas 60 images par seconde. Plus d'images par seconde à Serious dégagent plus de chaleur. La phase où le système ralentit le GPU (images 6000 et suivantes : GPU p50 32 à 34 ms, y compris dans les fenêtres entièrement à 1248×700 ; 26 à 28 images par seconde) n'est pas changée.
+
+Constat sans cause établie. Dans les fenêtres 3900 à 5700, l'horloge moyenne du fil de soumission est de 1,34 à 2,02 GHz pour 12,7 à 22,5 ms de CPU par image, et la sonde GPU fixe lit 0,20 à 0,31 ms. Dans les fenêtres 6000 et suivantes, la sonde lit 0,64 à 1,23 ms et l'horloge monte de 2,19 à 3,58 GHz pour 8,8 à 10,5 ms de CPU. Le calcul temps réel déclaré n'explique pas l'horloge basse : des sessions antérieures à 15 ms déclarés montrent 1,4 à 2,4 GHz dans les fenêtres lourdes.
+
