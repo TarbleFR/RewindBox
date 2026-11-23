@@ -1,0 +1,660 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 12fd0d1..65c3fa7 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3173,6 +3173,23 @@ static int nvn_stack_args(const char *n) {
+     return !strcmp(n, "nvnWindowBuilderSetHdrDisplayMetadata") || !strcmp(n, "nvnWindowBuilderGetHdrDisplayMetadata") ||
+            !strcmp(n, "nvnWindowSetHdrDisplayMetadata") || !strcmp(n, "nvnWindowGetHdrDisplayMetadata");
+ }
++#if !defined(__ANDROID__)
++// 留在游戏栈上的 NVN 实现（命令录制 nvnCommandBuffer* 等，每帧上万次）套叶子桩（11-17，同 runtime/src/xstack.c 叶子名单）：游戏 sp 不是 16 字节对齐时
++//   （Horizon 不查、苹果芯片查），宿主实现开头一压栈就 SIGBUS；叶子桩 sp 对齐直接尾跳，不对齐先对齐、调完恢复。
++//   不套：未实现桩 / 大栈入口 / 计时入口（靠跳板给的 x16 = 槽地址找实现，叶子桩会改写 x16）、带栈上参数的四个（挪 sp 会读错参数）。
++//   host_adapt.m big_wrap 直连起用时调一次；幂等。leaf = sw_xstack_leaf（不链运行时的单测不调）
++extern void nvn_prof_entry(void);
++void nvn_leaf_wrap(void *(*leaf)(const char *, void *)) {
++    static int done; if (done || !leaf) return; done = 1;
++    unsigned n = 0;
++    for (unsigned i = 0; i < NVN_NFUNC; i++) {
++        void *f = nvn_slot[i].fn;
++        if (f == (void *)nvn_unimpl_entry || f == (void *)nvn_big_entry || f == (void *)nvn_prof_entry || nvn_stack_args(nvn_names[i])) continue;
++        nvn_slot[i].fn = leaf(nvn_names[i], f); n++;
++    }
++    LOG("[nvn] 留在游戏栈上的 %u 个实现套叶子桩（游戏 sp 不对齐时先对齐再调）", n);
++}
++#endif
+ __attribute__((constructor)) static void nvn_nops_register(void) {
+     // Empty implementations overwrite the unimplemented stubs after the slot table is initialized; a misspelled name (not in main's name table) reports a failure and aborts at startup
+     nvn_init_slots();
+diff --git a/graphics/nvn/gfx/nvn/nvn2_codec.c b/graphics/nvn/gfx/nvn/nvn2_codec.c
+index 865b70b..522da6e 100644
+--- a/graphics/nvn/gfx/nvn/nvn2_codec.c
++++ b/graphics/nvn/gfx/nvn/nvn2_codec.c
+@@ -787,6 +787,7 @@ static void cv_h264_decode(cvdec *d, const cv_in *in, int64_t pts, int gen) {
+     size_t nal[64][2]; int nn = nvn2_h264_nals(in->p, in->n, nal, 64);
+     if (nn < 0) { CV_RED(h264bad, "Switch 2 视频：H.264 包既不是起始码分隔、长度前缀也对不上（%zu 字节）：这一包没有画面", in->n); return; }
+     uint8_t *s = malloc(in->n + 4 * (size_t)nn + 4); size_t sn = 0; int changed = 0;
++    if (!s) { CV_RED(h264mem, "Switch 2 视频：H.264 样本缓冲 %zu 字节分配不出（宿主地址 / 内存耗尽），这一包没有画面", in->n); return; }   // 兜底，根修见 cv_submit
+     for (int i = 0; i < nn; i++) {
+         const uint8_t *q = in->p + nal[i][0]; size_t l = nal[i][1] - nal[i][0]; int ty = q[0] & 0x1f;
+         if (ty == 7 || ty == 8) {
+@@ -957,6 +958,7 @@ static void cv_decode(cvdec *d, const cv_in *in, int gen) {
+             // 同时看包里有没有帧数据（帧头 3、分块组 4、帧 6、冗余帧头 7）：只有时间分隔 / 填充 / 元数据的包本来就没有画面，
+             //   原先照样送 VideoToolbox，回 -12903（数据坏）并报红（诊断 #4ddff2：3 字节的包）。这种包直接跳过、不报红；解析不了的尾巴按有帧数据送去
+             uint8_t *s = malloc(in->n); size_t sn = 0; uint64_t t0 = now_ns(); int frame = 0;
++            if (!s) { CV_RED(av1mem, "Switch 2 视频：AV1 样本缓冲 %zu 字节分配不出（宿主地址 / 内存耗尽），这一包没有画面", in->n); return; }   // 兜底，根修见 cv_submit
+             for (size_t o = 0; o < in->n;) {
+                 uint8_t h = in->p[o]; size_t hl = 1 + (h >> 2 & 1); uint64_t sz = in->n - o - hl; int ll = 0, ty = h >> 3 & 15;
+                 if (h >> 1 & 1) ll = leb128(in->p + o + hl, in->n - o - hl, &sz);
+@@ -1100,7 +1102,10 @@ static Result cv_flush(void *t, int stop) {
+ static Result cv_submit(uint64_t *id, void *t, const void *p, uint64_t n, int64_t pts_ns, uint32_t eos) {
+     cvdec *d = cv_of(t);
+     cv_in in = { n ? malloc(n) : NULL, n, pts_ns, (int)(eos & 1) };
+-    if (n) memcpy(in.p, p, n);
++    // 兜底（D-R2VX / D-NK6Y：宿主低区地址耗尽时 malloc 回空，原先直接 memcpy 到 0 崩）：这一包当空包排进去（没有画面、流照走），打红行。
++    //   根修是宿主下限（vawin.c s2a_window_host_floor），这里只是耗尽时不崩在这儿
++    if (n && !in.p) { CV_RED(submem, "Switch 2 视频：提交的包缓冲 %llu 字节分配不出（宿主地址 / 内存耗尽），这一包当空包、没有画面", (unsigned long long)n); in.n = 0; }
++    if (in.n) memcpy(in.p, p, n);
+     pthread_mutex_lock(&d->mu);
+     // 游戏不看可提交事件也提交：队列加长，不丢包
+     if (d->qn == d->qcap) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index b5226fd..88bdd54 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -103,7 +103,12 @@ static void session_resource_release(void *v) {
+     CFRelease(v);
+ }
+ int nvn_be_drain_session(void) { return session_wait_backend(); }
+-int nvn_be_shutdown_session(void) {
++// RewindBox (upstream S2Arm 9e2a24ed4, the parts outside save states): the Metal objects the teardown takes out of its tables (textures, buffers) hold autoreleased
++//   references, and the calling thread (the long-lived session thread, or a retirement pthread) has no pool of its own: they were kept until the thread ended, one old
++//   session's worth at every park / resume or restart (0010)
++static int nvn_be_shutdown_session_body(void);
++int nvn_be_shutdown_session(void) { @autoreleasepool { return nvn_be_shutdown_session_body(); } }
++static int nvn_be_shutdown_session_body(void) {
+     rb_sub_open(2);   // RewindBox (patch 0071): no idle release by the pressure handler from here to the next session's first submission end (it waits for one under way; nvn_mtl.m rb_press_release)
+     int e = session_wait_backend(); if (e) { MLOG("【红】重启：Metal 工作仍持有旧会话 (%d)", e); return e; }
+     if (rb_hash_drain()) return -ETIMEDOUT;
+@@ -149,7 +154,7 @@ int nvn_be_shutdown_session(void) {
+     nvn_hm_clear(&g_vc, vc_set_free);
+     nvn_hm_clear(&g_by_serial, session_resource_release);
+     nvn_hm_clear(&g_alias, session_resource_release);
+-    nvn_hm_clear(&g_ghost, hm_rel);
++    nvn_hm_clear(&g_ghost, session_resource_release);   // RewindBox (upstream 9e2a24ed4): its textures (up to 4,096 finalized ones, 0071) leave the residency set too, not only their reference
+     // A subsequent hosted session may select different render options. Keep
+     // cumulative store counters monotonic for the 300-frame sampler.
+     atomic_store_explicit(&g_rb_next_clear_mode, 0, memory_order_relaxed);
+diff --git a/graphics/nvn/host_adapt.m b/graphics/nvn/host_adapt.m
+index 2a6623e..366e1d0 100644
+--- a/graphics/nvn/host_adapt.m
++++ b/graphics/nvn/host_adapt.m
+@@ -200,6 +200,8 @@ static void big_wrap(void) {
+     unsigned n = 0;
+     for (unsigned i = 0; i < NVN_NFUNC; i++) if (nvn_big_real[i]) { nvn_big_real[i] = sw_xstack_wrap(nvn_names[i], nvn_big_real[i]); n++; }
+     LOG("直连：%u 个 NVN 函数经 S2Arm 切栈桩跑在宿主栈上（其余命令录制留在游戏栈）", n);
++    void nvn_leaf_wrap(void *(*leaf)(const char *, void *)); void *sw_xstack_leaf(const char *name, void *fn);
++    nvn_leaf_wrap(sw_xstack_leaf);   // 留在游戏栈上的那些套叶子桩：游戏 sp 不对齐时先对齐再调（runtime/src/xstack.c）
+ }
+ 
+ // ---------- 兜底现编（§12.3，着色器线 s2a_dsh_compile）----------
+diff --git a/graphics/nvn/tests/host_stubs.h b/graphics/nvn/tests/host_stubs.h
+index b269290..6ff2b27 100644
+--- a/graphics/nvn/tests/host_stubs.h
++++ b/graphics/nvn/tests/host_stubs.h
+@@ -32,6 +32,7 @@ int s2a_screen_h(void) { return 1080; }
+ unsigned s2a_screen_gen(void) { return 0; } int s2a_screen_switch(int w, int h) { (void)w; (void)h; return 0; }   // 运行中换屏（runtime/src/widen.c）：单测不换
+ void s2a_track_write_quiet(uint64_t a, uint64_t n) { (void)a; (void)n; }
+ void *sw_xstack_wrap(const char *name, void *fn) { (void)name; return fn; }
++void *sw_xstack_leaf(const char *name, void *fn) { (void)name; return fn; }   // runtime/src/xstack.c 叶子桩（host_adapt.m big_wrap 交给 nvn_leaf_wrap）：单测原样返回
+ // 宽屏（graphics/widen）：s2a_widen_game() = 0 时直连不调其余入口。
+ // 把后端源码编进同一 TU 的单测会经 widen_glue.inc 拿到真实原型，这里按原型写不了，改由它们自己给（S2A_TEST_REAL_WIDEN）
+ #ifndef S2A_TEST_REAL_WIDEN
+diff --git a/graphics/nvn/tests/t_nvn_b.c b/graphics/nvn/tests/t_nvn_b.c
+index 45c8c0f..a574d56 100644
+--- a/graphics/nvn/tests/t_nvn_b.c
++++ b/graphics/nvn/tests/t_nvn_b.c
+@@ -43,6 +43,18 @@ static void native_is(const NVNwindow *window, NVNnativeWindow expected) {
+     CHECK(NATIVE, API(nvnWindowGetNativeWindow)(window) == expected);
+     CHECK(NATIVE, !memcmp(before, window, sizeof before));
+ }
++#if !defined(__ANDROID__)
++// 叶子桩接点核对用的替身包装器（main 末尾）：只记交了哪些，原样交回 (upstream S2Arm b56e1c8b0)
++extern void nvn_unimpl_entry(void), nvn_big_entry(void), nvn_prof_entry(void);
++void nvn_leaf_wrap(void *(*leaf)(const char *, void *));
++static unsigned lr_got, lr_cmdbuf, lr_entries, lr_stack;
++static void *leaf_rec(const char *name, void *fn) {
++    lr_got++; lr_cmdbuf += !strncmp(name, "nvnCommandBuffer", 16);
++    lr_entries += fn == (void *)nvn_unimpl_entry || fn == (void *)nvn_big_entry || fn == (void *)nvn_prof_entry;
++    lr_stack += strstr(name, "HdrDisplayMetadata") != NULL;
++    return fn;
++}
++#endif
+ int main(int argc, char **argv) {
+     if (argc > 2 || (argc == 2 && strcmp(argv[1], CROP) && strcmp(argv[1], NATIVE))) {
+         fprintf(stderr, "usage: t_nvn_b [%s|%s]\n", CROP, NATIVE); return 2;
+@@ -108,6 +120,20 @@ int main(int argc, char **argv) {
+     CHECK(NATIVE, b.pre == guard && b.post == guard);
+ 
+     for (int i = 0; i < 4; i++) API(nvnTextureFinalize)(&textures[i]);
++#if !defined(__ANDROID__)
++    // 叶子桩接点（11-17，hle_nvn.c nvn_leaf_wrap）：留在游戏栈上的 C 实现交给包装器；未实现桩 / 大栈入口 / 计时入口（靠 x16 = 槽地址找实现）与
++    //   带栈参的四个不交。期望：交出的不少于 1 个、含命令录制 nvnCommandBuffer*；一个也不是那三种入口；不含四个带栈参的；再调一次不重复交（幂等）
++    if (!query) {
++        nvn_leaf_wrap(leaf_rec); unsigned first = lr_got; nvn_leaf_wrap(leaf_rec);
++        checks += 5;
++        if (!(first >= 1)) { bad++; fprintf(stderr, "leaf: 交出 %u 个\n", first); }
++        if (!(lr_cmdbuf >= 1)) { bad++; fprintf(stderr, "leaf: 没有交命令录制\n"); }
++        if (lr_entries) { bad++; fprintf(stderr, "leaf: 交了 %u 个跳板入口\n", lr_entries); }
++        if (lr_stack) { bad++; fprintf(stderr, "leaf: 交了 %u 个带栈参的\n", lr_stack); }
++        if (lr_got != first) { bad++; fprintf(stderr, "leaf: 第二次又交了 %u 个（应幂等）\n", lr_got - first); }
++        printf("叶子桩接点：交出 %u 个（命令录制 %u 个），跳板入口 0、带栈参 0\n", first, lr_cmdbuf);
++    }
++#endif
+     printf("%s t_nvn_b %s: %u assertions, %u mismatches\n", bad ? "✗" : "✓", query ? query : "window queries", checks, bad);
+     return bad != 0;
+ }
+diff --git a/runtime/src/crash.c b/runtime/src/crash.c
+index 3444399..603c742 100644
+--- a/runtime/src/crash.c
++++ b/runtime/src/crash.c
+@@ -141,6 +141,22 @@ void s2a_emul_store_bench(void) { LOG("Android 使用完整读回；未运行 Ma
+ // 拦写模拟自测（帧率能耗线 10-24，拦写模拟开着时（缺省开，S2A_TRACK_EMUL_STORE=0 关）起局跑一次）：一张只读测试页上连写 N 次，每次都「缺页 → 信号里经可写别名模拟 → 返回」，
+ // 总时长 / N = 每次缺页 + 模拟的全部成本（含内核投递信号与返回；写跟踪计数里的每次耗时不含这一段）。测试页的缺页在信号处理最前面认领，不进写跟踪
+ static _Atomic uint64_t g_esb_page;
++// RewindBox (upstream S2Arm 892454c0e): 过期权限缺页（SIGBUS 写权限族，四款四台，现场都是写权限错 ESR DFSC 0x0F、出事那块记录时却已 rw-）：
++//   写跟踪类的钩子（nvn_dirty.c on_fault 只认还登记着的范围）没认领时，可能是这一页刚被别的线程合法放开——范围注销 / 内存池回收把页恢复可写、
++//   同时摘掉登记，缺页处理晚了一步就找不到主人，按崩溃收了。翻译 / 权限类缺页（DFSC 0x04–0x0F）且内核里这页此刻已有要的权限：返回重执行。
++//   同一线程同一地址连续超过 8 次仍缺页就不再重试（不是过期，交回崩溃路径，免空转）
++static _Atomic uint64_t g_stale_perm;
++uint64_t s2a_stale_perm_count(void) { return atomic_load(&g_stale_perm); }
++static __thread uint64_t t_stale_addr; static __thread unsigned t_stale_n;
++static int stale_perm_retry(uint64_t fa, int w, uint32_t esr) {
++    unsigned dfsc = esr & 0x3f; if (dfsc < 0x04 || dfsc > 0x0f) return 0;   // 只认翻译 / 访问标志 / 权限三类缺页（0x04–0x0F）；外部中止、对齐、TLB 冲突等不归这里
++    vm_address_t a = (vm_address_t)(fa & ~(uint64_t)(vm_page_size - 1)); vm_size_t sz = 0; vm_region_basic_info_data_64_t info;
++    mach_msg_type_number_t c = VM_REGION_BASIC_INFO_COUNT_64; mach_port_t o = MACH_PORT_NULL;
++    if (vm_region_64(mach_task_self(), &a, &sz, VM_REGION_BASIC_INFO_64, (vm_region_info_t)&info, &c, &o) != KERN_SUCCESS || a > (vm_address_t)fa) return 0;
++    if (!(info.protection & (w ? VM_PROT_WRITE : VM_PROT_READ))) return 0;
++    if (t_stale_addr == fa) { if (++t_stale_n > 8) { t_stale_n = 0; return 0; } } else { t_stale_addr = fa; t_stale_n = 1; }
++    atomic_fetch_add_explicit(&g_stale_perm, 1, memory_order_relaxed); return 1;
++}
+ // RewindBox (patch 0075): 1 = the measurement was skipped for an attached debugger and has not run since. Its first call is the process's first
+ //   s2a_alias_thread_init (s2a_crash_install, after the signal handlers), so 1 also says they are installed: ios/app.m's heartbeat runs it then and only then
+ static _Atomic int g_esb_debugger_skip;
+@@ -316,6 +332,7 @@ static void on_crash(int sig, siginfo_t *si, void *ctx) {
+         }
+         { int s2a_det_watch_fault(uint64_t, uint64_t, uint64_t, uint64_t); ucontext_t *u = ctx;   // 确定性诊断写监视（S2A_DET_WATCH）
+           if ((esr >> 6 & 1) && s2a_det_watch_fault((uint64_t)si->si_addr, u->uc_mcontext->__ss.__pc, u->uc_mcontext->__ss.__lr, u->uc_mcontext->__ss.__fp)) return; }
++        if ((ec == 0x24 || ec == 0x25) && stale_perm_retry((uint64_t)si->si_addr, (int)(esr >> 6 & 1), esr)) return;   // upstream 892454c0e: 页已被别的线程放开，重执行（见 stale_perm_retry）
+     }
+     if (rb_chain(sig, si, ctx)) return;   // RewindBox guest: not the engine's fault, the host's handler took it (no-op in S2Arm.app)
+     ucontext_t *uc = ctx; pthread_t self = pthread_self(), none = NULL;
+diff --git a/runtime/src/entry.S b/runtime/src/entry.S
+index 65cbf6c..71978fc 100644
+--- a/runtime/src/entry.S
++++ b/runtime/src/entry.S
+@@ -19,6 +19,38 @@ PLAT_ASM_SYM(xs_stubs):
+     .set k, k + 1
+     .endr
+ 
++// 叶子桩（xstack.c k_leaf：memcpy / memset / strlen / 基本数学等，不切栈、在客体栈上跑）：第 k 个 = movz x9,#k; b xs_leaf_entry，目标同在 g_xs_fn[k]。
++//   客体 sp 可以不是 16 字节对齐（Horizon 不查，苹果芯片以 sp 为基址的访存要求对齐：宿主函数开头一压栈就 SIGBUS，D-DVZZ 远端版 memmove）。
++//   sp 对齐：直接尾跳（同原来）；不对齐：在客体栈当前 sp 之下取对齐的 16 字节存原 sp 与 lr，调完恢复——AAPCS 没有红区，sp 之下本就可用；
++//   名单里的函数参数都在寄存器（≤ 8 个整型 / 浮点参数、无栈上传参），挪 sp 不影响参数。只动 x9..x17
++    .globl PLAT_ASM_SYM(xs_leaf_stubs)
++    .p2align 3
++PLAT_ASM_SYM(xs_leaf_stubs):
++    .set k, 0
++    .rept 8192                // = xstack.c XS_MAX（和 xs_stubs 共用 g_xs_fn 的编号）
++    movz x9, #k
++    b PLAT_ASM_SYM(xs_leaf_entry)
++    .set k, k + 1
++    .endr
++
++    .p2align 2
++PLAT_ASM_SYM(xs_leaf_entry):
++    PLAT_ASM_ADRP(x16, PLAT_ASM_SYM(g_xs_fn))
++    PLAT_ASM_ADD(x16, PLAT_ASM_SYM(g_xs_fn))
++    ldr x16, [x16, x9, lsl #3]           // 目标
++    mov x17, sp
++    tst x17, #15
++    b.ne 1f
++    br x16                               // 对齐：尾跳
++1:  and x10, x17, #~15
++    sub x10, x10, #16
++    mov sp, x10
++    stp x17, x30, [sp]                   // 原 sp、lr
++    blr x16
++    ldp x17, x30, [sp]
++    mov sp, x17
++    ret
++
+     .p2align 2
+ PLAT_ASM_SYM(xs_entry):
+     PLAT_ASM_ADRP(x16, PLAT_ASM_SYM(g_xs_fn))
+diff --git a/runtime/src/far.c b/runtime/src/far.c
+index 5d4a933..8165738 100644
+--- a/runtime/src/far.c
++++ b/runtime/src/far.c
+@@ -244,7 +244,7 @@ static int far_atomic(_STRUCT_ARM_THREAD_STATE64 *ss, uint32_t i, uint64_t delta
+             uint64_t e = (uint64_t)g_mon[k].val; int ok = g_mon[k].len == n && g_mon[k].addr == ea && cas_n(h, n, &e, rx(ss, Rt));
+             g_mon[k].len = 0; wx(ss, Rs, ok ? 0 : 1); return 1;
+         }
+-        if (!o2 && o1 && Rt2 != 31 && size >= 2) {   // LDXP / LDAXP / STXP / STLXP（每个寄存器 4 / 8 字节）
++        if (!o2 && o1 && size >= 2) {   // LDXP / LDAXP / STXP / STLXP（每个寄存器 4 / 8 字节）；第二个寄存器可以是 xzr（写 0）。与 CASP 的区分靠位 31（CASP 恒 0、独占对恒 1），不靠 Rt2
+             int k = mon_slot((uintptr_t)pthread_self()); unsigned e1 = size == 3 ? 8 : 4; if (k < 0) return 0;
+             if (L) { unsigned __int128 v = size == 3 ? __atomic_load_n((unsigned __int128 *)h, __ATOMIC_SEQ_CST) : __atomic_load_n((uint64_t *)h, __ATOMIC_SEQ_CST);
+                 g_mon[k].addr = ea; g_mon[k].len = 2 * e1; g_mon[k].val = v;
+diff --git a/runtime/src/gate.c b/runtime/src/gate.c
+index f50385e..9692e71 100644
+--- a/runtime/src/gate.c
++++ b/runtime/src/gate.c
+@@ -9,6 +9,8 @@
+ #endif
+ #include <pthread.h>
+ #include <stdlib.h>
++// RewindBox (upstream S2Arm 892454c0e): 弱缺省定义，真定义在 crash.c；只链 gate.c 的单测没有 crash.c，用这份返回 0
++__attribute__((weak)) uint64_t s2a_stale_perm_count(void) { return 0; }
+ 
+ enum { G_SVC, G_CNTPCT, G_CNTVCT, G_WIDE, G_SPIN, G_AREGION };
+ typedef struct { uint64_t ret; int kind, arg; uint64_t orig; } gate_t;
+@@ -103,6 +105,9 @@ void s2a_svc_red_summary(void) {   // 退出时一行，健康表读：空 = 报
+     char b[1024]; size_t k = 0; b[0] = 0;
+     for (int i = 0; i < 256; i++) { uint64_t n = atomic_load(&g_red[i]); if (n && k < sizeof b - 32) k += (size_t)snprintf(b + k, sizeof b - k, " %#x×%llu", i, (unsigned long long)n); }
+     LOG("未实现系统调用：%s", k ? b : " 无");
++    // 过期权限缺页重执行了几次（crash.c stale_perm_retry，upstream 892454c0e）：有才报
++    { uint64_t n = s2a_stale_perm_count();
++      if (n) LOG("过期权限缺页：重执行 %llu 次（缺页没人认领、内核里这页已有要的权限）", (unsigned long long)n); }
+ }
+ 
+ void s2a_svc_frame(uint64_t pc);                         // thread.c: record the original PC before any dispatcher can return
+diff --git a/runtime/src/svc_mem.c b/runtime/src/svc_mem.c
+index 8923a0e..29a1168 100644
+--- a/runtime/src/svc_mem.c
++++ b/runtime/src/svc_mem.c
+@@ -1048,6 +1048,7 @@ static void punch_reset_locked(void) {
+     g_punch_inline_n = g_punch_forget_n = 0; g_unmap_n = g_unmap_ns = g_unmap_max_ns = 0;
+ }
+ #ifdef S2A_UNIT_TEST
++int s2a_mem_test_alias_eacces;   // 单测：对齐 MapMemory 的共享映射按「最大权限不含写」处理（真机 iPad 上源在私有文件映射里的情形，Mac 上造不出来）
+ uint64_t s2a_mem_test_punch_pending(void) { return g_punch_pending_n; }
+ void s2a_mem_test_punch_stats(uint64_t *inline_zero, uint64_t *forget) { *inline_zero = g_punch_inline_n; *forget = g_punch_forget_n; }
+ #endif
+@@ -1337,6 +1338,9 @@ static int svc_mem_impl(int num, uint64_t *regs, uint64_t orig) {
+     switch (num) {
+     case 0x01: {  // SetHeapSize(→x1 堆基址; x1 大小)
+         uint64_t size = regs[1];
++        // 出参先置 0，失败的每条路都带着它返回（同 Ryujinx Syscall.SetHeapSize / KPageTableBase.SetHeapSize 开头 address = 0）：原先失败时 x1 原样留着请求的大小，
++        //   不看结果码的游戏拿它当堆基址往下写（D-ASK2 iPad mini 6：设堆 0xD001 后照样初始化堆，写进宿主只读代码段 SIGBUS）
++        regs[1] = 0;
+         if (size & 0x1fffff) { regs[0] = 0xCA01; return 1; }   // InvalidSize：Horizon 要 2 MB 对齐
+         GMU_LOCK();
+         uint64_t fixed = pool_fixed();
+@@ -1510,13 +1514,26 @@ static int svc_mem_impl(int num, uint64_t *regs, uint64_t orig) {
+         if (!((dst | src | size) & (HPG - 1))) {
+             if (backing_begin_locked(dst, size, src)) { GMU_UNLOCK(); regs[0] = 0xD401; return 1; }
+             uint64_t ae = alias_map(dst, src, size, VM_PROT_READ | VM_PROT_WRITE);
+-            if (!ae && mprotect((void *)dst, size, PROT_READ | PROT_WRITE)) die("MapMemory 共享映射 mprotect errno=%d", errno);   // 源被设过只读时 vm_remap 随源保护，栈要读写
+-            if (ae) { backing_end_locked(dst, size, 0, 0); GMU_UNLOCK(); regs[0] = ae; return 1; }
+-            punch_forget_locked(dst, dst + size);   // #258：目标原映射被盖掉，这段若是上次 UnmapMemory 释放的待清零页，只撤销标记
+-            map_add(dst, size, src, ST_STACK, MAP_ALIAS);
+-            backing_end_locked(dst, size, 1, 1);
+-            GMU_UNLOCK();
+-            regs[0] = 0; return 1;
++            int mpe = ae ? 0 : mprotect((void *)dst, size, PROT_READ | PROT_WRITE) ? errno : 0;   // 源被设过只读时 vm_remap 随源保护，栈要读写
++#ifdef S2A_UNIT_TEST
++            if (!ae && !mpe && s2a_mem_test_alias_eacces) mpe = EACCES;
++#endif
++            if (mpe == EACCES) {
++                // 共享映射的最大权限没有「写」（#4c853c：iPad 上游戏把线程栈放在主程序数据段、堆用 0 字节，数据段是从签名镜像文件私有映射来的，
++                //   vm_remap 共享过去最大权限只剩读，mprotect 读写 EACCES，原先 die 闪退；Mac 上同样的映射最大权限照旧可写）。
++                //   撤回这次共享映射，改走下面的拷贝路径（不对齐时本来就走它；解除时把内容搬回源）
++                alias_unmap(dst, size, src, PROT_READ | PROT_WRITE);
++                backing_end_locked(dst, size, 0, 1);
++                static _Atomic int said; if (!atomic_exchange(&said, 1)) LOG("MapMemory：%#llx 共享映射的最大权限不含写（源 %#llx 在只能私有映射的区域），改用拷贝", (unsigned long long)dst, (unsigned long long)src);
++            } else {
++                if (mpe) die("MapMemory 共享映射 mprotect errno=%d", mpe);
++                if (ae) { backing_end_locked(dst, size, 0, 0); GMU_UNLOCK(); regs[0] = ae; return 1; }
++                punch_forget_locked(dst, dst + size);   // #258：目标原映射被盖掉，这段若是上次 UnmapMemory 释放的待清零页，只撤销标记
++                map_add(dst, size, src, ST_STACK, MAP_ALIAS);
++                backing_end_locked(dst, size, 1, 1);
++                GMU_UNLOCK();
++                regs[0] = 0; return 1;
++            }
+         }
+         // 拷贝前同步源侧（审计 P1-48，同安卓同一协议）：GPU 改过的子页先回写到 CPU、跟踪中的页先解开，再 memcpy，否则拷进栈的是回写前的旧字节。
+         //   换页事务 begin 不算：track.c 的 s2a_track_backing_begin 只等排空期结束、挡新排空期，不看 source、不回写不解开。
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index ec55649..5cdaec1 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -3357,20 +3357,38 @@ static int svc_thread_impl(thr_t *me, int num, uint64_t *regs) {
+         int64_t deadline = ns > 0 ? now_mono_ns() + ns : 0, r; int idx = -1;
+         if (n < 0 || n > 64) { regs[0] = 0xEE01; return 1; }   // OutOfRange（Horizon 上限 64）
+         glock(); me->wn = n;
+-        for (;;) {
++        // RewindBox (upstream S2Arm 464e19898, #1520): the handles are checked once, at entry, and each event is pinned (one more reference), as Horizon and Ryujinx wait
++        //   on objects, not handles. A handle the game closes during the wait (a video decoder thread closing the event it waits on at the end of a video) leaves the
++        //   object alive and a later signal still wakes the wait. With 0157 closing a handle wakes its waiters, which then looked the handle up again, found it gone and
++        //   returned R_BAD_HANDLE (2001-0114: the game aborts). Threads are still looked up by handle; one closed meanwhile counts as never signaled
++        event_t *pin[64] = {0}; int bad = 0;
++        for (int i = 0; i < n && !bad; i++) {
++            uint32_t handle = hs[i];
++            me->sync_handles[i] = handle; me->sync_objects[i] = 0;
++            if (handle == S2A_H_CUR_THREAD) continue;
++            int ix = h_idx(handle); uint32_t kind = ix ? g_h[ix].kind : 0;
++            if (kind == S2A_OBJ_EVENT_R) { pin[i] = g_h[ix].obj; pin[i]->refs++; me->sync_objects[i] = (uintptr_t)pin[i]; }
++            else if (kind == S2A_OBJ_THREAD) me->sync_objects[i] = (uintptr_t)g_h[ix].obj;
++            else bad = 1;
++        }
++        if (bad) r = R_BAD_HANDLE;
++        for (; !bad;) {
+             if (me->cancel) { me->cancel = 0; r = R_CANCELLED; break; }
+-            int bad = 0;
+             for (int i = 0; i < n && idx < 0; i++) {
+-                uint32_t handle = hs[i];
+-                me->sync_handles[i] = handle;
+-                if (sig_obj(handle, &bad, &me->sync_objects[i])) {
++                int ready;
++                if (pin[i]) {
++#ifndef S2A_UNIT_TEST
++                    if (!pin[i]->did && s2a_det_in_turn()) ev_expose(pin[i]);   // 确定性档：同 sig_obj
++#endif
++                    ready = pin[i]->signaled;
++                } else { int gone = 0; uintptr_t object = 0; ready = sig_obj(me->sync_handles[i], &gone, &object); }   // a thread (or the current-thread pseudo handle)
++                if (ready) {
+                     idx = i;
+ #if defined(__APPLE__)
+-                    me->mkw_signaled_handle = handle;
++                    me->mkw_signaled_handle = me->sync_handles[i];
+ #endif
+                 }
+             }
+-            if (bad) { r = R_BAD_HANDLE; break; }
+             if (idx >= 0) { r = 0; break; }
+             int64_t left = ns < 0 ? -1 : ns == 0 ? 0 : deadline - now_mono_ns();
+             if (ns > 0 && left <= 0) { r = R_TIMEOUT; break; }
+@@ -3380,6 +3398,7 @@ static int svc_thread_impl(thr_t *me, int num, uint64_t *regs) {
+             // re-enqueueing it would keep this thread alive indefinitely.
+             if (r == R_TIMEOUT || r == R_CANCELLED) break;
+         }
++        for (int i = 0; i < n; i++) if (pin[i] && --pin[i]->refs == 0) { if (pin[i]->did) evmap_del(pin[i]); free(pin[i]); }   // the reference taken at entry (as close_handle)
+         me->wn = 0; pthread_mutex_unlock(&G);
+         regs[0] = (uint64_t)r; regs[1] = idx >= 0 ? (uint64_t)idx : 0; return 1;
+     }
+diff --git a/runtime/src/xstack.c b/runtime/src/xstack.c
+index 405f167..fbb7708 100644
+--- a/runtime/src/xstack.c
++++ b/runtime/src/xstack.c
+@@ -16,7 +16,7 @@ int s2a_android_is_host_code(uint64_t address);
+ #endif
+ 
+ #define XS_MAX 8192   // = entry.S xs_stubs 条数
+-extern const uint32_t xs_stubs[];
++extern const uint32_t xs_stubs[], xs_leaf_stubs[];
+ // entry.S uses direct PC-relative references within this DSO. ELF must not
+ // preempt these two private objects; keep Apple's existing visibility.
+ #if defined(__ANDROID__)
+@@ -37,22 +37,33 @@ __attribute__((constructor)) static void xs_key_init(void) {   // 键须在任
+     pthread_key_t k; if (pthread_key_create(&k, NULL)) die("切栈：pthread_key_create 失败");
+     g_xs_key = (uint64_t)k;
+ }
+-// 不套桩的叶子函数（libc 直通表里的内存 / 字符串 / 基本数学）：调用极频繁（每帧上万次），自身几乎不用栈，跑在游戏栈上与真机 SDK 的同名函数一样浅。
++// 不切栈的叶子函数（libc 直通表里的内存 / 字符串 / 基本数学；11-17 起套叶子桩，只在 sp 不对齐时先对齐）：调用极频繁（每帧上万次），自身几乎不用栈，跑在游戏栈上与真机 SDK 的同名函数一样浅。
+ // 不在此列的直通函数（strtod / strftime / mktime / localtime_r 等用栈较多、可能进系统库深处）照样切栈
+ static const char *const k_leaf[] = {"memcpy", "memset", "memmove", "memcmp", "memchr", "strlen", "strnlen", "strcmp", "strncmp", "strcpy", "strncpy",
+     "strcat", "strncat", "strchr", "strrchr", "strstr", "strspn", "strcspn", "strpbrk", "strcasecmp", "strncasecmp", "atoi",
+     "sqrtf", "cbrtf", "expf", "acosf", "cosf", "sinf", "atan2f", "fmodf", "cos", "sin", "powf", "atanf", "tanf", "asinf", "log10", "pow", "logf",
+     "ldexpf", "log10f", "log", "ldexp", "frexp", "atan2", "modff", "exp2f", "exp2", "log2f", "log2", "lroundf"};
+-void *sw_xstack_wrap(const char *name, void *fn) {
++#ifdef S2A_UNIT_TEST
++const char *s2a_xs_leaf_name(unsigned i) { return i < sizeof k_leaf / sizeof *k_leaf ? k_leaf[i] : NULL; }   // 单测逐个核整份名单
++#endif
++// 叶子函数也套桩（11-17 D-DVZZ：客体 sp 不对齐时宿主叶子函数开头一压栈就 SIGBUS）：叶子桩 xs_leaf_stubs 不切栈，只在 sp 不对齐时先对齐、调完恢复（entry.S xs_leaf_entry）
++static void *xs_wrap(const char *name, void *fn, int leaf) {
+     if (!fn) return fn;
+-    for (unsigned i = 0; i < sizeof k_leaf / sizeof *k_leaf; i++) if (!strcmp(name, k_leaf[i])) return fn;
++    const uint32_t *stubs = leaf ? xs_leaf_stubs : xs_stubs;
+     pthread_mutex_lock(&g_xs_mu);
+-    for (unsigned i = 0; i < g_nxs; i++) if (g_xs_fn[i] == fn) { pthread_mutex_unlock(&g_xs_mu); return (void *)&xs_stubs[2 * i]; }   // 同一实现共用一个桩
++    for (unsigned i = 0; i < g_nxs; i++) if (g_xs_fn[i] == fn) { pthread_mutex_unlock(&g_xs_mu); return (void *)&stubs[2 * i]; }   // 同一实现共用一个编号（两种桩按名字取）
+     if (g_nxs == XS_MAX) { pthread_mutex_unlock(&g_xs_mu); die("切栈桩不够（%d）：%s", XS_MAX, name); }
+     unsigned i = g_nxs++; g_xs_fn[i] = fn;
+     pthread_mutex_unlock(&g_xs_mu);
+-    return (void *)&xs_stubs[2 * i];
++    return (void *)&stubs[2 * i];
++}
++void *sw_xstack_wrap(const char *name, void *fn) {
++    int leaf = 0;
++    for (unsigned i = 0; i < sizeof k_leaf / sizeof *k_leaf && !leaf; i++) leaf = !strcmp(name, k_leaf[i]);
++    return xs_wrap(name, fn, leaf);
+ }
++// 不在名单里、但同样留在游戏栈上跑的宿主函数（直连层 NVN 命令录制，每帧上万次；graphics/nvn/gfx/nvn/hle_nvn.c nvn_leaf_wrap）：一律给叶子桩
++void *sw_xstack_leaf(const char *name, void *fn) { return xs_wrap(name, fn, 1); }
+ // 客体线程在宿主栈上、进客体之前调：top = 宿主代码从这里往下用（调用方自己的活帧在其上）
+ static void xs_plat_init(void) {
+     uint64_t off;
+diff --git a/runtime/tests/mk/xstack_leaf.mk b/runtime/tests/mk/xstack_leaf.mk
+new file mode 100644
+index 0000000..656856b
+--- /dev/null
++++ b/runtime/tests/mk/xstack_leaf.mk
+@@ -0,0 +1,10 @@
++# native-test-xstack_leaf：叶子桩（xstack.c + entry.S xs_leaf_entry）单测；entry.S 别的入口引用的运行时符号由测试给占位；平台层用真的 plat_apple.c
++NATIVE_TEST_OWN += xstack_leaf
++ifeq ($(S2A_UNAME),Darwin)
++.PHONY: native-test-xstack_leaf
++native-test-xstack_leaf:
++	@mkdir -p $(BUILD)/tests
++	$(CC) $(CFLAGS) $(NATIVE_INC) -DS2A_UNIT_TEST -o $(BUILD)/tests/t_xstack_leaf runtime/tests/t_xstack_leaf.c runtime/src/xstack.c runtime/src/entry.S platform/apple/plat_apple.c -Wl,-undefined,dynamic_lookup
++	$(BUILD)/tests/t_xstack_leaf
++TEST_TARGETS += native-test-xstack_leaf
++endif
+diff --git a/runtime/tests/t_crash.c b/runtime/tests/t_crash.c
+index 8c0fbb6..0cc79d4 100644
+--- a/runtime/tests/t_crash.c
++++ b/runtime/tests/t_crash.c
+@@ -18,7 +18,8 @@ int s2a_track_emul_ok(uint64_t a, uint64_t n) { (void)a; (void)n; return 0; }
+ int s2a_track_store_ok(uint64_t a, uint64_t n) { (void)a; (void)n; return 0; }
+ // ④ 崩溃路径上会调到的（认领 / 完整报告）：空桩。不配桩时 dyld 在信号处理里懒绑定会死锁
+ int s2a_far_fault(void *c, uint64_t a, int w) { (void)c; (void)a; (void)w; return 0; }
+-int s2a_direct_fault(void *a, int w, void *c) { (void)a; (void)w; (void)c; return 0; }
++static void (*g_df_side)(void *);   // ⑩ (upstream 892454c0e)：钩子里先做一件事（模拟「别的线程刚把这页放开」），照旧不认领
++int s2a_direct_fault(void *a, int w, void *c) { (void)w; (void)c; if (g_df_side) g_df_side(a); return 0; }
+ int s2a_track_fault(void *a, int w) { (void)a; (void)w; return 0; }
+ int s2a_det_watch_fault(uint64_t a, uint64_t b, uint64_t c, uint64_t d) { (void)a; (void)b; (void)c; (void)d; return 0; }
+ void s2a_touch_thread_init(void) {} void s2a_alias_thread_init(void) {}
+@@ -44,6 +45,7 @@ static int frames_logged(uint64_t fp, char *out, size_t cap) {
+     int c = 0; for (char *p = out; (p = strstr(p, "  #")); p += 3) c++;
+     return c;
+ }
++static void df_release(void *a) { mprotect((void *)((uintptr_t)a & ~(uintptr_t)0x3fff), 0x4000, PROT_READ | PROT_WRITE); }
+ int main(void) {
+     char log[4096];
+     static uint64_t st[64] __attribute__((aligned(16)));   // 手搭帧：每帧 {上一帧 fp, 返回地址}，地址递增（同真栈：调用者帧在高处）
+@@ -92,6 +94,15 @@ int main(void) {
+       int torn = 0; for (char *l = out; *l; ) { char *e = strchr(l, '\n'); if (!e) { torn++; break; }
+           char *a = strstr(l, "[s2a]"); if (a && a < e) { char *b2 = strstr(a + 5, "[s2a]"); if (b2 && b2 < e) torn++; } l = e + 1; }
+       eq("⑤ 没有被另一条线程插断的行（一行里两个 [s2a]、或末行没写完）", 0, torn); }
++    // ⑩ 过期权限缺页（upstream 892454c0e）：子进程往只读页写；缺页钩子里先把这页放成可写、照旧不认领（= 处理晚了一步，别的线程已把页放开、摘了登记）。
++    //   期望：重执行后写成功、子进程核对写进的值后退 0。改前：钩子没认领 → 崩
++    { char path[] = "/tmp/t_crash_stale_XXXXXX"; int fd = mkstemp(path);
++      volatile uint8_t *ro = mmap(NULL, 0x4000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0); ro[0] = 1; mprotect((void *)ro, 0x4000, PROT_READ);   // 先写一次装进页表，再设只读：之后的写是权限错
++      pid_t c = fork();
++      if (c == 0) { g_s2a_logfd = fd; s2a_crash_install(); g_df_side = df_release; ro[0x20] = 0x5a; _exit(ro[0x20] == 0x5a ? 0 : 3); }
++      int ws = 0; waitpid(c, &ws, 0); close(fd); unlink(path);
++      eq("⑩ 页已被放开、钩子没认领：重执行后写成功（子进程退 0）", 1, WIFEXITED(ws) && WEXITSTATUS(ws) == 0);
++      munmap((void *)ro, 0x4000); }
+     if (bad) { printf("✗ t_crash：%d/%d 项不符\n", bad, n); return 1; }
+     printf("✓ t_crash：%d 项崩溃现场全符（回溯好链、坏指针不二次缺页、未映射起点、两段式第一段先落盘、两线程同时崩两份现场都在）\n", n);
+     return 0;
+diff --git a/runtime/tests/t_far.c b/runtime/tests/t_far.c
+index 08af1df..1a5e46b 100644
+--- a/runtime/tests/t_far.c
++++ b/runtime/tests/t_far.c
+@@ -77,6 +77,11 @@ int main(void) {
+     { uint64_t g = G + 0x240; uint32_t st; *(uint64_t *)(h0 + 0x240) = 1; *(uint64_t *)(h0 + 0x248) = 2;
+       __asm__ volatile("1: ldxp x8, x9, [%1]\n add x8, x8, #10\n add x9, x9, #20\n stxp %w0, x8, x9, [%1]\n cbnz %w0, 1b" : "=&r"(st) : "r"(g) : "x8", "x9", "memory");
+       EQ("独占对 前半 1 → 11", 11, *(uint64_t *)(h0 + 0x240)); EQ("独占对 后半 2 → 22", 22, *(uint64_t *)(h0 + 0x248)); }
++    // 写独占对的第二个寄存器是 xzr（stlxp w8, x21, xzr, [x28]：一款游戏在远端清一个 16 字节槽的后半，玩家诊断三份因此 SIGSEGV）：前半写值、后半写 0
++    { uint64_t g = G + 0x250; uint32_t st; *(uint64_t *)(h0 + 0x250) = 5; *(uint64_t *)(h0 + 0x258) = 6;
++      g_refused = 0;   // 不认这一形的旧代码会拒绝代执行：跳回这里报红，不在独占循环里重试挂死
++      if (!sigsetjmp(g_jb, 1)) __asm__ volatile("1: ldaxp x8, x9, [%1]\n add x8, x8, #1\n stlxp %w0, x8, xzr, [%1]\n cbnz %w0, 1b" : "=&r"(st) : "r"(g) : "x8", "x9", "memory");
++      EQ("写独占对带 xzr：不拒绝", 0, g_refused); EQ("写独占对带 xzr 前半 5 → 6", 6, *(uint64_t *)(h0 + 0x250)); EQ("写独占对带 xzr 后半写成 0", 0, *(uint64_t *)(h0 + 0x258)); }
+     // SDK 内存函数族（s2a_far_bind）：G 起两块已分（[G, +32K) 与 [G+2M−16K, G+2M+16K)，两块影子不相邻）
+     { void *(*mc)(void *, const void *, size_t) = (void *)s2a_far_bind("memcpy", 1), *(*ms)(void *, int, size_t) = (void *)s2a_far_bind("memset", 1),
+            *(*mm)(void *, const void *, size_t) = (void *)s2a_far_bind("memmove", 1);
+diff --git a/runtime/tests/t_svc_mem.c b/runtime/tests/t_svc_mem.c
+index eaeb6e0..758f689 100644
+--- a/runtime/tests/t_svc_mem.c
++++ b/runtime/tests/t_svc_mem.c
+@@ -265,6 +265,10 @@ int main(void) {
+           CHECK(ok && r[0] == 0xE801, "GetInfo 29–32 回 0、33 回 0x1000、29 子号 1 回 0xE801：实 ok=%llu rc=%#llx", (unsigned long long)ok, (unsigned long long)r[0]); }
+         memset(r, 0, sizeof r); r[1] = HEAPC + 2 * MB; svc_mem(0x01, r, 0);
+         CHECK(r[0] == 0x10801, "堆再加 2 MB（物理映射已占满池）：SetHeapSize 应回 0x10801，实回 %#llx", (unsigned long long)r[0]);
++        // 失败时出参 x1（堆基址）= 0（同 Ryujinx address = 0；D-ASK2：原先留着请求的大小，不看结果码的游戏拿它当基址写进宿主代码段）
++        CHECK(r[1] == 0, "SetHeapSize 失败（池满）：x1 应为 0，实 %#llx", (unsigned long long)r[1]);
++        memset(r, 0, sizeof r); r[1] = 3 * MB + 0x1000; svc_mem(0x01, r, 0);
++        CHECK(r[0] == 0xCA01 && r[1] == 0, "SetHeapSize 大小不对齐：应回 0xCA01 且 x1 为 0，实 %#llx / %#llx", (unsigned long long)r[0], (unsigned long long)r[1]);
+         #undef PHYS
+         g_nmod = 0;
+     }
+@@ -395,6 +399,20 @@ int main(void) {
+             CHECK(success == 0 && memcmp((void *)b, (void *)(b + 0x18000), 0x4000) == 0 &&
+                   lseek(g_s2a_logfd, 0, SEEK_END) == 0, "MapMemory 成功复制且不记录失败日志");
+             CHECK(SV(0x05, b + 0x18000, b, 0x4000, 0) == 0, "MapMemory 成功用例解除：还回源（映射期间源是借出的，不能作下面用例的源）");
++            // #4c853c：对齐的共享映射最大权限不含写（iPad 上源在主程序数据段的私有文件映射里）→ 撤回共享映射、改走拷贝：
++            //   期望按语义写死：返回 0、目标内容 = 源、目标可写且写目标不改源（拷贝，不是共享）、解除后源拿回目标里写的内容（拷回）
++            {
++                extern int s2a_mem_test_alias_eacces; s2a_mem_test_alias_eacces = 1;
++                s2a_mem_test_stack(b + 0x30000, 0x4000);
++                memset((void *)b, 0x3c, 0x4000);
++                uint64_t fb = SV(0x04, b + 0x30000, b, 0x4000, 0);
++                int same = fb == 0 && memcmp((void *)b, (void *)(b + 0x30000), 0x4000) == 0;
++                if (fb == 0) ((volatile uint8_t *)(b + 0x30000))[0x10] = 0x77;
++                int copy = fb == 0 && ((volatile uint8_t *)b)[0x10] == 0x3c;
++                CHECK(same && copy, "MapMemory 共享映射最大权限不含写：改走拷贝，返回 0、内容一致、写目标不改源（实得 %#llx / %d / %d）", (unsigned long long)fb, same, copy);
++                CHECK(SV(0x05, b + 0x30000, b, 0x4000, 0) == 0 && ((volatile uint8_t *)b)[0x10] == 0x77, "拷贝改道的解除：内容拷回源");
++                s2a_mem_test_alias_eacces = 0;
++            }
+             // 子进程解除目标宿主页映射，让生产 mprotect 真正失败；父进程的窗口保持完整。源取 b+4K（不按宿主页对齐）走拷贝路径——对齐的走共享映射、不 mprotect（族 26）
+             ftruncate(g_s2a_logfd, 0); lseek(g_s2a_logfd, 0, SEEK_SET); s2a_mem_test_map_diag_reset();
+             s2a_mem_test_stack(b + 0x20000, 0x4000);
+diff --git a/runtime/tests/t_thread.c b/runtime/tests/t_thread.c
+index fa01189..fca99e4 100644
+--- a/runtime/tests/t_thread.c
++++ b/runtime/tests/t_thread.c
+@@ -645,6 +645,20 @@ static void lt_waiter(uint64_t arg) { (void)arg;
+     atomic_store(&g_lt_b, atomic_fetch_add(&g_lt_seq, 1) + 1);
+     uint64_t y[31] = {0}; svc_thread(0x0B, y);   // 再进系统调用：唤醒方的「等它跑到下一次系统调用」在这里满足
+     uint64_t e[31] = {0}; svc_thread(0x0A, e); }
++// ③b（#1520 D-BJZ6）：等待中途游戏关掉被等的事件读端句柄。Horizon 等的是对象：事件还被写端持着，从写端触发照样唤醒（甲）；不触发就按超时返回（乙），都不回句柄无效
++static uint32_t g_cw_h; static _Atomic int g_cw_done; static uint64_t g_cw_r0, g_cw_r1;
++static void cw_waiter(uint64_t arg) { uint32_t hs[1] = {g_cw_h}; uint64_t r[31] = {0, (uint64_t)hs, 1, arg}; svc_thread(0x18, r);
++    g_cw_r0 = r[0]; g_cw_r1 = r[1]; atomic_store(&g_cw_done, 1); uint64_t e[31] = {0}; svc_thread(0x0A, e); }
++static void cw_case(int signal_after, uint64_t timeout_ns, uint64_t want) {
++    uint64_t ev[31] = {0}; svc_thread(0x45, ev); uint32_t hw = (uint32_t)ev[1]; g_cw_h = (uint32_t)ev[2]; atomic_store(&g_cw_done, 0);
++    uint64_t r[31] = {0, (uint64_t)cw_waiter, timeout_ns, 0, 44, 0}; svc_thread(0x08, r); uint64_t s_[31] = {r[1]}; svc_thread(0x09, s_);
++    while (!s2a_test_blocked(r[1])) usleep(100);   // 真进了 0x18
++    uint64_t cl[31] = {g_cw_h}; svc_thread(0x16, cl);   // 游戏关掉被等的读端
++    if (signal_after) { uint64_t sg[31] = {hw}; svc_thread(0x11, sg); }
++    while (!atomic_load(&g_cw_done)) usleep(1000);
++    CHECK(g_cw_r0 == want && (want || g_cw_r1 == 0), "③b 等待中关读端%s：期望 %#llx → %#llx（下标 %llu；0xe401 = 句柄无效，旧实现醒来按句柄重查）",
++          signal_after ? "、再从写端触发" : "、不触发", (unsigned long long)want, (unsigned long long)g_cw_r0, (unsigned long long)g_cw_r1);
++    uint64_t cw[31] = {hw}; svc_thread(0x16, cw); }
+ static volatile long g_lc[4]; static _Atomic int g_lc_done;
+ static void lc_worker(uint64_t arg) { (void)arg;
+     for (int round = 0; round < 5; round++) {
+@@ -938,6 +952,8 @@ int main(void) {
+       s2a_event_signal(cc); s2a_event_release(cc); }
+     CHECK(s2a_handle_get(S2A_H_CUR_THREAD, &k, &ck) && ck == g_wtag, "当前线程伪句柄 cookie 仍为句柄（伪句柄约定不变）");
+ 
++    g_case = "③b 等待中关句柄";
++    cw_case(1, 5000000000ull, 0); cw_case(0, 300000000ull, 0xEA01);
+     // ④
+     g_case = "④ SignalToAddress 类型 2";
+     arb64_case(); arb_case(0, 0, 11, 0); arb_case(2, 0, 8, 2); arb_case(2, -1, 8, 2); arb_case(1, 1, 9, 1); arb_case(2, 2, 9, 2); arb_case(3, 2, 10, 2); arb_case(2, 1, 10, 1);
+diff --git a/runtime/tests/t_xstack_leaf.c b/runtime/tests/t_xstack_leaf.c
+new file mode 100644
+index 0000000..f5bc42f
+--- /dev/null
++++ b/runtime/tests/t_xstack_leaf.c
+@@ -0,0 +1,78 @@
++// 叶子桩（xstack.c sw_xstack_wrap 对 k_leaf 名单 + entry.S xs_leaf_entry）单测，11-17 D-DVZZ：
++//   客体 sp 不是 16 字节对齐时（Horizon 不查，苹果芯片以 sp 为基址的访存要求对齐），宿主叶子函数开头一压栈就 SIGBUS。
++// 期望（手写）：① 名单里的名字（memcpy / memmove / memset / strlen）拿到的是桩、不是裸函数；② 经桩、sp 故意错开 8 字节调一个开头压栈的函数：
++//   不崩、返回值对、调完 sp 原样恢复；③ sp 对齐时同样对；④ 反证：sp 错开 8 字节直接调裸函数 → 子进程 SIGBUS（证明这个夹具真能触发对齐异常）
++#include <signal.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <string.h>
++#include <sys/wait.h>
++#include <unistd.h>
++void *sw_xstack_wrap(const char *name, void *fn);
++void *sw_xstack_leaf(const char *name, void *fn);
++#include <time.h>
++__attribute__((noinline)) long add1(long x, long y) { return x + y; }
++const char *s2a_xs_leaf_name(unsigned i);
++extern const uint32_t xs_leaf_stubs[];
++// entry.S 别的入口（门、线程起点、惰性取核钩子）引用的运行时符号：本测不走那些入口，给占位定义让它链得上
++int g_lazy_core;
++void gate_dispatch(void) {} void s2a_guest_return(void) {} void s2a_touch_body(void) {} void sw_thread_returned(void) {}
++__attribute__((noinline)) static long pushes(long a, long b) {   // 开头必压栈：调一个外部函数、局部数组落栈
++    volatile char buf[64]; for (int i = 0; i < 64; i++) buf[i] = (char)(a + i);
++    return a + b + buf[3] + (long)getpid() * 0;
++}
++// 把 sp 往下挪 off 字节（off = 8 → 不对齐），调 fn(a, b)，恢复 sp；返回值、调后 sp 是否原样
++static long call_at(void *fn, long a, long b, long off, int *sp_ok) {
++    long r; uint64_t before, after;
++    __asm__ volatile(
++        "mov %[bf], sp\n"
++        "sub sp, sp, %[off]\n"
++        "mov x0, %[a]\n mov x1, %[b]\n"
++        "blr %[fn]\n"
++        "add sp, sp, %[off]\n"
++        "mov %[af], sp\n"
++        "mov %[r], x0\n"
++        : [r] "=&r"(r), [bf] "=&r"(before), [af] "=&r"(after)
++        : [fn] "r"(fn), [a] "r"(a), [b] "r"(b), [off] "r"(off)
++        : "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x30", "memory", "cc");
++    *sp_ok = before == after; return r;
++}
++static int bad;
++#define CHECK(c, ...) do { if (!(c)) { bad++; printf("✗ "); printf(__VA_ARGS__); printf("\n"); } } while (0)
++int main(void) {
++    void *raw = (void *)pushes;
++    // ① 整份叶子名单逐个：拿到的是叶子桩（落在 xs_leaf_stubs 里），不是裸函数、也不是切栈桩
++    unsigned n = 0;
++    for (const char *nm; (nm = s2a_xs_leaf_name(n)); n++) {
++        uintptr_t s = (uintptr_t)sw_xstack_wrap(nm, raw), lo = (uintptr_t)xs_leaf_stubs;
++        CHECK(s != (uintptr_t)raw && s >= lo && s < lo + 8192 * 8, "① %s 应拿到叶子桩", nm);
++    }
++    CHECK(n >= 50, "① 叶子名单应有 50 个以上名字（实 %u）", n);
++    void *stub = sw_xstack_wrap("memmove", raw);
++    for (long off = 16; off <= 24; off += 8) {   // 16 = 对齐，24 = 错开 8 字节
++        pid_t p = fork();
++        if (p == 0) { int ok; long r = call_at(stub, 5, 7, off, &ok); _exit(r == 5 + 7 + 8 && ok ? 0 : 3); }
++        int st; waitpid(p, &st, 0);
++        CHECK(WIFEXITED(st) && WEXITSTATUS(st) == 0, "%s sp 经桩调：应不崩、返回 20、sp 原样（实 %s %d）", off % 16 ? "② 不对齐" : "③ 对齐",
++              WIFSIGNALED(st) ? "信号" : "退出", WIFSIGNALED(st) ? WTERMSIG(st) : WEXITSTATUS(st));
++    }
++    pid_t p = fork();
++    if (p == 0) { int ok; call_at(raw, 5, 7, 24, &ok); _exit(0); }
++    int st; waitpid(p, &st, 0);
++    CHECK(WIFSIGNALED(st) && (WTERMSIG(st) == SIGBUS || WTERMSIG(st) == SIGSEGV), "④ 反证：不对齐 sp 直接调裸函数应崩（实 %s %d）", WIFSIGNALED(st) ? "信号" : "退出", WIFSIGNALED(st) ? WTERMSIG(st) : WEXITSTATUS(st));
++    // ⑤ 微基准（11-17 维护者：每帧上万次，量 sp 对齐时经桩每次多几纳秒，写进提交说明；不设阈值以外的判据，只防数量级出错）
++    {
++        __attribute__((noinline)) long add1(long x, long y);
++        void *astub = sw_xstack_leaf("bench_add", (void *)add1);
++        long (*direct)(long, long) = add1, (*viastub)(long, long) = (long (*)(long, long))astub;
++        enum { N = 20000000 }; volatile long acc = 0; struct timespec t0, t1, t2;
++        clock_gettime(CLOCK_MONOTONIC, &t0); for (long i = 0; i < N; i++) acc += direct(i, 1);
++        clock_gettime(CLOCK_MONOTONIC, &t1); for (long i = 0; i < N; i++) acc += viastub(i, 1);
++        clock_gettime(CLOCK_MONOTONIC, &t2);
++        double d0 = ((t1.tv_sec - t0.tv_sec) * 1e9 + (t1.tv_nsec - t0.tv_nsec)) / N, d1 = ((t2.tv_sec - t1.tv_sec) * 1e9 + (t2.tv_nsec - t1.tv_nsec)) / N;
++        printf("⑤ 微基准：直接调 %.2f ns/次、经叶子桩（sp 对齐）%.2f ns/次，多 %.2f ns/次（%d 次，acc %ld）\n", d0, d1, d1 - d0, N, (long)acc);
++        CHECK(d1 - d0 < 20, "⑤ 经叶子桩每次多出的时间应远小于 20 ns（实 %.2f）", d1 - d0);
++    }
++    printf("%s t_xstack_leaf：%d 项不通\n", bad ? "✗" : "✓", bad);
++    return bad != 0;
++}

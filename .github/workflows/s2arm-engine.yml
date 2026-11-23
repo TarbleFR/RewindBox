@@ -246,6 +246,8 @@ jobs:
             done
           done
           S2A_TEST_RB_QOS_OWNER=1 S2A_RB_GUEST_QOS_TRANSITIONS=1 make native-test-thread
+          # RewindBox (patch 0317): upstream S2Arm runtime stability fixes (stale permission faults, MapMemory copy fallback, SetHeapSize, far exclusive pairs, leaf stubs)
+          make native-test-crash native-test-svc_mem native-test-far native-test-xstack_leaf native-test-nvn_b
           S2A_TEST_RB_QOS_OWNER=1 S2A_RB_GUEST_QOS_TRANSITIONS=0 build/tests/t_thread
           for mode in 0 1; do
             S2A_RB_SUSTAINED_IDLE=$mode S2A_TEST_SUSTAINED_IDLE=1 S2A_TEST_GENERIC_WIRE=1 \
