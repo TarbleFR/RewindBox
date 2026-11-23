@@ -33,6 +33,11 @@ namespace Ryujinx.Memory
         public static int Device = 9;
         public static int DeviceAvailablePercent => Device;
         public static ulong FootprintBytes => (ulong)Environment.WorkingSet;
+        // The process's headroom (adapt_streaming_memory reads it before a presentation-gap compaction): the critical one,
+        // exactly, unless a case sets another.
+        public const ulong CriticalHeadroom = 256UL * 1024 * 1024;
+        public static ulong Available = CriticalHeadroom;
+        public static ulong AvailableBytes => Available;
     }
 }
 
@@ -201,6 +206,15 @@ static class Fixture
         Ryujinx.Memory.HostMemoryBudget.Device = 16;
         long notShort = Stall(1500);
         Ryujinx.Memory.HostMemoryBudget.Device = 9;
+        // Short again, with one byte of process headroom above the critical one: nothing, when the class has that
+        // condition (adapt_streaming_memory; -2 when it has not). Back at the critical headroom for what follows.
+        long headroomAboveCritical = -2;
+        if (typeof(EmbeddedHeapCompaction).GetMethod("MayCompactInGap", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static) != null)
+        {
+            Ryujinx.Memory.HostMemoryBudget.Available = Ryujinx.Memory.HostMemoryBudget.CriticalHeadroom + 1;
+            headroomAboveCritical = Stall(1500);
+            Ryujinx.Memory.HostMemoryBudget.Available = Ryujinx.Memory.HostMemoryBudget.CriticalHeadroom;
+        }
         stop = true;
         long stopping = Stall(1500);
         stop = false;
@@ -238,7 +252,8 @@ static class Fixture
             freeBeforeMiB = freeBefore / MiB, idleBeforeFirstFrame = idle, duringPlay, waitedMs = waited, afterFirstStall,
             rssBeforeMiB = rssBefore / MiB, rssAfterMiB = rssAfter / MiB, freeAfterMiB = freeAfter / MiB, againWithoutSpace = again,
             freeSecondMiB = freeSecond / MiB, notShort, stopping, pausedPoll = paused, rightAfterResume, ended, beforeNextFirstFrame,
-            nextSessionWaitedMs = nextSession, total,
+            nextSessionWaitedMs = nextSession, total, headroomAboveCritical,
+            criticalHeadroomMiB = (long)(Ryujinx.Memory.HostMemoryBudget.CriticalHeadroom / (ulong)MiB),
             stallCompactionsOfTheNextSession = EmbeddedHeapCompaction.StallCompactions, lines,
         };
     }

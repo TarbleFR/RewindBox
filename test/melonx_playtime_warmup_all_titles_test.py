@@ -91,19 +91,43 @@ if FINAL_PREPARATION:
     # Next lot: adapt_texture_play_clock and adapt_queued_3d_syncpoints share GpuContext.cs with adapt_paced_strict_syncs
     # and join the chain (as any adapter sharing a file with it would) without editing Library.cs: only the adapters whose
     # files include Library.cs are undone here.
+    # Core 771: adapt_hogwarts_steady_render then adds one Hogwarts-only assignment after the threaded wrapper
+    # (threaded.CoalesceTextureStorage = hogwarts); it exposes no pairs, so every later adapter's edit of Library.cs is also
+    # reversed through melonx_adapter_control.reverse_present (the recorded preimage, else each replacement undone), latest
+    # first, each time the bytes the adapter pins and, where the adapter exposes its pairs, the same text as undoing them.
+    from melonx_adapter_control import apply_present, reverse_present  # noqa: E402
     later = [name for name in later_sharing('adapt_playtime_warmup_all_titles') if L in __import__(name).BASELINE]
-    check(later == ['adapt_nifm_network_watch', 'adapt_paced_strict_syncs'] and files_edited_later('adapt_playtime_warmup_all_titles') == {L},
-          'the later adapters editing Library.cs are the two reviewed ones: %s' % later)
-    final_text = (FINAL_SOURCE / L).read_text(encoding='utf-8-sig')
-    for name in reversed(later):
-        module = __import__(name)
-        pairs = module.LIBRARY_PAIRS if hasattr(module, 'LIBRARY_PAIRS') else module.FILE_PAIRS[L]
-        for old, new in reversed(pairs):
-            check(final_text.count(new) == 1, name + ': replacement present once in the final Library.cs')
-            final_text = final_text.replace(new, old)
-    for policy in ('GpuContext.PaceStrictHostSyncs = hogwarts;', 'SubmitPacing.Paced = hogwarts;'):
-        check((FINAL_SOURCE / L).read_text(encoding='utf-8-sig').count(policy) == 1, 'later Hogwarts policy keeps its scope: ' + policy)
-    check(final_text == candidate, 'the final preparation is the control plus the adapter and the two later adapters\' replacements')
+    check(later == ['adapt_nifm_network_watch', 'adapt_paced_strict_syncs', 'adapt_hogwarts_steady_render'] and
+          files_edited_later('adapt_playtime_warmup_all_titles') == {L},
+          'the later adapters editing Library.cs are the three reviewed ones: %s' % later)
+    shipped = (FINAL_SOURCE / L).read_text(encoding='utf-8-sig')
+    final_text = shipped
+    with tempfile.TemporaryDirectory(prefix='melonx-playtime-warmup-later-') as temporary:
+        tree = Path(temporary)
+        (tree / L).parent.mkdir(parents=True)
+        shutil.copyfile(FINAL_SOURCE / L, tree / L)
+        for name in reversed(later):
+            module = __import__(name)
+            pairs = getattr(module, 'LIBRARY_PAIRS', None) or getattr(module, 'FILE_PAIRS', {}).get(L)
+            for old, new in reversed(pairs or ()):
+                check(final_text.count(new) == 1, name + ': replacement present once in the final Library.cs')
+                final_text = final_text.replace(new, old)
+            check(reverse_present(tree, name, only={L}) == [L] and sha(tree / L) == module.BASELINE[L],
+                  name + ' reversed gives the Library.cs it pins')
+            check(pairs is None or final_text == (tree / L).read_text(encoding='utf-8-sig'),
+                  name + ': undoing its pairs gives the Library.cs it pins')
+            final_text = (tree / L).read_text(encoding='utf-8-sig')
+        for name in later:
+            apply_present(tree, name, only={L})
+        check((tree / L).read_bytes() == (FINAL_SOURCE / L).read_bytes(),
+              'the later adapters applied forward to the reversed Library.cs give the final preparation')
+    for policy in ('GpuContext.PaceStrictHostSyncs = hogwarts;', 'SubmitPacing.Paced = hogwarts;', 'threaded.CoalesceTextureStorage = hogwarts;'):
+        check(shipped.count(policy) == 1, 'later Hogwarts policy keeps its scope: ' + policy)
+    check(final_text == candidate, 'the final preparation is the control plus the adapter and the three later adapters\' replacements')
+    # What this adapter decides, read on the final preparation itself (the later adapters leave it as the candidate's).
+    check(shipped.count('DetachPlayTimeWarmUps') == 1 and
+          shipped.index('warmUpVulkan.DetachPlayTimeWarmUps = true;') < shipped.index('renderer = renderer.TryMakeThreaded(options.BackendThreading);'),
+          'final preparation: one assignment, for every title, on the Vulkan renderer before the threaded wrapper')
 
 # The policy-on proof, on this very Library.cs.
 gate = json.loads((ROOT / EVIDENCE).read_text())
@@ -128,6 +152,8 @@ check(timings['candidate']['burstMatch']['setProgramMs'] * 100 < timings['contro
 
 inputs = ['build-utils/melonx/adapt_playtime_warmup_all_titles.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_playtime_warmup_all_titles_test.py', EVIDENCE, 'test/melonx_adapter_control.py']
+if FINAL_PREPARATION:
+    inputs += ['build-utils/melonx/' + name + '.py' for name in later]
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core737Preparation',
                postimages={L: sha(FINAL_SOURCE / L)} if FINAL_PREPARATION else {}, physicalDeviceTested=False,

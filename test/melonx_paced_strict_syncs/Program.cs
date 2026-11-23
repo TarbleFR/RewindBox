@@ -177,17 +177,20 @@ static class Program
         long second = Ryujinx.Graphics.Vulkan.FakeClock.Frequency, ms = second / 1000;
         var p = new Ryujinx.Graphics.Gpu.StrictSyncPacer();
         Ryujinx.Graphics.Gpu.GpuContext.PaceStrictHostSyncs = true;
+        // The times follow the pacer's own interval (4 ms as adapt_paced_strict_syncs writes it; a later adapter may set
+        // another one for the same policy): the same nine decisions are expected whatever the interval.
+        long interval = (long)(Ryujinx.Graphics.Gpu.StrictSyncPacer.IntervalMs * ms), start = 10 * ms;
         var pacer = new List<bool>
         {
-            p.Defer("IncrementSyncpoint", 10 * ms, second),        // first: strict
-            p.Defer("SetReference", 10 * ms + 1, second),          // within the interval: kept
-            p.Defer("IncrementSyncpoint", 13 * ms + 999_999, second), // 3.999999 ms: kept
-            p.Defer("IncrementSyncpoint", 14 * ms, second),        // 4 ms: strict
-            p.Defer("FlushCounterReports", 14 * ms + 1, second),   // another site: never paced
-            p.Defer("TryReadBackGpuRegion", 14 * ms + 2, second),
-            p.Defer("Syncpointb", 14 * ms + 3, second),
-            p.Defer("SetReference", 17 * ms, second),              // 3 ms after the last strict one: kept
-            p.Defer("SetReference", 18 * ms, second),              // 4 ms: strict
+            p.Defer("IncrementSyncpoint", start, second),                  // first: strict
+            p.Defer("SetReference", start + 1, second),                    // within the interval: kept
+            p.Defer("IncrementSyncpoint", start + interval - 1, second),   // one tick before the interval: kept
+            p.Defer("IncrementSyncpoint", start + interval, second),       // the interval: strict
+            p.Defer("FlushCounterReports", start + interval + 1, second),  // another site: never paced
+            p.Defer("TryReadBackGpuRegion", start + interval + 2, second),
+            p.Defer("Syncpointb", start + interval + 3, second),
+            p.Defer("SetReference", start + 2 * interval - ms, second),    // 1 ms short of the interval after the last strict one: kept
+            p.Defer("SetReference", start + 2 * interval, second),         // the interval: strict
         };
         report["pacer"] = pacer;
         Ryujinx.Graphics.Gpu.GpuContext.PaceStrictHostSyncs = false;

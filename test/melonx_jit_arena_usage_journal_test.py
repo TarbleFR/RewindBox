@@ -223,7 +223,21 @@ with tempfile.TemporaryDirectory(prefix='melonx-jit-arena-usage-journal-') as te
     passed = 'Real MeloNX code arena (1024 MiB) and signal mapping prepared; ARM64 probe executed through the arena\'s RX/RW aliases.'
     check(lines(c1)[-1] == ('passed', passed) == lines(k1)[-1], 'the passed line is unchanged')
     timing = dict(lines(k1))['timing']
-    check(re.fullmatch(r'arenaMs=[\d.]+ \(helper [\d.]+, alias [\d.]+\); signalMs=[\d.]+; probeMs=[\d.]+; pages=65536; otherThreadLongestGapMs=[\d.]+', timing), 'the timing line: ' + timing)
+    check(re.fullmatch(r'arena prepared: arenaMs=[\d.]+ \(helper [\d.]+, alias [\d.]+\); signalMs=[\d.]+; probeMs=[\d.]+; pages=65536; otherThreadLongestGapMs=[\d.]+', timing), 'the timing line: ' + timing)
+    # The engine journal's privacy filter (EmbeddedLaunchDiagnostics.Safe) replaces a detail that starts with "name=" by
+    # "[redacted key entry]": IPA 822 lost every jitArena line that way. Each line must leave Safe unchanged.
+    safe_source = (ROOT / 'native/melonx/EmbeddedLaunchDiagnostics.cs').read_text()
+    safe_rules = re.findall(r'value = Regex\.Replace\(value, @"([^"]+)", "(\[redacted[^"]*\])"\);', safe_source)
+    check(len(safe_rules) >= 2, 'the journal\'s redaction rules are read from its source: ' + str(len(safe_rules)))
+    def survives(detail):
+        out = detail
+        for pattern, replacement in safe_rules:
+            out = re.sub(pattern.replace('(?i)', '').replace('(?im)', ''), replacement, out,
+                         flags=(re.I | re.M) if '(?im)' in pattern else re.I if '(?i)' in pattern else 0)
+        return out == detail
+    journaled = [d for step in (k1,) for s2, d in lines(step) if s2 in ('timing', 'reached', 'used')]
+    check(journaled and all(survives(d) for d in journaled), 'every jitArena line survives the journal\'s redaction')
+    check(not survives('arenaMs=1.0 (helper 1.0, alias 0.0)'), 'the redaction check sees the IPA 822 form as redacted')
     arena_held = 65536 * NS / 1e6
     check(arena_held * 0.95 <= float(field(timing, 'helper')) <= float(field(timing, 'arenaMs')) <= k1['prepareMs'] and float(field(timing, 'helper')) <= k1['heldMs'] + 1 and
           float(field(timing, 'alias')) < 60 and float(field(timing, 'probeMs')) < 60 and
@@ -243,7 +257,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-jit-arena-usage-journal-') as te
     def use_lines(report, first, last, mapped):
         """reached and used lines of the session whose steps are first..last (last is its close)."""
         peak = report['steps'][last]['cachePeakBytes']
-        reached = sorted(int(re.fullmatch(r'useMiB=\d+ \((\d+) bytes\) of mappedMiB=%d' % mapped, d).group(1))
+        reached = sorted(int(re.fullmatch(r'arena use reached: useMiB=\d+ \((\d+) bytes\) of mappedMiB=%d' % mapped, d).group(1))
                          for step in report['steps'][first:last + 1] for s, d in lines(step) if s == 'reached')
         used = [d for s, d in lines(report['steps'][last]) if s == 'used']
         return peak, reached, used
@@ -251,19 +265,19 @@ with tempfile.TemporaryDirectory(prefix='melonx-jit-arena-usage-journal-') as te
     peak, reached, used = use_lines(k, 0, 3, 1024)
     check(peak == 8 + 200 * (1 << 20) - 4096 and len(reached) == 3 and all(n * STEP <= value < n * STEP + (8 << 20) + 8 for n, value in enumerate(reached, 1)),
           'a guest that translates 200 MiB journals the 64, 128 and 192 MiB steps as it reaches them: ' + str((peak, reached)))
-    check(used == ['peakMiB=%d (%d bytes) of mappedMiB=1024' % (peak >> 20, peak)], 'the close journals the cache\'s exact peak and the mapped size, once (two Dispose): ' + str(used))
+    check(used == ['arena peak use: peakMiB=%d (%d bytes) of mappedMiB=1024' % (peak >> 20, peak)], 'the close journals the cache\'s exact peak and the mapped size, once (two Dispose): ' + str(used))
     peak, reached, used = use_lines(k, 4, 7, 1024)
-    check(peak == 8 + 30 * (1 << 20) - 4096 and reached == [] and used == ['peakMiB=29 (%d bytes) of mappedMiB=1024' % peak], 'the second game\'s use starts from zero: ' + str((peak, used)))
+    check(peak == 8 + 30 * (1 << 20) - 4096 and reached == [] and used == ['arena peak use: peakMiB=29 (%d bytes) of mappedMiB=1024' % peak], 'the second game\'s use starts from zero: ' + str((peak, used)))
     c, k = same('exhausted', 'budget=5632', 'helper=200,1,0', 'L0', 'U600', 'Q', 'C')
     step = k['steps'][1]
     check(k['steps'][0]['mappedMiB'] == 512 and step['failure'] == 'OutOfMemoryException: JIT Cache exhausted.' and 504 <= step['allocatedMiB'] <= 512,
           'a guest that needs more than its 512 MiB arena exhausts it as before: ' + str(step['allocatedMiB']))
     peak, reached, used = use_lines(k, 0, 3, 512)
-    check(len(reached) == 7 and reached[-1] >= 7 * STEP and used == ['peakMiB=%d (%d bytes) of mappedMiB=512' % (peak >> 20, peak)] and peak >= 504 << 20,
+    check(len(reached) == 7 and reached[-1] >= 7 * STEP and used == ['arena peak use: peakMiB=%d (%d bytes) of mappedMiB=512' % (peak >> 20, peak)] and peak >= 504 << 20,
           'the steps reached before the arena filled are in the journal (a crash keeps them): ' + str(reached))
     c, k = same('large', 'helper=200,1,0', 'L1024', 'U1000', 'Q', 'C')
     peak, reached, used = use_lines(k, 0, 3, 1024)
-    check(k['steps'][1]['failure'] == '' and len(reached) == 15 and used == ['peakMiB=999 (%d bytes) of mappedMiB=1024' % peak], 'fifteen steps at most for a 1024 MiB arena: ' + str(len(reached)))
+    check(k['steps'][1]['failure'] == '' and len(reached) == 15 and used == ['arena peak use: peakMiB=999 (%d bytes) of mappedMiB=1024' % peak], 'fifteen steps at most for a 1024 MiB arena: ' + str(len(reached)))
 
     # ---- 3. Refusals, failures, abandonment: as before ----------------------------------------------------------------
     needs_more = 'jitRestartRequired: InvalidOperationException: This game needs a 1024 MiB code arena; RewindBox mapped 512 MiB for an earlier game in this process. ' \
@@ -320,7 +334,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-jit-arena-usage-journal-') as te
         check(step['failures'] == [] and peak == step['expectedPeak'] and step['mapped'] == step['registered'] - 1 and step['quarantined'] is False and step['beatThreads'] == 0,
               'race %d: the peak is the bytes the threads allocated; nothing failed or is left: %s' % (seed, (step['failures'], peak, step['expectedPeak'])))
         check(len(reached) == peak // STEP and all(n * STEP <= value < n * STEP + (128 << 10) + (8 << 20) for n, value in enumerate(reached, 1)) and
-              used == ['peakMiB=%d (%d bytes) of mappedMiB=1024' % (peak >> 20, peak)] and len(all_lines(report, 'reached')) == len(reached) and len(all_lines(report, 'used')) == 2,
+              used == ['arena peak use: peakMiB=%d (%d bytes) of mappedMiB=1024' % (peak >> 20, peak)] and len(all_lines(report, 'reached')) == len(reached) and len(all_lines(report, 'used')) == 2,
               'race %d: one line per step reached, one use line per game: %s' % (seed, (reached, used)))
         check(step['launches'] + step['refused'] + step['busy'] == 60 and step['launches'] > 0 and step['refused'] == 0 and report['trapsAfterDetach'] == 0 and
               report['regions'] == 2 and report['steps'][5]['rc'] == 0 and len(all_lines(report, 'timing')) == 1,

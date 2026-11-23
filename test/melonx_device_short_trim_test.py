@@ -71,7 +71,13 @@ def member(text, signature):
 CRITICAL = FINAL_PREPARATION and 'adapt_device_critical_trim' in ORDER
 if CRITICAL:
     import adapt_device_critical_trim as critical_adapter  # noqa: E402
-    check(files_edited_later('adapt_device_critical_trim') == set(), 'no later adapter edits adapt_device_critical_trim\'s files')
+    # Derived from the adapters' file lists: of adapt_device_critical_trim's files, later adapters edit GpuContext.cs
+    # (the Hogwarts lots and the guest start during the shader load), which this gate neither compiles nor reads in the
+    # final preparation. The file it does compile, AutoDeleteCache.cs, must be no later adapter's: the digest check
+    # below then holds on the final preparation's own bytes.
+    check(critical_adapter.TEXTURES in critical_adapter.BASELINE and critical_adapter.TEXTURES in BASELINE and
+          critical_adapter.TEXTURES not in files_edited_later('adapt_device_critical_trim'),
+          'no later adapter edits adapt_device_critical_trim\'s AutoDeleteCache.cs')
     final_cache = (FINAL_SOURCE / critical_adapter.TEXTURES).read_text(encoding='utf-8-sig')
     undone = final_cache
     for old, new in reversed(critical_adapter.EDITS[critical_adapter.TEXTURES]):

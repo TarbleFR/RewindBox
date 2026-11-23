@@ -173,7 +173,14 @@
   "build-utils/melonx/adapt_variant_journal_capacity.py",
   "build-utils/melonx/adapt_jit_arena_usage_journal.py",
   "build-utils/melonx/adapt_bgc_suspension_pending.py",
-  "build-utils/melonx/adapt_shader_cache_parallel_read.py"
+  "build-utils/melonx/adapt_shader_cache_parallel_read.py",
+  "build-utils/melonx/adapt_vulkan_memory_rounding_journal.py",
+  "build-utils/melonx/adapt_unblocked_sync_queries.py",
+  "build-utils/melonx/adapt_buffer_texture_bindings.py",
+  "build-utils/melonx/adapt_descriptor_set_reuse_journal.py",
+  "build-utils/melonx/adapt_large_buffer_native.py",
+  "build-utils/melonx/adapt_device_pressure_compaction.py",
+  "build-utils/melonx/adapt_network_interface_snapshot.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -326,7 +333,9 @@
   "src/Ryujinx.Cpu/LightningJit/Translator.cs",
   "src/Ryujinx.Cpu/LightningJit/Cache/DualMappedNoWxCache.cs",
   "src/Ryujinx.Memory/DualMappedJitAllocator.cs",
-  "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheGuestStorage.cs"
+  "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheGuestStorage.cs",
+  "src/Ryujinx.Graphics.GAL/Multithreading/SyncMap.cs",
+  "src/Ryujinx.Common/Utilities/NetworkHelpers.cs"
  ],
  "productionAdditions": [
   "src/Ryujinx.HLE/EmbeddedOnline.cs",
@@ -525,7 +534,20 @@
   "test/melonx_bgc_suspension_pending/HostShims.c",
   "test/melonx_bgc_suspension_pending/Probe/Program.cs",
   "test/melonx_bgc_suspension_pending/Probe/Probe.csproj",
-  "test/melonx_shader_cache_parallel_read/Program.cs"
+  "test/melonx_shader_cache_parallel_read/Program.cs",
+  "test/melonx_vulkan_memory_rounding_journal/Doubles.cs",
+  "test/melonx_vulkan_memory_rounding_journal/Probe.cs",
+  "test/melonx_vulkan_memory_rounding_journal/Program.cs",
+  "test/melonx_unblocked_sync_queries/Double.cs",
+  "test/melonx_unblocked_sync_queries/Program.cs",
+  "test/melonx_buffer_texture_bindings/Program.cs",
+  "test/melonx_buffer_texture_bindings/Recorder.cs",
+  "test/melonx_descriptor_set_reuse_journal/Boundaries.cs",
+  "test/melonx_descriptor_set_reuse_journal/Program.cs",
+  "test/melonx_large_buffer_native/Program.cs",
+  "test/melonx_device_pressure_compaction/Program.cs",
+  "test/melonx_network_interface_snapshot/HideResolvConf.c",
+  "test/melonx_network_interface_snapshot/Program.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -788,7 +810,8 @@
     "src/Ryujinx.Cpu/LightningJit/Translator.cs",
     "src/Ryujinx.Cpu/LightningJit/Cache/DualMappedNoWxCache.cs",
     "src/Ryujinx.Memory/DualMappedJitAllocator.cs",
-    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheGuestStorage.cs"
+    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheGuestStorage.cs",
+    "src/Ryujinx.Graphics.GAL/Multithreading/SyncMap.cs"
    ],
    "compiledBindings": [
     {
@@ -1717,6 +1740,15 @@
       "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheGuestStorage.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheGuestStorage.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.GAL/Multithreading/SyncMap.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.GAL/Multithreading/SyncMap.cs"
     }
    ]
   },
@@ -4219,7 +4251,7 @@
     "laterLot.journalRoom.givenUpAtLoad": 300,
     "laterLot.journalRoom.notRecordedWhenAllMet": 52,
     "laterLot.journalRoom.compactionLinesNotWritten": 0,
-    "laterLot.journalRoom.refreshedAfterCompaction": 2048,
+    "laterLot.journalRoom.refreshedAfterCompaction": 4096,
     "laterLot.queuedRecord.builtForSkipped": 2,
     "laterLot.queuedRecord.waitedForSkipped": 2,
     "laterLot.queuedRecord.stageLineSplit": true,
@@ -5008,7 +5040,8 @@
     "productionGpuAssemblyBuilt": true,
     "productionLibraryAssemblyBuilt": true,
     "policyOffEqualsControl": true,
-    "candidateCommandBuffersPerFrame": 10
+    "candidateCommandBuffersPerFrame": 7,
+    "adapterAloneCommandBuffersPerFrame": 10
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Gpu/GpuContext.cs",
@@ -5754,6 +5787,164 @@
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheHostStorage.cs",
     "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheGuestStorage.cs"
+   ]
+  },
+  {
+   "name": "vulkan-memory-rounding-journal",
+   "script": "test/melonx_vulkan_memory_rounding_journal_test.py",
+   "report": "vulkan-memory-rounding-journal-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 2400,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "physicalDeviceTested": false,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "productionVulkanAssemblyBuilt": true,
+    "allocationBehaviourIdentical": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs",
+    "src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs"
+   ]
+  },
+  {
+   "name": "unblocked-sync-queries",
+   "script": "test/melonx_unblocked_sync_queries_test.py",
+   "report": "unblocked-sync-queries-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 2400,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "physicalDeviceTested": false,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "productionVulkanAssemblyBuilt": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/SyncManager.cs",
+    "src/Ryujinx.Graphics.GAL/Multithreading/SyncMap.cs"
+   ]
+  },
+  {
+   "name": "buffer-texture-bindings",
+   "script": "test/melonx_buffer_texture_bindings_test.py",
+   "report": "buffer-texture-bindings-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 2400,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "physicalDeviceTested": false,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "productionGpuAssemblyBuilt": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsManager.cs"
+   ]
+  },
+  {
+   "name": "descriptor-set-reuse-journal",
+   "script": "test/melonx_descriptor_set_reuse_journal_test.py",
+   "report": "descriptor-set-reuse-journal-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 2400,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "physicalDeviceTested": false,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "behaviourIdentical": true,
+    "journalLineSurvivesRedaction": true,
+    "productionVulkanAssemblyBuilt": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs"
+   ]
+  },
+  {
+   "name": "large-buffer-native",
+   "script": "test/melonx_large_buffer_native_test.py",
+   "report": "large-buffer-native-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 2400,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "physicalDeviceTested": false,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "nativeAotExecuted": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Common/Memory/MemoryOwner.cs"
+   ]
+  },
+  {
+   "name": "device-pressure-compaction",
+   "script": "test/melonx_device_pressure_compaction_test.py",
+   "report": "device-pressure-compaction-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 2400,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "physicalDeviceTested": false,
+    "sourceKind": "finalPreparationWithReversedControl"
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Library/EmbeddedMemory.cs"
+   ]
+  },
+  {
+   "name": "network-interface-snapshot",
+   "script": "test/melonx_network_interface_snapshot_test.py",
+   "report": "network-interface-snapshot-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 2400,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "physicalDeviceTested": false,
+    "sourceKind": "finalPreparationWithReversedControl"
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Common/Utilities/NetworkHelpers.cs",
+    "src/Ryujinx.HLE/HOS/Services/Nifm/StaticService/IGeneralService.cs"
    ]
   }
  ]

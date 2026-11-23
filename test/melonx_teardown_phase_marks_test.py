@@ -9,7 +9,8 @@ Vulkan and HLE assemblies). Static checks bind that each file equals the prepara
 removed (no order, wait or decision changes), that every mark sits where it names (guest stop before and after the
 guest's termination, GPU release before and after DisposeGpu, the device-wait mark before vkDeviceWaitIdle, the
 swapchain mark after the window's release), and that no mark uses the "begin" status, which would change the failure
-stage. No device. Writes dist/melonx/teardown-phase-marks-checks.json.
+stage. When a later adapter sharing files with this one edits the guest channel close path, the final preparation's marks
+are read in place and its production Library is built as well. No device. Writes dist/melonx/teardown-phase-marks-checks.json.
 """
 from pathlib import Path
 import hashlib, json, os, re, shutil, subprocess, sys, tempfile
@@ -18,7 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, files_edited_later, use_authenticated_libhac_feed  # noqa: E402
+from melonx_adapter_control import ORDER, control_source, files_edited_later, later_sharing, use_authenticated_libhac_feed  # noqa: E402
+import importlib  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_teardown_phase_marks', _HOLD)
@@ -89,14 +91,53 @@ with tempfile.TemporaryDirectory(prefix='melonx-teardown-marks-') as temporary:
     check(j('BackgroundCompilationScheduler.Dispose();') < j('shader.WaitForBackgroundCompilation();') < j('"deviceIdleWait"') <
           j('Api.DeviceWaitIdle(_device);') < j('PipelineCacheManager.MergeAndSave();') < j('"gpuTeardown", "compiles"') <
           j('_window.Dispose();') < j('"swapchainReleased"') < j('HelperShader.Dispose();'), 'renderer marks around their phases')
+    # The guest channel close path (adapt_fifo_channel_retirement) is another adapter's file. While that adapter shared no
+    # file with this one, directly or through others, the control held the final preparation's bytes of it and the build
+    # below bound it. Since the lots after IPA 800 it is among the later adapters sharing files with this one (derived:
+    # later_sharing), so control_source() reversed it in the control, proved that re-applying those adapters gives the
+    # final preparation, and the candidate no longer holds the final close path: the final preparation is then read (its
+    # marks are still around their phases) and its production Library is built too, close path included.
+    final_built = False
+    channel_editors = [name for name in ORDER if NV_CHANNEL in importlib.import_module(name).BASELINE]
+    channel_is_final = FINAL_PREPARATION and (work / NV_CHANNEL).read_bytes() == (FINAL_SOURCE / NV_CHANNEL).read_bytes()
     if FINAL_PREPARATION:
-        check((work / NV_CHANNEL).read_bytes() == (FINAL_SOURCE / NV_CHANNEL).read_bytes(),
-              'the library build binds the final guest channel close path')
+        sharing = later_sharing('adapt_teardown_phase_marks')
+        check(channel_editors == ['adapt_fifo_channel_retirement'] and
+              channel_is_final == (not any(name in sharing for name in channel_editors)),
+              'the candidate holds the final guest channel close path unless its adapter is reversed in the control: %s' % channel_editors)
     result = subprocess.run([DOTNET, 'build', str(work / 'src/Ryujinx.Library/Ryujinx.Library.csproj'), '-c', 'Release', '-nologo',
                              '-m:1', '-p:NuGetAudit=false'], capture_output=True, text=True, timeout=2400, env=environment, cwd=work)
     if result.returncode:
         print(result.stdout[-5000:], result.stderr[-2000:], flush=True)
     check(result.returncode == 0, 'production Ryujinx.Library builds with the marks')
+    if FINAL_PREPARATION and not channel_is_final:
+        final_window = (FINAL_SOURCE / WINDOW).read_text(encoding='utf-8-sig')
+        final_renderer = (FINAL_SOURCE / RENDERER).read_text(encoding='utf-8-sig')
+        final_marks = re.findall(r'EmbeddedLaunchDiagnostics\.Record\("(?:teardown|gpuTeardown)", "(\w+)"', final_window + final_renderer)
+        check(all(final_marks.count(mark) == 1 for mark in marks) and all(mark != 'begin' for mark in final_marks),
+              'final preparation: each mark once, no begin status: ' + str(final_marks))
+
+        def ordered(text, *parts):
+            # Each part once, in this order (a part a later adapter repeats elsewhere is not listed).
+            return all(text.count(part) == 1 for part in parts) and all(text.index(a) < text.index(b) for a, b in zip(parts, parts[1:]))
+
+        check(ordered(final_window, '"guestStop"', 'Library.WithdrawEmbeddedControls();', 'Device.System.Dispose();', '"guestStopped"',
+                      '"gpuRelease"', 'EmbeddedGpuReleased = true;', 'Device.DisposeGpu();', '"gpuReleased"',
+                      'finally { FinalizeWindowRenderer(); }'), 'final preparation: window marks around their phases')
+        check(ordered(final_renderer, 'shader.WaitForBackgroundCompilation();', '"deviceIdleWait"', 'Api.DeviceWaitIdle(_device);',
+                      '"gpuTeardown", "compiles"', '_window.Dispose();', '"swapchainReleased"', 'HelperShader.Dispose();'),
+              'final preparation: renderer marks around their phases')
+        final_work = Path(temporary).resolve() / 'final'
+        shutil.copytree(FINAL_SOURCE, final_work, ignore=shutil.ignore_patterns('.git', 'bin', 'obj'), symlinks=True)
+        use_authenticated_libhac_feed(final_work, ROOT)
+        check(all((final_work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes() for name in (*BASELINE, NV_CHANNEL)),
+              'the final library build binds the final marks and the final guest channel close path')
+        result = subprocess.run([DOTNET, 'build', str(final_work / 'src/Ryujinx.Library/Ryujinx.Library.csproj'), '-c', 'Release', '-nologo',
+                                 '-m:1', '-p:NuGetAudit=false'], capture_output=True, text=True, timeout=2400, env=environment, cwd=final_work)
+        if result.returncode:
+            print(result.stdout[-5000:], result.stderr[-2000:], flush=True)
+        check(result.returncode == 0, 'the final preparation\'s production Ryujinx.Library builds with the marks and the final guest channel close path')
+        final_built = True
 
 inputs = ['build-utils/melonx/adapt_teardown_phase_marks.py', 'build-utils/melonx/adapt_session.py',
           'build-utils/melonx/adapt_fifo_channel_retirement.py',
@@ -107,6 +148,7 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPA
                postimages={p: hashlib.sha256((FINAL_SOURCE / p).read_bytes()).hexdigest()
                            for p in (*BASELINE, NV_CHANNEL)} if FINAL_PREPARATION else {},
                sdk=sdk, physicalDeviceTested=False, productionLibraryBuilt=True, sourceBaseline=BASELINE,
+               finalLibraryBuilt=final_built, finalChannelClosePathBound=bool(FINAL_PREPARATION and (channel_is_final or final_built)),
                inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs},
                limitation='Journal only; which phase holds the SSBU close while recording is known only from a device run.')
 out = ROOT / 'dist/melonx/teardown-phase-marks-checks.json'

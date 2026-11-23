@@ -18,7 +18,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[1]).resolve()
 # Core 727 form: <delivered control> --candidate-source <final preparation>. The control's allocator is this adapter's
 # postimage (the delivered Core's); the candidate is the final preparation's, which adapt_vulkan_memory_journal extends
-# with two read-only methods (Block.FreeBytes, AddUsage). Both must give the same allocator behaviour, byte for byte.
+# with two read-only methods (Block.FreeBytes, AddUsage) and which the adapters after it in the preparation order may
+# edit again (LATER, derived from that order; each is reversed to the bytes it pins and re-applied, below). Both must
+# give the same allocator behaviour, byte for byte.
 FINAL = Path(sys.argv[sys.argv.index('--candidate-source') + 1]).resolve() if '--candidate-source' in sys.argv else None
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
@@ -30,14 +32,29 @@ PREIMAGES = {
     'src/Ryujinx.Graphics.Vulkan/VulkanException.cs': '6a889a31001fa3973eebcaafe9eb82615a840a791edb823ef0379c5db1120294',
     'src/Ryujinx.Common/Utilities/BitUtils.cs': '3f33297b391f95cfba6d3ec848b69f94534848b74f919310181e0a51eb450261',
 }
+LATER = []
 if FINAL is not None:
+    import importlib
     import adapt_vulkan_memory_journal as journal
+    sys.path.insert(0, str(ROOT / 'test'))
+    from melonx_adapter_control import postimage
     PREIMAGES[RELATIVE] = journal.BASELINE[RELATIVE]  # the delivered postimage of this adapter
-    final_text = (FINAL / RELATIVE).read_text(encoding='utf-8-sig')
-    for old, new in reversed(journal.EDITS[RELATIVE]):
-        assert final_text.count(new) == 1, 'journal edit present once'
-        final_text = final_text.replace(new, old)
-    assert final_text == (SOURCE / RELATIVE).read_text(encoding='utf-8-sig'), 'final allocator = delivered + the journal additions only'
+    with tempfile.TemporaryDirectory(prefix='melonx-range-updates-chain-') as chain:
+        chain = Path(chain)
+        # The journal adapter's own postimage: the final files with every later adapter sharing them put back to the
+        # bytes it pins (melonx_adapter_control.postimage). The journal edits, each present once, reverse to the
+        # delivered allocator; the later adapters re-applied in order reproduce the final preparation byte for byte.
+        LATER = postimage('adapt_vulkan_memory_journal', FINAL, chain)
+        journal_text = (chain / RELATIVE).read_text(encoding='utf-8-sig')
+        for old, new in reversed(journal.EDITS[RELATIVE]):
+            assert journal_text.count(new) == 1, 'journal edit present once'
+            journal_text = journal_text.replace(new, old)
+        assert journal_text == (SOURCE / RELATIVE).read_text(encoding='utf-8-sig'), 'journal postimage = delivered + the journal additions only'
+        for name in LATER:
+            importlib.import_module(name).apply(chain)
+        chained = sorted(str(p.relative_to(chain)) for p in chain.rglob('*') if p.is_file())
+        assert RELATIVE in chained and all((chain / name).read_bytes() == (FINAL / name).read_bytes() for name in chained), \
+            'final allocator = delivered + the journal additions + the later adapters of the preparation order, exactly'
 for relative, expected in PREIMAGES.items():
     assert hashlib.sha256((SOURCE / relative).read_bytes()).hexdigest() == expected, relative
 boundary = ROOT / 'test/melonx_allocator_blocks/Boundaries.cs'
@@ -110,10 +127,11 @@ inputs = ['build-utils/melonx/adapt_allocator_range_updates.py', 'build-utils/me
           'test/melonx_allocator_range_updates/RangeListProbe.cs', 'test/melonx_allocator_blocks/Boundaries.cs']
 if FINAL is not None:
     inputs.append('build-utils/melonx/adapt_vulkan_memory_journal.py')
+    inputs += ['build-utils/melonx/' + name + '.py' for name in LATER] + ['test/melonx_adapter_control.py']
 receipt = dict(result='passed', reports=reports, finalPreparationBound=FINAL is not None,
                sourceKind='deliveredPreparedWithFinalCandidate' if FINAL is not None else 'pristineUpstream', upstreamRevision='13700519f3abc4e6d7ed8a065b118b2cc59bcd67',
     dotnet='10.0.100', physicalDeviceTested=False, nativeDriverDoubled=True,
-    completeProductionAllocator=True, movementInstrumentedSeparately=True,
+    completeProductionAllocator=True, movementInstrumentedSeparately=True, laterAdaptersReapplied=LATER,
     upstreamInputs=PREIMAGES, postimages=postimages, compiledSourceInputs=compiled,
     inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs})
 output = ROOT / 'dist/melonx/allocator-range-update-checks.json'

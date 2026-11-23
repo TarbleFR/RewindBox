@@ -12,6 +12,14 @@ pending reports, DeferredCounterReport whole, GPFifoClass.Syncpointb, GPFifoDevi
 ThreedClass.IncrementSyncpoint and the Library assignment. Doubles (Boundaries.cs): host sync, threaded renderer,
 syncpoint manager, logger, the FIFO's event and the backend counter events.
 
+Final preparation (after IPA 800, adapt_hogwarts_steady_render and adapt_fifo_channel_retirement edit the compiled regions):
+under the pacing policy the Library sets for the same title (GpuContext.PaceStrictHostSyncs), the forced sync of an
+increment's reports is kept on the open command buffer when a strict submission ran less than 4 ms before, and the queue
+submits it after 4 ms or at once before a blocking read. The host sync double therefore follows the production
+CreateHostSyncIfNeeded (only a Strict sync submits; the production StrictSyncPacer, compiled whole, for the paced sites;
+the two fields the queue reads are noted on a Strict submission), and the paced scenarios (counted apart, receipt field
+pacedReportScenarios) execute that path: no report is waited for before its submission ran, order and leases as above.
+
 Two input modes, the same regions and scenarios:
 - default, adapter text: shells holding upstream's method frames around the exact anchors (reconstructed from the
   anchors: upstream is not read in this mode), the occlusion adapters' texts read from their sources, then the real
@@ -247,7 +255,29 @@ def regions(tree, prepared=False):
         # SemaphoreUpdater.ReportCounter and the block GPFifoDevice runs after each GPFIFO entry (adapt_queued_3d_syncpoints).
         sources['Cache.cs'] = once(cache, '    class CounterCache\n', '    partial class CounterCache\n')
         sources['Guard.cs'] = guard_region(tree)
+        # The production pacer (adapt_paced_strict_syncs), whole, when the prepared GpuContext.cs has one: the host sync
+        # double runs it for the paced sites, as the production CreateHostSyncIfNeeded does.
+        if PACER in context:
+            sources['Pacer.cs'] = 'namespace Ryujinx.Graphics.Gpu\n{\n' + context[context.index(PACER):context.rindex('}')] + '}\n'
     return sources
+
+
+PACER = '    internal struct StrictSyncPacer'
+# adapt_hogwarts_steady_render's report submissions under the pacing policy (the final preparation): the queue keeps a
+# report sync on the open command buffer within 4 ms of a strict submission and submits it itself later.
+DEFERRED = '        private void SubmitDeferredReports(bool demanded)'
+
+
+def defines(sources):
+    """Compilation symbols: the prepared regions, the production pacer and the deferred report submissions they hold."""
+    symbols = ['PREPARED_SOURCE']
+    if 'Pacer.cs' in sources:
+        symbols.append('STRICT_SYNC_PACER')
+    if DEFERRED in sources['Context.cs']:
+        if 'Pacer.cs' not in sources or sources['Context.cs'].count(DEFERRED) != 1:
+            raise SystemExit('fixture: deferred report submissions without the pacing policy they belong to')
+        symbols.append('DEFERRED_REPORT_SUBMISSIONS')
+    return symbols
 
 
 def guard_region(tree):
@@ -301,6 +331,9 @@ def main():
             prepared = None
         project = work / 'probe'
         sources = regions(tree, prepared=bool(args.source))
+        symbols = defines(sources) if args.source else []
+        if gate and 'DEFERRED_REPORT_SUBMISSIONS' not in symbols:
+            raise SystemExit('fixture: the final preparation lacks the deferred report submissions this gate executes')
         for name, text in sources.items():
             write(project / name, text)
         for name in ('Boundaries.cs', 'Program.cs'):
@@ -309,7 +342,7 @@ def main():
               '<TargetFramework>net10.0</TargetFramework><Nullable>disable</Nullable><ImplicitUsings>disable</ImplicitUsings>'
               '<EnableDefaultCompileItems>false</EnableDefaultCompileItems><TreatWarningsAsErrors>false</TreatWarningsAsErrors>'
               '<NoWarn>CS0169;CS0414;CS0649</NoWarn><NuGetAudit>false</NuGetAudit>'
-              + ('<DefineConstants>PREPARED_SOURCE</DefineConstants>' if args.source else '') + '</PropertyGroup>'
+              + ('<DefineConstants>' + ';'.join(symbols) + '</DefineConstants>' if symbols else '') + '</PropertyGroup>'
               '<ItemGroup><Compile Include="*.cs" /></ItemGroup></Project>')
         # The gates' SDK is 10.0.100; a later patch of the same band is accepted and recorded.
         write(project / 'global.json', json.dumps({'sdk': {'version': '10.0.100', 'rollForward': 'latestPatch'}}))
@@ -328,10 +361,13 @@ def main():
             raise SystemExit('fixture: no result')
         outcome = json.loads(lines[-1])
         compiled = {name: sha((project / name).read_bytes()) for name in sorted(sources) + ['Boundaries.cs', 'Program.cs']}
-    passed = run.returncode == 0 and not outcome['failed']
+    paced = outcome.get('pacedScenarios', 0)
+    passed = (run.returncode == 0 and not outcome['failed'] and len(outcome['passed']) == outcome['scenarios'] + paced and
+              (paced > 0) == ('DEFERRED_REPORT_SUBMISSIONS' in symbols))
     report = dict(result='passed' if passed else 'failed', inputMode='preparedSource' if args.source else 'adapterTextShells',
                   sdk=sdk, physicalDeviceTested=False, gameplayTested=False, fpsGainProven=False,
                   checks=outcome['checks'], scenarios=outcome['scenarios'], passed=outcome['passed'], failed=outcome['failed'],
+                  pacedReportScenarios=paced, compilationSymbols=symbols,
                   compiledSourceInputs=compiled, preparedFiles=prepared,
                   inputs={path: sha((ROOT / path).read_bytes()) for path in INPUTS})
     if gate:
@@ -346,7 +382,7 @@ def main():
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     for name in outcome['failed']:
         print('FAILED: ' + name)
-    print(f"{report['result'].upper()}: {len(outcome['passed'])}/{outcome['scenarios']} scenarios, {outcome['checks']} checks, "
+    print(f"{report['result'].upper()}: {len(outcome['passed'])}/{outcome['scenarios']} + {paced} paced scenarios, {outcome['checks']} checks, "
           f"{report['inputMode']}, SDK {sdk}; report {args.report}")
     if not passed:
         raise SystemExit(1)

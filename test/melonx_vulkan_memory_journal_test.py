@@ -8,7 +8,8 @@ destruction code changes (Allocate, Free, InsertBlock and the allocator's Alloca
 call is inside a try/catch, bounded (60 lines) and every sixth window. Executed on the production
 Ryujinx.Graphics.Vulkan of the candidate (test-only InternalsVisibleTo, no Vulkan device): real
 MemoryAllocatorBlockList.Block objects (two pooled 4 MiB blocks with 1.5 MiB and 4 KiB allocated, one mapped, one
-dedicated 8 MiB) in a real block list, and a real MemoryAllocator holding it and an image list; UsageText must give the
+dedicated 8 MiB) published in a real block list by its own InsertBlock, and a real MemoryAllocator holding it and an
+image list; UsageText must give the
 exact totals and per-list figures; RenderStageTimer.Log run 13 times must write 3 "vulkanMemory sample" lines to a
 temporary engine journal, then nothing once the bound is reached. Writes dist/melonx/vulkan-memory-journal-checks.json.
 """
@@ -20,7 +21,7 @@ SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, files_edited_later  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later, later_sharing, postimage  # noqa: E402
 _HOLD = []
 CONTROL, FINAL_PREPARATION = control_source(SOURCE, 'adapt_vulkan_memory_journal', _HOLD)
 import adapt_vulkan_memory_journal as adapter  # noqa: E402
@@ -51,45 +52,21 @@ def member(text, signature):
 
 
 check(FINAL_PREPARATION, 'the source given is a final preparation containing the adapter')
-# Core 743: adapt_submit_causes, a later adapter, adds its submission counters to RenderStageTimer in PipelineBase.cs. Its
-# replacements are undone from the final text (each required once, none left) before the same exact comparison; no other
-# later adapter may edit these files.
-# Variant journal lot: adapt_queued_variant_record, after adapt_submit_causes, splits RenderStageTimer's async skips by
-# cause (its stage line replaces the line adapt_submit_causes wrote) and hands a skipping draw's framebuffer to the
-# queued compile, in PipelineBase.cs. Its replacements are undone first (latest adapter first, each required once, none
-# left), then adapt_submit_causes'.
-# After IPA 760: adapt_draw_wait_lanes, last, appends its clause to the render-stage line of PipelineBase.cs (after
-# adapt_submit_causes' text); its replacement there is undone first of all (required once).
-LATER = {'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs': ['adapt_draw_wait_lanes', 'adapt_queued_variant_record', 'adapt_submit_causes']}
-check(files_edited_later('adapt_vulkan_memory_journal') <= set(LATER),
-      'no later adapter edits its files but adapt_submit_causes, adapt_queued_variant_record and adapt_draw_wait_lanes')
-
-
-def without_later(name, text):
-    import importlib
-    for later_name in LATER.get(name, []):
-        later = importlib.import_module(later_name)
-        if later_name == 'adapt_queued_variant_record':
-            for old, new in reversed(later.EDITS.get(name, ())):
-                check(text.count(new) == 1, later_name + ': each replacement once in ' + name)
-                text = text.replace(new, old)
-            check('RewindBox (adapt_queued_variant_record)' not in text, later_name + ': no edit left in ' + name)
-            continue
-        if later_name == 'adapt_draw_wait_lanes':
-            for path, old, new in reversed(later.PAIRS):
-                if path == name:
-                    check(text.count(new) == 1, later_name + ': each replacement once in ' + name)
-                    text = text.replace(new, old)
-            check('RewindBox (adapt_draw_wait_lanes)' not in text, later_name + ': no edit left in ' + name)
-            continue
-        if later.TAG not in text:
-            continue
-        for path, old, new in reversed(later.PAIRS):
-            if path == name:
-                check(text.count(new) == 1, later_name + ': each replacement once in ' + name)
-                text = text.replace(new, old)
-        check(later.TAG not in text, later_name + ': no edit left in ' + name)
-    return text
+# Later adapters edit these four files too (Core 743 adapt_submit_causes first, in PipelineBase.cs; since Core 775 the
+# allocator files as well). Which ones is derived from the preparation order (later_sharing), not listed here:
+# control_source() above put each back to the bytes it pins, latest first, and required this adapter then those later
+# ones, re-applied in order, to reproduce the final preparation byte for byte. OWN is this adapter's own postimage (the
+# final files with those later adapters taken out, melonx_adapter_control.postimage): the control plus this adapter's
+# replacements must be exactly it, and "no allocation code changes" is checked on it. What is executed below is the
+# final preparation, later adapters included.
+LATER = later_sharing('adapt_vulkan_memory_journal')
+_OWN = tempfile.TemporaryDirectory(prefix='melonx-vulkan-memory-own-')
+OWN = Path(_OWN.name).resolve()
+postimage('adapt_vulkan_memory_journal', SOURCE, OWN)
+EDITED_LATER = files_edited_later('adapt_vulkan_memory_journal')
+check(EDITED_LATER <= set(adapter.BASELINE) and
+      all(name in EDITED_LATER or (OWN / name).read_bytes() == (SOURCE / name).read_bytes() for name in adapter.BASELINE),
+      'a file no later adapter edits is the final preparation\'s')
 
 
 for name, expected in adapter.BASELINE.items():
@@ -99,14 +76,14 @@ for name, expected in adapter.BASELINE.items():
     for old, new in adapter.EDITS[name]:
         check(rebuilt.count(old) == 1, 'one site: ' + old.strip()[:50])
         rebuilt = rebuilt.replace(old, new)
-    check(rebuilt == without_later(name, (SOURCE / name).read_text(encoding='utf-8-sig')), 'the candidate is the control plus the replacements: ' + name)
+    check(rebuilt == (OWN / name).read_text(encoding='utf-8-sig'), 'the candidate is the control plus the replacements: ' + name)
 blocks_c = (CONTROL / adapter.BLOCKS).read_text(encoding='utf-8-sig')
-blocks_k = (SOURCE / adapter.BLOCKS).read_text(encoding='utf-8-sig')
+blocks_k = (OWN / adapter.BLOCKS).read_text(encoding='utf-8-sig')
 for signature in ('public unsafe MemoryAllocation Allocate(ulong size, ulong alignment, bool map)', 'private void InsertBlock(Block block)',
                   'public ulong Allocate(ulong size, ulong alignment)'):
     check(member(blocks_c, signature) == member(blocks_k, signature), 'allocation unchanged: ' + signature)
 alloc_c = (CONTROL / adapter.ALLOCATOR).read_text(encoding='utf-8-sig')
-alloc_k = (SOURCE / adapter.ALLOCATOR).read_text(encoding='utf-8-sig')
+alloc_k = (OWN / adapter.ALLOCATOR).read_text(encoding='utf-8-sig')
 check(member(alloc_c, 'private MemoryAllocation Allocate(int memoryTypeIndex') == member(alloc_k, 'private MemoryAllocation Allocate(int memoryTypeIndex'),
       'allocator allocation unchanged')
 log = member((SOURCE / adapter.STAGES).read_text(encoding='utf-8-sig'), 'private static void Log(long end)')
@@ -130,12 +107,16 @@ var dedicated = new MemoryAllocatorBlockList.Block(default, nint.Zero, 8 * MiB, 
 pooledA.Allocate(MiB + MiB / 2, 256);
 pooledB.Allocate(4096, 256);
 var buffers = new MemoryAllocatorBlockList(null, default, 3, (int)(4 * MiB), true);
-((List<MemoryAllocatorBlockList.Block>)typeof(MemoryAllocatorBlockList).GetField("_blocks", flags).GetValue(buffers)).AddRange(new[] { pooledA, pooledB });
-typeof(MemoryAllocatorBlockList).GetField("_dedicatedBlocks", flags).SetValue(buffers, new List<MemoryAllocatorBlockList.Block> { dedicated });
+// Blocks are published by the production InsertBlock, the list's only publication path (Allocate calls it under the
+// write lock), not placed in its lists by hand: what a list keeps about its blocks at publication is then kept here too.
+var insert = typeof(MemoryAllocatorBlockList).GetMethod("InsertBlock", flags);
+foreach (var block in new[] { pooledA, pooledB, dedicated }) insert.Invoke(buffers, new object[] { block });
 var images = new MemoryAllocatorBlockList(null, default, 1, (int)(4 * MiB), false);
 var imageBlock = new MemoryAllocatorBlockList.Block(default, nint.Zero, 4 * MiB, false);
 imageBlock.Allocate(2 * MiB, 256);
-((List<MemoryAllocatorBlockList.Block>)typeof(MemoryAllocatorBlockList).GetField("_blocks", flags).GetValue(images)).Add(imageBlock);
+insert.Invoke(images, new object[] { imageBlock });
+int placed(MemoryAllocatorBlockList list, string field) => ((List<MemoryAllocatorBlockList.Block>)typeof(MemoryAllocatorBlockList).GetField(field, flags).GetValue(list))?.Count ?? 0;
+if (placed(buffers, "_blocks") != 2 || placed(buffers, "_dedicatedBlocks") != 1 || placed(images, "_blocks") != 1 || placed(images, "_dedicatedBlocks") != 0) throw new Exception("blocks not published as expected");
 var allocator = (MemoryAllocator)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(MemoryAllocator));
 typeof(MemoryAllocator).GetField("_blockLists", flags).SetValue(allocator, new List<MemoryAllocatorBlockList> { images, buffers });
 typeof(MemoryAllocator).GetField("_lock", flags).SetValue(allocator, new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion));
@@ -192,12 +173,12 @@ check('; type 3 buffers: 3 blocks 16 MiB (dedicated 8 MiB, mapped 4 MiB, pooled 
 check(report['after13'] == 3 and report['afterBound'] == 3, 'every sixth window (1, 7, 13), nothing past the bound: %s' % report)
 
 inputs = ['build-utils/melonx/adapt_vulkan_memory_journal.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_vulkan_memory_journal_test.py',
-          'test/melonx_adapter_control.py', 'build-utils/melonx/adapt_queued_variant_record.py',
-          'build-utils/melonx/adapt_draw_wait_lanes.py']
+          'test/melonx_adapter_control.py', *('build-utils/melonx/' + name + '.py' for name in LATER)]
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=True, sourceKind='finalPreparationWithReversedControl',
                productionVulkanAssemblyBuilt=True, postimages={name: sha(SOURCE / name) for name in adapter.BASELINE},
                usage=usage, linesAfter13Windows=report['after13'], sdk=sdk, host=platform.system(), physicalDeviceTested=False,
+               laterAdaptersReapplied=LATER, blocksPublishedByProductionInsertBlock=True,
                inputs={name: sha(ROOT / name) for name in inputs},
                limitation='Real block and allocator objects without a Vulkan device (no device memory is allocated); the figures '
                           'on an iPhone are what this line will show.')

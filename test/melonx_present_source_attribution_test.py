@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later, later_sharing, postimage  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_present_source_attribution', _HOLD)
@@ -57,7 +57,15 @@ with tempfile.TemporaryDirectory(prefix='melonx-present-source-') as temporary:
     changed = apply(work)
     check([str(p.relative_to(work)) for p in changed] == [WINDOW], 'adapter changed other files')
     if FINAL_PREPARATION:
-        check((work / WINDOW).read_bytes() == (FINAL_SOURCE / WINDOW).read_bytes(), 'final preparation is the adapter')
+        # A later adapter of the preparation order may edit Window.cs too (derived: files_edited_later). The control plus
+        # the adapter must then be the adapter's own postimage, the final file with those later adapters put back to the
+        # bytes they pin (control_source() already required them, re-applied, to reproduce the final file exactly);
+        # without a later edit it must be the final file itself.
+        own = Path(temporary).resolve() / 'postimage'
+        postimage('adapt_present_source_attribution', FINAL_SOURCE, own)
+        check((work / WINDOW).read_bytes() == (own / WINDOW).read_bytes() and
+              (WINDOW in files_edited_later('adapt_present_source_attribution') or
+               (work / WINDOW).read_bytes() == (FINAL_SOURCE / WINDOW).read_bytes()), 'final preparation is the adapter')
     candidate = (work / WINDOW).read_text(encoding='utf-8-sig')
     result = subprocess.run([DOTNET, 'build', str(work / 'src/Ryujinx.Graphics.Gpu/Ryujinx.Graphics.Gpu.csproj'), '-c', 'Release',
                              '-nologo', '-m:1', '-p:NuGetAudit=false'], capture_output=True, text=True, timeout=1800,
@@ -85,6 +93,14 @@ with tempfile.TemporaryDirectory(prefix='melonx-present-source-') as temporary:
 
     fields = candidate[candidate.index('        private const int PresentSourceLineLimit'):candidate.index('        private int _presentSourceLines, _presentSourceSummaries;\n')]
     fields += '        private int _presentSourceLines, _presentSourceSummaries;\n'
+    if FINAL_PREPARATION:
+        # What this gate reads and executes is in the final file unchanged, whatever a later adapter edits around it.
+        final = (FINAL_SOURCE / WINDOW).read_text(encoding='utf-8-sig')
+        check(member(final, 'public void Present(Action swapBuffersCallback)') == present and
+              member(final, 'private void NotePresentSource(') == note and final.count(fields) == 1 and
+              all(member(final, other) == member(candidate, other)
+                  for other in ('public bool PresentLoop(', 'private void DropFrame(', 'public void SignalFrameReady(')),
+              'the final Window.cs holds the checked and executed members unchanged')
     fixture = Path(temporary).resolve() / 'fixture'
     fixture.mkdir()
     program = (ROOT / 'test/melonx_present_source_attribution/Program.cs').read_text()
@@ -116,13 +132,15 @@ check(report['mapCount'] <= 16, 'address map bounded')
 check(report['calls'] == ['dirty False', 'modified'], 'only AnyHandleModified and CheckDirty(texture, false) called: ' + str(report['calls']))
 
 inputs = ['build-utils/melonx/adapt_present_source_attribution.py', 'build-utils/melonx/adapt_session.py',
-          'test/melonx_present_source_attribution_test.py', 'test/melonx_present_source_attribution/Program.cs']
+          'test/melonx_present_source_attribution_test.py', 'test/melonx_present_source_attribution/Program.cs',
+          'test/melonx_adapter_control.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core642Preparation',
                postimages={p: hashlib.sha256((FINAL_SOURCE / p).read_bytes()).hexdigest() for p in BASELINE} if FINAL_PREPARATION else {},
                candidateWindow=hashlib.sha256(candidate.encode()).hexdigest(), report=report, sdk=sdk, physicalDeviceTested=False,
                productionGpuAssemblyBuilt=True, sourceBaseline=BASELINE,
+               laterAdaptersReapplied=later_sharing('adapt_present_source_attribution') if FINAL_PREPARATION else [],
                inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs},
                limitation='Diagnostics only; where the black launch and the stale frames come from is known only after a device run.')
 out = ROOT / 'dist/melonx/present-source-attribution-checks.json'

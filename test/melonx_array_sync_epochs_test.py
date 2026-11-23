@@ -41,7 +41,7 @@ SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, files_edited_later  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later, later_sharing, postimage  # noqa: E402
 import adapt_array_sync_epochs as adapter  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
@@ -131,35 +131,28 @@ with tempfile.TemporaryDirectory(prefix='melonx-array-sync-epochs-') as temporar
     if FINAL_PREPARATION:
         # The tree built and executed as the candidate is the final preparation itself (later adapters included).
         # IPA 736, second lot: adapt_array_dirty_log edits both files after this adapter (the rings in Texture.cs, the
-        # walks' fast paths in the cache). Its replacements are undone for the static reading of this adapter's own
+        # walks' fast paths in the cache). The later adapters are undone for the static reading of this adapter's own
         # text; the fixture below compiles and executes the final cache, rings included.
-        import adapt_array_dirty_log as _log  # noqa: E402
         check(files_edited_later('adapt_array_sync_epochs') == set(adapter.BASELINE), 'the later adapter edits these two files')
+        # The adapter's own text is derived, not listed by hand: postimage() takes the two files from the final
+        # preparation and reverses every later adapter that edits them, latest first (each to the bytes its BASELINE
+        # pins, from the recorded preimages, or by undoing each of its replacements where it is present exactly once);
+        # control_source() above proved that re-applying them forward gives the final preparation back. The later
+        # adapters whose code the fixture below executes or this gate reads must be among them: adapt_array_dirty_log
+        # (IPA 736, the rings and the walks' fast paths), adapt_array_log_membership (IPA 740, the membership flag),
+        # adapt_array_membership_filter (plan 748 rank 14), adapt_array_walk_size (after IPA 764, the bounded ring
+        # walks); adapt_streaming_memory and adapt_hogwarts_pipeline_replay edit the cache after them.
+        import importlib  # noqa: E402
+        own_tree = base / 'own-postimage'
+        later = postimage('adapt_array_sync_epochs', FINAL_SOURCE, own_tree)
+        editing = [name for name in later if set(importlib.import_module(name).BASELINE) & set(adapter.BASELINE)]
+        check(later == later_sharing('adapt_array_sync_epochs') and
+              editing[:4] == ['adapt_array_dirty_log', 'adapt_array_log_membership', 'adapt_array_membership_filter', 'adapt_array_walk_size'],
+              'the later adapters editing these two files start with the four this gate executes: %s' % editing)
         own = {}
         for name, pairs in adapter.FILE_PAIRS.items():
-            final_text = (FINAL_SOURCE / name).read_text(encoding='utf-8-sig')
-            # After IPA 764: adapt_array_walk_size bounds the two ring walks of the cache by the set's size (the complete
-            # walks the cache already has otherwise): undone first, each replacement once; the fixture below executes it.
-            import adapt_array_walk_size as _walk  # noqa: E402
-            for file, old, new in reversed(_walk.PAIRS):
-                if file == name:
-                    check(final_text.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:70])
-                    final_text = final_text.replace(new, old)
-            # Plan 748 rank 14: adapt_array_membership_filter adds the filter after the flag, in both files: undone first.
-            import adapt_array_membership_filter as _filter  # noqa: E402
-            for file, old, new in reversed(_filter.PAIRS):
-                if file == name:
-                    check(final_text.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:70])
-                    final_text = final_text.replace(new, old)
-            # IPA 740 lot: adapt_array_log_membership then adds the membership flag to both files: undone first.
-            import adapt_array_log_membership as _membership  # noqa: E402
-            for file, old, new in reversed(_membership.PAIRS):
-                if file == name:
-                    check(final_text.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:70])
-                    final_text = final_text.replace(new, old)
-            for old, new in reversed(_log.FILE_PAIRS[name]):
-                check(final_text.count(new) == 1, 'the later adapter\'s replacement, once: ' + new.strip().splitlines()[0][:70])
-                final_text = final_text.replace(new, old)
+            final_text = (own_tree / name).read_text(encoding='utf-8-sig')
+            check(final_text != (FINAL_SOURCE / name).read_text(encoding='utf-8-sig'), 'a later adapter was reversed in ' + name)
             for _, new in pairs:
                 check(final_text.count(new) == 1, 'replacement in the final preparation: ' + new.strip().splitlines()[-1][:70])
             check(final_text == after[name], 'final preparation is the adapter (later adapter undone): ' + name)

@@ -71,7 +71,7 @@ RUNTIME_PAIRS = (
                 {
                     try
                     {
-                        EmbeddedLaunchDiagnostics.Record("jitArena", "timing", detail: Ryujinx.Cpu.LightningJit.DualMappedMemory.LastPreparation +
+                        EmbeddedLaunchDiagnostics.Record("jitArena", "timing", detail: "arena prepared: " + Ryujinx.Cpu.LightningJit.DualMappedMemory.LastPreparation +
                             FormattableString.Invariant($"; otherThreadLongestGapMs={otherThreadGapMs:F1}"));
                     }
                     catch { }
@@ -151,7 +151,7 @@ MEMORY_PAIRS = (
         {
             try
             {
-                Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("jitArena", status, detail: (status == "used" ? "peakMiB=" : "useMiB=") + (bytes >> 20) +
+                Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("jitArena", status, detail: (status == "used" ? "arena peak use: peakMiB=" : "arena use reached: useMiB=") + (bytes >> 20) +
                     " (" + bytes + " bytes) of mappedMiB=" + (ArenaSize >> 20));
             }
             catch { }

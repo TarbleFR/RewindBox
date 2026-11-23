@@ -23,10 +23,23 @@ if CANDIDATE:
  # Plan 748 (adapt_stall_compaction_drain_guard, after it) adds the drain guard to that entry point and to the compaction:
  # compared without it (each once, exactly, first); the final file is compiled against the collector's accessor (stubbed).
  sys.path.insert(0,str(ROOT/'test'))
- from melonx_adapter_control import ORDER
+ from melonx_adapter_control import ORDER,later_sharing,reverse_present,apply_present
  DRAIN_GUARD='adapt_stall_compaction_drain_guard' in ORDER
+ LATER_MEMORY=[]
  if DRAIN_GUARD:
   from adapt_stall_compaction_drain_guard import FILE_PAIRS as GUARD_PAIRS,MEMORY as GUARD_MEMORY
+  # The adapters after the drain guard that edit EmbeddedMemory.cs, from the preparation order (Core 775:
+  # adapt_streaming_memory, the process headroom condition of a compaction in a presentation gap). Each is taken out
+  # first, latest first, down to the bytes it pins; re-applied in order they must give the final file back byte for
+  # byte. What is compared below is the drain guard's own postimage; what is compiled is still the final file.
+  import importlib
+  LATER_MEMORY=[name for name in later_sharing('adapt_stall_compaction_drain_guard') if GUARD_MEMORY in importlib.import_module(name).BASELINE]
+  with tempfile.TemporaryDirectory(prefix='melonx-display-chain-') as chain:
+   held=Path(chain)/GUARD_MEMORY;held.parent.mkdir(parents=True);shutil.copyfile(CANDIDATE/FINAL_MEMORY,held)
+   for name in reversed(LATER_MEMORY):assert reverse_present(Path(chain),name,only={GUARD_MEMORY})==[GUARD_MEMORY],name
+   final=held.read_text(encoding='utf-8-sig')
+   for name in LATER_MEMORY:assert apply_present(Path(chain),name,only={GUARD_MEMORY})==[GUARD_MEMORY],name
+   assert held.read_bytes()==(CANDIDATE/FINAL_MEMORY).read_bytes(),'final EmbeddedMemory is the drain guard\'s postimage plus the later adapters of the preparation order, exactly'
   assert all(final.count(new)==1 for old,new in GUARD_PAIRS[GUARD_MEMORY]),'final EmbeddedMemory holds the drain guard once'
   for old,new in reversed(GUARD_PAIRS[GUARD_MEMORY]):final=final.replace(new,old,1)
  if all(final.count(new)==1 for old,new in STALL_PAIRS[STALL_MEMORY]):
@@ -61,7 +74,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-display-') as d:
   fields.append('public '+m[1]+' '+name+' {get;set;}')
  (w/'test.csproj').write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><AllowUnsafeBlocks>true</AllowUnsafeBlocks></PropertyGroup></Project>')
  (w/'Stubs.cs').write_text('''using System;using Ryujinx.Common.Configuration;
-namespace Ryujinx.Memory {static class MemoryBlock {public static ulong GetPageSize()=>16384;}'''+('''static class HostMemoryBudget {public static bool IsConstrained=>false;public static ulong FootprintBytes=>0;public static int DeviceAvailablePercent=>100;}''' if CANDIDATE else '')+'''}
+namespace Ryujinx.Memory {static class MemoryBlock {public static ulong GetPageSize()=>16384;}'''+('''static class HostMemoryBudget {public static bool IsConstrained=>false;public static ulong FootprintBytes=>0;public static ulong AvailableBytes=>0;public static int DeviceAvailablePercent=>100;}''' if CANDIDATE else '')+'''}
 namespace Ryujinx.Common.Logging {enum LogClass {Cpu} class Log {public void Print(LogClass c,string s){}} static class Logger {public static Log Warning=new();}}
 namespace Ryujinx.Common.Configuration {'''+''.join(enums)+'''}
 namespace Ryujinx.Common {static class EmbeddedLaunchDiagnostics {public static void Fail(string a,string b,Exception e){}'''+('''public static void Record(string stage,string status,int code=0,string detail="",long performanceGeneration=0){}''' if CANDIDATE else '')+'''}'''+('''static class EmbeddedPerformanceDiagnostics {public static long RenderDrainInFlightMs()=>-1;}''' if CANDIDATE and DRAIN_GUARD else '')+'''}'''+('''
@@ -228,4 +241,4 @@ Console.WriteLine($"PASS {checks} graphics, FPS snapshot, generation and real do
  result=subprocess.check_output(['dotnet','run','--project',str(w/'test.csproj'),'-c','Release'],text=True,stderr=subprocess.STDOUT,timeout=120)
  print(result)
  out=ROOT/'dist/melonx/display-checks.json';out.parent.mkdir(parents=True,exist_ok=True)
- out.write_text(json.dumps(dict(result='passed',summary=result,inputs={p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in paths+['build-utils/melonx/adapt_memory.py',str(Path(__file__).relative_to(ROOT))]},gameplayTested=False,physicalDeviceTested=False,finalPreparationBound=CANDIDATE is not None,sourceKind='finalPreparation' if CANDIDATE else 'nativeSources',postimages={FINAL_MEMORY:hashlib.sha256((CANDIDATE/FINAL_MEMORY).read_bytes()).hexdigest()} if CANDIDATE else {}),indent=2)+'\n')
+ out.write_text(json.dumps(dict(result='passed',summary=result,inputs={p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in paths+['build-utils/melonx/adapt_memory.py',str(Path(__file__).relative_to(ROOT))]},gameplayTested=False,physicalDeviceTested=False,finalPreparationBound=CANDIDATE is not None,sourceKind='finalPreparation' if CANDIDATE else 'nativeSources',laterAdaptersReapplied=LATER_MEMORY if CANDIDATE else [],postimages={FINAL_MEMORY:hashlib.sha256((CANDIDATE/FINAL_MEMORY).read_bytes()).hexdigest()} if CANDIDATE else {}),indent=2)+'\n')

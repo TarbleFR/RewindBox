@@ -169,10 +169,57 @@ if FINAL_PREPARATION:
     margin_decay = __import__('adapt_pacer_margin_decay') if 'adapt_pacer_margin_decay' in ORDER else None
     # After IPA 760: adapt_mirror_copy_journal (journal only) counts the managed whole-buffer copies in BufferHolder.cs.
     mirror_journal = __import__('adapt_mirror_copy_journal') if 'adapt_mirror_copy_journal' in ORDER else None
-    check(later <= {paced.GPU_CONTEXT, paced.AUTO_FLUSH, prereset.FULL, variant_record.DRAWS} | ({margin_decay.WINDOW} if margin_decay else set())
-          | ({mirror_journal.HOLDER} if mirror_journal else set()),
-          'no later adapter edits these files but adapt_paced_strict_syncs, adapt_texture_play_clock, adapt_query_prereset, '
-          'adapt_queued_3d_syncpoints, adapt_queued_variant_record, adapt_pacer_margin_decay and adapt_mirror_copy_journal: ' + str(sorted(later)))
+    # Since Core 771 more adapters edit these files (adapt_buffer_mirror_windows, adapt_hogwarts_frame_budget,
+    # adapt_hogwarts_steady_render, adapt_render_thread_compile_relief, adapt_guest_start_during_shader_load), most
+    # without exposed pairs: the hand-written list of files is replaced by the derivation below. Every later adapter of
+    # the closure (melonx_adapter_control.later_sharing) is reversed, latest first, in a copy of the final files, each
+    # time giving the bytes it pins; what is left must be the control plus this adapter. What the list stood for (a later
+    # edit must not break what this gate requires) is checked on the final preparation itself: completeness (2) just
+    # below, and the executed final probe (4).
+    from melonx_adapter_control import later_sharing, reverse_present  # noqa: E402
+    LATER = later_sharing('adapt_submit_causes')
+    DIRECT = {name: sorted(set(__import__(name).BASELINE) & set(adapter.BASELINE)) for name in LATER
+              if set(__import__(name).BASELINE) & set(adapter.BASELINE)}
+    check(later == set().union(set(), *map(set, DIRECT.values())) and
+          {'adapt_paced_strict_syncs', 'adapt_texture_play_clock', 'adapt_query_prereset', 'adapt_queued_3d_syncpoints',
+           'adapt_queued_variant_record', 'adapt_pacer_margin_decay', 'adapt_mirror_copy_journal'} <= set(DIRECT),
+          'the later adapters editing these files are derived from the preparation order: ' + json.dumps(DIRECT))
+    # 2 on the final preparation: every submission of the final Vulkan backend names its cause on the line before, and
+    # every CreateHostSyncIfNeeded call of the final Gpu project sits in a method of the site table, in its file, or names
+    # one of the table's sites itself (adapt_hogwarts_steady_render's SubmitDeferredReports: nameof(QueueSyncpointBehindReports)).
+    final_calls = final_untagged = 0
+    for path in sorted((FINAL_SOURCE / VULKAN).rglob('*.cs')):
+        lines = path.read_text(encoding='utf-8-sig').splitlines()
+        for number, line in enumerate(lines):
+            stripped = line.strip()
+            if not re.search(r'\b(FlushAllCommands|FlushCommandsImpl)\(\);', stripped) or stripped.startswith(('//', 'internal void', 'public void')):
+                continue
+            if path.name == 'VulkanRenderer.cs' and stripped == '_pipeline?.FlushCommandsImpl();':
+                continue
+            final_calls += 1
+            previous = next(l.strip() for l in reversed(lines[:number]) if l.strip())
+            if not previous.startswith('RenderStageTimer.NextSubmitCause = RenderStageTimer.SubmitCause.'):
+                final_untagged += 1
+                print('untagged submission in the final preparation:', path.name, number + 1, stripped)
+    check(final_calls == calls and final_untagged == 0, 'final preparation: the same 16 submissions of the Vulkan backend, each naming its cause')
+    final_sites, unnamed = {}, []
+    for path in sorted((FINAL_SOURCE / GPU).rglob('*.cs')):
+        rel = path.relative_to(FINAL_SOURCE).as_posix()
+        lines = path.read_text(encoding='utf-8-sig').splitlines()
+        for number, line in enumerate(lines):
+            if 'CreateHostSyncIfNeeded(' not in line or 'internal void CreateHostSyncIfNeeded(' in line or line.strip().startswith('//'):
+                continue
+            enclosing = next(method_line.match(l).group(1) for l in reversed(lines[:number + 1]) if method_line.match(l))
+            statement = ' '.join(l.strip() for l in lines[number:number + 3])
+            statement = statement[:statement.index(';') + 1]
+            named = re.search(r', nameof\((\w+)\)\);$', statement)
+            site = named.group(1) if named else enclosing
+            if site not in adapter.SITES or (not named and rel != adapter.SITES[site]) or (named and rel != adapter.CONTEXT):
+                unnamed.append((rel, number + 1, enclosing))
+            final_sites.setdefault(site, set()).add(rel)
+    check(not unnamed and set(final_sites) == set(adapter.SITES),
+          'final preparation: every CreateHostSyncIfNeeded call is counted under a site of the table, and every site still has a call: ' +
+          json.dumps(unnamed) + ' ' + json.dumps(sorted(final_sites)))
     # Plan 748 rank 11: adapt_device_critical_trim edits GpuContext.cs last (TrimCaches and the periodic trim's escalation);
     # its replacements there are undone first, then adapt_pacer_margin_decay's in Window.cs.
     critical_undo = ()
@@ -196,13 +243,31 @@ if FINAL_PREPARATION:
             ('adapt_query_prereset', {prereset.FULL: list(prereset.PAIRS)}),
             ('adapt_texture_play_clock', {play_clock.CONTEXT: list(play_clock.PAIRS)}),
             ('adapt_paced_strict_syncs', paced.FILE_PAIRS))
-    for name in adapter.BASELINE:
-        final = read(FINAL_SOURCE, name)
-        for label, pairs in undo:
-            for old, new in reversed(pairs.get(name, ())):
-                check(final.count(new) == 1, label + ': each replacement once in ' + name)
-                final = final.replace(new, old)
-        check(final == candidate[name], 'the final preparation is the control plus the adapter: ' + name)
+    known = dict(undo)
+    check(set(known) <= set(DIRECT), 'every adapter whose pairs are undone here edits one of these files')
+    with tempfile.TemporaryDirectory(prefix='melonx-submit-causes-later-') as temporary:
+        post = Path(temporary)
+        for name in sorted(set(adapter.BASELINE).union(*(set(__import__(later_name).BASELINE) for later_name in LATER))):
+            (post / name).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(FINAL_SOURCE / name, post / name)
+        for label in reversed(LATER):
+            module = __import__(label)
+            # Where the adapter exposes its pairs, each replacement is required once in the file as that adapter left it,
+            # and undoing them must give the same text as the reversal.
+            expected = {}
+            for name, pairs in known.get(label, {}).items():
+                if name in adapter.BASELINE:
+                    expected[name] = read(post, name)
+                    for old, new in reversed(pairs):
+                        check(expected[name].count(new) == 1, label + ': each replacement once in ' + name)
+                        expected[name] = expected[name].replace(new, old)
+            reversed_files = reverse_present(post, label)
+            check(sorted(reversed_files) == sorted(module.BASELINE) and all(sha(post / name) == module.BASELINE[name] for name in reversed_files),
+                  label + ' reversed gives the files it pins')
+            for name, text in expected.items():
+                check(read(post, name) == text, label + ': undoing its replacements gives the file it pins: ' + name)
+        for name in adapter.BASELINE:
+            check(read(post, name) == candidate[name], 'the final preparation, the later adapters reversed, is the control plus the adapter: ' + name)
 
 environment = dict(os.environ, DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1')
 pin = json.loads((ROOT / 'build-utils/melonx/source.json').read_text())
@@ -279,6 +344,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-submit-causes-') as temporary:
     # The final preparation's RenderStageTimer (PipelineBase.cs, also edited by adapt_queued_variant_record) and host sync
     # members (GpuContext.cs) are run as well: the receipt binds those files (postimages).
     final_texts = {name: read(FINAL_SOURCE, name) for name in (adapter.BASE, adapter.CONTEXT)} if FINAL_PREPARATION else None
+    relief = bool(FINAL_PREPARATION and lanes_undo and 'SkippableDrawWait.' in timer_text(final_texts[adapter.BASE]))
     for label, texts, candidate_build in (('control', control, False), ('candidate', candidate, True)) + \
             ((('final', final_texts, True),) if FINAL_PREPARATION else ()):
         text = program.replace('//__RENDER_STAGE_TIMER__\n', timer_text(texts[adapter.BASE]))
@@ -290,6 +356,16 @@ with tempfile.TemporaryDirectory(prefix='melonx-submit-causes-') as temporary:
             counters = scheduler[first:scheduler.index('\n    }\n', first) + len('\n    }\n')]
             check(scheduler.count('    static class DrawWaitCounters\n') == 1 and 'public static string TakeText()' in counters,
                   'final: the draw-wait counters are one class of the final scheduler')
+            if relief:
+                # Core 826 lot: adapt_render_thread_compile_relief appends its own clause after that one, read from the
+                # class it declares in the same file: the real class is compiled with the timer too.
+                first = scheduler.index('    static class SkippableDrawWait\n')
+                skippable = scheduler[first:scheduler.index('\n    }\n', first) + len('\n    }\n')]
+                check(scheduler.count('    static class SkippableDrawWait\n') == 1 and 'public static string TakeText()' in skippable and
+                      'adapt_render_thread_compile_relief' in DIRECT and
+                      texts[adapter.BASE].count('SkippableDrawWait.TakeText(); // RewindBox (adapt_render_thread_compile_relief)') == 1,
+                      'final: the skippable-draw waits are one class of the final scheduler, read once by the render-stage line')
+                counters += '\n' + skippable
             text = text.replace('//__RENDER_STAGE_TIMER__\n', '').replace(
                 timer_text(texts[adapter.BASE]), timer_text(texts[adapter.BASE]) + '\n' + counters.replace('Interlocked.', 'System.Threading.Interlocked.'))
         if candidate_build:
@@ -343,10 +419,14 @@ if FINAL_PREPARATION:
     # After IPA 760: the final line ends with adapt_draw_wait_lanes' clause; no draw waits for a compile in this probe, so
     # it reads zero in both windows. It is required once, at the end, and taken off before the comparison.
     lanes_clause = '; draws that waited for a compile 0 (0.0 ms; programs created meanwhile 0, compiles started ahead 0)' if lanes_undo else ''
+    # Core 826 lot: then adapt_render_thread_compile_relief's clause; no skippable draw waits in this probe, so it reads
+    # zero in both windows. Required once, last, and taken off with the other before the comparison.
+    relief_clause = '; skippable draws that waited briefly 0 (obtained in time 0, 0.0 ms)' if relief else ''
     for window in ('first', 'second'):
-        check(f[window].endswith(lanes_clause) and (not lanes_clause or f[window].count('; draws that waited for a compile ') == 1),
-              'final: the ' + window + ' window\'s line ends with the draw-wait clause, once: ' + f[window][-200:])
-        f[window] = f[window][:len(f[window]) - len(lanes_clause)]
+        check(f[window].endswith(lanes_clause + relief_clause) and (not lanes_clause or f[window].count('; draws that waited for a compile ') == 1)
+              and f[window].count('; skippable draws that waited briefly ') == (1 if relief else 0),
+              'final: the ' + window + ' window\'s line ends with the draw-wait clause and the skippable-wait clause, once each: ' + f[window][-260:])
+        f[window] = f[window][:len(f[window]) - len(lanes_clause + relief_clause)]
         found = split.findall(f[window])
         asynchronous = re.search(r'; not ready by cause: async skips (\d+)', k[window])
         check(len(found) == 1 and asynchronous is not None and found[0] == ('0', asynchronous.group(1)) and split.sub('', f[window]) == k[window],
@@ -366,6 +446,8 @@ if FINAL_PREPARATION and lanes_undo:
     inputs.append('build-utils/melonx/adapt_draw_wait_lanes.py')
 if FINAL_PREPARATION and mirror_undo:
     inputs.append('build-utils/melonx/adapt_mirror_copy_journal.py')
+if FINAL_PREPARATION:
+    inputs += ['build-utils/melonx/' + name + '.py' for name in DIRECT if 'build-utils/melonx/' + name + '.py' not in inputs]
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core741Preparation',
                postimages={name: sha(FINAL_SOURCE / name) for name in adapter.BASELINE} if FINAL_PREPARATION else {},
@@ -373,6 +455,7 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPA
                sourceBaseline=adapter.BASELINE, submissionSites=calls, hostSyncSites=sorted(adapter.SITES),
                lines=dict(control=c['first'], candidate=k['first'], hostSyncs=k['hostSyncs'], **({'final': reports['final']['first']} if FINAL_PREPARATION else {})),
                finalPreparationExecuted=bool(FINAL_PREPARATION), finalStageLineSplit=final_split,
+               laterAdaptersEditingTheseFiles=DIRECT if FINAL_PREPARATION else {},
                inputs={p: sha(ROOT / p) for p in inputs},
                limitation='Counters and log text only; which causes and sites dominate on Hogwarts Legacy is read in the next '
                           'device session (render stages suffix, "Host syncs created over" lines).')

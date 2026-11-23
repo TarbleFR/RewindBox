@@ -24,7 +24,7 @@ namespace Ryujinx.Common
     {
         public ulong Low, High;
 
-        public static Hash128 ComputeHash(byte[] data)
+        public static Hash128 ComputeHash(ReadOnlySpan<byte> data)
         {
             ulong hash = 0xCBF29CE484222325UL;
             foreach (byte value in data) hash = (hash ^ value) * 0x100000001B3UL;
@@ -52,6 +52,16 @@ namespace Ryujinx.Graphics.Vulkan
     static class RenderStageTimer
     {
         public static long AsyncSkips, AsyncQueuedSkips, UnavailablePipelines;
+        // The stage clock, as the real one: the final CreatePipeline times a skippable draw's short wait with it.
+        public static long Now() => System.Diagnostics.Stopwatch.GetTimestamp();
+    }
+
+    // The final ShaderCollection declares which descriptor sets hold buffer views (adapt_hogwarts_steady_render); it is
+    // assigned in the descriptor-layout part of the constructor, which this fixture leaves out. The type only.
+    class DescriptorSetUpdater
+    {
+        [Flags]
+        internal enum DirtyFlags { None = 0 }
     }
 
     partial class PipelineCacheManager

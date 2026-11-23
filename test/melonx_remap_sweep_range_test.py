@@ -120,12 +120,18 @@ if FINAL_PREPARATION:
     # Plan 748 rank 14: adapt_array_membership_filter then adds the texture's filter bit to Texture.cs (nothing of it either).
     # After IPA 764: adapt_array_walk_size edits TextureBindingsArrayCache.cs, which those adapters edit too (reached
     # through them; nothing of this adapter's files).
-    check(LATER == ['adapt_array_sync_epochs', 'adapt_array_dirty_log', 'adapt_array_log_membership', 'adapt_array_membership_filter',
-                    'adapt_array_walk_size'] and
+    # Since Core 771 the closure grows through those adapters' other files (adapt_streaming_memory,
+    # adapt_hogwarts_pipeline_replay, adapt_render_thread_compile_relief, adapt_variant_journal_capacity, ...): the
+    # adapters that edit this adapter's files are derived from it (DIRECT) and stay the four reviewed ones, on Texture.cs
+    # only; every other one pins none of these files, is reversed in the control by control_source and re-applied on the
+    # candidate below, where the final preparation must be reproduced byte for byte.
+    DIRECT = [name for name in LATER if set(__import__(name).BASELINE) & set(adapter.BASELINE)]
+    check(DIRECT == ['adapt_array_sync_epochs', 'adapt_array_dirty_log', 'adapt_array_log_membership', 'adapt_array_membership_filter'] and
+          set().union(*(set(__import__(name).BASELINE) & set(adapter.BASELINE) for name in DIRECT)) == {adapter.TEXTURE} and
           files_edited_later('adapt_remap_sweep_range') == {adapter.TEXTURE},
           'the only later adapters on these files are adapt_array_sync_epochs, adapt_array_dirty_log, '
-          'adapt_array_log_membership and adapt_array_membership_filter, on Texture.cs (and adapt_array_walk_size, '
-          'through them, on none of them): %s' % LATER)
+          'adapt_array_log_membership and adapt_array_membership_filter, on Texture.cs (the others of the closure, '
+          'adapt_array_walk_size first, reach them through other files and edit none of them): %s of %s' % (DIRECT, LATER))
     import adapt_array_sync_epochs as epochs  # noqa: E402
     import adapt_array_dirty_log as dirty_log  # noqa: E402
     import adapt_array_log_membership as membership  # noqa: E402

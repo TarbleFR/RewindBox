@@ -59,6 +59,10 @@ def emit(tree, name):
     internal struct ResourceBindingSegment { public ResourceType Type; }
     internal class ShaderCollection { public ResourceBindingSegment[][] BindingSegments; }
     internal static class PipelineBase { public const int TextureSetIndex = 2, ImageSetIndex = 3; }
+    // The encoding policy of PipelineBase.cs: the final write branch reads it since Core 771 (adapt_hogwarts_frame_budget,
+    // a later adapter in BufferHolder.cs: under the policy a large buffer's window grows by doubling instead of to the
+    // whole buffer). Off, as for every title but the one the launch sets it for, unless the probe sets it.
+    internal static class EncodingPolicy { public static bool IncrementalArrayDescriptors; }
     internal class DisposableBuffer {}
     internal class Auto<T> {}
     internal struct DescriptorBufferInfo { public ulong Range; }

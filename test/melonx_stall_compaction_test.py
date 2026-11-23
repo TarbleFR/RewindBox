@@ -58,7 +58,7 @@ FIXTURE_ONLY = '--fixture-only' in sys.argv
 FINAL_PREPARATION = False
 if not FIXTURE_ONLY:
     SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
-    from melonx_adapter_control import control_source, files_edited_later  # noqa: E402
+    from melonx_adapter_control import control_source, files_edited_later, postimage  # noqa: E402
     _HOLD = []
     FINAL_SOURCE = SOURCE
     SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_stall_compaction', _HOLD)
@@ -116,15 +116,46 @@ def body(text, signature):
     return text[start:at]
 
 
+# The adapters that edit EmbeddedMemory.cs after this adapter and its drain guard, from the preparation order (Core 775:
+# adapt_streaming_memory, which lets a presentation gap compact only at the critical process headroom or an unknown one).
+LATER_MEMORY = [name for name in ORDER[ORDER.index('adapt_stall_compaction_drain_guard' if DRAIN_GUARD else 'adapt_stall_compaction') + 1:]
+                if adapter.MEMORY in __import__(name).BASELINE]
+
+
+def later_memory_pairs():
+    """The (old, new) replacements those later adapters make in EmbeddedMemory.cs, in preparation order, read from each
+    adapter's own apply() with its `once` recording instead of editing (nothing is read or written; an adapter that edits
+    by another means fails here). The final preparation's class must be exactly what they give (checked below)."""
+    pairs = []
+    for name in LATER_MEMORY:
+        module = __import__(name)
+        original, baseline = module.once, module.BASELINE
+
+        def record(path, old, new):
+            if Path(path).as_posix().endswith(adapter.MEMORY):
+                pairs.append((old, new))
+
+        module.once, module.BASELINE = record, {}
+        try:
+            module.apply(Path('/melonx-stall-compaction-nothing-is-read'))
+        finally:
+            module.once, module.BASELINE = original, baseline
+    return pairs
+
+
 def synthesized_class():
     """The compaction class as the adapters make it: adapt_safe_point_compaction's class, adapt_retention_chain's line in
-    its first-frame step, then this adapter's replacements."""
+    its first-frame step, then this adapter's replacements, the drain guard's, and those of the later adapters that
+    fall inside the class."""
     from adapt_safe_point_compaction import COMPACTION_CLASS
     from adapt_retention_chain import FIRST_FRAME_OLD, FIRST_FRAME_NEW
     text = COMPACTION_CLASS
     guard_pairs = guard.FILE_PAIRS[guard.MEMORY] if DRAIN_GUARD else ()
     for old, new in ((FIRST_FRAME_OLD, FIRST_FRAME_NEW), *adapter.FILE_PAIRS[adapter.MEMORY], *guard_pairs):
         assert text.count(old) == 1, old[:70]
+        text = text.replace(old, new)
+    for old, new in later_memory_pairs():
+        assert text.count(old) <= 1, old[:70]  # once in the file; none here when the edit is outside the class
         text = text.replace(old, new)
     return text
 
@@ -168,7 +199,8 @@ def execute(temporary, klass, collector=None):
 drain = None
 if FIXTURE_ONLY:
     with tempfile.TemporaryDirectory(prefix='melonx-stall-compaction-') as temporary:
-        policy, replay, live, drain = execute(Path(temporary).resolve(), synthesized_class(), synthesized_collector() if DRAIN_GUARD else None)
+        klass = synthesized_class()
+        policy, replay, live, drain = execute(Path(temporary).resolve(), klass, synthesized_collector() if DRAIN_GUARD else None)
 else:
     ignore = shutil.ignore_patterns('.git', 'bin', 'obj', 'MeloNX')
     with tempfile.TemporaryDirectory(prefix='melonx-stall-compaction-') as temporary:
@@ -201,11 +233,23 @@ else:
         postimages = {}
         if FINAL_PREPARATION:
             later = files_edited_later('adapt_stall_compaction')
+            # This adapter's own postimage (the final files with every later adapter sharing them put back to the bytes
+            # it pins; control_source() required those, re-applied in order, to reproduce the final preparation): the
+            # control plus the adapter must be exactly it, for a file a later adapter edits as for the others.
+            own = temporary / 'postimage'
+            postimage('adapt_stall_compaction', FINAL_SOURCE, own)
+            if DRAIN_GUARD:
+                # The drain guard's own postimage of EmbeddedMemory.cs: the final file without the adapters after the
+                # guard (LATER_MEMORY, which edit inside the guard's text since Core 775).
+                guard_own = temporary / 'guard-postimage'
+                postimage('adapt_stall_compaction_drain_guard', FINAL_SOURCE, guard_own)
             for name, pairs in adapter.FILE_PAIRS.items():
+                check((candidate / name).read_bytes() == (own / name).read_bytes(), 'the control plus the adapter is its exact postimage: ' + name)
                 final_text = (FINAL_SOURCE / name).read_text(encoding='utf-8-sig')
                 if DRAIN_GUARD and name == guard.MEMORY:
                     # Plan 748: the drain guard edits inside this adapter's text (its first frame, run, poll and class
-                    # end); its replacements, each once in the final preparation, are undone first.
+                    # end); its replacements, each once in its postimage of the final preparation, are undone first.
+                    final_text = (guard_own / name).read_text(encoding='utf-8-sig')
                     for old, new in reversed(guard.FILE_PAIRS[guard.MEMORY]):
                         check(final_text.count(new) == 1, 'drain guard replacement in the final preparation: ' + new.strip().splitlines()[0][:70])
                         final_text = final_text.replace(new, old)
@@ -224,8 +268,12 @@ else:
         # --- static ---
         memory, window, session = after[adapter.MEMORY], after[adapter.WINDOW], after[adapter.SESSION]
         klass = memory[memory.index(BEGIN):memory.index(END) + len(END)]
-        check(klass.count('System.GC.Collect(') == 1 and klass.count('Compact(') == 4 and 'GCSettings.LatencyMode' not in klass and
-              'TryStartNoGCRegion' not in klass, 'one collection in the class, the existing Compact; three callers and its definition')
+        # A later adapter may add a caller of the existing Compact (adapt_device_pressure_compaction): counted from the
+        # replacements those adapters make in this file.
+        later_callers = sum(new.count('Compact(') - old.count('Compact(') for old, new in later_memory_pairs())
+        check(klass.count('System.GC.Collect(') == 1 and klass.count('Compact(') == 4 + later_callers and 'GCSettings.LatencyMode' not in klass and
+              'TryStartNoGCRegion' not in klass, 'one collection in the class, the existing Compact; three callers, its definition '
+              'and %d caller(s) of later adapters' % later_callers)
         poll = body(klass, 'internal static void OnPoll()')
         check(poll.lstrip('{ \n').startswith('try') and 'catch (System.Exception error)' in poll and 'heapCompactionFailed' in poll,
               'the poll is inside its own catch and journals a failure')
@@ -309,7 +357,7 @@ else:
         check(' error ' not in out, 'production Ryujinx.Library assembly builds')
 
         # --- executed ---
-        check(klass == synthesized_class(), 'the class of the final preparation is the three adapters\' text (what --fixture-only compiles)')
+        check(klass == synthesized_class(), 'the class of the final preparation is the adapters\' text (what --fixture-only compiles)')
         policy, replay, live, drain = execute(temporary, klass, collector)
 
 print(json.dumps({'policy': policy, 'replay': replay, 'live': {k: v for k, v in live.items() if k != 'lines'},
@@ -342,6 +390,13 @@ check(live['freeAfterMiB'] <= 8 and given_back >= live['freeBeforeMiB'] * 0.6,
 check(live['againWithoutSpace'] == -1, 'no second compaction without space or before the interval')
 check(live['freeSecondMiB'] >= 128 and live['notShort'] == -1 and live['stopping'] == -1,
       'a second burst (%d MiB free): nothing while the device is not short, nothing while a stop is requested' % live['freeSecondMiB'])
+# Core 775 (adapt_streaming_memory, a later adapter inside this class): a presentation gap compacts only while the
+# process's headroom is at most the critical one (256 MiB) or unknown. Every case above and below runs at exactly that
+# headroom; with one byte more, the space, the gap and the short device there, the poll must do nothing. -2: the class
+# has no such condition (an order without that adapter).
+HEADROOM_GATE = 'MayCompactInGap(' in klass
+check(live['headroomAboveCritical'] == (-1 if HEADROOM_GATE else -2) and live['criticalHeadroomMiB'] == 256 and
+      bool(LATER_MEMORY) >= HEADROOM_GATE, 'one byte of process headroom above the critical one: nothing: %s' % live['headroomAboveCritical'])
 check(live['pausedPoll'] == -1, 'in a host pause the poll does nothing (the pause keeps its own rule), with the space and the gap there')
 check(live['rightAfterResume'] == 0, 'a resume is not a gap')
 check(live['ended'] == -1, 'after the session\'s end, nothing')
@@ -391,7 +446,8 @@ if FIXTURE_ONLY:
     raise SystemExit(0)
 
 inputs = ['build-utils/melonx/adapt_stall_compaction.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_stall_compaction_test.py',
-          'test/melonx_stall_compaction/Program.cs', 'test/melonx_adapter_control.py']
+          'test/melonx_stall_compaction/Program.cs', 'test/melonx_adapter_control.py',
+          *('build-utils/melonx/' + name + '.py' for name in LATER_MEMORY)]
 if DRAIN_GUARD:
     inputs += ['build-utils/melonx/adapt_stall_compaction_drain_guard.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                'native/melonx/EmbeddedPerformanceDiagnostics.cs']
@@ -405,13 +461,17 @@ report = {
     'liveFreeBeforeMiB': live['freeBeforeMiB'], 'liveFreeAfterMiB': live['freeAfterMiB'], 'liveResidentGivenBackMiB': given_back,
     'policy': policy, 'replay': replay, 'live': live,
     'drainGuard': drain_guard, 'drain': drain,
+    'laterAdaptersInClass': LATER_MEMORY, 'processHeadroomGate': {'inClass': HEADROOM_GATE, 'casesRunAtMiB': live['criticalHeadroomMiB'],
+                                                                  'aboveCriticalCompacted': live['headroomAboveCritical'] >= 0},
     'deviceEvidence': 'IPA 729 Hogwarts Legacy (private journal, pid 58475): heapCompacted firstFrame LOH 519 (253 free) -> 266 MiB, '
                       'footprint 2903 -> 2669 MiB, 80.5 ms; memoryInventory reports 2-6: LOH 455-458 MiB with 165-234 MiB free; '
                       'heapCompacted hostPause LOH 455 (169 free) -> 279 MiB, footprint 4882 -> 4576 MiB, 634 ms',
     'inputs': {path: sha(ROOT / path) for path in inputs},
     'limitation': 'Host: the rule, its replay on recorded figures and the real collector on a synthetic heap. Where the rule '
                   'fires on the iPhone, how long that compaction lasts with the device short of memory and how much footprint '
-                  'it gives back are read from the heapCompacted lines of the next IPA.',
+                  'it gives back are read from the heapCompacted lines of the next IPA. The replay applies the rule alone: since '
+                  'Core 775 (adapt_streaming_memory) a gap compaction also needs the process\'s headroom at 256 MiB or less, or '
+                  'unknown, a figure the recorded session does not hold; the live cases run at exactly 256 MiB.',
 }
 out = ROOT / 'dist/melonx/stall-compaction-checks.json'
 out.parent.mkdir(parents=True, exist_ok=True)

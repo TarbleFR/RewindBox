@@ -140,6 +140,9 @@ static class Program
     static void Main(string[] args)
     {
         candidate=args[0]=="candidate";
+        // The encoding policy the final manager reads (EncodingPolicy double): off as for every title but the one the
+        // launch sets it for, on when the second argument asks for it.
+        Ryujinx.Graphics.Vulkan.EncodingPolicy.BindingSizedDescriptorScratch=Ryujinx.Graphics.Vulkan.EncodingPolicy.IncrementalArrayDescriptors=args.Length>1&&args[1]=="on";
 #if INSTRUMENTED_CANDIDATE
         Ryujinx.Common.EmbeddedPerformanceDiagnostics.Start(1);
 #endif

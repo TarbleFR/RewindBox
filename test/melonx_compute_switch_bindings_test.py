@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_compute_switch_bindings', _HOLD)
@@ -64,8 +64,13 @@ with tempfile.TemporaryDirectory(prefix='melonx-compute-switch-bindings-') as te
             changed = adapter.apply(work)
             check(sorted(str(p.relative_to(work)) for p in changed) == sorted(adapter.BASELINE), 'adapter changed other files')
             if FINAL_PREPARATION:
+                # A file a later adapter edits again (adapt_buffer_texture_bindings: TextureBindingsManager.cs) is bound
+                # by control_source above (this adapter and the later ones re-applied give the final preparation) and
+                # executed final by that adapter's gate; the others must be the final preparation itself.
+                later = files_edited_later('adapt_compute_switch_bindings')
                 for name in adapter.BASELINE:
-                    check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+                    if name not in later:
+                        check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
         texts[variant] = {name: (work / name).read_text(encoding='utf-8-sig') for name in adapter.BASELINE}
         build = dotnet('build', str(work / (GPU + 'Ryujinx.Graphics.Gpu.csproj')), '-c', 'Release', '-nologo', '-m:1',
                        '-p:NuGetAudit=false', cwd=work)

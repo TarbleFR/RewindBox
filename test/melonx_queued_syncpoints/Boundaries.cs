@@ -82,8 +82,10 @@ namespace Ryujinx.Graphics.Gpu.Memory
 
 namespace Ryujinx.Graphics.Gpu
 {
+    // The production values (Synchronization/HostSyncFlags.cs): a sync that is not Strict is created on the open command
+    // buffer and submitted with it later; a Strict one submits it.
     [Flags]
-    public enum HostSyncFlags { None = 0, StrictSyncpoint = 1, Force = 4 }
+    public enum HostSyncFlags { None = 0, Syncpoint = 1 << 0, Strict = 1 << 1, Force = 1 << 2, StrictSyncpoint = Strict | Syncpoint }
 
     // Ordered record of what the guest and the backend observe.
     public static class FixtureTrace
@@ -167,6 +169,12 @@ namespace Ryujinx.Graphics.Gpu
         public void Dispose() => FixtureTrace.Add("fifo-dispose");
     }
 
+    // GpuContext.Window, as GPFifoDevice.WaitForCommands reads it under the pacing policy (a frame waits to be presented).
+    public sealed class WindowBoundary
+    {
+        public bool IsFrameAvailable;
+    }
+
     public partial class GpuContext
     {
         public readonly RendererBoundary Renderer;
@@ -177,13 +185,52 @@ namespace Ryujinx.Graphics.Gpu
         public GpuContext(bool threaded) { Renderer = new RendererBoundary(threaded); }
 
         public readonly List<string> HostSyncCallers = new();
+        // What the prepared GPFifoDevice.WaitForCommands reads besides the queue.
+        public readonly ConcurrentQueue<Action> DeferredActions = new();
+        public readonly WindowBoundary Window = new();
+        // adapt_paced_strict_syncs' policy flag (Hogwarts Legacy only, set with the queue's by the Library).
+        public static bool PaceStrictHostSyncs { get; set; }
+        // Syncs created on the open command buffer and not submitted yet (not Strict), and how many were.
+        public int KeptOnOpenCommandBuffer, SyncsKept;
+#if STRICT_SYNC_PACER
+        private StrictSyncPacer _strictSyncPacer; // the production pacer (Pacer.cs, from the prepared GpuContext.cs)
+#endif
+        private static readonly System.Reflection.FieldInfo LastStrictSubmission = typeof(GpuContext).GetField("_lastStrictSubmission",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        private static readonly System.Reflection.FieldInfo DeferredReportSince = typeof(GpuContext).GetField("_deferredReportSince",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
+        // The production CreateHostSyncIfNeeded, for what the queue relies on: a Strict sync submits the open command buffer
+        // (the renderer runs the submission), any other sync is created on it and waits for the next submission; a Strict,
+        // unforced sync of a paced site may lose its Strict flag (the production pacer, when the prepared tree has one);
+        // under the pacing policy a Strict submission is noted in the two fields the prepared queue reads (when it has them).
         public void CreateHostSyncIfNeeded(HostSyncFlags flags, [System.Runtime.CompilerServices.CallerMemberName] string caller = "")
         {
             HostSyncs.Add(flags);
             HostSyncCallers.Add(caller);
             FixtureTrace.Add("sync:" + flags);
+            bool strict = (flags & HostSyncFlags.Strict) != 0, force = (flags & HostSyncFlags.Force) != 0;
+#if STRICT_SYNC_PACER
+            if (strict && !force && _strictSyncPacer.Defer(caller, System.Diagnostics.Stopwatch.GetTimestamp(), System.Diagnostics.Stopwatch.Frequency))
+            {
+                strict = false;
+            }
+#endif
+            if (!strict)
+            {
+                KeptOnOpenCommandBuffer++;
+                SyncsKept++;
+                FixtureTrace.Add("kept:" + caller);
+                return;
+            }
+            KeptOnOpenCommandBuffer = 0;
+            FixtureTrace.Add("submit:" + caller);
             Renderer.Submit();
+            if (PaceStrictHostSyncs)
+            {
+                LastStrictSubmission?.SetValue(this, System.Diagnostics.Stopwatch.GetTimestamp());
+                DeferredReportSince?.SetValue(this, 0L);
+            }
         }
 
         public void AdvanceSequence() { }

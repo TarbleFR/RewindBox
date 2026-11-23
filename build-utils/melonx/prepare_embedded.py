@@ -252,6 +252,13 @@ from adapt_variant_journal_capacity import apply as adapt_variant_journal_capaci
 from adapt_jit_arena_usage_journal import apply as adapt_jit_arena_usage_journal
 from adapt_bgc_suspension_pending import apply as adapt_bgc_suspension_pending
 from adapt_shader_cache_parallel_read import apply as adapt_shader_cache_parallel_read
+from adapt_vulkan_memory_rounding_journal import apply as adapt_vulkan_memory_rounding_journal
+from adapt_unblocked_sync_queries import apply as adapt_unblocked_sync_queries
+from adapt_buffer_texture_bindings import apply as adapt_buffer_texture_bindings
+from adapt_descriptor_set_reuse_journal import apply as adapt_descriptor_set_reuse_journal
+from adapt_large_buffer_native import apply as adapt_large_buffer_native
+from adapt_device_pressure_compaction import apply as adapt_device_pressure_compaction
+from adapt_network_interface_snapshot import apply as adapt_network_interface_snapshot
 
 
 def replace_once(path, old, new):
@@ -805,6 +812,13 @@ def main():
     adapted += adapt_jit_arena_usage_journal(source)
     adapted += adapt_bgc_suspension_pending(source)
     adapted += adapt_shader_cache_parallel_read(source)
+    adapted += adapt_vulkan_memory_rounding_journal(source)
+    adapted += adapt_unblocked_sync_queries(source)
+    adapted += adapt_buffer_texture_bindings(source)
+    adapted += adapt_descriptor_set_reuse_journal(source)
+    adapted += adapt_large_buffer_native(source)
+    adapted += adapt_device_pressure_compaction(source)
+    adapted += adapt_network_interface_snapshot(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -974,7 +988,9 @@ def main():
                  'adapt_deferred_release_roots.py', 'adapt_render_thread_compile_relief.py',
                  'adapt_guest_start_during_shader_load.py', 'adapt_shader_code_table_load.py',
                  'adapt_variant_journal_capacity.py', 'adapt_jit_arena_usage_journal.py',
-                 'adapt_bgc_suspension_pending.py', 'adapt_shader_cache_parallel_read.py']:
+                 'adapt_bgc_suspension_pending.py', 'adapt_shader_cache_parallel_read.py',
+                 'adapt_vulkan_memory_rounding_journal.py', 'adapt_unblocked_sync_queries.py', 'adapt_buffer_texture_bindings.py',
+                 'adapt_descriptor_set_reuse_journal.py', 'adapt_large_buffer_native.py', 'adapt_device_pressure_compaction.py', 'adapt_network_interface_snapshot.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

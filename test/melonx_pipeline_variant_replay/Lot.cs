@@ -63,11 +63,14 @@ static class LotScenarios
     public static Dictionary<string, object> JournalRoom(string root, Action<bool, string> require)
     {
         var report = new Dictionary<string, object>();
+        // The journal's bound in the source this probe runs (2048 states as adapt_pipeline_variant_replay writes it, 4096
+        // with adapt_variant_journal_capacity): the scenarios fill exactly the bound and go 300, 52 or one refresh past it.
+        const int Bound = PipelineVariantJournal.MaxRecords;
         {
             var s1 = Open(root, "evict");
-            for (int i = 0; i < 2048; i++) s1.NoteLate(0x10, Variant(i), 10 + i % 7, joined: false);
+            for (int i = 0; i < Bound; i++) s1.NoteLate(0x10, Variant(i), 10 + i % 7, joined: false);
             Settle(root, "evict");
-            require(s1.LateNew == 2048 && s1.NotRecorded == 0, "journal room: session 1 records 2048");
+            require(s1.LateNew == Bound && s1.NotRecorded == 0, "journal room: session 1 records the bound");
 
             var s2 = Open(root, "evict");
             int loaded2 = s2.Loaded;
@@ -95,13 +98,13 @@ static class LotScenarios
             var s3 = Open(root, "evict");
             var records3 = Field<Dictionary<(ulong, ulong), PipelineVariantJournal.Record>>(s3, "_records");
             bool sameJournal = keptAtEnd.SetEquals(records3.Keys);
-            require(loaded2 == 2048 && heldAfterNew == 2048 && evictedAfterNew == 300 && givenUpKnown == 300 && notRecorded2 == 0,
+            require(loaded2 == Bound && heldAfterNew == Bound && evictedAfterNew == 300 && givenUpKnown == 300 && notRecorded2 == 0,
                 $"journal room: 300 new states recorded by giving up 300 ({heldAfterNew} held, {evictedAfterNew} given up, {notRecorded2} not recorded)");
             require(noneMetGivenUp && firstInOrder, "journal room: only states not met this session, first in eviction order, are given up");
-            require(backWithHistory && usedBack && held2 == 2048 && evicted == 311, $"journal room: met again or used, back with its history ({evicted})");
-            require(s3.Loaded == 2048 && s3.GivenUpAtLoad == 300 && sameJournal,
+            require(backWithHistory && usedBack && held2 == Bound && evicted == 311, $"journal room: met again or used, back with its history ({evicted})");
+            require(s3.Loaded == Bound && s3.GivenUpAtLoad == 300 && sameJournal,
                 $"journal room: the load trims the 300 given up whose lines are in the file, keeping the session's journal ({s3.GivenUpAtLoad})");
-            require(summary.Contains("Journal: 2048 of 2048 states, given up for newer states 311 (at the load 0), not recorded 0, compactions 0, lines not written 0"),
+            require(summary.Contains($"Journal: {Bound} of {Bound} states, given up for newer states 311 (at the load 0), not recorded 0, compactions 0, lines not written 0"),
                 "journal room: summary line: " + summary);
             report["evict"] = new Dictionary<string, object>
             {
@@ -114,32 +117,34 @@ static class LotScenarios
         {
             // Every state held met this session: a new one cannot take a place and is counted.
             var s1 = Open(root, "full");
-            for (int i = 0; i < 2100; i++) s1.NoteLate(0x30, Variant(200000 + i), 5, joined: false);
+            for (int i = 0; i < Bound + 52; i++) s1.NoteLate(0x30, Variant(200000 + i), 5, joined: false);
             var records = Field<Dictionary<(ulong, ulong), PipelineVariantJournal.Record>>(s1, "_records");
-            require(records.Count == 2048 && s1.NotRecorded == 52 && s1.Evicted == 0,
-                $"journal room: 2048 recorded, 52 counted not recorded ({records.Count}, {s1.NotRecorded}, {s1.Evicted})");
+            require(records.Count == Bound && s1.NotRecorded == 52 && s1.Evicted == 0,
+                $"journal room: the bound recorded, 52 counted not recorded ({records.Count}, {s1.NotRecorded}, {s1.Evicted})");
             Settle(root, "full");
             report["full"] = new Dictionary<string, object> { ["held"] = records.Count, ["notRecorded"] = s1.NotRecorded, ["evicted"] = s1.Evicted };
         }
         {
-            // A full file: 2048 variants of the codec's largest size (1444 bytes), then a refresh line for each. The file is
-            // compacted from memory instead of dropping lines; every refresh survives to the next load.
+            // A full file: the bound's worth of variants of the codec's largest size (1444 bytes), then a refresh line for each.
+            // The file is compacted from memory instead of dropping lines; every refresh survives to the next load. The file
+            // bound is the one of the bound's adapter (4 MiB for 2048 states, 8 MiB for 4096): a compaction at the bound fits.
             const int size = 1444;
             var s1 = Open(root, "compact");
-            for (int i = 0; i < 2048; i++) s1.NoteLate(0x40, Variant(300000 + i, size), 7, joined: false);
+            for (int i = 0; i < Bound; i++) s1.NoteLate(0x40, Variant(300000 + i, size), 7, joined: false);
             Settle(root, "compact");
             long bytes1 = new FileInfo(PathOf(root, "compact")).Length;
             var s2 = Open(root, "compact");
-            for (int i = 0; i < 2048; i++) s2.NoteLate(0x40, Variant(300000 + i, size), 9, joined: false);
+            for (int i = 0; i < Bound; i++) s2.NoteLate(0x40, Variant(300000 + i, size), 9, joined: false);
             Settle(root, "compact");
             long bytes2 = new FileInfo(PathOf(root, "compact")).Length;
             var s3 = Open(root, "compact");
             var records3 = Field<Dictionary<(ulong, ulong), PipelineVariantJournal.Record>>(s3, "_records");
             int refreshed = records3.Values.Count(r => r.Sessions == 2 && r.LastSession == 2);
             require(s2.Compactions >= 1 && s2.LinesNotWritten == 0 && bytes2 <= PipelineVariantJournal.MaxFileBytes &&
-                    PipelineVariantJournal.MaxFileBytes == 4L * 1024 * 1024,
-                $"journal room: compacted {s2.Compactions}, not written {s2.LinesNotWritten}, {bytes2} bytes");
-            require(s3.Loaded == 2048 && refreshed == 2048, "journal room: every refresh survived the compaction: " + refreshed);
+                    PipelineVariantJournal.MaxFileBytes == (Bound == 2048 ? 4L : Bound == 4096 ? 8L : 0L) * 1024 * 1024 &&
+                    (long)Bound * (size + 39) < PipelineVariantJournal.MaxFileBytes * 7 / 8,
+                $"journal room: compacted {s2.Compactions}, not written {s2.LinesNotWritten}, {bytes2} bytes of {PipelineVariantJournal.MaxFileBytes}");
+            require(s3.Loaded == Bound && refreshed == Bound, "journal room: every refresh survived the compaction: " + refreshed);
             report["compact"] = new Dictionary<string, object>
             {
                 ["variantBytes"] = size, ["bytesAfterSession1"] = bytes1, ["bytesAfterSession2"] = bytes2, ["compactions"] = s2.Compactions,
@@ -219,6 +224,9 @@ static class LotScenarios
             var manager = (PipelineCacheManager)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(PipelineCacheManager));
             var loaded = new ManualResetEventSlim(false);
             typeof(PipelineCacheManager).GetField("_mainLoaded", Instance).SetValue(manager, loaded);
+            // After IPA 800 (the Hogwarts lots) the worker waits for the primary cache's readiness, an event of its own that
+            // the load resets with the main one and publishes no later than it: the same unset event stands for both here.
+            typeof(PipelineCacheManager).GetField("_primaryCacheReady", Instance)?.SetValue(manager, loaded);
             typeof(PipelineCacheManager).GetField("_mainLoadWaitDeadline", Instance).SetValue(manager, Environment.TickCount64 + 300);
             long waitedMs = -1, elapsedMs = -1;
             var worker = new Thread(() =>

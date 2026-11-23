@@ -32,7 +32,7 @@ SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, files_edited_later, postimage  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later, later_sharing, postimage  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 CONTROL, FINAL_PREPARATION = control_source(SOURCE, 'adapt_variant_replay_all', _HOLD)
@@ -90,8 +90,29 @@ control_text = (CONTROL / adapter.MANAGER).read_text(encoding='utf-8-sig')
 POST = WORK / 'post'
 postimage('adapt_variant_replay_all', FINAL_SOURCE, POST)
 candidate_text = (POST / adapter.MANAGER).read_text(encoding='utf-8-sig')
-check(member(candidate_text, 'internal void Pump()') == member((FINAL_SOURCE / adapter.MANAGER).read_text(encoding='utf-8-sig'), 'internal void Pump()'),
-      'the final preparation keeps this adapter\'s Pump')
+# Core 771: adapt_hogwarts_pipeline_replay, a later adapter, adds one condition to Pump's stop test: nothing is scheduled
+# while the primary cache is not loaded, where the journal is given that test (Hogwarts Legacy's policy; null otherwise,
+# and `null == false` is false: the delivered decision). Pump of the final preparation must be this adapter's with that
+# replacement and nothing else (the pair is that adapter's own, read in its source); the cap and its bound are read in
+# the final file too. The executed candidate below is the final preparation.
+final_text = (FINAL_SOURCE / adapter.MANAGER).read_text(encoding='utf-8-sig')
+PRIMARY_OLD = '                        _replayMs >= ReplayWorkBudgetMs)'
+PRIMARY_NEW = '                        _replayMs >= ReplayWorkBudgetMs || _primaryCacheReady?.Invoke() == false)'
+replay_source = (ROOT / 'build-utils/melonx/adapt_hogwarts_pipeline_replay.py').read_text(encoding='utf-8')
+check(PRIMARY_OLD in replay_source and PRIMARY_NEW in replay_source and
+      'adapt_hogwarts_pipeline_replay' in later_sharing('adapt_variant_replay_all') and
+      adapter.MANAGER in __import__('adapt_hogwarts_pipeline_replay').BASELINE,
+      'the primary-cache condition is adapt_hogwarts_pipeline_replay\'s replacement, a later adapter pinning this file')
+own_pump = member(candidate_text, 'internal void Pump()')
+check(own_pump.count(PRIMARY_OLD) == 1 and own_pump.replace(PRIMARY_OLD, PRIMARY_NEW) == member(final_text, 'internal void Pump()'),
+      'the final preparation keeps this adapter\'s Pump (with adapt_hogwarts_pipeline_replay\'s primary-cache condition, nothing else)')
+check(final_text.count('        private readonly Func<bool> _primaryCacheReady;\n') == 1 and
+      final_text.count('Func<bool> primaryCacheReady = null') == 1,
+      'the primary-cache test is optional: a journal made without it schedules as delivered')
+final_journal = final_text[final_text.index('sealed class PipelineVariantJournal'):]
+check('internal const int MaxReplaysPerSession = MaxRecords;' in final_journal and final_text.count('MaxReplaysPerSession = ') == 1 and
+      'Replayed + ReplayFailed + _inFlight >= MaxReplaysPerSession' in member(final_text, 'internal void Pump()'),
+      'final preparation: the cap is still the journal\'s bound, tested in Pump')
 check(sha(CONTROL / adapter.MANAGER) == adapter.BASELINE[adapter.MANAGER], 'control is the Core 723 preparation')
 rebuilt = control_text
 for old, new in adapter.PAIRS:
@@ -165,7 +186,8 @@ check(control['all']['replayed'] == 512, 'control: the replay of IPA 724\'s list
 check(candidate['all']['replayed'] == 1357, 'candidate: all 1357 states of IPA 724\'s list are replayed: %s' % candidate['all'])
 
 inputs = ['build-utils/melonx/adapt_variant_replay_all.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_variant_replay_all_test.py',
-          'test/melonx_pipeline_variant_replay/Program.cs', 'test/melonx_adapter_control.py']
+          'test/melonx_pipeline_variant_replay/Program.cs', 'test/melonx_adapter_control.py',
+          'build-utils/melonx/adapt_hogwarts_pipeline_replay.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=True, sourceKind='finalPreparationWithReversedControl',
                productionVulkanAssemblyBuilt=True, postimages={adapter.MANAGER: sha(FINAL_SOURCE / adapter.MANAGER)},

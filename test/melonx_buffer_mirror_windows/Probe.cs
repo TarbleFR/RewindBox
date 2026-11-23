@@ -28,6 +28,18 @@ class Probe
     static void Main()
     {
         var random = new Random(777);
+        int checks = Differential(random);
+        // The same differential under the encoding policy (the final write branch reads it since Core 771: a large
+        // buffer's window then grows by doubling): whatever the window holds, every fill must still give the bytes written.
+        After.EncodingPolicy.IncrementalArrayDescriptors = true;
+        int policyChecks = Differential(new Random(778));
+        After.EncodingPolicy.IncrementalArrayDescriptors = false;
+        Check(checks == 18000 && policyChecks == checks);
+        Rest(random, checks, policyChecks);
+    }
+
+    static int Differential(Random random)
+    {
         int checks = 0;
         foreach (int size in new[] { 97, 16385, 84999, 85000, 262144, 1048576 })
         {
@@ -70,7 +82,11 @@ class Probe
                 checks++;
             }
         }
+        return checks;
+    }
 
+    static void Rest(Random random, int checks, int policyChecks)
+    {
         var oldMirror = new Before.Mirror(1 << 20);
         var newMirror = new After.Mirror(1 << 20);
         var write = new byte[128];
@@ -139,7 +155,7 @@ class Probe
         }) == 0);
         Check(changes.SequenceEqual(new[] { true, false, true }));
         Check(!owner.Pause(id, true));
-        Console.WriteLine(JsonSerializer.Serialize(new { mirrorComparisons = checks, beforeSparse, afterSparse,
+        Console.WriteLine(JsonSerializer.Serialize(new { mirrorComparisons = checks, mirrorComparisonsUnderPolicy = policyChecks, beforeSparse, afterSparse,
             beforeAllocationBytes = beforeAlloc, afterAllocationBytes = afterAlloc, descriptorCalls = 100000,
             descriptorStateComparisons = 4096 * 128, poolLifetimeVerified = true, staleSnapshotRemoved = true, duplicatePauseSuppressed = true }));
     }

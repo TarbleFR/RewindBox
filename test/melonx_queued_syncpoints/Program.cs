@@ -15,7 +15,7 @@ using Ryujinx.Graphics.Gpu.Memory;
 
 static class Program
 {
-    static int checks, scenarios;
+    static int checks, scenarios, pacedScenarios;
     static readonly List<string> Passed = new();
     static readonly List<string> Failed = new();
 
@@ -26,9 +26,10 @@ static class Program
     }
 
     // A failed scenario is reported and the next one runs, so one execution shows every broken guarantee.
-    static void Scenario(string name, Action body)
+    // `paced`: a scenario of the final preparation's report submissions under the pacing policy, counted apart.
+    static void Scenario(string name, Action body, bool paced = false)
     {
-        scenarios++;
+        if (paced) pacedScenarios++; else scenarios++;
         try
         {
             body();
@@ -39,6 +40,7 @@ static class Program
             Failed.Add(name + ": " + error.GetType().Name + ": " + error.Message);
         }
         GpuContext.QueueSyncpointsBehindReports = false;
+        GpuContext.PaceStrictHostSyncs = false;
     }
 
     static bool InOrder(params string[] events)
@@ -423,59 +425,216 @@ static class Program
 
         Scenario("concurrent consumer: results in any order, increments in command order", () =>
         {
-            for (int seed = 0; seed < 8; seed++)
-            {
-                using var s = new Session(policy: true, threaded: true);
-                var random = new Random(seed);
-                var created = new BlockingCollection<Report>();
-                var consumer = new Thread(() =>
-                {
-                    var rng = new Random(seed + 100);
-                    var held = new List<Report>();
-                    foreach (var report in created.GetConsumingEnumerable())
-                    {
-                        held.Add(report);
-                        while (held.Count > 3 || (held.Count > 0 && rng.Next(3) == 0))
-                        {
-                            int index = rng.Next(held.Count);
-                            held[index].Complete();
-                            held.RemoveAt(index);
-                            if (rng.Next(4) == 0) Thread.Sleep(1);
-                        }
-                    }
-                    foreach (var report in held) report.Complete();
-                });
-                consumer.Start();
-                var reportsOf = new Dictionary<uint, List<Report>>();
-                for (uint id = 0; id < 400; id++)
-                {
-                    var reports = new List<Report>();
-                    for (int n = random.Next(3); n > 0; n--)
-                    {
-                        var report = s.Add(10000 + (ulong)(id * 4 + n));
-                        reports.Add(report);
-                        created.Add(report);
-                    }
-                    reportsOf[id] = reports;
-                    s.Fifo.Increment(id);
-                    if (random.Next(4) == 0) s.Device.WaitForCommands();
-                    if (random.Next(50) == 0) s.Fifo.Wait(id, 0);
-                }
-                created.CompleteAdding();
-                Check(consumer.Join(10000), "consumer finished");
-                var watch = Stopwatch.StartNew();
-                while (QueueLength(s.Context) != 0 && watch.ElapsedMilliseconds < 5000) s.Device.WaitForCommands();
-                Check(Increments().SequenceEqual(Enumerable.Range(0, 400).Select(i => (uint)i)), "every increment once, in command order (seed " + seed + ")");
-                foreach (var (id, reports) in reportsOf)
-                    foreach (var report in reports)
-                        Check(InOrder("publish:" + report.Value, "inc:" + id), "report " + report.Value + " published before increment " + id);
-                Check(s.Leases == 0, "every lease returned (seed " + seed + ")");
-            }
+            Check(ConcurrentConsumer(paced: false) == 0, "without the pacing policy every sync of the queue submits");
         });
 
-        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { checks, scenarios, passed = Passed, failed = Failed }));
+#if DEFERRED_REPORT_SUBMISSIONS
+        // The final preparation (adapt_hogwarts_steady_render): under the pacing policy, which the Library sets with the
+        // queue's for the same title, the forced sync of an increment's reports is kept on the open command buffer when a
+        // strict submission ran less than 4 ms before; the queue submits it after 4 ms, or at once before any blocking
+        // read. The guarantees above must hold: no report is waited for before its submission ran.
+        foreach (bool threaded in new[] { false, true })
+        {
+            string mode = threaded ? " (threaded renderer)" : " (direct renderer)";
+
+            Scenario("paced: a kept report sync is submitted before the barrier and the blocking flush of a GPU wait" + mode, () =>
+            {
+                using var s = Deferred(threaded, 2000, 2100, 2001, out Report a);
+                Check(QueueLength(s.Context) == 1 && Increments().SequenceEqual(new uint[] { 2000 }), "queued behind its report, not incremented");
+                Check(s.Context.KeptOnOpenCommandBuffer == 1 && s.Context.Renderer.SubmitsQueued == 1 && s.Context.Renderer.Drains == 0 &&
+                      a.Counter.Flushes == 0 && Field<long>(s.Context, "_deferredReportSince") != 0,
+                      "the sync is kept on the open command buffer: nothing submitted, no barrier, no wait, and the queue knows it");
+                s.Fifo.Wait(2001, 1);
+                Check(InOrder("kept:QueueSyncpointBehindReports", "submit:QueueSyncpointBehindReports", "renderer-barrier", "counter-flush:2100",
+                              "publish:2100", "inc:2001", "wait:2001") && Count("counter-timeout") == 0,
+                      "submitted, barrier, flushed, published, incremented, then the wait");
+                Check(s.Context.HostSyncs.Last() == (HostSyncFlags.StrictSyncpoint | HostSyncFlags.Force) &&
+                      s.Context.HostSyncCallers.Last() == "QueueSyncpointBehindReports" && s.Context.KeptOnOpenCommandBuffer == 0 &&
+                      Field<long>(s.Context, "_deferredReportSince") == 0, "the demanded submission is strict and forced, counted as queued");
+                Check(a.Released && s.Leases == 0 && QueueLength(s.Context) == 0, "lease returned, queue empty");
+            }, paced: true);
+
+            Scenario("paced: a kept report sync is submitted before an old head is drained" + mode, () =>
+            {
+                using var s = Deferred(threaded, 2010, 2110, 2011, out Report a);
+                Thread.Sleep(70);
+                try { s.Device.WaitForCommands(); }
+                catch (InvalidOperationException) { Check(false, "an old head was drained before its submission ran (syncpoint withheld)"); }
+                Check(InOrder("kept:QueueSyncpointBehindReports", "submit:QueueSyncpointBehindReports", "renderer-barrier", "counter-flush:2110",
+                              "publish:2110", "inc:2011") && Count("counter-timeout") == 0, "submitted, barrier, flushed, published, incremented");
+                Check(Counter(s.Context, "_syncpointsByAge") == 1 && a.Released && s.Leases == 0, "counted by age, lease returned");
+            }, paced: true);
+
+            Scenario("paced: the queue submits a kept report sync itself after 4 ms, once, without barrier or wait" + mode, () =>
+            {
+                using var s = Deferred(threaded, 2020, 2120, 2021, out Report a);
+                Thread.Sleep(10);
+                s.Device.WaitForCommands();
+                Check(s.Context.Renderer.SubmitsQueued == 2 && InOrder("kept:QueueSyncpointBehindReports", "submit:QueueSyncpointBehindReports") &&
+                      s.Context.Renderer.Drains == 0 && a.Counter.Flushes == 0 && Count("inc:2021") == 0 &&
+                      Field<long>(s.Context, "_deferredReportSince") == 0, "submitted by the queue: no barrier, no wait, not incremented yet");
+                Thread.Sleep(10);
+                s.Device.WaitForCommands();
+                Check(s.Context.Renderer.SubmitsQueued == 2 && Count("inc:2021") == 0, "submitted once");
+                a.Complete();
+                s.Device.WaitForCommands();
+                Check(InOrder("submit:QueueSyncpointBehindReports", "publish:2120", "inc:2021") && s.Context.Renderer.Drains == 0 &&
+                      a.Counter.Flushes == 0 && Counter(s.Context, "_syncpointsReady") == 1, "published and incremented once complete, without waiting");
+                Check(a.Released && s.Leases == 0, "lease returned");
+            }, paced: true);
+
+            Scenario("paced: a later strict submission carries the kept sync, nothing more is submitted for it" + mode, () =>
+            {
+                using var s = Deferred(threaded, 2030, 2130, 2031, out Report a);
+                Thread.Sleep(6);
+                var b = s.Add(2131);
+                s.Fifo.Increment(2032);
+                Check(s.Context.HostSyncs.Last() == (HostSyncFlags.StrictSyncpoint | HostSyncFlags.Force) && s.Context.Renderer.SubmitsQueued == 2 &&
+                      s.Context.KeptOnOpenCommandBuffer == 0 && Field<long>(s.Context, "_deferredReportSince") == 0,
+                      "reports more than 4 ms after the last strict submission are submitted at once, with the kept sync");
+                Thread.Sleep(10);
+                s.Device.WaitForCommands();
+                Check(s.Context.Renderer.SubmitsQueued == 2 && Count("inc:2031") == 0, "no further submission");
+                s.Fifo.Wait(2032, 1);
+                Check(InOrder("counter-flush:2130", "publish:2130", "inc:2031", "counter-flush:2131", "publish:2131", "inc:2032", "wait:2032") &&
+                      Count("counter-timeout") == 0 && Increments().SequenceEqual(new uint[] { 2030, 2031, 2032 }),
+                      "drained in command order, each report published before its increment");
+                Check(a.Released && b.Released && s.Leases == 0, "leases returned");
+            }, paced: true);
+
+            Scenario("paced: 3D engine increments behind a kept report sync, drained in command order" + mode, () =>
+            {
+                using var s = Deferred(threaded, 2040, 2140, 2041, out Report a);
+                s.Threed.Increment(2042);
+                s.Threed.Increment(2043);
+                var r = s.Add(2141);
+                s.Threed.Increment(2044);
+                Check(QueueLength(s.Context) == 4 && Increments().SequenceEqual(new uint[] { 2040 }), "all queued behind the first");
+                s.Fifo.Wait(2044, 1);
+                Check(InOrder("publish:2140", "inc:2041", "inc:2042", "inc:2043", "publish:2141", "inc:2044", "wait:2044") &&
+                      Count("counter-timeout") == 0 && Increments().SequenceEqual(new uint[] { 2040, 2041, 2042, 2043, 2044 }),
+                      "command order, each report published before its increment, no flush before its submission");
+                Check(a.Released && r.Released && s.Leases == 0, "leases returned");
+            }, paced: true);
+
+            Scenario("paced: disposal releases an increment whose report sync was kept, without publishing" + mode, () =>
+            {
+                using var s = Deferred(threaded, 2050, 2150, 2051, out Report a);
+                s.DisposeContext();
+                Check(InOrder("inc:2050", "inc:2051", "fifo-dispose") && Increments().SequenceEqual(new uint[] { 2050, 2051 }) &&
+                      a.Publishes == 0 && a.Released && s.Leases == 0, "released in order before the FIFO is disposed, nothing published, lease returned");
+            }, paced: true);
+
+            Scenario("paced: a frame waiting to be presented skips the FIFO wait, not the queue" + mode, () =>
+            {
+                using var s = new Session(policy: true, threaded: threaded, paced: true);
+                var a = s.Add(2160);
+                s.Fifo.Increment(2061);
+                a.Complete();
+                s.Context.Window.IsFrameAvailable = true;
+                int waits = s.Device._event.Timeouts.Count;
+                Check(!s.Device.WaitForCommands() && s.Device._event.Timeouts.Count == waits, "no command, no FIFO wait");
+                Check(InOrder("publish:2160", "inc:2061") && QueueLength(s.Context) == 0, "the queue is processed first");
+                s.Context.Window.IsFrameAvailable = false;
+                s.Context.DeferredActions.Enqueue(() => { });
+                Check(s.Device.WaitForCommands() && s.Device._event.Timeouts.Count == waits, "a deferred action ends the wait at once");
+            }, paced: true);
+        }
+
+        Scenario("paced: concurrent consumer, results in any order, increments in command order", () =>
+        {
+            Check(ConcurrentConsumer(paced: true) > 0, "report syncs were kept on the open command buffer");
+        }, paced: true);
+#endif
+
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { checks, scenarios, pacedScenarios, passed = Passed, failed = Failed }));
         Environment.Exit(Failed.Count == 0 ? 0 : 1);
     }
+
+    // The concurrent consumer, without and with the pacing policy. Returns how many syncs were kept on the open command
+    // buffer (none without the policy).
+    static int ConcurrentConsumer(bool paced)
+    {
+        int kept = 0;
+        for (int seed = 0; seed < 8; seed++)
+        {
+            using var s = new Session(policy: true, threaded: true, paced: paced);
+            var random = new Random(seed);
+            var created = new BlockingCollection<Report>();
+            var consumer = new Thread(() =>
+            {
+                var rng = new Random(seed + 100);
+                var held = new List<Report>();
+                foreach (var report in created.GetConsumingEnumerable())
+                {
+                    held.Add(report);
+                    while (held.Count > 3 || (held.Count > 0 && rng.Next(3) == 0))
+                    {
+                        int index = rng.Next(held.Count);
+                        held[index].Complete();
+                        held.RemoveAt(index);
+                        if (rng.Next(4) == 0) Thread.Sleep(1);
+                    }
+                }
+                foreach (var report in held) report.Complete();
+            });
+            consumer.Start();
+            var reportsOf = new Dictionary<uint, List<Report>>();
+            for (uint id = 0; id < 400; id++)
+            {
+                var reports = new List<Report>();
+                for (int n = random.Next(3); n > 0; n--)
+                {
+                    var report = s.Add(10000 + (ulong)(id * 4 + n));
+                    reports.Add(report);
+                    created.Add(report);
+                }
+                reportsOf[id] = reports;
+                s.Fifo.Increment(id);
+                if (random.Next(4) == 0) s.Device.WaitForCommands();
+                if (random.Next(50) == 0) s.Fifo.Wait(id, 0);
+            }
+            created.CompleteAdding();
+            Check(consumer.Join(10000), "consumer finished");
+            var watch = Stopwatch.StartNew();
+            while (QueueLength(s.Context) != 0 && watch.ElapsedMilliseconds < 5000) s.Device.WaitForCommands();
+            Check(Increments().SequenceEqual(Enumerable.Range(0, 400).Select(i => (uint)i)), "every increment once, in command order (seed " + seed + ")");
+            foreach (var (id, reports) in reportsOf)
+                foreach (var report in reports)
+                    Check(InOrder("publish:" + report.Value, "inc:" + id), "report " + report.Value + " published before increment " + id);
+            Check(s.Leases == 0, "every lease returned (seed " + seed + ")");
+            Check(Count("counter-timeout") == 0, "no blocking flush ran before its submission (seed " + seed + ")");
+            kept += s.Context.SyncsKept;
+        }
+        return kept;
+    }
+
+#if DEFERRED_REPORT_SUBMISSIONS
+    // Under the pacing policy: a strict submission (an increment with nothing pending), then an increment with a pending
+    // report within the 4 ms of ReportSubmitIntervalMs: the session with that entry queued and its forced sync kept on the
+    // open command buffer. Retried when this host took 4 ms or more between the two (the sync is then submitted at once,
+    // as without the policy); the deferral has to be observed.
+    static Session Deferred(bool threaded, uint first, ulong value, uint id, out Report report)
+    {
+        for (int attempt = 0; attempt < 500; attempt++)
+        {
+            var s = new Session(policy: true, threaded: threaded, paced: true);
+            s.Fifo.Increment(first);
+            Check(s.Context.HostSyncs.SequenceEqual(new[] { HostSyncFlags.StrictSyncpoint }) && s.Context.Renderer.SubmitsQueued == 1,
+                  "nothing pending, queue empty: the delivered path, a strict submission");
+            report = s.Add(value);
+            s.Fifo.Increment(id);
+            if (s.Context.HostSyncs.Last() == (HostSyncFlags.Syncpoint | HostSyncFlags.Force))
+            {
+                Check(s.Context.HostSyncCallers.Last() == "QueueSyncpointBehindReports" && s.Context.SyncsKept == 1, "kept, counted as queued");
+                return s;
+            }
+            Check(s.Context.HostSyncs.Last() == (HostSyncFlags.StrictSyncpoint | HostSyncFlags.Force), "4 ms later: forced and strict, as without the policy");
+            s.Dispose();
+        }
+        throw new Exception("FAIL: no report sync was kept on the open command buffer in 500 attempts");
+    }
+#endif
 
     internal sealed class Report
     {
@@ -523,9 +682,10 @@ static class Program
         public int Leases;
         private bool _disposed;
 
-        public Session(bool policy, bool synchronize = true, bool threaded = false)
+        public Session(bool policy, bool synchronize = true, bool threaded = false, bool paced = false)
         {
             GpuContext.QueueSyncpointsBehindReports = policy;
+            GpuContext.PaceStrictHostSyncs = paced;
             Context = new GpuContext(threaded) { SynchronizeOcclusionReports = synchronize };
             Fifo = new FifoClassProbe(Context);
             Device = new FifoDeviceProbe(Context);
@@ -588,6 +748,7 @@ static class Program
             DisposeContext();
             Context.Renderer.Dispose();
             GpuContext.QueueSyncpointsBehindReports = false;
+            GpuContext.PaceStrictHostSyncs = false;
         }
     }
 }

@@ -79,14 +79,17 @@ def expected_scrub(bits):
 
 temporary = tempfile.TemporaryDirectory(prefix='melonx-nan-scrub-')
 WORK = Path(temporary.name).resolve()  # resolved: on macOS /var is a link to /private/var
-CONTROL = WORK / 'control'
-shutil.copytree(FINAL_SOURCE, CONTROL, ignore=ignore_tree(FINAL_SOURCE), symlinks=True)
 
 # --- Control: the adapter reversed must be the Core 670 bytes; forward reproduces the final preparation ---
-# After IPA 771: adapt_shader_load_binary_release, a later adapter, also edits DiskCacheHostStorage.cs: undone first (its
-# reversal is exact), then re-applied to the forward composition so the final file is reproduced.
-control_tools._reverse('adapt_shader_load_binary_release', CONTROL)
-control_tools._reverse('adapt_nan_scrub', CONTROL)
+# Later adapters also edit DiskCacheHostStorage.cs (after IPA 771 adapt_shader_load_binary_release, then others): the
+# ones sharing a file with this adapter come from the preparation order (melonx_adapter_control.later_sharing), not from
+# a list kept here. control_source() puts each back to the bytes it pins, latest first, then this adapter, requires the
+# Core 670 digests, and requires this adapter and then those later ones, re-applied in order, to reproduce the final
+# preparation byte for byte.
+_HOLD = []
+CONTROL, FINAL_PREPARATION = control_tools.control_source(FINAL_SOURCE, 'adapt_nan_scrub', _HOLD)
+check(FINAL_PREPARATION, 'the candidate is a final preparation containing the adapter')
+LATER = control_tools.later_sharing('adapt_nan_scrub')
 for name, expected in adapt_nan_scrub.BASELINE.items():
     check(sha(CONTROL / name) == expected, 'control is the Core 670 preparation: ' + name)
 forward = WORK / 'forward'
@@ -95,9 +98,15 @@ for name in adapt_nan_scrub.BASELINE:
     shutil.copyfile(CONTROL / name, forward / name)
 changed = sorted(str(p.relative_to(forward)) for p in adapt_nan_scrub.apply(forward))
 check(changed == sorted(adapt_nan_scrub.BASELINE), 'adapt_nan_scrub changes only its files')
-control_tools.apply_present(forward, 'adapt_shader_load_binary_release')
+# The adapter's own postimage: the final bytes of the files no later adapter edits, and for the others the bytes the
+# first later adapter pins (the final file with the later adapters taken out).
+OWN = WORK / 'postimage'
+control_tools.postimage('adapt_nan_scrub', FINAL_SOURCE, OWN)
+EDITED_LATER = control_tools.files_edited_later('adapt_nan_scrub')
 for name in adapt_nan_scrub.BASELINE:
-    check((forward / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+    check((forward / name).read_bytes() == (OWN / name).read_bytes() and
+          (name in EDITED_LATER or (forward / name).read_bytes() == (FINAL_SOURCE / name).read_bytes()),
+          'final preparation is the adapter: ' + name)
 
 # --- Static: the exact scope ---
 instructions, control_instructions = read(FINAL_SOURCE, INSTRUCTIONS), read(CONTROL, INSTRUCTIONS)
@@ -123,7 +132,25 @@ check('private const uint CodeGenVersion' not in storage and storage.count('Code
 runtime = read(FINAL_SOURCE, RUNTIME)
 note = member(runtime, 'private static void EmbeddedNoteLaunchTitle(')
 check('SpirvNanScrub.Enabled = titleId == 0x0100F7E00C70E000UL;' in note, 'the launch title enables the scrub for Hogwarts Legacy only')
-check(runtime == (ROOT / core667_native.NATIVE[RUNTIME]).read_text(encoding='utf-8'), 'final preparation holds this checkout\'s runtime')
+# Since Core 771 ordered adapters edit the prepared copy of the runtime after it is placed (RUNTIME_LATER, derived from
+# the preparation order): the comparison with this checkout is made on the file as it was placed, the final file with
+# those adapters reversed, latest first, each time down to the bytes the adapter pins; applied forward again, each on its
+# pinned bytes, they must give the final file back byte for byte. The title note checked above and compiled below is the
+# final file's.
+RUNTIME_LATER = [name for name in control_tools.ORDER if RUNTIME in __import__(name).BASELINE]
+placed = WORK / 'placed'
+(placed / RUNTIME).parent.mkdir(parents=True)
+shutil.copyfile(FINAL_SOURCE / RUNTIME, placed / RUNTIME)
+for name in reversed(RUNTIME_LATER):
+    check(control_tools.reverse_present(placed, name, only={RUNTIME}) == [RUNTIME] and sha(placed / RUNTIME) == __import__(name).BASELINE[RUNTIME],
+          'the runtime with ' + name + ' reversed is the file that adapter pins')
+placed_runtime = (placed / RUNTIME).read_text(encoding='utf-8')
+for name in RUNTIME_LATER:
+    control_tools.apply_present(placed, name, only={RUNTIME})
+check((placed / RUNTIME).read_bytes() == (FINAL_SOURCE / RUNTIME).read_bytes(),
+      'the final runtime is the placed file plus exactly the ordered adapters pinning it: ' + str(RUNTIME_LATER))
+check(placed_runtime == (ROOT / core667_native.NATIVE[RUNTIME]).read_text(encoding='utf-8'),
+      'final preparation holds this checkout\'s runtime (before ' + str(RUNTIME_LATER) + ')')
 preflight = read(FINAL_SOURCE, PREFLIGHT)
 check(preflight.count('EmbeddedNoteLaunchTitle(0);') == 1 and preflight.count('EmbeddedNoteLaunchTitle(entry.Key);') == 1,
       'the preflight resets the title choice and notes the opened title before the session starts')
@@ -197,11 +224,13 @@ check(candidate['notedNanScrub'] == {'hogwarts': True, 'smash': False, 'reset': 
 
 inputs = ['build-utils/melonx/adapt_nan_scrub.py', 'build-utils/melonx/core667_native.py', 'build-utils/melonx/adapt_session.py',
           'native/melonx/EmbeddedRuntime.cs', 'native/melonx/EmbeddedLaunchPreflight.cs', 'test/melonx_nan_scrub_test.py',
-          'test/melonx_nan_scrub/Program.cs', 'test/melonx_adapter_control.py']
+          'test/melonx_nan_scrub/Program.cs', 'test/melonx_adapter_control.py',
+          *('build-utils/melonx/' + name + '.py' for name in LATER)]
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=True, sourceKind='finalPreparationWithReversedControl',
                postimages={p: sha(FINAL_SOURCE / p) for p in POSTIMAGES}, reports=reports, sdk=sdk, host=platform.system(),
-               libHacFeedSwitched=feeds, physicalDeviceTested=False, gameTested=False,
+               libHacFeedSwitched=feeds, physicalDeviceTested=False, gameTested=False, laterAdaptersReapplied=LATER,
+               runtimeEditedAfterPlacementBy=RUNTIME_LATER,
                productionAssembliesBuilt=['Ryujinx.Graphics.Vulkan', 'Ryujinx.Graphics.Gpu'],
                inputs={p: sha(ROOT / p) for p in inputs},
                limitation='Host probe: the emitted scrub evaluated by an interpreter of its own opcodes, the cache version and '

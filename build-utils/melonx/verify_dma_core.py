@@ -129,7 +129,7 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # bodies of Syscall.cs executed again from the final source (kernel-wait-lifetime-final, the historical gate's successor);
 # 115 after IPA 771 (the shader cache load keeps no host code of cached programs: shader-load-binary-release).
 # Streaming-memory fixture is available for manual exact-source validation.
-FRESH_GATES = 128  # Second lot after IPA 821: collection pauses, shader cache read-ahead, variant journal, JIT arena use.
+FRESH_GATES = 135  # After IPA 822: sync queries, buffer textures, large native buffers, device-pressure compaction, interface snapshot, three journals.
 HISTORICAL_RECEIPTS = 61
 
 
