@@ -561,7 +561,9 @@ class _EnhancementsScreenState extends State<EnhancementsScreen> {
       );
     }
     final engine = view.identity.engine;
-    if (_category == EnhancementCategory.cheat && engine != EnhancementEngine.melonx) {
+    if (_category == EnhancementCategory.cheat &&
+        engine != EnhancementEngine.melonx &&
+        engine != EnhancementEngine.azahar) {
       banner(_t(EnhancementsLocale.inGameCheats));
     }
     if (view.identity.known && !view.downloaded) {
@@ -644,10 +646,17 @@ class _EnhancementsScreenState extends State<EnhancementsScreen> {
     final busy = _busy == item.id;
     final muted = theme.colorScheme.onSurface.withValues(alpha: 0.6);
     final problem = _problemText(item.problem);
+    // Azahar codes that wait for a button combo (Gateway DD codes).
+    final combos = [
+      for (final combo in (item.payload['combo'] as List? ?? const []))
+        if (combo is List) combo.join(' + '),
+    ];
     final details = <String>[
       if (item.author.isNotEmpty) '${_t(EnhancementsLocale.author)}: ${item.author}',
       '${_t(EnhancementsLocale.source)}: ${item.sourceId}',
       '${_t(EnhancementsLocale.compatibility)}: ${item.compatibility}',
+      if (combos.isNotEmpty)
+        EnhancementsLocale.format(context, EnhancementsLocale.buttonCombo, {'keys': combos.join(' / ')}),
     ];
     return GestureDetector(
       behavior: HitTestBehavior.opaque,

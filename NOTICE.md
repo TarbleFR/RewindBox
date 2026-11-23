@@ -195,6 +195,8 @@ https://github.com/TarbleFR/RewindBox/issues; entries are removed promptly.
   Code credits ([Ralf], [gamemasterplc]...) are kept in each label.
 - Admentus64/Enhancement-Codes f8e9ad12d90460e316b552fdf73052eb308e9ab9:
   GPL-3.0 (GameCube disc files only).
+- FlagBrew/Sharkive aeab5fd3b001ed22c013efd1a02b092575d825ed: GPL-3.0
+  (3DS Gateway codes of `3ds/`, credited to the Sharkive contributors).
 
 Removed on 28 October 2026 because they grant no licence to redistribute
 their codes: exefer/gbatemp-matias3ds-cheats ("All rights belong to the

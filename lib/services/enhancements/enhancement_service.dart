@@ -4,6 +4,7 @@ import '../../models/game_model.dart';
 import '../logger_service.dart';
 import '../texture_catalog_service.dart';
 import 'adapters/armsx2_enhancement_adapter.dart';
+import 'adapters/azahar_enhancement_adapter.dart';
 import 'adapters/dolphin_enhancement_adapter.dart';
 import 'adapters/melonx_enhancement_adapter.dart';
 import 'adapters/rpcs3_enhancement_adapter.dart';
@@ -34,6 +35,7 @@ class EnhancementService {
              Rpcs3EnhancementAdapter(),
              Armsx2EnhancementAdapter(),
              DolphinEnhancementAdapter(),
+             AzaharEnhancementAdapter(),
            ],
        _texturesSupported = texturesSupported ?? TextureCatalogService.supports,
        _embeddedEngines = embeddedEngines ?? (() => Platform.isIOS);

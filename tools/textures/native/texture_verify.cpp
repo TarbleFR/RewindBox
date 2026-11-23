@@ -235,5 +235,10 @@ int main(int argc, char** argv) {
     for (size_t i = 0; i < pack.missing.size() && i < 5; ++i) std::printf("missingFile=%s\n", pack.missing[i].c_str());
     return 0;
   }
+  if (command == "azaharcheck") {
+    // What the app refuses before installing an Azahar pack (NeoTextureInstall::CheckAzaharPack), images decoded.
+    std::printf("problem=%s\n", I::CheckAzaharPack(argv[2], true).c_str());
+    return 0;
+  }
   return 64;
 }

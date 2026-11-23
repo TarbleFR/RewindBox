@@ -652,6 +652,7 @@ PT = {
 ES.update({
     'error.missingHires': 'Este paquete HD de Mesen no tiene hires.txt en su raíz.',
     'error.formatTooNew': 'Este paquete HD está hecho para Mesen 2 (un formato más reciente que 106): el motor Mesen de RewindBox no puede leerlo.',
+    'error.packJsonInvalid': 'Azahar no puede leer el pack.json de este paquete HD de 3DS (JSON no válido, opciones que faltan o una clave de textura no válida): detendría el juego en cada inicio.',
     'error.missingFiles': 'Faltan en el archivo imágenes que nombra el hires.txt de este paquete.',
     'error.memoryTooLarge': 'Este paquete HD necesita más memoria de la que este dispositivo puede darle: Mesen carga todas las imágenes del paquete al iniciar el juego.',
     'error.mesenNotSelected': 'No se pudo elegir Mesen para este juego. Elige Mesen en los ajustes del juego (Emulador) y luego activa el paquete.',
@@ -664,6 +665,7 @@ ES.update({
 DE.update({
     'error.missingHires': 'Diesem Mesen-HD-Paket fehlt die hires.txt im Hauptordner.',
     'error.formatTooNew': 'Dieses HD-Paket ist für Mesen 2 gemacht (ein neueres Format als 106): Die Mesen-Engine von RewindBox kann es nicht lesen.',
+    'error.packJsonInvalid': 'Azahar kann die pack.json dieses 3DS-HD-Pakets nicht lesen (ungültiges JSON, fehlende Optionen oder ein ungültiger Texturschlüssel): Das Spiel würde bei jedem Start abbrechen.',
     'error.missingFiles': 'Im Archiv fehlen Bilder, die die hires.txt dieses Pakets nennt.',
     'error.memoryTooLarge': 'Dieses HD-Paket braucht mehr Speicher, als dieses Gerät ihm geben kann: Mesen lädt beim Spielstart alle Bilder des Pakets.',
     'error.mesenNotSelected': 'Mesen konnte für dieses Spiel nicht gewählt werden. Wähle Mesen in den Spieleinstellungen (Emulator) und schalte dann das Paket ein.',
@@ -676,6 +678,7 @@ DE.update({
 IT.update({
     'error.missingHires': 'Questo pacchetto HD di Mesen non ha hires.txt nella cartella principale.',
     'error.formatTooNew': 'Questo pacchetto HD è fatto per Mesen 2 (un formato più recente di 106): il motore Mesen di RewindBox non può leggerlo.',
+    'error.packJsonInvalid': 'Azahar non può leggere il pack.json di questo pacchetto HD 3DS (JSON non valido, opzioni mancanti o una chiave texture non valida): il gioco si fermerebbe a ogni avvio.',
     'error.missingFiles': 'Nell’archivio mancano immagini indicate dal hires.txt di questo pacchetto.',
     'error.memoryTooLarge': 'Questo pacchetto HD richiede più memoria di quanta questo dispositivo possa dargli: Mesen carica tutte le immagini del pacchetto all’avvio del gioco.',
     'error.mesenNotSelected': 'Impossibile scegliere Mesen per questo gioco. Scegli Mesen nelle impostazioni del gioco (Emulatore), poi attiva il pacchetto.',
@@ -688,6 +691,7 @@ IT.update({
 PT.update({
     'error.missingHires': 'Este pacote HD do Mesen não tem hires.txt na raiz.',
     'error.formatTooNew': 'Este pacote HD foi feito para o Mesen 2 (um formato mais novo que 106): o motor Mesen do RewindBox não consegue lê-lo.',
+    'error.packJsonInvalid': 'O Azahar não consegue ler o pack.json deste pacote HD de 3DS (JSON inválido, opções ausentes ou uma chave de textura inválida): o jogo pararia a cada início.',
     'error.missingFiles': 'Faltam no arquivo imagens citadas pelo hires.txt deste pacote.',
     'error.memoryTooLarge': 'Este pacote HD precisa de mais memória do que este dispositivo pode lhe dar: o Mesen carrega todas as imagens do pacote ao iniciar o jogo.',
     'error.mesenNotSelected': 'Não foi possível escolher o Mesen para este jogo. Escolha o Mesen nos ajustes do jogo (Emulador) e depois ative o pacote.',

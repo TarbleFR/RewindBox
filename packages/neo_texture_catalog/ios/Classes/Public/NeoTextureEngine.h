@@ -30,6 +30,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (BOOL)acceptsFile:(NSString *)relativePath;
 /// Checks a staged pack folder before it replaces anything. Returns nil when
 /// the folder is usable, else an error key (noTextures, missingIni, ...).
+/// [pack] describes what is installed (its `source` is `import` for a file
+/// the player imported), or is nil.
 - (nullable NSString *)problemWithStagedFolder:(NSString *)folder pack:(nullable NSDictionary *)pack;
 
 /// {known: whether the engine's setting can be read and written for this game,

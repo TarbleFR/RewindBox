@@ -608,6 +608,13 @@ static NSDictionary *Asking(NSDictionary *inspection) {
 }
 - (NSString *)problemWithStagedFolder:(NSString *)folder pack:(NSDictionary *)pack {
   NSFileManager *fm = NSFileManager.defaultManager;
+  if ([self.identifier isEqualToString:@"azahar"]) {
+    // A pack.json or an image the core would stop on at every start (CheckAzaharPack). The images of a
+    // catalogue pack were decoded on CI; an imported pack's are decoded here.
+    const std::string problem = NeoTextureInstall::CheckAzaharPack(folder.fileSystemRepresentation ?: "",
+                                                                    [NeoTexString(pack[@"source"]) isEqualToString:@"import"]);
+    if (!problem.empty()) return [NSString stringWithUTF8String:problem.c_str()];
+  }
   if ([self.identifier isEqualToString:@"ppsspp"]) {
     // TextureReplacer reads textures.ini (or textures.zip) at the game folder's root.
     if (![fm fileExistsAtPath:[folder stringByAppendingPathComponent:@"textures.ini"]] &&

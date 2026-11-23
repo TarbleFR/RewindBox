@@ -24,8 +24,9 @@ enum EnhancementCategory {
 }
 
 /// Embedded engines with a catalogue adapter. Libretro is listed for its
-/// HD textures and its in-game cheat menu only.
-enum EnhancementEngine { melonx, rpcs3, armsx2, dolphin, libretro }
+/// HD textures and its in-game cheat menu only; Azahar (3DS) is the libretro
+/// core whose cheats the catalogue writes as the core's own file.
+enum EnhancementEngine { melonx, rpcs3, armsx2, dolphin, libretro, azahar }
 
 /// Lifecycle of one entry for one game.
 enum EnhancementStatus {

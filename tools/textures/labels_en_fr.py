@@ -329,6 +329,7 @@ FR = {
 EN.update({
     'error.missingHires': 'This Mesen HD pack has no hires.txt at its root.',
     'error.formatTooNew': 'This HD pack is made for Mesen 2 (a format newer than 106): the Mesen engine of RewindBox cannot read it.',
+    'error.packJsonInvalid': 'This 3DS HD pack’s pack.json cannot be read by Azahar (invalid JSON, missing options or an invalid texture key): it would stop the game at every start.',
     'error.missingFiles': 'Images named by this pack’s hires.txt are missing from the archive.',
     'error.memoryTooLarge': 'This HD pack needs more memory than this device can give it: Mesen loads every image of the pack when the game starts.',
     'error.mesenNotSelected': 'Mesen could not be selected for this game. Choose Mesen in the game’s settings (Emulator), then switch the pack on.',
@@ -341,6 +342,7 @@ EN.update({
 FR.update({
     'error.missingHires': 'Ce pack HD Mesen n’a pas de hires.txt à sa racine.',
     'error.formatTooNew': 'Ce pack HD est conçu pour Mesen 2 (un format plus récent que 106) : le moteur Mesen de RewindBox ne peut pas le lire.',
+    'error.packJsonInvalid': 'Le pack.json de ce pack HD 3DS est illisible pour Azahar (JSON invalide, options manquantes ou clé de texture invalide) : il arrêterait le jeu à chaque démarrage.',
     'error.missingFiles': 'Des images nommées par le hires.txt de ce pack manquent dans l’archive.',
     'error.memoryTooLarge': 'Ce pack HD demande plus de mémoire que cet appareil ne peut lui en donner : Mesen charge toutes les images du pack au démarrage du jeu.',
     'error.mesenNotSelected': 'Mesen n’a pas pu être choisi pour ce jeu. Choisissez Mesen dans les réglages du jeu (Émulateur), puis activez le pack.',

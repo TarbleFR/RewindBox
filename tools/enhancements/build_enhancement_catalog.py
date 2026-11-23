@@ -67,7 +67,7 @@ SHARDS_PER_ENGINE = 32
 #   3  Switch exefs patches may point to a source's .pchtxt file (`exefs: [{bid, o, size, sha256}]`)
 #   4  Switch pointers may select a named, bounded member of a pinned ZIP.
 FORMAT = 4
-ENGINES = ('melonx', 'rpcs3', 'armsx2', 'dolphin')
+ENGINES = ('melonx', 'rpcs3', 'armsx2', 'dolphin', 'azahar')
 
 # Only sources whose licence allows redistribution, or content the embedded
 # engine already ships (referenced by name, never redistributed). Sources
@@ -301,6 +301,19 @@ SOURCES = {
         'revision': 'f8e9ad12d90460e316b552fdf73052eb308e9ab9',
         'license': 'GPL-3.0 (Admentus64).',
         'engines': ['dolphin'],
+    },
+    # ------------------------------------------------------------ Azahar (3DS)
+    # GPL-3.0 (LICENSE at the repository root): the Gateway codes are hosted with that notice and the
+    # source's credit, like the Dolphin codes. Azahar reads <user>/cheats/<Title ID>.txt when a game loads.
+    'sharkive-3ds': {
+        'name': 'FlagBrew/Sharkive (3DS Gateway codes)',
+        'url': 'https://github.com/FlagBrew/Sharkive',
+        'git': 'https://github.com/FlagBrew/Sharkive.git',
+        'revision': 'aeab5fd3b001ed22c013efd1a02b092575d825ed',
+        'sparse': '/3ds/\n/LICENSE',
+        'license': 'GPL-3.0 (LICENSE of FlagBrew/Sharkive); codes submitted by the community, credited to the '
+                   'Sharkive contributors.',
+        'engines': ['azahar'],
     },
 }
 
@@ -1580,6 +1593,171 @@ def build_dolphin(roots, stats):
     return stems
 
 
+# ---------------------------------------------------------------- Azahar (3DS)
+
+# Azahar's Gateway interpreter (src/core/cheats/gateway_cheat.cpp at 2127.0-rc5, 6f293a24): a line is
+# exactly "XXXXXXXX YYYYYYYY"; its type is the first hex digit, or the first two for D codes. Types the
+# interpreter does not know (F, DE, DF) do nothing; a line of another length is skipped with an error.
+# Applications (00040000) and demos (00040002) run under their own Title ID. A file named after an update
+# (0004000E) holds codes for the updated game; Azahar loads them under the game's own Title ID.
+AZAHAR_TITLE = re.compile(r'^0004000[02E][0-9A-F]{8}$')
+AZAHAR_LINE = re.compile(r'^[0-9A-F]{8} [0-9A-F]{8}$')
+AZAHAR_TYPES = set(range(0x0, 0x0D)) | set(range(0xD0, 0xDE)) | {0xE}
+# Pad bits the Joker code (DD) can see: hid:USER's PadState (A..GPIO14, circle pad). ZL, ZR, the C-stick
+# and touch never reach it, so a combo that needs them never fires.
+AZAHAR_PAD = {0: 'A', 1: 'B', 2: 'Select', 3: 'Start', 4: 'Right', 5: 'Left', 6: 'Up', 7: 'Down', 8: 'R',
+              9: 'L', 10: 'X', 11: 'Y', 28: 'Circle Right', 29: 'Circle Left', 30: 'Circle Up', 31: 'Circle Down'}
+AZAHAR_PAD_MASK = 0x00003FFF | 0xF0000000
+# A game version in a cheat's name (`v1.5`, `Game v1.0`, `ver. 1.1`): cheats are version-specific.
+AZAHAR_VERSION = re.compile(r'(?i)(?<![\w.])v(?:er(?:sion)?\.?\s*)?(\d+\.\d+(?:\.\d+)?)(?![\w.])')
+AZAHAR_BASE_VERSIONS = {'1.0', '1.00', '1.0.0'}
+
+
+def azahar_lines(lines):
+    """The code lines as Azahar runs them, or None when the interpreter would skip a line, not know its
+    type, or read past the end of the code (an E patch whose data lines are missing: an out-of-range
+    read in PatchOp)."""
+    out = [line.upper() for line in lines]
+    index = 0
+    while index < len(out):
+        line = out[index]
+        if not AZAHAR_LINE.match(line):
+            return None
+        kind = int(line[:2], 16) if line[0] == 'D' else int(line[0], 16)
+        if kind not in AZAHAR_TYPES:
+            return None
+        if kind == 0xE:
+            # PatchOp copies its data from the next ceil(Y / 8) lines, which are data, not codes.
+            count = -(-int(line[9:], 16) // 8)
+            if index + count >= len(out) or not all(AZAHAR_LINE.match(data) for data in out[index + 1:index + 1 + count]):
+                return None
+            index += count
+        index += 1
+    return out
+
+
+def azahar_combo(lines):
+    """Buttons of the Joker codes (DD000000 XXXXXXXX) a cheat waits for, in pad order; None when one needs a
+    button Azahar never reports to the cheat engine."""
+    combos = []
+    for line in lines:
+        if not line.startswith('DD000000 '):
+            continue
+        mask = int(line[9:], 16)
+        if mask & ~AZAHAR_PAD_MASK:
+            return None
+        keys = [name for bit, name in sorted(AZAHAR_PAD.items()) if mask >> bit & 1]
+        if keys and keys not in combos:
+            combos.append(keys)
+    return combos
+
+
+def azahar_sections(text):
+    """Sections of a Gateway cheat file, parsed like GatewayCheat::LoadFile: `[name]`, `*` comments,
+    code lines; lines before the first section are ignored."""
+    sections, current = [], None
+    for raw in text.replace('\r', '').split('\n'):
+        line = raw.replace('\0', '').strip()
+        if len(line) >= 2 and line[0] == '[':
+            current = {'name': line[1:-1] if line.endswith(']') else '', 'header': line, 'lines': [], 'notes': []}
+            sections.append(current)
+        elif current is None or not line:
+            continue
+        elif line[0] == '*':
+            current['notes'].append(line[1:].strip())
+        else:
+            current['lines'].append(line)
+    return sections
+
+
+def azahar_label(name, suffix, labels):
+    """A label no other code of the title has (case-insensitive), at most 120 characters; added to labels."""
+    base = f'{name[:120 - len(suffix) - 1].rstrip()} {suffix}' if suffix else name
+    label, number = base, 1
+    while label.casefold() in labels:
+        number += 1
+        tail = f' ({number})'
+        label = f'{base[:120 - len(tail)].rstrip()}{tail}'
+    labels.add(label.casefold())
+    return label
+
+
+def build_azahar(root, stats):
+    """Sharkive's 3DS files (3ds/<Title ID>.txt), hosted: per title, each cheat's name, category, the game
+    versions its name states, the button combo it waits for, and its code lines checked against Azahar's
+    interpreter. The adapter writes the chosen ones, each marked `*citra_enabled`, to cheats/<Title ID>.txt."""
+    records = {}
+    for path in sorted((root / '3ds').glob('*.txt')):
+        tid = path.stem.upper()
+        if not AZAHAR_TITLE.match(tid):
+            stats['azahar_rejected_titles'] += 1
+            continue
+        update = tid.startswith('0004000E')
+        if update:
+            tid = '00040000' + tid[8:]
+            stats['azahar_update_files'] += 1
+        raw = path.read_bytes()
+        try:
+            text = raw.decode('utf-8')
+        except UnicodeDecodeError:
+            text = raw.decode('latin-1')
+            stats['azahar_latin1_files'] += 1
+        record = records.setdefault(tid, {'title': '', 'credits': ['FlagBrew Sharkive contributors (GPL-3.0)'],
+                                          'entries': []})
+        entries = record['entries']
+        labels = {e['name'].casefold() for e in entries}
+        names = collections.Counter()
+        for section in azahar_sections(text):
+            full = clean_label(section['name'], 400)
+            name = full[:120].rstrip()
+            if not name or not section['header'].endswith(']'):
+                stats['azahar_rejected_unnamed'] += 1
+                continue
+            if not section['lines']:
+                stats['azahar_rejected_empty'] += 1
+                continue
+            lines = azahar_lines(section['lines'])
+            if lines is None:
+                stats['azahar_rejected_lines'] += 1
+                continue
+            combo = azahar_combo(lines)
+            if combo is None:
+                stats['azahar_rejected_unreported_buttons'] += 1
+                continue
+            names[name.casefold()] += 1
+            occurrence = names[name.casefold()]
+            # Every code of a title keeps a name of its own: a code of the update's file whose name the game's
+            # file already uses says so, and a repeated name is numbered.
+            label = azahar_label(name, '(update)' if update and name.casefold() in labels else '', labels)
+            identity = ('azahar', tid, name.casefold(), str(occurrence)) if not update else \
+                ('azahar', tid, 'update', name.casefold(), str(occurrence))
+            entry = {'id': stable_id(*identity), 'cat': classify(name, 'cheat'),
+                     'name': label, 'source': 'sharkive-3ds', 'lines': lines}
+            if update:
+                entry['update'] = True
+            versions = sorted({v for v in AZAHAR_VERSION.findall(name)}, key=lambda v: [int(x) for x in v.split('.')])
+            if versions:
+                entry['versions'] = versions
+            if combo:
+                entry['combo'] = combo
+            # A name cut to fit the list keeps its whole text as the code's description.
+            notes = clean_label(' '.join([full] * (full != name) + [note for note in section['notes'] if note]), 400)
+            if notes:
+                entry['notes'] = notes
+            group = display_group(tid, name, entry['cat'])
+            if group:
+                entry['group'] = group
+            entries.append(entry)
+            stats['azahar_entries'] += 1
+    for tid in list(records):
+        if not records[tid]['entries']:
+            stats['azahar_titles_without_entries'] += 1
+            del records[tid]
+            continue
+        records[tid]['entries'].sort(key=lambda e: (e['cat'], e['name'].casefold()))
+    return records
+
+
 # ---------------------------------------------------------------- output
 
 def pack_json(payload):
@@ -1660,6 +1838,8 @@ def main():
             engines[engine] = build_rpcs3(fetch_rpcs3(args.cache, args.offline), stats)
         elif engine == 'armsx2':
             engines[engine] = build_armsx2(git, stats)
+        elif engine == 'azahar':
+            engines[engine] = build_azahar(git['sharkive-3ds'], stats)
         else:
             engines[engine] = build_dolphin(git, stats)
         if engine == 'rpcs3':

@@ -1169,7 +1169,7 @@ static BOOL MatchesRange(NSString *text, unsigned long long start, unsigned long
   for (size_t i = 0; i < staged.folders.size(); i++) {
     if (!NeoTextureInstall::IsDirectory(staged.folders[i])) continue;
     any = YES;
-    NSString *problem = [engine problemWithStagedFolder:[NSString stringWithUTF8String:staged.folders[i].c_str()] pack:nil];
+    NSString *problem = [engine problemWithStagedFolder:[NSString stringWithUTF8String:staged.folders[i].c_str()] pack:info];
     if (problem) return PackError(NeoTexturePackErrorLayout, problem, nil);
   }
   if (!any) return PackError(NeoTexturePackErrorLayout, @"noTextures", nil);

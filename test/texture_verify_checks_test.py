@@ -63,6 +63,20 @@ with tempfile.TemporaryDirectory() as folder:
     (game / 'tex1_upper.DDS').write_bytes(dds_header(b'DXT1'))
     report, problems = verify_packs.check_azahar(game)
     check(report['dds'] == 0 and not problems, f'Azahar native extension semantics unchanged {report} {problems}')
+with tempfile.TemporaryDirectory() as folder:
+    game = Path(folder)
+    options = '"options": {"skip_mipmap": true, "flip_png_files": false, "use_new_hash": true}'
+    for textures, expected in [('{"0x1A2B": "a.png", " 00ffeeddccbbaa99": ["b.png"], "7": 5}', []),
+                               ('[["a.png"], "b.png"]', []), ('null', []), ('{"zz": "a.png"}', ['packJsonTextures']),
+                               ('{"10000000000000000": "a.png"}', ['packJsonTextures']),
+                               ('{"1": ["a.png", 2]}', ['packJsonTextures']), ('"a.png"', ['packJsonTextures'])]:
+        (game / 'pack.json').write_text('{' + options + ', // the engine accepts comments\n "textures": ' + textures + '}')
+        report, problems = verify_packs.check_azahar(game)
+        check(problems == expected, f'Azahar textures table {textures}: {problems}')
+    (game / 'pack.json').write_text('{' + options + '}')
+    (game / 'tex1_a.dds').write_bytes(dds_header(b'DXT1'))
+    report, problems = verify_packs.check_azahar(game)
+    check(report.get('ddsIgnored') and not problems, f'Azahar skips DDS when skip_mipmap is set {report}')
 if '--dds-case' in sys.argv:
     print(f'PASS texture DDS extension diagnostics: {checks} checks (Dolphin/PPSSPP case-insensitive headers; exact INI and Azahar filters unchanged)')
     raise SystemExit(0)
