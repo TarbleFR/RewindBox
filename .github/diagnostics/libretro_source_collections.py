@@ -22,6 +22,12 @@ COLLECTIONS = {
                       name='LibretroCores-ee0654160122fb639ea50ce990d866d302d6d6d4', bytes=55658336,
                       sha256='c5fc92e5ce1db5f0bf947fd020d8ffe5404a5062fac392ecc7e692426025c1d8',
                       cores=('azahar',)),
+    # Azahar 2127.0-rc5 (build date fixed by sourceDateEpoch), Beetle PSX and Beetle PSX HW with Lightrec, DeSmuME
+    # with the AArch64 JIT of TASEmulators/desmume (native/desmume): docs/libretro-jit-collection-handoff.md.
+    14839590544: dict(run=45213717171, source='6cd6a89bfdaded3e52400d4640fff4ac17f1c6d9',
+                      name='LibretroCores-6cd6a89bfdaded3e52400d4640fff4ac17f1c6d9', bytes=56247458,
+                      sha256='0b1d6bb6ce002ca39d15f8c0185cc513fa492bfcdd044e465b165fae7bf21125',
+                      cores=('azahar', 'desmume', 'mednafen_psx', 'mednafen_psx_hw')),
 }
 
 

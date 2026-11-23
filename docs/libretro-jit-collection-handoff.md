@@ -7,7 +7,8 @@ d'ipa c'est une autre session qui la fera ». Cette session n'a lancé aucune li
 
 - **Source.** Route source-cores de `.github/workflows/libretro-cores.yml`, commit `6cd6a89b`.
   - Run [45213717171](https://github.com/TarbleFR/RewindBox/actions/runs/45213717171).
-  - Artefact `LibretroCores-6cd6a89bfdaded3e52400d4640fff4ac17f1c6d9`.
+  - Artefact `LibretroCores-6cd6a89bfdaded3e52400d4640fff4ac17f1c6d9` : id 14839590544, 56 247 458 octets, SHA-256
+    `0b1d6bb6ce002ca39d15f8c0185cc513fa492bfcdd044e465b165fae7bf21125`, disponible jusqu'au 7 décembre.
 - **Base.** La collection que la 825 retient, république par la Build 801.
 - **Cœurs compilés par RewindBox** (`compiled: true`, `jitInterface: 1`) :
 
@@ -21,6 +22,15 @@ d'ipa c'est une autre session qui la fera ». Cette session n'a lancé aucune li
   - Azahar a la même source que dans la 826. Son binaire diffère pourtant de celui de la 826 : la date de
     compilation est désormais fixée par `sourceDateEpoch`.
 - **Inchangé à l'octet près** : les 31 autres cœurs, MoltenVK et les fichiers système.
+- **Vérifié dans cette session.**
+  - Identités : 4 cœurs `compiled`, iOS 14.0, `jitInterface: 1`.
+  - Exports, dont `_rewindbox_libretro_jit_install`, et aucun import interdit.
+  - Contrat d'options (`test/libretro_core_options_test.py --cores`) sur les 35 binaires, avec le catalogue de
+    `f449e07c`.
+  - `libretro_source_collections.verify` et `test/standard_delivery_contract_test.py` passent (120 tests).
+  - Les deux binaires Beetle sont identiques à l'octet près à ceux du build précédent (485411bb).
+  - Azahar porte la date du commit épinglé (2026-11-21T01:24:28Z).
+  - DeSmuME : 4 515 640 octets, mêmes dépendances que le binaire buildbot (libc++, libSystem).
 
 ## Déjà dans les sources
 

@@ -500,7 +500,11 @@ Tirée de la 826.
   | Sans interface ou hôte sans capacité JIT | Interpréteur |
 
   Le même arbre, reconstruit par le constructeur à partir de l'épingle, donne les mêmes résultats.
-- **Compilation iOS** : route source-cores, run [45213717171](https://github.com/TarbleFR/RewindBox/actions/runs/45213717171).
+- **Compilation iOS** : route source-cores, run [45213717171](https://github.com/TarbleFR/RewindBox/actions/runs/45213717171),
+  artefact `LibretroCores-6cd6a89b…` (id 14839590544).
+  - DeSmuME pèse 4 515 640 octets, vise iOS 14.0 et a les mêmes dépendances que le binaire buildbot.
+  - Exports et imports sont conformes ; le contrat d'options passe sur les 35 binaires.
+  - Passation pour la livraison : [libretro-jit-collection-handoff.md](libretro-jit-collection-handoff.md).
 - **Reste à faire.**
   - Mesures sur iPhone : critères 2 à 5 de la section 7.5.
   - Livraison par la session IPA.
