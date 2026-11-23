@@ -2463,8 +2463,13 @@ def archive_operation(kind):
 
 def libretro():
     import retained_components as retained
+    import libretro_source_collections as source_collections
     manifest = ci_manifest()
-    return save('standard-libretro.json', retained.verify_libretro(manifest['components']['libretro']))
+    spec = manifest['components']['libretro']
+    result = retained.verify_libretro(spec)
+    from verify_ipa import macho  # importable once verify_libretro has set its path
+    result.update(source_collections.verify(spec, macho))
+    return save('standard-libretro.json', result)
 
 
 def neoswap_host():

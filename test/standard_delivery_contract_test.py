@@ -35,6 +35,7 @@ sys.path.insert(0, str(ROOT / '.github/diagnostics'))
 
 import standard_delivery as sd  # noqa: E402
 import retained_components as retained  # noqa: E402
+import libretro_source_collections as source_collections  # noqa: E402
 import rpcs3_core_component as rpcs3  # noqa: E402
 
 try:
@@ -369,7 +370,7 @@ class ManifestSchema(unittest.TestCase):
                 self.assertIn(spec['image'], sd.expand_image_patterns(images['retained'][key], sorted(base)), key)
         self.assertEqual(len(retained_names), len(set(retained_names)))
         # Every libretro core is retained, except those a reviewed source-built collection compiled: they must change.
-        collection = retained.libretro_source_collection(manifest['components']['libretro'])
+        collection = source_collections.collection(manifest['components']['libretro'])
         rebuilt = {f'Frameworks/{core}_libretro.framework/{core}_libretro' for core in (collection or {}).get('cores', ())}
         self.assertLessEqual(rebuilt, set(images['mustChange']))
         self.assertEqual(sum(n.endswith('_libretro') for n in retained_names) + len(rebuilt), 35)
@@ -512,7 +513,7 @@ class Components(unittest.TestCase):
                          json.loads((ROOT / 'build-utils/armsx2/source.json').read_bytes())['revision'])
         for kind in retained.ARCHIVES:
             origin, pin = components[kind]['origin'], delivered609.RETAINED_ARCHIVES[kind]
-            collection = retained.libretro_source_collection(components[kind]) if kind == 'libretro' else None
+            collection = source_collections.collection(components[kind]) if kind == 'libretro' else None
             if collection is not None:
                 # A reviewed collection rebuilt from the 609 one by the source-cores route.
                 pin = dict(collection, artifact=origin['artifact'], destination=pin['destination'])
