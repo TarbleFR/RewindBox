@@ -1,0 +1,77 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index f0f50ab..887774b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3064,6 +3064,7 @@ static _Atomic uint64_t g_drs_raised, g_drs_seen;   // TIMESTAMP reports raised
+ static _Atomic int g_rb_drs_threshold, g_drs_hot, g_drs_state;   // g_drs_state: the thermal state rb_drs_hot last read
+ static _Atomic uint64_t g_drs_th_at, g_drs_hot_raised;
+ #include "rb_adaptive_drs.h"
++#include "rb_drs_thermal.h"   // RewindBox (patch 0339)
+ static rb_guest_heat g_rb_guest_heat;
+ static rb_adaptive_drs g_rb_adaptive_drs;
+ static _Atomic unsigned g_rb_drs_level;
+@@ -3209,15 +3210,21 @@ static int rb_drs_hot(uint64_t f) {
+     int stored = atomic_load_explicit(&g_rb_drs_threshold, memory_order_relaxed);
+     if (!stored) {
+         const char *legacy = getenv("S2A_RB_DRS_THERMAL");
+-        int threshold = rb_thermal_threshold(!(legacy && !strcmp(legacy, "0")), nvn_rb_thermal_scope() || rb_thermal_pacing(),
++        int threshold = rb_thermal_threshold(rb_drs_thermal_asked(legacy), nvn_rb_thermal_scope() || rb_thermal_pacing(),   // RewindBox (patch 0339): only when S2A_RB_DRS_THERMAL=1 asks
+                                              getenv("S2A_RB_DRS_THERMAL_STATE"));
++        if (!rb_drs_thermal_asked(legacy)) MLOG("[rb-guest-drs] thermal steps off (S2A_RB_DRS_THERMAL; patch 0339): no push, adaptive level or floor, the reports keep the 16.6 ms hold at every thermal state; S2A_RB_DRS_THERMAL=1 turns them on as in IPA 829");
+         int zero = 0;
+         if (atomic_compare_exchange_strong(&g_rb_drs_threshold, &zero, threshold + 1))
+             MLOG("[rb-guest-drs] threshold=%d recovery=%s", threshold,
+                  threshold == 1 ? "30s nominal and completed GPU p95 <14.5ms" : threshold == 2 ? "30s fair or nominal" : "disabled");
+         stored = threshold + 1;
+     }
+-    if (stored == 1) return 0;
++    if (stored == 1) {   // RewindBox (patch 0339): no thermal step; the state is read twice a second as before, for the guard (rb_drs_trial_now, rb_drs_escape_now: none at Critical)
++        uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW), at = atomic_load(&g_drs_th_at);
++        if ((!at || now <= at || now - at >= 500000000ull) && atomic_compare_exchange_strong(&g_drs_th_at, &at, now))
++            atomic_store_explicit(&g_drs_state, (int)NSProcessInfo.processInfo.thermalState, memory_order_relaxed);
++        return 0;
++    }
+     uint64_t now = clock_gettime_nsec_np(CLOCK_UPTIME_RAW), at = atomic_load(&g_drs_th_at);
+     if (at && (now <= at || now - at < 500000000ull)) return atomic_load(&g_drs_hot);
+     if (!os_unfair_lock_trylock(&g_rb_heat_lock)) return atomic_load(&g_drs_hot);
+diff --git a/graphics/nvn/gfx/nvn/rb_drs_thermal.h b/graphics/nvn/gfx/nvn/rb_drs_thermal.h
+new file mode 100644
+index 0000000..37ce199
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_drs_thermal.h
+@@ -0,0 +1,8 @@
++// RewindBox (patch 0339): the thermal steps of the guest DRS run only when asked for (S2A_RB_DRS_THERMAL=1). Pure C: tests/t_rb_drs_thermal.c.
++//   Patch 0087 made a hot iPhone push the game's resolution down: from the threshold state on, a frame's TIMESTAMP reports in the band read 18.7 or 20.5 ms instead of the
++//   16.6 ms hold, patch 0266 added an adaptive level on the GPU quantiles at Fair, patches 0307 and 0310 a floor learned from the pushes. Mario Kart World races sit at the
++//   game's own floor (1248x700) from the start, so a push can only make the game skip frames: at Serious those reads made it ask for present interval 2 in 19 to 36 % of the
++//   six frames after them (IPA 825), and at Fair the no-lock guard of patch 0319 keeps the level at 0, so they did nothing there (IPA 827: level=2 logged, 0 applied).
++//   Off, the reports keep patch 0083's hold (16.6 ms at 60 fps) at every thermal state; the state is still read for the guard, which runs no trial and no escape at Critical.
++#pragma once
++static inline int rb_drs_thermal_asked(const char *value) { return value && value[0] == '1' && !value[1]; }
+diff --git a/graphics/nvn/tests/t_rb_drs_thermal.c b/graphics/nvn/tests/t_rb_drs_thermal.c
+new file mode 100644
+index 0000000..5dcea1f
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_drs_thermal.c
+@@ -0,0 +1,21 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0339): host-only checks of the opt-in thermal steps of the guest DRS (gfx/nvn/rb_drs_thermal.h, with rb_thermal_threshold of rb_thermal_pacing.h).
++#include <assert.h>
++#include <stdio.h>
++#include <string.h>
++#include "../gfx/nvn/rb_drs_thermal.h"
++#include "../gfx/nvn/rb_thermal_pacing.h"
++
++int main(void) {
++    // ① unset or anything but "1": no threshold (rb_drs_hot returns 0, reports keep the 16.6 ms hold)
++    assert(rb_thermal_threshold(rb_drs_thermal_asked(NULL), 1, NULL) == 0);
++    assert(rb_thermal_threshold(rb_drs_thermal_asked(""), 1, NULL) == 0);
++    assert(rb_thermal_threshold(rb_drs_thermal_asked("0"), 1, NULL) == 0);
++    assert(rb_thermal_threshold(rb_drs_thermal_asked("11"), 1, "1") == 0);
++    // ② S2A_RB_DRS_THERMAL=1: the thresholds of IPA 829 (Fair for a Switch 2 title, Serious otherwise, S2A_RB_DRS_THERMAL_STATE as before)
++    assert(rb_thermal_threshold(rb_drs_thermal_asked("1"), 1, NULL) == 1);
++    assert(rb_thermal_threshold(rb_drs_thermal_asked("1"), 0, NULL) == 2);
++    assert(rb_thermal_threshold(rb_drs_thermal_asked("1"), 1, "2") == 2 && rb_thermal_threshold(rb_drs_thermal_asked("1"), 1, "0") == 0);
++    puts("PASS guest DRS thermal steps: off unless S2A_RB_DRS_THERMAL=1, the thresholds of IPA 829 when asked");
++    return 0;
++}

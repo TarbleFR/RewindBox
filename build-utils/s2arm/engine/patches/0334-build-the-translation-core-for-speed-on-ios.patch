@@ -1,0 +1,25 @@
+diff --git a/graphics/nvn/Makefile b/graphics/nvn/Makefile
+index ba49008..4a4957d 100644
+--- a/graphics/nvn/Makefile
++++ b/graphics/nvn/Makefile
+@@ -27,6 +27,11 @@ $(shell mkdir -p $(OUT); [ "$$(cat $(SRCSTAMP) 2>/dev/null)" = '$(sort $(SRCS) $
+ PFX   := -ffile-prefix-map=$(ROOT)=.
+ INC   := -I$(ROOT)/graphics/nvn/gfx/nvn/include -I$(ROOT)/graphics/nvn/host -I$(ROOT)/runtime/include -I$(ROOT)/graphics/nvn/third_party/vulkan-headers/include -I$(OUT)/gen
+ WARN  := -Wall -Wno-unused-function -Wno-unguarded-availability-new -Wno-unguarded-availability
++# RewindBox (patch 0334): the two files the submit thread runs nearly all of its time in are built for speed on iOS, the rest stays -Os. IPA 827, Mario Kart World, race at
++#   Fair: the submit thread spends 13.5 to 19.5 ms a frame (49 to 81 M instructions, 28.8 to 36.9 k a draw) in nvn_mtl.m and hle_nvn.c at 1.33 to 1.49 GHz, and -Os keeps
++#   the small helpers of the per-draw walk out of line (rs_bind_check, p20_check, size_abi_texture, rs_state, rs_info, rs_root, mtl_pf_dpf stay separate functions in the
++#   0319 and 0331 binaries although they are static inline) and does not unroll the binding loops. S2A_RB_NVN_HOT_OPT=-Os on the make command line builds them as before.
++S2A_RB_NVN_HOT_OPT ?= -O2
+ 
+ # S2Arm tessellation: 嵌入 CHWTessellator（tools/embed_msl.py 把源文件转成 C 字符串常量）
+ $(OUT)/gen/gal_tess_msl.h: $(ROOT)/graphics/metal/gal_tess_d3d.h $(ROOT)/graphics/metal/tools/embed_msl.py
+@@ -66,7 +71,7 @@ $(OUT)/mac/libnvn.a: $(SRCS) $(HDRS) Makefile $(SRCSTAMP)
+ $(OUT)/ios/libnvn.a: $(SRCS) $(HDRS) Makefile $(SRCSTAMP)
+ 	@mkdir -p $(OUT)/ios
+ 	d=$$(mktemp -d $@.o.XXXXXX) && trap 'rm -rf "$$d" "$@.$$$$"' EXIT \
+-	  && (cd "$$d" && for f in $(addprefix $(ROOT)/graphics/nvn/,$(SRCS)); do clang $(PFX) -std=gnu11 -Os -g -fobjc-arc $(IOS_FLAGS) $(WARN) $(INC) -c $$f -o $$(echo $$f | sed 's|.*/gfx/nvn/||; s|/|_|g').o || exit 1; done) \
++	  && (cd "$$d" && for f in $(addprefix $(ROOT)/graphics/nvn/,$(SRCS)); do opt=-Os; case "$$f" in */gfx/nvn/nvn_mtl.m|*/gfx/nvn/hle_nvn.c) opt='$(S2A_RB_NVN_HOT_OPT)';; esac; clang $(PFX) -std=gnu11 $$opt -g -fobjc-arc $(IOS_FLAGS) $(WARN) $(INC) -c $$f -o $$(echo $$f | sed 's|.*/gfx/nvn/||; s|/|_|g').o || exit 1; done) \
+ 	  && ar rcs $@.$$$$ "$$d"/*.o && { $(LIBCHK); } && mv -f $@.$$$$ $@
+ 
+ # GL 层运行时兜底的 GLSL 翻译（gfx/gl/gl_xlate.c，含改写层 gl_glsl_es.c）+ glslang 静态库 → libglx.a：只链进宿主与 iOS App（graphics/build.mk）。

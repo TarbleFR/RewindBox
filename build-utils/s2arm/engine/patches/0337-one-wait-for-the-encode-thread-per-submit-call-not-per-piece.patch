@@ -1,0 +1,171 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 115e47f..f0f50ab 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4482,6 +4482,21 @@ static void mdxchk_after(void) {   // nvn_be_sub_commit (the replaying thread),
+         if (!e) e = blit();
+         enc_b_copy_buffer(e, (__bridge id<MTLBuffer>)mb, (NSUInteger)mo, g_mdxchk_buf, g_mdxchk[i].aoff, 4); }
+ }
++#include "rb_piece_hold.h"   // RewindBox (patch 0337)
++static rb_piece_hold g_rb_piece;   // submit thread only (nvn_be_submit and nvn_be_xq_flush run under the submit lock)
++static uint64_t g_rb_piece_wait_ns;   // the calls' end waits (t_rb_blk[1] grown by them), for the 3000-submission line
++static void rb_piece_option(void) {
++    static int read; if (read) return; read = 1;
++    const char *v = getenv("S2A_RB_PIECE_DRAIN");
++    g_rb_piece.each = rb_piece_drain_each_asked(v);
++    MLOG("[rb-piece] %s (S2A_RB_PIECE_DRAIN; patch 0337)", g_rb_piece.each ? "the encode thread is waited for after every submission piece, as in IPA 829"
++                                                                  : "the encode thread is waited for once at the end of each submit call, not after every piece of it");
++}
++static void rb_piece_call_begin(void) { rb_piece_option(); rb_piece_call_enter(&g_rb_piece); }
++static void rb_piece_call_end(void) {
++    if (!rb_piece_call_leave(&g_rb_piece)) return;
++    uint64_t b0 = t_rb_blk[1]; rec_drain(); g_rb_piece_wait_ns += t_rb_blk[1] - b0;
++}
+ uint64_t nvn_be_sub_commit(void) {
+     gpu_hang_inject();
+     lc_land();   // clears still waiting (the command list ends with them)
+@@ -4597,7 +4612,7 @@ uint64_t nvn_be_sub_commit(void) {
+         [g_cb endCommandBuffer];
+         rec_commit(g_cb, o);
+         rec_signal(g_ev, fence);
+-        rec_drain();
++        if (rb_piece_end_waits(&g_rb_piece)) rec_drain(); else rec_handover();   // RewindBox (patch 0337): another piece of this submit call may follow; the call's end waits
+     }
+     g_alloc_fence[g_alloc_cur] = fence;
+     main_barrier_reset(); g_cb = nil;
+diff --git a/graphics/nvn/gfx/nvn/nvn_rec.h b/graphics/nvn/gfx/nvn/nvn_rec.h
+index 21fd031..d3b1d35 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rec.h
++++ b/graphics/nvn/gfx/nvn/nvn_rec.h
+@@ -405,6 +405,14 @@ static void rec_drain(void) {
+     pthread_mutex_unlock(&g_rb_mu);
+     g_rlane = lane;
+ }
++// RewindBox (patch 0337): hand over what is recorded without waiting for the encode thread (rec_drain without its wait): the end of a piece another piece of the same submit
++//   call follows (nvn_mtl.m nvn_be_sub_commit, rb_piece_hold.h). The commit and signal records go to the encode thread now, so a later wait on their fence is met
++static void rec_handover(void) {
++    if (!g_rlane) geo_run_flush();
++    int lane = g_rlane; g_rlane = 0;
++    if (g_rb_started) rec_publish();
++    g_rlane = lane;
++}
+ static __attribute__((noreturn)) void rec_missing(id o, SEL s) { MDIE("deferred encoding: %s has no stand-in for -%s (DM_NVN_ENC_THREAD=0 runs without it)", object_getClassName(o), sel_getName(s)); }
+ 
+ // Argument tables: every stand-in is made once and kept for good (rec_table), so the real table is passed without a retain
+diff --git a/graphics/nvn/gfx/nvn/nvn_xqueue.inc b/graphics/nvn/gfx/nvn/nvn_xqueue.inc
+index eb8b8f0..e0f22f2 100644
+--- a/graphics/nvn/gfx/nvn/nvn_xqueue.inc
++++ b/graphics/nvn/gfx/nvn/nvn_xqueue.inc
+@@ -403,6 +403,9 @@ static void xq_stats(void) {
+          (unsigned long long)g_rb_pc_n, g_rb_pc_begin / pn / 1e6, g_rb_pc_index / pn / 1e6, g_rb_pc_enc / pn / 1e6, g_rb_pc_commit / pn / 1e6, g_rb_pc_res / pn / 1e6, (unsigned long long)g_rb_pc_follow, (unsigned long long)g_rb_pc_fence,
+          (unsigned long long)g_rb_pc_qwait, (unsigned long long)g_rb_pc_ewait, (unsigned long long)g_rb_pc_cwait, (unsigned long long)g_rb_xq_listed, (unsigned long long)g_rb_xq_walked);
+     g_rb_pc_n = g_rb_pc_begin = g_rb_pc_index = g_rb_pc_enc = g_rb_pc_commit = g_rb_pc_res = g_rb_pc_follow = g_rb_pc_fence = g_rb_pc_qwait = g_rb_pc_ewait = g_rb_pc_cwait = 0;
++    MLOG("[rb-piece] up to submission %llu: %llu pieces handed over without waiting for the encode thread, %llu submit calls waited for it once at their end (%.2f ms in all)%s",
++         (unsigned long long)g_xq_subs, (unsigned long long)g_rb_piece.pieces_held, (unsigned long long)g_rb_piece.calls_waited, g_rb_piece_wait_ns / 1e6,
++         g_rb_piece.each ? "; S2A_RB_PIECE_DRAIN=1: every piece waits" : "");   // RewindBox (patch 0337)
+ }
+ // Release parked work now (CPU waits for it, or the watchdog); why = the reason for the red line. Caller holds the submit lock
+ static void xq_force(xq_t *e, const char *why) {
+@@ -410,6 +413,7 @@ static void xq_force(xq_t *e, const char *why) {
+     xq_run(e, 1); xq_drain_ready();
+ }
+ void nvn_be_submit(void *q, const uint64_t *h, int n) {
++    rb_piece_call_begin();   // RewindBox (patch 0337): its pieces hand over, its end waits for the encode thread once
+     g_rb_pc_call++;   // RewindBox (patch 0072): pieces of one call (xq_piece)
+     g_xq_subs++; alias_game_submission();   // RewindBox (patch 0058): the game's own submissions count the idle time of shared textures (nvn_mtl.m alias_recent)
+     xq_t *e = xq_find(q);
+@@ -418,9 +422,10 @@ void nvn_be_submit(void *q, const uint64_t *h, int n) {
+     xq_drain_ready();
+     for (int i = 0; i < g_nxq; i++) if (g_xq[i].parked && g_xq_subs - g_xq[i].since > XQ_WATCHDOG) { xq_force(&g_xq[i], "still parked after 256 submissions"); i = -1; }
+     xq_stats();
++    rb_piece_call_end();   // RewindBox (patch 0337)
+ }
+ // QueueFinish / present on q: its parked work goes now
+-void nvn_be_xq_flush(void *q, const char *why) { g_rb_pc_call++; xq_t *e = xq_find(q); if (e && (e->ncont || e->parked)) xq_force(e, why); }   // RewindBox (patch 0072): g_rb_pc_call
++void nvn_be_xq_flush(void *q, const char *why) { rb_piece_call_begin(); g_rb_pc_call++; xq_t *e = xq_find(q); if (e && (e->ncont || e->parked)) xq_force(e, why); rb_piece_call_end(); }   // RewindBox (patch 0072): g_rb_pc_call; (patch 0337): rb_piece_call_*
+ // QueueFenceSync on q: 1 = q has parked work, the fence is owed (published when that work is replayed)
+ int nvn_be_xq_fence(void *q, void *sv) {
+     sync_t *s = sv; xq_t *e = xq_find(q); if (!e || !(e->ncont || e->parked)) return 0;
+diff --git a/graphics/nvn/gfx/nvn/rb_piece_hold.h b/graphics/nvn/gfx/nvn/rb_piece_hold.h
+new file mode 100644
+index 0000000..3f9d5d2
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_piece_hold.h
+@@ -0,0 +1,35 @@
++// RewindBox (patch 0337): when the end of a submission piece waits for the encode thread. Pure C: tests/t_rb_piece_hold.c.
++//   A submit call (nvn_be_submit, nvn_be_xq_flush) replays its streams in pieces (nvn_xqueue.inc xq_piece): one, plus one for each queue a cross-queue event wait parked and
++//   the call resumes. Every piece ended with rec_drain, the submit thread waiting until dm-encode had made every recorded call. Mario Kart World, IPA 827, race: about 8 pieces a
++//   frame (2 submit calls, 5.6 to 6.0 resumed pieces), 0.43 to 0.49 ms a frame of that wait in the resumed pieces alone, on the thread the frame waits for.
++//   The wait guards nothing between two pieces of one call: a record holds a reference to every object it names (rec_obj), the next piece takes a command allocator, a
++//   visibility buffer and arena blocks only once the GPU is past their fence, which it can be only after dm-encode committed their work, the memory-pressure handler's idle
++//   release needs the GPU done with the last fence, and a segment cut (sub_cut) already commits mid-piece without the wait. So a piece followed by another of the same call
++//   only hands its records over (rec_handover); the call's end waits once, as before, so what follows a submit call (present, acquire, CPU waits, other threads) finds
++//   dm-encode idle exactly as in IPA 829. A piece outside a submit call (nvn_frame_rec.inc) keeps its wait. S2A_RB_PIECE_DRAIN=1 waits after every piece as before.
++#pragma once
++#include <stdint.h>
++
++typedef struct {
++    int depth;              // submit calls open on the submit thread (xq_force inside nvn_be_submit nests)
++    int each;               // S2A_RB_PIECE_DRAIN=1: every piece waits, as in IPA 829
++    uint64_t held;          // pieces handed over without a wait since the call began
++    uint64_t pieces_held;   // totals, for the 3000-submission line
++    uint64_t calls_waited;
++} rb_piece_hold;
++
++static inline int rb_piece_drain_each_asked(const char *value) { return value && value[0] == '1' && !value[1]; }
++static inline void rb_piece_call_enter(rb_piece_hold *h) { h->depth++; }
++// A piece ends: 1 = wait for the encode thread now (rec_drain), 0 = hand the records over only (rec_handover); the call's end waits.
++static inline int rb_piece_end_waits(rb_piece_hold *h) {
++    if (h->each || h->depth <= 0) return 1;
++    h->held++; h->pieces_held++;
++    return 0;
++}
++// A submit call returns: 1 = wait for the encode thread now (its pieces were handed over without a wait), 0 = nothing to wait for (or still inside an outer call).
++static inline int rb_piece_call_leave(rb_piece_hold *h) {
++    if (h->depth > 0) h->depth--;
++    if (h->depth || !h->held) return 0;
++    h->held = 0; h->calls_waited++;
++    return 1;
++}
+diff --git a/graphics/nvn/tests/t_rb_piece_hold.c b/graphics/nvn/tests/t_rb_piece_hold.c
+new file mode 100644
+index 0000000..0a2fb87
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_piece_hold.c
+@@ -0,0 +1,36 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0337): host-only checks of when a submission piece waits for the encode thread (gfx/nvn/rb_piece_hold.h).
++#include <assert.h>
++#include <stdint.h>
++#include <stdio.h>
++#include "../gfx/nvn/rb_piece_hold.h"
++
++int main(void) {
++    rb_piece_hold h = {0};
++    // ① a piece outside any submit call (the frame-record replay) waits, as before
++    assert(rb_piece_end_waits(&h) == 1 && h.held == 0);
++    // ② one submit call, 1 piece then 5 resumed pieces: none waits, the call's end waits once
++    rb_piece_call_enter(&h);
++    for (int i = 0; i < 6; i++) assert(rb_piece_end_waits(&h) == 0);
++    assert(h.held == 6 && rb_piece_call_leave(&h) == 1 && h.held == 0 && h.depth == 0 && h.calls_waited == 1);
++    // ③ a call with no piece (its streams queued behind parked work) has nothing to wait for
++    rb_piece_call_enter(&h);
++    assert(rb_piece_call_leave(&h) == 0 && h.calls_waited == 1);
++    // ④ nested: the watchdog's release inside nvn_be_submit; only the outer call's end waits
++    rb_piece_call_enter(&h);
++    assert(rb_piece_end_waits(&h) == 0);
++    rb_piece_call_enter(&h);
++    assert(rb_piece_end_waits(&h) == 0 && rb_piece_call_leave(&h) == 0 && h.depth == 1);
++    assert(rb_piece_end_waits(&h) == 0 && rb_piece_call_leave(&h) == 1 && h.depth == 0 && h.pieces_held == 9);
++    // ⑤ S2A_RB_PIECE_DRAIN=1: every piece waits, the call's end has nothing left
++    assert(!rb_piece_drain_each_asked(NULL) && !rb_piece_drain_each_asked("") && !rb_piece_drain_each_asked("0") && !rb_piece_drain_each_asked("10"));
++    assert(rb_piece_drain_each_asked("1"));
++    rb_piece_hold e = {0}; e.each = 1;
++    rb_piece_call_enter(&e);
++    assert(rb_piece_end_waits(&e) == 1 && rb_piece_end_waits(&e) == 1 && rb_piece_call_leave(&e) == 0 && e.pieces_held == 0);
++    // ⑥ an unbalanced leave never goes below 0
++    rb_piece_hold u = {0};
++    assert(rb_piece_call_leave(&u) == 0 && u.depth == 0);
++    puts("PASS piece hold: pieces of one submit call hand over, the call's end waits once; outside a call and with S2A_RB_PIECE_DRAIN=1 every piece waits");
++    return 0;
++}

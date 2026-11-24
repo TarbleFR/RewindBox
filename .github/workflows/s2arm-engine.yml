@@ -215,7 +215,8 @@ jobs:
         run: |
           set -euo pipefail
           for fixture in graphics/nvn/tests/t_rb_{thermal_pacing,spec_gate,archive_index,display_hold,adaptive_drs}.c runtime/tests/t_rb_guest_heat.c \
-            graphics/nvn/tests/t_rb_{view_scope,rs_retire,audit_sample,bind_facts,fb_dirty,args_ubo,report_spread,interval_trace,bind_lane,dark_probe}.c; do
+            graphics/nvn/tests/t_rb_{view_scope,rs_retire,audit_sample,bind_facts,fb_dirty,args_ubo,report_spread,interval_trace,bind_lane,dark_probe}.c \
+            graphics/nvn/tests/t_rb_{fair_default,acquire_fence,piece_hold,sh_range,drs_thermal,vi_vsync}.c; do
             binary="$RUNNER_TEMP/$(basename "$fixture" .c)"
             xcrun --sdk macosx clang -std=gnu11 -D_DARWIN_C_SOURCE -O2 -Wall -Wextra -Werror -pthread "$fixture" -o "$binary"
             "$binary"
@@ -253,6 +254,11 @@ jobs:
           make native-test-crash native-test-svc_mem native-test-far
           # RewindBox (patch 0318): upstream S2Arm camera context with no device (d2a28bf43)
           make native-test-nvn2
+          # RewindBox (patch 0338): the command recordings' release index with and without the free range (scenarios ④ and ⑤ of t_nvn_cmdshadow), encode thread 0 and 1;
+          #   the replay goes through nvn_be_submit, so patch 0337's one wait per submit call runs here too
+          for mode in 0 1; do
+            S2A_RB_SH_RANGE=$mode make native-test-nvn_cmdshadow
+          done
           # RewindBox (patch 0318): thread dumps that only make kernel calls while threads are suspended (2b1a56ca9, 39b877abd)
           make native-test-tdump_stress
           S2A_TEST_RB_QOS_OWNER=1 S2A_RB_GUEST_QOS_TRANSITIONS=0 build/tests/t_thread

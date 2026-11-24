@@ -1,0 +1,75 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 8c6d01e..115e47f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -863,7 +863,8 @@ static void rb_guest_heat_monitor(void) {
+     int generic = nvn2_on() && (!all || !strcmp(all, "1"));
+     if (g_m3 || !title || !*title || (!generic && strcasecmp(title, "0400C3F00006E000")) ||
+         (!generic && ![g_dev.name isEqualToString:@"Apple A18 Pro GPU"]) || !s2a_guest_heat_publish) return;
+-    if (option && strcmp(option,"1")) {
++    if (!option || strcmp(option,"1")) {   // RewindBox (patch 0335): the monitor is installed only when S2A_RB_GUEST_QOS_THERMAL=1 asks for it (runtime/src/rb_guest_heat.h rb_guest_qos_thermal_asked)
++        if (!option) MLOG("[RB-GUEST-QOS] off (patch 0335): guest threads keep their class at every thermal state and the Serious idle delays stay off; S2A_RB_GUEST_QOS_THERMAL=1 turns them on as in IPA 829");
+         atomic_store_explicit(&rb_heat_installed,1,memory_order_release);
+         return;
+     }
+diff --git a/runtime/src/rb_guest_heat.h b/runtime/src/rb_guest_heat.h
+index 192ae6c..5013a4f 100644
+--- a/runtime/src/rb_guest_heat.h
++++ b/runtime/src/rb_guest_heat.h
+@@ -5,6 +5,14 @@
+ 
+ typedef struct { int secondary, reduced; } rb_guest_heat_role;
+ 
++// RewindBox (patch 0335): the thermal guest heuristics run only when asked for (S2A_RB_GUEST_QOS_THERMAL=1). Up to patch 0334 they ran unless the variable said otherwise:
++//   at Fair, 76 to 77 secondary guest threads of Mario Kart World went from USER_INTERACTIVE to USER_INITIATED (patch 0240), and at Serious the secondary pollers slept
++//   longer (patches 0270 and 0282). In the IPA 827 races at Fair no gain was ever measured from the first, neither on the frame (the pool phase after the submit, 2.9 to
++//   4.7 ms with the threads interactive on 18 November against 3.1 to 4.7 ms lowered, different builds) nor on the CPU power (0.78 to 0.96 W whatever the load), while it
++//   lowers the recording threads nx-173 and nx-174 and the threads that wake the submitting one, which the frame waits for; Serious was never reached. Off, the
++//   thermal-state monitor is not installed, so no thread changes class and the Serious delays have no state to start from.
++static inline int rb_guest_qos_thermal_asked(const char *value) { return value && value[0] == '1' && !value[1]; }
++
+ // Guest ID 83 is the hot gameplay worker in the measured MKW configuration.
+ // IDs are process-local. The title/device/backend gate is applied by the producer.
+ static inline rb_guest_heat_role rb_guest_heat_worker(uint64_t id, int main_thread,
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index 5b8ceaa..85effea 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -895,7 +895,7 @@ static void rb_guest_heat_stats_begin(void) {
+     const char *title=getenv("S2A_RB_DIRECT_GAME_ID"), *policy=getenv("S2A_RB_GUEST_QOS_THERMAL");
+     const char *stats=getenv("S2A_RB_GUEST_QOS_STATS");
+     int enabled=s2a_rb_guest_on() && title && *title && (rb_guest_generic_qos() || !strcasecmp(title, "0400C3F00006E000")) &&
+-        (!policy || !strcmp(policy,"1")) && (!stats || !strcmp(stats,"1"));
++        rb_guest_qos_thermal_asked(policy) && (!stats || !strcmp(stats,"1"));   // RewindBox (patch 0335): opt-in
+     pthread_mutex_lock(&rb_heat_report_mu);
+     rb_guest_heat_counts_reset(&rb_heat_counts);
+     atomic_store_explicit(&rb_extended_yields, 0, memory_order_relaxed);
+@@ -1028,7 +1028,7 @@ static void *thread_main(void *p) {
+     rb_heat_role = (rb_guest_heat_role){0};
+     int kart = title && !strcasecmp(title, "0400C3F00006E000");
+     int generic = s2a_rb_guest_on() && title && *title && rb_guest_generic_qos();
+-    if (s2a_rb_guest_on() && (kart || generic) && (!setting || !strcmp(setting, "1"))) {
++    if (s2a_rb_guest_on() && (kart || generic) && rb_guest_qos_thermal_asked(setting)) {   // RewindBox (patch 0335): opt-in
+         // ID 83 identifies a critical worker only in the measured Kart build.
+         // Elsewhere use the guest priority class and the runtime's frame-owner hooks.
+         if (kart)
+diff --git a/runtime/tests/t_rb_guest_heat.c b/runtime/tests/t_rb_guest_heat.c
+index 2d3588b..9a41c80 100644
+--- a/runtime/tests/t_rb_guest_heat.c
++++ b/runtime/tests/t_rb_guest_heat.c
+@@ -19,7 +19,15 @@ static void sustained_poll(void) {
+     puts("PASS sustained guest idle: 8 ms stable site, bounded 1 ms delay, progress and eligibility reset");
+ }
+ 
++static void opt_in(void) {   // RewindBox (patch 0335)
++    assert(!rb_guest_qos_thermal_asked(NULL) && !rb_guest_qos_thermal_asked("") && !rb_guest_qos_thermal_asked("0"));
++    assert(!rb_guest_qos_thermal_asked("10") && !rb_guest_qos_thermal_asked("yes") && !rb_guest_qos_thermal_asked(" 1"));
++    assert(rb_guest_qos_thermal_asked("1"));
++    puts("PASS guest thermal heuristics: off unless S2A_RB_GUEST_QOS_THERMAL=1");
++}
++
+ int main(void) {
++    opt_in();
+     sustained_poll();
+     rb_guest_heat_role worker = rb_guest_heat_worker(93, 0, 1, 0);
+     assert(!rb_guest_heat_change(&worker, 0));

@@ -1,0 +1,233 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 34fbdd8..87b9f30 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -1425,6 +1425,7 @@ NVN(nvnProgramSetShaders, NVNboolean, NVNprogram *p, int n, const NVNshaderData
+ }
+ 
+ // ---------- Sync / events ----------
++static void rb_acquire_sleep(const NVNsync *s, uint64_t ns);   // RewindBox (patch 0333): defined with the window (rb_acquire_fence.h)
+ // 别的队列（GL 层）的栅栏：GPU 上让此后的 NVN 提交等它 / CPU 上等它（is_ext = 0：不是别的队列的栅栏）；定义在 nvnQueueSubmitCommands 前（要 g_sub_mu）
+ static void sync_ext_queue_wait(const sync_t *s);
+ static int sync_ext_wait(const sync_t *s, uint64_t timeout, int *is_ext);
+@@ -1502,7 +1503,10 @@ NVN(nvnSyncWait, NVNsyncWaitResult, const NVNsync *s, uint64_t timeout) {
+     { int ext = 0; if (sync_ext_wait((const sync_t *)s, 0, &ext)) return NVN_SYNC_WAIT_RESULT_ALREADY_SIGNALED;
+       if (ext) return timeout && sync_ext_wait((const sync_t *)s, timeout, &ext) ? NVN_SYNC_WAIT_RESULT_CONDITION_SATISFIED : NVN_SYNC_WAIT_RESULT_TIMEOUT_EXPIRED; }
+     if (nvn_be_wait(fence, 0)) return NVN_SYNC_WAIT_RESULT_ALREADY_SIGNALED;
+-    return timeout && nvn_be_wait(fence, timeout) ? NVN_SYNC_WAIT_RESULT_CONDITION_SATISFIED : NVN_SYNC_WAIT_RESULT_TIMEOUT_EXPIRED;
++    if (!timeout) return NVN_SYNC_WAIT_RESULT_TIMEOUT_EXPIRED;
++    uint64_t rb_w0 = now_ns(); int rb_ok = nvn_be_wait(fence, timeout);   // RewindBox (patch 0333): the sleep is timed and told apart (acquire sync or another one, [rb-acquire])
++    rb_acquire_sleep(s, now_ns() - rb_w0);
++    return rb_ok ? NVN_SYNC_WAIT_RESULT_CONDITION_SATISFIED : NVN_SYNC_WAIT_RESULT_TIMEOUT_EXPIRED;
+ }
+ NVN(nvnEventBuilderSetDefaults, void, NVNeventBuilder *b) { memset(b, 0, sizeof(ev_builder_t)); }
+ NVN(nvnEventBuilderSetStorage, void, NVNeventBuilder *b, const NVNmemoryPool *p, int64_t off) { *(ev_builder_t *)b = (ev_builder_t){(const pool_t *)p, off}; }
+@@ -3255,6 +3259,47 @@ NVN(nvnWindowBuilderGetTexture, NVNtexture *, const NVNwindowBuilder *b, int i)
+ #include "rb_present_mach.h"
+ #endif
+ #include "rb_present_hold.h"
++#include "rb_acquire_fence.h"
++// RewindBox (patch 0333): the acquire sync is published at the fence of the texture's last present, not at the last committed fence (the reasons are in rb_acquire_fence.h).
++//   S2A_RB_ACQUIRE_FENCE=0: the last committed fence, as in IPA 829. Either way the line [rb-acquire] counts the CPU sleeps of nvnSyncWait on a sync the last acquires
++//   published and on any other sync, with their time, which tells whether the game's per-frame sleep was on the acquire sync.
++static pthread_mutex_t g_rb_acq_mu = PTHREAD_MUTEX_INITIALIZER;
++static rb_acq_table g_rb_acq;   // under g_rb_acq_mu
++static uint64_t g_rb_acq_sleep_n[2], g_rb_acq_sleep_ns[2];   // [0] another sync, [1] an acquire sync; under g_rb_acq_mu
++static int rb_acquire_fence_on(void) {
++    static int v = -1;
++    if (v < 0) {
++        const char *e = getenv("S2A_RB_ACQUIRE_FENCE");
++        v = !(e && !strcmp(e, "0"));
++        LOG("[rb-acquire] the acquire sync is published at %s (S2A_RB_ACQUIRE_FENCE; patch 0333)", v ? "the fence of the texture's last present" : "the last committed fence, as in IPA 829");
++    }
++    return v;
++}
++static void rb_acquire_line(void) {   // under g_rb_acq_mu
++    LOG("[rb-acquire] acquires %llu: published below the last fence %llu, texture never presented %llu, window not noted yet %llu; nvnSyncWait sleeps on an acquire sync %llu (%.1f ms), on another sync %llu (%.1f ms); S2A_RB_ACQUIRE_FENCE=%d",
++        (unsigned long long)g_rb_acq.acquires, (unsigned long long)g_rb_acq.older, (unsigned long long)g_rb_acq.never, (unsigned long long)g_rb_acq.unknown,
++        (unsigned long long)g_rb_acq_sleep_n[1], g_rb_acq_sleep_ns[1] / 1e6, (unsigned long long)g_rb_acq_sleep_n[0], g_rb_acq_sleep_ns[0] / 1e6, rb_acquire_fence_on());
++}
++static uint64_t rb_acquire_publish(const win_t *o, int idx, const NVNsync *s) {   // the fence an acquire of texture idx publishes
++    uint64_t last = nvn_be_last_fence(), f = last;
++    int on = rb_acquire_fence_on();
++    pthread_mutex_lock(&g_rb_acq_mu);
++    uint64_t got = rb_acq_fence(&g_rb_acq, o, idx, last);
++    if (on) f = got;
++    rb_acq_published(&g_rb_acq, s);
++    if (g_rb_acq.acquires % 1800 == 0) rb_acquire_line();
++    pthread_mutex_unlock(&g_rb_acq_mu);
++    return f;
++}
++static void rb_acquire_note(const win_t *o, int idx, uint64_t fence) {   // a present of texture idx, fence = the last committed fence when it was issued
++    pthread_mutex_lock(&g_rb_acq_mu); rb_acq_note(&g_rb_acq, o, idx, fence); pthread_mutex_unlock(&g_rb_acq_mu);
++}
++static void rb_acquire_sleep(const NVNsync *s, uint64_t ns) {
++    pthread_mutex_lock(&g_rb_acq_mu);
++    int k = rb_acq_is_recent(&g_rb_acq, s);
++    g_rb_acq_sleep_n[k]++; g_rb_acq_sleep_ns[k] += ns;
++    pthread_mutex_unlock(&g_rb_acq_mu);
++}
+ static _Atomic int g_rb_interval_debounce;
+ typedef struct { win2 layout; rb_present_samples samples; rb_present_hold display_hold; } rb_present_history;
+ FITS(rb_present_history, NVNwindow);
+@@ -3262,6 +3307,7 @@ static void nvn2_win_init(NVNwindow *w, const NVNwindowBuilder *b);
+ NVN(nvnWindowInitialize, NVNboolean, NVNwindow *w, const NVNwindowBuilder *b) {
+     const win_builder_t *s = (const win_builder_t *)b; win_t *o = (win_t *)w;
+     memset(o, 0, sizeof *o); o->magic = MAGIC('W', 'I', 'N', 'D'); o->native = s->native; o->ntex = s->ntex; o->interval = s->interval;
++    pthread_mutex_lock(&g_rb_acq_mu); rb_acq_forget(&g_rb_acq, o); pthread_mutex_unlock(&g_rb_acq_mu);   // RewindBox (patch 0333): a new swap chain, unknown until its first present
+     rb_present_history *history = (rb_present_history *)o;
+     memset(&history->samples, 0, sizeof history->samples);
+     history->display_hold = (rb_present_hold){0};
+@@ -3489,7 +3535,7 @@ NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsyn
+     if (pt && pt != (uintptr_t)pthread_self()) {
+         uint64_t tk = *idx < 4 ? o->ticket[*idx] : 0;
+         if (tk) nvn_be_present_wait(tk);
+-        if (s) sync_publish((sync_t *)s, nvn_be_last_fence());
++        if (s) sync_publish((sync_t *)s, rb_acquire_publish(o, *idx, s));   // RewindBox (patch 0333): the fence of the texture's last present
+         return NVN_WINDOW_ACQUIRE_TEXTURE_RESULT_SUCCESS;
+     }
+     // Vsync blocks here (real-device NVN: when all textures in the swapchain are waiting for display, wait for the next one to be released), not in present -- the game often calls present while holding a lock
+@@ -3532,7 +3578,7 @@ NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsyn
+     // The previous present of this texture has not yet been processed by the present thread (display cannot keep up, a whole swapchain round behind): wait for it to be returned, then hand it to the game to draw
+     uint64_t tk = *idx < 4 ? o->ticket[*idx] : 0;
+     if (tk) { int phase=rb_lf_switch(RB_DISPLAY); uint64_t w0 = now_ns(); nvn_be_present_wait(tk); g_pq_wait_ns += now_ns() - w0; if (phase>=0) rb_lf_switch(phase); }
+-    if (s) sync_publish((sync_t *)s, nvn_be_last_fence());   // The swapchain texture becomes available once the commits before this point have completed
++    if (s) sync_publish((sync_t *)s, rb_acquire_publish(o, *idx, s));   // The swapchain texture becomes available once the work that drew it for its last present has completed (RewindBox, patch 0333; S2A_RB_ACQUIRE_FENCE=0: once every commit before this point has)
+     if (!g_fs_start) { g_fs_start = now_ns(); g_fs_wait = pace_ns; }   // the frame starts when the first acquire after a present returns: on a display-link tick when on time
+     rb_itv_acquired();   // RewindBox (patch 0328): the frame's begin, for the interval-2 episode trace. S2A_RB_ITV_TRACE=0: nothing noted
+     return NVN_WINDOW_ACQUIRE_TEXTURE_RESULT_SUCCESS;
+@@ -4550,6 +4596,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+                     enabled, (unsigned long long)o->presents, rb_sent_interval,
+                     (unsigned long long)state->filtered_frames, (unsigned long long)state->sustained_runs);
+         }
++        rb_acquire_note(o, idx, nvn_be_last_fence());   // RewindBox (patch 0333): the work submitted before this present drew into texture idx
+         o->ticket[idx] = nvn_be_present_with_hold(CTX(o->tex[idx]), rb_sent_period / 1e9, crop, hold / 1e9);
+         rb_itv_hold_ns = hold;   // RewindBox (patch 0328)
+         atomic_store_explicit(&g_rb_itv2_run, rb_drs_itv_run(atomic_load_explicit(&g_rb_itv2_run, memory_order_relaxed), rb_sent_interval), memory_order_relaxed);   // RewindBox (patch 0327): one more present at interval 2, or none in a row
+diff --git a/graphics/nvn/gfx/nvn/rb_acquire_fence.h b/graphics/nvn/gfx/nvn/rb_acquire_fence.h
+new file mode 100644
+index 0000000..16ff776
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_acquire_fence.h
+@@ -0,0 +1,68 @@
++// RewindBox (patch 0333): the fence an acquired window texture is available at. Pure C: tests/t_rb_acquire_fence.c.
++//   NVN hands nvnWindowAcquireTexture a sync that is signaled once the display is done with the texture. The host published the last committed fence there, that is every GPU
++//   command the game had submitted, the frame it just presented included: a game thread that waits for that sync on the CPU waits for the end of the previous frame on the GPU
++//   before it builds the next one, so CPU and GPU take turns instead of overlapping. IPA 827, Mario Kart World, iPhone A18 Pro, race at Fair: a game thread other than the
++//   presenting one slept on a fence 0.72 to 0.94 times a frame ([fence-wake] pendingPolls = positiveWaitSleeps), about 2 to 5 ms each; in a light scene running free the game
++//   took 18 ms a frame for 11.1 ms of GPU, with one such sleep a frame, and the sleep went away whenever the display tick paced it.
++//   Here the acquire publishes the fence noted when this texture was last presented: the work that drew into it then. The acquire has already waited for that present to be
++//   taken (nvn_be_present_wait on its ticket), and all GPU work runs on one Metal queue in order, so nothing the game records next can overtake the present's read of the texture.
++//   A texture of a known window that was never presented is available at once (0). A window the table does not know (no present noted yet) keeps the last fence, as before.
++#pragma once
++#include <stdint.h>
++#include <string.h>
++
++enum { RB_ACQ_WINDOWS = 8, RB_ACQ_TEXTURES = 4, RB_ACQ_RECENT = 8 };
++typedef struct {
++    const void *win[RB_ACQ_WINDOWS];                  // NULL = free
++    uint64_t fence[RB_ACQ_WINDOWS][RB_ACQ_TEXTURES];  // fence noted at the texture's last present, 0 = not presented since the window was noted
++    uint64_t used[RB_ACQ_WINDOWS], clock;             // least recently used window is taken over when all slots are in use
++    const void *recent[RB_ACQ_RECENT];                // the syncs the last acquires published, to classify the waits on them (the [rb-acquire] line)
++    unsigned recent_i;
++    uint64_t acquires, older, unknown, never;         // acquires published: with a fence older than the last one, for a window not noted yet, for a texture never presented
++} rb_acq_table;
++
++static inline void rb_acq_reset(rb_acq_table *t) { memset(t, 0, sizeof *t); }
++static inline int rb_acq_find(const rb_acq_table *t, const void *win) {
++    if (!win) return -1;
++    for (int i = 0; i < RB_ACQ_WINDOWS; i++) if (t->win[i] == win) return i;
++    return -1;
++}
++// The window was initialized again (same object, new swap chain): it is unknown until its next present.
++static inline void rb_acq_forget(rb_acq_table *t, const void *win) {
++    int i = rb_acq_find(t, win);
++    if (i < 0) return;
++    t->win[i] = NULL; memset(t->fence[i], 0, sizeof t->fence[i]); t->used[i] = 0;
++}
++// A present of texture idx of win; fence = the last committed fence when the present was issued (the work that drew into the texture).
++static inline void rb_acq_note(rb_acq_table *t, const void *win, int idx, uint64_t fence) {
++    if (!win || idx < 0 || idx >= RB_ACQ_TEXTURES) return;
++    int i = rb_acq_find(t, win);
++    if (i < 0) {
++        int pick = 0;
++        for (int k = 0; k < RB_ACQ_WINDOWS; k++) {
++            if (!t->win[k]) { pick = k; break; }
++            if (t->used[k] < t->used[pick]) pick = k;
++        }
++        i = pick; t->win[i] = win; memset(t->fence[i], 0, sizeof t->fence[i]);
++    }
++    t->fence[i][idx] = fence; t->used[i] = ++t->clock;
++}
++// The fence to publish for an acquire of texture idx of win, given the last committed fence. Never above last.
++static inline uint64_t rb_acq_fence(rb_acq_table *t, const void *win, int idx, uint64_t last) {
++    t->acquires++;
++    int i = rb_acq_find(t, win);
++    if (i < 0 || idx < 0 || idx >= RB_ACQ_TEXTURES) { t->unknown++; return last; }
++    uint64_t f = t->fence[i][idx];
++    if (!f) t->never++;
++    if (f > last) f = last;
++    if (f < last) t->older++;
++    t->used[i] = ++t->clock;
++    return f;
++}
++// The sync an acquire published (for the wait classification); is s one of the last RB_ACQ_RECENT?
++static inline void rb_acq_published(rb_acq_table *t, const void *s) { if (s) t->recent[t->recent_i++ % RB_ACQ_RECENT] = s; }
++static inline int rb_acq_is_recent(const rb_acq_table *t, const void *s) {
++    if (!s) return 0;
++    for (int i = 0; i < RB_ACQ_RECENT; i++) if (t->recent[i] == s) return 1;
++    return 0;
++}
+diff --git a/graphics/nvn/tests/t_rb_acquire_fence.c b/graphics/nvn/tests/t_rb_acquire_fence.c
+new file mode 100644
+index 0000000..d8f6a2a
+--- /dev/null
++++ b/graphics/nvn/tests/t_rb_acquire_fence.c
+@@ -0,0 +1,47 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0333): host-only checks of the fence an acquired window texture is published at (gfx/nvn/rb_acquire_fence.h).
++#include <assert.h>
++#include <stdint.h>
++#include <stdio.h>
++#include "../gfx/nvn/rb_acquire_fence.h"
++
++int main(void) {
++    static rb_acq_table t;
++    int w1, w2, s1, s2;   // stand-ins for the guest's NVNwindow and NVNsync objects
++    rb_acq_reset(&t);
++    // ① a window with no present noted yet keeps the old answer, the last committed fence
++    assert(rb_acq_fence(&t, &w1, 0, 40) == 40 && t.unknown == 1);
++    // ② a rotation of 3 textures, one present a frame, 10 fences a frame: each acquire gets the fence of that texture's last present, never the frame just presented
++    uint64_t last = 0;
++    for (int frame = 0; frame < 12; frame++) {
++        int idx = frame % 3;
++        uint64_t want = frame >= 3 ? (uint64_t)(frame - 3 + 1) * 10 : 0;   // texture idx was last presented 3 frames ago (none in the first 3 frames: never presented)
++        if (frame) assert(rb_acq_fence(&t, &w1, idx, last) == want);
++        last += 10;                                   // the frame's work
++        rb_acq_note(&t, &w1, idx, last);              // presented with the fence of the work that drew into it
++    }
++    assert(t.never >= 2 && t.older >= 8);
++    // ③ never above the last fence (a fence noted from a higher count than the one passed now cannot be published)
++    rb_acq_note(&t, &w1, 1, 500);
++    assert(rb_acq_fence(&t, &w1, 1, 120) == 120);
++    // ④ an index out of range is answered as before
++    assert(rb_acq_fence(&t, &w1, 4, 77) == 77 && rb_acq_fence(&t, &w1, -1, 78) == 78);
++    // ⑤ a second window is kept apart; WindowInitialize forgets the window: unknown again until its next present
++    rb_acq_note(&t, &w2, 0, 300);
++    assert(rb_acq_fence(&t, &w2, 0, 900) == 300 && rb_acq_fence(&t, &w2, 2, 900) == 0);
++    rb_acq_forget(&t, &w2);
++    assert(rb_acq_fence(&t, &w2, 0, 900) == 900);
++    assert(rb_acq_fence(&t, &w1, 1, 600) == 500);
++    // ⑥ more windows than slots: the least recently used is taken over, the others keep their fences
++    static int many[RB_ACQ_WINDOWS + 2];
++    for (int i = 0; i < RB_ACQ_WINDOWS + 2; i++) rb_acq_note(&t, &many[i], 0, 1000 + (uint64_t)i);
++    assert(rb_acq_fence(&t, &many[RB_ACQ_WINDOWS + 1], 0, 5000) == 1000 + RB_ACQ_WINDOWS + 1);
++    assert(rb_acq_fence(&t, &many[0], 0, 5000) == 5000);   // taken over: answered as before
++    // ⑦ the syncs of the last acquires are recognized, older ones are not
++    rb_acq_published(&t, &s1);
++    assert(rb_acq_is_recent(&t, &s1) && !rb_acq_is_recent(&t, &s2) && !rb_acq_is_recent(&t, NULL));
++    for (int i = 0; i < RB_ACQ_RECENT; i++) rb_acq_published(&t, &s2);
++    assert(!rb_acq_is_recent(&t, &s1) && rb_acq_is_recent(&t, &s2));
++    puts("PASS acquire fence: the texture's last present, never above the last fence; unknown windows and indexes as before");
++    return 0;
++}
