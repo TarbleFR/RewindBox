@@ -10,12 +10,16 @@ namespace Silk.NET.Vulkan
     struct DescriptorPoolSize { public uint DescriptorCount; }
     enum DescriptorPoolCreateFlags { None, UpdateAfterBindBit }
     enum StructureType { DescriptorPoolCreateInfo, DescriptorSetAllocateInfo }
-    enum Result { Success, ErrorOutOfPoolMemory, ErrorUnknown }
+    enum Result { Success, ErrorOutOfPoolMemory, ErrorUnknown, ErrorOutOfHostMemory, ErrorOutOfDeviceMemory }
+    sealed class VulkanException(Result result) : Exception(result.ToString())
+    {
+        public Result ResultCode { get; } = result;
+    }
     static class Results
     {
         public static void ThrowOnError(this Result result)
         {
-            if (result != Result.Success) throw new InvalidOperationException(result.ToString());
+            if (result != Result.Success) throw new VulkanException(result);
         }
     }
     unsafe struct DescriptorPoolCreateInfo {
@@ -31,8 +35,21 @@ namespace Silk.NET.Vulkan
         public int Failures, Allocations;
         public readonly List<ulong> Destructions = new();
         public ulong Created;
+        public readonly List<uint[]> RequestedSizes = new();
+        public Result NextCreateResult;
+
         public Result CreateDescriptorPool(Device device, in DescriptorPoolCreateInfo info, void* allocator, out DescriptorPool pool)
         {
+            var counts = new uint[info.PoolSizeCount];
+            for (int i = 0; i < counts.Length; i++) counts[i] = info.PPoolSizes[i].DescriptorCount;
+            RequestedSizes.Add(counts);
+            if (NextCreateResult != Result.Success)
+            {
+                Result result = NextCreateResult;
+                NextCreateResult = Result.Success;
+                pool = default;
+                return result;
+            }
             pool = new DescriptorPool { Handle = ++Created };
             return Result.Success;
         }

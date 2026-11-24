@@ -92,7 +92,7 @@ CONTROL_PREPARED = {
 # bodies of Syscall.cs executed again from the final source (kernel-wait-lifetime-final, the historical gate's successor);
 # 115 after IPA 771 (the shader cache load keeps no host code of cached programs: shader-load-binary-release).
 # Streaming-memory fixture is available for manual exact-source validation.
-FRESH_GATES = 128
+FRESH_GATES = 129
 HISTORICAL_RECEIPTS = 61
 GPU_WORK_ROWS = 13
 READ_COUNTERS = 4
