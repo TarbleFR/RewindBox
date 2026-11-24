@@ -48,6 +48,12 @@ COLLECTIONS = {
                       name='LibretroCores-ccd5f0476caa402823984be589185666d110e7a5', bytes=56290109,
                       sha256='2255194bbbfc91c989aa9334bc73fe387dbb693a8d67c052cfa677baa8cee6bb',
                       cores=('azahar', 'desmume', 'mednafen_psx', 'mednafen_psx_hw')),
+    # DeSmuME: 3D supersampling (desmume_rb_3d_supersampling), [rb-perf] timings, a 64 MiB JIT arena (native/desmume
+    # at 67ce2d3b); Azahar and both Beetle PSX binaries are identical to those of 14872740403.
+    14881770592: dict(run=45304481777, source='67ce2d3b2dc6c479dbebf7da73d1f48a64f5f61b',
+                      name='LibretroCores-67ce2d3b2dc6c479dbebf7da73d1f48a64f5f61b', bytes=56295241,
+                      sha256='9b5a949081f9138fc4d7a49b0b07d056da7f5932e18c2cb758c22c05d2027edc',
+                      cores=('azahar', 'desmume', 'mednafen_psx', 'mednafen_psx_hw')),
 }
 
 
