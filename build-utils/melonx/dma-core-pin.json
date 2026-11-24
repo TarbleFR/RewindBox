@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "e776bfd453a828f674a7269e0a2f640e96c0752d",
-  "run": 45283827082,
-  "job": 138074850945,
+  "source": "7cf4ff80d15e44ad8eea5d9b0dbca5e795aafa51",
+  "run": 45303538300,
+  "job": 138141698491,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14869999889,
-  "name": "MeloNX-engine-e776bfd453a828f674a7269e0a2f640e96c0752d",
-  "bytes": 101383678,
-  "sha256": "8371f807799008fb7f43128316ad7fab3024a01a1dc89a1358da2dd3bbe4914d",
-  "expiresAt": "2027-02-21T22:52:57Z",
+  "artifact": 14879952963,
+  "name": "MeloNX-engine-7cf4ff80d15e44ad8eea5d9b0dbca5e795aafa51",
+  "bytes": 101384413,
+  "sha256": "8d0987d51748c25de5a4e83ab3c53c41a652c335263d0ac006adec90de1247a8",
+  "expiresAt": "2027-02-22T01:14:33Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "d89fcaf21d4b00ab445efe3dcf3362d50e56990288e52eb22b8f6a5186eb691d",
+      "sha256": "a67e47fe919114e12b9b0e674983f6581688a720633116a0457f5b8f51a5dc87",
       "bytes": 39245032
     },
     "iossimulator-arm64": {
-      "sha256": "4cbbb260ac317ac8a060dd73a5523930677156aaa260983e1ebafb786f2e238b",
+      "sha256": "45951b1b8a8c1a51e258b32c7a8058d7ba1cbc7bac388ae8d673555962fed966",
       "bytes": 39568264
     }
   },
   "identities": {
-    "ios-arm64": "3c6556aacd836d2f76c2fe295831599108e9555a06073252fb5a17cc0aac3cea",
-    "iossimulator-arm64": "ed23253417d9bee0b4299d63fbff1daf5b2cd02727625e8a3d0da928ceb7171d"
+    "ios-arm64": "5fbd1d6775c0a97fb5e8ffc40eaccce09ea1c0566b0f4a702df62593a9501937",
+    "iossimulator-arm64": "b271beb4aa79e9c8c64c99af1f3c09f1f489c331847c8ecf253e1b37327b519d"
   },
-  "contractSha256": "bb4d340a0263dc472f8bde7efc0f720e095b5248875e83a35c00037f4758b80f",
-  "resultSha256": "a9b6a517ed5cb8cfaf4f6f4f14b3ada11da8b0c02753ebf7103defe468760b85",
-  "packagedFingerprint": "ab0d56fc286f63da8efbe491631ca6956f747570fbd9a67c3912a5f7a9f296ba",
+  "contractSha256": "3812c0d61a77e844587f1b378532daa133be5d6a87d0562c1c6ad4b7e154d427",
+  "resultSha256": "4423d5b51c92a69bbbc25b3354cd24719855d615051129b07284d75aa73e330f",
+  "packagedFingerprint": "bfb54383407309dd743383dce61061cecd14c5a997cc40bfa5e6224cc047a1f4",
   "replaces": {
-    "source": "7d45996a1db55cfe4bab30de59fa34134be033c3",
-    "run": 45169809047,
-    "artifact": 14817990520,
-    "packagedFingerprint": "751d13934db69972386285b2170fddf9a851b219c1af9a1f49fec420605f0034",
-    "reason": "Hogwarts Legacy after IPA 824-828 (the render and GPU threads stand still at t=22 s until the game's watchdog ends it): the maintainer asked for the engine that still reached the game. The engine of IPA 822 (8d810e8f) as it was, fcea4ea2 and 7d45996a reverted, with only EmbeddedOnline.cs of 3554d839 (Nextendo online for every NEX title) kept. Contract bb4d340a, build-smoke route. Not run on an iPhone."
+    "source": "e776bfd453a828f674a7269e0a2f640e96c0752d",
+    "run": 45283827082,
+    "artifact": 14869999889,
+    "packagedFingerprint": "ab0d56fc286f63da8efbe491631ca6956f747570fbd9a67c3912a5f7a9f296ba",
+    "reason": "Hogwarts Legacy, IPA 824-829 (the game stops 22 s in until its watchdog ends it): with the Metal compiler cache cold, SetProgram of a program translated during play waited for its warm-up pipeline, never demanded, behind the cached compute warm-ups of the launch. The blocking link check now demands it first (adapt_render_thread_compile_relief, ShaderCollection.CheckProgramLink); engine of IPA 829 otherwise. Contract 3812c0d6, build-smoke route. Not run on an iPhone."
   }
 }
