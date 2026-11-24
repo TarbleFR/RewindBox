@@ -1,6 +1,6 @@
 # Azahar 2127.0-rc5 avec le JIT de RewindBox
 
-Correctif `rewindbox-jit.patch` (19 fichiers, +524/−114) appliqué à la source officielle 2127.0-rc5, révision `6f293a24`
+Correctif `rewindbox-jit.patch` (31 fichiers, +1046/−124) appliqué à la source officielle 2127.0-rc5, révision `6f293a24`
 (tête de `master` au 21 novembre 2026).
 
 - **Source.** Archive « unified source » de la release, avec tous les sous-modules, vérifiée par son SHA-256 :
@@ -76,6 +76,56 @@ Azahar 2127.0-alpha1 ne se chargent donc plus. Les sauvegardes internes des jeux
   du frontend comme avant. Le frontend de RewindBox montre ainsi l'image N pendant que N+1 est dessinée, sans copie
   (`LibretroVulkanRenderer`, remise directe). Mémoire : une image de plus (76,8 Mio à 10×).
 
+## Rendu à haute résolution sur un GPU à tuiles
+
+Un GPU d'iPhone dessine par tuiles : au début de chaque passe de rendu, il recharge depuis la mémoire les
+attachements (couleur, profondeur-stencil) ; à la fin, il les réécrit. À 10×, l'écran du haut fait 4000 × 2400 :
+38,4 Mo de couleur et 48 Mo de profondeur-stencil (D32S8 chez MoltenVK). Chaque passe coupée coûte donc environ
+170 Mo de trafic, soit 10 Go/s à 60 images/s. Trois changements de `renderer_vulkan` (Vulkan, tous GPU) :
+
+- **Effacements reportés** (`vk_render_manager`, `vk_texture_runtime`, `vk_scheduler`). Les jeux effacent leurs
+  tampons couleur et profondeur à chaque image (remplissages mémoire du GSP). Azahar en faisait un
+  `vkCmdClearColorImage`/`vkCmdClearDepthStencilImage` (une passe Metal de plus qui écrit toute l'image), puis la
+  passe suivante relisait l'image. Un effacement de toute l'image (niveau 0, couche 0, un échantillon) attend
+  maintenant la commande suivante :
+  - si c'est la passe d'un framebuffer de même taille qui a cette image en attachement, l'effacement devient son
+    opération de chargement (`CLEAR`) : ni écriture séparée, ni relecture ;
+  - toute autre commande l'enregistre d'abord comme avant (fonction appelée par `Scheduler::Record` avant la
+    commande suivante) : l'ordre du travail GPU ne change pas.
+- **Zone de rendu entière** (`RenderManager::BeginRendering`). La zone de rendu est tout le framebuffer ; le
+  rectangle du dessin reste son ciseau. Un dessin avec une autre fenêtre (viewport) sur les mêmes attachements
+  continue la passe au lieu de la couper. MoltenVK n'utilise le chargement `CLEAR` que pour une zone entière.
+  La passe qui se termine pose aussi ses barrières sur ses propres images ; avant, elles visaient celles de la
+  passe suivante.
+- **Attachement gardé** (`RasterizerVulkan::Draw`). Un dessin qui n'utilise que la couleur (HUD, effets sans test
+  de profondeur) ou que la profondeur prenait un framebuffer sans l'autre attachement, ce qui coupait la passe.
+  Tant que la passe des deux cibles est ouverte et que les registres désignent les mêmes cibles, l'autre reste
+  attaché. Le dessin ne le touche pas : sans test ni écriture de profondeur, ni test de stencil ; ou masque
+  d'écriture couleur nul. La couleur n'est pas gardée quand l'émulation du mélange la relit.
+
+**Mesures.** Toutes les 600 images, le cœur écrit une ligne dans son journal, recopiée dans `session.log` :
+
+```
+[rb-perf] azahar frames=600 fps=… res=10 out=4000x4800 per frame: passes=… folded=… flushed=… partial=… kept=…
+uploads=… upload_kb=… downloads=… copies=… blits=… transfers=… fills=… submits=… finishes=… finish_ms=…
+sync_ms=… present_ms=…
+```
+
+Les valeurs sont des moyennes par image :
+- `passes` : passes de rendu commencées ;
+- `folded` : effacements pris par une passe ;
+- `flushed` : effacements enregistrés à part ;
+- `partial` : effacements d'une partie d'image ;
+- `kept` : dessins qui ont gardé l'autre attachement ;
+- `transfers` : transferts vers l'affichage (un par écran et par œil : 3 au lieu de 2 signale un œil droit
+  dessiné) ;
+- `fills` : remplissages mémoire du jeu ;
+- `finish_ms` : attentes du processeur sur le GPU ;
+- `sync_ms` : attente dans le `wait_sync_index` du frontend ;
+- `present_ms` : remise de l'image au frontend.
+
+`fps` compte le temps du menu en pause.
+
 ## Remise des images au frontend
 
 | Azahar | Frontend RewindBox | Copies par image |
@@ -111,6 +161,11 @@ Vérifié :
 Vérifié pour les images par trame : vérification syntaxique de `libretro_vk.cpp` (clang 18, C++20, mêmes définitions
 qu'avant le changement, qui passent aussi sur l'original).
 
+Vérifié pour le rendu par tuiles :
+- vérification syntaxique (clang 18, C++20) des fichiers changés et de ceux qui incluent leurs en-têtes
+  (`vk_blit_helper`, `vk_pipeline_cache`, `vk_graphics_pipeline`, `libretro_vk`), sans nouvel avertissement ;
+- application du correctif sur l'archive rc5, arbre obtenu identique à l'arbre vérifié.
+
 Pas encore vérifié :
 - la compilation iOS sur rc5 (demandée au job `source-cores`) ;
 - le fonctionnement sur iPhone ;
@@ -119,3 +174,7 @@ Pas encore vérifié :
 - la remise directe des images par trame : le journal de session doit écrire `vulkan: frames reach Metal directly,
   no copy` (sinon `by a GPU copy`, voie d'avant), et la surcouche de performances donner les FPS et le temps GPU
   à 10×.
+- le rendu par tuiles sur iPhone : image identique (effacements, HUD, ombres) et lignes `[rb-perf]` avec
+  `folded` proche de `fills` et `passes` en baisse. Le gain dépend du jeu : un jeu qui efface autrement ou dessine
+  dans beaucoup de cibles en gagne moins. 60 images/s constantes à 10× restent limitées par le GPU et la chauffe
+  de l'iPhone.

@@ -1029,6 +1029,920 @@ index 216b409..adda842 100644
  }
  
  } // namespace Core
+diff --git a/src/video_core/CMakeLists.txt b/src/video_core/CMakeLists.txt
+index 528072c..8d3747d 100644
+--- a/src/video_core/CMakeLists.txt
++++ b/src/video_core/CMakeLists.txt
+@@ -189,6 +189,7 @@ if (ENABLE_VULKAN)
+         $<$<NOT:$<BOOL:${ENABLE_LIBRETRO}>>:renderer_vulkan/vk_present_window.h>
+         renderer_vulkan/vk_render_manager.cpp
+         renderer_vulkan/vk_render_manager.h
++        renderer_vulkan/vk_rewindbox_perf.h
+         renderer_vulkan/vk_shader_disk_cache.cpp
+         renderer_vulkan/vk_shader_disk_cache.h
+         renderer_vulkan/vk_shader_util.cpp
+diff --git a/src/video_core/renderer_vulkan/renderer_vulkan.cpp b/src/video_core/renderer_vulkan/renderer_vulkan.cpp
+index 219d11c..b924b1a 100644
+--- a/src/video_core/renderer_vulkan/renderer_vulkan.cpp
++++ b/src/video_core/renderer_vulkan/renderer_vulkan.cpp
+@@ -13,6 +13,7 @@
+ #include "video_core/pica/pica_core.h"
+ #include "video_core/renderer_vulkan/renderer_vulkan.h"
+ #include "video_core/renderer_vulkan/vk_memory_util.h"
++#include "video_core/renderer_vulkan/vk_rewindbox_perf.h"
+ #include "video_core/renderer_vulkan/vk_shader_util.h"
+ 
+ #include "video_core/host_shaders/vulkan_present_anaglyph_frag.h"
+@@ -238,7 +239,9 @@ void RendererVulkan::RenderToWindow(PresentWindow& window, const Layout::Framebu
+                                     bool flipped) {
+     if (!Settings::values.use_skip_duplicate_frames.GetValue() ||
+         Core::PerfStats::game_frames_updated) {
++        const u64 sync_start = RewindBoxPerf::NowNs();
+         Frame* frame = window.GetRenderFrame();
++        RewindBoxPerf::counters.sync_ns += RewindBoxPerf::NowNs() - sync_start;
+ 
+         if (layout.width != frame->width || layout.height != frame->height) {
+             window.WaitPresent();
+@@ -253,7 +256,9 @@ void RendererVulkan::RenderToWindow(PresentWindow& window, const Layout::Framebu
+ 
+         DrawScreens(frame, layout, flipped);
+         scheduler.Flush(frame->render_ready);
++        const u64 present_start = RewindBoxPerf::NowNs();
+         window.Present(frame);
++        RewindBoxPerf::counters.present_ns += RewindBoxPerf::NowNs() - present_start;
+         if ((secondaryWindowEnabled && isSecondaryWindow) || (!secondaryWindowEnabled)) {
+             Core::PerfStats::game_frames_updated = false;
+             screenRendered = true;
+@@ -1180,9 +1185,44 @@ void RendererVulkan::SwapBuffers() {
+ 
+     system.perf_stats->EndSwap();
+     rasterizer.TickFrame();
++    NoteRewindBoxPerfFrame(layout);
+     EndFrame();
+ }
+ 
++void RendererVulkan::NoteRewindBoxPerfFrame(const Layout::FramebufferLayout& layout) {
++    const u64 now = RewindBoxPerf::NowNs();
++    if (rb_perf_start_ns == 0) {
++        rb_perf_start_ns = now;
++        RewindBoxPerf::counters = {};
++        return;
++    }
++    if (++rb_perf_frames < RewindBoxPerf::kFramesPerLine) {
++        return;
++    }
++    const RewindBoxPerf::Counters c = RewindBoxPerf::counters;
++    const double frames = static_cast<double>(rb_perf_frames);
++    const double seconds = static_cast<double>(now - rb_perf_start_ns) / 1e9;
++    const auto per_frame = [frames](u64 value) { return static_cast<double>(value) / frames; };
++    const auto ms_per_frame = [frames](u64 ns) { return static_cast<double>(ns) / 1e6 / frames; };
++    LOG_INFO(Render_Vulkan,
++             "[rb-perf] azahar frames={} fps={:.1f} res={} out={}x{} per frame: passes={:.1f} "
++             "folded={:.2f} flushed={:.2f} partial={:.2f} kept={:.1f} uploads={:.1f} "
++             "upload_kb={:.0f} downloads={:.2f} copies={:.1f} blits={:.1f} transfers={:.2f} "
++             "fills={:.2f} submits={:.1f} finishes={:.2f} finish_ms={:.2f} sync_ms={:.2f} "
++             "present_ms={:.2f}",
++             rb_perf_frames, seconds > 0.0 ? frames / seconds : 0.0,
++             Settings::values.resolution_factor.GetValue(), layout.width, layout.height,
++             per_frame(c.passes), per_frame(c.folded), per_frame(c.flushed),
++             per_frame(c.partial), per_frame(c.kept), per_frame(c.uploads),
++             per_frame(c.upload_bytes) / 1024.0, per_frame(c.downloads), per_frame(c.copies),
++             per_frame(c.blits), per_frame(c.transfers), per_frame(c.fills),
++             per_frame(c.submits), per_frame(c.finishes),
++             ms_per_frame(c.finish_ns), ms_per_frame(c.sync_ns), ms_per_frame(c.present_ns));
++    RewindBoxPerf::counters = {};
++    rb_perf_frames = 0;
++    rb_perf_start_ns = now;
++}
++
+ void RendererVulkan::LimitFramesAheadOfGpu() {
+     if (previous_game_frame_tick != 0) {
+         scheduler.Wait(previous_game_frame_tick);
+diff --git a/src/video_core/renderer_vulkan/renderer_vulkan.h b/src/video_core/renderer_vulkan/renderer_vulkan.h
+index 7b921e5..c0e231d 100644
+--- a/src/video_core/renderer_vulkan/renderer_vulkan.h
++++ b/src/video_core/renderer_vulkan/renderer_vulkan.h
+@@ -119,7 +119,14 @@ private:
+                             bool right_eye);
+     void FillScreen(Common::Vec3<u8> color, const TextureInfo& texture);
+ 
++    /// RewindBox: counts a frame and writes the "[rb-perf] azahar" line every
++    /// RewindBoxPerf::kFramesPerLine frames (vk_rewindbox_perf.h).
++    void NoteRewindBoxPerfFrame(const Layout::FramebufferLayout& layout);
++
+ private:
++    u64 rb_perf_frames{};
++    u64 rb_perf_start_ns{};
++
+     Memory::MemorySystem& memory;
+     Pica::PicaCore& pica;
+ 
+diff --git a/src/video_core/renderer_vulkan/vk_rasterizer.cpp b/src/video_core/renderer_vulkan/vk_rasterizer.cpp
+index 6b753b8..b3fa865 100644
+--- a/src/video_core/renderer_vulkan/vk_rasterizer.cpp
++++ b/src/video_core/renderer_vulkan/vk_rasterizer.cpp
+@@ -16,6 +16,7 @@
+ #include "video_core/renderer_vulkan/renderer_vulkan.h"
+ #include "video_core/renderer_vulkan/vk_instance.h"
+ #include "video_core/renderer_vulkan/vk_rasterizer.h"
++#include "video_core/renderer_vulkan/vk_rewindbox_perf.h"
+ #include "video_core/renderer_vulkan/vk_scheduler.h"
+ #include "video_core/texture/texture_decode.h"
+ 
+@@ -568,18 +569,50 @@ bool RasterizerVulkan::Draw(bool accelerate, bool is_indexed) {
+ 
+     const bool write_color_fb = shadow_rendering || pipeline_info.GetFinalColorWriteMask(instance);
+     const bool write_depth_fb = pipeline_info.IsDepthWriteEnabled();
+-    const bool using_color_fb =
++    bool using_color_fb =
+         regs.framebuffer.framebuffer.GetColorBufferPhysicalAddress() != 0 && write_color_fb;
+-    const bool using_depth_fb =
++    bool using_depth_fb =
+         !shadow_rendering && regs.framebuffer.framebuffer.GetDepthBufferPhysicalAddress() != 0 &&
+         (write_depth_fb || regs.framebuffer.output_merger.depth_test_enable != 0 ||
+          (has_stencil && pipeline_info.state.depth_stencil.stencil_test_enable));
+ 
++    // RewindBox (tiled GPUs): a draw that leaves one target of the open render pass untouched
++    // keeps it attached. A framebuffer without it would end the pass, storing both attachments,
++    // and load the other one back, at the internal resolution. The draw neither tests nor
++    // writes the kept depth-stencil (depth test and writes off, no stencil test) and writes no
++    // color into the kept color target (blend emulation, which reads it, keeps the old way).
++    bool keeps_target = false;
++    if (!shadow_rendering && using_color_fb != using_depth_fb && KeepsTargets()) {
++        if (using_color_fb) {
++            using_depth_fb = keeps_target = true;
++        } else if (!pipeline_info.state.blending.rgb_blend_emulation &&
++                   !pipeline_info.state.blending.alpha_blend_emulation) {
++            using_color_fb = keeps_target = true;
++        }
++    }
++
+     const auto fb_helper = res_cache.GetFramebufferSurfaces(using_color_fb, using_depth_fb);
+     const Framebuffer* framebuffer = fb_helper.Framebuffer();
+     if (!framebuffer->Handle()) {
+         return true;
+     }
++    if (keeps_target && framebuffer->Handle() == kept_targets.framebuffer) {
++        RewindBoxPerf::counters.kept++;
++    }
++    if (!shadow_rendering && framebuffer->color_id && framebuffer->depth_id) {
++        const auto& config = regs.framebuffer.framebuffer;
++        kept_targets = KeptTargets{
++            .framebuffer = framebuffer->Handle(),
++            .color_addr = config.GetColorBufferPhysicalAddress(),
++            .depth_addr = config.GetDepthBufferPhysicalAddress(),
++            .color_format = static_cast<u32>(config.color_format.Value()),
++            .depth_format = static_cast<u32>(config.depth_format.Value()),
++            .width = config.GetWidth(),
++            .height = config.GetHeight(),
++        };
++    } else {
++        kept_targets = {};
++    }
+ 
+     const auto draw_rect = fb_helper.DrawRect();
+     if (draw_rect.GetArea() == 0) {
+@@ -651,6 +684,16 @@ bool RasterizerVulkan::Draw(bool accelerate, bool is_indexed) {
+     return succeeded;
+ }
+ 
++bool RasterizerVulkan::KeepsTargets() const {
++    const auto& config = regs.framebuffer.framebuffer;
++    return kept_targets.framebuffer && renderpass_cache.IsRendering(kept_targets.framebuffer) &&
++           config.GetColorBufferPhysicalAddress() == kept_targets.color_addr &&
++           config.GetDepthBufferPhysicalAddress() == kept_targets.depth_addr &&
++           static_cast<u32>(config.color_format.Value()) == kept_targets.color_format &&
++           static_cast<u32>(config.depth_format.Value()) == kept_targets.depth_format &&
++           config.GetWidth() == kept_targets.width && config.GetHeight() == kept_targets.height;
++}
++
+ void RasterizerVulkan::SyncTextureUnits(const Framebuffer* framebuffer) {
+     using TextureType = Pica::TexturingRegs::TextureConfig::TextureType;
+ 
+@@ -836,6 +879,7 @@ void RasterizerVulkan::ClearAll(bool flush) {
+ }
+ 
+ bool RasterizerVulkan::AccelerateDisplayTransfer(const Pica::DisplayTransferConfig& config) {
++    RewindBoxPerf::counters.transfers++;
+     return res_cache.AccelerateDisplayTransfer(config);
+ }
+ 
+@@ -844,6 +888,7 @@ bool RasterizerVulkan::AccelerateTextureCopy(const Pica::DisplayTransferConfig&
+ }
+ 
+ bool RasterizerVulkan::AccelerateFill(const Pica::MemoryFillConfig& config) {
++    RewindBoxPerf::counters.fills++;
+     return res_cache.AccelerateFill(config);
+ }
+ 
+diff --git a/src/video_core/renderer_vulkan/vk_rasterizer.h b/src/video_core/renderer_vulkan/vk_rasterizer.h
+index 3c7ebb5..1e886d2 100644
+--- a/src/video_core/renderer_vulkan/vk_rasterizer.h
++++ b/src/video_core/renderer_vulkan/vk_rasterizer.h
+@@ -115,6 +115,10 @@ private:
+     /// Creates the vertex layout struct used for software shader pipelines
+     void MakeSoftwareVertexLayout();
+ 
++    /// RewindBox: true while the render pass of the last draw with both targets is open and
++    /// the registers still name those targets.
++    [[nodiscard]] bool KeepsTargets() const;
++
+ private:
+     const Instance& instance;
+     Scheduler& scheduler;
+@@ -143,6 +147,18 @@ private:
+     u32 uniform_size_aligned_vs;
+     u32 uniform_size_aligned_fs;
+     bool async_shaders{false};
++
++    /// RewindBox (tiled GPUs): targets of the last draw that had both a color and a
++    /// depth-stencil attachment (see Draw).
++    struct KeptTargets {
++        vk::Framebuffer framebuffer{};
++        PAddr color_addr{};
++        PAddr depth_addr{};
++        u32 color_format{};
++        u32 depth_format{};
++        u32 width{};
++        u32 height{};
++    } kept_targets{};
+ };
+ 
+ } // namespace Vulkan
+diff --git a/src/video_core/renderer_vulkan/vk_render_manager.cpp b/src/video_core/renderer_vulkan/vk_render_manager.cpp
+index 4ac6928..fc2416c 100644
+--- a/src/video_core/renderer_vulkan/vk_render_manager.cpp
++++ b/src/video_core/renderer_vulkan/vk_render_manager.cpp
+@@ -2,12 +2,14 @@
+ // Licensed under GPLv3 or any later version
+ // Refer to the LICENSE.txt file included.
+ 
++#include <algorithm>
+ #include <limits>
+ #include <boost/container/static_vector.hpp>
+ #include "common/assert.h"
+ #include "video_core/rasterizer_cache/pixel_format.h"
+ #include "video_core/renderer_vulkan/vk_instance.h"
+ #include "video_core/renderer_vulkan/vk_render_manager.h"
++#include "video_core/renderer_vulkan/vk_rewindbox_perf.h"
+ #include "video_core/renderer_vulkan/vk_scheduler.h"
+ #include "video_core/renderer_vulkan/vk_texture_runtime.h"
+ 
+@@ -19,13 +21,30 @@ using VideoCore::PixelFormat;
+ using VideoCore::SurfaceType;
+ 
+ RenderManager::RenderManager(const Instance& instance, Scheduler& scheduler)
+-    : instance{instance}, scheduler{scheduler} {}
++    : instance{instance}, scheduler{scheduler} {
++    scheduler.RegisterBeforeRecord([this] { FlushDeferredClears(); });
++}
+ 
+-RenderManager::~RenderManager() = default;
++RenderManager::~RenderManager() {
++    scheduler.CancelBeforeRecord();
++    scheduler.RegisterBeforeRecord({});
++}
+ 
+ void RenderManager::BeginRendering(const Framebuffer* framebuffer,
+                                    Common::Rectangle<u32> draw_rect) {
+-    const vk::Rect2D render_area = {
++    // RewindBox (tiled GPUs): the render area is the whole framebuffer, the draw rectangle being
++    // the scissor of each draw. A draw with another viewport into the same attachments then
++    // continues the open render pass instead of ending it, which would store and reload every
++    // attachment, and the load operation of a deferred clear covers the whole image. A
++    // framebuffer without attachment keeps the draw rectangle.
++    const u32 width = framebuffer->Width();
++    const u32 height = framebuffer->Height();
++    const bool whole = width != 0 && height != 0 && width != std::numeric_limits<u32>::max() &&
++                       height != std::numeric_limits<u32>::max();
++    const vk::Rect2D render_area = whole ? vk::Rect2D{
++        .offset{.x = 0, .y = 0},
++        .extent{.width = width, .height = height},
++    } : vk::Rect2D{
+         .offset{
+             .x = static_cast<s32>(draw_rect.left),
+             .y = static_cast<s32>(draw_rect.bottom),
+@@ -42,12 +61,189 @@ void RenderManager::BeginRendering(const Framebuffer* framebuffer,
+         .clears = {},
+         .do_clear = false,
+     };
++    if (pass == new_pass) [[likely]] {
++        num_draws++;
++        return;
++    }
++    // The open render pass ends with the barriers of its own attachments, not of the next ones.
++    EndRendering();
+     images = framebuffer->Images();
+     aspects = framebuffer->Aspects();
+     shadow_rendering = framebuffer->shadow_rendering;
++    if (!deferred_clears.empty() && BeginRenderingWithClears(framebuffer, new_pass)) {
++        return;
++    }
+     BeginRendering(new_pass);
+ }
+ 
++bool RenderManager::BeginRenderingWithClears(const Framebuffer* framebuffer,
++                                             const RenderPass& new_pass) {
++    const u32 width = framebuffer->Width();
++    const u32 height = framebuffer->Height();
++    if (framebuffer->Samples() != 1 || framebuffer->shadow_rendering || !new_pass.framebuffer ||
++        new_pass.render_area.offset.x != 0 || new_pass.render_area.offset.y != 0 ||
++        new_pass.render_area.extent.width != width ||
++        new_pass.render_area.extent.height != height) {
++        return false;
++    }
++
++    std::array<vk::ClearValue, 2> clears{};
++    std::array<vk::ImageMemoryBarrier, 2> barriers{};
++    vk::PipelineStageFlags src_stages{};
++    vk::PipelineStageFlags dst_stages{};
++    u32 clear_mask = 0;
++    u32 num_barriers = 0;
++    u32 attachment = 0;
++    for (u32 i = 0; i < 2; i++) {
++        if (!images[i]) {
++            continue;
++        }
++        const auto it = std::find_if(deferred_clears.begin(), deferred_clears.end(),
++                                     [&](const DeferredClear& clear) {
++                                         return clear.image == images[i] &&
++                                                clear.aspect == aspects[i] &&
++                                                clear.width == width && clear.height == height;
++                                     });
++        if (it != deferred_clears.end()) {
++            const bool is_color = i == 0;
++            clear_mask |= 1u << i;
++            clears[attachment] = it->value;
++            // What the clear's own barrier did, towards the attachment instead of a transfer.
++            barriers[num_barriers++] = vk::ImageMemoryBarrier{
++                .srcAccessMask = it->src_access,
++                .dstAccessMask = is_color ? vk::AccessFlagBits::eColorAttachmentRead |
++                                                vk::AccessFlagBits::eColorAttachmentWrite
++                                          : vk::AccessFlagBits::eDepthStencilAttachmentRead |
++                                                vk::AccessFlagBits::eDepthStencilAttachmentWrite,
++                .oldLayout = vk::ImageLayout::eGeneral,
++                .newLayout = vk::ImageLayout::eGeneral,
++                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++                .image = it->image,
++                .subresourceRange{
++                    .aspectMask = it->aspect,
++                    .baseMipLevel = 0,
++                    .levelCount = 1,
++                    .baseArrayLayer = 0,
++                    .layerCount = 1,
++                },
++            };
++            src_stages |= it->pipeline_flags;
++            dst_stages |= is_color ? vk::PipelineStageFlagBits::eColorAttachmentOutput
++                                   : vk::PipelineStageFlagBits::eEarlyFragmentTests |
++                                         vk::PipelineStageFlagBits::eLateFragmentTests;
++            deferred_clears.erase(it);
++        }
++        attachment++;
++    }
++    if (clear_mask == 0) {
++        return false;
++    }
++    if (deferred_clears.empty()) {
++        scheduler.CancelBeforeRecord();
++    }
++
++    const vk::RenderPass render_pass = GetRenderpassWithClears(
++        framebuffer->Format(VideoCore::SurfaceType::Color),
++        framebuffer->Format(VideoCore::SurfaceType::DepthStencil), clear_mask);
++    // Clears left for other images are recorded first, by the before-record callback.
++    scheduler.Record([render_pass, info = new_pass, clears, barriers, num_barriers, src_stages,
++                      dst_stages](vk::CommandBuffer cmdbuf) {
++        cmdbuf.pipelineBarrier(src_stages, dst_stages, vk::DependencyFlagBits::eByRegion, 0,
++                               nullptr, 0, nullptr, num_barriers, barriers.data());
++        const vk::RenderPassBeginInfo renderpass_begin_info = {
++            .renderPass = render_pass,
++            .framebuffer = info.framebuffer,
++            .renderArea = info.render_area,
++            .clearValueCount = static_cast<u32>(clears.size()),
++            .pClearValues = clears.data(),
++        };
++        cmdbuf.beginRenderPass(renderpass_begin_info, vk::SubpassContents::eInline);
++    });
++
++    // Later draws continue it as the framebuffer's own render pass (compatible: only the load
++    // operations differ).
++    pass = new_pass;
++    RewindBoxPerf::counters.passes++;
++    RewindBoxPerf::counters.folded += static_cast<u64>(std::popcount(clear_mask));
++    return true;
++}
++
++void RenderManager::DeferClear(const DeferredClear& clear) {
++    // Asked between render passes (ClearTexture ends the open one); never left inside one.
++    EndRendering();
++    // A later clear of the whole image replaces the one still held back.
++    for (DeferredClear& pending : deferred_clears) {
++        if (pending.image == clear.image) {
++            pending = clear;
++            return;
++        }
++    }
++    if (deferred_clears.size() == deferred_clears.capacity()) {
++        FlushDeferredClears();
++    }
++    deferred_clears.push_back(clear);
++    scheduler.RequestBeforeRecord();
++}
++
++void RenderManager::FlushDeferredClears() {
++    if (deferred_clears.empty()) {
++        return;
++    }
++    const boost::container::static_vector<DeferredClear, 4> clears = deferred_clears;
++    deferred_clears.clear();
++    scheduler.CancelBeforeRecord();
++    for (const DeferredClear& clear : clears) {
++        // As TextureRuntime::ClearTexture recorded it before.
++        scheduler.Record([clear](vk::CommandBuffer cmdbuf) {
++            const vk::ImageSubresourceRange range = {
++                .aspectMask = clear.aspect,
++                .baseMipLevel = 0,
++                .levelCount = 1,
++                .baseArrayLayer = 0,
++                .layerCount = 1,
++            };
++
++            const vk::ImageMemoryBarrier pre_barrier = {
++                .srcAccessMask = clear.src_access,
++                .dstAccessMask = vk::AccessFlagBits::eTransferWrite,
++                .oldLayout = vk::ImageLayout::eGeneral,
++                .newLayout = vk::ImageLayout::eTransferDstOptimal,
++                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++                .image = clear.image,
++                .subresourceRange = range,
++            };
++
++            const vk::ImageMemoryBarrier post_barrier = {
++                .srcAccessMask = vk::AccessFlagBits::eTransferWrite,
++                .dstAccessMask = clear.src_access,
++                .oldLayout = vk::ImageLayout::eTransferDstOptimal,
++                .newLayout = vk::ImageLayout::eGeneral,
++                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++                .image = clear.image,
++                .subresourceRange = range,
++            };
++
++            cmdbuf.pipelineBarrier(clear.pipeline_flags, vk::PipelineStageFlagBits::eTransfer,
++                                   vk::DependencyFlagBits::eByRegion, {}, {}, pre_barrier);
++
++            if (clear.aspect & vk::ImageAspectFlagBits::eColor) {
++                cmdbuf.clearColorImage(clear.image, vk::ImageLayout::eTransferDstOptimal,
++                                       clear.value.color, range);
++            } else {
++                cmdbuf.clearDepthStencilImage(clear.image, vk::ImageLayout::eTransferDstOptimal,
++                                              clear.value.depthStencil, range);
++            }
++
++            cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, clear.pipeline_flags,
++                                   vk::DependencyFlagBits::eByRegion, {}, {}, post_barrier);
++        });
++    }
++    RewindBoxPerf::counters.flushed += clears.size();
++}
++
+ void RenderManager::BeginRendering(const RenderPass& new_pass) {
+     if (pass == new_pass) [[likely]] {
+         num_draws++;
+@@ -55,6 +251,7 @@ void RenderManager::BeginRendering(const RenderPass& new_pass) {
+     }
+ 
+     EndRendering();
++    RewindBoxPerf::counters.passes++;
+     scheduler.Record([info = new_pass](vk::CommandBuffer cmdbuf) {
+         const vk::RenderPassBeginInfo renderpass_begin_info = {
+             .renderPass = info.render_pass,
+@@ -160,7 +357,7 @@ vk::RenderPass RenderManager::GetRenderpass(VideoCore::PixelFormat color,
+     const u32 samples_index = static_cast<u32>(std::bit_width(sample_count) - 1);
+ 
+     vk::UniqueRenderPass& renderpass =
+-        cached_renderpasses[color_index][depth_index][samples_index][is_clear];
++        cached_renderpasses[color_index][depth_index][samples_index][is_clear ? 3 : 0];
+     if (!renderpass) {
+         const vk::Format color_format = instance.GetTraits(color).native;
+         const vk::Format depth_format = instance.GetTraits(depth).native;
+@@ -176,8 +373,44 @@ vk::RenderPass RenderManager::GetRenderpass(VideoCore::PixelFormat color,
+     return *renderpass;
+ }
+ 
++vk::RenderPass RenderManager::GetRenderpassWithClears(VideoCore::PixelFormat color,
++                                                      VideoCore::PixelFormat depth,
++                                                      u32 clear_mask) {
++    std::scoped_lock lock{cache_mutex};
++
++    const u32 color_index =
++        color == VideoCore::PixelFormat::Invalid ? NumColorFormats : static_cast<u32>(color);
++    const u32 depth_index =
++        depth == VideoCore::PixelFormat::Invalid
++            ? NumDepthFormats
++            : (static_cast<u32>(depth - VideoCore::PixelFormat::NumColorFormat));
++
++    ASSERT_MSG(color_index <= NumColorFormats && depth_index <= NumDepthFormats &&
++                   clear_mask < 4,
++               "Invalid color index {}, depth_index {} and/or clear mask {}", color_index,
++               depth_index, clear_mask);
++
++    vk::UniqueRenderPass& renderpass = cached_renderpasses[color_index][depth_index][0][clear_mask];
++    if (!renderpass) {
++        const vk::Format color_format = instance.GetTraits(color).native;
++        const vk::Format depth_format = instance.GetTraits(depth).native;
++        renderpass = CreateRenderPass(
++            color_format, depth_format,
++            (clear_mask & 1) ? vk::AttachmentLoadOp::eClear : vk::AttachmentLoadOp::eLoad,
++            (clear_mask & 2) ? vk::AttachmentLoadOp::eClear : vk::AttachmentLoadOp::eLoad);
++    }
++
++    return *renderpass;
++}
++
+ vk::UniqueRenderPass RenderManager::CreateRenderPass(vk::Format color, vk::Format depth,
+                                                      vk::AttachmentLoadOp load_op) const {
++    return CreateRenderPass(color, depth, load_op, load_op);
++}
++
++vk::UniqueRenderPass RenderManager::CreateRenderPass(vk::Format color, vk::Format depth,
++                                                     vk::AttachmentLoadOp color_load_op,
++                                                     vk::AttachmentLoadOp depth_load_op) const {
+ 
+     boost::container::static_vector<vk::AttachmentDescription, 2> attachments{};
+     bool use_color = false;
+@@ -189,7 +422,7 @@ vk::UniqueRenderPass RenderManager::CreateRenderPass(vk::Format color, vk::Forma
+         attachments.emplace_back(vk::AttachmentDescription{
+             .format = color,
+             .samples = vk::SampleCountFlagBits::e1,
+-            .loadOp = load_op,
++            .loadOp = color_load_op,
+             .storeOp = vk::AttachmentStoreOp::eStore,
+             .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+             .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+@@ -209,9 +442,9 @@ vk::UniqueRenderPass RenderManager::CreateRenderPass(vk::Format color, vk::Forma
+         attachments.emplace_back(vk::AttachmentDescription{
+             .format = depth,
+             .samples = vk::SampleCountFlagBits::e1,
+-            .loadOp = load_op,
++            .loadOp = depth_load_op,
+             .storeOp = vk::AttachmentStoreOp::eStore,
+-            .stencilLoadOp = load_op,
++            .stencilLoadOp = depth_load_op,
+             .stencilStoreOp = vk::AttachmentStoreOp::eStore,
+             .initialLayout = vk::ImageLayout::eGeneral,
+             .finalLayout = vk::ImageLayout::eGeneral,
+diff --git a/src/video_core/renderer_vulkan/vk_render_manager.h b/src/video_core/renderer_vulkan/vk_render_manager.h
+index 8d6270d..6da140a 100644
+--- a/src/video_core/renderer_vulkan/vk_render_manager.h
++++ b/src/video_core/renderer_vulkan/vk_render_manager.h
+@@ -6,6 +6,7 @@
+ 
+ #include <bit>
+ #include <mutex>
++#include <boost/container/static_vector.hpp>
+ 
+ #include "common/math_util.h"
+ #include "video_core/renderer_vulkan/vk_common.h"
+@@ -35,6 +36,19 @@ struct RenderPass {
+     }
+ };
+ 
++/// RewindBox (tiled GPUs): a clear of the whole of an image (level 0, layer 0, one sample)
++/// held back until the next command, see RenderManager::DeferClear.
++struct DeferredClear {
++    vk::Image image;
++    vk::ImageAspectFlags aspect;
++    /// Stages and accesses of the image before the clear (Surface::PipelineStageFlags/AccessFlags).
++    vk::PipelineStageFlags pipeline_flags;
++    vk::AccessFlags src_access;
++    vk::ClearValue value;
++    u32 width;
++    u32 height;
++};
++
+ class RenderManager {
+     static constexpr u32 NumColorFormats = static_cast<u32>(VideoCore::PixelFormat::NumColorFormat);
+     static constexpr u32 NumDepthFormats = static_cast<u32>(VideoCore::PixelFormat::NumDepthFormat);
+@@ -54,15 +68,46 @@ public:
+     /// Exits from any currently active renderpass instance
+     void EndRendering();
+ 
++    /// RewindBox: true while the render pass of `framebuffer` is open.
++    [[nodiscard]] bool IsRendering(vk::Framebuffer framebuffer) const noexcept {
++        return pass.render_pass && pass.framebuffer == framebuffer;
++    }
++
++    /// RewindBox (tiled GPUs): holds back a clear of the whole of an image, asked while no
++    /// render pass is open. The next render pass that begins on a framebuffer of the same extent
++    /// with that image as an attachment takes it as the attachment's load operation: the image
++    /// is then neither written once by the clear nor read back by the render pass, which at a
++    /// high internal resolution is most of a frame's memory traffic on a GPU that renders in
++    /// tiles (Apple through MoltenVK). Any other command first records the clear as before
++    /// (Scheduler's before-record callback), so the order of the GPU work does not change.
++    void DeferClear(const DeferredClear& clear);
++
++    /// RewindBox: records the deferred clears no render pass took, as separate clears.
++    void FlushDeferredClears();
++
+     /// Returns the renderpass associated with the color-depth format pair
+     vk::RenderPass GetRenderpass(VideoCore::PixelFormat color, VideoCore::PixelFormat depth,
+                                  bool is_clear, u8 sample_count = 1);
+ 
+ private:
++    /// RewindBox: one-sample render pass of the pair whose attachments selected by `clear_mask`
++    /// (bit 0 color, bit 1 depth-stencil) are cleared on load, the others loaded.
++    vk::RenderPass GetRenderpassWithClears(VideoCore::PixelFormat color,
++                                           VideoCore::PixelFormat depth, u32 clear_mask);
++
++    /// RewindBox: begins `new_pass` on `framebuffer` taking the deferred clears of its
++    /// attachments; false, having recorded nothing, when none applies.
++    bool BeginRenderingWithClears(const Framebuffer* framebuffer, const RenderPass& new_pass);
++
+     /// Creates a renderpass configured appropriately and stores it in cached_renderpasses
+     vk::UniqueRenderPass CreateRenderPass(vk::Format color, vk::Format depth,
+                                           vk::AttachmentLoadOp load_op) const;
+ 
++    /// Same, with a load operation for each attachment.
++    vk::UniqueRenderPass CreateRenderPass(vk::Format color, vk::Format depth,
++                                          vk::AttachmentLoadOp color_load_op,
++                                          vk::AttachmentLoadOp depth_load_op) const;
++
+     /// Creates an MSAA renderpass configured appropriately and stores it in cached_renderpasses
+     vk::UniqueRenderPass CreateRenderPassMSAA(vk::Format color, vk::Format depth,
+                                               vk::AttachmentLoadOp load_op,
+@@ -71,14 +116,16 @@ private:
+ private:
+     const Instance& instance;
+     Scheduler& scheduler;
++    // Last index: attachments cleared on load, bit 0 color, bit 1 depth-stencil (3: is_clear).
+     vk::UniqueRenderPass cached_renderpasses[NumColorFormats + 1][NumDepthFormats + 1]
+-                                            [std::bit_width(MaxSamples)][2];
++                                            [std::bit_width(MaxSamples)][4];
+     std::mutex cache_mutex;
+     std::array<vk::Image, 4> images;
+     std::array<vk::ImageAspectFlags, 4> aspects;
+     bool shadow_rendering{};
+     RenderPass pass{};
+     u32 num_draws{};
++    boost::container::static_vector<DeferredClear, 4> deferred_clears;
+ };
+ 
+ } // namespace Vulkan
+diff --git a/src/video_core/renderer_vulkan/vk_rewindbox_perf.h b/src/video_core/renderer_vulkan/vk_rewindbox_perf.h
+new file mode 100644
+index 0000000..b8c329b
+--- /dev/null
++++ b/src/video_core/renderer_vulkan/vk_rewindbox_perf.h
+@@ -0,0 +1,46 @@
++// Copyright 2026 RewindBox contributors
++// Licensed under GPLv2 or any later version
++// Refer to the misc/licenses/gplv2.txt file included.
++
++#pragma once
++
++#include <chrono>
++#include "common/common_types.h"
++
++namespace Vulkan::RewindBoxPerf {
++
++/// GPU work of the Vulkan renderer, counted on the emulation thread and written every
++/// kFramesPerLine frames as one "[rb-perf] azahar" line of the core log (RendererVulkan). The
++/// frontend copies the lines carrying "[rb-perf]" into its session journal, so a device test
++/// shows where the time of a frame goes at a high internal resolution.
++struct Counters {
++    u64 passes{};       ///< render passes begun (draws, blits, conversions)
++    u64 folded{};       ///< deferred clears a render pass took as its load operation
++    u64 flushed{};      ///< deferred clears recorded as separate clear commands
++    u64 partial{};      ///< clears of part of an image (a render pass of their own)
++    u64 kept{};         ///< draws that kept the other attachment of the open render pass
++    u64 uploads{};      ///< texture uploads from guest memory
++    u64 upload_bytes{}; ///< bytes of those uploads
++    u64 downloads{};    ///< surfaces read back to guest memory
++    u64 copies{};       ///< image copies
++    u64 blits{};        ///< image blits (scaling, display transfers)
++    u64 transfers{};    ///< display transfers asked by the game (one per screen and eye)
++    u64 fills{};        ///< memory fills asked by the game (clears of its buffers)
++    u64 submits{};      ///< queue submissions
++    u64 finishes{};     ///< waits of the CPU for the GPU (Scheduler::Finish)
++    u64 finish_ns{};    ///< time of those waits
++    u64 sync_ns{};      ///< time in the frontend's wait_sync_index (GetRenderFrame)
++    u64 present_ns{};   ///< time in the frontend's video refresh (PresentWindow::Present)
++};
++
++inline Counters counters;
++
++inline constexpr u64 kFramesPerLine = 600;
++
++[[nodiscard]] inline u64 NowNs() {
++    return static_cast<u64>(std::chrono::duration_cast<std::chrono::nanoseconds>(
++                                std::chrono::steady_clock::now().time_since_epoch())
++                                .count());
++}
++
++} // namespace Vulkan::RewindBoxPerf
+diff --git a/src/video_core/renderer_vulkan/vk_scheduler.cpp b/src/video_core/renderer_vulkan/vk_scheduler.cpp
+index e7d3085..0114486 100644
+--- a/src/video_core/renderer_vulkan/vk_scheduler.cpp
++++ b/src/video_core/renderer_vulkan/vk_scheduler.cpp
+@@ -7,6 +7,7 @@
+ #include "common/microprofile.h"
+ #include "common/thread.h"
+ #include "video_core/renderer_vulkan/vk_instance.h"
++#include "video_core/renderer_vulkan/vk_rewindbox_perf.h"
+ #include "video_core/renderer_vulkan/vk_scheduler.h"
+ #ifdef HAVE_LIBRETRO
+ #include "citra_libretro/libretro_vk.h"
+@@ -68,7 +69,10 @@ void Scheduler::Finish(vk::Semaphore signal, vk::Semaphore wait) {
+     // When finishing, we need to wait for the submission to have executed on the device.
+     const u64 presubmit_tick = CurrentTick();
+     SubmitExecution(signal, wait);
++    const u64 wait_start = RewindBoxPerf::NowNs();
+     Wait(presubmit_tick);
++    RewindBoxPerf::counters.finishes++;
++    RewindBoxPerf::counters.finish_ns += RewindBoxPerf::NowNs() - wait_start;
+ }
+ 
+ void Scheduler::WaitWorker() {
+@@ -179,6 +183,7 @@ void Scheduler::AllocateWorkerCommandBuffers() {
+ void Scheduler::SubmitExecution(vk::Semaphore signal_semaphore, vk::Semaphore wait_semaphore) {
+     state = StateFlags::AllDirty;
+     const u64 signal_value = master_semaphore->NextTick();
++    RewindBoxPerf::counters.submits++;
+ 
+     on_submit();
+ 
+diff --git a/src/video_core/renderer_vulkan/vk_scheduler.h b/src/video_core/renderer_vulkan/vk_scheduler.h
+index 2179143..929ec00 100644
+--- a/src/video_core/renderer_vulkan/vk_scheduler.h
++++ b/src/video_core/renderer_vulkan/vk_scheduler.h
+@@ -50,6 +50,11 @@ public:
+     /// Records the command to the current chunk.
+     template <typename T>
+     void Record(T&& command) {
++        // RewindBox: work held back for the next command (the deferred clears of RenderManager)
++        // is recorded first, so it keeps its place in the command stream.
++        if (before_record_pending) [[unlikely]] {
++            RunBeforeRecord();
++        }
+         if (chunk->Record(command)) {
+             return;
+         }
+@@ -57,6 +62,22 @@ public:
+         (void)chunk->Record(command);
+     }
+ 
++    /// RewindBox: `func` runs once right before the next recorded command after
++    /// RequestBeforeRecord, on the thread that records it.
++    void RegisterBeforeRecord(std::function<void()>&& func) {
++        before_record = std::move(func);
++    }
++
++    /// RewindBox: the before-record callback is wanted ahead of the next recorded command.
++    void RequestBeforeRecord() noexcept {
++        before_record_pending = true;
++    }
++
++    /// RewindBox: the before-record callback is no longer wanted.
++    void CancelBeforeRecord() noexcept {
++        before_record_pending = false;
++    }
++
+     /// Marks the provided state as non dirty
+     void MarkStateNonDirty(StateFlags flag) noexcept {
+         state |= flag;
+@@ -192,6 +213,14 @@ private:
+ 
+     void AcquireNewChunk();
+ 
++    void RunBeforeRecord() {
++        // Cleared first: the callback records commands itself.
++        before_record_pending = false;
++        if (before_record) {
++            before_record();
++        }
++    }
++
+ private:
+     std::unique_ptr<MasterSemaphore> master_semaphore;
+     CommandPool command_pool;
+@@ -202,6 +231,8 @@ private:
+     StateFlags state{};
+     std::function<void()> on_submit;
+     std::function<void()> on_dispatch;
++    std::function<void()> before_record;
++    bool before_record_pending{};
+     std::mutex execution_mutex;
+     std::mutex reserve_mutex;
+     std::mutex queue_mutex;
+diff --git a/src/video_core/renderer_vulkan/vk_texture_runtime.cpp b/src/video_core/renderer_vulkan/vk_texture_runtime.cpp
+index 62c577d..f975e63 100644
+--- a/src/video_core/renderer_vulkan/vk_texture_runtime.cpp
++++ b/src/video_core/renderer_vulkan/vk_texture_runtime.cpp
+@@ -26,6 +26,7 @@
+ #include "video_core/renderer_vulkan/pica_to_vk.h"
+ #include "video_core/renderer_vulkan/vk_instance.h"
+ #include "video_core/renderer_vulkan/vk_render_manager.h"
++#include "video_core/renderer_vulkan/vk_rewindbox_perf.h"
+ #include "video_core/renderer_vulkan/vk_scheduler.h"
+ #include "video_core/renderer_vulkan/vk_texture_runtime.h"
+ 
+@@ -362,6 +363,31 @@ bool TextureRuntime::ClearTexture(Surface& surface, const VideoCore::TextureClea
+     // texture at the same time
+ 
+     if (clear.texture_rect == surface.GetScaledRect() && (surface.GetSampleCount() == 1)) {
++        // RewindBox (tiled GPUs): a clear of the whole first level of a 2D image waits for the
++        // next command; the render pass that begins next on it takes it as its load operation
++        // (RenderManager::DeferClear). Frame clears (memory fills of the color and depth
++        // buffers) then cost no write of their own and no reload at a high internal resolution.
++        if (clear.texture_level == 0 && clear.texture_layer == 0 &&
++            surface.texture_type != VideoCore::TextureType::CubeMap) {
++            const bool is_color =
++                static_cast<bool>(params.aspect & vk::ImageAspectFlagBits::eColor);
++            vk::ClearValue value{};
++            if (is_color) {
++                value.color = MakeClearColorValue(clear.value.color);
++            } else {
++                value.depthStencil = MakeClearDepthStencilValue(clear.value);
++            }
++            renderpass_cache.DeferClear(DeferredClear{
++                .image = params.src_image,
++                .aspect = params.aspect,
++                .pipeline_flags = params.pipeline_flags,
++                .src_access = params.src_access,
++                .value = value,
++                .width = clear.texture_rect.GetWidth(),
++                .height = clear.texture_rect.GetHeight(),
++            });
++            return true;
++        }
+         scheduler.Record([params, clear](vk::CommandBuffer cmdbuf) {
+             const vk::ImageSubresourceRange range = {
+                 .aspectMask = params.aspect,
+@@ -419,6 +445,7 @@ bool TextureRuntime::ClearTexture(Surface& surface, const VideoCore::TextureClea
+ 
+ void TextureRuntime::ClearTextureWithRenderpass(Surface& surface,
+                                                 const VideoCore::TextureClear& clear) {
++    RewindBoxPerf::counters.partial++;
+     const bool is_color = surface.type != VideoCore::SurfaceType::Depth &&
+                           surface.type != VideoCore::SurfaceType::DepthStencil;
+ 
+@@ -508,6 +535,7 @@ void TextureRuntime::ClearTextureWithRenderpass(Surface& surface,
+ bool TextureRuntime::CopyTextures(Surface& source, Surface& dest,
+                                   std::span<const VideoCore::TextureCopy> copies) {
+     renderpass_cache.EndRendering();
++    RewindBoxPerf::counters.copies++;
+ 
+     const RecordParams params = {
+         .aspect = source.Aspect(),
+@@ -609,6 +637,7 @@ bool TextureRuntime::CopyTextures(Surface& source, Surface& dest,
+ 
+ bool TextureRuntime::BlitTextures(Surface& source, Surface& dest,
+                                   const VideoCore::TextureBlit& blit) {
++    RewindBoxPerf::counters.blits++;
+     const bool is_depth_stencil = source.type == VideoCore::SurfaceType::DepthStencil;
+     const auto& depth_traits = instance.GetTraits(source.pixel_format);
+     if (is_depth_stencil && !depth_traits.blit_support) {
+@@ -909,6 +938,8 @@ Surface::Surface(TextureRuntime& runtime_, const VideoCore::SurfaceBase& surface
+ void Surface::Upload(const VideoCore::BufferTextureCopy& upload,
+                      const VideoCore::StagingData& staging) {
+     runtime.renderpass_cache.EndRendering();
++    RewindBoxPerf::counters.uploads++;
++    RewindBoxPerf::counters.upload_bytes += staging.size;
+ 
+     const RecordParams params = {
+         .aspect = Aspect(),
+@@ -1070,6 +1101,7 @@ void Surface::UploadCustom(const VideoCore::Material* material, u32 level) {
+ 
+ void Surface::Download(const VideoCore::BufferTextureCopy& download,
+                        const VideoCore::StagingData& staging) {
++    RewindBoxPerf::counters.downloads++;
+     SCOPE_EXIT({
+         scheduler.Finish();
+         runtime.download_buffer.Commit(staging.size);
+diff --git a/src/video_core/renderer_vulkan/vk_texture_runtime.h b/src/video_core/renderer_vulkan/vk_texture_runtime.h
+index b10fd4d..d968b18 100644
+--- a/src/video_core/renderer_vulkan/vk_texture_runtime.h
++++ b/src/video_core/renderer_vulkan/vk_texture_runtime.h
+@@ -369,6 +369,15 @@ public:
+         return sample_count;
+     }
+ 
++    /// RewindBox: extent of the framebuffer (the smallest of its attachments).
++    u32 Width() const noexcept {
++        return width;
++    }
++
++    u32 Height() const noexcept {
++        return height;
++    }
++
+ private:
+     const Instance& instance;
+     // Color, Depth, ColorMSAA, DepthMSAA
 diff --git a/src/video_core/shader/shader_jit.cpp b/src/video_core/shader/shader_jit.cpp
 index 6405635..b02eb24 100644
 --- a/src/video_core/shader/shader_jit.cpp
