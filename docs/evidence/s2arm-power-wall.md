@@ -661,3 +661,4 @@ agrandissement MetalFX, comme dans l'amont.
 | 2026-11-24 | Patchs 0347 à 0350, épingle, IPA 834 | Compilés pour iOS (runs 45393067376, 45400159059, 45413438600), épinglés (`e0c0defa`) et livrés dans l'IPA privée 834. |
 | 2026-11-24 | IPA 834 observée (2 journaux) | Jeux plus lents que le temps réel : Mario Kart World à 62–90,5 % (garde anti-verrou, essais de 60, image limitée par le processeur), Zelda à 25–49 % (repli à 30 de 0349). |
 | 2026-11-24 | Patch 0351 | Garde et essais coupés, repli sur demande, ligne `[rb-speed]` ; relecture adverse, trois défauts corrigés ; série vérifiée, 50 tests purs verts. Compilation iOS à suivre ; non mesuré. |
+| 2026-11-24 | IPA privée 836 | Moteur 0351 compilé pour iOS (run 45449520140), épinglé (`7df424f4`) et livré (run 45457017491, vérifiée hors ligne, `96e3259e…1e7d`). Rien de mesuré sur iPhone : la ligne `[rb-speed]` du prochain journal donnera la vitesse réelle de chaque jeu. |
