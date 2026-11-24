@@ -1,5 +1,5 @@
 diff --git a/desmume/src/GPU.cpp b/desmume/src/GPU.cpp
-index 026bf14c..67ad049b 100644
+index 026bf14c..9de1c30e 100644
 --- a/desmume/src/GPU.cpp
 +++ b/desmume/src/GPU.cpp
 @@ -38,6 +38,9 @@
@@ -59,9 +59,78 @@ index 026bf14c..67ad049b 100644
  	if (!this->_frameNeedsFinish)
  	{
  		this->_event->DidApplyGPUSettingsBegin();
-@@ -9770,6 +9806,9 @@ void GPUSubsystem::RenderLine(const size_t l)
+@@ -9678,16 +9714,37 @@ void GPUSubsystem::RenderLine(const size_t l)
+ 		{
+ 			if (CurrentRenderer->GetRenderNeedsFinish())
+ 			{
+-				CurrentRenderer->RenderFinish();
+-				CurrentRenderer->SetRenderNeedsFinish(false);
+-				this->_event->DidRender3DEnd();
++				// RewindBox: for the picture alone (no direct capture, a 15- or 18-bit output) this line waits
++				// for its own 3D lines only, and the rasterizer threads keep drawing the lines below
++				bool isRenderFinished = true;
++				if (!need3DCaptureFramebuffer && (OUTPUTFORMAT != NDSColorFormat_BGR888_Rev))
++				{
++					const GPUEngineLineInfo &lineInfo = this->GetLineInfoAtIndex(l);
++					isRenderFinished = CurrentRenderer->RenderFinishLines(lineInfo.indexCustom + lineInfo.renderCount);
++				}
++				else
++				{
++					CurrentRenderer->RenderFinish();
++				}
++				
++				if (isRenderFinished)
++				{
++					CurrentRenderer->SetRenderNeedsFinish(false);
++					this->_event->DidRender3DEnd();
++				}
+ 			}
+ 			
+ 			CurrentRenderer->RenderFlush(need3DDisplayFramebuffer && CurrentRenderer->GetRenderNeedsFlushMain(),
+ 			                             need3DCaptureFramebuffer && CurrentRenderer->GetRenderNeedsFlush16());
+ 		}
+ 		
++#ifdef REWINDBOX_PERF
++		const u64 rbPerfMain = rb_perf_now();
++#endif
+ 		this->_engineMain->RenderLine<OUTPUTFORMAT>(l);
++#ifdef REWINDBOX_PERF
++		rb_perf.gpuMain += rb_perf_now() - rbPerfMain;
++#endif
+ 	}
+ 	else
+ 	{
+@@ -9696,7 +9753,13 @@ void GPUSubsystem::RenderLine(const size_t l)
+ 	
+ 	if (isFramebufferRenderNeeded[GPUEngineID_Sub] && !this->_willFrameSkip)
+ 	{
++#ifdef REWINDBOX_PERF
++		const u64 rbPerfSub = rb_perf_now();
++#endif
+ 		this->_engineSub->RenderLine<OUTPUTFORMAT>(l);
++#ifdef REWINDBOX_PERF
++		rb_perf.gpuSub += rb_perf_now() - rbPerfSub;
++#endif
+ 	}
+ 	else
+ 	{
+@@ -9705,6 +9768,9 @@ void GPUSubsystem::RenderLine(const size_t l)
+ 	
+ 	if (l == 191)
+ 	{
++#ifdef REWINDBOX_PERF
++		const u64 rbPerfEnd = rb_perf_now();
++#endif
+ 		this->_engineMain->LastLineProcess();
+ 		this->_engineSub->LastLineProcess();
+ 		
+@@ -9769,7 +9835,13 @@ void GPUSubsystem::RenderLine(const size_t l)
+ 			this->_displayInfo.sequenceNumber++;
  			this->_event->DidFrameEnd(this->_willFrameSkip, this->_displayInfo);
  		}
++#ifdef REWINDBOX_PERF
++		rb_perf.gpuEnd += rb_perf_now() - rbPerfEnd;
++#endif
  	}
 +#ifdef REWINDBOX_PERF
 +	rb_perf.gpuLine += rb_perf_now() - rbPerfStart;
@@ -572,10 +641,10 @@ index 95592125..caa71976 100644
     CXXFLAGS += -DHAVE_JIT
  endif
 diff --git a/desmume/src/frontend/libretro/libretro.cpp b/desmume/src/frontend/libretro/libretro.cpp
-index 2314af93..15494478 100644
+index 2314af93..fc45c22d 100644
 --- a/desmume/src/frontend/libretro/libretro.cpp
 +++ b/desmume/src/frontend/libretro/libretro.cpp
-@@ -18,8 +18,17 @@
+@@ -18,8 +18,20 @@
  #include "emufile.h"
  #include "common.h"
  #include "path.h"
@@ -589,11 +658,14 @@ index 2314af93..15494478 100644
 +#endif
 +#ifdef REWINDBOX_PERF
 +#include "utils/rb_perf.h"
++#if defined(__ARM_NEON) || defined(__ARM_NEON__)
++#include <arm_neon.h>
++#endif
 +#endif
  #include "streams/file_stream.h"
  
  #ifdef HAVE_OPENGL
-@@ -69,6 +78,139 @@ enum {
+@@ -69,6 +81,152 @@ enum {
  };
  
  retro_log_printf_t log_cb = NULL;
@@ -675,12 +747,16 @@ index 2314af93..15494478 100644
 +   waiting for the rasterizer threads (resolve included); cpu: the rest of emu (CPU and other hardware);
 +   out: the frontend's conversion of both screens; host: the frontend's video callback (upload and
 +   presentation); raster: busy time of all rasterizer threads (core-milliseconds); resolve: averaging of
-+   the supersampled 3D (part of wait). fps from the wall clock between two lines. */
++   the supersampled 3D (core-milliseconds, done by the rasterizer threads band by band: part of raster);
++   engA, engB, end: parts of 2d, the main engine's lines (it composes the 3D), the sub engine's lines and
++   the end of the frame; over16, over33: frames whose retro_run took more than 16.7 ms (a 60 Hz frame
++   missed) and more than 33.3 ms. fps from the wall clock between two lines. */
 +#define REWINDBOX_PERF_FRAMES 600
 +extern unsigned GPU_LR_FRAMEBUFFER_NATIVE_WIDTH, GPU_LR_FRAMEBUFFER_NATIVE_HEIGHT;
 +static struct
 +{
-+   u64 frames, start, run, runMax, emu, out, host, gpuLine, wait3d, render3d, resolve, raster;
++   u64 frames, start, run, runMax, emu, out, host, gpuLine, wait3d, render3d, resolve, raster, gpuMain, gpuSub, gpuEnd;
++   u64 over16, over33;
 +} rewindbox_perf;
 +
 +static void rewindbox_perf_frame(u64 runStart, u64 emu, u64 out, u64 host, const RbPerf &before)
@@ -693,13 +769,20 @@ index 2314af93..15494478 100644
 +   rewindbox_perf.run += run;
 +   if (run > rewindbox_perf.runMax)
 +      rewindbox_perf.runMax = run;
++   if (run > 16666667ull)
++      rewindbox_perf.over16++;
++   if (run > 33333333ull)
++      rewindbox_perf.over33++;
 +   rewindbox_perf.emu += emu;
 +   rewindbox_perf.out += out;
 +   rewindbox_perf.host += host;
 +   rewindbox_perf.gpuLine += rb_perf.gpuLine - before.gpuLine;
 +   rewindbox_perf.wait3d += rb_perf.wait3d - before.wait3d;
 +   rewindbox_perf.render3d += rb_perf.render3d - before.render3d;
-+   rewindbox_perf.resolve += rb_perf.resolve - before.resolve;
++   rewindbox_perf.resolve += __atomic_load_n(&rb_perf.resolve, __ATOMIC_RELAXED) - before.resolve;
++   rewindbox_perf.gpuMain += rb_perf.gpuMain - before.gpuMain;
++   rewindbox_perf.gpuSub += rb_perf.gpuSub - before.gpuSub;
++   rewindbox_perf.gpuEnd += rb_perf.gpuEnd - before.gpuEnd;
 +   rewindbox_perf.raster += __atomic_load_n(&rb_perf.raster, __ATOMIC_RELAXED) - before.raster;
 +   if (rewindbox_perf.frames < REWINDBOX_PERF_FRAMES)
 +      return;
@@ -719,13 +802,15 @@ index 2314af93..15494478 100644
 +         cpu = 0;
 +      log_cb(RETRO_LOG_INFO, "[rb-perf] desmume frames=%llu fps=%.1f res=%ux%u ss=%u threads=%u jit=%d ms/frame "
 +             "run=%.2f max=%.2f emu=%.2f cpu=%.2f 2d=%.2f 3d=%.2f wait=%.2f out=%.2f host=%.2f raster=%.2f "
-+             "resolve=%.2f\n",
++             "resolve=%.2f engA=%.2f engB=%.2f end=%.2f over16=%llu over33=%llu\n",
 +             (unsigned long long)rewindbox_perf.frames, wall > 0 ? rewindbox_perf.frames / wall : 0.0,
 +             (unsigned)GPU_LR_FRAMEBUFFER_NATIVE_WIDTH, (unsigned)GPU_LR_FRAMEBUFFER_NATIVE_HEIGHT,
 +             (unsigned)SoftRasterizer_GetActiveSupersampling(), (unsigned)CommonSettings.num_cores,
 +             CommonSettings.use_jit ? 1 : 0, rewindbox_perf.run / n, rewindbox_perf.runMax / 1e6, emuMs, cpu,
 +             twoD, render3dMs, waitMs, rewindbox_perf.out / n, rewindbox_perf.host / n,
-+             rewindbox_perf.raster / n, rewindbox_perf.resolve / n);
++             rewindbox_perf.raster / n, rewindbox_perf.resolve / n, rewindbox_perf.gpuMain / n,
++             rewindbox_perf.gpuSub / n, rewindbox_perf.gpuEnd / n, (unsigned long long)rewindbox_perf.over16,
++             (unsigned long long)rewindbox_perf.over33);
 +   }
 +   memset(&rewindbox_perf, 0, sizeof(rewindbox_perf));
 +}
@@ -733,13 +818,46 @@ index 2314af93..15494478 100644
  static retro_video_refresh_t video_cb = NULL;
  static retro_input_poll_t poll_cb = NULL;
  static retro_input_state_t input_cb = NULL;
-@@ -369,14 +511,84 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
+@@ -310,6 +468,13 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
+    const __m128i g_mask = _mm_set1_epi16(0x07c0);
+    const __m128i r_mask = _mm_set1_epi16(0xf800);
+    const __m128i a_mask = _mm_set1_epi16(0x0020);
++#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
++   /* RewindBox: eight pixels at a time on AArch64, the same bit operations as the SSE2 path */
++   max_width = width - 7;
++   const uint16x8_t b_mask = vdupq_n_u16(0x001f);
++   const uint16x8_t g_mask = vdupq_n_u16(0x07c0);
++   const uint16x8_t r_mask = vdupq_n_u16(0xf800);
++   const uint16x8_t a_mask = vdupq_n_u16(0x0020);
+ #elif defined(HOST_64)
+    max_width = width - 3;
+    const uint64_t b_mask = 0x001f001f001f001f;
+@@ -339,6 +504,16 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
+          _mm_storeu_si128((__m128i*)(output + w),
+                           _mm_or_si128(r, _mm_or_si128(g, _mm_or_si128(b, a))));
+       }
++#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
++      for (; w < max_width; w += 8)
++      {
++         const uint16x8_t in = vld1q_u16(input + w);
++         const uint16x8_t r = vandq_u16(vshlq_n_u16(in, 11), r_mask);
++         const uint16x8_t g = vandq_u16(vshlq_n_u16(in, 1), g_mask);
++         const uint16x8_t b = vandq_u16(vshrq_n_u16(in, 10), b_mask);
++         const uint16x8_t a = vandq_u16(vshrq_n_u16(in, 4), a_mask);
++         vst1q_u16(output + w, vorrq_u16(vorrq_u16(r, g), vorrq_u16(b, a)));
++      }
+ #elif defined(HOST_64)
+       for (; w < max_width; w += 4)
+       {
+@@ -369,14 +544,89 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
     }
  }
  
 +/* RewindBox: at a high internal resolution the conversion of both screens (9.8 million pixels at
-+   2560x1920) runs on helper threads as well: at that point of the frame the rasterizer's threads have
-+   nothing to do. Each part converts its own rows: the picture is the same. */
++   2560x1920) runs on helper threads as well when it is not vectorised. Vectorised (SSE2, NEON), this
++   thread converts faster alone than with helpers that compete for the cores with the rasterizer threads,
++   which draw the next picture's 3D at that point of the frame. Each part converts its own rows: the
++   picture is the same. */
 +#define SWAP_HELPERS_MAX 3
 +#define SWAP_THREADED_MIN_PIXELS (512 * 384)
 +struct SwapPart
@@ -785,6 +903,9 @@ index 2314af93..15494478 100644
 +   const int width  = GPU_LR_FRAMEBUFFER_NATIVE_WIDTH;
 +   const int height = GPU_LR_FRAMEBUFFER_NATIVE_HEIGHT;
 +   int wanted = (int)CommonSettings.num_cores - 1;
++#if defined(__SSE2__) || defined(__ARM_NEON) || defined(__ARM_NEON__)
++   wanted = 0;
++#endif
 +
 +   if (wanted > SWAP_HELPERS_MAX)
 +      wanted = SWAP_HELPERS_MAX;
@@ -824,7 +945,7 @@ index 2314af93..15494478 100644
  }
  
  static void SwapScreen_32(uint32_t *dst, const uint32_t *src, uint32_t pitch)
-@@ -731,6 +943,20 @@ static void check_variables(bool first_boot)
+@@ -731,6 +981,20 @@ static void check_variables(bool first_boot)
                CommonSettings.use_jit = true;
            else if (!strcmp(var.value, "interpreter"))
                CommonSettings.use_jit = false;
@@ -845,7 +966,7 @@ index 2314af93..15494478 100644
        }
       else
       {
-@@ -741,6 +967,32 @@ static void check_variables(bool first_boot)
+@@ -741,6 +1005,32 @@ static void check_variables(bool first_boot)
  #endif
       }
  
@@ -878,7 +999,7 @@ index 2314af93..15494478 100644
  #ifdef HAVE_JIT
        var.key = "desmume_jit_block_size";
  
-@@ -889,10 +1141,34 @@ static void check_variables(bool first_boot)
+@@ -889,10 +1179,34 @@ static void check_variables(bool first_boot)
  
     }
  
@@ -914,7 +1035,7 @@ index 2314af93..15494478 100644
     else
         CommonSettings.num_cores = 1;
  
-@@ -1576,6 +1852,7 @@ void retro_deinit(void)
+@@ -1576,6 +1890,7 @@ void retro_deinit(void)
         tex = 0;
      }
  #endif
@@ -922,14 +1043,13 @@ index 2314af93..15494478 100644
      NDS_DeInit();
  
  #ifdef PERF_TEST
-@@ -2079,7 +2356,21 @@ void retro_run (void)
+@@ -2079,7 +2394,20 @@ void retro_run (void)
     if (skipped)
        NDS_SkipNextFrame();
  
 +#ifdef REWINDBOX_PERF
 +   const u64 rbPerfRun = rb_perf_now();
-+   RbPerf rbPerfBefore = rb_perf;
-+   rbPerfBefore.raster = __atomic_load_n(&rb_perf.raster, __ATOMIC_RELAXED);
++   const RbPerf rbPerfBefore = rb_perf_snapshot();
 +#endif
     NDS_exec<false>();
 +#ifdef REWINDBOX_PERF
@@ -944,7 +1064,7 @@ index 2314af93..15494478 100644
  
     SPU_Emulate_user();
  
-@@ -2097,6 +2388,9 @@ void retro_run (void)
+@@ -2097,6 +2425,9 @@ void retro_run (void)
            previous_showbothscreens = hybrid_layout_showbothscreens;
     }
  
@@ -954,7 +1074,7 @@ index 2314af93..15494478 100644
     if (!skipped)
     {
            if (colorMode == RETRO_PIXEL_FORMAT_XRGB8888)
-@@ -2284,7 +2578,16 @@ void retro_run (void)
+@@ -2284,7 +2615,16 @@ void retro_run (void)
  #endif
     }
     else
@@ -971,7 +1091,7 @@ index 2314af93..15494478 100644
  
     frameIndex = skipped ? frameIndex : 0;
  }
-@@ -2463,6 +2766,10 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
+@@ -2463,6 +2803,10 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
  
  void retro_unload_game (void)
  {
@@ -1043,19 +1163,40 @@ index 85043b8e..e82e8057 100644
  #ifdef HAVE_OPENGL
      {
          "desmume_opengl_mode",
+diff --git a/desmume/src/gfx3d.cpp b/desmume/src/gfx3d.cpp
+index 2535f04f..be7da419 100644
+--- a/desmume/src/gfx3d.cpp
++++ b/desmume/src/gfx3d.cpp
+@@ -2455,6 +2455,15 @@ void gfx3d_GenerateRenderLists(const ClipperMode clippingMode)
+ 
+ static void gfx3d_doFlush()
+ {
++	// RewindBox: the 2D engines wait only for the 3D lines they compose, so the renderer can still be drawing
++	// the lists and render state about to be replaced (a frame whose lower lines show no 3D): it finishes first
++	if (CurrentRenderer->GetRenderNeedsFinish())
++	{
++		GPU->ForceRender3DFinishAndFlush(false);
++		CurrentRenderer->SetRenderNeedsFinish(false);
++		GPU->GetEventHandler()->DidRender3DEnd();
++	}
++	
+ 	gfx3d.render3DFrameCount++;
+ 
+ 	//the renderer will get the lists we just built
 diff --git a/desmume/src/rasterize.cpp b/desmume/src/rasterize.cpp
-index e42ef256..9168c734 100644
+index e42ef256..392a50cd 100644
 --- a/desmume/src/rasterize.cpp
 +++ b/desmume/src/rasterize.cpp
-@@ -64,6 +64,7 @@
+@@ -64,6 +64,8 @@
  #include "NDSSystem.h"
  #include "utils/bits.h"
  #include "utils/task.h"
 +#include "utils/rb_perf.h"
++#include <rthreads/rthreads.h>
  #include "filter/filter.h"
  #include "filter/xbrz.h"
  
-@@ -1036,7 +1037,7 @@ void RasterizerUnit<RENDERER>::_runscanlines(const POLYGON_ATTR polyAttr, const
+@@ -1036,7 +1038,7 @@ void RasterizerUnit<RENDERER>::_runscanlines(const POLYGON_ATTR polyAttr, const
  	//HACK: special handling for horizontal line poly
  	if ( USELINEHACK && (left->Height == 0) && (right->Height == 0) && (left->Y < framebufferHeight) && (left->Y >= 0) )
  	{
@@ -1064,16 +1205,42 @@ index e42ef256..9168c734 100644
  		if (draw)
  		{
  #ifdef ENABLE_SSE2
-@@ -1049,7 +1050,7 @@ void RasterizerUnit<RENDERER>::_runscanlines(const POLYGON_ATTR polyAttr, const
+@@ -1049,7 +1051,14 @@ void RasterizerUnit<RENDERER>::_runscanlines(const POLYGON_ATTR polyAttr, const
  
  	while (Height--)
  	{
 -		const bool draw = ( !SLI || ((left->Y >= this->_SLI_startLine) && (left->Y < this->_SLI_endLine)) );
++		// RewindBox: below the lines of this pass nothing more of the polygon is drawn here
++		if (SLI && (left->Y >= (int)this->_SLI_endLine))
++		{
++			this->_pastBand = true;
++			return;
++		}
++		
 +		const bool draw = ( !SLI || ((left->Y >= this->_SLI_startLine) && (left->Y < this->_SLI_endLine) && ((this->_sliceOfLine == NULL) || (this->_sliceOfLine[left->Y] == this->_sliceIndex))) );
  		if (draw)
  		{
  #ifdef ENABLE_SSE2
-@@ -1249,6 +1250,8 @@ void RasterizerUnit<RENDERER>::SetSLI(u32 startLine, u32 endLine, bool debug)
+@@ -1209,6 +1218,7 @@ void RasterizerUnit<RENDERER>::_shape_engine(const POLYGON_ATTR polyAttr, const
+ 
+ 	edge_fx_fl left, right;
+ 	bool step_left = true, step_right = true;
++	this->_pastBand = false;
+ 	for (;;)
+ 	{
+ 		//generate new edges if necessary. we must avoid regenerating edges when they are incomplete
+@@ -1225,6 +1235,10 @@ void RasterizerUnit<RENDERER>::_shape_engine(const POLYGON_ATTR polyAttr, const
+ 
+ 		const bool isHorizontal = (left.Y == right.Y);
+ 		this->_runscanlines<SLI, ISFRONTFACING, ISSHADOWPOLYGON, USELINEHACK>(polyAttr, isTranslucent, dstColor, framebufferWidth, framebufferHeight, isHorizontal, &left, &right);
++		if (SLI && this->_pastBand)
++		{
++			return;
++		}
+ 		
+ 		//if we ran out of an edge, step to the next one
+ 		if (right.Height == 0)
+@@ -1249,6 +1263,8 @@ void RasterizerUnit<RENDERER>::SetSLI(u32 startLine, u32 endLine, bool debug)
  	this->_debug_thisPoly = debug;
  	this->_SLI_startLine = startLine;
  	this->_SLI_endLine = endLine;
@@ -1082,7 +1249,7 @@ index e42ef256..9168c734 100644
  }
  
  template<bool RENDERER>
-@@ -1266,9 +1269,9 @@ FORCEINLINE void RasterizerUnit<RENDERER>::Render()
+@@ -1266,9 +1282,9 @@ FORCEINLINE void RasterizerUnit<RENDERER>::Render()
  		return;
  	}
  	
@@ -1095,7 +1262,16 @@ index e42ef256..9168c734 100644
  	
  	const CPoly &firstClippedPoly = this->_softRender->GetClippedPolyByIndex(0);
  	const POLY &firstPoly = *firstClippedPoly.poly;
-@@ -1367,11 +1370,58 @@ void* _HACK_Viewer_ExecUnit(void *arg)
+@@ -1283,6 +1299,8 @@ FORCEINLINE void RasterizerUnit<RENDERER>::Render()
+ 	{
+ 		if (!RENDERER) _debug_thisPoly = (i == this->_softRender->_debug_drawClippedUserPoly);
+ 		if (!this->_softRender->polyVisible[i]) continue;
++		// RewindBox: a polygon that draws none of the lines of this pass is skipped
++		if (SLI && !this->_softRender->PolyMayDrawLines(i, this->_SLI_startLine, this->_SLI_endLine)) continue;
+ 		this->_polynum = i;
+ 
+ 		const CPoly &clippedPoly = this->_softRender->GetClippedPolyByIndex(i);
+@@ -1367,11 +1385,61 @@ void* _HACK_Viewer_ExecUnit(void *arg)
  	return 0;
  }
  
@@ -1127,8 +1303,8 @@ index e42ef256..9168c734 100644
 +#ifdef REWINDBOX_PERF
 +	const u64 rbPerfStart = rb_perf_now();
 +#endif
-+	this->_SLI_startLine = 0;
-+	this->_SLI_endLine = (u32)this->_softRender->GetRenderHeight();
++	const u32 renderHeight = (u32)this->_softRender->GetRenderHeight();
++	const u32 bandLines = (u32)this->_softRender->GetBandLines();
 +	this->_sliceOfLine = sliceOfLine;
 +	for (;;)
 +	{
@@ -1138,8 +1314,11 @@ index e42ef256..9168c734 100644
 +			break;
 +		}
 +		this->_sliceIndex = (u8)slice;
++		this->_SLI_startLine = (u32)slice * bandLines;
++		this->_SLI_endLine = std::min<u32>(renderHeight, this->_SLI_startLine + bandLines);
 +		this->_softRender->ClearSliceIfPending((u8)slice);
 +		this->template Render<true, USELINEHACK>();
++		this->_softRender->BandRastered((u32)slice);
 +	}
 +#ifdef REWINDBOX_PERF
 +	rb_perf_add_atomic(&rb_perf.raster, rb_perf_now() - rbPerfStart);
@@ -1155,7 +1334,7 @@ index e42ef256..9168c734 100644
  	
  	return 0;
  }
-@@ -1420,6 +1470,34 @@ static void* SoftRasterizer_RunRenderEdgeMarkAndFog(void *arg)
+@@ -1420,6 +1488,34 @@ static void* SoftRasterizer_RunRenderEdgeMarkAndFog(void *arg)
  	return NULL;
  }
  
@@ -1190,16 +1369,27 @@ index e42ef256..9168c734 100644
  static void* SoftRasterizer_RunClearUsingValues(void *arg)
  {
  	SoftRasterizerClearParam *param = (SoftRasterizerClearParam *)arg;
-@@ -1748,6 +1826,21 @@ SoftRasterizerRenderer::SoftRasterizerRenderer()
+@@ -1748,6 +1844,32 @@ SoftRasterizerRenderer::SoftRasterizerRenderer()
  	
  	_HACK_viewer_rasterizerUnit.SetSLI(0, _framebufferHeight, false);
  	
 +	_sliceOfLine = NULL;
 +	_sliceTableHeight = 0;
 +	_sliceCount = 0;
++	_sliceWanted = 0;
++	_sliceSupersampling = 0;
 +	_sliceNext = 0;
 +	_clearInSlices = false;
 +	_drawInline = false;
++	
++	_bandLines = 0;
++	_bandsActive = false;
++	_bandsNeedNeighbors = false;
++	_bandsReady = 0;
++	_bandWaiting = 0;
++	_bandLock = slock_new();
++	_bandCond = scond_new();
++	memset(&_bandPostprocessParam, 0, sizeof(_bandPostprocessParam));
 +	
 +	_supersampling = 1;
 +	_renderWidth = _framebufferWidth;
@@ -1212,12 +1402,17 @@ index e42ef256..9168c734 100644
  	const size_t coreCount = CommonSettings.num_cores;
  	_threadCount = coreCount;
  	
-@@ -1841,10 +1934,214 @@ SoftRasterizerRenderer::~SoftRasterizerRenderer()
+@@ -1841,10 +1963,364 @@ SoftRasterizerRenderer::~SoftRasterizerRenderer()
  	delete[] this->_task;
  	this->_task = NULL;
  	
 +	free(this->_sliceOfLine);
 +	this->_sliceOfLine = NULL;
++	
++	scond_free(this->_bandCond);
++	this->_bandCond = NULL;
++	slock_free(this->_bandLock);
++	this->_bandLock = NULL;
 +	
 +	free_aligned(this->_renderColorOwned);
 +	this->_renderColorOwned = NULL;
@@ -1341,20 +1536,20 @@ index e42ef256..9168c734 100644
 +	}
 +	this->_supersampleResolved = true;
 +#ifdef REWINDBOX_PERF
-+	rb_perf.resolve += rb_perf_now() - rbPerfStart;
++	rb_perf_add_atomic(&rb_perf.resolve, rb_perf_now() - rbPerfStart);
 +#endif
 +}
 +
-+// RewindBox: four slices a thread, each made of groups of lines spread over the whole picture, so that
-+// every slice holds about the same work wherever the scene is and a thread on a faster core takes more of
-+// them. Which thread draws a line does not change the picture: a pixel only depends on its own history.
-+#define SOFTRASTERIZER_SLICES_PER_THREAD 4
-+#define SOFTRASTERIZER_GROUPS_PER_SLICE 8
++// RewindBox: eight bands of consecutive lines a thread, taken from the top: a thread on a faster core takes
++// more of them, the last one taken is short, and the upper bands are finished first, for the 2D engine
++// that composes the picture from its first line (RenderFinishLines). A band holds whole output lines.
++// Which thread draws a line does not change the picture: a pixel only depends on its own history.
++#define SOFTRASTERIZER_BANDS_PER_THREAD 8
 +
 +void SoftRasterizerRenderer::_UpdateSlices()
 +{
-+	const u32 sliceCount = (this->_threadCount > 0) ? (u32)std::min<size_t>(this->_threadCount * SOFTRASTERIZER_SLICES_PER_THREAD, 255) : 0;
-+	if ( (sliceCount == this->_sliceCount) && (this->_sliceTableHeight == this->_renderHeight) )
++	const u32 wanted = (this->_threadCount > 0) ? (u32)std::min<size_t>(this->_threadCount * SOFTRASTERIZER_BANDS_PER_THREAD, SOFTRASTERIZER_MAX_BANDS) : 0;
++	if ( (wanted == this->_sliceWanted) && (this->_sliceTableHeight == this->_renderHeight) && (this->_sliceSupersampling == this->_supersampling) )
 +	{
 +		return;
 +	}
@@ -1362,8 +1557,10 @@ index e42ef256..9168c734 100644
 +	free(this->_sliceOfLine);
 +	this->_sliceOfLine = NULL;
 +	this->_sliceCount = 0;
++	this->_sliceWanted = wanted;
++	this->_sliceSupersampling = this->_supersampling;
 +	this->_sliceTableHeight = this->_renderHeight;
-+	if ( (sliceCount == 0) || (this->_renderHeight == 0) )
++	if ( (wanted == 0) || (this->_renderHeight == 0) )
 +	{
 +		return;
 +	}
@@ -1374,18 +1571,161 @@ index e42ef256..9168c734 100644
 +		return; // each thread then draws its band, as before
 +	}
 +	
-+	size_t groupLines = this->_renderHeight / ((size_t)sliceCount * SOFTRASTERIZER_GROUPS_PER_SLICE);
-+	if (groupLines == 0)
-+	{
-+		groupLines = 1;
-+	}
++	const size_t ss = (this->_supersampling > 0) ? this->_supersampling : 1;
++	size_t bandLines = (this->_renderHeight + wanted - 1) / wanted;
++	bandLines = ((bandLines + ss - 1) / ss) * ss;
++	const u32 count = (u32)((this->_renderHeight + bandLines - 1) / bandLines);
 +	for (size_t y = 0; y < this->_renderHeight; y++)
 +	{
-+		table[y] = (u8)((y / groupLines) % sliceCount);
++		table[y] = (u8)(y / bandLines);
 +	}
 +	
 +	this->_sliceOfLine = table;
-+	this->_sliceCount = sliceCount;
++	this->_sliceCount = count;
++	this->_bandLines = bandLines;
++}
++
++void SoftRasterizerRenderer::_PrepareBands()
++{
++	this->_bandsReady = 0;
++	this->_bandsActive = (this->_sliceOfLine != NULL) && (this->_sliceCount > 0);
++	if (!this->_bandsActive)
++	{
++		return;
++	}
++	
++	this->_bandsNeedNeighbors = this->_enableEdgeMark;
++	SoftRasterizerPostProcessParams &param = this->_bandPostprocessParam;
++	param.renderer = this;
++	param.enableEdgeMarking = this->_enableEdgeMark;
++	param.enableFog = this->_enableFog;
++	param.fogColor = this->currentRenderState->fogColor;
++	param.fogAlphaOnly = this->currentRenderState->enableFogAlphaOnly;
++	
++	const u32 count = this->_sliceCount;
++	for (u32 b = 0; b < count; b++)
++	{
++		s32 pending = 1;
++		if (this->_bandsNeedNeighbors)
++		{
++			pending += (b > 0) ? 1 : 0;
++			pending += (b + 1 < count) ? 1 : 0;
++		}
++		this->_bandPending[b] = pending;
++		this->_bandDone[b] = 0;
++	}
++	this->_bandWaiting = 0;
++}
++
++void SoftRasterizerRenderer::BandRastered(const u32 band)
++{
++	if (!this->_bandsActive)
++	{
++		return;
++	}
++	
++	const u32 first = (this->_bandsNeedNeighbors && (band > 0)) ? band - 1 : band;
++	const u32 last = (this->_bandsNeedNeighbors && (band + 1 < this->_sliceCount)) ? band + 1 : band;
++	for (u32 b = first; b <= last; b++)
++	{
++		// acquire-release: the thread that counts a band down to zero sees every drawing it waited for
++		if (__atomic_sub_fetch(&this->_bandPending[b], 1, __ATOMIC_ACQ_REL) == 0)
++		{
++			this->_FinishBand(b);
++		}
++	}
++}
++
++void SoftRasterizerRenderer::_FinishBand(const u32 band)
++{
++	const size_t startLine = (size_t)band * this->_bandLines;
++	const size_t endLine = std::min<size_t>(this->_renderHeight, startLine + this->_bandLines);
++	
++	if (this->_bandPostprocessParam.enableEdgeMarking || this->_bandPostprocessParam.enableFog)
++	{
++		SoftRasterizerPostProcessParams param = this->_bandPostprocessParam;
++		param.startLine = startLine;
++		param.endLine = endLine;
++		this->RenderEdgeMarkingAndFog(param);
++	}
++	
++	if (this->_supersampling > 1)
++	{
++#ifdef REWINDBOX_PERF
++		const u64 rbPerfStart = rb_perf_now();
++#endif
++		this->ResolveSupersamplingLines(startLine / this->_supersampling, endLine / this->_supersampling);
++#ifdef REWINDBOX_PERF
++		rb_perf_add_atomic(&rb_perf.resolve, rb_perf_now() - rbPerfStart);
++#endif
++	}
++	
++	__atomic_store_n(&this->_bandDone[band], 1, __ATOMIC_SEQ_CST);
++	if (__atomic_load_n(&this->_bandWaiting, __ATOMIC_SEQ_CST) != 0)
++	{
++		slock_lock(this->_bandLock);
++		scond_broadcast(this->_bandCond);
++		slock_unlock(this->_bandLock);
++	}
++}
++
++void SoftRasterizerRenderer::_WaitBand(const u32 band)
++{
++	if (__atomic_load_n(&this->_bandDone[band], __ATOMIC_ACQUIRE) != 0)
++	{
++		return;
++	}
++	
++	// The waiting flag is set before the band is checked again, and a finishing thread sets the band before
++	// it reads the flag: one of the two always sees the other.
++	slock_lock(this->_bandLock);
++	__atomic_store_n(&this->_bandWaiting, 1, __ATOMIC_SEQ_CST);
++	while (__atomic_load_n(&this->_bandDone[band], __ATOMIC_SEQ_CST) == 0)
++	{
++		scond_wait(this->_bandCond, this->_bandLock);
++	}
++	__atomic_store_n(&this->_bandWaiting, 0, __ATOMIC_SEQ_CST);
++	slock_unlock(this->_bandLock);
++}
++
++bool SoftRasterizerRenderer::RenderFinishLines(const size_t outputLineEnd)
++{
++	if (!this->_renderNeedsFinish)
++	{
++		return true;
++	}
++	
++	if (!this->_renderGeometryNeedsFinish || !this->_bandsActive)
++	{
++		this->RenderFinish();
++		return true;
++	}
++	
++#ifdef REWINDBOX_PERF
++	const u64 rbPerfStart = rb_perf_now();
++#endif
++	const size_t renderLineEnd = outputLineEnd * this->_supersampling;
++	u32 needed = (u32)((renderLineEnd + this->_bandLines - 1) / this->_bandLines);
++	if (needed > this->_sliceCount)
++	{
++		needed = this->_sliceCount;
++	}
++	while (this->_bandsReady < needed)
++	{
++		this->_WaitBand(this->_bandsReady);
++		this->_bandsReady++;
++	}
++#ifdef REWINDBOX_PERF
++	rb_perf.wait3d += rb_perf_now() - rbPerfStart;
++#endif
++	
++	if (this->_bandsReady < this->_sliceCount)
++	{
++		return false;
++	}
++	
++	this->RenderFinish();
++	return true;
 +}
 +
 +// RewindBox: the lines of one slice take the clear values (the frame's clear, when it was left to the
@@ -1427,7 +1767,7 @@ index e42ef256..9168c734 100644
  Render3DError SoftRasterizerRenderer::InitTables()
  {
  	static bool needTableInit = true;
-@@ -1874,8 +2171,8 @@ ClipperMode SoftRasterizerRenderer::GetPreferredPolygonClippingMode() const
+@@ -1874,8 +2350,8 @@ ClipperMode SoftRasterizerRenderer::GetPreferredPolygonClippingMode() const
  
  void SoftRasterizerRenderer::performViewportTransforms()
  {
@@ -1438,7 +1778,7 @@ index e42ef256..9168c734 100644
  	
  	//viewport transforms
  	for (size_t i = 0; i < this->_clippedPolyCount; i++)
-@@ -2022,6 +2319,13 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
+@@ -2022,6 +2498,13 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
  	{
  		this->_task[i].finish();
  	}
@@ -1452,7 +1792,7 @@ index e42ef256..9168c734 100644
  	
  	// Keep the current render states for later use
  	this->currentRenderState = (GFX3D_State *)&engine.renderState;
-@@ -2029,7 +2333,7 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
+@@ -2029,7 +2512,7 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
  	this->_clippedPolyOpaqueCount = engine.clippedPolyOpaqueCount;
  	this->_clippedPolyList = engine.clippedPolyList;
  	
@@ -1461,14 +1801,40 @@ index e42ef256..9168c734 100644
  	
  	if (doMultithreadedStateSetup)
  	{
-@@ -2070,18 +2374,33 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
+@@ -2069,19 +2552,59 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
+ 
  Render3DError SoftRasterizerRenderer::RenderGeometry(const GFX3D_State &renderState, const POLYLIST *polyList, const INDEXLIST *indexList)
  {
++	// RewindBox: the lines each polygon can draw (one line of margin), for a band to skip the others
++	for (size_t i = 0; i < this->_clippedPolyCount; i++)
++	{
++		const CPoly &clippedPoly = this->_clippedPolyList[i];
++		const int vertCount = clippedPoly.type;
++		if ( (vertCount <= 0) || !this->polyVisible[i] )
++		{
++			this->_polyFirstLine[i] = 1;
++			this->_polyLastLine[i] = 0;
++			continue;
++		}
++		
++		fixed28_4 top = (fixed28_4)clippedPoly.clipVerts[0].y;
++		fixed28_4 bottom = top;
++		for (int j = 1; j < vertCount; j++)
++		{
++			const fixed28_4 y = (fixed28_4)clippedPoly.clipVerts[j].y;
++			top = (y < top) ? y : top;
++			bottom = (y > bottom) ? y : bottom;
++		}
++		this->_polyFirstLine[i] = Ceil28_4(top) - 1;
++		this->_polyLastLine[i] = Ceil28_4(bottom) + 1;
++	}
++	
  	// Render the geometry
 -	if (this->_threadCount > 0)
 +	if ( (this->_threadCount > 0) && !this->_drawInline )
  	{
 +		this->_UpdateSlices();
++		this->_PrepareBands();
 +		this->_sliceNext = 0;
 +		
 +		// RewindBox: at the console's own resolution a frame is drawn sooner than every thread is woken:
@@ -1498,7 +1864,15 @@ index e42ef256..9168c734 100644
  			{
  				this->_task[i].execute(&SoftRasterizer_RunRasterizerUnit<false>, &this->_rasterizerUnit[i]);
  			}
-@@ -2195,11 +2514,11 @@ Render3DError SoftRasterizerRenderer::UpdateFogTable(const u8 *fogDensityTable)
+@@ -2101,6 +2624,7 @@ Render3DError SoftRasterizerRenderer::RenderGeometry(const GFX3D_State &renderSt
+ 		}
+ 		
+ 		this->_renderGeometryNeedsFinish = false;
++		this->_bandsActive = false;
+ 		texCache.Evict(); // Since we're finishing geometry rendering here and now, also check the texture cache now.
+ 	}
+ 	
+@@ -2195,11 +2719,11 @@ Render3DError SoftRasterizerRenderer::UpdateFogTable(const u8 *fogDensityTable)
  
  Render3DError SoftRasterizerRenderer::RenderEdgeMarkingAndFog(const SoftRasterizerPostProcessParams &param)
  {
@@ -1513,7 +1887,7 @@ index e42ef256..9168c734 100644
  			const u32 depth = this->_framebufferAttributes->depth[i];
  			const u8 polyID = this->_framebufferAttributes->opaquePolyID[i];
  			
-@@ -2214,25 +2533,25 @@ Render3DError SoftRasterizerRenderer::RenderEdgeMarkingAndFog(const SoftRasteriz
+@@ -2214,25 +2738,25 @@ Render3DError SoftRasterizerRenderer::RenderEdgeMarkingAndFog(const SoftRasteriz
  				{
  					const bool isEdgeMarkingClearValues = ((polyID != this->_clearAttributes.opaquePolyID) && (depth < this->_clearAttributes.depth));
  					
@@ -1545,7 +1919,7 @@ index e42ef256..9168c734 100644
  						}
  					}
  					else if (left)
-@@ -2246,7 +2565,7 @@ Render3DError SoftRasterizerRenderer::RenderEdgeMarkingAndFog(const SoftRasteriz
+@@ -2246,7 +2770,7 @@ Render3DError SoftRasterizerRenderer::RenderEdgeMarkingAndFog(const SoftRasteriz
  					{
  						if (y > 0)
  						{
@@ -1554,7 +1928,7 @@ index e42ef256..9168c734 100644
  						}
  					}
  					
-@@ -2318,18 +2637,18 @@ Render3DError SoftRasterizerRenderer::UpdateToonTable(const u16 *toonTableBuffer
+@@ -2318,18 +2842,18 @@ Render3DError SoftRasterizerRenderer::UpdateToonTable(const u16 *toonTableBuffer
  
  Render3DError SoftRasterizerRenderer::ClearUsingImage(const u16 *__restrict colorBuffer, const u32 *__restrict depthBuffer, const u8 *__restrict fogBuffer, const u8 opaquePolyID)
  {
@@ -1578,7 +1952,7 @@ index e42ef256..9168c734 100644
  			this->_framebufferAttributes->depth[iw] = depthBuffer[ir];
  			this->_framebufferAttributes->isFogged[iw] = fogBuffer[ir];
  			this->_framebufferAttributes->opaquePolyID[iw] = opaquePolyID;
-@@ -2345,16 +2664,36 @@ Render3DError SoftRasterizerRenderer::ClearUsingImage(const u16 *__restrict colo
+@@ -2345,16 +2869,36 @@ Render3DError SoftRasterizerRenderer::ClearUsingImage(const u16 *__restrict colo
  
  void SoftRasterizerRenderer::ClearUsingValues_Execute(const size_t startPixel, const size_t endPixel)
  {
@@ -1621,7 +1995,7 @@ index e42ef256..9168c734 100644
  	
  	if (doMultithreadedClear)
  	{
-@@ -2365,7 +2704,7 @@ Render3DError SoftRasterizerRenderer::ClearUsingValues(const FragmentColor &clea
+@@ -2365,7 +2909,7 @@ Render3DError SoftRasterizerRenderer::ClearUsingValues(const FragmentColor &clea
  	}
  	else
  	{
@@ -1630,7 +2004,15 @@ index e42ef256..9168c734 100644
  	}
  	
  	if (doMultithreadedClear)
-@@ -2398,6 +2737,9 @@ Render3DError SoftRasterizerRenderer::Reset()
+@@ -2390,6 +2934,7 @@ Render3DError SoftRasterizerRenderer::Reset()
+ 	}
+ 	
+ 	this->_renderGeometryNeedsFinish = false;
++	this->_bandsActive = false;
+ 	
+ 	texCache.Reset();
+ 	
+@@ -2398,6 +2943,9 @@ Render3DError SoftRasterizerRenderer::Reset()
  
  Render3DError SoftRasterizerRenderer::Render(const GFX3D &engine)
  {
@@ -1640,7 +2022,7 @@ index e42ef256..9168c734 100644
  	Render3DError error = RENDER3DERROR_NOERR;
  	this->_isPoweredOn = true;
  	
-@@ -2424,6 +2766,9 @@ Render3DError SoftRasterizerRenderer::Render(const GFX3D &engine)
+@@ -2424,6 +2972,9 @@ Render3DError SoftRasterizerRenderer::Render(const GFX3D &engine)
  	this->RenderGeometry(engine.renderState, engine.polylist, &engine.indexlist);
  	this->EndRender(engine.render3DFrameCount);
  	
@@ -1650,7 +2032,7 @@ index e42ef256..9168c734 100644
  	return error;
  }
  
-@@ -2434,12 +2779,16 @@ Render3DError SoftRasterizerRenderer::EndRender(const u64 frameCount)
+@@ -2434,12 +2985,16 @@ Render3DError SoftRasterizerRenderer::EndRender(const u64 frameCount)
  	{
  		if (this->_enableEdgeMark || this->_enableFog)
  		{
@@ -1672,7 +2054,7 @@ index e42ef256..9168c734 100644
  		}
  	}
  	
-@@ -2453,6 +2802,9 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
+@@ -2453,6 +3008,9 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
  		return RENDER3DERROR_NOERR;
  	}
  	
@@ -1682,11 +2064,29 @@ index e42ef256..9168c734 100644
  	if (this->_renderGeometryNeedsFinish)
  	{
  		// Allow for the geometry rendering to finish.
-@@ -2486,6 +2838,12 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
+@@ -2465,8 +3023,9 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
+ 		// Now that geometry rendering is finished on all threads, check the texture cache.
+ 		texCache.Evict();
+ 		
+-		// Do multithreaded post-processing.
+-		if (this->_enableEdgeMark || this->_enableFog)
++		// Do multithreaded post-processing (RewindBox: drawn by bands, each band was post-processed and
++		// resolved by the threads as soon as it could be).
++		if (!this->_bandsActive && (this->_enableEdgeMark || this->_enableFog))
+ 		{
+ 			for (size_t i = 0; i < this->_threadCount; i++)
+ 			{
+@@ -2486,6 +3045,18 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
  		}
  	}
  	
 +	// RewindBox: the supersampled 3D averaged into the output, once per picture
++	if (this->_bandsActive)
++	{
++		this->_bandsActive = false;
++		this->_bandsReady = this->_sliceCount;
++		this->_supersampleResolved = true;
++	}
 +	this->_ResolveSupersampling();
 +#ifdef REWINDBOX_PERF
 +	rb_perf.wait3d += rb_perf_now() - rbPerfStart;
@@ -1695,7 +2095,7 @@ index e42ef256..9168c734 100644
  	this->_renderNeedsFlushMain = true;
  	this->_renderNeedsFlush16 = true;
  	
-@@ -2514,10 +2872,12 @@ Render3DError SoftRasterizerRenderer::SetFramebufferSize(size_t w, size_t h)
+@@ -2514,10 +3085,12 @@ Render3DError SoftRasterizerRenderer::SetFramebufferSize(size_t w, size_t h)
  		return RENDER3DERROR_NOERR;
  	}
  	
@@ -1711,7 +2111,7 @@ index e42ef256..9168c734 100644
  	
  	if (this->_threadCount == 0)
  	{
-@@ -2622,8 +2982,8 @@ Render3DError SoftRasterizer_SIMD<SIMDBYTES>::SetFramebufferSize(size_t w, size_
+@@ -2622,8 +3195,8 @@ Render3DError SoftRasterizer_SIMD<SIMDBYTES>::SetFramebufferSize(size_t w, size_
  		return RENDER3DERROR_NOERR;
  	}
  	
@@ -1723,10 +2123,18 @@ index e42ef256..9168c734 100644
  	const size_t pixCount = (this->_framebufferSIMDPixCount > 0) ? this->_framebufferSIMDPixCount : this->_framebufferPixCount;
  	
 diff --git a/desmume/src/rasterize.h b/desmume/src/rasterize.h
-index becafc0e..f35eba43 100644
+index becafc0e..58b4fd80 100644
 --- a/desmume/src/rasterize.h
 +++ b/desmume/src/rasterize.h
-@@ -40,6 +40,19 @@ struct SoftRasterizerClearParam
+@@ -26,6 +26,7 @@
+ #endif
+ 
+ #define SOFTRASTERIZER_MAX_THREADS 32
++#define SOFTRASTERIZER_MAX_BANDS 255
+ 
+ extern GPU3DInterface gpu3DRasterize;
+ 
+@@ -40,6 +41,19 @@ struct SoftRasterizerClearParam
  	size_t endPixel;
  };
  
@@ -1746,7 +2154,7 @@ index becafc0e..f35eba43 100644
  struct SoftRasterizerPostProcessParams
  {
  	SoftRasterizerRenderer *renderer;
-@@ -103,6 +116,11 @@ protected:
+@@ -103,6 +117,12 @@ protected:
  	bool _debug_thisPoly;
  	u32 _SLI_startLine;
  	u32 _SLI_endLine;
@@ -1754,11 +2162,12 @@ index becafc0e..f35eba43 100644
 +	// slice (see SoftRasterizerRenderer::_sliceOfLine); NULL: every line of [_SLI_startLine, _SLI_endLine)
 +	const u8 *_sliceOfLine;
 +	u8 _sliceIndex;
++	bool _pastBand; // the polygon being drawn went below _SLI_endLine: the rest of it is for other passes
 +	// RewindBox: busy time of this unit in the current pass (REWINDBOX_PERF)
  	
  	SoftRasterizerRenderer *_softRender;
  	SoftRasterizerTexture *_currentTexture;
-@@ -132,6 +150,7 @@ public:
+@@ -132,6 +152,7 @@ public:
  	void SetSLI(u32 startLine, u32 endLine, bool debug);
  	void SetRenderer(SoftRasterizerRenderer *theRenderer);
  	template<bool SLI, bool USELINEHACK> FORCEINLINE void Render();
@@ -1766,21 +2175,46 @@ index becafc0e..f35eba43 100644
  };
  
  #if defined(ENABLE_AVX2)
-@@ -158,6 +177,34 @@ protected:
+@@ -158,6 +179,59 @@ protected:
  	size_t _customLinesPerThread;
  	size_t _customPixelsPerThread;
  	
-+	// RewindBox: the picture is cut into _sliceCount slices of interleaved groups of lines
-+	// (_sliceOfLine[y]); each rasterizer thread takes the next slice (_sliceNext) until none is left.
-+	// A fixed band a thread gave half of the threads nearly all of the work when the scene sat in the
-+	// middle of the screen, and a slow core held the whole frame back.
++	// RewindBox: the picture is cut into _sliceCount bands of _bandLines lines (_sliceOfLine[y]); each
++	// rasterizer thread takes the next band from the top (_sliceNext) until none is left. A fixed band a
++	// thread gave half of the threads nearly all of the work when the scene sat in the middle of the
++	// screen, and a slow core held the whole frame back.
 +	u8 *_sliceOfLine;
 +	size_t _sliceTableHeight;
 +	u32 _sliceCount;
++	u32 _sliceWanted;
++	size_t _sliceSupersampling;
 +	volatile s32 _sliceNext;
 +	bool _clearInSlices; // this frame's clear is left to the threads: each clears a slice, then draws it
 +	bool _drawInline;    // this frame is drawn by the calling thread (the console's own resolution)
 +	void _UpdateSlices();
++	
++	// RewindBox: progressive finish. A band is post-processed (edge marking, fog) and resolved by the
++	// thread that completes the last drawing it needs: its own, and its neighbours' when edge marking reads
++	// their lines (_bandPending[b] counts them down); then _bandDone[b] is set. The 2D engine waits only for
++	// the bands of the lines it composes (RenderFinishLines), so the threads draw the lower bands while it
++	// composes the upper lines. _bandsReady: the bands, from the top, the emulation thread knows are done.
++	// _polyFirstLine/_polyLastLine: the lines a polygon can draw (with a margin), for a band to skip the
++	// polygons it does not cross.
++	size_t _bandLines;
++	bool _bandsActive;
++	bool _bandsNeedNeighbors;
++	volatile s32 _bandPending[SOFTRASTERIZER_MAX_BANDS];
++	volatile s32 _bandDone[SOFTRASTERIZER_MAX_BANDS];
++	u32 _bandsReady;
++	volatile s32 _bandWaiting;
++	struct slock *_bandLock;
++	struct scond *_bandCond;
++	SoftRasterizerPostProcessParams _bandPostprocessParam;
++	s32 _polyFirstLine[POLYLIST_SIZE];
++	s32 _polyLastLine[POLYLIST_SIZE];
++	void _PrepareBands();
++	void _FinishBand(const u32 band);
++	void _WaitBand(const u32 band);
 +	
 +	// RewindBox: 3D supersampling. The rasterizer draws _supersampling times the output size on each axis
 +	// (_renderWidth x _renderHeight) into _renderColor and the attribute buffer; RenderFinish averages each
@@ -1801,12 +2235,18 @@ index becafc0e..f35eba43 100644
  	u8 fogTable[32768];
  	FragmentColor edgeMarkTable[8];
  	bool edgeMarkDisabled[8];
-@@ -191,6 +238,17 @@ public:
+@@ -191,6 +265,23 @@ public:
  	SoftRasterizerRenderer();
  	virtual ~SoftRasterizerRenderer();
  	
 +	// RewindBox: the next slice to rasterize, or -1 when every slice is taken
 +	s32 TakeSlice();
++	size_t GetBandLines() const { return this->_bandLines; }
++	bool PolyMayDrawLines(const size_t i, const u32 startLine, const u32 endLine) const
++	{
++		return (this->_polyLastLine[i] >= (s32)startLine) && (this->_polyFirstLine[i] < (s32)endLine);
++	}
++	void BandRastered(const u32 band); // a rasterizer thread drew this band
 +	const u8* GetSliceOfLine() const { return (this->_drawInline) ? NULL : this->_sliceOfLine; }
 +	FragmentColor* GetRenderFramebuffer() const { return this->_renderColor; }
 +	size_t GetRenderWidth() const { return this->_renderWidth; }
@@ -1819,6 +2259,658 @@ index becafc0e..f35eba43 100644
  	virtual ClipperMode GetPreferredPolygonClippingMode() const;
  	
  	void performViewportTransforms();
+@@ -209,6 +300,7 @@ public:
+ 	virtual Render3DError ApplyRenderingSettings(const GFX3D_State &renderState);
+ 	virtual Render3DError Render(const GFX3D &engine);
+ 	virtual Render3DError RenderFinish();
++	virtual bool RenderFinishLines(const size_t outputLineEnd);
+ 	virtual Render3DError RenderFlush(bool willFlushBuffer32, bool willFlushBuffer16);
+ 	virtual void ClearUsingValues_Execute(const size_t startPixel, const size_t endPixel);
+ 	virtual Render3DError SetFramebufferSize(size_t w, size_t h);
+diff --git a/desmume/src/render3D.cpp b/desmume/src/render3D.cpp
+index cd37ded2..469a3609 100644
+--- a/desmume/src/render3D.cpp
++++ b/desmume/src/render3D.cpp
+@@ -747,6 +747,12 @@ Render3DError Render3D::RenderFinish()
+ 	return RENDER3DERROR_NOERR;
+ }
+ 
++bool Render3D::RenderFinishLines(const size_t outputLineEnd)
++{
++	this->RenderFinish();
++	return true;
++}
++
+ Render3DError Render3D::RenderFlush(bool willFlushBuffer32, bool willFlushBuffer16)
+ {
+ 	return RENDER3DERROR_NOERR;
+diff --git a/desmume/src/render3D.h b/desmume/src/render3D.h
+index d5fad8d7..1f52145f 100644
+--- a/desmume/src/render3D.h
++++ b/desmume/src/render3D.h
+@@ -1,309 +1,313 @@
+-/*
+-	Copyright (C) 2006-2007 shash
+-	Copyright (C) 2007-2019 DeSmuME team
+-
+-	This file is free software: you can redistribute it and/or modify
+-	it under the terms of the GNU General Public License as published by
+-	the Free Software Foundation, either version 2 of the License, or
+-	(at your option) any later version.
+-
+-	This file is distributed in the hope that it will be useful,
+-	but WITHOUT ANY WARRANTY; without even the implied warranty of
+-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-	GNU General Public License for more details.
+-
+-	You should have received a copy of the GNU General Public License
+-	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
+-*/
+-
+-#ifndef RENDER3D_H
+-#define RENDER3D_H
+-
+-#include "types.h"
+-#include "gfx3d.h"
+-#include "texcache.h"
+-#include "./filter/filter.h"
+-
+-#define kUnsetTranslucentPolyID 255
+-#define DEPTH_EQUALS_TEST_TOLERANCE 255
+-
+-class Render3D;
+-
+-typedef struct Render3DInterface
+-{
+-	const char *name;				// The name of the renderer.
+-	Render3D* (*NDS_3D_Init)();		// Called when the renderer is created.
+-	void (*NDS_3D_Close)();			// Called when the renderer is destroyed.
+-	
+-} GPU3DInterface;
+-
+-extern int cur3DCore;
+-
+-// gpu 3D core list, per port
+-extern GPU3DInterface *core3DList[];
+-
+-// Default null plugin
+-extern GPU3DInterface gpu3DNull;
+-
+-// Extern pointer
+-extern Render3D *BaseRenderer;
+-extern Render3D *CurrentRenderer;
+-extern GPU3DInterface *gpu3D;
+-
+-Render3D* Render3DBaseCreate();
+-void Render3DBaseDestroy();
+-
+-void Render3D_Init();
+-void Render3D_DeInit();
+-
+-enum RendererID
+-{
+-	RENDERID_NULL				= 0,
+-	RENDERID_SOFTRASTERIZER		= 1,
+-	RENDERID_OPENGL_AUTO		= 1000,
+-	RENDERID_OPENGL_LEGACY		= 1001,
+-	RENDERID_OPENGL_3_2			= 1002,
+-	RENDERID_METAL				= 2000
+-};
+-
+-enum Render3DErrorCode
+-{
+-	RENDER3DERROR_NOERR = 0
+-};
+-
+-enum PolyFacing
+-{
+-	PolyFacing_Unwritten = 0,
+-	PolyFacing_Front     = 1,
+-	PolyFacing_Back      = 2
+-};
+-
+-typedef int Render3DError;
+-
+-struct FragmentAttributes
+-{
+-	u32 depth;
+-	u8 opaquePolyID;
+-	u8 translucentPolyID;
+-	u8 stencil;
+-	u8 isFogged;
+-	u8 isTranslucentPoly;
+-	u8 polyFacing;
+-};
+-
+-struct FragmentAttributesBuffer
+-{
+-	size_t count;
+-	u32 *depth;
+-	u8 *opaquePolyID;
+-	u8 *translucentPolyID;
+-	u8 *stencil;
+-	u8 *isFogged;
+-	u8 *isTranslucentPoly;
+-	u8 *polyFacing;
+-	
+-	FragmentAttributesBuffer(size_t newCount);
+-	~FragmentAttributesBuffer();
+-	
+-	void SetAtIndex(const size_t index, const FragmentAttributes &attr);
+-};
+-
+-struct Render3DDeviceInfo
+-{
+-	RendererID renderID;
+-	std::string renderName;
+-	
+-	bool isTexturingSupported;
+-	bool isEdgeMarkSupported;
+-	bool isFogSupported;
+-	bool isTextureSmoothingSupported;
+-	
+-	float maxAnisotropy;
+-	u8 maxSamples;
+-};
+-
+-class Render3DTexture : public TextureStore
+-{
+-protected:
+-	bool _isSamplingEnabled;
+-	bool _useDeposterize;
+-	size_t _scalingFactor;
+-	SSurface _deposterizeSrcSurface;
+-	SSurface _deposterizeDstSurface;
+-	
+-	template<size_t SCALEFACTOR> void _Upscale(const u32 *__restrict src, u32 *__restrict dst);
+-	
+-public:
+-	Render3DTexture(TEXIMAGE_PARAM texAttributes, u32 palAttributes);
+-	
+-	bool IsSamplingEnabled() const;
+-	void SetSamplingEnabled(bool isEnabled);
+-		
+-	bool IsUsingDeposterize() const;
+-	void SetUseDeposterize(bool willDeposterize);
+-	
+-	size_t GetScalingFactor() const;
+-	void SetScalingFactor(size_t scalingFactor);
+-};
+-
+-class Render3D
+-{
+-protected:
+-	Render3DDeviceInfo _deviceInfo;
+-	
+-	size_t _framebufferWidth;
+-	size_t _framebufferHeight;
+-	size_t _framebufferPixCount;
+-	size_t _framebufferSIMDPixCount;
+-	size_t _framebufferColorSizeBytes;
+-	FragmentColor *_framebufferColor;
+-	
+-	FragmentColor _clearColor6665;
+-	FragmentAttributes _clearAttributes;
+-	
+-	NDSColorFormat _internalRenderingFormat;
+-	NDSColorFormat _outputFormat;
+-	bool _renderNeedsFinish;
+-	bool _renderNeedsFlushMain;
+-	bool _renderNeedsFlush16;
+-	bool _isPoweredOn;
+-	
+-	bool _enableEdgeMark;
+-	bool _enableFog;
+-	bool _enableTextureSampling;
+-	bool _enableTextureDeposterize;
+-	bool _enableTextureSmoothing;
+-	size_t _textureScalingFactor;
+-	
+-	bool _prevEnableTextureSampling;
+-	bool _prevEnableTextureDeposterize;
+-	size_t _prevTextureScalingFactor;
+-	
+-	SSurface _textureDeposterizeSrcSurface;
+-	SSurface _textureDeposterizeDstSurface;
+-	
+-	u32 *_textureUpscaleBuffer;
+-	Render3DTexture *_textureList[POLYLIST_SIZE];
+-	
+-	size_t _clippedPolyCount;
+-	size_t _clippedPolyOpaqueCount;
+-	CPoly *_clippedPolyList;
+-	
+-	CACHE_ALIGN u16 clearImageColor16Buffer[GPU_FRAMEBUFFER_NATIVE_WIDTH * GPU_FRAMEBUFFER_NATIVE_HEIGHT];
+-	CACHE_ALIGN u32 clearImageDepthBuffer[GPU_FRAMEBUFFER_NATIVE_WIDTH * GPU_FRAMEBUFFER_NATIVE_HEIGHT];
+-	CACHE_ALIGN u8 clearImageFogBuffer[GPU_FRAMEBUFFER_NATIVE_WIDTH * GPU_FRAMEBUFFER_NATIVE_HEIGHT];
+-	
+-	template<bool ISCOLORBLANK, bool ISDEPTHBLANK> void _ClearImageScrolledLoop(const u8 xScroll, const u8 yScroll, const u16 *__restrict inColor16, const u16 *__restrict inDepth16,
+-																				u16 *__restrict outColor16, u32 *__restrict outDepth24, u8 *__restrict outFog);
+-	
+-	
+-	virtual Render3DError BeginRender(const GFX3D &engine);
+-	virtual Render3DError RenderGeometry(const GFX3D_State &renderState, const POLYLIST *polyList, const INDEXLIST *indexList);
+-	virtual Render3DError RenderEdgeMarking(const u16 *colorTable, const bool useAntialias);
+-	virtual Render3DError RenderFog(const u8 *densityTable, const u32 color, const u16 offset, const u8 shift, const bool alphaOnly);
+-	virtual Render3DError EndRender(const u64 frameCount);
+-	virtual Render3DError FlushFramebuffer(const FragmentColor *__restrict srcFramebuffer, FragmentColor *__restrict dstFramebufferMain, u16 *__restrict dstFramebuffer16);
+-	
+-	virtual Render3DError ClearUsingImage(const u16 *__restrict colorBuffer, const u32 *__restrict depthBuffer, const u8 *__restrict fogBuffer, const u8 opaquePolyID);
+-	virtual Render3DError ClearUsingValues(const FragmentColor &clearColor6665, const FragmentAttributes &clearAttributes);
+-	
+-	virtual Render3DError SetupTexture(const POLY &thePoly, size_t polyRenderIndex);
+-	virtual Render3DError SetupViewport(const u32 viewportValue);
+-	
+-public:
+-	static void* operator new(size_t size);
+-	static void operator delete(void *p);
+-	Render3D();
+-	~Render3D();
+-	
+-	const Render3DDeviceInfo& GetDeviceInfo();
+-	RendererID GetRenderID();
+-	std::string GetName();
+-	
+-	size_t GetFramebufferWidth();
+-	size_t GetFramebufferHeight();
+-	bool IsFramebufferNativeSize();
+-	
+-	virtual Render3DError UpdateToonTable(const u16 *toonTableBuffer);
+-	virtual Render3DError ClearFramebuffer(const GFX3D_State &renderState);
+-	
+-	virtual Render3DError ApplyRenderingSettings(const GFX3D_State &renderState);
+-	
+-	virtual Render3DError Reset();						// Called when the emulator resets.
+-	
+-	virtual Render3DError RenderPowerOff();				// Called when the renderer needs to handle a power-off condition by clearing its framebuffers.
+-	
+-	virtual Render3DError Render(const GFX3D &engine);	// Called when the renderer should do its job and render the current display lists.
+-	
+-	virtual Render3DError RenderFinish();				// Called whenever 3D rendering needs to finish. This function should block the calling thread
+-														// and only release the block when 3D rendering is finished. (Before reading the 3D layer, be
+-														// sure to always call this function.)
+-	
+-	virtual Render3DError RenderFlush(bool willFlushBuffer32, bool willFlushBuffer16);	// Called whenever the emulator needs the flushed results of the 3D renderer. Before calling this,
+-																						// the 3D renderer must be finished using RenderFinish() or confirmed already finished using
+-																						// GetRenderNeedsFinish().
+-	
+-	virtual Render3DError VramReconfigureSignal();		// Called when the emulator reconfigures its VRAM. You may need to invalidate your texture cache.
+-	
+-	virtual Render3DError SetFramebufferSize(size_t w, size_t h);	// Called whenever the output framebuffer size changes.
+-	
+-	virtual NDSColorFormat RequestColorFormat(NDSColorFormat colorFormat);	// Called whenever the output framebuffer color format changes. The framebuffer
+-																			// output by the 3D renderer is expected to match the requested format. If the
+-																			// internal color format of the 3D renderer doesn't natively match the requested
+-																			// format, then a colorspace conversion will be required in order to match. The
+-																			// only exception to this rule is if the requested output format is RGBA5551. In
+-																			// this particular case, the 3D renderer is expected to output a framebuffer in
+-																			// RGBA6665 color format. Again, if the internal color format does not match this,
+-																			// then a colorspace conversion will be required for RGBA6665.
+-	
+-	virtual NDSColorFormat GetColorFormat() const;							// The output color format of the 3D renderer.
+-	
+-	virtual FragmentColor* GetFramebuffer();
+-	
+-	bool GetRenderNeedsFinish() const;
+-	void SetRenderNeedsFinish(const bool renderNeedsFinish);
+-	
+-	bool GetRenderNeedsFlushMain() const;
+-	bool GetRenderNeedsFlush16() const;
+-	
+-	void SetTextureProcessingProperties();
+-	Render3DTexture* GetTextureByPolygonRenderIndex(size_t polyRenderIndex) const;
+-	
+-	virtual ClipperMode GetPreferredPolygonClippingMode() const;
+-	const CPoly& GetClippedPolyByIndex(size_t index) const;
+-	size_t GetClippedPolyCount() const;
+-};
+-
+-template <size_t SIMDBYTES>
+-class Render3D_SIMD : public Render3D
+-{
+-public:
+-	Render3D_SIMD();
+-	
+-	virtual Render3DError SetFramebufferSize(size_t w, size_t h);
+-};
+-
+-#if defined(ENABLE_AVX2)
+-
+-class Render3D_AVX2 : public Render3D_SIMD<32>
+-{
+-public:
+-	virtual Render3DError ClearFramebuffer(const GFX3D_State &renderState);
+-};
+-
+-#elif defined(ENABLE_SSE2)
+-
+-class Render3D_SSE2 : public Render3D_SIMD<16>
+-{
+-public:
+-	virtual Render3DError ClearFramebuffer(const GFX3D_State &renderState);
+-};
+-
+-#elif defined(ENABLE_ALTIVEC)
+-
+-class Render3D_Altivec : public Render3D_SIMD<16>
+-{};
+-
+-#endif
+-
+-#endif // RENDER3D_H
++/*
++	Copyright (C) 2006-2007 shash
++	Copyright (C) 2007-2019 DeSmuME team
++
++	This file is free software: you can redistribute it and/or modify
++	it under the terms of the GNU General Public License as published by
++	the Free Software Foundation, either version 2 of the License, or
++	(at your option) any later version.
++
++	This file is distributed in the hope that it will be useful,
++	but WITHOUT ANY WARRANTY; without even the implied warranty of
++	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++	GNU General Public License for more details.
++
++	You should have received a copy of the GNU General Public License
++	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
++*/
++
++#ifndef RENDER3D_H
++#define RENDER3D_H
++
++#include "types.h"
++#include "gfx3d.h"
++#include "texcache.h"
++#include "./filter/filter.h"
++
++#define kUnsetTranslucentPolyID 255
++#define DEPTH_EQUALS_TEST_TOLERANCE 255
++
++class Render3D;
++
++typedef struct Render3DInterface
++{
++	const char *name;				// The name of the renderer.
++	Render3D* (*NDS_3D_Init)();		// Called when the renderer is created.
++	void (*NDS_3D_Close)();			// Called when the renderer is destroyed.
++	
++} GPU3DInterface;
++
++extern int cur3DCore;
++
++// gpu 3D core list, per port
++extern GPU3DInterface *core3DList[];
++
++// Default null plugin
++extern GPU3DInterface gpu3DNull;
++
++// Extern pointer
++extern Render3D *BaseRenderer;
++extern Render3D *CurrentRenderer;
++extern GPU3DInterface *gpu3D;
++
++Render3D* Render3DBaseCreate();
++void Render3DBaseDestroy();
++
++void Render3D_Init();
++void Render3D_DeInit();
++
++enum RendererID
++{
++	RENDERID_NULL				= 0,
++	RENDERID_SOFTRASTERIZER		= 1,
++	RENDERID_OPENGL_AUTO		= 1000,
++	RENDERID_OPENGL_LEGACY		= 1001,
++	RENDERID_OPENGL_3_2			= 1002,
++	RENDERID_METAL				= 2000
++};
++
++enum Render3DErrorCode
++{
++	RENDER3DERROR_NOERR = 0
++};
++
++enum PolyFacing
++{
++	PolyFacing_Unwritten = 0,
++	PolyFacing_Front     = 1,
++	PolyFacing_Back      = 2
++};
++
++typedef int Render3DError;
++
++struct FragmentAttributes
++{
++	u32 depth;
++	u8 opaquePolyID;
++	u8 translucentPolyID;
++	u8 stencil;
++	u8 isFogged;
++	u8 isTranslucentPoly;
++	u8 polyFacing;
++};
++
++struct FragmentAttributesBuffer
++{
++	size_t count;
++	u32 *depth;
++	u8 *opaquePolyID;
++	u8 *translucentPolyID;
++	u8 *stencil;
++	u8 *isFogged;
++	u8 *isTranslucentPoly;
++	u8 *polyFacing;
++	
++	FragmentAttributesBuffer(size_t newCount);
++	~FragmentAttributesBuffer();
++	
++	void SetAtIndex(const size_t index, const FragmentAttributes &attr);
++};
++
++struct Render3DDeviceInfo
++{
++	RendererID renderID;
++	std::string renderName;
++	
++	bool isTexturingSupported;
++	bool isEdgeMarkSupported;
++	bool isFogSupported;
++	bool isTextureSmoothingSupported;
++	
++	float maxAnisotropy;
++	u8 maxSamples;
++};
++
++class Render3DTexture : public TextureStore
++{
++protected:
++	bool _isSamplingEnabled;
++	bool _useDeposterize;
++	size_t _scalingFactor;
++	SSurface _deposterizeSrcSurface;
++	SSurface _deposterizeDstSurface;
++	
++	template<size_t SCALEFACTOR> void _Upscale(const u32 *__restrict src, u32 *__restrict dst);
++	
++public:
++	Render3DTexture(TEXIMAGE_PARAM texAttributes, u32 palAttributes);
++	
++	bool IsSamplingEnabled() const;
++	void SetSamplingEnabled(bool isEnabled);
++		
++	bool IsUsingDeposterize() const;
++	void SetUseDeposterize(bool willDeposterize);
++	
++	size_t GetScalingFactor() const;
++	void SetScalingFactor(size_t scalingFactor);
++};
++
++class Render3D
++{
++protected:
++	Render3DDeviceInfo _deviceInfo;
++	
++	size_t _framebufferWidth;
++	size_t _framebufferHeight;
++	size_t _framebufferPixCount;
++	size_t _framebufferSIMDPixCount;
++	size_t _framebufferColorSizeBytes;
++	FragmentColor *_framebufferColor;
++	
++	FragmentColor _clearColor6665;
++	FragmentAttributes _clearAttributes;
++	
++	NDSColorFormat _internalRenderingFormat;
++	NDSColorFormat _outputFormat;
++	bool _renderNeedsFinish;
++	bool _renderNeedsFlushMain;
++	bool _renderNeedsFlush16;
++	bool _isPoweredOn;
++	
++	bool _enableEdgeMark;
++	bool _enableFog;
++	bool _enableTextureSampling;
++	bool _enableTextureDeposterize;
++	bool _enableTextureSmoothing;
++	size_t _textureScalingFactor;
++	
++	bool _prevEnableTextureSampling;
++	bool _prevEnableTextureDeposterize;
++	size_t _prevTextureScalingFactor;
++	
++	SSurface _textureDeposterizeSrcSurface;
++	SSurface _textureDeposterizeDstSurface;
++	
++	u32 *_textureUpscaleBuffer;
++	Render3DTexture *_textureList[POLYLIST_SIZE];
++	
++	size_t _clippedPolyCount;
++	size_t _clippedPolyOpaqueCount;
++	CPoly *_clippedPolyList;
++	
++	CACHE_ALIGN u16 clearImageColor16Buffer[GPU_FRAMEBUFFER_NATIVE_WIDTH * GPU_FRAMEBUFFER_NATIVE_HEIGHT];
++	CACHE_ALIGN u32 clearImageDepthBuffer[GPU_FRAMEBUFFER_NATIVE_WIDTH * GPU_FRAMEBUFFER_NATIVE_HEIGHT];
++	CACHE_ALIGN u8 clearImageFogBuffer[GPU_FRAMEBUFFER_NATIVE_WIDTH * GPU_FRAMEBUFFER_NATIVE_HEIGHT];
++	
++	template<bool ISCOLORBLANK, bool ISDEPTHBLANK> void _ClearImageScrolledLoop(const u8 xScroll, const u8 yScroll, const u16 *__restrict inColor16, const u16 *__restrict inDepth16,
++																				u16 *__restrict outColor16, u32 *__restrict outDepth24, u8 *__restrict outFog);
++	
++	
++	virtual Render3DError BeginRender(const GFX3D &engine);
++	virtual Render3DError RenderGeometry(const GFX3D_State &renderState, const POLYLIST *polyList, const INDEXLIST *indexList);
++	virtual Render3DError RenderEdgeMarking(const u16 *colorTable, const bool useAntialias);
++	virtual Render3DError RenderFog(const u8 *densityTable, const u32 color, const u16 offset, const u8 shift, const bool alphaOnly);
++	virtual Render3DError EndRender(const u64 frameCount);
++	virtual Render3DError FlushFramebuffer(const FragmentColor *__restrict srcFramebuffer, FragmentColor *__restrict dstFramebufferMain, u16 *__restrict dstFramebuffer16);
++	
++	virtual Render3DError ClearUsingImage(const u16 *__restrict colorBuffer, const u32 *__restrict depthBuffer, const u8 *__restrict fogBuffer, const u8 opaquePolyID);
++	virtual Render3DError ClearUsingValues(const FragmentColor &clearColor6665, const FragmentAttributes &clearAttributes);
++	
++	virtual Render3DError SetupTexture(const POLY &thePoly, size_t polyRenderIndex);
++	virtual Render3DError SetupViewport(const u32 viewportValue);
++	
++public:
++	static void* operator new(size_t size);
++	static void operator delete(void *p);
++	Render3D();
++	~Render3D();
++	
++	const Render3DDeviceInfo& GetDeviceInfo();
++	RendererID GetRenderID();
++	std::string GetName();
++	
++	size_t GetFramebufferWidth();
++	size_t GetFramebufferHeight();
++	bool IsFramebufferNativeSize();
++	
++	virtual Render3DError UpdateToonTable(const u16 *toonTableBuffer);
++	virtual Render3DError ClearFramebuffer(const GFX3D_State &renderState);
++	
++	virtual Render3DError ApplyRenderingSettings(const GFX3D_State &renderState);
++	
++	virtual Render3DError Reset();						// Called when the emulator resets.
++	
++	virtual Render3DError RenderPowerOff();				// Called when the renderer needs to handle a power-off condition by clearing its framebuffers.
++	
++	virtual Render3DError Render(const GFX3D &engine);	// Called when the renderer should do its job and render the current display lists.
++	
++	virtual Render3DError RenderFinish();				// Called whenever 3D rendering needs to finish. This function should block the calling thread
++														// and only release the block when 3D rendering is finished. (Before reading the 3D layer, be
++														// sure to always call this function.)
++	
++	virtual bool RenderFinishLines(const size_t outputLineEnd);	// RewindBox: like RenderFinish(), for the output lines before outputLineEnd
++																	// at least; returns true once the whole render is finished (as after
++																	// RenderFinish()), false while lines below are still being drawn.
++	
++	virtual Render3DError RenderFlush(bool willFlushBuffer32, bool willFlushBuffer16);	// Called whenever the emulator needs the flushed results of the 3D renderer. Before calling this,
++																						// the 3D renderer must be finished using RenderFinish() or confirmed already finished using
++																						// GetRenderNeedsFinish().
++	
++	virtual Render3DError VramReconfigureSignal();		// Called when the emulator reconfigures its VRAM. You may need to invalidate your texture cache.
++	
++	virtual Render3DError SetFramebufferSize(size_t w, size_t h);	// Called whenever the output framebuffer size changes.
++	
++	virtual NDSColorFormat RequestColorFormat(NDSColorFormat colorFormat);	// Called whenever the output framebuffer color format changes. The framebuffer
++																			// output by the 3D renderer is expected to match the requested format. If the
++																			// internal color format of the 3D renderer doesn't natively match the requested
++																			// format, then a colorspace conversion will be required in order to match. The
++																			// only exception to this rule is if the requested output format is RGBA5551. In
++																			// this particular case, the 3D renderer is expected to output a framebuffer in
++																			// RGBA6665 color format. Again, if the internal color format does not match this,
++																			// then a colorspace conversion will be required for RGBA6665.
++	
++	virtual NDSColorFormat GetColorFormat() const;							// The output color format of the 3D renderer.
++	
++	virtual FragmentColor* GetFramebuffer();
++	
++	bool GetRenderNeedsFinish() const;
++	void SetRenderNeedsFinish(const bool renderNeedsFinish);
++	
++	bool GetRenderNeedsFlushMain() const;
++	bool GetRenderNeedsFlush16() const;
++	
++	void SetTextureProcessingProperties();
++	Render3DTexture* GetTextureByPolygonRenderIndex(size_t polyRenderIndex) const;
++	
++	virtual ClipperMode GetPreferredPolygonClippingMode() const;
++	const CPoly& GetClippedPolyByIndex(size_t index) const;
++	size_t GetClippedPolyCount() const;
++};
++
++template <size_t SIMDBYTES>
++class Render3D_SIMD : public Render3D
++{
++public:
++	Render3D_SIMD();
++	
++	virtual Render3DError SetFramebufferSize(size_t w, size_t h);
++};
++
++#if defined(ENABLE_AVX2)
++
++class Render3D_AVX2 : public Render3D_SIMD<32>
++{
++public:
++	virtual Render3DError ClearFramebuffer(const GFX3D_State &renderState);
++};
++
++#elif defined(ENABLE_SSE2)
++
++class Render3D_SSE2 : public Render3D_SIMD<16>
++{
++public:
++	virtual Render3DError ClearFramebuffer(const GFX3D_State &renderState);
++};
++
++#elif defined(ENABLE_ALTIVEC)
++
++class Render3D_Altivec : public Render3D_SIMD<16>
++{};
++
++#endif
++
++#endif // RENDER3D_H
 diff --git a/desmume/src/thumb_instructions.cpp b/desmume/src/thumb_instructions.cpp
 index 2a6ed686..eabc5663 100644
 --- a/desmume/src/thumb_instructions.cpp
@@ -4656,10 +5748,10 @@ index 00000000..5773f7e8
 +#endif
 diff --git a/desmume/src/utils/rb_perf.h b/desmume/src/utils/rb_perf.h
 new file mode 100644
-index 00000000..2b86c29f
+index 00000000..b9797013
 --- /dev/null
 +++ b/desmume/src/utils/rb_perf.h
-@@ -0,0 +1,56 @@
+@@ -0,0 +1,74 @@
 +/*
 +	Copyright (C) 2026 RewindBox
 +
@@ -4693,8 +5785,11 @@ index 00000000..2b86c29f
 +	u64 gpuLine;   // GPUSubsystem::RenderLine, the 2D engines (includes waits for the 3D, counted in wait3d)
 +	u64 wait3d;    // the emulation thread waiting for the rasterizer threads (RenderFinish), resolve included
 +	u64 render3d;  // SoftRasterizerRenderer::Render on the emulation thread (state, clear, start of the threads)
-+	u64 resolve;   // averaging of the supersampled 3D into the output (part of wait3d)
++	u64 resolve;   // averaging of the supersampled 3D into the output (atomic: by bands, the rasterizer threads do it)
 +	u64 raster;    // busy time of the rasterizer threads, all of them (atomic)
++	u64 gpuMain;   // part of gpuLine: the main 2D engine's lines (the one that composes the 3D)
++	u64 gpuSub;    // part of gpuLine: the sub 2D engine's lines
++	u64 gpuEnd;    // part of gpuLine: the end of the frame (resolve to the custom size, display post-processing)
 +};
 +
 +extern RbPerf rb_perf;
@@ -4713,6 +5808,21 @@ index 00000000..2b86c29f
 +static inline void rb_perf_add_atomic(u64 *counter, u64 value)
 +{
 +	__atomic_fetch_add(counter, value, __ATOMIC_RELAXED);
++}
++
++// The counters as the emulation thread sees them; the ones other threads add to are read atomically.
++static inline RbPerf rb_perf_snapshot()
++{
++	RbPerf s;
++	s.gpuLine = rb_perf.gpuLine;
++	s.wait3d = rb_perf.wait3d;
++	s.render3d = rb_perf.render3d;
++	s.resolve = __atomic_load_n(&rb_perf.resolve, __ATOMIC_RELAXED);
++	s.raster = __atomic_load_n(&rb_perf.raster, __ATOMIC_RELAXED);
++	s.gpuMain = rb_perf.gpuMain;
++	s.gpuSub = rb_perf.gpuSub;
++	s.gpuEnd = rb_perf.gpuEnd;
++	return s;
 +}
 +
 +#endif

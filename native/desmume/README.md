@@ -6,8 +6,8 @@ DeSmuME, que le fork libretro n'a jamais importé, puis corrigé et branché sur
 `packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h`. S'y ajoutent les étapes 1 à 4 de
 [docs/desmume-arm64-jit-architecture.md](../../docs/desmume-arm64-jit-architecture.md) (sections 13 et 14) :
 couche commune, interpréteur en cache, JIT RewindBox à appels puis natif ; puis (section 15) le correctif du gel
-de l'IPA 828 et un rendu plus rapide en haute résolution interne ; enfin (section 16) le suréchantillonnage 3D et
-les mesures `[rb-perf]`.
+de l'IPA 828 et un rendu plus rapide en haute résolution interne ; enfin (section 16) le suréchantillonnage 3D,
+les mesures `[rb-perf]` et la 3D qui se dessine pendant la composition 2D.
 
 ## Ce que la compilation assemble
 
@@ -15,9 +15,10 @@ les mesures `[rb-perf]`.
    `emit_core.cpp` et `arm64_emit.cpp` de
    [TASEmulators/desmume@b549f71b](https://github.com/TASEmulators/desmume/tree/b549f71b83287f265b6d74b9e77ef5d98a617190),
    pris à cette révision et vérifiés par SHA-256. `arm_emit.cpp` (ARM 32 bits) n'est pas pris.
-2. **Correctif** `arm64-jit-abi.patch` (21 fichiers, +3 470/−267), un `git diff` contre l'arbre libretro plus ces
-   trois fichiers d'origine. Il crée `utils/arm_jit/rb_cached.cpp`, `rb_a64.h` et `rb_jit.cpp`, et modifie aussi le
-   rendu (`rasterize.cpp`, `rasterize.h`, `GPU.cpp`) et la sortie du frontend.
+2. **Correctif** `arm64-jit-abi.patch` (24 fichiers, +4 138/−581), un `git diff` contre l'arbre libretro plus ces
+   trois fichiers d'origine. Il crée `utils/arm_jit/rb_cached.cpp`, `rb_a64.h`, `rb_jit.cpp` et `utils/rb_perf.h`,
+   et modifie aussi le rendu (`rasterize.cpp`, `rasterize.h`, `render3D.cpp`, `render3D.h`, `GPU.cpp`,
+   `gfx3d.cpp`) et la sortie du frontend.
 3. **En-tête ABI** hors du correctif, copié par la compilation dans
    `desmume/src/frontend/libretro/rewindbox/RewindBoxLibretroJit.h`.
 
@@ -53,9 +54,10 @@ les mesures `[rb-perf]`.
 | TASEmulators/desmume#997 | Une écriture qui arme un DMA fait sortir le bloc, état synchronisé ; la première exécution d'un bloc, interprétée pendant sa compilation, s'arrête aussi là. |
 | `MMU_timing.h` | Accès à la dernière adresse de fetch, que le JIT RewindBox écrit là où elle doit être juste. |
 | Écritures multi-registres du JIT de T (`OP_LDM_STM_main`), **correctif du gel de la 828** | T mettait à zéro deux entrées de la taille d'un pointeur à `&JIT_COMPILED_FUNC(adr)` et avançait de deux pointeurs par mot. Sur la table par pages de l'étape 1 (entrées de 32 bits), chaque STM/PUSH vers la RAM principale écrivait donc au-delà des entrées de la page, ou de la page de zéros partagée : mémoire voisine écrasée. Ces écritures passent maintenant par le crochet d'invalidation (`JIT_COMPILED_FUNC_KNOWNBANK`), comme dans `MMU.h`. |
-| Rastériseur logiciel (`rasterize.cpp`, `rasterize.h`) | Effacement plan par plan (`std::fill_n`, `memset`) au lieu d'un appel par pixel. Avec des fils : l'image est découpée en tranches de groupes de lignes entrelacés (quatre tranches par fil) que les fils prennent à un compteur commun, au lieu d'une bande fixe par fil ; chaque fil efface une tranche juste avant de la dessiner. À la résolution de la console, le fil d'émulation dessine lui-même, comme sans fils. L'image ne change pas. |
+| Rastériseur logiciel (`rasterize.cpp`, `rasterize.h`) | Effacement plan par plan (`std::fill_n`, `memset`) au lieu d'un appel par pixel. Avec des fils : l'image est découpée en tranches que les fils prennent à un compteur commun, au lieu d'une bande fixe par fil (des bandes de lignes consécutives depuis la section 16.5, voir plus bas) ; chaque fil efface une tranche juste avant de la dessiner. À la résolution de la console, le fil d'émulation dessine lui-même, comme sans fils. L'image ne change pas. |
 | Composition de la couche 3D (`GPU.cpp`) | Chemin sans appel ni branchement pour le cas courant (copie simple, image 15 bits, pas de fenêtre), que le compilateur vectorise. Mêmes pixels que `_PixelCopy`. |
-| Sortie du frontend (`libretro.cpp`) | À partir de 512×384, la conversion en RGB565 des deux écrans est partagée avec trois fils d'aide. |
+| Sortie du frontend (`libretro.cpp`) | Conversion en RGB565 des deux écrans par huit pixels en NEON sur AArch64 (mêmes opérations de bits que le chemin SSE2), sur le seul fil d'émulation : vectorisée, elle va plus vite seule qu'avec des fils d'aide qui disputent les cœurs aux fils du rastériseur. Sans vectorisation, à partir de 512×384, elle reste partagée avec trois fils d'aide. |
+| 3D pendant la composition 2D (`rasterize.cpp`, `rasterize.h`, `render3D.cpp`, `render3D.h`, `GPU.cpp`, `gfx3d.cpp`) | Les tranches deviennent des bandes de lignes consécutives (huit par fil), prises de haut en bas ; une bande ne parcourt que les polygones qui la croisent. Une bande est post-traitée (contours, brouillard) et moyennée dès qu'elle et ses voisines sont dessinées. Le moteur 2D n'attend plus toute la 3D à la première ligne : chaque ligne attend ses propres lignes 3D (`RenderFinishLines`), sauf capture directe de la 3D ou sortie 24 bits. Avant que le jeu remplace les listes de polygones (`gfx3d_doFlush`), un rendu encore en cours se termine. Mêmes images. |
 | `desmume_num_cores` | Nouvelle valeur `auto`, valeur par défaut : un fil de rastériseur par cœur de l'appareil (8 au plus). |
 | Suréchantillonnage 3D (`desmume_rb_3d_supersampling`, `rasterize.cpp`) | `2x` : la 3D est dessinée au double de la résolution interne sur chaque axe (tampons de couleur et d'attributs à part), puis chaque bloc de 2×2 échantillons est moyenné dans le tampon 3D que lisent la 2D, la capture et les états. Moyenne simple là où les quatre alphas sont égaux ; ailleurs, couleur pondérée par l'alpha et alpha moyen. Réservé aux résolutions où la 3D dessinée reste dans 2560×1920 (5× au plus) ; appliqué aussitôt. `disabled` (défaut) : rien ne change. |
 | Mesures `[rb-perf]` (`utils/rb_perf.h`, `GPU.cpp`, `rasterize.cpp`, `libretro.cpp`) | Toutes les 600 images, une ligne du journal du cœur donne le temps moyen par image de chaque étape (voir ci-dessous). |
@@ -133,7 +135,7 @@ Ligne du journal du cœur, toutes les 600 images (environ 10 s), temps moyens en
 
 ```
 [rb-perf] desmume frames=600 fps=… res=WxH ss=K threads=N jit=0|1 ms/frame run=… max=… emu=… cpu=… 2d=… 3d=…
-          wait=… out=… host=… raster=… resolve=…
+          wait=… out=… host=… raster=… resolve=… engA=… engB=… end=… over16=N over33=N
 ```
 
 - `run` : `retro_run` en entier ; `max` : la plus longue des 600.
@@ -141,7 +143,11 @@ Ligne du journal du cœur, toutes les 600 images (environ 10 s), temps moyens en
   fil), `wait` (ce fil attend les fils du rastériseur, moyenne du suréchantillonnage comprise) et `cpu` (le reste :
   CPU émulés et autre matériel).
 - `out` : conversion des deux écrans par le frontend ; `host` : appel vidéo de l'hôte (envoi et présentation).
-- `raster` : temps de travail cumulé de tous les fils du rastériseur ; `resolve` : moyenne du suréchantillonnage.
+- `raster` : temps de travail cumulé de tous les fils du rastériseur ; `resolve` : moyenne du suréchantillonnage,
+  faite bande par bande par ces fils (comptée dans `raster`).
+- `engA`, `engB`, `end` : parts de `2d`, les lignes du moteur principal (celui qui compose la 3D), celles du moteur
+  secondaire et la fin d'image (agrandissement à la taille interne, post-traitement des écrans).
+- `over16`, `over33` : images des 600 dont `retro_run` a dépassé 16,7 ms (une image à 60 Hz manquée) et 33,3 ms.
 
 Banc (x86-64 à 2,1 GHz, 4 processeurs virtuels, interpréteur, scène « Galaxy », `threads=4`) :
 
@@ -157,6 +163,32 @@ contre ×5 seul, 42,6 contre 35,6 dB (MarioKart de dsgmLib), 48,0 contre 41,7 dB
 L'écran 2D est identique au bit près. Avec `disabled`, images et son identiques au cœur de la 829 (cinq réglages,
 1 à 4 fils et `auto`, ×1 à ×10) ; en JIT AArch64, mêmes dernières images que l'interpréteur, options basculées en jeu,
 état sauvegardé puis rechargé.
+
+### 3D pendant la composition 2D (section 16.5)
+
+DeSmuME lance la 3D à la ligne 262 (fin de la période sans affichage) et le moteur 2D en a besoin à la ligne 0 :
+avant ce changement, la 3D ne recouvrait que la sortie du frontend et l'envoi à l'hôte, et le fil d'émulation
+attendait le reste. Elle se dessine désormais aussi pendant la composition des lignes 0 à 191.
+
+Banc (mêmes conditions, sans le hachage d'image du banc, `threads=4`, deux séries) :
+
+| Réglage | fps avant | fps après | run avant | run après | wait avant | wait après |
+|---|---|---|---|---|---|---|
+| ×5 + 3D 2x | 42,0–47,8 | 57,5–65,4 | 20,9–23,8 | 15,3–17,4 | 12,6–13,3 | 7,3–8,9 |
+| ×4 + 3D 2x | 58,3–58,4 | 82,5–94,2 | 17,1 | 10,6–12,1 | 9,1–9,3 | 3,6–4,6 |
+| ×10 | 31,3–38,7 | 40,5–46,2 | 25,8–32,0 | 21,7–24,7 | 8,2–10,8 | 2,4–2,6 |
+| ×5 | 90,6–99,1 | 109,6–124,4 | 10,1–11,0 | 8,0–9,1 | 1,6–2,0 | 0,4 |
+
+Images et son identiques au bit près à ceux du cœur précédent :
+- 50 homebrews en ×5 + 3D 2x, sur x86 ;
+- 5 homebrews 3D × 4 réglages (×2 à ×10, 3 et 4 fils), plus ×1 ;
+- contours et brouillard forcés : 4 homebrews × 3 réglages ;
+- état sauvegardé puis rechargé, réglages changés en jeu, remise à zéro, rechargement du jeu ;
+- AArch64 sous qemu, JIT et interpréteur, conversion NEON comprise (8 cas).
+
+ThreadSanitizer ne signale que l'écriture concurrente, par plusieurs fils du rastériseur, de compteurs de statistiques
+de texture (`TextureStore::ResetCacheAge`, `IncreaseCacheUsageCount`), du code de DeSmuME que ce changement ne
+touche pas.
 
 ## Limites connues
 
