@@ -1,23 +1,32 @@
 diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
-index 7ec83e8..02b68e2 100644
+index 7ec83e8..8ea36cd 100644
 --- a/graphics/nvn/gfx/nvn/hle_nvn.c
 +++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -2189,7 +2189,7 @@ NVN(nvnCommandBufferClearDepthStencil, void, NVNcommandBuffer *c, float depth, u
+     p_clear_ds *r = REC(c, OP_CLEAR_DS, p_clear_ds); *r = (p_clear_ds){depth, (int)B(dmask), stencil, smask};
+ }
+ NVN(nvnCommandBufferSetViewports, void, NVNcommandBuffer *c, int first, int n, const float *v) {
+-    if (n < 0 || first + n > 16) { LOG("【红】 SetViewports first=%d n=%d", first, n); return; }
++    if (first < 0 || n < 0 || first + n > 16) { LOG("【红】 SetViewports first=%d n=%d", first, n); return; }   // RewindBox (patch 0343 review): a negative first wrote before S.vp
+     // 按实际个数录（同 RECN 上方说明）：定长 400 字节时 Mario Tennis Aces 每画一次设一次视口，1 MB 命令内存用满后回调游戏，而那块缓冲没注册溢出处理 → 跳空指针（11-01）
+     p_viewports *r = RECN(c, OP_VIEWPORTS, p_viewports, v, n); r->first = first; r->n = n;
+     for (int i = 0; i < n; i++) memcpy(r->v[i], v + 4 * i, 16);
 @@ -3922,6 +3922,13 @@ static void power_line(uint64_t frame) {
                  (unsigned long long)(cont[2] - last_cont[2]), (unsigned long long)(cont[3] - last_cont[3]), (unsigned long long)(cont[4] - last_cont[4]), (cont[5] - last_cont[5]) / nf);
              memcpy(last_cont, cont, sizeof cont);
          }
-+        void nvn_be_cover_stats(uint64_t v[4]); static uint64_t last_rbcov[4]; uint64_t rbcov[4]; nvn_be_cover_stats(rbcov);   // RewindBox (patch 0343)
++        void nvn_be_cover_stats(uint64_t v[5]); static uint64_t last_rbcov[5]; uint64_t rbcov[5]; nvn_be_cover_stats(rbcov);   // RewindBox (patch 0343)
 +        if (memcmp(rbcov, last_rbcov, sizeof rbcov)) {
 +            LOG("[gpu-pass] loads left out under a covering first draw up to frame %llu: %.1f a frame, %.1f MB a frame; first draw not drawn after all, pass ended at once %llu, "
-+                "attachment left unstored %llu (RewindBox patch 0343, S2A_RB_COVER_LOAD)",
-+                frame, (rbcov[0] - last_rbcov[0]) / nf, (rbcov[1] - last_rbcov[1]) / 1048576.0 / nf, (unsigned long long)(rbcov[3] - last_rbcov[3]), (unsigned long long)(rbcov[2] - last_rbcov[2]));
++                "attachment left unstored %llu, load kept for other viewports %llu (RewindBox patch 0343, S2A_RB_COVER_LOAD)",
++                frame, (rbcov[0] - last_rbcov[0]) / nf, (rbcov[1] - last_rbcov[1]) / 1048576.0 / nf, (unsigned long long)(rbcov[3] - last_rbcov[3]), (unsigned long long)(rbcov[2] - last_rbcov[2]), (unsigned long long)(rbcov[4] - last_rbcov[4]));
 +            memcpy(last_rbcov, rbcov, sizeof rbcov);
 +        }
          void nvn_be_lc_stats(uint64_t *, uint64_t *); static uint64_t plt, pll; uint64_t lt, ll; nvn_be_lc_stats(&lt, &ll);
          void nvn_be_ubp_why(uint64_t w[5]); static uint64_t pw5[5]; uint64_t w5[5]; nvn_be_ubp_why(w5);
          uint64_t ld, st, fu, udc = nvn_be_udc_saved_bytes(); nvn_be_bw(&ld, &st, &fu);
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 463de0e..c2214b3 100644
+index 463de0e..fa0b19f 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -9653,6 +9653,7 @@ static int rb_clear_desc_matches(MTL4RenderPassDescriptor *pd) {
@@ -28,12 +37,20 @@ index 463de0e..c2214b3 100644
  static int g_rb_clear_legacy = -1;
  static _Atomic int g_rb_next_clear_mode;
  static _Atomic uint64_t g_rb_adjacent_pairs, g_rb_adjacent_stores, g_rb_adjacent_bytes;
-@@ -9820,6 +9821,8 @@ static int pf_is_float(MTLPixelFormat f) {   // Float color formats that can sto
+@@ -9813,13 +9814,15 @@ static void sd_finish(void);
+ // the first draw does not blend and writes all channels, every covered pixel is rewritten by it, and the original content is not visible (Switch immediate-mode rendering has no such cost; on TBDR load = reading the whole thing from memory into the tile)
+ static const p_draw *g_fd_dw; static const p_draw_idx *g_fd_di;   // The draw that opens the pass (one of non-indexed / indexed); non-null only while draw() is opening a pass
+ static uint64_t g_fd_n;         // Cumulative number of attachments judged elidable
+-static int g_fd_why;            // Reason for the most recent failure (Q line of PASSDUMP: 1 no program 2 shader 3 attachment 4 blend/mask/raster 5 depth-stencil test 6 vertex count 7 position attribute 8 format/stream 9 out of bounds 10 address 11 geometry)
++static int g_fd_why;            // Reason for the most recent failure (Q line of PASSDUMP: 1 no program 2 shader 3 attachment 4 blend/mask/raster 5 depth-stencil test 6 vertex count 7 position attribute 8 format/stream 9 out of bounds 10 address 11 geometry 12 other viewports, RewindBox patch 0343)
+ static int first_draw_covers(int i, id<MTLTexture> t, NSUInteger level);
+ static int pf_is_float(MTLPixelFormat f) {   // Float color formats that can store NaN (sentinel choice for the load-elision probe; RGB9E5 cannot store NaN and does not count)
+     switch (f) { case MTLPixelFormatR16Float: case MTLPixelFormatRG16Float: case MTLPixelFormatRGBA16Float: case MTLPixelFormatR32Float:
          case MTLPixelFormatRG32Float: case MTLPixelFormatRGBA32Float: case MTLPixelFormatRG11B10Float: return 1; default: return 0; }
  }
  static int fz_load_covers(int i, id<MTLTexture> t, NSUInteger level);
 +static int rb_cover_load(int i, id<MTLTexture> t, NSUInteger level);   // RewindBox (patch 0343): defined with first_draw_covers
-+static uint64_t g_rb_cov_n, g_rb_cov_bytes, g_rb_cov_kept;   // nvn_be_cover_stats
++static uint64_t g_rb_cov_n, g_rb_cov_bytes, g_rb_cov_kept, g_rb_cov_vp_kept;   // nvn_be_cover_stats; g_rb_cov_vp_kept: loads kept for other viewports (patch 0343 review)
  static NSMutableArray *g_lp;    // DM_NVN_LOADPROBE=1 / 2 / 3 (two constant sentinel values / NaN - under float formats normal shader output cannot reach NaN, ruling out numeric coincidence): attachments judged elidable are cleared to the sentinel color instead, and at pass end the remaining sentinel pixels are read back and counted (diagnostic: should be 0)
  static void lp_finish(void);
  // Same-target continuation: when the game calls SetRenderTargets again on the same set of targets (with no copy / dispatch / clear in between) the pass is not ended - on TBDR this saves one full write-back + load.
@@ -87,7 +104,7 @@ index 463de0e..c2214b3 100644
              int dead = unwritten || rb_terminal_discard(t);
              if (!dead && (g_rb_next_clear_mask & (1u << i))) {
                  dead = 1;
-@@ -19017,6 +19027,50 @@ static int first_draw_covers(int i, id<MTLTexture> t, NSUInteger level) {
+@@ -19017,6 +19027,52 @@ static int first_draw_covers(int i, id<MTLTexture> t, NSUInteger level) {
      return nvn_cover((const float (*)[4])P, n, prim, (int)S.poly.cull, ((S.poly.front == NVN_FRONT_FACE_CCW) != (s2a_nvn_rast_flip != 0)) != atomic_load_explicit(&g_origin_ll, memory_order_relaxed),   // NDC counter-clockwise is front: Metal's winding (see the draw), mirrored by the lower-left viewport flip
                       S.has_vp, vp, R.has_sc, sc, (long)cw, (long)ch);
  }
@@ -119,7 +136,9 @@ index 463de0e..c2214b3 100644
 +    if (g_fd_di && S.restart.on) return g_fd_why = 6, 0;
 +    // a vertex shader that writes the viewport index picks one of the game's viewports, and the proof maps viewport 0 alone: refused once the game has set another
 +    //   viewport to a different rectangle (the reflection does not say which shaders write it)
-+    for (unsigned m = S.rb_vp_set; m; m &= m - 1) if (memcmp(S.vp[__builtin_ctz(m)], S.vp[0], sizeof S.vp[0])) return g_fd_why = 4, 0;
++    //   (patch 0343 review: its own reason, 12, and its own count in the [gpu-pass] line: a game that set the other viewports once and then moves viewport 0 alone keeps
++    //   every load, which only this count shows)
++    for (unsigned m = S.rb_vp_set; m; m &= m - 1) if (memcmp(S.vp[__builtin_ctz(m)], S.vp[0], sizeof S.vp[0])) { g_rb_cov_vp_kept++; return g_fd_why = 12, 0; }
 +    const double s = rs_of(t);
 +    if (s != 1.0) { NSUInteger cw, ch; rs_canvas(t, level, &cw, &ch);
 +        if (fabs((double)cw * s - (double)rs_mip(t.width, level)) > 1e-6 || fabs((double)ch * s - (double)rs_mip(t.height, level)) > 1e-6) return g_fd_why = 3, 0; }
@@ -134,11 +153,11 @@ index 463de0e..c2214b3 100644
 +    g_rb_cov_undrawn++; PD("Q %llu pass ended: its first draw, which covers slots %#x not loaded, was not drawn", g_stat_pass, g_rb_cov_mask);
 +    rp_end();
 +}
-+void nvn_be_cover_stats(uint64_t v[4]) { v[0] = g_rb_cov_n; v[1] = g_rb_cov_bytes; v[2] = g_rb_cov_kept; v[3] = g_rb_cov_undrawn; }   // RewindBox (patch 0343)
++void nvn_be_cover_stats(uint64_t v[5]) { v[0] = g_rb_cov_n; v[1] = g_rb_cov_bytes; v[2] = g_rb_cov_kept; v[3] = g_rb_cov_undrawn; v[4] = g_rb_cov_vp_kept; }   // RewindBox (patch 0343)
  
  int nvn_dpool_base(const void *pool, int tex);   // hle_nvn.c: where a descriptor pool's IDs start in the host table
  static int state_op(uint32_t op, const void *a, uint32_t size) {
-@@ -19083,7 +19137,7 @@ static int state_op(uint32_t op, const void *a, uint32_t size) {
+@@ -19083,7 +19139,7 @@ static int state_op(uint32_t op, const void *a, uint32_t size) {
              break;
          }
          case OP_POLY_OFFSET: S.po = *(const p_poly_offset *)a; break;
@@ -147,7 +166,7 @@ index 463de0e..c2214b3 100644
          case OP_DEPTH_RANGE: { const p_depth_range *b = a; S.dr[0] = b->n; S.dr[1] = b->f; break; }
          case OP_DEPTH_CLAMP: S.depth_clamp = ((const p_depth_clamp *)a)->on; break;
          case OP_VP_SWIZZLE: { const p_vp_swizzle *b = a; memcpy(S.vp_sw[b->first], b->sw, 4 * (size_t)b->n); break; }
-@@ -23544,7 +23598,9 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+@@ -23544,7 +23600,9 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
      g_rp_layered = pr->sh[0] && pr->sh[0]->layer_out;
      if (g_enc && g_pass.layered != g_rp_layered) rp_end();   // a layered pass only for layer-writing vertex shaders (see rp_begin_ex)
      g_noload_mask = g_enc ? 0 : pass_color_unwritten(pr);   // color attachments proven unwritten to this pass's end are not loaded (see g_noload_mask)
@@ -157,7 +176,7 @@ index 463de0e..c2214b3 100644
      g_noload_mask = 0;
      g_rp_layered = 0;
      g_fd_dw = NULL; g_fd_di = NULL;
-@@ -23565,7 +23621,7 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+@@ -23565,7 +23623,7 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
      int fc = g_pso_lmap || g_pso_fsfn ? 0 : se_want(pr->gp, pr->sh[1], 1);
      if (g_mtk.on) {   // a task / mesh draw (mesh_tasks_draw): its own pipeline kind; the next draw fetches its own again (cur_pr nil)
          g_pso_fc = fc; cur_ps = mtk_pso(pr); cur_ps_round = g_pso_color_round; g_pso_fc = 0; cur_pr = nil;
@@ -166,7 +185,7 @@ index 463de0e..c2214b3 100644
      else if (g_pso_dirty || pr != cur_pr || cur_ps_pass != g_pass.serial || fc != cur_ps_fc) { g_pso_fc = fc;
          p_draw_idx shape;
          g_rb_first_indexed = rb_first_draw_on() && rb_observed_workers_on() && !g_geo_program ? rb_first_shape(dw,di,&shape) : NULL;
-@@ -23573,8 +23629,8 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+@@ -23573,8 +23631,8 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
      g_udc_lmap = g_pso_lmap; g_udc_fsfn = g_pso_fsfn != nil;   // udc_note_draw (below) judges this draw's writes by the map its pipeline used
      if (g_pso_lmap) { g_pso_lmap = NULL; g_pso_fsfn = nil; memset(&g_pso_fz, 0, sizeof g_pso_fz); g_pso_dirty = 1; }   // The next draw fetches again according to its own situation
      __unsafe_unretained id<MTLRenderPipelineState> ps = cur_ps;
@@ -177,7 +196,7 @@ index 463de0e..c2214b3 100644
      draw_widen(pr, dw, di);   // S2Arm widen: this draw's mode and rewritten uniforms (see draw_widen)
      // The widen core samples textures too (World War Z: "texture upgraded to allow format views" right after the core sampled it); an upgrade there ends the pass before any state is set
      //   on en. Same retry as after the binding below
-@@ -23590,7 +23646,7 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+@@ -23590,7 +23648,7 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
      { uint32_t r5[5]; if (wd_p2_want_self(R.has_rt && R.rt.n > 0 ? R.rt.color[0] : NULL, r5)) wd_p2_self_clear(en, r5); }   // S2Arm widen: fallback sentinel in the world target's side bands when the game did not clear it this frame
      if (ps != g_enc_pso) { enc_r_pso(en, ps); g_enc_pso = ps; }
      enc_r_half_mask(en, cur_ps_round);

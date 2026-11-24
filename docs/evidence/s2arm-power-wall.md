@@ -298,6 +298,70 @@ Pistes : 0342 sur la chaîne 960×540 (si les mêmes cibles y sont réattachées
 du fil de traduction (A/B avec la consommation), listes de pipelines. C'est le meilleur candidat de
 l'interpolation d'images une fois les 30 i/s tenus.
 
+## Gels de compilation en jeu (24 novembre)
+
+Sources : journaux de Zelda (`0400486024DEC000`) et de Fire Emblem (`04007EF01F8AE000`) du
+24 novembre, avec deux journaux de Mario Kart World du même jour pour comparer.
+
+**Ce qui fige.**
+- Zelda : 1 268 images longues, 170 s en tout, dont 102 s dans des images qui attendaient de
+  nouveaux shaders ou pipelines.
+- Pires images de Zelda : 8,5 s (23 pipelines et 17 bibliothèques de shaders) et 8,25 s
+  (13 bibliothèques compilées en 5,3 s, dont 4,4 s d'attente du fil de rendu).
+- Fire Emblem : jusqu'à 1,9 s.
+
+**Le coût vient de la compilation Metal, pas de la traduction.**
+- Zelda a compilé 2 042 bibliothèques depuis leur source MSL dans la session, pour 332 s de calcul.
+- Au démarrage (état thermique 1) : 1 335 bibliothèques en 51 s, 38 ms chacune.
+- En jeu (état thermique 2) : 390 à 410 ms chacune.
+- La traduction en MSL ne prend qu'environ 11 s en tout (101 ms en moyenne par shader de pixels).
+
+**Le cache système de Metal suffit quand il garde les shaders.**
+- Une bibliothèque déjà vue revient en environ 1 ms : Fire Emblem 321 en 0,2 s, Mario Kart World
+  3 893 en 3,4 s.
+- Les shaders vraiment nouveaux coûtent 89 à 155 ms (états thermiques 0 et 1).
+- Ceux de Zelda n'y étaient pas, alors que la plupart avaient été compilés lors des sessions
+  précédentes.
+- Cause non établie : cache vidé ou plein. Le pont demande 1 Gio (`MTL_SHADER_CACHE_SIZE`) au
+  lancement du jeu, peut-être trop tard : Flutter ouvre Metal dès le démarrage de l'application.
+  Non vérifié sur iOS.
+
+**Les fils.**
+- Un créneau « observé » (2 voies) traduisait un shader puis compilait sa bibliothèque à la suite
+  (`S2A_RB_URGENT_CONTINUATION`).
+- Résultat : au plus 2 compilations à la fois, pendant que les traductions suivantes attendaient
+  un créneau.
+- L'iPhone compile 4 bibliothèques à la fois (`maximumConcurrentCompilationTaskCount`).
+
+**Ce que font les autres.**
+- **Outil hors ligne de S2Arm** : il regroupe plusieurs shaders dans une seule compilation, parce
+  que l'instanciation des modèles de textures de Metal coûte 111 ms sur 163 pour un gros shader.
+  Non repris sur l'appareil : des groupes qui varient d'une session à l'autre ne seraient jamais
+  retrouvés par le cache système, qui est indexé par la source.
+- **maxmetal** ([nxnative #812](https://github.com/seedds/nxnative/pull/812)) traduit en quelques
+  millisecondes, mais seulement le code Maxwell de la Switch 1. Les shaders des jeux Switch 2 sont
+  du code Ampere. Il compile toujours le MSL sur l'appareil. nxnative l'a refusé : régression GPU
+  dans Tears of the Kingdom (6,5 → 6,8 à 7,9 ms).
+- **[nxnative #751](https://github.com/seedds/nxnative/pull/751)** précompile les shaders de l'hôte
+  à la construction.
+- **S2Arm Android** (24 novembre) : groupe de 4 fils de compilation, l'image en cours passe devant.
+  Attente maximale de 244 à 1 311 ms ramenée à 24 à 50 ms, mesurée sur Android, pas sur iOS.
+
+**Patch 0347.**
+- Les compilations de bibliothèques ont leurs propres voies : 3 sur l'A18 Pro, à côté du fil de
+  rendu. Le créneau de traduction se libère tout de suite. `S2A_RB_COMPILE_LANES=0` rétablit
+  l'ancien comportement.
+- Le journal donne la taille du cache système et l'espace libre au début et à la fin du
+  préchauffage, ainsi que le coût réel des compilations du préchauffage : environ 1 ms chacune
+  veut dire que le cache les avait.
+- Écrit, en relecture. Ni compilé ni mesuré.
+
+**Suite.**
+- Fixer la taille du cache dès le démarrage de l'application.
+- Fire Emblem : son fil de traduction tourne surtout sur les cœurs efficaces (environ 1,5 GHz)
+  sans le groupe de travail d'image. Ce groupe est coupé depuis 0097 pour permettre la mise en
+  pause. L'amont l'a mesuré : 1,69 → 2,47 W au même 60 i/s. À mesurer jeu par jeu.
+
 ## Recherche du 24 novembre : amont, nxnative et projets iOS
 
 Lecture seule de S2Arm amont, de nxnative et d'une vingtaine de projets publics sous licence MIT
@@ -356,12 +420,36 @@ d'images » dans l'application, désactivé par défaut ; activé, le lancement 
 menu en jeu l'allume ou l'éteint en cours de partie (`s2a_rb_guest_set_frame_interp`). Seuls les jeux
 qui demandent 30 i/s ou moins sont interpolés.
 
+**Relecture adverse du 24 novembre : quatre défauts réels, corrigés dans 0345.**
+- Rallumer l'interpolation en jeu ne faisait rien : notre crochet ne consultait plus le réglage
+  pour les images fournies par le lien d'affichage. Il le fait maintenant pour chaque image, comme
+  l'amont.
+- L'arrêt de partie n'attendait pas les deux tampons de commandes de l'interpolation (faute de page
+  GPU possible). Ils comptent maintenant comme une présentation en cours, et leurs erreurs passent
+  par l'arrêt de sécurité GPU.
+- Après un échec de l'interpolation, les parties suivantes du même processus perdaient le lien
+  d'affichage. Elles le gardent.
+- Une table d'arguments avait une place de moins que ce qui y est lié (5 au lieu de 4).
+
+Risques traités dans le même lot :
+- Une image du palier 60 i/s ne passe plus par l'interpolation : SMAA, agrandissement MetalFX,
+  durée minimale d'affichage et lien restent ceux d'avant.
+- Le palier se lit sur le maintien d'image de RewindBox. Les images à intervalle 2 passagères
+  d'un jeu à 60 (Mario Kart World) restent donc hors interpolation.
+- Une course rare pouvait geler le jeu, quand on éteignait puis rallumait vite.
+- Une nouvelle session ne reprend pas l'historique de l'interpolation.
+- Une image non interpolée reste affichée une période entière.
+
+Limite connue : sur les jeux interpolés (palier 30), l'image réelle est copiée sans SMAA ni
+agrandissement MetalFX, comme dans l'amont.
+
 **À vérifier dans le prochain journal**, sur Fire Emblem en résolution 1 :
 - ligne `present frame interpolation: on` au lancement, puis toutes les 300 images
   `present frame interpolation up to game frame …` : images interpolées, refusées par la règle, coût
   GPU moyen et maximal par interpolation ;
-- répartition des intervalles affichés (`displayed distribution`) : 16,7 ms attendus quand le jeu
-  tient ses 30 ;
+- la ligne de l'interpolation toutes les 300 images (images interpolées, montrées par le système).
+  La répartition des intervalles affichés (`displayed distribution`) compte les images du jeu : il
+  faut y attendre environ 33,3 ms, pas 16,7 ;
 - GPU p50 et i/s du jeu, comparés à la session sans interpolation.
 
 ## Suivi

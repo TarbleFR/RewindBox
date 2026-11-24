@@ -211,6 +211,18 @@ index 16ad30b..463de0e 100644
              // Do not mark dirty if the state did not change (the game often re-sends the same program / state block / vertex format before each draw; the dirty flag only decides whether to re-fetch the pipeline / depth-stencil object, and equal values mean the same object)
              case OP_BIND_VBUF: {
                  state_op(h.op,a,h.size);
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 02fda4e..9628bcf 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -237,6 +237,7 @@ int nvn_be_shutdown_session(void) {
+     for (int i = 0; i < g_nfzs; i++) { free(g_fzs[i].S_); g_fzs[i].S_ = NULL; }
+     g_nfzs = g_fzs_bad = g_fz_checking = 0; memset(g_fzs, 0, sizeof g_fzs); memset(&g_fz, 0, sizeof g_fz);
+     memset(&g_pass, 0, sizeof g_pass); g_rt_range_active = g_rt_range_pending = 0;
++    memset(&g_rb_cont_memo, 0, sizeof g_rb_cont_memo);   // RewindBox (patch 0342 review): pass serials start again at 1 and the programs it names are gone (park and resume)
+     g_exec_next = g_exec_cur = NULL; g_rest = NULL; g_nrest = g_ret_n = g_hoist_n = 0;
+     memset(g_ret, 0, sizeof g_ret); memset(g_hoist_skip, 0, sizeof g_hoist_skip);
+     memset(g_vconv, 0, sizeof g_vconv); g_vconv_next = 0;
 diff --git a/graphics/nvn/gfx/nvn/rb_rt_cont.h b/graphics/nvn/gfx/nvn/rb_rt_cont.h
 new file mode 100644
 index 0000000..a0f2872
