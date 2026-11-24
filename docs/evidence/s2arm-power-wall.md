@@ -386,7 +386,10 @@ Sources : journaux de Zelda (`0400486024DEC000`) et de Fire Emblem (`04007EF01F8
   iOS en CI à suivre ; ni livré ni mesuré sur iPhone.
 
 **Suite.**
-- Fixer la taille du cache dès le démarrage de l'application.
+- Taille du cache Metal : rien à avancer au démarrage de l'application. Le pont la fixe à 1 Gio
+  avant de charger le moteur, et 1 Gio est aussi la valeur par défaut (désassemblage tiers de
+  Metal sur macOS ; iOS non vérifié) : la poser plus tôt ne changerait rien. Le rapport de 0347
+  dira si le cache se vide (redémarrage, mise à jour d'iOS) ou s'il est plein.
 - Fire Emblem : son fil de traduction tourne surtout sur les cœurs efficaces (environ 1,5 GHz)
   sans le groupe de travail d'image. Ce groupe est coupé depuis 0097 pour permettre la mise en
   pause. L'amont l'a mesuré : 1,69 → 2,47 W au même 60 i/s. À mesurer jeu par jeu.
