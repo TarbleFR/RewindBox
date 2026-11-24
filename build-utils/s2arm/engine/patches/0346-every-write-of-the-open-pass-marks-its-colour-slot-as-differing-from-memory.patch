@@ -1,8 +1,20 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_geometry.inc b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+index 163005f..b21df20 100644
+--- a/graphics/nvn/gfx/nvn/nvn_geometry.inc
++++ b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+@@ -791,6 +791,7 @@ static void geo_draw(NvProg *pr, const p_draw *dw0, const p_draw_idx *di0) {
+     p_draw vertex_range = {.first = (int32_t)first, .count = (int32_t)span, .instances = instances, .base_instance = (int32_t)first_instance};
+     vconv_bind(re, vs, 1, &vertex_range, NULL);
+     args_dirty_all(); encode_args(re, vs, 0, 1); enc_r_vbuf(re, 13, capture_info);
++    g_udc_precise = 1;   // RewindBox (patch 0346 review): the capture draws into its own pass with no attachment: no write of the open pass to mark (udc_encode)
+     if (di0) enc_r_draw_indexed(re, MTLPrimitiveTypePoint, unique_count, MTLIndexTypeUInt32, capture_ix, nu * 4, instances, di.base_vertex, first_instance);
+     else enc_r_draw_instanced(re, MTLPrimitiveTypePoint, dw.first, dw.count, instances, first_instance);
+     if (!run) enc_r_end(re);
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 06048db..0a26d95 100644
+index 5c89941..5ec18e5 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
-@@ -13765,9 +13765,21 @@ static int udc_slot_writes(int i, __unsafe_unretained NvShader *fs) {
+@@ -13766,9 +13766,21 @@ static int udc_slot_writes(int i, __unsafe_unretained NvShader *fs) {
  //   Opting in per draw path lost writes: DrawTexture, tessellation and merged passes never reported, and their attachments' write-backs became DontCare
  //   (t_nvn_drawtex / t_nvn_tess_dom / t_nvn_color_round, 10-30). A draw that encodes more than once counts conservatively from its second encode on
  static int g_udc_precise;
@@ -24,7 +36,18 @@ index 06048db..0a26d95 100644
  }
  static void udc_note_draw(NvProg *pr) {
      g_udc_precise = 1;
-@@ -21648,7 +21660,7 @@ static void draw_top(const p_draw *dw, const p_draw_idx *di) {
+@@ -19790,8 +19802,8 @@ static rb_cont_tex rb_cont_tid(int tid) {   // caller holds g_rmu
+     return (rb_cont_tex){g_treg[tid].t.serial, g_treg[tid].t.mem};
+ }
+ // 1 = the draw may read an attachment of the open pass, whose content memory may not hold yet: every colour attachment and the depth / stencil texture. The colour slots
+-//   the pass changed are not told apart: g_fb_dirty misses writes made outside draw_impl's own note (DrawTexture, tessellation, a clear drawn as a triangle, a fragment
+-//   shader without a colour list), so a slot it shows clean may hold a write memory does not have yet (patch 0342 review). *unknown: a binding could not be resolved
++//   the pass changed are not told apart: g_fb_dirty follows every write since patch 0346, but S2A_RB_FB_MARKS=0 brings back the marks that missed DrawTexture,
++//   tessellation, clears drawn as triangles and fragment shaders without a colour list (patch 0342 review). *unknown: a binding could not be resolved
+ //   (counted apart). Not inlined, so that a CPU profile shows what it costs the submit thread
+ __attribute__((noinline)) static int rb_cont_reads_rt(NvProg *pr, int *unknown) {
+     *unknown = 0;
+@@ -21651,7 +21663,7 @@ static void draw_top(const p_draw *dw, const p_draw_idx *di) {
  }
  // After a draw: the color slots it wrote now differ from memory until the pass ends (fb_prepare copies a hit on such a slot); the same write test as udc_note_draw
  static void fb_note_draw(NvProg *pr) {
@@ -33,7 +56,23 @@ index 06048db..0a26d95 100644
      if (R.has_rt) for (int i = 0; i < R.rt.n && i < 8; i++) if ((cm >> i & 1) && ((S.chmask.mask >> (4 * i)) & 0xf)) g_fb_dirty[i] = 1;
  }
  // RewindBox (patch 0324): a draw that samples an attachment of its own pass marks the fragment stage's argument block alone, and only when its substitution is not
-@@ -25276,6 +25288,7 @@ static void clear_tex_tri(const p_clear_tex *c, id<MTLTexture> t, unsigned level
+@@ -23193,6 +23205,7 @@ static void draw_emit(id en, MTLPrimitiveType mp, int prim, const p_draw *dw, co
+ //   blend) and kept here; the built-in shaders are not in the library and never reach pso_user.tsv. Integer / depth sources or targets, and non-2D textures, are skipped with one line
+ static int fmt_int_or_ds(MTLPixelFormat f);
+ static NvShader *g_dt_vs, *g_dt_fs; static id g_dt_tab;
++static void clr_note(int slot, int depth, int stencil);   // RewindBox (patch 0346 review)
+ static void draw_tex(const p_draw_tex *t) {
+     int descriptor_scope __attribute__((cleanup(rs_descriptor_scope_end))) = rs_descriptor_scope_begin();
+     int prior_rs_scope __attribute__((cleanup(rs_restore_draw_scope))) = g_rs_native_draw;
+@@ -23260,6 +23273,7 @@ static void draw_tex(const p_draw_tex *t) {
+     enc_r_pso(en, ps); g_enc_pso = ps; g_pso_dirty = 1;
+     enc_r_table(en, g_dt_tab, MTLRenderStageFragment);
+     tab_tex(g_dt_tab, tx, 0); tab_samp(g_dt_tab, sp, 0); tab_buf(g_dt_tab, pb, po, 0);
++    if (rb_fb_marks_on()) { clr_note(0, 1, 1); g_udc_precise = 1; }   // RewindBox (patch 0346 review): colour 0 alone, its pipeline masks the others; depth and stencil as before
+     enc_r_draw(en, MTLPrimitiveTypeTriangleStrip, 0, 4);
+     args_dirty_all();   // the fragment table above replaced the game's: the next draw binds its own again
+     g_stat_draw++;
+@@ -25279,6 +25293,7 @@ static void clear_tex_tri(const p_clear_tex *c, id<MTLTexture> t, unsigned level
  }
  static void clr_note(int slot, int depth, int stencil) {   // as udc_note_draw for a draw: the attachment was written (zero-source skip, unwritten-attachment store)
      if (slot >= 0 && R.rt.color[slot]) { zskip_del(R.rt.color[slot]->serial); g_zskip_cand_ok[slot] = 0; }

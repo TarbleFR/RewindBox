@@ -797,6 +797,26 @@ static bool HostEnvironment(unsigned command, void *data) {
     case ENV_BASE(RETRO_ENVIRONMENT_GET_SAVESTATE_CONTEXT):
       if (data != NULL) *(enum retro_savestate_context *)data = RETRO_SAVESTATE_CONTEXT_NORMAL;
       return true;
+    case ENV_BASE(RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER): {
+      // Zero copy: the frame drawn straight into memory the presenter hands to the GPU as it is.
+      struct retro_framebuffer *framebuffer = data;
+      if (framebuffer == NULL ||
+          ![delegate respondsToSelector:@selector(coreHost:softwareFramebufferWithWidth:height:format:pitch:)]) {
+        return false;
+      }
+      size_t pitch = 0;
+      void *memory = [delegate coreHost:host
+            softwareFramebufferWithWidth:framebuffer->width
+                                  height:framebuffer->height
+                                  format:host->_pixelFormat
+                                   pitch:&pitch];
+      if (memory == NULL) return false;
+      framebuffer->data = memory;
+      framebuffer->pitch = pitch;
+      framebuffer->format = host->_pixelFormat;
+      framebuffer->memory_flags = RETRO_MEMORY_TYPE_CACHED;
+      return true;
+    }
     case RETRO_ENVIRONMENT_GET_JIT_CAPABLE:
       if (data != NULL) *(bool *)data = host->_jitCapable;
       return true;

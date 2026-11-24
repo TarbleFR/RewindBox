@@ -7,7 +7,8 @@ DeSmuME, que le fork libretro n'a jamais importé, puis corrigé et branché sur
 [docs/desmume-arm64-jit-architecture.md](../../docs/desmume-arm64-jit-architecture.md) (sections 13 et 14) :
 couche commune, interpréteur en cache, JIT RewindBox à appels puis natif ; puis (section 15) le correctif du gel
 de l'IPA 828 et un rendu plus rapide en haute résolution interne ; enfin (section 16) le suréchantillonnage 3D,
-les mesures `[rb-perf]` et la 3D qui se dessine pendant la composition 2D.
+les mesures `[rb-perf]`, la 3D qui se dessine pendant la composition 2D, puis la 3D asynchrone et l'image écrite
+dans la mémoire de l'hôte.
 
 ## Ce que la compilation assemble
 
@@ -15,7 +16,7 @@ les mesures `[rb-perf]` et la 3D qui se dessine pendant la composition 2D.
    `emit_core.cpp` et `arm64_emit.cpp` de
    [TASEmulators/desmume@b549f71b](https://github.com/TASEmulators/desmume/tree/b549f71b83287f265b6d74b9e77ef5d98a617190),
    pris à cette révision et vérifiés par SHA-256. `arm_emit.cpp` (ARM 32 bits) n'est pas pris.
-2. **Correctif** `arm64-jit-abi.patch` (30 fichiers, +4 308/−334), un `git diff` contre l'arbre libretro plus ces
+2. **Correctif** `arm64-jit-abi.patch` (30 fichiers, +4 696/−337), un `git diff` contre l'arbre libretro plus ces
    trois fichiers d'origine. Il crée `utils/arm_jit/rb_cached.cpp`, `rb_a64.h`, `rb_jit.cpp`, `utils/rb_perf.h` et
    `utils/rb_sse2neon.h`, et modifie aussi le rendu (`rasterize.cpp`, `rasterize.h`, `render3D.cpp`, `render3D.h`,
    `GPU.cpp`, `GPU.h`, `gfx3d.cpp`, `types.h`, les trois fichiers `colorspacehandler`) et la sortie du frontend.
@@ -64,7 +65,9 @@ les mesures `[rb-perf]` et la 3D qui se dessine pendant la composition 2D.
 | Capture directe de la 3D (`GPU.cpp`, `rasterize.cpp`, `render3D.cpp`) | Une ligne capturée avec la 3D seule pour source attend ses bandes et convertit ses lignes en 15 bits (`RenderFlush16Lines`) ; `RenderFlush` convertit le reste. Mêmes images. |
 | Composition 2D en NEON (`types.h`, `GPU.h`, `GPU.cpp`, `colorspacehandler*`, `utils/rb_sse2neon.h`) | `RB_GPU_SSE2` choisit les voies SSE2 des moteurs 2D, y compris sur AArch64, où `rb_sse2neon.h` écrit en NEON les 49 instructions SSE2 qu'elles emploient. Le reste du cœur garde ses voies C++. Mêmes images. |
 | Fils du rastériseur (`rasterize.cpp`) | Sur les plates-formes Apple, `QOS_CLASS_USER_INITIATED` : une classe sous le fil d'émulation de l'hôte. |
-| Mesures `[rb-perf]` (`utils/rb_perf.h`, `GPU.cpp`, `rasterize.cpp`, `libretro.cpp`) | Toutes les 600 images, une ligne du journal du cœur donne le temps moyen par image de chaque étape (voir ci-dessous). |
+| 3D asynchrone (`desmume_rb_3d_async`, `rasterize.cpp`, `rasterize.h`, `render3D.cpp`, `render3D.h`, `GPU.cpp`, `gfx3d.cpp`) | Un rendu lent se dessine dans un second tampon de couleur pendant que le moteur 2D montre, pour des images entières, le dernier rendu terminé ; la première ligne de chaque image (`BeginFrame3D`) affiche le nouveau dès qu'il est fini. Le fil d'émulation n'attend plus les fils du rastériseur ; un rendu se termine seulement avant le suivant ou avant que le jeu remplace ses listes. `auto` (défaut) : après un rendu de plus de 8 ms, pour 120 rendus au moins ; `enabled` : tout rendu des fils ; `disabled` : comme avant. Jamais dans les 60 images qui suivent une capture d'écran, ni en sortie 24 bits. Logique du jeu inchangée (son identique) ; la 3D s'affiche une ou deux images plus tard. |
+| Image dans la mémoire de l'hôte (`libretro.cpp`) | Les deux écrans sont convertis directement dans la mémoire que l'hôte donne par `RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER`, en RGB565, quand la disposition couvre toute l'image (sans écart, hors hybride) ; sinon, et si l'hôte n'en donne pas, dans le tampon du cœur comme avant. Mêmes pixels. |
+| Mesures `[rb-perf]` (`utils/rb_perf.h`, `GPU.cpp`, `rasterize.cpp`, `libretro.cpp`) | Toutes les 600 images, une ligne du journal du cœur donne le temps moyen par image de chaque étape (voir ci-dessous), dont `defer` et `direct` depuis la section 16.7. |
 
 ## Vérification hors appareil
 

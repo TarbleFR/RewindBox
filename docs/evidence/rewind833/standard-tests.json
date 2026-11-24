@@ -1,0 +1,73 @@
+{
+  "flutter": {
+    "result": "not-run",
+    "evidenceMode": "not-run",
+    "kind": "flutter",
+    "execution": {
+      "source": "6419d9315b81670381d2a14e880cb2860026ceb0",
+      "tree": "46e7782dc818dfacb8f86bf581b01fd0b4449b02",
+      "run": 45414994773,
+      "attempt": 1
+    },
+    "job": 138520101883,
+    "commands": [],
+    "reason": "Application build and private delivery validation. Device measurement pending.",
+    "fullRegressionSuiteExecuted": false
+  },
+  "native": {
+    "result": "not-run",
+    "evidenceMode": "not-run",
+    "kind": "native",
+    "execution": {
+      "source": "6419d9315b81670381d2a14e880cb2860026ceb0",
+      "tree": "46e7782dc818dfacb8f86bf581b01fd0b4449b02",
+      "run": 45414994773,
+      "attempt": 1
+    },
+    "job": 138520101886,
+    "commands": [],
+    "reason": "Application build and private delivery validation. Device measurement pending.",
+    "fullRegressionSuiteExecuted": false
+  },
+  "deliveryContract": {
+    "result": "authenticated",
+    "evidenceMode": "fresh",
+    "command": "python3 -B test/standard_delivery_contract_test.py",
+    "rerunInThisRun": true,
+    "job": 138518676273,
+    "artifact": 14931711521,
+    "archiveSHA256": "6fc155ec263f7ce239d5d4979b99fdd302e28788c6a9c1656562937549ec85e2",
+    "logSHA256": "55861ae54c46baf959a7e5eb8c44c15a459eec98a7c66f6c20c2f7eade728ba8",
+    "execution": {
+      "source": "6419d9315b81670381d2a14e880cb2860026ceb0",
+      "tree": "46e7782dc818dfacb8f86bf581b01fd0b4449b02",
+      "run": 45414994773,
+      "attempt": 1
+    }
+  },
+  "testsExecutedInThisRun": [
+    "delivery-contract"
+  ],
+  "testsRun": {
+    "flutter": {
+      "mode": "not-run",
+      "run": 45414994773,
+      "attempt": 1,
+      "job": 138520101883,
+      "source": "6419d9315b81670381d2a14e880cb2860026ceb0"
+    },
+    "native": {
+      "mode": "not-run",
+      "run": 45414994773,
+      "attempt": 1,
+      "job": 138520101886,
+      "source": "6419d9315b81670381d2a14e880cb2860026ceb0"
+    },
+    "delivery-contract": {
+      "mode": "fresh",
+      "run": 45414994773,
+      "attempt": 1,
+      "job": 138518676273
+    }
+  }
+}

@@ -23,7 +23,7 @@
     }
   },
   "patch": "native/desmume/arm64-jit-abi.patch",
-  "patchSHA256": "6c47a89de2618a627c6f328b1621593bdcfcc8bf38630bcb27e8987462ff1e95",
+  "patchSHA256": "47b18a9e538f6fbade39fc385014b2d17dee90445bd715ae086353be663e1c4b",
   "abiHeader": "packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h",
   "abiHeaderSHA256": "84c59f2484336fa3c64bc68b51177211094083fd411f0b488fee6b79bda6bc22",
   "abiHeaderInTree": "desmume/src/frontend/libretro/rewindbox/RewindBoxLibretroJit.h",
@@ -112,9 +112,10 @@
     "jit_exact",
     "as many rasterizer threads as the device has cores",
     "desmume_rb_3d_supersampling",
+    "desmume_rb_3d_async",
     "[rb-perf] desmume frames=%llu",
     "engB=%.2f end=%.2f over16=%llu",
-    "cap3d=%llu ecpu=%.2f rcpu=%.2f t3d=%.2f"
+    "rcpu=%.2f t3d=%.2f defer=%llu direct=%llu"
   ],
   "forbiddenImports": [
     "_vm_protect",

@@ -195,6 +195,9 @@ static NSString *LibretroThreadPlace(mach_port_t thread) {
   BOOL _stopRequested;
   /// RETRO_ENVIRONMENT_SHUTDOWN from the core.
   BOOL _coreStopRequested;
+  /// DeSmuME draws its frames into the presenter's memory
+  /// (GET_CURRENT_SOFTWARE_FRAMEBUFFER), immutable after init.
+  BOOL _offersSoftwareFramebuffer;
   // Startup period (emulation thread).
   BOOL _startupConfirmed;
   NSUInteger _startupFrames;
@@ -334,6 +337,7 @@ static NSString *LibretroThreadPlace(mach_port_t thread) {
   self = [super init];
   if (self) {
     _configuration = configuration;
+    _offersSoftwareFramebuffer = [configuration.coreId isEqualToString:@"desmume"];
     _achievementSession = [configuration.achievementSession copy] ?: @{};
     _input = [LibretroInputState new];
     _condition = [NSCondition new];
@@ -1749,6 +1753,19 @@ static BOOL LibretroExtendedControllerConnected(void) {
   [self noteFrameWidth:width height:height];
   [_presenter presentSoftwareFrame:data width:width height:height pitch:pitch format:host.pixelFormat];
   if (trace) [_journal note:[NSString stringWithFormat:@"video: frame=%lu submitted", (unsigned long)_videoDiagnosticFrames]];
+}
+
+/// GET_CURRENT_SOFTWARE_FRAMEBUFFER. RewindBox's DeSmuME (native/desmume)
+/// writes both screens straight into the presenter's memory, which the GPU
+/// copies into the frame's texture: no copy of 10 to 20 MB a frame on this
+/// thread at high internal resolutions. Other cores keep their own buffers.
+- (void *)coreHost:(LibretroCoreHost *)host
+    softwareFramebufferWithWidth:(unsigned)width
+                          height:(unsigned)height
+                          format:(enum retro_pixel_format)format
+                           pitch:(size_t *)pitch {
+  if (!_offersSoftwareFramebuffer || _gl != nil || _vulkan != nil) return NULL;
+  return [_presenter softwareFramebufferWithWidth:width height:height format:format pitch:pitch];
 }
 
 - (void)coreHost:(LibretroCoreHost *)host audioFrames:(const int16_t *)frames count:(size_t)count {

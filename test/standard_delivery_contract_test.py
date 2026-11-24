@@ -375,7 +375,14 @@ class ManifestSchema(unittest.TestCase):
         collection = source_collections.collection(manifest['components']['libretro'])
         rebuilt = {f'Frameworks/{core}_libretro.framework/{core}_libretro' for core in (collection or {}).get('cores', ())}
         changing = rebuilt - set(retained_names)
-        self.assertTrue(changing or not rebuilt)
+        keys = ('artifact', 'run', 'source', 'name', 'bytes', 'sha256')
+        base_spec = manifests().get(manifest['base']['build'], {}).get('components', {}).get('libretro', {})
+        if collection is not None and all(base_spec.get('origin', {}).get(k) == manifest['components']['libretro']['origin'][k]
+                                          for k in keys):
+            # The base delivery's own collection: its compiled cores are already the base images, so none may change.
+            self.assertFalse(changing)
+        else:
+            self.assertTrue(changing or not rebuilt)
         self.assertLessEqual(changing, set(images['mustChange']))
         self.assertEqual(sum(n.endswith('_libretro') for n in retained_names) + len(changing), 35)
         self.assertFalse(set(retained_names) & set(images['mustChange']))

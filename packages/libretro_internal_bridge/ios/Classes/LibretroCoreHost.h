@@ -72,6 +72,15 @@ typedef struct {
 /// A line of the core's log that diagnoses the session ([rb-perf] timings, [rb-jit] state), as the core
 /// writes it, on the thread that logs (usually the emulation thread); at most 400 a session.
 - (void)coreHost:(LibretroCoreHost *)host diagnosticLine:(NSString *)line;
+/// GET_CURRENT_SOFTWARE_FRAMEBUFFER, emulation thread: memory the core may
+/// draw its next software frame of width x height into, in `format` (the
+/// core's pixel format), then hand to video_refresh as it is. NULL when the
+/// receiver gives none; `pitch` receives its stride in bytes.
+- (nullable void *)coreHost:(LibretroCoreHost *)host
+    softwareFramebufferWithWidth:(unsigned)width
+                          height:(unsigned)height
+                          format:(enum retro_pixel_format)format
+                           pitch:(size_t *)pitch;
 @end
 
 /// Portable libretro frontend core: loads one core library, answers its

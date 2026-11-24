@@ -101,7 +101,7 @@ static NSDictionary *S2ArmBenchmarkContext(NSString *gid, NSString *docs) {
   NSString *appBuild = [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleVersion"];
   return @{@"game_id":gid ?: @"", @"game_version":build, @"game_identity_kind":@"main_nso_build_id_32_bytes",
            @"engine_build":engineBuild, @"engine_run":source[@"run"] ?: NSNull.null,
-           @"app_build":appBuild ?: @"", @"settings":S2ArmSettingsSnapshot()};
+           @"app_build":appBuild ?: @"", @"settings":S2ArmSettingsForGame(gid)};
 }
 
 static void S2ArmJournalSessionMemory(const char *step, const char *status, NSString *gid,
@@ -451,6 +451,25 @@ static NSString *S2ArmEnginePath(void) {
     result(S2ArmSettingsApply([call.arguments isKindOfClass:NSDictionary.class] ? call.arguments : @{}));
     return;
   }
+  // A game's settings profile (S2ArmSettings.h), by its title id: {gid, custom, settings}, where settings are the ones the game
+  // starts with (its profile when custom, else the global ones). nil for a gid that is not a title id. setGameSettings only
+  // changes an existing profile, never the global settings.
+  if ([call.method isEqualToString:@"getGameSettings"] || [call.method isEqualToString:@"createGameSettings"] ||
+      [call.method isEqualToString:@"setGameSettings"] || [call.method isEqualToString:@"removeGameSettings"]) {
+    NSDictionary *args = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments : @{};
+    NSString *gid = S2ArmSettingsGameKey([args[@"gid"] isKindOfClass:NSString.class] ? args[@"gid"] : nil);
+    if (!gid) {
+      result(nil);
+      return;
+    }
+    if ([call.method isEqualToString:@"createGameSettings"]) (void)S2ArmSettingsGameCreateProfile(gid);
+    if ([call.method isEqualToString:@"setGameSettings"])
+      (void)S2ArmSettingsGameApply(gid, [args[@"settings"] isKindOfClass:NSDictionary.class] ? args[@"settings"] : @{});
+    if ([call.method isEqualToString:@"removeGameSettings"]) (void)S2ArmSettingsGameRemoveProfile(gid);
+    BOOL custom = S2ArmSettingsGameHasProfile(gid);   // a BOOL, so Dart gets true / false
+    result(@{@"gid" : gid, @"custom" : @(custom), @"settings" : S2ArmSettingsForGame(gid)});
+    return;
+  }
   result(FlutterMethodNotImplemented);
 }
 
@@ -661,12 +680,13 @@ static NSString *S2ArmEnginePath(void) {
     unsetenv("S2A_RB_PREPARE_PROFILE");
     unsetenv("S2A_RB_GPU_GENERATION");
   }
-  S2ArmSettingsPrepareLaunch();   // settings changed while parked apply now (the rebuild reloads the graphics settings)
+  // Settings changed while parked apply now (the rebuild reloads the graphics settings): the game's profile when it has one
+  S2ArmSettingsPrepareLaunch(gid);
   NSMutableDictionary *benchmark = [self.benchmarkContext mutableCopy] ?: [NSMutableDictionary dictionary];
-  benchmark[@"settings"] = S2ArmSettingsSnapshot();   // launch preferences; the engine reports effective settings at begin
+  benchmark[@"settings"] = S2ArmSettingsForGame(gid);   // launch preferences; the engine reports effective settings at begin
   self.benchmarkContext = benchmark;
-  [self applyStoredFrameRateLimit];   // patch 0078: S2A_FPS was read once, at this process's first game start
-  [self applyStoredFrameInterpolation];   // patch 0345: S2A_RB_FI too
+  [self applyStoredFrameRateLimit:gid];   // patch 0078: S2A_FPS was read once, at this process's first game start
+  [self applyStoredFrameInterpolation:gid];   // patch 0345: S2A_RB_FI too
   __block UIViewController *vc = nil;
   dispatch_sync(dispatch_get_main_queue(), ^{ vc = (__bridge UIViewController *)viewController(); });
   if (!vc) return launchFail(@"engineViewFailed", @"resume", @"The engine did not return the parked view controller.");
@@ -867,7 +887,8 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
   // Engine patch 0345: frame generation (MetalFX frame interpolation, iOS 26) for games that ask for 30 fps or less, from the
   // player's setting, off unless turned on. The engine reads it once a process; the in-game menu then turns it on or off during
   // play (applyLiveSetting). A value supplied for an A/B run (launch environment, env.txt) wins, as for the switches above.
-  int frameInterpolationProfile = setenv("S2A_RB_FI", S2ArmSettingsFrameInterpolation() ? "1" : "0", 0);
+  // The game's settings profile when it has one, else the global choice.
+  int frameInterpolationProfile = setenv("S2A_RB_FI", S2ArmSettingsFrameInterpolation(gid) ? "1" : "0", 0);
   BOOL profileFailed = vertexProfile || stagingProfile || workgroupProfile || archiveProfile || workerProfile ||
                        readAheadProfile || shaderBytesProfile || shaderQueueProfile || poolIndexProfile ||
                        textureViewsProfile || demandProbeProfile || audioReprimeProfile || feedbackProfile ||
@@ -877,7 +898,9 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
                        saveRestoreProfile || saveTitleSlots || frameInterpolationProfile;
   s2arm_journal("gameProfile", profileFailed ? "failed" : "selected",
                 "\"profile\":\"%s\"", fastFusion ? "fast-fusion" : marioKartWorld ? "mario-kart-world" : "default");
-  S2ArmSettingsPrepareLaunch();   // the game language, and the engine's brief overlay that the in-game menu shows or hides
+  // The game language, the engine's brief overlay that the in-game menu shows or hides, and the game's settings profile (the
+  // engine's variables of the picture settings; a value from the launch environment or env.txt is kept)
+  S2ArmSettingsPrepareLaunch(gid);
   self.benchmarkContext = S2ArmBenchmarkContext(gid, docs);
   S2ArmGuestFileSpace();          // the free space the engine wants for the guest memory files (S2A_GUEST_FILE_MIN_FREE_MB)
   S2ArmPrepareSaveFolder(self.saveFolder, docs);   // the save folder the player sees in Files (S2A_SAVE_FOLDER)
@@ -1139,6 +1162,7 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
                                                                    if (stop) stop("rewindbox-menu");
                                                                  }];
   self.sessionMenu.benchmarkContext = self.benchmarkContext;
+  self.sessionMenu.gameId = self.runningGameId;   // its settings profile, when it has one, is what the menu reads and changes
   // Patch 0078: the frame-rate limit the player picks in the menu is in effect at once (the other settings still wait for the next start)
   // Patch 0345: frame generation too, in a session the engine started with it (S2A_RB_FI=1, read once a process)
   __weak S2ArmEngineBridgePlugin *weakSelf = self;
@@ -1194,16 +1218,18 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
   if (benchmark) (void)benchmark(3, NULL, NULL, 0);
 }
 
-// The stored frame-rate choice, for a parked game that resumes: the engine read S2A_FPS once, when this process first started a game.
-- (void)applyStoredFrameRateLimit {
-  id value = S2ArmSettingsSnapshot()[@"frameRateLimit"];
+// The stored frame-rate choice (the game's profile, else the global one), for a parked game that resumes: the engine read S2A_FPS
+// once, when this process first started a game.
+- (void)applyStoredFrameRateLimit:(NSString *)gid {
+  id value = S2ArmSettingsForGame(gid)[@"frameRateLimit"];
   if (value) (void)[self applyLiveSetting:@"frameRateLimit" value:value];
 }
 
-// The stored frame-generation choice, for a parked game that resumes (patch 0345): the engine read S2A_RB_FI once, at this
-// process's first game start. A session started without it stays without it (-1); the menu learns of -2 at the player's choice.
-- (void)applyStoredFrameInterpolation {
-  id value = S2ArmSettingsSnapshot()[@"frameInterpolation"];
+// The stored frame-generation choice (the game's profile, else the global one), for a parked game that resumes (patch 0345): the
+// engine read S2A_RB_FI once, at this process's first game start. A session started without it stays without it (-1); the menu
+// learns of -2 at the player's choice.
+- (void)applyStoredFrameInterpolation:(NSString *)gid {
+  id value = S2ArmSettingsForGame(gid)[@"frameInterpolation"];
   if (value) (void)[self applyLiveSetting:@"frameInterpolation" value:value];
 }
 

@@ -29,6 +29,9 @@ Crossing, et un `session.log` sans mesure du cœur (app fermée depuis le sélec
 - **Vérifié sur l'archive téléchargée** : empreinte, contrat d'options sur les 35 binaires,
   `libretro_source_collections.verify`, DeSmuME arm64 iOS 14.0 avec `RenderFlush16Lines`, les aides de couleur SSE2
   compilées en NEON et les nouvelles mesures.
+- **Livrée dans l'IPA 832** (comme la 831 : les corrections de cette session seules) : run
+  [45382685674](https://github.com/TarbleFR/RewindBox/actions/runs/45382685674), IPA `4dfc2401…e5e5`
+  (335 116 176 octets), reçu [docs/evidence/rewind832/delivery.json](evidence/rewind832/delivery.json).
 
 ## Après la 830 : la 3D se dessine pendant la composition 2D
 

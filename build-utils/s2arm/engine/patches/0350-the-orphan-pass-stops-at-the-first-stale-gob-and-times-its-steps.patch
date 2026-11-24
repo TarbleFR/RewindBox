@@ -1,0 +1,88 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index c1ee5ea..8d599a2 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -5262,6 +5262,16 @@ static void alias_take_over(const alias_key *nk) {
+ static uint64_t g_alias_orph_cache, g_alias_orph_rw, g_alias_orph_valve, g_alias_orph_cache_b, g_alias_orph_rw_b, g_alias_orph_valve_b;   // released: never GPU-written / GPU-written storage rewritten since / under address pressure (count, bytes)
+ static uint64_t res_bytes(id o);
+ static int gpw_stale(const uint8_t *mem, uint64_t size, uint64_t **runs, uint64_t *bytes);
++// RewindBox (patch 0350): the orphan pass below asks only whether a GPU-written candidate still has a stale GOB (kept) or none (released), and gpw_stale hashed every marked
++//   GOB of it to list the runs, under g_gpw_mu, which the submit thread takes to mark GPU writes. The pass runs on the presenting thread 8 frames after each 300-frame boundary
++//   (rb_report_mem_parts): IPA 829/830 logs, its part cost 33.9 ms at the median and 82.8 ms at worst for Mario Kart World, 11.3 / 21.6 ms for Fire Emblem, 3.3 / 20.7 ms for
++//   Zelda, and a long frame (52.5 ms median, 105 ms at worst in Mario Kart World) followed each boundary; Mario Kart World kept 0 to 13 GPU-written candidates a pass, nearly all
++//   of them kept again (released at the median 0 to 1), so each pass hashed the same render targets whole again. gpw_any_stale stops at the first stale GOB: the same answer
++//   (some stale run or none), the changed GOBs met before it unmarked as gpw_stale does, the rest left for the next reader. S2A_RB_ORPHAN_EARLY=0: gpw_stale as before
++static int gpw_any_stale(const uint8_t *mem, uint64_t size);
++static _Atomic int g_rb_orph_early_option;
++static int rb_orph_early_on(void) { return rb_pacing_setting(&g_rb_orph_early_option, "S2A_RB_ORPHAN_EARLY"); }
++static uint64_t g_rb_orph_passes;   // the frame hook's passes (its thread), for the timing line below
+ static const s2a_lowva_api *g_orph_lv; static int g_orph_lv_me; static int64_t g_orph_noted;   // the low-region ledger (NULL: unit tests / replay), our user number, the bytes noted to it
+ static int alias_orph_cand(uint32_t i, CFSetRef held, alias_key *k) {   // caller holds g_smu: entry i is unreferenced, idle, not display / video
+     if (!g_alias.vals[i] || CFSetContainsValue(held, g_alias.vals[i])) return 0;
+@@ -5328,6 +5338,7 @@ static void alias_orphan_pass(void) {
+         const s2a_lowva_api *(*get)(void) = (const s2a_lowva_api *(*)(void))dlsym(RTLD_DEFAULT, "s2a_lowva"); const s2a_lowva_api *lv = get ? get() : NULL;
+         if (lv && lv->size >= sizeof(s2a_lowva_api) && lv->version == S2A_LOWVA_VERSION) { g_orph_lv = lv; g_orph_lv_me = lv->user("unreferenced shared textures", alias_orph_evict, NULL); } } }
+     typedef struct { alias_key k; const uint8_t *mem; uint64_t size; } cand_t;
++    const uint64_t rb_t0 = bp_now();   // RewindBox (patch 0350): the pass's three steps, timed
+     const int ids_on = rb_orph_id_held_on();   // RewindBox (patch 0312): the registered IDs' views, under g_rmu taken before g_smu
+     if (ids_on) pthread_mutex_lock(&g_rmu);
+     pthread_mutex_lock(&g_smu);
+@@ -5345,11 +5356,16 @@ static void alias_orphan_pass(void) {
+     CFRelease(held); if (ids) CFRelease(ids);
+     for (uint32_t j = 0; j < nc; j++) alias_orph_drop(&cache[j], 0);
+     pthread_mutex_unlock(&g_smu);
++    const uint64_t rb_t1 = bp_now();   // RewindBox (patch 0350)
++    const int rb_early = rb_orph_early_on();
+     uint32_t nr = 0;
+     for (uint32_t j = 0; j < nw; j++) {   // outside g_smu: the write ledger has its own lock
+-        uint64_t *runs = NULL, b = 0; int n = gpw_stale(wr[j].mem, wr[j].size, &runs, &b); free(runs);
++        int n;
++        if (rb_early) n = gpw_any_stale(wr[j].mem, wr[j].size);   // RewindBox (patch 0350): some stale GOB or none, from the first one found
++        else { uint64_t *runs = NULL, b = 0; n = gpw_stale(wr[j].mem, wr[j].size, &runs, &b); free(runs); }
+         if (n == 0) wr[nr++] = wr[j];
+     }
++    const uint64_t rb_t2 = bp_now();   // RewindBox (patch 0350)
+     if (nr) { if (ids_on) pthread_mutex_lock(&g_rmu);
+         pthread_mutex_lock(&g_smu); CFMutableSetRef h2 = alias_held(), i2 = ids_on ? rb_alias_held_ids() : NULL;
+         if (ids_on) pthread_mutex_unlock(&g_rmu);
+@@ -5359,6 +5375,12 @@ static void alias_orphan_pass(void) {
+             wbytes -= (int64_t)alias_orph_drop(&wr[j].k, 1); }
+         CFRelease(h2); if (i2) CFRelease(i2); pthread_mutex_unlock(&g_smu); }
+     if (g_orph_lv) { pthread_mutex_lock(&g_smu); int64_t d = wbytes - g_orph_noted; g_orph_noted = wbytes; pthread_mutex_unlock(&g_smu); if (d) g_orph_lv->note(g_orph_lv_me, d); }   // attribution: the ledger asks the largest holders first
++    {   // RewindBox (patch 0350): where the pass's time goes, for the first passes and any pass of 2 ms or more
++        const uint64_t rb_t3 = bp_now(), pass = ++g_rb_orph_passes;
++        if (pass <= 4 || rb_t3 - rb_t0 >= 2000000ull)
++            MLOG("RewindBox (patch 0350): unreferenced-texture pass %llu: %.2f ms with the tables locked (%u never GPU-written released, %u GPU-written checked), %.2f ms checking them (%s), %.2f ms releasing %u of them",
++                 (unsigned long long)pass, (rb_t1 - rb_t0) / 1e6, nc, nw, (rb_t2 - rb_t1) / 1e6, rb_early ? "first stale GOB" : "every GOB, S2A_RB_ORPHAN_EARLY=0", (rb_t3 - rb_t2) / 1e6, nr);
++    }
+     free(cache); free(wr);
+     {   // RewindBox (patch 0312): what the registered IDs kept and the near misses, when they moved (every 300 frames at most: the frame hook)
+         static uint64_t held0 = UINT64_MAX, near0 = UINT64_MAX;
+@@ -8284,6 +8306,27 @@ static int gpw_stale(const uint8_t *mem, uint64_t size, uint64_t **runs, uint64_
+     if (zb) zp_free(&z);
+     pthread_mutex_unlock(&g_gpw_mu); *runs = r; return n;
+ }
++// RewindBox (patch 0350): whether gpw_stale would return a run (1) or none (0), stopping at the first stale GOB: the same walk, the same readability rule and the same unmarking
++//   of the GOBs whose bytes changed until then (the orphan pass, alias_orphan_pass)
++static int gpw_any_stale(const uint8_t *mem, uint64_t size) {
++    uint64_t a = (uint64_t)(uintptr_t)mem, e = a + size; int rb_ok = -1, found = 0;
++    if (!atomic_load_explicit(&g_gpw_nblk, memory_order_relaxed)) return 0;
++    pthread_mutex_lock(&g_gpw_mu);
++    zp_map z; int zb = 0; z.v = NULL; z.np = 0; z.a0 = z.pg = 0;
++    uint64_t lk = UINT64_MAX; gpw_blk *b = NULL;
++    for (uint64_t g = a >> 9, ge = (e + 511) >> 9; g < ge; g++) {
++        uint64_t k = g >> 9; if (k != lk) { b = nvn_hm_get(&g_gpw, &k); lk = k; }
++        if (!b) { g = (k << 9) + 511; continue; }
++        unsigned i = (unsigned)(g & 511); if (!(b->bits[i >> 6] >> (i & 63) & 1)) continue;
++        if (rb_ok < 0) rb_ok = rb_span_readable((uintptr_t)mem, size);
++        if (rb_ok && !zb) { zp_build(&z, a, size); zb = 1; }
++        if (rb_ok && gob_hash(g, &z) != b->h[i]) { gpw_unmark(g); lk = UINT64_MAX; b = NULL; continue; }
++        found = 1; break;
++    }
++    if (zb) zp_free(&z);
++    pthread_mutex_unlock(&g_gpw_mu);
++    return found;
++}
+ // RewindBox (patch 0060): every 300 frames, when a span was asked or a block hashed since the last line
+ static void zp_report(uint64_t frame) {
+     static uint64_t p[8]; uint64_t v[8] = {atomic_load(&g_zp_maps), atomic_load(&g_zp_refused), atomic_load(&g_zp_hole_pages), atomic_load(&g_zp_fresh_pages), atomic_load(&g_zp_other_pages), 0, 0, 0};

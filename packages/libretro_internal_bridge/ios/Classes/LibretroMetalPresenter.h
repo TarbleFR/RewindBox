@@ -178,6 +178,19 @@ NS_ASSUME_NONNULL_BEGIN
                        pitch:(size_t)pitch
                       format:(enum retro_pixel_format)format;
 
+/// Emulation thread, GET_CURRENT_SOFTWARE_FRAMEBUFFER: memory for the next
+/// RGB565 software frame of width x height (shared with the GPU, cached). A
+/// core that draws its frame there and hands the same pointer and pitch to
+/// presentSoftwareFrame has it copied into the upload texture by the GPU, in
+/// the command buffer that draws it: no copy on the emulation thread. Two
+/// buffers in turn; each is given again only once the GPU has read it.
+/// NULL without B5G6R5 textures or for another format; `pitch` receives the
+/// stride in bytes (the width's bytes rounded up to 64).
+- (nullable void *)softwareFramebufferWithWidth:(unsigned)width
+                                         height:(unsigned)height
+                                         format:(enum retro_pixel_format)format
+                                          pitch:(size_t *)pitch;
+
 /// `flipped` is YES for OpenGL frames whose origin is the bottom-left.
 /// `completion` runs once the GPU has finished reading the texture.
 - (void)presentTexture:(id<MTLTexture>)texture

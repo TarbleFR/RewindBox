@@ -862,6 +862,8 @@ JIT et la composition NEON. Couche NEON : 281 048 résultats identiques à la vr
 pendant la composition 2D, comme prévu pour la 831 (`run` vers 14 à 17 ms au lieu de 23) ; la composition NEON retire
 environ 30 % de `2d` (7,5 ms dans la 830, soit 2 à 2,5 ms). Rien ne garantit 60 i/s stables avant la mesure.
 
+**Livré** dans l'IPA 832 ([reçu](evidence/rewind832/delivery.json)), sans rien des autres sessions.
+
 **À lire** dans le prochain `session.log` (lignes `core: [rb-perf] …`, toutes les 600 images, même si l'app est
 fermée depuis le sélecteur) :
 - `cap3d` proche de 600 : le jeu capture la 3D, et ce correctif s'applique ;

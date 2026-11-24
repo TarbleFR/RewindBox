@@ -1,0 +1,482 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 08e25ac..74d19a9 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -4408,6 +4408,17 @@ __attribute__((weak)) int s2a_fps60_display_source(void) { return 0; }   // runt
+ __attribute__((weak)) void s2a_qp_frame(uint32_t draws, int video, int cutscene, int game_itv) { (void)draws; (void)video; (void)cutscene; (void)game_itv; }   // runtime/src/qprompt_host.c；图形单测没有宿主
+ static _Atomic int g_fps_game_itv;   // 这一帧按游戏自己设的间隔（不走 display 模式）
+ static _Atomic int rb_thermal_guest_hold;
++// RewindBox (patch 0349): a steady 30 when a game cannot hold 60, with retries of 60 (rb_fallback30.h has the rules and the measurements). Zelda 0400486024DEC000 on an
++//   iPhone 16 Pro Max stays at present interval 1 in play and showed 28.5 fps there (the median of 44 windows of 300 frames): 79 % of its displayed intervals missed 16.7 ms,
++//   54 to 70 % were 33.3 ms and 9 to 25 % 50 ms or more, and nothing reacted, as the game never asks for interval 2. While rb_fb30_frame holds such a game
++//   (g_rb_fb30_k == 2), present_itv follows two vsyncs for the frames it sends at interval 1: each stays 33.3 ms on the 60 Hz link (nvn_mtl.m keeps a promotion title's
++//   link at 60 Hz for them and does not interpolate them), the next acquire waits two ticks, nvn_present_fps says 30 and rt_period_ns keeps declaring 16.7 ms. The game's
++//   interval, g_game_itv, nvn_game_fps, nvn_be_fps_target and the resolution are left as they are. S2A_RB_FALLBACK30=0: as before; S2A_RB_FALLBACK30_OFF=<program id>[,...]:
++//   as before for those games
++#include "rb_fallback30.h"
++static _Atomic int g_rb_fb30_k;   // 2 while the fallback holds the game, else 0: written at the end of a present on the presenting thread, read on any thread
++int nvn_rb_fb30_holding(void);   // nvn_mtl.m nvn_be_present_with_hold: whether the frame it queues is one the fallback holds
++int nvn_rb_fb30_holding(void) { return atomic_load_explicit(&g_rb_fb30_k, memory_order_relaxed) == 2; }
+ static int present_itv(const win_t *o) {   // vsyncs per frame that presentation follows
+     int c = fps_step_cap(), k = atomic_load(&g_fs_k);
+     if (c) {
+@@ -4415,6 +4426,7 @@ static int present_itv(const win_t *o) {   // vsyncs per frame that presentation
+         return atomic_load(&rb_thermal_guest_hold) && o->interval > hold ? o->interval : hold;
+     }
+     int itv = g_display_mode && !atomic_load(&g_fps_game_itv) ? 1 : o->interval > 0 ? o->interval : 1;
++    itv = rb_fb30_itv(itv, atomic_load_explicit(&g_rb_fb30_k, memory_order_relaxed));   // RewindBox (patch 0349): two vsyncs while the fallback holds the game
+     return itv < 2 && g_hz > 0 && video_cap() ? 2 : itv;   // 放 ≤ 30 帧视频：至少隔 2 拍（60 Hz 节拍下 30 帧）
+ }
+ // S2Arm 标称帧率（自动玩家折算路线帧数；host_adapt.m 每次上屏报给原生层 s2a_nominal_fps_set）：出图实际跟的节拍 = 节拍频率 / present_itv，任意线程可调。
+@@ -4424,6 +4436,7 @@ int nvn_present_fps(void) {
+     int c = fps_step_cap(), hz = g_hz > 0 ? g_hz : 60;
+     if (c) { int k = atomic_load(&g_fs_k); return hz / (k && fstep_on() ? k : 60 / c); }
+     if (g_hz > 0 && video_cap()) { int itv = atomic_load(&g_game_itv); return hz / (itv > 2 && !g_display_mode ? itv : 2); }
++    if (atomic_load_explicit(&g_rb_fb30_k, memory_order_relaxed) == 2) return hz / 2;   // RewindBox (patch 0349): the fallback holds the game two vsyncs a frame
+     if (g_display_mode && !atomic_load(&g_fps_game_itv)) return hz;
+     uint64_t s = atomic_load(&g_itv2_since); int itv = atomic_load(&g_game_itv);
+     return itv > 1 && rb_interval_confirmed(s) ? hz / itv : hz;
+@@ -4453,6 +4466,8 @@ static uint64_t present_period(const win_t *o) {
+ // cores within 10 frames of a step to 30), where 60 fps no longer fits and every trial back to it fails. A step the game fixes itself (BotW's VFR override) is declared as it is
+ static uint64_t rt_period_ns(const win_t *o, uint64_t period) {
+     int c = fps_step_cap();
++    // RewindBox (patch 0349): the fallback's hold keeps the 60 fps deadline, as a hold the frame step raised (above: the longer one parked Tears of the Kingdom on the efficiency cores)
++    if (!c && period && g_hz > 0 && atomic_load_explicit(&g_rb_fb30_k, memory_order_relaxed) == 2) return 1000000000ull / (uint64_t)g_hz;
+     if (!period || !c || !fstep_on() || __atomic_load_n((uint32_t *)(dm_fps_state + 0x24), __ATOMIC_RELAXED)) return period;
+     int kmin = 60 / c;
+     return present_itv(o) > kmin ? (uint64_t)kmin * 1000000000ull / (uint64_t)g_hz : period;
+@@ -4551,6 +4566,110 @@ static void fstep_tick(win_t *o) {
+         t0 = t; v0 = vs; memset(held, 0, sizeof held);
+     }
+ }
++// RewindBox (patch 0349): what the fallback to a steady 30 reads from nvn_mtl.m: whether the no-lock guard is on (rb_drs_guard_active: Mario Kart World, or a game seen
++//   to alternate intervals 1 and 2, which the guard of patches 0319 to 0344 handles), the interval this executable was learnt at (rb_direct_autoprofile.inc; 0 = not
++//   known) and the display link's base mode (1 = 60 Hz). Without the Metal backend (graphics unit tests): off, none, 60 Hz
++__attribute__((weak)) int nvn_rb_no_lock_guard_on(void) { return 0; }
++__attribute__((weak)) int nvn_rb_learned_interval(void) { return 0; }
++__attribute__((weak)) int nvn_rb_link_base_mode(void) { return 1; }
++static int rb_fb30_on(void) {   // S2A_RB_FALLBACK30 (unset or anything but 0: on) and S2A_RB_FALLBACK30_OFF, read once, on the presenting thread
++    static int v = -1;
++    if (v < 0) {
++        const int listed = rb_fb30_listed(getenv("S2A_RB_FALLBACK30_OFF"), getenv("S2A_LAUNCH_GAME_ID"));
++        v = rb_fb30_switch(getenv("S2A_RB_FALLBACK30")) && !listed;
++        LOG("[rb-fb30] a steady 30 when a game at interval 1 cannot hold 60, with retries of 60: %s (patch 0349; %s)", v ? "on" : "off",
++            v ? "S2A_RB_FALLBACK30=0 turns it off, S2A_RB_FALLBACK30_OFF=<program id> for one game" : listed ? "S2A_RB_FALLBACK30_OFF lists this game" : "S2A_RB_FALLBACK30=0");
++    }
++    return v;
++}
++// Why the fallback may not hold the game at this present (NULL: it may). Checked at every present: the game's own interval is back from the first one where one is true
++static const char *rb_fb30_why(int itv) {
++    if (g_display_mode) return "display interval mode";
++    if (g_hz != 60) return "present tick not 60 Hz";
++    if (nvn_rb_link_base_mode() != 1) return "display link base not 60 Hz";
++    if (fps_step_cap()) return "frame step";
++    if (g_vid.on || nvn_rb_video_paced()) return "a video";
++    const int cap = nvn_fps_limit();
++    if (cap && cap < 60) return "a frame-rate limit under 60";
++    if (itv > 1) return "the game's own interval";
++    if (nvn_rb_learned_interval() == 2) return "a game learnt at interval 2";
++    if (nvn_rb_no_lock_guard_on()) return "the no-lock guard";
++    return NULL;
++}
++static rb_fb30 g_rb_fb30;               // the presenting thread
++static uint64_t g_rb_fb30_cost_frame;   // 1 + the last frame whose cost the fallback was given
++static unsigned g_rb_fb30_said;         // its transition lines so far (the first 64, then at powers of two)
++static const char *rb_fb30_state(const rb_fb30 *s) {
++    return s->mode == RB_FB30_HELD ? "held at 30" : s->mode == RB_FB30_TRIAL ? "trial of 60" : s->mode == RB_FB30_PROBE ? "probe of 60" :
++           s->back ? "at 60, the return not kept yet" : "at 60";
++}
++// Once a present, at its end, on the presenting thread. sent: the present had a texture; itv: the interval the game sent it at; cls, shown_ms: the hold class and the
++//   interval on screen of the present 8 back, as rb_display_deadline judges it (shown_ms < 0: discarded, 0: not known); dt_ns: the time since the previous present
++static void rb_fb30_frame(const win_t *o, int sent, int itv, unsigned cls, double shown_ms, uint64_t dt_ns) {
++    if (!sent) return;
++    if (!nvn_rb_thermal_scope() || !rb_fb30_on()) { atomic_store_explicit(&g_rb_fb30_k, 0, memory_order_relaxed); return; }   // as before (hosted iOS sessions only)
++    const char *why = rb_fb30_why(itv);
++    double cost = 0, gpu = 0;   // the latest frame with its GPU work done, once: its critical path (from its submits' start) or its GPU time, the larger, as fstep_tick
++    const uint64_t gf = g_frame;
++    for (uint64_t f = gf; f-- > 0 && gf - f <= 8;) {
++        const double g = nvn_be_gpu_ms(f);
++        if (g < 0) continue;
++        if (f + 1 > g_rb_fb30_cost_frame) {
++            uint64_t g0, g1; double cp = 0;
++            if (g_cpath[f % 16].f == f && nvn_be_gpu_span(f, &g0, &g1) && g1 > g_cpath[f % 16].t) cp = (g1 - g_cpath[f % 16].t) / 1e6;
++            gpu = g; cost = cp > g ? cp : g; g_rb_fb30_cost_frame = f + 1;
++        }
++        break;
++    }
++    if (!fstep_on()) fstep_cpu_slowed(o->presents);   // the share of CPU time on performance cores, for the lines (fstep_tick takes it while the frame step runs)
++    rb_fb30 *s = &g_rb_fb30;
++    const double since0 = s->since, dtv = dt_ns / (1e9 / 60);
++    const int back0 = s->back;
++    const int k = rb_fb30_step(s, !why, cls, shown_ms, cost, gpu, dtv);
++    atomic_store_explicit(&g_rb_fb30_k, k == 2 ? 2 : 0, memory_order_relaxed);
++    if (s->event != RB_FB30_EV_NONE && (++g_rb_fb30_said <= 64 || !(g_rb_fb30_said & (g_rb_fb30_said - 1)))) {
++        char what[256];
++        switch (s->event) {
++        case RB_FB30_EV_ENTER:
++            snprintf(what, sizeof what, "held at 30, two vsyncs a frame: %d of the last %d intervals sent at 60 later than 16.77 ms, of the last %d frames %d with a GPU time within 28.3 ms and %d with a cost within 14.2 ms, GPU %.1f ms a frame%s",
++                     s->nlate, s->ln, s->fn, s->nfit, s->nfit60, s->gpu60, back0 == 1 ? "; the last trial's return did not last" : back0 == 2 ? "; the last probe's return did not last" : "");   // review: the entry's two tests
++            break;
++        case RB_FB30_EV_TRIAL:
++            snprintf(what, sizeof what, "trial of 60 after %.0f vsyncs held: %d frames in a row cost at most 14.2 ms (GPU %.1f ms held)", since0 + dtv, RB_FB30_RUN, s->gpu30);
++            break;
++        case RB_FB30_EV_PROBE:
++            snprintf(what, sizeof what, "probe of 60 after %.0f vsyncs held, its first %d intervals a grace (GPU %.1f ms held)", since0 + dtv, RB_FB30_GRACE, s->gpu30);
++            break;
++        case RB_FB30_EV_TRIAL_FAILED: case RB_FB30_EV_PROBE_FAILED:
++            snprintf(what, sizeof what, "%s failed, %d of %d intervals late, %d in a row: held at 30 again, the next one after %.0f vsyncs", s->event == RB_FB30_EV_TRIAL_FAILED ? "trial" : "probe",
++                     s->tlate, s->judged, s->late_run, s->event == RB_FB30_EV_TRIAL_FAILED ? s->trial_wait : s->probe_wait);
++            break;
++        case RB_FB30_EV_TRIAL_HELD: case RB_FB30_EV_PROBE_HELD:
++            snprintf(what, sizeof what, "back at 60 after a %s, %d of %d intervals late", s->event == RB_FB30_EV_TRIAL_HELD ? "trial" : "probe", s->tlate, s->judged);
++            break;
++        case RB_FB30_EV_KEPT:
++            snprintf(what, sizeof what, "the return to 60 lasted %.0f vsyncs: the waits start again at %.0f and %.0f", RB_FB30_KEEP, s->trial_wait, s->probe_wait);
++            break;
++        default:
++            snprintf(what, sizeof what, "let go, %s: the game's own interval", why ? why : "not eligible");
++            break;
++        }
++        LOG("[rb-fb30] present %llu: %s; entries %llu, trials %llu (%llu failed), probes %llu (%llu failed), kept %llu, exits %llu; CPU %d%% on performance cores%s",
++            (unsigned long long)o->presents, what, (unsigned long long)s->entries, (unsigned long long)s->trials, (unsigned long long)s->trial_fails,
++            (unsigned long long)s->probes, (unsigned long long)s->probe_fails, (unsigned long long)s->kept, (unsigned long long)s->exits, g_fs_pshare,
++            g_rb_fb30_said == 64 ? "; further changes only at powers of two" : "");
++    }
++    if (!(o->presents % 300)) {
++        LOG("[rb-fb30] up to present %llu: %s, %u of %u presents held; intervals sent at 60 %u late of %u (16.77 ms), at 30 %u late of %u (33.43 ms); GPU %.1f ms a frame at 60, "
++            "%.1f ms held; waits %.0f / %.0f vsyncs (trial / probe); entries %llu, trials %llu (%llu failed), probes %llu (%llu failed), kept %llu, exits %llu; "
++            "CPU %d%% on performance cores; %s%s",
++            (unsigned long long)o->presents, rb_fb30_state(s), s->w_held, s->w_presents, s->w_late60, s->w_n60, s->w_late30, s->w_n30, s->gpu60, s->gpu30,
++            s->trial_wait, s->probe_wait, (unsigned long long)s->entries, (unsigned long long)s->trials, (unsigned long long)s->trial_fails,
++            (unsigned long long)s->probes, (unsigned long long)s->probe_fails, (unsigned long long)s->kept, (unsigned long long)s->exits, g_fs_pshare,
++            why ? "not eligible: " : "eligible", why ? why : "");
++        rb_fb30_window_reset(s);
++    }
++}
+ __attribute__((weak)) uint64_t nvn_be_present_with_hold(const tex_t *t, double period,
+                                                         const int crop[4], double display_hold) {
+     (void)display_hold;
+@@ -4903,6 +5022,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+         memset(g_display_known,0,sizeof g_display_known); memset(g_display_late,0,sizeof g_display_late);
+         memset(g_display_lost,0,sizeof g_display_lost); memset(g_display_missing,0,sizeof g_display_missing);
+     }
++    unsigned rb_fb30_cls = 0; double rb_fb30_shown = 0;   // RewindBox (patch 0349): the interval judged at this present, for rb_fb30_frame
+     if (o->presents > 9) { uint64_t n = o->presents - 8;
+         unsigned hold = rb_shown_hold(samples, n);
+         double a_ = nvn_be_presented_time(samples->tickets[n % RB_PRESENT_HISTORY]);
+@@ -4913,6 +5033,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+         } else if (a_ >= 0) g_visible_unknown++;
+         if (a_ < 0) trow(f - 8, "@presented_ms", -1); else if (a_ > 0 && b_ > 0) trow(f - 8, "@presented_ms", (a_ - b_) * 1e3);
+         rb_display_deadline(hold, a_, b_);
++        rb_fb30_cls = hold; rb_fb30_shown = a_ < 0 ? -1 : a_ > 0 && b_ > 0 && a_ > b_ ? (a_ - b_) * 1e3 : 0;   // RewindBox (patch 0349): as rb_display_deadline reads them
+         if (f >= 8 && a_ > b_ && b_ > 0) {
+             uint64_t gpu0, gpu1;
+             if (hold >= 1 && hold <= 2 && nvn_be_gpu_span(f - 8, &gpu0, &gpu1)) {
+@@ -4930,6 +5051,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+         { double iv_ = a_ < 0 ? -1 : (a_ > 0 && b_ > 0 ? (a_ - b_) * 1e3 : 0); nvn_be_ub_present(iv_); }   // same-process alternating measurement (DM_NVN_UB) tallies on-screen present intervals per phase; when off it is just one atomic read
+         dm_perf_present(a_ < 0 ? -1 : (a_ > 0 && b_ > 0 ? (a_ - b_) * 1e3 : 0));   // on-screen present intervals are also kept in a separate ring; tsummary reports dropped frames every 300 frames (M1 criterion)
+         if (a_ > 0) trow(f - 8, "@pres_at_ms", a_ * 1e3 - g_t0_ns / 1e6); }   // on-screen present time (ms since process start; presentedTime shares a time base with mach_absolute_time)
++    rb_fb30_frame(o, rb_sent, rb_sent_interval, rb_fb30_cls, rb_fb30_shown, rb_interval);   // RewindBox (patch 0349): k for the next frame's acquire and present
+     if (f >= 8 && slow_on()) slow_emit(f - 8);
+     prev_out = now_ns();
+     rb_call_leave();
+@@ -6399,6 +6521,7 @@ int dm_nvn_shutdown_session(void) {
+     //   h_nvnDeviceInitialize+0x44 读 g_cur_dev 0x75c61bf928）。同程序进程内重启同理，新局重新登记
+     atomic_store(&g_cur_dev, NULL);
+     memset(&g_fs, 0, sizeof g_fs); memset(&g_fg, 0, sizeof g_fg);
++    memset(&g_rb_fb30, 0, sizeof g_rb_fb30); g_rb_fb30_cost_frame = 0; g_rb_fb30_said = 0; atomic_store(&g_rb_fb30_k, 0);   // RewindBox (patch 0349)
+     g_fs_k = g_itv2_since = g_fps_game_itv = 0; atomic_store(&rb_thermal_guest_hold,0);
+     nvn_dirty_reset_session();
+     return 0;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 7171a29..c1ee5ea 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3175,6 +3175,9 @@ static int rb_no_lock_seen_on(void) {
+ static int rb_drs_guard_active(void) {
+     return rb_drs_guard_on() || (rb_no_lock_seen_on() && atomic_load_explicit(&g_rb_drs_alternates, memory_order_relaxed));
+ }
++// RewindBox (patch 0349): the guard as the completion handlers read it, for hle_nvn.c's fallback to a steady 30 (rb_fb30_why), which leaves a guarded game to the guard
++int nvn_rb_no_lock_guard_on(void);
++int nvn_rb_no_lock_guard_on(void) { return rb_drs_guard_active(); }
+ static int rb_drs_fix_scene_on(void) {
+     static int v = -1;
+     if (v < 0) { const char *e = getenv("S2A_RB_DRS_FIX_SCENE"); v = e && !strcmp(e, "1");   // off unless asked for: see the note above
+@@ -27102,6 +27105,9 @@ API_AVAILABLE(macos(26.0), ios(26.0)) static inline void m4_begin_on(id cb, id a
+ API_AVAILABLE(macos(26.0), ios(26.0)) static inline id m4_render_on(id cb, id d) { return [(id<MTL4CommandBuffer>)cb renderCommandEncoderWithDescriptor:d]; }
+ API_AVAILABLE(macos(26.0), ios(26.0)) static inline void m4_commit_one(id cb, id o) { id<MTL4CommandBuffer> b[] = {cb}; [g_q4 commit:b count:1 options:o]; }
+ static __thread double t_rb_present_hold;   // RewindBox (patch 0345 review): the frame's hold (pq_item display_hold), set by present_now's two callers
++static __thread int t_rb_fb30_frame;     // RewindBox (patch 0349): the frame was sent while hle_nvn.c's fallback held the game at 30 (pq_item fb30), set with t_rb_present_hold
++static __thread int t_rb_fb30_enqueue;   // RewindBox (patch 0349): the frame nvn_be_present_with_hold queues is one the fallback holds, for link_sync and the queued item
++__attribute__((weak)) int nvn_rb_fb30_holding(void) { return 0; }   // RewindBox (patch 0349): hle_nvn.c has the strong definition
+ #include "nvn_present_fi.inc"   // RewindBox (patch 0345): present frame interpolation (from upstream S2Arm)
+ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t ticket, const int crop[4], id<CAMetalDrawable> supplied, double target_ts) {
+     if (mtl_gpu_halted()) { atomic_fetch_add_explicit(&g_gpu_refused, 1, memory_order_relaxed); return 0; }   // GPU 安全停：不取画布、不交上屏（调用方按「没交」把票记完成）
+@@ -27201,7 +27207,8 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+     // RewindBox (patch 0345): present frame interpolation takes the frame when it is on (S2A_RB_FI=1), the drawable is the present thread's own and the layer is the
+     //   BGRA8Unorm one its pipelines draw; it presents the frames itself and completes the ticket (fi_ticket_done). -1: not taken, presented as before. Review: asked for
+     //   every frame before !supplied, as upstream (fi_wanted_for moves the link back), and a frame of the 60 fps tier stays on this path (fi_wanted_for)
+-    if (layer.pixelFormat == MTLPixelFormatBGRA8Unorm && fi_wanted_for(t_rb_present_hold > 0 ? t_rb_present_hold : period) && !supplied) { if (@available(macOS 26.0, iOS 26.0, *)) { int fr = fi_frame(src, crop, layer, period, ticket); if (fr >= 0) return fr; } }
++    // RewindBox (patch 0349): a frame hle_nvn.c's fallback holds at 30 is asked for as a 60 fps one: not interpolated (the 30 fps tier would take it), the link back at its base
++    if (layer.pixelFormat == MTLPixelFormatBGRA8Unorm && fi_wanted_for(t_rb_fb30_frame ? 1.0 / 60 : t_rb_present_hold > 0 ? t_rb_present_hold : period) && !supplied) { if (@available(macOS 26.0, iOS 26.0, *)) { int fr = fi_frame(src, crop, layer, period, ticket); if (fr >= 0) return fr; } }
+     uint64_t dt0 = now_ns();
+     id<CAMetalDrawable> dr = supplied ? supplied : [layer nextDrawable];
+     if (!supplied) g_drawable_ns += now_ns() - dt0;
+@@ -27327,7 +27334,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+ // are necessarily ordered after that blit on the GPU queue.
+ #define PQ 8
+ #include "rb_present_hold.h"
+-typedef struct { tex_t t; double period; uint64_t frame; int crop[4]; double t_in; uint64_t ev_val; double display_hold; } pq_item;   // t_in: the time the game handed this frame into the present queue (CACurrentMediaTime); ev_val: see g_ext_ev
++typedef struct { tex_t t; double period; uint64_t frame; int crop[4]; double t_in; uint64_t ev_val; double display_hold; int fb30; } pq_item;   // fb30 (RewindBox, patch 0349): sent while hle_nvn.c's fallback held the game at 30; t_in: the time the game handed this frame into the present queue (CACurrentMediaTime); ev_val: see g_ext_ev
+ // External producer (the Vulkan layer, dm/gfx/vk) renders on its own queue and signals this event when a frame's rendering is done: the present of that frame waits for the value on g_q4
+ static uint64_t g_ext_pend3;   // Metal 3: the value ext_wait asked for, encoded into the next present command buffer (an old queue waits only inside a command buffer)
+ static void ext_wait(uint64_t v) { g_ext_cur = v; if (g_m3) { if (v) g_ext_pend3 = v; return; } if (v && g_ext_ev) [g_q4 waitForEvent:g_ext_ev value:v]; }
+@@ -27503,6 +27510,7 @@ static void rb_release_link_rt(uint64_t now) {
+     int submitted;
+     ext_wait(it.ev_val);
+     t_rb_present_hold = it.display_hold;   // RewindBox (patch 0345 review)
++    t_rb_fb30_frame = it.fb30;   // RewindBox (patch 0349)
+     @autoreleasepool { submitted = present_now(&it.t, it.period, it.frame, ticket, it.crop, drawable, update.targetPresentationTimestamp); }
+     if (exact_hz) {
+         if (submitted) {
+@@ -27676,6 +27684,7 @@ static void link_sync(double period) {   // Called every frame by the game's pre
+         os_unfair_lock_unlock(&g_rb_cadence_lock);
+     }
+     int exact_mode = rb_promotion_on() && want ? rb_promotion_mode(period) : 0;
++    if (exact_mode == 3 && t_rb_fb30_enqueue) exact_mode = 1;   // RewindBox (patch 0349): a frame the fallback holds (33.3 ms) stays on the 60 Hz link, a promotion title's too
+     int base = exact_mode ? 1 : want;
+     if (want < 0 || want > 2) { g_dm_present_link = applied >= 3 ? 1 : applied; return; }
+     // Follow the current final period, never permanently lock out low rates
+@@ -27792,6 +27801,7 @@ static void *present_main(void *arg) {
+         ext_wait(it.ev_val);
+         uint64_t lv0[2][4], lv1[2][4]; thr_lv_take(lv0);
+         t_rb_present_hold = it.display_hold;   // RewindBox (patch 0345 review)
++        t_rb_fb30_frame = it.fb30;   // RewindBox (patch 0349)
+         @autoreleasepool { submitted = present_now(&it.t, it.period, it.frame, ticket, it.crop, nil, 0); }
+         thr_lv_take(lv1); thr_lv_add(1, lv0, lv1);
+         pthread_mutex_lock(&g_pq_mu); g_classic_busy = 0; pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu);
+@@ -27817,7 +27827,10 @@ uint64_t nvn_be_present_with_hold(const tex_t *t, double period, const int crop[
+     int c[4] = {0};
+     if (crop) memcpy(c, crop, sizeof c);
+     wd_present(t, c);
+-    return present_enqueue(t, period, crop || c[2] || c[3] ? c : NULL, 0, display_hold);
++    t_rb_fb30_enqueue = nvn_rb_fb30_holding();   // RewindBox (patch 0349): link_sync and the queued item see whether hle_nvn.c's fallback holds this frame at 30
++    uint64_t tk = present_enqueue(t, period, crop || c[2] || c[3] ? c : NULL, 0, display_hold);
++    t_rb_fb30_enqueue = 0;
++    return tk;
+ }
+ uint64_t nvn_be_present(const tex_t *t, double period, const int crop[4]) {
+     return nvn_be_present_with_hold(t, period, crop, period);
+@@ -27851,6 +27864,7 @@ static uint64_t present_enqueue(const tex_t *t, double period, const int crop[4]
+     if (g_pq_in - g_pq_done >= PQ) { pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_pq_mu); while (g_pq_in - g_pq_done >= PQ && !atomic_load(&g_present_discard)) pthread_cond_wait(&g_pq_cv, &g_pq_mu); pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_END(); pthread_mutex_lock(&g_pq_mu); }
+     if (atomic_load(&g_present_discard)) { pthread_mutex_unlock(&g_pq_mu); return 0; }
+     pq_item *it = &g_pq[g_pq_in % PQ]; *it = (pq_item){*t, period, atomic_load(&g_cur_frame), {0}, CACurrentMediaTime(), ev_val, display_hold};
++    it->fb30 = t_rb_fb30_enqueue;   // RewindBox (patch 0349)
+     if (crop) memcpy(it->crop, crop, sizeof it->crop);   // The current frame's state is enqueued with the ticket number, rather than reading the mutable window late on the present thread
+     uint64_t tk = ++g_pq_in;
+     // Enqueue makes a consumer runnable only when the classic presenter owns an empty queue.
+@@ -28060,6 +28074,10 @@ const char *nvn_diag_path(const char *p, char *buf, size_t n) {
+ uint64_t nvn_be_udc_saved_bytes(void) { return g_udc_saved_bytes; }
+ int nvn_be_has_window(void) { return front_metal_layer() != NULL; }
+ int nvn_be_link_active(void) { return link_on(); }
++// RewindBox (patch 0349): the display link's mode without interpolation (g_link_base: 1 = 60 Hz, 2 = 120 Hz, 0 = none; set once at the start), for hle_nvn.c's fallback
++//   to a steady 30, which holds frames on a 60 Hz link only
++int nvn_rb_link_base_mode(void);
++int nvn_rb_link_base_mode(void) { return g_link_base; }
+ void nvn_be_link_sample(uint64_t *ticks, uint64_t *time_ns) {
+     pthread_mutex_lock(&g_link_mu); *ticks = g_link_tick_n; *time_ns = g_link_tick_ns; pthread_mutex_unlock(&g_link_mu);
+ }
+diff --git a/graphics/nvn/gfx/nvn/rb_direct_autoprofile.inc b/graphics/nvn/gfx/nvn/rb_direct_autoprofile.inc
+index 730bfde..fc3d401 100644
+--- a/graphics/nvn/gfx/nvn/rb_direct_autoprofile.inc
++++ b/graphics/nvn/gfx/nvn/rb_direct_autoprofile.inc
+@@ -133,6 +133,10 @@ void nvn_rb_observe_direct_interval(int interval) {
+ }
+ 
+ int nvn_rb_boot_interval(void) { return atomic_load(&rb_profile_boot_window) ? (int)atomic_load(&rb_seed_interval) : 0; }
++// RewindBox (patch 0349): the interval this executable was learnt to run at, for hle_nvn.c's fallback to a steady 30, which leaves a game learnt at interval 2 alone: the first
++//   120 gameplay presents in a row at one interval this session (rb_first_interval), the saved profile's until then (0: not known). The presenting thread, which writes rb_first_interval
++int nvn_rb_learned_interval(void);
++int nvn_rb_learned_interval(void) { return rb_first_interval ? (int)rb_first_interval : (int)atomic_load(&rb_seed_interval); }
+ 
+ static void rb_profile_retire(void) {
+     pthread_mutex_lock(&rb_profile_lock);
+diff --git a/graphics/nvn/gfx/nvn/rb_fallback30.h b/graphics/nvn/gfx/nvn/rb_fallback30.h
+new file mode 100644
+index 0000000..4bab29a
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_fallback30.h
+@@ -0,0 +1,173 @@
++// SPDX-License-Identifier: MIT
++// RewindBox (patch 0349): a steady 30 when a game cannot hold 60, with retries of 60. Pure C, no Metal: the decision hle_nvn.c (rb_fb30_frame) takes once a present and
++//   present_itv applies (rb_fb30_itv). Tests: tests/t_rb_fallback30.c (kept out of the repository with the local fixtures of 0332+).
++//   Four iPhone 16 Pro Max logs (engine 0332-0340). Zelda 0400486024DEC000 stays at present interval 1 in play and showed 28.5 fps there (median of 44 windows of 300 frames, all
++//   at thermal state Serious; 7.7 to 47.3): 79 % of its displayed intervals missed 16.7 ms, 21 % were 16.7 ms, 54 to 70 % 33.3 ms and 9 to 25 % 50 ms or more. Nothing reacted,
++//   as the game never asks for interval 2. In the 16 of those windows with a GPU p50 under 25 ms (35.1 fps, 63 % of the intervals late) at most 6.9 % of the intervals were
++//   50 ms or more: held two vsyncs at the same cost, at least 93 % would be on time at 33.3 ms. Games that hold 60 stay far from the entry: menus at 60 were 0.2 to 1.4 % late
++//   (Zelda), 0 to 12 % out of race (Mario Kart World, one transition window at 59 %); the in-game Zelda windows that kept 40 to 47 fps were 26 to 40 % late, the others 59 to 99 %.
++//   Entry, both at once: RB_FB30_ENTER_LATE of the last RB_FB30_WIN intervals of frames sent at interval 1 later than 16.77 ms (rb_display_deadline's rule; a frame the
++//   system discarded counts as late), and the median cost of the last frames (critical path or GPU time, as fstep_tick) at most 28.3 ms (0.85 x 33.3, nvn_fstep.h's FSTEP_FIT):
++//   30 has to be within reach. 20 of the 41 heavy Zelda windows had a GPU p50 of 16.9 to 27.9 ms; the other 21 (28.6 to 33.7 ms, 27.5 fps) stay as they are.
++//   Back to 60: a trial once RB_FB30_RUN frames in a row cost at most 14.2 ms (0.85 x 16.7), after a wait of 60 vsyncs doubled by each failed trial up to 480 (nvn_fstep.h's
++//   FSTEP_HOLD0 and FSTEP_HOLD_MAX); a probe whatever the cost after 600 vsyncs doubled by each failed probe up to 9600 (an iPhone lowers its GPU clock to a longer hold, so
++//   the cost at 30 may never fit 60 again: nvn_fstep.h, Breath of the Wild 14.4 -> ~25 ms of GPU at hold 2), whose first RB_FB30_GRACE frames may be late while the clock rises
++//   (FSTEP_GRACE). Both waits count in the hold from the entry or the end of the last trial or probe, the trial first when both are due.
++//   A trial or probe is judged on its own frames' intervals (the hold class 1; those still on screen from the hold come 8 presents late and do not count): it
++//   fails on RB_FB30_LATE_RUN late frames in a row, or when half of its RB_FB30_RUN frames are late (the entry's share); a return that does not hold RB_FB30_KEEP vsyncs (30 s)
++//   at 60 before the entry comes true again counts as a failure of its kind, and one that holds them sets both waits back to their start. The heavy Zelda phases lasted 3,300
++//   to 9,300 frames (110 to 330 s): 10, 20, 40, 80 then 160 s between probes make at most 5 failed probes a phase.
++//   Not eligible, at once: k = 1 and the windows start again (the waits keep their length)
++//   Review (24 November): the entry needs a full window of RB_FB30_WIN intervals and lateness the cost explains: the median cost above RB_FB30_FIT60_MS, so a loading
++//   screen or a menu transition of cheap late frames, or a game whose own CPU time (not in the cost) makes it late, is not held; 30 within reach is read on the GPU time,
++//   as the cost read at 60 counts the queue behind the previous frame. A trial or probe fails on RB_FB30_LATE_RUN = 5 late frames in a row (3 failed a phase that holds 60
++//   on one spike: real lateness comes in runs of 3 to 5, nvn_fstep.h); a present counts RB_FB30_DT_MAX vsyncs at most (a compile stall or a stay in the background is
++//   not time held, nor a return kept); a hold whose GPU time falls under RB_FB30_LIGHTER of the one at its last failed probe probes again from the first wait
++#pragma once
++#include <stdint.h>
++#include <string.h>
++
++enum { RB_FB30_WIN = 120, RB_FB30_ENTER_LATE = 60, RB_FB30_COSTS_MIN = 30, RB_FB30_RUN = 30, RB_FB30_GRACE = 30, RB_FB30_LATE_RUN = 5 };
++#define RB_FB30_LATE60_MS 16.77          // an interval of a frame sent at 16.67 ms is late past this (rb_display_deadline: a tenth of a millisecond of timestamp rounding)
++#define RB_FB30_LATE30_MS 33.43          // ... of a frame sent at 33.3 ms (counted for the log only)
++#define RB_FB30_FIT30_MS 28.3            // a cost that leaves room in 33.3 ms (0.85 x 33.3)
++#define RB_FB30_FIT60_MS 14.2            // a cost that leaves room in 16.7 ms (0.85 x 16.7)
++#define RB_FB30_TRIAL_WAIT0 60.0         // vsyncs (1/60 s) in the hold before a trial, doubled by each failed one
++#define RB_FB30_TRIAL_WAIT_MAX 480.0
++#define RB_FB30_PROBE_WAIT0 600.0        // vsyncs in the hold before a probe, doubled by each failed one
++#define RB_FB30_PROBE_WAIT_MAX 9600.0
++#define RB_FB30_KEEP 1800.0              // vsyncs at 60 after a return before it counts as kept
++#define RB_FB30_DT_MAX 4.0               // review: the vsyncs one present counts at most
++#define RB_FB30_LIGHTER 0.75             // review: a hold this much lighter on the GPU than at its last failed probe probes again from RB_FB30_PROBE_WAIT0
++
++enum { RB_FB30_WATCH, RB_FB30_HELD, RB_FB30_TRIAL, RB_FB30_PROBE };   // k = 2 in RB_FB30_HELD only
++enum { RB_FB30_EV_NONE, RB_FB30_EV_ENTER, RB_FB30_EV_TRIAL, RB_FB30_EV_PROBE, RB_FB30_EV_TRIAL_FAILED, RB_FB30_EV_PROBE_FAILED, RB_FB30_EV_TRIAL_HELD,
++       RB_FB30_EV_PROBE_HELD, RB_FB30_EV_KEPT, RB_FB30_EV_EXIT };
++typedef struct {
++    int mode;                                          // RB_FB30_WATCH, _HELD, _TRIAL, _PROBE
++    uint8_t late[RB_FB30_WIN]; int li, ln, nlate;      // the last intervals of frames sent at interval 1: 1 = late (ring, filled, late ones)
++    uint8_t fit[RB_FB30_WIN]; int fi, fn, nfit, nfit60; // the last frames: bit 0 = GPU time at most RB_FB30_FIT30_MS (nfit), bit 1 = cost at most RB_FB30_FIT60_MS (nfit60)
++    int fit_run;                                       // in the hold: costs in a row at most RB_FB30_FIT60_MS
++    double trial_wait, probe_wait, since;              // vsyncs: the waits, and the time in the hold since the entry or the end of the last trial or probe
++    int judged, tlate, late_run, grace;                // a trial or probe: its frames judged, late, late in a row; frames left of a probe's grace
++    int back;                                          // a return to 60 not kept yet: 1 a trial's, 2 a probe's (0 none)
++    double at60;                                       // vsyncs at 60 since the return or the watch began
++    double gpu60, gpu30;                               // GPU ms a frame at 60 (running mean, 1/32) and in the hold (1/8), for the log
++    double fail_gpu30;                                 // review: gpu30 at the last failed probe (0: none since the last reset)
++    uint64_t entries, trials, probes, trial_fails, probe_fails, kept, exits;
++    unsigned w_presents, w_held, w_n60, w_late60, w_n30, w_late30;   // the window of the caller's log line (rb_fb30_window_reset)
++    int event;                                         // RB_FB30_EV_* of the last step
++} rb_fb30;
++
++// S2A_RB_FALLBACK30: on when not set or any value but "0"
++static inline int rb_fb30_switch(const char *value) { return !(value && !strcmp(value, "0")); }
++// S2A_RB_FALLBACK30_OFF=<program id>[,<program id>...]: whether id is listed (separators , space ; tab; hexadecimal ids in either case), as nvn_mtl.m rb_no_lock_seen_listed
++static inline int rb_fb30_listed(const char *list, const char *id) {
++    if (!list || !id || !*id) return 0;
++    const size_t n = strlen(id);
++    for (const char *q = list; *q; ) {
++        while (*q == ',' || *q == ' ' || *q == ';' || *q == '\t') q++;
++        const char *e = q;
++        while (*e && *e != ',' && *e != ' ' && *e != ';' && *e != '\t') e++;
++        int same = (size_t)(e - q) == n;
++        for (size_t i = 0; same && i < n; i++) {
++            char x = q[i], y = id[i];
++            if (x >= 'a' && x <= 'z') x = (char)(x - 32);
++            if (y >= 'a' && y <= 'z') y = (char)(y - 32);
++            same = x == y;
++        }
++        if (same) return 1;
++        q = e;
++    }
++    return 0;
++}
++// The vsyncs present_itv follows: two while the fallback holds a game sent at interval 1 (k == 2), the game's own interval otherwise
++static inline int rb_fb30_itv(int itv, int k) { return itv < 2 && k == 2 ? 2 : itv; }
++static inline int rb_fb30_k(const rb_fb30 *s) { return s->mode == RB_FB30_HELD ? 2 : 1; }
++static inline void rb_fb30_ring(uint8_t *ring, int *i, int *n, int *count, int v) {
++    if (*n == RB_FB30_WIN) *count -= ring[*i]; else ++*n;
++    ring[*i] = (uint8_t)v; *count += v; *i = (*i + 1) % RB_FB30_WIN;
++}
++static inline void rb_fb30_clear_late(rb_fb30 *s) { s->li = s->ln = s->nlate = 0; }
++static inline void rb_fb30_clear_fit(rb_fb30 *s) { s->fi = s->fn = s->nfit = s->nfit60 = 0; s->fit_run = 0; }
++static inline void rb_fb30_fit(rb_fb30 *s, double cost_ms, double gpu_ms) {   // a frame's cost into the window (review: two bits, see fit)
++    const double g = gpu_ms > 0 ? gpu_ms : cost_ms;
++    const int v = (g <= RB_FB30_FIT30_MS) | (cost_ms <= RB_FB30_FIT60_MS) << 1;
++    if (s->fn == RB_FB30_WIN) { const int o = s->fit[s->fi]; s->nfit -= o & 1; s->nfit60 -= o >> 1; } else s->fn++;
++    s->fit[s->fi] = (uint8_t)v; s->nfit += v & 1; s->nfit60 += v >> 1; s->fi = (s->fi + 1) % RB_FB30_WIN;
++}
++static inline int rb_fb30_e1(const rb_fb30 *s) { return s->ln == RB_FB30_WIN && s->nlate >= RB_FB30_ENTER_LATE; }   // review: a full window
++// 30 within reach (the median GPU time at most RB_FB30_FIT30_MS) and the lateness explained by the cost (its median above RB_FB30_FIT60_MS: review)
++static inline int rb_fb30_e2(const rb_fb30 *s) { return s->fn >= RB_FB30_COSTS_MIN && 2 * s->nfit >= s->fn && 2 * s->nfit60 < s->fn; }
++static inline double rb_fb30_twice(double wait, double max) { return wait * 2 < max ? wait * 2 : max; }
++static inline void rb_fb30_window_reset(rb_fb30 *s) { s->w_presents = s->w_held = s->w_n60 = s->w_late60 = s->w_n30 = s->w_late30 = 0; }
++
++// Once a present. elig: the game may be held (every condition but the frames' own, hle_nvn.c rb_fb30_why). cls: the hold class, in vsyncs, of the interval judged at this
++//   present (rb_shown_hold: 1 = frames sent at 16.67 ms, 2 = at 33.3 ms; 0 = none), shown_ms that interval (< 0: discarded by the system; 0: not known). cost_ms: the cost
++//   of a frame whose GPU work completed since the last call (<= 0: none new), gpu_ms its GPU time. dt: vsyncs since the last call. Returns k, the vsyncs the next frames are held
++static inline int rb_fb30_step(rb_fb30 *s, int elig, unsigned cls, double shown_ms, double cost_ms, double gpu_ms, double dt) {
++    s->event = RB_FB30_EV_NONE;
++    if (!s->trial_wait) s->trial_wait = RB_FB30_TRIAL_WAIT0;
++    if (!s->probe_wait) s->probe_wait = RB_FB30_PROBE_WAIT0;
++    s->w_presents++;
++    if (!elig) {   // E0 dropped: the game's own interval at once
++        if (s->mode != RB_FB30_WATCH) { s->exits++; s->event = RB_FB30_EV_EXIT; }
++        s->mode = RB_FB30_WATCH; s->back = 0; s->at60 = 0;
++        rb_fb30_clear_late(s); rb_fb30_clear_fit(s);
++        return 1;
++    }
++    if (!(dt > 0)) dt = 0; else if (dt > RB_FB30_DT_MAX) dt = RB_FB30_DT_MAX;   // review: a stall is not time held
++    int late = -1;   // the interval of a frame sent at interval 1, judged against 16.77 ms (-1: none at this present)
++    if (cls == 1 && shown_ms != 0) { late = shown_ms < 0 || shown_ms > RB_FB30_LATE60_MS; s->w_n60++; s->w_late60 += (unsigned)late; }
++    else if (cls == 2 && shown_ms != 0) { s->w_n30++; s->w_late30 += shown_ms < 0 || shown_ms > RB_FB30_LATE30_MS; }
++    const int fresh = cost_ms > 0;
++    switch (s->mode) {
++    case RB_FB30_WATCH:
++        s->at60 += dt;
++        if (late >= 0) rb_fb30_ring(s->late, &s->li, &s->ln, &s->nlate, late);
++        if (fresh) {
++            rb_fb30_fit(s, cost_ms, gpu_ms);
++            if (gpu_ms > 0) s->gpu60 = s->gpu60 > 0 ? s->gpu60 + (gpu_ms - s->gpu60) / 32 : gpu_ms;
++        }
++        if (s->back && s->at60 >= RB_FB30_KEEP) {   // the return held: both waits start again
++            s->kept++; s->back = 0; s->trial_wait = RB_FB30_TRIAL_WAIT0; s->probe_wait = RB_FB30_PROBE_WAIT0; s->fail_gpu30 = 0; s->event = RB_FB30_EV_KEPT;
++        }
++        if (rb_fb30_e1(s) && rb_fb30_e2(s)) {
++            if (s->back == 1) { s->trial_fails++; s->trial_wait = rb_fb30_twice(s->trial_wait, RB_FB30_TRIAL_WAIT_MAX); }   // the trial's return did not hold
++            else if (s->back == 2) { s->probe_fails++; s->probe_wait = rb_fb30_twice(s->probe_wait, RB_FB30_PROBE_WAIT_MAX); }
++            s->back = 0; s->mode = RB_FB30_HELD; s->entries++;
++            s->since = 0; s->fit_run = 0; s->gpu30 = 0;   // the late ring stays for the caller's line: nothing reads it before a return or an exit clears it
++            s->event = RB_FB30_EV_ENTER;
++        }
++        break;
++    case RB_FB30_HELD:   // the intervals of frames sent at interval 1 here are those presented before the entry (8 presents late): no use
++        s->since += dt;
++        if (fresh) {
++            s->fit_run = cost_ms <= RB_FB30_FIT60_MS ? s->fit_run + 1 : 0;
++            if (gpu_ms > 0) s->gpu30 = s->gpu30 > 0 ? s->gpu30 + (gpu_ms - s->gpu30) / 8 : gpu_ms;
++            if (s->fail_gpu30 > 0 && s->gpu30 > 0 && s->gpu30 < RB_FB30_LIGHTER * s->fail_gpu30) { s->probe_wait = RB_FB30_PROBE_WAIT0; s->fail_gpu30 = 0; }   // review: a lighter phase
++        }
++        if (s->fit_run >= RB_FB30_RUN && s->since >= s->trial_wait) { s->mode = RB_FB30_TRIAL; s->trials++; s->grace = 0; s->event = RB_FB30_EV_TRIAL; }
++        else if (s->since >= s->probe_wait) { s->mode = RB_FB30_PROBE; s->probes++; s->grace = RB_FB30_GRACE; s->event = RB_FB30_EV_PROBE; }
++        if (s->mode != RB_FB30_HELD) { s->judged = s->tlate = s->late_run = 0; s->fit_run = 0; s->since = 0; }
++        break;
++    default:   // a trial or probe of 60, judged on its own frames
++        if (late < 0) break;
++        if (s->grace > 0) { s->grace--; break; }
++        s->judged++; s->tlate += late; s->late_run = late ? s->late_run + 1 : 0;
++        if (s->late_run >= RB_FB30_LATE_RUN || (s->judged >= RB_FB30_RUN && 2 * s->tlate >= s->judged)) {
++            if (s->mode == RB_FB30_PROBE) { s->probe_fails++; s->probe_wait = rb_fb30_twice(s->probe_wait, RB_FB30_PROBE_WAIT_MAX); s->fail_gpu30 = s->gpu30; s->event = RB_FB30_EV_PROBE_FAILED; }
++            else { s->trial_fails++; s->trial_wait = rb_fb30_twice(s->trial_wait, RB_FB30_TRIAL_WAIT_MAX); s->event = RB_FB30_EV_TRIAL_FAILED; }
++            s->mode = RB_FB30_HELD; s->fit_run = 0; s->since = 0;   // both waits count from the end of the last attempt
++        } else if (s->judged >= RB_FB30_RUN) {   // held: 60 from here, kept once it lasts RB_FB30_KEEP vsyncs
++            s->back = s->mode == RB_FB30_PROBE ? 2 : 1;
++            s->event = s->mode == RB_FB30_PROBE ? RB_FB30_EV_PROBE_HELD : RB_FB30_EV_TRIAL_HELD;
++            s->mode = RB_FB30_WATCH; s->at60 = 0;
++            rb_fb30_clear_late(s); rb_fb30_clear_fit(s);
++        }
++        break;
++    }
++    const int k = rb_fb30_k(s);
++    s->w_held += k == 2;
++    return k;
++}
