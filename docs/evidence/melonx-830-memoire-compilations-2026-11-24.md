@@ -113,7 +113,12 @@ chaque compilation suit la pression mémoire de l'appareil.
   faible, demande un nouveau test du contrat ; reporté.
 - Moins de compilations (états dynamiques, clés MSL par étage, verrou du cache principal) : leviers les plus forts
   pour les saccades et la mémoire Metal, mais leur part réelle n'est pas mesurée. Il faut d'abord classer les états
-  tardifs d'une vraie session (journal des variantes, temps d'attente du verrou) avant d'y toucher.
+  tardifs d'une vraie session avant d'y toucher. Ajouté au même Core, journal seul (VARIANT_CAUSES,
+  `adapt_render_thread_compile_relief`) : chaque état nouveau en jeu est comparé à tous ceux que son programme avait.
+  Les champs qui le séparent du plus proche tombent dans un groupe : état que Vulkan peut rendre dynamique ou que
+  MoltenVK ignore (par nom), entrée des sommets, mélange, attachements, autre. Une ligne `pipelineVariants/causes`
+  par minute au plus. Classement vérifié sur la DLL compilée du moteur (9 cas, dont la topologie de même classe ou
+  non) ; projet `Ryujinx.Graphics.Vulkan` compilé sans erreur.
 - Les purges et compactages du moteur se déclenchent sur la marge du processus ; sur cet iPhone, c'est l'appareil
   qui manque de mémoire en premier (5 % disponibles avec 1,8 Gio de marge). Constat consigné, aucun seuil n'est
   changé.
