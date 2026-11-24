@@ -23,7 +23,7 @@
     }
   },
   "patch": "native/desmume/arm64-jit-abi.patch",
-  "patchSHA256": "139231f83cac87da76afada388a3277a6277487769f99738ca1ca6fef266b1a1",
+  "patchSHA256": "5e0ccc7f983c64da54a127163a6f3a8ff30b76b94a9f4207a4b361e31020b2e1",
   "abiHeader": "packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h",
   "abiHeaderSHA256": "84c59f2484336fa3c64bc68b51177211094083fd411f0b488fee6b79bda6bc22",
   "abiHeaderInTree": "desmume/src/frontend/libretro/rewindbox/RewindBoxLibretroJit.h",
@@ -102,7 +102,9 @@
     "desmume_jit_block_size",
     "[rb-jit] desmume installed=%d",
     "jit_exact",
-    "as many rasterizer threads as the device has cores"
+    "as many rasterizer threads as the device has cores",
+    "desmume_rb_3d_supersampling",
+    "[rb-perf] desmume frames=%llu"
   ],
   "forbiddenImports": [
     "_vm_protect",
@@ -113,7 +115,7 @@
     "_sys_icache_invalidate",
     "___clear_cache"
   ],
-  "jitArenaBytes": 33554432,
+  "jitArenaBytes": 67108864,
   "license": "GPL-2.0-or-later (DeSmuME; its AArch64 JIT, utils/arm_jit, from TASEmulators/desmume b549f71b); GPL-3.0-or-later (arm_jit.h, the JIT interface of the core); ABI header MIT; RewindBox changes in native/desmume/arm64-jit-abi.patch",
   "noticeLicense": "GPLv3 (DeSmuME GPLv2+, AArch64 JIT of TASEmulators/desmume GPLv2+, arm_jit.h GPLv3+)",
   "identityLicense": "GPLv3"

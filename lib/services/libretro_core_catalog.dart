@@ -249,6 +249,19 @@ abstract final class LibretroCoreCatalog {
         'desmume_pointer_type': 'touch',
         'desmume_pointer_mouse': 'enabled',
       },
+      // RewindBox's DeSmuME (native/desmume): the 3D drawn at twice the
+      // internal resolution on each axis and averaged, the 2D and the frame at
+      // the internal resolution. 5x with it looks like 10x on an iPhone screen
+      // (at most ~5x per DS screen in portrait) for a quarter of the 2D work;
+      // the core keeps it off above 5x. Applied at once.
+      settings: [
+        LibretroCuratedSetting(
+          'desmume_rb_3d_supersampling',
+          'setting3dSupersampling',
+          ['disabled', '2x'],
+          valueLabelKeys: {'disabled': 'supersamplingOff', '2x': 'supersampling2x'},
+        ),
+      ],
     ),
     'mupen64plus_next': LibretroCore(
       id: 'mupen64plus_next',

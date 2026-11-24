@@ -1,8 +1,18 @@
 diff --git a/desmume/src/GPU.cpp b/desmume/src/GPU.cpp
-index 026bf14c..0eedf587 100644
+index 026bf14c..67ad049b 100644
 --- a/desmume/src/GPU.cpp
 +++ b/desmume/src/GPU.cpp
-@@ -7342,6 +7342,36 @@ void GPUEngineA::RenderLine_Layer3D(GPUEngineCompositorInfo &compInfo)
+@@ -38,6 +38,9 @@
+ #include "matrix.h"
+ #include "emufile.h"
+ #include "utils/task.h"
++#ifdef REWINDBOX_PERF
++#include "utils/rb_perf.h"
++#endif
+ 
+ 
+ #ifdef FASTBUILD
+@@ -7342,6 +7345,36 @@ void GPUEngineA::RenderLine_Layer3D(GPUEngineCompositorInfo &compInfo)
  	{
  		size_t i = 0;
  		
@@ -39,6 +49,26 @@ index 026bf14c..0eedf587 100644
  #ifdef ENABLE_SSE2
  		const size_t ssePixCount = (compInfo.line.pixelCount - (compInfo.line.pixelCount % 16));
  		const __m128i srcEffectEnableMask = compInfo.renderState.srcEffectEnable_SSE2[GPULayerID_BG0];
+@@ -9622,6 +9655,9 @@ void GPUSubsystem::AsyncSetupEngineBuffersFinish()
+ template <NDSColorFormat OUTPUTFORMAT>
+ void GPUSubsystem::RenderLine(const size_t l)
+ {
++#ifdef REWINDBOX_PERF
++	const u64 rbPerfStart = rb_perf_now();
++#endif
+ 	if (!this->_frameNeedsFinish)
+ 	{
+ 		this->_event->DidApplyGPUSettingsBegin();
+@@ -9770,6 +9806,9 @@ void GPUSubsystem::RenderLine(const size_t l)
+ 			this->_event->DidFrameEnd(this->_willFrameSkip, this->_displayInfo);
+ 		}
+ 	}
++#ifdef REWINDBOX_PERF
++	rb_perf.gpuLine += rb_perf_now() - rbPerfStart;
++#endif
+ }
+ 
+ void GPUSubsystem::UpdateAverageBacklightIntensityTotal()
 diff --git a/desmume/src/MMU.cpp b/desmume/src/MMU.cpp
 index 09d35972..8716f140 100644
 --- a/desmume/src/MMU.cpp
@@ -495,7 +525,7 @@ index 489bafd4..524858d8 100644
  SOURCES_CXX += \
  	$(CORE_DIR)/utils/arm_arm/arm_gen.cpp \
 diff --git a/desmume/src/frontend/libretro/Makefile.libretro b/desmume/src/frontend/libretro/Makefile.libretro
-index 95592125..4b44ebcd 100644
+index 95592125..caa71976 100644
 --- a/desmume/src/frontend/libretro/Makefile.libretro
 +++ b/desmume/src/frontend/libretro/Makefile.libretro
 @@ -230,17 +230,16 @@ else ifneq (,$(findstring ios,$(platform)))
@@ -535,17 +565,17 @@ index 95592125..4b44ebcd 100644
 +ifeq ($(DESMUME_JIT_A64),1)
 +   DESMUME_JIT = 0
 +   DESMUME_JIT_ARM = 0
-+   CXXFLAGS += -DHAVE_JIT -DREWINDBOX_LIBRETRO_JIT
++   CXXFLAGS += -DHAVE_JIT -DREWINDBOX_LIBRETRO_JIT -DREWINDBOX_PERF
 +endif
 +
  ifeq ($(DESMUME_JIT_ARM),1)
     CXXFLAGS += -DHAVE_JIT
  endif
 diff --git a/desmume/src/frontend/libretro/libretro.cpp b/desmume/src/frontend/libretro/libretro.cpp
-index 2314af93..03514138 100644
+index 2314af93..15494478 100644
 --- a/desmume/src/frontend/libretro/libretro.cpp
 +++ b/desmume/src/frontend/libretro/libretro.cpp
-@@ -18,8 +18,14 @@
+@@ -18,8 +18,17 @@
  #include "emufile.h"
  #include "common.h"
  #include "path.h"
@@ -557,10 +587,13 @@ index 2314af93..03514138 100644
 +#include "arm_jit.h"
 +#include "rewindbox/RewindBoxLibretroJit.h"
 +#endif
++#ifdef REWINDBOX_PERF
++#include "utils/rb_perf.h"
++#endif
  #include "streams/file_stream.h"
  
  #ifdef HAVE_OPENGL
-@@ -69,6 +75,77 @@ enum {
+@@ -69,6 +78,139 @@ enum {
  };
  
  retro_log_printf_t log_cb = NULL;
@@ -635,10 +668,72 @@ index 2314af93..03514138 100644
 +          (unsigned long long)stats.interpreted, (unsigned long long)stats.failures);
 +}
 +#endif
++#ifdef REWINDBOX_PERF
++/* RewindBox: where the time of a frame goes, averaged over 600 frames (about 10 s), written to the core
++   log. run: retro_run; emu: NDS_exec (CPU emulation, 2D engines, 3D start and waits); 2d: the 2D engines
++   without their waits for the 3D; 3d: SoftRasterizerRenderer::Render on this thread; wait: this thread
++   waiting for the rasterizer threads (resolve included); cpu: the rest of emu (CPU and other hardware);
++   out: the frontend's conversion of both screens; host: the frontend's video callback (upload and
++   presentation); raster: busy time of all rasterizer threads (core-milliseconds); resolve: averaging of
++   the supersampled 3D (part of wait). fps from the wall clock between two lines. */
++#define REWINDBOX_PERF_FRAMES 600
++extern unsigned GPU_LR_FRAMEBUFFER_NATIVE_WIDTH, GPU_LR_FRAMEBUFFER_NATIVE_HEIGHT;
++static struct
++{
++   u64 frames, start, run, runMax, emu, out, host, gpuLine, wait3d, render3d, resolve, raster;
++} rewindbox_perf;
++
++static void rewindbox_perf_frame(u64 runStart, u64 emu, u64 out, u64 host, const RbPerf &before)
++{
++   const u64 now = rb_perf_now();
++   const u64 run = now - runStart;
++   if (rewindbox_perf.frames == 0)
++      rewindbox_perf.start = runStart;
++   rewindbox_perf.frames++;
++   rewindbox_perf.run += run;
++   if (run > rewindbox_perf.runMax)
++      rewindbox_perf.runMax = run;
++   rewindbox_perf.emu += emu;
++   rewindbox_perf.out += out;
++   rewindbox_perf.host += host;
++   rewindbox_perf.gpuLine += rb_perf.gpuLine - before.gpuLine;
++   rewindbox_perf.wait3d += rb_perf.wait3d - before.wait3d;
++   rewindbox_perf.render3d += rb_perf.render3d - before.render3d;
++   rewindbox_perf.resolve += rb_perf.resolve - before.resolve;
++   rewindbox_perf.raster += __atomic_load_n(&rb_perf.raster, __ATOMIC_RELAXED) - before.raster;
++   if (rewindbox_perf.frames < REWINDBOX_PERF_FRAMES)
++      return;
++
++   if (log_cb)
++   {
++      const double n = (double)rewindbox_perf.frames * 1e6;
++      const double wall = (double)(now - rewindbox_perf.start) / 1e9;
++      const double emuMs = rewindbox_perf.emu / n, gpuMs = rewindbox_perf.gpuLine / n;
++      const double waitMs = rewindbox_perf.wait3d / n, render3dMs = rewindbox_perf.render3d / n;
++      /* the waits for the 3D happen inside the 2D engines (line 0) or the 3D start (previous picture) */
++      double twoD = gpuMs - waitMs;
++      if (twoD < 0)
++         twoD = 0;
++      double cpu = emuMs - gpuMs - render3dMs;
++      if (cpu < 0)
++         cpu = 0;
++      log_cb(RETRO_LOG_INFO, "[rb-perf] desmume frames=%llu fps=%.1f res=%ux%u ss=%u threads=%u jit=%d ms/frame "
++             "run=%.2f max=%.2f emu=%.2f cpu=%.2f 2d=%.2f 3d=%.2f wait=%.2f out=%.2f host=%.2f raster=%.2f "
++             "resolve=%.2f\n",
++             (unsigned long long)rewindbox_perf.frames, wall > 0 ? rewindbox_perf.frames / wall : 0.0,
++             (unsigned)GPU_LR_FRAMEBUFFER_NATIVE_WIDTH, (unsigned)GPU_LR_FRAMEBUFFER_NATIVE_HEIGHT,
++             (unsigned)SoftRasterizer_GetActiveSupersampling(), (unsigned)CommonSettings.num_cores,
++             CommonSettings.use_jit ? 1 : 0, rewindbox_perf.run / n, rewindbox_perf.runMax / 1e6, emuMs, cpu,
++             twoD, render3dMs, waitMs, rewindbox_perf.out / n, rewindbox_perf.host / n,
++             rewindbox_perf.raster / n, rewindbox_perf.resolve / n);
++   }
++   memset(&rewindbox_perf, 0, sizeof(rewindbox_perf));
++}
++#endif
  static retro_video_refresh_t video_cb = NULL;
  static retro_input_poll_t poll_cb = NULL;
  static retro_input_state_t input_cb = NULL;
-@@ -369,14 +446,84 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
+@@ -369,14 +511,84 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
     }
  }
  
@@ -729,7 +824,7 @@ index 2314af93..03514138 100644
  }
  
  static void SwapScreen_32(uint32_t *dst, const uint32_t *src, uint32_t pitch)
-@@ -731,6 +878,20 @@ static void check_variables(bool first_boot)
+@@ -731,6 +943,20 @@ static void check_variables(bool first_boot)
                CommonSettings.use_jit = true;
            else if (!strcmp(var.value, "interpreter"))
                CommonSettings.use_jit = false;
@@ -750,7 +845,7 @@ index 2314af93..03514138 100644
        }
       else
       {
-@@ -741,6 +902,32 @@ static void check_variables(bool first_boot)
+@@ -741,6 +967,32 @@ static void check_variables(bool first_boot)
  #endif
       }
  
@@ -783,7 +878,24 @@ index 2314af93..03514138 100644
  #ifdef HAVE_JIT
        var.key = "desmume_jit_block_size";
  
-@@ -892,7 +1079,17 @@ static void check_variables(bool first_boot)
+@@ -889,10 +1141,34 @@ static void check_variables(bool first_boot)
+ 
+    }
+ 
++   var.key = "desmume_rb_3d_supersampling";
++
++   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
++   {
++      /* RewindBox: applied by the next SetFramebufferSize of the rasterizer, at once during a game */
++      const size_t factor = !strcmp(var.value, "2x") ? 2 : 1;
++      if (factor != SoftRasterizer_GetSupersampling())
++      {
++         SoftRasterizer_SetSupersampling(factor);
++         if (!first_boot)
++            need_framebuffer_reset = true;
++      }
++   }
++
     var.key = "desmume_num_cores";
  
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -802,7 +914,7 @@ index 2314af93..03514138 100644
     else
         CommonSettings.num_cores = 1;
  
-@@ -1576,6 +1773,7 @@ void retro_deinit(void)
+@@ -1576,6 +1852,7 @@ void retro_deinit(void)
         tex = 0;
      }
  #endif
@@ -810,20 +922,56 @@ index 2314af93..03514138 100644
      NDS_DeInit();
  
  #ifdef PERF_TEST
-@@ -2081,6 +2279,12 @@ void retro_run (void)
+@@ -2079,7 +2356,21 @@ void retro_run (void)
+    if (skipped)
+       NDS_SkipNextFrame();
  
++#ifdef REWINDBOX_PERF
++   const u64 rbPerfRun = rb_perf_now();
++   RbPerf rbPerfBefore = rb_perf;
++   rbPerfBefore.raster = __atomic_load_n(&rb_perf.raster, __ATOMIC_RELAXED);
++#endif
     NDS_exec<false>();
- 
++#ifdef REWINDBOX_PERF
++   const u64 rbPerfEmu = rb_perf_now() - rbPerfRun;
++#endif
++
 +#if defined(HAVE_JIT) && defined(REWINDBOX_LIBRETRO_JIT)
 +   /* Every 30 s of emulated time (60 frames a second) */
 +   if (++rewindbox_jit_frames % 1800 == 0)
 +      rewindbox_jit_log_stats("running");
 +#endif
-+
+ 
     SPU_Emulate_user();
  
-    static int previous_layout = LAYOUTS_MAX;
-@@ -2463,6 +2667,10 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
+@@ -2097,6 +2388,9 @@ void retro_run (void)
+           previous_showbothscreens = hybrid_layout_showbothscreens;
+    }
+ 
++#ifdef REWINDBOX_PERF
++   const u64 rbPerfOutStart = rb_perf_now();
++#endif
+    if (!skipped)
+    {
+           if (colorMode == RETRO_PIXEL_FORMAT_XRGB8888)
+@@ -2284,7 +2578,16 @@ void retro_run (void)
+ #endif
+    }
+    else
++   {
++#ifdef REWINDBOX_PERF
++      const u64 rbPerfHost = rb_perf_now();
++      const u64 rbPerfOut = rbPerfHost - rbPerfOutStart;
++#endif
+       video_cb(skipped ? 0 : screen_buf, layout.width, layout.height, layout.pitch * 2);
++#ifdef REWINDBOX_PERF
++      rewindbox_perf_frame(rbPerfRun, rbPerfEmu, rbPerfOut, rb_perf_now() - rbPerfHost, rbPerfBefore);
++#endif
++   }
+ 
+    frameIndex = skipped ? frameIndex : 0;
+ }
+@@ -2463,6 +2766,10 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
  
  void retro_unload_game (void)
  {
@@ -835,7 +983,7 @@ index 2314af93..03514138 100644
      if (screen_buf)
         free(screen_buf);
 diff --git a/desmume/src/frontend/libretro/libretro_core_options.h b/desmume/src/frontend/libretro/libretro_core_options.h
-index 85043b8e..b8975976 100644
+index 85043b8e..e82e8057 100644
 --- a/desmume/src/frontend/libretro/libretro_core_options.h
 +++ b/desmume/src/frontend/libretro/libretro_core_options.h
 @@ -138,17 +138,18 @@ struct retro_core_option_v2_definition option_defs_us[] = {
@@ -874,11 +1022,40 @@ index 85043b8e..b8975976 100644
  #endif
              { NULL, NULL },
          },
+@@ -343,6 +350,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
+         },
+         "256x192"
+     },
++    {
++        "desmume_rb_3d_supersampling",
++        "3D Supersampling",
++        NULL,
++        "Draws the 3D at twice the internal resolution on each axis and averages it: 3D as smooth as at twice the resolution, with the 2D compositing and the output at the internal resolution. Only while the 3D drawn stays within 2560x1920 (internal resolution 5x or lower).",
++        NULL,
++        "video",
++        {
++            { "disabled", NULL },
++            { "2x",       NULL },
++            { NULL, NULL },
++        },
++        "disabled"
++    },
+ #ifdef HAVE_OPENGL
+     {
+         "desmume_opengl_mode",
 diff --git a/desmume/src/rasterize.cpp b/desmume/src/rasterize.cpp
-index e42ef256..152567f8 100644
+index e42ef256..9168c734 100644
 --- a/desmume/src/rasterize.cpp
 +++ b/desmume/src/rasterize.cpp
-@@ -1036,7 +1036,7 @@ void RasterizerUnit<RENDERER>::_runscanlines(const POLYGON_ATTR polyAttr, const
+@@ -64,6 +64,7 @@
+ #include "NDSSystem.h"
+ #include "utils/bits.h"
+ #include "utils/task.h"
++#include "utils/rb_perf.h"
+ #include "filter/filter.h"
+ #include "filter/xbrz.h"
+ 
+@@ -1036,7 +1037,7 @@ void RasterizerUnit<RENDERER>::_runscanlines(const POLYGON_ATTR polyAttr, const
  	//HACK: special handling for horizontal line poly
  	if ( USELINEHACK && (left->Height == 0) && (right->Height == 0) && (left->Y < framebufferHeight) && (left->Y >= 0) )
  	{
@@ -887,7 +1064,7 @@ index e42ef256..152567f8 100644
  		if (draw)
  		{
  #ifdef ENABLE_SSE2
-@@ -1049,7 +1049,7 @@ void RasterizerUnit<RENDERER>::_runscanlines(const POLYGON_ATTR polyAttr, const
+@@ -1049,7 +1050,7 @@ void RasterizerUnit<RENDERER>::_runscanlines(const POLYGON_ATTR polyAttr, const
  
  	while (Height--)
  	{
@@ -896,7 +1073,7 @@ index e42ef256..152567f8 100644
  		if (draw)
  		{
  #ifdef ENABLE_SSE2
-@@ -1249,6 +1249,8 @@ void RasterizerUnit<RENDERER>::SetSLI(u32 startLine, u32 endLine, bool debug)
+@@ -1249,6 +1250,8 @@ void RasterizerUnit<RENDERER>::SetSLI(u32 startLine, u32 endLine, bool debug)
  	this->_debug_thisPoly = debug;
  	this->_SLI_startLine = startLine;
  	this->_SLI_endLine = endLine;
@@ -905,7 +1082,20 @@ index e42ef256..152567f8 100644
  }
  
  template<bool RENDERER>
-@@ -1367,11 +1369,52 @@ void* _HACK_Viewer_ExecUnit(void *arg)
+@@ -1266,9 +1269,9 @@ FORCEINLINE void RasterizerUnit<RENDERER>::Render()
+ 		return;
+ 	}
+ 	
+-	FragmentColor *dstColor = this->_softRender->GetFramebuffer();
+-	const size_t dstWidth = this->_softRender->GetFramebufferWidth();
+-	const size_t dstHeight = this->_softRender->GetFramebufferHeight();
++	FragmentColor *dstColor = this->_softRender->GetRenderFramebuffer();
++	const size_t dstWidth = this->_softRender->GetRenderWidth();
++	const size_t dstHeight = this->_softRender->GetRenderHeight();
+ 	
+ 	const CPoly &firstClippedPoly = this->_softRender->GetClippedPolyByIndex(0);
+ 	const POLY &firstPoly = *firstClippedPoly.poly;
+@@ -1367,11 +1370,58 @@ void* _HACK_Viewer_ExecUnit(void *arg)
  	return 0;
  }
  
@@ -924,7 +1114,7 @@ index e42ef256..152567f8 100644
 +			const u32 bandStart = this->_SLI_startLine;
 +			const u32 bandEnd = this->_SLI_endLine;
 +			this->_SLI_startLine = 0;
-+			this->_SLI_endLine = (u32)this->_softRender->GetFramebufferHeight();
++			this->_SLI_endLine = (u32)this->_softRender->GetRenderHeight();
 +			this->template Render<true, USELINEHACK>();
 +			this->_SLI_startLine = bandStart;
 +			this->_SLI_endLine = bandEnd;
@@ -934,8 +1124,11 @@ index e42ef256..152567f8 100644
 +		return;
 +	}
 +	
++#ifdef REWINDBOX_PERF
++	const u64 rbPerfStart = rb_perf_now();
++#endif
 +	this->_SLI_startLine = 0;
-+	this->_SLI_endLine = (u32)this->_softRender->GetFramebufferHeight();
++	this->_SLI_endLine = (u32)this->_softRender->GetRenderHeight();
 +	this->_sliceOfLine = sliceOfLine;
 +	for (;;)
 +	{
@@ -948,6 +1141,9 @@ index e42ef256..152567f8 100644
 +		this->_softRender->ClearSliceIfPending((u8)slice);
 +		this->template Render<true, USELINEHACK>();
 +	}
++#ifdef REWINDBOX_PERF
++	rb_perf_add_atomic(&rb_perf.raster, rb_perf_now() - rbPerfStart);
++#endif
 +}
 +
  template <bool USELINEHACK>
@@ -959,7 +1155,42 @@ index e42ef256..152567f8 100644
  	
  	return 0;
  }
-@@ -1748,6 +1791,13 @@ SoftRasterizerRenderer::SoftRasterizerRenderer()
+@@ -1420,6 +1470,34 @@ static void* SoftRasterizer_RunRenderEdgeMarkAndFog(void *arg)
+ 	return NULL;
+ }
+ 
++RbPerf rb_perf;
++
++static size_t gSoftRasterizerSupersampling = 1;
++static size_t gSoftRasterizerActiveSupersampling = 1;
++
++void SoftRasterizer_SetSupersampling(size_t factor)
++{
++	gSoftRasterizerSupersampling = (factor >= 2) ? 2 : 1;
++}
++
++size_t SoftRasterizer_GetSupersampling()
++{
++	return gSoftRasterizerSupersampling;
++}
++
++size_t SoftRasterizer_GetActiveSupersampling()
++{
++	return gSoftRasterizerActiveSupersampling;
++}
++
++static void* SoftRasterizer_RunResolveSupersampling(void *arg)
++{
++	SoftRasterizerResolveParam *param = (SoftRasterizerResolveParam *)arg;
++	param->renderer->ResolveSupersamplingLines(param->startLine, param->endLine);
++	
++	return NULL;
++}
++
+ static void* SoftRasterizer_RunClearUsingValues(void *arg)
+ {
+ 	SoftRasterizerClearParam *param = (SoftRasterizerClearParam *)arg;
+@@ -1748,6 +1826,21 @@ SoftRasterizerRenderer::SoftRasterizerRenderer()
  	
  	_HACK_viewer_rasterizerUnit.SetSLI(0, _framebufferHeight, false);
  	
@@ -970,20 +1201,150 @@ index e42ef256..152567f8 100644
 +	_clearInSlices = false;
 +	_drawInline = false;
 +	
++	_supersampling = 1;
++	_renderWidth = _framebufferWidth;
++	_renderHeight = _framebufferHeight;
++	_renderPixCount = _framebufferPixCount;
++	_renderColor = _framebufferColor;
++	_renderColorOwned = NULL;
++	_supersampleResolved = true;
++	
  	const size_t coreCount = CommonSettings.num_cores;
  	_threadCount = coreCount;
  	
-@@ -1841,10 +1891,92 @@ SoftRasterizerRenderer::~SoftRasterizerRenderer()
+@@ -1841,10 +1934,214 @@ SoftRasterizerRenderer::~SoftRasterizerRenderer()
  	delete[] this->_task;
  	this->_task = NULL;
  	
 +	free(this->_sliceOfLine);
 +	this->_sliceOfLine = NULL;
 +	
++	free_aligned(this->_renderColorOwned);
++	this->_renderColorOwned = NULL;
++	
  	delete this->_framebufferAttributes;
  	this->_framebufferAttributes = NULL;
  }
  
++// RewindBox: the buffers the rasterizer draws into for a supersampling factor, from the output size
++// (_framebufferWidth x _framebufferHeight, set by Render3D::SetFramebufferSize). A factor that would draw
++// more than 2560x1920, or whose buffer cannot be allocated, falls back to 1.
++void SoftRasterizerRenderer::_SetRenderView(size_t supersampling)
++{
++	if ( (supersampling > 1) &&
++	     ((this->_framebufferWidth * supersampling > GPU_FRAMEBUFFER_NATIVE_WIDTH * 10) ||
++	      (this->_framebufferHeight * supersampling > GPU_FRAMEBUFFER_NATIVE_HEIGHT * 10)) )
++	{
++		supersampling = 1;
++	}
++	
++	free_aligned(this->_renderColorOwned);
++	this->_renderColorOwned = NULL;
++	
++	if (supersampling > 1)
++	{
++		const size_t pixCount = this->_framebufferPixCount * supersampling * supersampling;
++		this->_renderColorOwned = (FragmentColor *)malloc_alignedCacheLine(pixCount * sizeof(FragmentColor));
++		if (this->_renderColorOwned == NULL)
++		{
++			supersampling = 1;
++		}
++	}
++	
++	this->_supersampling = supersampling;
++	gSoftRasterizerActiveSupersampling = supersampling;
++	this->_renderWidth = this->_framebufferWidth * supersampling;
++	this->_renderHeight = this->_framebufferHeight * supersampling;
++	this->_renderPixCount = this->_renderWidth * this->_renderHeight;
++	this->_renderColor = (supersampling > 1) ? this->_renderColorOwned : this->_framebufferColor;
++	this->_supersampleResolved = true;
++	
++	delete this->_framebufferAttributes;
++	this->_framebufferAttributes = new FragmentAttributesBuffer(this->_renderPixCount);
++}
++
++// RewindBox: one output pixel from its four samples. Where the four alphas are equal (the whole picture
++// but the edges of the 3D against a transparent clear, and translucent polygons) it is their average.
++// Elsewhere the colour is averaged with the alphas as weights and the alpha averaged on its own: the edge
++// of a model takes the share of the pixel it covers when the 2D engine blends it, and is never darkened by
++// the colour of the transparent samples.
++static FORCEINLINE FragmentColor SoftRasterizer_ResolveQuad(const FragmentColor c0, const FragmentColor c1,
++                                                            const FragmentColor c2, const FragmentColor c3)
++{
++	FragmentColor out;
++	if ( (c0.a == c1.a) && (c1.a == c2.a) && (c2.a == c3.a) )
++	{
++		out.r = (u8)(((u32)c0.r + c1.r + c2.r + c3.r + 2) >> 2);
++		out.g = (u8)(((u32)c0.g + c1.g + c2.g + c3.g + 2) >> 2);
++		out.b = (u8)(((u32)c0.b + c1.b + c2.b + c3.b + 2) >> 2);
++		out.a = c0.a;
++		return out;
++	}
++	
++	const u32 a0 = c0.a, a1 = c1.a, a2 = c2.a, a3 = c3.a;
++	const u32 sum = a0 + a1 + a2 + a3; // not 0: the alphas differ
++	out.r = (u8)((a0 * c0.r + a1 * c1.r + a2 * c2.r + a3 * c3.r + (sum >> 1)) / sum);
++	out.g = (u8)((a0 * c0.g + a1 * c1.g + a2 * c2.g + a3 * c3.g + (sum >> 1)) / sum);
++	out.b = (u8)((a0 * c0.b + a1 * c1.b + a2 * c2.b + a3 * c3.b + (sum >> 1)) / sum);
++	out.a = (u8)((sum + 2) >> 2);
++	return out;
++}
++
++void SoftRasterizerRenderer::ResolveSupersamplingLines(const size_t startLine, const size_t endLine)
++{
++	const size_t w = this->_framebufferWidth;
++	const size_t rw = this->_renderWidth;
++	FragmentColor *__restrict out = this->_framebufferColor;
++	const FragmentColor *__restrict in = this->_renderColor;
++	
++	for (size_t y = startLine; y < endLine; y++)
++	{
++		const FragmentColor *__restrict row0 = in + (y * 2) * rw;
++		const FragmentColor *__restrict row1 = row0 + rw;
++		FragmentColor *__restrict dst = out + y * w;
++		for (size_t x = 0; x < w; x++)
++		{
++			dst[x] = SoftRasterizer_ResolveQuad(row0[x * 2], row0[x * 2 + 1], row1[x * 2], row1[x * 2 + 1]);
++		}
++	}
++}
++
++void SoftRasterizerRenderer::_ResolveSupersampling()
++{
++	if ( (this->_supersampling < 2) || this->_supersampleResolved )
++	{
++		return;
++	}
++	
++#ifdef REWINDBOX_PERF
++	const u64 rbPerfStart = rb_perf_now();
++#endif
++	const size_t h = this->_framebufferHeight;
++	if (this->_threadCount > 0)
++	{
++		const size_t lines = h / this->_threadCount;
++		for (size_t i = 0; i < this->_threadCount; i++)
++		{
++			this->_threadResolveParam[i].renderer = this;
++			this->_threadResolveParam[i].startLine = i * lines;
++			this->_threadResolveParam[i].endLine = (i < this->_threadCount - 1) ? (i + 1) * lines : h;
++			this->_task[i].execute(&SoftRasterizer_RunResolveSupersampling, &this->_threadResolveParam[i]);
++		}
++		for (size_t i = 0; i < this->_threadCount; i++)
++		{
++			this->_task[i].finish();
++		}
++	}
++	else
++	{
++		this->ResolveSupersamplingLines(0, h);
++	}
++	this->_supersampleResolved = true;
++#ifdef REWINDBOX_PERF
++	rb_perf.resolve += rb_perf_now() - rbPerfStart;
++#endif
++}
++
 +// RewindBox: four slices a thread, each made of groups of lines spread over the whole picture, so that
 +// every slice holds about the same work wherever the scene is and a thread on a faster core takes more of
 +// them. Which thread draws a line does not change the picture: a pixel only depends on its own history.
@@ -993,7 +1354,7 @@ index e42ef256..152567f8 100644
 +void SoftRasterizerRenderer::_UpdateSlices()
 +{
 +	const u32 sliceCount = (this->_threadCount > 0) ? (u32)std::min<size_t>(this->_threadCount * SOFTRASTERIZER_SLICES_PER_THREAD, 255) : 0;
-+	if ( (sliceCount == this->_sliceCount) && (this->_sliceTableHeight == this->_framebufferHeight) )
++	if ( (sliceCount == this->_sliceCount) && (this->_sliceTableHeight == this->_renderHeight) )
 +	{
 +		return;
 +	}
@@ -1001,24 +1362,24 @@ index e42ef256..152567f8 100644
 +	free(this->_sliceOfLine);
 +	this->_sliceOfLine = NULL;
 +	this->_sliceCount = 0;
-+	this->_sliceTableHeight = this->_framebufferHeight;
-+	if ( (sliceCount == 0) || (this->_framebufferHeight == 0) )
++	this->_sliceTableHeight = this->_renderHeight;
++	if ( (sliceCount == 0) || (this->_renderHeight == 0) )
 +	{
 +		return;
 +	}
 +	
-+	u8 *table = (u8 *)malloc(this->_framebufferHeight);
++	u8 *table = (u8 *)malloc(this->_renderHeight);
 +	if (table == NULL)
 +	{
 +		return; // each thread then draws its band, as before
 +	}
 +	
-+	size_t groupLines = this->_framebufferHeight / ((size_t)sliceCount * SOFTRASTERIZER_GROUPS_PER_SLICE);
++	size_t groupLines = this->_renderHeight / ((size_t)sliceCount * SOFTRASTERIZER_GROUPS_PER_SLICE);
 +	if (groupLines == 0)
 +	{
 +		groupLines = 1;
 +	}
-+	for (size_t y = 0; y < this->_framebufferHeight; y++)
++	for (size_t y = 0; y < this->_renderHeight; y++)
 +	{
 +		table[y] = (u8)((y / groupLines) % sliceCount);
 +	}
@@ -1039,7 +1400,7 @@ index e42ef256..152567f8 100644
 +	
 +	const u8 *sliceOfLine = this->_sliceOfLine;
 +	const size_t h = this->_sliceTableHeight;
-+	const size_t w = this->_framebufferWidth;
++	const size_t w = this->_renderWidth;
 +	for (size_t y = 0; y < h; )
 +	{
 +		if (sliceOfLine[y] != slice)
@@ -1066,7 +1427,18 @@ index e42ef256..152567f8 100644
  Render3DError SoftRasterizerRenderer::InitTables()
  {
  	static bool needTableInit = true;
-@@ -2022,6 +2154,12 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
+@@ -1874,8 +2171,8 @@ ClipperMode SoftRasterizerRenderer::GetPreferredPolygonClippingMode() const
+ 
+ void SoftRasterizerRenderer::performViewportTransforms()
+ {
+-	const float wScalar = (float)this->_framebufferWidth  / (float)GPU_FRAMEBUFFER_NATIVE_WIDTH;
+-	const float hScalar = (float)this->_framebufferHeight / (float)GPU_FRAMEBUFFER_NATIVE_HEIGHT;
++	const float wScalar = (float)this->_renderWidth  / (float)GPU_FRAMEBUFFER_NATIVE_WIDTH;
++	const float hScalar = (float)this->_renderHeight / (float)GPU_FRAMEBUFFER_NATIVE_HEIGHT;
+ 	
+ 	//viewport transforms
+ 	for (size_t i = 0; i < this->_clippedPolyCount; i++)
+@@ -2022,6 +2319,13 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
  	{
  		this->_task[i].finish();
  	}
@@ -1075,11 +1447,12 @@ index e42ef256..152567f8 100644
 +	// RewindBox: at the console's own resolution a frame is drawn sooner than the threads are woken and
 +	// waited for (state, clear, geometry, post-processing: four hand-overs a frame): this thread draws
 +	// it, exactly as a renderer without threads does
-+	this->_drawInline = (this->_threadCount > 0) && (this->_framebufferPixCount <= (GPU_FRAMEBUFFER_NATIVE_WIDTH * GPU_FRAMEBUFFER_NATIVE_HEIGHT));
++	this->_drawInline = (this->_threadCount > 0) && (this->_renderPixCount <= (GPU_FRAMEBUFFER_NATIVE_WIDTH * GPU_FRAMEBUFFER_NATIVE_HEIGHT));
++	this->_supersampleResolved = (this->_supersampling < 2);
  	
  	// Keep the current render states for later use
  	this->currentRenderState = (GFX3D_State *)&engine.renderState;
-@@ -2029,7 +2167,7 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
+@@ -2029,7 +2333,7 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
  	this->_clippedPolyOpaqueCount = engine.clippedPolyOpaqueCount;
  	this->_clippedPolyList = engine.clippedPolyList;
  	
@@ -1088,7 +1461,7 @@ index e42ef256..152567f8 100644
  	
  	if (doMultithreadedStateSetup)
  	{
-@@ -2070,18 +2208,33 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
+@@ -2070,18 +2374,33 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
  Render3DError SoftRasterizerRenderer::RenderGeometry(const GFX3D_State &renderState, const POLYLIST *polyList, const INDEXLIST *indexList)
  {
  	// Render the geometry
@@ -1103,7 +1476,7 @@ index e42ef256..152567f8 100644
 +		size_t activeThreads = this->_threadCount;
 +		if (this->_sliceOfLine != NULL)
 +		{
-+			const size_t scaleSquared = this->_framebufferPixCount / (GPU_FRAMEBUFFER_NATIVE_WIDTH * GPU_FRAMEBUFFER_NATIVE_HEIGHT);
++			const size_t scaleSquared = this->_renderPixCount / (GPU_FRAMEBUFFER_NATIVE_WIDTH * GPU_FRAMEBUFFER_NATIVE_HEIGHT);
 +			if (scaleSquared < activeThreads)
 +			{
 +				activeThreads = (scaleSquared < 1) ? 1 : scaleSquared;
@@ -1125,7 +1498,87 @@ index e42ef256..152567f8 100644
  			{
  				this->_task[i].execute(&SoftRasterizer_RunRasterizerUnit<false>, &this->_rasterizerUnit[i]);
  			}
-@@ -2345,16 +2498,36 @@ Render3DError SoftRasterizerRenderer::ClearUsingImage(const u16 *__restrict colo
+@@ -2195,11 +2514,11 @@ Render3DError SoftRasterizerRenderer::UpdateFogTable(const u8 *fogDensityTable)
+ 
+ Render3DError SoftRasterizerRenderer::RenderEdgeMarkingAndFog(const SoftRasterizerPostProcessParams &param)
+ {
+-	for (size_t i = param.startLine * this->_framebufferWidth, y = param.startLine; y < param.endLine; y++)
++	for (size_t i = param.startLine * this->_renderWidth, y = param.startLine; y < param.endLine; y++)
+ 	{
+-		for (size_t x = 0; x < this->_framebufferWidth; x++, i++)
++		for (size_t x = 0; x < this->_renderWidth; x++, i++)
+ 		{
+-			FragmentColor &dstColor = this->_framebufferColor[i];
++			FragmentColor &dstColor = this->_renderColor[i];
+ 			const u32 depth = this->_framebufferAttributes->depth[i];
+ 			const u8 polyID = this->_framebufferAttributes->opaquePolyID[i];
+ 			
+@@ -2214,25 +2533,25 @@ Render3DError SoftRasterizerRenderer::RenderEdgeMarkingAndFog(const SoftRasteriz
+ 				{
+ 					const bool isEdgeMarkingClearValues = ((polyID != this->_clearAttributes.opaquePolyID) && (depth < this->_clearAttributes.depth));
+ 					
+-					const bool right = (x >= this->_framebufferWidth-1)  ? isEdgeMarkingClearValues : ((polyID != this->_framebufferAttributes->opaquePolyID[i+1])                       && (depth >= this->_framebufferAttributes->depth[i+1]));
+-					const bool down  = (y >= this->_framebufferHeight-1) ? isEdgeMarkingClearValues : ((polyID != this->_framebufferAttributes->opaquePolyID[i+this->_framebufferWidth]) && (depth >= this->_framebufferAttributes->depth[i+this->_framebufferWidth]));
++					const bool right = (x >= this->_renderWidth-1)  ? isEdgeMarkingClearValues : ((polyID != this->_framebufferAttributes->opaquePolyID[i+1])                       && (depth >= this->_framebufferAttributes->depth[i+1]));
++					const bool down  = (y >= this->_renderHeight-1) ? isEdgeMarkingClearValues : ((polyID != this->_framebufferAttributes->opaquePolyID[i+this->_renderWidth]) && (depth >= this->_framebufferAttributes->depth[i+this->_renderWidth]));
+ 					const bool left  = (x < 1)                           ? isEdgeMarkingClearValues : ((polyID != this->_framebufferAttributes->opaquePolyID[i-1])                       && (depth >= this->_framebufferAttributes->depth[i-1]));
+-					const bool up    = (y < 1)                           ? isEdgeMarkingClearValues : ((polyID != this->_framebufferAttributes->opaquePolyID[i-this->_framebufferWidth]) && (depth >= this->_framebufferAttributes->depth[i-this->_framebufferWidth]));
++					const bool up    = (y < 1)                           ? isEdgeMarkingClearValues : ((polyID != this->_framebufferAttributes->opaquePolyID[i-this->_renderWidth]) && (depth >= this->_framebufferAttributes->depth[i-this->_renderWidth]));
+ 					
+ 					FragmentColor edgeMarkColor = this->edgeMarkTable[this->_framebufferAttributes->opaquePolyID[i] >> 3];
+ 					
+ 					if (right)
+ 					{
+-						if (x < this->_framebufferWidth - 1)
++						if (x < this->_renderWidth - 1)
+ 						{
+ 							edgeMarkColor = this->edgeMarkTable[this->_framebufferAttributes->opaquePolyID[i+1] >> 3];
+ 						}
+ 					}
+ 					else if (down)
+ 					{
+-						if (y < this->_framebufferHeight - 1)
++						if (y < this->_renderHeight - 1)
+ 						{
+-							edgeMarkColor = this->edgeMarkTable[this->_framebufferAttributes->opaquePolyID[i+this->_framebufferWidth] >> 3];
++							edgeMarkColor = this->edgeMarkTable[this->_framebufferAttributes->opaquePolyID[i+this->_renderWidth] >> 3];
+ 						}
+ 					}
+ 					else if (left)
+@@ -2246,7 +2565,7 @@ Render3DError SoftRasterizerRenderer::RenderEdgeMarkingAndFog(const SoftRasteriz
+ 					{
+ 						if (y > 0)
+ 						{
+-							edgeMarkColor = this->edgeMarkTable[this->_framebufferAttributes->opaquePolyID[i-this->_framebufferWidth] >> 3];
++							edgeMarkColor = this->edgeMarkTable[this->_framebufferAttributes->opaquePolyID[i-this->_renderWidth] >> 3];
+ 						}
+ 					}
+ 					
+@@ -2318,18 +2637,18 @@ Render3DError SoftRasterizerRenderer::UpdateToonTable(const u16 *toonTableBuffer
+ 
+ Render3DError SoftRasterizerRenderer::ClearUsingImage(const u16 *__restrict colorBuffer, const u32 *__restrict depthBuffer, const u8 *__restrict fogBuffer, const u8 opaquePolyID)
+ {
+-	const size_t xRatio = (size_t)((GPU_FRAMEBUFFER_NATIVE_WIDTH << 16) / this->_framebufferWidth) + 1;
+-	const size_t yRatio = (size_t)((GPU_FRAMEBUFFER_NATIVE_HEIGHT << 16) / this->_framebufferHeight) + 1;
++	const size_t xRatio = (size_t)((GPU_FRAMEBUFFER_NATIVE_WIDTH << 16) / this->_renderWidth) + 1;
++	const size_t yRatio = (size_t)((GPU_FRAMEBUFFER_NATIVE_HEIGHT << 16) / this->_renderHeight) + 1;
+ 	
+-	for (size_t y = 0, iw = 0; y < this->_framebufferHeight; y++)
++	for (size_t y = 0, iw = 0; y < this->_renderHeight; y++)
+ 	{
+ 		const size_t readLine = (size_t)(((y * yRatio) >> 16) * GPU_FRAMEBUFFER_NATIVE_WIDTH);
+ 		
+-		for (size_t x = 0; x < this->_framebufferWidth; x++, iw++)
++		for (size_t x = 0; x < this->_renderWidth; x++, iw++)
+ 		{
+ 			const size_t ir = readLine + ((x * xRatio) >> 16);
+ 			
+-			this->_framebufferColor[iw].color = COLOR555TO6665(colorBuffer[ir] & 0x7FFF, (colorBuffer[ir] >> 15) * 0x1F);
++			this->_renderColor[iw].color = COLOR555TO6665(colorBuffer[ir] & 0x7FFF, (colorBuffer[ir] >> 15) * 0x1F);
+ 			this->_framebufferAttributes->depth[iw] = depthBuffer[ir];
+ 			this->_framebufferAttributes->isFogged[iw] = fogBuffer[ir];
+ 			this->_framebufferAttributes->opaquePolyID[iw] = opaquePolyID;
+@@ -2345,16 +2664,36 @@ Render3DError SoftRasterizerRenderer::ClearUsingImage(const u16 *__restrict colo
  
  void SoftRasterizerRenderer::ClearUsingValues_Execute(const size_t startPixel, const size_t endPixel)
  {
@@ -1139,7 +1592,7 @@ index e42ef256..152567f8 100644
 +	// 4.9 million pixels was the longest wait of the emulation thread.
 +	const size_t count = endPixel - startPixel;
 +	FragmentAttributesBuffer *attr = this->_framebufferAttributes;
-+	std::fill_n(this->_framebufferColor + startPixel, count, this->_clearColor6665);
++	std::fill_n(this->_renderColor + startPixel, count, this->_clearColor6665);
 +	std::fill_n(attr->depth + startPixel, count, this->_clearAttributes.depth);
 +	memset(attr->opaquePolyID + startPixel, this->_clearAttributes.opaquePolyID, count);
 +	memset(attr->translucentPolyID + startPixel, this->_clearAttributes.translucentPolyID, count);
@@ -1168,7 +1621,36 @@ index e42ef256..152567f8 100644
  	
  	if (doMultithreadedClear)
  	{
-@@ -2434,12 +2607,16 @@ Render3DError SoftRasterizerRenderer::EndRender(const u64 frameCount)
+@@ -2365,7 +2704,7 @@ Render3DError SoftRasterizerRenderer::ClearUsingValues(const FragmentColor &clea
+ 	}
+ 	else
+ 	{
+-		this->ClearUsingValues_Execute(0, this->_framebufferPixCount);
++		this->ClearUsingValues_Execute(0, this->_renderPixCount);
+ 	}
+ 	
+ 	if (doMultithreadedClear)
+@@ -2398,6 +2737,9 @@ Render3DError SoftRasterizerRenderer::Reset()
+ 
+ Render3DError SoftRasterizerRenderer::Render(const GFX3D &engine)
+ {
++#ifdef REWINDBOX_PERF
++	const u64 rbPerfStart = rb_perf_now();
++#endif
+ 	Render3DError error = RENDER3DERROR_NOERR;
+ 	this->_isPoweredOn = true;
+ 	
+@@ -2424,6 +2766,9 @@ Render3DError SoftRasterizerRenderer::Render(const GFX3D &engine)
+ 	this->RenderGeometry(engine.renderState, engine.polylist, &engine.indexlist);
+ 	this->EndRender(engine.render3DFrameCount);
+ 	
++#ifdef REWINDBOX_PERF
++	rb_perf.render3d += rb_perf_now() - rbPerfStart;
++#endif
+ 	return error;
+ }
+ 
+@@ -2434,12 +2779,16 @@ Render3DError SoftRasterizerRenderer::EndRender(const u64 frameCount)
  	{
  		if (this->_enableEdgeMark || this->_enableFog)
  		{
@@ -1179,7 +1661,7 @@ index e42ef256..152567f8 100644
 +			// RewindBox: every line (with threads, the first parameters only cover the first band)
 +			SoftRasterizerPostProcessParams param = this->_threadPostprocessParam[0];
 +			param.startLine = 0;
-+			param.endLine = this->_framebufferHeight;
++			param.endLine = this->_renderHeight;
 +			param.enableEdgeMarking = this->_enableEdgeMark;
 +			param.enableFog = this->_enableFog;
 +			param.fogColor = this->currentRenderState->fogColor;
@@ -1190,11 +1672,81 @@ index e42ef256..152567f8 100644
  		}
  	}
  	
+@@ -2453,6 +2802,9 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
+ 		return RENDER3DERROR_NOERR;
+ 	}
+ 	
++#ifdef REWINDBOX_PERF
++	const u64 rbPerfStart = rb_perf_now();
++#endif
+ 	if (this->_renderGeometryNeedsFinish)
+ 	{
+ 		// Allow for the geometry rendering to finish.
+@@ -2486,6 +2838,12 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
+ 		}
+ 	}
+ 	
++	// RewindBox: the supersampled 3D averaged into the output, once per picture
++	this->_ResolveSupersampling();
++#ifdef REWINDBOX_PERF
++	rb_perf.wait3d += rb_perf_now() - rbPerfStart;
++#endif
++	
+ 	this->_renderNeedsFlushMain = true;
+ 	this->_renderNeedsFlush16 = true;
+ 	
+@@ -2514,10 +2872,12 @@ Render3DError SoftRasterizerRenderer::SetFramebufferSize(size_t w, size_t h)
+ 		return RENDER3DERROR_NOERR;
+ 	}
+ 	
+-	delete this->_framebufferAttributes;
+-	this->_framebufferAttributes = new FragmentAttributesBuffer(w * h);
++	// RewindBox: what the rasterizer draws (the output times the supersampling factor) and its attributes
++	this->_SetRenderView(gSoftRasterizerSupersampling);
++	w = this->_renderWidth;
++	h = this->_renderHeight;
+ 	
+-	const size_t pixCount = (this->_framebufferSIMDPixCount > 0) ? this->_framebufferSIMDPixCount : this->_framebufferPixCount;
++	const size_t pixCount = this->_renderPixCount;
+ 	
+ 	if (this->_threadCount == 0)
+ 	{
+@@ -2622,8 +2982,8 @@ Render3DError SoftRasterizer_SIMD<SIMDBYTES>::SetFramebufferSize(size_t w, size_
+ 		return RENDER3DERROR_NOERR;
+ 	}
+ 	
+-	delete this->_framebufferAttributes;
+-	this->_framebufferAttributes = new FragmentAttributesBuffer(w * h);
++	// RewindBox: the SIMD clears work on the output buffer: no supersampling in these builds
++	this->_SetRenderView(1);
+ 	
+ 	const size_t pixCount = (this->_framebufferSIMDPixCount > 0) ? this->_framebufferSIMDPixCount : this->_framebufferPixCount;
+ 	
 diff --git a/desmume/src/rasterize.h b/desmume/src/rasterize.h
-index becafc0e..869434d5 100644
+index becafc0e..f35eba43 100644
 --- a/desmume/src/rasterize.h
 +++ b/desmume/src/rasterize.h
-@@ -103,6 +103,10 @@ protected:
+@@ -40,6 +40,19 @@ struct SoftRasterizerClearParam
+ 	size_t endPixel;
+ };
+ 
++struct SoftRasterizerResolveParam
++{
++	SoftRasterizerRenderer *renderer;
++	size_t startLine; // output lines
++	size_t endLine;
++};
++
++// RewindBox: 3D supersampling factor (1 or 2) the next SetFramebufferSize applies; 2 only while the 3D it
++// draws stays within 2560x1920 (x10). The libretro frontend sets it from desmume_rb_3d_supersampling.
++void SoftRasterizer_SetSupersampling(size_t factor);
++size_t SoftRasterizer_GetSupersampling();
++size_t SoftRasterizer_GetActiveSupersampling(); // the factor the rasterizer draws with now (1 above 5x)
++
+ struct SoftRasterizerPostProcessParams
+ {
+ 	SoftRasterizerRenderer *renderer;
+@@ -103,6 +116,11 @@ protected:
  	bool _debug_thisPoly;
  	u32 _SLI_startLine;
  	u32 _SLI_endLine;
@@ -1202,10 +1754,11 @@ index becafc0e..869434d5 100644
 +	// slice (see SoftRasterizerRenderer::_sliceOfLine); NULL: every line of [_SLI_startLine, _SLI_endLine)
 +	const u8 *_sliceOfLine;
 +	u8 _sliceIndex;
++	// RewindBox: busy time of this unit in the current pass (REWINDBOX_PERF)
  	
  	SoftRasterizerRenderer *_softRender;
  	SoftRasterizerTexture *_currentTexture;
-@@ -132,6 +136,7 @@ public:
+@@ -132,6 +150,7 @@ public:
  	void SetSLI(u32 startLine, u32 endLine, bool debug);
  	void SetRenderer(SoftRasterizerRenderer *theRenderer);
  	template<bool SLI, bool USELINEHACK> FORCEINLINE void Render();
@@ -1213,7 +1766,7 @@ index becafc0e..869434d5 100644
  };
  
  #if defined(ENABLE_AVX2)
-@@ -158,6 +163,18 @@ protected:
+@@ -158,6 +177,34 @@ protected:
  	size_t _customLinesPerThread;
  	size_t _customPixelsPerThread;
  	
@@ -1229,16 +1782,37 @@ index becafc0e..869434d5 100644
 +	bool _drawInline;    // this frame is drawn by the calling thread (the console's own resolution)
 +	void _UpdateSlices();
 +	
++	// RewindBox: 3D supersampling. The rasterizer draws _supersampling times the output size on each axis
++	// (_renderWidth x _renderHeight) into _renderColor and the attribute buffer; RenderFinish averages each
++	// block of _supersampling x _supersampling samples into _framebufferColor, the output the 2D engine,
++	// display capture and savestates read. With a factor of 1 both views are the same buffer and nothing
++	// else changes.
++	size_t _supersampling;
++	size_t _renderWidth;
++	size_t _renderHeight;
++	size_t _renderPixCount;
++	FragmentColor *_renderColor;
++	FragmentColor *_renderColorOwned;
++	bool _supersampleResolved;
++	SoftRasterizerResolveParam _threadResolveParam[SOFTRASTERIZER_MAX_THREADS];
++	void _SetRenderView(size_t supersampling);
++	void _ResolveSupersampling();
++	
  	u8 fogTable[32768];
  	FragmentColor edgeMarkTable[8];
  	bool edgeMarkDisabled[8];
-@@ -191,6 +208,12 @@ public:
+@@ -191,6 +238,17 @@ public:
  	SoftRasterizerRenderer();
  	virtual ~SoftRasterizerRenderer();
  	
 +	// RewindBox: the next slice to rasterize, or -1 when every slice is taken
 +	s32 TakeSlice();
 +	const u8* GetSliceOfLine() const { return (this->_drawInline) ? NULL : this->_sliceOfLine; }
++	FragmentColor* GetRenderFramebuffer() const { return this->_renderColor; }
++	size_t GetRenderWidth() const { return this->_renderWidth; }
++	size_t GetRenderHeight() const { return this->_renderHeight; }
++	size_t GetSupersampling() const { return this->_supersampling; }
++	void ResolveSupersamplingLines(const size_t startLine, const size_t endLine); // output lines
 +	bool IsDrawingInline() const { return this->_drawInline; }
 +	void ClearSliceIfPending(const u8 slice);
 +	
@@ -4078,5 +4652,67 @@ index 00000000..5773f7e8
 +
 +template s32 rb_jit_run<0>(s32 t, const s32 limit, const s32 next, const u64 base);
 +template s32 rb_jit_run<1>(s32 t, const s32 limit, const s32 next, const u64 base);
++
++#endif
+diff --git a/desmume/src/utils/rb_perf.h b/desmume/src/utils/rb_perf.h
+new file mode 100644
+index 00000000..2b86c29f
+--- /dev/null
++++ b/desmume/src/utils/rb_perf.h
+@@ -0,0 +1,56 @@
++/*
++	Copyright (C) 2026 RewindBox
++
++	This file is free software: you can redistribute it and/or modify
++	it under the terms of the GNU General Public License as published by
++	the Free Software Foundation, either version 2 of the License, or
++	(at your option) any later version.
++
++	This file is distributed in the hope that it will be useful,
++	but WITHOUT ANY WARRANTY; without even the implied warranty of
++	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++	GNU General Public License for more details.
++
++	You should have received a copy of the GNU General Public License
++	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
++*/
++
++/*
++	RewindBox: time spent per frame in each stage of the core, written to the core log by the libretro
++	frontend ("[rb-perf] desmume ..."). The emulation thread adds to the plain counters; the rasterizer
++	threads add their busy time to `raster` atomically. Two clock reads per measured call.
++*/
++#ifndef RB_PERF_H
++#define RB_PERF_H
++
++#include "../types.h"
++#include <time.h>
++
++struct RbPerf
++{
++	u64 gpuLine;   // GPUSubsystem::RenderLine, the 2D engines (includes waits for the 3D, counted in wait3d)
++	u64 wait3d;    // the emulation thread waiting for the rasterizer threads (RenderFinish), resolve included
++	u64 render3d;  // SoftRasterizerRenderer::Render on the emulation thread (state, clear, start of the threads)
++	u64 resolve;   // averaging of the supersampled 3D into the output (part of wait3d)
++	u64 raster;    // busy time of the rasterizer threads, all of them (atomic)
++};
++
++extern RbPerf rb_perf;
++
++static inline u64 rb_perf_now()
++{
++#if defined(__APPLE__)
++	return clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
++#else
++	struct timespec t;
++	clock_gettime(CLOCK_MONOTONIC, &t);
++	return (u64)t.tv_sec * 1000000000ull + (u64)t.tv_nsec;
++#endif
++}
++
++static inline void rb_perf_add_atomic(u64 *counter, u64 value)
++{
++	__atomic_fetch_add(counter, value, __ATOMIC_RELAXED);
++}
 +
 +#endif

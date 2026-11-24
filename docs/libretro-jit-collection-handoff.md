@@ -6,6 +6,20 @@ d'ipa c'est une autre session qui la fera ». Cette session n'a lancé aucune li
 *La collection précédente, `LibretroCores-6cd6a89b…` (id 14839590544, étape 0 de DeSmuME), est livrée dans
 l'IPA 827. Celle-ci la remplace ; elle est livrée dans l'IPA 828.*
 
+## Après la 829 : suréchantillonnage 3D, mesures, envoi RGB565, cause du JIT absent
+
+*24 novembre 2026, session « JIT DS et ×10 ».* Détail : section 16 de
+[desmume-arm64-jit-architecture.md](desmume-arm64-jit-architecture.md).
+
+- **Cœur** `native/desmume` (21 fichiers) : option `desmume_rb_3d_supersampling` (3D au double puis moyennée,
+  jusqu'à ×5), lignes `[rb-perf]`, arène de 64 Mio (`jitArenaBytes`). Option désactivée : images identiques au cœur
+  de la 829. À compiler par la route source-cores, puis à inscrire dans `COLLECTIONS`.
+- **App** : `libretro_internal_bridge` (images RGB565 envoyées en `B5G6R5Unorm` sans conversion ; ligne
+  `load: JIT interface not installed: …` avec la cause), `App` (préparation du JIT qui rend sa cause, réglage
+  « Suréchantillonnage 3D » de DeSmuME en douze langues).
+- **À livrer ensemble** : le catalogue propose `desmume_rb_3d_supersampling`, que seul le nouveau cœur connaît (un
+  ancien cœur l'ignore).
+
 ## Depuis la 828 : retours de l'iPhone, app seulement
 
 Essai de la 828 par le mainteneur : DeSmuME démarre ; aucun message ne disait que le JIT était activé ; l'activation

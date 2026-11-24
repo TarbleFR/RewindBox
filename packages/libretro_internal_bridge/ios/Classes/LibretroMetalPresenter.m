@@ -24,8 +24,9 @@
 /// pixel format.
 #define LIBRETRO_FRAMES_IN_FLIGHT 3
 /// Pixel formats of uploaded frames: BGRA8Unorm (software frames, Vulkan),
-/// RGBA8Unorm, RGB10A2Unorm and BGR10A2Unorm (Vulkan).
-#define LIBRETRO_UPLOAD_FORMATS 4
+/// RGBA8Unorm, RGB10A2Unorm and BGR10A2Unorm (Vulkan), and B5G6R5Unorm
+/// (RGB565 software frames, uploaded as they are: the GPU expands them).
+#define LIBRETRO_UPLOAD_FORMATS 5
 #define LIBRETRO_UPLOAD_SLOTS (LIBRETRO_UPLOAD_FORMATS * LIBRETRO_FRAMES_IN_FLIGHT)
 /// Window of the GPU time median, and cap of one measurement.
 #define LIBRETRO_GPU_SAMPLES 120
@@ -62,6 +63,8 @@ static NSInteger UploadFormatIndex(MTLPixelFormat format) {
       return 2;
     case MTLPixelFormatBGR10A2Unorm:
       return 3;
+    case MTLPixelFormatB5G6R5Unorm:
+      return 4;
     default:
       return -1;
   }
@@ -566,6 +569,9 @@ static LibretroMetalFXScreen *LibretroMetalFXBuildScreen(id<MTLDevice> device, C
   id<MTLSamplerState> _linear;
   dispatch_semaphore_t _inFlight;
   NSMutableData *_conversion;
+  // RGB565 frames go to a B5G6R5Unorm texture as they are (every Apple GPU
+  // samples it); without that format they are converted to BGRA8 here.
+  BOOL _packed565;
   os_unfair_lock _lock;
 
   // Upload ring, emulation thread. A slot's group counts the command
@@ -669,6 +675,7 @@ static LibretroMetalFXScreen *LibretroMetalFXBuildScreen(id<MTLDevice> device, C
   if (_nearest == nil || _linear == nil) return nil;
   _inFlight = dispatch_semaphore_create(LIBRETRO_FRAMES_IN_FLIGHT);
   _conversion = [NSMutableData data];
+  if (@available(iOS 13.0, *)) _packed565 = [_device supportsFamily:MTLGPUFamilyApple2];
   for (NSUInteger slot = 0; slot < LIBRETRO_UPLOAD_SLOTS; slot++) _uploadReaders[slot] = dispatch_group_create();
   _lastSlot = -1;
   _aspectRatio = 4.0f / 3.0f;
@@ -1162,13 +1169,30 @@ static LibretroMetalFXScreen *LibretroMetalFXBuildScreen(id<MTLDevice> device, C
       width > SIZE_MAX / bytesPerPixel || pitch < (size_t)width * bytesPerPixel ||
       height > SIZE_MAX / ((size_t)width * 4u)) return;
   dispatch_semaphore_wait(_inFlight, DISPATCH_TIME_FOREVER);
+  MTLRegion region = MTLRegionMake2D(0, 0, width, height);
+  // RGB565 (DeSmuME, most 16-bit cores) is copied as it is into a
+  // B5G6R5Unorm texture: no conversion on the emulation thread and half the
+  // bytes (a DS frame at 10x is 9.8 million pixels). The shaders sample it
+  // like the BGRA8 texture; the GPU expands each channel (v / 31, v / 63).
+  if (format == RETRO_PIXEL_FORMAT_RGB565 && _packed565) {
+    const NSInteger packedSlot = [self uploadSlotForFormat:MTLPixelFormatB5G6R5Unorm width:width height:height];
+    if (packedSlot >= 0) {
+      id<MTLTexture> packed = _uploads[packedSlot];
+      [packed replaceRegion:region mipmapLevel:0 withBytes:data bytesPerRow:pitch];
+      _frameCount++;
+      [self keepLastFrame:packed width:width height:height flipped:NO slot:packedSlot shared:NO];
+      [self drawTexture:packed width:width height:height flipped:NO uploadSlot:packedSlot completion:nil];
+      return;
+    }
+    // No B5G6R5 texture after all: convert, as without the format.
+    _packed565 = NO;
+  }
   const NSInteger slot = [self uploadSlotForFormat:MTLPixelFormatBGRA8Unorm width:width height:height];
   if (slot < 0) {
     dispatch_semaphore_signal(_inFlight);
     return;
   }
   id<MTLTexture> texture = _uploads[slot];
-  MTLRegion region = MTLRegionMake2D(0, 0, width, height);
   if (format == RETRO_PIXEL_FORMAT_XRGB8888) {
     [texture replaceRegion:region mipmapLevel:0 withBytes:data bytesPerRow:pitch];
   } else {
@@ -1222,7 +1246,8 @@ static LibretroMetalFXScreen *LibretroMetalFXBuildScreen(id<MTLDevice> device, C
           bytesPerRow:(size_t)bytesPerRow
           pixelFormat:(MTLPixelFormat)pixelFormat {
   if (pixels == NULL || width == 0 || height == 0) return;
-  if (UploadFormatIndex(pixelFormat) < 0) {
+  // B5G6R5Unorm is the software frames' own upload format, never a Vulkan one.
+  if (UploadFormatIndex(pixelFormat) < 0 || pixelFormat == MTLPixelFormatB5G6R5Unorm) {
     if (!_loggedUnsupportedFormat) {
       _loggedUnsupportedFormat = YES;
       NSLog(@"[Libretro] presenter: unsupported pixel format %lu, frames dropped", (unsigned long)pixelFormat);

@@ -379,18 +379,24 @@ abstract final class LibretroInternalService {
   /// [bundledJitArenaBytes]): manual LocalDevVPN route, stored pairing file,
   /// then the native transaction, whose facts are logged one by one. Never
   /// inferred from a route or a previous launch; any missing step keeps the
-  /// core's interpreter and never blocks the game.
-  static Future<bool> _prepareJit(LibretroCore core, int arenaBytes) async {
-    if (arenaBytes <= 0 || !Platform.isIOS) return false;
+  /// core's interpreter and never blocks the game. A failure also names its
+  /// step ([LibretroJitPreparation.detail]), which the launch hands to the
+  /// session journal: the session itself never sees the steps that stopped
+  /// before the native transaction.
+  static Future<LibretroJitPreparation> _prepareJit(LibretroCore core, int arenaBytes) async {
+    if (arenaBytes <= 0 || !Platform.isIOS) return const LibretroJitPreparation.notRun();
     try {
       await LocalDevVpnRouteService.ensureReachable();
+    } on LocalDevVpnRouteException catch (error) {
+      _log.i('libretro JIT: LocalDevVPN route unavailable ($error); ${core.id} keeps its interpreter');
+      return LibretroJitPreparation.failed('RB_JIT_VPN ${error.code}: ${error.message}');
     } catch (error) {
       _log.i('libretro JIT: LocalDevVPN route unavailable ($error); ${core.id} keeps its interpreter');
-      return false;
+      return LibretroJitPreparation.failed('RB_JIT_VPN: $error');
     }
     if (!await PairingFileService.hasStoredPairingFile()) {
       _log.i('libretro JIT: no stored pairing file; ${core.id} keeps its interpreter');
-      return false;
+      return const LibretroJitPreparation.failed('RB_JIT_NO_PAIRING: no stored pairing file');
     }
     try {
       final pairing = await PairingFileService.storedFile();
@@ -407,10 +413,16 @@ abstract final class LibretroInternalService {
         'released=${facts['debuggerReleased']} capacity=${facts['capacity']} '
         'ms=${facts['elapsedMs']} ${facts['arena'] ?? ''} ${facts['message'] ?? ''}',
       );
-      return success;
+      if (success) return const LibretroJitPreparation.succeeded();
+      return LibretroJitPreparation.failed(
+        '${facts['code'] ?? 'RB_JIT_HELPER'}: ${facts['message'] ?? ''} '
+        '(helper=${facts['helperConnected']} attached=${facts['pidAttached']} prepared=${facts['prepared']} '
+        'probe=${facts['executableProbe']} nonce=${facts['nonceProbe']} detached=${facts['detached']} '
+        'completed=${facts['helperCompleted']} ms=${facts['elapsedMs']})',
+      );
     } catch (error) {
       _log.w('libretro JIT for ${core.id} failed ($error); interpreter kept');
-      return false;
+      return LibretroJitPreparation.failed('RB_JIT_EXCEPTION: $error');
     }
   }
 
@@ -474,7 +486,8 @@ abstract final class LibretroInternalService {
     // RewindBox's JIT interface: a core RewindBox builds with its JIT gets the
     // session's code arena from the libretro JIT helper before the launch.
     final jitArenaBytes = await bundledJitArenaBytes(coreId);
-    final jitPrepared = await _prepareJit(core, jitArenaBytes);
+    final jitPreparation = await _prepareJit(core, jitArenaBytes);
+    final jitPrepared = jitPreparation.success;
     final raService = RetroAchievementsSessionService.shared;
     var raLaunch = await raService.prepareLaunch(engine: 'libretro', system: key,
       core: coreId, language: locale.toLanguageTag(), contentPath: romPath);
@@ -502,6 +515,7 @@ abstract final class LibretroInternalService {
       'noJitOverrides': core.noJitOverrides,
       'jitOverrides': jitPrepared ? core.jitOverrides : const <String, String>{},
       'jitExpected': jitArenaBytes > 0,
+      'jitPreparation': jitPreparation.detail,
       'lockedOptions': core.lockedOptions,
       'coreSettings': LibretroLocale.coreSettings(locale, core),
       // Internal resolution (Build 455): how the session recognizes the
@@ -1250,4 +1264,22 @@ abstract final class LibretroImportMessages {
       ..._lines(locale, <String>[for (final failure in move.failures) '${failure.name} — ${reason(failure.reason)}']),
     ].join('\n');
   }
+}
+
+/// Outcome of the libretro JIT preparation that runs before a launch
+/// ([LibretroInternalService._prepareJit]): [detail] names the step that
+/// stopped it (`RB_JIT_VPN code: message`, `RB_JIT_NO_PAIRING: ...`, the
+/// native transaction's code and facts), empty when it succeeded or did not
+/// run. The launch request carries it as `jitPreparation`.
+class LibretroJitPreparation {
+  const LibretroJitPreparation.succeeded()
+      : success = true,
+        detail = '';
+  const LibretroJitPreparation.notRun()
+      : success = false,
+        detail = '';
+  const LibretroJitPreparation.failed(this.detail) : success = false;
+
+  final bool success;
+  final String detail;
 }

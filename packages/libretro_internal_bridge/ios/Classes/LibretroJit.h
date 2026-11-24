@@ -21,6 +21,13 @@ FOUNDATION_EXPORT BOOL LibretroJitUsableByCores(void);
 /// accepted version 1; the core may then generate code for the session.
 FOUNDATION_EXPORT BOOL LibretroJitInstallIntoLibrary(void *library);
 
+/// LibretroJitInstallIntoLibrary that names, on a NO, why the core did not
+/// get the arena: RB_JIT_ARENA_NOT_READY (no arena prepared for this launch,
+/// or not proven; its state and failure follow), RB_JIT_CORE_SYMBOL (the
+/// core does not export the install function) or RB_JIT_CORE_REFUSED (the
+/// core's install function answered `install=<value>`).
+FOUNDATION_EXPORT BOOL LibretroJitInstallIntoLibraryWithReason(void *library, NSString *_Nullable *_Nullable reason);
+
 /// The arena's facts for the session journal and the diagnostics (state,
 /// mode, capacity, used, commands, probes, detach, installed, failure).
 FOUNDATION_EXPORT NSString *LibretroJitArenaReport(void);
