@@ -330,8 +330,9 @@ Vérifications :
 - AArch64 sous qemu (2D en NEON, rastériseur scalaire, JIT, 3D synchrone), 6 homebrews 3D × 4 variantes de
   registres écrites à chaque image (aucune ; BG1-3 et sprites mélangés sur la 3D placée en dernière priorité ;
   fenêtre 0 avec mélange ; luminosité augmentée), ×3 : images et son identiques au cœur de la 835 dans les 24 cas ;
-- x86 (2D par la voie SSE2, rastériseur scalaire comme sur l'iPhone) : Galaxy et MD2 identiques image par image au
-  cœur de la 835 ; balayage complet (dsgmLib, snakegl, rockwrestler, ×10 et ×3, 5 variantes) en cours.
+- x86 (2D par la voie SSE2, rastériseur scalaire comme sur l'iPhone, 3D synchrone) : 23 homebrews (tous les
+  exemples dsgmLib, snakegl, rockwrestler) × ×10 et ×3 × 5 variantes (les quatre ci-dessus et la luminosité
+  diminuée sur BG0, BG1 et les sprites) : images et son identiques au cœur de la 835 dans les 230 cas.
 
 Banc x86 (4 processeurs virtuels, interpréteur, ×10, 3 fils, images 601 à 1 200, deux courses par cœur) :
 

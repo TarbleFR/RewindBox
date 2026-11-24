@@ -953,7 +953,7 @@ colonnes, rastériseur allégé ») :
 **Banc** (x86, ×10, 3 fils) : 8 à 15 % de temps CPU du rastériseur en moins (Galaxy : `rcpu` 57,7–61,1 →
 51,7–52,7 ms par image, `t3d` 21–22 → 19–20 ms) ; `engA` inchangé sur ces scènes, où la couche 3D en fait presque
 tout (`l3d` 6,0–6,4 ms) en voie SSE2 x86. Images et son identiques au cœur de la 835 sur AArch64 (24 cas sous qemu)
-et, pour Galaxy et MD2, sur x86.
+et sur x86 (230 cas).
 
 **Attendu sur l'iPhone** (estimation, non mesurée) : moins de temps CPU pour le rendu, donc moins de concurrence
 avec le fil d'émulation ; `engA` en baisse si les couches 2D au-dessus de la 3D ou des sprites partiels y pesaient,
