@@ -67,3 +67,21 @@ comptes, des tailles et des durées sont repris ici. Aucune mesure nouvelle n'a 
   pixels, mémoire et temps de création.
 - Rendre lisibles les lignes `jitArena` du journal.
 - Rien n'est mesuré sur l'iPhone.
+
+## 6. Dixième partie de MoltenVK : vérifiée sur macOS, épinglée
+
+- Commits `f0d7a051b` (la partie) et `1d413b0a5` (la ligne de journal écrite par le pipeline : la première version ne
+  compilait pas).
+- Mesure macOS (run 45440045776, vrai GPU Metal du runner) : 11 variantes de rasterisation d'un même programme
+  dessinées avec et sans la partie donnent les mêmes pixels ; l'élimination des faces et le sens de rotation restent
+  appliqués pipeline par pipeline. 192 pipelines sur 12 programmes : 11 objets de pipeline Metal compilés au lieu de
+  192 (2 au lieu de 11 pour les variantes dessinées). Création des 192 pipelines : 91 ms au lieu de 168 ms, cache
+  Metal déjà chaud.
+- Mémoire : aucun gain mesurable avec ces petits shaders de test (empreinte +4,8 Mio avec la partie, +3,9 Mio sans).
+  La mémoire que Metal déclare allouée ne bouge pas pour 192 objets de pipeline : ils n'y sont pas comptés. Les
+  environ 700 Mo que Metal compte en plus des allocations Vulkan de Hogwarts ne viennent donc probablement pas des
+  objets de pipeline. Prochain relevé : les allocations Metal de MoltenVK lui-même, par catégorie.
+- Le gain attendu de cette partie est donc sur les compilations en jeu (saccades), pas sur la mémoire.
+- Recompilation iOS : run 45440044434, artefact 14944176196, binaire `06df5df1…` (4 862 600 octets), 10 marqueurs sur
+  10, 8 points d'entrée sur 8, 428 exports Vulkan sur 428 ; épinglée dans `build-utils/melonx/moltenvk-rebuild-pin.json`
+  (64 contrôles de parité). Contrôle du cache mappé (run 45440044387) vert. Rien n'est mesuré sur l'iPhone.
