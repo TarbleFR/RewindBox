@@ -1,0 +1,239 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index edca1e7..54515bf 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3394,6 +3394,7 @@ __attribute__((weak)) void dm_rb_rt_stats(int st[2], int pri[2]) { st[0] = st[1]
+ __attribute__((weak)) void nvn_be_race_costs(uint64_t v[4]) { memset(v,0,4*sizeof *v); }
+ __attribute__((weak)) void nvn_be_rb73_stats(uint64_t v[10]) { memset(v, 0, 10 * sizeof *v); }   // RewindBox (patch 0073): nvn_mtl.m, the encoding counts
+ __attribute__((weak)) void nvn_be_view_scope_stats(uint64_t v[21]) { memset(v, 0, 21 * sizeof *v); }   // RewindBox (patch 0320): nvn_mtl.m, the texture-ID view counts (0 without the Metal back end)
++__attribute__((weak)) void nvn_be_view_meta_stats(uint64_t v[4]) { memset(v, 0, 4 * sizeof *v); }   // RewindBox (patch 0352): nvn_mtl.m, the records' view type / format reads (0 without the Metal back end)
+ __attribute__((weak)) void dm_yield_top(char *out, size_t n) { if (n) snprintf(out, n, "-"); }   // hle_thread.c: the threads that yielded most since the last call; none in graphics unit tests
+ __attribute__((weak)) void dm_thread_cpu(char *out, size_t n, double secs) { (void)secs; if (n) snprintf(out, n, "-"); }   // hle_thread.c: guest-thread CPU by Switch priority band since the last call
+ void nvn_be_res_stats(char *out, size_t n);
+@@ -4054,19 +4055,24 @@ static void tsummary(uint64_t frame) {
+     //   (Mario Kart World, iPhone A18 Pro, races): 700 to 1,570 resolved again a frame, 99.9 to 100% of them to the texture the view had, and no line said which
+     //   move sent them there. Per 300-frame window: the views the patch kept where patch 0319 resolved again, by what had moved; the resolutions of an existing view by
+     //   cause (their sum is the 0073 line's "resolved again" times the frames; 0 with the switch off); the serial tables' moves by class; texture Finalizes and the
+-    //   tex_put calls that are not additions (counted with the switch off too, to compare). S2A_RB_VIEW_SCOPE=0: as before, with this line saying so
+-    { static uint64_t previous[19]; uint64_t counts[21], d[19]; nvn_be_view_scope_stats(counts);
++    //   tex_put calls that are not additions (counted with the switch off too, to compare). S2A_RB_VIEW_SCOPE=0: as before, with this line saying so.
++    //   RewindBox (patch 0352): then, in the same window, the bindings' type / format reads the records answered and those asked of the texture, and the records that let
++    //   their view go (dropped or replaced: what invalidates their type and format); all 0 with S2A_RB_VIEW_META=0
++    { static uint64_t previous[19], vm_previous[3]; uint64_t counts[21], d[19], vm[4], dvm[3]; nvn_be_view_scope_stats(counts); nvn_be_view_meta_stats(vm);
+       for (int i = 0; i < 19; i++) d[i] = counts[i] - previous[i];
++      for (int i = 0; i < 3; i++) dvm[i] = vm[i] - vm_previous[i];
+       LOG("[nvn] RewindBox (patch 0320) texture-ID views up to frame %llu: kept where patch 0319 resolved again %llu (tables unmoved %llu, across additions %llu, across other serials' moves %llu; %llu of them by their pool's write count); "
+           "resolved again for an unclassified table move %llu, a move in their serial's bucket %llu, their pool written %llu, no write count %llu, a block-compressed alias %llu, a finalized object %llu, "
+           "a view made off the submit thread %llu, a virtual or finalized pool %llu, placement sparse %llu, other %llu; table moves %llu (additions %llu, noted for a serial %llu, unclassified %llu); "
+           "texture Finalizes %llu, tex_put over a held or finalized serial %llu; "
+-          "S2A_RB_VIEW_SCOPE %s, S2A_RB_VIEW_RANGE %s",
++          "S2A_RB_VIEW_SCOPE %s, S2A_RB_VIEW_RANGE %s; "
++          "RewindBox (patch 0352) bindings' view type / format reads answered by the record %llu, asked of the texture %llu, records that let their view go %llu (S2A_RB_VIEW_META %s)",
+           (unsigned long long)frame, (unsigned long long)(d[0] + d[1] + d[2]), (unsigned long long)d[0], (unsigned long long)d[1], (unsigned long long)d[2], (unsigned long long)d[3],
+           (unsigned long long)d[4], (unsigned long long)d[5], (unsigned long long)d[6], (unsigned long long)d[7], (unsigned long long)d[8], (unsigned long long)d[9],
+           (unsigned long long)d[10], (unsigned long long)d[11], (unsigned long long)d[12], (unsigned long long)d[13], (unsigned long long)d[14], (unsigned long long)d[15], (unsigned long long)d[16],
+-          (unsigned long long)(d[14] - d[15] - d[16]), (unsigned long long)d[17], (unsigned long long)d[18], counts[19] ? "on" : "off", counts[20] ? "on" : "off");
+-      memcpy(previous, counts, sizeof previous); }
++          (unsigned long long)(d[14] - d[15] - d[16]), (unsigned long long)d[17], (unsigned long long)d[18], counts[19] ? "on" : "off", counts[20] ? "on" : "off",
++          (unsigned long long)dvm[0], (unsigned long long)dvm[1], (unsigned long long)dvm[2], vm[3] ? "on" : "off");
++      memcpy(previous, counts, sizeof previous); memcpy(vm_previous, vm, sizeof vm_previous); }
+     if (!rb_report_spread_on()) power_line(frame);   // RewindBox (patch 0326): a part of its own RB_REPORT_STRIDE frames later when the summary is spread (rb_report_summary_parts). S2A_RB_REPORT_SPREAD=0: here, as before
+     { static uint64_t prev[4], pf; uint64_t v[4]; nvn_be_vbuf_stats(&v[0], &v[1], &v[2], &v[3]);
+       if (pf && frame > pf) { double nf = (double)(frame - pf);
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index fa5396b..798ccf7 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -12750,11 +12750,30 @@ static void treg_ser_unlink(int id_) {
+ static _Atomic uint64_t g_tser[1 << 20];
+ static samp_par *g_sreg; static uint8_t *g_sreg_ok; static void **g_sview; static uint64_t *g_srid; static int g_nsreg; static uint64_t g_samp_rereg;   // g_sview: sampler ID → MTLSamplerState (retained)
+ static void **g_sbview; static uint64_t *g_sbrid;   // 2 per sampler ID: the same sampler with a transparent black / opaque white border (samp_border_rid; the custom border emulation)
++// RewindBox (patch 0352): the bindings patch 0073 left asking their texture for its type and format read them from the texture ID's record too when the texture is the
++//   record's view (rb_vmeta_tt / rb_vmeta_pf): handle arrays (TEXU, TEXD, TEXA), buffer texture and image slots, the 1D-rows test, the pool tables' walk; the rule and what it
++//   follows are in rb_view_meta.h (from nxnative c7e74a1f, MIT). Counted for the texture-ID view line (hle_nvn.c). S2A_RB_VIEW_META=0: they ask as before, nothing counted
++#include "rb_view_meta.h"
++static int rb_view_meta_on(void) {   // any thread: the same value whoever reads it first
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("S2A_RB_VIEW_META"); v = !(e && !strcmp(e, "0"));
++        MLOG("RewindBox (patch 0352): texture bindings read their view's type and format from the texture ID's record: %s (S2A_RB_VIEW_META=0 turns it off)", v ? "on" : "off, as before"); }
++    return v;
++}
++static _Atomic uint64_t g_rb_vmeta[RB_VMETA_N];   // written under g_rmu (rb_vmeta_bump): reads the records answered, reads asked of the texture, records that let their view go
++static inline int rb_vmeta_rec(__unsafe_unretained id<MTLTexture> t, int tid, int early) {   // 1 = texture ID tid's record answers for t (early: patch 0073's rb_tt / rb_pf). Caller holds g_rmu
++    const int on = rb_view_meta_on(), rec = rb_vmeta_answers(on, early, tid >= 0 && tid < g_ntreg ? g_treg[tid].view : NULL, (__bridge const void *)t);
++    rb_vmeta_bump(g_rb_vmeta, rb_vmeta_count(on, rec));
++    return rec;
++}
++static inline MTLTextureType rb_vmeta_tt(__unsafe_unretained id<MTLTexture> t, int tid) { return rb_vmeta_rec(t, tid, 0) ? (MTLTextureType)g_treg[tid].view_tt : t.textureType; }
++static inline MTLPixelFormat rb_vmeta_pf(__unsafe_unretained id<MTLTexture> t, int tid) { return rb_vmeta_rec(t, tid, 0) ? (MTLPixelFormat)g_treg[tid].view_pf : t.pixelFormat; }
+ // Memory pool Finalize: for texture IDs whose registered texture lives on this pool, drop the cached MTLTexture (view or base texture). The cache used to be released only when the ID was registered again,
+ // so a linear texture built directly on a pool kept the whole pool buffer alive (6 to 17 finalized 16 MB pool buffers stayed alive in Engage's title demo). If the ID is still used, the next lookup rebuilds it on the slow path
+ static void treg_drop_ar(treg_t *r) { if (r->ar) { defer_obj_unref((__bridge id)r->ar); CFRelease(r->ar); r->ar = r->ar_of = NULL; r->ar_rid = 0; }
+                                      if (r->im) { defer_obj_unref((__bridge id)r->im); CFRelease(r->im); r->im = r->im_of = NULL; r->im_rid = 0; } }   // and the image class view (img_fit)
+ static void treg_drop_views(treg_t *r) {   // every view the ID caches (view, alt, ar, im): each retains its base texture
++    if (rb_vmeta_forget(rb_view_meta_on(), r->view, &r->view_tt, &r->view_pf)) rb_vmeta_bump(g_rb_vmeta, RB_VMETA_DROP);   // RewindBox (patch 0352): the view's type and format go with it
+     if (r->view) { defer_obj_unref((__bridge id)r->view); CFRelease(r->view); r->view = NULL; r->alt_source_rid = r->view_rid = 0; r->view_sp = 0; }   // RewindBox (patch 0031): view_sp with it
+     if (r->alt) { defer_obj_unref((__bridge id)r->alt); CFRelease(r->alt); r->alt = r->alt_of = NULL; r->alt_rid = 0; }
+     treg_drop_ar(r);
+@@ -13268,6 +13287,7 @@ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+         id<MTLTexture> cur = resolved = tex_mtl(&rp->t);
+         if ((cur || !txr_on()) && (cur == v || v.parentTexture == cur)) { rp->view_ser = sg; rp->view_sa = sa; rp->view_local = local; rp->view_dirty = dg; rp->view_ep = g_pkg_epoch; rb_view_scope_stamp(rp, rb_on, rb_wq); g_rb_view_same++; treg_sp_note(tid, rp, cur, spq); return v; }   // RewindBox (patch 0031): treg_sp_note; (patch 0073): view_sa; RewindBox (patch 0073): cur, nil is no match (a root view's object may serve another texture now, patch 0071's txr_take; S2A_RB_TEX_REUSE=0 as before)
+         g_rb_view_changed++;
++        if (rb_vmeta_forget(rb_view_meta_on(), rp->view, &rp->view_tt, &rp->view_pf)) rb_vmeta_bump(g_rb_vmeta, RB_VMETA_DROP);   // RewindBox (patch 0352): a new view below writes its own
+         defer_obj_unref(v); CFRelease(rp->view); rp->view = NULL; rp->alt_source_rid = rp->view_rid = 0; v = nil;
+     }
+     treg_t r = *rp;
+@@ -17671,7 +17691,7 @@ static void *pool_tex_obj(int id_, uint64_t limit, int *left, uint64_t *rid) {
+     void *tv = NULL; uint64_t tr = tex_fast_rid(id_, &tv);
+     if (!made && tv) { g_walk_spent += pool_tex_size(&r->t); if (pool_seen(id_)) g_walk_req += pool_tex_size(&r->t); }
+     if (!tv || !tr) return NULL;
+-    r->tt1 = (uint8_t)((__bridge id<MTLTexture>)tv).textureType + 1;
++    r->tt1 = (uint8_t)rb_vmeta_tt((__bridge id<MTLTexture>)tv, id_) + 1;   // RewindBox (patch 0352): rb_vmeta_tt
+     *rid = tr; return tv;
+ }
+ static void *pool_samp_obj(int id_, uint64_t *rid) {
+@@ -17685,7 +17705,7 @@ static int pool_tex_update(int id_, uint64_t limit) {
+     for (int k = 0; k < POOL_TABS; k++) { const pool_tab *t = &g_ptab[k]; if (!t->samp && pool_covers(t, id_)) { any = 1; want |= !tt1 || tt1 - 1 == t->dtt; } }
+     if (!any) return 0;
+     int left = 0; uint64_t rid = 0; void *o = want ? pool_tex_obj(id_, limit, &left, &rid) : NULL;   // an ID of a type no table holds: nothing to look up or make
+-    int tt = o ? (int)((__bridge id<MTLTexture>)o).textureType : -1;
++    int tt = o ? (int)rb_vmeta_tt((__bridge id<MTLTexture>)o, id_) : -1;   // RewindBox (patch 0352): rb_vmeta_tt
+     for (int k = 0; k < POOL_TABS; k++) { const pool_tab *t = &g_ptab[k]; if (!t->samp && pool_covers(t, id_)) pool_ent_put(k, (uint32_t)(id_ - t->base), tt == t->dtt ? o : NULL, rid); }
+     return left;
+ }
+@@ -18356,8 +18376,9 @@ static __attribute__((noinline, cold)) void p20_note(NvShader *sh, int st, const
+ // RewindBox (patch 0073): a binding's texture type and format without a message send when it is the ID's registered view, as tex_by_id read them once (view_tt / view_pf, the
+ //   P1-20 probe's); another texture (a snapshot, an expanded or fitted view) is asked. SC7: libobjc took 1.50 ms a frame of the submit thread (765 test, f3696), encode_args 3.13 ms
+ //   inclusive, and every texture binding of every draw asked its texture's type and, for a float declaration, its format. Caller holds g_rmu
+-static inline MTLTextureType rb_tt(__unsafe_unretained id<MTLTexture> t, int tid) { return tid >= 0 && tid < g_ntreg && g_treg[tid].view == (__bridge void *)t ? (MTLTextureType)g_treg[tid].view_tt : t.textureType; }
+-static inline MTLPixelFormat rb_pf(__unsafe_unretained id<MTLTexture> t, int tid) { return tid >= 0 && tid < g_ntreg && g_treg[tid].view == (__bridge void *)t ? (MTLPixelFormat)g_treg[tid].view_pf : t.pixelFormat; }
++//   RewindBox (patch 0352): through rb_vmeta_rec, which counts them with the switch on and answers as before with it off
++static inline MTLTextureType rb_tt(__unsafe_unretained id<MTLTexture> t, int tid) { return rb_vmeta_rec(t, tid, 1) ? (MTLTextureType)g_treg[tid].view_tt : t.textureType; }
++static inline MTLPixelFormat rb_pf(__unsafe_unretained id<MTLTexture> t, int tid) { return rb_vmeta_rec(t, tid, 1) ? (MTLPixelFormat)g_treg[tid].view_pf : t.pixelFormat; }
+ static long g_td_frame;   // DM_NVN_TEXDUMP selected frame (defined with the TEXDUMP code below; < 0 = off): the bind site checks it before noting 3D textures
+ static void td_note_3d(id<MTLTexture> t, uint64_t ser);
+ // RewindBox (patch 0073): the compute shader whose image class variant this dispatch encodes, and the class of each of its bindings in it (2 bits per binding index: rb_icls_pick)
+@@ -18644,7 +18665,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+             for (int k = 0; k < b->n; k++) {
+                 int tid = ubo_tex_id(ubo_handle(nvn_stage, reg, 8 * k)); if (tid < 0 || tid >= g_ntreg || !g_treg[tid].ok) tid = -1;   // as for the samplers: other data, not a handle
+                 void *tv = NULL; uint64_t trid = tex_fast_rid(tid, &tv); __unsafe_unretained id<MTLTexture> t = (__bridge id<MTLTexture>)tv;
+-                if (t && t.textureType != (MTLTextureType)b->dtt) { uint64_t r2 = 0; id<MTLTexture> v = tex_fit_elem(tid, t, (MTLTextureType)b->dtt, &r2); t = v; trid = v ? r2 : 0; }   // a handle the shader does not pick here may be another kind
++                if (t && rb_vmeta_tt(t, tid) != (MTLTextureType)b->dtt) { uint64_t r2 = 0; id<MTLTexture> v = tex_fit_elem(tid, t, (MTLTextureType)b->dtt, &r2); t = v; trid = v ? r2 : 0; }   // a handle the shader does not pick here may be another kind; RewindBox (patch 0352): rb_vmeta_tt
+                 if (!t) { t = dummy_tex(b->dtt, b->dpf); trid = g_dummy_tex_rid[b->dtt & 15][b->dpf & 3]; } else { real |= 1ull << k; rs_bind_check(t, sh, nvn_stage, 1, b, tid, nil); }   // internal resolution: arrays of handles are not scaled
+                 if (bl && tid >= 0) PD("B %llu st%d texu [%d] tid=%d %s", g_stat_pass, nvn_stage, k, tid, tv ? "real" : "dummy");
+                 slots[aid + k] = trid;
+@@ -18681,7 +18702,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+                        (unsigned long)t.pixelFormat, (unsigned long)t.width, (unsigned long)t.height, (unsigned long)t.depth,
+                        (unsigned long)(t.parentTexture ? t.parentRelativeLevel : 0), (unsigned long)t.mipmapLevelCount,
+                        (unsigned long)(t.parentTexture ? t.parentRelativeSlice : 0), (unsigned long)t.arrayLength, (unsigned long)t.textureType, t ? (int)t.swizzle.red : 0, t ? (int)t.swizzle.green : 0, t ? (int)t.swizzle.blue : 0, t ? (int)t.swizzle.alpha : 0, (__bridge void *)(t.parentTexture ? t.parentTexture : t));
+-            if (t && b->f1d && t.textureType == MTLTextureTypeTextureBuffer && (MTLTextureType)b->dtt == MTLTextureType2D) { uint64_t r2 = 0; id<MTLTexture> v = tbuf_as_2d(tid, t, b->f1d == 2, &r2); if (v) { t = v; trid = r2; } }   // see tbuf_as_2d
++            if (t && b->f1d && rb_vmeta_tt(t, tid) == MTLTextureTypeTextureBuffer && (MTLTextureType)b->dtt == MTLTextureType2D) { uint64_t r2 = 0; id<MTLTexture> v = tbuf_as_2d(tid, t, b->f1d == 2, &r2); if (v) { t = v; trid = r2; } }   // see tbuf_as_2d; RewindBox (patch 0352): rb_vmeta_tt
+             if (t && rb_tt(t, tid) != (MTLTextureType)b->dtt) { uint64_t r2 = 0; id<MTLTexture> v = tex_fit(tid, t, (MTLTextureType)b->dtt, b->dpf, &r2); if (v) { t = v; trid = r2; }   // RewindBox (patch 0073): rb_tt
+                 // no view fits, and one side is a buffer texture (Octopath Traveler 0: a buffer texture left in a slot a shader reads as a cube): reads of it are undefined, so the slot reads 0
+                 else if (t.textureType == MTLTextureTypeTextureBuffer || (MTLTextureType)b->dtt == MTLTextureTypeTextureBuffer) { tex_mis_note(sh, nvn_stage, b->kind == NVN_RB_TEX ? reg : -1, tid, t, (MTLTextureType)b->dtt, "a buffer texture: the slot reads 0 (dummy)"); t = nil; }
+@@ -18713,10 +18734,10 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+                 else { img_wr_note(tid); static int n; if (!n++) MLOG("image slot texture without shader writes (texture ID %d): upgraded before the next pass", tid); }
+                 t = nil; }
+             // A class the image needs that no view gives (or not yet: upgraded before the next pass, img_fit): the dummy image, never the texture as is (Metal reads / writes undefined)
+-            if (t && (swz_only || (b->dpf != NVN_DPF_FLOAT && mtl_pf_dpf(t.pixelFormat) != b->dpf))) { uint64_t r2 = 0; id<MTLTexture> v = img_fit(tid, t, b->dpf, &r2); if (v) { t = v; trid = r2; } else t = nil; }   // see img_fit
++            if (t && (swz_only || (b->dpf != NVN_DPF_FLOAT && mtl_pf_dpf(rb_vmeta_pf(t, tid)) != b->dpf))) { uint64_t r2 = 0; id<MTLTexture> v = img_fit(tid, t, b->dpf, &r2); if (v) { t = v; trid = r2; } else t = nil; }   // see img_fit; RewindBox (patch 0352): rb_vmeta_pf
+             // An image of another texture type than the shader declares: Ryujinx binds only the same dimensions (Texture.GetTargetTexture); the rest is the dummy image of the declared type
+-            if (t && t.textureType != (MTLTextureType)b->dtt) { uint64_t r2 = 0; id<MTLTexture> v = tex_fit(tid, t, (MTLTextureType)b->dtt, b->dpf, &r2); if (v && v.textureType == (MTLTextureType)b->dtt && (v.usage & MTLTextureUsageShaderWrite)) { t = v; trid = r2; } }   // the same-dimension views tex_fit makes (2D / 2D array, cube / cube array)
+-            if (t && t.textureType != (MTLTextureType)b->dtt) { RED_ONCE(50, "image slot: shader declares Metal type %lu, texture ID %d is type %lu: the dummy image of the declared type (Ryujinx leaves it unbound)", (unsigned long)b->dtt, tid, (unsigned long)t.textureType); t = nil; }
++            if (t && rb_vmeta_tt(t, tid) != (MTLTextureType)b->dtt) { uint64_t r2 = 0; id<MTLTexture> v = tex_fit(tid, t, (MTLTextureType)b->dtt, b->dpf, &r2); if (v && v.textureType == (MTLTextureType)b->dtt && (v.usage & MTLTextureUsageShaderWrite)) { t = v; trid = r2; } }   // the same-dimension views tex_fit makes (2D / 2D array, cube / cube array); RewindBox (patch 0352): rb_vmeta_tt, here and below
++            if (t && rb_vmeta_tt(t, tid) != (MTLTextureType)b->dtt) { RED_ONCE(50, "image slot: shader declares Metal type %lu, texture ID %d is type %lu: the dummy image of the declared type (Ryujinx leaves it unbound)", (unsigned long)b->dtt, tid, (unsigned long)t.textureType); t = nil; }
+             if (t && b->rw && tid < g_ntreg && g_treg[tid].ok) gpw_mark_view(&g_treg[tid].t, &g_treg[tid].v, g_treg[tid].has_v, 1);   // the shader stores to it: its guest bytes go stale (gpw_mark; a load-only image is not)
+             if (t && b->rw && tid < g_ntreg && g_treg[tid].ok) wd_flat_written(g_treg[tid].t.serial);   // S2Arm widen: its content changes, so the horizontal-detail measurement no longer holds
+             size_abi_texture(sh, nvn_stage, b, tid, size_view, t);
+@@ -18739,7 +18760,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+         } else if (b->kind == NVN_RB_TBUF || b->kind == NVN_RB_TBUFU) {   // Typed buffer: the buffer texture (target BUFFER) in texture slot r; TBUFU: the one whose handle is at byte off of uniform slot r
+             int tid = b->kind == NVN_RB_TBUFU ? ubo_tex_id(ubo_packed(nvn_stage, b)) : (int)(tex_slot_h(S.tex[nvn_stage], S.img[nvn_stage], reg) & 0xfffff);
+             void *tv = NULL; uint64_t trid = tex_fast_rid(tid, &tv); __unsafe_unretained id<MTLTexture> t = (__bridge id<MTLTexture>)tv;
+-            if (t && t.textureType != MTLTextureTypeTextureBuffer) { tex_mis_note(sh, nvn_stage, b->kind == NVN_RB_TBUF ? reg : -1, tid, t, MTLTextureTypeTextureBuffer, "a buffer slot: it reads 0 (dummy)"); t = nil; }
++            if (t && rb_vmeta_tt(t, tid) != MTLTextureTypeTextureBuffer) { tex_mis_note(sh, nvn_stage, b->kind == NVN_RB_TBUF ? reg : -1, tid, t, MTLTextureTypeTextureBuffer, "a buffer slot: it reads 0 (dummy)"); t = nil; }   // RewindBox (patch 0352): rb_vmeta_tt
+             if (bl) PD("B %llu st%d tbuf reg%d tid=%d %s ser=%llu fmt=%#x n=%u mem=%p", g_stat_pass, nvn_stage, reg, tid, t ? "real" : "dummy", t && tid < g_ntreg ? g_treg[tid].t.serial : 0ull,
+                        tid < g_ntreg ? g_treg[tid].t.d.format : 0, tid < g_ntreg ? g_treg[tid].t.d.width : 0, tid < g_ntreg ? (void *)g_treg[tid].t.mem : NULL);
+             if (!t) t = tbuf_expand(tid, 0, &trid);   // buffer textures of an expanded format: expanded copy (see tbuf_expand)
+@@ -18752,11 +18773,11 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+                 uint64_t hk = k < 128 ? (S.tex[nvn_stage][k] ? S.tex[nvn_stage][k] : S.tex[nvn_stage][NVN_SEPTEX_SLOT0 + k]) : 0; int tid = (int)(hk & 0xfffff);
+                 void *tv = NULL; uint64_t trid = tex_fast_rid(tid, &tv); __unsafe_unretained id<MTLTexture> t = (__bridge id<MTLTexture>)tv;
+                 if (b->dtt == (uint8_t)MTLTextureTypeTextureBuffer) {
+-                    if (t && t.textureType != MTLTextureTypeTextureBuffer) t = nil;   // a slot the shader does not pick here may hold another kind of texture
++                    if (t && rb_vmeta_tt(t, tid) != MTLTextureTypeTextureBuffer) t = nil;   // a slot the shader does not pick here may hold another kind of texture; RewindBox (patch 0352): rb_vmeta_tt, here and below
+                     if (!t) t = tbuf_expand(tid, 0, &trid);   // buffer textures of an expanded format: expanded copy (see tbuf_expand)
+                     if (!t) { t = dummy_tbuf(b->dpf); trid = g_dummy_tbuf_rid[b->dpf & 3]; }
+                 } else {
+-                    if (t && t.textureType != (MTLTextureType)b->dtt) { uint64_t r2 = 0; id<MTLTexture> v = tex_fit_elem(tid, t, (MTLTextureType)b->dtt, &r2); t = v; trid = v ? r2 : 0; }
++                    if (t && rb_vmeta_tt(t, tid) != (MTLTextureType)b->dtt) { uint64_t r2 = 0; id<MTLTexture> v = tex_fit_elem(tid, t, (MTLTextureType)b->dtt, &r2); t = v; trid = v ? r2 : 0; }
+                     if (!t) { t = dummy_tex(b->dtt, b->dpf); trid = g_dummy_tex_rid[b->dtt & 15][b->dpf & 3]; }
+                 }
+                 if (bl && tv) PD("B %llu st%d texd [%d] tid=%d %s", g_stat_pass, nvn_stage, k, tid, tv ? "real" : "dummy");
+@@ -18776,7 +18797,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+             for (int k = 0; k < b->n; k++) {
+                 int tid = (int)(c2_handle(nvn_stage, b->off + 8u * k) & 0xfffff);
+                 void *tv = NULL; uint64_t trid = tex_fast_rid(tid, &tv); __unsafe_unretained id<MTLTexture> t = (__bridge id<MTLTexture>)tv;
+-                if (t && t.textureType != (MTLTextureType)b->dtt) { uint64_t r2 = 0; id<MTLTexture> v = tex_fit_elem(tid, t, (MTLTextureType)b->dtt, &r2); t = v; trid = v ? r2 : 0; }   // an element the shader does not pick here may be another kind
++                if (t && rb_vmeta_tt(t, tid) != (MTLTextureType)b->dtt) { uint64_t r2 = 0; id<MTLTexture> v = tex_fit_elem(tid, t, (MTLTextureType)b->dtt, &r2); t = v; trid = v ? r2 : 0; }   // an element the shader does not pick here may be another kind; RewindBox (patch 0352): rb_vmeta_tt
+                 if (!t) { t = dummy_tex(b->dtt, b->dpf); trid = g_dummy_tex_rid[b->dtt & 15][b->dpf & 3]; } else { real |= 1ull << k; rs_bind_check(t, sh, nvn_stage, 1, b, tid, nil); }   // internal resolution: arrays of handles are not scaled
+                 if (bl && tv) PD("B %llu st%d texa [%d] tid=%d %s", g_stat_pass, nvn_stage, k, tid, tv ? "real" : "dummy");
+                 slots[aid + k] = trid;
+@@ -28157,6 +28178,12 @@ void nvn_be_view_scope_stats(uint64_t v[21]) {
+     pthread_mutex_unlock(&g_smu);
+     v[19] = (uint64_t)rb_view_scope_on(); v[20] = (uint64_t)rb_view_range_on();
+ }
++// RewindBox (patch 0352): cumulative counts for the same line (rb_view_meta.h): v[0..2] the type / format reads the texture-ID records answered, those asked of the
++//   texture, the records that let their view go (dropped or replaced); v[3] the switch (S2A_RB_VIEW_META). Relaxed loads: written under g_rmu, read without it
++void nvn_be_view_meta_stats(uint64_t v[4]) {
++    for (int k = 0; k < RB_VMETA_N; k++) v[k] = atomic_load_explicit(&g_rb_vmeta[k], memory_order_relaxed);
++    v[3] = (uint64_t)rb_view_meta_on();
++}
+ void nvn_be_use_stats(uint64_t *call, uint64_t *skip) { *call = 0; *skip = 0; }
+ uint64_t nvn_be_ds_omit(void) { return g_stat_ds_omit; }
+ void nvn_be_bw(uint64_t *load, uint64_t *store, uint64_t *full) { *load = g_bw_load; *store = g_bw_store; *full = rb_pass_stats() ? g_rb_final_rw : g_pass_full_rw; }
+diff --git a/graphics/nvn/gfx/nvn/rb_view_meta.h b/graphics/nvn/gfx/nvn/rb_view_meta.h
+new file mode 100644
+index 0000000..5294e57
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_view_meta.h
+@@ -0,0 +1,41 @@
++// RewindBox (patch 0352): a binding's texture type and pixel format from its texture ID's record instead of a message to the texture (nvn_mtl.m rb_vmeta_rec; the record
++//   is treg_t's view, view_tt and view_pf). Pure C: tests/t_rb_view_meta.c. Ported from nxnative c7e74a1f (MIT, "nvn/replay: cache view type and pixel format on
++//   treg_t"): full argument encodes, image bindings, the pool walk and handle tables messaged textureType and pixelFormat on every texture slot although both are
++//   immutable for an MTLTexture; read beside the view instead, submit CPU per draw fell 2.2 to 3.2 % (Mario Kart World on an Apple M6, about 1,960 draws a frame).
++//   Here the record has held both since upstream's P1-20 probe (tex_by_id writes them in the step that sets the view, the only place a view is set), and patch 0073 reads
++//   them for a texture slot's type and float-class tests (rb_tt / rb_pf). Every other read of a full walk still asked the texture: each element of an array of handles
++//   in a uniform buffer (Fire Emblem's arrays of 32, 29 of them textures, IPA 836), of a dynamic or driver-table array, a buffer texture slot, an image slot (its type
++//   twice, an integer class's format), a texture slot's 1D-rows test, and the pool tables' walk (twice an ID looked up again).
++// The key is the view object itself, not the ID, its serial or its pool: the record answers only for the object it holds, which it retains (no other object can take
++//   that address meanwhile), and it writes the type and format in the step that sets the view. Whatever changes what an ID reads lets its view go or replaces it before
++//   a binding can meet another object: registered again with another texture or view (a serial change) or unregistered, its pool or its texture finalized, its storage
++//   evicted or taken over (an alias), a re-upload or a format-view upgrade to a new texture, a placement sparse texture's mappings moved. tex_by_id's slow path keeps a
++//   view only when tex_mtl finds that same texture again (an upload in place changes neither its type nor its format). Any other object a binding holds (a view made for
++//   another type or class: tex_fit, img_fit, tex_float_fit; a same-pass snapshot, rows of a buffer texture, an expanded copy, a dummy) is asked, as before.
++//   No memory is added: the two fields were in every record already. All of it runs under g_rmu, which the submit (encode) thread holds for a whole binding walk
++#pragma once
++#include <stdatomic.h>
++#include <stdint.h>
++
++enum { RB_VMETA_HIT = 0, RB_VMETA_MISS, RB_VMETA_DROP, RB_VMETA_N };   // the counts: reads the record answered, reads asked of the texture, records that let their view go
++
++// Whether the record holding view (NULL: none, or an ID outside the table) answers for the bound texture t. on: S2A_RB_VIEW_META; early: a read patch 0073 already
++//   answers from the record (rb_tt / rb_pf), which it does with the switch off too
++static inline int rb_vmeta_answers(int on, int early, const void *view, const void *t) { return (on || early) && t && view == t; }
++
++// The count a read adds: RB_VMETA_HIT / RB_VMETA_MISS, -1 = none (the switch off)
++static inline int rb_vmeta_count(int on, int answered) { return on ? (answered ? RB_VMETA_HIT : RB_VMETA_MISS) : -1; }
++
++// The record lets its view go (dropped, or replaced on tex_by_id's slow path): with the switch on its type and format go with it and an invalidation is counted (1).
++//   Off: left as they were, as before (nothing reads them without the view)
++static inline int rb_vmeta_forget(int on, const void *view, uint8_t *tt, uint32_t *pf) {
++    if (!on || !view) return 0;
++    *tt = 0; *pf = 0;
++    return 1;
++}
++
++// One more of count k (k < 0: none). Every writer holds the same lock (g_rmu), so a relaxed load and store lose no count, and a reader without it (the frame hook's
++//   300-frame line) reads whole values
++static inline void rb_vmeta_bump(_Atomic uint64_t *n, int k) {
++    if (k >= 0) atomic_store_explicit(&n[k], atomic_load_explicit(&n[k], memory_order_relaxed) + 1, memory_order_relaxed);
++}

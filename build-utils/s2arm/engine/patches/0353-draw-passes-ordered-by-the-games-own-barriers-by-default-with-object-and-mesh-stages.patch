@@ -1,0 +1,327 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 54515bf..ff1bf06 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3400,6 +3400,7 @@ __attribute__((weak)) void dm_thread_cpu(char *out, size_t n, double secs) { (vo
+ void nvn_be_res_stats(char *out, size_t n);
+ void nvn_be_barrier_stats(uint64_t *skip, uint64_t *full);
+ __attribute__((weak)) void nvn_be_draw_barrier_reasons(uint64_t counts[4]) { memset(counts, 0, 4 * sizeof *counts); }
++__attribute__((weak)) void nvn_be_draw_barrier_text(char *out, size_t n) { if (n) *out = 0; }   // RewindBox (patch 0353): nvn_mtl.m, why draw passes took the full barrier since the last call
+ __attribute__((weak)) void nvn_be_clear_batch_stats(uint64_t values[4]) { memset(values,0,4*sizeof *values); }
+ __attribute__((weak)) int nvn_be_adjacent_clear_stats(uint64_t counts[3]) { (void)counts; return 0; }
+ extern uint32_t nvn_be_present_qos(void);
+@@ -3894,6 +3895,7 @@ static void power_line(uint64_t frame) {
+         LOG("[nvn] power up to frame %llu: CPU energy %.2f W, %.1f mJ per frame (%.1f fps); CPU %.0f%% (100 = one core), %.0f%% of it on performance cores; wakeups %.0f/s (out of platform idle %.0f); GPU busy %.1f ms/s (time, not energy); thermal %d; top yielders: %s", frame,
+             (e - pe) / 1e9 / s, (e - pe) / 1e6 / nf, nf / s, (cpu - pcpu) / 1e7 / s, cpu > pcpu ? 100.0 * (double)(p - pp) / (double)(cpu - pcpu) : 0, (iw - piw) / s, (idw - ppw) / s, (g - pg) / 1e6 / s, dm_thermal_now(), yt);
+         char rs[400]; nvn_be_res_stats(rs, sizeof rs); static uint64_t pbs, pbf; uint64_t bs, bf; nvn_be_barrier_stats(&bs, &bf);
++        char dbar[512]; nvn_be_draw_barrier_text(dbar, sizeof dbar);   // RewindBox (patch 0353): after the full / saved counts below
+ 
+         uint64_t clear[3];
+         if (nvn_be_adjacent_clear_stats(clear)) {
+@@ -3939,8 +3941,8 @@ static void power_line(uint64_t frame) {
+         void nvn_be_lc_stats(uint64_t *, uint64_t *); static uint64_t plt, pll; uint64_t lt, ll; nvn_be_lc_stats(&lt, &ll);
+         void nvn_be_ubp_why(uint64_t w[5]); static uint64_t pw5[5]; uint64_t w5[5]; nvn_be_ubp_why(w5);
+         uint64_t ld, st, fu, udc = nvn_be_udc_saved_bytes(); nvn_be_bw(&ld, &st, &fu);
+-        LOG("[nvn] residency set up to frame %llu: %s; draw-pass entry barriers full %llu / saved %llu; split submits %llu (%llu after buffer → texture copies, %llu inside a draw pass); passes broken by copies / buffer updates %llu; in-pass uniform updates deferred %llu, passes ended to land them for a read %llu, partly covered blocks read from memory %llu (cached %llu, refused %llu: other GPU writes %llu, earlier submission running %llu, copy or fill queued %llu, size %llu, unreadable %llu); waiting clears taken by a later pass %llu, landed in passes of their own %llu; "
+-            "attachments per frame load %.0f MB / store %.0f MB, load-all store-all passes %.0f, saved by not storing unwritten attachments %.1f MB", frame, rs, (unsigned long long)(bf - pbf), (unsigned long long)(bs - pbs),
++        LOG("[nvn] residency set up to frame %llu: %s; draw-pass entry barriers full %llu / saved %llu%s; split submits %llu (%llu after buffer → texture copies, %llu inside a draw pass); passes broken by copies / buffer updates %llu; in-pass uniform updates deferred %llu, passes ended to land them for a read %llu, partly covered blocks read from memory %llu (cached %llu, refused %llu: other GPU writes %llu, earlier submission running %llu, copy or fill queued %llu, size %llu, unreadable %llu); waiting clears taken by a later pass %llu, landed in passes of their own %llu; "
++            "attachments per frame load %.0f MB / store %.0f MB, load-all store-all passes %.0f, saved by not storing unwritten attachments %.1f MB", frame, rs, (unsigned long long)(bf - pbf), (unsigned long long)(bs - pbs), dbar,
+             (unsigned long long)(cut - pcut), (unsigned long long)(ccut - pccut), (unsigned long long)(pcutn - ppcut), (unsigned long long)(bsp - pbsp), (unsigned long long)(ud - pud), (unsigned long long)(uc - puc), (unsigned long long)(pm - ppm), (unsigned long long)(pr - ppr), (unsigned long long)(pf_ - ppf), (unsigned long long)(w5[1] - pw5[1]), (unsigned long long)(w5[2] - pw5[2]), (unsigned long long)(w5[3] - pw5[3]), (unsigned long long)(w5[0] - pw5[0]), (unsigned long long)(w5[4] - pw5[4]), (unsigned long long)(lt - plt), (unsigned long long)(ll - pll),
+             (ld - pld) / 1048576.0 / nf, (st - pst) / 1048576.0 / nf, (fu - pfu) / nf, (udc - pudc) / 1048576.0 / nf); pbs = bs; pbf = bf; pcut = cut; pccut = ccut; ppcut = pcutn; pbsp = bsp; pud = ud; puc = uc; ppm = pm; ppr = pr; ppf = pf_; memcpy(pw5, w5, sizeof pw5); plt = lt; pll = ll;
+         char tc[400]; dm_thread_cpu(tc, sizeof tc, s);
+diff --git a/graphics/nvn/gfx/nvn/nvn_geometry.inc b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+index b21df20..e2d8f47 100644
+--- a/graphics/nvn/gfx/nvn/nvn_geometry.inc
++++ b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+@@ -829,7 +829,7 @@ static void geo_draw(NvProg *pr, const p_draw *dw0, const p_draw_idx *di0) {
+     }
+     g_geo_program = raster; g_geo_indices = fast ? map : packed; g_geo_index_bytes = fast ? words * 4 : packed_size; g_geo_args = args;   // fast: the input primitives' capture indices (map) are the main pass's
+     p_draw synthetic = {.prim = gs->geo_output == 1 ? 0 : gs->geo_output == 6 ? 1 : 4, .count = 3, .instances = 1, .base_instance = (int32_t)first_instance};
+-    if (run) { geo_lane(2); if (!g_enc) { g_game_barrier = 1; main_barrier_reset(); } }   // the main pass opened in lane 2 waits for everything before it: the compactions in lane 1
++    if (run) { geo_lane(2); if (!g_enc) { g_last_end_relaxed = 0; main_barrier_reset(); } }   // the main pass opened in lane 2 waits for everything before it: the compactions in lane 1 (RewindBox, patch 0353: other work, not a game barrier)
+     draw(&synthetic, NULL);
+     if (run) { geo_lane(0); if (!g_gr.active) MDIE("geometry run ended inside its draw's main-pass draw"); }
+     g_geo_program = nil; args_dirty_all();
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 798ccf7..750826b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1644,8 +1644,10 @@ static float g_wd_push[4];
+ static int g_wd_inst, g_wd_vc;   // S2Arm widen: the current draw's instance / vertex (index) count for wd_draw (draw sets them; 0 = unknown, an indirect draw)
+ // A logical timestamp boundary may share the same physical command buffer (sub_cut).
+ static uint64_t g_rb_main_cb_serial;
++static void rb_draw_barriers_cb_begun(void);   // RewindBox (patch 0353): with the barrier state below (barrier_game)
+ static id rb_new_main_cb(void) {
+     ++g_rb_main_cb_serial;
++    rb_draw_barriers_cb_begun();
+     return rec_cb_new();
+ }
+ static uint64_t g_sub_serial;   // Submission index (used by the parallel precompile's 'predict only once per submission')
+@@ -1734,15 +1736,29 @@ static void ser_gate(void) {
+ static int g_pass_swrite;   // the open draw pass has shader writes (swrite_note)
+ static void img_wr_upgrade(void); static int g_imwr_npend;   // textures bound to an image slot without the shader-write usage (img_wr_note), upgraded before the next pass or dispatch
+ static void img_fit_upgrade(void); static int g_imfit_npend;   // textures an image slot needs a format view of (img_fit), upgraded before the next draw pass opens
+-static int g_last_end_relaxed, g_game_barrier;   // the last encoder ended was a draw pass with the relaxed end barrier (nothing else since); the game issued nvnCommandBufferBarrier since the last draw pass began
++#include "rb_draw_barriers.h"   // RewindBox (patch 0353): the mode, the bits rule and the entry counters (barrier_game)
++static int g_last_end_relaxed, g_game_barrier;   // the last encoder ended on this command buffer was a draw pass with the relaxed end barrier (nothing else since); the bits of the game's nvnCommandBufferBarrier calls since the last draw pass began (RewindBox, patch 0353: bits, nxnative e7750541)
+ static uint64_t g_bar_skip, g_bar_full;            // draw entries without / with consumer (relaxed mode or proven full producer coverage)
++static _Atomic uint64_t g_rb_dbar[RB_DBAR_COUNT], g_rb_dbar_out[2];   // RewindBox (patch 0353): draw-pass entries by rb_draw_barrier_entry; of the full ones saved by producer coverage [0], kept full for alias visibility [1] (nvn_be_draw_barrier_text)
++static _Atomic int g_rb_dbar_game = -1;   // RewindBox (patch 0353): barrier_game's decision once made, for the residency line's thread
++// RewindBox (patch 0353, nxnative 3a2a62f7, MIT, Copyright (c) 2026 seedds, with David Padron-Harris): every main command buffer begins its first draw pass with the full barrier.
++//   The relaxed end barrier of the last draw pass orders only that queue's next pass; nxnative clears it when another NVN queue's work begins (mtl_queue_activate). Here each
++//   piece of a queue's submission is its own command buffer (nvn_xqueue.inc xq_piece: sub_begin, replay, sub_commit), so a new command buffer covers that switch, and also a
++//   segment cut or a wait for a multi-draw count: whatever runs before it on the GPU (another queue's work after an event or sync wait, the present, uploads committed in
++//   between) is seen by every stage of the next pass, vertex and indirect fetch included. rb_new_main_cb calls it for every main command buffer
++static void rb_draw_barriers_cb_begun(void) { g_last_end_relaxed = 0; }
+ static void gp_end(id e);
++static int barrier_game(void);
++// RewindBox (patch 0353): Metal 3 fences cover the object and mesh stages of a render encoder too while draw passes are ordered by the game's barriers (barrier_game), on a GPU
++//   that has them (g_mesh_ok): a task / mesh pipeline runs them in place of the vertex stage, and a fence named for the vertex stage alone neither waits for their writes nor holds
++//   them back. draw_barriers full keeps the vertex and fragment stages alone, as before
++static inline MTLRenderStages rb_m3_mesh_stages(void) { return g_mesh_ok && barrier_game() ? MTLRenderStageObject | MTLRenderStageMesh : 0; }
+ // Metal 3 (#278): the old encoders have no queue barriers. Every encoder of g_q3 waits for g_fence3 when it begins (m3_wait) and updates it when it ends (m4_end), so each one runs after
+ // the one before it, across command buffers too. The resources are tracked, but what shaders reach through argument buffers or GPU addresses is not, so tracking alone does not order them.
+ // Encoders of the old queue g_q (readbacks, diagnostics) end with a plain endEncoding: a fence orders only the encoders of one queue. relaxed: a draw pass begun without the consumer
+ // barrier (DM_NVN_BARRIER=game) waits before its fragment stage only, as on Metal 4 its vertex work may overlap the previous pass's fragments
+ static inline void m3_wait(id e, int render, int relaxed) {
+-    if (render) [(id<MTLRenderCommandEncoder>)e waitForFence:g_fence3 beforeStages:relaxed ? MTLRenderStageFragment : MTLRenderStageVertex];
++    if (render) [(id<MTLRenderCommandEncoder>)e waitForFence:g_fence3 beforeStages:relaxed ? MTLRenderStageFragment : (MTLRenderStageVertex | rb_m3_mesh_stages())];
+     else [(id<MTLBlitCommandEncoder>)e waitForFence:g_fence3];   // the compute encoder's selector is the same
+ }
+ // RewindBox (patch 0028, check C10): placement heaps made (nvn_sparse_tiles.inc sp_slot; 0 again at a session's end). While there is one, the queue barrier an encoder begins with
+@@ -1939,7 +1955,7 @@ static enum rb_entry_barrier main_barrier_begin(id e, int relaxed, int private_c
+ static inline void m4_end(id e) {
+     gp_end(e);
+     if (g_m3) {
+-        if ([e conformsToProtocol:@protocol(MTLRenderCommandEncoder)]) [(id<MTLRenderCommandEncoder>)e updateFence:g_fence3 afterStages:MTLRenderStageVertex | MTLRenderStageFragment];
++        if ([e conformsToProtocol:@protocol(MTLRenderCommandEncoder)]) [(id<MTLRenderCommandEncoder>)e updateFence:g_fence3 afterStages:MTLRenderStageVertex | MTLRenderStageFragment | rb_m3_mesh_stages()];   // RewindBox (patch 0353): rb_m3_mesh_stages
+         else [(id<MTLBlitCommandEncoder>)e updateFence:g_fence3];
+     } else if ([e conformsToProtocol:@protocol(MTL4CommandEncoder)]) {
+         enc_full_barrier_end(e);
+@@ -1958,7 +1974,44 @@ static inline void enc_close_blit(void) { if (g_blit) { m4_end(g_blit); g_blit =
+ // later work, so the next pass's vertex work can overlap this pass's fragments (with the full barriers every pass waited for the previous one to finish completely: about 350 passes a frame in Breath of
+ // the Wild). The next draw pass adds the full consumer barrier when the game called nvnCommandBufferBarrier since the last one (NVN asks for one before results of rendering are read as textures, shader data or
+ // indirect arguments), or when anything other than a draw pass ran in between (compute, copies and uploads keep their full barriers). Only vertex-stage reads of the previous pass's results without a barrier change order
+-static int barrier_game(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_NVN_BARRIER"); v = e && *e ? !strcmp(e, "game") : DM_GAME_DRAW_BARRIERS_GAME; if (v) MLOG("draw_barriers game (profile key; DM_NVN_BARRIER overrides): draw passes are ordered by the game's own barriers (fragment work still has barriers between passes; vertex work may overlap the previous pass's fragments)"); } return v; }
++// RewindBox (patch 0353): game by default for every game. DM_NVN_BARRIER decides first as upstream, then S2A_RB_DRAW_BARRIERS=game|full, then the profile's draw_barriers when it
++//   is written (an explicit full included: game_tsv.h draw_barriers_set), then game (rb_draw_barriers_pick). The full barrier now follows a game barrier only when its bits order
++//   primitives or indirect data (rb_bar_bits_full, nxnative e7750541), and the relaxed end barrier waits for the object and mesh stages too (enc_r_end_pass, rb_m3_mesh_stages)
++static int barrier_game(void) { static int v = -1; if (v < 0) {
++        const char *dm = getenv("DM_NVN_BARRIER"), *rb = getenv("S2A_RB_DRAW_BARRIERS"); int src;
++        v = rb_draw_barriers_pick(dm, rb, DM_GAME_DRAW_BARRIERS_SET ? DM_GAME_DRAW_BARRIERS_GAME : -1, &src);
++        atomic_store_explicit(&g_rb_dbar_game, v, memory_order_relaxed);
++        char why[96];
++        if (src == RB_DBAR_SRC_DM) snprintf(why, sizeof why, "DM_NVN_BARRIER=%s", dm);
++        else if (src == RB_DBAR_SRC_RB) snprintf(why, sizeof why, "S2A_RB_DRAW_BARRIERS=%s", rb);
++        else snprintf(why, sizeof why, "%s", src == RB_DBAR_SRC_PROFILE ? "the game's profile" : "the RewindBox default");
++        const int ignored = src != RB_DBAR_SRC_DM && rb && *rb && src != RB_DBAR_SRC_RB;
++        if (v) MLOG("RewindBox (patch 0353): draw passes are ordered by the game's own barriers (draw_barriers game, from %s%s%s%s): a pass takes the full barrier after a game barrier that orders "
++                    "primitives or indirect data, after other work or a wait, or at a new command buffer; otherwise the last pass's end barrier (vertex, object, mesh and fragment stages before "
++                    "fragment, dispatch and copy work) orders it. S2A_RB_DRAW_BARRIERS=full turns it off (DM_NVN_BARRIER, when set, decides first)",
++                    why, ignored ? "; S2A_RB_DRAW_BARRIERS=" : "", ignored ? rb : "", ignored ? " not understood (game or full)" : "");
++        else MLOG("RewindBox (patch 0353): every draw pass waits for all earlier GPU work (draw_barriers full, from %s%s%s%s); S2A_RB_DRAW_BARRIERS=game orders them by the game's own "
++                  "barriers (DM_NVN_BARRIER, when set, decides first)", why, ignored ? "; S2A_RB_DRAW_BARRIERS=" : "", ignored ? rb : "", ignored ? " not understood (game or full)" : "");
++    } return v; }
++_Static_assert(RB_BAR_ORDER_PRIMITIVES == NVN_BARRIER_ORDER_PRIMITIVES_BIT && RB_BAR_ORDER_FRAGMENTS == NVN_BARRIER_ORDER_FRAGMENTS_BIT &&
++               RB_BAR_ORDER_FRAGMENTS_TILED == NVN_BARRIER_ORDER_FRAGMENTS_TILED_BIT && RB_BAR_ORDER_INDIRECT_DATA == NVN_BARRIER_ORDER_INDIRECT_DATA_BIT &&
++               RB_BAR_INVALIDATE_TEXTURE == NVN_BARRIER_INVALIDATE_TEXTURE_BIT && RB_BAR_INVALIDATE_SHADER == NVN_BARRIER_INVALIDATE_SHADER_BIT &&
++               RB_BAR_INVALIDATE_TEXTURE_DESCRIPTOR == NVN_BARRIER_INVALIDATE_TEXTURE_DESCRIPTOR_BIT && RB_BAR_INVALIDATE_ZCULL == NVN_BARRIER_INVALIDATE_ZCULL_BIT,
++               "rb_draw_barriers.h: NVNbarrierBits");
++// RewindBox (patch 0353): the draw passes begun since the last call, by why they took the full barrier or not (the residency line, hle_nvn.c power_line, beside the full / saved counts)
++void nvn_be_draw_barrier_text(char *out, size_t n) {
++    uint64_t v[RB_DBAR_COUNT], o[2];
++    for (int i = 0; i < RB_DBAR_COUNT; i++) v[i] = atomic_exchange_explicit(&g_rb_dbar[i], 0, memory_order_relaxed);
++    for (int i = 0; i < 2; i++) o[i] = atomic_exchange_explicit(&g_rb_dbar_out[i], 0, memory_order_relaxed);
++    const int game = atomic_load_explicit(&g_rb_dbar_game, memory_order_relaxed);
++    if (game > 0) snprintf(out, n, " (RewindBox patch 0353, draw_barriers game: relaxed %llu, %llu of them after game barriers the relaxed end barrier covers; not relaxed after a game barrier "
++                           "ordering primitives or indirect data %llu, after other work, a wait, a new command buffer or another queue %llu, of these saved by producer coverage %llu and kept full "
++                           "for alias visibility %llu)",
++                           (unsigned long long)(v[RB_DBAR_RELAXED] + v[RB_DBAR_RELAXED_BITS]), (unsigned long long)v[RB_DBAR_RELAXED_BITS], (unsigned long long)v[RB_DBAR_BITS],
++                           (unsigned long long)v[RB_DBAR_WORK], (unsigned long long)o[0], (unsigned long long)o[1]);
++    else snprintf(out, n, " (RewindBox patch 0353, draw_barriers %s: saved by producer coverage %llu, kept full for alias visibility %llu)", game ? "not decided yet" : "full",
++                  (unsigned long long)o[0], (unsigned long long)o[1]);
++}
+ void nvn_be_barrier_stats(uint64_t *skip, uint64_t *full) { *skip = g_bar_skip; *full = g_bar_full; }
+ void nvn_be_draw_barrier_reasons(uint64_t counts[4]) {
+     _Static_assert(RB_ENTRY_COUNT == 4, "draw entry reason count changed");
+@@ -2243,13 +2296,16 @@ static inline id<MTL4RenderCommandEncoder> enc_r_begin_pass_scoped(MTL4RenderPas
+     id<MTL4RenderCommandEncoder> e = pendingZero && [g_cb isKindOfClass:DmRecCB.class]
+         ? [(DmRecCB *)g_cb rbRenderEncoder:d restoreZero:pendingZero]
+         : [g_cb renderCommandEncoderWithDescriptor:d];
+-    int relaxed = g_last_end_relaxed && !g_game_barrier;
++    const int entry = rb_draw_barrier_entry(barrier_game(), g_last_end_relaxed, (uint32_t)g_game_barrier);   // RewindBox (patch 0353): a game barrier takes the full barrier only for the bits rb_bar_bits_full names
++    int relaxed = rb_draw_barrier_relaxed(entry);
+     int full = !relaxed;
++    atomic_fetch_add_explicit(&g_rb_dbar[entry], 1, memory_order_relaxed);
+     if (g_m3) m3_wait(e, 1, relaxed);
+     else {
+         enum rb_entry_barrier why = main_barrier_begin(e, relaxed, private_clear);
+         full = why == RB_ENTRY_NO_PROOF || why == RB_ENTRY_ALIAS;
+         if (rb_pass_stats()) atomic_fetch_add_explicit(&g_rb_draw_entries[why], 1, memory_order_relaxed);
++        if (why == RB_ENTRY_COVERED || why == RB_ENTRY_ALIAS) atomic_fetch_add_explicit(&g_rb_dbar_out[why == RB_ENTRY_ALIAS], 1, memory_order_relaxed);   // RewindBox (patch 0353)
+     }
+     if (full) g_bar_full++; else g_bar_skip++;
+     g_game_barrier = 0;
+@@ -2265,8 +2321,10 @@ static inline void rb_draw_encoder_ended(id e) {
+ static inline void enc_r_end_pass(id e) {
+     rb_draw_encoder_ended(e);
+     if (!barrier_game()) { m4_end(e); return; }
+-    if (g_m3) { m4_end(e); g_last_end_relaxed = 1; return; }   // the fence is updated after the fragment stage either way; the next pass waits before its fragments only (enc_r_begin_pass)
+-    gp_end(e); [(id<MTL4CommandEncoder>)e barrierAfterStages:MTLStageVertex | MTLStageFragment beforeQueueStages:MTLStageFragment | MTLStageDispatch | MTLStageBlit visibilityOptions:MTL4VisibilityOptionDevice];
++    if (g_m3) { m4_end(e); g_last_end_relaxed = 1; return; }   // the fence is updated after the fragment stage either way (and the object and mesh stages: rb_m3_mesh_stages); the next pass waits before its fragments only (enc_r_begin_pass)
++    // RewindBox (patch 0353, nxnative e7750541): the object and mesh stages too, which a task / mesh pipeline runs in place of the vertex stage (Mario Kart World and Zelda
++    //   draw with them): their writes are done and flushed before later fragment, dispatch and copy work. Every Metal 4 GPU has them; a pass that ran none has nothing there to wait for
++    gp_end(e); [(id<MTL4CommandEncoder>)e barrierAfterStages:MTLStageVertex | MTLStageObject | MTLStageMesh | MTLStageFragment beforeQueueStages:MTLStageFragment | MTLStageDispatch | MTLStageBlit visibilityOptions:MTL4VisibilityOptionDevice];
+     [e endEncoding]; main_barrier_reset(); g_last_end_relaxed = 1;
+ }
+ static inline id<MTL4RenderCommandEncoder> enc_r_begin(MTL4RenderPassDescriptor *d) {
+@@ -25730,6 +25788,7 @@ void nvn_be_exec(const uint8_t *p) {
+             case OP_SIGNAL_EVENT: { if (!g_m3 && producer_cover_on()) main_barrier_reset(); volatile uint32_t *val; uint32_t m, v; memcpy(&val, a, 8); memcpy(&m, (const uint8_t *)a + 8, 4); memcpy(&v, (const uint8_t *)a + 12, 4);
+                 if (m & NVN_EV_WAIT) { PD("Y wait_event cmd=%p dst=%p mode=%u value=%u now=%u", p, val, m & ~NVN_EV_WAIT, v, val ? *val : 0);   // nvnCommandBufferWaitEvent（同一记录，见 ev_wait）
+                     if (ev_wait(val, m & ~NVN_EV_WAIT, v, p + h.size)) { PD("Y parked at the wait (cross-queue order)"); xq_unwind_push(p + h.size); g_exec_cur = NULL; return; }
++                    g_last_end_relaxed = 0;   // RewindBox (patch 0353): not parked, the wait may be met by a signal earlier in this command buffer (its own queue's), which only the barriers order: a draw pass begun next takes the full barrier (a pass still open ends with the relaxed one, as before)
+                     break; }
+                 PD("Y signal_event cmd=%p dst=%p mode=%u value=%u", p, val, m, v); mtl_sub_event(val, m, v); break; }
+             case OP_REPORT_COUNTER: { uint64_t t, ad; memcpy(&t, a, 8); memcpy(&ad, (const uint8_t *)a + 8, 8); g_cnt_report[t & 31]++;
+@@ -25887,7 +25946,7 @@ void nvn_be_exec(const uint8_t *p) {
+                 int split = g_enc && g_pass_swrite && (bits & (NVN_BARRIER_ORDER_FRAGMENTS_BIT | NVN_BARRIER_ORDER_FRAGMENTS_TILED_BIT));
+                 PD("I %llu barrier bits %#x%s", g_stat_pass, bits, split ? ": ends the pass (shader writes)" : g_enc ? " (render pass open)" : "");
+                 if (split) { rp_end(); static int once; if (!once++) MLOG("a game barrier (bits %#x) after shader writes in a draw pass: the pass ends there (first case pass %llu)", bits, (unsigned long long)g_stat_pass); }
+-                if (bits) g_game_barrier = 1; break; }
++                if (bits) g_game_barrier |= bits; break; }   // RewindBox (patch 0353, nxnative e7750541): the bits, for rb_draw_barrier_entry
+             case OP_SET_TEX_POOL: case OP_SET_SAMP_POOL: state_op(h.op, a, h.size); break;
+             default: break;
+         }
+diff --git a/graphics/nvn/gfx/nvn/rb_draw_barriers.h b/graphics/nvn/gfx/nvn/rb_draw_barriers.h
+new file mode 100644
+index 0000000..dc3b095
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_draw_barriers.h
+@@ -0,0 +1,65 @@
++// SPDX-License-Identifier: MIT
++// RewindBox (patch 0353): draw passes ordered by the game's own barriers by default (nvn_mtl.m barrier_game). Pure C, no Metal: the setting that picks the mode, the bits
++//   of the game's barriers that give the next draw pass the full barrier, and how a draw pass begins (the counters of the residency line). Tests: tests/t_rb_draw_barriers.c
++//   (kept out of the repository with the local fixtures of 0332+).
++//   Why: every game ran with the full barrier between draw passes, each pass waiting for all earlier GPU work (IPA 836 logs, "draw-pass entry barriers full" per 300 frames:
++//   Mario Kart World 36,000 to 40,800 in play, Zelda 15,500 to 24,300 besides those saved by producer coverage). The relaxed mode was there (the profile key draw_barriers
++//   game) but no profile writes the key. nxnative measured Ocarina of Time: GPU 25 -> 18 ms (Mac, draw_barriers game), M1 Max 22.0-22.3 -> 20.2-20.4 ms with the bits rule
++//   below, one iPhone run 29.7 -> 27.2 ms, an M2 Air and an M4 Pro no change. Not measured here.
++//   The bits rule is nxnative e7750541 (MIT, Copyright (c) 2026 seedds; LiamPalmqvist's PR 2334 after AdyaGMD's PR 1970): NVN orders later vertex, task, mesh or
++//   indirect-argument fetch after earlier work only for ORDER_PRIMITIVES and ORDER_INDIRECT_DATA. ORDER_FRAGMENTS and ORDER_FRAGMENTS_TILED order later fragments only,
++//   which the relaxed end barrier gives (vertex, object, mesh and fragment stages before later fragment, dispatch and copy work). The INVALIDATE_* bits order nothing:
++//   TEXTURE and SHADER let the caches see writes that an order bit, a wait or the end of a submission already completed (the relaxed end barrier flushes to the device,
++//   and the next pass's fragment stage starts after it), TEXTURE_DESCRIPTOR concerns pools the replay reads on the CPU, and ZCULL has no Metal counterpart: none of them needs
++//   the full barrier. A bit NVN does not define (above INVALIDATE_ZCULL) takes the full barrier, which nxnative does not do.
++#pragma once
++#include <stdint.h>
++#include <string.h>
++
++// NVNbarrierBits (include/nvn.h; nvn_mtl.m checks that the values match). Plain constants: compared with NVN's enum without mixing two enumerations
++#define RB_BAR_ORDER_PRIMITIVES 0x1
++#define RB_BAR_ORDER_FRAGMENTS 0x2
++#define RB_BAR_ORDER_FRAGMENTS_TILED 0x4
++#define RB_BAR_ORDER_INDIRECT_DATA 0x8
++#define RB_BAR_INVALIDATE_TEXTURE 0x10
++#define RB_BAR_INVALIDATE_SHADER 0x20
++#define RB_BAR_INVALIDATE_TEXTURE_DESCRIPTOR 0x40
++#define RB_BAR_INVALIDATE_ZCULL 0x80
++// The bits the relaxed end barrier covers. The most common barriers: 0x12 (ORDER_FRAGMENTS | INVALIDATE_TEXTURE), 0x32 (and INVALIDATE_SHADER), both in the IPA 836 logs
++#define RB_BAR_RELAXED_BITS (RB_BAR_ORDER_FRAGMENTS | RB_BAR_ORDER_FRAGMENTS_TILED | RB_BAR_INVALIDATE_TEXTURE | RB_BAR_INVALIDATE_SHADER | \
++                             RB_BAR_INVALIDATE_TEXTURE_DESCRIPTOR | RB_BAR_INVALIDATE_ZCULL)
++// The bits of the game's barriers since the last draw pass began give the next draw pass the full barrier
++static inline int rb_bar_bits_full(uint32_t bits) { return (bits & ~(uint32_t)RB_BAR_RELAXED_BITS) != 0; }
++
++// The mode, 1 game / 0 full. dm: DM_NVN_BARRIER (upstream: any value that is not empty decides, game, anything else full); rb: S2A_RB_DRAW_BARRIERS (game or full, anything
++//   else is ignored); profile: the game's draw_barriers key, 1 game, 0 full, -1 not written (or not understood: game_tsv.h). Then the RewindBox default, game.
++//   *src: which of them decided (RB_DBAR_SRC_*)
++enum { RB_DBAR_SRC_DM, RB_DBAR_SRC_RB, RB_DBAR_SRC_PROFILE, RB_DBAR_SRC_DEFAULT };
++static inline int rb_draw_barriers_pick(const char *dm, const char *rb, int profile, int *src) {
++    int s, v;
++    if (dm && *dm) { s = RB_DBAR_SRC_DM; v = !strcmp(dm, "game"); }
++    else if (rb && (!strcmp(rb, "game") || !strcmp(rb, "full"))) { s = RB_DBAR_SRC_RB; v = !strcmp(rb, "game"); }
++    else if (profile >= 0) { s = RB_DBAR_SRC_PROFILE; v = profile != 0; }
++    else { s = RB_DBAR_SRC_DEFAULT; v = 1; }
++    if (src) *src = s;
++    return v;
++}
++
++// How a draw pass begins. game: the mode; last_relaxed: the last encoder ended on this command buffer was a draw pass with the relaxed end barrier (nvn_mtl.m
++//   g_last_end_relaxed: anything else in between, compute, copies, uploads, another kind of encoder, MetalFX, a GPU event wait that did not park, and a new command buffer,
++//   which is also where another NVN queue's work begins, clear it); bits: the game's barrier bits since the last draw pass began (g_game_barrier)
++enum {
++    RB_DBAR_RELAXED,        // without the full barrier, no game barrier since the last draw pass
++    RB_DBAR_RELAXED_BITS,   // without the full barrier, after game barriers the relaxed end barrier covers (the bits rule's gain)
++    RB_DBAR_BITS,           // the full barrier: a game barrier that orders primitives or indirect data (or a bit NVN does not define)
++    RB_DBAR_WORK,           // the full barrier: other work, a wait, a new command buffer or another queue since the last draw pass
++    RB_DBAR_MODE,           // the full barrier: draw_barriers full
++    RB_DBAR_COUNT
++};
++static inline int rb_draw_barrier_entry(int game, int last_relaxed, uint32_t bits) {
++    if (!game) return RB_DBAR_MODE;
++    if (!last_relaxed) return RB_DBAR_WORK;
++    if (rb_bar_bits_full(bits)) return RB_DBAR_BITS;
++    return bits ? RB_DBAR_RELAXED_BITS : RB_DBAR_RELAXED;
++}
++static inline int rb_draw_barrier_relaxed(int entry) { return entry == RB_DBAR_RELAXED || entry == RB_DBAR_RELAXED_BITS; }
+diff --git a/graphics/nvn/host/game_profile.h b/graphics/nvn/host/game_profile.h
+index 4870e6d..a3b1971 100644
+--- a/graphics/nvn/host/game_profile.h
++++ b/graphics/nvn/host/game_profile.h
+@@ -26,6 +26,7 @@ int s2a_fps60_display_source(void);
+ #define DM_GAME_GPU_TS_SEGMENT   (s2a_nvn_prof()->t.gpu_ts_segment)
+ #define DM_GAME_VCONV_RANGE      (s2a_nvn_prof()->t.vconv_range)
+ #define DM_GAME_DRAW_BARRIERS_GAME (s2a_nvn_prof()->t.draw_barriers_game)
++#define DM_GAME_DRAW_BARRIERS_SET (s2a_nvn_prof()->t.draw_barriers_set)   // RewindBox (patch 0353): the key is written (game or full); not written, RewindBox orders by the game's barriers
+ #define DM_GAME_ALPHA_FROM_RED   (s2a_nvn_prof()->t.alpha_from_red)
+ #define DM_GAME_FEEDBACK_SNAP    (s2a_nvn_prof()->t.feedback_snap)
+ #define DM_GAME_ZERO_SKIP        (s2a_nvn_prof()->t.zero_skip)
+diff --git a/graphics/nvn/host/game_tsv.h b/graphics/nvn/host/game_tsv.h
+index 3c7b41a..daabd10 100644
+--- a/graphics/nvn/host/game_tsv.h
++++ b/graphics/nvn/host/game_tsv.h
+@@ -18,6 +18,7 @@ typedef struct {
+     uint64_t app_pool;
+     char program_id[18];
+     int present_explicit, present_display, present_display_derived, fps_hold, render_cond, tex_flush_upload, tex_dirty_upload, tex_dyn_slots, gpu_ts_segment, vconv_range, draw_barriers_game;
++    int draw_barriers_set;   // RewindBox (patch 0353): draw_barriers is written with a value it understands (game or full), so an explicit full is told apart from no key
+     char alpha_from_red[2048], feedback_snap[512], zero_skip[512];
+ } s2a_game_tsv;
+ 
+@@ -54,10 +55,12 @@ static inline int s2a_game_tsv_find(const char *text, const char *key, char *out
+ }
+ 
+ // 开关键：on / off（gpu_timestamps：segment / submission；present_interval：display / game；draw_barriers：game / full）。看不懂 → 写一行到 err、保持缺省
+-static inline void s2a_game_tsv_switch(const char *text, const char *key, const char *on, const char *off, int *dst, char *err, size_t en) {
+-    char v[64]; if (!s2a_game_tsv_find(text, key, v, sizeof v)) return;
++//   RewindBox (patch 0353): returns 1 when the key is written with one of the two values
++static inline int s2a_game_tsv_switch(const char *text, const char *key, const char *on, const char *off, int *dst, char *err, size_t en) {
++    char v[64]; if (!s2a_game_tsv_find(text, key, v, sizeof v)) return 0;
+     if (!strcmp(v, on)) *dst = 1; else if (!strcmp(v, off)) *dst = 0;
+-    else if (err && !*err) snprintf(err, en, "%s 的值「%s」看不懂（要 %s / %s），按缺省", key, v, on, off);
++    else { if (err && !*err) snprintf(err, en, "%s 的值「%s」看不懂（要 %s / %s），按缺省", key, v, on, off); return 0; }
++    return 1;
+ }
+ static inline void s2a_game_tsv_words(const char *text, const char *key, char *dst, size_t n) {   // 空白分隔的着色器键名单：TAB 换成空格
+     if (!s2a_game_tsv_find(text, key, dst, n)) return;
+@@ -84,7 +87,7 @@ static inline void s2a_game_tsv_parse(const char *text, s2a_game_tsv *g, char *e
+     s2a_game_tsv_switch(text, "tex_dyn_slots", "on", "off", &g->tex_dyn_slots, err, en);
+     s2a_game_tsv_switch(text, "gpu_timestamps", "segment", "submission", &g->gpu_ts_segment, err, en);
+     s2a_game_tsv_switch(text, "vconv_range", "on", "off", &g->vconv_range, err, en);
+-    s2a_game_tsv_switch(text, "draw_barriers", "game", "full", &g->draw_barriers_game, err, en);
++    g->draw_barriers_set = s2a_game_tsv_switch(text, "draw_barriers", "game", "full", &g->draw_barriers_game, err, en);   // RewindBox (patch 0353)
+     { char d[8]; if (!s2a_game_tsv_find(text, "tex_dirty_upload", d, sizeof d)) g->tex_dirty_upload = g->tex_flush_upload; }   // 同 game.py：没写时随 tex_flush_upload
+     if (!g->tex_flush_upload) g->tex_dirty_upload = 0;   // 同 game.py：tex_dirty_upload 要 tex_flush_upload 开
+     s2a_game_tsv_words(text, "alpha_from_red", g->alpha_from_red, sizeof g->alpha_from_red);
+diff --git a/graphics/nvn/host_adapt.m b/graphics/nvn/host_adapt.m
+index 2a6623e..0bbf761 100644
+--- a/graphics/nvn/host_adapt.m
++++ b/graphics/nvn/host_adapt.m
+@@ -90,7 +90,7 @@ static void prof_load(const char *gd_in) {
+         const s2a_game_tsv *t = &g_prof.t;
+         LOG("直连：每款参数 %s（%s）：app_pool %#llx、条件渲染 %s、CPU 写贴图上传 %s / 脏页 %s、动态贴图句柄 %s、计数器时间戳 %s、绘制遍屏障 %s、上屏 %s、帧保持 %s、按绘制转顶点 %s%s%s",
+             DM_GAME_ID, got ? p : "没有随包 game.tsv，全按缺省", (unsigned long long)t->app_pool, t->render_cond ? "开" : "关", t->tex_flush_upload ? "开" : "关",
+-            t->tex_dirty_upload ? "开" : "关", t->tex_dyn_slots ? "开" : "关", t->gpu_ts_segment ? "GPU 起止" : "整次提交", t->draw_barriers_game ? "按游戏屏障" : "全屏障", t->present_display ? "按显示" : "按游戏",
++            t->tex_dirty_upload ? "开" : "关", t->tex_dyn_slots ? "开" : "关", t->gpu_ts_segment ? "GPU 起止" : "整次提交", !t->draw_barriers_set ? "未写" : t->draw_barriers_game ? "按游戏屏障" : "全屏障", t->present_display ? "按显示" : "按游戏",
+             t->fps_hold ? "开" : "关", t->vconv_range ? "开" : "关", *t->alpha_from_red ? "、单通道补 alpha 着色器名单有" : "", *t->feedback_snap ? "、反馈快照着色器名单有" : "");
+ }
+ const s2a_nvn_profile *s2a_nvn_prof(void) {
