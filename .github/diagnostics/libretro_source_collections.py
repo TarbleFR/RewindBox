@@ -83,6 +83,14 @@ COLLECTIONS = {
                       name='LibretroCores-85a5528ed969fd0e139c0494d3c72ab8acd624ec', bytes=56393618,
                       sha256='7f3b87949c2cf2a6b9a1e33222f9b91eb24b52d7ce7c78fac276340aa3a1e9c1',
                       cores=('azahar', 'desmume', 'mednafen_psx', 'mednafen_psx_hw')),
+    # DeSmuME at 10x: 2D layers composed column by column for all the custom lines of a native line, partial sprite
+    # lines in SIMD, the 3D layer in NEON, the rasterizer's texture getters inline and its per-scanline state read
+    # once, desmume_rb_raster_cores, [rb-perf] l3d/lbg/lobj/engAd/engAn/runD/runN/rqos (native/desmume at 57b47ff2);
+    # Azahar and both Beetle PSX binaries are identical to those of 14952660121.
+    14954690166: dict(run=45459585271, source='57b47ff2394f101e848e4af9c3834ec615ba4d03',
+                      name='LibretroCores-57b47ff2394f101e848e4af9c3834ec615ba4d03', bytes=56448900,
+                      sha256='25062cc35c425e40a45fc9eee7ac0ce663dcf79f9420d221871ed37d7926394d',
+                      cores=('azahar', 'desmume', 'mednafen_psx', 'mednafen_psx_hw')),
 }
 
 
