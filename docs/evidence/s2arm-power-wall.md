@@ -480,6 +480,83 @@ chaque frontière (52,5 ms en médiane, 105 au pire dans Mario Kart World).
   libération) pour les premières passes et toute passe de 2 ms ou plus : le prochain journal dira
   si la cause était bien là. Non mesuré.
 
+## Vitesse des jeux sur l'IPA 834 (24 novembre)
+
+Observation du mainteneur sur l'IPA 834 : tous les jeux essayés tournent plus lentement que le
+temps réel (« comme si j'avais un boulet au pied »). Deux journaux de l'iPhone 16 Pro Max, avec
+Frame Generation activé.
+
+**Mario Kart World, quatre segments de course.** Le jeu avance de son intervalle de présentation à chaque
+image : 16,7 ms à l'intervalle 1, 33,3 ms à l'intervalle 2. Vitesse du jeu = somme des
+intervalles × 16,67 ms / temps réel, calculée avec les changements d'intervalle du journal
+(2 575 lignes « the game sets present interval ») et le temps de chaque image :
+
+| Segment (indice d'asset du journal) | i/s | Images à l'intervalle 2 | Vitesse du jeu |
+| --- | ---: | ---: | ---: |
+| `race_sequence_asset`, 237 s (même circuit que les journaux 830) | 50,2 | 8 % | 90,5 % |
+| `MooMooFarm_A`, 133 s | 41,1 | 19 % | 81,5 % |
+| `DesertHills_A`, 35 s | 36,1 | 8 % | 65 % |
+| `Cave_A`, 145 s | 25,9 | 44 % | 62 % |
+| Journaux 830, `race_sequence_asset` | 23 à 33 | 44 à 68 % | 65 à 84 % |
+
+- Cause : la garde anti-verrou (0319, 0327, étendue à tout jeu qui alterne par 0344) et les
+  essais de 60 (0309) font lire 16,6 ms au jeu pour des images de 20 à 40 ms. Le jeu reste à
+  l'intervalle 1 sous 60 i/s, donc au ralenti.
+- Frame Generation n'a interpolé que 7 % des images de la session, aucune dans le premier
+  segment : il n'interpole que l'intervalle 2, et le lien d'affichage est resté actif pour 93 %
+  des images. Ce n'est pas lui qui a rendu la vitesse plus juste.
+- Pipelines sur les circuits peu joués : 1,3 s d'attente de pipelines sur `MooMooFarm_A` et
+  2,8 s sur `Cave_A` (0,3 s sur le premier), 44 et 90 images de plus de 100 ms ; 649 pipelines
+  construits en jeu, notés pour le préchauffage suivant (`pso_user.tsv`).
+
+**Zelda (0400486024DEC000).** Le jeu reste à l'intervalle 1 (aucun changement d'intervalle) ;
+état thermique 2 pendant toute la session.
+- Images 1 à 3300 : 55 à 60 i/s.
+- Présentation 3546 : le repli à 30 de 0349 tient chaque image deux vsyncs. Ensuite, 256 à
+  300 présentations sur 300 sont tenues, cinq sondes de 60 échouent, et 128 à 196 images tenues
+  sur 300 restent en retard (trois vsyncs).
+- Mesuré : 15,3 à 29,6 i/s, soit 25 à 49 % de la vitesse d'un jeu à pas fixe. Aucune image
+  interpolée.
+- En jeu, le GPU prend 27,6 à 36,6 ms par image à pleine fréquence (sonde fixe de 0,21 à
+  0,36 ms, contre 0,85 au menu). Images 3552 et 4687 : 34 passes en 854×480 font 16 à 25 ms,
+  dont 11 à 18 ms dans 5 à 8 encodeurs dont les dessins passent par la table des pools mémoire
+  bruts ; une passe de 51 dessins prend 11,8 ms.
+
+**Patch 0351**, à la demande du mainteneur (« Il faut retirer le garde fous ») :
+- garde anti-verrou coupée pour tous les jeux (`S2A_RB_NO_LOCK_GUARD=1` la rétablit telle
+  qu'en 0350) et essais de 60 de 0309 coupés (`S2A_RB_DRS_TRIAL=1`) : aucun relevé GPU au-delà
+  du maintien ne se lit plus court que son temps réel ;
+- à l'intervalle 2, le maintien de 33,2 ms reste celui de 0350 : il ne lit jamais un relevé plus
+  court que son temps réel, et tout relevé sous 16,6 ms (une image qui tiendrait 60) garde son
+  temps, donc le jeu revient à 60 de lui-même quand cela tient. Un essai de « maintien de 60 à
+  l'intervalle 2 » a été retiré à la relecture : même condition de retour, mais les images de
+  8,3 à 16,6 ms lues à 16,6 ms et l'essai de 0309 faussé ;
+- le repli de 0349, même demandé pour tous, n'est jamais pris par un jeu qui choisit lui-même
+  ses intervalles 1 et 2 (Mario Kart World, ou un jeu vu alterner) ;
+- repli à 30 de 0349 sur demande seulement (`S2A_RB_FALLBACK30=1`, ou
+  `S2A_RB_FALLBACK30_ON=<identifiant>` pour un jeu) ;
+- ligne `[rb-speed]` toutes les 300 présentations, mesure seule : vitesse du jeu aux intervalles
+  choisis (avec et sans les gels de plus de 4 vsyncs), horloge invitée, présentations par seconde,
+  intervalles choisis, temps entre présentations, attentes de cadence, temps lus par le jeu
+  contre le temps GPU mesuré, lien d'affichage, Frame Generation, images tenues par 0349, état
+  de la garde ;
+- comportement de 0350 : `S2A_RB_NO_LOCK_GUARD=1 S2A_RB_DRS_TRIAL=1 S2A_RB_FALLBACK30=1`.
+
+Limites connues :
+- sans garde ni essais, Mario Kart World peut rester plus longtemps à 30 quand iOS baisse la
+  fréquence du GPU (IPA 825), mais à sa vitesse ;
+- reste du ralenti quand le processeur limite : Mario Kart World lit le temps de ses images dans
+  ses relevés GPU, comptés sur l'horloge occupée de 0068 (`S2A_RB_TS_BUSY`, sans les attentes entre
+  les morceaux d'une image). Dans la première course, image p50 de 17 à 21 ms pour 10 à 13 ms de GPU
+  occupé : le jeu lit moins de 16,67 ms et garde l'intervalle 1 de lui-même, soit environ 90 % du
+  temps réel à 50 i/s. Retirer la garde ne change pas ce cas. Le corriger demande soit de lui montrer
+  le temps réel (il baisserait alors sa résolution, exclu à la demande du mainteneur), soit un pas
+  d'image pour Mario Kart World (le jeu avance du temps réellement écoulé, comme les correctifs
+  `FRAME_STEP` du moteur pour Tears of the Kingdom et Breath of the Wild ; étape 3 du plan validé),
+  soit de tenir 60 (étape 2). La ligne `[rb-speed]` montre l'écart (temps lus contre temps entre
+  présentations) ;
+- Zelda restera lent tant que ses passes GPU coûtent 28 à 36 ms par image.
+
 ## Recherche du 24 novembre : amont, nxnative et projets iOS
 
 Lecture seule de S2Arm amont, de nxnative et d'une vingtaine de projets publics sous licence MIT
@@ -581,3 +658,6 @@ agrandissement MetalFX, comme dans l'amont.
 | 2026-11-24 | Journal Fire Emblem | Analysé : jeu à 30 par conception qui ne les tient pas (GPU, traduction sur cœurs efficaces, compilations). Aucun correctif dédié encore. |
 | 2026-11-24 | Version relue de 0342–0344 | Compilée pour iOS (run 45378584979), tests thermiques, DRS et passes GPU verts. Rien sur iPhone. |
 | 2026-11-24 | Compléments 0342–0344, Frame Generation (0345), marques (0346) | Écrits ; série reconstruite à l'identique, 44 tests purs (gcc, clang) et tests statiques verts. Compilation iOS à suivre ; aucun gain mesuré. |
+| 2026-11-24 | Patchs 0347 à 0350, épingle, IPA 834 | Compilés pour iOS (runs 45393067376, 45400159059, 45413438600), épinglés (`e0c0defa`) et livrés dans l'IPA privée 834. |
+| 2026-11-24 | IPA 834 observée (2 journaux) | Jeux plus lents que le temps réel : Mario Kart World à 62–90,5 % (garde anti-verrou, essais de 60, image limitée par le processeur), Zelda à 25–49 % (repli à 30 de 0349). |
+| 2026-11-24 | Patch 0351 | Garde et essais coupés, repli sur demande, ligne `[rb-speed]` ; relecture adverse, trois défauts corrigés ; série vérifiée, 50 tests purs verts. Compilation iOS à suivre ; non mesuré. |

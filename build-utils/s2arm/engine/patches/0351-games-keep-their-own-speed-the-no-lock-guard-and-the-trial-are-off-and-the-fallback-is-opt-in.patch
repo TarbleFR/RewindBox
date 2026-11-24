@@ -1,0 +1,324 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 74d19a9..edca1e7 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -4566,19 +4566,70 @@ static void fstep_tick(win_t *o) {
+         t0 = t; v0 = vs; memset(held, 0, sizeof held);
+     }
+ }
++// RewindBox (patch 0351): the [rb-speed] line, a measurement only (rb_speed_meter.h has what it shows and why): every 300 presents of a hosted session, per second of wall
++//   time, the game time at the intervals the game picked (the speed of a game that advances by its interval, as Mario Kart World), the guest clock, the presents, the
++//   intervals picked, the time from present to present, the pacing waits and the work, what the game read from its TIMESTAMP reports after the hold and before it,
++//   the presents the display link and frame interpolation made, those the hold of patch 0349 held and whether the no-lock guard is on. S2A_RB_SPEED_LINE=0: no line
++#include "rb_speed_meter.h"
++__attribute__((weak)) int nvn_rb_frame_read(uint64_t f, double *read_ms, double *gpu_ms) { (void)f; (void)read_ms; (void)gpu_ms; return 0; }   // nvn_mtl.m; none without it
++__attribute__((weak)) int nvn_rb_fi_shown(uint64_t *mid, uint64_t *real) { *mid = *real = 0; return 0; }
++__attribute__((weak)) uint64_t nvn_rb_link_ticks(void) { return 0; }
++__attribute__((weak)) int nvn_rb_no_lock_guard_on(void);   // below (patch 0349)
++__attribute__((weak)) int nvn_rb_picks_own_interval(void) { return 0; }   // nvn_mtl.m: a game that picks intervals 1 and 2 itself, which the fallback of patch 0349 leaves alone
++static rb_speed_meter g_rb_speed;   // the presenting thread
++static uint64_t g_rb_speed_t0, g_rb_speed_g0, g_rb_speed_ticks, g_rb_speed_mid, g_rb_speed_real;   // at the window's start: wall and guest clock, link ticks, frames interpolation showed
++static int rb_speed_on(void) {
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("S2A_RB_SPEED_LINE"); v = !(e && !strcmp(e, "0"));
++        LOG("[rb-speed] the game speed line every 300 presents: %s (patch 0351; a measurement only, S2A_RB_SPEED_LINE=0: none)", v ? "on" : "off"); }
++    return v;
++}
++// Once a present, at its end, on the presenting thread. sent: the present had a texture; itv: the interval the game sent it at; dt_ns: the time since the previous present;
++//   waits_ns: the pacing waits since then (acquire and present queue)
++static void rb_speed_frame(const win_t *o, int sent, int itv, uint64_t dt_ns, uint64_t waits_ns) {
++    if (!sent || !nvn_rb_thermal_scope() || !rb_speed_on()) return;
++    const uint64_t now = now_ns(), guest = guest_ns();
++    if (!g_rb_speed_t0) { g_rb_speed_t0 = now; g_rb_speed_g0 = guest; g_rb_speed_ticks = nvn_rb_link_ticks(); nvn_rb_fi_shown(&g_rb_speed_mid, &g_rb_speed_real); }
++    rb_speed_meter *m = &g_rb_speed;
++    rb_speed_meter_add(m, itv, dt_ns, waits_ns, atomic_load_explicit(&g_rb_fb30_k, memory_order_relaxed) == 2, nvn_be_link_active());
++    const uint64_t gf = g_frame;
++    double read = 0, gpu = 0;
++    if (gf >= 9 && nvn_rb_frame_read(gf - 9, &read, &gpu)) rb_speed_meter_read(m, read, gpu);   // a frame whose GPU work is done (8 frames back, as the GPU times)
++    if (o->presents % 300 || !m->presents) return;
++    const double wall = (now - g_rb_speed_t0) / 1e9, gs = guest > g_rb_speed_g0 ? (guest - g_rb_speed_g0) / 1e9 : 0;
++    uint64_t mid = 0, real = 0;
++    const int fi = nvn_rb_fi_shown(&mid, &real);
++    const uint64_t ticks = nvn_rb_link_ticks();
++    const unsigned n = m->presents ? m->presents : 1;
++    LOG("[rb-speed] up to present %llu: game speed %.1f %% (the game time at the intervals it picked per second of wall time; %.1f %% leaving out %u stalls over %d vsyncs), "
++        "guest clock %.3f s a second; %.1f presents a second, at interval 1 / 2 / 3+ %u / %u / %u (%.0f %% at 2); present to present up to 1 / 2 / 3 / more vsyncs %u / %u / %u / %u; "
++        "a present %.2f ms of pacing waits and %.2f ms between them; TIMESTAMP reads %.2f ms a frame (%.2f ms before the hold, %u frames); display link on for %u presents, "
++        "%.1f ticks a second; frame interpolation %s, %llu interpolated and %llu real frames shown; held by patch 0349 %u; no-lock guard %s",
++        (unsigned long long)o->presents, 100 * rb_speed_meter_ratio_all(m), 100 * rb_speed_meter_ratio(m), m->stalls, RB_SPEED_CLAMP,
++        wall > 0 ? gs / wall : 0, wall > 0 ? m->presents / wall : 0, m->itv[0], m->itv[1], m->itv[2], 100.0 * m->itv[1] / n, m->hist[0], m->hist[1], m->hist[2], m->hist[3],
++        m->waits_ms / n, m->work_ms / n, m->reads ? m->read_ms / m->reads : 0, m->reads ? m->gpu_ms / m->reads : 0, m->reads, m->linked,
++        wall > 0 && ticks >= g_rb_speed_ticks ? (ticks - g_rb_speed_ticks) / wall : 0, fi ? "on" : "off",
++        (unsigned long long)(mid >= g_rb_speed_mid ? mid - g_rb_speed_mid : 0), (unsigned long long)(real >= g_rb_speed_real ? real - g_rb_speed_real : 0),
++        m->held, nvn_rb_no_lock_guard_on() ? "on (S2A_RB_NO_LOCK_GUARD=1)" : "off");
++    rb_speed_meter_reset(m); g_rb_speed_t0 = now; g_rb_speed_g0 = guest; g_rb_speed_ticks = ticks; g_rb_speed_mid = mid; g_rb_speed_real = real;
++}
+ // RewindBox (patch 0349): what the fallback to a steady 30 reads from nvn_mtl.m: whether the no-lock guard is on (rb_drs_guard_active: Mario Kart World, or a game seen
+ //   to alternate intervals 1 and 2, which the guard of patches 0319 to 0344 handles), the interval this executable was learnt at (rb_direct_autoprofile.inc; 0 = not
+ //   known) and the display link's base mode (1 = 60 Hz). Without the Metal backend (graphics unit tests): off, none, 60 Hz
+ __attribute__((weak)) int nvn_rb_no_lock_guard_on(void) { return 0; }
+ __attribute__((weak)) int nvn_rb_learned_interval(void) { return 0; }
+ __attribute__((weak)) int nvn_rb_link_base_mode(void) { return 1; }
+-static int rb_fb30_on(void) {   // S2A_RB_FALLBACK30 (unset or anything but 0: on) and S2A_RB_FALLBACK30_OFF, read once, on the presenting thread
++// RewindBox (patch 0351): opt-in, at the maintainer's request (every Switch 2 game tried ran slower than real time on IPA 834; a game that counts its intervals runs at half
++//   speed held two vsyncs a frame at interval 1). S2A_RB_FALLBACK30=1 for every eligible game, S2A_RB_FALLBACK30_ON=<program id>[,...] for the games it lists;
++//   S2A_RB_FALLBACK30_OFF=<program id>[,...] and S2A_RB_FALLBACK30=0 leave out the games listed and every game (rb_fb30_wanted)
++static int rb_fb30_on(void) {   // read once, on the presenting thread
+     static int v = -1;
+     if (v < 0) {
+-        const int listed = rb_fb30_listed(getenv("S2A_RB_FALLBACK30_OFF"), getenv("S2A_LAUNCH_GAME_ID"));
+-        v = rb_fb30_switch(getenv("S2A_RB_FALLBACK30")) && !listed;
+-        LOG("[rb-fb30] a steady 30 when a game at interval 1 cannot hold 60, with retries of 60: %s (patch 0349; %s)", v ? "on" : "off",
+-            v ? "S2A_RB_FALLBACK30=0 turns it off, S2A_RB_FALLBACK30_OFF=<program id> for one game" : listed ? "S2A_RB_FALLBACK30_OFF lists this game" : "S2A_RB_FALLBACK30=0");
++        const int w = rb_fb30_wanted(getenv("S2A_RB_FALLBACK30"), getenv("S2A_RB_FALLBACK30_ON"), getenv("S2A_RB_FALLBACK30_OFF"), getenv("S2A_LAUNCH_GAME_ID"));
++        v = rb_fb30_wanted_on(w);
++        LOG("[rb-fb30] a steady 30 when a game at interval 1 cannot hold 60, with retries of 60: %s (patches 0349 and 0351: %s)", v ? "on" : "off",
++            w == RB_FB30_ALL ? "S2A_RB_FALLBACK30=1" : w == RB_FB30_LISTED_ON ? "S2A_RB_FALLBACK30_ON lists this game" : w == RB_FB30_LISTED_OFF ? "S2A_RB_FALLBACK30_OFF lists this game" :
++            w == RB_FB30_SWITCH_OFF ? "S2A_RB_FALLBACK30=0" : "not asked for; S2A_RB_FALLBACK30=1, or S2A_RB_FALLBACK30_ON=<program id> for one game, turns it on");
+     }
+     return v;
+ }
+@@ -4594,6 +4645,7 @@ static const char *rb_fb30_why(int itv) {
+     if (itv > 1) return "the game's own interval";
+     if (nvn_rb_learned_interval() == 2) return "a game learnt at interval 2";
+     if (nvn_rb_no_lock_guard_on()) return "the no-lock guard";
++    if (nvn_rb_picks_own_interval()) return "a game that picks intervals 1 and 2 itself";   // RewindBox (patch 0351): left alone as under the guard, now off by default
+     return NULL;
+ }
+ static rb_fb30 g_rb_fb30;               // the presenting thread
+@@ -4936,6 +4988,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+     // RewindBox (patch 0328): the frame's present, waits, interval and hold into the interval-2 episode trace, which writes its lines here (a few groups of six per 300
+     //   frames at most, rb_itv_presented). S2A_RB_ITV_TRACE=0: nothing noted, no line
+     rb_itv_presented(f, t0, rb_sent ? rb_sent_interval : 0, rb_itv_hold_ns, o->presents > 8 ? samples->tickets[(o->presents - 8) % RB_PRESENT_HISTORY] : 0);
++    const uint64_t rb_speed_waits = g_acq_wait_ns + g_pq_wait_ns;   // RewindBox (patch 0351): this frame's pacing waits, for rb_speed_frame
+     g_acq_wait_ns = g_pq_wait_ns = 0;
+     if (f >= 8) { double g = nvn_be_gpu_ms(f - 8); if (g >= 0) { tpush(3, g); trow(f - 8, "@gpu_ms", g); g_gpu_busy_ms += g; }   // GPU time is taken 8 frames late (already completed)
+         { lf_rec *r = &g_lf[(f - 8) % LFN];   // long-frame log (on by default, DM_LONGFRAME=0 turns it off): a line is printed only when the whole frame > 20 ms or GPU > 16.7 ms, and it is clearly above recent conditions
+@@ -5051,6 +5104,7 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+         { double iv_ = a_ < 0 ? -1 : (a_ > 0 && b_ > 0 ? (a_ - b_) * 1e3 : 0); nvn_be_ub_present(iv_); }   // same-process alternating measurement (DM_NVN_UB) tallies on-screen present intervals per phase; when off it is just one atomic read
+         dm_perf_present(a_ < 0 ? -1 : (a_ > 0 && b_ > 0 ? (a_ - b_) * 1e3 : 0));   // on-screen present intervals are also kept in a separate ring; tsummary reports dropped frames every 300 frames (M1 criterion)
+         if (a_ > 0) trow(f - 8, "@pres_at_ms", a_ * 1e3 - g_t0_ns / 1e6); }   // on-screen present time (ms since process start; presentedTime shares a time base with mach_absolute_time)
++    rb_speed_frame(o, rb_sent, rb_sent_interval, rb_interval, rb_speed_waits);   // RewindBox (patch 0351): the [rb-speed] line, a measurement
+     rb_fb30_frame(o, rb_sent, rb_sent_interval, rb_fb30_cls, rb_fb30_shown, rb_interval);   // RewindBox (patch 0349): k for the next frame's acquire and present
+     if (f >= 8 && slow_on()) slow_emit(f - 8);
+     prev_out = now_ns();
+@@ -6522,6 +6576,7 @@ int dm_nvn_shutdown_session(void) {
+     atomic_store(&g_cur_dev, NULL);
+     memset(&g_fs, 0, sizeof g_fs); memset(&g_fg, 0, sizeof g_fg);
+     memset(&g_rb_fb30, 0, sizeof g_rb_fb30); g_rb_fb30_cost_frame = 0; g_rb_fb30_said = 0; atomic_store(&g_rb_fb30_k, 0);   // RewindBox (patch 0349)
++    rb_speed_meter_reset(&g_rb_speed); g_rb_speed_t0 = 0;   // RewindBox (patch 0351)
+     g_fs_k = g_itv2_since = g_fps_game_itv = 0; atomic_store(&rb_thermal_guest_hold,0);
+     nvn_dirty_reset_session();
+     return 0;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 8d599a2..fa5396b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3164,8 +3164,37 @@ static int rb_no_lock_seen_listed(const char *list, const char *id) {
+         q = e; }
+     return 0;
+ }
++// RewindBox (patch 0351): the no-lock guard of patches 0319, 0327 and 0344 is off for every game unless S2A_RB_NO_LOCK_GUARD=1, at the maintainer's request: every Switch 2
++//   game tried on IPA 834 ran slower than real time under it. Mario Kart World advances by the present interval it picks (interval x 16.67 ms a frame; the IPA 834 log of four
++//   races went at 90.5, 81.5, 65 and 62 % of real time, at interval 1 below 60 fps, where the guard kept it), and the guard's escapes and spike reads, like the trial of
++//   patch 0309, made its reports read 16.6 ms for frames that took 25 to 40 ms. Off: neither the bridge's S2A_RB_DRS_NO_LOCK=1 for Mario Kart World nor a game seen to
++//   alternate (patch 0344) turns it on and no report past the hold reads less than its own time; at interval 2 the hold is patch 0350's (at the engine's 30 it reads a frame
++//   under 16.6 ms as it is, longer ones longer, never shorter). S2A_RB_NO_LOCK_GUARD=1: the guard as in patch 0350. The trial of patch 0309 is off unless S2A_RB_DRS_TRIAL=1
++static int rb_no_lock_guard_wanted(void) {
++    static int v = -1;   // completion handlers and the presenting thread; the same value whoever reads it first
++    if (v < 0) { const char *e = getenv("S2A_RB_NO_LOCK_GUARD"); v = e && !strcmp(e, "1");
++        MLOG("[rb-guest-drs] no-lock guard of patches 0319, 0327 and 0344: %s (S2A_RB_NO_LOCK_GUARD; patch 0351)", v ? "asked for, as in patch 0350 (S2A_RB_DRS_NO_LOCK and S2A_RB_NO_LOCK_SEEN say where)" :
++             "off for every game at the maintainer's request (the speed of every game tried on IPA 834 was wrong under it): each game keeps the interval it picks; S2A_RB_NO_LOCK_GUARD=1 turns it back on"); }
++    return v;
++}
++static int rb_drs_trial_wanted(void) {
++    static int v = -1;   // completion handlers; the same value whoever reads it first
++    if (v < 0) { const char *e = getenv("S2A_RB_DRS_TRIAL"); v = e && !strcmp(e, "1");
++        MLOG("[rb-guest-drs] trial of patch 0309 (30 frames of the 60 fps hold whatever the time): %s (S2A_RB_DRS_TRIAL; patch 0351)", v ? "asked for" : "off, the reports keep their own time; S2A_RB_DRS_TRIAL=1 turns it back on"); }
++    return v;
++}
++// RewindBox (patch 0351): whether the game picks intervals 1 and 2 itself, for hle_nvn.c's fallback of patch 0349 (rb_fb30_why), which left such a game alone through the
++//   guard: the bridge's title for it (S2A_RB_DRS_NO_LOCK=1, Mario Kart World) or a game seen to alternate (patch 0344's count). Held two vsyncs a frame at interval 1, a game
++//   that advances by its interval runs at half speed. The presenting thread
++int nvn_rb_picks_own_interval(void);
++int nvn_rb_picks_own_interval(void) {
++    static int kart = -1;
++    if (kart < 0) { const char *e = getenv("S2A_RB_DRS_NO_LOCK"); kart = e && !strcmp(e, "1"); }
++    return kart || atomic_load_explicit(&g_rb_drs_alternates, memory_order_relaxed);
++}
+ static int rb_no_lock_seen_on(void) {
+     static int v = -1;   // completion handlers; the same value whoever reads it first
++    if (v < 0 && !rb_no_lock_guard_wanted()) v = 0;   // RewindBox (patch 0351): off unless S2A_RB_NO_LOCK_GUARD=1
+     if (v < 0) { const char *e = getenv("S2A_RB_NO_LOCK_SEEN"), *id = getenv("S2A_LAUNCH_GAME_ID"); const int listed = rb_no_lock_seen_listed(getenv("S2A_RB_NO_LOCK_SEEN_OFF"), id);
+         v = !(e && !strcmp(e, "0")) && !listed;
+         MLOG("[rb-guest-drs] no-lock guard for a game seen to alternate its interval: %s (S2A_RB_NO_LOCK_SEEN%s; patch 0344)", v ? "on" : listed ? "off for this game (S2A_RB_NO_LOCK_SEEN_OFF lists it)" : "off",
+@@ -3207,6 +3236,7 @@ static rb_drs_blip g_rb_drs_blip;   // g_rb_floor_lock
+ static int rb_drs_trial_now(uint64_t f, int fps) {
+     int allowed = atomic_load_explicit(&g_drs_state, memory_order_relaxed) < 3 && fps_override() <= 0 &&
+                   nvn_fps_limit() != 30 && !nvn_rb_video_paced();
++    if (!rb_drs_trial_wanted()) allowed = 0;   // RewindBox (patch 0351): no trial unless S2A_RB_DRS_TRIAL=1 (its 60 fps hold whatever the time slowed the game for 30 frames)
+     uint64_t changes = nvn_rb_interval_changes(), changes12 = nvn_rb_interval12_changes();
+     const int stop_on = rb_drs_guard_active() && rb_drs_fix_trial_on();   // RewindBox (patch 0327): fix (b), under the guard only (rb_drs_trial_ramp_step); patch 0344: rb_drs_guard_active
+     const uint64_t seen_px = stop_on ? rb_drs_scene_seen(f) : 0;
+@@ -3240,6 +3270,7 @@ static int rb_drs_trial_now(uint64_t f, int fps) {
+ __attribute__((weak)) int nvn_rb_game_interval(void) { return 1; }
+ static int rb_drs_guard_on(void) {
+     static int v = -1;   // completion handlers; the same value whoever reads it first
++    if (v < 0 && !rb_no_lock_guard_wanted()) v = 0;   // RewindBox (patch 0351): off unless S2A_RB_NO_LOCK_GUARD=1, whatever S2A_RB_DRS_NO_LOCK says
+     if (v < 0) {
+         const char *e = getenv("S2A_RB_DRS_NO_LOCK");
+         v = e && !strcmp(e, "1");
+@@ -3419,8 +3450,33 @@ static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the ti
+ //   time on the busy GPU clock; the value returned and written is rb_drs_hold's, as before. hle_nvn.c has the strong definition; without it nothing is noted.
+ //   S2A_RB_ITV_TRACE=0 (read by hle_nvn.c): nothing noted
+ __attribute__((weak)) void nvn_rb_itv_report(uint64_t frame, uint32_t type, uint64_t raw_ticks, uint64_t read_ticks) { (void)frame; (void)type; (void)raw_ticks; (void)read_ticks; }
++// RewindBox (patch 0351): what a frame's TIMESTAMP reports told the game, for hle_nvn.c's [rb-speed] line: the largest time after the frame's first TIMESTAMP_TOP it read
++//   (after rb_drs_hold) and the same report before the hold, by frame (completion handlers; only while the hold of patch 0083 notes the TIMESTAMP_TOP). Both are on the busy
++//   GPU clock of patch 0068 (S2A_RB_TS_BUSY: the idle time between a frame's pieces left out), so a game that picks its interval from that time (Mario Kart World) keeps
++//   interval 1 while it reads under 16.67 ms, however long its frames take on the CPU (IPA 834 race: frame p50 17 to 21 ms, GPU busy p50 10 to 13 ms)
++static struct { _Atomic uint64_t frame, read, raw; } g_rb_reads[DRS_N];   // the frame + 1; 19.2 MHz ticks
++static void rb_read_note(uint64_t f, uint32_t type, uint64_t raw, uint64_t t) {
++    if (type != 0 || !raw) return;
++    const unsigned i = (unsigned)(f % DRS_N);
++    if (atomic_load(&g_drs[i].frame) != f + 1) return;
++    const uint64_t top = atomic_load(&g_drs[i].top);
++    if (!top || raw <= top || t <= top) return;
++    if (atomic_exchange(&g_rb_reads[i].frame, f + 1) != f + 1) { atomic_store(&g_rb_reads[i].read, 0); atomic_store(&g_rb_reads[i].raw, 0); }
++    uint64_t o = atomic_load(&g_rb_reads[i].read);
++    while (t - top > o && !atomic_compare_exchange_weak(&g_rb_reads[i].read, &o, t - top)) {}
++    o = atomic_load(&g_rb_reads[i].raw);
++    while (raw - top > o && !atomic_compare_exchange_weak(&g_rb_reads[i].raw, &o, raw - top)) {}
++}
++int nvn_rb_frame_read(uint64_t f, double *read_ms, double *gpu_ms);
++int nvn_rb_frame_read(uint64_t f, double *read_ms, double *gpu_ms) {
++    const unsigned i = (unsigned)(f % DRS_N);
++    if (atomic_load(&g_rb_reads[i].frame) != f + 1) return 0;
++    *read_ms = atomic_load(&g_rb_reads[i].read) * (625. / 12e6); *gpu_ms = atomic_load(&g_rb_reads[i].raw) * (625. / 12e6);
++    return *read_ms > 0;
++}
+ static uint64_t rb_itv_hold(uint64_t f, uint32_t type, uint64_t raw) {
+     const uint64_t t = rb_drs_hold(f, type, raw);
++    rb_read_note(f, type, raw, t);   // RewindBox (patch 0351)
+     if (raw && (type == 0 || type == 0x10)) nvn_rb_itv_report(f, type, raw, t);
+     return t;
+ }
+@@ -27152,6 +27208,9 @@ static __thread int t_rb_fb30_frame;     // RewindBox (patch 0349): the frame wa
+ static __thread int t_rb_fb30_enqueue;   // RewindBox (patch 0349): the frame nvn_be_present_with_hold queues is one the fallback holds, for link_sync and the queued item
+ __attribute__((weak)) int nvn_rb_fb30_holding(void) { return 0; }   // RewindBox (patch 0349): hle_nvn.c has the strong definition
+ #include "nvn_present_fi.inc"   // RewindBox (patch 0345): present frame interpolation (from upstream S2Arm)
++// RewindBox (patch 0351): for hle_nvn.c's [rb-speed] line: frame interpolation on (1) or not, and the interpolated and real frames it has shown (presentedTime > 0)
++int nvn_rb_fi_shown(uint64_t *mid, uint64_t *real);
++int nvn_rb_fi_shown(uint64_t *mid, uint64_t *real) { *mid = atomic_load(&g_fi_on_mid); *real = atomic_load(&g_fi_on_real); return g_fi_state == 1; }
+ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t ticket, const int crop[4], id<CAMetalDrawable> supplied, double target_ts) {
+     if (mtl_gpu_halted()) { atomic_fetch_add_explicit(&g_gpu_refused, 1, memory_order_relaxed); return 0; }   // GPU 安全停：不取画布、不交上屏（调用方按「没交」把票记完成）
+     if (g_present_stall_ns) { struct timespec ts = {0, (long)g_present_stall_ns}; nanosleep(&ts, NULL); }
+@@ -28121,6 +28180,8 @@ int nvn_be_link_active(void) { return link_on(); }
+ //   to a steady 30, which holds frames on a 60 Hz link only
+ int nvn_rb_link_base_mode(void);
+ int nvn_rb_link_base_mode(void) { return g_link_base; }
++uint64_t nvn_rb_link_ticks(void);   // RewindBox (patch 0351): the display link's ticks this session, for hle_nvn.c's [rb-speed] line
++uint64_t nvn_rb_link_ticks(void) { uint64_t n, t; nvn_be_link_sample(&n, &t); return n; }
+ void nvn_be_link_sample(uint64_t *ticks, uint64_t *time_ns) {
+     pthread_mutex_lock(&g_link_mu); *ticks = g_link_tick_n; *time_ns = g_link_tick_ns; pthread_mutex_unlock(&g_link_mu);
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index d383fc9..b4e384a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -344,6 +344,7 @@ int nvn_be_shutdown_session(void) {
+     atomic_store(&g_rb_drs_threshold, 0); atomic_store(&g_drs_hot, 0); atomic_store(&g_drs_th_at, 0);
+     atomic_store(&g_drs_hot_raised, 0); atomic_store(&g_drs_seen, 0); atomic_store(&g_drs_raised, 0);
+     for (unsigned i = 0; i < DRS_N; ++i) { atomic_store(&g_drs[i].frame, 0); atomic_store(&g_drs[i].top, 0); }
++    for (unsigned i = 0; i < DRS_N; ++i) { atomic_store(&g_rb_reads[i].frame, 0); atomic_store(&g_rb_reads[i].read, 0); atomic_store(&g_rb_reads[i].raw, 0); }   // RewindBox (patch 0351)
+     for (unsigned i = 0; i < DRS_N; ++i) atomic_store(&g_rb_scene_px[i], 0);
+     g_rb_drs_floor = (rb_drs_floor){0};
+     g_rb_drs_trial = (rb_drs_trial){0};
+diff --git a/graphics/nvn/gfx/nvn/rb_fallback30.h b/graphics/nvn/gfx/nvn/rb_fallback30.h
+index 4bab29a..5e7a413 100644
+--- a/graphics/nvn/gfx/nvn/rb_fallback30.h
++++ b/graphics/nvn/gfx/nvn/rb_fallback30.h
+@@ -59,8 +59,6 @@ typedef struct {
+     int event;                                         // RB_FB30_EV_* of the last step
+ } rb_fb30;
+ 
+-// S2A_RB_FALLBACK30: on when not set or any value but "0"
+-static inline int rb_fb30_switch(const char *value) { return !(value && !strcmp(value, "0")); }
+ // S2A_RB_FALLBACK30_OFF=<program id>[,<program id>...]: whether id is listed (separators , space ; tab; hexadecimal ids in either case), as nvn_mtl.m rb_no_lock_seen_listed
+ static inline int rb_fb30_listed(const char *list, const char *id) {
+     if (!list || !id || !*id) return 0;
+@@ -81,6 +79,17 @@ static inline int rb_fb30_listed(const char *list, const char *id) {
+     }
+     return 0;
+ }
++// RewindBox (patch 0351): opt-in, at the maintainer's request (every Switch 2 game tried ran slower than real time on IPA 834; a game that counts its intervals runs at half
++//   speed held two vsyncs a frame at interval 1). value: S2A_RB_FALLBACK30, "1" every eligible game; on_list: S2A_RB_FALLBACK30_ON, the games it lists; off_list:
++//   S2A_RB_FALLBACK30_OFF leaves out the games it lists, and "0" every game, whatever the others say. Not asked for: off
++enum { RB_FB30_NOT_ASKED, RB_FB30_SWITCH_OFF, RB_FB30_LISTED_OFF, RB_FB30_ALL, RB_FB30_LISTED_ON };   // the last two hold
++static inline int rb_fb30_wanted(const char *value, const char *on_list, const char *off_list, const char *id) {
++    if (value && !strcmp(value, "0")) return RB_FB30_SWITCH_OFF;
++    if (rb_fb30_listed(off_list, id)) return RB_FB30_LISTED_OFF;
++    if (value && !strcmp(value, "1")) return RB_FB30_ALL;
++    return rb_fb30_listed(on_list, id) ? RB_FB30_LISTED_ON : RB_FB30_NOT_ASKED;
++}
++static inline int rb_fb30_wanted_on(int wanted) { return wanted == RB_FB30_ALL || wanted == RB_FB30_LISTED_ON; }
+ // The vsyncs present_itv follows: two while the fallback holds a game sent at interval 1 (k == 2), the game's own interval otherwise
+ static inline int rb_fb30_itv(int itv, int k) { return itv < 2 && k == 2 ? 2 : itv; }
+ static inline int rb_fb30_k(const rb_fb30 *s) { return s->mode == RB_FB30_HELD ? 2 : 1; }
+diff --git a/graphics/nvn/gfx/nvn/rb_speed_meter.h b/graphics/nvn/gfx/nvn/rb_speed_meter.h
+new file mode 100644
+index 0000000..caaf996
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_speed_meter.h
+@@ -0,0 +1,52 @@
++// SPDX-License-Identifier: MIT
++// RewindBox (patch 0351): the [rb-speed] line, a measurement only: nothing here changes what a game sees or when its frames go. Pure C, fed by hle_nvn.c once a present
++//   (rb_speed_frame). Tests: tests/t_rb_speed_meter.c (kept out of the repository with the local fixtures of 0332+).
++//   On IPA 834 every Switch 2 game tried ran slower than real time (the maintainer). A game that advances by the present interval it picks (Mario Kart World advances one or
++//   two vsyncs a frame, s2arm-power-wall.md and its nxnative note) loses game time on every frame that takes longer than its interval; a game that measures real time does
++//   not. The line shows both clocks the game can go by, per second of wall time: the game time at the intervals it picked (each present counts its interval, at most
++//   RB_SPEED_CLAMP vsyncs, against its real time, at most RB_SPEED_CLAMP vsyncs: a compile stall or a stay in the background is not counted; the same without the bound),
++//   and the guest clock (what nn::os ticks read). IPA 830 logs (engine 0332-0340), 300-frame windows under 45 presents/s, game time at the intervals picked against real
++//   time: Mario Kart World 0.71 median (0.52 to 0.80, 45 % of the frames at interval 1) and 0.83 (0.69 to 0.89, 32 %), Fire Emblem 0.80 (interval 2 by design), Zelda 0.47
++//   (interval 1 only). With it, the intervals picked, the time from present to present in whole vsyncs, the pacing waits and the work between presents, what the game read
++//   from its TIMESTAMP reports after the hold and before it (both on the busy GPU clock of patch 0068, S2A_RB_TS_BUSY: a game that picks its interval from that time, as
++//   Mario Kart World, keeps interval 1 while it reads under 16.67 ms however long its frames take on the CPU; IPA 834 race: frame p50 17 to 21 ms, GPU busy p50 10 to 13 ms),
++//   whether the display link or frame interpolation presented the frames, and whether the hold of patch 0349 held them
++#pragma once
++#include <stdint.h>
++
++enum { RB_SPEED_CLAMP = 4 };   // vsyncs a present counts at most (rb_fallback30.h RB_FB30_DT_MAX)
++typedef struct {
++    unsigned presents, stalls;          // presents counted; those more than RB_SPEED_CLAMP vsyncs after the one before
++    int64_t asked_mv, real_mv;          // milli-vsyncs (1/60 000 s): the intervals picked and the real time, both at most RB_SPEED_CLAMP vsyncs a present
++    uint64_t asked_all_mv, real_all_ns; // the same, without the bound
++    unsigned itv[3];                    // presents at interval 1, 2, 3 or more (0 counts as 1)
++    unsigned hist[4];                   // present to present: up to 1.25, 2.25, 3.25 vsyncs, more
++    unsigned held, linked;              // presents the hold of patch 0349 held; presents made while the display link ran
++    double waits_ms, work_ms;           // pacing waits and work between presents, summed
++    double read_ms, gpu_ms; unsigned reads;   // what the game read from its TIMESTAMP reports, and the same reports before the hold, summed over the frames known
++} rb_speed_meter;
++static inline void rb_speed_meter_reset(rb_speed_meter *m) { *m = (rb_speed_meter){0}; }
++// One present. itv: the interval the game sent it at (before any hold); real_ns: the time since the previous present (0: none, nothing counted); waits_ns: the pacing
++//   waits since then (acquire and present queue); held: the hold of patch 0349 held it; linked: the display link ran
++static inline void rb_speed_meter_add(rb_speed_meter *m, int itv, uint64_t real_ns, uint64_t waits_ns, int held, int linked) {
++    if (!real_ns) return;
++    const int a = itv < 1 ? 1 : itv;
++    const double v = (double)real_ns * 60e-9;   // vsyncs
++    m->presents++;
++    m->asked_all_mv += (uint64_t)a * 1000; m->real_all_ns += real_ns;
++    m->asked_mv += (a < RB_SPEED_CLAMP ? a : RB_SPEED_CLAMP) * 1000;
++    m->real_mv += (int64_t)((v < RB_SPEED_CLAMP ? v : RB_SPEED_CLAMP) * 1000 + 0.5);
++    m->stalls += v > RB_SPEED_CLAMP;
++    m->itv[a >= 3 ? 2 : a - 1]++;
++    m->hist[v <= 1.25 ? 0 : v <= 2.25 ? 1 : v <= 3.25 ? 2 : 3]++;
++    m->held += !!held; m->linked += !!linked;
++    m->waits_ms += waits_ns / 1e6; m->work_ms += real_ns > waits_ns ? (real_ns - waits_ns) / 1e6 : 0;
++}
++// A frame's TIMESTAMP reports: the largest time after its first TIMESTAMP_TOP the game read, and that report before the hold (ms)
++static inline void rb_speed_meter_read(rb_speed_meter *m, double read_ms, double gpu_ms) {
++    if (!(read_ms > 0)) return;
++    m->read_ms += read_ms; m->gpu_ms += gpu_ms > 0 ? gpu_ms : 0; m->reads++;
++}
++// The game time at the intervals picked, per second of real time: bounded (stalls left out) or not (0: nothing counted)
++static inline double rb_speed_meter_ratio(const rb_speed_meter *m) { return m->real_mv > 0 ? (double)m->asked_mv / (double)m->real_mv : 0; }
++static inline double rb_speed_meter_ratio_all(const rb_speed_meter *m) { return m->real_all_ns ? m->asked_all_mv * (1e9 / 60000.) / (double)m->real_all_ns : 0; }
