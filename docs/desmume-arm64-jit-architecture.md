@@ -812,3 +812,61 @@ avec de la marge. Le vrai ×10 reste hors de portée à 60 i/s.
 **À lire** dans le prochain `session.log` : `[rb-perf] … res=1280x960 ss=2 … run=… wait=… over16=… over33=…`. Le
 60 est stable quand `over16` reste proche de 0 sur 600 images et `run` sous 15 ms ; sinon, ×4 + 3D 2x. `engA`,
 `engB` et `end` diront où passent les 7,5 ms de 2D.
+
+### 16.6 Après l'IPA 831 : 40 i/s au plus, capture de la 3D, composition 2D en NEON
+
+Retour du mainteneur : `session.log` (pid 23400, Animal Crossing en ×5), « 40 FPS maximum ». Objectif inchangé :
+59-60+ i/s stables.
+
+- **Ce que dit le journal.**
+  - JIT installé (arène de 64 Mio), `jit: engine=jit active=1 capable=1 expected=1`.
+  - ×5 (`1280x960`, image `1280x1920`).
+  - Images 301 à 989 en 13,9 s : 49 i/s de moyenne, titre et chargement compris.
+  - `thermal=1` dès 26 s ; empreinte de 0,81 à 0,85 Go.
+- **Ce qu'il ne dit pas.** Aucune ligne `[rb-perf]`. Le journal du cœur n'entrait dans `session.log` qu'à l'arrêt
+  par le menu ; l'app a été fermée depuis le sélecteur (`UIApplicationWillTerminateNotification`). Le
+  suréchantillonnage, la répartition du temps et le chemin de la 3D restent donc inconnus.
+- **Pistes, de la plus probable à la moins probable** (aucune n'est mesurée sur l'iPhone) :
+  1. **Capture directe de la 3D.** La 831 ne gagne rien sur la 830 (42,4 i/s), comme si le chemin progressif ne
+     servait pas. Le code en donne une raison : une ligne capturée avec la 3D seule pour source (`DISPCAPCNT`)
+     attendait toute l'image 3D, puis sa conversion entière en 15 bits. Les jeux qui affichent la 3D sur les deux
+     écrans capturent l'image. Un fil du forum DeSmuME (2009) décrit, dans Animal Crossing, le ciel affiché en bas
+     par erreur : cela va dans ce sens sans le prouver.
+  2. **Sept fils pour six cœurs.** Pendant le recouvrement, le fil d'émulation et les six fils du rastériseur se
+     disputent deux cœurs performants et quatre efficaces ; le fil qui compose l'image peut perdre son cœur.
+  3. **Piste écartée : la voie SSE2 du rastériseur.** Sur le banc, elle paraissait six fois plus rapide. En fait
+     elle ignore le suréchantillonnage (`ss=1`) et son effacement n'est pas compté dans `raster` : rien à porter.
+
+**Changements** (détail et vérifications : [README](../native/desmume/README.md), section « Capture de la 3D,
+composition 2D en NEON, mesures ») :
+
+- capture directe de la 3D ligne par ligne : chaque ligne capturée attend ses bandes et convertit ses lignes
+  (`RenderFlush16Lines`) ; `RenderFlush` convertit le reste ;
+- composition 2D en NEON : les voies SSE2 des moteurs 2D de DeSmuME servent aussi sur AArch64 (`RB_GPU_SSE2`,
+  49 instructions écrites en NEON dans `utils/rb_sse2neon.h`) ;
+- fils du rastériseur une classe de qualité de service sous le fil d'émulation ;
+- pont : les lignes `[rb-perf]` et `[rb-jit]` du cœur entrent dans `session.log` au fil de l'eau (`core: …`) ;
+- mesures `r3d`, `bands`, `bwait`, `cap`, `cap3d`, `ecpu`, `rcpu`, `t3d`.
+
+**Banc** (x86, 4 processeurs virtuels, deux séries) :
+- composition SSE2 (celle que la couche NEON reproduit) : `engA` passe de 1,89–1,90 à 1,02–1,07 ms (Galaxy, ×5) et
+  de 1,54–1,62 à 0,98–1,16 ms (MarioKart), soit 28 à 46 % de moins ; un écran sans 3D ne change pas ;
+- capture directe de la 3D forcée, ×5 + 3D 2x : Galaxy passe de 51–57 à 59–61 i/s (`wait` de 11–12 à 9 ms) ;
+- trois fils au lieu de quatre : moins bien sur ce banc (Galaxy 45–47 contre 51–57 i/s) ; `auto` reste à un fil par
+  cœur.
+
+Images et son identiques au cœur de la 831 : 75 cas sur x86 (capture forcée comprise), 39 cas sur AArch64 avec le
+JIT et la composition NEON. Couche NEON : 281 048 résultats identiques à la vraie SSE2.
+
+**Attendu sur l'iPhone** (estimation, non mesurée) : si Animal Crossing capture la 3D, la 3D se dessine enfin
+pendant la composition 2D, comme prévu pour la 831 (`run` vers 14 à 17 ms au lieu de 23) ; la composition NEON retire
+environ 30 % de `2d` (7,5 ms dans la 830, soit 2 à 2,5 ms). Rien ne garantit 60 i/s stables avant la mesure.
+
+**À lire** dans le prochain `session.log` (lignes `core: [rb-perf] …`, toutes les 600 images, même si l'app est
+fermée depuis le sélecteur) :
+- `cap3d` proche de 600 : le jeu capture la 3D, et ce correctif s'applique ;
+- `r3d` proche de 600 ou de 300 : une image 3D par image, ou une sur deux (jeu à 30 i/s) ;
+- `t3d` : durée d'un rendu 3D ; au-dessus de 16 ms, la 3D seule empêche le 60 dans ce réglage (alors ×4 + 3D 2x) ;
+- `ecpu` contre `run` − `wait` : temps perdu par le fil d'émulation faute de cœur ;
+- `rcpu` contre `raster` : idem pour les fils du rastériseur ;
+- `run`, `wait`, `2d`, `engA`, `engB`, `end`, `over16`.

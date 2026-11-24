@@ -1789,6 +1789,12 @@ static BOOL LibretroExtendedControllerConnected(void) {
   return _audio != nil ? _audio.occupancyPercent : 50;
 }
 
+- (void)coreHost:(LibretroCoreHost *)host diagnosticLine:(NSString *)line {
+  // At once in the session journal: a session the system ends (app closed from the switcher) still has its
+  // timings; the whole core log follows only a stop from the menu.
+  [_journal note:[@"core: " stringByAppendingString:line]];
+}
+
 #pragma mark - Pausing
 
 - (void)applicationActive:(BOOL)active {

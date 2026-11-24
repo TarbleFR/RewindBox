@@ -21,6 +21,13 @@ NSErrorDomain const LibretroHostErrorDomain = @"org.neostation.libretro.host";
 #define ENV_BASE(command) ((command) & ~RETRO_ENVIRONMENT_EXPERIMENTAL)
 
 static const NSUInteger kRecentLogLimit = 200;
+// Lines of the core's diagnostics ([rb-perf] timings, [rb-jit] state) also sent to the session journal as
+// they come, at most this many a session.
+static const NSUInteger kDiagnosticLineLimit = 400;
+
+static BOOL LibretroIsDiagnosticLine(NSString *line) {
+  return [line rangeOfString:@"[rb-perf]"].location != NSNotFound || [line rangeOfString:@"[rb-jit]"].location != NSNotFound;
+}
 
 typedef struct {
   void (*retro_init)(void);
@@ -152,6 +159,7 @@ static bool ManagedOptionsDeclared(LibretroCoreHost *host, BOOL declared) {
   NSInteger _hdTexturesApplied;
   NSString *_jitReportedEngine;      // guarded by _log
   BOOL _jitReportedActive;
+  NSUInteger _diagnosticLinesForwarded; // guarded by _log
   BOOL _supportsAchievements;
   BOOL _shutdownRequested;
   uint64_t _serializationQuirks;
@@ -233,11 +241,28 @@ static bool ManagedOptionsDeclared(LibretroCoreHost *host, BOOL declared) {
 #pragma mark - Logging
 
 - (void)appendLog:(NSString *)line {
+  BOOL forward = NO;
+  BOOL lastForwarded = NO;
   @synchronized(_log) {
     [_log addObject:line];
     if (_log.count > kRecentLogLimit) [_log removeObjectsInRange:NSMakeRange(0, _log.count - kRecentLogLimit)];
     [self noteTextureReplacementLine:line];
     [self noteJitLine:line];
+    if (_diagnosticLinesForwarded < kDiagnosticLineLimit && LibretroIsDiagnosticLine(line)) {
+      forward = YES;
+      lastForwarded = ++_diagnosticLinesForwarded == kDiagnosticLineLimit;
+    }
+  }
+  if (!forward) return;
+  // Outside the lock: the session journal writes the line at once, so it survives a process the system ends
+  // (the core log itself reaches session.log only when the session stops).
+  id<LibretroCoreHostDelegate> delegate = self.delegate;
+  if (![delegate respondsToSelector:@selector(coreHost:diagnosticLine:)]) return;
+  [delegate coreHost:self diagnosticLine:line];
+  if (lastForwarded) {
+    [delegate coreHost:self
+        diagnosticLine:[NSString stringWithFormat:@"[HOST] %lu diagnostic lines forwarded, the next ones stay in the core log",
+                                                  (unsigned long)kDiagnosticLineLimit]];
   }
 }
 
