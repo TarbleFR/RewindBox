@@ -34,6 +34,9 @@
 #define LIBRETRO_SHADER_SLOTS 16
 /// Largest 2D texture of the Apple GPUs NeoStation runs on.
 #define LIBRETRO_MAX_TEXTURE_SIZE 16384
+/// Buffers handed in turn to a core for its next RGB565 frame
+/// (GET_CURRENT_SOFTWARE_FRAMEBUFFER).
+#define LIBRETRO_FRAME_BUFFERS 2
 /// Screens that can each have a MetalFX scaler (DS and 3DS use two).
 #define LIBRETRO_METALFX_SCREENS 4
 /// Consecutive frames asking a screen for the same sizes before its scaler is
@@ -584,6 +587,17 @@ static LibretroMetalFXScreen *LibretroMetalFXBuildScreen(id<MTLDevice> device, C
   BOOL _loggedUnsupportedFormat;
   uint32_t _frameCount;
 
+  // Zero-copy software frames, emulation thread: the memory handed to the
+  // core for its next RGB565 frame (softwareFramebufferWithWidth), the
+  // buffers in turn. A buffer's group counts the command buffers still
+  // copying it into an upload texture; _frameBufferGiven is the one handed
+  // out for the frame being drawn (-1: none), of stride _frameBufferPitch.
+  id<MTLBuffer> _frameBuffers[LIBRETRO_FRAME_BUFFERS];
+  dispatch_group_t _frameBufferReaders[LIBRETRO_FRAME_BUFFERS];
+  NSUInteger _frameBufferNext;
+  NSInteger _frameBufferGiven;
+  size_t _frameBufferPitch;
+
   // Last frame, emulation thread (_lastShared under _lock).
   id<MTLTexture> _lastTexture;
   unsigned _lastWidth;
@@ -677,6 +691,10 @@ static LibretroMetalFXScreen *LibretroMetalFXBuildScreen(id<MTLDevice> device, C
   _conversion = [NSMutableData data];
   if (@available(iOS 13.0, *)) _packed565 = [_device supportsFamily:MTLGPUFamilyApple2];
   for (NSUInteger slot = 0; slot < LIBRETRO_UPLOAD_SLOTS; slot++) _uploadReaders[slot] = dispatch_group_create();
+  for (NSUInteger index = 0; index < LIBRETRO_FRAME_BUFFERS; index++) {
+    _frameBufferReaders[index] = dispatch_group_create();
+  }
+  _frameBufferGiven = -1;
   _lastSlot = -1;
   _aspectRatio = 4.0f / 3.0f;
   _pipelines = [NSMutableDictionary dictionary];
@@ -1154,11 +1172,42 @@ static LibretroMetalFXScreen *LibretroMetalFXBuildScreen(id<MTLDevice> device, C
   os_unfair_lock_unlock(&_lock);
 }
 
+- (nullable void *)softwareFramebufferWithWidth:(unsigned)width
+                                         height:(unsigned)height
+                                         format:(enum retro_pixel_format)format
+                                          pitch:(size_t *)pitch {
+  _frameBufferGiven = -1;
+  if (format != RETRO_PIXEL_FORMAT_RGB565 || !_packed565 || pitch == NULL || width == 0 || height == 0 ||
+      width > LIBRETRO_MAX_TEXTURE_SIZE || height > LIBRETRO_MAX_TEXTURE_SIZE) return NULL;
+  const size_t rowBytes = ((size_t)width * 2u + 63u) & ~(size_t)63u;
+  const size_t length = rowBytes * height;
+  const NSUInteger index = _frameBufferNext;
+  _frameBufferNext = (index + 1) % LIBRETRO_FRAME_BUFFERS;
+  // The GPU has copied what this buffer held (two frames ago) before the
+  // core writes it again.
+  dispatch_group_wait(_frameBufferReaders[index], DISPATCH_TIME_FOREVER);
+  id<MTLBuffer> buffer = _frameBuffers[index];
+  if (buffer == nil || buffer.length < length) {
+    _frameBuffers[index] = nil;
+    buffer = [_device newBufferWithLength:length options:MTLResourceStorageModeShared];
+    if (buffer == nil) return NULL;
+    _frameBuffers[index] = buffer;
+  }
+  _frameBufferGiven = (NSInteger)index;
+  _frameBufferPitch = rowBytes;
+  *pitch = rowBytes;
+  return buffer.contents;
+}
+
 - (void)presentSoftwareFrame:(const void *)data
                        width:(unsigned)width
                       height:(unsigned)height
                        pitch:(size_t)pitch
                       format:(enum retro_pixel_format)format {
+  // The memory handed out for this frame (softwareFramebufferWithWidth), if
+  // the core drew the frame there.
+  const NSInteger given = _frameBufferGiven;
+  _frameBufferGiven = -1;
   if (data == NULL || width == 0 || height == 0) return;
   // A software core may output a filtered NES frame (e.g. 602x224), which
   // is legal. Validate its actual stride, not an assumed 256x240 preset,
@@ -1174,14 +1223,33 @@ static LibretroMetalFXScreen *LibretroMetalFXBuildScreen(id<MTLDevice> device, C
   // B5G6R5Unorm texture: no conversion on the emulation thread and half the
   // bytes (a DS frame at 10x is 9.8 million pixels). The shaders sample it
   // like the BGRA8 texture; the GPU expands each channel (v / 31, v / 63).
+  // A frame drawn into the memory handed out for it is copied into the
+  // texture by the GPU, in the command buffer that draws it (zero copy).
   if (format == RETRO_PIXEL_FORMAT_RGB565 && _packed565) {
+    id<MTLBuffer> source = nil;
+    dispatch_group_t sourceReaders = nil;
+    if (given >= 0 && given < LIBRETRO_FRAME_BUFFERS) {
+      id<MTLBuffer> buffer = _frameBuffers[given];
+      if (buffer != nil && data == buffer.contents && pitch == _frameBufferPitch && pitch * height <= buffer.length) {
+        source = buffer;
+        sourceReaders = _frameBufferReaders[given];
+      }
+    }
     const NSInteger packedSlot = [self uploadSlotForFormat:MTLPixelFormatB5G6R5Unorm width:width height:height];
     if (packedSlot >= 0) {
       id<MTLTexture> packed = _uploads[packedSlot];
-      [packed replaceRegion:region mipmapLevel:0 withBytes:data bytesPerRow:pitch];
+      if (source == nil) [packed replaceRegion:region mipmapLevel:0 withBytes:data bytesPerRow:pitch];
       _frameCount++;
       [self keepLastFrame:packed width:width height:height flipped:NO slot:packedSlot shared:NO];
-      [self drawTexture:packed width:width height:height flipped:NO uploadSlot:packedSlot completion:nil];
+      [self drawTexture:packed
+                  width:width
+                 height:height
+                flipped:NO
+             uploadSlot:packedSlot
+             uploadFrom:source
+      uploadBytesPerRow:pitch
+          sourceReaders:sourceReaders
+             completion:nil];
       return;
     }
     // No B5G6R5 texture after all: convert, as without the format.
@@ -1301,6 +1369,7 @@ static LibretroMetalFXScreen *LibretroMetalFXBuildScreen(id<MTLDevice> device, C
            uploadSlot:slot
            uploadFrom:source
     uploadBytesPerRow:bytesPerRow
+        sourceReaders:nil
            completion:completion];
 }
 
@@ -1379,11 +1448,15 @@ static LibretroMetalFXScreen *LibretroMetalFXBuildScreen(id<MTLDevice> device, C
            uploadSlot:slot
            uploadFrom:nil
     uploadBytesPerRow:0
+        sourceReaders:nil
            completion:completion];
 }
 
 /// With `source`, the frame is first copied from it into `texture` on the
-/// GPU, in the same command buffer (presentBuffer).
+/// GPU, in the same command buffer (presentBuffer, zero-copy software
+/// frames); `sourceReaders` (if any) counts that command buffer until it
+/// has completed. A software frame (B5G6R5) drawn on no drawable is copied
+/// into `texture` here, the last frame kept.
 - (void)drawTexture:(nullable id<MTLTexture>)texture
                 width:(unsigned)width
                height:(unsigned)height
@@ -1391,6 +1464,7 @@ static LibretroMetalFXScreen *LibretroMetalFXBuildScreen(id<MTLDevice> device, C
            uploadSlot:(NSInteger)slot
            uploadFrom:(nullable id<MTLBuffer>)source
     uploadBytesPerRow:(size_t)sourceBytesPerRow
+        sourceReaders:(nullable dispatch_group_t)sourceReaders
            completion:(nullable dispatch_block_t)completion {
   dispatch_semaphore_t semaphore = _inFlight;
   id<CAMetalDrawable> drawable = nil;
@@ -1404,11 +1478,18 @@ static LibretroMetalFXScreen *LibretroMetalFXBuildScreen(id<MTLDevice> device, C
   const NSUInteger targetHeight = target.height;
   id<MTLCommandBuffer> buffer = (target != nil && targetWidth > 0 && targetHeight > 0) ? [_queue commandBuffer] : nil;
   if (buffer == nil) {
+    if (source != nil && texture != nil && texture.pixelFormat == MTLPixelFormatB5G6R5Unorm) {
+      [texture replaceRegion:MTLRegionMake2D(0, 0, width, height)
+                 mipmapLevel:0
+                   withBytes:source.contents
+                 bytesPerRow:sourceBytesPerRow];
+    }
     dispatch_semaphore_signal(semaphore);
     if (completion != nil) completion();
     return;
   }
   if (source != nil && texture != nil) {
+    if (sourceReaders != nil) dispatch_group_enter(sourceReaders);
     id<MTLBlitCommandEncoder> blit = [buffer blitCommandEncoder];
     [blit copyFromBuffer:source
                sourceOffset:0
@@ -1445,9 +1526,11 @@ static LibretroMetalFXScreen *LibretroMetalFXBuildScreen(id<MTLDevice> device, C
     readers = _uploadReaders[slot];
     dispatch_group_enter(readers);
   }
+  dispatch_group_t copied = (source != nil && texture != nil) ? sourceReaders : nil;
   __weak LibretroMetalPresenter *weakSelf = self;
   [buffer addCompletedHandler:^(id<MTLCommandBuffer> completed) {
     if (readers != nil) dispatch_group_leave(readers);
+    if (copied != nil) dispatch_group_leave(copied);
     dispatch_semaphore_signal(semaphore);
     [weakSelf recordGPUTimeOfBuffer:completed generation:generation];
     if ((trace || completed.status == MTLCommandBufferStatusError) && diagnostic)
