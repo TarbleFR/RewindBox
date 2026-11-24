@@ -1,18 +1,48 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index cb53d00..637cf20 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3329,7 +3329,13 @@ NVN(nvnWindowGetPresentInterval, int, const NVNwindow *w) { return ((const win_t
+ static _Atomic uint64_t g_rb_itv_changes;
+ uint64_t nvn_rb_interval_changes(void);
+ uint64_t nvn_rb_interval_changes(void) { return atomic_load_explicit(&g_rb_itv_changes, memory_order_relaxed); }
+-NVN(nvnWindowSetPresentInterval, void, NVNwindow *w, int v) { if (((win_t *)w)->interval != v) { LOG("[nvn] the game sets present interval %d → %d (frame %llu)", ((win_t *)w)->interval, v, (unsigned long long)dm_nvn_frame_count()); atomic_fetch_add_explicit(&g_rb_itv_changes, 1, memory_order_relaxed); } ((win_t *)w)->interval = v; }
++// RewindBox (patch 0344): the changes between intervals 1 and 2 alone (rb_drs_seen_step): a game going between 2 and 3 is not put under the no-lock guard
++static _Atomic uint64_t g_rb_itv12_changes;
++uint64_t nvn_rb_interval12_changes(void);
++uint64_t nvn_rb_interval12_changes(void) { return atomic_load_explicit(&g_rb_itv12_changes, memory_order_relaxed); }
++NVN(nvnWindowSetPresentInterval, void, NVNwindow *w, int v) { if (((win_t *)w)->interval != v) { LOG("[nvn] the game sets present interval %d → %d (frame %llu)", ((win_t *)w)->interval, v, (unsigned long long)dm_nvn_frame_count()); atomic_fetch_add_explicit(&g_rb_itv_changes, 1, memory_order_relaxed);
++        if ((((win_t *)w)->interval == 1 || ((win_t *)w)->interval == 2) && (v == 1 || v == 2)) atomic_fetch_add_explicit(&g_rb_itv12_changes, 1, memory_order_relaxed); }   // RewindBox (patch 0344)
++    ((win_t *)w)->interval = v; }
+ // 显示层裁切（nn::vi::SetLayerCrop，说明见 graphics/nvn/host_adapt.m s2a_vi_entry）：上屏取窗口贴图的区域。nvnWindowSetCrop 写的是同一个系统窗口裁切，谁最后写算谁
+ static pthread_mutex_t g_vi_mu = PTHREAD_MUTEX_INITIALIZER; static int g_vi_crop[4];
+ int32_t h_vi_set_layer_crop(void *layer, int32_t x, int32_t y, int32_t w, int32_t h) {
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index bff3cdd..d2f40db 100644
+index 03767ef..b2b5228 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
-@@ -3096,6 +3096,22 @@ static rb_drs_trial g_rb_drs_trial;   // g_rb_floor_lock
+@@ -3082,6 +3082,7 @@ static uint64_t rb_drs_scene_px(uint64_t f) {
+ // RewindBox (patch 0309): a trial of the 60 fps hold for a game locked at interval 2 (rb_drs_trial_step). hle_nvn.c provides the strong
+ //   definition of the count of present interval changes the game has made; without it no game is seen to alternate and none is tried.
+ __attribute__((weak)) uint64_t nvn_rb_interval_changes(void) { return 0; }
++__attribute__((weak)) uint64_t nvn_rb_interval12_changes(void) { return 0; }   // RewindBox (patch 0344): hle_nvn.c, the changes between intervals 1 and 2
+ __attribute__((weak)) int nvn_rb_video_paced(void);
+ static int fps_override(void);
+ static rb_drs_trial g_rb_drs_trial;   // g_rb_floor_lock
+@@ -3096,6 +3097,25 @@ static rb_drs_trial g_rb_drs_trial;   // g_rb_floor_lock
  //   (b) only stops a trial the game has answered (rb_drs_trial_ramp_answered): an unanswered trial keeps its 30 frames.
  static int rb_drs_guard_on(void);
  __attribute__((weak)) int nvn_rb_game_interval(void);   // RewindBox (patch 0327): defined below, read by the trial's growth stop
 +// RewindBox (patch 0344): the no-lock guard of patch 0319 for every game seen to alternate its present interval, not Mario Kart World alone. The bridge asks for the guard
 +//   for that title only (S2A_RB_DRS_NO_LOCK=1, 0 for every other one), so another game that holds interval 2 for a second gets the 33.2 ms hold and never reads a time under
 +//   its 60 fps budget again: it stays at 30 fps once the GPU is back at its clock, as Mario Kart World did before patch 0319 (s2arm-power-wall.md). The game is seen to
-+//   alternate by the trial's own test (rb_drs_trial_step: 8 interval changes within 600 frames); a title that runs at 30 by design changes it a few times a session and keeps
-+//   the hold at its own budget. Once seen, for the rest of the session. IPA 830, Mario Kart World under the guard: 76 of 80 escapes went back to interval 1 (the GPU then
-+//   dropped it again: the iOS power cap, not the hold). S2A_RB_NO_LOCK_SEEN=0: the guard only where the bridge asks for it, as before
-+static _Atomic int g_rb_drs_alternates;
++//   alternate intervals 1 and 2 by the trial's own count, 8 changes within 600 frames, taken over the changes between 1 and 2 alone (rb_drs_seen_step: a game going between
++//   2 and 3 is not one); a title that runs at 30 by design changes it a few times a session and keeps the hold at its own budget. Seen, the guard holds while such changes
++//   keep coming, and goes back to the bridge's choice after 1,800 frames without one. IPA 830, Mario Kart World under the guard: 76 of 80 escapes went back to interval 1
++//   (the GPU then dropped it again: the iOS power cap, not the hold). The completion handlers read the guard through rb_drs_guard_active, the same value whoever reads
++//   it first. S2A_RB_NO_LOCK_SEEN=0: the guard only where the bridge asks for it, as before (S2A_RB_DRS_NO_LOCK=0 is what the bridge sends every other title: no opt-out)
++static _Atomic int g_rb_drs_alternates;   // rb_drs_seen_step's answer
++static rb_drs_seen g_rb_drs_seen;   // g_rb_floor_lock
 +static int rb_no_lock_seen_on(void) {
 +    static int v = -1;   // completion handlers; the same value whoever reads it first
 +    if (v < 0) { const char *e = getenv("S2A_RB_NO_LOCK_SEEN"); v = !(e && !strcmp(e, "0"));
@@ -25,26 +55,32 @@ index bff3cdd..d2f40db 100644
  static int rb_drs_fix_scene_on(void) {
      static int v = -1;
      if (v < 0) { const char *e = getenv("S2A_RB_DRS_FIX_SCENE"); v = e && !strcmp(e, "1");   // off unless asked for: see the note above
-@@ -3126,7 +3142,7 @@ static int rb_drs_trial_now(uint64_t f, int fps) {
+@@ -3125,8 +3145,8 @@ static rb_drs_blip g_rb_drs_blip;   // g_rb_floor_lock
+ static int rb_drs_trial_now(uint64_t f, int fps) {
      int allowed = atomic_load_explicit(&g_drs_state, memory_order_relaxed) < 3 && fps_override() <= 0 &&
                    nvn_fps_limit() != 30 && !nvn_rb_video_paced();
-     uint64_t changes = nvn_rb_interval_changes();
+-    uint64_t changes = nvn_rb_interval_changes();
 -    const int stop_on = rb_drs_guard_on() && rb_drs_fix_trial_on();   // RewindBox (patch 0327): fix (b), under the guard only (rb_drs_trial_ramp_step)
++    uint64_t changes = nvn_rb_interval_changes(), changes12 = nvn_rb_interval12_changes();
 +    const int stop_on = rb_drs_guard_active() && rb_drs_fix_trial_on();   // RewindBox (patch 0327): fix (b), under the guard only (rb_drs_trial_ramp_step); patch 0344: rb_drs_guard_active
      const uint64_t seen_px = stop_on ? rb_drs_scene_seen(f) : 0;
      const int answer_itv = stop_on ? nvn_rb_game_interval() : 2;   // RewindBox (patch 0327): the interval of the game's last present (2: the trial is not answered yet)
      os_unfair_lock_lock(&g_rb_floor_lock);
-@@ -3137,6 +3153,9 @@ static int rb_drs_trial_now(uint64_t f, int fps) {
+@@ -3136,7 +3156,13 @@ static int rb_drs_trial_now(uint64_t f, int fps) {
+     if (stop_on) on = rb_drs_trial_ramp_answered(&g_rb_drs_trial, &g_rb_drs_trial_ramp, f, on, seen_px, answer_itv);   // RewindBox (patch 0327)
      const rb_drs_trial_ramp ramp = g_rb_drs_trial_ramp;
      rb_drs_trial tr = g_rb_drs_trial;
++    const int alt = rb_drs_seen_step(&g_rb_drs_seen, f, changes12);   // RewindBox (patch 0344)
++    const rb_drs_seen seen = g_rb_drs_seen;
      os_unfair_lock_unlock(&g_rb_floor_lock);
-+    if (tr.adaptive && !atomic_exchange_explicit(&g_rb_drs_alternates, 1, memory_order_relaxed))   // RewindBox (patch 0344)
-+        MLOG("[rb-guest-drs] the game alternates its present interval (%llu changes so far, frame %llu): no-lock guard %s (S2A_RB_NO_LOCK_SEEN; patch 0344)",
-+             (unsigned long long)changes, (unsigned long long)f, rb_drs_guard_on() ? "on already (S2A_RB_DRS_NO_LOCK=1)" : rb_no_lock_seen_on() ? "on from here" : "left off");
++    if (alt != atomic_exchange_explicit(&g_rb_drs_alternates, alt, memory_order_relaxed) && (seen.ons + seen.offs <= 8 || !((seen.ons + seen.offs) & (seen.ons + seen.offs - 1))))   // RewindBox (patch 0344)
++        MLOG("[rb-guest-drs] the game %s present intervals 1 and 2 (%llu such changes so far, %llu of any kind, frame %llu; seen %d times, idle %d): no-lock guard %s (S2A_RB_NO_LOCK_SEEN; patch 0344)",
++             alt ? "alternates" : "no longer alternates", (unsigned long long)changes12, (unsigned long long)changes, (unsigned long long)f, seen.ons, seen.offs,
++             rb_drs_guard_on() ? "on all the same (S2A_RB_DRS_NO_LOCK=1)" : !rb_no_lock_seen_on() ? "left off" : alt ? "on from here" : "off from here, the trial of patch 0309 still runs");
      if (tr.trials != trials && (tr.trials <= 8 || !(tr.trials & (tr.trials - 1))))
          MLOG("[rb-guest-drs] trial frame=%llu frames=%d waited=%llu trials=%llu kept=%llu",
               (unsigned long long)f, RB_DRS_TRIAL_FRAMES, (unsigned long long)tr.wait,
-@@ -3290,7 +3309,7 @@ static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the ti
+@@ -3290,7 +3316,7 @@ static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the ti
      int fps = nvn_be_fps_target(); if (fps <= 0 || fps > 60) fps = 60;   // 30 / 60 (nvn_obj.h)
      const uint64_t hold60 = 16600000ull * 12 / 625;
      if (rb_drs_trial_now(f, fps)) return top + rb_drs_cap_ticks(t - top, hold60);   // RewindBox (patch 0309): the 60 fps hold whatever the time
@@ -53,3 +89,42 @@ index bff3cdd..d2f40db 100644
      if (guard) {
          if (t - top >= hold60) atomic_store_explicit(&g_rb_drs_over[i], f + 1, memory_order_relaxed);
          if (rb_drs_escape_now(f)) return top + rb_drs_cap_ticks(t - top, hold60);
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 02fda4e..317856e 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -346,6 +346,7 @@ int nvn_be_shutdown_session(void) {
+     g_rb_drs_floor = (rb_drs_floor){0};
+     g_rb_drs_trial = (rb_drs_trial){0};
+     g_rb_drs_trial_ramp = (rb_drs_trial_ramp){0}; g_rb_drs_blip = (rb_drs_blip){0};   // RewindBox (patch 0327): with the trial they count from
++    g_rb_drs_seen = (rb_drs_seen){0}; atomic_store(&g_rb_drs_alternates, 0);   // RewindBox (patch 0344): a new session is not seen to alternate yet
+     g_link_applied = 0; g_link_hold_until = g_link_vperiod = g_link_vhalf = 0;
+     g_rb_display_cadence = (rb_cadence_candidate){0};
+     g_link_pending = 0; g_link_pending_since = g_link_pending_period = 0;
+diff --git a/graphics/nvn/gfx/nvn/rb_adaptive_drs.h b/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
+index 8cf9ce0..8f14a53 100644
+--- a/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
++++ b/graphics/nvn/gfx/nvn/rb_adaptive_drs.h
+@@ -334,3 +334,22 @@ static inline uint64_t rb_drs_blip_note(rb_drs_blip *b, uint64_t frame, int itv_
+     b->seen = frame + 1;
+     return ++b->frames;
+ }
++// RewindBox (patch 0344): whether a game the bridge did not put under the guard alternates present intervals 1 and 2 (a 60 fps title dropping frames, the pattern the
++// guard is built for): RB_DRS_TRIAL_CHANGES changes between 1 and 2 within RB_DRS_TRIAL_WINDOW frames, counted as the trial counts all of them. A game going between 2
++// and 3 (Donkey Kong Bananza: a period never stable for a second) is not one: each of its 3 -> 2 steps would start a fresh escape, which never backs off there. The
++// answer holds while such changes keep coming: none for RB_DRS_SEEN_IDLE frames (a title at 30 by design that went 1 <-> 2 in a menu or a video, then plays at 2) and
++// it is off again, the trial of patch 0309 still running. changes12: the 1 <-> 2 changes so far. seen, mark_frame, last_at: a frame + 1
++enum { RB_DRS_SEEN_IDLE = 1800 };
++typedef struct { uint64_t seen, mark_frame, mark_changes, prior_changes, last_changes, last_at; int on, ons, offs; } rb_drs_seen;
++static inline int rb_drs_seen_step(rb_drs_seen *s, uint64_t frame, uint64_t changes12) {
++    if (s->seen == frame + 1) return s->on;
++    s->seen = frame + 1;
++    if (!s->mark_frame || frame + 1 - s->mark_frame >= RB_DRS_TRIAL_WINDOW) {
++        s->prior_changes = s->mark_frame ? changes12 - s->mark_changes : 0;
++        s->mark_frame = frame + 1; s->mark_changes = changes12;
++    }
++    if (!s->last_at || changes12 != s->last_changes) { s->last_changes = changes12; s->last_at = frame + 1; }
++    if (changes12 - s->mark_changes + s->prior_changes >= RB_DRS_TRIAL_CHANGES) { if (!s->on) { s->on = 1; ++s->ons; } }
++    else if (s->on && frame + 1 >= s->last_at && frame + 1 - s->last_at >= RB_DRS_SEEN_IDLE) { s->on = 0; ++s->offs; }   // a report of an earlier frame never turns it off
++    return s->on;
++}
