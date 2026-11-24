@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "f26781221555af86ae55caf7ecbbc0237cf719af",
-  "run": 45471263838,
-  "job": 138719518585,
+  "source": "693c9c94103b5ce3dd80f8208c6c4be61b39c4cf",
+  "run": 45494772118,
+  "job": 138802226305,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14956948854,
-  "name": "MeloNX-engine-f26781221555af86ae55caf7ecbbc0237cf719af",
-  "bytes": 101404134,
-  "sha256": "641a1f85cada986f42b55c0eb3ebe017eac1b1f75929b0ae55d3a055f110ec1f",
-  "expiresAt": "2027-02-22T19:32:19Z",
+  "artifact": 14970020761,
+  "name": "MeloNX-engine-693c9c94103b5ce3dd80f8208c6c4be61b39c4cf",
+  "bytes": 101407961,
+  "sha256": "9693562db67d1e6ecc9fa3471abf74b02a331045dd42e68b6fec8ccc7d46fa37",
+  "expiresAt": "2027-02-22T21:48:26Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "b52cc7252b510a2cacd862d6e7c97aa9d052e33b5efd329d109d2bcde363db5b",
-      "bytes": 39245064
+      "sha256": "719d2df54bac902c712c142a17f187ac2a4bb3820a48ef72507b588cb87477ed",
+      "bytes": 39261456
     },
     "iossimulator-arm64": {
-      "sha256": "0228af10b2e9d5535aa82b8612ba82dbf1574cab6b215f65d3a9792a1597862d",
+      "sha256": "8dc6ccea1e301582c28c621eaa4059bc1acbbc7ad93330152535ff03ff44e200",
       "bytes": 39584808
     }
   },
   "identities": {
-    "ios-arm64": "8ba03cadc2531c18a45ffdb7aeee2c5ade0a2e355808c56b28f286564060bb24",
-    "iossimulator-arm64": "825df3328810892b9eca54a40357d22be98ffc0ecb36db851a0fb489757b8d73"
+    "ios-arm64": "218ecc4f1bfb7f5f9b3b3835942dae18fa0975172b421c9dd9a6693afa0ea867",
+    "iossimulator-arm64": "e69cf68d1ae7a8b3a5b6d6b30fda094cc813d8a94fb62d4cc04270a0e732b972"
   },
-  "contractSha256": "61c700ee172c44cb436a27777d3f3773015855723dc6f897a6744096806ba1a9",
-  "resultSha256": "829af2a505b6fdcc0cf9265dc429cfa1a8603615914b80e939e6eae8e6842ce1",
-  "packagedFingerprint": "e06d712487a551c36839e8ea2813de574d84bc1388fac1e90019a838ecef5454",
+  "contractSha256": "d192c43789334ef9a98d35e85f26af791641b0c5d036750d11c1d95d8ea7f097",
+  "resultSha256": "36bc82a50bd63f457811f7127fcbeada3cb769351279795a091375abb5abcd48",
+  "packagedFingerprint": "1f344f3cc0e58c01b2ec4d9af93520209bcfd4713e8588288ca7c21ff0905be4",
   "replaces": {
-    "source": "659f4f01aea6800f424a4b511aa94c3021d9a208",
-    "run": 45385342748,
-    "artifact": 14916138690,
-    "packagedFingerprint": "d46745a6fae53fc7373b845bb56d86de0c93719fbaaa48a1b4a3d7a907044e19",
-    "reason": "IPA 833 (Hogwarts Legacy): the code arena lines of adapt_jit_arena_usage_journal reached the device as \"[redacted key entry]\" (the journal's secret filter redacts a detail that starts with key=value); each detail now starts with \"code arena: \". The contract also follows the MoltenVK patch (tenth part: shared Metal render pipeline states; eleventh: Metal memory census with heaps) and the warm-up key parity test, frozen inputs of this Core. Otherwise the engine of Core 659f4f01 (POOL_830, VARIANT_CAUSES). Contract 61c700ee, build-smoke route. Not run on an iPhone."
+    "source": "f26781221555af86ae55caf7ecbbc0237cf719af",
+    "run": 45471263838,
+    "artifact": 14956948854,
+    "packagedFingerprint": "e06d712487a551c36839e8ea2813de574d84bc1388fac1e90019a838ecef5454",
+    "reason": "After private IPA 838, grow repeated small Vulkan descriptor pools when one set consumes their full per-type budget. The producer built for ios-arm64 and iossimulator-arm64 and ran the focused comparison (65 sets, 65 pools in the control and 9 in the candidate) plus two simulator sessions. Physical-device performance and memory have not been measured."
   }
 }
