@@ -34,7 +34,10 @@ Recorded: data sizes, the footprint at each step, load, lookup, size query and w
    the one Metal-different variant); phase B creates 16 pipelines for each of the 12 programs of round 0, cycling
    through the ten Metal-equal variants. Required of both: every pixel right, the cull mode and the front face applied
    per pipeline, the same pixels; of the control: 11 and 192 Metal pipeline states compiled; of the candidate: 2 and 11,
-   and its share line. Recorded: footprint and GPU memory growth, creation time.
+   and its share line. Recorded: footprint and GPU memory growth, creation time. Each share run then destroys what it
+   created and the device (MVK_CONFIG_ACTIVITY_PERFORMANCE_LOGGING_STYLE=2): the eleventh part's Metal memory census
+   line must be written once, count the run's images and buffers (and its descriptor pool's Metal buffer when MoltenVK
+   binds with argument buffers), and show the pool released.
 Writes dist/melonx-cache-keys/report.json. macOS runner, not an iPhone: no device figure is claimed from it.
 """
 import hashlib, json, os, re, subprocess, sys, time
@@ -166,6 +169,8 @@ def main():
         environment.pop('MVK_CONFIG_REWINDBOX_UNSHARED_PIPELINE_STATES', None)
         if control:
             environment['MVK_CONFIG_REWINDBOX_UNSHARED_PIPELINE_STATES'] = '1'
+        # The performance summary at the device's destruction carries the eleventh part's Metal memory census line.
+        environment['MVK_CONFIG_ACTIVITY_PERFORMANCE_LOGGING_STYLE'] = '2'
         arguments = [str(binary), str(SHADERS), str(salt), str(OUT / (name + '.json')), 'share', '-']
         start = time.time()
         run = subprocess.run(arguments, capture_output=True, text=True, errors='replace', timeout=3600, env=environment)
@@ -178,6 +183,26 @@ def main():
         result['sharedLines'] = [line.split('RewindBox shared pipeline states: ')[1] for line in (run.stdout + run.stderr).splitlines()
                                  if 'RewindBox shared pipeline states: ' in line][-3:]
         assert result['wrongPixels'] == 0 and result['cullCheck'] == 'passed', f'{name}: {result["cullCheck"]}, {result["rasterVariants"]}'
+        census = [line.split('RewindBox Metal memory: ')[1] for line in (run.stdout + run.stderr).splitlines() if 'RewindBox Metal memory: ' in line]
+        assert len(census) == 1, f'{name}: one Metal memory census line at the device destruction: {census}'
+        match = re.match(r'device (-?\d+) MiB; made resident: textures (-?\d+) \((-?\d+) MiB, (\d+) added\), buffers (-?\d+) \((-?\d+) MiB, '
+                         r'(\d+) added\), aliases (-?\d+) \((-?\d+) MiB, (\d+) added\), other (-?\d+) \((-?\d+) MiB\); descriptor pool '
+                         r'buffers (-?\d+) \((-?\d+) MiB, (\d+) added\); visibility buffers (-?\d+) \((-?\d+) MiB\); the rest (-?\d+) MiB$',
+                         census[0])
+        assert match, f'{name}: census line {census[0]}'
+        values = [int(v) for v in match.groups()]
+        # Groups: device; textures count, MiB, added; buffers count, MiB, added; aliases (made on a buffer or a heap) count,
+        # MiB, added; other count, MiB; descriptor pool buffers count, MiB, added; visibility buffers count, MiB; the rest.
+        argument_buffers = any('Descriptor sets binding resources using' in line and 'argument buffers' in line
+                               for line in (run.stdout + run.stderr).splitlines())
+        result['metalCensus'] = dict(line=census[0], deviceMiB=values[0], texturesAdded=values[3], buffersAdded=values[6],
+                                     aliasesAdded=values[9], descriptorPoolBuffersAdded=values[14], texturesLeft=values[1],
+                                     descriptorPoolBuffersLeft=values[12], argumentBuffers=argument_buffers)
+        # The scene's images and buffers were counted; with argument buffers its descriptor pool has a Metal buffer, counted then
+        # released with the pool.
+        assert values[3] + values[6] >= 4, f'{name}: the census counted the run\'s images and buffers: {census[0]}'
+        assert not argument_buffers or values[14] >= 1, f'{name}: the census counted the descriptor pool\'s Metal buffer: {census[0]}'
+        assert values[12] == 0, f'{name}: the destroyed descriptor pool left the census: {census[0]}'
         shares[name] = result
         print(name, json.dumps({k: v for k, v in result.items() if k != 'rasterVariants'}), flush=True)
     candidate, control = shares['candidate-share'], shares['control-share']
@@ -191,7 +216,7 @@ def main():
                             'phaseBPipelines': r['phaseB']['pipelines'], 'phaseBCreateMs': round(r['phaseB']['createMs'], 1),
                             'phaseBFootprintGrowthMiB': round(r['phaseB']['footprintGrowthMiB'], 2),
                             'phaseBGpuAllocatedGrowthKiB': r['phaseB']['gpuAllocatedGrowthKiB'], 'afterDestroy': r['afterDestroy'],
-                            'sharedLines': r['sharedLines']} for name, r in shares.items()}
+                            'sharedLines': r['sharedLines'], 'metalCensus': r['metalCensus']} for name, r in shares.items()}
     print('shared pipeline states:', json.dumps(share_summary, indent=1), flush=True)
 
     first = results['control-save']

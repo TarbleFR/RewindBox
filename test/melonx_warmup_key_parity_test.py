@@ -322,8 +322,11 @@ def shipped_patch_keeps_private_api_off(pin):
             'MVK_USE_METAL_PRIVATE_API' not in text and 'useMetalPrivateAPI' not in text and
             # Lot 10: the fifth part (cache keys) adds MVKShaderModule.mm and the converter's configuration (cacheKey()).
             # 17 Nov, seventh part (descriptor writes): MVKBuffer.h, MVKBuffer.mm and MVKDescriptorSet.mm join the patch.
+            # 24 Nov, eleventh part (Metal memory census, measurement only): MVKDevice.h and MVKDevice.mm join the patch.
             files == ['Common/MVKStrings.h', 'MoltenVK/MoltenVK/GPUObjects/MVKBuffer.h',
-                      'MoltenVK/MoltenVK/GPUObjects/MVKBuffer.mm', 'MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.mm', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.mm',
+                      'MoltenVK/MoltenVK/GPUObjects/MVKBuffer.mm', 'MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.mm',
+                      'MoltenVK/MoltenVK/GPUObjects/MVKDevice.h', 'MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm',
+                      'MoltenVK/MoltenVK/GPUObjects/MVKImage.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.mm',
                       'MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h', 'MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm',
                       'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h', 'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm',
                       'MoltenVK/MoltenVK/Utility/MVKCodec.h',

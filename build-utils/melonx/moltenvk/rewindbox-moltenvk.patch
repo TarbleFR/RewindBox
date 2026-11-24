@@ -76,7 +76,7 @@ index a00c09b..19ed9fc 100644
  	MVKLiveResourceSet& live = _device->getLiveResources();
  	if (id<MTLBuffer> buf = _mtlBuffer) {
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.mm b/MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.mm
-index 3cdc623..fe1fa99 100644
+index 3cdc623..20cec50 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.mm
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.mm
 @@ -913,13 +913,15 @@ template <> struct MVKArgBufEncoder<MVKArgumentBufferMode::Metal3> {
@@ -114,6 +114,149 @@ index 3cdc623..fe1fa99 100644
  					VkDeviceSize size = info->range == VK_WHOLE_SIZE ? buf->getByteCount() - info->offset : info->range;
  					reinterpret_cast<uint32_t*>(base + auxOffsets[binding.auxIndex])[i] = static_cast<uint32_t>(size);
  				} else {
+@@ -2007,6 +2010,7 @@ MVKDescriptorPool* MVKDescriptorPool::Create(MVKDevice* device, const VkDescript
+ 			ret->_gpuBuffer = { static_cast<char*>(hostOnlyGPUBuffer), gpuSize };
+ 		} else @autoreleasepool {
+ 			ret->_gpuBufferObject = [device->getPhysicalDevice()->getMTLDevice() newBufferWithLength:gpuSize options:MTLResourceStorageModeShared];
++			if (ret->_gpuBufferObject) { rewindbox::descriptorPoolBuffers.add((int64_t)ret->_gpuBufferObject.allocatedSize); }	// RewindBox Metal memory census
+ 			ret->_gpuBuffer = { static_cast<char*>([ret->_gpuBufferObject contents]), gpuSize };
+ 			if (argBufMode == MVKArgumentBufferMode::Metal3)
+ 				ret->_gpuBufferGPUAddress = ret->_gpuBufferObject.gpuAddress;
+@@ -2018,6 +2022,7 @@ MVKDescriptorPool* MVKDescriptorPool::Create(MVKDevice* device, const VkDescript
+ }
+ 
+ MVKDescriptorPool::~MVKDescriptorPool() {
++	if (_gpuBufferObject) { rewindbox::descriptorPoolBuffers.remove((int64_t)_gpuBufferObject.allocatedSize); }	// RewindBox Metal memory census
+ 	[_gpuBufferObject release];
+ }
+ 
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKDevice.h b/MoltenVK/MoltenVK/GPUObjects/MVKDevice.h
+index 534a414..d3f3cf8 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKDevice.h
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKDevice.h
+@@ -34,6 +34,28 @@
+ 
+ #import <Metal/Metal.h>
+ #import <QuartzCore/CAMetalLayer.h>
++#include <atomic>
++
++// RewindBox Metal memory census (eleventh part, measurement only): the allocations a device makes resident, by kind,
++// and the Metal buffers MoltenVK allocates for descriptor pools and visibility results outside its residency set,
++// counted as they are created and released (count, bytes, and how many were ever added); written with MoltenVK's
++// performance summary. A texture made on a buffer or a heap, or a buffer made on a heap, shares memory counted
++// elsewhere: it is counted apart, as an alias.
++namespace rewindbox {
++	struct MetalCensus {
++		std::atomic<int64_t> count{0}, bytes{0}, added{0};
++		void add(int64_t size) {
++			count.fetch_add(1, std::memory_order_relaxed);
++			bytes.fetch_add(size, std::memory_order_relaxed);
++			added.fetch_add(1, std::memory_order_relaxed);
++		}
++		void remove(int64_t size) {
++			count.fetch_sub(1, std::memory_order_relaxed);
++			bytes.fetch_sub(size, std::memory_order_relaxed);
++		}
++	};
++	extern MetalCensus residentTextures, residentBuffers, residentAliases, residentOther, descriptorPoolBuffers, visibilityBuffers;
++}
+ 
+ class MVKInstance;
+ class MVKDevice;
+@@ -985,6 +1007,7 @@ public:
+ 			[_residencySet addAllocation: allocation];
+ 			[_residencySet commit];
+ 		}
++		rbCensusResident(allocation, true);	// RewindBox Metal memory census
+ 	}
+ #endif
+ 
+@@ -996,6 +1019,22 @@ public:
+ 			[_residencySet removeAllocation:allocation];
+ 			[_residencySet commit];
+ 		}
++		rbCensusResident(allocation, false);	// RewindBox Metal memory census
++	}
++
++	// RewindBox Metal memory census: a resident allocation counted by kind, with its allocated size.
++	static void rbCensusResident(id<MTLAllocation> allocation, bool added) {
++		if ( !allocation ) { return; }
++		id object = (id)allocation;
++		int64_t size = (int64_t)((id<MTLResource>)object).allocatedSize;	// MoltenVK makes buffers and textures resident
++		rewindbox::MetalCensus* census = &rewindbox::residentOther;
++		if ([object conformsToProtocol: @protocol(MTLTexture)]) {
++			id<MTLTexture> texture = (id<MTLTexture>)object;
++			census = (texture.buffer || texture.heap) ? &rewindbox::residentAliases : &rewindbox::residentTextures;
++		} else if ([object conformsToProtocol: @protocol(MTLBuffer)]) {
++			census = ((id<MTLBuffer>)object).heap ? &rewindbox::residentAliases : &rewindbox::residentBuffers;
++		}
++		if (added) { census->add(size); } else { census->remove(size); }
+ 	}
+ #endif
+ 
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm b/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm
+index 9772757..4eb74cf 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm
+@@ -3778,6 +3778,7 @@ MVKVisibilityBuffer::MVKVisibilityBuffer(id<MTLDevice> device, NSUInteger size,
+ 		MTLResourceOptions options = MTLResourceHazardTrackingModeUntracked | MTLResourceStorageModePrivate;
+ 		_buffer = [device newBufferWithLength:_halfSize * 2 options:options];
+ 		if (_buffer) {
++			rewindbox::visibilityBuffers.add((int64_t)_buffer.allocatedSize);	// RewindBox Metal memory census
+ 			[_buffer setLabel:[NSString stringWithFormat:@"Metal Visibility Result Buffer %d", nameIdx]];
+ 			for (uint32_t gid = 0; gid < std::size(_fences); gid++) {
+ 				for (uint32_t lohi = 0; lohi < std::size(_fences[0]); lohi++) {
+@@ -3791,6 +3792,7 @@ MVKVisibilityBuffer::MVKVisibilityBuffer(id<MTLDevice> device, NSUInteger size,
+ 
+ MVKVisibilityBuffer::~MVKVisibilityBuffer() {
+ 	if (_buffer) {
++		rewindbox::visibilityBuffers.remove((int64_t)_buffer.allocatedSize);	// RewindBox Metal memory census
+ 		[_buffer release];
+ 		for (auto& groups : _fences)
+ 			for (auto& fence : groups)
+@@ -4710,12 +4712,42 @@ void MVKDevice::logActivityByteCount(MVKPerformanceTracker& activity, MVKPerform
+ 			   activity.count);
+ }
+ 
++__attribute__((used)) static const char kRewindBoxMetalMemoryCensus[] =
++	"RewindBox Metal memory census: allocations made resident, descriptor pool and visibility buffers counted by kind";
++
++namespace rewindbox {
++	MetalCensus residentTextures, residentBuffers, residentAliases, residentOther, descriptorPoolBuffers, visibilityBuffers;
++}
++
+ void MVKDevice::logPerformanceSummary() {
+ 
+ 	// Get a copy to minimize time under lock
+ 	MVKPerformanceStatistics perfStats;
+ 	getPerformanceStatistics(&perfStats);
+ 
++	// RewindBox Metal memory census (eleventh part): what the device's allocated size is made of, from counters kept as
++	// allocations are created and released (no walk of the residency set). Aliases share memory counted elsewhere: they
++	// are shown, not taken from the device's size.
++	{
++		auto mib = [](int64_t bytes) { return (long long)(bytes / (1 << 20)); };
++		auto n = [](const rewindbox::MetalCensus& c) { return (long long)c.count.load(std::memory_order_relaxed); };
++		auto b = [](const rewindbox::MetalCensus& c) { return c.bytes.load(std::memory_order_relaxed); };
++		auto a = [](const rewindbox::MetalCensus& c) { return (long long)c.added.load(std::memory_order_relaxed); };
++		const auto& tx = rewindbox::residentTextures;
++		const auto& bf = rewindbox::residentBuffers;
++		const auto& al = rewindbox::residentAliases;
++		const auto& ot = rewindbox::residentOther;
++		const auto& dp = rewindbox::descriptorPoolBuffers;
++		const auto& vb = rewindbox::visibilityBuffers;
++		int64_t device = (int64_t)_physicalDevice->getCurrentAllocatedSize();
++		int64_t counted = b(tx) + b(bf) + b(ot) + b(dp) + b(vb);
++		MVKLogInfo("RewindBox Metal memory: device %lld MiB; made resident: textures %lld (%lld MiB, %lld added), buffers %lld (%lld MiB, %lld added), "
++				   "aliases %lld (%lld MiB, %lld added), other %lld (%lld MiB); descriptor pool buffers %lld (%lld MiB, %lld added); "
++				   "visibility buffers %lld (%lld MiB); the rest %lld MiB",
++				   mib(device), n(tx), mib(b(tx)), a(tx), n(bf), mib(b(bf)), a(bf), n(al), mib(b(al)), a(al), n(ot), mib(b(ot)),
++				   n(dp), mib(b(dp)), a(dp), n(vb), mib(b(vb)), mib(device - counted));
++	}
++
+ #define logDuration(s)   logActivityDuration(perfStats.s, perfStats)
+ #define logByteCount(s)  logActivityByteCount(perfStats.s, perfStats)
+ 
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKImage.h b/MoltenVK/MoltenVK/GPUObjects/MVKImage.h
 index 45ddd3a..5c9249c 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKImage.h

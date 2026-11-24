@@ -641,6 +641,28 @@ static int runShare(const Context& c, const char* shaderPack, uint32_t salt, con
     for (VkPipeline pipeline : variants) vkDestroyPipeline(c.device, pipeline, nullptr);
     MetalCounters afterDestroy = metalCounters(c);
     double footprintAfterDestroy = footprintMiB();
+    // Everything this run created, then the device: with MVK_CONFIG_ACTIVITY_PERFORMANCE_LOGGING_STYLE=2 MoltenVK writes
+    // its performance summary (and the eleventh part's Metal memory census line) when the device is destroyed.
+    auto freeBuffer = [&](Buffer& b) { vkDestroyBuffer(c.device, b.buffer, nullptr); vkFreeMemory(c.device, b.memory, nullptr); };
+    auto freeImage = [&](Image& i) {
+        vkDestroyImageView(c.device, i.view, nullptr);
+        vkDestroyImage(c.device, i.image, nullptr);
+        vkFreeMemory(c.device, i.memory, nullptr);
+    };
+    vkDestroyDescriptorPool(c.device, scene.pool, nullptr);
+    vkDestroyFramebuffer(c.device, scene.framebuffer, nullptr);
+    vkDestroySampler(c.device, scene.sampler, nullptr);
+    vkDestroyBufferView(c.device, scene.texelView, nullptr);
+    for (Buffer* b : {&scene.support, &scene.vertexParams, &scene.fragmentParams, &scene.values, &scene.texels, &scene.readback}) freeBuffer(*b);
+    for (Image* i : {&scene.tex0, &scene.tex1, &scene.picture, &scene.target}) freeImage(*i);
+    vkDestroyShaderModule(c.device, vertex, nullptr);
+    for (VkShaderModule module : fragments) vkDestroyShaderModule(c.device, module, nullptr);
+    vkDestroyPipelineLayout(c.device, c.layout, nullptr);
+    for (VkDescriptorSetLayout layout : c.setLayouts) vkDestroyDescriptorSetLayout(c.device, layout, nullptr);
+    for (VkRenderPass pass : c.passes) vkDestroyRenderPass(c.device, pass, nullptr);
+    vkDestroyCommandPool(c.device, c.pool, nullptr);
+    vkDestroyDevice(c.device, nullptr);
+    vkDestroyInstance(c.instance, nullptr);
 
     std::ostringstream json;
     json << "{\"mode\": \"share\", \"control\": " << (getenv("MVK_CONFIG_REWINDBOX_UNSHARED_PIPELINE_STATES") ? "true" : "false")

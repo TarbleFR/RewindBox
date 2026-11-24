@@ -57,8 +57,11 @@ def check_patch():
     files = re.findall(r'^diff --git a/(\S+)', text, re.M)
     # Lot 10, fifth part (cache keys): MVKShaderModule.mm and the converter's configuration join the patch.
     # 17 Nov, seventh part (descriptor writes): MVKBuffer.h, MVKBuffer.mm and MVKDescriptorSet.mm join the patch.
+    # 24 Nov, eleventh part (Metal memory census, measurement only): MVKDevice.h and MVKDevice.mm join the patch.
     require(files == ['Common/MVKStrings.h', 'MoltenVK/MoltenVK/GPUObjects/MVKBuffer.h',
-                      'MoltenVK/MoltenVK/GPUObjects/MVKBuffer.mm', 'MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.mm', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.mm',
+                      'MoltenVK/MoltenVK/GPUObjects/MVKBuffer.mm', 'MoltenVK/MoltenVK/GPUObjects/MVKDescriptorSet.mm',
+                      'MoltenVK/MoltenVK/GPUObjects/MVKDevice.h', 'MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm',
+                      'MoltenVK/MoltenVK/GPUObjects/MVKImage.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.mm',
                       'MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h', 'MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm',
                       'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h', 'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm',
                       'MoltenVK/MoltenVK/Utility/MVKCodec.h',
