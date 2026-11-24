@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "fa4ab14abe4d1f6c0c70c7fc8da2054804633dbeea9e5f80d2596298fe565300",
+  "packagedFingerprint": "f6634178f6b7ac6f48cf0d45c7135967ccc8a45e955e99700303f8f7126660e8",
   "producers": {
     "engine": {
-      "run": 45413438600,
+      "run": 45449520140,
       "attempt": 1,
-      "artifact": 14932057201,
-      "name": "s2arm-engine-framework-d1cdadaabf5087e54f6c2d2d8e95b37f8658a4af",
-      "bytes": 25447752,
-      "sha256": "661e7881f4b99376ff6ff24c3cc78f8578fbb89251153da094f9e2c47b634174",
-      "headSha": "d1cdadaabf5087e54f6c2d2d8e95b37f8658a4af",
+      "artifact": 14947239149,
+      "name": "s2arm-engine-framework-65985f842e5e1bc459fcfb99e0c5b9a8b9162319",
+      "bytes": 25453518,
+      "sha256": "3baa12d1486e7c8e9694ecc4e832f7e252b00ee1b1ba06d387c01f8c19f0b4bc",
+      "headSha": "65985f842e5e1bc459fcfb99e0c5b9a8b9162319",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-24T14:39:44Z",
+      "expiresAt": "2026-12-24T17:42:14Z",
       "members": {
-        "S2ArmEngine.framework.zip": "82b7813bbf0bd34c78cc86888eb5688b77b5645d78af94ed565400f1d66c4401",
-        "NS2Pro.framework.zip": "c8b1b7cd38fcba069f984f7e9cc991dbb3b828ebae0c376ae8eccc8b7f6487f0"
+        "S2ArmEngine.framework.zip": "60a514aa97776369afa89f1afd10d50fc5298c3126675b153fbd8be45d48d790",
+        "NS2Pro.framework.zip": "bba58b2ab5fc059184229a8a3fe3cecf8c2e63b4575f3abf1fdf80035ae481f6"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "661e7881f4b99376ff6ff24c3cc78f8578fbb89251153da094f9e2c47b634174",
+    "engine": "3baa12d1486e7c8e9694ecc4e832f7e252b00ee1b1ba06d387c01f8c19f0b4bc",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "a78c7bdad06814ef7d4dd80c30966a3ebe508c35163965884b7acfaa6b932f58",
-      "bytes": 115524760,
-      "fingerprint": "fa4ab14abe4d1f6c0c70c7fc8da2054804633dbeea9e5f80d2596298fe565300"
+      "sha256": "24d2285e185e6647adafe3abc3b047297af754d1e44b0dcbb20475d4190b07ff",
+      "bytes": 115525280,
+      "fingerprint": "f6634178f6b7ac6f48cf0d45c7135967ccc8a45e955e99700303f8f7126660e8"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45413438600,
+      "run": 45449520140,
       "attempt": 1,
-      "head_sha": "d1cdadaabf5087e54f6c2d2d8e95b37f8658a4af",
+      "head_sha": "65985f842e5e1bc459fcfb99e0c5b9a8b9162319",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1530,11 +1530,15 @@
         {
           "name": "0350-the-orphan-pass-stops-at-the-first-stale-gob-and-times-its-steps.patch",
           "sha256": "301922c5defa6ca1863d7887ca022d1e9237d19c77c99eb566bd0fcc9f769e58"
+        },
+        {
+          "name": "0351-games-keep-their-own-speed-the-no-lock-guard-and-the-trial-are-off-and-the-fallback-is-opt-in.patch",
+          "sha256": "408b591ee338ec53577954dcf66ecff935e7ce28ee2e7f47e3e1aeee86c362c1"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "82b7813bbf0bd34c78cc86888eb5688b77b5645d78af94ed565400f1d66c4401",
-        "NS2Pro.framework.zip": "c8b1b7cd38fcba069f984f7e9cc991dbb3b828ebae0c376ae8eccc8b7f6487f0"
+        "S2ArmEngine.framework.zip": "60a514aa97776369afa89f1afd10d50fc5298c3126675b153fbd8be45d48d790",
+        "NS2Pro.framework.zip": "bba58b2ab5fc059184229a8a3fe3cecf8c2e63b4575f3abf1fdf80035ae481f6"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
