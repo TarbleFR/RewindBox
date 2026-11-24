@@ -24,8 +24,10 @@ l'IPA 827. Celle-ci la remplace ; elle est livrée dans l'IPA 828.*
   ligne de `LIBRETRO_CORES.txt` et `identity.json` ; tous les autres fichiers sont identiques octet pour octet.
 - **Vérifié sur l'archive téléchargée** : empreinte, contrat d'options sur les 35 binaires,
   `libretro_source_collections.verify`, DeSmuME arm64 iOS 14.0 avec `RenderFinishLines` et les nouvelles mesures.
-- **App et pont** : inchangés depuis la 830. Livraison demandée par le mainteneur : IPA 831 sur la 830 avec ce
-  seul changement.
+- **App et pont** : inchangés depuis la 830.
+- **Livrée dans l'IPA 831** (à la demande du mainteneur, la 830 avec ce seul changement) : run
+  [45363528917](https://github.com/TarbleFR/RewindBox/actions/runs/45363528917), IPA `baf05722…28c9`
+  (335 038 758 octets), reçu [docs/evidence/rewind831/delivery.json](evidence/rewind831/delivery.json).
 
 ## Après la 829 : suréchantillonnage 3D, mesures, envoi RGB565, cause du JIT absent
 
