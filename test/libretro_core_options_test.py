@@ -75,6 +75,7 @@ CODE_GENERATION = re.compile(r'dynarec|jit|recompil|cpucore|cpu_core|cpu_mode|(?
 # became the "Resolution and picture" page, fed by the RESOLUTION
 # declarations below, which the binaries must hold in the same way.
 CURATED = {
+    ('desmume', 'desmume_rb_3d_supersampling'),
     ('azahar', 'citra_region_value'),
     ('azahar', 'citra_language_value'),
     ('azahar', 'citra_is_new_3ds'),
@@ -130,6 +131,7 @@ LOCKED = {
 # offers, which the catalog must spell the same way (a misspelt choice is
 # silently ignored by the host, like a locked value).
 CURATED_CHOICES = {
+    ('desmume', 'desmume_rb_3d_supersampling'): ['disabled', '2x'],
     ('azahar', 'citra_region_value'): ['Auto', 'Japan', 'USA', 'Europe', 'Australia', 'China', 'Korea', 'Taiwan'],
     ('azahar', 'citra_language_value'): ['English', 'Japanese', 'French', 'Spanish', 'German', 'Italian', 'Dutch',
                                          'Portuguese', 'Russian', 'Korean', 'Traditional Chinese',

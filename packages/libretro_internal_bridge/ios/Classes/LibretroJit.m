@@ -27,11 +27,30 @@ BOOL LibretroJitUsableByCores(void) {
 }
 
 BOOL LibretroJitInstallIntoLibrary(void *library) {
-  if (library == NULL || !libretro_jit_arena_ready()) return NO;
+  return LibretroJitInstallIntoLibraryWithReason(library, NULL);
+}
+
+BOOL LibretroJitInstallIntoLibraryWithReason(void *library, NSString **reason) {
+  if (reason != NULL) *reason = nil;
+  if (library == NULL) {
+    if (reason != NULL) *reason = @"RB_JIT_CORE_SYMBOL: no core library";
+    return NO;
+  }
+  if (!libretro_jit_arena_ready()) {
+    if (reason != NULL) *reason = @"RB_JIT_ARENA_NOT_READY: no proven code arena for this launch";
+    return NO;
+  }
   RewindBoxLibretroJitInstall install =
       (RewindBoxLibretroJitInstall)dlsym(library, REWINDBOX_LIBRETRO_JIT_INSTALL_SYMBOL);
-  if (install == NULL) return NO;
-  if (install(libretro_jit_arena_interface()) != 0) return NO;
+  if (install == NULL) {
+    if (reason != NULL) *reason = @"RB_JIT_CORE_SYMBOL: the core does not export " REWINDBOX_LIBRETRO_JIT_INSTALL_SYMBOL;
+    return NO;
+  }
+  const int answer = install(libretro_jit_arena_interface());
+  if (answer != 0) {
+    if (reason != NULL) *reason = [NSString stringWithFormat:@"RB_JIT_CORE_REFUSED: install=%d", answer];
+    return NO;
+  }
   libretro_jit_arena_note_installed();
   return YES;
 }

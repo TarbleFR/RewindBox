@@ -29,6 +29,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// YES for a core RewindBox builds with its JIT interface: a session that
 /// starts without it says so once (jitInterpreterNotice).
 @property(nonatomic, assign) BOOL jitExpected;
+/// For such a core: the outcome of the libretro JIT preparation that ran
+/// before this launch, as RewindBox's Flutter side saw it ("code: message",
+/// e.g. "RB_JIT_VPN localdevvpn_route_probe_timeout: ..."); empty when it
+/// succeeded or never ran. Journaled when the core starts without its JIT.
+@property(nonatomic, copy) NSString *jitPreparation;
 /// Curated, translated settings: [{key, label, values: [{value, label}]}].
 @property(nonatomic, copy) NSArray<NSDictionary *> *coreSettings;
 @property(nonatomic, assign) BOOL achievementsAllowed;

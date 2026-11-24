@@ -1291,17 +1291,27 @@ static BOOL LibretroExtendedControllerConnected(void) {
   // the measured legacy one (LibretroJitUsableByCores).
   LibretroSessionJournal *jitJournal = _journal;
   NSDictionary<NSString *, NSString *> *jitOverrides = configuration.jitOverrides;
+  const BOOL jitExpected = configuration.jitExpected;
+  NSString *jitPreparation = configuration.jitPreparation ?: @"";
   __weak LibretroCoreHost *weakHost = _host;
   _host.libraryOpened = ^BOOL(void *library, BOOL legacyCapable) {
-    if (LibretroJitInstallIntoLibrary(library)) {
+    NSString *reason = nil;
+    if (LibretroJitInstallIntoLibraryWithReason(library, &reason)) {
       weakHost.initialSessionOverrides = jitOverrides.count > 0 ? jitOverrides : nil;
       [jitJournal note:[@"load: JIT interface 1 installed; " stringByAppendingString:LibretroJitArenaReport()]];
       return YES;
     }
     if (libretro_jit_arena_ready()) {
-      [jitJournal note:[@"load: JIT arena not taken by this core, released; "
-                           stringByAppendingString:LibretroJitArenaReport()]];
+      [jitJournal note:[NSString stringWithFormat:@"load: JIT arena not taken by this core (%@), released; %@",
+                                                  reason ?: @"", LibretroJitArenaReport()]];
       libretro_jit_arena_release();
+    } else if (jitExpected) {
+      // A core built with RewindBox's JIT interface starts on its interpreter: why, never silently. The
+      // preparation ran (or stopped) before this launch on the Flutter side; its outcome comes with it.
+      [jitJournal note:[NSString stringWithFormat:@"load: JIT interface not installed: %@; preparation: %@; %@",
+                                                  reason ?: @"unknown",
+                                                  jitPreparation.length > 0 ? jitPreparation : @"not reported",
+                                                  LibretroJitArenaReport()]];
     }
     return legacyCapable;
   };

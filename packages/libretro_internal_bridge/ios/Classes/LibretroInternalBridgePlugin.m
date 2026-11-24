@@ -721,6 +721,8 @@ static NSDictionary<NSString *, id> *Failure(NSString *code, NSString *message) 
   configuration.jitOverrides =
       [arguments[@"jitOverrides"] isKindOfClass:NSDictionary.class] ? arguments[@"jitOverrides"] : @{};
   configuration.jitExpected = [arguments[@"jitExpected"] boolValue];
+  configuration.jitPreparation =
+      [arguments[@"jitPreparation"] isKindOfClass:NSString.class] ? arguments[@"jitPreparation"] : @"";
   configuration.coreSettings =
       [arguments[@"coreSettings"] isKindOfClass:NSArray.class] ? arguments[@"coreSettings"] : @[];
   configuration.achievementsAllowed = [arguments[@"achievementsAllowed"] boolValue];
