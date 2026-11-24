@@ -109,6 +109,24 @@ s'était déjà terminée sans retour au menu sur une IPA d'avant le JIT de DeSm
 - **Images qui changent** pour la prochaine IPA : `libretro_internal_bridge`, `App`, et les deux Beetle PSX de la
   nouvelle collection ci-dessous.
 
+## 3DS à 10× : plus aucune copie de l'image (Azahar et app)
+
+Essai du mainteneur : 7× tient (« ça fonctionne super bien malgré quelques chutes très rares »), état thermique 1
+seulement ; demande suivante : 10× à 60 images/s constantes. À 10×, une image fait 4000×4800 (76,8 Mo) ; la voie
+« copie GPU » la copiait encore deux fois (image → tampon côté Vulkan, tampon → texture côté Metal), environ
+18 Go/s de mémoire à 60 images/s.
+
+- **Azahar** (`native/azahar`, `libretro_vk.{cpp,h}`) : une image de sortie par image du pool au lieu d'une seule
+  partagée, choisie par l'index de synchronisation du frontend.
+- **App** (`LibretroVulkanRenderer`, `LibretroSession`) : quand le cœur garde une image par index de synchronisation
+  (vu pendant 8 images), son image est prêtée telle quelle au présentateur (sa `MTLTexture` par
+  `vkGetMTLTextureMVK`, exporté par MoltenVK 1.2.8) : aucune copie. `wait_sync_index` attend que Metal l'ait rendue
+  avant que le cœur redessine dedans. Autre format, autre famille de file ou cœur qui n'alterne pas : copie GPU comme
+  avant. Journal : `vulkan: frames reach Metal directly, no copy (4000x4800)`.
+- **Il faut les deux** : l'app seule avec l'Azahar de `416333ff` reste sur la copie GPU (une seule image).
+- **Limite honnête** : sans les copies, le coût restant à 10× est le rendu 3D lui-même (100 fois les pixels
+  natifs) ; 60 images/s constantes dépendent alors du GPU et de la chaleur de l'iPhone, non mesurés.
+
 ## Depuis la 828 : 3DS à 7×, image Vulkan copiée par le GPU (app seulement)
 
 Journal du mainteneur (Mario Kart 7, Azahar, JIT actif) : 7× (images 2800×3360), état thermique 2 au bout de

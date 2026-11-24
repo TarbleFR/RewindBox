@@ -1,6 +1,6 @@
 # Azahar 2127.0-rc5 avec le JIT de RewindBox
 
-Correctif `rewindbox-jit.patch` (17 fichiers, +479/−66) appliqué à la source officielle 2127.0-rc5, révision `6f293a24`
+Correctif `rewindbox-jit.patch` (19 fichiers, +524/−114) appliqué à la source officielle 2127.0-rc5, révision `6f293a24`
 (tête de `master` au 21 novembre 2026).
 
 - **Source.** Archive « unified source » de la release, avec tous les sous-modules, vérifiée par son SHA-256 :
@@ -69,6 +69,12 @@ Azahar 2127.0-alpha1 ne se chargent donc plus. Les sauvegardes internes des jeux
 - **JIT de shaders.** Copie dans `wptr()`. Région pleine : l'interpréteur prend les shaders suivants, jamais
   d'éviction au milieu d'un dessin.
 - **`libretro.osx.def`.** Exporte `_rewindbox_libretro_jit_install`.
+- **`libretro_vk.{cpp,h}` : une image de sortie par image du pool.** En amont, les deux `Frame` du pool partagent une
+  seule image de sortie (« All frames use the same output texture ») : le frontend devait copier chaque image avant
+  que la suivante soit dessinée dans la même. Chaque `Frame` a maintenant la sienne (`CreateFrameImage`, détruite
+  avec le pool ; `view_info` donne sa description à `retro_vulkan_image`), choisie par l'index de synchronisation
+  du frontend comme avant. Le frontend de RewindBox montre ainsi l'image N pendant que N+1 est dessinée, sans copie
+  (`LibretroVulkanRenderer`, remise directe). Mémoire : une image de plus (76,8 Mio à 10×).
 
 ## Arène demandée
 
@@ -94,6 +100,9 @@ Vérifié :
 - compilation iOS de la même version du correctif sur alpha1 (run 45182286491) ;
 - banc hôte Linux de l'arène et de la séparation écriture/exécution d'oaknut (sur alpha1) ;
 - assemblage du spin-lock pour arm64-apple-ios14.0.
+
+Vérifié pour les images par trame : vérification syntaxique de `libretro_vk.cpp` (clang 18, C++20, mêmes définitions
+qu'avant le changement, qui passent aussi sur l'original).
 
 Pas encore vérifié :
 - la compilation iOS sur rc5 (demandée au job `source-cores`) ;
