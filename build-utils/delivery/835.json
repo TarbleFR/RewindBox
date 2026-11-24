@@ -336,7 +336,13 @@
         "note": "Reviewed entry of the libretro collection LibretroCores-e5378e84 (run 45425936501, artifact 14939297496: only desmume_libretro and azahar_libretro differ from 14913662229) in COLLECTIONS, handoff note"
       }
     ],
-    "sourceOnly": [],
+    "sourceOnly": [
+      {
+        "commit": "3a18f778c1a732240b623b9b86fd4618437899ae",
+        "note": "Merge bringing concurrent work outside this IPA: the MoltenVK tenth part for MeloNX (f0d7a051b: one Metal render pipeline state for pipelines whose Metal descriptors are identical, its patch, rebuild record, cache-key test and workflow), not built by this delivery, which keeps the 834's MeloNX Core; and the Azahar session's reviewed entry of the same collection 14939297496 (2edf413e8, identical data to b5f2752e, handoff lines)",
+        "targetBuild": 836
+      }
+    ],
     "promotedCommits": []
   },
   "images": {
