@@ -454,6 +454,18 @@ Test pur de la machine d'état vert (gcc, clang). Non mesuré : entrée et sorti
 tenue réelle des 33,3 ms, vitesse du jeu si sa logique suit les images, réaction d'une résolution
 dynamique propre au jeu.
 
+**Réglages d'essai restés dans env.txt.** Les journaux de Zelda, de Fire Emblem et l'un des deux de
+Mario Kart World ont tourné avec `DM_RT`, `S2A_RB_ENC_RT` et `S2A_GUEST_QOS` venus de
+`Documents/env.txt` (« DM_RT=0: the present thread gets no time-constraint policy »). Le fil qui
+présente y perd sa priorité temps réel ; Fire Emblem et Zelda tournaient alors surtout sur les
+cœurs efficaces (2 à 24 % du temps sur les cœurs performance). Pour le prochain essai : retirer
+ces trois lignes, pour mesurer les réglages par défaut.
+
+**Fire Emblem, essai sans code possible** : `S2A_RB_PROMOTION_PACING=0` et `S2A_RB_LINK_GAME30=1`
+dans env.txt gardent le lien à 60 Hz avec un maintien de 33,3 ms. Une image en retard sortirait à
+50 ms au lieu de 66,7, et le lien à 30 Hz n'a livré que 19 à 29 rappels par seconde dans 9 relevés
+sur 24. Cela change l'affichage d'un jeu à 30 par conception : à décider après l'essai.
+
 **Autre cause d'à-coups trouvée** : 8 images après chaque frontière de 300, la passe des textures
 partagées sans référence (`alias_orphan_pass`) tourne sur le fil qui présente : 33,9 ms en médiane
 (82,8 au pire) pour Mario Kart World, 11,3 pour Fire Emblem, 3,3 pour Zelda. Une image longue suit
