@@ -1,0 +1,105 @@
+{
+ "total_count": 5,
+ "jobs": [
+  {
+   "id": 138258138254,
+   "run_id": 45332507027,
+   "name": "preflight",
+   "workflow_name": "RewindBox standard delivery - f668632558316d29b5f9897ae22feda1fd48d919",
+   "status": "completed",
+   "conclusion": "success",
+   "head_branch": "Claude",
+   "head_sha": "f668632558316d29b5f9897ae22feda1fd48d919",
+   "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/45332507027/job/138258138254",
+   "run_attempt": 3,
+   "runner_id": 1000015836,
+   "runner_name": "GitHub Actions 1000015836",
+   "runner_group_name": "GitHub Actions",
+   "labels": [
+    "ubuntu-latest"
+   ],
+   "created_at": "2026-11-24T06:15:25Z",
+   "started_at": "2026-11-24T06:15:26Z",
+   "completed_at": "2026-11-24T06:17:31Z"
+  },
+  {
+   "id": 138258993398,
+   "run_id": 45332507027,
+   "name": "application",
+   "workflow_name": "RewindBox standard delivery - f668632558316d29b5f9897ae22feda1fd48d919",
+   "status": "completed",
+   "conclusion": "success",
+   "head_branch": "Claude",
+   "head_sha": "f668632558316d29b5f9897ae22feda1fd48d919",
+   "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/45332507027/job/138258993398",
+   "run_attempt": 3,
+   "runner_id": 1000015837,
+   "runner_name": "GitHub Actions 1000015837",
+   "runner_group_name": "GitHub Actions",
+   "labels": [
+    "macos-15"
+   ],
+   "created_at": "2026-11-24T06:17:31Z",
+   "started_at": "2026-11-24T06:17:34Z",
+   "completed_at": "2026-11-24T06:39:30Z"
+  },
+  {
+   "id": 138258993471,
+   "run_id": 45332507027,
+   "name": "republish",
+   "workflow_name": "RewindBox standard delivery - f668632558316d29b5f9897ae22feda1fd48d919",
+   "status": "completed",
+   "conclusion": "success",
+   "head_branch": "Claude",
+   "head_sha": "f668632558316d29b5f9897ae22feda1fd48d919",
+   "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/45332507027/job/138258993471",
+   "run_attempt": 3,
+   "runner_id": 1000015838,
+   "runner_name": "GitHub Actions 1000015838",
+   "runner_group_name": "GitHub Actions",
+   "labels": [
+    "ubuntu-latest"
+   ],
+   "created_at": "2026-11-24T06:17:31Z",
+   "started_at": "2026-11-24T06:17:33Z",
+   "completed_at": "2026-11-24T06:20:15Z"
+  },
+  {
+   "id": 138258995017,
+   "run_id": 45332507027,
+   "name": "native",
+   "workflow_name": "RewindBox standard delivery - f668632558316d29b5f9897ae22feda1fd48d919",
+   "status": "completed",
+   "conclusion": "skipped",
+   "head_branch": "Claude",
+   "head_sha": "f668632558316d29b5f9897ae22feda1fd48d919",
+   "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/45332507027/job/138258995017",
+   "run_attempt": 3,
+   "labels": [
+    "macos-15"
+   ],
+   "created_at": "2026-11-24T06:17:31Z",
+   "started_at": "2026-11-24T06:17:31Z",
+   "completed_at": "2026-11-24T06:17:31Z"
+  },
+  {
+   "id": 138258996013,
+   "run_id": 45332507027,
+   "name": "flutter",
+   "workflow_name": "RewindBox standard delivery - f668632558316d29b5f9897ae22feda1fd48d919",
+   "status": "completed",
+   "conclusion": "skipped",
+   "head_branch": "Claude",
+   "head_sha": "f668632558316d29b5f9897ae22feda1fd48d919",
+   "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/45332507027/job/138258996013",
+   "run_attempt": 3,
+   "labels": [
+    "ubuntu-latest"
+   ],
+   "created_at": "2026-11-24T06:17:31Z",
+   "started_at": "2026-11-24T06:17:31Z",
+   "completed_at": "2026-11-24T06:17:31Z"
+  }
+ ],
+ "note": "steps omitted from this copy; job-level fields as list_workflow_jobs (filter latest) returned them"
+}

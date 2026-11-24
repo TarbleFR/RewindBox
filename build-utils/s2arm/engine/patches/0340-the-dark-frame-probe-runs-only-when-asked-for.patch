@@ -1,0 +1,42 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 799a6c2..16ad30b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4334,7 +4334,7 @@ static void rb_bg_write(const char *path, char *buf, size_t len) {
+ //   1,400 texels; the replaying thread takes a lock for a few stores at each texture made or dropped and each new scene size, and a few loads at each pass's start. The table
+ //   of new textures (rb_fresh_add) goes from 32 to RB_FRESH places: a size step makes up to 28 textures and a texture stays noted for 3 frames, so two steps close together
+ //   can fill 32 places and the count of samplings before a write then misses some, which no line said; the window line now counts the textures left out (fresh_full). It also
+-//   gives the GPU span of the present command buffers (present_cb_us, mean / max), the probe's encoder included. Default on for every title. S2A_RB_DARK_PROBE=0: as before
++//   gives the GPU span of the present command buffers (present_cb_us, mean / max), the probe's encoder included. Default on for every title until patch 0340, which made it opt-in: S2A_RB_DARK_PROBE=1. Off: as before 0331
+ //   (no encoder, no buffer, no handler, no note, 32 places; the only line is the one that says so)
+ #include "rb_dark_probe.h"
+ static os_unfair_lock g_rb_dark_lk = OS_UNFAIR_LOCK_INIT;   // a leaf lock: only the header's functions run under it
+@@ -4346,11 +4346,11 @@ static int rb_dark_on(void) {
+     int on = atomic_load_explicit(&v, memory_order_relaxed);
+     if (on < 0) {
+         const char *e = getenv("S2A_RB_DARK_PROBE");
+-        on = !(e && !strcmp(e, "0"));
++        on = rb_dark_probe_asked(e);   // RewindBox (patch 0340): opt-in (rb_dark_probe.h)
+         if (atomic_exchange(&v, on) < 0)   // the line once, whoever reads the switch first
+             MLOG("[rb-dark] probe %s (S2A_RB_DARK_PROBE; patch 0331): each Metal 4 present reads %d rows of the presented image back without waiting, an image under %d%% of the median "
+                  "of the last %d that were not dark is dark, up to %d dark images in a row entered from and left to %d%% of that level are a dip, written with the age of the scene's size "
+-                 "and the render-target textures made, dropped and sampled before written in its frame and the %d before (%d dips and %d other runs in full per %d frames); S2A_RB_DARK_PROBE=0: as before",
++                 "and the render-target textures made, dropped and sampled before written in its frame and the %d before (%d dips and %d other runs in full per %d frames); off unless S2A_RB_DARK_PROBE=1 (patch 0340)",
+                  on ? "on" : "off", RB_DARK_ROWS, RB_DARK_PCT, RB_DARK_HIST, RB_DARK_DIP_MAX, RB_DARK_BACK_PCT, RB_DARK_BACK, RB_DARK_SAY_DIPS, RB_DARK_SAY_OTHER, RB_DARK_WINDOW);
+     }
+     return on;
+diff --git a/graphics/nvn/gfx/nvn/rb_dark_probe.h b/graphics/nvn/gfx/nvn/rb_dark_probe.h
+index cdbf996..25e9fbd 100644
+--- a/graphics/nvn/gfx/nvn/rb_dark_probe.h
++++ b/graphics/nvn/gfx/nvn/rb_dark_probe.h
+@@ -12,6 +12,10 @@
+ //     a cut   at its RB_DARK_ADOPT-th image: the dark picture is the level from there on (a hard cut to a dark scene, a fade out, a loading screen, a tunnel).
+ //   Each run gives one event when it ends (a cut: when it is taken as the level), with its length
+ #pragma once
++// RewindBox (patch 0340): the probe runs only when asked for (S2A_RB_DARK_PROBE=1). It was on for every title: one more compute encoder with two queue barriers in every
++//   present command buffer, a feedback handler reading some 1,400 texels and a lock at each texture made or dropped, to find the black flashes of IPA 827. It is a
++//   measurement, and the present is on the path of every frame: S2A_RB_DARK_PROBE=1 in env.txt turns it on for the session that should record a flash.
++static inline int rb_dark_probe_asked(const char *value) { return value && value[0] == '1' && !value[1]; }
+ #include <stdint.h>
+ #include <stdlib.h>
+ #include <string.h>

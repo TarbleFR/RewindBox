@@ -1,0 +1,59 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_rscale.inc b/graphics/nvn/gfx/nvn/nvn_rscale.inc
+index 6b4f9e4..b4196de 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rscale.inc
++++ b/graphics/nvn/gfx/nvn/nvn_rscale.inc
+@@ -37,6 +37,15 @@ static uint64_t rb_fair_sample_at, rb_fair_cool_since;
+ //   targets keep the game's own size, as before the first Fair state. g_rb_rs_live counts the NvRsInfo records in state RS_SCALED (made in rs_set_info_at, gone in
+ //   -dealloc, on any thread); g_rb_rs_held the Fair reductions that ended still reduced. S2A_RB_RS_RETIRE=0: as before (the counts are kept, nothing reads them).
+ #include "rb_rs_retire.h"
++// RewindBox (patch 0332): the Fair scale is off unless asked for. IPA 827, Mario Kart World, iPhone A18 Pro, second session: the 0.85 scale armed at the first Fair state
++//   (frame 1440) and rs_on() then stayed true; every storage it reduced in a race (17 at the race start, 1604x900 to 1248x700 as the game's own resolution stepped down)
++//   was restored to the game's size at once, for a vertex-stage read of the depth, an inexact fragment read or a sibling attachment that may not be reduced (the RG8
++//   target 0xd is not flagged compressible: 不缩), so no race pass was ever drawn smaller. Meanwhile each texture binding of a full argument walk went through
++//   rs_bind_check (rs_root's parentTexture messages, objc_getAssociatedObject, retain and release), each fragment block through rs_support, each pass through rs_rts,
++//   and the submit thread's own cost per draw rose from 24.7-24.9 k instructions before the first Fair state to 28.8-36.9 k after it (the scale explains 1 to 3.5 k of
++//   that by reading the code, the rest is not attributed). The game's own dynamic resolution already holds the race at its 1248x700 floor. Off, rb_fair_seen is never
++//   set, so rs_on() is false for this title (rb_drs_enabled() is on for another title only, S2A_RES_SCALE is unset) and every rs_* entry returns at its first line, as
++//   before patch 0277. S2A_RB_FAIR_SCALE=0.85 (any factor from 0.5 below 1) arms it again, with the retire rule of patch 0321.
+ static _Atomic int g_rb_rs_live;
+ static _Atomic uint64_t g_rb_rs_held;
+ static rb_rs_retire g_rb_rs_retire;   // the submit thread's (rs_rescale_to, rs_rts, rb_fair_sample); cleared with the session
+@@ -71,9 +80,12 @@ static void rb_fair_sample(void) {
+     if (!nvn_rb_thermal_scope()) return;
+     if (rb_fair_factor == 0.) {
+         const char *value = getenv("S2A_RB_FAIR_SCALE");
+-        char *end = NULL;
+-        double v = value ? strtod(value,&end) : 0.85;
+-        rb_fair_factor = ((!value || (end != value && !*end)) && v >= 0.5 && v < 1.) ? v : 1.;
++        rb_fair_factor = rb_fair_scale_factor(value);   // RewindBox (patch 0332): off unless S2A_RB_FAIR_SCALE names a factor (rb_rs_retire.h)
++        static int said;
++        if (!said++) {
++            if (rb_fair_factor < 1.) MLOG("[rb-fair-scale] armed by S2A_RB_FAIR_SCALE=%s (patch 0332): render targets drawn at %.3f in Fair", value, rb_fair_factor);
++            else MLOG("[rb-fair-scale] off (patch 0332; S2A_RB_FAIR_SCALE=%s): the Fair scale reduces nothing and no longer keeps rs_on() true (S2A_RES_SCALE, S2A_RB_DRS and the shadow raster are unaffected); S2A_RB_FAIR_SCALE=0.85 arms it as in IPA 829", value ? value : "unset");
++        }
+     }
+     if (rb_fair_factor >= 1.) return;
+     if (rb_fair_retire()) return;   // RewindBox (patch 0321)
+diff --git a/graphics/nvn/gfx/nvn/rb_rs_retire.h b/graphics/nvn/gfx/nvn/rb_rs_retire.h
+index cab19c2..73c9133 100644
+--- a/graphics/nvn/gfx/nvn/rb_rs_retire.h
++++ b/graphics/nvn/gfx/nvn/rb_rs_retire.h
+@@ -11,8 +11,18 @@
+ //   S2A_RB_RS_RETIRE=0: as before (the step always answers 0).
+ #pragma once
+ #include <stdint.h>
++#include <stdlib.h>
+ #include <string.h>
+ 
++// RewindBox (patch 0332): the factor the Fair scale draws at, from S2A_RB_FAIR_SCALE. Unset, empty, malformed, below 0.5 or 1 and above: 1, the scale stays off.
++//   (Up to patch 0331 an unset value meant 0.85.)
++static inline double rb_fair_scale_factor(const char *value) {
++    if (!value || !*value) return 1.;
++    char *end = NULL;
++    double v = strtod(value, &end);
++    return end != value && !*end && v >= 0.5 && v < 1. ? v : 1.;
++}
++
+ enum { RB_RS_RETIRE_RUN = 8 };
+ typedef struct {
+     uint32_t reduced;     // storages the Fair scale reduced this session (the log line)

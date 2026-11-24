@@ -1,0 +1,37 @@
+diff --git a/graphics/nvn/gfx/nvn/rb_gov_plan.h b/graphics/nvn/gfx/nvn/rb_gov_plan.h
+index cdd0f05..8084ba2 100644
+--- a/graphics/nvn/gfx/nvn/rb_gov_plan.h
++++ b/graphics/nvn/gfx/nvn/rb_gov_plan.h
+@@ -30,6 +30,14 @@ static inline int rb_gov_stressed(rb_gov_stress_state *state, uint64_t now_ns,
+     return state->active;
+ }
+ 
++// RewindBox (patch 0336): the process's compressed memory raises the tier only when asked for (S2A_RB_GOV_COMPRESSED=1). Patch 0246 made more than 512 MiB of it a pressure
++//   reading (WARN, 96 MiB, optional reads held). Mario Kart World on the iPhone A18 Pro starts with 559 MiB compressed and keeps 875 to 1049 MiB through every race, so
++//   the governor sat at tier 1 from before the first frame to the end in both IPA 827 sessions: prefetch 0, upload 18 MiB, textures 54 MiB, and every read-ahead written
++//   since (registration, pool neighbours, cohorts, the bound-texture lane of 0329) stayed shut, while the real room under the process limit was 2555 to 2747 MiB in the races.
++//   The texture pages a race start needed were then read one first upload at a time on the submit thread (0.29 to 0.44 s at the switch frame, then 2.0 to 3.4 ms a frame
++//   for 100 to 200 frames). Compressed pages are cold memory, not a shortage: the tiers from the real room (WARN at 2048 MiB or less, CRITICAL at 768 MiB or less) and the
++//   system's memory-pressure events stay. The figure is still sampled and logged.
++static inline int rb_gov_compressed_asked(const char *value) { return value && value[0] == '1' && !value[1]; }
+ static inline unsigned rb_gov_ceiling(unsigned tier, int stressed) {
+     if (tier == RB_GOV_CRITICAL) return 32;
+     if (stressed) return 96;
+diff --git a/graphics/nvn/gfx/nvn/rb_memory_governor.inc b/graphics/nvn/gfx/nvn/rb_memory_governor.inc
+index c850344..81b4810 100644
+--- a/graphics/nvn/gfx/nvn/rb_memory_governor.inc
++++ b/graphics/nvn/gfx/nvn/rb_memory_governor.inc
+@@ -103,6 +103,13 @@ static void rb_gov_sample(unsigned long event) {
+     uint64_t compressed = atomic_load_explicit(&rb_gov_compressed,memory_order_acquire);
+     int was_stressed = rb_gov_stress.active;
+     int stressed = rb_gov_stressed(&rb_gov_stress,now,compressed);
++    static int compressed_asked = -1;   // RewindBox (patch 0336): rb_gov_mu
++    if (compressed_asked < 0) {
++        compressed_asked = rb_gov_compressed_asked(getenv("S2A_RB_GOV_COMPRESSED"));
++        MLOG("[RB-MEM-GOV] compressed memory %s (S2A_RB_GOV_COMPRESSED; patch 0336): the tier follows the room under the process limit and the system's pressure events",
++             compressed_asked ? "raises the tier above 512 MiB, as in IPA 829" : "is logged, not a tier input");
++    }
++    if (!compressed_asked) { was_stressed = 0; stressed = 0; }
+ #else
+     uint64_t compressed = UINT64_MAX;
+     int was_stressed = 0, stressed = 0;

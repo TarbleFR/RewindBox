@@ -13,7 +13,27 @@ l'IPA 827. Celle-ci la remplace ; elle est livrée dans l'IPA 828.*
 
 - **Cœur** `native/desmume` (21 fichiers) : option `desmume_rb_3d_supersampling` (3D au double puis moyennée,
   jusqu'à ×5), lignes `[rb-perf]`, arène de 64 Mio (`jitArenaBytes`). Option désactivée : images identiques au cœur
-  de la 829. À compiler par la route source-cores, puis à inscrire dans `COLLECTIONS`.
+  de la 829.
+- **Collection compilée** : run [45304481777](https://github.com/TarbleFR/RewindBox/actions/runs/45304481777)
+  (commit `67ce2d3b`), artefact `LibretroCores-67ce2d3b2dc6c479dbebf7da73d1f48a64f5f61b`, id 14881770592,
+  56 295 241 octets, SHA-256 `9b5a949081f9138fc4d7a49b0b07d056da7f5932e18c2cb758c22c05d2027edc`, disponible jusqu'au
+  8 décembre. Entrée ajoutée à `COLLECTIONS`. **C'est la collection à livrer** à la place de `ccd5f047` (id
+  14872740403, celle de la 829).
+- **Ce qui change** par rapport à `ccd5f047` : `desmume_libretro` seul, 4 666 752 octets (au lieu de 4 666 008),
+  SHA-256 `09fd865a…01354`, et son `jitArenaBytes` dans `identity.json`. Azahar (`122f91a2…`), Beetle PSX
+  (`743ea699…`) et Beetle PSX HW (`fbe2270f…`) ont les mêmes empreintes ; le constructeur annonce 232 autres
+  fichiers inchangés.
+- **Vérifié** : contrôles du constructeur dans le run (épingles, fichiers d'origine, Mach-O iOS 14.0, exports,
+  chaînes attendues dont `desmume_rb_3d_supersampling` et `[rb-perf] desmume frames=%llu`, imports interdits) ;
+  patch appliqué sur la source épinglée, identique à l'arbre mesuré sur le banc ; collection téléchargée (empreinte
+  de l'archive vérifiée) et décompressée : `identity.json` (DeSmuME `jitInterface` 1, `jitArenaBytes` 67108864),
+  contrat d'options sur les 35 binaires (`libretro_core_options_test.py --cores`, réglage
+  `desmume_rb_3d_supersampling` compris), `libretro_source_collections.verify` (4 cœurs compilés, interface JIT et
+  export d'installation), DeSmuME arm64 iOS 14.0 ; pont compilé pour iPhone (run
+  [45304481770](https://github.com/TarbleFR/RewindBox/actions/runs/45304481770), job `native`).
+- **Manifeste de la livraison qui l'adopte** : `components.libretro.origin` vers cet artefact ; `images.mustChange` :
+  `Frameworks/desmume_libretro.framework/desmume_libretro`, `libretro_internal_bridge`, `App` ; Azahar et les deux
+  Beetle PSX restent retenus.
 - **App** : `libretro_internal_bridge` (images RGB565 envoyées en `B5G6R5Unorm` sans conversion ; ligne
   `load: JIT interface not installed: …` avec la cause), `App` (préparation du JIT qui rend sa cause, réglage
   « Suréchantillonnage 3D » de DeSmuME en douze langues).

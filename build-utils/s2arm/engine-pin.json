@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "e3f827591be74e97b71d14f16e95b9add3b4bfb0262ffa50f969ac7a19d4af11",
+  "packagedFingerprint": "03d7ec06cf4b07f50d1e90a56bedf5b6a13dc8fce65b96a392dea3b7ffd7bc85",
   "producers": {
     "engine": {
-      "run": 45281444784,
+      "run": 45329221310,
       "attempt": 1,
-      "artifact": 14871615611,
-      "name": "s2arm-engine-framework-3d66c1fb1f7a67bdbed7471b8f2bbb42e004a838",
-      "bytes": 25291844,
-      "sha256": "c717e153da979b1d7552414e9caa3342ddb6415bf0493e21a9fa68538db5840b",
-      "headSha": "3d66c1fb1f7a67bdbed7471b8f2bbb42e004a838",
+      "artifact": 14892675111,
+      "name": "s2arm-engine-framework-735265b14a97a9b127cc0dcd1b4a25d5cd536e5a",
+      "bytes": 25423879,
+      "sha256": "0ec246b826fba450a002ea91c3947f407211db10c00b34ffeda7410528ff04a2",
+      "headSha": "735265b14a97a9b127cc0dcd1b4a25d5cd536e5a",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-23T22:57:56Z",
+      "expiresAt": "2026-12-24T05:11:03Z",
       "members": {
-        "S2ArmEngine.framework.zip": "21238c8df44579b11581d215d0406c78c8a53bc4e0f53db0d34494695081714b",
-        "NS2Pro.framework.zip": "4b7747f2ac67ee189a30ffd6c29129f5f50dbcc64a2233038f88364fb4c10079"
+        "S2ArmEngine.framework.zip": "95bca83e791949b927c381316561951ff50f4235083337c33196bc6ffa32fee4",
+        "NS2Pro.framework.zip": "b49147dc9f5a7bb3b69b8249e20521c25e790f64cc411b0f0ddcb4e157e2dd38"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "c717e153da979b1d7552414e9caa3342ddb6415bf0493e21a9fa68538db5840b",
+    "engine": "0ec246b826fba450a002ea91c3947f407211db10c00b34ffeda7410528ff04a2",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "6fc0c4ca01a568e2b006bd6162c365c4152e47f9e81459b9d05fddb4a6a821c8",
-      "bytes": 115210608,
-      "fingerprint": "e3f827591be74e97b71d14f16e95b9add3b4bfb0262ffa50f969ac7a19d4af11"
+      "sha256": "11bb0d8b29a690481f4559e54a6d8ba9829ea02cae3808211628a257fd8a79af",
+      "bytes": 115450896,
+      "fingerprint": "03d7ec06cf4b07f50d1e90a56bedf5b6a13dc8fce65b96a392dea3b7ffd7bc85"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45281444784,
+      "run": 45329221310,
       "attempt": 1,
-      "head_sha": "3d66c1fb1f7a67bdbed7471b8f2bbb42e004a838",
+      "head_sha": "735265b14a97a9b127cc0dcd1b4a25d5cd536e5a",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1462,11 +1462,43 @@
         {
           "name": "0331-log-dark-frame-dips-of-the-presented-image-with-scene-size-age-and-textures-remade.patch",
           "sha256": "92ffda2ca450406308006d83e56dfba27aaf73d7c0ba955fac24f52ad621950e"
+        },
+        {
+          "name": "0332-the-fair-thermal-scale-is-off-unless-asked-for.patch",
+          "sha256": "104dcd3e871171625c96d88336a410cf47825e4fde68268bede3f6b4713d4aa5"
+        },
+        {
+          "name": "0333-the-acquire-sync-waits-for-the-present-that-took-the-texture-off-screen-not-every-commit.patch",
+          "sha256": "d6247911d4972e7f245ee13ad8df04da13e505bcaa2a9797c107df5123a34798"
+        },
+        {
+          "name": "0334-build-the-translation-core-for-speed-on-ios.patch",
+          "sha256": "b5a0eb5fcd181a5686981dfa7d692ed6a53769255b746a0f03a21493a75a5cb0"
+        },
+        {
+          "name": "0335-thermal-guest-qos-and-idle-heuristics-run-only-when-asked-for.patch",
+          "sha256": "743e835ceacc16045b8dd20cca3829a2ed13fae7f35fa3d50e484b6446a38232"
+        },
+        {
+          "name": "0336-compressed-memory-no-longer-holds-the-memory-governor-at-tier-1.patch",
+          "sha256": "514c5949466a05cf3582038b16f7d7befa23493b5299ada9835730dc897783bf"
+        },
+        {
+          "name": "0337-one-wait-for-the-encode-thread-per-submit-call-not-per-piece.patch",
+          "sha256": "3b583858c25120bcda309c2657a2fdea9760827c7f4bf6d60012fd06999d2de6"
+        },
+        {
+          "name": "0339-thermal-dynamic-resolution-steps-run-only-when-asked-for.patch",
+          "sha256": "36e72703277834e83860f3da1ba6ffb2cd107eff5519b36442bffe1112eeaff2"
+        },
+        {
+          "name": "0340-the-dark-frame-probe-runs-only-when-asked-for.patch",
+          "sha256": "721ebdada24e664931af0a1d1ae61e8132696004e97a30624cfba30b27d3070a"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "21238c8df44579b11581d215d0406c78c8a53bc4e0f53db0d34494695081714b",
-        "NS2Pro.framework.zip": "4b7747f2ac67ee189a30ffd6c29129f5f50dbcc64a2233038f88364fb4c10079"
+        "S2ArmEngine.framework.zip": "95bca83e791949b927c381316561951ff50f4235083337c33196bc6ffa32fee4",
+        "NS2Pro.framework.zip": "b49147dc9f5a7bb3b69b8249e20521c25e790f64cc411b0f0ddcb4e157e2dd38"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
