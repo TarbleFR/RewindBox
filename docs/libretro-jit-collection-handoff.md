@@ -19,9 +19,21 @@ Animal Crossing ; ×10 tourne à 51 i/s (une image de 33 ms à chaque rendu 3D, 
   - mesures `defer` et `direct`.
 - **Pont** (`LibretroMetalPresenter`, `LibretroCoreHost`, `LibretroSession`) : deux tampons Metal partagés donnés
   à DeSmuME à tour de rôle, recopiés dans la texture par le GPU dans le lot de commandes de l'affichage.
-- **Collection** : run [45423842137](https://github.com/TarbleFR/RewindBox/actions/runs/45423842137) (commit
-  `665acae2`), en file d'attente au moment de l'écriture ; elle ira dans l'IPA 835 (la 833 et la 834 sont celles
-  d'autres sessions).
+- **Collections compilées** :
+  - DeSmuME seul : run [45423842137](https://github.com/TarbleFR/RewindBox/actions/runs/45423842137) (commit
+    `665acae2`), artefact 14938516602, 56 384 732 octets, SHA-256 `d3e34e48…a499` ; seul `desmume_libretro` change
+    (4 787 288 octets) ;
+  - DeSmuME et Azahar, **celle de l'IPA 835** (le mainteneur a demandé d'y prendre Azahar) : run
+    [45425936501](https://github.com/TarbleFR/RewindBox/actions/runs/45425936501) (commit `e5378e84`, qui porte
+    `665acae2` et l'Azahar `a92b2264`), artefact `LibretroCores-e5378e84a7b68a56830e6aaed04883857c54bca5`, id
+    14939297496, 56 385 054 octets, SHA-256 `fb281c1c5f69d422cf07b86d1b37da2a890dca846e551a4d0d7f66a9809bcb1c`,
+    disponible jusqu'au 8 décembre. Entrée ajoutée à `COLLECTIONS`.
+- **Ce qui change** par rapport à `f5857282` (832) : `desmume_libretro` (`741cf7b6…`, identique dans les deux
+  collections) et `azahar_libretro` (`a231d4bd…`), leurs lignes de `LIBRETRO_CORES.txt` et `identity.json` ; les deux
+  Beetle PSX et tous les autres fichiers sont identiques octet pour octet.
+- **Vérifié sur les archives téléchargées** : empreintes, contrat d'options sur les 35 binaires, DeSmuME et Azahar
+  arm64 iOS 14.0 avec l'interface JIT, correctifs `47b18a9e` (DeSmuME) et `64de19b5` (Azahar) inscrits dans
+  `identity.json`, chaînes attendues de DeSmuME (`desmume_rb_3d_async`, `defer`, `direct`).
 
 ## Après la 831 : capture de la 3D sans attente complète, composition 2D en NEON
 
