@@ -272,6 +272,18 @@ ouverture de passe, et 13 700 réveils par seconde de fils qui attendent en bouc
 - Objective-C et noyau : environ 20 % ;
 - anticipations (balayages de la liste de commandes) : 4 %.
 
+**Patch 0348** (`S2A_RB_GW_RANGES`, actif ; `=0` rétablit l'ancien chemin) :
+- une écriture GPU d'au moins 8 pages est gardée en une plage au lieu d'une entrée par page,
+  pendant la soumission puis jusqu'à la fin de son travail GPU ; les contrôles répondent pour
+  la plage comme pour ses pages ;
+- listes pleines (64 plages par soumission, 128 vivantes) : retour page par page, compté, jamais
+  perdu ;
+- réponses jamais moins prudentes que la réalité : un test pur compare l'ancien chemin, le
+  nouveau et une référence exacte sur des millions de requêtes (gcc et clang) ; le nouveau a moins
+  de faux « écrit » que l'ancienne table (collisions) ;
+- compteurs ajoutés à la ligne `[nvn] submit costs`. Gain non mesuré : le profil de Zelda est à
+  refaire sur iPhone.
+
 **Conséquence.** Pour Mario Kart World, l'ennemi est l'énergie : moins de travail par image retarde
 le plafond. Pour Zelda, il faut d'abord du temps GPU (shaders à accès mémoire brut, passes) et un fil
 de traduction plus léger. 0342 vise les deux ; la suite (ci-dessous) vise surtout Zelda.
