@@ -20,6 +20,13 @@ typedef void (^LibretroVulkanFrameHandler)(const void *pixels, unsigned width, u
 typedef void (^LibretroVulkanBufferHandler)(id<MTLBuffer> buffer, unsigned width, unsigned height, size_t bytesPerRow,
                                             MTLPixelFormat pixelFormat, dispatch_block_t released);
 
+/// Receives the core's own image of a finished frame (its MTLTexture, no
+/// copy at all). The receiver samples it and calls `released` exactly once,
+/// after that GPU work has completed (or at once when it gives up the
+/// frame): the core does not draw into that image again before.
+typedef void (^LibretroVulkanTextureHandler)(id<MTLTexture> texture, unsigned width, unsigned height,
+                                             dispatch_block_t released);
+
 /// Vulkan hardware context for libretro cores, through the MoltenVK
 /// framework embedded with the cores. Implements the libretro Vulkan render
 /// interface (v5) and context negotiation (v1 and v2).
@@ -53,6 +60,13 @@ typedef void (^LibretroVulkanBufferHandler)(id<MTLBuffer> buffer, unsigned width
 ///   CPU (replaceRegion on the emulation thread). The slot is lent until
 ///   the handler releases it: recording into it, or freeing its memory,
 ///   waits for that (2 s at most);
+/// - direct hand-off: a core that keeps one image per sync index (Azahar
+///   with native/azahar, one output image per frame) is seen doing so for
+///   8 frames; its image is then lent itself to `textureHandler` (its
+///   MTLTexture through vkGetMTLTextureMVK), nothing is copied, and
+///   wait_sync_index of that slot waits for the release before the core
+///   draws into it again. Another format, a queue family transfer or the
+///   pattern broken falls back to the copies at once;
 /// Formats: 8-bit R8G8B8A8 / B8G8R8A8 UNORM or SRGB are copied as raw bytes
 /// (MTLPixelFormatRGBA8Unorm / BGRA8Unorm); A2B10G10R10 -> RGB10A2Unorm;
 /// A2R10G10B10 -> BGR10A2Unorm; any other format is first blitted into an
@@ -85,6 +99,8 @@ typedef void (^LibretroVulkanBufferHandler)(id<MTLBuffer> buffer, unsigned width
 @property(nonatomic, copy, nullable) LibretroVulkanFrameHandler frameHandler;
 /// Preferred over `frameHandler` for a slot whose memory Metal can wrap.
 @property(nonatomic, copy, nullable) LibretroVulkanBufferHandler bufferHandler;
+/// Preferred over both when the core keeps one image per sync index.
+@property(nonatomic, copy, nullable) LibretroVulkanTextureHandler textureHandler;
 
 /// Instance, device, then hand-off resources (or the legacy surface and
 /// swapchain); call before context_reset.

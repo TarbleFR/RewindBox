@@ -1399,11 +1399,28 @@ static BOOL LibretroExtendedControllerConnected(void) {
                      pixelFormat:pixelFormat
                       completion:released];
       };
+      // Best: the core's own image, sampled where it is (Azahar keeps one per
+      // frame, native/azahar): no copy at all, 76.8 MB per frame at 10x.
+      __block BOOL notedDirect = NO;
+      _vulkan.textureHandler = ^(id<MTLTexture> texture, unsigned width, unsigned height, dispatch_block_t released) {
+        LibretroMetalPresenter *presenter = weakPresenter;
+        if (presenter == nil) {
+          released();
+          return;
+        }
+        if (!notedDirect) {
+          notedDirect = YES;
+          [handOffJournal note:[NSString stringWithFormat:@"vulkan: frames reach Metal directly, no copy (%ux%u)", width,
+                                                          height]];
+        }
+        [presenter presentTexture:texture width:width height:height flipped:NO completion:released];
+      };
       prepared = [_vulkan prepare:&error];
       if (prepared && !_vulkan.handsOffFrames) {
         // Legacy presentation on the layer: no screens, format or shaders.
         _vulkan.frameHandler = nil;
         _vulkan.bufferHandler = nil;
+        _vulkan.textureHandler = nil;
         shadersAvailable = NO;
         NSLog(@"[Libretro] Vulkan frames cannot reach Metal: legacy presentation without screens or shaders");
         __weak LibretroSession *weakSelf = self;
@@ -1622,7 +1639,10 @@ static BOOL LibretroExtendedControllerConnected(void) {
     if (vulkan != nil) {
       vulkan.frameHandler = nil;
       vulkan.bufferHandler = nil;
+      vulkan.textureHandler = nil;
       [vulkan waitIdle];
+      // The last frame may be the core's own image, about to be destroyed.
+      [presenter invalidateLastFrame];
     }
     [journal note:@"teardown: context_destroy called"];
     [host hardwareContextDestroy];
