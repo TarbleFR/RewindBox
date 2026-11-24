@@ -922,3 +922,46 @@ la durée d'une image sans 3D). Le rendu, lui, garde ses 29 ms : il tient dans l
 - `t3d` et `rcpu` : si les fils du rastériseur, qui tournent désormais en même temps que l'émulation, ralentissent ;
 - `ecpu` contre `run` : temps perdu par le fil d'émulation faute de cœur.
 
+### 16.8 Après l'IPA 835 : ×10 à 52 i/s, la composition 2D a repris le temps gagné
+
+Retour du mainteneur : `session.log` (Animal Crossing, iPhone A18 Pro), « je descends à 48 fps et je tourne dans
+les 50-54 fps ». Objectif inchangé : ×10 à 60 i/s stables.
+
+- **Ce que dit le journal** (ligne ×10 de 600 images) : 51,9 i/s, `run` 18,73 ms, `max` 42,9, `over16` 258,
+  `over33` 73 ; `cpu` 3,05, `2d` 12,97 (`engA` 12,06, `engB` 0,29), `wait` 0,00, `out` 1,21, `host` 1,47 ;
+  `defer` 277, `direct` 600 ; `t3d` 32,9 ms, `raster` 62,3, `rcpu` 49,9 ; `ecpu` 17,09. ×5 + 3D 2x : 59,9 i/s.
+- **Diagnostic.** La 835 a retiré ce qu'elle visait : `wait` 3,3 → 0 ms, `host` 2,9 → 1,5 ms. Mais `engA`, la
+  composition du moteur principal sur le fil d'émulation, est passée de 7,0–7,4 ms (832) à 12,1 ms : `run` ne bouge
+  pas. Le rendu (33 ms, une image sur trois) tourne maintenant pendant la composition de deux images sur trois.
+  Hypothèse à vérifier : les fils du rastériseur disputent au fil d'émulation les deux cœurs performants et leur
+  cache commun. Le JIT n'est pas le goulot (`cpu` 3 ms par image).
+
+**Changements** (détail et vérifications : [README](../native/desmume/README.md), section « Composition par
+colonnes, rastériseur allégé ») :
+
+- **Composition par colonnes** : une couche 2D est lue et testée une fois par colonne de 16 pixels pour les 10 lignes
+  agrandies d'une ligne native, au lieu de 10 fois ; les sprites qui ne couvrent qu'une partie de la ligne passent
+  par la voie SIMD au lieu de 100 appels par pixel de sprite.
+- **Couche 3D en NEON direct** pour le cas courant (copie simple, 15 bits, sans fenêtre).
+- **Rastériseur** : accesseurs de texture en ligne, adresses des tampons d'attributs et état du test de profondeur
+  et du test alpha lus une fois par ligne de balayage, blanc sans garde. Calculs inchangés.
+- **`desmume_rb_raster_cores`** : `performance` (défaut, comme avant) ou `efficiency` (fils du rastériseur en
+  `QOS_CLASS_UTILITY`, cœurs économes d'abord).
+- **Mesures** `l3d`, `lbg`, `lobj` (où part `engA`), `engAd`/`runD` contre `engAn`/`runN` (images où le rendu
+  tournait pendant la composition, contre les autres), `rqos`.
+
+**Banc** (x86, ×10, 3 fils) : 8 à 15 % de temps CPU du rastériseur en moins (Galaxy : `rcpu` 57,7–61,1 →
+51,7–52,7 ms par image, `t3d` 21–22 → 19–20 ms) ; `engA` inchangé sur ces scènes, où la couche 3D en fait presque
+tout (`l3d` 6,0–6,4 ms) en voie SSE2 x86. Images et son identiques au cœur de la 835 sur AArch64 (24 cas sous qemu)
+et, pour Galaxy et MD2, sur x86.
+
+**Attendu sur l'iPhone** (estimation, non mesurée) : moins de temps CPU pour le rendu, donc moins de concurrence
+avec le fil d'émulation ; `engA` en baisse si les couches 2D au-dessus de la 3D ou des sprites partiels y pesaient,
+et par la couche 3D en NEON. Rien ne garantit 60 i/s stables avant la mesure.
+
+**À lire** dans le prochain `session.log` (lignes `core: [rb-perf] …`, en ×10) :
+- `l3d`, `lbg`, `lobj` contre `engA` : quelle couche coûte ;
+- `engAd` contre `engAn`, `runD` contre `runN` : si la composition est plus lente quand le rendu tourne à côté,
+  l'hypothèse de la concurrence est confirmée ; essayer alors `desmume_rb_raster_cores=efficiency` (`rqos=1`) et
+  comparer `engAd`, `t3d` et `defer` ;
+- `rcpu` et `t3d` contre la 835 (49,9 et 32,9 ms) ; `run`, `max`, `over33`.

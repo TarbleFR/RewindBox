@@ -23,7 +23,7 @@
     }
   },
   "patch": "native/desmume/arm64-jit-abi.patch",
-  "patchSHA256": "47b18a9e538f6fbade39fc385014b2d17dee90445bd715ae086353be663e1c4b",
+  "patchSHA256": "27e77c4304437a34df63aaecc19afd478b55b868c7ca7ea5c6db7fc4983ba45a",
   "abiHeader": "packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h",
   "abiHeaderSHA256": "84c59f2484336fa3c64bc68b51177211094083fd411f0b488fee6b79bda6bc22",
   "abiHeaderInTree": "desmume/src/frontend/libretro/rewindbox/RewindBoxLibretroJit.h",
@@ -50,7 +50,9 @@
     "desmume/src/types.h": "5fba79c7c7bd1c4c66c80f71138e2f03428a4f7c1d3782f65734a7eac37f9f36",
     "desmume/src/utils/colorspacehandler/colorspacehandler.cpp": "ecfb30e635e90a7b51cc0dfed2652ec09af91d906005f877f004f1fa44ee055f",
     "desmume/src/utils/colorspacehandler/colorspacehandler_SSE2.cpp": "78be1daaae889f028d384d4d80702a30a77f26c8dae8918919868f730be5f9f5",
-    "desmume/src/utils/colorspacehandler/colorspacehandler_SSE2.h": "3de3d11193549c0e5f77f7ae25b1934ad79dacdf4d8a6ee5f9c81b863246eab2"
+    "desmume/src/utils/colorspacehandler/colorspacehandler_SSE2.h": "3de3d11193549c0e5f77f7ae25b1934ad79dacdf4d8a6ee5f9c81b863246eab2",
+    "desmume/src/texcache.cpp": "0a3fa8067b05c1ea17ce3de692105725cd7093ddcae2951323fb0966ebea8617",
+    "desmume/src/texcache.h": "c8b82f6d897453af2e90499a3d93097964c2770dd9ed7a6442da53f66fdedd4d"
   },
   "sourceDateEpoch": 1795306701,
   "buildCommands": {
@@ -115,7 +117,9 @@
     "desmume_rb_3d_async",
     "[rb-perf] desmume frames=%llu",
     "engB=%.2f end=%.2f over16=%llu",
-    "rcpu=%.2f t3d=%.2f defer=%llu direct=%llu"
+    "rcpu=%.2f t3d=%.2f defer=%llu direct=%llu",
+    "desmume_rb_raster_cores",
+    "l3d=%.2f lbg=%.2f lobj=%.2f engAd=%.2f engAn=%.2f runD=%.2f runN=%.2f rqos=%d"
   ],
   "forbiddenImports": [
     "_vm_protect",

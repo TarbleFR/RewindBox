@@ -67,7 +67,11 @@ dans la mémoire de l'hôte.
 | Fils du rastériseur (`rasterize.cpp`) | Sur les plates-formes Apple, `QOS_CLASS_USER_INITIATED` : une classe sous le fil d'émulation de l'hôte. |
 | 3D asynchrone (`desmume_rb_3d_async`, `rasterize.cpp`, `rasterize.h`, `render3D.cpp`, `render3D.h`, `GPU.cpp`, `gfx3d.cpp`) | Un rendu lent se dessine dans un second tampon de couleur pendant que le moteur 2D montre, pour des images entières, le dernier rendu terminé ; la première ligne de chaque image (`BeginFrame3D`) affiche le nouveau dès qu'il est fini. Le fil d'émulation n'attend plus les fils du rastériseur ; un rendu se termine seulement avant le suivant ou avant que le jeu remplace ses listes. `auto` (défaut) : après un rendu de plus de 8 ms, pour 120 rendus au moins ; `enabled` : tout rendu des fils ; `disabled` : comme avant. Jamais dans les 60 images qui suivent une capture d'écran, ni en sortie 24 bits. Logique du jeu inchangée (son identique) ; la 3D s'affiche une ou deux images plus tard. |
 | Image dans la mémoire de l'hôte (`libretro.cpp`) | Les deux écrans sont convertis directement dans la mémoire que l'hôte donne par `RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER`, en RGB565, quand la disposition couvre toute l'image (sans écart, hors hybride) ; sinon, et si l'hôte n'en donne pas, dans le tampon du cœur comme avant. Mêmes pixels. |
-| Mesures `[rb-perf]` (`utils/rb_perf.h`, `GPU.cpp`, `rasterize.cpp`, `libretro.cpp`) | Toutes les 600 images, une ligne du journal du cœur donne le temps moyen par image de chaque étape (voir ci-dessous), dont `defer` et `direct` depuis la section 16.7. |
+| Mesures `[rb-perf]` (`utils/rb_perf.h`, `GPU.cpp`, `rasterize.cpp`, `libretro.cpp`) | Toutes les 600 images, une ligne du journal du cœur donne le temps moyen par image de chaque étape (voir ci-dessous), dont `defer` et `direct` depuis la section 16.7, `l3d`, `lbg`, `lobj`, `engAd`, `engAn`, `runD`, `runN` et `rqos` depuis la section 16.8. |
+| Composition par colonnes (`GPU.cpp`, `GPU.h`) | En taille personnalisée, chaque colonne de 16 pixels d'une couche 2D est lue et testée (fenêtre, transparence) une seule fois pour toutes les lignes agrandies de sa ligne native (10 à ×10), puis composée dans chacune ; une colonne sans pixel visible est sautée pour toutes. Les sprites qui ne couvrent qu'une partie de la ligne passent par la même voie SIMD au lieu d'être composés pixel par pixel (100 appels par pixel de sprite à ×10). Chaque pixel est composé par la même fonction, avec la même source et le même masque. Mêmes images. |
+| Couche 3D en NEON (`GPU.cpp`) | Sur AArch64, le cas courant (copie simple, image 15 bits, sans fenêtre) en NEON direct : `vld4` sépare les octets de 16 pixels, l'octet alpha donne le masque, la couleur 15 bits est assemblée par insertions décalées. Mêmes pixels que la voie SSE2 traduite. |
+| Rastériseur (`rasterize.cpp`, `rasterize.h`, `texcache.h`, `texcache.cpp`, `render3D.h`, `render3D.cpp`) | Accesseurs de texture (`GetWidth`, `GetHeight`, `IsSamplingEnabled`) dans les en-têtes : plus d'appel de fonction par pixel texturé. Adresses des sept tampons d'attributs, mode de profondeur et test alpha lus une fois par ligne de balayage (`RbFragmentTargets`) : une écriture d'octet pouvant tout aliaser, le compilateur les relisait à chaque pixel. Blanc d'un pixel sans texture en constante simple, sans garde d'initialisation testée à chaque pixel. Calculs inchangés, mêmes images. |
+| Cœurs du rastériseur (`desmume_rb_raster_cores`, `rasterize.cpp`) | `performance` (défaut) : comme avant, `QOS_CLASS_USER_INITIATED`. `efficiency` : `QOS_CLASS_UTILITY`, que le système place d'abord sur les cœurs économes ; les cœurs performants et leur cache restent au fil d'émulation pendant qu'il compose l'image. Appliqué par chaque fil à sa passe suivante. |
 
 ## Vérification hors appareil
 
@@ -299,6 +303,48 @@ Vérifications :
   passage `enabled` → `disabled` → `enabled` en jeu, capture forcée : aucune course nouvelle (restent les compteurs
   d'usage du cache de textures, déjà dans le cœur) ;
 - le correctif s'applique aux sources épinglées et redonne exactement l'arbre testé.
+
+### Composition par colonnes, rastériseur allégé (section 16.8)
+
+Journal de la 835 (Animal Crossing, iPhone, ×10) : 51,9 i/s, 48 au plus bas selon le mainteneur. `wait` 0,00
+(la 3D asynchrone agit : `defer` 277 sur 600) et `host` 1,47 ms (contre 2,9 dans la 832) ; mais `engA` 12,06 ms
+contre 7,0–7,4 dans la 832, `run` 18,73 ms, `over33` 73. Le rendu (`t3d` 32,9 ms, une image sur trois) tourne
+désormais pendant la composition 2D de deux images sur trois.
+
+- **Composition par colonnes.** `_CompositeLineDeferred` passe, quand une ligne native a plusieurs lignes agrandies
+  d'un nombre entier de colonnes de 16 pixels, par `_RbCompositeCustomColumns` : masque (fenêtre, index) et source
+  lus une fois par colonne, composition dans les `renderCount` lignes par `_PixelComposite16_SSE2`, inchangée. Les
+  lignes de sprites partielles passent par `_RbCompositeSpriteColumns` : ligne de sprites agrandie une fois par
+  ligne (couleur, alpha, mode), masque des pixels de la priorité, colonnes du premier au dernier de ces pixels. Sur
+  AArch64, les tests « aucun » et « tous » du masque sont un `vmaxvq_u8` ou un `vminvq_u8`.
+- **Couche 3D en NEON** dans `RenderLine_Layer3D` (copie simple, 15 bits, sans fenêtre, sans décalage horizontal) ;
+  l'état laissé (`xCustom`, pointeurs) est celui de la boucle SSE2 après les mêmes pixels.
+- **Rastériseur** : accesseurs en ligne, `RbFragmentTargets` par ligne de balayage, blanc sans garde (désassemblage
+  AArch64 de `_runscanlines` : plus aucun appel ni chargement acquis dans la boucle des pixels, plus de relecture
+  des adresses des tampons d'attributs).
+- **`desmume_rb_raster_cores`** (`performance` par défaut, `efficiency`) et mesures `l3d`, `lbg`, `lobj` (parts de
+  `engA` : couche 3D, couches BG, couche des sprites), `engAd`/`runD` (images où le rendu tournait pendant la
+  composition, `defer`) contre `engAn`/`runN` (les autres), `rqos` (0 performance, 1 efficiency).
+
+Vérifications :
+- AArch64 sous qemu (2D en NEON, rastériseur scalaire, JIT, 3D synchrone), 6 homebrews 3D × 4 variantes de
+  registres écrites à chaque image (aucune ; BG1-3 et sprites mélangés sur la 3D placée en dernière priorité ;
+  fenêtre 0 avec mélange ; luminosité augmentée), ×3 : images et son identiques au cœur de la 835 dans les 24 cas ;
+- x86 (2D par la voie SSE2, rastériseur scalaire comme sur l'iPhone) : Galaxy et MD2 identiques image par image au
+  cœur de la 835 ; balayage complet (dsgmLib, snakegl, rockwrestler, ×10 et ×3, 5 variantes) en cours.
+
+Banc x86 (4 processeurs virtuels, interpréteur, ×10, 3 fils, images 601 à 1 200, deux courses par cœur) :
+
+| Scène | Cœur | i/s | `rcpu` (ms/image) | `t3d` (ms) | `engA` (ms) |
+|---|---|---|---|---|---|
+| MarioKart (dsgmLib) | 835 | 65,0–65,7 | 24,8–25,0 | 8,9 | 6,5 |
+| MarioKart (dsgmLib) | ce cœur | 62,7–65,2 | 22,3–23,0 | 8,0–8,2 | 6,5–6,8 |
+| Galaxy | 835 | 37,9–40,2 | 57,7–61,1 | 21,2–22,4 | 6,3–6,6 |
+| Galaxy | ce cœur | 41,3–43,7 | 51,7–52,7 | 19,0–20,0 | 6,2–6,6 |
+
+Le rastériseur demande 8 à 15 % de temps CPU en moins. `engA` ne bouge pas sur ces scènes : la couche 3D en fait
+presque tout (`l3d` 6,0–6,4 ms) et la voie NEON ne se mesure pas sur ce banc x86 ; les couches BG et les sprites y
+pèsent 0,15 ms. Rien n'est mesuré sur l'iPhone.
 
 ## Limites connues
 

@@ -1,5 +1,5 @@
 diff --git a/desmume/src/GPU.cpp b/desmume/src/GPU.cpp
-index 026bf14c..57d2356d 100644
+index 026bf14c..889a598a 100644
 --- a/desmume/src/GPU.cpp
 +++ b/desmume/src/GPU.cpp
 @@ -38,6 +38,9 @@
@@ -48,7 +48,25 @@ index 026bf14c..57d2356d 100644
  	CopyLineReduce_SSE2<INTEGERSCALEHINT, ELEMENTSIZE>(dst, src, srcWidth);
  #else
  	CopyLineReduce_C<INTEGERSCALEHINT, NEEDENDIANSWAP, ELEMENTSIZE>(dst, src, srcWidth);
-@@ -1620,7 +1623,7 @@ void GPUEngineBase::_Reset_Base()
+@@ -1410,6 +1413,8 @@ GPUEngineBase::GPUEngineBase()
+ 	_sprColorCustom = NULL;
+ 	_sprAlphaCustom = NULL;
+ 	_sprTypeCustom = NULL;
++	_rbSprPassCustom = NULL;
++	_rbSprLineCustomReady = false;
+ 	
+ 	if (CommonSettings.num_cores > 1)
+ 	{
+@@ -1468,6 +1473,8 @@ GPUEngineBase::~GPUEngineBase()
+ 	this->_sprAlphaCustom = NULL;
+ 	free_aligned(this->_sprTypeCustom);
+ 	this->_sprTypeCustom = NULL;
++	free_aligned(this->_rbSprPassCustom);
++	this->_rbSprPassCustom = NULL;
+ 	
+ 	free_aligned(this->_didPassWindowTestCustomMasterPtr);
+ 	this->_didPassWindowTestCustomMasterPtr = NULL;
+@@ -1620,7 +1627,7 @@ void GPUEngineBase::_Reset_Base()
  	renderState.dstBlendEnable[GPULayerID_Backdrop] = false;
  	renderState.dstAnyBlendEnable = false;
  	
@@ -57,7 +75,7 @@ index 026bf14c..57d2356d 100644
  	renderState.srcEffectEnable_SSE2[GPULayerID_BG0] = _mm_setzero_si128();
  	renderState.srcEffectEnable_SSE2[GPULayerID_BG1] = _mm_setzero_si128();
  	renderState.srcEffectEnable_SSE2[GPULayerID_BG2] = _mm_setzero_si128();
-@@ -1667,7 +1670,7 @@ void GPUEngineBase::_Reset_Base()
+@@ -1667,7 +1674,7 @@ void GPUEngineBase::_Reset_Base()
  	renderState.WINOBJ_enable[GPULayerID_OBJ] = 0;
  	renderState.WINOBJ_enable[WINDOWCONTROL_EFFECTFLAG] = 0;
  	
@@ -66,7 +84,7 @@ index 026bf14c..57d2356d 100644
  	renderState.WIN0_enable_SSE2[GPULayerID_BG0] = _mm_setzero_si128();
  	renderState.WIN0_enable_SSE2[GPULayerID_BG1] = _mm_setzero_si128();
  	renderState.WIN0_enable_SSE2[GPULayerID_BG2] = _mm_setzero_si128();
-@@ -1956,7 +1959,7 @@ FORCEINLINE FragmentColor GPUEngineBase::_ColorEffectDecreaseBrightness(const Fr
+@@ -1956,7 +1963,7 @@ FORCEINLINE FragmentColor GPUEngineBase::_ColorEffectDecreaseBrightness(const Fr
  	return newColor;
  }
  
@@ -75,7 +93,7 @@ index 026bf14c..57d2356d 100644
  
  template <NDSColorFormat COLORFORMAT>
  FORCEINLINE __m128i GPUEngineBase::_ColorEffectIncreaseBrightness(const __m128i &col, const __m128i &blendEVY)
-@@ -3344,7 +3347,7 @@ FORCEINLINE void GPUEngineBase::_PixelComposite(GPUEngineCompositorInfo &compInf
+@@ -3344,7 +3351,7 @@ FORCEINLINE void GPUEngineBase::_PixelComposite(GPUEngineCompositorInfo &compInf
  	}
  }
  
@@ -84,7 +102,7 @@ index 026bf14c..57d2356d 100644
  
  template <NDSColorFormat OUTPUTFORMAT, bool ISDEBUGRENDER>
  FORCEINLINE void GPUEngineBase::_PixelCopy16_SSE2(GPUEngineCompositorInfo &compInfo,
-@@ -4146,7 +4149,7 @@ void GPUEngineBase::_PrecompositeNativeToCustomLineBG(GPUEngineCompositorInfo &c
+@@ -4146,7 +4153,7 @@ void GPUEngineBase::_PrecompositeNativeToCustomLineBG(GPUEngineCompositorInfo &c
  {
  	if (MOSAIC)
  	{
@@ -93,7 +111,7 @@ index 026bf14c..57d2356d 100644
  		for (size_t x = 0; x < GPU_FRAMEBUFFER_NATIVE_WIDTH; x+=8)
  		{
  			__m128i mosaicColor_vec128;
-@@ -4219,7 +4222,7 @@ void GPUEngineBase::_CompositeNativeLineOBJ(GPUEngineCompositorInfo &compInfo, c
+@@ -4219,7 +4226,7 @@ void GPUEngineBase::_CompositeNativeLineOBJ(GPUEngineCompositorInfo &compInfo, c
  	compInfo.target.lineColor32 = (FragmentColor *)compInfo.target.lineColorHead;
  	compInfo.target.lineLayerID = compInfo.target.lineLayerIDHead;
  	
@@ -102,7 +120,201 @@ index 026bf14c..57d2356d 100644
  	const __m128i srcEffectEnableMask = compInfo.renderState.srcEffectEnable_SSE2[GPULayerID_OBJ];
  	
  	for (size_t i = 0; i < GPU_FRAMEBUFFER_NATIVE_WIDTH; i+=16, srcColorNative16+=16, srcColorNative32+=16, compInfo.target.xNative+=16, compInfo.target.lineColor16+=16, compInfo.target.lineColor32+=16, compInfo.target.lineLayerID+=16)
-@@ -4336,7 +4339,7 @@ void GPUEngineBase::_CompositeLineDeferred(GPUEngineCompositorInfo &compInfo, co
+@@ -4325,6 +4332,181 @@ void GPUEngineBase::_CompositeNativeLineOBJ(GPUEngineCompositorInfo &compInfo, c
+ #endif
+ }
+ 
++#ifdef RB_GPU_SSE2
++// RewindBox: whether no byte, or every byte, of a byte mask (each byte 0x00 or 0xFF) is set: on AArch64 one
++// across-vector maximum or minimum, where _mm_movemask_epi8 takes two shifts and two sums.
++static FORCEINLINE bool rb_mask8_none(const __m128i m)
++{
++#ifdef RB_GPU_SSE2_NEON
++	return vmaxvq_u8(rb_u8(m)) == 0;
++#else
++	return _mm_movemask_epi8(m) == 0;
++#endif
++}
++
++static FORCEINLINE bool rb_mask8_all(const __m128i m)
++{
++#ifdef RB_GPU_SSE2_NEON
++	return vminvq_u8(rb_u8(m)) == 0xFF;
++#else
++	return _mm_movemask_epi8(m) == 0xFFFF;
++#endif
++}
++
++// RewindBox: the custom lines of a native line show the same 2D layer line, widened. Each 16-pixel column of it
++// is read and tested once (window test, transparency: INDEXTEST, a BG layer or a partial sprite line), then
++// composed into the renderCount custom lines (10 at a 10x scale), where _CompositeLineDeferred tested and read
++// it again for every custom line; a column with no visible pixel is skipped for all of them at once. Each pixel
++// is composed exactly as _CompositeLineDeferred composes it (same function, same source, same mask), only the
++// order of the columns changes, and no pixel reads another. Columns xBegin to xEnd (multiples of 16); the
++// caller checks that a custom line is a whole number of columns.
++template<GPUCompositorMode COMPOSITORMODE, NDSColorFormat OUTPUTFORMAT, GPULayerType LAYERTYPE, bool WILLPERFORMWINDOWTEST, bool INDEXTEST>
++void GPUEngineBase::_RbCompositeCustomColumns(GPUEngineCompositorInfo &compInfo, const u16 *__restrict srcColorCustom16, const u8 *__restrict srcIndexCustom, const size_t xBegin, const size_t xEnd)
++{
++	const size_t w = compInfo.line.widthCustom;
++	const size_t lineCount = compInfo.line.renderCount;
++	u16 *const color16Head = (u16 *)compInfo.target.lineColorHead;
++	FragmentColor *const color32Head = (FragmentColor *)compInfo.target.lineColorHead;
++	u8 *const layerIDHead = compInfo.target.lineLayerIDHead;
++	const __m128i srcEffectEnableMask = compInfo.renderState.srcEffectEnable_SSE2[compInfo.renderState.selectedLayerID];
++	const u8 *__restrict passWindow = this->_didPassWindowTestCustom[compInfo.renderState.selectedLayerID];
++	const u8 *__restrict enableColorEffect = this->_enableColorEffectCustom[compInfo.renderState.selectedLayerID];
++	
++	compInfo.target.xNative = 0;
++	
++	for (size_t x = xBegin; x < xEnd; x+=16)
++	{
++		__m128i passMask8;
++		bool didAllPixelsPass;
++		
++		if (WILLPERFORMWINDOWTEST || INDEXTEST)
++		{
++			if (WILLPERFORMWINDOWTEST)
++			{
++				// Do the window test.
++				passMask8 = _mm_cmpeq_epi8( _mm_load_si128((__m128i *)(passWindow + x)), _mm_set1_epi8(1) );
++			}
++			
++			if (INDEXTEST)
++			{
++				// Do the index test. Pixels with an index value of 0 are rejected.
++				const __m128i tempPassMask = _mm_cmpeq_epi8(_mm_load_si128((__m128i *)(srcIndexCustom + x)), _mm_setzero_si128());
++				
++				if (WILLPERFORMWINDOWTEST)
++				{
++					passMask8 = _mm_andnot_si128(tempPassMask, passMask8);
++				}
++				else
++				{
++					passMask8 = _mm_xor_si128(tempPassMask, _mm_set1_epi32(0xFFFFFFFF));
++				}
++			}
++			
++			// If none of the pixels within the column pass, then reject them all at once, on every custom line.
++			if (rb_mask8_none(passMask8))
++			{
++				continue;
++			}
++			
++			didAllPixelsPass = rb_mask8_all(passMask8);
++		}
++		else
++		{
++			passMask8 = _mm_set1_epi8(0xFF);
++			didAllPixelsPass = true;
++		}
++		
++		__m128i src[4];
++		
++		if (OUTPUTFORMAT == NDSColorFormat_BGR555_Rev)
++		{
++			src[0] = _mm_load_si128((__m128i *)(srcColorCustom16 + x + 0));
++			src[1] = _mm_load_si128((__m128i *)(srcColorCustom16 + x + 8));
++			src[2] = _mm_setzero_si128();
++			src[3] = _mm_setzero_si128();
++		}
++		else
++		{
++			const __m128i src16[2] = {
++				_mm_load_si128((__m128i *)(srcColorCustom16 + x + 0)),
++				_mm_load_si128((__m128i *)(srcColorCustom16 + x + 8))
++			};
++			
++			if (OUTPUTFORMAT == NDSColorFormat_BGR666_Rev)
++			{
++				ColorspaceConvert555To6665Opaque_SSE2<false>(src16[0], src[0], src[1]);
++				ColorspaceConvert555To6665Opaque_SSE2<false>(src16[1], src[2], src[3]);
++			}
++			else
++			{
++				ColorspaceConvert555To8888Opaque_SSE2<false>(src16[0], src[0], src[1]);
++				ColorspaceConvert555To8888Opaque_SSE2<false>(src16[1], src[2], src[3]);
++			}
++		}
++		
++		compInfo.target.xCustom = x;
++		
++		for (size_t line = 0; line < lineCount; line++)
++		{
++			const size_t offset = (line * w) + x;
++			compInfo.target.lineColor16 = color16Head + offset;
++			compInfo.target.lineColor32 = color32Head + offset;
++			compInfo.target.lineLayerID = layerIDHead + offset;
++			
++			// Write out the pixels.
++			this->_PixelComposite16_SSE2<COMPOSITORMODE, OUTPUTFORMAT, LAYERTYPE, WILLPERFORMWINDOWTEST>(compInfo,
++																										 didAllPixelsPass,
++																										 passMask8,
++																										 src[3], src[2], src[1], src[0],
++																										 srcEffectEnableMask,
++																										 enableColorEffect + x,
++																										 this->_sprAlphaCustom + x,
++																										 this->_sprTypeCustom + x);
++		}
++	}
++	
++	// The state _CompositeLineDeferred leaves
++	compInfo.target.xCustom = (compInfo.line.pixelCount > 0) ? w : 0;
++	compInfo.target.lineColor16 = color16Head + compInfo.line.pixelCount;
++	compInfo.target.lineColor32 = color32Head + compInfo.line.pixelCount;
++	compInfo.target.lineLayerID = layerIDHead + compInfo.line.pixelCount;
++}
++
++// RewindBox: the sprite pixels of one priority on a custom line when they do not cover the whole line. The
++// sprite line is widened once a line (colour, alpha, mode), a pass mask is made of this priority's pixels, and
++// the columns from its first pixel to its last are composed 16 at a time for all the custom lines, as a whole
++// sprite line is. Before, each sprite pixel was composed one custom pixel at a time: 100 calls at a 10x scale.
++template <GPUCompositorMode COMPOSITORMODE, NDSColorFormat OUTPUTFORMAT, bool WILLPERFORMWINDOWTEST>
++void GPUEngineBase::_RbCompositeSpriteColumns(GPUEngineCompositorInfo &compInfo, const itemsForPriority_t *__restrict item)
++{
++	if (!this->_rbSprLineCustomReady)
++	{
++		this->_rbSprLineCustomReady = true;
++		CopyLineExpandHinted<0xFFFF, false, false, false, 2>(compInfo.line, this->_sprColor, this->_sprColorCustom);
++		CopyLineExpandHinted<0xFFFF, false, false, false, 1>(compInfo.line, this->_sprAlpha[compInfo.line.indexNative], this->_sprAlphaCustom);
++		CopyLineExpandHinted<0xFFFF, false, false, false, 1>(compInfo.line, this->_sprType[compInfo.line.indexNative], this->_sprTypeCustom);
++	}
++	
++	CACHE_ALIGN u8 passNative[GPU_FRAMEBUFFER_NATIVE_WIDTH];
++	memset(passNative, 0, sizeof(passNative));
++	
++	for (size_t i = 0; i < item->nbPixelsX; i++)
++	{
++		passNative[item->PixelsX[i]] = 1;
++	}
++	
++	CopyLineExpandHinted<0xFFFF, false, false, false, 1>(compInfo.line, passNative, this->_rbSprPassCustom);
++	
++	// PixelsX holds this priority's pixels from left to right (_RenderLine_SetupSprites)
++	const size_t firstX = item->PixelsX[0];
++	const size_t lastX = item->PixelsX[item->nbPixelsX - 1];
++	const size_t xBegin = (size_t)_gpuDstPitchIndex[firstX] & ~(size_t)15;
++	const size_t xEnd = std::min<size_t>(compInfo.line.widthCustom, ((size_t)_gpuDstPitchIndex[lastX] + (size_t)_gpuDstPitchCount[lastX] + 15) & ~(size_t)15);
++	
++	this->_RbCompositeCustomColumns<COMPOSITORMODE, OUTPUTFORMAT, GPULayerType_OBJ, WILLPERFORMWINDOWTEST, true>(compInfo, this->_sprColorCustom, this->_rbSprPassCustom, xBegin, xEnd);
++}
++#endif
++
+ template<GPUCompositorMode COMPOSITORMODE, NDSColorFormat OUTPUTFORMAT, GPULayerType LAYERTYPE, bool WILLPERFORMWINDOWTEST>
+ void GPUEngineBase::_CompositeLineDeferred(GPUEngineCompositorInfo &compInfo, const u16 *__restrict srcColorCustom16, const u8 *__restrict srcIndexCustom)
+ {
+@@ -4333,10 +4515,19 @@ void GPUEngineBase::_CompositeLineDeferred(GPUEngineCompositorInfo &compInfo, co
+ 	compInfo.target.lineColor16 = (u16 *)compInfo.target.lineColorHead;
+ 	compInfo.target.lineColor32 = (FragmentColor *)compInfo.target.lineColorHead;
+ 	compInfo.target.lineLayerID = compInfo.target.lineLayerIDHead;
++
++#ifdef RB_GPU_SSE2
++	// RewindBox: several custom lines a native line, each a whole number of 16-pixel columns: column by column
++	if ( (compInfo.line.renderCount > 1) && ((compInfo.line.widthCustom % 16) == 0) && (compInfo.line.pixelCount == (compInfo.line.widthCustom * compInfo.line.renderCount)) )
++	{
++		this->_RbCompositeCustomColumns<COMPOSITORMODE, OUTPUTFORMAT, LAYERTYPE, WILLPERFORMWINDOWTEST, (LAYERTYPE == GPULayerType_BG)>(compInfo, srcColorCustom16, srcIndexCustom, 0, compInfo.line.widthCustom);
++		return;
++	}
++#endif
  	
  	size_t i = 0;
  	
@@ -111,7 +323,7 @@ index 026bf14c..57d2356d 100644
  	const size_t ssePixCount = (compInfo.line.pixelCount - (compInfo.line.pixelCount % 16));
  	const __m128i srcEffectEnableMask = compInfo.renderState.srcEffectEnable_SSE2[compInfo.renderState.selectedLayerID];
  	
-@@ -4428,7 +4431,7 @@ void GPUEngineBase::_CompositeLineDeferred(GPUEngineCompositorInfo &compInfo, co
+@@ -4428,7 +4619,7 @@ void GPUEngineBase::_CompositeLineDeferred(GPUEngineCompositorInfo &compInfo, co
  	}
  #endif
  	
@@ -120,7 +332,7 @@ index 026bf14c..57d2356d 100644
  #pragma LOOPVECTORIZE_DISABLE
  #endif
  	for (; i < compInfo.line.pixelCount; i++, compInfo.target.xCustom++, compInfo.target.lineColor16++, compInfo.target.lineColor32++, compInfo.target.lineLayerID++)
-@@ -4464,7 +4467,7 @@ void GPUEngineBase::_CompositeVRAMLineDeferred(GPUEngineCompositorInfo &compInfo
+@@ -4464,7 +4655,7 @@ void GPUEngineBase::_CompositeVRAMLineDeferred(GPUEngineCompositorInfo &compInfo
  	
  	size_t i = 0;
  	
@@ -129,7 +341,7 @@ index 026bf14c..57d2356d 100644
  	const size_t ssePixCount = (compInfo.line.pixelCount - (compInfo.line.pixelCount % 16));
  	const __m128i srcEffectEnableMask = compInfo.renderState.srcEffectEnable_SSE2[compInfo.renderState.selectedLayerID];
  	
-@@ -4575,7 +4578,7 @@ void GPUEngineBase::_CompositeVRAMLineDeferred(GPUEngineCompositorInfo &compInfo
+@@ -4575,7 +4766,7 @@ void GPUEngineBase::_CompositeVRAMLineDeferred(GPUEngineCompositorInfo &compInfo
  	}
  #endif
  	
@@ -138,7 +350,7 @@ index 026bf14c..57d2356d 100644
  #pragma LOOPVECTORIZE_DISABLE
  #endif
  	for (; i < compInfo.line.pixelCount; i++, compInfo.target.xCustom++, compInfo.target.lineColor16++, compInfo.target.lineColor32++, compInfo.target.lineLayerID++)
-@@ -4991,7 +4994,7 @@ void GPUEngineBase::_RenderSpriteBMP(GPUEngineCompositorInfo &compInfo,
+@@ -4991,7 +5182,7 @@ void GPUEngineBase::_RenderSpriteBMP(GPUEngineCompositorInfo &compInfo,
  	const u16 *__restrict vramBuffer = (u16 *)MMU_gpu_map(objAddress);
  	size_t i = 0;
  	
@@ -147,7 +359,95 @@ index 026bf14c..57d2356d 100644
  	if (readXStep == 1)
  	{
  		if (ISDEBUGRENDER)
-@@ -5963,7 +5966,7 @@ void GPUEngineBase::ApplyMasterBrightness(void *dst, const size_t pixCount, cons
+@@ -5537,6 +5728,9 @@ void GPUEngineBase::_RenderLine_Layers(GPUEngineCompositorInfo &compInfo)
+ 					{
+ 						if ( (layerID == GPULayerID_BG0) && GPU->GetEngineMain()->WillRender3DLayer() )
+ 						{
++#ifdef REWINDBOX_PERF
++							const u64 rbPerfLayer3D = rb_perf_now();
++#endif
+ #ifndef DISABLE_COMPOSITOR_FAST_PATHS
+ 							if ( !compInfo.renderState.dstAnyBlendEnable && (  (compInfo.renderState.colorEffect == ColorEffect_Disable) ||
+ 																			   !compInfo.renderState.srcEffectEnable[GPULayerID_BG0] ||
+@@ -5557,10 +5751,16 @@ void GPUEngineBase::_RenderLine_Layers(GPUEngineCompositorInfo &compInfo)
+ 							{
+ 								GPU->GetEngineMain()->RenderLine_Layer3D<GPUCompositorMode_Unknown, OUTPUTFORMAT, WILLPERFORMWINDOWTEST>(compInfo);
+ 							}
++#ifdef REWINDBOX_PERF
++							rb_perf.gpuLayer3D += rb_perf_now() - rbPerfLayer3D;
++#endif
+ 							continue;
+ 						}
+ 					}
+-										
++
++#ifdef REWINDBOX_PERF
++					const u64 rbPerfLayerBG = rb_perf_now();
++#endif
+ #ifndef DISABLE_COMPOSITOR_FAST_PATHS
+ 					if ( (compInfo.renderState.colorEffect == ColorEffect_Disable) ||
+ 						 !compInfo.renderState.srcEffectEnable[compInfo.renderState.selectedLayerID] ||
+@@ -5582,6 +5782,12 @@ void GPUEngineBase::_RenderLine_Layers(GPUEngineCompositorInfo &compInfo)
+ 					{
+ 						this->_RenderLine_LayerBG<GPUCompositorMode_Unknown, OUTPUTFORMAT, WILLPERFORMWINDOWTEST>(compInfo);
+ 					}
++#ifdef REWINDBOX_PERF
++					if (this->_engineID == GPUEngineID_Main)
++					{
++						rb_perf.gpuLayerBG += rb_perf_now() - rbPerfLayerBG;
++					}
++#endif
+ 					
+ 					compInfo.renderState.previouslyRenderedLayerID = layerID;
+ 				} //layer enabled
+@@ -5593,7 +5799,10 @@ void GPUEngineBase::_RenderLine_Layers(GPUEngineCompositorInfo &compInfo)
+ 		{
+ 			compInfo.renderState.selectedLayerID = GPULayerID_OBJ;
+ 			compInfo.renderState.selectedBGLayer = NULL;
+-			
++#ifdef REWINDBOX_PERF
++			const u64 rbPerfLayerOBJ = rb_perf_now();
++#endif
++
+ #ifndef DISABLE_COMPOSITOR_FAST_PATHS
+ 			if ( !compInfo.renderState.dstAnyBlendEnable && (  (compInfo.renderState.colorEffect == ColorEffect_Disable) ||
+ 															   !compInfo.renderState.srcEffectEnable[GPULayerID_OBJ] ||
+@@ -5614,6 +5823,12 @@ void GPUEngineBase::_RenderLine_Layers(GPUEngineCompositorInfo &compInfo)
+ 			{
+ 				this->_RenderLine_LayerOBJ<GPUCompositorMode_Unknown, OUTPUTFORMAT, WILLPERFORMWINDOWTEST>(compInfo, item);
+ 			}
++#ifdef REWINDBOX_PERF
++			if (this->_engineID == GPUEngineID_Main)
++			{
++				rb_perf.gpuLayerOBJ += rb_perf_now() - rbPerfLayerOBJ;
++			}
++#endif
+ 			
+ 			compInfo.renderState.previouslyRenderedLayerID = GPULayerID_OBJ;
+ 		}
+@@ -5625,6 +5840,7 @@ void GPUEngineBase::_RenderLine_SetupSprites(GPUEngineCompositorInfo &compInfo)
+ 	itemsForPriority_t *item;
+ 	
+ 	this->_needExpandSprColorCustom = false;
++	this->_rbSprLineCustomReady = false;
+ 	
+ 	//n.b. - this is clearing the sprite line buffer to the background color,
+ 	memset_u16_fast<GPU_FRAMEBUFFER_NATIVE_WIDTH>(this->_sprColor, compInfo.renderState.backdropColor16);
+@@ -5831,6 +6047,13 @@ void GPUEngineBase::_RenderLine_LayerOBJ(GPUEngineCompositorInfo &compInfo, item
+ 					dstLayerIDPtr += compInfo.line.widthCustom;
+ 				}
+ 			}
++#ifdef RB_GPU_SSE2
++			else if ( ((compInfo.line.widthCustom % 16) == 0) && (compInfo.line.pixelCount == (compInfo.line.widthCustom * compInfo.line.renderCount)) )
++			{
++				// RewindBox: 16 pixels at a time, for all the custom lines (_RbCompositeSpriteColumns)
++				this->_RbCompositeSpriteColumns<COMPOSITORMODE, OUTPUTFORMAT, WILLPERFORMWINDOWTEST>(compInfo, item);
++			}
++#endif
+ 			else
+ 			{
+ 				for (size_t line = 0; line < compInfo.line.renderCount; line++)
+@@ -5963,7 +6186,7 @@ void GPUEngineBase::ApplyMasterBrightness(void *dst, const size_t pixCount, cons
  				{
  					case NDSColorFormat_BGR555_Rev:
  					{
@@ -156,7 +456,7 @@ index 026bf14c..57d2356d 100644
  						const __m128i intensity_vec128 = _mm_set1_epi16(intensityClamped);
  						
  						const size_t ssePixCount = pixCount - (pixCount % 8);
-@@ -5976,7 +5979,7 @@ void GPUEngineBase::ApplyMasterBrightness(void *dst, const size_t pixCount, cons
+@@ -5976,7 +6199,7 @@ void GPUEngineBase::ApplyMasterBrightness(void *dst, const size_t pixCount, cons
  						}
  #endif
  						
@@ -165,7 +465,7 @@ index 026bf14c..57d2356d 100644
  #pragma LOOPVECTORIZE_DISABLE
  #endif
  						for (; i < pixCount; i++)
-@@ -5989,7 +5992,7 @@ void GPUEngineBase::ApplyMasterBrightness(void *dst, const size_t pixCount, cons
+@@ -5989,7 +6212,7 @@ void GPUEngineBase::ApplyMasterBrightness(void *dst, const size_t pixCount, cons
  					case NDSColorFormat_BGR666_Rev:
  					case NDSColorFormat_BGR888_Rev:
  					{
@@ -174,7 +474,7 @@ index 026bf14c..57d2356d 100644
  						const __m128i intensity_vec128 = _mm_set1_epi16(intensityClamped);
  						
  						const size_t ssePixCount = pixCount - (pixCount % 4);
-@@ -6002,7 +6005,7 @@ void GPUEngineBase::ApplyMasterBrightness(void *dst, const size_t pixCount, cons
+@@ -6002,7 +6225,7 @@ void GPUEngineBase::ApplyMasterBrightness(void *dst, const size_t pixCount, cons
  						}
  #endif
  						
@@ -183,7 +483,7 @@ index 026bf14c..57d2356d 100644
  #pragma LOOPVECTORIZE_DISABLE
  #endif
  						for (; i < pixCount; i++)
-@@ -6051,7 +6054,7 @@ void GPUEngineBase::ApplyMasterBrightness(void *dst, const size_t pixCount, cons
+@@ -6051,7 +6274,7 @@ void GPUEngineBase::ApplyMasterBrightness(void *dst, const size_t pixCount, cons
  				{
  					case NDSColorFormat_BGR555_Rev:
  					{
@@ -192,7 +492,7 @@ index 026bf14c..57d2356d 100644
  						const __m128i intensity_vec128 = _mm_set1_epi16(intensityClamped);
  						
  						const size_t ssePixCount = pixCount - (pixCount % 8);
-@@ -6064,7 +6067,7 @@ void GPUEngineBase::ApplyMasterBrightness(void *dst, const size_t pixCount, cons
+@@ -6064,7 +6287,7 @@ void GPUEngineBase::ApplyMasterBrightness(void *dst, const size_t pixCount, cons
  						}
  #endif
  						
@@ -201,7 +501,7 @@ index 026bf14c..57d2356d 100644
  #pragma LOOPVECTORIZE_DISABLE
  #endif
  						for (; i < pixCount; i++)
-@@ -6077,7 +6080,7 @@ void GPUEngineBase::ApplyMasterBrightness(void *dst, const size_t pixCount, cons
+@@ -6077,7 +6300,7 @@ void GPUEngineBase::ApplyMasterBrightness(void *dst, const size_t pixCount, cons
  					case NDSColorFormat_BGR666_Rev:
  					case NDSColorFormat_BGR888_Rev:
  					{
@@ -210,7 +510,7 @@ index 026bf14c..57d2356d 100644
  						const __m128i intensity_vec128 = _mm_set1_epi16(intensityClamped);
  						
  						const size_t ssePixCount = pixCount - (pixCount % 4);
-@@ -6090,7 +6093,7 @@ void GPUEngineBase::ApplyMasterBrightness(void *dst, const size_t pixCount, cons
+@@ -6090,7 +6313,7 @@ void GPUEngineBase::ApplyMasterBrightness(void *dst, const size_t pixCount, cons
  						}
  #endif
  						
@@ -219,7 +519,7 @@ index 026bf14c..57d2356d 100644
  #pragma LOOPVECTORIZE_DISABLE
  #endif
  						for (; i < pixCount; i++)
-@@ -6204,7 +6207,7 @@ void GPUEngineBase::_PerformWindowTesting(GPUEngineCompositorInfo &compInfo)
+@@ -6204,7 +6427,7 @@ void GPUEngineBase::_PerformWindowTesting(GPUEngineCompositorInfo &compInfo)
  			continue;
  		}
  		
@@ -228,7 +528,7 @@ index 026bf14c..57d2356d 100644
  		for (size_t i = 0; i < GPU_FRAMEBUFFER_NATIVE_WIDTH; i+=16)
  		{
  			__m128i win_vec128;
-@@ -6512,7 +6515,7 @@ void GPUEngineBase::ParseReg_WININ()
+@@ -6512,7 +6735,7 @@ void GPUEngineBase::ParseReg_WININ()
  	renderState.WIN1_enable[GPULayerID_OBJ] = this->_IORegisterMap->WIN1IN.OBJ_Enable;
  	renderState.WIN1_enable[WINDOWCONTROL_EFFECTFLAG] = this->_IORegisterMap->WIN1IN.Effect_Enable;
  	
@@ -237,7 +537,7 @@ index 026bf14c..57d2356d 100644
  	renderState.WIN0_enable_SSE2[GPULayerID_BG0] = _mm_set1_epi8((this->_IORegisterMap->WIN0IN.BG0_Enable != 0) ? 0xFF : 0x00);
  	renderState.WIN0_enable_SSE2[GPULayerID_BG1] = _mm_set1_epi8((this->_IORegisterMap->WIN0IN.BG1_Enable != 0) ? 0xFF : 0x00);
  	renderState.WIN0_enable_SSE2[GPULayerID_BG2] = _mm_set1_epi8((this->_IORegisterMap->WIN0IN.BG2_Enable != 0) ? 0xFF : 0x00);
-@@ -6547,7 +6550,7 @@ void GPUEngineBase::ParseReg_WINOUT()
+@@ -6547,7 +6770,7 @@ void GPUEngineBase::ParseReg_WINOUT()
  	renderState.WINOBJ_enable[GPULayerID_OBJ] = this->_IORegisterMap->WINOBJ.OBJ_Enable;
  	renderState.WINOBJ_enable[WINDOWCONTROL_EFFECTFLAG] = this->_IORegisterMap->WINOBJ.Effect_Enable;
  	
@@ -246,7 +546,7 @@ index 026bf14c..57d2356d 100644
  	renderState.WINOUT_enable_SSE2[GPULayerID_BG0] = _mm_set1_epi8((this->_IORegisterMap->WINOUT.BG0_Enable != 0) ? 0xFF : 0x00);
  	renderState.WINOUT_enable_SSE2[GPULayerID_BG1] = _mm_set1_epi8((this->_IORegisterMap->WINOUT.BG1_Enable != 0) ? 0xFF : 0x00);
  	renderState.WINOUT_enable_SSE2[GPULayerID_BG2] = _mm_set1_epi8((this->_IORegisterMap->WINOUT.BG2_Enable != 0) ? 0xFF : 0x00);
-@@ -6605,7 +6608,7 @@ void GPUEngineBase::ParseReg_BLDCNT()
+@@ -6605,7 +6828,7 @@ void GPUEngineBase::ParseReg_BLDCNT()
  	                                renderState.dstBlendEnable[GPULayerID_OBJ] ||
  	                                renderState.dstBlendEnable[GPULayerID_Backdrop];
  	
@@ -255,7 +555,7 @@ index 026bf14c..57d2356d 100644
  	const __m128i one_vec128 = _mm_set1_epi8(1);
  	
  	renderState.srcEffectEnable_SSE2[GPULayerID_BG0] = _mm_cmpeq_epi8(_mm_set1_epi8(BLDCNT.BG0_Target1), one_vec128);
-@@ -6632,7 +6635,7 @@ void GPUEngineBase::ParseReg_BLDCNT()
+@@ -6632,7 +6855,7 @@ void GPUEngineBase::ParseReg_BLDCNT()
  	renderState.dstBlendEnable_SSE2[GPULayerID_Backdrop] = _mm_cmpeq_epi8(_mm_set1_epi8(BLDCNT.Backdrop_Target2), one_vec128);
  #endif
  	
@@ -264,7 +564,32 @@ index 026bf14c..57d2356d 100644
  }
  
  void GPUEngineBase::ParseReg_BLDALPHA()
-@@ -7342,7 +7345,37 @@ void GPUEngineA::RenderLine_Layer3D(GPUEngineCompositorInfo &compInfo)
+@@ -6719,6 +6942,7 @@ void GPUEngineBase::SetCustomFramebufferSize(size_t w, size_t h)
+ 	u16 *oldSprColorCustom = this->_sprColorCustom;
+ 	u8 *oldSprAlphaCustom = this->_sprAlphaCustom;
+ 	u8 *oldSprTypeCustom = this->_sprTypeCustom;
++	u8 *oldRbSprPassCustom = this->_rbSprPassCustom;
+ 	u8 *oldDidPassWindowTestCustomMasterPtr = this->_didPassWindowTestCustomMasterPtr;
+ 	
+ 	this->_internalRenderLineTargetCustom = malloc_alignedPage(w * h * GPU->GetDisplayInfo().pixelBytes);
+@@ -6729,6 +6953,8 @@ void GPUEngineBase::SetCustomFramebufferSize(size_t w, size_t h)
+ 	this->_sprColorCustom = (u16 *)malloc_alignedPage(w * sizeof(u16));
+ 	this->_sprAlphaCustom = (u8 *)malloc_alignedPage(w * sizeof(u8));
+ 	this->_sprTypeCustom = (u8 *)malloc_alignedPage(w * sizeof(u8));
++	this->_rbSprPassCustom = (u8 *)malloc_alignedPage(w * sizeof(u8));
++	this->_rbSprLineCustomReady = false;
+ 	
+ 	const NDSDisplayInfo &dispInfo = GPU->GetDisplayInfo();
+ 	this->_nativeBuffer = (this->_targetDisplayID == NDSDisplayID_Main) ? dispInfo.nativeBuffer[NDSDisplayID_Main] : dispInfo.nativeBuffer[NDSDisplayID_Touch];
+@@ -6779,6 +7005,7 @@ void GPUEngineBase::SetCustomFramebufferSize(size_t w, size_t h)
+ 	free_aligned(oldSprColorCustom);
+ 	free_aligned(oldSprAlphaCustom);
+ 	free_aligned(oldSprTypeCustom);
++	free_aligned(oldRbSprPassCustom);
+ 	free_aligned(oldDidPassWindowTestCustomMasterPtr);
+ }
+ 
+@@ -7342,7 +7569,101 @@ void GPUEngineA::RenderLine_Layer3D(GPUEngineCompositorInfo &compInfo)
  	{
  		size_t i = 0;
  		
@@ -299,11 +624,75 @@ index 026bf14c..57d2356d 100644
 +		}
 +#endif
 +		
++#ifdef RB_GPU_SSE2_NEON
++		// RewindBox: the usual case on AArch64 (plain copy into the 15-bit picture, no window test) in NEON
++		// directly. vld4 splits 16 pixels into their r, g, b and alpha bytes, the alpha bytes give the pass mask
++		// without the packs of the SSE2 path, and the 15-bit colour is put together by inserting shifted fields.
++		// The SSE2 path writes the same thing (_PixelCopy16_SSE2, _PixelCopyWithMask16_SSE2): a pixel whose
++		// alpha is not 0 becomes ((r & 0x3E) >> 1) | ((g & 0x3E) << 4) | ((b & 0x3E) << 9) | 0x8000 and takes
++		// the layer's ID; the others stay as they are. At 2560x1920 this layer is 4.9 million pixels a frame.
++		if ( (COMPOSITORMODE == GPUCompositorMode_Copy) && (OUTPUTFORMAT == NDSColorFormat_BGR555_Rev) && !WILLPERFORMWINDOWTEST )
++		{
++			const size_t neonPixCount = (compInfo.line.pixelCount - (compInfo.line.pixelCount % 16));
++			const u8 *__restrict src8 = (const u8 *)srcLinePtr;
++			u16 *__restrict dstColor16 = compInfo.target.lineColor16;
++			u8 *__restrict dstLayerID = compInfo.target.lineLayerID;
++			const uint8x16_t layerID = vdupq_n_u8((u8)compInfo.renderState.selectedLayerID);
++			const uint8x16_t field = vdupq_n_u8(0x1F);
++			const uint16x8_t alphaBit = vdupq_n_u16(0x8000);
++			
++			for (; i < neonPixCount; i+=16, src8+=64, dstColor16+=16, dstLayerID+=16)
++			{
++				const uint8x16x4_t px = vld4q_u8(src8); // FragmentColor: r, g, b, a
++				const uint8x16_t pass = vtstq_u8(px.val[3], px.val[3]);
++				
++				if (vmaxvq_u8(pass) == 0)
++				{
++					continue;
++				}
++				
++				const uint8x16_t r5 = vandq_u8(vshrq_n_u8(px.val[0], 1), field);
++				const uint8x16_t g5 = vandq_u8(vshrq_n_u8(px.val[1], 1), field);
++				const uint8x16_t b5 = vandq_u8(vshrq_n_u8(px.val[2], 1), field);
++				
++				uint16x8_t color0 = vmovl_u8(vget_low_u8(r5));
++				uint16x8_t color1 = vmovl_u8(vget_high_u8(r5));
++				color0 = vsliq_n_u16(color0, vmovl_u8(vget_low_u8(g5)), 5);
++				color1 = vsliq_n_u16(color1, vmovl_u8(vget_high_u8(g5)), 5);
++				color0 = vorrq_u16(vsliq_n_u16(color0, vmovl_u8(vget_low_u8(b5)), 10), alphaBit);
++				color1 = vorrq_u16(vsliq_n_u16(color1, vmovl_u8(vget_high_u8(b5)), 10), alphaBit);
++				
++				if (vminvq_u8(pass) == 0xFF)
++				{
++					vst1q_u16(dstColor16 + 0, color0);
++					vst1q_u16(dstColor16 + 8, color1);
++					vst1q_u8(dstLayerID, layerID);
++				}
++				else
++				{
++					const uint16x8_t pass0 = vreinterpretq_u16_s16(vmovl_s8(vreinterpret_s8_u8(vget_low_u8(pass))));
++					const uint16x8_t pass1 = vreinterpretq_u16_s16(vmovl_s8(vreinterpret_s8_u8(vget_high_u8(pass))));
++					vst1q_u16(dstColor16 + 0, vbslq_u16(pass0, color0, vld1q_u16(dstColor16 + 0)));
++					vst1q_u16(dstColor16 + 8, vbslq_u16(pass1, color1, vld1q_u16(dstColor16 + 8)));
++					vst1q_u8(dstLayerID, vbslq_u8(pass, layerID, vld1q_u8(dstLayerID)));
++				}
++			}
++			
++			// The state the SSE2 loop below leaves after the same pixels (it wraps xCustom before each vector)
++			const size_t w = compInfo.line.widthCustom;
++			srcLinePtr += i;
++			compInfo.target.xCustom = (i == 0) ? 0 : (((i % w) == 0) ? w : (i % w));
++			compInfo.target.lineColor16 += i;
++			compInfo.target.lineColor32 += i;
++			compInfo.target.lineLayerID += i;
++		}
++#endif
++
 +#ifdef RB_GPU_SSE2
  		const size_t ssePixCount = (compInfo.line.pixelCount - (compInfo.line.pixelCount % 16));
  		const __m128i srcEffectEnableMask = compInfo.renderState.srcEffectEnable_SSE2[GPULayerID_BG0];
  		
-@@ -7408,7 +7441,7 @@ void GPUEngineA::RenderLine_Layer3D(GPUEngineCompositorInfo &compInfo)
+@@ -7408,7 +7729,7 @@ void GPUEngineA::RenderLine_Layer3D(GPUEngineCompositorInfo &compInfo)
  		}
  #endif
  		
@@ -312,7 +701,7 @@ index 026bf14c..57d2356d 100644
  #pragma LOOPVECTORIZE_DISABLE
  #endif
  		for (; i < compInfo.line.pixelCount; i++, srcLinePtr++, compInfo.target.xCustom++, compInfo.target.lineColor16++, compInfo.target.lineColor32++, compInfo.target.lineLayerID++)
-@@ -7845,7 +7878,7 @@ void GPUEngineA::_RenderLine_DisplayCapture(const GPUEngineCompositorInfo &compI
+@@ -7845,7 +8166,7 @@ void GPUEngineA::_RenderLine_DisplayCapture(const GPUEngineCompositorInfo &compI
  		}
  	}
  	
@@ -321,7 +710,7 @@ index 026bf14c..57d2356d 100644
  	MACRODO_N( CAPTURELENGTH / (sizeof(__m128i) / sizeof(u16)), _mm_stream_si128((__m128i *)(this->_VRAMNativeBlockCaptureCopyPtr[DISPCAPCNT.VRAMWriteBlock] + dstNativeOffset) + (X), _mm_load_si128((__m128i *)dstNative16 + (X))) );
  #else
  	memcpy(this->_VRAMNativeBlockCaptureCopyPtr[DISPCAPCNT.VRAMWriteBlock] + dstNativeOffset, dstNative16, CAPTURELENGTH * sizeof(u16));
-@@ -7865,7 +7898,7 @@ void GPUEngineA::_RenderLine_DisplayCapture(const GPUEngineCompositorInfo &compI
+@@ -7865,7 +8186,7 @@ void GPUEngineA::_RenderLine_DisplayCapture(const GPUEngineCompositorInfo &compI
  
  void GPUEngineA::_RenderLine_DispCapture_FIFOToBuffer(u16 *fifoLineBuffer)
  {
@@ -330,7 +719,7 @@ index 026bf14c..57d2356d 100644
  	for (size_t i = 0; i < GPU_FRAMEBUFFER_NATIVE_WIDTH * sizeof(u16) / sizeof(__m128i); i++)
  	{
  		const u32 srcA = DISP_FIFOrecv();
-@@ -7889,7 +7922,7 @@ void GPUEngineA::_RenderLine_DispCapture_Copy(const GPUEngineLineInfo &lineInfo,
+@@ -7889,7 +8210,7 @@ void GPUEngineA::_RenderLine_DispCapture_Copy(const GPUEngineLineInfo &lineInfo,
  	const u16 alphaBit16 = (SOURCESWITCH == 0) ? 0x8000 : 0x0000;
  	const u32 alphaBit32 = (SOURCESWITCH == 0) ? ((COLORFORMAT == NDSColorFormat_BGR888_Rev) ? 0xFF000000 : 0x1F000000) : 0x00000000;
  	
@@ -339,7 +728,7 @@ index 026bf14c..57d2356d 100644
  	const __m128i alpha_vec128 = (COLORFORMAT == NDSColorFormat_BGR555_Rev) ? _mm_set1_epi16(alphaBit16) : _mm_set1_epi32(alphaBit32);
  #endif
  	
-@@ -7897,7 +7930,7 @@ void GPUEngineA::_RenderLine_DispCapture_Copy(const GPUEngineLineInfo &lineInfo,
+@@ -7897,7 +8218,7 @@ void GPUEngineA::_RenderLine_DispCapture_Copy(const GPUEngineLineInfo &lineInfo,
  	{
  		if (CAPTUREFROMNATIVESRC)
  		{
@@ -348,7 +737,7 @@ index 026bf14c..57d2356d 100644
  			switch (COLORFORMAT)
  			{
  				case NDSColorFormat_BGR555_Rev:
-@@ -7988,7 +8021,7 @@ void GPUEngineA::_RenderLine_DispCapture_Copy(const GPUEngineLineInfo &lineInfo,
+@@ -7988,7 +8309,7 @@ void GPUEngineA::_RenderLine_DispCapture_Copy(const GPUEngineLineInfo &lineInfo,
  				const size_t pixCountExt = captureLengthExt * lineInfo.renderCount;
  				size_t i = 0;
  				
@@ -357,7 +746,7 @@ index 026bf14c..57d2356d 100644
  				switch (COLORFORMAT)
  				{
  					case NDSColorFormat_BGR555_Rev:
-@@ -8014,7 +8047,7 @@ void GPUEngineA::_RenderLine_DispCapture_Copy(const GPUEngineLineInfo &lineInfo,
+@@ -8014,7 +8335,7 @@ void GPUEngineA::_RenderLine_DispCapture_Copy(const GPUEngineLineInfo &lineInfo,
  				}
  #endif
  				
@@ -366,7 +755,7 @@ index 026bf14c..57d2356d 100644
  #pragma LOOPVECTORIZE_DISABLE
  #endif
  				for (; i < pixCountExt; i++)
-@@ -8042,7 +8075,7 @@ void GPUEngineA::_RenderLine_DispCapture_Copy(const GPUEngineLineInfo &lineInfo,
+@@ -8042,7 +8363,7 @@ void GPUEngineA::_RenderLine_DispCapture_Copy(const GPUEngineLineInfo &lineInfo,
  					{
  						case NDSColorFormat_BGR555_Rev:
  						{
@@ -375,7 +764,7 @@ index 026bf14c..57d2356d 100644
  							const size_t ssePixCount = captureLengthExt - (captureLengthExt % 8);
  							for (; i < ssePixCount; i += 8)
  							{
-@@ -8050,7 +8083,7 @@ void GPUEngineA::_RenderLine_DispCapture_Copy(const GPUEngineLineInfo &lineInfo,
+@@ -8050,7 +8371,7 @@ void GPUEngineA::_RenderLine_DispCapture_Copy(const GPUEngineLineInfo &lineInfo,
  							}
  #endif
  							
@@ -384,7 +773,7 @@ index 026bf14c..57d2356d 100644
  #pragma LOOPVECTORIZE_DISABLE
  #endif
  							for (; i < captureLengthExt; i++)
-@@ -8066,7 +8099,7 @@ void GPUEngineA::_RenderLine_DispCapture_Copy(const GPUEngineLineInfo &lineInfo,
+@@ -8066,7 +8387,7 @@ void GPUEngineA::_RenderLine_DispCapture_Copy(const GPUEngineLineInfo &lineInfo,
  						case NDSColorFormat_BGR666_Rev:
  						case NDSColorFormat_BGR888_Rev:
  						{
@@ -393,7 +782,7 @@ index 026bf14c..57d2356d 100644
  							const size_t ssePixCount = captureLengthExt - (captureLengthExt % 4);
  							for (; i < ssePixCount; i += 4)
  							{
-@@ -8074,7 +8107,7 @@ void GPUEngineA::_RenderLine_DispCapture_Copy(const GPUEngineLineInfo &lineInfo,
+@@ -8074,7 +8395,7 @@ void GPUEngineA::_RenderLine_DispCapture_Copy(const GPUEngineLineInfo &lineInfo,
  							}
  #endif
  							
@@ -402,7 +791,7 @@ index 026bf14c..57d2356d 100644
  #pragma LOOPVECTORIZE_DISABLE
  #endif
  							for (; i < captureLengthExt; i++)
-@@ -8177,7 +8210,7 @@ FragmentColor GPUEngineA::_RenderLine_DispCapture_BlendFunc(const FragmentColor
+@@ -8177,7 +8498,7 @@ FragmentColor GPUEngineA::_RenderLine_DispCapture_BlendFunc(const FragmentColor
  	return outColor;
  }
  
@@ -411,7 +800,7 @@ index 026bf14c..57d2356d 100644
  template <NDSColorFormat COLORFORMAT>
  __m128i GPUEngineA::_RenderLine_DispCapture_BlendFunc_SSE2(const __m128i &srcA, const __m128i &srcB, const __m128i &blendEVA, const __m128i &blendEVB)
  {
-@@ -8293,7 +8326,7 @@ __m128i GPUEngineA::_RenderLine_DispCapture_BlendFunc_SSE2(const __m128i &srcA,
+@@ -8293,7 +8614,7 @@ __m128i GPUEngineA::_RenderLine_DispCapture_BlendFunc_SSE2(const __m128i &srcA,
  template <NDSColorFormat OUTPUTFORMAT>
  void GPUEngineA::_RenderLine_DispCapture_BlendToCustomDstBuffer(const void *srcA, const void *srcB, void *dst, const u8 blendEVA, const u8 blendEVB, const size_t length)
  {
@@ -420,7 +809,7 @@ index 026bf14c..57d2356d 100644
  	const __m128i blendEVA_vec128 = _mm_set1_epi16(blendEVA);
  	const __m128i blendEVB_vec128 = _mm_set1_epi16(blendEVB);
  #endif
-@@ -8306,7 +8339,7 @@ void GPUEngineA::_RenderLine_DispCapture_BlendToCustomDstBuffer(const void *srcA
+@@ -8306,7 +8627,7 @@ void GPUEngineA::_RenderLine_DispCapture_BlendToCustomDstBuffer(const void *srcA
  		const FragmentColor *srcB_32 = (const FragmentColor *)srcB;
  		FragmentColor *dst32 = (FragmentColor *)dst;
  		
@@ -429,7 +818,7 @@ index 026bf14c..57d2356d 100644
  		const size_t ssePixCount = length - (length % 4);
  		for (; i < ssePixCount; i+=4)
  		{
-@@ -8317,7 +8350,7 @@ void GPUEngineA::_RenderLine_DispCapture_BlendToCustomDstBuffer(const void *srcA
+@@ -8317,7 +8638,7 @@ void GPUEngineA::_RenderLine_DispCapture_BlendToCustomDstBuffer(const void *srcA
  		}
  #endif
  		
@@ -438,7 +827,7 @@ index 026bf14c..57d2356d 100644
  #pragma LOOPVECTORIZE_DISABLE
  #endif
  		for (; i < length; i++)
-@@ -8334,7 +8367,7 @@ void GPUEngineA::_RenderLine_DispCapture_BlendToCustomDstBuffer(const void *srcA
+@@ -8334,7 +8655,7 @@ void GPUEngineA::_RenderLine_DispCapture_BlendToCustomDstBuffer(const void *srcA
  		const u16 *srcB_16 = (const u16 *)srcB;
  		u16 *dst16 = (u16 *)dst;
  		
@@ -447,7 +836,7 @@ index 026bf14c..57d2356d 100644
  		const size_t ssePixCount = length - (length % 8);
  		for (; i < ssePixCount; i+=8)
  		{
-@@ -8345,7 +8378,7 @@ void GPUEngineA::_RenderLine_DispCapture_BlendToCustomDstBuffer(const void *srcA
+@@ -8345,7 +8666,7 @@ void GPUEngineA::_RenderLine_DispCapture_BlendToCustomDstBuffer(const void *srcA
  		}
  #endif
  		
@@ -456,7 +845,7 @@ index 026bf14c..57d2356d 100644
  #pragma LOOPVECTORIZE_DISABLE
  #endif
  		for (; i < length; i++)
-@@ -8366,7 +8399,7 @@ void GPUEngineA::_RenderLine_DispCapture_Blend(const GPUEngineLineInfo &lineInfo
+@@ -8366,7 +8687,7 @@ void GPUEngineA::_RenderLine_DispCapture_Blend(const GPUEngineLineInfo &lineInfo
  	
  	if (CAPTURETONATIVEDST)
  	{
@@ -465,7 +854,7 @@ index 026bf14c..57d2356d 100644
  		const __m128i blendEVA_vec128 = _mm_set1_epi16(blendEVA);
  		const __m128i blendEVB_vec128 = _mm_set1_epi16(blendEVB);
  		
-@@ -8534,7 +8567,7 @@ void GPUEngineA::_HandleDisplayModeMainMemory(const GPUEngineLineInfo &lineInfo)
+@@ -8534,7 +8855,7 @@ void GPUEngineA::_HandleDisplayModeMainMemory(const GPUEngineLineInfo &lineInfo)
  	// Displays video using color data directly read from main memory.
  	// Doing this should always result in an output line that is at the native size (192px x 1px).
  	
@@ -474,7 +863,7 @@ index 026bf14c..57d2356d 100644
  	switch (OUTPUTFORMAT)
  	{
  		case NDSColorFormat_BGR555_Rev:
-@@ -9622,6 +9655,9 @@ void GPUSubsystem::AsyncSetupEngineBuffersFinish()
+@@ -9622,6 +9943,9 @@ void GPUSubsystem::AsyncSetupEngineBuffersFinish()
  template <NDSColorFormat OUTPUTFORMAT>
  void GPUSubsystem::RenderLine(const size_t l)
  {
@@ -484,7 +873,7 @@ index 026bf14c..57d2356d 100644
  	if (!this->_frameNeedsFinish)
  	{
  		this->_event->DidApplyGPUSettingsBegin();
-@@ -9635,6 +9671,20 @@ void GPUSubsystem::RenderLine(const size_t l)
+@@ -9635,6 +9959,20 @@ void GPUSubsystem::RenderLine(const size_t l)
  	
  	const bool isDisplayCaptureNeeded = this->_engineMain->WillDisplayCapture(l);
  	const bool isFramebufferRenderNeeded[2]	= { this->_engineMain->GetEnableStateApplied(), this->_engineSub->GetEnableStateApplied() };
@@ -505,7 +894,7 @@ index 026bf14c..57d2356d 100644
  	
  	if (l == 0)
  	{
-@@ -9659,6 +9709,23 @@ void GPUSubsystem::RenderLine(const size_t l)
+@@ -9659,6 +9997,23 @@ void GPUSubsystem::RenderLine(const size_t l)
  		this->_engineSub->UpdateRenderStates<OUTPUTFORMAT>(l);
  	}
  	
@@ -529,7 +918,7 @@ index 026bf14c..57d2356d 100644
  	if ( (isFramebufferRenderNeeded[GPUEngineID_Main] || isDisplayCaptureNeeded) && !this->_willFrameSkip )
  	{
  		// GPUEngineA:WillRender3DLayer() and GPUEngineA:WillCapture3DLayerDirect() both rely on register
-@@ -9673,21 +9740,55 @@ void GPUSubsystem::RenderLine(const size_t l)
+@@ -9673,21 +10028,55 @@ void GPUSubsystem::RenderLine(const size_t l)
  		
  		const bool need3DCaptureFramebuffer = this->_engineMain->WillCapture3DLayerDirect(l);
  		const bool need3DDisplayFramebuffer = this->_engineMain->WillRender3DLayer() || ((OUTPUTFORMAT == NDSColorFormat_BGR888_Rev) && need3DCaptureFramebuffer);
@@ -589,7 +978,7 @@ index 026bf14c..57d2356d 100644
  	}
  	else
  	{
-@@ -9696,7 +9797,13 @@ void GPUSubsystem::RenderLine(const size_t l)
+@@ -9696,7 +10085,13 @@ void GPUSubsystem::RenderLine(const size_t l)
  	
  	if (isFramebufferRenderNeeded[GPUEngineID_Sub] && !this->_willFrameSkip)
  	{
@@ -603,7 +992,7 @@ index 026bf14c..57d2356d 100644
  	}
  	else
  	{
-@@ -9705,6 +9812,9 @@ void GPUSubsystem::RenderLine(const size_t l)
+@@ -9705,6 +10100,9 @@ void GPUSubsystem::RenderLine(const size_t l)
  	
  	if (l == 191)
  	{
@@ -613,7 +1002,7 @@ index 026bf14c..57d2356d 100644
  		this->_engineMain->LastLineProcess();
  		this->_engineSub->LastLineProcess();
  		
-@@ -9769,7 +9879,13 @@ void GPUSubsystem::RenderLine(const size_t l)
+@@ -9769,7 +10167,13 @@ void GPUSubsystem::RenderLine(const size_t l)
  			this->_displayInfo.sequenceNumber++;
  			this->_event->DidFrameEnd(this->_willFrameSkip, this->_displayInfo);
  		}
@@ -628,7 +1017,7 @@ index 026bf14c..57d2356d 100644
  
  void GPUSubsystem::UpdateAverageBacklightIntensityTotal()
 diff --git a/desmume/src/GPU.h b/desmume/src/GPU.h
-index 5807cef1..2400ec80 100644
+index 5807cef1..4a529749 100644
 --- a/desmume/src/GPU.h
 +++ b/desmume/src/GPU.h
 @@ -27,8 +27,10 @@
@@ -686,7 +1075,27 @@ index 5807cef1..2400ec80 100644
  	__m128i WIN0_enable_SSE2[6];
  	__m128i WIN1_enable_SSE2[6];
  	__m128i WINOUT_enable_SSE2[6];
-@@ -1521,7 +1523,7 @@ protected:
+@@ -1387,6 +1389,8 @@ protected:
+ 	u16 *_sprColorCustom;
+ 	u8 *_sprAlphaCustom;
+ 	u8 *_sprTypeCustom;
++	u8 *_rbSprPassCustom;       // RewindBox: the custom pixels of one priority's sprite pixels (partial sprite lines)
++	bool _rbSprLineCustomReady; // RewindBox: _sprColorCustom, _sprAlphaCustom and _sprTypeCustom hold this line's sprites
+ 	
+ 	u8 *_didPassWindowTestCustomMasterPtr;
+ 	u8 *_enableColorEffectCustomMasterPtr;
+@@ -1469,6 +1473,10 @@ protected:
+ 	template<bool MOSAIC> void _PrecompositeNativeToCustomLineBG(GPUEngineCompositorInfo &compInfo);
+ 	template<GPUCompositorMode COMPOSITORMODE, NDSColorFormat OUTPUTFORMAT, bool WILLPERFORMWINDOWTEST> void _CompositeNativeLineOBJ(GPUEngineCompositorInfo &compInfo, const u16 *__restrict srcColorNative16, const FragmentColor *__restrict srcColorNative32);
+ 	template<GPUCompositorMode COMPOSITORMODE, NDSColorFormat OUTPUTFORMAT, GPULayerType LAYERTYPE, bool WILLPERFORMWINDOWTEST> void _CompositeLineDeferred(GPUEngineCompositorInfo &compInfo, const u16 *__restrict srcColorCustom16, const u8 *__restrict srcIndexCustom);
++#ifdef RB_GPU_SSE2
++	template<GPUCompositorMode COMPOSITORMODE, NDSColorFormat OUTPUTFORMAT, GPULayerType LAYERTYPE, bool WILLPERFORMWINDOWTEST, bool INDEXTEST> void _RbCompositeCustomColumns(GPUEngineCompositorInfo &compInfo, const u16 *__restrict srcColorCustom16, const u8 *__restrict srcIndexCustom, const size_t xBegin, const size_t xEnd);
++	template<GPUCompositorMode COMPOSITORMODE, NDSColorFormat OUTPUTFORMAT, bool WILLPERFORMWINDOWTEST> void _RbCompositeSpriteColumns(GPUEngineCompositorInfo &compInfo, const itemsForPriority_t *__restrict item);
++#endif
+ 	template<GPUCompositorMode COMPOSITORMODE, NDSColorFormat OUTPUTFORMAT, GPULayerType LAYERTYPE, bool WILLPERFORMWINDOWTEST> void _CompositeVRAMLineDeferred(GPUEngineCompositorInfo &compInfo, const void *__restrict vramColorPtr);
+ 	
+ 	template<GPUCompositorMode COMPOSITORMODE, NDSColorFormat OUTPUTFORMAT, bool MOSAIC, bool WILLPERFORMWINDOWTEST, bool WILLDEFERCOMPOSITING> void _RenderLine_BGText(GPUEngineCompositorInfo &compInfo, const u16 XBG, const u16 YBG);
+@@ -1521,7 +1529,7 @@ protected:
  	FORCEINLINE u16 _ColorEffectDecreaseBrightness(const u16 col, const u16 blendEVY);
  	FORCEINLINE FragmentColor _ColorEffectDecreaseBrightness(const FragmentColor col, const u16 blendEVY);
  	
@@ -695,7 +1104,7 @@ index 5807cef1..2400ec80 100644
  	template<NDSColorFormat COLORFORMAT, bool USECONSTANTBLENDVALUESHINT> FORCEINLINE __m128i _ColorEffectBlend(const __m128i &colA, const __m128i &colB, const __m128i &blendEVA, const __m128i &blendEVB);
  	template<NDSColorFormat COLORFORMATB> FORCEINLINE __m128i _ColorEffectBlend3D(const __m128i &colA_Lo, const __m128i &colA_Hi, const __m128i &colB);
  	template<NDSColorFormat COLORFORMAT> FORCEINLINE __m128i _ColorEffectIncreaseBrightness(const __m128i &col, const __m128i &blendEVY);
-@@ -1713,7 +1715,7 @@ protected:
+@@ -1713,7 +1721,7 @@ protected:
  	u16 _RenderLine_DispCapture_BlendFunc(const u16 srcA, const u16 srcB, const u8 blendEVA, const u8 blendEVB);
  	template<NDSColorFormat COLORFORMAT> FragmentColor _RenderLine_DispCapture_BlendFunc(const FragmentColor srcA, const FragmentColor srcB, const u8 blendEVA, const u8 blendEVB);
  	
@@ -1207,7 +1616,7 @@ index 95592125..caa71976 100644
     CXXFLAGS += -DHAVE_JIT
  endif
 diff --git a/desmume/src/frontend/libretro/libretro.cpp b/desmume/src/frontend/libretro/libretro.cpp
-index 2314af93..abb38706 100644
+index 2314af93..73cbc069 100644
 --- a/desmume/src/frontend/libretro/libretro.cpp
 +++ b/desmume/src/frontend/libretro/libretro.cpp
 @@ -18,8 +18,20 @@
@@ -1231,7 +1640,7 @@ index 2314af93..abb38706 100644
  #include "streams/file_stream.h"
  
  #ifdef HAVE_OPENGL
-@@ -69,6 +81,181 @@ enum {
+@@ -69,6 +81,203 @@ enum {
  };
  
  retro_log_printf_t log_cb = NULL;
@@ -1325,7 +1734,11 @@ index 2314af93..abb38706 100644
 +   of a render drawn by bands, from its start to its last band. defer: frames that showed the last finished
 +   3D while the rasterizer threads drew the new one (asynchronous 3D, desmume_rb_3d_async). direct: frames
 +   whose screens were written straight into the frontend's memory (GET_CURRENT_SOFTWARE_FRAMEBUFFER; host
-+   then includes the frontend's answer to that call). */
++   then includes the frontend's answer to that call). l3d, lbg, lobj: parts of engA, the 3D layer composed
++   into the main engine's lines, its BG layers (drawn and composed) and its sprite layer composed. engAd, runD:
++   engA and run averaged over the frames that showed the last finished 3D while the rasterizer threads drew
++   the new one (defer: the threads ran next to the composition); engAn, runN: over the other frames. rqos:
++   the cores the rasterizer threads prefer (0 performance, 1 efficiency: desmume_rb_raster_cores). */
 +#define REWINDBOX_PERF_FRAMES 600
 +extern unsigned GPU_LR_FRAMEBUFFER_NATIVE_WIDTH, GPU_LR_FRAMEBUFFER_NATIVE_HEIGHT;
 +static struct
@@ -1334,6 +1747,8 @@ index 2314af93..abb38706 100644
 +   u64 over16, over33;
 +   u64 renders3d, bandRenders, bandWaits, captureFrames, capture3DFrames, render3dWall, rasterCpu, emuCpu;
 +   u64 deferredFrames, directFrames;
++   u64 gpuLayer3D, gpuLayerBG, gpuLayerOBJ;
++   u64 gpuMainDeferred, runDeferred;
 +} rewindbox_perf;
 +
 +static void rewindbox_perf_frame(u64 runStart, u64 emu, u64 out, u64 host, const RbPerf &before, u64 cpuStart,
@@ -1371,6 +1786,14 @@ index 2314af93..abb38706 100644
 +   rewindbox_perf.rasterCpu += __atomic_load_n(&rb_perf.rasterCpu, __ATOMIC_RELAXED) - before.rasterCpu;
 +   rewindbox_perf.emuCpu += rb_perf_thread_cpu() - cpuStart;
 +   rewindbox_perf.deferredFrames += rb_perf.deferredFrames - before.deferredFrames;
++   if (rb_perf.deferredFrames != before.deferredFrames)
++   {
++      rewindbox_perf.gpuMainDeferred += rb_perf.gpuMain - before.gpuMain;
++      rewindbox_perf.runDeferred += run;
++   }
++   rewindbox_perf.gpuLayer3D += rb_perf.gpuLayer3D - before.gpuLayer3D;
++   rewindbox_perf.gpuLayerBG += rb_perf.gpuLayerBG - before.gpuLayerBG;
++   rewindbox_perf.gpuLayerOBJ += rb_perf.gpuLayerOBJ - before.gpuLayerOBJ;
 +   if (direct)
 +      rewindbox_perf.directFrames++;
 +   if (rewindbox_perf.frames < REWINDBOX_PERF_FRAMES)
@@ -1389,10 +1812,16 @@ index 2314af93..abb38706 100644
 +      double cpu = emuMs - gpuMs - render3dMs;
 +      if (cpu < 0)
 +         cpu = 0;
++      const u64 deferred = rewindbox_perf.deferredFrames, other = rewindbox_perf.frames - deferred;
++      const double engAd = deferred ? rewindbox_perf.gpuMainDeferred / (deferred * 1e6) : 0.0;
++      const double runD = deferred ? rewindbox_perf.runDeferred / (deferred * 1e6) : 0.0;
++      const double engAn = other ? (rewindbox_perf.gpuMain - rewindbox_perf.gpuMainDeferred) / (other * 1e6) : 0.0;
++      const double runN = other ? (rewindbox_perf.run - rewindbox_perf.runDeferred) / (other * 1e6) : 0.0;
 +      log_cb(RETRO_LOG_INFO, "[rb-perf] desmume frames=%llu fps=%.1f res=%ux%u ss=%u threads=%u jit=%d ms/frame "
 +             "run=%.2f max=%.2f emu=%.2f cpu=%.2f 2d=%.2f 3d=%.2f wait=%.2f out=%.2f host=%.2f raster=%.2f "
 +             "resolve=%.2f engA=%.2f engB=%.2f end=%.2f over16=%llu over33=%llu r3d=%llu bands=%llu bwait=%llu "
-+             "cap=%llu cap3d=%llu ecpu=%.2f rcpu=%.2f t3d=%.2f defer=%llu direct=%llu\n",
++             "cap=%llu cap3d=%llu ecpu=%.2f rcpu=%.2f t3d=%.2f defer=%llu direct=%llu l3d=%.2f lbg=%.2f lobj=%.2f "
++             "engAd=%.2f engAn=%.2f runD=%.2f runN=%.2f rqos=%d\n",
 +             (unsigned long long)rewindbox_perf.frames, wall > 0 ? rewindbox_perf.frames / wall : 0.0,
 +             (unsigned)GPU_LR_FRAMEBUFFER_NATIVE_WIDTH, (unsigned)GPU_LR_FRAMEBUFFER_NATIVE_HEIGHT,
 +             (unsigned)SoftRasterizer_GetActiveSupersampling(), (unsigned)CommonSettings.num_cores,
@@ -1405,7 +1834,9 @@ index 2314af93..abb38706 100644
 +             (unsigned long long)rewindbox_perf.captureFrames, (unsigned long long)rewindbox_perf.capture3DFrames,
 +             rewindbox_perf.emuCpu / n, rewindbox_perf.rasterCpu / n,
 +             rewindbox_perf.bandRenders ? rewindbox_perf.render3dWall / (rewindbox_perf.bandRenders * 1e6) : 0.0,
-+             (unsigned long long)rewindbox_perf.deferredFrames, (unsigned long long)rewindbox_perf.directFrames);
++             (unsigned long long)rewindbox_perf.deferredFrames, (unsigned long long)rewindbox_perf.directFrames,
++             rewindbox_perf.gpuLayer3D / n, rewindbox_perf.gpuLayerBG / n, rewindbox_perf.gpuLayerOBJ / n,
++             engAd, engAn, runD, runN, (int)SoftRasterizer_GetWorkerCores());
 +   }
 +   memset(&rewindbox_perf, 0, sizeof(rewindbox_perf));
 +}
@@ -1413,7 +1844,7 @@ index 2314af93..abb38706 100644
  static retro_video_refresh_t video_cb = NULL;
  static retro_input_poll_t poll_cb = NULL;
  static retro_input_state_t input_cb = NULL;
-@@ -310,6 +497,13 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
+@@ -310,6 +519,13 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
     const __m128i g_mask = _mm_set1_epi16(0x07c0);
     const __m128i r_mask = _mm_set1_epi16(0xf800);
     const __m128i a_mask = _mm_set1_epi16(0x0020);
@@ -1427,7 +1858,7 @@ index 2314af93..abb38706 100644
  #elif defined(HOST_64)
     max_width = width - 3;
     const uint64_t b_mask = 0x001f001f001f001f;
-@@ -339,6 +533,16 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
+@@ -339,6 +555,16 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
           _mm_storeu_si128((__m128i*)(output + w),
                            _mm_or_si128(r, _mm_or_si128(g, _mm_or_si128(b, a))));
        }
@@ -1444,7 +1875,7 @@ index 2314af93..abb38706 100644
  #elif defined(HOST_64)
        for (; w < max_width; w += 4)
        {
-@@ -369,14 +573,89 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
+@@ -369,14 +595,89 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
     }
  }
  
@@ -1540,7 +1971,7 @@ index 2314af93..abb38706 100644
  }
  
  static void SwapScreen_32(uint32_t *dst, const uint32_t *src, uint32_t pitch)
-@@ -731,6 +1010,20 @@ static void check_variables(bool first_boot)
+@@ -731,6 +1032,20 @@ static void check_variables(bool first_boot)
                CommonSettings.use_jit = true;
            else if (!strcmp(var.value, "interpreter"))
                CommonSettings.use_jit = false;
@@ -1561,7 +1992,7 @@ index 2314af93..abb38706 100644
        }
       else
       {
-@@ -741,6 +1034,32 @@ static void check_variables(bool first_boot)
+@@ -741,6 +1056,32 @@ static void check_variables(bool first_boot)
  #endif
       }
  
@@ -1594,7 +2025,7 @@ index 2314af93..abb38706 100644
  #ifdef HAVE_JIT
        var.key = "desmume_jit_block_size";
  
-@@ -889,10 +1208,47 @@ static void check_variables(bool first_boot)
+@@ -889,10 +1230,56 @@ static void check_variables(bool first_boot)
  
     }
  
@@ -1625,6 +2056,15 @@ index 2314af93..abb38706 100644
 +         SoftRasterizer_SetAsyncMode(SOFTRASTERIZER_ASYNC_AUTO);
 +   }
 +
++   var.key = "desmume_rb_raster_cores";
++
++   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
++   {
++      /* RewindBox: each rasterizer thread applies it at its next pass */
++      SoftRasterizer_SetWorkerCores(!strcmp(var.value, "efficiency") ? SOFTRASTERIZER_CORES_EFFICIENCY
++                                                                    : SOFTRASTERIZER_CORES_PERFORMANCE);
++   }
++
     var.key = "desmume_num_cores";
  
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -1643,7 +2083,7 @@ index 2314af93..abb38706 100644
     else
         CommonSettings.num_cores = 1;
  
-@@ -1576,6 +1932,7 @@ void retro_deinit(void)
+@@ -1576,6 +1963,7 @@ void retro_deinit(void)
         tex = 0;
      }
  #endif
@@ -1651,7 +2091,7 @@ index 2314af93..abb38706 100644
      NDS_DeInit();
  
  #ifdef PERF_TEST
-@@ -2079,7 +2436,21 @@ void retro_run (void)
+@@ -2079,7 +2467,21 @@ void retro_run (void)
     if (skipped)
        NDS_SkipNextFrame();
  
@@ -1673,7 +2113,7 @@ index 2314af93..abb38706 100644
  
     SPU_Emulate_user();
  
-@@ -2097,6 +2468,37 @@ void retro_run (void)
+@@ -2097,6 +2499,37 @@ void retro_run (void)
            previous_showbothscreens = hybrid_layout_showbothscreens;
     }
  
@@ -1711,7 +2151,7 @@ index 2314af93..abb38706 100644
     if (!skipped)
     {
            if (colorMode == RETRO_PIXEL_FORMAT_XRGB8888)
-@@ -2284,7 +2686,19 @@ void retro_run (void)
+@@ -2284,7 +2717,19 @@ void retro_run (void)
  #endif
     }
     else
@@ -1732,7 +2172,7 @@ index 2314af93..abb38706 100644
  
     frameIndex = skipped ? frameIndex : 0;
  }
-@@ -2463,6 +2877,10 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
+@@ -2463,6 +2908,10 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
  
  void retro_unload_game (void)
  {
@@ -1744,7 +2184,7 @@ index 2314af93..abb38706 100644
      if (screen_buf)
         free(screen_buf);
 diff --git a/desmume/src/frontend/libretro/libretro_core_options.h b/desmume/src/frontend/libretro/libretro_core_options.h
-index 85043b8e..e4cac4cb 100644
+index 85043b8e..432801b1 100644
 --- a/desmume/src/frontend/libretro/libretro_core_options.h
 +++ b/desmume/src/frontend/libretro/libretro_core_options.h
 @@ -138,17 +138,18 @@ struct retro_core_option_v2_definition option_defs_us[] = {
@@ -1783,7 +2223,7 @@ index 85043b8e..e4cac4cb 100644
  #endif
              { NULL, NULL },
          },
-@@ -343,6 +350,35 @@ struct retro_core_option_v2_definition option_defs_us[] = {
+@@ -343,6 +350,49 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          },
          "256x192"
      },
@@ -1815,6 +2255,20 @@ index 85043b8e..e4cac4cb 100644
 +            { NULL, NULL },
 +        },
 +        "auto"
++    },
++    {
++        "desmume_rb_raster_cores",
++        "3D Rasterizer Cores",
++        NULL,
++        "Which cores the threads that draw the 3D prefer. Performance: any core. Efficiency: the efficiency cores first, which leaves the performance cores and their cache to the emulation thread while it composes the picture; the 3D may then show a frame later.",
++        NULL,
++        "video",
++        {
++            { "performance", NULL },
++            { "efficiency",  NULL },
++            { NULL, NULL },
++        },
++        "performance"
 +    },
  #ifdef HAVE_OPENGL
      {
@@ -1881,10 +2335,10 @@ index 2535f04f..d3100222 100644
  	switch (deviceInfo.renderID)
  	{
 diff --git a/desmume/src/rasterize.cpp b/desmume/src/rasterize.cpp
-index e42ef256..5c91f08e 100644
+index e42ef256..c5aaa062 100644
 --- a/desmume/src/rasterize.cpp
 +++ b/desmume/src/rasterize.cpp
-@@ -64,6 +64,27 @@
+@@ -64,6 +64,43 @@
  #include "NDSSystem.h"
  #include "utils/bits.h"
  #include "utils/task.h"
@@ -1897,14 +2351,30 @@ index e42ef256..5c91f08e 100644
 +// interactive in the host): when the 3D draws while the 2D engines compose, the seven threads compete for
 +// six cores, and the emulation thread, which composes the picture and runs the console, keeps its core.
 +// The threads still take every core the emulation thread leaves (it waits for their bands).
++// With desmume_rb_raster_cores=efficiency they run as utility work, which the system puts on the efficiency
++// cores first: the performance cores and their shared cache stay with the emulation thread while it composes
++// the picture next to a render in flight (asynchronous 3D). Each thread applies a change at its next pass.
++static volatile s32 gSoftRasterizerWorkerCores = SOFTRASTERIZER_CORES_PERFORMANCE;
++
++void SoftRasterizer_SetWorkerCores(SoftRasterizerWorkerCores cores)
++{
++	__atomic_store_n(&gSoftRasterizerWorkerCores, (s32)cores, __ATOMIC_RELAXED);
++}
++
++SoftRasterizerWorkerCores SoftRasterizer_GetWorkerCores()
++{
++	return (SoftRasterizerWorkerCores)__atomic_load_n(&gSoftRasterizerWorkerCores, __ATOMIC_RELAXED);
++}
++
 +static void SoftRasterizer_SetWorkerQoS()
 +{
 +#if defined(__APPLE__)
-+	static __thread bool workerQoSSet = false;
-+	if (!workerQoSSet)
++	static __thread s32 workerQoSApplied = -1;
++	const s32 wanted = __atomic_load_n(&gSoftRasterizerWorkerCores, __ATOMIC_RELAXED);
++	if (workerQoSApplied != wanted)
 +	{
-+		workerQoSSet = true;
-+		pthread_set_qos_class_self_np(QOS_CLASS_USER_INITIATED, 0);
++		workerQoSApplied = wanted;
++		pthread_set_qos_class_self_np((wanted == SOFTRASTERIZER_CORES_EFFICIENCY) ? QOS_CLASS_UTILITY : QOS_CLASS_USER_INITIATED, 0);
 +	}
 +#endif
 +}
@@ -1912,7 +2382,96 @@ index e42ef256..5c91f08e 100644
  #include "filter/filter.h"
  #include "filter/xbrz.h"
  
-@@ -1036,7 +1057,7 @@ void RasterizerUnit<RENDERER>::_runscanlines(const POLYGON_ATTR polyAttr, const
+@@ -423,7 +460,8 @@ FORCEINLINE void RasterizerUnit<RENDERER>::_shade(const PolygonMode polygonMode,
+ 		return;
+ 	}
+ 	
+-	static const FragmentColor colorWhite = MakeFragmentColor(0x3F, 0x3F, 0x3F, 0x1F);
++	// RewindBox: not static (its initialisation guard was tested for every pixel); the compiler folds it
++	const FragmentColor colorWhite = MakeFragmentColor(0x3F, 0x3F, 0x3F, 0x1F);
+ 	const FragmentColor mainTexColor = (this->_currentTexture->IsSamplingEnabled()) ? this->_sample(texCoordU, texCoordV) : colorWhite;
+ 	
+ 	switch (polygonMode)
+@@ -499,19 +537,19 @@ FORCEINLINE void RasterizerUnit<RENDERER>::_shade(const PolygonMode polygonMode,
+ }
+ 
+ template<bool RENDERER> template<bool ISFRONTFACING, bool ISSHADOWPOLYGON>
+-FORCEINLINE void RasterizerUnit<RENDERER>::_pixel(const POLYGON_ATTR polyAttr, const bool isTranslucent, const size_t fragmentIndex, FragmentColor &dstColor, float r, float g, float b, float invu, float invv, float z, float w)
++FORCEINLINE void RasterizerUnit<RENDERER>::_pixel(const RbFragmentTargets &target, const POLYGON_ATTR polyAttr, const bool isTranslucent, const size_t fragmentIndex, FragmentColor &dstColor, float r, float g, float b, float invu, float invv, float z, float w)
+ {
+ 	FragmentColor newDstColor32;
+ 	FragmentColor shaderOutput;
+ 	bool isOpaquePixel;
+ 	
+-	u32 &dstAttributeDepth				= this->_softRender->_framebufferAttributes->depth[fragmentIndex];
+-	u8 &dstAttributeOpaquePolyID		= this->_softRender->_framebufferAttributes->opaquePolyID[fragmentIndex];
+-	u8 &dstAttributeTranslucentPolyID	= this->_softRender->_framebufferAttributes->translucentPolyID[fragmentIndex];
+-	u8 &dstAttributeStencil				= this->_softRender->_framebufferAttributes->stencil[fragmentIndex];
+-	u8 &dstAttributeIsFogged			= this->_softRender->_framebufferAttributes->isFogged[fragmentIndex];
+-	u8 &dstAttributeIsTranslucentPoly	= this->_softRender->_framebufferAttributes->isTranslucentPoly[fragmentIndex];
+-	u8 &dstAttributePolyFacing			= this->_softRender->_framebufferAttributes->polyFacing[fragmentIndex];
++	u32 &dstAttributeDepth				= target.depth[fragmentIndex];
++	u8 &dstAttributeOpaquePolyID		= target.opaquePolyID[fragmentIndex];
++	u8 &dstAttributeTranslucentPolyID	= target.translucentPolyID[fragmentIndex];
++	u8 &dstAttributeStencil				= target.stencil[fragmentIndex];
++	u8 &dstAttributeIsFogged			= target.isFogged[fragmentIndex];
++	u8 &dstAttributeIsTranslucentPoly	= target.isTranslucentPoly[fragmentIndex];
++	u8 &dstAttributePolyFacing			= target.polyFacing[fragmentIndex];
+ 	
+ 	// not sure about the w-buffer depth value: this value was chosen to make the skybox, castle window decals, and water level render correctly in SM64
+ 	//
+@@ -521,7 +559,7 @@ FORCEINLINE void RasterizerUnit<RENDERER>::_pixel(const POLYGON_ATTR polyAttr, c
+ 
+ 	// Note that an IEEE-754 single-precision float uses a 23-bit significand. Therefore, we will multiply the
+ 	// Z-depth by a 22-bit significand for safety.
+-	const u32 newDepth = (gfx3d.renderState.wbuffer) ? u32floor(w * 4096.0f) : u32floor(z * 4194303.0f) << 2;
++	const u32 newDepth = (target.wbuffer) ? u32floor(w * 4096.0f) : u32floor(z * 4194303.0f) << 2;
+ 	
+ 	// run the depth test
+ 	bool depthFail = false;
+@@ -615,7 +653,7 @@ FORCEINLINE void RasterizerUnit<RENDERER>::_pixel(const POLYGON_ATTR polyAttr, c
+ 	
+ 	// handle alpha test
+ 	if ( shaderOutput.a == 0 ||
+-		(this->_softRender->currentRenderState->enableAlphaTest && shaderOutput.a < this->_softRender->currentRenderState->alphaTestRef) )
++		(target.enableAlphaTest && shaderOutput.a < target.alphaTestRef) )
+ 	{
+ 		return;
+ 	}
+@@ -720,7 +758,22 @@ FORCEINLINE void RasterizerUnit<RENDERER>::_drawscanline(const POLYGON_ATTR poly
+ 	}
+ 
+ 	int x = XStart;
+-
++	
++	// RewindBox: read once for the whole scanline (RbFragmentTargets)
++	const FragmentAttributesBuffer *attributes = this->_softRender->_framebufferAttributes;
++	const RbFragmentTargets target = {
++		attributes->depth,
++		attributes->opaquePolyID,
++		attributes->translucentPolyID,
++		attributes->stencil,
++		attributes->isFogged,
++		attributes->isTranslucentPoly,
++		attributes->polyFacing,
++		gfx3d.renderState.wbuffer,
++		this->_softRender->currentRenderState->enableAlphaTest,
++		this->_softRender->currentRenderState->alphaTestRef
++	};
++	
+ 	if (x < 0)
+ 	{
+ 		if (RENDERER && !USELINEHACK)
+@@ -757,7 +810,7 @@ FORCEINLINE void RasterizerUnit<RENDERER>::_drawscanline(const POLYGON_ATTR poly
+ 	
+ 	while (width-- > 0)
+ 	{
+-		this->_pixel<ISFRONTFACING, ISSHADOWPOLYGON>(polyAttr, isTranslucent, adr, dstColor[adr], color[0], color[1], color[2], coord[0], coord[1], coord[2], 1.0f/coord[3]);
++		this->_pixel<ISFRONTFACING, ISSHADOWPOLYGON>(target, polyAttr, isTranslucent, adr, dstColor[adr], color[0], color[1], color[2], coord[0], coord[1], coord[2], 1.0f/coord[3]);
+ 		adr++;
+ 		x++;
+ 
+@@ -1036,7 +1089,7 @@ void RasterizerUnit<RENDERER>::_runscanlines(const POLYGON_ATTR polyAttr, const
  	//HACK: special handling for horizontal line poly
  	if ( USELINEHACK && (left->Height == 0) && (right->Height == 0) && (left->Y < framebufferHeight) && (left->Y >= 0) )
  	{
@@ -1921,7 +2480,7 @@ index e42ef256..5c91f08e 100644
  		if (draw)
  		{
  #ifdef ENABLE_SSE2
-@@ -1049,7 +1070,14 @@ void RasterizerUnit<RENDERER>::_runscanlines(const POLYGON_ATTR polyAttr, const
+@@ -1049,7 +1102,14 @@ void RasterizerUnit<RENDERER>::_runscanlines(const POLYGON_ATTR polyAttr, const
  
  	while (Height--)
  	{
@@ -1937,7 +2496,7 @@ index e42ef256..5c91f08e 100644
  		if (draw)
  		{
  #ifdef ENABLE_SSE2
-@@ -1209,6 +1237,7 @@ void RasterizerUnit<RENDERER>::_shape_engine(const POLYGON_ATTR polyAttr, const
+@@ -1209,6 +1269,7 @@ void RasterizerUnit<RENDERER>::_shape_engine(const POLYGON_ATTR polyAttr, const
  
  	edge_fx_fl left, right;
  	bool step_left = true, step_right = true;
@@ -1945,7 +2504,7 @@ index e42ef256..5c91f08e 100644
  	for (;;)
  	{
  		//generate new edges if necessary. we must avoid regenerating edges when they are incomplete
-@@ -1225,6 +1254,10 @@ void RasterizerUnit<RENDERER>::_shape_engine(const POLYGON_ATTR polyAttr, const
+@@ -1225,6 +1286,10 @@ void RasterizerUnit<RENDERER>::_shape_engine(const POLYGON_ATTR polyAttr, const
  
  		const bool isHorizontal = (left.Y == right.Y);
  		this->_runscanlines<SLI, ISFRONTFACING, ISSHADOWPOLYGON, USELINEHACK>(polyAttr, isTranslucent, dstColor, framebufferWidth, framebufferHeight, isHorizontal, &left, &right);
@@ -1956,7 +2515,7 @@ index e42ef256..5c91f08e 100644
  		
  		//if we ran out of an edge, step to the next one
  		if (right.Height == 0)
-@@ -1249,6 +1282,8 @@ void RasterizerUnit<RENDERER>::SetSLI(u32 startLine, u32 endLine, bool debug)
+@@ -1249,6 +1314,8 @@ void RasterizerUnit<RENDERER>::SetSLI(u32 startLine, u32 endLine, bool debug)
  	this->_debug_thisPoly = debug;
  	this->_SLI_startLine = startLine;
  	this->_SLI_endLine = endLine;
@@ -1965,7 +2524,7 @@ index e42ef256..5c91f08e 100644
  }
  
  template<bool RENDERER>
-@@ -1266,9 +1301,9 @@ FORCEINLINE void RasterizerUnit<RENDERER>::Render()
+@@ -1266,9 +1333,9 @@ FORCEINLINE void RasterizerUnit<RENDERER>::Render()
  		return;
  	}
  	
@@ -1978,7 +2537,7 @@ index e42ef256..5c91f08e 100644
  	
  	const CPoly &firstClippedPoly = this->_softRender->GetClippedPolyByIndex(0);
  	const POLY &firstPoly = *firstClippedPoly.poly;
-@@ -1283,6 +1318,8 @@ FORCEINLINE void RasterizerUnit<RENDERER>::Render()
+@@ -1283,6 +1350,8 @@ FORCEINLINE void RasterizerUnit<RENDERER>::Render()
  	{
  		if (!RENDERER) _debug_thisPoly = (i == this->_softRender->_debug_drawClippedUserPoly);
  		if (!this->_softRender->polyVisible[i]) continue;
@@ -1987,7 +2546,7 @@ index e42ef256..5c91f08e 100644
  		this->_polynum = i;
  
  		const CPoly &clippedPoly = this->_softRender->GetClippedPolyByIndex(i);
-@@ -1367,11 +1404,64 @@ void* _HACK_Viewer_ExecUnit(void *arg)
+@@ -1367,11 +1436,64 @@ void* _HACK_Viewer_ExecUnit(void *arg)
  	return 0;
  }
  
@@ -2053,7 +2612,7 @@ index e42ef256..5c91f08e 100644
  	
  	return 0;
  }
-@@ -1420,6 +1510,53 @@ static void* SoftRasterizer_RunRenderEdgeMarkAndFog(void *arg)
+@@ -1420,6 +1542,53 @@ static void* SoftRasterizer_RunRenderEdgeMarkAndFog(void *arg)
  	return NULL;
  }
  
@@ -2107,7 +2666,7 @@ index e42ef256..5c91f08e 100644
  static void* SoftRasterizer_RunClearUsingValues(void *arg)
  {
  	SoftRasterizerClearParam *param = (SoftRasterizerClearParam *)arg;
-@@ -1748,6 +1885,44 @@ SoftRasterizerRenderer::SoftRasterizerRenderer()
+@@ -1748,6 +1917,44 @@ SoftRasterizerRenderer::SoftRasterizerRenderer()
  	
  	_HACK_viewer_rasterizerUnit.SetSLI(0, _framebufferHeight, false);
  	
@@ -2152,7 +2711,7 @@ index e42ef256..5c91f08e 100644
  	const size_t coreCount = CommonSettings.num_cores;
  	_threadCount = coreCount;
  	
-@@ -1841,10 +2016,385 @@ SoftRasterizerRenderer::~SoftRasterizerRenderer()
+@@ -1841,10 +2048,385 @@ SoftRasterizerRenderer::~SoftRasterizerRenderer()
  	delete[] this->_task;
  	this->_task = NULL;
  	
@@ -2538,7 +3097,7 @@ index e42ef256..5c91f08e 100644
  Render3DError SoftRasterizerRenderer::InitTables()
  {
  	static bool needTableInit = true;
-@@ -1874,8 +2424,8 @@ ClipperMode SoftRasterizerRenderer::GetPreferredPolygonClippingMode() const
+@@ -1874,8 +2456,8 @@ ClipperMode SoftRasterizerRenderer::GetPreferredPolygonClippingMode() const
  
  void SoftRasterizerRenderer::performViewportTransforms()
  {
@@ -2549,7 +3108,7 @@ index e42ef256..5c91f08e 100644
  	
  	//viewport transforms
  	for (size_t i = 0; i < this->_clippedPolyCount; i++)
-@@ -2022,6 +2572,22 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
+@@ -2022,6 +2604,22 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
  	{
  		this->_task[i].finish();
  	}
@@ -2572,7 +3131,7 @@ index e42ef256..5c91f08e 100644
  	
  	// Keep the current render states for later use
  	this->currentRenderState = (GFX3D_State *)&engine.renderState;
-@@ -2029,7 +2595,7 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
+@@ -2029,7 +2627,7 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
  	this->_clippedPolyOpaqueCount = engine.clippedPolyOpaqueCount;
  	this->_clippedPolyList = engine.clippedPolyList;
  	
@@ -2581,7 +3140,7 @@ index e42ef256..5c91f08e 100644
  	
  	if (doMultithreadedStateSetup)
  	{
-@@ -2069,19 +2635,59 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
+@@ -2069,19 +2667,59 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
  
  Render3DError SoftRasterizerRenderer::RenderGeometry(const GFX3D_State &renderState, const POLYLIST *polyList, const INDEXLIST *indexList)
  {
@@ -2644,7 +3203,7 @@ index e42ef256..5c91f08e 100644
  			{
  				this->_task[i].execute(&SoftRasterizer_RunRasterizerUnit<false>, &this->_rasterizerUnit[i]);
  			}
-@@ -2101,6 +2707,7 @@ Render3DError SoftRasterizerRenderer::RenderGeometry(const GFX3D_State &renderSt
+@@ -2101,6 +2739,7 @@ Render3DError SoftRasterizerRenderer::RenderGeometry(const GFX3D_State &renderSt
  		}
  		
  		this->_renderGeometryNeedsFinish = false;
@@ -2652,7 +3211,7 @@ index e42ef256..5c91f08e 100644
  		texCache.Evict(); // Since we're finishing geometry rendering here and now, also check the texture cache now.
  	}
  	
-@@ -2195,11 +2802,11 @@ Render3DError SoftRasterizerRenderer::UpdateFogTable(const u8 *fogDensityTable)
+@@ -2195,11 +2834,11 @@ Render3DError SoftRasterizerRenderer::UpdateFogTable(const u8 *fogDensityTable)
  
  Render3DError SoftRasterizerRenderer::RenderEdgeMarkingAndFog(const SoftRasterizerPostProcessParams &param)
  {
@@ -2667,7 +3226,7 @@ index e42ef256..5c91f08e 100644
  			const u32 depth = this->_framebufferAttributes->depth[i];
  			const u8 polyID = this->_framebufferAttributes->opaquePolyID[i];
  			
-@@ -2214,25 +2821,25 @@ Render3DError SoftRasterizerRenderer::RenderEdgeMarkingAndFog(const SoftRasteriz
+@@ -2214,25 +2853,25 @@ Render3DError SoftRasterizerRenderer::RenderEdgeMarkingAndFog(const SoftRasteriz
  				{
  					const bool isEdgeMarkingClearValues = ((polyID != this->_clearAttributes.opaquePolyID) && (depth < this->_clearAttributes.depth));
  					
@@ -2699,7 +3258,7 @@ index e42ef256..5c91f08e 100644
  						}
  					}
  					else if (left)
-@@ -2246,7 +2853,7 @@ Render3DError SoftRasterizerRenderer::RenderEdgeMarkingAndFog(const SoftRasteriz
+@@ -2246,7 +2885,7 @@ Render3DError SoftRasterizerRenderer::RenderEdgeMarkingAndFog(const SoftRasteriz
  					{
  						if (y > 0)
  						{
@@ -2708,7 +3267,7 @@ index e42ef256..5c91f08e 100644
  						}
  					}
  					
-@@ -2318,18 +2925,18 @@ Render3DError SoftRasterizerRenderer::UpdateToonTable(const u16 *toonTableBuffer
+@@ -2318,18 +2957,18 @@ Render3DError SoftRasterizerRenderer::UpdateToonTable(const u16 *toonTableBuffer
  
  Render3DError SoftRasterizerRenderer::ClearUsingImage(const u16 *__restrict colorBuffer, const u32 *__restrict depthBuffer, const u8 *__restrict fogBuffer, const u8 opaquePolyID)
  {
@@ -2732,7 +3291,7 @@ index e42ef256..5c91f08e 100644
  			this->_framebufferAttributes->depth[iw] = depthBuffer[ir];
  			this->_framebufferAttributes->isFogged[iw] = fogBuffer[ir];
  			this->_framebufferAttributes->opaquePolyID[iw] = opaquePolyID;
-@@ -2345,16 +2952,36 @@ Render3DError SoftRasterizerRenderer::ClearUsingImage(const u16 *__restrict colo
+@@ -2345,16 +2984,36 @@ Render3DError SoftRasterizerRenderer::ClearUsingImage(const u16 *__restrict colo
  
  void SoftRasterizerRenderer::ClearUsingValues_Execute(const size_t startPixel, const size_t endPixel)
  {
@@ -2775,7 +3334,7 @@ index e42ef256..5c91f08e 100644
  	
  	if (doMultithreadedClear)
  	{
-@@ -2365,7 +2992,7 @@ Render3DError SoftRasterizerRenderer::ClearUsingValues(const FragmentColor &clea
+@@ -2365,7 +3024,7 @@ Render3DError SoftRasterizerRenderer::ClearUsingValues(const FragmentColor &clea
  	}
  	else
  	{
@@ -2784,7 +3343,7 @@ index e42ef256..5c91f08e 100644
  	}
  	
  	if (doMultithreadedClear)
-@@ -2390,6 +3017,9 @@ Render3DError SoftRasterizerRenderer::Reset()
+@@ -2390,6 +3049,9 @@ Render3DError SoftRasterizerRenderer::Reset()
  	}
  	
  	this->_renderGeometryNeedsFinish = false;
@@ -2794,7 +3353,7 @@ index e42ef256..5c91f08e 100644
  	
  	texCache.Reset();
  	
-@@ -2398,6 +3028,9 @@ Render3DError SoftRasterizerRenderer::Reset()
+@@ -2398,6 +3060,9 @@ Render3DError SoftRasterizerRenderer::Reset()
  
  Render3DError SoftRasterizerRenderer::Render(const GFX3D &engine)
  {
@@ -2804,7 +3363,7 @@ index e42ef256..5c91f08e 100644
  	Render3DError error = RENDER3DERROR_NOERR;
  	this->_isPoweredOn = true;
  	
-@@ -2420,10 +3053,16 @@ Render3DError SoftRasterizerRenderer::Render(const GFX3D &engine)
+@@ -2420,10 +3085,16 @@ Render3DError SoftRasterizerRenderer::Render(const GFX3D &engine)
  	{
  		return error;
  	}
@@ -2821,7 +3380,7 @@ index e42ef256..5c91f08e 100644
  	return error;
  }
  
-@@ -2434,12 +3073,16 @@ Render3DError SoftRasterizerRenderer::EndRender(const u64 frameCount)
+@@ -2434,12 +3105,16 @@ Render3DError SoftRasterizerRenderer::EndRender(const u64 frameCount)
  	{
  		if (this->_enableEdgeMark || this->_enableFog)
  		{
@@ -2843,7 +3402,7 @@ index e42ef256..5c91f08e 100644
  		}
  	}
  	
-@@ -2453,6 +3096,9 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
+@@ -2453,6 +3128,9 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
  		return RENDER3DERROR_NOERR;
  	}
  	
@@ -2853,7 +3412,7 @@ index e42ef256..5c91f08e 100644
  	if (this->_renderGeometryNeedsFinish)
  	{
  		// Allow for the geometry rendering to finish.
-@@ -2465,8 +3111,9 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
+@@ -2465,8 +3143,9 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
  		// Now that geometry rendering is finished on all threads, check the texture cache.
  		texCache.Evict();
  		
@@ -2865,7 +3424,7 @@ index e42ef256..5c91f08e 100644
  		{
  			for (size_t i = 0; i < this->_threadCount; i++)
  			{
-@@ -2486,6 +3133,18 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
+@@ -2486,6 +3165,18 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
  		}
  	}
  	
@@ -2884,7 +3443,7 @@ index e42ef256..5c91f08e 100644
  	this->_renderNeedsFlushMain = true;
  	this->_renderNeedsFlush16 = true;
  	
-@@ -2500,12 +3159,225 @@ Render3DError SoftRasterizerRenderer::RenderFlush(bool willFlushBuffer32, bool w
+@@ -2500,12 +3191,225 @@ Render3DError SoftRasterizerRenderer::RenderFlush(bool willFlushBuffer32, bool w
  	}
  	
  	FragmentColor *framebufferMain = (willFlushBuffer32 && (this->_outputFormat == NDSColorFormat_BGR888_Rev)) ? GPU->GetEngineMain()->Get3DFramebufferMain() : NULL;
@@ -3112,7 +3671,7 @@ index e42ef256..5c91f08e 100644
  Render3DError SoftRasterizerRenderer::SetFramebufferSize(size_t w, size_t h)
  {
  	Render3DError error = Render3D::SetFramebufferSize(w, h);
-@@ -2514,10 +3386,15 @@ Render3DError SoftRasterizerRenderer::SetFramebufferSize(size_t w, size_t h)
+@@ -2514,10 +3418,15 @@ Render3DError SoftRasterizerRenderer::SetFramebufferSize(size_t w, size_t h)
  		return RENDER3DERROR_NOERR;
  	}
  	
@@ -3131,7 +3690,7 @@ index e42ef256..5c91f08e 100644
  	
  	if (this->_threadCount == 0)
  	{
-@@ -2622,8 +3499,9 @@ Render3DError SoftRasterizer_SIMD<SIMDBYTES>::SetFramebufferSize(size_t w, size_
+@@ -2622,8 +3531,9 @@ Render3DError SoftRasterizer_SIMD<SIMDBYTES>::SetFramebufferSize(size_t w, size_
  		return RENDER3DERROR_NOERR;
  	}
  	
@@ -3144,7 +3703,7 @@ index e42ef256..5c91f08e 100644
  	const size_t pixCount = (this->_framebufferSIMDPixCount > 0) ? this->_framebufferSIMDPixCount : this->_framebufferPixCount;
  	
 diff --git a/desmume/src/rasterize.h b/desmume/src/rasterize.h
-index becafc0e..0d9f7ebb 100644
+index becafc0e..70149283 100644
 --- a/desmume/src/rasterize.h
 +++ b/desmume/src/rasterize.h
 @@ -26,6 +26,7 @@
@@ -3155,7 +3714,7 @@ index becafc0e..0d9f7ebb 100644
  
  extern GPU3DInterface gpu3DRasterize;
  
-@@ -40,6 +41,34 @@ struct SoftRasterizerClearParam
+@@ -40,6 +41,44 @@ struct SoftRasterizerClearParam
  	size_t endPixel;
  };
  
@@ -3187,10 +3746,43 @@ index becafc0e..0d9f7ebb 100644
 +void SoftRasterizer_SetAsyncMode(SoftRasterizerAsyncMode mode);
 +SoftRasterizerAsyncMode SoftRasterizer_GetAsyncMode();
 +
++// RewindBox: the cores the rasterizer threads prefer (desmume_rb_raster_cores). PERFORMANCE: user-initiated work,
++// any core (the default). EFFICIENCY: utility work, the efficiency cores first.
++enum SoftRasterizerWorkerCores
++{
++	SOFTRASTERIZER_CORES_PERFORMANCE = 0,
++	SOFTRASTERIZER_CORES_EFFICIENCY = 1
++};
++void SoftRasterizer_SetWorkerCores(SoftRasterizerWorkerCores cores);
++SoftRasterizerWorkerCores SoftRasterizer_GetWorkerCores();
++
  struct SoftRasterizerPostProcessParams
  {
  	SoftRasterizerRenderer *renderer;
-@@ -103,6 +132,12 @@ protected:
+@@ -96,6 +135,22 @@ public:
+ 	void SetScalingFactor(size_t scalingFactor);
+ };
+ 
++// RewindBox: what every fragment of a scanline writes to or tests against, read once a scanline (locals the stores
++// of a fragment cannot alias, where the members they come from were read again for every pixel)
++struct RbFragmentTargets
++{
++	u32 *depth;
++	u8 *opaquePolyID;
++	u8 *translucentPolyID;
++	u8 *stencil;
++	u8 *isFogged;
++	u8 *isTranslucentPoly;
++	u8 *polyFacing;
++	BOOL wbuffer;
++	BOOL enableAlphaTest;
++	u8 alphaTestRef;
++};
++
+ template <bool RENDERER>
+ class RasterizerUnit
+ {
+@@ -103,6 +158,12 @@ protected:
  	bool _debug_thisPoly;
  	u32 _SLI_startLine;
  	u32 _SLI_endLine;
@@ -3203,7 +3795,16 @@ index becafc0e..0d9f7ebb 100644
  	
  	SoftRasterizerRenderer *_softRender;
  	SoftRasterizerTexture *_currentTexture;
-@@ -132,6 +167,7 @@ public:
+@@ -115,7 +176,7 @@ protected:
+ 	FORCEINLINE float _round_s(double val);
+ 	
+ 	template<bool ISSHADOWPOLYGON> FORCEINLINE void _shade(const PolygonMode polygonMode, const FragmentColor src, FragmentColor &dst, const float texCoordU, const float texCoordV);
+-	template<bool ISFRONTFACING, bool ISSHADOWPOLYGON> FORCEINLINE void _pixel(const POLYGON_ATTR polyAttr, const bool isTranslucent, const size_t fragmentIndex, FragmentColor &dstColor, float r, float g, float b, float invu, float invv, float z, float w);
++	template<bool ISFRONTFACING, bool ISSHADOWPOLYGON> FORCEINLINE void _pixel(const RbFragmentTargets &target, const POLYGON_ATTR polyAttr, const bool isTranslucent, const size_t fragmentIndex, FragmentColor &dstColor, float r, float g, float b, float invu, float invv, float z, float w);
+ 	template<bool ISFRONTFACING, bool ISSHADOWPOLYGON, bool USELINEHACK> FORCEINLINE void _drawscanline(const POLYGON_ATTR polyAttr, const bool isTranslucent, FragmentColor *dstColor, const size_t framebufferWidth, const size_t framebufferHeight, edge_fx_fl *pLeft, edge_fx_fl *pRight);
+ 	template<bool SLI, bool ISFRONTFACING, bool ISSHADOWPOLYGON, bool USELINEHACK> void _runscanlines(const POLYGON_ATTR polyAttr, const bool isTranslucent, FragmentColor *dstColor, const size_t framebufferWidth, const size_t framebufferHeight, const bool isHorizontal, edge_fx_fl *left, edge_fx_fl *right);
+ 	
+@@ -132,6 +193,7 @@ public:
  	void SetSLI(u32 startLine, u32 endLine, bool debug);
  	void SetRenderer(SoftRasterizerRenderer *theRenderer);
  	template<bool SLI, bool USELINEHACK> FORCEINLINE void Render();
@@ -3211,7 +3812,7 @@ index becafc0e..0d9f7ebb 100644
  };
  
  #if defined(ENABLE_AVX2)
-@@ -158,6 +194,84 @@ protected:
+@@ -158,6 +220,84 @@ protected:
  	size_t _customLinesPerThread;
  	size_t _customPixelsPerThread;
  	
@@ -3296,7 +3897,7 @@ index becafc0e..0d9f7ebb 100644
  	u8 fogTable[32768];
  	FragmentColor edgeMarkTable[8];
  	bool edgeMarkDisabled[8];
-@@ -191,6 +305,23 @@ public:
+@@ -191,6 +331,23 @@ public:
  	SoftRasterizerRenderer();
  	virtual ~SoftRasterizerRenderer();
  	
@@ -3320,7 +3921,7 @@ index becafc0e..0d9f7ebb 100644
  	virtual ClipperMode GetPreferredPolygonClippingMode() const;
  	
  	void performViewportTransforms();
-@@ -209,9 +340,20 @@ public:
+@@ -209,9 +366,20 @@ public:
  	virtual Render3DError ApplyRenderingSettings(const GFX3D_State &renderState);
  	virtual Render3DError Render(const GFX3D &engine);
  	virtual Render3DError RenderFinish();
@@ -3342,10 +3943,22 @@ index becafc0e..0d9f7ebb 100644
  
  template <size_t SIMDBYTES>
 diff --git a/desmume/src/render3D.cpp b/desmume/src/render3D.cpp
-index cd37ded2..f323bd13 100644
+index cd37ded2..2ed84377 100644
 --- a/desmume/src/render3D.cpp
 +++ b/desmume/src/render3D.cpp
-@@ -747,6 +747,40 @@ Render3DError Render3D::RenderFinish()
+@@ -148,11 +148,6 @@ void Render3DTexture::_Upscale(const u32 *__restrict src, u32 *__restrict dst)
+ 	}
+ }
+ 
+-bool Render3DTexture::IsSamplingEnabled() const
+-{
+-	return this->_isSamplingEnabled;
+-}
+-
+ void Render3DTexture::SetSamplingEnabled(bool isEnabled)
+ {
+ 	this->_isSamplingEnabled = isEnabled;
+@@ -747,6 +742,40 @@ Render3DError Render3D::RenderFinish()
  	return RENDER3DERROR_NOERR;
  }
  
@@ -3387,9 +4000,18 @@ index cd37ded2..f323bd13 100644
  {
  	return RENDER3DERROR_NOERR;
 diff --git a/desmume/src/render3D.h b/desmume/src/render3D.h
-index d5fad8d7..661d67f3 100644
+index d5fad8d7..d7b95a78 100644
 --- a/desmume/src/render3D.h
 +++ b/desmume/src/render3D.h
+@@ -136,7 +136,7 @@ protected:
+ public:
+ 	Render3DTexture(TEXIMAGE_PARAM texAttributes, u32 palAttributes);
+ 	
+-	bool IsSamplingEnabled() const;
++	bool IsSamplingEnabled() const { return this->_isSamplingEnabled; } // RewindBox: inline, read for every pixel
+ 	void SetSamplingEnabled(bool isEnabled);
+ 		
+ 	bool IsUsingDeposterize() const;
 @@ -239,6 +239,26 @@ public:
  														// and only release the block when 3D rendering is finished. (Before reading the 3D layer, be
  														// sure to always call this function.)
@@ -3417,6 +4039,43 @@ index d5fad8d7..661d67f3 100644
  	virtual Render3DError RenderFlush(bool willFlushBuffer32, bool willFlushBuffer16);	// Called whenever the emulator needs the flushed results of the 3D renderer. Before calling this,
  																						// the 3D renderer must be finished using RenderFinish() or confirmed already finished using
  																						// GetRenderNeedsFinish().
+diff --git a/desmume/src/texcache.cpp b/desmume/src/texcache.cpp
+index a51c6132..12efdae7 100644
+--- a/desmume/src/texcache.cpp
++++ b/desmume/src/texcache.cpp
+@@ -512,16 +512,6 @@ u32 TextureStore::GetPaletteAttributes() const
+ 	return this->_paletteAttributes;
+ }
+ 
+-u32 TextureStore::GetWidth() const
+-{
+-	return this->_sizeS;
+-}
+-
+-u32 TextureStore::GetHeight() const
+-{
+-	return this->_sizeT;
+-}
+-
+ bool TextureStore::IsPalZeroTransparent() const
+ {
+ 	return this->_isPalZeroTransparent;
+diff --git a/desmume/src/texcache.h b/desmume/src/texcache.h
+index 5cbf0338..5251a55f 100644
+--- a/desmume/src/texcache.h
++++ b/desmume/src/texcache.h
+@@ -129,8 +129,9 @@ public:
+ 	TEXIMAGE_PARAM GetTextureAttributes() const;
+ 	u32 GetPaletteAttributes() const;
+ 	
+-	u32 GetWidth() const;
+-	u32 GetHeight() const;
++	// RewindBox: inline, the rasterizer reads them for every textured pixel
++	u32 GetWidth() const { return this->_sizeS; }
++	u32 GetHeight() const { return this->_sizeT; }
+ 	bool IsPalZeroTransparent() const;
+ 	
+ 	NDSTextureFormat GetPackFormat() const;
 diff --git a/desmume/src/thumb_instructions.cpp b/desmume/src/thumb_instructions.cpp
 index 2a6ed686..eabc5663 100644
 --- a/desmume/src/thumb_instructions.cpp
@@ -6366,10 +7025,10 @@ index ca2aa14a..09251b13 100644
  
 diff --git a/desmume/src/utils/rb_perf.h b/desmume/src/utils/rb_perf.h
 new file mode 100644
-index 00000000..7453edb0
+index 00000000..cb4adc4d
 --- /dev/null
 +++ b/desmume/src/utils/rb_perf.h
-@@ -0,0 +1,108 @@
+@@ -0,0 +1,114 @@
 +/*
 +	Copyright (C) 2026 RewindBox
 +
@@ -6422,6 +7081,9 @@ index 00000000..7453edb0
 +	u64 render3dWall;    // start of a render drawn by bands to its last band (atomic)
 +	u64 rasterCpu;       // CPU time of the rasterizer threads (atomic)
 +	u64 deferredFrames;  // frames that showed the last finished 3D, the new one still drawing (asynchronous 3D)
++	u64 gpuLayer3D;      // part of gpuMain: the 3D layer composed into the main engine's lines
++	u64 gpuLayerBG;      // part of gpuMain: its BG layers (drawn and composed)
++	u64 gpuLayerOBJ;     // part of gpuMain: its sprite layer composed (the sprites are drawn before, in gpuMain)
 +};
 +
 +extern RbPerf rb_perf;
@@ -6474,6 +7136,9 @@ index 00000000..7453edb0
 +	s.render3dWall = __atomic_load_n(&rb_perf.render3dWall, __ATOMIC_RELAXED);
 +	s.rasterCpu = __atomic_load_n(&rb_perf.rasterCpu, __ATOMIC_RELAXED);
 +	s.deferredFrames = rb_perf.deferredFrames;
++	s.gpuLayer3D = rb_perf.gpuLayer3D;
++	s.gpuLayerBG = rb_perf.gpuLayerBG;
++	s.gpuLayerOBJ = rb_perf.gpuLayerOBJ;
 +	return s;
 +}
 +
