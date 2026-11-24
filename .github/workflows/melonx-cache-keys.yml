@@ -5,6 +5,8 @@ run-name: Pipeline cache keys • ${{ github.sha }}
 # the property test of the key on MoltenVK's own matches() and alignWith(). Nothing is packaged, pinned or delivered.
 # Since 17 Nov 2026 it also runs on Claude for a change of the recipe patch: its pipelines are built from SPIR-V by the
 # patched MoltenVK on a real Metal device (sixth part: shader modules keep their SPIR-V compressed), pixels checked.
+# Since 24 Nov 2026 it also checks the tenth part (shared Metal render pipeline states): raster variants drawn with and
+# without it, Metal pipeline states compiled, footprint and GPU memory (share runs of run_cache_keys.py).
 'on':
   push:
     branches:

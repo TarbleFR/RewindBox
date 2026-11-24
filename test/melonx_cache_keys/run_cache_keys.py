@@ -28,6 +28,13 @@ One MoltenVK build (pinned revision + the recipe patch), control and candidate i
    shipped data has the size of its own; a load keeps no more bindings than a tenth of those shipped data hold; its
    footprint after the load is lower than the control's by at least half of the tables' bytes.
 Recorded: data sizes, the footprint at each step, load, lookup, size query and write times.
+3. Since 24 Nov 2026 (tenth part of the patch, shared pipeline states), mvk_cache_keys_test share, candidate and control
+   (MVK_CONFIG_REWINDBOX_UNSHARED_PIPELINE_STATES: every pipeline compiles its own Metal state), each in a new process:
+   phase A draws 11 raster variants of one program (cull mode, front face, depth, stencil, depth bias, and blending,
+   the one Metal-different variant); phase B creates 16 pipelines for each of the 12 programs of round 0, cycling
+   through the ten Metal-equal variants. Required of both: every pixel right, the cull mode and the front face applied
+   per pipeline, the same pixels; of the control: 11 and 192 Metal pipeline states compiled; of the candidate: 2 and 11,
+   and its share line. Recorded: footprint and GPU memory growth, creation time.
 Writes dist/melonx-cache-keys/report.json. macOS runner, not an iPhone: no device figure is claimed from it.
 """
 import hashlib, json, os, re, subprocess, sys, time
@@ -153,6 +160,40 @@ def main():
         results[name] = result
         print(name, json.dumps({k: v for k, v in result.items() if k != 'pixels'}), flush=True)
 
+    shares = {}
+    for name, control in (('candidate-share', False), ('control-share', True)):
+        environment = dict(base)
+        environment.pop('MVK_CONFIG_REWINDBOX_UNSHARED_PIPELINE_STATES', None)
+        if control:
+            environment['MVK_CONFIG_REWINDBOX_UNSHARED_PIPELINE_STATES'] = '1'
+        arguments = [str(binary), str(SHADERS), str(salt), str(OUT / (name + '.json')), 'share', '-']
+        start = time.time()
+        run = subprocess.run(arguments, capture_output=True, text=True, errors='replace', timeout=3600, env=environment)
+        (OUT / (name + '.log')).write_text(run.stdout + run.stderr)
+        if run.returncode:
+            print(run.stdout[-3000:], run.stderr[-3000:], flush=True)
+            raise SystemExit(f'{name}: exit {run.returncode}')
+        result = json.loads((OUT / (name + '.json')).read_text())
+        result['seconds'] = round(time.time() - start, 1)
+        result['sharedLines'] = [line.split('RewindBox shared pipeline states: ')[1] for line in (run.stdout + run.stderr).splitlines()
+                                 if 'RewindBox shared pipeline states: ' in line][-3:]
+        assert result['wrongPixels'] == 0 and result['cullCheck'] == 'passed', f'{name}: {result["cullCheck"]}, {result["rasterVariants"]}'
+        shares[name] = result
+        print(name, json.dumps({k: v for k, v in result.items() if k != 'rasterVariants'}), flush=True)
+    candidate, control = shares['candidate-share'], shares['control-share']
+    assert [v['pixel'] for v in candidate['rasterVariants']] == [v['pixel'] for v in control['rasterVariants']], \
+        'the same pixels with and without shared pipeline states'
+    assert control['phaseA']['compiled'] == 11 and control['phaseB']['compiled'] == 192, f'the control compiles every pipeline: {control}'
+    assert candidate['phaseA']['compiled'] == 2, f'one state for the ten Metal-equal variants and one for blending: {candidate["phaseA"]}'
+    assert candidate['phaseB']['compiled'] == 11, f'one state for each of the 11 other programs: {candidate["phaseB"]}'
+    assert candidate['sharedLines'] and not control['sharedLines'], 'the share line, in the candidate only'
+    share_summary = {name: {'phaseACompiled': r['phaseA']['compiled'], 'phaseBCompiled': r['phaseB']['compiled'],
+                            'phaseBPipelines': r['phaseB']['pipelines'], 'phaseBCreateMs': round(r['phaseB']['createMs'], 1),
+                            'phaseBFootprintGrowthMiB': round(r['phaseB']['footprintGrowthMiB'], 2),
+                            'phaseBGpuAllocatedGrowthKiB': r['phaseB']['gpuAllocatedGrowthKiB'], 'afterDestroy': r['afterDestroy'],
+                            'sharedLines': r['sharedLines']} for name, r in shares.items()}
+    print('shared pipeline states:', json.dumps(share_summary, indent=1), flush=True)
+
     first = results['control-save']
     for name, result in results.items():
         assert result['pixels'] == first['pixels'], f'{name}: the same pixels as a pipeline compiled by the control'
@@ -202,7 +243,8 @@ def main():
                        'bindingsPerLibraryWhole': round(results['control-load-full']['bindingsRead'] / libraries, 1),
                        'bindingsPerLibraryKept': round(results['candidate-load-full']['bindingsKept'] / libraries, 1),
                        'tablesInMemoryMiB': round(table_mib, 1)},
-              'loads': summary, 'results': results,
+              'loads': summary, 'results': results, 'sharedPipelineStates': share_summary,
+              'sharedPipelineStatesResults': shares,
               'limits': 'macOS runner (its Metal device and driver), synthetic shaders: sizes, counts and the equality of behaviour hold '
                         'for any device; the footprints and times are this runner\'s. Nothing here is an iPhone measurement.'}
     (OUT / 'report.json').write_text(json.dumps(report, indent=1) + '\n')
