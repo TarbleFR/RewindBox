@@ -294,9 +294,24 @@ images capturées. La session tournait au réglage de résolution 0,5 choisi dan
 - Compilations de pipelines en jeu : au moins 256 attentes ; 45 détaillées, médiane 20 ms, jusqu'à
   244 ms.
 
-Pistes : 0342 sur la chaîne 960×540 (si les mêmes cibles y sont réattachées), passes vides, place
-du fil de traduction (A/B avec la consommation), listes de pipelines. C'est le meilleur candidat de
-l'interpolation d'images une fois les 30 i/s tenus.
+**Correction du même jour, sur les neuf images profilées (lignes `[gpuprof]`).**
+- Les durées des passes se chevauchent sur le GPU : leur somme (19 à 22 ms) surestime le temps réel.
+- Occupation réelle du GPU (union des intervalles) : 14,5 à 17 ms par image, alors que l'image
+  s'étale sur 22 à 48 ms. Le GPU attend donc le processeur.
+- Les 34 à 37 passes sans dessin (des effacements) n'occupent le GPU seules qu'environ 1 ms par image.
+
+Ce qui empêche Fire Emblem de tenir 30, c'est le fil de traduction : 9 à 23 ms par image, sur des
+cœurs performants à 1,3–1,9 GHz alors que le téléphone est froid (0,3 à 0,7 W). Le système ne
+connaît pas l'échéance des images : le groupe de travail d'image (`S2A_WORKGROUP`) est coupé
+depuis 0097, parce qu'il empêchait la mise en pause. L'amont mesurait 1,9 → 3,5 GHz avec lui, et
+1,69 → 2,47 W au même 60 i/s.
+
+Pistes :
+- rendre le groupe de travail compatible avec la mise en pause, puis mesurer ;
+- 0342 sur la chaîne 960×540, si les mêmes cibles y sont réattachées ;
+- listes de pipelines.
+
+C'est le meilleur candidat de l'interpolation d'images une fois les 30 i/s tenus.
 
 ## Gels de compilation en jeu (24 novembre)
 
