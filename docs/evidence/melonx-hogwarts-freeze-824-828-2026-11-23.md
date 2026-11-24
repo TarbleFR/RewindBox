@@ -210,3 +210,55 @@ L'attente ne dure plus qu'une compilation (~0,5 s à froid) au lieu de toute la 
 la liaison attend toujours le même pipeline. Seuls les programmes à préchauffage non détaché atteignent cette ligne
 (traduits en jeu avec la compilation asynchrone) ; programmes du cache et sessions sans compilation asynchrone (SSBU)
 n'y passent pas. Test du contrat : 549 contrôles passés ; compilation : CI du Core. Effet sur l'iPhone : non mesuré.
+
+## 11. Confirmation par les piles, et première session sur l'IPA 830 — 24 novembre
+
+Relevé « #F2.2 » de la session 829 figée (pid 18006, 12 s sans image), symbolisé avec la carte du Core de la 829 :
+- fil de rendu : `SetProgramCommand` → `ProgramQueue.WaitForProgram` → `WaitForLink` →
+  `ShaderCollection.CheckProgramLink` → `Task.Wait` ;
+- fil GPU : `DmaClass.DmaCopy` → `SignalPreciseRead` → `BufferModifiedRangeList.WaitForAndFlushRanges` →
+  `SyncMap.WaitSyncAvailability`.
+C'est l'attente de la section 10, à l'appel près.
+
+IPA 830 (Core 7cf4ff80d, session 19155, 163 s) : le jeu dépasse 22 s et atteint la partie (le mainteneur : « ça
+fonctionne », avec beaucoup de saccades). Mesures :
+- 41–69 s : 25,6 images/s présentées, 6 trous de plus de 100 ms (3,7 s) ; 97–160 s : 10,2 images/s, 25 trous de
+  plus de 100 ms (55,4 s), dont un de 27,9 s (70–97 s).
+- Le trou de 27,9 s : 144 dessins ont attendu leur pipeline graphique, 24,8 s en tout (`draws that waited for a
+  compile`), environ 170 ms par compilation. Sur la session, ces attentes font environ 68 s.
+- Cache Metal encore froid pour les pipelines graphiques : 500 pipelines compute rapides dans la première fenêtre
+  (le cache se remplit : 320 dans la 829), tous les compute faits à 41 s ; environ 2 000 pipelines graphiques
+  compilés pendant la session, 100 à 500 ms chacun, deux fils en permanence.
+- Mémoire : empreinte jusqu'à 4,2 Gio, 4,8 Gio compressés, 8 % disponibles sur l'appareil, alerte mémoire à 84 s ;
+  pendant le trou de 27,9 s, 112 534 décompressions et 140 743 défauts de page. La 822 (qui jouait) montait à
+  4,6 Gio et 4,9 Gio compressés.
+- Ramasse-miettes : pauses de gen2 en arrière-plan de 28 ms au plus pendant le jeu ; pas en cause.
+- Le relevé « #F » n'a pas couvert le trou de 27,9 s : ses deux relevés par processus ont servi au chargement.
+
+À mesurer à la session suivante : combien de pipelines graphiques la première fenêtre trouve dans le cache, et ce qu'il
+reste d'attentes de compilation.
+
+## 12. Deuxième session sur l'IPA 830 — 24 novembre
+
+Session 19616 (275 s, même IPA, cache Metal rempli par la session 19155). Le mainteneur : « moins de saccades,
+les performances d'avant, mais toujours les mêmes problèmes ».
+
+| | Session 19155 (1re) | Session 19616 (2e) |
+|---|---|---|
+| Images/s du jeu, moyenne de la partie chaude | 11,4 | 24,0 (médiane 24,3) |
+| Trous de plus de 1 s | 10 | 4 |
+| Attentes de dessins sur une compilation | ~68 s | 12,6 s (la plus longue : 2,2 s pour 3 dessins) |
+| Pipelines graphiques trouvés en cache, 1re fenêtre | 8 | 1 396 |
+| Pipelines graphiques compilés pendant la session | ~1 840 (232 s de compilation) | ~1 200 de plus (323 s, deux fils) |
+| Compute | 539, 25 s | 540, 2 s |
+
+Ce qui limite encore, mesuré :
+- Chaleur : état thermique `fair` dès ~65 s ; cœurs performants de 3,1 GHz (24–50 s) à 2,0–2,2 GHz ensuite, fils
+  « en attente d'un cœur » 44 à 78 % du temps. Les périodes à 18–20 images/s (53–90 s, 192–230 s) sont des images
+  lentes en continu (+11 à +15 ms par image), pas des trous.
+- Mémoire : empreinte 4,0 à 4,6 Gio, 5 à 7 % disponibles sur l'appareil, alerte mémoire à 64 s ; iOS compresse et
+  décompresse en continu (1,3 à 4,0 Gio décompressés par période de 40 à 60 s) ; pente de 91 Mio par minute.
+- Compilations restantes : les 4 trous de plus de 1 s coïncident avec les attentes de compilation (cache graphique
+  pas encore plein).
+- Profils de points chauds : un seul (« base », t=42) ; la règle du bridge n'en prend plus dès que l'état thermique
+  n'est plus nominal, donc aucun profil des périodes lentes.

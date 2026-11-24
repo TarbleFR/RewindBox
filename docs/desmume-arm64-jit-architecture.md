@@ -4,7 +4,7 @@
 l'ABI, couche commune, interpréteur en cache, JIT RewindBox à appels puis natif, dans `native/desmume`, vérifiés
 hors appareil ; rien mesuré sur iPhone. **Section 15** : cause et correctif du gel de l'IPA 828, rendu plus rapide
 en haute résolution interne. **Section 16** : JIT absent sans cause journalisée (IPA 829), ×10 à 20 fps : architecture
-retenue. Décisions du mainteneur : « DS : garder DeSmuME, soit inventif et conçois
+retenue ; 16.5 : journaux de la 830, la 3D se dessine pendant la composition 2D. Décisions du mainteneur : « DS : garder DeSmuME, soit inventif et conçois
 l'architecture », « fini de concevoir l'architecture JIT pour la DS », « vas jusqu'au bout », puis « fini toute les
 étapes de l'architecture pour le JIT ». Sources relues : libretro/desmume `95b4d798` (**L**), TASEmulators/desmume
 `b549f71b` (**T**), melonDS `ff972523`, oaknut `94c726ce`. Les chiffres de gain sont des estimations ou des
@@ -760,3 +760,55 @@ n'est pas à portée du rendu logiciel.
   `[rb-perf] desmume frames=600 fps=… res=1280x960 ss=2 threads=… jit=1 ms/frame run=… emu=… 2d=… wait=… out=…
   host=… raster=…`.
 - `run: frame 1280x1920` en ×5 + 3D 2x (au lieu de `2560x3840`), puis `system: … footprint=` après le changement.
+
+### 16.5 Après l'IPA 830 : journaux du mainteneur, la 3D pendant la composition 2D
+
+Journaux fournis : `session.log` (pid 19155, Animal Crossing) et `app.log`. Objectif du mainteneur : 59-60+ i/s
+stables.
+
+- **JIT : actif et sain.** `load: JIT interface 1 installed; [rb-jit] arena=ready mode=universal capacity=67108864 …
+  commands=4 … prepare_ms=208`, `jit: engine=jit active=1`, `[rb-jit] desmume installed=1 arena=67108864 …
+  engine=jit`, puis `unload jit=1 blocks=31555 used=24417264 … flushes=0 failures=0`. La transaction de l'aide dure
+  2,16 s dans `app.log` (1,5 à 2,0 s avec 32 Mio). Le CPU émulé coûte 3,1 ms par image (`cpu=`).
+- **Cause de la perte de la 829 confirmée** par `app.log` : deux lancements de DeSmuME où « LocalDevVPN did not
+  expose RemotePairing at 10.7.0.1:49152 (state=timeout, elapsedMs=1313) », `networkState: preparing`, puis
+  « desmume keeps its interpreter ». LocalDevVPN ne répondait pas ; l'appairage n'était pas en cause.
+- **Cadence en ×5 + 3D 2x** (en ville, 600 images sans menu) : 42,4 i/s.
+  - `run` = 23,08 ms, réparti ainsi : `cpu` 3,15, `2d` 7,52, `wait` 9,16, `out` 2,34, `host` 0,89.
+  - `raster` = 57,9 ms de travail des six fils par image.
+  - En ×10 au démarrage (titre) : 38 i/s, `host` = 2,88 ms (envoi RGB565 direct).
+- **Empreinte de départ de 2,05 Go** : une session MeloNX venait de tourner dans le même processus (MeloNXCore et ses
+  bibliothèques sont chargés). Cela ne vient pas de DeSmuME.
+- **Cause des 9 ms d'attente.** Sans `rigorous_timing`, DeSmuME lance la 3D à la ligne 262
+  (`gfx3d_VBlankEndSignal`), et le moteur 2D attendait toute l'image 3D à la ligne 0, une ligne plus tard. Le
+  recouvrement se limitait donc à la sortie du frontend et à l'envoi à l'hôte, environ 3 ms.
+
+**Changements** (détail et vérifications : [README](../native/desmume/README.md), « 3D pendant la composition 2D ») :
+
+- tranches en bandes de lignes consécutives prises de haut en bas ; un polygone qui ne croise pas une bande n'y est
+  pas parcouru ;
+- chaque bande est post-traitée (contours, brouillard) et moyennée dès qu'elle et ses voisines sont dessinées ;
+- le moteur 2D attend, ligne par ligne, les seules lignes 3D qu'il compose (`RenderFinishLines`), sauf capture
+  directe de la 3D ou sortie 24 bits ;
+- un rendu encore en cours se termine avant que le jeu remplace les listes de polygones (`gfx3d_doFlush`). Ce risque
+  existait déjà quand la 2D n'affichait pas la 3D ;
+- conversion de sortie en NEON (8 pixels, mêmes opérations de bits), sur le seul fil d'émulation ;
+- mesures `engA`, `engB`, `end` (répartition de `2d`), `over16` et `over33` (images au-delà de 16,7 et 33,3 ms).
+
+**Banc** (x86-64, 4 processeurs virtuels, scène Galaxy, deux séries) : ×5 + 3D 2x passe de 42,0–47,8 à
+57,5–65,4 i/s, ×4 + 3D 2x de 58 à 82,5–94,2, ×10 de 31,3–38,7 à 40,5–46,2. Images et son identiques au bit près
+(x86 et AArch64, JIT compris, contours et brouillard forcés, états, réglages changés en jeu). ThreadSanitizer : rien
+de nouveau.
+
+**Attendu sur l'iPhone** (estimation, non mesurée) en ×5 + 3D 2x :
+- `out` passe d'environ 2,3 à 0,7 ms ;
+- `wait` descend à quelques millisecondes, car la 3D dispose aussi des ~10 ms de composition 2D (`2d` = 7,5 ms
+  dans Animal Crossing contre 2 à 3 ms dans la scène du banc) ;
+- `run` serait donc vers 14 à 17 ms : autour de 60 i/s, sans garantie de stabilité.
+
+En ×4 + 3D 2x (3D à ×8, composition à ×4, MetalFX pour les ~1,2× restants), l'estimation est de 11 à 12 ms : 60 i/s
+avec de la marge. Le vrai ×10 reste hors de portée à 60 i/s.
+
+**À lire** dans le prochain `session.log` : `[rb-perf] … res=1280x960 ss=2 … run=… wait=… over16=… over33=…`. Le
+60 est stable quand `over16` reste proche de 0 sur 600 images et `run` sous 15 ms ; sinon, ×4 + 3D 2x. `engA`,
+`engB` et `end` diront où passent les 7,5 ms de 2D.

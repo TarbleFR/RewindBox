@@ -6,6 +6,27 @@ d'ipa c'est une autre session qui la fera ». Cette session n'a lancé aucune li
 *La collection précédente, `LibretroCores-6cd6a89b…` (id 14839590544, étape 0 de DeSmuME), est livrée dans
 l'IPA 827. Celle-ci la remplace ; elle est livrée dans l'IPA 828.*
 
+## Après la 830 : la 3D se dessine pendant la composition 2D
+
+*24 novembre 2026, session « JIT DS et ×10 ».* Détail : section 16.5 de
+[desmume-arm64-jit-architecture.md](desmume-arm64-jit-architecture.md) et le README de `native/desmume`.
+
+- **Cœur** `native/desmume` (24 fichiers ; `render3D.cpp`, `render3D.h`, `gfx3d.cpp` en plus) :
+  - bandes dessinées de haut en bas, la 2D attend seulement ses lignes 3D ;
+  - conversion de sortie NEON ;
+  - mesures `engA`/`engB`/`end`/`over16`/`over33` ;
+  - images identiques au bit près au cœur de la 830.
+- **Collection compilée** : run [45356697338](https://github.com/TarbleFR/RewindBox/actions/runs/45356697338)
+  (commit `6f969042`), artefact `LibretroCores-6f969042a533d53d41d7b79a5f98d8e4542ab63d`, id 14903781916,
+  56 300 427 octets, SHA-256 `2fe56a69d52118d54ac42379ab487bc4d3999d334ebf68e6197ebd2af7ed9d02`, disponible jusqu'au
+  8 décembre. Entrée ajoutée à `COLLECTIONS`.
+- **Ce qui change** par rapport à `67ce2d3b` (830) : `desmume_libretro` seul (`5cd52a8e…`, 4 683 656 octets), sa
+  ligne de `LIBRETRO_CORES.txt` et `identity.json` ; tous les autres fichiers sont identiques octet pour octet.
+- **Vérifié sur l'archive téléchargée** : empreinte, contrat d'options sur les 35 binaires,
+  `libretro_source_collections.verify`, DeSmuME arm64 iOS 14.0 avec `RenderFinishLines` et les nouvelles mesures.
+- **App et pont** : inchangés depuis la 830. Livraison demandée par le mainteneur : IPA 831 sur la 830 avec ce
+  seul changement.
+
 ## Après la 829 : suréchantillonnage 3D, mesures, envoi RGB565, cause du JIT absent
 
 *24 novembre 2026, session « JIT DS et ×10 ».* Détail : section 16 de
