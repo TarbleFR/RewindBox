@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "f6634178f6b7ac6f48cf0d45c7135967ccc8a45e955e99700303f8f7126660e8",
+  "packagedFingerprint": "049f7c7e1a452b2fda936fdc9f7bd92be555706fa543703aa347158f3f8fd26d",
   "producers": {
     "engine": {
-      "run": 45449520140,
+      "run": 45500619250,
       "attempt": 1,
-      "artifact": 14947239149,
-      "name": "s2arm-engine-framework-65985f842e5e1bc459fcfb99e0c5b9a8b9162319",
-      "bytes": 25453518,
-      "sha256": "3baa12d1486e7c8e9694ecc4e832f7e252b00ee1b1ba06d387c01f8c19f0b4bc",
-      "headSha": "65985f842e5e1bc459fcfb99e0c5b9a8b9162319",
+      "artifact": 14971491817,
+      "name": "s2arm-engine-framework-fddb985bab17b896844e847cd310e61dbaf8e36f",
+      "bytes": 25450628,
+      "sha256": "959aa815a10184e8757f87da52d10eaf69a2ab2caae5305e8bcfd7559bd32e60",
+      "headSha": "fddb985bab17b896844e847cd310e61dbaf8e36f",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-24T17:42:14Z",
+      "expiresAt": "2026-12-24T22:39:57Z",
       "members": {
-        "S2ArmEngine.framework.zip": "60a514aa97776369afa89f1afd10d50fc5298c3126675b153fbd8be45d48d790",
-        "NS2Pro.framework.zip": "bba58b2ab5fc059184229a8a3fe3cecf8c2e63b4575f3abf1fdf80035ae481f6"
+        "S2ArmEngine.framework.zip": "1cc9795dc0d5f4718a423f169e48c7e8352d3a5f9447615d3cfc9e615e237e75",
+        "NS2Pro.framework.zip": "9ffa9710aa8d70b0fea966aee4a8a10eca246687b05c46226aad6e55f256f580"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "3baa12d1486e7c8e9694ecc4e832f7e252b00ee1b1ba06d387c01f8c19f0b4bc",
+    "engine": "959aa815a10184e8757f87da52d10eaf69a2ab2caae5305e8bcfd7559bd32e60",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "24d2285e185e6647adafe3abc3b047297af754d1e44b0dcbb20475d4190b07ff",
-      "bytes": 115525280,
-      "fingerprint": "f6634178f6b7ac6f48cf0d45c7135967ccc8a45e955e99700303f8f7126660e8"
+      "sha256": "cae28a3f1a427b1f3d26a683fa8fe00b1681da281a6456f2d0ca6fdbb0551b17",
+      "bytes": 115525656,
+      "fingerprint": "049f7c7e1a452b2fda936fdc9f7bd92be555706fa543703aa347158f3f8fd26d"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45449520140,
+      "run": 45500619250,
       "attempt": 1,
-      "head_sha": "65985f842e5e1bc459fcfb99e0c5b9a8b9162319",
+      "head_sha": "fddb985bab17b896844e847cd310e61dbaf8e36f",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1534,11 +1534,31 @@
         {
           "name": "0351-games-keep-their-own-speed-the-no-lock-guard-and-the-trial-are-off-and-the-fallback-is-opt-in.patch",
           "sha256": "408b591ee338ec53577954dcf66ecff935e7ce28ee2e7f47e3e1aeee86c362c1"
+        },
+        {
+          "name": "0352-every-texture-binding-reads-its-view-type-and-format-from-the-id-record.patch",
+          "sha256": "01c1dc660d13dee4463229969b61ddeccd4f03c83a1b23618047adfdb708322d"
+        },
+        {
+          "name": "0353-draw-passes-ordered-by-the-games-own-barriers-by-default-with-object-and-mesh-stages.patch",
+          "sha256": "27e5c619be64f20108aa31200075fd47e8fd68990ab4870103d926d1d209b8e8"
+        },
+        {
+          "name": "0354-reload-hosted-render-options-between-sessions.patch",
+          "sha256": "e88fa15a772125c2c52cbf7878bd18212ea63540cc8037525669715489281ec9"
+        },
+        {
+          "name": "0355-group-copies-for-full-packed-sparse-tiles.patch",
+          "sha256": "990a1f300aaaf3732c6061a4ab3b0492652fd79593e89395c5e5ecae70ca9df9"
+        },
+        {
+          "name": "0356-measure-packed-sparse-decode-by-payload.patch",
+          "sha256": "d7949bfb3aff2310432cdb3ac0de391ad4a84b81ecf5679e2b0dfff40d15ad6e"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "60a514aa97776369afa89f1afd10d50fc5298c3126675b153fbd8be45d48d790",
-        "NS2Pro.framework.zip": "bba58b2ab5fc059184229a8a3fe3cecf8c2e63b4575f3abf1fdf80035ae481f6"
+        "S2ArmEngine.framework.zip": "1cc9795dc0d5f4718a423f169e48c7e8352d3a5f9447615d3cfc9e615e237e75",
+        "NS2Pro.framework.zip": "9ffa9710aa8d70b0fea966aee4a8a10eca246687b05c46226aad6e55f256f580"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
