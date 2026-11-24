@@ -210,3 +210,30 @@ L'attente ne dure plus qu'une compilation (~0,5 s à froid) au lieu de toute la 
 la liaison attend toujours le même pipeline. Seuls les programmes à préchauffage non détaché atteignent cette ligne
 (traduits en jeu avec la compilation asynchrone) ; programmes du cache et sessions sans compilation asynchrone (SSBU)
 n'y passent pas. Test du contrat : 549 contrôles passés ; compilation : CI du Core. Effet sur l'iPhone : non mesuré.
+
+## 11. Confirmation par les piles, et première session sur l'IPA 830 — 24 novembre
+
+Relevé « #F2.2 » de la session 829 figée (pid 18006, 12 s sans image), symbolisé avec la carte du Core de la 829 :
+- fil de rendu : `SetProgramCommand` → `ProgramQueue.WaitForProgram` → `WaitForLink` →
+  `ShaderCollection.CheckProgramLink` → `Task.Wait` ;
+- fil GPU : `DmaClass.DmaCopy` → `SignalPreciseRead` → `BufferModifiedRangeList.WaitForAndFlushRanges` →
+  `SyncMap.WaitSyncAvailability`.
+C'est l'attente de la section 10, à l'appel près.
+
+IPA 830 (Core 7cf4ff80d, session 19155, 163 s) : le jeu dépasse 22 s et atteint la partie (le mainteneur : « ça
+fonctionne », avec beaucoup de saccades). Mesures :
+- 41–69 s : 25,6 images/s présentées, 6 trous de plus de 100 ms (3,7 s) ; 97–160 s : 10,2 images/s, 25 trous de
+  plus de 100 ms (55,4 s), dont un de 27,9 s (70–97 s).
+- Le trou de 27,9 s : 144 dessins ont attendu leur pipeline graphique, 24,8 s en tout (`draws that waited for a
+  compile`), environ 170 ms par compilation. Sur la session, ces attentes font environ 68 s.
+- Cache Metal encore froid pour les pipelines graphiques : 500 pipelines compute rapides dans la première fenêtre
+  (le cache se remplit : 320 dans la 829), tous les compute faits à 41 s ; environ 2 000 pipelines graphiques
+  compilés pendant la session, 100 à 500 ms chacun, deux fils en permanence.
+- Mémoire : empreinte jusqu'à 4,2 Gio, 4,8 Gio compressés, 8 % disponibles sur l'appareil, alerte mémoire à 84 s ;
+  pendant le trou de 27,9 s, 112 534 décompressions et 140 743 défauts de page. La 822 (qui jouait) montait à
+  4,6 Gio et 4,9 Gio compressés.
+- Ramasse-miettes : pauses de gen2 en arrière-plan de 28 ms au plus pendant le jeu ; pas en cause.
+- Le relevé « #F » n'a pas couvert le trou de 27,9 s : ses deux relevés par processus ont servi au chargement.
+
+À mesurer à la session suivante : combien de pipelines graphiques la première fenêtre trouve dans le cache, et ce qu'il
+reste d'attentes de compilation.
