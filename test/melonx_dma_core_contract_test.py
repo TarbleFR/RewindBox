@@ -314,7 +314,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             # Second lot after IPA 821: the background collector lets foreground collections through, the shader cache is
             # read ahead of its consumer, the variant journal holds a session's states, the JIT arena's use is journaled.
             'variant-journal-capacity': 'delivered', 'jit-arena-usage-journal': 'delivered',
-            'bgc-suspension-pending': 'delivered', 'shader-cache-parallel-read': 'delivered'}
+            'bgc-suspension-pending': 'delivered', 'shader-cache-parallel-read': 'delivered',
+            'descriptor-pool-capacity': 'delivered'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
 # Core 654: the collector (DIAGNOSTICS) is a reviewed change again, its gcEvent lines bound by the gc-events gate.
 CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES) |
@@ -963,7 +964,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_variant_journal_capacity.py',
                                                      'build-utils/melonx/adapt_jit_arena_usage_journal.py',
                                                      'build-utils/melonx/adapt_bgc_suspension_pending.py',
-                                                     'build-utils/melonx/adapt_shader_cache_parallel_read.py'} and
+                                                     'build-utils/melonx/adapt_shader_cache_parallel_read.py',
+                                                     'build-utils/melonx/adapt_descriptor_pool_capacity.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -1041,7 +1043,7 @@ if not args.helpers_only:
     # (249), the nine other files they edit are members already.
     # Second lot after IPA 821: four adapters join them (289); DiskCacheGuestStorage.cs joins the members (250), the
     # seven other files they edit are members already.
-    check(len(frozen['preparationInputs']) == 289 and len(frozen['preparedMembers']) == 250, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 290 and len(frozen['preparedMembers']) == 250, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -1049,6 +1051,10 @@ if not args.helpers_only:
         for binding in gate.get('compiledBindings', []):
             check(isinstance(binding['reportPath'], list) and binding['productionPath'] in {**frozen['preparedMembers'], **frozen['untouchedFixtureMembers']}, 'Unbound compiled source')
     gate = {gate['name']: gate for gate in frozen['gates']}
+    capacity = gate['descriptor-pool-capacity']
+    check(set(capacity['requiredPostimages']) == {DESCRIPTOR_POOL_MANAGER, 'src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs'} and
+          capacity['assertions']['controlPools'] == 65 and capacity['assertions']['candidatePools'] == 9,
+          'Descriptor pool sizing must run the production manager on both preparations')
     check(set(gate['bindless-array-deltas']['requiredPostimages']) == set(ARRAY_NAMES) and
           set(gate['hogwarts-dma-copies']['requiredPostimages']) == set(DMA_NAMES) | set(HOST_NAMES),
           'A changed adapter gate does not bind every change')
