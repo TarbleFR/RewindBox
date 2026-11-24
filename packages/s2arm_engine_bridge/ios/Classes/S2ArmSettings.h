@@ -4,14 +4,15 @@
 // The engine reads its picture settings from the app's standard NSUserDefaults when a game starts (S2Arm ios/settings.m
 // s2a_ios_apply_graphics_settings, called once per process from host_run). In this app that domain is RewindBox's own, so
 // the RewindBox settings screen and S2Arm's own in-game settings page write the same keys and always agree. The game
-// language is the S2A_SYSTEM_LANGUAGE environment variable, set before the engine starts. No engine change.
+// language is the S2A_SYSTEM_LANGUAGE environment variable, set before the engine starts. No engine change. Frame
+// generation (engine patch 0345) is RewindBox's own key, given to the engine as S2A_RB_FI by the bridge before it starts.
 #import <Foundation/Foundation.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
-// The method-channel map (keys resolutionScale, antiAliasing, scalingFilter, frameRateLimit, docked, widescreen,
-// performanceOverlay, gameLanguage), with defaults for anything not stored. A resolution scale above 1 has no effect in
-// the engine's direct mode (the only mode it ships), so it is reported as "1".
+// The method-channel map (keys resolutionScale, antiAliasing, scalingFilter, frameRateLimit, frameInterpolation, docked,
+// widescreen, performanceOverlay, gameLanguage), with defaults for anything not stored. A resolution scale above 1 has no
+// effect in the engine's direct mode (the only mode it ships), so it is reported as "1". frameInterpolation is off by default.
 NSDictionary<NSString *, id> *S2ArmSettingsSnapshot(void);
 
 // Validates and stores any subset of that map (unknown keys and values are ignored), then returns the new snapshot.
@@ -28,5 +29,8 @@ NSArray<NSString *> *S2ArmSettingsValues(NSString *key);
 // Whether the performance overlay is wanted (the RewindBox preference).
 BOOL S2ArmSettingsPerformanceOverlay(void);
 void S2ArmSettingsSetPerformanceOverlay(BOOL on);
+
+// Whether frame generation is wanted (engine patch 0345, off by default): S2A_RB_FI at the next game start.
+BOOL S2ArmSettingsFrameInterpolation(void);
 
 NS_ASSUME_NONNULL_END

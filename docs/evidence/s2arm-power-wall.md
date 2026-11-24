@@ -153,9 +153,9 @@ revanche augmenter les i/s tenues dans la durée, et chaque IPA dira de combien.
 
 ## Étape 1 : patchs 0342 à 0344
 
-**Statut :** écrits le 24 novembre 2026, puis relus par deux relectures adverses indépendantes et
-corrigés le même jour (détail plus bas). Logique pure testée hors dépôt (gcc et clang), arbre moteur
-reconstruit à l'identique depuis la série. Compilation iOS, épingle et IPA : voir le suivi plus bas.
+**Statut :** écrits le 24 novembre 2026, relus par deux relectures adverses indépendantes, corrigés,
+puis complétés (limites ci-dessous). La version relue compile pour iOS (run 45378584979, macOS 15
+et 26, tests thermiques, DRS et passes GPU verts) ; les compléments et 0345–0346 sont à recompiler.
 Rien n'est observé sur iPhone ; aucun gain n'est mesuré.
 
 | Patch | Changement | Interrupteur (`env.txt`) |
@@ -213,16 +213,18 @@ façon (effacement juste après, cibles externes), au lieu de ne rien prouver. L
 multi-dessins masqués (0072) traverse un rebind des mêmes cibles : sinon son calcul aurait coupé la
 passe continuée.
 
-**Limites connues, non traitées :**
-- une passe continuée perd, à sa fin, l'économie d'écriture liée à un rejet ou à un effacement qui
-  suit ;
-- le coût du test par dessin sur le fil de traduction n'est pas mesuré (estimé par la relecture entre
-  quelques centaines de µs et 2 ms par image). La fonction n'est plus intégrée en ligne, pour être
-  visible dans un profil processeur ;
-- les marques « cible modifiée » restent incomplètes pour les lectures dans la même passe (défaut
-  antérieur à 0342, aucun défaut d'image observé) ;
-- un shader de sommets qui écrit l'index de viewport n'est pas refusé par 0343 (risque faible) ;
-- 0344 n'a pas de désactivation par jeu : `S2A_RB_NO_LOCK_SEEN=0` vaut pour tous.
+**Limites relevées par les relectures, corrigées ensuite :**
+
+| Limite | Correction | Interrupteur |
+| --- | --- | --- |
+| Une passe continuée perdait, à sa fin, l'économie d'écriture d'un rejet du jeu juste avant. | Le rejet s'applique aussi à la fin d'une passe continuée (cibles identiques). | `S2A_RB_RT_CONT=0` |
+| Le test par dessin résolvait toutes les liaisons à chaque dessin (quelques centaines de µs à 2 ms par image, estimation de la relecture). | La réponse du dessin précédent est gardée tant que ses arguments n'ont pas changé, aux mêmes conditions que la réutilisation du bloc d'arguments. Compteur dans la ligne `[gpu-pass] same-target continuations`. | `S2A_RB_RT_CONT_MEMO=0` |
+| Les marques « cible modifiée » rataient DrawTexture, la tessellation, les effacements dans la passe et les shaders sans liste de couleurs (défaut antérieur à 0342). | Patch 0346 : toute écriture de la passe marque sa cible, comme le registre des écritures. | `S2A_RB_FB_MARKS=0` |
+| 0343 ne refusait pas un shader qui choisit son viewport. | Refus dès que le jeu a réglé un autre viewport différent du premier. | `S2A_RB_COVER_LOAD=0` |
+| 0344 n'avait pas de désactivation par jeu (`env.txt` vaut pour tous les jeux). | `S2A_RB_NO_LOCK_SEEN_OFF=<identifiant>[,…]` désactive la garde pour ces jeux seulement. | — |
+
+**Reste ouvert :** une passe continuée garde les économies liées à un effacement qui suit désactivées
+(elles lisent la frontière d'une passe non continuée).
 
 **Pas fait : laisser de côté les plans de profondeur ou de stencil inutilisés.** Le gain visé n'était
 que de 5 à 20 Mio par image. Ces plans font partie de la description des pipelines Metal : une passe
@@ -261,8 +263,12 @@ ouverture de passe, et 13 700 réveils par seconde de fils qui attendent en bouc
 **Profil du fil de traduction de Zelda** (trois captures de la session 1, 298 échantillons) :
 - dessin : 51 % (liaisons et arguments 32 %, dont recherche de textures 9 %) ;
 - fin de sous-lot : 12 %, dont 9 % dans la fonction elle-même ; 17 de ses 27 échantillons tombent
-  sur une seule adresse, donc une boucle intégrée en ligne. Hypothèse à confirmer au désassemblage :
-  le parcours de toute la capacité d'une table de hachage à chaque sous-lot (textures fantômes) ;
+  sur une seule adresse. Le désassemblage du binaire 830 la place dans `gw_commit` : à chaque
+  sous-lot, chaque page que les shaders ont écrite est reportée une à une dans la table des
+  écritures GPU (16 384 cases de 24 octets, accès dispersés). Avec `_sbw_note` (4,7 %), qui note ces
+  pages à chaque dessin, le suivi des écritures GPU prend environ 14 % du fil. Les shaders à accès
+  mémoire brut de Zelda écrivent beaucoup de pages ; Mario Kart World n'en a pas. Piste : noter et
+  reporter des plages contiguës au lieu de pages ;
 - Objective-C et noyau : environ 20 % ;
 - anticipations (balayages de la liste de commandes) : 4 %.
 
@@ -340,11 +346,23 @@ lien d'affichage et un tiers d'interpolations sautées.
   1,85 W à 30 pour tout l'appareil). C'est le vrai intérêt pour un jeu conçu pour 30.
 
 **Avis.** Bonne piste en complément pour les jeux conçus pour 30 i/s et stables, pas une correction
-de l'ennemi n°1. Proposition : porter la dernière version amont (`54c2f8870`, avec tous ses
-correctifs) en option par jeu, éteinte par défaut, avec un interrupteur `S2A_RB_*`, après l'IPA de
-l'étape 1. À mesurer sur iPhone : coût GPU par image générée, consommation, répartition des
-intervalles d'affichage, latence. Le port touche l'affichage, déjà modifié chez nous (maintien,
-cadence) : c'est un lot à part entière, avec sa relecture.
+de l'ennemi n°1.
+
+**Ajouté le 24 novembre (patch 0345, à la demande du mainteneur).** Port de la dernière version
+amont (`54c2f8870`, avec ses correctifs de mémoire, de fautes de page et de lien d'affichage).
+Adaptations à notre moteur : pas de filtre FSR, pas d'aspect de patch communautaire, renversement
+d'origine et copie d'affichage de notre moteur, calque BGRA8 uniquement. Réglage « Génération
+d'images » dans l'application, désactivé par défaut ; activé, le lancement passe `S2A_RB_FI=1` et le
+menu en jeu l'allume ou l'éteint en cours de partie (`s2a_rb_guest_set_frame_interp`). Seuls les jeux
+qui demandent 30 i/s ou moins sont interpolés.
+
+**À vérifier dans le prochain journal**, sur Fire Emblem en résolution 1 :
+- ligne `present frame interpolation: on` au lancement, puis toutes les 300 images
+  `present frame interpolation up to game frame …` : images interpolées, refusées par la règle, coût
+  GPU moyen et maximal par interpolation ;
+- répartition des intervalles affichés (`displayed distribution`) : 16,7 ms attendus quand le jeu
+  tient ses 30 ;
+- GPU p50 et i/s du jeu, comparés à la session sans interpolation.
 
 ## Suivi
 
@@ -355,3 +373,5 @@ cadence) : c'est un lot à part entière, avec sa relecture.
 | 2026-11-24 | Relectures adverses de 0342 à 0344 | Deux défauts réels par patch, corrigés ; série reconstruite à l'identique, 40 tests purs (gcc, clang) et tests statiques du dépôt verts. Compilation iOS à suivre ; aucun gain mesuré. |
 | 2026-11-24 | Diagnostic croisé Zelda / Mario Kart World, recherche, expertise interpolation | Écrits. Aucun correctif tiré de la recherche n'est encore porté. |
 | 2026-11-24 | Journal Fire Emblem | Analysé : jeu à 30 par conception qui ne les tient pas (GPU, traduction sur cœurs efficaces, compilations). Aucun correctif dédié encore. |
+| 2026-11-24 | Version relue de 0342–0344 | Compilée pour iOS (run 45378584979), tests thermiques, DRS et passes GPU verts. Rien sur iPhone. |
+| 2026-11-24 | Compléments 0342–0344, Frame Generation (0345), marques (0346) | Écrits ; série reconstruite à l'identique, 44 tests purs (gcc, clang) et tests statiques verts. Compilation iOS à suivre ; aucun gain mesuré. |

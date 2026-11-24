@@ -31,11 +31,13 @@ static NSDictionary<NSString *, NSString *> *EnglishStrings(void) {
     @"menu.antiAliasing" : @"Anti-aliasing",
     @"menu.scalingFilter" : @"Scaling filter",
     @"menu.frameRateLimit" : @"Frame rate limit",
+    @"menu.frameInterpolation" : @"Frame Generation",
     @"menu.mode" : @"Console mode",
     @"menu.imageFormat" : @"Image format",
     @"menu.gameLanguage" : @"Game language",
     @"menu.nextLaunch" : @"Applies the next time a Switch 2 game starts, after RewindBox is restarted.",
     @"menu.liveNow" : @"Applies at once to this game.",
+    @"menu.frameInterpolationUnavailable" : @"Frame Generation is not available on this device.",
     @"menu.quit" : @"Quit game",
     @"menu.quitTitle" : @"Quit the game?",
     @"menu.quitMessage" : @"The game saves are written before it closes.",
@@ -52,6 +54,8 @@ static NSDictionary<NSString *, NSString *> *EnglishStrings(void) {
     @"menu.fps60" : @"60 FPS",
     @"menu.fps120" : @"120 FPS",
     @"menu.fpsUnlimited" : @"No limit",
+    @"menu.frameInterpolationOff" : @"Off",
+    @"menu.frameInterpolationOn" : @"On",
     @"menu.modeHandheld" : @"Handheld",
     @"menu.modeDocked" : @"Docked",
     @"menu.formatWide" : @"Widescreen (fills the screen)",
@@ -62,7 +66,8 @@ static NSDictionary<NSString *, NSString *> *EnglishStrings(void) {
 
 // The settings the menu offers: the snapshot key, the title key and the value labels.
 static NSArray<NSString *> *SettingKeys(void) {
-  return @[ @"resolutionScale", @"antiAliasing", @"scalingFilter", @"frameRateLimit", @"docked", @"widescreen", @"gameLanguage" ];
+  return @[ @"resolutionScale", @"antiAliasing", @"scalingFilter", @"frameRateLimit", @"frameInterpolation", @"docked", @"widescreen",
+            @"gameLanguage" ];
 }
 
 static NSString *TitleKey(NSString *setting) {
@@ -71,6 +76,7 @@ static NSString *TitleKey(NSString *setting) {
     @"antiAliasing" : @"menu.antiAliasing",
     @"scalingFilter" : @"menu.scalingFilter",
     @"frameRateLimit" : @"menu.frameRateLimit",
+    @"frameInterpolation" : @"menu.frameInterpolation",
     @"docked" : @"menu.mode",
     @"widescreen" : @"menu.imageFormat",
     @"gameLanguage" : @"menu.gameLanguage",
@@ -81,6 +87,7 @@ static NSString *TitleKey(NSString *setting) {
 static NSArray *Choices(NSString *setting) {
   if ([setting isEqualToString:@"docked"]) return @[ @NO, @YES ];
   if ([setting isEqualToString:@"widescreen"]) return @[ @YES, @NO ];
+  if ([setting isEqualToString:@"frameInterpolation"]) return @[ @NO, @YES ];
   return S2ArmSettingsValues(setting);
 }
 
@@ -353,6 +360,8 @@ static UIView *FindView(UIView *view, NSString *identifier) {
 - (NSString *)label:(NSString *)setting value:(id)value {
   if ([setting isEqualToString:@"docked"]) return [self text:[value boolValue] ? @"menu.modeDocked" : @"menu.modeHandheld"];
   if ([setting isEqualToString:@"widescreen"]) return [self text:[value boolValue] ? @"menu.formatWide" : @"menu.format169"];
+  if ([setting isEqualToString:@"frameInterpolation"])
+    return [self text:[value boolValue] ? @"menu.frameInterpolationOn" : @"menu.frameInterpolationOff"];
   NSDictionary *keys = @{
     @"resolutionScale" : @{@"0.5" : @"menu.res050", @"0.75" : @"menu.res075", @"1" : @"menu.res100"},
     @"antiAliasing" : @{@"None" : @"menu.aaNone", @"SmaaMedium" : @"menu.aaSmaaMedium", @"SmaaHigh" : @"menu.aaSmaaHigh"},
@@ -390,8 +399,13 @@ static UIView *FindView(UIView *view, NSString *identifier) {
   id current = S2ArmSettingsSnapshot()[setting];
   // Patch 0078: the frame-rate limit applies at once when the engine can take it (applyNow), the other settings at the next start
   BOOL live = self.applyNow != nil && [setting isEqualToString:@"frameRateLimit"];
+  // Patch 0345: frame generation at once in a session started with it on; the next start otherwise; never where the engine cannot
+  BOOL frameInterpolation = [setting isEqualToString:@"frameInterpolation"];
+  if (frameInterpolation) live = self.applyNow != nil && self.frameInterpolationLive;
+  NSString *message = frameInterpolation && self.frameInterpolationUnavailable ? @"menu.frameInterpolationUnavailable"
+                      : live ? @"menu.liveNow" : @"menu.nextLaunch";
   UIAlertController *sheet = [UIAlertController alertControllerWithTitle:[self text:TitleKey(setting)]
-                                                                 message:[self text:live ? @"menu.liveNow" : @"menu.nextLaunch"]
+                                                                 message:[self text:message]
                                                           preferredStyle:UIAlertControllerStyleActionSheet];
   __weak S2ArmSessionMenu *weakSelf = self;
   for (id value in Choices(setting)) {
@@ -403,13 +417,27 @@ static UIView *FindView(UIView *view, NSString *identifier) {
                                               S2ArmSettingsApply(@{setting : value});
                                               S2ArmSessionMenu *menu = weakSelf;
                                               if (menu.applyNow) (void)menu.applyNow(setting, value);   // stored above for the next start too
-                                              [menu showSettings];
+                                              // Patch 0345: the engine cannot interpolate here; the choice stays stored, the player is told
+                                              if (frameInterpolation && menu.frameInterpolationUnavailable) [menu showFrameInterpolationUnavailable];
+                                              else [menu showSettings];
                                             }]];
   }
   [sheet addAction:[UIAlertAction actionWithTitle:[self text:@"menu.back"]
                                             style:UIAlertActionStyleCancel
                                           handler:^(UIAlertAction *action) { [weakSelf showSettings]; }]];
   [self present:sheet];
+}
+
+// Patch 0345: the engine answered -2 (this device or its graphics backend cannot interpolate frames). Back returns to the settings.
+- (void)showFrameInterpolationUnavailable {
+  UIAlertController *alert = [UIAlertController alertControllerWithTitle:[self text:@"menu.frameInterpolation"]
+                                                                 message:[self text:@"menu.frameInterpolationUnavailable"]
+                                                          preferredStyle:UIAlertControllerStyleAlert];
+  __weak S2ArmSessionMenu *weakSelf = self;
+  [alert addAction:[UIAlertAction actionWithTitle:[self text:@"menu.back"]
+                                            style:UIAlertActionStyleCancel
+                                          handler:^(UIAlertAction *action) { [weakSelf showSettings]; }]];
+  [self present:alert];
 }
 
 - (void)confirmQuit {

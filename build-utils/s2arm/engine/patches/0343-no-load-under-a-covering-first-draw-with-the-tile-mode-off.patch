@@ -1,9 +1,9 @@
 diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
-index 83e931f..cb53d00 100644
+index 7ec83e8..02b68e2 100644
 --- a/graphics/nvn/gfx/nvn/hle_nvn.c
 +++ b/graphics/nvn/gfx/nvn/hle_nvn.c
 @@ -3922,6 +3922,13 @@ static void power_line(uint64_t frame) {
-                 (unsigned long long)(cont[2] - last_cont[2]), (unsigned long long)(cont[3] - last_cont[3]), (unsigned long long)(cont[4] - last_cont[4]));
+                 (unsigned long long)(cont[2] - last_cont[2]), (unsigned long long)(cont[3] - last_cont[3]), (unsigned long long)(cont[4] - last_cont[4]), (cont[5] - last_cont[5]) / nf);
              memcpy(last_cont, cont, sizeof cont);
          }
 +        void nvn_be_cover_stats(uint64_t v[4]); static uint64_t last_rbcov[4]; uint64_t rbcov[4]; nvn_be_cover_stats(rbcov);   // RewindBox (patch 0343)
@@ -17,7 +17,7 @@ index 83e931f..cb53d00 100644
          void nvn_be_ubp_why(uint64_t w[5]); static uint64_t pw5[5]; uint64_t w5[5]; nvn_be_ubp_why(w5);
          uint64_t ld, st, fu, udc = nvn_be_udc_saved_bytes(); nvn_be_bw(&ld, &st, &fu);
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index e12311a..03767ef 100644
+index 463de0e..c2214b3 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -9653,6 +9653,7 @@ static int rb_clear_desc_matches(MTL4RenderPassDescriptor *pd) {
@@ -67,7 +67,15 @@ index e12311a..03767ef 100644
          xv_touch_add(R.rt.color[i]->serial, (uint32_t)ca.level, (uint32_t)ca.slice,
                       ca.loadAction != MTLLoadActionLoad);
          if (g_xv_n) { xv_ent *xe = xv_find(R.rt.color[i]->serial, (uint32_t)ca.level, (uint32_t)ca.slice);
-@@ -18830,7 +18836,10 @@ static void sd_finish(void) {
+@@ -13597,6 +13603,7 @@ static struct {
+     uint64_t tex[6][NTEX], samp[6][128], img[6][32];
+     uint32_t st_vmask[2], st_wmask[2], st_ref[2];
+     p_poly_offset po; float vp[16][4]; float dr[2]; int has_vp; int depth_clamp; uint8_t vp_sw[16][4];   // vp_sw: viewport swizzles XOR the identity (p_vp_swizzle)
++    uint16_t rb_vp_set;   // RewindBox (patch 0343 review): the viewports other than 0 the game has set (rb_cover_load)
+     float blend_color[4];
+     p_tf_bind tf[4]; uint64_t tf_off[4]; int tf_on, rast_discard;   // transform feedback buffers, bytes written into each since Begin, capture active; rasterizer discard (tf_draw)
+     int tf_gpu; uint64_t tf_ctl;   // S2Arm: since Begin a geometry shader captured, so the offsets are the GPU counter (nvn_geometry.inc geo_tf), not tf_off; the control buffer Begin named
+@@ -18830,7 +18837,10 @@ static void sd_finish(void) {
      if (!tbdr_on()) {   // TBDR set off: write back everything except an attachment loaded and not written in this pass (udc_on, needs no reader inference)
          for (int i = 0; i < g_nsd; i++) {
              sd_att *t = &g_sd[i];
@@ -79,7 +87,7 @@ index e12311a..03767ef 100644
              int dead = unwritten || rb_terminal_discard(t);
              if (!dead && (g_rb_next_clear_mask & (1u << i))) {
                  dead = 1;
-@@ -19017,6 +19026,47 @@ static int first_draw_covers(int i, id<MTLTexture> t, NSUInteger level) {
+@@ -19017,6 +19027,50 @@ static int first_draw_covers(int i, id<MTLTexture> t, NSUInteger level) {
      return nvn_cover((const float (*)[4])P, n, prim, (int)S.poly.cull, ((S.poly.front == NVN_FRONT_FACE_CCW) != (s2a_nvn_rast_flip != 0)) != atomic_load_explicit(&g_origin_ll, memory_order_relaxed),   // NDC counter-clockwise is front: Metal's winding (see the draw), mirrored by the lower-left viewport flip
                       S.has_vp, vp, R.has_sc, sc, (long)cw, (long)ch);
  }
@@ -109,6 +117,9 @@ index e12311a..03767ef 100644
 +    //   scaled target whose canvas does not meet its storage exactly: the draw scales the viewport by the exact factor and the storage is rounded up (rs_up), so a canvas
 +    //   of 1152 at 0.85 draws 979.2 columns of 980 and the last one is left undrawn (S2A_RES_SCALE or the Fair scale; the 85 and 75 % DRS tiers of 960x540 are exact)
 +    if (g_fd_di && S.restart.on) return g_fd_why = 6, 0;
++    // a vertex shader that writes the viewport index picks one of the game's viewports, and the proof maps viewport 0 alone: refused once the game has set another
++    //   viewport to a different rectangle (the reflection does not say which shaders write it)
++    for (unsigned m = S.rb_vp_set; m; m &= m - 1) if (memcmp(S.vp[__builtin_ctz(m)], S.vp[0], sizeof S.vp[0])) return g_fd_why = 4, 0;
 +    const double s = rs_of(t);
 +    if (s != 1.0) { NSUInteger cw, ch; rs_canvas(t, level, &cw, &ch);
 +        if (fabs((double)cw * s - (double)rs_mip(t.width, level)) > 1e-6 || fabs((double)ch * s - (double)rs_mip(t.height, level)) > 1e-6) return g_fd_why = 3, 0; }
@@ -127,7 +138,16 @@ index e12311a..03767ef 100644
  
  int nvn_dpool_base(const void *pool, int tex);   // hle_nvn.c: where a descriptor pool's IDs start in the host table
  static int state_op(uint32_t op, const void *a, uint32_t size) {
-@@ -23519,7 +23569,9 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+@@ -19083,7 +19137,7 @@ static int state_op(uint32_t op, const void *a, uint32_t size) {
+             break;
+         }
+         case OP_POLY_OFFSET: S.po = *(const p_poly_offset *)a; break;
+-        case OP_VIEWPORTS: { const p_viewports *b = a; for (int i = 0; i < b->n; i++) memcpy(S.vp[b->first + i], b->v[i], 16); S.has_vp = 1; break; }
++        case OP_VIEWPORTS: { const p_viewports *b = a; for (int i = 0; i < b->n; i++) { memcpy(S.vp[b->first + i], b->v[i], 16); if (b->first + i > 0 && b->first + i < 16) S.rb_vp_set |= (uint16_t)(1u << (b->first + i)); } S.has_vp = 1; break; }   // RewindBox (patch 0343 review): rb_vp_set
+         case OP_DEPTH_RANGE: { const p_depth_range *b = a; S.dr[0] = b->n; S.dr[1] = b->f; break; }
+         case OP_DEPTH_CLAMP: S.depth_clamp = ((const p_depth_clamp *)a)->on; break;
+         case OP_VP_SWIZZLE: { const p_vp_swizzle *b = a; memcpy(S.vp_sw[b->first], b->sw, 4 * (size_t)b->n); break; }
+@@ -23544,7 +23598,9 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
      g_rp_layered = pr->sh[0] && pr->sh[0]->layer_out;
      if (g_enc && g_pass.layered != g_rp_layered) rp_end();   // a layered pass only for layer-writing vertex shaders (see rp_begin_ex)
      g_noload_mask = g_enc ? 0 : pass_color_unwritten(pr);   // color attachments proven unwritten to this pass's end are not loaded (see g_noload_mask)
@@ -137,7 +157,7 @@ index e12311a..03767ef 100644
      g_noload_mask = 0;
      g_rp_layered = 0;
      g_fd_dw = NULL; g_fd_di = NULL;
-@@ -23540,7 +23592,7 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+@@ -23565,7 +23621,7 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
      int fc = g_pso_lmap || g_pso_fsfn ? 0 : se_want(pr->gp, pr->sh[1], 1);
      if (g_mtk.on) {   // a task / mesh draw (mesh_tasks_draw): its own pipeline kind; the next draw fetches its own again (cur_pr nil)
          g_pso_fc = fc; cur_ps = mtk_pso(pr); cur_ps_round = g_pso_color_round; g_pso_fc = 0; cur_pr = nil;
@@ -146,7 +166,7 @@ index e12311a..03767ef 100644
      else if (g_pso_dirty || pr != cur_pr || cur_ps_pass != g_pass.serial || fc != cur_ps_fc) { g_pso_fc = fc;
          p_draw_idx shape;
          g_rb_first_indexed = rb_first_draw_on() && rb_observed_workers_on() && !g_geo_program ? rb_first_shape(dw,di,&shape) : NULL;
-@@ -23548,8 +23600,8 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+@@ -23573,8 +23629,8 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
      g_udc_lmap = g_pso_lmap; g_udc_fsfn = g_pso_fsfn != nil;   // udc_note_draw (below) judges this draw's writes by the map its pipeline used
      if (g_pso_lmap) { g_pso_lmap = NULL; g_pso_fsfn = nil; memset(&g_pso_fz, 0, sizeof g_pso_fz); g_pso_dirty = 1; }   // The next draw fetches again according to its own situation
      __unsafe_unretained id<MTLRenderPipelineState> ps = cur_ps;
@@ -157,7 +177,7 @@ index e12311a..03767ef 100644
      draw_widen(pr, dw, di);   // S2Arm widen: this draw's mode and rewritten uniforms (see draw_widen)
      // The widen core samples textures too (World War Z: "texture upgraded to allow format views" right after the core sampled it); an upgrade there ends the pass before any state is set
      //   on en. Same retry as after the binding below
-@@ -23565,7 +23617,7 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+@@ -23590,7 +23646,7 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
      { uint32_t r5[5]; if (wd_p2_want_self(R.has_rt && R.rt.n > 0 ? R.rt.color[0] : NULL, r5)) wd_p2_self_clear(en, r5); }   // S2Arm widen: fallback sentinel in the world target's side bands when the game did not clear it this frame
      if (ps != g_enc_pso) { enc_r_pso(en, ps); g_enc_pso = ps; }
      enc_r_half_mask(en, cur_ps_round);
