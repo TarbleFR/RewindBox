@@ -144,6 +144,12 @@ seulement ; demande suivante : 10× à 60 images/s constantes. À 10×, une imag
   avant que le cœur redessine dedans. Autre format, autre famille de file ou cœur qui n'alterne pas : copie GPU comme
   avant. Journal : `vulkan: frames reach Metal directly, no copy (4000x4800)`.
 - **Il faut les deux** : l'app seule avec l'Azahar de `416333ff` reste sur la copie GPU (une seule image).
+- **Collection** : run [45425936501](https://github.com/TarbleFR/RewindBox/actions/runs/45425936501), artefact
+  `LibretroCores-e5378e84a7b68a56830e6aaed04883857c54bca5`, id 14939297496, 56 385 054 octets, SHA-256
+  `fb281c1c5f69d422cf07b86d1b37da2a890dca846e551a4d0d7f66a9809bcb1c`, entrée ajoutée à `COLLECTIONS`. Par rapport à
+  `416333ff` : Azahar (images par trame) et DeSmuME (`native/desmume` à `665acae2`, autre session) changent ; les deux
+  Beetle PSX sont identiques. Vérifié : empreinte, `verify` (4 cœurs compilés, interface JIT, export), contrat
+  d'options sur les 35 binaires, `standard_delivery_contract_test.py` (OK, 4 ignorés).
 - **Limite honnête** : sans les copies, le coût restant à 10× est le rendu 3D lui-même (100 fois les pixels
   natifs) ; 60 images/s constantes dépendent alors du GPU et de la chaleur de l'iPhone, non mesurés.
 
