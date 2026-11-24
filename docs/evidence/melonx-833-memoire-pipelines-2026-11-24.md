@@ -85,3 +85,24 @@ comptes, des tailles et des durées sont repris ici. Aucune mesure nouvelle n'a 
 - Recompilation iOS : run 45440044434, artefact 14944176196, binaire `06df5df1…` (4 862 600 octets), 10 marqueurs sur
   10, 8 points d'entrée sur 8, 428 exports Vulkan sur 428 ; épinglée dans `build-utils/melonx/moltenvk-rebuild-pin.json`
   (64 contrôles de parité). Contrôle du cache mappé (run 45440044387) vert. Rien n'est mesuré sur l'iPhone.
+
+## 7. Onzième partie de MoltenVK (relevé de la mémoire Metal) et nouveau gel du Core
+
+- Commit `03394eb5d`. Le résumé de performance que MoltenVK écrit déjà pendant le jeu gagne une ligne :
+  « RewindBox Metal memory: device D MiB; made resident: textures, buffers, aliases, other; descriptor pool buffers;
+  visibility buffers; the rest R MiB ». Chaque catégorie donne un nombre, des Mio et le nombre total d'ajouts. Les
+  compteurs suivent les créations et libérations : allocations rendues résidentes par type, tampons d'arguments des pools
+  de descripteurs, tampons de résultats de visibilité. Aucun parcours de l'ensemble résident.
+- Une texture créée sur un tampon ou un tas (vues de tampon, images sur le tampon de leur mémoire), ou un tampon créé sur
+  un tas, est un alias. Sa mémoire est déjà comptée avec son tampon : il est montré à part, sans être retiré du total.
+- But : dire ce que sont les environ 700 Mo que Metal compte au-delà des allocations Vulkan du moteur. Aucune allocation ni
+  aucun objet ne change.
+- Lecture du code, sans mesure : le moteur range images et tampons dans des blocs séparés (`ForBuffer`). Les images
+  demandent la mémoire privée (type 0 de MoltenVK). Un bloc d'images ne reçoit donc pas de `MTLBuffer` de toute sa taille
+  en plus de ses textures : l'hypothèse d'une double allocation des images est écartée.
+- Trouvé en préparant l'IPA : le correctif MoltenVK et `test/melonx_warmup_key_parity_test.py` sont des entrées figées du
+  Core épinglé (`dma-core-contract.json`). L'étape `melonx-evidence` de la livraison les compare à l'arbre livré. La
+  dixième partie seule ne pouvait donc pas entrer dans une IPA tant que le Core épinglait le correctif de la neuvième
+  partie. Les deux empreintes sont mises à jour (le moteur ne change pas) et le Core est recompilé.
+- Vérifié ici : le correctif s'applique sur la v1.4.2 d'origine et reproduit l'arbre corrigé, 11 marqueurs sur 11, pas
+  d'API privée ; test de propriété des drawables ; test du contrat (549 contrôles). Rien n'est mesuré sur l'iPhone.
