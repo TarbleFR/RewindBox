@@ -1,0 +1,260 @@
+{
+ "total_count": 17,
+ "artifacts": [
+  {
+   "id": 14938525125,
+   "name": "RewindBox-Build834-763908f008fda7b291eba2a90ba93832e3efb7a3-attempt1-cold-recovery-part01",
+   "size_in_bytes": 84000622,
+   "expired": false,
+   "expires_at": "2026-12-08T15:36:49Z",
+   "digest": "sha256:5a0ef73cfb5abe688fd7ae85dba3dcd949e0ebd886357b5536c0a651b07a94d1",
+   "workflow_run": {
+    "id": 45422937698,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "763908f008fda7b291eba2a90ba93832e3efb7a3"
+   }
+  },
+  {
+   "id": 14938170393,
+   "name": "RewindBox-Build834-763908f008fda7b291eba2a90ba93832e3efb7a3-attempt1-cold-part00",
+   "size_in_bytes": 84019182,
+   "expired": false,
+   "expires_at": "2026-12-08T15:38:03Z",
+   "digest": "sha256:f677e5347d0ffc5361bc4fd5591c1cce938b9d312e483b8ab9c158e3e9a4bf2a",
+   "workflow_run": {
+    "id": 45422937698,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "763908f008fda7b291eba2a90ba93832e3efb7a3"
+   }
+  },
+  {
+   "id": 14938055518,
+   "name": "RewindBox-Build834-763908f008fda7b291eba2a90ba93832e3efb7a3-attempt1-cold-part01",
+   "size_in_bytes": 84019182,
+   "expired": false,
+   "expires_at": "2026-12-08T15:38:04Z",
+   "digest": "sha256:74a1b6dd48ee660a8251563f68de09ce997ffceeb5f20294a46f394bc3936181",
+   "workflow_run": {
+    "id": 45422937698,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "763908f008fda7b291eba2a90ba93832e3efb7a3"
+   }
+  },
+  {
+   "id": 14938025511,
+   "name": "RewindBox-Build834-763908f008fda7b291eba2a90ba93832e3efb7a3-attempt1-cold-part02",
+   "size_in_bytes": 84019182,
+   "expired": false,
+   "expires_at": "2026-12-08T15:38:07Z",
+   "digest": "sha256:f4f2d0c88e0235b22da62d4c1fbe2e790bffa9ecd40fa7b75d5dbfc75b196274",
+   "workflow_run": {
+    "id": 45422937698,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "763908f008fda7b291eba2a90ba93832e3efb7a3"
+   }
+  },
+  {
+   "id": 14938025346,
+   "name": "RewindBox-Build834-763908f008fda7b291eba2a90ba93832e3efb7a3-attempt1-cold-recovery-part03",
+   "size_in_bytes": 84000622,
+   "expired": false,
+   "expires_at": "2026-12-08T15:36:53Z",
+   "digest": "sha256:c6620932341becbf94ffb81699cd89208ac56a597a601b8121d73307c12617e7",
+   "workflow_run": {
+    "id": 45422937698,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "763908f008fda7b291eba2a90ba93832e3efb7a3"
+   }
+  },
+  {
+   "id": 14937910383,
+   "name": "RewindBox-Build834-763908f008fda7b291eba2a90ba93832e3efb7a3-attempt1-cold-recovery-part00",
+   "size_in_bytes": 84000622,
+   "expired": false,
+   "expires_at": "2026-12-08T15:36:47Z",
+   "digest": "sha256:d59f456a7bfc276f87e9fd5b78af50b788a43123eefc0ad67651a93134d26b73",
+   "workflow_run": {
+    "id": 45422937698,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "763908f008fda7b291eba2a90ba93832e3efb7a3"
+   }
+  },
+  {
+   "id": 14937775606,
+   "name": "RewindBox-Build834-763908f008fda7b291eba2a90ba93832e3efb7a3-attempt1-cold",
+   "size_in_bytes": 336068637,
+   "expired": false,
+   "expires_at": "2026-12-08T15:37:57Z",
+   "digest": "sha256:33a20d8616adefa4b4633b5fd602bbf4e89e7a7ae43b0db112f23ba6464f0080",
+   "workflow_run": {
+    "id": 45422937698,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "763908f008fda7b291eba2a90ba93832e3efb7a3"
+   }
+  },
+  {
+   "id": 14937670449,
+   "name": "RewindBox-Build834-763908f008fda7b291eba2a90ba93832e3efb7a3-attempt1-cold-recovery-part02",
+   "size_in_bytes": 84000622,
+   "expired": false,
+   "expires_at": "2026-12-08T15:36:51Z",
+   "digest": "sha256:149362a0ac0f0c2cc960f6a70c17c74d69539ef36d6bbed1c67ce7905742bff9",
+   "workflow_run": {
+    "id": 45422937698,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "763908f008fda7b291eba2a90ba93832e3efb7a3"
+   }
+  },
+  {
+   "id": 14937465709,
+   "name": "RewindBox-Build834-763908f008fda7b291eba2a90ba93832e3efb7a3-attempt1-cold-diagnostics",
+   "size_in_bytes": 8168912,
+   "expired": false,
+   "expires_at": "2026-12-08T15:38:11Z",
+   "digest": "sha256:2471eedb6cba3c075d35b33188bc64c81bb9d7e14503571f46a2062fcdd40252",
+   "workflow_run": {
+    "id": 45422937698,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "763908f008fda7b291eba2a90ba93832e3efb7a3"
+   }
+  },
+  {
+   "id": 14936750212,
+   "name": "RewindBox-Build834-763908f008fda7b291eba2a90ba93832e3efb7a3-attempt1-component-armsx2",
+   "size_in_bytes": 14043861,
+   "expired": false,
+   "expires_at": "2027-02-22T15:13:12Z",
+   "digest": "sha256:6b1666d672e38a76ddb79766f4c2adec61835c112ffbbf929b6579980ceb1dac",
+   "workflow_run": {
+    "id": 45422937698,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "763908f008fda7b291eba2a90ba93832e3efb7a3"
+   }
+  },
+  {
+   "id": 14936640395,
+   "name": "RewindBox-Build834-763908f008fda7b291eba2a90ba93832e3efb7a3-attempt1-component-libretro",
+   "size_in_bytes": 56383687,
+   "expired": false,
+   "expires_at": "2027-02-22T15:13:12Z",
+   "digest": "sha256:a2cece4f7fb4b16809e0d6bff6736df2cbd8e0be76e421a751f8398c1b92e139",
+   "workflow_run": {
+    "id": 45422937698,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "763908f008fda7b291eba2a90ba93832e3efb7a3"
+   }
+  },
+  {
+   "id": 14936635388,
+   "name": "RewindBox-Build834-763908f008fda7b291eba2a90ba93832e3efb7a3-attempt1-component-melonx-dependencies",
+   "size_in_bytes": 49179302,
+   "expired": false,
+   "expires_at": "2027-02-22T15:13:12Z",
+   "digest": "sha256:410f3a7cef7d31fc219db5c43bab22da36f82fa508119b3b5f25bb039d46b094",
+   "workflow_run": {
+    "id": 45422937698,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "763908f008fda7b291eba2a90ba93832e3efb7a3"
+   }
+  },
+  {
+   "id": 14936635342,
+   "name": "RewindBox-Build834-763908f008fda7b291eba2a90ba93832e3efb7a3-attempt1-component-rpcs3-core",
+   "size_in_bytes": 30614285,
+   "expired": false,
+   "expires_at": "2027-02-22T15:13:12Z",
+   "digest": "sha256:671b5c5bae441dd347afbbb6f78ba68253be2468d55bdf9cbba155118864b87f",
+   "workflow_run": {
+    "id": 45422937698,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "763908f008fda7b291eba2a90ba93832e3efb7a3"
+   }
+  },
+  {
+   "id": 14936408668,
+   "name": "RewindBox-Build834-763908f008fda7b291eba2a90ba93832e3efb7a3-attempt1-cold-part03",
+   "size_in_bytes": 84019182,
+   "expired": false,
+   "expires_at": "2026-12-08T15:38:09Z",
+   "digest": "sha256:d03378f88ef186b02a6d8f8706e0082c69193eb10a1bd2668c07635d9f449371",
+   "workflow_run": {
+    "id": 45422937698,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "763908f008fda7b291eba2a90ba93832e3efb7a3"
+   }
+  },
+  {
+   "id": 14936352391,
+   "name": "RewindBox-Build834-763908f008fda7b291eba2a90ba93832e3efb7a3-attempt1-component-dolphin",
+   "size_in_bytes": 11192276,
+   "expired": false,
+   "expires_at": "2027-02-22T15:13:12Z",
+   "digest": "sha256:56a98973e24caca35c6d8888c8da1e4ec51d37751819c27266685dee14f63844",
+   "workflow_run": {
+    "id": 45422937698,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "763908f008fda7b291eba2a90ba93832e3efb7a3"
+   }
+  },
+  {
+   "id": 14936281282,
+   "name": "RewindBox-Build834-763908f008fda7b291eba2a90ba93832e3efb7a3-attempt1-component-melonx-core",
+   "size_in_bytes": 101405002,
+   "expired": false,
+   "expires_at": "2027-02-22T15:13:12Z",
+   "digest": "sha256:be158e0132d24cb42b0f070fc0909f5dcb237049c6f12a2ec14ff0808c44ef2c",
+   "workflow_run": {
+    "id": 45422937698,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "763908f008fda7b291eba2a90ba93832e3efb7a3"
+   }
+  },
+  {
+   "id": 14936191443,
+   "name": "RewindBox-Build834-763908f008fda7b291eba2a90ba93832e3efb7a3-attempt1-contract",
+   "size_in_bytes": 6227,
+   "expired": false,
+   "expires_at": "2026-12-08T15:15:39Z",
+   "digest": "sha256:c62bc9316f1428b308a74b5a8b3abba9bdd55445e51a7ecf85580150e2afb0dc",
+   "workflow_run": {
+    "id": 45422937698,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "763908f008fda7b291eba2a90ba93832e3efb7a3"
+   }
+  }
+ ]
+}

@@ -1,0 +1,15 @@
+{
+ "id": 45422937698,
+ "name": "RewindBox standard delivery - 763908f008fda7b291eba2a90ba93832e3efb7a3",
+ "run_number": 862,
+ "run_attempt": 1,
+ "event": "push",
+ "status": "completed",
+ "conclusion": "success",
+ "head_branch": "Claude",
+ "head_sha": "763908f008fda7b291eba2a90ba93832e3efb7a3",
+ "path": ".github/workflows/standard-delivery.yml",
+ "created_at": "2026-11-24T15:13:12Z",
+ "updated_at": "2026-11-24T15:38:41Z",
+ "run_started_at": "2026-11-24T15:13:12Z"
+}
