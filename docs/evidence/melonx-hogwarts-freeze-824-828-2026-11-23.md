@@ -96,6 +96,12 @@ Commit `e776bfd45` : le moteur de la 822 à l'identique (`fcea4ea2` et `7d45996a
 (Core de ce run, bridge `fb88bf8f0`, S2Arm à 1 Gio) est confiée à la session S2Arm. Si Hogwarts gèle encore, les
 relevés « #F » donnent l'appel exact.
 
+Livrée dans l'IPA privée 829 (commit de livraison `5a550d21`, run 45289424111, reçu
+`docs/evidence/rewind829/delivery.json`). Pour lire les relevés « #F » de la 829 :
+- Core MeloNX : artefact 14869999889 (carte `ios-arm64/Ryujinx.Library.symbols.txt.gz`), empreinte de charge
+  `ab0d56fc` ;
+- MeloNXMoltenVKStandalone : empreinte de charge `eee9229e` (le même binaire depuis la 821).
+
 ## 7. Expérience décisive sans nouvelle IPA
 
 Réinstaller l'IPA 822 telle quelle et lancer Hogwarts une fois :
