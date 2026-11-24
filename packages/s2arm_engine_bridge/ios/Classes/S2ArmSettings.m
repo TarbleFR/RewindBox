@@ -14,6 +14,8 @@ static NSString *const kEngineBriefHud = @"S2APerfHUD";   // S2Arm hud.m: the "F
 // RewindBox's own keys.
 static NSString *const kPerformanceOverlay = @"RewindBoxS2ArmPerformanceOverlay";
 static NSString *const kGameLanguage = @"RewindBoxS2ArmGameLanguage";
+// Frame generation (engine patch 0345): the engine reads S2A_RB_FI, never this key; the bridge sets it from this key at the game's start.
+static NSString *const kFrameInterpolation = @"RewindBoxS2ArmFrameInterpolation";
 
 // The SystemLanguage names the engine's services accept in S2A_SYSTEM_LANGUAGE (S2Arm services Host.cs EnvEnum).
 static NSArray<NSString *> *GameLanguages(void) {
@@ -52,6 +54,7 @@ NSDictionary<NSString *, id> *S2ArmSettingsSnapshot(void) {
     @"antiAliasing" : StoredChoice(defaults, kAntiAliasing, @"None", S2ArmSettingsValues(@"antiAliasing")),
     @"scalingFilter" : StoredChoice(defaults, kScalingFilter, @"Bilinear", S2ArmSettingsValues(@"scalingFilter")),
     @"frameRateLimit" : StoredChoice(defaults, kFrameRateLimit, @"0", S2ArmSettingsValues(@"frameRateLimit")),
+    @"frameInterpolation" : @([defaults boolForKey:kFrameInterpolation]),   // off unless stored as YES
     @"docked" : @([defaults boolForKey:kDocked]),
     @"widescreen" : @(widescreen),
     @"performanceOverlay" : @([defaults boolForKey:kPerformanceOverlay]),
@@ -80,6 +83,7 @@ NSDictionary<NSString *, id> *S2ArmSettingsApply(NSDictionary *changes) {
     StoreFlag(defaults, changes, @"docked", kDocked);
     StoreFlag(defaults, changes, @"widescreen", kWidescreen);
     StoreFlag(defaults, changes, @"performanceOverlay", kPerformanceOverlay);
+    StoreFlag(defaults, changes, @"frameInterpolation", kFrameInterpolation);
   }
   return S2ArmSettingsSnapshot();
 }
@@ -90,6 +94,10 @@ BOOL S2ArmSettingsPerformanceOverlay(void) {
 
 void S2ArmSettingsSetPerformanceOverlay(BOOL on) {
   [NSUserDefaults.standardUserDefaults setBool:on forKey:kPerformanceOverlay];
+}
+
+BOOL S2ArmSettingsFrameInterpolation(void) {
+  return [NSUserDefaults.standardUserDefaults boolForKey:kFrameInterpolation];
 }
 
 // A frame-rate limit no longer offered (30, stored by IPA 826 and earlier) reads as no limit and is removed before the engine reads it.

@@ -2,7 +2,8 @@
 // RewindBox's in-game menu for the Switch 2 engine (native UIKit, the MeloNX / RPCS3 pattern). See docs/s2arm-engine-bridge.md.
 //
 // Opened by a ☰ button at the top right of the game view, or by − and + held together on a controller. Rows: resume, show /
-// hide the performance overlay (live), settings (written at once, used at the next game start; the frame-rate limit at once, patch 0078), quit (the engine's clean
+// hide the performance overlay (live), settings (written at once, used at the next game start; the frame-rate limit at once, patch 0078,
+// and frame generation at once in a session started with it, patch 0345), quit (the engine's clean
 // stop: saves written, then session_ended). Strings come from Dart at launch (menuStrings), English when a key is missing.
 // The engine's own gear menu (top left, en / zh only) stays available for controls, cheats and saves.
 #import <UIKit/UIKit.h>
@@ -16,9 +17,15 @@ NS_ASSUME_NONNULL_BEGIN
                                   stop:(void (^)(void))stop NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;
 
-// A setting that can change during play (patch 0078: the frame-rate limit): YES when it is in effect now. Set by the host when the engine
-// has the entry point; nil = every setting waits for the next start.
+// A setting that can change during play (patch 0078: the frame-rate limit; patch 0345: frame generation): YES when it is in effect now.
+// Set by the host when the engine has the entry point; nil = every setting waits for the next start.
 @property(nonatomic, copy, nullable) BOOL (^applyNow)(NSString *setting, id value);
+
+// Patch 0345, set by the host. Live: this session started with frame generation on (S2A_RB_FI=1), so turning it on or off applies at
+// once. Unavailable: the engine answered that this device or its graphics backend cannot interpolate; the choice stays stored and the
+// menu tells the player.
+@property(nonatomic, assign) BOOL frameInterpolationLive;
+@property(nonatomic, assign) BOOL frameInterpolationUnavailable;
 
 // Source/game identity and launch preferences. The engine resolves its active
 // environment and live cadence when the window starts; the host supplies its overlay.

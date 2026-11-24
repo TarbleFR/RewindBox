@@ -500,6 +500,7 @@ void main() {
         'antiAliasing': 'None',
         'scalingFilter': 'Bilinear',
         'frameRateLimit': '0',
+        'frameInterpolation': false,
         'docked': false,
         'widescreen': true,
         'performanceOverlay': false,

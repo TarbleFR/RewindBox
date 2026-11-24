@@ -8,8 +8,8 @@ typedef S2ArmSettingsLoader = Future<S2ArmSettings?> Function();
 typedef S2ArmSettingsSaver = Future<S2ArmSettings?> Function(S2ArmSettings settings);
 
 /// Switch 2 engine settings (Settings > Systems > Switch 2 > Emulators and the playlist menu): resolution, anti-aliasing,
-/// scaling filter, frame rate limit, console mode, image format, performance overlay and game language. The native
-/// host stores them; they apply at the next game start, after RewindBox is restarted (one game per app launch).
+/// scaling filter, frame rate limit, frame generation, console mode, image format, performance overlay and game language.
+/// The native host stores them; they apply at the next game start, after RewindBox is restarted (one game per app launch).
 class Switch2EngineSettingsPanel extends StatefulWidget {
   const Switch2EngineSettingsPanel({super.key, this.load, this.save});
 
@@ -160,6 +160,13 @@ class _Switch2EngineSettingsPanelState extends State<Switch2EngineSettingsPanel>
           value: settings.frameRateLimit,
           labels: {for (final entry in _fpsKeys.entries) entry.key: _t(entry.value)},
           onChanged: (value) => _change(settings.copyWith(frameRateLimit: value)),
+        ),
+        SwitchListTile.adaptive(
+          key: const ValueKey('s2arm-setting-frame-interpolation'),
+          value: settings.frameInterpolation,
+          title: Text(_t('frameInterpolation')),
+          subtitle: Text(_t('frameInterpolationNote')),
+          onChanged: _busy ? null : (value) => _change(settings.copyWith(frameInterpolation: value)),
         ),
         _dropdown(
           key: const ValueKey('s2arm-setting-mode'),
