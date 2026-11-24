@@ -54,6 +54,13 @@ COLLECTIONS = {
                       name='LibretroCores-67ce2d3b2dc6c479dbebf7da73d1f48a64f5f61b', bytes=56295241,
                       sha256='9b5a949081f9138fc4d7a49b0b07d056da7f5932e18c2cb758c22c05d2027edc',
                       cores=('azahar', 'desmume', 'mednafen_psx', 'mednafen_psx_hw')),
+    # DeSmuME: the 3D draws while the 2D engines compose (each line waits for its own 3D lines), NEON output
+    # conversion, [rb-perf] engA/engB/end/over16/over33 (native/desmume at 6f969042); Azahar and both Beetle PSX
+    # binaries are identical to those of 14881770592.
+    14903781916: dict(run=45356697338, source='6f969042a533d53d41d7b79a5f98d8e4542ab63d',
+                      name='LibretroCores-6f969042a533d53d41d7b79a5f98d8e4542ab63d', bytes=56300427,
+                      sha256='2fe56a69d52118d54ac42379ab487bc4d3999d334ebf68e6197ebd2af7ed9d02',
+                      cores=('azahar', 'desmume', 'mednafen_psx', 'mednafen_psx_hw')),
 }
 
 
