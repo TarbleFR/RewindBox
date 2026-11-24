@@ -106,3 +106,16 @@ comptes, des tailles et des durées sont repris ici. Aucune mesure nouvelle n'a 
   partie. Les deux empreintes sont mises à jour (le moteur ne change pas) et le Core est recompilé.
 - Vérifié ici : le correctif s'applique sur la v1.4.2 d'origine et reproduit l'arbre corrigé, 11 marqueurs sur 11, pas
   d'API privée ; test de propriété des drawables ; test du contrat (549 contrôles). Rien n'est mesuré sur l'iPhone.
+- Première mesure macOS du relevé (run 45462041253) : les 17 ressources résidentes de la scène étaient toutes des alias.
+  Sur GPU Apple, iPhone compris, MoltenVK 1.4.2 place chaque allocation de mémoire Vulkan dans un tas Metal de sa taille
+  (« placement heap », réglage par défaut). Les images et tampons sont créés dans ce tas, et le tas n'est jamais rendu
+  résident lui-même. Le relevé compte donc maintenant les tas : leur taille est ajoutée à leur création et retirée à la
+  destruction de la mémoire (commit `6c1accd83`). Mesure macOS suivante (run 45466266877) : 10 tas créés et aucun restant
+  une fois toute la mémoire libérée, pool de descripteurs compté puis libéré, mêmes pixels avec et sans la dixième partie.
+- Lignes `jitArena` : sur la 833, les 11 lignes détaillées de la session (10 « reached », 1 « timing ») sont arrivées sous
+  la forme « [redacted key entry] ». Le filtre de
+  secrets du journal masque un détail qui commence par `clé=valeur`. Chaque détail commence maintenant par
+  « code arena: », avec les mêmes valeurs. La porte de l'adaptateur vérifie que chaque ligne passe le filtre telle quelle.
+- Pourquoi ce changement du moteur entre dans ce Core : regelé pour ses seules entrées, le Core avait la même charge utile
+  normalisée que celui déjà livré (`d46745a6`). La recette de livraison n'accepte ni un remplacement identique, ni une
+  conservation avec une autre épingle. Les lignes lisibles sont un vrai correctif, et la charge utile change.

@@ -30,6 +30,12 @@ quarantine are the control's).
   that lives only during that preparation (EmbeddedArenaBeat: no lock, joined before the line is written). Near the
   helper's time it shows that every thread was stopped; near 1 ms, that only the caller waited.
 
+24 Nov 2026, IPA 833 (Hogwarts Legacy, pid 24974): the 11 detailed lines of this adapter in that session (10 reached, 1
+timing) reached the device journal as "[redacted key entry]": EmbeddedLaunchDiagnostics.Safe() redacts a detail that starts
+with key=value, and all three began with
+arenaMs=, useMiB= or peakMiB=. Each detail now starts with "code arena: ", the values unchanged; the host gate checks
+that every line of the adapter passes the journal's filter as it is.
+
 Not measured on an iPhone, and not covered by the host gate: the values themselves.
 Fail closed on drift: each file must be the preparation after adapt_shader_code_table_load (Core 825).
 """
@@ -71,7 +77,7 @@ RUNTIME_PAIRS = (
                 {
                     try
                     {
-                        EmbeddedLaunchDiagnostics.Record("jitArena", "timing", detail: Ryujinx.Cpu.LightningJit.DualMappedMemory.LastPreparation +
+                        EmbeddedLaunchDiagnostics.Record("jitArena", "timing", detail: "code arena: " + Ryujinx.Cpu.LightningJit.DualMappedMemory.LastPreparation +
                             FormattableString.Invariant($"; otherThreadLongestGapMs={otherThreadGapMs:F1}"));
                     }
                     catch { }
@@ -151,7 +157,7 @@ MEMORY_PAIRS = (
         {
             try
             {
-                Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("jitArena", status, detail: (status == "used" ? "peakMiB=" : "useMiB=") + (bytes >> 20) +
+                Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("jitArena", status, detail: (status == "used" ? "code arena: peakMiB=" : "code arena: useMiB=") + (bytes >> 20) +
                     " (" + bytes + " bytes) of mappedMiB=" + (ArenaSize >> 20));
             }
             catch { }
