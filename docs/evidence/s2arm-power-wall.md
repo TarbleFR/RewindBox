@@ -406,6 +406,61 @@ Sources : journaux de Zelda (`0400486024DEC000`) et de Fire Emblem (`04007EF01F8
   sans le groupe de travail d'image. Ce groupe est coupé depuis 0097 pour permettre la mise en
   pause. L'amont l'a mesuré : 1,69 → 2,47 W au même 60 i/s. À mesurer jeu par jeu.
 
+## Repli à 30 stables (24 novembre)
+
+Demande du mainteneur : 30 i/s constants comme repli, seulement quand un jeu manque vraiment de
+performance et devient instable ; continuer d'essayer 60 sans régression.
+
+**Ce que fait le moteur aujourd'hui** (journaux de Zelda, Fire Emblem et deux de Mario Kart World,
+moteur jusqu'à 0340, A18 Pro) :
+- un jeu qui passe lui-même à l'intervalle 2 (Mario Kart World en course) est suivi : garde
+  anti-verrou (0319, 0344), essais de 60 (0309), lien d'affichage gardé à 60 Hz ;
+- un jeu à 30 par conception (Fire Emblem, intervalle 2 dès l'image 7) n'est pas concerné ;
+- un jeu qui reste à l'intervalle 1 sans tenir 60 (Zelda) n'a rien : il s'affiche à un rythme
+  irrégulier.
+
+| Jeu, phase | Images en retard à 60 | Rythme vu | i/s (médiane) |
+|---|---|---|---|
+| Zelda en jeu (44 fenêtres, état Serious) | 79 % | 21 % à 16,7 ms, 54 à 70 % à 33,3 ms, 9 à 25 % à 50 ms ou plus | 28,5 |
+| Zelda, menus | 0,2 à 1,4 % | 60 | 60 |
+| Mario Kart World hors course | 0 à 4,9 % | surtout 16,7 ms | 53 à 60 |
+| Fire Emblem en jeu (lien à 30 Hz) | sans objet | 80 % à 33,3 ms, 20 % au-delà | 23,9 |
+
+**Patch 0349**, écrit, en relecture adverse, pas encore dans la série du dépôt
+(`S2A_RB_FALLBACK30`, actif ; `=0` rétablit l'ancien comportement ;
+`S2A_RB_FALLBACK30_OFF=<identifiant>` l'écarte pour un jeu) :
+- entrée : jeu hébergé à l'intervalle 1, sans vidéo, pas d'image, limite sous 60 ni garde
+  anti-verrou ; au moins 60 des 120 derniers intervalles affichés en retard sur 16,7 ms, et un
+  coût médian (chemin critique ou GPU) d'au plus 28,3 ms, pour que 30 soit tenable ;
+- pendant le repli : chaque image reste 33,3 ms sur le lien à 60 Hz (une image en retard sort à
+  50 ms, pas 66,7) ; le jeu, sa cible, ses temps GPU lus et la résolution ne changent pas ;
+  l'échéance déclarée reste 16,7 ms pour garder les cœurs performance ; pas d'interpolation ;
+- retour à 60 : essai dès que 30 images de suite coûtent au plus 14,2 ms (attente 1 s, doublée
+  jusqu'à 8 s après un échec) ; sinon sondes espacées de 10 s, doublées jusqu'à 160 s ; un retour
+  tenu 30 s remet les attentes à leur départ ;
+- sortie immédiate si une condition d'entrée tombe ;
+- Mario Kart World (garde anti-verrou) et Fire Emblem (intervalle 2) ne sont jamais tenus ;
+- ligne `[rb-fb30]` à chaque changement et toutes les 300 images.
+
+Test pur de la machine d'état vert (gcc, clang). Non mesuré : entrée et sortie sur de vrais jeux,
+tenue réelle des 33,3 ms, vitesse du jeu si sa logique suit les images, réaction d'une résolution
+dynamique propre au jeu.
+
+**Autre cause d'à-coups trouvée** : 8 images après chaque frontière de 300, la passe des textures
+partagées sans référence (`alias_orphan_pass`) tourne sur le fil qui présente : 33,9 ms en médiane
+(82,8 au pire) pour Mario Kart World, 11,3 pour Fire Emblem, 3,3 pour Zelda. Une image longue suit
+chaque frontière (52,5 ms en médiane, 105 au pire dans Mario Kart World).
+- Cause probable, lue dans le code : pour chaque texture candidate écrite par le GPU (0 à 13 par
+  passe dans Mario Kart World, presque toutes gardées), `gpw_stale` re-hache toute sa mémoire, des
+  mégaoctets, sous le verrou que le fil de soumission prend pour noter les écritures GPU. Or la
+  passe ne veut savoir qu'une chose : reste-t-il au moins un bloc périmé ?
+- **Patch 0350**, écrit, pas encore dans la série du dépôt (`S2A_RB_ORPHAN_EARLY`, actif ; `=0`
+  rétablit l'ancien calcul) : la vérification
+  s'arrête au premier bloc périmé ; même décision, même mise à jour du registre pour les blocs
+  vus. Une ligne donne le temps de chaque étape de la passe (verrouillée, vérification,
+  libération) pour les premières passes et toute passe de 2 ms ou plus : le prochain journal dira
+  si la cause était bien là. Non mesuré.
+
 ## Recherche du 24 novembre : amont, nxnative et projets iOS
 
 Lecture seule de S2Arm amont, de nxnative et d'une vingtaine de projets publics sous licence MIT
