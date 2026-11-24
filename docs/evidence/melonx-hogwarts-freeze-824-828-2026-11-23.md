@@ -237,3 +237,28 @@ fonctionne », avec beaucoup de saccades). Mesures :
 
 À mesurer à la session suivante : combien de pipelines graphiques la première fenêtre trouve dans le cache, et ce qu'il
 reste d'attentes de compilation.
+
+## 12. Deuxième session sur l'IPA 830 — 24 novembre
+
+Session 19616 (275 s, même IPA, cache Metal rempli par la session 19155). Le mainteneur : « moins de saccades,
+les performances d'avant, mais toujours les mêmes problèmes ».
+
+| | Session 19155 (1re) | Session 19616 (2e) |
+|---|---|---|
+| Images/s du jeu, moyenne de la partie chaude | 11,4 | 24,0 (médiane 24,3) |
+| Trous de plus de 1 s | 10 | 4 |
+| Attentes de dessins sur une compilation | ~68 s | 12,6 s (la plus longue : 2,2 s pour 3 dessins) |
+| Pipelines graphiques trouvés en cache, 1re fenêtre | 8 | 1 396 |
+| Pipelines graphiques compilés pendant la session | ~1 840 (232 s de compilation) | ~1 200 de plus (323 s, deux fils) |
+| Compute | 539, 25 s | 540, 2 s |
+
+Ce qui limite encore, mesuré :
+- Chaleur : état thermique `fair` dès ~65 s ; cœurs performants de 3,1 GHz (24–50 s) à 2,0–2,2 GHz ensuite, fils
+  « en attente d'un cœur » 44 à 78 % du temps. Les périodes à 18–20 images/s (53–90 s, 192–230 s) sont des images
+  lentes en continu (+11 à +15 ms par image), pas des trous.
+- Mémoire : empreinte 4,0 à 4,6 Gio, 5 à 7 % disponibles sur l'appareil, alerte mémoire à 64 s ; iOS compresse et
+  décompresse en continu (1,3 à 4,0 Gio décompressés par période de 40 à 60 s) ; pente de 91 Mio par minute.
+- Compilations restantes : les 4 trous de plus de 1 s coïncident avec les attentes de compilation (cache graphique
+  pas encore plein).
+- Profils de points chauds : un seul (« base », t=42) ; la règle du bridge n'en prend plus dès que l'état thermique
+  n'est plus nominal, donc aucun profil des périodes lentes.
