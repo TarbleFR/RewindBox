@@ -6,6 +6,23 @@ d'ipa c'est une autre session qui la fera ». Cette session n'a lancé aucune li
 *La collection précédente, `LibretroCores-6cd6a89b…` (id 14839590544, étape 0 de DeSmuME), est livrée dans
 l'IPA 827. Celle-ci la remplace ; elle est livrée dans l'IPA 828.*
 
+## Après la 832 : 3D asynchrone, image écrite dans la mémoire de l'hôte
+
+*24 novembre 2026, session « JIT DS et ×10 ».* Retour du mainteneur sur la 832 : ×5 et ×8 fonctionnent dans
+Animal Crossing ; ×10 tourne à 51 i/s (une image de 33 ms à chaque rendu 3D, `host` 2,9 ms). Détail : section 16.7 de
+[desmume-arm64-jit-architecture.md](desmume-arm64-jit-architecture.md) et le README de `native/desmume`.
+
+- **Cœur** `native/desmume` (30 fichiers, les mêmes) :
+  - 3D asynchrone (`desmume_rb_3d_async`, `auto` par défaut) : un rendu lent se dessine dans un second tampon, la 2D
+    montre le dernier rendu terminé ;
+  - les deux écrans écrits dans la mémoire de l'hôte (`RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER`) ;
+  - mesures `defer` et `direct`.
+- **Pont** (`LibretroMetalPresenter`, `LibretroCoreHost`, `LibretroSession`) : deux tampons Metal partagés donnés
+  à DeSmuME à tour de rôle, recopiés dans la texture par le GPU dans le lot de commandes de l'affichage.
+- **Collection** : run [45423842137](https://github.com/TarbleFR/RewindBox/actions/runs/45423842137) (commit
+  `665acae2`), en file d'attente au moment de l'écriture ; elle ira dans l'IPA 835 (la 833 et la 834 sont celles
+  d'autres sessions).
+
 ## Après la 831 : capture de la 3D sans attente complète, composition 2D en NEON
 
 *24 novembre 2026, session « JIT DS et ×10 ».* Retour du mainteneur sur la 831 : 40 i/s au plus dans Animal
@@ -111,6 +128,24 @@ s'était déjà terminée sans retour au menu sur une IPA d'avant le JIT de DeSm
   (image et symbole, ou « no image : JIT code or data »), puis `stall: frames again after …` s'il repart.
 - **Images qui changent** pour la prochaine IPA : `libretro_internal_bridge`, `App`, et les deux Beetle PSX de la
   nouvelle collection ci-dessous.
+
+## 3DS à 10× : plus aucune copie de l'image (Azahar et app)
+
+Essai du mainteneur : 7× tient (« ça fonctionne super bien malgré quelques chutes très rares »), état thermique 1
+seulement ; demande suivante : 10× à 60 images/s constantes. À 10×, une image fait 4000×4800 (76,8 Mo) ; la voie
+« copie GPU » la copiait encore deux fois (image → tampon côté Vulkan, tampon → texture côté Metal), environ
+18 Go/s de mémoire à 60 images/s.
+
+- **Azahar** (`native/azahar`, `libretro_vk.{cpp,h}`) : une image de sortie par image du pool au lieu d'une seule
+  partagée, choisie par l'index de synchronisation du frontend.
+- **App** (`LibretroVulkanRenderer`, `LibretroSession`) : quand le cœur garde une image par index de synchronisation
+  (vu pendant 8 images), son image est prêtée telle quelle au présentateur (sa `MTLTexture` par
+  `vkGetMTLTextureMVK`, exporté par MoltenVK 1.2.8) : aucune copie. `wait_sync_index` attend que Metal l'ait rendue
+  avant que le cœur redessine dedans. Autre format, autre famille de file ou cœur qui n'alterne pas : copie GPU comme
+  avant. Journal : `vulkan: frames reach Metal directly, no copy (4000x4800)`.
+- **Il faut les deux** : l'app seule avec l'Azahar de `416333ff` reste sur la copie GPU (une seule image).
+- **Limite honnête** : sans les copies, le coût restant à 10× est le rendu 3D lui-même (100 fois les pixels
+  natifs) ; 60 images/s constantes dépendent alors du GPU et de la chaleur de l'iPhone, non mesurés.
 
 ## Depuis la 828 : 3DS à 7×, image Vulkan copiée par le GPU (app seulement)
 

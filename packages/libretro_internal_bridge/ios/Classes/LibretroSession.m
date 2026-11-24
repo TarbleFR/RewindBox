@@ -195,6 +195,9 @@ static NSString *LibretroThreadPlace(mach_port_t thread) {
   BOOL _stopRequested;
   /// RETRO_ENVIRONMENT_SHUTDOWN from the core.
   BOOL _coreStopRequested;
+  /// DeSmuME draws its frames into the presenter's memory
+  /// (GET_CURRENT_SOFTWARE_FRAMEBUFFER), immutable after init.
+  BOOL _offersSoftwareFramebuffer;
   // Startup period (emulation thread).
   BOOL _startupConfirmed;
   NSUInteger _startupFrames;
@@ -334,6 +337,7 @@ static NSString *LibretroThreadPlace(mach_port_t thread) {
   self = [super init];
   if (self) {
     _configuration = configuration;
+    _offersSoftwareFramebuffer = [configuration.coreId isEqualToString:@"desmume"];
     _achievementSession = [configuration.achievementSession copy] ?: @{};
     _input = [LibretroInputState new];
     _condition = [NSCondition new];
@@ -1395,11 +1399,28 @@ static BOOL LibretroExtendedControllerConnected(void) {
                      pixelFormat:pixelFormat
                       completion:released];
       };
+      // Best: the core's own image, sampled where it is (Azahar keeps one per
+      // frame, native/azahar): no copy at all, 76.8 MB per frame at 10x.
+      __block BOOL notedDirect = NO;
+      _vulkan.textureHandler = ^(id<MTLTexture> texture, unsigned width, unsigned height, dispatch_block_t released) {
+        LibretroMetalPresenter *presenter = weakPresenter;
+        if (presenter == nil) {
+          released();
+          return;
+        }
+        if (!notedDirect) {
+          notedDirect = YES;
+          [handOffJournal note:[NSString stringWithFormat:@"vulkan: frames reach Metal directly, no copy (%ux%u)", width,
+                                                          height]];
+        }
+        [presenter presentTexture:texture width:width height:height flipped:NO completion:released];
+      };
       prepared = [_vulkan prepare:&error];
       if (prepared && !_vulkan.handsOffFrames) {
         // Legacy presentation on the layer: no screens, format or shaders.
         _vulkan.frameHandler = nil;
         _vulkan.bufferHandler = nil;
+        _vulkan.textureHandler = nil;
         shadersAvailable = NO;
         NSLog(@"[Libretro] Vulkan frames cannot reach Metal: legacy presentation without screens or shaders");
         __weak LibretroSession *weakSelf = self;
@@ -1618,7 +1639,10 @@ static BOOL LibretroExtendedControllerConnected(void) {
     if (vulkan != nil) {
       vulkan.frameHandler = nil;
       vulkan.bufferHandler = nil;
+      vulkan.textureHandler = nil;
       [vulkan waitIdle];
+      // The last frame may be the core's own image, about to be destroyed.
+      [presenter invalidateLastFrame];
     }
     [journal note:@"teardown: context_destroy called"];
     [host hardwareContextDestroy];
@@ -1729,6 +1753,19 @@ static BOOL LibretroExtendedControllerConnected(void) {
   [self noteFrameWidth:width height:height];
   [_presenter presentSoftwareFrame:data width:width height:height pitch:pitch format:host.pixelFormat];
   if (trace) [_journal note:[NSString stringWithFormat:@"video: frame=%lu submitted", (unsigned long)_videoDiagnosticFrames]];
+}
+
+/// GET_CURRENT_SOFTWARE_FRAMEBUFFER. RewindBox's DeSmuME (native/desmume)
+/// writes both screens straight into the presenter's memory, which the GPU
+/// copies into the frame's texture: no copy of 10 to 20 MB a frame on this
+/// thread at high internal resolutions. Other cores keep their own buffers.
+- (void *)coreHost:(LibretroCoreHost *)host
+    softwareFramebufferWithWidth:(unsigned)width
+                          height:(unsigned)height
+                          format:(enum retro_pixel_format)format
+                           pitch:(size_t *)pitch {
+  if (!_offersSoftwareFramebuffer || _gl != nil || _vulkan != nil) return NULL;
+  return [_presenter softwareFramebufferWithWidth:width height:height format:format pitch:pitch];
 }
 
 - (void)coreHost:(LibretroCoreHost *)host audioFrames:(const int16_t *)frames count:(size_t)count {

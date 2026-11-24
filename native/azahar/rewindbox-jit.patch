@@ -496,6 +496,205 @@ index 53a556a..c8efb3d 100644
  _retro_get_memory_data
  _retro_get_memory_size
 +_rewindbox_libretro_jit_install
+diff --git a/src/citra_libretro/libretro_vk.cpp b/src/citra_libretro/libretro_vk.cpp
+index 0a4c66e..2503a53 100644
+--- a/src/citra_libretro/libretro_vk.cpp
++++ b/src/citra_libretro/libretro_vk.cpp
+@@ -408,26 +408,27 @@ void PresentWindow::CreateOutputTexture(u32 width, u32 height) {
+         LOG_ERROR(Render_Vulkan, "Invalid output texture dimensions: {}x{}", width, height);
+         return;
+     }
++    // RewindBox: every frame of the pool owns its output image, created with the frame
++    // (CreateFrameResources). With a single shared image the frontend had to copy each
++    // frame before the next one was drawn into the same image; with one image per frame
++    // (selected by the frontend's sync index) it can show frame N while frame N+1 is drawn.
++    output_width = width;
++    output_height = height;
++}
+ 
+-    // Destroy existing texture if dimensions changed
+-    if (output_image && (output_width != width || output_height != height)) {
+-        DestroyOutputTexture();
+-    }
+-
+-    // Skip if already created with correct dimensions
+-    if (output_image && output_width == width && output_height == height) {
+-        return;
+-    }
++void PresentWindow::DestroyOutputTexture() {
++    output_width = 0;
++    output_height = 0;
++}
+ 
++void PresentWindow::CreateFrameImage(Frame& frame) {
+     const vk::Device device = instance.GetDevice();
+-    output_width = width;
+-    output_height = height;
+ 
+     // Create output image with LibRetro requirements
+     const vk::ImageCreateInfo image_info = {
+         .imageType = vk::ImageType::e2D,
+         .format = output_format,
+-        .extent = {width, height, 1},
++        .extent = {output_width, output_height, 1},
+         .mipLevels = 1,
+         .arrayLayers = 1,
+         .samples = vk::SampleCountFlagBits::e1,
+@@ -448,18 +449,16 @@ void PresentWindow::CreateOutputTexture(u32 width, u32 height) {
+     VkImage vk_image;
+     const VkResult result = vmaCreateImage(instance.GetAllocator(),
+                                            reinterpret_cast<const VkImageCreateInfo*>(&image_info),
+-                                           &alloc_info, &vk_image, &output_allocation, nullptr);
++                                           &alloc_info, &vk_image, &frame.allocation, nullptr);
+ 
+     if (result != VK_SUCCESS) {
+         LOG_CRITICAL(Render_Vulkan, "Failed to create output image: {}", static_cast<int>(result));
+         throw std::runtime_error("Failed to create LibRetro output texture");
+     }
+ 
+-    output_image = vk::Image{vk_image};
+-
+-    // Create image view
+-    output_view_create_info = {
+-        .image = output_image,
++    frame.image = vk::Image{vk_image};
++    frame.view_info = {
++        .image = frame.image,
+         .viewType = vk::ImageViewType::e2D,
+         .format = output_format,
+         .components =
+@@ -478,32 +477,26 @@ void PresentWindow::CreateOutputTexture(u32 width, u32 height) {
+                 .layerCount = 1,
+             },
+     };
+-    output_image_view = device.createImageView(output_view_create_info);
++    frame.image_view = device.createImageView(frame.view_info);
+ 
+-    LOG_DEBUG(Render_Vulkan, "Created LibRetro output texture: {}x{}", width, height);
++    LOG_DEBUG(Render_Vulkan, "Created LibRetro output image: {}x{}", output_width, output_height);
+ }
+ 
+-void PresentWindow::DestroyOutputTexture() {
+-    if (!output_image) {
+-        return;
+-    }
+-
++void PresentWindow::DestroyFrameImage(Frame& frame) {
+     const vk::Device device = instance.GetDevice();
+ 
+-    if (output_image_view) {
+-        device.destroyImageView(output_image_view);
+-        output_image_view = nullptr;
++    if (frame.image_view) {
++        device.destroyImageView(frame.image_view);
++        frame.image_view = nullptr;
+     }
+ 
+-    if (output_allocation) {
+-        vmaDestroyImage(instance.GetAllocator(), static_cast<VkImage>(output_image),
+-                        output_allocation);
+-        output_allocation = {};
++    if (frame.allocation) {
++        vmaDestroyImage(instance.GetAllocator(), static_cast<VkImage>(frame.image),
++                        frame.allocation);
++        frame.allocation = {};
+     }
+ 
+-    output_image = nullptr;
+-    output_width = 0;
+-    output_height = 0;
++    frame.image = nullptr;
+ }
+ 
+ vk::RenderPass PresentWindow::CreateRenderpass() {
+@@ -573,9 +566,8 @@ void PresentWindow::CreateFrameResources() {
+         Frame& frame = frame_pool[i];
+         frame.width = output_width;
+         frame.height = output_height;
+-        frame.image = output_image; // All frames use the same output texture
+-        frame.image_view = output_image_view;
+-        frame.allocation = {}; // VMA allocation handled separately
++        frame.allocation = {};
++        CreateFrameImage(frame); // RewindBox: one output image per frame
+         frame.cmdbuf = command_buffers[i];
+         frame.render_ready = device.createSemaphore({});
+         frame.present_done = device.createFence({.flags = vk::FenceCreateFlagBits::eSignaled});
+@@ -584,7 +576,7 @@ void PresentWindow::CreateFrameResources() {
+         const vk::FramebufferCreateInfo fb_info = {
+             .renderPass = present_renderpass,
+             .attachmentCount = 1,
+-            .pAttachments = &output_image_view,
++            .pAttachments = &frame.image_view,
+             .width = output_width,
+             .height = output_height,
+             .layers = 1,
+@@ -612,6 +604,7 @@ void PresentWindow::DestroyFrameResources() {
+         if (frame.present_done) {
+             device.destroyFence(frame.present_done);
+         }
++        DestroyFrameImage(frame);
+     }
+ 
+     frame_pool.clear();
+@@ -701,8 +694,7 @@ void PresentWindow::Present(Frame* frame) {
+     // RetroArch may cache this pointer for frame duping during pause
+     persistent_libretro_image.image_view = static_cast<VkImageView>(frame->image_view);
+     persistent_libretro_image.image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+-    persistent_libretro_image.create_info =
+-        static_cast<VkImageViewCreateInfo>(output_view_create_info);
++    persistent_libretro_image.create_info = static_cast<VkImageViewCreateInfo>(frame->view_info);
+ 
+     vulkan_intf->set_image(vulkan_intf->handle, &persistent_libretro_image, 0, nullptr,
+                            instance.GetGraphicsQueueFamilyIndex());
+diff --git a/src/citra_libretro/libretro_vk.h b/src/citra_libretro/libretro_vk.h
+index d8a4f07..956d123 100644
+--- a/src/citra_libretro/libretro_vk.h
++++ b/src/citra_libretro/libretro_vk.h
+@@ -91,6 +91,9 @@ struct Frame {
+     vk::Framebuffer framebuffer;
+     vk::Image image;
+     vk::ImageView image_view;
++    // RewindBox: each frame owns its output image (CreateFrameImage), described
++    // here for retro_vulkan_image.
++    vk::ImageViewCreateInfo view_info;
+     vk::Semaphore render_ready;
+     vk::Fence present_done;
+     vk::CommandBuffer cmdbuf;
+@@ -134,12 +137,18 @@ private:
+     /// Creates the render pass for LibRetro output
+     vk::RenderPass CreateRenderpass();
+ 
+-    /// Creates output texture for LibRetro submission
++    /// Records the output size for LibRetro submission (the images are per frame)
+     void CreateOutputTexture(u32 width, u32 height);
+ 
+-    /// Destroys current output texture
++    /// Forgets the output size
+     void DestroyOutputTexture();
+ 
++    /// Creates the output image of one frame, at the output size
++    void CreateFrameImage(Frame& frame);
++
++    /// Destroys the output image of one frame
++    void DestroyFrameImage(Frame& frame);
++
+     /// Creates frame resources
+     void CreateFrameResources();
+ 
+@@ -151,12 +160,8 @@ private:
+     const Instance& instance;
+     [[maybe_unused]] Scheduler& scheduler;
+ 
+-    // LibRetro output texture (replaces swapchain)
+-    vk::Image output_image{};
+-    vk::ImageView output_image_view{};
+-    VmaAllocation output_allocation{};
++    // LibRetro output format (replaces swapchain); one image per frame
+     vk::Format output_format{vk::Format::eR8G8B8A8Unorm};
+-    vk::ImageViewCreateInfo output_view_create_info{};
+ 
+     // Frame management
+     vk::RenderPass present_renderpass{};
 diff --git a/src/citra_libretro/rewindbox_jit.cpp b/src/citra_libretro/rewindbox_jit.cpp
 new file mode 100644
 index 0000000..1387a61

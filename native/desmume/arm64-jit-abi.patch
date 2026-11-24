@@ -1,5 +1,5 @@
 diff --git a/desmume/src/GPU.cpp b/desmume/src/GPU.cpp
-index 026bf14c..55b4bcab 100644
+index 026bf14c..57d2356d 100644
 --- a/desmume/src/GPU.cpp
 +++ b/desmume/src/GPU.cpp
 @@ -38,6 +38,9 @@
@@ -505,7 +505,31 @@ index 026bf14c..55b4bcab 100644
  	
  	if (l == 0)
  	{
-@@ -9673,21 +9723,55 @@ void GPUSubsystem::RenderLine(const size_t l)
+@@ -9659,6 +9709,23 @@ void GPUSubsystem::RenderLine(const size_t l)
+ 		this->_engineSub->UpdateRenderStates<OUTPUTFORMAT>(l);
+ 	}
+ 	
++	// RewindBox: asynchronous 3D. At the first line the renderer finishes the render in flight if it is done,
++	// or may show its last finished render for the whole frame while its threads draw the new one (nothing below
++	// waits for them then). A display capture reads the 3D of its own frame: from its line on, the frame shows
++	// the render in flight.
++	if (l == 0)
++	{
++		if (CurrentRenderer->BeginFrame3D(isDisplayCaptureNeeded))
++		{
++			CurrentRenderer->SetRenderNeedsFinish(false);
++			this->_event->DidRender3DEnd();
++		}
++	}
++	else if (isDisplayCaptureNeeded && CurrentRenderer->IsDisplayDeferred())
++	{
++		CurrentRenderer->EndDisplayDeferral();
++	}
++	
+ 	if ( (isFramebufferRenderNeeded[GPUEngineID_Main] || isDisplayCaptureNeeded) && !this->_willFrameSkip )
+ 	{
+ 		// GPUEngineA:WillRender3DLayer() and GPUEngineA:WillCapture3DLayerDirect() both rely on register
+@@ -9673,21 +9740,55 @@ void GPUSubsystem::RenderLine(const size_t l)
  		
  		const bool need3DCaptureFramebuffer = this->_engineMain->WillCapture3DLayerDirect(l);
  		const bool need3DDisplayFramebuffer = this->_engineMain->WillRender3DLayer() || ((OUTPUTFORMAT == NDSColorFormat_BGR888_Rev) && need3DCaptureFramebuffer);
@@ -517,7 +541,8 @@ index 026bf14c..55b4bcab 100644
 +		}
 +#endif
  		
- 		if (need3DCaptureFramebuffer || need3DDisplayFramebuffer)
+-		if (need3DCaptureFramebuffer || need3DDisplayFramebuffer)
++		if ( (need3DCaptureFramebuffer || need3DDisplayFramebuffer) && !CurrentRenderer->IsDisplayDeferred() )
  		{
  			if (CurrentRenderer->GetRenderNeedsFinish())
  			{
@@ -564,7 +589,7 @@ index 026bf14c..55b4bcab 100644
  	}
  	else
  	{
-@@ -9696,7 +9780,13 @@ void GPUSubsystem::RenderLine(const size_t l)
+@@ -9696,7 +9797,13 @@ void GPUSubsystem::RenderLine(const size_t l)
  	
  	if (isFramebufferRenderNeeded[GPUEngineID_Sub] && !this->_willFrameSkip)
  	{
@@ -578,7 +603,7 @@ index 026bf14c..55b4bcab 100644
  	}
  	else
  	{
-@@ -9705,6 +9795,9 @@ void GPUSubsystem::RenderLine(const size_t l)
+@@ -9705,6 +9812,9 @@ void GPUSubsystem::RenderLine(const size_t l)
  	
  	if (l == 191)
  	{
@@ -588,7 +613,7 @@ index 026bf14c..55b4bcab 100644
  		this->_engineMain->LastLineProcess();
  		this->_engineSub->LastLineProcess();
  		
-@@ -9769,7 +9862,13 @@ void GPUSubsystem::RenderLine(const size_t l)
+@@ -9769,7 +9879,13 @@ void GPUSubsystem::RenderLine(const size_t l)
  			this->_displayInfo.sequenceNumber++;
  			this->_event->DidFrameEnd(this->_willFrameSkip, this->_displayInfo);
  		}
@@ -1182,7 +1207,7 @@ index 95592125..caa71976 100644
     CXXFLAGS += -DHAVE_JIT
  endif
 diff --git a/desmume/src/frontend/libretro/libretro.cpp b/desmume/src/frontend/libretro/libretro.cpp
-index 2314af93..9e7f598f 100644
+index 2314af93..abb38706 100644
 --- a/desmume/src/frontend/libretro/libretro.cpp
 +++ b/desmume/src/frontend/libretro/libretro.cpp
 @@ -18,8 +18,20 @@
@@ -1206,7 +1231,7 @@ index 2314af93..9e7f598f 100644
  #include "streams/file_stream.h"
  
  #ifdef HAVE_OPENGL
-@@ -69,6 +81,172 @@ enum {
+@@ -69,6 +81,181 @@ enum {
  };
  
  retro_log_printf_t log_cb = NULL;
@@ -1297,7 +1322,10 @@ index 2314af93..9e7f598f 100644
 +   display capture, and with a direct capture of the 3D. Per frame: ecpu: CPU time of this thread during
 +   retro_run (against run: below it, the thread waited for the 3D or for a core); rcpu: CPU time of the
 +   rasterizer threads (against raster, their wall time: below it, they waited for a core). t3d: wall time
-+   of a render drawn by bands, from its start to its last band. */
++   of a render drawn by bands, from its start to its last band. defer: frames that showed the last finished
++   3D while the rasterizer threads drew the new one (asynchronous 3D, desmume_rb_3d_async). direct: frames
++   whose screens were written straight into the frontend's memory (GET_CURRENT_SOFTWARE_FRAMEBUFFER; host
++   then includes the frontend's answer to that call). */
 +#define REWINDBOX_PERF_FRAMES 600
 +extern unsigned GPU_LR_FRAMEBUFFER_NATIVE_WIDTH, GPU_LR_FRAMEBUFFER_NATIVE_HEIGHT;
 +static struct
@@ -1305,9 +1333,11 @@ index 2314af93..9e7f598f 100644
 +   u64 frames, start, run, runMax, emu, out, host, gpuLine, wait3d, render3d, resolve, raster, gpuMain, gpuSub, gpuEnd;
 +   u64 over16, over33;
 +   u64 renders3d, bandRenders, bandWaits, captureFrames, capture3DFrames, render3dWall, rasterCpu, emuCpu;
++   u64 deferredFrames, directFrames;
 +} rewindbox_perf;
 +
-+static void rewindbox_perf_frame(u64 runStart, u64 emu, u64 out, u64 host, const RbPerf &before, u64 cpuStart)
++static void rewindbox_perf_frame(u64 runStart, u64 emu, u64 out, u64 host, const RbPerf &before, u64 cpuStart,
++                                 bool direct)
 +{
 +   const u64 now = rb_perf_now();
 +   const u64 run = now - runStart;
@@ -1340,6 +1370,9 @@ index 2314af93..9e7f598f 100644
 +   rewindbox_perf.render3dWall += __atomic_load_n(&rb_perf.render3dWall, __ATOMIC_RELAXED) - before.render3dWall;
 +   rewindbox_perf.rasterCpu += __atomic_load_n(&rb_perf.rasterCpu, __ATOMIC_RELAXED) - before.rasterCpu;
 +   rewindbox_perf.emuCpu += rb_perf_thread_cpu() - cpuStart;
++   rewindbox_perf.deferredFrames += rb_perf.deferredFrames - before.deferredFrames;
++   if (direct)
++      rewindbox_perf.directFrames++;
 +   if (rewindbox_perf.frames < REWINDBOX_PERF_FRAMES)
 +      return;
 +
@@ -1359,7 +1392,7 @@ index 2314af93..9e7f598f 100644
 +      log_cb(RETRO_LOG_INFO, "[rb-perf] desmume frames=%llu fps=%.1f res=%ux%u ss=%u threads=%u jit=%d ms/frame "
 +             "run=%.2f max=%.2f emu=%.2f cpu=%.2f 2d=%.2f 3d=%.2f wait=%.2f out=%.2f host=%.2f raster=%.2f "
 +             "resolve=%.2f engA=%.2f engB=%.2f end=%.2f over16=%llu over33=%llu r3d=%llu bands=%llu bwait=%llu "
-+             "cap=%llu cap3d=%llu ecpu=%.2f rcpu=%.2f t3d=%.2f\n",
++             "cap=%llu cap3d=%llu ecpu=%.2f rcpu=%.2f t3d=%.2f defer=%llu direct=%llu\n",
 +             (unsigned long long)rewindbox_perf.frames, wall > 0 ? rewindbox_perf.frames / wall : 0.0,
 +             (unsigned)GPU_LR_FRAMEBUFFER_NATIVE_WIDTH, (unsigned)GPU_LR_FRAMEBUFFER_NATIVE_HEIGHT,
 +             (unsigned)SoftRasterizer_GetActiveSupersampling(), (unsigned)CommonSettings.num_cores,
@@ -1371,7 +1404,8 @@ index 2314af93..9e7f598f 100644
 +             (unsigned long long)rewindbox_perf.bandRenders, (unsigned long long)rewindbox_perf.bandWaits,
 +             (unsigned long long)rewindbox_perf.captureFrames, (unsigned long long)rewindbox_perf.capture3DFrames,
 +             rewindbox_perf.emuCpu / n, rewindbox_perf.rasterCpu / n,
-+             rewindbox_perf.bandRenders ? rewindbox_perf.render3dWall / (rewindbox_perf.bandRenders * 1e6) : 0.0);
++             rewindbox_perf.bandRenders ? rewindbox_perf.render3dWall / (rewindbox_perf.bandRenders * 1e6) : 0.0,
++             (unsigned long long)rewindbox_perf.deferredFrames, (unsigned long long)rewindbox_perf.directFrames);
 +   }
 +   memset(&rewindbox_perf, 0, sizeof(rewindbox_perf));
 +}
@@ -1379,7 +1413,7 @@ index 2314af93..9e7f598f 100644
  static retro_video_refresh_t video_cb = NULL;
  static retro_input_poll_t poll_cb = NULL;
  static retro_input_state_t input_cb = NULL;
-@@ -310,6 +488,13 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
+@@ -310,6 +497,13 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
     const __m128i g_mask = _mm_set1_epi16(0x07c0);
     const __m128i r_mask = _mm_set1_epi16(0xf800);
     const __m128i a_mask = _mm_set1_epi16(0x0020);
@@ -1393,7 +1427,7 @@ index 2314af93..9e7f598f 100644
  #elif defined(HOST_64)
     max_width = width - 3;
     const uint64_t b_mask = 0x001f001f001f001f;
-@@ -339,6 +524,16 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
+@@ -339,6 +533,16 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
           _mm_storeu_si128((__m128i*)(output + w),
                            _mm_or_si128(r, _mm_or_si128(g, _mm_or_si128(b, a))));
        }
@@ -1410,7 +1444,7 @@ index 2314af93..9e7f598f 100644
  #elif defined(HOST_64)
        for (; w < max_width; w += 4)
        {
-@@ -369,14 +564,89 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
+@@ -369,14 +573,89 @@ void conv_0rgb1555_rb_swapped_rgb565(void * __restrict output_, const void * __r
     }
  }
  
@@ -1506,7 +1540,7 @@ index 2314af93..9e7f598f 100644
  }
  
  static void SwapScreen_32(uint32_t *dst, const uint32_t *src, uint32_t pitch)
-@@ -731,6 +1001,20 @@ static void check_variables(bool first_boot)
+@@ -731,6 +1010,20 @@ static void check_variables(bool first_boot)
                CommonSettings.use_jit = true;
            else if (!strcmp(var.value, "interpreter"))
                CommonSettings.use_jit = false;
@@ -1527,7 +1561,7 @@ index 2314af93..9e7f598f 100644
        }
       else
       {
-@@ -741,6 +1025,32 @@ static void check_variables(bool first_boot)
+@@ -741,6 +1034,32 @@ static void check_variables(bool first_boot)
  #endif
       }
  
@@ -1560,7 +1594,7 @@ index 2314af93..9e7f598f 100644
  #ifdef HAVE_JIT
        var.key = "desmume_jit_block_size";
  
-@@ -889,10 +1199,34 @@ static void check_variables(bool first_boot)
+@@ -889,10 +1208,47 @@ static void check_variables(bool first_boot)
  
     }
  
@@ -1576,6 +1610,19 @@ index 2314af93..9e7f598f 100644
 +         if (!first_boot)
 +            need_framebuffer_reset = true;
 +      }
++   }
++
++   var.key = "desmume_rb_3d_async";
++
++   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
++   {
++      /* RewindBox: applied from the next 3D render */
++      if (!strcmp(var.value, "disabled"))
++         SoftRasterizer_SetAsyncMode(SOFTRASTERIZER_ASYNC_DISABLED);
++      else if (!strcmp(var.value, "enabled"))
++         SoftRasterizer_SetAsyncMode(SOFTRASTERIZER_ASYNC_ENABLED);
++      else
++         SoftRasterizer_SetAsyncMode(SOFTRASTERIZER_ASYNC_AUTO);
 +   }
 +
     var.key = "desmume_num_cores";
@@ -1596,7 +1643,7 @@ index 2314af93..9e7f598f 100644
     else
         CommonSettings.num_cores = 1;
  
-@@ -1576,6 +1910,7 @@ void retro_deinit(void)
+@@ -1576,6 +1932,7 @@ void retro_deinit(void)
         tex = 0;
      }
  #endif
@@ -1604,7 +1651,7 @@ index 2314af93..9e7f598f 100644
      NDS_DeInit();
  
  #ifdef PERF_TEST
-@@ -2079,7 +2414,21 @@ void retro_run (void)
+@@ -2079,7 +2436,21 @@ void retro_run (void)
     if (skipped)
        NDS_SkipNextFrame();
  
@@ -1626,34 +1673,66 @@ index 2314af93..9e7f598f 100644
  
     SPU_Emulate_user();
  
-@@ -2097,6 +2446,9 @@ void retro_run (void)
+@@ -2097,6 +2468,37 @@ void retro_run (void)
            previous_showbothscreens = hybrid_layout_showbothscreens;
     }
  
++   /* RewindBox: both screens written straight into the frontend's memory (GET_CURRENT_SOFTWARE_FRAMEBUFFER),
++      which it hands to the GPU as it is: no copy of the frame (20 MB at 10x) in the frontend. Only with a
++      16-bit output and a layout that covers the whole frame (no gap, not hybrid): every pixel of that memory
++      is written each frame. The layout's pointers into screen_buf are moved there for this frame only. */
++   uint16_t *frame_buf = screen_buf;
++   uint16_t *const layout_dst = layout.dst;
++   uint16_t *const layout_dst2 = layout.dst2;
 +#ifdef REWINDBOX_PERF
++   const u64 rbPerfFrameBufStart = rb_perf_now();
++#endif
++   if (!skipped && !opengl_mode && colorMode == RETRO_PIXEL_FORMAT_RGB565 && nds_screen_gap == 0 &&
++       current_layout != LAYOUT_HYBRID_TOP_ONLY && current_layout != LAYOUT_HYBRID_BOTTOM_ONLY)
++   {
++      struct retro_framebuffer fb;
++      memset(&fb, 0, sizeof(fb));
++      fb.width = layout.width;
++      fb.height = layout.height;
++      fb.access_flags = RETRO_MEMORY_ACCESS_WRITE;
++      if (environ_cb(RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER, &fb) && fb.data != NULL &&
++          fb.format == RETRO_PIXEL_FORMAT_RGB565 && fb.width == layout.width && fb.height == layout.height &&
++          fb.pitch == (size_t)layout.pitch * 2)
++      {
++         frame_buf = (uint16_t *)fb.data;
++         layout.dst = frame_buf + (layout_dst - screen_buf);
++         layout.dst2 = frame_buf + (layout_dst2 - screen_buf);
++      }
++   }
++#ifdef REWINDBOX_PERF
++   const u64 rbPerfFrameBuf = rb_perf_now() - rbPerfFrameBufStart;
 +   const u64 rbPerfOutStart = rb_perf_now();
 +#endif
     if (!skipped)
     {
            if (colorMode == RETRO_PIXEL_FORMAT_XRGB8888)
-@@ -2284,7 +2636,16 @@ void retro_run (void)
+@@ -2284,7 +2686,19 @@ void retro_run (void)
  #endif
     }
     else
+-      video_cb(skipped ? 0 : screen_buf, layout.width, layout.height, layout.pitch * 2);
 +   {
 +#ifdef REWINDBOX_PERF
 +      const u64 rbPerfHost = rb_perf_now();
 +      const u64 rbPerfOut = rbPerfHost - rbPerfOutStart;
 +#endif
-       video_cb(skipped ? 0 : screen_buf, layout.width, layout.height, layout.pitch * 2);
++      layout.dst = layout_dst;
++      layout.dst2 = layout_dst2;
++      video_cb(skipped ? 0 : frame_buf, layout.width, layout.height, layout.pitch * 2);
 +#ifdef REWINDBOX_PERF
-+      rewindbox_perf_frame(rbPerfRun, rbPerfEmu, rbPerfOut, rb_perf_now() - rbPerfHost, rbPerfBefore, rbPerfCpu);
++      rewindbox_perf_frame(rbPerfRun, rbPerfEmu, rbPerfOut, rb_perf_now() - rbPerfHost + rbPerfFrameBuf, rbPerfBefore,
++                           rbPerfCpu, frame_buf != screen_buf);
 +#endif
 +   }
  
     frameIndex = skipped ? frameIndex : 0;
  }
-@@ -2463,6 +2824,10 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
+@@ -2463,6 +2877,10 @@ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *i
  
  void retro_unload_game (void)
  {
@@ -1665,7 +1744,7 @@ index 2314af93..9e7f598f 100644
      if (screen_buf)
         free(screen_buf);
 diff --git a/desmume/src/frontend/libretro/libretro_core_options.h b/desmume/src/frontend/libretro/libretro_core_options.h
-index 85043b8e..e82e8057 100644
+index 85043b8e..e4cac4cb 100644
 --- a/desmume/src/frontend/libretro/libretro_core_options.h
 +++ b/desmume/src/frontend/libretro/libretro_core_options.h
 @@ -138,17 +138,18 @@ struct retro_core_option_v2_definition option_defs_us[] = {
@@ -1704,7 +1783,7 @@ index 85043b8e..e82e8057 100644
  #endif
              { NULL, NULL },
          },
-@@ -343,6 +350,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
+@@ -343,6 +350,35 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          },
          "256x192"
      },
@@ -1722,11 +1801,26 @@ index 85043b8e..e82e8057 100644
 +        },
 +        "disabled"
 +    },
++    {
++        "desmume_rb_3d_async",
++        "Asynchronous 3D",
++        NULL,
++        "When a 3D picture takes long to draw (high internal resolutions), the screen keeps the last finished 3D picture until the new one is done instead of waiting for it: the game no longer slows down to the speed of the 3D, which shows one or two frames later. Auto: after a slow 3D picture. Enabled: every 3D picture drawn by several threads. Disabled: each frame waits for its 3D. Never while the game captures the screen.",
++        NULL,
++        "video",
++        {
++            { "auto",     NULL },
++            { "disabled", NULL },
++            { "enabled",  NULL },
++            { NULL, NULL },
++        },
++        "auto"
++    },
  #ifdef HAVE_OPENGL
      {
          "desmume_opengl_mode",
 diff --git a/desmume/src/gfx3d.cpp b/desmume/src/gfx3d.cpp
-index 2535f04f..be7da419 100644
+index 2535f04f..d3100222 100644
 --- a/desmume/src/gfx3d.cpp
 +++ b/desmume/src/gfx3d.cpp
 @@ -2455,6 +2455,15 @@ void gfx3d_GenerateRenderLists(const ClipperMode clippingMode)
@@ -1745,8 +1839,49 @@ index 2535f04f..be7da419 100644
  	gfx3d.render3DFrameCount++;
  
  	//the renderer will get the lists we just built
+@@ -2511,7 +2520,9 @@ void gfx3d_VBlankSignal()
+ 
+ void gfx3d_VBlankEndSignal(bool skipFrame)
+ {
+-	if (CurrentRenderer->GetRenderNeedsFinish())
++	// RewindBox: a render drawn into a picture not shown (asynchronous 3D) may go on past the end of the frame; it
++	// finishes before the next render begins (below)
++	if (CurrentRenderer->GetRenderNeedsFinish() && !CurrentRenderer->CanRenderStayInFlight())
+ 	{
+ 		GPU->ForceRender3DFinishAndFlush(false);
+ 		CurrentRenderer->SetRenderNeedsFinish(false);
+@@ -2554,6 +2565,13 @@ void gfx3d_VBlankEndSignal(bool skipFrame)
+ 
+ 	if (skipFrame) return;
+ 
++	if (CurrentRenderer->GetRenderNeedsFinish())
++	{
++		GPU->ForceRender3DFinishAndFlush(false);
++		CurrentRenderer->SetRenderNeedsFinish(false);
++		GPU->GetEventHandler()->DidRender3DEnd();
++	}
++
+ 	drawPending = FALSE;
+ 	
+ 	GPU->GetEventHandler()->DidApplyRender3DSettingsBegin();
+@@ -2819,6 +2837,7 @@ void gfx3d_PrepareSaveStateBufferWrite()
+ 	{
+ 		GPU->ForceRender3DFinishAndFlush(true);
+ 	}
++	CurrentRenderer->ShowLatestRender(); // RewindBox: the last render, whichever picture is shown (asynchronous 3D)
+ 	
+ 	const size_t w = CurrentRenderer->GetFramebufferWidth();
+ 	const size_t h = CurrentRenderer->GetFramebufferHeight();
+@@ -3029,6 +3048,7 @@ bool gfx3d_loadstate(EMUFILE &is, int size)
+ void gfx3d_FinishLoadStateBufferRead()
+ {
+ 	const Render3DDeviceInfo &deviceInfo = CurrentRenderer->GetDeviceInfo();
++	CurrentRenderer->ShowLatestRender(); // RewindBox: the picture written below is the one shown (asynchronous 3D)
+ 	
+ 	switch (deviceInfo.renderID)
+ 	{
 diff --git a/desmume/src/rasterize.cpp b/desmume/src/rasterize.cpp
-index e42ef256..0f312e80 100644
+index e42ef256..5c91f08e 100644
 --- a/desmume/src/rasterize.cpp
 +++ b/desmume/src/rasterize.cpp
 @@ -64,6 +64,27 @@
@@ -1918,7 +2053,7 @@ index e42ef256..0f312e80 100644
  	
  	return 0;
  }
-@@ -1420,6 +1510,34 @@ static void* SoftRasterizer_RunRenderEdgeMarkAndFog(void *arg)
+@@ -1420,6 +1510,53 @@ static void* SoftRasterizer_RunRenderEdgeMarkAndFog(void *arg)
  	return NULL;
  }
  
@@ -1942,6 +2077,25 @@ index e42ef256..0f312e80 100644
 +	return gSoftRasterizerActiveSupersampling;
 +}
 +
++// RewindBox: asynchronous 3D. AUTO: a render slower than SOFTRASTERIZER_ASYNC_SLOW_NS is followed by
++// SOFTRASTERIZER_ASYNC_AUTO_RENDERS renders drawn asynchronously at least; none within
++// SOFTRASTERIZER_ASYNC_CAPTURE_FRAMES frames of a display capture.
++#define SOFTRASTERIZER_ASYNC_SLOW_NS 8000000ull
++#define SOFTRASTERIZER_ASYNC_AUTO_RENDERS 120
++#define SOFTRASTERIZER_ASYNC_CAPTURE_FRAMES 60
++
++static SoftRasterizerAsyncMode gSoftRasterizerAsyncMode = SOFTRASTERIZER_ASYNC_AUTO;
++
++void SoftRasterizer_SetAsyncMode(SoftRasterizerAsyncMode mode)
++{
++	gSoftRasterizerAsyncMode = mode;
++}
++
++SoftRasterizerAsyncMode SoftRasterizer_GetAsyncMode()
++{
++	return gSoftRasterizerAsyncMode;
++}
++
 +static void* SoftRasterizer_RunResolveSupersampling(void *arg)
 +{
 +	SoftRasterizerResolveParam *param = (SoftRasterizerResolveParam *)arg;
@@ -1953,7 +2107,7 @@ index e42ef256..0f312e80 100644
  static void* SoftRasterizer_RunClearUsingValues(void *arg)
  {
  	SoftRasterizerClearParam *param = (SoftRasterizerClearParam *)arg;
-@@ -1748,6 +1866,37 @@ SoftRasterizerRenderer::SoftRasterizerRenderer()
+@@ -1748,6 +1885,44 @@ SoftRasterizerRenderer::SoftRasterizerRenderer()
  	
  	_HACK_viewer_rasterizerUnit.SetSLI(0, _framebufferHeight, false);
  	
@@ -1975,10 +2129,9 @@ index e42ef256..0f312e80 100644
 +	_bandCond = scond_new();
 +	memset(&_bandPostprocessParam, 0, sizeof(_bandPostprocessParam));
 +	_flushed16Lines = 0;
-+#ifdef REWINDBOX_PERF
-+	_rbPerfRenderStart = 0;
-+	_rbPerfBandsFinished = 0;
-+#endif
++	_renderStartNs = 0;
++	_bandsFinished = 0;
++	_lastRenderWallNs = 0;
 +	
 +	_supersampling = 1;
 +	_renderWidth = _framebufferWidth;
@@ -1988,10 +2141,18 @@ index e42ef256..0f312e80 100644
 +	_renderColorOwned = NULL;
 +	_supersampleResolved = true;
 +	
++	_primaryColor = _framebufferColor;
++	_asyncColorOwned = NULL;
++	_displayColor = _framebufferColor;
++	_displayDeferred = false;
++	_frameCounter = 0;
++	_lastCaptureFrame = 0;
++	_asyncAutoRenders = 0;
++	
  	const size_t coreCount = CommonSettings.num_cores;
  	_threadCount = coreCount;
  	
-@@ -1841,10 +1990,379 @@ SoftRasterizerRenderer::~SoftRasterizerRenderer()
+@@ -1841,10 +2016,385 @@ SoftRasterizerRenderer::~SoftRasterizerRenderer()
  	delete[] this->_task;
  	this->_task = NULL;
  	
@@ -2005,6 +2166,9 @@ index e42ef256..0f312e80 100644
 +	
 +	free_aligned(this->_renderColorOwned);
 +	this->_renderColorOwned = NULL;
++	
++	free_aligned(this->_asyncColorOwned);
++	this->_asyncColorOwned = NULL;
 +	
  	delete this->_framebufferAttributes;
  	this->_framebufferAttributes = NULL;
@@ -2204,9 +2368,9 @@ index e42ef256..0f312e80 100644
 +		this->_bandDone[b] = 0;
 +	}
 +	this->_bandWaiting = 0;
++	this->_bandsFinished = 0;
++	this->_renderStartNs = rb_perf_now();
 +#ifdef REWINDBOX_PERF
-+	this->_rbPerfBandsFinished = 0;
-+	this->_rbPerfRenderStart = rb_perf_now();
 +	rb_perf.bandRenders++;
 +#endif
 +}
@@ -2254,13 +2418,16 @@ index e42ef256..0f312e80 100644
 +#endif
 +	}
 +	
-+#ifdef REWINDBOX_PERF
-+	// the band that completes the render (before its flag: RenderFinish then reads a whole render)
-+	if ((u32)__atomic_add_fetch(&this->_rbPerfBandsFinished, 1, __ATOMIC_ACQ_REL) == this->_sliceCount)
++	// the band that completes the render, counted after its lines are written and before its flag (RenderFinish
++	// then reads a whole render): BeginFrame3D reads the count to find the render done without waiting for it
++	if ((u32)__atomic_add_fetch(&this->_bandsFinished, 1, __ATOMIC_ACQ_REL) == this->_sliceCount)
 +	{
-+		rb_perf_add_atomic(&rb_perf.render3dWall, rb_perf_now() - this->_rbPerfRenderStart);
-+	}
++		const u64 wall = rb_perf_now() - this->_renderStartNs;
++		__atomic_store_n(&this->_lastRenderWallNs, wall, __ATOMIC_RELAXED);
++#ifdef REWINDBOX_PERF
++		rb_perf_add_atomic(&rb_perf.render3dWall, wall);
 +#endif
++	}
 +	__atomic_store_n(&this->_bandDone[band], 1, __ATOMIC_SEQ_CST);
 +	if (__atomic_load_n(&this->_bandWaiting, __ATOMIC_SEQ_CST) != 0)
 +	{
@@ -2371,7 +2538,7 @@ index e42ef256..0f312e80 100644
  Render3DError SoftRasterizerRenderer::InitTables()
  {
  	static bool needTableInit = true;
-@@ -1874,8 +2392,8 @@ ClipperMode SoftRasterizerRenderer::GetPreferredPolygonClippingMode() const
+@@ -1874,8 +2424,8 @@ ClipperMode SoftRasterizerRenderer::GetPreferredPolygonClippingMode() const
  
  void SoftRasterizerRenderer::performViewportTransforms()
  {
@@ -2382,7 +2549,7 @@ index e42ef256..0f312e80 100644
  	
  	//viewport transforms
  	for (size_t i = 0; i < this->_clippedPolyCount; i++)
-@@ -2022,6 +2540,19 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
+@@ -2022,6 +2572,22 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
  	{
  		this->_task[i].finish();
  	}
@@ -2394,6 +2561,9 @@ index e42ef256..0f312e80 100644
 +	this->_drawInline = (this->_threadCount > 0) && (this->_renderPixCount <= (GPU_FRAMEBUFFER_NATIVE_WIDTH * GPU_FRAMEBUFFER_NATIVE_HEIGHT));
 +	this->_supersampleResolved = (this->_supersampling < 2);
 +	
++	// RewindBox: asynchronous 3D, the buffer this render draws into (before the clear)
++	this->_AsyncPrepareTarget();
++	
 +	// RewindBox: this render's results are not there before it finishes (RenderFinish sets both flags), and
 +	// its 15-bit copy is made again from the first line, by RenderFlush16Lines or RenderFlush
 +	this->_renderNeedsFlushMain = false;
@@ -2402,7 +2572,7 @@ index e42ef256..0f312e80 100644
  	
  	// Keep the current render states for later use
  	this->currentRenderState = (GFX3D_State *)&engine.renderState;
-@@ -2029,7 +2560,7 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
+@@ -2029,7 +2595,7 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
  	this->_clippedPolyOpaqueCount = engine.clippedPolyOpaqueCount;
  	this->_clippedPolyList = engine.clippedPolyList;
  	
@@ -2411,7 +2581,7 @@ index e42ef256..0f312e80 100644
  	
  	if (doMultithreadedStateSetup)
  	{
-@@ -2069,19 +2600,59 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
+@@ -2069,19 +2635,59 @@ Render3DError SoftRasterizerRenderer::BeginRender(const GFX3D &engine)
  
  Render3DError SoftRasterizerRenderer::RenderGeometry(const GFX3D_State &renderState, const POLYLIST *polyList, const INDEXLIST *indexList)
  {
@@ -2474,7 +2644,7 @@ index e42ef256..0f312e80 100644
  			{
  				this->_task[i].execute(&SoftRasterizer_RunRasterizerUnit<false>, &this->_rasterizerUnit[i]);
  			}
-@@ -2101,6 +2672,7 @@ Render3DError SoftRasterizerRenderer::RenderGeometry(const GFX3D_State &renderSt
+@@ -2101,6 +2707,7 @@ Render3DError SoftRasterizerRenderer::RenderGeometry(const GFX3D_State &renderSt
  		}
  		
  		this->_renderGeometryNeedsFinish = false;
@@ -2482,7 +2652,7 @@ index e42ef256..0f312e80 100644
  		texCache.Evict(); // Since we're finishing geometry rendering here and now, also check the texture cache now.
  	}
  	
-@@ -2195,11 +2767,11 @@ Render3DError SoftRasterizerRenderer::UpdateFogTable(const u8 *fogDensityTable)
+@@ -2195,11 +2802,11 @@ Render3DError SoftRasterizerRenderer::UpdateFogTable(const u8 *fogDensityTable)
  
  Render3DError SoftRasterizerRenderer::RenderEdgeMarkingAndFog(const SoftRasterizerPostProcessParams &param)
  {
@@ -2497,7 +2667,7 @@ index e42ef256..0f312e80 100644
  			const u32 depth = this->_framebufferAttributes->depth[i];
  			const u8 polyID = this->_framebufferAttributes->opaquePolyID[i];
  			
-@@ -2214,25 +2786,25 @@ Render3DError SoftRasterizerRenderer::RenderEdgeMarkingAndFog(const SoftRasteriz
+@@ -2214,25 +2821,25 @@ Render3DError SoftRasterizerRenderer::RenderEdgeMarkingAndFog(const SoftRasteriz
  				{
  					const bool isEdgeMarkingClearValues = ((polyID != this->_clearAttributes.opaquePolyID) && (depth < this->_clearAttributes.depth));
  					
@@ -2529,7 +2699,7 @@ index e42ef256..0f312e80 100644
  						}
  					}
  					else if (left)
-@@ -2246,7 +2818,7 @@ Render3DError SoftRasterizerRenderer::RenderEdgeMarkingAndFog(const SoftRasteriz
+@@ -2246,7 +2853,7 @@ Render3DError SoftRasterizerRenderer::RenderEdgeMarkingAndFog(const SoftRasteriz
  					{
  						if (y > 0)
  						{
@@ -2538,7 +2708,7 @@ index e42ef256..0f312e80 100644
  						}
  					}
  					
-@@ -2318,18 +2890,18 @@ Render3DError SoftRasterizerRenderer::UpdateToonTable(const u16 *toonTableBuffer
+@@ -2318,18 +2925,18 @@ Render3DError SoftRasterizerRenderer::UpdateToonTable(const u16 *toonTableBuffer
  
  Render3DError SoftRasterizerRenderer::ClearUsingImage(const u16 *__restrict colorBuffer, const u32 *__restrict depthBuffer, const u8 *__restrict fogBuffer, const u8 opaquePolyID)
  {
@@ -2562,7 +2732,7 @@ index e42ef256..0f312e80 100644
  			this->_framebufferAttributes->depth[iw] = depthBuffer[ir];
  			this->_framebufferAttributes->isFogged[iw] = fogBuffer[ir];
  			this->_framebufferAttributes->opaquePolyID[iw] = opaquePolyID;
-@@ -2345,16 +2917,36 @@ Render3DError SoftRasterizerRenderer::ClearUsingImage(const u16 *__restrict colo
+@@ -2345,16 +2952,36 @@ Render3DError SoftRasterizerRenderer::ClearUsingImage(const u16 *__restrict colo
  
  void SoftRasterizerRenderer::ClearUsingValues_Execute(const size_t startPixel, const size_t endPixel)
  {
@@ -2605,7 +2775,7 @@ index e42ef256..0f312e80 100644
  	
  	if (doMultithreadedClear)
  	{
-@@ -2365,7 +2957,7 @@ Render3DError SoftRasterizerRenderer::ClearUsingValues(const FragmentColor &clea
+@@ -2365,7 +2992,7 @@ Render3DError SoftRasterizerRenderer::ClearUsingValues(const FragmentColor &clea
  	}
  	else
  	{
@@ -2614,16 +2784,17 @@ index e42ef256..0f312e80 100644
  	}
  	
  	if (doMultithreadedClear)
-@@ -2390,6 +2982,8 @@ Render3DError SoftRasterizerRenderer::Reset()
+@@ -2390,6 +3017,9 @@ Render3DError SoftRasterizerRenderer::Reset()
  	}
  	
  	this->_renderGeometryNeedsFinish = false;
 +	this->_bandsActive = false;
 +	this->_flushed16Lines = 0;
++	this->_AsyncReset();
  	
  	texCache.Reset();
  	
-@@ -2398,6 +2992,9 @@ Render3DError SoftRasterizerRenderer::Reset()
+@@ -2398,6 +3028,9 @@ Render3DError SoftRasterizerRenderer::Reset()
  
  Render3DError SoftRasterizerRenderer::Render(const GFX3D &engine)
  {
@@ -2633,7 +2804,7 @@ index e42ef256..0f312e80 100644
  	Render3DError error = RENDER3DERROR_NOERR;
  	this->_isPoweredOn = true;
  	
-@@ -2420,10 +3017,16 @@ Render3DError SoftRasterizerRenderer::Render(const GFX3D &engine)
+@@ -2420,10 +3053,16 @@ Render3DError SoftRasterizerRenderer::Render(const GFX3D &engine)
  	{
  		return error;
  	}
@@ -2650,7 +2821,7 @@ index e42ef256..0f312e80 100644
  	return error;
  }
  
-@@ -2434,12 +3037,16 @@ Render3DError SoftRasterizerRenderer::EndRender(const u64 frameCount)
+@@ -2434,12 +3073,16 @@ Render3DError SoftRasterizerRenderer::EndRender(const u64 frameCount)
  	{
  		if (this->_enableEdgeMark || this->_enableFog)
  		{
@@ -2672,7 +2843,7 @@ index e42ef256..0f312e80 100644
  		}
  	}
  	
-@@ -2453,6 +3060,9 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
+@@ -2453,6 +3096,9 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
  		return RENDER3DERROR_NOERR;
  	}
  	
@@ -2682,7 +2853,7 @@ index e42ef256..0f312e80 100644
  	if (this->_renderGeometryNeedsFinish)
  	{
  		// Allow for the geometry rendering to finish.
-@@ -2465,8 +3075,9 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
+@@ -2465,8 +3111,9 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
  		// Now that geometry rendering is finished on all threads, check the texture cache.
  		texCache.Evict();
  		
@@ -2694,7 +2865,7 @@ index e42ef256..0f312e80 100644
  		{
  			for (size_t i = 0; i < this->_threadCount; i++)
  			{
-@@ -2486,6 +3097,18 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
+@@ -2486,6 +3133,18 @@ Render3DError SoftRasterizerRenderer::RenderFinish()
  		}
  	}
  	
@@ -2713,7 +2884,7 @@ index e42ef256..0f312e80 100644
  	this->_renderNeedsFlushMain = true;
  	this->_renderNeedsFlush16 = true;
  	
-@@ -2500,12 +3123,57 @@ Render3DError SoftRasterizerRenderer::RenderFlush(bool willFlushBuffer32, bool w
+@@ -2500,12 +3159,225 @@ Render3DError SoftRasterizerRenderer::RenderFlush(bool willFlushBuffer32, bool w
  	}
  	
  	FragmentColor *framebufferMain = (willFlushBuffer32 && (this->_outputFormat == NDSColorFormat_BGR888_Rev)) ? GPU->GetEngineMain()->Get3DFramebufferMain() : NULL;
@@ -2770,16 +2941,186 @@ index e42ef256..0f312e80 100644
 +	}
 +}
 +
++// RewindBox: asynchronous 3D. The main engine's buffer (after Render3D::SetFramebufferSize), shown; the second
++// buffer, sized for the old output, is made again when a render needs it.
++void SoftRasterizerRenderer::_AsyncSetPrimary()
++{
++	this->_primaryColor = this->_framebufferColor;
++	this->_displayColor = this->_framebufferColor;
++	this->_displayDeferred = false;
++	free_aligned(this->_asyncColorOwned);
++	this->_asyncColorOwned = NULL;
++	__atomic_store_n(&this->_lastRenderWallNs, 0, __ATOMIC_RELAXED);
++	this->_asyncAutoRenders = 0;
++}
++
++// The main engine's buffer is drawn into and shown again (reset, 3D powered off); no render is in flight.
++void SoftRasterizerRenderer::_AsyncReset()
++{
++	this->_displayDeferred = false;
++	if (this->_primaryColor != NULL)
++	{
++		this->_framebufferColor = this->_primaryColor;
++	}
++	this->_displayColor = this->_framebufferColor;
++	if (this->_supersampling < 2)
++	{
++		this->_renderColor = this->_framebufferColor;
++	}
++}
++
++bool SoftRasterizerRenderer::_AsyncAllowed() const
++{
++	return (gSoftRasterizerAsyncMode != SOFTRASTERIZER_ASYNC_DISABLED) &&
++	       (this->_outputFormat != NDSColorFormat_BGR888_Rev) &&
++	       (this->_primaryColor != NULL) &&
++	       (this->_frameCounter >= this->_lastCaptureFrame + SOFTRASTERIZER_ASYNC_CAPTURE_FRAMES);
++}
++
++// At the start of a render (BeginRender, no render in flight): the last render, finished, is shown from now on.
++// A render of the threads that AUTO finds slow, or any with ENABLED, draws into the other buffer while the 2D
++// engine shows that one (BeginFrame3D). Otherwise it draws into the main engine's buffer, shown, and each line
++// of the frame waits for its own 3D lines.
++void SoftRasterizerRenderer::_AsyncPrepareTarget()
++{
++	const u64 lastWall = __atomic_exchange_n(&this->_lastRenderWallNs, 0, __ATOMIC_RELAXED);
++	if (lastWall > SOFTRASTERIZER_ASYNC_SLOW_NS)
++	{
++		this->_asyncAutoRenders = SOFTRASTERIZER_ASYNC_AUTO_RENDERS;
++	}
++	else if (this->_asyncAutoRenders > 0)
++	{
++		this->_asyncAutoRenders--;
++	}
++	
++	this->_displayDeferred = false;
++	bool async = this->_AsyncAllowed() && (this->_threadCount > 0) && !this->_drawInline &&
++	             ( (gSoftRasterizerAsyncMode == SOFTRASTERIZER_ASYNC_ENABLED) || (this->_asyncAutoRenders > 0) );
++	if (async && (this->_asyncColorOwned == NULL))
++	{
++		this->_asyncColorOwned = (FragmentColor *)malloc_alignedPage(this->_framebufferColorSizeBytes);
++		async = (this->_asyncColorOwned != NULL);
++	}
++	
++	if (async)
++	{
++		this->_displayColor = this->_framebufferColor;
++		this->_framebufferColor = (this->_displayColor == this->_primaryColor) ? this->_asyncColorOwned : this->_primaryColor;
++	}
++	else
++	{
++		this->_framebufferColor = this->_primaryColor;
++		this->_displayColor = this->_primaryColor;
++	}
++	
++	if (this->_supersampling < 2)
++	{
++		this->_renderColor = this->_framebufferColor;
++	}
++}
++
++// Every line of the render drawn, post-processed and resolved, without waiting for the threads.
++bool SoftRasterizerRenderer::_IsRenderComplete() const
++{
++	if (!this->_renderGeometryNeedsFinish)
++	{
++		return true;
++	}
++	
++	return this->_bandsActive && ((u32)__atomic_load_n(&this->_bandsFinished, __ATOMIC_ACQUIRE) == this->_sliceCount);
++}
++
++bool SoftRasterizerRenderer::BeginFrame3D(const bool willDisplayCapture)
++{
++	this->_frameCounter++;
++	if (willDisplayCapture)
++	{
++		this->_lastCaptureFrame = this->_frameCounter;
++	}
++	this->_displayDeferred = false;
++	
++	if (this->_displayColor == this->_framebufferColor)
++	{
++		return false; // the render draws into the picture shown: each line waits for its own 3D lines
++	}
++	
++	if (!this->_renderNeedsFinish)
++	{
++		this->_displayColor = this->_framebufferColor; // finished already (a forced finish): shown from this frame on
++		return false;
++	}
++	
++	if (this->_IsRenderComplete())
++	{
++		this->RenderFinish();
++		this->_displayColor = this->_framebufferColor;
++		return true;
++	}
++	
++	if (this->_AsyncAllowed())
++	{
++		this->_displayDeferred = true;
++#ifdef REWINDBOX_PERF
++		rb_perf.deferredFrames++;
++#endif
++		return false;
++	}
++	
++	this->_displayColor = this->_framebufferColor; // a display capture: the frame waits for the render, line by line
++	return false;
++}
++
++bool SoftRasterizerRenderer::IsDisplayDeferred() const
++{
++	return this->_displayDeferred;
++}
++
++void SoftRasterizerRenderer::EndDisplayDeferral()
++{
++	this->_lastCaptureFrame = this->_frameCounter;
++	if (this->_displayDeferred)
++	{
++		this->_displayDeferred = false;
++		this->_displayColor = this->_framebufferColor;
++	}
++}
++
++bool SoftRasterizerRenderer::CanRenderStayInFlight() const
++{
++	return (this->_displayColor != this->_framebufferColor);
++}
++
++void SoftRasterizerRenderer::ShowLatestRender()
++{
++	this->RenderFinish();
++	this->_displayDeferred = false;
++	this->_displayColor = this->_framebufferColor;
++}
++
++FragmentColor* SoftRasterizerRenderer::GetFramebuffer()
++{
++	return (this->_displayColor != NULL) ? this->_displayColor : this->_framebufferColor;
++}
++
++// The picture the base class clears is the main engine's: it is shown from now on (no render is in flight).
++Render3DError SoftRasterizerRenderer::RenderPowerOff()
++{
++	this->_AsyncReset();
++	return Render3D::RenderPowerOff();
++}
++
  Render3DError SoftRasterizerRenderer::SetFramebufferSize(size_t w, size_t h)
  {
  	Render3DError error = Render3D::SetFramebufferSize(w, h);
-@@ -2514,10 +3182,13 @@ Render3DError SoftRasterizerRenderer::SetFramebufferSize(size_t w, size_t h)
+@@ -2514,10 +3386,15 @@ Render3DError SoftRasterizerRenderer::SetFramebufferSize(size_t w, size_t h)
  		return RENDER3DERROR_NOERR;
  	}
  	
 -	delete this->_framebufferAttributes;
 -	this->_framebufferAttributes = new FragmentAttributesBuffer(w * h);
-+	// RewindBox: what the rasterizer draws (the output times the supersampling factor) and its attributes
++	// RewindBox: the main engine's new buffer, shown (asynchronous 3D), then what the rasterizer draws (the
++	// output times the supersampling factor) and its attributes
++	this->_AsyncSetPrimary();
 +	this->_SetRenderView(gSoftRasterizerSupersampling);
 +	this->_flushed16Lines = 0;
 +	w = this->_renderWidth;
@@ -2790,19 +3131,20 @@ index e42ef256..0f312e80 100644
  	
  	if (this->_threadCount == 0)
  	{
-@@ -2622,8 +3293,8 @@ Render3DError SoftRasterizer_SIMD<SIMDBYTES>::SetFramebufferSize(size_t w, size_
+@@ -2622,8 +3499,9 @@ Render3DError SoftRasterizer_SIMD<SIMDBYTES>::SetFramebufferSize(size_t w, size_
  		return RENDER3DERROR_NOERR;
  	}
  	
 -	delete this->_framebufferAttributes;
 -	this->_framebufferAttributes = new FragmentAttributesBuffer(w * h);
 +	// RewindBox: the SIMD clears work on the output buffer: no supersampling in these builds
++	this->_AsyncSetPrimary();
 +	this->_SetRenderView(1);
  	
  	const size_t pixCount = (this->_framebufferSIMDPixCount > 0) ? this->_framebufferSIMDPixCount : this->_framebufferPixCount;
  	
 diff --git a/desmume/src/rasterize.h b/desmume/src/rasterize.h
-index becafc0e..929ff212 100644
+index becafc0e..0d9f7ebb 100644
 --- a/desmume/src/rasterize.h
 +++ b/desmume/src/rasterize.h
 @@ -26,6 +26,7 @@
@@ -2813,7 +3155,7 @@ index becafc0e..929ff212 100644
  
  extern GPU3DInterface gpu3DRasterize;
  
-@@ -40,6 +41,19 @@ struct SoftRasterizerClearParam
+@@ -40,6 +41,34 @@ struct SoftRasterizerClearParam
  	size_t endPixel;
  };
  
@@ -2830,10 +3172,25 @@ index becafc0e..929ff212 100644
 +size_t SoftRasterizer_GetSupersampling();
 +size_t SoftRasterizer_GetActiveSupersampling(); // the factor the rasterizer draws with now (1 above 5x)
 +
++// RewindBox: asynchronous 3D (desmume_rb_3d_async). A render the rasterizer threads draw is drawn into a second
++// colour buffer while the main 2D engine keeps showing the last finished render, for whole frames, until the new
++// one is done: the emulation thread no longer waits for the threads, and the 3D shows one or two frames later.
++// AUTO: after a render that took more than 8 ms, for the next 120 renders at least. ENABLED: every render the
++// threads draw. DISABLED: each frame waits for its own 3D lines. Never within 60 frames of a display capture
++// (a capture reads the 3D of its own frame), nor with a 24-bit output. Applied from the next render.
++enum SoftRasterizerAsyncMode
++{
++	SOFTRASTERIZER_ASYNC_AUTO = 0,
++	SOFTRASTERIZER_ASYNC_DISABLED = 1,
++	SOFTRASTERIZER_ASYNC_ENABLED = 2
++};
++void SoftRasterizer_SetAsyncMode(SoftRasterizerAsyncMode mode);
++SoftRasterizerAsyncMode SoftRasterizer_GetAsyncMode();
++
  struct SoftRasterizerPostProcessParams
  {
  	SoftRasterizerRenderer *renderer;
-@@ -103,6 +117,12 @@ protected:
+@@ -103,6 +132,12 @@ protected:
  	bool _debug_thisPoly;
  	u32 _SLI_startLine;
  	u32 _SLI_endLine;
@@ -2846,7 +3203,7 @@ index becafc0e..929ff212 100644
  	
  	SoftRasterizerRenderer *_softRender;
  	SoftRasterizerTexture *_currentTexture;
-@@ -132,6 +152,7 @@ public:
+@@ -132,6 +167,7 @@ public:
  	void SetSLI(u32 startLine, u32 endLine, bool debug);
  	void SetRenderer(SoftRasterizerRenderer *theRenderer);
  	template<bool SLI, bool USELINEHACK> FORCEINLINE void Render();
@@ -2854,7 +3211,7 @@ index becafc0e..929ff212 100644
  };
  
  #if defined(ENABLE_AVX2)
-@@ -158,6 +179,67 @@ protected:
+@@ -158,6 +194,84 @@ protected:
  	size_t _customLinesPerThread;
  	size_t _customPixelsPerThread;
  	
@@ -2895,10 +3252,9 @@ index becafc0e..929ff212 100644
 +	// which a direct display capture of the 3D reads line by line while the threads draw the lines below.
 +	size_t _flushed16Lines;
 +	void _Flush16Lines(const size_t startLine, const size_t endLine);
-+#ifdef REWINDBOX_PERF
-+	u64 _rbPerfRenderStart;            // start of this render (emulation thread), for the time to its last band
-+	volatile s32 _rbPerfBandsFinished; // bands finished in this render (rasterizer threads, atomic)
-+#endif
++	u64 _renderStartNs;           // start of this render drawn by bands (emulation thread)
++	volatile s32 _bandsFinished;  // bands finished in this render (rasterizer threads, atomic)
++	u64 _lastRenderWallNs;        // start to last band of the last render drawn by bands (atomic), 0 once read
 +	void _PrepareBands();
 +	void _FinishBand(const u32 band);
 +	void _WaitBand(const u32 band);
@@ -2919,10 +3275,28 @@ index becafc0e..929ff212 100644
 +	void _SetRenderView(size_t supersampling);
 +	void _ResolveSupersampling();
 +	
++	// RewindBox: asynchronous 3D. _framebufferColor is the buffer this render draws (resolves) into and
++	// _displayColor the one the 2D engine shows (GetFramebuffer()): the same buffer, unless a slow render is
++	// drawn into the other one (_primaryColor, the main engine's, or _asyncColorOwned) while the last finished
++	// render stays on screen. _displayDeferred: this frame shows that render. The emulation thread alone
++	// changes these; it changes _framebufferColor only while no render is in flight.
++	FragmentColor *_primaryColor;
++	FragmentColor *_asyncColorOwned;
++	FragmentColor *_displayColor;
++	bool _displayDeferred;
++	u64 _frameCounter;     // frames begun (BeginFrame3D)
++	u64 _lastCaptureFrame; // the last of them with a display capture
++	u32 _asyncAutoRenders; // AUTO: renders still drawn asynchronously after the last slow one
++	void _AsyncSetPrimary();
++	void _AsyncReset();
++	bool _AsyncAllowed() const;
++	void _AsyncPrepareTarget();
++	bool _IsRenderComplete() const;
++	
  	u8 fogTable[32768];
  	FragmentColor edgeMarkTable[8];
  	bool edgeMarkDisabled[8];
-@@ -191,6 +273,23 @@ public:
+@@ -191,6 +305,23 @@ public:
  	SoftRasterizerRenderer();
  	virtual ~SoftRasterizerRenderer();
  	
@@ -2946,7 +3320,7 @@ index becafc0e..929ff212 100644
  	virtual ClipperMode GetPreferredPolygonClippingMode() const;
  	
  	void performViewportTransforms();
-@@ -209,6 +308,8 @@ public:
+@@ -209,9 +340,20 @@ public:
  	virtual Render3DError ApplyRenderingSettings(const GFX3D_State &renderState);
  	virtual Render3DError Render(const GFX3D &engine);
  	virtual Render3DError RenderFinish();
@@ -2955,11 +3329,23 @@ index becafc0e..929ff212 100644
  	virtual Render3DError RenderFlush(bool willFlushBuffer32, bool willFlushBuffer16);
  	virtual void ClearUsingValues_Execute(const size_t startPixel, const size_t endPixel);
  	virtual Render3DError SetFramebufferSize(size_t w, size_t h);
++	
++	// RewindBox: asynchronous 3D
++	virtual Render3DError RenderPowerOff();
++	virtual FragmentColor* GetFramebuffer();
++	virtual bool BeginFrame3D(const bool willDisplayCapture);
++	virtual bool IsDisplayDeferred() const;
++	virtual void EndDisplayDeferral();
++	virtual bool CanRenderStayInFlight() const;
++	virtual void ShowLatestRender();
+ };
+ 
+ template <size_t SIMDBYTES>
 diff --git a/desmume/src/render3D.cpp b/desmume/src/render3D.cpp
-index cd37ded2..ba16a4e6 100644
+index cd37ded2..f323bd13 100644
 --- a/desmume/src/render3D.cpp
 +++ b/desmume/src/render3D.cpp
-@@ -747,6 +747,16 @@ Render3DError Render3D::RenderFinish()
+@@ -747,6 +747,40 @@ Render3DError Render3D::RenderFinish()
  	return RENDER3DERROR_NOERR;
  }
  
@@ -2973,14 +3359,38 @@ index cd37ded2..ba16a4e6 100644
 +{
 +}
 +
++bool Render3D::BeginFrame3D(const bool willDisplayCapture)
++{
++	return false;
++}
++
++bool Render3D::IsDisplayDeferred() const
++{
++	return false;
++}
++
++void Render3D::EndDisplayDeferral()
++{
++}
++
++bool Render3D::CanRenderStayInFlight() const
++{
++	return false;
++}
++
++void Render3D::ShowLatestRender()
++{
++	this->RenderFinish();
++}
++
  Render3DError Render3D::RenderFlush(bool willFlushBuffer32, bool willFlushBuffer16)
  {
  	return RENDER3DERROR_NOERR;
 diff --git a/desmume/src/render3D.h b/desmume/src/render3D.h
-index d5fad8d7..0ba8d4e0 100644
+index d5fad8d7..661d67f3 100644
 --- a/desmume/src/render3D.h
 +++ b/desmume/src/render3D.h
-@@ -239,6 +239,13 @@ public:
+@@ -239,6 +239,26 @@ public:
  														// and only release the block when 3D rendering is finished. (Before reading the 3D layer, be
  														// sure to always call this function.)
  	
@@ -2990,6 +3400,19 @@ index d5fad8d7..0ba8d4e0 100644
 +	virtual void RenderFlush16Lines(const size_t outputLineEnd);	// RewindBox: the 15-bit copy of the 3D (direct display capture) for the
 +																	// output lines before outputLineEnd, once RenderFinishLines() returned
 +																	// for them; RenderFlush() then converts the other lines only.
++	virtual bool BeginFrame3D(const bool willDisplayCapture);		// RewindBox: asynchronous 3D, at the first line of each frame
++																	// (willDisplayCapture: this frame captures the display). True when it
++																	// finished the render in flight (as RenderFinish()). Otherwise the
++																	// renderer may show its last finished render for the whole frame
++																	// (IsDisplayDeferred()) while it draws the new one.
++	virtual bool IsDisplayDeferred() const;							// RewindBox: this frame shows the last finished render; nothing waits for
++																	// the render in flight.
++	virtual void EndDisplayDeferral();								// RewindBox: a display capture begins on this line: from it on, the frame
++																	// shows the render in flight and waits for its lines.
++	virtual bool CanRenderStayInFlight() const;						// RewindBox: the render in flight may go on past the end of the frame
++																	// (it is not the one shown); it finishes before the next one begins.
++	virtual void ShowLatestRender();								// RewindBox: finishes the render in flight; GetFramebuffer() then returns
++																	// it (savestates read and write that picture).
 +	
  	virtual Render3DError RenderFlush(bool willFlushBuffer32, bool willFlushBuffer16);	// Called whenever the emulator needs the flushed results of the 3D renderer. Before calling this,
  																						// the 3D renderer must be finished using RenderFinish() or confirmed already finished using
@@ -5943,10 +6366,10 @@ index ca2aa14a..09251b13 100644
  
 diff --git a/desmume/src/utils/rb_perf.h b/desmume/src/utils/rb_perf.h
 new file mode 100644
-index 00000000..113a7f51
+index 00000000..7453edb0
 --- /dev/null
 +++ b/desmume/src/utils/rb_perf.h
-@@ -0,0 +1,104 @@
+@@ -0,0 +1,108 @@
 +/*
 +	Copyright (C) 2026 RewindBox
 +
@@ -5972,6 +6395,8 @@ index 00000000..113a7f51
 +	blocked on a band), captureFrames and capture3DFrames (frames with a display capture, and with a direct
 +	capture of the 3D). render3dWall: from the start of a render drawn by bands to its last band (atomic);
 +	rasterCpu: CPU time of the rasterizer threads (atomic), against `raster`, their wall time.
++	deferredFrames: frames that showed the last finished 3D while the rasterizer threads drew the new one
++	(asynchronous 3D).
 +*/
 +#ifndef RB_PERF_H
 +#define RB_PERF_H
@@ -5996,6 +6421,7 @@ index 00000000..113a7f51
 +	u64 capture3DFrames; // part of captureFrames: a direct capture of the 3D (DISPCAPCNT source A = 3D)
 +	u64 render3dWall;    // start of a render drawn by bands to its last band (atomic)
 +	u64 rasterCpu;       // CPU time of the rasterizer threads (atomic)
++	u64 deferredFrames;  // frames that showed the last finished 3D, the new one still drawing (asynchronous 3D)
 +};
 +
 +extern RbPerf rb_perf;
@@ -6047,6 +6473,7 @@ index 00000000..113a7f51
 +	s.capture3DFrames = rb_perf.capture3DFrames;
 +	s.render3dWall = __atomic_load_n(&rb_perf.render3dWall, __ATOMIC_RELAXED);
 +	s.rasterCpu = __atomic_load_n(&rb_perf.rasterCpu, __ATOMIC_RELAXED);
++	s.deferredFrames = rb_perf.deferredFrames;
 +	return s;
 +}
 +

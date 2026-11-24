@@ -7,7 +7,8 @@ DeSmuME, que le fork libretro n'a jamais importé, puis corrigé et branché sur
 [docs/desmume-arm64-jit-architecture.md](../../docs/desmume-arm64-jit-architecture.md) (sections 13 et 14) :
 couche commune, interpréteur en cache, JIT RewindBox à appels puis natif ; puis (section 15) le correctif du gel
 de l'IPA 828 et un rendu plus rapide en haute résolution interne ; enfin (section 16) le suréchantillonnage 3D,
-les mesures `[rb-perf]` et la 3D qui se dessine pendant la composition 2D.
+les mesures `[rb-perf]`, la 3D qui se dessine pendant la composition 2D, puis la 3D asynchrone et l'image écrite
+dans la mémoire de l'hôte.
 
 ## Ce que la compilation assemble
 
@@ -15,7 +16,7 @@ les mesures `[rb-perf]` et la 3D qui se dessine pendant la composition 2D.
    `emit_core.cpp` et `arm64_emit.cpp` de
    [TASEmulators/desmume@b549f71b](https://github.com/TASEmulators/desmume/tree/b549f71b83287f265b6d74b9e77ef5d98a617190),
    pris à cette révision et vérifiés par SHA-256. `arm_emit.cpp` (ARM 32 bits) n'est pas pris.
-2. **Correctif** `arm64-jit-abi.patch` (30 fichiers, +4 308/−334), un `git diff` contre l'arbre libretro plus ces
+2. **Correctif** `arm64-jit-abi.patch` (30 fichiers, +4 696/−337), un `git diff` contre l'arbre libretro plus ces
    trois fichiers d'origine. Il crée `utils/arm_jit/rb_cached.cpp`, `rb_a64.h`, `rb_jit.cpp`, `utils/rb_perf.h` et
    `utils/rb_sse2neon.h`, et modifie aussi le rendu (`rasterize.cpp`, `rasterize.h`, `render3D.cpp`, `render3D.h`,
    `GPU.cpp`, `GPU.h`, `gfx3d.cpp`, `types.h`, les trois fichiers `colorspacehandler`) et la sortie du frontend.
@@ -64,7 +65,9 @@ les mesures `[rb-perf]` et la 3D qui se dessine pendant la composition 2D.
 | Capture directe de la 3D (`GPU.cpp`, `rasterize.cpp`, `render3D.cpp`) | Une ligne capturée avec la 3D seule pour source attend ses bandes et convertit ses lignes en 15 bits (`RenderFlush16Lines`) ; `RenderFlush` convertit le reste. Mêmes images. |
 | Composition 2D en NEON (`types.h`, `GPU.h`, `GPU.cpp`, `colorspacehandler*`, `utils/rb_sse2neon.h`) | `RB_GPU_SSE2` choisit les voies SSE2 des moteurs 2D, y compris sur AArch64, où `rb_sse2neon.h` écrit en NEON les 49 instructions SSE2 qu'elles emploient. Le reste du cœur garde ses voies C++. Mêmes images. |
 | Fils du rastériseur (`rasterize.cpp`) | Sur les plates-formes Apple, `QOS_CLASS_USER_INITIATED` : une classe sous le fil d'émulation de l'hôte. |
-| Mesures `[rb-perf]` (`utils/rb_perf.h`, `GPU.cpp`, `rasterize.cpp`, `libretro.cpp`) | Toutes les 600 images, une ligne du journal du cœur donne le temps moyen par image de chaque étape (voir ci-dessous). |
+| 3D asynchrone (`desmume_rb_3d_async`, `rasterize.cpp`, `rasterize.h`, `render3D.cpp`, `render3D.h`, `GPU.cpp`, `gfx3d.cpp`) | Un rendu lent se dessine dans un second tampon de couleur pendant que le moteur 2D montre, pour des images entières, le dernier rendu terminé ; la première ligne de chaque image (`BeginFrame3D`) affiche le nouveau dès qu'il est fini. Le fil d'émulation n'attend plus les fils du rastériseur ; un rendu se termine seulement avant le suivant ou avant que le jeu remplace ses listes. `auto` (défaut) : après un rendu de plus de 8 ms, pour 120 rendus au moins ; `enabled` : tout rendu des fils ; `disabled` : comme avant. Jamais dans les 60 images qui suivent une capture d'écran, ni en sortie 24 bits. Logique du jeu inchangée (son identique) ; la 3D s'affiche une ou deux images plus tard. |
+| Image dans la mémoire de l'hôte (`libretro.cpp`) | Les deux écrans sont convertis directement dans la mémoire que l'hôte donne par `RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER`, en RGB565, quand la disposition couvre toute l'image (sans écart, hors hybride) ; sinon, et si l'hôte n'en donne pas, dans le tampon du cœur comme avant. Mêmes pixels. |
+| Mesures `[rb-perf]` (`utils/rb_perf.h`, `GPU.cpp`, `rasterize.cpp`, `libretro.cpp`) | Toutes les 600 images, une ligne du journal du cœur donne le temps moyen par image de chaque étape (voir ci-dessous), dont `defer` et `direct` depuis la section 16.7. |
 
 ## Vérification hors appareil
 
@@ -236,6 +239,64 @@ Vérifications :
   réglages de ×1 à ×5 + 3D 2x, 1 à 4 fils) ;
 - sur AArch64 sous qemu, JIT, composition NEON comprise : 39 cas identiques au cœur de la 831 (10 homebrews 2D en
   ×1 et ×4, 5 homebrews 3D en ×1, ×3 et ×5 + 3D 2x, capture affichée sur 2 homebrews) ;
+- le correctif s'applique aux sources épinglées et redonne exactement l'arbre testé.
+
+### 3D asynchrone, image dans la mémoire de l'hôte (section 16.7)
+
+Journal de la 832 (Animal Crossing, iPhone) : ×5 + 3D 2x et ×8 à 59,9 i/s, ×10 à 50,8–52,5 i/s (`run` 18,8–19,4 ms,
+`max` 41–48 ms, `over33` 30–33). Le jeu dessine une image 3D sur trois (`r3d` 200 pour 600 images) et n'en capture
+aucune (`cap` 0) ; chaque rendu dure 29 ms (`t3d`), et l'image qui l'attend dépasse 33 ms. S'y ajoutent `wait`
+3,3 ms, `2d` 8,1 ms, `out` 1,3 ms et `host` 2,9 ms (copie des deux écrans dans la texture par le processeur).
+
+- **3D asynchrone** (`desmume_rb_3d_async`). `SoftRasterizerRenderer` a deux tampons de couleur de la taille de
+  sortie : celui du moteur principal et un second, alloué au premier rendu asynchrone. `BeginRender` choisit où
+  dessiner : `auto` (défaut), après un rendu de plus de 8 ms, pour 120 rendus au moins ; `enabled`, tout rendu des
+  fils ; sinon le tampon affiché, comme avant. À la première ligne de chaque image, `BeginFrame3D` termine le rendu
+  s'il est fini et l'affiche ; sinon, l'image entière montre le dernier rendu terminé (`GetFramebuffer()`), sans
+  rien attendre. Le rendu continue au-delà de la fin de l'image ; il se termine avant le suivant
+  (`gfx3d_VBlankEndSignal`) ou avant que le jeu remplace ses listes (`gfx3d_doFlush`). Une capture d'écran lit la 3D
+  de sa propre image : dès sa ligne, l'image attend le rendu en cours, et rien n'est asynchrone pendant les
+  60 images suivantes. Jamais en sortie 24 bits. États sauvegardés : la dernière image 3D, comme avant
+  (`ShowLatestRender`).
+- **Image dans la mémoire de l'hôte.** Les deux écrans sont convertis en RGB565 directement dans la mémoire que
+  l'hôte donne (`RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER`) quand la disposition couvre toute l'image
+  (sans écart, hors hybride) ; sinon dans `screen_buf`, comme avant. RewindBox donne un tampon Metal partagé, que le
+  GPU recopie dans la texture de l'image dans le lot de commandes qui l'affiche : plus de copie de 20 Mo par image
+  (×10) sur le fil d'émulation.
+- **Mesures** ajoutées : `defer` (images qui ont montré le rendu précédent pendant que le nouveau se dessinait) et
+  `direct` (images écrites dans la mémoire de l'hôte ; `host` compte alors aussi la réponse de l'hôte).
+
+Banc x86 (4 processeurs virtuels, interpréteur, composition 2D en C++, scène « Galaxy » qui dessine la 3D à
+chaque image, ×10, 4 fils, images 601 à 1 200 de chaque course) :
+
+| Cœur | i/s | `run` (ms) | `wait` (ms) | `over33` |
+|---|---|---|---|---|
+| 832 | 31,7 | 31,1 | 3,1 | 162 |
+| ce cœur, `disabled` | 29,7–31,6 | 31,1–33,2 | 2,8–4,0 | 143–216 |
+| ce cœur, `auto` | 33,0–34,0 | 29,1–29,9 | 1,0–1,4 | 85–117 |
+
+Ce banc est limité par le fil d'émulation (composition 2D et sortie en C++, 21 ms par image), et la scène redessine
+la 3D à chaque image : la 3D asynchrone n'y retire que l'attente. Une course du 832 où tout le banc ralentissait
+(18,5 i/s) est écartée. Sur l'iPhone en ×10, c'est le rendu d'Animal Crossing (29 ms, une image sur trois) qui
+retient l'image ; rien n'y est encore mesuré. L'image dans la mémoire de l'hôte ne se mesure pas sur ce banc (il n'a
+pas de GPU) : son gain attendu est le `host` de la 832, 2,9 ms par image en ×10.
+
+Vérifications :
+- `disabled` : images et son identiques au cœur de la 832, sur x86 (30 cas : 5 homebrews 3D × ×1, ×4 et ×5 + 3D 2x,
+  avec et sans capture forcée) et sur AArch64 sous qemu avec le JIT (16 premiers cas identiques : 4 homebrews 3D
+  en ×1 et ×5 + 3D 2x, avec et sans image dans la mémoire du banc ; la série avec capture forcée tourne encore) ;
+- `auto` et `enabled` : son identique dans tous les cas (la logique du jeu ne change pas) ; images différentes à
+  partir de ×4, où la 3D s'affiche plus tard, et identiques en ×1 (rendu sur le fil d'émulation) ;
+- avec une capture forcée (VRAM D en LCDC, capture de la 3D vers D, puis affichage de D), `auto` et `enabled`
+  donnent les images de la 832, au bit près (x86 ; AArch64 en cours) : la capture coupe bien la 3D asynchrone ;
+- chaque image d'une course asynchrone (`enabled`, ×4, 300 images, Galaxy, MD2, Basic3D) se retrouve telle quelle
+  dans la course synchrone, au même rang ou une image plus tôt : jamais de 3D à moitié dessinée ni de déchirure ;
+- image dans la mémoire de l'hôte : avec un banc qui donne deux tampons remplis d'un motif à chaque image, mêmes
+  images que sans (×1, ×4 et ×5 + 3D 2x, Galaxy et MarioKart, x86 ; 4 homebrews en ×1 et ×5 + 3D 2x, AArch64
+  avec le JIT), 200 images sur 200 écrites dans ces tampons ;
+- ThreadSanitizer, 4 fils, ×4 et ×5 + 3D 2x, `enabled` avec un état sauvegardé puis rechargé en cours de rendu,
+  passage `enabled` → `disabled` → `enabled` en jeu, capture forcée : aucune course nouvelle (restent les compteurs
+  d'usage du cache de textures, déjà dans le cœur) ;
 - le correctif s'applique aux sources épinglées et redonne exactement l'arbre testé.
 
 ## Limites connues

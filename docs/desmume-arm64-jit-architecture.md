@@ -872,3 +872,53 @@ fermée depuis le sélecteur) :
 - `ecpu` contre `run` − `wait` : temps perdu par le fil d'émulation faute de cœur ;
 - `rcpu` contre `raster` : idem pour les fils du rastériseur ;
 - `run`, `wait`, `2d`, `engA`, `engB`, `end`, `over16`.
+
+### 16.7 Après l'IPA 832 : ×5 et ×8 à 60 i/s, ×10 à 51 i/s ; 3D asynchrone, image dans la mémoire de l'hôte
+
+Retour du mainteneur : `session.log` (Animal Crossing), « Ça fonctionne en x5 et même en x8. Maintenant le but est
+d'y arriver en x10 ! » Objectif : ×10 à 59-60+ i/s stables.
+
+- **Ce que dit le journal** (lignes `core: [rb-perf]`, 600 images chacune) :
+  - ×5 + 3D 2x : 59,9 i/s (`run` 14,3 ms, `wait` 2,8, `t3d` 26,5) ; ×8 : `run` 11,4 ms (ligne prise pendant un
+    changement de réglage : son débit mural ne compte pas) ;
+  - ×10 : 50,8–52,5 i/s, `run` 18,8–19,4 ms, `max` 41–48 ms, `over16` 226–235, `over33` 30–33 ;
+  - à ×10 : `cpu` 3,8, `2d` 8,1 (`engA` 7,4), `wait` 3,3, `out` 1,3, `host` 2,9 ms par image ;
+  - `r3d` 200 pour 600 images (une image 3D sur trois), `cap` 0 (aucune capture) ; `t3d` 29,1–29,6 ms ;
+  - JIT sain : 31 500 à 32 300 blocs, 24 Mio sur 64, aucun vidage, aucune instruction interprétée, aucun échec.
+- **Diagnostic.** Le JIT n'est pas le goulot (`cpu` 3,8 ms). Chaque rendu 3D dure 29 ms, plus qu'une image : l'image
+  qui l'attend dépasse 33 ms (les 30 `over33`), les deux suivantes vont vite, d'où 51 i/s en moyenne et des
+  saccades. S'y ajoute `host` : l'hôte recopie 20 Mo par image (les deux écrans en 2560×1920) dans la texture, sur le
+  fil d'émulation.
+
+**Changements** (détail et vérifications : [README](../native/desmume/README.md), section « 3D asynchrone, image
+dans la mémoire de l'hôte ») :
+
+- **3D asynchrone** (`desmume_rb_3d_async`, `auto` par défaut) : un rendu lent (plus de 8 ms) se dessine dans un
+  second tampon pendant que la 2D montre le dernier rendu terminé, pour des images entières ; le nouveau s'affiche à
+  la première image où il est fini. Le fil d'émulation n'attend plus la 3D ; elle s'affiche une ou deux images plus
+  tard. Jamais avec une capture d'écran (60 images de garde), ni en sortie 24 bits ; logique du jeu inchangée.
+- **Image dans la mémoire de l'hôte** : le cœur convertit les deux écrans directement dans un tampon Metal partagé
+  (`RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER`) ; le GPU le recopie dans la texture, dans le lot de
+  commandes qui affiche l'image (`LibretroMetalPresenter`, deux tampons en alternance, DeSmuME seulement côté
+  `LibretroSession`).
+- Mesures `defer` et `direct` dans `[rb-perf]`.
+
+**Banc** (x86, 4 processeurs virtuels, Galaxy en ×10, 3D à chaque image, composition 2D en C++) : 33,0–34,0 i/s en
+`auto` contre 29,7–31,7 sans (`wait` de 2,8–4,0 à 1,0–1,4 ms, `over33` de 143–216 à 85–117). Ce banc est limité par le
+fil d'émulation (21 ms par image de 2D et de sortie) : il ne montre que l'attente retirée. Vérifications (README) :
+`disabled` identique au cœur de la 832 sur x86 et sur AArch64 avec le JIT ; `auto` et `enabled` : son identique
+partout, images de la 832 au bit près dès qu'une capture est forcée (x86 ; AArch64 en cours) ; aucune image asynchrone à moitié dessinée ;
+ThreadSanitizer sans course nouvelle ; image dans la mémoire de l'hôte au pixel près.
+
+**Attendu sur l'iPhone** (estimation, non mesurée) : `wait` disparaît et `host` tombe vers quelques dixièmes de
+milliseconde, soit `run` vers 13 à 14 ms au lieu de 19,4 ; surtout, plus d'image de 33 ms à chaque rendu (`max` vers
+la durée d'une image sans 3D). Le rendu, lui, garde ses 29 ms : il tient dans les trois images que dure chaque image
+3D d'Animal Crossing. Rien ne garantit 60 i/s stables avant la mesure.
+
+**À lire** dans le prochain `session.log` (lignes `core: [rb-perf] …`) :
+- `defer` proche de 400 sur 600 (deux images sur trois montrent le rendu précédent) : la 3D asynchrone agit ;
+- `direct` 600 : chaque image est écrite dans la mémoire de l'hôte, `host` doit chuter ;
+- `run`, `max`, `over16`, `over33` : la régularité ; `wait` proche de 0 ;
+- `t3d` et `rcpu` : si les fils du rastériseur, qui tournent désormais en même temps que l'émulation, ralentissent ;
+- `ecpu` contre `run` : temps perdu par le fil d'émulation faute de cœur.
+

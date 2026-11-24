@@ -30,6 +30,13 @@
 #define LIBRETRO_VK_HANDOFF_GROWTH ((VkDeviceSize)1024 * 1024)
 /// Read-back timings are logged every this many handed-off frames.
 #define LIBRETRO_VK_HANDOFF_LOG_INTERVAL 600
+/// Frames of one image per sync index seen before that image is lent itself.
+#define LIBRETRO_VK_DIRECT_STREAK 8
+
+/// MoltenVK's vkGetMTLTextureMVK (exported by the embedded MoltenVK 1.2.8):
+/// the MTLTexture of a VkImage, not retained. Declared with void ** so that
+/// ARC never releases what MoltenVK did not retain.
+typedef void (*LibretroGetMTLTexture)(VkImage image, void **texture);
 
 static NSError *VulkanError(NSString *detail) {
   return [NSError errorWithDomain:@"org.neostation.libretro.vulkan"
@@ -100,6 +107,11 @@ typedef struct {
   size_t bytesPerRow;
   MTLPixelFormat pixelFormat;
 } LibretroVkSlot;
+
+@interface LibretroVulkanRenderer ()
+/// Waits until the slot lent to a handler is released (2 s at most).
+- (void)reclaimSlot:(uint32_t)index;
+@end
 
 @implementation LibretroVulkanRenderer {
   CAMetalLayer *_layer;
@@ -185,6 +197,14 @@ typedef struct {
   BOOL _slotLent[LIBRETRO_VK_HANDOFF_SLOTS];
   dispatch_semaphore_t _slotReleased[LIBRETRO_VK_HANDOFF_SLOTS];
   BOOL _loggedHandOffPath;
+  // Direct hand-off: the core image each slot held last, the core image a
+  // slot lends (its MTLTexture), and how long the core has kept one image
+  // per sync index.
+  LibretroGetMTLTexture _getMTLTexture;
+  VkImage _slotImage[LIBRETRO_VK_HANDOFF_SLOTS];
+  id<MTLTexture> _slotTexture[LIBRETRO_VK_HANDOFF_SLOTS];
+  unsigned _directStreak;
+  BOOL _loggedDirect;
   VkPhysicalDeviceMemoryProperties _memoryProperties;
   VkFormat _loggedFormat;
   VkFormat _checkedBlitFormat;
@@ -300,6 +320,8 @@ static void LibretroVkWaitSyncIndex(void *handle) {
   if (renderer->_handOff) {
     LibretroVkSlot *slot = &renderer->_slots[renderer->_slot];
     if (slot->submitted) renderer->_waitForFences(renderer->_device, 1, &slot->fence, VK_TRUE, UINT64_MAX);
+    // The core is about to draw into this slot's image: Metal must be done with it.
+    [renderer reclaimSlot:renderer->_slot];
     return;
   }
   uint32_t index = renderer->_currentIndex;
@@ -524,6 +546,8 @@ static BOOL QueryOptimalTilingFeatures(VkFormat format, VkFormatFeatureFlags *fe
     if (error) *error = VulkanError(@"vkGetInstanceProcAddr missing");
     return NO;
   }
+  // Optional: without it every frame is copied.
+  _getMTLTexture = (LibretroGetMTLTexture)dlsym(library, "vkGetMTLTextureMVK");
   _createInstance = (PFN_vkCreateInstance)_getInstanceProcAddr(VK_NULL_HANDLE, "vkCreateInstance");
   _enumerateInstanceExtensions = (PFN_vkEnumerateInstanceExtensionProperties)_getInstanceProcAddr(
       VK_NULL_HANDLE, "vkEnumerateInstanceExtensionProperties");
@@ -829,6 +853,8 @@ static BOOL QueryOptimalTilingFeatures(VkFormat format, VkFormatFeatureFlags *fe
       _waitForFences(_device, 1, &slot->fence, VK_TRUE, UINT64_MAX);
     }
     [self reclaimSlot:index];
+    _slotTexture[index] = nil;
+    _slotImage[index] = VK_NULL_HANDLE;
     [self releaseBufferOfSlot:index];
     [self releaseConvertImageOfSlot:index];
     if (slot->fence != VK_NULL_HANDLE && _destroyFence != NULL) _destroyFence(_device, slot->fence, NULL);
@@ -1376,8 +1402,10 @@ static BOOL QueryOptimalTilingFeatures(VkFormat format, VkFormatFeatureFlags *fe
       .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
   };
   _beginCommandBuffer(command, &begin);
-  // Duplicated frames copy nothing: the presenter keeps the last frame.
-  BOOL copied = valid && [self recordCopyInSlot:index width:width height:height];
+  // Duplicated frames copy nothing: the presenter keeps the last frame. The
+  // core's own image is lent when it keeps one per sync index, else copied.
+  BOOL direct = valid && [self captureDirectInSlot:index width:width height:height];
+  BOOL copied = direct || (valid && [self recordCopyInSlot:index width:width height:height]);
   _endCommandBuffer(command);
 
   // libretro_vulkan.h: no semaphore wait for duplicated frames or when the
@@ -1425,6 +1453,46 @@ static BOOL QueryOptimalTilingFeatures(VkFormat format, VkFormatFeatureFlags *fe
   uint32_t previous = (index + LIBRETRO_VK_HANDOFF_SLOTS - 1) % LIBRETRO_VK_HANDOFF_SLOTS;
   _slot = (index + 1) % LIBRETRO_VK_HANDOFF_SLOTS;
   [self handOffSlot:previous];
+}
+
+/// Direct hand-off of the frame in `index`: YES, with the core image's
+/// MTLTexture kept in the slot, once the core has kept one image per sync
+/// index (this slot's image is the one it had two frames ago, the other
+/// slot's differs) for LIBRETRO_VK_DIRECT_STREAK frames, in a format the
+/// presenter reads as the copies would, on our queue family. NO otherwise:
+/// the frame is copied.
+- (BOOL)captureDirectInSlot:(uint32_t)index width:(unsigned)width height:(unsigned)height {
+  _slotTexture[index] = nil;
+  VkImage image = _hasLastImage ? _lastImage.create_info.image : VK_NULL_HANDLE;
+  const uint32_t other = (index + 1) % LIBRETRO_VK_HANDOFF_SLOTS;
+  const BOOL perSyncIndex = image != VK_NULL_HANDLE && image == _slotImage[index] && image != _slotImage[other];
+  _slotImage[index] = image;
+  if (!perSyncIndex || width == 0 || height == 0) {
+    _directStreak = 0;
+    return NO;
+  }
+  if (_directStreak < LIBRETRO_VK_DIRECT_STREAK) {
+    _directStreak++;
+    return NO;
+  }
+  if (self.textureHandler == nil || _getMTLTexture == NULL) return NO;
+  const uint32_t sourceFamily = _imageSourceQueueFamily;
+  if (sourceFamily != VK_QUEUE_FAMILY_IGNORED && sourceFamily != _queueFamily) return NO;
+  const VkImageLayout layout = _lastImage.image_layout;
+  if (layout == VK_IMAGE_LAYOUT_UNDEFINED || layout == VK_IMAGE_LAYOUT_PREINITIALIZED) return NO;
+  MTLPixelFormat expected = MTLPixelFormatInvalid;
+  if (!HandOffPixelFormat(_lastImage.create_info.format, &expected)) return NO;
+  void *raw = NULL;
+  _getMTLTexture(image, &raw);
+  id<MTLTexture> texture = (__bridge id<MTLTexture>)raw;
+  // An sRGB texture would be decoded when sampled, unlike the raw copies.
+  if (texture == nil || texture.pixelFormat != expected || texture.width < width || texture.height < height) return NO;
+  LibretroVkSlot *slot = &_slots[index];
+  slot->width = width;
+  slot->height = height;
+  slot->pixelFormat = expected;
+  _slotTexture[index] = texture;
+  return YES;
 }
 
 /// Records, in the slot's command buffer being recorded, the copy of the
@@ -1544,6 +1612,25 @@ static BOOL QueryOptimalTilingFeatures(VkFormat format, VkFormatFeatureFlags *fe
     slot->submitted = NO;
   }
   uint64_t waited = mach_absolute_time();
+  id<MTLTexture> texture = _slotTexture[index];
+  _slotTexture[index] = nil;
+  LibretroVulkanTextureHandler textureHandler = self.textureHandler;
+  if (texture != nil && textureHandler != nil) {
+    if (!_loggedDirect) {
+      _loggedDirect = YES;
+      NSLog(@"[Libretro] Vulkan frames reach Metal directly (core image, no copy), %ux%u", slot->width, slot->height);
+    }
+    dispatch_semaphore_t released = _slotReleased[index];
+    _slotLent[index] = YES;
+    __block BOOL once = NO;
+    textureHandler(texture, slot->width, slot->height, ^{
+      if (once) return;
+      once = YES;
+      dispatch_semaphore_signal(released);
+    });
+    [self noteReadBackWait:waited - start handOff:mach_absolute_time() - waited];
+    return;
+  }
   LibretroVulkanBufferHandler bufferHandler = self.bufferHandler;
   id<MTLBuffer> metal = _slotMetal[index];
   if (bufferHandler != nil && metal != nil) {
