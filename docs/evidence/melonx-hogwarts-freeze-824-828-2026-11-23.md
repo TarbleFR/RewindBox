@@ -129,3 +129,46 @@ sources (821, 822, 823 : sources identiques) ; la 821, qui passait ce point, ava
 
 Non établi : l'appel exact où le rendu attend. Les relevés « #F » sont écrits dans `MeloNX-performance.log`, absent
 des journaux reçus.
+
+## 9. Historique : toutes les sessions Hogwarts reçues, IPA 606 à 829 — 24 novembre
+
+Sources : les 97 sessions Hogwarts des journaux de performance reçus (aucune de la 802), lues fenêtre par fenêtre
+(pipelines compute et graphiques construits, dessins, dispatchs).
+
+- Le jeu passait ce point dans toutes les IPA de 621 à 822 dont une session est reçue : au moins une session atteint
+  des dizaines de milliers de dessins par fenêtre de 5 s après t≈25 s.
+- Aucune session avant la 824 ne s'arrête comme celles de 824–829 (36 dessins, 5 dispatchs, puis plus rien) :
+  - 662 (huit sessions, fin à 14–24 s) : mort native du processus avec le GC NativeAOT reconstruit, corrigée par la
+    663 (retour au GC officiel) ;
+  - 669 17770, 693 38333 et 38363 : aucune image, processus presque inactif dès le départ ;
+  - 672 92832 et 92877 : encore en progrès (images présentées à 33 et 44 s) quand elles finissent ;
+  - les autres sessions courtes ont été fermées entre 3 et 16 s.
+- Cache Metal froid avant la 824 : des sessions ont compilé leurs pipelines compute à 150–450 ms pièce (640 5576 ;
+  658 79315, 79477, 79931, 80176, 80566, 80774 ; 672 18339, 18409, 92832, 92877 ; 694 39157). Celles qui ont duré ont
+  toutes passé ce point, lentement (658 79315 : 363 dessins et 40 dispatchs à 31 s, puis la partie). Un cache froid
+  seul n'arrêtait donc pas le jeu.
+- Depuis la 726 (Core 725, `adapt_variant_replay_all` : tous les états enregistrés sont préparés au lancement), la
+  première fenêtre construit 526 à 535 pipelines compute et ~3 500 graphiques. Toutes les sessions reçues de la 726 à
+  la 822 les ont trouvés dans le cache (0,1 à 1,2 s pour les 535). La 824 est la première session avec un cache froid
+  depuis ce changement ; dans les 824–829, le seul travailleur compile des pipelines compute un par un (~0,5 s
+  chacun) pendant toute la session et presque plus de graphiques (0 à 2 par fenêtre), alors que les sessions froides
+  de 658/672 construisaient les deux.
+- Pendant le gel (828 17066, mesures du Core) : à partir de 22,5 s, le fil de rendu reste dans une seule commande
+  (`renderDrain` en cours, âge 3,0 → 28,5 s) et le fil GPU dans `gpuDispatch` depuis le même instant ; une seule
+  construction compute est en cours à tout moment, et elle se termine (âge 0,2 à 1,8 s). Aucune phase mesurée du fil
+  de rendu (lecture, requête, construction de pipeline) n'est ouverte.
+- Code (moteur de la 822) : un dispatch n'est jamais sauté (`ShaderInfoBuilder.Build` : `allowAsyncCompileSkip`
+  exige un programme sans écriture, et un programme compute écrit) ; un dispatch dont le pipeline manque attend le
+  préchauffage du programme dans `TryWaitForBackgroundComputePipeline` → `WaitForPipelineAtDraw` (attente par tranches
+  de 4 ms, presque sans CPU), ou construit le pipeline lui-même. Laquelle de ces attentes, ou une autre, tient le
+  rendu : non établi sans les relevés « #F ».
+
+Pool JIT et autres moteurs (question du mainteneur, même jour) :
+- Dans la session 829 (18006), seul MeloNX tourne dans le processus : aucune de ses 172 lignes de moteur ne vient de
+  S2Arm ni de RPCS3. S2Arm ne règle ses variables (dont `MTL_SHADER_CACHE_SIZE`) qu'au lancement d'un jeu Switch 2
+  (`runLaunchWithGid`), dans son propre processus.
+- Arène JIT : 1 024 Mio préparés en 1,68 s, sonde ARM64 exécutée, « actual engine JIT authorization confirmed » à 7 s
+  — mêmes étapes et même durée que la 822 (1,65 s). Utilisation au gel : 512 Mio au plus (824, 828).
+- « JIT Cache exhausted » (le défaut d'octobre) n'apparaît que dans deux sessions reçues, 658 11121 et 666 15155,
+  terminées à 12 et 16 s ; dans aucune session de 824 à 829.
+- Ce que les moteurs partagent : le cache du compilateur Metal de l'application (un seul pour MeloNX, S2Arm et RPCS3).
