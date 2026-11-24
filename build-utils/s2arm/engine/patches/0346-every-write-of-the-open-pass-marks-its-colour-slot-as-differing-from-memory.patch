@@ -1,0 +1,43 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 06048db..0a26d95 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -13765,9 +13765,21 @@ static int udc_slot_writes(int i, __unsafe_unretained NvShader *fs) {
+ //   Opting in per draw path lost writes: DrawTexture, tessellation and merged passes never reported, and their attachments' write-backs became DontCare
+ //   (t_nvn_drawtex / t_nvn_tess_dom / t_nvn_color_round, 10-30). A draw that encodes more than once counts conservatively from its second encode on
+ static int g_udc_precise;
++// RewindBox (patch 0346): the open pass's "differs from memory" marks (g_fb_dirty, which fb_prepare reads before a draw samples an attachment of its own pass) follow
++//   every write, as the store ledger above does. Only draw()'s own note set them: DrawTexture, tessellation, clears drawn as triangles and the other encodes that reach
++//   the ledger's conservative branch left a written slot marked clean, and a later draw of the same pass sampled it in place, reading memory without that write (the
++//   review of patch 0342 found it); a fragment shader without a colour list (rf.color_known 0) marked nothing, where the ledger counts every enabled channel.
++//   S2A_RB_FB_MARKS=0: draw()'s note alone, as before
++static int rb_fb_marks_on(void) {
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("S2A_RB_FB_MARKS"); v = !(e && !strcmp(e, "0"));
++        MLOG("RewindBox: every write of the open pass marks its colour slot as differing from memory: %s (S2A_RB_FB_MARKS%s; patch 0346)", v ? "on" : "off, draws alone as before", v ? "=0 turns it off" : "=0"); }
++    return v;
++}
+ static void udc_encode(void) {
+     if (g_udc_precise) { g_udc_precise = 0; return; }
+     for (int i = 0; i < g_nsd; i++) if (!g_sd[i].wrote) { if (g_sd[i].lskip) noload_witness(i, 6, 0); g_sd[i].wrote = 1; g_sd[i].wwhy = 6; }
++    if (rb_fb_marks_on() && R.has_rt) for (int i = 0; i < R.rt.n && i < 8; i++) if (R.rt.color[i]) g_fb_dirty[i] = 1;   // RewindBox (patch 0346)
+ }
+ static void udc_note_draw(NvProg *pr) {
+     g_udc_precise = 1;
+@@ -21648,7 +21660,7 @@ static void draw_top(const p_draw *dw, const p_draw_idx *di) {
+ }
+ // After a draw: the color slots it wrote now differ from memory until the pass ends (fb_prepare copies a hit on such a slot); the same write test as udc_note_draw
+ static void fb_note_draw(NvProg *pr) {
+-    uint32_t cm = pr && pr->sh[1] ? pr->sh[1]->rf.color_mask : 0;
++    uint32_t cm = pr && pr->sh[1] ? (pr->sh[1]->rf.color_known || !rb_fb_marks_on() ? pr->sh[1]->rf.color_mask : 0xffu) : 0;   // RewindBox (patch 0346): no colour list = every slot, as udc_slot_writes
+     if (R.has_rt) for (int i = 0; i < R.rt.n && i < 8; i++) if ((cm >> i & 1) && ((S.chmask.mask >> (4 * i)) & 0xf)) g_fb_dirty[i] = 1;
+ }
+ // RewindBox (patch 0324): a draw that samples an attachment of its own pass marks the fragment stage's argument block alone, and only when its substitution is not
+@@ -25276,6 +25288,7 @@ static void clear_tex_tri(const p_clear_tex *c, id<MTLTexture> t, unsigned level
+ }
+ static void clr_note(int slot, int depth, int stencil) {   // as udc_note_draw for a draw: the attachment was written (zero-source skip, unwritten-attachment store)
+     if (slot >= 0 && R.rt.color[slot]) { zskip_del(R.rt.color[slot]->serial); g_zskip_cand_ok[slot] = 0; }
++    if (slot >= 0 && slot < 8 && rb_fb_marks_on()) g_fb_dirty[slot] = 1;   // RewindBox (patch 0346): a clear in the pass leaves the slot differing from memory
+     for (int i = 0; i < g_nsd; i++) { sd_att *t = &g_sd[i];
+         if ((t->depth == 0 && slot >= 0 && t->idx == slot) || (t->depth == 1 && depth) || (t->depth == 2 && stencil)) { if (t->lskip && !t->wrote) noload_witness(i, 2, 2); t->wrote = 1; t->wwhy = 2; } }
+ }

@@ -1,5 +1,5 @@
 diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
-index cb53d00..637cf20 100644
+index 02b68e2..13aee1c 100644
 --- a/graphics/nvn/gfx/nvn/hle_nvn.c
 +++ b/graphics/nvn/gfx/nvn/hle_nvn.c
 @@ -3329,7 +3329,13 @@ NVN(nvnWindowGetPresentInterval, int, const NVNwindow *w) { return ((const win_t
@@ -18,7 +18,7 @@ index cb53d00..637cf20 100644
  static pthread_mutex_t g_vi_mu = PTHREAD_MUTEX_INITIALIZER; static int g_vi_crop[4];
  int32_t h_vi_set_layer_crop(void *layer, int32_t x, int32_t y, int32_t w, int32_t h) {
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 03767ef..b2b5228 100644
+index c2214b3..62dd4cf 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -3082,6 +3082,7 @@ static uint64_t rb_drs_scene_px(uint64_t f) {
@@ -29,7 +29,7 @@ index 03767ef..b2b5228 100644
  __attribute__((weak)) int nvn_rb_video_paced(void);
  static int fps_override(void);
  static rb_drs_trial g_rb_drs_trial;   // g_rb_floor_lock
-@@ -3096,6 +3097,25 @@ static rb_drs_trial g_rb_drs_trial;   // g_rb_floor_lock
+@@ -3096,6 +3097,39 @@ static rb_drs_trial g_rb_drs_trial;   // g_rb_floor_lock
  //   (b) only stops a trial the game has answered (rb_drs_trial_ramp_answered): an unanswered trial keeps its 30 frames.
  static int rb_drs_guard_on(void);
  __attribute__((weak)) int nvn_rb_game_interval(void);   // RewindBox (patch 0327): defined below, read by the trial's growth stop
@@ -43,10 +43,24 @@ index 03767ef..b2b5228 100644
 +//   it first. S2A_RB_NO_LOCK_SEEN=0: the guard only where the bridge asks for it, as before (S2A_RB_DRS_NO_LOCK=0 is what the bridge sends every other title: no opt-out)
 +static _Atomic int g_rb_drs_alternates;   // rb_drs_seen_step's answer
 +static rb_drs_seen g_rb_drs_seen;   // g_rb_floor_lock
++// The title list (review): S2A_RB_NO_LOCK_SEEN_OFF=<program id>[,<program id>...] turns it off for those games alone (env.txt is one for every game; the bridge
++//   sends S2A_RB_DRS_NO_LOCK=0 to every title but Mario Kart World, so that value cannot say "not this one"). The id is the launched game's (S2A_LAUNCH_GAME_ID)
++static int rb_no_lock_seen_listed(const char *list, const char *id) {
++    if (!list || !id || !*id) return 0;
++    const size_t n = strlen(id);
++    for (const char *q = list; *q; ) { while (*q == ',' || *q == ' ') q++; const char *e = q; while (*e && *e != ',' && *e != ' ') e++;
++        int same = (size_t)(e - q) == n;   // hexadecimal ids, either case
++        for (size_t i = 0; same && i < n; i++) { char x = q[i], y = id[i]; if (x >= 'a' && x <= 'z') x = (char)(x - 32); if (y >= 'a' && y <= 'z') y = (char)(y - 32); same = x == y; }
++        if (same) return 1;
++        q = e; }
++    return 0;
++}
 +static int rb_no_lock_seen_on(void) {
 +    static int v = -1;   // completion handlers; the same value whoever reads it first
-+    if (v < 0) { const char *e = getenv("S2A_RB_NO_LOCK_SEEN"); v = !(e && !strcmp(e, "0"));
-+        MLOG("[rb-guest-drs] no-lock guard for a game seen to alternate its interval: %s (S2A_RB_NO_LOCK_SEEN%s; patch 0344)", v ? "on" : "off", v ? "=0 turns it off" : "=0"); }
++    if (v < 0) { const char *e = getenv("S2A_RB_NO_LOCK_SEEN"), *id = getenv("S2A_LAUNCH_GAME_ID"); const int listed = rb_no_lock_seen_listed(getenv("S2A_RB_NO_LOCK_SEEN_OFF"), id);
++        v = !(e && !strcmp(e, "0")) && !listed;
++        MLOG("[rb-guest-drs] no-lock guard for a game seen to alternate its interval: %s (S2A_RB_NO_LOCK_SEEN%s; patch 0344)", v ? "on" : listed ? "off for this game (S2A_RB_NO_LOCK_SEEN_OFF lists it)" : "off",
++             v ? "=0 turns it off, S2A_RB_NO_LOCK_SEEN_OFF=<program id> for one game" : "=0"); }
 +    return v;
 +}
 +static int rb_drs_guard_active(void) {
@@ -55,7 +69,7 @@ index 03767ef..b2b5228 100644
  static int rb_drs_fix_scene_on(void) {
      static int v = -1;
      if (v < 0) { const char *e = getenv("S2A_RB_DRS_FIX_SCENE"); v = e && !strcmp(e, "1");   // off unless asked for: see the note above
-@@ -3125,8 +3145,8 @@ static rb_drs_blip g_rb_drs_blip;   // g_rb_floor_lock
+@@ -3125,8 +3159,8 @@ static rb_drs_blip g_rb_drs_blip;   // g_rb_floor_lock
  static int rb_drs_trial_now(uint64_t f, int fps) {
      int allowed = atomic_load_explicit(&g_drs_state, memory_order_relaxed) < 3 && fps_override() <= 0 &&
                    nvn_fps_limit() != 30 && !nvn_rb_video_paced();
@@ -66,7 +80,7 @@ index 03767ef..b2b5228 100644
      const uint64_t seen_px = stop_on ? rb_drs_scene_seen(f) : 0;
      const int answer_itv = stop_on ? nvn_rb_game_interval() : 2;   // RewindBox (patch 0327): the interval of the game's last present (2: the trial is not answered yet)
      os_unfair_lock_lock(&g_rb_floor_lock);
-@@ -3136,7 +3156,13 @@ static int rb_drs_trial_now(uint64_t f, int fps) {
+@@ -3136,7 +3170,13 @@ static int rb_drs_trial_now(uint64_t f, int fps) {
      if (stop_on) on = rb_drs_trial_ramp_answered(&g_rb_drs_trial, &g_rb_drs_trial_ramp, f, on, seen_px, answer_itv);   // RewindBox (patch 0327)
      const rb_drs_trial_ramp ramp = g_rb_drs_trial_ramp;
      rb_drs_trial tr = g_rb_drs_trial;
@@ -80,7 +94,7 @@ index 03767ef..b2b5228 100644
      if (tr.trials != trials && (tr.trials <= 8 || !(tr.trials & (tr.trials - 1))))
          MLOG("[rb-guest-drs] trial frame=%llu frames=%d waited=%llu trials=%llu kept=%llu",
               (unsigned long long)f, RB_DRS_TRIAL_FRAMES, (unsigned long long)tr.wait,
-@@ -3290,7 +3316,7 @@ static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the ti
+@@ -3290,7 +3330,7 @@ static uint64_t rb_drs_hold(uint64_t f, uint32_t type, uint64_t t) {   // the ti
      int fps = nvn_be_fps_target(); if (fps <= 0 || fps > 60) fps = 60;   // 30 / 60 (nvn_obj.h)
      const uint64_t hold60 = 16600000ull * 12 / 625;
      if (rb_drs_trial_now(f, fps)) return top + rb_drs_cap_ticks(t - top, hold60);   // RewindBox (patch 0309): the 60 fps hold whatever the time
