@@ -907,7 +907,7 @@ dans la mémoire de l'hôte ») :
 `auto` contre 29,7–31,7 sans (`wait` de 2,8–4,0 à 1,0–1,4 ms, `over33` de 143–216 à 85–117). Ce banc est limité par le
 fil d'émulation (21 ms par image de 2D et de sortie) : il ne montre que l'attente retirée. Vérifications (README) :
 `disabled` identique au cœur de la 832 sur x86 et sur AArch64 avec le JIT ; `auto` et `enabled` : son identique
-partout, images de la 832 au bit près dès qu'une capture est forcée (x86 ; AArch64 en cours) ; aucune image asynchrone à moitié dessinée ;
+partout, images de la 832 au bit près dès qu'une capture est forcée (x86 et AArch64) ; aucune image asynchrone à moitié dessinée ;
 ThreadSanitizer sans course nouvelle ; image dans la mémoire de l'hôte au pixel près.
 
 **Attendu sur l'iPhone** (estimation, non mesurée) : `wait` disparaît et `host` tombe vers quelques dixièmes de

@@ -283,12 +283,13 @@ pas de GPU) : son gain attendu est le `host` de la 832, 2,9 ms par image en ×10
 
 Vérifications :
 - `disabled` : images et son identiques au cœur de la 832, sur x86 (30 cas : 5 homebrews 3D × ×1, ×4 et ×5 + 3D 2x,
-  avec et sans capture forcée) et sur AArch64 sous qemu avec le JIT (16 premiers cas identiques : 4 homebrews 3D
-  en ×1 et ×5 + 3D 2x, avec et sans image dans la mémoire du banc ; la série avec capture forcée tourne encore) ;
+  avec et sans capture forcée) et sur AArch64 sous qemu avec le JIT (32 cas : 4 homebrews 3D en ×1 et ×5 + 3D 2x,
+  avec et sans capture forcée, avec et sans image dans la mémoire du banc) ;
 - `auto` et `enabled` : son identique dans tous les cas (la logique du jeu ne change pas) ; images différentes à
   partir de ×4, où la 3D s'affiche plus tard, et identiques en ×1 (rendu sur le fil d'émulation) ;
 - avec une capture forcée (VRAM D en LCDC, capture de la 3D vers D, puis affichage de D), `auto` et `enabled`
-  donnent les images de la 832, au bit près (x86 ; AArch64 en cours) : la capture coupe bien la 3D asynchrone ;
+  donnent les images de la 832, au bit près (x86 : 30 cas ; AArch64 avec le JIT : 16 cas) : la capture coupe bien la
+  3D asynchrone ;
 - chaque image d'une course asynchrone (`enabled`, ×4, 300 images, Galaxy, MD2, Basic3D) se retrouve telle quelle
   dans la course synchrone, au même rang ou une image plus tôt : jamais de 3D à moitié dessinée ni de déchirure ;
 - image dans la mémoire de l'hôte : avec un banc qui donne deux tampons remplis d'un motif à chaque image, mêmes
