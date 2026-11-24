@@ -341,6 +341,11 @@
         "commit": "3c1ed5646fbe1f5d13b1577d8566d8784d262d79",
         "note": "Realignment merge of the MeloNX session (recipe section 3.9): it brings concurrent S2Arm work (engine patches 0346 to 0348, Switch 2 settings profile per game), the multi-disc .m3u library scan and the three MeloNX Core inputs at their 832 bytes, outside this build",
         "targetBuild": 834
+      },
+      {
+        "commit": "a05d40df43d25f5de71a09f4dfdd6f73cb4c699e",
+        "note": "Merge of origin/Claude into the delivery line: it brings concurrent S2Arm work (engine patches 0349 and 0350, a steady 30 as a fallback with retries of 60, and the 300-frame orphan pass) and its evidence, outside this build",
+        "targetBuild": 834
       }
     ],
     "promotedCommits": [
