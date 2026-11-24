@@ -49,8 +49,8 @@ Fire Emblem 507443b3, Zelda e23a1776), réglages par défaut, batterie 45–55 %
   chaque dispatch.
 
 **Synchronisation CPU ↔ GPU**
-- Zelda fait environ 14 tampons de commandes par image pour 8 mémoires de commandes : le fil de
-  soumission dort sur le GPU en milieu d'image, 4,4 à 7,2 ms par image (2 258 attentes à l'image
+- Zelda fait environ 14 tampons de commandes par image pour 8 mémoires de commandes : les attentes de fence sur la
+  soumission représentent 4,4 à 7,2 ms par image (2 258 attentes à l'image
   5 100 ; Fire Emblem 989 à l'image 3 300 ; MKW 0).
 - Fire Emblem attend à l'acquisition de l'image (copie de présentation placée derrière le travail
   suivant) : GPU inactif environ 15 ms entre deux images.
@@ -64,9 +64,7 @@ Fire Emblem 507443b3, Zelda e23a1776), réglages par défaut, batterie 45–55 %
   l'autre (Fire Emblem recompile 606 bibliothèques au lancement, 31,9 ms chacune). Non vérifié.
 
 **Streaming**
-- Coût principal : relire des pages de la mémoire du jeu évincées, sur le fil de soumission, une
-  texture à la fois (MKW 1,49 Go manquants = 3,28 s, 56 % du temps d'envoi des longues images ;
-  Zelda 69 % ; Fire Emblem 78 %).
+- Sur les longues images, les uploads associés à des pages absentes représentent 56 % du temps d’envoi de MKW, 69 % sur Zelda et 78 % sur Fire Emblem. Sur MKW, 1,49 Go ont été signalés absents et ces uploads ont occupé 3,28 s. La part exacte des fautes de page dans ce temps reste à isoler.
 - Tuiles creuses au premier chargement de course de MKW : image 740 de 912 ms, 54 141 fautes de
   page pour 62 Mo lus ; 960 Mo recopiés par le CPU puis réécrits par le GPU.
 
@@ -191,3 +189,15 @@ Comparer trois fenêtres de 180 s par variante et par scène, ordre alterné A/B
 Publier chaque fenêtre avec sa couverture, p50/p95/p99, dépassements de 100 ms/min, manques audio, footprint maximal, temps en Serious et erreurs GPU. Un écart plus petit que la dispersion des répétitions reste indéterminé. Une différence de pixels sur un replay déterministe, un blocage ou une hausse reproductible du p99, de l’empreinte ou du temps en Serious empêche l’activation par défaut. Effectuer le contrôle visuel et les diagnostics séparément du passage chronométré, puis confirmer en endurance. Les compteurs Instruments mesurent la bande passante GPU. Power Profiler exprime la consommation système en fraction de batterie par heure. [Bande passante GPU](https://developer.apple.com/documentation/xcode/measuring-the-gpus-use-of-memory-bandwidth) · [Puissance sur batterie](https://developer.apple.com/documentation/xcode/measuring-your-app-s-power-use-with-power-profiler) · [Validation Metal](https://developer.apple.com/documentation/xcode/validating-your-apps-metal-api-usage)
 
 L’A18 Pro est Apple9 et accepte les formats BC natifs. Pour les autres puces, garder les vérifications du périphérique, des formats et des dimensions de tuiles avant d’entrer dans le chemin sparse. La QoS exprime une priorité pour l’ordonnanceur iOS. Mesurer le travail CPU et GPU et les octets par image, à vitesse de jeu égale. [Familles GPU Apple et formats](https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf)
+
+### Ce que la relecture du moteur permet d’attribuer
+
+**Pages de l’invité.** Dans `rb_texture_ahead.inc`, la voie 0329 des liaisons de textures vérifie `rb_course_exact()`, qui exige le manifeste et le build de Mario Kart World. Une autre voie fichier générique existe derrière `S2A_RB_TEXTURE_PAGER=1`. Les identifiants découverts uniquement lors du parcours d’une table de descripteurs échappent au conseil sur liaison directe. Avant d’élargir la couverture, comparer par titre les pages réellement conseillées puis utilisées, encore absentes au premier upload, expirées et invalidées. `cold_upload_offcpu_upper_ms` est une borne supérieure. Le temps de lecture disque isolé reste inconnu. Une expérience d’anticipation doit revalider série, backing et génération, céder sur contention, respecter le quota et les arrêts mémoire/thermiques. La mémoire unifiée ne rend pas une page évincée immédiatement résidente.
+
+**Allocateurs et occlusion.** Dans `nvn_be_sub_begin`, le pool de huit allocateurs et l’anneau de huit tampons de visibilité peuvent attendre des fences distinctes. `g_alloc_waits` compte les passages à la limite du pool, tandis que le temps de `nvn_be_wait` agrège plusieurs causes. `sub_cut` peut encoder plusieurs command buffers successifs avec le même allocateur. L’attribution des 4,4 à 7,2 ms de Zelda au seul allocateur reste donc ouverte. Chronométrer les deux emplacements, leurs fences et les achèvements avant d’augmenter un pool ou de prolonger sa durée de vie. Le reset attend le dernier consommateur GPU. [Modèle de commande Metal 4](https://developer.apple.com/documentation/metal/understanding-the-metal-4-core-api)
+
+**Acquisition de l’image.** Dans `h_nvnWindowAcquireTexture`, le chemin exécuté depuis un autre thread peut attendre le ticket de présentation puis retourner avant la comptabilité `g_pq_wait_ns`. Sur Fire Emblem, mesurer les deux chemins et corréler le ticket à la période GPU inactive avant de déplacer la présentation sur une autre file. Un zéro dans la ligne de présentation ne ferme pas cette piste.
+
+### Banc Apple Silicon
+
+Le premier essai du [run 45499482706](https://github.com/TarbleFR/RewindBox/actions/runs/45499482706) identifie le runner comme Apple M1 virtuel, macOS 26.7.2. La médiane sur 1 024 tuiles distinctes est passée de 23,963 à 5,957 µs par tuile (neuf passages, plage 19,111–31,510 puis 5,193–10,516 µs). Pour une seule tuile réutilisée, la médiane est passée de 20,600 à 1,338 µs. Les 1 354 contrôles CPU passent. Le test Metal RGBA8 lit 16 384 pixels exacts dans chacun des quatre cas après copie vers une texture privée et retour en mémoire partagée. Le test isolé de la session réussit ses cinq assertions. Le redémarrage avec initialisation complète a alors échoué à la création du MTLResidencySet sur le périphérique paravirtualisé. Les mesures de ce paragraphe précèdent cet échec et concernent uniquement les étapes nommées.

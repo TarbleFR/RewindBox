@@ -71,11 +71,38 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_ses
 diff --git a/graphics/nvn/tests/t_link_restart.m b/graphics/nvn/tests/t_link_restart.m
 --- a/graphics/nvn/tests/t_link_restart.m
 +++ b/graphics/nvn/tests/t_link_restart.m
-@@ -13,7 +13,49 @@
+@@ -13,15 +13,84 @@
  #define CHECK(c, ...) do { checks++; int ok=!!(c); failures+=!ok; printf("%s ",ok?"PASS":"FAIL"); printf(__VA_ARGS__); putchar('\n'); fflush(stdout); } while(0)
  static double ms_now(void) { return clock_gettime_nsec_np(CLOCK_UPTIME_RAW) / 1e6; }
 
 -int main(void) { @autoreleasepool {
++static void restart_test_device(void) {
++    id<MTLDevice> device = MTLCreateSystemDefaultDevice();
++    REQUIRE(device);
++    if (![device.name localizedCaseInsensitiveContainsString:@"paravirtual"]) {
++        mtl_init();
++        return;
++    }
++    MTLResidencySetDescriptor *descriptor = [MTLResidencySetDescriptor new];
++    descriptor.initialCapacity = 4096; // Same request as mtl_init.
++    NSError *error = nil;
++    if ([device respondsToSelector:@selector(newResidencySetWithDescriptor:error:)] &&
++        [device newResidencySetWithDescriptor:descriptor error:&error]) {
++        mtl_init();
++        return;
++    }
++    // This fixture exercises session retirement on the tracked Metal 3 queue.
++    // The CI GPU has no residency set; other devices use normal initialization.
++    s2a_mtl_slot_take("link restart fixture");
++    g_dev = device;
++    g_m3 = 1;
++    g_q = [device newCommandQueue];
++    REQUIRE(g_q);
++    g_q3 = g_q;
++    printf("link restart using tracked Metal on %s (%s)\n", device.name.UTF8String,
++           error.localizedDescription.UTF8String ?: "residency sets unavailable");
++}
++
 +// With no Metal device the option-only mode exercises the production begin hook and
 +// configuration readers. The normal test crosses the complete backend shutdown too.
 +static void restart_for_test(int with_gpu) {
@@ -120,9 +147,10 @@ diff --git a/graphics/nvn/tests/t_link_restart.m b/graphics/nvn/tests/t_link_res
 +#endif
 +    if (argc != 1) return 2;
      setenv("DM_PSO_MANIFEST","off",1); setenv("DM_PSO_ARCHIVE","0",1);
-     mtl_init();
+-    mtl_init();
++    restart_test_device();
      // 显示链接对象本身不碰（等拍函数只读拍号与锁）：放一个占位对象让 link_on() 为真
-@@ -21,7 +63,7 @@
+     g_dm_present_link = 1; g_link = (CAMetalDisplayLink *)[NSObject new]; g_link_mode = 1;
      pthread_mutex_lock(&g_link_mu); g_link_tick_n = 5124; pthread_mutex_unlock(&g_link_mu);
      REQUIRE(nvn_be_link_wait_tick(1, 50000000ull) == 1);   // 上一局：这一帧在第 5124 拍开工
      atomic_store(&g_vs_loaded, 19); atomic_store(&g_depth_zero, 1);
