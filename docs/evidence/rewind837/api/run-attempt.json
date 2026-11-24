@@ -1,0 +1,33 @@
+{
+ "id": 45469657832,
+ "name": "RewindBox standard delivery - 2314f6f9d0f206fac80ad733b2fd46a9efccb988",
+ "display_title": "RewindBox standard delivery - 2314f6f9d0f206fac80ad733b2fd46a9efccb988",
+ "workflow_id": 404028367,
+ "run_number": 881,
+ "run_attempt": 1,
+ "event": "push",
+ "status": "completed",
+ "conclusion": "success",
+ "head_branch": "Claude",
+ "head_sha": "2314f6f9d0f206fac80ad733b2fd46a9efccb988",
+ "head_commit": {
+  "message": "[ipa-delivery:837] Build the private RewindBox IPA 837: DeSmuME at 10x with the column compositor, and Azahar's tiled-GPU passes\n\nBase 836 (run 45457017491, receipt 63bdad80). The libretro collection 14954690166 (run 45459585271\non 57b47ff2) replaces LibretroCores-e5378e84:\n- desmume_libretro: 2D layers composed column by column for all the custom lines of a native line,\n  partial sprite lines in SIMD, the 3D layer in NEON, the rasterizer's texture getters inline and\n  its per-scanline state read once, desmume_rb_raster_cores, [rb-perf] l3d/lbg/lobj/engAd/engAn/\n  runD/runN/rqos (docs/desmume-arm64-jit-architecture.md section 16.8);\n- azahar_libretro: render passes for a tiled GPU (fceead82, 85a5528e, promoted at the maintainer's\n  request).\nImages that must change: azahar_libretro, desmume_libretro, Runner; 47 retained. Everything else,\nthe S2Arm engine 0351 included, is the 836's. MeloNX's 03394eb5 and 6c1accd8 are left to the 838.\nNothing measured on an iPhone.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_012mUASjktRuU2nW6mXVYqiW"
+ },
+ "path": ".github/workflows/standard-delivery.yml",
+ "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/45469657832",
+ "actor": {
+  "login": "TarbleFR",
+  "id": 249503225,
+  "profile_url": "https://github.com/TarbleFR",
+  "avatar_url": "https://avatars.githubusercontent.com/u/249503225?v=4"
+ },
+ "triggering_actor": {
+  "login": "TarbleFR",
+  "id": 249503225,
+  "profile_url": "https://github.com/TarbleFR",
+  "avatar_url": "https://avatars.githubusercontent.com/u/249503225?v=4"
+ },
+ "created_at": "2026-11-24T19:23:13Z",
+ "updated_at": "2026-11-24T19:50:54Z",
+ "run_started_at": "2026-11-24T19:23:13Z"
+}
