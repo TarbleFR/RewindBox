@@ -68,10 +68,9 @@ COLLECTIONS = {
                       name='LibretroCores-f585728289d8c25d6ac995c878f5ebc9df214dee', bytes=56382495,
                       sha256='248bd2f73db6f68cc1c0b7eb3d9ad7ae0225a53e89d3d76b2355260efa9ac6bc',
                       cores=('azahar', 'desmume', 'mednafen_psx', 'mednafen_psx_hw')),
-    # DeSmuME: asynchronous 3D (desmume_rb_3d_async), both screens written into the frontend's memory
-    # (GET_CURRENT_SOFTWARE_FRAMEBUFFER), [rb-perf] defer/direct (native/desmume at 665acae2); Azahar: each frame of the
-    # libretro_vk pool owns its output image (native/azahar at a92b2264); built at e5378e84; both Beetle PSX
-    # binaries are identical to those of 14913662229.
+    # Azahar: one output image per libretro frame, which the frontend shows without any copy (native/azahar at
+    # a92b2264); DeSmuME with its asynchronous 3D and both screens written into the host's memory (native/desmume
+    # at 665acae2); both Beetle PSX binaries are identical to those of 14870941984.
     14939297496: dict(run=45425936501, source='e5378e84a7b68a56830e6aaed04883857c54bca5',
                       name='LibretroCores-e5378e84a7b68a56830e6aaed04883857c54bca5', bytes=56385054,
                       sha256='fb281c1c5f69d422cf07b86d1b37da2a890dca846e551a4d0d7f66a9809bcb1c',

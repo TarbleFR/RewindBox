@@ -19,8 +19,16 @@
 // control: the shipped behaviour). Printed and written as JSON: counts, data size, the footprint at each step, times,
 // MoltenVK's own counters and the pixels.
 //
+//   share (tenth part of the patch, shared pipeline states) creates pipelines that differ only in what MoltenVK applies
+//         outside the Metal render pipeline state (cull mode, front face, depth and stencil states, depth bias): phase A
+//         draws each of 11 raster variants of one program (the cull mode and front face must still apply per pipeline);
+//         phase B creates 16 such pipelines for each of the 12 programs of round 0. Recorded: Metal pipeline states
+//         compiled (MoltenVK's counter), the footprint, the GPU memory MoltenVK reports and the creation time.
+//         MVK_CONFIG_REWINDBOX_UNSHARED_PIPELINE_STATES in the environment is the control (every pipeline its own state).
+//
 // Usage: mvk_cache_keys_test <shaders.spvz> <salt> <output.json> save <data file>
 //        mvk_cache_keys_test <shaders.spvz> <salt> <output.json> load <data file> <written data file>
+//        mvk_cache_keys_test <shaders.spvz> <salt> <output.json> share -
 #include <vulkan/vulkan.h>
 #ifdef __APPLE__
 #include <MoltenVK/mvk_private_api.h>
@@ -209,6 +217,99 @@ static VkResult createPipeline(const Context& c, VkPipelineCache cache, VkPipeli
     info.renderPass = c.passes[v.format];
     *pipeline = VK_NULL_HANDLE;
     return vkCreateGraphicsPipelines(c.device, cache, 1, &info, nullptr, pipeline);
+}
+
+// The share mode's raster variants: all but the last differ only in state MoltenVK applies outside the Metal render
+// pipeline state; the last enables blending, a different Metal state.
+struct RasterVariant {
+    const char* name;
+    VkCullModeFlags cull;
+    VkFrontFace front;
+    bool depthTest;
+    VkCompareOp depthCompare;
+    bool stencilTest;
+    VkStencilOp stencilOp;
+    bool depthBias;
+    bool blend;
+};
+static const RasterVariant kRasterVariants[11] = {
+    {"base", VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE, false, VK_COMPARE_OP_ALWAYS, false, VK_STENCIL_OP_KEEP, false, false},
+    {"cullBack", VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, false, VK_COMPARE_OP_ALWAYS, false, VK_STENCIL_OP_KEEP, false, false},
+    {"cullFront", VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, false, VK_COMPARE_OP_ALWAYS, false, VK_STENCIL_OP_KEEP, false, false},
+    {"cullBackClockwise", VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_CLOCKWISE, false, VK_COMPARE_OP_ALWAYS, false, VK_STENCIL_OP_KEEP, false, false},
+    {"cullFrontClockwise", VK_CULL_MODE_FRONT_BIT, VK_FRONT_FACE_CLOCKWISE, false, VK_COMPARE_OP_ALWAYS, false, VK_STENCIL_OP_KEEP, false, false},
+    {"clockwise", VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE, false, VK_COMPARE_OP_ALWAYS, false, VK_STENCIL_OP_KEEP, false, false},
+    {"depthLess", VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE, true, VK_COMPARE_OP_LESS, false, VK_STENCIL_OP_KEEP, false, false},
+    {"depthGreater", VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE, true, VK_COMPARE_OP_GREATER, false, VK_STENCIL_OP_KEEP, false, false},
+    {"stencilReplace", VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE, false, VK_COMPARE_OP_ALWAYS, true, VK_STENCIL_OP_REPLACE, false, false},
+    {"depthBias", VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE, false, VK_COMPARE_OP_ALWAYS, false, VK_STENCIL_OP_KEEP, true, false},
+    {"blend", VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE, false, VK_COMPARE_OP_ALWAYS, false, VK_STENCIL_OP_KEEP, false, true},
+};
+
+static VkResult createRasterPipeline(const Context& c, VkShaderModule vertex, VkShaderModule fragment, const RasterVariant& r,
+                                     VkPipeline* pipeline) {
+    VkPipelineShaderStageCreateInfo stages[2] = {};
+    stages[0].sType = stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    stages[0].module = vertex;
+    stages[0].pName = "main";
+    stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    stages[1].module = fragment;
+    stages[1].pName = "main";
+    VkPipelineVertexInputStateCreateInfo vertexInput{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+    VkPipelineInputAssemblyStateCreateInfo assembly{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
+    assembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    VkPipelineViewportStateCreateInfo viewport{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
+    viewport.viewportCount = viewport.scissorCount = 1;
+    VkPipelineRasterizationStateCreateInfo raster{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
+    raster.polygonMode = VK_POLYGON_MODE_FILL;
+    raster.cullMode = r.cull;
+    raster.frontFace = r.front;
+    raster.depthBiasEnable = r.depthBias;
+    raster.depthBiasConstantFactor = r.depthBias ? 1.0f : 0.0f;
+    raster.lineWidth = 1.0f;
+    VkPipelineMultisampleStateCreateInfo multisample{VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
+    multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    // The render pass has no depth or stencil attachment: these states are ignored by Vulkan, and part of the pipeline.
+    VkPipelineDepthStencilStateCreateInfo depthStencil{VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
+    depthStencil.depthTestEnable = r.depthTest;
+    depthStencil.depthWriteEnable = r.depthTest;
+    depthStencil.depthCompareOp = r.depthCompare;
+    depthStencil.stencilTestEnable = r.stencilTest;
+    depthStencil.front = {r.stencilOp, r.stencilOp, r.stencilOp, VK_COMPARE_OP_ALWAYS, 0xFF, 0xFF, 1};
+    depthStencil.back = depthStencil.front;
+    depthStencil.maxDepthBounds = 1.0f;
+    VkPipelineColorBlendAttachmentState attachment{};
+    attachment.colorWriteMask = 0xF;
+    attachment.blendEnable = r.blend;
+    attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    attachment.colorBlendOp = VK_BLEND_OP_ADD;
+    attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    VkPipelineColorBlendStateCreateInfo blend{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
+    blend.attachmentCount = 1;
+    blend.pAttachments = &attachment;
+    VkDynamicState dynamics[2] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+    VkPipelineDynamicStateCreateInfo dynamic{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
+    dynamic.dynamicStateCount = 2;
+    dynamic.pDynamicStates = dynamics;
+    VkGraphicsPipelineCreateInfo info{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
+    info.stageCount = 2;
+    info.pStages = stages;
+    info.pVertexInputState = &vertexInput;
+    info.pInputAssemblyState = &assembly;
+    info.pViewportState = &viewport;
+    info.pRasterizationState = &raster;
+    info.pMultisampleState = &multisample;
+    info.pDepthStencilState = &depthStencil;
+    info.pColorBlendState = &blend;
+    info.pDynamicState = &dynamic;
+    info.layout = c.layout;
+    info.renderPass = c.passes[0];
+    *pipeline = VK_NULL_HANDLE;
+    return vkCreateGraphicsPipelines(c.device, VK_NULL_HANDLE, 1, &info, nullptr, pipeline);
 }
 
 struct Buffer { VkBuffer buffer = VK_NULL_HANDLE; VkDeviceMemory memory = VK_NULL_HANDLE; void* mapped = nullptr; };
@@ -453,12 +554,114 @@ static void drawPixel(const Context& c, Scene& s, VkPipeline pipeline, uint8_t p
     memcpy(pixel, (const uint8_t*)s.readback.mapped + (1 * 4 + 1) * 4, 4);
 }
 
+// MoltenVK's counters: Metal pipeline states compiled, and the GPU memory its device has allocated (KiB); -1 elsewhere.
+struct MetalCounters { double compiled = -1, gpuKiB = -1; };
+static MetalCounters metalCounters(const Context& c) {
+    MetalCounters counters;
+#ifdef __APPLE__
+    MVKPerformanceStatistics statistics{};
+    size_t statisticsSize = sizeof(statistics);
+    if (vkGetPerformanceStatisticsMVK(c.device, &statistics, &statisticsSize) == VK_SUCCESS) {
+        counters.compiled = (double)statistics.shaderCompilation.pipelineCompile.count;
+        counters.gpuKiB = statistics.device.gpuMemoryAllocated.latest;
+    }
+#else
+    (void)c;
+#endif
+    return counters;
+}
+
+static int runShare(const Context& c, const char* shaderPack, uint32_t salt, const std::string& output) {
+    std::vector<Shader> shaders = loadShaders(shaderPack, salt, 0);
+    VkShaderModule vertex = VK_NULL_HANDLE;
+    std::vector<VkShaderModule> fragments;
+    for (auto& shader : shaders) {
+        VkShaderModuleCreateInfo moduleInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+        moduleInfo.codeSize = shader.words.size() * 4;
+        moduleInfo.pCode = shader.words.data();
+        VkShaderModule module;
+        check(vkCreateShaderModule(c.device, &moduleInfo, nullptr, &module), "vkCreateShaderModule");
+        if (shader.name == "vertex") vertex = module; else fragments.push_back(module);
+    }
+    if (vertex == VK_NULL_HANDLE || fragments.size() != 12) fail("share: the pack's round 0 is one vertex and 12 fragment shaders");
+
+    // Phase A: each raster variant of program 0, drawn.
+    MetalCounters beforeA = metalCounters(c);
+    std::vector<VkPipeline> variants;
+    for (const RasterVariant& r : kRasterVariants) {
+        VkPipeline pipeline;
+        check(createRasterPipeline(c, vertex, fragments[0], r, &pipeline), r.name);
+        variants.push_back(pipeline);
+    }
+    MetalCounters afterA = metalCounters(c);
+    Scene scene = createScene(c);
+    fillScene(c, scene, kContents[0]);
+    float want[3];
+    expected(kContents[0], 0, want);
+    std::ostringstream pixels;
+    int wrongPixels = 0;
+    bool culled[11] = {};
+    for (int v = 0; v < 11; v++) {
+        uint8_t pixel[4];
+        drawPixel(c, scene, variants[v], pixel);
+        culled[v] = pixel[0] == 0 && pixel[1] == 0 && pixel[2] == 0 && pixel[3] == 0;
+        if (!culled[v]) {
+            for (int channel = 0; channel < 3; channel++) {
+                double difference = (double)pixel[channel] - want[channel] * 255.0;
+                if (difference < -3.0 || difference > 5.0) wrongPixels++;
+            }
+        }
+        pixels << (v ? ", " : "") << "{\"name\": \"" << kRasterVariants[v].name << "\", \"pixel\": [" << (int)pixel[0] << ", "
+               << (int)pixel[1] << ", " << (int)pixel[2] << ", " << (int)pixel[3] << "], \"culled\": " << (culled[v] ? "true" : "false") << "}";
+    }
+    // The triangle's winding decides which of cullBack and cullFront removes it; a clockwise front face swaps them.
+    std::string cullCheck = "passed";
+    if (culled[1] == culled[2]) cullCheck = "cullBack and cullFront agree";
+    else if (culled[3] != culled[2] || culled[4] != culled[1]) cullCheck = "a clockwise front face did not swap the culled side";
+    for (int v : {0, 5, 6, 7, 8, 9, 10})
+        if (culled[v]) cullCheck = std::string(kRasterVariants[v].name) + " removed the triangle";
+
+    // Phase B: 16 pipelines for each program of round 0, cycling through the variants equal to "base" for Metal.
+    MetalCounters beforeB = metalCounters(c);
+    double footprintBeforeB = footprintMiB();
+    std::vector<VkPipeline> many;
+    double createMs = 0;
+    for (size_t f = 0; f < fragments.size(); f++) {
+        for (int i = 0; i < 16; i++) {
+            VkPipeline pipeline;
+            double t = nowMs();
+            check(createRasterPipeline(c, vertex, fragments[f], kRasterVariants[i % 10], &pipeline), "phase B pipeline");
+            createMs += nowMs() - t;
+            many.push_back(pipeline);
+        }
+    }
+    MetalCounters afterB = metalCounters(c);
+    double footprintAfterB = footprintMiB();
+    for (VkPipeline pipeline : many) vkDestroyPipeline(c.device, pipeline, nullptr);
+    for (VkPipeline pipeline : variants) vkDestroyPipeline(c.device, pipeline, nullptr);
+    MetalCounters afterDestroy = metalCounters(c);
+    double footprintAfterDestroy = footprintMiB();
+
+    std::ostringstream json;
+    json << "{\"mode\": \"share\", \"control\": " << (getenv("MVK_CONFIG_REWINDBOX_UNSHARED_PIPELINE_STATES") ? "true" : "false")
+         << ", \"rasterVariants\": [" << pixels.str() << "], \"wrongPixels\": " << wrongPixels << ", \"cullCheck\": \"" << cullCheck << "\""
+         << ", \"phaseA\": {\"pipelines\": 11, \"compiled\": " << (afterA.compiled - beforeA.compiled) << "}"
+         << ", \"phaseB\": {\"pipelines\": " << many.size() << ", \"compiled\": " << (afterB.compiled - beforeB.compiled)
+         << ", \"createMs\": " << createMs << ", \"footprintGrowthMiB\": " << (footprintAfterB - footprintBeforeB)
+         << ", \"gpuAllocatedGrowthKiB\": " << (afterB.gpuKiB - beforeB.gpuKiB) << "}"
+         << ", \"afterDestroy\": {\"footprintMiB\": " << footprintAfterDestroy << ", \"footprintBeforePhaseBMiB\": " << footprintBeforeB
+         << ", \"gpuKiB\": " << afterDestroy.gpuKiB << ", \"gpuKiBBeforePhaseB\": " << beforeB.gpuKiB << "}}";
+    std::ofstream(output) << json.str() << "\n";
+    printf("%s\n", json.str().c_str());
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (argc < 6) fail("usage: mvk_cache_keys_test <shaders.spvz> <salt> <output.json> <save|load> <data file> [<written data file>]");
     uint32_t salt = (uint32_t)strtoul(argv[2], nullptr, 10);
     std::string output = argv[3], mode = argv[4], dataPath = argv[5], writtenPath = argc > 6 ? argv[6] : "";
     bool save = mode == "save";
-    if (!save && mode != "load") fail("mode is save or load");
+    if (!save && mode != "load" && mode != "share") fail("mode is save, load or share");
     const char* roundsText = getenv("MVK_BENCH_ROUNDS");
     uint32_t rounds = roundsText ? (uint32_t)strtoul(roundsText, nullptr, 10) : 8u;
     // A driver without MoltenVK's cache (a local check on a software driver) may compile at a lookup.
@@ -543,6 +746,7 @@ int main(int argc, char** argv) {
         check(vkCreateRenderPass(c.device, &passInfo, nullptr, &c.passes[i]), "vkCreateRenderPass");
     }
     createMeloNXLayout(c);
+    if (mode == "share") return runShare(c, argv[1], salt, output);
 
     // MeloNX's cache flags (PipelineCacheManager: ExternallySynchronized with pipeline creation cache control).
     VkPipelineCacheCreateInfo cacheInfo{VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO};

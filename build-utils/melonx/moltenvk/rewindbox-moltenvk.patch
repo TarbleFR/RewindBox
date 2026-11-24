@@ -447,10 +447,33 @@ index ef8ca60..771cebe 100644
  	}
  }
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h
-index e385e9b..fb99f6c 100644
+index e385e9b..0e631f9 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h
-@@ -510,6 +510,7 @@ protected:
+@@ -334,6 +334,8 @@ protected:
+ 	typedef MVKSmallVector<mvk::SPIRVShaderInterfaceVariable, 32> SPIRVShaderInputs;
+ 
+     id<MTLRenderPipelineState> getOrCompilePipeline(MTLRenderPipelineDescriptor* plDesc, id<MTLRenderPipelineState>& plState);
++    id<MTLRenderPipelineState> getOrSharePipeline(MTLRenderPipelineDescriptor* plDesc, id<MTLRenderPipelineState>& plState);	// RewindBox
++    void rbReleaseSharedPipelineState();	// RewindBox
+     id<MTLComputePipelineState> getOrCompilePipeline(MTLComputePipelineDescriptor* plDesc, id<MTLComputePipelineState>& plState, const char* compilerType);
+ 	bool compileTessVertexStageState(MTLComputePipelineDescriptor* vtxPLDesc, MVKMTLFunction* pVtxFunctions, VkPipelineCreationFeedback* pVertexFB);
+ 	bool compileTessControlStageState(MTLComputePipelineDescriptor* tcPLDesc, VkPipelineCreationFeedback* pTessCtlFB);
+@@ -413,6 +415,13 @@ protected:
+ 	bool _isTessellationPipeline = false;
+ 	bool _inputAttachmentIsDSAttachment = false;
+ 	bool _hasRemappedAttachmentLocations = false;
++
++	// RewindBox shared pipeline states: the code identities of the vertex and fragment functions of this pipeline's
++	// render pipeline descriptor, and the key of the shared render pipeline state it holds (empty: one of its own).
++	uint64_t _rbVertexCodeKey[2] = {0, 0};
++	uint64_t _rbFragmentCodeKey[2] = {0, 0};
++	bool _rbFragmentAbsent = true;
++	std::string _rbSharedStateKey;
+ };
+ 
+ 
+@@ -510,6 +519,7 @@ protected:
  	MVKShaderLibraryCache* getShaderLibraryCache(MVKShaderModuleKey smKey);
  	void readData(const VkPipelineCacheCreateInfo* pCreateInfo);
  	void writeData(std::ostream& outstream, bool isCounting = false);
@@ -459,10 +482,180 @@ index e385e9b..fb99f6c 100644
  										   MVKShaderModule* shaderModule,
  										   MVKPipeline* pipeline,
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
-index 7eae64c..0ef8772 100644
+index 7eae64c..ecdea3d 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
-@@ -1180,7 +1180,7 @@ MTLRenderPipelineDescriptor* MVKGraphicsPipeline::newMTLRenderPipelineDescriptor
+@@ -27,6 +27,11 @@
+ #include "mvk_datatypes.hpp"
+ #include <sys/stat.h>
+ #include <sstream>
++#include <atomic>
++#include <cstdlib>
++#include <mutex>
++#include <string>
++#include <unordered_map>
+ 
+ #ifndef MVK_USE_CEREAL
+ #define MVK_USE_CEREAL (1)
+@@ -994,6 +999,148 @@ void MVKGraphicsPipeline::populateRenderingAttachmentInfo(const VkGraphicsPipeli
+ 	_hasRemappedAttachmentLocations = (attCnt && pColorAttLocs);
+ }
+ 
++#pragma mark RewindBox shared pipeline states
++
++// RewindBox shared pipeline states (tenth part): IPA 833, Hogwarts Legacy (pid 24974): 5,032 Metal pipeline states
++// compiled in one session; of the 508 states new to their program in play, 203 differed from a state their program
++// already had only in what MoltenVK applies outside the Metal pipeline state (cull mode 54, depth compare 13, stencil
++// 136): the same descriptor, compiled and kept again. A render pipeline without tessellation or multiview now takes
++// the Metal render pipeline state of an earlier pipeline whose descriptor it equals in every property this MoltenVK
++// sets, its functions compared by the code of their libraries (rbCodeKey: compressed MSL and entry point; a
++// specialized function or a library without MSL is never shared). Rasterization, depth and stencil states stay
++// applied per pipeline by the command encoder, as before. A state is shared while one of its pipelines lives.
++__attribute__((used)) static const char kRewindBoxSharedPipelineStates[] =
++	"RewindBox shared pipeline states: a Metal render pipeline state is shared by pipelines whose Metal descriptors are identical";
++
++namespace {
++	struct RBSharedPipelineState { id<MTLRenderPipelineState> state; uint32_t users; };
++
++	std::mutex& rbSharedStatesLock() { static auto* lock = new std::mutex(); return *lock; }
++	std::unordered_map<std::string, RBSharedPipelineState>& rbSharedStates() {
++		static auto* states = new std::unordered_map<std::string, RBSharedPipelineState>();
++		return *states;
++	}
++	std::atomic<uint64_t> rbStatesShared{0}, rbStatesCompiled{0}, rbStatesUnkeyed{0};
++
++	// MVK_CONFIG_REWINDBOX_UNSHARED_PIPELINE_STATES in the environment: every pipeline compiles its own state (the
++	// control of test/melonx_cache_keys/run_cache_keys.py; nothing sets it in the app).
++	bool rbSharingDisabled() {
++		static const bool disabled = getenv("MVK_CONFIG_REWINDBOX_UNSHARED_PIPELINE_STATES") != nullptr;
++		return disabled;
++	}
++
++	template<typename T> void rbPut(std::string& key, T value) { key.append((const char*)&value, sizeof(value)); }
++
++	// Every property of a render pipeline descriptor this MoltenVK sets (MVKGraphicsPipeline::newMTLRenderPipelineDescriptor
++	// and what it calls), in a fixed order, the functions by their code identities; the label is not part of the state.
++	bool rbRenderPipelineKey(MTLRenderPipelineDescriptor* d, id<MTLDevice> device, const uint64_t vertex[2],
++							 bool fragmentAbsent, const uint64_t fragment[2], std::string& key) {
++		if ( !d.vertexFunction || (vertex[0] | vertex[1]) == 0 ) { return false; }
++		if (fragmentAbsent != (d.fragmentFunction == nil)) { return false; }
++		if ( !fragmentAbsent && (fragment[0] | fragment[1]) == 0 ) { return false; }
++		key.reserve(2048);
++		rbPut(key, (uint64_t)(uintptr_t)device);
++		rbPut(key, vertex[0]); rbPut(key, vertex[1]);
++		rbPut(key, (uint8_t)fragmentAbsent);
++		rbPut(key, fragmentAbsent ? 0ULL : fragment[0]); rbPut(key, fragmentAbsent ? 0ULL : fragment[1]);
++		MTLVertexDescriptor* vd = d.vertexDescriptor;
++		for (NSUInteger i = 0; i < 31; i++) {
++			MTLVertexBufferLayoutDescriptor* l = vd.layouts[i];
++			rbPut(key, (uint64_t)l.stride); rbPut(key, (uint64_t)l.stepFunction); rbPut(key, (uint64_t)l.stepRate);
++		}
++		for (NSUInteger i = 0; i < 31; i++) {
++			MTLVertexAttributeDescriptor* a = vd.attributes[i];
++			rbPut(key, (uint64_t)a.format); rbPut(key, (uint64_t)a.offset); rbPut(key, (uint64_t)a.bufferIndex);
++		}
++		for (NSUInteger i = 0; i < kMVKMaxColorAttachmentCount; i++) {
++			MTLRenderPipelineColorAttachmentDescriptor* c = d.colorAttachments[i];
++			rbPut(key, (uint64_t)c.pixelFormat); rbPut(key, (uint8_t)c.blendingEnabled);
++			rbPut(key, (uint64_t)c.sourceRGBBlendFactor); rbPut(key, (uint64_t)c.destinationRGBBlendFactor);
++			rbPut(key, (uint64_t)c.rgbBlendOperation); rbPut(key, (uint64_t)c.sourceAlphaBlendFactor);
++			rbPut(key, (uint64_t)c.destinationAlphaBlendFactor); rbPut(key, (uint64_t)c.alphaBlendOperation);
++			rbPut(key, (uint64_t)c.writeMask);
++		}
++		rbPut(key, (uint64_t)d.depthAttachmentPixelFormat); rbPut(key, (uint64_t)d.stencilAttachmentPixelFormat);
++		rbPut(key, (uint64_t)d.rasterSampleCount);
++		rbPut(key, (uint8_t)d.alphaToCoverageEnabled); rbPut(key, (uint8_t)d.alphaToOneEnabled);
++		rbPut(key, (uint8_t)d.rasterizationEnabled); rbPut(key, (uint64_t)d.inputPrimitiveTopology);
++		rbPut(key, (uint64_t)d.sampleMaskMVK); rbPut(key, (uint8_t)d.logicOperationEnabledMVK); rbPut(key, (uint64_t)d.logicOperationMVK);
++		rbPut(key, (uint64_t)d.maxTessellationFactor); rbPut(key, (uint8_t)d.tessellationFactorScaleEnabled);
++		rbPut(key, (uint64_t)d.tessellationFactorFormat); rbPut(key, (uint64_t)d.tessellationControlPointIndexType);
++		rbPut(key, (uint64_t)d.tessellationFactorStepFunction); rbPut(key, (uint64_t)d.tessellationOutputWindingOrder);
++		rbPut(key, (uint64_t)d.tessellationPartitionMode);
++		rbPut(key, (uint8_t)d.supportIndirectCommandBuffers);
++		for (NSUInteger i = 0; i < 31; i++) {
++			rbPut(key, (uint64_t)d.vertexBuffers[i].mutability); rbPut(key, (uint64_t)d.fragmentBuffers[i].mutability);
++		}
++		rbPut(key, (uint64_t)d.maxVertexAmplificationCount);
++		return true;
++	}
++
++	void rbLogSharedStates(uint64_t shared) {
++		size_t inUse;
++		{
++			std::lock_guard<std::mutex> lock(rbSharedStatesLock());
++			inUse = rbSharedStates().size();
++		}
++		MVKLogInfo("RewindBox shared pipeline states: %llu shared, %llu compiled, %llu not shareable (process totals), %zu states in use",
++				   (unsigned long long)shared, (unsigned long long)rbStatesCompiled.load(std::memory_order_relaxed),
++				   (unsigned long long)rbStatesUnkeyed.load(std::memory_order_relaxed), inUse);
++	}
++}
++
++// RewindBox shared pipeline states: the state of an earlier pipeline whose descriptor equals this one, else a new one
++// compiled and offered to the next pipelines with the same descriptor.
++id<MTLRenderPipelineState> MVKGraphicsPipeline::getOrSharePipeline(MTLRenderPipelineDescriptor* plDesc,
++																	id<MTLRenderPipelineState>& plState) {
++	if (plState || rbSharingDisabled()) { return getOrCompilePipeline(plDesc, plState); }
++	std::string key;
++	if ( !rbRenderPipelineKey(plDesc, getMTLDevice(), _rbVertexCodeKey, _rbFragmentAbsent, _rbFragmentCodeKey, key) ) {
++		rbStatesUnkeyed.fetch_add(1, std::memory_order_relaxed);
++		return getOrCompilePipeline(plDesc, plState);
++	}
++	{
++		std::lock_guard<std::mutex> lock(rbSharedStatesLock());
++		auto found = rbSharedStates().find(key);
++		if (found != rbSharedStates().end()) {
++			plState = [found->second.state retain];	// retained
++			found->second.users++;
++			_rbSharedStateKey = std::move(key);
++		}
++	}
++	if (plState) {
++		uint64_t shared = rbStatesShared.fetch_add(1, std::memory_order_relaxed) + 1;
++		if (shared == 1 || (shared & 255) == 0) { rbLogSharedStates(shared); }
++		return plState;
++	}
++
++	getOrCompilePipeline(plDesc, plState);
++	if ( !plState ) { return plState; }
++	rbStatesCompiled.fetch_add(1, std::memory_order_relaxed);
++	std::lock_guard<std::mutex> lock(rbSharedStatesLock());
++	auto inserted = rbSharedStates().emplace(key, RBSharedPipelineState{plState, 1});
++	if ( !inserted.second ) {
++		// Another pipeline compiled the same state meanwhile: hold that one, drop this copy.
++		[plState release];
++		plState = [inserted.first->second.state retain];	// retained
++		inserted.first->second.users++;
++	}
++	_rbSharedStateKey = std::move(key);
++	return plState;
++}
++
++// RewindBox shared pipeline states: this pipeline no longer uses its shared state (its own reference is released by
++// the destructor right after); the state leaves the table with its last pipeline.
++void MVKGraphicsPipeline::rbReleaseSharedPipelineState() {
++	if (_rbSharedStateKey.empty()) { return; }
++	std::lock_guard<std::mutex> lock(rbSharedStatesLock());
++	auto found = rbSharedStates().find(_rbSharedStateKey);
++	if (found != rbSharedStates().end() && found->second.state == _mtlPipelineState && --found->second.users == 0) {
++		rbSharedStates().erase(found);
++	}
++	_rbSharedStateKey.clear();
++}
++
+ // Either returns an existing pipeline state or compiles a new one.
+ id<MTLRenderPipelineState> MVKGraphicsPipeline::getOrCompilePipeline(MTLRenderPipelineDescriptor* plDesc,
+ 																	 id<MTLRenderPipelineState>& plState) {
+@@ -1126,7 +1273,7 @@ void MVKGraphicsPipeline::initMTLRenderPipelineState(const VkGraphicsPipelineCre
+ 					}
+ 				}
+ 			} else {
+-				getOrCompilePipeline(plDesc, _mtlPipelineState);
++				getOrSharePipeline(plDesc, _mtlPipelineState);	// RewindBox shared pipeline states
+ 			}
+ 			[plDesc release];																				// temp release
+ 		} else {
+@@ -1180,7 +1327,7 @@ MTLRenderPipelineDescriptor* MVKGraphicsPipeline::newMTLRenderPipelineDescriptor
  
  	SPIRVShaderOutputs vtxOutputs;
  	std::string errorLog;
@@ -471,7 +664,7 @@ index 7eae64c..0ef8772 100644
  		setConfigurationResult(reportError(VK_ERROR_INITIALIZATION_FAILED, "Failed to get vertex outputs: %s", errorLog.c_str()));
  		return nil;
  	}
-@@ -1219,7 +1219,7 @@ MTLComputePipelineDescriptor* MVKGraphicsPipeline::newMTLTessVertexStageDescript
+@@ -1219,7 +1366,7 @@ MTLComputePipelineDescriptor* MVKGraphicsPipeline::newMTLTessVertexStageDescript
  
  	SPIRVShaderInputs tcInputs;
  	std::string errorLog;
@@ -480,7 +673,7 @@ index 7eae64c..0ef8772 100644
  		setConfigurationResult(reportError(VK_ERROR_INITIALIZATION_FAILED, "Failed to get tessellation control inputs: %s", errorLog.c_str()));
  		return nil;
  	}
-@@ -1361,11 +1361,11 @@ MTLComputePipelineDescriptor* MVKGraphicsPipeline::newMTLTessControlStageDescrip
+@@ -1361,11 +1508,11 @@ MTLComputePipelineDescriptor* MVKGraphicsPipeline::newMTLTessControlStageDescrip
  	SPIRVShaderOutputs vtxOutputs;
  	SPIRVShaderInputs teInputs;
  	std::string errorLog;
@@ -494,7 +687,7 @@ index 7eae64c..0ef8772 100644
  		setConfigurationResult(reportError(VK_ERROR_INITIALIZATION_FAILED, "Failed to get tessellation evaluation inputs: %s", errorLog.c_str()));
  		return nil;
  	}
-@@ -1405,11 +1405,11 @@ MTLRenderPipelineDescriptor* MVKGraphicsPipeline::newMTLTessRasterStageDescripto
+@@ -1405,11 +1552,11 @@ MTLRenderPipelineDescriptor* MVKGraphicsPipeline::newMTLTessRasterStageDescripto
  	SPIRVShaderOutputs tcOutputs, teOutputs;
  	SPIRVShaderInputs teInputs;
  	std::string errorLog;
@@ -508,7 +701,34 @@ index 7eae64c..0ef8772 100644
  		setConfigurationResult(reportError(VK_ERROR_INITIALIZATION_FAILED, "Failed to get tessellation evaluation outputs: %s", errorLog.c_str()));
  		return nil;
  	}
-@@ -2630,6 +2630,7 @@ protected:
+@@ -1511,6 +1658,8 @@ bool MVKGraphicsPipeline::addVertexShaderToPipeline(MTLRenderPipelineDescriptor*
+ 	MVKMTLFunction func = getMTLFunction(shaderConfig, pVertexSS, pVertexFB, _vertexModule, "Vertex");
+ 	id<MTLFunction> mtlFunc = func.getMTLFunction();
+ 	plDesc.vertexFunction = mtlFunc;
++	_rbVertexCodeKey[0] = func.rbCodeKey[0];	// RewindBox shared pipeline states
++	_rbVertexCodeKey[1] = func.rbCodeKey[1];
+ 	if ( !mtlFunc ) { return false; }
+ 
+ 	auto& funcRslts = func.shaderConversionResults;
+@@ -1695,6 +1844,9 @@ bool MVKGraphicsPipeline::addFragmentShaderToPipeline(MTLRenderPipelineDescripto
+ 		MVKMTLFunction func = getMTLFunction(shaderConfig, pFragmentSS, pFragmentFB, _fragmentModule, "Fragment");
+ 		id<MTLFunction> mtlFunc = func.getMTLFunction();
+ 		plDesc.fragmentFunction = mtlFunc;
++		_rbFragmentAbsent = false;	// RewindBox shared pipeline states
++		_rbFragmentCodeKey[0] = func.rbCodeKey[0];
++		_rbFragmentCodeKey[1] = func.rbCodeKey[1];
+ 		if ( !mtlFunc ) { return false; }
+ 
+ 		auto& funcRslts = func.shaderConversionResults;
+@@ -2393,6 +2545,7 @@ MVKMTLFunction MVKGraphicsPipeline::getMTLFunction(SPIRVToMSLConversionConfigura
+ 
+ MVKGraphicsPipeline::~MVKGraphicsPipeline() {
+ 	@synchronized (getMTLDevice()) {
++		rbReleaseSharedPipelineState();	// RewindBox shared pipeline states
+ 		[_mtlTessVertexStageState release];
+ 		[_mtlTessVertexStageIndex16State release];
+ 		[_mtlTessVertexStageIndex32State release];
+@@ -2630,6 +2783,7 @@ protected:
  	SPIRVToMSLConversionConfiguration& getShaderConversionConfig() { return _pSLCache->_shaderLibraries[_index].first; }
  	MVKCompressor<std::string>& getCompressedMSL() { return _pSLCache->_shaderLibraries[_index].second->getCompressedMSL(); }
  	SPIRVToMSLConversionResultInfo& getShaderConversionResultInfo() { return _pSLCache->_shaderLibraries[_index].second->_shaderConversionResultInfo; }
@@ -516,7 +736,7 @@ index 7eae64c..0ef8772 100644
  	MVKShaderCacheIterator(MVKShaderLibraryCache* pSLCache) : _pSLCache(pSLCache) {}
  
  	MVKShaderLibraryCache* _pSLCache;
-@@ -2669,10 +2670,7 @@ VkResult MVKPipelineCache::writeDataImpl(size_t* pDataSize, void* pData) {
+@@ -2669,10 +2823,7 @@ VkResult MVKPipelineCache::writeDataImpl(size_t* pDataSize, void* pData) {
  			}
  		} else {
  			if (_dataSize == 0) {
@@ -528,7 +748,7 @@ index 7eae64c..0ef8772 100644
  			}
  			*pDataSize = _dataSize;
  			return VK_SUCCESS;
-@@ -2731,6 +2729,71 @@ void MVKPipelineCache::writeData(ostream& outstream, bool isCounting) {
+@@ -2731,6 +2882,71 @@ void MVKPipelineCache::writeData(ostream& outstream, bool isCounting) {
  #endif
  }
  
@@ -600,7 +820,7 @@ index 7eae64c..0ef8772 100644
  // Loads any data indicated by the creation info.
  // This is the compliment of the writeData() function. The two must be kept aligned.
  void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
-@@ -2747,6 +2810,25 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
+@@ -2747,6 +2963,25 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
  		istream inStream(&mb);
  		cereal::BinaryInputArchive reader(inStream);
  
@@ -626,7 +846,7 @@ index 7eae64c..0ef8772 100644
  		// Read the data header...and ensure correct byte-order.
  		uint32_t hdrComponent;
  		uint8_t pcUUID[VK_UUID_SIZE];
-@@ -2784,12 +2866,25 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
+@@ -2784,12 +3019,25 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
  					reader(resultInfo);
  
  					MVKCompressor<std::string> compressedMSL;
@@ -653,7 +873,7 @@ index 7eae64c..0ef8772 100644
  
  					break;
  				}
-@@ -2801,6 +2896,15 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
+@@ -2801,6 +3049,15 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
  			}
  		}
  
@@ -669,7 +889,7 @@ index 7eae64c..0ef8772 100644
  	} catch (cereal::Exception& ex) {
  		setConfigurationResult(reportError(VK_ERROR_INITIALIZATION_FAILED, "Error reading pipeline cache data: %s", ex.what()));
  	}
-@@ -3063,11 +3167,23 @@ void serialize(Archive & archive, MVKShaderModuleKey& k) {
+@@ -3063,11 +3320,23 @@ void serialize(Archive & archive, MVKShaderModuleKey& k) {
  			k.codeHash);
  }
  
@@ -695,7 +915,7 @@ index 7eae64c..0ef8772 100644
  
  
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
-index c5b7499..d9ff7da 100644
+index c5b7499..6322fd5 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
 @@ -23,7 +23,9 @@
@@ -708,7 +928,17 @@ index c5b7499..d9ff7da 100644
  
  #import <Metal/Metal.h>
  
-@@ -122,7 +124,8 @@ public:
+@@ -39,6 +41,9 @@ class MVKShaderModule;
+ typedef struct MVKMTLFunction {
+   mvk::SPIRVToMSLConversionResultInfo shaderConversionResults;
+ 	MTLSize threadGroupSize;
++	// RewindBox shared pipeline states: the identity of this function's code (its library's MSL and entry point), both
++	// words zero when unknown (a specialized function, a library without MSL of its own): never shared then.
++	uint64_t rbCodeKey[2] = {0, 0};
+ 	id<MTLFunction> getMTLFunction() { return _mtlFunction; }
+ 
+ 	MVKMTLFunction(id<MTLFunction> mtlFunc, const mvk::SPIRVToMSLConversionResultInfo scRslts, MTLSize tgSize);
+@@ -122,7 +127,8 @@ public:
  	MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
  					 const mvk::SPIRVToMSLConversionResultInfo& resultInfo,
  					 const MVKCompressor<std::string> compressedMSL,
@@ -718,7 +948,7 @@ index c5b7499..d9ff7da 100644
  
  	MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
  					 const void* mslCompiledCodeData,
-@@ -149,11 +152,17 @@ protected:
+@@ -149,11 +155,22 @@ protected:
  	void compressMSL(const std::string& msl);
  	void decompressMSL(std::string& msl);
  	MVKCompressor<std::string>& getCompressedMSL() { return _compressedMSL; }
@@ -733,10 +963,15 @@ index c5b7499..d9ff7da 100644
 +	// _compileLock serializes that compilation and a copy taken while it runs.
 +	mutable std::mutex _compileLock;
 +	std::atomic<bool> _compilePending{false};
++	// RewindBox shared pipeline states: the identity of this library's code, computed once, under the device lock of
++	// getMTLFunction(); a copy computes its own (the same bytes give the same identity).
++	uint64_t _rbCodeKey[2] = {0, 0};
++	bool _rbCodeKeyDone = false;
++	void rbFillCodeKey(uint64_t key[2]);
  
  	/** When true, representing a library created with source, but never specialized */
  	bool _maySpecializeWithMacro;
-@@ -257,8 +266,20 @@ public:
+@@ -257,8 +274,20 @@ public:
  	bool convert(mvk::SPIRVToMSLConversionConfiguration* pShaderConfig,
                 mvk::SPIRVToMSLConversionResult& conversionResult);
  
@@ -759,7 +994,7 @@ index c5b7499..d9ff7da 100644
  
      /** Sets the number of threads in a single compute kernel workgroup, per dimension. */
      void setWorkgroupSize(uint32_t x, uint32_t y, uint32_t z);
-@@ -274,9 +295,24 @@ protected:
+@@ -274,9 +303,24 @@ protected:
  	friend MVKShaderCacheIterator;
  
  	void propagateDebugName() override {}
@@ -786,7 +1021,7 @@ index c5b7499..d9ff7da 100644
  	MVKShaderModuleKey _key;
      std::mutex _accessLock;
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
-index 3aa44a4..52efed3 100644
+index 3aa44a4..0fc2234 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
 @@ -20,6 +20,11 @@
@@ -801,7 +1036,25 @@ index 3aa44a4..52efed3 100644
  
  using namespace std;
  using namespace mvk;
-@@ -73,6 +78,8 @@ MVKMTLFunction MVKShaderLibrary::getMTLFunction(const VkSpecializationInfo* pSpe
+@@ -34,6 +39,8 @@ MVKMTLFunction::MVKMTLFunction(const MVKMTLFunction& other) {
+ 	_mtlFunction = [other._mtlFunction retain];		// retained
+ 	shaderConversionResults = other.shaderConversionResults;
+ 	threadGroupSize = other.threadGroupSize;
++	rbCodeKey[0] = other.rbCodeKey[0];
++	rbCodeKey[1] = other.rbCodeKey[1];
+ }
+ 
+ MVKMTLFunction& MVKMTLFunction::operator=(const MVKMTLFunction& other) {
+@@ -44,6 +51,8 @@ MVKMTLFunction& MVKMTLFunction::operator=(const MVKMTLFunction& other) {
+ 
+ 	shaderConversionResults = other.shaderConversionResults;
+ 	threadGroupSize = other.threadGroupSize;
++	rbCodeKey[0] = other.rbCodeKey[0];
++	rbCodeKey[1] = other.rbCodeKey[1];
+ 	return *this;
+ }
+ 
+@@ -73,6 +82,8 @@ MVKMTLFunction MVKShaderLibrary::getMTLFunction(const VkSpecializationInfo* pSpe
  												VkPipelineCreationFeedback* pShaderFeedback,
  												MVKShaderModule* shaderModule) {
  
@@ -810,7 +1063,80 @@ index 3aa44a4..52efed3 100644
  	if ( !_mtlLibrary ) { return MVKMTLFunctionNull; }
  
  	id<MTLLibrary> lib = _mtlLibrary;
-@@ -213,18 +220,73 @@ MVKShaderLibrary::MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
+@@ -112,6 +123,7 @@ MVKMTLFunction MVKShaderLibrary::getMTLFunction(const VkSpecializationInfo* pSpe
+ 
+ 	@synchronized (getMTLDevice()) {
+ 		@autoreleasepool {
++			bool rbSpecialized = false;	// RewindBox shared pipeline states: function constants applied
+ 			NSString* mtlFuncName = @(_shaderConversionResultInfo.entryPoint.mtlFunctionName.c_str());
+ 
+ 			uint64_t startTime = pShaderFeedback ? mvkGetTimestamp() : getPerformanceTimestamp();
+@@ -130,6 +142,7 @@ MVKMTLFunction MVKShaderLibrary::getMTLFunction(const VkSpecializationInfo* pSpe
+ 				// the unspecialized Metal function.
+ 				NSArray<MTLFunctionConstant*>* mtlFCs = mtlFunc.functionConstantsDictionary.allValues;
+ 				if (mtlFCs.count > 0) {
++					rbSpecialized = true;
+ 					// The Metal shader contains function constants and expects to be specialized.
+ 					// Populate the Metal function constant values from the Vulkan specialization info.
+ 					MTLFunctionConstantValues* mtlFCVals = [[MTLFunctionConstantValues new] autorelease];
+@@ -167,13 +180,55 @@ MVKMTLFunction MVKShaderLibrary::getMTLFunction(const VkSpecializationInfo* pSpe
+ 			_owner->setMetalObjectLabel(mtlFunc, dbName);
+ 
+ 			auto& wgSize = _shaderConversionResultInfo.entryPoint.workgroupSize;
+-			return MVKMTLFunction(mtlFunc, _shaderConversionResultInfo, MTLSizeMake(getWorkgroupDimensionSize(wgSize.width, pSpecializationInfo),
++			MVKMTLFunction rbFunc(mtlFunc, _shaderConversionResultInfo, MTLSizeMake(getWorkgroupDimensionSize(wgSize.width, pSpecializationInfo),
+ 																					getWorkgroupDimensionSize(wgSize.height, pSpecializationInfo),
+ 																					getWorkgroupDimensionSize(wgSize.depth, pSpecializationInfo)));
++			// RewindBox shared pipeline states: an unspecialized function of this library's own MSL is known by its code.
++			if (mtlFunc && !rbSpecialized && lib == _mtlLibrary) { rbFillCodeKey(rbFunc.rbCodeKey); }
++			return rbFunc;
+ 		}
+ 	}
+ }
+ 
++// RewindBox shared pipeline states: two independent 64-bit hashes of the compressed MSL (its algorithm, sizes and
++// bytes) and of the entry point name. Equal libraries compiled from the same MSL give the same functions.
++void MVKShaderLibrary::rbFillCodeKey(uint64_t key[2]) {
++	if ( !_rbCodeKeyDone ) {
++		_rbCodeKeyDone = true;
++		const uint8_t* bytes = _compressedMSL.compressedData();
++		size_t size = _compressedMSL.compressedSize();
++		const std::string& name = _shaderConversionResultInfo.entryPoint.mtlFunctionName;
++		if (bytes && size && _compressedMSL._uncompressedSize && !name.empty()) {
++			uint64_t fnv = 0xcbf29ce484222325ULL, mix = 0x9e3779b97f4a7c15ULL ^ size;
++			auto addByte = [&](uint8_t b) { fnv = (fnv ^ b) * 0x100000001b3ULL; };
++			auto addWord = [&](uint64_t w) {
++				mix ^= w * 0xbf58476d1ce4e5b9ULL;
++				mix = ((mix << 31) | (mix >> 33)) * 0x94d049bb133111ebULL;
++			};
++			uint64_t header[3] = {(uint64_t)_compressedMSL._algorithm, (uint64_t)_compressedMSL._uncompressedSize, (uint64_t)size};
++			for (uint64_t w : header) { addWord(w); for (int i = 0; i < 8; i++) { addByte((uint8_t)(w >> (i * 8))); } }
++			size_t at = 0;
++			for (; at + 8 <= size; at += 8) {
++				uint64_t w;
++				memcpy(&w, bytes + at, 8);
++				addWord(w);
++				for (int i = 0; i < 8; i++) { addByte(bytes[at + i]); }
++			}
++			uint64_t tail = 0;
++			for (size_t i = 0; at + i < size; i++) { tail |= (uint64_t)bytes[at + i] << (i * 8); addByte(bytes[at + i]); }
++			addWord(tail ^ ((uint64_t)(size - at) << 56));
++			uint64_t nameWord = 0x6e616d65ULL;
++			for (char c : name) { addByte((uint8_t)c); nameWord = (nameWord * 31) ^ (uint8_t)c; }
++			addWord(nameWord ^ name.size());
++			mix ^= mix >> 30; mix *= 0xbf58476d1ce4e5b9ULL; mix ^= mix >> 27; mix *= 0x94d049bb133111ebULL; mix ^= mix >> 31;
++			_rbCodeKey[0] = fnv ? fnv : 1;
++			_rbCodeKey[1] = mix ? mix : 1;
++		}
++	}
++	key[0] = _rbCodeKey[0];
++	key[1] = _rbCodeKey[1];
++}
++
+ void MVKShaderLibrary::setEntryPointName(string& funcName) {
+ 	_shaderConversionResultInfo.entryPoint.mtlFunctionName = funcName;
+ }
+@@ -213,18 +268,73 @@ MVKShaderLibrary::MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
  MVKShaderLibrary::MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
  								   const SPIRVToMSLConversionResultInfo& resultInfo,
  								   const MVKCompressor<std::string> compressedMSL,
@@ -885,7 +1211,7 @@ index 3aa44a4..52efed3 100644
  void MVKShaderLibrary::compileLibrary(const string& msl,
  									  const vector<pair<uint32_t, MVKShaderMacroValue> >* specializationMacroDef) {
  	MVKShaderLibraryCompiler* slc = new MVKShaderLibraryCompiler(_owner);
-@@ -273,16 +335,33 @@ MVKShaderLibrary::MVKShaderLibrary(const MVKShaderLibrary& other) :
+@@ -273,16 +383,33 @@ MVKShaderLibrary::MVKShaderLibrary(const MVKShaderLibrary& other) :
  	_maySpecializeWithMacro(other._maySpecializeWithMacro),
  	_specializationVariants(other._specializationVariants) {
  
@@ -920,7 +1246,7 @@ index 3aa44a4..52efed3 100644
  	_owner = other._owner;
  	_shaderConversionResultInfo = other._shaderConversionResultInfo;
  	_compressedMSL = other._compressedMSL;
-@@ -357,11 +436,28 @@ MVKShaderLibrary* MVKShaderLibraryCache::findShaderLibrary(SPIRVToMSLConversionC
+@@ -357,11 +484,28 @@ MVKShaderLibrary* MVKShaderLibraryCache::findShaderLibrary(SPIRVToMSLConversionC
  	return nullptr;
  }
  
@@ -950,7 +1276,7 @@ index 3aa44a4..52efed3 100644
  	return shLib;
  }
  
-@@ -369,8 +465,10 @@ MVKShaderLibrary* MVKShaderLibraryCache::addShaderLibrary(const SPIRVToMSLConver
+@@ -369,8 +513,10 @@ MVKShaderLibrary* MVKShaderLibraryCache::addShaderLibrary(const SPIRVToMSLConver
  MVKShaderLibrary* MVKShaderLibraryCache::addShaderLibrary(const SPIRVToMSLConversionConfiguration* pShaderConfig,
  														  const SPIRVToMSLConversionResultInfo& resultInfo,
  														  const MVKCompressor<std::string> compressedMSL) {
@@ -963,7 +1289,7 @@ index 3aa44a4..52efed3 100644
  	return shLib;
  }
  
-@@ -379,7 +477,7 @@ void MVKShaderLibraryCache::merge(MVKShaderLibraryCache* other) {
+@@ -379,7 +525,7 @@ void MVKShaderLibraryCache::merge(MVKShaderLibraryCache* other) {
  	if ( !other ) { return; }
  	for (auto& otherPair : other->_shaderLibraries) {
  		if ( !findShaderLibrary(&otherPair.first) ) {
@@ -972,7 +1298,7 @@ index 3aa44a4..52efed3 100644
  			_shaderLibraries.back().second->_owner = _owner;
  		}
  	}
-@@ -393,6 +491,177 @@ MVKShaderLibraryCache::~MVKShaderLibraryCache() {
+@@ -393,6 +539,177 @@ MVKShaderLibraryCache::~MVKShaderLibraryCache() {
  #pragma mark -
  #pragma mark MVKShaderModule
  
@@ -1150,7 +1476,7 @@ index 3aa44a4..52efed3 100644
  MVKMTLFunction MVKShaderModule::getMTLFunction(SPIRVToMSLConversionConfiguration* pShaderConfig,
  											   const VkSpecializationInfo* pSpecializationInfo,
  											   MVKPipeline* pipeline,
-@@ -421,8 +690,12 @@ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
+@@ -421,8 +738,12 @@ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
  	bool shouldLogCode = mvkCfg.debugMode;
  	bool shouldLogEstimatedGLSL = shouldLogCode && mvkCfg.shaderLogEstimatedGLSL;
  
@@ -1164,7 +1490,7 @@ index 3aa44a4..52efed3 100644
  	addPerformanceInterval(getPerformanceStats().shaderCompilation.spirvToMSL, startTime);
  
  	const char* dumpDir = getMVKConfig().shaderDumpDir;
-@@ -444,7 +717,7 @@ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
+@@ -444,7 +765,7 @@ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
  		snprintf(path, sizeof(path), "%s/shader%s-%016zx.spv", dumpDir, type, _key.codeHash);
  		FILE* file = fopen(path, "wb");
  		if (file) {
@@ -1173,7 +1499,7 @@ index 3aa44a4..52efed3 100644
  			fclose(file);
  		}
  		snprintf(path, sizeof(path), "%s/shader%s-%016zx.metal", dumpDir, type, _key.codeHash);
-@@ -504,7 +777,7 @@ MVKShaderModule::MVKShaderModule(MVKDevice* device,
+@@ -504,7 +825,7 @@ MVKShaderModule::MVKShaderModule(MVKDevice* device,
  			codeHash = mvkHash(pCreateInfo->pCode, spvCount);
  			addPerformanceInterval(getPerformanceStats().shaderCompilation.hashShaderCode, startTime);
  
