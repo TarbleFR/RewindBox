@@ -1041,6 +1041,40 @@ index 528072c..8d3747d 100644
          renderer_vulkan/vk_shader_disk_cache.cpp
          renderer_vulkan/vk_shader_disk_cache.h
          renderer_vulkan/vk_shader_util.cpp
+diff --git a/src/video_core/rasterizer_cache/framebuffer_base.h b/src/video_core/rasterizer_cache/framebuffer_base.h
+index 55d6e20..25a45dd 100644
+--- a/src/video_core/rasterizer_cache/framebuffer_base.h
++++ b/src/video_core/rasterizer_cache/framebuffer_base.h
+@@ -67,7 +67,7 @@ public:
+     explicit FramebufferHelper(RasterizerCache<T>* res_cache_, typename T::Framebuffer* fb_,
+                                bool flip_rect, const Pica::RasterizerRegs& regs,
+                                Common::Rectangle<u32> surfaces_rect)
+-        : res_cache{res_cache_}, fb{fb_} {
++        : res_cache{res_cache_}, fb{fb_}, fb_rect{surfaces_rect} {
+         const u32 res_scale = fb->Scale();
+         const u32 height = surfaces_rect.GetHeight() / res_scale;
+ 
+@@ -139,6 +139,12 @@ public:
+         return draw_rect;
+     }
+ 
++    /// RewindBox: the rectangle of the surfaces this framebuffer renders to (every draw rectangle
++    /// of the same targets lies inside it).
++    Common::Rectangle<u32> FramebufferRect() const noexcept {
++        return fb_rect;
++    }
++
+     Common::Rectangle<s32> Scissor() const noexcept {
+         return scissor_rect;
+     }
+@@ -150,6 +156,7 @@ public:
+ private:
+     RasterizerCache<T>* res_cache;
+     typename T::Framebuffer* fb;
++    Common::Rectangle<u32> fb_rect;
+     Common::Rectangle<s32> scissor_rect;
+     Common::Rectangle<u32> draw_rect;
+     ViewportInfo viewport;
 diff --git a/src/video_core/renderer_vulkan/renderer_vulkan.cpp b/src/video_core/renderer_vulkan/renderer_vulkan.cpp
 index 219d11c..b924b1a 100644
 --- a/src/video_core/renderer_vulkan/renderer_vulkan.cpp
@@ -1138,7 +1172,7 @@ index 7b921e5..c0e231d 100644
      Pica::PicaCore& pica;
  
 diff --git a/src/video_core/renderer_vulkan/vk_rasterizer.cpp b/src/video_core/renderer_vulkan/vk_rasterizer.cpp
-index 6b753b8..b3fa865 100644
+index 6b753b8..fab1c9e 100644
 --- a/src/video_core/renderer_vulkan/vk_rasterizer.cpp
 +++ b/src/video_core/renderer_vulkan/vk_rasterizer.cpp
 @@ -16,6 +16,7 @@
@@ -1202,7 +1236,19 @@ index 6b753b8..b3fa865 100644
  
      const auto draw_rect = fb_helper.DrawRect();
      if (draw_rect.GetArea() == 0) {
-@@ -651,6 +684,16 @@ bool RasterizerVulkan::Draw(bool accelerate, bool is_indexed) {
+@@ -614,8 +647,9 @@ bool RasterizerVulkan::Draw(bool accelerate, bool is_indexed) {
+     SyncAndUploadLUTsLF();
+     UploadUniforms(accelerate);
+ 
+-    // Begin rendering
+-    renderpass_cache.BeginRendering(framebuffer, draw_rect);
++    // Begin rendering. RewindBox (tiled GPUs): the render area is the rectangle of the targets,
++    // the draw rectangle staying the scissor (RenderManager::BeginRendering).
++    renderpass_cache.BeginRendering(framebuffer, fb_helper.FramebufferRect());
+ 
+     // Configure viewport and scissor
+     const auto viewport = fb_helper.Viewport();
+@@ -651,6 +685,16 @@ bool RasterizerVulkan::Draw(bool accelerate, bool is_indexed) {
      return succeeded;
  }
  
@@ -1219,7 +1265,7 @@ index 6b753b8..b3fa865 100644
  void RasterizerVulkan::SyncTextureUnits(const Framebuffer* framebuffer) {
      using TextureType = Pica::TexturingRegs::TextureConfig::TextureType;
  
-@@ -836,6 +879,7 @@ void RasterizerVulkan::ClearAll(bool flush) {
+@@ -836,6 +880,7 @@ void RasterizerVulkan::ClearAll(bool flush) {
  }
  
  bool RasterizerVulkan::AccelerateDisplayTransfer(const Pica::DisplayTransferConfig& config) {
@@ -1227,7 +1273,7 @@ index 6b753b8..b3fa865 100644
      return res_cache.AccelerateDisplayTransfer(config);
  }
  
-@@ -844,6 +888,7 @@ bool RasterizerVulkan::AccelerateTextureCopy(const Pica::DisplayTransferConfig&
+@@ -844,6 +889,7 @@ bool RasterizerVulkan::AccelerateTextureCopy(const Pica::DisplayTransferConfig&
  }
  
  bool RasterizerVulkan::AccelerateFill(const Pica::MemoryFillConfig& config) {
@@ -1270,7 +1316,7 @@ index 3c7ebb5..1e886d2 100644
  
  } // namespace Vulkan
 diff --git a/src/video_core/renderer_vulkan/vk_render_manager.cpp b/src/video_core/renderer_vulkan/vk_render_manager.cpp
-index 4ac6928..fc2416c 100644
+index 4ac6928..bbe7f42 100644
 --- a/src/video_core/renderer_vulkan/vk_render_manager.cpp
 +++ b/src/video_core/renderer_vulkan/vk_render_manager.cpp
 @@ -2,12 +2,14 @@
@@ -1288,7 +1334,7 @@ index 4ac6928..fc2416c 100644
  #include "video_core/renderer_vulkan/vk_scheduler.h"
  #include "video_core/renderer_vulkan/vk_texture_runtime.h"
  
-@@ -19,13 +21,30 @@ using VideoCore::PixelFormat;
+@@ -19,20 +21,34 @@ using VideoCore::PixelFormat;
  using VideoCore::SurfaceType;
  
  RenderManager::RenderManager(const Instance& instance, Scheduler& scheduler)
@@ -1304,25 +1350,33 @@ index 4ac6928..fc2416c 100644
 +}
  
  void RenderManager::BeginRendering(const Framebuffer* framebuffer,
-                                    Common::Rectangle<u32> draw_rect) {
--    const vk::Rect2D render_area = {
-+    // RewindBox (tiled GPUs): the render area is the whole framebuffer, the draw rectangle being
-+    // the scissor of each draw. A draw with another viewport into the same attachments then
-+    // continues the open render pass instead of ending it, which would store and reload every
-+    // attachment, and the load operation of a deferred clear covers the whole image. A
-+    // framebuffer without attachment keeps the draw rectangle.
-+    const u32 width = framebuffer->Width();
-+    const u32 height = framebuffer->Height();
-+    const bool whole = width != 0 && height != 0 && width != std::numeric_limits<u32>::max() &&
-+                       height != std::numeric_limits<u32>::max();
-+    const vk::Rect2D render_area = whole ? vk::Rect2D{
-+        .offset{.x = 0, .y = 0},
-+        .extent{.width = width, .height = height},
-+    } : vk::Rect2D{
+-                                   Common::Rectangle<u32> draw_rect) {
++                                   Common::Rectangle<u32> render_rect) {
++    // RewindBox (tiled GPUs): the render area is the rectangle of the targets, the whole
++    // framebuffer when they fill it, instead of the draw rectangle (which stays the scissor of
++    // each draw). A draw with another viewport into the same targets then continues the open
++    // render pass instead of ending it, which would store and reload every attachment, and the
++    // load operation of a deferred clear covers the whole image.
++    const u32 right = std::min(render_rect.right, framebuffer->Width());
++    const u32 top = std::min(render_rect.top, framebuffer->Height());
++    const u32 left = std::min(render_rect.left, right);
++    const u32 bottom = std::min(render_rect.bottom, top);
+     const vk::Rect2D render_area = {
          .offset{
-             .x = static_cast<s32>(draw_rect.left),
-             .y = static_cast<s32>(draw_rect.bottom),
-@@ -42,12 +61,189 @@ void RenderManager::BeginRendering(const Framebuffer* framebuffer,
+-            .x = static_cast<s32>(draw_rect.left),
+-            .y = static_cast<s32>(draw_rect.bottom),
++            .x = static_cast<s32>(left),
++            .y = static_cast<s32>(bottom),
+         },
+         .extent{
+-            .width = draw_rect.GetWidth(),
+-            .height = draw_rect.GetHeight(),
++            .width = right - left,
++            .height = top - bottom,
+         },
+     };
+     const RenderPass new_pass = {
+@@ -42,12 +58,189 @@ void RenderManager::BeginRendering(const Framebuffer* framebuffer,
          .clears = {},
          .do_clear = false,
      };
@@ -1512,7 +1566,7 @@ index 4ac6928..fc2416c 100644
  void RenderManager::BeginRendering(const RenderPass& new_pass) {
      if (pass == new_pass) [[likely]] {
          num_draws++;
-@@ -55,6 +251,7 @@ void RenderManager::BeginRendering(const RenderPass& new_pass) {
+@@ -55,6 +248,7 @@ void RenderManager::BeginRendering(const RenderPass& new_pass) {
      }
  
      EndRendering();
@@ -1520,7 +1574,7 @@ index 4ac6928..fc2416c 100644
      scheduler.Record([info = new_pass](vk::CommandBuffer cmdbuf) {
          const vk::RenderPassBeginInfo renderpass_begin_info = {
              .renderPass = info.render_pass,
-@@ -160,7 +357,7 @@ vk::RenderPass RenderManager::GetRenderpass(VideoCore::PixelFormat color,
+@@ -160,7 +354,7 @@ vk::RenderPass RenderManager::GetRenderpass(VideoCore::PixelFormat color,
      const u32 samples_index = static_cast<u32>(std::bit_width(sample_count) - 1);
  
      vk::UniqueRenderPass& renderpass =
@@ -1529,7 +1583,7 @@ index 4ac6928..fc2416c 100644
      if (!renderpass) {
          const vk::Format color_format = instance.GetTraits(color).native;
          const vk::Format depth_format = instance.GetTraits(depth).native;
-@@ -176,8 +373,44 @@ vk::RenderPass RenderManager::GetRenderpass(VideoCore::PixelFormat color,
+@@ -176,8 +370,44 @@ vk::RenderPass RenderManager::GetRenderpass(VideoCore::PixelFormat color,
      return *renderpass;
  }
  
@@ -1574,7 +1628,7 @@ index 4ac6928..fc2416c 100644
  
      boost::container::static_vector<vk::AttachmentDescription, 2> attachments{};
      bool use_color = false;
-@@ -189,7 +422,7 @@ vk::UniqueRenderPass RenderManager::CreateRenderPass(vk::Format color, vk::Forma
+@@ -189,7 +419,7 @@ vk::UniqueRenderPass RenderManager::CreateRenderPass(vk::Format color, vk::Forma
          attachments.emplace_back(vk::AttachmentDescription{
              .format = color,
              .samples = vk::SampleCountFlagBits::e1,
@@ -1583,7 +1637,7 @@ index 4ac6928..fc2416c 100644
              .storeOp = vk::AttachmentStoreOp::eStore,
              .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
              .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
-@@ -209,9 +442,9 @@ vk::UniqueRenderPass RenderManager::CreateRenderPass(vk::Format color, vk::Forma
+@@ -209,9 +439,9 @@ vk::UniqueRenderPass RenderManager::CreateRenderPass(vk::Format color, vk::Forma
          attachments.emplace_back(vk::AttachmentDescription{
              .format = depth,
              .samples = vk::SampleCountFlagBits::e1,
@@ -1596,7 +1650,7 @@ index 4ac6928..fc2416c 100644
              .initialLayout = vk::ImageLayout::eGeneral,
              .finalLayout = vk::ImageLayout::eGeneral,
 diff --git a/src/video_core/renderer_vulkan/vk_render_manager.h b/src/video_core/renderer_vulkan/vk_render_manager.h
-index 8d6270d..6da140a 100644
+index 8d6270d..b5877f9 100644
 --- a/src/video_core/renderer_vulkan/vk_render_manager.h
 +++ b/src/video_core/renderer_vulkan/vk_render_manager.h
 @@ -6,6 +6,7 @@
@@ -1627,7 +1681,18 @@ index 8d6270d..6da140a 100644
  class RenderManager {
      static constexpr u32 NumColorFormats = static_cast<u32>(VideoCore::PixelFormat::NumColorFormat);
      static constexpr u32 NumDepthFormats = static_cast<u32>(VideoCore::PixelFormat::NumDepthFormat);
-@@ -54,15 +68,46 @@ public:
+@@ -46,7 +60,9 @@ public:
+     ~RenderManager();
+ 
+     /// Begins a new renderpass with the provided framebuffer as render target.
+-    void BeginRendering(const Framebuffer* framebuffer, Common::Rectangle<u32> draw_rect);
++    /// RewindBox: `render_rect` is the render area (the rectangle of the targets, see
++    /// RasterizerVulkan::Draw), clamped to the framebuffer.
++    void BeginRendering(const Framebuffer* framebuffer, Common::Rectangle<u32> render_rect);
+ 
+     /// Begins a new renderpass with the provided render state.
+     void BeginRendering(const RenderPass& new_pass);
+@@ -54,15 +70,46 @@ public:
      /// Exits from any currently active renderpass instance
      void EndRendering();
  
@@ -1674,7 +1739,7 @@ index 8d6270d..6da140a 100644
      /// Creates an MSAA renderpass configured appropriately and stores it in cached_renderpasses
      vk::UniqueRenderPass CreateRenderPassMSAA(vk::Format color, vk::Format depth,
                                                vk::AttachmentLoadOp load_op,
-@@ -71,14 +116,16 @@ private:
+@@ -71,14 +118,16 @@ private:
  private:
      const Instance& instance;
      Scheduler& scheduler;

@@ -1,6 +1,6 @@
 # Azahar 2127.0-rc5 avec le JIT de RewindBox
 
-Correctif `rewindbox-jit.patch` (31 fichiers, +1046/−124) appliqué à la source officielle 2127.0-rc5, révision `6f293a24`
+Correctif `rewindbox-jit.patch` (32 fichiers, +1061/−132) appliqué à la source officielle 2127.0-rc5, révision `6f293a24`
 (tête de `master` au 21 novembre 2026).
 
 - **Source.** Archive « unified source » de la release, avec tous les sous-modules, vérifiée par son SHA-256 :
@@ -92,9 +92,13 @@ attachements (couleur, profondeur-stencil) ; à la fin, il les réécrit. À 10�
     opération de chargement (`CLEAR`) : ni écriture séparée, ni relecture ;
   - toute autre commande l'enregistre d'abord comme avant (fonction appelée par `Scheduler::Record` avant la
     commande suivante) : l'ordre du travail GPU ne change pas.
-- **Zone de rendu entière** (`RenderManager::BeginRendering`). La zone de rendu est tout le framebuffer ; le
-  rectangle du dessin reste son ciseau. Un dessin avec une autre fenêtre (viewport) sur les mêmes attachements
-  continue la passe au lieu de la couper. MoltenVK n'utilise le chargement `CLEAR` que pour une zone entière.
+- **Zone de rendu des cibles** (`RenderManager::BeginRendering`, `FramebufferHelper::FramebufferRect`). La zone
+  de rendu est le rectangle des cibles du jeu dans leurs surfaces (tout le framebuffer dans le cas courant), et
+  non plus celui du dessin, qui reste son ciseau :
+  - un dessin avec une autre fenêtre (viewport) sur les mêmes cibles continue la passe au lieu de la couper ;
+  - une cible qui n'occupe qu'une partie d'une grande surface ne fait pas charger ni écrire toute la surface ;
+  - MoltenVK n'utilise le chargement `CLEAR` que pour une zone entière.
+
   La passe qui se termine pose aussi ses barrières sur ses propres images ; avant, elles visaient celles de la
   passe suivante.
 - **Attachement gardé** (`RasterizerVulkan::Draw`). Un dessin qui n'utilise que la couleur (HUD, effets sans test
