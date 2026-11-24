@@ -241,6 +241,64 @@ Vérifications :
   ×1 et ×4, 5 homebrews 3D en ×1, ×3 et ×5 + 3D 2x, capture affichée sur 2 homebrews) ;
 - le correctif s'applique aux sources épinglées et redonne exactement l'arbre testé.
 
+### 3D asynchrone, image dans la mémoire de l'hôte (section 16.7)
+
+Journal de la 832 (Animal Crossing, iPhone) : ×5 + 3D 2x et ×8 à 59,9 i/s, ×10 à 50,8–52,5 i/s (`run` 18,8–19,4 ms,
+`max` 41–48 ms, `over33` 30–33). Le jeu dessine une image 3D sur trois (`r3d` 200 pour 600 images) et n'en capture
+aucune (`cap` 0) ; chaque rendu dure 29 ms (`t3d`), et l'image qui l'attend dépasse 33 ms. S'y ajoutent `wait`
+3,3 ms, `2d` 8,1 ms, `out` 1,3 ms et `host` 2,9 ms (copie des deux écrans dans la texture par le processeur).
+
+- **3D asynchrone** (`desmume_rb_3d_async`). `SoftRasterizerRenderer` a deux tampons de couleur de la taille de
+  sortie : celui du moteur principal et un second, alloué au premier rendu asynchrone. `BeginRender` choisit où
+  dessiner : `auto` (défaut), après un rendu de plus de 8 ms, pour 120 rendus au moins ; `enabled`, tout rendu des
+  fils ; sinon le tampon affiché, comme avant. À la première ligne de chaque image, `BeginFrame3D` termine le rendu
+  s'il est fini et l'affiche ; sinon, l'image entière montre le dernier rendu terminé (`GetFramebuffer()`), sans
+  rien attendre. Le rendu continue au-delà de la fin de l'image ; il se termine avant le suivant
+  (`gfx3d_VBlankEndSignal`) ou avant que le jeu remplace ses listes (`gfx3d_doFlush`). Une capture d'écran lit la 3D
+  de sa propre image : dès sa ligne, l'image attend le rendu en cours, et rien n'est asynchrone pendant les
+  60 images suivantes. Jamais en sortie 24 bits. États sauvegardés : la dernière image 3D, comme avant
+  (`ShowLatestRender`).
+- **Image dans la mémoire de l'hôte.** Les deux écrans sont convertis en RGB565 directement dans la mémoire que
+  l'hôte donne (`RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER`) quand la disposition couvre toute l'image
+  (sans écart, hors hybride) ; sinon dans `screen_buf`, comme avant. RewindBox donne un tampon Metal partagé, que le
+  GPU recopie dans la texture de l'image dans le lot de commandes qui l'affiche : plus de copie de 20 Mo par image
+  (×10) sur le fil d'émulation.
+- **Mesures** ajoutées : `defer` (images qui ont montré le rendu précédent pendant que le nouveau se dessinait) et
+  `direct` (images écrites dans la mémoire de l'hôte ; `host` compte alors aussi la réponse de l'hôte).
+
+Banc x86 (4 processeurs virtuels, interpréteur, composition 2D en C++, scène « Galaxy » qui dessine la 3D à
+chaque image, ×10, 4 fils, images 601 à 1 200 de chaque course) :
+
+| Cœur | i/s | `run` (ms) | `wait` (ms) | `over33` |
+|---|---|---|---|---|
+| 832 | 31,7 | 31,1 | 3,1 | 162 |
+| ce cœur, `disabled` | 29,7–31,6 | 31,1–33,2 | 2,8–4,0 | 143–216 |
+| ce cœur, `auto` | 33,0–34,0 | 29,1–29,9 | 1,0–1,4 | 85–117 |
+
+Ce banc est limité par le fil d'émulation (composition 2D et sortie en C++, 21 ms par image), et la scène redessine
+la 3D à chaque image : la 3D asynchrone n'y retire que l'attente. Une course du 832 où tout le banc ralentissait
+(18,5 i/s) est écartée. Sur l'iPhone en ×10, c'est le rendu d'Animal Crossing (29 ms, une image sur trois) qui
+retient l'image ; rien n'y est encore mesuré. L'image dans la mémoire de l'hôte ne se mesure pas sur ce banc (il n'a
+pas de GPU) : son gain attendu est le `host` de la 832, 2,9 ms par image en ×10.
+
+Vérifications :
+- `disabled` : images et son identiques au cœur de la 832, sur x86 (30 cas : 5 homebrews 3D × ×1, ×4 et ×5 + 3D 2x,
+  avec et sans capture forcée) et sur AArch64 sous qemu avec le JIT (16 premiers cas identiques : 4 homebrews 3D
+  en ×1 et ×5 + 3D 2x, avec et sans image dans la mémoire du banc ; la série avec capture forcée tourne encore) ;
+- `auto` et `enabled` : son identique dans tous les cas (la logique du jeu ne change pas) ; images différentes à
+  partir de ×4, où la 3D s'affiche plus tard, et identiques en ×1 (rendu sur le fil d'émulation) ;
+- avec une capture forcée (VRAM D en LCDC, capture de la 3D vers D, puis affichage de D), `auto` et `enabled`
+  donnent les images de la 832, au bit près (x86 ; AArch64 en cours) : la capture coupe bien la 3D asynchrone ;
+- chaque image d'une course asynchrone (`enabled`, ×4, 300 images, Galaxy, MD2, Basic3D) se retrouve telle quelle
+  dans la course synchrone, au même rang ou une image plus tôt : jamais de 3D à moitié dessinée ni de déchirure ;
+- image dans la mémoire de l'hôte : avec un banc qui donne deux tampons remplis d'un motif à chaque image, mêmes
+  images que sans (×1, ×4 et ×5 + 3D 2x, Galaxy et MarioKart, x86 ; 4 homebrews en ×1 et ×5 + 3D 2x, AArch64
+  avec le JIT), 200 images sur 200 écrites dans ces tampons ;
+- ThreadSanitizer, 4 fils, ×4 et ×5 + 3D 2x, `enabled` avec un état sauvegardé puis rechargé en cours de rendu,
+  passage `enabled` → `disabled` → `enabled` en jeu, capture forcée : aucune course nouvelle (restent les compteurs
+  d'usage du cache de textures, déjà dans le cœur) ;
+- le correctif s'applique aux sources épinglées et redonne exactement l'arbre testé.
+
 ## Limites connues
 
 - **`jit` (T).** Temps du fetch non compté et entrelacement des deux CPU par bloc : le temps émulé diffère un peu
