@@ -61,6 +61,13 @@ COLLECTIONS = {
                       name='LibretroCores-6f969042a533d53d41d7b79a5f98d8e4542ab63d', bytes=56300427,
                       sha256='2fe56a69d52118d54ac42379ab487bc4d3999d334ebf68e6197ebd2af7ed9d02',
                       cores=('azahar', 'desmume', 'mednafen_psx', 'mednafen_psx_hw')),
+    # DeSmuME: a direct capture of the 3D waits for its own lines, the 2D engines' SSE2 paths through NEON, rasterizer
+    # threads below the emulation thread, [rb-perf] r3d/bands/bwait/cap/cap3d/ecpu/rcpu/t3d (native/desmume at
+    # f5857282); Azahar and both Beetle PSX binaries are identical to those of 14903781916.
+    14913662229: dict(run=45379028317, source='f585728289d8c25d6ac995c878f5ebc9df214dee',
+                      name='LibretroCores-f585728289d8c25d6ac995c878f5ebc9df214dee', bytes=56382495,
+                      sha256='248bd2f73db6f68cc1c0b7eb3d9ad7ae0225a53e89d3d76b2355260efa9ac6bc',
+                      cores=('azahar', 'desmume', 'mednafen_psx', 'mednafen_psx_hw')),
 }
 
 

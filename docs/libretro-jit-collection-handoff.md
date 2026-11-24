@@ -6,6 +6,30 @@ d'ipa c'est une autre session qui la fera ». Cette session n'a lancé aucune li
 *La collection précédente, `LibretroCores-6cd6a89b…` (id 14839590544, étape 0 de DeSmuME), est livrée dans
 l'IPA 827. Celle-ci la remplace ; elle est livrée dans l'IPA 828.*
 
+## Après la 831 : capture de la 3D sans attente complète, composition 2D en NEON
+
+*24 novembre 2026, session « JIT DS et ×10 ».* Retour du mainteneur sur la 831 : 40 i/s au plus dans Animal
+Crossing, et un `session.log` sans mesure du cœur (app fermée depuis le sélecteur). Détail : section 16.6 de
+[desmume-arm64-jit-architecture.md](desmume-arm64-jit-architecture.md) et le README de `native/desmume`.
+
+- **Cœur** `native/desmume` (30 fichiers ; `types.h`, `GPU.h`, les trois fichiers `colorspacehandler` et
+  `utils/rb_sse2neon.h` en plus) :
+  - une capture directe de la 3D n'attend plus toute l'image ;
+  - composition 2D par les voies SSE2 de DeSmuME, écrites en NEON ;
+  - fils du rastériseur sous le fil d'émulation (qualité de service) ;
+  - mesures `r3d`, `bands`, `bwait`, `cap`, `cap3d`, `ecpu`, `rcpu`, `t3d`.
+- **Pont** (`LibretroCoreHost`, `LibretroSession`) : les lignes `[rb-perf]` et `[rb-jit]` entrent dans
+  `session.log` au fil de l'eau.
+- **Collection compilée** : run [45379028317](https://github.com/TarbleFR/RewindBox/actions/runs/45379028317)
+  (commit `f5857282`, fusion qui porte `468c283f`), artefact `LibretroCores-f585728289d8c25d6ac995c878f5ebc9df214dee`,
+  id 14913662229, 56 382 495 octets, SHA-256 `248bd2f73db6f68cc1c0b7eb3d9ad7ae0225a53e89d3d76b2355260efa9ac6bc`,
+  disponible jusqu'au 8 décembre. Entrée ajoutée à `COLLECTIONS`.
+- **Ce qui change** par rapport à `6f969042` (831) : `desmume_libretro` seul (`328de8d0…`, 4 785 472 octets), sa
+  ligne de `LIBRETRO_CORES.txt` et `identity.json` ; tous les autres fichiers sont identiques octet pour octet.
+- **Vérifié sur l'archive téléchargée** : empreinte, contrat d'options sur les 35 binaires,
+  `libretro_source_collections.verify`, DeSmuME arm64 iOS 14.0 avec `RenderFlush16Lines`, les aides de couleur SSE2
+  compilées en NEON et les nouvelles mesures.
+
 ## Après la 830 : la 3D se dessine pendant la composition 2D
 
 *24 novembre 2026, session « JIT DS et ×10 ».* Détail : section 16.5 de
