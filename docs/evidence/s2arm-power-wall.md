@@ -270,6 +270,28 @@ ouverture de passe, et 13 700 réveils par seconde de fils qui attendent en bouc
 le plafond. Pour Zelda, il faut d'abord du temps GPU (shaders à accès mémoire brut, passes) et un fil
 de traduction plus léger. 0342 vise les deux ; la suite (ci-dessous) vise surtout Zelda.
 
+## Fire Emblem (24 novembre)
+
+Source : journal `04007EF01F8AE000` (moteur 0332–0340, deux sessions, mode portable), avec ses neuf
+images capturées. La session tournait au réglage de résolution 0,5 choisi dans le menu (rendu en
+960×540 au lieu de 1920×1080 ; la valeur par défaut est 1).
+
+- Le jeu demande 30 i/s (intervalle 2 dès l'image 7, jamais changé) : jeu à 30 par conception, que
+  0344 ne touche pas.
+- En jeu : 20 à 27 i/s ; 16 à 32 % des images ratent leur créneau de 33,3 ms et restent affichées
+  deux fois (p95 à 66,7 ms).
+- GPU : p50 de 18 à 33 ms presque à pleine fréquence, état thermique Nominal ou Fair, pas de plafond
+  iOS. Une image capturée : environ 145 passes, 2 500 dessins, 24 à 25 ms de GPU ; 39 passes sur la
+  cible 960×540 à une couleur (environ 6 dessins chacune), 37 passes sans dessin, 20 mini-passes.
+- Processeur : traduction 11 à 20 ms par image pour 1 000 à 2 300 dessins, surtout sur les cœurs
+  efficaces (environ 1,5 GHz) ; processeur à 0,3–0,9 W seulement.
+- Compilations de pipelines en jeu : au moins 256 attentes ; 45 détaillées, médiane 20 ms, jusqu'à
+  244 ms.
+
+Pistes : 0342 sur la chaîne 960×540 (si les mêmes cibles y sont réattachées), passes vides, place
+du fil de traduction (A/B avec la consommation), listes de pipelines. C'est le meilleur candidat de
+l'interpolation d'images une fois les 30 i/s tenus.
+
 ## Recherche du 24 novembre : amont, nxnative et projets iOS
 
 Lecture seule de S2Arm amont, de nxnative et d'une vingtaine de projets publics sous licence MIT
@@ -332,3 +354,4 @@ cadence) : c'est un lot à part entière, avec sa relecture.
 | 2026-11-24 | Étape 1, patchs 0342 à 0344 | Écrits ; logique pure testée hors dépôt. Relecture, compilation iOS et IPA à suivre ; aucun gain mesuré. |
 | 2026-11-24 | Relectures adverses de 0342 à 0344 | Deux défauts réels par patch, corrigés ; série reconstruite à l'identique, 40 tests purs (gcc, clang) et tests statiques du dépôt verts. Compilation iOS à suivre ; aucun gain mesuré. |
 | 2026-11-24 | Diagnostic croisé Zelda / Mario Kart World, recherche, expertise interpolation | Écrits. Aucun correctif tiré de la recherche n'est encore porté. |
+| 2026-11-24 | Journal Fire Emblem | Analysé : jeu à 30 par conception qui ne les tient pas (GPU, traduction sur cœurs efficaces, compilations). Aucun correctif dédié encore. |
