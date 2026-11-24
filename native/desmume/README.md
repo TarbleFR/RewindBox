@@ -6,7 +6,8 @@ DeSmuME, que le fork libretro n'a jamais importé, puis corrigé et branché sur
 `packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h`. S'y ajoutent les étapes 1 à 4 de
 [docs/desmume-arm64-jit-architecture.md](../../docs/desmume-arm64-jit-architecture.md) (sections 13 et 14) :
 couche commune, interpréteur en cache, JIT RewindBox à appels puis natif ; puis (section 15) le correctif du gel
-de l'IPA 828 et un rendu plus rapide en haute résolution interne.
+de l'IPA 828 et un rendu plus rapide en haute résolution interne ; enfin (section 16) le suréchantillonnage 3D et
+les mesures `[rb-perf]`.
 
 ## Ce que la compilation assemble
 
@@ -14,7 +15,7 @@ de l'IPA 828 et un rendu plus rapide en haute résolution interne.
    `emit_core.cpp` et `arm64_emit.cpp` de
    [TASEmulators/desmume@b549f71b](https://github.com/TASEmulators/desmume/tree/b549f71b83287f265b6d74b9e77ef5d98a617190),
    pris à cette révision et vérifiés par SHA-256. `arm_emit.cpp` (ARM 32 bits) n'est pas pris.
-2. **Correctif** `arm64-jit-abi.patch` (20 fichiers, +3 048/−241), un `git diff` contre l'arbre libretro plus ces
+2. **Correctif** `arm64-jit-abi.patch` (21 fichiers, +3 470/−267), un `git diff` contre l'arbre libretro plus ces
    trois fichiers d'origine. Il crée `utils/arm_jit/rb_cached.cpp`, `rb_a64.h` et `rb_jit.cpp`, et modifie aussi le
    rendu (`rasterize.cpp`, `rasterize.h`, `GPU.cpp`) et la sortie du frontend.
 3. **En-tête ABI** hors du correctif, copié par la compilation dans
@@ -56,6 +57,8 @@ de l'IPA 828 et un rendu plus rapide en haute résolution interne.
 | Composition de la couche 3D (`GPU.cpp`) | Chemin sans appel ni branchement pour le cas courant (copie simple, image 15 bits, pas de fenêtre), que le compilateur vectorise. Mêmes pixels que `_PixelCopy`. |
 | Sortie du frontend (`libretro.cpp`) | À partir de 512×384, la conversion en RGB565 des deux écrans est partagée avec trois fils d'aide. |
 | `desmume_num_cores` | Nouvelle valeur `auto`, valeur par défaut : un fil de rastériseur par cœur de l'appareil (8 au plus). |
+| Suréchantillonnage 3D (`desmume_rb_3d_supersampling`, `rasterize.cpp`) | `2x` : la 3D est dessinée au double de la résolution interne sur chaque axe (tampons de couleur et d'attributs à part), puis chaque bloc de 2×2 échantillons est moyenné dans le tampon 3D que lisent la 2D, la capture et les états. Moyenne simple là où les quatre alphas sont égaux ; ailleurs, couleur pondérée par l'alpha et alpha moyen. Réservé aux résolutions où la 3D dessinée reste dans 2560×1920 (5× au plus) ; appliqué aussitôt. `disabled` (défaut) : rien ne change. |
+| Mesures `[rb-perf]` (`utils/rb_perf.h`, `GPU.cpp`, `rasterize.cpp`, `libretro.cpp`) | Toutes les 600 images, une ligne du journal du cœur donne le temps moyen par image de chaque étape (voir ci-dessous). |
 
 ## Vérification hors appareil
 
@@ -124,6 +127,37 @@ sont pas des mesures iPhone :
 
 Avec 4 fils réglés à la main, le cœur de la 828 mettait 45,4 ms en ×10.
 
+### Suréchantillonnage 3D et mesures (section 16 du document d'architecture)
+
+Ligne du journal du cœur, toutes les 600 images (environ 10 s), temps moyens en millisecondes par image :
+
+```
+[rb-perf] desmume frames=600 fps=… res=WxH ss=K threads=N jit=0|1 ms/frame run=… max=… emu=… cpu=… 2d=… 3d=…
+          wait=… out=… host=… raster=… resolve=…
+```
+
+- `run` : `retro_run` en entier ; `max` : la plus longue des 600.
+- `emu` : `NDS_exec` ; dedans, `2d` (moteurs 2D, attentes de la 3D retirées), `3d` (lancement du rendu 3D sur ce
+  fil), `wait` (ce fil attend les fils du rastériseur, moyenne du suréchantillonnage comprise) et `cpu` (le reste :
+  CPU émulés et autre matériel).
+- `out` : conversion des deux écrans par le frontend ; `host` : appel vidéo de l'hôte (envoi et présentation).
+- `raster` : temps de travail cumulé de tous les fils du rastériseur ; `resolve` : moyenne du suréchantillonnage.
+
+Banc (x86-64 à 2,1 GHz, 4 processeurs virtuels, interpréteur, scène « Galaxy », `threads=4`) :
+
+| Réglage | fps | run | 2d | wait | out | raster |
+|---|---|---|---|---|---|---|
+| ×10 | 48,9 | 20,45 | 5,83 | 6,16 | 5,07 | 39,28 |
+| ×5 + 3D 2x | 59,5 | 16,80 | 1,86 | 8,93 | 2,73 | 36,46 |
+| ×4 + 3D 2x | 78,2 | 12,78 | 1,31 | 6,04 | 2,06 | 25,16 |
+| ×5 | 118,1 | 8,46 | 1,71 | 0,95 | 2,44 | 10,95 |
+
+Fidélité, écran du haut à la 400ᵉ image, PSNR par rapport à l'image ×10 réduite par moyenne 2×2 : ×5 + 3D 2x
+contre ×5 seul, 42,6 contre 35,6 dB (MarioKart de dsgmLib), 48,0 contre 41,7 dB (MD2), 45,8 contre 45,2 dB (Galaxy).
+L'écran 2D est identique au bit près. Avec `disabled`, images et son identiques au cœur de la 829 (cinq réglages,
+1 à 4 fils et `auto`, ×1 à ×10) ; en JIT AArch64, mêmes dernières images que l'interpréteur, options basculées en jeu,
+état sauvegardé puis rechargé.
+
 ## Limites connues
 
 - **`jit` (T).** Temps du fetch non compté et entrelacement des deux CPU par bloc : le temps émulé diffère un peu
@@ -164,4 +198,4 @@ strip -x desmume_libretro_ios.dylib
 
 `build-utils/libretro_source_cores.py --cores …,desmume` fait la même chose et vérifie chaque empreinte, les
 exports et les imports interdits. Il installe le binaire dans la collection avec `jitInterface: 1` et
-`jitArenaBytes` (32 Mio).
+`jitArenaBytes` (64 Mio depuis la section 16 : Animal Crossing en avait rempli 25,4 Mo sur 32 en 48 s).

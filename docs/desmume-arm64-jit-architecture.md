@@ -3,7 +3,8 @@
 *23 novembre 2026 — branche `Claude`. **Étapes 0 à 4 réalisées** (sections 13 et 14) : JIT AArch64 de T sur
 l'ABI, couche commune, interpréteur en cache, JIT RewindBox à appels puis natif, dans `native/desmume`, vérifiés
 hors appareil ; rien mesuré sur iPhone. **Section 15** : cause et correctif du gel de l'IPA 828, rendu plus rapide
-en haute résolution interne. Décisions du mainteneur : « DS : garder DeSmuME, soit inventif et conçois
+en haute résolution interne. **Section 16** : JIT absent sans cause journalisée (IPA 829), ×10 à 20 fps : architecture
+retenue. Décisions du mainteneur : « DS : garder DeSmuME, soit inventif et conçois
 l'architecture », « fini de concevoir l'architecture JIT pour la DS », « vas jusqu'au bout », puis « fini toute les
 étapes de l'architecture pour le JIT ». Sources relues : libretro/desmume `95b4d798` (**L**), TASEmulators/desmume
 `b549f71b` (**T**), melonDS `ff972523`, oaknut `94c726ce`. Les chiffres de gain sont des estimations ou des
@@ -667,3 +668,95 @@ image, ×5 de 22,1 à 10,9 ms, ×1 inchangé. Aucune mesure iPhone.
 - **Suite possible.** Composer la couche 3D hors du fil d'émulation, ou rendre la 3D par le GPU (moteur OpenGL ES 3
   de T, absent du fork libretro, et composition côté hôte).
 - **Reste sur le fil d'émulation** : composition des couches, agrandissement de l'écran sans 3D.
+
+## 16. État : JIT absent sans cause, ×10 à 20 fps (24 novembre 2026)
+
+Retour du mainteneur sur l'IPA 829 (Animal Crossing, A18 Pro) : une session sans JIT
+(`jit: engine=cached active=0 capable=0 expected=1`), et le ×10 à environ 20 fps, empreinte à 1,05 Go, `thermal=0`.
+Objectif : 60 fps avec une image équivalente au ×10, mémoire maîtrisée.
+
+### 16.1 JIT absent : la préparation s'arrête côté Flutter, sans trace dans la session
+
+- **Pas de régression des binaires.** Sept minutes après la session 17956 (00:08:08 UTC), la session 17989
+  (00:15:32 UTC), avec les mêmes images (`App` A1B290F7, `Runner` 97B28B82, `libretro_internal_bridge` 661E9EC7,
+  `desmume_libretro` 813C576E), installe l'interface (`load: JIT interface 1 installed; [rb-jit] arena=ready …
+  prepare_ms=107`) et DeSmuME tourne en JIT (`[rb-jit] desmume unload jit=1 blocks=32931 used=25354048 … flushes=0`).
+  Entre la 828 et la 829, ni `_prepareJit`, ni la sonde LocalDevVPN, ni `LibretroJit.m` n'ont changé ; le pont
+  n'ajoute que l'affichage du message JIT.
+- **Chemin.** `LibretroInternalService._prepareJit` (Dart) s'exécute avant le lancement : sonde de la route
+  LocalDevVPN (2 s au plus), fichier d'appairage enregistré, puis transaction de l'aide StikJIT. Un échec des deux
+  premières étapes n'écrit que dans `Diagnostics/app.log` et n'appelle jamais l'aide ; le journal de session, ouvert
+  ensuite, ne voyait que la conséquence. Côté natif, une arène absente n'était pas journalisée non plus (seule une
+  arène prête mais refusée l'était).
+- **Session 17956.** Aucune transaction : pas de ligne `[rb-jit] arena=`, avis « vérifiez LocalDevVPN et le fichier
+  d'appairage ». Le fichier d'appairage servant sept minutes plus tard, la route LocalDevVPN est la cause la plus
+  probable (coupée ou sans réponse en 2 s). L'étape exacte est dans `app.log` à cette heure
+  (`libretro JIT: LocalDevVPN route unavailable (…)` ou `no stored pairing file`), absent des journaux fournis.
+- **Correctif.** `_prepareJit` rend `LibretroJitPreparation` (`RB_JIT_VPN <code>: <message>`, `RB_JIT_NO_PAIRING`,
+  code et faits de la transaction native, `RB_JIT_EXCEPTION`), transmis par la requête (`jitPreparation`).
+  `LibretroJitInstallIntoLibraryWithReason` nomme le refus (`RB_JIT_ARENA_NOT_READY`, `RB_JIT_CORE_SYMBOL`,
+  `RB_JIT_CORE_REFUSED install=<n>`). Le journal de session écrit toujours une ligne :
+  `load: JIT interface not installed: <raison>; preparation: <détail>; [rb-jit] arena=…`.
+- **DeSmuME prend bien son JIT** dès que l'arène est installée (session 17989 ci-dessus). L'arène s'y remplissait
+  (25,4 Mo sur 32 en 48 s) : `jitArenaBytes` passe à 64 Mio. Une arène pleine est vidée et le code recompilé : un
+  à-coup, pas un plantage.
+
+### 16.2 ×10 : où part le temps (faits des journaux)
+
+- **Cadences.** Session 17989 (JIT) : environ 48 fps en ×6 (images 301 à 812 en 10,55 s), environ 20 fps en ×10
+  (242 images en 12 s de jeu, menu et arrière-plan retirés). Session 17956 (interpréteur en cache) : environ 47 fps
+  en ×6. Le CPU émulé ne limite donc pas : le temps d'une image croît avec le nombre de pixels, environ
+  4,4 ms + 4,6 ms par million de pixels produits (×6 : 3,54 Mpx, 20,8 ms ; ×10 : 9,83 Mpx, 50 ms). Estimation à deux
+  points.
+- **MetalFX.** `[rb-metalfx] standard picture METALFX_RATIO` : le cadre (2560×3840) est plus grand que sa place à
+  l'écran, MetalFX n'est pas appliqué (`LibretroMetalFXPolicy.h`). Il ne coûte rien en ×6 ni en ×10.
+- **Travail série par pixel sur le fil d'émulation en ×10** : composition 2D à la résolution interne (4,9 Mpx par
+  écran), conversion des deux écrans par le frontend (9,8 Mpx), puis dans l'hôte
+  (`LibretroMetalPresenter presentSoftwareFrame`) une conversion RGB565 → BGRA8 pixel par pixel dans un tampon de
+  39 Mo et sa copie (`replaceRegion`) de 39 Mo.
+- **Mémoire.** Cœur : 80 → 311 Mo de ×1 à ×10 (pic mesuré sur le banc). Hôte en ×10 : tampon de conversion de 39 Mo
+  et trois textures BGRA8 de 2560×3840 (118 Mo).
+
+### 16.3 Architecture retenue
+
+1. **Hôte : l'image RGB565 part telle quelle.** Texture `B5G6R5Unorm` (toutes les GPU Apple), le GPU développe les
+   canaux : plus de conversion sur le fil d'émulation, copie et textures divisées par deux (3 × 19,7 Mo en ×10 au
+   lieu de 3 × 39,3 + 39). Tous les lecteurs de la texture l'échantillonnent par une passe de rendu (cadre standard,
+   entrée de MetalFX, chaîne slang) : aucun ne dépend de son format. Repli sur la conversion si le format manque.
+2. **Cœur : suréchantillonnage 3D** (`desmume_rb_3d_supersampling`, réglage « Suréchantillonnage 3D » du menu en
+   jeu). Composition et image à ×5 (ou ×4), 3D dessinée au double par les fils du rastériseur puis moyennée (2×2).
+   Dans DeSmuME, la résolution interne n'agrandit que la 3D : la 2D est faite de pixels natifs agrandis. ×5 + 3D 2x
+   est donc l'image ×10 vue sur un écran de ×5, pour un quart des pixels de la 2D, de la sortie et de l'envoi. Un
+   iPhone 16 Pro affiche au plus ×4,7 par écran DS en portrait, ×5,1 côte à côte et ×6,3 pour un grand écran en
+   paysage : au-delà, le ×10 est réduit à l'affichage. Au-dessus de ×5, le cœur laisse l'option inactive.
+3. **Mesures `[rb-perf]`** dans le journal du cœur ([README](../native/desmume/README.md)) : CPU émulé, 2D, attente
+   et travail de la 3D, sortie, hôte. Elles diront sur l'iPhone ce que le modèle ci-dessus ne fait qu'estimer.
+4. **Rendu GPU : pas maintenant.** Le rendu 3D OpenGL de DeSmuME laisse la composition 2D sur le CPU à pleine
+   résolution et relit la 3D à chaque image ; le fork libretro n'a pas de moteur OpenGL ES 3 (celui de T,
+   `OGLRender_ES3.cpp`, serait à porter, sur ANGLE ou un contexte GLES de l'hôte) ; une composition entièrement sur
+   le GPU (comme celle de melonDS) est un nouveau moteur. La voie retenue retire les pixels du chemin critique sans
+   attendre ce chantier.
+
+**Banc** (x86-64, 4 processeurs virtuels, scène 3D « Galaxy ») : ×10 48,9 fps (20,45 ms), ×5 + 3D 2x 59,5 fps
+(16,80 ms), ×4 + 3D 2x 78,2 fps (12,78 ms), ×5 seul 118,1 fps (8,46 ms). Pic mémoire du cœur : ×10 311 Mo,
+×5 + 3D 2x 192 Mo, ×4 + 3D 2x 151 Mo, ×5 seul 137 Mo. Fidélité (PSNR de l'écran 3D contre le ×10 réduit) : 42,6 dB
+contre 35,6 pour le ×5 seul (MarioKart de dsgmLib), 48,0 contre 41,7 (Mario's Dream 2), 45,8 contre 45,2 (Galaxy) ;
+écran sans 3D identique. Option désactivée : images identiques au bit près au cœur de la 829 (cinq configurations).
+
+**Attendu sur l'iPhone** (estimation par le modèle de 16.2, gain de l'hôte non compris, non mesurée) : ×5 + 3D 2x
+compose 2,46 Mpx, soit environ 15,7 ms par image, vers 60 fps si la 3D au double (six fils, deux cœurs performants
+et quatre efficaces) tient dans le temps qu'elle chevauche ; ×4 + 3D 2x (1,57 Mpx, environ 11,7 ms) laisse de la
+marge, et MetalFX agrandit alors les ~1,2× restants jusqu'à l'écran. Mémoire : environ −120 Mo dans le cœur et
+−140 Mo dans l'hôte par rapport au ×10 actuel, soit vers 0,8 Go au lieu de 1,05. Un vrai ×10 à 60 fps verrouillés
+n'est pas à portée du rendu logiciel.
+
+### 16.4 À lire dans le prochain `session.log`
+
+- JIT : `load: JIT interface 1 installed; [rb-jit] arena=ready mode=universal capacity=67108864 …` puis
+  `jit: engine=jit active=1 capable=1 expected=1` ; sinon une ligne
+  `load: JIT interface not installed: RB_JIT_ARENA_NOT_READY: …; preparation: RB_JIT_VPN <code>: …` (ou
+  `RB_JIT_NO_PAIRING`, ou le code de l'aide avec ses faits).
+- Journal du cœur : `[rb-jit] desmume installed=1 arena=67108864 … engine=jit`, puis toutes les 600 images
+  `[rb-perf] desmume frames=600 fps=… res=1280x960 ss=2 threads=… jit=1 ms/frame run=… emu=… 2d=… wait=… out=…
+  host=… raster=…`.
+- `run: frame 1280x1920` en ×5 + 3D 2x (au lieu de `2560x3840`), puis `system: … footprint=` après le changement.
