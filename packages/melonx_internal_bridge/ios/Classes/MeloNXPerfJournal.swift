@@ -640,9 +640,12 @@ final class MeloNXStallWatch {
     // RewindBox (render path stall watch): no frame presented for these times of a running game after its first frame
     // (MeloNXPerfJournal.noteFrameStall): every thread is recorded, with up to frameStallFrames return addresses (a
     // thread parked in the runtime's wait spends its first eight in the wait itself), for at most maxFrameStalls stalls
-    // per journal. A variable so that a test can shorten them.
+    // per journal, a stall opened at least frameStallSpacingSeconds after the previous recorded one (IPA 830: the two
+    // allowed then went to SSBU's loading screens, and Hogwarts' 37 s collapse in play had none). Variables so that a
+    // test can shorten them.
     static var frameStallStagesMs: [Double] = [2000, 5000, 12000]
-    static let maxFrameStalls = 2
+    static var maxFrameStalls = 6
+    static var frameStallSpacingSeconds: Double = 30
     static let frameStallFrames = 32
     static let addressMask: UInt64 = 0x0000_FFFF_FFFF_FFFF
     private static let timebase: mach_timebase_info_data_t = {
@@ -665,6 +668,7 @@ final class MeloNXStallWatch {
     private var watched: UInt64 = 0, watchedName = "", stage = 0, stalls = 0
     private var previousCpu: [UInt64: UInt64] = [:]
     private var frameStalls = 0, frameStallRecorded = false
+    private var lastFrameStallAt: Double?
     private var frameStallCpu: [UInt64: UInt64] = [:]
 
     init(path: String, context: [String:String]) {
@@ -757,9 +761,12 @@ final class MeloNXStallWatch {
         switch request {
         case let .record(stallStage, stalledMs, fifoPercent):
             if stallStage == 0 {
-                frameStallRecorded = frameStalls < Self.maxFrameStalls
+                let now = ProcessInfo.processInfo.systemUptime
+                frameStallRecorded = frameStalls < Self.maxFrameStalls &&
+                    lastFrameStallAt.map { now - $0 >= Self.frameStallSpacingSeconds } ?? true
                 guard frameStallRecorded else { return }
                 frameStalls += 1
+                lastFrameStallAt = now
                 frameStallCpu = [:]
             }
             guard frameStallRecorded else { return }
@@ -1244,8 +1251,10 @@ final class MeloNXDiagnosticHeat {
             level = newLevel
         }
 
+        // A profile reads six threads' registers and return addresses (no memory walk): 20 s after a memory warning.
+        // Hogwarts Legacy warns every one to three minutes in play (IPA 830), which held every profile 60 s.
         mutating func warning(at time: Double) {
-            profileAfter = max(profileAfter, time + 60)
+            profileAfter = max(profileAfter, time + 20)
             walkAfter = max(walkAfter, time + 60)
         }
 
@@ -1281,10 +1290,12 @@ final class MeloNXDiagnosticHeat {
         policy.warning(at:ProcessInfo.processInfo.systemUptime)
     }
 
-    func mayProfile() -> Bool {
+    // "slow" profiles also while the device is only warm when profiles are kept for cool ones (Hogwarts Legacy): IPA 830
+    // took none of its slow stretches, all in the fair thermal state; "base" profiles and walks stay for a cool device.
+    func mayProfile(_ kind: String) -> Bool {
         lock.lock(); defer { lock.unlock() }
         let now = ProcessInfo.processInfo.systemUptime
-        return policy.profile(at:now) && (!profileOnlyWhenCool || policy.walk(at:now))
+        return policy.profile(at:now) && (!profileOnlyWhenCool || kind == "slow" || policy.walk(at:now))
     }
 
     func mayWalk() -> Bool {

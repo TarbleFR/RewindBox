@@ -8,7 +8,8 @@ import Darwin
 //
 // The per-second sampler asks for a profile (observe): after three lines in a row under 26 FPS ("slow", at most four a
 // session) or at 28.5 FPS and more ("base", at most two), never within 40 s of the start or 20 s of another profile,
-// never while paused. A profile reads the six busiest threads of that line 300 times, 10 ms apart, from a native thread
+// never while paused, each kind when MeloNXDiagnosticHeat.mayProfile allows it (Hogwarts Legacy: "base" on a cool device
+// only, "slow" on a warm one too). A profile reads the six busiest threads of that line 300 times, 10 ms apart, from a native thread
 // that never calls the engine and suspends nothing (thread_get_state stops a running thread for the read only, in the
 // kernel): the kernel run state, the program counter and up to six frame-pointer return addresses. Then, per thread:
 //   run= wait=  samples found running or runnable / waiting (missed= reads that failed: a thread that ended)
@@ -35,7 +36,7 @@ final class MeloNXHotSpots {
     struct Target { let id: UInt64; let name: String; let priority: Int32 }
     struct Request { let number: Int; let kind: String; let second: Int; let fps: Double; let targets: [Target] }
 
-    private let maySample: () -> Bool
+    private let maySample: (String) -> Bool
     private let path: String
     private let context: [String:String]
     private let lock = NSLock()
@@ -46,7 +47,7 @@ final class MeloNXHotSpots {
     // Confined to the sampler queue (observe).
     private var slowStreak = 0, baseStreak = 0, slowDone = 0, baseDone = 0, lastSecond = -1_000, profiles = 0
 
-    init(path: String, context: [String:String], maySample: @escaping () -> Bool = { true }) {
+    init(path: String, context: [String:String], maySample: @escaping (String) -> Bool = { _ in true }) {
         self.maySample = maySample
         self.path = path; self.context = context
     }
@@ -81,8 +82,11 @@ final class MeloNXHotSpots {
 
     /// From the sampler, once per line, with the line's busiest threads first. Never blocks.
     func observe(second: Int, fps: Double?, paused: Bool, threads: [Target]) {
-        guard let kind = Self.decide(second:second, fps:fps ?? 0, paused:paused || !maySample(), slowStreak:&slowStreak, baseStreak:&baseStreak,
-                                     slowDone:slowDone, baseDone:baseDone, lastSecond:lastSecond), !threads.isEmpty else { return }
+        // Each kind asks for its own permission (a warm device may allow "slow" profiles only).
+        let maySlow = maySample("slow"), mayBase = maySample("base")
+        guard let kind = Self.decide(second:second, fps:fps ?? 0, paused:paused || (!maySlow && !mayBase), slowStreak:&slowStreak, baseStreak:&baseStreak,
+                                     slowDone:slowDone, baseDone:baseDone, lastSecond:lastSecond),
+              kind == "slow" ? maySlow : mayBase, !threads.isEmpty else { return }
         lock.lock()
         let free = running && !busy && pending == nil
         if free {
@@ -107,7 +111,7 @@ final class MeloNXHotSpots {
             if let request {
                 let lines = Self.profile(request, continuing: {
                     self.lock.lock(); let alive = self.running; self.lock.unlock()
-                    return alive && self.maySample()
+                    return alive && self.maySample(request.kind)
                 })
                 for (index, line) in lines.enumerated() {
                     let text = "[MeloNX:hot] " + line
