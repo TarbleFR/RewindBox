@@ -49,8 +49,9 @@
   n'est pas pleine), ni `bufferReadback`, ni `queryReadback`, ni construction de pipeline par le fil de rendu (le
   compteur `computePipelineBuild` en cours reste à 1 avec un âge qui repart de zéro : c'est le travailleur qui
   enchaîne ses compilations).
-- Aucun shader n'est traduit au moment du gel : 28 recherches dans le cache de shaders, 32,9 Ko alloués en tout ; le
-  cache disque (2 120 programmes) est le même dans toutes les sessions. Aucun programme créé en jeu n'est en cause.
+- ~~Aucun shader n'est traduit au moment du gel : 32,9 Ko alloués~~ — erreur de lecture, corrigée le 24 novembre
+  (section 10) : la colonne est en Kio. La fenêtre du gel compte 28 appels au cache de shaders et 32,9 Mio alloués :
+  le jeu traduit de nouveaux programmes à ce moment-là (la 822 : 128 appels, 59 Mio dans la même fenêtre).
 - Le blocage du minuteur de 828 (`adapt_compile_wait_guest_time`) ne s'est jamais engagé : le fil de rendu n'attendait
   pas dans `WaitForPipelineAtDraw`.
 - Le SIGABRT de `FHeartBeatThread` à t=47–51 s est le chien de garde de 25 s d'Unreal Engine, une conséquence.
@@ -60,8 +61,8 @@
 - Attente d'une compilation promue (dessin ou dispatch) : servie par le fil « demand » ou par le travailleur après au
   plus une compilation ; le fil « demand » est resté inactif et aucune compilation ne dure.
 - Construction de pipeline sur le fil de rendu (verrou du cache principal) : elle serait mesurée.
-- Attente de liaison d'un programme créé en jeu (`CheckProgramLink` → `_compileTask.Wait()`) : aucun programme n'est
-  créé en jeu ; les programmes du cache n'attendent que leurs modules, compilés au chargement.
+- ~~Attente de liaison d'un programme créé en jeu : aucun programme n'est créé en jeu~~ — faux (voir ci-dessus) :
+  c'est l'attente du gel (section 10).
 - Libération d'un programme : uniquement à la fermeture.
 - `SyncManager` (824, `adapt_unblocked_sync_queries`) : l'ordre des verrous `_handles` → handle est le même partout ;
   la 824 retire une attente au lieu d'en ajouter.
@@ -172,3 +173,40 @@ Pool JIT et autres moteurs (question du mainteneur, même jour) :
 - « JIT Cache exhausted » (le défaut d'octobre) n'apparaît que dans deux sessions reçues, 658 11121 et 666 15155,
   terminées à 12 et 16 s ; dans aucune session de 824 à 829.
 - Ce que les moteurs partagent : le cache du compilateur Metal de l'application (un seul pour MeloNX, S2Arm et RPCS3).
+
+## 10. La cause, dans le code et dans les mesures — 24 novembre
+
+La chaîne, de bout en bout (moteur de la 822 = moteur de la 829, `scratchpad` local régénéré à l'octet près depuis
+la source épinglée : 0 écart sur 539 empreintes du contrat) :
+
+1. Hogwarts tourne avec la compilation asynchrone des shaders (`asyncShaders=True` dans les sessions 824–829 ; SSBU :
+   `False`). Un programme graphique traduit en jeu dont les shaders écrivent en mémoire ne peut pas être lié
+   incomplet (`ShaderInfoBuilder.Build` : `allowAsyncCompileSkip = enableAsyncCompile && !hasShaderWrites`).
+2. `SetProgramCommand` l'attend alors sur le fil de rendu : `ProgramQueue.WaitForProgram` →
+   `ShaderCollection.CheckProgramLink(blocking: true)` → `_compileTask.Wait()`, c'est-à-dire toute sa compilation de
+   fond, pipeline de préchauffage compris. Le détachement d'`adapt_setprogram_warmup` (« la liaison attend les
+   modules, pas le préchauffage ») ne s'applique pas avec la compilation asynchrone (`playTimeWarmUp` exige
+   `!info.EnableAsyncCompile`).
+3. Cette attente ne demande rien : ni `PromoteBackgroundCompilation`, ni promotion de la tâche. Le préchauffage reste
+   dans la file haute priorité, dans l'ordre d'arrivée.
+4. Depuis `64e49a84e` (22 novembre, `adapt_render_thread_compile_relief`), les préchauffages des 535 programmes
+   compute du cache sont eux aussi en haute priorité, mis en file au lancement, donc devant tout programme traduit en
+   jeu. Un seul travailleur sur l'iPhone (6 cœurs) ; le fil « demand » ne prend que les compilations demandées.
+5. Cache Metal chaud (822) : les 535 sont faits en 1,2 s, la file est vide quand le jeu traduit ses programmes. Cache
+   froid (824–829) : ~0,5 s chacun, 150 à 500 encore devant à 22 s, soit 75 à 250 s d'attente.
+
+Mesures qui collent à chaque maillon : traduction de programmes dans la fenêtre du gel (28 appels, 32,9 Mio) ; fil
+de rendu dans une seule commande depuis 22,5 s sous 1 % de CPU (attente bloquante, aucune phase mesurée) ; une seule
+compilation compute en cours à la fois, celle du travailleur (« Worker pipelines found in the main cache »), le fil
+« demand » inactif ; le fil GPU bloqué derrière le rendu (`SyncMap.WaitSyncAvailability`, non mesuré) ; à la pause
+de la 828, le `RenderThread` du jeu attend depuis 15,3 s et son `RHIThread` tourne en boucle ; chien de garde d'Unreal
+25 s plus tard. Le minuteur de la 828 (`adapt_compile_wait_guest_time`, posé sur `WaitForPipelineAtDraw`) ne s'est
+jamais engagé : l'attente n'était pas celle d'un dessin. Avant le 22 novembre, les préchauffages compute du cache
+étaient en basse priorité : les sessions à cache froid de 640–694 passaient.
+
+Correctif (`adapt_render_thread_compile_relief`, une ligne de moteur) : avant `_compileTask.Wait()`, la vérification
+bloquante demande la compilation (`PromoteBackgroundCompilation()`), comme le font déjà un dessin et un dispatch.
+L'attente ne dure plus qu'une compilation (~0,5 s à froid) au lieu de toute la file. Rien n'est sauté ni retiré :
+la liaison attend toujours le même pipeline. Seuls les programmes à préchauffage non détaché atteignent cette ligne
+(traduits en jeu avec la compilation asynchrone) ; programmes du cache et sessions sans compilation asynchrone (SSBU)
+n'y passent pas. Test du contrat : 549 contrôles passés ; compilation : CI du Core. Effet sur l'iPhone : non mesuré.
