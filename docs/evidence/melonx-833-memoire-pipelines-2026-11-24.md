@@ -119,3 +119,7 @@ comptes, des tailles et des durées sont repris ici. Aucune mesure nouvelle n'a 
 - Pourquoi ce changement du moteur entre dans ce Core : regelé pour ses seules entrées, le Core avait la même charge utile
   normalisée que celui déjà livré (`d46745a6`). La recette de livraison n'accepte ni un remplacement identique, ni une
   conservation avec une autre épingle. Les lignes lisibles sont un vrai correctif, et la charge utile change.
+- Épingles : Core `f26781221` (run 45471263838, artefact 14956948854, binaire iOS `b52cc725…`, empreinte de charge utile
+  `e06d7124…`, 289 adaptations ; contrôles Core de la livraison passés hors ligne sur l'artefact) et MoltenVK (run
+  45466266941, binaire `4887c9b7`, 11 marqueurs sur 11, 428 exports Vulkan sur 428, 64 contrôles de parité). Pour l'IPA
+  838, sur la 837. Rien n'est mesuré sur l'iPhone.

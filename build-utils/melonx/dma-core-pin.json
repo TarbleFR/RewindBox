@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "659f4f01aea6800f424a4b511aa94c3021d9a208",
-  "run": 45385342748,
-  "job": 138414688135,
+  "source": "f26781221555af86ae55caf7ecbbc0237cf719af",
+  "run": 45471263838,
+  "job": 138719518585,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 14916138690,
-  "name": "MeloNX-engine-659f4f01aea6800f424a4b511aa94c3021d9a208",
-  "bytes": 101403800,
-  "sha256": "53d0822624476171cf9c5fc83fdcd5ce04faff067b3f453c846e9ff6683d1130",
-  "expiresAt": "2027-02-22T11:33:59Z",
+  "artifact": 14956948854,
+  "name": "MeloNX-engine-f26781221555af86ae55caf7ecbbc0237cf719af",
+  "bytes": 101404134,
+  "sha256": "641a1f85cada986f42b55c0eb3ebe017eac1b1f75929b0ae55d3a055f110ec1f",
+  "expiresAt": "2027-02-22T19:32:19Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "f6cc6f722cfcc00fd99e4b8de58527bfbd3e6bdf1d5f24e37be7637ad4b2390b",
+      "sha256": "b52cc7252b510a2cacd862d6e7c97aa9d052e33b5efd329d109d2bcde363db5b",
       "bytes": 39245064
     },
     "iossimulator-arm64": {
-      "sha256": "a0f575412ce96c62f15c68ac1dd98f44c93a8b8cced83a9cc01118e839693a97",
+      "sha256": "0228af10b2e9d5535aa82b8612ba82dbf1574cab6b215f65d3a9792a1597862d",
       "bytes": 39584808
     }
   },
   "identities": {
-    "ios-arm64": "4ec5774401671dbd16d28fbda0c7d2e02a984f83526c466d8ef164fb82d1c5c9",
-    "iossimulator-arm64": "55c39a872824e82cb5ac50f00e5fb39f6b7e83e4163835d632912272a3660231"
+    "ios-arm64": "8ba03cadc2531c18a45ffdb7aeee2c5ade0a2e355808c56b28f286564060bb24",
+    "iossimulator-arm64": "825df3328810892b9eca54a40357d22be98ffc0ecb36db851a0fb489757b8d73"
   },
-  "contractSha256": "09cb9f1093489a66c4149f24a2997e7dcfb3b9d82d5fa306d10b5be0aee04100",
-  "resultSha256": "dfea5a5a9365c4aa331d1a6b5abc249fec8270ea21959d79a343b9cc8431d38c",
-  "packagedFingerprint": "d46745a6fae53fc7373b845bb56d86de0c93719fbaaa48a1b4a3d7a907044e19",
+  "contractSha256": "61c700ee172c44cb436a27777d3f3773015855723dc6f897a6744096806ba1a9",
+  "resultSha256": "829af2a505b6fdcc0cf9265dc429cfa1a8603615914b80e939e6eae8e6842ce1",
+  "packagedFingerprint": "e06d712487a551c36839e8ea2813de574d84bc1388fac1e90019a838ecef5454",
   "replaces": {
-    "source": "7cf4ff80d15e44ad8eea5d9b0dbca5e795aafa51",
-    "run": 45303538300,
-    "artifact": 14879952963,
-    "packagedFingerprint": "bfb54383407309dd743383dce61061cecd14c5a997cc40bfa5e6224cc047a1f4",
-    "reason": "IPA 830 (Hogwarts Legacy ended in play at 5 % device memory; the large object heap 466 MiB with about 210 MiB free, refilled 15 s after a compaction): the upload pool allocates large arrays at their size class, keeps at most 96 MiB of them and releases a large one 30 s after its return instead of 3 s (adapt_streaming_memory, POOL_830). Journal only: why each pipeline state met in play was new to its program (adapt_render_thread_compile_relief, VARIANT_CAUSES). Contract 09cb9f10, build-smoke route. Not run on an iPhone."
+    "source": "659f4f01aea6800f424a4b511aa94c3021d9a208",
+    "run": 45385342748,
+    "artifact": 14916138690,
+    "packagedFingerprint": "d46745a6fae53fc7373b845bb56d86de0c93719fbaaa48a1b4a3d7a907044e19",
+    "reason": "IPA 833 (Hogwarts Legacy): the code arena lines of adapt_jit_arena_usage_journal reached the device as \"[redacted key entry]\" (the journal's secret filter redacts a detail that starts with key=value); each detail now starts with \"code arena: \". The contract also follows the MoltenVK patch (tenth part: shared Metal render pipeline states; eleventh: Metal memory census with heaps) and the warm-up key parity test, frozen inputs of this Core. Otherwise the engine of Core 659f4f01 (POOL_830, VARIANT_CAUSES). Contract 61c700ee, build-smoke route. Not run on an iPhone."
   }
 }
