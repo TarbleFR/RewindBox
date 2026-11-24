@@ -129,3 +129,12 @@ chaque compilation suit la pression mémoire de l'appareil.
 - En jeu : 51 créations tardives à 09:32 (1 065 ms) et 71 à 09:33 (1 965 ms), soit environ 28 ms chacune sur le fil
   de rendu : les légères saccades.
 - Fils d'arrière-plan : 34 pipelines sur 40 « compilés à nouveau » en une minute (4 404 ms), malgré le cache.
+
+## 8. Livraison
+
+- Core `659f4f01` (POOL_830 et VARIANT_CAUSES) : run 45385342748 vert (NativeAOT, ABI, deux sessions simulateur),
+  artefact 14916138690, binaire ios-arm64 `f6cc6f72…` (39 245 064 octets), empreinte de charge `d46745a6…`, contrat
+  `09cb9f10`, 289 adaptations ; épinglé par `a940e1239`. Les contrôles Core de la livraison passent hors ligne sur
+  l'artefact extrait ; la nouvelle ligne de journal est présente dans le binaire.
+- IPA suivante demandée à la session S2Arm : base 832, avec ce Core et le pont MeloNX `1dd1002a7` (CI macOS
+  melonx-host verte, run 45370992966). Rien n'est mesuré sur iPhone.

@@ -40,8 +40,9 @@ void main() {
     expect(menu, contains('color: menuColor,'));
     expect(menu, contains(').withValues(alpha: 1);'));
     expect(RegExp(r'child: _item\(\s*Icons\.').allMatches(items).length, greaterThanOrEqualTo(6));
-    // A divider between every option (maintainer, 17 Nov 2026): five dividers for the six options.
-    expect('const PopupMenuDivider()'.allMatches(items).length, 5);
+    // A divider between every option (maintainer, 17 Nov 2026): six dividers for the seven options (the highlighted game's
+    // own settings since the settings profiles by game).
+    expect('const PopupMenuDivider()'.allMatches(items).length, 6);
   });
 
   test('the menu opens the Switch 2 engine settings panel', () {
@@ -50,6 +51,25 @@ void main() {
     expect(menu, contains("Switch2SettingsLocale.text(context, 'title')"));
     expect(menu, contains('Switch2EngineSettingsPanel()'));
     expect(menu, isNot(contains("value: 'firmware'")));
+  });
+
+  test("the menu opens the highlighted game's own settings, right after the Switch 2 settings", () {
+    final items = menu.substring(menu.indexOf('itemBuilder:'));
+    expect(menu, contains("ValueKey('s2arm-game-settings')"));
+    expect(menu, contains("value: 'gameSettings'"));
+    expect(menu, contains("if (action == 'gameSettings') await _openGameSettings();"));
+    expect(menu, contains("Switch2SettingsLocale.text(context, 'gameSettings')"));
+    expect(menu, contains("Switch2SettingsLocale.text(context, 'gameSettingsHint')"));
+    final item = items.indexOf("ValueKey('s2arm-game-settings')");
+    expect(items.indexOf("ValueKey('s2arm-settings')"), lessThan(item));
+    expect(item, lessThan(items.indexOf("ValueKey('s2arm-delete-game')")));
+    expect(items.substring(items.lastIndexOf('if (', item), item), contains('if (widget.romPath != null) ...['),
+        reason: 'only with a highlighted game');
+    // The panel in the game scope, keyed by the title id the launch gives the engine (read from the export).
+    final open = menu.substring(menu.indexOf('Future<void> _openGameSettings() async {'));
+    expect(open, contains('S2ArmInternalService.gameIdFor(Switch2ExportContent.exportFolder(romPath))'));
+    expect(open, contains('Switch2EngineSettingsPanel(gameId: gameId)'));
+    expect(open.indexOf('if (gameId == null) {'), lessThan(open.indexOf('showDialog<void>(')));
   });
 
   test('the menu imports a save and opens the saves folder for the selected game', () {

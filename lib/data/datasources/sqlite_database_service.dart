@@ -20,6 +20,7 @@ import 'dart:convert';
 
 import 'package:path/path.dart' as path;
 import 'package:flutter/foundation.dart';
+import '../../services/multi_disc_playlists.dart';
 
 /// Summary report of a ROM scanning operation for a specific system.
 class ScanSummary {
@@ -315,6 +316,21 @@ class SqliteDatabaseService {
       final bool useSaf =
           Platform.isAndroid &&
           romFolders.any((f) => f.startsWith('content://'));
+      // A game on several discs gets its playlist, which then hides the
+      // discs below (MultiDiscPlaylists; local folders only).
+      if (!useSaf) {
+        for (final created in await MultiDiscPlaylists.createMissing(
+          romEntries.map((entry) => entry.path),
+        )) {
+          romEntries.add(
+            RomEntry(
+              path: created,
+              filename: path.basename(created),
+              size: await File(created).length(),
+            ),
+          );
+        }
+      }
       final m3uFiltered = await _filterM3uReferencedFiles(romEntries, useSaf);
       romEntries
         ..clear()

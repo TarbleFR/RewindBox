@@ -554,6 +554,91 @@ void main() {
       expect(await S2ArmInternalService.saveSettings(S2ArmSettings.defaults), isNull);
     });
 
+    test('a game settings profile: made from the global values, changed alone, removed (fake native store)', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      const gid = '0400C3F00006E000';
+      final global = S2ArmSettings.defaults.copyWith(resolutionScale: '0.75', docked: true).toMap();
+      Map<String, Object?>? profile;
+      final calls = <String>[];
+      Map<String, Object?> reply(String id) => {'gid': id, 'custom': profile != null, 'settings': profile ?? global};
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        final arguments = Map<String, Object?>.from(call.arguments as Map);
+        calls.add('${call.method} ${arguments['gid']}');
+        switch (call.method) {
+          case 'getGameSettings':
+            break;
+          case 'createGameSettings':
+            profile ??= Map<String, Object?>.from(global);
+            break;
+          case 'setGameSettings':
+            if (profile != null) profile = {...profile!, ...Map<String, Object?>.from(arguments['settings'] as Map)};
+            break;
+          case 'removeGameSettings':
+            profile = null;
+            break;
+          default:
+            return null;
+        }
+        return reply(arguments['gid'] as String);
+      });
+      final first = await S2ArmInternalService.loadGameSettings(gid);
+      expect(first, S2ArmGameSettings(custom: false, settings: S2ArmSettings.fromMap(global)));
+      // Without a profile the global settings never change through the game calls.
+      final refused = await S2ArmInternalService.saveGameSettings(gid, first!.settings.copyWith(frameRateLimit: '60'));
+      expect(refused, first);
+      final made = await S2ArmInternalService.customizeGameSettings(gid);
+      expect(made, S2ArmGameSettings(custom: true, settings: S2ArmSettings.fromMap(global)));
+      final changed = await S2ArmInternalService.saveGameSettings(gid, made!.settings.copyWith(frameRateLimit: '60', widescreen: false));
+      expect(changed?.custom, isTrue);
+      expect(changed?.settings.frameRateLimit, '60');
+      expect(changed?.settings.widescreen, isFalse);
+      expect(changed?.settings.resolutionScale, '0.75', reason: 'the profile started from the global values');
+      expect(global['frameRateLimit'], '0', reason: 'the global settings are not touched');
+      final back = await S2ArmInternalService.resetGameSettings(gid.toLowerCase());
+      expect(back, S2ArmGameSettings(custom: false, settings: S2ArmSettings.fromMap(global)));
+      expect(calls, [
+        'getGameSettings $gid', 'setGameSettings $gid', 'createGameSettings $gid', 'setGameSettings $gid',
+        'removeGameSettings $gid',
+      ], reason: 'the title id goes to the native side in upper case');
+    });
+
+    test('game settings: no call for a value that is not a title id, null off iOS or when the channel fails', () async {
+      expect(await S2ArmInternalService.loadGameSettings('0400C3F00006E000'), isNull);
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      var calls = 0;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls++;
+        throw PlatformException(code: 'x');
+      });
+      expect(await S2ArmInternalService.loadGameSettings('mario'), isNull);
+      expect(await S2ArmInternalService.customizeGameSettings('0400C3F00006E00'), isNull);
+      expect(calls, 0);
+      expect(await S2ArmInternalService.loadGameSettings('0400C3F00006E000'), isNull);
+      expect(await S2ArmInternalService.resetGameSettings('0400C3F00006E000'), isNull);
+      expect(calls, 2);
+    });
+
+    test('S2ArmGameSettings.fromMap reads a number as a flag and falls back to the defaults', () {
+      expect(S2ArmGameSettings.fromMap(const {'custom': 1, 'settings': {'docked': true}}),
+          S2ArmGameSettings(custom: true, settings: S2ArmSettings.defaults.copyWith(docked: true)));
+      expect(S2ArmGameSettings.fromMap(const {}), const S2ArmGameSettings(custom: false, settings: S2ArmSettings.defaults));
+    });
+
+    test('gameIdFor is the title id the launch gives the engine, in upper case', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method != 'detectExport') return null;
+        final folder = (call.arguments as Map)['exportFolder'];
+        if (folder == '/export') return {'success': true, 'exportDir': '/export', 'gid': '0400c3f00006e000'};
+        if (folder == '/odd') return {'success': true, 'exportDir': '/odd', 'gid': 'g'};
+        return {'success': false, 'code': 'notExportFolder'};
+      });
+      expect(await S2ArmInternalService.gameIdFor('/export'), '0400C3F00006E000');
+      expect(await S2ArmInternalService.gameIdFor('/odd'), isNull);
+      expect(await S2ArmInternalService.gameIdFor('/missing'), isNull);
+    });
+
     test('launchGame receives uiLocale and the resolved menu strings', () async {
       S2ArmInternalService.availabilityForTesting = const S2ArmRuntimeAvailability(S2ArmRuntimeState.ready);
       Map<Object?, Object?>? arguments;

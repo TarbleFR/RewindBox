@@ -1,0 +1,263 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index a0e8a83..08e25ac 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -4086,10 +4086,13 @@ static void tsummary(uint64_t frame) {
+     { static uint64_t pi, pc, pd, pf; uint64_t ci = atomic_load(&g_cum_sub_instr), cc = atomic_load(&g_cum_sub_cpu_ns), ps_, dr_; nvn_be_stats(&ps_, &dr_);   // translation layer
+       if (pf && frame > pf && dr_ > pd) LOG("[nvn] translation up to frame %llu: %.0f instructions per draw, submit per frame %.2f M instructions / CPU %.3f ms, %.0f draws per frame", frame,
+           (double)(ci - pi) / (double)(dr_ - pd), (ci - pi) / 1e6 / (double)(frame - pf), (cc - pc) / 1e6 / (double)(frame - pf), (double)(dr_ - pd) / (double)(frame - pf));
+-      { void nvn_be_cost_stats(uint64_t v[5]); static uint64_t pv[5]; uint64_t v[5]; nvn_be_cost_stats(v);   // where the per-draw cost goes (10-31 Monster Hunter Rise submit thread)
++      { void nvn_be_cost_stats(uint64_t v[10]); static uint64_t pv[10]; uint64_t v[10]; nvn_be_cost_stats(v);   // where the per-draw cost goes (10-31 Monster Hunter Rise submit thread)
+         if (pf && frame > pf) { double nf = (double)(frame - pf);
+-            LOG("[nvn] submit costs up to frame %llu: per frame render passes %.1f, texture uploads %.1f (%.0f KB, %.3f ms on the submit thread), shadow-write pages noted %.0f", frame,
+-                (v[0] - pv[0]) / nf, (v[1] - pv[1]) / nf, (v[2] - pv[2]) / 1024.0 / nf, (v[3] - pv[3]) / 1e6 / nf, (v[4] - pv[4]) / nf); }
++            LOG("[nvn] submit costs up to frame %llu: per frame render passes %.1f, texture uploads %.1f (%.0f KB, %.3f ms on the submit thread), shadow-write pages noted %.0f; "
++                "RewindBox (patch 0348) GPU writes kept as ranges %.1f (%.0f pages not stored one by one), noted page by page with the submission's list full %.1f, "
++                "put page by page with the live ranges full %.1f (S2A_RB_GW_RANGES %s)", frame,
++                (v[0] - pv[0]) / nf, (v[1] - pv[1]) / nf, (v[2] - pv[2]) / 1024.0 / nf, (v[3] - pv[3]) / 1e6 / nf, (v[4] - pv[4]) / nf,
++                (v[5] - pv[5]) / nf, (v[6] - pv[6]) / nf, (v[7] - pv[7]) / nf, (v[8] - pv[8]) / nf, v[9] ? "on" : "off"); }
+         memcpy(pv, v, sizeof pv); }
+       { static uint64_t py, pk, pw; uint64_t cy = atomic_load(&g_cum_sub_cyc), ck = atomic_load(&g_cum_sub_sys_ns), cw = atomic_load(&g_cum_sub_wall_ns);
+         if (pf && frame > pf && ci > pi && cy > py) { double nf = (double)(frame - pf), cyc = (double)(cy - py), cpu = (double)(cc - pc);
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 234bd9c..7171a29 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1460,6 +1460,21 @@ static struct { uint64_t lo, n; uint32_t gen; uint8_t src; } g_sbw_memo[SBW_MEMO
+ //   "too large to keep" and marks the whole submission over (g_sbw_over), so every later indexed geometry draw waited for the GPU and left its geometry run
+ //   (11-06 Donkey Kong: compute shaders 80c1f2f388617e69 / 1cc137863bec3f11 / c3de3d90f81ac8e0 bind such buffers with 59–320 KB left in theirs)
+ static uint64_t sbw_to_end(void *mb, uint64_t mo) { uint64_t len = mb ? (uint64_t)[(__bridge id<MTLBuffer>)mb length] : 0; return len > mo ? len - mo : 0; }
++// RewindBox (patch 0348): a GPU write of RB_GWR_MIN_PAGES pages or more is kept whole, one range in g_gwr_sub instead of one entry a page in g_sbwp, and gw_commit keeps it as
++//   one live range instead of one g_gw store a page (rb_gw_ranges.h). Zelda TOTK's translation thread (docs/evidence/s2arm-power-wall.md): 4.7 % in sbw_note, and 17 of the
++//   27 samples of the end of a submission piece on one address in gw_commit, the store of a page into g_gw; its raw-memory shaders' stores are noted as whole pools, many pages each.
++//   sbw_hits and gw_check answer for a range as for its pages; a write the list has no room for goes page by page as before. S2A_RB_GW_RANGES=0: every write page by page, as before
++#include "rb_gw_ranges.h"
++static rb_gwr_list g_gwr_sub;   // this submission's GPU writes kept whole (pend_reset empties it with the page set)
++static _Atomic int g_rb_gwr_option;
++static uint64_t g_gwr_kept, g_gwr_kept_pages, g_gwr_list_full, g_gwr_live_full;   // the submit cost line (hle_nvn.c): ranges gw_commit kept live and their pages; writes noted page by page with the list full; ranges put page by page with the live ranges full
++static int rb_gwr_on(void) { return rb_pacing_setting(&g_rb_gwr_option, "S2A_RB_GW_RANGES"); }
++static int sbw_whole(uint64_t lo, uint64_t n) {   // 1 = kept whole in g_gwr_sub; 0 = the caller notes it page by page (fewer pages, the range path off, or the list full)
++    if (!rb_gwr_large(lo, n) || !rb_gwr_on()) return 0;
++    if (rb_gwr_list_add(&g_gwr_sub, lo, lo + n - 1)) return 1;
++    g_gwr_list_full++;
++    return 0;
++}
+ #include "rb_ubo_versions.h"
+ static rb_ub_versions g_rb_ub_ring;
+ static rb_ub_frame *g_rb_ub_current;
+@@ -1477,20 +1492,27 @@ static void sbw_note(uint64_t lo, uint64_t n, int src) {
+     rb_ub_opaque(g_rb_ub_current, lo, n);
+     if (src == SBW_GPU) g_sbw_gen++;
+     if (!n || n > UINT64_MAX - lo || n > (uint64_t)SBW_PAGES << 12) { if (src == SBW_GPU) g_sbw_over = 1; return; }   // a report too large to keep cannot happen (16 bytes)
+-    g_sbw_pages += ((lo + n - 1) >> 12) - (lo >> 12) + 1;
+-    for (uint64_t pg = lo >> 12; pg <= (lo + n - 1) >> 12; pg++) { int k = sbw_slot(pg, 1); if (k < 0) { g_sbw_over = 1; return; } g_sbwp[k].src |= (uint8_t)src;
+-        uint64_t page = pg << 12;
+-        unsigned begin = rb_ub_ranges && lo > page ? (unsigned)(lo - page) : 0;
+-        unsigned end = rb_ub_ranges && lo + n - page < 4096 ? (unsigned)(lo + n - page) : 4096;
+-        if (begin < g_sbwp[k].begin) g_sbwp[k].begin = begin;
+-        if (end > g_sbwp[k].end) g_sbwp[k].end = end;
++    if (src != SBW_GPU || !sbw_whole(lo, n)) {   // RewindBox (patch 0348): a large GPU write is kept whole instead (sbw_whole)
++        g_sbw_pages += ((lo + n - 1) >> 12) - (lo >> 12) + 1;
++        for (uint64_t pg = lo >> 12; pg <= (lo + n - 1) >> 12; pg++) { int k = sbw_slot(pg, 1); if (k < 0) { g_sbw_over = 1; return; } g_sbwp[k].src |= (uint8_t)src;
++            uint64_t page = pg << 12;
++            unsigned begin = rb_ub_ranges && lo > page ? (unsigned)(lo - page) : 0;
++            unsigned end = rb_ub_ranges && lo + n - page < 4096 ? (unsigned)(lo + n - page) : 4096;
++            if (begin < g_sbwp[k].begin) g_sbwp[k].begin = begin;
++            if (end > g_sbwp[k].end) g_sbwp[k].end = end;
++        }
+     }
+     uint8_t had = g_sbw_memo[m].gen == g_pend_gen && g_sbw_memo[m].lo == lo && g_sbw_memo[m].n == n ? g_sbw_memo[m].src : 0;
+     g_sbw_memo[m].lo = lo; g_sbw_memo[m].n = n; g_sbw_memo[m].gen = g_pend_gen; g_sbw_memo[m].src = (uint8_t)(had | src);   // only after every page went in
+ }
+-static int sbw_hits(uint64_t lo, uint64_t hi) { if (!g_nsbw) return 0; for (uint64_t pg = lo >> 12; pg <= (hi - 1) >> 12; pg++) { int k = sbw_slot(pg, 0); if (k >= 0 && (g_sbwp[k].src & SBW_GPU)) return 1; } return 0; }
++static int sbw_hits(uint64_t lo, uint64_t hi) {
++    if (g_gwr_sub.n && rb_gwr_list_hits(&g_gwr_sub, lo, hi)) return 1;   // RewindBox (patch 0348): the GPU writes kept whole, by page
++    if (!g_nsbw) return 0;
++    for (uint64_t pg = lo >> 12; pg <= (hi - 1) >> 12; pg++) { int k = sbw_slot(pg, 0); if (k >= 0 && (g_sbwp[k].src & SBW_GPU)) return 1; }
++    return 0;
++}
+ static inline unsigned pend_bucket(uint64_t page) { return (unsigned)((page * 0x9E3779B97F4A7C15ull) >> 53) & (PEND_HB - 1); }
+-static void pend_reset(void) { rb_ub_begin_submission(); g_npend = g_pend_over = g_nupd = g_npnode = g_nwide = g_nsbw = g_sbw_over = g_npseg = g_pseg_over = g_npzero = 0; if (!++g_pend_gen) { memset(g_pend_hgen, 0, sizeof g_pend_hgen); memset(g_psp, 0, sizeof g_psp); memset(g_sbwp, 0, sizeof g_sbwp); memset(g_sbw_memo, 0, sizeof g_sbw_memo); g_pend_gen = 1; } }
++static void pend_reset(void) { rb_ub_begin_submission(); g_npend = g_pend_over = g_nupd = g_npnode = g_nwide = g_nsbw = g_sbw_over = g_npseg = g_pseg_over = g_npzero = 0; rb_gwr_list_reset(&g_gwr_sub); if (!++g_pend_gen) { memset(g_pend_hgen, 0, sizeof g_pend_hgen); memset(g_psp, 0, sizeof g_psp); memset(g_sbwp, 0, sizeof g_sbwp); memset(g_sbw_memo, 0, sizeof g_sbw_memo); g_pend_gen = 1; } }   // RewindBox (patch 0348): g_gwr_sub
+ static void vc_gpu_write(uint64_t dst, uint64_t n);   // kept index ranges under the written range are not trusted again (ix_range)
+ static void gpw_clear(uint64_t lo, uint64_t n);   // guest bytes the GPU wrote into memory itself are current again (see gpw_mark)
+ static int pend_add(uint64_t dst, uint64_t n, int kind) {
+@@ -2604,6 +2626,7 @@ static int ub_partial_on(void) { static int v = -1; if (v < 0) { const char *e =
+ enum { GW_N = 1 << 16, GW_PAGES = 4096 };   // 4,096 slots fill up in Ocarina of Time, every slot then a false hit for some page (passes ended over blocks no GPU write touched; upstream reference implementation, MIT)
+ static struct { uint64_t page, fence; uint16_t begin, end; } g_gw[GW_N];   // page ~0: two live pages met in the slot, so any page there counts as written until fence completes
+ static uint64_t g_gw_all;                            // every page counts as written until this fence completes (a submission whose writes could not all be listed)
++static rb_gwr_live g_gwr_live;   // RewindBox (patch 0348): committed GPU writes kept whole (sbw_whole), each until its submission's fence; gw_check reads them beside g_gw
+ static uint64_t g_ubp_made, g_ubp_reused, g_ubp_refused;   // partial shadows made / taken from the cache / refused (the pass ended), for the residency set line
+ static uint64_t g_ubp_why[5];   // why ubp_get refused: 0 too large or off, 1 other GPU writes in this submission (sbw), 2 GPU writes of an earlier submission still running, 3 a copy, fill or feedback write queued, 4 unreadable or too many writes
+ static inline unsigned gw_slot(uint64_t pg) { return (unsigned)((pg * 0x9E3779B97F4A7C15ull) >> (64 - __builtin_ctz(GW_N))) & (GW_N - 1); }   // the top log2(GW_N) bits of the product
+@@ -2630,6 +2653,7 @@ static void gw_put(uint64_t lo, uint64_t hi, uint64_t fence, uint64_t done) {
+ static int gw_check(uint64_t lo, uint64_t hi, int exact) {
+     uint64_t done = g_done;   // read without the lock as elsewhere: a stale value only refuses more
+     if (g_gw_all > done) return 1;
++    if (g_gwr_live.n && rb_gwr_live_hits(&g_gwr_live, lo, hi, exact, done)) return 1;   // RewindBox (patch 0348): the writes kept whole, answered as their pages would be
+     for (uint64_t pg = lo >> 12; pg <= (hi - 1) >> 12; pg++) {
+         unsigned s = gw_slot(pg);
+         if (g_gw[s].fence <= done) continue;
+@@ -2641,6 +2665,13 @@ static int gw_check(uint64_t lo, uint64_t hi, int exact) {
+     return 0;
+ }
+ static int gw_live(uint64_t lo, uint64_t hi) { return gw_check(lo, hi, 0); }
++// RewindBox (patch 0348): a write kept whole (sbw_whole) goes into the live ranges with the submission's fence, one entry where the page path made one g_gw store a page.
++//   No room: page by page as the page set would have put it, in pieces that gw_put keeps page by page (it takes a range of more than GW_PAGES pages as a write anywhere)
++static void gw_put_whole(rb_gwr_span s, uint64_t fence, uint64_t done) {
++    if (rb_gwr_put(&g_gwr_live, rb_gwr_bounds(s, rb_ub_ranges), fence)) { g_gwr_kept++; g_gwr_kept_pages += rb_gwr_pages(s.lo, s.last); return; }
++    g_gwr_live_full++;
++    for (uint64_t lo = s.lo, hi = s.last + 1, end; lo < hi; lo = end) { end = rb_gwr_piece_end(lo, hi, GW_PAGES); gw_put(lo, end, fence, done); }   // s.last + 1: no write kept whole wraps
++}
+ // The submission's GPU writes go into the page table with its fence (nvn_be_sub_commit)
+ static void gw_commit(uint64_t fence) {
+     uint64_t done = g_done;
+@@ -2652,6 +2683,8 @@ static void gw_commit(uint64_t fence) {
+         uint64_t base = g_sbwp[h].page << 12;
+         gw_put(base + g_sbwp[h].begin, base + g_sbwp[h].end, fence, done);
+     }
++    rb_gwr_expire(&g_gwr_live, done);   // RewindBox (patch 0348): the ranges of completed submissions freed, then this one's added
++    for (int i = 0; i < g_gwr_sub.n; i++) gw_put_whole(g_gwr_sub.r[i], fence, done);
+ }
+ // The writes queued in this submission from index since on that overlap [a, b), newest first, into out (room for every entry a lookup can meet); -1 when they cannot all be told
+ static int pend_since(uint64_t a, uint64_t b, int since, int *out) {
+@@ -27973,8 +28006,11 @@ void nvn_be_stats(uint64_t *passes, uint64_t *draws) {
+ }
+ // 本窗口（上次读后）画过的最大渲染目标：宽 / 高 / Metal 像素格式，读后清零（hle_nvn.c 每 300 帧那行带出）
+ void nvn_be_rt_window(uint32_t *w, uint32_t *h, uint32_t *fmt) { *w = g_rtw_w; *h = g_rtw_h; *fmt = g_rtw_fmt; g_rtw_w = g_rtw_h = g_rtw_fmt = 0; }
+-// Submit cost counters (cumulative, submit thread): render passes, packaged texture uploads (count, bytes, time on the submit thread), pages walked by sbw_note
+-void nvn_be_cost_stats(uint64_t v[5]) { v[0] = g_stat_pass; v[1] = g_pkg_uploads + g_pkg_reuploads; v[2] = g_bp_up_bytes; v[3] = g_up_total_ns; v[4] = g_sbw_pages; }
++// Submit cost counters (cumulative, submit thread): render passes, packaged texture uploads (count, bytes, time on the submit thread), pages walked by sbw_note;
++//   RewindBox (patch 0348): GPU writes kept as live ranges by gw_commit and their pages, writes noted page by page with the submission's list full, ranges put page by page
++//   with the live ranges full, and whether the range path is on (S2A_RB_GW_RANGES)
++void nvn_be_cost_stats(uint64_t v[10]) { v[0] = g_stat_pass; v[1] = g_pkg_uploads + g_pkg_reuploads; v[2] = g_bp_up_bytes; v[3] = g_up_total_ns; v[4] = g_sbw_pages;
++    v[5] = g_gwr_kept; v[6] = g_gwr_kept_pages; v[7] = g_gwr_list_full; v[8] = g_gwr_live_full; v[9] = (uint64_t)rb_gwr_on(); }
+ void nvn_be_args_stats(uint64_t *enc, uint64_t *reuse) { *enc = g_stat_args_enc; *reuse = g_stat_args_reuse; }
+ void nvn_be_vbuf_stats(uint64_t *resolve, uint64_t *reuse, uint64_t *set, uint64_t *skip) {
+     *resolve = g_vbuf_resolve; *reuse = g_vbuf_reuse; *set = g_vbuf_set; *skip = g_vbuf_skip;
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 92d9a52..d383fc9 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -244,7 +244,7 @@ int nvn_be_shutdown_session(void) {
+     memset(g_vconv, 0, sizeof g_vconv); g_vconv_next = 0;
+     memset(g_ubpc, 0, sizeof g_ubpc); g_ubpc_i = 0;
+     memset(g_ubc, 0, sizeof g_ubc); // counters stay monotonic for the idle host worker
+-    memset(g_gw, 0, sizeof g_gw); g_gw_all = 0;
++    memset(g_gw, 0, sizeof g_gw); g_gw_all = 0; g_gwr_live.n = 0;   // RewindBox (patch 0348): the live ranges with the page table
+     rb_ub_ranges = 0; atomic_store(&rb_ub_setting, 0);
+     rb_ub_subpage_saved = rb_ub_overlay_saved = 0;
+     g_ixc_n = g_wide_n = g_mdx_n = g_nlc = 0; g_mdx_stop = NULL;
+diff --git a/graphics/nvn/gfx/nvn/rb_gw_ranges.h b/graphics/nvn/gfx/nvn/rb_gw_ranges.h
+new file mode 100644
+index 0000000..dc949c5
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_gw_ranges.h
+@@ -0,0 +1,107 @@
++// RewindBox (patch 0348): the GPU writes of a submission kept as byte ranges, not page by page. Pure C, no Metal: the submission's list, the live ranges and their
++//   overlap tests; nvn_mtl.m (sbw_note, sbw_hits, gw_commit, gw_check) uses them.
++//   sbw_note marked each 4 KB page that a submission's shaders, copies and reports may write in the page set g_sbwp, and gw_commit then stored those pages one by one, with the
++//   submission's fence, in the page table g_gw (65,536 slots of 24 bytes, scattered stores), where gw_check finds the pages that submissions still running write.
++//   Zelda TOTK (0400486024DEC000, three captures of its translation thread, 298 samples; docs/evidence/s2arm-power-wall.md, "Profil du fil de traduction de Zelda"): the end of
++//   a submission piece took 12 % of the thread, 9 % in the function itself, and 17 of its 27 samples fell on one address, which binary 830's disassembly places in gw_commit:
++//   the store of each page into g_gw. sbw_note took 4.7 %, about 14 % in all for this tracking. Its raw-memory shaders write many pages (their stores are noted as the whole
++//   pools learned, gml_take, at every draw that has them); Mario Kart World has no such shaders.
++//   A GPU write of RB_GWR_MIN_PAGES pages or more now stays one range: in the submission's list while the submission is encoded (sbw_note, sbw_hits), then among the live
++//   ranges with its submission's fence (gw_commit, gw_check): one entry, where it took one store a page. A range answers exactly as its pages answer in the page path, in both
++//   of gw_check's modes (rb_gwr_hit); a write the list or the live ranges have no room for goes page by page as before, never dropped. An answer can change only from
++//   "written" to "not written", and only where the page table said "written" for bytes that no noted write still running covers: two live pages met in one slot, the byte
++//   hull of two writes on one page, a page whose slot a later submission's write kept alive.
++#pragma once
++#include <stdint.h>
++
++enum {
++    RB_GWR_MIN_PAGES = 8,   // as PEND_SPAN, the span past which the index of queued writes already keeps a write whole, in a short list every lookup scans. A smaller write
++                            //   costs the page path at most 7 page-set entries and 7 table stores; a range costs every check one comparison while it lives, and a check walks up to
++                            //   16 pages of its own (UBP_MAX_BYTES)
++    RB_GWR_LIST = 64,       // = SBW_MEMO, the distinct writes sbw_note remembers in a submission: large writes kept whole per submission (a write that meets a kept one widens it,
++                            //   so the bindings of one pool take one entry); sbw_hits scans them
++    RB_GWR_LIVE = 128,      // committed ranges still running: two submissions of RB_GWR_LIST distinct ranges, as a range written again takes no entry of its own. gw_check scans
++                            //   the entries in use only: none for a game that writes no large range
++};
++
++typedef struct { uint64_t lo, last; } rb_gwr_span;   // bytes lo..last, last included (lo + n - 1: a write of n bytes that ends at the top of the address space has no end to store)
++
++static inline uint64_t rb_gwr_pages(uint64_t lo, uint64_t last) { return (last >> 12) - (lo >> 12) + 1; }
++// A write of n bytes at lo is kept whole: its size known (sbw_note takes size 0, not given, as a write anywhere before this), no wrap past the address space, RB_GWR_MIN_PAGES pages or more
++static inline int rb_gwr_large(uint64_t lo, uint64_t n) { return n && n <= UINT64_MAX - lo && rb_gwr_pages(lo, lo + n - 1) >= RB_GWR_MIN_PAGES; }
++
++// The page path's answer for one write of bytes lo..last to the query [qlo, qhi). The pages it looks at are qlo >> 12 to (qhi - 1) >> 12, as the loops of gw_check and sbw_hits
++//   walk them (none for an empty query on a page boundary; for qhi = 0, every page from qlo up). Page mode (exact 0: sbw_hits, gw_live): some page both span. Exact mode (gw_check
++//   with exact 1): on such a page, the write's bytes there, begin to end, against the query as gw_check tests them, which for a non-empty query is the overlap of the bytes.
++//   For a write the page path keeps by whole pages (rb_ub_ranges off), lo and last are its whole pages (rb_gwr_bounds) and both modes answer by page
++static inline int rb_gwr_hit(uint64_t lo, uint64_t last, uint64_t qlo, uint64_t qhi, int exact) {
++    if (exact && qlo < qhi) return qlo <= last && lo < qhi;
++    uint64_t a0 = qlo >> 12, a1 = (qhi - 1) >> 12, p0 = lo >> 12, p1 = last >> 12;
++    if (a0 > a1 || a1 < p0 || p1 < a0) return 0;
++    if (!exact) return 1;
++    // an empty or inverted query, which no exact caller makes: gw_check's test on each page both span, with the begin and end gw_put gives the write there
++    for (uint64_t pg = a0 > p0 ? a0 : p0, end = a1 < p1 ? a1 : p1;; pg++) {
++        uint64_t page = pg << 12, begin = lo > page ? lo - page : 0, stop = last - page < 4095 ? last - page + 1 : 4096;
++        if ((qlo <= page || qlo - page < stop) && qhi - page > begin) return 1;
++        if (pg == end) return 0;
++    }
++}
++
++// The submission's large GPU writes while it is encoded (nvn_mtl.m g_gwr_sub; pend_reset empties it with the page set)
++typedef struct { int n; rb_gwr_span r[RB_GWR_LIST]; } rb_gwr_list;
++static inline void rb_gwr_list_reset(rb_gwr_list *l) { l->n = 0; }
++// 1 = kept: a new range, or merged into a kept range it overlaps or touches (both are writes of this submission, so their union, one range, answers as both did);
++//   0 = no room: the caller notes it page by page
++static inline int rb_gwr_list_add(rb_gwr_list *l, uint64_t lo, uint64_t last) {
++    for (int i = 0; i < l->n; i++) {
++        rb_gwr_span *s = &l->r[i];
++        if ((lo <= s->last || lo - s->last == 1) && (s->lo <= last || s->lo - last == 1)) {
++            if (lo < s->lo) s->lo = lo;
++            if (last > s->last) s->last = last;
++            return 1;
++        }
++    }
++    if (l->n == RB_GWR_LIST) return 0;
++    l->r[l->n++] = (rb_gwr_span){lo, last};
++    return 1;
++}
++// sbw_hits: a page of [qlo, qhi) that a kept write touches, as the page set answers for the pages of the submission's GPU writes
++static inline int rb_gwr_list_hits(const rb_gwr_list *l, uint64_t qlo, uint64_t qhi) {
++    uint64_t a0 = qlo >> 12, a1 = (qhi - 1) >> 12;
++    if (a0 > a1) return 0;
++    for (int i = 0; i < l->n; i++) if (l->r[i].lo >> 12 <= a1 && a0 <= l->r[i].last >> 12) return 1;
++    return 0;
++}
++
++// Committed writes kept whole whose submission was not yet seen completed (nvn_mtl.m g_gwr_live): entries [0, n), each written until its fence completes
++typedef struct { uint64_t lo, last, fence; } rb_gwr_ent;
++typedef struct { int n; rb_gwr_ent e[RB_GWR_LIVE]; } rb_gwr_live;
++// The bytes the page path marks for a write: all of them with byte ranges in a page (rb_ub_ranges), its whole pages without
++static inline rb_gwr_span rb_gwr_bounds(rb_gwr_span s, int ranges) { return ranges ? s : (rb_gwr_span){s.lo & ~(uint64_t)4095, s.last | 4095}; }
++// Frees the entries whose submission has completed (fence <= done), before a commit adds its own
++static inline void rb_gwr_expire(rb_gwr_live *r, uint64_t done) {
++    for (int i = 0; i < r->n;) if (r->e[i].fence <= done) r->e[i] = r->e[--r->n]; else i++;
++}
++// A committed write of bytes b (rb_gwr_bounds), written until fence completes. 1 = kept: already held as long by an entry over the same bytes or more; or in an entry whose
++//   bytes all lie in b and whose fence is not later, which it takes over (b's write holds those bytes until fence too); or in a new entry. 0 = no room: the caller puts it page by page
++static inline int rb_gwr_put(rb_gwr_live *r, rb_gwr_span b, uint64_t fence) {
++    for (int i = 0; i < r->n; i++) {
++        rb_gwr_ent *e = &r->e[i];
++        if (e->lo <= b.lo && b.last <= e->last && e->fence >= fence) return 1;
++        if (b.lo <= e->lo && e->last <= b.last && e->fence <= fence) { *e = (rb_gwr_ent){b.lo, b.last, fence}; return 1; }
++    }
++    if (r->n == RB_GWR_LIVE) return 0;
++    r->e[r->n++] = (rb_gwr_ent){b.lo, b.last, fence};
++    return 1;
++}
++// gw_check: a range still written (fence > done) that the query meets, as the page path answers for its pages (rb_gwr_hit)
++static inline int rb_gwr_live_hits(const rb_gwr_live *r, uint64_t qlo, uint64_t qhi, int exact, uint64_t done) {
++    for (int i = 0; i < r->n; i++) { const rb_gwr_ent *e = &r->e[i]; if (e->fence > done && rb_gwr_hit(e->lo, e->last, qlo, qhi, exact)) return 1; }
++    return 0;
++}
++// Page by page when there is no room: the end of the piece of [lo, hi) that starts at lo and spans `most` pages at most, as gw_put keeps page by page only a range of
++//   GW_PAGES pages or fewer and takes a longer one as a write anywhere, which the pages of the page set never were. At the top of the address space, hi
++static inline uint64_t rb_gwr_piece_end(uint64_t lo, uint64_t hi, uint64_t most) {
++    uint64_t end = ((lo >> 12) + most) << 12;
++    return end <= lo || end > hi ? hi : end;
++}

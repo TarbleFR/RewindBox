@@ -19,6 +19,10 @@ static NSDictionary<NSString *, NSString *> *EnglishStrings(void) {
     @"menu.performanceOn" : @"Show performance overlay",
     @"menu.performanceOff" : @"Hide performance overlay",
     @"menu.settings" : @"Settings",
+    @"menu.gameSettings" : @"Settings of this game",
+    @"menu.gameScope" : @"This game has its own settings: changes apply to it only, and the global settings no longer change it.",
+    @"menu.globalScope" : @"These settings apply to every Switch 2 game that has no settings of its own.",
+    @"menu.gameCreate" : @"Customize for this game",
     @"menu.benchmark" : @"Benchmark",
     @"menu.benchmarkInstructions" : @"180 seconds on the same route, from the same starting point. Use a cool, unplugged phone with Low Power Mode off and a route already played once. Keep settings and brightness unchanged. The measurement starts when this dialog closes; do not reopen the menu until it ends.",
     @"menu.benchmarkScenario" : @"Route and starting point",
@@ -219,7 +223,7 @@ static UIView *FindView(UIView *view, NSString *identifier) {
 
 - (void)applyOverlay {
   UIView *overlay = [self engineOverlay];
-  BOOL hidden = !S2ArmSettingsPerformanceOverlay();
+  BOOL hidden = !S2ArmSettingsPerformanceOverlay(self.gameId);   // the game's profile when it has one
   if (overlay && overlay.hidden != hidden) overlay.hidden = hidden;
 }
 
@@ -252,11 +256,12 @@ static UIView *FindView(UIView *view, NSString *identifier) {
                                                                  message:nil
                                                           preferredStyle:UIAlertControllerStyleActionSheet];
   __weak S2ArmSessionMenu *weakSelf = self;
-  BOOL overlayOn = S2ArmSettingsPerformanceOverlay();
+  NSString *gid = self.gameId;
+  BOOL overlayOn = S2ArmSettingsPerformanceOverlay(gid);
   [sheet addAction:[UIAlertAction actionWithTitle:[self text:overlayOn ? @"menu.performanceOff" : @"menu.performanceOn"]
                                             style:UIAlertActionStyleDefault
                                           handler:^(UIAlertAction *action) {
-                                            S2ArmSettingsSetPerformanceOverlay(!overlayOn);
+                                            S2ArmSettingsSetPerformanceOverlay(gid, !overlayOn);   // the game's profile, else global
                                             [weakSelf applyOverlay];
                                           }]];
   [sheet addAction:[UIAlertAction actionWithTitle:[self text:@"menu.settings"]
@@ -331,7 +336,7 @@ static UIView *FindView(UIView *view, NSString *identifier) {
     metadata[@"cache_protocol"] = @"warm-route-v1";
     // The overlay is a live host setting, unlike the graphics preferences.
     NSMutableDictionary *settings = [metadata[@"settings"] mutableCopy] ?: [NSMutableDictionary dictionary];
-    settings[@"performanceOverlay"] = @(S2ArmSettingsPerformanceOverlay());
+    settings[@"performanceOverlay"] = @(S2ArmSettingsPerformanceOverlay(menu.gameId));
     metadata[@"settings"] = settings;
     NSData *data = [NSJSONSerialization dataWithJSONObject:metadata options:0 error:NULL];
     NSString *json = data ? [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] : nil;
@@ -377,10 +382,16 @@ static UIView *FindView(UIView *view, NSString *identifier) {
   return key ? [self text:key] : [value description];
 }
 
+// The running game's profile when it has one (its title and message say so; every change stays with this game), else the global
+// settings, with an item that gives the game a profile made from the values of the moment (nothing changes until a value does).
 - (void)showSettings {
-  NSDictionary *settings = S2ArmSettingsSnapshot();
-  UIAlertController *sheet = [UIAlertController alertControllerWithTitle:[self text:@"menu.settings"]
-                                                                 message:[self text:@"menu.nextLaunch"]
+  NSString *gid = self.gameId;
+  BOOL profile = S2ArmSettingsGameHasProfile(gid);
+  NSDictionary *settings = S2ArmSettingsForGame(gid);
+  NSString *message = [NSString stringWithFormat:@"%@\n%@", [self text:profile ? @"menu.gameScope" : @"menu.globalScope"],
+                                                 [self text:@"menu.nextLaunch"]];
+  UIAlertController *sheet = [UIAlertController alertControllerWithTitle:[self text:profile ? @"menu.gameSettings" : @"menu.settings"]
+                                                                 message:message
                                                           preferredStyle:UIAlertControllerStyleActionSheet];
   __weak S2ArmSessionMenu *weakSelf = self;
   for (NSString *setting in SettingKeys()) {
@@ -389,6 +400,14 @@ static UIView *FindView(UIView *view, NSString *identifier) {
                                               style:UIAlertActionStyleDefault
                                             handler:^(UIAlertAction *action) { [weakSelf showChoices:setting]; }]];
   }
+  if (!profile && S2ArmSettingsGameKey(gid)) {
+    [sheet addAction:[UIAlertAction actionWithTitle:[self text:@"menu.gameCreate"]
+                                              style:UIAlertActionStyleDefault
+                                            handler:^(UIAlertAction *action) {
+                                              (void)S2ArmSettingsGameCreateProfile(gid);
+                                              [weakSelf showSettings];
+                                            }]];
+  }
   [sheet addAction:[UIAlertAction actionWithTitle:[self text:@"menu.back"]
                                             style:UIAlertActionStyleCancel
                                           handler:^(UIAlertAction *action) { [weakSelf showMenu]; }]];
@@ -396,7 +415,9 @@ static UIView *FindView(UIView *view, NSString *identifier) {
 }
 
 - (void)showChoices:(NSString *)setting {
-  id current = S2ArmSettingsSnapshot()[setting];
+  NSString *gid = self.gameId;
+  BOOL profile = S2ArmSettingsGameHasProfile(gid);
+  id current = S2ArmSettingsForGame(gid)[setting];
   // Patch 0078: the frame-rate limit applies at once when the engine can take it (applyNow), the other settings at the next start
   BOOL live = self.applyNow != nil && [setting isEqualToString:@"frameRateLimit"];
   // Patch 0345: frame generation at once in a session started with it on; the next start otherwise; never where the engine cannot
@@ -404,8 +425,10 @@ static UIView *FindView(UIView *view, NSString *identifier) {
   if (frameInterpolation) live = self.applyNow != nil && self.frameInterpolationLive;
   NSString *message = frameInterpolation && self.frameInterpolationUnavailable ? @"menu.frameInterpolationUnavailable"
                       : live ? @"menu.liveNow" : @"menu.nextLaunch";
+  NSString *note = [self text:message];
+  if (profile) note = [NSString stringWithFormat:@"%@\n%@", [self text:@"menu.gameSettings"], note];   // the choice is this game's
   UIAlertController *sheet = [UIAlertController alertControllerWithTitle:[self text:TitleKey(setting)]
-                                                                 message:[self text:message]
+                                                                 message:note
                                                           preferredStyle:UIAlertControllerStyleActionSheet];
   __weak S2ArmSessionMenu *weakSelf = self;
   for (id value in Choices(setting)) {
@@ -414,7 +437,7 @@ static UIView *FindView(UIView *view, NSString *identifier) {
     [sheet addAction:[UIAlertAction actionWithTitle:label
                                               style:UIAlertActionStyleDefault
                                             handler:^(UIAlertAction *action) {
-                                              S2ArmSettingsApply(@{setting : value});
+                                              S2ArmSettingsApplyForGame(gid, @{setting : value});   // the game's profile, else global
                                               S2ArmSessionMenu *menu = weakSelf;
                                               if (menu.applyNow) (void)menu.applyNow(setting, value);   // stored above for the next start too
                                               // Patch 0345: the engine cannot interpolate here; the choice stays stored, the player is told

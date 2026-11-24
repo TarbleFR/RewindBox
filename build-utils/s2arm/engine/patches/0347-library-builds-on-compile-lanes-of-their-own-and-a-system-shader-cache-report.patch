@@ -1,0 +1,263 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 5ec18e5..234bd9c 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -11089,8 +11089,58 @@ static unsigned shader_cache_count(void) {
+ }
+ static _Atomic uint64_t g_lp_lib_built, g_lp_lib_shared, g_lp_hi_n, g_lp_hi_live, g_lp_low_n, g_lp_low_bytes;   // lib_pack.inc lp_library / lp_map (tentative definitions: the container reader is included below)
+ static void rb_stage_disk_stats(void);
++static void rb_clane_stats(void);   // RewindBox (patch 0347)
++// RewindBox (patch 0347): the system's shader cache (Library/Caches/com.apple.metal). A library the system compiled from the same source before comes back in about 1 ms: IPA 829
++//   test, Fire Emblem 321 libraries in 194 ms, Mario Kart World 3,893 in 3.4 s. The Zelda session of the same test compiled 2,042 in 332 s, 38 ms each at its start and about 400 ms in
++//   play, although most had been compiled in earlier sessions. Whether the cache had been emptied or was full is not known: its size, its file count and the free space are written
++//   at the prewarm's start and end, beside the prewarm's own compiles from source. Read only; S2A_RB_CACHE_REPORT=0 leaves the lines out
++static void rb_sys_cache_report(const char *when) {
++    const char *e = getenv("S2A_RB_CACHE_REPORT");
++    if (e && !strcmp(e, "0")) return;
++    dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ @autoreleasepool {
++        NSFileManager *fm = NSFileManager.defaultManager;
++        NSURL *caches = [fm URLsForDirectory:NSCachesDirectory inDomains:NSUserDomainMask].firstObject;
++        if (!caches) return;
++        NSMutableArray<NSURL *> *roots = [NSMutableArray arrayWithObject:[caches URLByAppendingPathComponent:@"com.apple.metal" isDirectory:YES]];
++        NSString *bid = NSBundle.mainBundle.bundleIdentifier;
++        if (bid.length) [roots addObject:[[caches URLByAppendingPathComponent:bid isDirectory:YES] URLByAppendingPathComponent:@"com.apple.metal" isDirectory:YES]];
++        char user_cache[1024];   // review: on macOS the system keeps it in the user cache folder (DARWIN_USER_CACHE_DIR), not in Library/Caches
++        size_t uc = confstr(_CS_DARWIN_USER_CACHE_DIR, user_cache, sizeof user_cache);
++        if (uc > 1 && uc <= sizeof user_cache) {
++            NSURL *dar = [NSURL fileURLWithFileSystemRepresentation:user_cache isDirectory:YES relativeToURL:nil];
++            [roots addObject:[dar URLByAppendingPathComponent:@"com.apple.metal" isDirectory:YES]];
++            if (bid.length) [roots addObject:[[dar URLByAppendingPathComponent:bid isDirectory:YES] URLByAppendingPathComponent:@"com.apple.metal" isDirectory:YES]];
++        }
++        NSMutableSet<NSString *> *seen = [NSMutableSet set];
++        unsigned long long bytes = 0, files = 0; int found = 0, truncated = 0;
++        for (NSURL *root in roots) {
++            NSNumber *dir = nil;
++            NSString *path = root.URLByResolvingSymlinksInPath.path;
++            if (!path || [seen containsObject:path]) continue;
++            [seen addObject:path];
++            if (![root getResourceValue:&dir forKey:NSURLIsDirectoryKey error:nil] || !dir.boolValue) continue;
++            found++;
++            NSDirectoryEnumerator<NSURL *> *en = [fm enumeratorAtURL:root includingPropertiesForKeys:@[NSURLIsRegularFileKey, NSURLTotalFileAllocatedSizeKey] options:0 errorHandler:nil];
++            for (;;) { @autoreleasepool {
++                NSURL *u = [en nextObject];
++                if (!u) break;
++                NSNumber *reg = nil, *size = nil;
++                if (![u getResourceValue:&reg forKey:NSURLIsRegularFileKey error:nil] || !reg.boolValue) continue;
++                if ([u getResourceValue:&size forKey:NSURLTotalFileAllocatedSizeKey error:nil]) bytes += size.unsignedLongLongValue;
++                if (++files >= 100000) { truncated = 1; break; }
++            } }
++            if (truncated) break;
++        }
++        NSNumber *avail = nil;
++        [caches getResourceValue:&avail forKey:NSURLVolumeAvailableCapacityForImportantUsageKey error:nil];
++        MLOG("RewindBox (patch 0347): system shader cache %s: %s%.1f MB in %llu files%s; %.2f GB free on the volume for important use", when,
++             found ? "" : "no com.apple.metal folder, ", bytes / 1048576.0, files, truncated ? " (counting stopped at 100000 files)" : "",
++             avail ? avail.longLongValue / 1073741824.0 : -1.0);
++    } });
++}
+ static void shader_load_stats(void) {
+     rb_stage_disk_stats();
++    rb_clane_stats();   // RewindBox (patch 0347)
+     uint64_t stages, bindings, c1_bytes;
+     rb_uniform_profile(&stages,&bindings,&c1_bytes);
+     if (stages) MLOG("[rb-uniform] stage_instances=%llu verified_bindings=%llu c1_extent_bytes=%llu",
+@@ -11158,6 +11208,7 @@ static os_unfair_lock g_warm_lock = OS_UNFAIR_LOCK_INIT;
+ static _Atomic int g_warm_ready;
+ static _Atomic int g_warm_started;
+ static uint64_t g_warm_t0;
++static uint64_t g_rb_warm_msl_n0, g_rb_warm_msl_ns0;   // RewindBox (patch 0347): g_rb_msl_n / g_rb_msl_ns when the prewarm began
+ static _Atomic int g_warm_running;   // Background warm-up has not finished yet (the loading screen on entering a run waits a little longer based on this, see mtl_warm_wait)
+ static _Atomic uint64_t g_warm_shaders, g_warm_rps, g_warm_cps, g_warm_skip_fz, g_warm_skip_stale;   // atomic: the prepare step's workers count them at once
+ static uint64_t g_warm_claim_shaders, g_warm_claim_rps, g_warm_claim_cps;
+@@ -15774,7 +15825,74 @@ int rb_observed_enqueue(dispatch_block_t block) {
+     if (g_look_try_only) return rb_observed_admit(&g_observed,block,RB_OBSERVED_TRY_LOCK);
+     return rb_observed_submit(&g_observed,block);
+ }
+-static void shpre_sync(void) { dispatch_group_t g = dispatch_group_create(); os_unfair_lock_lock(&g_shpre_mu); shq_mark(&g_shpre, g); shq_mark(&g_shurg, g); os_unfair_lock_unlock(&g_shpre_mu); dispatch_group_wait(g, DISPATCH_TIME_FOREVER); }   // unit tests: wait for every queued load
++// RewindBox (patch 0347): library builds on lanes of their own. An observed slot (rb_observed_pool.h, 2 lanes) translated a stage and then compiled its library in the same slot
++//   (S2A_RB_URGENT_CONTINUATION), so the slot stayed busy for the whole Metal compile while the next translations waited for one, and at most two libraries compiled at once.
++//   IPA 829 test (Zelda 0400486024DEC000, iPhone17,2, thermal state 2): 2,042 libraries compiled from source in the session, 332 s in all, 378-406 ms each in play; frame 12630 took
++//   8.25 s for 13 new libraries (5.3 s of compiles, 4.4 s of it waiting for builds in flight). The library build that follows a translation on an observed worker now goes to serial
++//   lanes of its own at user-initiated QoS, beside the submit thread, and the slot goes back to the translator at once. A load the submission queues (the lookahead, on_worker 0) still
++//   goes to the observed queue: it may have to translate first, and that queue bounds them (RB_OBSERVED_LIMIT). The lanes default to the device's compiles at once
++//   (maximumConcurrentCompilationTaskCount, 4 on an A18 Pro) less the two observed lanes, which still compile those loads: 2 on that iPhone, never more than shq_width(). Lanes
++//   full (RB_CLANE_LIMIT queued) or stopping: built in the slot as before. S2A_RB_COMPILE_LANES=0: as before; 1..4: that many lanes
++enum { RB_CLANE_MAX = 4, RB_CLANE_LIMIT = 48 };
++static dispatch_queue_t g_rb_clane_q[RB_CLANE_MAX];   // g_shpre_mu
++static unsigned g_rb_clane_out[RB_CLANE_MAX], g_rb_clane_total, g_rb_clane_peak;   // g_shpre_mu
++static uint64_t g_rb_clane_jobs, g_rb_clane_full;   // g_shpre_mu
++static _Atomic unsigned g_rb_clane_live;   // review: builds queued or running on a lane, for the guards that hold speculative work while observed loads run (rb_disk_observed_busy)
++static _Atomic int g_rb_clane_w = -1;   // -1: read again (each session start)
++static int rb_clane_width(void) {   // not under g_shpre_mu: shq_width may log
++    int w = atomic_load_explicit(&g_rb_clane_w, memory_order_relaxed);
++    if (w < 0) {
++        const char *e = getenv("S2A_RB_COMPILE_LANES");
++        if (e && *e) w = atoi(e);
++        else {   // review: shq_width() lanes beside the two observed ones asked more compiles at once of the device than it runs
++            NSUInteger m = 2;
++            if (@available(macOS 13.3, iOS 26.0, *)) { if (g_dev && [g_dev respondsToSelector:@selector(maximumConcurrentCompilationTaskCount)]) m = g_dev.maximumConcurrentCompilationTaskCount; }
++            int room = m >= (NSUInteger)(RB_CLANE_MAX + RB_OBSERVED_LANES) ? RB_CLANE_MAX : (int)m - RB_OBSERVED_LANES, cap = shq_width();
++            w = room < 1 ? 1 : room > cap ? cap : room;
++        }
++        w = w < 0 ? 0 : w > RB_CLANE_MAX ? RB_CLANE_MAX : w;
++        atomic_store_explicit(&g_rb_clane_w, w, memory_order_relaxed);
++    }
++    return w;
++}
++static int rb_clane_enqueue_locked(int w, dispatch_block_t job) {   // caller holds g_shpre_mu; 1 = queued on a lane, 0 = the caller builds it as before
++    if (w <= 0 || atomic_load(&g_shpre_stopping)) return 0;
++    if (g_rb_clane_total >= RB_CLANE_LIMIT) { g_rb_clane_full++; return 0; }
++    unsigned lane = 0;
++    for (unsigned i = 1; i < (unsigned)w; i++) if (g_rb_clane_out[i] < g_rb_clane_out[lane]) lane = i;
++    if (!g_rb_clane_q[lane]) g_rb_clane_q[lane] = dispatch_queue_create("s2arm.nvn2.compile",
++        dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INITIATED, 0));
++    g_rb_clane_out[lane]++; g_rb_clane_jobs++;
++    if (++g_rb_clane_total > g_rb_clane_peak) g_rb_clane_peak = g_rb_clane_total;
++    atomic_fetch_add(&g_rb_clane_live, 1);
++    dispatch_block_t rated = dispatch_block_create_with_qos_class(DISPATCH_BLOCK_ENFORCE_QOS_CLASS, QOS_CLASS_USER_INITIATED, 0, ^{
++        @autoreleasepool { job(); }
++        os_unfair_lock_lock(&g_shpre_mu);
++        g_rb_clane_out[lane]--; g_rb_clane_total--;
++        os_unfair_lock_unlock(&g_shpre_mu);
++        if (atomic_fetch_sub(&g_rb_clane_live, 1) == 1) RB_OBSERVED_IDLE();   // review: as the observed queue does when it empties
++    });
++    dispatch_async(g_rb_clane_q[lane], rated);
++    return 1;
++}
++static void rb_clane_mark_locked(dispatch_group_t g) {   // caller holds g_shpre_mu (session_wait_backend): once g is empty, every build queued before has run
++    for (int i = 0; i < RB_CLANE_MAX; i++) if (g_rb_clane_q[i]) dispatch_group_async(g, g_rb_clane_q[i], ^{});
++}
++static void rb_clane_begin_locked(void) {   // caller holds g_shpre_mu (session start)
++    g_rb_clane_jobs = g_rb_clane_full = 0; g_rb_clane_peak = g_rb_clane_total;
++    atomic_store_explicit(&g_rb_clane_w, -1, memory_order_relaxed);   // review: S2A_RB_COMPILE_LANES and the device read again for this session
++}
++static void rb_clane_stats(void) {
++    int w = atomic_load_explicit(&g_rb_clane_w, memory_order_relaxed);
++    if (w < 0) return;
++    os_unfair_lock_lock(&g_shpre_mu);
++    uint64_t jobs = g_rb_clane_jobs, full = g_rb_clane_full; unsigned peak = g_rb_clane_peak;
++    os_unfair_lock_unlock(&g_shpre_mu);
++    if (!w) MLOG("RewindBox (patch 0347): library builds of observed stages in the translation slot, as before (S2A_RB_COMPILE_LANES=0)");
++    else MLOG("RewindBox (patch 0347): library builds on %d compile lanes: %llu builds, at most %u queued at once, %llu built elsewhere (lanes full)",
++              w, (unsigned long long)jobs, peak, (unsigned long long)full);
++}
++static void shpre_sync(void) { dispatch_group_t g = dispatch_group_create(); os_unfair_lock_lock(&g_shpre_mu); shq_mark(&g_shpre, g); shq_mark(&g_shurg, g); rb_clane_mark_locked(g); os_unfair_lock_unlock(&g_shpre_mu); dispatch_group_wait(g, DISPATCH_TIME_FOREVER); }   // unit tests: wait for every queued load (patch 0347: and every library build on a compile lane)
+ // The lookahead (prog_peek) found a stage of a draw later in this submission not loaded: load it now on the urgent lanes, beside the submit thread, instead of when its draw reaches
+ //   prog_get. The submit thread then takes it from the cache or shares the load in flight (shader_load_depth, which lends it this thread's urgency). At most 2 per lane queued
+ static _Atomic int g_shurg_live; static _Atomic uint64_t g_shurg_n, g_shurg_ns;
+@@ -15796,6 +15914,7 @@ static NSMutableSet<NSString *> *g_rb_observed_shaders; // g_shpre_mu
+ static int rb_observed_shader_load(NSString *key, int stage, int depth, int on_worker) {
+     if (!key || stage < 0) return 0;
+     depth = stage_depth_moded(stage) && depth;
++    int lanes = rb_clane_width();   // RewindBox (patch 0347): read before g_shpre_mu
+     NSString *identity = shader_identity(key,stage,0,depth);
+     os_unfair_lock_lock(&g_shpre_mu);
+     if ([g_rb_observed_shaders containsObject:identity]) {
+@@ -15819,11 +15938,13 @@ static int rb_observed_shader_load(NSString *key, int stage, int depth, int on_w
+     if (on_worker && rb_pacing_setting(&g_rb_urgent_continue,"S2A_RB_URGENT_CONTINUATION")) {
+         // The translation already occupies an observed slot. Complete its library
+         // in that slot, including when the other 31 slots are all occupied.
++        // RewindBox (patch 0347): unless a compile lane takes it, so the slot goes back to translating
++        int queued = rb_clane_enqueue_locked(lanes, build);
+         os_unfair_lock_unlock(&g_shpre_mu);
+-        build();
++        if (!queued) build();
+         return 1;
+     }
+-    int accepted = rb_observed_enqueue(build);
++    int accepted = rb_observed_enqueue(build);   // RewindBox (patch 0347 review): not a compile lane, which would also translate and is not bounded by RB_OBSERVED_LIMIT
+     if (!accepted) [g_rb_observed_shaders removeObject:identity];
+     os_unfair_lock_unlock(&g_shpre_mu);
+     return accepted;
+@@ -16711,6 +16832,10 @@ static void warm_task_(WarmTask *t) {
+ }
+ static void warm_finish(void) {
+     shader_load_stats();
++    { uint64_t n = atomic_load(&g_rb_msl_n) - g_rb_warm_msl_n0, ns = atomic_load(&g_rb_msl_ns) - g_rb_warm_msl_ns0;   // RewindBox (patch 0347)
++      MLOG("RewindBox (patch 0347): during the prewarm (every thread) %llu libraries compiled from source, %.1f ms in all, %.1f ms each (for reference, about 1 ms each when the system shader cache holds them)",
++           (unsigned long long)n, ns / 1e6, n ? ns / 1e6 / (double)n : 0.0);
++      rb_sys_cache_report("after the prewarm"); }
+     if (g_warm_mps) MLOG("pipeline prewarm: %llu task / mesh pipelines built (M lines)", (unsigned long long)g_warm_mps);
+     MLOG("pipeline prewarm done: shaders %llu / render pipelines %llu (specialized fragment skipped %llu) / compute pipelines %llu, background time %.1f ms; shader keys not in the shader map (another game version) %llu; not in the library yet (compiled at their first use) %llu",
+          (unsigned long long)g_warm_shaders, (unsigned long long)g_warm_rps, (unsigned long long)g_warm_skip_fz, (unsigned long long)g_warm_cps, (bp_now() - g_warm_t0) / 1e6, (unsigned long long)g_warm_skip_stale, (unsigned long long)atomic_load(&g_cold_skips));
+@@ -17076,6 +17201,7 @@ static void warm_start_mode(int resumed) {
+     NSArray<NSString *> *paths = warm_paths(1);
+     if (!paths) { rb_disk_launch(@[], NO); dm_shader_retranslate_kept(); return; }   // RewindBox (patch 0069): no prewarm, so no warm_finish
+     g_warm_t0 = bp_now(); atomic_store(&g_wp_t0, g_warm_t0);
++    g_rb_warm_msl_n0 = atomic_load(&g_rb_msl_n); g_rb_warm_msl_ns0 = atomic_load(&g_rb_msl_ns); rb_sys_cache_report("at the prewarm's start");   // RewindBox (patch 0347)
+     atomic_store(&g_warm_running, 1);
+     if (rb_ref_path() || (!resumed && prepare_on())) {
+         long lines = 0; NSArray<WarmTask *> *tasks = warm_parse(paths, &lines); warm_urgent_index(tasks); rb_disk_launch(tasks, NO);
+@@ -27827,9 +27953,13 @@ void nvn_be_stats(uint64_t *passes, uint64_t *draws) {
+     unsigned live = g_observed.outstanding[0]+g_observed.outstanding[1], peak=g_observed.peak;
+     uint64_t accepted=g_observed.accepted, full=g_observed.full;
+     pthread_mutex_unlock(&g_observed.mu);
+-    MLOG("[rb-urgent] frame=%llu workers=2 pending=%u peak=%u admitted=%llu saturated=%llu same_pass_lookahead=%llu",
++    os_unfair_lock_lock(&g_shpre_mu);   // RewindBox (patch 0347 review): the compile lanes beside the observed queue
++    uint64_t lane_builds=g_rb_clane_jobs, lane_full=g_rb_clane_full;
++    os_unfair_lock_unlock(&g_shpre_mu);
++    MLOG("[rb-urgent] frame=%llu workers=2 pending=%u peak=%u admitted=%llu saturated=%llu same_pass_lookahead=%llu compile_lanes=%d lane_pending=%u lane_builds=%llu lane_full=%llu",
+          (unsigned long long)frame,live,peak,(unsigned long long)accepted,(unsigned long long)full,
+-         (unsigned long long)atomic_load_explicit(&g_rb_pass_ahead,memory_order_relaxed));
++         (unsigned long long)atomic_load_explicit(&g_rb_pass_ahead,memory_order_relaxed),
++         atomic_load_explicit(&g_rb_clane_w,memory_order_relaxed),atomic_load(&g_rb_clane_live),(unsigned long long)lane_builds,(unsigned long long)lane_full);
+     // Ready before the draw against built at the draw, for any title: the
+     // prewarm's claimed pipelines, the first-draw builds and their wait, and
+     // the registered rows moved to the front and taken from it.
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index c4a36d9..92d9a52 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -52,6 +52,7 @@ static int session_wait_backend(void) {
+     rb_range_mark(prefetch_done);
+     os_unfair_lock_lock(&g_shpre_mu);
+     shq_mark(&g_shpre, prefetch_done); shq_mark(&g_shurg, prefetch_done);
++    rb_clane_mark_locked(prefetch_done);   // RewindBox (patch 0347): the compile lanes; no build is queued once stopping is set
+     if (g_rb_disk_q) dispatch_group_async(prefetch_done,g_rb_disk_q,^{});
+     if (g_rb_bind_q) dispatch_group_async(prefetch_done,g_rb_bind_q,^{});
+     if (g_rb_registration_q) dispatch_group_async(prefetch_done,g_rb_registration_q,^{});
+@@ -407,6 +408,7 @@ void nvn_be_begin_session(void) {
+     atomic_store(&g_par_close_until, 0);
+     os_unfair_lock_lock(&g_shpre_mu);
+     rb_observed_begin(&g_observed);
++    rb_clane_begin_locked();   // RewindBox (patch 0347)
+     g_rb_depth_ready=0; g_rb_startup_queued=0;
+     atomic_store(&g_rb_live_option,0); atomic_store(&g_rb_tiers_option,0);
+     g_rb_observed_shaders = nil;
+diff --git a/graphics/nvn/gfx/nvn/rb_stage_disk.inc b/graphics/nvn/gfx/nvn/rb_stage_disk.inc
+index 183fe02..7ff72f2 100644
+--- a/graphics/nvn/gfx/nvn/rb_stage_disk.inc
++++ b/graphics/nvn/gfx/nvn/rb_stage_disk.inc
+@@ -53,7 +53,7 @@ static int rb_disk_observed_busy(void) {
+     pthread_mutex_lock(&g_observed.mu);
+     int busy = g_observed.outstanding[0] || g_observed.outstanding[1];
+     pthread_mutex_unlock(&g_observed.mu);
+-    return busy;
++    return busy || atomic_load(&g_rb_clane_live);   // RewindBox (patch 0347 review): the library builds of observed stages moved to compile lanes
+ }
+ static void rb_disk_launch(NSArray<WarmTask *> *tasks, BOOL prime) {
+     if (!rb_disk_setting(prime ? "S2A_RB_STAGE_BINARIES" : "S2A_RB_STAGE_DISK_WARM")) return;
+diff --git a/graphics/nvn/tests/rb_first_draw_flight.inc b/graphics/nvn/tests/rb_first_draw_flight.inc
+index 02bedf7..d782ae4 100644
+--- a/graphics/nvn/tests/rb_first_draw_flight.inc
++++ b/graphics/nvn/tests/rb_first_draw_flight.inc
+@@ -37,6 +37,7 @@ static void rb_test_observed_handoff(void) {
+     CHECK(!rb_observed_shader_load(key,0,0,0),"submission cannot claim a 33rd worker slot");
+     dispatch_semaphore_signal(run);
+     REQUIRE(!dispatch_semaphore_wait(done,dispatch_time(DISPATCH_TIME_NOW,30*NSEC_PER_SEC)));
++    shpre_sync();   // RewindBox (patch 0347): the continuation's library is built on a compile lane, while both slots stay occupied
+     os_unfair_lock_lock(&g_shader_lock);
+     NvShader *vertex=g_shcache[shader_identity(key,0,0,0)];
+     os_unfair_lock_unlock(&g_shader_lock);
+diff --git a/graphics/nvn/tests/rb_first_frame_pixels.inc b/graphics/nvn/tests/rb_first_frame_pixels.inc
+index 1970c50..f7084bd 100644
+--- a/graphics/nvn/tests/rb_first_frame_pixels.inc
++++ b/graphics/nvn/tests/rb_first_frame_pixels.inc
+@@ -2,6 +2,7 @@
+ // skip decisions, pending-table consumption and GPU output are real.
+ static void rb_fixture_drain(void) {
+     REQUIRE(rb_observed_drain(&g_observed,dispatch_time(DISPATCH_TIME_NOW,30*NSEC_PER_SEC)));
++    shpre_sync();   // RewindBox (patch 0347): and the library builds the observed jobs queued on the compile lanes
+ }
+ static dispatch_semaphore_t rb_fixture_hold_lanes(void) {
+     dispatch_semaphore_t ready=dispatch_semaphore_create(0), release=dispatch_semaphore_create(0);

@@ -112,9 +112,19 @@ class Bridge(unittest.TestCase):
         forget = block(self.settings, 'static void S2ArmSettingsForgetRetiredLimit(void)')
         self.assertIn('[S2ArmSettingsValues(@"frameRateLimit") containsObject:stored]', forget)
         self.assertIn('[defaults removeObjectForKey:kFrameRateLimit]', forget)
-        prepare = block(self.settings, 'void S2ArmSettingsPrepareLaunch(void)')
-        body = prepare[len('void S2ArmSettingsPrepareLaunch(void) {'):].lstrip()
+        prepare = block(self.settings, 'void S2ArmSettingsPrepareLaunch(NSString *gid)')
+        body = prepare[len('void S2ArmSettingsPrepareLaunch(NSString *gid) {'):].lstrip()
         self.assertTrue(body.startswith('S2ArmSettingsForgetRetiredLimit();'), 'the first thing the launch does')
+
+    def test_a_game_profile_never_holds_30(self):
+        # A game's settings profile keeps only the values offered (a 30 in it reads as the global value), and is the
+        # engine's S2A_FPS at the start: never 30 from a profile.
+        valid = block(self.settings, 'static NSDictionary<NSString *, id> *ValidProfile(id stored) {')
+        self.assertIn('@"frameRateLimit"', valid)
+        self.assertIn('[S2ArmSettingsValues(name) containsObject:value]', valid)
+        self.assertIn('@"S2A_FPS" : settings[@"frameRateLimit"] ?: @"0",', self.settings)
+        self.assertIn('id value = S2ArmSettingsForGame(gid)[@"frameRateLimit"];', self.plugin,
+                      'a parked game that resumes gets the profile\'s limit live, through the same check')
 
     def test_the_menu_has_no_30(self):
         self.assertNotIn('menu.fps30', self.menu)
