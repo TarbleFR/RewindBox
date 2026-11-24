@@ -194,6 +194,18 @@ NS_ASSUME_NONNULL_BEGIN
           bytesPerRow:(size_t)bytesPerRow
           pixelFormat:(MTLPixelFormat)pixelFormat;
 
+/// Same frame as presentPixels, in a Metal buffer that aliases the Vulkan
+/// read-back memory: copied into the upload texture on the GPU, in the
+/// command buffer that draws it (no CPU copy). `completion` runs exactly
+/// once, after that command buffer has completed or at once when the frame
+/// is dropped: the buffer may be written again from then on.
+- (void)presentBuffer:(id<MTLBuffer>)source
+                width:(unsigned)width
+               height:(unsigned)height
+          bytesPerRow:(size_t)bytesPerRow
+          pixelFormat:(MTLPixelFormat)pixelFormat
+           completion:(dispatch_block_t)completion;
+
 /// Draws the last frame again with the current screens, format and preset
 /// (paused game, rotation, menu changes). Emulation thread, only while the
 /// application is active. Returns NO when no frame is kept. `completion` as
