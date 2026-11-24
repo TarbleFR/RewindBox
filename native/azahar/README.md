@@ -109,3 +109,6 @@ Pas encore vérifié :
 - le fonctionnement sur iPhone ;
 - la fréquence des vidages de cache à 24–32 Mio et le nombre réel de shaders par jeu. Les lignes `[rb-jit]` du
   journal les mesureront.
+- la remise directe des images par trame : le journal de session doit écrire `vulkan: frames reach Metal directly,
+  no copy` (sinon `by a GPU copy`, voie d'avant), et la surcouche de performances donner les FPS et le temps GPU
+  à 10×.
