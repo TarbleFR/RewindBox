@@ -426,22 +426,30 @@ moteur jusqu'à 0340, A18 Pro) :
 | Mario Kart World hors course | 0 à 4,9 % | surtout 16,7 ms | 53 à 60 |
 | Fire Emblem en jeu (lien à 30 Hz) | sans objet | 80 % à 33,3 ms, 20 % au-delà | 23,9 |
 
-**Patch 0349**, écrit, en relecture adverse, pas encore dans la série du dépôt
-(`S2A_RB_FALLBACK30`, actif ; `=0` rétablit l'ancien comportement ;
+**Patch 0349** (`S2A_RB_FALLBACK30`, actif ; `=0` rétablit l'ancien comportement ;
 `S2A_RB_FALLBACK30_OFF=<identifiant>` l'écarte pour un jeu) :
 - entrée : jeu hébergé à l'intervalle 1, sans vidéo, pas d'image, limite sous 60 ni garde
-  anti-verrou ; au moins 60 des 120 derniers intervalles affichés en retard sur 16,7 ms, et un
-  coût médian (chemin critique ou GPU) d'au plus 28,3 ms, pour que 30 soit tenable ;
+  anti-verrou ; une fenêtre complète de 120 intervalles affichés dont au moins 60 en retard sur
+  16,7 ms ; un retard expliqué par le coût (médiane au-dessus de 14,2 ms) et 30 à portée (temps
+  GPU médian d'au plus 28,3 ms) ;
 - pendant le repli : chaque image reste 33,3 ms sur le lien à 60 Hz (une image en retard sort à
   50 ms, pas 66,7) ; le jeu, sa cible, ses temps GPU lus et la résolution ne changent pas ;
   l'échéance déclarée reste 16,7 ms pour garder les cœurs performance ; pas d'interpolation ;
 - retour à 60 : essai dès que 30 images de suite coûtent au plus 14,2 ms (attente 1 s, doublée
-  jusqu'à 8 s après un échec) ; sinon sondes espacées de 10 s, doublées jusqu'à 160 s ; un retour
-  tenu 30 s remet les attentes à leur départ ;
+  jusqu'à 8 s après un échec) ; sinon sondes espacées de 10 s, doublées jusqu'à 160 s, et
+  ramenées à 10 s quand le GPU s'allège d'un quart ; un essai échoue sur 5 retards de suite ou la
+  moitié de ses images en retard ; un retour tenu 30 s remet les attentes à leur départ ;
+- une présentation compte au plus 4 vsyncs : un gel de compilation ou un passage en arrière-plan
+  ne compte ni comme temps tenu ni comme retour réussi ;
 - sortie immédiate si une condition d'entrée tombe ;
 - Mario Kart World (garde anti-verrou) et Fire Emblem (intervalle 2) ne sont jamais tenus ;
 - ligne `[rb-fb30]` à chaque changement et toutes les 300 images.
 
+Relecture adverse : mécanique saine (pas de blocage, pas d'attente de 3 vsyncs ou plus, rien de
+changé avec `=0`), trois défauts de règles corrigés (retour jugé plus sévèrement que l'entrée,
+entrée sur des retards que le coût n'explique pas, gels comptés comme du temps). Restent, de
+faible portée : avec `S2A_WORKGROUP=1` (essai seulement), le groupe de travail reçoit une
+échéance de 30 i/s ; une vidéo qui démarre pendant le repli passe le lien à 30 Hz sans délai.
 Test pur de la machine d'état vert (gcc, clang). Non mesuré : entrée et sortie sur de vrais jeux,
 tenue réelle des 33,3 ms, vitesse du jeu si sa logique suit les images, réaction d'une résolution
 dynamique propre au jeu.
@@ -454,8 +462,7 @@ chaque frontière (52,5 ms en médiane, 105 au pire dans Mario Kart World).
   passe dans Mario Kart World, presque toutes gardées), `gpw_stale` re-hache toute sa mémoire, des
   mégaoctets, sous le verrou que le fil de soumission prend pour noter les écritures GPU. Or la
   passe ne veut savoir qu'une chose : reste-t-il au moins un bloc périmé ?
-- **Patch 0350**, écrit, pas encore dans la série du dépôt (`S2A_RB_ORPHAN_EARLY`, actif ; `=0`
-  rétablit l'ancien calcul) : la vérification
+- **Patch 0350** (`S2A_RB_ORPHAN_EARLY`, actif ; `=0` rétablit l'ancien calcul) : la vérification
   s'arrête au premier bloc périmé ; même décision, même mise à jour du registre pour les blocs
   vus. Une ligne donne le temps de chaque étape de la passe (verrouillée, vérification,
   libération) pour les premières passes et toute passe de 2 ms ou plus : le prochain journal dira
