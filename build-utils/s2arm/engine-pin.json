@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "03d7ec06cf4b07f50d1e90a56bedf5b6a13dc8fce65b96a392dea3b7ffd7bc85",
+  "packagedFingerprint": "fa4ab14abe4d1f6c0c70c7fc8da2054804633dbeea9e5f80d2596298fe565300",
   "producers": {
     "engine": {
-      "run": 45329221310,
+      "run": 45413438600,
       "attempt": 1,
-      "artifact": 14892675111,
-      "name": "s2arm-engine-framework-735265b14a97a9b127cc0dcd1b4a25d5cd536e5a",
-      "bytes": 25423879,
-      "sha256": "0ec246b826fba450a002ea91c3947f407211db10c00b34ffeda7410528ff04a2",
-      "headSha": "735265b14a97a9b127cc0dcd1b4a25d5cd536e5a",
+      "artifact": 14932057201,
+      "name": "s2arm-engine-framework-d1cdadaabf5087e54f6c2d2d8e95b37f8658a4af",
+      "bytes": 25447752,
+      "sha256": "661e7881f4b99376ff6ff24c3cc78f8578fbb89251153da094f9e2c47b634174",
+      "headSha": "d1cdadaabf5087e54f6c2d2d8e95b37f8658a4af",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-24T05:11:03Z",
+      "expiresAt": "2026-12-24T14:39:44Z",
       "members": {
-        "S2ArmEngine.framework.zip": "95bca83e791949b927c381316561951ff50f4235083337c33196bc6ffa32fee4",
-        "NS2Pro.framework.zip": "b49147dc9f5a7bb3b69b8249e20521c25e790f64cc411b0f0ddcb4e157e2dd38"
+        "S2ArmEngine.framework.zip": "82b7813bbf0bd34c78cc86888eb5688b77b5645d78af94ed565400f1d66c4401",
+        "NS2Pro.framework.zip": "c8b1b7cd38fcba069f984f7e9cc991dbb3b828ebae0c376ae8eccc8b7f6487f0"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "0ec246b826fba450a002ea91c3947f407211db10c00b34ffeda7410528ff04a2",
+    "engine": "661e7881f4b99376ff6ff24c3cc78f8578fbb89251153da094f9e2c47b634174",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "11bb0d8b29a690481f4559e54a6d8ba9829ea02cae3808211628a257fd8a79af",
-      "bytes": 115450896,
-      "fingerprint": "03d7ec06cf4b07f50d1e90a56bedf5b6a13dc8fce65b96a392dea3b7ffd7bc85"
+      "sha256": "a78c7bdad06814ef7d4dd80c30966a3ebe508c35163965884b7acfaa6b932f58",
+      "bytes": 115524760,
+      "fingerprint": "fa4ab14abe4d1f6c0c70c7fc8da2054804633dbeea9e5f80d2596298fe565300"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45329221310,
+      "run": 45413438600,
       "attempt": 1,
-      "head_sha": "735265b14a97a9b127cc0dcd1b4a25d5cd536e5a",
+      "head_sha": "d1cdadaabf5087e54f6c2d2d8e95b37f8658a4af",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1494,11 +1494,47 @@
         {
           "name": "0340-the-dark-frame-probe-runs-only-when-asked-for.patch",
           "sha256": "721ebdada24e664931af0a1d1ae61e8132696004e97a30624cfba30b27d3070a"
+        },
+        {
+          "name": "0342-same-target-continuation-with-the-tile-mode-off-for-hosted-titles.patch",
+          "sha256": "a7fcc3df80c5c944133d0f5ecdb79f4f9de9cf6af13eeffca9883b22475d91a8"
+        },
+        {
+          "name": "0343-no-load-under-a-covering-first-draw-with-the-tile-mode-off.patch",
+          "sha256": "7bde917cdb0d9e3eb5bb9038f641f39f3cf2b7939100042f343d8a8237ad8074"
+        },
+        {
+          "name": "0344-the-no-lock-guard-for-every-game-seen-to-alternate-its-interval.patch",
+          "sha256": "e486d3fdd2760e0ef4dfd20ce87278c56ff578df9d18faa4dbf11acebbe6e9af"
+        },
+        {
+          "name": "0345-present-frame-interpolation-from-upstream-s2arm-off-unless-asked-for.patch",
+          "sha256": "cf3b9c058cd0e37ddaaa2b0bbb83d809f8abaafe1e8f40cb10296d8e3bd787d0"
+        },
+        {
+          "name": "0346-every-write-of-the-open-pass-marks-its-colour-slot-as-differing-from-memory.patch",
+          "sha256": "5057b9e89101948f7b546ac41b4f1c2c9ad0fe1873d626d35c3ee382d00ea6d1"
+        },
+        {
+          "name": "0347-library-builds-on-compile-lanes-of-their-own-and-a-system-shader-cache-report.patch",
+          "sha256": "cd6ed1a3fe69b0260eadf780c108523c6d6999e0c748d77249f4a43f0087023b"
+        },
+        {
+          "name": "0348-gpu-writes-of-a-submission-kept-as-ranges-not-page-by-page.patch",
+          "sha256": "c63eae69c97153b5370eda22840bf2518ff8399465e51f290537a4aa187ba03b"
+        },
+        {
+          "name": "0349-a-steady-30-when-a-game-cannot-hold-60-with-retries-of-60.patch",
+          "sha256": "534e11eaf3cbcaa3d2f90bb620ebdf00a916d6082e8882dad6f86add5425d13c"
+        },
+        {
+          "name": "0350-the-orphan-pass-stops-at-the-first-stale-gob-and-times-its-steps.patch",
+          "sha256": "301922c5defa6ca1863d7887ca022d1e9237d19c77c99eb566bd0fcc9f769e58"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "95bca83e791949b927c381316561951ff50f4235083337c33196bc6ffa32fee4",
-        "NS2Pro.framework.zip": "b49147dc9f5a7bb3b69b8249e20521c25e790f64cc411b0f0ddcb4e157e2dd38"
+        "S2ArmEngine.framework.zip": "82b7813bbf0bd34c78cc86888eb5688b77b5645d78af94ed565400f1d66c4401",
+        "NS2Pro.framework.zip": "c8b1b7cd38fcba069f984f7e9cc991dbb3b828ebae0c376ae8eccc8b7f6487f0"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
