@@ -140,8 +140,10 @@ check(watch_only.count('MeloNXStdioCapture.appendLine(') == 2, 'the stall watch 
 # Render path stall watch (IPA 824-828, Hogwarts Legacy: the render and GPU threads stood still 25 s while every engine
 # call of the journal returned, so the watch recorded nothing). From the presentation counts it already reads, the
 # journal asks for frame stall records: none before the session's first frame, none while paused, one per stage; the
-# watch records them on its own thread, two stalls at most, with up to 32 return addresses.
-check('static var frameStallStagesMs: [Double] = [2000, 5000, 12000]' in watch_only and 'static let maxFrameStalls = 2' in watch_only and
+# watch records them on its own thread, six stalls at most, each 30 s or more after the previous one (IPA 830: two were
+# allowed and SSBU's loading screens used them), with up to 32 return addresses.
+check('static var frameStallStagesMs: [Double] = [2000, 5000, 12000]' in watch_only and 'static var maxFrameStalls = 6' in watch_only and
+      'static var frameStallSpacingSeconds: Double = 30' in watch_only and
       'static let frameStallFrames = 32' in watch_only, 'frame stall bounds')
 check('        previousShown = shown\n        noteFrameStall(frames:frames, paused:isPaused, fifoPercent:fifoPercent)\n' in journal and
       journal.count('noteFrameStall(') == 2 and journal.count('stalls.frameStall(') == 1 and journal.count('stalls.frameStallEnded(') == 1,
@@ -152,7 +154,8 @@ check('if frames > 0 || (paused && lastFrameAt != nil) {' in frame_note and 'gua
       all(name not in frame_note for name in ('fps(', 'audio(', 'memory(', 'presentation(')),
       'no record before the first frame, while paused or before its stage; no engine call')
 check('for request in frameRequests { recordFrameStall(request) }' in watch_only and
-      'frameStallRecorded = frameStalls < Self.maxFrameStalls' in watch_only and
+      'frameStallRecorded = frameStalls < Self.maxFrameStalls &&\n                    lastFrameStallAt.map { now - $0 >= Self.frameStallSpacingSeconds } ?? true' in watch_only and
+      'lastFrameStallAt = now' in watch_only and
       'Self.frames(from:state.__fp, limit:frameLimit)' in watch_only and
       'record(label:label, frameLimit:Self.maxFrames, previous:&previousCpu)' in watch_only and
       'record(label:label, frameLimit:Self.frameStallFrames, previous:&frameStallCpu)' in watch_only,
@@ -338,6 +341,9 @@ check('_ = rename(temporary, path)' in parity and 'force || now - lastWrite >= 2
 
 check('forName:ProcessInfo.thermalStateDidChangeNotification' in journal and
       'heat?.mayWalk()' in journal and 'maySample:heat.mayProfile' in journal and
+      'func mayProfile(_ kind: String) -> Bool {' in journal and
+      'policy.profile(at:now) && (!profileOnlyWhenCool || kind == "slow" || policy.walk(at:now))' in journal and
+      'kind == "slow" ? maySlow : mayBase' in hot and 'self.maySample(request.kind)' in hot and
       'guard continuing() else { break }' in hot, 'thermal changes affect optional work, including a running walk or profile')
 check('hardwareWindow.mark(ProcessInfo.processInfo.systemUptime)' in journal and
       'vmWindow.mark(ProcessInfo.processInfo.systemUptime)' in journal and
@@ -367,7 +373,7 @@ p.update(2, at: 4)
 precondition(!p.walk(at: 5) && !p.profile(at: 5))
 p.warning(at: 10)
 p.update(1, at: 12)
-precondition(!p.profile(at: 50) && p.profile(at: 70) && !p.walk(at: 70))
+precondition(!p.profile(at: 41) && p.profile(at: 42) && !p.walk(at: 70))
 p.update(0, at: 75)
 precondition(p.profile(at: 76) && !p.walk(at: 134) && p.walk(at: 135))
 p.update(3, at: 140); p.update(0, at: 141); p.update(3, at: 160); p.update(0, at: 170)
@@ -742,6 +748,9 @@ exit(0)
 import Darwin
 let path = CommandLine.arguments[1]
 MeloNXStallWatch.frameStallStagesMs = [300, 700, 1200]
+// The scenario's three stalls are seconds apart: two allowed, no spacing, as the rule this scenario was written for.
+MeloNXStallWatch.maxFrameStalls = 2
+MeloNXStallWatch.frameStallSpacingSeconds = 0
 let gate = DispatchSemaphore(value:0)
 var depthSeen = 0
 // A wait 20 calls deep, as an engine thread parked in the runtime's wait is: more than a call stall's eight addresses.
