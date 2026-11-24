@@ -69,6 +69,9 @@ typedef struct {
 - (void)coreHost:(LibretroCoreHost *)host message:(NSString *)message durationMilliseconds:(unsigned)duration;
 - (void)coreHostRequestedShutdown:(LibretroCoreHost *)host;
 - (unsigned)audioBufferOccupancyForCoreHost:(LibretroCoreHost *)host;
+/// A line of the core's log that diagnoses the session ([rb-perf] timings, [rb-jit] state), as the core
+/// writes it, on the thread that logs (usually the emulation thread); at most 400 a session.
+- (void)coreHost:(LibretroCoreHost *)host diagnosticLine:(NSString *)line;
 @end
 
 /// Portable libretro frontend core: loads one core library, answers its

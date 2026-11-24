@@ -15,10 +15,11 @@ les mesures `[rb-perf]` et la 3D qui se dessine pendant la composition 2D.
    `emit_core.cpp` et `arm64_emit.cpp` de
    [TASEmulators/desmume@b549f71b](https://github.com/TASEmulators/desmume/tree/b549f71b83287f265b6d74b9e77ef5d98a617190),
    pris à cette révision et vérifiés par SHA-256. `arm_emit.cpp` (ARM 32 bits) n'est pas pris.
-2. **Correctif** `arm64-jit-abi.patch` (24 fichiers, +4 138/−581), un `git diff` contre l'arbre libretro plus ces
-   trois fichiers d'origine. Il crée `utils/arm_jit/rb_cached.cpp`, `rb_a64.h`, `rb_jit.cpp` et `utils/rb_perf.h`,
-   et modifie aussi le rendu (`rasterize.cpp`, `rasterize.h`, `render3D.cpp`, `render3D.h`, `GPU.cpp`,
-   `gfx3d.cpp`) et la sortie du frontend.
+2. **Correctif** `arm64-jit-abi.patch` (30 fichiers, +4 308/−334), un `git diff` contre l'arbre libretro plus ces
+   trois fichiers d'origine. Il crée `utils/arm_jit/rb_cached.cpp`, `rb_a64.h`, `rb_jit.cpp`, `utils/rb_perf.h` et
+   `utils/rb_sse2neon.h`, et modifie aussi le rendu (`rasterize.cpp`, `rasterize.h`, `render3D.cpp`, `render3D.h`,
+   `GPU.cpp`, `GPU.h`, `gfx3d.cpp`, `types.h`, les trois fichiers `colorspacehandler`) et la sortie du frontend.
+   `types.h` et `render3D.h` gardent leurs fins de ligne CRLF d'origine (la 831 les convertissait en entier).
 3. **En-tête ABI** hors du correctif, copié par la compilation dans
    `desmume/src/frontend/libretro/rewindbox/RewindBoxLibretroJit.h`.
 
@@ -57,9 +58,12 @@ les mesures `[rb-perf]` et la 3D qui se dessine pendant la composition 2D.
 | Rastériseur logiciel (`rasterize.cpp`, `rasterize.h`) | Effacement plan par plan (`std::fill_n`, `memset`) au lieu d'un appel par pixel. Avec des fils : l'image est découpée en tranches que les fils prennent à un compteur commun, au lieu d'une bande fixe par fil (des bandes de lignes consécutives depuis la section 16.5, voir plus bas) ; chaque fil efface une tranche juste avant de la dessiner. À la résolution de la console, le fil d'émulation dessine lui-même, comme sans fils. L'image ne change pas. |
 | Composition de la couche 3D (`GPU.cpp`) | Chemin sans appel ni branchement pour le cas courant (copie simple, image 15 bits, pas de fenêtre), que le compilateur vectorise. Mêmes pixels que `_PixelCopy`. |
 | Sortie du frontend (`libretro.cpp`) | Conversion en RGB565 des deux écrans par huit pixels en NEON sur AArch64 (mêmes opérations de bits que le chemin SSE2), sur le seul fil d'émulation : vectorisée, elle va plus vite seule qu'avec des fils d'aide qui disputent les cœurs aux fils du rastériseur. Sans vectorisation, à partir de 512×384, elle reste partagée avec trois fils d'aide. |
-| 3D pendant la composition 2D (`rasterize.cpp`, `rasterize.h`, `render3D.cpp`, `render3D.h`, `GPU.cpp`, `gfx3d.cpp`) | Les tranches deviennent des bandes de lignes consécutives (huit par fil), prises de haut en bas ; une bande ne parcourt que les polygones qui la croisent. Une bande est post-traitée (contours, brouillard) et moyennée dès qu'elle et ses voisines sont dessinées. Le moteur 2D n'attend plus toute la 3D à la première ligne : chaque ligne attend ses propres lignes 3D (`RenderFinishLines`), sauf capture directe de la 3D ou sortie 24 bits. Avant que le jeu remplace les listes de polygones (`gfx3d_doFlush`), un rendu encore en cours se termine. Mêmes images. |
+| 3D pendant la composition 2D (`rasterize.cpp`, `rasterize.h`, `render3D.cpp`, `render3D.h`, `GPU.cpp`, `gfx3d.cpp`) | Les tranches deviennent des bandes de lignes consécutives (huit par fil), prises de haut en bas ; une bande ne parcourt que les polygones qui la croisent. Une bande est post-traitée (contours, brouillard) et moyennée dès qu'elle et ses voisines sont dessinées. Le moteur 2D n'attend plus toute la 3D à la première ligne : chaque ligne attend ses propres lignes 3D (`RenderFinishLines`), sauf sortie 24 bits (une capture directe de la 3D aussi, depuis la section 16.6). Avant que le jeu remplace les listes de polygones (`gfx3d_doFlush`), un rendu encore en cours se termine. Mêmes images. |
 | `desmume_num_cores` | Nouvelle valeur `auto`, valeur par défaut : un fil de rastériseur par cœur de l'appareil (8 au plus). |
 | Suréchantillonnage 3D (`desmume_rb_3d_supersampling`, `rasterize.cpp`) | `2x` : la 3D est dessinée au double de la résolution interne sur chaque axe (tampons de couleur et d'attributs à part), puis chaque bloc de 2×2 échantillons est moyenné dans le tampon 3D que lisent la 2D, la capture et les états. Moyenne simple là où les quatre alphas sont égaux ; ailleurs, couleur pondérée par l'alpha et alpha moyen. Réservé aux résolutions où la 3D dessinée reste dans 2560×1920 (5× au plus) ; appliqué aussitôt. `disabled` (défaut) : rien ne change. |
+| Capture directe de la 3D (`GPU.cpp`, `rasterize.cpp`, `render3D.cpp`) | Une ligne capturée avec la 3D seule pour source attend ses bandes et convertit ses lignes en 15 bits (`RenderFlush16Lines`) ; `RenderFlush` convertit le reste. Mêmes images. |
+| Composition 2D en NEON (`types.h`, `GPU.h`, `GPU.cpp`, `colorspacehandler*`, `utils/rb_sse2neon.h`) | `RB_GPU_SSE2` choisit les voies SSE2 des moteurs 2D, y compris sur AArch64, où `rb_sse2neon.h` écrit en NEON les 49 instructions SSE2 qu'elles emploient. Le reste du cœur garde ses voies C++. Mêmes images. |
+| Fils du rastériseur (`rasterize.cpp`) | Sur les plates-formes Apple, `QOS_CLASS_USER_INITIATED` : une classe sous le fil d'émulation de l'hôte. |
 | Mesures `[rb-perf]` (`utils/rb_perf.h`, `GPU.cpp`, `rasterize.cpp`, `libretro.cpp`) | Toutes les 600 images, une ligne du journal du cœur donne le temps moyen par image de chaque étape (voir ci-dessous). |
 
 ## Vérification hors appareil
@@ -189,6 +193,50 @@ Images et son identiques au bit près à ceux du cœur précédent :
 ThreadSanitizer ne signale que l'écriture concurrente, par plusieurs fils du rastériseur, de compteurs de statistiques
 de texture (`TextureStore::ResetCacheAge`, `IncreaseCacheUsageCount`), du code de DeSmuME que ce changement ne
 touche pas.
+
+### Capture de la 3D, composition 2D en NEON, mesures (section 16.6)
+
+- **Capture directe de la 3D.** Une ligne capturée avec la 3D seule pour source (`DISPCAPCNT`, source A = 3D)
+  attendait toute l'image 3D, puis sa conversion entière en 15 bits : le chemin progressif ne servait pas aux jeux
+  qui capturent la 3D (3D sur les deux écrans, effets). Elle attend désormais ses seules bandes et convertit ses
+  seules lignes (`RenderFlush16Lines`) ; `RenderFlush` convertit ensuite les lignes restantes.
+- **Composition 2D en NEON.** Les voies SSE2 des moteurs 2D de DeSmuME (`GPU.h`, `GPU.cpp` et les quatre aides de
+  conversion qu'elles appellent) servent aussi sur AArch64 : `RB_GPU_SSE2`, défini dans `types.h`, les choisit, et
+  `utils/rb_sse2neon.h` écrit en NEON les 49 instructions SSE2 qu'elles emploient. Le reste du cœur garde ses voies
+  C++ sur AArch64 ; le rastériseur reste celui qui suréchantillonne.
+- **Fils du rastériseur** une classe de qualité de service sous le fil d'émulation (`QOS_CLASS_USER_INITIATED`,
+  Apple seulement) : quand la 3D se dessine pendant la composition, le fil qui compose garde son cœur.
+- **Mesures** ajoutées à la ligne `[rb-perf]` : `r3d` (rendus 3D), `bands` (rendus par bandes), `bwait` (attentes
+  bloquantes d'une bande), `cap` et `cap3d` (images avec une capture, et avec une capture directe de la 3D), `ecpu`
+  (temps CPU du fil d'émulation par image), `rcpu` (temps CPU des fils du rastériseur par image, à comparer à
+  `raster`, leur temps mural), `t3d` (durée murale d'un rendu par bandes, de son départ à sa dernière bande).
+- **Pont** : les lignes `[rb-perf]` et `[rb-jit]` du cœur entrent dans `session.log` au fil de l'eau (`core: …`,
+  400 au plus par session), même quand l'app est fermée depuis le sélecteur.
+
+Banc x86 (4 processeurs virtuels, deux séries ; les voies SSE2 elles-mêmes, que la couche NEON reproduit) :
+
+| Cas | Avant | Après |
+|---|---|---|
+| ×5, `engA` (moteur qui compose la 3D), Galaxy | 1,89–1,90 ms | 1,02–1,07 ms |
+| ×5, `engA`, MarioKart | 1,54–1,62 ms | 0,98–1,16 ms |
+| ×5, i/s, Galaxy | 126,6–128,6 | 143,6–144,2 |
+| ×5 + 3D 2x, capture directe de la 3D forcée, i/s, Galaxy | 51,2–56,6 | 59,4–61,0 |
+| ×5 + 3D 2x, idem, `wait`, Galaxy | 11,3–12,4 ms | 9,2 ms |
+
+Un écran sans 3D (LargeBackground) ne change pas : les voies vectorielles servent surtout à la composition à la
+résolution interne. Trois fils au lieu de quatre sur ce banc de quatre processeurs : 45–47 contre 51–57 i/s (Galaxy),
+109–119 contre 126–131 (MarioKart) ; `auto` garde donc un fil par cœur.
+
+Vérifications :
+- la couche NEON, instruction par instruction : 281 048 résultats identiques à ceux de la vraie SSE2 (entrées
+  aléatoires et limites, tous les décalages de 0 à 255, les 256 valeurs de chaque permutation) ;
+- sur x86, composition SSE2 seule contre composition C++ : images et son identiques (4 homebrews, ×1 et ×5) ;
+- capture forcée par un code de triche interne (VRAM D en LCDC, `DISPCAPCNT` = 3D seule vers D, puis affichage de
+  D) : sur x86, 75 cas identiques au cœur de la 831 (5 homebrews × sans capture, capture, capture affichée × 5
+  réglages de ×1 à ×5 + 3D 2x, 1 à 4 fils) ;
+- sur AArch64 sous qemu, JIT, composition NEON comprise : 39 cas identiques au cœur de la 831 (10 homebrews 2D en
+  ×1 et ×4, 5 homebrews 3D en ×1, ×3 et ×5 + 3D 2x, capture affichée sur 2 homebrews) ;
+- le correctif s'applique aux sources épinglées et redonne exactement l'arbre testé.
 
 ## Limites connues
 

@@ -23,7 +23,7 @@
     }
   },
   "patch": "native/desmume/arm64-jit-abi.patch",
-  "patchSHA256": "9df2840c8a72a9b23f168220c723614ba9a2bb635f11d54fa6ae7c282f783316",
+  "patchSHA256": "6c47a89de2618a627c6f328b1621593bdcfcc8bf38630bcb27e8987462ff1e95",
   "abiHeader": "packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h",
   "abiHeaderSHA256": "84c59f2484336fa3c64bc68b51177211094083fd411f0b488fee6b79bda6bc22",
   "abiHeaderInTree": "desmume/src/frontend/libretro/rewindbox/RewindBoxLibretroJit.h",
@@ -45,7 +45,12 @@
     "desmume/src/rasterize.h": "c3c2d925fa2cf8a04dea08b3484ba488e2a4c4729112f860931df8f6f2c4988c",
     "desmume/src/gfx3d.cpp": "37e4c0fb864e48042f09ef3790a2471566ea24e00943e56247d391a9c63ce5f3",
     "desmume/src/render3D.cpp": "a83bcca4e475f6a2313dda10df021fad41f3db67654e175fe7510d021fa3db17",
-    "desmume/src/render3D.h": "48af3a8bdc5a6fd368a20fd8b0949c777cdeb7d53e2dcd8d69f83bee6f5362b2"
+    "desmume/src/render3D.h": "48af3a8bdc5a6fd368a20fd8b0949c777cdeb7d53e2dcd8d69f83bee6f5362b2",
+    "desmume/src/GPU.h": "1ce994fe87254e3dd81188d50b788f2e61e119ec43dcbf339d6b6fd75d51e46e",
+    "desmume/src/types.h": "5fba79c7c7bd1c4c66c80f71138e2f03428a4f7c1d3782f65734a7eac37f9f36",
+    "desmume/src/utils/colorspacehandler/colorspacehandler.cpp": "ecfb30e635e90a7b51cc0dfed2652ec09af91d906005f877f004f1fa44ee055f",
+    "desmume/src/utils/colorspacehandler/colorspacehandler_SSE2.cpp": "78be1daaae889f028d384d4d80702a30a77f26c8dae8918919868f730be5f9f5",
+    "desmume/src/utils/colorspacehandler/colorspacehandler_SSE2.h": "3de3d11193549c0e5f77f7ae25b1934ad79dacdf4d8a6ee5f9c81b863246eab2"
   },
   "sourceDateEpoch": 1795306701,
   "buildCommands": {
@@ -108,7 +113,8 @@
     "as many rasterizer threads as the device has cores",
     "desmume_rb_3d_supersampling",
     "[rb-perf] desmume frames=%llu",
-    "engB=%.2f end=%.2f over16=%llu"
+    "engB=%.2f end=%.2f over16=%llu",
+    "cap3d=%llu ecpu=%.2f rcpu=%.2f t3d=%.2f"
   ],
   "forbiddenImports": [
     "_vm_protect",
