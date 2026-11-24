@@ -363,13 +363,27 @@ Sources : journaux de Zelda (`0400486024DEC000`) et de Fire Emblem (`04007EF01F8
   Attente maximale de 244 à 1 311 ms ramenée à 24 à 50 ms, mesurée sur Android, pas sur iOS.
 
 **Patch 0347.**
-- Les compilations de bibliothèques ont leurs propres voies : 3 sur l'A18 Pro, à côté du fil de
-  rendu. Le créneau de traduction se libère tout de suite. `S2A_RB_COMPILE_LANES=0` rétablit
-  l'ancien comportement.
+- La compilation qui suit une traduction a ses propres voies, à côté du fil de rendu. Le
+  créneau de traduction se libère tout de suite. `S2A_RB_COMPILE_LANES=0` rétablit l'ancien
+  comportement ; `1` à `4` fixe le nombre de voies.
 - Le journal donne la taille du cache système et l'espace libre au début et à la fin du
-  préchauffage, ainsi que le coût réel des compilations du préchauffage : environ 1 ms chacune
-  veut dire que le cache les avait.
-- Écrit, en relecture. Ni compilé ni mesuré.
+  préchauffage, ainsi que le coût réel des compilations du préchauffage (environ 1 ms chacune
+  quand le cache les a).
+- Relecture adverse, sept points corrigés :
+  - Seules les compilations de fin de traduction vont sur les voies. Un chargement demandé par
+    la soumission reste sur la file observée : il peut devoir traduire d'abord, et cette file
+    le borne à 32.
+  - Les gardes qui retiennent le travail spéculatif pendant les chargements observés voient
+    aussi les voies, et le réveillent quand elles se vident.
+  - Largeur par défaut : compilations simultanées de l'appareil moins les deux voies
+    observées, soit 2 sur l'A18 Pro (4 à la fois) au lieu de 3, pour ne pas dépasser ce que
+    l'appareil exécute.
+  - Largeur relue à chaque session ; compteurs des voies sur la ligne `[rb-urgent]`.
+  - Rapport du cache : dossier de cache de l'utilisateur sur macOS, comptage arrêté signalé.
+  - Deux tests existants attendaient la bibliothèque à la fin de la traduction : ils attendent
+    maintenant aussi les voies.
+- Série vérifiée (elle reproduit l'arbre, 44 tests purs verts avec gcc et clang). Compilation
+  iOS en CI à suivre ; ni livré ni mesuré sur iPhone.
 
 **Suite.**
 - Fixer la taille du cache dès le démarrage de l'application.
