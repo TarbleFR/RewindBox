@@ -1,0 +1,215 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 969620a..83e931f 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3914,6 +3914,14 @@ static void power_line(uint64_t frame) {
+                 (unsigned long long)(batch[2]-last_batch[2]),(unsigned long long)(batch[3]-last_batch[3]));
+             memcpy(last_batch,batch,sizeof batch);
+         }
++        void nvn_be_rt_cont_stats(uint64_t v[5]); static uint64_t last_cont[5]; uint64_t cont[5]; nvn_be_rt_cont_stats(cont);   // RewindBox (patch 0342)
++        if (memcmp(cont, last_cont, sizeof cont)) {
++            LOG("[gpu-pass] same-target continuations up to frame %llu: %.1f a frame (%llu), refused %llu; continued passes split before a draw that may read an attachment %llu, "
++                "for a binding not resolved %llu, by DrawTexture %llu (RewindBox patch 0342, S2A_RB_RT_CONT)",
++                frame, (cont[0] - last_cont[0]) / nf, (unsigned long long)(cont[0] - last_cont[0]), (unsigned long long)(cont[1] - last_cont[1]),
++                (unsigned long long)(cont[2] - last_cont[2]), (unsigned long long)(cont[3] - last_cont[3]), (unsigned long long)(cont[4] - last_cont[4]));
++            memcpy(last_cont, cont, sizeof cont);
++        }
+         void nvn_be_lc_stats(uint64_t *, uint64_t *); static uint64_t plt, pll; uint64_t lt, ll; nvn_be_lc_stats(&lt, &ll);
+         void nvn_be_ubp_why(uint64_t w[5]); static uint64_t pw5[5]; uint64_t w5[5]; nvn_be_ubp_why(w5);
+         uint64_t ld, st, fu, udc = nvn_be_udc_saved_bytes(); nvn_be_bw(&ld, &st, &fu);
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 16ad30b..f22f0e9 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -19660,6 +19660,66 @@ static int draw_samples_rt(NvProg *pr) {   // Sampled attachments keep the origi
+             for (int j = 0; j < nr; j++) if (ser && ser == rs[j]) return 1; } }
+     return 0;
+ }
++// RewindBox (patch 0342): same-target continuation with the tile mode off (rb_rt_cont.h). Hosted titles run with it off (patch 0296), and with it every SetRenderTargets of
++//   the targets already bound ended the pass: its attachments were stored whole and loaded again. IPA 830, Mario Kart World on an A18 Pro, 95 windows of 300 race frames:
++//   546 to 703 MB of attachment loads and stores a frame and 68 to 112 load-all store-all passes a frame; the 1248x700 main pass reopened 6 to 11 times a frame (IPA 824 pass
++//   profile, s2arm-pass-traffic-824.md). Upstream S2Arm took the continuation out of the tile mode (fb96ab7db, section 3: a SetRenderTargets of the same targets is no pass
++//   boundary; a draw of the continued pass that samples an attachment the pass wrote splits it). Its test of what a draw samples (draw_samples_rt) sees the bound slots only,
++//   and a hosted title reads most textures through handles in uniform buffers or tables: rb_cont_reads_rt resolves those as encode_args binds them. A pool indexed at run time
++//   (TEXP), a shader without a binding list or no program counts as reading. S2A_RB_RT_CONT=0: every SetRenderTargets ends the pass, as before
++#include "rb_rt_cont.h"
++static int rb_rt_cont_on(void) {
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("S2A_RB_RT_CONT"); v = !(e && !strcmp(e, "0"));
++        MLOG("RewindBox: same-target continuation with the tile mode off: %s (S2A_RB_RT_CONT%s)", v ? "on" : "off, every SetRenderTargets ends the pass", v ? "=0 turns it off" : "=0"); }
++    return v;
++}
++static uint64_t g_rb_cont_n, g_rb_cont_refused, g_rb_cont_split_read, g_rb_cont_split_unknown, g_rb_cont_split_tex;   // nvn_be_rt_cont_stats
++static int rb_cont_mode(void) { return !tbdr_on() && rb_rt_cont_on(); }   // the continuations of this patch (the tile mode keeps its own, with draw_samples_rt)
++static rb_cont_tex rb_cont_tid(int tid) {   // caller holds g_rmu
++    if (tid < 0 || tid >= g_ntreg || !g_treg[tid].ok) return (rb_cont_tex){0, NULL};
++    return (rb_cont_tex){g_treg[tid].t.serial, g_treg[tid].t.mem};
++}
++// 1 = the draw may read an attachment whose content memory may not hold yet: a colour slot the open pass changed (g_fb_dirty; a slot loaded and not written, or not loaded
++//   and proven unwritten, is what memory holds) or the depth / stencil texture. *unknown: a binding could not be resolved (counted apart)
++static int rb_cont_reads_rt(NvProg *pr, int *unknown) {
++    *unknown = 0;
++    rb_cont_tex att[9]; int na = 0;
++    for (int k = 0; k < R.rt.n && k < 8; k++) if (R.rt.color[k] && g_fb_dirty[k]) att[na++] = (rb_cont_tex){R.rt.color[k]->serial, R.rt.color[k]->mem};
++    if (R.rt.depth) att[na++] = (rb_cont_tex){R.rt.depth->serial, R.rt.depth->mem};
++    if (!na) return 0;
++    if (!pr) { *unknown = 1; return 1; }
++    int hit = 0;
++    pthread_mutex_lock(&g_rmu);
++    for (int st = 0; st < 5 && !hit && !*unknown; st++) {
++        __unsafe_unretained NvShader *sh = pr->sh[st]; if (!sh) continue;
++        const int stage = sh->stage;
++        if (!sh->rb_explicit_bindings || stage < 0 || stage >= 6) { *unknown = 1; break; }
++        for (int i = 0; i < sh->rf.nb && !hit && !*unknown; i++) {
++            const nvn_rbind *b = &sh->rf.b[i];
++            switch (rb_cont_binding_class(b->kind, b->n)) {
++                case RB_CONT_SLOT: hit = rb_cont_hit(rb_cont_tid((int)(tex_slot_h(S.tex[stage], S.img[stage], b->reg) & 0xfffff)), att, na); break;
++                case RB_CONT_IMAGE: hit = b->reg < 32 && rb_cont_hit(rb_cont_tid((int)(S.img[stage][b->reg] & 0xfffff)), att, na); break;
++                case RB_CONT_UBO: hit = rb_cont_hit(rb_cont_tid(ubo_tex_id(ubo_packed(stage, b))), att, na); break;
++                case RB_CONT_UBO_ARRAY: for (int k = 0; k < b->n && !hit; k++) hit = rb_cont_hit(rb_cont_tid(ubo_tex_id(ubo_handle(stage, b->reg, 8 * k))), att, na); break;
++                case RB_CONT_C2_ARRAY: for (int k = 0; k < b->n && !hit; k++) hit = rb_cont_hit(rb_cont_tid((int)(c2_handle(stage, b->off + 8u * k) & 0xfffff)), att, na); break;
++                case RB_CONT_SLOTS: for (int k = 0; k < b->n && k < 128 && !hit; k++) {
++                        uint64_t hk = S.tex[stage][k] ? S.tex[stage][k] : S.tex[stage][NVN_SEPTEX_SLOT0 + k];
++                        hit = rb_cont_hit(rb_cont_tid((int)(hk & 0xfffff)), att, na); }
++                    break;
++                case RB_CONT_UNKNOWN: *unknown = 1; break;
++                default: break;
++            }
++        }
++    }
++    pthread_mutex_unlock(&g_rmu);
++    return hit || *unknown;
++}
++static int rb_cont_external(const p_set_rt *r) {   // an attachment over display, video, linear or sparse storage (rb_cont_gate external)
++    const unsigned ext = NVN_TEXTURE_FLAGS_DISPLAY | NVN_TEXTURE_FLAGS_VIDEO_DECODE | NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET | NVN_TEXTURE_FLAGS_SPARSE;
++    for (int k = 0; k < r->n && k < 8; k++) if (r->color[k] && (r->color[k]->d.flags & ext)) return 1;
++    return r->depth && (r->depth->d.flags & ext);
++}
+ // S2Arm 11-05 能耗线（金刚）：开遍那一笔（pr0）起，按真实回放顺序扫到本遍结束，证明哪几张颜色附件到遍结束都没有绘制写（g_noload_mask，rp_begin_ex 不读入、sd_finish 不写回）。
+ //   写的判定与遍里的写入记录同一个（udc_slot_writes；带图像写的绘制当全写）。状态照 pso_predict_rest_ 重放后整份还原。只在 TBDR 关时用：那时设目标总是结束本遍（没有同目标续接）。
+ //   遍结束 = 设目标 / 拷贝 / 填充 / 贴图清除 / 派发 / DLSS / 不延后的常量更新 / 带几何阶段且过得了 geo_draw 早退检查的绘制（geo_draw 先结束当前遍；早退的不画也不结束遍，当不写接着扫）/ 提交末尾。
+@@ -19701,7 +19761,12 @@ static uint32_t pass_color_unwritten(NvProg *pr0) {
+         if (!fz_next(&cur, &q, &hq, &aq)) { proven = !cur.bad; break; }   // the submission ends: the pass ends with it (rp_flush before commit)
+         int stop = 0;
+         switch (hq.op) {
+-            case OP_SET_RT: case OP_COPY_B2B: case OP_CLEAR_BUF: case OP_COPY_B2T: case OP_COPY_T2B: case OP_COPY_T2T: case OP_CLEAR_TEX: case OP_DISPATCH: case OP_DLSS: proven = 1; stop = 1; break;
++            // RewindBox (patch 0342): the same targets may continue the pass (rb_cont_scan_continues). Scanning on can only prove fewer attachments unwritten (a later
++            //   write, or a draw it cannot prove), never more: IPA 830 saved 0.7 to 1.4 MB a frame by not loading unwritten attachments, the continuation targets 30 to 75 MB
++            case OP_SET_RT: { p_set_rt rbq;
++                if (rb_cont_scan_continues(rb_rt_cont_on(), tbdr_on(), rt_same(&R.rt, set_rt_rec(aq, hq.size, &rbq)))) break;
++                proven = 1; stop = 1; break; }
++            case OP_COPY_B2B: case OP_CLEAR_BUF: case OP_COPY_B2T: case OP_COPY_T2B: case OP_COPY_T2T: case OP_CLEAR_TEX: case OP_DISPATCH: case OP_DLSS: proven = 1; stop = 1; break;
+             case OP_UPDATE_UB: if (!ubd_on()) { proven = 1; stop = 1; } break;   // an inline update ends the pass; a deferred one (ubd_on) does not and changes no attachment
+             case OP_CLEAR_COLOR: case OP_CLEAR_DS: case OP_DRAW_TEX: stop = 1; break;
+             case OP_DRAW: case OP_DRAW_IDX: {
+@@ -22392,6 +22457,7 @@ enum { LC_MAX = 8 };
+ static lc_group g_lc[LC_MAX]; static int g_nlc;
+ static uint64_t g_lc_taken, g_lc_landed;   // clears a later pass took as its load action / clear-only passes still opened for them (the residency set line)
+ void nvn_be_lc_stats(uint64_t *taken, uint64_t *landed) { *taken = g_lc_taken; *landed = g_lc_landed; }
++void nvn_be_rt_cont_stats(uint64_t v[5]) { v[0] = g_rb_cont_n; v[1] = g_rb_cont_refused; v[2] = g_rb_cont_split_read; v[3] = g_rb_cont_split_unknown; v[4] = g_rb_cont_split_tex; }   // RewindBox (patch 0342)
+ static int lc_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_NVN_LAZY_CLEAR"); v = !(e && !strcmp(e, "0")); if (!v) MLOG("DM_NVN_LAZY_CLEAR=0: clears with no draw open a pass of their own as before"); } return v; }
+ static int lc_same(const p_set_rt *a, int ka, const p_set_rt *b, int kb) {   // the same subresource through the same view (k = 8: depth / stencil)
+     uint64_t s1, s2; int l1, l2, x1, x2; rt_sub(a, ka, &s1, &l1, &x1); rt_sub(b, kb, &s2, &l2, &x2);
+@@ -23411,8 +23477,10 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+         static int once2; if (!once2++) MLOG("same-target continuation: a draw in the continued pass needs a depth / stencil plane that is not attached; split here (first case pass %llu)", g_stat_pass);
+         PD("M %llu a draw in the continued pass needs a depth / stencil plane that is not attached; split here", g_stat_pass); rp_end(); }
+     if (g_rt_range_active && (!rt_range_pr_ro(pr) || !S.ds.dt || S.ds.dw || S.ds.st)) rp_end();   // The external write visibility at the original encoder boundary is not removed
+-    if (g_rt_merged && draw_samples_rt(pr)) { static int once; if (!once++) MLOG("same-target continuation: a draw in the continued pass samples an attachment; split here (first case pass %llu)", g_stat_pass);
+-        PD("M %llu a draw in the continued pass samples an attachment; split here", g_stat_pass); rp_end(); }
++    int rb_cont_unknown = 0;   // RewindBox (patch 0342): with the tile mode off, the bindings are resolved (rb_cont_reads_rt)
++    if (g_rt_merged && (rb_cont_mode() ? rb_cont_reads_rt(pr, &rb_cont_unknown) : draw_samples_rt(pr))) { static int once; if (!once++) MLOG("same-target continuation: a draw in the continued pass samples an attachment; split here (first case pass %llu)", g_stat_pass);
++        if (rb_cont_mode()) { if (rb_cont_unknown) g_rb_cont_split_unknown++; else g_rb_cont_split_read++; }
++        PD("M %llu a draw in the continued pass samples an attachment%s; split here", g_stat_pass, rb_cont_unknown ? " (a binding not resolved)" : ""); rp_end(); }
+     static id<MTLFunction> fz_fn;   // Specialized fragment function for this draw of the later pass in a merged render pass (nil = use the original version)
+     if (g_fz.active && g_enc && g_fz.phase == 2 && !fz_p2_draw(pr, dw, di, g_fz.lmap2, &fz_fn)) {   // Cannot be proven: end the merged render pass (the earlier pass's result is stored as usual) and reopen with the later pass's original targets
+         static int once3; if (!once3++) MLOG("readable-tile pass merge: a draw of the later pass is not provable; back to separate passes (first case pass %llu)", g_stat_pass);
+@@ -25269,6 +25337,14 @@ void nvn_be_exec(const uint8_t *p) {
+                     g_rt_merged = 1; if (!g_rt_merge_n++) MLOG("same-target continuation: first case pass %llu", g_stat_pass); PD("M %llu same-target continuation pass", g_stat_pass); break; }
+                 // Do not continue a render pass opened only for a clear; one with fewer depth / stencil attachments can be continued (check the planes before drawing)
+                 if (g_enc && g_enc_mode != 1 && !pend && R.has_rt && tbdr_on() && rt_same(&R.rt, r)) { g_rt_merged = 1; if (!g_rt_merge_n++) MLOG("same-target continuation: first case pass %llu", g_stat_pass); PD("M %llu same-target continuation pass", g_stat_pass); R.rt = *r; break; }
++                if (rb_cont_mode() && g_enc && R.has_rt && rt_same(&R.rt, r)) {   // RewindBox (patch 0342): with the tile mode off (rb_rt_cont.h)
++                    op_hdr nh; memcpy(&nh, p + h.size, sizeof nh);
++                    const rb_cont_gate gate = {.on = 1, .tile_mode = 0, .encoder_open = 1, .draw_pass = g_enc_mode != 1, .same_targets = 1, .clears_waiting = pend || g_nlc,
++                                               .upgrades_waiting = g_imfit_npend || g_imwr_npend, .layered = g_rp_layered != 0, .widen = g_wd > 0,
++                                               .external = (uint8_t)rb_cont_external(r), .next_clears = nh.op == OP_CLEAR_COLOR || nh.op == OP_CLEAR_DS};
++                    if (rb_cont_gate_ok(&gate)) { g_rt_merged = 1; g_rb_cont_n++; if (!g_rt_merge_n++) MLOG("same-target continuation: first case pass %llu (RewindBox patch 0342, tile mode off)", g_stat_pass);
++                        PD("M %llu same-target continuation pass (tile mode off)", g_stat_pass); R.rt = *r; break; }
++                    g_rb_cont_refused++; }
+                 // The next command after the guest discards rebinds the targets and closes
+                 // this encoder. Never carry a hint past a draw, call, wait, alias or submission.
+                 if (g_enc && !pend && !g_nlc && !g_rt_merged && !g_rlane && !g_pass_geo) {
+@@ -25330,7 +25406,8 @@ void nvn_be_exec(const uint8_t *p) {
+                 else if (g_rc_skip) fsig_cond_skip(1);   // RewindBox (patch 0064)
+                 g_mdx_epoch++;
+                 break;
+-            case OP_DRAW_TEX: if (!g_rc_skip) { if (!g_enc) rb_mdx_ahead_from(p + h.size); draw_tex(a); } else fsig_cond_skip(1); break;   // RewindBox (patch 0064): fsig_cond_skip. RewindBox (patch 0072): rb_mdx_ahead_from
++            case OP_DRAW_TEX: if (!g_rc_skip) { if (g_rt_merged && rb_cont_mode()) { g_rb_cont_split_tex++; rp_end(); }   // RewindBox (patch 0342): its texture is not resolved against the attachments
++                    if (!g_enc) rb_mdx_ahead_from(p + h.size); draw_tex(a); } else fsig_cond_skip(1); break;   // RewindBox (patch 0064): fsig_cond_skip. RewindBox (patch 0072): rb_mdx_ahead_from
+             // Do not mark dirty if the state did not change (the game often re-sends the same program / state block / vertex format before each draw; the dirty flag only decides whether to re-fetch the pipeline / depth-stencil object, and equal values mean the same object)
+             case OP_BIND_VBUF: {
+                 state_op(h.op,a,h.size);
+diff --git a/graphics/nvn/gfx/nvn/rb_rt_cont.h b/graphics/nvn/gfx/nvn/rb_rt_cont.h
+new file mode 100644
+index 0000000..cebef47
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_rt_cont.h
+@@ -0,0 +1,59 @@
++// RewindBox (patch 0342): same-target continuation with the tile mode off (hosted titles, patch 0296). Pure C, no Metal: the gate a SetRenderTargets of the targets already
++//   bound must pass to continue the open pass, and what a texture binding of a draw in the continued pass resolves to. nvn_mtl.m (rb_cont_reads_rt) does the lookups.
++//   Continuing needs no attachment liveness: memory never has to hold an attachment's content before the pass ends, unless a draw of the continued pass reads it. The draw
++//   that may read one is split off (the pass ends before it, as it ended at the SetRenderTargets before this patch).
++#pragma once
++#include <stdint.h>
++#include "nvn_refl.h"
++
++// How a binding of a draw names the texture it reads, as encode_args binds it
++enum {
++    RB_CONT_SKIP = 0,     // not a texture or image read: uniforms, samplers, storage and global memory (guest memory, which an attachment's tiles never reach; linear and
++                          //   other external attachments do not continue, rb_cont_gate below)
++    RB_CONT_SLOT,         // TEX / TBUF: the handle of texture slot reg (tex_slot_h)
++    RB_CONT_IMAGE,        // IMG: image slot reg
++    RB_CONT_UBO,          // a single TEXU / TBUFU / IMGU: the handle at byte off of uniform slot reg (ubo_packed)
++    RB_CONT_UBO_ARRAY,    // TEXU with n > 0: element k = the handle at byte 8k of uniform slot reg
++    RB_CONT_C2_ARRAY,     // TEXA: element k = the handle of the c2 word at byte off + 8k
++    RB_CONT_SLOTS,        // TEXD: element k = the texture of slot k (combined, else separate), k < 128
++    RB_CONT_UNKNOWN,      // TEXP: the pool indexed by an ID the shader reads at run time; cannot be resolved before the draw
++};
++static inline int rb_cont_binding_class(int kind, int n) {
++    switch (kind) {
++        case NVN_RB_TEX: case NVN_RB_TBUF: return RB_CONT_SLOT;
++        case NVN_RB_IMG: return RB_CONT_IMAGE;
++        case NVN_RB_TBUFU: case NVN_RB_IMGU: return RB_CONT_UBO;
++        case NVN_RB_TEXU: return n ? RB_CONT_UBO_ARRAY : RB_CONT_UBO;
++        case NVN_RB_TEXA: return RB_CONT_C2_ARRAY;
++        case NVN_RB_TEXD: return RB_CONT_SLOTS;
++        case NVN_RB_TEXP: return RB_CONT_UNKNOWN;
++        default: return RB_CONT_SKIP;
++    }
++}
++
++// A texture the draw reads against the attachments whose content memory may not hold yet: the same texture object (serial, any view of it) or another texture over the same
++//   storage start (mem; zero when unknown, never matched)
++typedef struct { uint64_t serial; const void *mem; } rb_cont_tex;
++static inline int rb_cont_hit(rb_cont_tex t, const rb_cont_tex *att, int n) {
++    for (int i = 0; i < n; i++)
++        if ((t.serial && t.serial == att[i].serial) || (t.mem && t.mem == att[i].mem)) return 1;
++    return 0;
++}
++
++// The SetRenderTargets gate. Anything this patch does not account for keeps ending the pass at the SetRenderTargets, as before
++typedef struct {
++    uint8_t on;              // S2A_RB_RT_CONT (default on)
++    uint8_t tile_mode;       // tbdr_on(): its own continuations, unchanged
++    uint8_t encoder_open, draw_pass, same_targets;   // g_enc; not a pass opened for clears only (g_enc_mode 1); rt_same
++    uint8_t clears_waiting;  // clears recorded for the next pass, or lazy clears (g_nlc)
++    uint8_t upgrades_waiting;   // image textures to upgrade when the next pass opens (img_fit / img_wr): a draw before that gets the dummy image
++    uint8_t layered, widen, external;   // layered pass; widescreen targets (g_wd); an attachment over display, video or linear storage
++    uint8_t next_clears;     // the next command clears: the pass ends there anyway, and the store of what it clears is skipped by the boundary path (g_rb_next_clear_mask)
++} rb_cont_gate;
++static inline int rb_cont_gate_ok(const rb_cont_gate *g) {
++    return g->on && !g->tile_mode && g->encoder_open && g->draw_pass && g->same_targets && !g->clears_waiting && !g->upgrades_waiting &&
++           !g->layered && !g->widen && !g->external && !g->next_clears;
++}
++// The scan that proves colour attachments unwritten to the pass end (pass_color_unwritten) must see the pass as long as the replay makes it: a SetRenderTargets of the same
++//   targets does not end it when continuations can happen. If the replay ends the pass there after all (a gate test fails), the proof covered more than the pass: still true
++static inline int rb_cont_scan_continues(int on, int tile_mode, int same_targets) { return on && !tile_mode && same_targets; }

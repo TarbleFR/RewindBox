@@ -151,8 +151,63 @@ La baisse de résolution est exclue à la demande du mainteneur.
 a un ventilateur et une enveloppe d'énergie bien plus large qu'un téléphone. Chaque étape doit en
 revanche augmenter les i/s tenues dans la durée, et chaque IPA dira de combien.
 
+## Étape 1 : patchs 0342 à 0344
+
+**Statut :** écrits le 24 novembre 2026. Logique pure testée hors dépôt (gcc et clang), arbre moteur
+reconstruit à l'identique depuis la série. Relecture adverse, compilation iOS, épingle et IPA : voir
+le suivi plus bas. Rien n'est observé sur iPhone ; aucun gain n'est mesuré.
+
+| Patch | Changement | Interrupteur (`env.txt`) |
+| --- | --- | --- |
+| 0342 | Quand le jeu rebinde les cibles déjà en place, la passe continue au lieu d'être fermée, écrite en mémoire puis rechargée. Idée reprise de l'amont S2Arm (`fb96ab7db`, section 3). Visé : 30 à 75 Mio réels par image. | `S2A_RB_RT_CONT=0` |
+| 0343 | Pas de chargement d'une cible couleur que le premier dessin de la passe recouvre entièrement. Visé : 30 à 35 Mio réels par image. | `S2A_RB_COVER_LOAD=0` |
+| 0344 | La garde anti-verrou à 30 i/s de 0319 vaut pour tout jeu vu alterner 60 et 30, plus seulement Mario Kart World. | `S2A_RB_NO_LOCK_SEEN=0` |
+
+**Pourquoi c'est sûr malgré les textures lues par poignée indirecte (0342).** Avant chaque dessin
+d'une passe continuée, le moteur résout les textures que ce dessin va lire, comme il le fait pour les
+lier : emplacements liés, poignées lues dans les tampons d'uniformes, tableaux de poignées. Si l'une
+est une cible déjà modifiée dans la passe, ou la profondeur, la passe est coupée avant ce dessin,
+comme elle l'était avant le patch. Coupent aussi :
+- une texture choisie par un index calculé dans le shader ;
+- un shader sans liste de liaisons ;
+- DrawTexture.
+
+La preuve « couleur jamais écrite jusqu'à la fin de passe » suit la passe prolongée. Elle ne peut
+qu'en prouver moins qu'avant, jamais plus ; elle ne faisait gagner que 0,7 à 1,4 Mio par image.
+
+La passe n'est pas continuée s'il reste des effacements en attente, des mises à niveau d'images en
+attente ou un effacement juste après. Même chose pour une passe en couches, l'écran élargi et les
+cibles d'affichage, de vidéo, linéaires ou creuses.
+
+**0343.** La preuve existante ne lit que l'état du dessin : pas de mélange, tous les canaux écrits,
+aucun rejet de fragment, sommets lus côté processeur. Le patch ajoute des refus pour le test alpha,
+le « rasterizer discard », les étages géométrie et tessellation, les passes en couches et le swizzle
+de viewport. Un premier dessin peut être sauté pendant la compilation de son pipeline. Dans ce cas,
+la cible n'est pas écrite en fin de passe et la mémoire garde son contenu.
+
+**0344.** Un jeu est « vu alterner » après 8 changements d'intervalle en 600 images, le critère
+de l'essai 0309. Un jeu à 30 i/s par conception ne change presque jamais d'intervalle : il garde son
+maintien à 33,2 ms.
+
+**Pas fait : laisser de côté les plans de profondeur ou de stencil inutilisés.** Le gain visé n'était
+que de 5 à 20 Mio par image. Ces plans font partie de la description des pipelines Metal : une passe
+sans eux demande de nouvelles variantes, compilées au premier dessin, donc un risque de saccades.
+
+**Ce que le prochain journal doit montrer :**
+- lignes `[gpu-pass] same-target continuations` : continuations par image et coupures (lecture d'une
+  cible, liaison non résolue, DrawTexture) ;
+- lignes `[gpu-pass] loads left out under a covering first draw` : chargements évités, en nombre et
+  en Mio par image, et premiers dessins non dessinés ;
+- trafic des cibles par image (référence 830 en course : 652 Mio) et passes « tout chargé, tout
+  écrit » (référence : une centaine) ;
+- aucune ligne « lookahead wrong » ;
+- GPU p50, sonde fixe, délai avant le premier plafond, part des fenêtres plafonnées, i/s ;
+- pour un autre jeu : la ligne « the game alternates its present interval », puis les sorties de la
+  garde.
+
 ## Suivi
 
 | Date | Étape | Statut |
 | --- | --- | --- |
 | 2026-11-24 | Diagnostic et épinglage | Écrit à partir des journaux 830 et de l'historique. Aucun correctif, aucun gain mesuré. |
+| 2026-11-24 | Étape 1, patchs 0342 à 0344 | Écrits ; logique pure testée hors dépôt. Relecture, compilation iOS et IPA à suivre ; aucun gain mesuré. |

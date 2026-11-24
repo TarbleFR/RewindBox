@@ -1,0 +1,102 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 83e931f..841e786 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3922,6 +3922,12 @@ static void power_line(uint64_t frame) {
+                 (unsigned long long)(cont[2] - last_cont[2]), (unsigned long long)(cont[3] - last_cont[3]), (unsigned long long)(cont[4] - last_cont[4]));
+             memcpy(last_cont, cont, sizeof cont);
+         }
++        void nvn_be_cover_stats(uint64_t v[3]); static uint64_t last_rbcov[3]; uint64_t rbcov[3]; nvn_be_cover_stats(rbcov);   // RewindBox (patch 0343)
++        if (memcmp(rbcov, last_rbcov, sizeof rbcov)) {
++            LOG("[gpu-pass] loads left out under a covering first draw up to frame %llu: %.1f a frame, %.1f MB a frame; first draw not drawn after all, attachment left unstored %llu (RewindBox patch 0343, S2A_RB_COVER_LOAD)",
++                frame, (rbcov[0] - last_rbcov[0]) / nf, (rbcov[1] - last_rbcov[1]) / 1048576.0 / nf, (unsigned long long)(rbcov[2] - last_rbcov[2]));
++            memcpy(last_rbcov, rbcov, sizeof rbcov);
++        }
+         void nvn_be_lc_stats(uint64_t *, uint64_t *); static uint64_t plt, pll; uint64_t lt, ll; nvn_be_lc_stats(&lt, &ll);
+         void nvn_be_ubp_why(uint64_t w[5]); static uint64_t pw5[5]; uint64_t w5[5]; nvn_be_ubp_why(w5);
+         uint64_t ld, st, fu, udc = nvn_be_udc_saved_bytes(); nvn_be_bw(&ld, &st, &fu);
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index f22f0e9..bff3cdd 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9653,6 +9653,7 @@ static int rb_clear_desc_matches(MTL4RenderPassDescriptor *pd) {
+ }
+ static unsigned g_rb_discard_mask;
+ static unsigned g_rb_next_clear_mask, g_rb_sealed_clear_mask;
++static unsigned g_rb_cov_mask;   // RewindBox (patch 0343): colour slots of the open pass opened without a load under a covering first draw (rb_cover_load), tile mode off
+ static int g_rb_clear_legacy = -1;
+ static _Atomic int g_rb_next_clear_mode;
+ static _Atomic uint64_t g_rb_adjacent_pairs, g_rb_adjacent_stores, g_rb_adjacent_bytes;
+@@ -9820,6 +9821,8 @@ static int pf_is_float(MTLPixelFormat f) {   // Float color formats that can sto
+         case MTLPixelFormatRG32Float: case MTLPixelFormatRGBA32Float: case MTLPixelFormatRG11B10Float: return 1; default: return 0; }
+ }
+ static int fz_load_covers(int i, id<MTLTexture> t, NSUInteger level);
++static int rb_cover_load(int i, id<MTLTexture> t, NSUInteger level);   // RewindBox (patch 0343): defined with first_draw_covers
++static uint64_t g_rb_cov_n, g_rb_cov_bytes, g_rb_cov_kept;   // nvn_be_cover_stats
+ static NSMutableArray *g_lp;    // DM_NVN_LOADPROBE=1 / 2 / 3 (two constant sentinel values / NaN - under float formats normal shader output cannot reach NaN, ruling out numeric coincidence): attachments judged elidable are cleared to the sentinel color instead, and at pass end the remaining sentinel pixels are read back and counted (diagnostic: should be 0)
+ static void lp_finish(void);
+ // Same-target continuation: when the game calls SetRenderTargets again on the same set of targets (with no copy / dispatch / clear in between) the pass is not ended - on TBDR this saves one full write-back + load.
+@@ -9849,7 +9852,7 @@ static void rp_end(void) { if (!g_rlane) geo_run_flush(); if (g_enc) { AP_B;
+ #endif
+     sd_finish();
+     if (g_rb_all_loaded) g_rb_final_rw++;
+-    g_rb_all_loaded = 0; g_rb_discard_mask = 0; g_rb_next_clear_mask = 0; g_rb_sealed_clear_mask = 0;
++    g_rb_all_loaded = 0; g_rb_discard_mask = 0; g_rb_next_clear_mask = 0; g_rb_sealed_clear_mask = 0; g_rb_cov_mask = 0;
+     enc_r_end_pass(g_enc); zskip_commit_clears(); g_enc = nil; g_rt_merged = 0; g_rt_range_active = g_rt_range_pending = 0;
+     if (g_rb_shadow_native) rb_shadow_finish();
+     ts_after(); ms_after(); if (g_lp.count) lp_finish(); fz_end();
+@@ -10348,7 +10351,10 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+         ca.clearColor = R.cc[i];
+         if (R.clear_c[i]) PD("C %llu c%d cleared to %g,%g,%g,%g", g_stat_pass + 1, i, R.cc[i].red, R.cc[i].green, R.cc[i].blue, R.cc[i].alpha);
+         if (bcrt_is(ca.texture)) { if (ca.loadAction != MTLLoadActionLoad) rt_fresh_mark(R.rt.color[i]); ca.storeAction = MTLStoreActionStore; if (i < 8) g_fb_dirty[i] = ca.loadAction != MTLLoadActionLoad; continue; }   // a shadow (bcrt_attach): loaded and stored as is, outside the bookkeeping below
+-        int cov = tbdr_on() && !R.clear_c[i] && !(g_fb_want_load >> i & 1) && (g_fd_dw || g_fd_di) && fz_load_covers(i, ca.texture, ca.level);   // 开遍的这一笔要片上读它（g_fb_want_load）：不能跳过载入
++        // RewindBox (patch 0343): with the tile mode off, rb_cover_load (not loaded already as proven unwritten: that slot has its own rule)
++        const int rb_cov = !tbdr_on() && !R.clear_c[i] && !(g_noload_mask >> i & 1) && !(g_fb_want_load >> i & 1) && (g_fd_dw || g_fd_di) && rb_cover_load(i, ca.texture, ca.level);
++        if (rb_cov) { g_rb_cov_mask |= 1u << i; g_rb_cov_n++; g_rb_cov_bytes += att_bytes(ca.texture, ca.level); }
++        int cov = rb_cov || (tbdr_on() && !R.clear_c[i] && !(g_fb_want_load >> i & 1) && (g_fd_dw || g_fd_di) && fz_load_covers(i, ca.texture, ca.level));   // 开遍的这一笔要片上读它（g_fb_want_load）：不能跳过载入
+         if (!R.clear_c[i] && (g_fd_dw || g_fd_di) && !cov) PD("Q %llu c%d load cannot be skipped why=%d", g_stat_pass + 1, i, g_fd_why);
+         if (cov) {
+             static int probe = -1; if (probe < 0) { probe = getenv("DM_NVN_LOADPROBE") ? atoi(getenv("DM_NVN_LOADPROBE")) : 0; if (probe) MLOG("DM_NVN_LOADPROBE: attachments whose load can be skipped are cleared to a sentinel color and read back to check"); }
+@@ -18830,7 +18836,10 @@ static void sd_finish(void) {
+     if (!tbdr_on()) {   // TBDR set off: write back everything except an attachment loaded and not written in this pass (udc_on, needs no reader inference)
+         for (int i = 0; i < g_nsd; i++) {
+             sd_att *t = &g_sd[i];
+-            int unwritten = !t->wrote && (t->lskip || (t->load && udc_on()));
++            // RewindBox (patch 0343): opened without a load under a covering first draw that was not drawn after all (skipped while its pipeline compiled): memory keeps its content
++            const int rb_cov = t->depth == 0 && t->idx >= 0 && t->idx < 8 && (g_rb_cov_mask >> t->idx & 1);
++            int unwritten = !t->wrote && (t->lskip || (t->load && udc_on()) || rb_cov);
++            if (rb_cov && !t->wrote) g_rb_cov_kept++;
+             int dead = unwritten || rb_terminal_discard(t);
+             if (!dead && (g_rb_next_clear_mask & (1u << i))) {
+                 dead = 1;
+@@ -19017,6 +19026,30 @@ static int first_draw_covers(int i, id<MTLTexture> t, NSUInteger level) {
+     return nvn_cover((const float (*)[4])P, n, prim, (int)S.poly.cull, ((S.poly.front == NVN_FRONT_FACE_CCW) != (s2a_nvn_rast_flip != 0)) != atomic_load_explicit(&g_origin_ll, memory_order_relaxed),   // NDC counter-clockwise is front: Metal's winding (see the draw), mirrored by the lower-left viewport flip
+                      S.has_vp, vp, R.has_sc, sc, (long)cw, (long)ch);
+ }
++// RewindBox (patch 0343): no load for a colour attachment the pass's first draw covers in full, with the tile mode off. first_draw_covers proves it from the draw's state
++//   (no blending, every channel written, no discard or sample-mask write in the fragment shader, no depth or stencil test that can reject, every pixel inside the vertices it
++//   reads), which needs no reader of the attachment: the bindless reads that keep the tile mode off for hosted titles (patch 0296) do not bear on it, and a read of the
++//   attachment as a texture reads memory, which a load action does not change. Its proof leaves out what can still drop a fragment: an alpha test (an alpha-tested fragment
++//   variant, pso_key.at), rasterizer discard, stages between the positions it reads and the rasterizer (geometry, tessellation, task / mesh), a layered pass (one layer
++//   covered) and a viewport swizzle (the proof maps none); this refuses them. A first draw not drawn after all (skipped while its pipeline compiles) leaves the attachment
++//   unwritten, and it is then not stored (sd_finish): memory keeps its content, as for a loaded attachment no draw wrote (udc_on). IPA 824 pass profile: 30 to 35 MB a
++//   frame of full-target loads (s2arm-pass-traffic-824.md). S2A_RB_COVER_LOAD=0: loaded as before
++static int rb_cover_load_on(void) {
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("S2A_RB_COVER_LOAD"); v = !(e && !strcmp(e, "0"));
++        MLOG("RewindBox: no load under a covering first draw with the tile mode off: %s (S2A_RB_COVER_LOAD%s)", v ? "on" : "off, loaded as before", v ? "=0 turns it off" : "=0"); }
++    return v;
++}
++static int rb_cover_load(int i, id<MTLTexture> t, NSUInteger level) {
++    if (!rb_cover_load_on()) return 0;
++    uint32_t sw; memcpy(&sw, S.vp_sw[0], 4);
++    if (g_rp_layered || S.rast_discard || S.color.alpha_func != NVN_ALPHA_FUNC_ALWAYS || sw) return g_fd_why = 4, 0;   // the PD reasons of first_draw_covers
++    __unsafe_unretained NvProg *pr = S.prog ? prog_get(S.prog) : nil;
++    if (!pr) return g_fd_why = 1, 0;
++    if (pr->sh[2] || pr->sh[3] || pr->sh[4]) return g_fd_why = 11, 0;
++    return first_draw_covers(i, t, level);
++}
++void nvn_be_cover_stats(uint64_t v[3]) { v[0] = g_rb_cov_n; v[1] = g_rb_cov_bytes; v[2] = g_rb_cov_kept; }   // RewindBox (patch 0343)
+ 
+ int nvn_dpool_base(const void *pool, int tex);   // hle_nvn.c: where a descriptor pool's IDs start in the host table
+ static int state_op(uint32_t op, const void *a, uint32_t size) {
