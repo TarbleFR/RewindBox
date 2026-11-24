@@ -1,0 +1,33 @@
+{
+ "id": 45332507027,
+ "name": "RewindBox standard delivery - f668632558316d29b5f9897ae22feda1fd48d919",
+ "display_title": "RewindBox standard delivery - f668632558316d29b5f9897ae22feda1fd48d919",
+ "workflow_id": 404028367,
+ "run_number": 842,
+ "run_attempt": 3,
+ "event": "push",
+ "status": "completed",
+ "conclusion": "success",
+ "head_branch": "Claude",
+ "head_sha": "f668632558316d29b5f9897ae22feda1fd48d919",
+ "head_commit": {
+  "message": "[ipa-delivery:830] Build the private RewindBox IPA 830: S2Arm patches 0332 to 0340 for Mario Kart World, MeloNX Core 7cf4ff80d for Hogwarts, DeSmuME 3D supersampling\n\nFrozen on the draft 38c0a251, base the verified 829. S2Arm engine pin\nf0e555af (run 45329221310, artifact 14892675111): the Fair thermal\nscale, the thermal guest QoS, the memory tier held by compressed\nmemory, the per-piece wait for the encode thread, the thermal DRS steps\nand the dark-frame probe off by default; the acquire sync at the\npresent that took the texture off screen, as on the device; the\ntranslation core at -O2. MeloNX Core 7cf4ff80d (pin 97dfda63); libretro\ncollection LibretroCores-67ce2d3b with the bridge and App changes.\nNothing is measured on an iPhone yet.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_012mUASj3EQnvC86WC56AePw"
+ },
+ "path": ".github/workflows/standard-delivery.yml",
+ "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/45332507027",
+ "actor": {
+  "login": "TarbleFR",
+  "id": 249503225,
+  "profile_url": "https://github.com/TarbleFR",
+  "avatar_url": "https://avatars.githubusercontent.com/u/249503225?v=4"
+ },
+ "triggering_actor": {
+  "login": "TarbleFR",
+  "id": 249503225,
+  "profile_url": "https://github.com/TarbleFR",
+  "avatar_url": "https://avatars.githubusercontent.com/u/249503225?v=4"
+ },
+ "created_at": "2026-11-24T05:19:29Z",
+ "updated_at": "2026-11-24T06:39:31Z",
+ "run_started_at": "2026-11-24T06:15:22Z"
+}
