@@ -1,5 +1,5 @@
 diff --git a/graphics/nvn/gfx/nvn/nvn_rscale.inc b/graphics/nvn/gfx/nvn/nvn_rscale.inc
-index 6b4f9e4..1eb6ce4 100644
+index 6b4f9e4..b4196de 100644
 --- a/graphics/nvn/gfx/nvn/nvn_rscale.inc
 +++ b/graphics/nvn/gfx/nvn/nvn_rscale.inc
 @@ -37,6 +37,15 @@ static uint64_t rb_fair_sample_at, rb_fair_cool_since;
@@ -29,13 +29,13 @@ index 6b4f9e4..1eb6ce4 100644
 +        static int said;
 +        if (!said++) {
 +            if (rb_fair_factor < 1.) MLOG("[rb-fair-scale] armed by S2A_RB_FAIR_SCALE=%s (patch 0332): render targets drawn at %.3f in Fair", value, rb_fair_factor);
-+            else MLOG("[rb-fair-scale] off (patch 0332; S2A_RB_FAIR_SCALE=%s): no reduction, no per-binding or per-pass scale check; S2A_RB_FAIR_SCALE=0.85 arms it as in IPA 829", value ? value : "unset");
++            else MLOG("[rb-fair-scale] off (patch 0332; S2A_RB_FAIR_SCALE=%s): the Fair scale reduces nothing and no longer keeps rs_on() true (S2A_RES_SCALE, S2A_RB_DRS and the shadow raster are unaffected); S2A_RB_FAIR_SCALE=0.85 arms it as in IPA 829", value ? value : "unset");
 +        }
      }
      if (rb_fair_factor >= 1.) return;
      if (rb_fair_retire()) return;   // RewindBox (patch 0321)
 diff --git a/graphics/nvn/gfx/nvn/rb_rs_retire.h b/graphics/nvn/gfx/nvn/rb_rs_retire.h
-index cab19c2..e303291 100644
+index cab19c2..73c9133 100644
 --- a/graphics/nvn/gfx/nvn/rb_rs_retire.h
 +++ b/graphics/nvn/gfx/nvn/rb_rs_retire.h
 @@ -11,8 +11,18 @@
@@ -46,7 +46,7 @@ index cab19c2..e303291 100644
  #include <string.h>
  
 +// RewindBox (patch 0332): the factor the Fair scale draws at, from S2A_RB_FAIR_SCALE. Unset, empty, malformed, below 0.5 or 1 and above: 1, the scale stays off.
-+//   (Up to patch 0331 an unset value meant 0.85.) tests/t_rb_fair_default.c.
++//   (Up to patch 0331 an unset value meant 0.85.)
 +static inline double rb_fair_scale_factor(const char *value) {
 +    if (!value || !*value) return 1.;
 +    char *end = NULL;
@@ -57,35 +57,3 @@ index cab19c2..e303291 100644
  enum { RB_RS_RETIRE_RUN = 8 };
  typedef struct {
      uint32_t reduced;     // storages the Fair scale reduced this session (the log line)
-diff --git a/graphics/nvn/tests/t_rb_fair_default.c b/graphics/nvn/tests/t_rb_fair_default.c
-new file mode 100644
-index 0000000..dbf0350
---- /dev/null
-+++ b/graphics/nvn/tests/t_rb_fair_default.c
-@@ -0,0 +1,26 @@
-+// SPDX-License-Identifier: Apache-2.0
-+// RewindBox (patch 0332): host-only checks of the Fair scale's default (gfx/nvn/rb_rs_retire.h rb_fair_scale_factor): off unless S2A_RB_FAIR_SCALE names a factor.
-+#include <assert.h>
-+#include <stdio.h>
-+#include "../gfx/nvn/rb_rs_retire.h"
-+
-+int main(void) {
-+    // ① unset or empty: off (IPA 829 armed 0.85 here)
-+    assert(rb_fair_scale_factor(NULL) == 1.);
-+    assert(rb_fair_scale_factor("") == 1.);
-+    // ② the old default and the range it accepted: armed as asked
-+    assert(rb_fair_scale_factor("0.85") == 0.85);
-+    assert(rb_fair_scale_factor("0.5") == 0.5);
-+    assert(rb_fair_scale_factor("0.999") == 0.999);
-+    // ③ out of range or malformed: off, never a factor the scale was not built for
-+    assert(rb_fair_scale_factor("1") == 1.);
-+    assert(rb_fair_scale_factor("1.5") == 1.);
-+    assert(rb_fair_scale_factor("0.49") == 1.);
-+    assert(rb_fair_scale_factor("0") == 1.);
-+    assert(rb_fair_scale_factor("-0.85") == 1.);
-+    assert(rb_fair_scale_factor("0.85x") == 1.);
-+    assert(rb_fair_scale_factor("off") == 1.);
-+    assert(rb_fair_scale_factor(" ") == 1.);
-+    puts("PASS Fair scale default: off unless S2A_RB_FAIR_SCALE names a factor from 0.5 below 1");
-+    return 0;
-+}

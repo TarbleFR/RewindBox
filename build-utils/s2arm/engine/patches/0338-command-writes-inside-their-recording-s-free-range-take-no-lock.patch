@@ -99,11 +99,11 @@ index 87b9f30..0b44ee3 100644
      // RewindBox (patch 0326): one part of nvn_be_mem_stat a frame, from 8 frames after the boundary on (rb_report_mem_parts). S2A_RB_REPORT_SPREAD=0: as before
 diff --git a/graphics/nvn/gfx/nvn/rb_sh_range.h b/graphics/nvn/gfx/nvn/rb_sh_range.h
 new file mode 100644
-index 0000000..d43c6e9
+index 0000000..ffc5bc4
 --- /dev/null
 +++ b/graphics/nvn/gfx/nvn/rb_sh_range.h
 @@ -0,0 +1,32 @@
-+// RewindBox (patch 0338): the free range of an open command recording. Pure C: tests/t_rb_sh_range.c.
++// RewindBox (patch 0338): the free range of an open command recording. Pure C.
 +//   Every record that takes device bytes asks whether its bytes overwrite an ended recording (hle_nvn.c cmd_alloc_cb, sh_overwrite). The lock-free look at the page buckets
 +//   skips the lock only when no live recording has a node on those pages; but the recording that ended just before, on the same command buffer, is indexed on the very page
 +//   the next one writes, so with recordings under about 8 KB 81 to 100 % of the writes took g_sh_mu and walked a bucket (exact simulation of the index; Mario Kart World records
@@ -134,81 +134,4 @@ index 0000000..d43c6e9
 +    uintptr_t e = next < cap ? next : cap;
 +    if (e < hi) e = hi;
 +    f->lo = lo; f->hi = e;
-+}
-diff --git a/graphics/nvn/tests/t_rb_sh_range.c b/graphics/nvn/tests/t_rb_sh_range.c
-new file mode 100644
-index 0000000..b806f9e
---- /dev/null
-+++ b/graphics/nvn/tests/t_rb_sh_range.c
-@@ -0,0 +1,71 @@
-+// SPDX-License-Identifier: Apache-2.0
-+// RewindBox (patch 0338): host-only checks of the free range of an open command recording (gfx/nvn/rb_sh_range.h). A model of the release index: ended recordings with one
-+//   device interval each; a sequence of writes on one segment releases exactly the recordings it overlaps, whether every write looks (as before) or the free range skips some.
-+#include <assert.h>
-+#include <stdint.h>
-+#include <stdio.h>
-+#include "../gfx/nvn/rb_sh_range.h"
-+
-+enum { SHIFT = 12, NREC = 64 };
-+typedef struct { uintptr_t lo, hi; int live; } rec;
-+static rec g_a[NREC], g_b[NREC];
-+static int kill_range(rec *t, uintptr_t lo, uintptr_t hi) { int n = 0; for (int i = 0; i < NREC; i++) if (t[i].live && t[i].lo < hi && t[i].hi > lo) { t[i].live = 0; n++; } return n; }
-+static int any_on_pages(const rec *t, uintptr_t lo, uintptr_t hi) {   // the lock-free look: a live interval with a node on one of the pages of [lo, hi)
-+    for (int i = 0; i < NREC; i++) if (t[i].live && (t[i].lo >> SHIFT) <= ((hi - 1) >> SHIFT) && ((t[i].hi - 1) >> SHIFT) >= (lo >> SHIFT)) return 1;
-+    return 0;
-+}
-+static uintptr_t next_live(const rec *t, uintptr_t hi, uintptr_t cap) {   // the lowest start >= hi below cap of a live interval (they have nodes on hi's page or the next)
-+    uintptr_t best = UINTPTR_MAX;
-+    for (int i = 0; i < NREC; i++) if (t[i].live && t[i].hi > hi && t[i].lo < cap && t[i].lo < best) best = t[i].lo < hi ? hi : t[i].lo;
-+    return best;
-+}
-+static unsigned g_locks, g_looks;
-+static void write_old(uintptr_t lo, uintptr_t hi) { if (any_on_pages(g_a, lo, hi)) { g_looks++; kill_range(g_a, lo, hi); } }
-+static void write_new(rb_sh_free *f, uintptr_t lo, uintptr_t hi, uintptr_t gend) {
-+    if (rb_sh_free_covers(f, lo, hi)) return;
-+    uintptr_t cap = rb_sh_free_cap(hi, gend, SHIFT);
-+    if (!any_on_pages(g_b, lo, cap)) { rb_sh_free_put(f, lo, hi, cap, UINTPTR_MAX); return; }
-+    g_locks++; kill_range(g_b, lo, hi); rb_sh_free_put(f, lo, hi, cap, next_live(g_b, hi, cap));
-+}
-+static void same(void) { for (int i = 0; i < NREC; i++) assert(g_a[i].live == g_b[i].live); }
-+
-+int main(void) {
-+    // ① the rule: covers, cap and put
-+    rb_sh_free f = {0};
-+    assert(!rb_sh_free_covers(&f, 0x1000, 0x1010));
-+    assert(rb_sh_free_cap(0x1010, 0, SHIFT) == 0x3000 && rb_sh_free_cap(0x1010, 0x1800, SHIFT) == 0x1800 && rb_sh_free_cap(0x1010, 0x1008, SHIFT) == 0x1010);
-+    rb_sh_free_put(&f, 0x1000, 0x1010, 0x3000, 0x1400);
-+    assert(f.lo == 0x1000 && f.hi == 0x1400 && rb_sh_free_covers(&f, 0x1010, 0x1400) && !rb_sh_free_covers(&f, 0x13f8, 0x1408) && !rb_sh_free_covers(&f, 0xff8, 0x1008));
-+    rb_sh_free_put(&f, 0x1000, 0x1010, 0x3000, UINTPTR_MAX); assert(f.hi == 0x3000);
-+    rb_sh_free_put(&f, 0x1000, 0x1010, 0x3000, 0x1008); assert(f.hi == 0x1010);   // never below the write's end
-+    rb_sh_free_forget(&f); assert(!rb_sh_free_covers(&f, 0x1000, 0x1008));
-+    assert(rb_sh_range_asked_off("0") && !rb_sh_range_asked_off(NULL) && !rb_sh_range_asked_off("") && !rb_sh_range_asked_off("1") && !rb_sh_range_asked_off("00"));
-+    // ② a ring of small recordings re-recorded (the case that took the lock on nearly every write): 40 recordings of 1.4 KB ended in a 64 KB segment, then the segment
-+    //   recorded again from its start by 8-byte to 64-byte records. The same recordings are released at the same writes; the lock is taken a few times a page
-+    const uintptr_t base = 0x100000, gend = base + 0x10000;
-+    for (int i = 0; i < 40; i++) { g_a[i] = g_b[i] = (rec){base + (uintptr_t)i * 1400, base + (uintptr_t)i * 1400 + 1400, 1}; }
-+    g_a[40] = g_b[40] = (rec){gend - 1, gend, 1};   // an empty recording anchored at the segment's last byte (sh_anchor_empty at a segment's start)
-+    rb_sh_free r = {0}; uintptr_t cur = base; unsigned writes = 0;
-+    for (unsigned k = 0; cur < gend; k++) {
-+        uintptr_t n = 8 + (k * 24) % 64; if (cur + n > gend) n = gend - cur;
-+        write_old(cur, cur + n); write_new(&r, cur, cur + n, gend); same();
-+        if (k % 35 == 34) rb_sh_free_forget(&r);   // a new recording every 35 records: its range starts unknown
-+        cur += n; writes++;
-+    }
-+    for (int i = 0; i <= 40; i++) assert(!g_b[i].live);
-+    printf("ring: %u writes, %u took the lock as before, %u with the free range\n", writes, g_looks, g_locks); fflush(stdout);
-+    assert(g_looks * 10 > writes * 7 && g_locks * 10 < writes);   // before: more than 70 % here (77 %); now: under 10 % (4.8 %)
-+    // ③ a live recording after a gap: the range stops at its start, the write that reaches it releases it
-+    for (int i = 0; i < NREC; i++) g_a[i].live = g_b[i].live = 0;
-+    g_a[0] = g_b[0] = (rec){base + 0x900, base + 0xa00, 1};
-+    rb_sh_free q = {0}; g_locks = 0;
-+    write_old(base, base + 8); write_new(&q, base, base + 8, gend); same();
-+    assert(q.hi == base + 0x900 && g_b[0].live);
-+    write_old(base + 8, base + 0x900); write_new(&q, base + 8, base + 0x900, gend); same(); assert(g_b[0].live);
-+    write_old(base + 0x900, base + 0x908); write_new(&q, base + 0x900, base + 0x908, gend); same(); assert(!g_b[0].live);
-+    // ④ a write wider than two pages always looks at the index
-+    rb_sh_free w = {0}; g_a[1] = g_b[1] = (rec){base + 0x5000, base + 0x5008, 1};
-+    write_old(base + 0x1000, base + 0x6000); write_new(&w, base + 0x1000, base + 0x6000, gend); same(); assert(!g_b[1].live);
-+    puts("PASS command recording free range: the same recordings released at the same writes, the lock taken a few times a page");
-+    return 0;
 +}

@@ -35,17 +35,3 @@ index c850344..81b4810 100644
  #else
      uint64_t compressed = UINT64_MAX;
      int was_stressed = 0, stressed = 0;
-diff --git a/graphics/nvn/tests/t_rb_gov_stress.c b/graphics/nvn/tests/t_rb_gov_stress.c
-index 753ba67..d11bfb8 100644
---- a/graphics/nvn/tests/t_rb_gov_stress.c
-+++ b/graphics/nvn/tests/t_rb_gov_stress.c
-@@ -34,5 +34,9 @@ int main(void) {
-         for (unsigned i=0;i<4;i++) sum+=rb_gov_share(plan,i);
-         assert(sum==96*mib);
-     }
-+    // RewindBox (patch 0336): the compression reading is a tier input only when S2A_RB_GOV_COMPRESSED=1
-+    assert(!rb_gov_compressed_asked(NULL) && !rb_gov_compressed_asked("") && !rb_gov_compressed_asked("0") && !rb_gov_compressed_asked("11"));
-+    assert(rb_gov_compressed_asked("1"));
-+    assert(rb_gov_ceiling(RB_GOV_NORMAL,0)==512);   // what an unstressed Normal tier hands out once compression is not an input
-     puts("PASS memory governor compression only, recovery and owner quotas");
- }

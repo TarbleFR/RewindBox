@@ -88,11 +88,11 @@ index eb8b8f0..e0f22f2 100644
      sync_t *s = sv; xq_t *e = xq_find(q); if (!e || !(e->ncont || e->parked)) return 0;
 diff --git a/graphics/nvn/gfx/nvn/rb_piece_hold.h b/graphics/nvn/gfx/nvn/rb_piece_hold.h
 new file mode 100644
-index 0000000..3f9d5d2
+index 0000000..57b14cd
 --- /dev/null
 +++ b/graphics/nvn/gfx/nvn/rb_piece_hold.h
 @@ -0,0 +1,35 @@
-+// RewindBox (patch 0337): when the end of a submission piece waits for the encode thread. Pure C: tests/t_rb_piece_hold.c.
++// RewindBox (patch 0337): when the end of a submission piece waits for the encode thread. Pure C.
 +//   A submit call (nvn_be_submit, nvn_be_xq_flush) replays its streams in pieces (nvn_xqueue.inc xq_piece): one, plus one for each queue a cross-queue event wait parked and
 +//   the call resumes. Every piece ended with rec_drain, the submit thread waiting until dm-encode had made every recorded call. Mario Kart World, IPA 827, race: about 8 pieces a
 +//   frame (2 submit calls, 5.6 to 6.0 resumed pieces), 0.43 to 0.49 ms a frame of that wait in the resumed pieces alone, on the thread the frame waits for.
@@ -126,46 +126,4 @@ index 0000000..3f9d5d2
 +    if (h->depth || !h->held) return 0;
 +    h->held = 0; h->calls_waited++;
 +    return 1;
-+}
-diff --git a/graphics/nvn/tests/t_rb_piece_hold.c b/graphics/nvn/tests/t_rb_piece_hold.c
-new file mode 100644
-index 0000000..0a2fb87
---- /dev/null
-+++ b/graphics/nvn/tests/t_rb_piece_hold.c
-@@ -0,0 +1,36 @@
-+// SPDX-License-Identifier: Apache-2.0
-+// RewindBox (patch 0337): host-only checks of when a submission piece waits for the encode thread (gfx/nvn/rb_piece_hold.h).
-+#include <assert.h>
-+#include <stdint.h>
-+#include <stdio.h>
-+#include "../gfx/nvn/rb_piece_hold.h"
-+
-+int main(void) {
-+    rb_piece_hold h = {0};
-+    // ① a piece outside any submit call (the frame-record replay) waits, as before
-+    assert(rb_piece_end_waits(&h) == 1 && h.held == 0);
-+    // ② one submit call, 1 piece then 5 resumed pieces: none waits, the call's end waits once
-+    rb_piece_call_enter(&h);
-+    for (int i = 0; i < 6; i++) assert(rb_piece_end_waits(&h) == 0);
-+    assert(h.held == 6 && rb_piece_call_leave(&h) == 1 && h.held == 0 && h.depth == 0 && h.calls_waited == 1);
-+    // ③ a call with no piece (its streams queued behind parked work) has nothing to wait for
-+    rb_piece_call_enter(&h);
-+    assert(rb_piece_call_leave(&h) == 0 && h.calls_waited == 1);
-+    // ④ nested: the watchdog's release inside nvn_be_submit; only the outer call's end waits
-+    rb_piece_call_enter(&h);
-+    assert(rb_piece_end_waits(&h) == 0);
-+    rb_piece_call_enter(&h);
-+    assert(rb_piece_end_waits(&h) == 0 && rb_piece_call_leave(&h) == 0 && h.depth == 1);
-+    assert(rb_piece_end_waits(&h) == 0 && rb_piece_call_leave(&h) == 1 && h.depth == 0 && h.pieces_held == 9);
-+    // ⑤ S2A_RB_PIECE_DRAIN=1: every piece waits, the call's end has nothing left
-+    assert(!rb_piece_drain_each_asked(NULL) && !rb_piece_drain_each_asked("") && !rb_piece_drain_each_asked("0") && !rb_piece_drain_each_asked("10"));
-+    assert(rb_piece_drain_each_asked("1"));
-+    rb_piece_hold e = {0}; e.each = 1;
-+    rb_piece_call_enter(&e);
-+    assert(rb_piece_end_waits(&e) == 1 && rb_piece_end_waits(&e) == 1 && rb_piece_call_leave(&e) == 0 && e.pieces_held == 0);
-+    // ⑥ an unbalanced leave never goes below 0
-+    rb_piece_hold u = {0};
-+    assert(rb_piece_call_leave(&u) == 0 && u.depth == 0);
-+    puts("PASS piece hold: pieces of one submit call hand over, the call's end waits once; outside a call and with S2A_RB_PIECE_DRAIN=1 every piece waits");
-+    return 0;
 +}

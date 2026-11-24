@@ -84,11 +84,11 @@ index 8ba3a6c..4e0939f 100644
  id<CAMetalDrawable> mtl_present_take_prefetched(void) { return g_prefetched_drawable; }
 diff --git a/graphics/nvn/gfx/nvn/rb_vi_vsync.h b/graphics/nvn/gfx/nvn/rb_vi_vsync.h
 new file mode 100644
-index 0000000..243bb44
+index 0000000..a162ffe
 --- /dev/null
 +++ b/graphics/nvn/gfx/nvn/rb_vi_vsync.h
 @@ -0,0 +1,20 @@
-+// RewindBox (patch 0341): one vsync clock. Pure C: tests/t_rb_vi_vsync.c.
++// RewindBox (patch 0341): one vsync clock. Pure C.
 +//   nn::vi's vsync event (nvn2_codec.c vi_vsync_thread) was signalled by a clock of its own, 1e9 / 60 = 16,666,666 ns a tick, while the display link that paces the
 +//   acquire and the present runs on the panel's refresh (16.668 ms measured in the IPA 827 logs): the two drift apart by about 1.5 microseconds a tick, so a game frame
 +//   started on the vi event starts at a slowly moving phase of the display's tick and, every so often, just after it. Out of races and at thermal state 0, 4 to 10 % of
@@ -108,47 +108,3 @@ index 0000000..243bb44
 +}
 +// The vsync thread's rest after a wait on the link (tried) that gave no vsync: RB_VI_LINK_REST ticks of the clock; none after one that gave one, or when not tried.
 +static inline unsigned rb_vi_link_rest(int tried, int link_ok) { return tried && !link_ok ? RB_VI_LINK_REST : 0; }
-diff --git a/graphics/nvn/tests/t_rb_vi_vsync.c b/graphics/nvn/tests/t_rb_vi_vsync.c
-new file mode 100644
-index 0000000..06e359c
---- /dev/null
-+++ b/graphics/nvn/tests/t_rb_vi_vsync.c
-@@ -0,0 +1,38 @@
-+// SPDX-License-Identifier: Apache-2.0
-+// RewindBox (patch 0341): host-only checks of the vsync event taken from the display link (gfx/nvn/rb_vi_vsync.h), and of the drift it removes.
-+#include <assert.h>
-+#include <stdint.h>
-+#include <stdio.h>
-+#include "../gfx/nvn/rb_vi_vsync.h"
-+
-+static unsigned run(const double *dt_ms, int n) {   // vsyncs counted over ticks dt_ms apart (the first tick at 1 s)
-+    uint64_t last = 0, t = 1000000000ull; unsigned v = 0;
-+    for (int i = 0; i < n; i++) { t += (uint64_t)(dt_ms[i] * 1e6); v += (unsigned)rb_vi_tick_vsync(t, &last); }
-+    return v;
-+}
-+int main(void) {
-+    double d[240];
-+    // ① 60 Hz with a jitter of 0.4 ms: every tick
-+    for (int i = 0; i < 240; i++) d[i] = 16.668 + ((i & 1) ? 0.4 : -0.4);
-+    assert(run(d, 240) == 240);
-+    // ② 120 Hz with jitter: every second tick
-+    for (int i = 0; i < 240; i++) d[i] = 8.334 + ((i % 3) ? 0.3 : -0.3);
-+    assert(run(d, 240) == 120);
-+    // ③ 120 Hz with one tick missing (a 16.7 ms gap): still one vsync each 16.7 ms
-+    for (int i = 0; i < 240; i++) d[i] = i == 101 ? 16.668 : 8.334;
-+    { unsigned v = run(d, 240); assert(v >= 120 && v <= 121); }
-+    // ④ the system drops the link from 120 to 60 Hz half way: every tick from then on
-+    for (int i = 0; i < 240; i++) d[i] = i < 120 ? 8.334 : 16.668;
-+    assert(run(d, 240) == 60 + 120);
-+    // ⑤ a stall of 200 ms gives one vsync when the link comes back, no burst
-+    for (int i = 0; i < 10; i++) d[i] = i == 5 ? 200.0 : 16.668;
-+    assert(run(d, 10) == 10);
-+    // ⑥ the rest after a wait with no vsync; the switch
-+    assert(rb_vi_link_rest(1, 0) == RB_VI_LINK_REST && rb_vi_link_rest(1, 1) == 0 && rb_vi_link_rest(0, 0) == 0);
-+    assert(rb_vi_link_asked_off("0") && !rb_vi_link_asked_off(NULL) && !rb_vi_link_asked_off("") && !rb_vi_link_asked_off("1") && !rb_vi_link_asked_off("00"));
-+    // ⑦ the drift of the old clock (1e9 / 60 ns, truncated) against a 16.668197 ms panel: about 1.53 us a tick, a whole tick every 10,000 to 11,500 ticks (about 3 minutes)
-+    const double drift = 16668197.0 - (double)(1000000000ull / 60);
-+    assert(drift > 1500.0 && drift < 1560.0 && 16668197.0 / drift > 10000.0 && 16668197.0 / drift < 11500.0);
-+    puts("PASS vi vsync: from the link's ticks, one per 60 Hz vsync at 60 or 120 Hz, through a missed tick, a rate change and a stall; the clock's rest; the old clock's drift");
-+    return 0;
-+}

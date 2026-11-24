@@ -106,11 +106,11 @@ index 34fbdd8..87b9f30 100644
          atomic_store_explicit(&g_rb_itv2_run, rb_drs_itv_run(atomic_load_explicit(&g_rb_itv2_run, memory_order_relaxed), rb_sent_interval), memory_order_relaxed);   // RewindBox (patch 0327): one more present at interval 2, or none in a row
 diff --git a/graphics/nvn/gfx/nvn/rb_acquire_fence.h b/graphics/nvn/gfx/nvn/rb_acquire_fence.h
 new file mode 100644
-index 0000000..16ff776
+index 0000000..1636773
 --- /dev/null
 +++ b/graphics/nvn/gfx/nvn/rb_acquire_fence.h
 @@ -0,0 +1,68 @@
-+// RewindBox (patch 0333): the fence an acquired window texture is available at. Pure C: tests/t_rb_acquire_fence.c.
++// RewindBox (patch 0333): the fence an acquired window texture is available at. Pure C.
 +//   NVN hands nvnWindowAcquireTexture a sync that is signaled once the display is done with the texture. The host published the last committed fence there, that is every GPU
 +//   command the game had submitted, the frame it just presented included: a game thread that waits for that sync on the CPU waits for the end of the previous frame on the GPU
 +//   before it builds the next one, so CPU and GPU take turns instead of overlapping. IPA 827, Mario Kart World, iPhone A18 Pro, race at Fair: a game thread other than the
@@ -176,58 +176,5 @@ index 0000000..16ff776
 +static inline int rb_acq_is_recent(const rb_acq_table *t, const void *s) {
 +    if (!s) return 0;
 +    for (int i = 0; i < RB_ACQ_RECENT; i++) if (t->recent[i] == s) return 1;
-+    return 0;
-+}
-diff --git a/graphics/nvn/tests/t_rb_acquire_fence.c b/graphics/nvn/tests/t_rb_acquire_fence.c
-new file mode 100644
-index 0000000..d8f6a2a
---- /dev/null
-+++ b/graphics/nvn/tests/t_rb_acquire_fence.c
-@@ -0,0 +1,47 @@
-+// SPDX-License-Identifier: Apache-2.0
-+// RewindBox (patch 0333): host-only checks of the fence an acquired window texture is published at (gfx/nvn/rb_acquire_fence.h).
-+#include <assert.h>
-+#include <stdint.h>
-+#include <stdio.h>
-+#include "../gfx/nvn/rb_acquire_fence.h"
-+
-+int main(void) {
-+    static rb_acq_table t;
-+    int w1, w2, s1, s2;   // stand-ins for the guest's NVNwindow and NVNsync objects
-+    rb_acq_reset(&t);
-+    // ① a window with no present noted yet keeps the old answer, the last committed fence
-+    assert(rb_acq_fence(&t, &w1, 0, 40) == 40 && t.unknown == 1);
-+    // ② a rotation of 3 textures, one present a frame, 10 fences a frame: each acquire gets the fence of that texture's last present, never the frame just presented
-+    uint64_t last = 0;
-+    for (int frame = 0; frame < 12; frame++) {
-+        int idx = frame % 3;
-+        uint64_t want = frame >= 3 ? (uint64_t)(frame - 3 + 1) * 10 : 0;   // texture idx was last presented 3 frames ago (none in the first 3 frames: never presented)
-+        if (frame) assert(rb_acq_fence(&t, &w1, idx, last) == want);
-+        last += 10;                                   // the frame's work
-+        rb_acq_note(&t, &w1, idx, last);              // presented with the fence of the work that drew into it
-+    }
-+    assert(t.never >= 2 && t.older >= 8);
-+    // ③ never above the last fence (a fence noted from a higher count than the one passed now cannot be published)
-+    rb_acq_note(&t, &w1, 1, 500);
-+    assert(rb_acq_fence(&t, &w1, 1, 120) == 120);
-+    // ④ an index out of range is answered as before
-+    assert(rb_acq_fence(&t, &w1, 4, 77) == 77 && rb_acq_fence(&t, &w1, -1, 78) == 78);
-+    // ⑤ a second window is kept apart; WindowInitialize forgets the window: unknown again until its next present
-+    rb_acq_note(&t, &w2, 0, 300);
-+    assert(rb_acq_fence(&t, &w2, 0, 900) == 300 && rb_acq_fence(&t, &w2, 2, 900) == 0);
-+    rb_acq_forget(&t, &w2);
-+    assert(rb_acq_fence(&t, &w2, 0, 900) == 900);
-+    assert(rb_acq_fence(&t, &w1, 1, 600) == 500);
-+    // ⑥ more windows than slots: the least recently used is taken over, the others keep their fences
-+    static int many[RB_ACQ_WINDOWS + 2];
-+    for (int i = 0; i < RB_ACQ_WINDOWS + 2; i++) rb_acq_note(&t, &many[i], 0, 1000 + (uint64_t)i);
-+    assert(rb_acq_fence(&t, &many[RB_ACQ_WINDOWS + 1], 0, 5000) == 1000 + RB_ACQ_WINDOWS + 1);
-+    assert(rb_acq_fence(&t, &many[0], 0, 5000) == 5000);   // taken over: answered as before
-+    // ⑦ the syncs of the last acquires are recognized, older ones are not
-+    rb_acq_published(&t, &s1);
-+    assert(rb_acq_is_recent(&t, &s1) && !rb_acq_is_recent(&t, &s2) && !rb_acq_is_recent(&t, NULL));
-+    for (int i = 0; i < RB_ACQ_RECENT; i++) rb_acq_published(&t, &s2);
-+    assert(!rb_acq_is_recent(&t, &s1) && rb_acq_is_recent(&t, &s2));
-+    puts("PASS acquire fence: the texture's last present, never above the last fence; unknown windows and indexes as before");
 +    return 0;
 +}

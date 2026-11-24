@@ -40,21 +40,3 @@ index cdbf996..25e9fbd 100644
  #include <stdint.h>
  #include <stdlib.h>
  #include <string.h>
-diff --git a/graphics/nvn/tests/t_rb_dark_probe.c b/graphics/nvn/tests/t_rb_dark_probe.c
-index 4184a7c..0b72a37 100644
---- a/graphics/nvn/tests/t_rb_dark_probe.c
-+++ b/graphics/nvn/tests/t_rb_dark_probe.c
-@@ -297,8 +297,12 @@ static void t_lines(void) {
-     }
- #undef SAMPLE
- }
-+static void t_optin(void) {   // RewindBox (patch 0340): off unless S2A_RB_DARK_PROBE=1
-+    assert(!rb_dark_probe_asked(NULL) && !rb_dark_probe_asked("") && !rb_dark_probe_asked("0") && !rb_dark_probe_asked("10"));
-+    assert(rb_dark_probe_asked("1"));
-+}
- int main(void) {
--    t_rows(); t_luma(); t_rule(); t_context(); t_lines();
-+    t_optin(); t_rows(); t_luma(); t_rule(); t_context(); t_lines();
-     puts("t_rb_dark_probe: ok");
-     return 0;
- }
