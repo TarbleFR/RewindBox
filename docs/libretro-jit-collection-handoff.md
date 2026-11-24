@@ -6,6 +6,54 @@ d'ipa c'est une autre session qui la fera ». Cette session n'a lancé aucune li
 *La collection précédente, `LibretroCores-6cd6a89b…` (id 14839590544, étape 0 de DeSmuME), est livrée dans
 l'IPA 827. Celle-ci la remplace ; elle est livrée dans l'IPA 828.*
 
+## Après la 835 : 3DS à 10×, passes de rendu adaptées au GPU à tuiles (Azahar seul)
+
+*24 novembre 2026, session « RetroArch MetalFX et JIT ».* Retour du mainteneur (Mario Kart 7 à 10×, image remise
+sans copie) : 30 à 40 images/s, 50 au mieux, état thermique 2 après une minute ; demande : 60 constantes à 10×. Le
+journal confirme `vulkan: frames reach Metal directly, no copy (4000x4800)` : le coût restant est le rendu.
+
+- **Cause visée** : un GPU d'iPhone recharge et réécrit les attachements à chaque passe de rendu. À 10×, l'écran du
+  haut fait 38,4 Mo de couleur et 48 Mo de profondeur-stencil : chaque passe coupée coûte environ 170 Mo. Azahar
+  effaçait les tampons de chaque image par des commandes à part (une écriture complète, puis une relecture) et
+  coupait la passe à chaque changement de fenêtre de dessin ou de cible unique (HUD sans profondeur).
+- **Cœur** `native/azahar` (correctif `fc51c9fe`, 32 fichiers) :
+  - effacements reportés, pris comme chargement `CLEAR` de la passe suivante ;
+  - zone de rendu égale au rectangle des cibles ;
+  - attachement gardé pour les dessins qui n'en utilisent qu'un ;
+  - ligne `[rb-perf] azahar` toutes les 600 images.
+
+  Détail et lecture des mesures : `native/azahar/README.md`. Rien ne change côté app.
+- **Collection compilée** : run [45455871885](https://github.com/TarbleFR/RewindBox/actions/runs/45455871885)
+  (commit `85a5528e`, qui affine `fceead82`, dont le run a été annulé), artefact
+  `LibretroCores-85a5528ed969fd0e139c0494d3c72ab8acd624ec`, id 14952660121, 56 393 618 octets, SHA-256
+  `7f3b87949c2cf2a6b9a1e33222f9b91eb24b52d7ce7c78fac276340aa3a1e9c1`, disponible jusqu'au 8 décembre. Entrée ajoutée à
+  `COLLECTIONS`.
+- **Ce qui change** par rapport à `e5378e84` (835) : `azahar_libretro` seul (`edd641bd…`, 17 055 608 octets), sa ligne
+  de `LIBRETRO_CORES.txt` et `identity.json` ; DeSmuME (`741cf7b6…`), les deux Beetle PSX et les 244 autres fichiers
+  sont identiques octet pour octet.
+- **Vérifié sur l'archive téléchargée** :
+  - empreinte identique à celle de l'API ;
+  - `libretro_source_collections.verify` : 4 cœurs compilés, interface JIT, export ;
+  - contrat d'options sur les 35 binaires ;
+  - `standard_delivery_contract_test.py` : OK, 4 ignorés ;
+  - Azahar arm64 iOS 14.0, chaînes épinglées et `[rb-perf] azahar`, sans `_task_set_exception_ports` ni `_mach_msg` ;
+    `__text` grandit de 9 296 octets, le segment `__TEXT` garde sa taille.
+- **Manifeste de la livraison qui l'adopte** : `components.libretro.origin` vers cet artefact ; `images.mustChange` :
+  `Frameworks/azahar_libretro.framework/azahar_libretro` ; DeSmuME et les deux Beetle PSX restent retenus.
+- **Même Azahar dans la collection DeSmuME suivante** : le run
+  [45459585271](https://github.com/TarbleFR/RewindBox/actions/runs/45459585271) (commit `57b47ff2`, session DeSmuME,
+  descendant de `85a5528e`), artefact 14954690166 (SHA-256 `25062cc3…394d`), porte le même `azahar_libretro`
+  (`edd641bd…`, vérifié sur l'archive) et un nouveau `desmume_libretro` (`9adc00f2…`). Une livraison qui adopte
+  cette collection, une fois relue par sa session, a donc aussi cet Azahar.
+- **À regarder sur iPhone** :
+  - Mario Kart 7 à 10× : images/s et image identique (HUD, carte de l'écran du bas, ombres, menus) ;
+  - un ou deux autres jeux 3DS d'autres moteurs, pour une régression d'affichage ;
+  - dans `session.log`, les lignes `[rb-perf] azahar` : `folded` proche de `fills`, `passes` par image ;
+    `transfers` à 3 au lieu de 2 signale un œil droit dessiné (piste suivante si c'est le cas).
+- **Limite honnête** : le gain dépend du jeu. Il vient quand le jeu efface ses tampons en entier à chaque image et
+  dessine son HUD dans la même cible. 60 images/s constantes à 10× restent limitées par le GPU et la chauffe ;
+  rien n'est mesuré sur l'appareil.
+
 ## Après la 832 : 3D asynchrone, image écrite dans la mémoire de l'hôte
 
 *24 novembre 2026, session « JIT DS et ×10 ».* Retour du mainteneur sur la 832 : ×5 et ×8 fonctionnent dans

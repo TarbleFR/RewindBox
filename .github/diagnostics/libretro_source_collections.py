@@ -75,6 +75,14 @@ COLLECTIONS = {
                       name='LibretroCores-e5378e84a7b68a56830e6aaed04883857c54bca5', bytes=56385054,
                       sha256='fb281c1c5f69d422cf07b86d1b37da2a890dca846e551a4d0d7f66a9809bcb1c',
                       cores=('azahar', 'desmume', 'mednafen_psx', 'mednafen_psx_hw')),
+    # Azahar on a tiled GPU: whole-image clears become the load operation of the next render pass, the render area
+    # is the targets' rectangle, single-target draws keep the open pass's other attachment, an "[rb-perf] azahar"
+    # line every 600 frames (native/azahar at 85a5528e); DeSmuME and both Beetle PSX binaries are identical to those
+    # of 14939297496.
+    14952660121: dict(run=45455871885, source='85a5528ed969fd0e139c0494d3c72ab8acd624ec',
+                      name='LibretroCores-85a5528ed969fd0e139c0494d3c72ab8acd624ec', bytes=56393618,
+                      sha256='7f3b87949c2cf2a6b9a1e33222f9b91eb24b52d7ce7c78fac276340aa3a1e9c1',
+                      cores=('azahar', 'desmume', 'mednafen_psx', 'mednafen_psx_hw')),
 }
 
 
