@@ -1,0 +1,33 @@
+{
+ "id": 45435777396,
+ "name": "RewindBox standard delivery - 262fda5dea06e63a42382f96879c46ebd7c7e5a0",
+ "display_title": "RewindBox standard delivery - 262fda5dea06e63a42382f96879c46ebd7c7e5a0",
+ "workflow_id": 404028367,
+ "run_number": 871,
+ "run_attempt": 1,
+ "event": "push",
+ "status": "completed",
+ "conclusion": "success",
+ "head_branch": "Claude",
+ "head_sha": "262fda5dea06e63a42382f96879c46ebd7c7e5a0",
+ "head_commit": {
+  "message": "[ipa-delivery:835] Build the private RewindBox IPA 835: DeSmuME asynchronous 3D and frames in the host's memory, with Azahar's per-frame images\n\nBase: the verified IPA 834 (763908f0, run 45422937698). As the maintainer asked: this session's\nDeSmuME work for 10x at 60 fps, and Azahar (\"prend Azahar dans ton ipa\"), nothing else.\n- libretro collection LibretroCores-e5378e84 (run 45425936501, artifact 14939297496): desmume_libretro\n  (asynchronous 3D, desmume_rb_3d_async auto by default; both screens written into the frontend's\n  memory; [rb-perf] defer and direct) and azahar_libretro (one output image per libretro frame);\n- libretro bridge: DeSmuME frames copied into their texture by the GPU from two shared Metal buffers;\n  Vulkan images a core keeps per sync index lent straight to the presenter (Azahar).\nEvery other component as in the 834; the MoltenVK tenth part for MeloNX (3a18f778) stays source only.\nNothing measured on an iPhone.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nClaude-Session: https://claude.ai/code/session_012mUASjktRuU2nW6mXVYqiW"
+ },
+ "path": ".github/workflows/standard-delivery.yml",
+ "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/45435777396",
+ "actor": {
+  "login": "TarbleFR",
+  "id": 249503225,
+  "profile_url": "https://github.com/TarbleFR",
+  "avatar_url": "https://avatars.githubusercontent.com/u/249503225?v=4"
+ },
+ "triggering_actor": {
+  "login": "TarbleFR",
+  "id": 249503225,
+  "profile_url": "https://github.com/TarbleFR",
+  "avatar_url": "https://avatars.githubusercontent.com/u/249503225?v=4"
+ },
+ "created_at": "2026-11-24T16:19:26Z",
+ "updated_at": "2026-11-24T16:47:45Z",
+ "run_started_at": "2026-11-24T16:19:26Z"
+}

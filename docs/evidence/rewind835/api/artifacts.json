@@ -1,0 +1,328 @@
+{
+ "total_count": 17,
+ "artifacts": [
+  {
+   "id": 14944020713,
+   "name": "RewindBox-Build835-262fda5dea06e63a42382f96879c46ebd7c7e5a0-attempt1-cold",
+   "size_in_bytes": 336073757,
+   "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14944020713",
+   "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14944020713/zip",
+   "expired": false,
+   "created_at": "2026-11-24T16:47:12Z",
+   "updated_at": "2026-11-24T16:47:12Z",
+   "expires_at": "2026-12-08T16:47:06Z",
+   "digest": "sha256:61423329eafc1041c80ecf71855528aea4883f156b52a13f47c77544fe8c253b",
+   "workflow_run": {
+    "id": 45435777396,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "262fda5dea06e63a42382f96879c46ebd7c7e5a0"
+   }
+  },
+  {
+   "id": 14943671113,
+   "name": "RewindBox-Build835-262fda5dea06e63a42382f96879c46ebd7c7e5a0-attempt1-cold-part00",
+   "size_in_bytes": 84020462,
+   "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14943671113",
+   "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14943671113/zip",
+   "expired": false,
+   "created_at": "2026-11-24T16:47:17Z",
+   "updated_at": "2026-11-24T16:47:17Z",
+   "expires_at": "2026-12-08T16:47:15Z",
+   "digest": "sha256:8b253ac417a0bf2c441f2667ade98fa02cb1f4c5d1333ef01a548dcb19eaa1e0",
+   "workflow_run": {
+    "id": 45435777396,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "262fda5dea06e63a42382f96879c46ebd7c7e5a0"
+   }
+  },
+  {
+   "id": 14943655921,
+   "name": "RewindBox-Build835-262fda5dea06e63a42382f96879c46ebd7c7e5a0-attempt1-cold-recovery-part03",
+   "size_in_bytes": 84001774,
+   "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14943655921",
+   "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14943655921/zip",
+   "expired": false,
+   "created_at": "2026-11-24T16:45:52Z",
+   "updated_at": "2026-11-24T16:45:52Z",
+   "expires_at": "2026-12-08T16:45:49Z",
+   "digest": "sha256:bc66a2901cee37457f292e309935b34f21de58bcd53bc9b97d3fba636919fb6e",
+   "workflow_run": {
+    "id": 45435777396,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "262fda5dea06e63a42382f96879c46ebd7c7e5a0"
+   }
+  },
+  {
+   "id": 14943631178,
+   "name": "RewindBox-Build835-262fda5dea06e63a42382f96879c46ebd7c7e5a0-attempt1-cold-part02",
+   "size_in_bytes": 84020462,
+   "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14943631178",
+   "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14943631178/zip",
+   "expired": false,
+   "created_at": "2026-11-24T16:47:30Z",
+   "updated_at": "2026-11-24T16:47:30Z",
+   "expires_at": "2026-12-08T16:47:27Z",
+   "digest": "sha256:38753ad6e1cad83469ee66859f198389b97e5ca6a9ae2c3515e5df5342a4e229",
+   "workflow_run": {
+    "id": 45435777396,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "262fda5dea06e63a42382f96879c46ebd7c7e5a0"
+   }
+  },
+  {
+   "id": 14943546347,
+   "name": "RewindBox-Build835-262fda5dea06e63a42382f96879c46ebd7c7e5a0-attempt1-cold-diagnostics",
+   "size_in_bytes": 8169936,
+   "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14943546347",
+   "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14943546347/zip",
+   "expired": false,
+   "created_at": "2026-11-24T16:47:37Z",
+   "updated_at": "2026-11-24T16:47:37Z",
+   "expires_at": "2026-12-08T16:47:35Z",
+   "digest": "sha256:a96a479f4a7df100d649a9e9b1aadab9d3a97ba2ccf90233905f79f64bdaea7a",
+   "workflow_run": {
+    "id": 45435777396,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "262fda5dea06e63a42382f96879c46ebd7c7e5a0"
+   }
+  },
+  {
+   "id": 14943297957,
+   "name": "RewindBox-Build835-262fda5dea06e63a42382f96879c46ebd7c7e5a0-attempt1-cold-part01",
+   "size_in_bytes": 84020462,
+   "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14943297957",
+   "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14943297957/zip",
+   "expired": false,
+   "created_at": "2026-11-24T16:47:26Z",
+   "updated_at": "2026-11-24T16:47:26Z",
+   "expires_at": "2026-12-08T16:47:18Z",
+   "digest": "sha256:a1a654b274655ecff9482671d7797a3ddb3cb921abbc1e58c959cb7fbfa4de17",
+   "workflow_run": {
+    "id": 45435777396,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "262fda5dea06e63a42382f96879c46ebd7c7e5a0"
+   }
+  },
+  {
+   "id": 14942953230,
+   "name": "RewindBox-Build835-262fda5dea06e63a42382f96879c46ebd7c7e5a0-attempt1-cold-recovery-part00",
+   "size_in_bytes": 84001774,
+   "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14942953230",
+   "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14942953230/zip",
+   "expired": false,
+   "created_at": "2026-11-24T16:45:41Z",
+   "updated_at": "2026-11-24T16:45:41Z",
+   "expires_at": "2026-12-08T16:45:38Z",
+   "digest": "sha256:b6f75be2c956c29e5a8b5423cf2a9d9081549f04288fa88f6c76a5c6bdfc1363",
+   "workflow_run": {
+    "id": 45435777396,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "262fda5dea06e63a42382f96879c46ebd7c7e5a0"
+   }
+  },
+  {
+   "id": 14942933240,
+   "name": "RewindBox-Build835-262fda5dea06e63a42382f96879c46ebd7c7e5a0-attempt1-cold-recovery-part01",
+   "size_in_bytes": 84001774,
+   "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14942933240",
+   "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14942933240/zip",
+   "expired": false,
+   "created_at": "2026-11-24T16:45:44Z",
+   "updated_at": "2026-11-24T16:45:44Z",
+   "expires_at": "2026-12-08T16:45:42Z",
+   "digest": "sha256:82f7e7f1eaf9e3c11936c3ebdc74e3d56c81e056c097f4c3383d61f38782be60",
+   "workflow_run": {
+    "id": 45435777396,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "262fda5dea06e63a42382f96879c46ebd7c7e5a0"
+   }
+  },
+  {
+   "id": 14942703975,
+   "name": "RewindBox-Build835-262fda5dea06e63a42382f96879c46ebd7c7e5a0-attempt1-cold-part03",
+   "size_in_bytes": 84020462,
+   "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14942703975",
+   "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14942703975/zip",
+   "expired": false,
+   "created_at": "2026-11-24T16:47:34Z",
+   "updated_at": "2026-11-24T16:47:34Z",
+   "expires_at": "2026-12-08T16:47:31Z",
+   "digest": "sha256:cf1314f63e0c4a8daedaa3d3b71cddcf3f22893f7830c2ca049ec426e341afc4",
+   "workflow_run": {
+    "id": 45435777396,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "262fda5dea06e63a42382f96879c46ebd7c7e5a0"
+   }
+  },
+  {
+   "id": 14942309802,
+   "name": "RewindBox-Build835-262fda5dea06e63a42382f96879c46ebd7c7e5a0-attempt1-cold-recovery-part02",
+   "size_in_bytes": 84001774,
+   "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14942309802",
+   "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14942309802/zip",
+   "expired": false,
+   "created_at": "2026-11-24T16:45:48Z",
+   "updated_at": "2026-11-24T16:45:48Z",
+   "expires_at": "2026-12-08T16:45:45Z",
+   "digest": "sha256:7aeab4b36ec0eff076c3d24579de993050f3342ad5ad40ccaaac78dee2e2496a",
+   "workflow_run": {
+    "id": 45435777396,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "262fda5dea06e63a42382f96879c46ebd7c7e5a0"
+   }
+  },
+  {
+   "id": 14941626752,
+   "name": "RewindBox-Build835-262fda5dea06e63a42382f96879c46ebd7c7e5a0-attempt1-component-melonx-core",
+   "size_in_bytes": 101405002,
+   "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14941626752",
+   "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14941626752/zip",
+   "expired": false,
+   "created_at": "2026-11-24T16:23:54Z",
+   "updated_at": "2026-11-24T16:23:54Z",
+   "expires_at": "2027-02-22T16:19:26Z",
+   "digest": "sha256:e929a2cecedd373bffd61e2da0ce270f62ec48d72ba9950c573ca7aae00eb11e",
+   "workflow_run": {
+    "id": 45435777396,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "262fda5dea06e63a42382f96879c46ebd7c7e5a0"
+   }
+  },
+  {
+   "id": 14941611797,
+   "name": "RewindBox-Build835-262fda5dea06e63a42382f96879c46ebd7c7e5a0-attempt1-component-armsx2",
+   "size_in_bytes": 14043861,
+   "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14941611797",
+   "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14941611797/zip",
+   "expired": false,
+   "created_at": "2026-11-24T16:23:58Z",
+   "updated_at": "2026-11-24T16:23:58Z",
+   "expires_at": "2027-02-22T16:19:26Z",
+   "digest": "sha256:76bb6b8f6458e579087d180375c2a7748fff89898b5329dafeeb4f954a1476e2",
+   "workflow_run": {
+    "id": 45435777396,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "262fda5dea06e63a42382f96879c46ebd7c7e5a0"
+   }
+  },
+  {
+   "id": 14941496845,
+   "name": "RewindBox-Build835-262fda5dea06e63a42382f96879c46ebd7c7e5a0-attempt1-component-libretro",
+   "size_in_bytes": 56386246,
+   "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14941496845",
+   "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14941496845/zip",
+   "expired": false,
+   "created_at": "2026-11-24T16:24:00Z",
+   "updated_at": "2026-11-24T16:24:00Z",
+   "expires_at": "2027-02-22T16:19:26Z",
+   "digest": "sha256:b96adc6dc14969386e8c7f31aec961fc489cb4ceeade4bbc0701745f07989d21",
+   "workflow_run": {
+    "id": 45435777396,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "262fda5dea06e63a42382f96879c46ebd7c7e5a0"
+   }
+  },
+  {
+   "id": 14941481836,
+   "name": "RewindBox-Build835-262fda5dea06e63a42382f96879c46ebd7c7e5a0-attempt1-component-melonx-dependencies",
+   "size_in_bytes": 49179302,
+   "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14941481836",
+   "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14941481836/zip",
+   "expired": false,
+   "created_at": "2026-11-24T16:24:07Z",
+   "updated_at": "2026-11-24T16:24:07Z",
+   "expires_at": "2027-02-22T16:19:26Z",
+   "digest": "sha256:340270117163ebc6d56a426d5e2150e07b42eade97c44463ee8c161ae237c46a",
+   "workflow_run": {
+    "id": 45435777396,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "262fda5dea06e63a42382f96879c46ebd7c7e5a0"
+   }
+  },
+  {
+   "id": 14941461875,
+   "name": "RewindBox-Build835-262fda5dea06e63a42382f96879c46ebd7c7e5a0-attempt1-component-rpcs3-core",
+   "size_in_bytes": 30614285,
+   "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14941461875",
+   "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14941461875/zip",
+   "expired": false,
+   "created_at": "2026-11-24T16:23:51Z",
+   "updated_at": "2026-11-24T16:23:51Z",
+   "expires_at": "2027-02-22T16:19:26Z",
+   "digest": "sha256:5e64ad9a3ffec58d1cadd1c566f717626ca8f0f274ed31e050ab17dc78035b21",
+   "workflow_run": {
+    "id": 45435777396,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "262fda5dea06e63a42382f96879c46ebd7c7e5a0"
+   }
+  },
+  {
+   "id": 14941127062,
+   "name": "RewindBox-Build835-262fda5dea06e63a42382f96879c46ebd7c7e5a0-attempt1-component-dolphin",
+   "size_in_bytes": 11192276,
+   "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14941127062",
+   "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14941127062/zip",
+   "expired": false,
+   "created_at": "2026-11-24T16:23:56Z",
+   "updated_at": "2026-11-24T16:23:56Z",
+   "expires_at": "2027-02-22T16:19:26Z",
+   "digest": "sha256:188b6374d9e6f8c40ddc132ecfff97459cb3b190889896e6806cdd1d8bfccd43",
+   "workflow_run": {
+    "id": 45435777396,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "262fda5dea06e63a42382f96879c46ebd7c7e5a0"
+   }
+  },
+  {
+   "id": 14940688172,
+   "name": "RewindBox-Build835-262fda5dea06e63a42382f96879c46ebd7c7e5a0-attempt1-contract",
+   "size_in_bytes": 6233,
+   "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14940688172",
+   "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/14940688172/zip",
+   "expired": false,
+   "created_at": "2026-11-24T16:21:48Z",
+   "updated_at": "2026-11-24T16:21:48Z",
+   "expires_at": "2026-12-08T16:21:47Z",
+   "digest": "sha256:cccd390312ccf5309e311d451a59c2909dd3127bbe21fd6f720f5e21523edb08",
+   "workflow_run": {
+    "id": 45435777396,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "262fda5dea06e63a42382f96879c46ebd7c7e5a0"
+   }
+  }
+ ]
+}
