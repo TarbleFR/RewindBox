@@ -1065,6 +1065,48 @@ abstract final class S2ArmInternalService {
     }
   }
 
+  // ---------------- a game's settings profile ----------------
+  // Stored by the native host, which gives it to the engine at the game's start without Dart (S2ArmSettings.h). The key is
+  // the title id the launch gives the engine.
+
+  /// The title id of the export at [exportFolder] as the launch gives it to the engine (16 hexadecimal digits, upper case):
+  /// the key of the game's settings profile. Null when the folder is not a Switch 2 export.
+  static Future<String?> gameIdFor(String exportFolder) async {
+    final detected = await detectExport(exportFolder);
+    final gid = detected['gid']?.toString();
+    if (detected['success'] != true || gid == null || !_gidPattern.hasMatch(gid)) return null;
+    return gid.toUpperCase();
+  }
+
+  /// The game's settings: its profile when it has one ([S2ArmGameSettings.custom]), else the global settings. Null off iOS,
+  /// for a [gameId] that is not a title id, or when the native side does not answer.
+  static Future<S2ArmGameSettings?> loadGameSettings(String gameId) => _gameSettings('getGameSettings', gameId);
+
+  /// Gives the game a profile made from the global values of the moment (an existing profile is kept as it is).
+  static Future<S2ArmGameSettings?> customizeGameSettings(String gameId) => _gameSettings('createGameSettings', gameId);
+
+  /// Stores [settings] in the game's profile. Never the global settings: a game without a profile is answered unchanged.
+  static Future<S2ArmGameSettings?> saveGameSettings(String gameId, S2ArmSettings settings) =>
+      _gameSettings('setGameSettings', gameId, settings);
+
+  /// Removes the game's profile: the game follows the global settings again.
+  static Future<S2ArmGameSettings?> resetGameSettings(String gameId) => _gameSettings('removeGameSettings', gameId);
+
+  static Future<S2ArmGameSettings?> _gameSettings(String method, String gameId, [S2ArmSettings? settings]) async {
+    if (defaultTargetPlatform != TargetPlatform.iOS || !_gidPattern.hasMatch(gameId)) return null;
+    try {
+      final map = await channel.invokeMapMethod<String, Object?>(method, <String, Object?>{
+        'gid': gameId.toUpperCase(),
+        if (settings != null) 'settings': settings.toMap(),
+      });
+      return map == null ? null : S2ArmGameSettings.fromMap(map);
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
   // ---------------- launch ----------------
 
   static bool _launching = false;

@@ -6,16 +6,41 @@ import '../services/s2arm_internal_service.dart';
 
 typedef S2ArmSettingsLoader = Future<S2ArmSettings?> Function();
 typedef S2ArmSettingsSaver = Future<S2ArmSettings?> Function(S2ArmSettings settings);
+typedef S2ArmGameSettingsLoader = Future<S2ArmGameSettings?> Function(String gameId);
+typedef S2ArmGameSettingsSaver = Future<S2ArmGameSettings?> Function(String gameId, S2ArmSettings settings);
 
 /// Switch 2 engine settings (Settings > Systems > Switch 2 > Emulators and the playlist menu): resolution, anti-aliasing,
 /// scaling filter, frame rate limit, frame generation, console mode, image format, performance overlay and game language.
 /// The native host stores them; they apply at the next game start, after RewindBox is restarted (one game per app launch).
+///
+/// Two scopes. Global ([gameId] null): the settings of every game without a profile. Game ([gameId], the title id the
+/// launch gives the engine): without a profile the game shows the global values, read-only, and "Customize for this game"
+/// gives it a profile made from them; with a profile every change is the game's alone, a global change leaves it as it is,
+/// and "Back to the global settings" removes it.
 class Switch2EngineSettingsPanel extends StatefulWidget {
-  const Switch2EngineSettingsPanel({super.key, this.load, this.save});
+  const Switch2EngineSettingsPanel({
+    super.key,
+    this.load,
+    this.save,
+    this.gameId,
+    this.loadGame,
+    this.customizeGame,
+    this.saveGame,
+    this.resetGame,
+  });
 
   /// Test seams; production uses S2ArmInternalService.
   final S2ArmSettingsLoader? load;
   final S2ArmSettingsSaver? save;
+
+  /// The game scope: the game's title id (16 hexadecimal digits); null for the global settings.
+  final String? gameId;
+
+  /// Test seams of the game scope; production uses S2ArmInternalService.
+  final S2ArmGameSettingsLoader? loadGame;
+  final S2ArmGameSettingsLoader? customizeGame;
+  final S2ArmGameSettingsSaver? saveGame;
+  final S2ArmGameSettingsLoader? resetGame;
 
   @override
   State<Switch2EngineSettingsPanel> createState() => _Switch2EngineSettingsPanelState();
@@ -23,8 +48,14 @@ class Switch2EngineSettingsPanel extends StatefulWidget {
 
 class _Switch2EngineSettingsPanelState extends State<Switch2EngineSettingsPanel> {
   S2ArmSettings? _settings;
+
+  /// Game scope: the game has its own settings profile.
+  bool _custom = false;
   bool _loaded = false;
   bool _busy = false;
+
+  /// No value can be changed now: one is being stored, or the game has no profile yet (game scope; "Customize" first).
+  bool get _locked => _busy || (widget.gameId != null && !_custom);
 
   @override
   void initState() {
@@ -34,28 +65,45 @@ class _Switch2EngineSettingsPanelState extends State<Switch2EngineSettingsPanel>
 
   Future<void> _load() async {
     S2ArmSettings? settings;
+    var custom = false;
     try {
-      settings = await (widget.load ?? S2ArmInternalService.loadSettings)();
+      final gameId = widget.gameId;
+      if (gameId == null) {
+        settings = await (widget.load ?? S2ArmInternalService.loadSettings)();
+      } else {
+        final game = await (widget.loadGame ?? S2ArmInternalService.loadGameSettings)(gameId);
+        settings = game?.settings;
+        custom = game?.custom ?? false;
+      }
     } catch (_) {
       settings = null;
     }
     if (!mounted) return;
     setState(() {
       _settings = settings;
+      _custom = custom;
       _loaded = true;
     });
   }
 
   Future<void> _change(S2ArmSettings next) async {
     final current = _settings;
-    if (current == null || _busy) return;
+    if (current == null || _locked) return;
     setState(() {
       _settings = next;
       _busy = true;
     });
     S2ArmSettings? stored;
+    var custom = _custom;
     try {
-      stored = await (widget.save ?? S2ArmInternalService.saveSettings)(next);
+      final gameId = widget.gameId;
+      if (gameId == null) {
+        stored = await (widget.save ?? S2ArmInternalService.saveSettings)(next);
+      } else {
+        final game = await (widget.saveGame ?? S2ArmInternalService.saveGameSettings)(gameId, next);
+        stored = game?.settings;
+        custom = game?.custom ?? custom;
+      }
     } catch (_) {
       stored = null;
     }
@@ -63,6 +111,33 @@ class _Switch2EngineSettingsPanelState extends State<Switch2EngineSettingsPanel>
     setState(() {
       _busy = false;
       _settings = stored ?? current;
+      _custom = custom;
+    });
+  }
+
+  /// Game scope: "Customize for this game" ([custom] true: a profile made from the global values of the moment) or "Back to
+  /// the global settings" (false: the profile is removed). The panel then shows what the native side answered.
+  Future<void> _scope(bool custom) async {
+    final gameId = widget.gameId;
+    if (gameId == null || _busy) return;
+    setState(() => _busy = true);
+    S2ArmGameSettings? answer;
+    try {
+      final call = custom
+          ? (widget.customizeGame ?? S2ArmInternalService.customizeGameSettings)
+          : (widget.resetGame ?? S2ArmInternalService.resetGameSettings);
+      answer = await call(gameId);
+    } catch (_) {
+      answer = null;
+    }
+    if (!mounted) return;
+    final game = answer;
+    setState(() {
+      _busy = false;
+      if (game != null) {
+        _settings = game.settings;
+        _custom = game.custom;
+      }
     });
   }
 
@@ -101,12 +176,44 @@ class _Switch2EngineSettingsPanelState extends State<Switch2EngineSettingsPanel>
             for (final entry in labels.entries)
               DropdownMenuItem<String>(value: entry.key, child: Text(entry.value, overflow: TextOverflow.ellipsis)),
           ],
-          onChanged: _busy
+          onChanged: _locked
               ? null
               : (selected) {
                   if (selected != null && selected != value) onChanged(selected);
                 },
         ),
+      ),
+    );
+  }
+
+  /// Game scope: whether the game has a profile, and the button that gives it one or removes it.
+  Widget _gameScope(ThemeData theme) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16.r, 12.r, 16.r, 4.r),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _t(_custom ? 'gameUsesOwn' : 'gameUsesGlobal'),
+            key: const ValueKey('s2arm-game-scope'),
+            style: theme.textTheme.bodyMedium,
+          ),
+          SizedBox(height: 8.r),
+          if (_custom)
+            OutlinedButton.icon(
+              key: const ValueKey('s2arm-game-reset'),
+              onPressed: _busy ? null : () => _scope(false),
+              icon: const Icon(Icons.public),
+              label: Text(_t('gameReset')),
+            )
+          else
+            FilledButton.icon(
+              key: const ValueKey('s2arm-game-customize'),
+              onPressed: _busy ? null : () => _scope(true),
+              icon: const Icon(Icons.tune),
+              label: Text(_t('gameCustomize')),
+            ),
+        ],
       ),
     );
   }
@@ -129,6 +236,7 @@ class _Switch2EngineSettingsPanelState extends State<Switch2EngineSettingsPanel>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (widget.gameId != null) _gameScope(theme),
         Padding(
           padding: EdgeInsets.fromLTRB(16.r, 8.r, 16.r, 4.r),
           child: Text(_t('graphicsSection'), style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.primary)),
@@ -166,7 +274,7 @@ class _Switch2EngineSettingsPanelState extends State<Switch2EngineSettingsPanel>
           value: settings.frameInterpolation,
           title: Text(_t('frameInterpolation')),
           subtitle: Text(_t('frameInterpolationNote')),
-          onChanged: _busy ? null : (value) => _change(settings.copyWith(frameInterpolation: value)),
+          onChanged: _locked ? null : (value) => _change(settings.copyWith(frameInterpolation: value)),
         ),
         _dropdown(
           key: const ValueKey('s2arm-setting-mode'),
@@ -186,7 +294,7 @@ class _Switch2EngineSettingsPanelState extends State<Switch2EngineSettingsPanel>
           key: const ValueKey('s2arm-setting-performance-overlay'),
           value: settings.performanceOverlay,
           title: Text(_t('performanceOverlay')),
-          onChanged: _busy ? null : (value) => _change(settings.copyWith(performanceOverlay: value)),
+          onChanged: _locked ? null : (value) => _change(settings.copyWith(performanceOverlay: value)),
         ),
         _dropdown(
           key: const ValueKey('s2arm-setting-game-language'),
@@ -195,6 +303,11 @@ class _Switch2EngineSettingsPanelState extends State<Switch2EngineSettingsPanel>
           labels: languages,
           onChanged: (value) => _change(settings.copyWith(gameLanguage: value)),
         ),
+        if (widget.gameId == null)
+          Padding(
+            padding: EdgeInsets.fromLTRB(16.r, 8.r, 16.r, 4.r),
+            child: Text(_t('globalScope'), key: const ValueKey('s2arm-global-scope'), style: theme.textTheme.bodySmall),
+          ),
         Padding(
           padding: EdgeInsets.fromLTRB(16.r, 8.r, 16.r, 4.r),
           child: Text(_t('nextLaunchNote'), style: theme.textTheme.bodySmall),
