@@ -1,0 +1,65 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+--- a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
++++ b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+@@ -247,6 +247,7 @@
+     uint64_t sess, ser;                // S2Arm: the session whose tables its slots are in (check C6); its serial, for the log
+     uint64_t rescan_frame; uint8_t rescan;   // S2Arm (check C2): a tile was left out of date for want of staging, a heap tile or host memory: every tile is looked at again 60 frames on
+     uint8_t grouped_copy;              // immutable for the lifetime of this sparse texture
++    uint8_t trace_decode;              // opt-in wall time of packaged, non-tail tile decodes
+     uint8_t undrawn;                   // a tile was mapped since the GPU last wrote through this texture (sparse_gpu_wrote). RewindBox (patch 0029): 1110473c (nvn_mtl.m:3522 at 0c078130)
+     unsigned up_seq;                   // RewindBox (patch 0029), S2Arm: the upload batch (g_up_seq) its last copies went into; submit thread only (sparse_sync)
+ } @end   // tex is weak: the NvPkg of a packaged texture owns it, a GPU texture owns its NvSparse (patch 0030)
+@@ -359,6 +360,8 @@
+     NvSparse *s = [NvSparse new];
+     const char *grouped = getenv("S2A_RB_SPARSE_FAST_COPY");
+     s->grouped_copy = grouped && !strcmp(grouped, "1");
++    const char *trace = getenv("S2A_RB_SPARSE_DECODE_STATS");
++    s->trace_decode = !gpu && trace && !strcmp(trace, "1");
+     s->gpu = gpu; s->tw = g.tw; s->th = g.th; s->ntiled = g.ntiled; s->levels = g.levels; s->layers = g.layers; s->layer_size = g.layer_size;
+     memcpy(s->tiles_x, g.tiles_x, sizeof g.tiles_x); memcpy(s->tiles_y, g.tiles_y, sizeof g.tiles_y); memcpy(s->loff_t, g.loff_t, sizeof g.loff_t); memcpy(s->loff, g.loff, sizeof g.loff);
+     s->tail_at = g.tail_at; s->per_layer = g.per_layer; s->tail_off = g.tail_off; s->sess = g_sp_sess; s->ser = t->serial;
+@@ -399,6 +402,7 @@
+ //   host memory. RewindBox (patch 0029): stamp, the look's dirty-page stamp, a shared slot's once uploaded (1110473c, nvn_mtl.m:3577 at 0c078130)
+ typedef struct { NvSparse *s; const tex_t *t; id<MTLTexture> tex; sp_ops *ops; uint32_t nheaps; uint8_t *tile, *tail; id<MTLBuffer> stg; size_t stg_off, stg_end, tail_need; uint64_t up, unmapped, stamp; int bw, bh, bpb, force;
+                  int full, refused, heapfail; uint64_t done, round_up, rounds, staged, nostg, noheap, nodec, nomem; NSMutableArray *newh;
++                 uint64_t decoded_tiles, decoded_bytes, decode_ns, full_tiles, full_decode_ns;
+                  size_t zbpp; uint64_t zeroed; uint64_t tail_shared, tail_drawn; } sp_look;   // RewindBox (patch 0030), S2Arm: a GPU-written texture's bytes a texel when its fresh heap tiles are zeroed (0: not), and how many were
+ static int sp_blit_room(int k) {   // S2Arm (check C2): room in the upload list for k copies before a tile is mapped (up_blit_add_at drops a copy it cannot record)
+     if (g_nup_blits + k <= g_up_blitcap) return 1;
+@@ -557,9 +561,21 @@
+         if (p) memcpy(c->tile, p, SP_TILE); else nvn_sparse_copy(t->pool, c->tile, a, SP_TILE);   // RewindBox (patch 0029): a shared slot's memory (1110473c)
+         uint32_t wb, rows; size_t tpitch = (size_t)(s->tw / bw) * bpb;   // a tile's row of blocks: 64 KB / its block rows
+         // S2Arm: a tile that decodes to nothing (none of its texels in the level; not expected for a level of whole tiles) is not decoded either: no Map without content (check C2)
++        const uint64_t started = s->trace_decode ? bp_now() : 0;
+         if (nvn_deswizzle_tile_mode(&t->d, l, tx, ty, c->tile, dst, tpitch, &wb, &rows, s->grouped_copy) || !wb || !rows) { RED_ONCE(188, "sparse tile of format %#x not decoded (level %u, tile %u,%u): it is not mapped", t->d.format, l, tx, ty); c->nodec++;
+             if (moved) sp_move_off(c, sl, rg, lev, y);   // RewindBox (patch 0029): not left on the slot of other memory
+             return; }
++        if (s->trace_decode) {
++            const uint64_t elapsed = bp_now() - started;
++            const uint64_t bytes = (uint64_t)wb * rows;
++            c->decoded_tiles++;
++            c->decoded_bytes += bytes;
++            c->decode_ns += elapsed;
++            if (bytes == SP_TILE) {
++                c->full_tiles++;
++                c->full_decode_ns += elapsed;
++            }
++        }
+         bl[0].off = 0; bl[0].pitch = tpitch; bl[0].image = tpitch * rows; bl[0].sz = MTLSizeMake(MIN(s->tw, lw - x0), MIN(s->th, lh - y0), 1); bl[0].level = l; bl[0].x0 = x0; bl[0].y0 = y0; k = 1;
+         used = SP_TILE;
+     }
+@@ -698,6 +714,14 @@
+     //   the open block without releasing its objects) would keep each block's texture and heap (up to 256 MB) for good, and an upload commit never made would hold g_up_pending
+     //   until session_wait_backend times out. Only what is recorded already is handed over (nothing in a lane: lanes live inside a submission)
+     if (!g_cb) rec_publish();
++    if (c.decoded_tiles) {
++        MLOG("[rb-sparse-decode] frame_at_report=%llu texture=%llu grouped=%u tiles=%llu full_tiles=%llu "
++             "bytes=%llu wall_ns=%llu full_wall_ns=%llu",
++             (unsigned long long)atomic_load_explicit(&g_cur_frame, memory_order_relaxed),
++             (unsigned long long)t->serial, (unsigned)s->grouped_copy,
++             (unsigned long long)c.decoded_tiles, (unsigned long long)c.full_tiles,
++             (unsigned long long)c.decoded_bytes, (unsigned long long)c.decode_ns, (unsigned long long)c.full_decode_ns);
++    }
+     // RewindBox (patch 0029): upstream's line with the shared slots (1110473c, nvn_mtl.m:3687-3688 at 0c078130); S2Arm: the counts read under g_sp_mu, for a line only (a Finalize on a game
+     //   thread changes them, nvn_be_sparse_phys_gone)
+     if (c.up || c.unmapped || c.tail_shared) { uint64_t lk = ++g_sp_looks; if (lk <= 20 || lk % 500 == 0) {

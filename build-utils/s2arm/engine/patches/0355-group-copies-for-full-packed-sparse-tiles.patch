@@ -1,0 +1,146 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+--- a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
++++ b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+@@ -246,6 +246,7 @@
+     int source_only, refault;
+     uint64_t sess, ser;                // S2Arm: the session whose tables its slots are in (check C6); its serial, for the log
+     uint64_t rescan_frame; uint8_t rescan;   // S2Arm (check C2): a tile was left out of date for want of staging, a heap tile or host memory: every tile is looked at again 60 frames on
++    uint8_t grouped_copy;              // immutable for the lifetime of this sparse texture
+     uint8_t undrawn;                   // a tile was mapped since the GPU last wrote through this texture (sparse_gpu_wrote). RewindBox (patch 0029): 1110473c (nvn_mtl.m:3522 at 0c078130)
+     unsigned up_seq;                   // RewindBox (patch 0029), S2Arm: the upload batch (g_up_seq) its last copies went into; submit thread only (sparse_sync)
+ } @end   // tex is weak: the NvPkg of a packaged texture owns it, a GPU texture owns its NvSparse (patch 0030)
+@@ -356,6 +357,8 @@
+         sp_whole(t, gpu, &g, why, 0); return nil;
+     }
+     NvSparse *s = [NvSparse new];
++    const char *grouped = getenv("S2A_RB_SPARSE_FAST_COPY");
++    s->grouped_copy = grouped && !strcmp(grouped, "1");
+     s->gpu = gpu; s->tw = g.tw; s->th = g.th; s->ntiled = g.ntiled; s->levels = g.levels; s->layers = g.layers; s->layer_size = g.layer_size;
+     memcpy(s->tiles_x, g.tiles_x, sizeof g.tiles_x); memcpy(s->tiles_y, g.tiles_y, sizeof g.tiles_y); memcpy(s->loff_t, g.loff_t, sizeof g.loff_t); memcpy(s->loff, g.loff, sizeof g.loff);
+     s->tail_at = g.tail_at; s->per_layer = g.per_layer; s->tail_off = g.tail_off; s->sess = g_sp_sess; s->ser = t->serial;
+@@ -554,7 +557,7 @@
+         if (p) memcpy(c->tile, p, SP_TILE); else nvn_sparse_copy(t->pool, c->tile, a, SP_TILE);   // RewindBox (patch 0029): a shared slot's memory (1110473c)
+         uint32_t wb, rows; size_t tpitch = (size_t)(s->tw / bw) * bpb;   // a tile's row of blocks: 64 KB / its block rows
+         // S2Arm: a tile that decodes to nothing (none of its texels in the level; not expected for a level of whole tiles) is not decoded either: no Map without content (check C2)
+-        if (nvn_deswizzle_tile(&t->d, l, tx, ty, c->tile, dst, tpitch, &wb, &rows) || !wb || !rows) { RED_ONCE(188, "sparse tile of format %#x not decoded (level %u, tile %u,%u): it is not mapped", t->d.format, l, tx, ty); c->nodec++;
++        if (nvn_deswizzle_tile_mode(&t->d, l, tx, ty, c->tile, dst, tpitch, &wb, &rows, s->grouped_copy) || !wb || !rows) { RED_ONCE(188, "sparse tile of format %#x not decoded (level %u, tile %u,%u): it is not mapped", t->d.format, l, tx, ty); c->nodec++;
+             if (moved) sp_move_off(c, sl, rg, lev, y);   // RewindBox (patch 0029): not left on the slot of other memory
+             return; }
+         bl[0].off = 0; bl[0].pitch = tpitch; bl[0].image = tpitch * rows; bl[0].sz = MTLSizeMake(MIN(s->tw, lw - x0), MIN(s->th, lh - y0), 1); bl[0].level = l; bl[0].x0 = x0; bl[0].y0 = y0; k = 1;
+diff --git a/graphics/nvn/gfx/tex/nvn_deswizzle.c b/graphics/nvn/gfx/tex/nvn_deswizzle.c
+--- a/graphics/nvn/gfx/tex/nvn_deswizzle.c
++++ b/graphics/nvn/gfx/tex/nvn_deswizzle.c
+@@ -95,7 +95,7 @@
+ // goes to dst (block rows of pitch bytes). *wb and *rows: the bytes and block rows written (0 for a tile past the level)
+ //   S2Arm adaptation: this file's nvn_deswizzle_geom refuses LINEAR (0x10) but not LINEAR_RENDER_TARGET (0x40), which move routes to move_linear; upstream's refuses both (0x50).
+ //   A linear texture has no tiles, so both are refused here (-1)
+-int nvn_deswizzle_tile(const nvn_texdesc *d, unsigned level, uint32_t tx, uint32_t ty, const void *tile, void *dst, size_t pitch, uint32_t *wb, uint32_t *nrows) {
++int nvn_deswizzle_tile_mode(const nvn_texdesc *d, unsigned level, uint32_t tx, uint32_t ty, const void *tile, void *dst, size_t pitch, uint32_t *wb, uint32_t *nrows, int grouped) {
+     uint32_t row_bytes, rows, slices, bpb; uint64_t base; unsigned th, td;
+     *wb = *nrows = 0;
+     if ((d->flags & (0x10 | 0x40)) || nvn_deswizzle_geom(d, level, 0, &row_bytes, &rows, &slices, &base, &th, &td, &bpb) || td || slices != 1 || th > 7) return -1;
+@@ -104,11 +104,32 @@
+     uint32_t w = row_bytes - x0 < trb ? row_bytes - x0 : trb, h = rows - y0 < trows ? rows - y0 : trows;
+     if (pitch < w) return -1;
+     const uint8_t *s = tile; uint8_t *o = dst;
+-    for (uint32_t y = 0; y < h; y++)
+-        for (uint32_t x = 0; x < w; x += 16) memcpy(o + (size_t)y * pitch + x, s + nvn_bl_offset(x, y, 0, trb, trows, th, 0), w - x < 16 ? w - x : 16);
++    if (grouped && w == trb && h == trows) {
++        // A complete 64 KiB tile spans precisely one block row. Adjacent GOB columns
++        // are one block apart; the four 16-byte pieces use the active NVN GOB order.
++        const size_t column_stride = 512u << th;
++        const size_t second_piece = gob_off(16, 0);
++        for (uint32_t y = 0; y < h; y++) {
++            const size_t row_offset = (size_t)(y / 8) * 512 + gob_off(0, y);
++            uint8_t *row = o + (size_t)y * pitch;
++            for (uint32_t x = 0; x < w; x += 64) {
++                const uint8_t *gob_row = s + row_offset + (x / 64) * column_stride;
++                memcpy(row + x,      gob_row,                      16);
++                memcpy(row + x + 16, gob_row + second_piece,       16);
++                memcpy(row + x + 32, gob_row + 256,                16);
++                memcpy(row + x + 48, gob_row + 256 + second_piece, 16);
++            }
++        }
++    } else {
++        for (uint32_t y = 0; y < h; y++)
++            for (uint32_t x = 0; x < w; x += 16) memcpy(o + (size_t)y * pitch + x, s + nvn_bl_offset(x, y, 0, trb, trows, th, 0), w - x < 16 ? w - x : 16);
++    }
+     *wb = w; *nrows = h;
+     return 0;
+ }
++int nvn_deswizzle_tile(const nvn_texdesc *d, unsigned level, uint32_t tx, uint32_t ty, const void *tile, void *dst, size_t pitch, uint32_t *wb, uint32_t *nrows) {
++    return nvn_deswizzle_tile_mode(d, level, tx, ty, tile, dst, pitch, wb, nrows, 0);
++}
+ // nvn_deswizzle with the storage given from byte src_at on (a sparse texture's mip tail gathered on its own): the level must lie at or after it
+ int nvn_deswizzle_from(const nvn_texdesc *d, unsigned level, unsigned layer, const void *src, uint64_t src_at, void *dst, size_t dst_pitch) {
+     return move(d, level, layer, (uint8_t *)src, src_at, (uint8_t *)dst, dst_pitch, 1);
+diff --git a/graphics/nvn/gfx/tex/nvn_deswizzle.h b/graphics/nvn/gfx/tex/nvn_deswizzle.h
+--- a/graphics/nvn/gfx/tex/nvn_deswizzle.h
++++ b/graphics/nvn/gfx/tex/nvn_deswizzle.h
+@@ -15,6 +15,8 @@
+ //   Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/tex/nvn_deswizzle.h:17-20 at 0c078130).
+ // One 64 KB tile (tx, ty) of a sparse texture's tiled level, given as its own 64 KB, into dst (block rows of dst_pitch bytes): *wb bytes of *rows block rows, the part inside the level
+ int nvn_deswizzle_tile(const nvn_texdesc *d, unsigned level, uint32_t tx, uint32_t ty, const void *tile, void *dst_linear, size_t dst_pitch, uint32_t *wb, uint32_t *rows);
++// grouped enables fixed-size copies only for complete tiles; clipped tiles retain the generic decoder.
++int nvn_deswizzle_tile_mode(const nvn_texdesc *d, unsigned level, uint32_t tx, uint32_t ty, const void *tile, void *dst, size_t pitch, uint32_t *wb, uint32_t *nrows, int grouped);
+ // nvn_deswizzle from storage given from byte src_at of the whole texture's on (src points at that byte); the level and layer must lie at or after it
+ int nvn_deswizzle_from(const nvn_texdesc *d, unsigned level, unsigned layer, const void *src, uint64_t src_at, void *dst_linear, size_t dst_pitch);
+ // Single-point address: within this level and layer, linear (x byte, y block row, z slice) → block-linear byte offset relative to the start of this level and layer (unit tests verify against hand calculation).
+diff --git a/graphics/nvn/gfx/tex/tests/t_tex.c b/graphics/nvn/gfx/tex/tests/t_tex.c
+--- a/graphics/nvn/gfx/tex/tests/t_tex.c
++++ b/graphics/nvn/gfx/tex/tests/t_tex.c
+@@ -45,7 +45,54 @@
+     free(st);
+ }
+
++// Compare the sparse decode against the address of every byte, including clipped tiles,
++// destination row padding and unaligned buffers. Each tile has independent storage.
++static void sparse_copy_cases(void) {
++    static const int formats[] = {0x01, 0x0d, 0x25, 0x42, 0x44, 0x8b};
++    const int saved_order = nvn_gob_switch2;
++    uint8_t *storage = malloc(65537);
++    if (!storage) abort();
++    for (size_t k = 1; k < 65537; k++) storage[k] = rnd();
++
++    for (int order = 0; order < 2; order++) {
++        nvn_gob_switch2 = order;
++        for (size_t f = 0; f < sizeof formats / sizeof formats[0]; f++) {
++            int bw, bh;
++            uint32_t bpb = nvn_fmt_bpb(formats[f], &bw, &bh);
++            for (unsigned shift = 0; shift <= 7; shift++) {
++                uint32_t tile_bytes = (128u >> shift) * 64, tile_rows = 8u << shift;
++                size_t pitch = tile_bytes + 13, size = pitch * tile_rows + 9;
++                nvn_texdesc d = { .target = 1, .format = formats[f], .flags = 0x20,
++                    .width = (tile_bytes / bpb + 1) * bw, .height = (tile_rows + 1) * bh,
++                    .depth = 1, .levels = 1, .pkg_layout = (int)shift + 1 };
++                uint8_t *expected = malloc(size), *got = malloc(size);
++                if (!expected || !got) abort();
++                for (unsigned ty = 0; ty <= 1; ty++) for (unsigned tx = 0; tx <= 2; tx++) {
++                    uint32_t width = tx == 0 ? tile_bytes : tx == 1 ? bpb : 0;
++                    uint32_t height = width == 0 ? 0 : ty == 0 ? tile_rows : 1;
++                    memset(expected, 0xCD, size);
++                    for (uint32_t y = 0; y < height; y++)
++                        for (uint32_t x = 0; x < width; x++)
++                            expected[3 + y * pitch + x] = storage[1 + nvn_bl_offset(x, y, 0, tile_bytes, tile_rows, shift, 0)];
++                    for (int grouped = 0; grouped <= 1; grouped++) {
++                        memset(got, 0xCD, size);
++                        uint32_t actual_width, actual_height;
++                        int status = nvn_deswizzle_tile_mode(&d, 0, tx, ty, storage + 1, got + 3,
++                            pitch, &actual_width, &actual_height, grouped);
++                        CHECK(!status && actual_width == width && actual_height == height && !memcmp(got, expected, size),
++                              "sparse order %d format %#x tileH %u xy %u,%u grouped %d", order, formats[f], shift, tx, ty, grouped);
++                    }
++                }
++                free(got); free(expected);
++            }
++        }
++    }
++    free(storage);
++    nvn_gob_switch2 = saved_order;
++}
++
+ int main(void) {
++    sparse_copy_cases();
+     printf("A round trip (random data, non-power-of-2 sizes)\n");
+     roundtrip("2D 100×37 R8 4 levels", 1, 0x01, 100, 37, 1, 4);
+     roundtrip("2D 100×37 RG8 4 levels", 1, 0x0D, 100, 37, 1, 4);

@@ -1,0 +1,133 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1977,10 +1977,13 @@
+ // RewindBox (patch 0353): game by default for every game. DM_NVN_BARRIER decides first as upstream, then S2A_RB_DRAW_BARRIERS=game|full, then the profile's draw_barriers when it
+ //   is written (an explicit full included: game_tsv.h draw_barriers_set), then game (rb_draw_barriers_pick). The full barrier now follows a game barrier only when its bits order
+ //   primitives or indirect data (rb_bar_bits_full, nxnative e7750541), and the relaxed end barrier waits for the object and mesh stages too (enc_r_end_pass, rb_m3_mesh_stages)
+-static int barrier_game(void) { static int v = -1; if (v < 0) {
++static int barrier_game(void) {
++    int v = atomic_load_explicit(&g_rb_dbar_game, memory_order_relaxed);
++    if (v < 0) {
+         const char *dm = getenv("DM_NVN_BARRIER"), *rb = getenv("S2A_RB_DRAW_BARRIERS"); int src;
+         v = rb_draw_barriers_pick(dm, rb, DM_GAME_DRAW_BARRIERS_SET ? DM_GAME_DRAW_BARRIERS_GAME : -1, &src);
+-        atomic_store_explicit(&g_rb_dbar_game, v, memory_order_relaxed);
++        int unset = -1;
++        if (!atomic_compare_exchange_strong_explicit(&g_rb_dbar_game, &unset, v, memory_order_relaxed, memory_order_relaxed)) return unset;
+         char why[96];
+         if (src == RB_DBAR_SRC_DM) snprintf(why, sizeof why, "DM_NVN_BARRIER=%s", dm);
+         else if (src == RB_DBAR_SRC_RB) snprintf(why, sizeof why, "S2A_RB_DRAW_BARRIERS=%s", rb);
+@@ -1992,7 +1995,9 @@
+                     why, ignored ? "; S2A_RB_DRAW_BARRIERS=" : "", ignored ? rb : "", ignored ? " not understood (game or full)" : "");
+         else MLOG("RewindBox (patch 0353): every draw pass waits for all earlier GPU work (draw_barriers full, from %s%s%s%s); S2A_RB_DRAW_BARRIERS=game orders them by the game's own "
+                   "barriers (DM_NVN_BARRIER, when set, decides first)", why, ignored ? "; S2A_RB_DRAW_BARRIERS=" : "", ignored ? rb : "", ignored ? " not understood (game or full)" : "");
+-    } return v; }
++    }
++    return v;
++}
+ _Static_assert(RB_BAR_ORDER_PRIMITIVES == NVN_BARRIER_ORDER_PRIMITIVES_BIT && RB_BAR_ORDER_FRAGMENTS == NVN_BARRIER_ORDER_FRAGMENTS_BIT &&
+                RB_BAR_ORDER_FRAGMENTS_TILED == NVN_BARRIER_ORDER_FRAGMENTS_TILED_BIT && RB_BAR_ORDER_INDIRECT_DATA == NVN_BARRIER_ORDER_INDIRECT_DATA_BIT &&
+                RB_BAR_INVALIDATE_TEXTURE == NVN_BARRIER_INVALIDATE_TEXTURE_BIT && RB_BAR_INVALIDATE_SHADER == NVN_BARRIER_INVALIDATE_SHADER_BIT &&
+@@ -12812,10 +12817,16 @@
+ //   record's view (rb_vmeta_tt / rb_vmeta_pf): handle arrays (TEXU, TEXD, TEXA), buffer texture and image slots, the 1D-rows test, the pool tables' walk; the rule and what it
+ //   follows are in rb_view_meta.h (from nxnative c7e74a1f, MIT). Counted for the texture-ID view line (hle_nvn.c). S2A_RB_VIEW_META=0: they ask as before, nothing counted
+ #include "rb_view_meta.h"
+-static int rb_view_meta_on(void) {   // any thread: the same value whoever reads it first
+-    static int v = -1;
+-    if (v < 0) { const char *e = getenv("S2A_RB_VIEW_META"); v = !(e && !strcmp(e, "0"));
+-        MLOG("RewindBox (patch 0352): texture bindings read their view's type and format from the texture ID's record: %s (S2A_RB_VIEW_META=0 turns it off)", v ? "on" : "off, as before"); }
++static _Atomic int g_rb_view_meta_mode = -1;
++static int rb_view_meta_on(void) {
++    int v = atomic_load_explicit(&g_rb_view_meta_mode, memory_order_relaxed);
++    if (v < 0) {
++        const char *e = getenv("S2A_RB_VIEW_META");
++        v = !(e && !strcmp(e, "0"));
++        int unset = -1;
++        if (!atomic_compare_exchange_strong_explicit(&g_rb_view_meta_mode, &unset, v, memory_order_relaxed, memory_order_relaxed)) return unset;
++        MLOG("RewindBox (patch 0352): texture bindings read their view's type and format from the texture ID's record: %s (S2A_RB_VIEW_META=0 turns it off)", v ? "on" : "off, as before");
++    }
+     return v;
+ }
+ static _Atomic uint64_t g_rb_vmeta[RB_VMETA_N];   // written under g_rmu (rb_vmeta_bump): reads the records answered, reads asked of the texture, records that let their view go
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -389,6 +389,15 @@
+     return 0;
+ }
+ void nvn_be_begin_session(void) {
++    // The previous session has drained. A collection can reload its profile during boot,
++    // so resolve both options on first use. Discard only unreported barrier reasons;
++    // the texture counters are cumulative and the sampler retains its baselines.
++    atomic_store_explicit(&g_rb_dbar_game, -1, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_view_meta_mode, -1, memory_order_relaxed);
++    g_game_barrier = 0;
++    g_last_end_relaxed = 0;
++    for (int i = 0; i < RB_DBAR_COUNT; i++) atomic_store_explicit(&g_rb_dbar[i], 0, memory_order_relaxed);
++    for (size_t i = 0; i < sizeof g_rb_dbar_out / sizeof *g_rb_dbar_out; i++) atomic_store_explicit(&g_rb_dbar_out[i], 0, memory_order_relaxed);
+     rb_xq_resume_reset();
+     atomic_store(&g_spec_sampled,0);
+     atomic_store(&rb_gov_next,0);
+diff --git a/graphics/nvn/tests/t_link_restart.m b/graphics/nvn/tests/t_link_restart.m
+--- a/graphics/nvn/tests/t_link_restart.m
++++ b/graphics/nvn/tests/t_link_restart.m
+@@ -13,7 +13,49 @@
+ #define CHECK(c, ...) do { checks++; int ok=!!(c); failures+=!ok; printf("%s ",ok?"PASS":"FAIL"); printf(__VA_ARGS__); putchar('\n'); fflush(stdout); } while(0)
+ static double ms_now(void) { return clock_gettime_nsec_np(CLOCK_UPTIME_RAW) / 1e6; }
+
+-int main(void) { @autoreleasepool {
++// With no Metal device the option-only mode exercises the production begin hook and
++// configuration readers. The normal test crosses the complete backend shutdown too.
++static void restart_for_test(int with_gpu) {
++#ifdef RB_BAR_RELAXED_BITS
++    uint64_t before[4], after[4];
++    nvn_be_view_meta_stats(before);
++    CHECK(!barrier_game() && before[3] == 0, "first session uses full barriers and direct texture queries");
++    atomic_store(&g_rb_dbar[RB_DBAR_BITS], 7);
++    atomic_store(&g_rb_dbar_out[1], 5);
++    atomic_store(&g_rb_vmeta[RB_VMETA_HIT], 11);
++    g_game_barrier = RB_BAR_ORDER_INDIRECT_DATA;
++    g_last_end_relaxed = 1;
++#endif
++    if (with_gpu) {
++        REQUIRE(!nvn_be_request_stop());
++        REQUIRE(!nvn_be_shutdown_session());
++    }
++#ifdef RB_BAR_RELAXED_BITS
++    setenv("S2A_RB_DRAW_BARRIERS", "game", 1);
++    setenv("S2A_RB_VIEW_META", "1", 1);
++#endif
++    nvn_be_begin_session();
++#ifdef RB_BAR_RELAXED_BITS
++    nvn_be_view_meta_stats(after);
++    CHECK(barrier_game() && after[3] == 1, "new session rereads both options");
++    CHECK(!g_game_barrier && !g_last_end_relaxed, "new session inherits no prior draw ordering");
++    CHECK(atomic_load(&g_rb_dbar[RB_DBAR_BITS]) == 0 && atomic_load(&g_rb_dbar_out[1]) == 0,
++          "new session starts its barrier reporting window empty");
++    CHECK(after[RB_VMETA_HIT] == 11, "cumulative texture view counters stay monotonic across sessions");
++#endif
++}
++
++int main(int argc, char **argv) { @autoreleasepool {
++#ifdef RB_BAR_RELAXED_BITS
++    unsetenv("DM_NVN_BARRIER");
++    setenv("S2A_RB_DRAW_BARRIERS", "full", 1);
++    setenv("S2A_RB_VIEW_META", "0", 1);
++    if (argc == 2 && !strcmp(argv[1], "--render-options")) {
++        restart_for_test(0);
++        return failures ? 1 : 0;
++    }
++#endif
++    if (argc != 1) return 2;
+     setenv("DM_PSO_MANIFEST","off",1); setenv("DM_PSO_ARCHIVE","0",1);
+     mtl_init();
+     // 显示链接对象本身不碰（等拍函数只读拍号与锁）：放一个占位对象让 link_on() 为真
+@@ -21,7 +63,7 @@
+     pthread_mutex_lock(&g_link_mu); g_link_tick_n = 5124; pthread_mutex_unlock(&g_link_mu);
+     REQUIRE(nvn_be_link_wait_tick(1, 50000000ull) == 1);   // 上一局：这一帧在第 5124 拍开工
+     atomic_store(&g_vs_loaded, 19); atomic_store(&g_depth_zero, 1);
+-    REQUIRE(!nvn_be_request_stop()); REQUIRE(!nvn_be_shutdown_session()); nvn_be_begin_session();
++    restart_for_test(1);
+     pthread_mutex_lock(&g_link_mu); CHECK(g_link_tick_n == 0, "重启后显示链接拍号从 0 起（实为 %llu）", (unsigned long long)g_link_tick_n); g_link_tick_n = 1; pthread_mutex_unlock(&g_link_mu);
+     double t0 = ms_now(); int r = nvn_be_link_wait_tick(1, 50000000ull); double dt = ms_now() - t0;
+     CHECK(r == 1 && dt < 5, "① 重启后已过 1 拍：等拍立即返回（返回 %d、等 %.1f ms；旧代码等满 50 ms 返回 0 = 锁 30 帧）", r, dt);
