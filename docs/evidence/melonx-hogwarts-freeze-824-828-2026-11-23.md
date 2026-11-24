@@ -108,3 +108,24 @@ Réinstaller l'IPA 822 telle quelle et lancer Hogwarts une fois :
 - s'il gèle au même point (36 dessins, 5 dispatchs), la cause n'est pas dans le diff 822 → 824 mais dans un défaut
   latent révélé par le cache Metal vide ;
 - s'il atteint le menu, la cause est dans les seize fichiers qui diffèrent entre les deux moteurs.
+
+## 8. IPA 829 (moteur de la 822 + Nextendo) : le gel reste — 24 novembre
+
+Session 18006 : même arrêt après la relecture GPU de 21,5 s (« TryReadBackIntoBuffer »), chien de garde du jeu
+25 s plus tard. Faits établis par cette session :
+- Le moteur MeloNX de la 822 gèle aussi : la cause n'est pas dans les changements du moteur faits après la 822.
+- Pool JIT : arène de 1 024 Mio préparée (65 536 pages), dernière étape journalisée 512 Mio, comme dans les
+  sessions 824–828 ; la 822 dépassait 640 Mio parce qu'elle continuait à jouer. Le défaut d'octobre (arène de
+  512 Mio, adaptateur `adapt_jit_arena`) se signalait par « JIT Cache exhausted » : ce message n'apparaît dans aucun
+  journal de 824 à 829.
+- Réglages de lancement identiques à ceux de la 822 (politique Hogwarts, jeu en ligne configuré, arène JIT).
+- Activité réseau identique avant le gel (mêmes échecs `SetSocketOption` vers 14 s).
+- Compilations : 320 pipelines compute trouvés en 2,3 s, puis 64 en 23 s (le cache Metal n'est rempli qu'en partie).
+
+Comparaison des binaires signés 802 → 829 (`docs/evidence/rewind8xx/signed-payload-identity.json`) : 17 sur 98
+diffèrent. Pour MeloNX : le Core, MoltenVK (depuis la 821), le bridge, Runner et App. La 822, qui atteignait le jeu,
+avait déjà le MoltenVK et le moteur de la 829. Le binaire du bridge alterne entre deux empreintes sans changement de
+sources (821, 822, 823 : sources identiques) ; la 821, qui passait ce point, avait l'empreinte des sessions figées.
+
+Non établi : l'appel exact où le rendu attend. Les relevés « #F » sont écrits dans `MeloNX-performance.log`, absent
+des journaux reçus.
