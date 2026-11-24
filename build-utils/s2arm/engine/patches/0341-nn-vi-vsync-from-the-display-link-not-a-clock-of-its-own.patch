@@ -37,7 +37,7 @@ index 522da6e..68cc9f2 100644
          if (s2a_session_generation && s2a_session_generation() != a.gen) break;   // 这一局结束了
          s2a_event_signal(a.ev);
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 8ba3a6c..4e0939f 100644
+index 953139d..625a300 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -257,6 +257,9 @@ static pthread_cond_t g_classic_work = PTHREAD_COND_INITIALIZER; // only the cla
@@ -50,7 +50,7 @@ index 8ba3a6c..4e0939f 100644
  // 上一帧开工时的显示链接拍号（nvn_be_link_wait_tick，只有游戏上屏线程调）。逐局状态：与 g_link_tick_n 同处清零（nvn_session.inc）——
  //   11-04 进程内重启（设置页「立刻重启」）后拍号从 0 重数、它却留着上一局的约 5124，每帧都等满超时 2 拍 → 锁 30 帧，追平前约 85 秒（泰拉瑞亚 s04 两局）
  static uint64_t g_link_started_tick;
-@@ -27032,6 +27035,7 @@ static void rb_release_link_rt(uint64_t now) {
+@@ -27039,6 +27042,7 @@ static void rb_release_link_rt(uint64_t now) {
      g_link_tick_ns = now_ns();
      g_rb_tick_target = exact_hz ? update.targetPresentationTimestamp : 0;
      g_link_tick_n++;
@@ -58,7 +58,7 @@ index 8ba3a6c..4e0939f 100644
      int filter = rb_tick_filter_enabled();
      int due = !filter || !g_rb_wait_step || rb_display_wait_ready(g_link_tick_n, g_link_started_tick,
                    g_rb_wait_step, g_rb_tick_target, g_rb_started_target, g_rb_wait_seconds);
-@@ -27677,6 +27681,23 @@ int nvn_be_link_wait_tick(int vsyncs, uint64_t timeout_ns) {
+@@ -27684,6 +27688,23 @@ int nvn_be_link_wait_tick(int vsyncs, uint64_t timeout_ns) {
  
  // The display's vsync for vi::GetDisplayVsyncEvent (hle_sdk16.c): returns 1 at the first display-link tick of the next 60 Hz vsync after *seen (the tick count it last returned, updated),
  // 0 when the link does not run, runs below 60 Hz (the 60 Hz event cannot come from it) or gives no tick within the timeout; the caller then keeps its own clock

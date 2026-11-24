@@ -1,5 +1,5 @@
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 887774b..8ba3a6c 100644
+index d6fa913..953139d 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -4334,7 +4334,7 @@ static void rb_bg_write(const char *path, char *buf, size_t len) {

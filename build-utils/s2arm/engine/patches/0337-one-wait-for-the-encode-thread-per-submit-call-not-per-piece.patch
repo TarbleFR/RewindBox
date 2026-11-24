@@ -1,5 +1,5 @@
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 115e47f..f0f50ab 100644
+index 115e47f..6d572db 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -4482,6 +4482,21 @@ static void mdxchk_after(void) {   // nvn_be_sub_commit (the replaying thread),
@@ -33,6 +33,22 @@ index 115e47f..f0f50ab 100644
      }
      g_alloc_fence[g_alloc_cur] = fence;
      main_barrier_reset(); g_cb = nil;
+@@ -4645,7 +4660,14 @@ static void queue_wait_event(void *ev, uint64_t v) {   // the wait itself; the r
+     if (mtl_gpu_halted()) return;   // GPU 安全停后不再往队列放东西
+     if (ev == (__bridge void *)g_evw_ev) g_rb_evwait_n++; else g_rb_qwait_n++;   // RewindBox (patch 0072)
+     if (g_m3) { id<MTLCommandBuffer> cb = m3_cb(); [cb encodeWaitForEvent:e value:v]; [cb commit]; }
+-    else [g_q4 waitForEvent:e value:v];
++    else {
++        // RewindBox (patch 0337): the Metal 4 wait applies to every command buffer committed after it. Pieces of this submit call that were only handed over
++        //   (rb_piece_hold.h) are committed by the encode thread later: without this drain they would wait too, their fences with them, and a release that
++        //   depends on them (a guest thread waiting on such a fence before it raises the event, or a GL sync) would stall the queue until the forced release
++        //   or for good. Draining first keeps the order of IPA 829: earlier pieces on the queue, then the wait. Only a later piece that waits on the GPU pays it
++        if (g_rb_piece.held) rec_drain();
++        [g_q4 waitForEvent:e value:v];
++    }
+ }
+ void nvn_be_queue_wait_event(void *ev, uint64_t v) {
+     if (!ev) return;
 diff --git a/graphics/nvn/gfx/nvn/nvn_rec.h b/graphics/nvn/gfx/nvn/nvn_rec.h
 index 21fd031..d3b1d35 100644
 --- a/graphics/nvn/gfx/nvn/nvn_rec.h

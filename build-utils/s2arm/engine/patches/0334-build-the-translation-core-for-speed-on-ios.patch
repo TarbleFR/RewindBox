@@ -1,8 +1,8 @@
 diff --git a/graphics/nvn/Makefile b/graphics/nvn/Makefile
-index ba49008..4a4957d 100644
+index ba49008..0d00e17 100644
 --- a/graphics/nvn/Makefile
 +++ b/graphics/nvn/Makefile
-@@ -27,6 +27,11 @@ $(shell mkdir -p $(OUT); [ "$$(cat $(SRCSTAMP) 2>/dev/null)" = '$(sort $(SRCS) $
+@@ -27,6 +27,15 @@ $(shell mkdir -p $(OUT); [ "$$(cat $(SRCSTAMP) 2>/dev/null)" = '$(sort $(SRCS) $
  PFX   := -ffile-prefix-map=$(ROOT)=.
  INC   := -I$(ROOT)/graphics/nvn/gfx/nvn/include -I$(ROOT)/graphics/nvn/host -I$(ROOT)/runtime/include -I$(ROOT)/graphics/nvn/third_party/vulkan-headers/include -I$(OUT)/gen
  WARN  := -Wall -Wno-unused-function -Wno-unguarded-availability-new -Wno-unguarded-availability
@@ -11,11 +11,19 @@ index ba49008..4a4957d 100644
 +#   the small helpers of the per-draw walk out of line (rs_bind_check, p20_check, size_abi_texture, rs_state, rs_info, rs_root, mtl_pf_dpf stay separate functions in the
 +#   0319 and 0331 binaries although they are static inline) and does not unroll the binding loops. S2A_RB_NVN_HOT_OPT=-Os on the make command line builds them as before.
 +S2A_RB_NVN_HOT_OPT ?= -O2
++#   The value goes into a stamp (same rule as SRCSTAMP: rewritten only when it changes) that the iOS library depends on: changing it rebuilds the library
++#   instead of keeping the objects of the other level in a tree that is built incrementally
++HOTSTAMP := $(OUT)/.ios_hot_opt
++$(shell mkdir -p $(OUT); [ "$$(cat $(HOTSTAMP) 2>/dev/null)" = '$(S2A_RB_NVN_HOT_OPT)' ] || printf '%s' '$(S2A_RB_NVN_HOT_OPT)' > $(HOTSTAMP))
  
  # S2Arm tessellation: 嵌入 CHWTessellator（tools/embed_msl.py 把源文件转成 C 字符串常量）
  $(OUT)/gen/gal_tess_msl.h: $(ROOT)/graphics/metal/gal_tess_d3d.h $(ROOT)/graphics/metal/tools/embed_msl.py
-@@ -66,7 +71,7 @@ $(OUT)/mac/libnvn.a: $(SRCS) $(HDRS) Makefile $(SRCSTAMP)
- $(OUT)/ios/libnvn.a: $(SRCS) $(HDRS) Makefile $(SRCSTAMP)
+@@ -63,10 +72,10 @@ $(OUT)/mac/libnvn.a: $(SRCS) $(HDRS) Makefile $(SRCSTAMP)
+ 	  && (cd "$$d" && for f in $(addprefix $(ROOT)/graphics/nvn/,$(SRCS)); do clang $(PFX) -std=gnu11 -O1 -g -fobjc-arc -mmacosx-version-min=$(MACOSX_DEPLOYMENT_TARGET) $(WARN) $(INC) -c $$f -o $$(echo $$f | sed 's|.*/gfx/nvn/||; s|/|_|g').o || exit 1; done) \
+ 	  && ar rcs $@.$$$$ "$$d"/*.o && { $(LIBCHK); } && mv -f $@.$$$$ $@
+ 
+-$(OUT)/ios/libnvn.a: $(SRCS) $(HDRS) Makefile $(SRCSTAMP)
++$(OUT)/ios/libnvn.a: $(SRCS) $(HDRS) Makefile $(SRCSTAMP) $(HOTSTAMP)
  	@mkdir -p $(OUT)/ios
  	d=$$(mktemp -d $@.o.XXXXXX) && trap 'rm -rf "$$d" "$@.$$$$"' EXIT \
 -	  && (cd "$$d" && for f in $(addprefix $(ROOT)/graphics/nvn/,$(SRCS)); do clang $(PFX) -std=gnu11 -Os -g -fobjc-arc $(IOS_FLAGS) $(WARN) $(INC) -c $$f -o $$(echo $$f | sed 's|.*/gfx/nvn/||; s|/|_|g').o || exit 1; done) \
