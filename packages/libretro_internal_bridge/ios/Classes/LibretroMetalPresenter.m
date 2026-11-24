@@ -1272,6 +1272,38 @@ static LibretroMetalFXScreen *LibretroMetalFXBuildScreen(id<MTLDevice> device, C
   [self drawTexture:texture width:width height:height flipped:NO uploadSlot:slot completion:nil];
 }
 
+- (void)presentBuffer:(id<MTLBuffer>)source
+                width:(unsigned)width
+               height:(unsigned)height
+          bytesPerRow:(size_t)bytesPerRow
+          pixelFormat:(MTLPixelFormat)pixelFormat
+           completion:(dispatch_block_t)completion {
+  if (source == nil || width == 0 || height == 0 || UploadFormatIndex(pixelFormat) < 0 ||
+      pixelFormat == MTLPixelFormatB5G6R5Unorm || bytesPerRow < (size_t)width * 4 ||
+      (NSUInteger)bytesPerRow * height > source.length) {
+    completion();
+    return;
+  }
+  dispatch_semaphore_wait(_inFlight, DISPATCH_TIME_FOREVER);
+  const NSInteger slot = [self uploadSlotForFormat:pixelFormat width:width height:height];
+  if (slot < 0) {
+    dispatch_semaphore_signal(_inFlight);
+    completion();
+    return;
+  }
+  id<MTLTexture> texture = _uploads[slot];
+  _frameCount++;
+  [self keepLastFrame:texture width:width height:height flipped:NO slot:slot shared:NO];
+  [self drawTexture:texture
+                width:width
+               height:height
+              flipped:NO
+           uploadSlot:slot
+           uploadFrom:source
+    uploadBytesPerRow:bytesPerRow
+           completion:completion];
+}
+
 /// `completion` always runs exactly once, also when NO is returned.
 - (BOOL)representLastFrameWithCompletion:(nullable dispatch_block_t)completion {
   id<MTLTexture> texture = _lastTexture;
@@ -1340,6 +1372,26 @@ static LibretroMetalFXScreen *LibretroMetalFXBuildScreen(id<MTLDevice> device, C
             flipped:(BOOL)flipped
          uploadSlot:(NSInteger)slot
          completion:(nullable dispatch_block_t)completion {
+  [self drawTexture:texture
+                width:width
+               height:height
+              flipped:flipped
+           uploadSlot:slot
+           uploadFrom:nil
+    uploadBytesPerRow:0
+           completion:completion];
+}
+
+/// With `source`, the frame is first copied from it into `texture` on the
+/// GPU, in the same command buffer (presentBuffer).
+- (void)drawTexture:(nullable id<MTLTexture>)texture
+                width:(unsigned)width
+               height:(unsigned)height
+              flipped:(BOOL)flipped
+           uploadSlot:(NSInteger)slot
+           uploadFrom:(nullable id<MTLBuffer>)source
+    uploadBytesPerRow:(size_t)sourceBytesPerRow
+           completion:(nullable dispatch_block_t)completion {
   dispatch_semaphore_t semaphore = _inFlight;
   id<CAMetalDrawable> drawable = nil;
   BOOL trace = _frameCount <= 3;
@@ -1355,6 +1407,19 @@ static LibretroMetalFXScreen *LibretroMetalFXBuildScreen(id<MTLDevice> device, C
     dispatch_semaphore_signal(semaphore);
     if (completion != nil) completion();
     return;
+  }
+  if (source != nil && texture != nil) {
+    id<MTLBlitCommandEncoder> blit = [buffer blitCommandEncoder];
+    [blit copyFromBuffer:source
+               sourceOffset:0
+          sourceBytesPerRow:sourceBytesPerRow
+        sourceBytesPerImage:sourceBytesPerRow * height
+                 sourceSize:MTLSizeMake(width, height, 1)
+                  toTexture:texture
+           destinationSlice:0
+           destinationLevel:0
+          destinationOrigin:MTLOriginMake(0, 0, 0)];
+    [blit endEncoding];
   }
   uint64_t generation = 0;
   NSArray<LibretroPresenterScreen *> *screens = [self screensForWidth:targetWidth

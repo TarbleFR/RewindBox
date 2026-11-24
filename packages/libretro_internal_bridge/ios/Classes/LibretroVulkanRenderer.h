@@ -12,6 +12,14 @@ NS_ASSUME_NONNULL_BEGIN
 typedef void (^LibretroVulkanFrameHandler)(const void *pixels, unsigned width, unsigned height, size_t bytesPerRow,
                                            MTLPixelFormat pixelFormat);
 
+/// Receives one finished core frame as a Metal buffer that aliases the
+/// slot's read-back memory (no CPU copy). The receiver copies it on the GPU
+/// and calls `released` exactly once, after that GPU work has completed (or
+/// at once when it gives up the frame): the slot is not written again
+/// before. Called on the emulation thread, outside the queue lock.
+typedef void (^LibretroVulkanBufferHandler)(id<MTLBuffer> buffer, unsigned width, unsigned height, size_t bytesPerRow,
+                                            MTLPixelFormat pixelFormat, dispatch_block_t released);
+
 /// Vulkan hardware context for libretro cores, through the MoltenVK
 /// framework embedded with the cores. Implements the libretro Vulkan render
 /// interface (v5) and context negotiation (v1 and v2).
@@ -37,7 +45,14 @@ typedef void (^LibretroVulkanFrameHandler)(const void *pixels, unsigned width, u
 ///   fence. Duplicated frames (`valid` NO) still submit the core's command
 ///   buffers and signal its semaphore, without copying;
 /// - the previous slot is handed to `frameHandler` once its fence has
-///   signalled (one frame of latency, no CPU/GPU stall every frame).
+///   signalled (one frame of latency, no CPU/GPU stall every frame);
+/// - GPU hand-off: when the slot's mapped memory is page-aligned, a Metal
+///   buffer wraps it (newBufferWithBytesNoCopy) and the slot goes to
+///   `bufferHandler` instead, which copies it to a texture on the GPU. A
+///   frame of Azahar at 7x (2800x3360, 37.6 MB) is then never copied by the
+///   CPU (replaceRegion on the emulation thread). The slot is lent until
+///   the handler releases it: recording into it, or freeing its memory,
+///   waits for that (2 s at most);
 /// Formats: 8-bit R8G8B8A8 / B8G8R8A8 UNORM or SRGB are copied as raw bytes
 /// (MTLPixelFormatRGBA8Unorm / BGRA8Unorm); A2B10G10R10 -> RGB10A2Unorm;
 /// A2R10G10B10 -> BGR10A2Unorm; any other format is first blitted into an
@@ -68,6 +83,8 @@ typedef void (^LibretroVulkanFrameHandler)(const void *pixels, unsigned width, u
 
 /// Set before `prepare:`. While nil, handed-off frames are dropped.
 @property(nonatomic, copy, nullable) LibretroVulkanFrameHandler frameHandler;
+/// Preferred over `frameHandler` for a slot whose memory Metal can wrap.
+@property(nonatomic, copy, nullable) LibretroVulkanBufferHandler bufferHandler;
 
 /// Instance, device, then hand-off resources (or the legacy surface and
 /// swapchain); call before context_reset.

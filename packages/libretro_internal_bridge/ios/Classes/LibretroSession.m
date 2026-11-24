@@ -1372,10 +1372,34 @@ static BOOL LibretroExtendedControllerConnected(void) {
                          bytesPerRow:bytesPerRow
                          pixelFormat:pixelFormat];
       };
+      // Preferred: the read-back memory is copied to the texture on the GPU
+      // (Azahar at 7x: 37.6 MB per frame never copied by the CPU).
+      LibretroSessionJournal *handOffJournal = _journal;
+      __block BOOL noted = NO;
+      _vulkan.bufferHandler = ^(id<MTLBuffer> buffer, unsigned width, unsigned height, size_t bytesPerRow,
+                                MTLPixelFormat pixelFormat, dispatch_block_t released) {
+        LibretroMetalPresenter *presenter = weakPresenter;
+        if (presenter == nil) {
+          released();
+          return;
+        }
+        if (!noted) {
+          noted = YES;
+          [handOffJournal note:[NSString stringWithFormat:@"vulkan: frames reach Metal by a GPU copy (%ux%u)", width,
+                                                          height]];
+        }
+        [presenter presentBuffer:buffer
+                           width:width
+                          height:height
+                     bytesPerRow:bytesPerRow
+                     pixelFormat:pixelFormat
+                      completion:released];
+      };
       prepared = [_vulkan prepare:&error];
       if (prepared && !_vulkan.handsOffFrames) {
         // Legacy presentation on the layer: no screens, format or shaders.
         _vulkan.frameHandler = nil;
+        _vulkan.bufferHandler = nil;
         shadersAvailable = NO;
         NSLog(@"[Libretro] Vulkan frames cannot reach Metal: legacy presentation without screens or shaders");
         __weak LibretroSession *weakSelf = self;
@@ -1593,6 +1617,7 @@ static BOOL LibretroExtendedControllerConnected(void) {
     }
     if (vulkan != nil) {
       vulkan.frameHandler = nil;
+      vulkan.bufferHandler = nil;
       [vulkan waitIdle];
     }
     [journal note:@"teardown: context_destroy called"];

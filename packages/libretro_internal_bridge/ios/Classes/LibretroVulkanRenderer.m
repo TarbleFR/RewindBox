@@ -12,6 +12,7 @@
 #include "libretro_vulkan.h"
 
 #include <dlfcn.h>
+#include <mach/mach.h>
 #include <mach/mach_time.h>
 #include <os/lock.h>
 #include <pthread.h>
@@ -176,6 +177,14 @@ typedef struct {
   uint32_t _slot;
   uint32_t _slotMask;
   LibretroVkSlot _slots[LIBRETRO_VK_HANDOFF_SLOTS];
+  // GPU hand-off: a Metal buffer wrapping each slot's mapped memory (nil
+  // when it cannot be wrapped), whether the slot is lent to bufferHandler,
+  // and the semaphore its release signals.
+  id<MTLDevice> _metalDevice;
+  id<MTLBuffer> _slotMetal[LIBRETRO_VK_HANDOFF_SLOTS];
+  BOOL _slotLent[LIBRETRO_VK_HANDOFF_SLOTS];
+  dispatch_semaphore_t _slotReleased[LIBRETRO_VK_HANDOFF_SLOTS];
+  BOOL _loggedHandOffPath;
   VkPhysicalDeviceMemoryProperties _memoryProperties;
   VkFormat _loggedFormat;
   VkFormat _checkedBlitFormat;
@@ -790,6 +799,11 @@ static BOOL QueryOptimalTilingFeatures(VkFormat format, VkFormatFeatureFlags *fe
     return NO;
   }
   for (uint32_t index = 0; index < LIBRETRO_VK_HANDOFF_SLOTS; index++) _slots[index].command = commands[index];
+  _metalDevice = MTLCreateSystemDefaultDevice();
+  for (uint32_t index = 0; index < LIBRETRO_VK_HANDOFF_SLOTS; index++) {
+    _slotReleased[index] = dispatch_semaphore_create(0);
+    _slotLent[index] = NO;
+  }
   VkFenceCreateInfo fenceInfo = {.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
   for (uint32_t index = 0; index < LIBRETRO_VK_HANDOFF_SLOTS; index++) {
     LibretroVkSlot *slot = &_slots[index];
@@ -814,6 +828,7 @@ static BOOL QueryOptimalTilingFeatures(VkFormat format, VkFormatFeatureFlags *fe
     if (slot->submitted && slot->fence != VK_NULL_HANDLE) {
       _waitForFences(_device, 1, &slot->fence, VK_TRUE, UINT64_MAX);
     }
+    [self reclaimSlot:index];
     [self releaseBufferOfSlot:index];
     [self releaseConvertImageOfSlot:index];
     if (slot->fence != VK_NULL_HANDLE && _destroyFence != NULL) _destroyFence(_device, slot->fence, NULL);
@@ -891,11 +906,42 @@ static BOOL QueryOptimalTilingFeatures(VkFormat format, VkFormatFeatureFlags *fe
     return NO;
   }
   slot->capacity = capacity;
+  [self wrapBufferOfSlot:index];
   return YES;
+}
+
+/// A Metal buffer over the slot's mapped memory, for the GPU hand-off. Metal
+/// wraps only page-aligned memory of whole pages; nil otherwise (the slot
+/// then goes through the CPU copy).
+- (void)wrapBufferOfSlot:(uint32_t)index {
+  LibretroVkSlot *slot = &_slots[index];
+  _slotMetal[index] = nil;
+  const uintptr_t page = (uintptr_t)vm_page_size;
+  if (_metalDevice == nil || slot->mapped == NULL || page == 0 || ((uintptr_t)slot->mapped % page) != 0 ||
+      (slot->capacity % page) != 0) {
+    return;
+  }
+  _slotMetal[index] = [_metalDevice newBufferWithBytesNoCopy:slot->mapped
+                                                      length:(NSUInteger)slot->capacity
+                                                     options:MTLResourceStorageModeShared
+                                                 deallocator:nil];
+}
+
+/// Waits until bufferHandler has released the slot it was lent (its GPU
+/// copy is done), 2 s at most: the slot's memory is about to be written
+/// or freed.
+- (void)reclaimSlot:(uint32_t)index {
+  if (!_slotLent[index]) return;
+  _slotLent[index] = NO;
+  if (dispatch_semaphore_wait(_slotReleased[index], dispatch_time(DISPATCH_TIME_NOW, 2 * (int64_t)NSEC_PER_SEC)) != 0) {
+    NSLog(@"[Libretro] Vulkan hand-off: slot %u not released after 2 s", index);
+  }
 }
 
 - (void)releaseBufferOfSlot:(uint32_t)index {
   LibretroVkSlot *slot = &_slots[index];
+  [self reclaimSlot:index];
+  _slotMetal[index] = nil;
   if (slot->mapped != NULL && slot->memory != VK_NULL_HANDLE && _unmapMemory != NULL) {
     _unmapMemory(_device, slot->memory);
   }
@@ -1318,6 +1364,8 @@ static BOOL QueryOptimalTilingFeatures(VkFormat format, VkFormatFeatureFlags *fe
     _waitForFences(_device, 1, &slot->fence, VK_TRUE, UINT64_MAX);
     slot->submitted = NO;
   }
+  // Its previous frame may still be copied by Metal: not overwritten before.
+  [self reclaimSlot:index];
   // Still pending only if it was never handed off; a newer frame has been.
   slot->pending = NO;
   _resetFences(_device, 1, &slot->fence);
@@ -1496,8 +1544,30 @@ static BOOL QueryOptimalTilingFeatures(VkFormat format, VkFormatFeatureFlags *fe
     slot->submitted = NO;
   }
   uint64_t waited = mach_absolute_time();
+  LibretroVulkanBufferHandler bufferHandler = self.bufferHandler;
+  id<MTLBuffer> metal = _slotMetal[index];
+  if (bufferHandler != nil && metal != nil) {
+    if (!_loggedHandOffPath) {
+      _loggedHandOffPath = YES;
+      NSLog(@"[Libretro] Vulkan frames reach Metal by a GPU copy, %ux%u", slot->width, slot->height);
+    }
+    dispatch_semaphore_t released = _slotReleased[index];
+    _slotLent[index] = YES;
+    __block BOOL once = NO;
+    bufferHandler(metal, slot->width, slot->height, slot->bytesPerRow, slot->pixelFormat, ^{
+      if (once) return;
+      once = YES;
+      dispatch_semaphore_signal(released);
+    });
+    [self noteReadBackWait:waited - start handOff:mach_absolute_time() - waited];
+    return;
+  }
   LibretroVulkanFrameHandler handler = self.frameHandler;
   if (handler == nil || slot->mapped == NULL) return;
+  if (!_loggedHandOffPath) {
+    _loggedHandOffPath = YES;
+    NSLog(@"[Libretro] Vulkan frames reach Metal by a CPU copy, %ux%u", slot->width, slot->height);
+  }
   handler(slot->mapped, slot->width, slot->height, slot->bytesPerRow, slot->pixelFormat);
   [self noteReadBackWait:waited - start handOff:mach_absolute_time() - waited];
 }

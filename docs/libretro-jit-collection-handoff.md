@@ -112,6 +112,24 @@ s'était déjà terminée sans retour au menu sur une IPA d'avant le JIT de DeSm
 - **Images qui changent** pour la prochaine IPA : `libretro_internal_bridge`, `App`, et les deux Beetle PSX de la
   nouvelle collection ci-dessous.
 
+## Depuis la 828 : 3DS à 7×, image Vulkan copiée par le GPU (app seulement)
+
+Journal du mainteneur (Mario Kart 7, Azahar, JIT actif) : 7× (images 2800×3360), état thermique 2 au bout de
+75 s, résolution ramenée à 5×. Chaque image Vulkan (Azahar, Beetle PSX HW en Vulkan) était relue dans un tampon de
+l'hôte puis recopiée **par le processeur**, sur le fil d'émulation, dans une texture Metal (`replaceRegion`) :
+37,6 Mo par image à 7×, environ 4,5 Go/s de copies à 60 images/s, pris sur le temps d'émulation et en chaleur.
+
+- **Correctif** (`LibretroVulkanRenderer`, `LibretroMetalPresenter`, `LibretroSession`) : la mémoire de relecture de
+  chaque créneau est enveloppée dans un `MTLBuffer` (`newBufferWithBytesNoCopy`, mémoire alignée sur la page) ; le
+  présentateur la copie dans sa texture **sur le GPU**, dans la commande qui dessine l'image. Le créneau est prêté
+  jusqu'à la fin de cette commande (sémaphore, 2 s au plus) avant d'être réécrit ou libéré. Mémoire non enveloppable :
+  copie processeur d'avant. Journal : `vulkan: frames reach Metal by a GPU copy (2800x3360)`.
+- **Rien du cœur ne change** : pas de nouvelle collection pour cela ; images `libretro_internal_bridge` seulement.
+- **Non mesuré sur iPhone** : gain attendu sur le fil d'émulation et la chaleur à 7× ; à vérifier avec le bouton de
+  performances (`FPS`, `EMU`, `GPU`) et l'état thermique du journal.
+- **Suite possible** : une seule copie GPU (image du cœur vers une image du créneau visible de Metal) au lieu de deux,
+  en passant par l'API privée de MoltenVK (`VK_EXT_metal_objects` plante avec MoltenVK 1.2.8 sous ARC).
+
 ## Depuis la 828 : nouvelle collection pour les triches PS1 (feu vert du mainteneur)
 
 - **Correctif** `416333ff` (`native/beetle-psx`, détail dans son README) : une triche qui réécrit du code déjà
