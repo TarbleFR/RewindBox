@@ -666,6 +666,7 @@ static NSString *S2ArmEnginePath(void) {
   benchmark[@"settings"] = S2ArmSettingsSnapshot();   // launch preferences; the engine reports effective settings at begin
   self.benchmarkContext = benchmark;
   [self applyStoredFrameRateLimit];   // patch 0078: S2A_FPS was read once, at this process's first game start
+  [self applyStoredFrameInterpolation];   // patch 0345: S2A_RB_FI too
   __block UIViewController *vc = nil;
   dispatch_sync(dispatch_get_main_queue(), ^{ vc = (__bridge UIViewController *)viewController(); });
   if (!vc) return launchFail(@"engineViewFailed", @"resume", @"The engine did not return the parked view controller.");
@@ -863,13 +864,17 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
   int automaticProbeProfile = marioKartWorld ? setenv("S2A_RB_AUTO_PROBE", "0", 0) : 0;
   int saveRestoreProfile = setenv("S2A_RB_SAVE_PROFILE", "1", 0);
   int saveTitleSlots = setenv("S2A_RB_SAVE_TITLE_SLOTS", "1", 0);
+  // Engine patch 0345: frame generation (MetalFX frame interpolation, iOS 26) for games that ask for 30 fps or less, from the
+  // player's setting, off unless turned on. The engine reads it once a process; the in-game menu then turns it on or off during
+  // play (applyLiveSetting). A value supplied for an A/B run (launch environment, env.txt) wins, as for the switches above.
+  int frameInterpolationProfile = setenv("S2A_RB_FI", S2ArmSettingsFrameInterpolation() ? "1" : "0", 0);
   BOOL profileFailed = vertexProfile || stagingProfile || workgroupProfile || archiveProfile || workerProfile ||
                        readAheadProfile || shaderBytesProfile || shaderQueueProfile || poolIndexProfile ||
                        textureViewsProfile || demandProbeProfile || audioReprimeProfile || feedbackProfile ||
                        pipelinePriorityProfile || shaderCompletionProfile || pipelineLookaheadProfile ||
                        uniformBoundsProfile || waitProbeProfile || frameKeyProfile ||
                        displayTicksProfile || noLockProfile || residencyCensusProfile || shaderVariantProfile || automaticProbeProfile ||
-                       saveRestoreProfile || saveTitleSlots;
+                       saveRestoreProfile || saveTitleSlots || frameInterpolationProfile;
   s2arm_journal("gameProfile", profileFailed ? "failed" : "selected",
                 "\"profile\":\"%s\"", fastFusion ? "fast-fusion" : marioKartWorld ? "mario-kart-world" : "default");
   S2ArmSettingsPrepareLaunch();   // the game language, and the engine's brief overlay that the in-game menu shows or hides
@@ -1135,41 +1140,71 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
                                                                  }];
   self.sessionMenu.benchmarkContext = self.benchmarkContext;
   // Patch 0078: the frame-rate limit the player picks in the menu is in effect at once (the other settings still wait for the next start)
+  // Patch 0345: frame generation too, in a session the engine started with it (S2A_RB_FI=1, read once a process)
   __weak S2ArmEngineBridgePlugin *weakSelf = self;
-  if (dlsym(RTLD_DEFAULT, S2A_RB_GUEST_SET_FPS_LIMIT)) {
+  BOOL frameInterpolation = dlsym(RTLD_DEFAULT, S2A_RB_GUEST_SET_FRAME_INTERP) != NULL;
+  if (dlsym(RTLD_DEFAULT, S2A_RB_GUEST_SET_FPS_LIMIT) || frameInterpolation) {
     self.sessionMenu.applyNow = ^BOOL(NSString *setting, id value) { return [weakSelf applyLiveSetting:setting value:value]; };
   }
+  const char *frameInterpolationAsked = getenv("S2A_RB_FI");
+  self.sessionMenu.frameInterpolationLive = frameInterpolation && frameInterpolationAsked && strcmp(frameInterpolationAsked, "1") == 0;
   [self.sessionMenu attach];
   s2arm_journal("menu", "attached", NULL);
   [self watchGameView:stop];
 }
 
 // Patch 0078 (engine): the limit changed during play. YES when the engine took it (from its next frame on).
+// Patch 0345 (engine): frame generation turned on or off during play, the same way. The engine answers -1 when this session
+// started without S2A_RB_FI=1 (the stored choice applies at the next start) and -2 when this device or graphics backend cannot
+// interpolate: the choice stays stored and the menu tells the player (frameInterpolationUnavailable).
 - (BOOL)applyLiveSetting:(NSString *)setting value:(id)value {
+  if ([setting isEqualToString:@"frameInterpolation"]) {
+    if (![value isKindOfClass:NSNumber.class]) return NO;
+    s2a_rb_guest_set_frame_interp_fn interp =
+        (s2a_rb_guest_set_frame_interp_fn)dlsym(RTLD_DEFAULT, S2A_RB_GUEST_SET_FRAME_INTERP);
+    if (!interp) return NO;   // an engine before patch 0345
+    BOOL on = [value boolValue];
+    int answer = interp(on ? 1 : 0);
+    if (answer == 0) [self liveSettingTaken:setting value:@(on)];
+    if (answer == -2) self.sessionMenu.frameInterpolationUnavailable = YES;
+    s2arm_journal("frameInterpolation", answer == 0 ? "now" : answer == -2 ? "unavailable" : "nextStart",
+                  "\"on\":%s,\"rc\":%d", on ? "true" : "false", answer);
+    return answer == 0;
+  }
   if (![setting isEqualToString:@"frameRateLimit"] || ![value isKindOfClass:NSString.class]) return NO;
   if (![S2ArmSettingsValues(@"frameRateLimit") containsObject:value]) return NO;   // engine patch 0319: never 30
   s2a_rb_guest_set_fps_limit_fn set = (s2a_rb_guest_set_fps_limit_fn)dlsym(RTLD_DEFAULT, S2A_RB_GUEST_SET_FPS_LIMIT);
   if (!set) return NO;
   int fps = [(NSString *)value intValue];
   int rc = set(fps);
-  if (rc == 0) {
-    NSMutableDictionary *context = [self.benchmarkContext mutableCopy] ?: [NSMutableDictionary dictionary];
-    NSMutableDictionary *settings = [context[@"settings"] mutableCopy] ?: [NSMutableDictionary dictionary];
-    settings[@"frameRateLimit"] = value;
-    context[@"settings"] = settings;
-    self.benchmarkContext = context;
-    self.sessionMenu.benchmarkContext = context;
-    s2a_rb_guest_benchmark_fn benchmark = (s2a_rb_guest_benchmark_fn)dlsym(RTLD_DEFAULT, S2A_RB_GUEST_BENCHMARK);
-    if (benchmark) (void)benchmark(3, NULL, NULL, 0);
-  }
+  if (rc == 0) [self liveSettingTaken:setting value:value];
   s2arm_journal("frameRate", rc == 0 ? "now" : "nextStart", "\"fps\":%d,\"rc\":%d", fps, rc);
   return rc == 0;
+}
+
+// A setting the engine took during play: the benchmark context names it, and a measurement in progress no longer compares.
+- (void)liveSettingTaken:(NSString *)setting value:(id)value {
+  NSMutableDictionary *context = [self.benchmarkContext mutableCopy] ?: [NSMutableDictionary dictionary];
+  NSMutableDictionary *settings = [context[@"settings"] mutableCopy] ?: [NSMutableDictionary dictionary];
+  settings[setting] = value;
+  context[@"settings"] = settings;
+  self.benchmarkContext = context;
+  self.sessionMenu.benchmarkContext = context;
+  s2a_rb_guest_benchmark_fn benchmark = (s2a_rb_guest_benchmark_fn)dlsym(RTLD_DEFAULT, S2A_RB_GUEST_BENCHMARK);
+  if (benchmark) (void)benchmark(3, NULL, NULL, 0);
 }
 
 // The stored frame-rate choice, for a parked game that resumes: the engine read S2A_FPS once, when this process first started a game.
 - (void)applyStoredFrameRateLimit {
   id value = S2ArmSettingsSnapshot()[@"frameRateLimit"];
   if (value) (void)[self applyLiveSetting:@"frameRateLimit" value:value];
+}
+
+// The stored frame-generation choice, for a parked game that resumes (patch 0345): the engine read S2A_RB_FI once, at this
+// process's first game start. A session started without it stays without it (-1); the menu learns of -2 at the player's choice.
+- (void)applyStoredFrameInterpolation {
+  id value = S2ArmSettingsSnapshot()[@"frameInterpolation"];
+  if (value) (void)[self applyLiveSetting:@"frameInterpolation" value:value];
 }
 
 #pragma mark - game view watch

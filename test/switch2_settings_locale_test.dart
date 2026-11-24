@@ -43,6 +43,9 @@ void main() {
       // The in-game benchmark (b56627d0b, 20 November).
       'menu.benchmark', 'menu.benchmarkFailed', 'menu.benchmarkInstructions', 'menu.benchmarkInterrupted',
       'menu.benchmarkInvalid', 'menu.benchmarkSaved', 'menu.benchmarkScenario', 'menu.benchmarkStart',
+      // Frame generation (engine patch 0345).
+      'menu.frameInterpolation', 'menu.frameInterpolationOff', 'menu.frameInterpolationOn',
+      'menu.frameInterpolationUnavailable',
     ];
     for (final code in codes) {
       final strings = Switch2SettingsLocale.menuStrings(code);

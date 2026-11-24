@@ -1,11 +1,13 @@
 /// User settings of the Switch 2 (S2Arm) engine, stored by the native host and read and written through
-/// `getSettings` / `setSettings` of the `neostation/s2arm_internal` channel. All of them take effect at the next game start.
+/// `getSettings` / `setSettings` of the `neostation/s2arm_internal` channel. All of them take effect at the next game start
+/// (the in-game menu also changes the frame-rate limit and frame generation during play).
 class S2ArmSettings {
   const S2ArmSettings({
     this.resolutionScale = '1',
     this.antiAliasing = 'None',
     this.scalingFilter = 'Bilinear',
     this.frameRateLimit = '0',
+    this.frameInterpolation = false,
     this.docked = false,
     this.widescreen = true,
     this.performanceOverlay = false,
@@ -33,6 +35,10 @@ class S2ArmSettings {
   final String antiAliasing;
   final String scalingFilter;
   final String frameRateLimit;
+
+  /// Frame generation (engine patch 0345, MetalFX frame interpolation, iOS 26): 60 frames per second on screen for games
+  /// that ask for 30 or less. Off by default.
+  final bool frameInterpolation;
   final bool docked;
   final bool widescreen;
   final bool performanceOverlay;
@@ -56,6 +62,7 @@ class S2ArmSettings {
       antiAliasing: pick('antiAliasing', antiAliasingModes, defaults.antiAliasing),
       scalingFilter: pick('scalingFilter', scalingFilters, defaults.scalingFilter),
       frameRateLimit: pick('frameRateLimit', frameRateLimits, defaults.frameRateLimit),
+      frameInterpolation: flag('frameInterpolation', defaults.frameInterpolation),
       docked: flag('docked', defaults.docked),
       widescreen: flag('widescreen', defaults.widescreen),
       performanceOverlay: flag('performanceOverlay', defaults.performanceOverlay),
@@ -68,6 +75,7 @@ class S2ArmSettings {
     'antiAliasing': antiAliasing,
     'scalingFilter': scalingFilter,
     'frameRateLimit': frameRateLimit,
+    'frameInterpolation': frameInterpolation,
     'docked': docked,
     'widescreen': widescreen,
     'performanceOverlay': performanceOverlay,
@@ -79,6 +87,7 @@ class S2ArmSettings {
     String? antiAliasing,
     String? scalingFilter,
     String? frameRateLimit,
+    bool? frameInterpolation,
     bool? docked,
     bool? widescreen,
     bool? performanceOverlay,
@@ -88,6 +97,7 @@ class S2ArmSettings {
     antiAliasing: antiAliasing ?? this.antiAliasing,
     scalingFilter: scalingFilter ?? this.scalingFilter,
     frameRateLimit: frameRateLimit ?? this.frameRateLimit,
+    frameInterpolation: frameInterpolation ?? this.frameInterpolation,
     docked: docked ?? this.docked,
     widescreen: widescreen ?? this.widescreen,
     performanceOverlay: performanceOverlay ?? this.performanceOverlay,
@@ -101,6 +111,7 @@ class S2ArmSettings {
       other.antiAliasing == antiAliasing &&
       other.scalingFilter == scalingFilter &&
       other.frameRateLimit == frameRateLimit &&
+      other.frameInterpolation == frameInterpolation &&
       other.docked == docked &&
       other.widescreen == widescreen &&
       other.performanceOverlay == performanceOverlay &&
@@ -108,6 +119,7 @@ class S2ArmSettings {
 
   @override
   int get hashCode => Object.hash(
-    resolutionScale, antiAliasing, scalingFilter, frameRateLimit, docked, widescreen, performanceOverlay, gameLanguage,
+    resolutionScale, antiAliasing, scalingFilter, frameRateLimit, frameInterpolation, docked, widescreen, performanceOverlay,
+    gameLanguage,
   );
 }
