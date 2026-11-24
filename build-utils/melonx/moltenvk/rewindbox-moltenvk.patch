@@ -131,10 +131,10 @@ index 3cdc623..20cec50 100644
  }
  
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKDevice.h b/MoltenVK/MoltenVK/GPUObjects/MVKDevice.h
-index 534a414..d3f3cf8 100644
+index 534a414..2c61654 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKDevice.h
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKDevice.h
-@@ -34,6 +34,28 @@
+@@ -34,6 +34,29 @@
  
  #import <Metal/Metal.h>
  #import <QuartzCore/CAMetalLayer.h>
@@ -143,8 +143,9 @@ index 534a414..d3f3cf8 100644
 +// RewindBox Metal memory census (eleventh part, measurement only): the allocations a device makes resident, by kind,
 +// and the Metal buffers MoltenVK allocates for descriptor pools and visibility results outside its residency set,
 +// counted as they are created and released (count, bytes, and how many were ever added); written with MoltenVK's
-+// performance summary. A texture made on a buffer or a heap, or a buffer made on a heap, shares memory counted
-+// elsewhere: it is counted apart, as an alias.
++// performance summary. On Apple GPUs MoltenVK places each VkDeviceMemory in a Metal heap of its size (placement
++// heaps, MVK_CONFIG_USE_MTLHEAP where safe): the heaps are counted as such. A texture made on a buffer or a heap, or a
++// buffer made on a heap, shares memory counted elsewhere: it is counted apart, as an alias.
 +namespace rewindbox {
 +	struct MetalCensus {
 +		std::atomic<int64_t> count{0}, bytes{0}, added{0};
@@ -158,12 +159,12 @@ index 534a414..d3f3cf8 100644
 +			bytes.fetch_sub(size, std::memory_order_relaxed);
 +		}
 +	};
-+	extern MetalCensus residentTextures, residentBuffers, residentAliases, residentOther, descriptorPoolBuffers, visibilityBuffers;
++	extern MetalCensus heaps, residentTextures, residentBuffers, residentAliases, residentOther, descriptorPoolBuffers, visibilityBuffers;
 +}
  
  class MVKInstance;
  class MVKDevice;
-@@ -985,6 +1007,7 @@ public:
+@@ -985,6 +1008,7 @@ public:
  			[_residencySet addAllocation: allocation];
  			[_residencySet commit];
  		}
@@ -171,7 +172,7 @@ index 534a414..d3f3cf8 100644
  	}
  #endif
  
-@@ -996,6 +1019,22 @@ public:
+@@ -996,6 +1020,22 @@ public:
  			[_residencySet removeAllocation:allocation];
  			[_residencySet commit];
  		}
@@ -195,7 +196,7 @@ index 534a414..d3f3cf8 100644
  #endif
  
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm b/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm
-index 9772757..4eb74cf 100644
+index 9772757..92ddf18 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm
 @@ -3778,6 +3778,7 @@ MVKVisibilityBuffer::MVKVisibilityBuffer(id<MTLDevice> device, NSUInteger size,
@@ -214,15 +215,15 @@ index 9772757..4eb74cf 100644
  		[_buffer release];
  		for (auto& groups : _fences)
  			for (auto& fence : groups)
-@@ -4710,12 +4712,42 @@ void MVKDevice::logActivityByteCount(MVKPerformanceTracker& activity, MVKPerform
+@@ -4710,12 +4712,43 @@ void MVKDevice::logActivityByteCount(MVKPerformanceTracker& activity, MVKPerform
  			   activity.count);
  }
  
 +__attribute__((used)) static const char kRewindBoxMetalMemoryCensus[] =
-+	"RewindBox Metal memory census: allocations made resident, descriptor pool and visibility buffers counted by kind";
++	"RewindBox Metal memory census: heaps, allocations made resident, descriptor pool and visibility buffers counted by kind";
 +
 +namespace rewindbox {
-+	MetalCensus residentTextures, residentBuffers, residentAliases, residentOther, descriptorPoolBuffers, visibilityBuffers;
++	MetalCensus heaps, residentTextures, residentBuffers, residentAliases, residentOther, descriptorPoolBuffers, visibilityBuffers;
 +}
 +
  void MVKDevice::logPerformanceSummary() {
@@ -239,6 +240,7 @@ index 9772757..4eb74cf 100644
 +		auto n = [](const rewindbox::MetalCensus& c) { return (long long)c.count.load(std::memory_order_relaxed); };
 +		auto b = [](const rewindbox::MetalCensus& c) { return c.bytes.load(std::memory_order_relaxed); };
 +		auto a = [](const rewindbox::MetalCensus& c) { return (long long)c.added.load(std::memory_order_relaxed); };
++		const auto& hp = rewindbox::heaps;
 +		const auto& tx = rewindbox::residentTextures;
 +		const auto& bf = rewindbox::residentBuffers;
 +		const auto& al = rewindbox::residentAliases;
@@ -246,16 +248,57 @@ index 9772757..4eb74cf 100644
 +		const auto& dp = rewindbox::descriptorPoolBuffers;
 +		const auto& vb = rewindbox::visibilityBuffers;
 +		int64_t device = (int64_t)_physicalDevice->getCurrentAllocatedSize();
-+		int64_t counted = b(tx) + b(bf) + b(ot) + b(dp) + b(vb);
-+		MVKLogInfo("RewindBox Metal memory: device %lld MiB; made resident: textures %lld (%lld MiB, %lld added), buffers %lld (%lld MiB, %lld added), "
-+				   "aliases %lld (%lld MiB, %lld added), other %lld (%lld MiB); descriptor pool buffers %lld (%lld MiB, %lld added); "
-+				   "visibility buffers %lld (%lld MiB); the rest %lld MiB",
-+				   mib(device), n(tx), mib(b(tx)), a(tx), n(bf), mib(b(bf)), a(bf), n(al), mib(b(al)), a(al), n(ot), mib(b(ot)),
-+				   n(dp), mib(b(dp)), a(dp), n(vb), mib(b(vb)), mib(device - counted));
++		int64_t counted = b(hp) + b(tx) + b(bf) + b(ot) + b(dp) + b(vb);
++		MVKLogInfo("RewindBox Metal memory: device %lld MiB; heaps %lld (%lld MiB, %lld added); made resident: textures %lld (%lld MiB, %lld added), "
++				   "buffers %lld (%lld MiB, %lld added), aliases %lld (%lld MiB, %lld added), other %lld (%lld MiB); descriptor pool buffers "
++				   "%lld (%lld MiB, %lld added); visibility buffers %lld (%lld MiB); the rest %lld MiB",
++				   mib(device), n(hp), mib(b(hp)), a(hp), n(tx), mib(b(tx)), a(tx), n(bf), mib(b(bf)), a(bf), n(al), mib(b(al)), a(al),
++				   n(ot), mib(b(ot)), n(dp), mib(b(dp)), a(dp), n(vb), mib(b(vb)), mib(device - counted));
 +	}
 +
  #define logDuration(s)   logActivityDuration(perfStats.s, perfStats)
  #define logByteCount(s)  logActivityByteCount(perfStats.s, perfStats)
+ 
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKDeviceMemory.h b/MoltenVK/MoltenVK/GPUObjects/MVKDeviceMemory.h
+index b349d6e..f4221bc 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKDeviceMemory.h
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKDeviceMemory.h
+@@ -177,6 +177,7 @@ protected:
+ 		id<MTLTexture> _mtlTexture;
+ 	};
+ 	id<MTLHeap> _mtlHeap = nil;
++	int64_t _rbCensusHeapBytes = 0;	// RewindBox Metal memory census: the size of the heap this memory created
+ 	void* _pMemory = nullptr;
+ 	void* _pHostMemory = nullptr;
+ 	VkMemoryPropertyFlags _vkMemPropFlags;
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKDeviceMemory.mm b/MoltenVK/MoltenVK/GPUObjects/MVKDeviceMemory.mm
+index e6e7786..7f4e109 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKDeviceMemory.mm
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKDeviceMemory.mm
+@@ -228,6 +228,8 @@ bool MVKDeviceMemory::ensureMTLHeap() {
+ 	_mtlHeap = [getMTLDevice() newHeapWithDescriptor: heapDesc];	// retained
+ 	[heapDesc release];
+ 	if (!_mtlHeap) { return false; }
++	_rbCensusHeapBytes = (int64_t)_mtlHeap.size;	// RewindBox Metal memory census
++	rewindbox::heaps.add(_rbCensusHeapBytes);
+ 
+ 	propagateDebugName();
+ 
+@@ -380,6 +382,7 @@ MVKDeviceMemory::MVKDeviceMemory(MVKDevice* device,
+ 				_externalMemoryHandleType = pImportInfo->handleType;
+ 				// This handle type will only be exposed to the user if we actually are supporting heaps
+ 				if (pImportInfo->handleType & VK_EXTERNAL_MEMORY_HANDLE_TYPE_MTLHEAP_BIT_EXT) {
++					if (_rbCensusHeapBytes) { rewindbox::heaps.remove(_rbCensusHeapBytes); _rbCensusHeapBytes = 0; }	// RewindBox Metal memory census
+ 					[_mtlHeap release];
+ 					_mtlHeap = [((id<MTLHeap>)pImportInfo->handle) retain];
+ 					_mtlStorageMode = _mtlHeap.storageMode;
+@@ -518,6 +521,7 @@ MVKDeviceMemory::~MVKDeviceMemory() {
+ 		[buf release];
+ 	}
+ 
++	if (_rbCensusHeapBytes) { rewindbox::heaps.remove(_rbCensusHeapBytes); _rbCensusHeapBytes = 0; }	// RewindBox Metal memory census
+ 	[_mtlHeap release];
+ 	_mtlHeap = nil;
  
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKImage.h b/MoltenVK/MoltenVK/GPUObjects/MVKImage.h
 index 45ddd3a..5c9249c 100644
