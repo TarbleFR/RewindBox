@@ -76,6 +76,13 @@ Azahar 2127.0-alpha1 ne se chargent donc plus. Les sauvegardes internes des jeux
   du frontend comme avant. Le frontend de RewindBox montre ainsi l'image N pendant que N+1 est dessinée, sans copie
   (`LibretroVulkanRenderer`, remise directe). Mémoire : une image de plus (76,8 Mio à 10×).
 
+## Remise des images au frontend
+
+| Azahar | Frontend RewindBox | Copies par image |
+| --- | --- | --- |
+| Une image de sortie partagée (avant) | relecture puis copie GPU vers Metal | 2 (2 × 76,8 Mo à 10×) |
+| Une image par trame (ce correctif) | image du cœur prêtée telle quelle à Metal | 0 |
+
 ## Arène demandée
 
 128 Mio, tout résident :
