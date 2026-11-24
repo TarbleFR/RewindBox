@@ -46,6 +46,8 @@ void main() {
       // Frame generation (engine patch 0345).
       'menu.frameInterpolation', 'menu.frameInterpolationOff', 'menu.frameInterpolationOn',
       'menu.frameInterpolationUnavailable',
+      // Settings profiles by game.
+      'menu.gameSettings', 'menu.gameScope', 'menu.globalScope', 'menu.gameCreate',
     ];
     for (final code in codes) {
       final strings = Switch2SettingsLocale.menuStrings(code);
@@ -53,6 +55,27 @@ void main() {
         expect(strings.containsKey(key), isTrue, reason: '$code $key');
       }
       expect(strings.keys.where((key) => key.startsWith('menu.')).length, menuKeys.length, reason: code);
+    }
+  });
+
+  test('a game settings profile is named in every locale, and the in-game menu says the same words', () {
+    const keys = ['gameSettings', 'gameSettingsHint', 'gameCustomize', 'gameReset', 'gameUsesGlobal', 'gameUsesOwn', 'globalScope'];
+    const shared = {
+      'menu.gameSettings': 'gameSettings',
+      'menu.gameScope': 'gameUsesOwn',
+      'menu.globalScope': 'globalScope',
+      'menu.gameCreate': 'gameCustomize',
+    };
+    for (final code in codes) {
+      final table = Switch2SettingsLocale.values[code]!;
+      for (final key in keys) {
+        expect(table[key], isNotNull, reason: '$code $key');
+      }
+      // The game's own words differ from the global ones.
+      expect(table['gameSettings'], isNot(table['title']), reason: code);
+      expect(table['gameUsesOwn'], isNot(table['gameUsesGlobal']), reason: code);
+      final strings = Switch2SettingsLocale.menuStrings(code);
+      shared.forEach((menu, key) => expect(strings[menu], table[key], reason: '$code $menu'));
     }
   });
 

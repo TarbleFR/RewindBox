@@ -7,9 +7,11 @@ the engine's environment before the dlopen (RTLD_NOW | RTLD_GLOBAL), that the JI
 that the guest and preparation ABIs copied into the pod match the engine patch and native/s2arm/prepare headers, and that no
 game content reaches the journal.
 
-Executed (any host with a C compiler): the plain-C pieces (S2ArmEngineLoaded.c, S2ArmLaunchJournal.c, S2ArmPackPlan.c)
-compiled and run: the flag flips 0 -> 1, the journal appends one durable JSON object per line, and the image-pack reader
-counts boot vs later code blocks of a synthetic S2AEMB01 pack and reports boot-served correctly.
+Executed (any host with a C compiler): the plain-C pieces (S2ArmEngineLoaded.c, S2ArmLaunchJournal.c, S2ArmPackPlan.c,
+S2ArmGameEnvironment.c) compiled and run: the flag flips 0 -> 1, the journal appends one durable JSON object per line, the
+image-pack reader counts boot vs later code blocks of a synthetic S2AEMB01 pack and reports boot-served correctly, and the
+launch's decision for each engine variable of a game's settings profile keeps a value from elsewhere (launch environment,
+env.txt) and only replaces or removes this bridge's own.
 """
 from pathlib import Path
 import json
@@ -199,6 +201,21 @@ for symbol in ('rb_s2arm_ns2_detect', 'rb_s2arm_ns2_dump', 'rb_s2arm_prepare_cod
 
 check('resolution: workspace' in (ROOT / 'packages/s2arm_engine_bridge/pubspec.yaml').read_text(),
       'the plugin pubspec is a workspace member')
+
+# Settings profiles by game (S2ArmSettings.h): the channel, the native store and the launch's engine variables.
+settings_m = read('S2ArmSettings.m')
+for method in ('getGameSettings', 'createGameSettings', 'setGameSettings', 'removeGameSettings'):
+    check(f'isEqualToString:@"{method}"' in plugin, f'the bridge answers {method}')
+check('#import "S2ArmGameEnvironment.h"' in settings_m and 's2arm_game_env_decide(getenv(variable),' in settings_m,
+      'the launch decides each engine variable of a profile with the plain-C rule run below')
+check('@"RewindBoxS2ArmGameSettings"' in settings_m and 'S2AGame.' not in re.sub(r'//[^\n]*', '', settings_m),
+      "profiles are RewindBox's own preference, never the engine's per-game suite S2AGame.<id>")
+check(plugin.count('S2ArmSettingsPrepareLaunch(gid);') == 2 and 'S2ArmSettingsPrepareLaunch();' not in plugin,
+      'the first start and the resume of a parked game both prepare the settings of the game they start')
+first_start = plugin.index('- (NSDictionary *)runLaunchWithGid:')
+check(plugin.index('S2ArmApplyEnvFile();', first_start) < plugin.index('S2ArmSettingsPrepareLaunch(gid);', first_start)
+      < plugin.index('dlopen(enginePath', first_start),
+      'env.txt is in the environment before the profile is exported (its values win), and both before the dlopen')
 
 
 def without_comments(text):
@@ -433,12 +450,28 @@ def synth_pack(entries):
 
 DRIVER = r'''
 #include "S2ArmEngineLoaded.h"
+#include "S2ArmGameEnvironment.h"
 #include "S2ArmLaunchJournal.h"
 #include "S2ArmPackPlan.h"
 #include <stdio.h>
 #include <string.h>
 int main(int argc, char **argv) {
     (void)argc;
+    /* current, this bridge's earlier value, the game's value */
+    const char *cases[][3] = {
+        {NULL, NULL, "0.5"},       /* unset, a profile: set (no overwrite needed) */
+        {"0.5", "0.5", "0.75"},    /* this bridge's value of an earlier start (a resume), the profile changed: replaced */
+        {"0.5", "0.5", "0.5"},     /* the same value again: replaced by itself */
+        {"0.5", "0.5", NULL},      /* this bridge's value, the profile removed: unset (the engine reads its key again) */
+        {"0.75", NULL, "0.5"},     /* the launch environment or env.txt: kept */
+        {"1", NULL, NULL},         /* the engine's own reading of the global key, no profile: kept */
+        {"0", "1", "1"},           /* changed since by someone else (the quality ladder rewrites S2A_DOCKED): kept */
+        {NULL, "0.5", NULL},       /* already gone, no profile: nothing to do */
+        {NULL, "0.5", "0.75"},     /* already gone, a profile: set */
+    };
+    printf("env");
+    for (size_t i = 0; i < sizeof cases / sizeof cases[0]; i++) printf(" %d", (int)s2arm_game_env_decide(cases[i][0], cases[i][1], cases[i][2]));
+    printf("\n");
     if (rb_s2arm_engine_loaded() != 0) { printf("flag-start\n"); return 1; }
     rb_s2arm_engine_mark_loading();
     rb_s2arm_engine_mark_loading();
@@ -478,14 +511,19 @@ with tempfile.TemporaryDirectory(prefix='s2arm-bridge-') as directory:
     ]))
     journal = work / 'logs' / 'deep' / 'S2Arm-launch.log'
     binary = work / 'driver'
-    sources = ['driver.c', str(PKG / 'S2ArmEngineLoaded.c'), str(PKG / 'S2ArmLaunchJournal.c'), str(PKG / 'S2ArmPackPlan.c')]
+    sources = ['driver.c', str(PKG / 'S2ArmEngineLoaded.c'), str(PKG / 'S2ArmLaunchJournal.c'), str(PKG / 'S2ArmPackPlan.c'),
+               str(PKG / 'S2ArmGameEnvironment.c')]
     build = subprocess.run([compiler, '-std=c11', '-D_GNU_SOURCE', '-Wall', '-Wextra', '-Werror', '-I', str(PKG), *sources,
                             '-o', str(binary)], cwd=work, capture_output=True, text=True)
     check(build.returncode == 0, 'the plain-C pieces compile with -Werror: ' + build.stderr)
     run = subprocess.run([str(binary), str(journal), str(pack)], capture_output=True, text=True, timeout=60)
     check(run.returncode == 0, 'the driver runs: ' + run.stdout + run.stderr)
+    output = run.stdout.strip().splitlines()
+    # KEEP 0, SET 1 (setenv without overwrite), REPLACE 2 (only this bridge's own value), UNSET 3 (only this bridge's own value).
+    check(output[:1] == ['env 1 2 2 3 0 0 0 0 1'],
+          'a profile variable: set when unset, replaced or removed only when it is still this bridge\'s, else kept: ' + run.stdout)
     # main(x0 0x8000 + x2 0x4000) + subsdk0(x0 0x4000) = 3 boot blocks, 0x10000 boot bytes; NRO x0 0x8000 + x1 0x4000 = 2 later.
-    check(run.stdout.strip() == 'plan 4 2 3 65536 2 49152 32768 1 0',
+    check(output[1:] == ['plan 4 2 3 65536 2 49152 32768 1 0'],
           'the image-pack reader counts boot vs later blocks and boot-served: ' + run.stdout)
     lines = journal.read_text().splitlines()
     check(len(lines) == 2 and all(json.loads(line)['step'] in ('one', 'two') for line in lines), 'two durable JSON journal lines')

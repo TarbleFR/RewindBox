@@ -157,6 +157,23 @@ check('config.session_parked = s2arm_session_parked;' in plugin and '@"parkedGam
 ended = between(plugin, 'static void s2arm_session_ended(int code, const char *reason, void *context) {')
 check('self.parkedGameId = nil;' in ended[:400], 'an end (or a failed resume) leaves nothing to resume')
 
+# Settings profiles by game: the game that resumes gets its own profile (or the global settings), a profile changed or
+# removed while it was parked reaches the engine's rebuild (it reads its settings again, S2Arm ios/settings.m
+# s2a_ios_reload_graphics_settings), and its live values (frame-rate limit, frame generation) are the profile's.
+check(ordered(resume_method, 'S2ArmSettingsPrepareLaunch(gid);', 'benchmark[@"settings"] = S2ArmSettingsForGame(gid);',
+              '[self applyStoredFrameRateLimit:gid];', '[self applyStoredFrameInterpolation:gid];', 'resume(error, sizeof error)'),
+      "the resume prepares the parked game's own settings and applies its live values before the engine resumes")
+for name, key in (('applyStoredFrameRateLimit', 'frameRateLimit'), ('applyStoredFrameInterpolation', 'frameInterpolation')):
+    check(f'id value = S2ArmSettingsForGame(gid)[@"{key}"];' in between(plugin, f'- (void){name}:(NSString *)gid {{', '\n}\n'),
+          f'{name}: the profile\'s value when the game has one')
+settings_m = (CLASSES / 'S2ArmSettings.m').read_text()
+export = between(settings_m, 'static void ExportGameProfile(NSString *_Nullable gid) {', '\n}\n')
+check('action == S2ARM_GAME_ENV_REPLACE' in export and 'action == S2ARM_GAME_ENV_UNSET' in export and
+      'gGameEnvironment[name] = value;' in export and '[gGameEnvironment removeObjectForKey:name];' in export,
+      "a resume replaces or removes only the variables this bridge set at the first start, kept per process")
+check('if (!wanted) return ours ? S2ARM_GAME_ENV_UNSET : S2ARM_GAME_ENV_KEEP;' in (CLASSES / 'S2ArmGameEnvironment.c').read_text(),
+      'a profile removed while parked leaves the engine its global keys again')
+
 service = (ROOT / 'lib/services/s2arm_internal_service.dart').read_text()
 check("final parked = (now['parkedGameId'] ?? '').toString().toUpperCase();" in service and
       "detectedGid != parked && detectedGid != retry" in service and "now['retryGameId']" in service,

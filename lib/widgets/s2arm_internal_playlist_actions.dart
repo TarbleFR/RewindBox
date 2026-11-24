@@ -21,8 +21,9 @@ import 'switch2_engine_settings_panel.dart';
 
 /// Menu of the Switch 2 playlist: import games (an export folder or NUP
 /// containers from Files, docs/s2arm-switch2-library.md § Import), saves, the
-/// Switch 2 settings and delete the highlighted game. A coloured button (with
-/// its label where there is room) and an opaque menu with an icon per item: the
+/// Switch 2 settings, the highlighted game's own settings and delete the
+/// highlighted game. A coloured button (with its label where there is room)
+/// and an opaque menu with an icon per item: the
 /// maintainer found the bare icon and the see-through menu too easy to miss. Nothing of the Switch 1 engine: no prod.keys
 /// (S2Arm needs none) and no firmware. The maintainer wants no ambiguity
 /// between the two engines.
@@ -38,7 +39,7 @@ class S2ArmInternalPlaylistActions extends StatefulWidget {
     this.romPath,
   });
 
-  /// The highlighted game, for the Delete item (hidden without [romPath]).
+  /// The highlighted game, for its settings and the Delete item (both hidden without [romPath]).
   final String? appSystemId;
   final String? gameName;
   final String? romName;
@@ -309,6 +310,45 @@ class _S2ArmInternalPlaylistActionsState
     );
   }
 
+  /// The highlighted game's settings profile: the settings panel in the game scope, keyed by the title id the launch gives
+  /// the engine (read from the export, as the launch does).
+  Future<void> _openGameSettings() async {
+    final romPath = widget.romPath;
+    if (romPath == null) return;
+    final gameId = await S2ArmInternalService.gameIdFor(Switch2ExportContent.exportFolder(romPath));
+    if (!mounted) return;
+    if (gameId == null) {
+      _notice(S2ArmInternalService.localizedError(Localizations.localeOf(context), 'notExportFolder'));
+      return;
+    }
+    final name = widget.gameName ?? widget.romName;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        key: const ValueKey('s2arm-game-settings-dialog'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(Switch2SettingsLocale.text(ctx, 'gameSettings')),
+            if (name != null && name.isNotEmpty)
+              Text(name, style: Theme.of(ctx).textTheme.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+          ],
+        ),
+        contentPadding: EdgeInsets.zero,
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(child: Switch2EngineSettingsPanel(gameId: gameId)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(_t('done')),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _selected(String action) async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -317,6 +357,7 @@ class _S2ArmInternalPlaylistActionsState
       if (action == 'folder' || action == 'nup') await _import(action);
       if (action == 'delete') await _delete();
       if (action == 'settings') await _openSettings();
+      if (action == 'gameSettings') await _openGameSettings();
       if (action == 'importSave') await _importSave();
       if (action == 'openSaves') await _openSaves();
     } finally {
@@ -503,6 +544,19 @@ class _S2ArmInternalPlaylistActionsState
             Switch2SettingsLocale.text(context, 'title'),
           ),
         ),
+        // The highlighted game's own settings, right after the global ones.
+        if (widget.romPath != null) ...[
+          const PopupMenuDivider(),
+          PopupMenuItem(
+            key: const ValueKey('s2arm-game-settings'),
+            value: 'gameSettings',
+            child: _item(
+              Icons.videogame_asset_outlined,
+              Switch2SettingsLocale.text(context, 'gameSettings'),
+              Switch2SettingsLocale.text(context, 'gameSettingsHint'),
+            ),
+          ),
+        ],
         if (widget.romPath != null && widget.appSystemId != null) ...[
           const PopupMenuDivider(),
           PopupMenuItem(

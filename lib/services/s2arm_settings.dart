@@ -123,3 +123,30 @@ class S2ArmSettings {
     gameLanguage,
   );
 }
+
+/// A game's Switch 2 settings, as the native host answers `getGameSettings`, `createGameSettings`, `setGameSettings` and
+/// `removeGameSettings`. [custom]: the game has its own settings profile (made from the global values of the moment, then
+/// changed for that game alone; a global change leaves it as it is). [settings]: what the game starts with, its profile when
+/// [custom], else the global settings.
+class S2ArmGameSettings {
+  const S2ArmGameSettings({required this.custom, required this.settings});
+
+  final bool custom;
+  final S2ArmSettings settings;
+
+  /// Reads a native map; a flag boxed as a number counts too (see S2ArmSettings.fromMap).
+  factory S2ArmGameSettings.fromMap(Map<Object?, Object?> map) {
+    final custom = map['custom'];
+    final settings = map['settings'];
+    return S2ArmGameSettings(
+      custom: custom is bool ? custom : custom is num && custom != 0,
+      settings: settings is Map ? S2ArmSettings.fromMap(settings) : S2ArmSettings.defaults,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) => other is S2ArmGameSettings && other.custom == custom && other.settings == settings;
+
+  @override
+  int get hashCode => Object.hash(custom, settings);
+}
