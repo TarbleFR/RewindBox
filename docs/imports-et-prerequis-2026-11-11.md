@@ -79,3 +79,31 @@ Trois fichiers modifiés portent encore, en dessous, le travail RetroAchievement
 Comme en 615, les sept commits concernés sont classés « source seulement » et leur changement est réappliqué par un
 commit revu qui part des octets compilés par la 724 (fusion sans conflit, sans les lignes différées), puis les lignes
 différées sont remises : l'arbre final est identique à l'arbre d'avant ces trois commits.
+
+## Jeux multi-disques : playlist `.m3u` créée par l'analyse (24 novembre 2026)
+
+Après un import, à chaque analyse d'un système qui accepte les `.m3u` (PS1,
+Saturn, Mega-CD, PC Engine CD…), `MultiDiscPlaylists`
+(`lib/services/multi_disc_playlists.dart`, appelé par
+`SqliteDatabaseService.scanSystemRoms`) cherche, dossier par dossier, les
+disques d'un même jeu à leur nom : « Jeu (Disc 1).cue », « Jeu (Disc 2).cue »…
+(aussi Disk, CD, Disque, Disco, « [Disc 1 of 3] »). Il écrit « Jeu.m3u », qui
+liste les disques dans l'ordre ; le filtre existant du scan masque alors les
+disques et la bibliothèque ne montre que le jeu, dont le menu en jeu propose
+« Changer de disque ».
+
+- Seuls les fichiers qui s'ouvrent seuls sont listés (.cue, .chd, .ccd, .toc,
+  .gdi, .cdi), jamais les .bin d'une feuille cue.
+- Rien n'est créé si les numéros ne partent pas de 1, sautent un disque ou se
+  répètent, s'il n'y a qu'un disque, si deux fichiers de types différents
+  prétendent être le même disque, si « Jeu.m3u » existe ou si une playlist du
+  dossier nomme déjà l'un des disques.
+- Les disques ne sont ni déplacés ni renommés. La carte mémoire la plus récente
+  d'un disque joué seul (`Libretro/Saves/<cœur>/<disque>.srm`) est copiée,
+  jamais déplacée, sous le nom de la playlist, dans chaque dossier de cœur qui
+  n'en a pas encore. Les sauvegardes d'état (states) restent attachées au
+  disque : elles ne se chargent pas depuis la playlist.
+- Dossiers locaux seulement (pas les dossiers Android SAF).
+- La ligne de chaque disque disparaît de la bibliothèque au profit de celle du
+  jeu : favori, temps de jeu et médias collectés sur un disque ne sont pas
+  reportés.
