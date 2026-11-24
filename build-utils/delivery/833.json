@@ -394,6 +394,7 @@
         "Frameworks/mesen_libretro.framework/mesen_libretro",
         "Frameworks/MoltenVK.framework/MoltenVK",
         "Frameworks/azahar_libretro.framework/azahar_libretro",
+        "Frameworks/desmume_libretro.framework/desmume_libretro",
         "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro",
         "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro"
       ],
