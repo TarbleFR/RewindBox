@@ -1,22 +1,23 @@
 diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
-index 83e931f..841e786 100644
+index 83e931f..cb53d00 100644
 --- a/graphics/nvn/gfx/nvn/hle_nvn.c
 +++ b/graphics/nvn/gfx/nvn/hle_nvn.c
-@@ -3922,6 +3922,12 @@ static void power_line(uint64_t frame) {
+@@ -3922,6 +3922,13 @@ static void power_line(uint64_t frame) {
                  (unsigned long long)(cont[2] - last_cont[2]), (unsigned long long)(cont[3] - last_cont[3]), (unsigned long long)(cont[4] - last_cont[4]));
              memcpy(last_cont, cont, sizeof cont);
          }
-+        void nvn_be_cover_stats(uint64_t v[3]); static uint64_t last_rbcov[3]; uint64_t rbcov[3]; nvn_be_cover_stats(rbcov);   // RewindBox (patch 0343)
++        void nvn_be_cover_stats(uint64_t v[4]); static uint64_t last_rbcov[4]; uint64_t rbcov[4]; nvn_be_cover_stats(rbcov);   // RewindBox (patch 0343)
 +        if (memcmp(rbcov, last_rbcov, sizeof rbcov)) {
-+            LOG("[gpu-pass] loads left out under a covering first draw up to frame %llu: %.1f a frame, %.1f MB a frame; first draw not drawn after all, attachment left unstored %llu (RewindBox patch 0343, S2A_RB_COVER_LOAD)",
-+                frame, (rbcov[0] - last_rbcov[0]) / nf, (rbcov[1] - last_rbcov[1]) / 1048576.0 / nf, (unsigned long long)(rbcov[2] - last_rbcov[2]));
++            LOG("[gpu-pass] loads left out under a covering first draw up to frame %llu: %.1f a frame, %.1f MB a frame; first draw not drawn after all, pass ended at once %llu, "
++                "attachment left unstored %llu (RewindBox patch 0343, S2A_RB_COVER_LOAD)",
++                frame, (rbcov[0] - last_rbcov[0]) / nf, (rbcov[1] - last_rbcov[1]) / 1048576.0 / nf, (unsigned long long)(rbcov[3] - last_rbcov[3]), (unsigned long long)(rbcov[2] - last_rbcov[2]));
 +            memcpy(last_rbcov, rbcov, sizeof rbcov);
 +        }
          void nvn_be_lc_stats(uint64_t *, uint64_t *); static uint64_t plt, pll; uint64_t lt, ll; nvn_be_lc_stats(&lt, &ll);
          void nvn_be_ubp_why(uint64_t w[5]); static uint64_t pw5[5]; uint64_t w5[5]; nvn_be_ubp_why(w5);
          uint64_t ld, st, fu, udc = nvn_be_udc_saved_bytes(); nvn_be_bw(&ld, &st, &fu);
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index f22f0e9..bff3cdd 100644
+index e12311a..03767ef 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -9653,6 +9653,7 @@ static int rb_clear_desc_matches(MTL4RenderPassDescriptor *pd) {
@@ -57,6 +58,15 @@ index f22f0e9..bff3cdd 100644
          if (!R.clear_c[i] && (g_fd_dw || g_fd_di) && !cov) PD("Q %llu c%d load cannot be skipped why=%d", g_stat_pass + 1, i, g_fd_why);
          if (cov) {
              static int probe = -1; if (probe < 0) { probe = getenv("DM_NVN_LOADPROBE") ? atoi(getenv("DM_NVN_LOADPROBE")) : 0; if (probe) MLOG("DM_NVN_LOADPROBE: attachments whose load can be skipped are cleared to a sentinel color and read back to check"); }
+@@ -10359,7 +10365,7 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+             else ca.loadAction = MTLLoadActionDontCare;
+             g_fd_n++;
+         }
+-        if (ca.loadAction != MTLLoadActionLoad) rt_fresh_mark(R.rt.color[i]);
++        if (ca.loadAction != MTLLoadActionLoad && !rb_cov) rt_fresh_mark(R.rt.color[i]);   // RewindBox (patch 0343 review): a cover slot is not fresh: loaded before, it was not, and the first-use skips that trust a fresh target (first_skip_ok, skip_safe, rb_first_scene) stay as they were
+         xv_touch_add(R.rt.color[i]->serial, (uint32_t)ca.level, (uint32_t)ca.slice,
+                      ca.loadAction != MTLLoadActionLoad);
+         if (g_xv_n) { xv_ent *xe = xv_find(R.rt.color[i]->serial, (uint32_t)ca.level, (uint32_t)ca.slice);
 @@ -18830,7 +18836,10 @@ static void sd_finish(void) {
      if (!tbdr_on()) {   // TBDR set off: write back everything except an attachment loaded and not written in this pass (udc_on, needs no reader inference)
          for (int i = 0; i < g_nsd; i++) {
@@ -69,7 +79,7 @@ index f22f0e9..bff3cdd 100644
              int dead = unwritten || rb_terminal_discard(t);
              if (!dead && (g_rb_next_clear_mask & (1u << i))) {
                  dead = 1;
-@@ -19017,6 +19026,30 @@ static int first_draw_covers(int i, id<MTLTexture> t, NSUInteger level) {
+@@ -19017,6 +19026,47 @@ static int first_draw_covers(int i, id<MTLTexture> t, NSUInteger level) {
      return nvn_cover((const float (*)[4])P, n, prim, (int)S.poly.cull, ((S.poly.front == NVN_FRONT_FACE_CCW) != (s2a_nvn_rast_flip != 0)) != atomic_load_explicit(&g_origin_ll, memory_order_relaxed),   // NDC counter-clockwise is front: Metal's winding (see the draw), mirrored by the lower-left viewport flip
                       S.has_vp, vp, R.has_sc, sc, (long)cw, (long)ch);
  }
@@ -78,9 +88,10 @@ index f22f0e9..bff3cdd 100644
 +//   reads), which needs no reader of the attachment: the bindless reads that keep the tile mode off for hosted titles (patch 0296) do not bear on it, and a read of the
 +//   attachment as a texture reads memory, which a load action does not change. Its proof leaves out what can still drop a fragment: an alpha test (an alpha-tested fragment
 +//   variant, pso_key.at), rasterizer discard, stages between the positions it reads and the rasterizer (geometry, tessellation, task / mesh), a layered pass (one layer
-+//   covered) and a viewport swizzle (the proof maps none); this refuses them. A first draw not drawn after all (skipped while its pipeline compiles) leaves the attachment
-+//   unwritten, and it is then not stored (sd_finish): memory keeps its content, as for a loaded attachment no draw wrote (udc_on). IPA 824 pass profile: 30 to 35 MB a
-+//   frame of full-target loads (s2arm-pass-traffic-824.md). S2A_RB_COVER_LOAD=0: loaded as before
++//   covered) and a viewport swizzle (the proof maps none); this refuses them. A first draw not drawn after all (skipped while its pipeline compiles, or no pipeline)
++//   ends the pass at once (rb_cover_undrawn): the attachment is unwritten and not stored (sd_finish), memory keeps its content, as for a loaded attachment no draw wrote
++//   (udc_on). A cover slot is not marked fresh, so the first-use skips stay as they were. IPA 824 pass profile: 30 to 35 MB a frame of full-target loads
++//   (s2arm-pass-traffic-824.md). S2A_RB_COVER_LOAD=0: loaded as before
 +static int rb_cover_load_on(void) {
 +    static int v = -1;
 +    if (v < 0) { const char *e = getenv("S2A_RB_COVER_LOAD"); v = !(e && !strcmp(e, "0"));
@@ -94,9 +105,64 @@ index f22f0e9..bff3cdd 100644
 +    __unsafe_unretained NvProg *pr = S.prog ? prog_get(S.prog) : nil;
 +    if (!pr) return g_fd_why = 1, 0;
 +    if (pr->sh[2] || pr->sh[3] || pr->sh[4]) return g_fd_why = 11, 0;
++    // RewindBox (patch 0343 review): an indexed draw with primitive restart (the proof reads a restart index as a vertex; the GPU starts a new primitive there), and a
++    //   scaled target whose canvas does not meet its storage exactly: the draw scales the viewport by the exact factor and the storage is rounded up (rs_up), so a canvas
++    //   of 1152 at 0.85 draws 979.2 columns of 980 and the last one is left undrawn (S2A_RES_SCALE or the Fair scale; the 85 and 75 % DRS tiers of 960x540 are exact)
++    if (g_fd_di && S.restart.on) return g_fd_why = 6, 0;
++    const double s = rs_of(t);
++    if (s != 1.0) { NSUInteger cw, ch; rs_canvas(t, level, &cw, &ch);
++        if (fabs((double)cw * s - (double)rs_mip(t.width, level)) > 1e-6 || fabs((double)ch * s - (double)rs_mip(t.height, level)) > 1e-6) return g_fd_why = 3, 0; }
 +    return first_draw_covers(i, t, level);
 +}
-+void nvn_be_cover_stats(uint64_t v[3]) { v[0] = g_rb_cov_n; v[1] = g_rb_cov_bytes; v[2] = g_rb_cov_kept; }   // RewindBox (patch 0343)
++// RewindBox (patch 0343 review): the draw that opened a pass with a cover slot returns without drawing (its pipeline compiles in the background, it has none, or its pass
++//   state draws nothing): the pass ends here. Left open, a later write of the pass (another draw, an in-pass clear, a continuation of patch 0342) would make sd_finish
++//   store the slot, undefined wherever that write does not reach. Ended now, the slot is unwritten and not stored: memory keeps its content, as when it was loaded
++static uint64_t g_rb_cov_undrawn;
++static void rb_cover_undrawn(int wait, id en) {
++    if (!wait || g_enc != en || !g_rb_cov_mask) return;
++    g_rb_cov_undrawn++; PD("Q %llu pass ended: its first draw, which covers slots %#x not loaded, was not drawn", g_stat_pass, g_rb_cov_mask);
++    rp_end();
++}
++void nvn_be_cover_stats(uint64_t v[4]) { v[0] = g_rb_cov_n; v[1] = g_rb_cov_bytes; v[2] = g_rb_cov_kept; v[3] = g_rb_cov_undrawn; }   // RewindBox (patch 0343)
  
  int nvn_dpool_base(const void *pool, int tex);   // hle_nvn.c: where a descriptor pool's IDs start in the host table
  static int state_op(uint32_t op, const void *a, uint32_t size) {
+@@ -23519,7 +23569,9 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+     g_rp_layered = pr->sh[0] && pr->sh[0]->layer_out;
+     if (g_enc && g_pass.layered != g_rp_layered) rp_end();   // a layered pass only for layer-writing vertex shaders (see rp_begin_ex)
+     g_noload_mask = g_enc ? 0 : pass_color_unwritten(pr);   // color attachments proven unwritten to this pass's end are not loaded (see g_noload_mask)
++    const int rb_opens = !g_enc;   // RewindBox (patch 0343 review): this draw opens the pass (rb_cover_undrawn)
+     id en = rp_begin_ex(mode); // The common encoder helpers accept native Metal 3 and Metal 4 encoders.
++    const int rb_cov_wait = rb_opens && en && g_rb_cov_mask;
+     g_noload_mask = 0;
+     g_rp_layered = 0;
+     g_fd_dw = NULL; g_fd_di = NULL;
+@@ -23540,7 +23592,7 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+     int fc = g_pso_lmap || g_pso_fsfn ? 0 : se_want(pr->gp, pr->sh[1], 1);
+     if (g_mtk.on) {   // a task / mesh draw (mesh_tasks_draw): its own pipeline kind; the next draw fetches its own again (cur_pr nil)
+         g_pso_fc = fc; cur_ps = mtk_pso(pr); cur_ps_round = g_pso_color_round; g_pso_fc = 0; cur_pr = nil;
+-        if (!cur_ps) { g_mtk.miss = 1; if (g_pso_lmap) { g_pso_lmap = NULL; g_pso_fsfn = nil; memset(&g_pso_fz, 0, sizeof g_pso_fz); g_pso_dirty = 1; } return; } }
++        if (!cur_ps) { g_mtk.miss = 1; if (g_pso_lmap) { g_pso_lmap = NULL; g_pso_fsfn = nil; memset(&g_pso_fz, 0, sizeof g_pso_fz); g_pso_dirty = 1; } rb_cover_undrawn(rb_cov_wait, en); return; } }
+     else if (g_pso_dirty || pr != cur_pr || cur_ps_pass != g_pass.serial || fc != cur_ps_fc) { g_pso_fc = fc;
+         p_draw_idx shape;
+         g_rb_first_indexed = rb_first_draw_on() && rb_observed_workers_on() && !g_geo_program ? rb_first_shape(dw,di,&shape) : NULL;
+@@ -23548,8 +23600,8 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+     g_udc_lmap = g_pso_lmap; g_udc_fsfn = g_pso_fsfn != nil;   // udc_note_draw (below) judges this draw's writes by the map its pipeline used
+     if (g_pso_lmap) { g_pso_lmap = NULL; g_pso_fsfn = nil; memset(&g_pso_fz, 0, sizeof g_pso_fz); g_pso_dirty = 1; }   // The next draw fetches again according to its own situation
+     __unsafe_unretained id<MTLRenderPipelineState> ps = cur_ps;
+-    if (!ps && g_first_skipped) { g_first_skipped = 0; first_skip_note(); PD("Z %llu draw skipped: its pipeline compiles in the background (vertex %s fragment %s)", g_stat_pass, pr->sh[0] ? pr->sh[0]->key : "-", pr->sh[1] ? pr->sh[1]->key : "-"); return; }
+-    if (!ps) { BAD_ERR(); PD("Z %llu draw skipped: no render pipeline (vertex %s fragment %s)", g_stat_pass, pr->sh[0] ? pr->sh[0]->key : "-", pr->sh[1] ? pr->sh[1]->key : "-"); return; }
++    if (!ps && g_first_skipped) { g_first_skipped = 0; first_skip_note(); PD("Z %llu draw skipped: its pipeline compiles in the background (vertex %s fragment %s)", g_stat_pass, pr->sh[0] ? pr->sh[0]->key : "-", pr->sh[1] ? pr->sh[1]->key : "-"); rb_cover_undrawn(rb_cov_wait, en); return; }
++    if (!ps) { BAD_ERR(); PD("Z %llu draw skipped: no render pipeline (vertex %s fragment %s)", g_stat_pass, pr->sh[0] ? pr->sh[0]->key : "-", pr->sh[1] ? pr->sh[1]->key : "-"); rb_cover_undrawn(rb_cov_wait, en); return; }
+     draw_widen(pr, dw, di);   // S2Arm widen: this draw's mode and rewritten uniforms (see draw_widen)
+     // The widen core samples textures too (World War Z: "texture upgraded to allow format views" right after the core sampled it); an upgrade there ends the pass before any state is set
+     //   on en. Same retry as after the binding below
+@@ -23565,7 +23617,7 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+     { uint32_t r5[5]; if (wd_p2_want_self(R.has_rt && R.rt.n > 0 ? R.rt.color[0] : NULL, r5)) wd_p2_self_clear(en, r5); }   // S2Arm widen: fallback sentinel in the world target's side bands when the game did not clear it this frame
+     if (ps != g_enc_pso) { enc_r_pso(en, ps); g_enc_pso = ps; }
+     enc_r_half_mask(en, cur_ps_round);
+-    if (!draw_pass_state(en, pr->sh[1])) return;   // depth-stencil / viewport / scissor / cull / ... (shared with tess_draw ④): 0 = this draw draws nothing
++    if (!draw_pass_state(en, pr->sh[1])) { rb_cover_undrawn(rb_cov_wait, en); return; }   // depth-stencil / viewport / scissor / cull / ... (shared with tess_draw ④): 0 = this draw draws nothing
+     alpha_ref_bind(en, pr->sh[1]);   // gap family 34
+     if (!g_mtk.on) bind_vbufs(en);   // a task / mesh draw fetches no vertices
+     if (pr->sh[0]) vconv_bind(en, pr->sh[0], 0, dw, di);   // integer inputs fed float-type formats or 8 / 16-bit integers of the other sign (see vconv_ncomp, vconv_int)
