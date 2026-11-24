@@ -324,12 +324,8 @@
   "product": {
     "reviewedCommits": [
       {
-        "commit": "6f969042a533d53d41d7b79a5f98d8e4542ab63d",
-        "note": "DeSmuME core source (libretro session): the 3D draws while the 2D engines compose (each line waits for its own 3D lines), NEON output conversion, [rb-perf] engA/engB/end/over16/over33, section 16.5 of the architecture document; it reaches the IPA with the collection LibretroCores-6f969042 (desmume_libretro only)"
-      },
-      {
-        "commit": "21f393ec378a72337914ffc852a98899e3a4f41e",
-        "note": "Reviewed entry of the libretro collection LibretroCores-6f969042 in COLLECTIONS (only desmume_libretro differs from 14881770592), handoff note"
+        "commit": "a691220a5aa9d5a99c43c569cadf7de296e7bf90",
+        "note": "merge a691220a: the delivery line realigned on the 830 (first parent af33d8bf, recipe section 3.9). One change against its first parent: the DeSmuME core source 6f969042 (native/desmume: the 3D draws while the 2D engines compose, each line waiting for its own 3D lines; NEON output conversion; [rb-perf] engA/engB/end/over16/over33), which reaches the IPA with the collection LibretroCores-6f969042 (desmume_libretro only), its reviewed entry 21f393ec in .github/diagnostics/libretro_source_collections.py, the 831 draft and recipient key e64ad621 (recipe paths), and the MeloNX session's notes b978423c, 50e26093, 69537b50 (documentation and evidence only, no product path)"
       }
     ],
     "sourceOnly": [],
