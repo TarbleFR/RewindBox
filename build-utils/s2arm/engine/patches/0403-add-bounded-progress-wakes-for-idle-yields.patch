@@ -1,0 +1,127 @@
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -407,7 +407,9 @@
+ static void wq_flush(void) {}
+ #endif
+ static int64_t now_mono_ns(void);
++#include "rb_yield_event.inc"
+ static void wake(thr_t *t, int64_t res) {
++    rb_yield_event_notify();
+     wait_diag_wake_locked(t, res);
+ #if defined(__APPLE__)
+     if (atomic_load_explicit(&t->mkw_wait_active, memory_order_relaxed)) {
+@@ -2350,6 +2352,20 @@
+     if (hot) atomic_fetch_add_explicit(&g_yb_hot_sleeps, 1, memory_order_relaxed);   // RewindBox (patch 0087)
+     int rb_sample=rb_latency_on() && !(me->rb_latency_seq++ & 63);
+     uint64_t rb_before=rb_sample ? rb_latency_now() : 0;
++#if defined(__APPLE__)
++    if (!me->is_main && me->prio>=44 && !rb_frame_role && same_poll && run>=2000000 && rb_yield_event_on()) {
++        // Experimental: coalesce a sustained secondary poll to <=1 ms, while
++        // actual host progress wakes it early. Guest timed sleeps stay unchanged.
++        sl=1000000;
++        uint64_t elapsed=rb_yield_event_sleep(sl);
++        atomic_fetch_add_explicit(&g_yb_sleeps,1,memory_order_relaxed);
++        atomic_fetch_add_explicit(&g_yb_sleep_ns,elapsed,memory_order_relaxed);
++        __atomic_store_n(&me->ny_sl,me->ny_sl+elapsed,__ATOMIC_RELAXED);
++        if (rb_sample) rb_latency_add(1,elapsed>sl ? elapsed-sl : 0);
++        me->y_ret=(uint64_t)now_mono_ns();
++        return;
++    }
++#endif
+     struct timespec ts = {0, (long)sl}; RB_WAKE_SYSCALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL));
+     if (rb_sample) { uint64_t elapsed=rb_latency_now()-rb_before; rb_latency_add(1,elapsed>sl ? elapsed-sl : 0); }
+     atomic_fetch_add_explicit(&g_yb_sleeps, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_yb_sleep_ns, sl, memory_order_relaxed);
+@@ -2490,6 +2506,11 @@
+ uint64_t s2a_test_spin_sleeps(void) { return atomic_load(&g_spin_sleeps); }
+ #endif
+ void s2a_yield_stat_log(const char *when) {
++#if defined(__APPLE__)
++    if (atomic_load(&rb_yield_event_waits)) LOG("[rb-yield-event] phase=%s waits=%llu progress=%llu timer_or_other=%llu actual_sleep_ms=%.3f max_requested_us=1000",
++        when,(unsigned long long)atomic_load(&rb_yield_event_waits),(unsigned long long)atomic_load(&rb_yield_event_hits),
++        (unsigned long long)atomic_load(&rb_yield_event_timeouts),atomic_load(&rb_yield_event_ns)/1e6);
++#endif
+     if (g_spin_on >= 0 && atomic_load(&g_spin_pass))
+         LOG("自旋闸 [%s]：过闸 %llu 次，睡 %llu 次、共 %.1f ms", when, (unsigned long long)atomic_load(&g_spin_pass), (unsigned long long)atomic_load(&g_spin_sleeps), atomic_load(&g_spin_sleep_ns) / 1e6);
+     if (g_tw_on >= 0 && atomic_load(&g_tw_pass))
+@@ -3619,6 +3640,7 @@
+     if (!s2a_thread_restart_supported()) return -1;
+     atomic_store(&g_join_verified, 0);
+     atomic_store(&g_session_stop, 1);
++    rb_yield_event_notify();
+     uint64_t deadline = now_ns() + (uint64_t)wait_ms * 1000000;
+     while (atomic_load(&g_live_threads)) {
+         glock();
+@@ -3691,6 +3713,7 @@
+     memset(g_cown, 0, sizeof g_cown); memset(g_cown_t, 0, sizeof g_cown_t);
+     memset(g_cw, 0, sizeof g_cw); g_ncw = 0;
+     pthread_mutex_unlock(&g_cmu);
++    rb_yield_event_reset();
+     atomic_store(&g_session_stop, 0);
+     return 0;
+ }
+--- /dev/null
++++ b/runtime/src/rb_yield_event.inc
+@@ -0,0 +1,63 @@
++// RewindBox (patch 0403), S5 candidate. This is a host progress notification,
++// never a substitute for a guest lock/event predicate. Pure memory polling has
++// no notifier, so it ALWAYS retains a bounded timer. No event-owned allocation.
++#if defined(__APPLE__)
++static pthread_mutex_t rb_yield_event_mu=PTHREAD_MUTEX_INITIALIZER;
++static pthread_cond_t rb_yield_event_cv=PTHREAD_COND_INITIALIZER;
++static _Atomic int rb_yield_event_mode=-1;
++static _Atomic unsigned rb_yield_event_waiters;
++static _Atomic uint64_t rb_yield_event_seq, rb_yield_event_waits, rb_yield_event_hits, rb_yield_event_timeouts, rb_yield_event_ns;
++static int rb_yield_event_on(void) {
++    int mode=atomic_load_explicit(&rb_yield_event_mode,memory_order_relaxed);
++    if (mode<0) {
++        const char *e=getenv("S2A_RB_YIELD_EVENT");
++        const char *cap=getenv("S2A_YIELD_BACKOFF");
++        mode=e && !strcmp(e,"1") && (!cap || !*cap || !strcmp(cap,"1"));
++        atomic_store(&rb_yield_event_mode,mode);
++    }
++    return mode;
++}
++static void rb_yield_event_notify(void) {
++    // Even with no waiter yet, advance the epoch to close registration races.
++    // Default-off has no mutex or system call on the wake path.
++    if (atomic_load_explicit(&rb_yield_event_mode,memory_order_relaxed)!=1) return;
++    atomic_fetch_add_explicit(&rb_yield_event_seq,1,memory_order_seq_cst);
++    if (!atomic_load_explicit(&rb_yield_event_waiters,memory_order_seq_cst)) return;
++    pthread_mutex_lock(&rb_yield_event_mu);
++    RB_WAKE_CALL("yield.event.signal",-2,pthread_cond_broadcast(&rb_yield_event_cv));
++    pthread_mutex_unlock(&rb_yield_event_mu);
++}
++static uint64_t rb_yield_event_sleep(uint64_t budget) {
++    // Snapshot then register: a notifier changes the epoch or signals after
++    // the atomic unlock-and-wait. No G lock is acquired here.
++    uint64_t seq=atomic_load_explicit(&rb_yield_event_seq,memory_order_seq_cst);
++    atomic_fetch_add_explicit(&rb_yield_event_waiters,1,memory_order_seq_cst);
++    pthread_mutex_lock(&rb_yield_event_mu);
++    uint64_t start=(uint64_t)now_mono_ns(), end=start+budget;
++    while (!atomic_load(&g_session_stop) && atomic_load(&rb_yield_event_seq)==seq) {
++        uint64_t now=(uint64_t)now_mono_ns();
++        if (now>=end) break;
++        uint64_t left=end-now;
++        struct timespec rel={(time_t)(left/1000000000ull),(long)(left%1000000000ull)};
++        int rc=RB_WAKE_CALL("yield.event",s2a_rb_wake_relative(&rel),
++                           pthread_cond_timedwait_relative_np(&rb_yield_event_cv,&rb_yield_event_mu,&rel));
++        if (rc && rc!=EINTR) break;
++    }
++    uint64_t elapsed=(uint64_t)now_mono_ns()-start;
++    int changed=atomic_load(&rb_yield_event_seq)!=seq;
++    pthread_mutex_unlock(&rb_yield_event_mu);
++    atomic_fetch_sub_explicit(&rb_yield_event_waiters,1,memory_order_seq_cst);
++    atomic_fetch_add(&rb_yield_event_waits,1);
++    atomic_fetch_add(changed ? &rb_yield_event_hits : &rb_yield_event_timeouts,1);
++    atomic_fetch_add(&rb_yield_event_ns,elapsed);
++    return elapsed;
++}
++static void rb_yield_event_reset(void) {
++    // Called only after the existing join proof: no sleeping old-session owner.
++    atomic_store(&rb_yield_event_mode,-1); atomic_store(&rb_yield_event_seq,0);
++    atomic_store(&rb_yield_event_waits,0); atomic_store(&rb_yield_event_hits,0);
++    atomic_store(&rb_yield_event_timeouts,0); atomic_store(&rb_yield_event_ns,0);
++}
++#else
++static void rb_yield_event_notify(void) {}
++#endif

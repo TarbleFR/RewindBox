@@ -7,6 +7,10 @@ résolution, ne plus toucher à la vitesse ni au rythme des jeux, pas de bricola
 
 Le premier lot est livré dans l’[IPA privée 839 vérifiée](rewind839/delivery.json). Les mesures du décodeur sur Mac figurent en fin de document. Les estimations de la feuille de route et les observations de l’IPA 836 gardent leurs sources propres. La comparaison du candidat sur iPhone reste à réaliser.
 
+## Retour appareil après la livraison 843
+
+[Analyse Zelda du 25 novembre](s2arm-zelda-843-device.md) : les compilations résiduelles provoquent des gels, jusqu’à 9,279 s dans le journal à chaud, mais le cache PSO réutilise 1205 créations contre 84 compilations. La piste initiale d’un writer entièrement bloqué sous chauffe n’est pas confirmée ; les correctifs postérieurs à 0127 et les 78 écritures observées doivent être pris en compte. Une plage de 63,326 s sans nouvelle attente PSO mesurée reste à 23,687 FPS moteur, avec un GPU p50 de fenêtre de 29,69–32,44 ms et 9,288 ms/image d’attente d’allocateur. Préparation graphique et coût permanent sont deux problèmes distincts. La recompilation de la même roulade n’est pas démontrée ; aucun gain causal de 0394–0399, replay pixels ou A/B apparié n’est établi.
+
 ## Point de départ mesuré (IPA 836, moteur 0351)
 
 Médianes des fenêtres de 300 images après l'image 600, journaux du 24 novembre (MKW 011ae443,
@@ -111,9 +115,11 @@ Les réglages des pistes proposées sont des choix à évaluer. Voir le premier 
 - **Implémenté 0398** : ligne `[rb-sync]` et attribution exacte de la branche inter-threads `h_nvnWindowAcquireTexture` (`pt != pthread_self()`), agrégée dans `g_pq_wait_ns` ; `S2A_RB_COMPILE_ORIGIN=1` (opt-in) pour distinguer `<5 ms` (cache Metal système probable) vs `>=5 ms` (froid/évincé).
 - **Restent structurels (S4/S5, conditionnés aux nouvelles mesures)** : présentation sur sa propre file (attend le relevé `[rb-sync]` Fire Emblem + trace Instruments A18 Pro) ; réveil sur événement partagé (`S2A_RB_YIELD_EVENT`, attend `S2A_RB_WAKE_LATENCY=1`).
 
-**Chantiers structurels restants (S1–S5, à valider avant écriture)**
+**Chantiers structurels S1–S5 — engagés le 25 novembre à la demande du mainteneur**
+
+[État du premier lot 0400–0403, contrats et limites](s2arm-structurels-844.md). L’autorisation d’écriture est acquise ; les conditions de mesure ci-dessous restent des conditions de validation, pas des demandes d’autorisation.
 - **S1 — Relecture des commandes hors du fil du jeu** : cible MKW (+20–25 % CPU visés sur la relecture 14–17 ms), risque élevé (cohérence mémoire invité / synchro fine).
-- **S2 — Compilateur Metal 4 (`MTL4PipelineDataSetSerializer` / `MTLDynamicLibrary`) et variantes sommets unifiées** (`nxnative b989137a5` : −22 % de compilation à froid, −41 % CPU Metal sur vertex sans depth-only).
+- **S2 — Compilateur Metal 4 (`MTL4PipelineDataSetSerializer` / `MTLDynamicLibrary`) et variantes sommets unifiées** ([nxnative b989137a51](https://github.com/seedds/nxnative/commit/b989137a51d0801e4f1bb6620b400493211f3f28) : environ −22 % de compilation à froid sur M5 Pro ; le −41 % CPU Metal précédemment associé à ce commit n’y est pas confirmé).
 - **S3 — Profondeur et stencil séparés** : uniquement si `S2A_RB_DS_COMPRESS=1` (0399) montre des mises à niveau `X32_Stencil8` fréquentes sur les cibles principales dans `[rb-ds-compress]`.
 - **S4 — File de présentation Metal dédiée** : conditionné au relevé `[rb-sync]` (`cross_thread_wait_ms`) sur Fire Emblem et à une trace Instruments confirmant le recouvrement sur A18 Pro.
 - **S5 — Consommation CPU des menus (1,4–2,5 W) et `S2A_RB_YIELD_EVENT`** : profil CPU des menus et mesures `S2A_RB_WAKE_LATENCY=1` d'abord.

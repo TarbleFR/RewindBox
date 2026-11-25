@@ -1,0 +1,26 @@
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1625,8 +1625,9 @@
+ static int rb_alloc_frame_on(void) {
+     if (g_rb_alloc_frame_mode < 0) {
+         const char *e = getenv("S2A_RB_ALLOC_FRAME");
+-        // Opt-in until Metal 4 pixel replay and footprint are measured on device.
+-        g_rb_alloc_frame_mode = e && !strcmp(e, "1");
++        // Private NVN2 delivery: retain the same allocator across a frame.
++        // S2A_RB_ALLOC_FRAME=0 restores per-submission rotation.
++        g_rb_alloc_frame_mode = e ? !strcmp(e, "1") : nvn_rb_thermal_scope();
+         MLOG("[rb-alloc-frame] enabled=%d cap=%d reset=after-last-gpu-consumer", g_rb_alloc_frame_mode, ALLOC_MAX);
+     }
+     return g_rb_alloc_frame_mode;
+@@ -1789,6 +1790,11 @@
+         uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
+         int same_frame = rb_allocator_frame_reuse(rb_alloc_frame_on(), frame, g_rb_alloc_frame_id,
+                                                    g_rb_alloc_frame_slot, g_alloc_n);
++        // An allocator may back consecutive buffers without a reset. Rotate
++        // once its retained heaps reach 16 MiB; this is a soft threshold, not
++        // a hard memory cap (a single encoding can grow beyond it).
++        if (same_frame && [g_alloc4[g_rb_alloc_frame_slot] allocatedSize]>=16ull*1024*1024)
++            same_frame=0;
+         int alloc_i = same_frame ? g_rb_alloc_frame_slot : -1, can_reset = !same_frame;
+         uint64_t done = atomic_load_explicit(&g_done, memory_order_acquire);
+         if (same_frame) atomic_fetch_add_explicit(&g_rb_alloc_frame_reuses, 1, memory_order_relaxed);

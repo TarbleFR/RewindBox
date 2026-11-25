@@ -1,0 +1,204 @@
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -16285,8 +16285,16 @@
+ // shaders, so one worker builds them one after the other). The tasks keep the lists' order (a pair at its first line). shader_load shares successful objects and in-flight loads
+ // with prefetch and runtime, without negatively caching failures. After the upstream reference implementation (MIT) warm_parse / warm_task
+ #include "rb_reference.inc"
+-@interface WarmTask : NSObject { @public RBReferenceProof *reference; NSString *referenceIdentity; BOOL externalOnly, recent, drawSeen; uint8_t cupRank,drawRank; NSString *drawCue; uint64_t drawWait, drawFrame; int kind, stage, fc; uint32_t pad; NSString *key, *vkey, *fkey, *tkey; NSMutableArray<NSData *> *rs; } @end   // fc: a C line's sampler-emulation bits this GPU runs (#800, warm_parse)
++@interface WarmTask : NSObject { @public RBReferenceProof *reference; NSString *referenceIdentity; BOOL externalOnly, recent, drawSeen, known, knownReady; uint8_t cupRank,drawRank; NSString *drawCue; uint64_t drawWait, drawFrame; int kind, stage, fc; uint32_t pad; NSString *key, *vkey, *fkey, *tkey; NSMutableArray<NSData *> *rs; } @end   // fc: a C line's sampler-emulation bits this GPU runs (#800, warm_parse)
+ @implementation WarmTask @end
++// RewindBox (patch 0400): actual binds from the last two sessions, not the
++// entire user/reference catalogue. A row remains claimed exactly once.
++static _Atomic long g_rb_known_pending, g_rb_known_total, g_rb_known_ready, g_rb_known_failed;
++static _Atomic int g_rb_known_active, g_rb_known_waited;
++static int rb_known_prepare_on(void) {
++    const char *e=getenv("S2A_RB_PREPARE_KNOWN");
++    return nvn_rb_thermal_scope() && (!e || strcmp(e,"0"));
++}
+ static _Atomic long g_warm_done;   // lines done (the prepare step's progress)
+ static _Atomic int g_wp_phase, g_wp_why, g_wp_play; static _Atomic long g_wp_total; static _Atomic uint64_t g_wp_t0;
+ static void warm_tick_full(long total);   // the front end's (total, total) tick (see s2a_front_warm_tick)   // the host's progress (nvn_warm.h, s2a_warm_progress)
+@@ -16894,6 +16902,7 @@
+ static NSMutableArray<NSNumber *> *g_wu_q;                             // 急件下标（先进先出）
+ static _Atomic(uint8_t) *g_wu_claim; static long g_wu_n;                // 每行「已领」标记
+ static _Atomic long g_wu_remaining;
++static NSMutableArray<NSNumber *> *g_rb_known_rows; // g_wu_lock; live binds go first
+ static _Atomic uint64_t g_wu_bumped, g_wu_taken;                        // 放进急件的行数 / 由急件路领走编的行数
+ #include "rb_pso_transitions.inc"
+ static const char *rb_par_game_build(void) {
+@@ -17017,6 +17026,7 @@
+                     }
+                 }
+             }
++            t->known=hotPhase && rb_known_prepare_on() && t->kind && rb_recent_task(t,recent,legacy);
+             if (rb_pso_cap_on() && t->kind)
+                 t->recent=(hotPhase && ([path isEqual:userPath] || [path isEqual:referenceList] || [hot containsObject:line])) ||
+                           rb_recent_task(t,recent,legacy);
+@@ -17107,10 +17117,12 @@
+ }
+ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
+     NSMutableDictionary<NSString *, NSMutableArray<NSNumber *> *> *m = [NSMutableDictionary dictionary];
++    NSMutableArray<NSNumber *> *known=[NSMutableArray array];
+     long lateRows[2]={0,0}, cupRows[128]={0};
+     NSMutableDictionary<NSString *,NSMutableArray<NSNumber *> *> *routes=[NSMutableDictionary dictionary];
+     for (NSUInteger i = 0; i < tasks.count; i++) {
+         WarmTask *t=tasks[i];
++        if (t->known) [known addObject:@(i)];
+         if (t->drawCue.length && ![t->drawCue hasSuffix:@"_asset"] && t->drawWait) {
+             NSMutableArray *rows=routes[t->drawCue];
+             if (!rows) routes[t->drawCue]=rows=[NSMutableArray array];
+@@ -17132,6 +17144,14 @@
+         NSMutableArray *a = m[k]; if (!a) m[k] = a = [NSMutableArray array]; [a addObject:@(i)]; }
+     _Atomic(uint8_t) *c = calloc(tasks.count ? tasks.count : 1, sizeof *c);
+     os_unfair_lock_lock(&g_wu_lock); free((void *)g_wu_claim); g_wu_claim = c; g_wu_n = (long)tasks.count; atomic_store(&g_wu_remaining, g_wu_n); g_wu_pairs = c ? m : nil; g_wu_q = [NSMutableArray array];
++    if (!c) for (WarmTask *t in tasks) t->known=NO;
++    g_rb_known_rows=c ? known : nil;
++    // Only the hot phase arms the startup wait. Cold indexing never reopens it.
++    if (atomic_load(&g_rb_known_pending)<0) {
++        atomic_store(&g_rb_known_total,c ? known.count : 0);
++        atomic_store(&g_rb_known_pending,c ? known.count : 0);
++        MLOG("[rb-prepare-known] indexed=%lu claim_storage=%s",(unsigned long)known.count,c ? "ready":"unavailable");
++    }
+     memcpy(g_course_starters,cupRows,sizeof cupRows);
+     g_rb_draw_route_rows=routes; rb_draw_route_locked();
+     rb_course_rows_locked(nil);
+@@ -17144,7 +17164,7 @@
+     os_unfair_lock_unlock(&g_wu_lock);
+     if (c) rb_trace_index(tasks, m);
+ }
+-static void warm_urgent_end(void) { os_unfair_lock_lock(&g_wu_lock); g_rb_tier_binds=nil; memset(g_course_starters,0,sizeof g_course_starters); g_rb_draw_route_rows=nil; rb_draw_route_locked(); rb_course_rows_locked(nil); g_wu_pairs = nil; atomic_store(&g_ref_late_live,0); atomic_store(&g_ref_late_hints,0); [g_wu_q removeAllObjects]; os_unfair_lock_unlock(&g_wu_lock); }   // 标记数组留给还没退出的工人读（随下一次索引换掉）
++static void warm_urgent_end(void) { os_unfair_lock_lock(&g_wu_lock); g_rb_tier_binds=nil; memset(g_course_starters,0,sizeof g_course_starters); g_rb_draw_route_rows=nil; rb_draw_route_locked(); rb_course_rows_locked(nil); g_wu_pairs = nil; atomic_store(&g_ref_late_live,0); atomic_store(&g_ref_late_hints,0); [g_wu_q removeAllObjects]; g_rb_known_rows=nil; os_unfair_lock_unlock(&g_wu_lock); }   // 标记数组留给还没退出的工人读（随下一次索引换掉）
+ // 工人领下一行：先急件，再按清单顺序；已领的跳过。→ 下标，-1 = 没有了
+ // Registered rows bypass optional admission on the lanes rb_spec_registered_lanes
+ // gives the thermal state (rb_spec_gate.h); every other lane needs a lease.
+@@ -17199,6 +17219,13 @@
+             i = g_wu_q.firstObject.longValue;
+             [g_wu_q removeObjectAtIndex:0];
+         }
++        // Previously bound recipes use the same bounded admission as live
++        // registrations. They no longer park with speculative catalogue work.
++        while (registered && i<0 && g_rb_known_rows.count) {
++            long row=g_rb_known_rows.firstObject.longValue;
++            [g_rb_known_rows removeObjectAtIndex:0];
++            if (c && row<cn && atomic_load(&c[row])==RB_ROW_FREE) i=row;
++        }
+         BOOL yieldToRegistration=rb_cold_worker && i<0 && ((w!=0 && g_wu_q.count) || observedBusy);
+         BOOL defer = (!capacity && !startupPrimary && g_wu_q.count) || yieldToRegistration;
+         int drained = required ? i < 0 && (!atomic_load(&g_wu_required_remaining) || atomic_load(next) >= n)
+@@ -17328,7 +17355,7 @@
+ static id mtk_warm(const pso_skey *sk, NSString *mkey, NSString *fkey, NSString *tkey, uint32_t pad, NSData **key);   // nvn_geometry.inc
+ static void mtk_warm_claim(NSData *key, id ps);
+ static void warm_task_local(WarmTask *t) { atomic_fetch_add(&g_warm_busy, 1); par_write_in_place = 1; uint64_t libraries=t_rb_msl_n; warm_task_(t); if (t->reference) atomic_fetch_add(&t->reference->compiledLibraries,t_rb_msl_n-libraries); par_write_in_place = 0; atomic_fetch_sub(&g_warm_busy, 1); }   // the prewarm writes what it compiles into the archive (pso_archive.h)
+-static void warm_task(WarmTask *t) {
++static void warm_task_build(WarmTask *t) {
+     if (!rb_picked_registered) { warm_task_local(t); return; }
+     rb_picked_registered = NO;
+     // Preserve the warm group's completion, reference accounting and teardown
+@@ -17345,6 +17372,14 @@
+     }, 1)) dispatch_semaphore_wait(done, DISPATCH_TIME_FOREVER);
+     rb_warm_context = NO;
+ }
++static void warm_task(WarmTask *t) {
++    warm_task_build(t);
++    if (t->known && atomic_load(&g_rb_known_active)) {
++        atomic_fetch_add(t->knownReady ? &g_rb_known_ready : &g_rb_known_failed,1);
++        // Completion, not claim, releases the startup wait.
++        atomic_fetch_sub(&g_rb_known_pending,1);
++    }
++}
+ static void warm_task_(WarmTask *t) {
+     BOOL context=rb_warm_context; rb_warm_context=NO;
+     if (rb_gov_on() && t->kind && !t->reference && !context) {
+@@ -17371,13 +17406,13 @@
+             if (cs && !fn) { g_warm_skip_fz++; g_warm_done++; return; }
+             id ps = fn ? par_compute(fn, par_ckey(cs, t->fc), &e) : nil;
+             if (cs && !ps) MLOG("【红】 background compute pipeline creation failed: %s", e.localizedDescription.UTF8String);
+-            if (ps) { WarmItem *item = [WarmItem new]; item->kind = 2; item->fc = t->fc; item->key = t->key; item->shader = cs; item->object = ps; warm_enqueue(item); g_warm_cps++; }
++            if (ps) { t->knownReady=YES; WarmItem *item = [WarmItem new]; item->kind = 2; item->fc = t->fc; item->key = t->key; item->shader = cs; item->object = ps; warm_enqueue(item); g_warm_cps++; }
+             g_warm_done++; return;
+         }
+         if (t->kind == 4) {   // a task / mesh pipeline: built here and handed to the mesh draws' table (nvn_geometry.inc), so the scene's first mesh draw neither waits nor is skipped
+             pso_skey sk; [t->rs[0] getBytes:&sk length:sizeof sk]; NSData *mk = nil;
+             id ps = mtk_warm(&sk, t->vkey, t->fkey, t->tkey, t->pad, &mk);
+-            if (ps) { WarmItem *item = [WarmItem new]; item->kind = 4; item->object = ps; item->mkey = mk; warm_enqueue(item); g_warm_mps++; }
++            if (ps) { t->knownReady=YES; WarmItem *item = [WarmItem new]; item->kind = 4; item->object = ps; item->mkey = mk; warm_enqueue(item); g_warm_mps++; }
+             g_warm_done++; return;
+         }
+         pso_skey sk; [t->rs[0] getBytes:&sk length:sizeof sk];
+@@ -17412,7 +17447,7 @@
+                 pso_skey drawRecipe; pso_skey_from(&k,vs,fs,sk.merged,sk.fz ? &sk.fz_desc : NULL,&drawRecipe);
+                 item->drawRecipe=[NSData dataWithBytes:&drawRecipe length:sizeof drawRecipe];
+             }
+-            warm_enqueue(item); g_warm_rps++;
++            warm_enqueue(item); t->knownReady=YES; g_warm_rps++;
+         }
+     }
+ }
+@@ -17770,11 +17805,43 @@
+     warm_start_mode(1);
+ }
+ static void warm_start(void) { warm_start_mode(0); }
++static void rb_wait_known_prepare(void) {
++    if (!atomic_load(&g_rb_known_active) || atomic_exchange(&g_rb_known_waited,1)) return;
++    uint64_t start=bp_now();
++    int configured=prepare_max_ms();
++    uint64_t limit=(uint64_t)(configured>0 ? MIN(configured,30000) : 30000)*1000000ull;
++    const char *reason="completed";
++    int front=0;
++    DM_BLOCK_BEGIN();
++    for (;;) {
++        long left=atomic_load(&g_rb_known_pending), total=atomic_load(&g_rb_known_total);
++        if (!left) break;
++        if (nvn_be_stopping() || dm_gfx_session_stopping()) { reason="stop"; break; }
++        if (bp_now()-start>=limit) { reason="time_budget"; break; }
++        if (rb_cached_thermal()>=3 || !rb_metal_working_room() || !rb_registered_capacity() ||
++            bp_now()<atomic_load(&g_spec_pressure_until)) { reason="pressure"; break; }
++        if (atomic_load(&g_wp_play)) { reason="player"; break; }
++        // A subset is not the completion of the full warm-up catalogue.
++        if (total>0) {
++            int result=s2a_front_warm_tick(total-MAX(left,0),total+1);
++            front|=result>=0;
++            if (result==1) { reason="player"; break; }
++        }
++        usleep(50000);
++    }
++    DM_BLOCK_END();
++    if (front) s2a_front_warm_released();
++    MLOG("[rb-prepare-known] release=%s elapsed_ms=%.1f total=%ld ready=%ld failed=%ld pending=%ld",
++        reason,(bp_now()-start)/1e6,atomic_load(&g_rb_known_total),atomic_load(&g_rb_known_ready),
++        atomic_load(&g_rb_known_failed),atomic_load(&g_rb_known_pending));
++}
+ static void rb_warm_at_submit(void) {
+-    if (atomic_load(&g_warm_started) || nvn_be_stopping()) return;
++    if (nvn_be_stopping()) return;
++    if (atomic_load(&g_warm_started)) { rb_wait_known_prepare(); return; }
+     if (atomic_load(&g_rb_warm_resume)) { rb_warm_resume(); return; }
+     if (atomic_load_explicit(&g_shmap_ready, memory_order_acquire) ||
+         (getenv("DM_NVN_SHMAP") && (rb_ref_path() || prepare_on()))) shmap_load();
++    rb_wait_known_prepare();
+ }
+ static void warm_start_mode(int resumed) {
+     if (atomic_exchange(&g_warm_started, 1)) return;
+@@ -17802,6 +17869,10 @@
+         return;
+     }
+     if (rb_startup_tiers()) {
++        if (!resumed && rb_known_prepare_on()) {
++            atomic_store(&g_rb_known_pending,-1);
++            atomic_store(&g_rb_known_active,1);
++        }
+         os_unfair_lock_lock(&g_wu_lock); g_rb_tier_binds=[NSMutableSet set]; os_unfair_lock_unlock(&g_wu_lock);
+         atomic_store(&g_wp_total,0); atomic_store(&g_wp_why,WARM_WHY_CONFIG); atomic_store(&g_wp_phase,WARM_BG);
+         dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0),^{ @autoreleasepool { rb_run_tiers(paths); } });
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -394,6 +394,9 @@
+     return 0;
+ }
+ void nvn_be_begin_session(void) {
++    atomic_store(&g_rb_known_active,0); atomic_store(&g_rb_known_waited,0);
++    atomic_store(&g_rb_known_pending,0); atomic_store(&g_rb_known_total,0);
++    atomic_store(&g_rb_known_ready,0); atomic_store(&g_rb_known_failed,0);
+     atomic_store_explicit(&g_rb_bl_all_titles, -1, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_pool_scan_ahead, -1, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_pool_ahead_batches, 0, memory_order_relaxed);

@@ -1,0 +1,122 @@
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -12421,6 +12421,7 @@
+     t_lib_layer = [src containsString:@"render_target_array_index"];
+     return rb_source_library(src, stage_depth_moded(stage) || rb_async_pso(), error);
+ }
++#include "rb_vertex_entry.inc"
+ // Only deterministic compiler failures on device-generated MSL enter this set.
+ static NSMutableDictionary<NSString *, NSString *> *g_rb_rejected_msl;
+ static int rb_msl_rejected(NSError *e) {
+@@ -12571,7 +12572,7 @@
+         if (!lib && used) {
+             t_rb_pack_source_reason = used == original ? "native_slice_unavailable" : "rewritten_air_unavailable";
+             t_rb_pack_source_key = pc.UTF8String;
+-            lib = rb_stage_library(used, stage, &e);
++            lib = rb_vertex_library(used, stage, layer, depth_zero, j, &e);
+             t_rb_pack_source_reason = t_rb_pack_source_key = NULL;
+         }
+     }
+@@ -12584,7 +12585,7 @@
+         os_unfair_lock_unlock(&g_shader_lock);
+         if (refused && src && [refused isEqual:(digest = rb_msl_digest(src))]) src = nil;
+         if (src && stage == 0) src = rb_msl_base_instance(src, pc.UTF8String);   // RewindBox (patch 0066)
+-        if (src) lib = rb_stage_library(src, stage, &e);
++        if (src) lib = rb_vertex_library(src, stage, layer, depth_zero, j, &e);
+         if (lib) { rb_src = fallbackPath; MLOG("shader %s loaded from the fallback translation (%s)", pc.UTF8String, fb); }
+     }
+     unsigned rb_bi_n = t_rb_binst_reads; int rb_bi_seen = t_rb_binst_seen; t_rb_binst_reads = 0; t_rb_binst_seen = 0;   // RewindBox (patch 0066): what rb_msl_base_instance did to the source compiled above
+@@ -12594,7 +12595,7 @@
+         lib = lib_from_pack(pc.UTF8String, &e);
+     }
+     if (!lib && rb_bi_n) { rb_binst_refused(pc.UTF8String, e); e = nil; rb_bi_n = 0; rb_bi_seen = 0; NSString *s0 = [NSString stringWithContentsOfFile:fallbackPath encoding:NSUTF8StringEncoding error:&e];
+-        if (s0) lib = rb_stage_library(s0, stage, &e); }   // RewindBox (patch 0066): Metal refused the rewritten source: the translation as written, as before
++        if (s0) lib = rb_vertex_library(s0, stage, layer, depth_zero, j, &e); }   // RewindBox (patch 0066): Metal refused the rewritten source: the translation as written, as before
+     if (!lib && original.length && pc.length == 18 && [pc hasSuffix:@"_b"] &&
+         (rb_msl_rejected(e) || (refused && [refused isEqual:digest]))) {
+         digest = digest ?: rb_msl_digest(original);
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -394,6 +394,8 @@
+     return 0;
+ }
+ void nvn_be_begin_session(void) {
++    atomic_store(&rb_vertex_entry_mode,-1);
++    atomic_store(&rb_vertex_entry_cuts,0); atomic_store(&rb_vertex_entry_fallbacks,0);
+     atomic_store(&g_rb_known_active,0); atomic_store(&g_rb_known_waited,0);
+     atomic_store(&g_rb_known_pending,0); atomic_store(&g_rb_known_total,0);
+     atomic_store(&g_rb_known_ready,0); atomic_store(&g_rb_known_failed,0);
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_vertex_entry.inc
+@@ -0,0 +1,71 @@
++// RewindBox (patch 0402), S2 first slice: compile only the depth convention
++// selected for this shader identity. The translated file and its fingerprint
++// remain intact; content-keyed Metal libraries isolate the compiled variants.
++static _Atomic int rb_vertex_entry_mode=-1;
++static _Atomic uint64_t rb_vertex_entry_cuts, rb_vertex_entry_fallbacks;
++static int rb_vertex_entry_on(void) {
++    int mode=atomic_load(&rb_vertex_entry_mode);
++    if (mode<0) {
++        const char *e=getenv("S2A_RB_VERTEX_ENTRY");
++        mode=e ? !strcmp(e,"1") : nvn_rb_thermal_scope();
++        atomic_store(&rb_vertex_entry_mode,mode);
++    }
++    return mode;
++}
++static NSString *rb_vertex_prune(NSString *src, NSString *drop) {
++    // Only the generated, unprefixed vertex form is accepted. A second use of
++    // the name (including a call) keeps the original source conservatively.
++    NSString *escaped=[NSRegularExpression escapedPatternForString:drop];
++    NSRegularExpression *uses=[NSRegularExpression regularExpressionWithPattern:
++        [NSString stringWithFormat:@"\\b%@\\s*\\(",escaped] options:0 error:nil];
++    NSRange whole=NSMakeRange(0,src.length);
++    if ([uses numberOfMatchesInString:src options:0 range:whole]!=1) return src;
++    NSRegularExpression *entry=[NSRegularExpression regularExpressionWithPattern:
++        [NSString stringWithFormat:@"(?m)^vertex[ \\t]+[A-Za-z_][A-Za-z_0-9]*[ \\t]+%@\\s*\\(",escaped]
++        options:0 error:nil];
++    NSTextCheckingResult *match=[entry firstMatchInString:src options:0 range:whole];
++    if (!match) return src;
++    NSUInteger start=match.range.location, pos=NSMaxRange(match.range);
++    int depth=0, state=0, opened=0;
++    for (;pos<src.length;++pos) {
++        unichar c=[src characterAtIndex:pos], next=pos+1<src.length ? [src characterAtIndex:pos+1] : 0;
++        if (state==1) { if (c=='\n') state=0; continue; }
++        if (state==2) { if (c=='*' && next=='/') { ++pos; state=0; } continue; }
++        if (state==3 || state==4) {
++            if (c=='\\') { ++pos; continue; }
++            if ((state==3 && c=='"') || (state==4 && c=='\'')) state=0;
++            continue;
++        }
++        if (c=='/' && next=='/') { state=1; ++pos; continue; }
++        if (c=='/' && next=='*') { state=2; ++pos; continue; }
++        if (c=='"' || c=='\'') { state=c=='"' ? 3:4; continue; }
++        if (c=='#' || (!opened && c==';')) return src;
++        if (c=='{') { opened=1; ++depth; }
++        if (c=='}') {
++            if (!opened || depth<=0) return src;
++            if (!--depth) return [src stringByReplacingCharactersInRange:NSMakeRange(start,pos+1-start) withString:@""];
++        }
++    }
++    return src;
++}
++static id<MTLLibrary> rb_vertex_library(NSString *src,int stage,int layer,int depth,NSDictionary *j,NSError **error) {
++    if (stage!=0 || layer || !rb_vertex_entry_on() || [j[@"fn_prefix"] length] ||
++        j[@"entry_layer"] || ![j[@"entry"] isEqual:@"main0"] || ![j[@"entry_z"] isEqual:@"main0_z"])
++        return rb_stage_library(src,stage,error);
++    NSString *keep=depth ? @"main0_z":@"main0", *drop=depth ? @"main0":@"main0_z";
++    NSString *cut=rb_vertex_prune(src,drop);
++    if (cut==src) return rb_stage_library(src,stage,error);
++    NSError *local=nil;
++    id<MTLLibrary> lib=rb_stage_library(cut,stage,&local);
++    NSString *capture=j[@"entry_geometry_capture"];
++    if (lib && [lib.functionNames containsObject:keep] && (!capture || [lib.functionNames containsObject:capture])) {
++        uint64_t n=atomic_fetch_add(&rb_vertex_entry_cuts,1)+1;
++        if (n<=4 || !(n&(n-1))) MLOG("[rb-vertex-entry] compiled=%llu keep=%s bytes_removed=%lu",(unsigned long long)n,
++            keep.UTF8String,(unsigned long)(src.length-cut.length));
++        return lib;
++    }
++    uint64_t n=atomic_fetch_add(&rb_vertex_entry_fallbacks,1)+1;
++    if (n<=4 || !(n&(n-1))) MLOG("[rb-vertex-entry] original_fallback=%llu reason=%s",(unsigned long long)n,
++        local ? local.localizedDescription.UTF8String : "entry missing");
++    return rb_stage_library(src,stage,error);
++}

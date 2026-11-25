@@ -582,3 +582,20 @@ Lot complémentaire générique NVN/NVN2 couvrant les cinq axes (dans la même v
   - `test_global_opt.py` : **39/39** contrôles, 0 échec (`test_global_opt_c` : 20/20 compilé `-Wall -Wextra -Werror` ; exécution GPU Apple Paravirtual `test_0396_gpu` : `mul_fails=0 nc_fails=0 mark_fails=0` ; `test_ds_compress_metal` : `64x64 Depth32Float_Stencil8 compressed->PFV upgrade + X32_Stencil8 readback bit-exact (fails=0)`).
   - Tests natifs `t_guest_file_retry` et `t_guest_file_auto` : **0 écart**.
   - Compilation iOS complète (`make ios`), inventaire des licences/symboles et pin vérifiés (`4bb8b447f`, run d'attestation [45631236077](https://github.com/TarbleFR/RewindBox/actions/runs/45631236077) vert ; `engine-pin.json` SHA-256 `3f0f6cc9…`, `S2ArmEngine` empreinte `f87cc73d…`, `NS2Pro` inchangé). Livré dans l'[IPA privée 843](../../../docs/evidence/rewind843/delivery.json) ; mesures A18 Pro en attente.
+
+
+## Correctifs des gels et premiers travaux S1–S5 (0400–0403, 25 novembre 2026)
+
+[Preuve et limites](../../../docs/evidence/s2arm-structurels-844.md). 0400 distingue
+les recettes réellement liées du catalogue et les prépare sous admission bornée,
+avec une attente de démarrage qui suit les achèvements. 0401 active les allocateurs
+par image NVN2, rotation à 16 Mio retenus, dernier consommateur GPU toujours attendu
+avant reset. 0402 retire l’entrée vertex de profondeur inutilisée de la seule
+compilation MSL, avec repli sur le source original. 0403 fournit un candidat
+`S2A_RB_YIELD_EVENT=1`, désactivé par défaut, pour les polls secondaires stables
+(timer de secours ≤1 ms demandé, notifications de progression et arrêt conservés).
+Replis : `S2A_RB_PREPARE_KNOWN=0`, `S2A_RB_ALLOC_FRAME=0`,
+`S2A_RB_VERTEX_ENTRY=0`. Aucun changement d’empreinte du traducteur, aucune purge.
+S1/S3/S4 restent au contrat de propriété et aux mesures indiquées dans la preuve ;
+aucun worker de replay ni nouvelle file GPU de présentation n’est activé.
+Compilation iOS à suivre. Aucun nouveau test ajouté ; appareil non testé.
