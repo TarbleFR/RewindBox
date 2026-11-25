@@ -1,0 +1,37 @@
+{
+  "armsx2_internal_bridge": {
+    "actual": "2a232ea1ce3d6ce393b28b681e9c444f56d5c2f9a0dd4bb054e202c0c02daf95",
+    "reference843": "2a232ea1ce3d6ce393b28b681e9c444f56d5c2f9a0dd4bb054e202c0c02daf95",
+    "reference836": "2a232ea1ce3d6ce393b28b681e9c444f56d5c2f9a0dd4bb054e202c0c02daf95",
+    "matchedReference843": true,
+    "matchedKnownLinkerAlternate": false
+  },
+  "dolphin_internal_bridge": {
+    "actual": "9d9ef0fe88654125465ae9c22b9f85249f620e1fbc048d6ba458d94a99a87fb3",
+    "reference843": "78e3dc29d0bb0b27d4243607e634382e10cd122a2183542fc3ff32d52ba07a9c",
+    "reference836": "9d9ef0fe88654125465ae9c22b9f85249f620e1fbc048d6ba458d94a99a87fb3",
+    "matchedReference843": false,
+    "matchedKnownLinkerAlternate": true
+  },
+  "libretro_internal_bridge": {
+    "actual": "6947ddfec2e0af0416726402ddba857a0b18d085071a9440fc3a78f627105ab7",
+    "reference843": "6947ddfec2e0af0416726402ddba857a0b18d085071a9440fc3a78f627105ab7",
+    "reference836": "6947ddfec2e0af0416726402ddba857a0b18d085071a9440fc3a78f627105ab7",
+    "matchedReference843": true,
+    "matchedKnownLinkerAlternate": false
+  },
+  "melonx_internal_bridge": {
+    "actual": "5834529880394cce395b82b5a651838fec348f97e5d41b3d8fef9567ceab7d5b",
+    "reference843": "5834529880394cce395b82b5a651838fec348f97e5d41b3d8fef9567ceab7d5b",
+    "reference836": "5834529880394cce395b82b5a651838fec348f97e5d41b3d8fef9567ceab7d5b",
+    "matchedReference843": true,
+    "matchedKnownLinkerAlternate": false
+  },
+  "rpcs3_internal_bridge": {
+    "actual": "f852400ebda027398fd8d39d1d136b62013ef87a6284fa3f33fc1bdaa9bc99d3",
+    "reference843": "f852400ebda027398fd8d39d1d136b62013ef87a6284fa3f33fc1bdaa9bc99d3",
+    "reference836": "f852400ebda027398fd8d39d1d136b62013ef87a6284fa3f33fc1bdaa9bc99d3",
+    "matchedReference843": true,
+    "matchedKnownLinkerAlternate": false
+  }
+}

@@ -27,7 +27,7 @@ ces trois essais et ne permettent pas de leur attribuer un état thermique préc
    - `S2A_RB_PSO_WAIT_BOOST=1` ;
    - `S2A_RB_ARCHIVE_ERROR_NIL=1`.
 
-Vérifications locales : `git apply` 0001–0417 (413 patchs) OK, `t_rb_ubo_versions` + stress OK, `S2A.Dsh` Release OK, `s2arm_prepare_identity_test.py` 20/20, `s2arm_engine_bridge_test.py` 274/274, `s2arm_pinned_engine_test.py` 25/25. Compilation CI iPhoneOS moteur et livraison IPA 844 à suivre ; aucun gain mesuré sur iPhone.
+Vérifications locales : `git apply` 0001–0417 (413 patchs) OK, `t_rb_ubo_versions` + stress OK, `S2A.Dsh` Release OK, `s2arm_prepare_identity_test.py` 20/20, `s2arm_engine_bridge_test.py` 274/274, `s2arm_pinned_engine_test.py` 25/25. Compilation CI iPhoneOS moteur ([45672467487](https://github.com/TarbleFR/RewindBox/actions/runs/45672467487)), attestation d'épingle ([45675386809](https://github.com/TarbleFR/RewindBox/actions/runs/45675386809)) et livraison privée IPA 844 ([45676121964](https://github.com/TarbleFR/RewindBox/actions/runs/45676121964)) réussies ; aucun gain mesuré sur iPhone.
 
 ## Reconstruction visible au changement de `xfp` et preuve stricte (0414 + pont)
 
@@ -284,8 +284,7 @@ sans ajouter ces garanties. Ce transfert n'est donc pas inclus dans le candidat.
 
 ## Vérification et livraison
 
-Écriture et revue de source effectuées ; compilation iPhoneOS à lancer sur les
-deux runners du workflow existant. Aucun nouveau test ou suite approfondie ajouté,
-conformément à la consigne du dépôt. Les contrôles de configuration, outils,
-licences, ABI, signature et empreintes restent requis. Replay pixels et mesures
-iPhone non exécutés. La maturité pondérée reste 50 / 60 / 65 / 35 / 25, soit 50 %.
+- **Moteur S2Arm 0001–0417 (413 patchs, source `197dd41ab`)** : compilation iPhoneOS réussie sur `macos-15` et `macos-26` ([run 45672467487](https://github.com/TarbleFR/RewindBox/actions/runs/45672467487), artefact `15052180211`, `25 650 657` octets, SHA-256 `09c6229357309786a54476809165cdaa579de103c64c50158227544cc9e38f80`).
+- **Épingle `engine-pin.json` (`d9811f9ba`)** : attestée bit-à-bit en CI ([run 45675386809](https://github.com/TarbleFR/RewindBox/actions/runs/45675386809), SHA-256 `328b9024…8d58b`) ; `S2ArmEngine` `40132146ce8c73d72946045c69cb5e2b82cf827fba8b5409d2491a084ae3e7b1`, `NS2Pro` inchangé (`8a3320df…8654`), `S2ArmShaderXfp.txt = ecd99354f03b846d`, `S2ArmDirectChain.txt = 0be3f28548fd`.
+- **Livraison privée IPA 844 (`ed9c3c570`, base vérifiée 843)** : [run 45676121964](https://github.com/TarbleFR/RewindBox/actions/runs/45676121964) tentative 1 (`preflight`, `republish`, `application` verts ; groupes `flutter` et `native` marqués `not-run`). Déchiffrée et vérifiée hors ligne ([reçu](rewind844/delivery.json), [vérification](rewind844/download844-verification.json), [ponts](rewind844/bridge-comparison.json)) : `335 477 432` octets, SHA-256 `0e1c0abbb14e14dec2800348f3537f6525756aec0640646af2038b1a694f45e5`, 11 bundles `0.0.8 (844)`, 98 images natives, 49 empreintes retenues vérifiées, 6/6 validateurs hors ligne à `0`, `S2ArmShaderXfp.txt` / `S2ArmDirectChain.txt` / `fr.lproj/S2ArmHost.strings` vérifiés dans `Payload/NeoStation.app/Frameworks/S2ArmEngine.framework/`. `S2ArmEngine` et `Runner` changés et déclarés ; `dolphin_internal_bridge` (`9d9ef0fe…`) sans changement de source correspond exactement à la variante connue d'éditeur de liens déjà observée dans les IPA 830 et 836, les quatre autres ponts étant identiques octet par octet à la 843.
+- **Limites** : aucun nouveau test ni suite approfondie automatique ajouté ; replay pixels, cadence, mémoire, chauffe et comportement visuel sur iPhone A18 Pro **non mesurés**. La maturité pondérée reste **50 / 60 / 65 / 35 / 25**, soit **50 %**.
