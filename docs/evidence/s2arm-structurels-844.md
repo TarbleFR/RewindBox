@@ -14,6 +14,21 @@ ne prouve ni une suppression de cache ni l'absence totale de compilation lors
 des deux premiers essais. Les anciens journaux MKW de l'archive ne datent pas
 ces trois essais et ne permettent pas de leur attribuer un état thermique précis.
 
+## Coupures uniformes in-pass, `early_z` NVN2 et activations par défaut (0415–0417)
+
+À la demande du mainteneur, trois chantiers complémentaires entrent dans le même lot IPA 844 (sans configuration `env.txt` côté joueur, chaque point conservant son interrupteur de repli) :
+
+1. **Coupures de passes sur uniformes in-pass (`0415`)** : dans les journaux Zelda 843 (`residency set`, images 6000–7500), 5 121 à 5 282 ombres partielles d'uniformes par 300 images étaient refusées pour « earlier submission running » avec **0** récupération `[rb-ubo-ring]` (~17,5 coupures de passes/image). Cause prouvée dans `rb_ubo_versions.h` : `RB_UB_FRAMES = 5` (seulement 4 soumissions commitées conservées avant écrasement par `g_fence + 1`), alors que Zelda soumet 7 à 17 pièces par image (donc 15 à 35+ fences en vol), et `RB_UB_SPANS = 128`. `0415` porte l'anneau à `64` soumissions, `512` plages de hasard par soumission et un pool partagé de `512` pages à bitset 64 bits (~2,80 Mio statiques, éviction conservative en plage opaque), avec compteurs de diagnostic `[rb-ubo-ring]`. Vérifié en C (`t_rb_ubo_versions` + stress 35 fences/200 plages/éviction, `-Wall -Wextra -Werror`).
+2. **`early_z` NVN2 dans le traducteur (`0416`)** : `Dsh.cs` ne propageait `early_z` que pour Switch 1 (`ctl[0x718] & 1`). `0416` ajoute `Nvn2.EarlyZ(ctl)` (`ctl[0x5b] != 0` sur en-tête `0x98761234` / `0xc9`), le relie dans `Nvn2Job` vers `GpuGraphicsState.EarlyZForce` → `ExecutionMode.EarlyFragmentTests` → `[[early_fragment_tests]]` (repli `S2A_RB_NVN2_EARLY_Z=0` via `libc getenv` avec `xfp` dédié), renseigne `early_z` dans la réflexion JSON et évite tout doublon d'attribut dans `PoolArrays`. Compilé localement en C# Release (.NET 10, 0 erreur, 0 avertissement ; `xfp = ecd99354f03b846d`).
+3. **Activation par défaut des optimisations déjà encodées (`0417`)** : active par défaut en mode NVN2 hébergé (`nvn_rb_thermal_scope()`, tests autonomes inchangés) :
+   - `S2A_RB_DISPATCH_ORDER=game` — avec correction préalable d'un bug critique de `0371` qui avait placé la garde dans `blit()` (copies texture) au lieu de `dispatch_enc()` (dispatches compute), risquant de supprimer les barrières entre copies `texture→buffer→texture` sans optimiser les dispatches compute ;
+   - `S2A_RB_SPARSE_FAST_COPY=1` ;
+   - `S2A_RB_TILE_RASTER_CLEAR=1` (cohérent avec `rb_tile_session_begin()`) ;
+   - `S2A_RB_PSO_WAIT_BOOST=1` ;
+   - `S2A_RB_ARCHIVE_ERROR_NIL=1`.
+
+Vérifications locales : `git apply` 0001–0417 (413 patchs) OK, `t_rb_ubo_versions` + stress OK, `S2A.Dsh` Release OK, `s2arm_prepare_identity_test.py` 20/20, `s2arm_engine_bridge_test.py` 274/274, `s2arm_pinned_engine_test.py` 25/25. Compilation CI iPhoneOS moteur et livraison IPA 844 à suivre ; aucun gain mesuré sur iPhone.
+
 ## Reconstruction visible au changement de `xfp` et preuve stricte (0414 + pont)
 
 Le mainteneur signale ensuite que, **même téléphone froid, Zelda ne lance aucune

@@ -1,0 +1,134 @@
+diff --git a/graphics/tools/direct/dsh/Dsh.cs b/graphics/tools/direct/dsh/Dsh.cs
+index 5f62a72..f3ac4d8 100644
+--- a/graphics/tools/direct/dsh/Dsh.cs
++++ b/graphics/tools/direct/dsh/Dsh.cs
+@@ -45,19 +45,29 @@ namespace S2A.Dsh
+         public static Func<string, string> PackMslRead;   // 出包：配对顶点读片元 _b.metal 的来处（批量进程给「从产物表读」，就不在 PackMsl 里另留一份全文；11-02 马力欧派对 5.2 万支片元全文常驻约 7 GB）；null = 照旧查 PackMsl
+         public static HashSet<string> PackMslKeep;   // 出包：要留的那些名字（<片元键>_b.metal，配对表第二列）；null = 全留   // 出包批量进程（batch/Program.cs）置真：另写 <键>_b.plain.metal 与变体源码 _bv / _bf / _ft（编译归出包编排层；设备现编不出变体）
+         /// <summary>翻译器指纹（S2A.Dsh.csproj DshXfpHash：本库与所引翻译器工程源码的哈希）：现编结果 json 带它，宿主比 s2a_dsh_xfp() 不等就不复用（链号不随翻译器变，兜底目录跨 App 更新保留）</summary>
+-        public static string Xfp => (WideMemoryEnabled(), ShaderOptEnabled()) switch
+-        {
+-            (true, true) => DshChain.Xfp,
+-            (false, true) => XfpWideOff,
+-            (true, false) => XfpOptOff,
+-            (false, false) => XfpBothOff,
+-        };
++        public static string Xfp => XfpFor(WideMemoryEnabled(), ShaderOptEnabled(), Nvn2EarlyZEnabled());
+         static string DeriveXfp(string suffix) => Convert.ToHexStringLower(SHA256.HashData(Encoding.ASCII.GetBytes(DshChain.Xfp + suffix)))[..16];
++        internal static string XfpFor(bool wide, bool opt, bool nvn2EarlyZ) => (wide, opt, nvn2EarlyZ) switch
++        {
++            (true, true, true) => DshChain.Xfp,
++            (false, true, true) => XfpWideOff,
++            (true, false, true) => XfpOptOff,
++            (false, false, true) => XfpBothOff,
++            (true, true, false) => XfpEz2Off,
++            (false, true, false) => XfpWideEz2Off,
++            (true, false, false) => XfpOptEz2Off,
++            (false, false, false) => XfpAllOff,
++        };
+         internal static readonly string XfpWideOff = DeriveXfp(":wide=0");
+         internal static readonly string XfpOptOff = DeriveXfp(":opt=0");
+         internal static readonly string XfpBothOff = DeriveXfp(":wide=0:opt=0");
++        internal static readonly string XfpEz2Off = DeriveXfp(":ez2=0");
++        internal static readonly string XfpWideEz2Off = DeriveXfp(":wide=0:ez2=0");
++        internal static readonly string XfpOptEz2Off = DeriveXfp(":opt=0:ez2=0");
++        internal static readonly string XfpAllOff = DeriveXfp(":wide=0:opt=0:ez2=0");
+         public static bool WideMemoryEnabled() => Ryujinx.Graphics.Shader.Translation.Translator.WideMemoryEnabled();
+         public static bool ShaderOptEnabled() => Ryujinx.Graphics.Shader.Translation.Translator.ShaderOptEnabled();
++        public static bool Nvn2EarlyZEnabled() => DshCApi.ReadEnvToggle("S2A_RB_NVN2_EARLY_Z");
+         static readonly string[] Stages = { "vs", "ps", "cs", "gs", "ts", "ms" };   // C 导出的阶段号：4 / 5 = NVN2 任务 / 网格（dsh_miss.inc dsh_stage）
+         public static string StageName(int stage) => stage >= 0 && stage < Stages.Length ? Stages[stage] : null;
+ 
+@@ -220,6 +230,8 @@ namespace S2A.Dsh
+                 if (stage == "cs") j["nvn2_cs"] = new JsonArray(ctl[0xb1], ctl[0xb2], ctl[0xb3], BitConverter.ToUInt16(ctl, 0xba), ctl[0xa9] * 4, ctl[0xb4], ctl[0xb5]);
+                 if (stage == "ds") j["tess_mode"] = (long)Nvn2.TessMode(ctl);
+                 if (stage == "hs") j["tess_mode"] = T.TessModes.Count > 0 ? (long)T.TessModes.First().Value : 1L;
++                // RewindBox (patch 0416): Switch 2 (NVN2) fragment early_fragment_tests flag (+0x5b != 0; rollback S2A_RB_NVN2_EARLY_Z=0).
++                if (stage == "ps" && Nvn2EarlyZEnabled()) j["early_z"] = Nvn2.EarlyZ(ctl);
+                 j["debug"] = stage is "gs" or "cs"; j["reduced"] = true;
+                 if (!T.Facts.TryGetValue(Key, out var f))
+                 {
+@@ -500,6 +512,7 @@ namespace S2A.Dsh
+                     if (res["cbufs"] is JsonArray cbs) foreach (var c in cbs) { int b = (int)c["binding"], sl = (int)c["slot"]; if (sl >= 3 && sl <= 16) pu.Add(new List<object> { (long)b, (long)(sl - 3) }); else if (sl == 1) pu.Add(new List<object> { (long)b, -1L }); }   // −1 = 这支着色器自带的常量段 c1（json c1，宿主 rf.c1）
+                     refl["pos_ubo"] = pu;
+                 }
++                if (stage == "ps" && j["early_z"] is JsonNode ez) refl["early_z"] = (bool)ez;
+                 if (stage == "ps" && res["uses_frag_coord"] is JsonNode ufc && (bool)ufc) refl["frag_coord"] = true;   // 宽屏：读片元坐标（同 dmsh_build.py，宿主按它写 render_scale[0]）
+                 if (res["cbuf_use"] is JsonNode cu) refl["cbuf_use"] = (string)cu;   // 宽屏：每个常量寄存器读哪些 vec4（同 dmsh_build.py，宿主交给 s2a_widen_shader）
+                 if (verifyUniforms) RbUniformExtents.Record(refl, uniformSpv, res, full);
+@@ -1205,7 +1218,7 @@ namespace S2A.Dsh
+                 if (left != 0) throw new DshError("pool rewrite failed", $"{nm}: {left} uses of the pool array the rewrite does not cover");
+             }
+             string own = src.Replace(poolMark, "");   // 着色器自己的写：有就保持游戏原来的测试时机
+-            if (pools.Any(p => p.Elem != "sampler") && !s_poolOwnSide.IsMatch(own))
++            if (pools.Any(p => p.Elem != "sampler") && !s_poolOwnSide.IsMatch(own) && !src.Contains("[[early_fragment_tests]]", StringComparison.Ordinal))
+                 src = Regex.Replace(src, @"^(?<!\]\] )fragment\s", "[[early_fragment_tests]] fragment ", RegexOptions.Multiline | RegexOptions.CultureInvariant);
+             return src;
+         }
+diff --git a/graphics/tools/direct/dsh/DshCApi.cs b/graphics/tools/direct/dsh/DshCApi.cs
+index 27093f2..ab88e94 100644
+--- a/graphics/tools/direct/dsh/DshCApi.cs
++++ b/graphics/tools/direct/dsh/DshCApi.cs
+@@ -23,6 +23,17 @@ namespace S2A.Dsh
+     public static unsafe class DshCApi
+     {
+         [DllImport("libc")] static extern IntPtr getenv(string name);
++        internal static bool ReadEnvToggle(string name)
++        {
++            string val = null;
++            if (OperatingSystem.IsIOS() || OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
++            {
++                IntPtr ptr = getenv(name);
++                if (ptr != IntPtr.Zero) val = Marshal.PtrToStringUTF8(ptr);
++            }
++            val ??= Environment.GetEnvironmentVariable(name);
++            return val != "0";
++        }
+         static ISpvCross s_xc;
+ 
+         [UnmanagedCallersOnly(EntryPoint = "s2a_dsh_compile")]
+@@ -110,17 +121,25 @@ namespace S2A.Dsh
+ 
+         /// <summary>const char *s2a_dsh_xfp(void)：本库翻译器指纹（16 位小写十六进制，NUL 结尾、常驻）。宿主 dsh_miss.inc dsh_have / nvn_mtl.m shader_build 用它判兜底目录里上局现编的结果能不能复用</summary>
+         [UnmanagedCallersOnly(EntryPoint = "s2a_dsh_xfp")]
+-        public static byte* Xfp() => (DshCompiler.WideMemoryEnabled(), DshCompiler.ShaderOptEnabled()) switch
++        public static byte* Xfp() => (DshCompiler.WideMemoryEnabled(), DshCompiler.ShaderOptEnabled(), DshCompiler.Nvn2EarlyZEnabled()) switch
+         {
+-            (true, true) => s_xfpOn,
+-            (false, true) => s_xfpWideOff,
+-            (true, false) => s_xfpOptOff,
+-            (false, false) => s_xfpBothOff,
++            (true, true, true) => s_xfpOn,
++            (false, true, true) => s_xfpWideOff,
++            (true, false, true) => s_xfpOptOff,
++            (false, false, true) => s_xfpBothOff,
++            (true, true, false) => s_xfpEz2Off,
++            (false, true, false) => s_xfpWideEz2Off,
++            (true, false, false) => s_xfpOptEz2Off,
++            (false, false, false) => s_xfpAllOff,
+         };
+         static readonly byte* s_xfpOn = MakeXfp(DshChain.Xfp);
+         static readonly byte* s_xfpWideOff = MakeXfp(DshCompiler.XfpWideOff);
+         static readonly byte* s_xfpOptOff = MakeXfp(DshCompiler.XfpOptOff);
+         static readonly byte* s_xfpBothOff = MakeXfp(DshCompiler.XfpBothOff);
++        static readonly byte* s_xfpEz2Off = MakeXfp(DshCompiler.XfpEz2Off);
++        static readonly byte* s_xfpWideEz2Off = MakeXfp(DshCompiler.XfpWideEz2Off);
++        static readonly byte* s_xfpOptEz2Off = MakeXfp(DshCompiler.XfpOptEz2Off);
++        static readonly byte* s_xfpAllOff = MakeXfp(DshCompiler.XfpAllOff);
+         static byte* MakeXfp(string value)
+         {
+             var b = Encoding.ASCII.GetBytes(value);
+diff --git a/graphics/tools/direct/dsh/Nvn2.cs b/graphics/tools/direct/dsh/Nvn2.cs
+index f91073f..1f6de47 100644
+--- a/graphics/tools/direct/dsh/Nvn2.cs
++++ b/graphics/tools/direct/dsh/Nvn2.cs
+@@ -7,6 +7,9 @@ namespace S2A.Dsh
+     {
+         public static bool Is(byte[] ctl) => ctl != null && ctl.Length >= 0x48 && BitConverter.ToUInt32(ctl, 0) == 0x98761234u && BitConverter.ToUInt32(ctl, 4) == 0xc9u;
+ 
++        /// <summary>NVN2 fragment early_fragment_tests flag (+0x5b != 0; reference: nxnative dmsh_ampere.py / rb_guest_early.h).</summary>
++        public static bool EarlyZ(byte[] ctl) => Is(ctl) && ctl.Length >= 0x5c && ctl[0x5b] != 0;
++
+         /// <summary>域着色器的曲面模式，打成 Maxwell TessMode 的形状（dmsh_xlate tess_mode：位 0–1 域、4–5 分区、8 顺时针）。
+         /// NVN2 控制段 +0x58 / +0x5c / +0x60 是 GL 枚举：域 GL_ISOLINES 0x8e7a / GL_TRIANGLES 4 / GL_QUADS 7，分区 GL_EQUAL 0x202 / GL_FRACTIONAL_ODD 0x8e7b / GL_FRACTIONAL_EVEN 0x8e7c，
+         /// 绕向 GL_CW 0x900 / GL_CCW 0x901（0 = 逆时针）；认不出的给缺省 1（三角、等距、逆时针）</summary>

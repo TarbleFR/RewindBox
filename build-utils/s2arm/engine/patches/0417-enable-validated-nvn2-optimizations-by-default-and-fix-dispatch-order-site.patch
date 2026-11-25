@@ -1,0 +1,187 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 2399e9d..dea3e8e 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -318,6 +318,13 @@ int nvn_rb_thermal_scope(void) {
+     return 0;
+ #endif
+ }
++static inline int rb_hosted_nvn2_ready(void) {
++#if TARGET_OS_IOS && !TARGET_OS_SIMULATOR && !TARGET_OS_MACCATALYST
++    return atomic_load_explicit(&g_rb_thermal_host, memory_order_relaxed) != 0;
++#else
++    return 1;
++#endif
++}
+ // Title-independent on both generations. Capability probes run before guest setup.
+ static _Atomic int rb_apple_session;
+ static int rb_direct_apple(void) {
+@@ -1982,6 +1989,7 @@ static int rb_live_requested(void) {
+     int mode = atomic_load_explicit(&g_rb_live_request, memory_order_relaxed);
+     return mode != 1;
+ }
++static int rb_raster_clear_on(void);
+ static void rb_tile_session_begin(void) {
+     if (atomic_load_explicit(&g_rb_tile_options, memory_order_relaxed)) return;
+     const char *controls[5] = {getenv("S2A_RB_GPU_CLEAR_STORES"), getenv("S2A_RB_GPU_ATTACHMENT_LIVENESS"),
+@@ -1994,7 +2002,7 @@ static void rb_tile_session_begin(void) {
+     flags |= rb_nvn2_mrt_flag(flags, getenv("S2A_RB_NVN2_MRT_CLEARS"));
+     const char *sealed = getenv("S2A_RB_SEALED_CLEAR_STATE");
+     if ((flags & RB_TILE_MRT) && (!sealed || !strcmp(sealed, "1"))) flags |= RB_TILE_SEALED_STATE;
+-    int track = (getenv("S2A_RB_TILE_RASTER_CLEAR") && !strcmp(getenv("S2A_RB_TILE_RASTER_CLEAR"),"1")) || rb_tbdr_bl() || (flags & (RB_TILE_STORE | RB_TILE_LIVE | RB_TILE_BATCH)) || (controls[1] && !strcmp(controls[1], "1"));
++    int track = rb_raster_clear_on() || rb_tbdr_bl() || (flags & (RB_TILE_STORE | RB_TILE_LIVE | RB_TILE_BATCH)) || (controls[1] && !strcmp(controls[1], "1"));
+     atomic_store_explicit(&g_rb_live_request, track ? 2 : 1, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_tile_options, flags | RB_TILE_READY, memory_order_relaxed);
+     if (flags) MLOG("[gpu-pass] NVN2 title=%s store=%d liveness=%d producer=%d batch=%d detailed_stats=%d clear_sibling=%d mrt_clears=%d legacy_tbdr=%s", title,
+@@ -2667,7 +2675,11 @@ static uint32_t g_rb_dispatch_bits;
+ static _Atomic uint64_t g_rb_dispatch_kept, g_rb_dispatch_saved;
+ static int rb_dispatch_order_on(void) {
+     int v=atomic_load_explicit(&g_rb_dispatch_game,memory_order_relaxed);
+-    if (v<0) { v=rb_dispatch_game(getenv("S2A_RB_DISPATCH_ORDER")); atomic_store(&g_rb_dispatch_game,v); }
++    if (v<0) {
++        const char *e=getenv("S2A_RB_DISPATCH_ORDER");
++        v=e ? rb_dispatch_game(e) : nvn_rb_thermal_scope();
++        if (e || rb_hosted_nvn2_ready()) atomic_store_explicit(&g_rb_dispatch_game,v,memory_order_relaxed);
++    }
+     return v;
+ }
+ static int g_blit_ct;   // the open copy encoder has the compute argument table set (dispatches share it, dispatch_enc)
+@@ -2734,12 +2746,8 @@ static id<MTL4ComputeCommandEncoder> blit_buf(uint64_t rlo, uint64_t rhi, uint64
+ // texture copies / readbacks: barrier if anything came before, and later operations must wait for it too
+ static id<MTL4ComputeCommandEncoder> blit(void) {
+     id<MTL4ComputeCommandEncoder> e = blit_raw();
+-    if (g_blit_ops) {
+-        if (rb_dispatch_needs_barrier(rb_dispatch_order_on(),g_rb_last_guest_dispatch,g_rb_dispatch_bits)) {
+-            blit_barrier(); atomic_fetch_add_explicit(&g_rb_dispatch_kept,1,memory_order_relaxed);
+-        } else atomic_fetch_add_explicit(&g_rb_dispatch_saved,1,memory_order_relaxed);
+-    }
+-    g_rb_dispatch_bits=0; g_rb_last_guest_dispatch=1;
++    if (g_blit_ops) blit_barrier();
++    g_rb_last_guest_dispatch=0;
+     g_bw_lo[0] = 0; g_bw_hi[0] = ~0ull; g_bw_n = 1; g_br_n = 0; g_blit_ops = 1;   // record as "everything written": the next operation always gets a barrier
+     (void)e; return g_blit;   // see blit_raw
+ }
+@@ -12059,6 +12067,8 @@ static int rb_archive_preopen_on(void) {
+ #define RB_PAR_BUILD() rb_par_game_build()
+ #define RB_PAR_SUBMIT_THREAD() on_sub_thread()
+ #define RB_PSO_WAIT_BOOST() rb_pso_wait_boost_on()
++#define RB_ARCHIVE_ERROR_NIL_DEFAULT() nvn_rb_thermal_scope()
++#define RB_ARCHIVE_ERROR_NIL_READY() rb_hosted_nvn2_ready()
+ #define RB_M4_FUNCTION(fn) objc_getAssociatedObject((fn),&rb_function_descriptor_key)
+ #define RB_M4_ENABLED() (!g_m3 && nvn_rb_thermal_scope())
+ #include "pso_archive.h"   // S2Arm: per-pipeline binary archive (after MacNativeGames, MIT)
+@@ -21268,7 +21278,11 @@ static unsigned rb_sealed_clear(const p_set_rt *rt, const uint8_t *next) {
+ #include "rb_raster_clear.h"
+ static int rb_raster_clear_on(void) {
+     int v=atomic_load(&g_rb_raster_clear_mode);
+-    if (v<0) { const char *e=getenv("S2A_RB_TILE_RASTER_CLEAR"); v=e && !strcmp(e,"1"); atomic_store(&g_rb_raster_clear_mode,v); }
++    if (v<0) {
++        const char *e=getenv("S2A_RB_TILE_RASTER_CLEAR");
++        v=e ? !strcmp(e,"1") : nvn_rb_thermal_scope();
++        if (e || rb_hosted_nvn2_ready()) atomic_store(&g_rb_raster_clear_mode,v);
++    }
+     return v;
+ }
+ static unsigned rb_raster_clear_proof(const p_set_rt *rt,const uint8_t *next) {
+@@ -25274,7 +25288,12 @@ static int dispatch_own(void) {
+ }
+ static id<MTL4ComputeCommandEncoder> dispatch_enc(void) {
+     blit_open_k(1);   // Metal 3: a compute encoder (blit_open_k)
+-    if (g_blit_ops) blit_barrier();
++    if (g_blit_ops) {
++        if (rb_dispatch_needs_barrier(rb_dispatch_order_on(),g_rb_last_guest_dispatch,g_rb_dispatch_bits)) {
++            blit_barrier(); atomic_fetch_add_explicit(&g_rb_dispatch_kept,1,memory_order_relaxed);
++        } else atomic_fetch_add_explicit(&g_rb_dispatch_saved,1,memory_order_relaxed);
++    }
++    g_rb_dispatch_bits=0; g_rb_last_guest_dispatch=1;
+     g_bw_lo[0] = 0; g_bw_hi[0] = ~0ull; g_bw_n = 1; g_br_n = 0; g_blit_ops = 1;   // recorded as "everything written": the next copy or dispatch gets a barrier
+     if (!g_blit_ct) { enc_c_table(g_blit, g_ct); g_blit_ct = 1; }
+     args_dirty_all();
+@@ -25373,6 +25392,7 @@ static void dispatch(const p_dispatch *dp) {
+     uint64_t rb_ic = 0; if (!fc && cs->rb_msl) { id<MTLComputePipelineState> v = rb_icls_pick(cs, &rb_ic); if (v) ps = v; else rb_ic = 0; }   // RewindBox (patch 0073): an integer image declared float: its variant (rb_icls_pick)
+     int own = dispatch_own();
+     if (own && g_blit) { enc_b_end(g_blit); g_blit = nil; }
++    if (dp->ind) g_rb_last_guest_dispatch = 0;
+     id<MTLComputeCommandEncoder> ce = own ? own_compute() : (id<MTLComputeCommandEncoder>)dispatch_enc();
+     enc_c_pso(ce, ps);
+     g_dispatch_dim[0] = gx; g_dispatch_dim[1] = gy; g_dispatch_dim[2] = (uint32_t)dp->z;   // read back by the driver segment c0 (encode_args_)
+@@ -26429,7 +26449,7 @@ void nvn_be_exec(const uint8_t *p) {
+                 nvn_be_exec((const uint8_t *)t); g_ret_n--;
+                 if (g_xq_unwind) { xq_unwind_push(p + h.size); g_exec_cur = NULL; return; }   // parked inside the sub-list: the caller goes on after its CALL (nvn_xqueue.inc)
+                 break; }
+-            case OP_SIGNAL_EVENT: { if (!g_m3 && producer_cover_on()) main_barrier_reset(); volatile uint32_t *val; uint32_t m, v; memcpy(&val, a, 8); memcpy(&m, (const uint8_t *)a + 8, 4); memcpy(&v, (const uint8_t *)a + 12, 4);
++            case OP_SIGNAL_EVENT: { g_rb_last_guest_dispatch=0; if (!g_m3 && producer_cover_on()) main_barrier_reset(); volatile uint32_t *val; uint32_t m, v; memcpy(&val, a, 8); memcpy(&m, (const uint8_t *)a + 8, 4); memcpy(&v, (const uint8_t *)a + 12, 4);
+                 if (m & NVN_EV_WAIT) { PD("Y wait_event cmd=%p dst=%p mode=%u value=%u now=%u", p, val, m & ~NVN_EV_WAIT, v, val ? *val : 0);   // nvnCommandBufferWaitEvent（同一记录，见 ev_wait）
+                     if (ev_wait(val, m & ~NVN_EV_WAIT, v, p + h.size)) { PD("Y parked at the wait (cross-queue order)"); xq_unwind_push(p + h.size); g_exec_cur = NULL; return; }
+                     g_last_end_relaxed = 0;   // RewindBox (patch 0353): not parked, the wait may be met by a signal earlier in this command buffer (its own queue's), which only the barriers order: a draw pass begun next takes the full barrier (a pass still open ends with the relaxed one, as before)
+@@ -26448,11 +26468,11 @@ void nvn_be_exec(const uint8_t *p) {
+                     fsig_cond(!known ? 2 : g_rc_skip ? 1 : 0, rc->addr);   // RewindBox (patch 0064); RewindBox (patch 0067): rc->addr
+                     PD("E %llu conditional render %s addr=%#llx values %llu / %llu%s%s", g_stat_pass, rc->mode ? "draw if not equal" : "draw if equal", (unsigned long long)rc->addr, (unsigned long long)x, (unsigned long long)y, known ? "" : " (unknown, drawn)", g_rc_skip ? " → not drawn" : ""); }
+                 break; }
+-            case OP_WAIT_SYNC: { if (!g_m3 && producer_cover_on()) main_barrier_reset(); const sync_t *s; memcpy(&s, a, 8); void *ev; uint64_t v;   // another queue's fence: the queue waits for it before this submission commits (hle_nvn.c WaitSync)
++            case OP_WAIT_SYNC: { g_rb_last_guest_dispatch=0; if (!g_m3 && producer_cover_on()) main_barrier_reset(); const sync_t *s; memcpy(&s, a, 8); void *ev; uint64_t v;   // another queue's fence: the queue waits for it before this submission commits (hle_nvn.c WaitSync)
+                 if (s && sync_ext(s, &ev, &v)) queue_wait_event(ev, v);
+                 g_pkg_epoch++;   // what the other queue wrote before its fence is visible after the wait: packaged textures are checked again
+                 PD("Y wait_sync cmd=%p sync=%p", p, (const void *)s); break; }
+-            case OP_FENCE_SYNC: { if (!g_m3 && producer_cover_on()) main_barrier_reset(); sync_t *s; memcpy(&s, a, 8); uint64_t fv = g_fence + 1; sync_publish(s, fv); g_rb_fsync_n++;   // the fence value this submission (segment) commits with. RewindBox (patch 0072): g_rb_fsync_n
++            case OP_FENCE_SYNC: { g_rb_last_guest_dispatch=0; if (!g_m3 && producer_cover_on()) main_barrier_reset(); sync_t *s; memcpy(&s, a, 8); uint64_t fv = g_fence + 1; sync_publish(s, fv); g_rb_fsync_n++;   // the fence value this submission (segment) commits with. RewindBox (patch 0072): g_rb_fsync_n
+                 PD("Y fence_sync cmd=%p sync=%p fence=%llu", p, (void *)s, (unsigned long long)fv); break; }
+             case OP_RESET_COUNTER: { uint64_t t; memcpy(&t, a, 8); g_cnt_reset[t & 31]++; PD("Q reset type=%llu cmd=%p", (unsigned long long)t, p);
+                 if (t == NVN_COUNTER_TYPE_SAMPLES_PASSED) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+index 5ad7e87..5442ca4 100644
+--- a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
++++ b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+@@ -360,7 +360,7 @@ static NvSparse *sparse_make(const tex_t *t, int gpu, __strong id<MTLTexture> *m
+     }
+     NvSparse *s = [NvSparse new];
+     const char *grouped = getenv("S2A_RB_SPARSE_FAST_COPY");
+-    s->grouped_copy = grouped && !strcmp(grouped, "1");
++    s->grouped_copy = grouped ? !strcmp(grouped, "1") : nvn_rb_thermal_scope();
+     const char *zfast = getenv("S2A_RB_SPARSE_ZERO_TILES");
+     s->zero_fast = !(zfast && !strcmp(zfast, "0"));
+     const char *trace = getenv("S2A_RB_SPARSE_DECODE_STATS");
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+index 59a8b98..5d99ea7 100644
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -25,10 +25,21 @@
+ #define RB_PSO_WAIT_BOOST() 0
+ #endif
+ 
++#ifndef RB_ARCHIVE_ERROR_NIL_DEFAULT
++#define RB_ARCHIVE_ERROR_NIL_DEFAULT() 0
++#endif
++#ifndef RB_ARCHIVE_ERROR_NIL_READY
++#define RB_ARCHIVE_ERROR_NIL_READY() 1
++#endif
++
+ static _Atomic int g_rb_archive_error_nil=-1;
+ static int rb_archive_error_nil_on(void) {
+     int v=atomic_load_explicit(&g_rb_archive_error_nil,memory_order_relaxed);
+-    if (v<0) { const char *e=getenv("S2A_RB_ARCHIVE_ERROR_NIL"); v=e && !strcmp(e,"1"); atomic_store(&g_rb_archive_error_nil,v); }
++    if (v<0) {
++        const char *e=getenv("S2A_RB_ARCHIVE_ERROR_NIL");
++        v=e ? !strcmp(e,"1") : RB_ARCHIVE_ERROR_NIL_DEFAULT();
++        if (e || RB_ARCHIVE_ERROR_NIL_READY()) atomic_store_explicit(&g_rb_archive_error_nil,v,memory_order_relaxed);
++    }
+     return v;
+ }
+ // Renderer integration is optional for hosts exercising the archive writer alone.
+diff --git a/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc b/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc
+index 153459d..c56e666 100644
+--- a/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc
++++ b/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc
+@@ -83,7 +83,11 @@ static void rb_recreated(NSString *key,id ps,uint64_t start) {
+ static _Atomic int g_rb_pso_wait_boost=-1;
+ static int rb_pso_wait_boost_on(void) {
+     int v=atomic_load_explicit(&g_rb_pso_wait_boost,memory_order_relaxed);
+-    if (v<0) { const char *e=getenv("S2A_RB_PSO_WAIT_BOOST"); v=e && !strcmp(e,"1"); atomic_store(&g_rb_pso_wait_boost,v); }
++    if (v<0) {
++        const char *e=getenv("S2A_RB_PSO_WAIT_BOOST");
++        v=e ? !strcmp(e,"1") : nvn_rb_thermal_scope();
++        if (e || rb_hosted_nvn2_ready()) atomic_store_explicit(&g_rb_pso_wait_boost,v,memory_order_relaxed);
++    }
+     return v;
+ }
+ static pthread_override_t rb_pso_boost(pthread_t thread) {

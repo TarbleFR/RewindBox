@@ -646,3 +646,22 @@ Les longues images identifient aussi l'attente du worker de relecture.
 3. **`graphics/nvn/gfx/nvn/pso_archive.h` et `rb_reference.inc`** : les cibles de la preuve stricte (`rebuild` ou `S2A_RB_PREPARE_PROFILE`) contournent la voie `.metal4archive` de 0406/0408 pour continuer à produire les `.metalarchive` vérifiés par `rb_ref_verify` ; la file de captures Metal 4 (portée à 16) vérifie sa place avant création du serializer afin d'éviter la perte silencieuse d'archivage ; `rb_ref_checkpoint` admet une voie de migration jusqu'à `Serious` sous réserve de marge mémoire (pause à `Critical`).
 
 `guest.mk` écrit aussi `S2ArmShaderXfp.txt` à côté de `S2ArmDirectChain.txt` dans `S2ArmEngine.framework` (lu par `S2ArmGraphicsGeneration` sans invalider la préparation CPU). [Portée et limites](../../../docs/evidence/s2arm-structurels-844.md).
+
+### 0415 — anneau de versions UBO en vol dimensionné pour les frames multi-pièces
+
+Sur Zelda 843, 5 121 à 5 282 ombres partielles d'uniformes par fenêtre de 300 images étaient refusées pour « earlier submission running » avec zéro récupération `[rb-ubo-ring]` (environ 17,5 coupures de passes par image) : `rb_ubo_versions.h` ne tenait que `RB_UB_FRAMES = 5` (4 soumissions commitées en vol alors que Zelda soumet 7 à 17 pièces par image) et `RB_UB_SPANS = 128`. 0415 porte l'anneau à `64` soumissions, `512` plages de hasard par soumission et un pool partagé de `512` pages à bitset 64 bits (~2,80 Mio statiques, éviction conservative en plage opaque), avec compteurs `[rb-ubo-ring] recovered / fail_wrap / fail_unknown / fail_opaque`. Contrôlé en C (`t_rb_ubo_versions` + stress 35 soumissions/200 plages/éviction, `-Wall -Wextra -Werror`) ; non mesuré sur iPhone.
+
+### 0416 — `early_fragment_tests` NVN2 dans `S2A.Dsh`
+
+`Dsh.cs` ne lisait l'indicateur `early_z` que pour Switch 1 (`ctl[0x718] & 1`), pas pour Switch 2 (`ctl[0x5b] != 0` lorsque `magic == 0x98761234 && version == 0xc9`, déjà documenté par `rb_guest_early.h`). 0416 ajoute `Nvn2.EarlyZ(ctl)` dans `Nvn2.cs` et le branche dans `Dsh.cs:Nvn2Job` (repli `S2A_RB_NVN2_EARLY_Z=0` lu via `libc getenv` avec empreinte `xfp` dédiée), enregistre `early_z` dans la réflexion JSON et garde `PoolArrays` contre un doublon `[[early_fragment_tests]]`. Compilé localement en Release (.NET 10, 0 avertissement, 0 erreur) ; `xfp` renouvelé (`ecd99354f03b846d`), non mesuré sur iPhone.
+
+### 0417 — activation par défaut des optimisations NVN2 validées et correction du site `0371`
+
+Active par défaut en mode NVN2 hébergé (`nvn_rb_thermal_scope()`, sans réglage joueur `env.txt`, avec repli `=0` / `=full` conservé et tests autonomes inchangés) cinq optimisations déjà codées et vérifiées :
+- `S2A_RB_DISPATCH_ORDER=game` (avec correction d'un défaut critique de 0371 : la garde de barrière était dans `blit()` au lieu de `dispatch_enc()`, ce qui exposait les copies texture→tampon→texture et ignorait les dispatches compute ; rétabli dans `dispatch_enc()`, barrière inconditionnelle dans `blit()` et réinitialisation sur `dp->ind`, `OP_SIGNAL_EVENT`, `OP_WAIT_SYNC`, `OP_FENCE_SYNC`),
+- `S2A_RB_SPARSE_FAST_COPY=1`,
+- `S2A_RB_TILE_RASTER_CLEAR=1` (aligné entre `rb_raster_clear_on()` et `rb_tile_session_begin()`),
+- `S2A_RB_PSO_WAIT_BOOST=1`,
+- `S2A_RB_ARCHIVE_ERROR_NIL=1`.
+
+Non mesuré sur iPhone. [Portée et limites](../../../docs/evidence/s2arm-structurels-844.md).
