@@ -503,7 +503,7 @@ Foundation : 34 contrôles par hôte ; synchronisation : 35 contrôles. Le runne
 n’expose pas Metal 4 ; aucun replay de pixels ni gain A18 Pro n’est revendiqué.
 Le pin réutilise les producteurs prepare/sysdata existants ; NS2Pro est inchangé.
 
-### Passes et tuiles 0379–0391 (25 novembre 2026)
+### Passes et tuiles 0379–0392 (25 novembre 2026)
 
 Base : moteur 0378 livré dans l'IPA privée 841. Aucun titre n'est testé par
 les nouveaux correctifs ; ils s'appliquent aux chemins S2Arm compatibles,

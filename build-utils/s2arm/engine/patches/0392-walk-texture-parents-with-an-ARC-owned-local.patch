@@ -1,0 +1,19 @@
+diff --git a/graphics/nvn/gfx/nvn/rb_gpudiag.inc b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+index f1f3e5d..d1ceae6 100644
+--- a/graphics/nvn/gfx/nvn/rb_gpudiag.inc
++++ b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+@@ -120,10 +120,11 @@ static pthread_t g_rb_pd_owner; static _Atomic int g_rb_pd_owner_valid;
+ static uint64_t g_rb_pd_load_bytes, g_rb_pd_store_bytes, g_rb_pd_overflows;
+ static unsigned rb_pd_bucket(uintptr_t root) { return (unsigned)((root>>4)^(root>>20))&(RB_PD_BUCKETS-1); }
+ static uintptr_t rb_pd_root(id<MTLTexture> t, unsigned *level, unsigned *slice) {
+-    while (t.parentTexture) { *level+=(unsigned)t.parentRelativeLevel; *slice+=(unsigned)t.parentRelativeSlice; t=t.parentTexture; }
++    id<MTLTexture> root=t;
++    while (root.parentTexture) { *level+=(unsigned)root.parentRelativeLevel; *slice+=(unsigned)root.parentRelativeSlice; root=root.parentTexture; }
+     if (!g_rb_pd_identity) g_rb_pd_identity=[[NSMapTable alloc] initWithKeyOptions:NSPointerFunctionsWeakMemory|NSPointerFunctionsObjectPointerPersonality valueOptions:NSPointerFunctionsStrongMemory capacity:1024];
+-    NSNumber *identity=[g_rb_pd_identity objectForKey:t];
+-    if (!identity) { identity=@(++g_rb_pd_next_identity); [g_rb_pd_identity setObject:identity forKey:t]; }
++    NSNumber *identity=[g_rb_pd_identity objectForKey:root];
++    if (!identity) { identity=@(++g_rb_pd_next_identity); [g_rb_pd_identity setObject:identity forKey:root]; }
+     return (uintptr_t)identity.unsignedLongLongValue;
+ }
+ static const char *rb_pd_load(unsigned a) { return a==MTLLoadActionLoad ? "load" : a==MTLLoadActionClear ? "clear" : a==MTLLoadActionDontCare ? "dontCare" : "unknown"; }
