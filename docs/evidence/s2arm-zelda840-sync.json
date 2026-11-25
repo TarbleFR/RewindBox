@@ -17,7 +17,8 @@
         "allocator_wait_ms": 18.936,
         "visibility_wait_ms": 0.0
       },
-      "allocator_ms_per_frame": 0.06312
+      "allocator_ms_per_frame": 0.06312,
+      "deltaOrigin": "inferred zeroes from 0360 session reset; frame 0 snapshot not logged"
     },
     {
       "frame": 600,

@@ -84,6 +84,14 @@ int main(void) {
     for (unsigned i=0;i<rb_wake_count;i++) CHECK(atomic_load(&rb_wake_rows[i].waits)==0);
     token=s2a_rb_wake_begin(&site,-1); s2a_rb_wake_end(token,0);
     s2a_rb_wake_report(300,emit); CHECK(report_lines==2);
+    // A kqueue event count of one is success, not an errno. EINTR remains a
+    // native -1 return and errno, without being reported as a failed condition.
+    unsigned syscall_site=rb_wake_count;
+    errno=EINTR; CHECK(RB_WAKE_SYSCALL("fixture.syscall",1,-1)==-1); CHECK(errno==EINTR);
+    CHECK(atomic_load(&rb_wake_rows[syscall_site].errors)==0);
+    syscall_site=rb_wake_count;
+    CHECK(RB_WAKE_SYSCALL("fixture.event-count",1,1)==1);
+    CHECK(atomic_load(&rb_wake_rows[syscall_site].errors)==0);
     // Exercise the actual production fence helper with its predicate mutex held.
     unsigned before_sites=rb_wake_count;
     rb_fence_waiters fences={.changed=PTHREAD_COND_INITIALIZER};

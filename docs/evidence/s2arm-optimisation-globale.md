@@ -398,8 +398,8 @@ Fair. L’objectif 100 % / 60 images/s / absence de Serious n’est pas atteint.
 Les trois profils CPU de quatre secondes ne constituent pas trois fenêtres de
 180 secondes ; aucun gain FPS ou watts n’est attribué à ces seuls relevés.
 
-Le [lot moteur et ses sept interrupteurs](../../build-utils/s2arm/engine/README.md#zelda--diagnostic-et-moteur-03670376-25-novembre-2026)
-0367–0376 est implémenté, en attente de compilation finale. Les tests purs GCC passent 337 assertions
+Le [lot moteur et ses sept interrupteurs](../../build-utils/s2arm/engine/README.md#zelda--diagnostic-et-moteur-03670377-25-novembre-2026)
+0367–0377 est implémenté, en attente de compilation finale. Les tests purs GCC passent 342 assertions
 (cas négatifs inclus : copie/encodeur/barrière, source inconnue, option coupée,
 epoch de session et délais conservés). Clang et CI macOS 15/26 restent à exécuter.
 Le diagnostic ajoute une charge de journalisation ; le couper pour les mesures A/B.
@@ -419,3 +419,10 @@ contrôle négatif supprimant les barrières nécessaires échoue comme attendu.
 Huit comparaisons des sources de vitesse/cadence sont identiques après retrait
 mécanique des seules enveloppes de comptage ; `hle_nvn.c` est identique octet par octet.
 [Empreintes de ces contrôles](s2arm-zelda-speed-preservation.json).
+
+0377 affine l’attribution des syscalls : un événement `kevent64` réussi ne doit
+pas être compté comme une erreur pthread ; retour natif et `errno` sont préservés,
+avec un chemin direct quand le diagnostic est coupé. GCC final : 342 assertions.
+La dernière compilation doit inclure ce correctif pour que les chiffres soient
+interprétables. Le premier intervalle 0–300 du tableau infère les zéros du reset
+0360 ; les treize autres différences utilisent deux relevés effectivement présents.

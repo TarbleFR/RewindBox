@@ -1,0 +1,196 @@
+From 72890d21d566b7d4b0dcfe1cb8eb9981d55d03c8 Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Wed, 25 Nov 2026 09:06:14 +0100
+Subject: [PATCH] 0377 Preserve syscall return and errno semantics in wake
+ diagnostics
+
+---
+ runtime/include/rb_wake.h | 23 +++++++++++++++++------
+ runtime/src/thread.c      | 32 ++++++++++++++++----------------
+ 2 files changed, 33 insertions(+), 22 deletions(-)
+
+diff --git a/runtime/include/rb_wake.h b/runtime/include/rb_wake.h
+index 0ec68b5..7c655db 100644
+--- a/runtime/include/rb_wake.h
++++ b/runtime/include/rb_wake.h
+@@ -22,12 +22,23 @@ static inline int64_t s2a_rb_wake_absolute(const struct timespec *t) {
+ }
+ // Counts API returns, not kernel interrupts. Signals count attempts, never an
+ // inferred number of awakened threads. ns=-2 denotes a signal call.
+-#define RB_WAKE_CALL(kind_, ns_, call_) __extension__ ({ \
+-    static s2a_rb_wake_site rb_site_ = { __FILE__, kind_, __LINE__, 0 }; \
+-    s2a_rb_wake_token rb_tok_ = {0}; \
+-    if (__builtin_expect(atomic_load_explicit(&s2a_rb_wake_enabled,memory_order_relaxed),0)) \
+-        rb_tok_ = s2a_rb_wake_begin(&rb_site_, (ns_)); \
+-    int rb_result_ = (call_); if (rb_tok_.slot) s2a_rb_wake_end(rb_tok_, rb_result_); rb_result_; })
++// Condition variables return an errno value. Syscalls return a count/status and
++// use errno only for -1. Preserve both native return and errno in either case.
++#define RB_WAKE_IMPL(kind_, ns_, call_, status_) __extension__ ({ \
++    int rb_result_; \
++    if (__builtin_expect(!atomic_load_explicit(&s2a_rb_wake_enabled,memory_order_relaxed),1)) { \
++        rb_result_=(call_); \
++    } else { \
++        static s2a_rb_wake_site rb_site_ = { __FILE__, kind_, __LINE__, 0 }; \
++        int rb_before_errno_=errno; \
++        s2a_rb_wake_token rb_tok_=s2a_rb_wake_begin(&rb_site_, (ns_)); \
++        errno=rb_before_errno_; rb_result_=(call_); int rb_after_errno_=errno; \
++        if (rb_tok_.slot) s2a_rb_wake_end(rb_tok_, (status_)); \
++        errno=rb_after_errno_; \
++    } \
++    rb_result_; })
++#define RB_WAKE_CALL(kind_, ns_, call_) RB_WAKE_IMPL(kind_, ns_, call_, rb_result_)
++#define RB_WAKE_SYSCALL(kind_, ns_, call_) RB_WAKE_IMPL(kind_, ns_, call_, rb_result_<0 ? rb_after_errno_ : 0)
+ 
+ #define RB_WAKE_SIGNAL_CALL(kind_, call_) __extension__ ({ \
+     static s2a_rb_wake_site rb_site_ = { __FILE__, kind_, __LINE__, 0 }; \
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index 856fdb4..fa0f150 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -513,7 +513,7 @@ static int kq_wait_until_lw(int kq, uint64_t end, uint64_t leeway) {
+ #ifdef S2A_UNIT_TEST
+     g_kq_timer_last = ev; atomic_fetch_add(&g_kq_timer_n, 1);
+ #endif
+-    int n = RB_WAKE_CALL("svc.timer", left, kevent64(kq, &ev, 1, &out, 1, 0, NULL));
++    int n = RB_WAKE_SYSCALL("svc.timer", left, kevent64(kq, &ev, 1, &out, 1, 0, NULL));
+     if (n == 1 && !(out.flags & EV_ERROR)) return out.filter == EVFILT_TIMER;
+     if (n < 0 && errno == EINTR) return 0;
+     kq_red("等定时器", n, n < 0 ? errno : (int)out.data); return -1;
+@@ -527,7 +527,7 @@ static void sleep_ontime_lw(int64_t ns, uint64_t leeway) {
+     while (kq >= 0 && (r = kq_wait_until_lw(kq, end, leeway)) == 0) { if (atomic_load(&g_session_stop)) return; }
+     if (r == 1) return;
+     int64_t left = (int64_t)(end - now_ns());
+-    if (left > 0) { struct timespec ts = {left / 1000000000, left % 1000000000}; RB_WAKE_CALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL)); }
++    if (left > 0) { struct timespec ts = {left / 1000000000, left % 1000000000}; RB_WAKE_SYSCALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL)); }
+ }
+ static void sleep_ontime(int64_t ns) { sleep_ontime_lw(ns, 0); }
+ #else
+@@ -540,7 +540,7 @@ static void sleep_ontime_until(int64_t ns, thr_t *sleeper) {
+         int64_t left = (int64_t)(end - now_ns());
+         if (left <= 0) return;
+         struct timespec wait = {left / 1000000000, left % 1000000000};
+-        if (!RB_WAKE_CALL("svc.sleep", s2a_rb_wake_relative(&wait), nanosleep(&wait, NULL)) || errno != EINTR) return;
++        if (!RB_WAKE_SYSCALL("svc.sleep", s2a_rb_wake_relative(&wait), nanosleep(&wait, NULL)) || errno != EINTR) return;
+     }
+ }
+ static void sleep_ontime(int64_t ns) { sleep_ontime_until(ns, NULL); }
+@@ -652,7 +652,7 @@ static int64_t block_u(thr_t *t, int kind, int64_t ns, int *unlocked) {
+         }
+         int err = 0;
+         while (!__atomic_load_n(&t->woke, __ATOMIC_ACQUIRE)) {
+-            if (RB_WAKE_CALL("svc.address", -1, os_sync_wait_on_address(&t->woke, 0, sizeof t->woke, OS_SYNC_WAIT_ON_ADDRESS_NONE)) < 0 && errno != EINTR && !__atomic_load_n(&t->woke, __ATOMIC_ACQUIRE)) { err = errno; break; }
++            if (RB_WAKE_SYSCALL("svc.address", -1, os_sync_wait_on_address(&t->woke, 0, sizeof t->woke, OS_SYNC_WAIT_ON_ADDRESS_NONE)) < 0 && errno != EINTR && !__atomic_load_n(&t->woke, __ATOMIC_ACQUIRE)) { err = errno; break; }
+             GW_INC(t, 0);
+         }
+         if (!err) {
+@@ -1803,7 +1803,7 @@ static void *samecore_thread(void *x) { (void)x;
+ #else
+     pthread_setname_np(pthread_self(), "s2a-samecore");
+ #endif
+-    for (;;) { struct timespec ts = {0, 2000000}; RB_WAKE_CALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL)); samecore_sample(); } return NULL; }
++    for (;;) { struct timespec ts = {0, 2000000}; RB_WAKE_SYSCALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL)); samecore_sample(); } return NULL; }
+ static void samecore_init(void) { static _Atomic int done; if (!samecore_on() || atomic_exchange(&done, 1)) return;
+     LOG("同核并发诊断：开（S2A_SAMECORE_DIAG=1，每 2 ms 采一次；虚拟核%s）", cores_on() ? "开" : "关");
+     pthread_t t; pthread_create(&t, NULL, samecore_thread, NULL); pthread_detach(t); }
+@@ -1961,7 +1961,7 @@ static void *preempt_watchdog(void *a) {
+             if (RB_WAKE_CALL("svc.timed", s2a_rb_wake_absolute(&dl), pthread_cond_timedwait(&g_wd_cv, &g_cmu, &dl)) == ETIMEDOUT && !g_ncw) { pthread_mutex_unlock(&g_cmu); sched_sample(); pthread_mutex_lock(&g_cmu); }
+         }
+         pthread_mutex_unlock(&g_cmu);
+-        struct timespec ts = {per_ns / 1000000000L, per_ns % 1000000000L}; RB_WAKE_CALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL));   // 有等核者时 0.5 ms 周期 → 抢占延迟上界 ~0.5 ms + 投递
++        struct timespec ts = {per_ns / 1000000000L, per_ns % 1000000000L}; RB_WAKE_SYSCALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL));   // 有等核者时 0.5 ms 周期 → 抢占延迟上界 ~0.5 ms + 投递
+         atomic_fetch_add(&g_wd_scans, 1);
+         { uint64_t t = now_ns(); if (t >= next_ss) { next_ss = t + 2000000; sched_sample(); } }   // 调度计数每 2 ms 一次
+         atomic_store(&g_wd_last_ns, now_ns());   // ⑫ 诊断：watchdog 最后扫的时间
+@@ -2343,7 +2343,7 @@ static void yield_bo(thr_t *me, const uint64_t *regs) {
+     }
+ #endif
+     if (hot) atomic_fetch_add_explicit(&g_yb_hot_sleeps, 1, memory_order_relaxed);   // RewindBox (patch 0087)
+-    struct timespec ts = {0, (long)sl}; RB_WAKE_CALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL));
++    struct timespec ts = {0, (long)sl}; RB_WAKE_SYSCALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL));
+     atomic_fetch_add_explicit(&g_yb_sleeps, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_yb_sleep_ns, sl, memory_order_relaxed);
+     __atomic_store_n(&me->ny_sl, me->ny_sl + sl, __ATOMIC_RELAXED);   // RewindBox (patch 0074)
+     me->y_ret = (uint64_t)now_mono_ns();
+@@ -2429,7 +2429,7 @@ void s2a_spin_wait(uint64_t site) {
+         uint64_t sl = run / 8; if (sl < 10000) sl = 10000; if (sl > 250000) sl = 250000;
+         int held = cores_on() && atomic_load(&me->held_core);
+         if (held) { atomic_store(&me->off_guest, 1); core_release(me); }
+-        struct timespec ts = {0, (long)sl}; RB_WAKE_CALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL));
++        struct timespec ts = {0, (long)sl}; RB_WAKE_SYSCALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL));
+         if (held) { core_acquire(me); atomic_store(&me->off_guest, 0); }
+         atomic_fetch_add_explicit(&g_spin_sleeps, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_spin_sleep_ns, sl, memory_order_relaxed);
+     }
+@@ -2467,7 +2467,7 @@ void s2a_tick_wait(uint64_t key) {
+         uint64_t sl = run / 8; if (sl < 10000) sl = 10000; if (sl > 250000) sl = 250000;
+         int held = cores_on() && atomic_load(&me->held_core);
+         if (held) { atomic_store(&me->off_guest, 1); core_release(me); }
+-        struct timespec ts = {0, (long)sl}; RB_WAKE_CALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL));
++        struct timespec ts = {0, (long)sl}; RB_WAKE_SYSCALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL));
+         if (held) { core_acquire(me); atomic_store(&me->off_guest, 0); }
+         atomic_fetch_add_explicit(&g_tw_sleeps, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_tw_sleep_ns, sl, memory_order_relaxed);
+     }
+@@ -2671,7 +2671,7 @@ static uint32_t thr_pause(thr_t *t) {
+         }
+         pthread_mutex_lock(&g_susp_mu); thread_resume(t->mport); pthread_mutex_unlock(&g_susp_mu);
+         if (now_ns() - t0 > 2000000000ull) die("【红】SetThreadActivity：线程 %#x 2 秒内没停到游戏代码或系统调用里（重试 %d 次）", t->handle, k);
+-        RB_WAKE_CALL("svc.short-sleep", 20000, usleep(20));
++        RB_WAKE_SYSCALL("svc.short-sleep", 20000, usleep(20));
+     }
+ }
+ static void thr_unpin(thr_t *t) { glock(); --t->pins; if (!t->pins && t->exited && t->closed) thr_free(t); pthread_mutex_unlock(&G); }
+@@ -2757,7 +2757,7 @@ static uint32_t thr_pause(thr_t *t) {
+             atomic_store(&t->pause, 0); RB_WAKE_CALL("svc.broadcast", -2, pthread_cond_broadcast(&g_pause_cv)); pthread_mutex_unlock(&G);
+             return R_TIMEOUT;
+         }
+-        RB_WAKE_CALL("svc.short-sleep", 100000, usleep(100));
++        RB_WAKE_SYSCALL("svc.short-sleep", 100000, usleep(100));
+     }
+ }
+ static uint32_t thr_unpause(thr_t *t) {
+@@ -2911,7 +2911,7 @@ static void peer_yield(thr_t *me) {
+         glock(); thr_t *p = h_obj(peer.handle, S2A_OBJ_THREAD); int done = !p || p->id != peer.id || p->exited || p->wkind || atomic_load_explicit(&p->nsvc_all, memory_order_relaxed) != peer.nsvc; pthread_mutex_unlock(&G);
+         if (done) return;
+         if ((uint64_t)now_mono_ns() - t0 > 5000000) { atomic_fetch_add_explicit(&g_py_timeout, 1, memory_order_relaxed); return; }
+-        struct timespec ts = {0, 50000}; RB_WAKE_CALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL));
++        struct timespec ts = {0, 50000}; RB_WAKE_SYSCALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL));
+     }
+ }
+ #if defined(__APPLE__)
+@@ -3134,7 +3134,7 @@ static int svc_thread_impl(thr_t *me, int num, uint64_t *regs) {
+     case 0x0B: {  // SleepThread(x0 ns)；0 / -1 / -2 = 各类让出
+         int64_t ns = (int64_t)regs[0];
+ #ifndef S2A_UNIT_TEST
+-        if (s2a_det_mode()) { s2a_det_release(); if (ns > 0) { struct timespec ts = {ns / 1000000000, ns % 1000000000}; RB_WAKE_CALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL)); } else sched_yield(); s2a_det_acquire(); return 1; }
++        if (s2a_det_mode()) { s2a_det_release(); if (ns > 0) { struct timespec ts = {ns / 1000000000, ns % 1000000000}; RB_WAKE_SYSCALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL)); } else sched_yield(); s2a_det_acquire(); return 1; }
+ #endif
+         // 短于 20 µs 的睡按让出走（照 the reference port SleepThread，MIT）：游戏拿它轮询（银河 2 Hagi 用 SleepThread(100 ns)，main+0x517c），
+         //   每次起一个精确定时器就是一次硬件唤醒。10-29 真机银河 2 整局 3100 万次（约 16 万次唤醒 / 秒）、丝之歌 540 万次（约 3.8 万次 / 秒），
+@@ -3627,7 +3627,7 @@ int s2a_thread_stop_all(int wait_ms) {
+         pthread_mutex_unlock(&G);
+         pthread_mutex_lock(&g_cmu); RB_WAKE_CALL("svc.broadcast", -2, pthread_cond_broadcast(&g_ccv)); pthread_mutex_unlock(&g_cmu);
+         if (now_ns() >= deadline) return -1;
+-        RB_WAKE_CALL("svc.short-sleep", 1000000, usleep(1000));
++        RB_WAKE_SYSCALL("svc.short-sleep", 1000000, usleep(1000));
+     }
+     // Guest TLS destructors (including NativeAOT runtime detach) are part of
+     // thread retirement. If join blocks, retain the session and report failure.
+@@ -3637,7 +3637,7 @@ int s2a_thread_stop_all(int wait_ms) {
+     pthread_detach(joiner);
+     while (!atomic_load(&g_join_done)) {
+         if (now_ns() >= deadline) return -1;
+-        RB_WAKE_CALL("svc.short-sleep", 1000000, usleep(1000));
++        RB_WAKE_SYSCALL("svc.short-sleep", 1000000, usleep(1000));
+     }
+     int result = atomic_load(&g_join_result);
+     if (!result) {
+@@ -3763,7 +3763,7 @@ void s2a_thread_dump(void) {
+     static const char *const wk[] = {"在跑", "等锁", "等条件", "等地址", "等同步"};
+     // 试拿最多 500 ms：G 只在系统调用里短暂持有，一次 trylock 不成多半是碰上别人正持锁（10-20 测试设备2 现场即此，全线程里无人等 G）；
+     // 500 ms 仍拿不到才是真被占（崩溃发生在持锁时 / 持锁阻塞）
+-    int got = 0; for (int i = 0; i < 500 && !(got = !pthread_mutex_trylock(&G)); i++) RB_WAKE_CALL("svc.short-sleep", 1000000, usleep(1000));
++    int got = 0; for (int i = 0; i < 500 && !(got = !pthread_mutex_trylock(&G)); i++) RB_WAKE_SYSCALL("svc.short-sleep", 1000000, usleep(1000));
+     if (!got) { LOG("线程表：全局锁 500 ms 拿不到，跳过（崩溃发生在持锁时，或有线程持锁阻塞）"); return; }
+     for (thr_t *t = g_all; t; t = t->all) {
+         module_t *m = module_of((void *)t->last_lr);
+-- 
+2.56.1
+
