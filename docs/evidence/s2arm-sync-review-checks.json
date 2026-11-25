@@ -1,0 +1,59 @@
+{
+  "source": "31726e1b73f33f665f94af1039f7935039c56fb8",
+  "branch": "Claude",
+  "run": 45565566639,
+  "attempt": 1,
+  "result": "passed-targeted-checks",
+  "jobs": {
+    "macos-15": 139039373941,
+    "macos-26": 139039374224
+  },
+  "engineArtifact": {
+    "id": 14999909584,
+    "bytes": 25452788,
+    "sha256": "157bdccf8fafeef98b5a8e58a2178331115fac4be1cca123de4d697908740be8"
+  },
+  "proofArtifact": {
+    "id": 15000004367,
+    "bytes": 11391986,
+    "sha256": "51d9d0f85f573fd53061aee1290d60ad713b601757bfd28ca00eb6006844cfe7",
+    "member": "cpu-gpu-sync-checks.txt"
+  },
+  "checks": {
+    "cpuPredicates": {
+      "passed": 12,
+      "total": 12
+    },
+    "liveEncodeWorkerSimulatedQueue": {
+      "passed": 4,
+      "total": 4
+    },
+    "visibilityLifecycleSharedMetalBuffer": {
+      "passed": 10,
+      "total": 10
+    },
+    "sessionOptions": {
+      "passed": 9,
+      "total": 9
+    },
+    "nativeMetal4Queue": {
+      "result": "unavailable",
+      "detail": "Device does not support Metal 4.",
+      "executedAssertions": 0
+    }
+  },
+  "speedSourceComparisons": 8,
+  "speedEvidence": "s2arm-sync-review-speed.json",
+  "pinSHA256": "4af72f8129e3676e495cfe2736222bdef394f09a55d0d6cf284683c7c1868e20",
+  "supersededWorkerFixture": {
+    "source": "e2e1f1e5df7d6b0d18f9ae0130a91d9956f719f5",
+    "run": 45565294514,
+    "passed": 2,
+    "total": 4,
+    "cause": "Queue block executed synchronously before worker startup. Corrected fixture bootstraps through production rec_put."
+  },
+  "physicalDeviceTested": false,
+  "gameplayTested": false,
+  "deviceFPSMeasured": false,
+  "deviceEnergyMeasured": false
+}

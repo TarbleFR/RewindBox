@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "f2a6c5be9573e6421873e2df28030919cdc5ccdff7f31d12a81c583dce16eaa6",
+  "packagedFingerprint": "65ff9a82e791b679df36a7148ad278e45ddc5a462d37ca784c714c302435310f",
   "producers": {
     "engine": {
-      "run": 45553147358,
+      "run": 45565566639,
       "attempt": 1,
-      "artifact": 14996120007,
-      "name": "s2arm-engine-framework-c9e6d4eab0a1febd3210c079471b3207eb959c80",
-      "bytes": 25453085,
-      "sha256": "b2d1fb0c9d39c4cefd7bb58a3fcf04b58207ca12b839a01be6d338dc91ceda69",
-      "headSha": "c9e6d4eab0a1febd3210c079471b3207eb959c80",
+      "artifact": 14999909584,
+      "name": "s2arm-engine-framework-31726e1b73f33f665f94af1039f7935039c56fb8",
+      "bytes": 25452788,
+      "sha256": "157bdccf8fafeef98b5a8e58a2178331115fac4be1cca123de4d697908740be8",
+      "headSha": "31726e1b73f33f665f94af1039f7935039c56fb8",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-25T05:38:41Z",
+      "expiresAt": "2026-12-25T07:20:49Z",
       "members": {
-        "S2ArmEngine.framework.zip": "aa70756a76285f40e406e6e4e70aeaf334ae2e1c2117861d0fda1b9dcc36681f",
-        "NS2Pro.framework.zip": "43ec1c14d9b9a0f8369cf58514eaf6204cd22d95585e6b64ecf17b928de1b2b5"
+        "S2ArmEngine.framework.zip": "bd010f256149e74edd6a8e2a191f101b3e037621b0128e593e031af86a03183c",
+        "NS2Pro.framework.zip": "e9913ec3196b47122a3219653365cba995048b75d6f5aedb23ee4718ea190fb4"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "b2d1fb0c9d39c4cefd7bb58a3fcf04b58207ca12b839a01be6d338dc91ceda69",
+    "engine": "157bdccf8fafeef98b5a8e58a2178331115fac4be1cca123de4d697908740be8",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "83dd0661f2bec7db5a35f1af2a0ca6cc3a057141e1479c375278a7d8cf5d4d48",
-      "bytes": 115526200,
-      "fingerprint": "f2a6c5be9573e6421873e2df28030919cdc5ccdff7f31d12a81c583dce16eaa6"
+      "sha256": "9ea0d7f8c5a44cb7ea92fe43d711e72d504e387c90ad17b5749c8ad9d8e5e649",
+      "bytes": 115526072,
+      "fingerprint": "65ff9a82e791b679df36a7148ad278e45ddc5a462d37ca784c714c302435310f"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45553147358,
+      "run": 45565566639,
       "attempt": 1,
-      "head_sha": "c9e6d4eab0a1febd3210c079471b3207eb959c80",
+      "head_sha": "31726e1b73f33f665f94af1039f7935039c56fb8",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1570,11 +1570,35 @@
         {
           "name": "0360-report-sync-waits-and-exercise-existing-fence-fixtures.patch",
           "sha256": "fde8784239d970c922c297bfa980354daa6c912037f2a29056968db3e6971db6"
+        },
+        {
+          "name": "0361-keep-inflight-allocator-memory-after-cancelled-fence-waits.patch",
+          "sha256": "8c09b58c5c99a085bc68b3435d61ff78857150b84793512401ccc8e9e05ef8a5"
+        },
+        {
+          "name": "0362-reset-encode-drain-policy-and-honor-the-fence-reference-mode.patch",
+          "sha256": "28d9cfb06cc5750e709dfe9476bcc294576f4bb65e13937a03798d2ad48229df"
+        },
+        {
+          "name": "0363-record-event-waits-without-an-allocated-objective-c-block.patch",
+          "sha256": "d70d619340cdfac6d1993662ad9483e55333328a743b28a97824d7e31cb7afbe"
+        },
+        {
+          "name": "0364-skip-completed-external-waits-and-count-all-encode-drains.patch",
+          "sha256": "eea4e034663b314b460d6fb82a1da52ad0982d0c560c0e5c60913c7dba1dfb0d"
+        },
+        {
+          "name": "0365-exercise-cancellation-session-options-and-real-metal-queue-waits.patch",
+          "sha256": "82115cf471b9cfa286412aefb5febf4f6e15952a1cab7c24381bafc3bedc8547"
+        },
+        {
+          "name": "0366-check-native-wait-records-on-the-live-encode-worker.patch",
+          "sha256": "0103298fdf1e2cc78e71aa2c06bcb686743c93289b43a7a5ba1cf5ce9529c039"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "aa70756a76285f40e406e6e4e70aeaf334ae2e1c2117861d0fda1b9dcc36681f",
-        "NS2Pro.framework.zip": "43ec1c14d9b9a0f8369cf58514eaf6204cd22d95585e6b64ecf17b928de1b2b5"
+        "S2ArmEngine.framework.zip": "bd010f256149e74edd6a8e2a191f101b3e037621b0128e593e031af86a03183c",
+        "NS2Pro.framework.zip": "e9913ec3196b47122a3219653365cba995048b75d6f5aedb23ee4718ea190fb4"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",

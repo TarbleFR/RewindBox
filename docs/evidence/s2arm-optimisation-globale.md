@@ -324,4 +324,33 @@ le périphérique virtuel avec `Device does not support Metal 4`. Ce test GPU es
 
 0366 complète le fixture existant avec le vrai worker dm-encode et une queue simulée.
 Il contrôle la publication du bloc, l'ordre des opérations, le thread consommateur et la
-libération de l'événement avant le signal idle. Sa compilation et ses résultats sont en attente.
+libération de l'événement avant le signal idle. La CI finale ci-dessous valide ses quatre assertions sur le vrai worker.
+
+
+### Résultats finaux de la contre-expertise
+
+La [CI 45565566639](https://github.com/TarbleFR/RewindBox/actions/runs/45565566639) a compilé
+le moteur iPhoneOS `31726e1b` sur macOS 15 et 26. Le [reçu des contrôles](s2arm-sync-review-checks.json)
+lie la source, les deux jobs et les empreintes des archives téléchargées.
+
+| Contrôle | Résultat |
+|---|---|
+| Prédicats de fences, référence et annulation | 12/12 |
+| Publication et consommation sur le vrai dm-encode, queue simulée | 4/4 |
+| Cycle de vie des buffers de visibilité partagés Metal | 10/10 |
+| Choix et compteurs après changement de session | 9/9 |
+| Queue GPU Metal 4 native | Indisponible, device du runner incompatible |
+| Horloges, cadence cible et présentation comparées à la 840 | 8/8 identités de sources |
+
+Le premier essai du contrôle worker, source `e2e1f1e5`, exécutait son helper de queue avant
+l'amorçage du worker et a échoué sur deux assertions. Le fixture démarre maintenant dm-encode
+par `rec_put`, comme les méthodes des proxies. Les quatre assertions passent après cette
+correction. Cette erreur concernait l'amorçage du contrôle.
+
+Les waits différés utilisent un record fixe et un événement retenu. L'allocation d'un bloc
+Objective-C par wait a été supprimée. Cette différence est établie par le code. Une dépendance
+externe déjà terminée évite aussi la jointure avec l'encodeur en mode optimisé.
+
+Les mesures de FPS, de latence, de mémoire et de consommation en jeu, la validation visuelle
+et l'endurance thermique sur A18 Pro restent à effectuer. Les résultats ci-dessus distinguent
+les assertions CPU, la mémoire partagée Metal et l'indisponibilité du test GPU Metal 4.
