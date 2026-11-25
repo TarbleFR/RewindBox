@@ -404,3 +404,19 @@ The generic NVN2 Metal capture pack uses one title's exported shader sources, re
 0356 times that CPU decoder when `S2A_RB_SPARSE_DECODE_STATS=1`. Each nonempty batch
 reports actual decoded bytes, complete tile counts, and time in the decoder. Both switches
 default to off. See the [comparison protocol and baseline](../../../docs/evidence/s2arm-optimisation-globale.md#premier-lot-vérifiable).
+
+## CPU/GPU synchronization (0357–0360)
+
+| Patch | Change |
+| --- | --- |
+| 0357 | Records an in-submit Metal 4 queue event wait in the existing encode stream. Earlier queue commits precede it and the current piece's commit follows it. External queue waits and Metal 3 keep their existing path. The submit-call boundary still drains. |
+| 0358 | Publishes completed CPU-visible GPU reports with an atomic release. Zero-timeout polls and already-complete waits acquire the value without taking the resource registry mutex. Pending positive waits keep their condition variable, cancellation and timeout. |
+| 0359 | Reserves an occlusion buffer when the first pass needs it. Compute-only pieces leave the eight-slot ring available. Completed query slots are folded before reuse and the GPU fence still guards every used buffer. |
+| 0360 | Adds cumulative wait attribution to the existing resource report and extends the existing event and visibility fixtures. The queue-record fixture uses a host API spy. It does not execute a Metal 4 GPU wait. The visibility fixture uses real shared Metal buffer contents. |
+
+Each optimization defaults to on. Set its independent switch to zero for the previous path,
+`S2A_RB_QUEUE_WAIT_RECORD`, `S2A_RB_FENCE_FAST` or `S2A_RB_VISIBILITY_LAZY`.
+The options resolve again after a drained hosted session. `[rb-cpu-gpu-sync]` reports the number
+of recorded queue waits, remaining encode drains, allocator wait time, visibility reservations,
+pieces that needed no reservation and visibility wait count/time. Timings cover actual blocking
+branches only. See the [device comparison](../../../docs/evidence/s2arm-optimisation-globale.md#synchronisation-cpugpu-03570360).

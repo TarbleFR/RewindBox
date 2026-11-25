@@ -1,0 +1,141 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 17396e2..1602e73 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9686,6 +9686,14 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+     uint64_t pending_polls = g_guest_fences.pending_polls, sleeps = g_guest_fences.sleeps;
+     uint64_t broadcasts = g_guest_fences.broadcasts, segments = g_guest_fences.segment_completions_with_sleepers;
+     pthread_mutex_unlock(&g_mu);
++    MLOG("[rb-cpu-gpu-sync] cumulative frame=%llu queue_wait_records=%llu queue_wait_drains=%llu allocator_wait_ms=%.3f visibility_reserves=%llu pieces_without_visibility=%llu visibility_waits=%llu visibility_wait_ms=%.3f",
++         frame, (unsigned long long)atomic_load_explicit(&g_rb_queue_wait_records, memory_order_relaxed),
++         (unsigned long long)atomic_load_explicit(&g_rb_queue_wait_drains, memory_order_relaxed),
++         atomic_load_explicit(&g_rb_alloc_wait_ns, memory_order_relaxed) / 1e6,
++         (unsigned long long)atomic_load_explicit(&g_rb_vis_reserves, memory_order_relaxed),
++         (unsigned long long)atomic_load_explicit(&g_rb_vis_unused_subs, memory_order_relaxed),
++         (unsigned long long)atomic_load_explicit(&g_rb_vis_waits, memory_order_relaxed),
++         atomic_load_explicit(&g_rb_vis_wait_ns, memory_order_relaxed) / 1e6);
+     if (pending_polls || sleeps)
+         MLOG("[fence-wake] cumulative frame=%llu pendingPolls=%llu positiveWaitSleeps=%llu fenceBroadcasts=%llu segmentCompletionsWithSleepers=%llu",
+              frame, (unsigned long long)pending_polls, (unsigned long long)sleeps,
+diff --git a/graphics/nvn/tests/t_nvn_visfold.m b/graphics/nvn/tests/t_nvn_visfold.m
+index 51c0f9b..ea42b34 100644
+--- a/graphics/nvn/tests/t_nvn_visfold.m
++++ b/graphics/nvn/tests/t_nvn_visfold.m
+@@ -2,6 +2,11 @@
+ // 期望（按 NVN 语义手算，不跑被测实现）：SAMPLES_PASSED 是自上次 ResetCounter 起的累计值；
+ //   ① 提交 1 的两个槽（5、7）完成后，环形缓冲被提交 2 复用并改写成 100，提交 2 自己的槽是 100 → 报告 = 5 + 7 + 100 = 112（旧实现读到改写后的值：300）；
+ //   ② 10 万次「一个提交一个槽、每次都报告、从不重置」→ 未完成的槽表始终 ≤ 1 项，最后报告累计 = 100000（旧实现槽表涨到 10 万项）。
++#include <stdint.h>
++#include <stddef.h>
++__attribute__((weak)) int dm_shader_vpad_cached_mesh(const uint8_t key[8], uint32_t mask, char *path, size_t n) {
++    (void)key; (void)mask; (void)path; (void)n; return -1;
++}
+ #include "../gfx/nvn/nvn_mtl.m"
+ 
+ static unsigned failures, checks;
+@@ -49,6 +54,19 @@ int main(void) {
+         VERIFY(maxn == 1, "② 只报告不重置 10 万次，未完成槽表最多 1 项 → %d", maxn);
+         VERIFY(last == 100000, "② 最后一次报告累计 100000 → %llu", (unsigned long long)last);
+         vis_clear();
++        // Exercise the real ring reservation with a tracked shared Metal buffer.
++        // A piece without a render pass leaves the reservation state untouched.
++        g_vis = nil; g_vis_ring_i = -1;
++        g_vis_ring_n = 1; g_vis_ring[0].buf = ring; g_vis_ring[0].fence = g_done;
++        VERIFY(!g_vis && g_vis_ring_i == -1, "unrendered piece has no visibility reservation");
++        v[0] = 9; push_slot(ring, 0); complete();
++        vis_reserve();
++        VERIFY(g_vis == ring && g_vis_ring_i == 0 && g_vis_base == 9 && g_nvs == 0,
++               "first rendered pass folds completed samples before reserving the same buffer");
++        uint64_t reservations = atomic_load(&g_rb_vis_reserves);
++        vis_reserve();
++        VERIFY(atomic_load(&g_rb_vis_reserves) == reservations,
++               "later passes of the same piece retain one visibility reservation");
+     }
+     printf("%s t_nvn_visfold %u/%u\n", failures ? "✗" : "✓", checks - failures, checks);
+     return failures != 0;
+diff --git a/graphics/nvn/tests/t_nvn_wait_event.m b/graphics/nvn/tests/t_nvn_wait_event.m
+index 1113105..12e4732 100644
+--- a/graphics/nvn/tests/t_nvn_wait_event.m
++++ b/graphics/nvn/tests/t_nvn_wait_event.m
+@@ -13,6 +13,11 @@
+ //   ⑧ 录制时已知 GPU 侧信号（11-05 时之笛第二十九版读档：事件第一次被等时写它的 SignalEvent 还没提交，只录在别的队列的命令缓冲里）：
+ //      超时 3000 ms；先「录制」写 H 的 SignalEvent（nvn_be_event_gpu_recorded，不提交），再提交等 H「等于 1」→ 不登记、200 ms 内完成、强制放行 0 次；
+ //      之后才提交那笔信号 → H = 1。对照：没录制过信号的事件 K 同样等待 → 登记 1 次（CPU 随后写 K 放行，免得等到超时）
++#include <stdint.h>
++#include <stddef.h>
++__attribute__((weak)) int dm_shader_vpad_cached_mesh(const uint8_t key[8], uint32_t mask, char *path, size_t n) {
++    (void)key; (void)mask; (void)path; (void)n; return -1;
++}
+ #include "../gfx/nvn/nvn_mtl.m"
+ static unsigned checks, failures;
+ #define REQUIRE(c) do { if (!(c)) { fprintf(stderr, "FAIL setup %s:%d: %s\n", __FILE__, __LINE__, #c); exit(1); } } while (0)
+@@ -26,7 +31,68 @@ static uint64_t run(const ev_rec *r, int n) {   // 一个提交：n 条事件记
+     static uint64_t frame = 1; nvn_be_set_frame(++frame); nvn_be_sub_begin(); state_reset();
+     nvn_be_exec((const uint8_t *)&s); return nvn_be_sub_commit();
+ }
+-int main(void) { @autoreleasepool {
++// Production recording and fence polling, without initializing a Metal device.
++// The queue spy checks host API order; the normal fixture below tests GPU waits.
++static unsigned rb_order[4], rb_order_count;
++@interface RBWaitEvent : NSObject
++@property(nonatomic) uint64_t signaledValue;
++@end
++@implementation RBWaitEvent
++@end
++@interface RBWaitQueue : NSObject
++- (void)waitForEvent:(id)event value:(uint64_t)value;
++@end
++@implementation RBWaitQueue
++- (void)waitForEvent:(id)event value:(uint64_t)value {
++    REQUIRE(event && value == 1);
++    rb_order[rb_order_count++] = 2;
++}
++@end
++static int rb_cpu_sync_checks(void) {
++    alarm(20); // A poll that takes the already-held mutex fails deterministically.
++    atomic_store(&g_rb_fence_fast_mode, 1);
++    atomic_store(&g_done, 7);
++    pthread_mutex_lock(&g_mu);
++    VERIFY(nvn_be_wait(7, 0) && nvn_be_wait(7, 1), "completed fence polls bypass the resource mutex");
++    uint64_t pending = atomic_load(&g_guest_fences.pending_polls);
++    VERIFY(!nvn_be_wait(8, 0) && atomic_load(&g_guest_fences.pending_polls) == pending + 1,
++           "pending zero-timeout poll returns without locking and remains counted");
++    pthread_mutex_unlock(&g_mu);
++    VERIFY(!nvn_be_wait(8, 1000000), "pending positive timeout keeps its sleep and timeout");
++    atomic_store(&g_rb_fence_fast_mode, 0);
++    VERIFY(nvn_be_wait(7, 0) && !nvn_be_wait(8, 0), "explicit legacy fence path keeps the predicate");
++
++    g_rec = 1; g_rb_started = 1; g_m3 = 0;
++    g_sub_thread = pthread_self(); atomic_store(&g_sub_thread_set, 1);
++    g_cb = [NSObject new]; g_q4 = (id)[RBWaitQueue new];
++    g_rb_queue_wait_mode = 1; g_rb_piece.held = 1;
++    RBWaitEvent *event = [RBWaitEvent new];
++    __weak RBWaitEvent *kept = event;
++    rec_queue_block(^{ rb_order[rb_order_count++] = 1; });
++    queue_wait_event((__bridge void *)event, 1);
++    rec_queue_block(^{ rb_order[rb_order_count++] = 3; });
++    event = nil;
++    VERIFY(rb_order_count == 0 && g_rb_cur && g_rb_cur->n == 3 && g_rb_piece.held == 1 && kept,
++           "pending queue wait records in place without draining or dropping the event");
++    for (int i = 0; i < g_rb_cur->n; i++) rec_exec(&g_rb_cur->r[i]);
++    const unsigned expected[] = {1, 2, 3};
++    VERIFY(rb_order_count == 3 && !memcmp(rb_order, expected, sizeof expected),
++           "prior queue operation, GPU wait and later queue operation retain their order");
++    VERIFY(!kept, "the encode record releases its retained event after use");
++    free(g_rb_cur); g_rb_cur = NULL;
++    g_rb_piece.held = 0; g_cb = nil; g_rb_started = 0; g_rec = 0;
++    g_rb_queue_wait_mode = 0; rb_order_count = 0;
++    event = [RBWaitEvent new];
++    queue_wait_event((__bridge void *)event, 1);
++    VERIFY(rb_order_count == 1 && rb_order[0] == 2, "legacy queue wait stays immediate");
++    event.signaledValue = 1;
++    queue_wait_event((__bridge void *)event, 1);
++    VERIFY(rb_order_count == 1, "an already-satisfied event inserts no wait");
++    printf("CPU sync checks: %u/%u; queue API spy, no GPU execution in this mode\n", checks - failures, checks);
++    return failures != 0;
++}
++int main(int argc, char **argv) { @autoreleasepool {
++    if (argc == 2 && !strcmp(argv[1], "--rb-cpu-sync")) return rb_cpu_sync_checks();
+     setvbuf(stdout, NULL, _IOLBF, 0); alarm(60);
+     setenv("DM_NVN_ENC_THREAD", "0", 0); setenv("DM_PRESENT_LINK", "0", 1);
+     mtl_init();

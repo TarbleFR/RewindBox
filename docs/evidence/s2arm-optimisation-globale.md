@@ -201,3 +201,40 @@ L’A18 Pro est Apple9 et accepte les formats BC natifs. Pour les autres puces, 
 Le premier essai du [run 45499482706](https://github.com/TarbleFR/RewindBox/actions/runs/45499482706) identifie le runner comme Apple M1 virtuel, macOS 26.7.2. La médiane sur 1 024 tuiles distinctes est passée de 23,963 à 5,957 µs par tuile (neuf passages, plage 19,111–31,510 puis 5,193–10,516 µs). Pour une seule tuile réutilisée, la médiane est passée de 20,600 à 1,338 µs. Les 1 354 contrôles CPU passent. Le test Metal RGBA8 lit 16 384 pixels exacts dans chacun des quatre cas après copie vers une texture privée et retour en mémoire partagée. Le test isolé de la session réussit ses cinq assertions. Le redémarrage avec initialisation complète a alors échoué à la création du MTLResidencySet sur le périphérique paravirtualisé. Les mesures de ce paragraphe précèdent cet échec et concernent uniquement les étapes nommées.
 
 La [CI finale, commit `fddb985b`](https://github.com/TarbleFR/RewindBox/actions/runs/45500619250), a compilé le moteur iPhoneOS sur macOS 15 et 26. Sur le M1 virtualisé, 1 354/1 354 contrôles CPU et 65 536/65 536 comparaisons de pixels Metal ont réussi. Le banc de redémarrage a exercé la vraie file Metal avec ressources suivies du runner et a réussi ses huit assertions. Le matériel physique conserve le chemin de test normal du backend. Sur cette répétition, les 1 024 tuiles distinctes sont passées de 25,526 à 9,142 µs par tuile (plages 22,683–37,229 et 6,164–13,734). Les deux exécutions donnent une réduction médiane de 64 à 75 % sur ce microbanc. La taille et la durée des uploads dans les jeux, le trafic DRAM, les FPS affichés, la mémoire et l’énergie sur A18 Pro restent à mesurer. L’[inventaire signé de la 839](rewind839/signed-payload-identity.json) confirme les empreintes du moteur S2Arm et du Core MeloNX issus des deux compilations. La [comparaison avec la 838](rewind839/bridge-comparison.json) attribue les différences des trois ponts ARMSX2, MeloNX et RPCS3 aux références équivalentes à `_objc_msgSend` produites par l’éditeur de liens.
+
+## Synchronisation CPU/GPU 0357–0360
+
+Le lot part du contenu vérifié de la 839. Le Core MeloNX retenu reste celui de cette livraison.
+
+| Priorité | Cause établie dans le chemin exécuté | Modification | Vérification recherchée |
+|---|---|---|---|
+| 1 | Un wait Metal 4 rencontré pendant le replay peut appeler `rec_drain` pour mettre les morceaux précédents sur la queue. Le CPU rejoint alors dm-encode avant de poursuivre la traduction. | 0357 enregistre le wait avec les opérations de queue existantes. L'ordre devient commit précédent, wait, commit du morceau courant. La fin de l'appel de soumission continue à attendre l'encodeur. | Le fixture existant vérifie l'ordre des appels, la rétention de l'événement et l'absence de drain intermédiaire. Le chemin externe et Metal 3 conservent leur drainage. |
+| 2 | Un poll de fence prend `g_mu`, également utilisé par le registre des pools et la retraite des ressources. Plusieurs lecteurs de `g_done` accèdent au nombre sans synchronisation C. | 0358 publie la fence terminée avec release et la lit avec acquire. Un poll à zéro et une fence déjà atteinte prennent zéro verrou du registre. Un vrai wait positif garde son sommeil conditionnel. | Poll effectué avec `g_mu` déjà verrouillé, valeur encore en attente et timeout positif. L'absence de donnée terminée reste observable. |
+| 3 | `nvn_be_sub_begin` réserve un tampon d'occlusion pour chaque morceau, y compris un morceau de calcul ou sans passe de rendu. Les huit places peuvent attendre le GPU même si la pièce ne lit ni n'écrit de compteur. | 0359 réserve le tampon lors de la première passe qui en a besoin. Un morceau sans réservation laisse le ring disponible. La taille et la limite des pools restent identiques. | Le fixture de visibilité vérifie le cumul, la réutilisation d'un buffer terminé et une réservation unique par morceau. |
+| 4 | Le temps `nvn_be_wait` agrège plusieurs causes. | 0360 expose séparément le temps d'attente des allocateurs et des tampons d'occlusion, avec les counts des waits enregistrés et des drains restants. | Lire les différences des compteurs cumulés entre le début et la fin de chaque fenêtre. |
+
+Les trois modifications sont génériques NVN/NVN2. Elles s'activent par défaut. Pour comparer au
+chemin de la 839, mettre à zéro l'interrupteur de la modification étudiée.
+
+| Interrupteur | Valeur de référence | Valeur candidate |
+|---|---|---|
+| `S2A_RB_QUEUE_WAIT_RECORD` | `0` | `1` |
+| `S2A_RB_FENCE_FAST` | `0` | `1` |
+| `S2A_RB_VISIBILITY_LAZY` | `0` | `1` |
+
+Le rapport existant inclut désormais `[rb-cpu-gpu-sync]`. Les nombres
+`queue_wait_records` et `queue_wait_drains` attribuent les jointures du thread d'encodage.
+`allocator_wait_ms` mesure le blocage à la limite des huit allocateurs. `visibility_wait_ms`
+mesure celui des tampons d'occlusion. `pieces_without_visibility` dénombre les morceaux qui
+ont évité cette réservation. Les sommes sont cumulées depuis le début de la session.
+
+Le premier objectif de comparaison reste au moins 1 ms gagnée sur le chemin critique de Zelda,
+avec footprint et p99 stables, sur les trois fenêtres de 180 s décrites plus haut. Les 4,4–7,2 ms
+des journaux de référence agrègent des causes que ces compteurs doivent départager. La réduction
+exacte du nombre de mutex pour un poll terminé est établie par le code. Les gains FPS, watts et
+latence en jeu sur A18 Pro restent non mesurés à ce stade.
+
+La réutilisation d'un allocateur et d'un tampon utilisé reste liée à sa fence GPU. Le wait
+enregistré conserve le même événement, sa valeur et sa place parmi les commits. Les règles
+de barrières de rendu 0353 continuent de s'appliquer. Les changements de dimensions, le cumul
+des résultats d'occlusion et la fin de session suivent leurs gardes existantes.

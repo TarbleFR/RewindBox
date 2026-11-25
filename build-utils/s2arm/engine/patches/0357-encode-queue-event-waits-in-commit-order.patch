@@ -1,0 +1,59 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index fee1aaf..b4b37a1 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4868,6 +4868,17 @@ void *nvn_be_fence_event(void) { mtl_init(); return (__bridge void *)g_ev; }   /
+ //   Metal 4 是队列级 waitForEvent；Metal 3 是只含一条 encodeWaitForEvent 的命令缓冲（同一队列后续命令缓冲都被它挡住，11-01 本机实测）。此前还没提交的工作也会一起等（只多等不少等）
+ static uint64_t g_rb_qwait_n, g_rb_evwait_n, g_rb_fsync_n;   // RewindBox (patch 0072): queue waits made for another queue's or GL's fence (OP_WAIT_SYNC, QueueWaitSync) and for a GPU event
+                                                               //   wait's ticket (ev_wait, on g_evw_ev), fences taken in the replay (OP_FENCE_SYNC): what a piece holds (xq_piece)
++// RewindBox (patch 0357): queue waits follow the commits already recorded, without
++// making the submit thread join dm-encode. The end of the submit call still drains.
++static int g_rb_queue_wait_mode = -1;
++static _Atomic uint64_t g_rb_queue_wait_records, g_rb_queue_wait_drains;
++static int rb_queue_wait_recorded(void) {
++    if (g_rb_queue_wait_mode < 0) {
++        const char *value = getenv("S2A_RB_QUEUE_WAIT_RECORD");
++        g_rb_queue_wait_mode = !value || strcmp(value, "0");
++    }
++    return g_rb_queue_wait_mode;
++}
+ static void queue_wait_event(void *ev, uint64_t v) {   // the wait itself; the replay calls it while encoding a submission (OP_WAIT_SYNC), whose command buffer commits after it
+     id<MTLSharedEvent> e = (__bridge id<MTLSharedEvent>)ev;
+     if (e.signaledValue >= v) return;
+@@ -4875,11 +4886,21 @@ static void queue_wait_event(void *ev, uint64_t v) {   // the wait itself; the r
+     if (ev == (__bridge void *)g_evw_ev) g_rb_evwait_n++; else g_rb_qwait_n++;   // RewindBox (patch 0072)
+     if (g_m3) { id<MTLCommandBuffer> cb = m3_cb(); [cb encodeWaitForEvent:e value:v]; [cb commit]; }
+     else {
++        if (g_cb && rec_on() && g_rb_started && rb_queue_wait_recorded()) {
++            // Flush geometry lanes first. RO_Q_BLOCK retains the event and keeps
++            // previous commits before this wait and this piece's commit after it.
++            // External QueueWaitSync calls have no open CB and keep their drain.
++            geo_run_flush();
++            rec_queue_block(^{ if (e.signaledValue < v) [g_q4 waitForEvent:e value:v]; });
++            atomic_fetch_add_explicit(&g_rb_queue_wait_records, 1, memory_order_relaxed);
++            return;
++        }
+         // RewindBox (patch 0337): the Metal 4 wait applies to every command buffer committed after it. Pieces of this submit call that were only handed over
+         //   (rb_piece_hold.h) are committed by the encode thread later: without this drain they would wait too, their fences with them, and a release that
+         //   depends on them (a guest thread waiting on such a fence before it raises the event, or a GL sync) would stall the queue until the forced release
+         //   or for good. Draining first keeps the order of IPA 829: earlier pieces on the queue, then the wait. Only a later piece that waits on the GPU pays it
+-        if (g_rb_piece.held) { uint64_t b0 = t_rb_blk[1]; rec_drain(); g_rb_piece_wait_ns += t_rb_blk[1] - b0; g_rb_piece.held = 0; }   // the earlier pieces are on the queue now; the current piece hands over again at its end, so the call's end still waits
++        if (g_rb_piece.held) { uint64_t b0 = t_rb_blk[1]; rec_drain(); g_rb_piece_wait_ns += t_rb_blk[1] - b0; g_rb_piece.held = 0;
++            atomic_fetch_add_explicit(&g_rb_queue_wait_drains, 1, memory_order_relaxed); }   // the earlier pieces are on the queue now; the current piece hands over again at its end, so the call's end still waits
+         [g_q4 waitForEvent:e value:v];
+     }
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 0be305c..517de4c 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -399,6 +399,9 @@ void nvn_be_begin_session(void) {
+     for (int i = 0; i < RB_DBAR_COUNT; i++) atomic_store_explicit(&g_rb_dbar[i], 0, memory_order_relaxed);
+     for (size_t i = 0; i < sizeof g_rb_dbar_out / sizeof *g_rb_dbar_out; i++) atomic_store_explicit(&g_rb_dbar_out[i], 0, memory_order_relaxed);
+     rb_xq_resume_reset();
++    g_rb_queue_wait_mode = -1;
++    atomic_store_explicit(&g_rb_queue_wait_records, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_queue_wait_drains, 0, memory_order_relaxed);
+     atomic_store(&g_spec_sampled,0);
+     atomic_store(&rb_gov_next,0);
+     for (unsigned i=0; i<RB_KART_OPTIONS; i++) atomic_store(&rb_kart_settings[i],0);

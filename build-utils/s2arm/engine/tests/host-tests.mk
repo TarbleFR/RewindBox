@@ -3,6 +3,7 @@
 rb_shader_test_dir := $(dir $(lastword $(MAKEFILE_LIST)))
 rb_shader_shell_object := $(BUILD)/tests/rb_shader_host_shell.o
 rb_shader_host_targets := $(LINK_RESTART_BINARY) $(NVN_SHADER_FLIGHT_BINARY) $(BUILD)/tests/t_nvn_warmbump $(BUILD)/tests/t_nvn_up_tex_src $(BUILD)/tests/t_nvn_pso_batch $(BUILD)/tests/t_rb_clear_batch_metal $(BUILD)/tests/t_nvn_scissored_ds $(BUILD)/tests/t_nvn_rscale $(BUILD)/tests/t_rb_scale_preflight $(BUILD)/tests/t_rb_drs_ownership $(BUILD)/tests/t_nvn_xqueue $(BUILD)/tests/t_nvn_ubd_index $(BUILD)/tests/t_rb_sparse_retire $(BUILD)/tests/t_nvn_alias_orphan
+rb_shader_host_targets += $(BUILD)/tests/t_nvn_wait_event $(BUILD)/tests/t_nvn_visfold
 
 $(rb_shader_shell_object): $(rb_shader_test_dir)rb_shader_host_shell.c
 	@mkdir -p $(dir $@)
