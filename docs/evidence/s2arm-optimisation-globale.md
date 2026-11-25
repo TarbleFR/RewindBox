@@ -238,3 +238,26 @@ La réutilisation d'un allocateur et d'un tampon utilisé reste liée à sa fenc
 enregistré conserve le même événement, sa valeur et sa place parmi les commits. Les règles
 de barrières de rendu 0353 continuent de s'appliquer. Les changements de dimensions, le cumul
 des résultats d'occlusion et la fin de session suivent leurs gardes existantes.
+
+### Vérifications du lot de synchronisation
+
+La [CI du moteur `c9e6d4ea`](https://github.com/TarbleFR/RewindBox/actions/runs/45553147358)
+a compilé le moteur iPhoneOS sur macOS 15 et 26. L'archive du moteur est authentifiée par
+l'API, numéro `14996120007`, SHA-256
+`b2d1fb0c9d39c4cefd7bb58a3fcf04b58207ca12b839a01be6d338dc91ceda69`.
+L'empreinte de NS2Pro correspond à celle de la 839.
+
+- Les neuf contrôles ciblés de `t_nvn_wait_event --rb-cpu-sync` passent. Ils couvrent le mutex
+  déjà tenu, un poll encore en attente, le timeout positif, le chemin de référence, l'ordre
+  des opérations enregistrées et la durée de vie de l'événement. Ce mode utilise une simulation
+  des appels de queue et exécute le vrai code d'enregistrement.
+- Les sept contrôles de `t_nvn_visfold` passent avec un vrai buffer partagé Metal. Le cumul de
+  100 000 résultats reste exact, le cumul est plié avant réutilisation et la seconde passe
+  conserve la même réservation.
+- Le contrôle local de l'en-tête de poll concurrent a effectué 2 000 000 évaluations sur quatre
+  threads, dont 1 000 000 encore en attente, comptées exactement.
+- Les groupes généraux Flutter et natifs de l'IPA restent déclarés non exécutés. La compilation
+  et les contrôles ciblés du moteur sont ceux du producteur ci-dessus.
+
+Les tests GPU complets de rendu et les waits Metal 4 sur A18 Pro restent à exercer sur appareil.
+Les 9 et 7 assertions ne constituent pas une mesure de FPS, de consommation ou de bande passante.
