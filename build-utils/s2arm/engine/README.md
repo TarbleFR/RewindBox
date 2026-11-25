@@ -440,7 +440,7 @@ queue. It checks publication, ordering, consumer thread and event release before
 review run passed 31 CPU, shared-buffer and session assertions. Its virtual device rejected
 Metal 4, so the native GPU event mode is explicitly unavailable on that runner.
 
-### Zelda : diagnostic et moteur 0367–0373 (25 novembre 2026)
+### Zelda : diagnostic et moteur 0367–0376 (25 novembre 2026)
 
 Le journal Zelda envoyé le 25 novembre, au format 0357–0360 de la 840, contient
 14 relevés cumulatifs. Sur les images 1800–4200, les allocateurs attendent
@@ -474,4 +474,14 @@ pour ajouter le mode par image est franchi. Ce relevé ne constitue pas un A/B.
 Ces nouveaux modes sont sur demande ; les variantes structurelles attendent le
 replay Metal 4 et les mesures mémoire sur appareil avant activation générale.
 Les diagnostics doivent être séparés du passage chronométré. Contrôles purs :
-327 assertions GCC locales ; compilation et Clang sur macOS 15/26 en attente.
+337 assertions GCC locales, contrôle négatif de barrière rouge et huit comparaisons
+des fonctions de cadence. Clang initial : 327/327 sur macOS 15 et 26.
+La première compilation complète a signalé la propriété ARC du `NSError **` ;
+0376 corrige ce défaut et attendent la nouvelle CI.
+
+0364 reste la correction historique des compteurs de drains de 840. Dans ce lot,
+**0374** complète les sites des helpers de fences, préchauffage, fermeture et
+queues ; **0375** couvre aussi la promotion d’un calcul déjà commencé et d’un
+pipeline de rendu encore en file ; **0376** qualifie le pointeur d’erreur ARC
+`__autoreleasing`. Un test Foundation du vrai sérialiseur vérifie capture d’erreur
+on/off, refus, nettoyage, nouvelle tentative du même objet, renommage et index.

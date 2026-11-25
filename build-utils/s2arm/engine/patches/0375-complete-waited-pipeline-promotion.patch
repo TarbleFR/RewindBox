@@ -1,0 +1,67 @@
+From a00f585d24f524bd6e9bdd85c5082909fbdd4057 Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Wed, 25 Nov 2026 08:56:44 +0100
+Subject: [PATCH] 0375 Promote queued waited render jobs and active compute
+ pipeline owners
+
+---
+ graphics/nvn/gfx/nvn/nvn_mtl.m | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 9e28b95..ea70e26 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -15681,7 +15681,7 @@ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out
+     //   Super Mario Odyssey's Mac cold start (10-27): the system compiler was slow, the frame budget skipped 2048 draws in 4 frames, among them the temporal anti-aliasing / exposure
+     //   chain whose output feeds the next frame, and the 3D picture stayed black for the whole run; first_skip_ok never let those draws be skipped, these limits did
+     int at = pso_pend_find(k), blk = 0, ms = may_skip ? pso_wait_ms() : pso_unsafe_wait_ms(); id<MTLRenderPipelineState> ps = nil; *timed_out = 0;
+-    if (!may_skip) ppq_demand_locked(at);
++    if (!may_skip || rb_pso_wait_boost_on()) ppq_demand_locked(at);
+     if (!ppq_hurry_locked(at)) at = -1;
+     if (may_skip && at >= 0 && g_pp[at].late && !g_pp[at].done) { pthread_mutex_unlock(&g_pp_mu); *timed_out = 1; return nil; }   // waited its limit once already: every later draw with it skips at once until it is done
+     // A draw that cannot be skipped waited the whole unsafe cap for it once: the compiler service is stuck on it, and every later draw with it, safe or not, skips at once until it is done.
+@@ -24620,6 +24620,7 @@ typedef struct {
+     NSError *error;
+     int fc, done;
+     uint64_t frame;
++    pthread_t worker;
+ } RBComputeSlot;
+ static RBComputeSlot g_async_compute[RB_COMPUTE_SLOTS];
+ static pthread_mutex_t g_async_compute_mu=PTHREAD_MUTEX_INITIALIZER;
+@@ -24628,7 +24629,7 @@ static int rb_compute_match(RBComputeSlot *slot, NvShader *cs, int fc, id<MTLFun
+     return slot->shader==cs && slot->fc==fc && slot->function==fn;
+ }
+ static void rb_compute_clear(RBComputeSlot *slot) {
+-    slot->shader=nil; slot->function=nil; slot->result=nil; slot->error=nil; slot->done=0;
++    slot->shader=nil; slot->function=nil; slot->result=nil; slot->error=nil; slot->done=0; slot->worker=NULL;
+ }
+ static void rb_compute_ahead(NvShader *cs) {
+     if (!cs || !cs->fn || cs->tensor==1 || !cs->key[0]) return;
+@@ -24664,10 +24665,12 @@ static void rb_compute_ahead(NvShader *cs) {
+     if (!bounded) pthread_mutex_unlock(&g_async_compute_mu);
+     dispatch_block_t task=^{
+         @autoreleasepool {
++            pthread_mutex_lock(&g_async_compute_mu); free_slot->worker=pthread_self(); pthread_mutex_unlock(&g_async_compute_mu);
+             NSError *error=nil;
+             id<MTLComputePipelineState> ps=par_compute(fn,key ?: par_ckey(cs,fc),&error);
+             int held=lease; rb_spec_done(&held);
+             pthread_mutex_lock(&g_async_compute_mu);
++            free_slot->worker=NULL;
+             free_slot->result=ps; free_slot->error=error; free_slot->done=1;
+             RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_async_compute_cv));
+             pthread_mutex_unlock(&g_async_compute_mu);
+@@ -24696,8 +24699,10 @@ static BOOL rb_compute_take(NvShader *cs, int fc, id<MTLFunction> fn,
+         if (!rb_compute_match(slot,cs,fc,fn)) continue;
+         int wait=!slot->done; uint64_t start=wait ? bp_now() : 0;
+         if (wait) { rb_async_note(RB_ASYNC_CRITICAL_JOIN); DM_BLOCK_BEGIN(); }
++        pthread_override_t boost=wait ? rb_pso_boost(slot->worker) : NULL;
+         while (!slot->done && !dm_gfx_session_stopping())
+             rb_compile_wait(&g_async_compute_cv,&g_async_compute_mu);
++        if (boost) pthread_override_qos_class_end_np(boost);
+         if (slot->done) { *ps=slot->result; *error=slot->error; rb_compute_clear(slot); }
+         pthread_mutex_unlock(&g_async_compute_mu);
+         if (wait) {
+-- 
+2.56.1
+

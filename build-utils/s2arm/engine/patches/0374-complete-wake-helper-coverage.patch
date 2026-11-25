@@ -1,0 +1,237 @@
+From 9363e122e1f8795515abf7c1043b42796cd2bfbe Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Wed, 25 Nov 2026 08:56:19 +0100
+Subject: [PATCH] 0374 Cover fence helpers and secondary presentation and queue
+ wake sites
+
+---
+ graphics/nvn/gfx/nvn/nvn_geometry.inc   |  2 +-
+ graphics/nvn/gfx/nvn/nvn_mtl.m          |  4 +++-
+ graphics/nvn/gfx/nvn/nvn_present_fi.inc |  6 +++---
+ graphics/nvn/gfx/nvn/nvn_session.inc    | 16 ++++++++--------
+ graphics/nvn/gfx/nvn/nvn_xqueue.inc     |  4 ++--
+ graphics/nvn/gfx/nvn/rb_fence_wait.h    |  7 +++++--
+ graphics/nvn/gfx/nvn/rb_spec_gate.h     | 13 ++++++++-----
+ 7 files changed, 30 insertions(+), 22 deletions(-)
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_geometry.inc b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+index b877da1..de578e7 100644
+--- a/graphics/nvn/gfx/nvn/nvn_geometry.inc
++++ b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+@@ -227,7 +227,7 @@ static void mtk_kick(MTLMeshRenderPipelineDescriptor *m, NSString *names, const
+         os_unfair_lock_unlock(&g_pso_mtk_lock);
+         if (rb_course_exact()) {
+             pthread_mutex_lock(&g_mtk_finish_mu);
+-            pthread_cond_broadcast(&g_mtk_finish_cv);
++            RB_WAKE_CALL("compile.signal", -2, pthread_cond_broadcast(&g_mtk_finish_cv));
+             pthread_mutex_unlock(&g_mtk_finish_mu);
+         }
+     } });
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 266d3f5..9e28b95 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -24,9 +24,11 @@
+ #include "rb_attachment_ranges.h"
+ #include "rb_shadow.h"
+ #include "rb_sealed_clear.h"
++#include "../../../../runtime/include/rb_wake.h"
++#define RB_FENCE_DIAG(kind, ns, call) RB_WAKE_CALL(kind, ns, call)
++#define RB_SPEC_DIAG(kind, ns, call) RB_WAKE_CALL(kind, ns, call)
+ #include "rb_fence_wait.h"
+ #include "rb_allocator_frame.h"
+-#include "../../../../runtime/include/rb_wake.h"
+ #include "../../../../runtime/include/rb_texture_stats.h"
+ #include "../../../metal/mtl_slot.h"   // machine-wide Metal client slot
+ #include "nvn_fps.h"
+diff --git a/graphics/nvn/gfx/nvn/nvn_present_fi.inc b/graphics/nvn/gfx/nvn/nvn_present_fi.inc
+index 763a3e7..6d0cfe4 100644
+--- a/graphics/nvn/gfx/nvn/nvn_present_fi.inc
++++ b/graphics/nvn/gfx/nvn/nvn_present_fi.inc
+@@ -52,7 +52,7 @@ static int g_link_owns_layer, g_classic_busy;   // 暂定定义：同 nvn_mtl.m
+ static int g_fi_inflight;                       // 已派出、两张画布还没交完的补帧任务数
+ static int link_layer_busy(void) { return g_classic_busy || g_fi_inflight; }   // 显示链还不能挂图层
+ static int fi_may_take_drawable(void) { return !g_link_owns_layer; }           // 补帧任务这时能不能 nextDrawable
+-static void fi_inflight_add(int d) { pthread_mutex_lock(&g_pq_mu); g_fi_inflight += d; if (d < 0) pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu); }
++static void fi_inflight_add(int d) { pthread_mutex_lock(&g_pq_mu); g_fi_inflight += d; if (d < 0) RB_WAKE_CALL("present.signal", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu); }
+ // 局中当场开 / 关补帧（iOS 齿轮菜单「补帧」调 s2a_fi_set_live，起局按这款的设置设）。关 = 这一帧起走原出图路径（同社区帧率补丁暂停那支），开 = 接着补
+ static _Atomic int g_fi_live = 1;
+ __attribute__((visibility("default"))) void s2a_fi_set_live(int on) { atomic_store(&g_fi_live, on ? 1 : 0); }
+@@ -377,7 +377,7 @@ static int fi_commit(NvPresentFI *f, int s, id<CAMetalDrawable> dr, int (^enc)(i
+     id o = fb_new(); fb_add(o, ^(id fbk) { NSError *fe = [fbk error]; int good = !fe;
+                                 if (!good && !mtl_gpu_cb_error(fe, "frame interpolation", (uint64_t)s)) MLOG("【红】 frame interpolation command buffer error (slot %d): %s", s, fe.description.UTF8String);
+                                 double gs = [fbk GPUStartTime], ge = [fbk GPUEndTime];
+-                                pthread_mutex_lock(&g_pq_mu); g_pq_inflight--; pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu);
++                                pthread_mutex_lock(&g_pq_mu); g_pq_inflight--; RB_WAKE_CALL("present.signal", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu);
+                                 dispatch_semaphore_signal(fr); if (after) after(good, gs > 0 && ge >= gs ? (ge - gs) * 1000 : -1); });
+     pthread_mutex_lock(&g_pq_mu); g_pq_inflight++; pthread_mutex_unlock(&g_pq_mu);
+     res_commit(); m4_commit_one(cb, o);
+@@ -385,7 +385,7 @@ static int fi_commit(NvPresentFI *f, int s, id<CAMetalDrawable> dr, int (^enc)(i
+     pthread_mutex_unlock(&g_fi_enc_mu);
+     return 1;
+ }
+-static void fi_ticket_done(uint64_t ticket) { pthread_mutex_lock(&g_pq_mu); if (ticket > g_pq_done) g_pq_done = ticket; pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu); }
++static void fi_ticket_done(uint64_t ticket) { pthread_mutex_lock(&g_pq_mu); if (ticket > g_pq_done) g_pq_done = ticket; RB_WAKE_CALL("present.signal", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu); }
+ // 出图线程上的一帧（游戏原图 src 已在上屏队列里画好）：good = 这一帧写进输入图并可能插值（0 = 只上真帧，回退 / 单测用）；allow = 规则允许补这一帧。
+ //   槽 1：缩拷进输入图 k → 1/4 亮度 →（与上一帧成对时）块匹配 + MetalFX 插值 → 补出的帧画进画布；槽 2：真帧画进第二张画布。两槽连着提交到上屏队列，CPU 不等 GPU
+ API_AVAILABLE(macos(26.0), ios(26.0))
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 8b371cc..d023b44 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -16,12 +16,12 @@ int nvn_be_request_stop(void) {
+     atomic_store(&g_link_stop, 1);
+     pthread_mutex_lock(&g_pq_mu);
+     g_pq_read = g_pq_in; // queued frames have not been submitted and can be dropped
+-    pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu);
++    RB_WAKE_CALL("session.signal", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu);
+     pthread_mutex_lock(&g_mu);
+-    pthread_cond_broadcast(&g_cv);
+-    pthread_cond_broadcast(&g_guest_fences.changed);
++    RB_WAKE_CALL("session.signal", -2, pthread_cond_broadcast(&g_cv));
++    RB_WAKE_CALL("session.signal", -2, pthread_cond_broadcast(&g_guest_fences.changed));
+     pthread_mutex_unlock(&g_mu);
+-    pthread_mutex_lock(&g_link_mu); pthread_cond_broadcast(&g_link_cv); pthread_mutex_unlock(&g_link_mu);
++    pthread_mutex_lock(&g_link_mu); RB_WAKE_CALL("session.signal", -2, pthread_cond_broadcast(&g_link_cv)); pthread_mutex_unlock(&g_link_mu);
+     return 0;
+ }
+ int nvn_be_present_shutdown(void) {
+@@ -30,7 +30,7 @@ int nvn_be_present_shutdown(void) {
+     pthread_mutex_lock(&g_pq_mu);
+     while (g_link_started || g_classic_busy || g_pq_inflight) {
+         link_stop_locked();
+-        if (pthread_cond_timedwait(&g_pq_cv, &g_pq_mu, &dl) == ETIMEDOUT) {
++        if (RB_WAKE_CALL("session.timed", s2a_rb_wake_absolute(&dl), pthread_cond_timedwait(&g_pq_cv, &g_pq_mu, &dl)) == ETIMEDOUT) {
+             pthread_mutex_unlock(&g_pq_mu); MLOG("【红】重启：上屏线程/完成回调未排空"); return -ETIMEDOUT;
+         }
+     }
+@@ -65,14 +65,14 @@ static int session_wait_backend(void) {
+     // producer remains here; neither queue can gain new work after this point.
+     pthread_mutex_lock(&g_rb_mu);
+     while (g_rb_head || g_rb_busy) {
+-        if (pthread_cond_timedwait(&g_rb_idle, &g_rb_mu, &dl) == ETIMEDOUT) { pthread_mutex_unlock(&g_rb_mu); return -ETIMEDOUT; }
++        if (RB_WAKE_CALL("session.timed", s2a_rb_wake_absolute(&dl), pthread_cond_timedwait(&g_rb_idle, &g_rb_mu, &dl)) == ETIMEDOUT) { pthread_mutex_unlock(&g_rb_mu); return -ETIMEDOUT; }
+     }
+     pthread_mutex_unlock(&g_rb_mu);
+     if (atomic_load(&g_ubc_done) != atomic_load(&g_ubc_head) || g_cb || g_up_cb) return -EBUSY;
+     if (g_nubd) { MLOG("【红】重启：仍有 %d 项常量更新未落地，保留旧会话", g_nubd); return -EBUSY; }
+     pthread_mutex_lock(&g_mu);
+     while (g_done < g_fence) {
+-        if (pthread_cond_timedwait(&g_cv, &g_mu, &dl) == ETIMEDOUT) { pthread_mutex_unlock(&g_mu); return -ETIMEDOUT; }
++        if (RB_WAKE_CALL("session.timed", s2a_rb_wake_absolute(&dl), pthread_cond_timedwait(&g_cv, &g_mu, &dl)) == ETIMEDOUT) { pthread_mutex_unlock(&g_mu); return -ETIMEDOUT; }
+     }
+     pthread_mutex_unlock(&g_mu);
+     uint64_t end = now_ns() + 10000000000ull;
+@@ -84,7 +84,7 @@ static int session_wait_backend(void) {
+     for (;;) {
+         int busy = 0; for (int i = 0; i < PSO_PEND_MAX; i++) busy |= g_pp[i].used && !g_pp[i].done;
+         if (!busy) break;
+-        if (pthread_cond_timedwait(&g_pp_cv, &g_pp_mu, &dl) == ETIMEDOUT) { pthread_mutex_unlock(&g_pp_mu); return -ETIMEDOUT; }
++        if (RB_WAKE_CALL("session.timed", s2a_rb_wake_absolute(&dl), pthread_cond_timedwait(&g_pp_cv, &g_pp_mu, &dl)) == ETIMEDOUT) { pthread_mutex_unlock(&g_pp_mu); return -ETIMEDOUT; }
+     }
+     pthread_mutex_unlock(&g_pp_mu);
+     int compute_drain=rb_compute_drain(&dl);
+diff --git a/graphics/nvn/gfx/nvn/nvn_xqueue.inc b/graphics/nvn/gfx/nvn/nvn_xqueue.inc
+index e0f22f2..a86e2a8 100644
+--- a/graphics/nvn/gfx/nvn/nvn_xqueue.inc
++++ b/graphics/nvn/gfx/nvn/nvn_xqueue.inc
+@@ -216,7 +216,7 @@ static int xq_may_park_(const uint8_t *p, volatile uint32_t *val, uint32_t mode,
+ static void xq_unwind_push(const uint8_t *p) { if (g_xq_nuc < XQ_UNWIND_MAX) g_xq_uc[g_xq_nuc++] = p; else g_xq_ucover = 1; }
+ static void xq_publish_owed(xq_t *e, uint64_t fence) {
+     if (!e->nowed) return;
+-    pthread_mutex_lock(&g_xq_mu); for (int i = 0; i < e->nowed; i++) sync_publish(e->owed[i], fence); e->nowed = 0; pthread_cond_broadcast(&g_xq_cv); pthread_mutex_unlock(&g_xq_mu);
++    pthread_mutex_lock(&g_xq_mu); for (int i = 0; i < e->nowed; i++) sync_publish(e->owed[i], fence); e->nowed = 0; RB_WAKE_CALL("queue.signal", -2, pthread_cond_broadcast(&g_xq_cv)); pthread_mutex_unlock(&g_xq_mu);
+ }
+ // RewindBox (patch 0072): what a piece costs besides its encoding, to decide whether pieces should share a command buffer (L20 / SC14 of the IPA 765 test: 23,670 parks, as many
+ //   extra pieces with their own sub_begin, commit and residency commit, 65.3 s of the submit thread in them, encoding included; 5 to 7 command buffers a frame). Measured on every
+@@ -442,7 +442,7 @@ int nvn_be_xq_owed_wait(const void *s, uint64_t ns) {
+     struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts); uint64_t t = (uint64_t)ts.tv_sec * 1000000000ull + ts.tv_nsec + ns; ts.tv_sec = (time_t)(t / 1000000000ull); ts.tv_nsec = (long)(t % 1000000000ull);
+     uint64_t rb_w0 = now_ns();   // RewindBox (patch 0068): timed (nvn_mtl.m t_rb_blk)
+     pthread_mutex_lock(&g_xq_mu); int r = 0;
+-    while ((r = !xq_owed_locked(s, NULL)) == 0) if (pthread_cond_timedwait(&g_xq_cv, &g_xq_mu, &ts)) { r = !xq_owed_locked(s, NULL); break; }
++    while ((r = !xq_owed_locked(s, NULL)) == 0) if (RB_WAKE_CALL("queue.timed", s2a_rb_wake_absolute(&ts), pthread_cond_timedwait(&g_xq_cv, &g_xq_mu, &ts))) { r = !xq_owed_locked(s, NULL); break; }
+     pthread_mutex_unlock(&g_xq_mu); t_rb_blk[3] += now_ns() - rb_w0; return r;   // RewindBox (patch 0068)
+ }
+ // QueueWaitSync(q, s) with s owed by owner: q's later submissions go behind owner's parked work
+diff --git a/graphics/nvn/gfx/nvn/rb_fence_wait.h b/graphics/nvn/gfx/nvn/rb_fence_wait.h
+index e8ccbff..41b434c 100644
+--- a/graphics/nvn/gfx/nvn/rb_fence_wait.h
++++ b/graphics/nvn/gfx/nvn/rb_fence_wait.h
+@@ -1,5 +1,8 @@
+ // SPDX-License-Identifier: Apache-2.0
+ #pragma once
++#ifndef RB_FENCE_DIAG
++#define RB_FENCE_DIAG(kind, ns, call) (call)
++#endif
+ #include <pthread.h>
+ #include <stdint.h>
+ #include <stdatomic.h>
+@@ -25,7 +28,7 @@ static inline int rb_fence_sleep_locked(rb_fence_waiters *q, pthread_mutex_t *mu
+     if (!q->sleeping || target < q->earliest) q->earliest = target;
+     ++q->sleeping;
+     ++q->sleeps;
+-    int result = pthread_cond_timedwait(&q->changed, mutex, deadline);
++    int result = RB_FENCE_DIAG("fence.timed", s2a_rb_wake_absolute(deadline), pthread_cond_timedwait(&q->changed, mutex, deadline));
+     --q->sleeping;
+     return result;
+ }
+@@ -36,6 +39,6 @@ static inline void rb_fence_advanced_locked(rb_fence_waiters *q, uint64_t done)
+         // again after checking the predicate under the mutex.
+         q->earliest = UINT64_MAX;
+         ++q->broadcasts;
+-        pthread_cond_broadcast(&q->changed);
++        RB_FENCE_DIAG("fence.signal", -2, pthread_cond_broadcast(&q->changed));
+     }
+ }
+diff --git a/graphics/nvn/gfx/nvn/rb_spec_gate.h b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+index 1738115..9fa8ca7 100644
+--- a/graphics/nvn/gfx/nvn/rb_spec_gate.h
++++ b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+@@ -1,5 +1,8 @@
+ #ifndef RB_SPEC_GATE_H
+ #define RB_SPEC_GATE_H
++#ifndef RB_SPEC_DIAG
++#define RB_SPEC_DIAG(kind, ns, call) (call)
++#endif
+ #include <errno.h>
+ #include <pthread.h>
+ #include <stdatomic.h>
+@@ -81,8 +84,8 @@ typedef struct {
+ #define RB_SPEC_GATE_INITIALIZER { PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, PTHREAD_COND_INITIALIZER, 0, RB_SPEC_RUN, 0, 0, 0 }
+ static inline void rb_spec_signal_locked(rb_spec_gate *gate) {
+     atomic_fetch_add(&gate->epoch, 1);
+-    pthread_cond_broadcast(&gate->changed);
+-    pthread_cond_broadcast(&gate->primary);
++    RB_SPEC_DIAG("spec.signal", -2, pthread_cond_broadcast(&gate->changed));
++    RB_SPEC_DIAG("spec.signal", -2, pthread_cond_broadcast(&gate->primary));
+ }
+ static inline void rb_spec_wake(rb_spec_gate *gate) {
+     pthread_mutex_lock(&gate->mutex);
+@@ -139,7 +142,7 @@ static inline void rb_spec_release(rb_spec_gate *gate, int *lease) {
+     if (gate->limit && atomic_load(&gate->level) == RB_SPEC_RUN) rb_spec_signal_locked(gate);
+     else if (!gate->active && (atomic_load(&gate->level) == RB_SPEC_ONE || gate->startup_floor)) {
+         atomic_fetch_add(&gate->epoch, 1);
+-        pthread_cond_signal(&gate->primary);
++        RB_SPEC_DIAG("spec.signal", -2, pthread_cond_signal(&gate->primary));
+     }
+     pthread_mutex_unlock(&gate->mutex);
+ }
+@@ -147,13 +150,13 @@ static inline int rb_cond_wait_for(pthread_cond_t *cv, pthread_mutex_t *mutex, u
+     struct timespec t;
+ #if defined(__APPLE__)
+     t = (struct timespec){ns / 1000000000ull, ns % 1000000000ull};
+-    return pthread_cond_timedwait_relative_np(cv, mutex, &t);
++    return RB_SPEC_DIAG("spec.timed", s2a_rb_wake_relative(&t), pthread_cond_timedwait_relative_np(cv, mutex, &t));
+ #else
+     clock_gettime(CLOCK_REALTIME, &t);
+     t.tv_sec += ns / 1000000000ull;
+     t.tv_nsec += ns % 1000000000ull;
+     if (t.tv_nsec >= 1000000000l) { t.tv_nsec -= 1000000000l; t.tv_sec++; }
+-    return pthread_cond_timedwait(cv, mutex, &t);
++    return RB_SPEC_DIAG("spec.timed", s2a_rb_wake_absolute(&t), pthread_cond_timedwait(cv, mutex, &t));
+ #endif
+ }
+ // Record the epoch before checking the queue to close the wake-before-wait race.
+-- 
+2.56.1
+

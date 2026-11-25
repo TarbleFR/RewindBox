@@ -87,7 +87,7 @@ static BOOL serialize_fixture(id<MTLBinaryArchive> archive, NSURL *url, NSError 
         REQUIRE(atomic_load(&g_par_close_until));
         atomic_store(&g_par_close_until, bp_now());
     }
-    *error = [NSError errorWithDomain:@"RBFixtureMetalSerialization" code:1 userInfo:nil];
+    if (error) *error = [NSError errorWithDomain:@"RBFixtureMetalSerialization" code:1 userInfo:nil];
     return NO;
 }
 enum { INTERRUPT_AT = 7 };
@@ -435,7 +435,52 @@ static void test_scoped_archive(const char *directory) {
     printf("scoped archive strict legacy hit, promotion, reopen and title/build isolation passed\n");
 }
 #endif
+// Exercise the real archive serializer's optional error parameter and file/index
+// transaction with a protocol-shaped archive. No Metal GPU support is required.
+@interface RBErrorNilArchive : NSObject { @public BOOL reject, saw_nil; unsigned calls; }
+@end
+@implementation RBErrorNilArchive
+- (BOOL)serializeToURL:(NSURL *)url error:(NSError **)error {
+    calls++; saw_nil=error==nil;
+    if (reject) { if (error) *error=[NSError errorWithDomain:@"rb.fixture" code:7 userInfo:nil]; return NO; }
+    return [@"fixture archive bytes" writeToURL:url atomically:NO encoding:NSUTF8StringEncoding error:error];
+}
+@end
+static void test_error_nil(void) {
+    NSString *dir=[NSTemporaryDirectory() stringByAppendingPathComponent:NSUUID.UUID.UUIDString];
+    REQUIRE([NSFileManager.defaultManager createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil]);
+    unsigned checks=0;
+#define NIL_CHECK(expr) do { REQUIRE(expr); checks++; } while (0)
+    g_rb_archive_batch32=0;
+    for (int mode=0;mode<2;mode++) {
+        atomic_store(&g_rb_archive_error_nil,mode);
+        RBErrorNilArchive *archive=[RBErrorNilArchive new];
+        NSString *key=[NSString stringWithFormat:@"key-%d",mode];
+        NSString *path=[dir stringByAppendingPathComponent:[key stringByAppendingString:@".metalarch"]];
+        BOOL refused=NO; NSError *error=nil;
+        NIL_CHECK(par_serialize((id)archive,path,@[key],&refused,&error));
+        NIL_CHECK(!refused); NIL_CHECK(archive->calls==1); NIL_CHECK(archive->saw_nil==(BOOL)mode);
+        NIL_CHECK([NSFileManager.defaultManager fileExistsAtPath:path]);
+        NIL_CHECK(![NSFileManager.defaultManager fileExistsAtPath:[path stringByAppendingString:@".tmp"]]);
+        NSString *index=[NSString stringWithContentsOfFile:[dir stringByAppendingPathComponent:@"batches.tsv"] encoding:NSUTF8StringEncoding error:nil];
+        NIL_CHECK([index containsString:key]);
+        archive->reject=YES; error=nil;
+        NSString *failed=[path stringByAppendingString:@"-refused"];
+        NIL_CHECK(!par_serialize((id)archive,failed,@[[key stringByAppendingString:@"-refused"]],&refused,&error));
+        NIL_CHECK(refused); NIL_CHECK(archive->calls==2); NIL_CHECK(archive->saw_nil==(BOOL)mode);
+        NIL_CHECK(mode ? error==nil : error.code==7);
+        NIL_CHECK(![NSFileManager.defaultManager fileExistsAtPath:failed]);
+        NIL_CHECK(![NSFileManager.defaultManager fileExistsAtPath:[failed stringByAppendingString:@".tmp"]]);
+        archive->reject=NO;
+        NIL_CHECK(par_serialize((id)archive,failed,@[[key stringByAppendingString:@"-retry"]],&refused,&error));
+        NIL_CHECK(!refused); NIL_CHECK(archive->calls==3);
+    }
+    REQUIRE([NSFileManager.defaultManager removeItemAtPath:dir error:nil]);
+    printf("PASS real archive serializer transaction: %u checks, error capture on/off, refusal, cleanup, same-object retry, rename and index\n",checks);
+#undef NIL_CHECK
+}
 int main(int argc, char **argv) { @autoreleasepool {
+    if (argc==2 && !strcmp(argv[1],"--error-nil")) { test_error_nil(); return 0; }
     if (argc == 2 && !strcmp(argv[1], "--probe")) return MTLCreateSystemDefaultDevice() ? 0 : 77;
 #ifndef RB_ARCHIVE_TEST_793_CONTROL
     if (argc == 5 && !strcmp(argv[1],"--live-render") &&

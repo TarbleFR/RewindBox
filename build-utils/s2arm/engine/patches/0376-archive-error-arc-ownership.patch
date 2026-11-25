@@ -1,0 +1,35 @@
+From 0687372ba8eb1c192b0d6f1e2b0432b47e0476e5 Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Wed, 25 Nov 2026 08:59:07 +0100
+Subject: [PATCH] 0376 Preserve ARC autoreleasing ownership of optional archive
+ error output
+
+---
+ graphics/nvn/gfx/nvn/pso_archive.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+index d2c7bd6..509e852 100644
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -477,7 +477,7 @@ static void par_write(NSString *key, id desc) {
+         id<MTLBinaryArchive> a = [g_dev newBinaryArchiveWithDescriptor:[MTLBinaryArchiveDescriptor new] error:&e];
+         ok = a && ([desc isKindOfClass:MTLRenderPipelineDescriptor.class] ? [a addRenderPipelineFunctionsWithDescriptor:desc error:&e]
+                                                                           : [a addComputePipelineFunctionsWithDescriptor:desc error:&e]);
+-        if (ok) ok = [a serializeToURL:[NSURL fileURLWithPath:temp] error:rb_archive_error_nil_on() ? nil : &e] && rename(temp.fileSystemRepresentation, path.fileSystemRepresentation) == 0;
++        if (ok) ok = [a serializeToURL:[NSURL fileURLWithPath:temp] error:rb_archive_error_nil_on() ? NULL : &e] && rename(temp.fileSystemRepresentation, path.fileSystemRepresentation) == 0;
+     }
+     par_ga_remove_new(before);
+     par_ga_unlock(lk); pthread_mutex_unlock(&g_par_wmu);
+@@ -532,7 +532,7 @@ static BOOL par_serialize(id<MTLBinaryArchive> archive, NSString *path, NSArray<
+     NSURL *url = [NSURL fileURLWithPath:temp];
+     // Preserve BOOL refusal, retry ownership, temporary-file cleanup, rename
+     // and index publication. Only Metal's optional NSError out parameter changes.
+-    NSError **metal_error=rb_archive_error_nil_on() ? nil : error;
++    NSError *__autoreleasing *metal_error=rb_archive_error_nil_on() ? NULL : error;
+ #ifdef RB_ARCHIVE_TEST_SERIALIZE
+     BOOL serialized = RB_ARCHIVE_TEST_SERIALIZE(archive, url, metal_error);
+ #else
+-- 
+2.56.1
+

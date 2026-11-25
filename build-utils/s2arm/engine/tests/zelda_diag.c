@@ -10,6 +10,8 @@
 #include "rb_gpu_facts.h"
 #include "rb_probe_policy.h"
 #include "rb_wake.inc"
+#define RB_FENCE_DIAG(kind, ns, call) RB_WAKE_CALL(kind, ns, call)
+#include "rb_fence_wait.h"
 static unsigned checks;
 #define CHECK(c) do { ++checks; if (!(c)) { fprintf(stderr,"FAIL line %u: %s\n",__LINE__,#c); exit(1); } } while (0)
 static void *counts_worker(void *arg) {
@@ -82,6 +84,19 @@ int main(void) {
     for (unsigned i=0;i<rb_wake_count;i++) CHECK(atomic_load(&rb_wake_rows[i].waits)==0);
     token=s2a_rb_wake_begin(&site,-1); s2a_rb_wake_end(token,0);
     s2a_rb_wake_report(300,emit); CHECK(report_lines==2);
+    // Exercise the actual production fence helper with its predicate mutex held.
+    unsigned before_sites=rb_wake_count;
+    rb_fence_waiters fences={.changed=PTHREAD_COND_INITIALIZER};
+    pthread_mutex_lock(&mu);
+    CHECK(rb_fence_sleep_locked(&fences,&mu,7,&past)==ETIMEDOUT);
+    CHECK(fences.sleeping==0); CHECK(fences.sleeps==1); CHECK(rb_wake_count==before_sites+1);
+    CHECK(atomic_load(&rb_wake_rows[before_sites].timeouts)==1);
+    fences.sleeping=1; fences.earliest=7;
+    rb_fence_advanced_locked(&fences,6); CHECK(fences.broadcasts==0);
+    rb_fence_advanced_locked(&fences,7); CHECK(fences.broadcasts==1);
+    CHECK(fences.earliest==UINT64_MAX); CHECK(rb_wake_count==before_sites+2);
+    CHECK(atomic_load(&rb_wake_rows[before_sites+1].signals)==1);
+    pthread_mutex_unlock(&mu); pthread_cond_destroy(&fences.changed);
     s2a_rb_wake_configure(0); report_lines=0; s2a_rb_wake_report(301,emit); CHECK(report_lines==0);
     printf("PASS Zelda diagnostic policies and real pthread accounting: %u assertions; four concurrent publishers, condition signal, timeout, disabled fast path and session epoch\n",checks);
     return 0;

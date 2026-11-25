@@ -398,8 +398,8 @@ Fair. L’objectif 100 % / 60 images/s / absence de Serious n’est pas atteint.
 Les trois profils CPU de quatre secondes ne constituent pas trois fenêtres de
 180 secondes ; aucun gain FPS ou watts n’est attribué à ces seuls relevés.
 
-Le [lot moteur et ses sept interrupteurs](../../build-utils/s2arm/engine/README.md#zelda--diagnostic-et-moteur-03670373-25-novembre-2026)
-est implémenté, en attente de compilation. Les tests purs GCC passent 327 assertions
+Le [lot moteur et ses sept interrupteurs](../../build-utils/s2arm/engine/README.md#zelda--diagnostic-et-moteur-03670376-25-novembre-2026)
+0367–0376 est implémenté, en attente de compilation finale. Les tests purs GCC passent 337 assertions
 (cas négatifs inclus : copie/encodeur/barrière, source inconnue, option coupée,
 epoch de session et délais conservés). Clang et CI macOS 15/26 restent à exécuter.
 Le diagnostic ajoute une charge de journalisation ; le couper pour les mesures A/B.
@@ -408,3 +408,14 @@ Aucun correctif du rythme des jeux ni aucune correction spéculative des réveil
 Le traducteur attend un relevé `S2A_RB_GPUDIAG`. Le lot TBDR et la file de résidences
 restent ensuite à instruire. Le cache système iOS de ≈1,33 Go reste une hypothèse :
 aucune purge ni modification de sa politique.
+
+Relecture du lot : la première CI `45571726110` a passé les 327 premiers contrôles
+Clang sur macOS 15/26, puis a refusé le pointeur `NSError **` non qualifié ARC.
+0376 conserve la propriété `__autoreleasing` du paramètre. 0374 ajoute les attentes
+placées dans les helpers de fences et de files secondaires ; 0375 complète les
+propriétaires de compilation calcul et les jobs de rendu encore en file.
+Le test GCC final couvre aussi le vrai helper de fence : 337 assertions. Un
+contrôle négatif supprimant les barrières nécessaires échoue comme attendu.
+Huit comparaisons des sources de vitesse/cadence sont identiques après retrait
+mécanique des seules enveloppes de comptage ; `hle_nvn.c` est identique octet par octet.
+[Empreintes de ces contrôles](s2arm-zelda-speed-preservation.json).
