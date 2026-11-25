@@ -36,4 +36,9 @@ ios-guest: ios
 	@chain=$$(sed -n 's/^#define DMSH_CHAIN "\([0-9a-f]*\)".*/\1/p' graphics/nvn/gfx/nvn/dmsh_chain.h); \
 	  test -n "$$chain" && test $${#chain} -le 12 || { echo "DMSH_CHAIN not found in graphics/nvn/gfx/nvn/dmsh_chain.h" >&2; exit 1; }; \
 	  printf '%s\n' "$$chain" > "$(S2ARM_GUEST_FW)/S2ArmDirectChain.txt"
+	@# RewindBox: ship the 16-hex shader translator fingerprint beside S2ArmDirectChain.txt so host graphics generations
+	@# trigger a clean rebuild on Launch 1 whenever a translator update changes Xfp (without invalidating CPU preparation).
+	@xfp=$$(python3 translator/dmsh_chain.py --xfp | tr -d '[:space:]'); \
+	  printf '%s' "$$xfp" | grep -Eq '^[0-9a-f]{16}$$' || { echo "Invalid DshXfp from translator/dmsh_chain.py --xfp: '$$xfp'" >&2; exit 1; }; \
+	  printf '%s\n' "$$xfp" > "$(S2ARM_GUEST_FW)/S2ArmShaderXfp.txt"
 	@echo "Guest framework: $(S2ARM_GUEST_FW) ($$(du -sh "$(S2ARM_GUEST_FW)" | cut -f1))"

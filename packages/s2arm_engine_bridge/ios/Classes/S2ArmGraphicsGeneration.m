@@ -79,6 +79,18 @@ static BOOL genID(id value) {
   return [value isKindOfClass:NSString.class] && [value length] == 64 &&
     [value rangeOfCharacterFromSet:[NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdef"].invertedSet].location == NSNotFound;
 }
+static BOOL validXfp(id value) {
+  return [value isKindOfClass:NSString.class] && [value length] == 16 &&
+    [value rangeOfCharacterFromSet:[NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdef"].invertedSet].location == NSNotFound;
+}
+static NSString *_Nullable shippedShaderXfp(void) {
+  NSString *dir = NSBundle.mainBundle.privateFrameworksPath;
+  if (!dir.length) return nil;
+  NSString *path = [dir stringByAppendingPathComponent:@"S2ArmEngine.framework/S2ArmShaderXfp.txt"];
+  NSString *text = [[NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil]
+      stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+  return validXfp(text) ? text : nil;
+}
 @interface S2ArmGraphicsGeneration ()
 - (NSDictionary *)outputsForCount:(uint64_t)expected;
 @end
@@ -96,7 +108,9 @@ static BOOL genID(id value) {
   // still verifies the content, device identity and Metal archives before their use.
   NSDictionary *active = json([dir stringByAppendingPathComponent:@"graphics/active.json"]);
   NSDictionary *identity = active[@"identity"];
-  if ([identity isKindOfClass:NSDictionary.class] && [identity[@"revision"] isEqual:@(kMarioKartGraphicsRevision)]) return nil;
+  NSString *xfp = shippedShaderXfp();
+  BOOL xfpMatches = !xfp.length || [identity[@"xfp"] isEqual:xfp];
+  if ([identity isKindOfClass:NSDictionary.class] && [identity[@"revision"] isEqual:@(kMarioKartGraphicsRevision)] && xfpMatches) return nil;
   S2ArmGraphicsGeneration *plan = [self planForGame:kKart directory:dir root:[dir stringByAppendingPathComponent:@"root"]
                                               chain:chain reused:YES error:NULL];
   if (!plan || plan.active || [json([plan.wire stringByAppendingPathComponent:@".seeded.json"]) isEqual:plan->_identity]) return nil;
@@ -129,15 +143,23 @@ static BOOL genID(id value) {
     problem(error, @"Missing graphics cache compatibility identity."); return nil;
   }
   return [[self alloc] initWithDirectory:gameDir gid:gid buildID:build content:content chain:chain
-                                hardware:machine osBuild:os reuseLegacy:reused];
+                                hardware:machine osBuild:os shaderXfp:shippedShaderXfp() reuseLegacy:reused];
 }
 - (instancetype)initWithDirectory:(NSString *)directory gid:(NSString *)gid buildID:(NSString *)buildID
                           content:(NSString *)content chain:(NSString *)chain hardware:(NSString *)hardware
                           osBuild:(NSString *)osBuild reuseLegacy:(BOOL)reuseLegacy {
+  return [self initWithDirectory:directory gid:gid buildID:buildID content:content chain:chain
+                        hardware:hardware osBuild:osBuild shaderXfp:nil reuseLegacy:reuseLegacy];
+}
+- (instancetype)initWithDirectory:(NSString *)directory gid:(NSString *)gid buildID:(NSString *)buildID
+                          content:(NSString *)content chain:(NSString *)chain hardware:(NSString *)hardware
+                          osBuild:(NSString *)osBuild shaderXfp:(NSString *)shaderXfp reuseLegacy:(BOOL)reuseLegacy {
   if (!(self = [super init])) return nil;
   _gid = [gid copy]; _gameDir = [directory copy]; _buildID = [buildID copy];
-  _identity = @{@"revision":@(kMarioKartGraphicsRevision), @"gid":gid, @"build":buildID, @"content":content,
-                @"chain":chain, @"hardware":hardware, @"osBuild":osBuild};
+  NSMutableDictionary *identity = [@{@"revision":@(kMarioKartGraphicsRevision), @"gid":gid, @"build":buildID, @"content":content,
+                                     @"chain":chain, @"hardware":hardware, @"osBuild":osBuild} mutableCopy];
+  if (validXfp(shaderXfp)) identity[@"xfp"] = [shaderXfp copy];
+  _identity = [identity copy];
   _generation = digest([NSJSONSerialization dataWithJSONObject:_identity options:NSJSONWritingSortedKeys error:nil]);
   _base = [directory stringByAppendingPathComponent:@"graphics"];
   NSDictionary *previous = json([_base stringByAppendingPathComponent:@"active.json"]);
@@ -175,9 +197,14 @@ static BOOL genID(id value) {
     NSMutableDictionary *compatible = [_identity mutableCopy];
     if (sealedSeed && [sealedSeed[@"revision"] isKindOfClass:NSNumber.class]) {
       compatible[@"revision"] = sealedSeed[@"revision"];
+      if (sealedSeed[@"xfp"]) compatible[@"xfp"] = sealedSeed[@"xfp"];
+      else [compatible removeObjectForKey:@"xfp"];
       NSString *seedHash = digest([NSJSONSerialization dataWithJSONObject:sealedSeed options:NSJSONWritingSortedKeys error:NULL]);
+      BOOL olderRevision = [sealedSeed[@"revision"] unsignedIntegerValue] < kMarioKartGraphicsRevision;
+      BOOL differentXfp = [sealedSeed[@"revision"] unsignedIntegerValue] == kMarioKartGraphicsRevision &&
+                          !([sealedSeed[@"xfp"] isEqual:_identity[@"xfp"]] || (!sealedSeed[@"xfp"] && !_identity[@"xfp"]));
       if ([seed hasPrefix:[seedHash stringByAppendingString:@"."]] && [sealedSeed isEqual:compatible] &&
-          [sealedSeed[@"revision"] unsignedIntegerValue] < kMarioKartGraphicsRevision) {
+          (olderRevision || differentXfp)) {
         _source = folder; _seedSlot = seed;
       }
     }

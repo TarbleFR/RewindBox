@@ -180,6 +180,27 @@ int main(void) { @autoreleasepool {
   put(replacement.wire, child(@"pipelines",batch), @"archive fixture");
   put(replacement.wire, @"shaders/0123456789abcdef_b.metal", @"damaged source");
   CHECK(!plan(dir).active);
+  // A shader translator fingerprint change opens a new graphics generation on
+  // Launch 1 while cloning learned inputs from the previous active generation.
+  put(replacement.wire, @"shaders/0123456789abcdef_b.metal", @"new translation");
+  CHECK(plan(dir).active);
+  S2ArmGraphicsGeneration *xfp1 = [[S2ArmGraphicsGeneration alloc] initWithDirectory:dir gid:gid buildID:build content:@"same-content"
+      chain:chain hardware:@"same-device" osBuild:@"same-os" shaderXfp:@"0123456789abcdef" reuseLegacy:YES];
+  CHECK(!xfp1.active && ![xfp1.wire isEqual:replacement.wire] && stage(xfp1));
+  CHECK([readText(xfp1.wire, @"pso_user.tsv") isEqual:@"prior game rows"]);
+  put(xfp1.wire, @"pso_external.tsv", @"# resolved external recipes\n");
+  put(xfp1.wire, @"pso_reference.tsv", @"S\t0123456789abcdef_b\t0\n");
+  put(xfp1.wire, @"pso_reference.archives.tsv", rows);
+  put(xfp1.wire, @"pipelines/batches.tsv", rows);
+  CHECK([xfp1 activateWithGPU:valid error:NULL]);
+  S2ArmGraphicsGeneration *xfp1Reuse = [[S2ArmGraphicsGeneration alloc] initWithDirectory:dir gid:gid buildID:build content:@"same-content"
+      chain:chain hardware:@"same-device" osBuild:@"same-os" shaderXfp:@"0123456789abcdef" reuseLegacy:YES];
+  CHECK(xfp1Reuse.active && [xfp1Reuse.wire isEqual:xfp1.wire]);
+  S2ArmGraphicsGeneration *xfp2 = [[S2ArmGraphicsGeneration alloc] initWithDirectory:dir gid:gid buildID:build content:@"same-content"
+      chain:chain hardware:@"same-device" osBuild:@"same-os" shaderXfp:@"fedcba9876543210" reuseLegacy:YES];
+  CHECK(!xfp2.active && ![xfp2.wire isEqual:xfp1.wire] && stage(xfp2));
+  // Restore replacement as active so the diagnostics check below remains unchanged.
+  CHECK([replacement activateWithGPU:valid error:NULL]);
   NSString *diagnostics = child(child(dir,@"Diagnostics"),gid), *session = NSUUID.UUID.UUIDString;
   NSString *out = child(child(diagnostics,@"preparation"),session);
   put(replacement.wire,@"stage-recovery.tsv",@"stage\tcurrent\n");

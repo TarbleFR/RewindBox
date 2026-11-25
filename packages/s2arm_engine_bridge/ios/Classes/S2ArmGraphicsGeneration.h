@@ -18,6 +18,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)initWithDirectory:(NSString *)directory gid:(NSString *)gid buildID:(NSString *)buildID
                           content:(NSString *)content chain:(NSString *)chain hardware:(NSString *)hardware
                           osBuild:(NSString *)osBuild reuseLegacy:(BOOL)reuseLegacy;
+/// Same as above, binding the graphics generation to the shipped shader translator fingerprint when present.
+- (instancetype)initWithDirectory:(NSString *)directory gid:(NSString *)gid buildID:(NSString *)buildID
+                          content:(NSString *)content chain:(NSString *)chain hardware:(NSString *)hardware
+                          osBuild:(NSString *)osBuild shaderXfp:(nullable NSString *)shaderXfp reuseLegacy:(BOOL)reuseLegacy;
 - (BOOL)stage:(BOOL (^)(void))cancel progress:(void (^)(NSUInteger files))progress error:(NSError **)error;
 /// Export the named phase's bounded diagnostic tables to this game's visible
 /// diagnostics folder. Each new guest session has its own UUID and inventory.

@@ -637,3 +637,12 @@ signalée par la CI 45659945710 ; la référence locale détient le sous-lot tra
 0413 ferme la course entre le lancement du préchauffage et la publication de
 sa liste connue avant le premier submit, avec budget et arrêts conservés.
 Les longues images identifient aussi l'attente du worker de relecture.
+
+### 0414 — reconstruction visible au changement d'empreinte `xfp` et protection de la preuve stricte
+
+0414 corrige trois écarts mis en évidence par les essais MKW et Zelda :
+1. **`runtime/src/loadprog.c` et `ios/l10n/fr.lproj/S2ArmHost.strings`** : le marqueur `warm_done` intègre désormais `s2a_dsh_xfp()` (`<pack>:<xfp>`) lorsque `S2A.Dsh` est lié, et la page de chargement dispose des libellés français complets. Tout jeu Switch 2 (dont Zelda) réaffiche la progression de reconstruction dès que le traducteur change.
+2. **`graphics/nvn/gfx/nvn/nvn_mtl.m`** : lorsque des shaders conservés doivent être retraduits (`g_warm_rekept > 0`) ou qu'aucun historique `.binds` n'existe encore pour `pso_user.tsv`, les lignes personnelles restantes sont admises après les binds récents dans la préparation bornée au démarrage.
+3. **`graphics/nvn/gfx/nvn/pso_archive.h` et `rb_reference.inc`** : les cibles de la preuve stricte (`rebuild` ou `S2A_RB_PREPARE_PROFILE`) contournent la voie `.metal4archive` de 0406/0408 pour continuer à produire les `.metalarchive` vérifiés par `rb_ref_verify` ; la file de captures Metal 4 (portée à 16) vérifie sa place avant création du serializer afin d'éviter la perte silencieuse d'archivage ; `rb_ref_checkpoint` admet une voie de migration jusqu'à `Serious` sous réserve de marge mémoire (pause à `Critical`).
+
+`guest.mk` écrit aussi `S2ArmShaderXfp.txt` à côté de `S2ArmDirectChain.txt` dans `S2ArmEngine.framework` (lu par `S2ArmGraphicsGeneration` sans invalider la préparation CPU). [Portée et limites](../../../docs/evidence/s2arm-structurels-844.md).

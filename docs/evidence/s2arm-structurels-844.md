@@ -14,6 +14,50 @@ ne prouve ni une suppression de cache ni l'absence totale de compilation lors
 des deux premiers essais. Les anciens journaux MKW de l'archive ne datent pas
 ces trois essais et ne permettent pas de leur attribuer un état thermique précis.
 
+## Reconstruction visible au changement de `xfp` et preuve stricte (0414 + pont)
+
+Le mainteneur signale ensuite que, **même téléphone froid, Zelda ne lance aucune
+reconstruction visible des shaders et pipelines**, tandis que MKW ne l'a lancée
+qu'au troisième essai (téléphone froid). L'inspection du code établit quatre
+causes exactes, corrigées par **0414**, `guest.mk` et `S2ArmGraphicsGeneration` :
+
+1. **Zelda / tous titres (`loadprog.c`, `fr.lproj/S2ArmHost.strings`, `nvn_mtl.m`)** :
+   `S2ArmGraphicsGeneration` et son bandeau « Reconstruction des shaders et des
+   pipelines graphiques » sont réservés à MKW (`0400C3F00006E000`). Sur les autres
+   titres, la page de chargement du moteur (`ios/loadpage.m`) n'affiche barre et
+   compteur que si `s2a_load_first_run` renvoie `1`, or `docs/wire/warm_done` ne
+   stockait que l'empreinte du pack sans `s2a_dsh_xfp()`. De plus, sans historique
+   `.binds` ou lorsque le catalogue personnel contient des shaders à retraduire
+   (`g_warm_rekept > 0`), `0400` pouvait ne pas admettre les lignes personnelles
+   restantes au démarrage. **0414** lie `warm_done` à `<pack>:<xfp>`, ajoute les
+   libellés français `loadpage.*` et complète la file connue avec les lignes
+   `pso_user.tsv` restantes (après les binds récents) lors d'un changement `xfp`
+   ou sans historique `.binds`.
+2. **MKW lancement 1–2 (`guest.mk`, `S2ArmGraphicsGeneration.m`)** :
+   `_identity` ne contenait que `revision=3` et `chain=0be3f28548fd`, sans `xfp`.
+   Après un changement de traducteur (843 puis 844/0411), `active.json` restait
+   valide jusqu'à ce qu'un shader de `pso_reference.tsv` soit réécrit en jeu et
+   casse son SHA-256. `guest.mk` embarque désormais `S2ArmShaderXfp.txt` dans
+   `S2ArmEngine.framework`, inclus dans l'identité de `S2ArmGraphicsGeneration`
+   sans toucher à `S2ArmDirectChain.txt` ni invalider la préparation CPU.
+3. **MKW à chaud (`rb_reference.inc`)** : `rb_ref_checkpoint` appelait
+   `rb_spec_may(0)`, qui bloque à `Serious`. Il admet désormais la voie unique
+   requise jusqu'à `Serious` si la marge mémoire est suffisante, tout en restant
+   en pause à `Critical`.
+4. **Incompatibilité 0406/0408 ↔ `rb_ref_verify` (`pso_archive.h`)** : `0406`
+   routait aussi les cibles `rebuild` de MKW vers `.metal4archive` sans peupler
+   `g_par_have` (`.metalarchive`), ce qui aurait fait échouer la preuve stricte
+   `rb_ref_verify`. **0414** contourne Metal 4 pour les cibles de migration
+   stricte (`rebuild` ou `S2A_RB_PREPARE_PROFILE`) et vérifie la place disponible
+   (seuil 16) avant d'allouer un serializer afin de conserver le repli d'archivage
+   classique au lieu de perdre silencieusement un pipeline compilé.
+
+Vérifications locales exécutées : `git apply` 0001–0414 OK, `t_loadprog` 13/13 +
+contrôle C d'invalidation `xfp` OK, `s2arm_prepare_identity_test.py` 20/20,
+`s2arm_engine_bridge_test.py` 274/274, `s2arm_pinned_engine_test.py` 25/25.
+Compilation iPhoneOS moteur + pont (avec `s2arm_graphics_generation_host.sh`)
+demandée ; comportement sur iPhone non encore observé.
+
 ## Admission du premier submit (0413)
 
 La revue finale relève une course réelle entre le lancement du préchauffage et

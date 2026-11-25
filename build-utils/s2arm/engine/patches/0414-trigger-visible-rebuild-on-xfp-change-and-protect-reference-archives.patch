@@ -1,0 +1,279 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index c024395..9a0987d 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -16367,7 +16367,7 @@ static NSString *warm_key(const char *s, size_t n) {
+ // shaders, so one worker builds them one after the other). The tasks keep the lists' order (a pair at its first line). shader_load shares successful objects and in-flight loads
+ // with prefetch and runtime, without negatively caching failures. After the upstream reference implementation (MIT) warm_parse / warm_task
+ #include "rb_reference.inc"
+-@interface WarmTask : NSObject { @public RBReferenceProof *reference; NSString *referenceIdentity; BOOL externalOnly, recent, drawSeen, known, knownReady; uint8_t cupRank,drawRank; NSString *drawCue; uint64_t drawWait, drawFrame; int kind, stage, fc; uint32_t pad; NSString *key, *vkey, *fkey, *tkey; NSMutableArray<NSData *> *rs; } @end   // fc: a C line's sampler-emulation bits this GPU runs (#800, warm_parse)
++@interface WarmTask : NSObject { @public RBReferenceProof *reference; NSString *referenceIdentity; BOOL externalOnly, recent, drawSeen, known, knownReady, fromUser, knownPriority; uint8_t cupRank,drawRank; NSString *drawCue; uint64_t drawWait, drawFrame; int kind, stage, fc; uint32_t pad; NSString *key, *vkey, *fkey, *tkey; NSMutableArray<NSData *> *rs; } @end   // fc: a C line's sampler-emulation bits this GPU runs (#800, warm_parse)
+ @implementation WarmTask @end
+ // RewindBox (patch 0400): actual binds from the last two sessions, not the
+ // entire user/reference catalogue. A row remains claimed exactly once.
+@@ -17007,6 +17007,7 @@ static NSArray<WarmTask *> *warm_parse_list(NSArray<NSString *> *paths, long *li
+     NSMutableSet<NSString *> *stale = [NSMutableSet set]; long n = 0;
+     NSSet *legacy=nil, *recent=rb_pso_cap_on() ? rb_warm_recent(&legacy) : nil;
+     NSString *referencePath=rb_ref_path(), *userPath=hotPhase ? pso_user_path() : nil;
++    uint64_t rekeptBefore=g_warm_rekept;
+     NSString *referenceList=requestedReference ?: referencePath ?: ([paths.firstObject.lastPathComponent isEqual:@"pso_reference.tsv"] ? paths.firstObject : nil);
+     NSMutableArray *referenceTasks=[NSMutableArray array];
+     NSDictionary<NSString *,NSData *> *history=referenceList && !coldPhase ? rb_draw_warm_history() : nil;
+@@ -17108,7 +17109,9 @@ static NSArray<WarmTask *> *warm_parse_list(NSArray<NSString *> *paths, long *li
+                     }
+                 }
+             }
+-            t->known=hotPhase && rb_known_prepare_on() && t->kind && rb_recent_task(t,recent,legacy);
++            t->fromUser=hotPhase && [path isEqual:userPath];
++            t->knownPriority=hotPhase && rb_known_prepare_on() && t->kind && rb_recent_task(t,recent,legacy);
++            t->known=t->knownPriority;
+             if (rb_pso_cap_on() && t->kind)
+                 t->recent=(hotPhase && ([path isEqual:userPath] || [path isEqual:referenceList] || [hot containsObject:line])) ||
+                           rb_recent_task(t,recent,legacy);
+@@ -17152,6 +17155,15 @@ static NSArray<WarmTask *> *warm_parse_list(NSArray<NSString *> *paths, long *li
+         }
+         free(slots); free(order); free(scratch);
+     }
++    // RewindBox (patch 0414): after a translator fingerprint update (kept
++    // stages retranslated) or when a personal catalogue has no bind history
++    // yet, include its remaining personal pipeline rows after previously bound
++    // rows so bounded startup preparation rebuilds them with visible progress.
++    if (hotPhase && rb_known_prepare_on() && ((!recent.count && !legacy.count) || g_warm_rekept > rekeptBefore)) {
++        for (NSArray<WarmTask *> *bucket in @[referenceTasks, foreground, priority ?: @[], tasks]) {
++            for (WarmTask *t in bucket) if (t->fromUser && t->kind && !t->known) t->known=YES;
++        }
++    }
+     if (hot.count) MLOG("RewindBox (patch 0109): prewarm promoted %lu previously slow pipelines from %lu recorded priorities",
+                         (unsigned long)priority.count, (unsigned long)hot.count);
+     if (referenceTasks.count) {
+@@ -17199,12 +17211,13 @@ static uint64_t rb_promote_pair_locked(NSString *k,BOOL *wake) {
+ }
+ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
+     NSMutableDictionary<NSString *, NSMutableArray<NSNumber *> *> *m = [NSMutableDictionary dictionary];
+-    NSMutableArray<NSNumber *> *known=[NSMutableArray array];
++    NSMutableArray<NSNumber *> *known=[NSMutableArray array], *knownExtra=[NSMutableArray array];
+     long lateRows[2]={0,0}, cupRows[128]={0};
+     NSMutableDictionary<NSString *,NSMutableArray<NSNumber *> *> *routes=[NSMutableDictionary dictionary];
+     for (NSUInteger i = 0; i < tasks.count; i++) {
+         WarmTask *t=tasks[i];
+-        if (t->known) [known addObject:@(i)];
++        if (t->knownPriority) [known addObject:@(i)];
++        else if (t->known) [knownExtra addObject:@(i)];
+         if (t->drawCue.length && ![t->drawCue hasSuffix:@"_asset"] && t->drawWait) {
+             NSMutableArray *rows=routes[t->drawCue];
+             if (!rows) routes[t->drawCue]=rows=[NSMutableArray array];
+@@ -17226,7 +17239,8 @@ static void warm_urgent_index(NSArray<WarmTask *> *tasks) {
+         NSMutableArray *a = m[k]; if (!a) m[k] = a = [NSMutableArray array]; [a addObject:@(i)]; }
+     _Atomic(uint8_t) *c = calloc(tasks.count ? tasks.count : 1, sizeof *c);
+     os_unfair_lock_lock(&g_wu_lock); free((void *)g_wu_claim); g_wu_claim = c; g_wu_n = (long)tasks.count; atomic_store(&g_wu_remaining, g_wu_n); g_wu_pairs = c ? m : nil; g_wu_q = [NSMutableArray array];
+-    if (!c) for (WarmTask *t in tasks) t->known=NO;
++    if (knownExtra.count) [known addObjectsFromArray:knownExtra];
++    if (!c) for (WarmTask *t in tasks) { t->known=NO; t->knownPriority=NO; }
+     g_rb_known_rows=c ? known : nil;
+     // Only the hot phase arms the startup wait. Cold indexing never reopens it.
+     if (atomic_load(&g_rb_known_pending)<0) {
+@@ -17908,7 +17922,7 @@ static void rb_wait_known_prepare(void) {
+         if (initialized && total>0) {
+             int result=s2a_front_warm_tick(total-MAX(left,0),total+1);
+             front|=result>=0;
+-            if (result==1) { reason="player"; break; }
++            if (result==1) { reason=atomic_load(&g_wp_play) ? "player" : "front_cap"; break; }
+         }
+         usleep(50000);
+     }
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+index e6f9b6b..59a8b98 100644
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -872,7 +872,7 @@ static void par_note(NSString *key, id desc) {
+     if ([desc isKindOfClass:RBMetal4Capture.class]) {
+         unsigned captures=0;
+         for (NSArray *entry in g_par_todo) captures += [entry[1] isKindOfClass:RBMetal4Capture.class];
+-        if (captures>=8) { g_par_deferred++; pthread_mutex_unlock(&g_par_mu); return; }
++        if (captures>=16) { g_par_deferred++; pthread_mutex_unlock(&g_par_mu); return; }
+     }
+     // Optional descriptor retention only. All admitted entries stay eligible for
+     // writing. An over-budget key can be offered again and its draw still uses
+@@ -1131,12 +1131,25 @@ static id rb_m4_cached(id descriptor,NSString *key,BOOL compute) {
+     }
+     return nil;
+ }
+-static id rb_m4_compile(id descriptor,NSString *key,BOOL compute,NSError **error) {
++static BOOL rb_m4_capture_room(void) {
++    pthread_mutex_lock(&g_par_mu);
++    unsigned captures=0;
++    for (NSArray *entry in g_par_todo) captures += [entry[1] isKindOfClass:RBMetal4Capture.class];
++    pthread_mutex_unlock(&g_par_mu);
++    return captures<16;
++}
++static BOOL rb_m4_reference_bypass(BOOL rebuild) {
++    if (rebuild) return YES;
++    const char *ref=getenv("S2A_RB_PREPARE_PROFILE");
++    return ref && *ref;
++}
++static id rb_m4_compile(id descriptor,NSString *key,BOOL compute,BOOL *capturedOut,NSError **error) {
++    if (capturedOut) *capturedOut=NO;
+     if (!descriptor) return nil;
+     if (@available(macOS 26.0,iOS 26.0,*)) {
+         MTL4CompilerDescriptor *cd=[MTL4CompilerDescriptor new];
+         RBMetal4Capture *capture=nil;
+-        if (key && g_par_on) {
++        if (key && g_par_on && rb_m4_capture_room()) {
+             MTL4PipelineDataSetSerializerDescriptor *sd=[MTL4PipelineDataSetSerializerDescriptor new];
+             sd.configuration=MTL4PipelineDataSetSerializerConfigurationCaptureBinaries;
+             capture=[RBMetal4Capture new]; capture->serializer=[g_dev newPipelineDataSetSerializerWithDescriptor:sd];
+@@ -1148,9 +1161,11 @@ static id rb_m4_compile(id descriptor,NSString *key,BOOL compute,NSError **error
+         else ps=[compiler newRenderPipelineStateWithDescriptor:descriptor compilerTaskOptions:nil error:error];
+         if (ps) {
+             uint64_t n=atomic_fetch_add(&rb_m4_compiles,1)+1;
+-            if (capture && capture->serializer) par_note(key,capture);
++            BOOL queued=capture && capture->serializer!=nil;
++            if (queued) par_note(key,capture);
++            if (capturedOut) *capturedOut=queued;
+             if (n<=4 || !(n&(n-1))) MLOG("[rb-metal4] first_compiles=%llu archive_hits=%llu captured_without_recompile=%d",
+-                (unsigned long long)n,(unsigned long long)atomic_load(&rb_m4_hits),capture && capture->serializer!=nil);
++                (unsigned long long)n,(unsigned long long)atomic_load(&rb_m4_hits),queued);
+             if (error) *error=nil;
+         } else atomic_fetch_add(&rb_m4_fallbacks,1);
+         return ps;
+@@ -1159,9 +1174,10 @@ static id rb_m4_compile(id descriptor,NSString *key,BOOL compute,NSError **error
+ }
+ static id<MTLRenderPipelineState> par_render_(MTLRenderPipelineDescriptor *d, NSString *key, NSError **e) {
+     BOOL rebuild=par_reference_rebuild(key);
++    BOOL m4Allow=RB_M4_ENABLED() && !rb_m4_reference_bypass(rebuild);
+     id m4=nil;
+-    if (RB_M4_ENABLED()) { if (@available(macOS 26.0,iOS 26.0,*)) m4=rb_m4_render_desc(d); }
+-    id native=rebuild ? nil : rb_m4_cached(m4,key,NO);
++    if (m4Allow) { if (@available(macOS 26.0,iOS 26.0,*)) m4=rb_m4_render_desc(d); }
++    id native=m4Allow ? rb_m4_cached(m4,key,NO) : nil;
+     if (native) { rb_pso_track(native,RB_RENDER,key,YES); par_count(1); par_scope_result(0,1); rb_par_last_way=1; return native; }
+     id<MTLBinaryArchive> b = rebuild ? nil : par_bundle_for(key);
+     if (b) {   // a miss (another OS / GPU than the package was made for) is no error: the device's archive and the compiler follow
+@@ -1195,7 +1211,7 @@ static id<MTLRenderPipelineState> par_render_(MTLRenderPipelineDescriptor *d, NS
+     }
+     if (key && g_par_on) { par_count(0); par_scope_result(0, 0); }
+     uint64_t started = RB_PAR_MEASURE() ? bp_now() : 0, rb_c0 = bp_now();
+-    id<MTLRenderPipelineState> ps=rb_m4_compile(m4,key,NO,e); BOOL captured=ps!=nil;
++    BOOL captured=NO; id<MTLRenderPipelineState> ps=rb_m4_compile(m4,key,NO,&captured,e);
+     if (!ps) { if (e) *e=nil; ps=[g_dev newRenderPipelineStateWithDescriptor:d error:e]; }
+     rb_par_last_way = 2; rb_par_last_compile_ns = bp_now() - rb_c0;
+     par_scope_build(0, started);
+@@ -1244,7 +1260,7 @@ static id<MTLComputePipelineState> par_compute_(id<MTLFunction> fn, NSString *ke
+     }
+     if (key && g_par_on) { par_count(0); par_scope_result(1, 0); }
+     uint64_t started = RB_PAR_MEASURE() ? bp_now() : 0;
+-    id<MTLComputePipelineState> ps=rb_m4_compile(m4,key,YES,e); BOOL captured=ps!=nil;
++    BOOL captured=NO; id<MTLComputePipelineState> ps=rb_m4_compile(m4,key,YES,&captured,e);
+     if (!ps) { if (e) *e=nil; ps=[g_dev newComputePipelineStateWithDescriptor:d options:MTLPipelineOptionNone reflection:nil error:e]; }
+     par_scope_build(1, started);
+     rb_pso_track(ps, RB_COMPUTE, key, NO);
+diff --git a/graphics/nvn/gfx/nvn/rb_reference.inc b/graphics/nvn/gfx/nvn/rb_reference.inc
+index c43d8e8..30fafca 100644
+--- a/graphics/nvn/gfx/nvn/rb_reference.inc
++++ b/graphics/nvn/gfx/nvn/rb_reference.inc
+@@ -76,7 +76,9 @@ static int rb_ref_checkpoint(void *opaque) {
+     struct rb_ref_callbacks *c = opaque;
+     for (;;) {
+         if (c->cancel && c->cancel(c->ctx)) return 1;
+-        if (rb_spec_may(0)) return 0;
++        // RewindBox (patch 0414): allow required single-lane migration work
++        // through Serious when memory headroom permits, pausing at Critical.
++        if (rb_spec_may(0) || (rb_spec_registered_worker(rb_cached_thermal(), 0) && rb_metal_working_room())) return 0;
+         usleep(100000);
+     }
+ }
+diff --git a/ios/l10n/fr.lproj/S2ArmHost.strings b/ios/l10n/fr.lproj/S2ArmHost.strings
+index e697c29..3efc698 100644
+--- a/ios/l10n/fr.lproj/S2ArmHost.strings
++++ b/ios/l10n/fr.lproj/S2ArmHost.strings
+@@ -5,3 +5,22 @@
+ "diag.prompt.no" = "Non merci";
+ "diag.prompt.send" = "Exporter le diagnostic";
+ "diag.prompt.title" = "Exporter le diagnostic de la dernière session ?";
++
++/* RewindBox (patch 0414): French loading and shader/pipeline rebuild strings. */
++"loadpage.data" = "Préparation des données du jeu";
++"loadpage.eta.estimating" = "Estimation du temps restant";
++"loadpage.eta.minSec" = "%d min %d s";
++"loadpage.eta.minutes" = "%d min";
++"loadpage.eta.seconds" = "%d s";
++"loadpage.eta.under5s" = "Moins de 5 s";
++"loadpage.footnote" = "Cette préparation n’a lieu qu’au premier lancement ou après une mise à jour du traducteur de shaders.";
++"loadpage.go.done" = "Reconstruction terminée, entrée en jeu";
++"loadpage.go.early" = "Entrée en jeu ; la suite continue en arrière-plan";
++"loadpage.optimized" = "Reconstruit %@ sur %@";
++"loadpage.remaining" = "%@ restant";
++"loadpage.skip" = "Jouer maintenant, continuer en arrière-plan";
++"loadpage.skip.note" = "Quelques effets peuvent provoquer des ralentissements jusqu’à la fin";
++"loadpage.step.data" = "Données du jeu";
++"loadpage.step.enter" = "Entrée en jeu";
++"loadpage.step.optimize" = "Reconstruction des shaders et des pipelines";
++"loadpage.subtitle" = "Reconstruction des shaders et des pipelines graphiques";
+diff --git a/runtime/src/loadprog.c b/runtime/src/loadprog.c
+index 7a83d81..ca26cbc 100644
+--- a/runtime/src/loadprog.c
++++ b/runtime/src/loadprog.c
+@@ -6,6 +6,9 @@
+ #include <pthread.h>
+ #include <stdatomic.h>
+ #include <sys/stat.h>
++#if !defined(_WIN32)
++#include <dlfcn.h>
++#endif
+ 
+ #define S 1000000000ull
+ static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
+@@ -18,8 +21,17 @@ static double g_rate;                             // 已编 / 秒，按 1 秒窗
+ static uint64_t g_rate_t; static long g_rate_done;
+ static double g_frac;                             // 显示过的最大进度
+ static double g_eta_shown = -1; static uint64_t g_eta_t, g_slow_since;   // 显示的剩余秒数、它的时刻、新估计持续偏高的起点
+-static char g_pack[24];
++static char g_pack[64];
++static _Atomic int g_warm_marked;
+ static _Atomic int g_begun;                       // s2a_load_begin 调过 = 有加载页前端（iOS）；Mac / 安卓宿主没有
++#if !defined(_WIN32)
++static const char *(*g_load_dsh_xfp_fn)(void);
++static pthread_once_t g_load_dsh_xfp_once = PTHREAD_ONCE_INIT;
++static void load_dsh_xfp_init(void) { g_load_dsh_xfp_fn = (const char *(*)(void))dlsym(RTLD_DEFAULT, "s2a_dsh_xfp"); }
++static const char *load_dsh_xfp(void) { pthread_once(&g_load_dsh_xfp_once, load_dsh_xfp_init); return g_load_dsh_xfp_fn ? g_load_dsh_xfp_fn() : NULL; }
++#else
++static const char *load_dsh_xfp(void) { return NULL; }
++#endif
+ 
+ static double env_s(const char *k, double d) { const char *e = getenv(k); double v = e && *e ? atof(e) : d; return v > 0 ? v : d; }
+ 
+@@ -29,6 +41,7 @@ void s2a_load_begin(uint64_t now, int first_run) {
+     g_done = g_total = 0; g_t0 = now; g_warm_t0 = g_last_up = 0; g_rate = 0; g_rate_t = 0; g_rate_done = 0;
+     g_frac = 0; g_eta_shown = -1; g_eta_t = g_slow_since = 0;
+     pthread_mutex_unlock(&g_mu);
++    atomic_store(&g_warm_marked, 0);
+     atomic_store(&g_begun, 1);
+ }
+ 
+@@ -71,8 +84,15 @@ static void docs_path(char *out, size_t n, const char *name) {
+     s2a_docs_path(out, n, "wire%s%s", name ? "/" : "", name ? name : "");
+ }
+ int s2a_load_first_run(const char *pack) {
+-    snprintf(g_pack, sizeof g_pack, "%s", pack && *pack ? pack : "-");
+-    char p[1200], w[64] = ""; docs_path(p, sizeof p, "warm_done");
++    // RewindBox (patch 0414): bind warm_done to the shader translator fingerprint
++    // when S2A.Dsh is linked so every game displays full shader/pipeline rebuild
++    // progress after a translator update (without affecting pack-only unit tests).
++    const char *xfp = load_dsh_xfp();
++    if (pack && *pack && strcmp(pack, "-") && xfp && *xfp)
++        snprintf(g_pack, sizeof g_pack, "%s:%s", pack, xfp);
++    else
++        snprintf(g_pack, sizeof g_pack, "%s", pack && *pack ? pack : "-");
++    char p[1200], w[80] = ""; docs_path(p, sizeof p, "warm_done");
+     FILE *f = fopen(p, "r"); if (!f) return 1;
+     int ok = fgets(w, sizeof w, f) != NULL; fclose(f);
+     w[strcspn(w, " \t\r\n")] = 0;
+@@ -87,7 +107,7 @@ void s2a_load_first_frame(uint64_t now) {
+     pthread_mutex_unlock(&g_mu);
+ }
+ static void mark_warm_done(void) {
+-    static _Atomic int done; if (atomic_exchange(&done, 1) || !strcmp(g_pack, "-") || !g_pack[0]) return;
++    if (atomic_exchange(&g_warm_marked, 1) || !strcmp(g_pack, "-") || !g_pack[0]) return;
+     char d[1200], p[1300], t[1400]; docs_path(d, sizeof d, NULL);
+     if (mkdir(d, 0755) && errno != EEXIST) return;
+     snprintf(p, sizeof p, "%s/warm_done", d); snprintf(t, sizeof t, "%s.tmp", p);
