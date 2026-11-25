@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "f87cc73dc5b54bc2e3965313c6c923a95a15f10a6a0c889cb8257e28359f6d1a",
+  "packagedFingerprint": "40132146ce8c73d72946045c69cb5e2b82cf827fba8b5409d2491a084ae3e7b1",
   "producers": {
     "engine": {
-      "run": 45627949530,
+      "run": 45672467487,
       "attempt": 1,
-      "artifact": 15029633902,
-      "name": "s2arm-engine-framework-06b4743f2c015578519f8b85c0efccd0bb2d8eb6",
-      "bytes": 25619399,
-      "sha256": "ef0630a8beede0122850df44ffa2456304b8b9eb18235c11c053b4b3c8d667e2",
-      "headSha": "06b4743f2c015578519f8b85c0efccd0bb2d8eb6",
+      "artifact": 15052180211,
+      "name": "s2arm-engine-framework-197dd41abeb09ea56d9e1fcff6013c2ae0ebe25a",
+      "bytes": 25650657,
+      "sha256": "09c6229357309786a54476809165cdaa579de103c64c50158227544cc9e38f80",
+      "headSha": "197dd41abeb09ea56d9e1fcff6013c2ae0ebe25a",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-25T14:08:23Z",
+      "expiresAt": "2026-12-25T18:25:49Z",
       "members": {
-        "S2ArmEngine.framework.zip": "d038c10208d3597c9c547ea7748e372e881d75b3430ad2eaaab3e611cab1f7f1",
-        "NS2Pro.framework.zip": "48bac4dacb09227b6a512ddd8b6548a1b2a62bc3af17ebf557d421bd554bd812"
+        "S2ArmEngine.framework.zip": "75071e98a40f71d947ef22755b026368a4ca7cdf977aba3fb599838945294dbd",
+        "NS2Pro.framework.zip": "cfb74eb061a7bad76562bb31ab2b42642371741c43b7440a645a1fb55f6bd9c3"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "ef0630a8beede0122850df44ffa2456304b8b9eb18235c11c053b4b3c8d667e2",
+    "engine": "09c6229357309786a54476809165cdaa579de103c64c50158227544cc9e38f80",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,13 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "d86ddfcd1d8c983005223f962d35a54d7c2261c2506589d098e9c9c2bd39997a",
-      "bytes": 116526664,
-      "fingerprint": "f87cc73dc5b54bc2e3965313c6c923a95a15f10a6a0c889cb8257e28359f6d1a"
+      "sha256": "35d7ce78713fd6c5d00c07a19b8c87c3be64fd86989c8c3b074f9b1631ab5229",
+      "bytes": 116600184,
+      "fingerprint": "40132146ce8c73d72946045c69cb5e2b82cf827fba8b5409d2491a084ae3e7b1"
+    },
+    "S2ArmEngine.framework/S2ArmShaderXfp.txt": {
+      "sha256": "ba0ccfce318cebdca849cc9071acd8e77f1b968d12855f2ffc7e117a37f37549",
+      "bytes": 17
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -119,8 +123,8 @@
       "bytes": 34146
     },
     "S2ArmEngine.framework/fr.lproj/S2ArmHost.strings": {
-      "sha256": "15ffb649e02cc0f5819cf252d9643a877bfe7abd5c9e9b44cf94da21293d3725",
-      "bytes": 777
+      "sha256": "c31c3a84bdb5c6c7b3bff0fec462cac55997658d09fd43e4894e4207dc9317a7",
+      "bytes": 1884
     },
     "S2ArmEngine.framework/zh-Hans.lproj/InfoPlist.strings": {
       "sha256": "78c7f16614b9144af93c0ea52a182587046abd4fcade2d941e16f26c983d1b1d",
@@ -141,9 +145,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45627949530,
+      "run": 45672467487,
       "attempt": 1,
-      "head_sha": "06b4743f2c015578519f8b85c0efccd0bb2d8eb6",
+      "head_sha": "197dd41abeb09ea56d9e1fcff6013c2ae0ebe25a",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1726,22 +1730,94 @@
         {
           "name": "0399-tbdr-optin-depth-stencil-lossless-compression.patch",
           "sha256": "f77ce8a34cff0ad3a029ae765879e682e3d78cb9b827c3712d593d580dc98e33"
+        },
+        {
+          "name": "0400-prepare-previously-bound-pipelines-before-play.patch",
+          "sha256": "eed5c81bf430c0a589e944d87e1f48d3b5181980451c4288703c5d75932c5e6a"
+        },
+        {
+          "name": "0401-reuse-bounded-command-allocators-within-nvn2-frames.patch",
+          "sha256": "8f3a864b3520d57bf55a9d0b38f170e64cbfcc13d5762a0a7d09f00cecba8021"
+        },
+        {
+          "name": "0402-compile-only-the-selected-vertex-depth-entry.patch",
+          "sha256": "86a9ce0597bd54d4c8b88d9b6590f9e3d24eea8ce27c033682912ef6a4ed84d5"
+        },
+        {
+          "name": "0403-add-bounded-progress-wakes-for-idle-yields.patch",
+          "sha256": "7603634fd0a384c75237e6f0f20d7ad8c6d8a7f8440017fa2fe060d2d99d49a1"
+        },
+        {
+          "name": "0404-replay-nvn2-command-streams-on-an-owned-worker.patch",
+          "sha256": "117397e25931d41f4ecfef6c68d901d39ec17821bed428e7d2ff50c83e5cdd57"
+        },
+        {
+          "name": "0405-present-on-a-dedicated-queue-with-gpu-owned-tickets.patch",
+          "sha256": "c211a153403f68342a27faa37129c74b1955de24215a0c41f3fa253054522d8b"
+        },
+        {
+          "name": "0406-capture-first-metal4-pipeline-compilation-for-reuse.patch",
+          "sha256": "cd6467099402125f0b9af760e0de925a21b6fe013919a16bbacb84f3367e45c7"
+        },
+        {
+          "name": "0407-park-sustained-idle-polls-and-protect-frame-owners.patch",
+          "sha256": "9657e331d94042a1f0c05d2c917fb392cf4cd099c172e47cee7a27f00f89dccf"
+        },
+        {
+          "name": "0408-isolate-native-archives-from-legacy-preopening.patch",
+          "sha256": "a72417321bbd14d506b544176b8d1c534e52d18d4813cf5f0bba5a952347400d"
+        },
+        {
+          "name": "0409-preserve-depth-compression-with-separate-stencil-reads.patch",
+          "sha256": "a44ff256c15702cf58a85706ac4db3097a80c5068aaaedb9e69ddf1fbdc45acc"
+        },
+        {
+          "name": "0410-declare-host-replay-scope-and-size-worker-stack.patch",
+          "sha256": "d7fd8ab00120a798f3b9336bcc5967d07d1b59c7d468f3c60b8badd31ff29114"
+        },
+        {
+          "name": "0411-share-device-vertex-variants-after-base-instance-rewrite.patch",
+          "sha256": "316b8f14358e0330bfe743e81a4ddd8f47c0d6042fabf83ab4542ed6dd518ef6"
+        },
+        {
+          "name": "0412-retain-the-mixed-archive-batch-locally-under-arc.patch",
+          "sha256": "95454918a9bdab1b5924b6f1db623ba19739a44b3ab74a9fccad14253aa0b385"
+        },
+        {
+          "name": "0413-close-the-startup-prepare-publication-race.patch",
+          "sha256": "10413ba00b2f93d80c101a0e5795337a620397b76a214552c1b8d281051ea9e4"
+        },
+        {
+          "name": "0414-trigger-visible-rebuild-on-xfp-change-and-protect-reference-archives.patch",
+          "sha256": "915031205a29900a53d8bf179a8706b2b663a39cf27d3f87ee74361f78f76035"
+        },
+        {
+          "name": "0415-expand-inflight-ubo-version-ring-to-avoid-pass-splits.patch",
+          "sha256": "ac6cdfc1ef09421d6845eb85f03802249dbd1744ab7f455405de8af428579703"
+        },
+        {
+          "name": "0416-enable-nvn2-early-fragment-tests-in-dsh-translator.patch",
+          "sha256": "8d8428b73995b69cb6f746d296d6f345f4d039c5428c0856ea742125ad588655"
+        },
+        {
+          "name": "0417-enable-validated-nvn2-optimizations-by-default-and-fix-dispatch-order-site.patch",
+          "sha256": "67554dd78582ace4ef991b364a89a9fcb7fa71e0bd5448062dbf5e4c0e243bda"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "d038c10208d3597c9c547ea7748e372e881d75b3430ad2eaaab3e611cab1f7f1",
-        "NS2Pro.framework.zip": "48bac4dacb09227b6a512ddd8b6548a1b2a62bc3af17ebf557d421bd554bd812"
+        "S2ArmEngine.framework.zip": "75071e98a40f71d947ef22755b026368a4ca7cdf977aba3fb599838945294dbd",
+        "NS2Pro.framework.zip": "cfb74eb061a7bad76562bb31ab2b42642371741c43b7440a645a1fb55f6bd9c3"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
-        "sha256": "93003da3d99a4c4f151241221088a675ee56c09205aebf8e91d7d119a513bfab",
+        "sha256": "a27e4797bc70e9211f585f47b8defc3d3402dccfe76194fd07c4e56255a1cb5e",
         "files": 36
       }
     },
     "licenses": {
       "path": "Legal/S2Arm",
       "manifest": "license-sources.json",
-      "sha256": "93003da3d99a4c4f151241221088a675ee56c09205aebf8e91d7d119a513bfab",
+      "sha256": "a27e4797bc70e9211f585f47b8defc3d3402dccfe76194fd07c4e56255a1cb5e",
       "files": 36
     },
     "preparePatches": [
