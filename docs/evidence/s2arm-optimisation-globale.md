@@ -491,3 +491,10 @@ entrées de traducteur identiques. Aucun résultat A/B du nouveau lot sur télé
 Pour la capture GPU suivante, `S2A_RB_WAKE_DIAG=0` et `S2A_RB_GPUDIAG=1` séparent
 la journalisation des passes de l’attribution des réveils. Les passages A/B se font
 ensuite avec les deux diagnostics coupés, sans changer la cadence de sonde entre variantes.
+
+
+## Retour iPhone 841 : diagnostics Zelda du 25 novembre
+
+[Rapport et priorités révisées](s2arm-zelda-841-device.md) · [Mesures reproductibles](s2arm-zelda-841-device.json). Les deux profils conservent les nouveaux modes moteur désactivés. L’attente allocateur demeure à 4,734508 ms/image (CPU 2700–6900) et 7,176640 ms/image (GPU 3600–5700). Visibilité et drains comptabilisés : zéro sur ces plages. Les fenêtres CPU en 3D donnent 24,2–57,2 % de vitesse et GPU p50 21,96–36,89 ms ; la cible 16,6 ms reste hors budget. Le diagnostic GPU atteint Serious, au départ déjà Fair ; ce n’est pas un A/B. Priorité à l’essai isolé de l’allocateur livré, puis aux premières variantes et uploads responsables de gels de plusieurs secondes.
+
+Le compteur localise surtout les appels d’attente et de signal des threads invités, le backoff de yield et dm-encode ; il ne mesure pas les interruptions noyau par source. Les 117 passes/image médianes et 266 Mo logiques d’attachements par image justifient l’audit des passes. Les causes de `rp_flush` restent regroupées dans le helper et toutes les demandes early-Z invitées sont inconnues dans cette capture ; 135 721 observations shader échappent à la table bornée sur la plage 3D. Compléter ces preuves avant tout correctif de profondeur précoce. Le lot traducteur reste distinct, avec pixels déterministes à valider. Aucun nouveau correctif moteur, compilation ou IPA dans ce suivi.

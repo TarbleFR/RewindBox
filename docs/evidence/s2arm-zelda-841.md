@@ -71,3 +71,8 @@ Le lot traducteur attend un nouveau journal GPUDIAG et sera livré seul, avec re
 [Plan et mesures détaillées](s2arm-optimisation-globale.md) · [Preuves du moteur](s2arm-zelda-0378/checks.json) · [Deltas 840](s2arm-zelda840-sync.json) · [Lecteur reproductible](s2arm-sync-window-reader.py)
 
 [Reçu de la 841](rewind841/delivery.json) · SHA-256 IPA : `44c4989632012a89e81c9a873537c9aaa11b42e83413b102e66112ecb08302d8`.
+
+
+## Suivi après les premiers essais sur iPhone
+
+Les captures CPU/GPU du 25 novembre ont maintenant été analysées : [rapport appareil et prochaines priorités](s2arm-zelda-841-device.md). Les statuts « en attente » ci-dessus décrivent la livraison initiale ; cette nouvelle observation confirme le fonctionnement des diagnostics et le ralentissement 3D, sans établir de gain A/B ni de replay pixels exact. Aucun nouveau moteur ou IPA n’est produit pour cette analyse.
