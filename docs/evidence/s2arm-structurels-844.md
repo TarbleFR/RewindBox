@@ -14,6 +14,33 @@ ne prouve ni une suppression de cache ni l'absence totale de compilation lors
 des deux premiers essais. Les anciens journaux MKW de l'archive ne datent pas
 ces trois essais et ne permettent pas de leur attribuer un état thermique précis.
 
+## Troisième lot (0408–0410)
+
+La [compilation 0404–0407](https://github.com/TarbleFR/RewindBox/actions/runs/45657158404)
+a échoué sur les deux runners : déclaration de `nvn_rb_thermal_scope` manquante
+avant le worker C. 0410 corrige cet ordre et donne au worker une pile de 8 Mio,
+comme aux workers Metal existants. Ce résultat ne valide pas encore le code Metal.
+
+0408 sépare les archives natives `.metal4archive` des `.metalarchive` historiques.
+L'ancien préchargement ne peut plus ouvrir puis supprimer une archive native
+avec l'API Metal 3. Le writer conserve au maximum huit captures en attente,
+sous ses règles existantes d'admission, d'arrêt et d'identité.
+
+**S3 / 0409** active les cibles profondeur/stencil compressibles sur NVN2 hébergé
+Apple9. Une lecture stencil compatible extrait seulement ce plan vers une texture
+`Stencil8` séparée ; elle n'impose plus la mise à niveau définitive de la profondeur
+vers `PixelFormatView`. Le stockage combiné reste l'autorité pour les écritures,
+clear et copies : aucune recomposition de profondeur à chaque passe. Cache de
+quatre plans, 8 Mio retenus au maximum comptés avec le tampon intermédiaire et
+les tailles Metal réelles. Une entrée n'est évincée qu'après sa dernière fence GPU ;
+les références au stockage source sont faibles. Alias écrits et changement de
+session invalident les vues. Feedback de l'attachement courant, tableaux, MSAA,
+mips, textures sparse ou adossées à un heap gardent la voie existante. Ce choix
+cible la perte de compression sur lecture stencil ; ce n'est pas une séparation
+générale des attachements de rendu. Son intérêt sur Zelda n'est pas mesuré.
+
+Source écrite ; compilation demandée. Replays pixels et mesures iPhone non exécutés.
+
 ## État du deuxième lot (0404–0407)
 
 Le mainteneur demande des correctifs effectivement intégrés, pas des fichiers
@@ -50,7 +77,7 @@ a réussi sur macOS 15 et 26 ; elle ne contient pas 0404–0407.
   protège toujours le rôle du thread invité d'origine. Les sleeps positifs restent
   inchangés. Latence et énergie sur appareil non mesurées.
 
-S3 reste à implémenter après analyse des alias profondeur/stencil, des copies et
+Avant 0409, S3 restait à implémenter après analyse des alias profondeur/stencil, des copies et
 des invalidations ; aucune séparation coûteuse par copie systématique de chaque
 passe n'est présentée comme une optimisation. Les observations 843 ne prouvent
 pas que les mises à niveau `X32_Stencil8` sont fréquentes sur Zelda.

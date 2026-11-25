@@ -612,3 +612,12 @@ secondaires stables et conserve le rôle du thread invité qui soumet.
 Les conditions de compatibilité déclenchent les voies existantes automatiquement.
 Sources et limites : [preuve](../../../docs/evidence/s2arm-structurels-844.md).
 Compilation de ces ajouts requise ; aucun nouveau test ni suite approfondie ajouté.
+
+### 0408–0410 — archives natives et lecture stencil
+
+0408 sépare les fichiers d'archives Metal 4 du préchargement Metal 3 et borne
+les captures binaires en attente à huit. 0409 garde la profondeur compressible
+sur Apple9 ; seules les lectures stencil compatibles utilisent un plan séparé,
+avec cache borné, invalidation des alias et éviction après fence. 0410 corrige
+la déclaration hôte du worker et fixe sa pile à 8 Mio. Les chemins sont intégrés
+sans nouvelle configuration joueur. [Portée et limites](../../../docs/evidence/s2arm-structurels-844.md).

@@ -1,0 +1,61 @@
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -115,6 +115,7 @@
+     for (int i = 0; i < 20; i++) [s appendFormat:@"%02x", d[i]];   // 160 bits name a file
+     return s;
+ }
++static NSString *rb_m4_file(NSString *key) { return [g_par_dir stringByAppendingFormat:@"/%@.metal4archive",key]; }
+ static NSString *par_file(NSString *key) { return [g_par_dir stringByAppendingFormat:@"/%@.metalarchive", key]; }
+ // Metal's archive build folders: com.apple.gpuarchiver under confstr's user cache folder and the Caches folder, each with and without the bundle id (iPhone: Library/Caches/<bundle
+ // id>/com.apple.gpuarchiver; confstr gives no path there). Folders under the bundle id are this app's own; the others are shared, and par_write removes only folders that appeared
+@@ -204,6 +205,8 @@
+         [have addObject:name.stringByDeletingPathExtension];
+         bytes += [[fm attributesOfItemAtPath:[dir stringByAppendingPathComponent:name] error:nil] fileSize];
+     }
++    for (NSString *name in names) if ([name hasSuffix:@".metal4archive"])
++        bytes += [[fm attributesOfItemAtPath:[dir stringByAppendingPathComponent:name] error:nil] fileSize];
+     // Batch files (par_write_batch): batches.tsv holds key → file, later lines win (a key written again after a miss); a line whose file is gone is skipped
+     __attribute__((objc_precise_lifetime)) NSData *idx = [NSData dataWithContentsOfFile:[dir stringByAppendingPathComponent:@"batches.tsv"]
+                                         options:NSDataReadingMappedIfSafe error:nil];
+@@ -587,7 +590,7 @@
+ static BOOL rb_m4_write(NSString *key,RBMetal4Capture *capture) {
+     int lease=0; uint64_t until=atomic_load(&g_par_close_until);
+     if (!par_admit_write(until,RB_PAR_WRITE_MODE(),&lease)) return NO;
+-    NSString *path=par_file(key), *temp=[path stringByAppendingString:@".m4-tmp"];
++    NSString *path=rb_m4_file(key), *temp=[path stringByAppendingString:@".tmp"];
+     NSError *error=nil; BOOL ok=NO;
+     pthread_mutex_lock(&g_par_wmu); int lock=par_ga_lock();
+     NSSet *before=par_ga_list(0);
+@@ -597,7 +600,8 @@
+     par_ga_remove_new(before); par_ga_unlock(lock); pthread_mutex_unlock(&g_par_wmu);
+     rb_spec_done(&lease);
+     if (ok) {
+-        pthread_mutex_lock(&g_par_mu); [g_par_have addObject:key]; [g_par_bmap removeObjectForKey:key]; rb_archive_forget(key); pthread_mutex_unlock(&g_par_mu);
++        // Distinct format: the Metal 3 preopen index must never discard this
++        // native archive after trying to open it with newBinaryArchive.
+         atomic_fetch_add(&g_par_written,1);
+     } else { unlink(temp.fileSystemRepresentation); atomic_fetch_add(&g_par_write_failed,1);
+         MLOG("[rb-metal4] captured archive %s could not be persisted: %s",key.UTF8String,error.localizedDescription.UTF8String ?: "rename failed"); }
+@@ -864,6 +868,11 @@
+         pthread_mutex_unlock(&g_par_mu);
+         return;
+     }
++    if ([desc isKindOfClass:RBMetal4Capture.class]) {
++        unsigned captures=0;
++        for (NSArray *entry in g_par_todo) captures += [entry[1] isKindOfClass:RBMetal4Capture.class];
++        if (captures>=8) { g_par_deferred++; pthread_mutex_unlock(&g_par_mu); return; }
++    }
+     // Optional descriptor retention only. All admitted entries stay eligible for
+     // writing. An over-budget key can be offered again and its draw still uses
+     // the exact pipeline just built. Count this separately from a usable hit.
+@@ -1112,9 +1121,7 @@
+     if (@available(macOS 26.0,iOS 26.0,*)) {
+         // Same identity directory and exact key as the established archive
+         // policy. Metal verifies the full descriptor, not only the filename.
+-        pthread_mutex_lock(&g_par_mu); BOOL present=[g_par_have containsObject:key] && !g_par_bmap[key]; pthread_mutex_unlock(&g_par_mu);
+-        if (!present) return nil;
+-        id<MTL4Archive> a=[g_dev newArchiveWithURL:[NSURL fileURLWithPath:par_file(key)] error:nil];
++        id<MTL4Archive> a=[g_dev newArchiveWithURL:[NSURL fileURLWithPath:rb_m4_file(key)] error:nil];
+         id ps=compute ? [a newComputePipelineStateWithDescriptor:descriptor error:nil] : [a newRenderPipelineStateWithDescriptor:descriptor error:nil];
+         if (ps) atomic_fetch_add(&rb_m4_hits,1);
+         return ps;

@@ -1,0 +1,176 @@
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -6072,10 +6072,10 @@
+     int x = atomic_load_explicit(&g_rb_ds_compress_mode, memory_order_relaxed);
+     if (x < 0) {
+         const char *e = getenv("S2A_RB_DS_COMPRESS");
+-        x = (e && !strcmp(e, "1")) ? 1 : 0;
++        x = e ? !strcmp(e,"1") : (nvn_rb_thermal_scope() && [g_dev supportsFamily:MTLGPUFamilyApple9]);
+         int was = -1;
+         if (atomic_compare_exchange_strong(&g_rb_ds_compress_mode, &was, x) && x)
+-            MLOG("[rb-ds-compress] opt-in Depth32Float_Stencil8 lossless compression on (S2A_RB_DS_COMPRESS=1; patch 0399)");
++            MLOG("[rb-ds-compress] Depth32Float_Stencil8 compression enabled; stencil reads use a separate bounded plane where compatible");
+     }
+     return x;
+ }
+@@ -8642,7 +8642,9 @@
+ }
+ // Note a GPU write to texel rectangle (x, y, w, h) of layers [layer0, layer0 + nlayers) of `level` (w / h 0 = the whole level). Only once its Metal texture exists (no Metal texture: nothing
+ // was written, and its own initial content is still to be taken). A whole-subresource mark is not repeated until a GOB turns current somewhere (g_gpw_gen)
++static void rb_stencil_written(const tex_t *t);
+ static void gpw_mark(const tex_t *t, unsigned level, unsigned layer0, unsigned nlayers, uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
++    rb_stencil_written(t);
+     rb_fresh_wrote(t);   // RewindBox (patch 0067): a new texture written (rb_fresh_read)
+     if (!t || !t->serial || !t->mem || !t->L.size || t->d.target == NVN_TEXTURE_TARGET_BUFFER || (t->d.flags & (NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET))) return;
+     if (tex_get(t->serial) == nil) return;
+@@ -13691,6 +13693,7 @@
+     rp->view_sub = (uint8_t)(on && on_sub_thread());
+ }
+ // RewindBox (patch 0073): rb_view_keep_on (S2A_RB_VIEW_KEEP, patch 0071) also governs the two view caches below; see tex_by_id
++#include "rb_stencil_plane.inc"
+ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+     if (g_tpool_n && tid >= g_tpool_n) { if (!g_stat_tex_oob++) MLOG("texture ID %d outside the pool (capacity %d) treated as an empty slot: reads 0", tid, g_tpool_n); return nil; }
+     if (tid == 0 && !g_tid0_reg) { if (!g_stat_tex_null++) MLOG("texture ID 0 read with nothing registered there (a slot left at the zero handle): the empty descriptor, reads 0 (frame %llu, first case)", (unsigned long long)atomic_load(&g_cur_frame)); return nil; }
+@@ -13802,6 +13805,11 @@
+     // A texture built in stencil mode (nvnTextureBuilderSetDepthStencilMode, Unreal Engine 4.27's stencil shader resources) reads stencil the same way unless a view sets the mode
+     int want_st = r.has_v && r.v.set_dsmode ? r.v.dsmode == NVN_TEXTURE_DEPTH_STENCIL_MODE_STENCIL : r.t.stencil;
+     int stv = want_st && base.pixelFormat == MTLPixelFormatDepth32Float_Stencil8;
++    BOOL rb_separate_stencil=NO;
++    if (stv && !(base.usage & MTLTextureUsagePixelFormatView)) {
++        id<MTLTexture> plane=rb_stencil_plane(&rp->t,base);
++        if (plane) { base=plane; rb_separate_stencil=YES; }
++    }
+     if (want_st && !stv)
+         RED_ONCE(104, "stencil-mode texture view of Metal format %lu (texture ID %d): no stencil-only view, depth is read", (unsigned long)base.pixelFormat, tid);
+     if ((r.has_v && (r.v.set_format || r.v.set_levels || r.v.set_layers || r.v.set_target)) || need_sw || stv) {
+@@ -13809,7 +13817,7 @@
+         uint32_t pf = (uint32_t)base.pixelFormat; uint8_t swz[4];
+         if (r.v.set_format && !(nvn_fmt_to_mtl(r.v.format, &pf, swz) && pf)) pf = (uint32_t)base.pixelFormat;
+         { uint32_t upf; int ubpp; if (r.v.set_format && fmt_unpack(r.v.format, &upf, &ubpp)) pf = upf; }   // a view in a format stored differently (fmt_unpack) is switched to that format like its base texture
+-        if (stv) pf = MTLPixelFormatX32_Stencil8;
++        if (stv) pf = rb_separate_stencil ? MTLPixelFormatStencil8 : MTLPixelFormatX32_Stencil8;
+         if (r.v.set_format && nvn_fmt_bc(rp->t.d.format) && !nvn_fmt_bc(r.v.format)) {   // the raw blocks of a BC texture through an uncompressed view (see rt_view_fmt): Metal has no such view
+             RED_ONCE(86, "Metal cannot create the raw-block view of a compressed texture (NVN format %#x → view %#x): treated as an empty slot", rp->t.d.format, r.v.format);
+             return nil;
+@@ -13849,7 +13857,7 @@
+         }
+     }
+     rp->view = (void *)CFBridgingRetain(v); rp->view_rid = v.gpuResourceID._impl; rp->view_pf = (uint32_t)v.pixelFormat; rp->view_tt = (uint8_t)v.textureType; rp->view_ser = sg; rp->view_dirty = dg; rp->view_ep = g_pkg_epoch;
+-    rp->view_sa = sa; rp->view_local = local;
++    rp->view_sa = rb_separate_stencil ? 0 : sa; rp->view_local = local;
+     rb_view_scope_stamp(rp, rb_on, rb_wq);   // RewindBox (patch 0320): as at the kept view above (rb_wq is 0 for an ID that had no view: its first look records none). S2A_RB_VIEW_SCOPE=0: as before
+     treg_sp_note(tid, rp, base, spq);   // RewindBox (patch 0031): a placement sparse base follows its pool's mappings (treg_sp_fresh)
+     return v;
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_stencil_plane.inc
+@@ -0,0 +1,100 @@
++// S3: keep compressed depth storage free of PixelFormatView. Only a stencil
++// read materializes an independent Stencil8 plane; no depth copy, no per-pass
++// repacking, and the original combined texture stays the authoritative writer.
++// Caller is tex_by_id under g_rmu on the replay thread. Copies/fills/attachment
++// writes invalidate every cached stencil view overlapping the written storage.
++#define RB_STENCIL_SLOTS 4
++#define RB_STENCIL_BYTES (8ull<<20)
++@interface RBStencilPlane : NSObject { @public __weak id<MTLTexture> base; id<MTLTexture> plane; id<MTLBuffer> staging;
++    uintptr_t address; uint64_t length,bytes,stamp,fence; } @end
++@implementation RBStencilPlane @end
++static RBStencilPlane *g_rb_stencil_planes[RB_STENCIL_SLOTS];
++static pthread_mutex_t g_rb_stencil_mu=PTHREAD_MUTEX_INITIALIZER;
++static _Atomic unsigned g_rb_stencil_count;
++static uint64_t g_rb_stencil_bytes,g_rb_stencil_clock,g_rb_stencil_copies,g_rb_stencil_copied_bytes;
++static void rb_stencil_written(const tex_t *t) {
++    if (!t || !t->mem || !atomic_load_explicit(&g_rb_stencil_count,memory_order_relaxed)) return;
++    uintptr_t lo=(uintptr_t)t->mem; uint64_t len=t->L.size;
++    pthread_mutex_lock(&g_rb_stencil_mu); BOOL changed=NO;
++    for (unsigned i=0;i<RB_STENCIL_SLOTS;i++) { RBStencilPlane *p=g_rb_stencil_planes[i];
++        if (p && lo<p->address+p->length && p->address<lo+len) { changed=YES; break; }
++    }
++    pthread_mutex_unlock(&g_rb_stencil_mu);
++    // Separate planes have view_sa=0: neither the local nor additions-only view
++    // shortcut can keep them across this epoch. Other views keep their rules.
++    if (changed) atomic_fetch_add_explicit(&g_ser_gen,1,memory_order_release);
++}
++static void rb_stencil_remove(unsigned i) {
++    RBStencilPlane *p=g_rb_stencil_planes[i]; if (!p) return;
++    // Eviction is admitted only after the last consumer completes (or session
++    // drain). Do not turn a bounded cache into unbounded deferred allocations.
++    res_remove(p->plane); res_remove(p->staging);
++    g_rb_stencil_bytes-=p->bytes; g_rb_stencil_planes[i]=nil; atomic_fetch_sub(&g_rb_stencil_count,1);
++    atomic_fetch_add_explicit(&g_ser_gen,1,memory_order_release);
++}
++static id<MTLTexture> rb_stencil_plane(const tex_t *t,id<MTLTexture> base) {
++    if (!rb_ds_compress_on() || !on_sub_thread() || !t || !t->mem || !t->L.size ||
++        base.pixelFormat!=MTLPixelFormatDepth32Float_Stencil8 || base.storageMode!=MTLStorageModePrivate ||
++        base.textureType!=MTLTextureType2D || base.mipmapLevelCount!=1 || base.sampleCount!=1 ||
++        base.arrayLength!=1 || base.parentTexture || base.heap || base.buffer || base.isSparse || base.iosurface ||
++        (t->pool && ((t->pool->flags&NVN_MEMORY_POOL_FLAGS_VIRTUAL) || nvn_sparse_pool(t->pool)))) return nil;
++    // Feedback from the current attachment has per-draw snapshot semantics;
++    // leave it to the existing DS snapshot/PixelFormatView implementation.
++    if (R.rt.depth && R.rt.depth->mem &&
++        (uintptr_t)t->mem<(uintptr_t)R.rt.depth->mem+R.rt.depth->L.size &&
++        (uintptr_t)R.rt.depth->mem<(uintptr_t)t->mem+t->L.size) return nil;
++    if (!base.width || !base.height || base.width>4096 || base.height>4096) return nil;
++    NSUInteger row=(base.width+255)&~(NSUInteger)255, size=row*base.height;
++    uint64_t bytes=(uint64_t)size+(uint64_t)base.width*base.height;
++    if (bytes>RB_STENCIL_BYTES || !rb_metal_working_room() || rb_ios_headroom()<(512ull<<20)) return nil;
++    pthread_mutex_lock(&g_rb_stencil_mu);
++    RBStencilPlane *p=nil; unsigned slot=0;
++    for (unsigned i=0;i<RB_STENCIL_SLOTS;i++) {
++        RBStencilPlane *candidate=g_rb_stencil_planes[i];
++        if (candidate && candidate->base==base && candidate->address==(uintptr_t)t->mem && candidate->length==t->L.size) { p=candidate; slot=i; break; }
++    }
++    if (!p) {
++        uint64_t done=atomic_load_explicit(&g_done,memory_order_acquire);
++        slot=RB_STENCIL_SLOTS;
++        for (unsigned i=0;i<RB_STENCIL_SLOTS;i++) {
++            RBStencilPlane *candidate=g_rb_stencil_planes[i];
++            if (!candidate) { slot=i; break; }
++            if (candidate->fence<=done && (slot==RB_STENCIL_SLOTS || candidate->stamp<g_rb_stencil_planes[slot]->stamp)) slot=i;
++        }
++        if (slot==RB_STENCIL_SLOTS) { pthread_mutex_unlock(&g_rb_stencil_mu); return nil; }
++        rb_stencil_remove(slot);
++        MTLTextureDescriptor *d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatStencil8 width:base.width height:base.height mipmapped:NO];
++        d.storageMode=MTLStorageModePrivate; d.usage=MTLTextureUsageShaderRead;
++        p=[RBStencilPlane new]; p->plane=[g_dev newTextureWithDescriptor:d];
++        p->staging=[g_dev newBufferWithLength:size options:MTLResourceStorageModePrivate];
++        if (!p->plane || !p->staging) { pthread_mutex_unlock(&g_rb_stencil_mu); return nil; }
++        bytes=p->plane.allocatedSize+p->staging.allocatedSize;
++        if (bytes>RB_STENCIL_BYTES) { pthread_mutex_unlock(&g_rb_stencil_mu); return nil; }
++        for (unsigned i=0;g_rb_stencil_bytes+bytes>RB_STENCIL_BYTES && i<RB_STENCIL_SLOTS;i++)
++            if (g_rb_stencil_planes[i] && g_rb_stencil_planes[i]->fence<=done) rb_stencil_remove(i);
++        if (g_rb_stencil_bytes+bytes>RB_STENCIL_BYTES) { pthread_mutex_unlock(&g_rb_stencil_mu); return nil; }
++        p->base=base; p->address=(uintptr_t)t->mem; p->length=t->L.size; p->bytes=bytes;
++        res_add(p->plane); res_add(p->staging); g_rb_stencil_planes[slot]=p;
++        g_rb_stencil_bytes+=bytes; atomic_fetch_add(&g_rb_stencil_count,1);
++    }
++    p->stamp=++g_rb_stencil_clock; p->fence=g_fence+1;
++    pthread_mutex_unlock(&g_rb_stencil_mu);
++    // tex_mtl has already applied CPU uploads/alias resolution. The normal
++    // blit() barriers order both copies, including the staging write->read.
++    rb_passdiag_read(base,11,0,0,0,"stencil-plane");
++    [blit() copyFromTexture:base sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0)
++        sourceSize:MTLSizeMake(base.width,base.height,1) toBuffer:p->staging destinationOffset:0
++        destinationBytesPerRow:row destinationBytesPerImage:size options:MTLBlitOptionStencilFromDepthStencil];
++    enc_b_copy_buffer_texture(blit(),p->staging,0,row,size,MTLSizeMake(base.width,base.height,1),p->plane,0,0,MTLOriginMake(0,0,0));
++    g_rb_stencil_copies++; g_rb_stencil_copied_bytes+=base.width*base.height;
++    if (g_rb_stencil_copies<=4 || !(g_rb_stencil_copies&(g_rb_stencil_copies-1)))
++        MLOG("[rb-stencil-plane] copies=%llu stencil_bytes=%llu retained_bytes=%llu; depth storage unchanged",
++             (unsigned long long)g_rb_stencil_copies,(unsigned long long)g_rb_stencil_copied_bytes,(unsigned long long)g_rb_stencil_bytes);
++    return p->plane;
++}
++static void rb_stencil_retire(void) {
++    pthread_mutex_lock(&g_rb_stencil_mu);
++    for (unsigned i=0;i<RB_STENCIL_SLOTS;i++) rb_stencil_remove(i);
++    g_rb_stencil_clock=g_rb_stencil_copies=g_rb_stencil_copied_bytes=0;
++    pthread_mutex_unlock(&g_rb_stencil_mu);
++}
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -193,6 +193,7 @@
+     atomic_store(&g_rb_pass_stats_mode, 0);
+     g_rb_clear_legacy = -1;
+     g_rb_next_clear_mask = g_rb_sealed_clear_mask = 0;
++    rb_stencil_retire();
+     rb_reuse_session_reset();   // RewindBox (patch 0071): the textures kept for reuse, the ring of finalized textures, the snapshot pools (nvn_mtl.m)
+     nvn_hm_clear(&g_alias_seen, NULL); nvn_hm_clear(&g_tex_live, NULL);
+     pthread_mutex_lock(&g_gpw_mu);

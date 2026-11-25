@@ -1,0 +1,22 @@
+--- a/graphics/nvn/gfx/nvn/rb_replay_worker.inc
++++ b/graphics/nvn/gfx/nvn/rb_replay_worker.inc
+@@ -2,6 +2,7 @@
+ // arrays. No command memory is reclaimed while a job can still reference it.
+ // Resource APIs join replay under the admission mutex, before changing objects.
+ // GPU waits release admission so cross-queue producers remain able to submit.
++int nvn_rb_thermal_scope(void);
+ #define RB_REPLAY_JOBS 8
+ #define RB_REPLAY_HANDLES 256
+ typedef struct { NVNqueue *q; int n; uint64_t sequence; NVNcommandHandle handles[RB_REPLAY_HANDLES]; } rb_replay_job;
+@@ -71,7 +72,10 @@
+     pthread_mutex_lock(&rb_replay_mu);
+     if (rb_replay_closed || rb_replay_failed || dm_gfx_session_stopping()) { pthread_mutex_unlock(&rb_replay_mu); return 0; }
+     if (!rb_replay_running) {
+-        int e=pthread_create(&rb_replay_thread,NULL,rb_replay_main,NULL);
++        pthread_attr_t attr; pthread_attr_init(&attr);
++        int e=pthread_attr_setstacksize(&attr,8u<<20);
++        if (!e) e=pthread_create(&rb_replay_thread,&attr,rb_replay_main,NULL);
++        pthread_attr_destroy(&attr);
+         if (e) { rb_replay_failed=1; pthread_mutex_unlock(&rb_replay_mu); LOG("[rb-replay] worker unavailable: %d; synchronous replay retained",e); return 0; }
+         rb_replay_running=1;
+         LOG("[rb-replay] ordered CPU worker active; capacity=%d, immutable streams retained",RB_REPLAY_JOBS);
