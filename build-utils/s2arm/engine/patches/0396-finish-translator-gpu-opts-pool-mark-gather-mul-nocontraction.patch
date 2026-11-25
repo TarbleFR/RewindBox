@@ -1,0 +1,332 @@
+diff --git a/compat/tree/src/Ryujinx.Graphics.Shader/Translation/Optimizations/Simplification.cs b/compat/tree/src/Ryujinx.Graphics.Shader/Translation/Optimizations/Simplification.cs
+index 282c136..ecc19f7 100644
+--- a/compat/tree/src/Ryujinx.Graphics.Shader/Translation/Optimizations/Simplification.cs
++++ b/compat/tree/src/Ryujinx.Graphics.Shader/Translation/Optimizations/Simplification.cs
+@@ -48,6 +48,13 @@ namespace Ryujinx.Graphics.Shader.Translation.Optimizations
+                     TryEliminateBinaryOpCommutative(operation, 1);
+                     break;
+ 
++                case Instruction.MultiplyHighU32:
++                    if (ResourceManager.ShaderOptEnabled())
++                    {
++                        TryRewriteMultiplyHighU32ByPowerOfTwo(operation);
++                    }
++                    break;
++
+                 case Instruction.ShiftLeft:
+                 case Instruction.ShiftRightS32:
+                 case Instruction.ShiftRightU32:
+@@ -179,6 +186,48 @@ namespace Ryujinx.Graphics.Shader.Translation.Optimizations
+             }
+         }
+ 
++        // RewindBox (from S2Arm 2d3fc8bf6, PR #1080): high word of unsigned 32x32 multiply by constant 2^k (1 <= k <= 31)
++        // is bit-exact equal to x >> (32 - k), eliminating OpUMulExtended and its optnone helper in address arithmetic.
++        private static void TryRewriteMultiplyHighU32ByPowerOfTwo(Operation operation)
++        {
++            Operand x = operation.GetSource(0);
++            Operand y = operation.GetSource(1);
++
++            if (!TryGetPowerOfTwoShift(y, out int shift))
++            {
++                if (!TryGetPowerOfTwoShift(x, out shift))
++                {
++                    return;
++                }
++
++                x = y;
++            }
++
++            operation.TurnInto(Instruction.ShiftRightU32, x);
++            operation.AppendSources([Const(32 - shift)]);
++        }
++
++        private static bool TryGetPowerOfTwoShift(Operand operand, out int shift)
++        {
++            shift = 0;
++
++            if (operand.Type != OperandType.Constant)
++            {
++                return false;
++            }
++
++            uint value = (uint)operand.Value;
++
++            if (value < 2 || (value & (value - 1)) != 0)
++            {
++                return false;
++            }
++
++            shift = System.Numerics.BitOperations.TrailingZeroCount(value);
++
++            return true;
++        }
++
+         private static void TryEliminateCompareNotEqual(Operation operation)
+         {
+             // Comparison instruction returns 0 if the result is false, and -1 if true.
+diff --git a/compat/tree/src/Ryujinx.Graphics.Shader/Translation/ResourceManager.cs b/compat/tree/src/Ryujinx.Graphics.Shader/Translation/ResourceManager.cs
+index 95d899c..da5bfff 100644
+--- a/compat/tree/src/Ryujinx.Graphics.Shader/Translation/ResourceManager.cs
++++ b/compat/tree/src/Ryujinx.Graphics.Shader/Translation/ResourceManager.cs
+@@ -187,25 +187,31 @@ namespace Ryujinx.Graphics.Shader.Translation
+         [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "getenv")]
+         private static extern IntPtr NativeGetEnv(string name);
+ 
+-        // RewindBox: runtime switch S2A_RB_WIDE_MEM (default on; "0" reverts to scalar 32-bit split).
+-        // Reads libc getenv first so iOS Documents/env.txt updates applied via setenv() after .NET startup are seen.
+-        public static bool WideMemoryEnabled()
++        // RewindBox: read runtime env toggles via libc getenv first so iOS Documents/env.txt
++        // updates applied via setenv() after .NET startup are always observed. Default is on ("0" disables).
++        private static bool ReadEnvToggle(string name)
+         {
+             string val = null;
+ 
+             if (OperatingSystem.IsIOS() || OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
+             {
+-                IntPtr ptr = NativeGetEnv("S2A_RB_WIDE_MEM");
++                IntPtr ptr = NativeGetEnv(name);
+                 if (ptr != IntPtr.Zero)
+                 {
+                     val = System.Runtime.InteropServices.Marshal.PtrToStringUTF8(ptr);
+                 }
+             }
+ 
+-            val ??= Environment.GetEnvironmentVariable("S2A_RB_WIDE_MEM");
++            val ??= Environment.GetEnvironmentVariable(name);
+             return val != "0";
+         }
+ 
++        // RewindBox: runtime switch S2A_RB_WIDE_MEM (default on; "0" reverts to scalar 32-bit split).
++        public static bool WideMemoryEnabled() => ReadEnvToggle("S2A_RB_WIDE_MEM");
++
++        // RewindBox: runtime switch S2A_RB_SHADER_OPT (default on; "0" reverts UMulHi/MulExtended/NoContraction/PoolMark/GatherQuad).
++        public static bool ShaderOptEnabled() => ReadEnvToggle("S2A_RB_SHADER_OPT");
++
+         private int AddMemoryDefinition(string name, AggregateType type, int arrayLength = 1)
+         {
+             return Properties.AddLocalMemory(new MemoryDefinition(name, type, arrayLength));
+diff --git a/compat/tree/src/Ryujinx.Graphics.Shader/Translation/Translator.cs b/compat/tree/src/Ryujinx.Graphics.Shader/Translation/Translator.cs
+index d454311..41c5379 100644
+--- a/compat/tree/src/Ryujinx.Graphics.Shader/Translation/Translator.cs
++++ b/compat/tree/src/Ryujinx.Graphics.Shader/Translation/Translator.cs
+@@ -24,6 +24,7 @@ namespace Ryujinx.Graphics.Shader.Translation
+         }
+ 
+         public static bool WideMemoryEnabled() => ResourceManager.WideMemoryEnabled();
++        public static bool ShaderOptEnabled() => ResourceManager.ShaderOptEnabled();
+ 
+         public static TranslatorContext CreateContext(ulong address, IGpuAccessor gpuAccessor, TranslationOptions options)
+         {
+diff --git a/graphics/tools/direct/dsh/Dsh.cs b/graphics/tools/direct/dsh/Dsh.cs
+index bedf672..64b15a6 100644
+--- a/graphics/tools/direct/dsh/Dsh.cs
++++ b/graphics/tools/direct/dsh/Dsh.cs
+@@ -45,9 +45,19 @@ namespace S2A.Dsh
+         public static Func<string, string> PackMslRead;   // 出包：配对顶点读片元 _b.metal 的来处（批量进程给「从产物表读」，就不在 PackMsl 里另留一份全文；11-02 马力欧派对 5.2 万支片元全文常驻约 7 GB）；null = 照旧查 PackMsl
+         public static HashSet<string> PackMslKeep;   // 出包：要留的那些名字（<片元键>_b.metal，配对表第二列）；null = 全留   // 出包批量进程（batch/Program.cs）置真：另写 <键>_b.plain.metal 与变体源码 _bv / _bf / _ft（编译归出包编排层；设备现编不出变体）
+         /// <summary>翻译器指纹（S2A.Dsh.csproj DshXfpHash：本库与所引翻译器工程源码的哈希）：现编结果 json 带它，宿主比 s2a_dsh_xfp() 不等就不复用（链号不随翻译器变，兜底目录跨 App 更新保留）</summary>
+-        public static string Xfp => WideMemoryEnabled() ? DshChain.Xfp : XfpOff;
+-        internal static readonly string XfpOff = Convert.ToHexStringLower(SHA256.HashData(Encoding.ASCII.GetBytes(DshChain.Xfp + ":wide=0")))[..16];
++        public static string Xfp => (WideMemoryEnabled(), ShaderOptEnabled()) switch
++        {
++            (true, true) => DshChain.Xfp,
++            (false, true) => XfpWideOff,
++            (true, false) => XfpOptOff,
++            (false, false) => XfpBothOff,
++        };
++        static string DeriveXfp(string suffix) => Convert.ToHexStringLower(SHA256.HashData(Encoding.ASCII.GetBytes(DshChain.Xfp + suffix)))[..16];
++        internal static readonly string XfpWideOff = DeriveXfp(":wide=0");
++        internal static readonly string XfpOptOff = DeriveXfp(":opt=0");
++        internal static readonly string XfpBothOff = DeriveXfp(":wide=0:opt=0");
+         public static bool WideMemoryEnabled() => Ryujinx.Graphics.Shader.Translation.Translator.WideMemoryEnabled();
++        public static bool ShaderOptEnabled() => Ryujinx.Graphics.Shader.Translation.Translator.ShaderOptEnabled();
+         static readonly string[] Stages = { "vs", "ps", "cs", "gs", "ts", "ms" };   // C 导出的阶段号：4 / 5 = NVN2 任务 / 网格（dsh_miss.inc dsh_stage）
+         public static string StageName(int stage) => stage >= 0 && stage < Stages.Length ? Stages[stage] : null;
+ 
+@@ -358,6 +368,11 @@ namespace S2A.Dsh
+                 if (s == null) throw new DshError(status, Sl(e ?? "", 0, 160));
+                 s = GatherOffsets(s);   // 四偏移 gather 拆成四次常量偏移（见 GatherOffsets）
+                 s = PoolArrays(s);   // 追不到槽的句柄读宿主的池表（见 PoolArrays）
++                if (ShaderOptEnabled())
++                {
++                    s = MulExtended(s);
++                    s = InlineNoContraction(s);
++                }
+                 if (WideMemoryEnabled())
+                 {
+                     s = PackPhysicalVectors(s);
+@@ -575,6 +590,7 @@ namespace S2A.Dsh
+                     }
+                     var (src, flags, ocp) = NxgalSpvCross.TessMsl(NxgalSpvCross.Harden(XIo.ReadAllBytes(spv)), 0, TESS_BASE);
+                     src = PoolArrays(GatherOffsets(src));
++                    if (ShaderOptEnabled()) src = InlineNoContraction(MulExtended(src));
+                     if (WideMemoryEnabled()) src = WideStores(WideLoads(PackPhysicalVectors(src)));
+                     src = Precise(src); Save(lk + ".metal", src);
+                     variants[TESS_DOM.GetValueOrDefault(d, d.ToString())] = new PyDict { ["library"] = lk, ["flags"] = (long)flags, ["output_control_points"] = (long)ocp };
+@@ -781,7 +797,12 @@ namespace S2A.Dsh
+         // ---------- 追不到槽的句柄读整个池（上游参考实现（MIT）dmsh_build.py pool_arrays / POOL_MARK，b1d7c707 / cf3ec563 / 6121fd75）----------
+         internal const int POOL_MIN = 33;    // 至少这么长的数组是池：翻译器（Program.cs）把回退数组按池长出（纹理 2^20、采样器 2^12），贴图缓冲 / 图像与统一缓冲句柄数组仍是 32 项
+         internal const int POOL_HEAD = 16;   // = nvn_refl.h DMSH_POOL_HEAD：池表头 = 上界 n（uint）、4 字节空、已读位图的 GPU 地址（ulong）；元素 0 从这里起，每项 8 字节资源号
++        // RewindBox (from S2Arm 99aafb48a / nxnative 04811a63, MIT): test the seen bitmap with a plain L1-cached read
++        // before atomic_fetch_or_explicit; bits only transition 0->1 within a submission. S2A_RB_SHADER_OPT=0 keeps POOL_MARK_LEGACY.
+         internal const string POOL_MARK = "template<typename P> static inline __attribute__((always_inline)) uint dm_pool_mark(constant P* p, uint i)\n{\n"
++            + "    device uint* w = reinterpret_cast<device uint*>(p->seen) + (i >> 5);\n    uint b = 1u << (i & 31u);\n"
++            + "    if (!(*w & b)) atomic_fetch_or_explicit(reinterpret_cast<device atomic_uint*>(w), b, memory_order_relaxed);\n    return i;\n}\n\n";
++        internal const string POOL_MARK_LEGACY = "template<typename P> static inline __attribute__((always_inline)) uint dm_pool_mark(constant P* p, uint i)\n{\n"
+             + "    device atomic_uint* w = reinterpret_cast<device atomic_uint*>(p->seen) + (i >> 5);\n    uint b = 1u << (i & 31u);\n"
+             + "    if (!(atomic_load_explicit(w, memory_order_relaxed) & b)) atomic_fetch_or_explicit(w, b, memory_order_relaxed);\n    return i;\n}\n\n";
+         static readonly Regex s_poolArr = new(@"^(\s*)array<(.+), (\d+)> (\w+) \[\[\s*id\(", RegexOptions.Multiline | RegexOptions.CultureInvariant);
+@@ -1153,8 +1174,9 @@ namespace S2A.Dsh
+                 aid += a.Success ? Int(a.Groups[1].Value) : 1;
+                 return o;
+             });
++            string poolMark = ShaderOptEnabled() ? POOL_MARK : POOL_MARK_LEGACY;
+             var structs = new StringBuilder();
+-            if (pools.Any(p => p.Elem != "sampler")) structs.Append(POOL_MARK);
++            if (pools.Any(p => p.Elem != "sampler")) structs.Append(poolMark);
+             foreach (var (nm, el) in pools) structs.Append("struct spvPool_").Append(nm).Append("\n{\n    uint n;\n    ulong seen;\n    array<").Append(el).Append(", 1> e;\n};\n\n");
+             int at = body.Index;
+             src = src[..at] + structs + src[at..body.Groups[1].Index] + members + src[(body.Groups[1].Index + body.Groups[1].Length)..];
+@@ -1179,7 +1201,7 @@ namespace S2A.Dsh
+                 int left = Regex.Matches(src, @"\b" + Esc(nm) + @"\b", RegexOptions.CultureInvariant).Count - names * Regex.Matches(src, @"\." + Esc(nm) + @"->e\[0\]\)\[", RegexOptions.CultureInvariant).Count - 1;
+                 if (left != 0) throw new DshError("pool rewrite failed", $"{nm}: {left} uses of the pool array the rewrite does not cover");
+             }
+-            string own = src.Replace(POOL_MARK, "");   // 着色器自己的写：有就保持游戏原来的测试时机
++            string own = src.Replace(poolMark, "");   // 着色器自己的写：有就保持游戏原来的测试时机
+             if (pools.Any(p => p.Elem != "sampler") && !s_poolOwnSide.IsMatch(own))
+                 src = Regex.Replace(src, @"^(?<!\]\] )fragment\s", "[[early_fragment_tests]] fragment ", RegexOptions.Multiline | RegexOptions.CultureInvariant);
+             return src;
+@@ -1187,6 +1209,41 @@ namespace S2A.Dsh
+ 
+         internal static string Precise(string msl) => s_fast.Replace(msl, m => "precise::" + m.Groups[1].Value + "(");
+ 
++        // RewindBox (from S2Arm b2d7c15e3 / nxnative 37f076a52, MIT): always_inline scalar uint/int overloads for spvMulExtended
++        // so scalar 32x32->64 products leave SPIRV-Cross's [[clang::optnone]] template and allow constant folding on Apple GPUs.
++        const string MULEXT = "template<typename T, typename U> static inline __attribute__((always_inline)) T spvMulExtended(uint l, uint r) { ulong p = ulong(l) * ulong(r); return T{U(p), U(p >> 32)}; }\n"
++                            + "template<typename T, typename U> static inline __attribute__((always_inline)) T spvMulExtended(int l, int r) { long p = long(l) * long(r); return T{U(p), U(p >> 32)}; }\n";
++        static readonly Regex s_mulExt = new(@"template<typename T, typename U, typename V>\s*\[\[clang::optnone\]\] T spvMulExtended\(V l, V r\)\s*\{\s*return T\{U\(l \* r\), U\(mulhi\(l, r\)\)\};\s*\}\r?\n", RegexOptions.CultureInvariant);
++        internal static string MulExtended(string msl)
++        {
++            if (!ShaderOptEnabled() || !msl.Contains("spvMulExtended", StringComparison.Ordinal) || msl.Contains("spvMulExtended(uint l, uint r)", StringComparison.Ordinal)) return msl;
++            var found = s_mulExt.Matches(msl);
++            if (found.Count != 1) return msl;
++            int at = found[0].Index + found[0].Length;
++            return msl[..at] + MULEXT + msl[at..];
++        }
++
++        // RewindBox (from S2Arm 7cfd7be8f, pure MSL post-pass so third_party/spirv_cross stays untouched and S2A_RB_SHADER_OPT=0 reverts cleanly):
++        // inline SPIRV-Cross's 6 [[clang::optnone]] NoContraction helpers while feeding the fma 0/1 operand from a thread volatile float
++        // so Metal cannot contract fma(l, r, 0) into fmul under fast-math/invariance-late-contract.
++        static readonly Regex s_ncFAdd = new(@"\[\[clang::optnone\]\] T spvFAdd\(T l, T r\)\r?\n\{\r?\n(\s*)return fma\(T\(1\), l, r\);\r?\n\}", RegexOptions.CultureInvariant);
++        static readonly Regex s_ncFSub = new(@"\[\[clang::optnone\]\] T spvFSub\(T l, T r\)\r?\n\{\r?\n(\s*)return fma\(T\(-1\), r, l\);\r?\n\}", RegexOptions.CultureInvariant);
++        static readonly Regex s_ncFMul = new(@"\[\[clang::optnone\]\] T spvFMul\(T l, T r\)\r?\n\{\r?\n(\s*)return fma\(l, r, T\(0\)\);\r?\n\}", RegexOptions.CultureInvariant);
++        static readonly Regex s_ncFVM = new(@"\[\[clang::optnone\]\] vec<T, Cols> spvFMulVectorMatrix\(vec<T, Rows> v, matrix<T, Cols, Rows> m\)\r?\n\{\r?\n(\s*)vec<T, Cols> res = vec<T, Cols>\(0\);", RegexOptions.CultureInvariant);
++        static readonly Regex s_ncFMV = new(@"\[\[clang::optnone\]\] vec<T, Rows> spvFMulMatrixVector\(matrix<T, Cols, Rows> m, vec<T, Cols> v\)\r?\n\{\r?\n(\s*)vec<T, Rows> res = vec<T, Rows>\(0\);", RegexOptions.CultureInvariant);
++        static readonly Regex s_ncFMM = new(@"\[\[clang::optnone\]\] matrix<T, RCols, LRows> spvFMulMatrixMatrix\(matrix<T, LCols, LRows> l, matrix<T, RCols, RRows> r\)\r?\n\{\r?\n(\s*)static_assert\(LCols == RRows, ""column-row configuration mismatch""\);\r?\n(\s*)matrix<T, RCols, LRows> res;\r?\n(\s*)for \(uint i = 0; i < RCols; i\+\+\)\r?\n(\s*)\{\r?\n(\s*)vec<T, LRows> tmp\(0\);", RegexOptions.CultureInvariant);
++        internal static string InlineNoContraction(string msl)
++        {
++            if (!ShaderOptEnabled() || !msl.Contains("[[clang::optnone]]", StringComparison.Ordinal)) return msl;
++            msl = s_ncFAdd.Replace(msl, "inline T spvFAdd(T l, T r)\n{\n$1thread volatile float o = 1.0f;\n$1return fma(T(o), l, r);\n}");
++            msl = s_ncFSub.Replace(msl, "inline T spvFSub(T l, T r)\n{\n$1thread volatile float o = 1.0f;\n$1return fma(T(-o), r, l);\n}");
++            msl = s_ncFMul.Replace(msl, "inline T spvFMul(T l, T r)\n{\n$1thread volatile float z = 0.0f;\n$1return fma(l, r, T(z));\n}");
++            msl = s_ncFVM.Replace(msl, "inline vec<T, Cols> spvFMulVectorMatrix(vec<T, Rows> v, matrix<T, Cols, Rows> m)\n{\n$1thread volatile float z = 0.0f;\n$1vec<T, Cols> res = vec<T, Cols>(T(z));");
++            msl = s_ncFMV.Replace(msl, "inline vec<T, Rows> spvFMulMatrixVector(matrix<T, Cols, Rows> m, vec<T, Cols> v)\n{\n$1thread volatile float z = 0.0f;\n$1vec<T, Rows> res = vec<T, Rows>(T(z));");
++            msl = s_ncFMM.Replace(msl, "inline matrix<T, RCols, LRows> spvFMulMatrixMatrix(matrix<T, LCols, LRows> l, matrix<T, RCols, RRows> r)\n{\n$1thread volatile float z = 0.0f;\n$1static_assert(LCols == RRows, \"column-row configuration mismatch\");\n$2matrix<T, RCols, LRows> res;\n$3for (uint i = 0; i < RCols; i++)\n$4{\n$5vec<T, LRows> tmp = vec<T, LRows>(T(z));");
++            return msl;
++        }
++
+         // 四偏移 gather（SPIR-V ConstOffsets，GL textureGatherOffsets）：SPIRV-Cross 的 spvGatherConstOffsets / spvGatherCompareConstOffsets 在循环里把 coffsets[i] 传给 gather()，
+         // Metal 的 gather 偏移只认常量表达式，编译不报错，偏移成了运行时值（AIR 里 load <2 x i32> 再交 air.gather_texture_2d）。时之笛 NDSR 放大器 b106afba1a18faa9 的 9 处 gather 同形，
+         // 上游参考实现（MIT）记的症状是同一输入每次跑出的画面不同。每次调用改成四次单偏移 gather、偏移写成常量，各取足迹左上纹素（.w，gather 次序 i0j1, i1j1, i1j0, i0j0），
+@@ -1195,6 +1252,28 @@ namespace S2A.Dsh
+         static readonly Regex s_gatherCall = new(@"\bspvGather(Compare)?ConstOffsets\(", RegexOptions.CultureInvariant);
+         static readonly Regex s_gatherArr = new(@"\bconstant spvUnsafeArray<int2, 4> (\w+) = spvUnsafeArray<int2, 4>\(\{ (.*?) \}\);", RegexOptions.CultureInvariant);
+         static readonly Regex s_int2 = new(@"int2\([^()]*\)", RegexOptions.CultureInvariant);
++        // RewindBox (from S2Arm 99aafb48a / nxnative 0c8a3ac0, MIT): collapse 2x2 quad offsets into 1 gather + swizzle.
++        static readonly Regex s_int2Lit = new(@"\Aint2\(\s*(-?\d+)\s*(?:,\s*(-?\d+)\s*)?\)\z", RegexOptions.CultureInvariant);
++        internal static (string Corner, string Swz)? GatherQuad(List<string> off)
++        {
++            var xy = new List<(int X, int Y)>();
++            foreach (var o in off)
++            {
++                var m = s_int2Lit.Match(o); if (!m.Success) return null;
++                int x = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
++                xy.Add((x, m.Groups[2].Success ? int.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture) : x));
++            }
++            int bx = xy.Min(p => p.X), by = xy.Min(p => p.Y);
++            var swz = new StringBuilder(); var seen = new HashSet<(int, int)>();
++            foreach (var (x, y) in xy)
++            {
++                (int, int) r = (x - bx, y - by);
++                char c = r switch { (0, 0) => 'w', (1, 0) => 'z', (0, 1) => 'x', (1, 1) => 'y', _ => '?' };
++                if (c == '?' || !seen.Add(r)) return null;
++                swz.Append(c);
++            }
++            return ($"int2({bx}, {by})", swz.ToString());
++        }
+ 
+         internal static string GatherOffsets(string msl)
+         {
+@@ -1207,6 +1286,7 @@ namespace S2A.Dsh
+                 if (off.Count != 4) throw new DshError("gather offsets rewrite failed", Sl("unexpected offset array " + m.Value, 0, 160));
+                 arrays[m.Groups[1].Value] = off;
+             }
++            bool useQuad = ShaderOptEnabled();
+             var sb = new StringBuilder(); int pos = 0;
+             foreach (Match m in calls)
+             {
+@@ -1225,11 +1305,14 @@ namespace S2A.Dsh
+                 if (args.Count <= rest0 || !arrays.TryGetValue(args[2], out var offs))
+                     throw new DshError("gather offsets rewrite failed", Sl("offsets not a constant int2 array: " + msl[m.Index..j], 0, 160));
+                 string rest = string.Join(", ", args.Skip(rest0)), tail = cmp ? "" : ", " + args[3], fn = cmp ? "gather_compare" : "gather";
+-                sb.Append(msl, pos, m.Index - pos).Append("s2a_gather4(").Append(string.Join(", ", offs.Select(o => $"{args[0]}.{fn}({args[1]}, {rest}, {o}{tail}).w"))).Append(')');
++                var quad = useQuad ? GatherQuad(offs) : null;
++                if (quad != null) sb.Append(msl, pos, m.Index - pos).Append($"({args[0]}.{fn}({args[1]}, {rest}, {quad.Value.Corner}{tail}).{quad.Value.Swz})");
++                else sb.Append(msl, pos, m.Index - pos).Append("s2a_gather4(").Append(string.Join(", ", offs.Select(o => $"{args[0]}.{fn}({args[1]}, {rest}, {o}{tail}).w"))).Append(')');
+                 pos = j;
+             }
+             sb.Append(msl, pos, msl.Length - pos);
+             string s = sb.ToString();
++            if (!s.Contains("s2a_gather4(", StringComparison.Ordinal)) return s;
+             int at = s.IndexOf("using namespace metal;", StringComparison.Ordinal);
+             if (at < 0) throw new DshError("gather offsets rewrite failed", "no using namespace metal;");
+             at = s.IndexOf('\n', at) + 1;
+diff --git a/graphics/tools/direct/dsh/DshCApi.cs b/graphics/tools/direct/dsh/DshCApi.cs
+index c05ab0c..a71cd6e 100644
+--- a/graphics/tools/direct/dsh/DshCApi.cs
++++ b/graphics/tools/direct/dsh/DshCApi.cs
+@@ -110,9 +110,17 @@ namespace S2A.Dsh
+ 
+         /// <summary>const char *s2a_dsh_xfp(void)：本库翻译器指纹（16 位小写十六进制，NUL 结尾、常驻）。宿主 dsh_miss.inc dsh_have / nvn_mtl.m shader_build 用它判兜底目录里上局现编的结果能不能复用</summary>
+         [UnmanagedCallersOnly(EntryPoint = "s2a_dsh_xfp")]
+-        public static byte* Xfp() => DshCompiler.WideMemoryEnabled() ? s_xfpOn : s_xfpOff;
++        public static byte* Xfp() => (DshCompiler.WideMemoryEnabled(), DshCompiler.ShaderOptEnabled()) switch
++        {
++            (true, true) => s_xfpOn,
++            (false, true) => s_xfpWideOff,
++            (true, false) => s_xfpOptOff,
++            (false, false) => s_xfpBothOff,
++        };
+         static readonly byte* s_xfpOn = MakeXfp(DshChain.Xfp);
+-        static readonly byte* s_xfpOff = MakeXfp(DshCompiler.XfpOff);
++        static readonly byte* s_xfpWideOff = MakeXfp(DshCompiler.XfpWideOff);
++        static readonly byte* s_xfpOptOff = MakeXfp(DshCompiler.XfpOptOff);
++        static readonly byte* s_xfpBothOff = MakeXfp(DshCompiler.XfpBothOff);
+         static byte* MakeXfp(string value)
+         {
+             var b = Encoding.ASCII.GetBytes(value);
+diff --git a/graphics/tools/direct/tests/dsh_cmp/Fn.cs b/graphics/tools/direct/tests/dsh_cmp/Fn.cs
+index 168e2f4..d37dad1 100644
+--- a/graphics/tools/direct/tests/dsh_cmp/Fn.cs
++++ b/graphics/tools/direct/tests/dsh_cmp/Fn.cs
+@@ -71,6 +71,9 @@ static class Fn
+                     "pack_physical_vectors" => DshCompiler.PackPhysicalVectors(S(0)),
+                     "wide_loads" => DshCompiler.WideLoads(S(0)),
+                     "wide_stores" => DshCompiler.WideStores(S(0)),
++                    "gather_offsets" => DshCompiler.GatherOffsets(S(0)),
++                    "mul_extended" => DshCompiler.MulExtended(S(0)),
++                    "inline_nocontraction" => DshCompiler.InlineNoContraction(S(0)),
+                     "effective_xfp" => DshCompiler.Xfp,
+                     "giant_fix" => DshFlat.GiantFix(S(0)) is var (gm, g0, g1) ? new List<object> { gm, (long)g0, (long)g1 } : null,
+                     "tf_layout" => DshCompiler.Ctx.TfLayout("k", H(0)),

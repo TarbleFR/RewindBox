@@ -172,7 +172,7 @@ jobs:
           python3 build-utils/s2arm/engine/prefetch_sources.py "$RUNNER_TEMP/s2arm" \
             "$RUNNER_TEMP/s2arm-build-cache/sources" | tee -a proof/inputs.txt
       - name: Locate the Metal compiler for the iOS framework
-        if: env.TEST_ONLY != 'yes' || (matrix.os == 'macos-26' && (contains(github.event.head_commit.message, '[s2arm-first-draw]') || contains(github.event.head_commit.message, '[s2arm-wide-mem-check]')))
+        if: env.TEST_ONLY != 'yes' || (matrix.os == 'macos-26' && (contains(github.event.head_commit.message, '[s2arm-first-draw]') || contains(github.event.head_commit.message, '[s2arm-wide-mem-check]') || contains(github.event.head_commit.message, '[s2arm-global-opt-check]')))
         run: |
           if ! xcrun --sdk iphoneos metal --version >/dev/null 2>&1; then
             xcodebuild -downloadComponent MetalToolchain
@@ -191,6 +191,20 @@ jobs:
           dotnet build translator/dmsh_xlate/dmsh_xlate.csproj -c Release --nologo
           dotnet build graphics/tools/direct/tests/dsh_cmp/dsh_cmp.csproj -c Release --nologo
           python3 "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/test_wide_mem.py" "$PWD" | tee "$GITHUB_WORKSPACE/proof/wide-mem-checks.txt"
+      - name: Verify S2Arm global optimization patches (0396-0399) and Metal GPU execution
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-global-opt-check]')
+        working-directory: ${{ runner.temp }}/s2arm
+        env:
+          S2A_DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
+          S2A_BUILD_CACHE: ${{ runner.temp }}/s2arm-build-cache
+          NUGET_PACKAGES: ${{ runner.temp }}/nuget
+        run: |
+          set -euo pipefail
+          test -f "$PWD/build/dsx/libdsx.dylib" || make -C graphics/dsx "$PWD/build/dsx/libdsx.dylib"
+          test -f translator/dmsh_xlate/bin/Release/net10.0/dmsh_xlate || dotnet build translator/dmsh_xlate/dmsh_xlate.csproj -c Release --nologo
+          test -f graphics/tools/direct/tests/dsh_cmp/bin/Release/net10.0/dsh_cmp.dll || dotnet build graphics/tools/direct/tests/dsh_cmp/dsh_cmp.csproj -c Release --nologo
+          python3 "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/test_global_opt.py" "$PWD" | tee "$GITHUB_WORKSPACE/proof/global-opt-checks.txt"
+          make native-test-guest_file_retry native-test-guest_file_auto
       - name: Compile and read an iPhoneOS capture pack
         if: matrix.os == 'macos-26' && (env.TEST_ONLY != 'yes' || contains(github.event.head_commit.message, '[s2arm-first-draw]')) && contains(github.event.head_commit.message, '[s2arm-shader-checks]')
         run: sh build-utils/s2arm/engine/tests/check_capture_pack.sh "$RUNNER_TEMP/s2arm"

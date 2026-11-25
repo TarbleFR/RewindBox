@@ -1,0 +1,184 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index ff1bf06..ae1f8e1 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -3410,6 +3410,9 @@ static _Atomic uint64_t g_frame;
+ //   not counted anywhere. Said every 300 frames by dump_frame when any was made, with the most in one frame
+ static _Atomic uint64_t g_vsh_fills, g_vsh_fill_bytes;
+ static uint64_t g_acq_wait_ns, g_pq_wait_ns;   // Accumulated display-link wait / wait for the present queue to return inside acquire, recorded per frame at present (there can be several acquires within one frame)
++// RewindBox (patch 0398): cross-thread WindowAcquireTexture waits on nvn_be_present_wait (e.g. Fire Emblem where acquire runs off g_present_thr)
++static _Atomic uint64_t g_rb_acq_other_ns, g_rb_acq_other_n;
++static uint64_t g_rb_acq_other_win_ns, g_rb_acq_other_win_n, g_rb_acq_other_win_max_ns;
+ __attribute__((weak)) void nvn_be_present_wait_taken(double period) { (void)period; }   // RewindBox (patch 0068): nvn_mtl.m; backends without a display link do not wait
+ __attribute__((weak)) void nvn_be_blocked_ns(uint64_t out[4]) { memset(out, 0, 4 * sizeof *out); }   // RewindBox (patch 0068): nvn_mtl.m; 0 elsewhere
+ __attribute__((weak)) double nvn_be_gpu_probe_ms(void) { return -1; }   // RewindBox (patch 0068): nvn_mtl.m; none elsewhere
+@@ -3542,7 +3545,13 @@ NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsyn
+     uintptr_t pt = atomic_load_explicit(&g_present_thr, memory_order_relaxed);
+     if (pt && pt != (uintptr_t)pthread_self()) {
+         uint64_t tk = *idx < 4 ? o->ticket[*idx] : 0;
+-        if (tk) nvn_be_present_wait(tk);
++        if (tk) {
++            uint64_t w0 = now_ns();
++            nvn_be_present_wait(tk);
++            uint64_t dt = now_ns() - w0;
++            atomic_fetch_add_explicit(&g_rb_acq_other_ns, dt, memory_order_relaxed);
++            atomic_fetch_add_explicit(&g_rb_acq_other_n, 1, memory_order_relaxed);
++        }
+         if (s) sync_publish((sync_t *)s, rb_acquire_publish(o, *idx, s));   // RewindBox (patch 0333): the fence of the present that took this texture off screen
+         return NVN_WINDOW_ACQUIRE_TEXTURE_RESULT_SUCCESS;
+     }
+@@ -4133,6 +4142,14 @@ static void tsummary(uint64_t frame) {
+     uint64_t up, re, fa, pr; nvn_be_pkg_stats(&up, &re); nvn_dirty_stats(&fa, &pr);
+     { uint64_t gw, gk, gp; nvn_be_pkg_gpu_stats(&gw, &gk, &gp);
+       LOG("[nvn] packaged textures: first uploads %llu, re-uploads on pool content change %llu, skipped as the written pages held the same texture bytes %llu; GPU writes into them %llu, CPU changes left under later GPU writes %llu, partial re-uploads %llu; write-protection faults %llu, pages unprotected before host writes %llu; missed %llu (cumulative)", up, re, nvn_be_pkg_same(), gw, gk, gp, fa, pr, nvn_be_pkg_miss()); }
++    if (g_rb_acq_other_win_n) {
++        LOG("[rb-sync] frame=%llu cross_thread_acquires=%llu cross_thread_wait_ms=%.2f mean_ms=%.2f max_ms=%.2f",
++            (unsigned long long)frame, (unsigned long long)g_rb_acq_other_win_n,
++            g_rb_acq_other_win_ns / 1e6,
++            (g_rb_acq_other_win_ns / 1e6) / (double)g_rb_acq_other_win_n,
++            g_rb_acq_other_win_max_ns / 1e6);
++        g_rb_acq_other_win_ns = g_rb_acq_other_win_n = g_rb_acq_other_win_max_ns = 0;
++    }
+     memset(g_tn, 0, sizeof g_tn);
+ 
+ #endif
+@@ -4841,6 +4858,14 @@ NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
+         trow(f, "@longest_submit_gap_ms", rb_gaps.longest / 1e6);
+         trow(f, "@frame_ms", fr); trow(f, "@work_ms", wk); trow(f, "@nvn_ms", nv); trow(f, "@itv", (double)present_itv(o));
+         // Slow-frame attribution (taken only when DM_NVN_TSV is on): this frame's present-thread CPU time (−1 if the thread changed), CPU of all threads in the process, acquire wait accumulated per frame, present call time (same base as the GPU / on-screen present times: ms since process start)
++        { uint64_t rb_other_ns = atomic_exchange_explicit(&g_rb_acq_other_ns, 0, memory_order_relaxed);
++          uint64_t rb_other_n = atomic_exchange_explicit(&g_rb_acq_other_n, 0, memory_order_relaxed);
++          if (rb_other_n) {
++              g_pq_wait_ns += rb_other_ns;
++              g_rb_acq_other_win_ns += rb_other_ns;
++              g_rb_acq_other_win_n += rb_other_n;
++              if (rb_other_ns > g_rb_acq_other_win_max_ns) g_rb_acq_other_win_max_ns = rb_other_ns;
++          } }
+         trow(f, "@wait_ms", g_acq_wait_ns / 1e6); trow(f, "@pq_wait_ms", g_pq_wait_ns / 1e6);
+         if (frame_rec()) {
+             static pthread_t pth; static uint64_t pcpu, pproc;
+@@ -6586,6 +6611,9 @@ int dm_nvn_shutdown_session(void) {
+     memset(&g_rb_fb30, 0, sizeof g_rb_fb30); g_rb_fb30_cost_frame = 0; g_rb_fb30_said = 0; atomic_store(&g_rb_fb30_k, 0);   // RewindBox (patch 0349)
+     rb_speed_meter_reset(&g_rb_speed); g_rb_speed_t0 = 0;   // RewindBox (patch 0351)
+     g_fs_k = g_itv2_since = g_fps_game_itv = 0; atomic_store(&rb_thermal_guest_hold,0);
++    atomic_store_explicit(&g_rb_acq_other_ns, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_acq_other_n, 0, memory_order_relaxed);
++    g_rb_acq_other_win_ns = g_rb_acq_other_win_n = g_rb_acq_other_win_max_ns = 0;
+     nvn_dirty_reset_session();
+     return 0;
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index bf958db..5cb2da7 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9761,6 +9761,7 @@ static void rb_pool_ahead_report(unsigned long long frame) {
+          (unsigned long long)atomic_load_explicit(&g_rb_pool_ahead_tex, memory_order_relaxed),
+          (unsigned long long)atomic_load_explicit(&g_rb_pool_ahead_pages, memory_order_relaxed));
+ }
++static void rb_compile_origin_report(const char *tag, unsigned long long frame);
+ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb);
+ void nvn_be_mem_stat_part(unsigned long long frame, unsigned long long real_frame, unsigned long long rss_mb, unsigned parts);
+ void nvn_be_mem_stat_part(unsigned long long frame, unsigned long long real_frame, unsigned long long rss_mb, unsigned parts) {
+@@ -9821,6 +9822,7 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+          frame,rb_dispatch_order_on() ? "game" : "full",(unsigned long long)atomic_load(&g_rb_dispatch_kept),(unsigned long long)atomic_load(&g_rb_dispatch_saved));
+     MLOG("[rb-pso-wait-boost] cumulative frame=%llu attempts=%llu accepted=%llu",
+          frame,(unsigned long long)atomic_load(&g_rb_pso_boost_tries),(unsigned long long)atomic_load(&g_rb_pso_boost_ok));
++    rb_compile_origin_report("periodic", frame);
+     if (pending_polls || sleeps)
+         MLOG("[fence-wake] cumulative frame=%llu pendingPolls=%llu positiveWaitSleeps=%llu fenceBroadcasts=%llu segmentCompletionsWithSleepers=%llu",
+              frame, (unsigned long long)pending_polls, (unsigned long long)sleeps,
+@@ -11508,6 +11510,20 @@ static _Atomic uint64_t g_rb_lib_done;   // RewindBox (patch 0085): libraries bu
+ // Base translations and typed-output, sampler and padded vertex variants.
+ // Count only real newLibraryWithSource calls, including failed attempts.
+ static _Atomic uint64_t g_rb_msl_n, g_rb_msl_ns, g_rb_msl_shared;
++// RewindBox (patch 0398): opt-in MSL compile origin breakdown (S2A_RB_COMPILE_ORIGIN=1, default off).
++// Distinguishes fast (<5 ms, likely iOS com.apple.metal hit) vs slow (>=5 ms, cold/evicted compile) and submit-thread slow compiles.
++static _Atomic int g_rb_compile_origin = -1;
++static _Atomic uint64_t g_rb_co_fast_n, g_rb_co_fast_ns, g_rb_co_slow_n, g_rb_co_slow_ns, g_rb_co_sub_slow_n, g_rb_co_sub_slow_ns;
++static int rb_compile_origin_on(void) {
++    int x = atomic_load_explicit(&g_rb_compile_origin, memory_order_relaxed);
++    if (x < 0) {
++        const char *e = getenv("S2A_RB_COMPILE_ORIGIN");
++        x = (e && !strcmp(e, "1")) ? 1 : 0;
++        int was = -1;
++        atomic_compare_exchange_strong(&g_rb_compile_origin, &was, x);
++    }
++    return x;
++}
+ static _Atomic uint64_t g_rb_aux_msl_n, g_rb_aux_msl_ns, g_rb_submit_aux_msl_n, g_rb_submit_aux_msl_ns;
+ static __thread uint64_t t_rb_msl_n; // per-job reference preparation accounting
+ static _Atomic uint64_t g_bp_msl_n, g_bp_msl_ns; // subset compiled on the submit thread
+@@ -11585,6 +11601,7 @@ static void shader_load_stats(void) {
+          (unsigned long long)atomic_load(&g_shader_failures), (unsigned long long)atomic_load(&g_shader_build_live));
+     if (atomic_load(&g_rb_msl_shared)) MLOG("RewindBox: existing Metal source library reused for another shader identity: %llu", (unsigned long long)atomic_load(&g_rb_msl_shared));
+     if (atomic_load(&g_rb_msl_n)) MLOG("RewindBox: MSL of this device's translations compiled from source so far (base and typed/sampler/padded variants, every thread): %llu times, %.1f ms in all", (unsigned long long)atomic_load(&g_rb_msl_n), atomic_load(&g_rb_msl_ns) / 1e6);   // RewindBox (patch 0069)
++    rb_compile_origin_report("stats", 0);
+     if (atomic_load(&g_lp_lib_built)) MLOG("library container: %llu libraries built, %llu loads took one already built from the same segment (lib_pack.inc lp_library); "
+                                           "segments mapped in the host high range %llu (%.1f MB live), in the low range %llu (%.1f MB: high range full or absent)",
+                                           (unsigned long long)atomic_load(&g_lp_lib_built), (unsigned long long)atomic_load(&g_lp_lib_shared),
+@@ -12227,6 +12244,21 @@ static id<MTLLibrary> rb_disk_library(NSString *src) {
+     else atomic_fetch_add(&g_rb_air_misses, 1);
+     return lib;
+ }
++static void rb_compile_origin_report(const char *tag, unsigned long long frame) {
++    if (!rb_compile_origin_on()) return;
++    uint64_t fast_n = atomic_load_explicit(&g_rb_co_fast_n, memory_order_relaxed);
++    uint64_t slow_n = atomic_load_explicit(&g_rb_co_slow_n, memory_order_relaxed);
++    uint64_t air_h = atomic_load_explicit(&g_rb_air_hits, memory_order_relaxed);
++    uint64_t air_m = atomic_load_explicit(&g_rb_air_misses, memory_order_relaxed);
++    uint64_t shared = atomic_load_explicit(&g_rb_msl_shared, memory_order_relaxed);
++    if (!(fast_n + slow_n + air_h + air_m + shared)) return;
++    MLOG("[rb-compile-origin] %s frame=%llu disk_hits=%llu disk_misses=%llu msl_shared=%llu fast_lt5ms=%llu (%.1f ms) slow_ge5ms=%llu (%.1f ms) submit_slow=%llu (%.1f ms)",
++         tag, frame, (unsigned long long)air_h, (unsigned long long)air_m, (unsigned long long)shared,
++         (unsigned long long)fast_n, atomic_load_explicit(&g_rb_co_fast_ns, memory_order_relaxed) / 1e6,
++         (unsigned long long)slow_n, atomic_load_explicit(&g_rb_co_slow_ns, memory_order_relaxed) / 1e6,
++         (unsigned long long)atomic_load_explicit(&g_rb_co_sub_slow_n, memory_order_relaxed),
++         atomic_load_explicit(&g_rb_co_sub_slow_ns, memory_order_relaxed) / 1e6);
++}
+ static id<MTLLibrary> rb_measure_source(id<MTLDevice> device,NSString *src,MTLCompileOptions *options,
+                                        NSError **error,int guest) {
+     uint64_t start=bp_now();
+@@ -12235,10 +12267,24 @@ static id<MTLLibrary> rb_measure_source(id<MTLDevice> device,NSString *src,MTLCo
+     atomic_fetch_add_explicit(guest ? &g_rb_msl_n : &g_rb_aux_msl_n,1,memory_order_relaxed);
+     atomic_fetch_add_explicit(guest ? &g_rb_msl_ns : &g_rb_aux_msl_ns,elapsed,memory_order_relaxed);
+     if (guest) t_rb_msl_n++;
+-    if (on_sub_thread()) {
++    int on_sub = on_sub_thread();
++    if (on_sub) {
+         atomic_fetch_add_explicit(guest ? &g_bp_msl_n : &g_rb_submit_aux_msl_n,1,memory_order_relaxed);
+         atomic_fetch_add_explicit(guest ? &g_bp_msl_ns : &g_rb_submit_aux_msl_ns,elapsed,memory_order_relaxed);
+     }
++    if (guest && rb_compile_origin_on()) {
++        if (elapsed < 5000000ull) {
++            atomic_fetch_add_explicit(&g_rb_co_fast_n, 1, memory_order_relaxed);
++            atomic_fetch_add_explicit(&g_rb_co_fast_ns, elapsed, memory_order_relaxed);
++        } else {
++            atomic_fetch_add_explicit(&g_rb_co_slow_n, 1, memory_order_relaxed);
++            atomic_fetch_add_explicit(&g_rb_co_slow_ns, elapsed, memory_order_relaxed);
++            if (on_sub) {
++                atomic_fetch_add_explicit(&g_rb_co_sub_slow_n, 1, memory_order_relaxed);
++                atomic_fetch_add_explicit(&g_rb_co_sub_slow_ns, elapsed, memory_order_relaxed);
++            }
++        }
++    }
+     return lib;
+ }
+ static id<MTLLibrary> rb_compile_auxiliary(id<MTLDevice> device,NSString *src,MTLCompileOptions *options,NSError **error) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index e62b98b..799bf47 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -398,6 +398,13 @@ void nvn_be_begin_session(void) {
+     atomic_store_explicit(&g_rb_pool_ahead_batches, 0, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_pool_ahead_tex, 0, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_pool_ahead_pages, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_compile_origin, -1, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_co_fast_n, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_co_fast_ns, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_co_slow_n, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_co_slow_ns, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_co_sub_slow_n, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_co_sub_slow_ns, 0, memory_order_relaxed);
+     atomic_store(&g_rb_raster_clear_mode,-1); g_rb_raster_clear_mask=0;
+     g_rb_raster_clear_candidates=g_rb_raster_clear_saved=g_rb_raster_clear_bytes=0;
+     atomic_store(&g_rb_archive_error_nil,-1);

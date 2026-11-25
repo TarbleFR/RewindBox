@@ -1,0 +1,387 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 7625dc3..bf958db 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9740,6 +9740,27 @@ static _Atomic int g_rb_raster_clear_mode=-1;
+ static uint64_t g_rb_raster_clear_candidates,g_rb_raster_clear_saved,g_rb_raster_clear_bytes;
+ static unsigned g_rb_raster_clear_mask;
+ static void rb_wake_emit(const char *row) { MLOG("%s", row); }
++static _Atomic int g_rb_pool_scan_ahead = -1;
++static _Atomic uint64_t g_rb_pool_ahead_batches, g_rb_pool_ahead_tex, g_rb_pool_ahead_pages;
++static int rb_pool_scan_ahead_on(void) {
++    int x = atomic_load_explicit(&g_rb_pool_scan_ahead, memory_order_relaxed);
++    if (x < 0) {
++        const char *e = getenv("S2A_RB_POOL_SCAN_AHEAD");
++        x = !(e && !strcmp(e, "0"));
++        int was = -1;
++        if (atomic_compare_exchange_strong(&g_rb_pool_scan_ahead, &was, x))
++            MLOG("[rb-pool-ahead] batched MADV_WILLNEED pre-pass in pool scans %s (S2A_RB_POOL_SCAN_AHEAD; patch 0397)", x ? "on" : "off");
++    }
++    return x;
++}
++static void rb_pool_ahead_report(unsigned long long frame) {
++    uint64_t b = atomic_load_explicit(&g_rb_pool_ahead_batches, memory_order_relaxed);
++    if (!b) return;
++    MLOG("[rb-pool-ahead] cumulative frame=%llu batches=%llu textures=%llu absent_pages=%llu",
++         frame, (unsigned long long)b,
++         (unsigned long long)atomic_load_explicit(&g_rb_pool_ahead_tex, memory_order_relaxed),
++         (unsigned long long)atomic_load_explicit(&g_rb_pool_ahead_pages, memory_order_relaxed));
++}
+ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb);
+ void nvn_be_mem_stat_part(unsigned long long frame, unsigned long long real_frame, unsigned long long rss_mb, unsigned parts);
+ void nvn_be_mem_stat_part(unsigned long long frame, unsigned long long real_frame, unsigned long long rss_mb, unsigned parts) {
+@@ -9811,6 +9832,7 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+     rb_range_report(frame);
+     rb_wn_line(frame);   // RewindBox (patch 0070): texture storage read ahead (before the line cap below: it says itself when anything moved)
+     rb_bl_line(frame);   // RewindBox (patch 0329): the bound textures' page lane and the registration-to-first-upload classes (rb_bind_lane.inc; one line when anything moved, none with S2A_RB_BIND_LANE=0)
++    rb_pool_ahead_report(frame);   // RewindBox (patch 0397): batched pool-scan page-in overlap
+     }
+     if (!(rb_parts & RB_REPORT_MEM_MEMORY)) return;   // RewindBox (patch 0326): the capped memory line and what follows it are the last part
+     static unsigned long long last_rss, last_gpu, last_frame; static int lines; unsigned long long gpu = (unsigned long long)(g_dev.currentAllocatedSize >> 20);
+@@ -18030,6 +18052,27 @@ static void pool_dirty(int samp, int id_) { if (atomic_load_explicit(&g_ptab_any
+ // view_pkg): what nothing retires or registers still reaches what shaders read within a submission. Shaders read a few hundred of the tens of thousands of IDs
+ static uint64_t g_seen_dirty = ~0ull, g_seen_ser = ~0ull;
+ static uint64_t g_seen_vgen, g_seen_spframe, g_seen_sp_rechecks;   // RewindBox (patch 0031): g_sub_vgen at the last scan that compared it; frame of the last TREG_SP_RELOOK recheck; scans a sparse mapping alone sent to the recheck (log line). Reset with the session
++// RewindBox (patch 0397): issue batched MADV_WILLNEED hints across all textures about to be uploaded synchronously
++//   by pool_seen_scan / pool_left_scan (when >= 2 textures qualify), overlapping kernel flash page-ins with CPU deswizzle.
++enum { RB_POOL_AHEAD_MAX = 64 };
++static void rb_pool_ahead_batch(const int *ids, int count) {
++    if (count < 2 || !rb_pool_scan_ahead_on() || !rb_wn_on() || s2a_guest_fd() < 0 || rb_mem_low()) return;
++    uint64_t pages = 0;
++    int advised = 0;
++    for (int k = 0; k < count; k++) {
++        int id_ = ids[k];
++        if (id_ <= 0 || id_ >= g_ntreg || !g_treg[id_].ok) continue;
++        const tex_t *t = &g_treg[id_].t;
++        if (!t->has_layout || !t->mem || !t->L.size || t->d.flags || (t->pool && nvn_sparse_pool(t->pool))) continue;
++        uint64_t p = rb_wn_(t->mem, t->L.size, NULL, NULL, 0, 0);
++        if (p != RB_WN_NONE) { advised++; pages += p; }
++    }
++    if (advised) {
++        atomic_fetch_add_explicit(&g_rb_pool_ahead_batches, 1, memory_order_relaxed);
++        atomic_fetch_add_explicit(&g_rb_pool_ahead_tex, (uint64_t)advised, memory_order_relaxed);
++        atomic_fetch_add_explicit(&g_rb_pool_ahead_pages, pages, memory_order_relaxed);
++    }
++}
+ static void pool_seen_scan(void) {
+     if (!g_seen_buf || g_seen_sub == g_sub_serial) return;
+     g_seen_sub = g_sub_serial;
+@@ -18045,6 +18088,23 @@ static void pool_seen_scan(void) {
+             if (!recheck && g_seen_sp_rechecks++ < 4) MLOG("RewindBox: pool tables: the texture IDs shaders read are looked up again after a sparse mapping (%llu so far)", (unsigned long long)g_seen_sp_rechecks);
+             recheck = 1; }
+         if (f - g_seen_spframe >= TREG_SP_RELOOK) { g_seen_spframe = f; recheck = 1; } }
++    if (rb_pool_scan_ahead_on() && rb_wn_on() && s2a_guest_fd() >= 0 && g_walk_req < POOL_REQ_BYTES) {
++        int ahead[RB_POOL_AHEAD_MAX], nahead = 0;
++        uint64_t est = g_walk_req;
++        for (unsigned i = 0; i < words && nahead < RB_POOL_AHEAD_MAX && est < POOL_REQ_BYTES; i++) {
++            uint32_t cand = (w[i] & ~g_seen_done[i]) | g_seen_todo[i];
++            for (uint32_t bits = cand; bits && nahead < RB_POOL_AHEAD_MAX && est < POOL_REQ_BYTES; bits &= bits - 1) {
++                int id_ = (int)i * 32 + __builtin_ctz(bits);
++                if (id_ <= 0 || id_ >= g_ntreg || !g_treg[id_].ok || g_treg[id_].view) continue;
++                const tex_t *t = &g_treg[id_].t;
++                if (!tex_storage_live(&g_treg[id_]) || pool_unwritten_target(t) || tex_get(t->serial)) continue;
++                if (!t->has_layout || !t->mem || !t->L.size || t->d.flags || (t->pool && nvn_sparse_pool(t->pool))) continue;
++                ahead[nahead++] = id_;
++                est += pool_tex_size(t);
++            }
++        }
++        rb_pool_ahead_batch(ahead, nahead);
++    }
+     for (unsigned i = 0; i < words; i++) {
+         uint32_t fresh = w[i] & ~g_seen_done[i];
+         if (fresh) { g_seen_done[i] |= fresh; g_seen_todo[i] |= fresh; }
+@@ -18070,6 +18130,18 @@ static void pool_left_scan(void) {
+     uint64_t limit = pool_walk_limit(0, (int)g_pleft.n, g_pleft.list); if (!limit) return;
+     uint32_t *ids = malloc(g_pleft.n * sizeof *ids), m = g_pleft.n; if (!ids) return;
+     memcpy(ids, g_pleft.list, m * sizeof *ids); pool_dset_clear(&g_pleft);
++    if (rb_pool_scan_ahead_on() && rb_wn_on() && s2a_guest_fd() >= 0 && m >= 2) {
++        int ahead[RB_POOL_AHEAD_MAX], nahead = 0;
++        for (uint32_t j = 0; j < m && nahead < RB_POOL_AHEAD_MAX; j++) {
++            int id_ = (int)ids[j];
++            if (id_ <= 0 || id_ >= g_ntreg || !g_treg[id_].ok || g_treg[id_].view) continue;
++            const tex_t *t = &g_treg[id_].t;
++            if (!tex_storage_live(&g_treg[id_]) || pool_unwritten_target(t) || tex_get(t->serial)) continue;
++            if (pool_tex_size(t) > limit) continue;
++            ahead[nahead++] = id_;
++        }
++        rb_pool_ahead_batch(ahead, nahead);
++    }
+     for (uint32_t j = 0; j < m; j++) { g_pool_upd_left++; if (pool_tex_update((int)ids[j], limit)) pool_dset_add(&g_pleft, (int)ids[j]); }
+     free(ids);
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 72ce0e0..e62b98b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -393,6 +393,11 @@ int nvn_be_shutdown_session(void) {
+     return 0;
+ }
+ void nvn_be_begin_session(void) {
++    atomic_store_explicit(&g_rb_bl_all_titles, -1, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_pool_scan_ahead, -1, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_pool_ahead_batches, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_pool_ahead_tex, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_pool_ahead_pages, 0, memory_order_relaxed);
+     atomic_store(&g_rb_raster_clear_mode,-1); g_rb_raster_clear_mask=0;
+     g_rb_raster_clear_candidates=g_rb_raster_clear_saved=g_rb_raster_clear_bytes=0;
+     atomic_store(&g_rb_archive_error_nil,-1);
+diff --git a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+index a79396c..5ad7e87 100644
+--- a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
++++ b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+@@ -247,6 +247,7 @@ void nvn_be_sparse_phys_gone(const void *mem, uint64_t size) {
+     uint64_t sess, ser;                // S2Arm: the session whose tables its slots are in (check C6); its serial, for the log
+     uint64_t rescan_frame; uint8_t rescan;   // S2Arm (check C2): a tile was left out of date for want of staging, a heap tile or host memory: every tile is looked at again 60 frames on
+     uint8_t grouped_copy;              // immutable for the lifetime of this sparse texture
++    uint8_t zero_fast;                 // RewindBox (patch 0397): S2A_RB_SPARSE_ZERO_TILES (default 1)
+     uint8_t trace_decode;              // opt-in wall time of packaged, non-tail tile decodes
+     uint8_t undrawn;                   // a tile was mapped since the GPU last wrote through this texture (sparse_gpu_wrote). RewindBox (patch 0029): 1110473c (nvn_mtl.m:3522 at 0c078130)
+     unsigned up_seq;                   // RewindBox (patch 0029), S2Arm: the upload batch (g_up_seq) its last copies went into; submit thread only (sparse_sync)
+@@ -360,6 +361,8 @@ static NvSparse *sparse_make(const tex_t *t, int gpu, __strong id<MTLTexture> *m
+     NvSparse *s = [NvSparse new];
+     const char *grouped = getenv("S2A_RB_SPARSE_FAST_COPY");
+     s->grouped_copy = grouped && !strcmp(grouped, "1");
++    const char *zfast = getenv("S2A_RB_SPARSE_ZERO_TILES");
++    s->zero_fast = !(zfast && !strcmp(zfast, "0"));
+     const char *trace = getenv("S2A_RB_SPARSE_DECODE_STATS");
+     s->trace_decode = !gpu && trace && !strcmp(trace, "1");
+     s->gpu = gpu; s->tw = g.tw; s->th = g.th; s->ntiled = g.ntiled; s->levels = g.levels; s->layers = g.layers; s->layer_size = g.layer_size;
+@@ -402,7 +405,7 @@ static int sp_op(sp_ops *o, MTL4UpdateSparseTextureMappingOperation x) {   // S2
+ //   host memory. RewindBox (patch 0029): stamp, the look's dirty-page stamp, a shared slot's once uploaded (1110473c, nvn_mtl.m:3577 at 0c078130)
+ typedef struct { NvSparse *s; const tex_t *t; id<MTLTexture> tex; sp_ops *ops; uint32_t nheaps; uint8_t *tile, *tail; id<MTLBuffer> stg; size_t stg_off, stg_end, tail_need; uint64_t up, unmapped, stamp; int bw, bh, bpb, force;
+                  int full, refused, heapfail; uint64_t done, round_up, rounds, staged, nostg, noheap, nodec, nomem; NSMutableArray *newh;
+-                 uint64_t decoded_tiles, decoded_bytes, decode_ns, full_tiles, full_decode_ns;
++                 uint64_t decoded_tiles, decoded_bytes, decode_ns, full_tiles, full_decode_ns, zero_tiles;
+                  size_t zbpp; uint64_t zeroed; uint64_t tail_shared, tail_drawn; } sp_look;   // RewindBox (patch 0030), S2Arm: a GPU-written texture's bytes a texel when its fresh heap tiles are zeroed (0: not), and how many were
+ static int sp_blit_room(int k) {   // S2Arm (check C2): room in the upload list for k copies before a tile is mapped (up_blit_add_at drops a copy it cannot record)
+     if (g_nup_blits + k <= g_up_blitcap) return 1;
+@@ -562,7 +565,9 @@ static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
+         uint32_t wb, rows; size_t tpitch = (size_t)(s->tw / bw) * bpb;   // a tile's row of blocks: 64 KB / its block rows
+         // S2Arm: a tile that decodes to nothing (none of its texels in the level; not expected for a level of whole tiles) is not decoded either: no Map without content (check C2)
+         const uint64_t started = s->trace_decode ? bp_now() : 0;
+-        if (nvn_deswizzle_tile_mode(&t->d, l, tx, ty, c->tile, dst, tpitch, &wb, &rows, s->grouped_copy) || !wb || !rows) { RED_ONCE(188, "sparse tile of format %#x not decoded (level %u, tile %u,%u): it is not mapped", t->d.format, l, tx, ty); c->nodec++;
++        const int decode_mode = (s->grouped_copy ? 1 : 0) | (s->zero_fast ? 2 : 0);
++        const int is_zero = s->trace_decode && s->zero_fast && nvn_tile_is_zero(c->tile, SP_TILE);
++        if (nvn_deswizzle_tile_mode(&t->d, l, tx, ty, c->tile, dst, tpitch, &wb, &rows, decode_mode) || !wb || !rows) { RED_ONCE(188, "sparse tile of format %#x not decoded (level %u, tile %u,%u): it is not mapped", t->d.format, l, tx, ty); c->nodec++;
+             if (moved) sp_move_off(c, sl, rg, lev, y);   // RewindBox (patch 0029): not left on the slot of other memory
+             return; }
+         if (s->trace_decode) {
+@@ -571,6 +576,7 @@ static void sp_tile(sp_look *c, uint32_t y, uint32_t i) {
+             c->decoded_tiles++;
+             c->decoded_bytes += bytes;
+             c->decode_ns += elapsed;
++            if (is_zero) c->zero_tiles++;
+             if (bytes == SP_TILE) {
+                 c->full_tiles++;
+                 c->full_decode_ns += elapsed;
+@@ -715,11 +721,11 @@ static void sparse_sync(NvSparse *s, const tex_t *t, int whole) {
+     //   until session_wait_backend times out. Only what is recorded already is handed over (nothing in a lane: lanes live inside a submission)
+     if (!g_cb) rec_publish();
+     if (c.decoded_tiles) {
+-        MLOG("[rb-sparse-decode] frame_at_report=%llu texture=%llu grouped=%u tiles=%llu full_tiles=%llu "
++        MLOG("[rb-sparse-decode] frame_at_report=%llu texture=%llu grouped=%u zero_fast=%u tiles=%llu full_tiles=%llu zero_tiles=%llu "
+              "bytes=%llu wall_ns=%llu full_wall_ns=%llu",
+              (unsigned long long)atomic_load_explicit(&g_cur_frame, memory_order_relaxed),
+-             (unsigned long long)t->serial, (unsigned)s->grouped_copy,
+-             (unsigned long long)c.decoded_tiles, (unsigned long long)c.full_tiles,
++             (unsigned long long)t->serial, (unsigned)s->grouped_copy, (unsigned)s->zero_fast,
++             (unsigned long long)c.decoded_tiles, (unsigned long long)c.full_tiles, (unsigned long long)c.zero_tiles,
+              (unsigned long long)c.decoded_bytes, (unsigned long long)c.decode_ns, (unsigned long long)c.full_decode_ns);
+     }
+     // RewindBox (patch 0029): upstream's line with the shared slots (1110473c, nvn_mtl.m:3687-3688 at 0c078130); S2Arm: the counts read under g_sp_mu, for a line only (a Finalize on a game
+diff --git a/graphics/nvn/gfx/nvn/rb_bind_lane.inc b/graphics/nvn/gfx/nvn/rb_bind_lane.inc
+index 5c592ae..d4579c6 100644
+--- a/graphics/nvn/gfx/nvn/rb_bind_lane.inc
++++ b/graphics/nvn/gfx/nvn/rb_bind_lane.inc
+@@ -28,6 +28,21 @@ static int rb_bl_on(void) {   // any thread: the same value whoever reads it fir
+             x ? "own lane and admission under governor tiers 0 and 1, registration-to-upload line every 300 frames" : "the shared recorded-bind lane and the read-ahead quota, as before"); }
+     return x;
+ }
++// RewindBox (patch 0397): lift the Mario Kart World-only rb_course_exact() gate on recorded texture bind page hints
++//   so Zelda, Fire Emblem and all other titles benefit from the bounded, governor-aware bind lane.
++//   S2A_RB_BIND_LANE_ALL=0 restores the course-exact restriction. Reset per session in nvn_be_begin_session.
++static _Atomic int g_rb_bl_all_titles = -1;
++static int rb_bl_all_titles_on(void) {
++    int x = atomic_load_explicit(&g_rb_bl_all_titles, memory_order_relaxed);
++    if (x < 0) {
++        const char *e = getenv("S2A_RB_BIND_LANE_ALL");
++        x = !(e && !strcmp(e, "0"));
++        int was = -1;
++        if (atomic_compare_exchange_strong(&g_rb_bl_all_titles, &was, x))
++            MLOG("[rb-bind-lane] all-titles recorded bind page hints %s (S2A_RB_BIND_LANE_ALL; patch 0397)", x ? "on" : "off");
++    }
++    return x;
++}
+ _Static_assert(RB_BL_NOT_LOOKED == RB_WN_NONE, "a look that was not made reads the same in both");
+ static _Atomic unsigned rb_bl_published;            // rb_bl_word(level, stopped) of the lane: stored under rb_ra_lock by the sweep, read by the recording threads
+ static _Atomic uint32_t rb_bl_marks[RB_BL_MARKS];   // rb_bl_tag of the serial last posted for a texture ID (its low 16 bits): a hint is posted once
+diff --git a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+index c6c586d..e9efa01 100644
+--- a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
++++ b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+@@ -159,7 +159,7 @@ static void rb_bl_record(uint32_t id_) {
+     _Atomic uint32_t *mark = &rb_bl_marks[id_ % RB_BL_MARKS];
+     uint32_t tag = rb_bl_tag(serial);
+     if (!serial || atomic_load_explicit(mark, memory_order_relaxed) == tag) return;
+-    if (!rb_course_exact() || !rb_park_compat() || !rb_pf_on() || !rb_wn_on() ||
++    if ((!rb_bl_all_titles_on() && !rb_course_exact()) || !rb_park_compat() || !rb_pf_on() || !rb_wn_on() ||
+         dm_gfx_session_stopping() || nvn_be_stopping() || atomic_load(&g_fu_waiting)) return;
+     uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
+     if (!frame) return;
+@@ -209,7 +209,7 @@ void nvn_be_record_texture_pages(uint32_t id_) {
+     if (rb_bl_route(rb_bl_on(), rb_gov_on(), file_only)) { rb_bl_record(id_); return; }
+     unsigned scale=rb_ra_scale(RA_BIND);
+     if (!scale) return;
+-    if (id_ >= (1u << 20) || (!file_only && !rb_course_exact()) || !rb_park_compat() || !rb_pf_on() || !rb_wn_on() ||
++    if (id_ >= (1u << 20) || (!file_only && !rb_bl_all_titles_on() && !rb_course_exact()) || !rb_park_compat() || !rb_pf_on() || !rb_wn_on() ||
+         dm_gfx_session_stopping() || nvn_be_stopping() || atomic_load(&g_fu_waiting)) return;
+     uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
+     if (!frame) return;
+diff --git a/graphics/nvn/gfx/tex/nvn_deswizzle.c b/graphics/nvn/gfx/tex/nvn_deswizzle.c
+index 80ca0af..a90a09b 100644
+--- a/graphics/nvn/gfx/tex/nvn_deswizzle.c
++++ b/graphics/nvn/gfx/tex/nvn_deswizzle.c
+@@ -95,6 +95,18 @@ int nvn_swizzle(const nvn_texdesc *d, unsigned level, unsigned layer, const void
+ // goes to dst (block rows of pitch bytes). *wb and *rows: the bytes and block rows written (0 for a tile past the level)
+ //   S2Arm adaptation: this file's nvn_deswizzle_geom refuses LINEAR (0x10) but not LINEAR_RENDER_TARGET (0x40), which move routes to move_linear; upstream's refuses both (0x50).
+ //   A linear texture has no tiles, so both are refused here (-1)
++int nvn_tile_is_zero(const void *tile, size_t n) {
++    const uint8_t *p = (const uint8_t *)tile;
++    size_t i = 0;
++    for (; i + 8 <= n; i += 8) {
++        uint64_t w;
++        memcpy(&w, p + i, sizeof w);
++        if (w) return 0;
++    }
++    for (; i < n; i++) if (p[i]) return 0;
++    return 1;
++}
++
+ int nvn_deswizzle_tile_mode(const nvn_texdesc *d, unsigned level, uint32_t tx, uint32_t ty, const void *tile, void *dst, size_t pitch, uint32_t *wb, uint32_t *nrows, int grouped) {
+     uint32_t row_bytes, rows, slices, bpb; uint64_t base; unsigned th, td;
+     *wb = *nrows = 0;
+@@ -104,7 +116,15 @@ int nvn_deswizzle_tile_mode(const nvn_texdesc *d, unsigned level, uint32_t tx, u
+     uint32_t w = row_bytes - x0 < trb ? row_bytes - x0 : trb, h = rows - y0 < trows ? rows - y0 : trows;
+     if (pitch < w) return -1;
+     const uint8_t *s = tile; uint8_t *o = dst;
+-    if (grouped && w == trb && h == trows) {
++    // RewindBox (patch 0397): all-zero 64 KiB tile shortcut (bit 1 of grouped).
++    // Bit-exact for every format (including ASTC and BC1, where all-zero blocks still have to be uploaded and mapped).
++    if ((grouped & 2) && nvn_tile_is_zero(s, 0x10000u)) {
++        if (pitch == w) memset(o, 0, (size_t)h * pitch);
++        else for (uint32_t y = 0; y < h; y++) memset(o + (size_t)y * pitch, 0, w);
++        *wb = w; *nrows = h;
++        return 0;
++    }
++    if ((grouped & 1) && w == trb && h == trows) {
+         // A complete 64 KiB tile spans precisely one block row. Adjacent GOB columns
+         // are one block apart; the four 16-byte pieces use the active NVN GOB order.
+         const size_t column_stride = 512u << th;
+diff --git a/graphics/nvn/gfx/tex/nvn_deswizzle.h b/graphics/nvn/gfx/tex/nvn_deswizzle.h
+index bc26779..8c72df8 100644
+--- a/graphics/nvn/gfx/tex/nvn_deswizzle.h
++++ b/graphics/nvn/gfx/tex/nvn_deswizzle.h
+@@ -15,8 +15,10 @@ int nvn_swizzle(const nvn_texdesc *d, unsigned level, unsigned layer, const void
+ //   Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/tex/nvn_deswizzle.h:17-20 at 0c078130).
+ // One 64 KB tile (tx, ty) of a sparse texture's tiled level, given as its own 64 KB, into dst (block rows of dst_pitch bytes): *wb bytes of *rows block rows, the part inside the level
+ int nvn_deswizzle_tile(const nvn_texdesc *d, unsigned level, uint32_t tx, uint32_t ty, const void *tile, void *dst_linear, size_t dst_pitch, uint32_t *wb, uint32_t *rows);
+-// grouped enables fixed-size copies only for complete tiles; clipped tiles retain the generic decoder.
++// grouped bit 0 enables fixed-size copies for complete tiles; bit 1 enables the bit-exact all-zero tile fast path.
+ int nvn_deswizzle_tile_mode(const nvn_texdesc *d, unsigned level, uint32_t tx, uint32_t ty, const void *tile, void *dst, size_t pitch, uint32_t *wb, uint32_t *nrows, int grouped);
++// Returns 1 iff all n bytes of tile are zero (unaligned-safe, early-exit on first non-zero 64-bit word).
++int nvn_tile_is_zero(const void *tile, size_t n);
+ // nvn_deswizzle from storage given from byte src_at of the whole texture's on (src points at that byte); the level and layer must lie at or after it
+ int nvn_deswizzle_from(const nvn_texdesc *d, unsigned level, unsigned layer, const void *src, uint64_t src_at, void *dst_linear, size_t dst_pitch);
+ // Single-point address: within this level and layer, linear (x byte, y block row, z slice) → block-linear byte offset relative to the start of this level and layer (unit tests verify against hand calculation).
+diff --git a/runtime/src/vawin.c b/runtime/src/vawin.c
+index 9f03838..d82ae2a 100644
+--- a/runtime/src/vawin.c
++++ b/runtime/src/vawin.c
+@@ -239,6 +239,28 @@ static void guest_pressure_watch(void) {
+ static void guest_file_map(void);
+ // 判了要接文件、空间检查没过（#483 时之笛 iPhone：进程一起来就判，那一刻 App 正在同一进程里解刚推上来的 2.5 GB 资源包，剩余 2367 MB < 12288 MB，
+ //   退回匿名内存，池 9 GB 装不下，6 分钟后涨到系统上限被收掉；同一台手机解完包重开那局空间够、接上了）：记下来，装游戏模块前再查一次
++// RewindBox (patch 0397): iOS ActivePrewarm foreground headroom recovery (aligned with S2Arm ee40f8fc0).
++// Pure helper (unit-tested on Linux & macOS): when the per-process memory limit rises between constructor
++// launch (lim0, e.g. ActivePrewarm background cap) and foreground game start (lim1), add the limit delta
++// to the launch headroom without double-counting host allocations made in between.
++uint64_t s2a_rb_guest_room_fg(uint64_t room0, uint64_t lim0, uint64_t lim1) {
++    if (!room0 || !lim0 || lim1 <= lim0) return room0;
++    uint64_t boost = lim1 - lim0;
++    return room0 > UINT64_MAX - boost ? UINT64_MAX : room0 + boost;
++}
++static int s2a_rb_guest_room_fg_on(void) {
++    const char *v = getenv("S2A_RB_GUEST_ROOM_FG");
++    return !(v && !strcmp(v, "0"));
++}
++#ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
++static uint64_t rb_ios_task_footprint(void) {
++    task_vm_info_data_t vi; mach_msg_type_number_t cnt = TASK_VM_INFO_COUNT;
++    return task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&vi, &cnt) == KERN_SUCCESS ? (uint64_t)vi.phys_footprint : 0;
++}
++static int g_gfile_prewarm_defer;
++static uint64_t g_gfile_lim0, g_gfile_room0, g_gfile_pool0, g_gfile_host0, g_gfile_margin0;
++static int g_gfile_died0;
++#endif
+ static int g_gfile_pending; static uint64_t g_gfile_need, g_gfile_avail;
+ static void guest_file_attach_(void);
+ static void guest_file_attach(void) { g_attach_phase = 1; guest_file_attach_(); g_attach_phase = 0; }
+@@ -251,6 +273,8 @@ static void guest_file_attach_(void) {
+     if (g_ctr && g_ctr_pool > pool) pool = g_ctr_pool;   // 多款容器：不按缺省池判，否则 Switch 2 款进局后内存超单进程上限被杀（#103）
+ #ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
+     uint64_t room = os_proc_available_memory();   // 预热进程（ActivePrewarm）此刻的上限可能是后台档，偏小只会多开、不会漏开
++    uint64_t fp0 = rb_ios_task_footprint();
++    g_gfile_lim0 = room ? fp0 + room : 0;
+     // 宿主开销估计缺省 2560 MB（DOOM Eternal 实测约 2258 MB，往上取整）、余量 512 MB；S2A_GUEST_FILE_HOST_MB / S2A_GUEST_FILE_MARGIN_MB 可改
+     // 宿主开销估计缺省 2048 MB（11-07 真机实测分布，见 s2a_guest_file_wanted3）、余量 512 MB；S2A_GUEST_FILE_HOST_MB / S2A_GUEST_FILE_MARGIN_MB 可改
+     uint64_t host = env_mb("S2A_GUEST_FILE_HOST_MB", 2048), margin = env_mb("S2A_GUEST_FILE_MARGIN_MB", 512), seen = s2a_guest_mem_seen();
+@@ -271,6 +295,12 @@ static void guest_file_attach_(void) {
+                   (unsigned long long)(phys >> 20), phys && pool && phys < pool + host ? "cannot hold" : phys ? "holds" : "(unknown) is taken to hold", (unsigned long long)((pool + host) >> 20),
+                   g_low_tier ? ": the mapped region is carved only with room under the process limit (patch 0052)" : "", (unsigned long long)(room >> 20)); }
+     if (!on) return;
++    if (s2a_rb_guest_room_fg_on() && !(e && *e) && s2a_process_prewarmed()) {
++        g_gfile_prewarm_defer = 1; g_gfile_room0 = room; g_gfile_pool0 = pool; g_gfile_host0 = host; g_gfile_margin0 = margin; g_gfile_died0 = died;
++        LOG("[rb-guest-room-fg] ActivePrewarm launch: deferring auto guest-file attach until foreground (room0=%llu MB lim0=%llu MB; S2A_RB_GUEST_ROOM_FG=0 disables)",
++            (unsigned long long)(room >> 20), (unsigned long long)(g_gfile_lim0 >> 20));
++        return;
++    }
+     guest_file_map();
+ #else
+     // Mac 缺省匿名内存，池本身放不进物理内存、或本机本款上一局到过系统内存压力「严重」档时开文件后备（s2a_guest_file_wanted_mac；#306 / #353）。
+@@ -347,6 +377,36 @@ undo:
+ //   只在窗口还原封不动（整段一块 PROT_NONE 的匿名保留）时才换：换成文件是整段 MAP_FIXED，窗口里已经有东西就会被抹掉，那种情形不换、照旧匿名。
+ //   还是不够：报红，并在屏幕上告诉玩家差多少空间（不然这款几分钟后涨到单进程上限被系统收掉，没有崩溃报告，玩家只看到闪退）
+ int s2a_guest_file_retry(void) {
++#ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
++    if (s2a_rb_guest_room_fg_on() && g_gfile_lim0) {
++        uint64_t room1 = os_proc_available_memory();
++        uint64_t lim1 = room1 ? rb_ios_task_footprint() + room1 : 0;
++        uint64_t base_room = g_gfile_prewarm_defer ? g_gfile_room0 : g_gfile_room;
++        uint64_t room_eff = s2a_rb_guest_room_fg(base_room, g_gfile_lim0, lim1);
++        if (room1 > room_eff) room_eff = room1;
++        if (room_eff > g_gfile_room) {
++            LOG("[rb-guest-room-fg] foreground limit recovered: room %llu -> %llu MB (lim0=%llu MB lim1=%llu MB)",
++                (unsigned long long)(g_gfile_room >> 20), (unsigned long long)(room_eff >> 20),
++                (unsigned long long)(g_gfile_lim0 >> 20), (unsigned long long)(lim1 >> 20));
++            g_gfile_room = room_eff;
++        }
++        if (g_gfile_prewarm_defer) {
++            g_gfile_prewarm_defer = 0;
++            if (g_gfd < 0 && g_ok) {
++                uint64_t (*poolf)(void) = (uint64_t (*)(void))dlsym(RTLD_DEFAULT, "s2a_app_pool");
++                uint64_t pool_now = poolf ? poolf() : 0;
++                if (!pool_now) pool_now = g_gfile_pool0;
++                uint64_t seen_now = s2a_guest_mem_seen();
++                int died_now = g_gfile_died0 || (room_eff && s2a_guest_run_died());
++                int on = s2a_guest_file_wanted4(getenv("S2A_GUEST_FILE"), pool_now, room_eff, seen_now, g_gfile_host0, g_gfile_margin0, died_now);
++                LOG("[rb-guest-room-fg] foreground re-evaluation: file_backing=%s pool=%llu MB room=%llu MB seen=%llu MB died=%d",
++                    on ? "on" : "off", (unsigned long long)(pool_now >> 20), (unsigned long long)(room_eff >> 20),
++                    (unsigned long long)(seen_now == UINT64_MAX ? 0 : seen_now >> 20), died_now);
++                if (on) g_gfile_pending = 1;
++            }
++        }
++    }
++#endif
+     if (!g_gfile_pending || g_gfd >= 0 || !g_ok) return 0;
+     // 窗口起局后分成几段保留（构造时就不止一段），逐段看：全部仍是 PROT_NONE、非共享 = 还没放开过、没有内容
+     for (vm_address_t a = (vm_address_t)g_base, end = (vm_address_t)(g_base + g_size); a < end; ) {

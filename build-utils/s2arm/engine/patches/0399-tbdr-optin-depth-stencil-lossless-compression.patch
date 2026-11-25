@@ -1,0 +1,153 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 5cb2da7..16485a5 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -5999,6 +5999,58 @@ static void rt_sticky_add(const tex_t *t) {
+     unsigned i = (unsigned)k & (RT_STICKY_CAP - 1); while (g_rt_sticky[i]) i = (i + 1) & (RT_STICKY_CAP - 1);
+     g_rt_sticky[i] = k; g_rt_sticky_n++; g_rt_sticky_adds++;
+ }
++// RewindBox (patch 0399): opt-in Apple9 TBDR lossless depth-stencil compression (S2A_RB_DS_COMPRESS=1, default off).
++// Omitting MTLTextureUsagePixelFormatView on Depth32Float_Stencil8 allows lossless Z/S compression on Apple Silicon;
++// if a shader or scaled copy later requests an X32_Stencil8 view, tex_by_id / copy_t2t_ safely upgrades it in place
++// and remembers the storage key in g_ds_pfv_sticky so future allocations over the same storage take PixelFormatView up front.
++enum { DS_PFV_STICKY_CAP = 256 };
++static uint64_t g_ds_pfv_sticky[DS_PFV_STICKY_CAP];
++static unsigned g_ds_pfv_sticky_n;
++static os_unfair_lock g_ds_pfv_mu = OS_UNFAIR_LOCK_INIT;
++static _Atomic int g_rb_ds_compress_mode = -1;
++static _Atomic uint64_t g_rb_ds_compressed, g_rb_ds_sticky_hits, g_rb_ds_upgrades;
++static int rb_ds_compress_on(void) {
++    int x = atomic_load_explicit(&g_rb_ds_compress_mode, memory_order_relaxed);
++    if (x < 0) {
++        const char *e = getenv("S2A_RB_DS_COMPRESS");
++        x = (e && !strcmp(e, "1")) ? 1 : 0;
++        int was = -1;
++        if (atomic_compare_exchange_strong(&g_rb_ds_compress_mode, &was, x) && x)
++            MLOG("[rb-ds-compress] opt-in Depth32Float_Stencil8 lossless compression on (S2A_RB_DS_COMPRESS=1; patch 0399)");
++    }
++    return x;
++}
++static uint64_t ds_pfv_sticky_key(const tex_t *t) {
++    if (!t || !t->mem || !fmt_depth(t->d.format) || (t->pool && nvn_sparse_pool(t->pool))) return 0;
++    uint64_t k = (uint64_t)(uintptr_t)t->mem * 0x9E3779B97F4A7C15ull;
++    k ^= ((uint64_t)t->d.format << 48) ^ ((uint64_t)t->d.width << 32) ^ ((uint64_t)t->d.height << 16) ^ ((uint64_t)t->d.depth << 8) ^ (uint64_t)t->d.levels ^ ((uint64_t)t->d.target << 56);
++    k ^= k >> 29; k *= 0xBF58476D1CE4E5B9ull; k ^= k >> 32;
++    return k ? k : 1;
++}
++static int ds_pfv_sticky_has(const tex_t *t) {
++    uint64_t k = ds_pfv_sticky_key(t);
++    if (!k) return 0;
++    os_unfair_lock_lock(&g_ds_pfv_mu);
++    int found = 0;
++    if (g_ds_pfv_sticky_n) {
++        for (unsigned i = (unsigned)k & (DS_PFV_STICKY_CAP - 1), n = 0; n < DS_PFV_STICKY_CAP && g_ds_pfv_sticky[i]; i = (i + 1) & (DS_PFV_STICKY_CAP - 1), n++)
++            if (g_ds_pfv_sticky[i] == k) { found = 1; break; }
++    }
++    os_unfair_lock_unlock(&g_ds_pfv_mu);
++    return found;
++}
++static void ds_pfv_sticky_add(const tex_t *t) {
++    uint64_t k = ds_pfv_sticky_key(t);
++    if (!k) return;
++    os_unfair_lock_lock(&g_ds_pfv_mu);
++    for (unsigned i = (unsigned)k & (DS_PFV_STICKY_CAP - 1), n = 0; n < DS_PFV_STICKY_CAP && g_ds_pfv_sticky[i]; i = (i + 1) & (DS_PFV_STICKY_CAP - 1), n++)
++        if (g_ds_pfv_sticky[i] == k) { os_unfair_lock_unlock(&g_ds_pfv_mu); return; }
++    if (g_ds_pfv_sticky_n >= DS_PFV_STICKY_CAP / 2) { memset(g_ds_pfv_sticky, 0, sizeof g_ds_pfv_sticky); g_ds_pfv_sticky_n = 0; }
++    unsigned i = (unsigned)k & (DS_PFV_STICKY_CAP - 1);
++    while (g_ds_pfv_sticky[i]) i = (i + 1) & (DS_PFV_STICKY_CAP - 1);
++    g_ds_pfv_sticky[i] = k; g_ds_pfv_sticky_n++;
++    os_unfair_lock_unlock(&g_ds_pfv_mu);
++}
+ // RewindBox (patch 0050): a texture with no packaged layout that is uploaded from its storage (tex_cpu_content: storage the GPU has not written yet, or the CPU wrote since) is
+ //   made with render-target use when Metal renders its colour format. Mario Kart World's dynamic-resolution targets (R8 32x32, R16F about 316x178, RG8 about 638x358 and 1276x716,
+ //   flags 0) are new texture objects whose storage range is new at each size, so they were taken from storage and upgraded at their first attachment: 2,231 upgrades in the IPA 758
+@@ -6058,11 +6110,14 @@ static MTLTextureDescriptor *tex_desc(const tex_t *t, int packaged) {
+     d.usage = MTLTextureUsageShaderRead | (fmt_compressed(t->d.format) || packaged ? 0 : MTLTextureUsageRenderTarget)
+             | (t->d.flags & NVN_TEXTURE_FLAGS_IMAGE ? MTLTextureUsageShaderWrite : 0)   // Image usage: shader-writable (compute kernels generating the 3D color lookup table, etc.
+             | (bc_gpu_dec(t) ? MTLTextureUsageShaderWrite | MTLTextureUsagePixelFormatView : 0)   // no BC, decoded on the GPU: the kernel bcd writes it (an sRGB one through an RGBA8Unorm view)
+-            | (pf == MTLPixelFormatRGB9E5Float && !packaged ? MTLTextureUsagePixelFormatView : 0)   // RGB9E5 render targets written through R32UI views (04008E001F098000 packs its HDR color itself):
++            | (pf == MTLPixelFormatRGB9E5Float && !packaged ? MTLTextureUsagePixelFormatView : 0);   // RGB9E5 render targets written through R32UI views (04008E001F098000 packs its HDR color itself):
+             //   without the usage the view cannot be attached (rt_view_fmt falls back to the base format) and the packed words were drawn as RGB9E5 floats, the whole picture red.
+             //   Given at creation, like depth-stencil below: tex_upgrade_pfv at attach time would recreate a render target in use
+-            | (pf == MTLPixelFormatDepth32Float_Stencil8 ? MTLTextureUsagePixelFormatView : 0);   // Depth-stencil: the stencil is read through an X32_Stencil8 view, which Metal allows only with the format-view usage
+-            // (Apple GPUs read it right without, but the Metal validation layer aborts the process on the first such view). Given at creation: upgrading when the view first appears recreated the depth buffer in use
++    if (pf == MTLPixelFormatDepth32Float_Stencil8) {   // Depth-stencil: X32_Stencil8 views require PixelFormatView; S2A_RB_DS_COMPRESS=1 omits it until stencil-view demand to keep Apple9 lossless Z/S compression
++        if (!rb_ds_compress_on()) d.usage |= MTLTextureUsagePixelFormatView;
++        else if (ds_pfv_sticky_has(t)) { d.usage |= MTLTextureUsagePixelFormatView; atomic_fetch_add_explicit(&g_rb_ds_sticky_hits, 1, memory_order_relaxed); }
++        else atomic_fetch_add_explicit(&g_rb_ds_compressed, 1, memory_order_relaxed);
++    }
+     if (packaged && !t->has_layout && !(d.usage & MTLTextureUsageRenderTarget) && d.sampleCount <= 1 && !fmt_compressed(t->d.format) && rt_color_pf(d.pixelFormat) && cpu_rt_on()) {   // RewindBox (patch 0050)
+         d.usage |= MTLTextureUsageRenderTarget;   // counted by pkg_upload_ when it makes a texture with it
+     }
+@@ -9823,6 +9878,12 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+     MLOG("[rb-pso-wait-boost] cumulative frame=%llu attempts=%llu accepted=%llu",
+          frame,(unsigned long long)atomic_load(&g_rb_pso_boost_tries),(unsigned long long)atomic_load(&g_rb_pso_boost_ok));
+     rb_compile_origin_report("periodic", frame);
++    if (rb_ds_compress_on() || atomic_load_explicit(&g_rb_ds_compressed, memory_order_relaxed) || atomic_load_explicit(&g_rb_ds_upgrades, memory_order_relaxed))
++        MLOG("[rb-ds-compress] cumulative frame=%llu compressed=%llu sticky_hits=%llu upgrades=%llu",
++             frame,
++             (unsigned long long)atomic_load_explicit(&g_rb_ds_compressed, memory_order_relaxed),
++             (unsigned long long)atomic_load_explicit(&g_rb_ds_sticky_hits, memory_order_relaxed),
++             (unsigned long long)atomic_load_explicit(&g_rb_ds_upgrades, memory_order_relaxed));
+     if (pending_polls || sleeps)
+         MLOG("[fence-wake] cumulative frame=%llu pendingPolls=%llu positiveWaitSleeps=%llu fenceBroadcasts=%llu segmentCompletionsWithSleepers=%llu",
+              frame, (unsigned long long)pending_polls, (unsigned long long)sleeps,
+@@ -13691,7 +13752,11 @@ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+             RED_ONCE(86, "Metal cannot create the raw-block view of a compressed texture (NVN format %#x → view %#x): treated as an empty slot", rp->t.d.format, r.v.format);
+             return nil;
+         }
+-        if (r.v.set_format && tex_need_pfv(base.pixelFormat, (MTLPixelFormat)pf) && !(base.usage & MTLTextureUsagePixelFormatView)) {
++        if ((r.v.set_format || stv) && tex_need_pfv(base.pixelFormat, (MTLPixelFormat)pf) && !(base.usage & MTLTextureUsagePixelFormatView)) {
++            if (base.pixelFormat == MTLPixelFormatDepth32Float_Stencil8) {
++                ds_pfv_sticky_add(&rp->t);
++                atomic_fetch_add_explicit(&g_rb_ds_upgrades, 1, memory_order_relaxed);
++            }
+             base = tex_upgrade_pfv(&rp->t, base, (MTLPixelFormat)pf);
+             sg = g_ser_gen; sa = 0;   // RewindBox (patch 0073): not kept across moves (view_sa 0) after an upgrade here
+         }
+@@ -25412,7 +25477,7 @@ static int copy_t2t_draw_impl(id<MTLTexture> s, id<MTLTexture> d, unsigned sl, u
+         pso = [NSMutableDictionary dictionary];
+     }
+     // Stencil: read through a stencil-only view of the source (one per layer below); without one it is cleared to 0
+-    id<MTLTexture> stv0 = stencil && s.pixelFormat == MTLPixelFormatDepth32Float_Stencil8 ? [s newTextureViewWithPixelFormat:MTLPixelFormatX32_Stencil8 textureType:MTLTextureType2D levels:NSMakeRange(sl, 1) slices:NSMakeRange(ss + sr->zoffset, 1)] : nil;
++    id<MTLTexture> stv0 = stencil && s.pixelFormat == MTLPixelFormatDepth32Float_Stencil8 && (s.usage & MTLTextureUsagePixelFormatView) ? [s newTextureViewWithPixelFormat:MTLPixelFormatX32_Stencil8 textureType:MTLTextureType2D levels:NSMakeRange(sl, 1) slices:NSMakeRange(ss + sr->zoffset, 1)] : nil;
+     int scopy = stv0 != nil;
+     NSNumber *pk = @(d.pixelFormat * 2 + scopy);
+     id<MTLRenderPipelineState> ps = pso[pk];
+@@ -25649,6 +25714,13 @@ static void copy_t2t_(const p_copy_t2t *c, const p_copy_t2t *guest) {
+     if ((c->sr.width != c->dr.width || c->sr.height != c->dr.height || s.pixelFormat != d.pixelFormat || (c->flags & (NVN_COPY_FLAGS_MIRROR_X_BIT | NVN_COPY_FLAGS_MIRROR_Y_BIT))) && !s3 && !d3
+         && !(d.usage & MTLTextureUsageRenderTarget) && !mtl_fmt_block(d.pixelFormat) && d.sampleCount == 1 && !fmt_int_or_ds(s.pixelFormat) && !fmt_int_or_ds(d.pixelFormat))
+         d = tex_upgrade(c->dst, d, MTLTextureUsageRenderTarget, d.pixelFormat);
++    if ((c->sr.width != c->dr.width || c->sr.height != c->dr.height || s.pixelFormat != d.pixelFormat || (c->flags & (NVN_COPY_FLAGS_MIRROR_X_BIT | NVN_COPY_FLAGS_MIRROR_Y_BIT))) && !s3 && !d3
++        && rb_ds_compress_on() && s.pixelFormat == MTLPixelFormatDepth32Float_Stencil8 && d.pixelFormat == MTLPixelFormatDepth32Float_Stencil8
++        && !(s.usage & MTLTextureUsagePixelFormatView) && s.sampleCount == 1 && d.sampleCount == 1) {
++        ds_pfv_sticky_add(c->src);
++        atomic_fetch_add_explicit(&g_rb_ds_upgrades, 1, memory_order_relaxed);
++        s = tex_upgrade_pfv(c->src, s, MTLPixelFormatX32_Stencil8);
++    }
+     if ((c->sr.width != c->dr.width || c->sr.height != c->dr.height || s.pixelFormat != d.pixelFormat || (c->flags & (NVN_COPY_FLAGS_MIRROR_X_BIT | NVN_COPY_FLAGS_MIRROR_Y_BIT))) && !s3 && !d3
+         && (c->sr.depth ? c->sr.depth : 1) == (c->dr.depth ? c->dr.depth : 1)
+         && !(c->flags & ~(NVN_COPY_FLAGS_ENGINE_2D_BIT | NVN_COPY_FLAGS_LINEAR_FILTER_BIT | NVN_COPY_FLAGS_MIRROR_X_BIT | NVN_COPY_FLAGS_MIRROR_Y_BIT))
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 799bf47..6f80b90 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -229,6 +229,7 @@ int nvn_be_shutdown_session(void) {
+     nvn_hm_clear(&g_pso_fail, hm_rel); nvn_hm_clear(&g_pso_retry, hm_rel);
+     nvn_hm_clear(&g_ir, free); nvn_hm_clear(&g_rt_seen, NULL); nvn_hm_clear(&g_rt_seen_mem, NULL); nvn_hm_clear(&g_rt_fresh, NULL);
+     memset(g_rt_sticky, 0, sizeof g_rt_sticky); g_rt_sticky_n = 0;   // RewindBox (patch 0049): storage drawn into belongs to this session's guest memory (rt_sticky_add)
++    os_unfair_lock_lock(&g_ds_pfv_mu); memset(g_ds_pfv_sticky, 0, sizeof g_ds_pfv_sticky); g_ds_pfv_sticky_n = 0; os_unfair_lock_unlock(&g_ds_pfv_mu);   // RewindBox (patch 0399)
+     g_rt_history_frame = 0; g_rt_history_valid = 0;
+     for (int i = 0; i < PSO_PEND_MAX; i++) { g_pp[i].ps = nil; g_pp[i].error = nil; g_pp[i].used = g_pp[i].done = g_pp[i].late = 0; }
+     g_geo_program = nil; g_pso_fsfn = nil; g_pso_lmap = NULL;
+@@ -405,6 +406,10 @@ void nvn_be_begin_session(void) {
+     atomic_store_explicit(&g_rb_co_slow_ns, 0, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_co_sub_slow_n, 0, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_co_sub_slow_ns, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_ds_compress_mode, -1, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_ds_compressed, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_ds_sticky_hits, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_ds_upgrades, 0, memory_order_relaxed);
+     atomic_store(&g_rb_raster_clear_mode,-1); g_rb_raster_clear_mask=0;
+     g_rb_raster_clear_candidates=g_rb_raster_clear_saved=g_rb_raster_clear_bytes=0;
+     atomic_store(&g_rb_archive_error_nil,-1);
