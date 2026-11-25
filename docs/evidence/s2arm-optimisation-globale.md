@@ -317,4 +317,11 @@ l'annulation, la rétention des événements, la réinitialisation des choix apr
 et le cycle de vie des buffers de visibilité. Le mode GPU utilise des command buffers vides
 pour exercer les événements sans dépendre d'un residency set du runner virtuel.
 Un périphérique sans queue Metal 4 renvoie explicitement le statut indisponible.
-Les résultats de compilation et d'exécution sont en attente.
+La [CI 45562902054](https://github.com/TarbleFR/RewindBox/actions/runs/45562902054) du moteur
+`c98c57e7` compile sur macOS 15 et 26. Les contrôles CPU sont 12/12, ceux de visibilité
+10/10 et ceux de changement de session 9/9. La création de la queue Metal 4 est refusée par
+le périphérique virtuel avec `Device does not support Metal 4`. Ce test GPU est indisponible.
+
+0366 complète le fixture existant avec le vrai worker dm-encode et une queue simulée.
+Il contrôle la publication du bloc, l'ordre des opérations, le thread consommateur et la
+libération de l'événement avant le signal idle. Sa compilation et ses résultats sont en attente.

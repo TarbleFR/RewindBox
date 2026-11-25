@@ -434,3 +434,8 @@ branches only. See the [device comparison](../../../docs/evidence/s2arm-optimisa
 The source comparison for clocks, target rate and presentation is recorded in the
 [review](../../../docs/evidence/s2arm-optimisation-globale.md#contre-expertise-03610365).
 GPU and device results are recorded after their checks complete.
+
+0366 exercises the same retained wait record through the live dm-encode worker with a simulated
+queue. It checks publication, ordering, consumer thread and event release before idle. The first
+review run passed 31 CPU, shared-buffer and session assertions. Its virtual device rejected
+Metal 4, so the native GPU event mode is explicitly unavailable on that runner.

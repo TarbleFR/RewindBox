@@ -314,6 +314,7 @@ jobs:
           make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" \
             build/tests/t_nvn_wait_event build/tests/t_nvn_visfold build/tests/t_nvn_link_restart
           build/tests/t_nvn_wait_event --rb-cpu-sync | tee "$GITHUB_WORKSPACE/proof/cpu-gpu-sync-checks.txt"
+          build/tests/t_nvn_wait_event --rb-encode-worker | tee -a "$GITHUB_WORKSPACE/proof/cpu-gpu-sync-checks.txt"
           build/tests/t_nvn_visfold | tee -a "$GITHUB_WORKSPACE/proof/cpu-gpu-sync-checks.txt"
           build/tests/t_nvn_link_restart --render-options | tee -a "$GITHUB_WORKSPACE/proof/cpu-gpu-sync-checks.txt"
           gpu_status=0

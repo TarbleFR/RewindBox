@@ -1,0 +1,59 @@
+diff --git a/graphics/nvn/tests/t_nvn_wait_event.m b/graphics/nvn/tests/t_nvn_wait_event.m
+index b14b40c..e8629a2 100644
+--- a/graphics/nvn/tests/t_nvn_wait_event.m
++++ b/graphics/nvn/tests/t_nvn_wait_event.m
+@@ -36,6 +36,7 @@ static uint64_t run(const ev_rec *r, int n) {   // 一个提交：n 条事件记
+ // Production recording and fence polling, without initializing a Metal device.
+ // The queue spy checks host API order; the normal fixture below tests GPU waits.
+ static unsigned rb_order[4], rb_order_count;
++static int rb_order_on_worker;
+ @interface RBWaitEvent : NSObject
+ @property(nonatomic) uint64_t signaledValue;
+ @end
+@@ -48,6 +49,7 @@ static unsigned rb_order[4], rb_order_count;
+ - (void)waitForEvent:(id)event value:(uint64_t)value {
+     REQUIRE(event && value == 1);
+     rb_order[rb_order_count++] = 2;
++    rb_order_on_worker = !pthread_equal(pthread_self(), g_sub_thread);
+ }
+ @end
+ static int rb_cpu_sync_checks(void) {
+@@ -110,6 +112,30 @@ static int rb_cpu_sync_checks(void) {
+     printf("CPU sync checks: %u/%u; queue API spy, no GPU execution in this mode\n", checks - failures, checks);
+     return failures != 0;
+ }
++static int rb_worker_sync_checks(void) {
++    alarm(30);
++    setenv("S2A_RB_ENC_RT", "0", 1);
++    g_m3 = 0; g_rec = 1; g_rb_queue_wait_mode = 1;
++    g_sub_thread = pthread_self(); atomic_store(&g_sub_thread_set, 1);
++    g_q4 = (id)[RBWaitQueue new]; g_cb = [DmRecCB new];
++    RBWaitEvent *event = [RBWaitEvent new];
++    __weak RBWaitEvent *kept = event;
++    rec_queue_block(^{ rb_order[rb_order_count++] = 1; });
++    queue_wait_event((__bridge void *)event, 1);
++    rec_queue_block(^{ rb_order[rb_order_count++] = 3; });
++    event = nil;
++    VERIFY(g_rb_started && rb_order_count == 0 && g_rb_cur->n == 3 && kept,
++           "real encode worker starts while the unpublished records remain owned by submit");
++    rec_handover(); rec_drain();
++    const unsigned expected[] = {1, 2, 3};
++    VERIFY(rb_order_count == 3 && !memcmp(rb_order, expected, sizeof expected),
++           "real encode worker consumes prior operation, native wait record and later operation in order");
++    VERIFY(rb_order_on_worker, "event wait API executes on dm-encode rather than submit");
++    VERIFY(!kept, "real encode worker releases the retained event before reporting idle");
++    g_cb = nil;
++    printf("Encode worker checks: %u/%u; real dm-encode, simulated queue API\n", checks - failures, checks);
++    return failures != 0;
++}
+ // Empty Metal 4 command buffers require no residency set. Exercise the real
+ // dm-encode worker and GPU event dependency even on a paravirtual CI device.
+ static int rb_metal_sync_checks(void) {
+@@ -161,6 +187,7 @@ static int rb_metal_sync_checks(void) {
+ int main(int argc, char **argv) { @autoreleasepool {
+     if (argc == 2 && !strcmp(argv[1], "--rb-cpu-sync")) return rb_cpu_sync_checks();
+     if (argc == 2 && !strcmp(argv[1], "--rb-metal-sync")) return rb_metal_sync_checks();
++    if (argc == 2 && !strcmp(argv[1], "--rb-encode-worker")) return rb_worker_sync_checks();
+     setvbuf(stdout, NULL, _IOLBF, 0); alarm(60);
+     setenv("DM_NVN_ENC_THREAD", "0", 0); setenv("DM_PRESENT_LINK", "0", 1);
+     mtl_init();
