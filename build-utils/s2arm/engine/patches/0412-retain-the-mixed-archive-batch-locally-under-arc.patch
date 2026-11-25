@@ -1,0 +1,35 @@
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -607,7 +607,8 @@
+         MLOG("[rb-metal4] captured archive %s could not be persisted: %s",key.UTF8String,error.localizedDescription.UTF8String ?: "rename failed"); }
+     return YES; // consumed; failures are retried through the next exact recipe
+ }
+-static NSUInteger par_write_batch_try(NSArray<NSArray *> *items, RBArchiveSerialization *__strong *retry_out) {
++static NSUInteger par_write_batch_try(NSArray<NSArray *> *inputItems, RBArchiveSerialization *__strong *retry_out) {
++    NSArray<NSArray *> *__strong items=inputItems;
+     if (items.count && [items[0][1] isKindOfClass:RBMetal4Capture.class])
+         return rb_m4_write(items[0][0],items[0][1]) ? 1 : 0;
+     for (NSUInteger i=1;i<items.count;i++) if ([items[i][1] isKindOfClass:RBMetal4Capture.class]) {
+@@ -1122,7 +1123,9 @@
+         // Same identity directory and exact key as the established archive
+         // policy. Metal verifies the full descriptor, not only the filename.
+         id<MTL4Archive> a=[g_dev newArchiveWithURL:[NSURL fileURLWithPath:rb_m4_file(key)] error:nil];
+-        id ps=compute ? [a newComputePipelineStateWithDescriptor:descriptor error:nil] : [a newRenderPipelineStateWithDescriptor:descriptor error:nil];
++        id ps=nil;
++        if (compute) ps=[a newComputePipelineStateWithDescriptor:descriptor error:nil];
++        else ps=[a newRenderPipelineStateWithDescriptor:descriptor error:nil];
+         if (ps) atomic_fetch_add(&rb_m4_hits,1);
+         return ps;
+     }
+@@ -1140,8 +1143,9 @@
+             cd.pipelineDataSetSerializer=capture->serializer;
+         }
+         id<MTL4Compiler> compiler=[g_dev newCompilerWithDescriptor:cd error:error];
+-        id ps=compute ? [compiler newComputePipelineStateWithDescriptor:descriptor compilerTaskOptions:nil error:error] :
+-            [compiler newRenderPipelineStateWithDescriptor:descriptor compilerTaskOptions:nil error:error];
++        id ps=nil;
++        if (compute) ps=[compiler newComputePipelineStateWithDescriptor:descriptor compilerTaskOptions:nil error:error];
++        else ps=[compiler newRenderPipelineStateWithDescriptor:descriptor compilerTaskOptions:nil error:error];
+         if (ps) {
+             uint64_t n=atomic_fetch_add(&rb_m4_compiles,1)+1;
+             if (capture && capture->serializer) par_note(key,capture);

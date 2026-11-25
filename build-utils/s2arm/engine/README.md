@@ -630,3 +630,6 @@ profondeur/élargissement, et retire la convention de profondeur inutilisée.
 Capture, couches et sorties ajoutées gardent leurs voies compatibles. Refus ou
 forme inconnue : source original conservé. `xfp` change ; compilation locale C#
 Release réussie, compilation iPhoneOS requise, gains appareil non mesurés.
+
+0412 corrige la réaffectation d'un paramètre ARC dans le writer des lots mixtes
+signalée par la CI 45659945710 ; la référence locale détient le sous-lot traité.

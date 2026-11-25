@@ -14,6 +14,16 @@ ne prouve ni une suppression de cache ni l'absence totale de compilation lors
 des deux premiers essais. Les anciens journaux MKW de l'archive ne datent pas
 ces trois essais et ne permettent pas de leur attribuer un état thermique précis.
 
+## Correction de compilation (0412)
+
+La [compilation 0408–0410](https://github.com/TarbleFR/RewindBox/actions/runs/45659945710)
+a atteint le code Metal sur les deux runners, puis refusé la réaffectation d'un
+paramètre `objc_externally_retained` dans le découpage des lots d'archives mixtes.
+0412 conserve ce sous-lot dans une référence locale `__strong`, sans modifier
+l'ordre ni les règles d'admission. Les branches render/compute sont typées
+séparément pour supprimer leurs nouveaux avertissements de types incompatibles.
+Compilation finale demandée ; les suites approfondies restent non exécutées.
+
 ## Quatrième lot (0411) — variantes réellement utilisées sur appareil
 
 Le traducteur sur appareil n'émettait pas `_bv` ni la réflexion `vin` ; le backend
