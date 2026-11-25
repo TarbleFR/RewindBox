@@ -204,14 +204,14 @@ La [CI finale, commit `fddb985b`](https://github.com/TarbleFR/RewindBox/actions/
 
 ## Synchronisation CPU/GPU 0357–0360
 
-Le lot part du contenu vérifié de la 839. Le Core MeloNX retenu reste celui de cette livraison.
+Le lot part du contenu vérifié de la 839 et embarque son Core MeloNX `693c9c94`.
 
 | Priorité | Cause établie dans le chemin exécuté | Modification | Vérification recherchée |
 |---|---|---|---|
-| 1 | Un wait Metal 4 rencontré pendant le replay peut appeler `rec_drain` pour mettre les morceaux précédents sur la queue. Le CPU rejoint alors dm-encode avant de poursuivre la traduction. | 0357 enregistre le wait avec les opérations de queue existantes. L'ordre devient commit précédent, wait, commit du morceau courant. La fin de l'appel de soumission continue à attendre l'encodeur. | Le fixture existant vérifie l'ordre des appels, la rétention de l'événement et l'absence de drain intermédiaire. Le chemin externe et Metal 3 conservent leur drainage. |
+| 1 | Un wait Metal 4 rencontré pendant le replay peut appeler `rec_drain` pour mettre les morceaux précédents sur la queue. Le CPU rejoint alors dm-encode avant de poursuivre la traduction. | 0357 enregistre le wait avec les opérations de queue existantes. L'ordre devient commit précédent, wait, commit du morceau courant. La fin de l'appel de soumission continue à attendre l'encodeur. | Le fixture existant vérifie l'ordre des appels, la rétention de l'événement et l'absence de drain intermédiaire. Les appels externes et Metal 3 effectuent un drain synchrone. |
 | 2 | Un poll de fence prend `g_mu`, également utilisé par le registre des pools et la retraite des ressources. Plusieurs lecteurs de `g_done` accèdent au nombre sans synchronisation C. | 0358 publie la fence terminée avec release et la lit avec acquire. Un poll à zéro et une fence déjà atteinte prennent zéro verrou du registre. Un vrai wait positif garde son sommeil conditionnel. | Poll effectué avec `g_mu` déjà verrouillé, valeur encore en attente et timeout positif. L'absence de donnée terminée reste observable. |
-| 3 | `nvn_be_sub_begin` réserve un tampon d'occlusion pour chaque morceau, y compris un morceau de calcul ou sans passe de rendu. Les huit places peuvent attendre le GPU même si la pièce ne lit ni n'écrit de compteur. | 0359 réserve le tampon lors de la première passe qui en a besoin. Un morceau sans réservation laisse le ring disponible. La taille et la limite des pools restent identiques. | Le fixture de visibilité vérifie le cumul, la réutilisation d'un buffer terminé et une réservation unique par morceau. |
-| 4 | Le temps `nvn_be_wait` agrège plusieurs causes. | 0360 expose séparément le temps d'attente des allocateurs et des tampons d'occlusion, avec les counts des waits enregistrés et des drains restants. | Lire les différences des compteurs cumulés entre le début et la fin de chaque fenêtre. |
+| 3 | `nvn_be_sub_begin` réserve un tampon d'occlusion pour chaque morceau, y compris un morceau de calcul ou sans passe de rendu. Les huit places peuvent attendre le GPU même si la pièce ne lit ni n'écrit de compteur. | 0359 réserve le tampon lors de la première passe qui en a besoin. Un morceau sans réservation laisse le ring disponible. Le ring d’occlusion utilise huit tampons. | Le fixture de visibilité vérifie le cumul, la réutilisation d'un buffer terminé et une réservation unique par morceau. |
+| 4 | Le temps `nvn_be_wait` agrège plusieurs causes. | 0360 expose séparément le temps d'attente des allocateurs et des tampons d'occlusion, avec les nombres de waits enregistrés et de drains synchrones. | Lire les différences des compteurs cumulés entre le début et la fin de chaque fenêtre. |
 
 Les trois modifications sont génériques NVN/NVN2. Elles s'activent par défaut. Pour comparer au
 chemin de la 839, mettre à zéro l'interrupteur de la modification étudiée.
@@ -235,8 +235,7 @@ exacte du nombre de mutex pour un poll terminé est établie par le code. Les ga
 latence en jeu sur A18 Pro restent non mesurés à ce stade.
 
 La réutilisation d'un allocateur et d'un tampon utilisé reste liée à sa fence GPU. Le wait
-enregistré conserve le même événement, sa valeur et sa place parmi les commits. Les règles
-de barrières de rendu 0353 continuent de s'appliquer. Les changements de dimensions, le cumul
+enregistré conserve le même événement, sa valeur et sa place parmi les commits. Les barrières de rendu 0353 ordonnent les passes selon les dépendances du jeu. Les changements de dimensions, le cumul
 des résultats d'occlusion et la fin de session suivent leurs gardes existantes.
 
 ### Vérifications du lot de synchronisation
