@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "7ae7948ebaf3e96b304fef4001a92e0f8a6c09a9fa57118786bd587a775d0709",
+  "packagedFingerprint": "f87cc73dc5b54bc2e3965313c6c923a95a15f10a6a0c889cb8257e28359f6d1a",
   "producers": {
     "engine": {
-      "run": 45596018196,
+      "run": 45627949530,
       "attempt": 1,
-      "artifact": 15013957846,
-      "name": "s2arm-engine-framework-e6a681a9ec073fdc0c1ca2ce73f796544ac4455f",
-      "bytes": 25477569,
-      "sha256": "c169524a4f5aced5cf7f079e34576a83065aa3222acb352b323cc8a8e19ae275",
-      "headSha": "e6a681a9ec073fdc0c1ca2ce73f796544ac4455f",
+      "artifact": 15029633902,
+      "name": "s2arm-engine-framework-06b4743f2c015578519f8b85c0efccd0bb2d8eb6",
+      "bytes": 25619399,
+      "sha256": "ef0630a8beede0122850df44ffa2456304b8b9eb18235c11c053b4b3c8d667e2",
+      "headSha": "06b4743f2c015578519f8b85c0efccd0bb2d8eb6",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-25T10:48:47Z",
+      "expiresAt": "2026-12-25T14:08:23Z",
       "members": {
-        "S2ArmEngine.framework.zip": "81ea732c8acc1dad3c43fdf39f0fe3a20e159be318165d7fcf7a5d845683a965",
-        "NS2Pro.framework.zip": "a336fb248f062067a78d73bb397e89c6ae8c96ed44e1201aefc204d68d4c4514"
+        "S2ArmEngine.framework.zip": "d038c10208d3597c9c547ea7748e372e881d75b3430ad2eaaab3e611cab1f7f1",
+        "NS2Pro.framework.zip": "48bac4dacb09227b6a512ddd8b6548a1b2a62bc3af17ebf557d421bd554bd812"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "c169524a4f5aced5cf7f079e34576a83065aa3222acb352b323cc8a8e19ae275",
+    "engine": "ef0630a8beede0122850df44ffa2456304b8b9eb18235c11c053b4b3c8d667e2",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "b8cc64a0704bd2c8c7c6093009746a78b41a645f0bd80c15492c0e222b4ef424",
-      "bytes": 115569088,
-      "fingerprint": "7ae7948ebaf3e96b304fef4001a92e0f8a6c09a9fa57118786bd587a775d0709"
+      "sha256": "d86ddfcd1d8c983005223f962d35a54d7c2261c2506589d098e9c9c2bd39997a",
+      "bytes": 116526664,
+      "fingerprint": "f87cc73dc5b54bc2e3965313c6c923a95a15f10a6a0c889cb8257e28359f6d1a"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45596018196,
+      "run": 45627949530,
       "attempt": 1,
-      "head_sha": "e6a681a9ec073fdc0c1ca2ce73f796544ac4455f",
+      "head_sha": "06b4743f2c015578519f8b85c0efccd0bb2d8eb6",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1702,11 +1702,35 @@
         {
           "name": "0393-verify-diagnostic-lifetimes-and-full-shader-accounting.patch",
           "sha256": "bd56c8df7d53bd8fa4774fdc2b3c78490cd5e7921f6a058e74c064920811865b"
+        },
+        {
+          "name": "0394-vectorize-raw-global-64-128-loads-and-stores.patch",
+          "sha256": "13bd231af311587cb97666f441dda19a16670fa66869182073a830003db69b26"
+        },
+        {
+          "name": "0395-coalesce-ssbo-shared-wide-msl-and-wide-mem-toggle.patch",
+          "sha256": "b3f7a6be64cef348bf68e59ddee012a00683fb90cadafd1c1949e0d02b5cfe27"
+        },
+        {
+          "name": "0396-finish-translator-gpu-opts-pool-mark-gather-mul-nocontraction.patch",
+          "sha256": "d2e4aca6b2eac96621486291a838cc113e9e0f2a95482b8e08b2319353f25543"
+        },
+        {
+          "name": "0397-streaming-bind-lane-all-pool-scan-ahead-sparse-zero-fg-room.patch",
+          "sha256": "aa7cfd32be309b82b77e2715892bf011a9662cfaf3ee0fb85c55b31d37eb6d0a"
+        },
+        {
+          "name": "0398-sync-cross-thread-acquire-attribution-and-compile-origin.patch",
+          "sha256": "3260a4ea927e3b3f4896f7121078a7140a22a62fe32490c12e6f88b95b15fae1"
+        },
+        {
+          "name": "0399-tbdr-optin-depth-stencil-lossless-compression.patch",
+          "sha256": "f77ce8a34cff0ad3a029ae765879e682e3d78cb9b827c3712d593d580dc98e33"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "81ea732c8acc1dad3c43fdf39f0fe3a20e159be318165d7fcf7a5d845683a965",
-        "NS2Pro.framework.zip": "a336fb248f062067a78d73bb397e89c6ae8c96ed44e1201aefc204d68d4c4514"
+        "S2ArmEngine.framework.zip": "d038c10208d3597c9c547ea7748e372e881d75b3430ad2eaaab3e611cab1f7f1",
+        "NS2Pro.framework.zip": "48bac4dacb09227b6a512ddd8b6548a1b2a62bc3af17ebf557d421bd554bd812"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
