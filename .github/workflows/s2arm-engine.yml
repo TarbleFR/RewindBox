@@ -116,10 +116,6 @@ jobs:
             build-utils/s2arm/engine/tests/test_metal_archive.m \
             -framework Foundation -framework Metal -o "$RUNNER_TEMP/archive-error-check"
           "$RUNNER_TEMP/archive-error-check" --error-nil | tee proof/archive-error-nil.txt
-          make -C "$engine/graphics/nvn" mac
-          cd "$engine"
-          make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" build/tests/t_rb_clear_batch_metal
-          build/tests/t_rb_clear_batch_metal --raster-clear | tee "$GITHUB_WORKSPACE/proof/raster-clear-pixels.txt"
       - name: Check adaptive shader cache changes
         id: adaptive_shader_checks
         continue-on-error: true
@@ -478,6 +474,14 @@ jobs:
             cp "$f" "$out/nxaot-publish-$(basename "$(dirname "$f")").log"
           done
           exit $status
+      - name: Compare proven tile stores on identical Metal captures
+        if: contains(github.event.head_commit.message, '[s2arm-zelda-check]')
+        working-directory: ${{ runner.temp }}/s2arm
+        run: |
+          set -euo pipefail
+          make -C graphics/nvn mac
+          make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" build/tests/t_rb_clear_batch_metal
+          build/tests/t_rb_clear_batch_metal --raster-clear | tee "$GITHUB_WORKSPACE/proof/raster-clear-pixels.txt"
       - name: Inventory the engine (images, sizes, symbols)
         if: always() && env.TEST_ONLY != 'yes'
         working-directory: ${{ runner.temp }}/s2arm

@@ -1,0 +1,80 @@
+diff --git a/graphics/nvn/gfx/nvn/rb_gpudiag.inc b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+index 976b83a..f1f3e5d 100644
+--- a/graphics/nvn/gfx/nvn/rb_gpudiag.inc
++++ b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+@@ -102,18 +102,29 @@ static int rb_passdiag_on(void) {
+ typedef struct {
+     uintptr_t root; uint64_t serial, pass, bytes;
+     unsigned role, level, slice, width, height, samples, format, load, store;
++    int detail;
+     int next, pending;
+ } rb_pass_attachment;
+ enum { RB_PD_RECORDS=8192, RB_PD_BUCKETS=1024 };
+ static rb_pass_attachment g_rb_pd_rows[RB_PD_RECORDS], g_rb_pd_open[10];
+ static int g_rb_pd_heads[RB_PD_BUCKETS], g_rb_pd_n, g_rb_pd_no;
++static NSMapTable *g_rb_pd_identity; static uint64_t g_rb_pd_next_identity;
++static _Atomic int g_rb_pd_every;
++static int rb_pd_detail(void) {
++    int n=atomic_load(&g_rb_pd_every);
++    if (!n) { const char *e=getenv("S2A_RB_PASS_DIAG_EVERY"); n=e ? atoi(e) : 1; if (n<1 || n>6000) n=1; atomic_store(&g_rb_pd_every,n); }
++    return !(atomic_load(&g_cur_frame)%(uint64_t)n);
++}
+ static pthread_mutex_t g_rb_pd_mu=PTHREAD_MUTEX_INITIALIZER;
+ static pthread_t g_rb_pd_owner; static _Atomic int g_rb_pd_owner_valid;
+ static uint64_t g_rb_pd_load_bytes, g_rb_pd_store_bytes, g_rb_pd_overflows;
+ static unsigned rb_pd_bucket(uintptr_t root) { return (unsigned)((root>>4)^(root>>20))&(RB_PD_BUCKETS-1); }
+ static uintptr_t rb_pd_root(id<MTLTexture> t, unsigned *level, unsigned *slice) {
+     while (t.parentTexture) { *level+=(unsigned)t.parentRelativeLevel; *slice+=(unsigned)t.parentRelativeSlice; t=t.parentTexture; }
+-    return (uintptr_t)(__bridge void *)t;
++    if (!g_rb_pd_identity) g_rb_pd_identity=[[NSMapTable alloc] initWithKeyOptions:NSPointerFunctionsWeakMemory|NSPointerFunctionsObjectPointerPersonality valueOptions:NSPointerFunctionsStrongMemory capacity:1024];
++    NSNumber *identity=[g_rb_pd_identity objectForKey:t];
++    if (!identity) { identity=@(++g_rb_pd_next_identity); [g_rb_pd_identity setObject:identity forKey:t]; }
++    return (uintptr_t)identity.unsignedLongLongValue;
+ }
+ static const char *rb_pd_load(unsigned a) { return a==MTLLoadActionLoad ? "load" : a==MTLLoadActionClear ? "clear" : a==MTLLoadActionDontCare ? "dontCare" : "unknown"; }
+ static const char *rb_pd_store(unsigned a) { return a==MTLStoreActionStore ? "store" : a==MTLStoreActionDontCare ? "dontCare" : a==MTLStoreActionMultisampleResolve ? "resolve" : a==MTLStoreActionStoreAndMultisampleResolve ? "storeAndResolve" : "unknown"; }
+@@ -126,7 +137,7 @@ static void rb_passdiag_read_locked(id<MTLTexture> t, unsigned role, unsigned le
+         if (!a->pending || a->root!=root || (role<10 && ((a->role!=role && !(a->role<8 && role<8)) || a->level!=level || a->slice!=slice))) continue;
+         if (role==11 && (a->level!=level || a->slice!=slice)) continue;
+         if (role==10 && (a->level<level || a->level>=level+nl || a->slice<slice || a->slice>=slice+MAX(ns,1u))) continue;
+-        MLOG("[rb-pass-consumer] producer_pass=%llu serial=%llu role=%u level=%u slice=%u consumer_pass=%llu kind=%s scope=encoded-consumer-not-hardware-branch",
++        if (a->detail) MLOG("[rb-pass-consumer] producer_pass=%llu serial=%llu role=%u level=%u slice=%u consumer_pass=%llu kind=%s scope=encoded-consumer-not-hardware-branch",
+              (unsigned long long)a->pass,(unsigned long long)a->serial,a->role,a->level,a->slice,(unsigned long long)consumer,kind);
+         a->pending=0;
+     }
+@@ -161,7 +172,7 @@ static void rb_passdiag_begin(MTL4RenderPassDescriptor *pd) {
+         uint64_t serial=role<8 ? (R.rt.color[role] ? R.rt.color[role]->serial : 0) : (R.rt.depth ? R.rt.depth->serial : 0);
+         if (c.loadAction==MTLLoadActionLoad) rb_passdiag_read_locked(t,role,level,slice,g_stat_pass,"attachment-load");
+         uintptr_t identity=rb_pd_root(t,&level,&slice);
+-        g_rb_pd_open[g_rb_pd_no++]=(rb_pass_attachment){.root=identity,.serial=serial,.pass=g_stat_pass,.bytes=bytes,.role=role,.level=level,.slice=slice,
++        g_rb_pd_open[g_rb_pd_no++]=(rb_pass_attachment){.root=identity,.detail=rb_pd_detail(),.serial=serial,.pass=g_stat_pass,.bytes=bytes,.role=role,.level=level,.slice=slice,
+             .width=(unsigned)MAX(c.texture.width>>c.level,1u),.height=(unsigned)MAX(c.texture.height>>c.level,1u),.samples=(unsigned)t.sampleCount,.format=(unsigned)t.pixelFormat,.load=(unsigned)c.loadAction,.store=(unsigned)c.storeAction};
+     }
+     pthread_mutex_unlock(&g_rb_pd_mu);
+@@ -178,7 +189,7 @@ static void rb_passdiag_end(void) {
+     for (int i=0;i<g_rb_pd_no;i++) {
+         rb_pass_attachment a=g_rb_pd_open[i]; unsigned b=rb_pd_bucket(a.root); int at=g_rb_pd_heads[b]-1;
+         while (at>=0) { rb_pass_attachment *v=&g_rb_pd_rows[at]; if (v->root==a.root && (v->role==a.role || (v->role<8 && a.role<8)) && v->level==a.level && v->slice==a.slice) break; at=v->next; }
+-        if (at>=0 && g_rb_pd_rows[at].pending) {
++        if (at>=0 && g_rb_pd_rows[at].pending && g_rb_pd_rows[at].detail) {
+             MLOG("[rb-pass-consumer] producer_pass=%llu serial=%llu role=%u level=%u slice=%u consumer_pass=%llu kind=%s scope=encoded-overwrite-not-death-proof",
+                 (unsigned long long)g_rb_pd_rows[at].pass,(unsigned long long)g_rb_pd_rows[at].serial,a.role,a.level,a.slice,(unsigned long long)a.pass,
+                 a.load==MTLLoadActionClear ? "clear-before-observed-read" : a.load==MTLLoadActionDontCare ? "dontCare-before-observed-read" : "unresolved");
+@@ -191,7 +202,7 @@ static void rb_passdiag_end(void) {
+         g_rb_pd_rows[at]=a;
+         if (a.load==MTLLoadActionLoad) g_rb_pd_load_bytes+=a.bytes;
+         if (a.pending) g_rb_pd_store_bytes+=a.bytes;
+-        MLOG("[rb-pass-attachment] frame=%llu pass=%llu serial=%llu role=%u level=%u slice=%u width=%u height=%u samples=%u format=%u bytes=%llu load=%s store=%s",
++        if (a.detail) MLOG("[rb-pass-attachment] frame=%llu pass=%llu serial=%llu role=%u level=%u slice=%u width=%u height=%u samples=%u format=%u bytes=%llu load=%s store=%s",
+             (unsigned long long)atomic_load(&g_cur_frame),(unsigned long long)a.pass,(unsigned long long)a.serial,a.role,a.level,a.slice,a.width,a.height,a.samples,a.format,
+             (unsigned long long)a.bytes,rb_pd_load(a.load),rb_pd_store(a.store));
+     }
+@@ -202,6 +213,7 @@ static void rb_passdiag_reset(void) {
+     pthread_mutex_lock(&g_rb_pd_mu);
+     atomic_store(&g_rb_pd_owner_valid,0);
+     rb_passdiag_unresolved_locked("session-end"); memset(g_rb_pd_heads,0,sizeof g_rb_pd_heads); g_rb_pd_n=g_rb_pd_no=0;
+-    g_rb_pd_load_bytes=g_rb_pd_store_bytes=g_rb_pd_overflows=0; atomic_store(&g_rb_passdiag_mode,-1);
++    g_rb_pd_load_bytes=g_rb_pd_store_bytes=g_rb_pd_overflows=0;
++    g_rb_pd_identity=nil; g_rb_pd_next_identity=0; atomic_store(&g_rb_pd_every,0); atomic_store(&g_rb_passdiag_mode,-1);
+     pthread_mutex_unlock(&g_rb_pd_mu);
+ }

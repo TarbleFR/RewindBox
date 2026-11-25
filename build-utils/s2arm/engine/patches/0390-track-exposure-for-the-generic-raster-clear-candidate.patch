@@ -1,0 +1,22 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index ae8b52d..f047007 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1934,7 +1934,7 @@ static void rb_tile_session_begin(void) {
+     flags |= rb_nvn2_mrt_flag(flags, getenv("S2A_RB_NVN2_MRT_CLEARS"));
+     const char *sealed = getenv("S2A_RB_SEALED_CLEAR_STATE");
+     if ((flags & RB_TILE_MRT) && (!sealed || !strcmp(sealed, "1"))) flags |= RB_TILE_SEALED_STATE;
+-    int track = rb_tbdr_bl() || (flags & (RB_TILE_STORE | RB_TILE_LIVE | RB_TILE_BATCH)) || (controls[1] && !strcmp(controls[1], "1"));
++    int track = (getenv("S2A_RB_TILE_RASTER_CLEAR") && !strcmp(getenv("S2A_RB_TILE_RASTER_CLEAR"),"1")) || rb_tbdr_bl() || (flags & (RB_TILE_STORE | RB_TILE_LIVE | RB_TILE_BATCH)) || (controls[1] && !strcmp(controls[1], "1"));
+     atomic_store_explicit(&g_rb_live_request, track ? 2 : 1, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_tile_options, flags | RB_TILE_READY, memory_order_relaxed);
+     if (flags) MLOG("[gpu-pass] NVN2 title=%s store=%d liveness=%d producer=%d batch=%d detailed_stats=%d clear_sibling=%d mrt_clears=%d legacy_tbdr=%s", title,
+@@ -20913,7 +20913,7 @@ static int rb_raster_clear_on(void) {
+ }
+ static unsigned rb_raster_clear_proof(const p_set_rt *rt,const uint8_t *next) {
+     if (!rb_raster_clear_on() && !rb_passdiag_on()) return 0;
+-    if (!rb_inside_piece() || g_rc_skip || g_wd>0 || g_fold_any || tbdr_on() || g_rb_clear_legacy || g_ret_n<0 || g_ret_n>16 ||
++    if (atomic_load(&g_rb_live_request)==1 || !rb_inside_piece() || g_rc_skip || g_wd>0 || g_fold_any || tbdr_on() || g_rb_clear_legacy || g_ret_n<0 || g_ret_n>16 ||
+         g_nlc || g_defer_nact || g_defer_replaying || g_fz.active || g_rt_range_active ||
+         g_imfit_npend || g_imwr_npend || g_nbcrt || g_nubd || sub_cut_due() ||
+         rb_clear_readback_pending() || geo_run_active() || g_rb_shadow_native || !rb_tile_scale_safe(&R.rt,rt)) return 0;

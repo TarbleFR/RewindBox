@@ -1,0 +1,28 @@
+diff --git a/graphics/nvn/tests/t_rb_clear_batch_metal.m b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+index 4e54738..fcd71aa 100644
+--- a/graphics/nvn/tests/t_rb_clear_batch_metal.m
++++ b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+@@ -155,6 +155,10 @@ static void tracked_pair(id<MTLDevice> dev, int combined, ClearImage out) {
+     read_pair(dev,t[0],t[1],out);
+ }
+ 
++@interface RbRasterStoreSpy : NSObject { @public MTLStoreAction action; unsigned calls; } @end
++@implementation RbRasterStoreSpy
++- (void)setColorStoreAction:(MTLStoreAction)value atIndex:(NSUInteger)index { CHECK(index==0); action=value; calls++; }
++@end
+ // A clipped or observable plane must survive the first pass. This tracked-Metal
+ // control runs on virtual Macs alongside the direct queue fixture on Apple GPUs.
+ static void tracked_store(id<MTLDevice> dev, int optimize, int mrt, ClearImage out) {
+@@ -230,6 +234,12 @@ static void tracked_store(id<MTLDevice> dev, int optimize, int mrt, ClearImage o
+         CHECK(!rb_raster_clear_proof(&next,(const uint8_t *)&stream)); R.has_sc=0;
+         stream.c.mask=1; CHECK(!rb_raster_clear_proof(&next,(const uint8_t *)&stream)); stream.c.mask=15;
+         stream.h.op=OP_SCISSOR; CHECK(!rb_raster_clear_proof(&next,(const uint8_t *)&stream));
++        // Exercise the production store setter before the two real GPU captures.
++        RbRasterStoreSpy *spy=[RbRasterStoreSpy new]; id saved=g_enc;
++        g_enc=(id)spy; g_sd[0]=plane; g_sd[0].wrote=1; g_sd[0].bytes=WIDTH*HEIGHT*4; g_nsd=1;
++        g_rb_raster_clear_mask=fair_mask; g_bw_store+=g_sd[0].bytes;
++        sd_finish(); CHECK(spy->calls==1 && spy->action==(optimize ? MTLStoreActionDontCare : MTLStoreActionStore));
++        g_enc=saved; g_rb_raster_clear_mask=0;
+         g_xq_cur=NULL; g_nsd=0;
+     }
+ 
