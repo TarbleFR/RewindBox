@@ -429,13 +429,13 @@ struct spvDescriptorSetBuffer0 {
 };
 kernel void k_ssbo_wide(
     constant spvDescriptorSetBuffer0& spvDescriptorSet0 [[buffer(0)]],
-    constant uint& inLen [[buffer(1)]],
-    constant uint& outLen [[buffer(2)]],
+    constant uint& _inLen [[buffer(1)]],
+    constant uint& _outLen [[buffer(2)]],
     const device int* byteOffs [[buffer(3)]],
     uint gid [[thread_position_in_grid]])
 {
-    uint _lastIn = max(inLen, 1u) - 1u;
-    uint _lastOut = max(outLen, 1u) - 1u;
+    uint _lastIn = max(_inLen, 1u) - 1u;
+    uint _lastOut = max(_outLen, 1u) - 1u;
     int _base = byteOffs[gid];
     uint _i0 = uint(int(uint(_base) >> uint(2)));
     uint _v0 = (*spvDescriptorSet0.vp_s0)._m0[min(_i0, _lastIn)];
@@ -446,22 +446,22 @@ kernel void k_ssbo_wide(
     uint _i3 = uint(int(uint(_base + 12) >> uint(2)));
     uint _v3 = (*spvDescriptorSet0.vp_s0)._m0[min(_i3, _lastIn)];
     uint _o0 = uint(int(uint(int(gid) * 16) >> uint(2)));
-    if (_o0 < outLen)
+    if (_o0 < _outLen)
     {
         (*spvDescriptorSet0.vp_s1)._m0[min(_o0, _lastOut)] = _v0;
     }
     uint _o1 = uint(int(uint(int(gid) * 16 + 4) >> uint(2)));
-    if (_o1 < outLen)
+    if (_o1 < _outLen)
     {
         (*spvDescriptorSet0.vp_s1)._m0[min(_o1, _lastOut)] = _v1;
     }
     uint _o2 = uint(int(uint(int(gid) * 16 + 8) >> uint(2)));
-    if (_o2 < outLen)
+    if (_o2 < _outLen)
     {
         (*spvDescriptorSet0.vp_s1)._m0[min(_o2, _lastOut)] = _v2;
     }
     uint _o3 = uint(int(uint(int(gid) * 16 + 12) >> uint(2)));
-    if (_o3 < outLen)
+    if (_o3 < _outLen)
     {
         (*spvDescriptorSet0.vp_s1)._m0[min(_o3, _lastOut)] = _v3;
     }
