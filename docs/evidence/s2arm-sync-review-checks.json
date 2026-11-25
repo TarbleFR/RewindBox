@@ -55,5 +55,13 @@
   "physicalDeviceTested": false,
   "gameplayTested": false,
   "deviceFPSMeasured": false,
-  "deviceEnergyMeasured": false
+  "deviceEnergyMeasured": false,
+  "pinAttestation": {
+    "run": 45567968359,
+    "job": 139047322579,
+    "result": "passed",
+    "bytes": 76421,
+    "sha256": "4af72f8129e3676e495cfe2736222bdef394f09a55d0d6cf284683c7c1868e20",
+    "matchesCommittedPin": true
+  }
 }

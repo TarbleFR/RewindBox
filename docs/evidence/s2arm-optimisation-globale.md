@@ -354,3 +354,10 @@ externe déjà terminée évite aussi la jointure avec l'encodeur en mode optimi
 Les mesures de FPS, de latence, de mémoire et de consommation en jeu, la validation visuelle
 et l'endurance thermique sur A18 Pro restent à effectuer. Les résultats ci-dessus distinguent
 les assertions CPU, la mémoire partagée Metal et l'indisponibilité du test GPU Metal 4.
+
+Le moteur corrigé est compilé et épinglé sur `Claude`. L'[attestation des trois producteurs](https://github.com/TarbleFR/RewindBox/actions/runs/45567968359)
+a reconstruit un pin de 76 421 octets, identique au fichier commité. Son SHA-256 est
+`4af72f8129e3676e495cfe2736222bdef394f09a55d0d6cf284683c7c1868e20`.
+L'empreinte du moteur est `65ff9a82e791b679df36a7148ad278e45ddc5a462d37ca784c714c302435310f`.
+Le résultat de cette mission comprend les correctifs sources, le moteur compilé, son pin
+vérifié et ce rapport de contre-expertise.
