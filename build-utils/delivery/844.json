@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 844,
   "status": "draft",
-  "note": "Private 844 from verified 843. S2Arm 0400-0413: known-pipeline startup admission, per-frame command allocator reuse, ordered CPU replay worker, Metal 4 presentation queue with GPU-owned tickets, native first-compilation pipeline archives, unified device vertex variants, separate stencil sampling planes preserving compressed depth, and progress-driven stable menu polls. No player configuration is required. DSH fingerprint changes. All other engines retained with verified fingerprints. Full GPU replays and iPhone performance/energy remain unmeasured; Flutter/native suites not run.",
+  "note": "Private 844 from verified 843. S2Arm 0400-0417 and s2arm_engine_bridge xfp identity: known-pipeline startup admission, per-frame command allocator reuse, ordered CPU replay worker, Metal 4 presentation queue with GPU-owned tickets, native first-compilation pipeline archives (strict MKW reference verification protected), unified device vertex variants, separate stencil sampling planes preserving compressed depth, progress-driven stable menu polls, visible rebuild on xfp change for all Switch 2 titles (with French load page strings and S2ArmShaderXfp.txt), 64-submission in-flight UBO version ring for multi-piece frames (0415), NVN2 early_fragment_tests in S2A.Dsh (0416, xfp=ecd99354f03b846d), and default-enabled validated NVN2 optimizations (0417: dispatch_order=game fixed in dispatch_enc, sparse_fast_copy, tile_raster_clear, pso_wait_boost, archive_error_nil). No player configuration is required. All other engines retained with verified fingerprints. Full GPU replays and iPhone performance/energy remain unmeasured; Flutter/native suites not run.",
   "base": {
     "source": "1cb7aa1665d2bc373f009129d7771c76305d8dd5",
     "tree": "e0ed10d716a6522b17e8d1ff5f28e056cd0dd52b",
@@ -345,6 +345,22 @@
       {
         "commit": "72c5b1f03f962e5cd58efda367ce94e367523f26",
         "note": "[s2arm-engine] Wait for known preparation publication before first submit"
+      },
+      {
+        "commit": "b5e22a9f3ea8ec684528e7b90b057a5046cafe85",
+        "note": "[skip ci] Prepare private 844 and record the implemented structural scope"
+      },
+      {
+        "commit": "d52681cf4cac01c5a6a46d8db8ecae1a086127c0",
+        "note": "[s2arm-engine] [s2arm-bridge] Trigger visible shader rebuild on xfp change and protect strict reference archives (0414)"
+      },
+      {
+        "commit": "197dd41abeb09ea56d9e1fcff6013c2ae0ebe25a",
+        "note": "S2Arm 0415-0417: UBO ring 64x, NVN2 early_z, default-enable validated opts [s2arm-engine]"
+      },
+      {
+        "commit": "d9811f9bafbff3683f2e004e2c6d202b9cbba816",
+        "note": "[s2arm-pin engine=45672467487 prepare=44555747908 sysdata=43038032448] Pin verified S2Arm engine 0400-0417"
       }
     ],
     "sourceOnly": [],
