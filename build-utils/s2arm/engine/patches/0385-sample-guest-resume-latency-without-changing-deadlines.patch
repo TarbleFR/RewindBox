@@ -1,0 +1,134 @@
+diff --git a/runtime/include/rb_wake.h b/runtime/include/rb_wake.h
+index 7c655db..d7fb9a6 100644
+--- a/runtime/include/rb_wake.h
++++ b/runtime/include/rb_wake.h
+@@ -45,3 +45,7 @@ static inline int64_t s2a_rb_wake_absolute(const struct timespec *t) {
+     if (__builtin_expect(atomic_load_explicit(&s2a_rb_wake_enabled,memory_order_relaxed),0)) \
+         (void)s2a_rb_wake_begin(&rb_site_, -2); \
+     (call_); })
++
++// Optional runtime sampler; pure diagnostic fixtures can omit it.
++void s2a_rb_wait_latency_reset(void) __attribute__((weak));
++void s2a_rb_wait_latency_report(uint64_t frame,void (*emit)(const char *)) __attribute__((weak));
+diff --git a/runtime/src/rb_wait_latency.inc b/runtime/src/rb_wait_latency.inc
+new file mode 100644
+index 0000000..5866fce
+--- /dev/null
++++ b/runtime/src/rb_wait_latency.inc
+@@ -0,0 +1,38 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright 2026 S2Arm contributors
++// Diagnostic only. No sleep duration, notification or guest deadline changes.
++static _Atomic int rb_latency_mode=-1;
++static _Atomic uint64_t rb_latency_count[2],rb_latency_sum[2],rb_latency_max[2],rb_latency_bins[2][6];
++static int rb_latency_on(void) {
++    int mode=atomic_load_explicit(&rb_latency_mode,memory_order_relaxed);
++    if (mode<0) { const char *e=getenv("S2A_RB_WAKE_LATENCY"); mode=e && !strcmp(e,"1"); atomic_store(&rb_latency_mode,mode); }
++    return mode;
++}
++static uint64_t rb_latency_now(void) {
++    int saved=errno; struct timespec t; clock_gettime(CLOCK_MONOTONIC,&t); errno=saved;
++    return (uint64_t)t.tv_sec*1000000000ull+(uint64_t)t.tv_nsec;
++}
++static void rb_latency_add(unsigned kind,uint64_t ns) {
++    atomic_fetch_add(&rb_latency_count[kind],1); atomic_fetch_add(&rb_latency_sum[kind],ns);
++    uint64_t old=atomic_load(&rb_latency_max[kind]);
++    while (ns>old && !atomic_compare_exchange_weak(&rb_latency_max[kind],&old,ns)) { }
++    unsigned bin=ns<=10000 ? 0 : ns<=50000 ? 1 : ns<=100000 ? 2 : ns<=500000 ? 3 : ns<=1000000 ? 4 : 5;
++    atomic_fetch_add(&rb_latency_bins[kind][bin],1);
++}
++void s2a_rb_wait_latency_reset(void) {
++    atomic_store(&rb_latency_mode,-1);
++    for (unsigned k=0;k<2;k++) { atomic_store(&rb_latency_count[k],0); atomic_store(&rb_latency_sum[k],0); atomic_store(&rb_latency_max[k],0);
++        for (unsigned b=0;b<6;b++) atomic_store(&rb_latency_bins[k][b],0); }
++}
++void s2a_rb_wait_latency_report(uint64_t frame,void (*emit)(const char *)) {
++    if (!rb_latency_on()) return;
++    char row[700];
++    for (unsigned k=0;k<2;k++) {
++        snprintf(row,sizeof row,"[rb-wake-latency] cumulative frame=%llu kind=%s sample_every=64 count=%llu sum_ns=%llu max_ns=%llu bins_10_50_100_500_1000_over_us=%llu/%llu/%llu/%llu/%llu/%llu",
++            (unsigned long long)frame,k ? "yield-sleep-overshoot" : "address-release-to-resume",
++            (unsigned long long)atomic_load(&rb_latency_count[k]),(unsigned long long)atomic_load(&rb_latency_sum[k]),(unsigned long long)atomic_load(&rb_latency_max[k]),
++            (unsigned long long)atomic_load(&rb_latency_bins[k][0]),(unsigned long long)atomic_load(&rb_latency_bins[k][1]),(unsigned long long)atomic_load(&rb_latency_bins[k][2]),
++            (unsigned long long)atomic_load(&rb_latency_bins[k][3]),(unsigned long long)atomic_load(&rb_latency_bins[k][4]),(unsigned long long)atomic_load(&rb_latency_bins[k][5]));
++        emit(row);
++    }
++}
+diff --git a/runtime/src/rb_wake.inc b/runtime/src/rb_wake.inc
+index abc9e6c..1ce52d2 100644
+--- a/runtime/src/rb_wake.inc
++++ b/runtime/src/rb_wake.inc
+@@ -16,6 +16,7 @@ static _Atomic unsigned rb_wake_epoch;
+ static unsigned rb_wake_count;
+ static _Atomic uint64_t rb_wake_dropped;
+ void s2a_rb_wake_configure(int enabled) {
++    if (s2a_rb_wait_latency_reset) s2a_rb_wait_latency_reset();
+     atomic_store_explicit(&s2a_rb_wake_enabled, 0, memory_order_release);
+     pthread_mutex_lock(&rb_wake_mu);
+     atomic_fetch_add(&rb_wake_epoch, 1);
+@@ -56,6 +57,7 @@ void s2a_rb_wake_end(s2a_rb_wake_token token, int result) {
+     else if (result && result!=EINTR) atomic_fetch_add_explicit(&p->errors,1,memory_order_relaxed);
+ }
+ void s2a_rb_wake_report(uint64_t frame, void (*emit)(const char *)) {
++    if (s2a_rb_wait_latency_report) s2a_rb_wait_latency_report(frame,emit);
+     if (!atomic_load_explicit(&s2a_rb_wake_enabled,memory_order_acquire)) return;
+     struct timespec t; clock_gettime(CLOCK_MONOTONIC,&t);
+     uint64_t ns=(uint64_t)t.tv_sec*1000000000ull+t.tv_nsec;
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index fa0f150..5397f39 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -127,6 +127,7 @@ typedef struct thr {
+     //   set under G, taken by wake() with an exchange; sp_bud / sp_skip = this thread's spin budget (mach ticks) and its waits since the budget fell to 0, sp_init = budget set
+     //   (to the maximum, at its first spin); gw_n = its waits slept on t->woke, spun into a wake-up, spun in vain, fallbacks to cv, wake-ups it issued after G
+     //   (owner writes, relaxed atomic stores, GW_INC; others read them under G with atomic loads; folded into g_gw under G at exit)
++    uint64_t rb_latency_seq, rb_latency_signal_ns; int rb_latency_take;
+     _Atomic int uw; uint32_t sp_bud, sp_skip; uint8_t sp_init, rb_sp_interval; uint64_t gw_n[5];
+     // RewindBox (patch 0074): yields (owner writes), CPU ns in them (one in 16 timed), ns slept by their backoff; *_rep / pw_cpu = what dm_yield_top / dm_thread_cpu last saw (under G)
+     uint64_t ny, ny_k, ny_cpu, ny_sl, ny_rep, ny_cpu_rep, pw_cpu;
+@@ -217,6 +218,7 @@ static void sleep_wait_boundary(thr_t *);
+ #if !defined(__APPLE__)
+ #include "../../android/native/runtime/fault/thread_android.inc"
+ #endif
++#include "rb_wait_latency.inc"
+ #include "rb_wake.inc"
+ static int thread_condition_wait(thr_t *t, pthread_cond_t *cv, const struct timespec *deadline) {
+ #if defined(__APPLE__)
+@@ -429,7 +431,7 @@ static void wake(thr_t *t, int64_t res) {
+     if (wt_on()) { thr_t *w = thread_current_or_null(); uint64_t n = thread_clock(); t->tr_wake_t = n; t->tr_waker = w ? w->id : 0; if (w && w != t) w->tr_lastwake_t = n; }
+ #if defined(__APPLE__)
+     // RewindBox (patch 0074): woke last, after wres and wake_t, which block_u reads without G once it sees it; the wake-up deferred to after G inside a wq scope (see wq_add)
+-    wait_unlink(t); t->wkind = 0; t->wres = res; t->wake_t = thread_clock(); __atomic_store_n(&t->woke, 1, __ATOMIC_RELEASE);
++    wait_unlink(t); t->wkind = 0; t->wres = res; t->wake_t = thread_clock(); if (t->rb_latency_take) t->rb_latency_signal_ns=rb_latency_now(); __atomic_store_n(&t->woke, 1, __ATOMIC_RELEASE);
+     int uw = atomic_exchange(&t->uw, 0), dw = 0;
+     if (uw == 1) { if (!(dw = wq_add(&t->woke, -1))) RB_WAKE_SIGNAL_CALL("svc.address.signal", os_sync_wake_by_address_any(&t->woke, sizeof t->woke, OS_SYNC_WAKE_BY_ADDRESS_NONE)); }
+     else if (!uw) RB_WAKE_CALL("svc.signal", -2, pthread_cond_signal(&t->cv));   // 0: a condition-variable wait (deterministic mode, fallback, S2A_RB_GUEST_WAIT=0) or none; 2: spinning, it sees woke itself
+@@ -622,7 +624,9 @@ static int64_t block_u(thr_t *t, int kind, int64_t ns, int *unlocked) {
+     //   halved after one in vain; once at 0, every 16th wait probes the full budget, a hit restores it and a miss leaves it at 0. Only the waiting thread touches them.
+     //   uw 2 while spinning tells wake() that no wake call is needed; leaving the spin takes it 2 -> 1 with a compare-and-swap, and a failed swap means wake() already
+     //   took it, after storing woke. This block is its own #if so that the Darwin protocol adapter (run_pause_wait_host.py) can compile it out
++    t->rb_latency_take=0;
+     if (ns < 0 && rb_gw_on()) {
++        t->rb_latency_take=rb_latency_on() && !(t->rb_latency_seq++ & 63); t->rb_latency_signal_ns=0;
+         uint32_t bud = 0, mx = kind == 1 || kind == 3 ? gw_spin_max() : 0; int probe = 0;
+         if (mx) { if (!t->sp_init) { t->sp_init = 1; t->sp_bud = mx; }
+             bud = t->sp_bud > mx ? mx : t->sp_bud;
+@@ -656,6 +660,7 @@ static int64_t block_u(thr_t *t, int kind, int64_t ns, int *unlocked) {
+             GW_INC(t, 0);
+         }
+         if (!err) {
++            if (t->rb_latency_take && t->rb_latency_signal_ns) rb_latency_add(0,rb_latency_now()-t->rb_latency_signal_ns);
+             if (unlocked && !wait_diag_on()) { *unlocked = 1; return t->wres; }   // wres was stored before woke (wake)
+             glock(); wait_diag_condition_locked(t, 0); return t->wres;
+         }
+@@ -2343,7 +2348,10 @@ static void yield_bo(thr_t *me, const uint64_t *regs) {
+     }
+ #endif
+     if (hot) atomic_fetch_add_explicit(&g_yb_hot_sleeps, 1, memory_order_relaxed);   // RewindBox (patch 0087)
++    int rb_sample=rb_latency_on() && !(me->rb_latency_seq++ & 63);
++    uint64_t rb_before=rb_sample ? rb_latency_now() : 0;
+     struct timespec ts = {0, (long)sl}; RB_WAKE_SYSCALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL));
++    if (rb_sample) { uint64_t elapsed=rb_latency_now()-rb_before; rb_latency_add(1,elapsed>sl ? elapsed-sl : 0); }
+     atomic_fetch_add_explicit(&g_yb_sleeps, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_yb_sleep_ns, sl, memory_order_relaxed);
+     __atomic_store_n(&me->ny_sl, me->ny_sl + sl, __ATOMIC_RELAXED);   // RewindBox (patch 0074)
+     me->y_ret = (uint64_t)now_mono_ns();

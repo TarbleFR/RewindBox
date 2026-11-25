@@ -1,0 +1,91 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 3b45a41..94939bf 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3811,7 +3811,8 @@ int nvn_be_gpu_span(uint64_t f, uint64_t *t0, uint64_t *t1) {
+     *t0 = atomic_load(&g_gpu[k].t0); *t1 = atomic_load(&g_gpu[k].t1);
+     return *t1 >= *t0 && *t1;
+ }
+-static void rp_flush(void);
++static void rb_rp_flush_at(const char *function, unsigned line);
++#define rp_flush() rb_rp_flush_at(__func__, __LINE__)
+ static void rt_keep_state(void);
+ static void ghost_finish_submission(void);
+ static void alias_dead_views(void);
+@@ -11038,11 +11039,11 @@ static void rt_dims(NSUInteger *tw, NSUInteger *th) {
+     *tw = t0 ? extent.physical.width : 16384; *th = t0 ? extent.physical.height : 16384;   // no targets: an attachment-less pass can be up to 16384 (bare_dims)
+ }
+ // There are pending clears but no draw in the pass: open a pass once to land the clears
+-static void rp_flush(void) {
++static void rb_rp_flush_at(const char *function, unsigned line) {
+     int pend = R.clear_d || R.clear_s;
+     for (int i = 0; i < 8; i++) pend |= R.clear_c[i];
+     if (pend && !g_enc && g_cb) rp_begin_ex(1);
+-    rb_rp_end_at(__func__, __LINE__);
++    rb_rp_end_at(function, line);
+ }
+ static int scissor_full(const tex_t *t, const view_t *v, int has_v) {
+     NSUInteger level = has_v && v->set_levels ? v->base_level : 0;
+diff --git a/graphics/nvn/gfx/nvn/rb_gpudiag.inc b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+index 6cf6162..0e41871 100644
+--- a/graphics/nvn/gfx/nvn/rb_gpudiag.inc
++++ b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+@@ -7,7 +7,7 @@ static int rb_gpudiag_on(void) {
+     if (v<0) { const char *e=getenv("S2A_RB_GPUDIAG"); v=e && !strcmp(e,"1"); atomic_store_explicit(&g_rb_gpudiag_mode,v,memory_order_relaxed); }
+     return v;
+ }
+-enum { RB_GDIAG_TARGETS=128, RB_GDIAG_CUTS=96, RB_GDIAG_SHADERS=256 };
++enum { RB_GDIAG_TARGETS=512, RB_GDIAG_CUTS=96, RB_GDIAG_SHADERS=4096 };
+ typedef struct { uint64_t serial; unsigned level, slice, w, h, role, opens; } rb_gdiag_target;
+ typedef struct { const char *function; unsigned line, count; } rb_gdiag_cut;
+ typedef struct { char key[24]; unsigned facts, known, guest_early; uint64_t draws, depth_draws; } rb_gdiag_shader;
+@@ -18,6 +18,18 @@ static struct {
+     rb_gdiag_cut reasons[RB_GDIAG_CUTS];
+     rb_gdiag_shader shaders[RB_GDIAG_SHADERS];
+ } g_rb_gdiag;
++static void rb_gpudiag_shader_batch(uint64_t at) {
++    unsigned long long frame=(unsigned long long)at;
++        for (unsigned i=0;i<g_rb_gdiag.ns;i++) {
++            rb_gdiag_shader *s=&g_rb_gdiag.shaders[i];
++            MLOG("[rb-gpudiag-shader] up_to_frame=%llu key=%s draws=%llu depth_test_draws=%llu source_known=%u guest_early=%u missing_requested_early=%u explicit_early=%u discard=%u depth_output=%u sample_mask=%u pool_atomic_or=%u scope=existing-library-lexical-facts hardware_early_z=unmeasured",
++                 frame,s->key,(unsigned long long)s->draws,(unsigned long long)s->depth_draws,s->known,s->guest_early,rb_gpu_early_missing(s->guest_early,s->known,s->facts),
++                 !!(s->facts&RB_MSL_EARLY),!!(s->facts&RB_MSL_DISCARD),!!(s->facts&RB_MSL_DEPTH),!!(s->facts&RB_MSL_SMASK),!!(s->facts&RB_MSL_POOL_ATOMIC));
++        }
++        MLOG("[rb-gpudiag-shader-coverage] up_to_frame=%llu keys=%u unknown_source_draws=%llu dropped_keys=%llu",
++             frame,g_rb_gdiag.ns,(unsigned long long)g_rb_gdiag.source_unknown,(unsigned long long)g_rb_gdiag.dropped_shaders);
++    g_rb_gdiag.ns=0; g_rb_gdiag.source_unknown=0; g_rb_gdiag.dropped_shaders=0;
++}
+ static void rb_gpudiag_emit(void) {
+     if (!g_rb_gdiag.passes && !g_rb_gdiag.cuts) return;
+     unsigned long long frame=(unsigned long long)g_rb_gdiag.frame;
+@@ -34,19 +46,9 @@ static void rb_gpudiag_emit(void) {
+         MLOG("[rb-gpudiag-target] frame=%llu serial=%llu role=%s width=%u height=%u level=%u slice=%u opens=%u reopens=%u",
+              frame,(unsigned long long)t->serial,t->role ? "depth" : "color",t->w,t->h,t->level,t->slice,t->opens,t->opens-1);
+     }
+-    // Per-key counts span 300 frames, while pass/cut/target rows describe one frame.
+-    if (g_rb_gdiag.frame && !(g_rb_gdiag.frame%300)) {
+-        for (unsigned i=0;i<g_rb_gdiag.ns;i++) {
+-            rb_gdiag_shader *s=&g_rb_gdiag.shaders[i];
+-            MLOG("[rb-gpudiag-shader] up_to_frame=%llu key=%s draws=%llu depth_test_draws=%llu source_known=%u guest_early=%u missing_requested_early=%u explicit_early=%u discard=%u depth_output=%u sample_mask=%u pool_atomic_or=%u scope=existing-library-lexical-facts hardware_early_z=unmeasured",
+-                 frame,s->key,(unsigned long long)s->draws,(unsigned long long)s->depth_draws,s->known,s->guest_early,rb_gpu_early_missing(s->guest_early,s->known,s->facts),
+-                 !!(s->facts&RB_MSL_EARLY),!!(s->facts&RB_MSL_DISCARD),!!(s->facts&RB_MSL_DEPTH),!!(s->facts&RB_MSL_SMASK),!!(s->facts&RB_MSL_POOL_ATOMIC));
+-        }
+-        MLOG("[rb-gpudiag-shader-coverage] up_to_frame=%llu keys=%u unknown_source_draws=%llu dropped_keys=%llu",
+-             frame,g_rb_gdiag.ns,(unsigned long long)g_rb_gdiag.source_unknown,(unsigned long long)g_rb_gdiag.dropped_shaders);
+-        g_rb_gdiag.ns=0; g_rb_gdiag.source_unknown=0; g_rb_gdiag.dropped_shaders=0;
+-    }
++    if (g_rb_gdiag.frame && !(g_rb_gdiag.frame%300)) rb_gpudiag_shader_batch(g_rb_gdiag.frame);
+ }
++
+ static void rb_gpudiag_frame(uint64_t frame) {
+     if (g_rb_gdiag.frame==frame) return;
+     rb_gpudiag_emit();
+@@ -81,7 +83,7 @@ static void rb_gpudiag_draw(const char *key,unsigned facts,unsigned known,unsign
+     unsigned i=0;
+     for (;i<g_rb_gdiag.ns;i++) if (!strcmp(g_rb_gdiag.shaders[i].key,key)) break;
+     if (i==g_rb_gdiag.ns) {
+-        if (i==RB_GDIAG_SHADERS) { g_rb_gdiag.dropped_shaders++; return; }
++        if (i==RB_GDIAG_SHADERS) { rb_gpudiag_shader_batch(g_rb_gdiag.frame); i=0; }
+         rb_gdiag_shader *s=&g_rb_gdiag.shaders[g_rb_gdiag.ns++];
+         memset(s,0,sizeof *s); snprintf(s->key,sizeof s->key,"%s",key); s->facts=facts; s->known=known; s->guest_early=guest_early;
+     }

@@ -1,0 +1,98 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 54b183f..3c87736 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -37,6 +37,7 @@
+ #include "rb_present_mach.h"
+ #include "nvn_link_backoff.h"   // 低频链路档降档退避（link_sync）
+ #include "nvn_obj.h"
++#include "rb_guest_early.h"
+ #include "nvn2.h"   // Switch 2: NVN2 control sections (DM_NVN_SHDUMP code length)
+ #include "nvn2_cmd.h"   // Switch 2: NVN2 push constants / DLSS records (OP_PUSH_CONST / OP_DLSS)
+ #include "../tex/nvn_fmt_mtl.h"
+@@ -1819,6 +1820,7 @@ void nvn_be_sub_begin(void) {
+ 
+ static void rp_end(void);
+ static void rb_rp_end_at(const char *function, unsigned line);
++static void rb_passdiag_read(id<MTLTexture> t, unsigned role, unsigned level, unsigned slice, uint64_t consumer, const char *kind);
+ // DM_NVN_PASSGPU_SERIAL=1 (for measurement): before creating each encoder on the main command buffer, encode 'signal n+1 → wait for signal n+1' - the signal is only raised once all prior work has completed,
+ // so the following encoder starts only after the previous one has fully finished; on TBDR passes no longer overlap in the pipeline, and the per-pass start-to-end span of DM_NVN_GPUPROF is that pass's exclusive time (the whole-frame total is inflated; look only at relative cost)
+ static void ser_gate(void) {
+@@ -2585,8 +2587,8 @@ static inline id enc_b_begin(id cb) { return [cb respondsToSelector:@selector(be
+ static inline void enc_b_end(id e) { m4_end(e); }
+ static inline void enc_b_copy_buffer(id e, id<MTLBuffer> s, NSUInteger so, id<MTLBuffer> d, NSUInteger doff, NSUInteger n) { [e copyFromBuffer:s sourceOffset:so toBuffer:d destinationOffset:doff size:n]; }
+ static inline void enc_b_copy_buffer_texture(id e, id<MTLBuffer> s, NSUInteger so, NSUInteger row, NSUInteger img, MTLSize z, id<MTLTexture> d, NSUInteger sl, NSUInteger lv, MTLOrigin o) { [e copyFromBuffer:s sourceOffset:so sourceBytesPerRow:row sourceBytesPerImage:img sourceSize:z toTexture:d destinationSlice:sl destinationLevel:lv destinationOrigin:o]; }
+-static inline void enc_b_copy_texture_buffer(id e, id<MTLTexture> s, NSUInteger sl, NSUInteger lv, MTLOrigin o, MTLSize z, id<MTLBuffer> d, NSUInteger doff, NSUInteger row, NSUInteger img) { [e copyFromTexture:s sourceSlice:sl sourceLevel:lv sourceOrigin:o sourceSize:z toBuffer:d destinationOffset:doff destinationBytesPerRow:row destinationBytesPerImage:img]; }
+-static inline void enc_b_copy_texture(id e, id<MTLTexture> s, NSUInteger sl, NSUInteger lv, MTLOrigin so, MTLSize z, id<MTLTexture> d, NSUInteger dl, NSUInteger dv, MTLOrigin doo) { [e copyFromTexture:s sourceSlice:sl sourceLevel:lv sourceOrigin:so sourceSize:z toTexture:d destinationSlice:dl destinationLevel:dv destinationOrigin:doo]; }
++static inline void enc_b_copy_texture_buffer(id e, id<MTLTexture> s, NSUInteger sl, NSUInteger lv, MTLOrigin o, MTLSize z, id<MTLBuffer> d, NSUInteger doff, NSUInteger row, NSUInteger img) { rb_passdiag_read(s,11,(unsigned)lv,(unsigned)sl,0,"copy-source"); [e copyFromTexture:s sourceSlice:sl sourceLevel:lv sourceOrigin:o sourceSize:z toBuffer:d destinationOffset:doff destinationBytesPerRow:row destinationBytesPerImage:img]; }
++static inline void enc_b_copy_texture(id e, id<MTLTexture> s, NSUInteger sl, NSUInteger lv, MTLOrigin so, MTLSize z, id<MTLTexture> d, NSUInteger dl, NSUInteger dv, MTLOrigin doo) { rb_passdiag_read(s,11,(unsigned)lv,(unsigned)sl,0,"copy-source"); [e copyFromTexture:s sourceSlice:sl sourceLevel:lv sourceOrigin:so sourceSize:z toTexture:d destinationSlice:dl destinationLevel:dv destinationOrigin:doo]; }
+ static void blit_note(void);   // Per-pass dump: a copy / buffer update ended the render pass (defined after PD)
+ // Ordering inside the copy encoder: Metal 4 does not order copies / fills within one encoder (no automatic hazard tracking); an operation reading or writing a range an earlier one wrote needs an intra-encoder barrier.
+ // Without it, SMBW's two updates per frame to the same uniform slot ("write 4 bytes −1, then 16 bytes of coefficients") occasionally landed in reverse order; the fountain water wave simulation took −1 as its self coefficient, diverged, and the water vertices were pushed to the top of the screen.
+@@ -11328,7 +11330,8 @@ static inline const rb_bind_facts *rb_shader_facts(__unsafe_unretained NvShader
+ #include "nvn_pso_skey.h"
+ #include "nvn_pfkind.h"
+ #include "nvn_geometry.h"
+-@interface NvProg : NSObject { @public NvShader *sh[6]; char gs_miss[17]; NvProg *geo_raster; const prog_t *gp;
++static int rb_first_read(const void *source, void *out, size_t size);
++@interface NvProg : NSObject { @public unsigned rb_diag_guest_early; NvShader *sh[6]; char gs_miss[17]; NvProg *geo_raster; const prog_t *gp;
+     NvShader *geo_gs[5], *geo_rd[2], *geo_base;   // S2Arm 11-06: geometry-emulation variants found for geo_base (nvn_geometry.inc geo_variants): _bg<topology>, _bgv by depth mode
+     NvShader *geo_ps[5], *geo_rc[2];   // the passthrough fast path's (geo_pt_variants): _bgs<topology>, _bgc by depth mode
+     uint8_t smask, unres;   // the stages the program's own shaders are for (bit = NVN stage bit, by each key's stage in the map, before prog_fold_gs); unres: a key had no stage (bind_stages)
+@@ -12914,6 +12917,11 @@ static __unsafe_unretained NvProg *prog_get(const prog_t *cp) {   // Called only
+         t_refl_only = nh > 0;
+         NvShader *sh = st >= 0 ? shader_get([k stringByAppendingString:@"_b"], st) : nil;
+         t_refl_only = 0;
++        if (sh && st==1 && rb_gpudiag_on()) {
++            uint8_t control[0x5c];
++            o->rb_diag_guest_early=rb_first_read(p->sd[i].control,control,sizeof control) ? rb_guest_early_nvn2(control,sizeof control) : 0;
++            if (!o->rb_diag_guest_early) o->rb_diag_guest_early=sh->rb_diag_guest_early;
++        }
+         if (sh) o->sh[st] = sh; else MLOG("【红】 shader %s (%s) failed to load: build the shaders with dm/gfx/tools/dmsh_build.py first", k.UTF8String, stage.UTF8String);
+         if (sh && st == 5 && nh) sh->tensor_sq = (uint16_t)MIN(nsq, 0xffffu);
+         if (sh && st == 5 && sh->tensor != 1) {
+@@ -24370,7 +24378,7 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+ #endif
+     udc_note_draw(pr);
+     swrite_note(pr);
+-    if (rb_gpudiag_on() && pr->sh[1]) rb_gpudiag_draw(pr->sh[1]->key,pr->sh[1]->rb_diag_facts,pr->sh[1]->rb_diag_known,pr->sh[1]->rb_diag_guest_early,S.ds.dt);
++    if (rb_gpudiag_on() && pr->sh[1]) rb_gpudiag_draw(pr->sh[1]->key,pr->sh[1]->rb_diag_facts,pr->sh[1]->rb_diag_known,pr->rb_diag_guest_early,S.ds.dt);
+     fb_note_draw(pr);
+     if (g_mtk.on) { mtk_encode(en); return; }   // a task / mesh draw (nvn_geometry.inc)
+     if (g_geo_program) {
+diff --git a/graphics/nvn/gfx/nvn/rb_gpudiag.inc b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+index f885466..eb2dd1d 100644
+--- a/graphics/nvn/gfx/nvn/rb_gpudiag.inc
++++ b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+@@ -122,7 +122,8 @@ static void rb_passdiag_read(id<MTLTexture> t, unsigned role, unsigned level, un
+     for (int at=g_rb_pd_heads[rb_pd_bucket(root)]-1;at>=0;at=g_rb_pd_rows[at].next) {
+         rb_pass_attachment *a=&g_rb_pd_rows[at];
+         if (!a->pending || a->root!=root || (role<10 && (a->role!=role || a->level!=level || a->slice!=slice))) continue;
+-        if (role>=10 && (a->level<level || a->level>=level+nl || a->slice<slice || a->slice>=slice+MAX(ns,1u))) continue;
++        if (role==11 && (a->level!=level || a->slice!=slice)) continue;
++        if (role==10 && (a->level<level || a->level>=level+nl || a->slice<slice || a->slice>=slice+MAX(ns,1u))) continue;
+         MLOG("[rb-pass-consumer] producer_pass=%llu serial=%llu role=%u level=%u slice=%u consumer_pass=%llu kind=%s scope=encoded-consumer-not-hardware-branch",
+              (unsigned long long)a->pass,(unsigned long long)a->serial,a->role,a->level,a->slice,(unsigned long long)consumer,kind);
+         a->pending=0;
+diff --git a/graphics/nvn/gfx/nvn/rb_guest_early.h b/graphics/nvn/gfx/nvn/rb_guest_early.h
+new file mode 100644
+index 0000000..de3377f
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_guest_early.h
+@@ -0,0 +1,16 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright 2026 S2Arm contributors
++#pragma once
++#include <stdint.h>
++#include <stddef.h>
++#include <string.h>
++// NVN2 driver fragment flag byte. Read only; no translator input is changed.
++// Reference: nxnative dm/gfx/tools/dmsh_ampere.py early_fragment_tests.
++// 0 unknown, 1 explicitly false, 2 explicitly true.
++static inline unsigned rb_guest_early_nvn2(const void *bytes,size_t length) {
++    if (!bytes || length<0x5c) return 0;
++    const uint8_t *p=bytes; uint32_t magic,version;
++    memcpy(&magic,p,4); memcpy(&version,p+4,4);
++    if (magic!=0x98761234u || version!=0xc9u) return 0;
++    return 1u+(p[0x5b]!=0);
++}

@@ -8,7 +8,10 @@
 #include "rb_allocator_frame.h"
 #include "rb_dispatch_order.h"
 #include "rb_gpu_facts.h"
+#include "rb_guest_early.h"
+#include "rb_raster_clear.h"
 #include "rb_probe_policy.h"
+#include "rb_wait_latency.inc"
 #include "rb_wake.inc"
 #define RB_FENCE_DIAG(kind, ns, call) RB_WAKE_CALL(kind, ns, call)
 #include "rb_fence_wait.h"
@@ -35,6 +38,23 @@ static void *condition_worker(void *arg) {
 static unsigned report_lines;
 static void emit(const char *s) { CHECK(strncmp(s,"[rb-wake",8)==0); report_lines++; }
 int main(void) {
+    s2a_rb_wait_latency_reset(); rb_latency_add(0,50000); rb_latency_add(0,1000001);
+    CHECK(atomic_load(&rb_latency_count[0])==2 && atomic_load(&rb_latency_sum[0])==1050001);
+    CHECK(atomic_load(&rb_latency_bins[0][1])==1 && atomic_load(&rb_latency_bins[0][5])==1);
+    CHECK(atomic_load(&rb_latency_max[0])==1000001);
+    s2a_rb_wait_latency_reset(); CHECK(!atomic_load(&rb_latency_count[0]));
+    uint8_t ctl[0x5c]={0}; uint32_t magic=0x98761234u,version=0xc9u;
+    memcpy(ctl,&magic,4); memcpy(ctl+4,&version,4);
+    CHECK(rb_guest_early_nvn2(ctl,sizeof ctl)==1);
+    ctl[0x5b]=1; CHECK(rb_guest_early_nvn2(ctl,sizeof ctl)==2);
+    CHECK(!rb_guest_early_nvn2(ctl,0x5b)); ctl[4]=0; CHECK(!rb_guest_early_nvn2(ctl,sizeof ctl));
+    struct { op_hdr h; p_depth_range v; op_hdr clear; p_clear_color c; op_hdr end; } stream={
+        .h={OP_DEPTH_RANGE,8+sizeof(p_depth_range)},.clear={OP_CLEAR_COLOR,8+sizeof(p_clear_color)},.end={OP_END,8}};
+    CHECK(rb_raster_then_clear((const uint8_t *)&stream)==(const uint8_t *)&stream.clear);
+    stream.h.op=OP_WAIT_SYNC; CHECK(!rb_raster_then_clear((const uint8_t *)&stream));
+    stream.h.op=OP_SCISSOR; CHECK(!rb_raster_then_clear((const uint8_t *)&stream));
+    stream.h.op=OP_DEPTH_RANGE; stream.h.size=8; CHECK(!rb_raster_then_clear((const uint8_t *)&stream));
+
     CHECK(!rb_allocator_frame_reuse(0,4,4,0,3));
     CHECK(!rb_allocator_frame_reuse(1,4,3,0,3));
     CHECK(!rb_allocator_frame_reuse(1,4,4,-1,3));

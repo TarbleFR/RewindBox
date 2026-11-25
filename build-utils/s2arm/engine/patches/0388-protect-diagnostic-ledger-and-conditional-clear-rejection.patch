@@ -1,0 +1,109 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 0b1638f..ae8b52d 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -20913,7 +20913,7 @@ static int rb_raster_clear_on(void) {
+ }
+ static unsigned rb_raster_clear_proof(const p_set_rt *rt,const uint8_t *next) {
+     if (!rb_raster_clear_on() && !rb_passdiag_on()) return 0;
+-    if (!rb_inside_piece() || tbdr_on() || g_rb_clear_legacy || g_ret_n<0 || g_ret_n>16 ||
++    if (!rb_inside_piece() || g_rc_skip || g_wd>0 || g_fold_any || tbdr_on() || g_rb_clear_legacy || g_ret_n<0 || g_ret_n>16 ||
+         g_nlc || g_defer_nact || g_defer_replaying || g_fz.active || g_rt_range_active ||
+         g_imfit_npend || g_imwr_npend || g_nbcrt || g_nubd || sub_cut_due() ||
+         rb_clear_readback_pending() || geo_run_active() || g_rb_shadow_native || !rb_tile_scale_safe(&R.rt,rt)) return 0;
+diff --git a/graphics/nvn/gfx/nvn/rb_gpudiag.inc b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+index 5a65538..976b83a 100644
+--- a/graphics/nvn/gfx/nvn/rb_gpudiag.inc
++++ b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+@@ -107,6 +107,7 @@ typedef struct {
+ enum { RB_PD_RECORDS=8192, RB_PD_BUCKETS=1024 };
+ static rb_pass_attachment g_rb_pd_rows[RB_PD_RECORDS], g_rb_pd_open[10];
+ static int g_rb_pd_heads[RB_PD_BUCKETS], g_rb_pd_n, g_rb_pd_no;
++static pthread_mutex_t g_rb_pd_mu=PTHREAD_MUTEX_INITIALIZER;
+ static pthread_t g_rb_pd_owner; static _Atomic int g_rb_pd_owner_valid;
+ static uint64_t g_rb_pd_load_bytes, g_rb_pd_store_bytes, g_rb_pd_overflows;
+ static unsigned rb_pd_bucket(uintptr_t root) { return (unsigned)((root>>4)^(root>>20))&(RB_PD_BUCKETS-1); }
+@@ -116,7 +117,7 @@ static uintptr_t rb_pd_root(id<MTLTexture> t, unsigned *level, unsigned *slice)
+ }
+ static const char *rb_pd_load(unsigned a) { return a==MTLLoadActionLoad ? "load" : a==MTLLoadActionClear ? "clear" : a==MTLLoadActionDontCare ? "dontCare" : "unknown"; }
+ static const char *rb_pd_store(unsigned a) { return a==MTLStoreActionStore ? "store" : a==MTLStoreActionDontCare ? "dontCare" : a==MTLStoreActionMultisampleResolve ? "resolve" : a==MTLStoreActionStoreAndMultisampleResolve ? "storeAndResolve" : "unknown"; }
+-static void rb_passdiag_read(id<MTLTexture> t, unsigned role, unsigned level, unsigned slice, uint64_t consumer, const char *kind) {
++static void rb_passdiag_read_locked(id<MTLTexture> t, unsigned role, unsigned level, unsigned slice, uint64_t consumer, const char *kind) {
+     if (!rb_passdiag_on() || !t || !atomic_load(&g_rb_pd_owner_valid) || !pthread_equal(pthread_self(),g_rb_pd_owner)) return;
+     unsigned nl=(unsigned)t.mipmapLevelCount, ns=(unsigned)t.arrayLength;
+     uintptr_t root=rb_pd_root(t,&level,&slice);
+@@ -130,16 +131,25 @@ static void rb_passdiag_read(id<MTLTexture> t, unsigned role, unsigned level, un
+         a->pending=0;
+     }
+ }
+-static void rb_passdiag_unresolved(const char *reason) {
++static void rb_passdiag_read(id<MTLTexture> t, unsigned role, unsigned level, unsigned slice, uint64_t consumer, const char *kind) {
++    if (!rb_passdiag_on() || !t) return;
++    pthread_mutex_lock(&g_rb_pd_mu); rb_passdiag_read_locked(t,role,level,slice,consumer,kind); pthread_mutex_unlock(&g_rb_pd_mu);
++}
++static void rb_passdiag_unresolved_locked(const char *reason) {
+     if (!rb_passdiag_on()) return;
+     uint64_t pending=0;
+     for (int i=0;i<g_rb_pd_n;i++) pending+=!!g_rb_pd_rows[i].pending;
+     MLOG("[rb-pass-coverage] reason=%s unresolved=%llu overflows=%llu load_bytes=%llu store_bytes=%llu scope=logical-not-DRAM",
+          reason,(unsigned long long)pending,(unsigned long long)g_rb_pd_overflows,(unsigned long long)g_rb_pd_load_bytes,(unsigned long long)g_rb_pd_store_bytes);
+ }
++static void rb_passdiag_unresolved(const char *reason) {
++    if (!rb_passdiag_on()) return;
++    pthread_mutex_lock(&g_rb_pd_mu); rb_passdiag_unresolved_locked(reason); pthread_mutex_unlock(&g_rb_pd_mu);
++}
+ static void rb_passdiag_begin(MTL4RenderPassDescriptor *pd) {
+     if (!rb_passdiag_on()) return;
+-    if (!atomic_load(&g_rb_pd_owner_valid)) { g_rb_pd_owner=pthread_self(); atomic_store(&g_rb_pd_owner_valid,1); }
++    pthread_mutex_lock(&g_rb_pd_mu);
++    g_rb_pd_owner=pthread_self(); atomic_store(&g_rb_pd_owner_valid,1);
+     g_rb_pd_no=0;
+     for (unsigned role=0;role<10;role++) {
+         MTLRenderPassAttachmentDescriptor *c=role<8 ? pd.colorAttachments[role] : role==8 ? pd.depthAttachment : pd.stencilAttachment;
+@@ -149,18 +159,22 @@ static void rb_passdiag_begin(MTL4RenderPassDescriptor *pd) {
+         bytes*=MAX((uint64_t)pd.renderTargetArrayLength,1ull);
+         unsigned level=(unsigned)c.level,slice=(unsigned)(t.textureType==MTLTextureType3D ? c.depthPlane : c.slice);
+         uint64_t serial=role<8 ? (R.rt.color[role] ? R.rt.color[role]->serial : 0) : (R.rt.depth ? R.rt.depth->serial : 0);
+-        if (c.loadAction==MTLLoadActionLoad) rb_passdiag_read(t,role,level,slice,g_stat_pass,"attachment-load");
++        if (c.loadAction==MTLLoadActionLoad) rb_passdiag_read_locked(t,role,level,slice,g_stat_pass,"attachment-load");
+         uintptr_t identity=rb_pd_root(t,&level,&slice);
+         g_rb_pd_open[g_rb_pd_no++]=(rb_pass_attachment){.root=identity,.serial=serial,.pass=g_stat_pass,.bytes=bytes,.role=role,.level=level,.slice=slice,
+             .width=(unsigned)MAX(c.texture.width>>c.level,1u),.height=(unsigned)MAX(c.texture.height>>c.level,1u),.samples=(unsigned)t.sampleCount,.format=(unsigned)t.pixelFormat,.load=(unsigned)c.loadAction,.store=(unsigned)c.storeAction};
+     }
++    pthread_mutex_unlock(&g_rb_pd_mu);
+ }
+ static void rb_passdiag_store(unsigned role, unsigned action) {
+     if (!rb_passdiag_on()) return;
++    pthread_mutex_lock(&g_rb_pd_mu);
+     for (int i=0;i<g_rb_pd_no;i++) if (g_rb_pd_open[i].role==role) g_rb_pd_open[i].store=action;
++    pthread_mutex_unlock(&g_rb_pd_mu);
+ }
+ static void rb_passdiag_end(void) {
+     if (!rb_passdiag_on()) return;
++    pthread_mutex_lock(&g_rb_pd_mu);
+     for (int i=0;i<g_rb_pd_no;i++) {
+         rb_pass_attachment a=g_rb_pd_open[i]; unsigned b=rb_pd_bucket(a.root); int at=g_rb_pd_heads[b]-1;
+         while (at>=0) { rb_pass_attachment *v=&g_rb_pd_rows[at]; if (v->root==a.root && (v->role==a.role || (v->role<8 && a.role<8)) && v->level==a.level && v->slice==a.slice) break; at=v->next; }
+@@ -170,7 +184,7 @@ static void rb_passdiag_end(void) {
+                 a.load==MTLLoadActionClear ? "clear-before-observed-read" : a.load==MTLLoadActionDontCare ? "dontCare-before-observed-read" : "unresolved");
+         }
+         if (at<0) {
+-            if (g_rb_pd_n==RB_PD_RECORDS) { g_rb_pd_overflows++; rb_passdiag_unresolved("capacity"); memset(g_rb_pd_heads,0,sizeof g_rb_pd_heads); g_rb_pd_n=0; }
++            if (g_rb_pd_n==RB_PD_RECORDS) { g_rb_pd_overflows++; rb_passdiag_unresolved_locked("capacity"); memset(g_rb_pd_heads,0,sizeof g_rb_pd_heads); g_rb_pd_n=0; }
+             at=g_rb_pd_n++; a.next=g_rb_pd_heads[b]-1; g_rb_pd_heads[b]=at+1;
+         } else a.next=g_rb_pd_rows[at].next;
+         a.pending=a.store==MTLStoreActionStore || a.store==MTLStoreActionStoreAndMultisampleResolve;
+@@ -182,9 +196,12 @@ static void rb_passdiag_end(void) {
+             (unsigned long long)a.bytes,rb_pd_load(a.load),rb_pd_store(a.store));
+     }
+     g_rb_pd_no=0;
++    pthread_mutex_unlock(&g_rb_pd_mu);
+ }
+ static void rb_passdiag_reset(void) {
++    pthread_mutex_lock(&g_rb_pd_mu);
+     atomic_store(&g_rb_pd_owner_valid,0);
+-    rb_passdiag_unresolved("session-end"); memset(g_rb_pd_heads,0,sizeof g_rb_pd_heads); g_rb_pd_n=g_rb_pd_no=0;
++    rb_passdiag_unresolved_locked("session-end"); memset(g_rb_pd_heads,0,sizeof g_rb_pd_heads); g_rb_pd_n=g_rb_pd_no=0;
+     g_rb_pd_load_bytes=g_rb_pd_store_bytes=g_rb_pd_overflows=0; atomic_store(&g_rb_passdiag_mode,-1);
++    pthread_mutex_unlock(&g_rb_pd_mu);
+ }

@@ -1,0 +1,62 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 746e6ff..0b1638f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -10286,7 +10286,9 @@ static int g_el_w, g_el_h, g_el_draws; static char g_el_key[12];
+ static int enc_label_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_NVN_ENC_LABEL"); v = e && atoi(e); } return v; }
+ static int g_nbcrt; static void bcrt_flush(void);   // shadows of block-compressed render targets used by the open pass (see bcrt_attach)
+ #include "rb_gpudiag.inc"
++static const char *g_rb_end_function; static unsigned g_rb_end_line;
+ static void rp_end(void) { if (!g_rlane) geo_run_flush(); if (g_enc) { AP_B;
++    rb_gpudiag_cut(g_rb_end_function ?: "rp_end",g_rb_end_line);
+     if (enc_label_on()) { static uint64_t lf = ~0ull, base; uint64_t f = atomic_load(&g_cur_frame); if (f != lf) { lf = f; base = g_stat_pass - 1; }   // Intra-frame serial: the same pass has the same name every frame, so the table can aggregate by name
+         [(id)g_enc setLabel:[NSString stringWithFormat:@"p%02llu %dx%d %s d%d", (unsigned long long)(g_stat_pass - base), g_el_w, g_el_h, g_el_key[0] ? g_el_key : "-", g_el_draws]]; }
+ #ifdef NVN_RT_RANGE_TEST
+@@ -10307,8 +10309,9 @@ static void rp_end(void) { if (!g_rlane) geo_run_flush(); if (g_enc) { AP_B;
+     AP_E(0);
+ } }
+ static void rb_rp_end_at(const char *function, unsigned line) {
+-    if (g_enc) rb_gpudiag_cut(function,line);
+-    rp_end();
++    const char *saved=g_rb_end_function; unsigned saved_line=g_rb_end_line;
++    g_rb_end_function=function; g_rb_end_line=line; rp_end();
++    g_rb_end_function=saved; g_rb_end_line=saved_line;
+ }
+ // The format an attachment is actually attached with: the view's format if the view changes the format and can be attached, otherwise the base texture's. Shared by attaching (attach) and pipeline prediction (pso_predict_rest) so both agree --
+ // prediction used the base format, so for a pass written through an sRGB view (Mario's last pass) the predicted pipeline had the wrong format and the real one was compiled at the first draw (from d2r-mobile e2a0c9a9b)
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index c44abb0..04f759c 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -171,6 +171,9 @@ int nvn_be_shutdown_session(void) {
+     g_rs_native_draw = 0; g_rs = -1;
+     rb_fair_factor = 0.; rb_fair_current = 1.; rb_fair_sample_at = rb_fair_cool_since = 0; atomic_store(&rb_fair_seen,0);
+     rb_rs_retire_reset(&g_rb_rs_retire);   // RewindBox (patch 0321): a retired Fair scale is armed again with the session (rb_fair_factor above); the counts of live records are the process's
++    rb_gpudiag_emit();
++    if (g_rb_gdiag.ns) rb_gpudiag_shader_batch(g_rb_gdiag.frame);
++    rb_passdiag_unresolved("session-shutdown");
+     // The retired session's descriptor registry and pools have been drained.
+     os_unfair_lock_lock(&g_rb_exposure_lock);
+     memset(&g_rb_descriptor_bytes, 0, sizeof g_rb_descriptor_bytes);
+diff --git a/graphics/nvn/gfx/nvn/rb_gpudiag.inc b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+index eb2dd1d..063755e 100644
+--- a/graphics/nvn/gfx/nvn/rb_gpudiag.inc
++++ b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+@@ -121,7 +121,7 @@ static void rb_passdiag_read(id<MTLTexture> t, unsigned role, unsigned level, un
+     uintptr_t root=rb_pd_root(t,&level,&slice);
+     for (int at=g_rb_pd_heads[rb_pd_bucket(root)]-1;at>=0;at=g_rb_pd_rows[at].next) {
+         rb_pass_attachment *a=&g_rb_pd_rows[at];
+-        if (!a->pending || a->root!=root || (role<10 && (a->role!=role || a->level!=level || a->slice!=slice))) continue;
++        if (!a->pending || a->root!=root || (role<10 && ((a->role!=role && !(a->role<8 && role<8)) || a->level!=level || a->slice!=slice))) continue;
+         if (role==11 && (a->level!=level || a->slice!=slice)) continue;
+         if (role==10 && (a->level<level || a->level>=level+nl || a->slice<slice || a->slice>=slice+MAX(ns,1u))) continue;
+         MLOG("[rb-pass-consumer] producer_pass=%llu serial=%llu role=%u level=%u slice=%u consumer_pass=%llu kind=%s scope=encoded-consumer-not-hardware-branch",
+@@ -161,7 +161,7 @@ static void rb_passdiag_end(void) {
+     if (!rb_passdiag_on()) return;
+     for (int i=0;i<g_rb_pd_no;i++) {
+         rb_pass_attachment a=g_rb_pd_open[i]; unsigned b=rb_pd_bucket(a.root); int at=g_rb_pd_heads[b]-1;
+-        while (at>=0) { rb_pass_attachment *v=&g_rb_pd_rows[at]; if (v->root==a.root && v->role==a.role && v->level==a.level && v->slice==a.slice) break; at=v->next; }
++        while (at>=0) { rb_pass_attachment *v=&g_rb_pd_rows[at]; if (v->root==a.root && (v->role==a.role || (v->role<8 && a.role<8)) && v->level==a.level && v->slice==a.slice) break; at=v->next; }
+         if (at>=0 && g_rb_pd_rows[at].pending) {
+             MLOG("[rb-pass-consumer] producer_pass=%llu serial=%llu role=%u level=%u slice=%u consumer_pass=%llu kind=%s scope=encoded-overwrite-not-death-proof",
+                 (unsigned long long)g_rb_pd_rows[at].pass,(unsigned long long)g_rb_pd_rows[at].serial,a.role,a.level,a.slice,(unsigned long long)a.pass,

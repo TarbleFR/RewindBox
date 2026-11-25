@@ -502,3 +502,40 @@ compilé sur macOS 15 et 26. GCC et Clang : 347 assertions ; transaction d’arc
 Foundation : 34 contrôles par hôte ; synchronisation : 35 contrôles. Le runner
 n’expose pas Metal 4 ; aucun replay de pixels ni gain A18 Pro n’est revendiqué.
 Le pin réutilise les producteurs prepare/sysdata existants ; NS2Pro est inchangé.
+
+### Passes et tuiles 0379–0388 (25 novembre 2026)
+
+Base : moteur 0378 livré dans l'IPA privée 841. Aucun titre n'est testé par
+les nouveaux correctifs ; ils s'appliquent aux chemins S2Arm compatibles,
+avec les mêmes refus conservateurs. Traducteur, horloges, cadence et résolution
+inchangés.
+
+- 0379 : `S2A_RB_GPUDIAG=1` conserve l'appelant de `rp_flush`, porte la table
+  shader à 4096 entrées et émet un lot supplémentaire lorsqu'elle est pleine.
+- 0380–0381 : `S2A_RB_PASS_DIAG=1` rapporte chaque attachement, ses actions,
+  ses octets logiques et son premier consommateur encodé observable (load,
+  binding déclaré ou copie). Une observation de binding ne prouve pas que
+  toutes ses branches GPU ont lu la texture. Une durée de vie non résolue ou
+  une saturation est signalée et n'est jamais utilisée comme preuve d'élision.
+  La demande early-Z vient du contrôle NVN2 +0x5b, sans changer le traducteur.
+- 0382 : `S2A_RB_TILE_RASTER_CLEAR=1`, opt-in, étend la preuve de full clear
+  aux seuls changements de viewport/depth-range intercalés. Pas de draw,
+  scissor, attente, changement de ressources, call ou jump accepté. Identité,
+  vues, alias/exposition, recouvrement, landing du clear, segment et scaling
+  sont revalidés par le backend. Seulement la sauvegarde prouvée morte devient
+  DontCare ; aucune barrière n'est supprimée. Les économies de load et de
+  continuation déjà présentes restent inchangées, sans nouveau gain revendiqué.
+- 0383 : fixture Metal existant étendu : contrôle Store et candidat DontCare
+  sur les mêmes 512 pixels ; refus scissor, clear partiel et opcode inconnu.
+- 0384/0386/0388 : fermetures issues de géométrie différée comptées, changement
+  d'index d'une couleur suivi, ledger protégé contre les autres workers,
+  clear conditionnel ou élargi refusé, état early-Z distingué par observation.
+- 0385/0387 : `S2A_RB_WAKE_LATENCY=1`, échantillon 1/64 de la latence entre
+  publication et reprise sur adresse et du dépassement du sommeil de yield.
+  Aucun délai, notification, priorité ou deadline de jeu n'est modifié.
+
+GCC local : 359 assertions. Compilation native et pixels CI : en attente.
+Mesures A18 Pro : non réalisées avec ce lot. Comparer trois fenêtres de 180 s
+par variante, départ Nominal, sur Zelda, MKW Coupe Champignon 150 cc et Fire
+Emblem. Ne pas assimiler les captures synthétiques CI à un replay de ces jeux.
+Le lot traducteur reste une livraison ultérieure distincte.

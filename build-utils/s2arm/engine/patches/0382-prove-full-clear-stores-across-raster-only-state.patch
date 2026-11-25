@@ -1,0 +1,125 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 3c87736..746e6ff 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9736,6 +9736,9 @@ static void rb_shadow_report(unsigned long long frame);
+ #include "rb_report_spread.h"
+ static unsigned g_rb_mem_parts = RB_REPORT_MEM_ALL;   // the frame hook's thread: the parts this call of nvn_be_mem_stat runs
+ static unsigned long long g_rb_mem_real_frame;   // the frame count now when frame is a boundary that has passed (0: frame is the count)
++static _Atomic int g_rb_raster_clear_mode=-1;
++static uint64_t g_rb_raster_clear_candidates,g_rb_raster_clear_saved,g_rb_raster_clear_bytes;
++static unsigned g_rb_raster_clear_mask;
+ static void rb_wake_emit(const char *row) { MLOG("%s", row); }
+ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb);
+ void nvn_be_mem_stat_part(unsigned long long frame, unsigned long long real_frame, unsigned long long rss_mb, unsigned parts);
+@@ -9752,6 +9755,8 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+     }
+     if (rb_parts & RB_REPORT_MEM_COUNTS) {   // RewindBox (patch 0326)
+     s2a_rb_wake_report(frame, rb_wake_emit);
++    MLOG("[rb-tile-raster-clear] cumulative frame=%llu candidates=%llu stores_saved=%llu logical_store_bytes_saved=%llu",
++         frame,(unsigned long long)g_rb_raster_clear_candidates,(unsigned long long)g_rb_raster_clear_saved,(unsigned long long)g_rb_raster_clear_bytes);
+     nvn_mem_detail(frame);   // before the line cap below: the detailed accounting has its own interval and must not be starved by the 400-line budget
+     fb_report(frame); samp_report(frame); audit_probe_report(frame); rs_retain_report(frame);
+     if (rb_live_on() || rb_tile_enabled(RB_TILE_LIVE)) {
+@@ -10290,7 +10295,7 @@ static void rp_end(void) { if (!g_rlane) geo_run_flush(); if (g_enc) { AP_B;
+     sd_finish();
+     rb_passdiag_end();
+     if (g_rb_all_loaded) g_rb_final_rw++;
+-    g_rb_all_loaded = 0; g_rb_discard_mask = 0; g_rb_next_clear_mask = 0; g_rb_sealed_clear_mask = 0; g_rb_cov_mask = 0;
++    g_rb_all_loaded = 0; g_rb_discard_mask = 0; g_rb_next_clear_mask = 0; g_rb_sealed_clear_mask = 0; g_rb_cov_mask = 0; g_rb_raster_clear_mask=0;
+     enc_r_end_pass(g_enc); zskip_commit_clears(); g_enc = nil; g_rt_merged = 0; g_rt_range_active = g_rt_range_pending = 0;
+     if (g_rb_shadow_native) rb_shadow_finish();
+     ts_after(); ms_after(); if (g_lp.count) lp_finish(); fz_end();
+@@ -19489,6 +19494,9 @@ static void sd_finish(void) {
+                 atomic_fetch_add_explicit(&g_rb_live_stores, 1, memory_order_relaxed);
+                 atomic_fetch_add_explicit(&g_rb_live_bytes, t->bytes, memory_order_relaxed);
+             }
++            if (!dead && (g_rb_raster_clear_mask & (1u<<i))) {
++                dead=1; g_rb_raster_clear_saved++; g_rb_raster_clear_bytes+=t->bytes;
++            }
+             if (dead) g_rb_all_loaded = 0;
+             MTLStoreAction sa = dead ? MTLStoreActionDontCare : MTLStoreActionStore;
+             // not loaded (g_noload_mask) and still unwritten: nothing to write back, memory is the content. Written after all = the lookahead's proof was wrong (red; written back so the draws stay)
+@@ -20893,6 +20901,31 @@ static unsigned rb_sealed_clear(const p_set_rt *rt, const uint8_t *next) {
+     }
+     return mask;
+ }
++
++#include "rb_raster_clear.h"
++static int rb_raster_clear_on(void) {
++    int v=atomic_load(&g_rb_raster_clear_mode);
++    if (v<0) { const char *e=getenv("S2A_RB_TILE_RASTER_CLEAR"); v=e && !strcmp(e,"1"); atomic_store(&g_rb_raster_clear_mode,v); }
++    return v;
++}
++static unsigned rb_raster_clear_proof(const p_set_rt *rt,const uint8_t *next) {
++    if (!rb_raster_clear_on() && !rb_passdiag_on()) return 0;
++    if (!rb_inside_piece() || tbdr_on() || g_rb_clear_legacy || g_ret_n<0 || g_ret_n>16 ||
++        g_nlc || g_defer_nact || g_defer_replaying || g_fz.active || g_rt_range_active ||
++        g_imfit_npend || g_imwr_npend || g_nbcrt || g_nubd || sub_cut_due() ||
++        rb_clear_readback_pending() || geo_run_active() || g_rb_shadow_native || !rb_tile_scale_safe(&R.rt,rt)) return 0;
++    const uint8_t *clear=rb_raster_then_clear(next); if (!clear) return 0;
++    op_hdr header; memcpy(&header,clear,8); if (!rb_clear_has_landing(clear,header)) return 0;
++    unsigned mask=0;
++    for (int i=0;i<g_nsd;i++) {
++        const sd_att *a=&g_sd[i]; const tex_t *t=a->depth ? R.rt.depth : R.rt.color[a->idx];
++        if (rb_store_unexposed(t) && !xv_present(a->ser) && rb_clear_covers_landing(a,rt,clear,1)) mask|=1u<<i;
++    }
++    if (mask) { g_rb_raster_clear_candidates++;
++        if (rb_passdiag_on()) MLOG("[rb-tile-proof] pass=%llu proof=raster-then-full-clear mask=%u enabled=%d",
++            (unsigned long long)g_stat_pass,mask,rb_raster_clear_on()); }
++    return rb_raster_clear_on() ? mask : 0;
++}
+ static int sdx_decide(uint8_t st[SD_MAX]) {   // st[i]: 2 redundant; otherwise why << 2 (the reason it is needed, same as sd_need). Returns 0 = index unavailable
+     if (!g_sdx_ok || !g_exec_cur || !g_exec_seq || g_sdx_op[g_exec_seq - 1] != g_exec_cur) return 0;
+     uint32_t P = g_exec_seq - 1;
+@@ -26094,6 +26127,7 @@ void nvn_be_exec(const uint8_t *p) {
+                     g_rb_discard_mask = terminal;
+                     g_rb_next_clear_mask = rb_adjacent_clear_mask(r, p + h.size);
+                     g_rb_sealed_clear_mask = rb_sealed_clear(r, p + h.size);
++                    g_rb_raster_clear_mask=rb_raster_clear_proof(r,p+h.size);
+                 }
+                 // RewindBox (patch 0342 review): a pass continued with the tile mode off ends here with the targets it was opened with (rt_same), so the guest's discards
+                 //   just before this SetRenderTargets leave their stores out as for a pass that was not continued (rb_terminal_discard checks each texture against its
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index b832b74..c44abb0 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -389,6 +389,8 @@ int nvn_be_shutdown_session(void) {
+     return 0;
+ }
+ void nvn_be_begin_session(void) {
++    atomic_store(&g_rb_raster_clear_mode,-1); g_rb_raster_clear_mask=0;
++    g_rb_raster_clear_candidates=g_rb_raster_clear_saved=g_rb_raster_clear_bytes=0;
+     atomic_store(&g_rb_archive_error_nil,-1);
+     atomic_store(&g_rb_pso_wait_boost,-1);
+     atomic_store(&g_rb_pso_boost_tries,0); atomic_store(&g_rb_pso_boost_ok,0);
+diff --git a/graphics/nvn/gfx/nvn/rb_raster_clear.h b/graphics/nvn/gfx/nvn/rb_raster_clear.h
+new file mode 100644
+index 0000000..315e5bc
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_raster_clear.h
+@@ -0,0 +1,24 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright 2026 S2Arm contributors
++#pragma once
++#include "nvn_obj.h"
++// Only values that cannot change the attachments, scissor, clear mask, queue
++// order or a resource. Unknown records stop the proof; no call/jump is followed.
++static inline const uint8_t *rb_raster_then_clear(const uint8_t *p) {
++    int raster=0;
++    for (unsigned i=0;p && i<8;i++) {
++        op_hdr h; memcpy(&h,p,8);
++        if (h.op==OP_VIEWPORTS && h.size==8+sizeof(p_viewports)) {
++            p_viewports v; memcpy(&v,p+8,sizeof v);
++            if (v.first<0 || v.n<1 || v.n>16 || v.first>16-v.n) return NULL;
++            raster=1;
++        } else if (h.op==OP_DEPTH_RANGE && h.size==8+sizeof(p_depth_range)) raster=1;
++        else if ((h.op==OP_ALPHA_REF && h.size==8+sizeof(p_alpha_ref)) ||
++                 (h.op==OP_BLEND_COLOR && h.size==8+sizeof(p_blend_color))) { }
++        else if (raster && ((h.op==OP_CLEAR_COLOR && h.size==8+sizeof(p_clear_color)) ||
++                            (h.op==OP_CLEAR_DS && h.size==8+sizeof(p_clear_ds)))) return p;
++        else return NULL;
++        p+=h.size;
++    }
++    return NULL;
++}

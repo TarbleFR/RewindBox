@@ -1,0 +1,52 @@
+diff --git a/runtime/src/rb_wait_latency.inc b/runtime/src/rb_wait_latency.inc
+index 5866fce..463208b 100644
+--- a/runtime/src/rb_wait_latency.inc
++++ b/runtime/src/rb_wait_latency.inc
+@@ -1,5 +1,10 @@
+ // SPDX-License-Identifier: Apache-2.0
+ // Copyright 2026 S2Arm contributors
++#define RB_WAIT_LATENCY_IMPLEMENTED 1
++#include "rb_wake.h"
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
+ // Diagnostic only. No sleep duration, notification or guest deadline changes.
+ static _Atomic int rb_latency_mode=-1;
+ static _Atomic uint64_t rb_latency_count[2],rb_latency_sum[2],rb_latency_max[2],rb_latency_bins[2][6];
+@@ -8,7 +13,7 @@ static int rb_latency_on(void) {
+     if (mode<0) { const char *e=getenv("S2A_RB_WAKE_LATENCY"); mode=e && !strcmp(e,"1"); atomic_store(&rb_latency_mode,mode); }
+     return mode;
+ }
+-static uint64_t rb_latency_now(void) {
++static inline uint64_t rb_latency_now(void) {
+     int saved=errno; struct timespec t; clock_gettime(CLOCK_MONOTONIC,&t); errno=saved;
+     return (uint64_t)t.tv_sec*1000000000ull+(uint64_t)t.tv_nsec;
+ }
+diff --git a/runtime/src/rb_wake.inc b/runtime/src/rb_wake.inc
+index 1ce52d2..71aba2a 100644
+--- a/runtime/src/rb_wake.inc
++++ b/runtime/src/rb_wake.inc
+@@ -16,7 +16,11 @@ static _Atomic unsigned rb_wake_epoch;
+ static unsigned rb_wake_count;
+ static _Atomic uint64_t rb_wake_dropped;
+ void s2a_rb_wake_configure(int enabled) {
++#ifdef RB_WAIT_LATENCY_IMPLEMENTED
++    s2a_rb_wait_latency_reset();
++#else
+     if (s2a_rb_wait_latency_reset) s2a_rb_wait_latency_reset();
++#endif
+     atomic_store_explicit(&s2a_rb_wake_enabled, 0, memory_order_release);
+     pthread_mutex_lock(&rb_wake_mu);
+     atomic_fetch_add(&rb_wake_epoch, 1);
+@@ -57,7 +61,11 @@ void s2a_rb_wake_end(s2a_rb_wake_token token, int result) {
+     else if (result && result!=EINTR) atomic_fetch_add_explicit(&p->errors,1,memory_order_relaxed);
+ }
+ void s2a_rb_wake_report(uint64_t frame, void (*emit)(const char *)) {
++#ifdef RB_WAIT_LATENCY_IMPLEMENTED
++    s2a_rb_wait_latency_report(frame,emit);
++#else
+     if (s2a_rb_wait_latency_report) s2a_rb_wait_latency_report(frame,emit);
++#endif
+     if (!atomic_load_explicit(&s2a_rb_wake_enabled,memory_order_acquire)) return;
+     struct timespec t; clock_gettime(CLOCK_MONOTONIC,&t);
+     uint64_t ns=(uint64_t)t.tv_sec*1000000000ull+t.tv_nsec;

@@ -1,0 +1,169 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 94939bf..54b183f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -10286,6 +10286,7 @@ static void rp_end(void) { if (!g_rlane) geo_run_flush(); if (g_enc) { AP_B;
+     int ranged=g_rt_range_active && !g_rt_range_pending;
+ #endif
+     sd_finish();
++    rb_passdiag_end();
+     if (g_rb_all_loaded) g_rb_final_rw++;
+     g_rb_all_loaded = 0; g_rb_discard_mask = 0; g_rb_next_clear_mask = 0; g_rb_sealed_clear_mask = 0; g_rb_cov_mask = 0;
+     enc_r_end_pass(g_enc); zskip_commit_clears(); g_enc = nil; g_rt_merged = 0; g_rt_range_active = g_rt_range_pending = 0;
+@@ -11008,6 +11009,7 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+     gp_render_source(g_enc,g_rb_shadow_native ? "shadow-caster-0.75" : g_rb_clear_expected ? "batched-clear" : clear_only==1 ? "guest-clear" : "guest-draw");
+     args_dirty_all();
+     g_stat_pass++;
++    rb_passdiag_begin(pd);
+     if (rb_gpudiag_on()) {
+         rb_gpudiag_frame(atomic_load_explicit(&g_cur_frame,memory_order_relaxed));
+         g_rb_gdiag.passes++;
+@@ -18976,6 +18978,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+             __unsafe_unretained id<MTLTexture> size_view = t;
+             if (t && g_fb_n && g_fb_seq == g_draw_seq && nvn_stage == 1) for (int q = 0; q < g_fb_n; q++) if (t == g_fb_src[q]) { t = g_fb_use[q]; trid = g_fb_rid[q]; break; }   // same-pass feedback sampling: read the snapshot instead (see fb_prepare)
+             if (t && passdump() && tid < g_ntreg) PD("R %llu st%d ser=%llu", g_stat_pass, nvn_stage, g_treg[tid].t.serial);
++            if (t && rb_passdiag_on()) rb_passdiag_read(t,10,0,0,g_enc ? g_stat_pass : 0,"declared-shader-binding");
+             if (__builtin_expect(g_td_frame >= 0, 0) && t && tid < g_ntreg && t.textureType == MTLTextureType3D) td_note_3d(t, g_treg[tid].t.serial);   // TEXDUMP: 3D textures the frame samples (td_dump saves them as slice atlases)
+             if (bl && size_view && tid >= 0 && tid < g_ntreg && cap_all()) cap_tex_note(size_view, g_treg[tid].t.serial, tid);   // RewindBox (patch 0048; 0049: the registered view, not a feedback snapshot): the capture's sampled textures (td_dump)
+             if (bl) PD("B %llu st%d tex reg%d tid=%d %s ser=%llu fmt=%lu %lux%lux%lu view_lv=%lu+%lu view_sl=%lu array=%lu target=%lu swz=%d%d%d%d mtl=%p", g_stat_pass, nvn_stage, reg, tid, t ? "real" : "dummy", t && tid < g_ntreg ? g_treg[tid].t.serial : 0ull,
+@@ -19456,7 +19459,7 @@ static const uint8_t *g_exec_cur;   // The op currently being replayed (inclusiv
+ static void sd_need(sd_att *t, int why) { if (!t->state) { t->state = 1; t->why = (uint8_t)why; } }   // why: 1 a draw reads it as a texture 2 as an attachment, drawn before cleared 3 copy 4 texture clear 5 scanned to the end undecided 6 no start point / index unavailable
+ static int sdx_decide(uint8_t st[SD_MAX]);   // Store lookahead decision (for the index see nvn_be_sub_index)
+ static void sd_finish(void) {
+-    if (g_rb_shadow_native) { [g_enc setDepthStoreAction:MTLStoreActionStore]; return; }
++    if (g_rb_shadow_native) { [g_enc setDepthStoreAction:MTLStoreActionStore]; rb_passdiag_store(8,MTLStoreActionStore); return; }
+     if (!g_nsd) {
+         return;
+     }
+@@ -19486,6 +19489,7 @@ static void sd_finish(void) {
+                     (unsigned long long)t->ser, (unsigned long long)g_stat_pass, (unsigned long long)g_noload_wrong, w->wwhy, w->prec, (unsigned long long)w->pass, (unsigned long long)w->draw, w->vs, w->fs, w->gs, w->geo, w->run, w->wd, w->wdm, g_pass_geo);
+                 else if (!(g_noload_wrong & (g_noload_wrong - 1))) MLOG("【红】 color attachments not loaded but written (lookahead wrong): %llu so far", (unsigned long long)g_noload_wrong); }
+             if (t->depth == 1) [g_enc setDepthStoreAction:sa]; else if (t->depth == 2) [g_enc setStencilStoreAction:sa]; else [g_enc setColorStoreAction:sa atIndex:(NSUInteger)t->idx];
++            rb_passdiag_store(t->depth ? 7u+t->depth : (unsigned)t->idx,(unsigned)sa);
+             g_sd_n_all++; if (dead) { g_sd_n_dead++; g_sd_dead_bytes += t->bytes; g_bw_store -= t->bytes; if (unwritten) g_udc_saved_bytes += t->bytes; }
+             PD("Z %llu %s ser=%llu lv%u sl%u %s load=%d wrote=%d wwhy=%d (TBDR set off)", g_stat_pass, t->depth == 1 ? "d" : t->depth == 2 ? "s" : "c", (unsigned long long)t->ser, t->lv, t->sl, dead ? "dontcare" : "store", t->load, t->wrote, t->wwhy); }
+         g_nsd = 0; return; }
+@@ -19508,6 +19512,7 @@ static void sd_finish(void) {
+         MTLStoreAction sa = dead ? MTLStoreActionDontCare : MTLStoreActionStore;
+         if (xvdead) { xv_set(t->ser, t->lv, t->sl, XV_INVALID, xtag); g_xv_dc++; }
+         if (t->depth == 1) [g_enc setDepthStoreAction:sa]; else if (t->depth == 2) [g_enc setStencilStoreAction:sa]; else [g_enc setColorStoreAction:sa atIndex:(NSUInteger)t->idx];
++            rb_passdiag_store(t->depth ? 7u+t->depth : (unsigned)t->idx,(unsigned)sa);
+         g_sd_n_all++; if (dead) { g_sd_n_dead++; g_sd_dead_bytes += t->bytes; g_bw_store -= t->bytes; if (udc_dead) g_udc_saved_bytes += t->bytes; }
+         if (!t->state) t->why = 5;
+         PD("Z %llu %s ser=%llu lv%u sl%u %s why=%d by=%s slot=%d", g_stat_pass, t->depth == 1 ? "d" : t->depth == 2 ? "s" : "c", (unsigned long long)t->ser, t->lv, t->sl, xvdead ? "dontcare-xv" : dead ? "dontcare" : "store", dead ? 0 : t->why, t->why == 1 && t->wkey ? t->wkey : "-", t->wslot);
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index d023b44..b832b74 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -397,6 +397,9 @@ void nvn_be_begin_session(void) {
+     atomic_store(&g_rb_gpu_probe_mode,-1); atomic_store(&g_rb_probe_every,-2);
+     atomic_store(&g_rb_probe_last_frame,UINT64_MAX); atomic_fetch_add(&g_rb_probe_generation,1);
+     atomic_store(&g_probe_ns,0);
++    rb_gpudiag_emit();
++    if (g_rb_gdiag.ns) rb_gpudiag_shader_batch(g_rb_gdiag.frame);
++    rb_passdiag_reset();
+     rb_gpudiag_reset();
+     const char *wake_diag = getenv("S2A_RB_WAKE_DIAG");
+     s2a_rb_wake_configure(wake_diag && !strcmp(wake_diag, "1"));
+diff --git a/graphics/nvn/gfx/nvn/rb_gpudiag.inc b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+index 0e41871..f885466 100644
+--- a/graphics/nvn/gfx/nvn/rb_gpudiag.inc
++++ b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+@@ -90,3 +90,97 @@ static void rb_gpudiag_draw(const char *key,unsigned facts,unsigned known,unsign
+     g_rb_gdiag.shaders[i].draws++; if (depth_test) g_rb_gdiag.shaders[i].depth_draws++;
+ }
+ static void rb_gpudiag_reset(void) { atomic_store(&g_rb_gpudiag_mode,-1); memset(&g_rb_gdiag,0,sizeof g_rb_gdiag); }
++
++// Read-only attachment ledger. It reports encoded consumers, not shader branch
++// execution. Overflow and remaining lifetimes are explicitly unresolved.
++static _Atomic int g_rb_passdiag_mode=-1;
++static int rb_passdiag_on(void) {
++    int v=atomic_load(&g_rb_passdiag_mode);
++    if (v<0) { const char *e=getenv("S2A_RB_PASS_DIAG"); v=e && !strcmp(e,"1"); atomic_store(&g_rb_passdiag_mode,v); }
++    return v;
++}
++typedef struct {
++    uintptr_t root; uint64_t serial, pass, bytes;
++    unsigned role, level, slice, width, height, samples, format, load, store;
++    int next, pending;
++} rb_pass_attachment;
++enum { RB_PD_RECORDS=8192, RB_PD_BUCKETS=1024 };
++static rb_pass_attachment g_rb_pd_rows[RB_PD_RECORDS], g_rb_pd_open[10];
++static int g_rb_pd_heads[RB_PD_BUCKETS], g_rb_pd_n, g_rb_pd_no;
++static uint64_t g_rb_pd_load_bytes, g_rb_pd_store_bytes, g_rb_pd_overflows;
++static unsigned rb_pd_bucket(uintptr_t root) { return (unsigned)((root>>4)^(root>>20))&(RB_PD_BUCKETS-1); }
++static uintptr_t rb_pd_root(id<MTLTexture> t, unsigned *level, unsigned *slice) {
++    while (t.parentTexture) { *level+=(unsigned)t.parentRelativeLevel; *slice+=(unsigned)t.parentRelativeSlice; t=t.parentTexture; }
++    return (uintptr_t)(__bridge void *)t;
++}
++static const char *rb_pd_load(unsigned a) { return a==MTLLoadActionLoad ? "load" : a==MTLLoadActionClear ? "clear" : a==MTLLoadActionDontCare ? "dontCare" : "unknown"; }
++static const char *rb_pd_store(unsigned a) { return a==MTLStoreActionStore ? "store" : a==MTLStoreActionDontCare ? "dontCare" : a==MTLStoreActionMultisampleResolve ? "resolve" : a==MTLStoreActionStoreAndMultisampleResolve ? "storeAndResolve" : "unknown"; }
++static void rb_passdiag_read(id<MTLTexture> t, unsigned role, unsigned level, unsigned slice, uint64_t consumer, const char *kind) {
++    if (!rb_passdiag_on() || !t) return;
++    unsigned nl=(unsigned)t.mipmapLevelCount, ns=(unsigned)t.arrayLength;
++    uintptr_t root=rb_pd_root(t,&level,&slice);
++    for (int at=g_rb_pd_heads[rb_pd_bucket(root)]-1;at>=0;at=g_rb_pd_rows[at].next) {
++        rb_pass_attachment *a=&g_rb_pd_rows[at];
++        if (!a->pending || a->root!=root || (role<10 && (a->role!=role || a->level!=level || a->slice!=slice))) continue;
++        if (role>=10 && (a->level<level || a->level>=level+nl || a->slice<slice || a->slice>=slice+MAX(ns,1u))) continue;
++        MLOG("[rb-pass-consumer] producer_pass=%llu serial=%llu role=%u level=%u slice=%u consumer_pass=%llu kind=%s scope=encoded-consumer-not-hardware-branch",
++             (unsigned long long)a->pass,(unsigned long long)a->serial,a->role,a->level,a->slice,(unsigned long long)consumer,kind);
++        a->pending=0;
++    }
++}
++static void rb_passdiag_unresolved(const char *reason) {
++    if (!rb_passdiag_on()) return;
++    uint64_t pending=0;
++    for (int i=0;i<g_rb_pd_n;i++) pending+=!!g_rb_pd_rows[i].pending;
++    MLOG("[rb-pass-coverage] reason=%s unresolved=%llu overflows=%llu load_bytes=%llu store_bytes=%llu scope=logical-not-DRAM",
++         reason,(unsigned long long)pending,(unsigned long long)g_rb_pd_overflows,(unsigned long long)g_rb_pd_load_bytes,(unsigned long long)g_rb_pd_store_bytes);
++}
++static void rb_passdiag_begin(MTL4RenderPassDescriptor *pd) {
++    if (!rb_passdiag_on()) return;
++    g_rb_pd_no=0;
++    for (unsigned role=0;role<10;role++) {
++        MTLRenderPassAttachmentDescriptor *c=role<8 ? pd.colorAttachments[role] : role==8 ? pd.depthAttachment : pd.stencilAttachment;
++        id<MTLTexture> t=c.texture; if (!t) continue;
++        uint64_t bytes=att_bytes(t,c.level);
++        if (t.pixelFormat==MTLPixelFormatDepth32Float_Stencil8) bytes=bytes/5*(role==8 ? 4 : role==9 ? 1 : 5);
++        bytes*=MAX((uint64_t)pd.renderTargetArrayLength,1ull);
++        unsigned level=(unsigned)c.level,slice=(unsigned)(t.textureType==MTLTextureType3D ? c.depthPlane : c.slice);
++        uint64_t serial=role<8 ? (R.rt.color[role] ? R.rt.color[role]->serial : 0) : (R.rt.depth ? R.rt.depth->serial : 0);
++        if (c.loadAction==MTLLoadActionLoad) rb_passdiag_read(t,role,level,slice,g_stat_pass,"attachment-load");
++        uintptr_t identity=rb_pd_root(t,&level,&slice);
++        g_rb_pd_open[g_rb_pd_no++]=(rb_pass_attachment){.root=identity,.serial=serial,.pass=g_stat_pass,.bytes=bytes,.role=role,.level=level,.slice=slice,
++            .width=(unsigned)MAX(c.texture.width>>c.level,1u),.height=(unsigned)MAX(c.texture.height>>c.level,1u),.samples=(unsigned)t.sampleCount,.format=(unsigned)t.pixelFormat,.load=(unsigned)c.loadAction,.store=(unsigned)c.storeAction};
++    }
++}
++static void rb_passdiag_store(unsigned role, unsigned action) {
++    if (!rb_passdiag_on()) return;
++    for (int i=0;i<g_rb_pd_no;i++) if (g_rb_pd_open[i].role==role) g_rb_pd_open[i].store=action;
++}
++static void rb_passdiag_end(void) {
++    if (!rb_passdiag_on()) return;
++    for (int i=0;i<g_rb_pd_no;i++) {
++        rb_pass_attachment a=g_rb_pd_open[i]; unsigned b=rb_pd_bucket(a.root); int at=g_rb_pd_heads[b]-1;
++        while (at>=0) { rb_pass_attachment *v=&g_rb_pd_rows[at]; if (v->root==a.root && v->role==a.role && v->level==a.level && v->slice==a.slice) break; at=v->next; }
++        if (at>=0 && g_rb_pd_rows[at].pending) {
++            MLOG("[rb-pass-consumer] producer_pass=%llu serial=%llu role=%u level=%u slice=%u consumer_pass=%llu kind=%s scope=encoded-overwrite-not-death-proof",
++                (unsigned long long)g_rb_pd_rows[at].pass,(unsigned long long)g_rb_pd_rows[at].serial,a.role,a.level,a.slice,(unsigned long long)a.pass,
++                a.load==MTLLoadActionClear ? "clear-before-observed-read" : a.load==MTLLoadActionDontCare ? "dontCare-before-observed-read" : "unresolved");
++        }
++        if (at<0) {
++            if (g_rb_pd_n==RB_PD_RECORDS) { g_rb_pd_overflows++; rb_passdiag_unresolved("capacity"); memset(g_rb_pd_heads,0,sizeof g_rb_pd_heads); g_rb_pd_n=0; }
++            at=g_rb_pd_n++; a.next=g_rb_pd_heads[b]-1; g_rb_pd_heads[b]=at+1;
++        } else a.next=g_rb_pd_rows[at].next;
++        a.pending=a.store==MTLStoreActionStore || a.store==MTLStoreActionStoreAndMultisampleResolve;
++        g_rb_pd_rows[at]=a;
++        if (a.load==MTLLoadActionLoad) g_rb_pd_load_bytes+=a.bytes;
++        if (a.pending) g_rb_pd_store_bytes+=a.bytes;
++        MLOG("[rb-pass-attachment] frame=%llu pass=%llu serial=%llu role=%u level=%u slice=%u width=%u height=%u samples=%u format=%u bytes=%llu load=%s store=%s",
++            (unsigned long long)atomic_load(&g_cur_frame),(unsigned long long)a.pass,(unsigned long long)a.serial,a.role,a.level,a.slice,a.width,a.height,a.samples,a.format,
++            (unsigned long long)a.bytes,rb_pd_load(a.load),rb_pd_store(a.store));
++    }
++    g_rb_pd_no=0;
++}
++static void rb_passdiag_reset(void) {
++    rb_passdiag_unresolved("session-end"); memset(g_rb_pd_heads,0,sizeof g_rb_pd_heads); g_rb_pd_n=g_rb_pd_no=0;
++    g_rb_pd_load_bytes=g_rb_pd_store_bytes=g_rb_pd_overflows=0; atomic_store(&g_rb_passdiag_mode,-1);
++}

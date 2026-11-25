@@ -107,7 +107,7 @@ jobs:
           set -euo pipefail
           engine="$RUNNER_TEMP/s2arm"
           xcrun --sdk macosx clang -std=gnu11 -O2 -Wall -Wextra -Werror -pthread \
-            -I"$engine/runtime/include" -I"$engine/runtime/src" -I"$engine/graphics/nvn/gfx/nvn" \
+            -I"$engine/runtime/include" -I"$engine/runtime/src" -I"$engine/graphics/nvn/gfx/nvn" -I"$engine/graphics/nvn/gfx/nvn/include" \
             build-utils/s2arm/engine/tests/zelda_diag.c -o "$RUNNER_TEMP/zelda-diag"
           "$RUNNER_TEMP/zelda-diag" | tee proof/zelda-diag-clang.txt
           xcrun --sdk macosx clang -std=gnu11 -O1 -fobjc-arc -fblocks \
@@ -116,6 +116,10 @@ jobs:
             build-utils/s2arm/engine/tests/test_metal_archive.m \
             -framework Foundation -framework Metal -o "$RUNNER_TEMP/archive-error-check"
           "$RUNNER_TEMP/archive-error-check" --error-nil | tee proof/archive-error-nil.txt
+          make -C "$engine/graphics/nvn" mac
+          cd "$engine"
+          make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" build/tests/t_rb_clear_batch_metal
+          build/tests/t_rb_clear_batch_metal --raster-clear | tee "$GITHUB_WORKSPACE/proof/raster-clear-pixels.txt"
       - name: Check adaptive shader cache changes
         id: adaptive_shader_checks
         continue-on-error: true

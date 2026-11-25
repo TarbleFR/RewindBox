@@ -1,0 +1,63 @@
+diff --git a/graphics/nvn/tests/t_rb_clear_batch_metal.m b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+index ccf7ccb..4e54738 100644
+--- a/graphics/nvn/tests/t_rb_clear_batch_metal.m
++++ b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+@@ -5,7 +5,7 @@
+ enum { WIDTH=32, HEIGHT=8, POOL_BYTES=1<<20 };
+ typedef float ClearImage[2][HEIGHT][WIDTH];
+ static const double colors[2]={0.125,0.75};
+-static int fair_tiles_test;
++static int fair_tiles_test, raster_tiles_test;
+ static tex_t targets[2];
+ static pool_t pool;
+ #define RB_PLATFORM_CHECK CHECK
+@@ -216,13 +216,30 @@ static void tracked_store(id<MTLDevice> dev, int optimize, int mrt, ClearImage o
+         rb_fair_current=1.; CHECK(rb_tile_scale_safe(&old,&future)==active);
+         rb_fair_current=0.85;
+     }
++
++    if (raster_tiles_test) {
++        struct { op_hdr h; p_viewports v; op_hdr clear; p_clear_color c; op_hdr end; } stream={
++            .h={OP_VIEWPORTS,8+sizeof(p_viewports)},.v={.first=0,.n=1},
++            .clear=command.header,.c=command.payload,.end={OP_END,8}};
++        for (int i=0;i<2;i++) serial_put(t[i].serial,tex[i]);
++        g_rb_clear_legacy=0; g_sd[0]=plane; g_nsd=1; g_xq_cur=&local;
++        atomic_store(&g_rb_raster_clear_mode,optimize);
++        fair_mask=rb_raster_clear_proof(&next,(const uint8_t *)&stream);
++        CHECK(fair_mask==(unsigned)optimize);
++        R.has_sc=1; R.sc=(typeof(R.sc)){.x=1,.w=WIDTH-1,.h=HEIGHT};
++        CHECK(!rb_raster_clear_proof(&next,(const uint8_t *)&stream)); R.has_sc=0;
++        stream.c.mask=1; CHECK(!rb_raster_clear_proof(&next,(const uint8_t *)&stream)); stream.c.mask=15;
++        stream.h.op=OP_SCISSOR; CHECK(!rb_raster_clear_proof(&next,(const uint8_t *)&stream));
++        g_xq_cur=NULL; g_nsd=0;
++    }
++
+     for (unsigned pass=0;pass<2;pass++) {
+         MTLRenderPassDescriptor *pd=[MTLRenderPassDescriptor renderPassDescriptor];
+         for (unsigned i=0;i<(pass ? 1u : 2u);i++) {
+             sd_att att={.ser=t[i].serial,.idx=(int)i};
+             BOOL dead=optimize && !pass && rb_store_unexposed(&t[i]) && rb_clear_covers_landing(&att,&next,(const uint8_t *)&command,mrt);
+-            if (fair_tiles_test) dead=optimize && !pass && i==0 && (fair_mask & 1u);
+-            CHECK(dead==(optimize && !pass && i==0 && (!fair_tiles_test || fair_mask)));
++            if (fair_tiles_test || raster_tiles_test) dead=optimize && !pass && i==0 && (fair_mask & 1u);
++            CHECK(dead==(optimize && !pass && i==0 && (!(fair_tiles_test || raster_tiles_test) || fair_mask)));
+             MTLRenderPassColorAttachmentDescriptor *at=pd.colorAttachments[i];
+             at.texture=tex[i]; at.loadAction=MTLLoadActionClear; at.storeAction=dead ? MTLStoreActionDontCare : MTLStoreActionStore;
+             at.clearColor=MTLClearColorMake(!pass && !i ? -0.5 : colors[i],0,0,1);
+@@ -332,6 +349,16 @@ static void native_packed_ordering(int enabled) {
+     atomic_fetch_sub(&g_sp_heap_n,1); res_remove(heap);
+ }
+ int main(int argc,char **argv) { @autoreleasepool {
++    if (argc==2 && !strcmp(argv[1],"--raster-clear")) {
++        raster_tiles_test=1;
++        CHECK(!setenv("DM_NVN_TBDR","0",1));
++        id<MTLDevice> device=MTLCreateSystemDefaultDevice(); CHECK(device);
++        ClearImage a,b; tracked_store(device,0,0,a); tracked_store(device,1,0,b);
++        CHECK(!memcmp(a,b,sizeof a));
++        puts("PASS raster clear: production proof off/on, partial clear/scissor/unknown rejected; 512 identical Metal pixels");
++        return 0;
++    }
++
+     if (argc==2 && !strcmp(argv[1],"--selective-bindless")) {
+         CHECK(!setenv("S2A_RB_SAFE_TBDR","1",1));
+         CHECK(!setenv("DM_NVN_TBDR","1",1));

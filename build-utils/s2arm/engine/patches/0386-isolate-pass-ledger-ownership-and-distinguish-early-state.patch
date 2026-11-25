@@ -1,0 +1,46 @@
+diff --git a/graphics/nvn/gfx/nvn/rb_gpudiag.inc b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+index 063755e..5a65538 100644
+--- a/graphics/nvn/gfx/nvn/rb_gpudiag.inc
++++ b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+@@ -81,7 +81,7 @@ static void rb_gpudiag_draw(const char *key,unsigned facts,unsigned known,unsign
+     g_rb_gdiag.draws++;
+     if (!known) g_rb_gdiag.source_unknown++;
+     unsigned i=0;
+-    for (;i<g_rb_gdiag.ns;i++) if (!strcmp(g_rb_gdiag.shaders[i].key,key)) break;
++    for (;i<g_rb_gdiag.ns;i++) if (!strcmp(g_rb_gdiag.shaders[i].key,key) && g_rb_gdiag.shaders[i].guest_early==guest_early && g_rb_gdiag.shaders[i].facts==facts && g_rb_gdiag.shaders[i].known==known) break;
+     if (i==g_rb_gdiag.ns) {
+         if (i==RB_GDIAG_SHADERS) { rb_gpudiag_shader_batch(g_rb_gdiag.frame); i=0; }
+         rb_gdiag_shader *s=&g_rb_gdiag.shaders[g_rb_gdiag.ns++];
+@@ -107,6 +107,7 @@ typedef struct {
+ enum { RB_PD_RECORDS=8192, RB_PD_BUCKETS=1024 };
+ static rb_pass_attachment g_rb_pd_rows[RB_PD_RECORDS], g_rb_pd_open[10];
+ static int g_rb_pd_heads[RB_PD_BUCKETS], g_rb_pd_n, g_rb_pd_no;
++static pthread_t g_rb_pd_owner; static _Atomic int g_rb_pd_owner_valid;
+ static uint64_t g_rb_pd_load_bytes, g_rb_pd_store_bytes, g_rb_pd_overflows;
+ static unsigned rb_pd_bucket(uintptr_t root) { return (unsigned)((root>>4)^(root>>20))&(RB_PD_BUCKETS-1); }
+ static uintptr_t rb_pd_root(id<MTLTexture> t, unsigned *level, unsigned *slice) {
+@@ -116,7 +117,7 @@ static uintptr_t rb_pd_root(id<MTLTexture> t, unsigned *level, unsigned *slice)
+ static const char *rb_pd_load(unsigned a) { return a==MTLLoadActionLoad ? "load" : a==MTLLoadActionClear ? "clear" : a==MTLLoadActionDontCare ? "dontCare" : "unknown"; }
+ static const char *rb_pd_store(unsigned a) { return a==MTLStoreActionStore ? "store" : a==MTLStoreActionDontCare ? "dontCare" : a==MTLStoreActionMultisampleResolve ? "resolve" : a==MTLStoreActionStoreAndMultisampleResolve ? "storeAndResolve" : "unknown"; }
+ static void rb_passdiag_read(id<MTLTexture> t, unsigned role, unsigned level, unsigned slice, uint64_t consumer, const char *kind) {
+-    if (!rb_passdiag_on() || !t) return;
++    if (!rb_passdiag_on() || !t || !atomic_load(&g_rb_pd_owner_valid) || !pthread_equal(pthread_self(),g_rb_pd_owner)) return;
+     unsigned nl=(unsigned)t.mipmapLevelCount, ns=(unsigned)t.arrayLength;
+     uintptr_t root=rb_pd_root(t,&level,&slice);
+     for (int at=g_rb_pd_heads[rb_pd_bucket(root)]-1;at>=0;at=g_rb_pd_rows[at].next) {
+@@ -138,6 +139,7 @@ static void rb_passdiag_unresolved(const char *reason) {
+ }
+ static void rb_passdiag_begin(MTL4RenderPassDescriptor *pd) {
+     if (!rb_passdiag_on()) return;
++    if (!atomic_load(&g_rb_pd_owner_valid)) { g_rb_pd_owner=pthread_self(); atomic_store(&g_rb_pd_owner_valid,1); }
+     g_rb_pd_no=0;
+     for (unsigned role=0;role<10;role++) {
+         MTLRenderPassAttachmentDescriptor *c=role<8 ? pd.colorAttachments[role] : role==8 ? pd.depthAttachment : pd.stencilAttachment;
+@@ -182,6 +184,7 @@ static void rb_passdiag_end(void) {
+     g_rb_pd_no=0;
+ }
+ static void rb_passdiag_reset(void) {
++    atomic_store(&g_rb_pd_owner_valid,0);
+     rb_passdiag_unresolved("session-end"); memset(g_rb_pd_heads,0,sizeof g_rb_pd_heads); g_rb_pd_n=g_rb_pd_no=0;
+     g_rb_pd_load_bytes=g_rb_pd_store_bytes=g_rb_pd_overflows=0; atomic_store(&g_rb_passdiag_mode,-1);
+ }
