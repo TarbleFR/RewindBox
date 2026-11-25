@@ -16,7 +16,7 @@ Les fonctions existantes de load elision et de continuation sont conservées. Ce
 
 GCC local : 359 assertions réussies ; un contrôle négatif qui remplace la lecture du flag early-Z par « inconnu » échoue comme attendu. Les 252 entrées de traduction (2 943 682 octets), leur registre et l'ABI restent identiques ; empreinte `121d1bca8eb35c16`. Huit comparaisons de sources de vitesse/présentation passent après retrait des seules enveloppes de diagnostic. Les caches des joueurs sont conservés.
 
-Compilation macOS 15/26, Clang et comparaison des 512 pixels Metal : en cours. Cette comparaison porte sur des captures synthétiques identiques entre référence Store et candidat dontCare et exerce aussi le vrai setter du backend ; elle ne constitue pas un replay pixel exact des trois jeux. L'iPhone, les jeux et leur énergie ne sont pas exécutés en CI.
+Compilation iOS sur macOS 15/26 réussie, run `45596018196`, source `e6a681a9`. Sur chacun des deux hôtes : 359 assertions Clang, 5000 observations shader comptées sans perte et 512 pixels Metal identiques. [Preuves et empreintes](s2arm-tile-842-checks.json). Cette comparaison porte sur des captures synthétiques identiques entre référence Store et candidat dontCare et exerce aussi le vrai setter du backend ; elle ne constitue pas un replay pixel exact des trois jeux. L'iPhone, les jeux et leur énergie ne sont pas exécutés en CI.
 
 La première compilation a signalé une erreur de qualification ARC lors du parcours des parents d'une texture. Elle est corrigée en 0392 ; aucune IPA n'a été produite à partir de cette source en échec.
 
@@ -48,6 +48,6 @@ Protocole : trois sessions de 180 s par variante et par jeu, même scène/parcou
 
 ## Statut actuel
 
-Corrigé dans les sources : oui, patchs 0379–0393. Testé sur CPU : oui, portée ci-dessus. Compilé/livré : en cours, reçus à compléter. Observé sur iPhone avec le nouveau lot : non. Le lot traducteur restera une livraison distincte avec une seule retraduction avant le jeu.
+Corrigé dans les sources : oui, patchs 0379–0393. Testé sur CPU : oui, portée ci-dessus. Compilé : oui sur macOS 15/26. Livraison IPA privée 842 : en préparation, reçus à compléter. Observé sur iPhone avec le nouveau lot : non. Le lot traducteur restera une livraison distincte avec une seule retraduction avant le jeu.
 
-Le mainteneur indique que Frame Generation améliore nettement son confort sur MKW. Son choix est conservé et doit rester identique entre variantes ; FPS réels, FPS interpolés et vitesse émulée restent des mesures distinctes. Les fichiers env de ce lot ne modifient pas Frame Generation.
+Le mainteneur précise que Frame Generation concerne uniquement MKW et améliore nettement son confort sur ce jeu. Son réglage MKW est conservé et reste identique entre variantes ; aucune activation pour Zelda ou Fire Emblem. FPS rendus, FPS interpolés et vitesse émulée restent des mesures distinctes. Les fichiers env de ce lot ne modifient pas Frame Generation.
