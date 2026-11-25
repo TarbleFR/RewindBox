@@ -80,15 +80,18 @@ Fire Emblem 507443b3, Zelda e23a1776), réglages par défaut, batterie 45–55 %
 
 ## Plan priorisé
 
-Chaque changement a son interrupteur `S2A_RB_*` (à placer dans `Documents/env.txt` pour le
-couper). Aucun ne touche à la vitesse, au rythme de présentation ou à la résolution.
+Les correctifs structurels 0400–0413 sont intégrés aux chemins par défaut du
+NVN2 hébergé, sans fichier de configuration à modifier par le joueur. Les anciens
+réglages ci-dessous restent des diagnostics ou des replis de compatibilité ; ils
+ne constituent pas l'implémentation. [État précis, sources et limites](s2arm-structurels-844.md).
+Les nouveaux chemins conservent la vitesse invitée et la résolution.
 
 **Lot 1 envisagé — moteur, sans retraduction des shaders**
 
 | État | Changement | Interrupteur mis en place ou proposé | Gain attendu (source, non mesuré chez nous) | Risque |
 |---|---|---|---|---|
 | Intégré 0353 | Passes ordonnées par les barrières du jeu ; étages objet et mesh dans la barrière de fin ; remise à zéro au changement de file | `S2A_RB_DRAW_BARRIERS` (`game`) | Zelda 25 → 18 ms (référence amont), un iPhone 29,7 → 27,2 ms | moyen : scintillement |
-| Implémenté 0367, essai sur demande | Une mémoire de commandes par image ; visibilité déjà réservée à la demande depuis 0359 | `S2A_RB_ALLOC_FRAME=1` | Cible : réduire les 2,01 ms/image d’allocateur mesurées dans la 840 ; FPS à mesurer | empreinte des allocateurs à mesurer |
+| Intégré 0401, compilation en cours | Réutilisation de l’allocateur dans une image, rotation à 16 Mio retenus ou changement d’image ; huit slots protégés par fence | Actif sur NVN2 hébergé ; repli historique conservé | Attente 843 : 9,288 ms/image ; réduction et FPS non mesurés | 16 Mio est un seuil de rotation, pas un plafond |
 | Implémenté 0372–0376, essai sur demande | Compilation attendue priorisée ; écriture d’archive sans sortie d’erreur Metal | `S2A_RB_PSO_WAIT_BOOST=1`, `S2A_RB_ARCHIVE_ERROR_NIL=1` | Attente de première utilisation à comparer ; aucun gain chiffré établi | priorité du travail requis, refus d’archive conservés |
 | Implémenté 0398, diagnostic sur demande | Origine détaillée des compilations (`<5 ms` cache probable vs `>=5 ms` froid) | `S2A_RB_COMPILE_ORIGIN=1` (défaut `0`) | attribution | diagnostic |
 | Implémenté 0371, essai sur demande | Dispatchs invités consécutifs ordonnés par les barrières du jeu | `S2A_RB_DISPATCH_ORDER=game` | Hypothèses initiales MKW −0,4 à −1,2 ms, Zelda −0,8 à −3 ms ; non mesurées | replay pixels et barrières à confirmer sur Metal 4 |
@@ -97,7 +100,7 @@ couper). Aucun ne touche à la vitesse, au rythme de présentation ou à la rés
 | Intégré 0397 (`ZERO_TILES` actif) / 0355 (`FAST_COPY` sur demande) | Tuiles creuses toutes à zéro remplies par `memset` exact (`0397`), copie de tuiles complètes groupée (`0355`) | `S2A_RB_SPARSE_ZERO_TILES` (`1`), `S2A_RB_SPARSE_FAST_COPY` (`0`) | Part du décodage dans les 912 ms à mesurer | faible (texels bit-à-bit identiques, y compris ASTC/BC1) |
 | Intégré 0397 | Lecture anticipée groupée (`MADV_WILLNEED`, jusqu'à 64 textures) dans les parcours de pools (Zelda, Fire Emblem) | `S2A_RB_POOL_SCAN_AHEAD` (défaut `1`) | Zelda première scène −0,4 à −0,8 s (estimation) | faible |
 | Intégré 0397 | Voie de lecture anticipée des textures liées ouverte à tous les titres (`rb_park_compat` et `rb_bl_admit` conservés) + marge RAM premier plan (`ActivePrewarm`) | `S2A_RB_BIND_LANE_ALL` (`1`), `S2A_RB_GUEST_ROOM_FG` (`1`) | MKW −1,3 à −2,3 s d'envois (référence) étendu aux autres titres | faible |
-| Implémenté 0399, essai sur demande | Cibles profondeur/stencil `D32F_S8` sans `PixelFormatView` (compression sans perte TBDR Apple9) avec mise à niveau PFV collante à la première vue `X32_Stencil8` | `S2A_RB_DS_COMPRESS=1` (défaut `0`) | −40 à −53 Mo logiques par image (hypothèse MKW), watts à mesurer | moyen (opt-in tant que le replay A18 Pro n'est pas validé) |
+| Intégré 0409, compilation en cours | Profondeur compressible et plan séparé pour les lectures stencil compatibles ; stockage combiné autoritaire pour les écritures | Actif NVN2 hébergé Apple9 ; fallback PFV pour les cas exclus | Gain sur trafic/GPU/énergie non mesuré | Replays à valider ; pas une séparation générale des attachements |
 | Proposé | Mises à jour de mémoire résidente hors du fil de soumission | `S2A_RB_RES_QUEUE` | −0,3 ms par image quand le CPU limite | faible |
 | Implémenté 0370, diagnostic sur demande | Travail GPU fixe sondé toutes les 30 images | `S2A_RB_PROBE_EVERY=30` | éclaire les deux hypothèses du bridage ; durée, pas fréquence absolue | sonde elle-même active ; cadence identique entre variantes |
 
@@ -113,16 +116,18 @@ Les réglages des pistes proposées sont des choix à évaluer. Voir le premier 
 
 **Lot 3 — synchronisation**
 - **Implémenté 0398** : ligne `[rb-sync]` et attribution exacte de la branche inter-threads `h_nvnWindowAcquireTexture` (`pt != pthread_self()`), agrégée dans `g_pq_wait_ns` ; `S2A_RB_COMPILE_ORIGIN=1` (opt-in) pour distinguer `<5 ms` (cache Metal système probable) vs `>=5 ms` (froid/évincé).
-- **Restent structurels (S4/S5, conditionnés aux nouvelles mesures)** : présentation sur sa propre file (attend le relevé `[rb-sync]` Fire Emblem + trace Instruments A18 Pro) ; réveil sur événement partagé (`S2A_RB_YIELD_EVENT`, attend `S2A_RB_WAKE_LATENCY=1`).
+- **S4/S5 implémentés 0405/0407, validation appareil restante** : file Metal dédiée avec transfert de résidence et fin GPU contiguë ; sommeil borné des polls stables sur progression hôte. Recouvrement, énergie et latence sur iPhone non mesurés.
 
 **Chantiers structurels S1–S5 — engagés le 25 novembre à la demande du mainteneur**
 
-[État du premier lot 0400–0403, contrats et limites](s2arm-structurels-844.md). L’autorisation d’écriture est acquise ; les conditions de mesure ci-dessous restent des conditions de validation, pas des demandes d’autorisation.
-- **S1 — Relecture des commandes hors du fil du jeu** : cible MKW (+20–25 % CPU visés sur la relecture 14–17 ms), risque élevé (cohérence mémoire invité / synchro fine).
-- **S2 — Compilateur Metal 4 (`MTL4PipelineDataSetSerializer` / `MTLDynamicLibrary`) et variantes sommets unifiées** ([nxnative b989137a51](https://github.com/seedds/nxnative/commit/b989137a51d0801e4f1bb6620b400493211f3f28) : environ −22 % de compilation à froid sur M5 Pro ; le −41 % CPU Metal précédemment associé à ce commit n’y est pas confirmé).
-- **S3 — Profondeur et stencil séparés** : uniquement si `S2A_RB_DS_COMPRESS=1` (0399) montre des mises à niveau `X32_Stencil8` fréquentes sur les cibles principales dans `[rb-ds-compress]`.
-- **S4 — File de présentation Metal dédiée** : conditionné au relevé `[rb-sync]` (`cross_thread_wait_ms`) sur Fire Emblem et à une trace Instruments confirmant le recouvrement sur A18 Pro.
-- **S5 — Consommation CPU des menus (1,4–2,5 W) et `S2A_RB_YIELD_EVENT`** : profil CPU des menus et mesures `S2A_RB_WAKE_LATENCY=1` d'abord.
+[Implémentation 0400–0413, contrats et limites](s2arm-structurels-844.md).
+Les sources sont écrites ; la compilation finale et la livraison restent à terminer.
+Les estimations anciennes ne deviennent pas des gains mesurés.
+- **S1** : worker CPU ordonné, commandes conservées et API de ressources jointes avant mutation ; repli synchrone pour la capture et les paquets hors limite.
+- **S2** : capture de la première compilation Metal 4 et archives natives isolées ; variantes base/shadow réunies après réécriture de l'instance de base. Le backend examiné n'a pas la famille pulling de nxnative. `MTLDynamicLibrary` n'est pas utilisée : les corps restent inlinés, la bibliothèque MSL exécutable n'est pas sérialisée par cette API.
+- **S3** : séparation à la lecture du plan stencil compatible, pour conserver la compression de la profondeur ; les écritures gardent leur stockage autoritaire combiné. Une séparation générale des attachements de rendu n'est pas implémentée.
+- **S4** : file de présentation Metal, fence productrice et résidence détenues par ticket jusqu'à achèvement GPU ; abandon limité aux tickets pas encore pris.
+- **S5** : réveil sur progression pour les polls stables des threads secondaires, avec timer et protection du thread d'image. Énergie et p99 sur appareil non mesurées.
 
 **Écartés avec preuve** : attentes de copie, de relecture, de verrou et de surfaces d'affichage
 (0,0 ms) ; file d'envoi asynchrone (rien à retirer) ; mémoires de commandes portées à 32

@@ -83,7 +83,7 @@ Objectif : 60 FPS constants sans saccades à 1×. Périmètre initial : Mario Ka
 | S — Stabilité prolongée, mémoire et chauffe | 15 % | 25 % | 803 : tag 2 à 755 Mio rapportés. Attribution par propriétaire et restitution du tas livrées dans 804 ; objectif −250 Mo et temps d’image en attente des trois fenêtres valides par version. |
 
 Calcul conservé d’une version à l’autre : somme(note × poids) / 100, arrondie au multiple de 5 le plus proche ; ici 54,25 → 55 %. Toute révision des notes exige une preuve ou une justification explicite ; une régression peut les faire baisser. Un changement de périmètre ou de pondération ouvre une série distincte.
-**État courant, 25 novembre — 843 observée sur Zelda :** notes I/R/C/P/S **50/60/65/35/25**, global **50 %**, inchangées. [Gels de compilation confirmés et cadence à chaud](evidence/s2arm-zelda-843-device.md) ; aucune validation supplémentaire du parcours MKW, aucun gain A/B mesuré.
+**État courant, 25 novembre — 843 observée sur Zelda, 0400–0413 écrits :** notes I/R/C/P/S **50/60/65/35/25**, global **50 %**, inchangées. [Gels de compilation confirmés et cadence à chaud](evidence/s2arm-zelda-843-device.md) ; [correctifs structurels intégrés, compilation finale en cours](evidence/s2arm-structurels-844.md). Aucune validation supplémentaire du parcours MKW, aucun gain A/B mesuré.
 
 ```mermaid
 xychart-beta
