@@ -1,5 +1,5 @@
 diff --git a/graphics/nvn/tests/t_nvn_wait_event.m b/graphics/nvn/tests/t_nvn_wait_event.m
-index b14b40c..e8629a2 100644
+index b14b40c..7022807 100644
 --- a/graphics/nvn/tests/t_nvn_wait_event.m
 +++ b/graphics/nvn/tests/t_nvn_wait_event.m
 @@ -36,6 +36,7 @@ static uint64_t run(const ev_rec *r, int n) {   // 一个提交：n 条事件记
@@ -18,7 +18,7 @@ index b14b40c..e8629a2 100644
  }
  @end
  static int rb_cpu_sync_checks(void) {
-@@ -110,6 +112,30 @@ static int rb_cpu_sync_checks(void) {
+@@ -110,6 +112,33 @@ static int rb_cpu_sync_checks(void) {
      printf("CPU sync checks: %u/%u; queue API spy, no GPU execution in this mode\n", checks - failures, checks);
      return failures != 0;
  }
@@ -30,7 +30,10 @@ index b14b40c..e8629a2 100644
 +    g_q4 = (id)[RBWaitQueue new]; g_cb = [DmRecCB new];
 +    RBWaitEvent *event = [RBWaitEvent new];
 +    __weak RBWaitEvent *kept = event;
-+    rec_queue_block(^{ rb_order[rb_order_count++] = 1; });
++    // Proxy method recording starts dm-encode through rec_put. Queue blocks
++    // alone execute immediately until that worker has been started.
++    rec_t *first = rec_put(RO_Q_BLOCK, 1);
++    first->a[0] = rec_obj([^{ rb_order[rb_order_count++] = 1; } copy]);
 +    queue_wait_event((__bridge void *)event, 1);
 +    rec_queue_block(^{ rb_order[rb_order_count++] = 3; });
 +    event = nil;
@@ -49,7 +52,7 @@ index b14b40c..e8629a2 100644
  // Empty Metal 4 command buffers require no residency set. Exercise the real
  // dm-encode worker and GPU event dependency even on a paravirtual CI device.
  static int rb_metal_sync_checks(void) {
-@@ -161,6 +187,7 @@ static int rb_metal_sync_checks(void) {
+@@ -161,6 +190,7 @@ static int rb_metal_sync_checks(void) {
  int main(int argc, char **argv) { @autoreleasepool {
      if (argc == 2 && !strcmp(argv[1], "--rb-cpu-sync")) return rb_cpu_sync_checks();
      if (argc == 2 && !strcmp(argv[1], "--rb-metal-sync")) return rb_metal_sync_checks();
