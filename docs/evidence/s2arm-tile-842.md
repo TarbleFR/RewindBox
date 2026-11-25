@@ -20,6 +20,14 @@ Compilation iOS sur macOS 15/26 réussie, run `45596018196`, source `e6a681a9`. 
 
 La première compilation a signalé une erreur de qualification ARC lors du parcours des parents d'une texture. Elle est corrigée en 0392 ; aucune IPA n'a été produite à partir de cette source en échec.
 
+## Contre-expertise du lot
+
+La revue a ajouté le suivi de la fermeture réelle, y compris différée, et les réaffectations de slots couleur. Les ressources sont identifiées par une génération numérique associée à une référence faible : une adresse réutilisée ne doit pas être confondue avec une ancienne texture, et le diagnostic ne retient pas leur mémoire. Le registre est protégé par son mutex et réservé au propriétaire de soumission ; les hooks provenant d’un autre fil ne modifient pas sa vue partielle.
+
+Le candidat de store refuse les états conditionnels, les effacements partiels, les vues/alias exposés, les ressources élargies ou repliées et les coupures de soumission. Son suivi d’exposition est actif pour tout jeu S2Arm lorsque le candidat est demandé ; une preuve indisponible provoque un refus. Le test exerce le setter de store réel avant la capture Metal, puis les producteurs et les consommateurs de copie sur de vrais descripteurs d’attachement.
+
+Le contrôle des 5000 observations vérifie les comptes après remplissage de la table, pas seulement sa capacité déclarée. Le dernier résumé de diagnostic est aussi réinitialisé à la fin d’une session pour éviter sa répétition au lancement suivant. Ces corrections sécurisent la preuve et le diagnostic ; elles ne constituent pas une mesure de gain en jeu.
+
 ## Nouvel essai combiné de la 841 fourni pendant ce travail
 
 Le mainteneur observe un jeu légèrement plus fluide et moins de saccades avec `DISPATCH_ORDER=game`, `ALLOC_FRAME=1`, `PSO_WAIT_BOOST=1` et `ARCHIVE_ERROR_NIL=1`. Ce sont quatre paramètres modifiés ensemble, pas un A/B attribuable à une seule optimisation.
@@ -38,6 +46,8 @@ Les captures antérieures distinguent des images dominées par les compilations 
 
 ## Fichiers de validation préparés
 
+Les fichiers ont été préparés avant l’indisponibilité de l’espace de travail. Leur paquet 842 n’est pas encore remis ; la reprise ne nécessite pas de nouvelle compilation.
+
 - Diagnostic : `S2A_RB_GPUDIAG=1`, `S2A_RB_PASS_DIAG=1`, `S2A_RB_PASS_DIAG_EVERY=30`, `S2A_RB_WAKE_DIAG=1`, `S2A_RB_WAKE_LATENCY=1`. Tous les octets des passes sont comptés ; les lignes détaillées ne portent que sur une image sur 30. Mettre EVERY=1 donne le détail exhaustif, avec un coût de journalisation élevé.
 - Mesure référence : ces diagnostics coupés, candidat de store coupé.
 - Mesure candidat : seul `S2A_RB_TILE_RASTER_CLEAR=1` diffère de la référence.
@@ -48,6 +58,6 @@ Protocole : trois sessions de 180 s par variante et par jeu, même scène/parcou
 
 ## Statut actuel
 
-Corrigé dans les sources : oui, patchs 0379–0393. Testé sur CPU : oui, portée ci-dessus. Compilé : oui sur macOS 15/26. Livraison IPA privée 842 : en préparation, reçus à compléter. Observé sur iPhone avec le nouveau lot : non. Le lot traducteur restera une livraison distincte avec une seule retraduction avant le jeu.
+Corrigé dans les sources : oui, patchs 0379–0393. Testé sur CPU : oui, portée ci-dessus. Compilé : oui sur macOS 15/26. IPA privée 842 : compilation, signature et contrôles de la recette CI réussis, run `45599445280`, source `52b7b912`. Les quatre archives de transport finales téléchargées sur le PC ont les tailles et SHA-256 annoncés par l’API. La vérification hors ligne de l’IPA après déchiffrement et sa remise restent bloquées par l’indisponibilité de l’espace d’exécution ; la voie de repli n’a pas accès au fichier de validation privée. **Livré : non.** Aucun reçu « livré et vérifié » n’est créé avant ce contrôle. Observé sur iPhone avec le nouveau lot : non. Le lot traducteur restera une livraison distincte avec une seule retraduction avant le jeu.
 
 Le mainteneur précise que Frame Generation concerne uniquement MKW et améliore nettement son confort sur ce jeu. Son réglage MKW est conservé et reste identique entre variantes ; aucune activation pour Zelda ou Fire Emblem. FPS rendus, FPS interpolés et vitesse émulée restent des mesures distinctes. Les fichiers env de ce lot ne modifient pas Frame Generation.

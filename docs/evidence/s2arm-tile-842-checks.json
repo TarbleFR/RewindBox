@@ -67,5 +67,75 @@
     "method": "Explicit expansion of the unchanged DshXfpInput XML registry; source identity checked against baseline, not an MSBuild execution",
     "changedInputPaths": []
   },
-  "fgScope": "Frame Generation retained only for MKW, identical across A/B; no activation for Zelda or Fire Emblem"
+  "fgScope": "Frame Generation retained only for MKW, identical across A/B; no activation for Zelda or Fire Emblem",
+  "pinAttestation": {
+    "run": 45599050739,
+    "job": 139152746856,
+    "conclusion": "success",
+    "exactBytesMatch": true,
+    "sha256": "b21a941918f7c5918e09808a464ec28e1ce6ca197c56806147fbc49d19b50839"
+  },
+  "delivery": {
+    "build": 842,
+    "source": "52b7b912059e9c3cc18989a94afbc4c15b7c7d35",
+    "run": 45599445280,
+    "attempt": 1,
+    "conclusion": "success",
+    "jobs": {
+      "preflight": {
+        "id": 139154131968,
+        "conclusion": "success"
+      },
+      "application": {
+        "id": 139155303930,
+        "conclusion": "success"
+      },
+      "republish": {
+        "id": 139155303986,
+        "conclusion": "success"
+      },
+      "native": {
+        "id": 139155306308,
+        "conclusion": "skipped"
+      },
+      "flutter": {
+        "id": 139155306650,
+        "conclusion": "skipped"
+      }
+    },
+    "transportParts": [
+      {
+        "name": "part00.zip",
+        "bytes": 84050158,
+        "sha256": "d18659c6140b5bf07c7a9f6d4880655194dcf188f9748888498d9457a8b161dc",
+        "artifact": 15016597810,
+        "apiSizeAndSHA256VerifiedOnPC": true
+      },
+      {
+        "name": "part01.zip",
+        "bytes": 84050158,
+        "sha256": "f27b8017a983833e19cc72cf5e69c0646de6ba3513fb3f5a42219b2d2f8f5166",
+        "artifact": 15016847355,
+        "apiSizeAndSHA256VerifiedOnPC": true
+      },
+      {
+        "name": "part02.zip",
+        "bytes": 84050158,
+        "sha256": "51ca7c6ee71d7ca85a2250a267bc3a6831742cf1f4dc4de373c53995c1779bef",
+        "artifact": 15016772676,
+        "apiSizeAndSHA256VerifiedOnPC": true
+      },
+      {
+        "name": "part03.zip",
+        "bytes": 84050158,
+        "sha256": "32c48dec2c761d2c9249e60205d6c76247141717355c83b239ac69c5708e0d22",
+        "artifact": 15017770064,
+        "apiSizeAndSHA256VerifiedOnPC": true
+      }
+    ],
+    "offlineIPAValidation": "blocked: execution workspace unavailable; private validation file unavailable on fallback",
+    "delivered": false,
+    "physicalDeviceTested": false,
+    "fpsGainProven": false
+  }
 }
