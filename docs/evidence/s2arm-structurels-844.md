@@ -1,4 +1,4 @@
-# S2Arm : correctifs Zelda et ouverture S1–S5
+# S2Arm : correctifs Zelda et implémentation S1–S5
 
 25 novembre 2026. Base livrée : IPA 843, moteur 0399. Le mainteneur demande
 les correctifs des gels puis engage explicitement les cinq chantiers structurels.
@@ -14,7 +14,49 @@ ne prouve ni une suppression de cache ni l'absence totale de compilation lors
 des deux premiers essais. Les anciens journaux MKW de l'archive ne datent pas
 ces trois essais et ne permettent pas de leur attribuer un état thermique précis.
 
-## Correctifs écrits
+## État du deuxième lot (0404–0407)
+
+Le mainteneur demande des correctifs effectivement intégrés, pas des fichiers
+`env` ni des options dormantes. Les nouveaux chemins ci-dessous sont sélectionnés
+automatiquement dans leur périmètre. Aucune manipulation de configuration n'est
+requise côté joueur. Ce lot est **écrit, compilation demandée**, pas encore livré
+ni observé sur appareil. La [compilation 0400–0403](https://github.com/TarbleFR/RewindBox/actions/runs/45653081904)
+a réussi sur macOS 15 et 26 ; elle ne contient pas 0404–0407.
+
+- **S1 / 0404** : soumission NVN2 hébergée transférée à un worker CPU ordonné.
+  File de huit paquets, tableaux de handles copiés (256 maximum par paquet),
+  blocs de commandes conservés tant qu'une relecture est en cours. Les API
+  d'objets joignent le replay sous le verrou d'admission avant mutation ; les
+  attentes GPU relâchent l'admission pour laisser passer les producteurs.
+  Capture de frames, tableaux hors limite et échec de création gardent la voie
+  synchrone. Admission de session transférée au worker, join avant destruction.
+- **S4 / 0405** : vraie file Metal 4 de présentation, fence productrice dans
+  chaque ticket, texture et résidence conservées jusqu'à fin GPU. La fin des
+  tickets devient contiguë : fusionner des images en attente ne libère plus une
+  image antérieure encore lue. Le passage en arrière-plan attend aussi les
+  encodeurs déjà en cours ; la suppression de frames reste limitée à la file.
+  FI utilise la même file de présentation. Aucun gain de recouvrement revendiqué.
+- **S2 / 0406** : les fonctions conservent bibliothèque, nom et constantes exactes.
+  Descripteurs render/compute portés au compilateur Metal 4 sur NVN2 hébergé ;
+  les archives existantes restent réutilisables. Le serializer capture la première
+  compilation et le writer existant persiste ces binaires sans seconde compilation.
+  Mélanges, vertex descriptor, multisampling, fonctions spécialisées et propriété
+  des objets sont conservés ; un descripteur non convertible garde la voie existante.
+  L'unification base/pulling/shadow et la bibliothèque dynamique restent en travail.
+- **S5 / 0407** : sommeil sur progression actif pour les polls stables de plus de
+  2 ms des threads secondaires de priorité invité >=44, hors propriétaire d'image.
+  Maximum demandé 1 ms, réveil anticipé après publication du prédicat hôte, timer
+  conservé pour les écritures mémoire sans notification. La soumission asynchrone
+  protège toujours le rôle du thread invité d'origine. Les sleeps positifs restent
+  inchangés. Latence et énergie sur appareil non mesurées.
+
+S3 reste à implémenter après analyse des alias profondeur/stencil, des copies et
+des invalidations ; aucune séparation coûteuse par copie systématique de chaque
+passe n'est présentée comme une optimisation. Les observations 843 ne prouvent
+pas que les mises à niveau `X32_Stencil8` sont fréquentes sur Zelda.
+
+## Premier lot écrit (0400–0403, historique)
+
 
 | Patch | Changement | Repli et limites |
 |---|---|---|
@@ -34,7 +76,7 @@ peut servir à plusieurs buffers ; son reset est une opération de réutilisatio
 heaps. Le changement 0401 conserve donc la fence GPU, et non un simple numéro
 d'image, comme condition de reset.
 
-## État concret des chantiers structurels
+## Audit initial avant 0404–0407 (historique)
 
 | Chantier | Travail engagé dans ce lot | Reste nécessaire |
 |---|---|---|

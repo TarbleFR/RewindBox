@@ -1,0 +1,1448 @@
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -106,6 +106,17 @@
+ #else
+ #define NVN_IMPL_SECTION __attribute__((used, section("__DATA,swnvn")))
+ #endif
++// RewindBox S1: immutable command blocks stay owned until CPU replay ends.
++static _Atomic unsigned rb_replay_pending;
++static _Atomic int rb_replay_shadow_pressure;
++static __thread int rb_replay_worker_thread;
++typedef struct { int held; } rb_replay_guard;
++static rb_replay_guard rb_replay_enter(int hold);
++static void rb_replay_leave(rb_replay_guard *guard);
++static void rb_replay_join(void);
++static void rb_replay_stop(void);
++static void rb_replay_begin(void);
++#define RB_REPLAY_GUARD(hold) rb_replay_guard rb_guard_ __attribute__((cleanup(rb_replay_leave))) = rb_replay_enter(hold)
+ #define NVN(name, ret, ...)                                                                       \
+     static ret h_##name(__VA_ARGS__);                                                             \
+     static const NVNT_##name chk_##name __attribute__((unused)) = h_##name;                       \
+@@ -187,7 +198,7 @@
+     static _Atomic int n; if (atomic_fetch_add(&n, 1) < 8) LOG("[nvn] backend follows device %p (was %p): window origin %s, depth mode %s", (void *)d, (void *)was,
+         ((const dev_t_ *)d)->origin ? "upper left" : "lower left", ((const dev_t_ *)d)->depth_mode ? "near=0" : "near=-w");
+ }
+-NVN(nvnDeviceInitialize, NVNboolean, NVNdevice *d, const NVNdeviceBuilder *b) {
++NVN(nvnDeviceInitialize, NVNboolean, NVNdevice *d, const NVNdeviceBuilder *b) { RB_REPLAY_GUARD(1);
+     dev_t_ *o = (dev_t_ *)d; memset(o, 0, sizeof *o);
+     o->magic = MAGIC('D', 'E', 'V', 0); o->flags = ((const dev_builder_t *)b)->flags;
+     o->origin = NVN_WINDOW_ORIGIN_MODE_LOWER_LEFT;   // NVN's default; every game so far switched to upper-left right away, Link's Awakening keeps it
+@@ -199,7 +210,7 @@
+     OLOG("DeviceInitialize %p flags=%#x", (void *)d, o->flags);
+     return 1;
+ }
+-NVN(nvnDeviceFinalize, void, NVNdevice *d) { ((dev_t_ *)d)->magic = 0; NVNdevice *e = d; atomic_compare_exchange_strong(&g_cur_dev, &e, NULL); }
++NVN(nvnDeviceFinalize, void, NVNdevice *d) { RB_REPLAY_GUARD(1); ((dev_t_ *)d)->magic = 0; NVNdevice *e = d; atomic_compare_exchange_strong(&g_cur_dev, &e, NULL); }
+ NVN(nvnDeviceGetProcAddress, PFNNVNGENERICFUNCPTRPROC, const NVNdevice *d, const char *name) {
+     (void)d; return (PFNNVNGENERICFUNCPTRPROC)nvn_lookup(name);
+ }
+@@ -241,7 +252,7 @@
+     int m = dm_sdk_major(); api[0] = DM_SDK_OLD(m) ? 53 : g_devinfo[0]; api[1] = DM_SDK_OLD(m) ? 313 : g_devinfo[1]; LOG("[nvn] device API %d.%d (SDK %d)", api[0], api[1], m);
+ #endif
+ }
+-NVN(nvnDeviceGetInteger, void, const NVNdevice *d, NVNdeviceInfo what, int *out) {
++NVN(nvnDeviceGetInteger, void, const NVNdevice *d, NVNdeviceInfo what, int *out) { RB_REPLAY_GUARD(1);
+     (void)d;
+     unsigned w = (unsigned)what;
+     if (nvn2_on() && nvn2_device_integer(w, out)) { OLOG("DeviceGetInteger %#x -> %d (NVN2)", w, *out); return; }   // Switch 2: NVN2's own values (nvn2.c); unhandled items fall to the X1 table
+@@ -262,11 +273,11 @@
+     if (w <= 1) { static int api[2] = {-1, -1}; if (api[0] < 0) { nvn_api(api); const char *e = getenv("DM_NVN_API"); if (e) sscanf(e, "%d.%d", &api[0], &api[1]); } *out = api[w]; }
+     OLOG("DeviceGetInteger %#x -> %d", w, *out);
+ }
+-NVN(nvnDeviceGetImageHandle, NVNimageHandle, const NVNdevice *d, int id) { (void)d; return (NVNimageHandle)id; }
++NVN(nvnDeviceGetImageHandle, NVNimageHandle, const NVNdevice *d, int id) { RB_REPLAY_GUARD(1); (void)d; return (NVNimageHandle)id; }
+ // Separate texture / sampler handles: value = descriptor index (the sampler index goes in bit 20 and above, consistent with the bit layout of combined handles)
+-NVN(nvnDeviceGetSeparateTextureHandle, NVNseparateTextureHandle, const NVNdevice *d, int id) { (void)d; return (NVNseparateTextureHandle){(uint64_t)id}; }
+-NVN(nvnDeviceGetSeparateSamplerHandle, NVNseparateSamplerHandle, const NVNdevice *d, int id) { (void)d; return (NVNseparateSamplerHandle){(uint64_t)id << 20}; }
+-NVN(nvnDeviceInstallDebugCallback, void, NVNdevice *d, const PFNNVNDEBUGCALLBACKPROC cb, void *data, uint32_t enable) {
++NVN(nvnDeviceGetSeparateTextureHandle, NVNseparateTextureHandle, const NVNdevice *d, int id) { RB_REPLAY_GUARD(1); (void)d; return (NVNseparateTextureHandle){(uint64_t)id}; }
++NVN(nvnDeviceGetSeparateSamplerHandle, NVNseparateSamplerHandle, const NVNdevice *d, int id) { RB_REPLAY_GUARD(1); (void)d; return (NVNseparateSamplerHandle){(uint64_t)id << 20}; }
++NVN(nvnDeviceInstallDebugCallback, void, NVNdevice *d, const PFNNVNDEBUGCALLBACKPROC cb, void *data, uint32_t enable) { RB_REPLAY_GUARD(1);
+     dev_t_ *o = (dev_t_ *)d; o->dbg_cb = B(enable) ? (void *)cb : NULL; o->dbg_data = data;
+ }
+ // Android 直连的统一编译请求需要这两个真实设备事实：整帧生效，跨模块只读。
+@@ -274,16 +285,16 @@
+ int s2a_nvn_depth_mode = NVN_DEPTH_MODE_NEAR_IS_MINUS_W;              // NVN 默认
+ int s2a_nvn_rast_flip = 1;   // 当前提交队列的正面光栅翻转（见 nvnQueueInitialize）；没建过队列 = 同「建队列时左下角」（NVN 设备缺省原点）。后端 nvn_mtl.m 按它定绕序
+ // 只改这个设备；它是当前设备（或还没有当前设备）才同步给后端（见 dev_follow）
+-NVN(nvnDeviceSetWindowOriginMode, void, NVNdevice *d, NVNwindowOriginMode m) { ((dev_t_ *)d)->origin = m; NVNdevice *c = atomic_load(&g_cur_dev); if (!dev_ok(c) || c == d) { atomic_store(&g_cur_dev, d); dev_apply((const dev_t_ *)d); } LOG("[nvn] window origin %s (device %p)", m ? "upper left (as D3D / Metal)" : "lower left (GL)", (void *)d); }
+-NVN(nvnDeviceSetDepthMode, void, NVNdevice *d, NVNdepthMode m) { ((dev_t_ *)d)->depth_mode = m; NVNdevice *c = atomic_load(&g_cur_dev); if (!dev_ok(c) || c == d) { atomic_store(&g_cur_dev, d); dev_apply((const dev_t_ *)d);
++NVN(nvnDeviceSetWindowOriginMode, void, NVNdevice *d, NVNwindowOriginMode m) { RB_REPLAY_GUARD(1); ((dev_t_ *)d)->origin = m; NVNdevice *c = atomic_load(&g_cur_dev); if (!dev_ok(c) || c == d) { atomic_store(&g_cur_dev, d); dev_apply((const dev_t_ *)d); } LOG("[nvn] window origin %s (device %p)", m ? "upper left (as D3D / Metal)" : "lower left (GL)", (void *)d); }
++NVN(nvnDeviceSetDepthMode, void, NVNdevice *d, NVNdepthMode m) { RB_REPLAY_GUARD(1); ((dev_t_ *)d)->depth_mode = m; NVNdevice *c = atomic_load(&g_cur_dev); if (!dev_ok(c) || c == d) { atomic_store(&g_cur_dev, d); dev_apply((const dev_t_ *)d);
+ #ifdef __APPLE__
+     extern void nvn_be_depth_configured(void) __attribute__((weak_import));
+     if (nvn_be_depth_configured) nvn_be_depth_configured();
+ #endif
+     } LOG("[nvn] depth mode %s (device %p)", m ? "near=0 (as D3D / Metal)" : "near=-w (GL)", (void *)d); }
+-NVN(nvnDeviceGetWindowOriginMode, NVNwindowOriginMode, const NVNdevice *d) { return ((const dev_t_ *)d)->origin; }
+-NVN(nvnDeviceGetDepthMode, NVNdepthMode, const NVNdevice *d) { return ((const dev_t_ *)d)->depth_mode; }
+-NVN(nvnDeviceFinalizeCommandHandle, void, NVNdevice *d, NVNcommandHandle h) { (void)d; (void)h; }
++NVN(nvnDeviceGetWindowOriginMode, NVNwindowOriginMode, const NVNdevice *d) { RB_REPLAY_GUARD(1); return ((const dev_t_ *)d)->origin; }
++NVN(nvnDeviceGetDepthMode, NVNdepthMode, const NVNdevice *d) { RB_REPLAY_GUARD(1); return ((const dev_t_ *)d)->depth_mode; }
++NVN(nvnDeviceFinalizeCommandHandle, void, NVNdevice *d, NVNcommandHandle h) { RB_REPLAY_GUARD(1); (void)d; (void)h; }
+ 
+ // ---------- Memory pools ----------
+ NVN(nvnMemoryPoolBuilderSetDefaults, void, NVNmemoryPoolBuilder *b) {
+@@ -384,7 +395,7 @@
+ // Non-Metal replay has no private attachment liveness experiment.
+ __attribute__((weak)) void nvn_be_rb_virtual_backing(uintptr_t start, uint64_t bytes) { (void)start; (void)bytes; }
+ static uint8_t *vpool_reserve(const pool_t *o); static void vpool_release(const pool_t *o);   // sparse virtual pools, see MapVirtual
+-NVN(nvnMemoryPoolInitialize, NVNboolean, NVNmemoryPool *p, const NVNmemoryPoolBuilder *b) {
++NVN(nvnMemoryPoolInitialize, NVNboolean, NVNmemoryPool *p, const NVNmemoryPoolBuilder *b) { RB_REPLAY_GUARD(1);
+     const pool_builder_t *s = (const pool_builder_t *)b; pool_t *o = (pool_t *)p;
+     o->magic = MAGIC('P', 'O', 'O', 'L'); o->flags = s->flags; o->mem = s->mem; o->size = s->size; o->nvmap = ((const pool_builder_x *)b)->native;   // native：构建器给的 nvmap 句柄（SetNativeHandleNVX），MemoryPoolGetNativeHandleNVX 回它
+     ((pool_x *)p)->bl_va = ((const pool_builder_x *)b)->res_bl; ((pool_x *)p)->sp_va = ((const pool_builder_x *)b)->res_sp;   // 预留的块线性 / 特殊映射地址：只读回（MemoryPoolGet{BlockLinear,Special}AddressNVX）
+@@ -401,7 +412,7 @@
+     return 1;
+ }
+ static void cmdshadow_pool_gone(const uint8_t *mem, size_t n);   // command buffer section: recordings in the pool's memory are released
+-NVN(nvnMemoryPoolFinalize, void, NVNmemoryPool *p) { if (((pool_t *)p)->gva) { gva_free(((pool_t *)p)->gva); ((pool_t *)p)->gva = 0; }
++NVN(nvnMemoryPoolFinalize, void, NVNmemoryPool *p) { RB_REPLAY_GUARD(1); if (((pool_t *)p)->gva) { gva_free(((pool_t *)p)->gva); ((pool_t *)p)->gva = 0; }
+     if (((pool_t *)p)->flags & 0x200) vpool_release((pool_t *)p);
+     if (((pool_t *)p)->mem && !(((pool_t *)p)->flags & 0x200)) {   // A virtual pool's runs were registered and are dropped by vpool_release
+  nvn_dirty_remove_range(((pool_t *)p)->mem); nvn_be_pool_del(((pool_t *)p)->mem);
+@@ -415,7 +426,7 @@
+ __attribute__((weak)) void nvn_be_guest_range_hint(rb_guest_hint h) { (void)h; }
+ // CPU_UNCACHED 池的刷新也照样发布、不做空操作（11-01 维护者定：按语义对齐，不按字面对齐）：真机上它是空操作，是因为真机 CPU 与 GPU 共享缓存语义、GPU 直接看得到 CPU 写；
+ //   我方贴图在 Metal 侧另有一份，刷新是「CPU 写过这段」唯一的显式信号，照真机做成空操作会在关了脏页上传的配置里漏发布（贴图停在旧内容）
+-NVN(nvnMemoryPoolFlushMappedRange, void, const NVNmemoryPool *p, ptrdiff_t off, size_t n) {   // see ft_add
++NVN(nvnMemoryPoolFlushMappedRange, void, const NVNmemoryPool *p, ptrdiff_t off, size_t n) { RB_REPLAY_GUARD(1);   // see ft_add
+     const pool_t *o = (const pool_t *)p;
+     if (!o->mem) return;
+     ft_flush(o->mem + off, n);
+@@ -432,8 +443,8 @@
+ #endif
+ }
+ // Unified memory: the GPU's writes are already in the bytes the CPU reads, so there is nothing to invalidate. nvnBufferInvalidateMappedRange goes through here too
+-NVN(nvnMemoryPoolInvalidateMappedRange, void, const NVNmemoryPool *p, ptrdiff_t off, size_t n) { (void)p; (void)off; (void)n; }
+-NVN(nvnMemoryPoolGetBufferAddress, NVNbufferAddress, const NVNmemoryPool *p) { return pool_ga((const pool_t *)p); }
++NVN(nvnMemoryPoolInvalidateMappedRange, void, const NVNmemoryPool *p, ptrdiff_t off, size_t n) { RB_REPLAY_GUARD(1); (void)p; (void)off; (void)n; }
++NVN(nvnMemoryPoolGetBufferAddress, NVNbufferAddress, const NVNmemoryPool *p) { RB_REPLAY_GUARD(1); return pool_ga((const pool_t *)p); }
+ 
+ // ---------- Descriptor pools ----------
+ // One ID space per pool. In NVN a texture or sampler ID indexes the pool the command buffer has bound (SetTexturePool / SetSamplerPool), and two pools may use the same IDs. The replay keeps
+@@ -488,37 +499,37 @@
+ int nvn_dpool_base(const void *pool, int tex) { return tex ? dpool_base(g_tpb, g_ntpb, pool) : dpool_base(g_spb, g_nspb, pool); }   // the replay's bound pools (nvn_mtl.m state_op)
+ // The pools each command buffer last bound are kept in its own host state (cmd_t tex_base / samp_base). They used to be a 64-entry list of command buffers that was never cleared:
+ // Dark Souls Remastered binds one of 12 sampler pools in more than 64 command buffers, and every later one read its samplers through the first pool's numbering
+-NVN(nvnTexturePoolInitialize, NVNboolean, NVNtexturePool *tp, const NVNmemoryPool *p, ptrdiff_t off, int n) {
++NVN(nvnTexturePoolInitialize, NVNboolean, NVNtexturePool *tp, const NVNmemoryPool *p, ptrdiff_t off, int n) { RB_REPLAY_GUARD(1);
+     *(dpool_t *)tp = (dpool_t){(const pool_t *)p, off, n}; OLOG("TexturePool n=%d", n);
+     if (dpool_add(&g_tpb, &g_cap_tpb, &g_ntpb, &g_tnext, tp, n, "texture") < 0) return 0;
+     nvn_be_set_tex_pool_n(g_tnext);
+     return 1;
+ }
+-NVN(nvnTexturePoolFinalize, void, NVNtexturePool *tp) { dpool_finalize(g_tpb, g_ntpb, tp, 1); }
+-NVN(nvnTexturePoolRegisterTexture, void, const NVNtexturePool *tp, int id, const NVNtexture *t, const NVNtextureView *v) {
++NVN(nvnTexturePoolFinalize, void, NVNtexturePool *tp) { RB_REPLAY_GUARD(1); dpool_finalize(g_tpb, g_ntpb, tp, 1); }
++NVN(nvnTexturePoolRegisterTexture, void, const NVNtexturePool *tp, int id, const NVNtexture *t, const NVNtextureView *v) { RB_REPLAY_GUARD(1);
+     nvn_be_reg_tex(dpool_base(g_tpb, g_ntpb, tp) + id, (const tex_t *)t, (const view_t *)v);
+ }
+ // Image descriptors live in the same pool index space as texture descriptors, and image handles are pool indices (nvnDeviceGetImageHandle; BindImages below), so an image
+ // registers into the same table. Hyrule Warriors: Age of Calamity registers the images its compute shaders write in the first battle (earlier games registered only textures)
+-NVN(nvnTexturePoolRegisterImage, void, const NVNtexturePool *tp, int id, const NVNtexture *t, const NVNtextureView *v) {
++NVN(nvnTexturePoolRegisterImage, void, const NVNtexturePool *tp, int id, const NVNtexture *t, const NVNtextureView *v) { RB_REPLAY_GUARD(1);
+     nvn_be_reg_tex(dpool_base(g_tpb, g_ntpb, tp) + id, (const tex_t *)t, (const view_t *)v);
+ }
+-NVN(nvnSamplerPoolInitialize, NVNboolean, NVNsamplerPool *sp, const NVNmemoryPool *p, ptrdiff_t off, int n) {
++NVN(nvnSamplerPoolInitialize, NVNboolean, NVNsamplerPool *sp, const NVNmemoryPool *p, ptrdiff_t off, int n) { RB_REPLAY_GUARD(1);
+     *(dpool_t *)sp = (dpool_t){(const pool_t *)p, off, n}; OLOG("SamplerPool n=%d", n);
+     if (dpool_add(&g_spb, &g_cap_spb, &g_nspb, &g_snext, sp, n, "sampler") < 0) return 0;
+     return 1;
+ }
+-NVN(nvnSamplerPoolFinalize, void, NVNsamplerPool *sp) { dpool_finalize(g_spb, g_nspb, sp, 0); }
+-NVN(nvnSamplerPoolRegisterSampler, void, const NVNsamplerPool *sp, int id, const NVNsampler *s) { nvn_be_reg_samp(dpool_base(g_spb, g_nspb, sp) + id, &((const samp_t *)s)->p); }
++NVN(nvnSamplerPoolFinalize, void, NVNsamplerPool *sp) { RB_REPLAY_GUARD(1); dpool_finalize(g_spb, g_nspb, sp, 0); }
++NVN(nvnSamplerPoolRegisterSampler, void, const NVNsamplerPool *sp, int id, const NVNsampler *s) { RB_REPLAY_GUARD(1); nvn_be_reg_samp(dpool_base(g_spb, g_nspb, sp) + id, &((const samp_t *)s)->p); }
+ // straight from a builder, without a sampler object (FINAL FANTASY TACTICS - The Ivalice Chronicles registers its samplers this way)
+ NVN(nvnSamplerPoolRegisterSamplerBuilder, void, const NVNsamplerPool *sp, int id, const NVNsamplerBuilder *b) { nvn_be_reg_samp(dpool_base(g_spb, g_nspb, sp) + id, &((const samp_builder_t *)b)->p); }
+ // Unreal Engine reads a descriptor pool's size back at device setup (Octopath Traveler 0)
+-NVN(nvnTexturePoolGetMemoryPool, const NVNmemoryPool *, const NVNtexturePool *tp) { return (const NVNmemoryPool *)((const dpool_t *)tp)->pool; }
+-NVN(nvnTexturePoolGetMemoryOffset, ptrdiff_t, const NVNtexturePool *tp) { return (ptrdiff_t)((const dpool_t *)tp)->off; }
+-NVN(nvnTexturePoolGetSize, int, const NVNtexturePool *tp) { return ((const dpool_t *)tp)->n; }
+-NVN(nvnSamplerPoolGetMemoryPool, const NVNmemoryPool *, const NVNsamplerPool *sp) { return (const NVNmemoryPool *)((const dpool_t *)sp)->pool; }
+-NVN(nvnSamplerPoolGetMemoryOffset, ptrdiff_t, const NVNsamplerPool *sp) { return (ptrdiff_t)((const dpool_t *)sp)->off; }
+-NVN(nvnSamplerPoolGetSize, int, const NVNsamplerPool *sp) { return ((const dpool_t *)sp)->n; }
++NVN(nvnTexturePoolGetMemoryPool, const NVNmemoryPool *, const NVNtexturePool *tp) { RB_REPLAY_GUARD(1); return (const NVNmemoryPool *)((const dpool_t *)tp)->pool; }
++NVN(nvnTexturePoolGetMemoryOffset, ptrdiff_t, const NVNtexturePool *tp) { RB_REPLAY_GUARD(1); return (ptrdiff_t)((const dpool_t *)tp)->off; }
++NVN(nvnTexturePoolGetSize, int, const NVNtexturePool *tp) { RB_REPLAY_GUARD(1); return ((const dpool_t *)tp)->n; }
++NVN(nvnSamplerPoolGetMemoryPool, const NVNmemoryPool *, const NVNsamplerPool *sp) { RB_REPLAY_GUARD(1); return (const NVNmemoryPool *)((const dpool_t *)sp)->pool; }
++NVN(nvnSamplerPoolGetMemoryOffset, ptrdiff_t, const NVNsamplerPool *sp) { RB_REPLAY_GUARD(1); return (ptrdiff_t)((const dpool_t *)sp)->off; }
++NVN(nvnSamplerPoolGetSize, int, const NVNsamplerPool *sp) { RB_REPLAY_GUARD(1); return ((const dpool_t *)sp)->n; }
+ 
+ // ---------- Textures ----------
+ #define TB(b) ((tex_builder_t *)(b))
+@@ -735,7 +746,7 @@
+     pthread_mutex_unlock(&g_ft_mu);
+ }
+ int nvn_be_tex_from_gl(tex_t *t, uint32_t gl_name);   // nvn_mtl.m：按 GL 纹理名接存储与描述（声明不放 nvn_obj.h：那是直连出库阶段键的输入，宿主改动不该让各款直连库重出）
+-NVN(nvnTextureInitialize, NVNboolean, NVNtexture *t, const NVNtextureBuilder *b) {
++NVN(nvnTextureInitialize, NVNboolean, NVNtexture *t, const NVNtextureBuilder *b) { RB_REPLAY_GUARD(1);
+     const tex_builder_t *s = (const tex_builder_t *)b; tex_t *o = TX(t);
+     // Re-initializing a texture object that is still live (without a Finalize first): release the host texture of the old serial first. SMBW re-initializes its transient render targets on the same object every frame and never Finalizes them;
+     //   previously every init created a new private MTLTexture and the old one stayed in the serial table forever, so GPU memory grew about 13 MB per frame (killed by the memory watchdog at 24 GB)
+@@ -766,17 +777,17 @@
+     return 1;
+ }
+ // 释放幂等（原生线 #1014）：serial 是 release 的唯一身份，首次释放后清掉；重复 Finalize 直接早退。
+-NVN(nvnTextureFinalize, void, NVNtexture *t) {
++NVN(nvnTextureFinalize, void, NVNtexture *t) { RB_REPLAY_GUARD(1);
+     if (!TX(t)->serial) { TX(t)->magic = 0; return; }
+     ft_del(TX(t)->serial);
+     DM_BLOCK_BEGIN(); nvn_be_tex_release(TX(t)); DM_BLOCK_END();
+     TX(t)->serial = 0; TX(t)->magic = 0;
+ }
+-NVN(nvnTextureGetFlags, NVNtextureFlags, const NVNtexture *t) { return (NVNtextureFlags)CTX(t)->d.flags; }
+-NVN(nvnTextureGetWidth, int, const NVNtexture *t) { return (int)CTX(t)->d.width; }
+-NVN(nvnTextureGetHeight, int, const NVNtexture *t) { return (int)CTX(t)->d.height; }
+-NVN(nvnTextureGetDepth, int, const NVNtexture *t) { return (int)CTX(t)->d.depth; }
+-NVN(nvnTextureGetStorageSize, int, const NVNtexture *t) { return (int)CTX(t)->L.size; }
++NVN(nvnTextureGetFlags, NVNtextureFlags, const NVNtexture *t) { RB_REPLAY_GUARD(1); return (NVNtextureFlags)CTX(t)->d.flags; }
++NVN(nvnTextureGetWidth, int, const NVNtexture *t) { RB_REPLAY_GUARD(1); return (int)CTX(t)->d.width; }
++NVN(nvnTextureGetHeight, int, const NVNtexture *t) { RB_REPLAY_GUARD(1); return (int)CTX(t)->d.height; }
++NVN(nvnTextureGetDepth, int, const NVNtexture *t) { RB_REPLAY_GUARD(1); return (int)CTX(t)->d.depth; }
++NVN(nvnTextureGetStorageSize, int, const NVNtexture *t) { RB_REPLAY_GUARD(1); return (int)CTX(t)->L.size; }
+ // ---- GL 互操作名字：TextureInitialize 按它接 GL 纹理的存储与描述（nvn_be_tex_from_gl）；Get 读回构建器上记的名字 ----
+ NVN(nvnTextureBuilderSetGLTextureName, void, NVNtextureBuilder *b, uint32_t name) { TB(b)->gl_name = name; }
+ NVN(nvnTextureBuilderGetGLTextureName, uint32_t, const NVNtextureBuilder *b) { return ((const tex_builder_t *)b)->gl_name; }
+@@ -788,7 +799,7 @@
+ //   (0400C3F00006E000, IPA 732) asks the texture, not the builder: with the empty layout it sent 0-byte tile mappings, MapVirtual
+ //   failed 9 times and the game crashed on a null pointer (address 0x4) 30 s after nnMain. A texture that is not sparse still
+ //   gets all zeros, as before; so does an object that was never initialized.
+-NVN(nvnTextureGetSparseTileLayout, void, const NVNtexture *t, NVNtextureSparseTileLayout *layout) {
++NVN(nvnTextureGetSparseTileLayout, void, const NVNtexture *t, NVNtextureSparseTileLayout *layout) { RB_REPLAY_GUARD(1);
+     uint32_t tile[4] = {0, 0, 0, 0};
+     if (t) nvn_tex_sparse_layout(&CTX(t)->d, tile);
+     if (layout) memcpy(layout, tile, sizeof tile);
+@@ -796,15 +807,15 @@
+         LOG("RewindBox: nvnTextureGetSparseTileLayout: %u tiled levels, tile %ux%ux%u (the texture's own layout; later queries are not logged)", tile[0], tile[1], tile[2], tile[3]);
+ }
+ // ---- 调试 ID：NVN 没有 SetDebugID，驱动侧自行给。本层用对象的初始化序号（tex_t.serial，单调、每对象唯一、跨拷贝稳定）当调试 ID ----
+-NVN(nvnTextureGetDebugID, uint64_t, const NVNtexture *t) { return CTX(t)->serial; }
+-NVN(nvnTextureGetStride, ptrdiff_t, const NVNtexture *t) { return (ptrdiff_t)CTX(t)->d.stride; }   // the row stride of a linear texture as built (0 for block-linear ones)
++NVN(nvnTextureGetDebugID, uint64_t, const NVNtexture *t) { RB_REPLAY_GUARD(1); return CTX(t)->serial; }
++NVN(nvnTextureGetStride, ptrdiff_t, const NVNtexture *t) { RB_REPLAY_GUARD(1); return (ptrdiff_t)CTX(t)->d.stride; }   // the row stride of a linear texture as built (0 for block-linear ones)
+ // The queries below are used by Engage (Unity) at startup: it calls MemoryPoolMap on "the pool the texture / buffer lives in", and with a stub returning 0 it dereferenced a null pool and crashed
+-NVN(nvnTextureGetLevels, int, const NVNtexture *t) { return (int)CTX(t)->d.levels; }
+-NVN(nvnTextureGetSamples, int, const NVNtexture *t) { return CTX(t)->d.samples; }
+-NVN(nvnTextureGetMemoryPool, NVNmemoryPool *, const NVNtexture *t) { return (NVNmemoryPool *)CTX(t)->pool; }
+-NVN(nvnTextureGetMemoryOffset, ptrdiff_t, const NVNtexture *t) { return (ptrdiff_t)CTX(t)->off; }
++NVN(nvnTextureGetLevels, int, const NVNtexture *t) { RB_REPLAY_GUARD(1); return (int)CTX(t)->d.levels; }
++NVN(nvnTextureGetSamples, int, const NVNtexture *t) { RB_REPLAY_GUARD(1); return CTX(t)->d.samples; }
++NVN(nvnTextureGetMemoryPool, NVNmemoryPool *, const NVNtexture *t) { RB_REPLAY_GUARD(1); return (NVNmemoryPool *)CTX(t)->pool; }
++NVN(nvnTextureGetMemoryOffset, ptrdiff_t, const NVNtexture *t) { RB_REPLAY_GUARD(1); return (ptrdiff_t)CTX(t)->off; }
+ // The GPU address of the texture's storage (DRAGON QUEST XI S, Unreal Engine 4.18, asks for it at start): pool address + offset, the same address space as nvnMemoryPoolGetBufferAddress
+-NVN(nvnTextureGetTextureAddress, NVNtextureAddress, const NVNtexture *t) { const tex_t *o = CTX(t); return o->pool ? (NVNtextureAddress)(pool_ga(o->pool) + o->off) : 0; }
++NVN(nvnTextureGetTextureAddress, NVNtextureAddress, const NVNtexture *t) { RB_REPLAY_GUARD(1); const tex_t *o = CTX(t); return o->pool ? (NVNtextureAddress)(pool_ga(o->pool) + o->off) : 0; }
+ // NVX extension: the texture described as an NvRmSurface (88 bytes), so NvRm hardware (VIC / the video decoder) can write its storage directly. Link's Awakening (Grezzo, SDK 8.2)
+ // plays its opening movie through an Android OMX player in subsdk1 that looks this name up and imports every output texture with nvgr_import_nvrmsurface; with the name unknown it skips
+ // the import, leaves the buffer slots unset, and NvBlit later dereferences one (black screen, then SIGSEGV at sdk+0x3ee80c). Fields as the game's own NVN driver fills them (sdk+0x4299a0):
+@@ -851,7 +862,7 @@
+     OLOG("NvRmSurfaceNVX: pool %p mem %p size %#llx → nvmap %d", (void *)p, (void *)p->mem, (unsigned long long)p->size, h);
+     return h;
+ }
+-NVN_NOPROTO(nvnTextureGetNvRmSurfaceNVX, void, const NVNtexture *t, const void *unused, void *out) {
++NVN_NOPROTO(nvnTextureGetNvRmSurfaceNVX, void, const NVNtexture *t, const void *unused, void *out) { RB_REPLAY_GUARD(1);
+     (void)unused; const tex_t *o = CTX(t); uint8_t *s = (uint8_t *)out;
+     memset(s, 0, 88);
+     uint32_t w = o->d.width, h = o->d.height, lay, pitch, kind = 0, bh = 0, hm, off = (uint32_t)o->off; uint64_t cf = nvrm_color_game(o->d.format), size;
+@@ -874,21 +885,21 @@
+     uint64_t tiles = (uint64_t)((d->width + 31) / 32) * ((d->height + 31) / 32) * (d->depth ? d->depth : 1);
+     return tiles ? (size_t)((tiles * 8 + 0xff) & ~0xffull) : 0x100;
+ }
+-NVN(nvnTextureGetZCullStorageSize, size_t, const NVNtexture *t) { return zcull_size(&CTX(t)->d); }
++NVN(nvnTextureGetZCullStorageSize, size_t, const NVNtexture *t) { RB_REPLAY_GUARD(1); return zcull_size(&CTX(t)->d); }
+ static unsigned tex_swz(const tex_t *t) { return t->set_swz ? t->swz : 2u | 3u << 3 | 4u << 6 | 5u << 9; }   // the channel mapping: identity R G B A when TextureBuilderSetSwizzle was not called
+ // The mapping counts: BotW and Odyssey rebuild layout captures on the same storage with a new mapping, and replace the registered descriptor only if the two compare different (BotW main+0xec33f0)
+-NVN(nvnTextureCompare, NVNboolean, const NVNtexture *a, const NVNtexture *b) {
++NVN(nvnTextureCompare, NVNboolean, const NVNtexture *a, const NVNtexture *b) { RB_REPLAY_GUARD(1);
+     const tex_t *x = CTX(a), *y = CTX(b);
+     return !memcmp(&x->d, &y->d, sizeof x->d) && x->mem == y->mem && tex_swz(x) == tex_swz(y);
+ }
+-NVN(nvnTextureGetRawStorageClass, uint32_t, const NVNtexture *t) { return texture_raw_storage_class(&CTX(t)->d); }
++NVN(nvnTextureGetRawStorageClass, uint32_t, const NVNtexture *t) { RB_REPLAY_GUARD(1); return texture_raw_storage_class(&CTX(t)->d); }
+ #define VW(v) ((view_t *)(v))
+-NVN(nvnTextureViewSetDefaults, void, NVNtextureView *v) { memset(v, 0, sizeof(view_t)); }
+-NVN(nvnTextureViewSetLevels, void, NVNtextureView *v, int base, int n) { VW(v)->set_levels = 1; VW(v)->base_level = base; VW(v)->nlevels = n; }
+-NVN(nvnTextureViewSetLayers, void, NVNtextureView *v, int min, int n) { VW(v)->set_layers = 1; VW(v)->min_layer = min; VW(v)->nlayers = n; }
+-NVN(nvnTextureViewSetFormat, void, NVNtextureView *v, NVNformat f) { VW(v)->set_format = 1; VW(v)->format = f; }
+-NVN(nvnTextureViewSetTarget, void, NVNtextureView *v, NVNtextureTarget t) { VW(v)->set_target = 1; VW(v)->target = t; }
+-NVN(nvnTextureViewCompare, NVNboolean, const NVNtextureView *a, const NVNtextureView *b) {
++NVN(nvnTextureViewSetDefaults, void, NVNtextureView *v) { RB_REPLAY_GUARD(1); memset(v, 0, sizeof(view_t)); }
++NVN(nvnTextureViewSetLevels, void, NVNtextureView *v, int base, int n) { RB_REPLAY_GUARD(1); VW(v)->set_levels = 1; VW(v)->base_level = base; VW(v)->nlevels = n; }
++NVN(nvnTextureViewSetLayers, void, NVNtextureView *v, int min, int n) { RB_REPLAY_GUARD(1); VW(v)->set_layers = 1; VW(v)->min_layer = min; VW(v)->nlayers = n; }
++NVN(nvnTextureViewSetFormat, void, NVNtextureView *v, NVNformat f) { RB_REPLAY_GUARD(1); VW(v)->set_format = 1; VW(v)->format = f; }
++NVN(nvnTextureViewSetTarget, void, NVNtextureView *v, NVNtextureTarget t) { RB_REPLAY_GUARD(1); VW(v)->set_target = 1; VW(v)->target = t; }
++NVN(nvnTextureViewCompare, NVNboolean, const NVNtextureView *a, const NVNtextureView *b) { RB_REPLAY_GUARD(1);
+     const view_t *x = (const view_t *)a, *y = (const view_t *)b;
+     if (x->set_levels != y->set_levels || x->set_layers != y->set_layers ||
+         x->set_format != y->set_format || x->set_swizzle != y->set_swizzle ||
+@@ -901,10 +912,10 @@
+     if (x->set_target && x->target != y->target) return 0;
+     return 1;
+ }
+-NVN(nvnTextureViewGetLayers, NVNboolean, const NVNtextureView *v, int *min, int *n) {
++NVN(nvnTextureViewGetLayers, NVNboolean, const NVNtextureView *v, int *min, int *n) { RB_REPLAY_GUARD(1);
+     const view_t *o = (const view_t *)v; *min = o->min_layer; *n = o->nlayers; return o->set_layers;
+ }
+-NVN(nvnTextureGetViewOffset, ptrdiff_t, const NVNtexture *t, const NVNtextureView *v) {
++NVN(nvnTextureGetViewOffset, ptrdiff_t, const NVNtexture *t, const NVNtextureView *v) { RB_REPLAY_GUARD(1);
+     const tex_t *o = CTX(t); const view_t *w = (const view_t *)v;
+     if (!w) return 0;
+     uint64_t off = w->set_levels ? nvn_tex_level_offset(&o->d, (unsigned)w->base_level) : 0;
+@@ -923,13 +934,13 @@
+     unsigned level = v && v->set_levels ? (unsigned)v->base_level : 0, layer0 = v && v->set_layers ? (unsigned)v->min_layer : 0;
+     nvn_be_read_texels(o, level, layer0, r, dst, (size_t)row, (size_t)img);
+ }
+-NVN(nvnTextureReadTexels, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r, void *dst) {
++NVN(nvnTextureReadTexels, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r, void *dst) { RB_REPLAY_GUARD(1);
+     read_texels(CTX(t), (const view_t *)v, r, dst, 0, 0);
+ }
+-NVN(nvnTextureReadTexelsStrided, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r, void *dst, ptrdiff_t row, ptrdiff_t img) {
++NVN(nvnTextureReadTexelsStrided, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r, void *dst, ptrdiff_t row, ptrdiff_t img) { RB_REPLAY_GUARD(1);
+     read_texels(CTX(t), (const view_t *)v, r, dst, row, img);
+ }
+-NVN(nvnTextureInvalidateTexels, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r) { (void)t; (void)v; (void)r; }
++NVN(nvnTextureInvalidateTexels, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r) { RB_REPLAY_GUARD(1); (void)t; (void)v; (void)r; }
+ 
+ // ---------- Samplers ----------
+ #define SB(b) (&((samp_builder_t *)(b))->p)
+@@ -972,16 +983,16 @@
+ NVN(nvnSamplerBuilderGetWrapMode, void, const NVNsamplerBuilder *b, NVNwrapMode *s, NVNwrapMode *t, NVNwrapMode *r) {
+     const samp_par *o = &((const samp_builder_t *)b)->p; *s = (NVNwrapMode)o->ws; *t = (NVNwrapMode)o->wt; *r = (NVNwrapMode)o->wr;
+ }
+-NVN(nvnSamplerInitialize, NVNboolean, NVNsampler *s, const NVNsamplerBuilder *b) {
++NVN(nvnSamplerInitialize, NVNboolean, NVNsampler *s, const NVNsamplerBuilder *b) { RB_REPLAY_GUARD(1);
+     samp_t *o = (samp_t *)s; o->magic = MAGIC('S', 'M', 'P', 0); o->pad = 0; o->p = ((const samp_builder_t *)b)->p; return 1;
+ }
+-NVN(nvnSamplerFinalize, void, NVNsampler *s) { ((samp_t *)s)->magic = 0; }
++NVN(nvnSamplerFinalize, void, NVNsampler *s) { RB_REPLAY_GUARD(1); ((samp_t *)s)->magic = 0; }
+ 
+ // ---------- Programs ----------
+ #if defined(__ANDROID__)
+ static void prog_pin_release(uint64_t serial, const void *owner);
+ #endif
+-NVN(nvnProgramInitialize, NVNboolean, NVNprogram *p, NVNdevice *d) {
++NVN(nvnProgramInitialize, NVNboolean, NVNprogram *p, NVNdevice *d) { RB_REPLAY_GUARD(1);
+     (void)d;
+ #if defined(__ANDROID__)
+     prog_pin_release(((prog_t *)p)->serial, p);   // 不 Finalize 直接重新 Initialize 时先解旧 serial 的 pin
+@@ -989,7 +1000,7 @@
+     memset(p, 0, sizeof(prog_t)); ((prog_t *)p)->magic = MAGIC('P', 'R', 'O', 'G'); return 1;
+ }
+ static void pk_drop(const void *p);
+-NVN(nvnProgramFinalize, void, NVNprogram *p) {
++NVN(nvnProgramFinalize, void, NVNprogram *p) { RB_REPLAY_GUARD(1);
+ #if defined(__ANDROID__)
+     prog_pin_release(((prog_t *)p)->serial, p);
+ #endif
+@@ -1342,7 +1353,7 @@
+ // Host-only optional backend hook. This speculative snapshot must never set a prog_keys_t bit.
+ extern void nvn_be_registered_stages(const prog_t *) __attribute__((weak_import));
+ #endif
+-NVN(nvnProgramSetShaders, NVNboolean, NVNprogram *p, int n, const NVNshaderData *sd) {
++NVN(nvnProgramSetShaders, NVNboolean, NVNprogram *p, int n, const NVNshaderData *sd) { RB_REPLAY_GUARD(1);
+     prog_t *o = (prog_t *)p;
+     if (n < 0 || n > 6) { LOG("【红】 ProgramSetShaders stage count %d", n); return 0; }
+     NVNshaderData sdc[6]; for (int i = 0; i < n; i++) { sdc[i] = sd[i]; sdc[i].data = GA(sd[i].data); } sd = sdc;   // 代码区地址换回 CPU（见 GPU 地址空间）
+@@ -1429,11 +1440,11 @@
+ // 别的队列（GL 层）的栅栏：GPU 上让此后的 NVN 提交等它 / CPU 上等它（is_ext = 0：不是别的队列的栅栏）；定义在 nvnQueueSubmitCommands 前（要 g_sub_mu）
+ static void sync_ext_queue_wait(const sync_t *s);
+ static int sync_ext_wait(const sync_t *s, uint64_t timeout, int *is_ext);
+-NVN(nvnSyncInitialize, NVNboolean, NVNsync *s, NVNdevice *d) { (void)d; *(sync_t *)s = (sync_t){MAGIC('S', 'Y', 'N', 'C'), 0, 0}; ((sync_x *)s)->rm = 0; return 1; }
++NVN(nvnSyncInitialize, NVNboolean, NVNsync *s, NVNdevice *d) { RB_REPLAY_GUARD(1); (void)d; *(sync_t *)s = (sync_t){MAGIC('S', 'Y', 'N', 'C'), 0, 0}; ((sync_x *)s)->rm = 0; return 1; }
+ // S2Arm (10-30, Metroid Dread, census c1029c: "NVN address lookup of an unknown name: nvnSyncInitializeFromNvRmSyncNVX", then a crash in subsdk0 on the null it got): a sync made from
+ //   another engine's NvRmSync (on the Switch a host1x syncpoint fence, e.g. the video decoder's). Here those engines are Ryujinx services that finish on the CPU before they hand the
+ //   fence over, so the sync starts signaled (fenced at 0: nvnSyncWait / QueueWaitSync return at once). The third argument is the NvRmSync; its layout is not used. First call logged
+-NVN_NOPROTO(nvnSyncInitializeFromNvRmSyncNVX, NVNboolean, NVNsync *s, NVNdevice *d, const void *rm) {
++NVN_NOPROTO(nvnSyncInitializeFromNvRmSyncNVX, NVNboolean, NVNsync *s, NVNdevice *d, const void *rm) { RB_REPLAY_GUARD(1);
+     (void)d; static int once; if (!once++) { uint32_t w[2] = {0, 0}; if (rm) memcpy(w, rm, sizeof w); LOG("[nvn] SyncInitializeFromNvRmSyncNVX: first call, NvRmSync words %#x %#x; the sync starts signaled", w[0], w[1]); }
+     *(sync_t *)s = (sync_t){MAGIC('S', 'Y', 'N', 'C'), 0, 0}; ((sync_x *)s)->rm = NVN_SYNC_RM; sync_publish((sync_t *)s, 0);   // rm：真机置类型 5（20.5 0x4d0720），Sync{Get,Set}SyncpointsNVX 只认它
+     return 1;
+@@ -1445,7 +1456,7 @@
+ // 审计 #1534 P1-47：原先最多等 1 秒，没等到也照样导出「已触发」并回真，消费方（vi / 视频解码）会读还没画完的图。现在等到栅栏真的完成才导出
+ //   （同 nvnQueueFinish：nvn_be_wait 不设 1 秒上限，只在会话收尾或 1 小时封顶时放弃；GL 栅栏同样等到为止）；没等到（会话收尾）报红、不写 rm、回假，不报完成。
+ //   普查 11-04 485 份 host.log 里 6 份调过这个入口，「1 s 没等到」0 次：等得到的调用行为不变
+-NVN_NOPROTO(nvnSyncGetNvRmSyncNVX, NVNboolean, const NVNsync *s, void *rm) {
++NVN_NOPROTO(nvnSyncGetNvRmSyncNVX, NVNboolean, const NVNsync *s, void *rm) { RB_REPLAY_GUARD(1);
+     uint64_t fence = 0; int has = s && sync_published((const sync_t *)s, &fence), ext = 0;
+     if (has && !sync_ext_wait((const sync_t *)s, UINT64_MAX, &ext) && ext) { static int n; if (n++ < 4) LOG("【红】 SyncGetNvRmSyncNVX: GL fence not reached (session ending); not exported"); return 0; }
+     if (has && fence && !nvn_be_wait(fence, UINT64_MAX)) { static int n; if (n++ < 4) LOG("【红】 SyncGetNvRmSyncNVX: GPU fence %llu not reached (session ending); not exported", (unsigned long long)fence); return 0; }
+@@ -1453,12 +1464,12 @@
+     static int once; if (!once++) LOG("[nvn] SyncGetNvRmSyncNVX: first call (fence %llu%s); exported as the invalid syncpoint (already signaled)", (unsigned long long)fence, has ? "" : ", none yet");
+     return 1;
+ }
+-NVN(nvnSyncFinalize, void, NVNsync *s) { ((sync_t *)s)->magic = 0; }
+-NVN(nvnSyncSetDebugLabel, void, NVNsync *s, const char *l) { (void)s; (void)l; }
++NVN(nvnSyncFinalize, void, NVNsync *s) { RB_REPLAY_GUARD(1); ((sync_t *)s)->magic = 0; }
++NVN(nvnSyncSetDebugLabel, void, NVNsync *s, const char *l) { RB_REPLAY_GUARD(1); (void)s; (void)l; }
+ // Fence = "all commands previously submitted to the queue have completed": record the fence value of the most recent submit
+ static void xq_lock(void), xq_unlock(void);   // 提交锁 g_sub_mu（定义在 nvnQueueSubmitCommands 前）
+ // 这条队列有停在跨队列等待上的工作（nvn_mtl.m nvn_xqueue.inc）时，栅栏要等那部分回放提交后才算：欠着，由后端回放那部分时发布
+-NVN(nvnQueueFenceSync, void, NVNqueue *q, NVNsync *s, NVNsyncCondition c, int f) {
++NVN(nvnQueueFenceSync, void, NVNqueue *q, NVNsync *s, NVNsyncCondition c, int f) { RB_REPLAY_GUARD(1);
+     (void)c; (void)f; xq_lock(); int owed = nvn_be_xq_fence(q, s); if (!owed) sync_publish((sync_t *)s, nvn_be_last_fence()); xq_unlock();
+ }
+ // A sync object that was never fenced waits until timeout, as on a real device; a fenced one is released only after the GPU has actually completed up to that fence value
+@@ -1466,7 +1477,7 @@
+ //   来自 GL 的同步对象（nvnSyncInitializeFromFencedGLSync）在别的队列上：此后提交的 NVN 工作在 GPU 上等 GL 层共享事件到那个提交序号（nvn_be_queue_wait_event，跨队列真等）
+ // 审计 #1534 P1-23 被动采样（只计数、不改行为）：QueueWaitSync 次数、其中同步对象还没打栅栏的次数，进帧钩子里的「queue sync waits」汇总行（每 300 帧，0 也打）
+ uint64_t g_nvn_qws_n, g_nvn_qws_unfenced;   // 非 static：单测 t_nvn_audit1534_probes 直接读
+-NVN(nvnQueueWaitSync, NVNboolean, NVNqueue *q, const NVNsync *s) {
++NVN(nvnQueueWaitSync, NVNboolean, NVNqueue *q, const NVNsync *s) { RB_REPLAY_GUARD(0);
+     __atomic_fetch_add(&g_nvn_qws_n, 1, __ATOMIC_RELAXED);
+     // 审计 #1646 P1-23：没打栅栏的同步对象，宿主不等（单 Metal 队列，等也无从挂到 GPU 上），所以不回成功：回假、报红一次（11-07 质量线：最近约 300 份 host.log
+     //   的 P1-23 探针「on a sync not fenced yet」全是 0，没有款走到这一支；不在 CPU 上阻塞等别的线程打栅栏——同一线程「先等后打」会死锁，真机上等的是 GPU）
+@@ -1489,7 +1500,7 @@
+ //   主线程睡在这里 120 秒无首帧（10-29 普查立刻返回时直连通过）。立刻返回是普查全部款跑过的行为
+ // 栅栏打在有停住工作的队列上（欠着，nvn_mtl.m nvn_xqueue.inc）：先等它发布（别的线程提交了那笔信号、停住的部分回放），按游戏给的超时；无限等时 100 ms 还没发布就把那条队列
+ //   停住的工作强制放行回放（报红），不让 CPU 等死在一个可能只由本线程之后才提交的信号上
+-NVN(nvnSyncWait, NVNsyncWaitResult, const NVNsync *s, uint64_t timeout) {
++NVN(nvnSyncWait, NVNsyncWaitResult, const NVNsync *s, uint64_t timeout) { RB_REPLAY_GUARD(0);
+     uint64_t fence;
+     { void *owner = NULL;
+       if (nvn_be_xq_owed(s, &owner)) {
+@@ -1515,14 +1526,14 @@
+ }
+ NVN(nvnEventBuilderGetMemoryPool, const NVNmemoryPool *, const NVNeventBuilder *b) { return (const NVNmemoryPool *)((const ev_builder_t *)b)->pool; }
+ NVN(nvnEventBuilderGetMemoryOffset, int64_t, const NVNeventBuilder *b) { return ((const ev_builder_t *)b)->off; }
+-NVN(nvnEventInitialize, NVNboolean, NVNevent *e, const NVNeventBuilder *b) {
++NVN(nvnEventInitialize, NVNboolean, NVNevent *e, const NVNeventBuilder *b) { RB_REPLAY_GUARD(1);
+     const ev_builder_t *s = (const ev_builder_t *)b;
+     if (!s->pool || !s->pool->mem) { LOG("【红】 EventInitialize has no storage"); return 0; }
+     *(ev_t *)e = (ev_t){MAGIC('E', 'V', 'N', 'T'), (volatile uint32_t *)(s->pool->mem + s->off), s->pool, s->off}; return 1;
+ }
+-NVN(nvnEventFinalize, void, NVNevent *e) { ((ev_t *)e)->magic = 0; }
+-NVN(nvnEventGetMemoryPool, const NVNmemoryPool *, const NVNevent *e) { return (const NVNmemoryPool *)((const ev_t *)e)->pool; }
+-NVN(nvnEventGetMemoryOffset, int64_t, const NVNevent *e) { return ((const ev_t *)e)->off; }
++NVN(nvnEventFinalize, void, NVNevent *e) { RB_REPLAY_GUARD(1); ((ev_t *)e)->magic = 0; }
++NVN(nvnEventGetMemoryPool, const NVNmemoryPool *, const NVNevent *e) { RB_REPLAY_GUARD(1); return (const NVNmemoryPool *)((const ev_t *)e)->pool; }
++NVN(nvnEventGetMemoryOffset, int64_t, const NVNevent *e) { RB_REPLAY_GUARD(1); return ((const ev_t *)e)->off; }
+ NVN(nvnEventGetValue, uint32_t, const NVNevent *e) { return *((const ev_t *)e)->val; }
+ static void ev_signal(const ev_t *e, int mode, uint32_t v) { if (mode == NVN_EVENT_SIGNAL_MODE_ADD) *e->val += v; else *e->val = v; nvn_be_event_written(e->val); }   // 写后复查在等这个值的 GPU 等待（nvn_mtl.m ev_wait；安卓 nvn_be_android.c）
+ NVN(nvnEventSignal, void, NVNevent *e, NVNeventSignalMode m, uint32_t v) { ev_signal((const ev_t *)e, m, v); }
+@@ -1558,7 +1569,7 @@
+ // 队列内存记账：NVN 的三个 GetTotal*MemoryUsed 报的是「这个队列当前被放进来的内存」，
+ // 来源就是 builder 上 SetQueueMemory / SetControlMemorySize / SetComputeMemorySize 给的值；Reset 之后重新从 0 累计，
+ // 所以这里在 Initialize 时把 builder 的三项抄进队列对象，Reset 清零即可，不需要额外的分配器记账。
+-NVN(nvnQueueInitialize, NVNboolean, NVNqueue *q, const NVNqueueBuilder *b) {
++NVN(nvnQueueInitialize, NVNboolean, NVNqueue *q, const NVNqueueBuilder *b) { RB_REPLAY_GUARD(1);
+     const queue_builder_t *o = (const queue_builder_t *)b;
+     // 正面判定的「光栅翻转」位按建队列那一刻的窗口原点定：游戏自带驱动（极品飞车 SDK 10 / 暗黑3 SDK 8 的 sdk 模块同一段代码）只在 QueueInitialize 的队列初值里写一次
+     //   Maxwell 3D Y_CONTROL（方法 0x4EB，立即数 0x801004EB = TriangleRastFlip、0x800004EB = 0），条件是设备 +0x1988（SetWindowOriginMode 存的原点）不等于左上角；
+@@ -1571,25 +1582,25 @@
+     LOG("[nvn] QueueInitialize %p: window origin at queue creation %s, front-face raster flip %s", (void *)q, flip ? "lower left" : "upper left", flip ? "on" : "off");
+     return 1;
+ }
+-NVN(nvnQueueGetTotalCommandMemoryUsed, size_t, NVNqueue *q) { return (size_t)((const queue_t *)q)->cmd_bytes; }
+-NVN(nvnQueueGetTotalControlMemoryUsed, size_t, NVNqueue *q) { return (size_t)((const queue_t *)q)->ctl_bytes; }
+-NVN(nvnQueueGetTotalComputeMemoryUsed, size_t, NVNqueue *q) { return (size_t)((const queue_t *)q)->comp_bytes; }
+-NVN(nvnQueueResetMemoryUsageCounts, void, NVNqueue *q) {
++NVN(nvnQueueGetTotalCommandMemoryUsed, size_t, NVNqueue *q) { RB_REPLAY_GUARD(1); return (size_t)((const queue_t *)q)->cmd_bytes; }
++NVN(nvnQueueGetTotalControlMemoryUsed, size_t, NVNqueue *q) { RB_REPLAY_GUARD(1); return (size_t)((const queue_t *)q)->ctl_bytes; }
++NVN(nvnQueueGetTotalComputeMemoryUsed, size_t, NVNqueue *q) { RB_REPLAY_GUARD(1); return (size_t)((const queue_t *)q)->comp_bytes; }
++NVN(nvnQueueResetMemoryUsageCounts, void, NVNqueue *q) { RB_REPLAY_GUARD(1);
+     queue_t *o = (queue_t *)q; o->cmd_bytes = o->ctl_bytes = o->comp_bytes = 0;
+ }
+-NVN(nvnQueueFinalize, void, NVNqueue *q) { ((queue_t *)q)->magic = 0; }
++NVN(nvnQueueFinalize, void, NVNqueue *q) { RB_REPLAY_GUARD(1); ((queue_t *)q)->magic = 0; }
+ // 审计 1101 18:00 P2-6：本层有 GPU 执行错误记录（nvnDeviceWaitForError 交出的那份）时仍按无错误回——如实上报会让轮询的游戏走进自己的出错分支，
+ //   没有现场读数前不改语义，只在「有记录却报无错」时打一次红线，作为定语义的读数
+-NVN(nvnQueueGetError, NVNqueueGetErrorResult, NVNqueue *q, NVNqueueErrorInfo *info) {
++NVN(nvnQueueGetError, NVNqueueGetErrorResult, NVNqueue *q, NVNqueueErrorInfo *info) { RB_REPLAY_GUARD(1);
+     (void)q; if (info) memset(info, 0, sizeof *info);
+ #if !defined(__ANDROID__)   // 错误记录是 Metal 后端的（nvn_be_wait_error，同 nvnDeviceWaitForError 的条件）
+     { static uint64_t seen; static int once; if (nvn_be_wait_error(&seen, 0) && !once++) LOG("【红】 [nvn] QueueGetError: the host has a recorded GPU execution error but reports GPU_NO_ERROR (queue error reporting not implemented; first case)"); }
+ #endif
+     return NVN_QUEUE_GET_ERROR_RESULT_GPU_NO_ERROR;
+ }
+-NVN(nvnQueueFlush, void, NVNqueue *q) { (void)q; }
++NVN(nvnQueueFlush, void, NVNqueue *q) { RB_REPLAY_GUARD(1); (void)q; }
+ static void queue_finish(void);   // 持提交锁（g_sub_mu，定义在 nvnQueueSubmitCommands 前）
+-NVN(nvnQueueFinish, void, NVNqueue *q) { xq_lock(); nvn_be_xq_flush(q, "QueueFinish on it"); xq_unlock(); queue_finish(); }   // 停在跨队列等待上的工作先放行（nvn_xqueue.inc）
++NVN(nvnQueueFinish, void, NVNqueue *q) { RB_REPLAY_GUARD(0); xq_lock(); nvn_be_xq_flush(q, "QueueFinish on it"); xq_unlock(); queue_finish(); }   // 停在跨队列等待上的工作先放行（nvn_xqueue.inc）
+ 
+ // ---------- Command buffer: records go to host shadow blocks; the game's command memory is only each recording's identity and anchor ----------
+ // The game's command memory used to hold the host records themselves, and GetCommandMemoryUsed reported host record bytes, 5-10 times the real device's commands. Games that read
+@@ -1770,6 +1781,7 @@
+     rb_heap_free(&g_rb_commands, r);
+ }
+ static void sh_pump(void) {   // g_sh_mu held: reuse the blocks of recordings released long enough ago
++    if (atomic_load_explicit(&rb_replay_pending, memory_order_acquire)) return;
+     uint64_t f = dm_nvn_frame_count();
+     while (g_sh_qhead && (g_sh_qhead->frame + SH_QUAR_FRAMES <= f || g_sh_qbytes > SH_QUAR_CAP)) {
+         srec *r = g_sh_qhead; g_sh_qhead = r->next; if (!g_sh_qhead) g_sh_qtail = NULL;
+@@ -1784,6 +1796,7 @@
+     r->frame = dm_nvn_frame_count(); r->next = NULL; g_sh_qbytes += r->bytes;
+     if (g_sh_qtail) g_sh_qtail->next = r; else g_sh_qhead = r;
+     g_sh_qtail = r;
++    if (g_sh_qbytes > SH_QUAR_CAP) atomic_store(&rb_replay_shadow_pressure, 1);
+ }
+ // Release every ended recording with a device interval overlapping [lo, hi) (g_sh_mu held)
+ static void sh_kill_range(uintptr_t lo, uintptr_t hi) {
+@@ -1868,6 +1881,7 @@
+ NVN(nvnCommandBufferAddControlMemory, void, NVNcommandBuffer *c, void *m, size_t n) { (void)m; CB(c)->ctl_size = n; }   // 主机不用控制内存，只记大小给 GetControlMemorySize / Free
+ // The recording goes on in a new host block (its first, or the last one is full): linked from the old one by a JUMP in the room kept for it
+ static void sh_grow(cmd_t *o, uint32_t need) {
++    if (atomic_exchange(&rb_replay_shadow_pressure, 0)) rb_replay_join();
+     srec *r = o->rec; size_t want = r->last ? (size_t)2 << (SH_CLS0 + r->last->cls) : (o->hint ? o->hint : 1024);
+     pthread_mutex_lock(&g_sh_mu); sh_pump();
+     sblk *b = sh_blk_get(want, need + sizeof(sblk)); size_t bs = (size_t)1 << (SH_CLS0 + b->cls);
+@@ -2742,7 +2756,7 @@
+ }
+ // NVN 同步对象 → GL 同步对象：GL 侧等 NVN 层提交栅栏的共享事件到这个同步对象的栅栏号（glClientWaitSync 在 CPU 上等，glWaitSync 编码进 GL 命令缓冲在 GPU 上等）。
+ //   同步对象来自 GL（InitializeFromFencedGLSync）时直接转回那个 GL 栅栏。还没围栏：回假、不写（没有可等的东西）
+-NVN_NOPROTO(nvnSyncCreateGLSync, NVNboolean, const NVNsync *s, uint64_t *gl) {
++NVN_NOPROTO(nvnSyncCreateGLSync, NVNboolean, const NVNsync *s, uint64_t *gl) { RB_REPLAY_GUARD(1);
+     uint64_t fence; void *ev; uint64_t v;
+     if (!s || !gl || !sync_published((const sync_t *)s, &fence)) { static int n; if (n++ < 4) LOG("【红】 nvnSyncCreateGLSync: the sync object has no fence yet; no GL sync created"); return 0; }
+     if (!sync_ext((const sync_t *)s, &ev, &v)) { ev = nvn_be_fence_event(); v = fence; }
+@@ -2752,7 +2766,7 @@
+ // GL 同步对象 → NVN 同步对象：之后 nvnQueueWaitSync 在 GPU 上、nvnSyncWait 在 CPU 上等 GL 层共享事件到那个提交序号。
+ //   status（4 字节，按 NVNsyncWaitResult）：初始化当下用 0 超时查一次 GL 栅栏的结果——已完成 ALREADY_SIGNALED、还没完成 TIMEOUT_EXPIRED（即「查询，没等」）、句柄无效 FAILED（回假）。
+ //   GL 栅栏所在的命令缓冲还没提交（游戏没 glFlush）时照样建，NVN 侧要等到 GL 下次提交；报红一次
+-NVN_NOPROTO(nvnSyncInitializeFromFencedGLSync, NVNboolean, NVNsync *s, NVNdevice *d, const void *glsync, int *status) {
++NVN_NOPROTO(nvnSyncInitializeFromFencedGLSync, NVNboolean, NVNsync *s, NVNdevice *d, const void *glsync, int *status) { RB_REPLAY_GUARD(1);
+     (void)d; void *ev; uint64_t v; int committed;
+     if (!s || !gl_sync_event((uint64_t)(uintptr_t)glsync, &ev, &v, &committed)) { if (status) *status = NVN_SYNC_WAIT_RESULT_FAILED; LOG("【红】 nvnSyncInitializeFromFencedGLSync: GL sync %p is not a GL sync object", glsync); return 0; }
+     if (!committed) { static int once; if (!once++) LOG("【红】 nvnSyncInitializeFromFencedGLSync: the GL fence is not flushed yet (no glFlush); NVN waits until GL's next submit"); }
+@@ -2764,7 +2778,7 @@
+ // 签名与语义照 DD4 自带的 NVN 驱动（subsdk4+0x835cc，名字表第 209 项）：int (NVNdevice *device, uint64_t timeout_ns, 错误信息 *info)。
+ //   超时按纳秒除以 1000 交给 NvRmGpuDeviceWaitForError（阻塞，以微秒计）；没等到错误回 0、不写 info；等到错误回 1，info 头 4 字节写 1、+8 写出错的 NVNqueue*（驱动按通道号在设备的 256 个队列槽里找，
+ //   找不到写 0）；NvRm 回状态 2 时原样回 2（本层不会出现）。本层的「GPU 错误」= 本层命令缓冲执行报错（每次报错算一次，不重复报）；出错队列取最近一次提交的队列（本层所有队列共用一条 Metal 队列）
+-NVN_NOPROTO(nvnDeviceWaitForError, int, NVNdevice *d, uint64_t timeout_ns, void *info) {
++NVN_NOPROTO(nvnDeviceWaitForError, int, NVNdevice *d, uint64_t timeout_ns, void *info) { RB_REPLAY_GUARD(0);
+     (void)d; static uint64_t seen;
+     if (!nvn_be_wait_error(&seen, timeout_ns)) return 0;
+     if (info) { const uint32_t kind = 1; NVNqueue *q = g_err_queue; memcpy(info, &kind, 4); memcpy((uint8_t *)info + 8, &q, 8); }
+@@ -2776,7 +2790,7 @@
+ #endif
+ // nvnInstallGlobalDebugCallback（密特罗德 究极4 010019A01E2F2000 的加载器按名取）：游戏自带 sdk 导出的这个函数整个就是一条 ret（究极4 sdk+0x4b06e0、火影 sdk+0x451310，
+ //   符号大小 4 字节）——零售驱动里全局调试回调不装、不调，什么都不做。本层照做；参数个数从一条 ret 定不出，按（回调, 用户数据）收
+-NVN_NOPROTO(nvnInstallGlobalDebugCallback, void, const void *callback, void *data) { (void)callback; (void)data; }
++NVN_NOPROTO(nvnInstallGlobalDebugCallback, void, const void *callback, void *data) { RB_REPLAY_GUARD(1); (void)callback; (void)data; }
+ // ---------- 驱动 GetProcAddress 名字全集里的 NVX / 私有入口（11-03 按族补齐，替代逐款补名字） ----------
+ // 来源：游戏自带 NVN 驱动的名字解析（SDK 20.5 = 0100A00019DE0000 sdk 镜像，nvnDeviceGetProcAddress 0x4c3730 经指针 0xb836c8 尾调 0x4c79d0：名字以 nvn 开头就在 533 项有序表里二分；
+ //   查不到或不以 nvn 开头就进 0x4c6f60 的 strcmp 链，链上 32 个名字，最后一项 nvnInstallGlobalDebugCallback）。下文「20.5 0x…」均为该镜像里的函数地址，
+@@ -2786,25 +2800,25 @@
+ 
+ // 20.5 0x4c7580：经全局函数指针 0xb836c0 尾调，缺省目标 0x4c7bd0 是一条 ret——零售驱动里这个开关什么都不做（参数一个，按布尔收）。本层同样不改任何行为，只记下
+ static uint32_t g_ext_dbg_en;
+-NVN_NOPROTO(nvnSetExternalDebuggerEnabledNVX, void, uint32_t on) {
++NVN_NOPROTO(nvnSetExternalDebuggerEnabledNVX, void, uint32_t on) { RB_REPLAY_GUARD(1);
+     g_ext_dbg_en = B(on); static int once; if (!once++) LOG("[nvn] SetExternalDebuggerEnabledNVX(%u)：零售驱动的缺省实现是空函数，本层只记下", g_ext_dbg_en);
+ }
+ // 20.5 0x4c73a0：把参数存进驱动全局（0xc364d8）。那是 GL 驱动交给 NVN 的接口对象（虚表 +0 是否可用、+0x10 按 GL 纹理名建纹理、+0x20 建 GL 栅栏），
+ //   被 MemoryPoolBuilderSetStorage 附近、TextureInitialize（构建器带 GL 纹理名时）、SyncCreateGLSync、SyncInitializeFromFencedGLSync 读。
+ //   本层的 GL 是宿主自己的实现，GL ⇄ NVN 互操作走宿主 GL 层（nvnSyncCreateGLSync 等已接），用不到游戏这侧的虚表：只记下指针、首次点名
+ static const void *g_gl_interop;
+-NVN_NOPROTO(nvnSetGLInteropNVX, void, const void *iface) {
++NVN_NOPROTO(nvnSetGLInteropNVX, void, const void *iface) { RB_REPLAY_GUARD(1);
+     g_gl_interop = iface; static int once; if (!once++) LOG("[nvn] SetGLInteropNVX(%p)：GL 互操作走宿主 GL 层，游戏侧接口对象只记下不调用", iface);
+ }
+ // 20.5 0x4cee30：超时（纳秒）除以 10^6 换成毫秒交给 GPU 通道的超时设置（0x4d6648 → 0x65ddf0），回值即通道调用的返回码（0 = 成功）。
+ //   本层没有 GPU 通道（提交在宿主线程同步执行）：记在队列上、回 0
+-NVN_NOPROTO(nvnQueueSetTimeoutNVX, int, NVNqueue *q, uint64_t timeout_ns) {
++NVN_NOPROTO(nvnQueueSetTimeoutNVX, int, NVNqueue *q, uint64_t timeout_ns) { RB_REPLAY_GUARD(1);
+     if (q) ((queue_x *)q)->timeout_ns = timeout_ns;
+     static int once; if (!once++) LOG("[nvn] QueueSetTimeoutNVX(%p, %llu ns)：本层没有 GPU 通道，只记下", (void *)q, (unsigned long long)timeout_ns);
+     return 0;
+ }
+ // 20.5 0x4cced0：时间片（微秒）按通道参数换算后交给 GPU 通道（0x4d66ac），无条件回 1。本层记在队列上、回 1
+-NVN_NOPROTO(nvnQueueSetTimesliceNVX, NVNboolean, NVNqueue *q, uint32_t timeslice_us) {
++NVN_NOPROTO(nvnQueueSetTimesliceNVX, NVNboolean, NVNqueue *q, uint32_t timeslice_us) { RB_REPLAY_GUARD(1);
+     if (q) ((queue_x *)q)->timeslice_us = timeslice_us;
+     static int once; if (!once++) LOG("[nvn] QueueSetTimesliceNVX(%p, %u us)：本层没有 GPU 通道，只记下", (void *)q, timeslice_us);
+     return 1;
+@@ -2834,17 +2848,17 @@
+ }
+ // 20.5 0x4c9050：回池对象 +0x58 的 nvmap 句柄（普通池是驱动初始化时分的，带 SetNativeHandleNVX 建的池是导入的那个）。
+ //   本层：构建器给过句柄就回它（MemoryPoolInitialize 存进 nvmap），否则按需开一个（与 nvnTextureGetNvRmSurfaceNVX 同一个，pool_nvmap）；开不出（虚拟池、没有服务层）回 0，pool_nvmap 已报红
+-NVN_NOPROTO(nvnMemoryPoolGetNativeHandleNVX, int32_t, const NVNmemoryPool *p) {
++NVN_NOPROTO(nvnMemoryPoolGetNativeHandleNVX, int32_t, const NVNmemoryPool *p) { RB_REPLAY_GUARD(1);
+     int32_t h = __atomic_load_n(&((const pool_t *)p)->nvmap, __ATOMIC_ACQUIRE);   // 构建器给的（没有存储，pool_nvmap 会直接回 0）或已经开过的
+     return h ? h : pool_nvmap((pool_t *)p);
+ }
+ // 20.5 0x4c8d30 / 0x4c8d40：回池对象 +0x20 / +0x28，即池的块线性映射 / 特殊映射的 GPU 地址（真机初始化时按构建器预留的地址或自己分）。
+ //   本层贴图不按 GPU 地址取、没有这两种映射：构建器预留过就回预留值（MemoryPoolInitialize 存进 bl_va / sp_va），否则回 0 并首次报红——不是真机值
+-NVN_NOPROTO(nvnMemoryPoolGetBlockLinearAddressNVX, uint64_t, const NVNmemoryPool *p) {
++NVN_NOPROTO(nvnMemoryPoolGetBlockLinearAddressNVX, uint64_t, const NVNmemoryPool *p) { RB_REPLAY_GUARD(1);
+     uint64_t a = ((const pool_x *)p)->bl_va; static int once; if (!a && !once++) LOG("【红】 MemoryPoolGetBlockLinearAddressNVX：本层没有块线性映射，池 %p 回 0（真机回驱动分的地址）", (const void *)p);
+     return a;
+ }
+-NVN_NOPROTO(nvnMemoryPoolGetSpecialAddressNVX, uint64_t, const NVNmemoryPool *p) {
++NVN_NOPROTO(nvnMemoryPoolGetSpecialAddressNVX, uint64_t, const NVNmemoryPool *p) { RB_REPLAY_GUARD(1);
+     uint64_t a = ((const pool_x *)p)->sp_va; static int once; if (!a && !once++) LOG("【红】 MemoryPoolGetSpecialAddressNVX：本层没有特殊映射，池 %p 回 0（真机回驱动分的地址）", (const void *)p);
+     return a;
+ }
+@@ -2852,15 +2866,15 @@
+ //   GetSyncpointsCount(sync, int *n)：类型 5 且 n 非空 → *n = 个数、回 1，否则回 0；GetSyncpoints(sync, n, 出参) / SetSyncpoints(sync, n, 入参)：类型 5、数组非空、n 等于存的个数 → 逐对拷、回 1，否则回 0。
+ //   本层：普通 NVN 同步对象同真机回 0。NvRmSync 来的同步对象本层不解析 NvRmSync（视为已到达，见上 InitializeFromNvRmSyncNVX），按 1 对 syncpoint 交出无效 syncpoint (0xFFFFFFFF, 0)
+ //   ——与 nvnSyncGetNvRmSyncNVX 交出的约定相同，消费方都当「不用等」；Set 照收个数校验、回 1，新值同样视为已到达（假设：交进来的是别的引擎已完成的栅栏）
+-NVN_NOPROTO(nvnSyncGetSyncpointsCountNVX, NVNboolean, const NVNsync *s, int *n) {
++NVN_NOPROTO(nvnSyncGetSyncpointsCountNVX, NVNboolean, const NVNsync *s, int *n) { RB_REPLAY_GUARD(1);
+     if (!n || ((const sync_x *)s)->rm != NVN_SYNC_RM) return 0;
+     *n = 1; return 1;
+ }
+-NVN_NOPROTO(nvnSyncGetSyncpointsNVX, NVNboolean, const NVNsync *s, int n, uint32_t *pairs) {
++NVN_NOPROTO(nvnSyncGetSyncpointsNVX, NVNboolean, const NVNsync *s, int n, uint32_t *pairs) { RB_REPLAY_GUARD(1);
+     if (((const sync_x *)s)->rm != NVN_SYNC_RM || !pairs || n != 1) return 0;
+     pairs[0] = 0xFFFFFFFFu; pairs[1] = 0; return 1;
+ }
+-NVN_NOPROTO(nvnSyncSetSyncpointsNVX, NVNboolean, NVNsync *s, int n, const uint32_t *pairs) {
++NVN_NOPROTO(nvnSyncSetSyncpointsNVX, NVNboolean, NVNsync *s, int n, const uint32_t *pairs) { RB_REPLAY_GUARD(1);
+     if (((const sync_x *)s)->rm != NVN_SYNC_RM || !pairs || n != 1) return 0;
+     static int once; if (!once++) LOG("[nvn] SyncSetSyncpointsNVX：syncpoint (%#x, %u) 视为已到达", pairs[0], pairs[1]);
+     return 1;
+@@ -2910,7 +2924,7 @@
+     LOG("[nvn] DLSS 最佳渲染尺寸：输出 %ux%u 方法 %u → 最佳 %dx%d、最大 %dx%d、最小 %dx%d（宿主 MetalFX 时域放大，上限 %d 倍）", nvn2_get32(b, DLB_OUT_W), nvn2_get32(b, DLB_OUT_H),
+         nvn2_get32(b, DLB_METHOD), o[0], o[1], o[2], o[3], o[4], o[5], DLSS_HOST_MAX_SCALE);
+ }
+-NVN_NOPROTO(nvnDlssNetworkInitialize, NVNboolean, void *n, const void *b) {
++NVN_NOPROTO(nvnDlssNetworkInitialize, NVNboolean, void *n, const void *b) { RB_REPLAY_GUARD(1);
+     memset(n, 0, DLN_SIZE);
+     nvn2_putp(n, DLN_DEVICE, nvn2_getp(b, DLB_DEVICE)); nvn2_putp(n, DLN_POOL, nvn2_getp(b, DLB_POOL)); memcpy((uint8_t *)n + DLN_IDS, (const uint8_t *)b + DLB_IDS, 32 * 4);
+     nvn2_putp(n, DLN_HANDLE, n); nvn2_put32(n, DLN_MAXENT, nvn2_get32(b, DLB_MAXENT)); nvn2_put32(n, DLN_METHOD, nvn2_get32(b, DLB_METHOD)); nvn2_put32(n, DLN_PRESET, nvn2_get32(b, DLB_PRESET));
+@@ -2920,42 +2934,42 @@
+         nvn2_get32(b, DLB_PRESET), nvn2_get32(b, DLB_FLAGS), nvn2_get32(b, DLB_MAXENT));
+     return 1;
+ }
+-NVN_NOPROTO(nvnDlssNetworkFinalize, void, void *n) { memset(n, 0, DLN_SIZE); }
+-NVN_NOPROTO(nvnDlssParametersSetDefaults, void, void *p) { nvn2_dlss_params_defaults(p); }
++NVN_NOPROTO(nvnDlssNetworkFinalize, void, void *n) { RB_REPLAY_GUARD(1); memset(n, 0, DLN_SIZE); }
++NVN_NOPROTO(nvnDlssParametersSetDefaults, void, void *p) { RB_REPLAY_GUARD(1); nvn2_dlss_params_defaults(p); }
+ // 贴图对（贴图, 视图）、整数对、浮点对：按 nvn2_cmd.h 的偏移存取
+-NVN_NOPROTO(nvnDlssParametersSetInputColor, void, void *p, const NVNtexture *t, const NVNtextureView *v) { nvn2_putp(p, DLP_COLOR, t); nvn2_putp(p, DLP_COLOR + 8, v); }
+-NVN_NOPROTO(nvnDlssParametersSetOutputColor, void, void *p, const NVNtexture *t, const NVNtextureView *v) { nvn2_putp(p, DLP_OUTPUT, t); nvn2_putp(p, DLP_OUTPUT + 8, v); }
+-NVN_NOPROTO(nvnDlssParametersSetMotionVectors, void, void *p, const NVNtexture *t, const NVNtextureView *v) { nvn2_putp(p, DLP_MOTION, t); nvn2_putp(p, DLP_MOTION + 8, v); }
+-NVN_NOPROTO(nvnDlssParametersSetDepth, void, void *p, const NVNtexture *t, const NVNtextureView *v) { nvn2_putp(p, DLP_DEPTH, t); nvn2_putp(p, DLP_DEPTH + 8, v); }
+-NVN_NOPROTO(nvnDlssParametersSetBiasCurrentColorMask, void, void *p, const NVNtexture *t, const NVNtextureView *v) { nvn2_putp(p, DLP_BIAS, t); nvn2_putp(p, DLP_BIAS + 8, v); }
+-NVN_NOPROTO(nvnDlssParametersSetExposureTexture, void, void *p, const NVNtexture *t, const NVNtextureView *v) { nvn2_putp(p, DLP_EXPOSURE, t); nvn2_putp(p, DLP_EXPOSURE + 8, v); }
+-NVN_NOPROTO(nvnDlssParametersSetInputSubrectangleSize, void, void *p, int x, int y) { nvn2_put32(p, DLP_INSIZE, (uint32_t)x); nvn2_put32(p, DLP_INSIZE + 4, (uint32_t)y); }
+-NVN_NOPROTO(nvnDlssParametersGetInputSubrectangleSize, void, const void *p, int *x, int *y) { if (x) *x = (int)nvn2_get32(p, DLP_INSIZE); if (y) *y = (int)nvn2_get32(p, DLP_INSIZE + 4); }
+-NVN_NOPROTO(nvnDlssParametersSetInputColorSubrectangleBase, void, void *p, int x, int y) { nvn2_put32(p, DLP_BASE_COLOR, (uint32_t)x); nvn2_put32(p, DLP_BASE_COLOR + 4, (uint32_t)y); }
+-NVN_NOPROTO(nvnDlssParametersGetInputColorSubrectangleBase, void, const void *p, int *x, int *y) { if (x) *x = (int)nvn2_get32(p, DLP_BASE_COLOR); if (y) *y = (int)nvn2_get32(p, DLP_BASE_COLOR + 4); }
+-NVN_NOPROTO(nvnDlssParametersSetDepthSubrectangleBase, void, void *p, int x, int y) { nvn2_put32(p, DLP_BASE_DEPTH, (uint32_t)x); nvn2_put32(p, DLP_BASE_DEPTH + 4, (uint32_t)y); }
+-NVN_NOPROTO(nvnDlssParametersGetDepthSubrectangleBase, void, const void *p, int *x, int *y) { if (x) *x = (int)nvn2_get32(p, DLP_BASE_DEPTH); if (y) *y = (int)nvn2_get32(p, DLP_BASE_DEPTH + 4); }
+-NVN_NOPROTO(nvnDlssParametersSetMotionVectorSubrectangleBase, void, void *p, int x, int y) { nvn2_put32(p, DLP_BASE_MOTION, (uint32_t)x); nvn2_put32(p, DLP_BASE_MOTION + 4, (uint32_t)y); }
+-NVN_NOPROTO(nvnDlssParametersGetMotionVectorSubrectangleBase, void, const void *p, int *x, int *y) { if (x) *x = (int)nvn2_get32(p, DLP_BASE_MOTION); if (y) *y = (int)nvn2_get32(p, DLP_BASE_MOTION + 4); }
+-NVN_NOPROTO(nvnDlssParametersSetBiasCurrentColorSubrectangleBase, void, void *p, int x, int y) { nvn2_put32(p, DLP_BASE_BIAS, (uint32_t)x); nvn2_put32(p, DLP_BASE_BIAS + 4, (uint32_t)y); }
+-NVN_NOPROTO(nvnDlssParametersGetBiasCurrentColorSubrectangleBase, void, const void *p, int *x, int *y) { if (x) *x = (int)nvn2_get32(p, DLP_BASE_BIAS); if (y) *y = (int)nvn2_get32(p, DLP_BASE_BIAS + 4); }
+-NVN_NOPROTO(nvnDlssParametersSetOutputSubrectangleBase, void, void *p, int x, int y) { nvn2_put32(p, DLP_BASE_OUTPUT, (uint32_t)x); nvn2_put32(p, DLP_BASE_OUTPUT + 4, (uint32_t)y); }
+-NVN_NOPROTO(nvnDlssParametersGetOutputSubrectangleBase, void, const void *p, int *x, int *y) { if (x) *x = (int)nvn2_get32(p, DLP_BASE_OUTPUT); if (y) *y = (int)nvn2_get32(p, DLP_BASE_OUTPUT + 4); }
+-NVN_NOPROTO(nvnDlssParametersSetJitterOffset, void, void *p, float x, float y) { nvn2_putf(p, DLP_JITTER, x); nvn2_putf(p, DLP_JITTER + 4, y); }
+-NVN_NOPROTO(nvnDlssParametersGetJitterOffset, void, const void *p, float *x, float *y) { if (x) *x = nvn2_getf(p, DLP_JITTER); if (y) *y = nvn2_getf(p, DLP_JITTER + 4); }
+-NVN_NOPROTO(nvnDlssParametersSetMotionVectorScale, void, void *p, float x, float y) { nvn2_putf(p, DLP_MVSCALE, x); nvn2_putf(p, DLP_MVSCALE + 4, y); }
+-NVN_NOPROTO(nvnDlssParametersGetMotionVectorScale, void, const void *p, float *x, float *y) { if (x) *x = nvn2_getf(p, DLP_MVSCALE); if (y) *y = nvn2_getf(p, DLP_MVSCALE + 4); }
+-NVN_NOPROTO(nvnDlssParametersSetPreExposure, void, void *p, float v) { nvn2_putf(p, DLP_PREEXP, v); }
+-NVN_NOPROTO(nvnDlssParametersGetPreExposure, float, const void *p) { return nvn2_getf(p, DLP_PREEXP); }
+-NVN_NOPROTO(nvnDlssParametersSetHistoryReset, void, void *p, uint32_t r) { ((uint8_t *)p)[DLP_RESET] = (uint8_t)B(r); }
+-NVN_NOPROTO(nvnDlssParametersGetHistoryReset, NVNboolean, const void *p) { return ((const uint8_t *)p)[DLP_RESET]; }
+-NVN_NOPROTO(nvnDlssParametersSetEvaluationIndex, void, void *p, int i) { nvn2_put32(p, DLP_INDEX, (uint32_t)i); }
+-NVN_NOPROTO(nvnDlssParametersGetEvaluationIndex, int, const void *p) { return (int)nvn2_get32(p, DLP_INDEX); }
++NVN_NOPROTO(nvnDlssParametersSetInputColor, void, void *p, const NVNtexture *t, const NVNtextureView *v) { RB_REPLAY_GUARD(1); nvn2_putp(p, DLP_COLOR, t); nvn2_putp(p, DLP_COLOR + 8, v); }
++NVN_NOPROTO(nvnDlssParametersSetOutputColor, void, void *p, const NVNtexture *t, const NVNtextureView *v) { RB_REPLAY_GUARD(1); nvn2_putp(p, DLP_OUTPUT, t); nvn2_putp(p, DLP_OUTPUT + 8, v); }
++NVN_NOPROTO(nvnDlssParametersSetMotionVectors, void, void *p, const NVNtexture *t, const NVNtextureView *v) { RB_REPLAY_GUARD(1); nvn2_putp(p, DLP_MOTION, t); nvn2_putp(p, DLP_MOTION + 8, v); }
++NVN_NOPROTO(nvnDlssParametersSetDepth, void, void *p, const NVNtexture *t, const NVNtextureView *v) { RB_REPLAY_GUARD(1); nvn2_putp(p, DLP_DEPTH, t); nvn2_putp(p, DLP_DEPTH + 8, v); }
++NVN_NOPROTO(nvnDlssParametersSetBiasCurrentColorMask, void, void *p, const NVNtexture *t, const NVNtextureView *v) { RB_REPLAY_GUARD(1); nvn2_putp(p, DLP_BIAS, t); nvn2_putp(p, DLP_BIAS + 8, v); }
++NVN_NOPROTO(nvnDlssParametersSetExposureTexture, void, void *p, const NVNtexture *t, const NVNtextureView *v) { RB_REPLAY_GUARD(1); nvn2_putp(p, DLP_EXPOSURE, t); nvn2_putp(p, DLP_EXPOSURE + 8, v); }
++NVN_NOPROTO(nvnDlssParametersSetInputSubrectangleSize, void, void *p, int x, int y) { RB_REPLAY_GUARD(1); nvn2_put32(p, DLP_INSIZE, (uint32_t)x); nvn2_put32(p, DLP_INSIZE + 4, (uint32_t)y); }
++NVN_NOPROTO(nvnDlssParametersGetInputSubrectangleSize, void, const void *p, int *x, int *y) { RB_REPLAY_GUARD(1); if (x) *x = (int)nvn2_get32(p, DLP_INSIZE); if (y) *y = (int)nvn2_get32(p, DLP_INSIZE + 4); }
++NVN_NOPROTO(nvnDlssParametersSetInputColorSubrectangleBase, void, void *p, int x, int y) { RB_REPLAY_GUARD(1); nvn2_put32(p, DLP_BASE_COLOR, (uint32_t)x); nvn2_put32(p, DLP_BASE_COLOR + 4, (uint32_t)y); }
++NVN_NOPROTO(nvnDlssParametersGetInputColorSubrectangleBase, void, const void *p, int *x, int *y) { RB_REPLAY_GUARD(1); if (x) *x = (int)nvn2_get32(p, DLP_BASE_COLOR); if (y) *y = (int)nvn2_get32(p, DLP_BASE_COLOR + 4); }
++NVN_NOPROTO(nvnDlssParametersSetDepthSubrectangleBase, void, void *p, int x, int y) { RB_REPLAY_GUARD(1); nvn2_put32(p, DLP_BASE_DEPTH, (uint32_t)x); nvn2_put32(p, DLP_BASE_DEPTH + 4, (uint32_t)y); }
++NVN_NOPROTO(nvnDlssParametersGetDepthSubrectangleBase, void, const void *p, int *x, int *y) { RB_REPLAY_GUARD(1); if (x) *x = (int)nvn2_get32(p, DLP_BASE_DEPTH); if (y) *y = (int)nvn2_get32(p, DLP_BASE_DEPTH + 4); }
++NVN_NOPROTO(nvnDlssParametersSetMotionVectorSubrectangleBase, void, void *p, int x, int y) { RB_REPLAY_GUARD(1); nvn2_put32(p, DLP_BASE_MOTION, (uint32_t)x); nvn2_put32(p, DLP_BASE_MOTION + 4, (uint32_t)y); }
++NVN_NOPROTO(nvnDlssParametersGetMotionVectorSubrectangleBase, void, const void *p, int *x, int *y) { RB_REPLAY_GUARD(1); if (x) *x = (int)nvn2_get32(p, DLP_BASE_MOTION); if (y) *y = (int)nvn2_get32(p, DLP_BASE_MOTION + 4); }
++NVN_NOPROTO(nvnDlssParametersSetBiasCurrentColorSubrectangleBase, void, void *p, int x, int y) { RB_REPLAY_GUARD(1); nvn2_put32(p, DLP_BASE_BIAS, (uint32_t)x); nvn2_put32(p, DLP_BASE_BIAS + 4, (uint32_t)y); }
++NVN_NOPROTO(nvnDlssParametersGetBiasCurrentColorSubrectangleBase, void, const void *p, int *x, int *y) { RB_REPLAY_GUARD(1); if (x) *x = (int)nvn2_get32(p, DLP_BASE_BIAS); if (y) *y = (int)nvn2_get32(p, DLP_BASE_BIAS + 4); }
++NVN_NOPROTO(nvnDlssParametersSetOutputSubrectangleBase, void, void *p, int x, int y) { RB_REPLAY_GUARD(1); nvn2_put32(p, DLP_BASE_OUTPUT, (uint32_t)x); nvn2_put32(p, DLP_BASE_OUTPUT + 4, (uint32_t)y); }
++NVN_NOPROTO(nvnDlssParametersGetOutputSubrectangleBase, void, const void *p, int *x, int *y) { RB_REPLAY_GUARD(1); if (x) *x = (int)nvn2_get32(p, DLP_BASE_OUTPUT); if (y) *y = (int)nvn2_get32(p, DLP_BASE_OUTPUT + 4); }
++NVN_NOPROTO(nvnDlssParametersSetJitterOffset, void, void *p, float x, float y) { RB_REPLAY_GUARD(1); nvn2_putf(p, DLP_JITTER, x); nvn2_putf(p, DLP_JITTER + 4, y); }
++NVN_NOPROTO(nvnDlssParametersGetJitterOffset, void, const void *p, float *x, float *y) { RB_REPLAY_GUARD(1); if (x) *x = nvn2_getf(p, DLP_JITTER); if (y) *y = nvn2_getf(p, DLP_JITTER + 4); }
++NVN_NOPROTO(nvnDlssParametersSetMotionVectorScale, void, void *p, float x, float y) { RB_REPLAY_GUARD(1); nvn2_putf(p, DLP_MVSCALE, x); nvn2_putf(p, DLP_MVSCALE + 4, y); }
++NVN_NOPROTO(nvnDlssParametersGetMotionVectorScale, void, const void *p, float *x, float *y) { RB_REPLAY_GUARD(1); if (x) *x = nvn2_getf(p, DLP_MVSCALE); if (y) *y = nvn2_getf(p, DLP_MVSCALE + 4); }
++NVN_NOPROTO(nvnDlssParametersSetPreExposure, void, void *p, float v) { RB_REPLAY_GUARD(1); nvn2_putf(p, DLP_PREEXP, v); }
++NVN_NOPROTO(nvnDlssParametersGetPreExposure, float, const void *p) { RB_REPLAY_GUARD(1); return nvn2_getf(p, DLP_PREEXP); }
++NVN_NOPROTO(nvnDlssParametersSetHistoryReset, void, void *p, uint32_t r) { RB_REPLAY_GUARD(1); ((uint8_t *)p)[DLP_RESET] = (uint8_t)B(r); }
++NVN_NOPROTO(nvnDlssParametersGetHistoryReset, NVNboolean, const void *p) { RB_REPLAY_GUARD(1); return ((const uint8_t *)p)[DLP_RESET]; }
++NVN_NOPROTO(nvnDlssParametersSetEvaluationIndex, void, void *p, int i) { RB_REPLAY_GUARD(1); nvn2_put32(p, DLP_INDEX, (uint32_t)i); }
++NVN_NOPROTO(nvnDlssParametersGetEvaluationIndex, int, const void *p) { RB_REPLAY_GUARD(1); return (int)nvn2_get32(p, DLP_INDEX); }
+ // 叠加调试四项（DLSS 自己画的调试层：调试层 / 全屏 / 标 NaN / 抖动）：宿主的放大器没有这些层，只记值
+-NVN_NOPROTO(nvnDlssParametersSetOverlayDebugLayer, void, void *p, int v) { nvn2_put32(p, DLP_OVERLAY, (uint32_t)v); }
+-NVN_NOPROTO(nvnDlssParametersSetOverlayFullScreen, void, void *p, int v) { nvn2_put32(p, DLP_OVERLAY + 4, (uint32_t)v); }
+-NVN_NOPROTO(nvnDlssParametersSetOverlayShowNans, void, void *p, int v) { nvn2_put32(p, DLP_OVERLAY + 8, (uint32_t)v); }
+-NVN_NOPROTO(nvnDlssParametersSetOverlayJitterDebug, void, void *p, int v) { nvn2_put32(p, DLP_OVERLAY + 12, (uint32_t)v); }
++NVN_NOPROTO(nvnDlssParametersSetOverlayDebugLayer, void, void *p, int v) { RB_REPLAY_GUARD(1); nvn2_put32(p, DLP_OVERLAY, (uint32_t)v); }
++NVN_NOPROTO(nvnDlssParametersSetOverlayFullScreen, void, void *p, int v) { RB_REPLAY_GUARD(1); nvn2_put32(p, DLP_OVERLAY + 4, (uint32_t)v); }
++NVN_NOPROTO(nvnDlssParametersSetOverlayShowNans, void, void *p, int v) { RB_REPLAY_GUARD(1); nvn2_put32(p, DLP_OVERLAY + 8, (uint32_t)v); }
++NVN_NOPROTO(nvnDlssParametersSetOverlayJitterDebug, void, void *p, int v) { RB_REPLAY_GUARD(1); nvn2_put32(p, DLP_OVERLAY + 12, (uint32_t)v); }
+ // 求值：录进命令缓冲（真机同样是录制命令、不是设备调用），参数与六张贴图此刻取定
+ NVN_NOPROTO(nvnCommandBufferEvaluateDlss, void, NVNcommandBuffer *c, const void *net, const void *par) {
+     p_dlss *o = REC_SNAP(c, OP_DLSS, p_dlss, DLT_N);
+@@ -2973,7 +2987,7 @@
+ }
+ // 20.5 0x4d4510：参数是一个结构体：+0 必须是 1（接口版本）、+8 是操作号 0..6，否则 +4 写 1（失败）返回；合法时做 CUDA 侧的池 / 同步互操作。
+ //   本层没有 CUDA：所有操作都按「不支持」在 +4 写 1，首次报红
+-NVN_NOPROTO(nvnCUDAInteropFunction, void, void *args) {
++NVN_NOPROTO(nvnCUDAInteropFunction, void, void *args) { RB_REPLAY_GUARD(1);
+     uint32_t ver = 0, op = 0, fail = 1; if (args) { memcpy(&ver, args, 4); memcpy(&op, (uint8_t *)args + 8, 4); memcpy((uint8_t *)args + 4, &fail, 4); }
+     static int once; if (!once++) LOG("【红】 nvnCUDAInteropFunction（版本 %u 操作 %u）：本层没有 CUDA，回失败", ver, op);
+ }
+@@ -2985,27 +2999,27 @@
+ //   Initialize 回 1 但不写调用方的表（表的大小随 SDK 变，本层的名字表又比它长，写不得）；SetProcAddress 对认得的名字回 1、原函数出参给本层的实现、表不写；
+ //   回调照存照读（本层不会重置分派，所以从不调用它）
+ static void *g_icpt_reset_cb;
+-NVN_NOPROTO(nvnInterceptionInitializeNVX, NVNboolean, void *table) {
++NVN_NOPROTO(nvnInterceptionInitializeNVX, NVNboolean, void *table) { RB_REPLAY_GUARD(1);
+     static int once; if (!once++) LOG("[nvn] InterceptionInitializeNVX(%p)：本层不让别的层接管分派，调用方的表不写", table);
+     return 1;
+ }
+-NVN_NOPROTO(nvnInterceptionSetProcAddressNVX, NVNboolean, void *table, const char *name, void *fn, void **orig) {
++NVN_NOPROTO(nvnInterceptionSetProcAddressNVX, NVNboolean, void *table, const char *name, void *fn, void **orig) { RB_REPLAY_GUARD(1);
+     (void)table; (void)fn;
+     if (!name || strncmp(name, "nvn", 3)) return 0;
+     for (unsigned i = 0; i < NVN_NFUNC; i++)
+         if (!strcmp(nvn_names[i], name)) { if (orig) *orig = nvn_lookup(name); return 1; }
+     return 0;
+ }
+-NVN_NOPROTO(nvnInterceptionSetDispatchResetCallbackNVX, NVNboolean, void *table, void *cb, void **old) {
++NVN_NOPROTO(nvnInterceptionSetDispatchResetCallbackNVX, NVNboolean, void *table, void *cb, void **old) { RB_REPLAY_GUARD(1);
+     (void)table; if (old) *old = g_icpt_reset_cb; g_icpt_reset_cb = cb; return 1;
+ }
+-NVN_NOPROTO(nvnInterceptionTryAcquireNVX, NVNboolean, void *table) {
++NVN_NOPROTO(nvnInterceptionTryAcquireNVX, NVNboolean, void *table) { RB_REPLAY_GUARD(1);
+     static int once; if (!once++) LOG("【红】 InterceptionTryAcquireNVX(%p)：本层不让别的层接管 NVN 分派，回 0（真机没人占用时回 1）", table);
+     return 0;
+ }
+-NVN_NOPROTO(nvnInterceptionOwnedNVX, NVNboolean, const void *table) { (void)table; return 0; }
+-NVN_NOPROTO(nvnInterceptionReleaseNVX, NVNboolean, void *table) { (void)table; return 0; }
+-NVN_NOPROTO(nvnInterceptionFinalizeNVX, NVNboolean, void) { return 1; }
++NVN_NOPROTO(nvnInterceptionOwnedNVX, NVNboolean, const void *table) { RB_REPLAY_GUARD(1); (void)table; return 0; }
++NVN_NOPROTO(nvnInterceptionReleaseNVX, NVNboolean, void *table) { RB_REPLAY_GUARD(1); (void)table; return 0; }
++NVN_NOPROTO(nvnInterceptionFinalizeNVX, NVNboolean, void) { RB_REPLAY_GUARD(1); return 1; }
+ // 两个不带 nvn 前缀的私有入口（同样在 0x4c6f60 的 strcmp 链上，按名取得到）：
+ // H3ikr9ix（6.4 / 10.9 / 20.5 都有，20.5 0x4c73b0）：在 533 项名字表里找 "TexturePoolRegisterTexture"，把驱动内部表（0xb82608）的这一项换成参数给的函数——即替换驱动自己的
+ //   纹理注册实现。本层不让外来代码替换自己的实现：不换，首次报红（参数个数从反汇编定：一个函数指针，无返回值）
+@@ -3090,15 +3104,14 @@
+     pthread_mutex_unlock(&rb_gap_lock);
+     atomic_fetch_sub(&rb_callers, 1);
+ }
+-NVN(nvnQueueSubmitCommands, void, NVNqueue *q, int n, const NVNcommandHandle *h) {
++static void rb_submit_replay(NVNqueue *q, int n, const NVNcommandHandle *h) {
+ #if defined(__APPLE__)
+     if (s2a_guest_frame_qos_protect) s2a_guest_frame_qos_protect();
+ #endif
+-    gfx_enter();
+-    if (dm_gfx_session_stopping()) { gfx_leave(); return; }
++    if (dm_gfx_session_stopping()) return;
+     rb_call_enter(0);
+     if (pthread_mutex_trylock(&g_sub_mu)) { int phase=rb_lf_switch(RB_LOCK); uint64_t w0 = now_ns(); pthread_mutex_lock(&g_sub_mu); t_rb_lock_ns += now_ns() - w0; if (phase>=0) rb_lf_switch(phase); }   // RewindBox (patch 0068): a contended submit lock is timed
+-    if (dm_gfx_session_stopping()) { pthread_mutex_unlock(&g_sub_mu); rb_call_leave(); gfx_leave(); return; }
++    if (dm_gfx_session_stopping()) { pthread_mutex_unlock(&g_sub_mu); rb_call_leave(); return; }
+     render_thread_qos();
+     thsc_lv lv0[2]; thr_counts_lv(lv0);
+     uint64_t t0 = now_ns(), c0 = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID), i0, y0, s0 = thr_sys_ns(); thr_counts(&i0, &y0);
+@@ -3121,8 +3134,9 @@
+     { thsc_lv lv1[2]; thr_counts_lv(lv1);
+       for (int k = 0; k < 2; k++) { atomic_fetch_add(&g_cum_sub_lv_t[k], (lv1[k].ut + lv1[k].st) - (lv0[k].ut + lv0[k].st)); atomic_fetch_add(&g_cum_sub_lv_cyc[k], lv1[k].cyc - lv0[k].cyc); } }
+     rb_call_leave();
+-    gfx_leave();
+-}
++}
++
++#include "rb_replay_worker.inc"
+ 
+ // Commands that only affect GPU state / only execute on the GPU: the null device only counts them (the thunk has already counted)
+ static void nvn_nop(void) {}
+@@ -3304,7 +3318,7 @@
+ typedef struct { win2 layout; rb_present_samples samples; rb_present_hold display_hold; } rb_present_history;
+ FITS(rb_present_history, NVNwindow);
+ static void nvn2_win_init(NVNwindow *w, const NVNwindowBuilder *b);
+-NVN(nvnWindowInitialize, NVNboolean, NVNwindow *w, const NVNwindowBuilder *b) {
++NVN(nvnWindowInitialize, NVNboolean, NVNwindow *w, const NVNwindowBuilder *b) { RB_REPLAY_GUARD(1);
+     const win_builder_t *s = (const win_builder_t *)b; win_t *o = (win_t *)w;
+     memset(o, 0, sizeof *o); o->magic = MAGIC('W', 'I', 'N', 'D'); o->native = s->native; o->ntex = s->ntex; o->interval = s->interval;
+     pthread_mutex_lock(&g_rb_acq_mu); rb_acq_forget(&g_rb_acq, o); pthread_mutex_unlock(&g_rb_acq_mu);   // RewindBox (patch 0333): a new swap chain, unknown until its first present
+@@ -3321,8 +3335,8 @@
+         o->ntex ? (int)CTX(o->tex[0])->d.width : 0, o->ntex ? (int)CTX(o->tex[0])->d.height : 0, o->ntex ? CTX(o->tex[0])->d.format : 0);
+     return 1;
+ }
+-NVN(nvnWindowGetNativeWindow, NVNnativeWindow, const NVNwindow *w) { return ((const win_t *)w)->native; }
+-NVN(nvnWindowGetPresentInterval, int, const NVNwindow *w) { return ((const win_t *)w)->interval; }   // Link's Awakening reads it back every frame
++NVN(nvnWindowGetNativeWindow, NVNnativeWindow, const NVNwindow *w) { RB_REPLAY_GUARD(1); return ((const win_t *)w)->native; }
++NVN(nvnWindowGetPresentInterval, int, const NVNwindow *w) { RB_REPLAY_GUARD(1); return ((const win_t *)w)->interval; }   // Link's Awakening reads it back every frame
+ // RewindBox (patch 0059): the line says at which frame (Mario Kart World set it 1,135 times in the 5,968 frames of the IPA 762 run, and nothing told which frames)
+ // RewindBox (patch 0309): the changes are counted too. A game that alternates its interval is a 60 fps title dropping frames; nvn_mtl.m
+ //   offers it the 60 fps hold again once it has locked itself at interval 2 (rb_drs_trial_step)
+@@ -3333,7 +3347,7 @@
+ static _Atomic uint64_t g_rb_itv12_changes;
+ uint64_t nvn_rb_interval12_changes(void);
+ uint64_t nvn_rb_interval12_changes(void) { return atomic_load_explicit(&g_rb_itv12_changes, memory_order_relaxed); }
+-NVN(nvnWindowSetPresentInterval, void, NVNwindow *w, int v) { if (((win_t *)w)->interval != v) { LOG("[nvn] the game sets present interval %d → %d (frame %llu)", ((win_t *)w)->interval, v, (unsigned long long)dm_nvn_frame_count()); atomic_fetch_add_explicit(&g_rb_itv_changes, 1, memory_order_relaxed);
++NVN(nvnWindowSetPresentInterval, void, NVNwindow *w, int v) { RB_REPLAY_GUARD(1); if (((win_t *)w)->interval != v) { LOG("[nvn] the game sets present interval %d → %d (frame %llu)", ((win_t *)w)->interval, v, (unsigned long long)dm_nvn_frame_count()); atomic_fetch_add_explicit(&g_rb_itv_changes, 1, memory_order_relaxed);
+         if ((((win_t *)w)->interval == 1 || ((win_t *)w)->interval == 2) && (v == 1 || v == 2)) atomic_fetch_add_explicit(&g_rb_itv12_changes, 1, memory_order_relaxed); }   // RewindBox (patch 0344)
+     ((win_t *)w)->interval = v; }
+ // 显示层裁切（nn::vi::SetLayerCrop，说明见 graphics/nvn/host_adapt.m s2a_vi_entry）：上屏取窗口贴图的区域。nvnWindowSetCrop 写的是同一个系统窗口裁切，谁最后写算谁
+@@ -3346,7 +3360,7 @@
+ }
+ void dm_vi_layer_crop(int c[4]) { pthread_mutex_lock(&g_vi_mu); memcpy(c, g_vi_crop, sizeof g_vi_crop); pthread_mutex_unlock(&g_vi_mu); }
+ static void dm_vi_layer_crop_clear(void) { pthread_mutex_lock(&g_vi_mu); memset(g_vi_crop, 0, sizeof g_vi_crop); pthread_mutex_unlock(&g_vi_mu); }
+-NVN(nvnWindowSetCrop, void, NVNwindow *w, int x, int y, int ww, int hh) {
++NVN(nvnWindowSetCrop, void, NVNwindow *w, int x, int y, int ww, int hh) { RB_REPLAY_GUARD(1);
+     win_t *o = (win_t *)w;
+     // A zero dimension restores the full texture, including x/y, rather than storing a zero rectangle.
+     if ((!ww || !hh) && o->ntex > 0 && o->tex[0]) { x = y = 0; ww = (int)CTX(o->tex[0])->d.width; hh = (int)CTX(o->tex[0])->d.height; }
+@@ -3355,7 +3369,7 @@
+     memcpy(o->crop, v, sizeof v);
+     dm_vi_layer_crop_clear();   // 真机 SDK 把它推到系统窗口，盖掉之前 nn::vi::SetLayerCrop 设的（host_adapt.m：谁最后写算谁）
+ }
+-NVN(nvnWindowGetCrop, void, const NVNwindow *w, NVNrectangle *crop) {
++NVN(nvnWindowGetCrop, void, const NVNwindow *w, NVNrectangle *crop) { RB_REPLAY_GUARD(1);
+     const win_t *o = (const win_t *)w;
+     crop->x = o->crop[0]; crop->y = o->crop[1];
+     crop->width = o->crop[2]; crop->height = o->crop[3];
+@@ -3530,7 +3544,7 @@
+ static uintptr_t g_pace_cand; static int g_pace_run;   // 上屏侧：候选主人与它连续出帧的次数（只在上屏线程里改）
+ // 审计 #1534 P1-24：按活跃张数轮换（NVN 语义：SetNumActiveTextures 之后只轮换前 nactive 张，未设时 = 全部）。11-04 普查 485 份日志里超级马力欧兄弟 惊奇
+ //   （010015100B514000）设 2 of 3，原先仍按 3 张轮换、交出被排除的第 3 张。活跃张数为 0（窗口没有纹理，或 SetNumActiveTextures(0)）没有可交的纹理：回 NATIVE_ERROR
+-NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsync *s, int *idx) {
++NVN(nvnWindowAcquireTexture, NVNwindowAcquireTextureResult, NVNwindow *w, NVNsync *s, int *idx) { RB_REPLAY_GUARD(0);
+     win_t *o = (win_t *)w;
+     int nact = __atomic_load_n(&o->nactive, __ATOMIC_RELAXED);
+     if (nact <= 0) { static int n; if (n++ < 4) LOG("【红】 [nvn] WindowAcquireTexture: the window has no active texture (%d of %d): no texture handed out", nact, o->ntex); *idx = -1; return NVN_WINDOW_ACQUIRE_TEXTURE_RESULT_NATIVE_ERROR; }
+@@ -3601,7 +3615,7 @@
+     return NVN_WINDOW_ACQUIRE_TEXTURE_RESULT_SUCCESS;
+ }
+ // The older API (NVN 53, Super Mario 3D World + Bowser's Fury): the queue waits for the texture on the GPU and no sync object is handed out. The host replays in submission order, so later commands already come after earlier presents; the same as WindowAcquireTexture without a sync object
+-NVN(nvnQueueAcquireTexture, NVNqueueAcquireTextureResult, NVNqueue *q, NVNwindow *w, int *idx) {
++NVN(nvnQueueAcquireTexture, NVNqueueAcquireTextureResult, NVNqueue *q, NVNwindow *w, int *idx) { RB_REPLAY_GUARD(0);
+     (void)q; return h_nvnWindowAcquireTexture(w, NULL, idx) == NVN_WINDOW_ACQUIRE_TEXTURE_RESULT_SUCCESS ? (NVNqueueAcquireTextureResult)0 : (NVNqueueAcquireTextureResult)1;
+ }
+ 
+@@ -4753,7 +4767,7 @@
+     return nvn_be_present(t, period, crop);
+ }
+ 
+-NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) {
++NVN(nvnQueuePresentTexture, void, NVNqueue *q, NVNwindow *w, int idx) { RB_REPLAY_GUARD(0);
+     if (dm_gfx_session_stopping()) return;
+ #if defined(__APPLE__)
+     if (s2a_guest_frame_qos_protect) s2a_guest_frame_qos_protect();
+@@ -5202,7 +5216,7 @@
+ NVN(nvnBufferBuilderSetStorage, void, NVNbufferBuilder *b, NVNmemoryPool *p, ptrdiff_t off, size_t n) { BB(b)->pool = (const pool_t *)p; BB(b)->off = off; BB(b)->size = n; }
+ NVN(nvnBufferBuilderGetDevice, const NVNdevice *, const NVNbufferBuilder *b) { return ((const buf_builder_t *)b)->dev; }
+ NVN(nvnBufferBuilderGetMemoryPool, const NVNmemoryPool *, const NVNbufferBuilder *b) { return (const NVNmemoryPool *)((const buf_builder_t *)b)->pool; }
+-NVN(nvnBufferInitialize, NVNboolean, NVNbuffer *buf, const NVNbufferBuilder *b) {
++NVN(nvnBufferInitialize, NVNboolean, NVNbuffer *buf, const NVNbufferBuilder *b) { RB_REPLAY_GUARD(1);
+     const buf_builder_t *bb = (const buf_builder_t *)b;
+     if (!bb->pool || (!bb->pool->mem && !(bb->pool->flags & 0x200))) { LOG("【红】 BufferInitialize: pool has no storage (pool %p flags %#x offset %#llx size %#llx)", (const void *)bb->pool, bb->pool ? bb->pool->flags : 0, (unsigned long long)bb->off, (unsigned long long)bb->size); return 0; }
+     // 缓冲对象只是「池 + 偏移 + 大小」的视图，建时不分配、真机驱动也不在这里查：越过池尾本身不是错，读写越过池尾才是（10-26 塞尔达按 + 开系统菜单：
+@@ -5214,14 +5228,14 @@
+     OLOG("BufferInitialize %p pool=%p off=%#llx size=%#llx", (void *)buf, (const void *)bb->pool, (unsigned long long)bb->off, (unsigned long long)bb->size);
+     return 1;
+ }
+-NVN(nvnBufferFinalize, void, NVNbuffer *buf) {
++NVN(nvnBufferFinalize, void, NVNbuffer *buf) { RB_REPLAY_GUARD(1);
+     // 先核魔数：游戏可能 Finalize 没 Initialize 过的对象，那时 pool 字段是垃圾，不能解引用
+     if (BF(buf)->magic == MAGIC('B', 'U', 'F', 0) && BF(buf)->pool && BF(buf)->pool->mem)
+         buf_reg_del((uint64_t)(uintptr_t)(BF(buf)->pool->mem) + (uint64_t)BF(buf)->off);
+     ((buf_t *)buf)->magic = 0;
+ }
+-NVN(nvnBufferSetDebugLabel, void, NVNbuffer *buf, const char *s) { (void)buf; (void)s; }
+-NVN(nvnBufferGetAddress, NVNbufferAddress, const NVNbuffer *buf) { return (NVNbufferAddress)(pool_ga(BF(buf)->pool) + BF(buf)->off); }
++NVN(nvnBufferSetDebugLabel, void, NVNbuffer *buf, const char *s) { RB_REPLAY_GUARD(1); (void)buf; (void)s; }
++NVN(nvnBufferGetAddress, NVNbufferAddress, const NVNbuffer *buf) { RB_REPLAY_GUARD(1); return (NVNbufferAddress)(pool_ga(BF(buf)->pool) + BF(buf)->off); }
+ // CPU 不可访问的池（NVN_MEMORY_POOL_FLAGS_CPU_NO_ACCESS）：映射给 NULL，同真驱动。宿主内部一律直接用 pool->mem，不经这两个入口。
+ //   11-02 EA SPORTS FC 26（01004FF021942000）：引擎算拷贝源 = nvnBufferGetAddress(A) + (CPU 指针 − nvnBufferMap(A))，CPU 不可访问的池它自己把 CPU 指针记 0
+ //   （NRO+0x67a84 查池标志位 0），只有 Map 也给 0 时才得回 GPU 地址；原先 Map 照给存储指针，算成「GPU 地址 − CPU 地址」（0x4ddcf80000），回放中止
+@@ -5233,12 +5247,12 @@
+     uint64_t n = atomic_fetch_add(&g_map_none[k], 1) + 1;
+     if (n == 1 || n % 1000 == 0) LOG("[nvn] %s on a pool without CPU access (flags %#x): NULL, as the NVN driver (%llu so far)", k ? "nvnBufferMap" : "nvnMemoryPoolMap", o->flags, (unsigned long long)n);
+ }
+-NVN(nvnBufferMap, void *, const NVNbuffer *buf) { if (pool_cpu_none(BF(buf)->pool)) { map_none_note(1, BF(buf)->pool); return NULL; } return BF(buf)->pool->mem + BF(buf)->off; }
+-NVN(nvnBufferGetSize, size_t, const NVNbuffer *buf) { return (size_t)BF(buf)->size; }
+-NVN(nvnBufferGetMemoryPool, NVNmemoryPool *, const NVNbuffer *buf) { return (NVNmemoryPool *)BF(buf)->pool; }
+-NVN(nvnBufferGetMemoryOffset, ptrdiff_t, const NVNbuffer *buf) { return (ptrdiff_t)BF(buf)->off; }
++NVN(nvnBufferMap, void *, const NVNbuffer *buf) { RB_REPLAY_GUARD(1); if (pool_cpu_none(BF(buf)->pool)) { map_none_note(1, BF(buf)->pool); return NULL; } return BF(buf)->pool->mem + BF(buf)->off; }
++NVN(nvnBufferGetSize, size_t, const NVNbuffer *buf) { RB_REPLAY_GUARD(1); return (size_t)BF(buf)->size; }
++NVN(nvnBufferGetMemoryPool, NVNmemoryPool *, const NVNbuffer *buf) { RB_REPLAY_GUARD(1); return (NVNmemoryPool *)BF(buf)->pool; }
++NVN(nvnBufferGetMemoryOffset, ptrdiff_t, const NVNbuffer *buf) { RB_REPLAY_GUARD(1); return (ptrdiff_t)BF(buf)->off; }
+ // 调试 ID：NVN 没有 SetDebugID，驱动侧自定。本层用对象地址（对象存活期间唯一、稳定），与 nvnTextureGetDebugID 用序号的差别是缓冲区没有初始化序号
+-NVN(nvnBufferGetDebugID, uint64_t, const NVNbuffer *buf) { return (uint64_t)(uintptr_t)buf; }
++NVN(nvnBufferGetDebugID, uint64_t, const NVNbuffer *buf) { RB_REPLAY_GUARD(1); return (uint64_t)(uintptr_t)buf; }
+ 
+ // ---- Sampler：整数 / 无符号整数边界色（给整数纹理用的边界值），与已有浮点边界色共用 samp_par.border ----
+ NVN(nvnSamplerBuilderSetBorderColori, void, NVNsamplerBuilder *b, const int *c) {
+@@ -5249,41 +5263,41 @@
+     samp_par *p = &((samp_builder_t *)b)->p;
+     for (int i = 0; i < 4; i++) p->border[i] = (float)c[i];
+ }
+-NVN(nvnSamplerGetBorderColorui, void, const NVNsampler *s, uint32_t *c) {
++NVN(nvnSamplerGetBorderColorui, void, const NVNsampler *s, uint32_t *c) { RB_REPLAY_GUARD(1);
+     const samp_par *p = &((const samp_t *)s)->p;
+     for (int i = 0; i < 4; i++) c[i] = (uint32_t)(p->border[i] < 0.0f ? 0.0f : p->border[i] + 0.5f);
+ }
+-NVN(nvnSamplerGetDebugID, uint64_t, const NVNsampler *s) { return (uint64_t)(uintptr_t)s; }
++NVN(nvnSamplerGetDebugID, uint64_t, const NVNsampler *s) { RB_REPLAY_GUARD(1); return (uint64_t)(uintptr_t)s; }
+ // A buffer object is a view of its pool: a flush through it publishes CPU-written textures under that range exactly like the pool's flush (ft_flush). Empty before, so a texture the game
+ //   wrote through a buffer mapping and flushed there stayed a GPU-only texture with its old content (t_nvn_poolflush; gap scan 11-01 family 42)
+-NVN(nvnBufferFlushMappedRange, void, const NVNbuffer *buf, ptrdiff_t off, size_t n) { h_nvnMemoryPoolFlushMappedRange((const NVNmemoryPool *)BF(buf)->pool, BF(buf)->off + off, n); }
+-NVN(nvnBufferInvalidateMappedRange, void, const NVNbuffer *buf, ptrdiff_t off, size_t n) { h_nvnMemoryPoolInvalidateMappedRange((const NVNmemoryPool *)BF(buf)->pool, BF(buf)->off + off, n); }
++NVN(nvnBufferFlushMappedRange, void, const NVNbuffer *buf, ptrdiff_t off, size_t n) { RB_REPLAY_GUARD(1); h_nvnMemoryPoolFlushMappedRange((const NVNmemoryPool *)BF(buf)->pool, BF(buf)->off + off, n); }
++NVN(nvnBufferInvalidateMappedRange, void, const NVNbuffer *buf, ptrdiff_t off, size_t n) { RB_REPLAY_GUARD(1); h_nvnMemoryPoolInvalidateMappedRange((const NVNmemoryPool *)BF(buf)->pool, BF(buf)->off + off, n); }
+ 
+ // Memory pool queries
+-NVN(nvnMemoryPoolGetFlags, NVNmemoryPoolFlags, const NVNmemoryPool *p) { return (NVNmemoryPoolFlags)((const pool_t *)p)->flags; }
+-NVN(nvnMemoryPoolMap, void *, const NVNmemoryPool *p) { const pool_t *o = (const pool_t *)p; if (pool_cpu_none(o)) { map_none_note(0, o); return NULL; } return o->mem; }   // CPU 不可访问的池给 NULL（见 nvnBufferMap）
+-NVN(nvnMemoryPoolGetSize, size_t, const NVNmemoryPool *p) { return (size_t)((const pool_t *)p)->size; }
+-NVN(nvnMemoryPoolSetDebugLabel, void, NVNmemoryPool *p, const char *s) { (void)p; (void)s; }
++NVN(nvnMemoryPoolGetFlags, NVNmemoryPoolFlags, const NVNmemoryPool *p) { RB_REPLAY_GUARD(1); return (NVNmemoryPoolFlags)((const pool_t *)p)->flags; }
++NVN(nvnMemoryPoolMap, void *, const NVNmemoryPool *p) { RB_REPLAY_GUARD(1); const pool_t *o = (const pool_t *)p; if (pool_cpu_none(o)) { map_none_note(0, o); return NULL; } return o->mem; }   // CPU 不可访问的池给 NULL（见 nvnBufferMap）
++NVN(nvnMemoryPoolGetSize, size_t, const NVNmemoryPool *p) { RB_REPLAY_GUARD(1); return (size_t)((const pool_t *)p)->size; }
++NVN(nvnMemoryPoolSetDebugLabel, void, NVNmemoryPool *p, const char *s) { RB_REPLAY_GUARD(1); (void)p; (void)s; }
+ // Debug labels: only for NVN debugging tools, unused by the host
+-NVN(nvnWindowSetDebugLabel, void, NVNwindow *w, const char *s) { (void)w; (void)s; }
+-NVN(nvnTexturePoolSetDebugLabel, void, NVNtexturePool *p, const char *s) { (void)p; (void)s; }
+-NVN(nvnSamplerPoolSetDebugLabel, void, NVNsamplerPool *p, const char *s) { (void)p; (void)s; }
+-NVN(nvnQueueSetDebugLabel, void, NVNqueue *q, const char *s) { (void)q; (void)s; }
+-NVN(nvnProgramSetDebugLabel, void, NVNprogram *p, const char *s) { (void)p; (void)s; }
++NVN(nvnWindowSetDebugLabel, void, NVNwindow *w, const char *s) { RB_REPLAY_GUARD(1); (void)w; (void)s; }
++NVN(nvnTexturePoolSetDebugLabel, void, NVNtexturePool *p, const char *s) { RB_REPLAY_GUARD(1); (void)p; (void)s; }
++NVN(nvnSamplerPoolSetDebugLabel, void, NVNsamplerPool *p, const char *s) { RB_REPLAY_GUARD(1); (void)p; (void)s; }
++NVN(nvnQueueSetDebugLabel, void, NVNqueue *q, const char *s) { RB_REPLAY_GUARD(1); (void)q; (void)s; }
++NVN(nvnProgramSetDebugLabel, void, NVNprogram *p, const char *s) { RB_REPLAY_GUARD(1); (void)p; (void)s; }
+ // ---- 本层不建模的三项程序特性：按「不支持就明说」处理，不返回成功兜底 ----
+ // 子程序链接（GPGPU subroutine linkage）：直连层的着色器是出包时离线翻译成整支函数的，没有运行时可链接的子程序表，
+ // 所以这里如实返回 0（失败）并点名一次，让游戏/日志能看出是这一项没支持，而不是静默画错
+-NVN(nvnProgramSetSubroutineLinkage, NVNboolean, NVNprogram *p, int n, const NVNsubroutineLinkageMapPtr *m) {
++NVN(nvnProgramSetSubroutineLinkage, NVNboolean, NVNprogram *p, int n, const NVNsubroutineLinkageMapPtr *m) { RB_REPLAY_GUARD(1);
+     (void)p; static int once;
+     if (!once++) LOG("【红】 ProgramSetSubroutineLinkage %d: subroutine linkage is not supported (shaders are translated whole at pack time)", n);
+     (void)m; return 0;
+ }
+ // 逐样本着色（sample shading）：只改光栅化阶段的采样密度，本层不建模；记一行，行为仍按每像素一次
+-NVN_NOPROTO(nvnProgramSetSampleShading, void, NVNprogram *p, float f) {
++NVN_NOPROTO(nvnProgramSetSampleShading, void, NVNprogram *p, float f) { RB_REPLAY_GUARD(1);
+     (void)p; static int once; if (!once++) LOG("[nvn] ProgramSetSampleShading %.3f: sample-rate shading is not modelled (per-pixel shading is used)", f);
+ }
+ // 子块尺寸（tiled texture 的子块，配合 sparse / tiled 存储）：本层不做 tiled 存储，如实报 0 并点名
+-NVN_NOPROTO(nvnProgramGetSubtileSize, int, const NVNprogram *p) {
++NVN_NOPROTO(nvnProgramGetSubtileSize, int, const NVNprogram *p) { RB_REPLAY_GUARD(1);
+     (void)p; static int once; if (!once++) LOG("[nvn] ProgramGetSubtileSize: tiled texture storage is not used, reporting 0");
+     return 0;
+ }
+@@ -5627,7 +5641,7 @@
+     if (end > v->top) v->top = end;
+     return 1;
+ }
+-NVN(nvnMemoryPoolMapVirtual, NVNboolean, NVNmemoryPool *p, int n, const NVNmappingRequest *rq) {
++NVN(nvnMemoryPoolMapVirtual, NVNboolean, NVNmemoryPool *p, int n, const NVNmappingRequest *rq) { RB_REPLAY_GUARD(1);
+     pool_t *o = (pool_t *)p; const map_req *r = (const map_req *)rq;
+     int hint=nvn_be_guest_hint_on();
+     vp_lock(); struct vpool *v = vpool_of(o); int ok = v != NULL;
+@@ -5650,20 +5664,20 @@
+ 
+ // Samplers: the getters read the parameters in the object. Reduction (min / max of the texels a filtered sample covers) maps to the Metal 26 sampler reduction mode (nvn_mtl.m samp_by_id) on an Apple10 GPU; elsewhere the shader's device-made emulation variant reduces at explicit LODs (nvn_mtl.m se_want, translator/dmsh_red.py)
+ NVN(nvnSamplerBuilderSetReductionFilter, void, NVNsamplerBuilder *b, NVNsamplerReduction r) { SB(b)->reduction = (uint8_t)r; }
+-NVN(nvnSamplerSetDebugLabel, void, NVNsampler *s, const char *l) { (void)s; (void)l; }
++NVN(nvnSamplerSetDebugLabel, void, NVNsampler *s, const char *l) { RB_REPLAY_GUARD(1); (void)s; (void)l; }
+ #define SP(s) (&((const samp_t *)(s))->p)
+-NVN(nvnSamplerGetMinMagFilter, void, const NVNsampler *s, NVNminFilter *mi, NVNmagFilter *ma) { *mi = (NVNminFilter)SP(s)->minf; *ma = (NVNmagFilter)SP(s)->magf; }
+-NVN(nvnSamplerGetWrapMode, void, const NVNsampler *s, NVNwrapMode *a, NVNwrapMode *b, NVNwrapMode *c) { *a = (NVNwrapMode)SP(s)->ws; *b = (NVNwrapMode)SP(s)->wt; *c = (NVNwrapMode)SP(s)->wr; }
+-NVN(nvnSamplerGetLodClamp, void, const NVNsampler *s, float *lo, float *hi) { *lo = SP(s)->lod_min; *hi = SP(s)->lod_max; }
+-NVN(nvnSamplerGetLodBias, float, const NVNsampler *s) { return SP(s)->lod_bias; }
+-NVN(nvnSamplerGetCompare, void, const NVNsampler *s, NVNcompareMode *m, NVNcompareFunc *f) { *m = (NVNcompareMode)SP(s)->cmp_mode; *f = (NVNcompareFunc)SP(s)->cmp_func; }
+-NVN(nvnSamplerGetBorderColor, void, const NVNsampler *s, float *c) { memcpy(c, SP(s)->border, 16); }
++NVN(nvnSamplerGetMinMagFilter, void, const NVNsampler *s, NVNminFilter *mi, NVNmagFilter *ma) { RB_REPLAY_GUARD(1); *mi = (NVNminFilter)SP(s)->minf; *ma = (NVNmagFilter)SP(s)->magf; }
++NVN(nvnSamplerGetWrapMode, void, const NVNsampler *s, NVNwrapMode *a, NVNwrapMode *b, NVNwrapMode *c) { RB_REPLAY_GUARD(1); *a = (NVNwrapMode)SP(s)->ws; *b = (NVNwrapMode)SP(s)->wt; *c = (NVNwrapMode)SP(s)->wr; }
++NVN(nvnSamplerGetLodClamp, void, const NVNsampler *s, float *lo, float *hi) { RB_REPLAY_GUARD(1); *lo = SP(s)->lod_min; *hi = SP(s)->lod_max; }
++NVN(nvnSamplerGetLodBias, float, const NVNsampler *s) { RB_REPLAY_GUARD(1); return SP(s)->lod_bias; }
++NVN(nvnSamplerGetCompare, void, const NVNsampler *s, NVNcompareMode *m, NVNcompareFunc *f) { RB_REPLAY_GUARD(1); *m = (NVNcompareMode)SP(s)->cmp_mode; *f = (NVNcompareFunc)SP(s)->cmp_func; }
++NVN(nvnSamplerGetBorderColor, void, const NVNsampler *s, float *c) { RB_REPLAY_GUARD(1); memcpy(c, SP(s)->border, 16); }
+ // 整数版读回（#355 只交了无符号版）：同 #355 的存法——整数边框色按 float 存在 border[4]，这里四舍五入回整数
+-NVN(nvnSamplerGetBorderColori, void, const NVNsampler *s, int *c) { for (int i = 0; i < 4; i++) c[i] = (int)lrintf(SP(s)->border[i]); }
+-NVN(nvnSamplerGetMaxAnisotropy, float, const NVNsampler *s) { return SP(s)->aniso; }
+-NVN(nvnSamplerGetReductionFilter, NVNsamplerReduction, const NVNsampler *s) { return (NVNsamplerReduction)SP(s)->reduction; }
++NVN(nvnSamplerGetBorderColori, void, const NVNsampler *s, int *c) { RB_REPLAY_GUARD(1); for (int i = 0; i < 4; i++) c[i] = (int)lrintf(SP(s)->border[i]); }
++NVN(nvnSamplerGetMaxAnisotropy, float, const NVNsampler *s) { RB_REPLAY_GUARD(1); return SP(s)->aniso; }
++NVN(nvnSamplerGetReductionFilter, NVNsamplerReduction, const NVNsampler *s) { RB_REPLAY_GUARD(1); return (NVNsamplerReduction)SP(s)->reduction; }
+ // whether two samplers have the same state (games use it to deduplicate sampler pool entries)
+-NVN(nvnSamplerCompare, NVNboolean, const NVNsampler *a, const NVNsampler *b) {
++NVN(nvnSamplerCompare, NVNboolean, const NVNsampler *a, const NVNsampler *b) { RB_REPLAY_GUARD(1);
+     const samp_par *x = SP(a), *y = SP(b);
+     return x->minf == y->minf && x->magf == y->magf && x->ws == y->ws && x->wt == y->wt && x->wr == y->wr && x->cmp_mode == y->cmp_mode && x->cmp_func == y->cmp_func && x->reduction == y->reduction &&
+            x->lod_min == y->lod_min && x->lod_max == y->lod_max && x->lod_bias == y->lod_bias && x->aniso == y->aniso && x->lod_snap == y->lod_snap && !memcmp(x->border, y->border, sizeof x->border);
+@@ -5687,21 +5701,21 @@
+ enum { STORAGE_CLASS_HOST = 0x100 };
+ NVN(nvnTextureBuilderGetStorageClass, NVNstorageClass, const NVNtextureBuilder *b) { (void)b; return STORAGE_CLASS_HOST; }
+ // Used by Bowser's Fury: the texture's channel swizzle (set by TextureBuilderSetSwizzle at build time, identity R G B A when unset) and storage class (as for the builder)
+-NVN(nvnTextureGetSwizzle, void, const NVNtexture *t, NVNtextureSwizzle *r, NVNtextureSwizzle *g, NVNtextureSwizzle *b, NVNtextureSwizzle *a) {
++NVN(nvnTextureGetSwizzle, void, const NVNtexture *t, NVNtextureSwizzle *r, NVNtextureSwizzle *g, NVNtextureSwizzle *b, NVNtextureSwizzle *a) { RB_REPLAY_GUARD(1);
+     unsigned w = tex_swz(CTX(t));
+     if (r) *r = (NVNtextureSwizzle)(w & 7); if (g) *g = (NVNtextureSwizzle)(w >> 3 & 7); if (b) *b = (NVNtextureSwizzle)(w >> 6 & 7); if (a) *a = (NVNtextureSwizzle)(w >> 9 & 7);
+ }
+-NVN(nvnTextureGetStorageClass, NVNstorageClass, const NVNtexture *t) { (void)t; return STORAGE_CLASS_HOST; }   // 同 builder
++NVN(nvnTextureGetStorageClass, NVNstorageClass, const NVNtexture *t) { RB_REPLAY_GUARD(1); (void)t; return STORAGE_CLASS_HOST; }   // 同 builder
+ NVN(nvnTextureBuilderGetZCullStorageSize, size_t, const NVNtextureBuilder *b) { return zcull_size(&TB(b)->d); }   // as for the texture (zcull_size)
+ // Packaged texture data in CPU memory (not written into the pool by the game): NVN copies it into the texture storage at TextureInitialize (the CPU cannot write a compressible pool; the driver copies). 13 Sentinels creates all its textures this way
+ NVN(nvnTextureBuilderSetPackagedTextureData, void, NVNtextureBuilder *b, const void *data) { TB(b)->pkg_data = data; }
+-NVN(nvnTextureGetFormat, NVNformat, const NVNtexture *t) { return (NVNformat)CTX(t)->d.format; }
+-NVN(nvnTextureGetTarget, NVNtextureTarget, const NVNtexture *t) { return (NVNtextureTarget)CTX(t)->d.target; }
+-NVN(nvnTextureSetDebugLabel, void, NVNtexture *t, const char *s) { (void)t; (void)s; }
+-NVN(nvnTextureViewGetLevels, NVNboolean, const NVNtextureView *v, int *base, int *n) { const view_t *w = (const view_t *)v; *base = w->base_level; *n = w->nlevels; return w->set_levels; }
+-NVN(nvnTextureViewGetTarget, NVNboolean, const NVNtextureView *v, NVNtextureTarget *t) { const view_t *w = (const view_t *)v; *t = (NVNtextureTarget)w->target; return w->set_target; }
+-NVN(nvnTextureViewSetDepthStencilMode, void, NVNtextureView *v, NVNtextureDepthStencilMode m) { VW(v)->set_dsmode = 1; VW(v)->dsmode = (uint8_t)m; }   // STENCIL: the replay binds a stencil-only view (tex_by_id)
+-NVN(nvnTextureViewSetSwizzle, void, NVNtextureView *v, NVNtextureSwizzle r, NVNtextureSwizzle g, NVNtextureSwizzle bl, NVNtextureSwizzle a) {
++NVN(nvnTextureGetFormat, NVNformat, const NVNtexture *t) { RB_REPLAY_GUARD(1); return (NVNformat)CTX(t)->d.format; }
++NVN(nvnTextureGetTarget, NVNtextureTarget, const NVNtexture *t) { RB_REPLAY_GUARD(1); return (NVNtextureTarget)CTX(t)->d.target; }
++NVN(nvnTextureSetDebugLabel, void, NVNtexture *t, const char *s) { RB_REPLAY_GUARD(1); (void)t; (void)s; }
++NVN(nvnTextureViewGetLevels, NVNboolean, const NVNtextureView *v, int *base, int *n) { RB_REPLAY_GUARD(1); const view_t *w = (const view_t *)v; *base = w->base_level; *n = w->nlevels; return w->set_levels; }
++NVN(nvnTextureViewGetTarget, NVNboolean, const NVNtextureView *v, NVNtextureTarget *t) { RB_REPLAY_GUARD(1); const view_t *w = (const view_t *)v; *t = (NVNtextureTarget)w->target; return w->set_target; }
++NVN(nvnTextureViewSetDepthStencilMode, void, NVNtextureView *v, NVNtextureDepthStencilMode m) { RB_REPLAY_GUARD(1); VW(v)->set_dsmode = 1; VW(v)->dsmode = (uint8_t)m; }   // STENCIL: the replay binds a stencil-only view (tex_by_id)
++NVN(nvnTextureViewSetSwizzle, void, NVNtextureView *v, NVNtextureSwizzle r, NVNtextureSwizzle g, NVNtextureSwizzle bl, NVNtextureSwizzle a) { RB_REPLAY_GUARD(1);
+     view_t *w = VW(v); w->set_swizzle = 1; w->swz[0] = (uint8_t)r; w->swz[1] = (uint8_t)g; w->swz[2] = (uint8_t)bl; w->swz[3] = (uint8_t)a;
+     if (r != NVN_TEXTURE_SWIZZLE_R || g != NVN_TEXTURE_SWIZZLE_G || bl != NVN_TEXTURE_SWIZZLE_B || a != NVN_TEXTURE_SWIZZLE_A) ONCE_LOG("TextureViewSetSwizzle not identity (%d %d %d %d): remapped with a Metal view when sampling", (int)r, (int)g, (int)bl, (int)a);
+ }
+@@ -5769,14 +5783,14 @@
+ NVN(nvnTextureBuilderGetFormat, NVNformat, const NVNtextureBuilder *b) { return (NVNformat)((const tex_builder_t *)b)->d.format; }
+ NVN(nvnTextureBuilderGetSamples, int, const NVNtextureBuilder *b) { return ((const tex_builder_t *)b)->d.samples; }
+ NVN(nvnTextureBuilderGetStride, ptrdiff_t, const NVNtextureBuilder *b) { return (ptrdiff_t)((const tex_builder_t *)b)->d.stride; }
+-NVN(nvnTextureViewGetFormat, NVNboolean, const NVNtextureView *v, NVNformat *f) { const view_t *w = (const view_t *)v; if (f) *f = (NVNformat)w->format; return w->set_format; }
+-NVN(nvnTextureViewGetDepthStencilMode, NVNboolean, const NVNtextureView *v, NVNtextureDepthStencilMode *m) { const view_t *w = (const view_t *)v; if (m) *m = (NVNtextureDepthStencilMode)w->dsmode; return w->set_dsmode; }
+-NVN(nvnTextureViewGetSwizzle, NVNboolean, const NVNtextureView *v, NVNtextureSwizzle *r, NVNtextureSwizzle *g, NVNtextureSwizzle *b, NVNtextureSwizzle *a) {
++NVN(nvnTextureViewGetFormat, NVNboolean, const NVNtextureView *v, NVNformat *f) { RB_REPLAY_GUARD(1); const view_t *w = (const view_t *)v; if (f) *f = (NVNformat)w->format; return w->set_format; }
++NVN(nvnTextureViewGetDepthStencilMode, NVNboolean, const NVNtextureView *v, NVNtextureDepthStencilMode *m) { RB_REPLAY_GUARD(1); const view_t *w = (const view_t *)v; if (m) *m = (NVNtextureDepthStencilMode)w->dsmode; return w->set_dsmode; }
++NVN(nvnTextureViewGetSwizzle, NVNboolean, const NVNtextureView *v, NVNtextureSwizzle *r, NVNtextureSwizzle *g, NVNtextureSwizzle *b, NVNtextureSwizzle *a) { RB_REPLAY_GUARD(1);
+     const view_t *w = (const view_t *)v; NVNtextureSwizzle *o[4] = {r, g, b, a};
+     for (int c = 0; c < 4; c++) if (o[c]) *o[c] = (NVNtextureSwizzle)(w->set_swizzle ? w->swz[c] : NVN_TEXTURE_SWIZZLE_R + c);
+     return w->set_swizzle;
+ }
+-NVN(nvnTextureGetDepthStencilMode, NVNtextureDepthStencilMode, const NVNtexture *t) { return ((const tex_t *)t)->stencil ? NVN_TEXTURE_DEPTH_STENCIL_MODE_STENCIL : NVN_TEXTURE_DEPTH_STENCIL_MODE_DEPTH; }
++NVN(nvnTextureGetDepthStencilMode, NVNtextureDepthStencilMode, const NVNtexture *t) { RB_REPLAY_GUARD(1); return ((const tex_t *)t)->stencil ? NVN_TEXTURE_DEPTH_STENCIL_MODE_STENCIL : NVN_TEXTURE_DEPTH_STENCIL_MODE_DEPTH; }
+ // Queue priority: the host has one Metal queue
+ NVN(nvnQueueBuilderSetQueuePriority, void, NVNqueueBuilder *b, int prio) { QB(b)->priority = prio; }
+ // Transform feedback (vertex outputs captured into buffers): Pokémon Legends: Z-A skins its characters this way. A vertex-only program writes skinned positions and packed normals / tangents
+@@ -5794,63 +5808,63 @@
+ NVN(nvnCommandBufferDrawTransformFeedback, void, NVNcommandBuffer *c, NVNdrawPrimitive m, NVNbufferAddress a) { rec_draw(c, (p_draw){.prim = m, .count = 1, .instances = 1, .tfc = a ? GA(a) : 1}); }   // as many vertices as were captured (replay: nvn_geometry.inc tfd_args)
+ 
+ // Device: combined texture handle = texture id | sampler id << 20 (same encoding as the separate handles)
+-NVN(nvnDeviceGetTextureHandle, NVNtextureHandle, const NVNdevice *d, int tex, int samp) { (void)d; return (NVNtextureHandle)((uint64_t)(uint32_t)tex | (uint64_t)(uint32_t)samp << 20); }
++NVN(nvnDeviceGetTextureHandle, NVNtextureHandle, const NVNdevice *d, int tex, int samp) { RB_REPLAY_GUARD(1); (void)d; return (NVNtextureHandle)((uint64_t)(uint32_t)tex | (uint64_t)(uint32_t)samp << 20); }
+ // Handle for texel fetches only (Monster Hunter Rise): a fetch reads the texture descriptor and no sampler, so the handle is the texture ID with sampler ID 0
+-NVN(nvnDeviceGetTexelFetchHandle, NVNtextureHandle, const NVNdevice *d, int tex) { (void)d; return (NVNtextureHandle)(uint64_t)(uint32_t)tex; }
++NVN(nvnDeviceGetTexelFetchHandle, NVNtextureHandle, const NVNdevice *d, int tex) { RB_REPLAY_GUARD(1); (void)d; return (NVNtextureHandle)(uint64_t)(uint32_t)tex; }
+ // Counter timestamps are 19.2 MHz GPU ticks (nvn_mtl.m gpu_ticks: ns × 12 / 625); convert back to ns. They used to be returned as is, about 52 times smaller than GetCurrentTimestampInNanoseconds, so subtracting one from the other gave garbage
+ // RewindBox (patch 0328): the call is noted for the interval-2 episode trace (rb_itv_converted: which report the game reads, and how far its time lies ahead of the guest clock now); the value is as before
+-NVN(nvnDeviceGetTimestampInNanoseconds, uint64_t, const NVNdevice *d, const NVNcounterData *c) { (void)d; rb_itv_converted(c->timestamp); return c->timestamp * 625 / 12; }
++NVN(nvnDeviceGetTimestampInNanoseconds, uint64_t, const NVNdevice *d, const NVNcounterData *c) { RB_REPLAY_GUARD(1); (void)d; rb_itv_converted(c->timestamp); return c->timestamp * 625 / 12; }
+ // Current GPU time (ns): the same clock as the counter timestamps -- the guest clock (guest_ns, nvn_mtl.m gpu_ticks)
+-NVN(nvnDeviceGetCurrentTimestampInNanoseconds, uint64_t, const NVNdevice *d) { (void)d; return guest_ns(); }
+-NVN(nvnDeviceRegisterFastClearColor, NVNboolean, NVNdevice *d, const float *c, NVNformat f) { (void)d; (void)c; (void)f; return 1; }
++NVN(nvnDeviceGetCurrentTimestampInNanoseconds, uint64_t, const NVNdevice *d) { RB_REPLAY_GUARD(1); (void)d; return guest_ns(); }
++NVN(nvnDeviceRegisterFastClearColor, NVNboolean, NVNdevice *d, const float *c, NVNformat f) { RB_REPLAY_GUARD(1); (void)d; (void)c; (void)f; return 1; }
+ // 整数版本的 fast clear 颜色：与浮点版本同一条规则——只是给 Tegra 硬件的提示，宿主的清屏值由每条 clear 命令自己带
+-NVN(nvnDeviceRegisterFastClearColori, NVNboolean, NVNdevice *d, const int *c, NVNformat f) { (void)d; (void)c; (void)f; return 1; }
+-NVN(nvnDeviceRegisterFastClearColorui, NVNboolean, NVNdevice *d, const uint32_t *c, NVNformat f) { (void)d; (void)c; (void)f; return 1; }   // 无符号版同上（10-25 批量补齐）
++NVN(nvnDeviceRegisterFastClearColori, NVNboolean, NVNdevice *d, const int *c, NVNformat f) { RB_REPLAY_GUARD(1); (void)d; (void)c; (void)f; return 1; }
++NVN(nvnDeviceRegisterFastClearColorui, NVNboolean, NVNdevice *d, const uint32_t *c, NVNformat f) { RB_REPLAY_GUARD(1); (void)d; (void)c; (void)f; return 1; }   // 无符号版同上（10-25 批量补齐）
+ // ---- 调试接口（只保状态与查询，不改渲染行为）----
+-NVN(nvnDeviceSetDebugLabel, void, NVNdevice *d, const char *label) {
++NVN(nvnDeviceSetDebugLabel, void, NVNdevice *d, const char *label) { RB_REPLAY_GUARD(1);
+     dev_t_ *o = (dev_t_ *)d;
+     if (o && o->magic == MAGIC('D', 'E', 'V', 0)) o->dbg_label = label;   // 只记指针，不接管所有权
+     OLOG("DeviceSetDebugLabel %s", label ? label : "(null)");
+ }
+ // 调试域号：宿主不分区（没有域隔离），给单调唯一号即可，供游戏把它们自己的调试分组对上
+-NVN(nvnDeviceGenerateDebugDomainId, NVNdebugDomainId, const NVNdevice *d, const char *name) {
++NVN(nvnDeviceGenerateDebugDomainId, NVNdebugDomainId, const NVNdevice *d, const char *name) { RB_REPLAY_GUARD(1);
+     (void)d; static _Atomic int next; int id = ++next;
+     OLOG("DeviceGenerateDebugDomainId %s = %d", name ? name : "(null)", id);
+     return id;
+ }
+ // 外部调试器：本层没有 attach 通道（Metal 调试器不在这个接口下），恒报「没接」
+-NVN(nvnDeviceIsExternalDebuggerAttached, NVNboolean, const NVNdevice *d) { (void)d; return 0; }
++NVN(nvnDeviceIsExternalDebuggerAttached, NVNboolean, const NVNdevice *d) { RB_REPLAY_GUARD(1); (void)d; return 0; }
+ // 延迟 finalize：宿主一直是立即 finalize（Finalize 当场生效），所以这里没有待办，走一次空实现
+-NVN(nvnDeviceApplyDeferredFinalizes, void, NVNdevice *d, int n) {
++NVN(nvnDeviceApplyDeferredFinalizes, void, NVNdevice *d, int n) { RB_REPLAY_GUARD(1);
+     (void)d; static int once; if (!once++) LOG("[nvn] DeviceApplyDeferredFinalizes %d: finalizes are immediate, nothing deferred", n);
+ }
+ // 调试数据库：本层不维护对象注册表，遍历时一次都不回调（空库），不假装有对象
+-NVN(nvnDeviceWalkDebugDatabase, void, const NVNdevice *d, NVNdebugObjectType type, void (*cb)(void *, void *), void *ud) {
++NVN(nvnDeviceWalkDebugDatabase, void, const NVNdevice *d, NVNdebugObjectType type, void (*cb)(void *, void *), void *ud) { RB_REPLAY_GUARD(1);
+     (void)d; (void)type; (void)cb; (void)ud; static int once;
+     if (!once++) LOG("[nvn] DeviceWalkDebugDatabase: the host keeps no debug object database, no entries are reported");
+ }
+ // 自动检查点 / 调用栈等捕获开关：只影响调试器抓现场，不影响渲染与同步，按空实现登记（各自点名一次）
+-NVN_NOPROTO(nvnDeviceSetAutomaticCheckpointsEnable, void, NVNdevice *d, NVNboolean en) { static int once; if (!once++) LOG("[nvn] nvnDeviceSetAutomaticCheckpointsEnable: debug-only setting, ignored"); }
+-NVN_NOPROTO(nvnDeviceSetAutomaticCheckpointsSamplingInterval, void, NVNdevice *d, int ns) { static int once; if (!once++) LOG("[nvn] nvnDeviceSetAutomaticCheckpointsSamplingInterval: debug-only setting, ignored"); }
+-NVN_NOPROTO(nvnDeviceSetAutomaticCheckpointsByDebugGroup, void, NVNdevice *d, NVNboolean en) { static int once; if (!once++) LOG("[nvn] nvnDeviceSetAutomaticCheckpointsByDebugGroup: debug-only setting, ignored"); }
+-NVN_NOPROTO(nvnDeviceSetCheckpointCallStacksEnable, void, NVNdevice *d, NVNboolean en) { static int once; if (!once++) LOG("[nvn] nvnDeviceSetCheckpointCallStacksEnable: debug-only setting, ignored"); }
+-NVN_NOPROTO(nvnDeviceSetCheckpointMaxCallStacksDepth, void, NVNdevice *d, int n) { static int once; if (!once++) LOG("[nvn] nvnDeviceSetCheckpointMaxCallStacksDepth: debug-only setting, ignored"); }
+-NVN_NOPROTO(nvnDeviceSetAutomaticCheckpointsMask, void, NVNdevice *d, uint64_t mask) { static int once; if (!once++) LOG("[nvn] nvnDeviceSetAutomaticCheckpointsMask: debug-only setting, ignored"); }
++NVN_NOPROTO(nvnDeviceSetAutomaticCheckpointsEnable, void, NVNdevice *d, NVNboolean en) { RB_REPLAY_GUARD(1); static int once; if (!once++) LOG("[nvn] nvnDeviceSetAutomaticCheckpointsEnable: debug-only setting, ignored"); }
++NVN_NOPROTO(nvnDeviceSetAutomaticCheckpointsSamplingInterval, void, NVNdevice *d, int ns) { RB_REPLAY_GUARD(1); static int once; if (!once++) LOG("[nvn] nvnDeviceSetAutomaticCheckpointsSamplingInterval: debug-only setting, ignored"); }
++NVN_NOPROTO(nvnDeviceSetAutomaticCheckpointsByDebugGroup, void, NVNdevice *d, NVNboolean en) { RB_REPLAY_GUARD(1); static int once; if (!once++) LOG("[nvn] nvnDeviceSetAutomaticCheckpointsByDebugGroup: debug-only setting, ignored"); }
++NVN_NOPROTO(nvnDeviceSetCheckpointCallStacksEnable, void, NVNdevice *d, NVNboolean en) { RB_REPLAY_GUARD(1); static int once; if (!once++) LOG("[nvn] nvnDeviceSetCheckpointCallStacksEnable: debug-only setting, ignored"); }
++NVN_NOPROTO(nvnDeviceSetCheckpointMaxCallStacksDepth, void, NVNdevice *d, int n) { RB_REPLAY_GUARD(1); static int once; if (!once++) LOG("[nvn] nvnDeviceSetCheckpointMaxCallStacksDepth: debug-only setting, ignored"); }
++NVN_NOPROTO(nvnDeviceSetAutomaticCheckpointsMask, void, NVNdevice *d, uint64_t mask) { RB_REPLAY_GUARD(1); static int once; if (!once++) LOG("[nvn] nvnDeviceSetAutomaticCheckpointsMask: debug-only setting, ignored"); }
+ // Same as the color one: a fast clear value is only a hint to the Tegra hardware (Tears of the Kingdom registers its depth clear at startup)
+-NVN(nvnDeviceRegisterFastClearDepth, NVNboolean, NVNdevice *d, float v) { (void)d; (void)v; return 1; }
++NVN(nvnDeviceRegisterFastClearDepth, NVNboolean, NVNdevice *d, float v) { RB_REPLAY_GUARD(1); (void)d; (void)v; return 1; }
+ // The size of the driver's cache for shaders it compiles from intermediate code (The Great Ace Attorney Chronicles sets 10 at startup); the host compiles nothing at run time
+-NVN(nvnDeviceSetIntermediateShaderCache, void, NVNdevice *d, int n) { (void)d; (void)n; }
++NVN(nvnDeviceSetIntermediateShaderCache, void, NVNdevice *d, int n) { RB_REPLAY_GUARD(1); (void)d; (void)n; }
+ 
+ // Window: number of active swapchain textures. WindowAcquireTexture rotates through the first nactive (NVN semantics; 审计 #1534 P1-24, see there); clamped to the SetTextures count
+ NVN(nvnWindowBuilderSetNumActiveTextures, void, NVNwindowBuilder *b, int n) { WB(b)->nactive = n; ONCE_LOG("WindowBuilderSetNumActiveTextures %d", n); }
+-NVN_NOPROTO(nvnWindowSetNumActiveTextures, void, NVNwindow *w, int n) {
++NVN_NOPROTO(nvnWindowSetNumActiveTextures, void, NVNwindow *w, int n) { RB_REPLAY_GUARD(1);
+     win_t *o = (win_t *)w;
+     __atomic_store_n(&o->nactive, n > 0 ? (n < o->ntex ? n : o->ntex) : 0, __ATOMIC_RELAXED);   // 夹到 SetTextures 的个数：多出来的纹理没有交换链映像
+     ONCE_LOG("WindowSetNumActiveTextures %d of %d (acquire rotates through the active ones)", n, o->ntex);
+ }
+ // 窗口纹理数 / 当前活跃纹理数（NVN 语义：前者是 SetTextures 给的个数，后者是 SetNumActiveTextures 生效后被轮换的个数，未设时为前者）
+-NVN_NOPROTO(nvnWindowGetNumTextures, int, const NVNwindow *w) { return ((const win_t *)w)->ntex; }
+-NVN_NOPROTO(nvnWindowGetNumActiveTextures, int, const NVNwindow *w) { return ((const win_t *)w)->nactive; }
++NVN_NOPROTO(nvnWindowGetNumTextures, int, const NVNwindow *w) { RB_REPLAY_GUARD(1); return ((const win_t *)w)->ntex; }
++NVN_NOPROTO(nvnWindowGetNumActiveTextures, int, const NVNwindow *w) { RB_REPLAY_GUARD(1); return ((const win_t *)w)->nactive; }
+ 
+ // Command buffer memory usage, in device bytes (dev_bytes; records themselves are in host blocks and take none of the game's memory); the host does not use control memory, always 0;
+ // the memory callback switch is ignored. SMBW asks for this value after recording each material setup handle, and on 0 (with control memory also 0) treats the recording as
+@@ -5873,7 +5887,7 @@
+ // nvnProgramSetShadersExt (NVN 55): each stage is 0x18 bytes = NVNshaderData{data, control} + one 8-byte extension field (filled from SMBW main 0x1074ff0).
+ // The host identifies stages by the control section and does not use the extension field: convert to plain NVNshaderData and hand it to SetShaders.
+ typedef struct { NVNbufferAddress data; const void *control; uint64_t ext; } shader_data_ext;
+-NVN_NOPROTO(nvnProgramSetShadersExt, NVNboolean, NVNprogram *p, int n, const shader_data_ext *sd) {
++NVN_NOPROTO(nvnProgramSetShadersExt, NVNboolean, NVNprogram *p, int n, const shader_data_ext *sd) { RB_REPLAY_GUARD(1);
+     if (n < 0 || n > 6) { LOG("【红】 ProgramSetShadersExt stage count %d", n); return 0; }
+     NVNshaderData plain[6];
+     for (int i = 0; i < n; i++) { plain[i].data = sd[i].data; plain[i].control = sd[i].control; if (sd[i].ext) ONCE_LOG("ProgramSetShadersExt extension field nonzero (%#llx): unused by the host", (unsigned long long)sd[i].ext); }
+@@ -5926,29 +5940,29 @@
+ //   ③ 宿主没有对应物的整类功能（网格任务、光追、设备生成命令、协作向量、脏块图计算、原始描述符写入…）保持未实现桩：调用即报红并标直连异常，原因见 nvn2_red_why
+ 
+ // 脏块图参数（纯数据对象，照驱动布局，Set / Get 0x64eXXX 一族）。只有 ComputeDirtyTileMap 用它，那条命令宿主做不了（见 nvn2_red_why），参数照样能设能读
+-NVN_NOPROTO(nvnDirtyTileMapParametersSetDefaults, void, void *p) { nvn2_dtm_defaults(p); }
+-NVN_NOPROTO(nvnDirtyTileMapParametersSetTexture, void, void *p, const NVNtexture *t, const NVNtextureView *v, const void *region) {
++NVN_NOPROTO(nvnDirtyTileMapParametersSetDefaults, void, void *p) { RB_REPLAY_GUARD(1); nvn2_dtm_defaults(p); }
++NVN_NOPROTO(nvnDirtyTileMapParametersSetTexture, void, void *p, const NVNtexture *t, const NVNtextureView *v, const void *region) { RB_REPLAY_GUARD(1);
+     nvn2_putp(p, DTM_TEX, t); nvn2_putp(p, DTM_VIEW, v); memcpy((uint8_t *)p + DTM_REGION, region, 24); }
+-NVN_NOPROTO(nvnDirtyTileMapParametersGetTexture, void, const void *p, const NVNtexture **t, const NVNtextureView **v, void *region) {
++NVN_NOPROTO(nvnDirtyTileMapParametersGetTexture, void, const void *p, const NVNtexture **t, const NVNtextureView **v, void *region) { RB_REPLAY_GUARD(1);
+     if (t) *t = (const NVNtexture *)nvn2_getp(p, DTM_TEX); if (v) *v = (const NVNtextureView *)nvn2_getp(p, DTM_VIEW); if (region) memcpy(region, (const uint8_t *)p + DTM_REGION, 24); }
+-NVN_NOPROTO(nvnDirtyTileMapParametersSetInputs, void, void *p, int a, int b, int c, int d) {
++NVN_NOPROTO(nvnDirtyTileMapParametersSetInputs, void, void *p, int a, int b, int c, int d) { RB_REPLAY_GUARD(1);
+     nvn2_put32(p, DTM_IN_A, (uint32_t)a); nvn2_put32(p, DTM_IN_B, (uint32_t)b); nvn2_put32(p, DTM_IN_C, (uint32_t)c); nvn2_put32(p, DTM_IN_D, (uint32_t)d); }
+-NVN_NOPROTO(nvnDirtyTileMapParametersGetInputs, void, const void *p, int *a, int *b, int *c, int *d) {
++NVN_NOPROTO(nvnDirtyTileMapParametersGetInputs, void, const void *p, int *a, int *b, int *c, int *d) { RB_REPLAY_GUARD(1);
+     if (a) *a = (int)nvn2_get32(p, DTM_IN_A); if (b) *b = (int)nvn2_get32(p, DTM_IN_B); if (c) *c = (int)nvn2_get32(p, DTM_IN_C); if (d) *d = (int)nvn2_get32(p, DTM_IN_D); }
+-NVN_NOPROTO(nvnDirtyTileMapParametersSetOutputs, void, void *p, uint64_t a, int b, int c, uint64_t d) {
++NVN_NOPROTO(nvnDirtyTileMapParametersSetOutputs, void, void *p, uint64_t a, int b, int c, uint64_t d) { RB_REPLAY_GUARD(1);
+     memcpy((uint8_t *)p + DTM_OUT0, &a, 8); nvn2_put32(p, DTM_OUT1, (uint32_t)b); nvn2_put32(p, DTM_OUT2, (uint32_t)c); memcpy((uint8_t *)p + DTM_OUT3, &d, 8); }
+-NVN_NOPROTO(nvnDirtyTileMapParametersGetOutputs, void, const void *p, uint64_t *a, int *b, int *c, uint64_t *d) {
++NVN_NOPROTO(nvnDirtyTileMapParametersGetOutputs, void, const void *p, uint64_t *a, int *b, int *c, uint64_t *d) { RB_REPLAY_GUARD(1);
+     if (a) memcpy(a, (const uint8_t *)p + DTM_OUT0, 8); if (b) *b = (int)nvn2_get32(p, DTM_OUT1); if (c) *c = (int)nvn2_get32(p, DTM_OUT2); if (d) memcpy(d, (const uint8_t *)p + DTM_OUT3, 8); }
+-NVN_NOPROTO(nvnDirtyTileMapParametersSetConstantColorTable, void, void *p, const void *t, int n, int c, uint64_t d) {
++NVN_NOPROTO(nvnDirtyTileMapParametersSetConstantColorTable, void, void *p, const void *t, int n, int c, uint64_t d) { RB_REPLAY_GUARD(1);
+     nvn2_putp(p, DTM_CC, t); nvn2_put32(p, DTM_CC_N, (uint32_t)n); nvn2_put32(p, DTM_CC_C, (uint32_t)c); memcpy((uint8_t *)p + DTM_CC_D, &d, 8); }
+-NVN_NOPROTO(nvnDirtyTileMapParametersGetConstantColorTable, void, const void *p, const void **t, int *n, int *c, uint64_t *d) {
++NVN_NOPROTO(nvnDirtyTileMapParametersGetConstantColorTable, void, const void *p, const void **t, int *n, int *c, uint64_t *d) { RB_REPLAY_GUARD(1);
+     if (t) *t = nvn2_getp(p, DTM_CC); if (n) *n = (int)nvn2_get32(p, DTM_CC_N); if (c) *c = (int)nvn2_get32(p, DTM_CC_C); if (d) memcpy(d, (const uint8_t *)p + DTM_CC_D, 8); }
+-NVN_NOPROTO(nvnDirtyTileMapParametersSetDepthStencilMask, void, void *p, uint32_t dm, uint32_t sm) { nvn2_put32(p, DTM_DSMASK, dm); nvn2_put32(p, DTM_DSMASK + 4, sm); }
+-NVN_NOPROTO(nvnDirtyTileMapParametersGetDepthStencilMask, void, const void *p, uint32_t *dm, uint32_t *sm) { if (dm) *dm = nvn2_get32(p, DTM_DSMASK); if (sm) *sm = nvn2_get32(p, DTM_DSMASK + 4); }
++NVN_NOPROTO(nvnDirtyTileMapParametersSetDepthStencilMask, void, void *p, uint32_t dm, uint32_t sm) { RB_REPLAY_GUARD(1); nvn2_put32(p, DTM_DSMASK, dm); nvn2_put32(p, DTM_DSMASK + 4, sm); }
++NVN_NOPROTO(nvnDirtyTileMapParametersGetDepthStencilMask, void, const void *p, uint32_t *dm, uint32_t *sm) { RB_REPLAY_GUARD(1); if (dm) *dm = nvn2_get32(p, DTM_DSMASK); if (sm) *sm = nvn2_get32(p, DTM_DSMASK + 4); }
+ // 扩展足迹：四个布尔，驱动按字节存（strb）；调用方不扩展窄参数，只取低 8 位（同 B()）
+-NVN_NOPROTO(nvnDirtyTileMapParametersSetExpandFootprint, void, void *p, uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
++NVN_NOPROTO(nvnDirtyTileMapParametersSetExpandFootprint, void, void *p, uint32_t a, uint32_t b, uint32_t c, uint32_t d) { RB_REPLAY_GUARD(1);
+     uint8_t *f = (uint8_t *)p + DTM_FOOT; f[0] = (uint8_t)B(a); f[1] = (uint8_t)B(b); f[2] = (uint8_t)B(c); f[3] = (uint8_t)B(d); }
+-NVN_NOPROTO(nvnDirtyTileMapParametersGetExpandFootprint, void, const void *p, uint8_t *a, uint8_t *b, uint8_t *c, uint8_t *d) {
++NVN_NOPROTO(nvnDirtyTileMapParametersGetExpandFootprint, void, const void *p, uint8_t *a, uint8_t *b, uint8_t *c, uint8_t *d) { RB_REPLAY_GUARD(1);
+     const uint8_t *f = (const uint8_t *)p + DTM_FOOT; if (a) *a = f[0]; if (b) *b = f[1]; if (c) *c = f[2]; if (d) *d = f[3]; }
+ 
+ // 窗口构建器 / 窗口的 NVN2 字段（nvn2_cmd.h win_builder2 / win2）。获取超时：宿主取图不会超时（交换链图按上屏节奏轮转、总能取到），只记下读回；
+@@ -5972,10 +5986,10 @@
+ NVN_NOPROTO(nvnWindowBuilderSetHdrContentMetadata, void, NVNwindowBuilder *b, float max_cll, float max_fall) { WB2(b)->hdr_content[0] = max_cll; WB2(b)->hdr_content[1] = max_fall; }
+ NVN_NOPROTO(nvnWindowBuilderGetHdrContentMetadata, void, const NVNwindowBuilder *b, float *max_cll, float *max_fall) {
+     if (max_cll) *max_cll = ((const win_builder2 *)b)->hdr_content[0]; if (max_fall) *max_fall = ((const win_builder2 *)b)->hdr_content[1]; }
+-NVN_NOPROTO(nvnWindowGetAcquireTimeout, int64_t, const NVNwindow *w) { return ((const win2 *)w)->acquire_timeout; }
+-NVN_NOPROTO(nvnWindowSetAcquireTimeout, void, NVNwindow *w, int64_t ns) { W2(w)->acquire_timeout = ns; }
+-NVN_NOPROTO(nvnWindowSetHdrContentMetadata, void, NVNwindow *w, float max_cll, float max_fall) { W2(w)->hdr_content[0] = max_cll; W2(w)->hdr_content[1] = max_fall; }
+-NVN_NOPROTO(nvnWindowGetHdrContentMetadata, void, const NVNwindow *w, float *max_cll, float *max_fall) {
++NVN_NOPROTO(nvnWindowGetAcquireTimeout, int64_t, const NVNwindow *w) { RB_REPLAY_GUARD(1); return ((const win2 *)w)->acquire_timeout; }
++NVN_NOPROTO(nvnWindowSetAcquireTimeout, void, NVNwindow *w, int64_t ns) { RB_REPLAY_GUARD(1); W2(w)->acquire_timeout = ns; }
++NVN_NOPROTO(nvnWindowSetHdrContentMetadata, void, NVNwindow *w, float max_cll, float max_fall) { RB_REPLAY_GUARD(1); W2(w)->hdr_content[0] = max_cll; W2(w)->hdr_content[1] = max_fall; }
++NVN_NOPROTO(nvnWindowGetHdrContentMetadata, void, const NVNwindow *w, float *max_cll, float *max_fall) { RB_REPLAY_GUARD(1);
+     if (max_cll) *max_cll = ((const win2 *)w)->hdr_content[0]; if (max_fall) *max_fall = ((const win2 *)w)->hdr_content[1]; }
+ // 显示元数据：十个 float（三原色 xy、白点 xy、最暗、最亮）。Switch 侧按 AAPCS64：前 8 个在 s0..s7，第 9、10 个各占调用方栈上一个 8 字节槽（驱动读 [sp] / [sp, #8]）；
+ //   Apple 的栈参数按自然对齐紧排，所以第 9 个声明成 double（占 [sp] 的 8 字节，取低 4 字节即那个 float），第 10 个 float 就落在 [sp, #8]。
+@@ -5989,9 +6003,9 @@
+     hdr_put(WB2(w)->hdr_display, a, b, c, d, e, f, g, h, i, j); }
+ NVN_NOPROTO(nvnWindowBuilderGetHdrDisplayMetadata, void, const NVNwindowBuilder *w, float *a, float *b, float *c, float *d, float *e, float *f, float *g, float *h, float *i, float *j) {
+     hdr_get(((const win_builder2 *)w)->hdr_display, a, b, c, d, e, f, g, h, i, j); }
+-NVN_NOPROTO(nvnWindowSetHdrDisplayMetadata, void, NVNwindow *w, float a, float b, float c, float d, float e, float f, float g, float h, double i, float j) {
++NVN_NOPROTO(nvnWindowSetHdrDisplayMetadata, void, NVNwindow *w, float a, float b, float c, float d, float e, float f, float g, float h, double i, float j) { RB_REPLAY_GUARD(1);
+     hdr_put(W2(w)->hdr_display, a, b, c, d, e, f, g, h, i, j); }
+-NVN_NOPROTO(nvnWindowGetHdrDisplayMetadata, void, const NVNwindow *w, float *a, float *b, float *c, float *d, float *e, float *f, float *g, float *h, float *i, float *j) {
++NVN_NOPROTO(nvnWindowGetHdrDisplayMetadata, void, const NVNwindow *w, float *a, float *b, float *c, float *d, float *e, float *f, float *g, float *h, float *i, float *j) { RB_REPLAY_GUARD(1);
+     hdr_get(((const win2 *)w)->hdr_display, a, b, c, d, e, f, g, h, i, j); }
+ 
+ // 多重采样状态：覆盖截断（驱动字 0 第 5 位，0x667e40 一族）。宿主回放不做覆盖截断：打开时首次报红（按不截断画）
+@@ -6014,26 +6028,26 @@
+ NVN_NOPROTO(nvnQueueBuilderSetRayTracingMemorySize, void, NVNqueueBuilder *b, int n) { QB2(b)->rt_mem = n; QB2(b)->rt_set = 1; }
+ NVN_NOPROTO(nvnQueueBuilderGetRayTracingMemorySize, NVNboolean, const NVNqueueBuilder *b, int *n) { const queue_builder2 *o = (const queue_builder2 *)b; if (n) *n = o->rt_mem; return o->rt_set; }
+ // 队列已用的光追内存（驱动读队列 +0x2838）：宿主不跑光追，没有用掉的光追内存，回 0 如实
+-NVN_NOPROTO(nvnQueueGetTotalRayTracingMemoryUsed, uint64_t, const NVNqueue *q) { (void)q; return 0; }
++NVN_NOPROTO(nvnQueueGetTotalRayTracingMemoryUsed, uint64_t, const NVNqueue *q) { RB_REPLAY_GUARD(1); (void)q; return 0; }
+ 
+ // 设备命令缓冲（GPU 自己生成命令用的存储描述）：对象照驱动布局（nvn2_cmd.h DCB_*）。句柄 = 存储池的 GPU 地址 + 池内偏移（0x6568b0）。
+ //   用它的 Begin / End / SubmitDeviceCommands 宿主做不了（见 nvn2_red_why），对象本身能建能读
+-NVN_NOPROTO(nvnDeviceCommandBufferSetDefaults, void, void *b) { memset((uint8_t *)b + DCB_POOL, 0, DCB_SIZE - DCB_POOL); }
+-NVN_NOPROTO(nvnDeviceCommandBufferSetDevice, void, void *b, NVNdevice *d) { nvn2_putp(b, DCB_DEVICE, d); }
+-NVN_NOPROTO(nvnDeviceCommandBufferSetStorage, void, void *b, const NVNmemoryPool *p, int64_t off, uint64_t size) {
++NVN_NOPROTO(nvnDeviceCommandBufferSetDefaults, void, void *b) { RB_REPLAY_GUARD(1); memset((uint8_t *)b + DCB_POOL, 0, DCB_SIZE - DCB_POOL); }
++NVN_NOPROTO(nvnDeviceCommandBufferSetDevice, void, void *b, NVNdevice *d) { RB_REPLAY_GUARD(1); nvn2_putp(b, DCB_DEVICE, d); }
++NVN_NOPROTO(nvnDeviceCommandBufferSetStorage, void, void *b, const NVNmemoryPool *p, int64_t off, uint64_t size) { RB_REPLAY_GUARD(1);
+     nvn2_putp(b, DCB_POOL, p); memcpy((uint8_t *)b + DCB_OFF, &off, 8); memcpy((uint8_t *)b + DCB_SIZE_, &size, 8); }
+-NVN_NOPROTO(nvnDeviceCommandBufferSetCommandMemorySize, void, void *b, uint64_t n) { memcpy((uint8_t *)b + DCB_CMD, &n, 8); }
+-NVN_NOPROTO(nvnDeviceCommandBufferSetComputeMemorySize, void, void *b, uint64_t n) { memcpy((uint8_t *)b + DCB_COMP, &n, 8); }
+-NVN_NOPROTO(nvnDeviceCommandBufferGetHandle, uint64_t, const void *b) {
++NVN_NOPROTO(nvnDeviceCommandBufferSetCommandMemorySize, void, void *b, uint64_t n) { RB_REPLAY_GUARD(1); memcpy((uint8_t *)b + DCB_CMD, &n, 8); }
++NVN_NOPROTO(nvnDeviceCommandBufferSetComputeMemorySize, void, void *b, uint64_t n) { RB_REPLAY_GUARD(1); memcpy((uint8_t *)b + DCB_COMP, &n, 8); }
++NVN_NOPROTO(nvnDeviceCommandBufferGetHandle, uint64_t, const void *b) { RB_REPLAY_GUARD(1);
+     const pool_t *p = (const pool_t *)nvn2_getp(b, DCB_POOL); int64_t off; memcpy(&off, (const uint8_t *)b + DCB_OFF, 8);
+     return p ? pool_ga(p) + (uint64_t)off : 0; }
+ // 设备命令句柄的内存大小（0x6570b0）：句柄低 2 位 = 2 的才是设备命令句柄，大小在第 40 位起（按 4 字节对齐）；宿主的命令句柄是记录段地址（低位 0）→ 回 0，同驱动对普通句柄
+-NVN_NOPROTO(nvnDeviceGetCommandHandleMemorySize, uint64_t, const NVNdevice *d, uint64_t h) { (void)d; return (h & 3) == 2 ? (h >> 38) & 0x3fffffc : 0; }
++NVN_NOPROTO(nvnDeviceGetCommandHandleMemorySize, uint64_t, const NVNdevice *d, uint64_t h) { RB_REPLAY_GUARD(1); (void)d; return (h & 3) == 2 ? (h >> 38) & 0x3fffffc : 0; }
+ // 统一缓冲区句柄（无绑定 UBO：着色器从内存读到它当地址用）：照驱动公式（0x673630：高位 0x1e0000000000 + 参数 2 << 41，取第 45 位以上，低位 = 地址 / 16）。
+ //   怎么解这个句柄是着色器翻译的事（不归本层）
+-NVN_NOPROTO(nvnDeviceGetUniformBufferHandle, uint64_t, const NVNdevice *d, uint64_t addr, uint64_t n) {
++NVN_NOPROTO(nvnDeviceGetUniformBufferHandle, uint64_t, const NVNdevice *d, uint64_t addr, uint64_t n) { RB_REPLAY_GUARD(1);
+     (void)d; return ((0x1e0000000000ull + (n << 41)) & 0xffffe00000000000ull) | (addr >> 4); }
+-NVN_NOPROTO(nvnDeviceGetFlags, int, const NVNdevice *d) { return (int)((const dev_t_ *)d)->flags; }   // 驱动 ldr w0, [x0, #8]：设备构建器给的标志
++NVN_NOPROTO(nvnDeviceGetFlags, int, const NVNdevice *d) { RB_REPLAY_GUARD(1); return (int)((const dev_t_ *)d)->flags; }   // 驱动 ldr w0, [x0, #8]：设备构建器给的标志
+ 
+ // 设备消息缓冲（着色器往 CPU 发调试消息用）：对象照驱动布局（nvn2_cmd.h DMB_*）。存储头 {12, 容量, 已写到}，Reset 写 {12, 容量, 0}；Begin 把游标放在 12、
+ //   终点 = 已写到（0 时取头的第一个字 = 12，即空）；GetNextMessage 游标到终点就回 0。宿主翻译出的着色器不发消息（Ampere 的消息指令不翻），头只有 Reset 写，
+@@ -6041,17 +6055,17 @@
+ static uint8_t *dmb_mem(const void *b) {
+     const pool_t *p = (const pool_t *)nvn2_getp(b, DMB_POOL); return p && p->mem ? p->mem + (int32_t)nvn2_get32(b, DMB_OFF) : NULL; }
+ static void dmb_reset(const void *b) { uint8_t *m = dmb_mem(b); if (!m) return; uint32_t h[3] = {DMB_HDR, nvn2_get32(b, DMB_CAP), 0}; memcpy(m, h, 12); }
+-NVN_NOPROTO(nvnDeviceMessageBufferSetDefaults, void, void *b) { memset((uint8_t *)b + DMB_POOL, 0, DMB_SIZE - DMB_POOL); }
+-NVN_NOPROTO(nvnDeviceMessageBufferSetDevice, void, void *b, NVNdevice *d) { nvn2_putp(b, DMB_DEVICE, d); }
+-NVN_NOPROTO(nvnDeviceMessageBufferSetStorage, void, void *b, const NVNmemoryPool *p, int off, int size) { nvn2_putp(b, DMB_POOL, p); nvn2_put32(b, DMB_OFF, (uint32_t)off); nvn2_put32(b, DMB_CAP, (uint32_t)size); }
+-NVN_NOPROTO(nvnDeviceMessageBufferReset, void, void *b) { dmb_reset(b); }
+-NVN_NOPROTO(nvnDeviceMessageBufferBeginMessages, void, void *b) {
++NVN_NOPROTO(nvnDeviceMessageBufferSetDefaults, void, void *b) { RB_REPLAY_GUARD(1); memset((uint8_t *)b + DMB_POOL, 0, DMB_SIZE - DMB_POOL); }
++NVN_NOPROTO(nvnDeviceMessageBufferSetDevice, void, void *b, NVNdevice *d) { RB_REPLAY_GUARD(1); nvn2_putp(b, DMB_DEVICE, d); }
++NVN_NOPROTO(nvnDeviceMessageBufferSetStorage, void, void *b, const NVNmemoryPool *p, int off, int size) { RB_REPLAY_GUARD(1); nvn2_putp(b, DMB_POOL, p); nvn2_put32(b, DMB_OFF, (uint32_t)off); nvn2_put32(b, DMB_CAP, (uint32_t)size); }
++NVN_NOPROTO(nvnDeviceMessageBufferReset, void, void *b) { RB_REPLAY_GUARD(1); dmb_reset(b); }
++NVN_NOPROTO(nvnDeviceMessageBufferBeginMessages, void, void *b) { RB_REPLAY_GUARD(1);
+     uint8_t *m = dmb_mem(b); nvn2_putp(b, DMB_BASE, m); nvn2_put32(b, DMB_CUR, DMB_HDR);
+     uint32_t h[3] = {DMB_HDR, 0, 0}; if (m) memcpy(h, m, 12);
+     nvn2_put32(b, DMB_END, h[2] ? h[2] : h[0]);
+ }
+-NVN_NOPROTO(nvnDeviceMessageBufferEndMessages, void, void *b) { memset((uint8_t *)b + DMB_BASE, 0, 16); }
+-NVN_NOPROTO(nvnDeviceMessageBufferGetNextMessage, NVNboolean, void *b, void *out, void *data, uint64_t size) {
++NVN_NOPROTO(nvnDeviceMessageBufferEndMessages, void, void *b) { RB_REPLAY_GUARD(1); memset((uint8_t *)b + DMB_BASE, 0, 16); }
++NVN_NOPROTO(nvnDeviceMessageBufferGetNextMessage, NVNboolean, void *b, void *out, void *data, uint64_t size) { RB_REPLAY_GUARD(1);
+     (void)out; (void)data; (void)size;
+     if (nvn2_get32(b, DMB_CUR) >= nvn2_get32(b, DMB_END)) return 0;
+     static int once; if (!once++) LOG("【红】 DeviceMessageBufferGetNextMessage：消息缓冲里有 %u 字节宿主没写过的消息，宿主不解析，回「没有」", nvn2_get32(b, DMB_END) - nvn2_get32(b, DMB_CUR));
+@@ -6065,7 +6079,7 @@
+ // DLSS：构建器读回纹理号（0x38 起 32 个 int，同 SetTextureIDs）；网络改尺寸（金刚 SDK 20.5 0x5dcc30：新宽高都不超过初始化时的上限才改输出分辨率并重算，回 1；否则回 0）。
+ //   宿主上限 = Initialize 时的输出分辨率（DLN_MAX_W / H）；回放按每条求值记录里的输出尺寸建放大器，改了尺寸下一条求值就按新尺寸放
+ NVN_NOPROTO(nvnDlssNetworkBuilderGetTextureIDs, void, const void *b, int *ids) { if (ids) memcpy(ids, (const uint8_t *)b + DLB_IDS, 32 * 4); }
+-NVN_NOPROTO(nvnDlssNetworkResize, NVNboolean, void *n, int w, int h) {
++NVN_NOPROTO(nvnDlssNetworkResize, NVNboolean, void *n, int w, int h) { RB_REPLAY_GUARD(1);
+     if (w > (int)nvn2_get32(n, DLN_MAX_W) || h > (int)nvn2_get32(n, DLN_MAX_H)) return 0;
+     nvn2_put32(n, DLN_OUT_W, (uint32_t)w); nvn2_put32(n, DLN_OUT_H, (uint32_t)h);
+     LOG("[nvn] DLSS 网络 %p 改输出分辨率 %dx%d（上限 %ux%u）", n, w, h, nvn2_get32(n, DLN_MAX_W), nvn2_get32(n, DLN_MAX_H));
+@@ -6083,20 +6097,20 @@
+     if (r < 0 && nt < 16) { t[nt] = e; r = nt++; }
+     pthread_mutex_unlock(&mu); return r;
+ }
+-NVN_NOPROTO(nvnDeviceRegisterFastClearColorIndex, int, NVNdevice *d, const float *c, NVNformat f) { (void)d; return fast_clear_index(0, (uint32_t)f, c, 16); }
+-NVN_NOPROTO(nvnDeviceRegisterFastClearColoriIndex, int, NVNdevice *d, const int *c, NVNformat f) { (void)d; return fast_clear_index(1, (uint32_t)f, c, 16); }
+-NVN_NOPROTO(nvnDeviceRegisterFastClearColoruiIndex, int, NVNdevice *d, const uint32_t *c, NVNformat f) { (void)d; return fast_clear_index(1, (uint32_t)f, c, 16); }   // 驱动与 Colori 同一函数
+-NVN_NOPROTO(nvnDeviceRegisterFastClearDepthIndex, int, NVNdevice *d, float v) { (void)d; return fast_clear_index(2, 0, &v, 4); }
+-NVN_NOPROTO(nvnDeviceRegisterFastClearStencilIndex, int, NVNdevice *d, int v, int x) { (void)d; (void)x; return fast_clear_index(3, 0, &v, 4); }
+-NVN_NOPROTO(nvnDeviceRegisterFastClearStencil, NVNboolean, NVNdevice *d, int v) { return h_nvnDeviceRegisterFastClearStencilIndex(d, v, 0) >= 0; }   // 驱动：调 Index 版、回「序号 ≥ 0」
++NVN_NOPROTO(nvnDeviceRegisterFastClearColorIndex, int, NVNdevice *d, const float *c, NVNformat f) { RB_REPLAY_GUARD(1); (void)d; return fast_clear_index(0, (uint32_t)f, c, 16); }
++NVN_NOPROTO(nvnDeviceRegisterFastClearColoriIndex, int, NVNdevice *d, const int *c, NVNformat f) { RB_REPLAY_GUARD(1); (void)d; return fast_clear_index(1, (uint32_t)f, c, 16); }
++NVN_NOPROTO(nvnDeviceRegisterFastClearColoruiIndex, int, NVNdevice *d, const uint32_t *c, NVNformat f) { RB_REPLAY_GUARD(1); (void)d; return fast_clear_index(1, (uint32_t)f, c, 16); }   // 驱动与 Colori 同一函数
++NVN_NOPROTO(nvnDeviceRegisterFastClearDepthIndex, int, NVNdevice *d, float v) { RB_REPLAY_GUARD(1); (void)d; return fast_clear_index(2, 0, &v, 4); }
++NVN_NOPROTO(nvnDeviceRegisterFastClearStencilIndex, int, NVNdevice *d, int v, int x) { RB_REPLAY_GUARD(1); (void)d; (void)x; return fast_clear_index(3, 0, &v, 4); }
++NVN_NOPROTO(nvnDeviceRegisterFastClearStencil, NVNboolean, NVNdevice *d, int v) { RB_REPLAY_GUARD(1); return h_nvnDeviceRegisterFastClearStencilIndex(d, v, 0) >= 0; }   // 驱动：调 Index 版、回「序号 ≥ 0」
+ 
+ // NVX 通用地址（strcmp 链里的三个，20.5 起）：池构建器请求把池放在指定 GPU 地址（驱动存构建器 +0x28），池回自己的 GPU 地址（驱动读池 +0x18，即 GetBufferAddress 那个）。
+ //   宿主按自己的地址窗口分池地址（pool_ga），不按请求放：请求非 0 时首次报红；读回的是池实际的地址
+ NVN_NOPROTO(nvnMemoryPoolBuilderSetGenericAddressNVX, void, NVNmemoryPoolBuilder *b, uint64_t a) {
+     (void)b; if (a) { static int once; if (!once++) LOG("【红】 MemoryPoolBuilderSetGenericAddressNVX(%#llx)：宿主不按请求的 GPU 地址放池，池地址按宿主窗口分", (unsigned long long)a); } }
+-NVN_NOPROTO(nvnMemoryPoolGetGenericAddressNVX, uint64_t, const NVNmemoryPool *p) { return pool_ga((const pool_t *)p); }
++NVN_NOPROTO(nvnMemoryPoolGetGenericAddressNVX, uint64_t, const NVNmemoryPool *p) { RB_REPLAY_GUARD(1); return pool_ga((const pool_t *)p); }
+ // 程序的调试数据哈希（0x660de0：程序带调试信息时回其哈希表指针，否则 0）：宿主程序不带驱动的调试数据库，回 0（= 没有调试数据）
+-NVN_NOPROTO(nvnProgramGetDebugDataHashesNVX, const void *, const NVNprogram *p) { (void)p; return NULL; }
++NVN_NOPROTO(nvnProgramGetDebugDataHashesNVX, const void *, const NVNprogram *p) { RB_REPLAY_GUARD(1); (void)p; return NULL; }
+ 
+ // 延后推常量：数据指针录下，回放（提交时）再读（真机：控制内存里一条令牌、队列处理时读，nvn2_cmd.h p_push_const_ptr）
+ static void push_const_ptr(NVNcommandBuffer *c, int compute, int slot, int offset, int size, const void *data) {
+@@ -6555,14 +6569,14 @@
+     free(lin);
+     nvn_be_tex_cpu_written(t);
+ }
+-NVN(nvnTextureWriteTexels, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r, const void *src) { write_texels(CTX(t), (const view_t *)v, r, src, 0, 0); }
++NVN(nvnTextureWriteTexels, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r, const void *src) { RB_REPLAY_GUARD(1); write_texels(CTX(t), (const view_t *)v, r, src, 0, 0); }
+ // with the source's row and image strides in bytes (0 = tightly packed, as WriteTexels)
+-NVN(nvnTextureWriteTexelsStrided, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r, const void *src, ptrdiff_t row, ptrdiff_t img) {
++NVN(nvnTextureWriteTexelsStrided, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r, const void *src, ptrdiff_t row, ptrdiff_t img) { RB_REPLAY_GUARD(1);
+     write_texels(CTX(t), (const view_t *)v, r, src, (size_t)row, (size_t)img);
+ }
+ // The movie decoder's native-texture output (DecoderMode 2, upstream the reference port host/hle_movie.c, which S2Arm does not carry: nothing here calls it, S2Arm decodes movies in Ryujinx Nvdec): a whole frame into level 0 of the client texture, as WriteTexels does; returns the texture format, or −1 when the object is not a texture
+ // work the host finished on the CPU: the sync object counts as signalled at once (fence 0 is always complete)
+-NVN(nvnTextureFlushTexels, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r) { (void)t; (void)v; (void)r; }   // unified memory + dirty page tracking: nothing to flush
++NVN(nvnTextureFlushTexels, void, const NVNtexture *t, const NVNtextureView *v, const NVNcopyRegion *r) { RB_REPLAY_GUARD(1); (void)t; (void)v; (void)r; }   // unified memory + dirty page tracking: nothing to flush
+ 
+ int nvn_be_request_stop(void);
+ int nvn_be_shutdown_session(void);
+@@ -6578,6 +6592,7 @@
+ static void pk_free_session(const void *key, const void *value, void *ctx) { (void)key; (void)ctx; free((void *)value); }
+ int dm_nvn_shutdown_session(void) {
+     if (!dm_gfx_session_stopping()) return -EBUSY;
++    rb_replay_stop();
+     pthread_mutex_lock(&g_susp_mu); int busy = g_inflight_api; pthread_mutex_unlock(&g_susp_mu);
+     if (busy) { LOG("【红】重启：仍有 %d 个直连图形调用", busy); return -EBUSY; }
+     // Virtual mappings own Metal pool buffers; finalize them before clearing
+@@ -6618,6 +6633,7 @@
+     return 0;
+ }
+ void dm_nvn_begin_session(void) {
++    rb_replay_begin();
+     nvn_be_begin_session();
+     atomic_store(&g_session_stopping, 0);
+ }
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_replay_worker.inc
+@@ -0,0 +1,120 @@
++// RewindBox S1. One ordered CPU replay owner; bounded queue and copied handle
++// arrays. No command memory is reclaimed while a job can still reference it.
++// Resource APIs join replay under the admission mutex, before changing objects.
++// GPU waits release admission so cross-queue producers remain able to submit.
++#define RB_REPLAY_JOBS 8
++#define RB_REPLAY_HANDLES 256
++typedef struct { NVNqueue *q; int n; uint64_t sequence; NVNcommandHandle handles[RB_REPLAY_HANDLES]; } rb_replay_job;
++static pthread_mutex_t rb_replay_mu=PTHREAD_MUTEX_INITIALIZER;
++static pthread_cond_t rb_replay_cv=PTHREAD_COND_INITIALIZER;
++static pthread_mutex_t rb_replay_admission;
++static pthread_once_t rb_replay_once=PTHREAD_ONCE_INIT;
++static pthread_t rb_replay_thread;
++static rb_replay_job rb_replay_jobs[RB_REPLAY_JOBS];
++static unsigned rb_replay_head, rb_replay_count;
++static int rb_replay_running, rb_replay_closed, rb_replay_failed;
++static uint64_t rb_replay_sent, rb_replay_done, rb_replay_wait_ns;
++static void rb_replay_init_lock(void) {
++    pthread_mutexattr_t a; pthread_mutexattr_init(&a);
++    pthread_mutexattr_settype(&a,PTHREAD_MUTEX_RECURSIVE);
++    pthread_mutex_init(&rb_replay_admission,&a); pthread_mutexattr_destroy(&a);
++}
++static void rb_replay_join(void) {
++    if (rb_replay_worker_thread || !atomic_load_explicit(&rb_replay_pending,memory_order_acquire)) return;
++    uint64_t start=now_ns();
++    pthread_mutex_lock(&rb_replay_mu); uint64_t target=rb_replay_sent;
++    DM_BLOCK_BEGIN();
++    while (rb_replay_done<target) pthread_cond_wait(&rb_replay_cv,&rb_replay_mu);
++    DM_BLOCK_END();
++    rb_replay_wait_ns+=now_ns()-start;
++    pthread_mutex_unlock(&rb_replay_mu);
++}
++static rb_replay_guard rb_replay_enter(int hold) {
++    if (rb_replay_worker_thread) return (rb_replay_guard){0};
++    pthread_once(&rb_replay_once,rb_replay_init_lock);
++    pthread_mutex_lock(&rb_replay_admission);
++    rb_replay_join();
++    if (!hold) pthread_mutex_unlock(&rb_replay_admission);
++    return (rb_replay_guard){hold};
++}
++static void rb_replay_leave(rb_replay_guard *g) {
++    if (g->held) pthread_mutex_unlock(&rb_replay_admission);
++}
++static void *rb_replay_main(void *unused) {
++    (void)unused; rb_replay_worker_thread=1;
++#if defined(__APPLE__)
++    pthread_setname_np("rb-nvn-replay");
++    pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE,0);
++#endif
++    for (;;) {
++        pthread_mutex_lock(&rb_replay_mu);
++        while (!rb_replay_count && !rb_replay_closed) pthread_cond_wait(&rb_replay_cv,&rb_replay_mu);
++        if (!rb_replay_count) { pthread_mutex_unlock(&rb_replay_mu); break; }
++        rb_replay_job job=rb_replay_jobs[rb_replay_head];
++        rb_replay_head=(rb_replay_head+1)%RB_REPLAY_JOBS; rb_replay_count--;
++        pthread_cond_broadcast(&rb_replay_cv); pthread_mutex_unlock(&rb_replay_mu);
++        dm_host_work++;
++        rb_submit_replay(job.q,job.n,job.handles);
++        // The lease was acquired before suspend could close admission.
++        gfx_leave();
++        pthread_mutex_lock(&rb_replay_mu);
++        rb_replay_done=job.sequence;
++        atomic_fetch_sub_explicit(&rb_replay_pending,1,memory_order_release);
++        pthread_cond_broadcast(&rb_replay_cv); pthread_mutex_unlock(&rb_replay_mu);
++    }
++    rb_replay_worker_thread=0; return NULL;
++}
++static int rb_replay_enqueue(NVNqueue *q,int n,const NVNcommandHandle *handles) {
++#if defined(__APPLE__)
++    // Host NVN2 only; frame capture keeps its synchronous recording contract.
++    if (!nvn_rb_thermal_scope() || nvn_frec_on() || n<=0 || n>RB_REPLAY_HANDLES || !handles) return 0;
++    pthread_mutex_lock(&rb_replay_mu);
++    if (rb_replay_closed || rb_replay_failed || dm_gfx_session_stopping()) { pthread_mutex_unlock(&rb_replay_mu); return 0; }
++    if (!rb_replay_running) {
++        int e=pthread_create(&rb_replay_thread,NULL,rb_replay_main,NULL);
++        if (e) { rb_replay_failed=1; pthread_mutex_unlock(&rb_replay_mu); LOG("[rb-replay] worker unavailable: %d; synchronous replay retained",e); return 0; }
++        rb_replay_running=1;
++        LOG("[rb-replay] ordered CPU worker active; capacity=%d, immutable streams retained",RB_REPLAY_JOBS);
++    }
++    DM_BLOCK_BEGIN();
++    while (rb_replay_count==RB_REPLAY_JOBS) pthread_cond_wait(&rb_replay_cv,&rb_replay_mu);
++    DM_BLOCK_END();
++    rb_replay_job *j=&rb_replay_jobs[(rb_replay_head+rb_replay_count)%RB_REPLAY_JOBS];
++    *j=(rb_replay_job){.q=q,.n=n,.sequence=++rb_replay_sent};
++    memcpy(j->handles,handles,(size_t)n*sizeof *handles);
++    // The guest API already owns a lease; this second lease belongs to the job.
++    pthread_mutex_lock(&g_susp_mu); g_inflight_api++; pthread_mutex_unlock(&g_susp_mu);
++    atomic_fetch_add_explicit(&rb_replay_pending,1,memory_order_release);
++    rb_replay_count++; pthread_cond_broadcast(&rb_replay_cv); pthread_mutex_unlock(&rb_replay_mu);
++    return 1;
++#else
++    (void)q; (void)n; (void)handles; return 0;
++#endif
++}
++NVN(nvnQueueSubmitCommands, void, NVNqueue *q, int n, const NVNcommandHandle *h) {
++    gfx_enter();
++    pthread_once(&rb_replay_once,rb_replay_init_lock);
++    pthread_mutex_lock(&rb_replay_admission);
++    if (!dm_gfx_session_stopping() && !rb_replay_enqueue(q,n,h)) {
++        rb_replay_join(); rb_submit_replay(q,n,h);
++    }
++    pthread_mutex_unlock(&rb_replay_admission); gfx_leave();
++}
++static void rb_replay_stop(void) {
++    pthread_once(&rb_replay_once,rb_replay_init_lock);
++    pthread_mutex_lock(&rb_replay_admission);
++    pthread_mutex_lock(&rb_replay_mu); rb_replay_closed=1;
++    int running=rb_replay_running;
++    pthread_cond_broadcast(&rb_replay_cv); pthread_mutex_unlock(&rb_replay_mu);
++    if (running) pthread_join(rb_replay_thread,NULL);
++    rb_replay_running=0;
++    LOG("[rb-replay] stopped: submitted=%llu completed=%llu admission_wait_ms=%.3f",
++        (unsigned long long)rb_replay_sent,(unsigned long long)rb_replay_done,rb_replay_wait_ns/1e6);
++    pthread_mutex_unlock(&rb_replay_admission);
++}
++static void rb_replay_begin(void) {
++    // Session reset runs only after the previous worker and GPU have joined.
++    rb_replay_head=rb_replay_count=0; rb_replay_closed=rb_replay_failed=0;
++    rb_replay_sent=rb_replay_done=rb_replay_wait_ns=0;
++    atomic_store(&rb_replay_pending,0); atomic_store(&rb_replay_shadow_pressure,0);
++}

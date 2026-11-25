@@ -1,0 +1,517 @@
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -173,6 +173,21 @@
+ // Metal 3 path (nvn_be.h, #277 D3-1): g_q3 does what g_q4 does on Metal 4 (submissions, upload batches, presents) and holds the same residency set; no Metal 4 object is made on this path.
+ // The main command buffer's encoders are the old ones (D3-2 #278); the argument tables are DmTable3 (D3-3 #279, m3_table_apply)
+ static int g_m3;
++// S2: a function owns the immutable description needed by the Metal 4 compiler.
++static char rb_function_descriptor_key;
++static id<MTLFunction> rb_library_function(id<MTLLibrary> lib,NSString *name,MTLFunctionConstantValues *values,NSError **error) {
++    if (!lib || !name) return nil;
++    id<MTLFunction> fn=values ? [lib newFunctionWithName:name constantValues:values error:error] : [lib newFunctionWithName:name];
++    if (fn) { if (@available(macOS 26.0,iOS 26.0,*)) {
++        MTL4LibraryFunctionDescriptor *base=[MTL4LibraryFunctionDescriptor new]; base.library=lib; base.name=name;
++        MTL4FunctionDescriptor *desc=base;
++        if (values) { MTL4SpecializedFunctionDescriptor *special=[MTL4SpecializedFunctionDescriptor new];
++            special.functionDescriptor=base; special.constantValues=[values copy]; desc=special; }
++        objc_setAssociatedObject(fn,&rb_function_descriptor_key,desc,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
++    } }
++    return fn;
++}
++
+ // Set by the host before the first guest submission. Re-read on a title change.
+ static _Atomic int rb_pso_session_mode;
+ static int rb_pso_mode(void) {
+@@ -3875,7 +3890,7 @@
+     NSError *e = nil;
+     id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@"#include <metal_stdlib>\nusing namespace metal;\n"
+         "kernel void spin(device atomic_uint *p [[buffer(0)]]) { uint n = 0; while (atomic_load_explicit(p, memory_order_relaxed) != 0x5a5a5a5au) n++; atomic_store_explicit(p + 1, n, memory_order_relaxed); }\n",nil,&e);
+-    id<MTLComputePipelineState> ps = lib ? [g_dev newComputePipelineStateWithFunction:[lib newFunctionWithName:@"spin"] error:&e] : nil;
++    id<MTLComputePipelineState> ps = lib ? [g_dev newComputePipelineStateWithFunction:rb_library_function(lib,@"spin",nil,NULL) error:&e] : nil;
+     if (!ps) { MLOG("【红】 DM_TEST_GPU_HANG: cannot build the endless kernel: %s", e.localizedDescription.UTF8String); return; }
+     id<MTLBuffer> b = [g_dev newBufferWithLength:16 options:MTLResourceStorageModeShared]; memset(b.contents, 0, 16);
+     id<MTLCommandBuffer> cb = [g_q commandBuffer]; id<MTLComputeCommandEncoder> ce = [cb computeCommandEncoder];
+@@ -6001,7 +6016,7 @@
+ }
+ static id<MTLComputePipelineState> bcd_pso(void) {
+     static id<MTLComputePipelineState> ps; static int failed;
+-    if (!ps && !failed) { NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(k_bcd_msl),nil,&e); id<MTLFunction> fn = lib ? [lib newFunctionWithName:@"bcd"] : nil;
++    if (!ps && !failed) { NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(k_bcd_msl),nil,&e); id<MTLFunction> fn = lib ? rb_library_function(lib,@"bcd",nil,NULL) : nil;
+         ps = fn ? [g_dev newComputePipelineStateWithFunction:fn error:&e] : nil;
+         if (!ps) { failed = 1; MLOG("【红】 no BC: the GPU decompression pipeline cannot be built (%s); BC1–5 fall back to the CPU", e.localizedDescription.UTF8String); } else MLOG("no BC: BC1–5 are decompressed on the GPU"); }
+     return ps;
+@@ -12036,6 +12051,8 @@
+ #define RB_PAR_BUILD() rb_par_game_build()
+ #define RB_PAR_SUBMIT_THREAD() on_sub_thread()
+ #define RB_PSO_WAIT_BOOST() rb_pso_wait_boost_on()
++#define RB_M4_FUNCTION(fn) objc_getAssociatedObject((fn),&rb_function_descriptor_key)
++#define RB_M4_ENABLED() (!g_m3 && nvn_rb_thermal_scope())
+ #include "pso_archive.h"   // S2Arm: per-pipeline binary archive (after MacNativeGames, MIT)
+ // The first launch after upgrading has no startup-key index. Seed the
+ // worker from the actual slow recipes, followed by the reference and user
+@@ -12202,8 +12219,8 @@
+ // newFunctionWithName:constantValues:"), so it is specialized with none given, as shader_load does for main0 / main0_u. Every variant library made from a shader's
+ // translation (sampler emulation _se, typed outputs _ft, vertex padding) carries the same declarations (Dsh.cs FsAlphaMs S2A_AT / S2A_MSOFF, 11-01: botw abort at frame 653)
+ static id<MTLFunction> lib_entry(id<MTLLibrary> lib, NSString *name) {
+-    id<MTLFunction> f = lib && name ? [lib newFunctionWithName:name] : nil;
+-    if (f.functionConstantsDictionary.count) { NSError *e = nil; f = [lib newFunctionWithName:name constantValues:[MTLFunctionConstantValues new] error:&e]; }
++    id<MTLFunction> f = lib && name ? rb_library_function(lib,name,nil,NULL) : nil;
++    if (f.functionConstantsDictionary.count) { NSError *e = nil; f = rb_library_function(lib,name,[MTLFunctionConstantValues new],&e); }
+     return f;
+ }
+ static NSData *json_from_pack(const char *name) {
+@@ -12682,7 +12699,7 @@
+     if (![entry isKindOfClass:[NSString class]] || !entry.length) { MLOG("【红】 shader %s has no entry for stage %d layer %d depth %d", pc.UTF8String, stage, layer, depth_zero); return nil; }
+     if (j[@"entry_geometry_capture"]) {
+         NSError *ge = nil;
+-        o->geo_fn = [lib newFunctionWithName:fnn(o, j[@"entry_geometry_capture"]) constantValues:[MTLFunctionConstantValues new] error:&ge];
++        o->geo_fn = rb_library_function(lib,fnn(o, j[@"entry_geometry_capture"]),[MTLFunctionConstantValues new],&ge);
+         if (!o->geo_fn) MLOG("【红】 vertex shader %s: geometry capture entry failed: %s", pc.UTF8String, ge.localizedDescription.UTF8String);
+     }
+     NSDictionary *geo = j[@"geometry"];
+@@ -12695,7 +12712,7 @@
+             NSArray *ent = e[1]; if (ent.count > 32) continue;
+             o->geo_tf_stride[b] = [e[0] unsignedIntValue]; o->geo_tf_n[b] = (uint32_t)ent.count;
+             for (NSUInteger k = 0; k < ent.count; k++) { o->geo_tf_off[b][k] = [ent[k][0] unsignedIntValue]; o->geo_tf_comp[b][k] = [ent[k][1] unsignedIntValue]; } } }
+-    o->fn = [lib newFunctionWithName:fnn(o, entry)]; o->stage = stage; o->load_depth_zero = depth_zero; strlcpy(o->key, pc.UTF8String, sizeof o->key); rb_keep_frame_key(o); o->ventry = entry;
++    o->fn = rb_library_function(lib,fnn(o, entry),nil,NULL); o->stage = stage; o->load_depth_zero = depth_zero; strlcpy(o->key, pc.UTF8String, sizeof o->key); rb_keep_frame_key(o); o->ventry = entry;
+     if (!o->fn) { MLOG("【红】 shader %s: no entry point %s in its library", pc.UTF8String, entry.UTF8String); return nil; }
+     // writes the layer (render_target_array_index, named in the library's metadata): its passes are layered and its pipelines get an input class (pso_desc). A library with layer entry points
+     // names it for those alone: its main0 / main0_z write no layer
+@@ -12755,7 +12772,7 @@
+         o->ts[o->nts++] = (typeof(o->ts[0])){(uint8_t)idx, (uint8_t)img, (uint8_t)reg};
+     }
+     if (stage == 5 && j[@"spill"]) { o->spill = [j[@"spill"] unsignedIntValue]; o->spill_slot = [j[@"spill_slot"] unsignedIntValue]; }   // shared-memory spill (dispatch)
+-    if (stage == 1 && j[@"entry_u"]) { o->u_mask = (uint8_t)[j[@"u_mask"] unsignedIntValue]; o->fn_u = [lib newFunctionWithName:fnn(o, j[@"entry_u"])]; if (!o->fn_u) MLOG("【红】 shader %s: no integer-output entry point %s in its library", pc.UTF8String, [j[@"entry_u"] UTF8String]); }
++    if (stage == 1 && j[@"entry_u"]) { o->u_mask = (uint8_t)[j[@"u_mask"] unsignedIntValue]; o->fn_u = rb_library_function(lib,fnn(o, j[@"entry_u"]),nil,NULL); if (!o->fn_u) MLOG("【红】 shader %s: no integer-output entry point %s in its library", pc.UTF8String, [j[@"entry_u"] UTF8String]); }
+     // Stages 3 / 4 are the tessellation control / evaluation shaders on Switch 1 and task / mesh on NVN2. A tessellation shader's json carries tess (handled below) and its
+     //   msl_entry_kind is vertex / kernel, which is right for it: the task / mesh contract (object / mesh functions, workgroup limits) is not its contract. Applied to it, the
+     //   kind check printed a false red line and the workgroup check found no threads, called the shader not usable and skipped its draws (#418: 19 red lines on a Switch 1 game)
+@@ -12773,7 +12790,7 @@
+                         o->mesh_threads, o->mesh_payload, o->mesh_maxv, o->mesh_maxp); return nil; }
+         if (kind == 2 && depth_zero) {   // the depth convention, as a vertex shader's main0 / main0_z (contract item 2)
+             NSString *z = [j[@"entry_z"] isKindOfClass:[NSString class]] ? j[@"entry_z"] : nil;
+-            id<MTLFunction> f = z ? [lib newFunctionWithName:fnn(o, z)] : nil;
++            id<MTLFunction> f = z ? rb_library_function(lib,fnn(o, z),nil,NULL) : nil;
+             if (f) { o->fn = f; o->ventry = entry = z; } else RED_ONCE(151, "mesh shader %s has no near=0 entry (entry_z): depth stays in the GL convention", pc.UTF8String);
+         }
+     }
+@@ -12788,9 +12805,9 @@
+     }
+     if (o->fn.functionConstantsDictionary.count) {
+         if (stage == 1 && o->fn.functionConstantsDictionary[@"S2A_AT"]) { o->has_atms = 1; o->at_lib = lib; o->at_main = fnn(o, entry); o->at_u = o->fn_u ? fnn(o, j[@"entry_u"]) : nil; }   // gap families 34 / 37 (fs_atms_fn)
+-        NSError *fe = nil; id<MTLFunction> f = [lib newFunctionWithName:fnn(o, entry) constantValues:[MTLFunctionConstantValues new] error:&fe];
++        NSError *fe = nil; id<MTLFunction> f = rb_library_function(lib,fnn(o, entry),[MTLFunctionConstantValues new],&fe);
+         if (f) o->fn = f; else { MLOG("【红】 shader %s: specializing its function constants failed: %s", pc.UTF8String, fe.localizedDescription.UTF8String); return nil; }
+-        if (o->fn_u) { f = [lib newFunctionWithName:fnn(o, j[@"entry_u"]) constantValues:[MTLFunctionConstantValues new] error:&fe]; o->fn_u = f; }
++        if (o->fn_u) { f = rb_library_function(lib,fnn(o, j[@"entry_u"]),[MTLFunctionConstantValues new],&fe); o->fn_u = f; }
+     }
+     if (!shader_args_init(o)) return nil;
+     NSString *ext = g_cb_ext[[pc hasSuffix:@"_b"] ? [pc substringToIndex:pc.length - 2] : pc];   // bytes each uniform slot can read (cb_len), storage slots never written (sb_ro)
+@@ -12993,7 +13010,7 @@
+             NSError *e = nil; g_builtin_lib = rb_compile_auxiliary(g_dev,@(k_nvn_builtin_msl),nil,&e);
+             if (!g_builtin_lib) MDIE("embedded compute kernel MSL compile failed: %s", e.localizedDescription.UTF8String);
+         }
+-        o = [NvShader new]; o->fn = [g_builtin_lib newFunctionWithName:@(k_nvn_builtin_map[i].fn)]; o->stage = 5; o->builtin = k_nvn_builtin_map[i].fn;
++        o = [NvShader new]; o->fn = rb_library_function(g_builtin_lib,@(k_nvn_builtin_map[i].fn),nil,NULL); o->stage = 5; o->builtin = k_nvn_builtin_map[i].fn;
+         g_builtin[@(ctl)] = o;
+         return o;
+     }
+@@ -13014,13 +13031,13 @@
+         }
+     }
+     NSError *e = nil;
+-    g_tess_count = [g_dev newComputePipelineStateWithFunction:[g_tess_lib newFunctionWithName:@"nvn_tess_count"] error:&e];
++    g_tess_count = [g_dev newComputePipelineStateWithFunction:rb_library_function(g_tess_lib,@"nvn_tess_count",nil,NULL) error:&e];
+     if (!g_tess_count) { static int once; if (!once++) MLOG("【红】 nvn_tess_count PSO build failed: %s", e.localizedDescription.UTF8String); return 0; }
+-    g_tess_scan = [g_dev newComputePipelineStateWithFunction:[g_tess_lib newFunctionWithName:@"nvn_tess_scan"] error:&e];
++    g_tess_scan = [g_dev newComputePipelineStateWithFunction:rb_library_function(g_tess_lib,@"nvn_tess_scan",nil,NULL) error:&e];
+     if (!g_tess_scan) { static int once; if (!once++) MLOG("【红】 nvn_tess_scan PSO build failed: %s", e.localizedDescription.UTF8String); g_tess_emit = nil; return 0; }
+-    g_tess_gather = [g_dev newComputePipelineStateWithFunction:[g_tess_lib newFunctionWithName:@"nvn_tess_gather"] error:&e];
++    g_tess_gather = [g_dev newComputePipelineStateWithFunction:rb_library_function(g_tess_lib,@"nvn_tess_gather",nil,NULL) error:&e];
+     if (!g_tess_gather) { static int once; if (!once++) MLOG("【红】 nvn_tess_gather PSO build failed: %s", e.localizedDescription.UTF8String); return 0; }
+-    g_tess_emit = [g_dev newComputePipelineStateWithFunction:[g_tess_lib newFunctionWithName:@"nvn_tess_emit"] error:&e];
++    g_tess_emit = [g_dev newComputePipelineStateWithFunction:rb_library_function(g_tess_lib,@"nvn_tess_emit",nil,NULL) error:&e];
+     if (!g_tess_emit) { static int once; if (!once++) MLOG("【红】 nvn_tess_emit PSO build failed: %s", e.localizedDescription.UTF8String); return 0; }
+     return 1;
+ }
+@@ -14843,8 +14860,8 @@
+     if (!vs->vfn_state) {
+         vs->vfn_state = 2;
+         size_t kl = strlen(vs->key); NSString *path = [NSString stringWithFormat:@"%.*s_bv", (int)(kl > 2 ? kl - 2 : kl), vs->key];
+-        NSError *e = nil; id<MTLLibrary> lib = lib_from_pack(path.UTF8String, &e); id<MTLFunction> f = lib && vs->ventry ? [lib newFunctionWithName:fnn(vs, vs->ventry)] : nil;   // a batched _bv library carries the _b batch's prefix (dmsh_build.py vin_flush)
+-        if (f && f.functionConstantsDictionary.count) f = [lib newFunctionWithName:fnn(vs, vs->ventry) constantValues:[MTLFunctionConstantValues new] error:&e];   // as shader_load
++        NSError *e = nil; id<MTLLibrary> lib = lib_from_pack(path.UTF8String, &e); id<MTLFunction> f = lib && vs->ventry ? rb_library_function(lib,fnn(vs, vs->ventry),nil,NULL) : nil;   // a batched _bv library carries the _b batch's prefix (dmsh_build.py vin_flush)
++        if (f && f.functionConstantsDictionary.count) f = rb_library_function(lib,fnn(vs, vs->ventry),[MTLFunctionConstantValues new],&e);   // as shader_load
+         const char *why = !lib ? "no library" : !f ? "no entry point" : NULL;
+         if (f && vs->rf.nb && argcheck_on() && [f newArgumentEncoderWithBufferIndex:vs->rf.abi].encodedLength != vs->arg_len) { why = "its argument buffer differs from the base library's"; f = nil; }   // asks Metal only under S2A_ARGCHECK (shader_args_init)
+         if (f) { vs->vfn = f; vs->vfn_state = 1; g_vin_loaded++; }
+@@ -15175,7 +15192,7 @@
+             NSError *e = nil; NSString *src = [NSString stringWithContentsOfFile:@(p) encoding:NSUTF8StringEncoding error:nil];
+             if (src) {
+                 id<MTLLibrary> lib = rb_source_library(src, rb_async_pso(), &e);
+-                f = lib ? [lib newFunctionWithName:@"main0_t" constantValues:[MTLFunctionConstantValues new] error:&e] : nil;
++                f = lib ? rb_library_function(lib,@"main0_t",[MTLFunctionConstantValues new],&e) : nil;
+                 if (!f) { MLOG("【红】 fragment shader %s: typed-output variant %#x failed to build: %s", fs->key, need, e.localizedDescription.UTF8String); f = NSNull.null; }
+                 if (!fs->fn_t) fs->fn_t = [NSMutableDictionary dictionary];
+                 fs->fn_t[@(need)] = f;
+@@ -15394,7 +15411,7 @@
+     MTLFunctionConstantValues *cv = [MTLFunctionConstantValues new];
+     if (at) { int32_t a = at; [cv setConstantValue:&a type:MTLDataTypeInt withName:@"S2A_AT"]; }
+     if (msoff) { bool b = true; [cv setConstantValue:&b type:MTLDataTypeBool withName:@"S2A_MSOFF"]; }
+-    NSError *e = nil; f = [fs->at_lib newFunctionWithName:u ? fs->at_u : fs->at_main constantValues:cv error:&e];
++    NSError *e = nil; f = rb_library_function(fs->at_lib,u ? fs->at_u : fs->at_main,cv,&e);
+     if (!f) { MLOG("【红】 fragment shader %s: specializing alpha test %d / multisampling off %d failed: %s", fs->key, at, msoff, e.localizedDescription.UTF8String); return nil; }
+     os_unfair_lock_lock(&g_atfn_lock); if (!fs->at_fns) fs->at_fns = [NSMutableDictionary dictionary]; fs->at_fns[key] = f; os_unfair_lock_unlock(&g_atfn_lock);
+     return f;
+@@ -15417,7 +15434,7 @@
+                 "fragment O hl4() { return {float4(0,0,1,1),float4(0,0,1,1),float4(0,0,1,1)}; } fragment O hl5() { return {float4(1,1,1,1),float4(1,1,1,1),float4(1,1,1,1)}; }\n",nil,&err);
+             if (!hl) MLOG("【红】 HILITE shader compile failed %s", err.localizedDescription.UTF8String); });
+         for (int i = 0; i < nk; i++) if (!strncmp(fs->key, keys[i], strlen(keys[i]))) {
+-            if (hl) d.fragmentFunction = [hl newFunctionWithName:[NSString stringWithFormat:@"hl%d", i]];
++            if (hl) d.fragmentFunction = rb_library_function(hl,[NSString stringWithFormat:@"hl%d", i],nil,NULL);
+             break; } }
+     uint32_t need = fs && !fsfn && d.fragmentFunction == fs->fn ? pso_fout_need(k, fs, merged) : 0;
+     if (need && fs->fn_u && need == fs->u_mask) d.fragmentFunction = fs->fn_u;   // the integer attachments are exactly the outputs main0_u turns (dmsh_build.py fs_uint u_mask)
+@@ -21915,7 +21932,7 @@
+     for (int i = 0; i < fs->rf.nfc; i++) { int v = fx[i]; [cv setConstantValue:&v type:MTLDataTypeInt atIndex:(NSUInteger)i]; }
+     for (int q = 0; q < 8; q++) { bool b = fbmask >> q & 1; [cv setConstantValue:&b type:MTLDataTypeBool atIndex:(NSUInteger)(32 + q)]; }
+     for (int j = 0; j < fs->rf.nfo; j++) for (int q = 0; q < 8; q++) { bool b = lmap[q] == fs->rf.fo_color[j]; [cv setConstantValue:&b type:MTLDataTypeBool atIndex:(NSUInteger)(64 + 8 * j + q)]; }
+-    NSError *e = nil; id<MTLFunction> f = [lib newFunctionWithName:@"main0" constantValues:cv error:&e];
++    NSError *e = nil; id<MTLFunction> f = rb_library_function(lib,@"main0",cv,&e);
+     if (!f) {
+         NSMutableString *k = [NSMutableString stringWithFormat:@"%02x", fbmask];
+         for (int i = 0; i < fs->rf.nfc; i++) [k appendFormat:@",%d", fx[i]];
+@@ -22138,7 +22155,7 @@
+     static id<MTLFunction> fn[2]; static int failed;
+     if (!fn[0] && !failed) { NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@"#include <metal_stdlib>\nusing namespace metal;\n"
+             "fragment float4 msg() { return float4(0.5, 0.5, 0.5, 1.0); }\nfragment float4 msm() { return float4(1500.0, 2.0, 1500.0, 0.6); }\n",nil,&e);
+-        fn[0] = [lib newFunctionWithName:@"msg"]; fn[1] = [lib newFunctionWithName:@"msm"];
++        fn[0] = rb_library_function(lib,@"msg",nil,NULL); fn[1] = rb_library_function(lib,@"msm",nil,NULL);
+         if (!fn[0] || !fn[1]) { failed = 1; MLOG("【红】 DM_NVN_MAGSCAN: cannot compile the constant fragment shaders %s", e.localizedDescription.UTF8String); } }
+     return failed ? nil : fn[ph - 2];
+ }
+@@ -22227,7 +22244,7 @@
+     if (g_ms_cur < 0 || g_stat_pass != g_ms_apass) { for (int i = 0; i < na; i++) g_ms_att[i] = nil; return; }
+     static int failed; static id<MTLComputePipelineState> ps; static id at; static int logged_att;
+     if (failed) return;
+-    if (!ps) { NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(k_ms_msl),nil,&e); id<MTLFunction> fn = lib ? [lib newFunctionWithName:@"ms"] : nil;
++    if (!ps) { NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(k_ms_msl),nil,&e); id<MTLFunction> fn = lib ? rb_library_function(lib,@"ms",nil,NULL) : nil;
+         ps = fn ? [g_dev newComputePipelineStateWithFunction:fn error:&e] : nil;
+         at = rec_table(tab_new(1, 1, 0, &e));
+         if (!ps || !at) { failed = 1; MLOG("【红】 DM_NVN_MAGSCAN: cannot create the compute pipeline %s", e.localizedDescription.UTF8String); return; } }
+@@ -23004,7 +23021,7 @@
+     static id<MTLComputePipelineState> ps[2]; static id at; static int failed;
+     if (failed) return;
+     if (!at) { NSError *e = nil; id<MTLLibrary> lib = rb_indirect_library(RB_INDIRECT_EXPAND, &e);
+-        for (int k = 0; k < 2 && lib; k++) { id<MTLFunction> f = [lib newFunctionWithName:k ? @"ixc_expand" : @"ixc_arrays"]; ps[k] = f ? [g_dev newComputePipelineStateWithFunction:f error:&e] : nil; }
++        for (int k = 0; k < 2 && lib; k++) { id<MTLFunction> f = rb_library_function(lib,k ? @"ixc_expand" : @"ixc_arrays",nil,NULL); ps[k] = f ? [g_dev newComputePipelineStateWithFunction:f error:&e] : nil; }
+         at = ps[0] && ps[1] ? rec_table(tab_new(1, 0, 0, &e)) : nil;
+         if (!at) { failed = 1; MLOG("【红】 indirect draw conversion: cannot create the compute pipeline %s (indirect draws of quads / fans / 8-bit indices are skipped)", e.localizedDescription.UTF8String); return; } }
+     if (g_nubd && rb_land_first_on()) {   // RewindBox (patch 0077): the deferred inline updates land before the conversion takes its write epoch (they went in at enc_c_begin below), as mesh_tasks_draw does
+@@ -23083,7 +23100,7 @@
+ static void wide_run(const p_draw_idx *di) {
+     static id<MTLComputePipelineState> ps; static id at; static int failed;
+     if (failed) return;
+-    if (!at) { NSError *e = nil; id<MTLLibrary> lib = rb_indirect_library(RB_INDIRECT_WIDEN, &e); id<MTLFunction> f = lib ? [lib newFunctionWithName:@"wide_u8"] : nil;
++    if (!at) { NSError *e = nil; id<MTLLibrary> lib = rb_indirect_library(RB_INDIRECT_WIDEN, &e); id<MTLFunction> f = lib ? rb_library_function(lib,@"wide_u8",nil,NULL) : nil;
+         ps = f ? [g_dev newComputePipelineStateWithFunction:f error:&e] : nil;
+         at = ps ? rec_table(tab_new(1, 0, 0, &e)) : nil;
+         if (!at) { failed = 1; MLOG("【红】 8-bit index GPU expansion: cannot create the compute pipeline %s (the CPU expands them as before)", e.localizedDescription.UTF8String); return; } }
+@@ -23244,7 +23261,7 @@
+     static id<MTLComputePipelineState> ps; static id at; static int failed;
+     static int lay;   // RewindBox (patch 0067): lay: the jobs carry chk (k_mdx_msl_chk); g_mdxchk_buf: its slots, CPU-visible
+     if (failed) return;
+-    if (!at) { lay = rb_mdxchk_on() && fsig_on(); NSError *e = nil; id<MTLLibrary> lib = rb_indirect_library(lay ? RB_INDIRECT_MASK_CHECK : RB_INDIRECT_MASK, &e); id<MTLFunction> f = [lib newFunctionWithName:@"mdx_mask"];   // RewindBox (patch 0067): lay, k_mdx_msl_chk
++    if (!at) { lay = rb_mdxchk_on() && fsig_on(); NSError *e = nil; id<MTLLibrary> lib = rb_indirect_library(lay ? RB_INDIRECT_MASK_CHECK : RB_INDIRECT_MASK, &e); id<MTLFunction> f = rb_library_function(lib,@"mdx_mask",nil,NULL);   // RewindBox (patch 0067): lay, k_mdx_msl_chk
+         ps = f ? [g_dev newComputePipelineStateWithFunction:f error:&e] : nil;
+         at = ps ? rec_table(tab_new(1, 0, 0, &e)) : nil;
+         if (!at) { failed = 1; MLOG("【红】 indirect-count multi-draw masking: cannot create the compute pipeline %s (those draws wait for the GPU)", e.localizedDescription.UTF8String); return; }
+@@ -23423,7 +23440,7 @@
+     }
+     static id<MTLComputePipelineState> gather;
+     if (di && !gather) { NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(k_tf_gather_msl),nil,&e);
+-        if (lib) gather = [g_dev newComputePipelineStateWithFunction:[lib newFunctionWithName:@"tf_gather"] error:&e];
++        if (lib) gather = [g_dev newComputePipelineStateWithFunction:rb_library_function(lib,@"tf_gather",nil,NULL) error:&e];
+         if (!gather) { free(order); nvn_be_bad_draw_feat(); RED_ONCE(125, "transform feedback gather kernel: %s", e.localizedDescription.UTF8String); return; } }
+     __unsafe_unretained id<MTLRenderPipelineState> ps = tf_pso(vs);
+     if (!ps) { free(order); return; }
+@@ -23900,8 +23917,8 @@
+     if ([lib isEqualToString:@(hs->key)]) fn = hs->fn;
+     else {
+         id<MTLLibrary> l = lib_from_pack(lib.UTF8String, &e); NSString *entry = hs->ventry ?: @"main0";
+-        fn = [l newFunctionWithName:entry];
+-        if (fn.functionConstantsDictionary.count) fn = [l newFunctionWithName:entry constantValues:[MTLFunctionConstantValues new] error:&e];   // 同 shader_load：声明了函数常量的要先特化
++        fn = rb_library_function(l,entry,nil,NULL);
++        if (fn.functionConstantsDictionary.count) fn = rb_library_function(l,entry,[MTLFunctionConstantValues new],&e);   // 同 shader_load：声明了函数常量的要先特化
+         if (!fn) { MLOG("【红】 hull shader %s: its %s-domain kernel library %s did not load (%s); tessellation draws of this pair skipped", hs->key, dn.UTF8String, lib.UTF8String,
+                         l ? [NSString stringWithFormat:@"no function %@", entry].UTF8String : e.localizedDescription.UTF8String); return nil; }
+     }
+@@ -24126,7 +24143,7 @@
+     if (!g_dt_vs) {
+         const char *src = rb_texture_copy_msl();
+         NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(src),nil,&e);
+-        id<MTLFunction> vf = [lib newFunctionWithName:@"dt_vs"], ff = [lib newFunctionWithName:@"dt_fs"];
++        id<MTLFunction> vf = rb_library_function(lib,@"dt_vs",nil,NULL), ff = rb_library_function(lib,@"dt_fs",nil,NULL);
+         g_dt_tab = vf && ff ? rec_table(tab_new(1, 1, 1, &e)) : nil;
+         if (!g_dt_tab) { failed = 1; MLOG("【红】 DrawTexture: cannot build its shaders / argument table: %s; DrawTexture draws nothing", e.localizedDescription.UTF8String); return; }
+         NvShader *v = [NvShader new], *f = [NvShader new];
+@@ -25582,7 +25599,7 @@
+             "fragment DS fsds(V in [[stage_in]], depth2d<float> t [[texture(0)]], texture2d<uint> ts [[texture(1)]], constant float4 *p [[buffer(0)]]) {\n"
+             "  float2 st = p[0].xy + (in.p.xy - p[1].xy) * p[0].zw; DS o; o.d = t.read(uint2(st)); o.s = ts.read(uint2(st)).r; return o; }\n";
+         NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(src),nil,&e);
+-        vf = [lib newFunctionWithName:@"vs"]; ff = [lib newFunctionWithName:@"fs"]; fd = [lib newFunctionWithName:@"fsd"]; fds = [lib newFunctionWithName:@"fsds"];
++        vf = rb_library_function(lib,@"vs",nil,NULL); ff = rb_library_function(lib,@"fs",nil,NULL); fd = rb_library_function(lib,@"fsd",nil,NULL); fds = rb_library_function(lib,@"fsds",nil,NULL);
+         MTLDepthStencilDescriptor *dd = [MTLDepthStencilDescriptor new]; dd.depthCompareFunction = MTLCompareFunctionAlways; dd.depthWriteEnabled = YES; dss = [g_dev newDepthStencilStateWithDescriptor:dd];
+         MTLStencilDescriptor *sd_ = [MTLStencilDescriptor new]; sd_.stencilCompareFunction = MTLCompareFunctionAlways; sd_.depthStencilPassOperation = MTLStencilOperationReplace;   // Replace writes the [[stencil]] output
+         dd.frontFaceStencil = dd.backFaceStencil = sd_; dss_s = [g_dev newDepthStencilStateWithDescriptor:dd];
+@@ -26126,7 +26143,7 @@
+     NSData *kd = [NSData dataWithBytes:k length:sizeof *k]; id<MTLRenderPipelineState> ps = cache[kd]; if (ps) return ps;
+     id<MTLLibrary> lib = clr_lib(k->slot < 0 ? 0 : k->slot, k->slot < 0 ? 0 : k->kind); if (!lib) return nil;
+     MTLRenderPipelineDescriptor *d = [MTLRenderPipelineDescriptor new];
+-    d.vertexFunction = [lib newFunctionWithName:@"clr_vs"]; if (k->slot >= 0) d.fragmentFunction = [lib newFunctionWithName:@"clr_fs"];
++    d.vertexFunction = rb_library_function(lib,@"clr_vs",nil,NULL); if (k->slot >= 0) d.fragmentFunction = rb_library_function(lib,@"clr_fs",nil,NULL);
+     for (int i = 0; i < 8; i++) if (k->cfmt[i]) { d.colorAttachments[i].pixelFormat = (MTLPixelFormat)k->cfmt[i]; d.colorAttachments[i].writeMask = MTLColorWriteMaskNone; }   // the other attachments stay as they are
+     if (k->slot >= 0) d.colorAttachments[k->slot].writeMask = (MTLColorWriteMask)((k->mask & 1 ? MTLColorWriteMaskRed : 0) | (k->mask & 2 ? MTLColorWriteMaskGreen : 0) | (k->mask & 4 ? MTLColorWriteMaskBlue : 0) | (k->mask & 8 ? MTLColorWriteMaskAlpha : 0));
+     d.depthAttachmentPixelFormat = (MTLPixelFormat)k->dfmt; d.stencilAttachmentPixelFormat = (MTLPixelFormat)k->sfmt; d.rasterSampleCount = k->samples ? k->samples : 1;
+@@ -27381,7 +27398,7 @@
+             "fragment float4 fs(V in [[stage_in]], texture2d<float> t [[texture(0)]], sampler s [[sampler(0)]]) { float4 c = t.sample(s, in.uv); return float4(c.rgb, 1); }\n";
+         NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(src_msl),nil,&e);
+         MTLRenderPipelineDescriptor *d = [MTLRenderPipelineDescriptor new];
+-        d.vertexFunction = [lib newFunctionWithName:@"vs"]; d.fragmentFunction = [lib newFunctionWithName:@"fs"];
++        d.vertexFunction = rb_library_function(lib,@"vs",nil,NULL); d.fragmentFunction = rb_library_function(lib,@"fs",nil,NULL);
+         d.colorAttachments[0].pixelFormat = MTLPixelFormatRGBA8Unorm;
+         ps = [g_dev newRenderPipelineStateWithDescriptor:d error:&e];
+         MTLSamplerDescriptor *sd = [MTLSamplerDescriptor new]; sp = [g_dev newSamplerStateWithDescriptor:sd];
+@@ -27403,7 +27420,7 @@
+         id<MTLLibrary> il = rb_compile_auxiliary(g_dev,@(int_msl),nil,&e);
+         const char *fn[5] = {"fu", "fi", "f3", "f3u", "f3i"};
+         for (int k = 0; il && k < 5; k++) {
+-            d.vertexFunction = [il newFunctionWithName:@"vs"]; d.fragmentFunction = [il newFunctionWithName:@(fn[k])];
++            d.vertexFunction = rb_library_function(il,@"vs",nil,NULL); d.fragmentFunction = rb_library_function(il,@(fn[k]),nil,NULL);
+             id<MTLRenderPipelineState> p = [g_dev newRenderPipelineStateWithDescriptor:d error:&e];
+             if (k < 2) ps_i[k] = p; else ps_3d[k - 2] = p;
+         }
+@@ -27519,7 +27536,7 @@
+             const char *fn[3] = {"sf", "su", "si"};
+             for (int k = 0; lib && k < 3; k++) {
+                 MTLRenderPipelineDescriptor *d = [MTLRenderPipelineDescriptor new];
+-                d.vertexFunction = [lib newFunctionWithName:@"vs"]; d.fragmentFunction = [lib newFunctionWithName:@(fn[k])];
++                d.vertexFunction = rb_library_function(lib,@"vs",nil,NULL); d.fragmentFunction = rb_library_function(lib,@(fn[k]),nil,NULL);
+                 d.colorAttachments[0].pixelFormat = MTLPixelFormatRGBA8Unorm;
+                 sps[k] = [g_dev newRenderPipelineStateWithDescriptor:d error:&e];
+             }
+@@ -27677,7 +27694,7 @@
+         id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(src_msl),nil,&e);
+         if (!lib) MDIE("present shader compile failed %s", e.localizedDescription.UTF8String);
+         MTLRenderPipelineDescriptor *pd = [MTLRenderPipelineDescriptor new];
+-        pd.vertexFunction = [lib newFunctionWithName:@"vs"]; pd.fragmentFunction = [lib newFunctionWithName:@"fs"];
++        pd.vertexFunction = rb_library_function(lib,@"vs",nil,NULL); pd.fragmentFunction = rb_library_function(lib,@"fs",nil,NULL);
+         pd.colorAttachments[0].pixelFormat = format;
+         g_blit_pso = [g_dev newRenderPipelineStateWithDescriptor:pd error:&e];
+         if (!g_blit_pso) MDIE("present pipeline failed %s", e.localizedDescription.UTF8String);
+@@ -28760,7 +28777,7 @@
+                 @"    float a = float(i) * 1e-6f, b = 1.0f;\n"
+                 @"    for (int k = 0; k < 2048; k++) { b = fma(b, 0.99991f, a); a = fma(a, 1.00007f, b * 1e-7f); }\n"
+                 @"    o[i] = a + b;\n}\n",nil,&er);
+-            id<MTLFunction> fn = [lib newFunctionWithName:@"rb_probe"];
++            id<MTLFunction> fn = rb_library_function(lib,@"rb_probe",nil,NULL);
+             id<MTLComputePipelineState> pso = fn ? [g_dev newComputePipelineStateWithFunction:fn error:&er] : nil;
+             id<MTLCommandQueue> q = pso ? [g_dev newCommandQueue] : nil;
+             id<MTLBuffer> b = q ? [g_dev newBufferWithLength:16384 * sizeof(float) options:MTLResourceStorageModeShared] : nil;
+@@ -29006,7 +29023,7 @@
+     static const char *src = "#include <metal_stdlib>\nusing namespace metal;\n"
+         "kernel void cp(device const uint *a [[buffer(0)]], device uint *b [[buffer(3)]], uint i [[thread_position_in_grid]]) { b[i] = a[i]; }\n";
+     NSError *e = nil; id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@(src),nil,&e);
+-    id<MTLComputePipelineState> ps = lib ? [g_dev newComputePipelineStateWithFunction:[lib newFunctionWithName:@"cp"] error:&e] : nil;
++    id<MTLComputePipelineState> ps = lib ? [g_dev newComputePipelineStateWithFunction:rb_library_function(lib,@"cp",nil,NULL) error:&e] : nil;
+     if (!ps) { snprintf(why, n, "kernel: %s", e.localizedDescription.UTF8String); return 1; }
+     id<MTLBuffer> buf = [g_dev newBufferWithLength:4096 options:MTLResourceStorageModeShared]; res_add(buf); res_commit();
+     uint32_t *p = buf.contents; for (int i = 0; i < 1024; i++) p[i] = 0;
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -89,6 +89,17 @@
+ static int g_rb_archive_coalesce;                                       // RewindBox (patch 0094): set once with the archive
+ static NSMutableArray *g_par_todo;                                       // @[key, descriptor] noted by the prewarm, written beside it (par_writer)
+ 
++// Captured at the actual first compile. The archive worker serializes this
++// object; it does not call addRender/ComputePipelineFunctions again.
++@interface RBMetal4Capture : NSObject <NSCopying> { @public id<MTL4PipelineDataSetSerializer> serializer; } @end
++@implementation RBMetal4Capture
++- (id)copyWithZone:(NSZone *)zone { (void)zone; return self; }
++@end
++static BOOL rb_m4_write(NSString *key,RBMetal4Capture *capture);
++#ifndef RB_M4_ENABLED
++#define RB_M4_ENABLED() 0
++#define RB_M4_FUNCTION(fn) nil
++#endif
+ static NSDictionary *par_identity(id<MTLDevice> dev) {
+     NSMutableDictionary *idn = [@{@"schema": @1, @"chain": @DMSH_CHAIN, @"gpu": dev.name ?: @"?",
+         @"os": NSProcessInfo.processInfo.operatingSystemVersionString ?: @"?"} mutableCopy];
+@@ -467,6 +478,7 @@
+ }
+ // One pipeline as its own file (a temporary name, then renamed)
+ static void par_write(NSString *key, id desc) {
++    if ([desc isKindOfClass:RBMetal4Capture.class]) { rb_m4_write(key,desc); return; }
+     pthread_mutex_lock(&g_par_mu); BOOL have = [g_par_have containsObject:key]; pthread_mutex_unlock(&g_par_mu);
+     if (have) return;
+     NSError *e = nil; BOOL ok;
+@@ -572,7 +584,31 @@
+         MLOG("【红】 pipeline archive: cannot persist %s (%lu keys, %s/%ld): %s", path.lastPathComponent.UTF8String,
+              (unsigned long)n, e.domain.UTF8String ?: "-", (long)e.code, e.localizedDescription.UTF8String ?: "rename or index failed");
+ }
++static BOOL rb_m4_write(NSString *key,RBMetal4Capture *capture) {
++    int lease=0; uint64_t until=atomic_load(&g_par_close_until);
++    if (!par_admit_write(until,RB_PAR_WRITE_MODE(),&lease)) return NO;
++    NSString *path=par_file(key), *temp=[path stringByAppendingString:@".m4-tmp"];
++    NSError *error=nil; BOOL ok=NO;
++    pthread_mutex_lock(&g_par_wmu); int lock=par_ga_lock();
++    NSSet *before=par_ga_list(0);
++    if (@available(macOS 26.0,iOS 26.0,*))
++        ok=[capture->serializer serializeAsArchiveAndFlushToURL:[NSURL fileURLWithPath:temp] error:&error] &&
++            rename(temp.fileSystemRepresentation,path.fileSystemRepresentation)==0;
++    par_ga_remove_new(before); par_ga_unlock(lock); pthread_mutex_unlock(&g_par_wmu);
++    rb_spec_done(&lease);
++    if (ok) {
++        pthread_mutex_lock(&g_par_mu); [g_par_have addObject:key]; [g_par_bmap removeObjectForKey:key]; rb_archive_forget(key); pthread_mutex_unlock(&g_par_mu);
++        atomic_fetch_add(&g_par_written,1);
++    } else { unlink(temp.fileSystemRepresentation); atomic_fetch_add(&g_par_write_failed,1);
++        MLOG("[rb-metal4] captured archive %s could not be persisted: %s",key.UTF8String,error.localizedDescription.UTF8String ?: "rename failed"); }
++    return YES; // consumed; failures are retried through the next exact recipe
++}
+ static NSUInteger par_write_batch_try(NSArray<NSArray *> *items, RBArchiveSerialization *__strong *retry_out) {
++    if (items.count && [items[0][1] isKindOfClass:RBMetal4Capture.class])
++        return rb_m4_write(items[0][0],items[0][1]) ? 1 : 0;
++    for (NSUInteger i=1;i<items.count;i++) if ([items[i][1] isKindOfClass:RBMetal4Capture.class]) {
++        items=[items subarrayWithRange:NSMakeRange(0,i)]; break;
++    }
+     NSMutableIndexSet *skip = [NSMutableIndexSet indexSet];
+     NSMutableSet<NSString *> *seen = g_rb_archive_coalesce ? [NSMutableSet set] : nil;
+     pthread_mutex_lock(&g_par_mu);
+@@ -1041,8 +1077,81 @@
+     atomic_fetch_add_explicit(&g_rb_par_stats[i], 1, memory_order_relaxed);
+     atomic_fetch_add_explicit(&g_rb_par_stats[i + 1], bp_now() - started, memory_order_relaxed);
+ }
++API_AVAILABLE(macos(26.0),ios(26.0))
++static MTL4RenderPipelineDescriptor *rb_m4_render_desc(MTLRenderPipelineDescriptor *d) {
++    MTL4FunctionDescriptor *v=RB_M4_FUNCTION(d.vertexFunction), *f=RB_M4_FUNCTION(d.fragmentFunction);
++    if (!v || (d.fragmentFunction && !f) || d.vertexFunction.patchType!=MTLPatchTypeNone ||
++        d.vertexLinkedFunctions.functions.count || d.fragmentLinkedFunctions.functions.count) return nil;
++    MTL4RenderPipelineDescriptor *r=[MTL4RenderPipelineDescriptor new];
++    r.vertexFunctionDescriptor=v; r.fragmentFunctionDescriptor=f; r.vertexDescriptor=[d.vertexDescriptor copy];
++    r.label=d.label; r.rasterSampleCount=d.rasterSampleCount; r.rasterizationEnabled=d.rasterizationEnabled;
++    r.inputPrimitiveTopology=d.inputPrimitiveTopology; r.maxVertexAmplificationCount=d.maxVertexAmplificationCount;
++    r.alphaToCoverageState=d.alphaToCoverageEnabled ? MTL4AlphaToCoverageStateEnabled : MTL4AlphaToCoverageStateDisabled;
++    r.alphaToOneState=d.alphaToOneEnabled ? MTL4AlphaToOneStateEnabled : MTL4AlphaToOneStateDisabled;
++    r.supportIndirectCommandBuffers=d.supportIndirectCommandBuffers ? MTL4IndirectCommandBufferSupportStateEnabled : MTL4IndirectCommandBufferSupportStateDisabled;
++    for (NSUInteger i=0;i<8;i++) {
++        MTLRenderPipelineColorAttachmentDescriptor *a=d.colorAttachments[i]; MTL4RenderPipelineColorAttachmentDescriptor *z=r.colorAttachments[i];
++        z.pixelFormat=a.pixelFormat; z.writeMask=a.writeMask;
++        z.blendingState=a.blendingEnabled ? MTL4BlendStateEnabled : MTL4BlendStateDisabled;
++        z.sourceRGBBlendFactor=a.sourceRGBBlendFactor; z.destinationRGBBlendFactor=a.destinationRGBBlendFactor;
++        z.sourceAlphaBlendFactor=a.sourceAlphaBlendFactor; z.destinationAlphaBlendFactor=a.destinationAlphaBlendFactor;
++        z.rgbBlendOperation=a.rgbBlendOperation; z.alphaBlendOperation=a.alphaBlendOperation;
++    }
++    // Metal 4 binds depth/stencil formats at the encoder; they are not pipeline
++    // descriptor fields. Existing recipe keys continue distinguishing the state.
++    return r;
++}
++API_AVAILABLE(macos(26.0),ios(26.0))
++static MTL4ComputePipelineDescriptor *rb_m4_compute_desc(id<MTLFunction> fn) {
++    MTL4FunctionDescriptor *f=RB_M4_FUNCTION(fn); if (!f) return nil;
++    MTL4ComputePipelineDescriptor *d=[MTL4ComputePipelineDescriptor new]; d.computeFunctionDescriptor=f; return d;
++}
++static _Atomic uint64_t rb_m4_hits,rb_m4_compiles,rb_m4_fallbacks;
++static id rb_m4_cached(id descriptor,NSString *key,BOOL compute) {
++    if (!descriptor || !key || !g_par_on || !g_par_dir) return nil;
++    if (@available(macOS 26.0,iOS 26.0,*)) {
++        // Same identity directory and exact key as the established archive
++        // policy. Metal verifies the full descriptor, not only the filename.
++        pthread_mutex_lock(&g_par_mu); BOOL present=[g_par_have containsObject:key] && !g_par_bmap[key]; pthread_mutex_unlock(&g_par_mu);
++        if (!present) return nil;
++        id<MTL4Archive> a=[g_dev newArchiveWithURL:[NSURL fileURLWithPath:par_file(key)] error:nil];
++        id ps=compute ? [a newComputePipelineStateWithDescriptor:descriptor error:nil] : [a newRenderPipelineStateWithDescriptor:descriptor error:nil];
++        if (ps) atomic_fetch_add(&rb_m4_hits,1);
++        return ps;
++    }
++    return nil;
++}
++static id rb_m4_compile(id descriptor,NSString *key,BOOL compute,NSError **error) {
++    if (!descriptor) return nil;
++    if (@available(macOS 26.0,iOS 26.0,*)) {
++        MTL4CompilerDescriptor *cd=[MTL4CompilerDescriptor new];
++        RBMetal4Capture *capture=nil;
++        if (key && g_par_on) {
++            MTL4PipelineDataSetSerializerDescriptor *sd=[MTL4PipelineDataSetSerializerDescriptor new];
++            sd.configuration=MTL4PipelineDataSetSerializerConfigurationCaptureBinaries;
++            capture=[RBMetal4Capture new]; capture->serializer=[g_dev newPipelineDataSetSerializerWithDescriptor:sd];
++            cd.pipelineDataSetSerializer=capture->serializer;
++        }
++        id<MTL4Compiler> compiler=[g_dev newCompilerWithDescriptor:cd error:error];
++        id ps=compute ? [compiler newComputePipelineStateWithDescriptor:descriptor compilerTaskOptions:nil error:error] :
++            [compiler newRenderPipelineStateWithDescriptor:descriptor compilerTaskOptions:nil error:error];
++        if (ps) {
++            uint64_t n=atomic_fetch_add(&rb_m4_compiles,1)+1;
++            if (capture && capture->serializer) par_note(key,capture);
++            if (n<=4 || !(n&(n-1))) MLOG("[rb-metal4] first_compiles=%llu archive_hits=%llu captured_without_recompile=%d",
++                (unsigned long long)n,(unsigned long long)atomic_load(&rb_m4_hits),capture && capture->serializer!=nil);
++            if (error) *error=nil;
++        } else atomic_fetch_add(&rb_m4_fallbacks,1);
++        return ps;
++    }
++    return nil;
++}
+ static id<MTLRenderPipelineState> par_render_(MTLRenderPipelineDescriptor *d, NSString *key, NSError **e) {
+     BOOL rebuild=par_reference_rebuild(key);
++    id m4=nil;
++    if (RB_M4_ENABLED()) { if (@available(macOS 26.0,iOS 26.0,*)) m4=rb_m4_render_desc(d); }
++    id native=rebuild ? nil : rb_m4_cached(m4,key,NO);
++    if (native) { rb_pso_track(native,RB_RENDER,key,YES); par_count(1); par_scope_result(0,1); rb_par_last_way=1; return native; }
+     id<MTLBinaryArchive> b = rebuild ? nil : par_bundle_for(key);
+     if (b) {   // a miss (another OS / GPU than the package was made for) is no error: the device's archive and the compiler follow
+         d.binaryArchives = @[b];
+@@ -1075,16 +1184,22 @@
+     }
+     if (key && g_par_on) { par_count(0); par_scope_result(0, 0); }
+     uint64_t started = RB_PAR_MEASURE() ? bp_now() : 0, rb_c0 = bp_now();
+-    id<MTLRenderPipelineState> ps = [g_dev newRenderPipelineStateWithDescriptor:d error:e];
++    id<MTLRenderPipelineState> ps=rb_m4_compile(m4,key,NO,e); BOOL captured=ps!=nil;
++    if (!ps) { if (e) *e=nil; ps=[g_dev newRenderPipelineStateWithDescriptor:d error:e]; }
+     rb_par_last_way = 2; rb_par_last_compile_ns = bp_now() - rb_c0;
+     par_scope_build(0, started);
+     if (ps && rebuild) atomic_fetch_add(&g_par_reference_created,1);
+     rb_pso_track(ps, RB_RENDER, key, NO);
++    if (captured) return ps;
+     if (ps && key && !g_par_on) rb_archive_note_before_index(key, d);
+     else if (ps && key && g_par_on && (par_write_in_place || g_par_note_play || RB_PAR_SCOPED() || RB_PAR_WRITE_MODE() != RB_ARCHIVE_LEGACY)) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }   // RewindBox (patch 0033): g_par_note_play
+     return ps;
+ }
+ static id<MTLComputePipelineState> par_compute_(id<MTLFunction> fn, NSString *key, NSError **e) {
++    id m4=nil;
++    if (RB_M4_ENABLED()) { if (@available(macOS 26.0,iOS 26.0,*)) m4=rb_m4_compute_desc(fn); }
++    id native=rb_m4_cached(m4,key,YES);
++    if (native) { rb_pso_track(native,RB_COMPUTE,key,YES); par_count(1); par_scope_result(1,1); return native; }
+     MTLComputePipelineDescriptor *d = [MTLComputePipelineDescriptor new]; d.computeFunction = fn;
+     id<MTLBinaryArchive> b = par_bundle_for(key);
+     if (b) {
+@@ -1118,9 +1233,11 @@
+     }
+     if (key && g_par_on) { par_count(0); par_scope_result(1, 0); }
+     uint64_t started = RB_PAR_MEASURE() ? bp_now() : 0;
+-    id<MTLComputePipelineState> ps = [g_dev newComputePipelineStateWithDescriptor:d options:MTLPipelineOptionNone reflection:nil error:e];
++    id<MTLComputePipelineState> ps=rb_m4_compile(m4,key,YES,e); BOOL captured=ps!=nil;
++    if (!ps) { if (e) *e=nil; ps=[g_dev newComputePipelineStateWithDescriptor:d options:MTLPipelineOptionNone reflection:nil error:e]; }
+     par_scope_build(1, started);
+     rb_pso_track(ps, RB_COMPUTE, key, NO);
++    if (captured) return ps;
+     if (ps && key && !g_par_on) rb_archive_note_before_index(key, d);
+     else if (ps && key && g_par_on && (par_write_in_place || g_par_note_play || RB_PAR_SCOPED() || RB_PAR_WRITE_MODE() != RB_ARCHIVE_LEGACY)) { if (g_par_harvest) par_write(key, d); else par_note(key, d); }   // RewindBox (patch 0033): g_par_note_play
+     return ps;
+@@ -1130,6 +1247,7 @@
+ // Called after session_wait_backend, the archive writer and all shader workers have drained.
+ static void par_retire_session(void) {
+     rb_archive_preopen_retire();
++    atomic_store(&rb_m4_hits,0); atomic_store(&rb_m4_compiles,0); atomic_store(&rb_m4_fallbacks,0);
+     pthread_mutex_lock(&g_par_init_mu);
+     pthread_mutex_lock(&g_par_mu);
+     g_par_bdir = g_par_dir = g_par_legacy_dir = nil;

@@ -1,0 +1,316 @@
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -159,6 +159,17 @@
+ static int g_nvn_deswz_gpu;
+ static id<MTLCommandQueue> g_q;
+ static id<MTL4CommandQueue> g_q4;
++// S4: rendering and presentation have independent submission queues. The
++// present ticket carries its producer fence; acquisition waits actual GPU use.
++static id<MTL4CommandQueue> g_rb_present_q;
++static id<MTL4CommandQueue> rb_present_queue(void) { return g_rb_present_q ?: g_q4; }
++#define RB_PRESENT_CAP 8
++static __strong id<MTLResidencySet> g_rb_present_pin[RB_PRESENT_CAP];
++static __strong id<MTLTexture> g_rb_present_source[RB_PRESENT_CAP];
++static uint64_t g_rb_present_completed[RB_PRESENT_CAP];
++static int g_rb_present_encoding;
++static __thread uint64_t t_rb_render_fence;
++
+ // Metal 3 path (nvn_be.h, #277 D3-1): g_q3 does what g_q4 does on Metal 4 (submissions, upload batches, presents) and holds the same residency set; no Metal 4 object is made on this path.
+ // The main command buffer's encoders are the old ones (D3-2 #278); the argument tables are DmTable3 (D3-3 #279, m3_table_apply)
+ static int g_m3;
+@@ -373,6 +384,21 @@
+     return !g_m3 && rb_direct_option(&g_rb_promotion_option, "S2A_RB_PROMOTION_PACING");
+ }
+ static uint64_t g_pq_done;
++// g_pq_mu held. Out-of-order completion cannot release an older swapchain
++// image still being read. Dropped queued images also retire through this ring.
++static void rb_present_complete(uint64_t ticket) {
++    if (ticket<=g_pq_done) return;
++    unsigned k=(unsigned)(ticket%RB_PRESENT_CAP);
++    if (g_rb_present_source[k]) {
++        [g_rb_present_pin[k] removeAllAllocations]; [g_rb_present_pin[k] commit];
++        g_rb_present_source[k]=nil;
++    }
++    g_rb_present_completed[k]=ticket;
++    while (g_rb_present_completed[(g_pq_done+1)%RB_PRESENT_CAP]==g_pq_done+1) {
++        g_rb_present_completed[(g_pq_done+1)%RB_PRESENT_CAP]=0; g_pq_done++;
++    }
++}
++
+ static uint64_t g_pq_read;
+ static id<MTLResidencySet> g_res;
+ static int g_res_dirty;
+@@ -974,6 +1000,18 @@
+         g_q4 = [g_dev newMTL4CommandQueueWithDescriptor:q4d error:&re];
+         if (!g_q4) MDIE("failed to create the MTL4CommandQueue");
+         [g_q4 addResidencySet:g_res];
++        if (nvn_rb_thermal_scope()) {
++            g_rb_present_q=[g_dev newMTL4CommandQueueWithDescriptor:q4d error:&re];
++            for (unsigned i=0; g_rb_present_q && i<RB_PRESENT_CAP; i++) {
++                g_rb_present_pin[i]=[g_dev newResidencySetWithDescriptor:rd error:&re];
++                if (!g_rb_present_pin[i]) { g_rb_present_q=nil; break; }
++                [g_rb_present_q addResidencySet:g_rb_present_pin[i]];
++            }
++            if (g_rb_present_q) { [g_rb_present_q addResidencySet:g_res];
++                MLOG("[rb-present-queue] dedicated queue with producer fences and GPU-complete source ownership"); }
++            else { for (unsigned i=0;i<RB_PRESENT_CAP;i++) g_rb_present_pin[i]=nil;
++                MLOG("[rb-present-queue] queue unavailable; shared-queue ordering retained: %s",re.localizedDescription.UTF8String); }
++        }
+         g_alloc_n = 3;
+         for (int i = 0; i < 3; i++) {
+             MTL4CommandAllocatorDescriptor *ad = [MTL4CommandAllocatorDescriptor new];
+@@ -27829,7 +27867,7 @@
+ //   present queue beside the present thread's g_present_cb. The interpolation code uses id throughout (no new Metal 4 type in shared code)
+ API_AVAILABLE(macos(26.0), ios(26.0)) static inline void m4_begin_on(id cb, id alloc) { [(id<MTL4CommandAllocator>)alloc reset]; [cb beginCommandBufferWithAllocator:alloc]; }   // the slot's last commit is done (slot_free)
+ API_AVAILABLE(macos(26.0), ios(26.0)) static inline id m4_render_on(id cb, id d) { return [(id<MTL4CommandBuffer>)cb renderCommandEncoderWithDescriptor:d]; }
+-API_AVAILABLE(macos(26.0), ios(26.0)) static inline void m4_commit_one(id cb, id o) { id<MTL4CommandBuffer> b[] = {cb}; [g_q4 commit:b count:1 options:o]; }
++API_AVAILABLE(macos(26.0), ios(26.0)) static inline void m4_commit_one(id cb, id o) { id<MTL4CommandBuffer> b[] = {cb}; [rb_present_queue() commit:b count:1 options:o]; }
+ static __thread double t_rb_present_hold;   // RewindBox (patch 0345 review): the frame's hold (pq_item display_hold), set by present_now's two callers
+ static __thread int t_rb_fb30_frame;     // RewindBox (patch 0349): the frame was sent while hle_nvn.c's fallback held the game at 30 (pq_item fb30), set with t_rb_present_hold
+ static __thread int t_rb_fb30_enqueue;   // RewindBox (patch 0349): the frame nvn_be_present_with_hold queues is one the fallback holds, for link_sync and the queued item
+@@ -27854,6 +27892,16 @@
+     PD("X ser=%llu", t->serial);
+     id<MTLTexture> src = tex_mtl(t);
+     if (!src) { RED_ONCE(8, "present texture could not get an MTLTexture"); return 0; }
++    if (g_rb_present_q) {
++        unsigned k=(unsigned)(ticket%RB_PRESENT_CAP);
++        id<MTLTexture> root=src; while (root.parentTexture) root=root.parentTexture;
++        id<MTLAllocation> allocation=root.heap ?: (id<MTLAllocation>)root;
++        pthread_mutex_lock(&g_pq_mu);
++        g_rb_present_source[k]=src;
++        [g_rb_present_pin[k] addAllocation:allocation]; [g_rb_present_pin[k] commit];
++        pthread_mutex_unlock(&g_pq_mu);
++        if (t_rb_render_fence) [g_rb_present_q waitForEvent:g_ev value:t_rb_render_fence];
++    }
+     // S2Arm: a crop reaching past the source (10-28 Splatoon 3 direct full screen: the game sets a 2346x1080 crop for a few frames while the swap chain texture is still
+     //   1920x1080) is shown as the part inside the source, 16:9 with black bars (pf_crop_fit), instead of dropping the frame with "present crop out of bounds";
+     //   once the source covers the crop it is used as given again. Everything below (present, grab, screenshots, fit check, AA) takes the fitted crop
+@@ -27926,7 +27974,7 @@
+     if (!layer) { NSUInteger icw = crop && (crop[2] || crop[3]) ? (NSUInteger)crop[2] : src.width, ich = crop && (crop[2] || crop[3]) ? (NSUInteger)crop[3] : src.height;
+         float ky = s2a_widen_ky(); fit_geom(16.0 / 9.0 * s2a_widen_k() / (ky > 0 ? ky : 1) * ich, ich, icw, ich); }
+     if (!layer) { if (g_grab_cb) grab_present(src, crop, crop && crop[2] > 0 && crop[3] > 0 ? CGSizeMake(round((double)crop[2] * src.height / crop[3]), src.height) : CGSizeMake(src.width, src.height), ticket); return 0; }
+-    if (!g_m3 && g_present_layer_resident != layer) { [g_q4 addResidencySet:layer.residencySet]; g_present_layer_resident = layer; }   // the layer's residency set is macOS / iOS 26 on; Metal 3 presents through the command buffer
++    if (!g_m3 && g_present_layer_resident != layer) { [rb_present_queue() addResidencySet:layer.residencySet]; g_present_layer_resident = layer; }   // the layer's residency set is macOS / iOS 26 on; Metal 3 presents through the command buffer
+ #if TARGET_OS_OSX
+     if (!layer.displaySyncEnabled) layer.displaySyncEnabled = YES;   // Windowed mode follows the display's vsync to prevent tearing
+ #endif
+@@ -27962,10 +28010,10 @@
+         if (!present_encode_slot(cb3, src, dr.texture, crop, alloc_i)) return 0;
+     } else if (@available(macOS 26.0, iOS 26.0, *)) {
+         [g_present_alloc4[alloc_i] reset];
+-        [g_q4 waitForDrawable:dr];
++        [rb_present_queue() waitForDrawable:dr];
+         cb = g_present_cb[alloc_i];
+         [cb beginCommandBufferWithAllocator:g_present_alloc4[alloc_i]];
+-        if (!present_encode_m4(cb, src, dr.texture, crop, alloc_i)) { [cb endCommandBuffer]; [g_q4 signalDrawable:dr]; return 0; }
++        if (!present_encode_m4(cb, src, dr.texture, crop, alloc_i)) { [cb endCommandBuffer]; [rb_present_queue() signalDrawable:dr]; return 0; }
+         if (rl_m4) {   // DM_NVN_REGLUM: after the present blit, behind the same queue barrier
+             id<MTLBuffer> b = g_rl_buf[alloc_i];
+             if (!b || b.length < rw * rh * 4) { if (b) res_remove(b); b = g_rl_buf[alloc_i] = [g_dev newBufferWithLength:rw * rh * 4 options:MTLResourceStorageModeShared]; res_add(b); }
+@@ -28008,14 +28056,14 @@
+     NvPresentFX *fxs = g_present_fx ? g_present_fx_slots[alloc_i] : nil;   // 这一帧没用 MetalFX 时也标：槽里的图只要在途就不能被下一次重建换掉
+     fb_add(o, ^(id<MTL4CommitFeedback> f) {
+         if (f.error && !mtl_gpu_cb_error(f.error, "present", ticket)) MLOG("【红】 display command buffer error: %s", f.error.description.UTF8String);
+-        pthread_mutex_lock(&g_pq_mu); g_present_slot_done[alloc_i] = ticket; if (aa) aa->busy = NO; if (fxs) fxs->busy = NO; if (ticket > g_pq_done) g_pq_done = ticket; g_pq_inflight--; RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu);
++        pthread_mutex_lock(&g_pq_mu); g_present_slot_done[alloc_i] = ticket; if (aa) aa->busy = NO; if (fxs) fxs->busy = NO; rb_present_complete(ticket); g_pq_inflight--; RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu);
+     });
+     pthread_mutex_lock(&g_pq_mu); if (aa) aa->busy = YES; if (fxs) fxs->busy = YES; g_pq_inflight++; pthread_mutex_unlock(&g_pq_mu);
+     if (g_m3) { present_m3(cb3, dr, ticket, period, target_ts); m3_commit(cb3, o, nil, 0); }
+     else {
+         // Publish residency before every Metal 4 present submit, including resources added during encoding (#298).
+         res_commit();
+-        id<MTL4CommandBuffer> buffers[] = {cb}; [g_q4 commit:buffers count:1 options:o];
++        id<MTL4CommandBuffer> buffers[] = {cb}; [rb_present_queue() commit:buffers count:1 options:o];
+     }
+     // The title profile reports after presentation. The legacy summary sorts
+     // two arrays and writes host.log here, between commit and signalDrawable.
+@@ -28038,7 +28086,7 @@
+                  (unsigned long long)g_link_dropped, a[149], a[0], b[149], b[0], b[299]);
+         }
+     }
+-    if (!g_m3) [g_q4 signalDrawable:dr];
++    if (!g_m3) [rb_present_queue() signalDrawable:dr];
+     g_present_alloc_fence[alloc_i] = ticket;
+     if (g_m3) { (void)frame; return 1; }   // presented by its command buffer (present_m3)
+ #if TARGET_OS_SIMULATOR   // The iOS simulator SDK has no presentation-time callback and no minimum display duration (used only for picture acceptance, display-link ticks are not counted)
+@@ -28061,12 +28109,12 @@
+ // Ticket number = which enqueue it is (starting from 1); g_pq_done = the ticket number that has been processed (blit committed to the GPU queue).
+ // Swapchain texture return: before AcquireTexture gets a texture it waits for the ticket of that texture's previous present to be processed (nvn_be_present_wait), after which the commands the game draws into it
+ // are necessarily ordered after that blit on the GPU queue.
+-#define PQ 8
++#define PQ RB_PRESENT_CAP
+ #include "rb_present_hold.h"
+-typedef struct { tex_t t; double period; uint64_t frame; int crop[4]; double t_in; uint64_t ev_val; double display_hold; int fb30; } pq_item;   // fb30 (RewindBox, patch 0349): sent while hle_nvn.c's fallback held the game at 30; t_in: the time the game handed this frame into the present queue (CACurrentMediaTime); ev_val: see g_ext_ev
++typedef struct { tex_t t; double period; uint64_t frame; int crop[4]; double t_in; uint64_t ev_val; double display_hold; int fb30; uint64_t render_fence; } pq_item;   // fb30 (RewindBox, patch 0349): sent while hle_nvn.c's fallback held the game at 30; t_in: the time the game handed this frame into the present queue (CACurrentMediaTime); ev_val: see g_ext_ev
+ // External producer (the Vulkan layer, dm/gfx/vk) renders on its own queue and signals this event when a frame's rendering is done: the present of that frame waits for the value on g_q4
+ static uint64_t g_ext_pend3;   // Metal 3: the value ext_wait asked for, encoded into the next present command buffer (an old queue waits only inside a command buffer)
+-static void ext_wait(uint64_t v) { g_ext_cur = v; if (g_m3) { if (v) g_ext_pend3 = v; return; } if (v && g_ext_ev) [g_q4 waitForEvent:g_ext_ev value:v]; }
++static void ext_wait(uint64_t v) { g_ext_cur = v; if (g_m3) { if (v) g_ext_pend3 = v; return; } if (v && g_ext_ev) [rb_present_queue() waitForEvent:g_ext_ev value:v]; }
+ static void ext_wait3(id<MTLCommandBuffer> cb) { if (g_ext_pend3 && g_ext_ev) [cb encodeWaitForEvent:g_ext_ev value:g_ext_pend3]; g_ext_pend3 = 0; }
+ static pq_item g_pq[PQ];
+ static uint64_t g_pq_in;
+@@ -28231,16 +28279,17 @@
+         _window.merged += (unsigned)(ticket - first);
+         _window.queue_max_ms = fmax(_window.queue_max_ms, (CACurrentMediaTime() - it.t_in) * 1000.0);
+     }
+-    g_pq_read = ticket;
+-    if (ticket > first) { g_link_dropped += ticket - first; for (uint64_t k = first; k < ticket; k++) present_store(k, -1); }   // Old frames merged and dropped are recorded as "not presented", so the present statistics honestly count them as dropped frames
+-    if (ticket > 1 && g_pq_done < ticket - 1) g_pq_done = ticket - 1;
++    g_pq_read = ticket; g_rb_present_encoding++;
++    if (ticket > first) { g_link_dropped += ticket - first; for (uint64_t k = first; k < ticket; k++) { present_store(k, -1); rb_present_complete(k); } }   // Old frames merged and dropped are recorded as "not presented", so the present statistics honestly count them as dropped frames
+     RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv));
+     pthread_mutex_unlock(&g_pq_mu);
+     int submitted;
++    t_rb_render_fence=it.render_fence;
+     ext_wait(it.ev_val);
+     t_rb_present_hold = it.display_hold;   // RewindBox (patch 0345 review)
+     t_rb_fb30_frame = it.fb30;   // RewindBox (patch 0349)
+     @autoreleasepool { submitted = present_now(&it.t, it.period, it.frame, ticket, it.crop, drawable, update.targetPresentationTimestamp); }
++    pthread_mutex_lock(&g_pq_mu); g_rb_present_encoding--; pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu);
+     if (exact_hz) {
+         if (submitted) {
+             _window.submitted++;
+@@ -28250,7 +28299,7 @@
+     g_link_hold_until = rb_link_hold_deadline(submitted, update.targetPresentationTimestamp, it.display_hold);
+     if (!submitted) {
+         pthread_mutex_lock(&g_pq_mu);
+-        if (ticket > g_pq_done) g_pq_done = ticket;
++        rb_present_complete(ticket);
+         RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv));
+         pthread_mutex_unlock(&g_pq_mu);
+     }
+@@ -28504,16 +28553,13 @@
+ // These frames will not be seen anyway: discard them directly (accounted as dropped frames) and only wait for the one present already submitted to the GPU to finish.
+ static void present_drop_for_suspend(void) {
+     pthread_mutex_lock(&g_pq_mu);
+-    if (g_link_owns_layer) {
+-        uint64_t n = g_pq_in - g_pq_read;
+-        for (uint64_t k = g_pq_read + 1; k <= g_pq_in; k++) present_store(k, -1);
+-        g_link_dropped += n; g_pq_read = g_pq_in;
+-        while (g_pq_inflight) RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu));
+-        if (g_pq_done < g_pq_in) g_pq_done = g_pq_in;
+-        RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv));
+-        if (n) MLOG("entering the background: dropping %llu queued frames not yet displayed (the display link does not fire in the background)", (unsigned long long)n);
+-    }
+-    pthread_mutex_unlock(&g_pq_mu);
++    uint64_t end=g_pq_in, first=g_pq_read+1;
++    g_pq_read=end;
++    for (uint64_t k=first;k<=end;k++) { present_store(k,-1); rb_present_complete(k); }
++    if (g_link_owns_layer) g_link_dropped+=end+1-first;
++    while (g_rb_present_encoding || g_pq_inflight)
++        RB_WAKE_CALL("present.wait",-1,pthread_cond_wait(&g_pq_cv,&g_pq_mu));
++    pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu);
+ }
+ static void *present_main(void *arg) {
+     (void)arg;
+@@ -28524,19 +28570,20 @@
+         pthread_mutex_lock(&g_pq_mu);
+         while (g_pq_read == g_pq_in || g_link_owns_layer) RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_classic_work, &g_pq_mu));   // In display-link mode the display-link callback takes them; an empty queue is judged by "taken"; "done" has to wait for the feedback of the present submit and lags behind taken
+         pq_item it = g_pq[g_pq_read % PQ];
+-        uint64_t ticket = ++g_pq_read; g_classic_busy = 1;
++        uint64_t ticket = ++g_pq_read; g_classic_busy = 1; g_rb_present_encoding++;
+         pthread_mutex_unlock(&g_pq_mu);
+         int submitted;
+-        ext_wait(it.ev_val);
++        t_rb_render_fence=it.render_fence;
++    ext_wait(it.ev_val);
+         uint64_t lv0[2][4], lv1[2][4]; thr_lv_take(lv0);
+         t_rb_present_hold = it.display_hold;   // RewindBox (patch 0345 review)
+         t_rb_fb30_frame = it.fb30;   // RewindBox (patch 0349)
+         @autoreleasepool { submitted = present_now(&it.t, it.period, it.frame, ticket, it.crop, nil, 0); }
+         thr_lv_take(lv1); thr_lv_add(1, lv0, lv1);
+-        pthread_mutex_lock(&g_pq_mu); g_classic_busy = 0; RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu);
++        pthread_mutex_lock(&g_pq_mu); g_classic_busy = 0; g_rb_present_encoding--; RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu);
+         if (!submitted) {
+             pthread_mutex_lock(&g_pq_mu);
+-            if (ticket > g_pq_done) g_pq_done = ticket;
++            rb_present_complete(ticket);
+             RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv));
+             pthread_mutex_unlock(&g_pq_mu);
+         }
+@@ -28593,6 +28640,7 @@
+     if (g_pq_in - g_pq_done >= PQ) { pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_pq_mu); while (g_pq_in - g_pq_done >= PQ && !atomic_load(&g_present_discard)) RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu)); pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_END(); pthread_mutex_lock(&g_pq_mu); }
+     if (atomic_load(&g_present_discard)) { pthread_mutex_unlock(&g_pq_mu); return 0; }
+     pq_item *it = &g_pq[g_pq_in % PQ]; *it = (pq_item){*t, period, atomic_load(&g_cur_frame), {0}, CACurrentMediaTime(), ev_val, display_hold};
++    it->render_fence = ev_val ? 0 : nvn_be_last_fence();
+     it->fb30 = t_rb_fb30_enqueue;   // RewindBox (patch 0349)
+     if (crop) memcpy(it->crop, crop, sizeof it->crop);   // The current frame's state is enqueued with the ticket number, rather than reading the mutable window late on the present thread
+     uint64_t tk = ++g_pq_in;
+@@ -28601,14 +28649,14 @@
+     pthread_mutex_unlock(&g_pq_mu);
+     return tk;
+ }
+-// Do not wait during discard: the frame enqueued only after the flag was set (the present thread had just passed the flag check) has nobody to take it, and waiting for it would stall again; it is left for the following nvn_be_drain to clear
++// Discard retires queued tickets under g_pq_mu. Tickets already encoding/running retain GPU ownership until completion.
+ // Do not wait indefinitely in display-link mode: see the note at STALL_NS. Only frames "not yet taken by the display link" are dropped; the one already on its way to the screen is waited for until handed to the GPU (same dropping as when entering the background)
+ void nvn_be_present_wait(uint64_t tk) {
+     pthread_mutex_lock(&g_pq_mu);
+     // S2Arm: a full-window grab of this ticket or an earlier one still copying reads the texture being handed back (grab_present); wait for the copy (GPU time, under a millisecond)
+-    while (g_grab_tk && g_grab_tk <= tk && !atomic_load(&g_present_discard)) RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu));
+-    int blk = g_pq_done < tk && !atomic_load(&g_present_discard); if (blk) { pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_pq_mu); }
+-    while (g_pq_done < tk && !atomic_load(&g_present_discard)) {
++    while (g_grab_tk && g_grab_tk <= tk) RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu));
++    int blk = g_pq_done < tk; if (blk) { pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_pq_mu); }
++    while (g_pq_done < tk) {
+         if (!g_link_owns_layer) { RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu)); continue; }
+         if (g_pq_read >= tk) { RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu)); continue; }   // This one has already been taken by the display link and is being presented: wait for it to be handed to the GPU (the GPU completion callback will wake us)
+         struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts); ts.tv_nsec += (long)STALL_NS; if (ts.tv_nsec >= 1000000000L) { ts.tv_sec++; ts.tv_nsec -= 1000000000L; }
+@@ -28620,8 +28668,8 @@
+         uint64_t n = tk - g_pq_read;
+         for (uint64_t k = g_pq_read + 1; k <= tk; k++) present_store(k, -1);
+         g_link_dropped += n; g_pq_read = tk;
+-        while (g_pq_inflight) RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu));
+-        if (g_pq_done < tk) g_pq_done = tk;
++        while (g_pq_inflight || g_rb_present_encoding) RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu));
++        for (uint64_t k=g_pq_done+1;k<=tk;k++) rb_present_complete(k);
+         RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv));
+         if (!g_stall_t0) { g_stall_t0 = last ? last : now; g_stall_drop = 0; g_stall_red = 0; g_stall_logged = 0; g_stall_n++; }
+         g_stall_drop += n;
+--- a/graphics/nvn/gfx/nvn/nvn_present_fi.inc
++++ b/graphics/nvn/gfx/nvn/nvn_present_fi.inc
+@@ -366,11 +366,11 @@
+     pthread_mutex_lock(&g_fi_enc_mu);
+     // RewindBox (patch 0345): the sampler (g_blit_samp) and the layer's blit pipeline come from present_now's present_pipeline(layer.pixelFormat) call before fi_frame;
+     //   this engine keeps one blit pipeline, so a call for BGRA8Unorm here would rebuild it for another format than the drawable's
+-    if (dr) [g_q4 waitForDrawable:dr];
++    if (dr) [rb_present_queue() waitForDrawable:dr];
+     id cb = f->cb[s]; m4_begin_on(cb, f->alloc[s]);
+     int ok = enc(cb);
+     [cb endCommandBuffer];
+-    if (!ok) { if (dr) [g_q4 signalDrawable:dr]; pthread_mutex_unlock(&g_fi_enc_mu); dispatch_semaphore_signal(f->slot_free[s]); return 0; }
++    if (!ok) { if (dr) [rb_present_queue() signalDrawable:dr]; pthread_mutex_unlock(&g_fi_enc_mu); dispatch_semaphore_signal(f->slot_free[s]); return 0; }
+     dispatch_semaphore_t fr = f->slot_free[s];
+     // RewindBox (patch 0345 review): counted in g_pq_inflight until the GPU is done, as a classic present: the session stop, the link hand-over and the idle test of
+     //   rb_press_release wait for it (Metal 4 does not keep the textures it reads alive); its errors go to mtl_gpu_cb_error (the GPU's safe stop, the residency report)
+@@ -381,11 +381,11 @@
+                                 dispatch_semaphore_signal(fr); if (after) after(good, gs > 0 && ge >= gs ? (ge - gs) * 1000 : -1); });
+     pthread_mutex_lock(&g_pq_mu); g_pq_inflight++; pthread_mutex_unlock(&g_pq_mu);
+     res_commit(); m4_commit_one(cb, o);
+-    if (dr) [g_q4 signalDrawable:dr];
++    if (dr) [rb_present_queue() signalDrawable:dr];
+     pthread_mutex_unlock(&g_fi_enc_mu);
+     return 1;
+ }
+-static void fi_ticket_done(uint64_t ticket) { pthread_mutex_lock(&g_pq_mu); if (ticket > g_pq_done) g_pq_done = ticket; RB_WAKE_CALL("present.signal", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu); }
++static void fi_ticket_done(uint64_t ticket) { pthread_mutex_lock(&g_pq_mu); rb_present_complete(ticket); RB_WAKE_CALL("present.signal", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu); }
+ // 出图线程上的一帧（游戏原图 src 已在上屏队列里画好）：good = 这一帧写进输入图并可能插值（0 = 只上真帧，回退 / 单测用）；allow = 规则允许补这一帧。
+ //   槽 1：缩拷进输入图 k → 1/4 亮度 →（与上一帧成对时）块匹配 + MetalFX 插值 → 补出的帧画进画布；槽 2：真帧画进第二张画布。两槽连着提交到上屏队列，CPU 不等 GPU
+ API_AVAILABLE(macos(26.0), ios(26.0))
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -28,13 +28,13 @@
+     nvn_be_request_stop();
+     struct timespec dl = session_deadline();
+     pthread_mutex_lock(&g_pq_mu);
+-    while (g_link_started || g_classic_busy || g_pq_inflight) {
++    while (g_link_started || g_classic_busy || g_pq_inflight || g_rb_present_encoding) {
+         link_stop_locked();
+         if (RB_WAKE_CALL("session.timed", s2a_rb_wake_absolute(&dl), pthread_cond_timedwait(&g_pq_cv, &g_pq_mu, &dl)) == ETIMEDOUT) {
+             pthread_mutex_unlock(&g_pq_mu); MLOG("【红】重启：上屏线程/完成回调未排空"); return -ETIMEDOUT;
+         }
+     }
+-    g_pq_done = g_pq_in;
++    for (uint64_t k=g_pq_done+1;k<=g_pq_in;k++) rb_present_complete(k);
+     pthread_mutex_unlock(&g_pq_mu);
+     link_join();
+     g_prefetched_drawable = nil;

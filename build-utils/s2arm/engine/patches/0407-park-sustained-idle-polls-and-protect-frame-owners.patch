@@ -1,0 +1,76 @@
+--- a/runtime/src/rb_yield_event.inc
++++ b/runtime/src/rb_yield_event.inc
+@@ -1,4 +1,4 @@
+-// RewindBox (patch 0403), S5 candidate. This is a host progress notification,
++// RewindBox S5: sustained secondary polling sleeps on host progress. This is a host progress notification,
+ // never a substitute for a guest lock/event predicate. Pure memory polling has
+ // no notifier, so it ALWAYS retains a bounded timer. No event-owned allocation.
+ #if defined(__APPLE__)
+@@ -12,14 +12,15 @@
+     if (mode<0) {
+         const char *e=getenv("S2A_RB_YIELD_EVENT");
+         const char *cap=getenv("S2A_YIELD_BACKOFF");
+-        mode=e && !strcmp(e,"1") && (!cap || !*cap || !strcmp(cap,"1"));
++        int s2a_rb_guest_on(void);
++        mode=s2a_rb_guest_on() && (!e || strcmp(e,"0")) && (!cap || !*cap || !strcmp(cap,"1"));
+         atomic_store(&rb_yield_event_mode,mode);
+     }
+     return mode;
+ }
+ static void rb_yield_event_notify(void) {
+     // Even with no waiter yet, advance the epoch to close registration races.
+-    // Default-off has no mutex or system call on the wake path.
++    // Without a registered sleeper, this performs no system call.
+     if (atomic_load_explicit(&rb_yield_event_mode,memory_order_relaxed)!=1) return;
+     atomic_fetch_add_explicit(&rb_yield_event_seq,1,memory_order_seq_cst);
+     if (!atomic_load_explicit(&rb_yield_event_waiters,memory_order_seq_cst)) return;
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -409,7 +409,6 @@
+ static int64_t now_mono_ns(void);
+ #include "rb_yield_event.inc"
+ static void wake(thr_t *t, int64_t res) {
+-    rb_yield_event_notify();
+     wait_diag_wake_locked(t, res);
+ #if defined(__APPLE__)
+     if (atomic_load_explicit(&t->mkw_wait_active, memory_order_relaxed)) {
+@@ -452,6 +451,7 @@
+         if (!previous || previous->id != me->peer.id || previous->exited || t->prio < previous->prio)
+             me->peer = (peer_wait_t){t->handle, t->id, atomic_load_explicit(&t->nsvc_all, memory_order_relaxed)};
+     }
++    rb_yield_event_notify(); // publish the wake predicate before notifying idle pollers
+ }
+ // A normal wake asks the waiter to re-check its own predicates under G.
+ static void wake_sync_waiters(const void *object, uint32_t closed_handle) {
+@@ -2354,7 +2354,7 @@
+     uint64_t rb_before=rb_sample ? rb_latency_now() : 0;
+ #if defined(__APPLE__)
+     if (!me->is_main && me->prio>=44 && !rb_frame_role && same_poll && run>=2000000 && rb_yield_event_on()) {
+-        // Experimental: coalesce a sustained secondary poll to <=1 ms, while
++        // Coalesce a sustained secondary poll to <=1 ms, while
+         // actual host progress wakes it early. Guest timed sleeps stay unchanged.
+         sl=1000000;
+         uint64_t elapsed=rb_yield_event_sleep(sl);
+--- a/graphics/nvn/gfx/nvn/rb_replay_worker.inc
++++ b/graphics/nvn/gfx/nvn/rb_replay_worker.inc
+@@ -92,6 +92,9 @@
+ #endif
+ }
+ NVN(nvnQueueSubmitCommands, void, NVNqueue *q, int n, const NVNcommandHandle *h) {
++#if defined(__APPLE__)
++    if (s2a_guest_frame_qos_protect) s2a_guest_frame_qos_protect();
++#endif
+     gfx_enter();
+     pthread_once(&rb_replay_once,rb_replay_init_lock);
+     pthread_mutex_lock(&rb_replay_admission);
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -1108,7 +1108,7 @@
+ }
+ static _Atomic uint64_t rb_m4_hits,rb_m4_compiles,rb_m4_fallbacks;
+ static id rb_m4_cached(id descriptor,NSString *key,BOOL compute) {
+-    if (!descriptor || !key || !g_par_on || !g_par_dir) return nil;
++    if (!descriptor || !key || !par_open_dir() || !g_par_on || !g_par_dir) return nil;
+     if (@available(macOS 26.0,iOS 26.0,*)) {
+         // Same identity directory and exact key as the established archive
+         // policy. Metal verifies the full descriptor, not only the filename.

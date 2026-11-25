@@ -599,3 +599,16 @@ Replis : `S2A_RB_PREPARE_KNOWN=0`, `S2A_RB_ALLOC_FRAME=0`,
 S1/S3/S4 restent au contrat de propriété et aux mesures indiquées dans la preuve ;
 aucun worker de replay ni nouvelle file GPU de présentation n’est activé.
 Compilation iOS à suivre. Aucun nouveau test ajouté ; appareil non testé.
+
+
+### 0404–0407 — structure des soumissions et compilation
+
+0404 transfère les soumissions NVN2 hébergées à un worker CPU borné et joint
+les API d'objets avant mutation. 0405 donne à la présentation sa file Metal 4,
+avec fence productrice et tickets libérés après leur utilisation GPU réelle.
+0406 capture les binaires de la première compilation Metal 4 : le writer existant
+les sérialise sans recompiler. 0407 active le sommeil sur progression des polls
+secondaires stables et conserve le rôle du thread invité qui soumet.
+Les conditions de compatibilité déclenchent les voies existantes automatiquement.
+Sources et limites : [preuve](../../../docs/evidence/s2arm-structurels-844.md).
+Compilation de ces ajouts requise ; aucun nouveau test ni suite approfondie ajouté.
