@@ -1,0 +1,1 @@
+PASS Zelda diagnostic policies and real pthread accounting: 347 assertions; four concurrent publishers, condition signal, timeout, disabled fast path and session epoch

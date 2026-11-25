@@ -1,0 +1,67 @@
+{
+  "scope": "Pure C policy and pthread accounting; no Metal 4 GPU execution or iPhone measurement",
+  "gcc": {
+    "compiler": "gcc (Debian 14.2.0-19) 14.2.0",
+    "assertionsPassed": 347,
+    "fixtureSHA256": "8acc3f0dd5097927367c234fdff8b9b2fd8b6a7d2c2ba47eae15ea0aaba4e9a8"
+  },
+  "negativeControl": {
+    "mutation": "Remove every required dispatch barrier",
+    "result": "failed as expected",
+    "assertion": "rb_dispatch_needs_barrier(0,1,0)"
+  },
+  "nativeChecks": {
+    "cpuFence": 12,
+    "realEncodeWorkerWithQueueSpy": 4,
+    "visibilityBufferAndLifecycle": 10,
+    "sessionOptions": 9,
+    "total": 35
+  },
+  "abDevice": {
+    "windowsPerVariantRequired": 3,
+    "windowSeconds": 180,
+    "completedPairedVariants": 0
+  },
+  "metal4PixelReplay": {
+    "result": "not-run",
+    "reason": "CI virtual device reports Device does not support Metal 4."
+  },
+  "source": "35eb173f0c8e57c996a6676b8496883d2dad2f1e",
+  "run": 45574225411,
+  "attempt": 1,
+  "compilation": {
+    "macos15": {
+      "job": 139068039859,
+      "result": "success"
+    },
+    "macos26": {
+      "job": 139068040229,
+      "result": "success"
+    }
+  },
+  "clang": {
+    "macos15": 347,
+    "macos26": 347
+  },
+  "archiveTransactionChecks": {
+    "macos15": 34,
+    "macos26": 34,
+    "scope": "Actual par_serialize with protocol-shaped Foundation archive; not a GPU driver serializer benchmark"
+  },
+  "engineArtifact": {
+    "id": 15003484746,
+    "bytes": 25472315,
+    "sha256": "3c3f9627e79564d32c3d5682c5d88123fb6f174698423bcba68b4a82b6e004d5"
+  },
+  "proofArtifact": {
+    "id": 15005125490,
+    "sha256": "1851ef06a9ddc8797f8d222882ad45e50d6578a557acf32528ef0fc4d1748608"
+  },
+  "packagedFingerprint": "cc8a574d83d3e3244e21a415b680d044ff13e428ab57815a0d6c31754363c0d4",
+  "pinSHA256": "204c4c0aed1817df78423579f31620959cc66597f361ad395331eb9609a7015b",
+  "shippedIPA": null,
+  "observedOnIPhone": {
+    "currentLot": false,
+    "baselineLog": "user-labelled IPA 840"
+  }
+}

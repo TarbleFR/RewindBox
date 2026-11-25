@@ -1,0 +1,39 @@
+PASS completed fence polls and timestamp checks bypass the resource mutex
+PASS pending zero-timeout poll returns without locking and remains counted
+PASS pending positive timeout keeps its sleep and timeout
+PASS explicit legacy fence path keeps the predicate and timestamp value
+PASS pending queue wait records in place without draining or dropping the event
+PASS prior queue operation, GPU wait and later queue operation retain their order
+PASS the encode record releases its retained event after use
+PASS legacy queue wait stays immediate
+PASS an already-satisfied event inserts no wait
+PASS completed external dependency avoids the encode drain
+PASS a real command buffer keeps its wait outside the proxy stream
+PASS cancelled allocator retirement forbids reset while GPU work may remain
+CPU sync checks: 12/12; queue API spy, no GPU execution in this mode
+PASS real encode worker starts while the unpublished records remain owned by submit
+PASS real encode worker consumes prior operation, native wait record and later operation in order
+PASS event wait API executes on dm-encode rather than submit
+PASS real encode worker releases the retained event before reporting idle
+Encode worker checks: 4/4; real dm-encode, simulated queue API
+PASS ① 报告时已完成的槽折进累计 12、未完成 1 项 → base=12 n=1
+PASS ① 报告值 = 5 + 7 + 100 = 112 → 112
+PASS ② 只报告不重置 10 万次，未完成槽表最多 1 项 → 1
+PASS ② 最后一次报告累计 100000 → 100000
+PASS production visibility begin clears the prior piece without reserving a slot
+PASS first rendered pass folds completed samples before reserving the same buffer
+PASS later passes of the same piece retain one visibility reservation
+PASS reference mode reserves at submission begin
+PASS busy visibility ring does not block an unrendered piece
+PASS cancelled visibility wait rejects the pass without claiming a busy slot
+✓ t_nvn_visfold 10/10
+PASS first session uses full barriers and direct texture queries
+PASS new session rereads both options
+PASS new session inherits no prior draw ordering
+PASS new session starts its barrier reporting window empty
+PASS cumulative texture view counters stay monotonic across sessions
+PASS explicit per-piece drainage is applied
+PASS new session rereads drainage policy and clears its counters
+PASS new session resolves all three reference paths
+PASS next session resolves all three default optimized paths
+SKIP Metal 4 queue/allocator unavailable: Device does not support Metal 4.

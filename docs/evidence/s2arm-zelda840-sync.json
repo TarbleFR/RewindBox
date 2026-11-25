@@ -259,13 +259,14 @@
   "buildAttribution": "user-labelled IPA 840; sync line schema is patches 0357-0360; no independent IPA digest in host.log",
   "windowUnit": "300 presented host frames, not 180-second benchmark windows",
   "abValidated": false,
-  "gameplayRange": [
-    1800,
-    4200
-  ],
   "allocatorMsPerFrame": 2.0107879166666667,
   "visibilityWaitMs": 0,
   "countedQueueDrains": 0,
   "allocatorFrameConditionMet": true,
-  "comparisonLimit": "Old aggregate GPU-wait time 4.4-7.2 ms/frame was not cause-separated. The zero drain counter in 840 omits some external drain paths, corrected in 0364."
+  "comparisonLimit": "Old aggregate GPU-wait time 4.4-7.2 ms/frame was not cause-separated. The zero drain counter in 840 omits some external drain paths, corrected in 0364.",
+  "selectedRange": [
+    1800,
+    4200
+  ],
+  "rangeIncludesTransitions": true
 }

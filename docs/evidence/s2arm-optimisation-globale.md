@@ -84,17 +84,18 @@ couper). Aucun ne touche à la vitesse, au rythme de présentation ou à la rés
 | État | Changement | Interrupteur mis en place ou proposé | Gain attendu (source, non mesuré chez nous) | Risque |
 |---|---|---|---|---|
 | Intégré 0353 | Passes ordonnées par les barrières du jeu ; étages objet et mesh dans la barrière de fin ; remise à zéro au changement de file | `S2A_RB_DRAW_BARRIERS` (`game`) | Zelda 25 → 18 ms (référence amont), un iPhone 29,7 → 27,2 ms | moyen : scintillement |
-| Proposé | Une mémoire de commandes par image, visibilité seulement pour les morceaux qui comptent des échantillons | `S2A_RB_ALLOC_FRAME` (activé) | Zelda −3 à −6 ms par image quand le GPU n'est pas saturé | faible ; mémoire bornée |
-| Proposé | Compilation attendue par un dessin en priorité maximale ; écriture d'archive sans lecture d'erreur ; origine des compilations | `S2A_RB_PSO_WAIT_BOOST`, `S2A_RB_ARCHIVE_ERROR_NIL`, `S2A_RB_COMPILE_ORIGIN` (activés) | moins d'attente sur les 600–900 ms d'un shader | faible |
-| Proposé | Dispatchs ordonnés par les barrières du jeu | `S2A_RB_DISPATCH_ORDER` (`game`) | MKW −0,4 à −1,2 ms, Zelda −0,8 à −3 ms | faible à moyen |
+| Implémenté 0367, essai sur demande | Une mémoire de commandes par image ; visibilité déjà réservée à la demande depuis 0359 | `S2A_RB_ALLOC_FRAME=1` | Cible : réduire les 2,01 ms/image d’allocateur mesurées dans la 840 ; FPS à mesurer | empreinte des allocateurs à mesurer |
+| Implémenté 0372–0376, essai sur demande | Compilation attendue priorisée ; écriture d’archive sans sortie d’erreur Metal | `S2A_RB_PSO_WAIT_BOOST=1`, `S2A_RB_ARCHIVE_ERROR_NIL=1` | Attente de première utilisation à comparer ; aucun gain chiffré établi | priorité du travail requis, refus d’archive conservés |
+| Proposé | Origine détaillée des compilations | `S2A_RB_COMPILE_ORIGIN` | attribution | diagnostic |
+| Implémenté 0371, essai sur demande | Dispatchs invités consécutifs ordonnés par les barrières du jeu | `S2A_RB_DISPATCH_ORDER=game` | Hypothèses initiales MKW −0,4 à −1,2 ms, Zelda −0,8 à −3 ms ; non mesurées | replay pixels et barrières à confirmer sur Metal 4 |
 | Intégré 0352 | Type et format des vues de textures en cache | `S2A_RB_VIEW_META` (activé) | −2 à −3 % de CPU par dessin | faible |
-| Proposé | Diagnostics GPU : coupures de passes, profondeur précoce perdue, occlusions connues | `S2A_RB_GPUDIAG` (activé) | décide les patchs suivants | aucun |
+| Implémenté 0369/0378, diagnostic sur demande | Coupures de passes, réouvertures, early_z demandé et annotation MSL | `S2A_RB_GPUDIAG=1` | décide le lot traducteur suivant | journalisation à couper pour l’A/B |
 | Copie seule, 0355 sur demande | Tuiles creuses et doublons non recopiés, copie de tuiles plus rapide | `S2A_RB_SPARSE_ZERO_TILES`, `S2A_RB_SPARSE_FAST_COPY` | Part du décodage dans les 912 ms à mesurer | faible (texels identiques) |
 | Proposé | Lecture anticipée groupée dans les parcours de pools (Zelda, Fire Emblem) | `S2A_RB_POOL_SCAN_AHEAD` | Zelda première scène −0,4 à −0,8 s | faible |
 | Proposé | Voie de lecture anticipée des textures pour tous les titres, sans le verrou de soumission | `S2A_RB_BIND_LANE_FIRST_USE` | MKW −1,3 à −2,3 s d'envois par session | faible à moyen |
 | Proposé | Cibles gardant la compression sans perte sauf vue d'un autre format déjà vue | `S2A_RB_DS_COMPRESS` | −40 à −53 Mo logiques par image (hypothèse MKW), watts à mesurer | moyen |
 | Proposé | Mises à jour de mémoire résidente hors du fil de soumission | `S2A_RB_RES_QUEUE` | −0,3 ms par image quand le CPU limite | faible |
-| Proposé | Sonde de fréquence GPU toutes les 30 images | `S2A_RB_PROBE_EVERY` (30) | départage les deux hypothèses du bridage | aucun |
+| Implémenté 0370, diagnostic sur demande | Travail GPU fixe sondé toutes les 30 images | `S2A_RB_PROBE_EVERY=30` | éclaire les deux hypothèses du bridage ; durée, pas fréquence absolue | sonde elle-même active ; cadence identique entre variantes |
 
 Les réglages des pistes proposées sont des choix à évaluer. Voir le premier lot vérifiable pour les réglages effectivement intégrés.
 
@@ -362,7 +363,7 @@ L'empreinte du moteur est `65ff9a82e791b679df36a7148ad278e45ddc5a462d37ca784c714
 Le résultat de cette mission comprend les correctifs sources, le moteur compilé, son pin
 vérifié et ce rapport de contre-expertise.
 
-## Zelda 840 : attente restante et lot 0367–0373
+## Zelda 840 : attente restante et lot 0367–0378
 
 Journaux transmis le 25 novembre : [deltas par fenêtre](s2arm-zelda840-sync.json).
 Le format identifie les compteurs 0357–0360 ; l’étiquette IPA 840 vient du mainteneur,
@@ -398,10 +399,10 @@ Fair. L’objectif 100 % / 60 images/s / absence de Serious n’est pas atteint.
 Les trois profils CPU de quatre secondes ne constituent pas trois fenêtres de
 180 secondes ; aucun gain FPS ou watts n’est attribué à ces seuls relevés.
 
-Le [lot moteur et ses sept interrupteurs](../../build-utils/s2arm/engine/README.md#zelda--diagnostic-et-moteur-03670377-25-novembre-2026)
-0367–0377 est implémenté, en attente de compilation finale. Les tests purs GCC passent 342 assertions
+Le [lot moteur et ses sept interrupteurs](../../build-utils/s2arm/engine/README.md#zelda--diagnostic-et-moteur-03670378-25-novembre-2026)
+0367–0378 est implémenté et compilé sur les deux hôtes macOS. Les tests purs GCC passent 342 assertions
 (cas négatifs inclus : copie/encodeur/barrière, source inconnue, option coupée,
-epoch de session et délais conservés). Clang et CI macOS 15/26 restent à exécuter.
+epoch de session et délais conservés). Clang passe 347 assertions sur macOS 15 et 26 ; le moteur iPhoneOS est compilé sur les deux hôtes.
 Le diagnostic ajoute une charge de journalisation ; le couper pour les mesures A/B.
 Aucun correctif du rythme des jeux ni aucune correction spéculative des réveils.
 
@@ -426,3 +427,54 @@ avec un chemin direct quand le diagnostic est coupé. GCC final : 342 assertions
 La dernière compilation doit inclure ce correctif pour que les chiffres soient
 interprétables. Le premier intervalle 0–300 du tableau infère les zéros du reset
 0360 ; les treize autres différences utilisent deux relevés effectivement présents.
+
+Le contrôle du registre `DshXfpInput` retrouve **252 fichiers, 2 943 682 octets**,
+avec les mêmes octets qu’avant ce lot et le même en-tête ABI. Son expansion explicite
+reproduit l’empreinte `121d1bca8eb35c16`. Il ne s’agit pas d’une exécution MSBuild.
+[Preuve de l’identité des entrées](s2arm-zelda-translator-identity.json).
+
+Pour un relevé diagnostic court de la 841, fusionner ces lignes dans les réglages
+existants, puis relancer l’app :
+
+```ini
+S2A_RB_WAKE_DIAG=1
+S2A_RB_GPUDIAG=1
+S2A_RB_PROBE_EVERY=30
+```
+
+Les variantes `S2A_RB_ALLOC_FRAME=1`, `S2A_RB_DISPATCH_ORDER=game`,
+`S2A_RB_PSO_WAIT_BOOST=1` et `S2A_RB_ARCHIVE_ERROR_NIL=1` sont indépendantes.
+Leur absence conserve les chemins de référence. Pour l’A/B, couper les deux
+diagnostics, garder la même cadence de sonde entre variantes et ne modifier qu’un
+seul de ces modes. Trois fenêtres de 180 s par variante restent nécessaires sur
+le téléphone, puis endurance thermique d’au moins dix minutes. Le lot traducteur
+ne doit être figé qu’après lecture de ces nouveaux diagnostics.
+
+0378 lit le champ `early_z` du JSON **déjà produit**. Le rapport donne sa valeur
+connue/inconnue et `missing_requested_early=1` lorsque le jeu demandait le test
+précoce mais que l’annotation manque dans la source connue. La présence de
+l’annotation ne prouve toujours pas le comportement matériel de chaque entrée.
+Le test pur final comporte 347 assertions.
+
+Recalcul du relevé avec les deux bornes réellement journalisées :
+
+```sh
+python docs/evidence/s2arm-sync-window-reader.py host.log --from-frame 1800 --to-frame 4200
+```
+
+Les champs width/height des lignes de cible décrivent la vue Metal ; le niveau
+mip est rapporté séparément. Pour un mip non nul, ramener les dimensions au
+niveau attaché avant de comparer des cibles. `allocator_bytes` borne l’observation
+mémoire ; le plafond de huit objets allocateurs ne borne pas à lui seul la taille
+de leurs heaps. L’essai par image reste sur demande tant que le pic n’est pas mesuré.
+
+### Validation finale de 0378
+
+[CI 45574225411](https://github.com/TarbleFR/RewindBox/actions/runs/45574225411),
+source `35eb173f`, tentative 1 : compilations iPhoneOS réussies sur macOS 15 et 26.
+347 assertions GCC, 347 Clang par hôte, 34 contrôles du vrai sérialiseur avec
+archive de protocole Foundation par hôte, et 35 contrôles de fences, worker,
+visibilité et sessions. [Détails et portée](s2arm-zelda-0378/checks.json).
+Le GPU du runner refuse Metal 4 : le replay de pixels et les mesures A18 Pro
+restent non exécutés. Les trois archives productrices sont vérifiées ; NS2Pro
+conserve son empreinte de la 840. L’IPA 841 est en préparation.

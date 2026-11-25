@@ -1,0 +1,1 @@
+PASS real archive serializer transaction: 34 checks, error capture on/off, refusal, cleanup, same-object retry, rename and index

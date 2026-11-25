@@ -1,0 +1,13 @@
+{
+  "baselineEngine": "0366 (local git 9f1174a)",
+  "alsoCompared": "IPA 840 engine snapshot 6e899b8 / producer c9e6d4eab0a1febd3210c079471b3207eb959c80",
+  "inputCount": 252,
+  "inputBytes": 2943682,
+  "xlateFp": "121d1bca8eb35c16",
+  "registrySHA256": "d8681bc271e5ab1426d8a470cb8e53a7cedbc562e1ccd31baf6b92168186fcfa",
+  "registryUnchanged": true,
+  "allRegisteredInputsUnchanged": true,
+  "abiHeaderUnchanged": true,
+  "method": "Explicit expansion of the unchanged DshXfpInput XML registry; source identity checked against baseline, not an MSBuild execution",
+  "changedInputPaths": []
+}

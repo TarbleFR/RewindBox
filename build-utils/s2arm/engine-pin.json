@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "65ff9a82e791b679df36a7148ad278e45ddc5a462d37ca784c714c302435310f",
+  "packagedFingerprint": "cc8a574d83d3e3244e21a415b680d044ff13e428ab57815a0d6c31754363c0d4",
   "producers": {
     "engine": {
-      "run": 45565566639,
+      "run": 45574225411,
       "attempt": 1,
-      "artifact": 14999909584,
-      "name": "s2arm-engine-framework-31726e1b73f33f665f94af1039f7935039c56fb8",
-      "bytes": 25452788,
-      "sha256": "157bdccf8fafeef98b5a8e58a2178331115fac4be1cca123de4d697908740be8",
-      "headSha": "31726e1b73f33f665f94af1039f7935039c56fb8",
+      "artifact": 15003484746,
+      "name": "s2arm-engine-framework-35eb173f0c8e57c996a6676b8496883d2dad2f1e",
+      "bytes": 25472315,
+      "sha256": "3c3f9627e79564d32c3d5682c5d88123fb6f174698423bcba68b4a82b6e004d5",
+      "headSha": "35eb173f0c8e57c996a6676b8496883d2dad2f1e",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-25T07:20:49Z",
+      "expiresAt": "2026-12-25T08:28:45Z",
       "members": {
-        "S2ArmEngine.framework.zip": "bd010f256149e74edd6a8e2a191f101b3e037621b0128e593e031af86a03183c",
-        "NS2Pro.framework.zip": "e9913ec3196b47122a3219653365cba995048b75d6f5aedb23ee4718ea190fb4"
+        "S2ArmEngine.framework.zip": "c4d09f8054e07583e4f244d74a87b90a5d29f3303fb2bcb0ade9925576812ae9",
+        "NS2Pro.framework.zip": "0890b0f0bc1f96a7389300e22f0ea331661b71d501ed91c7231ecc1d9c763fae"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "157bdccf8fafeef98b5a8e58a2178331115fac4be1cca123de4d697908740be8",
+    "engine": "3c3f9627e79564d32c3d5682c5d88123fb6f174698423bcba68b4a82b6e004d5",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "9ea0d7f8c5a44cb7ea92fe43d711e72d504e387c90ad17b5749c8ad9d8e5e649",
-      "bytes": 115526072,
-      "fingerprint": "65ff9a82e791b679df36a7148ad278e45ddc5a462d37ca784c714c302435310f"
+      "sha256": "dbfcf8aa851aa1516bf730933c4ec66199bf9e5fa93aed6339bddffa308059af",
+      "bytes": 115551096,
+      "fingerprint": "cc8a574d83d3e3244e21a415b680d044ff13e428ab57815a0d6c31754363c0d4"
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
       "sha256": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
@@ -141,9 +141,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45565566639,
+      "run": 45574225411,
       "attempt": 1,
-      "head_sha": "31726e1b73f33f665f94af1039f7935039c56fb8",
+      "head_sha": "35eb173f0c8e57c996a6676b8496883d2dad2f1e",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1594,11 +1594,59 @@
         {
           "name": "0366-check-native-wait-records-on-the-live-encode-worker.patch",
           "sha256": "0103298fdf1e2cc78e71aa2c06bcb686743c93289b43a7a5ba1cf5ce9529c039"
+        },
+        {
+          "name": "0367-frame-command-allocator.patch",
+          "sha256": "2a4d60024a2aa273d4a99ba532284766594485fd21ac2d1367a9ae5bfbfc50dc"
+        },
+        {
+          "name": "0368-wake-site-diagnostics.patch",
+          "sha256": "0bf8283ef75dafaf105f889bdced66f0d4adca8c2d1ad60f15bbdc7d62fba931"
+        },
+        {
+          "name": "0369-gpu-pass-source-diagnostics.patch",
+          "sha256": "aeb9b548634b5af7e1f38669db98ca8ec22a4df3d18696c64388cb2f4db6b318"
+        },
+        {
+          "name": "0370-gpu-probe-cadence.patch",
+          "sha256": "be5fb3b5293b58ea5f37359725677c121c4718b66bd614f3c5f99501ae0cf1a6"
+        },
+        {
+          "name": "0371-guest-dispatch-order.patch",
+          "sha256": "1355c3afc9048b6f073773a0ecb2c690a7eaae16c34e89acff35581034ced775"
+        },
+        {
+          "name": "0372-waited-pipeline-qos.patch",
+          "sha256": "5ed61a26faf176e038fa83183619c2e714c6f5e467439bbf26e575ae5a4c32eb"
+        },
+        {
+          "name": "0373-archive-error-nil.patch",
+          "sha256": "e0c248401228dda58d7ef03f5cabf8b54e2615226318ca67a0537c7be40267a1"
+        },
+        {
+          "name": "0374-complete-wake-helper-coverage.patch",
+          "sha256": "8fd940b4a2107b74250b889f50f283df9fdd258fe1a04638214fa54f197675da"
+        },
+        {
+          "name": "0375-complete-waited-pipeline-promotion.patch",
+          "sha256": "2aaa171a23289d12943525b7a80397f1000149e59bdcd25d3588d922642a5906"
+        },
+        {
+          "name": "0376-archive-error-arc-ownership.patch",
+          "sha256": "91f28e75f57e3da4b977c95b715416793409360089ba12361bca75040593c064"
+        },
+        {
+          "name": "0377-wake-syscall-result-semantics.patch",
+          "sha256": "39e917a6e3409de87059b7f01ad992a7ed3ae31011593a49760e1e246c026d49"
+        },
+        {
+          "name": "0378-early-depth-metadata-diagnostic.patch",
+          "sha256": "7724c8f30177cd256034d6646a7dbc9c8df0f36e3c7aebfd0eb5cb8c16e8ad84"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "bd010f256149e74edd6a8e2a191f101b3e037621b0128e593e031af86a03183c",
-        "NS2Pro.framework.zip": "e9913ec3196b47122a3219653365cba995048b75d6f5aedb23ee4718ea190fb4"
+        "S2ArmEngine.framework.zip": "c4d09f8054e07583e4f244d74a87b90a5d29f3303fb2bcb0ade9925576812ae9",
+        "NS2Pro.framework.zip": "0890b0f0bc1f96a7389300e22f0ea331661b71d501ed91c7231ecc1d9c763fae"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",

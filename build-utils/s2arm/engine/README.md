@@ -440,7 +440,7 @@ queue. It checks publication, ordering, consumer thread and event release before
 review run passed 31 CPU, shared-buffer and session assertions. Its virtual device rejected
 Metal 4, so the native GPU event mode is explicitly unavailable on that runner.
 
-### Zelda : diagnostic et moteur 0367–0377 (25 novembre 2026)
+### Zelda : diagnostic et moteur 0367–0378 (25 novembre 2026)
 
 Le journal Zelda envoyé le 25 novembre, au format 0357–0360 de la 840, contient
 14 relevés cumulatifs. Sur les images 1800–4200, les allocateurs attendent
@@ -491,3 +491,14 @@ nombre d’événements positif) des codes d’erreur des conditions pthread. `e
 et le retour natif sont conservés ; `EINTR` n’est pas attribué à un défaut.
 Diagnostics coupés : pas de lecture de l’horloge ni de manipulation d’`errno`
 ajoutée. Le test pur couvre ces cas, 342 assertions au total.
+
+**0378** lit `early_z` dans le JSON existant, avec l’état inconnu explicite, et
+signale `missing_requested_early` quand une demande du jeu n’a pas l’annotation
+correspondante dans le MSL connu. Aucune sortie ni entrée du traducteur changée.
+Le test pur final passe 347 assertions GCC ; résultat Clang et CI finale à consigner.
+
+Validation finale : source `35eb173f`, run `45574225411`, tentative 1. iPhoneOS
+compilé sur macOS 15 et 26. GCC et Clang : 347 assertions ; transaction d’archive
+Foundation : 34 contrôles par hôte ; synchronisation : 35 contrôles. Le runner
+n’expose pas Metal 4 ; aucun replay de pixels ni gain A18 Pro n’est revendiqué.
+Le pin réutilise les producteurs prepare/sysdata existants ; NS2Pro est inchangé.
