@@ -1,0 +1,220 @@
+--- a/graphics/tools/direct/dsh/Vin.cs
++++ b/graphics/tools/direct/dsh/Vin.cs
+@@ -10,6 +10,29 @@
+ {
+     public static class DshVin
+     {
++
++        // Keep the original bodies in the translated file. The host shares them
++        // only AFTER its base-instance rewrite; rejected sharing can compile
++        // these exact copies without translating the guest shader again.
++        public static (string, object) DeviceUnit(string full)
++        {
++            var (variant, shadows) = Variant(full);
++            if (variant == null) return (full, null);
++            var st = Regex.Match(variant, @"\nstruct main0_in_v\n\{\n.*?\n\};", RegexOptions.Singleline);
++            if (!st.Success) return (full, null);
++            var result = new StringBuilder(full).Append(st.Value).Append('\n');
++            foreach (var pair in new[] { ("main0", "main0_v"), ("main0_z", "main0_zv") })
++            {
++                var h = Regex.Match(variant, @"(?m)^vertex main0_out " + pair.Item1 + @"\([^\n]*\)\n\{\n");
++                if (!h.Success) return (full, null);
++                var end = Regex.Match(variant[(h.Index + h.Length)..], @"\n\}(?:\n|$)");
++                if (!end.Success) return (full, null);
++                int count = h.Length + end.Index + end.Length;
++                string one = variant.Substring(h.Index, count);
++                result.Append('\n').Append(one.Replace("vertex main0_out " + pair.Item1 + "(", "vertex main0_out " + pair.Item2 + "(", System.StringComparison.Ordinal));
++            }
++            return (result.ToString(), new PyDict { ["unified"] = true, ["entry"] = "main0_v", ["entry_z"] = "main0_zv", ["shadow"] = shadows });
++        }
+         const int SLOT0 = 16, SLOT_END = 31;   // Metal 顶点属性号 16..30
+         /// <summary>→ (新 MSL, [{location, float, sint | uint}]) 或 (null, 原因串)</summary>
+         public static (string, object) Variant(string msl)
+--- a/graphics/tools/direct/dsh/Dsh.cs
++++ b/graphics/tools/direct/dsh/Dsh.cs
+@@ -462,6 +462,8 @@
+                 if (fu != null) { plain = srcx; full = fu; }
+                 var res = JsonNode.Parse(XIo.ReadAllText(Path.Combine(W, Key + ".res.json"))).AsObject();
+                 full = DshFlat.GiantFix(full).Item1;   // 巨型着色器的尾部阶梯压平（同 dmsh_build.py giant_fix）
++                object deviceVin = null;
++                if (!PackOut && stage == "vs") (full, deviceVin) = DshVin.DeviceUnit(full);
+                 Save(Key + "_b.metal", full);
+                 if (PackOut && (lay != null || fu != null)) Save(Key + "_b.plain.metal", DshFlat.GiantFix(plain).Item1);   // 出包（dsh_batch）才写
+                 var entry = Search(@"(vertex|fragment|kernel)\s+\S+\s+(\w+)\s*\(", src);
+@@ -471,6 +473,7 @@
+                 if ((stage == "ps" || stage == "cs") && HelperSamples(src)) notes.Add("sampler LOD bias / reduction not applied: a sample outside main0 (helper function)");
+                 var refl = new PyDict { ["key"] = Key + "_b", ["route"] = "B", ["chain"] = Chain, ["xfp"] = Xfp, ["dm_ctl"] = Key, ["source"] = SourceOf(), ["pc_paired"] = PcPaired(), ["stage"] = stage,
+                     ["entry"] = entry.Success ? entry.Groups[2].Value : "main0", ["msl_entry_kind"] = entry.Success ? entry.Groups[1].Value : null };
++                if (deviceVin != null) refl["vin"] = deviceVin;
+                 if (stage == "vs") { refl["entry_z"] = "main0_z"; refl["entry_geometry_capture"] = "main0_gs"; }
+                 if (j["tf"] is JsonArray tf2) { refl["entry_tf"] = "main0_tf"; refl["tf_strides"] = tf2.Select(e => (object)(e is JsonArray ea && ea.Count > 0 ? (long)ea[0] : 0L)).ToList(); }
+                 if (lay != null) { refl["entry_layer"] = "main0_l"; refl["entry_layer_z"] = "main0_lz"; refl["layer_from"] = lay; }
+--- a/graphics/tools/direct/dsh/DshCApi.cs
++++ b/graphics/tools/direct/dsh/DshCApi.cs
+@@ -9,7 +9,7 @@
+ //   答案表 / 配对表 / 映射表从 $S2A_GAME_DATA/shaders/direct/ 读（libc getenv：iOS 上它由原生层在运行时起来之后才设，.NET 的环境副本看不到）。
+ //
+ // 与离线链产物的差别，依据是直连运行时 graphics/nvn/gfx/nvn/nvn_mtl.m / nvn_refl.m / nvn_geometry.inc对缺省的处理：
+-//   · _bv（影子输入库）不出、json 不带 vin：nvn_refl.m 读不到 vin → has_vin = 0，vin_fn 直接返回 nil，整数输入照旧 CPU 换算（nvn_mtl.m vin_fn / vconv_wanted）；
++//   · Device vertex shadow inputs share _b.metal (vin.unified); no second _bv library compilation. Unrecognized inputs retain CPU conversion.
+ //   · _bf（读帧缓冲版）不出、json 不带 fetch：nfc = nfo = 0，并通道合并判「不可证」不合并（nvn_mtl.m fz_p2_draw 的 !fs->rf.nfo 分支）；
+ //   · _bg0.._bg4 / _bgv 照出：几何绘制 shader_get(<键>_bg<拓扑>) 或 _bgv 拿不到就整笔不画（nvn_geometry.inc），属运行时必需。
+ // 入口吞掉全部异常，不跨 C 边界抛。
+--- a/graphics/nvn/gfx/nvn/rb_base_instance_source.h
++++ b/graphics/nvn/gfx/nvn/rb_base_instance_source.h
+@@ -17,7 +17,7 @@
+     while (i < len) {
+         // the next entry point header of interest
+         const char *h0 = NULL; size_t hl = 0; const char *best = NULL;
+-        static const char *const heads[] = { "\nvertex main0_out main0(", "\nvertex main0_out main0_z(", "\nvertex main0l_out main0_l(", "\nvertex main0l_out main0_lz(" };
++        static const char *const heads[] = { "\nvertex main0_out main0(", "\nvertex main0_out main0_z(", "\nvertex main0_out main0_v(", "\nvertex main0_out main0_zv(", "\nvertex main0l_out main0_l(", "\nvertex main0l_out main0_lz(" };
+         for (int k = 0; k < (int)(sizeof heads / sizeof *heads); k++) { const char *f = memmem(src + i, len - i, heads[k], strlen(heads[k])); if (f && (!best || f < best)) { best = f; hl = strlen(heads[k]); } }
+         if (!best) break;
+         h0 = best;
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_vertex_unit.inc
+@@ -0,0 +1,75 @@
++// SPDX-License-Identifier: MIT
++// Shared vertex bodies, informed by nxnative b989137a51 (seedds, MIT).
++// Unlike that version, depth conversion remains before the widen epilogue at
++// EVERY original return. GS, TF and layer entry points remain whole copies.
++// This runs after base-instance rewriting, which must see the original bodies.
++static NSString *rb_vertex_unit(NSString *src) {
++    if ([src containsString:@"rb_vertex_body("] || [src containsString:@"rb_vertex_gl_depth"]) return src;
++    NSRegularExpression *headers=[NSRegularExpression regularExpressionWithPattern:
++        @"(?m)^vertex main0_out (main0|main0_z|main0_v|main0_zv)\\(([^\\n]*)\\)\\n\\{\\n" options:0 error:nil];
++    NSRegularExpression *ends=[NSRegularExpression regularExpressionWithPattern:@"\\n\\}(?:\\n|$)" options:0 error:nil];
++    NSMutableDictionary *entries=[NSMutableDictionary dictionary];
++    for (NSTextCheckingResult *h in [headers matchesInString:src options:0 range:NSMakeRange(0,src.length)]) {
++        NSUInteger body=NSMaxRange(h.range);
++        NSTextCheckingResult *end=[ends firstMatchInString:src options:0 range:NSMakeRange(body,src.length-body)];
++        NSString *name=[src substringWithRange:[h rangeAtIndex:1]];
++        if (!end || entries[name]) return src;
++        entries[name]=@{ @"head":h, @"body":@(body), @"end":@(NSMaxRange(end.range)),
++            @"params":[src substringWithRange:[h rangeAtIndex:2]] };
++    }
++    NSDictionary *gl=entries[@"main0"], *z=entries[@"main0_z"];
++    if (!gl || !z || ![gl[@"params"] isEqual:z[@"params"]]) return src;
++    NSString *(^bodyOf)(NSDictionary *)=^NSString *(NSDictionary *e) {
++        NSUInteger a=[e[@"body"] unsignedIntegerValue], b=[e[@"end"] unsignedIntegerValue];
++        return [src substringWithRange:NSMakeRange(a,b-a)];
++    };
++    NSString *glbody=bodyOf(gl), *zbody=bodyOf(z);
++    NSString *depth=@"out.gl_Position.z = fma(out.gl_Position.z, 0.5, out.gl_Position.w * 0.5);";
++    NSString *line=[depth stringByAppendingString:@"\n    "];
++    if (![glbody containsString:line] ||
++        ![[glbody stringByReplacingOccurrencesOfString:line withString:@""] isEqual:zbody]) return src;
++    // Separate declarations from their stage attributes; split only at commas
++    // outside templates, parentheses and attributes. Unknown parameters fall back.
++    NSString *params=gl[@"params"]; NSMutableArray *parts=[NSMutableArray array];
++    NSInteger nesting=0; NSUInteger start=0;
++    for (NSUInteger i=0;i<params.length;i++) {
++        unichar c=[params characterAtIndex:i];
++        if (c=='<' || c=='(' || c=='[') nesting++;
++        else if (c=='>' || c==')' || c==']') { if (--nesting<0) return src; }
++        else if (c==',' && !nesting) { [parts addObject:[params substringWithRange:NSMakeRange(start,i-start)]]; start=i+1; }
++    }
++    if (nesting) return src;
++    [parts addObject:[params substringFromIndex:start]];
++    NSMutableArray *decl=[NSMutableArray array], *args=[NSMutableArray array];
++    NSRegularExpression *attrs=[NSRegularExpression regularExpressionWithPattern:@"\\s*\\[\\[[^\\]]*\\]\\]\\s*$" options:0 error:nil];
++    NSRegularExpression *nameRE=[NSRegularExpression regularExpressionWithPattern:@"[A-Za-z_][A-Za-z_0-9]*$" options:0 error:nil];
++    for (NSString *part in parts) {
++        if ([part containsString:@"function_constant"] || [part containsString:@"="]) return src;
++        NSString *d=[[attrs stringByReplacingMatchesInString:part options:0 range:NSMakeRange(0,part.length) withTemplate:@""] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet];
++        NSTextCheckingResult *n=[nameRE firstMatchInString:d options:0 range:NSMakeRange(0,d.length)];
++        if (!n || [d containsString:@"[["]) return src;
++        [decl addObject:d]; [args addObject:[d substringWithRange:n.range]];
++    }
++    if (!args.count) return src;
++    NSString *callArgs=[args componentsJoinedByString:@", "];
++    NSMutableArray *edits=[NSMutableArray array];
++    for (NSString *name in @[@"main0",@"main0_z",@"main0_v",@"main0_zv"]) {
++        NSDictionary *e=entries[name]; if (!e) continue;
++        BOOL isGL=[name isEqual:@"main0"] || [name isEqual:@"main0_v"];
++        NSString *original=isGL ? glbody:zbody, *body=bodyOf(e);
++        if (![body hasSuffix:original]) return src;
++        NSString *prefix=[body substringToIndex:body.length-original.length];
++        NSString *replacement=[NSString stringWithFormat:@"%@    return rb_vertex_body(%@, %@);\n}\n",prefix,callArgs,isGL ? @"true":@"false"];
++        [edits addObject:@{ @"start":e[@"body"], @"end":e[@"end"], @"text":replacement }];
++    }
++    [edits sortUsingComparator:^NSComparisonResult(NSDictionary *a,NSDictionary *b) { return [b[@"start"] compare:a[@"start"]]; }];
++    NSMutableString *out=[src mutableCopy];
++    for (NSDictionary *e in edits) { NSUInteger a=[e[@"start"] unsignedIntegerValue], b=[e[@"end"] unsignedIntegerValue];
++        [out replaceCharactersInRange:NSMakeRange(a,b-a) withString:e[@"text"]];
++    }
++    NSString *shared=[glbody stringByReplacingOccurrencesOfString:depth withString:[@"if (rb_vertex_gl_depth) " stringByAppendingString:depth]];
++    NSString *helper=[NSString stringWithFormat:@"static __attribute__((always_inline)) main0_out rb_vertex_body(%@, bool rb_vertex_gl_depth)\n{\n%@\n",[decl componentsJoinedByString:@", "],shared];
++    NSTextCheckingResult *h=gl[@"head"], *hz=z[@"head"];
++    [out insertString:helper atIndex:MIN(h.range.location,hz.range.location)];
++    return out;
++}
+--- a/graphics/nvn/gfx/nvn/rb_vertex_entry.inc
++++ b/graphics/nvn/gfx/nvn/rb_vertex_entry.inc
+@@ -48,12 +48,15 @@
+     }
+     return src;
+ }
++#include "rb_vertex_unit.inc"
+ static id<MTLLibrary> rb_vertex_library(NSString *src,int stage,int layer,int depth,NSDictionary *j,NSError **error) {
+     if (stage!=0 || layer || !rb_vertex_entry_on() || [j[@"fn_prefix"] length] ||
+         j[@"entry_layer"] || ![j[@"entry"] isEqual:@"main0"] || ![j[@"entry_z"] isEqual:@"main0_z"])
+         return rb_stage_library(src,stage,error);
+     NSString *keep=depth ? @"main0_z":@"main0", *drop=depth ? @"main0":@"main0_z";
+-    NSString *cut=rb_vertex_prune(src,drop);
++    NSString *unit=rb_vertex_unit(src);
++    NSString *cut=rb_vertex_prune(unit,drop);
++    if ([j[@"vin"][@"unified"] boolValue]) cut=rb_vertex_prune(cut,depth ? @"main0_v":@"main0_zv");
+     if (cut==src) return rb_stage_library(src,stage,error);
+     NSError *local=nil;
+     id<MTLLibrary> lib=rb_stage_library(cut,stage,&local);
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -12812,6 +12812,18 @@
+         if (o->fn_u) { f = rb_library_function(lib,fnn(o, j[@"entry_u"]),[MTLFunctionConstantValues new],&fe); o->fn_u = f; }
+     }
+     if (!shader_args_init(o)) return nil;
++    if (stage==0 && [j[@"vin"][@"unified"] boolValue]) {
++        o->vfn_state=2;
++        NSString *ve=depth_zero ? j[@"vin"][@"entry_z"] : j[@"vin"][@"entry"];
++        if (!layer && [ve isKindOfClass:NSString.class]) {
++            NSError *veError=nil;
++            id<MTLFunction> vf=rb_library_function(lib,fnn(o,ve),nil,&veError);
++            if (vf.functionConstantsDictionary.count) vf=rb_library_function(lib,fnn(o,ve),[MTLFunctionConstantValues new],&veError);
++            if (vf && (!o->rf.nb || !argcheck_on() || [vf newArgumentEncoderWithBufferIndex:o->rf.abi].encodedLength==o->arg_len)) {
++                o->vfn=vf; o->vfn_state=1;
++            } else MLOG("[rb-vertex-unit] %s shadow entry unavailable; CPU conversion retained",pc.UTF8String);
++        }
++    }
+     NSString *ext = g_cb_ext[[pc hasSuffix:@"_b"] ? [pc substringToIndex:pc.length - 2] : pc];   // bytes each uniform slot can read (cb_len), storage slots never written (sb_ro)
+     for (NSString *f in [ext componentsSeparatedByString:@" "]) { int r = 0, n = 0;
+         if (sscanf(f.UTF8String, "%d:%d", &r, &n) == 2 && r >= 0 && r < 16 && n > 0) o->cb_ext[r] = (uint32_t)n;
+@@ -15480,7 +15492,7 @@
+     d.depthAttachmentPixelFormat = (MTLPixelFormat)k->dfmt; d.stencilAttachmentPixelFormat = (MTLPixelFormat)k->sfmt;
+     if (!vs) return d;   // no vertex fetch
+     MTLVertexDescriptor *vd = [MTLVertexDescriptor vertexDescriptor];
+-    const nvn_refl *rf = &vs->rf; int nconv = 0, on = vin_on(vs, k, k->fsfn == TF_MARK || k->fsfn == GEO_MARK);
++    const nvn_refl *rf = &vs->rf; int nconv = 0, on = vin_on(vs, k, k->fsfn == TF_MARK || k->fsfn == GEO_MARK || pso_pair_miss(vs,fs));
+     if (on) { d.vertexFunction = vs->vfn; g_vin_psos++; }   // the shadow-input entry point (see vin_on)
+     #define ZERO_ATTR(i, ct_) do { vd.attributes[i].format = (ct_) == NVN_CT_UINT ? MTLVertexFormatUInt4 : (ct_) == NVN_CT_INT ? MTLVertexFormatInt4 : MTLVertexFormatFloat4; vd.attributes[i].offset = 0; vd.attributes[i].bufferIndex = 30; \
+                                   vd.layouts[30].stride = 16; vd.layouts[30].stepFunction = MTLVertexStepFunctionConstant; vd.layouts[30].stepRate = 0; } while (0)   // reads the zero buffer
+@@ -24652,7 +24664,7 @@
+     if (!draw_pass_state(en, pr->sh[1])) { rb_cover_undrawn(rb_cov_wait, en); return; }   // depth-stencil / viewport / scissor / cull / ... (shared with tess_draw ④): 0 = this draw draws nothing
+     alpha_ref_bind(en, pr->sh[1]);   // gap family 34
+     if (!g_mtk.on) bind_vbufs(en);   // a task / mesh draw fetches no vertices
+-    if (pr->sh[0]) vconv_bind(en, pr->sh[0], 0, dw, di);   // integer inputs fed float-type formats or 8 / 16-bit integers of the other sign (see vconv_ncomp, vconv_int)
++    if (pr->sh[0]) vconv_bind(en, pr->sh[0], pso_pair_miss(pr->sh[0],pr->sh[1])!=0, dw, di);   // integer inputs fed float-type formats or 8 / 16-bit integers of the other sign (see vconv_ncomp, vconv_int)
+     g_kd_force = kd_draw(pr, dw, di);
+     if (pr->sh[0]) encode_args(en, pr->sh[0], 0, 1);
+     if (pr->sh[1]) encode_args(en, pr->sh[1], 1, 0);
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -864,7 +864,7 @@
+ static void par_note(NSString *key, id desc) {
+     if (!par_write_in_place) { static _Atomic int said; if (!atomic_exchange(&said, 1)) MLOG("pipeline archive: pipeline first compiled in play queued for background archival"); }   // RewindBox (patch 0033): g_par_note_play
+     pthread_mutex_lock(&g_par_mu);
+-    if ([g_par_have containsObject:key] || [g_par_pending_keys containsObject:key]) {
++    if ((![desc isKindOfClass:RBMetal4Capture.class] && [g_par_have containsObject:key]) || [g_par_pending_keys containsObject:key]) {
+         pthread_mutex_unlock(&g_par_mu);
+         return;
+     }

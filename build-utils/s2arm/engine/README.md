@@ -621,3 +621,12 @@ sur Apple9 ; seules les lectures stencil compatibles utilisent un plan séparé,
 avec cache borné, invalidation des alias et éviction après fence. 0410 corrige
 la déclaration hôte du worker et fixe sa pile à 8 Mio. Les chemins sont intégrés
 sans nouvelle configuration joueur. [Portée et limites](../../../docs/evidence/s2arm-structurels-844.md).
+
+### 0411 — une compilation pour les variantes sommets sur appareil
+
+DSH émet les entrées shadow dans la bibliothèque de base. Le host partage les
+corps après sa réécriture d'instance de base, sans déplacer les épilogues de
+profondeur/élargissement, et retire la convention de profondeur inutilisée.
+Capture, couches et sorties ajoutées gardent leurs voies compatibles. Refus ou
+forme inconnue : source original conservé. `xfp` change ; compilation locale C#
+Release réussie, compilation iPhoneOS requise, gains appareil non mesurés.

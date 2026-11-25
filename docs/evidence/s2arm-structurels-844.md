@@ -14,6 +14,40 @@ ne prouve ni une suppression de cache ni l'absence totale de compilation lors
 des deux premiers essais. Les anciens journaux MKW de l'archive ne datent pas
 ces trois essais et ne permettent pas de leur attribuer un état thermique précis.
 
+## Quatrième lot (0411) — variantes réellement utilisées sur appareil
+
+Le traducteur sur appareil n'émettait pas `_bv` ni la réflexion `vin` ; le backend
+possédait pourtant déjà le routage des formats vers les entrées shadow. 0411
+raccorde ce générateur existant à la sortie sur appareil : base et shadow partagent
+un seul fichier et une seule bibliothèque. Le host charge la fonction shadow dans
+la bibliothèque déjà ouverte ; aucun chargement ni compilation d'une seconde
+bibliothèque à la première conversion compatible. Couches, capture géométrique,
+transform feedback et sorties de sommets complétées dynamiquement gardent leur ABI.
+
+L'unification des corps intervient **après** la réécriture de l'instance de base,
+qui doit voir les lectures dans chaque entrée. Corps commun `always_inline`,
+convention de profondeur constante à chaque appel ; conversion de profondeur et
+élargissement restent à leur emplacement à chaque retour. Les corps GS/TF/layer
+ne sont pas déplacés. Une forme inconnue ou un refus Metal conserve le source
+complet. Le couple profondeur/shadow inutilisé est retiré de l'unité compilée.
+Cette adaptation s'inspire de [nxnative b989137a51](https://github.com/seedds/nxnative/commit/b989137a51d0801e4f1bb6620b400493211f3f28)
+(MIT, crédit conservé). Le backend DSH examiné n'a pas la famille de bibliothèques
+pulling de cette référence ; aucune famille fictive n'est ajoutée.
+
+Les sources C# 0411 ont compilé localement en Release (.NET 10, zéro erreur,
+deux avertissements existants dans Ryujinx.Common). Aucun nouveau test ajouté.
+La modification DSH change `xfp` : les traductions obsolètes seront reconstruites
+par la préparation existante avant le lancement, avec sa durée et ses limites
+thermiques explicites. La compilation iPhoneOS finale reste nécessaire.
+
+`MTLDynamicLibrary` n'est pas employée dans ce lot : l'API sérialise une
+[bibliothèque de fonctions auxiliaires liée aux entrées](https://developer.apple.com/documentation/metal/shader-libraries),
+pas arbitrairement la bibliothèque exécutable DSH. Externaliser le corps des
+sommets changerait l'inlining et exigerait une validation numérique distincte.
+La persistance intégrée ici est celle du premier binaire PSO via le serializer
+Metal 4. Il ne faut donc pas déclarer la sérialisation des bibliothèques MSL faite,
+ni promettre la disparition de toute compilation à froid.
+
 ## Troisième lot (0408–0410)
 
 La [compilation 0404–0407](https://github.com/TarbleFR/RewindBox/actions/runs/45657158404)
@@ -69,7 +103,7 @@ a réussi sur macOS 15 et 26 ; elle ne contient pas 0404–0407.
   compilation et le writer existant persiste ces binaires sans seconde compilation.
   Mélanges, vertex descriptor, multisampling, fonctions spécialisées et propriété
   des objets sont conservés ; un descripteur non convertible garde la voie existante.
-  L'unification base/pulling/shadow et la bibliothèque dynamique restent en travail.
+  L'unification des variantes sur appareil est complétée par 0411 ; la bibliothèque dynamique n'est pas utilisée, pour les raisons précisées plus haut.
 - **S5 / 0407** : sommeil sur progression actif pour les polls stables de plus de
   2 ms des threads secondaires de priorité invité >=44, hors propriétaire d'image.
   Maximum demandé 1 ms, réveil anticipé après publication du prédicat hôte, timer
