@@ -187,7 +187,7 @@ jobs:
           NUGET_PACKAGES: ${{ runner.temp }}/nuget
         run: |
           set -euo pipefail
-          make -C graphics/dsx ../../build/dsx/libdsx.dylib
+          make -C graphics/dsx "$PWD/build/dsx/libdsx.dylib"
           dotnet build translator/dmsh_xlate/dmsh_xlate.csproj -c Release --nologo
           dotnet build graphics/tools/direct/tests/dsh_cmp/dsh_cmp.csproj -c Release --nologo
           python3 "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/test_wide_mem.py" "$PWD" | tee "$GITHUB_WORKSPACE/proof/wide-mem-checks.txt"
