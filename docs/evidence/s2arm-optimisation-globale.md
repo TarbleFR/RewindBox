@@ -261,3 +261,23 @@ L'empreinte de NS2Pro correspond à celle de la 839.
 
 Les tests GPU complets de rendu et les waits Metal 4 sur A18 Pro restent à exercer sur appareil.
 Les 9 et 7 assertions ne constituent pas une mesure de FPS, de consommation ou de bande passante.
+
+### Livraison privée 840
+
+L'[IPA 840 vérifiée](rewind840/delivery.json) embarque le moteur `c9e6d4ea`, patchs 0357–0360,
+avec les trois options actives par défaut. Elle part de la 839 et embarque son Core MeloNX
+`693c9c94`. Le [run 45555451366](https://github.com/TarbleFR/RewindBox/actions/runs/45555451366)
+a réussi à la tentative 2 après un HTTP 503 lors du téléchargement de MeloNX à la tentative 1.
+Le preflight et ses dépendants ont été relancés sur le même commit `d436aac8`.
+
+Le fichier privé pèse 335 268 154 octets et son SHA-256 est
+`83e34eb69229bbd67a4c28cddf23035b5bbc7916121bb7128e4867df7ff25d62`.
+L'[inventaire signé](rewind840/signed-payload-identity.json) contient 98 images.
+Les six validateurs de la vérification finale ont réussi. Les différences des ponts
+ARMSX2 et MeloNX avec la 839 sont expliquées par les références équivalentes à
+`_objc_msgSend` dans le [calcul de comparaison](rewind840/bridge-comparison.json).
+
+Le fixture d'occlusion appelle directement la réservation et le cumul des slots.
+Le parcours complet de soumission et le rendu en jeu sur A18 Pro restent à valider
+sur appareil. Les interrupteurs comparent les chemins d'attente. La publication atomique
+des résultats fournit l'ordre mémoire C dans les deux variantes.

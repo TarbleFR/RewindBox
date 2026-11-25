@@ -1,0 +1,42 @@
+{
+  "libretro_internal_bridge": {
+    "actual": "6947ddfec2e0af0416726402ddba857a0b18d085071a9440fc3a78f627105ab7",
+    "reference": "6947ddfec2e0af0416726402ddba857a0b18d085071a9440fc3a78f627105ab7",
+    "alternate": "cf654da0bef6905b9e5865afc60fb1ef72080e5c44c110a84269ae369a4f66c1",
+    "exact": true,
+    "references": {
+      "__stubs": 1,
+      "__objc_stubs": 2212
+    }
+  },
+  "melonx_internal_bridge": {
+    "actual": "5834529880394cce395b82b5a651838fec348f97e5d41b3d8fef9567ceab7d5b",
+    "reference": "fd80f3cc42959fb81aae2e0caa32c4f3e6e04d434a56ef1cabe2fb6c4c3a656f",
+    "alternate": "fd80f3cc42959fb81aae2e0caa32c4f3e6e04d434a56ef1cabe2fb6c4c3a656f",
+    "exact": false,
+    "references": {
+      "__stubs": 1,
+      "__objc_stubs": 330
+    }
+  },
+  "rpcs3_internal_bridge": {
+    "actual": "5cfa0b5b036ab36c2e18c9f81b05ed45ad7a8b847c937ec62437e60c12a88b19",
+    "reference": "5cfa0b5b036ab36c2e18c9f81b05ed45ad7a8b847c937ec62437e60c12a88b19",
+    "alternate": "f852400ebda027398fd8d39d1d136b62013ef87a6284fa3f33fc1bdaa9bc99d3",
+    "exact": true,
+    "references": {
+      "__stubs": 1,
+      "__objc_stubs": 843
+    }
+  },
+  "armsx2_internal_bridge": {
+    "actual": "2a232ea1ce3d6ce393b28b681e9c444f56d5c2f9a0dd4bb054e202c0c02daf95",
+    "reference": "f971a23e8d5673f52aaf4b29d2e98475aadbd8d232ac52fb0443c48d1533b3ce",
+    "alternate": "f971a23e8d5673f52aaf4b29d2e98475aadbd8d232ac52fb0443c48d1533b3ce",
+    "exact": false,
+    "references": {
+      "__stubs": 1,
+      "__objc_stubs": 937
+    }
+  }
+}
