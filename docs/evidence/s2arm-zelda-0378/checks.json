@@ -59,9 +59,25 @@
   },
   "packagedFingerprint": "cc8a574d83d3e3244e21a415b680d044ff13e428ab57815a0d6c31754363c0d4",
   "pinSHA256": "204c4c0aed1817df78423579f31620959cc66597f361ad395331eb9609a7015b",
-  "shippedIPA": null,
+  "shippedIPA": {
+    "build": 841,
+    "source": "a019a0b7c33b085b31401f6aaff027a46ed4ed0a",
+    "run": 45578695343,
+    "attempt": 1,
+    "bytes": 335288498,
+    "sha256": "44c4989632012a89e81c9a873537c9aaa11b42e83413b102e66112ecb08302d8",
+    "verifiedNativeImages": 98,
+    "offlineValidatorsPassed": 6,
+    "privateDelivery": "succeeded"
+  },
   "observedOnIPhone": {
     "currentLot": false,
     "baselineLog": "user-labelled IPA 840"
+  },
+  "pinAttestation": {
+    "run": 45577511469,
+    "job": 139078990300,
+    "result": "success, exact decoded bytes matched pin",
+    "pinSHA256": "204c4c0aed1817df78423579f31620959cc66597f361ad395331eb9609a7015b"
   }
 }

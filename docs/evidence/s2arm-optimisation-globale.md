@@ -433,12 +433,12 @@ avec les mêmes octets qu’avant ce lot et le même en-tête ABI. Son expansion
 reproduit l’empreinte `121d1bca8eb35c16`. Il ne s’agit pas d’une exécution MSBuild.
 [Preuve de l’identité des entrées](s2arm-zelda-translator-identity.json).
 
-Pour un relevé diagnostic court de la 841, fusionner ces lignes dans les réglages
+Pour attribuer les réveils dans un relevé court de la 841, fusionner ces lignes dans les réglages
 existants, puis relancer l’app :
 
 ```ini
 S2A_RB_WAKE_DIAG=1
-S2A_RB_GPUDIAG=1
+S2A_RB_GPUDIAG=0
 S2A_RB_PROBE_EVERY=30
 ```
 
@@ -477,4 +477,17 @@ archive de protocole Foundation par hôte, et 35 contrôles de fences, worker,
 visibilité et sessions. [Détails et portée](s2arm-zelda-0378/checks.json).
 Le GPU du runner refuse Metal 4 : le replay de pixels et les mesures A18 Pro
 restent non exécutés. Les trois archives productrices sont vérifiées ; NS2Pro
-conserve son empreinte de la 840. L’IPA 841 est en préparation.
+conserve son empreinte de la 840. L’[IPA privée 841](rewind841/delivery.json) est vérifiée et livrée ; la mesure du nouveau lot sur iPhone reste à faire.
+
+### Livraison privée 841
+
+[Rapport autonome](s2arm-zelda-841.md) · [Reçu](rewind841/delivery.json).
+Source application `a019a0b7`, run `45578695343`, tentative 1. Les 98 images natives,
+six validateurs et les octets signés de l’IPA sont contrôlés. Les quatre ponts
+libretro/MeloNX/RPCS3/ARMSX2 sont strictement identiques à la 840. S2Arm 0361–0378
+est livré ; MeloNX `693c9c94` et NS2Pro sont conservés. Le moteur conserve ses 252
+entrées de traducteur identiques. Aucun résultat A/B du nouveau lot sur téléphone.
+
+Pour la capture GPU suivante, `S2A_RB_WAKE_DIAG=0` et `S2A_RB_GPUDIAG=1` séparent
+la journalisation des passes de l’attribution des réveils. Les passages A/B se font
+ensuite avec les deux diagnostics coupés, sans changer la cadence de sonde entre variantes.
