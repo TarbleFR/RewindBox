@@ -1,0 +1,159 @@
+From 9bf7bf68c9aa4d347310c0854ad8bcccee2a1365 Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Wed, 25 Nov 2026 08:48:24 +0100
+Subject: [PATCH] 0372 Donate interactive QoS to the exact pipeline builder
+ while its draw waits
+
+---
+ graphics/nvn/gfx/nvn/nvn_mtl.m           | 10 ++++++++-
+ graphics/nvn/gfx/nvn/nvn_session.inc     |  2 ++
+ graphics/nvn/gfx/nvn/pso_archive.h       |  6 +++++-
+ graphics/nvn/gfx/nvn/rb_pso_lifetime.inc | 26 ++++++++++++++++++++----
+ 4 files changed, 38 insertions(+), 6 deletions(-)
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index cd007f2..266d3f5 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -114,6 +114,7 @@ static void rb_pso_maintain(void);
+ static void rb_tex_budget_maintain(void);
+ static void rb_stage_maintain(void);
+ static void rb_range_report(uint64_t frame);
++static _Atomic uint64_t g_rb_pso_boost_tries, g_rb_pso_boost_ok;
+ int nvn_be_guest_hint_on(void);
+ static void rb_gov_before_submit(void);
+ static void rb_sparse_maintain(void);
+@@ -9787,6 +9788,8 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+     }
+     MLOG("[rb-dispatch-order] cumulative frame=%llu mode=%s kept=%llu saved=%llu",
+          frame,rb_dispatch_order_on() ? "game" : "full",(unsigned long long)atomic_load(&g_rb_dispatch_kept),(unsigned long long)atomic_load(&g_rb_dispatch_saved));
++    MLOG("[rb-pso-wait-boost] cumulative frame=%llu attempts=%llu accepted=%llu",
++         frame,(unsigned long long)atomic_load(&g_rb_pso_boost_tries),(unsigned long long)atomic_load(&g_rb_pso_boost_ok));
+     if (pending_polls || sleeps)
+         MLOG("[fence-wake] cumulative frame=%llu pendingPolls=%llu positiveWaitSleeps=%llu fenceBroadcasts=%llu segmentCompletionsWithSleepers=%llu",
+              frame, (unsigned long long)pending_polls, (unsigned long long)sleeps,
+@@ -11872,6 +11875,7 @@ static int rb_archive_preopen_on(void) {
+ #endif
+ #define RB_PAR_BUILD() rb_par_game_build()
+ #define RB_PAR_SUBMIT_THREAD() on_sub_thread()
++#define RB_PSO_WAIT_BOOST() rb_pso_wait_boost_on()
+ #include "pso_archive.h"   // S2Arm: per-pipeline binary archive (after MacNativeGames, MIT)
+ // The first launch after upgrading has no startup-key index. Seed the
+ // worker from the actual slow recipes, followed by the reference and user
+@@ -15346,7 +15350,7 @@ static uint64_t g_async_seen_programs[RB_ASYNC_SEEN_WORDS];
+ static unsigned g_async_frame_probes;
+ static int g_async_early;
+ #define PSO_PEND_MAX 384
+-static struct { pso_key k; id<MTLRenderPipelineState> ps; NSError *error; int used, done, late, stuck; uint8_t rb_way; uint64_t rb_began, rb_build_ns, rb_compile_ns; } g_pp[PSO_PEND_MAX];   // rb_*: RewindBox (patch 0313), set by ppq_build with done   // late: the submit thread already waited its limit for it once (pso_pend_take); stuck: a draw that cannot be skipped waited the unsafe cap for it
++static struct { pso_key k; id<MTLRenderPipelineState> ps; NSError *error; int used, done, late, stuck; uint8_t rb_way; uint64_t rb_began, rb_build_ns, rb_compile_ns; pthread_t worker; } g_pp[PSO_PEND_MAX];   // rb_*: RewindBox (patch 0313), set by ppq_build with done   // late: the submit thread already waited its limit for it once (pso_pend_take); stuck: a draw that cannot be skipped waited the unsafe cap for it
+ static pthread_mutex_t g_pp_mu = PTHREAD_MUTEX_INITIALIZER; static pthread_cond_t g_pp_cv = PTHREAD_COND_INITIALIZER;
+ static uint64_t g_pp_submit_mark, g_pp_kicked, g_pp_taken, g_pp_dropped;   // Whether this submission has already been predicted (by submission serial); cumulative kicked / taken / dropped untaken (pso_pend_kick) counts
+ // RewindBox (patch 0069): every pipeline kicked to the background went to the global queue at once, without bound, and a draw that needed its own waited for it behind the others
+@@ -15381,6 +15385,7 @@ static dispatch_block_t rb_test_pso_owner;
+ #endif
+ static void ppq_build(int slot, id payload, NSString *requestedKey) {   // a lane or a block started at once; d / pkey were taken out of g_ppq under g_pp_mu
+     id<MTLRenderPipelineState> ps; NSError *e=nil; uint64_t b0=0;
++    pthread_mutex_lock(&g_pp_mu); g_pp[slot].worker=pthread_self(); pthread_mutex_unlock(&g_pp_mu);
+     @autoreleasepool {
+         // One builder owns this descriptor and slot until it publishes done.
+         // Demand supplies a descriptor. A bounded prediction supplies the
+@@ -15405,6 +15410,7 @@ static void ppq_build(int slot, id payload, NSString *requestedKey) {   // a lan
+     uint64_t b1=bp_now();
+     pthread_mutex_lock(&g_pp_mu); g_pp[slot].ps = ps; g_pp[slot].error = rb_async_pso() ? e : nil;
+     g_pp[slot].rb_way=rb_par_last_way; g_pp[slot].rb_began=b0; g_pp[slot].rb_build_ns=b0 ? b1-b0 : 0; g_pp[slot].rb_compile_ns=rb_par_last_compile_ns;   // RewindBox (patch 0313)
++    g_pp[slot].worker = NULL;
+     g_pp[slot].done = 1; RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_pp_cv)); pthread_mutex_unlock(&g_pp_mu);
+ }
+ static int ppq_waiting(int i) { return i >= 0 && g_pp[i].used && !g_pp[i].done && !g_ppq[i].run && g_ppq[i].d; }   // caller holds g_pp_mu
+@@ -15686,10 +15692,12 @@ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out
+         if (cut && !ms) { pthread_mutex_unlock(&g_pp_mu); *timed_out = 2; if (lw) rb_late_skip_note(); else pso_budget_skip_note(); return nil; }   // RewindBox (patch 0069): rb_late_skip_note
+     }
+     if (at >= 0) { blk = !g_pp[at].done; if (blk) DM_BLOCK_BEGIN(); uint64_t w0 = bp_now();
++        pthread_override_t boost=blk ? rb_pso_boost(g_pp[at].worker) : NULL;
+         struct timespec dl; clock_gettime(CLOCK_REALTIME, &dl); dl.tv_sec += ms / 1000; dl.tv_nsec += (long)(ms % 1000) * 1000000; if (dl.tv_nsec >= 1000000000) { dl.tv_sec++; dl.tv_nsec -= 1000000000; }
+         if (required) {
+             while (!g_pp[at].done && !dm_gfx_session_stopping()) rb_compile_wait(&g_pp_cv,&g_pp_mu);
+         } else while (!g_pp[at].done) if (ms ? RB_WAKE_CALL("backend.timed", s2a_rb_wake_absolute(&dl), pthread_cond_timedwait(&g_pp_cv, &g_pp_mu, &dl)) == ETIMEDOUT : RB_WAKE_CALL("backend.wait", -1, pthread_cond_wait(&g_pp_cv, &g_pp_mu))) break;
++        if (boost) pthread_override_qos_class_end_np(boost);
+         if (blk) { uint64_t waited=bp_now()-w0;
+             if (!may_skip && rb_pso_mode()) {
+                 rb_async_note(RB_ASYNC_CRITICAL_JOIN);
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 812bdf0..0ab3cd9 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -389,6 +389,8 @@ int nvn_be_shutdown_session(void) {
+     return 0;
+ }
+ void nvn_be_begin_session(void) {
++    atomic_store(&g_rb_pso_wait_boost,-1);
++    atomic_store(&g_rb_pso_boost_tries,0); atomic_store(&g_rb_pso_boost_ok,0);
+     atomic_store(&g_rb_dispatch_game,-1); g_rb_last_guest_dispatch=0; g_rb_dispatch_bits=0;
+     atomic_store(&g_rb_dispatch_kept,0); atomic_store(&g_rb_dispatch_saved,0);
+     atomic_store(&g_rb_gpu_probe_mode,-1); atomic_store(&g_rb_probe_every,-2);
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+index 530b2f3..7fdd9f0 100644
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -21,6 +21,10 @@
+ #include "dmsh_chain.h"
+ #include "rb_archive_index.h"
+ 
++#ifndef RB_PSO_WAIT_BOOST
++#define RB_PSO_WAIT_BOOST() 0
++#endif
++
+ // Renderer integration is optional for hosts exercising the archive writer alone.
+ #ifndef RB_PAR_SCOPED
+ #define RB_PAR_SCOPED() 0
+@@ -900,7 +904,7 @@ static int par_fl_enter(NSString *key, id *out, ParFlight **mine) {
+     os_unfair_lock_lock(&g_par_fl_lock);
+     ParFlight *f = g_par_flights[key];
+     if (f) {
+-        pthread_override_t ov = f->builder && !pthread_equal(f->builder, pthread_self()) ? pthread_override_qos_class_start_np(f->builder, qos_class_self(), 0) : NULL;
++        pthread_override_t ov = f->builder && !pthread_equal(f->builder, pthread_self()) ? pthread_override_qos_class_start_np(f->builder, RB_PSO_WAIT_BOOST() && RB_PAR_SUBMIT_THREAD() ? QOS_CLASS_USER_INTERACTIVE : qos_class_self(), 0) : NULL;
+         os_unfair_lock_unlock(&g_par_fl_lock);
+         struct timespec t0, t1; clock_gettime(CLOCK_MONOTONIC, &t0);
+         dispatch_group_wait(f->done, DISPATCH_TIME_FOREVER);
+diff --git a/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc b/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc
+index b7238f3..153459d 100644
+--- a/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc
++++ b/graphics/nvn/gfx/nvn/rb_pso_lifetime.inc
+@@ -80,12 +80,30 @@ static void rb_recreated(NSString *key,id ps,uint64_t start) {
+          (unsigned long long)elapsed,!ps ? "failed" : life && life->archiveHit ? "binary_archive" : "compiler");
+ }
+ 
+-typedef struct { uint64_t start, generation; } RBPSOWait;
++static _Atomic int g_rb_pso_wait_boost=-1;
++static int rb_pso_wait_boost_on(void) {
++    int v=atomic_load_explicit(&g_rb_pso_wait_boost,memory_order_relaxed);
++    if (v<0) { const char *e=getenv("S2A_RB_PSO_WAIT_BOOST"); v=e && !strcmp(e,"1"); atomic_store(&g_rb_pso_wait_boost,v); }
++    return v;
++}
++static pthread_override_t rb_pso_boost(pthread_t thread) {
++    if (!thread || !rb_pso_wait_boost_on()) return NULL;
++    atomic_fetch_add_explicit(&g_rb_pso_boost_tries,1,memory_order_relaxed);
++    pthread_override_t token=pthread_override_qos_class_start_np(thread,QOS_CLASS_USER_INTERACTIVE,0);
++    if (token) atomic_fetch_add_explicit(&g_rb_pso_boost_ok,1,memory_order_relaxed);
++    return token;
++}
++typedef struct { uint64_t start, generation; pthread_override_t boost; } RBPSOWait;
+ static RBPSOWait rb_wait_begin(void) {
+-    if (!rb_pso_cap_on() || !s2a_rb_bench_generation || !s2a_rb_bench_pipeline_wait) return (RBPSOWait){0};
+-    uint64_t gen=s2a_rb_bench_generation();
+-    return (RBPSOWait){gen ? clock_gettime_nsec_np(CLOCK_UPTIME_RAW) : 0,gen};
++    RBPSOWait wait={0};
++    if (on_sub_thread()) wait.boost=rb_pso_boost(pthread_self());
++    if (rb_pso_cap_on() && s2a_rb_bench_generation && s2a_rb_bench_pipeline_wait) {
++        wait.generation=s2a_rb_bench_generation();
++        if (wait.generation) wait.start=clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
++    }
++    return wait;
+ }
+ static void rb_wait_end(RBPSOWait *wait) {
++    if (wait->boost) pthread_override_qos_class_end_np(wait->boost);
+     if (wait->generation) s2a_rb_bench_pipeline_wait(wait->generation,wait->start,clock_gettime_nsec_np(CLOCK_UPTIME_RAW));
+ }
+-- 
+2.56.1
+

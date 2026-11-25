@@ -1,0 +1,129 @@
+From c42b632eebc45f5395a1f500a63ac1365b2d05d1 Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Wed, 25 Nov 2026 08:46:26 +0100
+Subject: [PATCH] 0370 Schedule nonblocking fixed-work GPU probes independently
+ of reporting
+
+---
+ graphics/nvn/gfx/nvn/nvn_mtl.m         | 38 ++++++++++++++++++++++----
+ graphics/nvn/gfx/nvn/nvn_session.inc   |  3 ++
+ graphics/nvn/gfx/nvn/rb_probe_policy.h | 14 ++++++++++
+ 3 files changed, 50 insertions(+), 5 deletions(-)
+ create mode 100644 graphics/nvn/gfx/nvn/rb_probe_policy.h
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 5af7e57..fc4a198 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -3708,8 +3708,10 @@ static int ub_skip(const char *key) {   // Whether this phase should drop draws
+ }
+ static _Atomic uint64_t g_rb_frame_t0;   // RewindBox (patch 0069): bp_now() when the last frame was presented (first_skip_ok); 0 = none yet
+ static void rb_pso_user_checkpoint(void);
++static void rb_gpu_probe_frame(uint64_t frame);
+ void nvn_be_set_frame(uint64_t f) {
+     atomic_store(&g_cur_frame, f);
++    rb_gpu_probe_frame(f);
+     atomic_store_explicit(&g_rb_frame_t0, bp_now(), memory_order_relaxed);
+     if (g_ub_n) ub_frame(f);
+     if (f && !(f % 120)) rb_pso_user_checkpoint();
+@@ -28329,15 +28331,26 @@ void nvn_be_present_wait_taken(double period) {
+ //   for the same passes at the same draw count (frames 3727-3731: render 10-11 ms; 4604-4608: 25-28 ms) and the log could not tell a lower GPU clock or contention from more work.
+ //   The same small compute dispatch (16,384 threads of 4,096 dependent FMAs, about 0.1 ms) runs on a command queue of its own each time; the call returns the previous one's GPU time
+ //   and starts the next. The kernel is built once on a utility queue. None while the GPU is stopped, the app is not active or presents are discarded. S2A_RB_GPU_PROBE=0: none
+-static int rb_gpu_probe(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_GPU_PROBE"); v = !(e && !strcmp(e, "0")); } return v; }
++#include "rb_probe_policy.h"
++static _Atomic int g_rb_gpu_probe_mode=-1, g_rb_probe_every=-2;
++static _Atomic uint64_t g_rb_probe_last_frame=UINT64_MAX, g_rb_probe_generation;
++static int rb_gpu_probe(void) {
++    int v=atomic_load_explicit(&g_rb_gpu_probe_mode,memory_order_relaxed);
++    if (v<0) { const char *e=getenv("S2A_RB_GPU_PROBE"); v=!(e && !strcmp(e,"0")); atomic_store(&g_rb_gpu_probe_mode,v); }
++    return v;
++}
++static int rb_probe_every(void) {
++    int v=atomic_load_explicit(&g_rb_probe_every,memory_order_relaxed);
++    if (v==-2) { v=rb_probe_every_parse(getenv("S2A_RB_PROBE_EVERY")); atomic_store(&g_rb_probe_every,v); }
++    return v;
++}
+ static _Atomic int g_probe_state, g_probe_busy;   // state: 0 not made, 1 being made, 2 ready, -1 failed; busy: a probe in flight
+ static _Atomic uint64_t g_probe_ns;   // the last probe's GPU time (0 = none yet)
+ static __strong id<MTLComputePipelineState> g_probe_pso; static __strong id<MTLCommandQueue> g_probe_q; static __strong id<MTLBuffer> g_probe_buf;
+-double nvn_be_gpu_probe_ms(void) {
++static double rb_gpu_probe_sample(uint64_t frame) {
+     if (!rb_gpu_probe() || !g_dev) return -1;
+     uint64_t last = atomic_load(&g_probe_ns); int st = atomic_load_explicit(&g_probe_state, memory_order_acquire);
+-    if (!st) {
+-        atomic_store(&g_probe_state, 1);
++    if (!st && atomic_compare_exchange_strong(&g_probe_state, &st, 1)) {
+         dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+             NSError *er = nil;
+             id<MTLLibrary> lib = rb_compile_auxiliary(g_dev,@"#include <metal_stdlib>\nusing namespace metal;\n"
+@@ -28353,16 +28366,31 @@ double nvn_be_gpu_probe_ms(void) {
+             g_probe_pso = pso; g_probe_q = q; g_probe_buf = b; atomic_store_explicit(&g_probe_state, 2, memory_order_release);
+         });
+     } else if (st == 2 && !mtl_gpu_halted() && dm_focus_now() == 1 && !atomic_load(&g_present_discard) && !atomic_exchange(&g_probe_busy, 1)) @autoreleasepool {   // the game's present thread never drains its implicit pool (see g_sub_pool): the command buffer, encoder and handler go with this one
++        uint64_t generation=atomic_load(&g_rb_probe_generation), scheduled=now_ns();
+         id<MTLCommandBuffer> cb = [g_probe_q commandBuffer]; id<MTLComputeCommandEncoder> e = [cb computeCommandEncoder];
+         [e setComputePipelineState:g_probe_pso]; [e setBuffer:g_probe_buf offset:0 atIndex:0];
+         [e dispatchThreadgroups:MTLSizeMake(256, 1, 1) threadsPerThreadgroup:MTLSizeMake(64, 1, 1)]; [e endEncoding];
+         [cb addCompletedHandler:^(id<MTLCommandBuffer> c) {
+-            if (c.status == MTLCommandBufferStatusCompleted && c.GPUEndTime > c.GPUStartTime) atomic_store(&g_probe_ns, (uint64_t)((c.GPUEndTime - c.GPUStartTime) * 1e9));
++            if (c.status == MTLCommandBufferStatusCompleted && c.GPUEndTime > c.GPUStartTime && generation==atomic_load(&g_rb_probe_generation)) {
++                uint64_t elapsed=(uint64_t)((c.GPUEndTime-c.GPUStartTime)*1e9);
++                atomic_store(&g_probe_ns,elapsed);
++                if (rb_probe_every()>0) MLOG("[rb-gpu-probe] frame=%llu scheduled_ns=%llu completed_ns=%llu gpu_ns=%llu every=%d fixed_work=16384x4096-fma units=duration-not-MHz",
++                    (unsigned long long)frame,(unsigned long long)scheduled,(unsigned long long)now_ns(),(unsigned long long)elapsed,rb_probe_every());
++            }
+             atomic_store(&g_probe_busy, 0); }];
+         if (!cb_put(cb)) atomic_store(&g_probe_busy, 0);
+     }
+     return last ? last / 1e6 : -1;
+ }
++static void rb_gpu_probe_frame(uint64_t frame) {
++    int every=rb_probe_every(); uint64_t previous=atomic_load(&g_rb_probe_last_frame);
++    if (rb_probe_due(every,frame,previous) && atomic_compare_exchange_strong(&g_rb_probe_last_frame,&previous,frame)) (void)rb_gpu_probe_sample(frame);
++}
++double nvn_be_gpu_probe_ms(void) {
++    if (!rb_gpu_probe() || rb_probe_every()==0) return -1;
++    if (rb_probe_every()<0) return rb_gpu_probe_sample(atomic_load(&g_cur_frame));
++    uint64_t ns=atomic_load(&g_probe_ns); return ns ? ns/1e6 : -1;
++}
+ void nvn_be_stats(uint64_t *passes, uint64_t *draws) {
+     *passes = g_stat_pass; *draws = g_stat_draw;
+     if (!rb_observed_workers_on()) return;
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 4943e5c..f043bf9 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -389,6 +389,9 @@ int nvn_be_shutdown_session(void) {
+     return 0;
+ }
+ void nvn_be_begin_session(void) {
++    atomic_store(&g_rb_gpu_probe_mode,-1); atomic_store(&g_rb_probe_every,-2);
++    atomic_store(&g_rb_probe_last_frame,UINT64_MAX); atomic_fetch_add(&g_rb_probe_generation,1);
++    atomic_store(&g_probe_ns,0);
+     rb_gpudiag_reset();
+     const char *wake_diag = getenv("S2A_RB_WAKE_DIAG");
+     s2a_rb_wake_configure(wake_diag && !strcmp(wake_diag, "1"));
+diff --git a/graphics/nvn/gfx/nvn/rb_probe_policy.h b/graphics/nvn/gfx/nvn/rb_probe_policy.h
+new file mode 100644
+index 0000000..7f6af16
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_probe_policy.h
+@@ -0,0 +1,14 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright 2026 S2Arm contributors
++#pragma once
++#include <stdlib.h>
++#include <stdint.h>
++// -1 preserves the report-driven probe of 840. Explicit 0 disables it.
++static inline int rb_probe_every_parse(const char *s) {
++    if (!s || !*s) return -1;
++    char *end; long n=strtol(s,&end,10);
++    return *end || n<0 || n>1000000 ? -1 : (int)n;
++}
++static inline int rb_probe_due(int every,uint64_t frame,uint64_t previous) {
++    return every>0 && frame!=(uint64_t)-1 && frame!=previous && !(frame%(unsigned)every);
++}
+-- 
+2.56.1
+

@@ -1,0 +1,117 @@
+From 8709c0ca4d63914be741d9ce4174ea70623a5b54 Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Wed, 25 Nov 2026 08:47:18 +0100
+Subject: [PATCH] 0371 Order consecutive guest compute dispatches by explicit
+ guest barriers
+
+---
+ graphics/nvn/gfx/nvn/nvn_mtl.m           | 24 +++++++++++++++++++++---
+ graphics/nvn/gfx/nvn/nvn_session.inc     |  2 ++
+ graphics/nvn/gfx/nvn/rb_dispatch_order.h | 12 ++++++++++++
+ 3 files changed, 35 insertions(+), 3 deletions(-)
+ create mode 100644 graphics/nvn/gfx/nvn/rb_dispatch_order.h
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index fc4a198..cd007f2 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -2595,6 +2595,16 @@ static uint64_t g_bw_lo[BW_MAX], g_bw_hi[BW_MAX], g_br_lo[BW_MAX], g_br_hi[BW_MA
+ static uint64_t g_blit_splits;   // copies / buffer updates / fills that ended an open draw pass (the residency set line; a pass ended this way stores and the next one reloads its attachments)
+ uint64_t nvn_be_blit_splits(void) { return g_blit_splits; }
+ static int enc_open(void);
++#include "rb_dispatch_order.h"
++static _Atomic int g_rb_dispatch_game=-1;
++static int g_rb_last_guest_dispatch;
++static uint32_t g_rb_dispatch_bits;
++static _Atomic uint64_t g_rb_dispatch_kept, g_rb_dispatch_saved;
++static int rb_dispatch_order_on(void) {
++    int v=atomic_load_explicit(&g_rb_dispatch_game,memory_order_relaxed);
++    if (v<0) { v=rb_dispatch_game(getenv("S2A_RB_DISPATCH_ORDER")); atomic_store(&g_rb_dispatch_game,v); }
++    return v;
++}
+ static int g_blit_ct;   // the open copy encoder has the compute argument table set (dispatches share it, dispatch_enc)
+ // Metal 4 copies and dispatches share g_blit, a compute encoder. Metal 3 has them in different encoders: g_blit is a copy encoder (MTLBlitCommandEncoder) for copies and a compute
+ // encoder for dispatches (g_blit_cmp); a copy after a dispatch or a dispatch after a copy ends it and begins the other kind, ordered by g_fence3 like any two encoders
+@@ -2603,7 +2613,7 @@ static uint64_t g_blit_splits3;   // Metal 3: copy encoders ended for a barrier
+ static id<MTL4ComputeCommandEncoder> blit_open_k(int cmp) {
+     if (!g_rlane) geo_run_flush();   // a geometry run's lanes go before any other encoder of the main stream (nvn_geometry.inc)
+     if (g_blit && g_m3 && g_blit_cmp != cmp) { enc_b_end(g_blit); g_blit = nil; }
+-    if (!g_blit) { ser_gate();
++    if (!g_blit) { g_rb_last_guest_dispatch=0; ser_gate();
+         if (g_m3) {
+             if (cmp && gp_active() && g_gp_state < 2) {   // GPUPROF: the shared dispatch encoder samples too; a copy encoder cannot (no sample buffer attachments)
+                 MTLComputePassDescriptor *cd = [MTLComputePassDescriptor computePassDescriptor]; gp_pre(cd, 'C');
+@@ -2615,7 +2625,7 @@ static id<MTL4ComputeCommandEncoder> blit_open_k(int cmp) {
+         gp_begin(g_blit, 'C', nil); g_bw_n = g_br_n = 0; g_blit_ops = 0; g_blit_ct = 0; }
+     return g_blit;
+ }
+-static id<MTL4ComputeCommandEncoder> blit_open(void) { return blit_open_k(0); }
++static id<MTL4ComputeCommandEncoder> blit_open(void) { g_rb_last_guest_dispatch=0; return blit_open_k(0); }
+ static void ubd_flush(void); static int g_nubd;   // the inline updates deferred (see mtl_sub_update)
+ static int g_ubd_landing;
+ static id<MTL4ComputeCommandEncoder> blit_raw(void) {
+@@ -2659,7 +2669,12 @@ static id<MTL4ComputeCommandEncoder> blit_buf(uint64_t rlo, uint64_t rhi, uint64
+ // texture copies / readbacks: barrier if anything came before, and later operations must wait for it too
+ static id<MTL4ComputeCommandEncoder> blit(void) {
+     id<MTL4ComputeCommandEncoder> e = blit_raw();
+-    if (g_blit_ops) blit_barrier();
++    if (g_blit_ops) {
++        if (rb_dispatch_needs_barrier(rb_dispatch_order_on(),g_rb_last_guest_dispatch,g_rb_dispatch_bits)) {
++            blit_barrier(); atomic_fetch_add_explicit(&g_rb_dispatch_kept,1,memory_order_relaxed);
++        } else atomic_fetch_add_explicit(&g_rb_dispatch_saved,1,memory_order_relaxed);
++    }
++    g_rb_dispatch_bits=0; g_rb_last_guest_dispatch=1;
+     g_bw_lo[0] = 0; g_bw_hi[0] = ~0ull; g_bw_n = 1; g_br_n = 0; g_blit_ops = 1;   // record as "everything written": the next operation always gets a barrier
+     (void)e; return g_blit;   // see blit_raw
+ }
+@@ -9770,6 +9785,8 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+              frame, (unsigned long long)atomic_load(&g_rb_alloc_frame_reuses),
+              (unsigned long long)atomic_load(&g_rb_alloc_frame_rotations), g_alloc_n, (unsigned long long)bytes);
+     }
++    MLOG("[rb-dispatch-order] cumulative frame=%llu mode=%s kept=%llu saved=%llu",
++         frame,rb_dispatch_order_on() ? "game" : "full",(unsigned long long)atomic_load(&g_rb_dispatch_kept),(unsigned long long)atomic_load(&g_rb_dispatch_saved));
+     if (pending_polls || sleeps)
+         MLOG("[fence-wake] cumulative frame=%llu pendingPolls=%llu positiveWaitSleeps=%llu fenceBroadcasts=%llu segmentCompletionsWithSleepers=%llu",
+              frame, (unsigned long long)pending_polls, (unsigned long long)sleeps,
+@@ -26139,6 +26156,7 @@ void nvn_be_exec(const uint8_t *p) {
+                 int split = g_enc && g_pass_swrite && (bits & (NVN_BARRIER_ORDER_FRAGMENTS_BIT | NVN_BARRIER_ORDER_FRAGMENTS_TILED_BIT));
+                 PD("I %llu barrier bits %#x%s", g_stat_pass, bits, split ? ": ends the pass (shader writes)" : g_enc ? " (render pass open)" : "");
+                 if (split) { rb_rp_end_at(__func__, __LINE__); static int once; if (!once++) MLOG("a game barrier (bits %#x) after shader writes in a draw pass: the pass ends there (first case pass %llu)", bits, (unsigned long long)g_stat_pass); }
++                g_rb_dispatch_bits|=(uint32_t)bits;
+                 if (bits) g_game_barrier |= bits; break; }   // RewindBox (patch 0353, nxnative e7750541): the bits, for rb_draw_barrier_entry
+             case OP_SET_TEX_POOL: case OP_SET_SAMP_POOL: state_op(h.op, a, h.size); break;
+             default: break;
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index f043bf9..812bdf0 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -389,6 +389,8 @@ int nvn_be_shutdown_session(void) {
+     return 0;
+ }
+ void nvn_be_begin_session(void) {
++    atomic_store(&g_rb_dispatch_game,-1); g_rb_last_guest_dispatch=0; g_rb_dispatch_bits=0;
++    atomic_store(&g_rb_dispatch_kept,0); atomic_store(&g_rb_dispatch_saved,0);
+     atomic_store(&g_rb_gpu_probe_mode,-1); atomic_store(&g_rb_probe_every,-2);
+     atomic_store(&g_rb_probe_last_frame,UINT64_MAX); atomic_fetch_add(&g_rb_probe_generation,1);
+     atomic_store(&g_probe_ns,0);
+diff --git a/graphics/nvn/gfx/nvn/rb_dispatch_order.h b/graphics/nvn/gfx/nvn/rb_dispatch_order.h
+new file mode 100644
+index 0000000..fd8bfd4
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_dispatch_order.h
+@@ -0,0 +1,12 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright 2026 S2Arm contributors
++#pragma once
++#include <stdint.h>
++#include <string.h>
++static inline int rb_dispatch_game(const char *s) { return s && !strcmp(s,"game"); }
++// No proof across a copy, an internal dispatch, an encoder/queue boundary, or
++// any explicit guest barrier (including unknown bits). Only consecutive guest
++// dispatches without a guest ordering request may overlap.
++static inline int rb_dispatch_needs_barrier(int game,int previous_guest,uint32_t bits) {
++    return !game || !previous_guest || bits!=0;
++}
+-- 
+2.56.1
+

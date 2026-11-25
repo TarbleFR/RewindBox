@@ -1,0 +1,1019 @@
+From 65b5853ea6fa98063a01068289e1ba0db778f0bf Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Wed, 25 Nov 2026 08:42:56 +0100
+Subject: [PATCH] 0368 Attribute wait returns and signals by source site
+ without changing deadlines
+
+---
+ graphics/nvn/gfx/nvn/nvn_mtl.m       | 105 ++++++++++++++-------------
+ graphics/nvn/gfx/nvn/nvn_rec.h       |  18 ++---
+ graphics/nvn/gfx/nvn/nvn_session.inc |   2 +
+ runtime/include/rb_wake.h            |  36 +++++++++
+ runtime/src/rb_wake.inc              |  79 ++++++++++++++++++++
+ runtime/src/thread.c                 |  87 +++++++++++-----------
+ 6 files changed, 224 insertions(+), 103 deletions(-)
+ create mode 100644 runtime/include/rb_wake.h
+ create mode 100644 runtime/src/rb_wake.inc
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index e403d25..b7ba611 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -26,6 +26,7 @@
+ #include "rb_sealed_clear.h"
+ #include "rb_fence_wait.h"
+ #include "rb_allocator_frame.h"
++#include "../../../../runtime/include/rb_wake.h"
+ #include "../../../../runtime/include/rb_texture_stats.h"
+ #include "../../../metal/mtl_slot.h"   // machine-wide Metal client slot
+ #include "nvn_fps.h"
+@@ -2443,7 +2444,7 @@ static int rb_course_exact(void) { return atomic_load_explicit(&g_course_exact,m
+ // Metal completion wakes the caller immediately. A timed wake also observes a stop request.
+ static void rb_compile_wait(pthread_cond_t *cv, pthread_mutex_t *mu) {
+     const struct timespec slice={0,100000000};
+-    pthread_cond_timedwait_relative_np(cv,mu,&slice);
++    RB_WAKE_CALL("backend.timed", s2a_rb_wake_relative(&slice), pthread_cond_timedwait_relative_np(cv,mu,&slice));
+ }
+ static _Atomic uint64_t g_course_pso_wait_ns, g_course_library_wait_ns;
+ static void rb_course_bound(id ps);
+@@ -4907,7 +4908,7 @@ uint64_t nvn_be_sub_commit(void) {
+             atomic_store_explicit(&g_done, fence, memory_order_release);
+             rb_fence_advanced_locked(&g_guest_fences, fence);
+         }
+-        pthread_cond_broadcast(&g_cv);
++        RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_cv));
+         pthread_mutex_unlock(&g_mu);
+         defer_drain();
+     });
+@@ -5043,7 +5044,7 @@ int nvn_be_wait_error(uint64_t *seen, uint64_t timeout_ns) {
+         uint64_t el = clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0; if (el >= timeout_ns || dm_gfx_session_stopping()) return 0;
+         uint64_t step = timeout_ns - el > 100000000ull ? 100000000ull : timeout_ns - el;   // 每个提交完成都会广播 g_cv；至多 100 ms 自查一次（段命令缓冲的报错不广播）
+         struct timespec dl; clock_gettime(CLOCK_REALTIME, &dl); uint64_t ns = (uint64_t)dl.tv_nsec + step; dl.tv_sec += ns / 1000000000ull; dl.tv_nsec = ns % 1000000000ull;
+-        pthread_mutex_lock(&g_mu); if (atomic_load(&g_commit_error_n) <= *seen) pthread_cond_timedwait(&g_cv, &g_mu, &dl); pthread_mutex_unlock(&g_mu);
++        pthread_mutex_lock(&g_mu); if (atomic_load(&g_commit_error_n) <= *seen) RB_WAKE_CALL("fence.timed", s2a_rb_wake_absolute(&dl), pthread_cond_timedwait(&g_cv, &g_mu, &dl)); pthread_mutex_unlock(&g_mu);
+     }
+ }
+ static void mtl_finish_gpu(void) {
+@@ -6173,12 +6174,12 @@ static _Atomic int g_up_alloc_busy[RB_UP_MAX];   // RewindBox (patch 0082): RB_U
+ // Waiting for upload batches to finish (g_up_pending, g_up_alloc_busy): the batches' completion handler broadcasts after it updates them, so waiters sleep until then (they used to poll every 0.2–1 ms;
+ // Three Houses' loader calls QueueFinish after each resource, each one waited up to a millisecond late). The 10 ms timeout is only a safety net
+ static pthread_mutex_t g_up_wmu = PTHREAD_MUTEX_INITIALIZER; static pthread_cond_t g_up_wcv = PTHREAD_COND_INITIALIZER;
+-static void up_wake(void) { pthread_mutex_lock(&g_up_wmu); pthread_cond_broadcast(&g_up_wcv); pthread_mutex_unlock(&g_up_wmu); }
++static void up_wake(void) { pthread_mutex_lock(&g_up_wmu); RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_up_wcv)); pthread_mutex_unlock(&g_up_wmu); }
+ static void up_wait_zero(_Atomic int *v) {
+     if (!atomic_load(v)) return;
+     uint64_t rb_w0 = now_ns();   // RewindBox (patch 0068): timed (t_rb_blk)
+     DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_up_wmu);
+-    while (atomic_load(v)) { struct timespec dl; clock_gettime(CLOCK_REALTIME, &dl); dl.tv_nsec += 10000000; if (dl.tv_nsec >= 1000000000) { dl.tv_sec++; dl.tv_nsec -= 1000000000; } pthread_cond_timedwait(&g_up_wcv, &g_up_wmu, &dl); }
++    while (atomic_load(v)) { struct timespec dl; clock_gettime(CLOCK_REALTIME, &dl); dl.tv_nsec += 10000000; if (dl.tv_nsec >= 1000000000) { dl.tv_sec++; dl.tv_nsec -= 1000000000; } RB_WAKE_CALL("backend.timed", s2a_rb_wake_absolute(&dl), pthread_cond_timedwait(&g_up_wcv, &g_up_wmu, &dl)); }
+     pthread_mutex_unlock(&g_up_wmu); DM_BLOCK_END(); t_rb_blk[2] += now_ns() - rb_w0;   // RewindBox (patch 0068)
+ }
+ static unsigned g_up_seq;
+@@ -9711,6 +9712,7 @@ static void rb_shadow_report(unsigned long long frame);
+ #include "rb_report_spread.h"
+ static unsigned g_rb_mem_parts = RB_REPORT_MEM_ALL;   // the frame hook's thread: the parts this call of nvn_be_mem_stat runs
+ static unsigned long long g_rb_mem_real_frame;   // the frame count now when frame is a boundary that has passed (0: frame is the count)
++static void rb_wake_emit(const char *row) { MLOG("%s", row); }
+ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb);
+ void nvn_be_mem_stat_part(unsigned long long frame, unsigned long long real_frame, unsigned long long rss_mb, unsigned parts);
+ void nvn_be_mem_stat_part(unsigned long long frame, unsigned long long real_frame, unsigned long long rss_mb, unsigned parts) {
+@@ -9725,6 +9727,7 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+     alias_orphan_pass();   // #357: before the line cap below, which only limits the readout
+     }
+     if (rb_parts & RB_REPORT_MEM_COUNTS) {   // RewindBox (patch 0326)
++    s2a_rb_wake_report(frame, rb_wake_emit);
+     nvn_mem_detail(frame);   // before the line cap below: the detailed accounting has its own interval and must not be starved by the 400-line budget
+     fb_report(frame); samp_report(frame); audit_probe_report(frame); rs_retain_report(frame);
+     if (rb_live_on() || rb_tile_enabled(RB_TILE_LIVE)) {
+@@ -11789,7 +11792,7 @@ static pthread_cond_t g_fu_cv = PTHREAD_COND_INITIALIZER;
+ static _Atomic unsigned g_fu_waiters;
+ static void rb_fu_wake(void) {
+     pthread_mutex_lock(&g_fu_mu);
+-    pthread_cond_broadcast(&g_fu_cv);
++    RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_fu_cv));
+     pthread_mutex_unlock(&g_fu_mu);
+ }
+ static void rb_fu_end(void) {
+@@ -14002,7 +14005,7 @@ static NvArena *arena_new(size_t minimum) {   // caller holds g_mu
+         for (NvArena *it in g_arenas) { if (it->fence > g_done && it->fence < wf) wf = it->fence; if (it->sfence > g_seg_done && it->sfence < ws) ws = it->sfence; }
+         if (wf == UINT64_MAX && ws == UINT64_MAX) break;   // all blocks are this segment's own: nothing to wait for
+         struct timespec dl; clock_gettime(CLOCK_REALTIME, &dl); dl.tv_sec += ARENA_WAIT_S; int late = 0;
+-        while (!(wf != UINT64_MAX && g_done >= wf) && !(ws != UINT64_MAX && g_seg_done >= ws)) if (pthread_cond_timedwait(&g_cv, &g_mu, &dl)) { late = 1; break; }
++        while (!(wf != UINT64_MAX && g_done >= wf) && !(ws != UINT64_MAX && g_seg_done >= ws)) if (RB_WAKE_CALL("fence.timed", s2a_rb_wake_absolute(&dl), pthread_cond_timedwait(&g_cv, &g_mu, &dl))) { late = 1; break; }
+         g_arena_waits++; if (late && !g_arena_wait_late++) MLOG("【红】 frame scratch: waited %d s for the GPU to give a block back, made a new one (%llu MB of blocks; first case)", ARENA_WAIT_S, (unsigned long long)(g_arena_bytes >> 20));
+     }
+     NvArena *a = [NvArena new]; a->buf = [g_dev newBufferWithLength:MAX(minimum, 4u << 20) options:MTLResourceStorageModeShared];
+@@ -14043,7 +14046,7 @@ static void arena_seg_done(uint64_t sf) {
+         g_seg_done = sf;
+         if (g_guest_fences.sleeping) ++g_guest_fences.segment_completions_with_sleepers;
+     }
+-    pthread_cond_broadcast(&g_cv);  // arena and error waiters have separate predicates
++    RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_cv));  // arena and error waiters have separate predicates
+     pthread_mutex_unlock(&g_mu);
+ }
+ // RewindBox (upstream S2Arm 9ca83e5b1): buf is __strong. An unqualified id * out-parameter is __autoreleasing under ARC, which put the arena buffer in the autorelease
+@@ -14999,7 +15002,7 @@ static id<MTLFunction> se_packed(NvShader *sh) {
+ // The variant is there (f) or not (why): published to the draws (se_st), counted, one line (t0: when its first use asked for it; how: 包内 / 后台编 / 同步现编)
+ // 审计 #1534 P1-96：读折行贴图的绘制等变体时用（se_fold_wait）。变体的状态离开 SE_BUSY 时广播：se_done、预热放弃（se_warm 退回 SE_NONE）
+ static pthread_mutex_t g_se_mu = PTHREAD_MUTEX_INITIALIZER; static pthread_cond_t g_se_cv = PTHREAD_COND_INITIALIZER;
+-static void se_signal(void) { pthread_mutex_lock(&g_se_mu); pthread_cond_broadcast(&g_se_cv); pthread_mutex_unlock(&g_se_mu); }
++static void se_signal(void) { pthread_mutex_lock(&g_se_mu); RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_se_cv)); pthread_mutex_unlock(&g_se_mu); }
+ static void se_done(NvShader *sh, id<MTLFunction> f, const char *why, uint64_t t0, const char *how) {
+     if (f) sh->se_main = f;
+     __atomic_store_n(&sh->se_st, f ? SE_READY : SE_FAIL, __ATOMIC_RELEASE); se_signal();
+@@ -15071,7 +15074,7 @@ static id<MTLFunction> vp_build(NvShader *vs, const uint8_t md[8], uint64_t code
+     return vp_load_padded(vs,path,why,n);
+ }
+ static void vp_done(NvShader *vs, id<MTLFunction> f, uint32_t mask, const char *why, uint64_t t0, const char *how) {
+-    pthread_mutex_lock(&g_vp_mu); if (f) { vs->vp_main = f; vs->vp_mask = mask; } vs->vp_st = f ? SE_READY : SE_FAIL; pthread_cond_broadcast(&g_vp_cv); pthread_mutex_unlock(&g_vp_mu);
++    pthread_mutex_lock(&g_vp_mu); if (f) { vs->vp_main = f; vs->vp_mask = mask; } vs->vp_st = f ? SE_READY : SE_FAIL; RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_vp_cv)); pthread_mutex_unlock(&g_vp_mu);
+     atomic_fetch_add(f ? &g_vp_made : &g_vp_failed, 1);
+     fprintf(stderr, "[s2a] 顶点补齐变体：程序号 %s 顶点 %.16s 补 user(locn) 掩码 %#x %s%s %.1f ms%s%s\n", s2a_nvn_game_id(), vs->key, mask, how, f ? "完成" : "失败", (bp_now() - t0) / 1e6, f ? "" : "：", f ? "" : why);
+     if (!f) MLOG("【红】 vertex shader %s has no padded variant for user(locn) mask %#x: %s; draws pairing it with such a fragment shader stay skipped", vs->key, mask, why);
+@@ -15098,14 +15101,14 @@ static int vp_request(const prog_t *p, NvShader *vs, uint32_t miss, int observed
+         (rb_first_draw_on() && rb_observed_workers_on()))) { char why[300] = ""; id<MTLFunction> f = vp_build(vs, md, at < 0 ? 0 : gp->sd[at].data, at < 0 ? NULL : gp->sd[at].control, want, why, sizeof why); vp_done(vs, f, want, why, t0, "同步现编"); return f != nil; }
+     uint64_t code = 0; const void *ctl = NULL; void *snap = at < 0 ? NULL : dm_shader_snap(gp->sd[at].data, gp->sd[at].control, &code, &ctl); uint64_t key; memcpy(&key, md, 8);
+     if (observed && !snap) {
+-        pthread_mutex_lock(&g_vp_mu); vs->vp_st=st; pthread_cond_broadcast(&g_vp_cv);
++        pthread_mutex_lock(&g_vp_mu); vs->vp_st=st; RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_vp_cv));
+         pthread_mutex_unlock(&g_vp_mu); return 0;
+     }
+     fprintf(stderr, "[s2a] 顶点补齐变体：程序号 %s 顶点 %.16s 首遇缺 user(locn) 掩码 %#x，后台编，编好前这对的绘制照旧跳过\n", s2a_nvn_game_id(), vs->key, want);
+     static dispatch_queue_t q; static dispatch_once_t once;
+     dispatch_once(&once, ^{ q = dispatch_queue_create("dm.nvn.vp", s2a_qos_queue_attr(DISPATCH_QUEUE_SERIAL, S2A_QOS_SHADER_VARIANT)); });
+     dispatch_block_t build = ^{ @autoreleasepool {
+-        if (dm_gfx_session_stopping()) { free(snap); pthread_mutex_lock(&g_vp_mu); vs->vp_st = SE_NONE; pthread_cond_broadcast(&g_vp_cv); pthread_mutex_unlock(&g_vp_mu); return; }
++        if (dm_gfx_session_stopping()) { free(snap); pthread_mutex_lock(&g_vp_mu); vs->vp_st = SE_NONE; RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_vp_cv)); pthread_mutex_unlock(&g_vp_mu); return; }
+         uint8_t m[8]; memcpy(m, &key, 8); char why[300] = "";
+         id<MTLFunction> f = vp_build(vs, m, code, ctl, want, why, sizeof why); free(snap);
+         vp_done(vs, f, want, why, t0, "后台编");
+@@ -15113,7 +15116,7 @@ static int vp_request(const prog_t *p, NvShader *vs, uint32_t miss, int observed
+     if (!observed) dispatch_async(q,build);
+     else if (!rb_observed_enqueue(build)) {
+         free(snap); pthread_mutex_lock(&g_vp_mu); vs->vp_st=st;
+-        pthread_cond_broadcast(&g_vp_cv); pthread_mutex_unlock(&g_vp_mu); return 0;
++        RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_vp_cv)); pthread_mutex_unlock(&g_vp_mu); return 0;
+     }
+     return 1;
+ }
+@@ -15363,7 +15366,7 @@ static void ppq_build(int slot, id payload, NSString *requestedKey) {   // a lan
+     uint64_t b1=bp_now();
+     pthread_mutex_lock(&g_pp_mu); g_pp[slot].ps = ps; g_pp[slot].error = rb_async_pso() ? e : nil;
+     g_pp[slot].rb_way=rb_par_last_way; g_pp[slot].rb_began=b0; g_pp[slot].rb_build_ns=b0 ? b1-b0 : 0; g_pp[slot].rb_compile_ns=rb_par_last_compile_ns;   // RewindBox (patch 0313)
+-    g_pp[slot].done = 1; pthread_cond_broadcast(&g_pp_cv); pthread_mutex_unlock(&g_pp_mu);
++    g_pp[slot].done = 1; RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_pp_cv)); pthread_mutex_unlock(&g_pp_mu);
+ }
+ static int ppq_waiting(int i) { return i >= 0 && g_pp[i].used && !g_pp[i].done && !g_ppq[i].run && g_ppq[i].d; }   // caller holds g_pp_mu
+ // Leave the descriptor in its slot until the selected worker actually starts.
+@@ -15424,7 +15427,7 @@ static int ppq_hurry_locked(int at) {
+     // wait on an unclaimed optional slot which the thermal governor can cancel.
+     g_ppq[at].d=nil; g_ppq[at].pkey=nil; g_ppq[at].typed_fs=nil;
+     g_pp[at].used=0;
+-    pthread_cond_broadcast(&g_pp_cv);
++    RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_pp_cv));
+     return 0;
+ }   // caller holds g_pp_mu: a draw needs this guess now
+ static void ppq_lane(void) {   // a lane: the oldest waiting build, until none is left
+@@ -15442,7 +15445,7 @@ static void ppq_lane(void) {   // a lane: the oldest waiting build, until none i
+                 g_ppq[i].d=nil; g_ppq[i].pkey=nil; g_ppq[i].typed_fs=nil;
+                 g_pp[i].used=0;
+             }
+-            pthread_cond_broadcast(&g_pp_cv);
++            RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_pp_cv));
+             break;
+         }
+         id d = g_ppq[at].d; NSString *pk = g_ppq[at].pkey; g_ppq[at].d = nil; g_ppq[at].pkey = nil; g_ppq[at].run = 1; g_ppq_lane++;
+@@ -15532,7 +15535,7 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs, int now)
+     }
+     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+         NSError *e = nil; id<MTLRenderPipelineState> ps = par_render(d, pkey, &e);
+-        pthread_mutex_lock(&g_pp_mu); g_pp[slot].ps = ps; g_pp[slot].error = rb_async_pso() ? e : nil; g_pp[slot].done = 1; pthread_cond_broadcast(&g_pp_cv); pthread_mutex_unlock(&g_pp_mu);
++        pthread_mutex_lock(&g_pp_mu); g_pp[slot].ps = ps; g_pp[slot].error = rb_async_pso() ? e : nil; g_pp[slot].done = 1; RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_pp_cv)); pthread_mutex_unlock(&g_pp_mu);
+     });
+ }
+ // How long the submit thread waits for a pipeline compiling in the background (DM_NVN_PSO_WAIT_MS, default 2000; 0 = no limit). The system compiler service runs every compile in this process
+@@ -15647,7 +15650,7 @@ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out
+         struct timespec dl; clock_gettime(CLOCK_REALTIME, &dl); dl.tv_sec += ms / 1000; dl.tv_nsec += (long)(ms % 1000) * 1000000; if (dl.tv_nsec >= 1000000000) { dl.tv_sec++; dl.tv_nsec -= 1000000000; }
+         if (required) {
+             while (!g_pp[at].done && !dm_gfx_session_stopping()) rb_compile_wait(&g_pp_cv,&g_pp_mu);
+-        } else while (!g_pp[at].done) if (ms ? pthread_cond_timedwait(&g_pp_cv, &g_pp_mu, &dl) == ETIMEDOUT : pthread_cond_wait(&g_pp_cv, &g_pp_mu)) break;
++        } else while (!g_pp[at].done) if (ms ? RB_WAKE_CALL("backend.timed", s2a_rb_wake_absolute(&dl), pthread_cond_timedwait(&g_pp_cv, &g_pp_mu, &dl)) == ETIMEDOUT : RB_WAKE_CALL("backend.wait", -1, pthread_cond_wait(&g_pp_cv, &g_pp_mu))) break;
+         if (blk) { uint64_t waited=bp_now()-w0;
+             if (!may_skip && rb_pso_mode()) {
+                 rb_async_note(RB_ASYNC_CRITICAL_JOIN);
+@@ -17112,7 +17115,7 @@ static BOOL rb_warm_pair(NvShader *vs, NvShader *fs, NSString *recipe) {
+         pthread_mutex_lock(&g_vp_mu);
+         if (fn) { vs->vp_main=fn; vs->vp_mask=mask; vs->vp_st=SE_READY; }
+         else vs->vp_st=old;
+-        pthread_cond_broadcast(&g_vp_cv); pthread_mutex_unlock(&g_vp_mu);
++        RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_vp_cv)); pthread_mutex_unlock(&g_vp_mu);
+         MLOG("RewindBox reference vertex padding %s mask %#x recipe %s: %s",vs->key,mask,recipe.UTF8String,fn ? "ready" : why);
+         return fn!=nil;
+     }
+@@ -18516,7 +18519,7 @@ static void se_fold_wait(const prog_t *p, NvShader *sh) {
+         if (st != SE_BUSY || dm_gfx_session_stopping()) return;
+         pthread_mutex_lock(&g_se_mu);
+         if (__atomic_load_n(&sh->se_st, __ATOMIC_ACQUIRE) == SE_BUSY) { struct timespec dl; clock_gettime(CLOCK_REALTIME, &dl); dl.tv_nsec += 100000000; if (dl.tv_nsec >= 1000000000) { dl.tv_sec++; dl.tv_nsec -= 1000000000; }
+-            pthread_cond_timedwait(&g_se_cv, &g_se_mu, &dl); }   // woken by se_done / se_signal; the 100 ms bound only re-checks the session stop (a background job dropped at the stop never finishes)
++            RB_WAKE_CALL("backend.timed", s2a_rb_wake_absolute(&dl), pthread_cond_timedwait(&g_se_cv, &g_se_mu, &dl)); }   // woken by se_done / se_signal; the 100 ms bound only re-checks the session stop (a background job dropped at the stop never finishes)
+         pthread_mutex_unlock(&g_se_mu);
+     }
+ }
+@@ -24616,7 +24619,7 @@ static void rb_compute_ahead(NvShader *cs) {
+             int held=lease; rb_spec_done(&held);
+             pthread_mutex_lock(&g_async_compute_mu);
+             free_slot->result=ps; free_slot->error=error; free_slot->done=1;
+-            pthread_cond_broadcast(&g_async_compute_cv);
++            RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_async_compute_cv));
+             pthread_mutex_unlock(&g_async_compute_mu);
+         }
+     };
+@@ -24662,7 +24665,7 @@ static int rb_compute_drain(const struct timespec *deadline) {
+     for (int i=0; i<RB_COMPUTE_SLOTS; i++) {
+         RBComputeSlot *slot=&g_async_compute[i];
+         while (slot->shader && !slot->done) {
+-            if (pthread_cond_timedwait(&g_async_compute_cv,&g_async_compute_mu,deadline)==ETIMEDOUT &&
++            if (RB_WAKE_CALL("backend.timed", s2a_rb_wake_absolute(deadline), pthread_cond_timedwait(&g_async_compute_cv,&g_async_compute_mu,deadline))==ETIMEDOUT &&
+                 !slot->done) { pthread_mutex_unlock(&g_async_compute_mu); return -ETIMEDOUT; }
+         }
+         rb_compute_clear(slot);
+@@ -26532,13 +26535,13 @@ static void grab_present(id<MTLTexture> src, const int crop[4], CGSize sz, uint6
+     atomic_store(&g_grab_busy, 1);
+     pthread_mutex_lock(&g_pq_mu); g_grab_tk = ticket ? ticket : 1; pthread_mutex_unlock(&g_pq_mu);
+     [cb2 addCompletedHandler:^(id<MTLCommandBuffer> c) {
+-        pthread_mutex_lock(&g_pq_mu); g_grab_tk = 0; pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu);   // the copy is done: src may be handed back (nvn_be_present_wait)
++        pthread_mutex_lock(&g_pq_mu); g_grab_tk = 0; RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu);   // the copy is done: src may be handed back (nvn_be_present_wait)
+         // S2Arm: the bytes as they are (BGRA8, sRGB), valid during the call; the caller copies them once. buf stays ours until the callback returns
+         if (c.error) { if (!mtl_gpu_cb_error(c.error, "screenshot", 0)) MLOG("【红】 full-window screenshot: copy failed: %s", c.error.description.UTF8String); cb(NULL, 0, 0, 0); }
+         else { g_fj_tok_now = tok; cb((const uint8_t *)bb.contents, w, h, row); g_fj_tok_now = 0; }
+         atomic_store(&g_grab_busy, 0);
+     }];
+-    if (!cb_put(cb2)) { pthread_mutex_lock(&g_pq_mu); g_grab_tk = 0; pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu); atomic_store(&g_grab_busy, 0); cb(NULL, 0, 0, 0); }   // GPU 安全停：没交，回调不会来
++    if (!cb_put(cb2)) { pthread_mutex_lock(&g_pq_mu); g_grab_tk = 0; RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu); atomic_store(&g_grab_busy, 0); cb(NULL, 0, 0, 0); }   // GPU 安全停：没交，回调不会来
+ }
+ void dm_gfx_shot_at(long k, const char *path) {
+     pthread_mutex_lock(&g_shotq_mu);
+@@ -27566,12 +27569,12 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+     present_options();
+     if (g_present_aa || g_present_fx) {
+         pthread_mutex_lock(&g_pq_mu);
+-        while ((g_present_aa_slots[alloc_i] && g_present_aa_slots[alloc_i]->busy) || (g_present_fx_slots[alloc_i] && g_present_fx_slots[alloc_i]->busy)) pthread_cond_wait(&g_pq_cv, &g_pq_mu);
++        while ((g_present_aa_slots[alloc_i] && g_present_aa_slots[alloc_i]->busy) || (g_present_fx_slots[alloc_i] && g_present_fx_slots[alloc_i]->busy)) RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu));
+         pthread_mutex_unlock(&g_pq_mu);
+     }
+     if (g_present_alloc_fence[alloc_i]) {
+         DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_pq_mu);
+-        while (g_present_slot_done[alloc_i] < g_present_alloc_fence[alloc_i]) pthread_cond_wait(&g_pq_cv, &g_pq_mu);
++        while (g_present_slot_done[alloc_i] < g_present_alloc_fence[alloc_i]) RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu));
+         pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_END();
+     }
+     id<MTL4CommandBuffer> cb = nil; id<MTLCommandBuffer> cb3 = nil;
+@@ -27628,7 +27631,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+     NvPresentFX *fxs = g_present_fx ? g_present_fx_slots[alloc_i] : nil;   // 这一帧没用 MetalFX 时也标：槽里的图只要在途就不能被下一次重建换掉
+     fb_add(o, ^(id<MTL4CommitFeedback> f) {
+         if (f.error && !mtl_gpu_cb_error(f.error, "present", ticket)) MLOG("【红】 display command buffer error: %s", f.error.description.UTF8String);
+-        pthread_mutex_lock(&g_pq_mu); g_present_slot_done[alloc_i] = ticket; if (aa) aa->busy = NO; if (fxs) fxs->busy = NO; if (ticket > g_pq_done) g_pq_done = ticket; g_pq_inflight--; pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu);
++        pthread_mutex_lock(&g_pq_mu); g_present_slot_done[alloc_i] = ticket; if (aa) aa->busy = NO; if (fxs) fxs->busy = NO; if (ticket > g_pq_done) g_pq_done = ticket; g_pq_inflight--; RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu);
+     });
+     pthread_mutex_lock(&g_pq_mu); if (aa) aa->busy = YES; if (fxs) fxs->busy = YES; g_pq_inflight++; pthread_mutex_unlock(&g_pq_mu);
+     if (g_m3) { present_m3(cb3, dr, ticket, period, target_ts); m3_commit(cb3, o, nil, 0); }
+@@ -27812,7 +27815,7 @@ static void rb_release_link_rt(uint64_t now) {
+                   g_rb_wait_step, g_rb_tick_target, g_rb_started_target, g_rb_wait_seconds);
+     unsigned action = rb_tick_action(filter, g_rb_waiters, due);
+     g_rb_wake_counts[action]++;
+-    if (action == RB_TICK_NOTIFY) pthread_cond_broadcast(&g_link_cv);
++    if (action == RB_TICK_NOTIFY) RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_link_cv));
+     pthread_mutex_unlock(&g_link_mu);
+     pthread_mutex_lock(&g_pq_mu);
+     if (!g_dm_present_link || g_pq_read == g_pq_in) {
+@@ -27854,7 +27857,7 @@ static void rb_release_link_rt(uint64_t now) {
+     g_pq_read = ticket;
+     if (ticket > first) { g_link_dropped += ticket - first; for (uint64_t k = first; k < ticket; k++) present_store(k, -1); }   // Old frames merged and dropped are recorded as "not presented", so the present statistics honestly count them as dropped frames
+     if (ticket > 1 && g_pq_done < ticket - 1) g_pq_done = ticket - 1;
+-    pthread_cond_broadcast(&g_pq_cv);
++    RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv));
+     pthread_mutex_unlock(&g_pq_mu);
+     int submitted;
+     ext_wait(it.ev_val);
+@@ -27871,7 +27874,7 @@ static void rb_release_link_rt(uint64_t now) {
+     if (!submitted) {
+         pthread_mutex_lock(&g_pq_mu);
+         if (ticket > g_pq_done) g_pq_done = ticket;
+-        pthread_cond_broadcast(&g_pq_cv);
++        RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv));
+         pthread_mutex_unlock(&g_pq_mu);
+     }
+ }
+@@ -27954,7 +27957,7 @@ static void *link_main(void *arg) {   // Display link thread: started when switc
+     s2a_qos_set_self(S2A_QOS_PRESENT);
+     @autoreleasepool {
+     CAMetalLayer *layer = (__bridge CAMetalLayer *)front_metal_layer();
+-    pthread_mutex_lock(&g_pq_mu); g_link_owns_layer = 1; while (link_layer_busy()) pthread_cond_wait(&g_pq_cv, &g_pq_mu); pthread_mutex_unlock(&g_pq_mu);   // RewindBox (patch 0345): and an interpolation job still presenting (nvn_present_fi.inc)   // Wait for the present thread to finish handing over the frame it holds
++    pthread_mutex_lock(&g_pq_mu); g_link_owns_layer = 1; while (link_layer_busy()) RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu)); pthread_mutex_unlock(&g_pq_mu);   // RewindBox (patch 0345): and an interpolation job still presenting (nvn_present_fi.inc)   // Wait for the present thread to finish handing over the frame it holds
+     NvMetalDisplayLinkDelegate *delegate = [NvMetalDisplayLinkDelegate new];
+     CAMetalDisplayLink *link = [[CAMetalDisplayLink alloc] initWithMetalLayer:layer];
+     pthread_mutex_lock(&g_pq_mu);
+@@ -27968,17 +27971,17 @@ static void *link_main(void *arg) {   // Display link thread: started when switc
+     link.preferredFrameLatency = g_present_latency;
+     link.delegate = delegate;
+     [link addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+-    pthread_mutex_lock(&g_pq_mu); g_link_rl = CFRunLoopGetCurrent(); g_link = link; pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu);
++    pthread_mutex_lock(&g_pq_mu); g_link_rl = CFRunLoopGetCurrent(); g_link = link; RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu);
+     if (!atomic_load(&g_link_stop)) CFRunLoopRun();
+     [link invalidate];
+     pthread_mutex_lock(&g_pq_mu);
+     g_link = nil; g_link_rl = NULL; g_link_owns_layer = 0;
+-    if (g_pq_read != g_pq_in) pthread_cond_signal(&g_classic_work);
++    if (g_pq_read != g_pq_in) RB_WAKE_CALL("present.signal", -2, pthread_cond_signal(&g_classic_work));
+     pthread_mutex_unlock(&g_pq_mu);
+     }
+     pthread_mutex_lock(&g_pq_mu);
+     g_link_started = 0;
+-    pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu);
++    RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu);
+     return NULL;
+ }
+ static int link_exact(int mode, double period) {   // 该链路档能否用整数个刻度给出这个周期（周期 0 = 不限，任何档都算能）
+@@ -28117,7 +28120,7 @@ static void link_sync(double period) {   // Called every frame by the game's pre
+     MLOG("present pacing mode %d → %d (%s; S2A_FPS %d; low-rate hold %.0f s; frame %llu)", applied, want, rb_pace_why(want, fallback, inexact), nvn_fps_limit(), lb_hold(&g_low) / 1e9, (unsigned long long)atomic_load(&g_cur_frame));   // RewindBox (patch 0068): the reason and the limit; the frame stays last (t_fps_limit.sh reads $NF)
+     lb_applied(&g_low, applied, want, now);
+     g_link_applied = want;
+-    pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu);
++    RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu);
+ }
+ // Before going to the background (nvn_be_drain): when the display link drives presents, frames queued but not yet presented can only be taken by the display-link callback, and in the background the system no longer calls back --
+ // waiting as-is for "the present queue to empty" would wait forever, the enter-background callback would not return, and the system would kill the process (the process disappears within 22 seconds after switching to another App).
+@@ -28128,9 +28131,9 @@ static void present_drop_for_suspend(void) {
+         uint64_t n = g_pq_in - g_pq_read;
+         for (uint64_t k = g_pq_read + 1; k <= g_pq_in; k++) present_store(k, -1);
+         g_link_dropped += n; g_pq_read = g_pq_in;
+-        while (g_pq_inflight) pthread_cond_wait(&g_pq_cv, &g_pq_mu);
++        while (g_pq_inflight) RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu));
+         if (g_pq_done < g_pq_in) g_pq_done = g_pq_in;
+-        pthread_cond_broadcast(&g_pq_cv);
++        RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv));
+         if (n) MLOG("entering the background: dropping %llu queued frames not yet displayed (the display link does not fire in the background)", (unsigned long long)n);
+     }
+     pthread_mutex_unlock(&g_pq_mu);
+@@ -28142,7 +28145,7 @@ static void *present_main(void *arg) {
+     qos_class_t qc = QOS_CLASS_UNSPECIFIED; int rp = 0; pthread_get_qos_class_np(pthread_self(), &qc, &rp); atomic_store(&g_present_qos, (uint32_t)qc);
+     for (;;) {
+         pthread_mutex_lock(&g_pq_mu);
+-        while (g_pq_read == g_pq_in || g_link_owns_layer) pthread_cond_wait(&g_classic_work, &g_pq_mu);   // In display-link mode the display-link callback takes them; an empty queue is judged by "taken"; "done" has to wait for the feedback of the present submit and lags behind taken
++        while (g_pq_read == g_pq_in || g_link_owns_layer) RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_classic_work, &g_pq_mu));   // In display-link mode the display-link callback takes them; an empty queue is judged by "taken"; "done" has to wait for the feedback of the present submit and lags behind taken
+         pq_item it = g_pq[g_pq_read % PQ];
+         uint64_t ticket = ++g_pq_read; g_classic_busy = 1;
+         pthread_mutex_unlock(&g_pq_mu);
+@@ -28153,11 +28156,11 @@ static void *present_main(void *arg) {
+         t_rb_fb30_frame = it.fb30;   // RewindBox (patch 0349)
+         @autoreleasepool { submitted = present_now(&it.t, it.period, it.frame, ticket, it.crop, nil, 0); }
+         thr_lv_take(lv1); thr_lv_add(1, lv0, lv1);
+-        pthread_mutex_lock(&g_pq_mu); g_classic_busy = 0; pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu);
++        pthread_mutex_lock(&g_pq_mu); g_classic_busy = 0; RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu);
+         if (!submitted) {
+             pthread_mutex_lock(&g_pq_mu);
+             if (ticket > g_pq_done) g_pq_done = ticket;
+-            pthread_cond_broadcast(&g_pq_cv);
++            RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv));
+             pthread_mutex_unlock(&g_pq_mu);
+         }
+     }
+@@ -28210,14 +28213,14 @@ static uint64_t present_enqueue(const tex_t *t, double period, const int crop[4]
+         else if (st == 2 && now - t0 >= at + dur) { st = 3; mtl_link_pause(0); MLOG("DM_TEST_LINK_STALL: resuming the display link (frame %llu)", (unsigned long long)atomic_load(&g_cur_frame)); }
+     }
+     pthread_mutex_lock(&g_pq_mu);
+-    if (g_pq_in - g_pq_done >= PQ) { pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_pq_mu); while (g_pq_in - g_pq_done >= PQ && !atomic_load(&g_present_discard)) pthread_cond_wait(&g_pq_cv, &g_pq_mu); pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_END(); pthread_mutex_lock(&g_pq_mu); }
++    if (g_pq_in - g_pq_done >= PQ) { pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_pq_mu); while (g_pq_in - g_pq_done >= PQ && !atomic_load(&g_present_discard)) RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu)); pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_END(); pthread_mutex_lock(&g_pq_mu); }
+     if (atomic_load(&g_present_discard)) { pthread_mutex_unlock(&g_pq_mu); return 0; }
+     pq_item *it = &g_pq[g_pq_in % PQ]; *it = (pq_item){*t, period, atomic_load(&g_cur_frame), {0}, CACurrentMediaTime(), ev_val, display_hold};
+     it->fb30 = t_rb_fb30_enqueue;   // RewindBox (patch 0349)
+     if (crop) memcpy(it->crop, crop, sizeof it->crop);   // The current frame's state is enqueued with the ticket number, rather than reading the mutable window late on the present thread
+     uint64_t tk = ++g_pq_in;
+     // Enqueue makes a consumer runnable only when the classic presenter owns an empty queue.
+-    if (!g_link_owns_layer && tk - 1 == g_pq_read) pthread_cond_signal(&g_classic_work);
++    if (!g_link_owns_layer && tk - 1 == g_pq_read) RB_WAKE_CALL("present.signal", -2, pthread_cond_signal(&g_classic_work));
+     pthread_mutex_unlock(&g_pq_mu);
+     return tk;
+ }
+@@ -28226,23 +28229,23 @@ static uint64_t present_enqueue(const tex_t *t, double period, const int crop[4]
+ void nvn_be_present_wait(uint64_t tk) {
+     pthread_mutex_lock(&g_pq_mu);
+     // S2Arm: a full-window grab of this ticket or an earlier one still copying reads the texture being handed back (grab_present); wait for the copy (GPU time, under a millisecond)
+-    while (g_grab_tk && g_grab_tk <= tk && !atomic_load(&g_present_discard)) pthread_cond_wait(&g_pq_cv, &g_pq_mu);
++    while (g_grab_tk && g_grab_tk <= tk && !atomic_load(&g_present_discard)) RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu));
+     int blk = g_pq_done < tk && !atomic_load(&g_present_discard); if (blk) { pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_pq_mu); }
+     while (g_pq_done < tk && !atomic_load(&g_present_discard)) {
+-        if (!g_link_owns_layer) { pthread_cond_wait(&g_pq_cv, &g_pq_mu); continue; }
+-        if (g_pq_read >= tk) { pthread_cond_wait(&g_pq_cv, &g_pq_mu); continue; }   // This one has already been taken by the display link and is being presented: wait for it to be handed to the GPU (the GPU completion callback will wake us)
++        if (!g_link_owns_layer) { RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu)); continue; }
++        if (g_pq_read >= tk) { RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu)); continue; }   // This one has already been taken by the display link and is being presented: wait for it to be handed to the GPU (the GPU completion callback will wake us)
+         struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts); ts.tv_nsec += (long)STALL_NS; if (ts.tv_nsec >= 1000000000L) { ts.tv_sec++; ts.tv_nsec -= 1000000000L; }
+         // Already determined to be in a stall (when the display link comes back the callback first clears g_stall_t0, then records the display-link tick time): no longer wait 100 ms in vain every frame, drop directly, and the game proceeds by its own display-link wait timeout (about two ticks)
+-        if (!g_stall_t0 && (pthread_cond_timedwait(&g_pq_cv, &g_pq_mu, &ts) != ETIMEDOUT || g_pq_done >= tk)) continue;
++        if (!g_stall_t0 && (RB_WAKE_CALL("present.timed", s2a_rb_wake_absolute(&ts), pthread_cond_timedwait(&g_pq_cv, &g_pq_mu, &ts)) != ETIMEDOUT || g_pq_done >= tk)) continue;
+         uint64_t now = now_ns(), last = __atomic_load_n(&g_link_tick_ns, __ATOMIC_RELAXED);
+         if (g_pq_read >= tk) continue;
+-        if (now - last < STALL_NS) { pthread_cond_timedwait(&g_pq_cv, &g_pq_mu, &ts); continue; }   // The display link is still running, it is just not this one's turn yet: keep waiting (bounded, no busy spinning)
++        if (now - last < STALL_NS) { RB_WAKE_CALL("present.timed", s2a_rb_wake_absolute(&ts), pthread_cond_timedwait(&g_pq_cv, &g_pq_mu, &ts)); continue; }   // The display link is still running, it is just not this one's turn yet: keep waiting (bounded, no busy spinning)
+         uint64_t n = tk - g_pq_read;
+         for (uint64_t k = g_pq_read + 1; k <= tk; k++) present_store(k, -1);
+         g_link_dropped += n; g_pq_read = tk;
+-        while (g_pq_inflight) pthread_cond_wait(&g_pq_cv, &g_pq_mu);
++        while (g_pq_inflight) RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu));
+         if (g_pq_done < tk) g_pq_done = tk;
+-        pthread_cond_broadcast(&g_pq_cv);
++        RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv));
+         if (!g_stall_t0) { g_stall_t0 = last ? last : now; g_stall_drop = 0; g_stall_red = 0; g_stall_logged = 0; g_stall_n++; }
+         g_stall_drop += n;
+         int active = dm_focus_now() == 1; uint64_t since = dm_focus_in_since(), from = g_stall_t0 > since ? g_stall_t0 : since;
+@@ -28298,7 +28301,7 @@ void nvn_be_present_wait_taken(double period) {
+     struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts); uint64_t ns = (uint64_t)ts.tv_nsec + (uint64_t)(2 * period * 1e9);
+     ts.tv_sec += (time_t)(ns / 1000000000ull); ts.tv_nsec = (long)(ns % 1000000000ull);
+     pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_pq_mu);
+-    while (g_link_owns_layer && g_pq_read < tk && !g_stall_t0 && !atomic_load(&g_present_discard)) if (pthread_cond_timedwait(&g_pq_cv, &g_pq_mu, &ts) == ETIMEDOUT) break;
++    while (g_link_owns_layer && g_pq_read < tk && !g_stall_t0 && !atomic_load(&g_present_discard)) if (RB_WAKE_CALL("present.timed", s2a_rb_wake_absolute(&ts), pthread_cond_timedwait(&g_pq_cv, &g_pq_mu, &ts)) == ETIMEDOUT) break;
+     pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_END();
+ }
+ // RewindBox (patch 0068): a fixed GPU speed probe for the 300-frame timing line (hle_nvn.c tsummary, the game's present thread). In the IPA 765 test the GPU took 2.3-2.5 times as long
+@@ -28471,7 +28474,7 @@ int nvn_be_link_wait_tick(int vsyncs, uint64_t timeout_ns) {
+     int timeout = 0;
+     while (!atomic_load(&g_link_stop) &&
+            !rb_display_wait_ready(g_link_tick_n, g_link_started_tick, step, g_rb_tick_target, g_rb_started_target, period)) {
+-        if (pthread_cond_timedwait(&g_link_cv, &g_link_mu, &ts) == ETIMEDOUT) { timeout = 1; break; }
++        if (RB_WAKE_CALL("present.timed", s2a_rb_wake_absolute(&ts), pthread_cond_timedwait(&g_link_cv, &g_link_mu, &ts)) == ETIMEDOUT) { timeout = 1; break; }
+     }
+     --g_rb_waiters;
+     if (timeout || atomic_load(&g_link_stop)) { pthread_mutex_unlock(&g_link_mu); DM_BLOCK_END(); return 0; }
+diff --git a/graphics/nvn/gfx/nvn/nvn_rec.h b/graphics/nvn/gfx/nvn/nvn_rec.h
+index c962555..02704cb 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rec.h
++++ b/graphics/nvn/gfx/nvn/nvn_rec.h
+@@ -81,13 +81,13 @@ static void *ubc_thread(void *arg) {
+             const int spins = ubc_spin_budget(atomic_load_explicit(&g_ubc_thermal, memory_order_relaxed), 1);
+             for (int spin = 0; spin < spins && t == h; spin++) h = atomic_load_explicit(&g_ubc_head, memory_order_acquire);   // a submission queues copies in bursts: stay awake a moment
+             if (t == h) { pthread_mutex_lock(&g_ubc_mu); atomic_store(&g_ubc_sleeping, 1);
+-                while ((h = atomic_load_explicit(&g_ubc_head, memory_order_seq_cst)) == t) pthread_cond_wait(&g_ubc_cv, &g_ubc_mu);
++                while ((h = atomic_load_explicit(&g_ubc_head, memory_order_seq_cst)) == t) RB_WAKE_CALL("encode.wait", -1, pthread_cond_wait(&g_ubc_cv, &g_ubc_mu));
+                 atomic_store(&g_ubc_sleeping, 0); pthread_mutex_unlock(&g_ubc_mu); }
+         }
+         for (; t < h; t++) { const ubc_op *o = &g_ubc[t % UBC_N]; memcpy(o->d, o->s, o->n); }
+         atomic_store_explicit(&g_ubc_done, t, memory_order_release);
+         atomic_thread_fence(memory_order_seq_cst);   // pairs with the fence in ubc_wait: of 'done stored then waiters read' and 'waiters raised then done read' one side sees the other
+-        if (atomic_load(&g_ubc_waiters)) { pthread_mutex_lock(&g_ubc_mu); pthread_cond_broadcast(&g_ubc_done_cv); pthread_mutex_unlock(&g_ubc_mu); }
++        if (atomic_load(&g_ubc_waiters)) { pthread_mutex_lock(&g_ubc_mu); RB_WAKE_CALL("encode.broadcast", -2, pthread_cond_broadcast(&g_ubc_done_cv)); pthread_mutex_unlock(&g_ubc_mu); }
+         rb_rt_tick(1, &rb_rt_last);   // RewindBox (patch 0073): after the waiters are woken
+     }
+     return NULL;
+@@ -104,7 +104,7 @@ static void ubc_wait(uint64_t seq) {
+     uint64_t rb_w0 = now_ns();   // RewindBox (patch 0068): the sleep is timed (nvn_mtl.m t_rb_blk)
+     pthread_mutex_lock(&g_ubc_mu); atomic_fetch_add(&g_ubc_waiters, 1); atomic_thread_fence(memory_order_seq_cst);
+     struct timespec ts = {0, 2000000};   // 2 ms at most per sleep: a belt-and-braces bound, so a missed wake-up would cost 2 ms, never a hang
+-    while (atomic_load_explicit(&g_ubc_done, memory_order_acquire) < seq) { pthread_cond_signal(&g_ubc_cv); pthread_cond_timedwait_relative_np(&g_ubc_done_cv, &g_ubc_mu, &ts); }
++    while (atomic_load_explicit(&g_ubc_done, memory_order_acquire) < seq) { RB_WAKE_CALL("encode.signal", -2, pthread_cond_signal(&g_ubc_cv)); RB_WAKE_CALL("encode.timed", s2a_rb_wake_relative(&ts), pthread_cond_timedwait_relative_np(&g_ubc_done_cv, &g_ubc_mu, &ts)); }
+     atomic_fetch_sub(&g_ubc_waiters, 1); pthread_mutex_unlock(&g_ubc_mu); t_rb_blk[1] += now_ns() - rb_w0;   // RewindBox (patch 0068)
+ }
+ static inline uint64_t ubc_head(void) { return atomic_load_explicit(&g_ubc_head, memory_order_relaxed); }
+@@ -118,7 +118,7 @@ static uint64_t ubc_push(void *d, const void *s, size_t n) {
+     // Pair the seq_cst publication and sleeping flag read with the worker's
+     // flag store and head recheck: it sees the work or the producer signals it.
+     atomic_store_explicit(&g_ubc_head, h + 1, memory_order_seq_cst);
+-    if (atomic_load(&g_ubc_sleeping)) { pthread_mutex_lock(&g_ubc_mu); pthread_cond_signal(&g_ubc_cv); pthread_mutex_unlock(&g_ubc_mu); }
++    if (atomic_load(&g_ubc_sleeping)) { pthread_mutex_lock(&g_ubc_mu); RB_WAKE_CALL("encode.signal", -2, pthread_cond_signal(&g_ubc_cv)); pthread_mutex_unlock(&g_ubc_mu); }
+     return h + 1;
+ }
+ 
+@@ -338,7 +338,7 @@ static void *rec_thread(void *arg) {
+     rb_rt_start(0); uint64_t rb_rt_last = 0;   // RewindBox (patch 0073)
+     for (;;) {
+         pthread_mutex_lock(&g_rb_mu);
+-        while (!g_rb_head) { g_rb_sleeping = 1; pthread_cond_wait(&g_rb_work, &g_rb_mu); g_rb_sleeping = 0; }
++        while (!g_rb_head) { g_rb_sleeping = 1; RB_WAKE_CALL("encode.wait", -1, pthread_cond_wait(&g_rb_work, &g_rb_mu)); g_rb_sleeping = 0; }
+         rec_blk *b = g_rb_head; g_rb_head = b->next; if (!g_rb_head) g_rb_tail = NULL; g_rb_busy = 1;
+         pthread_mutex_unlock(&g_rb_mu);
+         uint64_t lv0[2][4], lv1[2][4]; thr_lv_take(lv0);
+@@ -346,7 +346,7 @@ static void *rec_thread(void *arg) {
+         thr_lv_take(lv1); thr_lv_add(0, lv0, lv1);
+         pthread_mutex_lock(&g_rb_mu);
+         b->n = 0; b->next = g_rb_free; g_rb_free = b; g_rb_busy = 0;
+-        if (!g_rb_head) pthread_cond_broadcast(&g_rb_idle);
++        if (!g_rb_head) RB_WAKE_CALL("encode.broadcast", -2, pthread_cond_broadcast(&g_rb_idle));
+         pthread_mutex_unlock(&g_rb_mu);
+         rb_rt_tick(0, &rb_rt_last);   // RewindBox (patch 0073)
+     }
+@@ -358,7 +358,7 @@ static void rec_publish(void) {
+     if (!g_rb_cur || !g_rb_cur->n) return;
+     pthread_mutex_lock(&g_rb_mu);
+     g_rb_cur->next = NULL; if (g_rb_tail) g_rb_tail->next = g_rb_cur; else g_rb_head = g_rb_cur; g_rb_tail = g_rb_cur; g_rb_cur = NULL;
+-    if (g_rb_sleeping) pthread_cond_signal(&g_rb_work);
++    if (g_rb_sleeping) RB_WAKE_CALL("encode.signal", -2, pthread_cond_signal(&g_rb_work));
+     pthread_mutex_unlock(&g_rb_mu);
+ }
+ // S2Arm 11-06 能耗线（几何绘制段，nvn_geometry.inc geo_run）：录制分道。道 1 / 2 的记录先存在私有块链里、不交编码线程，rec_lane_splice 时接在主流后面
+@@ -379,7 +379,7 @@ static void rec_lane_splice(void) {
+     for (int k = 1; k < 3; k++) { if (!g_lane_head[k]) continue;
+         if (g_rb_tail) g_rb_tail->next = g_lane_head[k]; else g_rb_head = g_lane_head[k];
+         g_rb_tail = g_lane_tail[k]; g_lane_head[k] = g_lane_tail[k] = NULL; }
+-    if (g_rb_sleeping) pthread_cond_signal(&g_rb_work);
++    if (g_rb_sleeping) RB_WAKE_CALL("encode.signal", -2, pthread_cond_signal(&g_rb_work));
+     pthread_mutex_unlock(&g_rb_mu);
+ }
+ static rec_t *rec_put(uint32_t op, uint32_t nobj) {
+@@ -406,7 +406,7 @@ static void rec_drain(void) {
+     if (!g_rb_started) { g_rlane = lane; return; }
+     rec_publish();
+     pthread_mutex_lock(&g_rb_mu);
+-    if (g_rb_head || g_rb_busy) { uint64_t w0 = now_ns(); while (g_rb_head || g_rb_busy) pthread_cond_wait(&g_rb_idle, &g_rb_mu); t_rb_blk[1] += now_ns() - w0; }   // RewindBox (patch 0068): timed (nvn_mtl.m t_rb_blk)
++    if (g_rb_head || g_rb_busy) { uint64_t w0 = now_ns(); while (g_rb_head || g_rb_busy) RB_WAKE_CALL("encode.wait", -1, pthread_cond_wait(&g_rb_idle, &g_rb_mu)); t_rb_blk[1] += now_ns() - w0; }   // RewindBox (patch 0068): timed (nvn_mtl.m t_rb_blk)
+     pthread_mutex_unlock(&g_rb_mu);
+     g_rlane = lane;
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 7b820c9..10e4248 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -389,6 +389,8 @@ int nvn_be_shutdown_session(void) {
+     return 0;
+ }
+ void nvn_be_begin_session(void) {
++    const char *wake_diag = getenv("S2A_RB_WAKE_DIAG");
++    s2a_rb_wake_configure(wake_diag && !strcmp(wake_diag, "1"));
+     g_rb_alloc_frame_mode = -1; g_rb_alloc_frame_slot = -1; g_rb_alloc_frame_id = UINT64_MAX;
+     atomic_store(&g_rb_alloc_frame_reuses, 0); atomic_store(&g_rb_alloc_frame_rotations, 0);
+     // The previous session has drained. A collection can reload its profile during boot,
+diff --git a/runtime/include/rb_wake.h b/runtime/include/rb_wake.h
+new file mode 100644
+index 0000000..0ec68b5
+--- /dev/null
++++ b/runtime/include/rb_wake.h
+@@ -0,0 +1,36 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright 2026 S2Arm contributors
++#pragma once
++#include <stdint.h>
++#include <stdatomic.h>
++#include <time.h>
++#include <errno.h>
++typedef struct { const char *file, *kind; unsigned line; _Atomic unsigned slot; } s2a_rb_wake_site;
++typedef struct { unsigned slot, epoch; } s2a_rb_wake_token;
++extern _Atomic unsigned s2a_rb_wake_enabled;
++void s2a_rb_wake_configure(int enabled);
++s2a_rb_wake_token s2a_rb_wake_begin(s2a_rb_wake_site *, int64_t timeout_ns);
++void s2a_rb_wake_end(s2a_rb_wake_token, int result);
++void s2a_rb_wake_report(uint64_t frame, void (*emit)(const char *));
++static inline int64_t s2a_rb_wake_relative(const struct timespec *t) {
++    return t ? (int64_t)t->tv_sec * 1000000000ll + t->tv_nsec : -1;
++}
++static inline int64_t s2a_rb_wake_absolute(const struct timespec *t) {
++    struct timespec n; clock_gettime(CLOCK_REALTIME, &n);
++    int64_t left = (int64_t)(t->tv_sec - n.tv_sec) * 1000000000ll + t->tv_nsec - n.tv_nsec;
++    return left > 0 ? left : 0;
++}
++// Counts API returns, not kernel interrupts. Signals count attempts, never an
++// inferred number of awakened threads. ns=-2 denotes a signal call.
++#define RB_WAKE_CALL(kind_, ns_, call_) __extension__ ({ \
++    static s2a_rb_wake_site rb_site_ = { __FILE__, kind_, __LINE__, 0 }; \
++    s2a_rb_wake_token rb_tok_ = {0}; \
++    if (__builtin_expect(atomic_load_explicit(&s2a_rb_wake_enabled,memory_order_relaxed),0)) \
++        rb_tok_ = s2a_rb_wake_begin(&rb_site_, (ns_)); \
++    int rb_result_ = (call_); if (rb_tok_.slot) s2a_rb_wake_end(rb_tok_, rb_result_); rb_result_; })
++
++#define RB_WAKE_SIGNAL_CALL(kind_, call_) __extension__ ({ \
++    static s2a_rb_wake_site rb_site_ = { __FILE__, kind_, __LINE__, 0 }; \
++    if (__builtin_expect(atomic_load_explicit(&s2a_rb_wake_enabled,memory_order_relaxed),0)) \
++        (void)s2a_rb_wake_begin(&rb_site_, -2); \
++    (call_); })
+diff --git a/runtime/src/rb_wake.inc b/runtime/src/rb_wake.inc
+new file mode 100644
+index 0000000..abc9e6c
+--- /dev/null
++++ b/runtime/src/rb_wake.inc
+@@ -0,0 +1,79 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright 2026 S2Arm contributors
++// Included once by thread.c. Bounded, allocation-free after static site creation.
++#include "rb_wake.h"
++#include <stdio.h>
++#include <string.h>
++enum { RB_WAKE_SITES = 256 };
++typedef struct {
++    s2a_rb_wake_site *site;
++    _Atomic uint64_t waits, resumes, timeouts, signals, short_waits, errors;
++} rb_wake_counts;
++static rb_wake_counts rb_wake_rows[RB_WAKE_SITES];
++static pthread_mutex_t rb_wake_mu = PTHREAD_MUTEX_INITIALIZER;
++_Atomic unsigned s2a_rb_wake_enabled;
++static _Atomic unsigned rb_wake_epoch;
++static unsigned rb_wake_count;
++static _Atomic uint64_t rb_wake_dropped;
++void s2a_rb_wake_configure(int enabled) {
++    atomic_store_explicit(&s2a_rb_wake_enabled, 0, memory_order_release);
++    pthread_mutex_lock(&rb_wake_mu);
++    atomic_fetch_add(&rb_wake_epoch, 1);
++    for (unsigned i=0; i<rb_wake_count; i++) {
++        rb_wake_counts *p=&rb_wake_rows[i];
++        atomic_store(&p->waits,0); atomic_store(&p->resumes,0); atomic_store(&p->timeouts,0);
++        atomic_store(&p->signals,0); atomic_store(&p->short_waits,0); atomic_store(&p->errors,0);
++    }
++    atomic_store(&rb_wake_dropped,0);
++    pthread_mutex_unlock(&rb_wake_mu);
++    atomic_store_explicit(&s2a_rb_wake_enabled, !!enabled, memory_order_release);
++}
++s2a_rb_wake_token s2a_rb_wake_begin(s2a_rb_wake_site *site, int64_t timeout_ns) {
++    if (!atomic_load_explicit(&s2a_rb_wake_enabled,memory_order_relaxed)) return (s2a_rb_wake_token){0};
++    unsigned epoch=atomic_load_explicit(&rb_wake_epoch,memory_order_acquire);
++    unsigned slot=atomic_load_explicit(&site->slot,memory_order_acquire);
++    if (!slot) {
++        pthread_mutex_lock(&rb_wake_mu);
++        slot=atomic_load_explicit(&site->slot,memory_order_relaxed);
++        if (!slot && rb_wake_count<RB_WAKE_SITES) {
++            slot=++rb_wake_count; rb_wake_rows[slot-1].site=site;
++            atomic_store_explicit(&site->slot,slot,memory_order_release);
++        }
++        pthread_mutex_unlock(&rb_wake_mu);
++    }
++    if (!slot) { atomic_fetch_add(&rb_wake_dropped,1); return (s2a_rb_wake_token){0}; }
++    rb_wake_counts *p=&rb_wake_rows[slot-1];
++    if (timeout_ns == -2) { atomic_fetch_add_explicit(&p->signals,1,memory_order_relaxed); return (s2a_rb_wake_token){0}; }
++    atomic_fetch_add_explicit(&p->waits,1,memory_order_relaxed);
++    if (timeout_ns>=0 && timeout_ns<=1000000) atomic_fetch_add_explicit(&p->short_waits,1,memory_order_relaxed);
++    return (s2a_rb_wake_token){slot,epoch};
++}
++void s2a_rb_wake_end(s2a_rb_wake_token token, int result) {
++    if (!token.slot || token.epoch!=atomic_load_explicit(&rb_wake_epoch,memory_order_acquire)) return;
++    rb_wake_counts *p=&rb_wake_rows[token.slot-1];
++    atomic_fetch_add_explicit(&p->resumes,1,memory_order_relaxed);
++    if (result==ETIMEDOUT) atomic_fetch_add_explicit(&p->timeouts,1,memory_order_relaxed);
++    else if (result && result!=EINTR) atomic_fetch_add_explicit(&p->errors,1,memory_order_relaxed);
++}
++void s2a_rb_wake_report(uint64_t frame, void (*emit)(const char *)) {
++    if (!atomic_load_explicit(&s2a_rb_wake_enabled,memory_order_acquire)) return;
++    struct timespec t; clock_gettime(CLOCK_MONOTONIC,&t);
++    uint64_t ns=(uint64_t)t.tv_sec*1000000000ull+t.tv_nsec;
++    pthread_mutex_lock(&rb_wake_mu);
++    char row[512];
++    snprintf(row,sizeof row,"[rb-wake] cumulative frame=%llu mono_ns=%llu epoch=%u sites=%u dropped=%llu short_limit_ns=1000000 units=api-calls-not-kernel-wakeups",
++             (unsigned long long)frame,(unsigned long long)ns,atomic_load(&rb_wake_epoch),rb_wake_count,(unsigned long long)atomic_load(&rb_wake_dropped));
++    emit(row);
++    for (unsigned i=0; i<rb_wake_count; i++) {
++        rb_wake_counts *p=&rb_wake_rows[i];
++        uint64_t waits=atomic_load(&p->waits), signals=atomic_load(&p->signals);
++        if (!waits && !signals) continue;
++        const char *file=strrchr(p->site->file,'/'); file=file ? file+1 : p->site->file;
++        snprintf(row,sizeof row,"[rb-wake-site] cumulative frame=%llu epoch=%u site=%s:%u kind=%s waits=%llu returns=%llu timeouts=%llu signals=%llu short_waits=%llu errors=%llu",
++                 (unsigned long long)frame,atomic_load(&rb_wake_epoch),file,p->site->line,p->site->kind,
++                 (unsigned long long)waits,(unsigned long long)atomic_load(&p->resumes),(unsigned long long)atomic_load(&p->timeouts),
++                 (unsigned long long)signals,(unsigned long long)atomic_load(&p->short_waits),(unsigned long long)atomic_load(&p->errors));
++        emit(row);
++    }
++    pthread_mutex_unlock(&rb_wake_mu);
++}
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index 85effea..856fdb4 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -217,10 +217,11 @@ static void sleep_wait_boundary(thr_t *);
+ #if !defined(__APPLE__)
+ #include "../../android/native/runtime/fault/thread_android.inc"
+ #endif
++#include "rb_wake.inc"
+ static int thread_condition_wait(thr_t *t, pthread_cond_t *cv, const struct timespec *deadline) {
+ #if defined(__APPLE__)
+     (void)t;
+-    return deadline ? pthread_cond_timedwait(cv, &G, deadline) : pthread_cond_wait(cv, &G);
++    return deadline ? RB_WAKE_CALL("svc.timed", s2a_rb_wake_absolute(deadline), pthread_cond_timedwait(cv, &G, deadline)) : RB_WAKE_CALL("svc.wait", -1, pthread_cond_wait(cv, &G));
+ #else
+     return android_condition_wait(t, cv, deadline);
+ #endif
+@@ -366,7 +367,7 @@ static __thread struct { void *a; int kq; } t_wq[WQ_N];   // a = &t->woke to wak
+ static _Atomic int g_kq_infl[KQI_N];                        // deferred triggers not yet issued, by descriptor & (KQI_N - 1)
+ static _Atomic uint64_t g_gw[5];                            // thr_t.gw_n of exited threads
+ #define GW_INC(t, k) __atomic_store_n(&(t)->gw_n[k], (t)->gw_n[k] + 1, __ATOMIC_RELAXED)   // owner only (no lost increment); readers use __atomic_load_n under G
+-static void kq_trigger(int kq) { struct kevent64_s ev; EV_SET64(&ev, 2, EVFILT_USER, 0, NOTE_TRIGGER, 0, 0, 0, 0); kevent64(kq, &ev, 1, NULL, 0, 0, NULL); }
++static void kq_trigger(int kq) { struct kevent64_s ev; EV_SET64(&ev, 2, EVFILT_USER, 0, NOTE_TRIGGER, 0, 0, 0, 0); RB_WAKE_SIGNAL_CALL("svc.kqueue.signal", kevent64(kq, &ev, 1, NULL, 0, 0, NULL)); }
+ static int wq_add(void *a, int kq) {   // G held; 0 = no scope or list full: the caller issues it now
+     if (!t_wq_on || t_wq_n >= WQ_N) return 0;
+     if (!a) atomic_fetch_add(&g_kq_infl[kq & (KQI_N - 1)], 1);
+@@ -375,7 +376,7 @@ static int wq_add(void *a, int kq) {   // G held; 0 = no scope or list full: the
+ }
+ static void wq_flush(void) {   // issues this thread's recorded wake-ups (after G, or under it just before a wait that releases G atomically)
+     for (int i = 0; i < t_wq_n; i++) {
+-        if (t_wq[i].a) os_sync_wake_by_address_any(t_wq[i].a, sizeof(int), OS_SYNC_WAKE_BY_ADDRESS_NONE);
++        if (t_wq[i].a) RB_WAKE_SIGNAL_CALL("svc.address.signal", os_sync_wake_by_address_any(t_wq[i].a, sizeof(int), OS_SYNC_WAKE_BY_ADDRESS_NONE));
+         else { kq_trigger(t_wq[i].kq); atomic_fetch_sub(&g_kq_infl[t_wq[i].kq & (KQI_N - 1)], 1); }
+     }
+     t_wq_n = 0;
+@@ -430,11 +431,11 @@ static void wake(thr_t *t, int64_t res) {
+     // RewindBox (patch 0074): woke last, after wres and wake_t, which block_u reads without G once it sees it; the wake-up deferred to after G inside a wq scope (see wq_add)
+     wait_unlink(t); t->wkind = 0; t->wres = res; t->wake_t = thread_clock(); __atomic_store_n(&t->woke, 1, __ATOMIC_RELEASE);
+     int uw = atomic_exchange(&t->uw, 0), dw = 0;
+-    if (uw == 1) { if (!(dw = wq_add(&t->woke, -1))) os_sync_wake_by_address_any(&t->woke, sizeof t->woke, OS_SYNC_WAKE_BY_ADDRESS_NONE); }
+-    else if (!uw) pthread_cond_signal(&t->cv);   // 0: a condition-variable wait (deterministic mode, fallback, S2A_RB_GUEST_WAIT=0) or none; 2: spinning, it sees woke itself
++    if (uw == 1) { if (!(dw = wq_add(&t->woke, -1))) RB_WAKE_SIGNAL_CALL("svc.address.signal", os_sync_wake_by_address_any(&t->woke, sizeof t->woke, OS_SYNC_WAKE_BY_ADDRESS_NONE)); }
++    else if (!uw) RB_WAKE_CALL("svc.signal", -2, pthread_cond_signal(&t->cv));   // 0: a condition-variable wait (deterministic mode, fallback, S2A_RB_GUEST_WAIT=0) or none; 2: spinning, it sees woke itself
+     if (t->kqw) { int d = wq_add(NULL, t->kqfd); if (!d) kq_trigger(t->kqfd); dw |= d; }   // 带超时的等待挂在 kqueue 上（按时醒）
+ #else
+-    wait_unlink(t); t->wkind = 0; t->woke = 1; t->wres = res; t->wake_t = thread_clock(); pthread_cond_signal(&t->cv);
++    wait_unlink(t); t->wkind = 0; t->woke = 1; t->wres = res; t->wake_t = thread_clock(); RB_WAKE_CALL("svc.signal", -2, pthread_cond_signal(&t->cv));
+ #endif
+     // 同核高优先级唤醒让先（Horizon：被唤醒的线程掩码只含本核、优先级更高 → 立即抢占唤醒方，直到它再阻塞；Metroid Dread 播放器靠它保序，
+     //   见 docs/研究/虚拟核与轻量调度语义.md §1）。只记下来，唤醒方在系统调用返回游戏前等（peer_yield），持 G 时不等
+@@ -512,7 +513,7 @@ static int kq_wait_until_lw(int kq, uint64_t end, uint64_t leeway) {
+ #ifdef S2A_UNIT_TEST
+     g_kq_timer_last = ev; atomic_fetch_add(&g_kq_timer_n, 1);
+ #endif
+-    int n = kevent64(kq, &ev, 1, &out, 1, 0, NULL);
++    int n = RB_WAKE_CALL("svc.timer", left, kevent64(kq, &ev, 1, &out, 1, 0, NULL));
+     if (n == 1 && !(out.flags & EV_ERROR)) return out.filter == EVFILT_TIMER;
+     if (n < 0 && errno == EINTR) return 0;
+     kq_red("等定时器", n, n < 0 ? errno : (int)out.data); return -1;
+@@ -526,7 +527,7 @@ static void sleep_ontime_lw(int64_t ns, uint64_t leeway) {
+     while (kq >= 0 && (r = kq_wait_until_lw(kq, end, leeway)) == 0) { if (atomic_load(&g_session_stop)) return; }
+     if (r == 1) return;
+     int64_t left = (int64_t)(end - now_ns());
+-    if (left > 0) { struct timespec ts = {left / 1000000000, left % 1000000000}; nanosleep(&ts, NULL); }
++    if (left > 0) { struct timespec ts = {left / 1000000000, left % 1000000000}; RB_WAKE_CALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL)); }
+ }
+ static void sleep_ontime(int64_t ns) { sleep_ontime_lw(ns, 0); }
+ #else
+@@ -539,7 +540,7 @@ static void sleep_ontime_until(int64_t ns, thr_t *sleeper) {
+         int64_t left = (int64_t)(end - now_ns());
+         if (left <= 0) return;
+         struct timespec wait = {left / 1000000000, left % 1000000000};
+-        if (!nanosleep(&wait, NULL) || errno != EINTR) return;
++        if (!RB_WAKE_CALL("svc.sleep", s2a_rb_wake_relative(&wait), nanosleep(&wait, NULL)) || errno != EINTR) return;
+     }
+ }
+ static void sleep_ontime(int64_t ns) { sleep_ontime_until(ns, NULL); }
+@@ -651,7 +652,7 @@ static int64_t block_u(thr_t *t, int kind, int64_t ns, int *unlocked) {
+         }
+         int err = 0;
+         while (!__atomic_load_n(&t->woke, __ATOMIC_ACQUIRE)) {
+-            if (os_sync_wait_on_address(&t->woke, 0, sizeof t->woke, OS_SYNC_WAIT_ON_ADDRESS_NONE) < 0 && errno != EINTR && !__atomic_load_n(&t->woke, __ATOMIC_ACQUIRE)) { err = errno; break; }
++            if (RB_WAKE_CALL("svc.address", -1, os_sync_wait_on_address(&t->woke, 0, sizeof t->woke, OS_SYNC_WAIT_ON_ADDRESS_NONE)) < 0 && errno != EINTR && !__atomic_load_n(&t->woke, __ATOMIC_ACQUIRE)) { err = errno; break; }
+             GW_INC(t, 0);
+         }
+         if (!err) {
+@@ -1097,7 +1098,7 @@ static int hstk_reap(int drain) {
+         int i = REAP_MAX;
+         while (i && g_reap[i - 1].state != REAP_PENDING) i--;
+         if (!i) { // Only session retirement must also wait for other reapers.
+-            if (drain) pthread_cond_wait(&g_reap_cv, &g_reap_mu);
++            if (drain) RB_WAKE_CALL("svc.wait", -1, pthread_cond_wait(&g_reap_cv, &g_reap_mu));
+             pthread_mutex_unlock(&g_reap_mu);
+             if (!drain) return 0;
+             continue;
+@@ -1112,13 +1113,13 @@ static int hstk_reap(int drain) {
+         if (rc) {
+             pthread_mutex_lock(&g_reap_mu);
+             g_reap[i].state = REAP_FAILED; g_reap_failed = 1;
+-            pthread_cond_broadcast(&g_reap_cv); pthread_mutex_unlock(&g_reap_mu);
++            RB_WAKE_CALL("svc.broadcast", -2, pthread_cond_broadcast(&g_reap_cv)); pthread_mutex_unlock(&g_reap_mu);
+             LOG("【红】线程回收 pthread_join 失败：%d，保留记录和宿主栈", rc); return -1;
+         }
+         if (stk) s2a_tail_unmap(stk, HSTK_SIZE + HSTK_GUARD, S2A_TAIL_STACK);
+         pthread_mutex_lock(&g_reap_mu);
+         g_reap[i] = (typeof(g_reap[0])){0}; g_nreap--;
+-        pthread_cond_broadcast(&g_reap_cv); pthread_mutex_unlock(&g_reap_mu);
++        RB_WAKE_CALL("svc.broadcast", -2, pthread_cond_broadcast(&g_reap_cv)); pthread_mutex_unlock(&g_reap_mu);
+     }
+ }
+ #ifdef S2A_UNIT_TEST
+@@ -1171,7 +1172,7 @@ static void thread_exit(thr_t *t) {
+             if (g_nreap < REAP_MAX) {
+                 int i = 0; while (g_reap[i].state != REAP_EMPTY) i++;
+                 g_reap[i] = (typeof(g_reap[0])){pthread_self(), hstk, REAP_PENDING}; g_nreap++;
+-                pthread_cond_broadcast(&g_reap_cv); pthread_mutex_unlock(&g_reap_mu);
++                RB_WAKE_CALL("svc.broadcast", -2, pthread_cond_broadcast(&g_reap_cv)); pthread_mutex_unlock(&g_reap_mu);
+                 break;
+             }
+             pthread_mutex_unlock(&g_reap_mu);
+@@ -1179,7 +1180,7 @@ static void thread_exit(thr_t *t) {
+             // error or drop this thread: retain its live count until a slot frees.
+             (void)hstk_reap(0);
+             pthread_mutex_lock(&g_reap_mu);
+-            while (g_nreap == REAP_MAX) pthread_cond_wait(&g_reap_cv, &g_reap_mu);
++            while (g_nreap == REAP_MAX) RB_WAKE_CALL("svc.wait", -1, pthread_cond_wait(&g_reap_cv, &g_reap_mu));
+             pthread_mutex_unlock(&g_reap_mu);
+         }
+     }
+@@ -1464,7 +1465,7 @@ static int core_pick(thr_t *t) {   // 持 g_cmu；返回可取的核或 -1（可
+     return -1;
+ }
+ static void core_release_locked(thr_t *t) {   // 持 g_cmu：清持有登记并叫醒等核者
+-    int h = t->held_core; if (h) { g_cown[h - 1] = NULL; t->held_core = 0; pthread_cond_broadcast(&g_ccv); }
++    int h = t->held_core; if (h) { g_cown[h - 1] = NULL; t->held_core = 0; RB_WAKE_CALL("svc.broadcast", -2, pthread_cond_broadcast(&g_ccv)); }
+ }
+ static void core_release(thr_t *t) {
+     if (!t->held_core) return;
+@@ -1492,14 +1493,14 @@ static void core_acquire(thr_t *t) {   // 不持 G 调：持 G 等核会和持
+     core_release(t);   // 换了掩码（SetThreadCoreMask）：先放旧核
+     pthread_mutex_lock(&g_cmu);
+     if (g_ncw < CW_MAX) g_cw[g_ncw++] = t;
+-    if (g_ncw == 1) pthread_cond_signal(&g_wd_cv);   // 第一个等核者：叫醒空闲的抢占看门狗
++    if (g_ncw == 1) RB_WAKE_CALL("svc.signal", -2, pthread_cond_signal(&g_wd_cv));   // 第一个等核者：叫醒空闲的抢占看门狗
+     int c; atomic_store(&t->wcore, 1);
+-    while ((c = core_pick(t)) < 0 && !atomic_load(&g_session_stop)) pthread_cond_wait(&g_ccv, &g_cmu);
++    while ((c = core_pick(t)) < 0 && !atomic_load(&g_session_stop)) RB_WAKE_CALL("svc.wait", -1, pthread_cond_wait(&g_ccv, &g_cmu));
+     atomic_store(&t->wcore, 0);
+     for (int i = 0; i < g_ncw; i++) if (g_cw[i] == t) { g_cw[i] = g_cw[--g_ncw]; break; }
+     if (c >= 0) { g_cown[c] = t; g_cown_t[c] = now_ns(); t->held_core = c + 1; t->yielded = 0; }
+     // 还有别的线程在等：让它们按新局面重挑（本线程可能拿了别人在等的核以外的核，空核 / 可迁移的持有者跟着变了）
+-    if (g_ncw) pthread_cond_broadcast(&g_ccv);
++    if (g_ncw) RB_WAKE_CALL("svc.broadcast", -2, pthread_cond_broadcast(&g_ccv));
+     pthread_mutex_unlock(&g_cmu);
+ #if !defined(__APPLE__)
+     // wcore was a census-safe wait. Recheck after clearing it, before returning
+@@ -1802,7 +1803,7 @@ static void *samecore_thread(void *x) { (void)x;
+ #else
+     pthread_setname_np(pthread_self(), "s2a-samecore");
+ #endif
+-    for (;;) { struct timespec ts = {0, 2000000}; nanosleep(&ts, NULL); samecore_sample(); } return NULL; }
++    for (;;) { struct timespec ts = {0, 2000000}; RB_WAKE_CALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL)); samecore_sample(); } return NULL; }
+ static void samecore_init(void) { static _Atomic int done; if (!samecore_on() || atomic_exchange(&done, 1)) return;
+     LOG("同核并发诊断：开（S2A_SAMECORE_DIAG=1，每 2 ms 采一次；虚拟核%s）", cores_on() ? "开" : "关");
+     pthread_t t; pthread_create(&t, NULL, samecore_thread, NULL); pthread_detach(t); }
+@@ -1957,10 +1958,10 @@ static void *preempt_watchdog(void *a) {
+         pthread_mutex_lock(&g_cmu);
+         while (!g_ncw) {
+             struct timespec dl; clock_gettime(CLOCK_REALTIME, &dl); dl.tv_nsec += 20000000; if (dl.tv_nsec >= 1000000000L) { dl.tv_sec++; dl.tv_nsec -= 1000000000L; }
+-            if (pthread_cond_timedwait(&g_wd_cv, &g_cmu, &dl) == ETIMEDOUT && !g_ncw) { pthread_mutex_unlock(&g_cmu); sched_sample(); pthread_mutex_lock(&g_cmu); }
++            if (RB_WAKE_CALL("svc.timed", s2a_rb_wake_absolute(&dl), pthread_cond_timedwait(&g_wd_cv, &g_cmu, &dl)) == ETIMEDOUT && !g_ncw) { pthread_mutex_unlock(&g_cmu); sched_sample(); pthread_mutex_lock(&g_cmu); }
+         }
+         pthread_mutex_unlock(&g_cmu);
+-        struct timespec ts = {per_ns / 1000000000L, per_ns % 1000000000L}; nanosleep(&ts, NULL);   // 有等核者时 0.5 ms 周期 → 抢占延迟上界 ~0.5 ms + 投递
++        struct timespec ts = {per_ns / 1000000000L, per_ns % 1000000000L}; RB_WAKE_CALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL));   // 有等核者时 0.5 ms 周期 → 抢占延迟上界 ~0.5 ms + 投递
+         atomic_fetch_add(&g_wd_scans, 1);
+         { uint64_t t = now_ns(); if (t >= next_ss) { next_ss = t + 2000000; sched_sample(); } }   // 调度计数每 2 ms 一次
+         atomic_store(&g_wd_last_ns, now_ns());   // ⑫ 诊断：watchdog 最后扫的时间
+@@ -2197,7 +2198,7 @@ void s2a_android_memory_svc_finish(void) {
+ }
+ #endif
+ int s2a_guest_frozen(void) { return atomic_load(&g_frz); }   // ap_host.c 出图停住看门：iOS 进后台冻结期间不算停住
+-void s2a_guest_freeze(int on) { glock(); atomic_store(&g_frz, on ? 1 : 0); if (!on) pthread_cond_broadcast(&g_pause_cv); pthread_mutex_unlock(&G); }
++void s2a_guest_freeze(int on) { glock(); atomic_store(&g_frz, on ? 1 : 0); if (!on) RB_WAKE_CALL("svc.broadcast", -2, pthread_cond_broadcast(&g_pause_cv)); pthread_mutex_unlock(&G); }
+ 
+ // ---------- 同步对象 ----------
+ static int sig_obj(uint32_t h, int *bad, uintptr_t *object) {   // 1 = 已触发（持 G）
+@@ -2342,7 +2343,7 @@ static void yield_bo(thr_t *me, const uint64_t *regs) {
+     }
+ #endif
+     if (hot) atomic_fetch_add_explicit(&g_yb_hot_sleeps, 1, memory_order_relaxed);   // RewindBox (patch 0087)
+-    struct timespec ts = {0, (long)sl}; nanosleep(&ts, NULL);
++    struct timespec ts = {0, (long)sl}; RB_WAKE_CALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL));
+     atomic_fetch_add_explicit(&g_yb_sleeps, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_yb_sleep_ns, sl, memory_order_relaxed);
+     __atomic_store_n(&me->ny_sl, me->ny_sl + sl, __ATOMIC_RELAXED);   // RewindBox (patch 0074)
+     me->y_ret = (uint64_t)now_mono_ns();
+@@ -2428,7 +2429,7 @@ void s2a_spin_wait(uint64_t site) {
+         uint64_t sl = run / 8; if (sl < 10000) sl = 10000; if (sl > 250000) sl = 250000;
+         int held = cores_on() && atomic_load(&me->held_core);
+         if (held) { atomic_store(&me->off_guest, 1); core_release(me); }
+-        struct timespec ts = {0, (long)sl}; nanosleep(&ts, NULL);
++        struct timespec ts = {0, (long)sl}; RB_WAKE_CALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL));
+         if (held) { core_acquire(me); atomic_store(&me->off_guest, 0); }
+         atomic_fetch_add_explicit(&g_spin_sleeps, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_spin_sleep_ns, sl, memory_order_relaxed);
+     }
+@@ -2466,7 +2467,7 @@ void s2a_tick_wait(uint64_t key) {
+         uint64_t sl = run / 8; if (sl < 10000) sl = 10000; if (sl > 250000) sl = 250000;
+         int held = cores_on() && atomic_load(&me->held_core);
+         if (held) { atomic_store(&me->off_guest, 1); core_release(me); }
+-        struct timespec ts = {0, (long)sl}; nanosleep(&ts, NULL);
++        struct timespec ts = {0, (long)sl}; RB_WAKE_CALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL));
+         if (held) { core_acquire(me); atomic_store(&me->off_guest, 0); }
+         atomic_fetch_add_explicit(&g_tw_sleeps, 1, memory_order_relaxed); atomic_fetch_add_explicit(&g_tw_sleep_ns, sl, memory_order_relaxed);
+     }
+@@ -2635,7 +2636,7 @@ static uint32_t thr_pause(thr_t *t) {
+     for (int k = 0;; k++) {
+         glock();
+         if (t->exited || !atomic_load(&t->pause)) {   // 已退出（清掉自己置的暂停）/ 暂停已被恢复或停全部线程收走：不算停住
+-            if (t->exited && atomic_load(&t->pause)) { atomic_store(&t->pause, 0); pthread_cond_broadcast(&g_pause_cv); }
++            if (t->exited && atomic_load(&t->pause)) { atomic_store(&t->pause, 0); RB_WAKE_CALL("svc.broadcast", -2, pthread_cond_broadcast(&g_pause_cv)); }
+             pthread_mutex_unlock(&G); return R_BAD_STATE;
+         }
+         if (atomic_load_explicit(&t->paused_ack, memory_order_acquire)) { pthread_mutex_unlock(&G); return 0; }
+@@ -2645,7 +2646,7 @@ static uint32_t thr_pause(thr_t *t) {
+         if (thread_suspend(t->mport) != KERN_SUCCESS) {   // 挂不住：回错并清掉刚置的暂停（目标这期间自己停进 pause_park 的照算停住）
+             pthread_mutex_unlock(&g_susp_mu);
+             glock(); uint32_t r = atomic_load(&t->paused_ack) ? 0 : R_BAD_STATE;
+-            if (r && atomic_load(&t->pause)) { atomic_store(&t->pause, 0); pthread_cond_broadcast(&g_pause_cv); }
++            if (r && atomic_load(&t->pause)) { atomic_store(&t->pause, 0); RB_WAKE_CALL("svc.broadcast", -2, pthread_cond_broadcast(&g_pause_cv)); }
+             pthread_mutex_unlock(&G); return r;
+         }
+         arm_thread_state64_t st; arm_neon_state64_t ns; mach_msg_type_number_t n = ARM_THREAD_STATE64_COUNT;
+@@ -2670,7 +2671,7 @@ static uint32_t thr_pause(thr_t *t) {
+         }
+         pthread_mutex_lock(&g_susp_mu); thread_resume(t->mport); pthread_mutex_unlock(&g_susp_mu);
+         if (now_ns() - t0 > 2000000000ull) die("【红】SetThreadActivity：线程 %#x 2 秒内没停到游戏代码或系统调用里（重试 %d 次）", t->handle, k);
+-        usleep(20);
++        RB_WAKE_CALL("svc.short-sleep", 20000, usleep(20));
+     }
+ }
+ static void thr_unpin(thr_t *t) { glock(); --t->pins; if (!t->pins && t->exited && t->closed) thr_free(t); pthread_mutex_unlock(&G); }
+@@ -2691,7 +2692,7 @@ static uint32_t thr_unpause(thr_t *t) {
+     //   原先清暂停与挂信号 / 恢复线程之间（解锁后）它的标志看着像「在跑、不持核、不在等核」，调度计数记一次违规——实际它还挂着、没执行游戏指令
+     //   （10-23 门禁负载下 t_thread ⑰ 偶发红：恢复方解锁后被调度走，窗口变宽）
+     if (mach && cores_on()) atomic_store(&t->off_guest, 1);
+-    atomic_store(&t->pause, 0); pthread_cond_broadcast(&g_pause_cv); pthread_mutex_unlock(&G);
++    atomic_store(&t->pause, 0); RB_WAKE_CALL("svc.broadcast", -2, pthread_cond_broadcast(&g_pause_cv)); pthread_mutex_unlock(&G);
+     // 在游戏代码里被暂停的（暂停方已代放核）：恢复前先给它挂一个抢占信号（S2A_CORES），恢复后执行任何游戏指令前先进 tramp 自己按优先级取核。
+     // 不让恢复方代取核：恢复方在系统调用里可能持着目标要的核，代取会互等；挂信号后恢复方不阻塞。原先恢复后到下一次系统调用前不持核在跑（t_thread ⑰）
+     if (mach) { if (core_part(t)) { atomic_store(&t->preempting, 1); pthread_kill(t->pt, S2A_SIG_PREEMPT); } thread_resume(t->mport); }
+@@ -2705,7 +2706,7 @@ static uint32_t thr_pause(thr_t *t) {
+     if (!already) atomic_store(&t->pause, 1);
+     if (!already) { t->trace_pause=g_pd_current; t->trace_pause_conditions=0; }
+     // 与 wait-safe 发布持同一把 G；唤醒并不替目标发布 ack。
+-    if (!already && android_wait_pause_on() && t->vm_wait_safe) pthread_cond_signal(&t->cv);
++    if (!already && android_wait_pause_on() && t->vm_wait_safe) RB_WAKE_CALL("svc.signal", -2, pthread_cond_signal(&t->cv));
+     pthread_mutex_unlock(&G);
+     if (already) return R_BAD_STATE;
+     uint64_t deadline = plat_now_ns() + 2000000000ull;
+@@ -2753,10 +2754,10 @@ static uint32_t thr_pause(thr_t *t) {
+             glock();
+             if (wait_diag_on()) pause_diag_locked(t, 12, 1, R_TIMEOUT, deadline, sends, send_error);
+             t->trace_pause=0; t->trace_pause_conditions=0;
+-            atomic_store(&t->pause, 0); pthread_cond_broadcast(&g_pause_cv); pthread_mutex_unlock(&G);
++            atomic_store(&t->pause, 0); RB_WAKE_CALL("svc.broadcast", -2, pthread_cond_broadcast(&g_pause_cv)); pthread_mutex_unlock(&G);
+             return R_TIMEOUT;
+         }
+-        usleep(100);
++        RB_WAKE_CALL("svc.short-sleep", 100000, usleep(100));
+     }
+ }
+ static uint32_t thr_unpause(thr_t *t) {
+@@ -2766,7 +2767,7 @@ static uint32_t thr_unpause(thr_t *t) {
+     // would accept it after the thread has run on
+     if (t->pwait) { t->pwait = 0; atomic_store(&t->paused_ack, 0); }
+     t->trace_pause=0; t->trace_pause_conditions=0;
+-    atomic_store(&t->pause, 0); pthread_cond_broadcast(&g_pause_cv); pthread_mutex_unlock(&G);
++    atomic_store(&t->pause, 0); RB_WAKE_CALL("svc.broadcast", -2, pthread_cond_broadcast(&g_pause_cv)); pthread_mutex_unlock(&G);
+     return 0;
+ }
+ int s2a_guest_pause_all(void) {
+@@ -2910,7 +2911,7 @@ static void peer_yield(thr_t *me) {
+         glock(); thr_t *p = h_obj(peer.handle, S2A_OBJ_THREAD); int done = !p || p->id != peer.id || p->exited || p->wkind || atomic_load_explicit(&p->nsvc_all, memory_order_relaxed) != peer.nsvc; pthread_mutex_unlock(&G);
+         if (done) return;
+         if ((uint64_t)now_mono_ns() - t0 > 5000000) { atomic_fetch_add_explicit(&g_py_timeout, 1, memory_order_relaxed); return; }
+-        struct timespec ts = {0, 50000}; nanosleep(&ts, NULL);
++        struct timespec ts = {0, 50000}; RB_WAKE_CALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL));
+     }
+ }
+ #if defined(__APPLE__)
+@@ -3125,7 +3126,7 @@ static int svc_thread_impl(thr_t *me, int num, uint64_t *regs) {
+         glock(); thr_t *t = h_obj((uint32_t)regs[0], S2A_OBJ_THREAD); uint64_t rc = t ? 0 : R_BAD_HANDLE;
+         if (t && t->exited) rc = 0x7601;
+         else if (t && t->started) rc = R_BAD_STATE;
+-        else if (t) { t->started = 1; pthread_cond_signal(&t->cv); }
++        else if (t) { t->started = 1; RB_WAKE_CALL("svc.signal", -2, pthread_cond_signal(&t->cv)); }
+         pthread_mutex_unlock(&G);
+         regs[0] = rc; return 1;
+     }
+@@ -3133,7 +3134,7 @@ static int svc_thread_impl(thr_t *me, int num, uint64_t *regs) {
+     case 0x0B: {  // SleepThread(x0 ns)；0 / -1 / -2 = 各类让出
+         int64_t ns = (int64_t)regs[0];
+ #ifndef S2A_UNIT_TEST
+-        if (s2a_det_mode()) { s2a_det_release(); if (ns > 0) { struct timespec ts = {ns / 1000000000, ns % 1000000000}; nanosleep(&ts, NULL); } else sched_yield(); s2a_det_acquire(); return 1; }
++        if (s2a_det_mode()) { s2a_det_release(); if (ns > 0) { struct timespec ts = {ns / 1000000000, ns % 1000000000}; RB_WAKE_CALL("svc.sleep", s2a_rb_wake_relative(&ts), nanosleep(&ts, NULL)); } else sched_yield(); s2a_det_acquire(); return 1; }
+ #endif
+         // 短于 20 µs 的睡按让出走（照 the reference port SleepThread，MIT）：游戏拿它轮询（银河 2 Hagi 用 SleepThread(100 ns)，main+0x517c），
+         //   每次起一个精确定时器就是一次硬件唤醒。10-29 真机银河 2 整局 3100 万次（约 16 万次唤醒 / 秒）、丝之歌 540 万次（约 3.8 万次 / 秒），
+@@ -3617,16 +3618,16 @@ int s2a_thread_stop_all(int wait_ms) {
+             if (t->exited) continue;
+             if (sw_is_host_code(t->entry)) { pthread_mutex_unlock(&G); return -1; }
+             if (t->wkind) wake(t, R_CANCELLED);
+-            pthread_cond_broadcast(&t->cv);
++            RB_WAKE_CALL("svc.broadcast", -2, pthread_cond_broadcast(&t->cv));
+             atomic_store(&t->pause, 0);
+             if (t->pmach) { t->pmach = 0; thread_resume(t->mport); }
+             if (t->mport) pthread_kill(t->pt, S2A_SIG_PREEMPT);
+         }
+-        pthread_cond_broadcast(&g_pause_cv);
++        RB_WAKE_CALL("svc.broadcast", -2, pthread_cond_broadcast(&g_pause_cv));
+         pthread_mutex_unlock(&G);
+-        pthread_mutex_lock(&g_cmu); pthread_cond_broadcast(&g_ccv); pthread_mutex_unlock(&g_cmu);
++        pthread_mutex_lock(&g_cmu); RB_WAKE_CALL("svc.broadcast", -2, pthread_cond_broadcast(&g_ccv)); pthread_mutex_unlock(&g_cmu);
+         if (now_ns() >= deadline) return -1;
+-        usleep(1000);
++        RB_WAKE_CALL("svc.short-sleep", 1000000, usleep(1000));
+     }
+     // Guest TLS destructors (including NativeAOT runtime detach) are part of
+     // thread retirement. If join blocks, retain the session and report failure.
+@@ -3636,7 +3637,7 @@ int s2a_thread_stop_all(int wait_ms) {
+     pthread_detach(joiner);
+     while (!atomic_load(&g_join_done)) {
+         if (now_ns() >= deadline) return -1;
+-        usleep(1000);
++        RB_WAKE_CALL("svc.short-sleep", 1000000, usleep(1000));
+     }
+     int result = atomic_load(&g_join_result);
+     if (!result) {
+@@ -3762,7 +3763,7 @@ void s2a_thread_dump(void) {
+     static const char *const wk[] = {"在跑", "等锁", "等条件", "等地址", "等同步"};
+     // 试拿最多 500 ms：G 只在系统调用里短暂持有，一次 trylock 不成多半是碰上别人正持锁（10-20 测试设备2 现场即此，全线程里无人等 G）；
+     // 500 ms 仍拿不到才是真被占（崩溃发生在持锁时 / 持锁阻塞）
+-    int got = 0; for (int i = 0; i < 500 && !(got = !pthread_mutex_trylock(&G)); i++) usleep(1000);
++    int got = 0; for (int i = 0; i < 500 && !(got = !pthread_mutex_trylock(&G)); i++) RB_WAKE_CALL("svc.short-sleep", 1000000, usleep(1000));
+     if (!got) { LOG("线程表：全局锁 500 ms 拿不到，跳过（崩溃发生在持锁时，或有线程持锁阻塞）"); return; }
+     for (thr_t *t = g_all; t; t = t->all) {
+         module_t *m = module_of((void *)t->last_lr);
+-- 
+2.56.1
+

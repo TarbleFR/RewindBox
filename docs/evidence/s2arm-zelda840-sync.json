@@ -1,0 +1,270 @@
+{
+  "input_sha256": "b57a439e22608defe9ae3fae3aad0275ad3871e3780a4bed995ebdab7092dbb6",
+  "rows": [
+    {
+      "frame": 300,
+      "queue_wait_records": 103,
+      "queue_wait_drains": 0,
+      "allocator_wait_ms": 18.936,
+      "visibility_reserves": 0,
+      "pieces_without_visibility": 2182,
+      "visibility_waits": 0,
+      "visibility_wait_ms": 0.0,
+      "delta": {
+        "frame": 300,
+        "queue_wait_records": 103,
+        "queue_wait_drains": 0,
+        "allocator_wait_ms": 18.936,
+        "visibility_wait_ms": 0.0
+      },
+      "allocator_ms_per_frame": 0.06312
+    },
+    {
+      "frame": 600,
+      "queue_wait_records": 210,
+      "queue_wait_drains": 0,
+      "allocator_wait_ms": 23.547,
+      "visibility_reserves": 0,
+      "pieces_without_visibility": 4282,
+      "visibility_waits": 0,
+      "visibility_wait_ms": 0.0,
+      "delta": {
+        "frame": 300,
+        "queue_wait_records": 107,
+        "queue_wait_drains": 0,
+        "allocator_wait_ms": 4.611000000000001,
+        "visibility_wait_ms": 0.0
+      },
+      "allocator_ms_per_frame": 0.015370000000000002
+    },
+    {
+      "frame": 900,
+      "queue_wait_records": 347,
+      "queue_wait_drains": 0,
+      "allocator_wait_ms": 33.883,
+      "visibility_reserves": 0,
+      "pieces_without_visibility": 6382,
+      "visibility_waits": 0,
+      "visibility_wait_ms": 0.0,
+      "delta": {
+        "frame": 300,
+        "queue_wait_records": 137,
+        "queue_wait_drains": 0,
+        "allocator_wait_ms": 10.336000000000002,
+        "visibility_wait_ms": 0.0
+      },
+      "allocator_ms_per_frame": 0.03445333333333334
+    },
+    {
+      "frame": 1200,
+      "queue_wait_records": 444,
+      "queue_wait_drains": 0,
+      "allocator_wait_ms": 51.829,
+      "visibility_reserves": 0,
+      "pieces_without_visibility": 8483,
+      "visibility_waits": 0,
+      "visibility_wait_ms": 0.0,
+      "delta": {
+        "frame": 300,
+        "queue_wait_records": 97,
+        "queue_wait_drains": 0,
+        "allocator_wait_ms": 17.945999999999998,
+        "visibility_wait_ms": 0.0
+      },
+      "allocator_ms_per_frame": 0.05981999999999999
+    },
+    {
+      "frame": 1500,
+      "queue_wait_records": 564,
+      "queue_wait_drains": 0,
+      "allocator_wait_ms": 51.829,
+      "visibility_reserves": 0,
+      "pieces_without_visibility": 10583,
+      "visibility_waits": 0,
+      "visibility_wait_ms": 0.0,
+      "delta": {
+        "frame": 300,
+        "queue_wait_records": 120,
+        "queue_wait_drains": 0,
+        "allocator_wait_ms": 0.0,
+        "visibility_wait_ms": 0.0
+      },
+      "allocator_ms_per_frame": 0.0
+    },
+    {
+      "frame": 1800,
+      "queue_wait_records": 685,
+      "queue_wait_drains": 0,
+      "allocator_wait_ms": 104.789,
+      "visibility_reserves": 146,
+      "pieces_without_visibility": 12735,
+      "visibility_waits": 0,
+      "visibility_wait_ms": 0.0,
+      "delta": {
+        "frame": 300,
+        "queue_wait_records": 121,
+        "queue_wait_drains": 0,
+        "allocator_wait_ms": 52.96,
+        "visibility_wait_ms": 0.0
+      },
+      "allocator_ms_per_frame": 0.17653333333333335
+    },
+    {
+      "frame": 2100,
+      "queue_wait_records": 873,
+      "queue_wait_drains": 0,
+      "allocator_wait_ms": 906.706,
+      "visibility_reserves": 1046,
+      "pieces_without_visibility": 15135,
+      "visibility_waits": 0,
+      "visibility_wait_ms": 0.0,
+      "delta": {
+        "frame": 300,
+        "queue_wait_records": 188,
+        "queue_wait_drains": 0,
+        "allocator_wait_ms": 801.917,
+        "visibility_wait_ms": 0.0
+      },
+      "allocator_ms_per_frame": 2.6730566666666666
+    },
+    {
+      "frame": 2400,
+      "queue_wait_records": 1100,
+      "queue_wait_drains": 0,
+      "allocator_wait_ms": 1473.722,
+      "visibility_reserves": 1946,
+      "pieces_without_visibility": 17535,
+      "visibility_waits": 0,
+      "visibility_wait_ms": 0.0,
+      "delta": {
+        "frame": 300,
+        "queue_wait_records": 227,
+        "queue_wait_drains": 0,
+        "allocator_wait_ms": 567.016,
+        "visibility_wait_ms": 0.0
+      },
+      "allocator_ms_per_frame": 1.8900533333333331
+    },
+    {
+      "frame": 2700,
+      "queue_wait_records": 1303,
+      "queue_wait_drains": 0,
+      "allocator_wait_ms": 1804.605,
+      "visibility_reserves": 2846,
+      "pieces_without_visibility": 19935,
+      "visibility_waits": 0,
+      "visibility_wait_ms": 0.0,
+      "delta": {
+        "frame": 300,
+        "queue_wait_records": 203,
+        "queue_wait_drains": 0,
+        "allocator_wait_ms": 330.88300000000004,
+        "visibility_wait_ms": 0.0
+      },
+      "allocator_ms_per_frame": 1.1029433333333334
+    },
+    {
+      "frame": 3000,
+      "queue_wait_records": 1542,
+      "queue_wait_drains": 0,
+      "allocator_wait_ms": 2447.969,
+      "visibility_reserves": 3746,
+      "pieces_without_visibility": 22335,
+      "visibility_waits": 0,
+      "visibility_wait_ms": 0.0,
+      "delta": {
+        "frame": 300,
+        "queue_wait_records": 239,
+        "queue_wait_drains": 0,
+        "allocator_wait_ms": 643.364,
+        "visibility_wait_ms": 0.0
+      },
+      "allocator_ms_per_frame": 2.144546666666667
+    },
+    {
+      "frame": 3300,
+      "queue_wait_records": 1791,
+      "queue_wait_drains": 0,
+      "allocator_wait_ms": 2901.979,
+      "visibility_reserves": 4646,
+      "pieces_without_visibility": 24735,
+      "visibility_waits": 0,
+      "visibility_wait_ms": 0.0,
+      "delta": {
+        "frame": 300,
+        "queue_wait_records": 249,
+        "queue_wait_drains": 0,
+        "allocator_wait_ms": 454.00999999999976,
+        "visibility_wait_ms": 0.0
+      },
+      "allocator_ms_per_frame": 1.5133666666666659
+    },
+    {
+      "frame": 3600,
+      "queue_wait_records": 2063,
+      "queue_wait_drains": 0,
+      "allocator_wait_ms": 4074.868,
+      "visibility_reserves": 5546,
+      "pieces_without_visibility": 27135,
+      "visibility_waits": 0,
+      "visibility_wait_ms": 0.0,
+      "delta": {
+        "frame": 300,
+        "queue_wait_records": 272,
+        "queue_wait_drains": 0,
+        "allocator_wait_ms": 1172.8890000000001,
+        "visibility_wait_ms": 0.0
+      },
+      "allocator_ms_per_frame": 3.9096300000000004
+    },
+    {
+      "frame": 3900,
+      "queue_wait_records": 2300,
+      "queue_wait_drains": 0,
+      "allocator_wait_ms": 4879.47,
+      "visibility_reserves": 6446,
+      "pieces_without_visibility": 29535,
+      "visibility_waits": 0,
+      "visibility_wait_ms": 0.0,
+      "delta": {
+        "frame": 300,
+        "queue_wait_records": 237,
+        "queue_wait_drains": 0,
+        "allocator_wait_ms": 804.6020000000003,
+        "visibility_wait_ms": 0.0
+      },
+      "allocator_ms_per_frame": 2.6820066666666675
+    },
+    {
+      "frame": 4200,
+      "queue_wait_records": 2449,
+      "queue_wait_drains": 0,
+      "allocator_wait_ms": 4930.68,
+      "visibility_reserves": 7147,
+      "pieces_without_visibility": 31541,
+      "visibility_waits": 0,
+      "visibility_wait_ms": 0.0,
+      "delta": {
+        "frame": 300,
+        "queue_wait_records": 149,
+        "queue_wait_drains": 0,
+        "allocator_wait_ms": 51.210000000000036,
+        "visibility_wait_ms": 0.0
+      },
+      "allocator_ms_per_frame": 0.17070000000000013
+    }
+  ],
+  "title": "0400486024DEC000",
+  "buildAttribution": "user-labelled IPA 840; sync line schema is patches 0357-0360; no independent IPA digest in host.log",
+  "windowUnit": "300 presented host frames, not 180-second benchmark windows",
+  "abValidated": false,
+  "gameplayRange": [
+    1800,
+    4200
+  ],
+  "allocatorMsPerFrame": 2.0107879166666667,
+  "visibilityWaitMs": 0,
+  "countedQueueDrains": 0,
+  "allocatorFrameConditionMet": true,
+  "comparisonLimit": "Old aggregate GPU-wait time 4.4-7.2 ms/frame was not cause-separated. The zero drain counter in 840 omits some external drain paths, corrected in 0364."
+}

@@ -361,3 +361,50 @@ a reconstruit un pin de 76 421 octets, identique au fichier commité. Son SHA-25
 L'empreinte du moteur est `65ff9a82e791b679df36a7148ad278e45ddc5a462d37ca784c714c302435310f`.
 Le résultat de cette mission comprend les correctifs sources, le moteur compilé, son pin
 vérifié et ce rapport de contre-expertise.
+
+## Zelda 840 : attente restante et lot 0367–0373
+
+Journaux transmis le 25 novembre : [deltas par fenêtre](s2arm-zelda840-sync.json).
+Le format identifie les compteurs 0357–0360 ; l’étiquette IPA 840 vient du mainteneur,
+le journal ne contient pas l’empreinte cryptographique de l’IPA.
+
+| Images de début → fin | Δ allocateur, ms | ms/image | Δ visibilité, ms | Δ waits enregistrés | Δ drains comptabilisés |
+|---|---:|---:|---:|---:|---:|
+| 0 → 300 | 18.936 | 0.0631 | 0.000 | 103 | 0 |
+| 300 → 600 | 4.611 | 0.0154 | 0.000 | 107 | 0 |
+| 600 → 900 | 10.336 | 0.0345 | 0.000 | 137 | 0 |
+| 900 → 1200 | 17.946 | 0.0598 | 0.000 | 97 | 0 |
+| 1200 → 1500 | 0.000 | 0.0000 | 0.000 | 120 | 0 |
+| 1500 → 1800 | 52.960 | 0.1765 | 0.000 | 121 | 0 |
+| 1800 → 2100 | 801.917 | 2.6731 | 0.000 | 188 | 0 |
+| 2100 → 2400 | 567.016 | 1.8901 | 0.000 | 227 | 0 |
+| 2400 → 2700 | 330.883 | 1.1029 | 0.000 | 203 | 0 |
+| 2700 → 3000 | 643.364 | 2.1445 | 0.000 | 239 | 0 |
+| 3000 → 3300 | 454.010 | 1.5134 | 0.000 | 249 | 0 |
+| 3300 → 3600 | 1172.889 | 3.9096 | 0.000 | 272 | 0 |
+| 3600 → 3900 | 804.602 | 2.6820 | 0.000 | 237 | 0 |
+| 3900 → 4200 | 51.210 | 0.1707 | 0.000 | 149 | 0 |
+
+Sur 1800–4200 : 4825,891 ms / 2400 images = **2,010788 ms/image** d’allocateur.
+Le seuil de 1 ms/image est dépassé : le mode par image est ajouté sous interrupteur.
+Les anciennes 4,4–7,2 ms/image agrègent plusieurs causes, et les scènes/conditions ne
+sont pas appariées. Une baisse causale de cette attente globale n’est donc pas établie.
+Le zéro `queue_wait_drains` de la 840 ne couvre pas les drains externes prêts ;
+0364 corrige cette attribution. La visibilité mesurée reste à zéro.
+
+Dans les fenêtres 3D (2100–3900), les médianes GPU sont 25,77–31,35 ms, vitesse
+27,9–55,5 % suivant la fenêtre, état Serious. Le téléphone commence déjà à l’état
+Fair. L’objectif 100 % / 60 images/s / absence de Serious n’est pas atteint.
+Les trois profils CPU de quatre secondes ne constituent pas trois fenêtres de
+180 secondes ; aucun gain FPS ou watts n’est attribué à ces seuls relevés.
+
+Le [lot moteur et ses sept interrupteurs](../../build-utils/s2arm/engine/README.md#zelda--diagnostic-et-moteur-03670373-25-novembre-2026)
+est implémenté, en attente de compilation. Les tests purs GCC passent 327 assertions
+(cas négatifs inclus : copie/encodeur/barrière, source inconnue, option coupée,
+epoch de session et délais conservés). Clang et CI macOS 15/26 restent à exécuter.
+Le diagnostic ajoute une charge de journalisation ; le couper pour les mesures A/B.
+Aucun correctif du rythme des jeux ni aucune correction spéculative des réveils.
+
+Le traducteur attend un relevé `S2A_RB_GPUDIAG`. Le lot TBDR et la file de résidences
+restent ensuite à instruire. Le cache système iOS de ≈1,33 Go reste une hypothèse :
+aucune purge ni modification de sa politique.

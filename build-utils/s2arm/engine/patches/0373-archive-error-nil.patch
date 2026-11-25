@@ -1,0 +1,68 @@
+From 16f65d50fbb0b02f9b317fa1425b7a53d27ffd3f Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Wed, 25 Nov 2026 08:48:44 +0100
+Subject: [PATCH] 0373 Allow archive serialization without an NSError out
+ parameter
+
+---
+ graphics/nvn/gfx/nvn/nvn_session.inc |  1 +
+ graphics/nvn/gfx/nvn/pso_archive.h   | 15 ++++++++++++---
+ 2 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 0ab3cd9..8b371cc 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -389,6 +389,7 @@ int nvn_be_shutdown_session(void) {
+     return 0;
+ }
+ void nvn_be_begin_session(void) {
++    atomic_store(&g_rb_archive_error_nil,-1);
+     atomic_store(&g_rb_pso_wait_boost,-1);
+     atomic_store(&g_rb_pso_boost_tries,0); atomic_store(&g_rb_pso_boost_ok,0);
+     atomic_store(&g_rb_dispatch_game,-1); g_rb_last_guest_dispatch=0; g_rb_dispatch_bits=0;
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+index 7fdd9f0..d2c7bd6 100644
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -25,6 +25,12 @@
+ #define RB_PSO_WAIT_BOOST() 0
+ #endif
+ 
++static _Atomic int g_rb_archive_error_nil=-1;
++static int rb_archive_error_nil_on(void) {
++    int v=atomic_load_explicit(&g_rb_archive_error_nil,memory_order_relaxed);
++    if (v<0) { const char *e=getenv("S2A_RB_ARCHIVE_ERROR_NIL"); v=e && !strcmp(e,"1"); atomic_store(&g_rb_archive_error_nil,v); }
++    return v;
++}
+ // Renderer integration is optional for hosts exercising the archive writer alone.
+ #ifndef RB_PAR_SCOPED
+ #define RB_PAR_SCOPED() 0
+@@ -471,7 +477,7 @@ static void par_write(NSString *key, id desc) {
+         id<MTLBinaryArchive> a = [g_dev newBinaryArchiveWithDescriptor:[MTLBinaryArchiveDescriptor new] error:&e];
+         ok = a && ([desc isKindOfClass:MTLRenderPipelineDescriptor.class] ? [a addRenderPipelineFunctionsWithDescriptor:desc error:&e]
+                                                                           : [a addComputePipelineFunctionsWithDescriptor:desc error:&e]);
+-        if (ok) ok = [a serializeToURL:[NSURL fileURLWithPath:temp] error:&e] && rename(temp.fileSystemRepresentation, path.fileSystemRepresentation) == 0;
++        if (ok) ok = [a serializeToURL:[NSURL fileURLWithPath:temp] error:rb_archive_error_nil_on() ? nil : &e] && rename(temp.fileSystemRepresentation, path.fileSystemRepresentation) == 0;
+     }
+     par_ga_remove_new(before);
+     par_ga_unlock(lk); pthread_mutex_unlock(&g_par_wmu);
+@@ -524,10 +530,13 @@ static BOOL par_serialize(id<MTLBinaryArchive> archive, NSString *path, NSArray<
+                           BOOL *refused, NSError **error) {
+     NSString *temp = [path stringByAppendingString:@".tmp"];
+     NSURL *url = [NSURL fileURLWithPath:temp];
++    // Preserve BOOL refusal, retry ownership, temporary-file cleanup, rename
++    // and index publication. Only Metal's optional NSError out parameter changes.
++    NSError **metal_error=rb_archive_error_nil_on() ? nil : error;
+ #ifdef RB_ARCHIVE_TEST_SERIALIZE
+-    BOOL serialized = RB_ARCHIVE_TEST_SERIALIZE(archive, url, error);
++    BOOL serialized = RB_ARCHIVE_TEST_SERIALIZE(archive, url, metal_error);
+ #else
+-    BOOL serialized = [archive serializeToURL:url error:error];
++    BOOL serialized = [archive serializeToURL:url error:metal_error];
+ #endif
+     *refused = !serialized;
+     NSMutableString *lines = [NSMutableString string];
+-- 
+2.56.1
+

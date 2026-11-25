@@ -1,0 +1,116 @@
+From 63c9dfdfa41b0ef27b6b39176929b666025bcccc Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Wed, 25 Nov 2026 08:40:52 +0100
+Subject: [PATCH] 0367 Append submissions of one host frame to its command
+ allocator
+
+---
+ graphics/nvn/gfx/nvn/nvn_mtl.m            | 33 +++++++++++++++++++++--
+ graphics/nvn/gfx/nvn/nvn_session.inc      |  2 ++
+ graphics/nvn/gfx/nvn/rb_allocator_frame.h | 10 +++++++
+ 3 files changed, 43 insertions(+), 2 deletions(-)
+ create mode 100644 graphics/nvn/gfx/nvn/rb_allocator_frame.h
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index ed398a2..e403d25 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -25,6 +25,7 @@
+ #include "rb_shadow.h"
+ #include "rb_sealed_clear.h"
+ #include "rb_fence_wait.h"
++#include "rb_allocator_frame.h"
+ #include "../../../../runtime/include/rb_texture_stats.h"
+ #include "../../../metal/mtl_slot.h"   // machine-wide Metal client slot
+ #include "nvn_fps.h"
+@@ -1613,6 +1614,18 @@ static NSMutableArray<dispatch_block_t> *g_commit_blocks;
+ enum { GSR_N = 16384 };
+ static struct { uint64_t fence, lo, hi; } g_gsr[GSR_N]; static uint64_t g_gsr_n; static int g_gml_on;
+ static pthread_mutex_t g_gsr_mu = PTHREAD_MUTEX_INITIALIZER;
++static int g_rb_alloc_frame_mode = -1, g_rb_alloc_frame_slot = -1;
++static uint64_t g_rb_alloc_frame_id = UINT64_MAX;
++static _Atomic uint64_t g_rb_alloc_frame_reuses, g_rb_alloc_frame_rotations;
++static int rb_alloc_frame_on(void) {
++    if (g_rb_alloc_frame_mode < 0) {
++        const char *e = getenv("S2A_RB_ALLOC_FRAME");
++        // Opt-in until Metal 4 pixel replay and footprint are measured on device.
++        g_rb_alloc_frame_mode = e && !strcmp(e, "1");
++        MLOG("[rb-alloc-frame] enabled=%d cap=%d reset=after-last-gpu-consumer", g_rb_alloc_frame_mode, ALLOC_MAX);
++    }
++    return g_rb_alloc_frame_mode;
++}
+ static uint64_t g_alloc_fence[ALLOC_MAX]; static uint64_t g_alloc_waits, g_alloc_grown;
+ int nvn_be_wait(uint64_t fence, uint64_t timeout_ns);
+ enum { UP_BOUNDARY, UP_CAPACITY, UP_ISOLATED, UP_BATCH_LIMIT, UP_PIECES, UP_FLUSH_REASONS };
+@@ -1768,14 +1781,23 @@ void nvn_be_sub_begin(void) {
+     // pick an allocator the GPU has finished with; if all are in use create a new one; only at the cap wait for the oldest one. How far ahead it runs is bounded by the wait where the game acquires the swapchain texture, same as the old interface.
+     // Metal 3 has no allocators: every submission takes a fresh command buffer (m3_cb)
+     if (!g_m3) {
+-        int alloc_i = -1, can_reset = 1; uint64_t done = g_done;
+-        for (int i = 0; i < g_alloc_n; i++) if (g_alloc_fence[i] <= done) { alloc_i = i; break; }
++        uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++        int same_frame = rb_allocator_frame_reuse(rb_alloc_frame_on(), frame, g_rb_alloc_frame_id,
++                                                   g_rb_alloc_frame_slot, g_alloc_n);
++        int alloc_i = same_frame ? g_rb_alloc_frame_slot : -1, can_reset = !same_frame;
++        uint64_t done = atomic_load_explicit(&g_done, memory_order_acquire);
++        if (same_frame) atomic_fetch_add_explicit(&g_rb_alloc_frame_reuses, 1, memory_order_relaxed);
++        if (!same_frame) for (int i = 0; i < g_alloc_n; i++) if (g_alloc_fence[i] <= done) { alloc_i = i; break; }
+         if (alloc_i < 0 && g_alloc_n < ALLOC_MAX) { NSError *ae = nil; MTL4CommandAllocatorDescriptor *ad = [MTL4CommandAllocatorDescriptor new];
+             g_alloc4[g_alloc_n] = [g_dev newCommandAllocatorWithDescriptor:ad error:&ae]; if (!g_alloc4[g_alloc_n]) MDIE("failed to create a new MTL4CommandAllocator: %s", ae.localizedDescription.UTF8String);
+             alloc_i = g_alloc_n++; g_alloc_grown++; }
+         if (alloc_i < 0) { alloc_i = 0; for (int i = 1; i < g_alloc_n; i++) if (g_alloc_fence[i] < g_alloc_fence[alloc_i]) alloc_i = i; g_alloc_waits++; uint64_t wait_start = now_ns();
+             can_reset = rb_allocator_can_reset(g_alloc_fence[alloc_i]);
+             atomic_fetch_add_explicit(&g_rb_alloc_wait_ns, now_ns() - wait_start, memory_order_relaxed); }   // RewindBox (patch 0337): not reached (session stop): dm-encode may still encode a handed-over piece into it; done with it before the reset
++        if (!same_frame) {
++            g_rb_alloc_frame_id = frame; g_rb_alloc_frame_slot = alloc_i;
++            atomic_fetch_add_explicit(&g_rb_alloc_frame_rotations, 1, memory_order_relaxed);
++        }
+         g_alloc_cur = alloc_i;
+         if (can_reset) [g_alloc4[alloc_i] reset];
+         [g_cb beginCommandBufferWithAllocator:g_alloc4[alloc_i]];
+@@ -9735,6 +9757,13 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+          (unsigned long long)atomic_load_explicit(&g_rb_vis_waits, memory_order_relaxed),
+          atomic_load_explicit(&g_rb_vis_wait_ns, memory_order_relaxed) / 1e6,
+          (unsigned long long)atomic_load_explicit(&g_rb_vis_failed, memory_order_relaxed));
++    if (rb_alloc_frame_on() && !g_m3) {
++        uint64_t bytes = 0;
++        for (int i = 0; i < g_alloc_n; i++) bytes += [g_alloc4[i] allocatedSize];
++        MLOG("[rb-alloc-frame] cumulative frame=%llu reused_submissions=%llu rotations=%llu allocators=%d allocator_bytes=%llu",
++             frame, (unsigned long long)atomic_load(&g_rb_alloc_frame_reuses),
++             (unsigned long long)atomic_load(&g_rb_alloc_frame_rotations), g_alloc_n, (unsigned long long)bytes);
++    }
+     if (pending_polls || sleeps)
+         MLOG("[fence-wake] cumulative frame=%llu pendingPolls=%llu positiveWaitSleeps=%llu fenceBroadcasts=%llu segmentCompletionsWithSleepers=%llu",
+              frame, (unsigned long long)pending_polls, (unsigned long long)sleeps,
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 97f82bf..7b820c9 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -389,6 +389,8 @@ int nvn_be_shutdown_session(void) {
+     return 0;
+ }
+ void nvn_be_begin_session(void) {
++    g_rb_alloc_frame_mode = -1; g_rb_alloc_frame_slot = -1; g_rb_alloc_frame_id = UINT64_MAX;
++    atomic_store(&g_rb_alloc_frame_reuses, 0); atomic_store(&g_rb_alloc_frame_rotations, 0);
+     // The previous session has drained. A collection can reload its profile during boot,
+     // so resolve both options on first use. Discard only unreported barrier reasons;
+     // the texture counters are cumulative and the sampler retains its baselines.
+diff --git a/graphics/nvn/gfx/nvn/rb_allocator_frame.h b/graphics/nvn/gfx/nvn/rb_allocator_frame.h
+new file mode 100644
+index 0000000..9be2dbb
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_allocator_frame.h
+@@ -0,0 +1,10 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright 2026 S2Arm contributors
++#pragma once
++#include <stdint.h>
++// A completed host frame may still be on the GPU. Only the ordinary fence-based
++// rotation may select/reset a slot at a frame boundary. Within one host frame,
++// append sequential command buffers, exactly as sub_cut already does.
++static inline int rb_allocator_frame_reuse(int on, uint64_t frame, uint64_t held_frame, int slot, int count) {
++    return on && held_frame != UINT64_MAX && frame == held_frame && slot >= 0 && slot < count;
++}
+-- 
+2.56.1
+

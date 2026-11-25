@@ -439,3 +439,39 @@ GPU and device results are recorded after their checks complete.
 queue. It checks publication, ordering, consumer thread and event release before idle. The first
 review run passed 31 CPU, shared-buffer and session assertions. Its virtual device rejected
 Metal 4, so the native GPU event mode is explicitly unavailable on that runner.
+
+### Zelda : diagnostic et moteur 0367–0373 (25 novembre 2026)
+
+Le journal Zelda envoyé le 25 novembre, au format 0357–0360 de la 840, contient
+14 relevés cumulatifs. Sur les images 1800–4200, les allocateurs attendent
+4825,891 ms / 2400 images = 2,010788 ms/image ; visibilité et drains comptabilisés : zéro.
+Les fenêtres 1800–2100 à 3600–3900 dépassent chacune 1 ms/image. Le seuil demandé
+pour ajouter le mode par image est franchi. Ce relevé ne constitue pas un A/B.
+
+- **0367** `S2A_RB_ALLOC_FRAME=1` : append des soumissions du même frame hôte au
+  même allocateur, sans reset intermédiaire ; rotation suivante protégée par la
+  dernière fence, plafond inchangé de huit allocateurs. Rapport `allocator_bytes`.
+- **0368** `S2A_RB_WAKE_DIAG=1` : compteurs par fichier/ligne des attentes, retours,
+  délais courts (≤1 ms), timeouts et tentatives de signal. Les retours d’API ne
+  sont pas des interruptions noyau ; comparer les deltas au compteur iOS.
+  Le délai et l’appel natif restent identiques. Aucun correctif de réveil non attribué.
+- **0369** `S2A_RB_GPUDIAG=1` : passes/coupures par image avec fonction et ligne,
+  réouvertures par serial/sous-ressource/dimension et faits lexicaux des bibliothèques
+  fragment déjà traduites. Une source opaque est signalée inconnue. Les faits ne
+  prouvent pas l’exécution matérielle du test précoce. Aucun changement du traducteur.
+- **0370** `S2A_RB_PROBE_EVERY=30` : sonde non bloquante par frame, séparée du rapport
+  de 300 images. Zéro la coupe, absence conserve le comportement 840. La durée du
+  travail fixe indique une variation ; elle ne mesure pas une fréquence absolue.
+- **0371** `S2A_RB_DISPATCH_ORDER=game` : épargne uniquement la barrière entre
+  dispatchs invités consécutifs sans barrière du jeu. Copie, opération interne,
+  changement d’encodeur et tout bit explicite gardent la synchronisation.
+- **0372** `S2A_RB_PSO_WAIT_BOOST=1` : override QoS user-interactive du builder
+  identifié sous le mutex tant que le dessin l’attend, et du chemin synchrone ;
+  jetons rendus à la fin de l’attente. Ne force aucune fréquence matérielle.
+- **0373** `S2A_RB_ARCHIVE_ERROR_NIL=1` : `NSError **` nil pour la sérialisation
+  Metal ; BOOL, retry, nettoyage, renommage et publication de l’index conservés.
+
+Ces nouveaux modes sont sur demande ; les variantes structurelles attendent le
+replay Metal 4 et les mesures mémoire sur appareil avant activation générale.
+Les diagnostics doivent être séparés du passage chronométré. Contrôles purs :
+327 assertions GCC locales ; compilation et Clang sur macOS 15/26 en attente.

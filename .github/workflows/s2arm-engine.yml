@@ -101,6 +101,15 @@ jobs:
             echo "iphoneos SDK $(DEVELOPER_DIR="$best/Contents/Developer" xcrun --sdk iphoneos --show-sdk-version)"
             echo "S2Arm pins: $(grep -E '^(IPHONEOS_DEPLOYMENT_TARGET|IPHONEOS_SDK_MAJOR)=' "$RUNNER_TEMP/s2arm/tools/toolchain.env" | tr '\n' ' ')"
           } | tee -a proof/inputs.txt
+      - name: Check Zelda allocator, dispatch, probe and wake diagnostic policies
+        if: contains(github.event.head_commit.message, '[s2arm-zelda-check]')
+        run: |
+          set -euo pipefail
+          engine="$RUNNER_TEMP/s2arm"
+          xcrun --sdk macosx clang -std=gnu11 -O2 -Wall -Wextra -Werror -pthread \
+            -I"$engine/runtime/include" -I"$engine/runtime/src" -I"$engine/graphics/nvn/gfx/nvn" \
+            build-utils/s2arm/engine/tests/zelda_diag.c -o "$RUNNER_TEMP/zelda-diag"
+          "$RUNNER_TEMP/zelda-diag" | tee proof/zelda-diag-clang.txt
       - name: Check adaptive shader cache changes
         id: adaptive_shader_checks
         continue-on-error: true
