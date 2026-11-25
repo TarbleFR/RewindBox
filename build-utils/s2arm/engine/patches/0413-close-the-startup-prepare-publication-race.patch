@@ -1,0 +1,90 @@
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -16372,7 +16372,7 @@
+ // RewindBox (patch 0400): actual binds from the last two sessions, not the
+ // entire user/reference catalogue. A row remains claimed exactly once.
+ static _Atomic long g_rb_known_pending, g_rb_known_total, g_rb_known_ready, g_rb_known_failed;
+-static _Atomic int g_rb_known_active, g_rb_known_waited;
++static _Atomic int g_rb_known_active, g_rb_known_waited, g_rb_known_initialized;
+ static int rb_known_prepare_on(void) {
+     const char *e=getenv("S2A_RB_PREPARE_KNOWN");
+     return nvn_rb_thermal_scope() && (!e || strcmp(e,"0"));
+@@ -17888,7 +17888,7 @@
+ }
+ static void warm_start(void) { warm_start_mode(0); }
+ static void rb_wait_known_prepare(void) {
+-    if (!atomic_load(&g_rb_known_active) || atomic_exchange(&g_rb_known_waited,1)) return;
++    if (!atomic_load(&g_warm_started) || atomic_exchange(&g_rb_known_waited,1)) return;
+     uint64_t start=bp_now();
+     int configured=prepare_max_ms();
+     uint64_t limit=(uint64_t)(configured>0 ? MIN(configured,30000) : 30000)*1000000ull;
+@@ -17897,14 +17897,15 @@
+     DM_BLOCK_BEGIN();
+     for (;;) {
+         long left=atomic_load(&g_rb_known_pending), total=atomic_load(&g_rb_known_total);
+-        if (!left) break;
++        int initialized=atomic_load_explicit(&g_rb_known_initialized,memory_order_acquire);
++        if (initialized && (!atomic_load(&g_rb_known_active) || !left)) break;
+         if (nvn_be_stopping() || dm_gfx_session_stopping()) { reason="stop"; break; }
+         if (bp_now()-start>=limit) { reason="time_budget"; break; }
+         if (rb_cached_thermal()>=3 || !rb_metal_working_room() || !rb_registered_capacity() ||
+             bp_now()<atomic_load(&g_spec_pressure_until)) { reason="pressure"; break; }
+         if (atomic_load(&g_wp_play)) { reason="player"; break; }
+         // A subset is not the completion of the full warm-up catalogue.
+-        if (total>0) {
++        if (initialized && total>0) {
+             int result=s2a_front_warm_tick(total-MAX(left,0),total+1);
+             front|=result>=0;
+             if (result==1) { reason="player"; break; }
+@@ -17934,11 +17935,12 @@
+     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ pso_user_seen_load(); });   // the record's dedupe set, off the submit thread (pso_user_seen_load)
+     rb_disk_launch(nil, YES);
+     NSArray<NSString *> *paths = warm_paths(1);
+-    if (!paths) { rb_disk_launch(@[], NO); dm_shader_retranslate_kept(); return; }   // RewindBox (patch 0069): no prewarm, so no warm_finish
++    if (!paths) { atomic_store_explicit(&g_rb_known_initialized,1,memory_order_release); rb_disk_launch(@[], NO); dm_shader_retranslate_kept(); return; }   // RewindBox (patch 0069): no prewarm, so no warm_finish
+     g_warm_t0 = bp_now(); atomic_store(&g_wp_t0, g_warm_t0);
+     g_rb_warm_msl_n0 = atomic_load(&g_rb_msl_n); g_rb_warm_msl_ns0 = atomic_load(&g_rb_msl_ns); rb_sys_cache_report("at the prewarm's start");   // RewindBox (patch 0347)
+     atomic_store(&g_warm_running, 1);
+     if (rb_ref_path() || (!resumed && prepare_on())) {
++        atomic_store_explicit(&g_rb_known_initialized,1,memory_order_release);
+         long lines = 0; NSArray<WarmTask *> *tasks = warm_parse(paths, &lines); warm_urgent_index(tasks); rb_disk_launch(tasks, NO);
+         if (!lines) { MLOG("pipeline prepare: the prewarm lists hold nothing to build"); warm_finish(); }
+         else {
+@@ -17957,9 +17959,11 @@
+         }
+         os_unfair_lock_lock(&g_wu_lock); g_rb_tier_binds=[NSMutableSet set]; os_unfair_lock_unlock(&g_wu_lock);
+         atomic_store(&g_wp_total,0); atomic_store(&g_wp_why,WARM_WHY_CONFIG); atomic_store(&g_wp_phase,WARM_BG);
++        atomic_store_explicit(&g_rb_known_initialized,1,memory_order_release);
+         dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0),^{ @autoreleasepool { rb_run_tiers(paths); } });
+         return;
+     }
++    atomic_store_explicit(&g_rb_known_initialized,1,memory_order_release);
+     // warm_bg: DM_PSO_BG_THREADS workers (default 2) at WARM_BG_QOS while the game plays: first uses (pso_pend, user-initiated) go ahead of them at the compiler service, and two
+     //   workers keep the compile load off the cores the game and the system need (six at user-initiated were the heat above)
+     const int async = rb_async_pso();
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -397,6 +397,7 @@
+ void nvn_be_begin_session(void) {
+     atomic_store(&rb_vertex_entry_mode,-1);
+     atomic_store(&rb_vertex_entry_cuts,0); atomic_store(&rb_vertex_entry_fallbacks,0);
++    atomic_store(&g_rb_known_initialized,0);
+     atomic_store(&g_rb_known_active,0); atomic_store(&g_rb_known_waited,0);
+     atomic_store(&g_rb_known_pending,0); atomic_store(&g_rb_known_total,0);
+     atomic_store(&g_rb_known_ready,0); atomic_store(&g_rb_known_failed,0);
+--- a/graphics/nvn/gfx/nvn/rb_replay_worker.inc
++++ b/graphics/nvn/gfx/nvn/rb_replay_worker.inc
+@@ -22,11 +22,12 @@
+ }
+ static void rb_replay_join(void) {
+     if (rb_replay_worker_thread || !atomic_load_explicit(&rb_replay_pending,memory_order_acquire)) return;
+-    uint64_t start=now_ns();
++    uint64_t start=now_ns(); int phase=rb_lf_switch(RB_SUBMIT);
+     pthread_mutex_lock(&rb_replay_mu); uint64_t target=rb_replay_sent;
+     DM_BLOCK_BEGIN();
+     while (rb_replay_done<target) pthread_cond_wait(&rb_replay_cv,&rb_replay_mu);
+     DM_BLOCK_END();
++    if (phase>=0) rb_lf_switch(phase);
+     rb_replay_wait_ns+=now_ns()-start;
+     pthread_mutex_unlock(&rb_replay_mu);
+ }

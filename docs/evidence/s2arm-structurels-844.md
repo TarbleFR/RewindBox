@@ -14,6 +14,19 @@ ne prouve ni une suppression de cache ni l'absence totale de compilation lors
 des deux premiers essais. Les anciens journaux MKW de l'archive ne datent pas
 ces trois essais et ne permettent pas de leur attribuer un état thermique précis.
 
+## Admission du premier submit (0413)
+
+La revue finale relève une course réelle entre le lancement du préchauffage et
+la publication de sa liste connue : `g_warm_started` pouvait être visible alors
+que `g_rb_known_active` était encore nul. Le premier submit évitait alors l'attente.
+0413 publie explicitement la fin de cette initialisation ; le premier submit
+attend cette publication puis les achèvements connus sous les mêmes limites
+(30 s maximum, arrêt, choix du joueur, pression critique). Une simple liste
+lancée ne vaut pas une liste terminée. Une libération sur limite reste consignée
+avec le nombre prêt, échoué et restant ; elle ne promet pas zéro compilation en jeu.
+Les jointures du worker sont attribuées à l'attente de soumission dans le relevé
+de longue image, au lieu d'être diluées dans le temps invité non expliqué.
+
 ## Correction de compilation (0412)
 
 La [compilation 0408–0410](https://github.com/TarbleFR/RewindBox/actions/runs/45659945710)

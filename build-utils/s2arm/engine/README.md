@@ -633,3 +633,7 @@ Release réussie, compilation iPhoneOS requise, gains appareil non mesurés.
 
 0412 corrige la réaffectation d'un paramètre ARC dans le writer des lots mixtes
 signalée par la CI 45659945710 ; la référence locale détient le sous-lot traité.
+
+0413 ferme la course entre le lancement du préchauffage et la publication de
+sa liste connue avant le premier submit, avec budget et arrêts conservés.
+Les longues images identifient aussi l'attente du worker de relecture.
