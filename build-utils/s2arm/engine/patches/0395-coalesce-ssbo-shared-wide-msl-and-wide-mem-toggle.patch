@@ -1,0 +1,454 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index f047007..7625dc3 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -12100,9 +12100,9 @@ static NSString *fnn(NvShader *o, NSString *entry) { return o->fnpfx.length && e
+ //   the chain follows only the host / library interface and the fallback directory survives app updates, so an older translator's result keeps the chain. Without s2a_dsh_xfp (S2A.Aot not linked) none is.
+ //   dsh_miss.inc dsh_have checks the same two before reusing it
+ static const char *fb_xfp(void) {
+-    static const char *x; static dispatch_once_t once;
+-    dispatch_once(&once, ^{ const char *(*fn)(void) = (const char *(*)(void))dlsym(RTLD_DEFAULT, "s2a_dsh_xfp"); x = fn ? fn() : NULL; });
+-    return x;
++    static const char *(*fn)(void); static dispatch_once_t once;
++    dispatch_once(&once, ^{ fn = (const char *(*)(void))dlsym(RTLD_DEFAULT, "s2a_dsh_xfp"); });
++    return fn ? fn() : NULL;
+ }
+ static int fb_json_current(NSDictionary *j) { const char *x = fb_xfp(); return x && [j[@"chain"] isEqual:@DMSH_CHAIN] && [j[@"xfp"] isEqual:@(x)]; }
+ // RewindBox (patch 0066): a vertex shader's base instance from Metal, not from the driver segment.
+diff --git a/graphics/nvn/host/dsh_miss.inc b/graphics/nvn/host/dsh_miss.inc
+index 48e9ae7..0a15ae1 100644
+--- a/graphics/nvn/host/dsh_miss.inc
++++ b/graphics/nvn/host/dsh_miss.inc
+@@ -85,9 +85,9 @@ static void dsh_summary(int normal) {
+ __attribute__((constructor)) static void dsh_register_summary(void) { s2a_direct_summary_register(dsh_summary); }
+ // 本机现编库的翻译器指纹（S2A.Dsh s2a_dsh_xfp，16 位十六进制）；没链 S2A.Aot 为 NULL
+ static const char *dsh_xfp(void) {
+-    static const char *x; static dispatch_once_t once;
+-    dispatch_once(&once, ^{ const char *(*fn)(void) = (const char *(*)(void))dlsym(RTLD_DEFAULT, "s2a_dsh_xfp"); x = fn ? fn() : NULL; });
+-    return x;
++    static const char *(*fn)(void); static dispatch_once_t once;
++    dispatch_once(&once, ^{ fn = (const char *(*)(void))dlsym(RTLD_DEFAULT, "s2a_dsh_xfp"); });
++    return fn ? fn() : NULL;
+ }
+ #include "../gfx/nvn/rb_stage_reflection.h"
+ static int dsh_current_stage(const char *out, const char *k, int *stage) {
+diff --git a/graphics/tools/direct/dsh/Dsh.cs b/graphics/tools/direct/dsh/Dsh.cs
+index 9a039ec..bedf672 100644
+--- a/graphics/tools/direct/dsh/Dsh.cs
++++ b/graphics/tools/direct/dsh/Dsh.cs
+@@ -45,7 +45,9 @@ namespace S2A.Dsh
+         public static Func<string, string> PackMslRead;   // 出包：配对顶点读片元 _b.metal 的来处（批量进程给「从产物表读」，就不在 PackMsl 里另留一份全文；11-02 马力欧派对 5.2 万支片元全文常驻约 7 GB）；null = 照旧查 PackMsl
+         public static HashSet<string> PackMslKeep;   // 出包：要留的那些名字（<片元键>_b.metal，配对表第二列）；null = 全留   // 出包批量进程（batch/Program.cs）置真：另写 <键>_b.plain.metal 与变体源码 _bv / _bf / _ft（编译归出包编排层；设备现编不出变体）
+         /// <summary>翻译器指纹（S2A.Dsh.csproj DshXfpHash：本库与所引翻译器工程源码的哈希）：现编结果 json 带它，宿主比 s2a_dsh_xfp() 不等就不复用（链号不随翻译器变，兜底目录跨 App 更新保留）</summary>
+-        public static string Xfp => DshChain.Xfp;
++        public static string Xfp => WideMemoryEnabled() ? DshChain.Xfp : XfpOff;
++        internal static readonly string XfpOff = Convert.ToHexStringLower(SHA256.HashData(Encoding.ASCII.GetBytes(DshChain.Xfp + ":wide=0")))[..16];
++        public static bool WideMemoryEnabled() => Ryujinx.Graphics.Shader.Translation.Translator.WideMemoryEnabled();
+         static readonly string[] Stages = { "vs", "ps", "cs", "gs", "ts", "ms" };   // C 导出的阶段号：4 / 5 = NVN2 任务 / 网格（dsh_miss.inc dsh_stage）
+         public static string StageName(int stage) => stage >= 0 && stage < Stages.Length ? Stages[stage] : null;
+ 
+@@ -356,6 +358,12 @@ namespace S2A.Dsh
+                 if (s == null) throw new DshError(status, Sl(e ?? "", 0, 160));
+                 s = GatherOffsets(s);   // 四偏移 gather 拆成四次常量偏移（见 GatherOffsets）
+                 s = PoolArrays(s);   // 追不到槽的句柄读宿主的池表（见 PoolArrays）
++                if (WideMemoryEnabled())
++                {
++                    s = PackPhysicalVectors(s);
++                    s = WideLoads(s);
++                    s = WideStores(s);
++                }
+                 string resPath = Path.Combine(Path.GetDirectoryName(spvPath) ?? "", (resKey ?? Path.GetFileNameWithoutExtension(spvPath)) + ".res.json");
+                 return XIo.Exists(resPath) ? PoolNoInline(s, JsonNode.Parse(XIo.ReadAllText(resPath)) as JsonObject) : s;
+             }
+@@ -566,7 +574,9 @@ namespace S2A.Dsh
+                         if (rc != 0 || !XIo.Exists(spv)) throw new DshError("translation failed", Sl($"hull shader for {TESS_DOM.GetValueOrDefault(d, d.ToString())}: " + err.Trim(), 0, 160));
+                     }
+                     var (src, flags, ocp) = NxgalSpvCross.TessMsl(NxgalSpvCross.Harden(XIo.ReadAllBytes(spv)), 0, TESS_BASE);
+-                    src = Precise(PoolArrays(GatherOffsets(src))); Save(lk + ".metal", src);
++                    src = PoolArrays(GatherOffsets(src));
++                    if (WideMemoryEnabled()) src = WideStores(WideLoads(PackPhysicalVectors(src)));
++                    src = Precise(src); Save(lk + ".metal", src);
+                     variants[TESS_DOM.GetValueOrDefault(d, d.ToString())] = new PyDict { ["library"] = lk, ["flags"] = (long)flags, ["output_control_points"] = (long)ocp };
+                     first ??= src;
+                 }
+@@ -777,6 +787,344 @@ namespace S2A.Dsh
+         static readonly Regex s_poolArr = new(@"^(\s*)array<(.+), (\d+)> (\w+) \[\[\s*id\(", RegexOptions.Multiline | RegexOptions.CultureInvariant);
+         static readonly Regex s_poolMember = new(@"^(\s*)(.+?)\s+(\w+)\s*\[\[\s*id\((\d+)\)\s*((?:,[^\]]*)?)\]\];", RegexOptions.Multiline | RegexOptions.CultureInvariant);
+         static readonly Regex s_poolOwnSide = new(@"\bdiscard_fragment\b|\[\[\s*depth\(|\[\[\s*sample_mask\s*\]\]|\[\[\s*stencil\s*\]\]|\.write\(|\batomic_\w+_explicit\b|^\s*device\s", RegexOptions.Multiline | RegexOptions.CultureInvariant);
++
++        // RewindBox: SPIRV-Cross emits device uint2*/uint4* for PhysicalStorageBuffer vector ops even when SPIR-V declares Aligned 4.
++        // In Metal, uint2*/uint4* require 8/16-byte alignment, whereas packed_uint2*/packed_uint4* require only 4-byte alignment
++        // and compile to the same 64/128-bit vector loads/stores on Apple GPUs.
++        static readonly Regex s_physVecLoad = new(@"\*\(reinterpret_cast<(const )?device uint([24])\*>\(", RegexOptions.CultureInvariant);
++        static readonly Regex s_physVecStore = new(@"^(\s*)\*\(reinterpret_cast<device uint([24])\*>\((.+)\)\) = (.+);$", RegexOptions.Multiline | RegexOptions.CultureInvariant);
++        internal static string PackPhysicalVectors(string msl)
++        {
++            if (!msl.Contains("device uint2*", StringComparison.Ordinal) && !msl.Contains("device uint4*", StringComparison.Ordinal)) return msl;
++            // Rewrite stores first: *(reinterpret_cast<device uintN*>(addr)) = rhs; -> *(reinterpret_cast<device packed_uintN*>(addr)) = packed_uintN(rhs);
++            msl = s_physVecStore.Replace(msl, m =>
++            {
++                string ind = m.Groups[1].Value, n = m.Groups[2].Value, addr = m.Groups[3].Value, rhs = m.Groups[4].Value;
++                return $"{ind}*(reinterpret_cast<device packed_uint{n}*>({addr})) = packed_uint{n}({rhs});";
++            });
++            // Rewrite loads with balanced parentheses: *(reinterpret_cast<const device uintN*>(addr)) -> uintN(*(reinterpret_cast<const device packed_uintN*>(addr)))
++            var sb = new StringBuilder(msl.Length + 64);
++            int pos = 0;
++            foreach (Match m in s_physVecLoad.Matches(msl))
++            {
++                if (m.Index < pos) continue;
++                int j = m.Index + m.Length, depth = 2; // '(' after '*' and '(' after 'reinterpret_cast<...>'
++                while (j < msl.Length && depth > 0)
++                {
++                    char ch = msl[j++];
++                    if (ch == '(') depth++;
++                    else if (ch == ')') depth--;
++                }
++                if (depth != 0) continue;
++                string c = m.Groups[1].Value, n = m.Groups[2].Value;
++                string inner = msl[(m.Index + m.Length)..(j - 2)];
++                sb.Append(msl, pos, m.Index - pos)
++                  .Append("uint").Append(n).Append("(*(reinterpret_cast<").Append(c).Append("device packed_uint").Append(n).Append("*>(")
++                  .Append(inner).Append(")))");
++                pos = j;
++            }
++            if (pos == 0) return msl;
++            return sb.Append(msl, pos, msl.Length - pos).ToString();
++        }
++
++        // RewindBox (adapted from S2Arm b2d7c15e3 / nxnative dmsh_wide.py, MIT, extended with tiny-buffer + wraparound
++        // safety, as_type<int>() index roots, +8..+12 64-bit windows, and threadgroup shared memory):
++        // Coalesce 2..4 consecutive 32-bit loads from the same read-only storage buffer or threadgroup array into one
++        // packed_uint2/3/4 load (4-byte alignment requirement) guarded by an in-bounds check with exact scalar fallback.
++        static readonly Regex s_wAdd = R(@"^\s*int (_\w+) = (as_type<int>\(_\w+\)|_\w+) \+ \(?(-?\d+)\)?;\s*$");
++        static readonly Regex s_wIdx = R(@"^\s*uint (_\w+) = uint\(int\(uint\((as_type<int>\(_\w+\)|_\w+)(?: \+ \(?(-?\d+)\)?)?\) >> uint\(2\)\)\);\s*$");
++        static readonly Regex s_wBuf = new(@"^\s*(?:const )?device _\w+\* ([a-z]p_s\d+) \[\[id\(\d+\)\]\];", RegexOptions.Multiline | RegexOptions.CultureInvariant);
++        static readonly Regex s_wRw = new(@"^\s*device _\w+\* ([a-z]p_s\d+) \[\[id\(\d+\)\]\];", RegexOptions.Multiline | RegexOptions.CultureInvariant);
++        static readonly Regex s_wTg = R(@"^\s*threadgroup spvUnsafeArray<uint, (\d+)> (_\w+);\s*$");
++        static readonly Regex s_wLoadSsbo = R(@"\(\*spvDescriptorSet0\.([a-z]p_s\d+)\)\._m0\[min\((_\w+), ((?:[^\[\]()]|\([^()]*\))+)\)\]");
++        static readonly Regex s_wLoadTg = R(@"\b(_\w+)\[min\((_\w+), (\d+u)\)\]");
++        const string WOP = @"(?:[-+*/%|&^]|<<|>>)?=(?!=)";
++        static readonly Regex s_wWrite = R(@"atomic_|_barrier\(|\.write\(|\]\s*" + WOP + @"|^\s*\*|^\s*_\w+\s*" + WOP + @"|(?<![\w.])_\d+\(");
++        static readonly string[] s_wLane = { "x", "y", "z", "w" };
++
++        static string WRootExpr(string root, long off) => off == 0 ? root : off > 0 ? $"{root} + {off}" : $"{root} + ({off})";
++
++        static List<(int A, int B)> TopSegments(string[] lines)
++        {
++            var segs = new List<(int A, int B)>();
++            int open = -1;
++            for (int i = 0; i < lines.Length; i++)
++            {
++                if (lines[i] == "{") open = i;
++                else if (lines[i] == "}" && open >= 0) { segs.Add((open, i)); open = -1; }
++            }
++            return segs;
++        }
++
++        internal static string WideLoads(string msl)
++        {
++            if (!msl.Contains(" >> uint(2)", StringComparison.Ordinal) || !msl.Contains("[min(", StringComparison.Ordinal)) return msl;
++            var bufs = new HashSet<string>(StringComparer.Ordinal);
++            foreach (Match m in s_wBuf.Matches(msl)) bufs.Add(m.Groups[1].Value);
++            string[] lines = msl.Split('\n');
++            var segs = TopSegments(lines);
++            var edits = new SortedDictionary<int, List<(int S, int E, string Rep, string Decl)>>();
++            int n = 0;
++            foreach (var (a, b) in segs)
++            {
++                var tgLen = new Dictionary<string, uint>(StringComparer.Ordinal);
++                var adds = new Dictionary<string, (string V, long K)>(StringComparer.Ordinal);
++                var idx = new Dictionary<string, (string V, long K)>(StringComparer.Ordinal);
++                for (int i = a + 1; i < b; i++)
++                {
++                    var mt = s_wTg.Match(lines[i]);
++                    if (mt.Success && uint.TryParse(mt.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out uint tlen) && tlen >= 2)
++                    {
++                        tgLen[mt.Groups[2].Value] = tlen;
++                        continue;
++                    }
++                    var ma = s_wAdd.Match(lines[i]);
++                    if (ma.Success) { adds[ma.Groups[1].Value] = (ma.Groups[2].Value, long.Parse(ma.Groups[3].Value, CultureInfo.InvariantCulture)); continue; }
++                    var mi = s_wIdx.Match(lines[i]);
++                    if (mi.Success) idx[mi.Groups[1].Value] = (mi.Groups[2].Value, mi.Groups[3].Success ? long.Parse(mi.Groups[3].Value, CultureInfo.InvariantCulture) : 0);
++                }
++                if (bufs.Count == 0 && tgLen.Count == 0) continue;
++                // Key: (block, kind: 0=ssbo 1=tg, targetName, rootExpr, lastExpr)
++                var words = new Dictionary<(int Block, int Kind, string Target, string Root, string Last), SortedDictionary<long, (int Line, Match M, string Iv)>>();
++                var order = new List<(int, int, string, string, string)>();
++                int block = 0;
++                for (int i = a + 1; i < b; i++)
++                {
++                    string ln = lines[i];
++                    if (ln.Contains('{') || ln.Contains('}') || s_wWrite.IsMatch(ln)) { block++; continue; }
++                    int kind = -1;
++                    Match m = null;
++                    string target = null, iv = null, last = null;
++                    if (bufs.Count > 0 && ln.Contains("._m0[min(", StringComparison.Ordinal))
++                    {
++                        var ms = s_wLoadSsbo.Matches(ln);
++                        if (ms.Count == 1 && bufs.Contains(ms[0].Groups[1].Value))
++                        {
++                            kind = 0; m = ms[0]; target = m.Groups[1].Value; iv = m.Groups[2].Value; last = m.Groups[3].Value;
++                        }
++                    }
++                    else if (tgLen.Count > 0 && ln.Contains("[min(", StringComparison.Ordinal))
++                    {
++                        var ms = s_wLoadTg.Matches(ln);
++                        if (ms.Count == 1 && tgLen.TryGetValue(ms[0].Groups[1].Value, out uint tlen) && ms[0].Groups[3].Value == (tlen - 1) + "u")
++                        {
++                            kind = 1; m = ms[0]; target = m.Groups[1].Value; iv = m.Groups[2].Value; last = ms[0].Groups[3].Value;
++                        }
++                    }
++                    if (kind < 0 || !idx.TryGetValue(iv, out var ix)) continue;
++                    string v = ix.V; long off = ix.K;
++                    for (int g = 0; g < 64 && adds.TryGetValue(v, out var ad); g++) { v = ad.V; off += ad.K; }
++                    if (off % 4 != 0) continue;
++                    var key = (block, kind, target, v, last);
++                    if (!words.TryGetValue(key, out var by)) { words[key] = by = new SortedDictionary<long, (int, Match, string)>(); order.Add(key); }
++                    by.TryAdd(off, (i, m, iv));
++                }
++                foreach (var key in order)
++                {
++                    var by = words[key];
++                    var used = new HashSet<long>();
++                    var starts = new SortedSet<long>();
++                    foreach (long o in by.Keys)
++                    {
++                        long b16 = o - ((o % 16) + 16) % 16;
++                        starts.Add(b16);
++                        starts.Add(b16 + 8); // also allow 64-bit runs at +8, +12
++                    }
++                    foreach (long bs in starts)
++                    {
++                        int maxN = (bs & 15) == 0 ? 4 : 2;
++                        var run = new List<(long Off, int Line, Match M, string Iv)>();
++                        while (run.Count < maxN && !used.Contains(bs + 4 * run.Count) && by.TryGetValue(bs + 4 * run.Count, out var w))
++                            run.Add((bs + 4 * run.Count, w.Line, w.M, w.Iv));
++                        if (run.Count < 2 || run.Exists(w => w.Line < run[0].Line)) continue;
++                        int N = run.Count;
++                        if (key.Item2 == 1 && tgLen[key.Item3] < (uint)N) continue;
++                        foreach (var w in run) used.Add(w.Off);
++                        string name = "_dmw" + n++, vec = "packed_uint" + N, i0 = run[0].Iv, last = key.Item5;
++                        string decl;
++                        if (key.Item2 == 0)
++                        {
++                            string bb = $"(*spvDescriptorSet0.{key.Item3})._m0";
++                            var scalars = new List<string>(N) { $"{bb}[min({i0}, {last})]" };
++                            for (int w = 1; w < N; w++)
++                                scalars.Add($"{bb}[min(uint(int(uint({WRootExpr(key.Item4, run[w].Off)}) >> uint(2))), {last})]");
++                            // Fast path: (last >= N-1) && (i0 <= last - (N-1)) guarantees:
++                            //   1) buffer has >= N words (never reads past tiny buffers),
++                            //   2) i0 <= 0x3FFFFFFEu - (N-1) so (root + 4*w) cannot wrap 32-bit uint,
++                            //   3) all N words lie strictly in-bounds; packed_uintN needs only 4-byte alignment.
++                            decl = $"{vec} {name}; if (({last} >= {N - 1}u) && ({i0} <= ({last} - {N - 1}u))) {{ {name} = *(const device {vec}*)&{bb}[{i0}]; }} else {{ {name} = {vec}({string.Join(", ", scalars)}); }}";
++                        }
++                        else
++                        {
++                            uint tlen = tgLen[key.Item3];
++                            string arr = key.Item3;
++                            var scalars = new List<string>(N) { $"{arr}[min({i0}, {last})]" };
++                            for (int w = 1; w < N; w++)
++                                scalars.Add($"{arr}[min(uint(int(uint({WRootExpr(key.Item4, run[w].Off)}) >> uint(2))), {last})]");
++                            decl = $"{vec} {name}; if ({i0} <= {tlen - (uint)N}u) {{ {name} = *(const threadgroup {vec}*)&{arr}.elements[{i0}]; }} else {{ {name} = {vec}({string.Join(", ", scalars)}); }}";
++                        }
++                        for (int w = 0; w < N; w++)
++                        {
++                            var (_, li, mm, _) = run[w];
++                            if (!edits.TryGetValue(li, out var el)) edits[li] = el = new List<(int, int, string, string)>();
++                            el.Add((mm.Index, mm.Index + mm.Length, $"{name}.{s_wLane[w]}", w == 0 ? decl : null));
++                        }
++                    }
++                }
++            }
++            if (edits.Count == 0) return msl;
++            foreach (var (li, el) in edits)
++            {
++                string ln = lines[li]; var pre = new List<string>();
++                el.Sort((x, y) => y.S.CompareTo(x.S));
++                foreach (var (s0, e0, rep, decl) in el) { ln = ln[..s0] + rep + ln[e0..]; if (decl != null) pre.Add(decl); }
++                string ind = lines[li][..(lines[li].Length - lines[li].TrimStart().Length)];
++                lines[li] = string.Concat(pre.ConvertAll(d => ind + d + "\n")) + ln;
++            }
++            return string.Join('\n', lines);
++        }
++
++        // RewindBox: coalesce 2..4 consecutive guarded 32-bit stores emitted by gal_spvx.c + SPIRV-Cross on writable
++        // storage buffers (device _T* bp_sN) or threadgroup shared memory arrays into one packed_uint2/3/4 store when
++        // all N words fit in-bounds, keeping exact per-word guarded scalar stores as the boundary/tiny-buffer fallback.
++        static readonly Regex s_wsIf = R(@"^(\s*)if \((_\w+) < (_\w+|\d+u)\)\s*$");
++        static readonly Regex s_wsStoreSsbo = R(@"^\s*\(\*spvDescriptorSet0\.([a-z]p_s\d+)\)\._m0\[min\((_\w+), ((?:[^\[\]()]|\([^()]*\))+)\)\] = (.+);\s*$");
++        static readonly Regex s_wsStoreTg = R(@"^\s*(_\w+)\[min\((_\w+), (\d+u)\)\] = (.+);\s*$");
++        static readonly Regex s_wsUnsafeRhs = R(@"\[|\*|->|atomic_|_barrier\(");
++        internal static string WideStores(string msl)
++        {
++            if (!msl.Contains(" >> uint(2)", StringComparison.Ordinal) || !msl.Contains("[min(", StringComparison.Ordinal)) return msl;
++            var rw = new HashSet<string>(StringComparer.Ordinal);
++            foreach (Match m in s_wRw.Matches(msl)) rw.Add(m.Groups[1].Value);
++            string[] lines = msl.Split('\n');
++            var segs = TopSegments(lines);
++            var replace = new List<(int StartLine, int EndLine, string Replacement)>();
++            foreach (var (a, b) in segs)
++            {
++                var tgLen = new Dictionary<string, uint>(StringComparer.Ordinal);
++                var adds = new Dictionary<string, (string V, long K)>(StringComparer.Ordinal);
++                var idx = new Dictionary<string, (string V, long K, int Line)>(StringComparer.Ordinal);
++                for (int i = a + 1; i < b; i++)
++                {
++                    var mt = s_wTg.Match(lines[i]);
++                    if (mt.Success && uint.TryParse(mt.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out uint tlen) && tlen >= 2)
++                    {
++                        tgLen[mt.Groups[2].Value] = tlen;
++                        continue;
++                    }
++                    var ma = s_wAdd.Match(lines[i]);
++                    if (ma.Success) { adds[ma.Groups[1].Value] = (ma.Groups[2].Value, long.Parse(ma.Groups[3].Value, CultureInfo.InvariantCulture)); continue; }
++                    var mi = s_wIdx.Match(lines[i]);
++                    if (mi.Success) idx[mi.Groups[1].Value] = (mi.Groups[2].Value, mi.Groups[3].Success ? long.Parse(mi.Groups[3].Value, CultureInfo.InvariantCulture) : 0, i);
++                }
++                if (rw.Count == 0 && tgLen.Count == 0) continue;
++
++                // Parse consecutive guarded store items: [optional idx decl lines] + if (iv < len) { target[min(iv, last)] = rhs; }
++                int cur = a + 1;
++                while (cur + 3 < b)
++                {
++                    var run = new List<(int Kind, string Target, string Root, long Off, string Iv, string Len, string Last, string Rhs, string Ind, int StartLine, int EndLine, List<string> PrefixLines)>();
++                    int scan = cur;
++                    while (scan + 3 < b && run.Count < 4)
++                    {
++                        var prefix = new List<string>();
++                        int p = scan;
++                        while (p < b && (string.IsNullOrWhiteSpace(lines[p]) || s_wIdx.IsMatch(lines[p])))
++                        {
++                            if (!string.IsNullOrWhiteSpace(lines[p])) prefix.Add(lines[p]);
++                            p++;
++                        }
++                        if (p + 3 >= b) break;
++                        var mIf = s_wsIf.Match(lines[p]);
++                        if (!mIf.Success || lines[p + 1].Trim() != "{" || lines[p + 3].Trim() != "}") break;
++                        string ind = mIf.Groups[1].Value, iv = mIf.Groups[2].Value, len = mIf.Groups[3].Value;
++                        int kind = -1; string target = null, last = null, rhs = null;
++                        var ms = s_wsStoreSsbo.Match(lines[p + 2]);
++                        if (ms.Success && rw.Contains(ms.Groups[1].Value) && ms.Groups[2].Value == iv)
++                        {
++                            kind = 0; target = ms.Groups[1].Value; last = ms.Groups[3].Value; rhs = ms.Groups[4].Value;
++                        }
++                        else
++                        {
++                            var mt = s_wsStoreTg.Match(lines[p + 2]);
++                            if (mt.Success && tgLen.TryGetValue(mt.Groups[1].Value, out uint tlen) &&
++                                mt.Groups[2].Value == iv && len == tlen + "u" && mt.Groups[3].Value == (tlen - 1) + "u")
++                            {
++                                kind = 1; target = mt.Groups[1].Value; last = mt.Groups[3].Value; rhs = mt.Groups[4].Value;
++                            }
++                        }
++                        if (kind < 0 || !idx.TryGetValue(iv, out var ix)) break;
++                        string root = ix.V; long off = ix.K;
++                        for (int g = 0; g < 64 && adds.TryGetValue(root, out var ad); g++) { root = ad.V; off += ad.K; }
++                        if (off % 4 != 0) break;
++                        if (run.Count == 0)
++                        {
++                            long mod16 = ((off % 16) + 16) % 16;
++                            if (mod16 != 0 && mod16 != 8) break;
++                        }
++                        else
++                        {
++                            var first = run[0];
++                            int maxN = (first.Off & 15) == 0 ? 4 : 2;
++                            if (run.Count >= maxN) break;
++                            if (kind != first.Kind || target != first.Target || root != first.Root || len != first.Len || last != first.Last || ind != first.Ind) break;
++                            if (off != first.Off + 4L * run.Count) break;
++                            if (s_wsUnsafeRhs.IsMatch(rhs)) break;
++                        }
++                        run.Add((kind, target, root, off, iv, len, last, rhs, ind, scan, p + 3, prefix));
++                        scan = p + 4;
++                    }
++                    if (run.Count >= 2 && (run[0].Kind == 0 || tgLen[run[0].Target] >= (uint)run.Count))
++                    {
++                        int N = run.Count;
++                        var f0 = run[0];
++                        string vec = "packed_uint" + N;
++                        var sb = new StringBuilder();
++                        foreach (var item in run)
++                            foreach (var pl in item.PrefixLines) sb.Append(pl).Append('\n');
++                        string cond = f0.Kind == 0
++                            ? $"(({f0.Len} >= {N}u) && ({f0.Iv} <= ({f0.Len} - {N}u)))"
++                            : $"({f0.Iv} <= {tgLen[f0.Target] - (uint)N}u)";
++                        string ptr = f0.Kind == 0
++                            ? $"*(device {vec}*)&(*spvDescriptorSet0.{f0.Target})._m0[{f0.Iv}]"
++                            : $"*(threadgroup {vec}*)&{f0.Target}.elements[{f0.Iv}]";
++                        string vals = string.Join(", ", run.ConvertAll(it => it.Rhs));
++                        sb.Append(f0.Ind).Append("if ").Append(cond).Append('\n')
++                          .Append(f0.Ind).Append("{\n")
++                          .Append(f0.Ind).Append("    ").Append(ptr).Append(" = ").Append(vec).Append('(').Append(vals).Append(");\n")
++                          .Append(f0.Ind).Append("}\n")
++                          .Append(f0.Ind).Append("else\n")
++                          .Append(f0.Ind).Append("{\n");
++                        foreach (var it in run)
++                        {
++                            string lhs = it.Kind == 0
++                                ? $"(*spvDescriptorSet0.{it.Target})._m0[min({it.Iv}, {it.Last})]"
++                                : $"{it.Target}[min({it.Iv}, {it.Last})]";
++                            sb.Append(f0.Ind).Append("    if (").Append(it.Iv).Append(" < ").Append(it.Len).Append(") { ")
++                              .Append(lhs).Append(" = ").Append(it.Rhs).Append("; }\n");
++                        }
++                        sb.Append(f0.Ind).Append('}');
++                        replace.Add((run[0].StartLine, run[^1].EndLine, sb.ToString()));
++                        cur = run[^1].EndLine + 1;
++                    }
++                    else
++                    {
++                        cur++;
++                    }
++                }
++            }
++            if (replace.Count == 0) return msl;
++            var outLines = new List<string>(lines.Length);
++            int nextIdx = 0;
++            foreach (var (sLine, eLine, rep) in replace)
++            {
++                while (nextIdx < sLine) outLines.Add(lines[nextIdx++]);
++                outLines.Add(rep);
++                nextIdx = eLine + 1;
++            }
++            while (nextIdx < lines.Length) outLines.Add(lines[nextIdx++]);
++            return string.Join('\n', outLines);
++        }
+         /// <summary>Ryujinx 给追不到槽的句柄的回退数组（&lt;阶段&gt;_&lt;t|s&gt;_cb0_40000000，按句柄的纹理 / 采样器号下标，长度 = 整段编号，Program.cs）→ 指向宿主按元素类型建的池表
+         /// （nvn_mtl.m pool_gpu）：struct spvPool_&lt;名&gt; { uint n; ulong seen; array&lt;元素, 1&gt; e; }，读成 (&amp;e[0])[min(下标, n)]，n = 宿主填到的最大编号。
+         /// 贴图池的读还在 seen 处的位图里置这个编号的位（dm_pool_mark）：着色器读哪些编号只有 GPU 知道，宿主据此只建被读过的贴图，而不是池里全部（11-06 时之笛登记约 3.3 万、读约 300）。
+diff --git a/graphics/tools/direct/dsh/DshCApi.cs b/graphics/tools/direct/dsh/DshCApi.cs
+index 372d792..c05ab0c 100644
+--- a/graphics/tools/direct/dsh/DshCApi.cs
++++ b/graphics/tools/direct/dsh/DshCApi.cs
+@@ -110,11 +110,12 @@ namespace S2A.Dsh
+ 
+         /// <summary>const char *s2a_dsh_xfp(void)：本库翻译器指纹（16 位小写十六进制，NUL 结尾、常驻）。宿主 dsh_miss.inc dsh_have / nvn_mtl.m shader_build 用它判兜底目录里上局现编的结果能不能复用</summary>
+         [UnmanagedCallersOnly(EntryPoint = "s2a_dsh_xfp")]
+-        public static byte* Xfp() => s_xfp;
+-        static readonly byte* s_xfp = MakeXfp();
+-        static byte* MakeXfp()
++        public static byte* Xfp() => DshCompiler.WideMemoryEnabled() ? s_xfpOn : s_xfpOff;
++        static readonly byte* s_xfpOn = MakeXfp(DshChain.Xfp);
++        static readonly byte* s_xfpOff = MakeXfp(DshCompiler.XfpOff);
++        static byte* MakeXfp(string value)
+         {
+-            var b = Encoding.ASCII.GetBytes(DshChain.Xfp);
++            var b = Encoding.ASCII.GetBytes(value);
+             var p = (byte*)NativeMemory.Alloc((nuint)b.Length + 1);   // 进程内常驻，不释放
+             b.AsSpan().CopyTo(new Span<byte>(p, b.Length)); p[b.Length] = 0;
+             return p;
+diff --git a/graphics/tools/direct/tests/dsh_cmp/Fn.cs b/graphics/tools/direct/tests/dsh_cmp/Fn.cs
+index 48aa1d9..168e2f4 100644
+--- a/graphics/tools/direct/tests/dsh_cmp/Fn.cs
++++ b/graphics/tools/direct/tests/dsh_cmp/Fn.cs
+@@ -68,6 +68,10 @@ static class Fn
+                     // #1204 T1：同一支 SPIR-V 不加固 / 加固（生产 NxgalSpvCross.Harden）各出一份 MSL（设备那条 SPIRV-Cross，选项同出库 XC）
+                     "msl_raw" => nx.Msl(H(0), out var e0) ?? throw new InvalidOperationException(e0),
+                     "msl_hardened" => nx.Msl(NxgalSpvCross.Harden(H(0)), out var e1) ?? throw new InvalidOperationException(e1),
++                    "pack_physical_vectors" => DshCompiler.PackPhysicalVectors(S(0)),
++                    "wide_loads" => DshCompiler.WideLoads(S(0)),
++                    "wide_stores" => DshCompiler.WideStores(S(0)),
++                    "effective_xfp" => DshCompiler.Xfp,
+                     "giant_fix" => DshFlat.GiantFix(S(0)) is var (gm, g0, g1) ? new List<object> { gm, (long)g0, (long)g1 } : null,
+                     "tf_layout" => DshCompiler.Ctx.TfLayout("k", H(0)),
+                     // 不在答案表的计算着色器：线程组尺寸 / 共享内存从控制段读（11-02 疯狂兔子兜底现编）。返回 [local 数组或 null, shared 或 null, no_facts]

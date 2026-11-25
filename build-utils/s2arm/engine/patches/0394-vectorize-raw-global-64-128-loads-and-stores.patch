@@ -1,0 +1,878 @@
+diff --git a/compat/tree/src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs b/compat/tree/src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs
+index 93017a8..e2f7f32 100644
+--- a/compat/tree/src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs
++++ b/compat/tree/src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs
+@@ -1807,6 +1807,11 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Spirv
+ 
+         private static OperationResult GenerateLoadOrStore(CodeGenContext context, AstOperation operation, bool isStore)
+         {
++            if (operation.StorageKind == StorageKind.GlobalMemoryVector)
++            {
++                return isStore ? GenerateRawVectorStore(context, operation) : GenerateRawVectorLoad(context, operation);
++            }
++
+             if (!isStore && operation.StorageKind == StorageKind.Input && operation.GetSource(0) is AstOperand io0 &&
+                 io0.Type == OperandType.Constant && LaneIdEmulated(context, (IoVariable)io0.Value))
+             {
+@@ -1842,6 +1847,72 @@ namespace Ryujinx.Graphics.Shader.CodeGen.Spirv
+             }
+         }
+ 
++        // RewindBox (from nxnative 04419bc25, MIT): raw 64/128-bit vector load through a physical storage buffer pointer.
++        // Word 0 is returned; words 1..count-1 are stored into the shader's private gmem_vec array.
++        private static OperationResult GenerateRawVectorLoad(CodeGenContext context, AstOperation operation)
++        {
++            if (operation.GetSource(2) is not AstOperand { Type: OperandType.Constant } countOperand ||
++                operation.GetSource(3) is not AstOperand { Type: OperandType.Constant } memoryOperand)
++            {
++                throw new InvalidOperationException($"The word count and local memory of a {operation.StorageKind} load must be constants.");
++            }
++
++            int count = countOperand.Value;
++            SpvInstruction vectorType = context.TypeVector(context.TypeU32(), count);
++            SpvInstruction addressWords = context.CompositeConstruct(
++                context.TypeVector(context.TypeU32(), 2),
++                context.Get(AggregateType.U32, operation.GetSource(0)),
++                context.Get(AggregateType.U32, operation.GetSource(1)));
++            SpvInstruction pointer = context.ConvertUToPtr(
++                context.TypePointer(StorageClass.PhysicalStorageBuffer, vectorType),
++                context.Bitcast(context.TypeInt(64, 0), addressWords));
++
++            SpvInstruction value = context.Load(vectorType, pointer, MemoryAccessMask.Aligned);
++            value.AddOperand((SpvLiteralInteger)4);
++
++            SpvInstruction wordPointerType = context.TypePointer(StorageClass.Private, context.TypeU32());
++
++            for (int word = 1; word < count; word++)
++            {
++                SpvInstruction element = context.AccessChain(wordPointerType, context.LocalMemories[memoryOperand.Value], context.Constant(context.TypeS32(), word - 1));
++                context.Store(element, context.CompositeExtract(context.TypeU32(), value, (SpvLiteralInteger)word));
++            }
++
++            return new OperationResult(AggregateType.U32, context.CompositeExtract(context.TypeU32(), value, (SpvLiteralInteger)0));
++        }
++
++        // RewindBox: raw 64/128-bit vector store through a physical storage buffer pointer (sources: hostLow, hostHigh, count, v0..v{count-1}).
++        private static OperationResult GenerateRawVectorStore(CodeGenContext context, AstOperation operation)
++        {
++            if (operation.GetSource(2) is not AstOperand { Type: OperandType.Constant } countOperand)
++            {
++                throw new InvalidOperationException($"The word count of a {operation.StorageKind} store must be a constant.");
++            }
++
++            int count = countOperand.Value;
++            SpvInstruction vectorType = context.TypeVector(context.TypeU32(), count);
++            SpvInstruction[] words = new SpvInstruction[count];
++
++            for (int word = 0; word < count; word++)
++            {
++                words[word] = context.Get(AggregateType.U32, operation.GetSource(3 + word));
++            }
++
++            SpvInstruction value = context.CompositeConstruct(vectorType, words);
++            SpvInstruction addressWords = context.CompositeConstruct(
++                context.TypeVector(context.TypeU32(), 2),
++                context.Get(AggregateType.U32, operation.GetSource(0)),
++                context.Get(AggregateType.U32, operation.GetSource(1)));
++            SpvInstruction pointer = context.ConvertUToPtr(
++                context.TypePointer(StorageClass.PhysicalStorageBuffer, vectorType),
++                context.Bitcast(context.TypeInt(64, 0), addressWords));
++
++            SpvInstruction store = context.Store(pointer, value, MemoryAccessMask.Aligned);
++            store.AddOperand((SpvLiteralInteger)4);
++
++            return OperationResult.Invalid;
++        }
++
+         private static SpvInstruction GetStoragePointer(CodeGenContext context, AstOperation operation, out AggregateType varType)
+         {
+             StorageKind storageKind = operation.StorageKind;
+diff --git a/compat/tree/src/Ryujinx.Graphics.Shader/Instructions/InstEmitAmpereMem.cs b/compat/tree/src/Ryujinx.Graphics.Shader/Instructions/InstEmitAmpereMem.cs
+index 7976d8b..065f036 100644
+--- a/compat/tree/src/Ryujinx.Graphics.Shader/Instructions/InstEmitAmpereMem.cs
++++ b/compat/tree/src/Ryujinx.Graphics.Shader/Instructions/InstEmitAmpereMem.cs
+@@ -315,6 +315,8 @@ namespace Ryujinx.Graphics.Shader.Instructions
+             }
+ 
+             Operation first = null;
++            bool vector = ResourceManager.WideMemoryEnabled() && count > 1 && storageKind == StorageKind.GlobalMemory && x.Rd + count <= RegisterConsts.RegisterZeroIndex;
++            int group = vector ? ++context.GlobalVectorGroups : 0;
+ 
+             for (int index = 0; index < count; index++)
+             {
+@@ -324,7 +326,16 @@ namespace Ryujinx.Graphics.Shader.Instructions
+                 }
+ 
+                 Operand value = context.Load(storageKind, los[index], his[index]);
+-                NoteVectorWord(context, ref first, (Operation)value.AsgOp);
++                Operation load = (Operation)value.AsgOp;
++                NoteVectorWord(context, ref first, load);
++
++                if (vector)
++                {
++                    load.GlobalVectorCount = count;
++                    load.GlobalVectorWord = index;
++                    load.GlobalVectorGroup = group;
++                }
++
+                 context.Copy(Register(x.Rd + index, RegisterType.Gpr), value);
+             }
+ 
+@@ -349,6 +360,8 @@ namespace Ryujinx.Graphics.Shader.Instructions
+             StorageKind storageKind = GetStorageKind(size);
+ 
+             Operation first = null;
++            bool vector = ResourceManager.WideMemoryEnabled() && count > 1 && storageKind == StorageKind.GlobalMemory;
++            int group = vector ? ++context.GlobalVectorGroups : 0;
+ 
+             for (int index = 0; index < count; index++)
+             {
+@@ -358,6 +371,13 @@ namespace Ryujinx.Graphics.Shader.Instructions
+                 (Operand lo, Operand hi) = AGlobalAddress(context, x, 90, 64, index * 4);
+ 
+                 Operation store = new(Instruction.Store, storageKind, null, lo, hi, value);
++                if (vector)
++                {
++                    store.GlobalVectorCount = count;
++                    store.GlobalVectorWord = index;
++                    store.GlobalVectorGroup = group;
++                }
++
+                 context.Add(store);
+                 NoteVectorWord(context, ref first, store);
+             }
+diff --git a/compat/tree/src/Ryujinx.Graphics.Shader/Instructions/InstEmitMemory.cs b/compat/tree/src/Ryujinx.Graphics.Shader/Instructions/InstEmitMemory.cs
+index f7fce4e..1d1a739 100644
+--- a/compat/tree/src/Ryujinx.Graphics.Shader/Instructions/InstEmitMemory.cs
++++ b/compat/tree/src/Ryujinx.Graphics.Shader/Instructions/InstEmitMemory.cs
+@@ -385,6 +385,8 @@ namespace Ryujinx.Graphics.Shader.Instructions
+             (_, Operand addrHigh) = Get40BitsAddress(context, new Register(ra, RegisterType.Gpr), extended, offset);
+ 
+             Operand srcA = context.Copy(new Operand(new Register(ra, RegisterType.Gpr)));
++            bool vector = ResourceManager.WideMemoryEnabled() && count > 1 && storageKind == StorageKind.GlobalMemory && rd + count <= RegisterConsts.RegisterZeroIndex;
++            int group = vector ? ++context.GlobalVectorGroups : 0;
+ 
+             for (int index = 0; index < count; index++)
+             {
+@@ -397,6 +399,13 @@ namespace Ryujinx.Graphics.Shader.Instructions
+ 
+                 Operand value = context.Load(storageKind, context.IAdd(srcA, Const(offset + index * 4)), addrHigh);
+ 
++                if (vector && value.AsgOp is Operation load)
++                {
++                    load.GlobalVectorCount = count;
++                    load.GlobalVectorWord = index;
++                    load.GlobalVectorGroup = group;
++                }
++
+                 context.Copy(Register(dest), value);
+             }
+         }
+@@ -489,6 +498,8 @@ namespace Ryujinx.Graphics.Shader.Instructions
+             (_, Operand addrHigh) = Get40BitsAddress(context, new Register(ra, RegisterType.Gpr), extended, offset);
+ 
+             Operand srcA = context.Copy(new Operand(new Register(ra, RegisterType.Gpr)));
++            bool vector = ResourceManager.WideMemoryEnabled() && count > 1 && storageKind == StorageKind.GlobalMemory;
++            int group = vector ? ++context.GlobalVectorGroups : 0;
+ 
+             for (int index = 0; index < count; index++)
+             {
+@@ -498,7 +509,15 @@ namespace Ryujinx.Graphics.Shader.Instructions
+ 
+                 Operand addrLowOffset = context.IAdd(srcA, Const(offset + index * 4));
+ 
+-                context.Store(storageKind, addrLowOffset, addrHigh, value);
++                Operation store = new(Instruction.Store, storageKind, null, addrLowOffset, addrHigh, value);
++                if (vector)
++                {
++                    store.GlobalVectorCount = count;
++                    store.GlobalVectorWord = index;
++                    store.GlobalVectorGroup = group;
++                }
++
++                context.Add(store);
+             }
+         }
+ 
+diff --git a/compat/tree/src/Ryujinx.Graphics.Shader/IntermediateRepresentation/Operation.cs b/compat/tree/src/Ryujinx.Graphics.Shader/IntermediateRepresentation/Operation.cs
+index dc2f56e..da06277 100644
+--- a/compat/tree/src/Ryujinx.Graphics.Shader/IntermediateRepresentation/Operation.cs
++++ b/compat/tree/src/Ryujinx.Graphics.Shader/IntermediateRepresentation/Operation.cs
+@@ -10,6 +10,13 @@ namespace Ryujinx.Graphics.Shader.IntermediateRepresentation
+ 
+         public bool ForcePrecise { get; set; }
+ 
++        // RewindBox (from nxnative 04419bc25 / 3376af3c2, MIT): the words of one 64- or 128-bit global load/store
++        // (LDG/STG .64 / .128), which the emitters split into 32-bit operations: word count (2 or 4), word index,
++        // and per-instruction group id so two adjacent vector accesses in one block never mix words.
++        public int GlobalVectorCount { get; set; }
++        public int GlobalVectorWord { get; set; }
++        public int GlobalVectorGroup { get; set; }
++
+         private Operand[] _dests;
+ 
+         public Operand Dest
+diff --git a/compat/tree/src/Ryujinx.Graphics.Shader/IntermediateRepresentation/StorageKind.cs b/compat/tree/src/Ryujinx.Graphics.Shader/IntermediateRepresentation/StorageKind.cs
+index 2b39e85..d6bf94c 100644
+--- a/compat/tree/src/Ryujinx.Graphics.Shader/IntermediateRepresentation/StorageKind.cs
++++ b/compat/tree/src/Ryujinx.Graphics.Shader/IntermediateRepresentation/StorageKind.cs
+@@ -18,6 +18,7 @@ namespace Ryujinx.Graphics.Shader.IntermediateRepresentation
+         GlobalMemoryS16, // TODO: Remove this and store type as a field on the Operation class itself.
+         GlobalMemoryU8, // TODO: Remove this and store type as a field on the Operation class itself.
+         GlobalMemoryU16, // TODO: Remove this and store type as a field on the Operation class itself.
++        GlobalMemoryVector, // RewindBox (from nxnative 04419bc25, MIT): raw 64/128-bit vector load/store via PhysicalStorageBuffer
+     }
+ 
+     static class StorageKindExtensions
+diff --git a/compat/tree/src/Ryujinx.Graphics.Shader/Translation/EmitterContext.cs b/compat/tree/src/Ryujinx.Graphics.Shader/Translation/EmitterContext.cs
+index e7263cc..0fc6de0 100644
+--- a/compat/tree/src/Ryujinx.Graphics.Shader/Translation/EmitterContext.cs
++++ b/compat/tree/src/Ryujinx.Graphics.Shader/Translation/EmitterContext.cs
+@@ -22,6 +22,9 @@ namespace Ryujinx.Graphics.Shader.Translation
+         public Block CurrBlock { get; set; }
+         public InstOp CurrOp { get; set; }
+ 
++        // RewindBox (from nxnative 3376af3c2, MIT): unique group id per 64/128-bit global access (0 = scalar).
++        public int GlobalVectorGroups { get; set; }
++
+         public int OperationsCount => _operations.Count;
+ 
+         private readonly struct BrxTarget
+diff --git a/compat/tree/src/Ryujinx.Graphics.Shader/Translation/Optimizations/GlobalToStorage.cs b/compat/tree/src/Ryujinx.Graphics.Shader/Translation/Optimizations/GlobalToStorage.cs
+index 327e5e5..cd184fd 100644
+--- a/compat/tree/src/Ryujinx.Graphics.Shader/Translation/Optimizations/GlobalToStorage.cs
++++ b/compat/tree/src/Ryujinx.Graphics.Shader/Translation/Optimizations/GlobalToStorage.cs
+@@ -131,6 +131,29 @@ namespace Ryujinx.Graphics.Shader.Translation.Optimizations
+ 
+             private readonly Dictionary<(Instruction, StorageKind), int> _rawPieces = [];
+ 
++            // RewindBox (from nxnative 04419bc25, MIT): raw 64/128-bit vector load and store helpers by word count,
++            // kept apart from _entries so scalar loads/stores never pick them up.
++            public readonly Dictionary<int, int> RawVectorLoadFunctions = [];
++            public readonly Dictionary<int, int> RawVectorStoreFunctions = [];
++
++            public int AddRawVectorLoadFunction(int count, Function function)
++            {
++                int functionId = _hfm.AddFunction(function);
++
++                RawVectorLoadFunctions[count] = functionId;
++
++                return functionId;
++            }
++
++            public int AddRawVectorStoreFunction(int count, Function function)
++            {
++                int functionId = _hfm.AddFunction(function);
++
++                RawVectorStoreFunctions[count] = functionId;
++
++                return functionId;
++            }
++
+             public int AddRawLookup(Function function)
+             {
+                 return _hfm.AddFunction(function);
+@@ -445,11 +468,34 @@ namespace Ryujinx.Graphics.Shader.Translation.Optimizations
+                     block,
+                     operation,
+                     clamp,
+-                    out int functionId))
++                    out int functionId,
++                    out bool raw))
+                 {
+                     return null;
+                 }
+ 
++                if (raw &&
++                    ResourceManager.WideMemoryEnabled() &&
++                    operation.StorageKind == StorageKind.GlobalMemory &&
++                    operation.GlobalVectorCount > 1 &&
++                    operation.GlobalVectorWord == 0)
++                {
++                    if (operation.Inst == Instruction.Load &&
++                        TryGetRawVectorLoadFunction(gtsContext, resourceManager, gpuAccessor, block, operation, out int vectorLoadId))
++                    {
++                        gtsContext.RawGroupHead = null;
++                        return GenerateRawVectorLoad(resourceManager, node, operation, vectorLoadId);
++                    }
++
++                    if (operation.Inst == Instruction.Store &&
++                        TryCollectRawVectorStoreFollowers(node, operation, out LinkedListNode<INode>[] storeFollowers) &&
++                        TryGetRawVectorStoreFunction(gtsContext, resourceManager, gpuAccessor, block, operation, out int vectorStoreId))
++                    {
++                        gtsContext.RawGroupHead = null;
++                        return GenerateRawVectorStore(node, operation, storeFollowers, vectorStoreId);
++                    }
++                }
++
+                 if (clamp)
+                 {
+                     CountUnrecordedAccess(resourceManager, gpuAccessor, storageRange, isMultiTarget: true);
+@@ -459,6 +505,159 @@ namespace Ryujinx.Graphics.Shader.Translation.Optimizations
+             }
+         }
+ 
++        // RewindBox (from nxnative 04419bc25 / 3376af3c2, MIT): replace word 0 of a raw 64/128-bit load with a call to
++        // LoadRawV{count} and feed matching followers (same GlobalVectorGroup) from gmem_vec right after the call.
++        private static LinkedListNode<INode> GenerateRawVectorLoad(
++            ResourceManager resourceManager,
++            LinkedListNode<INode> node,
++            Operation operation,
++            int functionId)
++        {
++            int count = operation.GlobalVectorCount;
++            int vectorMemoryId = resourceManager.GetRawVectorMemory();
++
++            node = GenerateCallStorageOp(node, operation, null, functionId);
++
++            LinkedListNode<INode> insertAfter = node;
++
++            for (LinkedListNode<INode> next = node.Next; next != null; next = next.Next)
++            {
++                if (next.Value is not Operation follower)
++                {
++                    continue;
++                }
++
++                if (follower.Inst == Instruction.Load &&
++                    follower.StorageKind == StorageKind.GlobalMemory &&
++                    follower.GlobalVectorCount == count &&
++                    follower.GlobalVectorGroup == operation.GlobalVectorGroup &&
++                    follower.GlobalVectorWord > 0)
++                {
++                    Operand word = Local();
++                    Operation load = new(Instruction.Load, StorageKind.LocalMemory, word, Const(vectorMemoryId), Const(follower.GlobalVectorWord - 1));
++
++                    insertAfter = insertAfter.List.AddAfter(insertAfter, load);
++
++                    Operand dest = follower.Dest;
++                    follower.TurnIntoCopy(word);
++                    word.UseOps.Remove(follower);
++                    follower.Dest = null;
++                    next.Value = new Operation(Instruction.Copy, dest, word);
++
++                    if (follower.GlobalVectorWord == count - 1)
++                    {
++                        break;
++                    }
++
++                    continue;
++                }
++
++                if (follower.GlobalVectorCount != 0 ||
++                    follower.StorageKind != StorageKind.None ||
++                    follower.Inst == Instruction.Call ||
++                    follower.Inst == Instruction.Barrier ||
++                    follower.Inst == Instruction.MemoryBarrier ||
++                    follower.Inst.IsAtomic())
++                {
++                    break;
++                }
++            }
++
++            return node;
++        }
++
++        // RewindBox: collect all count - 1 follower stores belonging to the same STG.64 / STG.128 (same GlobalVectorGroup)
++        // when no intervening memory access, call, barrier, or atomic appears between them.
++        private static bool TryCollectRawVectorStoreFollowers(
++            LinkedListNode<INode> node,
++            Operation operation,
++            out LinkedListNode<INode>[] followers)
++        {
++            int count = operation.GlobalVectorCount;
++            followers = new LinkedListNode<INode>[count - 1];
++            int found = 0;
++
++            for (LinkedListNode<INode> next = node.Next; next != null; next = next.Next)
++            {
++                if (next.Value is not Operation follower)
++                {
++                    continue;
++                }
++
++                if (follower.Inst == Instruction.Store &&
++                    follower.StorageKind == StorageKind.GlobalMemory &&
++                    follower.GlobalVectorCount == count &&
++                    follower.GlobalVectorGroup == operation.GlobalVectorGroup &&
++                    follower.GlobalVectorWord > 0 &&
++                    follower.GlobalVectorWord < count)
++                {
++                    int slot = follower.GlobalVectorWord - 1;
++                    if (followers[slot] != null)
++                    {
++                        return false;
++                    }
++
++                    followers[slot] = next;
++                    found++;
++
++                    if (found == count - 1)
++                    {
++                        return true;
++                    }
++
++                    continue;
++                }
++
++                if (follower.GlobalVectorCount != 0 ||
++                    follower.StorageKind != StorageKind.None ||
++                    follower.Inst == Instruction.Call ||
++                    follower.Inst == Instruction.Barrier ||
++                    follower.Inst == Instruction.MemoryBarrier ||
++                    follower.Inst.IsAtomic())
++                {
++                    return false;
++                }
++            }
++
++            return false;
++        }
++
++        // RewindBox: merge word 0..count-1 of a raw STG.64 / STG.128 into one StoreRawV{count}(addrLow, addrHigh, v0..v{count-1})
++        // placed at the last follower so every value operand dominates the call; no StorageKind != None node lies in between.
++        private static LinkedListNode<INode> GenerateRawVectorStore(
++            LinkedListNode<INode> node,
++            Operation operation,
++            LinkedListNode<INode>[] followers,
++            int functionId)
++        {
++            int count = operation.GlobalVectorCount;
++            Operand[] sources = new Operand[3 + count];
++            sources[0] = Const(functionId);
++            sources[1] = operation.GetSource(0);
++            sources[2] = operation.GetSource(1);
++            sources[3] = operation.GetSource(2);
++
++            LinkedListNode<INode> anchor = followers[count - 2];
++
++            for (int k = 0; k < count - 1; k++)
++            {
++                Operation followerOp = (Operation)followers[k].Value;
++                sources[4 + k] = followerOp.GetSource(2);
++            }
++
++            Operation callOp = new(Instruction.Call, null, sources);
++            LinkedListNode<INode> callNode = anchor.List.AddAfter(anchor, callOp);
++
++            Utils.DeleteNode(node, operation);
++
++            for (int k = 0; k < count - 1; k++)
++            {
++                Utils.DeleteNode(followers[k], (Operation)followers[k].Value);
++            }
++
++            return callNode;
++        }
++
+         /// <summary>
+         /// S2A（F1）：开了越界记录诊断、但本阶段拿不到记录绑定时（顶点 / 细分 / 几何阶段且宿主无 vertexPipelineStoresAndAtomics）
+         /// 访存仍检查并钳位，但越界既不进记录、也不报红。按访存处计数，由 TranslatorContext 翻译期打限次【黄】；不加任何 GPU 工作。
+@@ -649,11 +848,13 @@ namespace Ryujinx.Graphics.Shader.Translation.Optimizations
+             BasicBlock block,
+             Operation operation,
+             bool clamp,
+-            out int functionId)
++            out int functionId,
++            out bool raw)
+         {
+             Queue<PhiNode> phis = new();
+             HashSet<PhiNode> visited = [];
+             List<uint> targetCbs = [];
++            raw = false;
+ 
+             Operand globalAddress = operation.GetSource(0);
+ 
+@@ -722,6 +923,7 @@ namespace Ryujinx.Graphics.Shader.Translation.Optimizations
+ 
+             if (targetCbs.Count == 0 && gtsContext.Ampere)
+             {
++                raw = true;
+                 return TryGenerateRawStorageOp(gtsContext, resourceManager, gpuAccessor, block, operation, out functionId);
+             }
+ 
+@@ -900,17 +1102,22 @@ namespace Ryujinx.Graphics.Shader.Translation.Optimizations
+             IGpuAccessor gpuAccessor,
+             BasicBlock block,
+             Operation operation,
+-            out int functionId)
++            out int functionId,
++            bool forceFull = false)
+         {
+             functionId = 0;
+ 
+             // A later word of a vector access right after the access's earlier words (the same block, no other raw access in between): the cache holds the entry its first word chose,
+             // or says that word was skipped. A vector access is naturally aligned, so its words are in one 16-byte block, inside one page and so one entry (the host's entries are made of
+             // whole pages of pools, nvn_mtl.m gmem_map)
+-            bool piece = resourceManager.RawVectorHeads.TryGetValue(operation, out Operation head) && gtsContext.RawGroupBlock == block && gtsContext.RawGroupHead == head;
++            Operation head = null;
++            bool piece = !forceFull && resourceManager.RawVectorHeads.TryGetValue(operation, out head) && gtsContext.RawGroupBlock == block && gtsContext.RawGroupHead == head;
+ 
+-            gtsContext.RawGroupBlock = block;
+-            gtsContext.RawGroupHead = piece ? head : operation;
++            if (!forceFull)
++            {
++                gtsContext.RawGroupBlock = block;
++                gtsContext.RawGroupHead = piece ? head : operation;
++            }
+ 
+             if (piece ? gtsContext.TryGetRawPieceId(operation, out functionId) : gtsContext.TryGetFunctionId(operation, isMultiTarget: true, [], out functionId))
+             {
+@@ -1135,6 +1342,298 @@ namespace Ryujinx.Graphics.Shader.Translation.Optimizations
+             return true;
+         }
+ 
++        // RewindBox (from nxnative 04419bc25 / 3376af3c2, MIT, extended with raw stores and boundary/alignment fallback):
++        // Emit a single raw 64/128-bit vector load or store helper via PhysicalStorageBuffer, with a compact per-word
++        // scalar fallback whenever the address is not 4-byte aligned or straddles a pool boundary.
++        private static bool TryGetRawVectorLoadFunction(
++            GtsContext gtsContext,
++            ResourceManager resourceManager,
++            IGpuAccessor gpuAccessor,
++            BasicBlock block,
++            Operation operation,
++            out int functionId)
++        {
++            int count = operation.GlobalVectorCount;
++            if (gtsContext.RawVectorLoadFunctions.TryGetValue(count, out functionId))
++            {
++                return true;
++            }
++
++            return TryGenerateRawVectorOp(gtsContext, resourceManager, gpuAccessor, block, operation, isStore: false, count, out functionId);
++        }
++
++        private static bool TryGetRawVectorStoreFunction(
++            GtsContext gtsContext,
++            ResourceManager resourceManager,
++            IGpuAccessor gpuAccessor,
++            BasicBlock block,
++            Operation operation,
++            out int functionId)
++        {
++            int count = operation.GlobalVectorCount;
++            if (gtsContext.RawVectorStoreFunctions.TryGetValue(count, out functionId))
++            {
++                return true;
++            }
++
++            return TryGenerateRawVectorOp(gtsContext, resourceManager, gpuAccessor, block, operation, isStore: true, count, out functionId);
++        }
++
++        private static bool TryGenerateRawVectorOp(
++            GtsContext gtsContext,
++            ResourceManager resourceManager,
++            IGpuAccessor gpuAccessor,
++            BasicBlock block,
++            Operation operation,
++            bool isStore,
++            int count,
++            out int functionId)
++        {
++            functionId = 0;
++
++            if (!TryGenerateRawStorageOp(gtsContext, resourceManager, gpuAccessor, block, operation, out int scalarId, forceFull: true))
++            {
++                return false;
++            }
++
++            if (!resourceManager.TryGetStorageBufferBinding(GmemMapCbSlot, 0, write: false, out int mapBinding))
++            {
++                return false;
++            }
++
++            int logBinding = 0;
++            if (isStore && !resourceManager.TryGetStorageBufferBinding(GmemMapCbSlot, GmemLogCbOffset, write: true, out logBinding))
++            {
++                return false;
++            }
++
++            resourceManager.Properties.UsesPhysicalPointers = true;
++
++            int lookupId = GetRawLookup(gtsContext, resourceManager, mapBinding);
++            int[] cache = gtsContext.RawCache;
++            int vectorMemId = isStore ? -1 : resourceManager.GetRawVectorMemory();
++            int vectorBytes = count * 4;
++            int inArgumentsCount = isStore ? 2 + count : 2;
++
++            EmitterContext context = new();
++
++            Operand addrLow = Argument(0);
++            Operand addrHigh = Argument(1);
++
++            Operand MapWord(Operand entry, int word)
++            {
++                return context.Load(StorageKind.StorageBuffer, mapBinding, Const(0), context.IAdd(entry, Const(word)));
++            }
++
++            Operand Cached(int word)
++            {
++                return context.Load(StorageKind.LocalMemory, cache[word]);
++            }
++
++            void Cache(int word, Operand value)
++            {
++                context.Store(StorageKind.LocalMemory, cache[word], value);
++            }
++
++            Operand selected = Local();
++            Operand deltaLow = Local();
++            Operand deltaHigh = Local();
++            Operand offsetLow = Local();
++            Operand offsetHighLocal = Local();
++            Operand entrySize = Local();
++            Operand lblChosen = Label();
++            Operand lblSkip = Label();
++            Operand lblScalarFallback = Label();
++
++            // packed_uint2/packed_uint4 in Metal require 4-byte alignment; fall back to scalar per-word access otherwise.
++            context.BranchIfTrue(lblScalarFallback, context.ICompareNotEqual(context.BitwiseAnd(addrLow, Const(3)), Const(0)));
++
++            context.Copy(deltaLow, Cached(RawCacheDeltaLow));
++            context.Copy(deltaHigh, Cached(RawCacheDeltaHigh));
++
++            Operand startLow = Cached(RawCacheStartLow);
++            Operand cachedOffsetLow = context.ISubtract(addrLow, startLow);
++            Operand borrow = context.ConditionalSelect(context.ICompareLessUnsigned(addrLow, startLow), Const(1), Const(0));
++            Operand cachedOffsetHigh = context.ISubtract(context.ISubtract(addrHigh, Cached(RawCacheStartHigh)), borrow);
++            Operand cachedSize = Cached(RawCacheSize);
++            Operand outside = context.BitwiseOr(cachedOffsetHigh, context.ConditionalSelect(context.ICompareGreaterOrEqualUnsigned(cachedOffsetLow, cachedSize), Const(1), Const(0)));
++            context.Copy(selected, Cached(RawCacheEntry));
++            context.Copy(offsetLow, cachedOffsetLow);
++            context.Copy(offsetHighLocal, cachedOffsetHigh);
++            context.Copy(entrySize, cachedSize);
++            Cache(RawCacheSkipped, Const(0));
++            context.BranchIfTrue(lblChosen, context.ICompareEqual(outside, Const(0)));
++
++            Operand found = context.Call(lookupId, true, addrLow, addrHigh);
++            Operand lblFound = Label();
++            context.BranchIfFalse(lblFound, context.ICompareLess(found, Const(0)));
++
++            // Word 0 missed every pool. If naturally aligned to vectorBytes inside 4 KiB-aligned pools, every word misses too.
++            // If misaligned (e.g. starting just before a pool start), fall back to per-word scalar lookups.
++            context.BranchIfTrue(lblScalarFallback, context.ICompareNotEqual(context.BitwiseAnd(addrLow, Const(vectorBytes - 1)), Const(0)));
++            Cache(RawCacheSkipped, Const(1));
++            context.Branch(lblSkip);
++            context.MarkLabel(lblFound);
++
++            Operand entry = context.IMultiply(found, Const(GmemMapEntryWords));
++            Operand entryStartLow = MapWord(entry, 0);
++            Operand entryStartHigh = MapWord(entry, 1);
++            Operand entryEndLow = MapWord(entry, 2);
++            Operand entryBorrow = context.ConditionalSelect(context.ICompareLessUnsigned(entryEndLow, entryStartLow), Const(1), Const(0));
++            Operand sizeHigh = context.ISubtract(context.ISubtract(MapWord(entry, 3), entryStartHigh), entryBorrow);
++            Operand newSize = context.ConditionalSelect(context.ICompareEqual(sizeHigh, Const(0)), context.ISubtract(entryEndLow, entryStartLow), Const(-1));
++            Operand foundOffsetLow = context.ISubtract(addrLow, entryStartLow);
++            Operand foundBorrow = context.ConditionalSelect(context.ICompareLessUnsigned(addrLow, entryStartLow), Const(1), Const(0));
++            Operand foundOffsetHigh = context.ISubtract(context.ISubtract(addrHigh, entryStartHigh), foundBorrow);
++
++            context.Copy(selected, found);
++            context.Copy(deltaLow, MapWord(entry, 4));
++            context.Copy(deltaHigh, MapWord(entry, 5));
++            context.Copy(offsetLow, foundOffsetLow);
++            context.Copy(offsetHighLocal, foundOffsetHigh);
++            context.Copy(entrySize, newSize);
++            Cache(RawCacheEntry, found);
++            Cache(RawCacheStartLow, entryStartLow);
++            Cache(RawCacheStartHigh, entryStartHigh);
++            Cache(RawCacheSize, newSize);
++            Cache(RawCacheDeltaLow, deltaLow);
++            Cache(RawCacheDeltaHigh, deltaHigh);
++
++            context.MarkLabel(lblChosen);
++
++            // Verify all count words fit inside the chosen pool entry; if straddling entry.end, take the scalar fallback.
++            Operand fitsAll = context.BitwiseAnd(
++                context.ICompareEqual(offsetHighLocal, Const(0)),
++                context.BitwiseAnd(
++                    context.ICompareGreaterOrEqualUnsigned(entrySize, Const(vectorBytes)),
++                    context.ICompareLessOrEqualUnsigned(offsetLow, context.ISubtract(entrySize, Const(vectorBytes)))));
++            context.BranchIfFalse(lblScalarFallback, fitsAll);
++
++            Operand hostLow = context.IAdd(addrLow, deltaLow);
++            Operand carry = context.ConditionalSelect(context.ICompareLessUnsigned(hostLow, addrLow), Const(1), Const(0));
++            Operand hostHigh = context.IAdd(context.IAdd(addrHigh, deltaHigh), carry);
++
++            if (!isStore)
++            {
++                Operand resultValue = context.Add(
++                    Instruction.Load,
++                    StorageKind.GlobalMemoryVector,
++                    Local(),
++                    hostLow,
++                    hostHigh,
++                    Const(count),
++                    Const(vectorMemId));
++                context.Return(resultValue);
++            }
++            else
++            {
++                Operand logWord = context.ShiftRightU32(selected, Const(5));
++                Operand logBit = context.ShiftLeft(Const(1), context.BitwiseAnd(selected, Const(31)));
++                Operand lblLogged = Label();
++
++                context.BranchIfTrue(lblLogged, context.ICompareNotEqual(context.BitwiseAnd(context.Load(StorageKind.StorageBuffer, logBinding, Const(0), logWord), logBit), Const(0)));
++                context.AtomicOr(StorageKind.StorageBuffer, logBinding, Const(0), logWord, logBit);
++                context.MarkLabel(lblLogged);
++
++                Operand[] storeSources = new Operand[3 + count];
++                storeSources[0] = hostLow;
++                storeSources[1] = hostHigh;
++                storeSources[2] = Const(count);
++                for (int w = 0; w < count; w++)
++                {
++                    storeSources[3 + w] = Argument(2 + w);
++                }
++
++                context.Add(new Operation(Instruction.Store, StorageKind.GlobalMemoryVector, null, storeSources));
++                context.Return();
++            }
++
++            context.MarkLabel(lblSkip);
++            if (!isStore)
++            {
++                // Miss zeroes every word of gmem_vec (nxnative 3376af3c2) so callers reading words 1..count-1 get 0.
++                for (int k = 0; k < count - 1; k++)
++                {
++                    context.Store(StorageKind.LocalMemory, vectorMemId, Const(k), Const(0));
++                }
++
++                context.Return(Const(0));
++            }
++            else
++            {
++                context.Return();
++            }
++
++            // Cold scalar fallback: loops 0..count-1 calling the scalar LoadRaw/StoreRaw helper once per word,
++            // preserving exact per-word pool bounds and zeroing out-of-bounds words.
++            context.MarkLabel(lblScalarFallback);
++            Operand word0 = isStore ? null : Local();
++            if (!isStore)
++            {
++                context.Copy(word0, Const(0));
++            }
++
++            Operand loopIdx = Local();
++            context.Copy(loopIdx, Const(0));
++            Operand lblLoop = Label();
++            Operand lblLoopDone = Label();
++            context.MarkLabel(lblLoop);
++            context.BranchIfTrue(lblLoopDone, context.ICompareGreaterOrEqualUnsigned(loopIdx, Const(count)));
++            Operand byteOff = context.ShiftLeft(loopIdx, Const(2));
++            Operand wLow = context.IAdd(addrLow, byteOff);
++            Operand wCarry = context.ConditionalSelect(context.ICompareLessUnsigned(wLow, addrLow), Const(1), Const(0));
++            Operand wHigh = context.IAdd(addrHigh, wCarry);
++
++            if (!isStore)
++            {
++                Operand wVal = context.Call(scalarId, true, wLow, wHigh);
++                Operand lblNotFirst = Label();
++                Operand lblLoopNext = Label();
++                context.BranchIfTrue(lblNotFirst, context.ICompareNotEqual(loopIdx, Const(0)));
++                context.Copy(word0, wVal);
++                context.Branch(lblLoopNext);
++                context.MarkLabel(lblNotFirst);
++                context.Store(StorageKind.LocalMemory, vectorMemId, context.ISubtract(loopIdx, Const(1)), wVal);
++                context.MarkLabel(lblLoopNext);
++            }
++            else
++            {
++                Operand wVal = Argument(2);
++                for (int w = 1; w < count; w++)
++                {
++                    wVal = context.ConditionalSelect(context.ICompareEqual(loopIdx, Const(w)), Argument(2 + w), wVal);
++                }
++
++                context.Call(scalarId, false, wLow, wHigh, wVal);
++            }
++
++            context.Copy(loopIdx, context.IAdd(loopIdx, Const(1)));
++            context.Branch(lblLoop);
++            context.MarkLabel(lblLoopDone);
++
++            if (!isStore)
++            {
++                context.Return(word0);
++            }
++            else
++            {
++                context.Return();
++            }
++
++            Function function = new(
++                ControlFlowGraph.Create(context.GetOperations()).Blocks,
++                GetFunctionName(operation, isMultiTarget: true, []) + $"RawV{count}",
++                returnsValue: !isStore,
++                inArgumentsCount,
++                0);
++
++            functionId = isStore
++                ? gtsContext.AddRawVectorStoreFunction(count, function)
++                : gtsContext.AddRawVectorLoadFunction(count, function);
++
++            return true;
++        }
++
+         // The private words of the range cache (TryGenerateRawStorageOp): the entry, its start, its size (at most 2^32 - 1), its delta, all zero at the start
+         private const int RawCacheEntry = 0;
+         private const int RawCacheStartLow = 1;
+diff --git a/compat/tree/src/Ryujinx.Graphics.Shader/Translation/ResourceManager.cs b/compat/tree/src/Ryujinx.Graphics.Shader/Translation/ResourceManager.cs
+index f435114..95d899c 100644
+--- a/compat/tree/src/Ryujinx.Graphics.Shader/Translation/ResourceManager.cs
++++ b/compat/tree/src/Ryujinx.Graphics.Shader/Translation/ResourceManager.cs
+@@ -171,6 +171,41 @@ namespace Ryujinx.Graphics.Shader.Translation
+             return Properties.AddLocalMemory(new MemoryDefinition($"gmem_last_{Properties.LocalMemories.Count}", AggregateType.U32, 1, zeroInit: true));
+         }
+ 
++        // RewindBox (from nxnative 04419bc25, MIT): private storage for words 1..3 of a raw vector load (gmem_vec).
++        private int _rawVectorMemoryId = -1;
++
++        public int GetRawVectorMemory()
++        {
++            if (_rawVectorMemoryId < 0)
++            {
++                _rawVectorMemoryId = Properties.AddLocalMemory(new MemoryDefinition("gmem_vec", AggregateType.Array | AggregateType.U32, 3));
++            }
++
++            return _rawVectorMemoryId;
++        }
++
++        [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "getenv")]
++        private static extern IntPtr NativeGetEnv(string name);
++
++        // RewindBox: runtime switch S2A_RB_WIDE_MEM (default on; "0" reverts to scalar 32-bit split).
++        // Reads libc getenv first so iOS Documents/env.txt updates applied via setenv() after .NET startup are seen.
++        public static bool WideMemoryEnabled()
++        {
++            string val = null;
++
++            if (OperatingSystem.IsIOS() || OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
++            {
++                IntPtr ptr = NativeGetEnv("S2A_RB_WIDE_MEM");
++                if (ptr != IntPtr.Zero)
++                {
++                    val = System.Runtime.InteropServices.Marshal.PtrToStringUTF8(ptr);
++                }
++            }
++
++            val ??= Environment.GetEnvironmentVariable("S2A_RB_WIDE_MEM");
++            return val != "0";
++        }
++
+         private int AddMemoryDefinition(string name, AggregateType type, int arrayLength = 1)
+         {
+             return Properties.AddLocalMemory(new MemoryDefinition(name, type, arrayLength));
+diff --git a/compat/tree/src/Ryujinx.Graphics.Shader/Translation/Translator.cs b/compat/tree/src/Ryujinx.Graphics.Shader/Translation/Translator.cs
+index c4fceab..d454311 100644
+--- a/compat/tree/src/Ryujinx.Graphics.Shader/Translation/Translator.cs
++++ b/compat/tree/src/Ryujinx.Graphics.Shader/Translation/Translator.cs
+@@ -23,6 +23,8 @@ namespace Ryujinx.Graphics.Shader.Translation
+             }
+         }
+ 
++        public static bool WideMemoryEnabled() => ResourceManager.WideMemoryEnabled();
++
+         public static TranslatorContext CreateContext(ulong address, IGpuAccessor gpuAccessor, TranslationOptions options)
+         {
+             return DecodeShader(address, gpuAccessor, options);
