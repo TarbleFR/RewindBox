@@ -1,0 +1,82 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 04f759c..72ce0e0 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -174,6 +174,7 @@ int nvn_be_shutdown_session(void) {
+     rb_gpudiag_emit();
+     if (g_rb_gdiag.ns) rb_gpudiag_shader_batch(g_rb_gdiag.frame);
+     rb_passdiag_unresolved("session-shutdown");
++    rb_gpudiag_reset(); // the next begin must not emit the last frame a second time
+     // The retired session's descriptor registry and pools have been drained.
+     os_unfair_lock_lock(&g_rb_exposure_lock);
+     memset(&g_rb_descriptor_bytes, 0, sizeof g_rb_descriptor_bytes);
+diff --git a/graphics/nvn/gfx/nvn/rb_gpudiag.inc b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+index d1ceae6..a8181bb 100644
+--- a/graphics/nvn/gfx/nvn/rb_gpudiag.inc
++++ b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+@@ -12,7 +12,7 @@ typedef struct { uint64_t serial; unsigned level, slice, w, h, role, opens; } rb
+ typedef struct { const char *function; unsigned line, count; } rb_gdiag_cut;
+ typedef struct { char key[24]; unsigned facts, known, guest_early; uint64_t draws, depth_draws; } rb_gdiag_shader;
+ static struct {
+-    uint64_t frame, passes, cuts, draws, source_unknown, dropped_targets, dropped_cuts, dropped_shaders;
++    uint64_t frame, passes, cuts, draws, shader_draws_emitted, source_unknown, dropped_targets, dropped_cuts, dropped_shaders;
+     unsigned nt, nc, ns;
+     rb_gdiag_target targets[RB_GDIAG_TARGETS];
+     rb_gdiag_cut reasons[RB_GDIAG_CUTS];
+@@ -22,6 +22,7 @@ static void rb_gpudiag_shader_batch(uint64_t at) {
+     unsigned long long frame=(unsigned long long)at;
+         for (unsigned i=0;i<g_rb_gdiag.ns;i++) {
+             rb_gdiag_shader *s=&g_rb_gdiag.shaders[i];
++            g_rb_gdiag.shader_draws_emitted+=s->draws;
+             MLOG("[rb-gpudiag-shader] up_to_frame=%llu key=%s draws=%llu depth_test_draws=%llu source_known=%u guest_early=%u missing_requested_early=%u explicit_early=%u discard=%u depth_output=%u sample_mask=%u pool_atomic_or=%u scope=existing-library-lexical-facts hardware_early_z=unmeasured",
+                  frame,s->key,(unsigned long long)s->draws,(unsigned long long)s->depth_draws,s->known,s->guest_early,rb_gpu_early_missing(s->guest_early,s->known,s->facts),
+                  !!(s->facts&RB_MSL_EARLY),!!(s->facts&RB_MSL_DISCARD),!!(s->facts&RB_MSL_DEPTH),!!(s->facts&RB_MSL_SMASK),!!(s->facts&RB_MSL_POOL_ATOMIC));
+diff --git a/graphics/nvn/tests/t_rb_clear_batch_metal.m b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+index fcd71aa..0ebbf76 100644
+--- a/graphics/nvn/tests/t_rb_clear_batch_metal.m
++++ b/graphics/nvn/tests/t_rb_clear_batch_metal.m
+@@ -41,10 +41,12 @@ static void read_pair(id<MTLDevice> dev, id<MTLTexture> a, id<MTLTexture> b, Cle
+     id<MTLBlitCommandEncoder> blit=[cb blitCommandEncoder];
+     id<MTLBuffer> read=[dev newBufferWithLength:2*256*HEIGHT options:MTLResourceStorageModeShared];
+     CHECK(read && blit);
+-    for (int i=0; i<2; i++)
++    for (int i=0; i<2; i++) {
++        if (raster_tiles_test) rb_passdiag_read(i ? b : a,11,0,0,0,"fixture-copy-source");
+         [blit copyFromTexture:i ? b : a sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0)
+             sourceSize:MTLSizeMake(WIDTH,HEIGHT,1) toBuffer:read destinationOffset:i*256*HEIGHT
+             destinationBytesPerRow:256 destinationBytesPerImage:256*HEIGHT];
++    }
+     [blit endEncoding]; [cb commit]; [cb waitUntilCompleted]; CHECK(cb.status==MTLCommandBufferStatusCompleted);
+     float *v=read.contents;
+     for (int i=0; i<2; i++) for (int y=0; y<HEIGHT; y++) for (int x=0; x<WIDTH; x++) {
+@@ -254,7 +256,9 @@ static void tracked_store(id<MTLDevice> dev, int optimize, int mrt, ClearImage o
+             at.texture=tex[i]; at.loadAction=MTLLoadActionClear; at.storeAction=dead ? MTLStoreActionDontCare : MTLStoreActionStore;
+             at.clearColor=MTLClearColorMake(!pass && !i ? -0.5 : colors[i],0,0,1);
+         }
++        if (raster_tiles_test) { g_stat_pass++; rb_passdiag_begin((MTL4RenderPassDescriptor *)pd); }
+         id<MTLRenderCommandEncoder> e=[cb renderCommandEncoderWithDescriptor:pd]; CHECK(e); [e endEncoding];
++        if (raster_tiles_test) rb_passdiag_end();
+     }
+     [cb commit]; [cb waitUntilCompleted]; CHECK(cb.status==MTLCommandBufferStatusCompleted);
+     read_pair(dev,tex[0],tex[1],out);
+@@ -361,10 +365,20 @@ static void native_packed_ordering(int enabled) {
+ int main(int argc,char **argv) { @autoreleasepool {
+     if (argc==2 && !strcmp(argv[1],"--raster-clear")) {
+         raster_tiles_test=1;
++        rb_gpudiag_reset(); atomic_store(&g_rb_gpudiag_mode,1);
++        for (unsigned i=0;i<5000;i++) { char key[24]; snprintf(key,sizeof key,"%016x_b",i); rb_gpudiag_draw(key,0,1,1,1); }
++        uint64_t pending=0; for (unsigned i=0;i<g_rb_gdiag.ns;i++) pending+=g_rb_gdiag.shaders[i].draws;
++        CHECK(!g_rb_gdiag.dropped_shaders && g_rb_gdiag.shader_draws_emitted+pending==5000);
++        rb_gpudiag_shader_batch(0); CHECK(g_rb_gdiag.shader_draws_emitted==5000 && !g_rb_gdiag.ns);
++        rb_gpudiag_reset(); rb_passdiag_reset(); atomic_store(&g_rb_passdiag_mode,1);
+         CHECK(!setenv("DM_NVN_TBDR","0",1));
+         id<MTLDevice> device=MTLCreateSystemDefaultDevice(); CHECK(device);
+         ClearImage a,b; tracked_store(device,0,0,a); tracked_store(device,1,0,b);
+         CHECK(!memcmp(a,b,sizeof a));
++        CHECK(g_rb_pd_store_bytes==5ull*WIDTH*HEIGHT*4);
++        for (int i=0;i<g_rb_pd_n;i++) CHECK(!g_rb_pd_rows[i].pending);
++        rb_passdiag_reset();
++        puts("PASS bounded shader table: 5000 accounted draws, zero lost; actual Metal attachment ledger and copy consumers");
+         puts("PASS raster clear: production proof off/on, partial clear/scissor/unknown rejected; 512 identical Metal pixels");
+         return 0;
+     }

@@ -503,7 +503,7 @@ Foundation : 34 contrôles par hôte ; synchronisation : 35 contrôles. Le runne
 n’expose pas Metal 4 ; aucun replay de pixels ni gain A18 Pro n’est revendiqué.
 Le pin réutilise les producteurs prepare/sysdata existants ; NS2Pro est inchangé.
 
-### Passes et tuiles 0379–0392 (25 novembre 2026)
+### Passes et tuiles 0379–0393 (25 novembre 2026)
 
 Base : moteur 0378 livré dans l'IPA privée 841. Aucun titre n'est testé par
 les nouveaux correctifs ; ils s'appliquent aux chemins S2Arm compatibles,
@@ -543,3 +543,5 @@ Le lot traducteur reste une livraison ultérieure distincte.
 0389 : identités faibles des ressources sans les retenir, et détail des passes échantillonnable via `S2A_RB_PASS_DIAG_EVERY` (défaut 1 ; fichier diagnostic fourni : 30). Tous les octets sont comptés, seules les lignes détaillées sont échantillonnées. 0390 : suivi des expositions actif pour le candidat sur tous les titres, même hors politique NVN2 existante.
 
 0391 : la comparaison de pixels exerce aussi le vrai setter de sauvegarde du backend, avec espion de sélection d’action ; le rendu de contrôle et candidat reste effectué sur Metal.
+
+0393 : le fixture parcourt aussi le ledger sur de vrais attachements Metal et leurs copies, contrôle les octets logiques et vérifie 5000 dessins shader sans perte à la saturation. Le dernier résumé de session est remis à zéro après émission pour ne pas être compté à nouveau au redémarrage.
