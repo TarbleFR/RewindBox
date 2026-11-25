@@ -58,6 +58,8 @@ int main(void) {
     CHECK(rb_gpu_msl_facts("discard_fragment_other(); sample_masked depth_value;")==0);
     CHECK(rb_gpu_msl_facts("[[early_fragment_tests]] fragment float4 main0() { discard_fragment(); }")==(RB_MSL_EARLY|RB_MSL_DISCARD));
     CHECK(rb_gpu_msl_facts("float d [[depth (any)]]; uint m [[sample_mask]]; atomic_fetch_or_explicit(a,b,c);")==(RB_MSL_DEPTH|RB_MSL_SMASK|RB_MSL_POOL_ATOMIC));
+    CHECK(rb_gpu_early_missing(2,1,0)); CHECK(!rb_gpu_early_missing(2,1,RB_MSL_EARLY));
+    CHECK(!rb_gpu_early_missing(0,1,0)); CHECK(!rb_gpu_early_missing(1,1,0)); CHECK(!rb_gpu_early_missing(2,0,0));
     s2a_rb_wake_configure(0); int evaluated=0;
     CHECK(RB_WAKE_CALL("fixture.off", (++evaluated,1), 23)==23); CHECK(evaluated==0); CHECK(rb_wake_count==0);
     s2a_rb_wake_configure(1);

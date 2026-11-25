@@ -1,0 +1,107 @@
+From 7f84365878f89362f73de0f1d8c6b7b808dc5c5e Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Wed, 25 Nov 2026 09:11:57 +0100
+Subject: [PATCH] 0378 Compare existing guest early-depth metadata with
+ unchanged translated source
+
+---
+ graphics/nvn/gfx/nvn/nvn_mtl.m      | 10 ++++++----
+ graphics/nvn/gfx/nvn/rb_gpu_facts.h |  7 +++++++
+ graphics/nvn/gfx/nvn/rb_gpudiag.inc | 10 +++++-----
+ 3 files changed, 18 insertions(+), 9 deletions(-)
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index ea70e26..3b45a41 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -11243,7 +11243,7 @@ static void shmap_load_once(void) {
+ #include "rb_bind_facts.h"   // RewindBox (patch 0323): NvShader's rb_bf
+ @interface NvShader : NSObject { @public id<MTLLibrary> ft_lib; uint8_t ft_tried; id<MTLLibrary> bf_lib; uint8_t bf_tried;   // bf_lib: the readable-tile version <key>_bf, looked up once by name (bf_fn)
+     id<MTLFunction> fn, tf_fn, fn_u, geo_fn;   // fn_u: the integer-output entry point (dmsh_build.py fs_uint), for pipelines whose unsigned integer attachments are exactly u_mask (pso_desc)
+-    uint8_t rb_diag_facts, rb_diag_known;
++    uint8_t rb_diag_facts, rb_diag_known, rb_diag_guest_early;
+     uint8_t rb_shadow_n;
+     struct { uint16_t tex, samp; } rb_shadow_bind[RB_SHADOW_MAX_CALLS];
+     uint8_t s_rec, warm_claimed;   // submit-thread first-use / prewarm handoff counters
+@@ -12516,8 +12516,10 @@ static NvShader *shader_build_attempt(NSString *pc, int stage, int layer, int de
+     // texel buffer (spvLinearTextureAlignmentOverride, used only through is_function_constant_defined; one of Pokémon Legends: Z-A's imgui pixel shaders, 2bd5037003980716): an empty set of
+     // values keeps its default. Without it the first pipeline with that shader failed Metal's validation (`fragmentFunction main0 cannot be used to build a pipeline state`)
+     if (stage == 1 && rb_src && original) rb_shadow_reflect(o, j, original);
+-    if (stage == 1 && rb_gpudiag_on() && original) {
+-        o->rb_diag_known=1; o->rb_diag_facts=(uint8_t)rb_gpu_msl_facts(original.UTF8String);
++    if (stage == 1 && rb_gpudiag_on()) {
++        id early=j[@"early_z"];
++        if ([early isKindOfClass:NSNumber.class]) o->rb_diag_guest_early=1+[early boolValue];
++        if (original) { o->rb_diag_known=1; o->rb_diag_facts=(uint8_t)rb_gpu_msl_facts(original.UTF8String); }
+     }
+     if (j[@"entry_tf"]) {   // transform feedback capture entry point (dmsh_build.py vs_tf) and the bytes per vertex of each feedback buffer
+         o->tf_fn = lib_entry(lib, fnn(o, j[@"entry_tf"])); NSArray *ts = j[@"tf_strides"];
+@@ -24362,7 +24364,7 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+ #endif
+     udc_note_draw(pr);
+     swrite_note(pr);
+-    if (pr->sh[1]) rb_gpudiag_draw(pr->sh[1]->key,pr->sh[1]->rb_diag_facts,pr->sh[1]->rb_diag_known,S.ds.dt);
++    if (rb_gpudiag_on() && pr->sh[1]) rb_gpudiag_draw(pr->sh[1]->key,pr->sh[1]->rb_diag_facts,pr->sh[1]->rb_diag_known,pr->sh[1]->rb_diag_guest_early,S.ds.dt);
+     fb_note_draw(pr);
+     if (g_mtk.on) { mtk_encode(en); return; }   // a task / mesh draw (nvn_geometry.inc)
+     if (g_geo_program) {
+diff --git a/graphics/nvn/gfx/nvn/rb_gpu_facts.h b/graphics/nvn/gfx/nvn/rb_gpu_facts.h
+index 8a192bf..7546906 100644
+--- a/graphics/nvn/gfx/nvn/rb_gpu_facts.h
++++ b/graphics/nvn/gfx/nvn/rb_gpu_facts.h
+@@ -30,3 +30,10 @@ static inline unsigned rb_gpu_msl_facts(const char *p) {
+     }
+     return bits;
+ }
++
++// Existing JSON early_z: 0 unknown, 1 false, 2 true. An absent annotation in
++// known source contradicts an explicitly requested early test. Its presence
++// alone still cannot prove hardware early-Z execution for a specialized entry.
++static inline int rb_gpu_early_missing(unsigned guest_early,unsigned known,unsigned facts) {
++    return guest_early==2 && known && !(facts&RB_MSL_EARLY);
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_gpudiag.inc b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+index 605ecbf..6cf6162 100644
+--- a/graphics/nvn/gfx/nvn/rb_gpudiag.inc
++++ b/graphics/nvn/gfx/nvn/rb_gpudiag.inc
+@@ -10,7 +10,7 @@ static int rb_gpudiag_on(void) {
+ enum { RB_GDIAG_TARGETS=128, RB_GDIAG_CUTS=96, RB_GDIAG_SHADERS=256 };
+ typedef struct { uint64_t serial; unsigned level, slice, w, h, role, opens; } rb_gdiag_target;
+ typedef struct { const char *function; unsigned line, count; } rb_gdiag_cut;
+-typedef struct { char key[24]; unsigned facts, known; uint64_t draws, depth_draws; } rb_gdiag_shader;
++typedef struct { char key[24]; unsigned facts, known, guest_early; uint64_t draws, depth_draws; } rb_gdiag_shader;
+ static struct {
+     uint64_t frame, passes, cuts, draws, source_unknown, dropped_targets, dropped_cuts, dropped_shaders;
+     unsigned nt, nc, ns;
+@@ -38,8 +38,8 @@ static void rb_gpudiag_emit(void) {
+     if (g_rb_gdiag.frame && !(g_rb_gdiag.frame%300)) {
+         for (unsigned i=0;i<g_rb_gdiag.ns;i++) {
+             rb_gdiag_shader *s=&g_rb_gdiag.shaders[i];
+-            MLOG("[rb-gpudiag-shader] up_to_frame=%llu key=%s draws=%llu depth_test_draws=%llu source_known=%u explicit_early=%u discard=%u depth_output=%u sample_mask=%u pool_atomic_or=%u scope=existing-library-lexical-facts hardware_early_z=unmeasured",
+-                 frame,s->key,(unsigned long long)s->draws,(unsigned long long)s->depth_draws,s->known,
++            MLOG("[rb-gpudiag-shader] up_to_frame=%llu key=%s draws=%llu depth_test_draws=%llu source_known=%u guest_early=%u missing_requested_early=%u explicit_early=%u discard=%u depth_output=%u sample_mask=%u pool_atomic_or=%u scope=existing-library-lexical-facts hardware_early_z=unmeasured",
++                 frame,s->key,(unsigned long long)s->draws,(unsigned long long)s->depth_draws,s->known,s->guest_early,rb_gpu_early_missing(s->guest_early,s->known,s->facts),
+                  !!(s->facts&RB_MSL_EARLY),!!(s->facts&RB_MSL_DISCARD),!!(s->facts&RB_MSL_DEPTH),!!(s->facts&RB_MSL_SMASK),!!(s->facts&RB_MSL_POOL_ATOMIC));
+         }
+         MLOG("[rb-gpudiag-shader-coverage] up_to_frame=%llu keys=%u unknown_source_draws=%llu dropped_keys=%llu",
+@@ -74,7 +74,7 @@ static void rb_gpudiag_cut(const char *function,unsigned line) {
+     }
+     g_rb_gdiag.reasons[i].count++;
+ }
+-static void rb_gpudiag_draw(const char *key,unsigned facts,unsigned known,int depth_test) {
++static void rb_gpudiag_draw(const char *key,unsigned facts,unsigned known,unsigned guest_early,int depth_test) {
+     if (!rb_gpudiag_on()) return;
+     g_rb_gdiag.draws++;
+     if (!known) g_rb_gdiag.source_unknown++;
+@@ -83,7 +83,7 @@ static void rb_gpudiag_draw(const char *key,unsigned facts,unsigned known,int de
+     if (i==g_rb_gdiag.ns) {
+         if (i==RB_GDIAG_SHADERS) { g_rb_gdiag.dropped_shaders++; return; }
+         rb_gdiag_shader *s=&g_rb_gdiag.shaders[g_rb_gdiag.ns++];
+-        memset(s,0,sizeof *s); snprintf(s->key,sizeof s->key,"%s",key); s->facts=facts; s->known=known;
++        memset(s,0,sizeof *s); snprintf(s->key,sizeof s->key,"%s",key); s->facts=facts; s->known=known; s->guest_early=guest_early;
+     }
+     g_rb_gdiag.shaders[i].draws++; if (depth_test) g_rb_gdiag.shaders[i].depth_draws++;
+ }
+-- 
+2.56.1
+
