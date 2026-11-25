@@ -1,0 +1,97 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index dcd9a24..4eaf505 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1679,6 +1679,7 @@ static int g_rb_vis_lazy_mode = -1;
+ static _Atomic uint64_t g_rb_vis_unused_subs, g_rb_vis_reserves;
+ static _Atomic uint64_t g_rb_vis_waits, g_rb_vis_wait_ns, g_rb_alloc_wait_ns;
+ static _Atomic uint64_t g_rb_alloc_reset_deferred;
++static _Atomic uint64_t g_rb_vis_failed;
+ // A cancelled fence wait proves nothing about GPU completion. After the encode
+ // worker drains, append to the allocator without resetting its in-flight memory.
+ // This is the same sequential-CB reuse as sub_cut; retirement still uses its fence.
+@@ -1723,7 +1724,12 @@ static int vis_reserve(void) {
+         res_add(g_vis_ring[pick].buf);
+     }
+     g_vis = g_vis_ring[pick].buf;
+-    if (!g_vis) { g_vis_ring[pick].fence = 0; g_vis_ring_i = -1; return 0; }
++    if (!g_vis) {
++        g_vis_ring[pick].fence = 0; g_vis_ring_i = -1;
++        if (!atomic_fetch_add_explicit(&g_rb_vis_failed, 1, memory_order_relaxed))
++            MLOG("【红】 visibility buffer allocation failed; render pass could not be encoded");
++        return 0;
++    }
+     atomic_fetch_add_explicit(&g_rb_vis_reserves, 1, memory_order_relaxed);
+     return 1;
+ }
+@@ -4949,6 +4955,13 @@ static uint64_t g_rb_qwait_n, g_rb_evwait_n, g_rb_fsync_n;   // RewindBox (patch
+ // making the submit thread join dm-encode. The end of the submit call still drains.
+ static int g_rb_queue_wait_mode = -1;
+ static _Atomic uint64_t g_rb_queue_wait_records, g_rb_queue_wait_drains;
++static _Atomic uint64_t g_rb_queue_wait_drain_ns;
++static void rb_queue_wait_drain(void) {
++    uint64_t before = t_rb_blk[1];
++    rec_drain();
++    atomic_fetch_add_explicit(&g_rb_queue_wait_drains, 1, memory_order_relaxed);
++    atomic_fetch_add_explicit(&g_rb_queue_wait_drain_ns, t_rb_blk[1] - before, memory_order_relaxed);
++}
+ static int rb_queue_wait_recorded(void) {
+     if (g_rb_queue_wait_mode < 0) {
+         const char *value = getenv("S2A_RB_QUEUE_WAIT_RECORD");
+@@ -4974,14 +4987,16 @@ static void queue_wait_event(void *ev, uint64_t v) {   // the wait itself; the r
+         //   (rb_piece_hold.h) are committed by the encode thread later: without this drain they would wait too, their fences with them, and a release that
+         //   depends on them (a guest thread waiting on such a fence before it raises the event, or a GL sync) would stall the queue until the forced release
+         //   or for good. Draining first keeps the order of IPA 829: earlier pieces on the queue, then the wait. Only a later piece that waits on the GPU pays it
+-        if (g_rb_piece.held) { uint64_t b0 = t_rb_blk[1]; rec_drain(); g_rb_piece_wait_ns += t_rb_blk[1] - b0; g_rb_piece.held = 0;
+-            atomic_fetch_add_explicit(&g_rb_queue_wait_drains, 1, memory_order_relaxed); }   // the earlier pieces are on the queue now; the current piece hands over again at its end, so the call's end still waits
++        if (g_rb_piece.held) { uint64_t b0 = t_rb_blk[1]; rb_queue_wait_drain(); g_rb_piece_wait_ns += t_rb_blk[1] - b0; g_rb_piece.held = 0; }   // earlier pieces are on the queue before the direct wait
+         [g_q4 waitForEvent:e value:v];
+     }
+ }
+ void nvn_be_queue_wait_event(void *ev, uint64_t v) {
+     if (!ev) return;
+-    mtl_init(); rec_drain();
++    // A completed external dependency needs no queue operation or encode join.
++    id<MTLSharedEvent> event = (__bridge id<MTLSharedEvent>)ev;
++    if (event.signaledValue >= v && rb_queue_wait_recorded()) return;
++    mtl_init(); rb_queue_wait_drain();
+     queue_wait_event(ev, v);
+ }
+ // CPU 上等别的队列的共享事件到 v（最多 timeout_ns）；返回 1 = 已到
+@@ -9705,14 +9720,17 @@ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb) {
+     uint64_t pending_polls = g_guest_fences.pending_polls, sleeps = g_guest_fences.sleeps;
+     uint64_t broadcasts = g_guest_fences.broadcasts, segments = g_guest_fences.segment_completions_with_sleepers;
+     pthread_mutex_unlock(&g_mu);
+-    MLOG("[rb-cpu-gpu-sync] cumulative frame=%llu queue_wait_records=%llu queue_wait_drains=%llu allocator_wait_ms=%.3f visibility_reserves=%llu pieces_without_visibility=%llu visibility_waits=%llu visibility_wait_ms=%.3f",
++    MLOG("[rb-cpu-gpu-sync] cumulative frame=%llu queue_wait_records=%llu queue_wait_drains=%llu queue_wait_drain_ms=%.3f allocator_wait_ms=%.3f allocator_reset_deferred=%llu visibility_reserves=%llu pieces_without_visibility=%llu visibility_waits=%llu visibility_wait_ms=%.3f visibility_failures=%llu",
+          frame, (unsigned long long)atomic_load_explicit(&g_rb_queue_wait_records, memory_order_relaxed),
+          (unsigned long long)atomic_load_explicit(&g_rb_queue_wait_drains, memory_order_relaxed),
++         atomic_load_explicit(&g_rb_queue_wait_drain_ns, memory_order_relaxed) / 1e6,
+          atomic_load_explicit(&g_rb_alloc_wait_ns, memory_order_relaxed) / 1e6,
++         (unsigned long long)atomic_load_explicit(&g_rb_alloc_reset_deferred, memory_order_relaxed),
+          (unsigned long long)atomic_load_explicit(&g_rb_vis_reserves, memory_order_relaxed),
+          (unsigned long long)atomic_load_explicit(&g_rb_vis_unused_subs, memory_order_relaxed),
+          (unsigned long long)atomic_load_explicit(&g_rb_vis_waits, memory_order_relaxed),
+-         atomic_load_explicit(&g_rb_vis_wait_ns, memory_order_relaxed) / 1e6);
++         atomic_load_explicit(&g_rb_vis_wait_ns, memory_order_relaxed) / 1e6,
++         (unsigned long long)atomic_load_explicit(&g_rb_vis_failed, memory_order_relaxed));
+     if (pending_polls || sleeps)
+         MLOG("[fence-wake] cumulative frame=%llu pendingPolls=%llu positiveWaitSleeps=%llu fenceBroadcasts=%llu segmentCompletionsWithSleepers=%llu",
+              frame, (unsigned long long)pending_polls, (unsigned long long)sleeps,
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index be0094f..97f82bf 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -409,10 +409,12 @@ void nvn_be_begin_session(void) {
+     atomic_store_explicit(&g_rb_vis_wait_ns, 0, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_alloc_wait_ns, 0, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_alloc_reset_deferred, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_vis_failed, 0, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_fence_fast_mode, -1, memory_order_relaxed);
+     g_rb_queue_wait_mode = -1;
+     atomic_store_explicit(&g_rb_queue_wait_records, 0, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_queue_wait_drains, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_queue_wait_drain_ns, 0, memory_order_relaxed);
+     atomic_store(&g_spec_sampled,0);
+     atomic_store(&rb_gov_next,0);
+     for (unsigned i=0; i<RB_KART_OPTIONS; i++) atomic_store(&rb_kart_settings[i],0);

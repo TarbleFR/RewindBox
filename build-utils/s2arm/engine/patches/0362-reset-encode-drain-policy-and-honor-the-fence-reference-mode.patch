@@ -1,0 +1,46 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 34dafe7..c3fd9af 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1310,7 +1310,14 @@ static uint64_t *g_rc_pend; static uint32_t g_rc_npend, g_rc_pcap;   // timestam
+ // not the old CPU counter. Only the submit thread owns this table.
+ typedef struct { uint64_t addr, fence; } rc_submitted;
+ static rc_submitted *g_rc_submitted; static uint32_t g_rc_nsubmitted, g_rc_scap;
+-static uint64_t rc_done(void) { return atomic_load_explicit(&g_done, memory_order_acquire); }
++static int rb_fence_fast(void);
++static uint64_t rc_done(void) {
++    if (rb_fence_fast()) return atomic_load_explicit(&g_done, memory_order_acquire);
++    pthread_mutex_lock(&g_mu);
++    uint64_t done = atomic_load_explicit(&g_done, memory_order_relaxed);
++    pthread_mutex_unlock(&g_mu);
++    return done;
++}
+ static void rc_retire(void) {
+     if (!g_rc_nsubmitted) return;
+     uint64_t done = rc_done(); uint32_t n = 0;
+@@ -4751,8 +4758,10 @@ static void mdxchk_after(void) {   // nvn_be_sub_commit (the replaying thread),
+ #include "rb_piece_hold.h"   // RewindBox (patch 0337)
+ static rb_piece_hold g_rb_piece;   // submit thread only (nvn_be_submit and nvn_be_xq_flush run under the submit lock)
+ static uint64_t g_rb_piece_wait_ns;   // the calls' end waits (t_rb_blk[1] grown by them), for the 3000-submission line
++static int g_rb_piece_option_read;
+ static void rb_piece_option(void) {
+-    static int read; if (read) return; read = 1;
++    if (g_rb_piece_option_read) return;
++    g_rb_piece_option_read = 1;
+     const char *v = getenv("S2A_RB_PIECE_DRAIN");
+     g_rb_piece.each = rb_piece_drain_each_asked(v);
+     MLOG("[rb-piece] %s (S2A_RB_PIECE_DRAIN; patch 0337)", g_rb_piece.each ? "the encode thread is waited for after every submission piece, as in IPA 829"
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index d99424d..be0094f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -399,6 +399,9 @@ void nvn_be_begin_session(void) {
+     for (int i = 0; i < RB_DBAR_COUNT; i++) atomic_store_explicit(&g_rb_dbar[i], 0, memory_order_relaxed);
+     for (size_t i = 0; i < sizeof g_rb_dbar_out / sizeof *g_rb_dbar_out; i++) atomic_store_explicit(&g_rb_dbar_out[i], 0, memory_order_relaxed);
+     rb_xq_resume_reset();
++    g_rb_piece = (rb_piece_hold){0};
++    g_rb_piece_option_read = 0;
++    g_rb_piece_wait_ns = 0;
+     g_rb_vis_lazy_mode = -1;
+     atomic_store_explicit(&g_rb_vis_unused_subs, 0, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_vis_reserves, 0, memory_order_relaxed);

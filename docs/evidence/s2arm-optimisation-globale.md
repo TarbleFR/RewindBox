@@ -280,3 +280,41 @@ Le fixture d'occlusion appelle directement la réservation et le cumul des slots
 Le parcours complet de soumission et le rendu en jeu sur A18 Pro restent à valider
 sur appareil. Les interrupteurs comparent les chemins d'attente. La publication atomique
 des résultats fournit l'ordre mémoire C dans les deux variantes.
+
+## Contre-expertise 0361–0365
+
+La contrainte du mainteneur du 25 novembre est de garder la vitesse initiale des jeux.
+Le lot part du moteur vérifié de la 840, source `c9e6d4ea`.
+
+| Point revu | Constat dans la 840 | Correction |
+|---|---|---|
+| Retraite d'allocateur | Après l'annulation d'un `nvn_be_wait`, le drainage de dm-encode était suivi d'un `reset` même si le GPU n'avait pas terminé. Le défaut remonte au chemin de 0337. | 0361 autorise le reset après completion. Sur annulation, le CPU finit son encodage puis réutilise séquentiellement l'allocateur en ajoutant des commandes. Sa mémoire en vol est protégée jusqu'à la fence. |
+| Réservation de visibilité | Le helper retournait sans statut sur annulation. L'ouverture de passe pouvait alors tenter une allocation d'overflow. | 0361 retourne l'échec à la passe. Un échec d'allocation possède un diagnostic. |
+| Changement de session | Le cache local `read` de `rb_piece_option` n'était pas réinitialisé. Une ancienne valeur `S2A_RB_PIECE_DRAIN=1` pouvait imposer des jointures dans la session suivante. | 0362 réinitialise choix, profondeur et compteurs au début d'une session drainée. |
+| Comparaison A/B | `rc_done` prenait toujours le chemin atomique, y compris avec `S2A_RB_FENCE_FAST=0`. | 0362 applique aussi ce choix aux lectures de timestamps. La publication atomique garantit l'ordre mémoire dans les deux modes. |
+| Coût par wait | 0357 créait un bloc Objective-C et ses captures pour chaque wait différé. | 0363 utilise un record de taille fixe contenant l'événement retenu et sa valeur. La sélection exige un proxy dont le commit passe également par dm-encode. |
+| Attribution des attentes | Le rapport comptait les drains intra-soumission, avec une couverture incomplète des appels externes. Une dépendance externe déjà satisfaite drainait aussi l'encodeur. | 0364 compte les deux voies et leur blocage réel. Une dépendance externe terminée rend la main immédiatement en mode optimisé. |
+| Qualité du contrôle d'occlusion | Une assertion contrôlait des variables que le fixture venait lui-même de mettre à zéro. | 0365 appelle le vrai helper de début de soumission après avoir installé un état antérieur. Il exerce également le ring occupé, l'annulation et le mode de référence. |
+| Contrôle GPU | Les neuf assertions de queue de la 840 utilisaient une simulation d'appels. | 0365 ajoute un mode du fixture existant avec la vraie queue Metal 4, le vrai worker et des command buffers vides. Il vérifie la progression avant le wait, le blocage de ses consommateurs puis leur libération, avec un allocateur partagé sans reset. |
+
+Metal 4 permet d'associer séquentiellement un allocateur à plusieurs command buffers après
+la fin de leur encodage. Le reset intervient après la fin de l'utilisation GPU. Cette règle
+est celle du [modèle de commandes Apple](https://developer.apple.com/documentation/metal/understanding-the-metal-4-core-api).
+
+### Respect de la vitesse d'origine
+
+Les [huit comparaisons de sources](s2arm-sync-review-speed.json) portent sur l'intégralité de
+`hle_nvn.c` et les corps de `gpu_ticks`, `nvn_be_fps_target`, `nvn_be_link_wait_tick`,
+`present_enqueue`, `rb_depth_keep_queue`, `present_m3` et `present_now`. Leurs empreintes
+correspondent exactement au moteur de la 840. Ce contrôle porte sur les horloges, la cadence
+cible et la présentation. La fidélité et le débit effectifs en jeu demandent une mesure sur
+l'iPhone.
+
+### Contrôles ciblés de la contre-expertise
+
+Les fixtures existants couvrent les lectures atomiques et le chemin de référence,
+l'annulation, la rétention des événements, la réinitialisation des choix après session
+et le cycle de vie des buffers de visibilité. Le mode GPU utilise des command buffers vides
+pour exercer les événements sans dépendre d'un residency set du runner virtuel.
+Un périphérique sans queue Metal 4 renvoie explicitement le statut indisponible.
+Les résultats de compilation et d'exécution sont en attente.

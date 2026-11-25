@@ -420,3 +420,17 @@ The options resolve again after a drained hosted session. `[rb-cpu-gpu-sync]` re
 of recorded queue waits, remaining encode drains, allocator wait time, visibility reservations,
 pieces that needed no reservation and visibility wait count/time. Timings cover actual blocking
 branches only. See the [device comparison](../../../docs/evidence/s2arm-optimisation-globale.md#synchronisation-cpugpu-03570360).
+
+## Synchronization review (0361–0365)
+
+| Patch | Review result and correction |
+| --- | --- |
+| 0361 | A cancelled allocator wait previously led to reset after a CPU encode drain. Sequential encoding now appends without reset in that case. A failed visibility reservation rejects the render pass. |
+| 0362 | The per-piece encode-drain choice and counters now reset at a drained session boundary. The fence reference switch also covers timestamp checks. |
+| 0363 | A retained event/value record replaces the allocated Objective-C block per wait. It is used when the current CB is a recorded proxy, whose commit follows the same stream. |
+| 0364 | Ready external dependencies avoid the encode join. Diagnostics count the direct/external drain calls and their actual blocking time, deferred allocator resets and visibility allocation failures. |
+| 0365 | The visibility fixture calls the production admission function. Existing event and restart fixtures cover cancellation, policy changes and real Metal 4 queue ordering with empty command buffers when available. |
+
+The source comparison for clocks, target rate and presentation is recorded in the
+[review](../../../docs/evidence/s2arm-optimisation-globale.md#contre-expertise-03610365).
+GPU and device results are recorded after their checks complete.

@@ -1,0 +1,223 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 4eaf505..ed398a2 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1733,6 +1733,12 @@ static int vis_reserve(void) {
+     atomic_fetch_add_explicit(&g_rb_vis_reserves, 1, memory_order_relaxed);
+     return 1;
+ }
++// Shared by submission admission and its visibility lifecycle regression fixture.
++static void vis_begin_submission(void) {
++    if (g_vis && !vis_in_ring(g_vis)) defer_obj_release(g_vis);
++    g_vis = nil; g_vis_n = 0; g_vis_cur = -1; g_vis_ring_i = -1;
++    if (!rb_vis_lazy()) vis_reserve();
++}
+ void nvn_be_sub_begin(void) {
+     rb_sub_open(1);   // RewindBox (patch 0071): a submission is open (waits for the pressure handler's idle release, rb_press_release)
+     dsnap_stale();   // #387: depth may change between submissions (CPU writes, other queues)
+@@ -1777,11 +1783,9 @@ void nvn_be_sub_begin(void) {
+     ts_sub_begin(); sub_cut_begin();
+     g_commit_blocks = [NSMutableArray array];
+     // The overflow buffer created when the previous submission ran out of slots (see g_vis_n >= VIS_SLOTS): retire it. It used to be just cleared here and stayed in the residency set for good (from d2r-mobile 2eb575877)
+-    if (g_vis && !vis_in_ring(g_vis)) defer_obj_release(g_vis);
+-    g_npost = 0; g_vis = nil; g_vis_n = 0; g_vis_cur = -1; pend_reset();
++    g_npost = 0; pend_reset();
+     zskip_clear(); g_zskip_count = 0;
+-    g_vis_ring_i = -1;
+-    if (!rb_vis_lazy()) vis_reserve();
++    vis_begin_submission();
+     void arena_begin(void); arena_begin();
+     rb_sparse_maintain();
+     rb_res_top_tick();   // RewindBox (patch 0023): the resident top when the process has grown (a log line only)
+diff --git a/graphics/nvn/tests/t_link_restart.m b/graphics/nvn/tests/t_link_restart.m
+index cb7ca9e..4a84d00 100644
+--- a/graphics/nvn/tests/t_link_restart.m
++++ b/graphics/nvn/tests/t_link_restart.m
+@@ -79,6 +79,24 @@ int main(int argc, char **argv) { @autoreleasepool {
+     setenv("S2A_RB_VIEW_META", "0", 1);
+     if (argc == 2 && !strcmp(argv[1], "--render-options")) {
+         restart_for_test(0);
++        setenv("S2A_RB_PIECE_DRAIN", "1", 1);
++        rb_piece_option();
++        CHECK(g_rb_piece.each, "explicit per-piece drainage is applied");
++        g_rb_piece.pieces_held = 19; g_rb_piece.calls_waited = 11; g_rb_piece_wait_ns = 5;
++        setenv("S2A_RB_PIECE_DRAIN", "0", 1);
++        nvn_be_begin_session(); rb_piece_option();
++        CHECK(!g_rb_piece.each && !g_rb_piece.pieces_held && !g_rb_piece.calls_waited && !g_rb_piece_wait_ns,
++              "new session rereads drainage policy and clears its counters");
++        setenv("S2A_RB_FENCE_FAST", "0", 1);
++        setenv("S2A_RB_QUEUE_WAIT_RECORD", "0", 1);
++        setenv("S2A_RB_VISIBILITY_LAZY", "0", 1);
++        nvn_be_begin_session();
++        CHECK(!rb_fence_fast() && !rb_queue_wait_recorded() && !rb_vis_lazy(),
++              "new session resolves all three reference paths");
++        unsetenv("S2A_RB_FENCE_FAST"); unsetenv("S2A_RB_QUEUE_WAIT_RECORD"); unsetenv("S2A_RB_VISIBILITY_LAZY");
++        nvn_be_begin_session();
++        CHECK(rb_fence_fast() && rb_queue_wait_recorded() && rb_vis_lazy(),
++              "next session resolves all three default optimized paths");
+         return failures ? 1 : 0;
+     }
+ #endif
+diff --git a/graphics/nvn/tests/t_nvn_visfold.m b/graphics/nvn/tests/t_nvn_visfold.m
+index ea42b34..4614986 100644
+--- a/graphics/nvn/tests/t_nvn_visfold.m
++++ b/graphics/nvn/tests/t_nvn_visfold.m
+@@ -8,6 +8,8 @@ __attribute__((weak)) int dm_shader_vpad_cached_mesh(const uint8_t key[8], uint3
+     (void)key; (void)mask; (void)path; (void)n; return -1;
+ }
+ #include "../gfx/nvn/nvn_mtl.m"
++int dm_nvn_request_stop(void);
++void dm_nvn_begin_session(void);
+ 
+ static unsigned failures, checks;
+ #define REQUIRE(c) do { if (!(c)) { fprintf(stderr, "FAIL setup %s:%d: %s\n", __FILE__, __LINE__, #c); exit(1); } } while (0)
+@@ -56,9 +58,12 @@ int main(void) {
+         vis_clear();
+         // Exercise the real ring reservation with a tracked shared Metal buffer.
+         // A piece without a render pass leaves the reservation state untouched.
+-        g_vis = nil; g_vis_ring_i = -1;
+         g_vis_ring_n = 1; g_vis_ring[0].buf = ring; g_vis_ring[0].fence = g_done;
+-        VERIFY(!g_vis && g_vis_ring_i == -1, "unrendered piece has no visibility reservation");
++        g_vis = ring; g_vis_n = 25; g_vis_cur = 12; g_vis_ring_i = 0;
++        g_rb_vis_lazy_mode = 1;
++        vis_begin_submission();
++        VERIFY(!g_vis && !g_vis_n && g_vis_cur == -1 && g_vis_ring_i == -1,
++               "production visibility begin clears the prior piece without reserving a slot");
+         v[0] = 9; push_slot(ring, 0); complete();
+         vis_reserve();
+         VERIFY(g_vis == ring && g_vis_ring_i == 0 && g_vis_base == 9 && g_nvs == 0,
+@@ -67,6 +72,21 @@ int main(void) {
+         vis_reserve();
+         VERIFY(atomic_load(&g_rb_vis_reserves) == reservations,
+                "later passes of the same piece retain one visibility reservation");
++        g_vis_ring[0].fence = g_done;
++        g_rb_vis_lazy_mode = 0; vis_begin_submission();
++        VERIFY(g_vis == ring && g_vis_ring_i == 0, "reference mode reserves at submission begin");
++        g_rb_vis_lazy_mode = 1;
++        g_vis_ring_n = VIS_RING;
++        for (int i = 0; i < VIS_RING; i++) {
++            g_vis_ring[i].buf = ring;
++            g_vis_ring[i].fence = g_done + 1;
++        }
++        vis_begin_submission();
++        VERIFY(!g_vis && g_vis_ring_i == -1, "busy visibility ring does not block an unrendered piece");
++        REQUIRE(dm_nvn_request_stop() == 0);
++        VERIFY(!vis_reserve() && !g_vis && g_vis_ring_i == -1 &&
++               g_vis_ring[0].fence == g_done + 1,
++               "cancelled visibility wait rejects the pass without claiming a busy slot");
+     }
+     printf("%s t_nvn_visfold %u/%u\n", failures ? "✗" : "✓", checks - failures, checks);
+     return failures != 0;
+diff --git a/graphics/nvn/tests/t_nvn_wait_event.m b/graphics/nvn/tests/t_nvn_wait_event.m
+index 12e4732..b14b40c 100644
+--- a/graphics/nvn/tests/t_nvn_wait_event.m
++++ b/graphics/nvn/tests/t_nvn_wait_event.m
+@@ -19,6 +19,8 @@ __attribute__((weak)) int dm_shader_vpad_cached_mesh(const uint8_t key[8], uint3
+     (void)key; (void)mask; (void)path; (void)n; return -1;
+ }
+ #include "../gfx/nvn/nvn_mtl.m"
++int dm_nvn_request_stop(void);
++void dm_nvn_begin_session(void);
+ static unsigned checks, failures;
+ #define REQUIRE(c) do { if (!(c)) { fprintf(stderr, "FAIL setup %s:%d: %s\n", __FILE__, __LINE__, #c); exit(1); } } while (0)
+ #define VERIFY(c, ...) do { checks++; int ok_ = !!(c); if (!ok_) failures++; printf("%s ", ok_ ? "PASS" : "FAIL"); printf(__VA_ARGS__); putchar('\n'); fflush(stdout); } while (0)
+@@ -53,18 +55,20 @@ static int rb_cpu_sync_checks(void) {
+     atomic_store(&g_rb_fence_fast_mode, 1);
+     atomic_store(&g_done, 7);
+     pthread_mutex_lock(&g_mu);
+-    VERIFY(nvn_be_wait(7, 0) && nvn_be_wait(7, 1), "completed fence polls bypass the resource mutex");
++    VERIFY(nvn_be_wait(7, 0) && nvn_be_wait(7, 1) && rc_done() == 7,
++           "completed fence polls and timestamp checks bypass the resource mutex");
+     uint64_t pending = atomic_load(&g_guest_fences.pending_polls);
+     VERIFY(!nvn_be_wait(8, 0) && atomic_load(&g_guest_fences.pending_polls) == pending + 1,
+            "pending zero-timeout poll returns without locking and remains counted");
+     pthread_mutex_unlock(&g_mu);
+     VERIFY(!nvn_be_wait(8, 1000000), "pending positive timeout keeps its sleep and timeout");
+     atomic_store(&g_rb_fence_fast_mode, 0);
+-    VERIFY(nvn_be_wait(7, 0) && !nvn_be_wait(8, 0), "explicit legacy fence path keeps the predicate");
++    VERIFY(nvn_be_wait(7, 0) && !nvn_be_wait(8, 0) && rc_done() == 7,
++           "explicit legacy fence path keeps the predicate and timestamp value");
+ 
+     g_rec = 1; g_rb_started = 1; g_m3 = 0;
+     g_sub_thread = pthread_self(); atomic_store(&g_sub_thread_set, 1);
+-    g_cb = [NSObject new]; g_q4 = (id)[RBWaitQueue new];
++    g_cb = [DmRecCB new]; g_q4 = (id)[RBWaitQueue new];
+     g_rb_queue_wait_mode = 1; g_rb_piece.held = 1;
+     RBWaitEvent *event = [RBWaitEvent new];
+     __weak RBWaitEvent *kept = event;
+@@ -88,11 +92,75 @@ static int rb_cpu_sync_checks(void) {
+     event.signaledValue = 1;
+     queue_wait_event((__bridge void *)event, 1);
+     VERIFY(rb_order_count == 1, "an already-satisfied event inserts no wait");
++    uint64_t drains = atomic_load(&g_rb_queue_wait_drains);
++    g_rb_queue_wait_mode = 1;
++    nvn_be_queue_wait_event((__bridge void *)event, 1);
++    VERIFY(atomic_load(&g_rb_queue_wait_drains) == drains,
++           "completed external dependency avoids the encode drain");
++    g_cb = [NSObject new]; g_rb_started = 1; g_rec = 1;
++    event.signaledValue = 0; rb_order_count = 0;
++    queue_wait_event((__bridge void *)event, 1);
++    VERIFY(rb_order_count == 1 && !g_rb_cur,
++           "a real command buffer keeps its wait outside the proxy stream");
++    g_cb = nil; g_rb_started = 0; g_rec = 0;
++    REQUIRE(dm_nvn_request_stop() == 0);
++    VERIFY(!rb_allocator_can_reset(8) && atomic_load(&g_rb_alloc_reset_deferred) == 1,
++           "cancelled allocator retirement forbids reset while GPU work may remain");
++    dm_nvn_begin_session();
+     printf("CPU sync checks: %u/%u; queue API spy, no GPU execution in this mode\n", checks - failures, checks);
+     return failures != 0;
+ }
++// Empty Metal 4 command buffers require no residency set. Exercise the real
++// dm-encode worker and GPU event dependency even on a paravirtual CI device.
++static int rb_metal_sync_checks(void) {
++    alarm(30);
++    g_dev = MTLCreateSystemDefaultDevice();
++    if (!g_dev || ![g_dev respondsToSelector:@selector(newMTL4CommandQueueWithDescriptor:error:)]) {
++        puts("SKIP Metal 4 queue API unavailable"); return 77;
++    }
++    NSError *error = nil;
++    g_feedback_q = dispatch_queue_create("rb.sync-feedback", DISPATCH_QUEUE_SERIAL);
++    MTL4CommandQueueDescriptor *descriptor = [MTL4CommandQueueDescriptor new];
++    descriptor.feedbackQueue = g_feedback_q;
++    g_q4 = [g_dev newMTL4CommandQueueWithDescriptor:descriptor error:&error];
++    id<MTL4CommandAllocator> first = [g_dev newCommandAllocatorWithDescriptor:[MTL4CommandAllocatorDescriptor new] error:&error];
++    id<MTL4CommandAllocator> shared = [g_dev newCommandAllocatorWithDescriptor:[MTL4CommandAllocatorDescriptor new] error:&error];
++    if (!g_q4 || !first || !shared) {
++        printf("SKIP Metal 4 queue/allocator unavailable: %s\n", error.localizedDescription.UTF8String ?: "no detail");
++        return 77;
++    }
++    id<MTLSharedEvent> gate = [g_dev newSharedEvent], before = [g_dev newSharedEvent];
++    id<MTLSharedEvent> after = [g_dev newSharedEvent], tail = [g_dev newSharedEvent];
++    REQUIRE(gate && before && after && tail);
++    g_m3 = 0; g_rec = 1; g_rb_queue_wait_mode = 1;
++    g_sub_thread = pthread_self(); atomic_store(&g_sub_thread_set, 1);
++    setenv("S2A_RB_ENC_RT", "0", 1);
++    g_cb = rec_cb_new();
++    [g_cb beginCommandBufferWithAllocator:first]; [g_cb endCommandBuffer];
++    rec_commit(g_cb, nil); rec_signal(before, 1); rec_handover();
++    g_cb = rec_cb_new();
++    [g_cb beginCommandBufferWithAllocator:shared];
++    queue_wait_event((__bridge void *)gate, 1);
++    [g_cb endCommandBuffer]; rec_commit(g_cb, nil); rec_signal(after, 1);
++    // Sequential reuse without reset while the earlier CB is pending on gate.
++    g_cb = rec_cb_new();
++    [g_cb beginCommandBufferWithAllocator:shared]; [g_cb endCommandBuffer];
++    rec_commit(g_cb, nil); rec_signal(tail, 1); rec_drain(); g_cb = nil;
++    VERIFY([before waitUntilSignaledValue:1 timeoutMS:5000],
++           "GPU work committed before the recorded wait completes independently");
++    VERIFY(![after waitUntilSignaledValue:1 timeoutMS:50] && tail.signaledValue == 0,
++           "dependent GPU command buffers remain blocked on the real event");
++    gate.signaledValue = 1;
++    VERIFY([after waitUntilSignaledValue:1 timeoutMS:5000] && [tail waitUntilSignaledValue:1 timeoutMS:5000],
++           "both command buffers complete after event release with shared allocator storage");
++    VERIFY(atomic_load(&g_rb_queue_wait_records) == 1 && !atomic_load(&g_rb_queue_wait_drains),
++           "real encode worker executes the recorded GPU wait with no submit-thread drain");
++    printf("Metal 4 sync checks: %u/%u on %s\n", checks - failures, checks, g_dev.name.UTF8String);
++    return failures != 0;
++}
+ int main(int argc, char **argv) { @autoreleasepool {
+     if (argc == 2 && !strcmp(argv[1], "--rb-cpu-sync")) return rb_cpu_sync_checks();
++    if (argc == 2 && !strcmp(argv[1], "--rb-metal-sync")) return rb_metal_sync_checks();
+     setvbuf(stdout, NULL, _IOLBF, 0); alarm(60);
+     setenv("DM_NVN_ENC_THREAD", "0", 0); setenv("DM_PRESENT_LINK", "0", 1);
+     mtl_init();

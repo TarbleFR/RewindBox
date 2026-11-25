@@ -1,0 +1,92 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 1602e73..34dafe7 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1671,6 +1671,16 @@ static void rb_audit_sub_begin(void);   // RewindBox (patch 0322): whether the a
+ static int g_rb_vis_lazy_mode = -1;
+ static _Atomic uint64_t g_rb_vis_unused_subs, g_rb_vis_reserves;
+ static _Atomic uint64_t g_rb_vis_waits, g_rb_vis_wait_ns, g_rb_alloc_wait_ns;
++static _Atomic uint64_t g_rb_alloc_reset_deferred;
++// A cancelled fence wait proves nothing about GPU completion. After the encode
++// worker drains, append to the allocator without resetting its in-flight memory.
++// This is the same sequential-CB reuse as sub_cut; retirement still uses its fence.
++static int rb_allocator_can_reset(uint64_t fence) {
++    if (nvn_be_wait(fence, UINT64_MAX)) return 1;
++    rec_drain();
++    atomic_fetch_add_explicit(&g_rb_alloc_reset_deferred, 1, memory_order_relaxed);
++    return 0;
++}
+ static int rb_vis_lazy(void) {
+     if (g_rb_vis_lazy_mode < 0) {
+         const char *value = getenv("S2A_RB_VISIBILITY_LAZY");
+@@ -1678,8 +1688,8 @@ static int rb_vis_lazy(void) {
+     }
+     return g_rb_vis_lazy_mode;
+ }
+-static void vis_reserve(void) {
+-    if (g_vis) return;
++static int vis_reserve(void) {
++    if (g_vis) return 1;
+     int pick = -1;
+     uint64_t done = atomic_load_explicit(&g_done, memory_order_acquire);
+     for (int i = 0; i < g_vis_ring_n; i++)
+@@ -1694,7 +1704,7 @@ static void vis_reserve(void) {
+             int reached = nvn_be_wait(oldest, UINT64_MAX);
+             atomic_fetch_add_explicit(&g_rb_vis_waits, 1, memory_order_relaxed);
+             atomic_fetch_add_explicit(&g_rb_vis_wait_ns, now_ns() - start, memory_order_relaxed);
+-            if (!reached) { rec_drain(); return; }
++            if (!reached) { rec_drain(); return 0; }
+         }
+     }
+     // Preserve the accumulated query result before any slot can be overwritten.
+@@ -1706,7 +1716,9 @@ static void vis_reserve(void) {
+         res_add(g_vis_ring[pick].buf);
+     }
+     g_vis = g_vis_ring[pick].buf;
++    if (!g_vis) { g_vis_ring[pick].fence = 0; g_vis_ring_i = -1; return 0; }
+     atomic_fetch_add_explicit(&g_rb_vis_reserves, 1, memory_order_relaxed);
++    return 1;
+ }
+ void nvn_be_sub_begin(void) {
+     rb_sub_open(1);   // RewindBox (patch 0071): a submission is open (waits for the pressure handler's idle release, rb_press_release)
+@@ -1737,16 +1749,16 @@ void nvn_be_sub_begin(void) {
+     // pick an allocator the GPU has finished with; if all are in use create a new one; only at the cap wait for the oldest one. How far ahead it runs is bounded by the wait where the game acquires the swapchain texture, same as the old interface.
+     // Metal 3 has no allocators: every submission takes a fresh command buffer (m3_cb)
+     if (!g_m3) {
+-        int alloc_i = -1; uint64_t done = g_done;
++        int alloc_i = -1, can_reset = 1; uint64_t done = g_done;
+         for (int i = 0; i < g_alloc_n; i++) if (g_alloc_fence[i] <= done) { alloc_i = i; break; }
+         if (alloc_i < 0 && g_alloc_n < ALLOC_MAX) { NSError *ae = nil; MTL4CommandAllocatorDescriptor *ad = [MTL4CommandAllocatorDescriptor new];
+             g_alloc4[g_alloc_n] = [g_dev newCommandAllocatorWithDescriptor:ad error:&ae]; if (!g_alloc4[g_alloc_n]) MDIE("failed to create a new MTL4CommandAllocator: %s", ae.localizedDescription.UTF8String);
+             alloc_i = g_alloc_n++; g_alloc_grown++; }
+         if (alloc_i < 0) { alloc_i = 0; for (int i = 1; i < g_alloc_n; i++) if (g_alloc_fence[i] < g_alloc_fence[alloc_i]) alloc_i = i; g_alloc_waits++; uint64_t wait_start = now_ns();
+-            if (!nvn_be_wait(g_alloc_fence[alloc_i], UINT64_MAX)) rec_drain();
++            can_reset = rb_allocator_can_reset(g_alloc_fence[alloc_i]);
+             atomic_fetch_add_explicit(&g_rb_alloc_wait_ns, now_ns() - wait_start, memory_order_relaxed); }   // RewindBox (patch 0337): not reached (session stop): dm-encode may still encode a handed-over piece into it; done with it before the reset
+         g_alloc_cur = alloc_i;
+-        [g_alloc4[alloc_i] reset];
++        if (can_reset) [g_alloc4[alloc_i] reset];
+         [g_cb beginCommandBufferWithAllocator:g_alloc4[alloc_i]];
+     }
+     ts_sub_begin(); sub_cut_begin();
+@@ -10859,7 +10871,7 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+         g_enc_pso = nil; g_enc_dss = nil; g_ed.ok = 0;
+     }
+     if (g_vis_on) {
+-        vis_reserve();
++        if (!vis_reserve()) return nil;
+         // Slots used up (one submission exceeds VIS_SLOTS counting passes): continue in a new overflow buffer. A ring buffer must not be retired (it is still used in rotation, and retiring removes it from the residency set); only a previous overflow buffer is
+         if (!g_vis || g_vis_n >= VIS_SLOTS) { if (g_vis && !vis_in_ring(g_vis)) defer_obj_release(g_vis); g_vis = [g_dev newBufferWithLength:VIS_SLOTS * 8 options:MTLResourceStorageModeShared]; res_add(g_vis); g_vis_n = 0; }
+         pd.visibilityResultBuffer = g_vis;
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 5c1bf07..d99424d 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -405,6 +405,7 @@ void nvn_be_begin_session(void) {
+     atomic_store_explicit(&g_rb_vis_waits, 0, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_vis_wait_ns, 0, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_alloc_wait_ns, 0, memory_order_relaxed);
++    atomic_store_explicit(&g_rb_alloc_reset_deferred, 0, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_fence_fast_mode, -1, memory_order_relaxed);
+     g_rb_queue_wait_mode = -1;
+     atomic_store_explicit(&g_rb_queue_wait_records, 0, memory_order_relaxed);

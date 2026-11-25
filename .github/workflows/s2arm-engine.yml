@@ -312,9 +312,17 @@ jobs:
         run: |
           set -euo pipefail
           make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" \
-            build/tests/t_nvn_wait_event build/tests/t_nvn_visfold
+            build/tests/t_nvn_wait_event build/tests/t_nvn_visfold build/tests/t_nvn_link_restart
           build/tests/t_nvn_wait_event --rb-cpu-sync | tee "$GITHUB_WORKSPACE/proof/cpu-gpu-sync-checks.txt"
           build/tests/t_nvn_visfold | tee -a "$GITHUB_WORKSPACE/proof/cpu-gpu-sync-checks.txt"
+          build/tests/t_nvn_link_restart --render-options | tee -a "$GITHUB_WORKSPACE/proof/cpu-gpu-sync-checks.txt"
+          gpu_status=0
+          build/tests/t_nvn_wait_event --rb-metal-sync | tee -a "$GITHUB_WORKSPACE/proof/cpu-gpu-sync-checks.txt" || gpu_status=$?
+          if [[ "$gpu_status" == 77 ]]; then
+            echo "Metal 4 event queue execution unavailable on this runner" >> "$GITHUB_STEP_SUMMARY"
+          elif [[ "$gpu_status" != 0 ]]; then
+            exit "$gpu_status"
+          fi
       - name: Compile the macOS direct Metal engine and check upload budgets, page hints and presentation
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-upload-pacing]')
         working-directory: ${{ runner.temp }}/s2arm

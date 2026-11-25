@@ -1,0 +1,59 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index c3fd9af..dcd9a24 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4963,12 +4963,10 @@ static void queue_wait_event(void *ev, uint64_t v) {   // the wait itself; the r
+     if (ev == (__bridge void *)g_evw_ev) g_rb_evwait_n++; else g_rb_qwait_n++;   // RewindBox (patch 0072)
+     if (g_m3) { id<MTLCommandBuffer> cb = m3_cb(); [cb encodeWaitForEvent:e value:v]; [cb commit]; }
+     else {
+-        if (g_cb && rec_on() && g_rb_started && rb_queue_wait_recorded()) {
+-            // Flush geometry lanes first. RO_Q_BLOCK retains the event and keeps
+-            // previous commits before this wait and this piece's commit after it.
+-            // External QueueWaitSync calls have no open CB and keep their drain.
+-            geo_run_flush();
+-            rec_queue_block(^{ if (e.signaledValue < v) [g_q4 waitForEvent:e value:v]; });
++        if ([g_cb isKindOfClass:[DmRecCB class]] && g_rb_started && rb_queue_wait_recorded()) {
++            // The proxy's commit also goes through dm-encode, so the event wait
++            // and the dependent commit share the same ordered record stream.
++            rec_wait_event(e, v);
+             atomic_fetch_add_explicit(&g_rb_queue_wait_records, 1, memory_order_relaxed);
+             return;
+         }
+diff --git a/graphics/nvn/gfx/nvn/nvn_rec.h b/graphics/nvn/gfx/nvn/nvn_rec.h
+index d3b1d35..c962555 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rec.h
++++ b/graphics/nvn/gfx/nvn/nvn_rec.h
+@@ -140,6 +140,7 @@ enum {
+     // RewindBox (patch 0027): a queue operation, a[0] the block (rec_queue_block). Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/nvn/nvn_rec.h:87 at 0c078130).
+     //   S2Arm: last, not after RO_SIGNAL as upstream, so no record above changes its number
+     RO_Q_BLOCK,
++    RO_WAIT_EVENT,   // a[0] retained event, a[1] target value
+ };
+ typedef struct { uint32_t op, nobj; uint64_t a[15]; } rec_t;   // the first nobj slots hold retained objects (0 for nil), released once the call is made
+ enum { REC_BLK = 256 };
+@@ -220,6 +221,10 @@ static void rec_exec(const rec_t *r) {
+         if (r->op == RO_COMMIT) g_rx_cb = nil;
+         break; }
+     case RO_SIGNAL: if (!mtl_gpu_halted()) [g_q4 signalEvent:rec_id(a[0]) value:a[1]]; break;
++    case RO_WAIT_EVENT: {
++        id<MTLSharedEvent> event = rec_id(a[0]);
++        if (!mtl_gpu_halted() && event.signaledValue < a[1]) [g_q4 waitForEvent:event value:a[1]];
++        break; }
+     // RewindBox (patch 0027): a queue operation (rec_queue_block) in its place among the commits. Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82
+     //   (dm/gfx/nvn/nvn_rec.h:149 at 0c078130). S2Arm: not run after a GPU safe stop, as RO_SIGNAL (the block is still released below)
+     case RO_Q_BLOCK: if (!mtl_gpu_halted()) ((void (^)(void))rec_id(a[0]))(); break;
+@@ -594,3 +599,14 @@ static void rec_queue_block(void (^block)(void)) {
+     if (!mtl_gpu_halted()) block();
+ }
+ static void rec_signal(id ev, uint64_t v) { geo_run_flush(); if (rec_on() && g_rb_started) { rec_t *r = rec_put(RO_SIGNAL, 1); r->a[0] = rec_obj(ev); r->a[1] = v; } else if (!mtl_gpu_halted()) [g_q4 signalEvent:ev value:v]; }
++// A fixed-size record owns the event until the encode worker makes the wait.
++// Keep queue operations in the main lane, after any geometry lanes are flushed.
++static void rec_wait_event(id event, uint64_t value) {
++    up_owner_check("rec_wait_event");
++    geo_run_flush();
++    int lane = g_rlane; g_rlane = 0;
++    rec_t *record = rec_put(RO_WAIT_EVENT, 1);
++    record->a[0] = rec_obj(event);
++    record->a[1] = value;
++    g_rlane = lane;
++}
