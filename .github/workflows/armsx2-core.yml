@@ -2,9 +2,10 @@ name: ARMSX2 native core
 run-name: ARMSX2 native core • ${{ github.sha }}
 on:
   push:
-    branches: [experimental, armsx2-26]
+    branches: [Claude, experimental, armsx2-26]
     paths:
       - '.github/workflows/armsx2-core.yml'
+      - '.github/diagnostics/armsx2_core_component.py'
       - 'packages/armsx2_internal_bridge/**'
       - 'packages/armsx2_jit_helper/**'
       - 'build-utils/armsx2/**'
@@ -17,6 +18,10 @@ on:
       - 'test/armsx2_texture*'
       - 'tools/armsx2_textures/**'
   workflow_dispatch:
+    inputs:
+      build_only:
+        type: boolean
+        default: true
 permissions:
   contents: read
 concurrency:
@@ -24,12 +29,14 @@ concurrency:
   cancel-in-progress: true
 jobs:
   core:
+    if: github.event_name == 'workflow_dispatch' || github.ref_name != 'Claude' || contains(github.event.head_commit.message, '[armsx2-core-only]')
     name: Compile pinned ARMSX2 iOS framework
     runs-on: macos-26
     timeout-minutes: 90
     env:
       HOMEBREW_NO_AUTO_UPDATE: '1'
       RUSTUP_TOOLCHAIN: '1.94.0'
+      ARMSX2_BUILD_ONLY: ${{ contains(github.event.head_commit.message, '[armsx2-core-only]') || inputs.build_only }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -77,16 +84,20 @@ jobs:
           bash -n build-utils/armsx2/build_core.sh
           git diff --check
       - name: Verify central launch settings, Hardcore and immutable credentials
+        if: env.ARMSX2_BUILD_ONLY != 'true'
         run: python3 -B test/armsx2_ra_launch_settings_test.py
       - name: Verify patch selection and activation with Foundation
+        if: env.ARMSX2_BUILD_ONLY != 'true'
         run: python3 test/armsx2_patch_catalog_test.py
       - name: HD texture packs (ABI 9) - files, host store and Core adapter with Foundation
+        if: env.ARMSX2_BUILD_ONLY != 'true'
         run: |
           set -euo pipefail
           python3 tools/armsx2_textures/generate_strings.py --check
           python3 test/armsx2_texture_packs_test.py
           python3 test/armsx2_texture_native_test.py
       - name: Validate graphics library, translations and native menu
+        if: env.ARMSX2_BUILD_ONLY != 'true'
         run: |
           python3 test/armsx2_graphics_test.py
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
@@ -118,7 +129,10 @@ jobs:
           rustc --version
       - name: Compile native core and verify binary ABI
         run: bash build-utils/armsx2/build_core.sh .native-sources/ARMSX2
-      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
+      - name: Bind ARMSX2 inputs and compiled payload
+        run: python3 -B .github/diagnostics/armsx2_core_component.py .native-sources/ARMSX2
+      - name: Upload authenticated ARMSX2 Core
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: ARMSX2Core-${{ github.sha }}
           path: dist/armsx2/
@@ -143,6 +157,7 @@ jobs:
           retention-days: 7
 
   graphics-ui:
+    if: (github.event_name == 'workflow_dispatch' || github.ref_name != 'Claude') && !inputs.build_only
     name: Verify ARMSX2 Graphics menu and host ABI
     runs-on: macos-15
     timeout-minutes: 30

@@ -24,7 +24,7 @@ for locale in locales:
         assert re.findall(r'%[\d.$]*[@dufs]',key)==re.findall(r'%[\d.$]*[@dufs]',value),(locale,key)
 assert len(translation_keys)==32  # 13 graphics keys + 19 blending accuracy keys (Build 482)
 source=json.loads((ROOT/'build-utils/armsx2/source.json').read_text())
-assert source['release']=='iOSv2.6.0' and source['revision']=='9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe'
+assert source['release']=='iOSv2.6.1' and source['revision']=='8bf12a1a42e5181a04e7e653ac94a95a47008e16'
 assert source['abi_version']==9
 assert '#define NEO_ARMSX2_ABI_VERSION 9u' in (CLASSES/'ARMSX2CoreABI.h').read_text()
 print('PASS: exact official 2.6 pin; ABI 9; 32 graphics keys in all 12 locales')

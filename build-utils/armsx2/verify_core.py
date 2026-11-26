@@ -57,7 +57,7 @@ for symbol in ('_libra_mtl_filter_chain_create', '_libra_mtl_filter_chain_frame'
 presets = sorted(resources.glob('shaders/**/*.slangp'))
 if len(list(resources.glob('shaders/presets/**/*.slangp'))) < 10:
     raise SystemExit('Bundled iOS shader presets were not packaged')
-shader_source = source / 'platforms/ios/app/src/main/assets/shaders'
+shader_source = source / 'platforms/ios/assets/shaders'
 shader_files = sorted(p for p in shader_source.rglob('*') if p.is_file())
 if not shader_files:
     raise SystemExit('Pinned upstream shader assets are missing')

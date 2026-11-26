@@ -6,9 +6,11 @@ SOURCE="$(cd "$SOURCE" && pwd)"
 BUILD="$ROOT/build/armsx2-core"
 REVISION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$ROOT/build-utils/armsx2/source.json")"
 mkdir -p "$BUILD" "$ROOT/dist/armsx2"
-python3 "$ROOT/test/armsx2_vm_shutdown_test.py" --upstream "$SOURCE"
-python3 "$ROOT/test/armsx2_bios_hacks_test.py" --upstream "$SOURCE"
-python3 "$ROOT/test/armsx2_save_state_test.py" --upstream "$SOURCE"
+if [[ "${ARMSX2_BUILD_ONLY:-false}" != true ]]; then
+  python3 "$ROOT/test/armsx2_vm_shutdown_test.py" --upstream "$SOURCE"
+  python3 "$ROOT/test/armsx2_bios_hacks_test.py" --upstream "$SOURCE"
+  python3 "$ROOT/test/armsx2_save_state_test.py" --upstream "$SOURCE"
+fi
 python3 "$ROOT/build-utils/armsx2/prepare_source.py" "$SOURCE"
 python3 "$ROOT/test/armsx2_core_build_test.py" --upstream "$SOURCE"
 
@@ -24,7 +26,7 @@ export RUSTFLAGS="${RUSTFLAGS:-} --remap-path-prefix=$ROOT=/neostation --remap-p
 export CFLAGS="${CFLAGS:-} $PREFIX_MAP_FLAGS -ffile-prefix-map=$HOME/.cargo=/cargo -fdebug-prefix-map=$HOME/.cargo=/cargo -fmacro-prefix-map=$HOME/.cargo=/cargo"
 export CXXFLAGS="${CXXFLAGS:-} $PREFIX_MAP_FLAGS -ffile-prefix-map=$HOME/.cargo=/cargo -fdebug-prefix-map=$HOME/.cargo=/cargo -fmacro-prefix-map=$HOME/.cargo=/cargo"
 
-cmake -S "$SOURCE/platforms/ios/app/src/main/cpp" -B "$BUILD" -G Xcode \
+cmake -S "$SOURCE/platforms/ios" -B "$BUILD" -G Xcode \
   -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=arm64 \
   -DCMAKE_C_FLAGS="$PREFIX_MAP_FLAGS" \
   -DCMAKE_CXX_FLAGS="$PREFIX_MAP_FLAGS" \

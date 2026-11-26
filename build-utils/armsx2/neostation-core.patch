@@ -1,8 +1,8 @@
 diff --git a/common/Darwin/DarwinMisc.cpp b/common/Darwin/DarwinMisc.cpp
-index d73b158af..4a3a3ddd4 100644
+index 0854b80..d05fae7 100644
 --- a/common/Darwin/DarwinMisc.cpp
 +++ b/common/Darwin/DarwinMisc.cpp
-@@ -881,22 +881,32 @@ DarwinMisc::JitMode DarwinMisc::GetJitMode()
+@@ -1017,22 +1017,32 @@ DarwinMisc::JitMode DarwinMisc::GetJitMode()
  }
  
  #if TARGET_OS_IPHONE && !TARGET_OS_SIMULATOR
@@ -48,7 +48,7 @@ index d73b158af..4a3a3ddd4 100644
  }
  #endif
  
-@@ -1031,132 +1041,34 @@ void* DarwinMisc::MmapCodeDualMap(size_t size)
+@@ -1167,132 +1177,34 @@ void* DarwinMisc::MmapCodeDualMap(size_t size)
  		rx_ptr, size, JitModeName(mode));
  	std::fflush(stderr);
  
@@ -209,7 +209,7 @@ index d73b158af..4a3a3ddd4 100644
  
  	vm_address_t rw_region = 0;
  	vm_address_t target = reinterpret_cast<vm_address_t>(rx_ptr);
-@@ -1169,8 +1081,6 @@ void* DarwinMisc::MmapCodeDualMap(size_t size)
+@@ -1305,8 +1217,6 @@ void* DarwinMisc::MmapCodeDualMap(size_t size)
  		std::fprintf(stderr, "@@JIT_ALLOC@@ dualmap_remap_fail kr=%d\n", kr);
  		std::fflush(stderr);
  		munmap(rx_ptr, size);
@@ -218,7 +218,7 @@ index d73b158af..4a3a3ddd4 100644
  		return nullptr;
  	}
  
-@@ -1181,8 +1091,6 @@ void* DarwinMisc::MmapCodeDualMap(size_t size)
+@@ -1317,8 +1227,6 @@ void* DarwinMisc::MmapCodeDualMap(size_t size)
  		std::fflush(stderr);
  		vm_deallocate(mach_task_self(), rw_region, static_cast<vm_size_t>(size));
  		munmap(rx_ptr, size);
@@ -227,7 +227,7 @@ index d73b158af..4a3a3ddd4 100644
  		return nullptr;
  	}
  
-@@ -1195,8 +1103,6 @@ void* DarwinMisc::MmapCodeDualMap(size_t size)
+@@ -1331,8 +1239,6 @@ void* DarwinMisc::MmapCodeDualMap(size_t size)
  	std::fprintf(stderr, "@@JIT_ALLOC@@ dualmap_ok rx=%p rw=%p offset=%td size=0x%zx mode=%s\n",
  		rx_ptr, rw_ptr, g_code_rw_offset, size, JitModeName(mode));
  	std::fflush(stderr);
@@ -237,10 +237,10 @@ index d73b158af..4a3a3ddd4 100644
  #endif
  }
 diff --git a/pcsx2/CDVD/CDVD.cpp b/pcsx2/CDVD/CDVD.cpp
-index a866e92d3..2fe8b82f8 100644
+index 18d4ba5..7290789 100644
 --- a/pcsx2/CDVD/CDVD.cpp
 +++ b/pcsx2/CDVD/CDVD.cpp
-@@ -170,7 +170,7 @@ static void cdvdCreateNewNVM()
+@@ -176,7 +176,7 @@ static void cdvdCreateNewNVM()
  
  static std::string cdvdGetNVRAMPath()
  {
@@ -249,7 +249,7 @@ index a866e92d3..2fe8b82f8 100644
  }
  
  void cdvdLoadNVRAM()
-@@ -199,7 +199,7 @@ void cdvdLoadNVRAM()
+@@ -205,7 +205,7 @@ void cdvdLoadNVRAM()
  	}
  
  	// Also load the mechacon version while we're here.
@@ -258,8 +258,51 @@ index a866e92d3..2fe8b82f8 100644
  	fp = FileSystem::OpenManagedCFileTryIgnoreCase(mecfile.c_str(), "rb", &error);
  	if (!fp || std::fread(&s_mecha_version, sizeof(s_mecha_version), 1, fp.get()) != 1)
  	{
+diff --git a/pcsx2/GS/Renderers/HW/GSTextureReplacements.cpp b/pcsx2/GS/Renderers/HW/GSTextureReplacements.cpp
+index c74d3f7..faad322 100644
+--- a/pcsx2/GS/Renderers/HW/GSTextureReplacements.cpp
++++ b/pcsx2/GS/Renderers/HW/GSTextureReplacements.cpp
+@@ -1295,6 +1295,19 @@ u32 GSTextureReplacements::GetLoadedTextureCount()
+ 	return static_cast<u32>(s_replacement_texture_cache.size());
+ }
+ 
++u32 GSTextureReplacements::GetIndexedReplacementCount()
++{
++	return static_cast<u32>(s_replacement_texture_filenames.size());
++}
++
++void GSTextureReplacements::GetReplacementCacheUsage(u64* bytes, u64* budget, bool* budget_hit)
++{
++	std::unique_lock<std::mutex> lock(s_replacement_texture_cache_mutex);
++	*bytes = s_replacement_texture_cache_bytes;
++	*budget = s_replacement_texture_cache_budget;
++	*budget_hit = s_replacement_cache_budget_hit;
++}
++
+ ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+ // Worker Thread
+ ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+diff --git a/pcsx2/GS/Renderers/HW/GSTextureReplacements.h b/pcsx2/GS/Renderers/HW/GSTextureReplacements.h
+index 93d7066..d56be69 100644
+--- a/pcsx2/GS/Renderers/HW/GSTextureReplacements.h
++++ b/pcsx2/GS/Renderers/HW/GSTextureReplacements.h
+@@ -119,6 +119,14 @@ namespace GSTextureReplacements
+ 	/// Get the number of replacement textures that have been loaded/cached.
+ 	u32 GetLoadedTextureCount();
+ 
++	/// NeoStation: replacement file names indexed for the current serial by the last
++	/// ReloadReplacementMap(). Read on the GS thread, which owns the map.
++	u32 GetIndexedReplacementCount();
++
++	/// NeoStation: bytes held by the replacement cache, its budget (0 until the first
++	/// insertion computes it; reading never computes it) and whether eviction began.
++	void GetReplacementCacheUsage(u64* bytes, u64* budget, bool* budget_hit);
++
+ 	/// Loader will take a filename and interpret the format (e.g. DDS, PNG, etc).
+ 	using ReplacementTextureLoader = bool (*)(const std::string& filename, GSTextureReplacements::ReplacementTexture* tex, bool only_base_image);
+ 	ReplacementTextureLoader GetLoader(const std::string_view filename);
 diff --git a/pcsx2/GS/Renderers/Metal/GSMTLDeviceInfo.mm b/pcsx2/GS/Renderers/Metal/GSMTLDeviceInfo.mm
-index 6fd2f0a9f..0e576b1a8 100644
+index 6fd2f0a..0e576b1 100644
 --- a/pcsx2/GS/Renderers/Metal/GSMTLDeviceInfo.mm
 +++ b/pcsx2/GS/Renderers/Metal/GSMTLDeviceInfo.mm
 @@ -11,14 +11,11 @@
@@ -292,10 +335,10 @@ index 6fd2f0a9f..0e576b1a8 100644
  
  static GSMTLDevice::MetalVersion detectLibraryVersion(id<MTLLibrary> lib)
 diff --git a/pcsx2/Host.cpp b/pcsx2/Host.cpp
-index 75a8491dd..3aa1e4cd3 100644
+index a804bee..bc4c810 100644
 --- a/pcsx2/Host.cpp
 +++ b/pcsx2/Host.cpp
-@@ -422,14 +422,14 @@ SettingsInterface* Host::Internal::GetInputSettingsLayer()
+@@ -427,14 +427,14 @@ SettingsInterface* Host::Internal::GetAutoTuneSettingsLayer()
  
  void Host::Internal::SetBaseSettingsLayer(SettingsInterface* sif)
  {
@@ -312,10 +355,10 @@ index 75a8491dd..3aa1e4cd3 100644
  		"Secrets layer has already been set");
  	s_layered_settings_interface.SetLayer(LayeredSettingsInterface::LAYER_SECRETS, sif);
  }
-diff --git a/platforms/ios/app/src/main/cpp/3rdparty/librashader/CMakeLists.txt b/platforms/ios/app/src/main/cpp/3rdparty/librashader/CMakeLists.txt
-index 174a3b2a9..ac6e892a0 100644
---- a/platforms/ios/app/src/main/cpp/3rdparty/librashader/CMakeLists.txt
-+++ b/platforms/ios/app/src/main/cpp/3rdparty/librashader/CMakeLists.txt
+diff --git a/platforms/ios/3rdparty/librashader/CMakeLists.txt b/platforms/ios/3rdparty/librashader/CMakeLists.txt
+index d20299f..62d389b 100644
+--- a/platforms/ios/3rdparty/librashader/CMakeLists.txt
++++ b/platforms/ios/3rdparty/librashader/CMakeLists.txt
 @@ -104,10 +104,17 @@ set(_lrs_lib "${_lrs_out_dir}/${_lrs_rust_target}/release/liblibrashader_capi.a"
  # because rustc otherwise links at iOS 10.0 while cc builds librashader's C++ deps against
  # the current SDK, and the link dies on ___chkstk_darwin. Two values that can drift apart
@@ -336,74 +379,97 @@ index 174a3b2a9..ac6e892a0 100644
  		${CARGO_EXECUTABLE} build --release
  			--manifest-path "${librashader_src_SOURCE_DIR}/librashader-capi/Cargo.toml"
  			--target ${_lrs_rust_target}
-diff --git a/platforms/ios/app/src/main/cpp/CMakeLists.txt b/platforms/ios/app/src/main/cpp/CMakeLists.txt
-index e0eabe9d8..fa0097ceb 100644
---- a/platforms/ios/app/src/main/cpp/CMakeLists.txt
-+++ b/platforms/ios/app/src/main/cpp/CMakeLists.txt
-@@ -59,7 +59,13 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+diff --git a/platforms/ios/Bridge/ARMSX2Bridge+Input.mm b/platforms/ios/Bridge/ARMSX2Bridge+Input.mm
+index 5e2d324..e2ecbe4 100644
+--- a/platforms/ios/Bridge/ARMSX2Bridge+Input.mm
++++ b/platforms/ios/Bridge/ARMSX2Bridge+Input.mm
+@@ -5,8 +5,9 @@
+ #import <GameController/GameController.h>
+ #import <MetalKit/MetalKit.h>
+ 
+-// Xcode names the generated Swift bridge header after the Swift module.
++#ifndef NEO_ARMSX2_SOURCE_REVISION
+ #import "ARMSX2iOS-Swift.h"
++#endif
+ 
+ #include <SDL3/SDL.h>
+ 
+@@ -99,7 +100,9 @@
+ 
+     // GameEventHaptics is @MainActor-isolated; dispatch to the main queue.
+     dispatch_async(dispatch_get_main_queue(), ^{
++#ifndef NEO_ARMSX2_SOURCE_REVISION
+         [SwiftUIHost triggerDeviceHapticWithLarge:large small:small];
++#endif
+     });
+ }
+ 
+diff --git a/platforms/ios/CMakeLists.txt b/platforms/ios/CMakeLists.txt
+index 49a0ad2..cce7d80 100644
+--- a/platforms/ios/CMakeLists.txt
++++ b/platforms/ios/CMakeLists.txt
+@@ -64,7 +64,17 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
  endif()
  
  # Project Name
--project(ARMSX2iOS VERSION ${ARMSX2_VERSION} LANGUAGES C CXX)
 +if(NEO_ARMSX2_ADAPTER_DIR)
-+    set(CMAKE_C_VISIBILITY_PRESET hidden)
-+    set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-+    set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
-+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
++	set(CMAKE_C_VISIBILITY_PRESET hidden)
++	set(CMAKE_CXX_VISIBILITY_PRESET hidden)
++	set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
++	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
++	set(ARMSX2_CORE_ONLY ON)
 +endif()
-+project(ARMSX2iOS VERSION ${ARMSX2_VERSION} LANGUAGES C CXX OBJC OBJCXX)
+ project(ARMSX2iOS VERSION ${ARMSX2_VERSION} LANGUAGES C CXX)
++if(NEO_ARMSX2_ADAPTER_DIR)
++	enable_language(OBJC OBJCXX)
++endif()
  
  add_compile_definitions(ARMSX2_VERSION_STR="${ARMSX2_VERSION}")
  
-@@ -124,9 +130,14 @@ add_subdirectory(${ARMSX2_ROOT}/common ${CMAKE_BINARY_DIR}/common)
+@@ -172,6 +182,11 @@ if(ARMSX2_CORE_ONLY)
+ 		add_dependencies(armsx2_core_libs librashader_cargo)
+ 	endif()
  
- # make pcsx2
- add_subdirectory(${ARMSX2_ROOT}/pcsx2 ${CMAKE_BINARY_DIR}/pcsx2)
-+add_subdirectory(3rdparty/librashader)
-+if(NEO_ARMSX2_ADAPTER_DIR)
-+    # Build the core only, with no standalone UI/application delegates.
-+    include("${NEO_ARMSX2_ADAPTER_DIR}/core/target.cmake")
-+    return()
-+endif()
- # Fetched and cargo-built, never vendored. Must follow pcsx2 so PCSX2_FLAGS exists by the
- # time the link block below runs.
--add_subdirectory(3rdparty/librashader)
- 
- if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
- 	enable_language(Swift)
-diff --git a/platforms/ios/app/src/main/cpp/IOS/HostImpls.mm b/platforms/ios/app/src/main/cpp/IOS/HostImpls.mm
-index d9b0aacc6..de82446a0 100644
---- a/platforms/ios/app/src/main/cpp/IOS/HostImpls.mm
-+++ b/platforms/ios/app/src/main/cpp/IOS/HostImpls.mm
-@@ -45,6 +45,7 @@
++	if(NEO_ARMSX2_ADAPTER_DIR)
++		include("${NEO_ARMSX2_ADAPTER_DIR}/core/target.cmake")
++		return()
++	endif()
++
+ 	function(armsx2_collect_libraries directory out)
+ 		set(armsx2_found "")
+ 		get_property(armsx2_targets DIRECTORY "${directory}" PROPERTY BUILDSYSTEM_TARGETS)
+diff --git a/platforms/ios/Runtime/HostImpls.mm b/platforms/ios/Runtime/HostImpls.mm
+index 15bc47a..93025bb 100644
+--- a/platforms/ios/Runtime/HostImpls.mm
++++ b/platforms/ios/Runtime/HostImpls.mm
+@@ -40,6 +40,7 @@
  #import <UIKit/UIKit.h>
  
  #include "IOSRuntime.h"
-+#import "IOS/ARMSX2GameView.h"
++#import "ARMSX2GameView.h"
  
  #pragma mark - namespace Host
  namespace Host
-@@ -117,59 +118,24 @@ namespace Host
-     void RequestResetSettings(bool) {} 
+@@ -112,58 +113,24 @@ namespace Host
+     void RequestResetSettings(bool) {}
      const char* GetTranslatedStringImpl(const char* key) { return key; }
      u32 GetDisplayRefreshRate() { return 60; }
--    std::optional<WindowInfo> AcquireRenderWindow(bool recreate_window) {
--        Console.WriteLn("Host::AcquireRenderWindow(recreate=%d) called.", recreate_window);
+-    std::optional<WindowInfo> AcquireRenderWindow(bool) {
 -        if (!g_sdl_window) {
 -            Console.Error("Host::AcquireRenderWindow: g_sdl_window is NULL");
 -            return std::nullopt;
 -        }
--        
+-
 +    std::optional<WindowInfo> AcquireRenderWindow(bool /*recreate_window*/) {
          __block WindowInfo wi = {};
          wi.type = WindowInfo::Type::MacOS;
--        
+-
 -        // SDL calls that interact with UIKit must run on the main thread
 -        dispatch_sync(dispatch_get_main_queue(), ^{
 -            // SDL3 properties for UIKit
 -            SDL_PropertiesID props = SDL_GetWindowProperties(g_sdl_window);
 -            UIWindow* window = (__bridge UIWindow*)SDL_GetPointerProperty(props, SDL_PROP_WINDOW_UIKIT_WINDOW_POINTER, NULL);
--            
+-
 -            if (window) {
 -                // Use dedicated game render view if available (sized for portrait).
 -                if (g_gameRenderView) {
@@ -438,7 +504,7 @@ index d9b0aacc6..de82446a0 100644
 +            wi.surface_width = static_cast<u32>(std::max<CGFloat>(1, view.bounds.size.width * scale));
 +            wi.surface_height = static_cast<u32>(std::max<CGFloat>(1, view.bounds.size.height * scale));
              wi.surface_scale = static_cast<float>(scale);
--            
+-
 -            SDL_DisplayID display = SDL_GetDisplayForWindow(g_sdl_window);
 -            const SDL_DisplayMode* mode = SDL_GetCurrentDisplayMode(display);
 -            if (mode)
@@ -458,7 +524,7 @@ index d9b0aacc6..de82446a0 100644
          return wi;
      }
      void ReleaseRenderWindow() {}
-@@ -217,6 +183,7 @@ namespace Host
+@@ -212,6 +179,7 @@ namespace Host
              std::lock_guard<std::mutex> lock(s_cpuTaskMutex);
              s_cpuTasks.push_back(task);
          }
@@ -466,46 +532,18 @@ index d9b0aacc6..de82446a0 100644
  
          if (!block)
              return;
-diff --git a/pcsx2/GS/Renderers/HW/GSTextureReplacements.cpp b/pcsx2/GS/Renderers/HW/GSTextureReplacements.cpp
-index bfab85a..c28c3f2 100644
---- a/pcsx2/GS/Renderers/HW/GSTextureReplacements.cpp
-+++ b/pcsx2/GS/Renderers/HW/GSTextureReplacements.cpp
-@@ -1146,6 +1146,19 @@ u32 GSTextureReplacements::GetLoadedTextureCount()
- 	return static_cast<u32>(s_replacement_texture_cache.size());
- }
+diff --git a/platforms/ios/Runtime/IOSRuntime.mm b/platforms/ios/Runtime/IOSRuntime.mm
+index 1bd2e22..13b5c88 100644
+--- a/platforms/ios/Runtime/IOSRuntime.mm
++++ b/platforms/ios/Runtime/IOSRuntime.mm
+@@ -10,10 +10,7 @@
+ #include <SDL3/SDL_metal.h>
+ #import <GameController/GameController.h>
  
-+u32 GSTextureReplacements::GetIndexedReplacementCount()
-+{
-+	return static_cast<u32>(s_replacement_texture_filenames.size());
-+}
-+
-+void GSTextureReplacements::GetReplacementCacheUsage(u64* bytes, u64* budget, bool* budget_hit)
-+{
-+	std::unique_lock<std::mutex> lock(s_replacement_texture_cache_mutex);
-+	*bytes = s_replacement_texture_cache_bytes;
-+	*budget = s_replacement_texture_cache_budget;
-+	*budget_hit = s_replacement_cache_budget_hit;
-+}
-+
- ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
- // Worker Thread
- ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-diff --git a/pcsx2/GS/Renderers/HW/GSTextureReplacements.h b/pcsx2/GS/Renderers/HW/GSTextureReplacements.h
-index 7d17220..c99a793 100644
---- a/pcsx2/GS/Renderers/HW/GSTextureReplacements.h
-+++ b/pcsx2/GS/Renderers/HW/GSTextureReplacements.h
-@@ -53,6 +53,14 @@ namespace GSTextureReplacements
- 	/// Get the number of replacement textures that have been loaded/cached.
- 	u32 GetLoadedTextureCount();
+-// SwiftUI integration — Xcode names the generated header after the Swift module.
+ #import <MetalKit/MetalKit.h>
+-#import "ARMSX2iOS-Swift.h"
+-#import <SwiftUI/SwiftUI.h>
  
-+	/// NeoStation: replacement file names indexed for the current serial by the last
-+	/// ReloadReplacementMap(). Read on the GS thread, which owns the map.
-+	u32 GetIndexedReplacementCount();
-+
-+	/// NeoStation: bytes held by the replacement cache, its budget (0 until the first
-+	/// insertion computes it; reading never computes it) and whether eviction began.
-+	void GetReplacementCacheUsage(u64* bytes, u64* budget, bool* budget_hit);
-+
- 	/// Loader will take a filename and interpret the format (e.g. DDS, PNG, etc).
- 	using ReplacementTextureLoader = bool (*)(const std::string& filename, GSTextureReplacements::ReplacementTexture* tex, bool only_base_image);
- 	ReplacementTextureLoader GetLoader(const std::string_view filename);
+ // ... other includes ...
+ #include <unistd.h>

@@ -5,18 +5,26 @@ endif()
 if(NOT ARMSX2_HAVE_LIBRASHADER OR NOT TARGET librashader)
   message(FATAL_ERROR "ARMSX2 2.6 requires librashader: install Rust and aarch64-apple-ios")
 endif()
-target_link_libraries(PCSX2_FLAGS INTERFACE librashader)
-target_compile_definitions(PCSX2_FLAGS INTERFACE ARMSX2_HAS_LIBRASHADER=1)
-add_library(ARMSX2Core SHARED
-  ios_main.mm IOS/GamepadHaptics.mm IOS/HostImpls.mm IOS/PlaySoundAsync.mm
-  ARMSX2Bridge.mm "${NEO_ARMSX2_ADAPTER_DIR}/core/ARMSX2Core.mm")
-# The 2.6 bridge uses ARC; the runtime and owned adapter still release by hand.
-set_property(SOURCE ARMSX2Bridge.mm APPEND PROPERTY COMPILE_OPTIONS "-fobjc-arc")
-# IOSRuntime.h only forward-declares ARMSX2GameView. The embedded render-window
-# adapter converts it to UIView, which requires the actual superclass declaration.
-# Keep this source-specific: no cast and no change to other engines or upstream UI.
-set_property(SOURCE IOS/HostImpls.mm APPEND PROPERTY COMPILE_OPTIONS
-  "-include" "${CMAKE_CURRENT_SOURCE_DIR}/IOS/ARMSX2GameView.h")
+file(GLOB BRIDGE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/Bridge/*.mm")
+set(RUNTIME_SOURCES
+  Runtime/ARMSX2GameView.mm
+  Runtime/DeviceStats.mm
+  Runtime/GamepadInput.mm
+  Runtime/GamepadRefresh.mm
+  Runtime/GamepadRumble.mm
+  Runtime/GamepadRumblePulse.mm
+  Runtime/HostImpls.mm
+  Runtime/IOSRuntime.mm
+  Runtime/PlaySoundAsync.mm
+  Runtime/RuntimeSettings.mm
+  Runtime/SessionDiagnostics.mm)
+add_library(ARMSX2Core SHARED ${RUNTIME_SOURCES} ${BRIDGE_SOURCES}
+  "${NEO_ARMSX2_ADAPTER_DIR}/core/ARMSX2Core.mm")
+# Keep the render-view owner and the embedded adapter on the same manual
+# ownership convention. The other upstream sources use ARC.
+set(ARC_SOURCES ${RUNTIME_SOURCES})
+list(REMOVE_ITEM ARC_SOURCES Runtime/IOSRuntime.mm)
+set_property(SOURCE ${ARC_SOURCES} ${BRIDGE_SOURCES} APPEND PROPERTY COMPILE_OPTIONS "-fobjc-arc")
 # Upstream disables exceptions globally. Only the owned adapter worker uses
 # exceptions, catches them before returning, and never unwinds across the ABI.
 set_property(SOURCE "${NEO_ARMSX2_ADAPTER_DIR}/core/ARMSX2Core.mm"
@@ -50,6 +58,8 @@ target_link_options(ARMSX2Core PRIVATE
 	target_include_directories(ARMSX2Core PRIVATE
 		${CMAKE_CURRENT_BINARY_DIR}
 		${CMAKE_SOURCE_DIR}
+		${CMAKE_SOURCE_DIR}/Bridge
+		${CMAKE_SOURCE_DIR}/Runtime
 		${ARMSX2_ROOT}
 		${ARMSX2_ROOT}/common
 		${ARMSX2_ROOT}/pcsx2
@@ -103,16 +113,16 @@ foreach(resource IN LISTS CORE_RESOURCES)
 endforeach()
 foreach(resource
     "${ARMSX2_ROOT}/bin/resources-overlay/armsx2_overrides.yaml"
-    "${CMAKE_SOURCE_DIR}/../assets/resources/patches.zip")
+    "${CMAKE_SOURCE_DIR}/assets/resources/patches.zip")
   target_sources(ARMSX2Core PRIVATE "${resource}")
   set_source_files_properties("${resource}" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 endforeach()
 
 # iOS 2.6 presets include stages, textures and relative includes. Keep their tree.
-file(GLOB_RECURSE IOS_SHADER_RESOURCES "${CMAKE_SOURCE_DIR}/../assets/shaders/*")
+file(GLOB_RECURSE IOS_SHADER_RESOURCES "${CMAKE_SOURCE_DIR}/assets/shaders/*")
 foreach(resource IN LISTS IOS_SHADER_RESOURCES)
   get_filename_component(directory "${resource}" DIRECTORY)
-  file(RELATIVE_PATH relative "${CMAKE_SOURCE_DIR}/../assets/shaders" "${directory}")
+  file(RELATIVE_PATH relative "${CMAKE_SOURCE_DIR}/assets/shaders" "${directory}")
   target_sources(ARMSX2Core PRIVATE "${resource}")
   set_source_files_properties("${resource}" PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/shaders/${relative}")
 endforeach()

@@ -50,7 +50,7 @@ def main():
         # Build 485: the HD texture keys are plain GS booleans of the pinned engine.
         for key in ('LoadTextureReplacements','LoadTextureReplacementsAsync','PrecacheTextureReplacements'):
             assert 'SettingsWrapBitBool('+key+')' in config, key
-        bridge=(args.upstream/'platforms/ios/app/src/main/cpp/ARMSX2Bridge.mm').read_text()
+        bridge=(args.upstream/'platforms/ios/Bridge/ARMSX2Bridge+PerGameINI.mm').read_text()
         assert '+ (nullable NSNumber *)perGameINIBoolIfPresent:' in bridge
         assert 'ARMSX2SyncClaimsIfPinnedHackKey(si, section, key);' in bridge
         assert 'ARMSX2RequestPerGameSettingsReload();' in bridge

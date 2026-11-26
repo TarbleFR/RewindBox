@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "repository": "https://github.com/ARMSX2/ARMSX2.git",
-  "revision": "9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe",
-  "release": "iOSv2.6.0",
-  "baseline": "52acfe7d5e1bee8716da8f36eecc5efcc386f667",
+  "revision": "8bf12a1a42e5181a04e7e653ac94a95a47008e16",
+  "release": "iOSv2.6.1",
+  "baseline": "9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe",
   "abi_version": 9
 }

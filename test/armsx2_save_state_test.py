@@ -18,7 +18,7 @@ parser.add_argument('--upstream', type=Path, required=True)
 args = parser.parse_args()
 manifest = json.loads((ROOT/'build-utils/armsx2/source.json').read_text())
 assert subprocess.check_output(['git', '-C', str(args.upstream), 'rev-parse', 'HEAD'], text=True).strip() == manifest['revision']
-header = (args.upstream/'platforms/ios/app/src/main/cpp/ARMSX2Bridge.h').read_text()
+header = (args.upstream/'platforms/ios/Bridge/ARMSX2Bridge.h').read_text()
 declarations = []
 for selector in ('saveStateToSlot', 'loadStateFromSlot'):
     declarations.append(re.search(r'\+ \(void\)'+selector+r':.*?;', header, re.S)[0])

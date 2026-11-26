@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// NeoStation host adapter for ARMSX2 iOS 2.6.0 (9d989ca933). No application/scene delegate,
+// NeoStation host adapter for ARMSX2 iOS 2.6.1 (8bf12a1a42). No application/scene delegate,
 // URL, shortcut, VPN, interpreter fallback or detached VM worker is used.
 #define SDL_MAIN_HANDLED
 #include "ARMSX2CoreABI.h"
 #include "ARMSX2GraphicsHacks.h"
-#include "IOS/IOSRuntime.h"
-#import "IOS/ARMSX2GameView.h"
+#include "Runtime/IOSRuntime.h"
+#import "Runtime/ARMSX2GameView.h"
 #import "ARMSX2Bridge.h"
 #include "common/Darwin/DarwinMisc.h"
 #include "common/Error.h"
@@ -30,9 +30,9 @@
 #include "pcsx2/GS/Renderers/Common/GSDevice.h"
 #include "pcsx2/GS/Renderers/Common/GSRenderer.h"
 #include "pcsx2/GS/Renderers/HW/GSTextureReplacements.h"
-#include "IOS/TexturePackPaths.h"
-#include "IOS/TexturePackTar.h"
-#include "IOS/TexturePackZstd.h"
+#include "Runtime/TexturePackPaths.h"
+#include "Runtime/TexturePackTar.h"
+#include "Runtime/TexturePackZstd.h"
 #include <map>
 #include <os/proc.h>
 #include <SDL3/SDL.h>
@@ -168,7 +168,6 @@ void initialize_settings() {
         });
     layers->SetLayer(LayeredSettingsInterface::LAYER_CMDLINE, r.achievement_launch.get());
   }
-  g_p44_settings_interface = s_settings_interface;
   auto& si=*s_settings_interface;
   si.SetStringValue("Folders","Bios",r.bios_directory.c_str());
   si.SetStringValue("Folders","MemoryCards",EmuFolders::MemoryCards.c_str());
@@ -202,7 +201,7 @@ void initialize_settings() {
     if (name.empty() || name.find('/')!=std::string::npos) continue;
     u32 version=0,region=0; std::string description,zone;
     const std::string path=Path::Combine(r.bios_directory,name);
-    if (IsBIOS(path.c_str(),version,description,region,zone)) {
+    if (IsConsoleBIOS(path.c_str(),version,description,region,zone)) {
       r.bios_name=name; si.SetStringValue("Filenames","BIOS",name.c_str());
       EmuConfig.BaseFilenames.Bios=name; found=true; break;
     }
@@ -328,7 +327,6 @@ void vm_worker() {
     r.achievement_launch.reset(); r.achievement_secrets.reset(); r.achievement_base.reset();
     delete s_settings_interface; s_settings_interface=nullptr;
     delete s_secrets_settings_interface; s_secrets_settings_interface=nullptr;
-    g_p44_settings_interface=nullptr;
     { std::lock_guard lock(s_vmMutex); s_vmThreadCreated=false; }
     // Complete abandoned CPU tasks so callers cannot remain blocked on teardown.
     { std::lock_guard lock(s_cpuTaskMutex);

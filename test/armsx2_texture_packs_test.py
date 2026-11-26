@@ -17,11 +17,11 @@ import hashlib, io, json, os, shutil, struct, subprocess, sys, tarfile, tempfile
 ROOT = Path(__file__).resolve().parents[1]
 CLASSES = ROOT / 'packages/armsx2_internal_bridge/ios/Classes'
 
-PINNED = json.loads((ROOT / 'build-utils/armsx2/upstream-files.json').read_text())
-for name in ('TexturePackPaths.h', 'TexturePackTar.h'):
-    digest = hashlib.sha256((CLASSES / 'upstream' / name).read_bytes()).hexdigest()
-    assert digest == PINNED['platforms/ios/app/src/main/cpp/IOS/' + name], name
-print('PASS vendored upstream TexturePackPaths.h and TexturePackTar.h match the pinned ARMSX2 files')
+notices = json.loads((ROOT / 'assets/legal/textures/license-sources.json').read_text())
+reader = next(item for item in notices['components'] if item['component'] == 'ARMSX2 texture archive readers')
+for entry in reader['source_files']:
+    assert hashlib.sha256((ROOT / entry['path']).read_bytes()).hexdigest() == entry['sha256'], entry['path']
+print('PASS vendored ARMSX2 texture-reader headers match their source notices')
 
 PNG = bytes([137, 80, 78, 71, 13, 10, 26, 10]) + b'\x00' * 40
 

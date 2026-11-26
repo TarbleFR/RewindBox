@@ -167,7 +167,7 @@ creator's work. The source does not specify a disc revision.
 
 ## ARMSX2 2.6 shader runtime and presets
 
-ARMSX2 iOS `iOSv2.6.0` uses **librashader 0.12.0** for its native Metal shader
+ARMSX2 iOS `iOSv2.6.1` uses **librashader 0.12.0** for its native Metal shader
 chains. librashader is by **Ronny Chan / SnowflakePowered and contributors**.
 The embedded C API is pinned to commit
 `87e8a97b50516d997defeaa168173dcd185d4022`; its upstream package declares

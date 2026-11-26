@@ -21,17 +21,18 @@ args=parser.parse_args()
 with tempfile.TemporaryDirectory(prefix='armsx2-cmake-') as directory:
     fixture=Path(directory)
     upstream=fixture/'upstream'
-    source=upstream/'platforms/ios/app/src/main/cpp'
+    source=upstream/'platforms/ios'
     adapter=fixture/'packages/armsx2_internal_bridge'
     build=fixture/'build'
     zstd=fixture/'relocated-zstd/include'
     zstd.mkdir(parents=True)
-    for path in [source/'ios_main.mm',source/'IOS/GamepadHaptics.mm',
-                 source/'IOS/HostImpls.mm',source/'IOS/PlaySoundAsync.mm',
-                 source/'IOS/ARMSX2GameView.h',source/'ARMSX2Bridge.mm',
+    upstream_ios=args.upstream/'platforms/ios'
+    sources=[path.relative_to(upstream_ios) for folder in ('Bridge', 'Runtime')
+             for path in sorted((upstream_ios/folder).glob('*.mm'))]
+    for path in [*(source/name for name in sources),
                  adapter/'core/ARMSX2Core.mm',adapter/'core/exports.txt',
                  upstream/'bin/resources-overlay/armsx2_overrides.yaml',
-                 source.parent/'assets/resources/patches.zip']:
+                 source/'assets/resources/patches.zip']:
         path.parent.mkdir(parents=True,exist_ok=True)
         path.write_text('')
     target=ROOT/'packages/armsx2_internal_bridge/core/target.cmake'
@@ -51,8 +52,7 @@ add_library(Zstd::Zstd INTERFACE IMPORTED)
 set_property(TARGET Zstd::Zstd PROPERTY INTERFACE_INCLUDE_DIRECTORIES "{zstd}")
 include("{target}")
 # This fixture generates compiler arguments; none of the dummy sources is built.
-set_source_files_properties(ios_main.mm IOS/GamepadHaptics.mm IOS/HostImpls.mm
-  IOS/PlaySoundAsync.mm ARMSX2Bridge.mm "{adapter}/core/ARMSX2Core.mm"
+set_source_files_properties(${{RUNTIME_SOURCES}} ${{BRIDGE_SOURCES}} "{adapter}/core/ARMSX2Core.mm"
   PROPERTIES LANGUAGE CXX)
 get_target_property(owned_link_options ARMSX2Core LINK_OPTIONS)
 file(WRITE "{fixture}/link-options.txt" "${{owned_link_options}}")
@@ -68,7 +68,7 @@ file(WRITE "{fixture}/link-options.txt" "${{owned_link_options}}")
     bridge=flags('ARMSX2Bridge.mm')
     assert str(zstd) in bridge or '-I'+str(zstd) in bridge
     assert bridge.index('-fobjc-arc')>bridge.index('-fno-objc-arc'),bridge
-    for name in ('ARMSX2Core.mm','ios_main.mm','HostImpls.mm'):
+    for name in ('ARMSX2Core.mm','IOSRuntime.mm'):
         assert '-fobjc-arc' not in flags(name),name
     assert '-fexceptions' in flags('ARMSX2Core.mm')
     linker=(fixture/'link-options.txt').read_text().split(';')
@@ -89,11 +89,11 @@ file(WRITE "{fixture}/link-options.txt" "${{owned_link_options}}")
             leaked=[item.decode('utf-8',errors='replace')[-1024:] for item in binary.read_bytes().split(b'\0') if str(fixture).encode() in item]
             assert contains==(suffix=='original'),(suffix,leaked[:10])
 print('PASS: native linker removes absolute archive debug-map origins' if platform.system()=='Darwin' else 'PASS: production linker option generated; native behavior requires macOS')
-print('PASS: production CMake propagates relocated Zstandard headers; ARC applies only to the 2.6 bridge')
+print('PASS: production CMake propagates relocated Zstandard headers; ARC flags preserve the embedded view owner manual ownership')
 
 # Generate the actual patched cargo command, then run it with host flags removed
 # from the build environment, as happens across Xcode's script-phase boundary.
-module=(args.upstream/'platforms/ios/app/src/main/cpp/3rdparty/librashader/CMakeLists.txt').read_text()
+module=(args.upstream/'platforms/ios/3rdparty/librashader/CMakeLists.txt').read_text()
 start=module.index('set(_lrs_out_dir ')
 end=module.index('set(ARMSX2_HAVE_LIBRASHADER ON PARENT_SCOPE)',start)
 with tempfile.TemporaryDirectory(prefix='armsx2-cargo-env-') as directory:
