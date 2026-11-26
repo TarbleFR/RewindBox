@@ -95,6 +95,23 @@ Sur un changement de programme graphique ou de calcul, chaque étage concerné v
 
 Sur le modèle synthétique local (300 × 3 779 opérations, même graine), les encodages complets passent de 629 441 à 536 491 (−14,8 %) avec zéro divergence de version de liaison. Ce modèle représente le cas éligible à la réutilisation et ignore le coût de Metal et la fréquence réelle des gardes. Le temps CPU du modèle n’a pas diminué lors de cette exécution. Le test natif existant `t_rb_dirty_range` a passé. FPS, GPU p50, fidélité du rendu et fluidité des pipelines de 0426 sur iPhone restent non mesurés.
 
+Sur un second modèle, chaque variante utilise la même séquence de 350 000 dessins, les mêmes changements de liaisons et les mêmes changements de passe. Chaque bloc produit est comparé à une reconstruction complète. Les coûts Metal et la distribution réelle des états internes restent inconnus.
+
+| Charge synthétique | Reconstructions complètes 0425 → 0426 | Recherches texture/sampler 0425 → 0426 | Blocs divergents |
+| --- | ---: | ---: | ---: |
+| Profil Zelda | 75 029 → 62 842 | 562 146 → 514 296 | 0 |
+| Profil MKW | 59 008 → 46 873 | 419 996 → 371 738 | 0 |
+
+Les trois captures de la dernière session Zelda 844 permettent aussi de compter directement les transitions entre shaders. Le [lecteur des signatures](s2arm-program-stage-reader.py) retient deux dessins directs consécutifs dont les quatre signatures sont connues, dans une passe dont le nombre d’enregistrements correspond au total annoncé. Les colonnes « vertex seul » et « fragment seul » indiquent quel étage garde son shader.
+
+| Capture Zelda 844 | Paires examinées | Deux étages identiques | Vertex seul identique | Fragment seul identique | Deux étages changés |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| f2014 | 50 070 | 43 848 | 341 | 1 545 | 4 336 |
+| f2362 | 14 532 | 11 566 | 202 | 661 | 2 103 |
+| f2677 | 14 567 | 11 254 | 253 | 647 | 2 413 |
+
+Parmi les 12 501 transitions qui changent au moins un shader, 3 649 gardent un étage (29,2 %). Dans cet échantillon, le fragment reste identique plus souvent que le vertex. Les signatures établissent la stabilité du shader. La réutilisation effective de son bloc dépend aussi des liaisons, des vues et de l’arène, absentes de ces captures.
+
 ## 2. Pont iOS, réglages Switch 2 et 12 langues
 
 - **Déverrouillage des 17 optimisations agnostiques dans `S2ArmEngineBridgePlugin.m`** : `S2A_RB_UP_PRESSURE_TRIM`, `S2A_RB_WG_CADENCE_IDLE`, `S2A_RB_PSO_ARCHIVE_COALESCE`, `S2A_RB_YIELD_WORKER_IDLE`, `S2A_RB_POOL_QUEUE_BUDGET`, `S2A_RB_SHADER_URGENT_UNIQUE`, `S2A_RB_TEX_FIT_FAST`, `S2A_RB_DEMAND_PROBE_BATCH`, `S2A_RB_AUDIO_REPRIME`, `S2A_RB_FB_DIRECT_SNAPSHOT`, `S2A_RB_PSO_HOT_FIRST`, `S2A_RB_SHADER_AHEAD_JOIN`, `S2A_RB_PSO_LOOK_META`, `S2A_RB_UNIFORM_BOUNDS_REUSE`, `S2A_RB_IDLE_WAIT_PROBE`, `S2A_RB_FRAME_SHADER_KEY`, `S2A_RB_RES_TOP_PER_FRAME` et `S2A_RB_BOUND_SHADER_VARIANT` passent à `"1"` pour **tous** les titres Switch 2 (et `S2A_RB_AUTO_PROBE="0"` par défaut pour supprimer le profileur à suspension de thread 500 Hz sur Zelda tout en conservant les résumés 300 images de `host.log` et la priorité de `env.txt`). La garde `S2A_RB_DRS_NO_LOCK` et le contrat anti-verrou 30 de MKW restent intacts.

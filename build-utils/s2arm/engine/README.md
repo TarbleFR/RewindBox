@@ -719,3 +719,7 @@ Cinq goulots GPU/CPU supplémentaires isolés dans les journaux 844 de Zelda et 
 5. **`rb_rt_cont.h` + `nvn_mtl.m` (`rb_cont_reads_rt_memo`)** (Zelda 844 : `18,2` continuations/image, `0,0` hit mémo/image) : remplace le test `g_args_dirty[stage]` (invalidé à chaque UBO de matrice ou sampler) par des compteurs de génération monotones ciblés sur `rb_cont_masks` (`ubo`, `RB_CONT_F_TEX`, `RB_CONT_F_IMG`, `pool_gen`, `mem_gen`), plus sortie immédiate $O(1)$ sans verrou quand le programme ne lit aucune texture/image. Banc comparatif 300 images : hits **`0,0 → 269,0 / image`** (`walks −74,7 %`, `108 000 → 27 300`, `wrong = 0`).
 
 `S2A.Dsh` inchangé (`xfp = ecd99354f03b846d`). Non mesuré sur iPhone. [Portée et limites](../../../docs/evidence/s2arm-845-wave.md).
+
+### 0426 — Blocs d’arguments lors des changements de programme
+
+Le moteur vérifie le propriétaire du bloc par étage et conserve les invalidations en attente. La détection de mémoire globale lors des effacements différés consulte la liste des liaisons du shader. [Mesures comparatives et captures Zelda](../../../docs/evidence/s2arm-845-wave.md#0426--changements-de-programme-et-blocs-darguments).
