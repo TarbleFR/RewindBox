@@ -1,6 +1,7 @@
 """Export complete 300-present windows from private host logs as aggregate CSV."""
 import argparse
 import csv
+import json
 from pathlib import Path
 import re
 import sys
@@ -14,8 +15,10 @@ PATTERNS = (
     (r"frame interval up to frame (\d+): .*? p99 ([\d.]+) ms", "frame_ms_p99"),
     (r"displayed window up to frame (\d+): observed ([\d.]+) fps, (\d+) visible timestamps",
      "display_real_fps visible_timestamps"),
-    (r"timing up to frame (\d+): frame time p50 ([\d.]+) / p95 ([\d.]+) / max ([\d.]+).*?GPU p50 ([\d.]+).*?thermal state (\d+)",
-     "frame_ms_p50 frame_ms_p95 frame_ms_max gpu_ms_p50 thermal"),
+    (r"timing up to frame (\d+): frame time p50 ([\d.]+) / p95 ([\d.]+) / max ([\d.]+).*?GPU p50 ([\d.]+) / p95 ([\d.]+).*?thermal state (\d+)",
+     "frame_ms_p50 frame_ms_p95 frame_ms_max gpu_ms_p50 gpu_ms_p95 thermal"),
+    (r"power up to frame (\d+): .*?wakeups ([\d.]+)/s .*?GPU busy ([\d.]+) ms/s",
+     "wakeups_per_s gpu_busy_ms_per_s"),
     (r"translation up to frame (\d+): .*?CPU ([\d.]+) ms, (\d+) draws per frame",
      "submit_cpu_ms_mean draws_mean"),
     (r"on-screen up to frame (\d+): .*?footprint (\d+) MiB", "footprint_mib"),
@@ -54,6 +57,28 @@ def long_frames(data):
     return windows
 
 
+VM_FIELDS = ("vm_sample_frame", "process_compressed_logical_mib", "graphics_footprint_resident_mib",
+             "graphics_footprint_compressed_logical_mib")
+
+
+def sampled_memory(data):
+    windows = {}
+    for line in data.splitlines():
+        if "[RB-VM-LEDGER]" not in line:
+            continue
+        sample = json.loads(line.split("[RB-VM-LEDGER]", 1)[1])
+        if not sample.get("valid") or not sample.get("ledger_tags_valid"):
+            continue
+        frame = int(sample["frame"])
+        end = (frame + 299) // 300 * 300
+        gfx = sample["graphics"]
+        values = (sample["compressed_logical_bytes"], gfx["footprint_resident_bytes"],
+                  gfx["footprint_compressed_logical_bytes"])
+        if end not in windows or frame >= windows[end][0]:
+            windows[end] = (frame, *(round(v / 1048576, 1) for v in values))
+    return windows
+
+
 WAIT_FIELDS = ("wait_samples", "wait_address_signal_samples", "wait_selection_ms_p50", "wake_to_impl_return_ms_p50")
 
 
@@ -81,13 +106,14 @@ def main():
     parser.add_argument("members", nargs="+")
     args = parser.parse_args()
     fields = [field for _, names in PATTERNS for field in names.split()]
-    writer = csv.DictWriter(sys.stdout, ["log", "end_present", *fields, "generated_fps_approx", *LONG_FIELDS, *WAIT_FIELDS], lineterminator="\n")
+    writer = csv.DictWriter(sys.stdout, ["log", "end_present", *fields, "generated_fps_approx", *LONG_FIELDS, *WAIT_FIELDS, *VM_FIELDS], lineterminator="\n")
     writer.writeheader()
     with ZipFile(args.archive) as archive:
         for member in args.members:
             data = archive.read(member).decode(errors="replace")
             long_by_window = long_frames(data)
             wait_by_window = sampled_waits(data)
+            vm_by_window = sampled_memory(data)
             windows = {}
             for pattern, names in PATTERNS:
                 for match in re.finditer(pattern, data):
@@ -108,6 +134,8 @@ def main():
                     row.update(zip(LONG_FIELDS, long_by_window.get(frame, [0] * len(LONG_FIELDS)), strict=True))
                 if frame in wait_by_window:
                     row.update(zip(WAIT_FIELDS, wait_by_window[frame], strict=True))
+                if frame in vm_by_window:
+                    row.update(zip(VM_FIELDS, vm_by_window[frame], strict=True))
                 writer.writerow(dict(log=member, end_present=frame, **row))
 
 

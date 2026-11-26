@@ -12,7 +12,7 @@ def function(source, signature):
     return source[start:source.index("\n}", start) + 2]
 
 
-def build(root, path, similar=False):
+def build(root, path, similar=False, contiguous=False):
     inc = root / "graphics/nvn/gfx/nvn"
     source = (inc / "nvn_mtl.m").read_text()
     compact = "static uint64_t g_pp_used[" in source
@@ -77,7 +77,7 @@ static void measured_recipes(const char *path) {
     for (unsigned j = 0; j < 3; j++) {
         unsigned next = 0;
         for (unsigned i = 0; i < capacity; i++) {
-            int occupied = (i * 101 % capacity) < loads[j];
+            int occupied = (CONTIGUOUS ? i : i * 101 % capacity) < loads[j];
             if (occupied) g_pp[i].k = keys[next++];
             SET_OCCUPIED;
         }
@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
     const unsigned loads[] = {0,4,64,384};
     for (unsigned j=0; j<4; j++) {
         for (unsigned i=0; i<384; i++) {
-            int occupied = (i * 101 % 384) < loads[j];
+            int occupied = (CONTIGUOUS ? i : i * 101 % 384) < loads[j];
             if (NEAR_IDENTICAL) memcpy(&g_pp[i].k.lmap[4], &i, sizeof i);
             else g_pp[i].k.samples = i + 1;
             SET_OCCUPIED;
@@ -148,13 +148,15 @@ int main(int argc, char **argv) {
 }
 """
     path.with_suffix(".c").write_text(code.replace("SET_OCCUPIED", "if (occupied) pp_claim(i); else pp_release(i)" if compact else "g_pp[i].used = occupied"))
-    subprocess.run(["clang", "-O2", "-pthread", f"-DNEAR_IDENTICAL={int(similar)}", "-I", inc, "-I", inc/"include",
+    subprocess.run(["clang", "-O2", "-pthread", f"-DNEAR_IDENTICAL={int(similar)}",
+                    f"-DCONTIGUOUS={int(contiguous)}", "-I", inc, "-I", inc/"include",
                     path.with_suffix(".c"), "-o", path], check=True)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("trees", nargs=2, type=Path)
+    parser.add_argument("--contiguous", action="store_true", help="fill low slots first, as in an empty queue")
     parser.add_argument("--near-identical", action="store_true", help="exercise late-key differences")
     parser.add_argument("--recipes", nargs=2, metavar=("ZIP", "MEMBER"),
                         help="benchmark fixed-function states from R records of a private reference")
@@ -173,7 +175,7 @@ def main():
         results = [{}, {}]
         hashes = {}
         for idx, tree in enumerate(args.trees):
-            build(tree, Path(temp)/str(idx), args.near_identical)
+            build(tree, Path(temp)/str(idx), args.near_identical, args.contiguous)
         for repeat in range(8):
             for idx in (range(2) if repeat % 2 == 0 else (1, 0)):
                 output = subprocess.check_output([Path(temp)/str(idx), *extra], text=True)
