@@ -1,0 +1,39 @@
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -15855,7 +15855,10 @@
+ static inline int pp_used(unsigned slot) {
+     return (int)((g_pp_used[slot / 64] >> (slot % 64)) & 1);
+ }
++// Zero invalidates the lazy tag on every claim, including in-place reuse. Protected by g_pp_mu.
++static uint64_t g_pp_tags[PSO_PEND_MAX];
+ static inline void pp_claim(unsigned slot) {
++    g_pp_tags[slot] = 0;
+     g_pp_used[slot / 64] |= UINT64_C(1) << (slot % 64);
+ }
+ static inline void pp_release(unsigned slot) {
+@@ -16031,8 +16034,25 @@
+         static unsigned n; if (n++ < 16) MLOG("vertex %s does not write user(locn) mask %#x that fragment %s reads: its draws wait for the padded variant (vp_ask)", vs->key, miss, fs->key); }
+     return 0;
+ }
++static int pp_find_dense(const pso_key *live) {
++    // The first word is full. A repeated lookup of its first entry is cheap.
++    if (!memcmp(&g_pp[0].k, live, sizeof *live)) return 0;
++    uint64_t wanted = nvn_hm_hash(live, sizeof *live) | 1;
++    for (unsigned w = 0; w < sizeof g_pp_used / sizeof *g_pp_used; w++) {
++        uint64_t occupied = g_pp_used[w];
++        if (!w) occupied &= ~UINT64_C(1);
++        for (; occupied; occupied &= occupied - 1) {
++            unsigned slot = 64 * w + (unsigned)__builtin_ctzll(occupied);
++            const pso_key *key = &g_pp[slot].k;
++            if (!g_pp_tags[slot]) g_pp_tags[slot] = nvn_hm_hash(key, sizeof *key) | 1;
++            if (g_pp_tags[slot] == wanted && !memcmp(key, live, sizeof *live)) return (int)slot;
++        }
++    }
++    return -1;
++}
+ static int pso_pend_find_live(const pso_key *live)
+ {
++    if (__builtin_expect(g_pp_used[0] == UINT64_MAX, 0)) return pp_find_dense(live);
+     for (unsigned w = 0; w < sizeof g_pp_used / sizeof *g_pp_used; w++) {
+         for (uint64_t occupied = g_pp_used[w]; occupied; occupied &= occupied - 1) {
+             unsigned slot = w * 64 + (unsigned)__builtin_ctzll(occupied);

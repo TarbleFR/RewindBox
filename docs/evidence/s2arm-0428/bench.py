@@ -4,6 +4,7 @@ from pathlib import Path
 from statistics import median
 import subprocess
 import tempfile
+from zipfile import ZipFile
 
 
 def function(source, signature):
@@ -11,7 +12,7 @@ def function(source, signature):
     return source[start:source.index("\n}", start) + 2]
 
 
-def build(root, path):
+def build(root, path, similar=False):
     inc = root / "graphics/nvn/gfx/nvn"
     source = (inc / "nvn_mtl.m").read_text()
     compact = "static uint64_t g_pp_used[" in source
@@ -34,15 +35,22 @@ static uint64_t g_pp_used[6];
 static struct { pso_key k; void *ps, *error; int used, done, late, stuck;
                 uint8_t way; uint64_t began, build, compile; pthread_t worker; } g_pp[384];
 """
-    layout = (inc / "nvn_pso_skey.h").read_text().split("} pso_key;", 1)[0]
-    code = code.replace('#include "nvn_pso_skey.h"', layout.replace("#pragma once", "") + "} pso_key;")
+    header = (inc / "nvn_pso_skey.h").read_text()
+    layout = header[:header.index("static inline void pso_skey_from")]
+    layout += function(header, "static inline int pso_skey_parse(")
+    code = code.replace('#include "nvn_pso_skey.h"', layout.replace("#pragma once", ""))
     if compact:
         code = code.replace("int used, done", "int done")
     code += function(source, "static void gpw_unmark(uint64_t g) {")
     code += function(source, "static void gpw_clear(uint64_t lo, uint64_t n) {")
+    dense = "static int pp_find_dense(" in source
+    if dense:
+        code += "\nstatic uint64_t g_pp_tags[PSO_PEND_MAX];\n"
     if compact:
         for name in ("pp_claim", "pp_release"):
             code += function(source, "static inline void " + name + "(")
+    if dense:
+        code += function(source, "static int pp_find_dense(")
     code += routine
     code += """
 static double now(void) {
@@ -50,19 +58,62 @@ static double now(void) {
     clock_gettime(CLOCK_MONOTONIC, &t);
     return t.tv_sec + t.tv_nsec * 1e-9;
 }
-int main(void) {
+static void measured_recipes(const char *path) {
+    enum { capacity = 384 };
+    pso_key keys[capacity];
+    char hex[2*sizeof(pso_skey)+2];
+    unsigned count = 0;
+    FILE *file = fopen(path, "r");
+    if (!file) abort();
+    while (fgets(hex, sizeof hex, file)) {
+        if (count == capacity) abort();
+        hex[strcspn(hex, "\\n")] = 0;
+        pso_skey record;
+        if (pso_skey_parse(hex, &record) != 0) abort();
+        keys[count++] = record.k;
+    }
+    fclose(file);
+    const unsigned loads[] = {4, 64, count};
+    for (unsigned j = 0; j < 3; j++) {
+        unsigned next = 0;
+        for (unsigned i = 0; i < capacity; i++) {
+            int occupied = (i * 101 % capacity) < loads[j];
+            if (occupied) g_pp[i].k = keys[next++];
+            SET_OCCUPIED;
+        }
+        unsigned sum = 0;
+        double start = now();
+        for (unsigned q = 0; q < 80000; q++) {
+            pso_key key = keys[(q * 12347u) % count];
+            if (q & 1) {
+                if (NEAR_IDENTICAL) key.lmap[7] ^= 0x80;
+                else key.samples ^= 0x80000000u;
+            }
+            sum += pso_pend_find_live(&key) + 1;
+        }
+        printf("recipes%u %u %.6f\\n", loads[j], sum, now() - start);
+    }
+}
+int main(int argc, char **argv) {
+    if (argc == 2) {
+        measured_recipes(argv[1]);
+        return 0;
+    }
     const unsigned loads[] = {0,4,64,384};
     for (unsigned j=0; j<4; j++) {
         for (unsigned i=0; i<384; i++) {
             int occupied = (i * 101 % 384) < loads[j];
+            if (NEAR_IDENTICAL) memcpy(&g_pp[i].k.lmap[4], &i, sizeof i);
+            else g_pp[i].k.samples = i + 1;
             SET_OCCUPIED;
-            g_pp[i].k.samples = i + 1;
         }
         unsigned sum=0;
         double start=now();
         for (unsigned q=0; q<80000; q++) {
             pso_key key={0};
-            key.samples = (q * 12347u) % 768 + 1;
+            unsigned id = (q * 12347u) % 768;
+            if (NEAR_IDENTICAL) memcpy(&key.lmap[4], &id, sizeof id);
+            else key.samples = id + 1;
             sum += pso_pend_find_live(&key) + 1;
         }
         printf("slots%u %u %.6f\\n", loads[j], sum, now()-start);
@@ -97,22 +148,35 @@ int main(void) {
 }
 """
     path.with_suffix(".c").write_text(code.replace("SET_OCCUPIED", "if (occupied) pp_claim(i); else pp_release(i)" if compact else "g_pp[i].used = occupied"))
-    subprocess.run(["clang", "-O2", "-pthread", "-I", inc, "-I", inc/"include",
+    subprocess.run(["clang", "-O2", "-pthread", f"-DNEAR_IDENTICAL={int(similar)}", "-I", inc, "-I", inc/"include",
                     path.with_suffix(".c"), "-o", path], check=True)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("trees", nargs=2, type=Path)
+    parser.add_argument("--near-identical", action="store_true", help="exercise late-key differences")
+    parser.add_argument("--recipes", nargs=2, metavar=("ZIP", "MEMBER"),
+                        help="benchmark fixed-function states from R records of a private reference")
     args = parser.parse_args()
     with tempfile.TemporaryDirectory() as temp:
+        extra = []
+        if args.recipes:
+            archive, member = args.recipes
+            with ZipFile(archive) as z:
+                records = [line.split()[1] for line in z.read(member).splitlines() if line.startswith(b"R\t")]
+            if not 64 <= len(records) <= 384:
+                parser.error("this workload supports a reference containing 64 to 384 R records")
+            inputs = Path(temp) / "recipes"
+            inputs.write_bytes(b"\n".join(records) + b"\n")
+            extra = [inputs]
         results = [{}, {}]
         hashes = {}
         for idx, tree in enumerate(args.trees):
-            build(tree, Path(temp)/str(idx))
+            build(tree, Path(temp)/str(idx), args.near_identical)
         for repeat in range(8):
             for idx in (range(2) if repeat % 2 == 0 else (1, 0)):
-                output = subprocess.check_output([Path(temp)/str(idx)], text=True)
+                output = subprocess.check_output([Path(temp)/str(idx), *extra], text=True)
                 for line in output.splitlines():
                     label, digest, seconds = line.split()
                     if hashes.setdefault(label, digest) != digest:
