@@ -1,0 +1,408 @@
+From af5373c80a3ccedba4acccb8d50094a7bf6da3d0 Mon Sep 17 00:00:00 2001
+From: S2Arm Bot <bot@local>
+Date: Thu, 26 Nov 2026 15:25:15 +0000
+Subject: [PATCH] 0443: single-pass nvn_tex_level_geom_of & 4x unrolled
+ nvn_tile_is_zero for A18 Pro
+
+---
+ graphics/nvn/gfx/nvn/nvn_tex.c           | 177 +++++++++++++++--------
+ graphics/nvn/gfx/nvn/nvn_tex.h           |   9 ++
+ graphics/nvn/gfx/tex/nvn_deswizzle.c     |  44 ++++--
+ graphics/nvn/gfx/tex/nvn_deswizzle.h     |   4 +
+ graphics/nvn/gfx/tex/nvn_deswizzle_gpu.m |  12 +-
+ 5 files changed, 164 insertions(+), 82 deletions(-)
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_tex.c b/graphics/nvn/gfx/nvn/nvn_tex.c
+index 1f80bd9..e0e10a3 100644
+--- a/graphics/nvn/gfx/nvn/nvn_tex.c
++++ b/graphics/nvn/gfx/nvn/nvn_tex.c
+@@ -77,16 +77,36 @@ static int sparse_page(const nvn_texdesc *d, fmt_t t, unsigned *x, unsigned *y,
+ // A sparse texture with no level at least one page wide, high and deep (NVN's sparse query reports 0 tiled levels) is all mip tail: it is laid out as a plain texture, with the
+ //   automatic block height. Samurai Shodown's 700×200 ASTC 6×6 sparse menu labels (34 block rows, page 384×384) come with the automatic 4-GOB block height; with the page's
+ //   8 GOBs, block columns 60 on read as all-zero blocks, which ASTC decodes as its error colour (magenta blocks over the main menu labels, 10-27)
+-static int sparse_levels(const nvn_texdesc *d) { uint32_t tl[4]; nvn_tex_sparse_layout(d, tl); return tl[0] != 0; }
++static void sparse_layout_fmt(const nvn_texdesc *d, fmt_t t, uint32_t tile[4]) {
++    tile[0] = tile[1] = tile[2] = tile[3] = 0;
++    unsigned x, y, z;   // NVN's sparse query chooses a 64 KiB page shape by texel size (sparse_page)
++    if (!sparse_page(d, t, &x, &y, &z)) return;
++    uint32_t tw = (64 / t.bpb) << x, th = 8u << y, td = 1u << z;
++    uint32_t sx, sy; samples_xy(d->samples, &sx, &sy);
++    if (d->samples == 16) sx = sy = 4;
++    tw /= sx; th /= sy;
++    if (t.bw >= 2) { tw *= t.bw; th *= t.bh; }
++    uint32_t w = d->width, h = d->height, depth = d->target == 8 ? 6 : d->depth;
++    unsigned levels = 0;
++    while (levels < d->levels && w >= tw && h >= th && depth >= td) {
++        levels++; w >>= 1; h >>= 1; if (d->target == 2) depth >>= 1;
++    }
++    if (levels) { tile[0] = levels; tile[1] = tw; tile[2] = th; tile[3] = td; }
++}
++static int sparse_levels_fmt(const nvn_texdesc *d, fmt_t t) { uint32_t tl[4]; sparse_layout_fmt(d, t, tl); return tl[0] != 0; }
+ // Packaged layout byte 1, low nibble: log2 of the width alignment in GOBs (0 = none). Byte 0: low nibble log2 block height, high nibble log2 block depth (#676, after nxnative nvn_tex.c)
+ static unsigned packaged_width_log2(const nvn_texdesc *d) { return d->pkg_layout ? ((unsigned)(d->pkg_layout - 1) >> 8) & 0xf : 0; }
+-// Offset of level `level` from the start of its layer, and the GOB columns it is laid out with (*gobs, may be NULL)
+-static uint64_t level_walk(const nvn_texdesc *d, unsigned level, unsigned dpl, uint32_t w, uint32_t h, uint32_t z,
+-                           unsigned tileH, unsigned tileD, fmt_t t, uint32_t *gobs) {
++// RewindBox (patch 0443): single-pass mip-chain walk returning offset at `stop_level` while optionally
++// capturing offset, GOB columns, and per-level block shifts at `target_level` in the same loop.
++static uint64_t level_walk_ex(const nvn_texdesc *d, unsigned stop_level, unsigned target_level,
++                              unsigned dpl, uint32_t w, uint32_t h, uint32_t z,
++                              unsigned tileH, unsigned tileD, fmt_t t, int has_sparse_levels,
++                              uint64_t *target_off, uint32_t *target_gobs,
++                              unsigned *target_th, unsigned *target_td) {
+     uint32_t sx, sy; samples_xy(d->samples, &sx, &sy);
+     unsigned pw = packaged_width_log2(d);
+-    uint32_t tw = pw ? 1u << pw : 128u >> (tileH + tileD); if (!tw) tw = 1;   // GOB columns of a tile: the packaged width alignment, else those of a 64 KB tile
+-    int tiled = (sparse_of(d) && sparse_levels(d)) || pw;   // still in the tiled levels (a sparse texture's, or a packaged layout's with width alignment)
++    uint32_t tw = pw ? 1u << pw : 128u >> (tileH + tileD); if (!tw) tw = 1;   // GOB columns of a tile: always a power of two
++    int tiled = (sparse_of(d) && has_sparse_levels) || pw;   // still in the tiled levels (a sparse texture's, or a packaged layout's with width alignment)
+     uint64_t off = 0;
+     for (unsigned i = 0;; i++) {
+         uint32_t lw = blk(mip(w * sx, i), t.bw);
+@@ -94,20 +114,27 @@ static uint64_t level_walk(const nvn_texdesc *d, unsigned level, unsigned dpl, u
+         uint32_t ld = dpl >= 3 ? mip(z, i) : 1;
+         uint32_t lwb = lw * t.bpb;
+         unsigned th = adj_tile(tileH, 8, lh), td = adj_tile(tileD, 1, ld);
+-        uint32_t wg = (lwb + 63) / 64, hg = (lh + 7) / 8;
+-        tiled = tiled && lwb >= tw * 64 && lh >= 8u << tileH && ld >= 1u << tileD;
+-        if (tiled) wg = (wg + tw - 1) / tw * tw;
+-        if (i == level) { if (gobs) *gobs = wg; return off; }
+-        uint32_t ht = (hg + (1u << th) - 1) >> th, dt = (ld + (1u << td) - 1) >> td;
++        uint32_t wg = (lwb + 63u) >> 6, hg = (lh + 7u) >> 3;
++        tiled = tiled && lwb >= tw * 64u && lh >= (8u << tileH) && ld >= (1u << tileD);
++        if (tiled) wg = (wg + tw - 1u) & ~(tw - 1u);
++        if (i == target_level) {
++            if (target_off) *target_off = off;
++            if (target_gobs) *target_gobs = wg;
++            if (target_th) *target_th = th;
++            if (target_td) *target_td = td;
++        }
++        if (i == stop_level) return off;
++        uint32_t ht = (hg + (1u << th) - 1u) >> th, dt = (ld + (1u << td) - 1u) >> td;
+         off += (uint64_t)wg * ht * dt << (9 + th + td);
+     }
+ }
+-static uint64_t level_offset(const nvn_texdesc *d, unsigned level, unsigned dpl, uint32_t w, uint32_t h, uint32_t z, unsigned tileH, unsigned tileD, fmt_t t) {
+-    return level_walk(d, level, dpl, w, h, z, tileH, tileD, t, 0);
+-}
+ // Bytes of one layer (all levels): a sparse texture's whole 64 KB tiles, a layered texture's layer aligned to its block (to its whole block times the width alignment of a packaged layout with one)
+-static uint64_t layer_bytes(const nvn_texdesc *d, unsigned dpl, int layered, uint32_t w, uint32_t h, uint32_t z, unsigned tileH, unsigned tileD, fmt_t t) {
+-    uint64_t ls = level_offset(d, d->levels ? d->levels : 1, dpl, w, h, z, tileH, tileD, t);
++static uint64_t layer_bytes_ex(const nvn_texdesc *d, unsigned dpl, int layered, uint32_t w, uint32_t h, uint32_t z,
++                               unsigned tileH, unsigned tileD, fmt_t t, int has_sparse_levels,
++                               unsigned target_level, uint64_t *target_off, uint32_t *target_gobs,
++                               unsigned *target_th, unsigned *target_td) {
++    uint64_t ls = level_walk_ex(d, d->levels ? d->levels : 1, target_level, dpl, w, h, z, tileH, tileD, t,
++                                has_sparse_levels, target_off, target_gobs, target_th, target_td);
+     if (sparse_of(d)) ls = (ls + SPARSE_TILE - 1) & ~(uint64_t)(SPARSE_TILE - 1);
+     if (layered) {
+         uint32_t hh = blk(h, t.bh); unsigned th = tileH, td = tileD;
+@@ -119,6 +146,18 @@ static uint64_t layer_bytes(const nvn_texdesc *d, unsigned dpl, int layered, uin
+     }
+     return ls;
+ }
++static void base_tiles(const nvn_texdesc *d, fmt_t t, unsigned dpl, uint32_t h, uint32_t z, uint32_t sy,
++                       int sp_lv, unsigned *tileH, unsigned *tileD) {
++    unsigned th = 0, td = 0, px, py, pz;
++    if (d->pkg_layout) {                                              // packaged byte 0: low nibble block height, high nibble block depth (#676)
++        unsigned pl = (unsigned)(d->pkg_layout - 1) & 0xff;
++        if (dpl >= 2) th = pl & 0xf;
++        if (dpl == 3) td = pl >> 4;
++    }
++    else if (dpl == 2) { uint32_t ah = blk(h * sy, t.bh); th = (sparse_page(d, t, &px, &py, &pz) && sp_lv) ? py : pick_tile(ah * 3 / 16); }
++    else if (dpl == 3) { if (sparse_page(d, t, &px, &py, &pz)) { th = py; td = pz; } else td = pick_tile(z + z / 2); }
++    *tileH = th; *tileD = td;
++}
+ 
+ void nvn_tex_layout(const nvn_texdesc *d, nvn_texlayout *o) {
+     fmt_t t = fmt_of(d->format);
+@@ -138,75 +177,85 @@ void nvn_tex_layout(const nvn_texdesc *d, nvn_texlayout *o) {
+         o->layer_size = o->size = (uint64_t)stride * blk(h, t.bh);
+         return;
+     }
++    int sp = sparse_of(d);
++    int sp_lv = sp ? sparse_levels_fmt(d, t) : 0;
+     unsigned tileH = 0, tileD = 0;
+-    unsigned px, py, pz;
+-    if (d->pkg_layout) {                                              // packaged byte 0: low nibble block height, high nibble block depth (#676)
+-        unsigned pl = (unsigned)(d->pkg_layout - 1) & 0xff;
+-        if (dpl >= 2) tileH = pl & 0xf;
+-        if (dpl == 3) tileD = pl >> 4;
+-    }
+-    else if (dpl == 2) { uint32_t ah = blk(h * sy, t.bh); tileH = sparse_page(d, t, &px, &py, &pz) && sparse_levels(d) ? py : pick_tile(ah * 3 / 16); }
+-    else if (dpl == 3) { if (sparse_page(d, t, &px, &py, &pz)) { tileH = py; tileD = pz; } else tileD = pick_tile(z + z / 2); }
+-    uint64_t ls = layer_bytes(d, dpl, layered, w, h, z, tileH, tileD, t);
++    base_tiles(d, t, dpl, h, z, sy, sp_lv, &tileH, &tileD);
++    uint64_t ls = layer_bytes_ex(d, dpl, layered, w, h, z, tileH, tileD, t, sp_lv, UINT32_MAX, 0, 0, 0, 0);
+     // MINIMAL_LAYOUT (0x200): the driver keeps the automatic block height and depth only when the whole layer (every level, the layer alignment) is no larger than with 1-GOB blocks,
+     //   else it takes 1-GOB blocks (driver sweep, after nxnative nvn_tex.c). A packaged layout and a sparse texture's tiles keep their own
+-    if ((d->flags & 0x200) && !d->pkg_layout && !sparse_of(d) && (tileH || tileD)) {
+-        uint64_t one = layer_bytes(d, dpl, layered, w, h, z, 0, 0, t);
++    if ((d->flags & 0x200) && !d->pkg_layout && !sp && (tileH || tileD)) {
++        uint64_t one = layer_bytes_ex(d, dpl, layered, w, h, z, 0, 0, t, sp_lv, UINT32_MAX, 0, 0, 0, 0);
+         if (one != ls) { tileH = tileD = 0; ls = one; }
+     }
+     o->tileH = tileH; o->tileD = tileD;
+     o->layer_size = ls;
+     o->size = layered ? ls * z : ls;
+-    o->align = sparse_of(d) ? SPARSE_TILE : 512;
++    o->align = sp ? SPARSE_TILE : 512;
+ }
+ 
+-uint64_t nvn_tex_level_offset(const nvn_texdesc *d, unsigned level) {
++int nvn_tex_level_geom_of(const nvn_texdesc *d, unsigned level, int need_layer_size, nvn_tex_level_geom *o) {
+     fmt_t t = fmt_of(d->format);
+     unsigned dpl; int layered; uint32_t w, h, z;
+     shape(d, &dpl, &layered, &w, &h, &z);
+-    if (!t.bpb || (d->flags & (0x10 | 0x40)) || d->target == 10) return 0;   // linear (LINEAR / LINEAR_RENDER_TARGET, as nvn_tex_layout): one level at 0
+-    nvn_texlayout L; nvn_tex_layout(d, &L);
+-    return level_offset(d, level, dpl, w, h, z, L.tileH, L.tileD, t);
++    o->layers = layered ? z : 1;
++    o->bpb = t.bpb; o->bw = t.bw; o->bh = t.bh;
++    o->layer_size = 0; o->level_offset = 0; o->level_gobs = 0; o->tileH = 0; o->tileD = 0;
++    if (!t.bpb) return -1;
++    if (d->target == 10) {
++        o->layer_size = (uint64_t)t.bpb * d->width;
++        return 0;
++    }
++    if (d->flags & (0x10 | 0x40)) {
++        uint32_t align = (d->flags & 0x40) ? 128 : 32;
++        uint32_t stride = d->stride ? d->stride : (t.bpb * blk(w, t.bw) + align - 1) & ~(align - 1);
++        o->layer_size = (uint64_t)stride * blk(h, t.bh);
++        return 0;
++    }
++    uint32_t sx, sy; samples_xy(d->samples, &sx, &sy);
++    int sp = sparse_of(d);
++    int sp_lv = sp ? sparse_levels_fmt(d, t) : 0;
++    unsigned tileH = 0, tileD = 0;
++    base_tiles(d, t, dpl, h, z, sy, sp_lv, &tileH, &tileD);
++    int minimal_cmp = (d->flags & 0x200) && !d->pkg_layout && !sp && (tileH || tileD);
++    unsigned total = d->levels ? d->levels : 1;
++    if (need_layer_size || minimal_cmp) {
++        unsigned cap = level < total ? level : UINT32_MAX;
++        uint64_t loff = 0; uint32_t lgobs = 0; unsigned lth = 0, ltd = 0;
++        uint64_t ls = layer_bytes_ex(d, dpl, layered, w, h, z, tileH, tileD, t, sp_lv, cap, &loff, &lgobs, &lth, &ltd);
++        if (minimal_cmp) {
++            uint64_t loff0 = 0; uint32_t lgobs0 = 0; unsigned lth0 = 0, ltd0 = 0;
++            uint64_t one = layer_bytes_ex(d, dpl, layered, w, h, z, 0, 0, t, sp_lv, cap, &loff0, &lgobs0, &lth0, &ltd0);
++            if (one != ls) { tileH = tileD = 0; ls = one; loff = loff0; lgobs = lgobs0; lth = lth0; ltd = ltd0; }
++        }
++        if (level >= total)
++            level_walk_ex(d, level, level, dpl, w, h, z, tileH, tileD, t, sp_lv, &loff, &lgobs, &lth, &ltd);
++        o->layer_size = ls; o->level_offset = loff; o->level_gobs = lgobs; o->tileH = lth; o->tileD = ltd;
++    } else {
++        level_walk_ex(d, level, level, dpl, w, h, z, tileH, tileD, t, sp_lv,
++                      &o->level_offset, &o->level_gobs, &o->tileH, &o->tileD);
++    }
++    return 0;
++}
++
++uint64_t nvn_tex_level_offset(const nvn_texdesc *d, unsigned level) {
++    nvn_tex_level_geom g;
++    return nvn_tex_level_geom_of(d, level, 0, &g) == 0 ? g.level_offset : 0;
+ }
+ 
+ uint32_t nvn_tex_level_gobs(const nvn_texdesc *d, unsigned level) {
+-    fmt_t t = fmt_of(d->format);
+-    unsigned dpl; int layered; uint32_t w, h, z, g = 0;
+-    shape(d, &dpl, &layered, &w, &h, &z);
+-    if (!t.bpb || (d->flags & (0x10 | 0x40)) || d->target == 10) return 0;   // linear (LINEAR / LINEAR_RENDER_TARGET, as nvn_tex_layout): one level at 0
+-    nvn_texlayout L; nvn_tex_layout(d, &L);
+-    level_walk(d, level, dpl, w, h, z, L.tileH, L.tileD, t, &g);
+-    return g;
++    nvn_tex_level_geom g;
++    return nvn_tex_level_geom_of(d, level, 0, &g) == 0 ? g.level_gobs : 0;
+ }
+ 
+ void nvn_tex_level_tiles(const nvn_texdesc *d, unsigned level, unsigned *tileH, unsigned *tileD) {
+-    fmt_t t = fmt_of(d->format);
+-    unsigned dpl; int layered; uint32_t w, h, z;
+-    shape(d, &dpl, &layered, &w, &h, &z);
+-    uint32_t sx, sy; samples_xy(d->samples, &sx, &sy);
+-    nvn_texlayout L; nvn_tex_layout(d, &L);
+-    uint32_t lh = dpl >= 2 ? blk(mip(h * sy, level), t.bh) : 1;
+-    uint32_t ld = dpl >= 3 ? mip(z, level) : 1;
+-    *tileH = adj_tile(L.tileH, 8, lh);
+-    *tileD = adj_tile(L.tileD, 1, ld);
++    nvn_tex_level_geom g;
++    if (nvn_tex_level_geom_of(d, level, 0, &g) == 0) { *tileH = g.tileH; *tileD = g.tileD; }
++    else { *tileH = 0; *tileD = 0; }
+ }
+ 
+ void nvn_tex_sparse_layout(const nvn_texdesc *d, uint32_t tile[4]) {
+-    tile[0] = tile[1] = tile[2] = tile[3] = 0;
+-    fmt_t t = fmt_of(d->format);
+-    unsigned x, y, z;   // NVN's sparse query chooses a 64 KiB page shape by texel size (sparse_page)
+-    if (!sparse_page(d, t, &x, &y, &z)) return;
+-    uint32_t tw = (64 / t.bpb) << x, th = 8u << y, td = 1u << z;
+-    uint32_t sx, sy; samples_xy(d->samples, &sx, &sy);
+-    if (d->samples == 16) sx = sy = 4;
+-    tw /= sx; th /= sy;
+-    if (t.bw >= 2) { tw *= t.bw; th *= t.bh; }
+-    uint32_t w = d->width, h = d->height, depth = d->target == 8 ? 6 : d->depth;
+-    unsigned levels = 0;
+-    while (levels < d->levels && w >= tw && h >= th && depth >= td) {
+-        levels++; w >>= 1; h >>= 1; if (d->target == 2) depth >>= 1;
+-    }
+-    if (levels) { tile[0] = levels; tile[1] = tw; tile[2] = th; tile[3] = td; }
++    sparse_layout_fmt(d, fmt_of(d->format), tile);
+ }
+ 
+ // RewindBox (patch 0024): the tiles of a sparse texture as this file lays it out (level_walk), for nvn_mtl.m's placement sparse textures (later patches), which map and
+@@ -225,7 +274,7 @@ int nvn_tex_sparse_tiles(const nvn_texdesc *d, uint32_t *tw, uint32_t *th, uint3
+     unsigned dpl; int layered; uint32_t w, h, z;
+     shape(d, &dpl, &layered, &w, &h, &z);
+     *tw = *th = *td = 0;
+-    uint32_t q[4]; nvn_tex_sparse_layout(d, q);   // S2Arm: the public query's answer
++    uint32_t q[4]; sparse_layout_fmt(d, t, q);   // S2Arm: the public query's answer
+     if (!sparse_of(d) || !t.bpb || !q[0]) return 0;   // S2Arm: laid out linear (0x40 too, which the query tiles), or no tiled level in the query, so none in level_walk (sparse_levels)
+     uint32_t sx, sy; samples_xy(d->samples, &sx, &sy);
+     nvn_texlayout L; nvn_tex_layout(d, &L);
+diff --git a/graphics/nvn/gfx/nvn/nvn_tex.h b/graphics/nvn/gfx/nvn/nvn_tex.h
+index 095dbf4..dece859 100644
+--- a/graphics/nvn/gfx/nvn/nvn_tex.h
++++ b/graphics/nvn/gfx/nvn/nvn_tex.h
+@@ -20,6 +20,15 @@ uint32_t nvn_tex_level_gobs(const nvn_texdesc *d, unsigned level);   // GOB colu
+ int nvn_fmt_bpb(int format, int *bw, int *bh);   // Bytes per block (0 = unknown format), block width and height
+ // Block height / block depth actually used by level `level` (log2 of the GOB count): the per-level block height shrinks with that level's row count (block rows), and deswizzling uses it level by level
+ void nvn_tex_level_tiles(const nvn_texdesc *d, unsigned level, unsigned *tileH, unsigned *tileD);
++// RewindBox (patch 0443): single-pass level geometry query combining layout, level offset,
++// level GOB columns, and adjusted per-level block height/depth in one format lookup and
++// one mip-chain walk (stopping at `level` when `need_layer_size == 0` and not MINIMAL_LAYOUT).
++typedef struct {
++    uint64_t layer_size, level_offset;
++    uint32_t layers, bpb, bw, bh, level_gobs;
++    unsigned tileH, tileD;
++} nvn_tex_level_geom;
++int nvn_tex_level_geom_of(const nvn_texdesc *d, unsigned level, int need_layer_size, nvn_tex_level_geom *o);
+ // Public sparse query: number of tiled levels, then tile width / height / depth in texels.
+ // The rest of the mip chain is a packed tail. Unsupported sparse targets return four zeros.
+ void nvn_tex_sparse_layout(const nvn_texdesc *d, uint32_t tile[4]);
+diff --git a/graphics/nvn/gfx/tex/nvn_deswizzle.c b/graphics/nvn/gfx/tex/nvn_deswizzle.c
+index 1f40c9b..8aea959 100644
+--- a/graphics/nvn/gfx/tex/nvn_deswizzle.c
++++ b/graphics/nvn/gfx/tex/nvn_deswizzle.c
+@@ -35,22 +35,34 @@ uint64_t nvn_bl_offset(uint32_t x, uint32_t y, uint32_t z, uint32_t row_bytes, u
+ static uint32_t mip(uint32_t s, unsigned l) { s >>= l; return s ? s : 1; }
+ 
+ // Geometry of this level: width-in-blocks byte count, block row count, slice count, and where this level and layer starts in storage; returns -1 for unsupported textures
+-int nvn_deswizzle_geom(const nvn_texdesc *d, unsigned level, unsigned layer,
+-                       uint32_t *row_bytes, uint32_t *rows, uint32_t *slices, uint64_t *base, unsigned *th, unsigned *td, uint32_t *bpb) {
++// RewindBox (patch 0443): single-pass nvn_tex_level_geom_of replaces 4x nvn_tex_layout + 8x nvn_fmt_info_of + 6x level_walk per call.
++int nvn_deswizzle_geom_ex(const nvn_texdesc *d, unsigned level, unsigned layer,
++                          uint32_t *row_bytes, uint32_t *rows, uint32_t *slices,
++                          uint64_t *base, unsigned *th, unsigned *td, uint32_t *bpb,
++                          uint32_t *level_gobs) {
+     if (d->target == 5 || d->target == 6 || d->target == 10 || (d->flags & 0x10) || d->samples > 1) return -1;   // MS / BUFFER / LINEAR
+-    int bw, bh; *bpb = (uint32_t)nvn_fmt_bpb(d->format, &bw, &bh);
+-    if (!*bpb || level >= (d->levels ? d->levels : 1)) return -1;
+-    nvn_texlayout L; nvn_tex_layout(d, &L);
+-    if (layer >= L.layers) return -1;
++    if (level >= (d->levels ? d->levels : 1)) return -1;
++    nvn_tex_level_geom g;
++    if (nvn_tex_level_geom_of(d, level, layer != 0, &g) != 0) return -1;
++    *bpb = g.bpb;
++    if (layer >= g.layers) return -1;
+     int one_d = d->target == 0 || d->target == 3;
+     uint32_t w = mip(d->width, level), h = one_d ? 1 : mip(d->height, level);
+     *slices = d->target == 2 ? mip(d->depth ? d->depth : 1, level) : 1;
+-    *row_bytes = (w + bw - 1) / bw * *bpb; *rows = (h + bh - 1) / bh;
+-    *base = (uint64_t)layer * L.layer_size + nvn_tex_level_offset(d, level);
+-    nvn_tex_level_tiles(d, level, th, td);
++    *row_bytes = (w + g.bw - 1u) / g.bw * g.bpb;
++    *rows = (h + g.bh - 1u) / g.bh;
++    *base = (layer ? (uint64_t)layer * g.layer_size : 0u) + g.level_offset;
++    *th = g.tileH;
++    *td = g.tileD;
++    if (level_gobs) *level_gobs = g.level_gobs;
+     return 0;
+ }
+ 
++int nvn_deswizzle_geom(const nvn_texdesc *d, unsigned level, unsigned layer,
++                       uint32_t *row_bytes, uint32_t *rows, uint32_t *slices, uint64_t *base, unsigned *th, unsigned *td, uint32_t *bpb) {
++    return nvn_deswizzle_geom_ex(d, level, layer, row_bytes, rows, slices, base, th, td, bpb, NULL);
++}
++
+ // 线性排布（LINEAR 0x10 / LINEAR_RENDER_TARGET 0x40，单级 2D，nvn_tex_layout 同口径：行距 = stride 或按 32 / 128 对齐）：逐行拷贝，不是块线性。
+ //   11-09 质量线（#255 / #262）：原先这里对线性贴图直接返回 -1，宿主建不了零拷贝视图的线性贴图（iPhone 行距要 64 字节对齐、行距不够 Metal 要求）走上传路径时内容一字节没传
+ //   （哈迪斯 II iPhone 日志「deswizzle failed format 0x9a target 1」）。行距放不下一行像素（stride < 宽 × 每像素字节）返回 -1，不越界读写
+@@ -178,10 +190,10 @@ static inline void copy_gob_row_partial(uint8_t *gob, uint8_t *row_x, uint32_t r
+ //   S2Arm adaptation: upstream's move has no linear branch. A linear texture has no tiles and no tail, so storage given from a later byte is refused there (-1), never read as from 0
+ static int move(const nvn_texdesc *d, unsigned level, unsigned layer, uint8_t *bl, uint64_t bl_at, uint8_t *lin, size_t pitch, int to_linear) {
+     if ((d->flags & (0x10 | 0x40)) && d->target != 10) return bl_at ? -1 : move_linear(d, level, layer, bl, lin, pitch, to_linear);
+-    uint32_t row_bytes, rows, slices, bpb; uint64_t base; unsigned th, td;
+-    if (nvn_deswizzle_geom(d, level, layer, &row_bytes, &rows, &slices, &base, &th, &td, &bpb)) return -1;
++    uint32_t row_bytes, rows, slices, bpb, level_gobs = 0; uint64_t base; unsigned th, td;
++    if (nvn_deswizzle_geom_ex(d, level, layer, &row_bytes, &rows, &slices, &base, &th, &td, &bpb, &level_gobs)) return -1;
+     if (pitch < row_bytes || base < bl_at) return -1;
+-    bl += base - bl_at; uint32_t lb = nvn_tex_level_gobs(d, level) * 64;   // the row as laid out (padded in a sparse texture's tiled levels)
++    bl += base - bl_at; uint32_t lb = level_gobs * 64u;   // the row as laid out (padded in a sparse texture's tiled levels)
+     if (lb < row_bytes) lb = row_bytes;
+ 
+     const int sw2 = nvn_gob_switch2 != 0;
+@@ -274,6 +286,14 @@ int nvn_swizzle(const nvn_texdesc *d, unsigned level, unsigned layer, const void
+ int nvn_tile_is_zero(const void *tile, size_t n) {
+     const uint8_t *p = (const uint8_t *)tile;
+     size_t i = 0;
++    for (; i + 32 <= n; i += 32) {
++        uint64_t w0, w1, w2, w3;
++        memcpy(&w0, p + i, 8);
++        memcpy(&w1, p + i + 8, 8);
++        memcpy(&w2, p + i + 16, 8);
++        memcpy(&w3, p + i + 24, 8);
++        if ((w0 | w1) | (w2 | w3)) return 0;
++    }
+     for (; i + 8 <= n; i += 8) {
+         uint64_t w;
+         memcpy(&w, p + i, sizeof w);
+diff --git a/graphics/nvn/gfx/tex/nvn_deswizzle.h b/graphics/nvn/gfx/tex/nvn_deswizzle.h
+index 8c72df8..36fd350 100644
+--- a/graphics/nvn/gfx/tex/nvn_deswizzle.h
++++ b/graphics/nvn/gfx/tex/nvn_deswizzle.h
+@@ -32,3 +32,7 @@ extern int nvn_gob_switch2;
+ int nvn_deswizzle_geom(const nvn_texdesc *d, unsigned level, unsigned layer,
+                        uint32_t *row_bytes, uint32_t *rows, uint32_t *slices,
+                        uint64_t *base, unsigned *tileH, unsigned *tileD, uint32_t *bpb);
++int nvn_deswizzle_geom_ex(const nvn_texdesc *d, unsigned level, unsigned layer,
++                          uint32_t *row_bytes, uint32_t *rows, uint32_t *slices,
++                          uint64_t *base, unsigned *tileH, unsigned *tileD, uint32_t *bpb,
++                          uint32_t *level_gobs);
+diff --git a/graphics/nvn/gfx/tex/nvn_deswizzle_gpu.m b/graphics/nvn/gfx/tex/nvn_deswizzle_gpu.m
+index d484ea8..be0cfc9 100644
+--- a/graphics/nvn/gfx/tex/nvn_deswizzle_gpu.m
++++ b/graphics/nvn/gfx/tex/nvn_deswizzle_gpu.m
+@@ -34,12 +34,12 @@ int nvn_deswz_gpu_encode(id<MTLComputeCommandEncoder> enc, id<MTLBuffer> src, ui
+                          const nvn_texdesc *d, unsigned level, unsigned layer,
+                          id<MTLBuffer> dst, uint64_t dst_off, size_t dst_pitch) {
+     if (!g_nvn_deswz_pipeline || !enc || !src || !dst || !d) return -1;
+-    uint32_t row_bytes, rows, slices, bpb;
++    uint32_t row_bytes, rows, slices, bpb, level_gobs = 0;
+     uint64_t base;
+     unsigned th, td;
+-    if (nvn_deswizzle_geom(d, level, layer, &row_bytes, &rows, &slices, &base, &th, &td, &bpb) || dst_pitch < row_bytes) return -1;
++    if (nvn_deswizzle_geom_ex(d, level, layer, &row_bytes, &rows, &slices, &base, &th, &td, &bpb, &level_gobs) || dst_pitch < row_bytes) return -1;
+     struct { uint64_t src_off, dst_off, base, pitch; uint32_t row_bytes, rows, slices, th, td, gobs_x, gob2; } p = {
+-        src_off, dst_off, base, dst_pitch, row_bytes, rows, slices, th, td, MAX(nvn_tex_level_gobs(d, level), (row_bytes + 63u) >> 6), (uint32_t)nvn_gob_switch2   // GOB columns as laid out (nvn_tex_level_gobs); the GOB order
++        src_off, dst_off, base, dst_pitch, row_bytes, rows, slices, th, td, MAX(level_gobs, (row_bytes + 63u) >> 6), (uint32_t)nvn_gob_switch2   // GOB columns as laid out (single-pass nvn_deswizzle_geom_ex); the GOB order
+     };
+     [enc setComputePipelineState:g_nvn_deswz_pipeline];
+     [enc setBuffer:src offset:0 atIndex:0];
+@@ -56,12 +56,12 @@ int nvn_deswz_gpu_encode_m4(id<MTL4ComputeCommandEncoder> enc, id<MTL4ArgumentTa
+                             const nvn_texdesc *d, unsigned level, unsigned layer,
+                             id<MTLBuffer> dst, uint64_t dst_off, size_t dst_pitch) {
+     if (!g_nvn_deswz_pipeline || !enc || !table || !params || !src || !dst || !d) return -1;
+-    uint32_t row_bytes, rows, slices, bpb;
++    uint32_t row_bytes, rows, slices, bpb, level_gobs = 0;
+     uint64_t base;
+     unsigned th, td;
+-    if (nvn_deswizzle_geom(d, level, layer, &row_bytes, &rows, &slices, &base, &th, &td, &bpb) || dst_pitch < row_bytes) return -1;
++    if (nvn_deswizzle_geom_ex(d, level, layer, &row_bytes, &rows, &slices, &base, &th, &td, &bpb, &level_gobs) || dst_pitch < row_bytes) return -1;
+     struct { uint64_t src_off, dst_off, base, pitch; uint32_t row_bytes, rows, slices, th, td, gobs_x, gob2; } p = {
+-        src_off, dst_off, base, dst_pitch, row_bytes, rows, slices, th, td, MAX(nvn_tex_level_gobs(d, level), (row_bytes + 63u) >> 6), (uint32_t)nvn_gob_switch2   // GOB columns as laid out (nvn_tex_level_gobs); the GOB order
++        src_off, dst_off, base, dst_pitch, row_bytes, rows, slices, th, td, MAX(level_gobs, (row_bytes + 63u) >> 6), (uint32_t)nvn_gob_switch2   // GOB columns as laid out (single-pass nvn_deswizzle_geom_ex); the GOB order
+     };
+     memcpy((uint8_t *)params.contents + params_off, &p, sizeof p);
+     [enc setArgumentTable:table];
+-- 
+2.56.0
+

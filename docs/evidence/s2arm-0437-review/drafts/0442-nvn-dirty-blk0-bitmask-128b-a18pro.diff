@@ -1,0 +1,119 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_dirty.c b/graphics/nvn/gfx/nvn/nvn_dirty.c
+index 9a765d6..97dd7c4 100644
+--- a/graphics/nvn/gfx/nvn/nvn_dirty.c
++++ b/graphics/nvn/gfx/nvn/nvn_dirty.c
+@@ -61,9 +61,32 @@ enum { BLK_SHIFT = 10, BLK = 1 << BLK_SHIFT, NBLK = 256, MAX_RANGE = BLK * NBLK
+ // RewindBox (patch 0025): sparse: per page, protected for a placement sparse tile (nvn_dirty_protect_sparse; seedds/nxnative 1d4b8e82, dm/gfx/nvn/nvn_dirty.c:31 at 0c078130, MIT,
+ //   Copyright (c) 2026 seedds). ovl (S2Arm adaptation): the pool overlaps another live one past the host page adjacent pools share, so find_span never answers it from its cache
+ enum { RB_DIRTY_STRIPES = 64, RB_DIRTY_STRIPE_MIN_PAGES = 128 };
+-typedef struct { _Atomic uint64_t wseq; _Atomic uint32_t wbusy; } rb_dirty_stripe;
+-typedef struct { uintptr_t base, end, mem; _Atomic uint8_t *state; _Atomic uint64_t *gen; _Atomic(_Atomic uint8_t *) sparse; size_t cap; _Atomic int live; _Atomic uint8_t ovl;
+-                 _Atomic uint64_t wseq; _Atomic uint32_t wbusy; rb_dirty_stripe *stripes; _Atomic uint8_t stripe_shift; _Atomic uint8_t use_stripes; } range_t;   // RewindBox (patch 0320/0425): wseq / wbusy + per-stripe wseq/wbusy for large pools (>=128 pages)
++// RewindBox (patch 0442): pad range_t to exact 128B power-of-two (1 A18 Pro cache line per pool,
++// turning span_slot()'s 64-bit modulo into (o & 127)), while keeping rb_dirty_stripe compact
++// (16B -> all 64 stripes fit in 1 KiB = 8 A18 Pro cache lines; 128B stripe padding was tested
++// and rejected due to +15.4% L1d misses on sequential texture scans).
++typedef struct {
++    _Atomic uint64_t wseq;
++    _Atomic uint32_t wbusy;
++} rb_dirty_stripe;
++typedef struct {
++    // Hot read-path cache line (bytes 0..63): everything touched by nvn_dirty_range_writes & nvn_dirty_since_cached
++    uintptr_t base, end;
++    _Atomic uint64_t *gen;
++    rb_dirty_stripe *stripes;
++    _Atomic uint64_t wseq;
++    _Atomic int live;
++    _Atomic uint32_t wbusy;
++    _Atomic uint8_t ovl, stripe_shift, use_stripes;
++    uint8_t pad0_[13];
++    // Cold management/fault fields (bytes 64..127): pads range_t to exact 128B power-of-two (1 A18 Pro cache line)
++    uintptr_t mem;
++    _Atomic uint8_t *state;
++    _Atomic(_Atomic uint8_t *) sparse;
++    size_t cap;
++    uint8_t pad1_[32];
++} range_t;   // RewindBox (patch 0320/0425/0442): hot64+cold64 = 128B power-of-two range_t
++_Static_assert(sizeof(range_t) == 128, "range_t must be 128B power-of-two for bitmask span_slot");
+ static _Atomic(range_t *) g_blk[NBLK];
+ static inline range_t *rg(int i) { return &atomic_load_explicit(&g_blk[i >> BLK_SHIFT], memory_order_acquire)[i & (BLK - 1)]; }
+ static _Atomic int g_nr;
+@@ -750,11 +773,23 @@ uint64_t nvn_dirty_now(void) { return atomic_load(&g_now); }
+ //   Kart World race). nvn_dirty_since_span is it with the caller's handle, as upstream. S2Arm adaptations: the "tracking unreliable" answer (written) stays; and a kept handle is
+ //   used only while it is a slot of the current range table (span_slot), as nvn_dirty_reset_session frees the table and a handle kept in a thread-local (229fc22c's
+ //   hle_nvn.c t_rw_span) can outlive it. A handle nvn_dirty_span gave in this session always passes, so nvn_dirty_since_span answers as before
+-static range_t *span_slot(const void *h) {
+-    int n = atomic_load(&g_nr);
+-    for (int b = 0; h && b < NBLK && (b << BLK_SHIFT) < n; b++) {
+-        range_t *blk = atomic_load_explicit(&g_blk[b], memory_order_acquire); uintptr_t o = (uintptr_t)h - (uintptr_t)blk;
+-        if (blk && (uintptr_t)h >= (uintptr_t)blk && o < BLK * sizeof *blk && o % sizeof *blk == 0) return (range_t *)h;
++static inline range_t *span_slot(const void *h) {
++    if (!h) return NULL;
++    // RewindBox (patch 0442): O(1) 6-instruction fast path for pools 0..1023 (g_blk[0]) using
++    // power-of-two 128B range_t bitmask alignment and unsigned wrap range check.
++    range_t *b0 = atomic_load_explicit(&g_blk[0], memory_order_acquire);
++    if (__builtin_expect(b0 != NULL, 1)) {
++        uintptr_t o = (uintptr_t)h - (uintptr_t)b0;
++        if (__builtin_expect(o < BLK * sizeof *b0 && (o & (sizeof *b0 - 1u)) == 0, 1))
++            return (range_t *)h;
++    }
++    int n = atomic_load_explicit(&g_nr, memory_order_acquire);
++    for (int b = 1; b < NBLK && (b << BLK_SHIFT) < n; b++) {
++        range_t *blk = atomic_load_explicit(&g_blk[b], memory_order_acquire);
++        if (!blk) continue;
++        uintptr_t o = (uintptr_t)h - (uintptr_t)blk;
++        if (o < BLK * sizeof *blk && (o & (sizeof *blk - 1u)) == 0)
++            return (range_t *)h;
+     }
+     return NULL;
+ }
+@@ -763,9 +798,10 @@ int nvn_dirty_since_cached(const void **span, const void *addr, size_t len, uint
+     range_t *r = span_slot(*span); uintptr_t a = (uintptr_t)addr;
+     if (!r || !atomic_load_explicit(&r->live, memory_order_acquire) || a < r->base || a + len > r->end) { r = find_span(a, len); *span = r; }
+     if (!r) return 1;   // When untracked, conservatively treat as dirty: better to upload more than to show stale content
+-    if (atomic_load(&g_track_unreliable)) return 1;   // 有保护失败过：一律视为脏，不靠旧代际比较
++    if (atomic_load_explicit(&g_track_unreliable, memory_order_relaxed)) return 1;   // 有保护失败过：一律视为脏，不靠旧代际比较
+     uintptr_t p = (a - r->base) >> g_shift, q = (a + len - 1 - r->base) >> g_shift;
+-    for (uintptr_t i = p; i <= q; i++) if (atomic_load(&r->gen[i]) > stamp) return 1;   // The generation of the last write before upload is <= the stamp; any later write must be > the stamp
++    const _Atomic uint64_t *gen = r->gen;
++    for (uintptr_t i = p; i <= q; i++) if (atomic_load_explicit(&gen[i], memory_order_acquire) > stamp) return 1;   // The generation of the last write before upload is <= the stamp; any later write must be > the stamp
+     return 0;
+ }
+ int nvn_dirty_since_span(const void *span, const void *addr, size_t len, uint64_t stamp) { return nvn_dirty_since_cached(&span, addr, len, stamp); }
+@@ -779,7 +815,7 @@ uint64_t nvn_dirty_range_writes(const void **span, const void *addr, size_t len)
+     if (!len || atomic_load_explicit(&g_wseq_on, memory_order_relaxed) <= 0) return 0;
+     range_t *r = span_slot(*span); uintptr_t a = (uintptr_t)addr;
+     if (!r || !atomic_load_explicit(&r->live, memory_order_acquire) || a < r->base || a + len > r->end) { r = find_span(a, len); *span = r; }
+-    if (!r || atomic_load(&g_track_unreliable) || atomic_load(&r->ovl)) return 0;
++    if (!r || atomic_load_explicit(&g_track_unreliable, memory_order_relaxed) || atomic_load_explicit(&r->ovl, memory_order_acquire)) return 0;
+     if (a + len <= r->base + g_pg || a + g_pg >= r->end) return 0;   // wholly inside the first or the last host page
+     uint64_t w;
+     if (atomic_load_explicit(&r->use_stripes, memory_order_acquire) && r->stripes) {
+@@ -787,15 +823,20 @@ uint64_t nvn_dirty_range_writes(const void **span, const void *addr, size_t len)
+         const unsigned sh = atomic_load_explicit(&r->stripe_shift, memory_order_relaxed);
+         uintptr_t s0 = p >> sh, s1 = q >> sh;
+         if (s1 >= RB_DIRTY_STRIPES) s1 = RB_DIRTY_STRIPES - 1;
+-        w = 0;
+-        for (uintptr_t s = s0; s <= s1; s++) {
+-            if (atomic_load_explicit(&r->stripes[s].wbusy, memory_order_acquire)) return 0;
+-            const uint64_t v = atomic_load_explicit(&r->stripes[s].wseq, memory_order_acquire);
+-            if (v > w) w = v;
++        if (s0 == s1) {
++            if (atomic_load_explicit(&r->stripes[s0].wbusy, memory_order_acquire)) return 0;
++            w = atomic_load_explicit(&r->stripes[s0].wseq, memory_order_acquire);
++        } else {
++            w = 0;
++            for (uintptr_t s = s0; s <= s1; s++) {
++                if (atomic_load_explicit(&r->stripes[s].wbusy, memory_order_acquire)) return 0;
++                const uint64_t v = atomic_load_explicit(&r->stripes[s].wseq, memory_order_acquire);
++                if (v > w) w = v;
++            }
+         }
+     } else {
+-        if (atomic_load(&r->wbusy)) return 0;   // read before wseq: an unprotect that began earlier either shows here or has stored its generations and its count
+-        w = atomic_load(&r->wseq);
++        if (atomic_load_explicit(&r->wbusy, memory_order_acquire)) return 0;   // read before wseq: an unprotect that began earlier either shows here or has stored its generations and its count
++        w = atomic_load_explicit(&r->wseq, memory_order_acquire);
+     }
+     return atomic_load_explicit(&r->live, memory_order_acquire) ? w : 0;
+ }

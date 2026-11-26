@@ -1,0 +1,146 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index de90645..aea9e10 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -81,6 +81,7 @@ static inline uint64_t tex_slot_h(const uint64_t *tex, const uint64_t *img, unsi
+ static uint64_t c2_handle(int stage, unsigned b);   // the handle c2 holds at byte b (defined with the draw state, TEXA / SAMPA)
+ #include "nvn_hmap.h"
+ #include "rb_draw_fast_rule.h"
++#include "rb_pass_cut_rule.h"
+ #include "../../host/dm.h"
+ #include "../../../../runtime/include/s2a_lowva.h"   // #357: unreferenced shared textures give memory back to the low-region ledger (alias_orph_evict)
+ #import <CommonCrypto/CommonDigest.h>
+@@ -27141,15 +27142,25 @@ int nvn_be_fps_target(void) { int env = fps_override(); return env > 0 ? env : n
+ // submit returns, and a game may reuse the copy's source right after. Catherine: Full Body's resource thread writes the next texture into the staging block 64 ms after the main thread
+ // recorded a copy from it (main+0x305e64, frame start) and before that frame's submit had even returned: the host was building pipelines inside the submit for 300 ms, and committed the
+ // copy only at its end, so the subtitle band's gradient (BC3, 32x512) came out as the next texture's blocks. Committed at the first pass boundary, the copies run while the host encodes the rest
+-static int cut_draws(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_NVN_CUT"); v = e ? atoi(e) : 64; MLOG("segmented submission: a segment is submitted between passes every %d draws (DM_NVN_CUT, 0 = off)", v); } return v; }
++static int g_cut_draws_explicit;
++static int cut_draws(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_NVN_CUT"); g_cut_draws_explicit = (e != NULL && *e != 0); v = e ? atoi(e) : 64; MLOG("segmented submission: a segment is submitted between passes every %d draws (DM_NVN_CUT, 0 = off)", v); } return v; }
++static int rb_pass_cut_scale(void) { static int v = -1; if (v < 0) v = rb_pass_cut_scale_env(getenv("S2A_RB_PASS_CUT_SCALE")); return v; }
++static int rb_pass_cut_draws_active(void) {
++    int base = cut_draws();
++    if (base <= 0 || !g_enc) return base;
++    int nc = 0, hd = 0;
++    uint64_t bytes = rb_pass_footprint_bytes(g_pass.cfmt, g_pass.dfmt, g_pass.sfmt, g_pass.samples,
++                                             (uint64_t)g_pass.tw, (uint64_t)g_pass.th, &nc, &hd);
++    return rb_pass_cut_draws_ex(base, g_cut_draws_explicit, rb_pass_cut_scale(), nc, hd, bytes);
++}
+ static uint64_t g_cut_draw0, g_cuts, g_copy_cuts, g_cut_busy;   // g_cut_busy: boundaries kept without a commit (GPU still busy)
+ // The count starts with the submission (nvn_be_sub_begin; upstream reference implementation, MIT). It used to start at the submission's first sub_cut, which only a render target change reaches (OP_SET_RT):
+ // the draws a submission makes into the target it inherited, before its first target change, were never counted, and the first segment came that many draws late
+ static int rb_next_draw_may_cut(void) {
+     // The current draw is counted after its PSO lookup. The following recorded
+     // draw calls sub_cut_pass before it chooses its actual attachments.
+-    int limit=cut_draws();
+-    return limit>0 && g_stat_draw-g_cut_draw0>=(uint64_t)(limit-1);
++    int limit = g_enc ? rb_pass_cut_draws_active() : cut_draws();
++    return limit > 0 && g_stat_draw - g_cut_draw0 >= (uint64_t)(limit - 1);
+ }
+ static void sub_cut_begin(void) { g_cut_draw0 = g_stat_draw; }
+ // Segment times without the segments (upstream reference implementation, MIT). A report in segment mode takes the GPU start or end of the segment it fell in, and what a game's controller makes of those depends on where the boundaries lie.
+@@ -27239,12 +27250,13 @@ static void sub_cut(void) {
+ //   不拆：合并 / 提前 / 推迟中的遍（g_fz、g_hoist_n、g_defer_*：它们的跳过表跨编码器边界就错），与 sub_cut 自己的守卫一致。DM_NVN_CUT=0 时同样关闭
+ static uint64_t g_pass_cuts;   // 遍内切段次数（hle_nvn.c 的 split submits 行）
+ static void sub_cut_pass(void) {   // 一笔绘制之前（nvn_be_exec 的 OP_DRAW / OP_DRAW_IDX）
+-    int n = cut_draws();
+-    if (!g_enc || !g_cb || n <= 0 || g_stat_draw - g_cut_draw0 < (uint64_t)n) return;
++    if (!g_enc || !g_cb) return;
++    int n = rb_pass_cut_draws_active();
++    if (n <= 0 || g_stat_draw - g_cut_draw0 < (uint64_t)n) return;
+     if (atomic_load_explicit(&g_seg_inflight, memory_order_relaxed) > 0) return;
+     if (g_hoist_n || g_defer_nact || g_defer_pend || g_fz.active) return;
+     uint64_t c0 = g_cuts; rb_rp_end_at(__func__, __LINE__); sub_cut();
+-    if (g_cuts != c0 && !g_pass_cuts++) MLOG("segmented submission: first segment submitted inside a draw pass at frame %llu pass %llu (the GPU had run out of work)", (unsigned long long)atomic_load(&g_cur_frame), (unsigned long long)g_stat_pass);
++    if (g_cuts != c0 && !g_pass_cuts++) MLOG("segmented submission: first segment submitted inside a draw pass at frame %llu pass %llu (the GPU had run out of work, mid-pass threshold=%d)", (unsigned long long)atomic_load(&g_cur_frame), (unsigned long long)g_stat_pass, n);
+ }
+ uint64_t nvn_be_pass_cut_count(void) { return g_pass_cuts; }
+ uint64_t nvn_be_cut_count(void) { return g_cuts; }
+diff --git a/graphics/nvn/gfx/nvn/rb_pass_cut_rule.h b/graphics/nvn/gfx/nvn/rb_pass_cut_rule.h
+new file mode 100644
+index 0000000..5cb6061
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_pass_cut_rule.h
+@@ -0,0 +1,82 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0440): Apple A18 Pro TBDR attachment-footprint-scaled mid-pass cut policy.
++//
++// Between-pass sub_cut() has ZERO extra attachment traffic and stays at DM_NVN_CUT (default 64).
++// Inside an open render pass (sub_cut_pass), ending and reopening the encoder forces Apple9 TBDR
++// to Store every active color/depth/stencil tile to LPDDR5X and Load it back on the next draw
++// (2x attachment footprint per split: e.g., 72 MiB DRAM round-trip per split on a 4-MRT + D32F
++// 1440x810 G-buffer at 60 GB/s peak bandwidth = ~1.2-2.4 ms wasted DRAM bandwidth + tile stalls).
++//
++// Policy:
++//   - DM_NVN_CUT=0: disabled (returns 0).
++//   - Explicit DM_NVN_CUT env override (e.g. t_nvn_cut_inpass.m DM_NVN_CUT=4) or tiny targets
++//     (< 1 MiB with <= 1 attachment): returns base_cut unchanged.
++//   - S2A_RB_PASS_CUT_SCALE=1: restores unscaled mid-pass cuts; 2..16 forces a fixed multiplier.
++//   - Default: scales mid-pass cut threshold by active attachment footprint & MRT count:
++//       * >= 24 MiB or >= 4 attachments: 8x (512 draws)
++//       * >= 10 MiB or >= 2 attachments: 6x (384 draws)
++//       * >=  1 MiB:                     4x (256 draws)
++#pragma once
++#include <stdint.h>
++#include <stdlib.h>
++
++static inline int rb_pass_cut_scale_env(const char *env) {
++    if (!env || !*env) return 0;
++    int v = atoi(env);
++    if (v <= 0) return 0;
++    if (v > 16) return 16;
++    return v;
++}
++
++static inline int rb_pass_cut_draws_ex(int base_cut, int explicit_cut, int scale_override,
++                                       int n_color, int has_depth, uint64_t att_bytes) {
++    if (base_cut <= 0) return 0;
++    if (explicit_cut || scale_override == 1) return base_cut;
++    if (scale_override >= 2) {
++        int64_t scaled = (int64_t)base_cut * (int64_t)scale_override;
++        return scaled > 4096 ? 4096 : (int)scaled;
++    }
++    const int n_att = (n_color > 0 ? n_color : 0) + (has_depth ? 1 : 0);
++    int mult = 1;
++    if (att_bytes >= (UINT64_C(24) << 20) || n_att >= 4) mult = 8;
++    else if (att_bytes >= (UINT64_C(10) << 20) || n_att >= 2) mult = 6;
++    else if (att_bytes >= (UINT64_C(1) << 20)) mult = 4;
++    int64_t scaled = (int64_t)base_cut * (int64_t)mult;
++    return scaled > 4096 ? 4096 : (int)scaled;
++}
++
++static inline int rb_pass_cut_draws(int base_cut, int n_color, int has_depth, uint64_t att_bytes) {
++    return rb_pass_cut_draws_ex(base_cut, 0, 0, n_color, has_depth, att_bytes);
++}
++
++// Conservative bytes-per-pixel estimate for common Metal render-target pixel formats
++// (values match MTLPixelFormat enum constants in Metal/MTLPixelFormat.h).
++static inline uint64_t rb_pass_mtl_bpp(uint32_t pf) {
++    switch (pf) {
++        case 0: return 0;
++        case 1: case 10: case 11: case 12: case 13: case 14: case 253: return 1; // A8 / R8 / Stencil8
++        case 20: case 22: case 23: case 24: case 25: case 30: case 31: case 32: case 33: case 34:
++        case 40: case 41: case 42: case 43: case 250: return 2; // R16 / RG8 / B5G6R5 / Depth16
++        case 110: case 112: case 113: case 114: case 115: case 103: case 104: case 105:
++        case 260: return 8; // RG32 / RGBA16 / Depth32_Stencil8
++        case 123: case 124: case 125: return 16; // RGBA32
++        default: return 4; // RGBA8 / BGRA8 / RGB10A2 / RG11B10F / R32 / Depth32Float
++    }
++}
++
++static inline uint64_t rb_pass_footprint_bytes(const uint32_t cfmt[8], uint32_t dfmt, uint32_t sfmt,
++                                               uint32_t samples, uint64_t w, uint64_t h,
++                                               int *n_color_out, int *has_depth_out) {
++    int nc = 0;
++    uint64_t bpp = 0;
++    for (int i = 0; i < 8; i++) {
++        if (cfmt[i]) { nc++; bpp += rb_pass_mtl_bpp(cfmt[i]); }
++    }
++    int hd = (dfmt != 0 || sfmt != 0) ? 1 : 0;
++    if (dfmt) bpp += rb_pass_mtl_bpp(dfmt);
++    if (sfmt && sfmt != dfmt) bpp += rb_pass_mtl_bpp(sfmt);
++    if (n_color_out) *n_color_out = nc;
++    if (has_depth_out) *has_depth_out = hd;
++    uint64_t ms = samples > 1 ? (uint64_t)samples : 1ull;
++    return w * h * bpp * ms;
++}

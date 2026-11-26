@@ -1,0 +1,326 @@
+diff --git a/graphics/nvn/gfx/nvn/rb_ubo_versions.h b/graphics/nvn/gfx/nvn/rb_ubo_versions.h
+index f5e4031..8324275 100644
+--- a/graphics/nvn/gfx/nvn/rb_ubo_versions.h
++++ b/graphics/nvn/gfx/nvn/rb_ubo_versions.h
+@@ -42,28 +42,31 @@ typedef struct {
+     uint32_t owner_slot;
+     uint32_t reserved;
+     uint64_t valid_mask; // bit w = (valid[w] != 0); RB_UB_VALID_WORDS == 64
++    uint64_t valid[RB_UB_VALID_WORDS]; // validity words next to the page header
+     uint8_t bytes[RB_UB_PAGE];
+-    uint64_t valid[RB_UB_VALID_WORDS];
+ } rb_ub_page;
+ 
++// RewindBox (patch 0438): split hot 64-byte frame headers from cold hazard spans (8 KiB/frame)
++// and page hash tables (512 B/frame) so all 64 frame headers fit in 4 KiB and can be scanned
++// without walking the spans for unrelated submissions.
+ typedef struct {
+     struct rb_ub_versions_s *ring;
+     uint64_t fence, generation;
+     uint64_t page_min, page_max, page_bloom;
+-    unsigned opq_n;
+-    unsigned trn_n;
+-    unsigned page_count;
+-    int unknown;
+-    // opq grows up from spans[0..opq_n), trn grows down from spans[RB_UB_SPANS-trn_n..RB_UB_SPANS).
+-    // Both halves are strictly sorted by lo, disjoint, and non-adjacent.
+-    rb_ub_span spans[RB_UB_SPANS];
+-    uint16_t page_ht[RB_UB_HT_SIZE]; // 0 = empty, otherwise pool index + 1
++    uint32_t opq_n;
++    uint32_t trn_n;
++    uint16_t page_count;
++    uint16_t slot;
++    int32_t unknown;
+ } rb_ub_frame;
+ 
+ typedef struct rb_ub_versions_s {
+     uint64_t next_gen;
+     uint32_t pool_cursor;
+     rb_ub_frame frames[RB_UB_FRAMES];
++    uint16_t page_ht[RB_UB_FRAMES][RB_UB_HT_SIZE]; // 0 = empty, otherwise pool index + 1
++    // opq grows up from spans[slot][0..opq_n), trn grows down from spans[slot][RB_UB_SPANS-trn_n..RB_UB_SPANS).
++    rb_ub_span spans[RB_UB_FRAMES][RB_UB_SPANS];
+     rb_ub_page pool[RB_UB_POOL_PAGES];
+ } rb_ub_versions;
+ 
+@@ -71,26 +74,34 @@ static inline uint64_t rb_ub_page_hash(uint64_t page) {
+     return page * UINT64_C(11400714819323198485);
+ }
+ 
++// RewindBox (patch 0438): Test two bits before probing the page table.
+ static inline uint64_t rb_ub_page_bloom_bit(uint64_t h) {
+-    return UINT64_C(1) << ((h >> 58) & 63u);
++    return (UINT64_C(1) << ((h >> 58) & 63u)) | (UINT64_C(1) << ((h >> 52) & 63u));
+ }
+ 
++// RewindBox (patch 0438): lazy valid[] initialization keyed by valid_mask eliminates the
++// 512-byte memset(p->valid, 0, sizeof p->valid) on every rb_ub_alloc_page().
+ static inline void rb_ub_mark_valid(rb_ub_page *p, unsigned offset, size_t n) {
+     unsigned end = offset + (unsigned)n;
+     unsigned w0 = offset >> 6, b0 = offset & 63;
+     unsigned w1 = (end - 1) >> 6, b1 = (end - 1) & 63;
+-    p->valid_mask |= (~UINT64_C(0) >> (63 - (w1 - w0))) << w0;
++    uint64_t old_mask = p->valid_mask;
++    p->valid_mask = old_mask | ((~UINT64_C(0) >> (63 - (w1 - w0))) << w0);
+     if (w0 == w1) {
+-        p->valid[w0] |= (~UINT64_C(0) >> (63 - (b1 - b0))) << b0;
++        uint64_t bits = (~UINT64_C(0) >> (63 - (b1 - b0))) << b0;
++        p->valid[w0] = (old_mask & (UINT64_C(1) << w0)) ? (p->valid[w0] | bits) : bits;
+         return;
+     }
+-    p->valid[w0] |= (~UINT64_C(0) << b0);
++    uint64_t head = ~UINT64_C(0) << b0;
++    p->valid[w0] = (old_mask & (UINT64_C(1) << w0)) ? (p->valid[w0] | head) : head;
+     for (unsigned w = w0 + 1; w < w1; ++w) p->valid[w] = ~UINT64_C(0);
+-    p->valid[w1] |= (~UINT64_C(0) >> (63 - b1));
++    uint64_t tail = ~UINT64_C(0) >> (63 - b1);
++    p->valid[w1] = (old_mask & (UINT64_C(1) << w1)) ? (p->valid[w1] | tail) : tail;
+ }
+ 
+ static rb_ub_frame *rb_ub_begin(rb_ub_versions *ring, uint64_t fence) {
+-    rb_ub_frame *frame = &ring->frames[fence % RB_UB_FRAMES];
++    unsigned slot = (unsigned)(fence % RB_UB_FRAMES);
++    rb_ub_frame *frame = &ring->frames[slot];
+     // Fence numbers may restart when a session is reset. A ring-wide monotonic
+     // generation describes this specific opening of the slot.
+     if (++ring->next_gen == 0) {
+@@ -106,8 +117,9 @@ static rb_ub_frame *rb_ub_begin(rb_ub_versions *ring, uint64_t fence) {
+     frame->opq_n = 0;
+     frame->trn_n = 0;
+     frame->page_count = 0;
++    frame->slot = (uint16_t)slot;
+     frame->unknown = 0;
+-    memset(frame->page_ht, 0, sizeof frame->page_ht);
++    memset(ring->page_ht[slot], 0, sizeof ring->page_ht[slot]);
+     return frame;
+ }
+ 
+@@ -132,11 +144,12 @@ static inline unsigned rb_ub_lb_hi_gt(const rb_ub_span *arr, unsigned n, uint64_
+ }
+ 
+ static void rb_ub_record_hazard(rb_ub_frame *f, uint64_t lo, uint64_t size, int transfer) {
+-    if (!f || f->unknown) return;
++    if (!f || !f->ring || f->unknown) return;
+     if (!size || size > UINT64_MAX - lo) { f->unknown = 1; return; }
+     uint64_t hi = lo + size;
++    rb_ub_span *const fspans = f->ring->spans[f->slot];
+     if (!transfer) {
+-        rb_ub_span *arr = f->spans;
++        rb_ub_span *arr = fspans;
+         unsigned n = f->opq_n;
+         unsigned k = rb_ub_lb_hi_ge(arr, n, lo);
+         if (k < n && arr[k].lo <= lo && hi <= arr[k].hi) return;
+@@ -155,7 +168,7 @@ static void rb_ub_record_hazard(rb_ub_frame *f, uint64_t lo, uint64_t size, int
+         f->opq_n = new_n;
+     } else {
+         unsigned n = f->trn_n;
+-        rb_ub_span *arr = f->spans + (RB_UB_SPANS - n);
++        rb_ub_span *arr = fspans + (RB_UB_SPANS - n);
+         unsigned k = rb_ub_lb_hi_ge(arr, n, lo);
+         if (k < n && arr[k].lo <= lo && hi <= arr[k].hi) return;
+         unsigned m = k;
+@@ -166,7 +179,7 @@ static void rb_ub_record_hazard(rb_ub_frame *f, uint64_t lo, uint64_t size, int
+         }
+         unsigned new_n = n - (m - k) + 1;
+         if (f->opq_n + new_n > RB_UB_SPANS) { f->unknown = 1; return; }
+-        rb_ub_span *dst = f->spans + (RB_UB_SPANS - new_n);
++        rb_ub_span *dst = fspans + (RB_UB_SPANS - new_n);
+         if (dst != arr && k > 0)
+             memmove(dst, arr, (size_t)k * sizeof arr[0]);
+         dst[k].lo = lo;
+@@ -187,7 +200,7 @@ static inline void rb_ub_transfer(rb_ub_frame *f, uint64_t lo, uint64_t size) {
+ static void rb_ub_overwrite_transfers(rb_ub_frame *f, uint64_t lo, uint64_t hi) {
+     unsigned n = f->trn_n;
+     if (!n) return;
+-    rb_ub_span *arr = f->spans + (RB_UB_SPANS - n);
++    rb_ub_span *arr = f->ring->spans[f->slot] + (RB_UB_SPANS - n);
+     if (hi <= arr[0].lo || lo >= arr[n - 1].hi) return;
+     unsigned k = rb_ub_lb_hi_gt(arr, n, lo);
+     if (k >= n || arr[k].lo >= hi) return;
+@@ -259,24 +272,37 @@ static int rb_ub_alloc_page(rb_ub_frame *f, uint64_t page) {
+     p->owner_slot = slot_self;
+     p->page = page;
+     p->valid_mask = 0;
+-    memset(p->valid, 0, sizeof p->valid);
+     return pick;
+ }
++static inline rb_ub_page *rb_ub_find_page_at(rb_ub_frame *f, uint64_t page, unsigned slot) {
++    rb_ub_versions *const ring = f->ring;
++    rb_ub_page *const pool = ring->pool;
++    const uint16_t *const ht = ring->page_ht[f->slot];
++    const uint64_t gen = f->generation;
++    for (unsigned i = 0; i < RB_UB_HT_SIZE; ++i) {
++        uint16_t ent = ht[(slot + i) & (RB_UB_HT_SIZE - 1)];
++        if (!ent) return NULL;
++        rb_ub_page *p = &pool[ent - 1];
++        if (p->owner_gen == gen && p->page == page) return p;
++    }
++    return NULL;
++}
+ static rb_ub_page *rb_ub_find_page(rb_ub_frame *f, uint64_t page, int create) {
+     if (!f || !f->ring) return NULL;
+     uint64_t h = rb_ub_page_hash(page);
+     uint64_t bit = rb_ub_page_bloom_bit(h);
+-    if (!create && (!f->page_count || page < f->page_min || page > f->page_max || !(f->page_bloom & bit)))
++    if (!create && (!f->page_count || page < f->page_min || page > f->page_max || (f->page_bloom & bit) != bit))
+         return NULL;
++    uint16_t *const ht = f->ring->page_ht[f->slot];
+     unsigned slot = (unsigned)(h >> 56) & (RB_UB_HT_SIZE - 1);
+     for (unsigned i = 0; i < RB_UB_HT_SIZE; ++i) {
+         unsigned pos = (slot + i) & (RB_UB_HT_SIZE - 1);
+-        uint16_t ent = f->page_ht[pos];
++        uint16_t ent = ht[pos];
+         if (!ent) {
+             if (!create) return NULL;
+             int idx = rb_ub_alloc_page(f, page);
+             if (idx < 0) return NULL;
+-            f->page_ht[pos] = (uint16_t)(idx + 1);
++            ht[pos] = (uint16_t)(idx + 1);
+             f->page_count++;
+             if (page < f->page_min) f->page_min = page;
+             if (page > f->page_max) f->page_max = page;
+@@ -336,22 +362,103 @@ static int rb_ub_base_ex(rb_ub_versions *ring, uint64_t done, uint64_t latest,
+     size_t missing = rb_ub_count_missing(have, len);
+     uint64_t lo_page = lo / RB_UB_PAGE;
+     uint64_t hi_page = (hi - 1) / RB_UB_PAGE;
+-    uint64_t single_bit = lo_page == hi_page ? rb_ub_page_bloom_bit(rb_ub_page_hash(lo_page)) : 0;
++    uint64_t single_h = lo_page == hi_page ? rb_ub_page_hash(lo_page) : 0;
++    uint64_t single_bit = lo_page == hi_page ? rb_ub_page_bloom_bit(single_h) : 0;
++    unsigned single_slot = (unsigned)(single_h >> 56) & (RB_UB_HT_SIZE - 1);
+     // For a single page, the requested slice of each 64-byte word is fixed
+     // across fences. Once supplied by newer writes, older versions cannot
+     // contribute to that slice. The per-byte hazard checks still run first.
+     uint64_t filled_words = 0;
++    const unsigned sp_off = (unsigned)(lo & (RB_UB_PAGE - 1));
++    const unsigned sp_end = sp_off + (unsigned)len;
++    const unsigned sp_w0 = sp_off >> 6, sp_w1 = (sp_end - 1) >> 6;
++    const uint64_t sp_wmask = single_bit ? ((~UINT64_C(0) >> (63 - (sp_w1 - sp_w0))) << sp_w0) : 0;
++    uint64_t sp_zero_words = (single_bit && missing == len) ? sp_wmask : 0;
+     for (uint64_t fence = latest; fence > done && missing; --fence) {
+-        rb_ub_frame *f = &ring->frames[fence % RB_UB_FRAMES];
++        unsigned fslot = (unsigned)(fence & (RB_UB_FRAMES - 1));
++        rb_ub_frame *f = &ring->frames[fslot];
+         if (f->fence != fence) { if (why) *why = RB_UB_FAIL_WRAP; return 0; }
+         if (f->unknown) { if (why) *why = RB_UB_FAIL_UNKNOWN; return 0; }
+-        if (rb_ub_spans_hit(f->spans, f->opq_n, lo, hi, have) ||
+-            rb_ub_spans_hit(f->spans + (RB_UB_SPANS - f->trn_n), f->trn_n, lo, hi, have)) {
+-            if (why) *why = RB_UB_FAIL_OPAQUE;
+-            return 0;
++        if (__builtin_expect((f->opq_n | f->trn_n) != 0, 0)) {
++            const rb_ub_span *fspans = ring->spans[fslot];
++            if (rb_ub_spans_hit(fspans, f->opq_n, lo, hi, have) ||
++                rb_ub_spans_hit(fspans + (RB_UB_SPANS - f->trn_n), f->trn_n, lo, hi, have)) {
++                if (why) *why = RB_UB_FAIL_OPAQUE;
++                return 0;
++            }
+         }
+         if (!f->page_count || hi_page < f->page_min || lo_page > f->page_max ||
+-            (single_bit && !(f->page_bloom & single_bit))) continue;
++            (single_bit && (f->page_bloom & single_bit) != single_bit)) continue;
++        if (single_bit) {
++            rb_ub_page *p = rb_ub_find_page_at(f, lo_page, single_slot);
++            if (!p) continue;
++            uint64_t wm = p->valid_mask & sp_wmask & ~filled_words;
++            while (wm) {
++                unsigned w = (unsigned)__builtin_ctzll(wm);
++                wm &= wm - 1;
++                uint64_t m = p->valid[w];
++                unsigned b_lo = w == sp_w0 ? (sp_off & 63) : 0;
++                unsigned b_hi = w == sp_w1 ? ((sp_end - 1) & 63) : 63;
++                uint64_t slice = (~UINT64_C(0) >> (63 - (b_hi - b_lo))) << b_lo;
++                m &= slice;
++                if (!m) continue;
++                size_t word_base = (size_t)(w << 6);
++                if (m == slice) {
++                    uint64_t wbit = UINT64_C(1) << w;
++                    filled_words |= wbit;
++                    size_t off_in_lo = word_base + b_lo - sp_off;
++                    if (sp_zero_words & wbit) {
++                        sp_zero_words &= ~wbit;
++                        size_t chunk = (size_t)(b_hi - b_lo + 1);
++                        memcpy(out + off_in_lo, p->bytes + word_base + b_lo, chunk);
++                        memset(have + off_in_lo, 1, chunk);
++                        missing -= chunk;
++                        continue;
++                    }
++                    if (b_lo == 0 && b_hi == 63) {
++                        uint64_t h0, h1, h2, h3, h4, h5, h6, h7;
++                        memcpy(&h0, have + off_in_lo,      8); memcpy(&h1, have + off_in_lo + 8,  8);
++                        memcpy(&h2, have + off_in_lo + 16, 8); memcpy(&h3, have + off_in_lo + 24, 8);
++                        memcpy(&h4, have + off_in_lo + 32, 8); memcpy(&h5, have + off_in_lo + 40, 8);
++                        memcpy(&h6, have + off_in_lo + 48, 8); memcpy(&h7, have + off_in_lo + 56, 8);
++                        if ((h0 | h1 | h2 | h3 | h4 | h5 | h6 | h7) == 0) {
++                            memcpy(out + off_in_lo, p->bytes + word_base, 64);
++                            memset(have + off_in_lo, 1, 64);
++                            missing -= 64;
++                            continue;
++                        }
++                        if ((h0 & h1 & h2 & h3 & h4 & h5 & h6 & h7) == UINT64_C(0x0101010101010101)) continue;
++                    }
++                    unsigned b = b_lo;
++                    while (b + 7 <= b_hi) {
++                        uint64_t hw;
++                        memcpy(&hw, have + off_in_lo, 8);
++                        if (hw == 0) {
++                            memcpy(out + off_in_lo, p->bytes + word_base + b, 8);
++                            memset(have + off_in_lo, 1, 8);
++                            missing -= 8; b += 8; off_in_lo += 8;
++                            continue;
++                        }
++                        if (hw == UINT64_C(0x0101010101010101)) { b += 8; off_in_lo += 8; continue; }
++                        for (unsigned j = 0; j < 8; ++j, ++b, ++off_in_lo) {
++                            if (!have[off_in_lo]) { out[off_in_lo] = p->bytes[word_base + b]; have[off_in_lo] = 1; --missing; }
++                        }
++                    }
++                    for (; b <= b_hi; ++b, ++off_in_lo) {
++                        if (!have[off_in_lo]) { out[off_in_lo] = p->bytes[word_base + b]; have[off_in_lo] = 1; --missing; }
++                    }
++                } else {
++                    sp_zero_words &= ~(UINT64_C(1) << w);
++                    while (m) {
++                        unsigned b = (unsigned)__builtin_ctzll(m);
++                        m &= m - 1;
++                        size_t k = word_base + b - sp_off;
++                        if (!have[k]) { out[k] = p->bytes[word_base + b]; have[k] = 1; --missing; }
++                    }
++                }
++            }
++            continue;
++        }
+         for (uint64_t pos = lo; pos < hi;) {
+             unsigned offset = (unsigned)(pos % RB_UB_PAGE);
+             size_t n = RB_UB_PAGE - offset;
+@@ -375,6 +482,22 @@ static int rb_ub_base_ex(rb_ub_versions *ring, uint64_t done, uint64_t latest,
+                     if (m == slice) {
+                         if (single_bit) filled_words |= UINT64_C(1) << w;
+                         size_t off_in_lo = (size_t)(pos - lo) + (word_base + b_lo - offset);
++                        if (b_lo == 0 && b_hi == 63) {
++                            uint64_t h0, h1, h2, h3, h4, h5, h6, h7;
++                            memcpy(&h0, have + off_in_lo,      8); memcpy(&h1, have + off_in_lo + 8,  8);
++                            memcpy(&h2, have + off_in_lo + 16, 8); memcpy(&h3, have + off_in_lo + 24, 8);
++                            memcpy(&h4, have + off_in_lo + 32, 8); memcpy(&h5, have + off_in_lo + 40, 8);
++                            memcpy(&h6, have + off_in_lo + 48, 8); memcpy(&h7, have + off_in_lo + 56, 8);
++                            uint64_t any = h0 | h1 | h2 | h3 | h4 | h5 | h6 | h7;
++                            if (any == 0) {
++                                memcpy(out + off_in_lo, p->bytes + word_base, 64);
++                                memset(have + off_in_lo, 1, 64);
++                                missing -= 64;
++                                continue;
++                            }
++                            uint64_t all = h0 & h1 & h2 & h3 & h4 & h5 & h6 & h7;
++                            if (all == UINT64_C(0x0101010101010101)) continue;
++                        }
+                         unsigned b = b_lo;
+                         while (b + 7 <= b_hi) {
+                             uint64_t hw;
+@@ -425,6 +548,10 @@ static int rb_ub_base_ex(rb_ub_versions *ring, uint64_t done, uint64_t latest,
+         }
+     }
+     if (!missing) return 1;
++    if (missing == len) {
++        memcpy(out, (const uint8_t *)(uintptr_t)lo, len);
++        return 1;
++    }
+     for (size_t i = 0; i < len;) {
+         uint8_t *start = memchr(have + i, 0, len - i);
+         if (!start) break;

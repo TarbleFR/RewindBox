@@ -1,0 +1,195 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-11-26T14:30:00Z",
+  "scope": "Autonomous hardware reference and analytical performance model for S2Arm on iPhone 16 Pro Max (Apple A18 Pro). Built exclusively from public hardware specifications, Apple/ARM/Metal technical documentation, and S2Arm source analysis — zero personal user logs or measurements.",
+  "epistemic_separation": {
+    "public_hardware_specs": "Published architectural parameters from Apple documentation, Metal Feature Set Tables, ARMv9.2-A ISA manuals, and public microarchitectural analyses.",
+    "automated_host_measurements": "Deterministic comparative microbenchmarks and Valgrind Callgrind/Cachegrind instruction & A18-Pro-geometry cache simulations executed >= 5 times per variant on Linux x86-64.",
+    "analytical_a18pro_projections": "First-order latency/bandwidth/energy estimates derived from automated operation counters and public A18 Pro parameters, explicitly annotated with uncertainty margins. Never converted from Geekbench or 3DMark scores.",
+    "physical_device_verification": "UNVERIFIED — no physical iPhone 16 Pro Max is attached to this environment. Real FPS, frametime p95/p99, skin temperature, power draw, and visual pixels on hardware remain unmeasured until tested on device."
+  },
+  "device": {
+    "model": "iPhone 16 Pro Max",
+    "soc": "Apple A18 Pro",
+    "process_node": "TSMC N3E (second-generation 3 nm)",
+    "display": {
+      "technology": "ProMotion LTPO OLED",
+      "max_refresh_hz": 120,
+      "frame_budgets_ms": {
+        "120hz": 8.333,
+        "60hz": 16.667,
+        "40hz": 25.000,
+        "30hz": 33.333
+      },
+      "native_resolution_px": [2868, 1320]
+    }
+  },
+  "cpu": {
+    "isa": "ARMv9.2-A (AArch64)",
+    "cache_line_bytes": 128,
+    "page_size_bytes": 16384,
+    "cores": {
+      "performance": {
+        "codename": "Everest",
+        "count": 2,
+        "peak_clock_ghz": 4.05,
+        "sustained_thermal_clock_ghz_range": [2.6, 3.8],
+        "decode_width": 10,
+        "rob_entries_est": 600,
+        "l1i_kb": 192,
+        "l1i_assoc_model": 6,
+        "l1d_kb": 128,
+        "l1d_assoc_model": 8,
+        "l2_shared_mb": 16,
+        "l2_assoc_model": 16,
+        "typical_ipc_control_heavy_range": [1.8, 3.2],
+        "typical_ipc_memory_heavy_range": [0.9, 1.8]
+      },
+      "efficiency": {
+        "codename": "Sawtooth",
+        "count": 4,
+        "peak_clock_ghz": 2.42,
+        "sustained_thermal_clock_ghz_range": [1.3, 2.2],
+        "decode_width": 5,
+        "l1i_kb": 128,
+        "l1i_assoc_model": 4,
+        "l1d_kb": 64,
+        "l1d_assoc_model": 4,
+        "l2_shared_mb": 4,
+        "l2_assoc_model": 16,
+        "typical_ipc_control_heavy_range": [1.2, 2.1],
+        "typical_ipc_memory_heavy_range": [0.6, 1.2]
+      }
+    },
+    "simd_and_extensions": {
+      "neon_128bit": true,
+      "fp16_arithmetic": true,
+      "bf16": true,
+      "dotprod": true,
+      "i8mm": true,
+      "crc32": true,
+      "lse_atomics": true,
+      "crypto_aes_sha": true,
+      "sme_sme2": {
+        "available": true,
+        "notes": "ARM SME/SME2 (including sme-i8i32, sme-f32f32). Useful for dense matrix/ML workloads; not applicable to irregular per-draw graphics command encoding where scalar/NEON 128-bit and cache locality dominate."
+      }
+    },
+    "latencies_ns_est": {
+      "l1d_hit": {"value": 1.0, "range": [0.8, 1.5], "notes": "~3-4 cycles on Everest @ 4.05 GHz"},
+      "l2_hit": {"value": 5.5, "range": [4.0, 8.0], "notes": "~16-24 cycles on Everest"},
+      "slc_hit": {"value": 25.0, "range": [18.0, 35.0]},
+      "dram_cold_miss": {"value": 110.0, "range": [95.0, 130.0]},
+      "uncontended_mutex_lock_unlock": {"value": 18.0, "range": [12.0, 30.0], "notes": "os_unfair_lock / pthread_mutex fast path with LSE atomics"},
+      "contended_mutex_wakeup": {"value": 4500.0, "range": [1500.0, 15000.0], "notes": "ulock kernel transition under cross-thread contention"},
+      "mach_absolute_time_read": {"value": 12.0, "range": [8.0, 20.0], "notes": "CNTVCT_EL0 + timebase scaling"},
+      "objc_msgSend_hot": {"value": 3.0, "range": [2.0, 6.0], "notes": "IMP cache hit; ARC retain/release pair adds ~6-12 ns"}
+    }
+  },
+  "memory": {
+    "architecture": "Unified Memory Architecture (UMA)",
+    "type": "LPDDR5X-7500",
+    "capacity_gb": 8,
+    "bus_width_bits": 64,
+    "channels": "4 x 16-bit",
+    "peak_bandwidth_gb_s": 60.0,
+    "effective_sustained_gpu_bandwidth_gb_s_est": {
+      "nominal": {"value": 42.0, "range": [35.0, 50.0]},
+      "thermal_fair_to_serious": {"value": 28.0, "range": [20.0, 36.0]}
+    },
+    "slc_mb": 24,
+    "ios_jetsam_practical_limit_gib_est": {
+      "with_increased_memory_limit_entitlement": {"value": 5.5, "range": [5.0, 6.0]},
+      "safe_target_working_footprint_gib": 4.2,
+      "notes": "Unified pool shared by guest memory, Metal private textures, Metal heaps/arenas, shader libraries/PSOs, .NET NativeAOT heap, and iOS system buffers. Exceeding jetsam threshold kills process immediately."
+    }
+  },
+  "gpu": {
+    "architecture": "Apple9 (MTLGPUFamilyApple9)",
+    "core_count": 6,
+    "rendering_model": "Tile-Based Deferred Rendering (TBDR)",
+    "simd_width": 32,
+    "tile_dimensions_px": [32, 32],
+    "threadgroup_tile_memory_kb": 32,
+    "dynamic_caching": true,
+    "fp16_to_fp32_alu_ratio": 2.0,
+    "lossless_framebuffer_and_depth_compression": true,
+    "hardware_ray_tracing": true,
+    "hardware_mesh_shading": true,
+    "hardware_rasterization_rate_maps": true,
+    "metal_api": {
+      "version": "Metal 4 (iOS 26 SDK) / Metal 3 fallback",
+      "argument_tables": "MTL4ArgumentTable (explicit slot addresses, persisted across encoders)",
+      "residency_sets": "MTLResidencySet (batched commit, explicit hazard control)",
+      "command_allocators": "MTL4CommandAllocator (per-frame ring reuse avoids per-submit allocation)",
+      "metalfx": "Temporal & Spatial upscaling + MetalFX Frame Interpolation",
+      "tbdr_rules": [
+        "Never split an open render pass mid-draw unless GPU starvation strictly outweighs the 2x attachment DRAM round-trip (Store + Load of every bound MRT + depth/stencil attachment).",
+        "Prefer MTLLoadActionClear / DontCare and MTLStoreActionDontCare for transient attachments proven dead before next read.",
+        "Keep feedback reads on-chip (programmable blending / [[color(N)]]) or reuse cached snapshots across color-only passes and alternating depth targets.",
+        "Prefer FP16 (half) in compute/post-processing shaders (e.g., optical flow / motion vectors) to double ALU throughput and halve register/threadgroup pressure under Dynamic Caching.",
+        "Avoid redundant MTLResidencySet commit() calls on the submit critical path; pool & reuse private textures."
+      ]
+    }
+  },
+  "neural_engine": {
+    "cores": 16,
+    "peak_tops_est": 35.0,
+    "applicability_to_s2arm": {
+      "verdict": "selective_only_not_for_per_draw_nvn_replay",
+      "rationale": "CoreML/ANE dispatch incurs ~0.3-1.5 ms synchronization/marshaling overhead per call and requires quantized fixed-shape tensor graphs. It is unsuitable for microsecond-scale NVN command replay, hash lookups, or argument encoding. Its only technically relevant niche is offline/asynchronous workloads or fixed-cadence MetalFX/upscaling/frame-interpolation models when Apple's MetalFX runtime delegates subgraphs transparently."
+    }
+  },
+  "thermal_and_ios_constraints": {
+    "thermal_states": ["Nominal (0)", "Fair (1)", "Serious (2)", "Critical (3)"],
+    "sustained_soc_power_watts_est": {"value": 5.5, "range": [4.0, 7.5]},
+    "burst_soc_power_watts_est": {"value": 11.0, "range": [9.0, 14.0]},
+    "gpu_thermal_throttle_factor_est": {
+      "nominal": 1.0,
+      "fair": {"value": 0.80, "range": [0.70, 0.95]},
+      "serious": {"value": 0.45, "range": [0.30, 0.65]},
+      "critical": {"value": 0.25, "range": [0.15, 0.35]}
+    },
+    "ios_scheduling": {
+      "qos_classes": "USER_INTERACTIVE (0x21) for submit/present; UTILITY (0x11) for background shader translation/prewarm.",
+      "rt_thread_policy_caveat": "Mach THREAD_TIME_CONSTRAINT_POLICY overruns (when actual computation exceeds declared budget) trigger kernel demotion onto E-cores. Reducing submit CPU instructions and locks is therefore doubly leveraged: fewer cycles AND higher sustained P-core residency."
+    },
+    "ios_jit_and_compilation": {
+      "no_rwx_jit_without_entitlement": true,
+      "mtl_compiler_service_contention": "Synchronous MTLLibrary / MTLRenderPipelineState compilation competes with gameplay CPU/RAM and can stall 50-2000+ ms. Background CPU-only NVN2->MSL translation + bounded Fluid Pipelines + disk prewarming are essential."
+    }
+  },
+  "analytical_cost_model": {
+    "description": "Maps host-measured operation deltas to estimated A18 Pro per-frame savings (60 FPS budget = 16.667 ms). All projections carry explicit uncertainty bounds.",
+    "cpu_time_ms_formula": "delta_cpu_ms = (delta_Ir / (clock_ghz * 1e6 * ipc)) + (delta_D1_misses * (l2_hit_ns - l1_hit_ns) / 1e6) + (delta_LL_misses * (dram_ns - l2_hit_ns) / 1e6) + (delta_locks * lock_ns / 1e6)",
+    "gpu_bandwidth_ms_formula": "delta_gpu_bw_ms = delta_dram_mb / (effective_gpu_bw_gb_s * 1024.0 / 1000.0)",
+    "scenarios": {
+      "p_core_nominal": {"clock_ghz": 3.8, "ipc": 2.2, "effective_gpu_bw_gb_s": 42.0},
+      "e_core_throttled": {"clock_ghz": 1.6, "ipc": 1.3, "effective_gpu_bw_gb_s": 26.0}
+    },
+    "unknown_parameters_and_uncertainties": [
+      {
+        "parameter": "x86-64 Ir to ARM64 Ir translation ratio",
+        "assumed_ratio": 1.05,
+        "uncertainty_range": [0.85, 1.30],
+        "notes": "ARM64 fixed 32-bit instructions vs x86-64 CISC; relative % reductions on identical C algorithms transfer accurately (±15%) even when absolute Ir differs."
+      },
+      {
+        "parameter": "Real Apple9 TBDR lossless compression ratio per scene",
+        "assumed_ratio": 0.65,
+        "uncertainty_range": [0.45, 0.90],
+        "notes": "Depends on color/depth entropy of each game's render targets; uncompressed logical byte reductions give an upper bound, compressed effective savings scale by this factor."
+      },
+      {
+        "parameter": "XNU scheduler P-core vs E-core placement under live thermal state",
+        "uncertainty_range": "2.0x to 2.8x wall-clock swing between Sawtooth @ 1.4-1.6 GHz and Everest @ 3.5-4.0 GHz",
+        "notes": "Reported as a dual interval [P-core nominal, E-core throttled] instead of a single fake point estimate."
+      },
+      {
+        "parameter": "Apple Metal driver internal CPU encoding cost (MTL4RenderCommandEncoder)",
+        "uncertainty_range": "±35%",
+        "notes": "Cannot be timed directly on Linux; modeled via operation counters (pass splits, encoder openings, table writes, residency commits) and validated for compilation/correctness on macOS CI runners."
+      }
+    ]
+  }
+}

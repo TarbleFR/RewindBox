@@ -1,0 +1,419 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_hmap.h b/graphics/nvn/gfx/nvn/nvn_hmap.h
+index f3a7893..0686a10 100644
+--- a/graphics/nvn/gfx/nvn/nvn_hmap.h
++++ b/graphics/nvn/gfx/nvn/nvn_hmap.h
+@@ -15,22 +15,71 @@ static inline uint64_t nvn_hm_hash(const void *k, uint32_t len) {
+     h ^= h >> 33; h *= 0xc4ceb9fe1a85ec53ull; h ^= h >> 33;
+     return h;
+ }
++// RewindBox (patch 0438): specialized 8-byte hash (bit-exact with nvn_hm_hash(k, 8)) and
++// 4-way ILP internal slot hash for wide in-memory keys (>= 32B: 64B alias keys, 184B PSO keys),
++// breaking the 23-deep serial multiply dependency chain on Apple A18 Pro's 4 integer pipelines.
++// External callers of nvn_hm_hash() keep exact legacy hashes (persisted PSO caches unaffected).
++static inline uint64_t nvn_hm_hash8(uint64_t w) {
++    uint64_t h = (0x9e3779b97f4a7c15ull ^ 8ull ^ w) * 0xff51afd7ed558ccdull;
++    h ^= h >> 32;
++    h ^= h >> 33; h *= 0xc4ceb9fe1a85ec53ull; h ^= h >> 33;
++    return h;
++}
++static inline uint64_t nvn_hm_slot_hash(const void *k, uint32_t len) {
++    if (len < 32) return nvn_hm_hash(k, len);
++    const uint8_t *p = (const uint8_t *)k;
++    uint64_t h0 = 0x9e3779b97f4a7c15ull ^ len;
++    uint64_t h1 = 0xbf58476d1ce4e5b9ull ^ len;
++    uint64_t h2 = 0x94d049bb133111ebull ^ len;
++    uint64_t h3 = 0xff51afd7ed558ccdull ^ len;
++    for (; len >= 32; p += 32, len -= 32) {
++        uint64_t w0, w1, w2, w3;
++        memcpy(&w0, p,      8); memcpy(&w1, p + 8,  8);
++        memcpy(&w2, p + 16, 8); memcpy(&w3, p + 24, 8);
++        h0 = (h0 ^ w0) * 0xff51afd7ed558ccdull;
++        h1 = (h1 ^ w1) * 0xc4ceb9fe1a85ec53ull;
++        h2 = (h2 ^ w2) * 0x9e3779b97f4a7c15ull;
++        h3 = (h3 ^ w3) * 0xbf58476d1ce4e5b9ull;
++    }
++    uint64_t h = (h0 ^ (h1 >> 17) ^ (h1 << 47)) ^ ((h2 ^ (h3 >> 23) ^ (h3 << 41)) * 0xff51afd7ed558ccdull);
++    for (; len >= 8; p += 8, len -= 8) {
++        uint64_t w; memcpy(&w, p, 8);
++        h = (h ^ w) * 0xff51afd7ed558ccdull; h ^= h >> 32;
++    }
++    if (len) { uint64_t w = 0; memcpy(&w, p, len); h = (h ^ w) * 0xff51afd7ed558ccdull; }
++    h ^= h >> 33; h *= 0xc4ceb9fe1a85ec53ull; h ^= h >> 33;
++    return h;
++}
++static inline int nvn_hm_eq(const uint8_t *a, const uint8_t *b, uint32_t len) {
++    if (len >= 8) {
++        uint64_t wa, wb;
++        memcpy(&wa, a, 8); memcpy(&wb, b, 8);
++        if (wa != wb) return 0;
++        if (len == 8) return 1;
++        return memcmp(a + 8, b + 8, len - 8) == 0;
++    }
++    return memcmp(a, b, len) == 0;
++}
+ static inline void nvn_hm_init(nvn_hmap *m, uint32_t klen) { memset(m, 0, sizeof *m); m->klen = klen; }
+ static inline void *nvn_hm_get(const nvn_hmap *m, const void *k) {
+     if (!m->n) return NULL;
+-    // 8 字节键（序号、活序号、幽灵、视图缓存、计算管线表，每次绘制查好几次）：按一个字比较，不调 memcmp（照 the reference port「Hash-table lookups of 8-byte keys」，MIT：
+-    //   M4 Pro 上 3000 项表 6000 万次查找 5.9 → 1.5 ns / 次）。哈希、探测顺序和答案不变
+-    if (m->klen == 8) {
++    const uint32_t mask = m->cap - 1;
++    const uint8_t *const keys = m->keys;
++    void *const *const vals = m->vals;
++    const uint32_t klen = m->klen;
++    if (klen == 8) {
+         uint64_t kw; memcpy(&kw, k, 8);
+-        for (uint32_t i = (uint32_t)nvn_hm_hash(k, 8) & (m->cap - 1);; i = (i + 1) & (m->cap - 1)) {
+-            if (!m->vals[i]) return NULL;
+-            uint64_t w; memcpy(&w, m->keys + (size_t)i * 8, 8);
+-            if (w == kw) return m->vals[i];
++        for (uint32_t i = (uint32_t)nvn_hm_hash8(kw) & mask;; i = (i + 1) & mask) {
++            void *v = vals[i];
++            if (!v) return NULL;
++            uint64_t w; memcpy(&w, keys + (size_t)i * 8, 8);
++            if (w == kw) return v;
+         }
+     }
+-    for (uint32_t i = (uint32_t)nvn_hm_hash(k, m->klen) & (m->cap - 1);; i = (i + 1) & (m->cap - 1)) {
+-        if (!m->vals[i]) return NULL;
+-        if (!memcmp(m->keys + (size_t)i * m->klen, k, m->klen)) return m->vals[i];
++    for (uint32_t i = (uint32_t)nvn_hm_slot_hash(k, klen) & mask;; i = (i + 1) & mask) {
++        void *v = vals[i];
++        if (!v) return NULL;
++        if (nvn_hm_eq(keys + (size_t)i * klen, (const uint8_t *)k, klen)) return v;
+     }
+ }
+ static inline void *nvn_hm_put(nvn_hmap *m, const void *k, void *v);
+@@ -45,19 +94,40 @@ static inline void nvn_hm_grow(nvn_hmap *m) {
+ // v must not be NULL; returns the old value for the same key (NULL if none)
+ static inline void *nvn_hm_put(nvn_hmap *m, const void *k, void *v) {
+     if ((m->n + 1) * 4 > m->cap * 3) nvn_hm_grow(m);   // Load factor <= 3/4
+-    for (uint32_t i = (uint32_t)nvn_hm_hash(k, m->klen) & (m->cap - 1);; i = (i + 1) & (m->cap - 1)) {
+-        uint8_t *ki = m->keys + (size_t)i * m->klen;
+-        if (!m->vals[i]) { memcpy(ki, k, m->klen); m->vals[i] = v; m->n++; return NULL; }
+-        if (!memcmp(ki, k, m->klen)) { void *old = m->vals[i]; m->vals[i] = v; return old; }
++    const uint32_t mask = m->cap - 1, klen = m->klen;
++    uint32_t i;
++    if (klen == 8) {
++        uint64_t kw; memcpy(&kw, k, 8);
++        for (i = (uint32_t)nvn_hm_hash8(kw) & mask;; i = (i + 1) & mask) {
++            uint8_t *ki = m->keys + (size_t)i * 8;
++            if (!m->vals[i]) { memcpy(ki, &kw, 8); m->vals[i] = v; m->n++; return NULL; }
++            uint64_t w; memcpy(&w, ki, 8);
++            if (w == kw) { void *old = m->vals[i]; m->vals[i] = v; return old; }
++        }
++    }
++    for (i = (uint32_t)nvn_hm_slot_hash(k, klen) & mask;; i = (i + 1) & mask) {
++        uint8_t *ki = m->keys + (size_t)i * klen;
++        if (!m->vals[i]) { memcpy(ki, k, klen); m->vals[i] = v; m->n++; return NULL; }
++        if (nvn_hm_eq(ki, (const uint8_t *)k, klen)) { void *old = m->vals[i]; m->vals[i] = v; return old; }
+     }
+ }
+ // After deletion, shift back later entries on the same probe chain to fill the hole, so that a lookup can stop at the first empty slot
+ static inline void *nvn_hm_del(nvn_hmap *m, const void *k) {
+     if (!m->n) return NULL;
+-    uint32_t mask = m->cap - 1, i = (uint32_t)nvn_hm_hash(k, m->klen) & mask;
+-    for (;; i = (i + 1) & mask) {
+-        if (!m->vals[i]) return NULL;
+-        if (!memcmp(m->keys + (size_t)i * m->klen, k, m->klen)) break;
++    const uint32_t mask = m->cap - 1, klen = m->klen;
++    uint32_t i;
++    if (klen == 8) {
++        uint64_t kw; memcpy(&kw, k, 8);
++        for (i = (uint32_t)nvn_hm_hash8(kw) & mask;; i = (i + 1) & mask) {
++            if (!m->vals[i]) return NULL;
++            uint64_t w; memcpy(&w, m->keys + (size_t)i * 8, 8);
++            if (w == kw) break;
++        }
++    } else {
++        for (i = (uint32_t)nvn_hm_slot_hash(k, klen) & mask;; i = (i + 1) & mask) {
++            if (!m->vals[i]) return NULL;
++            if (nvn_hm_eq(m->keys + (size_t)i * klen, (const uint8_t *)k, klen)) break;
++        }
+     }
+     void *old = m->vals[i];
+     for (uint32_t j = i;;) {
+@@ -65,11 +135,13 @@ static inline void *nvn_hm_del(nvn_hmap *m, const void *k) {
+         for (;;) {
+             j = (j + 1) & mask;
+             if (!m->vals[j]) { m->n--; return old; }
+-            uint32_t h = (uint32_t)nvn_hm_hash(m->keys + (size_t)j * m->klen, m->klen) & mask;
++            uint32_t h;
++            if (klen == 8) { uint64_t w; memcpy(&w, m->keys + (size_t)j * 8, 8); h = (uint32_t)nvn_hm_hash8(w) & mask; }
++            else h = (uint32_t)nvn_hm_slot_hash(m->keys + (size_t)j * klen, klen) & mask;
+             if (i <= j ? (i < h && h <= j) : (i < h || h <= j)) continue;   // Ideal position is within (i, j]: cannot move forward
+             break;
+         }
+-        memcpy(m->keys + (size_t)i * m->klen, m->keys + (size_t)j * m->klen, m->klen); m->vals[i] = m->vals[j];
++        memcpy(m->keys + (size_t)i * klen, m->keys + (size_t)j * klen, klen); m->vals[i] = m->vals[j];
+         i = j;
+     }
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 878dc2c..edd1c8b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -80,6 +80,7 @@ static inline uint64_t tex_slot_h(const uint64_t *tex, const uint64_t *img, unsi
+ }
+ static uint64_t c2_handle(int stage, unsigned b);   // the handle c2 holds at byte b (defined with the draw state, TEXA / SAMPA)
+ #include "nvn_hmap.h"
++#include "rb_draw_fast_rule.h"
+ #include "../../host/dm.h"
+ #include "../../../../runtime/include/s2a_lowva.h"   // #357: unreferenced shared textures give memory back to the low-region ledger (alias_orph_evict)
+ #import <CommonCrypto/CommonDigest.h>
+@@ -1115,19 +1116,39 @@ enum { PC_BITS = 10, PC_RECENT = 8 };
+ static _Atomic uint64_t g_pool_gen = 1;
+ typedef struct { uintptr_t lo, hi, base; __unsafe_unretained id<MTLBuffer> buf; uint64_t gpu; uintptr_t host; } pc_ent;   // host: buf.contents (the pool's pages, or their far shadow), kept so a CPU read sends no message
+ static __thread struct { uint64_t gen; unsigned next; pc_ent r[PC_RECENT], e[1u << PC_BITS]; } t_pc;   // an empty entry has hi 0
+-static inline unsigned pc_slot(uint64_t addr) { return (unsigned)(((addr >> 12) * 0x9E3779B97F4A7C15ull) >> (64 - PC_BITS)); }
++static inline unsigned pc_slot(uint64_t addr) { return rb_pc_slot64k(addr, PC_BITS); }
+ static inline const pc_ent *pc_get(uint64_t addr, uint64_t len) {
+     if (t_pc.gen != atomic_load_explicit(&g_pool_gen, memory_order_acquire)) return NULL;
++    // RewindBox (patch 0438): check 2-slot MRU head first (fits inside one 128B A18 Pro cache line
++    // with t_pc.gen), avoiding 48 KiB direct-mapped table thrashing on sequential uniform/vertex rings.
++    for (unsigned k = 0; k < RB_PC_MRU_HOT; k++) {
++        const pc_ent *x = &t_pc.r[k];
++        if (addr >= x->lo && addr + len <= x->hi) return x;
++    }
+     pc_ent *c = &t_pc.e[pc_slot(addr)];
+-    if (addr >= c->lo && addr + len <= c->hi) return c;
+-    for (unsigned k = 0; k < PC_RECENT; k++) { const pc_ent *x = &t_pc.r[k]; if (addr >= x->lo && addr + len <= x->hi) { *c = *x; return c; } }
++    if (addr >= c->lo && addr + len <= c->hi) {
++        t_pc.r[1] = t_pc.r[0]; t_pc.r[0] = *c;
++        return &t_pc.r[0];
++    }
++    for (unsigned k = RB_PC_MRU_HOT; k < PC_RECENT; k++) {
++        const pc_ent *x = &t_pc.r[k];
++        if (addr >= x->lo && addr + len <= x->hi) {
++            pc_ent hit = *x;
++            *c = hit;
++            for (unsigned j = k; j > 0; j--) t_pc.r[j] = t_pc.r[j - 1];
++            t_pc.r[0] = hit;
++            return &t_pc.r[0];
++        }
++    }
+     return NULL;
+ }
+ static void pc_put(int i, uint64_t addr) {   // caller holds g_mu, pool i is resident and holds addr
+     uint64_t gen = atomic_load_explicit(&g_pool_gen, memory_order_relaxed);
+     if (t_pc.gen != gen) { memset(t_pc.r, 0, sizeof t_pc.r); memset(t_pc.e, 0, sizeof t_pc.e); t_pc.gen = gen; }
+     pc_ent c = {g_pools[i].lo, g_pools[i].hi, g_pools[i].base, g_pools[i].buf, g_pools[i].gpu, g_pools[i].host};
+-    t_pc.e[pc_slot(addr)] = c; t_pc.r[t_pc.next++ % PC_RECENT] = c;
++    t_pc.e[pc_slot(addr)] = c;
++    for (unsigned j = PC_RECENT - 1; j > 0; j--) t_pc.r[j] = t_pc.r[j - 1];
++    t_pc.r[0] = c;
+ }
+ static _Atomic uint64_t g_reg_gen = 1;   // Change generation of memory pool / texture / sampler registration: one of the invalidation conditions for argument buffer reuse
+ // Raw global memory (gmem_map below) reaches only pools the game holds a GPU address in, and the driver gives addresses out by buffer, pool or texture (hle_nvn.c pool_mark_addressed:
+@@ -14717,12 +14738,42 @@ static void vbuf_zero(id en, int s) {   // en: the render encoder (plain id: MTL
+     if (!g_vbuf_zero) { g_vbuf_zero = [g_dev newBufferWithLength:64 options:MTLResourceStorageModeShared]; res_add(g_vbuf_zero); g_vbuf_zero_gpu = g_vbuf_zero.gpuAddress; }
+     if (s >= 0) enc_r_vbuf(en, VB_SLOT(s), g_vbuf_zero_gpu);
+ }
++static uint16_t g_rb_vbuf_bound_mask, g_rb_vbuf_dirty_mask;
++static uint8_t g_rb_vbuf_resync = 1, g_rb_vbuf_push_nz;
++static uint64_t g_rb_vbuf_seen_gen;
+ static void bind_vbufs(id<MTL4RenderCommandEncoder> en) {
+     static struct { uint64_t addr, gpu, gen; } cache[16];
+     uint64_t gen = atomic_load_explicit(&g_pool_gen, memory_order_acquire);
++    int push_nz = (g_wd_push[0] != 0 || g_wd_push[1] != 0 || g_wd_push[2] != 0 || g_wd_push[3] != 0);
++    if (g_vbuf_cache && !g_rb_vbuf_resync && (g_vt_valid & (1u << 30))) {
++        uint16_t dm = rb_vbuf_dirty_mask_take(&g_rb_vbuf_dirty_mask, g_rb_vbuf_bound_mask, gen, &g_rb_vbuf_seen_gen);
++        while (dm) {
++            int s = __builtin_ctz(dm);
++            dm &= (uint16_t)(dm - 1);
++            uint64_t addr = S.vbuf[s].address, gpu;
++            if (!addr) continue;
++            if (cache[s].addr == addr && cache[s].gen == gen) { gpu = cache[s].gpu; g_vbuf_reuse++; }
++            else {
++                void *mb; uint64_t mo; g_vbuf_resolve++;
++                uint64_t pav; if (!gpu_addr_want(addr, 1, S.vbuf[s].size, &mb, &mo, &gpu, &pav)) { RED_ONCE(162, "vertex buffer slot %d address %#llx is in no memory pool: the slot reads zeros (first case)", s, (unsigned long long)addr); vbuf_zero(en, s); continue; }
++                cache[s].addr = addr; cache[s].gpu = gpu; cache[s].gen = gen;
++            }
++            enc_r_vbuf(en, VB_SLOT(s), gpu);
++        }
++        if (push_nz) {
++            id<MTLBuffer> pb; size_t po = arena_alloc(sizeof g_wd_push, &pb); memcpy((uint8_t *)pb.contents + po, g_wd_push, sizeof g_wd_push); enc_r_vbuf(en, PUSH_SLOT, pb.gpuAddress + po);
++            g_rb_vbuf_push_nz = 1;
++        } else if (g_rb_vbuf_push_nz) {
++            vbuf_zero(en, -1); enc_r_vbuf(en, PUSH_SLOT, g_vbuf_zero_gpu);
++            g_rb_vbuf_push_nz = 0;
++        }
++        return;
++    }
++    uint16_t bmask = 0;
+     for (int s = 0; s < 16; s++) {
+         uint64_t addr = S.vbuf[s].address, gpu;
+         if (!addr) continue;
++        bmask |= (uint16_t)(1u << s);
+         if (g_vbuf_cache && cache[s].addr == addr && cache[s].gen == gen) { gpu = cache[s].gpu; g_vbuf_reuse++; }
+         else {
+             void *mb; uint64_t mo; g_vbuf_resolve++;
+@@ -14735,9 +14786,11 @@ static void bind_vbufs(id<MTL4RenderCommandEncoder> en) {
+     }
+     vbuf_zero(en, -1); uint64_t zero_gpu = g_vbuf_zero_gpu;
+     enc_r_vbuf(en, 30, zero_gpu);
+-    if (g_wd_push[0] != 0 || g_wd_push[1] != 0 || g_wd_push[2] != 0 || g_wd_push[3] != 0) {   // S2Arm widen edge push (see g_wd_push): zero reads the zero buffer
++    if (push_nz) {   // S2Arm widen edge push (see g_wd_push): zero reads the zero buffer
+         id<MTLBuffer> pb; size_t po = arena_alloc(sizeof g_wd_push, &pb); memcpy((uint8_t *)pb.contents + po, g_wd_push, sizeof g_wd_push); enc_r_vbuf(en, PUSH_SLOT, pb.gpuAddress + po);
+-    } else enc_r_vbuf(en, PUSH_SLOT, zero_gpu);
++        g_rb_vbuf_push_nz = 1;
++    } else { enc_r_vbuf(en, PUSH_SLOT, zero_gpu); g_rb_vbuf_push_nz = 0; }
++    if (g_vbuf_cache) { g_rb_vbuf_bound_mask = bmask; g_rb_vbuf_dirty_mask = 0; g_rb_vbuf_seen_gen = gen; g_rb_vbuf_resync = 0; }
+ }
+ // Size of an attachment-less pass (rp_begin_ex_): the far corner of viewport 0, else of the scissor, clamped to Metal's 1..16384
+ static void bare_dims(NSUInteger *w, NSUInteger *h) {
+@@ -15041,6 +15094,7 @@ static void prog_resolve(void) {
+ }
+ static void state_reset(void) {
+     memset(&S, 0, sizeof S);
++    g_rb_vbuf_bound_mask = 0; g_rb_vbuf_dirty_mask = 0; g_rb_vbuf_resync = 1;
+     g_pso_dirty = g_dss_dirty = 1;
+     for (int i = 0; i < 8; i++) S.blend[i] = (blend_st){i, NVN_BLEND_FUNC_ONE, NVN_BLEND_FUNC_ZERO, NVN_BLEND_FUNC_ONE, NVN_BLEND_FUNC_ZERO, NVN_BLEND_EQUATION_ADD, NVN_BLEND_EQUATION_ADD};
+     S.color = (color_st){0, NVN_LOGIC_OP_COPY, NVN_ALPHA_FUNC_ALWAYS}; S.chmask.mask = 0xffffffffu;
+@@ -15346,7 +15400,7 @@ static void vconv_bind(id<MTL4RenderCommandEncoder> en, NvShader *vs, int tf, co
+                 else RED_ONCE(96, "vertex attribute format %#x (8 / 16-bit integer) feeds an integer input of the opposite signedness: extended to 32 bits with the format's own signedness on the CPU at replay and bound separately", f);
+             } else if (nv) RED_ONCE(90, "vertex attribute conversion: a range of %llu vertices exceeds the per-frame staging (format %#x)", (unsigned long long)nv, f);
+         }
+-        if (gpu) enc_r_vbuf(en, (NSUInteger)slot, gpu - v0 * 16);   // vertex id v0 reads the first converted element
++        if (gpu) { enc_r_vbuf(en, (NSUInteger)slot, gpu - v0 * 16); g_rb_vbuf_resync = 1; }   // vertex id v0 reads the first converted element
+         slot++;
+     }
+ }
+@@ -19041,7 +19095,7 @@ static uint64_t g_fb_hits, g_fb_bytes;   // draws found sampling a color attachm
+ static __unsafe_unretained id<MTLTexture> g_fb_src[4]; static __strong id<MTLTexture> g_fb_use[4]; static uint64_t g_fb_rid[4];
+ static uint8_t g_args_dirty[6] = {1, 1, 1, 1, 1, 1};
+ static uint64_t g_args_reg_seen, g_args_dirty_seen;
+-static inline void args_dirty_all(void) { memset(g_args_dirty, 1, sizeof g_args_dirty); rb_args_mod_all_other(g_rb_mod); }
++static inline void args_dirty_all(void) { memset(g_args_dirty, 1, sizeof g_args_dirty); rb_args_mod_all_other(g_rb_mod); g_rb_vbuf_resync = 1; }
+ static void rb_args_program_changed(int first, int end) {
+     if (rb_args_ubo_mode() != RB_ARGS_MODE_ON) {
+         args_dirty_all();
+@@ -20756,7 +20810,17 @@ static int state_op(uint32_t op, const void *a, uint32_t size) {
+             const p_bind_vattr *b = a; va_st at[16]; memcpy(at, b->st, 4 * b->n); for (int i = 0; i < b->n; i++) at[i].fmt = nvn_vattr_fmt_canon(at[i].fmt);
+             if (S.nattr != b->n || memcmp(S.attr, at, 4 * b->n)) { memcpy(S.attr, at, 4 * b->n); S.nattr = b->n; g_pso_dirty = 1; } break; }
+         case OP_BIND_VSTREAM: { const p_bind_vstream *b = a; if (S.nstream != b->n || memcmp(S.stream, b->st, 8 * b->n)) { memcpy(S.stream, b->st, 8 * b->n); S.nstream = b->n; g_pso_dirty = 1; } break; }
+-        case OP_BIND_VBUF: { p_bind_vbuf t; const p_bind_vbuf *b = bind_vbuf_rec(a, size, &t); memcpy(&S.vbuf[b->first], b->r, sizeof *b->r * b->n); break; }
++        case OP_BIND_VBUF: { p_bind_vbuf t; const p_bind_vbuf *b = bind_vbuf_rec(a, size, &t);
++            for (int k = 0; k < b->n; k++) {
++                int s = b->first + k;
++                if ((unsigned)s >= 16u) break;
++                if (S.vbuf[s].address != b->r[k].address || S.vbuf[s].size != b->r[k].size) {
++                    S.vbuf[s] = b->r[k];
++                    if (S.vbuf[s].address) { g_rb_vbuf_bound_mask |= (uint16_t)(1u << s); g_rb_vbuf_dirty_mask |= (uint16_t)(1u << s); }
++                    else g_rb_vbuf_bound_mask &= (uint16_t)~(1u << s);
++                }
++            }
++            break; }
+         // RewindBox (patch 0325): a uniform binding marks a clean stage RB_ARGS_UNIFORM and leaves a marked one as it is (rb_args_ubo.h); S2A_RB_ARGS_UBO_ONLY=0: 1, as before
+         case OP_BIND_UBO: { p_bind_buf bt; const p_bind_buf *b = bb_fresh(a, &bt); if (b->stage < 6 && b->index < 16 && memcmp(&S.ubo[b->stage][b->index], b, sizeof *b)) { S.ubo[b->stage][b->index] = *b; g_args_dirty[b->stage] = rb_args_mark_uniform(g_args_dirty[b->stage], rb_args_ubo_mode()); rb_args_cause(b->stage, RB_ARGS_C_UNIFORM); rb_args_mod_ubo(&g_rb_mod[b->stage], (unsigned)b->index); g_rb_cont_ubo_gen[b->stage][b->index]++; } break; }
+         case OP_BIND_SSBO: { p_bind_buf bt; const p_bind_buf *b = bb_fresh(a, &bt); if (b->stage < 6 && b->index < 16 && memcmp(&S.ssbo[b->stage][b->index], b, sizeof *b)) { S.ssbo[b->stage][b->index] = *b; g_args_dirty[b->stage] = rb_args_mark_uniform(g_args_dirty[b->stage], rb_args_ubo_mode()); rb_args_cause(b->stage, RB_ARGS_C_STORAGE); rb_args_mod_ssbo(&g_rb_mod[b->stage], (unsigned)b->index); } break; }   // RewindBox (patch 0423/0424)
+@@ -25083,6 +25147,7 @@ static void tess_draw(NvProg *pr, const p_draw *dw0, const p_draw_idx *di0) {
+     // 顶点表是共享的：TESS_BASE(20)–25 与普通绘制的顶点流 4–9（VB_SLOT(st) = 16 + st）同号。上面写进去的是本笔的临时缓冲，
+     //   本笔结束后改绑零缓冲（没绑顶点流的普通绘制在那里读到 0，与改绑前一样），否则后续绘制会读到已被回收的曲面缓冲地址
+     for (int i = TESS_BASE; i < TESS_BASE + 6; i++) enc_r_vbuf(en, i, zero_bank_gpu());
++    g_rb_vbuf_resync = 1;
+ 
+     g_tess_draws++; g_tess_dom_draws[dom]++; g_tess_patches += Pt;
+     PD("T %llu tessellation draw: %llu patches (domain %u part %u cw %u point %u, %u control points in, %u out) %s", g_stat_pass, (unsigned long long)Pt, dom, part, cw, ppoint, P, N, di0 ? "indexed" : "array");
+@@ -25488,30 +25553,38 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+     }
+     // Draws that cannot draw anything (both faces culled, empty scissor) return before the render pass is opened: otherwise the render pass is already open and on TBDR the whole attachment is loaded and stored for nothing
+     // (Mac character select page: 3 render passes are opened only because of such draws, all loaded, zero draws)
+-    // Diagnostic switch for measuring an upper bound DM_NVN_SKIP_FS=<fragment key>[,<fragment key>...] (none by default): drops all draws of these fragment shaders (the picture will be wrong; only used in real-device ABA to measure "how much GPU time this class of draws is worth in total")
+-    { static char sk[16][20]; static int nsk = -1;
+-      if (nsk < 0) { nsk = 0; for (const char *q = getenv("DM_NVN_SKIP_FS"); q && *q && nsk < 16; q = strchr(q, ',') ? strchr(q, ',') + 1 : q + strlen(q)) { size_t n = strcspn(q, ","); if (n > 16) n = 16; memcpy(sk[nsk], q, n); sk[nsk++][n] = 0; }
+-                     if (nsk) MLOG("DM_NVN_SKIP_FS: dropping the draws of %d fragment shaders (diagnostic; the picture is wrong)", nsk); }
+-      if (g_ub_n > 0 && pr->sh[1] && !g_defer_replaying && ub_skip(pr->sh[1]->key)) return;   // In-process alternating measurement: this phase drops this class
+-      if (nsk && pr->sh[1] && !g_defer_replaying) for (int i = 0; i < nsk; i++) if (!strncmp(pr->sh[1]->key, sk[i], strlen(sk[i]))) return;
+-      if (ms_draw(pr)) return; }
+-    // Diagnostic DM_NVN_DRAW_MAX=<n> (frame replay, graphics/nvn/docs/frame_replay.md): draws past the n-th of a frame are dropped, and the n-th logs its program, blend state and targets
+-    //   (DM_NVN_DRAWLOG=1: every draw up to the n-th logs it; DM_NVN_DRAW_SKIP=a-b drops the a-th to b-th draws of a frame) --
+-    //   bisecting n on a replayed frame finds the draw that puts a wrong pixel on screen in seconds per step
+-    { static long dmax = -2; static uint64_t dfr; static long dn; if (dmax == -2) { const char *e = getenv("DM_NVN_DRAW_MAX"); dmax = e ? atol(e) : -1; }
+-      static long s0 = -2, s1; if (s0 == -2) { const char *e = getenv("DM_NVN_DRAW_SKIP"); s0 = e ? atol(e) : -1; s1 = e && strchr(e, '-') ? atol(strchr(e, '-') + 1) : s0; if (s0 >= 0 && dmax < 0) dmax = 1L << 40; }
+-      static long vc = -2; if (vc == -2) { const char *e = getenv("DM_NVN_VCAP"); vc = e ? atol(e) : -1; if (vc >= 0 && dmax < 0) dmax = 1L << 40; }   // single-draw vertex capture (nvn_geometry.inc vcap_draw)
+-      if (dmax >= 0 && !g_defer_replaying) { uint64_t f = atomic_load(&g_cur_frame); if (f != dfr) { dfr = f; dn = 0; } dn++;
+-        if (dn > dmax || (dn >= s0 && dn <= s1)) return;
+-        if (dn == vc) vcap_draw(pr, dw, di, f, dn);
+-        if (dn == dmax || getenv("DM_NVN_DRAWLOG")) { const tex_t *c0 = R.has_rt && R.rt.n > 0 ? R.rt.color[0] : NULL;
+-          MLOG("DM_NVN_DRAW %ld (frame %llu): vs %s fs %s, target 0 ser=%llu %ux%u fmt %#x, blend_en %#x chmask %#x, blend0 src %d/%d dst %d/%d eq %d/%d, blend1 src %d/%d dst %d/%d", dn, (unsigned long long)f,
+-               pr->sh[0] ? pr->sh[0]->key : "-", pr->sh[1] ? pr->sh[1]->key : "-", c0 ? (unsigned long long)c0->serial : 0ull, c0 ? c0->d.width : 0, c0 ? c0->d.height : 0, c0 ? c0->d.format : 0,
+-               S.color.blend_en, S.chmask.mask, S.blend[0].src_rgb, S.blend[0].src_a, S.blend[0].dst_rgb, S.blend[0].dst_a, S.blend[0].eq_rgb, S.blend[0].eq_a, S.blend[1].src_rgb, S.blend[1].src_a, S.blend[1].dst_rgb, S.blend[1].dst_a); } } }
+-    // Similar diagnostic DM_NVN_SKIP_SMALL=<width>: drop all draws whose target width (by the attached level) is <= this value -- measures how much "dropping tiny render passes in bulk" is worth under the parallel pipeline (fixed per-pass overhead)
+-    { static int small = -1; if (small < 0) { const char *e = getenv("DM_NVN_SKIP_SMALL"); small = e ? atoi(e) : 0; if (small) MLOG("DM_NVN_SKIP_SMALL: dropping draws whose target width is ≤ %d (diagnostic; the picture is wrong)", small); }
+-      if (small > 0 && R.has_rt && !g_defer_replaying) { int k = R.rt.n && R.rt.color[0] ? 0 : R.rt.depth ? 8 : -1;
+-        if (k >= 0) { uint64_t s_; int lv, sl; rt_sub(&R.rt, k, &s_, &lv, &sl); const tex_t *t = k == 8 ? R.rt.depth : R.rt.color[0]; if ((int)MAX(t->d.width >> lv, 1u) <= small) return; } } }
++    // RewindBox (patch 0438): fold 7 cold per-draw diagnostic env checks behind a single predicted-not-taken branch.
++    { static int diag_init, diag_any, nsk, small, drawlog_on; static char sk[16][20];
++      static long dmax = -1, s0 = -1, s1 = -1, vc = -1; static uint64_t dfr; static long dn;
++      if (__builtin_expect(!diag_init, 0)) {
++          diag_init = 1;
++          for (const char *q = getenv("DM_NVN_SKIP_FS"); q && *q && nsk < 16; q = strchr(q, ',') ? strchr(q, ',') + 1 : q + strlen(q)) {
++              size_t n = strcspn(q, ","); if (n > 16) n = 16; memcpy(sk[nsk], q, n); sk[nsk++][n] = 0;
++          }
++          if (nsk) MLOG("DM_NVN_SKIP_FS: dropping the draws of %d fragment shaders (diagnostic; the picture is wrong)", nsk);
++          const char *e = getenv("DM_NVN_DRAW_MAX"); dmax = e ? atol(e) : -1;
++          e = getenv("DM_NVN_DRAW_SKIP"); s0 = e ? atol(e) : -1; s1 = e && strchr(e, '-') ? atol(strchr(e, '-') + 1) : s0;
++          if (s0 >= 0 && dmax < 0) dmax = 1L << 40;
++          e = getenv("DM_NVN_VCAP"); vc = e ? atol(e) : -1; if (vc >= 0 && dmax < 0) dmax = 1L << 40;
++          drawlog_on = getenv("DM_NVN_DRAWLOG") != NULL;
++          e = getenv("DM_NVN_SKIP_SMALL"); small = e ? atoi(e) : 0;
++          if (small) MLOG("DM_NVN_SKIP_SMALL: dropping draws whose target width is ≤ %d (diagnostic; the picture is wrong)", small);
++          diag_any = (nsk != 0) | (dmax >= 0) | (small > 0) | (ms_on() != 0);
++      }
++      if (__builtin_expect(diag_any | (g_ub_n > 0), 0)) {
++          if (g_ub_n > 0 && pr->sh[1] && !g_defer_replaying && ub_skip(pr->sh[1]->key)) return;
++          if (nsk && pr->sh[1] && !g_defer_replaying) for (int i = 0; i < nsk; i++) if (!strncmp(pr->sh[1]->key, sk[i], strlen(sk[i]))) return;
++          if (ms_draw(pr)) return;
++          if (dmax >= 0 && !g_defer_replaying) { uint64_t f = atomic_load(&g_cur_frame); if (f != dfr) { dfr = f; dn = 0; } dn++;
++              if (dn > dmax || (dn >= s0 && dn <= s1)) return;
++              if (dn == vc) vcap_draw(pr, dw, di, f, dn);
++              if (dn == dmax || drawlog_on) { const tex_t *c0 = R.has_rt && R.rt.n > 0 ? R.rt.color[0] : NULL;
++                  MLOG("DM_NVN_DRAW %ld (frame %llu): vs %s fs %s, target 0 ser=%llu %ux%u fmt %#x, blend_en %#x chmask %#x, blend0 src %d/%d dst %d/%d eq %d/%d, blend1 src %d/%d dst %d/%d", dn, (unsigned long long)f,
++                       pr->sh[0] ? pr->sh[0]->key : "-", pr->sh[1] ? pr->sh[1]->key : "-", c0 ? (unsigned long long)c0->serial : 0ull, c0 ? c0->d.width : 0, c0 ? c0->d.height : 0, c0 ? c0->d.format : 0,
++                       S.color.blend_en, S.chmask.mask, S.blend[0].src_rgb, S.blend[0].src_a, S.blend[0].dst_rgb, S.blend[0].dst_a, S.blend[0].eq_rgb, S.blend[0].eq_a, S.blend[1].src_rgb, S.blend[1].src_a, S.blend[1].dst_rgb, S.blend[1].dst_a); } }
++          if (small > 0 && R.has_rt && !g_defer_replaying) { int k = R.rt.n && R.rt.color[0] ? 0 : R.rt.depth ? 8 : -1;
++              if (k >= 0) { uint64_t s_; int lv, sl; rt_sub(&R.rt, k, &s_, &lv, &sl); const tex_t *t = k == 8 ? R.rt.depth : R.rt.color[0]; if ((int)MAX(t->d.width >> lv, 1u) <= small) return; } }
++      } }
+     if (S.poly.cull == NVN_FACE_FRONT_AND_BACK) { PD("Z %llu draw skipped (before the pass begins): both faces culled", g_stat_pass + !g_enc); return; }
+     // A primitive type the encoder has no Metal type for (14 = patches: tessellation is not replayed) is skipped here, before its pipeline is built. The Witcher 3's patch draws pair a
+     // vertex shader with a fragment shader that reads the domain stage's outputs: that vertex + fragment pipeline cannot exist; on the Mac building it failed with an error, on iOS it
+diff --git a/graphics/nvn/gfx/nvn/rb_draw_fast_rule.h b/graphics/nvn/gfx/nvn/rb_draw_fast_rule.h
+new file mode 100644
+index 0000000..b2290f8
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_draw_fast_rule.h
+@@ -0,0 +1,33 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0438): Apple A18 Pro per-draw CPU locality & fast-path rules
++//   1. pc_get() 2-slot MRU first-check fits inside ONE 128-byte A18 Pro cache line (96B + gen/next)
++//      with 64 KiB page shift (addr >> 16) for the direct-mapped fallback table.
++//   2. bind_vbufs() dirty-bitmask + __builtin_ctz iteration skips empty/unchanged vertex slots.
++//   3. draw_impl() cold diagnostic env guard folds 7 per-draw checks into 1 predicted branch.
++#pragma once
++#include <stdint.h>
++
++enum {
++    RB_PC_PAGE_SHIFT = 16,
++    RB_PC_MRU_HOT = 2,
++};
++
++// Direct-mapped pool-cache slot index using 64 KiB granule (16x fewer collisions on sequential
++// uniform/vertex/index rings than 4 KiB pages while remaining valid across 64 KiB pool alignments).
++static inline unsigned rb_pc_slot64k(uint64_t addr, unsigned bits) {
++    return (unsigned)(((addr >> RB_PC_PAGE_SHIFT) * UINT64_C(0x9E3779B97F4A7C15)) >> (64u - bits));
++}
++
++// Compute the exact 16-bit mask of bound vertex buffer slots that bind_vbufs() must update.
++// Any pool-generation bump re-validates all currently bound slots; otherwise only slots mutated
++// by OP_BIND_VBUF since the last bind_vbufs() are walked via __builtin_ctz().
++static inline uint16_t rb_vbuf_dirty_mask_take(uint16_t *dirty_mask, uint16_t bound_mask,
++                                               uint64_t cur_pool_gen, uint64_t *seen_pool_gen) {
++    uint16_t m = *dirty_mask;
++    if (*seen_pool_gen != cur_pool_gen) {
++        *seen_pool_gen = cur_pool_gen;
++        m |= bound_mask;
++    }
++    *dirty_mask = 0;
++    return (uint16_t)(m & bound_mask);
++}

@@ -1,0 +1,296 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index aea9e10..b21d665 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -10278,8 +10278,9 @@ static int g_rp_layered;   // the pass about to open is for a vertex shader that
+ static id<MTLRenderPipelineState> g_enc_pso; static id<MTLDepthStencilState> g_enc_dss;   // Already set on this encoder (not set again if identical)
+ // Dynamic state already sent on the open render encoder: each draw used to send all nine (stencil reference, viewport, scissor, cull, winding, fill, depth bias, depth clip, blend colour);
+ // now a value is sent only when it differs. g_ed.ok holds one bit per item and is cleared for every new encoder and after a clear triangle (which sets its own)
+-static struct { unsigned ok; uint32_t sref[2]; MTLViewport vp; MTLScissorRect sc; int cull, wind, fill, clip; float bias[3], blend[4]; } g_ed;
+-enum { ED_SREF = 1, ED_VP = 2, ED_SC = 4, ED_CULL = 8, ED_WIND = 16, ED_FILL = 32, ED_BIAS = 64, ED_CLIP = 128, ED_BLEND = 256 };
++static struct { unsigned ok; uint32_t sref[2]; MTLViewport vp; MTLScissorRect sc; int cull, wind, fill, clip, origin_ll, rast_flip; float bias[3], blend[4]; } g_ed;
++enum { ED_SREF = RB_ED_SREF, ED_VP = RB_ED_VP, ED_SC = RB_ED_SC, ED_CULL = RB_ED_CULL, ED_WIND = RB_ED_WIND, ED_FILL = RB_ED_FILL, ED_BIAS = RB_ED_BIAS, ED_CLIP = RB_ED_CLIP, ED_BLEND = RB_ED_BLEND, ED_ALL = RB_ED_ALL };
++static unsigned g_rb_ed_dirty = RB_ED_ALL;   // RewindBox (patch 0444): per-field dynamic-state dirty mask for O(1) steady-state draw_pass_state()
+ static int g_enc_vis, g_enc_has_vis;   // This encoder's current visibility count mode (0 off / slot number + 1), and whether a visibility buffer is attached
+ static int g_pso_dirty = 1, g_dss_dirty = 1;   // Pipeline / depth-stencil related state was changed during replay
+ static uint64_t g_stat_args_enc, g_stat_args_reuse;   // Argument buffer: new-encode / reuse counts
+@@ -15107,6 +15108,7 @@ static void state_reset(void) {
+     rb_args_stage_bump_all_other(g_rb_stage_gens);
+     for (int st = 0; st < 6; st++) g_rb_ubolen_size_gen[st]++;
+     g_pso_dirty = g_dss_dirty = 1;
++    g_rb_ed_dirty = ED_ALL;
+     for (int i = 0; i < 8; i++) S.blend[i] = (blend_st){i, NVN_BLEND_FUNC_ONE, NVN_BLEND_FUNC_ZERO, NVN_BLEND_FUNC_ONE, NVN_BLEND_FUNC_ZERO, NVN_BLEND_EQUATION_ADD, NVN_BLEND_EQUATION_ADD};
+     S.color = (color_st){0, NVN_LOGIC_OP_COPY, NVN_ALPHA_FUNC_ALWAYS}; S.chmask.mask = 0xffffffffu;
+     S.ms.enable = 1;   // NVN default (MultisampleStateSetDefaults): a game that never binds a multisample state keeps multisampling on (pso_key.msoff)
+@@ -19107,7 +19109,7 @@ static __unsafe_unretained id<MTLTexture> g_fb_src[4]; static __strong id<MTLTex
+ static uint8_t g_args_dirty[6] = {1, 1, 1, 1, 1, 1};
+ static uint64_t g_args_reg_seen, g_args_dirty_seen;
+ static inline void args_dirty_pass_begin(void) { memset(g_args_dirty, 1, sizeof g_args_dirty); rb_args_mod_all_other(g_rb_mod); g_rb_vbuf_resync = 1; }
+-static inline void args_dirty_all(void) { args_dirty_pass_begin(); rb_args_stage_bump_all_other(g_rb_stage_gens); for (int st = 0; st < 6; st++) g_rb_ubolen_size_gen[st]++; }
++static inline void args_dirty_all(void) { args_dirty_pass_begin(); rb_args_stage_bump_all_other(g_rb_stage_gens); for (int st = 0; st < 6; st++) g_rb_ubolen_size_gen[st]++; g_rb_ed_dirty = ED_ALL; }
+ static void rb_args_program_changed(int first, int end) {
+     if (rb_args_ubo_mode() != RB_ARGS_MODE_ON) {
+         args_dirty_all();
+@@ -20851,7 +20853,7 @@ void nvn_be_cover_stats(uint64_t v[5]) { v[0] = g_rb_cov_n; v[1] = g_rb_cov_byte
+ int nvn_dpool_base(const void *pool, int tex);   // hle_nvn.c: where a descriptor pool's IDs start in the host table
+ static int state_op(uint32_t op, const void *a, uint32_t size) {
+     switch (op) {
+-        case OP_SCISSOR: R.sc = *(const p_scissor *)a; R.has_sc = 1; break;
++        case OP_SCISSOR: R.sc = *(const p_scissor *)a; R.has_sc = 1; g_rb_ed_dirty |= ED_SC; break;
+         // The pool bound when the draw runs, as on the GPU (a command buffer that binds none keeps the queue's): handles a shader reads from a uniform buffer are resolved only here,
+         // so they take this base. Dark Souls Remastered keeps 12 sampler pools with different samplers under the same IDs and its map materials read their handles from uniform
+         // memory; resolved in the first pool, the walls' tiling textures took a clamp-to-edge sampler and smeared sideways
+@@ -20884,7 +20886,7 @@ static int state_op(uint32_t op, const void *a, uint32_t size) {
+                 case 4: dst = &S.poly; n = sizeof S.poly; break;
+                 case 5: dst = &S.ds; n = sizeof S.ds; break;
+             }
+-            if (dst && memcmp(dst, b->bytes, n)) { memcpy(dst, b->bytes, n); if (b->kind == 5) g_dss_dirty = 1; else g_pso_dirty = 1; }
++            if (dst && memcmp(dst, b->bytes, n)) { memcpy(dst, b->bytes, n); if (b->kind == 5) g_dss_dirty = 1; else { g_pso_dirty = 1; if (b->kind == 4) g_rb_ed_dirty |= (ED_CULL | ED_WIND | ED_FILL | ED_BIAS); } }
+             break;
+         }
+         case OP_BIND_VATTR: {   // formats as the vertex fetch reads them (nvn_vattr_fmt_canon: RGBX → RGB), compared after that so a rebind of the same state stays clean
+@@ -20919,15 +20921,16 @@ static int state_op(uint32_t op, const void *a, uint32_t size) {
+         case OP_STENCIL: {
+             const p_stencil *b = a;
+             if (b->which != 2) g_dss_dirty = 1;
++            else g_rb_ed_dirty |= ED_SREF;
+             for (int f = 0; f < 2; f++) if (b->face & (1 << f)) { if (b->which == 0) S.st_vmask[f] = b->value_mask; else if (b->which == 1) S.st_wmask[f] = b->mask; else S.st_ref[f] = b->ref; }
+             break;
+         }
+-        case OP_POLY_OFFSET: S.po = *(const p_poly_offset *)a; break;
+-        case OP_VIEWPORTS: { const p_viewports *b = a; for (int i = 0; i < b->n; i++) { memcpy(S.vp[b->first + i], b->v[i], 16); if (b->first + i > 0 && b->first + i < 16) S.rb_vp_set |= (uint16_t)(1u << (b->first + i)); } S.has_vp = 1; break; }   // RewindBox (patch 0343 review): rb_vp_set
+-        case OP_DEPTH_RANGE: { const p_depth_range *b = a; S.dr[0] = b->n; S.dr[1] = b->f; break; }
+-        case OP_DEPTH_CLAMP: S.depth_clamp = ((const p_depth_clamp *)a)->on; break;
+-        case OP_VP_SWIZZLE: { const p_vp_swizzle *b = a; memcpy(S.vp_sw[b->first], b->sw, 4 * (size_t)b->n); break; }
+-        case OP_BLEND_COLOR: memcpy(S.blend_color, ((const p_blend_color *)a)->rgba, 16); break;
++        case OP_POLY_OFFSET: S.po = *(const p_poly_offset *)a; g_rb_ed_dirty |= ED_BIAS; break;
++        case OP_VIEWPORTS: { const p_viewports *b = a; for (int i = 0; i < b->n; i++) { memcpy(S.vp[b->first + i], b->v[i], 16); if (b->first + i > 0 && b->first + i < 16) S.rb_vp_set |= (uint16_t)(1u << (b->first + i)); } S.has_vp = 1; g_rb_ed_dirty |= ED_VP; break; }   // RewindBox (patch 0343 review/0444): rb_vp_set
++        case OP_DEPTH_RANGE: { const p_depth_range *b = a; S.dr[0] = b->n; S.dr[1] = b->f; g_rb_ed_dirty |= ED_VP; break; }
++        case OP_DEPTH_CLAMP: S.depth_clamp = ((const p_depth_clamp *)a)->on; g_rb_ed_dirty |= ED_CLIP; break;
++        case OP_VP_SWIZZLE: { const p_vp_swizzle *b = a; memcpy(S.vp_sw[b->first], b->sw, 4 * (size_t)b->n); g_rb_ed_dirty |= ED_VP; break; }
++        case OP_BLEND_COLOR: memcpy(S.blend_color, ((const p_blend_color *)a)->rgba, 16); g_rb_ed_dirty |= ED_BLEND; break;
+         case OP_TF_BIND: { const p_tf_bind *b = a; if (b->index >= 0 && b->index < 4) S.tf[b->index] = *b; break; }
+         case OP_TF_STATE: { const p_tf_state *b = a;   // Begin writes from the start of each buffer; Pause / Resume keep the offsets (the host keeps them itself, the game's control buffer is not used)
+             if (b->what == 0) { S.tf_on = 1; S.tf_gpu = 0; S.tf_ctl = b->ctl; memset(S.tf_off, 0, sizeof S.tf_off); } else S.tf_on = b->what == 3; break; }
+@@ -21265,7 +21268,7 @@ static void rb_look_scan(const pso_key *current) {
+         }
+     }
+ restore:
+-    memcpy(&S,&saved,sizeof S); g_pso_dirty=pdirty; g_dss_dirty=ddirty;
++    memcpy(&S,&saved,sizeof S); g_pso_dirty=pdirty; g_dss_dirty=ddirty; g_rb_ed_dirty = ED_ALL;
+ }
+ 
+ static void pso_predict_rest_(const pso_key *current) {
+@@ -22241,11 +22244,11 @@ static void hoist_try(void) {
+                     for (int gi = 0; gi < ng; gi++) {   // Execute: temporarily swap in that group's targets and clears and open a clear-only render pass
+                         grp *g = &G[gi];
+                         R.rt = g->rt; memcpy(R.clear_c, g->clear_c, 8); memcpy(R.cc, g->cc, sizeof R.cc); R.clear_d = g->clear_d; R.clear_s = g->clear_s; R.cd = g->cd; R.cs = g->cs;
+-                        R.sc = g->sc; R.has_sc = g->has_sc;
++                        R.sc = g->sc; R.has_sc = g->has_sc; g_rb_ed_dirty |= ED_SC;
+                         PD("H %llu hoisted pure-clear pass (originally after this pass)", g_stat_pass + 1);
+                         rp_begin_ex(1); rb_rp_end_at(__func__, __LINE__);
+                     }
+-                    R.rt = rt0; R.sc = sc0; R.has_sc = hs0; memcpy(R.clear_c, cc0f, 8); memcpy(R.cc, cc0, sizeof cc0); R.clear_d = cd0f; R.clear_s = cs0f; R.cd = cd0; R.cs = cs0;
++                    R.rt = rt0; R.sc = sc0; R.has_sc = hs0; g_rb_ed_dirty |= ED_SC; memcpy(R.clear_c, cc0f, 8); memcpy(R.cc, cc0, sizeof cc0); R.clear_d = cd0f; R.clear_s = cs0f; R.cd = cd0; R.cs = cs0;
+                     if (!g_hoist_groups) MLOG("pure-clear pass hoisting: first case %d groups (before pass %llu)", ng, g_stat_pass + 1);
+                     g_hoist_groups += (uint64_t)ng;
+                     return;
+@@ -24805,7 +24808,7 @@ static void lc_land(void) {
+         }
+         lc_apply(g);
+         rp_begin_ex(1); rb_rp_end_at(__func__, __LINE__); g_lc_landed++; }
+-    R = save;
++    R = save; g_rb_ed_dirty |= ED_SC;
+ }
+ // SetRenderTargets with clears pending and no draw since: the clears wait instead of opening a pass
+ static void lc_push(void) {
+@@ -24941,57 +24944,90 @@ static int draw_pass_state(id en, NvShader *fs) {   // en: the render encoder (t
+     static id<MTLDepthStencilState> cur_ds; static uint64_t cur_ds_pass;
+     // Diagnostic DM_NVN_DEPTHOVR=fragment shader key prefix,...: those draws compare depth with ALWAYS, which tells "the depth test rejects every fragment" from "nothing rasterizes" (with DM_NVN_HILITE); unset = unchanged
+     static char dko[8][24]; static int ndko = -1;
++    // RewindBox (patch 0444): O(1) dynamic render-encoder clean-mask fast path for steady-state draw bursts.
++    const int origin_ll = atomic_load_explicit(&g_origin_ll, memory_order_relaxed) != 0;
++    const int rast_flip = s2a_nvn_rast_flip != 0;
++    const unsigned ed_need = rb_ed_effective_dirty(g_ed.ok, g_rb_ed_dirty, g_wd > 0,
++                                                   origin_ll, g_ed.origin_ll,
++                                                   rast_flip, g_ed.rast_flip);
++    if (__builtin_expect(ndko == 0 && !g_dss_dirty && cur_ds_pass == g_pass.serial &&
++                         cur_ds == g_enc_dss && ed_need == 0, 1)) {
++        return 1;
++    }
+     if (ndko < 0) { ndko = 0; const char *e = getenv("DM_NVN_DEPTHOVR");
+         for (const char *q = e; q && *q && ndko < 8; q = strchr(q, ',') ? strchr(q, ',') + 1 : q + strlen(q)) { size_t n = strcspn(q, ","); if (n > 23) n = 23; memcpy(dko[ndko], q, n); dko[ndko++][n] = 0; } }
+     if (ndko) { int ovr = 0; for (int i = 0; i < ndko && fs; i++) ovr |= !strncmp(fs->key, dko[i], strlen(dko[i]));
+         unsigned df0 = (unsigned)S.ds.df; if (ovr) S.ds.df = 8; cur_ds = dss_get(g_pass.hd, g_pass.hs); S.ds.df = df0; cur_ds_pass = g_pass.serial; g_dss_dirty = 0; }
+     else if (g_dss_dirty || cur_ds_pass != g_pass.serial) { cur_ds = dss_get(g_pass.hd, g_pass.hs); cur_ds_pass = g_pass.serial; g_dss_dirty = 0; }
+     if (cur_ds != g_enc_dss) { enc_r_dss(en, cur_ds); g_enc_dss = cur_ds; }
+-    if (!(g_ed.ok & ED_SREF) || g_ed.sref[0] != S.st_ref[0] || g_ed.sref[1] != S.st_ref[1]) {   // front and back references (audit gap family 36: the back one used to be dropped)
++    if (!ed_need) return 1;
++    if ((ed_need & ED_SREF) && (!(g_ed.ok & ED_SREF) || g_ed.sref[0] != S.st_ref[0] || g_ed.sref[1] != S.st_ref[1])) {   // front and back references (audit gap family 36: the back one used to be dropped)
+         enc_r_stencil_ref(en, S.st_ref[0], S.st_ref[1]); g_ed.sref[0] = S.st_ref[0]; g_ed.sref[1] = S.st_ref[1]; g_ed.ok |= ED_SREF; }
+     // Viewport / scissor (clamped within the target size)
+     NSUInteger tw = g_pass.tw, th = g_pass.th;
+-    { MTLViewport v = S.has_vp ? (MTLViewport){S.vp[0][0], S.vp[0][1], S.vp[0][2], S.vp[0][3], S.dr[0], S.dr[1]} : (MTLViewport){0, 0, tw / g_pass.rs, th / g_pass.rs, 0, 1};   // no viewport: the whole target, in canvas units (internal resolution)
++    if (ed_need & ED_VP) {
++      MTLViewport v = S.has_vp ? (MTLViewport){S.vp[0][0], S.vp[0][1], S.vp[0][2], S.vp[0][3], S.dr[0], S.dr[1]} : (MTLViewport){0, 0, tw / g_pass.rs, th / g_pass.rs, 0, 1};   // no viewport: the whole target, in canvas units (internal resolution)
+       if (g_wd > 0) { float x = (float)v.originX, w = (float)v.width, r0 = x + w; s2a_widen_map_viewport(g_wd_mode, &x, &w); v.originX = x; v.width = w;
+         { float y = (float)v.originY, h = (float)v.height; s2a_widen_map_viewport_y(g_wd_mode, &y, &h); v.originY = y; v.height = h; }   // narrower screen: more picture above and below (s2a_widen_ky > 1)
+         if (x + w > (float)(tw / g_pass.rs) + 1.0f && x + w > r0 + 0.5f) RED_ONCE(113, "widen: viewport %.0f+%.0f past the target's storage width %lu (ser=%llu, storage not widened): the right part is clipped (first case)", x, w, (unsigned long)tw,
+                                               (unsigned long long)(R.has_rt && R.rt.n > 0 && R.rt.color[0] ? R.rt.color[0]->serial : 0)); }   // S2Arm widen: the storage is narrower than the widened viewport (tex_widen could not widen it); up to a texel over is level rounding: 391 wide, level 2 is 97, 80 x k = 97.75; only past what the game's own viewport reached (Monster Hunter Rise draws a 156-wide viewport on a 78-wide target, widen off as well)
+       if (g_pass.rs != 1.0) { rb_scale_viewport(g_pass.rs,&v.originX,&v.originY,&v.width,&v.height); }   // S2Arm internal resolution: canvas → storage (nvn_rscale.inc)
+-      if (atomic_load_explicit(&g_origin_ll, memory_order_relaxed)) { v.originY += v.height; v.height = -v.height; }   // lower-left origin (see g_origin_ll)
++      if (origin_ll) { v.originY += v.height; v.height = -v.height; }   // lower-left origin (see g_origin_ll)
+       // Viewport swizzle: NEGATIVE_Y negates clip y, the same as the viewport flipped about its centre; facing is decided after it on the GPU as in Metal, so the winding stays.
+       // Other swizzles (axis exchanges, negated x / z / w) are no viewport change and are drawn unswizzled
+       { uint32_t sw; memcpy(&sw, S.vp_sw[0], 4);
+         if (sw == 0x100) { v.originY += v.height; v.height = -v.height; }
+         else if (sw) RED_ONCE(108, "viewport swizzle %d,%d,%d,%d not implemented (drawn unswizzled)", S.vp_sw[0][0], S.vp_sw[0][1] ^ 2, S.vp_sw[0][2] ^ 4, S.vp_sw[0][3] ^ 6); }
+-      if (!(g_ed.ok & ED_VP) || memcmp(&g_ed.vp, &v, sizeof v)) { enc_r_viewport(en, v); g_ed.vp = v; g_ed.ok |= ED_VP; } }
+-    MTLScissorRect sc = {0, 0, tw, th};
+-    if (R.has_sc) {
+-        p_scissor rs = R.sc; if (g_wd > 0) { s2a_widen_map_scissor(g_wd_mode, &rs.x, &rs.w); s2a_widen_map_scissor_y(g_wd_mode, &rs.y, &rs.h); }   // S2Arm widen
+-        if (g_wd > 0 && wd_tr_on()) MLOG("S2Arm widen trace: frame %llu scissor %d,%d %dx%d -> %d,%d %dx%d mode %d", (unsigned long long)g_wd_frame, R.sc.x, R.sc.y, R.sc.w, R.sc.h, rs.x, rs.y, rs.w, rs.h, g_wd_mode);   // 11-02 怪猎对话框正文被切：剪刀原值 / 换算后对照（追踪行只打视口）
+-        long sx = rs.x, sy = rs.y, sw = rs.w, sh = rs.h; rs_rect(g_pass.rs, &sx, &sy, &sw, &sh);   // S2Arm internal resolution: canvas → storage
+-        long x0 = sx < 0 ? 0 : sx, y0 = sy <= 0 ? 0 : sy, x1 = sx + sw, y1 = sy + sh;
+-        if (x1 > (long)tw) x1 = tw; if (y1 > (long)th) y1 = th;
+-        if (x1 <= x0 || y1 <= y0) { PD("Z %llu draw skipped: empty scissor (%d,%d %dx%d, target %lux%lu)", g_stat_pass, rs.x, rs.y, rs.w, rs.h, (unsigned long)tw, (unsigned long)th); return 0; }
+-        sc = (MTLScissorRect){(NSUInteger)x0, (NSUInteger)y0, (NSUInteger)(x1 - x0), (NSUInteger)(y1 - y0)};
+-    }
+-    if (!(g_ed.ok & ED_SC) || memcmp(&g_ed.sc, &sc, sizeof sc)) { enc_r_scissor(en, sc); g_ed.sc = sc; g_ed.ok |= ED_SC; }
+-    if (S.poly.cull == NVN_FACE_FRONT_AND_BACK) { PD("Z %llu draw skipped: both faces culled", g_stat_pass); return 0; }
+-    { int cu = S.poly.cull == NVN_FACE_FRONT ? MTLCullModeFront : S.poly.cull == NVN_FACE_BACK ? MTLCullModeBack : MTLCullModeNone;
+-      // Front face: the game's own driver writes the API value into the front-face register and sets Maxwell's TriangleRastFlip once, in QueueInitialize, when the device's
+-      //   window origin is not upper-left at that moment (s2a_nvn_rast_flip, hle_nvn.c). Ryujinx keeps the register with the flip on and swaps it with the flip off
+-      //   (StateUpdater.UpdateFrontFace), and its Metal backend inverts it: Metal gets the inverse of the API value with the flip on, the API value with it off.
+-      //   Measured in the generic mode: Need for Speed Hot Pursuit Remastered (queue created before it set upper-left: flip on, front CW) and Diablo III (upper-left first:
+-      //   flip off, front CCW) both end at counter-clockwise. This used to follow the current window origin, the same thing for games that set it before creating the queue;
+-      //   Need for Speed got its front faces culled and drew car and track black (tests/t_nvn_winding.m)
+-      int wi = (S.poly.front == NVN_FRONT_FACE_CCW) != (s2a_nvn_rast_flip != 0) ? MTLWindingCounterClockwise : MTLWindingClockwise;
+-      int fi = S.poly.mode == NVN_POLYGON_MODE_LINE ? MTLTriangleFillModeLines : MTLTriangleFillModeFill, cl = !S.depth_clamp;   // depth clip off = SetDepthClamp
+-      float bi[3] = {0, 0, 0}; if (S.poly.offset_en & 4) { bi[0] = S.po.units; bi[1] = S.po.factor; bi[2] = S.po.clamp; }
+-      if (!(g_ed.ok & ED_CULL) || g_ed.cull != cu) { enc_r_cull(en, (MTLCullMode)cu); g_ed.cull = cu; g_ed.ok |= ED_CULL; }
+-      if (!(g_ed.ok & ED_WIND) || g_ed.wind != wi) { enc_r_winding(en, (MTLWinding)wi); g_ed.wind = wi; g_ed.ok |= ED_WIND; }
+-      if (!(g_ed.ok & ED_FILL) || g_ed.fill != fi) { enc_r_fill(en, (MTLTriangleFillMode)fi); g_ed.fill = fi; g_ed.ok |= ED_FILL; }
+-      if (!(g_ed.ok & ED_BIAS) || memcmp(g_ed.bias, bi, sizeof bi)) { enc_r_depth_bias(en, bi[0], bi[1], bi[2]); memcpy(g_ed.bias, bi, sizeof bi); g_ed.ok |= ED_BIAS; }
+-      if (!(g_ed.ok & ED_CLIP) || g_ed.clip != cl) { enc_r_depth_clip(en, cl); g_ed.clip = cl; g_ed.ok |= ED_CLIP; }
+-      if (!(g_ed.ok & ED_BLEND) || memcmp(g_ed.blend, S.blend_color, sizeof g_ed.blend)) { enc_r_blend_color(en, S.blend_color[0], S.blend_color[1], S.blend_color[2], S.blend_color[3]); memcpy(g_ed.blend, S.blend_color, sizeof g_ed.blend); g_ed.ok |= ED_BLEND; } }
++      if (!(g_ed.ok & ED_VP) || memcmp(&g_ed.vp, &v, sizeof v)) { enc_r_viewport(en, v); g_ed.vp = v; g_ed.ok |= ED_VP; }
++      g_ed.origin_ll = origin_ll;
++    }
++    if (ed_need & ED_SC) {
++      MTLScissorRect sc = {0, 0, tw, th};
++      if (R.has_sc) {
++          p_scissor rs = R.sc; if (g_wd > 0) { s2a_widen_map_scissor(g_wd_mode, &rs.x, &rs.w); s2a_widen_map_scissor_y(g_wd_mode, &rs.y, &rs.h); }   // S2Arm widen
++          if (g_wd > 0 && wd_tr_on()) MLOG("S2Arm widen trace: frame %llu scissor %d,%d %dx%d -> %d,%d %dx%d mode %d", (unsigned long long)g_wd_frame, R.sc.x, R.sc.y, R.sc.w, R.sc.h, rs.x, rs.y, rs.w, rs.h, g_wd_mode);   // 11-02 怪猎对话框正文被切：剪刀原值 / 换算后对照（追踪行只打视口）
++          long sx = rs.x, sy = rs.y, sw = rs.w, sh = rs.h; rs_rect(g_pass.rs, &sx, &sy, &sw, &sh);   // S2Arm internal resolution: canvas → storage
++          long x0 = sx < 0 ? 0 : sx, y0 = sy <= 0 ? 0 : sy, x1 = sx + sw, y1 = sy + sh;
++          if (x1 > (long)tw) x1 = tw; if (y1 > (long)th) y1 = th;
++          if (x1 <= x0 || y1 <= y0) { PD("Z %llu draw skipped: empty scissor (%d,%d %dx%d, target %lux%lu)", g_stat_pass, rs.x, rs.y, rs.w, rs.h, (unsigned long)tw, (unsigned long)th); return 0; }
++          sc = (MTLScissorRect){(NSUInteger)x0, (NSUInteger)y0, (NSUInteger)(x1 - x0), (NSUInteger)(y1 - y0)};
++      }
++      if (!(g_ed.ok & ED_SC) || memcmp(&g_ed.sc, &sc, sizeof sc)) { enc_r_scissor(en, sc); g_ed.sc = sc; g_ed.ok |= ED_SC; }
++    }
++    if (ed_need & (ED_CULL | ED_WIND | ED_FILL | ED_BIAS | ED_CLIP | ED_BLEND)) {
++      if (S.poly.cull == NVN_FACE_FRONT_AND_BACK) { PD("Z %llu draw skipped: both faces culled", g_stat_pass); return 0; }
++      if (ed_need & ED_CULL) {
++          int cu = S.poly.cull == NVN_FACE_FRONT ? MTLCullModeFront : S.poly.cull == NVN_FACE_BACK ? MTLCullModeBack : MTLCullModeNone;
++          if (!(g_ed.ok & ED_CULL) || g_ed.cull != cu) { enc_r_cull(en, (MTLCullMode)cu); g_ed.cull = cu; g_ed.ok |= ED_CULL; }
++      }
++      if (ed_need & ED_WIND) {
++          // Front face: the game's own driver writes the API value into the front-face register and sets Maxwell's TriangleRastFlip once, in QueueInitialize, when the device's
++          //   window origin is not upper-left at that moment (s2a_nvn_rast_flip, hle_nvn.c). Ryujinx keeps the register with the flip on and swaps it with the flip off
++          //   (StateUpdater.UpdateFrontFace), and its Metal backend inverts it: Metal gets the inverse of the API value with the flip on, the API value with it off.
++          //   Measured in the generic mode: Need for Speed Hot Pursuit Remastered (queue created before it set upper-left: flip on, front CW) and Diablo III (upper-left first:
++          //   flip off, front CCW) both end at counter-clockwise. This used to follow the current window origin, the same thing for games that set it before creating the queue;
++          //   Need for Speed got its front faces culled and drew car and track black (tests/t_nvn_winding.m)
++          int wi = (S.poly.front == NVN_FRONT_FACE_CCW) != rast_flip ? MTLWindingCounterClockwise : MTLWindingClockwise;
++          if (!(g_ed.ok & ED_WIND) || g_ed.wind != wi) { enc_r_winding(en, (MTLWinding)wi); g_ed.wind = wi; g_ed.ok |= ED_WIND; }
++          g_ed.rast_flip = rast_flip;
++      }
++      if (ed_need & ED_FILL) {
++          int fi = S.poly.mode == NVN_POLYGON_MODE_LINE ? MTLTriangleFillModeLines : MTLTriangleFillModeFill;
++          if (!(g_ed.ok & ED_FILL) || g_ed.fill != fi) { enc_r_fill(en, (MTLTriangleFillMode)fi); g_ed.fill = fi; g_ed.ok |= ED_FILL; }
++      }
++      if (ed_need & ED_BIAS) {
++          float bi[3] = {0, 0, 0}; if (S.poly.offset_en & 4) { bi[0] = S.po.units; bi[1] = S.po.factor; bi[2] = S.po.clamp; }
++          if (!(g_ed.ok & ED_BIAS) || memcmp(g_ed.bias, bi, sizeof bi)) { enc_r_depth_bias(en, bi[0], bi[1], bi[2]); memcpy(g_ed.bias, bi, sizeof bi); g_ed.ok |= ED_BIAS; }
++      }
++      if (ed_need & ED_CLIP) {
++          int cl = !S.depth_clamp;   // depth clip off = SetDepthClamp
++          if (!(g_ed.ok & ED_CLIP) || g_ed.clip != cl) { enc_r_depth_clip(en, cl); g_ed.clip = cl; g_ed.ok |= ED_CLIP; }
++      }
++      if (ed_need & ED_BLEND) {
++          if (!(g_ed.ok & ED_BLEND) || memcmp(g_ed.blend, S.blend_color, sizeof g_ed.blend)) { enc_r_blend_color(en, S.blend_color[0], S.blend_color[1], S.blend_color[2], S.blend_color[3]); memcpy(g_ed.blend, S.blend_color, sizeof g_ed.blend); g_ed.ok |= ED_BLEND; }
++      }
++    }
++    g_rb_ed_dirty = 0;
+     return 1;
+ }
+ // S2Arm tessellation: 曲面绘制（prim == 14 patches）
+@@ -25301,10 +25337,10 @@ static void draw_tex(const p_draw_tex *t) {
+     memcpy(vp0, S.vp[0], sizeof vp0); memcpy(dr0, S.dr, sizeof dr0); memcpy(sw0, S.vp_sw[0], sizeof sw0);
+     S.ds.dt = S.ds.dw = S.ds.st = 0; S.poly.cull = NVN_FACE_NONE; S.has_vp = 1;
+     S.vp[0][0] = MIN(x0, x1); S.vp[0][1] = MIN(y0, y1); S.vp[0][2] = fabsf(x1 - x0); S.vp[0][3] = fabsf(y1 - y0); S.dr[0] = 0; S.dr[1] = 1; memset(S.vp_sw[0], 0, sizeof sw0);
+-    g_dss_dirty = 1;
++    g_dss_dirty = 1; g_rb_ed_dirty = ED_ALL;
+     int drawn = draw_pass_state(en, nil);
+     S.ds = ds0; S.poly = po0; S.has_vp = hv0; memcpy(S.vp[0], vp0, sizeof vp0); memcpy(S.dr, dr0, sizeof dr0); memcpy(S.vp_sw[0], sw0, sizeof sw0);
+-    g_dss_dirty = 1;
++    g_dss_dirty = 1; g_rb_ed_dirty = ED_ALL;
+     if (!drawn) return;   // empty scissor
+     id<MTLBuffer> pb; size_t po = arena_alloc(16, &pb);
+     if (!pb) return;
+diff --git a/graphics/nvn/gfx/nvn/rb_draw_fast_rule.h b/graphics/nvn/gfx/nvn/rb_draw_fast_rule.h
+index b2290f8..5315baa 100644
+--- a/graphics/nvn/gfx/nvn/rb_draw_fast_rule.h
++++ b/graphics/nvn/gfx/nvn/rb_draw_fast_rule.h
+@@ -31,3 +31,29 @@ static inline uint16_t rb_vbuf_dirty_mask_take(uint16_t *dirty_mask, uint16_t bo
+     *dirty_mask = 0;
+     return (uint16_t)(m & bound_mask);
+ }
++
++// RewindBox (patch 0444): O(1) dynamic render-encoder state dirty-mask for draw_pass_state().
++// Steady-state draw bursts inside a render pass avoid recomputing MTLViewport/MTLScissorRect/
++// rasterizer/blend structs and 4 memcmp calls (108 bytes) per draw.
++enum {
++    RB_ED_SREF  = 1u << 0,
++    RB_ED_VP    = 1u << 1,
++    RB_ED_SC    = 1u << 2,
++    RB_ED_CULL  = 1u << 3,
++    RB_ED_WIND  = 1u << 4,
++    RB_ED_FILL  = 1u << 5,
++    RB_ED_BIAS  = 1u << 6,
++    RB_ED_CLIP  = 1u << 7,
++    RB_ED_BLEND = 1u << 8,
++    RB_ED_ALL   = (1u << 9) - 1u,
++};
++
++static inline unsigned rb_ed_effective_dirty(unsigned ok_mask, unsigned dirty_mask,
++                                             int widen_on, int origin_ll, int last_origin_ll,
++                                             int rast_flip, int last_rast_flip) {
++    unsigned need = dirty_mask | ((~ok_mask) & RB_ED_ALL);
++    if (__builtin_expect(widen_on != 0, 0)) need |= (RB_ED_VP | RB_ED_SC);
++    if (__builtin_expect(origin_ll != last_origin_ll, 0)) need |= RB_ED_VP;
++    if (__builtin_expect(rast_flip != last_rast_flip, 0)) need |= RB_ED_WIND;
++    return need;
++}
+diff --git a/graphics/nvn/gfx/nvn/rt_range_check.inc b/graphics/nvn/gfx/nvn/rt_range_check.inc
+index 0991401..3fc597a 100644
+--- a/graphics/nvn/gfx/nvn/rt_range_check.inc
++++ b/graphics/nvn/gfx/nvn/rt_range_check.inc
+@@ -42,13 +42,13 @@ static void rr_finish(int ranged) {
+     if(g_rr_reg!=g_reg_gen||g_rr_ser!=g_ser_gen)MDIE("RT range oracle: resource generation changed, stopped before submit without comparing");
+     NSArray *candidate=rr_read(c,d);rr_copy(g_rr_initial[0],c);rr_copy(g_rr_initial[1],d);g_vis=[g_dev newBufferWithLength:VIS_SLOTS*8 options:MTLResourceStorageModeShared];g_vis_n=0;g_vis_cur=-1;g_vis_on=g_vis_counting=1;g_vs=NULL;g_nvs=g_vscap=0;g_exec_next=g_exec_cur=NULL;
+     id<MTLBuffer> refvis[2];int refslot[2];
+-    for(int i=0;i<2;i++){if(i)rb_rp_end_at(__func__, __LINE__);g_vis_cur=-1;memcpy(&S,&g_rr_s[i].s,sizeof S);R=g_rr_s[i].r;g_pso_dirty=g_dss_dirty=1;rp_begin_ex(4); // In the original trace both passes are mode4; do not attach an extra stencil with mode0, which has no scan start point
++    for(int i=0;i<2;i++){if(i)rb_rp_end_at(__func__, __LINE__);g_vis_cur=-1;memcpy(&S,&g_rr_s[i].s,sizeof S);R=g_rr_s[i].r;g_pso_dirty=g_dss_dirty=1;g_rb_ed_dirty=ED_ALL;rp_begin_ex(4); // In the original trace both passes are mode4; do not attach an extra stencil with mode0, which has no scan start point
+         draw(g_rr_s[i].indexed?NULL:&g_rr_s[i].dw,g_rr_s[i].indexed?&g_rr_s[i].di:NULL);refvis[i]=g_vis;refslot[i]=g_vis_cur;}rb_rp_end_at(__func__, __LINE__);
+     uint64_t original_passes=g_stat_pass-pass,original_bytes=g_bw_load-load+g_bw_store-store;NSArray *reference=rr_read(c,d);
+     if(g_rr_reg!=g_reg_gen||g_rr_ser!=g_ser_gen||g_rr_dirty!=nvn_dirty_now())MDIE("RT range oracle: resource/data generation changed while bound, stopped before submit without comparing");
+     rr_copy(saved[0],c);rr_copy(saved[1],d); // Subsequent commands read the candidate; the oracle must not overwrite it to force the screenshot green
+     NSArray *referencevis=@[refvis[0],refvis[1]];int refslot0=refslot[0],refslot1=refslot[1];vis_clear();free(g_vs);g_vs=oldvs;g_nvs=vsn;g_vscap=vscap;g_vis=oldvis;g_vis_n=visn;
+-    memcpy(&S,&ss,sizeof S);R=rs;g_exec_next=next;g_exec_cur=cur_op;g_vis_on=vis;g_vis_counting=counting;g_vis_cur=cur;g_vis_cur_pass=curpass;g_pso_dirty=g_dss_dirty=1;g_stat_pass=pass;g_stat_draw=draws;g_bw_load=load;g_bw_store=store;g_pass_full_rw=full;g_sd_dead_bytes=dead;g_sd_n_dead=ndead;g_sd_n_all=nall;
++    memcpy(&S,&ss,sizeof S);R=rs;g_exec_next=next;g_exec_cur=cur_op;g_vis_on=vis;g_vis_counting=counting;g_vis_cur=cur;g_vis_cur_pass=curpass;g_pso_dirty=g_dss_dirty=1;g_rb_ed_dirty=ED_ALL;g_stat_pass=pass;g_stat_draw=draws;g_bw_load=load;g_bw_store=store;g_pass_full_rw=full;g_sd_dead_bytes=dead;g_sd_n_dead=ndead;g_sd_n_all=nall;
+     uint64_t frame=g_rr_frame;unsigned vc=g_rr_s[1].indexed?g_rr_s[1].di.count:g_rr_s[1].dw.count;NSUInteger n=c.width*c.height;NSString *out=@(getenv("DM_NVN_RT_RANGE_CHECK"));
+     [g_cb addCompletedHandler:^(id<MTLCommandBuffer> cb){unsigned long long diff[3]={0};
+         unsigned long long av[2],rv[2];int as[2]={slot0,slot1},rs[2]={refslot0,refslot1};for(int k=0;k<2;k++){id<MTLBuffer> a=actualvis[k],r=referencevis[k];av[k]=((uint64_t *)a.contents)[as[k]];rv[k]=((uint64_t *)r.contents)[rs[k]];}if(use_before)av[0]-=*(uint64_t *)before.contents;const char *names[3]={"color","depth","stencil"};

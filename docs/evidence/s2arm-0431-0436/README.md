@@ -1,5 +1,8 @@
 # S2Arm 0431–0436 — Boucle comparative de performances, fidélité graphique et caches froids/chauds (26 novembre 2026)
 
+**Complément de contre-expertise du 26 novembre.** Les 128 translations exactes du banc 0432 ne couvraient pas les blocs sans correspondance exacte. Sur 128 blocs indépendants, le calcul en demi-précision a choisi deux vecteurs différents. La révision 0441 rétablit le calcul de référence. Les gains de cadence attribués aux règles 0431–0436 dans les tableaux suivants proviennent de modèles de charge sur hôte. [Contrôles du moteur et limites](../s2arm-0437-review/README.md)
+
+
 Référence moteur : `0430` (avec observations appareil de la référence `845` en `0426`, journaux Zelda `0400486024DEC000` / `04007EF01F8AE000`, journaux Mario Kart World `0400C3F00006E000`, profil `20261126-140625-rec/frames.txt` et vidéo Moo Moo Meadows `ScreenRecording_11-26-2026 14-06-06_1.mov`).
 
 Tous les correctifs `0431–0436` sont **structurels et universels pour l’ensemble du catalogue Switch 2 / NVN2** : aucun branchement spécifique à Mario Kart World ou Zelda, aucune baisse de résolution (`1×` conservé), aucun changement de vitesse invitée, aucun relâchement des tests ou gardes thermiques (`RB_PRESENT_COMP_NS = 2 000 000 ns`, `RB_REGISTRATION_TRICKLE = 16` au démarrage), `S2A.Dsh` inchangé (`xfp = ecd99354f03b846d`) et caches existants préservés.

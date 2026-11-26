@@ -50,6 +50,8 @@ jobs:
       - name: Test the exported symbol list tool
         run: python3 -B test/s2arm_engine_exports_test.py
       - name: Fetch S2Arm at the pinned commit
+        env:
+          COMPARE_UPLOAD: ${{ contains(github.event.head_commit.message, '[s2arm-compare-upload]') }}
         run: |
           set -euo pipefail
           commit=$(python3 -c "import json;print(json.load(open('tools/s2arm_prototype/pin.json'))['s2arm']['commit'])")
@@ -62,6 +64,13 @@ jobs:
           echo "s2arm $commit" > proof/inputs.txt
           # RewindBox patch series against the pin (build-utils/s2arm/engine/patches, applied in order).
           for patch in $(ls build-utils/s2arm/engine/patches/*.patch 2>/dev/null | sort); do
+            if [[ "$COMPARE_UPLOAD" == true ]]; then
+              case "$(basename "$patch")" in
+                0432-*) cp "$RUNNER_TEMP/s2arm/graphics/nvn/gfx/nvn/nvn_present_fi.inc" "$RUNNER_TEMP/fi-before-0432.inc" ;;
+                0437-*) mkdir -p "$RUNNER_TEMP/0436/graphics/nvn"
+                        cp -R "$RUNNER_TEMP/s2arm/graphics/nvn/gfx" "$RUNNER_TEMP/0436/graphics/nvn/" ;;
+              esac
+            fi
             git -C "$RUNNER_TEMP/s2arm" apply --whitespace=nowarn "$GITHUB_WORKSPACE/$patch"
             echo "patch $(basename "$patch") $(shasum -a 256 "$patch" | cut -d' ' -f1)" | tee -a proof/inputs.txt
           done
@@ -178,6 +187,22 @@ jobs:
             xcodebuild -downloadComponent MetalToolchain
           fi
           xcrun --sdk iphoneos metal --version
+      - name: Compare texture uploads and motion-vector shaders
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-compare-upload]')
+        run: |
+          set -euo pipefail
+          evidence=docs/evidence/s2arm-0437-review
+          engine="$RUNNER_TEMP/s2arm"
+          baseline="$RUNNER_TEMP/0436"
+          python3 "$evidence/compare.py" "$baseline" "$engine" proof/upload-times.csv | tee proof/upload-check.txt
+          fi=graphics/nvn/gfx/nvn/nvn_present_fi.inc
+          rc=0
+          python3 "$evidence/fi_motion_check.py" "$RUNNER_TEMP/fi-before-0432.inc" "$baseline/$fi" "$engine/$fi" "$RUNNER_TEMP/fi-motion" | tee proof/fi-motion.txt || rc=$?
+          case $rc in
+            0) echo "GPU parity verified" >> proof/fi-motion.txt ;;
+            77) echo "GPU comparison unavailable on this runner" >> proof/fi-motion.txt ;;
+            *) exit "$rc" ;;
+          esac
       - name: Verify 64/128-bit wide memory shader translation and Metal execution
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-wide-mem-check]')
         working-directory: ${{ runner.temp }}/s2arm

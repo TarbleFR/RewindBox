@@ -1,0 +1,3043 @@
+{
+  "schema_version": "1.0.0",
+  "baseline_ref": "0436",
+  "runs": [
+    {
+      "timestamp": "2026-11-26T14:42:08.452228+00:00",
+      "label": "baseline_0436",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M01_deswizzle": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 40.9714,
+            "mean_ms": 41.2775,
+            "iqr_ms": 1.8183,
+            "min_ms": 40.253,
+            "p95_ms": 42.5878,
+            "max_ms": 42.5878
+          },
+          "baseline_meta": {
+            "module": "M01_deswizzle",
+            "time_ms": 41.1227,
+            "bytes": 88081152,
+            "throughput_mbs": 2042.69,
+            "checksum": "77c1ad3cb13e6cbd"
+          },
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 321532795,
+                "I1mr": 1062,
+                "ILmr": 1062,
+                "Dr": 47978232,
+                "D1mr": 1916113,
+                "DLmr": 1022,
+                "Dw": 58078486,
+                "D1mw": 1056727,
+                "DLmw": 205038
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 321532824,
+                "I1mr": 1066,
+                "ILmr": 1066,
+                "Dr": 47978238,
+                "D1mr": 1916286,
+                "DLmr": 585354,
+                "Dw": 58078490,
+                "D1mw": 1056737,
+                "DLmw": 575504
+              }
+            }
+          }
+        },
+        "M02_hmap": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 34.0325,
+            "mean_ms": 34.0066,
+            "iqr_ms": 1.1075,
+            "min_ms": 33.2112,
+            "p95_ms": 34.7741,
+            "max_ms": 34.7741
+          },
+          "baseline_meta": {
+            "module": "M02_hmap",
+            "time_ms": 34.0325,
+            "ops": 1400000,
+            "checksum": "00000000dba62b60"
+          },
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 23344356,
+                "I1mr": 1029,
+                "ILmr": 1028,
+                "Dr": 4961149,
+                "D1mr": 227789,
+                "DLmr": 1744,
+                "Dw": 1629477,
+                "D1mw": 9092,
+                "DLmw": 7230
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 23344308,
+                "I1mr": 1033,
+                "ILmr": 1030,
+                "Dr": 4961139,
+                "D1mr": 382854,
+                "DLmr": 1744,
+                "Dw": 1629467,
+                "D1mw": 11455,
+                "DLmw": 7230
+              }
+            }
+          }
+        },
+        "M03_pool_vbuf": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 0.8572,
+            "mean_ms": 0.859,
+            "iqr_ms": 0.0142,
+            "min_ms": 0.847,
+            "p95_ms": 0.8701,
+            "max_ms": 0.8701
+          },
+          "baseline_meta": {
+            "module": "M03_pool_vbuf",
+            "time_ms": 0.862,
+            "draws": 60000,
+            "slot_checks": 960000,
+            "table_writes": 15001,
+            "pc_misses": 4,
+            "checksum": "5512011205eb7e25"
+          },
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 1622516,
+                "I1mr": 949,
+                "ILmr": 949,
+                "Dr": 274136,
+                "D1mr": 894,
+                "DLmr": 842,
+                "Dw": 74848,
+                "D1mw": 663,
+                "DLmw": 649
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 1622525,
+                "I1mr": 949,
+                "ILmr": 948,
+                "Dr": 274139,
+                "D1mr": 1146,
+                "DLmr": 842,
+                "Dw": 74848,
+                "D1mw": 708,
+                "DLmw": 649
+              }
+            }
+          }
+        },
+        "M04_args_ubo": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 2.0367,
+            "mean_ms": 2.0477,
+            "iqr_ms": 0.0527,
+            "min_ms": 1.9795,
+            "p95_ms": 2.1687,
+            "max_ms": 2.1687
+          },
+          "baseline_meta": {
+            "module": "M04_args_ubo",
+            "time_ms": 1.9795,
+            "reused": 12800,
+            "partial": 6400,
+            "full": 28800,
+            "ubo_lookups": 188800,
+            "tex_lookups": 28800,
+            "len_fill_scans": 35200,
+            "rmu_locks": 4800,
+            "wrong": 0,
+            "checksum": "7c749894c40bd6a5"
+          },
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 2946090,
+                "I1mr": 987,
+                "ILmr": 987,
+                "Dr": 647964,
+                "D1mr": 882,
+                "DLmr": 853,
+                "Dw": 376811,
+                "D1mw": 277,
+                "DLmw": 269
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 2946095,
+                "I1mr": 991,
+                "ILmr": 987,
+                "Dr": 647966,
+                "D1mr": 1056,
+                "DLmr": 853,
+                "Dw": 376810,
+                "D1mw": 292,
+                "DLmw": 269
+              }
+            }
+          }
+        },
+        "M05_tbdr_pass_cut": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 0.6054,
+            "mean_ms": 0.6187,
+            "iqr_ms": 0.0285,
+            "min_ms": 0.5988,
+            "p95_ms": 0.6561,
+            "max_ms": 0.6561
+          },
+          "baseline_meta": {
+            "module": "M05_tbdr_pass_cut",
+            "time_ms": 0.6292,
+            "mid_pass_splits": 7200,
+            "extra_dram_mb_per_frame": 1048.0,
+            "dsnap_blits": 300,
+            "dsnap_mb_per_frame": 4.45,
+            "checksum": "0000000000001d0c"
+          }
+        },
+        "M06_ubo_versions": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 6.7113,
+            "mean_ms": 7.2058,
+            "iqr_ms": 1.4041,
+            "min_ms": 6.6501,
+            "p95_ms": 8.3491,
+            "max_ms": 8.3491
+          },
+          "baseline_meta": {
+            "module": "M06_ubo_versions",
+            "time_ms": 8.0569,
+            "reconstructions": 16200,
+            "checksum": "3ae1f3ed97dfdd8d"
+          }
+        },
+        "M07_dirty_stripes": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 1.3769,
+            "mean_ms": 1.5705,
+            "iqr_ms": 0.0311,
+            "min_ms": 1.364,
+            "p95_ms": 2.7221,
+            "max_ms": 2.7221
+          },
+          "baseline_meta": {
+            "module": "M07_dirty_stripes",
+            "time_ms": 1.3769,
+            "ops": 100000,
+            "checksum": "b91c41e2263cca45"
+          }
+        },
+        "M08_pso_cold_warm": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 0.0115,
+            "mean_ms": 0.0115,
+            "iqr_ms": 0.0,
+            "min_ms": 0.0115,
+            "p95_ms": 0.0118,
+            "max_ms": 0.0118
+          },
+          "baseline_meta": {
+            "module": "M08_pso_cold_warm",
+            "time_ms": 0.0115,
+            "ops": 40000,
+            "corrupt": 0,
+            "unbounded": 0,
+            "checksum": "7695ac66fc6507d5"
+          }
+        },
+        "M09_stream_pool_gpu": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 0.6635,
+            "mean_ms": 0.6771,
+            "iqr_ms": 0.045,
+            "min_ms": 0.6568,
+            "p95_ms": 0.7162,
+            "max_ms": 0.7162
+          },
+          "baseline_meta": {
+            "module": "M09_stream_pool_gpu",
+            "time_ms": 0.6568,
+            "ops": 1000000,
+            "hits": 250000,
+            "checksum": "00000000000c9293"
+          }
+        },
+        "M10_frame_pacing_fi": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 0.2334,
+            "mean_ms": 0.2348,
+            "iqr_ms": 0.0051,
+            "min_ms": 0.2332,
+            "p95_ms": 0.2385,
+            "max_ms": 0.2385
+          },
+          "baseline_meta": {
+            "module": "M10_frame_pacing_fi",
+            "time_ms": 0.2334,
+            "frames": 90000,
+            "primed": 3000,
+            "toggles": 3000,
+            "checksum": "c1615b3fc3b98f05"
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T14:42:23.614117+00:00",
+      "label": "iter01_0437_deswizzle_gob_tiled",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M01_deswizzle": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 41.1401,
+            "mean_ms": 41.372,
+            "iqr_ms": 4.6838,
+            "min_ms": 38.5781,
+            "p95_ms": 45.7647,
+            "max_ms": 45.7647
+          },
+          "baseline_meta": {
+            "module": "M01_deswizzle",
+            "time_ms": 38.9357,
+            "bytes": 88081152,
+            "throughput_mbs": 2157.42,
+            "checksum": "77c1ad3cb13e6cbd"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 19.8767,
+            "mean_ms": 23.3161,
+            "iqr_ms": 12.3583,
+            "min_ms": 18.8368,
+            "p95_ms": 33.7537,
+            "max_ms": 33.7537
+          },
+          "candidate_meta": {
+            "module": "M01_deswizzle",
+            "time_ms": 19.4776,
+            "bytes": 88081152,
+            "throughput_mbs": 4312.69,
+            "checksum": "77c1ad3cb13e6cbd"
+          },
+          "delta_median_pct": -51.69,
+          "speedup_x": 2.07,
+          "pair_wins": "7/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 321532851,
+                "I1mr": 1062,
+                "ILmr": 1062,
+                "Dr": 47978243,
+                "D1mr": 1916113,
+                "DLmr": 1022,
+                "Dw": 58078496,
+                "D1mw": 1056727,
+                "DLmw": 205038
+              },
+              "candidate": {
+                "Ir": 209098006,
+                "I1mr": 1088,
+                "ILmr": 1088,
+                "Dr": 28056110,
+                "D1mr": 1250727,
+                "DLmr": 1023,
+                "Dw": 53652477,
+                "D1mw": 745739,
+                "DLmw": 205123
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -112434845,
+                "delta_Ir_pct": -34.97,
+                "delta_D1_misses": -976374,
+                "delta_D1_pct": -32.84,
+                "delta_LL_misses": 86,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -18.5063,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -61.1427,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 321532816,
+                "I1mr": 1066,
+                "ILmr": 1066,
+                "Dr": 47978235,
+                "D1mr": 1916286,
+                "DLmr": 585354,
+                "Dw": 58078492,
+                "D1mw": 1056737,
+                "DLmw": 575504
+              },
+              "candidate": {
+                "Ir": 209098041,
+                "I1mr": 1090,
+                "ILmr": 1090,
+                "Dr": 28056118,
+                "D1mr": 1250891,
+                "DLmr": 585342,
+                "Dw": 53652481,
+                "D1mw": 745749,
+                "DLmw": 575704
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -112434775,
+                "delta_Ir_pct": -34.97,
+                "delta_D1_misses": -976383,
+                "delta_D1_pct": -32.84,
+                "delta_LL_misses": 188,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -18.4957,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -61.132,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T14:43:55.922296+00:00",
+      "label": "iter01b_deswizzle_block_col",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M01_deswizzle": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 38.0594,
+            "mean_ms": 40.8658,
+            "iqr_ms": 4.1543,
+            "min_ms": 37.3159,
+            "p95_ms": 54.6643,
+            "max_ms": 54.6643
+          },
+          "baseline_meta": {
+            "module": "M01_deswizzle",
+            "time_ms": 54.6643,
+            "bytes": 88081152,
+            "throughput_mbs": 1536.67,
+            "checksum": "77c1ad3cb13e6cbd"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 22.8685,
+            "mean_ms": 22.9585,
+            "iqr_ms": 0.9135,
+            "min_ms": 21.846,
+            "p95_ms": 23.718,
+            "max_ms": 23.718
+          },
+          "candidate_meta": {
+            "module": "M01_deswizzle",
+            "time_ms": 22.6131,
+            "bytes": 88081152,
+            "throughput_mbs": 3714.69,
+            "checksum": "77c1ad3cb13e6cbd"
+          },
+          "delta_median_pct": -39.91,
+          "speedup_x": 1.664,
+          "pair_wins": "7/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 321532848,
+                "I1mr": 1062,
+                "ILmr": 1062,
+                "Dr": 47978240,
+                "D1mr": 1916430,
+                "DLmr": 1022,
+                "Dw": 58078494,
+                "D1mw": 1056719,
+                "DLmw": 205047
+              },
+              "candidate": {
+                "Ir": 209223734,
+                "I1mr": 1104,
+                "ILmr": 1104,
+                "Dr": 28084088,
+                "D1mr": 1343075,
+                "DLmr": 1023,
+                "Dw": 53649835,
+                "D1mw": 988613,
+                "DLmw": 205160
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -112309114,
+                "delta_Ir_pct": -34.93,
+                "delta_D1_misses": -641461,
+                "delta_D1_pct": -21.58,
+                "delta_LL_misses": 114,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -16.9805,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -59.5692,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 321532864,
+                "I1mr": 1067,
+                "ILmr": 1067,
+                "Dr": 47978245,
+                "D1mr": 1916578,
+                "DLmr": 585339,
+                "Dw": 58078496,
+                "D1mw": 1056728,
+                "DLmw": 575508
+              },
+              "candidate": {
+                "Ir": 209223660,
+                "I1mr": 1107,
+                "ILmr": 1107,
+                "Dr": 28084072,
+                "D1mr": 1344296,
+                "DLmr": 585327,
+                "Dw": 53649823,
+                "D1mw": 990812,
+                "DLmw": 578045
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -112309204,
+                "delta_Ir_pct": -34.93,
+                "delta_D1_misses": -638198,
+                "delta_D1_pct": -21.46,
+                "delta_LL_misses": 2525,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -16.7138,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -59.3026,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T14:45:20.214034+00:00",
+      "label": "iter01c_deswizzle_unrolled_128b",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M01_deswizzle": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 37.6115,
+            "mean_ms": 37.6766,
+            "iqr_ms": 0.6843,
+            "min_ms": 37.2298,
+            "p95_ms": 38.3107,
+            "max_ms": 38.3107
+          },
+          "baseline_meta": {
+            "module": "M01_deswizzle",
+            "time_ms": 38.3107,
+            "bytes": 88081152,
+            "throughput_mbs": 2192.62,
+            "checksum": "77c1ad3cb13e6cbd"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 19.0074,
+            "mean_ms": 19.0563,
+            "iqr_ms": 0.6559,
+            "min_ms": 18.2832,
+            "p95_ms": 19.692,
+            "max_ms": 19.692
+          },
+          "candidate_meta": {
+            "module": "M01_deswizzle",
+            "time_ms": 19.0074,
+            "bytes": 88081152,
+            "throughput_mbs": 4419.36,
+            "checksum": "77c1ad3cb13e6cbd"
+          },
+          "delta_median_pct": -49.46,
+          "speedup_x": 1.979,
+          "pair_wins": "7/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 321532757,
+                "I1mr": 1062,
+                "ILmr": 1062,
+                "Dr": 47978214,
+                "D1mr": 1916415,
+                "DLmr": 1021,
+                "Dw": 58078485,
+                "D1mw": 1056711,
+                "DLmw": 205038
+              },
+              "candidate": {
+                "Ir": 208655620,
+                "I1mr": 1087,
+                "ILmr": 1087,
+                "Dr": 28070088,
+                "D1mr": 1250661,
+                "DLmr": 1022,
+                "Dw": 53665203,
+                "D1mw": 745880,
+                "DLmw": 205124
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -112877137,
+                "delta_Ir_pct": -35.11,
+                "delta_D1_misses": -976585,
+                "delta_D1_pct": -32.85,
+                "delta_LL_misses": 87,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -18.5627,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -61.3668,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 321532805,
+                "I1mr": 1066,
+                "ILmr": 1066,
+                "Dr": 47978228,
+                "D1mr": 1916586,
+                "DLmr": 585337,
+                "Dw": 58078488,
+                "D1mw": 1056720,
+                "DLmw": 575509
+              },
+              "candidate": {
+                "Ir": 208655624,
+                "I1mr": 1091,
+                "ILmr": 1091,
+                "Dr": 28070091,
+                "D1mr": 1250864,
+                "DLmr": 585331,
+                "Dw": 53665201,
+                "D1mw": 745889,
+                "DLmw": 575714
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -112877181,
+                "delta_Ir_pct": -35.11,
+                "delta_D1_misses": -976553,
+                "delta_D1_pct": -32.84,
+                "delta_LL_misses": 199,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -18.5509,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -61.355,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T14:47:35.527992+00:00",
+      "label": "iter02a_hmap_ilp4",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M02_hmap": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 34.6811,
+            "mean_ms": 36.9094,
+            "iqr_ms": 3.184,
+            "min_ms": 33.608,
+            "p95_ms": 48.7448,
+            "max_ms": 48.7448
+          },
+          "baseline_meta": {
+            "module": "M02_hmap",
+            "time_ms": 34.6811,
+            "ops": 1400000,
+            "checksum": "00000000dba62b60"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 25.0873,
+            "mean_ms": 25.4056,
+            "iqr_ms": 0.7331,
+            "min_ms": 24.6724,
+            "p95_ms": 26.4874,
+            "max_ms": 26.4874
+          },
+          "candidate_meta": {
+            "module": "M02_hmap",
+            "time_ms": 24.6724,
+            "ops": 1400000,
+            "checksum": "00000000dba62b60"
+          },
+          "delta_median_pct": -27.66,
+          "speedup_x": 1.382,
+          "pair_wins": "7/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 23344369,
+                "I1mr": 1030,
+                "ILmr": 1029,
+                "Dr": 4961151,
+                "D1mr": 228203,
+                "DLmr": 1743,
+                "Dw": 1629468,
+                "D1mw": 9098,
+                "DLmw": 7235
+              },
+              "candidate": {
+                "Ir": 20709331,
+                "I1mr": 1032,
+                "ILmr": 1032,
+                "Dr": 5054998,
+                "D1mr": 229345,
+                "DLmr": 1422,
+                "Dw": 1682566,
+                "D1mw": 9458,
+                "DLmw": 7595
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -2635038,
+                "delta_Ir_pct": -11.29,
+                "delta_D1_misses": 1502,
+                "delta_D1_pct": 0.63,
+                "delta_LL_misses": 39,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.3201,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -1.3194,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 23344423,
+                "I1mr": 1032,
+                "ILmr": 1029,
+                "Dr": 4961161,
+                "D1mr": 383248,
+                "DLmr": 1743,
+                "Dw": 1629476,
+                "D1mw": 11471,
+                "DLmw": 7235
+              },
+              "candidate": {
+                "Ir": 20709265,
+                "I1mr": 1036,
+                "ILmr": 1033,
+                "Dr": 5054984,
+                "D1mr": 380935,
+                "DLmr": 1422,
+                "Dw": 1682558,
+                "D1mw": 11816,
+                "DLmw": 7595
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -2635158,
+                "delta_Ir_pct": -11.29,
+                "delta_D1_misses": -1968,
+                "delta_D1_pct": -0.5,
+                "delta_LL_misses": 39,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.3358,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -1.335,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T14:48:36.256864+00:00",
+      "label": "iter02b_hmap_ilp4_inline_eq",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M02_hmap": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 34.6638,
+            "mean_ms": 34.2171,
+            "iqr_ms": 1.2865,
+            "min_ms": 32.7172,
+            "p95_ms": 35.104,
+            "max_ms": 35.104
+          },
+          "baseline_meta": {
+            "module": "M02_hmap",
+            "time_ms": 34.6662,
+            "ops": 1400000,
+            "checksum": "00000000dba62b60"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 27.367,
+            "mean_ms": 27.4064,
+            "iqr_ms": 0.8017,
+            "min_ms": 27.0025,
+            "p95_ms": 27.9374,
+            "max_ms": 27.9374
+          },
+          "candidate_meta": {
+            "module": "M02_hmap",
+            "time_ms": 27.0025,
+            "ops": 1400000,
+            "checksum": "00000000dba62b60"
+          },
+          "delta_median_pct": -21.05,
+          "speedup_x": 1.267,
+          "pair_wins": "7/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 23344563,
+                "I1mr": 1035,
+                "ILmr": 1034,
+                "Dr": 4961192,
+                "D1mr": 228016,
+                "DLmr": 1743,
+                "Dw": 1629509,
+                "D1mw": 9097,
+                "DLmw": 7234
+              },
+              "candidate": {
+                "Ir": 22861408,
+                "I1mr": 1031,
+                "ILmr": 1030,
+                "Dr": 6076611,
+                "D1mr": 228799,
+                "DLmr": 1418,
+                "Dw": 1535011,
+                "D1mw": 9453,
+                "DLmw": 7594
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -483155,
+                "delta_Ir_pct": -2.07,
+                "delta_D1_misses": 1139,
+                "delta_D1_pct": 0.48,
+                "delta_LL_misses": 35,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.0519,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.2351,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 23344382,
+                "I1mr": 1031,
+                "ILmr": 1028,
+                "Dr": 4961148,
+                "D1mr": 382851,
+                "DLmr": 1743,
+                "Dw": 1629474,
+                "D1mw": 11453,
+                "DLmw": 7234
+              },
+              "candidate": {
+                "Ir": 22861384,
+                "I1mr": 1033,
+                "ILmr": 1031,
+                "Dr": 6076606,
+                "D1mr": 380338,
+                "DLmr": 1418,
+                "Dw": 1535006,
+                "D1mw": 11796,
+                "DLmw": 7594
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -482998,
+                "delta_Ir_pct": -2.07,
+                "delta_D1_misses": -2170,
+                "delta_D1_pct": -0.55,
+                "delta_LL_misses": 35,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.0668,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.2499,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T14:49:24.042272+00:00",
+      "label": "iter02c_hmap_wyhash128",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M02_hmap": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 34.4098,
+            "mean_ms": 34.2748,
+            "iqr_ms": 0.7124,
+            "min_ms": 33.6888,
+            "p95_ms": 34.6856,
+            "max_ms": 34.6856
+          },
+          "baseline_meta": {
+            "module": "M02_hmap",
+            "time_ms": 34.5936,
+            "ops": 1400000,
+            "checksum": "00000000dba62b60"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 26.082,
+            "mean_ms": 26.4079,
+            "iqr_ms": 1.3132,
+            "min_ms": 24.4289,
+            "p95_ms": 29.5646,
+            "max_ms": 29.5646
+          },
+          "candidate_meta": {
+            "module": "M02_hmap",
+            "time_ms": 29.5646,
+            "ops": 1400000,
+            "checksum": "00000000dba62b60"
+          },
+          "delta_median_pct": -24.2,
+          "speedup_x": 1.319,
+          "pair_wins": "7/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 23344620,
+                "I1mr": 1035,
+                "ILmr": 1034,
+                "Dr": 4961210,
+                "D1mr": 228203,
+                "DLmr": 1743,
+                "Dw": 1629513,
+                "D1mw": 9098,
+                "DLmw": 7235
+              },
+              "candidate": {
+                "Ir": 21002633,
+                "I1mr": 1022,
+                "ILmr": 1021,
+                "Dr": 5263334,
+                "D1mr": 229834,
+                "DLmr": 1422,
+                "Dw": 1937747,
+                "D1mw": 9477,
+                "DLmw": 7581
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -2341987,
+                "delta_Ir_pct": -10.03,
+                "delta_D1_misses": 2010,
+                "delta_D1_pct": 0.85,
+                "delta_LL_misses": 25,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.2825,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -1.1706,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 23344393,
+                "I1mr": 1032,
+                "ILmr": 1029,
+                "Dr": 4961155,
+                "D1mr": 383248,
+                "DLmr": 1743,
+                "Dw": 1629474,
+                "D1mw": 11471,
+                "DLmw": 7235
+              },
+              "candidate": {
+                "Ir": 21002645,
+                "I1mr": 1023,
+                "ILmr": 1020,
+                "Dr": 5263337,
+                "D1mr": 382828,
+                "DLmr": 1422,
+                "Dw": 1937749,
+                "D1mw": 11842,
+                "DLmw": 7581
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -2341748,
+                "delta_Ir_pct": -10.03,
+                "delta_D1_misses": -49,
+                "delta_D1_pct": -0.01,
+                "delta_LL_misses": 25,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.2917,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -1.1797,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T14:52:37.357998+00:00",
+      "label": "iter02d_0438_pool_vbuf",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M03_pool_vbuf": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 1.2941,
+            "mean_ms": 1.2763,
+            "iqr_ms": 0.8633,
+            "min_ms": 0.8728,
+            "p95_ms": 1.8535,
+            "max_ms": 1.8535
+          },
+          "baseline_meta": {
+            "module": "M03_pool_vbuf",
+            "time_ms": 0.8732,
+            "draws": 60000,
+            "slot_checks": 960000,
+            "table_writes": 15001,
+            "pc_misses": 4,
+            "checksum": "5512011205eb7e25"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 0.4107,
+            "mean_ms": 0.489,
+            "iqr_ms": 0.3493,
+            "min_ms": 0.3663,
+            "p95_ms": 0.719,
+            "max_ms": 0.719
+          },
+          "candidate_meta": {
+            "module": "M03_pool_vbuf",
+            "time_ms": 0.4107,
+            "draws": 60000,
+            "slot_checks": 15001,
+            "table_writes": 15001,
+            "pc_misses": 130,
+            "checksum": "5512011205eb7e25"
+          },
+          "delta_median_pct": -68.26,
+          "speedup_x": 3.151,
+          "pair_wins": "7/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 1622513,
+                "I1mr": 948,
+                "ILmr": 948,
+                "Dr": 274135,
+                "D1mr": 894,
+                "DLmr": 841,
+                "Dw": 74848,
+                "D1mw": 666,
+                "DLmw": 652
+              },
+              "candidate": {
+                "Ir": 769347,
+                "I1mr": 953,
+                "ILmr": 953,
+                "Dr": 171346,
+                "D1mr": 900,
+                "DLmr": 845,
+                "Dw": 122548,
+                "D1mw": 666,
+                "DLmw": 652
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -853166,
+                "delta_Ir_pct": -52.58,
+                "delta_D1_misses": 6,
+                "delta_D1_pct": 0.38,
+                "delta_LL_misses": 4,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.1067,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.4302,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 1622539,
+                "I1mr": 951,
+                "ILmr": 950,
+                "Dr": 274142,
+                "D1mr": 1130,
+                "DLmr": 841,
+                "Dw": 74849,
+                "D1mw": 709,
+                "DLmw": 652
+              },
+              "candidate": {
+                "Ir": 769382,
+                "I1mr": 955,
+                "ILmr": 954,
+                "Dr": 171356,
+                "D1mr": 1118,
+                "DLmr": 845,
+                "Dw": 122549,
+                "D1mw": 701,
+                "DLmw": 652
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -853157,
+                "delta_Ir_pct": -52.58,
+                "delta_D1_misses": -20,
+                "delta_D1_pct": -1.09,
+                "delta_LL_misses": 4,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.1068,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.4304,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T14:59:22.418867+00:00",
+      "label": "iter03_0439_args_slot_gens_ubolen",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M04_args_ubo": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 2.5042,
+            "mean_ms": 2.6437,
+            "iqr_ms": 1.4447,
+            "min_ms": 1.95,
+            "p95_ms": 3.7873,
+            "max_ms": 3.7873
+          },
+          "baseline_meta": {
+            "module": "M04_args_ubo",
+            "time_ms": 3.7873,
+            "reused": 12800,
+            "partial": 6400,
+            "full": 28800,
+            "ubo_lookups": 188800,
+            "tex_lookups": 28800,
+            "len_fill_scans": 35200,
+            "rmu_locks": 4800,
+            "wrong": 0,
+            "checksum": "7c749894c40bd6a5"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 2.3394,
+            "mean_ms": 2.7912,
+            "iqr_ms": 1.7389,
+            "min_ms": 1.9906,
+            "p95_ms": 3.8126,
+            "max_ms": 3.8126
+          },
+          "candidate_meta": {
+            "module": "M04_args_ubo",
+            "time_ms": 3.5888,
+            "reused": 12800,
+            "partial": 35120,
+            "full": 80,
+            "ubo_lookups": 35520,
+            "tex_lookups": 28800,
+            "len_fill_scans": 40,
+            "rmu_locks": 4800,
+            "wrong": 0,
+            "checksum": "7c749894c40bd6a5"
+          },
+          "delta_median_pct": -6.58,
+          "speedup_x": 1.07,
+          "pair_wins": "2/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 2946129,
+                "I1mr": 987,
+                "ILmr": 987,
+                "Dr": 647970,
+                "D1mr": 880,
+                "DLmr": 850,
+                "Dw": 376815,
+                "D1mw": 283,
+                "DLmw": 272
+              },
+              "candidate": {
+                "Ir": 3290791,
+                "I1mr": 992,
+                "ILmr": 992,
+                "Dr": 756161,
+                "D1mr": 883,
+                "DLmr": 849,
+                "Dw": 442488,
+                "D1mw": 290,
+                "DLmw": 275
+              },
+              "a18pro_analytical": {
+                "delta_Ir": 344662,
+                "delta_Ir_pct": 11.7,
+                "delta_D1_misses": 10,
+                "delta_D1_pct": 0.86,
+                "delta_LL_misses": 2,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": 0.0435,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": 0.1742,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 2946104,
+                "I1mr": 992,
+                "ILmr": 988,
+                "Dr": 647963,
+                "D1mr": 1054,
+                "DLmr": 850,
+                "Dw": 376812,
+                "D1mw": 293,
+                "DLmw": 272
+              },
+              "candidate": {
+                "Ir": 3290819,
+                "I1mr": 997,
+                "ILmr": 993,
+                "Dr": 756169,
+                "D1mr": 1057,
+                "DLmr": 849,
+                "Dw": 442491,
+                "D1mw": 309,
+                "DLmw": 275
+              },
+              "a18pro_analytical": {
+                "delta_Ir": 344715,
+                "delta_Ir_pct": 11.7,
+                "delta_D1_misses": 19,
+                "delta_D1_pct": 1.41,
+                "delta_LL_misses": 2,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": 0.0436,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": 0.1743,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T15:01:10.647607+00:00",
+      "label": "iter03b_0439_args_compact_summary",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M04_args_ubo": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 2.3415,
+            "mean_ms": 2.5079,
+            "iqr_ms": 1.1506,
+            "min_ms": 1.9967,
+            "p95_ms": 3.5006,
+            "max_ms": 3.5006
+          },
+          "baseline_meta": {
+            "module": "M04_args_ubo",
+            "time_ms": 2.3687,
+            "reused": 12800,
+            "partial": 6400,
+            "full": 28800,
+            "ubo_lookups": 188800,
+            "tex_lookups": 28800,
+            "len_fill_scans": 35200,
+            "rmu_locks": 4800,
+            "wrong": 0,
+            "checksum": "7c749894c40bd6a5"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 2.1181,
+            "mean_ms": 2.4837,
+            "iqr_ms": 1.5253,
+            "min_ms": 1.7633,
+            "p95_ms": 3.8937,
+            "max_ms": 3.8937
+          },
+          "candidate_meta": {
+            "module": "M04_args_ubo",
+            "time_ms": 1.7633,
+            "reused": 12800,
+            "partial": 35120,
+            "full": 80,
+            "ubo_lookups": 35520,
+            "tex_lookups": 28800,
+            "len_fill_scans": 40,
+            "rmu_locks": 4800,
+            "wrong": 0,
+            "checksum": "7c749894c40bd6a5"
+          },
+          "delta_median_pct": -9.54,
+          "speedup_x": 1.105,
+          "pair_wins": "4/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 2946124,
+                "I1mr": 989,
+                "ILmr": 989,
+                "Dr": 647967,
+                "D1mr": 880,
+                "DLmr": 850,
+                "Dw": 376814,
+                "D1mw": 284,
+                "DLmw": 272
+              },
+              "candidate": {
+                "Ir": 3015993,
+                "I1mr": 994,
+                "ILmr": 994,
+                "Dr": 716339,
+                "D1mr": 883,
+                "DLmr": 849,
+                "Dw": 419979,
+                "D1mw": 290,
+                "DLmw": 275
+              },
+              "a18pro_analytical": {
+                "delta_Ir": 69869,
+                "delta_Ir_pct": 2.37,
+                "delta_D1_misses": 9,
+                "delta_D1_pct": 0.77,
+                "delta_LL_misses": 2,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": 0.009,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": 0.0355,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 2946097,
+                "I1mr": 991,
+                "ILmr": 987,
+                "Dr": 647961,
+                "D1mr": 1053,
+                "DLmr": 850,
+                "Dw": 376810,
+                "D1mw": 294,
+                "DLmw": 272
+              },
+              "candidate": {
+                "Ir": 3016005,
+                "I1mr": 997,
+                "ILmr": 993,
+                "Dr": 716341,
+                "D1mr": 1055,
+                "DLmr": 849,
+                "Dw": 419982,
+                "D1mw": 304,
+                "DLmw": 275
+              },
+              "a18pro_analytical": {
+                "delta_Ir": 69908,
+                "delta_Ir_pct": 2.37,
+                "delta_D1_misses": 12,
+                "delta_D1_pct": 0.89,
+                "delta_LL_misses": 2,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": 0.009,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": 0.0356,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T15:02:26.534362+00:00",
+      "label": "iter03c_0439_args_single_ubo_fastpath",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M04_args_ubo": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 2.0578,
+            "mean_ms": 2.439,
+            "iqr_ms": 1.1677,
+            "min_ms": 1.9838,
+            "p95_ms": 3.3123,
+            "max_ms": 3.3123
+          },
+          "baseline_meta": {
+            "module": "M04_args_ubo",
+            "time_ms": 2.0578,
+            "reused": 12800,
+            "partial": 6400,
+            "full": 28800,
+            "ubo_lookups": 188800,
+            "tex_lookups": 28800,
+            "len_fill_scans": 35200,
+            "rmu_locks": 4800,
+            "wrong": 0,
+            "checksum": "7c749894c40bd6a5"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 1.9831,
+            "mean_ms": 2.6402,
+            "iqr_ms": 1.3437,
+            "min_ms": 1.7431,
+            "p95_ms": 5.8005,
+            "max_ms": 5.8005
+          },
+          "candidate_meta": {
+            "module": "M04_args_ubo",
+            "time_ms": 5.8005,
+            "reused": 12800,
+            "partial": 35120,
+            "full": 80,
+            "ubo_lookups": 35520,
+            "tex_lookups": 28800,
+            "len_fill_scans": 40,
+            "rmu_locks": 4800,
+            "wrong": 0,
+            "checksum": "7c749894c40bd6a5"
+          },
+          "delta_median_pct": -3.63,
+          "speedup_x": 1.038,
+          "pair_wins": "6/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 2946107,
+                "I1mr": 986,
+                "ILmr": 986,
+                "Dr": 647968,
+                "D1mr": 880,
+                "DLmr": 850,
+                "Dw": 376813,
+                "D1mw": 284,
+                "DLmw": 272
+              },
+              "candidate": {
+                "Ir": 2865548,
+                "I1mr": 995,
+                "ILmr": 995,
+                "Dr": 688183,
+                "D1mr": 883,
+                "DLmr": 849,
+                "Dw": 418088,
+                "D1mw": 290,
+                "DLmw": 275
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -80559,
+                "delta_Ir_pct": -2.73,
+                "delta_D1_misses": 9,
+                "delta_D1_pct": 0.77,
+                "delta_LL_misses": 2,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.0099,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.0404,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 2946102,
+                "I1mr": 990,
+                "ILmr": 986,
+                "Dr": 647966,
+                "D1mr": 1054,
+                "DLmr": 850,
+                "Dw": 376811,
+                "D1mw": 294,
+                "DLmw": 272
+              },
+              "candidate": {
+                "Ir": 2865571,
+                "I1mr": 1000,
+                "ILmr": 996,
+                "Dr": 688189,
+                "D1mr": 1056,
+                "DLmr": 849,
+                "Dw": 418089,
+                "D1mw": 304,
+                "DLmw": 275
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -80531,
+                "delta_Ir_pct": -2.73,
+                "delta_D1_misses": 12,
+                "delta_D1_pct": 0.89,
+                "delta_LL_misses": 2,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.0099,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.0404,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T15:03:47.963303+00:00",
+      "label": "iter04_0440_tbdr_pass_cut",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M05_tbdr_pass_cut": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 0.6471,
+            "mean_ms": 0.8744,
+            "iqr_ms": 0.7485,
+            "min_ms": 0.6276,
+            "p95_ms": 1.5008,
+            "max_ms": 1.5008
+          },
+          "baseline_meta": {
+            "module": "M05_tbdr_pass_cut",
+            "time_ms": 0.6311,
+            "mid_pass_splits": 7200,
+            "extra_dram_mb_per_frame": 1048.0,
+            "dsnap_blits": 300,
+            "dsnap_mb_per_frame": 4.45,
+            "checksum": "0000000000001d0c"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 0.6061,
+            "mean_ms": 0.8673,
+            "iqr_ms": 0.6818,
+            "min_ms": 0.5724,
+            "p95_ms": 1.3255,
+            "max_ms": 1.3255
+          },
+          "candidate_meta": {
+            "module": "M05_tbdr_pass_cut",
+            "time_ms": 1.2544,
+            "mid_pass_splits": 600,
+            "extra_dram_mb_per_frame": 104.0,
+            "dsnap_blits": 300,
+            "dsnap_mb_per_frame": 4.45,
+            "checksum": "0000000000000374"
+          },
+          "delta_median_pct": -6.34,
+          "speedup_x": 1.068,
+          "pair_wins": "5/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 585554,
+                "I1mr": 973,
+                "ILmr": 973,
+                "Dr": 51547,
+                "D1mr": 871,
+                "DLmr": 840,
+                "Dw": 16279,
+                "D1mw": 265,
+                "DLmw": 260
+              },
+              "candidate": {
+                "Ir": 540977,
+                "I1mr": 973,
+                "ILmr": 973,
+                "Dr": 51452,
+                "D1mr": 877,
+                "DLmr": 841,
+                "Dw": 16250,
+                "D1mw": 265,
+                "DLmw": 259
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -44577,
+                "delta_Ir_pct": -7.61,
+                "delta_D1_misses": 6,
+                "delta_D1_pct": 0.53,
+                "delta_LL_misses": 0,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.0056,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.0225,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 585564,
+                "I1mr": 974,
+                "ILmr": 973,
+                "Dr": 51550,
+                "D1mr": 1034,
+                "DLmr": 840,
+                "Dw": 16279,
+                "D1mw": 273,
+                "DLmw": 260
+              },
+              "candidate": {
+                "Ir": 541023,
+                "I1mr": 974,
+                "ILmr": 973,
+                "Dr": 51463,
+                "D1mr": 1038,
+                "DLmr": 841,
+                "Dw": 16253,
+                "D1mw": 273,
+                "DLmw": 259
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -44541,
+                "delta_Ir_pct": -7.61,
+                "delta_D1_misses": 4,
+                "delta_D1_pct": 0.31,
+                "delta_LL_misses": 0,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.0056,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.0225,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T15:06:35.310117+00:00",
+      "label": "iter05_0441_ubo_versions",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M06_ubo_versions": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 7.4295,
+            "mean_ms": 9.8119,
+            "iqr_ms": 6.3918,
+            "min_ms": 7.2294,
+            "p95_ms": 14.9137,
+            "max_ms": 14.9137
+          },
+          "baseline_meta": {
+            "module": "M06_ubo_versions",
+            "time_ms": 13.7726,
+            "reconstructions": 16200,
+            "checksum": "3ae1f3ed97dfdd8d"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 8.5716,
+            "mean_ms": 9.5635,
+            "iqr_ms": 4.1583,
+            "min_ms": 7.1286,
+            "p95_ms": 14.3836,
+            "max_ms": 14.3836
+          },
+          "candidate_meta": {
+            "module": "M06_ubo_versions",
+            "time_ms": 11.3667,
+            "reconstructions": 16200,
+            "checksum": "3ae1f3ed97dfdd8d"
+          },
+          "delta_median_pct": 15.37,
+          "speedup_x": 0.867,
+          "pair_wins": "4/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 11994687,
+                "I1mr": 997,
+                "ILmr": 997,
+                "Dr": 1529134,
+                "D1mr": 1710,
+                "DLmr": 851,
+                "Dw": 3583007,
+                "D1mw": 31431,
+                "DLmw": 25258
+              },
+              "candidate": {
+                "Ir": 11490334,
+                "I1mr": 996,
+                "ILmr": 996,
+                "Dr": 1513675,
+                "D1mr": 2299,
+                "DLmr": 851,
+                "Dw": 3557556,
+                "D1mw": 28908,
+                "DLmw": 25258
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -504353,
+                "delta_Ir_pct": -4.2,
+                "delta_D1_misses": -1934,
+                "delta_D1_pct": -5.84,
+                "delta_LL_misses": 0,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.072,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.2633,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 11994611,
+                "I1mr": 998,
+                "ILmr": 997,
+                "Dr": 1529111,
+                "D1mr": 5476,
+                "DLmr": 851,
+                "Dw": 3582998,
+                "D1mw": 31445,
+                "DLmw": 25258
+              },
+              "candidate": {
+                "Ir": 11490311,
+                "I1mr": 998,
+                "ILmr": 995,
+                "Dr": 1513669,
+                "D1mr": 5578,
+                "DLmr": 851,
+                "Dw": 3557555,
+                "D1mw": 28925,
+                "DLmw": 25258
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -504300,
+                "delta_Ir_pct": -4.2,
+                "delta_D1_misses": -2418,
+                "delta_D1_pct": -6.55,
+                "delta_LL_misses": 0,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.0742,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.2655,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T15:09:08.846346+00:00",
+      "label": "iter05b_0441_ubo_versions_hot_cold",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M06_ubo_versions": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 7.371,
+            "mean_ms": 7.2576,
+            "iqr_ms": 0.6148,
+            "min_ms": 6.7643,
+            "p95_ms": 7.6213,
+            "max_ms": 7.6213
+          },
+          "baseline_meta": {
+            "module": "M06_ubo_versions",
+            "time_ms": 7.2264,
+            "reconstructions": 16200,
+            "checksum": "3ae1f3ed97dfdd8d"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 6.9726,
+            "mean_ms": 6.8533,
+            "iqr_ms": 0.5173,
+            "min_ms": 6.4357,
+            "p95_ms": 7.043,
+            "max_ms": 7.043
+          },
+          "candidate_meta": {
+            "module": "M06_ubo_versions",
+            "time_ms": 7.0301,
+            "reconstructions": 16200,
+            "checksum": "3ae1f3ed97dfdd8d"
+          },
+          "delta_median_pct": -5.4,
+          "speedup_x": 1.057,
+          "pair_wins": "6/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 11972250,
+                "I1mr": 996,
+                "ILmr": 996,
+                "Dr": 1527315,
+                "D1mr": 1707,
+                "DLmr": 849,
+                "Dw": 3575801,
+                "D1mw": 31433,
+                "DLmw": 25259
+              },
+              "candidate": {
+                "Ir": 10760534,
+                "I1mr": 991,
+                "ILmr": 991,
+                "Dr": 1507608,
+                "D1mr": 2287,
+                "DLmr": 850,
+                "Dw": 3393188,
+                "D1mw": 28851,
+                "DLmw": 25259
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -1211716,
+                "delta_Ir_pct": -10.12,
+                "delta_D1_misses": -2002,
+                "delta_D1_pct": -6.04,
+                "delta_LL_misses": 1,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.1611,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.6206,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 11972250,
+                "I1mr": 997,
+                "ILmr": 996,
+                "Dr": 1527315,
+                "D1mr": 5475,
+                "DLmr": 849,
+                "Dw": 3575801,
+                "D1mw": 31457,
+                "DLmw": 25259
+              },
+              "candidate": {
+                "Ir": 10760513,
+                "I1mr": 994,
+                "ILmr": 992,
+                "Dr": 1507602,
+                "D1mr": 5174,
+                "DLmr": 850,
+                "Dw": 3393185,
+                "D1mw": 28888,
+                "DLmw": 25259
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -1211737,
+                "delta_Ir_pct": -10.12,
+                "delta_D1_misses": -2870,
+                "delta_D1_pct": -7.77,
+                "delta_LL_misses": 1,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.165,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.6245,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T15:09:55.495019+00:00",
+      "label": "iter05c_0441_ubo_versions_colocate_valid",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M06_ubo_versions": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 7.4364,
+            "mean_ms": 7.3001,
+            "iqr_ms": 0.6709,
+            "min_ms": 6.7881,
+            "p95_ms": 7.5998,
+            "max_ms": 7.5998
+          },
+          "baseline_meta": {
+            "module": "M06_ubo_versions",
+            "time_ms": 7.5998,
+            "reconstructions": 16200,
+            "checksum": "3ae1f3ed97dfdd8d"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 6.7577,
+            "mean_ms": 6.708,
+            "iqr_ms": 0.3931,
+            "min_ms": 6.2168,
+            "p95_ms": 6.9873,
+            "max_ms": 6.9873
+          },
+          "candidate_meta": {
+            "module": "M06_ubo_versions",
+            "time_ms": 6.9144,
+            "reconstructions": 16200,
+            "checksum": "3ae1f3ed97dfdd8d"
+          },
+          "delta_median_pct": -9.13,
+          "speedup_x": 1.1,
+          "pair_wins": "7/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 11972214,
+                "I1mr": 994,
+                "ILmr": 994,
+                "Dr": 1527307,
+                "D1mr": 1707,
+                "DLmr": 849,
+                "Dw": 3575800,
+                "D1mw": 31433,
+                "DLmw": 25259
+              },
+              "candidate": {
+                "Ir": 10760542,
+                "I1mr": 989,
+                "ILmr": 989,
+                "Dr": 1507610,
+                "D1mr": 2226,
+                "DLmr": 850,
+                "Dw": 3393188,
+                "D1mw": 28785,
+                "DLmw": 25259
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -1211672,
+                "delta_Ir_pct": -10.12,
+                "delta_D1_misses": -2129,
+                "delta_D1_pct": -6.42,
+                "delta_LL_misses": 1,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.1617,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.6211,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 11972209,
+                "I1mr": 995,
+                "ILmr": 994,
+                "Dr": 1527305,
+                "D1mr": 5476,
+                "DLmr": 849,
+                "Dw": 3575798,
+                "D1mw": 31457,
+                "DLmw": 25259
+              },
+              "candidate": {
+                "Ir": 10760524,
+                "I1mr": 990,
+                "ILmr": 988,
+                "Dr": 1507606,
+                "D1mr": 4472,
+                "DLmr": 850,
+                "Dw": 3393189,
+                "D1mw": 28808,
+                "DLmw": 25259
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -1211685,
+                "delta_Ir_pct": -10.12,
+                "delta_D1_misses": -3653,
+                "delta_D1_pct": -9.89,
+                "delta_LL_misses": 1,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.1685,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.628,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T15:11:27.821110+00:00",
+      "label": "iter06_0442_dirty_128b_bitmask",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M07_dirty_stripes": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 1.3487,
+            "mean_ms": 1.8353,
+            "iqr_ms": 0.5096,
+            "min_ms": 1.3433,
+            "p95_ms": 4.2359,
+            "max_ms": 4.2359
+          },
+          "baseline_meta": {
+            "module": "M07_dirty_stripes",
+            "time_ms": 4.2359,
+            "ops": 100000,
+            "checksum": "b91c41e2263cca45"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 1.4277,
+            "mean_ms": 1.8602,
+            "iqr_ms": 1.3991,
+            "min_ms": 1.2571,
+            "p95_ms": 2.8119,
+            "max_ms": 2.8119
+          },
+          "candidate_meta": {
+            "module": "M07_dirty_stripes",
+            "time_ms": 1.2641,
+            "ops": 100000,
+            "checksum": "b91c41e2263cca45"
+          },
+          "delta_median_pct": 5.86,
+          "speedup_x": 0.945,
+          "pair_wins": "4/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 2782553,
+                "I1mr": 1030,
+                "ILmr": 1030,
+                "Dr": 539900,
+                "D1mr": 1050,
+                "DLmr": 860,
+                "Dw": 280380,
+                "D1mw": 1341,
+                "DLmw": 1311
+              },
+              "candidate": {
+                "Ir": 2604655,
+                "I1mr": 1021,
+                "ILmr": 1021,
+                "Dr": 529714,
+                "D1mr": 1157,
+                "DLmr": 914,
+                "Dw": 313033,
+                "D1mw": 1602,
+                "DLmw": 1569
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -177898,
+                "delta_Ir_pct": -6.39,
+                "delta_D1_misses": 368,
+                "delta_D1_pct": 15.39,
+                "delta_LL_misses": 312,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": 0.0119,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.0555,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 2781892,
+                "I1mr": 1028,
+                "ILmr": 1024,
+                "Dr": 539715,
+                "D1mr": 1285,
+                "DLmr": 860,
+                "Dw": 280265,
+                "D1mw": 1352,
+                "DLmw": 1311
+              },
+              "candidate": {
+                "Ir": 2604439,
+                "I1mr": 1016,
+                "ILmr": 1014,
+                "Dr": 529668,
+                "D1mr": 1350,
+                "DLmr": 910,
+                "Dw": 313026,
+                "D1mw": 1610,
+                "DLmw": 1569
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -177453,
+                "delta_Ir_pct": -6.38,
+                "delta_D1_misses": 323,
+                "delta_D1_pct": 12.25,
+                "delta_LL_misses": 308,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": 0.0114,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.0559,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T15:12:34.296437+00:00",
+      "label": "iter06b_0442_dirty_128b_range_compact_stripes",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M07_dirty_stripes": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 1.4072,
+            "mean_ms": 1.4147,
+            "iqr_ms": 0.099,
+            "min_ms": 1.3443,
+            "p95_ms": 1.5329,
+            "max_ms": 1.5329
+          },
+          "baseline_meta": {
+            "module": "M07_dirty_stripes",
+            "time_ms": 1.5329,
+            "ops": 100000,
+            "checksum": "b91c41e2263cca45"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 1.8216,
+            "mean_ms": 1.7172,
+            "iqr_ms": 0.6248,
+            "min_ms": 1.2691,
+            "p95_ms": 2.1002,
+            "max_ms": 2.1002
+          },
+          "candidate_meta": {
+            "module": "M07_dirty_stripes",
+            "time_ms": 1.8216,
+            "ops": 100000,
+            "checksum": "b91c41e2263cca45"
+          },
+          "delta_median_pct": 29.45,
+          "speedup_x": 0.773,
+          "pair_wins": "2/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 2781889,
+                "I1mr": 1023,
+                "ILmr": 1023,
+                "Dr": 539714,
+                "D1mr": 1050,
+                "DLmr": 860,
+                "Dw": 280265,
+                "D1mw": 1340,
+                "DLmw": 1311
+              },
+              "candidate": {
+                "Ir": 2521659,
+                "I1mr": 1019,
+                "ILmr": 1019,
+                "Dr": 520923,
+                "D1mr": 1099,
+                "DLmr": 856,
+                "Dw": 280238,
+                "D1mw": 1346,
+                "DLmw": 1313
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -260230,
+                "delta_Ir_pct": -9.35,
+                "delta_D1_misses": 55,
+                "delta_D1_pct": 2.3,
+                "delta_LL_misses": -2,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.0326,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.1313,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 2781901,
+                "I1mr": 1027,
+                "ILmr": 1023,
+                "Dr": 539718,
+                "D1mr": 1285,
+                "DLmr": 860,
+                "Dw": 280265,
+                "D1mw": 1352,
+                "DLmw": 1311
+              },
+              "candidate": {
+                "Ir": 2521659,
+                "I1mr": 1021,
+                "ILmr": 1019,
+                "Dr": 520923,
+                "D1mr": 1284,
+                "DLmr": 856,
+                "Dw": 280238,
+                "D1mw": 1354,
+                "DLmw": 1313
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -260242,
+                "delta_Ir_pct": -9.35,
+                "delta_D1_misses": 1,
+                "delta_D1_pct": 0.04,
+                "delta_LL_misses": -2,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.0329,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.1316,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T15:13:10.185566+00:00",
+      "label": "iter06c_0442_dirty_hot64_pad128",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M07_dirty_stripes": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 1.4007,
+            "mean_ms": 1.4099,
+            "iqr_ms": 0.0423,
+            "min_ms": 1.3561,
+            "p95_ms": 1.5346,
+            "max_ms": 1.5346
+          },
+          "baseline_meta": {
+            "module": "M07_dirty_stripes",
+            "time_ms": 1.4007,
+            "ops": 100000,
+            "checksum": "b91c41e2263cca45"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 2.1406,
+            "mean_ms": 1.9056,
+            "iqr_ms": 1.0999,
+            "min_ms": 1.2883,
+            "p95_ms": 2.6145,
+            "max_ms": 2.6145
+          },
+          "candidate_meta": {
+            "module": "M07_dirty_stripes",
+            "time_ms": 2.3062,
+            "ops": 100000,
+            "checksum": "b91c41e2263cca45"
+          },
+          "delta_median_pct": 52.82,
+          "speedup_x": 0.654,
+          "pair_wins": "3/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 2781915,
+                "I1mr": 1025,
+                "ILmr": 1025,
+                "Dr": 539721,
+                "D1mr": 1051,
+                "DLmr": 862,
+                "Dw": 280266,
+                "D1mw": 1339,
+                "DLmw": 1309
+              },
+              "candidate": {
+                "Ir": 2521651,
+                "I1mr": 1019,
+                "ILmr": 1019,
+                "Dr": 520922,
+                "D1mr": 1101,
+                "DLmr": 858,
+                "Dw": 280237,
+                "D1mw": 1344,
+                "DLmw": 1311
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -260264,
+                "delta_Ir_pct": -9.36,
+                "delta_D1_misses": 55,
+                "delta_D1_pct": 2.3,
+                "delta_LL_misses": -2,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.0327,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.1313,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 2781912,
+                "I1mr": 1028,
+                "ILmr": 1024,
+                "Dr": 539720,
+                "D1mr": 1288,
+                "DLmr": 862,
+                "Dw": 280266,
+                "D1mw": 1351,
+                "DLmw": 1309
+              },
+              "candidate": {
+                "Ir": 2521636,
+                "I1mr": 1020,
+                "ILmr": 1018,
+                "Dr": 520917,
+                "D1mr": 1289,
+                "DLmr": 858,
+                "Dw": 280237,
+                "D1mw": 1352,
+                "DLmw": 1311
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -260276,
+                "delta_Ir_pct": -9.36,
+                "delta_D1_misses": 2,
+                "delta_D1_pct": 0.08,
+                "delta_LL_misses": -2,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.0329,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.1316,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T15:14:17.530939+00:00",
+      "label": "iter06d_0442_dirty_hot64_compact",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M07_dirty_stripes": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 1.3651,
+            "mean_ms": 1.3752,
+            "iqr_ms": 0.0299,
+            "min_ms": 1.3442,
+            "p95_ms": 1.4245,
+            "max_ms": 1.4245
+          },
+          "baseline_meta": {
+            "module": "M07_dirty_stripes",
+            "time_ms": 1.3442,
+            "ops": 100000,
+            "checksum": "b91c41e2263cca45"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 2.667,
+            "mean_ms": 2.2642,
+            "iqr_ms": 1.7033,
+            "min_ms": 1.338,
+            "p95_ms": 3.0993,
+            "max_ms": 3.0993
+          },
+          "candidate_meta": {
+            "module": "M07_dirty_stripes",
+            "time_ms": 3.0993,
+            "ops": 100000,
+            "checksum": "b91c41e2263cca45"
+          },
+          "delta_median_pct": 95.37,
+          "speedup_x": 0.512,
+          "pair_wins": "3/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 2781889,
+                "I1mr": 1023,
+                "ILmr": 1023,
+                "Dr": 539714,
+                "D1mr": 1051,
+                "DLmr": 862,
+                "Dw": 280265,
+                "D1mw": 1339,
+                "DLmw": 1309
+              },
+              "candidate": {
+                "Ir": 2684784,
+                "I1mr": 1022,
+                "ILmr": 1022,
+                "Dr": 520927,
+                "D1mr": 1043,
+                "DLmr": 862,
+                "Dw": 272050,
+                "D1mw": 1275,
+                "DLmw": 1245
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -97105,
+                "delta_Ir_pct": -3.49,
+                "delta_D1_misses": -72,
+                "delta_D1_pct": -3.01,
+                "delta_LL_misses": -64,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.0192,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.056,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 2782538,
+                "I1mr": 1037,
+                "ILmr": 1033,
+                "Dr": 539900,
+                "D1mr": 1288,
+                "DLmr": 862,
+                "Dw": 280372,
+                "D1mw": 1352,
+                "DLmw": 1309
+              },
+              "candidate": {
+                "Ir": 2684776,
+                "I1mr": 1024,
+                "ILmr": 1022,
+                "Dr": 520926,
+                "D1mr": 1309,
+                "DLmr": 862,
+                "Dw": 272049,
+                "D1mw": 1288,
+                "DLmw": 1245
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -97762,
+                "delta_Ir_pct": -3.51,
+                "delta_D1_misses": -43,
+                "delta_D1_pct": -1.63,
+                "delta_LL_misses": -64,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.0192,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.0562,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T15:15:28.584581+00:00",
+      "label": "iter06e_0442_dirty_blk0_bitmask",
+      "runs_per_variant": 9,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M07_dirty_stripes": {
+          "baseline": {
+            "n": 9,
+            "median_ms": 1.3748,
+            "mean_ms": 1.418,
+            "iqr_ms": 0.0352,
+            "min_ms": 1.3449,
+            "p95_ms": 1.7836,
+            "max_ms": 1.7836
+          },
+          "baseline_meta": {
+            "module": "M07_dirty_stripes",
+            "time_ms": 1.3736,
+            "ops": 100000,
+            "checksum": "b91c41e2263cca45"
+          },
+          "candidate": {
+            "n": 9,
+            "median_ms": 1.1428,
+            "mean_ms": 1.644,
+            "iqr_ms": 0.9158,
+            "min_ms": 1.0833,
+            "p95_ms": 3.0668,
+            "max_ms": 3.0668
+          },
+          "candidate_meta": {
+            "module": "M07_dirty_stripes",
+            "time_ms": 1.0833,
+            "ops": 100000,
+            "checksum": "b91c41e2263cca45"
+          },
+          "delta_median_pct": -16.88,
+          "speedup_x": 1.203,
+          "pair_wins": "5/9",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 2781889,
+                "I1mr": 1023,
+                "ILmr": 1023,
+                "Dr": 539714,
+                "D1mr": 1051,
+                "DLmr": 862,
+                "Dw": 280265,
+                "D1mw": 1339,
+                "DLmw": 1309
+              },
+              "candidate": {
+                "Ir": 2211658,
+                "I1mr": 1018,
+                "ILmr": 1018,
+                "Dr": 500919,
+                "D1mr": 1101,
+                "DLmr": 858,
+                "Dw": 280237,
+                "D1mw": 1344,
+                "DLmw": 1311
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -570231,
+                "delta_Ir_pct": -20.5,
+                "delta_D1_misses": 55,
+                "delta_D1_pct": 2.3,
+                "delta_LL_misses": -2,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.0716,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.2878,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 2781927,
+                "I1mr": 1029,
+                "ILmr": 1025,
+                "Dr": 539725,
+                "D1mr": 1288,
+                "DLmr": 862,
+                "Dw": 280266,
+                "D1mw": 1351,
+                "DLmw": 1309
+              },
+              "candidate": {
+                "Ir": 2211655,
+                "I1mr": 1019,
+                "ILmr": 1017,
+                "Dr": 500918,
+                "D1mr": 1289,
+                "DLmr": 858,
+                "Dw": 280237,
+                "D1mw": 1352,
+                "DLmw": 1311
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -570272,
+                "delta_Ir_pct": -20.5,
+                "delta_D1_misses": 2,
+                "delta_D1_pct": 0.08,
+                "delta_LL_misses": -2,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -0.0718,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -0.2881,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "timestamp": "2026-11-26T15:23:54.659689+00:00",
+      "label": "iter07_0443_tex_single_pass",
+      "runs_per_variant": 7,
+      "asan_ubsan_passed": true,
+      "bit_parity_verified": true,
+      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "modules": {
+        "M01_deswizzle": {
+          "baseline": {
+            "n": 7,
+            "median_ms": 37.3673,
+            "mean_ms": 37.7434,
+            "iqr_ms": 0.9771,
+            "min_ms": 37.0341,
+            "p95_ms": 39.6799,
+            "max_ms": 39.6799
+          },
+          "baseline_meta": {
+            "module": "M01_deswizzle",
+            "time_ms": 37.4451,
+            "bytes": 88081152,
+            "throughput_mbs": 2243.3,
+            "checksum": "77c1ad3cb13e6cbd"
+          },
+          "candidate": {
+            "n": 7,
+            "median_ms": 18.8331,
+            "mean_ms": 18.7557,
+            "iqr_ms": 0.8571,
+            "min_ms": 18.0255,
+            "p95_ms": 19.4314,
+            "max_ms": 19.4314
+          },
+          "candidate_meta": {
+            "module": "M01_deswizzle",
+            "time_ms": 19.1614,
+            "bytes": 88081152,
+            "throughput_mbs": 4383.85,
+            "checksum": "77c1ad3cb13e6cbd"
+          },
+          "delta_median_pct": -49.6,
+          "speedup_x": 1.984,
+          "pair_wins": "7/7",
+          "cachegrind_a18pro": {
+            "everest": {
+              "baseline": {
+                "Ir": 321532821,
+                "I1mr": 1063,
+                "ILmr": 1063,
+                "Dr": 47978229,
+                "D1mr": 1916432,
+                "DLmr": 1027,
+                "Dw": 58078492,
+                "D1mw": 1056704,
+                "DLmw": 205044
+              },
+              "candidate": {
+                "Ir": 209333539,
+                "I1mr": 1087,
+                "ILmr": 1087,
+                "Dr": 28057094,
+                "D1mr": 1250795,
+                "DLmr": 1032,
+                "Dw": 53656922,
+                "D1mw": 745705,
+                "DLmw": 205118
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -112199282,
+                "delta_Ir_pct": -34.9,
+                "delta_D1_misses": -976636,
+                "delta_D1_pct": -32.85,
+                "delta_LL_misses": 79,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -18.4786,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -61.0257,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            },
+            "sawtooth": {
+              "baseline": {
+                "Ir": 321532856,
+                "I1mr": 1067,
+                "ILmr": 1067,
+                "Dr": 47978238,
+                "D1mr": 1916580,
+                "DLmr": 585344,
+                "Dw": 58078494,
+                "D1mw": 1056713,
+                "DLmw": 575504
+              },
+              "candidate": {
+                "Ir": 209333580,
+                "I1mr": 1090,
+                "ILmr": 1090,
+                "Dr": 28057105,
+                "D1mr": 1250962,
+                "DLmr": 585325,
+                "Dw": 53656925,
+                "D1mw": 745714,
+                "DLmw": 575700
+              },
+              "a18pro_analytical": {
+                "delta_Ir": -112199276,
+                "delta_Ir_pct": -34.9,
+                "delta_D1_misses": -976617,
+                "delta_D1_pct": -32.85,
+                "delta_LL_misses": 177,
+                "projections_ms_per_bench_unit": {
+                  "p_core_nominal": {
+                    "cpu_delta_ms_est": -18.4683,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  },
+                  "e_core_throttled": {
+                    "cpu_delta_ms_est": -61.0153,
+                    "gpu_bw_delta_ms_est": 0.0,
+                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "accepted_optimizations": [],
+  "rejected_optimizations": [],
+  "remaining_bottlenecks": [],
+  "next_axis": ""
+}

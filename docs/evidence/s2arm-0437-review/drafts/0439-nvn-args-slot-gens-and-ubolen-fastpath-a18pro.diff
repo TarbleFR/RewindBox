@@ -1,0 +1,571 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index edd1c8b..de90645 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -2821,7 +2821,7 @@ static id<MTLBuffer> g_ubs_buf; static size_t g_ubs_off, g_ubs_size;
+ // made of them alone, latest first per byte (exactly what the GPU would read, whatever earlier frames still have in flight); when they cover only part of it, the rest comes from memory (ubp_get).
+ // The real copies are encoded in order when the pass ends (rp_end), so later passes and the CPU see them as before. The pass still ends before a draw that would need more: a partly covered binding
+ // whose rest memory cannot give, or a read of the deferred data through a vertex, index, indirect or storage buffer (ubd_conflict). Also on in TBDR mode (see ubd_on). DM_NVN_UB_DEFER=0 turns it off
+-static size_t arena_alloc(size_t n, __strong id<MTLBuffer> *buf); static inline void args_dirty_all(void); static void ubd_dirty(uint64_t lo, uint64_t hi);
++static size_t arena_alloc(size_t n, __strong id<MTLBuffer> *buf); static inline void args_dirty_all(void); static inline void args_dirty_pass_begin(void); static void ubd_dirty(uint64_t lo, uint64_t hi);
+ static uint64_t g_rb_cont_ubo_gen[6][16], g_rb_cont_tex_gen[6], g_rb_cont_img_gen[6], g_rb_cont_pool_gen, g_rb_cont_mem_gen;   // RewindBox (patch 0425): generation counters for rb_cont_reads_rt_memo
+ typedef struct { uint64_t lo, hi, gpu; size_t off; __unsafe_unretained id<MTLBuffer> buf; uint32_t seq; } ubd_ent;   // data at buf + off (the ubs ring; a ring block replaced meanwhile lives until this submission completes); seq: order deferred
+ enum { UBD_MAX = 512 };
+@@ -11382,7 +11382,7 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+         g_rb_shadow_renders++;
+     }
+     gp_render_source(g_enc,g_rb_shadow_native ? "shadow-caster-0.75" : g_rb_clear_expected ? "batched-clear" : clear_only==1 ? "guest-clear" : "guest-draw");
+-    args_dirty_all();
++    args_dirty_pass_begin();
+     g_stat_pass++;
+     rb_passdiag_begin(pd);
+     if (rb_gpudiag_on()) {
+@@ -11660,7 +11660,9 @@ static void shmap_load_once(void) {
+     uint8_t tess_dom_red;   // hull：哪些域已判定没有可用的核并报过红（位 = 域编码 0–2，位 3 = 未定义的域值 3；tess_hull_pso）
+     // RewindBox (patch 0325): what a rebuild in part needs of the block below (encode_args_): its bytes in the frame scratch and that scratch's generation, the serial table's
+     //   generation and the check period taken before its walk, the stage it was built for; rb_ab_keeps: 0 not looked at yet, 1 no binding of the shader is kept in a partial rebuild, 2 some are
+-    const uint8_t *rb_ab_cpu; uint64_t rb_ab_agen, rb_ab_ser, rb_ab_pkg, rb_ab_mem_gen; uint8_t rb_ab_stage, rb_ab_keeps, rb_ab_had_fb, rb_ab_had_ubd;
++    const uint8_t *rb_ab_cpu; uint64_t rb_ab_agen, rb_ab_ser, rb_ab_pkg, rb_ab_mem_gen, rb_ab_pool_gen; uint8_t rb_ab_stage, rb_ab_keeps, rb_ab_had_fb, rb_ab_had_ubd;
++    uint16_t rb_ab_ubcap_tight; uint64_t rb_ab_ubcap[NVN_UBOLEN_N];
++    rb_args_slot_snap rb_ab_snap;   // RewindBox (patch 0439): per-stage monotone slot generations at last encode
+     rb_args_masks rb_masks;   // RewindBox (patch 0424): slots read by this shader (masked reuse & per-slot partial rebuild)
+     rb_cont_masks rb_cmasks;  // RewindBox (patch 0425): handle sources read by rb_cont_reads_rt / lc_sampled
+     // The argument buffer encoded last time
+@@ -14602,11 +14604,12 @@ static NvArena *arena_new(size_t minimum) {   // caller holds g_mu
+ // may share an immutable table only after computing every bound for the current draw.
+ static int rb_bounds_reuse;
+ static uint64_t rb_bounds_hits, rb_bounds_misses;
++static uint64_t g_rb_ubolen_size_gen[6] = {1, 1, 1, 1, 1, 1};   // RewindBox (patch 0439): bumped only when UBO presence/size changes
+ static void rb_bounds_report(void) {
+     static dispatch_once_t once;
+     dispatch_once(&once, ^{
+         const char *v = getenv("S2A_RB_UNIFORM_BOUNDS_REUSE");
+-        rb_bounds_reuse = v && !strcmp(v, "1");
++        rb_bounds_reuse = !(v && !strcmp(v, "0"));
+     });
+     if (!rb_bounds_reuse) return;
+     static uint64_t last;
+@@ -14711,6 +14714,10 @@ static int rb_args_ubo_mode(void) {   // read on the replaying thread (state_op,
+ }
+ static uint8_t g_rb_args_causes[6];   // RB_ARGS_C_* per stage
+ static rb_args_mod g_rb_mod[6];       // RewindBox (patch 0424): per-stage modified slot masks since last encode
++static rb_args_stage_gens g_rb_stage_gens[6] = {   // RewindBox (patch 0439): monotone per-stage slot generations
++    {.other_gen = 1}, {.other_gen = 1}, {.other_gen = 1},
++    {.other_gen = 1}, {.other_gen = 1}, {.other_gen = 1},
++};
+ static inline void rb_args_cause(int stage, unsigned cause) { g_rb_args_causes[stage] |= (uint8_t)cause; }
+ static inline void rb_args_cause_all(unsigned cause) { for (int st = 0; st < 6; st++) g_rb_args_causes[st] |= (uint8_t)cause; }
+ // A program change affects one pipeline. Defer the owner check until that stage actually encodes.
+@@ -14726,6 +14733,7 @@ static void ubd_dirty(uint64_t lo, uint64_t hi) {
+                 g_args_dirty[st] = rb_args_mark_uniform(g_args_dirty[st], rb_args_ubo_mode());
+                 rb_args_cause(st, RB_ARGS_C_UNIFORM);
+                 rb_args_mod_ubo(&g_rb_mod[st], (unsigned)r);
++                rb_args_stage_bump_ubo(&g_rb_stage_gens[st], (unsigned)r);
+                 g_rb_cont_ubo_gen[st][r]++;
+             }
+         }
+@@ -15095,6 +15103,8 @@ static void prog_resolve(void) {
+ static void state_reset(void) {
+     memset(&S, 0, sizeof S);
+     g_rb_vbuf_bound_mask = 0; g_rb_vbuf_dirty_mask = 0; g_rb_vbuf_resync = 1;
++    rb_args_stage_bump_all_other(g_rb_stage_gens);
++    for (int st = 0; st < 6; st++) g_rb_ubolen_size_gen[st]++;
+     g_pso_dirty = g_dss_dirty = 1;
+     for (int i = 0; i < 8; i++) S.blend[i] = (blend_st){i, NVN_BLEND_FUNC_ONE, NVN_BLEND_FUNC_ZERO, NVN_BLEND_FUNC_ONE, NVN_BLEND_FUNC_ZERO, NVN_BLEND_EQUATION_ADD, NVN_BLEND_EQUATION_ADD};
+     S.color = (color_st){0, NVN_LOGIC_OP_COPY, NVN_ALPHA_FUNC_ALWAYS}; S.chmask.mask = 0xffffffffu;
+@@ -19095,7 +19105,8 @@ static uint64_t g_fb_hits, g_fb_bytes;   // draws found sampling a color attachm
+ static __unsafe_unretained id<MTLTexture> g_fb_src[4]; static __strong id<MTLTexture> g_fb_use[4]; static uint64_t g_fb_rid[4];
+ static uint8_t g_args_dirty[6] = {1, 1, 1, 1, 1, 1};
+ static uint64_t g_args_reg_seen, g_args_dirty_seen;
+-static inline void args_dirty_all(void) { memset(g_args_dirty, 1, sizeof g_args_dirty); rb_args_mod_all_other(g_rb_mod); g_rb_vbuf_resync = 1; }
++static inline void args_dirty_pass_begin(void) { memset(g_args_dirty, 1, sizeof g_args_dirty); rb_args_mod_all_other(g_rb_mod); g_rb_vbuf_resync = 1; }
++static inline void args_dirty_all(void) { args_dirty_pass_begin(); rb_args_stage_bump_all_other(g_rb_stage_gens); for (int st = 0; st < 6; st++) g_rb_ubolen_size_gen[st]++; }
+ static void rb_args_program_changed(int first, int end) {
+     if (rb_args_ubo_mode() != RB_ARGS_MODE_ON) {
+         args_dirty_all();
+@@ -19639,6 +19650,15 @@ static uint32_t sbsz_bound(void *ctx, const nvn_rbind *b) {
+     return !u || !u->addr ? 0 : !u->size ? UINT32_MAX & ~15u : u->size > UINT32_MAX ? UINT32_MAX & ~15u : (uint32_t)u->size;
+ }
+ static uint64_t len_fill(NvShader *sh, int nvn_stage, int kind, const uint64_t *ubcap) {
++    // RewindBox (patch 0439): O(1) UBO bounds fast path when no slot cap tightened and
++    // per-stage UBO presence/size generation (g_rb_ubolen_size_gen) has not moved.
++    static struct { uint64_t generation, sgen, gpu; const uint32_t *bounds; uint8_t unbounded; } last[6];
++    if (rb_bounds_reuse && kind == NVN_RB_UBOLEN && (unsigned)nvn_stage < 6 && !ubcap &&
++        last[nvn_stage].unbounded && last[nvn_stage].generation == g_arena_gen &&
++        last[nvn_stage].sgen == g_rb_ubolen_size_gen[nvn_stage]) {
++        rb_bounds_hits++;
++        return last[nvn_stage].gpu;
++    }
+     uint32_t q[NVN_REFL_MAXARG]; int n = 0;
+     if (kind == NVN_RB_UBOLEN) {
+         for (n = 0; n < NVN_UBOLEN_N; n++) q[n] = ubolen_vec4_cap(&S.ubo[nvn_stage][n], ubcap ? ubcap[n] : UINT64_MAX);
+@@ -19646,10 +19666,10 @@ static uint64_t len_fill(NvShader *sh, int nvn_stage, int kind, const uint64_t *
+     // The arena generation changes at both a new submission and an in-flight segment cut.
+     // A changed size cap, shadow or unbound slot changes the computed bytes before this lookup.
+     if (rb_bounds_reuse && kind == NVN_RB_UBOLEN && (unsigned)nvn_stage < 6) {
+-        static struct { uint64_t generation, gpu; const uint32_t *bounds; } last[6];
+         const size_t length = sizeof(uint32_t) * NVN_UBOLEN_N;
+         if (last[nvn_stage].generation == g_arena_gen &&
+             !memcmp(q, last[nvn_stage].bounds, length)) {
++            if (!ubcap) { last[nvn_stage].sgen = g_rb_ubolen_size_gen[nvn_stage]; last[nvn_stage].unbounded = 1; }
+             rb_bounds_hits++;
+             return last[nvn_stage].gpu;
+         }
+@@ -19658,6 +19678,8 @@ static uint64_t len_fill(NvShader *sh, int nvn_stage, int kind, const uint64_t *
+         memcpy(g_cur_arena->cpu + offset, q, length);
+         last[nvn_stage].bounds = (const uint32_t *)(g_cur_arena->cpu + offset);
+         last[nvn_stage].generation = g_arena_gen;
++        last[nvn_stage].sgen = g_rb_ubolen_size_gen[nvn_stage];
++        last[nvn_stage].unbounded = (uint8_t)(!ubcap);
+         last[nvn_stage].gpu = g_cur_arena->gpu + offset;
+         rb_bounds_misses++;
+         return last[nvn_stage].gpu;
+@@ -19874,17 +19896,22 @@ static int rb_args_decide(__unsafe_unretained NvShader *sh, int nvn_stage, int s
+ }
+ // S2A_RB_ARGS_UBO_ONLY=check: the full walk's entries (slots) against the previous block's (prev) for every binding a partial rebuild would have kept, and no unnorm copy
+ //   where the previous block had none. A difference is an entry the partial rebuild would have handed to the GPU wrong: the process stops on it
+-static void rb_args_check(__unsafe_unretained NvShader *sh, int nvn_stage, const uint64_t *slots, const uint8_t *prev, NSUInteger arg_len, int ub_on, const rb_args_mod *slot_mod, int check_size_abi) {
++static void rb_args_check(__unsafe_unretained NvShader *sh, int nvn_stage, const uint64_t *slots, const uint8_t *prev, NSUInteger arg_len, int ub_on, const rb_args_mod *slot_mod, const rb_args_diff *snap_diff, int check_ubo_skip, int check_size_abi) {
+     g_rb_args_checked++;
+     if (ub_on) MDIE("RewindBox (patch 0325) S2A_RB_ARGS_UBO_ONLY=check: shader %s stage %d: the full walk binds an unnorm support copy, the block before had none (frame %llu, pass %llu)",
+                     sh->key, nvn_stage, (unsigned long long)atomic_load_explicit(&g_cur_frame, memory_order_relaxed), (unsigned long long)g_stat_pass);
+     for (int i = 0; i < sh->rf.nb; i++) {
+         const nvn_rbind *b = &sh->rf.b[i];
+-        int kept = rb_args_kept_slot(b->kind, b->f1d, b->dtt, b->reg, slot_mod) || (check_size_abi && b->kind == NVN_RB_SUPPORT);
++        int kept = (snap_diff ? rb_args_kept_snap_tex(b->kind, b->f1d, b->dtt, b->reg, snap_diff) : rb_args_kept_slot(b->kind, b->f1d, b->dtt, b->reg, slot_mod)) ||
++            (check_size_abi && b->kind == NVN_RB_SUPPORT) ||
++            (check_ubo_skip && snap_diff && b->reg < 16u &&
++             ((b->kind == NVN_RB_CBUF && !(snap_diff->ubo_dirty & (1u << b->reg))) ||
++              (b->kind == NVN_RB_UBOP && !(snap_diff->ubo_dirty & (1u << b->reg))) ||
++              (b->kind == NVN_RB_SBUFP && !b->rw && !(snap_diff->ssbo_dirty & (1u << b->reg)))));
+         if (!kept || 8 * ((NSUInteger)b->aid + 1) > arg_len || b->aid >= NVN_REFL_MAXARG) continue;
+         uint64_t was; memcpy(&was, prev + 8 * (size_t)b->aid, sizeof was);
+         if (was != slots[b->aid])
+-            MDIE("RewindBox (patch 0325) S2A_RB_ARGS_UBO_ONLY=check: shader %s stage %d binding %d (kind %d, register %d, entry %d): the block before holds %#llx, the full walk gives %#llx (frame %llu, pass %llu): a partial rebuild would have kept the old entry",
++            MDIE("RewindBox (patch 0325/0439) S2A_RB_ARGS_UBO_ONLY=check: shader %s stage %d binding %d (kind %d, register %d, entry %d): the block before holds %#llx, the full walk gives %#llx (frame %llu, pass %llu): a partial rebuild would have kept the old entry",
+                  sh->key, nvn_stage, i, (int)b->kind, (int)b->reg, (int)b->aid, (unsigned long long)was, (unsigned long long)slots[b->aid],
+                  (unsigned long long)atomic_load_explicit(&g_cur_frame, memory_order_relaxed), (unsigned long long)g_stat_pass);
+     }
+@@ -19895,6 +19922,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+     // Exact ABI2 reuses on the same conditions as every program (its table follows the bound views, which mark args dirty, and the pass attachments, keyed by
+     //   pass serial), plus one of its own: its support copy lives in this submission's arena (ab_size_sub). 10-31 iPhone A/B: excluding it cost +6–13% instructions per draw
+     const uint64_t rb_cur_ser = atomic_load_explicit(&g_ser_gen, memory_order_relaxed);
++    const uint64_t rb_cur_pool_gen = atomic_load_explicit(&g_pool_gen, memory_order_acquire);
+     const rb_args_masks *const rb_masks = rb_args_shader_masks(sh);
+     const int rb_fb_now = (nvn_stage == 1 && g_fb_n && g_fb_seq == g_draw_seq);
+     const int rb_views_ok = !rb_masks->needs_rmu || (sh->rb_ab_ser == rb_cur_ser && sh->rb_ab_pkg == g_pkg_epoch);
+@@ -19906,6 +19934,29 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+         g_td_frame < 0 && g_wd <= 0 && !g_fold_any && !(rs_on() && rs_retain_on()) &&
+         sh->ab_size_sub == g_sub_serial && sh->rb_ab_agen == g_arena_gen &&
+         sh->rb_ab_stage == (uint8_t)nvn_stage && g_rb_args_owner[nvn_stage] == sh;
++    // RewindBox (patch 0439): monotone slot-generation snapshot diff survives A->B->A program
++    // switches and safe render-pass boundaries (rp_begin_ex_).
++    const int rb_snap_mode = rb_args_ubo_mode();
++    const int rb_snap_base_ok = rb_snap_mode != RB_ARGS_MODE_OFF &&
++        nvn_stage != 5 && !rb_masks->has_img &&
++        sh->ab_buf && sh->rb_ab_cpu &&
++        sh->ab_size_sub == g_sub_serial && sh->rb_ab_agen == g_arena_gen &&
++        sh->rb_ab_stage == (uint8_t)nvn_stage &&
++        sh->rb_ab_pool_gen == rb_cur_pool_gen &&
++        rb_views_ok && !sh->rb_ab_had_fb && !rb_fb_now &&
++        !passdump() && !rb_passdiag_on() && !g_res_check_on &&
++        g_td_frame < 0 && g_wd <= 0 && !g_fold_any && !(rs_on() && rs_retain_on()) &&
++        !sh->ab_ub && !sh->rb_ab_had_ubd && !g_nubd && !sh->rb_shadow_n &&
++        !(sh->rf.pool && sh->ab_pgen != g_psnap_gen);
++    rb_args_diff rb_sdiff;
++    memset(&rb_sdiff, 0, sizeof rb_sdiff);
++    if (rb_snap_base_ok) {
++        rb_sdiff = rb_args_stage_diff(&g_rb_stage_gens[nvn_stage], &sh->rb_ab_snap, rb_masks);
++    }
++    const int rb_snap_xpass_ok = (sh->ab_pass == g_pass.serial) || (!sh->size_abi && !(nvn_stage == 1 && rs_on()));
++    const int rb_snap_reuse = rb_snap_mode == RB_ARGS_MODE_ON && rb_sdiff.unchanged &&
++        rb_whole_ok && rb_snap_xpass_ok &&
++        !(sh->rf.drv_read[0] && sh->ab_binst != g_draw_binst);
+     if (g_rb_args_prog[nvn_stage]) {
+         g_rb_args_prog[nvn_stage] = 0;
+         // The cross-pass predicate also verifies owner, stage, arena, submission, view generations
+@@ -19917,7 +19968,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+             rb_args_mod_mark_other(&g_rb_mod[nvn_stage]);
+         }
+     }
+-    const int rb_masked_reuse = g_args_dirty[nvn_stage] && rb_args_ubo_mode() == RB_ARGS_MODE_ON &&
++    const int rb_masked_reuse = g_args_dirty[nvn_stage] && rb_snap_mode == RB_ARGS_MODE_ON &&
+         rb_whole_ok && rb_views_ok &&
+         sh->ab_buf && g_rb_args_owner[nvn_stage] == sh &&
+         sh->ab_size_sub == g_sub_serial && sh->rb_ab_agen == g_arena_gen &&
+@@ -19927,24 +19978,39 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+         (sh->ab_pass == g_pass.serial || rb_safe_xpass) &&
+         !(sh->rf.drv_read[0] && sh->ab_binst != g_draw_binst) && !(sh->rf.pool && sh->ab_pgen != g_psnap_gen) &&
+         rb_args_can_reuse_masked(&g_rb_mod[nvn_stage], rb_masks);
+-    if (rb_masked_reuse || ((!sh->size_exact || sh->ab_size_sub == g_sub_serial) && (!sh->ab_ub || sh->ab_size_sub == g_sub_serial) && !passdump() && !g_args_dirty[nvn_stage] && sh->ab_buf && g_rb_args_owner[nvn_stage] == sh && ((sh->ab_pass == g_pass.serial && nvn_stage != 5) || rb_safe_xpass) && !(sh->rf.drv_read[0] && sh->ab_binst != g_draw_binst) && !(sh->rf.pool && sh->ab_pgen != g_psnap_gen))) {
++    if (rb_snap_reuse || rb_masked_reuse || ((!sh->size_exact || sh->ab_size_sub == g_sub_serial) && (!sh->ab_ub || sh->ab_size_sub == g_sub_serial) && !passdump() && !g_args_dirty[nvn_stage] && sh->ab_buf && g_rb_args_owner[nvn_stage] == sh && ((sh->ab_pass == g_pass.serial && nvn_stage != 5) || rb_safe_xpass) && !(sh->rf.drv_read[0] && sh->ab_binst != g_draw_binst) && !(sh->rf.pool && sh->ab_pgen != g_psnap_gen))) {
+         bind_args(en, nvn_stage, metal_vertex, sh->ab_buf, sh->ab_gpu, sh->ab_off, sh->rf.abi);
+         g_stat_args_reuse++;
+         return 1;
+     }
+     NSUInteger arg_len = sh->arg_len;
+     int size_abi = sh->size_abi && sh->size_exact && sh->nts;   // only exact ABI2 programs with texture entries build a per-draw table; without them the table follows the pass (size_abi_pass_support); legacy_1x keeps main's support buffer binding byte for byte (10-31 iPhone A/B: +6–11% CPU otherwise)
+-    // RewindBox (patch 0325/0424): in part (the kept entries from the previous block, the walk below skips their bindings), or in full; =check: in full, then compared
++    // RewindBox (patch 0325/0424/0439): in part (kept textures/samplers + selective dirty UBO/SSBO
++    // patching via monotone slot generations), or in full; =check: in full, then compared
+     uint64_t rb_ser0, rb_pkg0;
+     int rb_handle_partial = 0, rb_size_abi_kept = 0;
+     const int rb_why = rb_args_decide(sh, nvn_stage, size_abi, &rb_ser0, &rb_pkg0, &rb_handle_partial, &rb_size_abi_kept);
+-    const int rb_chk = rb_why == RB_ARGS_PARTIAL && rb_args_ubo_mode() == RB_ARGS_MODE_CHECK, rb_part = rb_why == RB_ARGS_PARTIAL && !rb_chk;
++    const int rb_snap_part_ok = rb_snap_base_ok && rb_sdiff.partial_ok && rb_snap_xpass_ok &&
++        !rb_masks->has_rw && !rb_masks->has_geo && !rb_masks->has_gmem && !rb_masks->has_unb &&
++        (!size_abi || (sh->ab_pass == g_pass.serial && rb_sdiff.tex_unchanged));
++    const int rb_use_snap_part = (rb_why != RB_ARGS_PARTIAL) && rb_snap_part_ok;
++    const int rb_any_part = (rb_why == RB_ARGS_PARTIAL) || rb_use_snap_part;
++    const int rb_chk = rb_any_part && rb_snap_mode == RB_ARGS_MODE_CHECK;
++    const int rb_part = rb_any_part && !rb_chk;
++    if (rb_use_snap_part && size_abi && rb_sdiff.tex_unchanged) rb_size_abi_kept = 1;
++    const int rb_ubo_slot_skip_ok = rb_part && rb_snap_part_ok && !g_rb_audit_live && !rb_masks->has_ubo_handles;
+     const rb_args_mod *const rb_slot_mod = rb_handle_partial ? &g_rb_mod[nvn_stage] : NULL;
+-    const uint8_t *const rb_prev = rb_why == RB_ARGS_PARTIAL ? sh->rb_ab_cpu : NULL;
++    const uint8_t *const rb_prev = rb_any_part ? sh->rb_ab_cpu : NULL;
+     if (size_abi && !(rb_part && rb_size_abi_kept)) size_abi_begin(sh, nvn_stage);
+     uint32_t ubw[3] = {0, 0, 0};   // #968: this draw's s2a_flags.y / z / w (ub_note)
+     int p65_ul = 0, p65_hit = 0, p65_reg = 0, p65_k = 0; uint64_t p65_tb = 0, p65_av = 0;
+-    int ul_aid = -1; uint64_t ubcap[NVN_UBOLEN_N]; for (int r = 0; r < NVN_UBOLEN_N; r++) ubcap[r] = UINT64_MAX;   // P1-65: bytes behind each uniform slot's pointer this draw (CBUF branch); the table is filled after the loop   // audit #1534 P1-65 probe: the shader has a bounds table / which risk points this table hit (1 widen copy, 2 pool end) / first hit
++    int ul_aid = -1; uint64_t ubcap[NVN_UBOLEN_N]; uint16_t rb_ubcap_tight = 0;
++    if (rb_ubo_slot_skip_ok) {
++        memcpy(ubcap, sh->rb_ab_ubcap, sizeof ubcap);
++        rb_ubcap_tight = sh->rb_ab_ubcap_tight;
++    } else {
++        for (int r = 0; r < NVN_UBOLEN_N; r++) ubcap[r] = UINT64_MAX;   // P1-65: bytes behind each uniform slot's pointer this draw (CBUF branch); the table is filled after the loop
++    }
+     uint64_t slots[NVN_REFL_MAXARG]; memset(slots, 0, arg_len < sizeof slots ? arg_len : sizeof slots);   // only the bytes that are copied out (they used to be zeroed in full, before the reuse check too)
+     if (rb_part) memcpy(slots, rb_prev, arg_len < sizeof slots ? arg_len : sizeof slots);   // RewindBox (patch 0325): every entry as the previous block has it; the walk writes the ones it does not keep
+     #define USE(r, u) do { (void)(u); if (__builtin_expect(g_res_check_on, 0)) res_check((r), sh->key, reg); } while (0)
+@@ -19952,11 +20018,11 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+     static uint64_t bl_pass[6]; static int bl_all = -1; if (bl_all < 0) bl_all = getenv("DM_NVN_PASSDUMP_ALL") != NULL;   // Record on every new encode (otherwise only the first time per pass per stage)
+     int bl = passdump() && (bl_all || g_kd_force || cap_all() || bl_pass[nvn_stage] != g_stat_pass);   // RewindBox (patch 0048): cap_all
+     if (bl) { bl_pass[nvn_stage] = g_stat_pass; PD("K %llu st%d key=%s nb=%d", g_stat_pass, nvn_stage, sh->key[0] ? sh->key : sh->builtin ? sh->builtin : "?", sh->rf.nb); cap_key_note(sh->key); }   // RewindBox (patch 0051): cap_key_note
+-    const int rb_need_rmu = rb_args_needs_rmu_lock(rb_masks, rb_part, rb_handle_partial);   // RewindBox (patch 0434): skip g_rmu when no executed binding touches texture/sampler/pool tables
++    const int rb_need_rmu = rb_args_needs_rmu_lock(rb_masks, rb_part, rb_use_snap_part ? !rb_sdiff.tex_unchanged : rb_handle_partial);   // RewindBox (patch 0434/0439): skip g_rmu when no executed binding touches texture/sampler/pool tables
+     if (rb_need_rmu) pthread_mutex_lock(&g_rmu);   // The texture / sampler registration tables may be being grown or rewritten by the game thread
+     for (int i = 0; i < sh->rf.nb; i++) {
+         const nvn_rbind *b = &sh->rf.b[i];
+-        if (rb_part && rb_args_kept_slot(b->kind, b->f1d, b->dtt, b->reg, rb_slot_mod)) continue;   // RewindBox (patch 0325/0424): keep untouched texture/sampler entries from previous block
++        if (rb_part && (rb_use_snap_part ? rb_args_kept_snap_tex(b->kind, b->f1d, b->dtt, b->reg, &rb_sdiff) : rb_args_kept_slot(b->kind, b->f1d, b->dtt, b->reg, rb_slot_mod))) continue;   // RewindBox (patch 0325/0424/0439): keep untouched texture/sampler entries from previous block
+         int reg = b->reg, aid = b->aid;
+         if (b->kind == NVN_RB_GEOMETRY) { slots[aid] = g_geo_bind[reg]; continue; }
+         if (b->kind == NVN_RB_UVX) { slots[aid] = uvx_fill(sh, nvn_stage); continue; }   // S2Arm widen 16:9 sampling remap (see uvx_fill)
+@@ -19964,10 +20030,13 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+         if (b->kind == NVN_RB_UBOLEN) { ul_aid = aid; p65_ul = 1; continue; }   // #1204 T1 uniform bounds table: filled after the loop, once the CBUF branch knows what each pointer has behind it
+         if (b->kind == NVN_RB_SBSZ) { slots[aid] = len_fill(sh, nvn_stage, b->kind, NULL); continue; }   // #1204 T1 bounds tables (see len_fill)
+         if (b->kind == NVN_RB_CBUF) {
++            if (rb_ubo_slot_skip_ok && (unsigned)reg < 16u && !(rb_sdiff.ubo_dirty & (1u << reg))) continue;
+             const p_bind_buf *u = reg < 16 ? &S.ubo[nvn_stage][reg] : NULL;
+             void *mb; uint64_t mo, gpu, pav;
+             if (!u || !u->addr || !gpu_addr_want(u->addr, 1, u->size, &mb, &mo, &gpu, &pav)) {   // reads 0 (the all-zero bank), as an unbound texture slot does, instead of through a null pointer
+-                RED_ONCE(16, "stage %d cb%d has no uniform buffer bound", nvn_stage, reg); slots[aid] = zero_bank_gpu(); USE(zero_bank(), MTLResourceUsageRead); continue; }
++                RED_ONCE(16, "stage %d cb%d has no uniform buffer bound", nvn_stage, reg); slots[aid] = zero_bank_gpu(); USE(zero_bank(), MTLResourceUsageRead);
++                if (reg < NVN_UBOLEN_N) { ubcap[reg] = UINT64_MAX; rb_ubcap_tight &= (uint16_t)~(1u << reg); }
++                continue; }
+             uint64_t ul = cb_len(sh, reg, u->size);   // what the shader can read of it
+             // S2Arm widen: the rewritten copy replaces the binding (compute: wd_dispatch). Checked first: the deferred-update shadow below used to be built for it and then thrown away,
+             //   shadow copies issued to the GPU included (audit P1-91)
+@@ -19978,8 +20047,13 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+                 uint64_t g; const uint8_t *c; if (ubd_covers(u->addr, u->addr + ul)) gpu = ubd_shadow(u->addr, u->addr + ul);
+                 else if (ubp_get(u->addr, u->addr + ul, &g, &c)) { gpu = g; ubq_gpu(g_ubp_q); }   // the GPU reads it: its copies go now
+                 else RED_ONCE(92, "a uniform update deferred inside the pass covers only part of the binding (stage %d cb%d): the content before the update is read", nvn_stage, reg); }
+-            if (reg < NVN_UBOLEN_N) { ubcap[reg] = pk ? pav : ul;   // pk 0: a deferred-update shadow covers exactly the read range ul
+-              if (pk && g_rb_audit_live) { uint64_t tb = (uint64_t)ubolen_vec4_cap(u, ubcap[reg]) * 16; if (__builtin_expect(tb > pav, 0)) { if (!p65_hit) { p65_k = pk; p65_reg = reg; p65_tb = tb; p65_av = pav; } p65_hit |= pk; } } }   // probe: the table actually written vs the bytes behind the pointer (0 once capped)   // the bounds table lets the shader read tb bytes
++            if (reg < NVN_UBOLEN_N) {
++                uint64_t cap_r = pk ? pav : ul;
++                ubcap[reg] = cap_r;   // pk 0: a deferred-update shadow covers exactly the read range ul
++                uint64_t need_r = (uint64_t)ubolen_vec4(u) * 16ull;
++                if (cap_r < need_r) rb_ubcap_tight |= (uint16_t)(1u << reg);
++                else rb_ubcap_tight &= (uint16_t)~(1u << reg);
++                if (pk && g_rb_audit_live) { uint64_t tb = (uint64_t)ubolen_vec4_cap(u, ubcap[reg]) * 16; if (__builtin_expect(tb > pav, 0)) { if (!p65_hit) { p65_k = pk; p65_reg = reg; p65_tb = tb; p65_av = pav; } p65_hit |= pk; } } }   // probe: the table actually written vs the bytes behind the pointer (0 once capped)   // the bounds table lets the shader read tb bytes
+             if (bl) {
+                 PD("B %llu st%d cb reg%d addr=%#llx size=%llu pool=%#llx+%#llx f=%g,%g,%g,%g", g_stat_pass, nvn_stage, reg, (unsigned long long)u->addr, (unsigned long long)u->size,
+                    (unsigned long long)(u->addr - mo), (unsigned long long)mo, ((float *)u->addr)[0], ((float *)u->addr)[1], ((float *)u->addr)[2], ((float *)u->addr)[3]);
+@@ -20161,6 +20235,8 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+                 USE(ss ? ss : dummy_samp(), MTLResourceUsageRead);
+             }
+         } else if (b->kind == NVN_RB_SBUFP || b->kind == NVN_RB_UBOP) {   // B: storage buffers / compute-stage uniforms are device pointers; the address is taken by NVN slot
++            if (rb_ubo_slot_skip_ok && (unsigned)reg < 16u && !(b->kind == NVN_RB_SBUFP && b->rw) &&
++                !(((b->kind == NVN_RB_UBOP) ? rb_sdiff.ubo_dirty : rb_sdiff.ssbo_dirty) & (1u << reg))) continue;
+             const p_bind_buf *u = reg < 16 ? (b->kind == NVN_RB_UBOP ? &S.ubo[nvn_stage][reg] : &S.ssbo[nvn_stage][reg]) : NULL;
+             void *mb; uint64_t mo, gpu;
+             if (u && u->addr && mtl_gpu_addr(u->addr, u->size ? u->size : 1, &mb, &mo, &gpu)) { slots[aid] = gpu; USE((__bridge id<MTLBuffer>)mb, b->rw ? MTLResourceUsageRead | MTLResourceUsageWrite : MTLResourceUsageRead); if (b->rw && b->kind == NVN_RB_SBUFP && !(reg < 32 && (sh->sb_ro >> reg & 1))) sbw_note(u->addr, u->size ? u->size : sbw_to_end(mb, mo), SBW_GPU); }   // cb_extent.tsv: slots the shader never writes
+@@ -20243,7 +20319,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+     }
+     #undef USE
+     if (rb_need_rmu) pthread_mutex_unlock(&g_rmu);
+-    if (ul_aid >= 0) slots[ul_aid] = len_fill(sh, nvn_stage, NVN_RB_UBOLEN, ubcap);
++    if (ul_aid >= 0) slots[ul_aid] = len_fill(sh, nvn_stage, NVN_RB_UBOLEN, rb_ubcap_tight ? ubcap : NULL);
+     if (p65_ul && g_rb_audit_live) p65_count(sh, nvn_stage, p65_hit, p65_k, p65_reg, p65_tb, p65_av);   // RewindBox (patch 0322): in the frames probed
+     int ub_on = (ubw[0] | ubw[1] | ubw[2]) != 0;
+     if (ub_on) {   // #968: this stage's own copy of its support buffer with the bits; none set = the same buffer as before, byte for byte
+@@ -20262,18 +20338,22 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+         if (!passdump() && sh->ab_buf && sh->ab_size_sub == g_sub_serial && sh->ab_pass == g_pass.serial &&
+             nvn_stage != 5 && !memcmp((uint8_t *)sh->ab_buf.contents + sh->ab_off, slots, arg_len)) {
+             bind_args(en, nvn_stage, metal_vertex, sh->ab_buf, sh->ab_gpu, sh->ab_off, sh->rf.abi);
+-            g_rb_args_owner[nvn_stage] = sh; g_rb_args_causes[nvn_stage] = 0; rb_args_mod_clear(&g_rb_mod[nvn_stage]);   // RewindBox (patch 0325/0424)
++            sh->rb_ab_pool_gen = rb_cur_pool_gen; sh->rb_ab_ubcap_tight = rb_ubcap_tight; memcpy(sh->rb_ab_ubcap, ubcap, sizeof sh->rb_ab_ubcap);
++            rb_args_stage_capture(&sh->rb_ab_snap, &g_rb_stage_gens[nvn_stage]);
++            g_rb_args_owner[nvn_stage] = sh; g_rb_args_causes[nvn_stage] = 0; rb_args_mod_clear(&g_rb_mod[nvn_stage]);   // RewindBox (patch 0325/0424/0439)
+             g_args_dirty[nvn_stage] = 0; g_stat_args_reuse++; return 1;
+         }
+     }
+-    if (rb_chk && sh->rb_ab_agen == g_arena_gen) rb_args_check(sh, nvn_stage, slots, rb_prev, arg_len, ub_on, rb_slot_mod, rb_size_abi_kept);   // RewindBox (patch 0325/0424)
++    if (rb_chk && sh->rb_ab_agen == g_arena_gen) rb_args_check(sh, nvn_stage, slots, rb_prev, arg_len, ub_on, rb_slot_mod, rb_use_snap_part ? &rb_sdiff : NULL, rb_snap_part_ok && !g_rb_audit_live && !rb_masks->has_ubo_handles, rb_size_abi_kept);   // RewindBox (patch 0325/0424/0439)
+     id<MTLBuffer> ab; size_t off = arena_alloc(arg_len, &ab);
+     memcpy(g_cur_arena->cpu + off, slots, arg_len);
+     bind_args(en, nvn_stage, metal_vertex, ab, g_cur_arena->gpu + off, off, sh->rf.abi);
+     sh->ab_buf = ab; sh->ab_gpu = g_cur_arena->gpu + off; sh->ab_off = off; sh->ab_pass = g_pass.serial; sh->ab_binst = g_draw_binst; sh->ab_size_sub = g_sub_serial; sh->ab_pgen = g_psnap_gen; sh->ab_ub = (uint8_t)ub_on; g_args_dirty[nvn_stage] = 0;
+-    // RewindBox (patch 0325/0434): what the next rebuild in part needs of this block, and whose encode cleared the stage's mark
+-    sh->rb_ab_cpu = g_cur_arena->cpu + off; sh->rb_ab_agen = g_arena_gen; sh->rb_ab_ser = rb_ser0; sh->rb_ab_pkg = rb_pkg0; sh->rb_ab_mem_gen = g_rb_cont_mem_gen; sh->rb_ab_stage = (uint8_t)nvn_stage;
++    // RewindBox (patch 0325/0434/0439): what the next rebuild in part needs of this block, and whose encode cleared the stage's mark
++    sh->rb_ab_cpu = g_cur_arena->cpu + off; sh->rb_ab_agen = g_arena_gen; sh->rb_ab_ser = rb_ser0; sh->rb_ab_pkg = rb_pkg0; sh->rb_ab_mem_gen = g_rb_cont_mem_gen; sh->rb_ab_pool_gen = rb_cur_pool_gen; sh->rb_ab_stage = (uint8_t)nvn_stage;
+     sh->rb_ab_had_fb = (uint8_t)(nvn_stage == 1 && g_fb_n && g_fb_seq == g_draw_seq); sh->rb_ab_had_ubd = (uint8_t)(g_nubd != 0);
++    sh->rb_ab_ubcap_tight = rb_ubcap_tight; memcpy(sh->rb_ab_ubcap, ubcap, sizeof sh->rb_ab_ubcap);
++    rb_args_stage_capture(&sh->rb_ab_snap, &g_rb_stage_gens[nvn_stage]);
+     g_rb_args_owner[nvn_stage] = sh; g_rb_args_causes[nvn_stage] = 0; rb_args_mod_clear(&g_rb_mod[nvn_stage]);
+     g_stat_args_enc++;
+     return 1;
+@@ -20780,7 +20860,7 @@ static int state_op(uint32_t op, const void *a, uint32_t size) {
+             const void *src = op == OP_PUSH_CONST ? (const void *)(pc + 1) : (const void *)(uintptr_t)((const p_push_const_ptr *)a)->data;
+             if (pc->offset + pc->size > NVN2_PUSH_BYTES || !src) break;
+             memcpy(S.push[c][pc->slot & (NVN2_PUSH_SLOTS - 1)] + pc->offset, src, pc->size); S.push_ver[c][pc->slot & (NVN2_PUSH_SLOTS - 1)] = ++g_push_seq;
+-            if (c) { g_args_dirty[5] = 1; rb_args_mod_mark_other(&g_rb_mod[5]); } else { memset(g_args_dirty, 1, 5); for (int st = 0; st < 5; st++) rb_args_mod_mark_other(&g_rb_mod[st]); }
++            if (c) { g_args_dirty[5] = 1; rb_args_mod_mark_other(&g_rb_mod[5]); rb_args_stage_bump_other(&g_rb_stage_gens[5]); } else { memset(g_args_dirty, 1, 5); for (int st = 0; st < 5; st++) { rb_args_mod_mark_other(&g_rb_mod[st]); rb_args_stage_bump_other(&g_rb_stage_gens[st]); } }
+             for (int st = c ? 5 : 0; st < (c ? 6 : 5); st++) rb_args_cause(st, RB_ARGS_C_PUSH);   // RewindBox (patch 0325/0424)
+             break; }
+         case OP_SET_TEX_POOL: case OP_SET_SAMP_POOL: { int tex = op == OP_SET_TEX_POOL, b = nvn_dpool_base(((const p_set_pool *)a)->pool, tex);
+@@ -20822,8 +20902,8 @@ static int state_op(uint32_t op, const void *a, uint32_t size) {
+             }
+             break; }
+         // RewindBox (patch 0325): a uniform binding marks a clean stage RB_ARGS_UNIFORM and leaves a marked one as it is (rb_args_ubo.h); S2A_RB_ARGS_UBO_ONLY=0: 1, as before
+-        case OP_BIND_UBO: { p_bind_buf bt; const p_bind_buf *b = bb_fresh(a, &bt); if (b->stage < 6 && b->index < 16 && memcmp(&S.ubo[b->stage][b->index], b, sizeof *b)) { S.ubo[b->stage][b->index] = *b; g_args_dirty[b->stage] = rb_args_mark_uniform(g_args_dirty[b->stage], rb_args_ubo_mode()); rb_args_cause(b->stage, RB_ARGS_C_UNIFORM); rb_args_mod_ubo(&g_rb_mod[b->stage], (unsigned)b->index); g_rb_cont_ubo_gen[b->stage][b->index]++; } break; }
+-        case OP_BIND_SSBO: { p_bind_buf bt; const p_bind_buf *b = bb_fresh(a, &bt); if (b->stage < 6 && b->index < 16 && memcmp(&S.ssbo[b->stage][b->index], b, sizeof *b)) { S.ssbo[b->stage][b->index] = *b; g_args_dirty[b->stage] = rb_args_mark_uniform(g_args_dirty[b->stage], rb_args_ubo_mode()); rb_args_cause(b->stage, RB_ARGS_C_STORAGE); rb_args_mod_ssbo(&g_rb_mod[b->stage], (unsigned)b->index); } break; }   // RewindBox (patch 0423/0424)
++        case OP_BIND_UBO: { p_bind_buf bt; const p_bind_buf *b = bb_fresh(a, &bt); if (b->stage < 6 && b->index < 16 && memcmp(&S.ubo[b->stage][b->index], b, sizeof *b)) { const p_bind_buf pu = S.ubo[b->stage][b->index]; S.ubo[b->stage][b->index] = *b; if ((pu.addr != 0) != (b->addr != 0) || pu.size != b->size) g_rb_ubolen_size_gen[b->stage]++; g_args_dirty[b->stage] = rb_args_mark_uniform(g_args_dirty[b->stage], rb_args_ubo_mode()); rb_args_cause(b->stage, RB_ARGS_C_UNIFORM); rb_args_mod_ubo(&g_rb_mod[b->stage], (unsigned)b->index); rb_args_stage_bump_ubo(&g_rb_stage_gens[b->stage], (unsigned)b->index); g_rb_cont_ubo_gen[b->stage][b->index]++; } break; }
++        case OP_BIND_SSBO: { p_bind_buf bt; const p_bind_buf *b = bb_fresh(a, &bt); if (b->stage < 6 && b->index < 16 && memcmp(&S.ssbo[b->stage][b->index], b, sizeof *b)) { S.ssbo[b->stage][b->index] = *b; g_args_dirty[b->stage] = rb_args_mark_uniform(g_args_dirty[b->stage], rb_args_ubo_mode()); rb_args_cause(b->stage, RB_ARGS_C_STORAGE); rb_args_mod_ssbo(&g_rb_mod[b->stage], (unsigned)b->index); rb_args_stage_bump_ssbo(&g_rb_stage_gens[b->stage], (unsigned)b->index); } break; }   // RewindBox (patch 0423/0424/0439)
+         case OP_BIND_TEX: case OP_BIND_TEX1: { p_bind_handles t1; const p_bind_handles *b = bind_rec(op, a, &t1);
+             if (b->n < 0 || b->n > 32) {   // the recorder never writes more than 32 (bind_handles): the record was overwritten after it was recorded
+                 static int once; if (!once++) { const uint8_t *q = (const uint8_t *)a; char hx[3 * 96 + 1]; for (int k = 0; k < 96; k++) snprintf(hx + 3 * k, 4, "%02x ", q[k - 32]);
+@@ -20832,9 +20912,9 @@ static int state_op(uint32_t op, const void *a, uint32_t size) {
+             bh_fresh(b);
+             if (passdump()) for (int k = 0; k < b->n; k++) { int tid = (int)(b->h[k] & 0xfffff); if (tid) PD("T %llu bind st%d slot%d tid=%d sid=%d ser=%llu%s", g_stat_pass + 1, b->stage, b->first + k, tid, (int)(b->h[k] >> 20),
+                 tid < g_ntreg ? g_treg[tid].t.serial : 0ull, b->defer ? " deferred" : ""); }
+-            if (b->stage < 6 && b->first + b->n <= NTEX && memcmp(&S.tex[b->stage][b->first], b->h, 8 * b->n)) { memcpy(&S.tex[b->stage][b->first], b->h, 8 * b->n); g_args_dirty[b->stage] = 1; rb_args_cause(b->stage, RB_ARGS_C_HANDLES); rb_args_mod_tex_range(&g_rb_mod[b->stage], b->first, b->n); g_rb_cont_tex_gen[b->stage]++; } break; }   // RewindBox (patch 0325/0424/0425)
+-        case OP_BIND_SAMP: { const p_bind_handles *b = a; bh_fresh(b); if (b->stage < 6 && b->first + b->n <= 128 && memcmp(&S.samp[b->stage][b->first], b->h, 8 * b->n)) { memcpy(&S.samp[b->stage][b->first], b->h, 8 * b->n); g_args_dirty[b->stage] = 1; rb_args_cause(b->stage, RB_ARGS_C_HANDLES); rb_args_mod_samp_range(&g_rb_mod[b->stage], b->first, b->n); } break; }   // RewindBox (patch 0325/0424)
+-        case OP_BIND_IMG: { const p_bind_handles *b = a; bh_fresh(b); if (b->stage < 6 && b->first >= 0 && b->first + b->n <= 32) { if (memcmp(&S.img[b->stage][b->first], b->h, 8 * b->n)) { memcpy(&S.img[b->stage][b->first], b->h, 8 * b->n); g_args_dirty[b->stage] = 1; rb_args_cause(b->stage, RB_ARGS_C_HANDLES); rb_args_mod_mark_other(&g_rb_mod[b->stage]); g_rb_cont_img_gen[b->stage]++; } } else RED_ONCE(31, "image slots out of range stage %d first %d count %d", b->stage, b->first, b->n); break; }   // RewindBox (patch 0325/0424/0425)
++            if (b->stage < 6 && b->first + b->n <= NTEX && memcmp(&S.tex[b->stage][b->first], b->h, 8 * b->n)) { memcpy(&S.tex[b->stage][b->first], b->h, 8 * b->n); g_args_dirty[b->stage] = 1; rb_args_cause(b->stage, RB_ARGS_C_HANDLES); rb_args_mod_tex_range(&g_rb_mod[b->stage], b->first, b->n); rb_args_stage_bump_tex_range(&g_rb_stage_gens[b->stage], b->first, b->n); g_rb_cont_tex_gen[b->stage]++; } break; }   // RewindBox (patch 0325/0424/0425/0439)
++        case OP_BIND_SAMP: { const p_bind_handles *b = a; bh_fresh(b); if (b->stage < 6 && b->first + b->n <= 128 && memcmp(&S.samp[b->stage][b->first], b->h, 8 * b->n)) { memcpy(&S.samp[b->stage][b->first], b->h, 8 * b->n); g_args_dirty[b->stage] = 1; rb_args_cause(b->stage, RB_ARGS_C_HANDLES); rb_args_mod_samp_range(&g_rb_mod[b->stage], b->first, b->n); rb_args_stage_bump_samp_range(&g_rb_stage_gens[b->stage], b->first, b->n); } break; }   // RewindBox (patch 0325/0424/0439)
++        case OP_BIND_IMG: { const p_bind_handles *b = a; bh_fresh(b); if (b->stage < 6 && b->first >= 0 && b->first + b->n <= 32) { if (memcmp(&S.img[b->stage][b->first], b->h, 8 * b->n)) { memcpy(&S.img[b->stage][b->first], b->h, 8 * b->n); g_args_dirty[b->stage] = 1; rb_args_cause(b->stage, RB_ARGS_C_HANDLES); rb_args_mod_mark_other(&g_rb_mod[b->stage]); rb_args_stage_bump_other(&g_rb_stage_gens[b->stage]); g_rb_cont_img_gen[b->stage]++; } } else RED_ONCE(31, "image slots out of range stage %d first %d count %d", b->stage, b->first, b->n); break; }   // RewindBox (patch 0325/0424/0425/0439)
+         case OP_STENCIL: {
+             const p_stencil *b = a;
+             if (b->which != 2) g_dss_dirty = 1;
+@@ -23882,7 +23962,7 @@ static void fb_prepare(NvProg *pr) {
+         for (int q = 0; q < cur.n; q++) { cur.src[q] = (__bridge const void *)g_fb_src[q]; cur.use[q] = (__bridge const void *)g_fb_use[q]; cur.rid[q] = g_fb_rid[q]; }
+         g_rb_fb_draws++;
+     }
+-    if (rb_fb_dirty_mask(1, &g_rb_fb_prev, &cur) & RB_FB_FRAGMENT_STAGE) { g_args_dirty[1] = 1; rb_args_mod_mark_other(&g_rb_mod[1]); g_rb_fb_marks++; }
++    if (rb_fb_dirty_mask(1, &g_rb_fb_prev, &cur) & RB_FB_FRAGMENT_STAGE) { g_args_dirty[1] = 1; rb_args_mod_mark_other(&g_rb_mod[1]); rb_args_stage_bump_other(&g_rb_stage_gens[1]); g_rb_fb_marks++; }
+     else if (cur.n) g_rb_fb_same++;
+     g_rb_fb_prev = cur;
+ }
+diff --git a/graphics/nvn/gfx/nvn/rb_args_ubo.h b/graphics/nvn/gfx/nvn/rb_args_ubo.h
+index 54a59e4..08fe240 100644
+--- a/graphics/nvn/gfx/nvn/rb_args_ubo.h
++++ b/graphics/nvn/gfx/nvn/rb_args_ubo.h
+@@ -267,3 +267,194 @@ static inline int rb_args_needs_rmu_lock(const rb_args_masks *m, int is_partial,
+     if (is_partial) return handle_partial || m->needs_rmu_partial;
+     return m->needs_rmu;
+ }
++
++// RewindBox (patch 0439): monotone per-stage slot generations & per-shader snapshot diff.
++// Enables:
++//   1. Surviving A -> B -> A shader switches without losing whole-block reuse or partial rebuilds.
++//   2. Surviving safe render-pass boundaries (rp_begin_ex_) without wiping slot provenance.
++//   3. Selective dirty-slot UBO/SSBO patching (including texture-less multi-UBO vertex shaders).
++//   4. O(1) UBO bounds table (NVN_RB_UBOLEN) reuse via per-stage size-change generation.
++#define RB_ARGS_HAS_SLOT_GENS 1
++
++typedef struct {
++    uint64_t other_gen;
++    uint32_t ubo_all;
++    uint32_t ssbo_all;
++    uint32_t tex_all;
++    uint32_t samp_all;
++    uint8_t ubo_last_slot;
++    uint8_t pad_[3];
++    uint32_t ubo[16];
++    uint32_t ssbo[16];
++    uint32_t tex_blk[4];
++    uint32_t samp_blk[2];
++} rb_args_stage_gens;
++
++typedef rb_args_stage_gens rb_args_slot_snap;
++
++typedef struct {
++    uint8_t unchanged;
++    uint8_t partial_ok;
++    uint8_t tex_unchanged;
++    uint8_t tex_blk_dirty;
++    uint8_t samp_blk_dirty;
++    uint16_t ubo_dirty;
++    uint16_t ssbo_dirty;
++} rb_args_diff;
++
++static inline void rb_args_stage_init_all(rb_args_stage_gens g[6]) {
++    memset(g, 0, sizeof(rb_args_stage_gens) * 6u);
++    for (int st = 0; st < 6; st++) g[st].other_gen = 1;
++}
++static inline void rb_args_stage_bump_other(rb_args_stage_gens *g) {
++    g->other_gen++;
++}
++static inline void rb_args_stage_bump_all_other(rb_args_stage_gens g[6]) {
++    for (int st = 0; st < 6; st++) g[st].other_gen++;
++}
++static inline void rb_args_stage_bump_ubo(rb_args_stage_gens *g, unsigned idx) {
++    if (idx < 16u) {
++        g->ubo_last_slot = (uint8_t)idx;
++        if (__builtin_expect(++g->ubo_all == 0u || ++g->ubo[idx] == 0u, 0)) g->other_gen++;
++    } else g->other_gen++;
++}
++static inline void rb_args_stage_bump_ssbo(rb_args_stage_gens *g, unsigned idx) {
++    if (idx < 16u) {
++        if (__builtin_expect(++g->ssbo_all == 0u || ++g->ssbo[idx] == 0u, 0)) g->other_gen++;
++    } else g->other_gen++;
++}
++static inline void rb_args_stage_bump_tex(rb_args_stage_gens *g, unsigned idx) {
++    if (__builtin_expect(++g->tex_all == 0u, 0)) g->other_gen++;
++    if (idx < 256u) {
++        if (__builtin_expect(++g->tex_blk[idx >> 6] == 0u, 0)) g->other_gen++;
++    } else g->other_gen++;
++}
++static inline void rb_args_stage_bump_tex_range(rb_args_stage_gens *g, int first, int n) {
++    if (__builtin_expect(++g->tex_all == 0u, 0)) g->other_gen++;
++    if (first < 0 || n < 0 || first + n > 256) { g->other_gen++; return; }
++    if (!n) return;
++    unsigned b0 = (unsigned)first >> 6;
++    unsigned b1 = (unsigned)(first + n - 1) >> 6;
++    for (unsigned b = b0; b <= b1; b++) {
++        if (__builtin_expect(++g->tex_blk[b] == 0u, 0)) g->other_gen++;
++    }
++}
++static inline void rb_args_stage_bump_samp_range(rb_args_stage_gens *g, int first, int n) {
++    if (__builtin_expect(++g->samp_all == 0u, 0)) g->other_gen++;
++    if (first < 0 || n < 0 || first + n > 128) { g->other_gen++; return; }
++    if (!n) return;
++    unsigned b0 = (unsigned)first >> 6;
++    unsigned b1 = (unsigned)(first + n - 1) >> 6;
++    for (unsigned b = b0; b <= b1; b++) {
++        if (__builtin_expect(++g->samp_blk[b] == 0u, 0)) g->other_gen++;
++    }
++}
++static inline void rb_args_stage_capture(rb_args_slot_snap *snap, const rb_args_stage_gens *g) {
++    if (__builtin_expect(snap->other_gen != g->other_gen, 0)) {
++        *snap = *g;
++        return;
++    }
++    if (snap->ubo_all != g->ubo_all) {
++        if (g->ubo_all == snap->ubo_all + 1u) {
++            unsigned r = g->ubo_last_slot;
++            snap->ubo[r] = g->ubo[r];
++        } else {
++            memcpy(snap->ubo, g->ubo, sizeof snap->ubo);
++        }
++        snap->ubo_all = g->ubo_all;
++    }
++    if (__builtin_expect(snap->ssbo_all != g->ssbo_all, 0)) {
++        snap->ssbo_all = g->ssbo_all;
++        memcpy(snap->ssbo, g->ssbo, sizeof snap->ssbo);
++    }
++    if (__builtin_expect(snap->tex_all != g->tex_all, 0)) {
++        snap->tex_all = g->tex_all;
++        memcpy(snap->tex_blk, g->tex_blk, sizeof snap->tex_blk);
++    }
++    if (__builtin_expect(snap->samp_all != g->samp_all, 0)) {
++        snap->samp_all = g->samp_all;
++        memcpy(snap->samp_blk, g->samp_blk, sizeof snap->samp_blk);
++    }
++}
++static inline rb_args_diff rb_args_stage_diff(const rb_args_stage_gens *g,
++                                              const rb_args_slot_snap *snap,
++                                              const rb_args_masks *m) {
++    rb_args_diff d = {0};
++    if (__builtin_expect(!m || !m->built || !snap->other_gen || g->other_gen != snap->other_gen || m->has_img, 0))
++        return d;
++
++    // O(1) fast path: all 4 summary counters unchanged (1 cache line compare).
++    if (g->ubo_all == snap->ubo_all && g->ssbo_all == snap->ssbo_all &&
++        g->tex_all == snap->tex_all && g->samp_all == snap->samp_all) {
++        d.unchanged = 1;
++        d.partial_ok = 1;
++        d.tex_unchanged = 1;
++        return d;
++    }
++
++    if (m->ubo && g->ubo_all != snap->ubo_all) {
++        if (g->ubo_all == snap->ubo_all + 1u) {
++            uint16_t bit = (uint16_t)(1u << g->ubo_last_slot);
++            if (m->ubo & bit) d.ubo_dirty = bit;
++        } else {
++            uint16_t um = m->ubo;
++            while (um) {
++                unsigned r = (unsigned)__builtin_ctz(um);
++                um &= (uint16_t)(um - 1);
++                if (g->ubo[r] != snap->ubo[r]) d.ubo_dirty |= (uint16_t)(1u << r);
++            }
++        }
++    }
++    if (m->ssbo && g->ssbo_all != snap->ssbo_all) {
++        uint16_t sm = m->ssbo;
++        while (sm) {
++            unsigned r = (unsigned)__builtin_ctz(sm);
++            sm &= (uint16_t)(sm - 1);
++            if (g->ssbo[r] != snap->ssbo[r]) d.ssbo_dirty |= (uint16_t)(1u << r);
++        }
++    }
++
++    uint8_t tb = 0;
++    if (g->tex_all != snap->tex_all) {
++        if (m->dyn_tex) tb = 0x0fu;
++        else {
++            for (unsigned w = 0; w < 4u; w++) {
++                if (m->tex[w] && g->tex_blk[w] != snap->tex_blk[w]) tb |= (uint8_t)(1u << w);
++            }
++        }
++    }
++    uint8_t sb = 0;
++    if (g->samp_all != snap->samp_all) {
++        if (m->dyn_samp) sb = 0x03u;
++        else {
++            for (unsigned w = 0; w < 2u; w++) {
++                if (m->samp[w] && g->samp_blk[w] != snap->samp_blk[w]) sb |= (uint8_t)(1u << w);
++            }
++        }
++    }
++
++    d.tex_blk_dirty = tb;
++    d.samp_blk_dirty = sb;
++    d.tex_unchanged = (uint8_t)(!tb && !sb);
++
++    if (!d.ubo_dirty && !d.ssbo_dirty && d.tex_unchanged) {
++        d.unchanged = 1;
++        d.partial_ok = 1;
++        return d;
++    }
++    if ((m->dyn_tex && tb) || (m->dyn_samp && sb)) return d;
++    if (m->has_ubo_handles && d.ubo_dirty) return d;
++    d.partial_ok = 1;
++    return d;
++}
++static inline int rb_args_kept_snap_tex(unsigned kind, unsigned f1d, unsigned dtt, unsigned reg,
++                                        const rb_args_diff *diff) {
++    if (!rb_args_kept(kind, f1d, dtt)) return 0;
++    if (diff->tex_unchanged) return 1;
++    if (kind == RB_AK_TEX || kind == RB_AK_SAMPT)
++        return reg < 256u && !((diff->tex_blk_dirty >> (reg >> 6)) & 1u);
++    if (kind == RB_AK_SAMP)
++        return reg < 128u && !((diff->samp_blk_dirty >> (reg >> 6)) & 1u);
++    return 0;
++}
++

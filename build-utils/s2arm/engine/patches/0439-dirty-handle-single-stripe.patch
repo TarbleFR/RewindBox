@@ -1,0 +1,62 @@
+--- a/graphics/nvn/gfx/nvn/nvn_dirty.c
++++ b/graphics/nvn/gfx/nvn/nvn_dirty.c
+@@ -750,11 +750,23 @@
+ //   Kart World race). nvn_dirty_since_span is it with the caller's handle, as upstream. S2Arm adaptations: the "tracking unreliable" answer (written) stays; and a kept handle is
+ //   used only while it is a slot of the current range table (span_slot), as nvn_dirty_reset_session frees the table and a handle kept in a thread-local (229fc22c's
+ //   hle_nvn.c t_rw_span) can outlive it. A handle nvn_dirty_span gave in this session always passes, so nvn_dirty_since_span answers as before
+-static range_t *span_slot(const void *h) {
++static inline range_t *span_slot(const void *h) {
++    if (!h) return NULL;
++    // Handles in the first allocation can be validated without loading the range count.
++    // Subtract as uintptr_t so a handle below the block also fails the bounds check.
++    range_t *b0 = atomic_load_explicit(&g_blk[0], memory_order_acquire);
++    if (__builtin_expect(b0 != NULL, 1)) {
++        uintptr_t o = (uintptr_t)h - (uintptr_t)b0;
++        if (__builtin_expect(o < BLK * sizeof *b0 && (o % sizeof *b0) == 0, 1))
++            return (range_t *)h;
++    }
+     int n = atomic_load(&g_nr);
+-    for (int b = 0; h && b < NBLK && (b << BLK_SHIFT) < n; b++) {
+-        range_t *blk = atomic_load_explicit(&g_blk[b], memory_order_acquire); uintptr_t o = (uintptr_t)h - (uintptr_t)blk;
+-        if (blk && (uintptr_t)h >= (uintptr_t)blk && o < BLK * sizeof *blk && o % sizeof *blk == 0) return (range_t *)h;
++    for (int b = 1; b < NBLK && (b << BLK_SHIFT) < n; b++) {
++        range_t *blk = atomic_load_explicit(&g_blk[b], memory_order_acquire);
++        if (!blk) continue;
++        uintptr_t o = (uintptr_t)h - (uintptr_t)blk;
++        if (o < BLK * sizeof *blk && (o % sizeof *blk) == 0)
++            return (range_t *)h;
+     }
+     return NULL;
+ }
+@@ -765,7 +777,8 @@
+     if (!r) return 1;   // When untracked, conservatively treat as dirty: better to upload more than to show stale content
+     if (atomic_load(&g_track_unreliable)) return 1;   // 有保护失败过：一律视为脏，不靠旧代际比较
+     uintptr_t p = (a - r->base) >> g_shift, q = (a + len - 1 - r->base) >> g_shift;
+-    for (uintptr_t i = p; i <= q; i++) if (atomic_load(&r->gen[i]) > stamp) return 1;   // The generation of the last write before upload is <= the stamp; any later write must be > the stamp
++    const _Atomic uint64_t *gen = r->gen;
++    for (uintptr_t i = p; i <= q; i++) if (atomic_load(&gen[i]) > stamp) return 1;   // The generation of the last write before upload is <= the stamp; any later write must be > the stamp
+     return 0;
+ }
+ int nvn_dirty_since_span(const void *span, const void *addr, size_t len, uint64_t stamp) { return nvn_dirty_since_cached(&span, addr, len, stamp); }
+@@ -787,11 +800,16 @@
+         const unsigned sh = atomic_load_explicit(&r->stripe_shift, memory_order_relaxed);
+         uintptr_t s0 = p >> sh, s1 = q >> sh;
+         if (s1 >= RB_DIRTY_STRIPES) s1 = RB_DIRTY_STRIPES - 1;
+-        w = 0;
+-        for (uintptr_t s = s0; s <= s1; s++) {
+-            if (atomic_load_explicit(&r->stripes[s].wbusy, memory_order_acquire)) return 0;
+-            const uint64_t v = atomic_load_explicit(&r->stripes[s].wseq, memory_order_acquire);
+-            if (v > w) w = v;
++        if (s0 == s1) {
++            if (atomic_load_explicit(&r->stripes[s0].wbusy, memory_order_acquire)) return 0;
++            w = atomic_load_explicit(&r->stripes[s0].wseq, memory_order_acquire);
++        } else {
++            w = 0;
++            for (uintptr_t s = s0; s <= s1; s++) {
++                if (atomic_load_explicit(&r->stripes[s].wbusy, memory_order_acquire)) return 0;
++                const uint64_t v = atomic_load_explicit(&r->stripes[s].wseq, memory_order_acquire);
++                if (v > w) w = v;
++            }
+         }
+     } else {
+         if (atomic_load(&r->wbusy)) return 0;   // read before wseq: an unprotect that began earlier either shows here or has stored its generations and its count

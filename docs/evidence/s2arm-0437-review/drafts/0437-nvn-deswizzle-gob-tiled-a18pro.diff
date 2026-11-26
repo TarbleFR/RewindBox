@@ -1,0 +1,272 @@
+diff --git a/graphics/nvn/gfx/tex/nvn_deswizzle.c b/graphics/nvn/gfx/tex/nvn_deswizzle.c
+index a90a09b..1f40c9b 100644
+--- a/graphics/nvn/gfx/tex/nvn_deswizzle.c
++++ b/graphics/nvn/gfx/tex/nvn_deswizzle.c
+@@ -10,19 +10,25 @@
+ // Switch 2 (NVN2) orders a GOB's 16-byte pieces otherwise: (x%64/32)·256 + (y%8/4)·128 + (x%32/16)·64 + (y%4/2)·32 + (y%2)·16 + x%16 (nvn_gob_switch2; the reference port fdb3710d, MIT)
+ int nvn_gob_switch2;   // see nvn_deswizzle.h
+ 
+-static uint32_t gob_off(uint32_t x, uint32_t y) {
+-    if (nvn_gob_switch2) return (x % 64 / 32) * 256 + (y % 8 / 4) * 128 + (x % 32 / 16) * 64 + (y % 4 / 2) * 32 + (y % 2) * 16 + x % 16;
+-    return (x % 64 / 32) * 256 + (y % 8 / 2) * 64 + (x % 32 / 16) * 32 + (y % 2) * 16 + x % 16;
++static inline uint32_t gob_off_mode(uint32_t x, uint32_t y, int sw2) {
++    if (sw2) return ((x & 32u) << 3) + ((y & 4u) << 5) + ((x & 16u) << 2) + ((y & 3u) << 4) + (x & 15u);
++    return ((x & 32u) << 3) + ((y & 6u) << 5) + ((x & 16u) << 1) + ((y & 1u) << 4) + (x & 15u);
++}
++
++static inline uint32_t gob_off(uint32_t x, uint32_t y) {
++    return gob_off_mode(x, y, nvn_gob_switch2);
+ }
+ 
+ uint64_t nvn_bl_offset(uint32_t x, uint32_t y, uint32_t z, uint32_t row_bytes, uint32_t rows, unsigned th, unsigned td) {
+-    uint32_t bh = 1u << th, bd = 1u << td;
+-    uint64_t gobs_x = (row_bytes + 63) / 64, blocks_y = (rows + 8 * bh - 1) / (8 * bh);
+-    uint64_t block = 512ull * bh * bd;                                  // bytes in one block
+-    return (z / bd) * gobs_x * blocks_y * block                        // which block layer (along depth)
+-         + (y / (8 * bh)) * gobs_x * block                             // which block row
+-         + (x / 64) * block                                            // which block column
+-         + ((z % bd) * bh + (y % (8 * bh)) / 8) * 512ull               // which GOB within the block
++    uint64_t bh = UINT64_C(1) << th, bd = UINT64_C(1) << td;
++    uint64_t bh8 = bh << 3;
++    uint64_t gobs_x = ((uint64_t)row_bytes + 63u) >> 6;
++    uint64_t blocks_y = ((uint64_t)rows + bh8 - 1u) >> (th + 3u);
++    uint64_t block = UINT64_C(512) << (th + td);                        // bytes in one block
++    return ((uint64_t)z >> td) * gobs_x * blocks_y * block              // which block layer (along depth)
++         + ((uint64_t)y >> (th + 3u)) * gobs_x * block                  // which block row
++         + ((uint64_t)x >> 6) * block                                   // which block column
++         + ((((uint64_t)z & (bd - 1u)) << th) + (((uint64_t)y >> 3) & (bh - 1u))) * 512ull  // which GOB within the block
+          + gob_off(x, y);
+ }
+ 
+@@ -59,6 +65,114 @@ static int move_linear(const nvn_texdesc *d, unsigned level, unsigned layer, uin
+     for (uint32_t y = 0; y < rows; y++) { if (to_linear) memcpy(lin + (size_t)y * pitch, mem + y * sp, row_bytes); else memcpy(mem + y * sp, lin + (size_t)y * pitch, row_bytes); }
+     return 0;
+ }
++// RewindBox (patch 0437): GOB-tiled 8x64B fast kernels for Apple A18 Pro 128B cache lines & NEON.
++// Processes one complete 512-byte GOB (4 contiguous 128B cache lines, 8 rows x 64 bytes) at a time
++// in sequential 128B cache-line order with compile-time constant offsets and pre-computed row pointers,
++// eliminating per-16B nvn_bl_offset divisions, per-row pitch multiplies, and cross-column thrashing.
++static inline void copy_gob_8x64_sw2_to_lin(const uint8_t * __restrict gob, uint8_t * __restrict row0, size_t pitch) {
++    uint8_t *r0 = row0, *r1 = r0 + pitch, *r2 = r1 + pitch, *r3 = r2 + pitch;
++    uint8_t *r4 = r3 + pitch, *r5 = r4 + pitch, *r6 = r5 + pitch, *r7 = r6 + pitch;
++    // Line 0 (bytes 0..127): rows 0..3 cols [0..31]
++    memcpy(r0,      gob +   0, 16); memcpy(r1,      gob +  16, 16);
++    memcpy(r2,      gob +  32, 16); memcpy(r3,      gob +  48, 16);
++    memcpy(r0 + 16, gob +  64, 16); memcpy(r1 + 16, gob +  80, 16);
++    memcpy(r2 + 16, gob +  96, 16); memcpy(r3 + 16, gob + 112, 16);
++    // Line 1 (bytes 128..255): rows 4..7 cols [0..31]
++    memcpy(r4,      gob + 128, 16); memcpy(r5,      gob + 144, 16);
++    memcpy(r6,      gob + 160, 16); memcpy(r7,      gob + 176, 16);
++    memcpy(r4 + 16, gob + 192, 16); memcpy(r5 + 16, gob + 208, 16);
++    memcpy(r6 + 16, gob + 224, 16); memcpy(r7 + 16, gob + 240, 16);
++    // Line 2 (bytes 256..383): rows 0..3 cols [32..63]
++    memcpy(r0 + 32, gob + 256, 16); memcpy(r1 + 32, gob + 272, 16);
++    memcpy(r2 + 32, gob + 288, 16); memcpy(r3 + 32, gob + 304, 16);
++    memcpy(r0 + 48, gob + 320, 16); memcpy(r1 + 48, gob + 336, 16);
++    memcpy(r2 + 48, gob + 352, 16); memcpy(r3 + 48, gob + 368, 16);
++    // Line 3 (bytes 384..511): rows 4..7 cols [32..63]
++    memcpy(r4 + 32, gob + 384, 16); memcpy(r5 + 32, gob + 400, 16);
++    memcpy(r6 + 32, gob + 416, 16); memcpy(r7 + 32, gob + 432, 16);
++    memcpy(r4 + 48, gob + 448, 16); memcpy(r5 + 48, gob + 464, 16);
++    memcpy(r6 + 48, gob + 480, 16); memcpy(r7 + 48, gob + 496, 16);
++}
++
++static inline void copy_gob_8x64_sw1_to_lin(const uint8_t * __restrict gob, uint8_t * __restrict row0, size_t pitch) {
++    uint8_t *r0 = row0, *r1 = r0 + pitch, *r2 = r1 + pitch, *r3 = r2 + pitch;
++    uint8_t *r4 = r3 + pitch, *r5 = r4 + pitch, *r6 = r5 + pitch, *r7 = r6 + pitch;
++    // Line 0 (bytes 0..127): rows 0..3 cols [0..31]
++    memcpy(r0,      gob +   0, 16); memcpy(r1,      gob +  16, 16);
++    memcpy(r0 + 16, gob +  32, 16); memcpy(r1 + 16, gob +  48, 16);
++    memcpy(r2,      gob +  64, 16); memcpy(r3,      gob +  80, 16);
++    memcpy(r2 + 16, gob +  96, 16); memcpy(r3 + 16, gob + 112, 16);
++    // Line 1 (bytes 128..255): rows 4..7 cols [0..31]
++    memcpy(r4,      gob + 128, 16); memcpy(r5,      gob + 144, 16);
++    memcpy(r4 + 16, gob + 160, 16); memcpy(r5 + 16, gob + 176, 16);
++    memcpy(r6,      gob + 192, 16); memcpy(r7,      gob + 208, 16);
++    memcpy(r6 + 16, gob + 224, 16); memcpy(r7 + 16, gob + 240, 16);
++    // Line 2 (bytes 256..383): rows 0..3 cols [32..63]
++    memcpy(r0 + 32, gob + 256, 16); memcpy(r1 + 32, gob + 272, 16);
++    memcpy(r0 + 48, gob + 288, 16); memcpy(r1 + 48, gob + 304, 16);
++    memcpy(r2 + 32, gob + 320, 16); memcpy(r3 + 32, gob + 336, 16);
++    memcpy(r2 + 48, gob + 352, 16); memcpy(r3 + 48, gob + 368, 16);
++    // Line 3 (bytes 384..511): rows 4..7 cols [32..63]
++    memcpy(r4 + 32, gob + 384, 16); memcpy(r5 + 32, gob + 400, 16);
++    memcpy(r4 + 48, gob + 416, 16); memcpy(r5 + 48, gob + 432, 16);
++    memcpy(r6 + 32, gob + 448, 16); memcpy(r7 + 32, gob + 464, 16);
++    memcpy(r6 + 48, gob + 480, 16); memcpy(r7 + 48, gob + 496, 16);
++}
++
++static inline void copy_gob_8x64_sw2_to_bl(uint8_t * __restrict gob, const uint8_t * __restrict row0, size_t pitch) {
++    const uint8_t *r0 = row0, *r1 = r0 + pitch, *r2 = r1 + pitch, *r3 = r2 + pitch;
++    const uint8_t *r4 = r3 + pitch, *r5 = r4 + pitch, *r6 = r5 + pitch, *r7 = r6 + pitch;
++    memcpy(gob +   0, r0,      16); memcpy(gob +  16, r1,      16);
++    memcpy(gob +  32, r2,      16); memcpy(gob +  48, r3,      16);
++    memcpy(gob +  64, r0 + 16, 16); memcpy(gob +  80, r1 + 16, 16);
++    memcpy(gob +  96, r2 + 16, 16); memcpy(gob + 112, r3 + 16, 16);
++    memcpy(gob + 128, r4,      16); memcpy(gob + 144, r5,      16);
++    memcpy(gob + 160, r6,      16); memcpy(gob + 176, r7,      16);
++    memcpy(gob + 192, r4 + 16, 16); memcpy(gob + 208, r5 + 16, 16);
++    memcpy(gob + 224, r6 + 16, 16); memcpy(gob + 240, r7 + 16, 16);
++    memcpy(gob + 256, r0 + 32, 16); memcpy(gob + 272, r1 + 32, 16);
++    memcpy(gob + 288, r2 + 32, 16); memcpy(gob + 304, r3 + 32, 16);
++    memcpy(gob + 320, r0 + 48, 16); memcpy(gob + 336, r1 + 48, 16);
++    memcpy(gob + 352, r2 + 48, 16); memcpy(gob + 368, r3 + 48, 16);
++    memcpy(gob + 384, r4 + 32, 16); memcpy(gob + 400, r5 + 32, 16);
++    memcpy(gob + 416, r6 + 32, 16); memcpy(gob + 432, r7 + 32, 16);
++    memcpy(gob + 448, r4 + 48, 16); memcpy(gob + 464, r5 + 48, 16);
++    memcpy(gob + 480, r6 + 48, 16); memcpy(gob + 496, r7 + 48, 16);
++}
++
++static inline void copy_gob_8x64_sw1_to_bl(uint8_t * __restrict gob, const uint8_t * __restrict row0, size_t pitch) {
++    const uint8_t *r0 = row0, *r1 = r0 + pitch, *r2 = r1 + pitch, *r3 = r2 + pitch;
++    const uint8_t *r4 = r3 + pitch, *r5 = r4 + pitch, *r6 = r5 + pitch, *r7 = r6 + pitch;
++    memcpy(gob +   0, r0,      16); memcpy(gob +  16, r1,      16);
++    memcpy(gob +  32, r0 + 16, 16); memcpy(gob +  48, r1 + 16, 16);
++    memcpy(gob +  64, r2,      16); memcpy(gob +  80, r3,      16);
++    memcpy(gob +  96, r2 + 16, 16); memcpy(gob + 112, r3 + 16, 16);
++    memcpy(gob + 128, r4,      16); memcpy(gob + 144, r5,      16);
++    memcpy(gob + 160, r4 + 16, 16); memcpy(gob + 176, r5 + 16, 16);
++    memcpy(gob + 192, r6,      16); memcpy(gob + 208, r7,      16);
++    memcpy(gob + 224, r6 + 16, 16); memcpy(gob + 240, r7 + 16, 16);
++    memcpy(gob + 256, r0 + 32, 16); memcpy(gob + 272, r1 + 32, 16);
++    memcpy(gob + 288, r0 + 48, 16); memcpy(gob + 304, r1 + 48, 16);
++    memcpy(gob + 320, r2 + 32, 16); memcpy(gob + 336, r3 + 32, 16);
++    memcpy(gob + 352, r2 + 48, 16); memcpy(gob + 368, r3 + 48, 16);
++    memcpy(gob + 384, r4 + 32, 16); memcpy(gob + 400, r5 + 32, 16);
++    memcpy(gob + 416, r4 + 48, 16); memcpy(gob + 432, r5 + 48, 16);
++    memcpy(gob + 448, r6 + 32, 16); memcpy(gob + 464, r7 + 32, 16);
++    memcpy(gob + 480, r6 + 48, 16); memcpy(gob + 496, r7 + 48, 16);
++}
++
++static inline void copy_gob_row_partial(uint8_t *gob, uint8_t *row_x, uint32_t ry, uint32_t rem, int sw2, int to_linear) {
++    const uint32_t rbase = gob_off_mode(0, ry, sw2);
++    const uint32_t p1 = sw2 ? 64u : 32u;
++    const uint32_t offs[4] = {rbase, rbase + p1, rbase + 256u, rbase + 256u + p1};
++    for (uint32_t bx = 0, piece = 0; bx < rem; bx += 16u, piece++) {
++        uint32_t n = rem - bx < 16u ? rem - bx : 16u;
++        uint8_t *p = gob + offs[piece];
++        if (to_linear) memcpy(row_x + bx, p, n);
++        else memcpy(p, row_x + bx, n);
++    }
++}
++
+ // RewindBox (patch 0024): bl is the storage from byte bl_at on (0: the whole texture's; nvn_deswizzle_from gives a sparse texture's mip tail on its own).
+ //   Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/tex/nvn_deswizzle.c:48-52 at 0c078130).
+ //   S2Arm adaptation: upstream's move has no linear branch. A linear texture has no tiles and no tail, so storage given from a later byte is refused there (-1), never read as from 0
+@@ -69,15 +183,77 @@ static int move(const nvn_texdesc *d, unsigned level, unsigned layer, uint8_t *b
+     if (pitch < row_bytes || base < bl_at) return -1;
+     bl += base - bl_at; uint32_t lb = nvn_tex_level_gobs(d, level) * 64;   // the row as laid out (padded in a sparse texture's tiled levels)
+     if (lb < row_bytes) lb = row_bytes;
+-    for (uint32_t z = 0; z < slices; z++)
+-        for (uint32_t y = 0; y < rows; y++) {
+-            uint8_t *row = lin + ((size_t)z * rows + y) * pitch;
+-            for (uint32_t x = 0; x < row_bytes; x += 16) {             // 16-byte segments: 16 bytes are contiguous within a GOB, and 16 divides all block widths
+-                uint32_t n = row_bytes - x < 16 ? row_bytes - x : 16;
+-                uint8_t *p = bl + nvn_bl_offset(x, y, z, lb, rows, th, td);
+-                if (to_linear) memcpy(row + x, p, n); else memcpy(p, row + x, n);
++
++    const int sw2 = nvn_gob_switch2 != 0;
++    const uint64_t bh = UINT64_C(1) << th, bd = UINT64_C(1) << td;
++    const uint64_t bh8 = bh << 3;
++    const uint64_t gobs_x = ((uint64_t)lb + 63u) >> 6;
++    const uint64_t blocks_y = ((uint64_t)rows + bh8 - 1u) >> (th + 3u);
++    const uint64_t block = UINT64_C(512) << (th + td);
++    const uint64_t row_block_stride = gobs_x * block;
++    const uint64_t z_block_stride = blocks_y * row_block_stride;
++    const uint32_t full_gobs_x = row_bytes >> 6;
++    const uint32_t rem_x = row_bytes & 63u;
++    const uint32_t full_rows = rows & ~7u;
++
++    for (uint32_t z = 0; z < slices; z++) {
++        const uint64_t z_off = ((uint64_t)z >> td) * z_block_stride
++                             + (((uint64_t)z & (bd - 1u)) << (th + 9u));
++        uint8_t *lin_slice = lin + (size_t)z * rows * pitch;
++
++        // Complete 8-row GOB bands
++        for (uint32_t y0 = 0; y0 < full_rows; y0 += 8u) {
++            const uint64_t gob_y_off = z_off
++                                     + ((uint64_t)y0 >> (th + 3u)) * row_block_stride
++                                     + ((((uint64_t)y0 >> 3) & (bh - 1u)) << 9);
++            uint8_t *row0 = lin_slice + (size_t)y0 * pitch;
++            uint8_t *gob = bl + gob_y_off;
++
++            if (to_linear) {
++                if (sw2) {
++                    for (uint32_t gx = 0; gx < full_gobs_x; gx++, gob += block)
++                        copy_gob_8x64_sw2_to_lin(gob, row0 + ((size_t)gx << 6), pitch);
++                } else {
++                    for (uint32_t gx = 0; gx < full_gobs_x; gx++, gob += block)
++                        copy_gob_8x64_sw1_to_lin(gob, row0 + ((size_t)gx << 6), pitch);
++                }
++            } else {
++                if (sw2) {
++                    for (uint32_t gx = 0; gx < full_gobs_x; gx++, gob += block)
++                        copy_gob_8x64_sw2_to_bl(gob, row0 + ((size_t)gx << 6), pitch);
++                } else {
++                    for (uint32_t gx = 0; gx < full_gobs_x; gx++, gob += block)
++                        copy_gob_8x64_sw1_to_bl(gob, row0 + ((size_t)gx << 6), pitch);
++                }
++            }
++            if (rem_x) {
++                uint8_t *row_tail = row0 + ((size_t)full_gobs_x << 6);
++                for (uint32_t ry = 0; ry < 8u; ry++)
++                    copy_gob_row_partial(gob, row_tail + (size_t)ry * pitch, ry, rem_x, sw2, to_linear);
+             }
+         }
++
++        // Trailing partial GOB band (< 8 rows)
++        if (full_rows < rows) {
++            const uint32_t y0 = full_rows;
++            const uint32_t rem_y = rows - full_rows;
++            const uint64_t gob_y_off = z_off
++                                     + ((uint64_t)y0 >> (th + 3u)) * row_block_stride
++                                     + ((((uint64_t)y0 >> 3) & (bh - 1u)) << 9);
++            uint8_t *row0 = lin_slice + (size_t)y0 * pitch;
++            uint8_t *gob = bl + gob_y_off;
++            for (uint32_t gx = 0; gx < full_gobs_x; gx++, gob += block) {
++                uint8_t *dst_x = row0 + ((size_t)gx << 6);
++                for (uint32_t ry = 0; ry < rem_y; ry++)
++                    copy_gob_row_partial(gob, dst_x + (size_t)ry * pitch, ry, 64u, sw2, to_linear);
++            }
++            if (rem_x) {
++                uint8_t *row_tail = row0 + ((size_t)full_gobs_x << 6);
++                for (uint32_t ry = 0; ry < rem_y; ry++)
++                    copy_gob_row_partial(gob, row_tail + (size_t)ry * pitch, ry, rem_x, sw2, to_linear);
++            }
++        }
++    }
+     return 0;
+ }
+ 
+@@ -125,19 +301,19 @@ int nvn_deswizzle_tile_mode(const nvn_texdesc *d, unsigned level, uint32_t tx, u
+         return 0;
+     }
+     if ((grouped & 1) && w == trb && h == trows) {
+-        // A complete 64 KiB tile spans precisely one block row. Adjacent GOB columns
+-        // are one block apart; the four 16-byte pieces use the active NVN GOB order.
++        // RewindBox (patch 0437): GOB-tiled 8x64B traversal on complete 64 KiB sparse tiles too.
+         const size_t column_stride = 512u << th;
+-        const size_t second_piece = gob_off(16, 0);
+-        for (uint32_t y = 0; y < h; y++) {
+-            const size_t row_offset = (size_t)(y / 8) * 512 + gob_off(0, y);
+-            uint8_t *row = o + (size_t)y * pitch;
+-            for (uint32_t x = 0; x < w; x += 64) {
+-                const uint8_t *gob_row = s + row_offset + (x / 64) * column_stride;
+-                memcpy(row + x,      gob_row,                      16);
+-                memcpy(row + x + 16, gob_row + second_piece,       16);
+-                memcpy(row + x + 32, gob_row + 256,                16);
+-                memcpy(row + x + 48, gob_row + 256 + second_piece, 16);
++        const int sw2 = nvn_gob_switch2 != 0;
++        const uint32_t gobs_x = w >> 6;
++        for (uint32_t y0 = 0; y0 < h; y0 += 8u) {
++            const uint8_t *gob = s + ((size_t)(y0 >> 3) << 9);
++            uint8_t *row0 = o + (size_t)y0 * pitch;
++            if (sw2) {
++                for (uint32_t gx = 0; gx < gobs_x; gx++, gob += column_stride)
++                    copy_gob_8x64_sw2_to_lin(gob, row0 + ((size_t)gx << 6), pitch);
++            } else {
++                for (uint32_t gx = 0; gx < gobs_x; gx++, gob += column_stride)
++                    copy_gob_8x64_sw1_to_lin(gob, row0 + ((size_t)gx << 6), pitch);
+             }
+         }
+     } else {
