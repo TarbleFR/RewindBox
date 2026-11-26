@@ -235,6 +235,11 @@ jobs:
         run: |
           set -euo pipefail
           python3 docs/evidence/s2arm-0437-review/bounds/clamp/compare.py "$RUNNER_TEMP/0441" "$RUNNER_TEMP/s2arm" proof/effective-bounds | tee proof/effective-bounds.txt
+      - name: Check dirty linear texture regions with a native Metal round trip
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-linear-pages]')
+        run: |
+          set -euo pipefail
+          python3 docs/evidence/s2arm-0437-review/linear-pages/compare.py "$RUNNER_TEMP/s2arm" "$RUNNER_TEMP/linear-pages" | tee proof/linear-pages.txt
       - name: Compare packed and padded linear CPU texture transfers
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-linear-copy]')
         run: |

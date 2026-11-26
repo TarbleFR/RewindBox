@@ -1,0 +1,67 @@
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -7594,8 +7594,44 @@
+ // laid out GOB column after GOB column. So a byte range of one block row is a run of GOB columns: a texel rectangle. fn gets (level, layer, x, y, w, h) in texels for every rectangle [lo, hi)
+ // (storage offsets) touches. 3D, deep-tiled (tileD), multisampled or unlaid-out levels: the whole level
+ typedef void (*rect_fn)(void *u, unsigned level, unsigned layer, uint32_t x, uint32_t y, uint32_t w, uint32_t h);
++// move_linear handles single-level, single-slice 2D textures. Use the same
++// physical row pitch and distinguish texel blocks from end-of-row padding.
++static uint64_t linear_page_pitch(const tex_t *t, unsigned bw, unsigned bh, unsigned bpb) {
++    if (!(t->d.flags & (0x10 | 0x40)) || t->d.target != 1 || t->d.levels > 1 ||
++        t->d.samples > 1 || !t->d.width || !t->d.height || !bpb) return 0;
++    uint64_t rows = ((uint64_t)t->d.height + bh - 1) / bh;
++    uint64_t bytes = ((uint64_t)t->d.width + bw - 1) / bw * bpb;
++    uint64_t pitch = t->L.size / rows;
++    return pitch >= bytes && t->L.size % rows == 0 ? pitch : 0;
++}
++
++static void linear_bytes_rects(const tex_t *t, uint64_t lo, uint64_t hi, uint64_t pitch,
++                               unsigned bw, unsigned bh, unsigned bpb, rect_fn fn, void *u) {
++    if (hi > t->L.size) hi = t->L.size;
++    if (lo >= hi) return;
++    uint64_t columns = ((uint64_t)t->d.width + bw - 1) / bw;
++    uint64_t first = lo / pitch, last = (hi - 1) / pitch;
++    uint64_t left = lo % pitch / bpb, right = (hi - 1) % pitch / bpb + 1;
++    if (left >= columns) { first++; left = 0; }
++    if (right > columns) right = columns;
++    while (first <= last) {
++        uint64_t end = first == last ? right : columns;
++        // Combine complete rows into one Metal copy even for a whole level.
++        uint64_t next = left == 0 && end == columns ? (right == columns ? last + 1 : last) : first + 1;
++        uint64_t x = left * bw, y = first * bh;
++        fn(u, 0, 0, (uint32_t)x, (uint32_t)y,
++           (uint32_t)(MIN(end * bw, t->d.width) - x), (uint32_t)(MIN(next * bh, t->d.height) - y));
++        first = next;
++        left = 0;
++    }
++}
+ static void tex_bytes_rects(const tex_t *t, uint64_t lo, uint64_t hi, rect_fn fn, void *u) {
+     int bw, bh, bpb = nvn_fmt_bpb(t->d.format, &bw, &bh); if (!bpb || 64 % bpb) return;
++    if (t->d.flags & (0x10 | 0x40)) {
++        uint64_t pitch = linear_page_pitch(t, bw, bh, bpb);
++        if (pitch) { linear_bytes_rects(t, lo, hi, pitch, bw, bh, bpb, fn, u); return; }
++    }
++
+     unsigned layers = tex_layers(t), nl = t->d.levels ? t->d.levels : 1; uint64_t ls = t->L.layer_size ? t->L.layer_size : t->L.size;
+     for (unsigned y = 0; y < layers; y++) for (unsigned l = 0; l < nl; l++) {
+         uint64_t a = (uint64_t)y * ls + nvn_tex_level_offset(&t->d, l), e = l + 1 < nl ? (uint64_t)y * ls + nvn_tex_level_offset(&t->d, l + 1) : (uint64_t)(y + 1) * ls;
+@@ -7615,6 +7651,19 @@
+ typedef void (*range_fn)(void *u, uint64_t lo, uint64_t hi);
+ static void tex_rect_bytes(const tex_t *t, unsigned l, unsigned layer, uint32_t x, uint32_t y, uint32_t w, uint32_t h, range_fn fn, void *u) {
+     int bw, bh, bpb = nvn_fmt_bpb(t->d.format, &bw, &bh); unsigned nl = t->d.levels ? t->d.levels : 1; if (!bpb || 64 % bpb || l >= nl) return;
++    if (t->d.flags & (0x10 | 0x40)) {
++        uint64_t pitch = linear_page_pitch(t, bw, bh, bpb);
++        if (pitch && !l && !layer) {
++            if (!w || !h) { fn(u, 0, t->L.size); return; }
++            if (x >= t->d.width || y >= t->d.height) return;
++            uint64_t xend = MIN((uint64_t)x + w, t->d.width), yend = MIN((uint64_t)y + h, t->d.height);
++            uint64_t lo = (uint64_t)(x / bw) * bpb, hi = ((xend + bw - 1) / bw) * bpb;
++            uint64_t row = y / bh, end = (yend + bh - 1) / bh;
++            if (!lo && hi == pitch) { fn(u, row * pitch, end * pitch); return; }
++            for (; row < end; ++row) fn(u, row * pitch + lo, row * pitch + hi);
++            return;
++        }
++    }
+     uint64_t ls = t->L.layer_size ? t->L.layer_size : t->L.size, a = (uint64_t)layer * ls + nvn_tex_level_offset(&t->d, l), e = l + 1 < nl ? (uint64_t)layer * ls + nvn_tex_level_offset(&t->d, l + 1) : (uint64_t)(layer + 1) * ls;
+     unsigned th = 0, td = 0; nvn_tex_level_tiles(&t->d, l, &th, &td); uint32_t gobs = nvn_tex_level_gobs(&t->d, l);
+     if (t->d.target == 2 || td || t->d.samples > 1 || !gobs || !w || !h) { fn(u, a, e); return; }
