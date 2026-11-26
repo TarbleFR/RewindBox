@@ -1,4 +1,4 @@
-# S2Arm 0437–0447, contre-expertise et reprise du 26 novembre 2026
+# S2Arm 0437–0450, contre-expertise et reprise du 26 novembre 2026
 
 La référence de comparaison de cette série est le moteur 0436 au commit RewindBox `8be902ac0`. Les charges sont générées localement. Pour la comparaison avec le point de départ 0426, les résultats du banc d’uniformes figurent dans [les paires supplémentaires](uniform-0426-final.csv).
 

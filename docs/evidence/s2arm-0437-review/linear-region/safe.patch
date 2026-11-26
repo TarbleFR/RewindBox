@@ -1,0 +1,73 @@
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -6536,6 +6536,57 @@
+         }
+     return 0;
+ }
++// The caller supplies a 2D linear texture. Snapshot source rows before changing pool
++// memory, since a second virtual address can expose the same physical storage.
++static int write_region_linear(const tex_t *t, const NVNcopyRegion *r, const uint8_t *src,
++                               size_t row, int bw, int bh, int bpb) {
++    if (r->zoffset || (r->depth != 0 && r->depth != 1) ||
++        r->width <= 0 || r->height <= 0 || r->xoffset < 0 || r->yoffset < 0 ||
++        (uint64_t)r->xoffset + (unsigned)r->width > t->d.width ||
++        (uint64_t)r->yoffset + (unsigned)r->height > t->d.height ||
++        r->xoffset % bw || r->yoffset % bh || !src) return 0;
++    if (!r->xoffset && !r->yoffset && (uint32_t)r->width == t->d.width &&
++        (uint32_t)r->height == t->d.height) return 0;
++
++    // The old encoder replays every row. Unchanged texels later in the level
++    // can alias earlier writes. A small level has distinct offsets inside
++    // a VM page's length. A full suffix has no later unmodified texel.
++    int suffix = (uint64_t)r->yoffset + (unsigned)r->height == t->d.height &&
++                 ((!r->xoffset && (uint32_t)r->width == t->d.width) ||
++                  (r->height <= bh && (uint64_t)r->xoffset + (unsigned)r->width == t->d.width));
++    int page = getpagesize();
++    if (page <= 0 || (t->L.size > (unsigned)page && !suffix)) return 0;
++    // Within-row store order in memcpy is unspecified for a row containing the
++    // same physical byte twice. Exclude rows wide enough for such aliasing.
++    uint64_t useful = ((uint64_t)t->d.width + bw - 1) / bw * bpb;
++    if (useful > (unsigned)page) return 0;
++    uint64_t rows = ((uint64_t)t->d.height + bh - 1) / bh;
++    uint64_t align = t->L.align;
++    uint64_t pitch = t->d.stride ? t->d.stride : (useful + align - 1) & -align;
++    if (pitch < useful || pitch > UINT32_MAX || rows > SIZE_MAX / pitch || rows * pitch != t->L.size ||
++        t->L.size - 1 > UINTPTR_MAX - (uintptr_t)t->mem) return 0;
++    size_t x = (size_t)(r->xoffset / bw) * bpb, y = (size_t)(r->yoffset / bh);
++    size_t bytes = (size_t)(((uint64_t)r->width + bw - 1) / bw) * bpb;
++    size_t count = (size_t)(((uint64_t)r->height + bh - 1) / bh);
++    if (!row) row = bytes;
++    if (row < bytes || (count - 1) > (SIZE_MAX - bytes) / row ||
++        row * (count - 1) + bytes - 1 > UINTPTR_MAX - (uintptr_t)src) return 0;
++
++    uint8_t *first = t->mem + y * (size_t)pitch + x;
++    uint8_t local[512];
++    size_t scratch_bytes = bytes * count; // At most the checked source span.
++    uint8_t *scratch = scratch_bytes <= sizeof local ? local : malloc(scratch_bytes);
++    if (!scratch) return 0;
++    dm_guest_write_prepare(t->mem, t->L.size);
++    if (bytes == row) memcpy(scratch, src, scratch_bytes);
++    else for (size_t i = 0; i < count; i++) memcpy(scratch + i * bytes, src + i * row, bytes);
++    // Distinct VM mappings may alias. Materialize the region snapshot before writing.
++    __asm__ volatile("" : : "r"(scratch) : "memory");
++    for (size_t i = 0; i < count; i++) memcpy(first + i * (size_t)pitch, scratch + i * bytes, bytes);
++    if (scratch != local) free(scratch);
++    return 1;
++}
++
+ static void write_texels(const tex_t *t, const view_t *v, const NVNcopyRegion *r, const uint8_t *src, size_t row, size_t img) {
+     if (dm_gfx_session_stopping()) return;
+     if (!t->mem) { LOG("【红】 WriteTexels: texture has no storage"); return; }
+@@ -6546,6 +6597,12 @@
+     if (!is3d) {
+         size_t wb0 = (size_t)((r->width + bw - 1) / bw) * bpb, row0 = row ? row : wb0, img0 = img ? img : row0 * (size_t)((r->height + bh - 1) / bh);
+         dm_guest_write_prepare(t->mem, t->L.size);
++        if ((t->d.flags & (NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET)) &&
++            t->d.target == NVN_TEXTURE_TARGET_2D && t->d.samples <= 1 && !level && !layer0 &&
++            t->d.levels <= 1 && t->d.depth <= 1 && write_region_linear(t, r, src, row, bw, bh, bpb)) {
++            nvn_be_tex_cpu_written(t);
++            return;
++        }
+         int ok = 1;
+         for (int z = 0; z < nz && ok; z++) ok = !write_region_bl(t, level, layer0 + (unsigned)(r->zoffset + z), r, src + (size_t)z * img0, row0, bw, bh, bpb);
+         if (ok) { nvn_be_tex_cpu_written(t); return; }

@@ -235,6 +235,16 @@ jobs:
         run: |
           set -euo pipefail
           python3 docs/evidence/s2arm-0437-review/bounds/clamp/compare.py "$RUNNER_TEMP/0441" "$RUNNER_TEMP/s2arm" proof/effective-bounds | tee proof/effective-bounds.txt
+      - name: Compare partial CPU writes to pitched two-dimensional textures
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-linear-region]')
+        run: |
+          set -euo pipefail
+          src=docs/evidence/s2arm-0437-review/linear-region
+          result="$RUNNER_TEMP/cpu-region"
+          python3 "$src/run.py" "$RUNNER_TEMP/s2arm" "$result"
+          mkdir -p proof/cpu-region
+          cp "$result"/{verify.txt,edges.txt,warm0.csv,warm1.csv,cold0.csv,cold1.csv} proof/cpu-region/
+          python3 "$src/analyze.py" "$result" > proof/cpu-region/comparison.csv
       - name: Check dirty linear texture regions with a native Metal round trip
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-linear-pages]')
         run: |

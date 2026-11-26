@@ -95,7 +95,7 @@ int main(void) {
             if(dev.supportsBCTextureCompression)
                 run(dev,queue,0x42,MTLPixelFormatBC1_RGBA,259,259,flags);
             if([dev supportsFamily:MTLGPUFamilyApple2])
-                run(dev,queue,0x8b,MTLPixelFormatASTC_6x6_LDR,387,197,flags);
+                run(dev,queue,0x8b,MTLPixelFormatASTC_6x6_sRGB,387,197,flags);
         }
     }
 }
