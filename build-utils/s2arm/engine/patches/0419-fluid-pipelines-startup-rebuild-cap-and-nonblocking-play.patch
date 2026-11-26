@@ -1,0 +1,204 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 2274a0f..be6f9d4 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -15858,6 +15858,46 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs, int now)
+ //   per-pipeline limit and the frame budget, since skipping it leaves a hole later frames read (Super Mario Odyssey's black 3D, 10-27). Past this cap the compiler service is
+ //   stuck rather than slow (Splatoon 3's 45 s wait, 10-26): the draw is skipped after all, with a red line, and the pipeline is marked late like one past its limit, so the run
+ //   goes on and the watchdog does not give up on direct mode; the picture may then be wrong until the pipeline arrives
++// RewindBox (patch 0419): fluid non-blocking render pipeline compilation (S2A_RB_FLUID_PSO,
++//   default 1 on hosted NVN2, live-toggleable via s2a_rb_guest_set_fluid_pso). Caps render
++//   pipeline waits (excluding compute, course-exact capture, and storage-writing shaders) so
++//   gameplay never freezes while new pipelines compile at USER_INTERACTIVE QoS.
++static _Atomic int g_rb_fluid_pso = -1;
++static _Atomic uint64_t g_rb_fluid_defers;
++static uint64_t g_rb_fluid_frame, g_rb_fluid_ns;
++static int rb_fluid_pso_on(void) {
++    int v = atomic_load_explicit(&g_rb_fluid_pso, memory_order_relaxed);
++    if (v < 0) {
++        const char *e = getenv("S2A_RB_FLUID_PSO");
++        v = e ? (!strcmp(e, "1") ? 1 : 0) : nvn_rb_thermal_scope();
++        if (e || rb_hosted_nvn2_ready())
++            atomic_store_explicit(&g_rb_fluid_pso, v, memory_order_relaxed);
++    }
++    return v != 0;
++}
++static int rb_fluid_pso_ms(void) {
++    static int v = -1;
++    if (v < 0) {
++        const char *e = getenv("S2A_RB_FLUID_PSO_MS");
++        v = e && *e ? atoi(e) : 12;
++        if (v < 1) v = 1;
++        if (v > 200) v = 200;
++    }
++    return v;
++}
++static int64_t rb_fluid_budget_left_ms(void) {
++    uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    if (f != g_rb_fluid_frame) { g_rb_fluid_frame = f; g_rb_fluid_ns = 0; }
++    int64_t cap = (int64_t)rb_fluid_pso_ms() * 2;
++    int64_t left = cap - (int64_t)(g_rb_fluid_ns / 1000000ull);
++    return left > 0 ? left : 0;
++}
++__attribute__((visibility("default"), used)) int s2a_rb_guest_set_fluid_pso(int on) {
++    int v = on ? 1 : 0;
++    atomic_store_explicit(&g_rb_fluid_pso, v, memory_order_relaxed);
++    MLOG("[rb-fluid-pso] mode=%s (live)", v ? "fluid" : "strict");
++    return 0;
++}
+ static int g_pso_unsafe_ms = -1;   // cache of DM_NVN_PSO_UNSAFE_WAIT_MS (−1 = not read; unit tests set it back to −1 after changing it)
+ static int pso_unsafe_wait_ms(void) { if (g_pso_unsafe_ms < 0) { const char *e = getenv("DM_NVN_PSO_UNSAFE_WAIT_MS"); g_pso_unsafe_ms = e && *e ? atoi(e) : 10000; if (g_pso_unsafe_ms < 0) g_pso_unsafe_ms = 0; } return g_pso_unsafe_ms; }
+ static int pso_wait_ms(void) { static int v = -1; if (v < 0) { const char *e = getenv("DM_NVN_PSO_WAIT_MS"); v = e && *e ? atoi(e) : 2000; if (v < 0) v = 0; } return v; }
+@@ -15868,24 +15908,36 @@ static uint64_t g_pp_timeouts;
+ //   taken in a later frame) instead of waiting; the next frame starts a new budget
+ static int g_pso_frame_ms = -1;   // cache of DM_NVN_PSO_FRAME_MS (−1 = not read; unit tests set it back to −1 after changing it)
+ static int pso_frame_ms(void) { if (g_pso_frame_ms < 0) { const char *e = getenv("DM_NVN_PSO_FRAME_MS"); g_pso_frame_ms = e && *e ? atoi(e) : 100; if (g_pso_frame_ms < 0) g_pso_frame_ms = 0; } return g_pso_frame_ms; }
++static int rb_pso_frame_ms(void) {
++    static int env_set = -1;
++    if (env_set < 0) { const char *e = getenv("DM_NVN_PSO_FRAME_MS"); env_set = e && *e ? 1 : 0; }
++    if (env_set || !rb_fluid_pso_on()) return pso_frame_ms();
++    return 8;
++}
+ static uint64_t g_pp_bud_frame, g_pp_bud_ns, g_pp_bud_skips;   // submit thread only
+ static int64_t pso_budget_left_ms(void) {   // what this frame may still wait; INT64_MAX without a budget
+-    if (!pso_frame_ms()) return INT64_MAX;
++    int fms = rb_pso_frame_ms();
++    if (!fms) return INT64_MAX;
+     uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
+     if (f != g_pp_bud_frame) { g_pp_bud_frame = f; g_pp_bud_ns = 0; }
+-    int64_t left = (int64_t)pso_frame_ms() - (int64_t)(g_pp_bud_ns / 1000000ull);
++    int64_t left = (int64_t)fms - (int64_t)(g_pp_bud_ns / 1000000ull);
+     return left > 0 ? left : 0;
+ }
+ static void pso_budget_skip_note(void) {
+     uint64_t n = ++g_pp_bud_skips;
+-    if (!(n & (n - 1))) MLOG("pipeline wait budget: %llu first uses skipped their draw after their frame had waited %d ms for compiles (still compiling in the background)", (unsigned long long)n, pso_frame_ms());
++    if (!(n & (n - 1))) MLOG("pipeline wait budget: %llu first uses skipped their draw after their frame had waited %d ms for compiles (still compiling in the background)", (unsigned long long)n, rb_pso_frame_ms());
+ }
+ // RewindBox (patch 0069): the first uses the first-use skip used to skip at once and now wait (first_skip_ok: a lookahead guess no lane had started, a frame long already) wait on
+ //   an allowance of their own, not on the budget above. That budget is spent by the waits that made the frame long: IPA 765 frame 806 (3,481.8 ms, 27 pipelines, 2,812.9 ms
+ //   creating them, 30 draws skipped) had none left when its skippable first uses came, so they would have skipped exactly as before; and charged to it, these waits would leave a
+ //   later draw without the budget it had (a table-full first use then skipped instead of built here). S2A_RB_LATE_BUDGET_MS a frame (default 100; 0 = such draws skip at once)
+ static uint64_t g_rb_lw_frame, g_rb_lw_ns, g_rb_lw_skips; static int g_rb_lw_take;   // submit thread only; g_rb_lw_take: the draw at hand waits on this allowance (first_skip_ok → pso_pend_take)
+-static int rb_late_budget_ms(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_LATE_BUDGET_MS"); v = e && *e ? atoi(e) : 100; if (v < 0) v = 0; } return v; }
++static int rb_late_budget_ms(void) {
++    static int env_v = -2;
++    if (env_v == -2) { const char *e = getenv("S2A_RB_LATE_BUDGET_MS"); env_v = e && *e ? MAX(atoi(e), 0) : -1; }
++    if (env_v >= 0) return env_v;
++    return rb_fluid_pso_on() ? 0 : 100;
++}
+ static int64_t rb_late_left_ms(void) {   // what this frame's allowance still holds
+     uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
+     if (f != g_rb_lw_frame) { g_rb_lw_frame = f; g_rb_lw_ns = 0; }
+@@ -15938,21 +15990,32 @@ static void rb_long_wait_note(int at, uint64_t w0, uint64_t w1, int required, in
+          (unsigned long long)n, (unsigned long long)atomic_load(&g_cur_frame), (w1 - w0) / 1e6, required ? "required" : may_skip ? "skippable" : "not skippable", way,
+          g_pp[at].rb_build_ns / 1e6, g_pp[at].rb_compile_ns / 1e6, began < 0 ? -began : began, began < 0 ? "before" : "after");
+ }
+-static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out, int may_skip) {   // Called by the submit thread: if it is in the table, wait for it to finish compiling and take it; otherwise return nil. *timed_out: 1 = past its own limit (late), 2 = the frame's budget ran out
++static id<MTLRenderPipelineState> pso_pend_take_ex(const pso_key *k, int *timed_out, int may_skip, int storage_writes) {   // Called by the submit thread: if it is in the table, wait for it to finish compiling and take it; otherwise return nil. *timed_out: 1 = past its own limit (late), 2 = the frame's budget ran out
+     g_async_render_built=0; g_async_render_error=nil;
+-    const int required = rb_course_exact() || (!may_skip && (rb_async_pso() ||
+-        (rb_observed_workers_on() && rb_first_draw_on())));
++    const int fluid_cap = !may_skip && !storage_writes && !rb_course_exact() && rb_fluid_pso_on();
++    const int required = !fluid_cap && (rb_course_exact() || (!may_skip && (rb_async_pso() ||
++        (rb_observed_workers_on() && rb_first_draw_on()))));
+     pthread_mutex_lock(&g_pp_mu);
+     // may_skip = 0 (skip_safe: a draw whose target keeps content across frames, or one a shader writes storage in): no limit and no budget, it waits until the pipeline is compiled.
+     //   Super Mario Odyssey's Mac cold start (10-27): the system compiler was slow, the frame budget skipped 2048 draws in 4 frames, among them the temporal anti-aliasing / exposure
+     //   chain whose output feeds the next frame, and the 3D picture stayed black for the whole run; first_skip_ok never let those draws be skipped, these limits did
+-    int at = pso_pend_find(k), blk = 0, ms = may_skip ? pso_wait_ms() : pso_unsafe_wait_ms(); id<MTLRenderPipelineState> ps = nil; *timed_out = 0;
++    int at = pso_pend_find(k), blk = 0, ms = may_skip ? pso_wait_ms() : (fluid_cap ? rb_fluid_pso_ms() : pso_unsafe_wait_ms()); id<MTLRenderPipelineState> ps = nil; *timed_out = 0;
+     if (!may_skip || rb_pso_wait_boost_on()) ppq_demand_locked(at);
+     if (!ppq_hurry_locked(at)) at = -1;
+     if (may_skip && at >= 0 && g_pp[at].late && !g_pp[at].done) { pthread_mutex_unlock(&g_pp_mu); *timed_out = 1; return nil; }   // waited its limit once already: every later draw with it skips at once until it is done
+     // A draw that cannot be skipped waited the whole unsafe cap for it once: the compiler service is stuck on it, and every later draw with it, safe or not, skips at once until it is done.
+     //   Splatoon 3 (10-27 PSB, t0100c2500fc20000_1027065706_2): three such draws in a row each waited 10 s for the same pipeline (Hoian_UBER fragment fc88b546d13b4a9f), 31 s at frame 47
+     if (!required && at >= 0 && g_pp[at].stuck && !g_pp[at].done) { pthread_mutex_unlock(&g_pp_mu); *timed_out = 1; return nil; }
++    if (fluid_cap && at >= 0 && !g_pp[at].done) {
++        int64_t fleft = rb_fluid_budget_left_ms();
++        if (fleft <= 0) {
++            pthread_mutex_unlock(&g_pp_mu); *timed_out = 2;
++            uint64_t dn = atomic_fetch_add_explicit(&g_rb_fluid_defers, 1, memory_order_relaxed) + 1;
++            if (dn <= 4 || !(dn & (dn - 1))) MLOG("[rb-fluid-pso] deferred=%llu frame=%llu cap_ms=%d (frame budget)", (unsigned long long)dn, (unsigned long long)atomic_load(&g_cur_frame), rb_fluid_pso_ms());
++            return nil;
++        }
++        if (fleft < ms) ms = (int)fleft;
++    }
+     int lw = may_skip && g_rb_lw_take;   // RewindBox (patch 0069): a draw formerly skipped at once: its frame's own allowance caps it, not the budget (rb_late_left_ms)
+     if (may_skip && at >= 0 && !g_pp[at].done) {   // the frame's budget caps this wait (a wait cut short by it does not make the pipeline late: a later frame waits for it again)
+         int64_t left = lw ? rb_late_left_ms() : pso_budget_left_ms(); int cut = 0;   // RewindBox (patch 0069): lw
+@@ -15971,22 +16034,31 @@ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out
+                 rb_async_note(RB_ASYNC_CRITICAL_JOIN);
+                 atomic_fetch_add_explicit(&g_async_activity[RB_ASYNC_JOIN_NS],waited,memory_order_relaxed);
+             }
++            if (fluid_cap) g_rb_fluid_ns+=waited;
+             if (lw) g_rb_lw_ns+=waited; else g_pp_bud_ns+=waited;
+             atomic_fetch_add_explicit(&g_course_pso_wait_ns,waited,memory_order_relaxed); }   // RewindBox (patch 0069): lw charges its own allowance
+-        if (blk && !may_skip && bp_now() - w0 > (uint64_t)pso_wait_ms() * 1000000ull) { static unsigned n; if (n++ < 8) MLOG("【红】 a draw that cannot be skipped (its target keeps content across frames) waited %.0f ms for its pipeline to compile%s", (bp_now() - w0) / 1e6, g_pp[at].done ? "" : ": past DM_NVN_PSO_UNSAFE_WAIT_MS, skipped after all (the picture may be wrong until the pipeline arrives)"); }
++        if (blk && !may_skip && !fluid_cap && bp_now() - w0 > (uint64_t)pso_wait_ms() * 1000000ull) { static unsigned n; if (n++ < 8) MLOG("【红】 a draw that cannot be skipped (its target keeps content across frames) waited %.0f ms for its pipeline to compile%s", (bp_now() - w0) / 1e6, g_pp[at].done ? "" : ": past DM_NVN_PSO_UNSAFE_WAIT_MS, skipped after all (the picture may be wrong until the pipeline arrives)"); }
+         if (blk) rb_long_wait_note(at, w0, bp_now(), required, may_skip);   // RewindBox (patch 0313): caller holds g_pp_mu
+         if (g_pp[at].done) {
+             ps=g_pp[at].ps; g_async_render_built=1; g_async_render_error=g_pp[at].error;
+             g_pp[at].ps=nil; g_pp[at].error=nil; g_pp[at].used=0;
+         }
+         else if (required && dm_gfx_session_stopping()) *timed_out=1;
++        else if (fluid_cap) {
++            *timed_out = 2;
++            uint64_t dn = atomic_fetch_add_explicit(&g_rb_fluid_defers, 1, memory_order_relaxed) + 1;
++            if (dn <= 4 || !(dn & (dn - 1))) MLOG("[rb-fluid-pso] deferred=%llu frame=%llu cap_ms=%d", (unsigned long long)dn, (unsigned long long)atomic_load(&g_cur_frame), ms);
++        }
+         else if (lw && ms < pso_wait_ms()) { *timed_out = 2; rb_late_skip_note(); }   // RewindBox (patch 0069): the allowance ran out first
+-        else if (ms < pso_wait_ms() && pso_frame_ms()) { *timed_out = 2; pso_budget_skip_note(); }   // the frame's budget ran out first
++        else if (ms < pso_wait_ms() && rb_pso_frame_ms()) { *timed_out = 2; pso_budget_skip_note(); }   // the frame's budget ran out first
+         else { *timed_out = 1; g_pp[at].late = 1; if (!may_skip) g_pp[at].stuck = 1; g_pp_timeouts++; } }
+     pthread_mutex_unlock(&g_pp_mu);
+     if (blk) DM_BLOCK_END();   // take the core back only after unlocking: its holder may be waiting for this lock
+     return ps;
+ }
++static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out, int may_skip) {
++    return pso_pend_take_ex(k, timed_out, may_skip, 1);
++}
+ static int rb_render_pending_ready(const pso_key *k) {
+     pthread_mutex_lock(&g_pp_mu);
+     int at=pso_pend_find(k);
+@@ -16293,7 +16365,9 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+     id<MTLRenderPipelineState> ps;
+     NSError *e = nil; uint64_t bt = bp_now();
+     RBPSOWait rb_wait __attribute__((cleanup(rb_wait_end)))=rb_wait_begin();
+-    int pp_late = 0, may_skip = !exact && skip_safe(vs, fs);
++    const int fluid_mode = rb_fluid_pso_on() && !rb_course_exact();
++    const int storage_writes = shader_writes(vs) || shader_writes(fs);
++    int pp_late = 0, may_skip = (!exact || (fluid_mode && !storage_writes)) && skip_safe(vs, fs);
+     // Not queued: compile it in the background too and wait the same bounded time, instead of compiling here with no limit (the same compiler service, the same queue).
+     //   The first miss of a submission kicks the later misses of the submission out to compile beside it (pso_predict_rest) before this draw waits: since 93dc5957e (10-26) the wait
+     //   came first and took the pipeline, so the lookahead below never ran and every first use of a scene compiled one after another (Super Mario Party, census 11-02, frame 30722:
+@@ -16307,7 +16381,7 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+     if (!earlyYield) atomic_fetch_add(&g_fu_waiting,1);
+     int fu_busy0 = atomic_load(&g_warm_busy); uint64_t fu_t0 = bp_now(), fu_take = 0, fu_build = 0;
+     const int take_pending=!g_pso_lmap && !ms_fn;
+-    ps = take_pending ? pso_pend_take(&k, &pp_late, may_skip) : nil;
++    ps = take_pending ? pso_pend_take_ex(&k, &pp_late, may_skip, storage_writes) : nil;
+     const int settled=async && take_pending && g_async_render_built;
+     if (settled) { e=g_async_render_error; g_async_render_error=nil; }
+     g_rb_lw_take = 0;   // RewindBox (patch 0069)
+@@ -17931,11 +18005,18 @@ static void rb_warm_resume(void) {
+     warm_start_mode(1);
+ }
+ static void warm_start(void) { warm_start_mode(0); }
++static int rb_prepare_known_max_ms(void) {
++    const char *e = getenv("S2A_RB_PREPARE_MAX_MS");
++    if (e && *e) { int v = atoi(e); return v > 0 ? v : 30000; }
++    int configured = prepare_max_ms();
++    // RewindBox (patch 0419): allow up to 180 s for first-run/rebuild known pipeline prep
++    // while keeping "Play now", Critical thermal, and memory room exits active.
++    return configured > 30000 ? configured : 180000;
++}
+ static void rb_wait_known_prepare(void) {
+     if (!atomic_load(&g_warm_started) || atomic_exchange(&g_rb_known_waited,1)) return;
+     uint64_t start=bp_now();
+-    int configured=prepare_max_ms();
+-    uint64_t limit=(uint64_t)(configured>0 ? MIN(configured,30000) : 30000)*1000000ull;
++    uint64_t limit=(uint64_t)rb_prepare_known_max_ms()*1000000ull;
+     const char *reason="completed";
+     int front=0;
+     DM_BLOCK_BEGIN();

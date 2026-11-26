@@ -223,12 +223,12 @@ class GameProfiles(unittest.TestCase):
 
     def test_a_profile_is_made_from_the_global_values_and_holds_every_setting(self):
         snapshot = re.findall(r'^    @"(\w+)" : ', block(SETTINGS, 'NSDictionary<NSString *, id> *S2ArmSettingsSnapshot(void) {'), re.M)
-        self.assertEqual(len(snapshot), 9)
+        self.assertEqual(len(snapshot), 13)
         valid = block(SETTINGS, 'static NSDictionary<NSString *, id> *ValidProfile(id stored) {')
         lists = re.findall(r'for \(NSString \*name in @\[ ([^\]]*) \]\)', valid)
         self.assertEqual(len(lists), 2)
         choices, flags = (re.findall(r'@"(\w+)"', text) for text in lists)
-        self.assertEqual(set(choices) | set(flags), set(snapshot), 'a profile holds the nine settings of the map')
+        self.assertEqual(set(choices) | set(flags), set(snapshot), 'a profile holds every setting of the map')
         self.assertIn('[S2ArmSettingsValues(name) containsObject:value]', valid, 'a profile only keeps the values offered (never 30)')
         self.assertIn('[value boolValue] ? @YES : @NO', valid)
         create = block(SETTINGS, 'NSDictionary<NSString *, id> *S2ArmSettingsGameCreateProfile(NSString *gid) {')
@@ -250,7 +250,8 @@ class GameProfiles(unittest.TestCase):
         self.assertIn('return S2ArmSettingsSnapshot();', remove)
         # The global keys are only ever written by S2ArmSettingsApply (and the existing launch cleanups), never by a profile.
         for name in ('kResolution', 'kAntiAliasing', 'kScalingFilter', 'kFrameRateLimit', 'kDocked', 'kWidescreen',
-                     'kPerformanceOverlay', 'kGameLanguage', 'kFrameInterpolation'):
+                     'kPerformanceOverlay', 'kGameLanguage', 'kFrameInterpolation', 'kFrameInterpolationAll',
+                     'kShadowQuality', 'kPipelineMode', 'kPerformanceProfile'):
             writes = re.findall(r'(?:StoreChoice|StoreFlag)\(defaults, changes, @"\w+", %s\)' % name, SETTINGS)
             self.assertEqual(len(writes), 1, name)
             self.assertNotRegex(SETTINGS, r'set(?:Object|Bool):[^;]*forKey:%s\b' % name)

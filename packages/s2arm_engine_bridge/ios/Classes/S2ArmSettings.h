@@ -65,4 +65,16 @@ void S2ArmSettingsSetPerformanceOverlay(NSString *_Nullable gid, BOOL on);
 // Whether frame generation is wanted for the game (engine patch 0345, off by default): S2A_RB_FI at the next game start.
 BOOL S2ArmSettingsFrameInterpolation(NSString *_Nullable gid);
 
+// Whether adaptive frame generation for all games (engine patch 0421, off by default) is wanted: S2A_RB_FI_ALL.
+BOOL S2ArmSettingsFrameInterpolationAll(NSString *_Nullable gid);
+
+// Shadow map resolution scale for the game (engine patch 0421, "1" / "0.75" / "0.5"): S2A_RB_SHADOW_SCALE.
+NSString *S2ArmSettingsShadowQuality(NSString *_Nullable gid);
+
+// Render pipeline compilation mode (engine patch 0419, "fluid" / "strict"): S2A_RB_FLUID_PSO.
+NSString *S2ArmSettingsPipelineMode(NSString *_Nullable gid);
+
+// Performance / thermal profile (engine patch 0421, "balanced" / "performance" / "thermalDrs").
+NSString *S2ArmSettingsPerformanceProfile(NSString *_Nullable gid);
+
 NS_ASSUME_NONNULL_END

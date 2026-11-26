@@ -1,0 +1,195 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index dea3e8e..2274a0f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1022,7 +1022,11 @@ void mtl_init(void) {
+         g_q4 = [g_dev newMTL4CommandQueueWithDescriptor:q4d error:&re];
+         if (!g_q4) MDIE("failed to create the MTL4CommandQueue");
+         [g_q4 addResidencySet:g_res];
+-        if (nvn_rb_thermal_scope()) {
++        const char *rb_pq_env = getenv("S2A_RB_PRESENT_QUEUE");
++        // RewindBox (patch 0418): dedicated present queue is opt-in only (S2A_RB_PRESENT_QUEUE=1).
++        // Keeping presentation and MetalFX frame interpolation on g_q4 avoids cross-queue GPU
++        // time-slicing, duplicate residency commits, and onscreen swapchain overwrites (IPA 844).
++        if (nvn_rb_thermal_scope() && rb_pq_env && !strcmp(rb_pq_env, "1")) {
+             g_rb_present_q=[g_dev newMTL4CommandQueueWithDescriptor:q4d error:&re];
+             for (unsigned i=0; g_rb_present_q && i<RB_PRESENT_CAP; i++) {
+                 g_rb_present_pin[i]=[g_dev newResidencySetWithDescriptor:rd error:&re];
+@@ -12070,7 +12074,17 @@ static int rb_archive_preopen_on(void) {
+ #define RB_ARCHIVE_ERROR_NIL_DEFAULT() nvn_rb_thermal_scope()
+ #define RB_ARCHIVE_ERROR_NIL_READY() rb_hosted_nvn2_ready()
+ #define RB_M4_FUNCTION(fn) objc_getAssociatedObject((fn),&rb_function_descriptor_key)
+-#define RB_M4_ENABLED() (!g_m3 && nvn_rb_thermal_scope())
++static int rb_m4_archive_on(void) {
++    static _Atomic int mode = -1;
++    int v = atomic_load_explicit(&mode, memory_order_relaxed);
++    if (v < 0) {
++        const char *e = getenv("S2A_RB_M4_ARCHIVE");
++        v = e && !strcmp(e, "1") ? 1 : 0;
++        atomic_store_explicit(&mode, v, memory_order_relaxed);
++    }
++    return v && nvn_rb_thermal_scope();
++}
++#define RB_M4_ENABLED() (!g_m3 && rb_m4_archive_on())
+ #include "pso_archive.h"   // S2Arm: per-pipeline binary archive (after MacNativeGames, MIT)
+ // The first launch after upgrading has no startup-key index. Seed the
+ // worker from the actual slow recipes, followed by the reference and user
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+index 5d99ea7..d802f7e 100644
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -102,9 +102,11 @@ static NSMutableArray *g_par_todo;                                       // @[ke
+ 
+ // Captured at the actual first compile. The archive worker serializes this
+ // object; it does not call addRender/ComputePipelineFunctions again.
+-@interface RBMetal4Capture : NSObject <NSCopying> { @public id<MTL4PipelineDataSetSerializer> serializer; } @end
++static _Atomic int g_rb_m4_live_captures;
++@interface RBMetal4Capture : NSObject <NSCopying> { @public id<MTL4PipelineDataSetSerializer> serializer; BOOL counted; } @end
+ @implementation RBMetal4Capture
+ - (id)copyWithZone:(NSZone *)zone { (void)zone; return self; }
++- (void)dealloc { if (counted) atomic_fetch_sub_explicit(&g_rb_m4_live_captures, 1, memory_order_release); }
+ @end
+ static BOOL rb_m4_write(NSString *key,RBMetal4Capture *capture);
+ #ifndef RB_M4_ENABLED
+@@ -200,6 +202,9 @@ static NSDictionary<NSString *, NSArray *> *par_ga_hold_new(NSSet<NSString *> *b
+     return owned;
+ }
+ static void par_ga_remove_new(NSSet<NSString *> *before) {
++    // RewindBox (patch 0418): never delete newly-created gpuarchiver-* build folders while
++    // any MTL4PipelineDataSetSerializer capture is queued or active (IPA 844 PersistentState race).
++    if (atomic_load_explicit(&g_rb_m4_live_captures, memory_order_acquire) > 0) return;
+     NSMutableSet<NSString *> *made = [par_ga_list(0) mutableCopy]; [made minusSet:before];
+     for (NSString *path in made) {
+         NSError *e = nil;
+@@ -1154,19 +1159,37 @@ static BOOL rb_m4_reference_bypass(BOOL rebuild) {
+     const char *ref=getenv("S2A_RB_PREPARE_PROFILE");
+     return ref && *ref;
+ }
++static id rb_m4_shared_compiler(NSError **error) {
++    if (@available(macOS 26.0,iOS 26.0,*)) {
++        static id<MTL4Compiler> shared;
++        static pthread_mutex_t mu = PTHREAD_MUTEX_INITIALIZER;
++        pthread_mutex_lock(&mu);
++        if (!shared) shared = [g_dev newCompilerWithDescriptor:[MTL4CompilerDescriptor new] error:error];
++        id<MTL4Compiler> c = shared;
++        pthread_mutex_unlock(&mu);
++        return c;
++    }
++    return nil;
++}
+ static id rb_m4_compile(id descriptor,NSString *key,BOOL compute,BOOL *capturedOut,NSError **error) {
+     if (capturedOut) *capturedOut=NO;
+     if (!descriptor) return nil;
+     if (@available(macOS 26.0,iOS 26.0,*)) {
+-        MTL4CompilerDescriptor *cd=[MTL4CompilerDescriptor new];
+         RBMetal4Capture *capture=nil;
++        id<MTL4Compiler> compiler=nil;
+         if (key && g_par_on && rb_m4_capture_room()) {
++            MTL4CompilerDescriptor *cd=[MTL4CompilerDescriptor new];
+             MTL4PipelineDataSetSerializerDescriptor *sd=[MTL4PipelineDataSetSerializerDescriptor new];
+             sd.configuration=MTL4PipelineDataSetSerializerConfigurationCaptureBinaries;
+-            capture=[RBMetal4Capture new]; capture->serializer=[g_dev newPipelineDataSetSerializerWithDescriptor:sd];
+-            cd.pipelineDataSetSerializer=capture->serializer;
++            id<MTL4PipelineDataSetSerializer> ser=[g_dev newPipelineDataSetSerializerWithDescriptor:sd];
++            if (ser) {
++                capture=[RBMetal4Capture new]; capture->serializer=ser; capture->counted=YES;
++                atomic_fetch_add_explicit(&g_rb_m4_live_captures,1,memory_order_release);
++                cd.pipelineDataSetSerializer=ser;
++                compiler=[g_dev newCompilerWithDescriptor:cd error:error];
++            }
+         }
+-        id<MTL4Compiler> compiler=[g_dev newCompilerWithDescriptor:cd error:error];
++        if (!compiler) { capture=nil; compiler=rb_m4_shared_compiler(error); }
+         id ps=nil;
+         if (compute) ps=[compiler newComputePipelineStateWithDescriptor:descriptor compilerTaskOptions:nil error:error];
+         else ps=[compiler newRenderPipelineStateWithDescriptor:descriptor compilerTaskOptions:nil error:error];
+diff --git a/graphics/nvn/gfx/nvn/rb_replay_worker.inc b/graphics/nvn/gfx/nvn/rb_replay_worker.inc
+index 439ec22..29f98cd 100644
+--- a/graphics/nvn/gfx/nvn/rb_replay_worker.inc
++++ b/graphics/nvn/gfx/nvn/rb_replay_worker.inc
+@@ -15,6 +15,17 @@ static rb_replay_job rb_replay_jobs[RB_REPLAY_JOBS];
+ static unsigned rb_replay_head, rb_replay_count;
+ static int rb_replay_running, rb_replay_closed, rb_replay_failed;
+ static uint64_t rb_replay_sent, rb_replay_done, rb_replay_wait_ns;
++static _Atomic int rb_replay_mode=-1;
++static _Atomic int rb_replay_active;
++static int rb_replay_enabled(void) {
++    int m=atomic_load_explicit(&rb_replay_mode,memory_order_relaxed);
++    if (m<0) {
++        const char *e=getenv("S2A_RB_REPLAY_WORKER");
++        m=e && !strcmp(e,"1") ? 1 : 0;
++        atomic_store_explicit(&rb_replay_mode,m,memory_order_relaxed);
++    }
++    return m;
++}
+ static void rb_replay_init_lock(void) {
+     pthread_mutexattr_t a; pthread_mutexattr_init(&a);
+     pthread_mutexattr_settype(&a,PTHREAD_MUTEX_RECURSIVE);
+@@ -32,7 +43,8 @@ static void rb_replay_join(void) {
+     pthread_mutex_unlock(&rb_replay_mu);
+ }
+ static rb_replay_guard rb_replay_enter(int hold) {
+-    if (rb_replay_worker_thread) return (rb_replay_guard){0};
++    if (rb_replay_worker_thread || !atomic_load_explicit(&rb_replay_active,memory_order_relaxed))
++        return (rb_replay_guard){0};
+     pthread_once(&rb_replay_once,rb_replay_init_lock);
+     pthread_mutex_lock(&rb_replay_admission);
+     rb_replay_join();
+@@ -68,16 +80,18 @@ static void *rb_replay_main(void *unused) {
+ }
+ static int rb_replay_enqueue(NVNqueue *q,int n,const NVNcommandHandle *handles) {
+ #if defined(__APPLE__)
+-    // Host NVN2 only; frame capture keeps its synchronous recording contract.
+-    if (!nvn_rb_thermal_scope() || nvn_frec_on() || n<=0 || n>RB_REPLAY_HANDLES || !handles) return 0;
++    // Host NVN2 opt-in only (S2A_RB_REPLAY_WORKER=1); synchronous replay avoids
++    // admission-lock stalls on frequent NVN API queries (IPA 844 device evidence).
++    if (!rb_replay_enabled() || !nvn_rb_thermal_scope() || nvn_frec_on() || n<=0 || n>RB_REPLAY_HANDLES || !handles) return 0;
+     pthread_mutex_lock(&rb_replay_mu);
+     if (rb_replay_closed || rb_replay_failed || dm_gfx_session_stopping()) { pthread_mutex_unlock(&rb_replay_mu); return 0; }
+     if (!rb_replay_running) {
++        atomic_store_explicit(&rb_replay_active,1,memory_order_release);
+         pthread_attr_t attr; pthread_attr_init(&attr);
+         int e=pthread_attr_setstacksize(&attr,8u<<20);
+         if (!e) e=pthread_create(&rb_replay_thread,&attr,rb_replay_main,NULL);
+         pthread_attr_destroy(&attr);
+-        if (e) { rb_replay_failed=1; pthread_mutex_unlock(&rb_replay_mu); LOG("[rb-replay] worker unavailable: %d; synchronous replay retained",e); return 0; }
++        if (e) { atomic_store_explicit(&rb_replay_active,0,memory_order_release); rb_replay_failed=1; pthread_mutex_unlock(&rb_replay_mu); LOG("[rb-replay] worker unavailable: %d; synchronous replay retained",e); return 0; }
+         rb_replay_running=1;
+         LOG("[rb-replay] ordered CPU worker active; capacity=%d, immutable streams retained",RB_REPLAY_JOBS);
+     }
+@@ -101,6 +115,11 @@ NVN(nvnQueueSubmitCommands, void, NVNqueue *q, int n, const NVNcommandHandle *h)
+     if (s2a_guest_frame_qos_protect) s2a_guest_frame_qos_protect();
+ #endif
+     gfx_enter();
++    if (!rb_replay_enabled() && !atomic_load_explicit(&rb_replay_active,memory_order_acquire)) {
++        if (!dm_gfx_session_stopping()) rb_submit_replay(q,n,h);
++        gfx_leave();
++        return;
++    }
+     pthread_once(&rb_replay_once,rb_replay_init_lock);
+     pthread_mutex_lock(&rb_replay_admission);
+     if (!dm_gfx_session_stopping() && !rb_replay_enqueue(q,n,h)) {
+@@ -109,6 +128,7 @@ NVN(nvnQueueSubmitCommands, void, NVNqueue *q, int n, const NVNcommandHandle *h)
+     pthread_mutex_unlock(&rb_replay_admission); gfx_leave();
+ }
+ static void rb_replay_stop(void) {
++    if (!atomic_load_explicit(&rb_replay_active,memory_order_acquire)) return;
+     pthread_once(&rb_replay_once,rb_replay_init_lock);
+     pthread_mutex_lock(&rb_replay_admission);
+     pthread_mutex_lock(&rb_replay_mu); rb_replay_closed=1;
+@@ -116,6 +136,7 @@ static void rb_replay_stop(void) {
+     pthread_cond_broadcast(&rb_replay_cv); pthread_mutex_unlock(&rb_replay_mu);
+     if (running) pthread_join(rb_replay_thread,NULL);
+     rb_replay_running=0;
++    atomic_store_explicit(&rb_replay_active,0,memory_order_release);
+     LOG("[rb-replay] stopped: submitted=%llu completed=%llu admission_wait_ms=%.3f",
+         (unsigned long long)rb_replay_sent,(unsigned long long)rb_replay_done,rb_replay_wait_ns/1e6);
+     pthread_mutex_unlock(&rb_replay_admission);
+@@ -124,5 +145,7 @@ static void rb_replay_begin(void) {
+     // Session reset runs only after the previous worker and GPU have joined.
+     rb_replay_head=rb_replay_count=0; rb_replay_closed=rb_replay_failed=0;
+     rb_replay_sent=rb_replay_done=rb_replay_wait_ns=0;
++    atomic_store_explicit(&rb_replay_mode,-1,memory_order_relaxed);
++    atomic_store_explicit(&rb_replay_active,0,memory_order_release);
+     atomic_store(&rb_replay_pending,0); atomic_store(&rb_replay_shadow_pressure,0);
+ }

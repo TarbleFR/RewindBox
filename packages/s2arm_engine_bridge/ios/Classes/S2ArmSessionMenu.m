@@ -36,6 +36,10 @@ static NSDictionary<NSString *, NSString *> *EnglishStrings(void) {
     @"menu.scalingFilter" : @"Scaling filter",
     @"menu.frameRateLimit" : @"Frame rate limit",
     @"menu.frameInterpolation" : @"Frame Generation",
+    @"menu.frameInterpolationAll" : @"Frame Generation scope",
+    @"menu.shadowQuality" : @"Shadow quality",
+    @"menu.pipelineMode" : @"Pipeline compilation",
+    @"menu.performanceProfile" : @"Performance profile",
     @"menu.mode" : @"Console mode",
     @"menu.imageFormat" : @"Image format",
     @"menu.gameLanguage" : @"Game language",
@@ -60,6 +64,16 @@ static NSDictionary<NSString *, NSString *> *EnglishStrings(void) {
     @"menu.fpsUnlimited" : @"No limit",
     @"menu.frameInterpolationOff" : @"Off",
     @"menu.frameInterpolationOn" : @"On",
+    @"menu.frameInterpolationAllOff" : @"30 FPS games only",
+    @"menu.frameInterpolationAllOn" : @"Adaptive (all games)",
+    @"menu.shadow100" : @"Native (100%)",
+    @"menu.shadow075" : @"Medium (75%)",
+    @"menu.shadow050" : @"Low (50%, faster)",
+    @"menu.pipelineFluid" : @"Fluid (no freeze)",
+    @"menu.pipelineStrict" : @"Strict (wait)",
+    @"menu.profileBalanced" : @"Balanced",
+    @"menu.profilePerformance" : @"Performance",
+    @"menu.profileThermalDrs" : @"Thermal / DRS",
     @"menu.modeHandheld" : @"Handheld",
     @"menu.modeDocked" : @"Docked",
     @"menu.formatWide" : @"Widescreen (fills the screen)",
@@ -70,17 +84,24 @@ static NSDictionary<NSString *, NSString *> *EnglishStrings(void) {
 
 // The settings the menu offers: the snapshot key, the title key and the value labels.
 static NSArray<NSString *> *SettingKeys(void) {
-  return @[ @"resolutionScale", @"antiAliasing", @"scalingFilter", @"frameRateLimit", @"frameInterpolation", @"docked", @"widescreen",
-            @"gameLanguage" ];
+  return @[
+    @"resolutionScale", @"shadowQuality", @"antiAliasing", @"scalingFilter", @"frameRateLimit",
+    @"frameInterpolation", @"frameInterpolationAll", @"pipelineMode", @"performanceProfile",
+    @"docked", @"widescreen", @"gameLanguage"
+  ];
 }
 
 static NSString *TitleKey(NSString *setting) {
   NSDictionary *titles = @{
     @"resolutionScale" : @"menu.resolution",
+    @"shadowQuality" : @"menu.shadowQuality",
     @"antiAliasing" : @"menu.antiAliasing",
     @"scalingFilter" : @"menu.scalingFilter",
     @"frameRateLimit" : @"menu.frameRateLimit",
     @"frameInterpolation" : @"menu.frameInterpolation",
+    @"frameInterpolationAll" : @"menu.frameInterpolationAll",
+    @"pipelineMode" : @"menu.pipelineMode",
+    @"performanceProfile" : @"menu.performanceProfile",
     @"docked" : @"menu.mode",
     @"widescreen" : @"menu.imageFormat",
     @"gameLanguage" : @"menu.gameLanguage",
@@ -92,6 +113,7 @@ static NSArray *Choices(NSString *setting) {
   if ([setting isEqualToString:@"docked"]) return @[ @NO, @YES ];
   if ([setting isEqualToString:@"widescreen"]) return @[ @YES, @NO ];
   if ([setting isEqualToString:@"frameInterpolation"]) return @[ @NO, @YES ];
+  if ([setting isEqualToString:@"frameInterpolationAll"]) return @[ @NO, @YES ];
   return S2ArmSettingsValues(setting);
 }
 
@@ -367,11 +389,16 @@ static UIView *FindView(UIView *view, NSString *identifier) {
   if ([setting isEqualToString:@"widescreen"]) return [self text:[value boolValue] ? @"menu.formatWide" : @"menu.format169"];
   if ([setting isEqualToString:@"frameInterpolation"])
     return [self text:[value boolValue] ? @"menu.frameInterpolationOn" : @"menu.frameInterpolationOff"];
+  if ([setting isEqualToString:@"frameInterpolationAll"])
+    return [self text:[value boolValue] ? @"menu.frameInterpolationAllOn" : @"menu.frameInterpolationAllOff"];
   NSDictionary *keys = @{
     @"resolutionScale" : @{@"0.5" : @"menu.res050", @"0.75" : @"menu.res075", @"1" : @"menu.res100"},
+    @"shadowQuality" : @{@"1" : @"menu.shadow100", @"0.75" : @"menu.shadow075", @"0.5" : @"menu.shadow050"},
     @"antiAliasing" : @{@"None" : @"menu.aaNone", @"SmaaMedium" : @"menu.aaSmaaMedium", @"SmaaHigh" : @"menu.aaSmaaHigh"},
     @"scalingFilter" : @{@"Bilinear" : @"menu.filterBilinear", @"Nearest" : @"menu.filterNearest"},
     @"frameRateLimit" : @{@"60" : @"menu.fps60", @"120" : @"menu.fps120", @"0" : @"menu.fpsUnlimited"},   // no 30 (engine patch 0319)
+    @"pipelineMode" : @{@"fluid" : @"menu.pipelineFluid", @"strict" : @"menu.pipelineStrict"},
+    @"performanceProfile" : @{@"balanced" : @"menu.profileBalanced", @"performance" : @"menu.profilePerformance", @"thermalDrs" : @"menu.profileThermalDrs"},
   };
   if ([setting isEqualToString:@"gameLanguage"]) {
     if ([value isEqual:@"auto"]) return [self text:@"menu.languageAuto"];
@@ -418,10 +445,10 @@ static UIView *FindView(UIView *view, NSString *identifier) {
   NSString *gid = self.gameId;
   BOOL profile = S2ArmSettingsGameHasProfile(gid);
   id current = S2ArmSettingsForGame(gid)[setting];
-  // Patch 0078: the frame-rate limit applies at once when the engine can take it (applyNow), the other settings at the next start
-  BOOL live = self.applyNow != nil && [setting isEqualToString:@"frameRateLimit"];
-  // Patch 0345: frame generation at once in a session started with it on; the next start otherwise; never where the engine cannot
-  BOOL frameInterpolation = [setting isEqualToString:@"frameInterpolation"];
+  // Patch 0078 / 0419: the frame-rate limit and pipeline compilation mode apply at once when the engine supports them
+  BOOL live = self.applyNow != nil && ([setting isEqualToString:@"frameRateLimit"] || [setting isEqualToString:@"pipelineMode"]);
+  // Patch 0345 / 0421: frame generation at once in a session started with it on; the next start otherwise; never where the engine cannot
+  BOOL frameInterpolation = [setting isEqualToString:@"frameInterpolation"] || [setting isEqualToString:@"frameInterpolationAll"];
   if (frameInterpolation) live = self.applyNow != nil && self.frameInterpolationLive;
   NSString *message = frameInterpolation && self.frameInterpolationUnavailable ? @"menu.frameInterpolationUnavailable"
                       : live ? @"menu.liveNow" : @"menu.nextLaunch";

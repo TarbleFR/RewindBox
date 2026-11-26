@@ -38,9 +38,11 @@ typedef void *(*s2a_rb_guest_view_controller_fn)(void);             // patch 001
 typedef int (*s2a_rb_guest_resume_fn)(char *error, size_t error_size);   // patch 0010 (main thread, view in a window)
 typedef int (*s2a_rb_guest_set_fps_limit_fn)(int fps);   // patch 0078: 0 or 24–1000; 0 = in effect from the next frame, -1 refused, -2 off
 typedef int (*s2a_rb_guest_benchmark_fn)(int command, const char *metadata_json, char *out, size_t cap); // patch 0171, optional
-// patch 0345: 1 on, 0 off; 0 = in effect from the next frame, -1 not active in this session (started without S2A_RB_FI=1), -2 the
-// device or graphics backend cannot interpolate
+// patch 0345/0421: 0 off, 1 classic (30 fps games), 2 adaptive (all games); 0 = in effect from the next frame, -1 not active in
+// this session (started without S2A_RB_FI=1), -2 the device or graphics backend cannot interpolate
 typedef int (*s2a_rb_guest_set_frame_interp_fn)(int on);
+// patch 0419: 1 fluid (non-blocking render pipelines), 0 strict (synchronous wait); 0 = in effect from the next frame
+typedef int (*s2a_rb_guest_set_fluid_pso_fn)(int on);
 
 #define S2A_RB_GUEST_CONFIGURE "s2a_rb_guest_configure"
 #define S2A_RB_GUEST_MAKE_VIEW_CONTROLLER "s2a_rb_guest_make_view_controller"
@@ -51,7 +53,8 @@ typedef int (*s2a_rb_guest_set_frame_interp_fn)(int on);
 #define S2A_RB_GUEST_RESUME "s2a_rb_guest_resume"
 #define S2A_RB_GUEST_SET_FPS_LIMIT "s2a_rb_guest_set_fps_limit"   // patch 0078: absent in engines before it
 #define S2A_RB_GUEST_BENCHMARK "s2a_rb_guest_benchmark"           // patch 0171: status/start/end/invalidate
-#define S2A_RB_GUEST_SET_FRAME_INTERP "s2a_rb_guest_set_frame_interp"   // patch 0345: absent in engines before it
+#define S2A_RB_GUEST_SET_FRAME_INTERP "s2a_rb_guest_set_frame_interp"   // patch 0345/0421: absent in engines before it
+#define S2A_RB_GUEST_SET_FLUID_PSO "s2a_rb_guest_set_fluid_pso"         // patch 0419: absent in engines before it
 
 // The title profile is processed on the host work queue before game start. GPU
 // status comes from strict probes in the game's own NVN renderer.

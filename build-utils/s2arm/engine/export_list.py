@@ -50,8 +50,10 @@ GUEST_ENTRY_POINTS = ('s2a_rb_guest_prepare_graphics', 's2a_rb_guest_prepare_gpu
                       's2a_rb_guest_set_fps_limit',
                       # patch 0171: optional host benchmark UI, no guest ABI struct change
                       's2a_rb_guest_benchmark',
-                      # patch 0345: the in-game menu turns frame interpolation on or off during play (S2ArmEngineBridgePlugin.m applyLiveSetting)
-                      's2a_rb_guest_set_frame_interp')
+                      # patch 0345/0421: the in-game menu switches frame interpolation mode during play (S2ArmEngineBridgePlugin.m applyLiveSetting)
+                      's2a_rb_guest_set_frame_interp',
+                      # patch 0419: the in-game menu switches fluid vs strict pipeline compilation during play
+                      's2a_rb_guest_set_fluid_pso')
 IDENTIFIER = re.compile(rb'[A-Za-z_][A-Za-z0-9_$.]{1,255}')
 UTF16_IDENTIFIER = re.compile(rb'(?:[A-Za-z_]\x00)(?:[A-Za-z0-9_$.]\x00){1,255}')
 # A run of UTF-16LE identifier characters whose last character's high byte is not looked at (see the module text)

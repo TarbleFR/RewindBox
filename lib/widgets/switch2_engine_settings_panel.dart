@@ -144,6 +144,7 @@ class _Switch2EngineSettingsPanelState extends State<Switch2EngineSettingsPanel>
   String _t(String key) => Switch2SettingsLocale.text(context, key);
 
   static const Map<String, String> _resolutionKeys = <String, String>{'0.5': 'res050', '0.75': 'res075', '1': 'res100'};
+  static const Map<String, String> _shadowKeys = <String, String>{'1': 'shadow100', '0.75': 'shadow075', '0.5': 'shadow050'};
   static const Map<String, String> _aaKeys = <String, String>{
     'None': 'aaNone',
     'SmaaMedium': 'aaSmaaMedium',
@@ -154,6 +155,12 @@ class _Switch2EngineSettingsPanelState extends State<Switch2EngineSettingsPanel>
     '60': 'fps60',
     '120': 'fps120',
     '0': 'fpsUnlimited',
+  };
+  static const Map<String, String> _pipelineKeys = <String, String>{'fluid': 'pipelineFluid', 'strict': 'pipelineStrict'};
+  static const Map<String, String> _profileKeys = <String, String>{
+    'balanced': 'profileBalanced',
+    'performance': 'profilePerformance',
+    'thermalDrs': 'profileThermalDrs',
   };
 
   Widget _dropdown({
@@ -249,6 +256,13 @@ class _Switch2EngineSettingsPanelState extends State<Switch2EngineSettingsPanel>
           onChanged: (value) => _change(settings.copyWith(resolutionScale: value)),
         ),
         _dropdown(
+          key: const ValueKey('s2arm-setting-shadow-quality'),
+          title: _t('shadowQuality'),
+          value: settings.shadowQuality,
+          labels: {for (final entry in _shadowKeys.entries) entry.key: _t(entry.value)},
+          onChanged: (value) => _change(settings.copyWith(shadowQuality: value)),
+        ),
+        _dropdown(
           key: const ValueKey('s2arm-setting-anti-aliasing'),
           title: _t('antiAliasing'),
           value: settings.antiAliasing,
@@ -275,6 +289,34 @@ class _Switch2EngineSettingsPanelState extends State<Switch2EngineSettingsPanel>
           title: Text(_t('frameInterpolation')),
           subtitle: Text(_t('frameInterpolationNote')),
           onChanged: _locked ? null : (value) => _change(settings.copyWith(frameInterpolation: value)),
+        ),
+        SwitchListTile.adaptive(
+          key: const ValueKey('s2arm-setting-frame-interpolation-all'),
+          value: settings.frameInterpolationAll,
+          title: Text(_t('frameInterpolationAll')),
+          subtitle: Text(_t('frameInterpolationAllNote')),
+          onChanged: _locked
+              ? null
+              : (value) => _change(
+                  settings.copyWith(
+                    frameInterpolationAll: value,
+                    frameInterpolation: value ? true : settings.frameInterpolation,
+                  ),
+                ),
+        ),
+        _dropdown(
+          key: const ValueKey('s2arm-setting-pipeline-mode'),
+          title: _t('pipelineMode'),
+          value: settings.pipelineMode,
+          labels: {for (final entry in _pipelineKeys.entries) entry.key: _t(entry.value)},
+          onChanged: (value) => _change(settings.copyWith(pipelineMode: value)),
+        ),
+        _dropdown(
+          key: const ValueKey('s2arm-setting-performance-profile'),
+          title: _t('performanceProfile'),
+          value: settings.performanceProfile,
+          labels: {for (final entry in _profileKeys.entries) entry.key: _t(entry.value)},
+          onChanged: (value) => _change(settings.copyWith(performanceProfile: value)),
         ),
         _dropdown(
           key: const ValueKey('s2arm-setting-mode'),

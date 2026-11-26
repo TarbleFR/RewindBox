@@ -686,7 +686,8 @@ static NSString *S2ArmEnginePath(void) {
   benchmark[@"settings"] = S2ArmSettingsForGame(gid);   // launch preferences; the engine reports effective settings at begin
   self.benchmarkContext = benchmark;
   [self applyStoredFrameRateLimit:gid];   // patch 0078: S2A_FPS was read once, at this process's first game start
-  [self applyStoredFrameInterpolation:gid];   // patch 0345: S2A_RB_FI too
+  [self applyStoredFrameInterpolation:gid];   // patch 0345/0421: S2A_RB_FI + S2A_RB_FI_ALL
+  [self applyStoredPipelineMode:gid];   // patch 0419: S2A_RB_FLUID_PSO
   __block UIViewController *vc = nil;
   dispatch_sync(dispatch_get_main_queue(), ^{ vc = (__bridge UIViewController *)viewController(); });
   if (!vc) return launchFail(@"engineViewFailed", @"resume", @"The engine did not return the parked view controller.");
@@ -844,58 +845,73 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
   setenv("S2A_WORKGROUP", parkEnabled ? "0" : "1", 0);
   const char *workgroup = getenv("S2A_WORKGROUP");
   s2arm_journal("parkMode", parkEnabled && workgroup && !strcmp(workgroup, "0") ? "compatible" : "legacy", NULL);
-  // Select measured engine changes by title before loading the framework. A value supplied for an A/B run wins.
+  // Select measured engine changes before loading the framework. A value supplied for an A/B run (env.txt) wins.
+  // IPA 845: enable the 17 proven title-agnostic CPU/render optimizations across ALL Switch 2 titles
+  // instead of restricting them to Mario Kart World alone.
   BOOL fastFusion = [gid caseInsensitiveCompare:@"040041E0212AE000"] == NSOrderedSame;
   BOOL marioKartWorld = [gid caseInsensitiveCompare:@"0400C3F00006E000"] == NSOrderedSame;
+  const char *allTitles = "1";
   int vertexProfile = setenv("S2A_RB_NVN2_VATTR_PREFIX", fastFusion ? "1" : "0", 0);
-  int stagingProfile = setenv("S2A_RB_UP_PRESSURE_TRIM", marioKartWorld ? "1" : "0", 0);
-  int workgroupProfile = setenv("S2A_RB_WG_CADENCE_IDLE", marioKartWorld ? "1" : "0", 0);
-  int archiveProfile = setenv("S2A_RB_PSO_ARCHIVE_COALESCE", marioKartWorld ? "1" : "0", 0);
-  int workerProfile = setenv("S2A_RB_YIELD_WORKER_IDLE", marioKartWorld ? "1" : "0", 0);
-  int readAheadProfile = setenv("S2A_RB_POOL_QUEUE_BUDGET", marioKartWorld ? "1" : "0", 0);
+  int stagingProfile = setenv("S2A_RB_UP_PRESSURE_TRIM", allTitles, 0);
+  int workgroupProfile = setenv("S2A_RB_WG_CADENCE_IDLE", allTitles, 0);
+  int archiveProfile = setenv("S2A_RB_PSO_ARCHIVE_COALESCE", allTitles, 0);
+  int workerProfile = setenv("S2A_RB_YIELD_WORKER_IDLE", allTitles, 0);
+  int readAheadProfile = setenv("S2A_RB_POOL_QUEUE_BUDGET", allTitles, 0);
   const char *kartRender = marioKartWorld ? "1" : "0";
   // Preserve reconstructible stage bytes on a real bind for every hosted title.
   // The engine bounds outstanding copies and retries failed writes.
   int shaderBytesProfile = setenv("S2A_RB_DSH_KEEP_MAPPED", "1", 0);
-  int shaderQueueProfile = setenv("S2A_RB_SHADER_URGENT_UNIQUE", kartRender, 0);
+  int shaderQueueProfile = setenv("S2A_RB_SHADER_URGENT_UNIQUE", allTitles, 0);
   // The pool address index edit has no title in it (engine patches 0102 and 0304): every hosted game keeps it.
   int poolIndexProfile = setenv("S2A_RB_POOL_INDEX_UPDATE", "1", 0);
-  int textureViewsProfile = setenv("S2A_RB_TEX_FIT_FAST", kartRender, 0);
-  int demandProbeProfile = setenv("S2A_RB_DEMAND_PROBE_BATCH", kartRender, 0);
-  int audioReprimeProfile = setenv("S2A_RB_AUDIO_REPRIME", kartRender, 0);
-  int feedbackProfile = setenv("S2A_RB_FB_DIRECT_SNAPSHOT", kartRender, 0);
-  int pipelinePriorityProfile = setenv("S2A_RB_PSO_HOT_FIRST", kartRender, 0);
-  int shaderCompletionProfile = setenv("S2A_RB_SHADER_AHEAD_JOIN", kartRender, 0);
-  int pipelineLookaheadProfile = setenv("S2A_RB_PSO_LOOK_META", kartRender, 0);
+  int textureViewsProfile = setenv("S2A_RB_TEX_FIT_FAST", allTitles, 0);
+  int demandProbeProfile = setenv("S2A_RB_DEMAND_PROBE_BATCH", allTitles, 0);
+  int audioReprimeProfile = setenv("S2A_RB_AUDIO_REPRIME", allTitles, 0);
+  int feedbackProfile = setenv("S2A_RB_FB_DIRECT_SNAPSHOT", allTitles, 0);
+  int pipelinePriorityProfile = setenv("S2A_RB_PSO_HOT_FIRST", allTitles, 0);
+  int shaderCompletionProfile = setenv("S2A_RB_SHADER_AHEAD_JOIN", allTitles, 0);
+  int pipelineLookaheadProfile = setenv("S2A_RB_PSO_LOOK_META", allTitles, 0);
   // IPA 785: 967,104 bounds tables in 300 race frames; 208,326 unproductive word spins;
-  // 2,628 draws per frame repeated their shader signature lookup. Keep A/B controls per title.
-  int uniformBoundsProfile = setenv("S2A_RB_UNIFORM_BOUNDS_REUSE", kartRender, 0);
-  int waitProbeProfile = setenv("S2A_RB_IDLE_WAIT_PROBE", kartRender, 0);
-  int frameKeyProfile = setenv("S2A_RB_FRAME_SHADER_KEY", kartRender, 0);
+  // 2,628 draws per frame repeated their shader signature lookup. Enabled for all titles in IPA 845.
+  int uniformBoundsProfile = setenv("S2A_RB_UNIFORM_BOUNDS_REUSE", allTitles, 0);
+  int waitProbeProfile = setenv("S2A_RB_IDLE_WAIT_PROBE", allTitles, 0);
+  int frameKeyProfile = setenv("S2A_RB_FRAME_SHADER_KEY", allTitles, 0);
   // IPA 786: 82 and 96 on-screen drops in successive 300-frame windows at guest 30 FPS.
   int displayTicksProfile = setenv("S2A_RB_LINK_GAME30", kartRender, 0);
   // IPA 825: with no frame-rate limit set, Mario Kart World stayed at 30 fps for minutes once it had held present interval 2
   // for a second (resolution pushes and one-frame spikes sent it there). Engine patch 0319 keeps it at 60 fps.
   int noLockProfile = setenv("S2A_RB_DRS_NO_LOCK", kartRender, 0);
-  int residencyCensusProfile = setenv("S2A_RB_RES_TOP_PER_FRAME", kartRender, 0);
-  int shaderVariantProfile = setenv("S2A_RB_BOUND_SHADER_VARIANT", kartRender, 0);
-  // IPA 786's automatic sampler held individual threads for up to 32.5 ms.
-  // Keep continuous frame statistics and let diagnostic launches request the heavy capture.
-  int automaticProbeProfile = marioKartWorld ? setenv("S2A_RB_AUTO_PROBE", "0", 0) : 0;
+  int residencyCensusProfile = setenv("S2A_RB_RES_TOP_PER_FRAME", allTitles, 0);
+  int shaderVariantProfile = setenv("S2A_RB_BOUND_SHADER_VARIANT", allTitles, 0);
+  // IPA 786 / 844: the automatic 500 Hz sampler suspends threads up to 32.5 ms.
+  // Keep continuous frame statistics in host.log and let diagnostic env.txt opt in via S2A_RB_AUTO_PROBE=1.
+  int automaticProbeProfile = setenv("S2A_RB_AUTO_PROBE", "0", 0);
   int saveRestoreProfile = setenv("S2A_RB_SAVE_PROFILE", "1", 0);
   int saveTitleSlots = setenv("S2A_RB_SAVE_TITLE_SLOTS", "1", 0);
-  // Engine patch 0345: frame generation (MetalFX frame interpolation, iOS 26) for games that ask for 30 fps or less, from the
-  // player's setting, off unless turned on. The engine reads it once a process; the in-game menu then turns it on or off during
-  // play (applyLiveSetting). A value supplied for an A/B run (launch environment, env.txt) wins, as for the switches above.
-  // The game's settings profile when it has one, else the global choice.
+  // Engine patch 0345 / 0421: frame generation (MetalFX frame interpolation, iOS 26), plus adaptive mode for all games,
+  // universal shadow scaling, fluid non-blocking pipeline compilation (patch 0419), and performance/thermal profile.
   int frameInterpolationProfile = setenv("S2A_RB_FI", S2ArmSettingsFrameInterpolation(gid) ? "1" : "0", 0);
+  int frameInterpolationAllProfile = setenv("S2A_RB_FI_ALL", S2ArmSettingsFrameInterpolationAll(gid) ? "1" : "0", 0);
+  int shadowScaleProfile = setenv("S2A_RB_SHADOW_SCALE", S2ArmSettingsShadowQuality(gid).UTF8String, 0);
+  int fluidPsoProfile = setenv("S2A_RB_FLUID_PSO", [S2ArmSettingsPipelineMode(gid) isEqualToString:@"strict"] ? "0" : "1", 0);
+  NSString *perfProfile = S2ArmSettingsPerformanceProfile(gid);
+  int perfProfileStatus = 0;
+  if ([perfProfile isEqualToString:@"thermalDrs"]) {
+    perfProfileStatus = setenv("S2A_RB_DRS_THERMAL", "1", 0) || setenv("S2A_RB_FAIR_SCALE", "0.85", 0);
+  } else if ([perfProfile isEqualToString:@"performance"]) {
+    perfProfileStatus = setenv("S2A_RB_DRS_THERMAL", "0", 0) || setenv("S2A_RB_FLUID_PSO_MS", "6", 0) ||
+                        setenv("S2A_RB_ALLOC_FRAME_MB", "32", 0);
+  } else {
+    perfProfileStatus = setenv("S2A_RB_DRS_THERMAL", "0", 0);
+  }
   BOOL profileFailed = vertexProfile || stagingProfile || workgroupProfile || archiveProfile || workerProfile ||
                        readAheadProfile || shaderBytesProfile || shaderQueueProfile || poolIndexProfile ||
                        textureViewsProfile || demandProbeProfile || audioReprimeProfile || feedbackProfile ||
                        pipelinePriorityProfile || shaderCompletionProfile || pipelineLookaheadProfile ||
                        uniformBoundsProfile || waitProbeProfile || frameKeyProfile ||
                        displayTicksProfile || noLockProfile || residencyCensusProfile || shaderVariantProfile || automaticProbeProfile ||
-                       saveRestoreProfile || saveTitleSlots || frameInterpolationProfile;
+                       saveRestoreProfile || saveTitleSlots || frameInterpolationProfile || frameInterpolationAllProfile ||
+                       shadowScaleProfile || fluidPsoProfile || perfProfileStatus;
   s2arm_journal("gameProfile", profileFailed ? "failed" : "selected",
                 "\"profile\":\"%s\"", fastFusion ? "fast-fusion" : marioKartWorld ? "mario-kart-world" : "default");
   // The game language, the engine's brief overlay that the in-game menu shows or hides, and the game's settings profile (the
@@ -1167,7 +1183,8 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
   // Patch 0345: frame generation too, in a session the engine started with it (S2A_RB_FI=1, read once a process)
   __weak S2ArmEngineBridgePlugin *weakSelf = self;
   BOOL frameInterpolation = dlsym(RTLD_DEFAULT, S2A_RB_GUEST_SET_FRAME_INTERP) != NULL;
-  if (dlsym(RTLD_DEFAULT, S2A_RB_GUEST_SET_FPS_LIMIT) || frameInterpolation) {
+  BOOL fluidPso = dlsym(RTLD_DEFAULT, S2A_RB_GUEST_SET_FLUID_PSO) != NULL;
+  if (dlsym(RTLD_DEFAULT, S2A_RB_GUEST_SET_FPS_LIMIT) || frameInterpolation || fluidPso) {
     self.sessionMenu.applyNow = ^BOOL(NSString *setting, id value) { return [weakSelf applyLiveSetting:setting value:value]; };
   }
   const char *frameInterpolationAsked = getenv("S2A_RB_FI");
@@ -1178,22 +1195,34 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
 }
 
 // Patch 0078 (engine): the limit changed during play. YES when the engine took it (from its next frame on).
-// Patch 0345 (engine): frame generation turned on or off during play, the same way. The engine answers -1 when this session
-// started without S2A_RB_FI=1 (the stored choice applies at the next start) and -2 when this device or graphics backend cannot
-// interpolate: the choice stays stored and the menu tells the player (frameInterpolationUnavailable).
+// Patch 0345 / 0421 (engine): frame generation (classic / adaptive all-games) switched during play.
+// Patch 0419 (engine): fluid vs strict pipeline compilation switched during play.
 - (BOOL)applyLiveSetting:(NSString *)setting value:(id)value {
-  if ([setting isEqualToString:@"frameInterpolation"]) {
+  if ([setting isEqualToString:@"frameInterpolation"] || [setting isEqualToString:@"frameInterpolationAll"]) {
     if (![value isKindOfClass:NSNumber.class]) return NO;
     s2a_rb_guest_set_frame_interp_fn interp =
         (s2a_rb_guest_set_frame_interp_fn)dlsym(RTLD_DEFAULT, S2A_RB_GUEST_SET_FRAME_INTERP);
     if (!interp) return NO;   // an engine before patch 0345
-    BOOL on = [value boolValue];
-    int answer = interp(on ? 1 : 0);
-    if (answer == 0) [self liveSettingTaken:setting value:@(on)];
+    BOOL isAll = [setting isEqualToString:@"frameInterpolationAll"];
+    BOOL on = isAll ? S2ArmSettingsFrameInterpolation(self.runningGameId) : [value boolValue];
+    BOOL all = isAll ? [value boolValue] : S2ArmSettingsFrameInterpolationAll(self.runningGameId);
+    int mode = on ? (all ? 2 : 1) : 0;
+    int answer = interp(mode);
+    if (answer == 0) [self liveSettingTaken:setting value:@([value boolValue])];
     if (answer == -2) self.sessionMenu.frameInterpolationUnavailable = YES;
     s2arm_journal("frameInterpolation", answer == 0 ? "now" : answer == -2 ? "unavailable" : "nextStart",
-                  "\"on\":%s,\"rc\":%d", on ? "true" : "false", answer);
+                  "\"mode\":%d,\"rc\":%d", mode, answer);
     return answer == 0;
+  }
+  if ([setting isEqualToString:@"pipelineMode"]) {
+    if (![value isKindOfClass:NSString.class] || ![S2ArmSettingsValues(@"pipelineMode") containsObject:value]) return NO;
+    s2a_rb_guest_set_fluid_pso_fn setFluid = (s2a_rb_guest_set_fluid_pso_fn)dlsym(RTLD_DEFAULT, S2A_RB_GUEST_SET_FLUID_PSO);
+    if (!setFluid) return NO;   // an engine before patch 0419
+    BOOL fluid = [value isEqualToString:@"fluid"];
+    int rc = setFluid(fluid ? 1 : 0);
+    if (rc == 0) [self liveSettingTaken:setting value:value];
+    s2arm_journal("pipelineMode", rc == 0 ? "now" : "nextStart", "\"fluid\":%s,\"rc\":%d", fluid ? "true" : "false", rc);
+    return rc == 0;
   }
   if (![setting isEqualToString:@"frameRateLimit"] || ![value isKindOfClass:NSString.class]) return NO;
   if (![S2ArmSettingsValues(@"frameRateLimit") containsObject:value]) return NO;   // engine patch 0319: never 30
@@ -1225,12 +1254,18 @@ static void graphicsProgress(void *ctx, uint64_t done, uint64_t total) {
   if (value) (void)[self applyLiveSetting:@"frameRateLimit" value:value];
 }
 
-// The stored frame-generation choice (the game's profile, else the global one), for a parked game that resumes (patch 0345): the
+// The stored frame-generation choice (the game's profile, else the global one), for a parked game that resumes (patch 0345/0421): the
 // engine read S2A_RB_FI once, at this process's first game start. A session started without it stays without it (-1); the menu
 // learns of -2 at the player's choice.
 - (void)applyStoredFrameInterpolation:(NSString *)gid {
   id value = S2ArmSettingsForGame(gid)[@"frameInterpolation"];
   if (value) (void)[self applyLiveSetting:@"frameInterpolation" value:value];
+}
+
+// The stored pipeline compilation mode (patch 0419), for a parked game that resumes.
+- (void)applyStoredPipelineMode:(NSString *)gid {
+  id value = S2ArmSettingsForGame(gid)[@"pipelineMode"];
+  if (value) (void)[self applyLiveSetting:@"pipelineMode" value:value];
 }
 
 #pragma mark - game view watch

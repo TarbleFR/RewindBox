@@ -43,9 +43,13 @@ void main() {
       // The in-game benchmark (b56627d0b, 20 November).
       'menu.benchmark', 'menu.benchmarkFailed', 'menu.benchmarkInstructions', 'menu.benchmarkInterrupted',
       'menu.benchmarkInvalid', 'menu.benchmarkSaved', 'menu.benchmarkScenario', 'menu.benchmarkStart',
-      // Frame generation (engine patch 0345).
+      // Frame generation (engine patch 0345 / 0421) and IPA 845 universal performance levers.
       'menu.frameInterpolation', 'menu.frameInterpolationOff', 'menu.frameInterpolationOn',
       'menu.frameInterpolationUnavailable',
+      'menu.frameInterpolationAll', 'menu.frameInterpolationAllOff', 'menu.frameInterpolationAllOn',
+      'menu.shadowQuality', 'menu.shadow100', 'menu.shadow075', 'menu.shadow050',
+      'menu.pipelineMode', 'menu.pipelineFluid', 'menu.pipelineStrict',
+      'menu.performanceProfile', 'menu.profileBalanced', 'menu.profilePerformance', 'menu.profileThermalDrs',
       // Settings profiles by game.
       'menu.gameSettings', 'menu.gameScope', 'menu.globalScope', 'menu.gameCreate',
     ];

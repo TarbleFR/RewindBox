@@ -19,6 +19,14 @@ static NSString *const kPerformanceOverlay = @"RewindBoxS2ArmPerformanceOverlay"
 static NSString *const kGameLanguage = @"RewindBoxS2ArmGameLanguage";
 // Frame generation (engine patch 0345): the engine reads S2A_RB_FI, never this key; the bridge sets it from this key at the game's start.
 static NSString *const kFrameInterpolation = @"RewindBoxS2ArmFrameInterpolation";
+// Adaptive frame generation for all games (engine patch 0421): S2A_RB_FI_ALL.
+static NSString *const kFrameInterpolationAll = @"RewindBoxS2ArmFrameInterpolationAll";
+// Universal shadow map scaling (engine patch 0421): S2A_RB_SHADOW_SCALE ("1", "0.75", "0.5").
+static NSString *const kShadowQuality = @"RewindBoxS2ArmShadowScale";
+// Render pipeline compilation mode (engine patch 0419): S2A_RB_FLUID_PSO ("fluid" / "strict").
+static NSString *const kPipelineMode = @"RewindBoxS2ArmPipelineMode";
+// Performance / thermal profile (engine patch 0421): "balanced" / "performance" / "thermalDrs".
+static NSString *const kPerformanceProfile = @"RewindBoxS2ArmPerformanceProfile";
 // The settings profiles by game: title id (S2ArmSettingsGameKey) -> the map's keys. RewindBox's own preference, never the
 // engine's per-game suite S2AGame.<id> (S2AFps60, S2AWidenForce: ios/settings.m reads it when S2A_LAUNCH_GAME_ID is set, and
 // nothing in RewindBox writes it).
@@ -42,6 +50,9 @@ NSArray<NSString *> *S2ArmSettingsValues(NSString *key) {
   if ([key isEqualToString:@"scalingFilter"]) return @[ @"Bilinear", @"Nearest" ];
   // Engine patch 0319: no 30. Mario Kart World stayed locked at 30 fps in IPA 825 (never from this setting), and 30 is never chosen.
   if ([key isEqualToString:@"frameRateLimit"]) return @[ @"60", @"120", @"0" ];
+  if ([key isEqualToString:@"shadowQuality"]) return @[ @"1", @"0.75", @"0.5" ];
+  if ([key isEqualToString:@"pipelineMode"]) return @[ @"fluid", @"strict" ];
+  if ([key isEqualToString:@"performanceProfile"]) return @[ @"balanced", @"performance", @"thermalDrs" ];
   if ([key isEqualToString:@"gameLanguage"]) return GameLanguages();
   return @[];
 }
@@ -65,6 +76,10 @@ NSDictionary<NSString *, id> *S2ArmSettingsSnapshot(void) {
     @"scalingFilter" : StoredChoice(defaults, kScalingFilter, @"Bilinear", S2ArmSettingsValues(@"scalingFilter")),
     @"frameRateLimit" : StoredChoice(defaults, kFrameRateLimit, @"0", S2ArmSettingsValues(@"frameRateLimit")),
     @"frameInterpolation" : @([defaults boolForKey:kFrameInterpolation]),   // off unless stored as YES
+    @"frameInterpolationAll" : @([defaults boolForKey:kFrameInterpolationAll]),   // off unless stored as YES
+    @"shadowQuality" : StoredChoice(defaults, kShadowQuality, @"1", S2ArmSettingsValues(@"shadowQuality")),
+    @"pipelineMode" : StoredChoice(defaults, kPipelineMode, @"fluid", S2ArmSettingsValues(@"pipelineMode")),
+    @"performanceProfile" : StoredChoice(defaults, kPerformanceProfile, @"balanced", S2ArmSettingsValues(@"performanceProfile")),
     @"docked" : @([defaults boolForKey:kDocked]),
     @"widescreen" : @(widescreen),
     @"performanceOverlay" : @([defaults boolForKey:kPerformanceOverlay]),
@@ -89,11 +104,15 @@ NSDictionary<NSString *, id> *S2ArmSettingsApply(NSDictionary *changes) {
     StoreChoice(defaults, changes, @"antiAliasing", kAntiAliasing);
     StoreChoice(defaults, changes, @"scalingFilter", kScalingFilter);
     StoreChoice(defaults, changes, @"frameRateLimit", kFrameRateLimit);
+    StoreChoice(defaults, changes, @"shadowQuality", kShadowQuality);
+    StoreChoice(defaults, changes, @"pipelineMode", kPipelineMode);
+    StoreChoice(defaults, changes, @"performanceProfile", kPerformanceProfile);
     StoreChoice(defaults, changes, @"gameLanguage", kGameLanguage);
     StoreFlag(defaults, changes, @"docked", kDocked);
     StoreFlag(defaults, changes, @"widescreen", kWidescreen);
     StoreFlag(defaults, changes, @"performanceOverlay", kPerformanceOverlay);
     StoreFlag(defaults, changes, @"frameInterpolation", kFrameInterpolation);
+    StoreFlag(defaults, changes, @"frameInterpolationAll", kFrameInterpolationAll);
   }
   return S2ArmSettingsSnapshot();
 }
@@ -113,11 +132,11 @@ static NSDictionary<NSString *, id> *ValidProfile(id stored) {
   NSMutableDictionary<NSString *, id> *profile = [NSMutableDictionary dictionary];
   if (![stored isKindOfClass:NSDictionary.class]) return profile;
   NSDictionary *map = stored;
-  for (NSString *name in @[ @"resolutionScale", @"antiAliasing", @"scalingFilter", @"frameRateLimit", @"gameLanguage" ]) {
+  for (NSString *name in @[ @"resolutionScale", @"antiAliasing", @"scalingFilter", @"frameRateLimit", @"shadowQuality", @"pipelineMode", @"performanceProfile", @"gameLanguage" ]) {
     id value = map[name];
     if ([value isKindOfClass:NSString.class] && [S2ArmSettingsValues(name) containsObject:value]) profile[name] = value;
   }
-  for (NSString *name in @[ @"frameInterpolation", @"docked", @"widescreen", @"performanceOverlay" ]) {
+  for (NSString *name in @[ @"frameInterpolation", @"frameInterpolationAll", @"docked", @"widescreen", @"performanceOverlay" ]) {
     id value = map[name];
     if ([value isKindOfClass:NSNumber.class]) profile[name] = [value boolValue] ? @YES : @NO;   // a BOOL, so Dart gets true / false
   }
@@ -281,6 +300,25 @@ void S2ArmSettingsSetPerformanceOverlay(NSString *gid, BOOL on) {
 
 BOOL S2ArmSettingsFrameInterpolation(NSString *gid) {
   return [S2ArmSettingsForGame(gid)[@"frameInterpolation"] boolValue];
+}
+
+BOOL S2ArmSettingsFrameInterpolationAll(NSString *gid) {
+  return [S2ArmSettingsForGame(gid)[@"frameInterpolationAll"] boolValue];
+}
+
+NSString *S2ArmSettingsShadowQuality(NSString *gid) {
+  id value = S2ArmSettingsForGame(gid)[@"shadowQuality"];
+  return [value isKindOfClass:NSString.class] ? value : @"1";
+}
+
+NSString *S2ArmSettingsPipelineMode(NSString *gid) {
+  id value = S2ArmSettingsForGame(gid)[@"pipelineMode"];
+  return [value isKindOfClass:NSString.class] ? value : @"fluid";
+}
+
+NSString *S2ArmSettingsPerformanceProfile(NSString *gid) {
+  id value = S2ArmSettingsForGame(gid)[@"performanceProfile"];
+  return [value isKindOfClass:NSString.class] ? value : @"balanced";
 }
 
 #pragma mark - launch

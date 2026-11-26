@@ -8,6 +8,10 @@ class S2ArmSettings {
     this.scalingFilter = 'Bilinear',
     this.frameRateLimit = '0',
     this.frameInterpolation = false,
+    this.frameInterpolationAll = false,
+    this.shadowQuality = '1',
+    this.pipelineMode = 'fluid',
+    this.performanceProfile = 'balanced',
     this.docked = false,
     this.widescreen = true,
     this.performanceOverlay = false,
@@ -19,6 +23,9 @@ class S2ArmSettings {
   static const List<String> resolutionScales = <String>['0.5', '0.75', '1'];
   static const List<String> antiAliasingModes = <String>['None', 'SmaaMedium', 'SmaaHigh'];
   static const List<String> scalingFilters = <String>['Bilinear', 'Nearest'];
+  static const List<String> shadowQualities = <String>['1', '0.75', '0.5'];
+  static const List<String> pipelineModes = <String>['fluid', 'strict'];
+  static const List<String> performanceProfiles = <String>['balanced', 'performance', 'thermalDrs'];
 
   /// '0' means no limit.
   // No 30 (engine patch 0319): a 30 stored by an earlier build reads as no limit.
@@ -39,6 +46,18 @@ class S2ArmSettings {
   /// Frame generation (engine patch 0345, MetalFX frame interpolation, iOS 26): 60 frames per second on screen for games
   /// that ask for 30 or less. Off by default.
   final bool frameInterpolation;
+
+  /// Adaptive frame generation for all games running below ~42 FPS (engine patch 0421). Off by default.
+  final bool frameInterpolationAll;
+
+  /// Shadow map resolution scale (engine patch 0421): '1' (native), '0.75', or '0.5'.
+  final String shadowQuality;
+
+  /// Render pipeline compilation mode (engine patch 0419): 'fluid' (non-blocking) or 'strict' (wait).
+  final String pipelineMode;
+
+  /// Performance / thermal profile (engine patch 0421): 'balanced', 'performance', or 'thermalDrs'.
+  final String performanceProfile;
   final bool docked;
   final bool widescreen;
   final bool performanceOverlay;
@@ -63,6 +82,10 @@ class S2ArmSettings {
       scalingFilter: pick('scalingFilter', scalingFilters, defaults.scalingFilter),
       frameRateLimit: pick('frameRateLimit', frameRateLimits, defaults.frameRateLimit),
       frameInterpolation: flag('frameInterpolation', defaults.frameInterpolation),
+      frameInterpolationAll: flag('frameInterpolationAll', defaults.frameInterpolationAll),
+      shadowQuality: pick('shadowQuality', shadowQualities, defaults.shadowQuality),
+      pipelineMode: pick('pipelineMode', pipelineModes, defaults.pipelineMode),
+      performanceProfile: pick('performanceProfile', performanceProfiles, defaults.performanceProfile),
       docked: flag('docked', defaults.docked),
       widescreen: flag('widescreen', defaults.widescreen),
       performanceOverlay: flag('performanceOverlay', defaults.performanceOverlay),
@@ -76,6 +99,10 @@ class S2ArmSettings {
     'scalingFilter': scalingFilter,
     'frameRateLimit': frameRateLimit,
     'frameInterpolation': frameInterpolation,
+    'frameInterpolationAll': frameInterpolationAll,
+    'shadowQuality': shadowQuality,
+    'pipelineMode': pipelineMode,
+    'performanceProfile': performanceProfile,
     'docked': docked,
     'widescreen': widescreen,
     'performanceOverlay': performanceOverlay,
@@ -88,6 +115,10 @@ class S2ArmSettings {
     String? scalingFilter,
     String? frameRateLimit,
     bool? frameInterpolation,
+    bool? frameInterpolationAll,
+    String? shadowQuality,
+    String? pipelineMode,
+    String? performanceProfile,
     bool? docked,
     bool? widescreen,
     bool? performanceOverlay,
@@ -98,6 +129,10 @@ class S2ArmSettings {
     scalingFilter: scalingFilter ?? this.scalingFilter,
     frameRateLimit: frameRateLimit ?? this.frameRateLimit,
     frameInterpolation: frameInterpolation ?? this.frameInterpolation,
+    frameInterpolationAll: frameInterpolationAll ?? this.frameInterpolationAll,
+    shadowQuality: shadowQuality ?? this.shadowQuality,
+    pipelineMode: pipelineMode ?? this.pipelineMode,
+    performanceProfile: performanceProfile ?? this.performanceProfile,
     docked: docked ?? this.docked,
     widescreen: widescreen ?? this.widescreen,
     performanceOverlay: performanceOverlay ?? this.performanceOverlay,
@@ -112,6 +147,10 @@ class S2ArmSettings {
       other.scalingFilter == scalingFilter &&
       other.frameRateLimit == frameRateLimit &&
       other.frameInterpolation == frameInterpolation &&
+      other.frameInterpolationAll == frameInterpolationAll &&
+      other.shadowQuality == shadowQuality &&
+      other.pipelineMode == pipelineMode &&
+      other.performanceProfile == performanceProfile &&
       other.docked == docked &&
       other.widescreen == widescreen &&
       other.performanceOverlay == performanceOverlay &&
@@ -119,8 +158,8 @@ class S2ArmSettings {
 
   @override
   int get hashCode => Object.hash(
-    resolutionScale, antiAliasing, scalingFilter, frameRateLimit, frameInterpolation, docked, widescreen, performanceOverlay,
-    gameLanguage,
+    resolutionScale, antiAliasing, scalingFilter, frameRateLimit, frameInterpolation, frameInterpolationAll,
+    shadowQuality, pipelineMode, performanceProfile, docked, widescreen, performanceOverlay, gameLanguage,
   );
 }
 

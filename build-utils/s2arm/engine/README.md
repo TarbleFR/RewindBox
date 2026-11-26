@@ -665,3 +665,19 @@ Active par défaut en mode NVN2 hébergé (`nvn_rb_thermal_scope()`, sans régla
 - `S2A_RB_ARCHIVE_ERROR_NIL=1`.
 
 Non mesuré sur iPhone. [Portée et limites](../../../docs/evidence/s2arm-structurels-844.md).
+
+### 0418 — correction des régressions 844 (replay worker, file de présentation et archives Metal 4)
+
+Sur les [journaux iPhone 844](../../../docs/evidence/s2arm-844-device.md), les trois chemins structurels activés par défaut dans la 844 ont provoqué des régressions (`admission_wait_ms` de 135,7 s sur Zelda et 67,2 s sur MKW pour `0404`, anomalies visuelles et 7 remises d'image active dans `WindowAcquireTexture` pour `0405`, et 33+1 erreurs `PersistentState` pour `0406`/`0408`). `0418` passe ces trois chemins en opt-in (`S2A_RB_REPLAY_WORKER=1`, `S2A_RB_PRESENT_QUEUE=1`, `S2A_RB_M4_ARCHIVE=1`), ajoute un chemin rapide atomique sans mutex pour `RB_REPLAY_GUARD` / `nvnQueueSubmitCommands`, remet la présentation et MetalFX Frame Generation sur `g_q4`, protège les dossiers `gpuarchiver-*` actifs par `g_rb_m4_live_captures` et partage un `MTL4Compiler` hors capture.
+
+### 0419 — mode de pipelines fluide et plafond de préparation au démarrage
+
+Relève `rb_wait_known_prepare` de `30 s` à `180 s` (`S2A_RB_PREPARE_MAX_MS`, échappatoires « Jouer maintenant » / `Critical` / mémoire préservées) et ajoute `S2A_RB_FLUID_PSO` (actif par défaut `1` en NVN2 hébergé, basculable en jeu via `s2a_rb_guest_set_fluid_pso`) : `rb_pso_frame_ms=8 ms`, `rb_late_budget_ms=0 ms`, et attente bornée à `12 ms` (`24 ms`/image) à priorité `USER_INTERACTIVE` pour les dessins de rendu sans écriture storage dans `pso_pend_take_ex` (compute et écritures storage toujours strictement synchrones).
+
+### 0420 — réduction du churn de résidence, des passes de clear et du trafic TBDR
+
+Regroupe les `res_commit_` de simple retrait jusqu'à 4 images (`< 32 Mio` et `!rb_mem_low()`), supprime les doubles verrous `res_add` dans `tex_mtl_` et les hits `txr_take` déjà résidents, porte le seuil souple d'allocateur par image `0401` à `32 Mio` (`S2A_RB_ALLOC_FRAME_MB`), ajoute `rb_clear_combine_run` dans `lc_land` pour regrouper 3 groupes de clear compatibles ou plus, et étend `rb_raster_then_clear` à 16 opérations avec les ops raster sans effet sur le scissor.
+
+### 0421 — leviers universels NVN2 (Frame Generation adaptatif, ombres universelles et rétention d'échelle)
+
+Ajoute `dm_fi_adaptive` dans `nvn_fi_rule.h` + `nvn_present_fi.inc` (`S2A_RB_FI_ALL=1` ou `s2a_rb_guest_set_frame_interp(2)`, EMA + hystérésis 8/20 images, tolérance `1,50×`, sans changer la vitesse du jeu), généralise l'échelle d'ombres (`S2A_RB_SHADOW_SCALE` = `1`/`0.75`/`0.5`, tout GPU Metal 4, shadow maps carrées `D32F` `512..4096` dont Zelda `1000×1000`, stockage parallèle ARC-safe, preuve bindless par passes profondeur pure et alpha-test en lecture seule), et active `rs_retain_on()` sur tous les titres Metal 4 quand `S2A_RES_SCALE < 1.0`. `S2A.Dsh` inchangé (`xfp = ecd99354f03b846d`). Non mesuré sur iPhone. [Portée et limites](../../../docs/evidence/s2arm-845-wave.md).

@@ -1,0 +1,397 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_fi_rule.h b/graphics/nvn/gfx/nvn/nvn_fi_rule.h
+index e992c16..65054e8 100644
+--- a/graphics/nvn/gfx/nvn/nvn_fi_rule.h
++++ b/graphics/nvn/gfx/nvn/nvn_fi_rule.h
+@@ -9,3 +9,45 @@ static inline int dm_fi_should_interp(double declared_period, double gap) {
+     if (!dm_fi_tier(declared_period)) return 0;
+     return gap > 0 && gap <= declared_period * 1.25;
+ }
++// RewindBox (patch 0421): adaptive frame interpolation for heavy 60-Hz games running at
++// 16–41 FPS (S2A_RB_FI_ALL=1 or s2a_rb_guest_set_frame_interp(2)). Uses EMA + hysteresis
++// so DisplayLink never flaps, and computes an effective period for MetalFX pacing without
++// altering guest simulation speed.
++typedef struct {
++    double ema_gap;
++    unsigned slow_run, fast_run;
++    int engaged;
++} dm_fi_adaptive;
++static inline void dm_fi_adaptive_reset(dm_fi_adaptive *st) {
++    if (!st) return;
++    st->ema_gap = 0; st->slow_run = 0; st->fast_run = 0; st->engaged = 0;
++}
++static inline int dm_fi_adaptive_observe(dm_fi_adaptive *st, double gap) {
++    if (!st) return 0;
++    if (gap >= 0.005 && gap <= 0.150) {
++        st->ema_gap = st->ema_gap > 0 ? st->ema_gap * 0.85 + gap * 0.15 : gap;
++        if (st->ema_gap >= 0.024) {
++            st->fast_run = 0;
++            if (++st->slow_run >= 8) st->engaged = 1;
++        } else if (st->ema_gap <= 0.020) {
++            st->slow_run = 0;
++            if (++st->fast_run >= 20) st->engaged = 0;
++        }
++    }
++    return st->engaged;
++}
++static inline int dm_fi_adaptive_should_interp(const dm_fi_adaptive *st, double declared_period, double gap, double *eff_period) {
++    if (dm_fi_tier(declared_period)) {
++        if (eff_period) *eff_period = declared_period;
++        return gap > 0 && gap <= declared_period * 1.45;
++    }
++    if (!st || !st->engaged || st->ema_gap <= 0) {
++        if (eff_period) *eff_period = declared_period;
++        return 0;
++    }
++    double ep = st->ema_gap;
++    if (ep < 1.0 / 36.0) ep = 1.0 / 36.0;
++    if (ep > 1.0 / 16.0) ep = 1.0 / 16.0;
++    if (eff_period) *eff_period = ep;
++    return gap > 0 && gap <= ep * 1.50;
++}
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 16cc085..a774b80 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -1990,7 +1990,20 @@ static int rb_upload_trace_on(void) {
+ #endif
+     return g_dev && rb_a18_option(RB_DEVICE_UPLOAD_TRACE, "S2A_RB_UPLOAD_TRACE");
+ }
+-static int rb_shadow_on(void) { return rb_a18_option(RB_DEVICE_SHADOW, "S2A_RB_SHADOW_SCALE"); }
++static double g_rb_shadow_scale_val = 0.0;
++static double rb_shadow_scale(void) {
++    if (g_rb_shadow_scale_val == 0.0) {
++        const char *e = getenv("S2A_RB_SHADOW_SCALE");
++        double v = 1.0;
++        if (e && *e) {
++            if (!strcmp(e, "0.5") || !strcmp(e, "0.50") || !strcmp(e, "0.500")) v = 0.5;
++            else if (!strcmp(e, "0.75") || !strcmp(e, "0.750")) v = 0.75;
++        }
++        g_rb_shadow_scale_val = v;
++    }
++    return g_rb_shadow_scale_val;
++}
++static int rb_shadow_on(void) { return g_dev && !g_m3 && rb_shadow_scale() < 1.0; }
+ static int rb_drs_enabled(void) {
+     return g_dev && rb_a18_option(RB_DEVICE_DRS, "S2A_RB_DRS");
+ }
+@@ -10414,15 +10427,22 @@ static int xv_on(void) { static int off = -1; if (off < 0) { const char *e = get
+ void nvn_be_xv_window_tex(uint64_t serial) { if (!xv_present(serial) && g_xv_npresent < 128) g_xv_present[g_xv_npresent++] = serial; }   // Window (swapchain) texture: never enters the ledger
+ void xv_test_counts(int *dc, int *viol) { if (dc) *dc = (int)g_xv_dc; if (viol) *viol = (int)g_xv_viol; }
+ // Submit thread, one active caster encoder. The native destination never leaves
+-// the guest tables. The private scratch is reused in queue order.
++// the guest tables. Up to RB_SHADOW_SLOTS private scratches are reused in queue order
++// per (native_dim, low_dim) so any Switch 2 game shadow cascade size works without thrash.
++enum { RB_SHADOW_SLOTS = 4 };
++static unsigned g_rb_shadow_nat_dim[RB_SHADOW_SLOTS], g_rb_shadow_low_dim[RB_SHADOW_SLOTS];
++static id<MTLTexture> g_rb_shadow_slot_low[RB_SHADOW_SLOTS];
++static id<MTLBuffer> g_rb_shadow_slot_params[RB_SHADOW_SLOTS];
++static unsigned g_rb_shadow_slot_n, g_rb_shadow_last_nat, g_rb_shadow_last_low;
+ static id<MTLTexture> g_rb_shadow_low, g_rb_shadow_native;
+ static id<MTLBuffer> g_rb_shadow_params;
+ static int g_rb_shadow_draw_ok;
+ static _Atomic int g_rb_shadow_failed;
+ static _Atomic uint64_t g_rb_shadow_renders, g_rb_shadow_resolves, g_rb_shadow_no_proof;
+ static void rb_shadow_report(unsigned long long frame) {
+-    MLOG("[rscale] shadow frame=%llu native=1536x1536 raster=1152x1152 caster_passes=%llu native_resolves=%llu rejected_proof=%llu disabled_on_error=%d",
+-        frame,(unsigned long long)g_rb_shadow_renders,(unsigned long long)g_rb_shadow_resolves,
++    MLOG("[rscale] shadow frame=%llu scale=%.2f native=%ux%u raster=%ux%u caster_passes=%llu native_resolves=%llu rejected_proof=%llu disabled_on_error=%d",
++        frame, rb_shadow_scale(), g_rb_shadow_last_nat, g_rb_shadow_last_nat, g_rb_shadow_last_low, g_rb_shadow_last_low,
++        (unsigned long long)g_rb_shadow_renders,(unsigned long long)g_rb_shadow_resolves,
+         (unsigned long long)g_rb_shadow_no_proof,g_rb_shadow_failed);
+ }
+ static void rb_shadow_finish(void);
+@@ -10842,34 +10862,67 @@ static const char *rb_texture_copy_msl(void) {
+ static int copy_t2t_draw_impl(id<MTLTexture>,id<MTLTexture>,unsigned,unsigned,unsigned,unsigned,
+                               const NVNcopyRegion *,const NVNcopyRegion *,int,int,int);
+ static int rb_shadow_transfer(id<MTLTexture> dst,int mode) {
+-    NVNcopyRegion src_rect={0,0,0,1152,1152,1}, dst_rect={0,0,0,1536,1536,1};
++    if (!g_rb_shadow_low || !dst) return 0;
++    NVNcopyRegion src_rect={0,0,0,(int)g_rb_shadow_low.width,(int)g_rb_shadow_low.height,1};
++    NVNcopyRegion dst_rect={0,0,0,(int)dst.width,(int)dst.height,1};
+     return copy_t2t_draw_impl(g_rb_shadow_low,dst,0,0,0,0,&src_rect,&dst_rect,0,0,mode);
+ }
+ static int g_wd; // Defined with its initializer in widen_glue.inc.
+ static void rb_shadow_attach(MTL4RenderPassDescriptor *pd,int clear_only) {
+-    if (clear_only || !g_rb_shadow_draw_ok || g_rb_shadow_failed || !rb_shadow_on() ||
++    if (!rb_shadow_on()) return;
++    id<MTLTexture> depth_tex = pd.depthAttachment.texture;
++    int has_color = 0;
++    for (int i=0;i<8;i++) if (pd.colorAttachments[i].texture || (i < R.rt.n && R.rt.color[i])) { has_color = 1; break; }
++    if (has_color && depth_tex) {
++        if (!objc_getAssociatedObject(depth_tex, &k_rb_shadow_color_used))
++            objc_setAssociatedObject(depth_tex, &k_rb_shadow_color_used, @YES, OBJC_ASSOCIATION_RETAIN);
++        return;
++    }
++    if (clear_only || !g_rb_shadow_draw_ok || g_rb_shadow_failed ||
+         !R.clear_d || R.rt.has_dview || g_rp_layered || g_rlane || g_wd>0 || g_vis_on || tbdr_on() ||
+         pd.stencilAttachment.texture || pd.depthAttachment.loadAction != MTLLoadActionClear ||
+         pd.depthAttachment.resolveTexture || pd.depthAttachment.level || pd.depthAttachment.slice) return;
+-    for (int i=0;i<8;i++) if (pd.colorAttachments[i].texture || (i < R.rt.n && R.rt.color[i])) return;
+-    id<MTLTexture> native=pd.depthAttachment.texture;
++    id<MTLTexture> native=depth_tex;
+     if (!rb_shadow_candidate(R.rt.depth,native) || !(native.usage & MTLTextureUsageRenderTarget)) return;
+-    if (!rb_shadow_proven(R.rt.depth,native) || native.width!=1536 || native.height!=1536) {
++    if (!objc_getAssociatedObject(native, &k_rb_shadow_color_used)) {
++        unsigned cnt = [objc_getAssociatedObject(native, &k_rb_shadow_depth_only_n) unsignedIntValue];
++        if (cnt < 2) objc_setAssociatedObject(native, &k_rb_shadow_depth_only_n, @(cnt + 1), OBJC_ASSOCIATION_RETAIN);
++    }
++    if (!rb_shadow_proven(R.rt.depth,native)) {
+         g_rb_shadow_no_proof++; return;
+     }
+     const char *force_native=getenv("S2A_RB_GPU_NATIVE_D32");
+     if (force_native && !strcmp(force_native,"1")) return;
+-    if (!g_rb_shadow_low) {
++    double scale = rb_shadow_scale();
++    unsigned nat_dim = (unsigned)native.width;
++    unsigned low_dim = ((unsigned)llround((double)nat_dim * scale)) & ~1u;
++    if (low_dim < 64 || low_dim >= nat_dim) return;
++    int slot = -1;
++    for (unsigned s = 0; s < g_rb_shadow_slot_n; ++s) {
++        if (g_rb_shadow_nat_dim[s] == nat_dim && g_rb_shadow_low_dim[s] == low_dim) { slot = (int)s; break; }
++    }
++    if (slot < 0) {
++        if (g_rb_shadow_slot_n >= RB_SHADOW_SLOTS) return;
+         MTLTextureDescriptor *d=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
+-                                                                                 width:1152 height:1152 mipmapped:NO];
++                                                                                 width:low_dim height:low_dim mipmapped:NO];
+         d.storageMode=MTLStorageModePrivate; d.usage=MTLTextureUsageShaderRead | MTLTextureUsageRenderTarget;
+-        g_rb_shadow_low=[g_dev newTextureWithDescriptor:d];
+-        const float params[8]={0,0,0.75f,0.75f,0,0,1152,1152};
+-        g_rb_shadow_params=[g_dev newBufferWithBytes:params length:sizeof params options:MTLResourceStorageModeShared];
+-        if (!g_rb_shadow_low || !g_rb_shadow_params) { g_rb_shadow_failed=1; return; }
+-        res_add(g_rb_shadow_low); res_add(g_rb_shadow_params);
+-        rs_set_info_at(g_rb_shadow_low,RS_SCALED,1536,1536,0.75);
+-    }
++        id<MTLTexture> low = [g_dev newTextureWithDescriptor:d];
++        float ratio = (float)low_dim / (float)nat_dim;
++        const float params[8]={0,0,ratio,ratio,0,0,(float)low_dim,(float)low_dim};
++        id<MTLBuffer> pb = [g_dev newBufferWithBytes:params length:sizeof params options:MTLResourceStorageModeShared];
++        if (!low || !pb) { g_rb_shadow_failed=1; return; }
++        res_add(low); res_add(pb);
++        rs_set_info_at(low,RS_SCALED,nat_dim,nat_dim,(double)low_dim / (double)nat_dim);
++        slot = (int)g_rb_shadow_slot_n++;
++        g_rb_shadow_nat_dim[slot] = nat_dim;
++        g_rb_shadow_low_dim[slot] = low_dim;
++        g_rb_shadow_slot_low[slot] = low;
++        g_rb_shadow_slot_params[slot] = pb;
++    }
++    g_rb_shadow_low = g_rb_shadow_slot_low[slot];
++    g_rb_shadow_params = g_rb_shadow_slot_params[slot];
++    g_rb_shadow_last_nat = nat_dim;
++    g_rb_shadow_last_low = low_dim;
+     // Prepare the exact D32 PSO before substituting an attachment. The source
+     // texture and immutable sampling parameters are already reserved.
+     if (!rb_shadow_transfer(native,RB_COPY_SHADOW_PREPARE)) { g_rb_shadow_failed=1; return; }
+@@ -24475,8 +24528,13 @@ static void rb_mdx_ahead_from(const uint8_t *next) { const uint8_t *en = g_exec_
+ static int rb_shadow_caster(NvProg *pr) {
+     if (!pr || !pr->sh[0] || pr->sh[2] || pr->sh[3] || pr->sh[4] || pr->sh[5] ||
+         pr->sh[0]->layer_out || S.tf_on || S.rast_discard || g_geo_program || g_rlane ||
+-        g_defer_replaying || !R.has_rt || !R.rt.depth || R.rt.depth->d.width!=1536 || R.rt.depth->d.height!=1536) return 0;
+-    return rb_shader_inputs_constant(pr);
++        g_defer_replaying || !R.has_rt || !R.rt.depth || !rb_shadow_dim_ok(R.rt.depth->d.width, R.rt.depth->d.height)) return 0;
++    if (rb_shader_inputs_constant(pr)) return 1;
++    // RewindBox (patch 0421): allow read-only alpha-tested shadow casters (e.g. foliage)
++    // as long as neither vertex nor fragment stage writes storage or uses raw pools.
++    if (shader_writes(pr->sh[0]) || shader_writes(pr->sh[1])) return 0;
++    if (pr->sh[0]->rf.pool || (pr->sh[1] && pr->sh[1]->rf.pool)) return 0;
++    return 1;
+ }
+ // The following geometry policy is used only on a cold stage or PSO. The evidence
+ // describes the actual draw and attachment subresources, before writing encoder state.
+@@ -24669,7 +24727,7 @@ static void draw(const p_draw *dw, const p_draw_idx *di) {
+     int descriptor_scope __attribute__((cleanup(rs_descriptor_scope_end))) = rs_descriptor_scope_begin();
+     if (!rb_shadow_on()) { draw_impl(dw,di); return; }
+     int saved=g_rb_shadow_draw_ok;
+-    g_rb_shadow_draw_ok=R.has_rt && R.rt.depth && R.rt.depth->d.width==1536 && R.rt.depth->d.height==1536 &&
++    g_rb_shadow_draw_ok=R.has_rt && R.rt.depth && rb_shadow_dim_ok(R.rt.depth->d.width, R.rt.depth->d.height) &&
+         S.prog && !(dw && dw->prim==DM_PRIM_MESH_TASKS) && rb_shadow_caster(prog_get(S.prog));
+     if (g_rb_shadow_native && !g_rb_shadow_draw_ok) rb_rp_end_at(__func__, __LINE__);
+     draw_impl(dw,di);
+diff --git a/graphics/nvn/gfx/nvn/nvn_present_fi.inc b/graphics/nvn/gfx/nvn/nvn_present_fi.inc
+index 7b09b0d..0d3f12a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_present_fi.inc
++++ b/graphics/nvn/gfx/nvn/nvn_present_fi.inc
+@@ -53,8 +53,23 @@ static int g_fi_inflight;                       // 已派出、两张画布还
+ static int link_layer_busy(void) { return g_classic_busy || g_fi_inflight; }   // 显示链还不能挂图层
+ static int fi_may_take_drawable(void) { return !g_link_owns_layer; }           // 补帧任务这时能不能 nextDrawable
+ static void fi_inflight_add(int d) { pthread_mutex_lock(&g_pq_mu); g_fi_inflight += d; if (d < 0) RB_WAKE_CALL("present.signal", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu); }
++#ifndef FI_NOW_NS
++#define FI_NOW_NS() now_ns()
++#endif
+ // 局中当场开 / 关补帧（iOS 齿轮菜单「补帧」调 s2a_fi_set_live，起局按这款的设置设）。关 = 这一帧起走原出图路径（同社区帧率补丁暂停那支），开 = 接着补
+ static _Atomic int g_fi_live = 1;
++static _Atomic int g_fi_all = -1;   // RewindBox (patch 0421): 1 = adaptive mode for all games (S2A_RB_FI_ALL=1 or mode 2)
++static dm_fi_adaptive g_fi_adapt;
++static uint64_t g_fi_adapt_last_ns;
++static int fi_all_on(void) {
++    int v = atomic_load_explicit(&g_fi_all, memory_order_relaxed);
++    if (v < 0) {
++        const char *e = getenv("S2A_RB_FI_ALL");
++        v = e && !strcmp(e, "1") ? 1 : 0;
++        atomic_store_explicit(&g_fi_all, v, memory_order_relaxed);
++    }
++    return v != 0;
++}
+ __attribute__((visibility("default"))) void s2a_fi_set_live(int on) { atomic_store(&g_fi_live, on ? 1 : 0); }
+ 
+ // 显示链跟着「这一帧补不补」走（审计 P1-188）：补 → 0（补帧任务自己取画布）；玩家局中关补帧 / 社区帧率补丁接手 → 回到不补帧时的出图方式（g_link_base），
+@@ -72,7 +87,22 @@ static int fi_wanted(void) { int on = fi_wanted_now(); if (g_fi_state == 1) fi_l
+ //   there is one: a 60 fps game's transient interval-2 frames are held at 16.7 ms and stay on the classic path. A frame of the 60 fps tier is presented as before (SMAA,
+ //   MetalFX upscaling, the minimum duration, the link) and breaks the pair continuity, so the next 30 fps pair resets MetalFX's history
+ static int fi_wanted_for(double fp) {
+-    int on = fi_wanted_now(), tier = on && dm_fi_tier(fp);
++    int on = fi_wanted_now();
++    int tier = 0;
++    if (on) {
++        if (fi_all_on()) {
++            uint64_t now = FI_NOW_NS();
++            double gap = g_fi_adapt_last_ns ? (now - g_fi_adapt_last_ns) / 1e9 : 0;
++            g_fi_adapt_last_ns = now;
++            int engaged = dm_fi_adaptive_observe(&g_fi_adapt, gap);
++            tier = dm_fi_tier(fp) || engaged;
++        } else {
++            tier = dm_fi_tier(fp);
++        }
++    } else {
++        dm_fi_adaptive_reset(&g_fi_adapt);
++        g_fi_adapt_last_ns = 0;
++    }
+     if (g_fi_state == 1) fi_link_follow(tier);
+     if (on && !tier) { if (@available(macOS 26.0, iOS 26.0, *)) { if (g_fi) ((NvPresentFI *)g_fi)->last_seq = UINT64_MAX; } }
+     return tier;
+@@ -401,7 +431,7 @@ static void fi_job(NvPresentFI *f, CAMetalLayer *layer, id<MTLTexture> src, fi_c
+     int pair = cont && allow;
+     // 30 帧档里按规则不补的帧（来晚了）照样编码插值、不上屏：MetalFX 的历史要逐对连续。断一对时下一对只能重置历史，重置后输出的就是这一帧原图（白算一次、屏上重复一帧）；
+     //   接着上一对的旧历史不重置又会偏向前一帧（t_fi_link ⑤ 第 3 遍：竖条中心 435、前一帧原位全亮）。这一帧原先省下的插值挪到这里，下一对照常补；60 帧档不补也不编码
+-    int prime = cont && !allow && dm_fi_tier(period);
++    int prime = cont && !allow && (dm_fi_tier(period) || fi_all_on());
+     if (seq > 0 && !allow) f->declined++;
+     else if (seq > 0 && good && !pair) f->unpaired++;
+     int mid_shown = 0;
+@@ -458,31 +488,36 @@ static void fi_job(NvPresentFI *f, CAMetalLayer *layer, id<MTLTexture> src, fi_c
+     }
+     fi_inflight_add(-1);   // 两张画布都交完（或没取到）：显示链可以挂了
+ } }
+-// 出图线程：游戏的一帧。返回 1 = 已接手（票由真帧那一槽做完时记完成），-1 = 没接手（调用方照原样出图）
+-// 交帧时刻的时钟缝：缺省就是 now_ns()；单测（t_fi_link）在包含本文件前定义 FI_NOW_NS 注入假时钟，交帧间隔由单测给定、不随负载漂（编译期替换，产品行为不变）
+-#ifndef FI_NOW_NS
+-#define FI_NOW_NS() now_ns()
+-#endif
+ API_AVAILABLE(macos(26.0), ios(26.0))
+ static int fi_frame(id<MTLTexture> src, const int crop[4], CAMetalLayer *layer, double period, uint64_t ticket) {
+     NSUInteger cw = crop && (crop[2] || crop[3]) ? (NSUInteger)crop[2] : src.width, ch = crop && (crop[2] || crop[3]) ? (NSUInteger)crop[3] : src.height;
+     NvPresentFI *f = fi_get(layer, cw, ch); if (!f) return -1;
+     uint64_t now = FI_NOW_NS(); double gap = f->last_in_ns ? (now - f->last_in_ns) / 1e9 : 0; f->last_in_ns = now;
+-    int allow = dm_fi_should_interp(period, gap);   // 游戏声明的节拍（period，由交换间隔折成）+ 这一帧是否跑满；60 帧档一律不补
++    double eff_period = period;
++    int allow = fi_all_on() ? dm_fi_adaptive_should_interp(&g_fi_adapt, period, gap, &eff_period) : dm_fi_should_interp(period, gap);   // RewindBox (patch 0421): adaptive mode or classic 30-Hz-only rule
+     uint64_t seq = f->n++; BOOL flip = atomic_load_explicit(&g_origin_ll, memory_order_relaxed) != 0;   // RewindBox (patch 0345): the window origin present_encode_m4 flips with
+     fi_crop cr = {0}; if (crop) { cr.has = 1; memcpy(cr.c, crop, sizeof cr.c); }
+     fi_inflight_add(1);   // 出图线程还在 g_classic_busy 里：显示链此刻挂不上
+-    fi_job(f, layer, src, cr, flip, (int)(seq & 1), seq, period, ticket, 1, allow);
++    fi_job(f, layer, src, cr, flip, (int)(seq & 1), seq, eff_period, ticket, 1, allow);
+     return 1;
+ }
+ 
+-// RewindBox (patch 0345): the in-game menu turns interpolation on or off during play (S2ArmEngineBridgePlugin.m). 0 = applied from the next frame; -1 = not
+-//   ready in this session (launched without S2A_RB_FI=1: the setting takes effect at the next launch); -2 = this device or backend cannot interpolate (Metal 3, or
+-//   MetalFX turned it off at its first frame: fi_off)
++// RewindBox (patch 0345 / 0421): the in-game menu switches interpolation mode during play (S2ArmEngineBridgePlugin.m).
++//   0 = off, 1 = classic (30 fps games only), 2 = adaptive (all games when running under ~42 fps).
++//   Returns 0 = applied from the next frame; -1 = not ready in this session (launched without S2A_RB_FI=1);
++//   -2 = this device or backend cannot interpolate (Metal 3, or MetalFX turned it off at its first frame: fi_off).
+ __attribute__((visibility("default"), used)) int s2a_rb_guest_set_frame_interp(int on) {
+     if (g_fi_state < 0 && !rb_fi_requested()) return -1;
+     if (g_fi_state == 0) return rb_fi_requested() ? -2 : -1;
+     if (g_m3) return -2;
+-    s2a_fi_set_live(on);
++    if (on >= 2) {
++        atomic_store_explicit(&g_fi_all, 1, memory_order_relaxed);
++        s2a_fi_set_live(1);
++    } else if (on == 1) {
++        atomic_store_explicit(&g_fi_all, 0, memory_order_relaxed);
++        s2a_fi_set_live(1);
++    } else {
++        s2a_fi_set_live(0);
++    }
+     return 0;
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_rscale.inc b/graphics/nvn/gfx/nvn/nvn_rscale.inc
+index b4196de..cdf5427 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rscale.inc
++++ b/graphics/nvn/gfx/nvn/nvn_rscale.inc
+@@ -136,7 +136,14 @@ static double rs_of(id<MTLTexture> t) {
+     NvRsInfo *info = rs_info(t);
+     return info && info->state == RS_SCALED ? info->scale : 1.0;
+ }
+-static int rs_retain_on(void) { return rb_drs_enabled() || rb_a18_option(RB_DEVICE_RETAIN, "S2A_RB_SCALE_RETAIN"); }
++static int rs_retain_on(void) {
++    if (rb_drs_enabled()) return 1;
++    const char *e = getenv("S2A_RB_SCALE_RETAIN");
++    if (e) return !strcmp(e, "1") && !g_m3 && g_dev != nil;
++    // RewindBox (patch 0421): whenever internal resolution scaling (< 1.0) is enabled,
++    // keep 1080p UI composition sharp across all Switch 2 titles on Metal 4.
++    return !g_m3 && g_dev != nil && rs_setting() < 1.0;
++}
+ // Replay publishes storage after all copies succeed. Weak membership never owns
+ // an old variant or a finalized guest texture. Replacements remove the old root.
+ static NSHashTable *g_rs_scene_roots, *g_rs_native_roots;
+@@ -214,21 +221,31 @@ static NSUInteger rs_ch(id<MTLTexture> t) { NSUInteger w, h; if (!t) return 0; r
+ // Evidence is attached to this Metal allocation and guest generation. Reusing
+ // dimensions or an address after destruction cannot inherit the proof.
+ static char k_rb_shadow_serial;
++static char k_rb_shadow_color_used;
++static char k_rb_shadow_depth_only_n;
++static inline int rb_shadow_dim_ok(unsigned w, unsigned h) {
++    return w == h && w >= 512 && w <= 4096;
++}
+ static int rb_shadow_candidate(const tex_t *t,id<MTLTexture> mt) {
+     if (!t || !t->serial || !t->mem || !t->pool || (t->pool->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL) ||
+         t->has_layout || t->d.target != NVN_TEXTURE_TARGET_2D || t->d.format != NVN_FORMAT_DEPTH32F ||
+-        t->d.width != 1536 || t->d.height != 1536 || t->d.levels != 1 || t->d.depth > 1 || t->d.samples > 1 ||
++        !rb_shadow_dim_ok(t->d.width, t->d.height) || t->d.levels != 1 || t->d.depth > 1 || t->d.samples > 1 ||
+         !(t->d.flags & NVN_TEXTURE_FLAGS_COMPRESSIBLE) ||
+         (t->d.flags & (NVN_TEXTURE_FLAGS_DISPLAY | NVN_TEXTURE_FLAGS_VIDEO_DECODE | NVN_TEXTURE_FLAGS_IMAGE |
+                        NVN_TEXTURE_FLAGS_LINEAR | NVN_TEXTURE_FLAGS_SPARSE | NVN_TEXTURE_FLAGS_LINEAR_RENDER_TARGET))) return 0;
+     return mt && !mt.parentTexture && !mt.heap && !mt.buffer && !mt.iosurface && !mt.isSparse && !mt.framebufferOnly &&
+         mt.storageMode == MTLStorageModePrivate && mt.pixelFormat == MTLPixelFormatDepth32Float &&
+         mt.textureType == MTLTextureType2D && mt.sampleCount == 1 && mt.mipmapLevelCount == 1 && mt.arrayLength == 1 &&
+-        rs_cw(mt) == 1536 && rs_ch(mt) == 1536;
++        rs_cw(mt) == t->d.width && rs_ch(mt) == t->d.height;
+ }
+ static int rb_shadow_proven(const tex_t *t,id<MTLTexture> mt) {
+-    return rb_shadow_on() && rb_shadow_candidate(t,mt) &&
+-        [objc_getAssociatedObject(mt,&k_rb_shadow_serial) unsignedLongLongValue] == t->serial;
++    if (!rb_shadow_on() || !rb_shadow_candidate(t,mt)) return 0;
++    if (objc_getAssociatedObject(mt,&k_rb_shadow_color_used)) return 0;
++    if ([objc_getAssociatedObject(mt,&k_rb_shadow_serial) unsignedLongLongValue] == t->serial) return 1;
++    // RewindBox (patch 0421): bindless shadow samplers cannot always be matched statically;
++    // a square D32F texture used purely in depth-only cleared passes (>= 2 times, never paired
++    // with a color attachment) is a shadow map and resolves back to native size at pass end.
++    return [objc_getAssociatedObject(mt,&k_rb_shadow_depth_only_n) unsignedIntValue] >= 2;
+ }
+ static const char *tex_widen_why(const tex_t *t);
+ static int fmt_int_or_ds(MTLPixelFormat f);
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index ad2b4d4..1bf1772 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -154,9 +154,16 @@ int nvn_be_shutdown_session(void) {
+     // A subsequent hosted session may select different render options. Keep
+     // cumulative store counters monotonic for the 300-frame sampler.
+     atomic_store_explicit(&g_rb_next_clear_mode, 0, memory_order_relaxed);
+-    if (g_rb_shadow_low) res_remove(g_rb_shadow_low);
+-    if (g_rb_shadow_params) res_remove(g_rb_shadow_params);
++    for (unsigned s = 0; s < g_rb_shadow_slot_n; ++s) {
++        if (g_rb_shadow_slot_low[s]) res_remove(g_rb_shadow_slot_low[s]);
++        if (g_rb_shadow_slot_params[s]) res_remove(g_rb_shadow_slot_params[s]);
++        g_rb_shadow_slot_low[s] = nil;
++        g_rb_shadow_slot_params[s] = nil;
++        g_rb_shadow_nat_dim[s] = g_rb_shadow_low_dim[s] = 0;
++    }
++    g_rb_shadow_slot_n = g_rb_shadow_last_nat = g_rb_shadow_last_low = 0;
+     g_rb_shadow_low=nil; g_rb_shadow_native=nil; g_rb_shadow_params=nil;
++    g_rb_shadow_scale_val = 0.0;
+     g_rb_shadow_draw_ok=g_rb_shadow_failed=0;
+     g_rb_shadow_renders=g_rb_shadow_resolves=g_rb_shadow_no_proof=0;
+     atomic_store_explicit(&g_rb_shadow_pass,0,memory_order_relaxed);
