@@ -1,0 +1,7 @@
+# Copies de textures linéaires
+
+Le candidat regroupe en une copie les lignes de deux surfaces contiguës lorsque leurs adresses virtuelles couvrent des intervalles distincts. Sur Mac arm64, des textures à 512 lignes courtes se copient plus vite dans les deux directions. Les pas rembourrés et les copies d’une seule ligne montrent des résultats variables. Les sources compilées sont celles du moteur, avec un témoin A/A et deux ordres de liaison. [Résultats Mac](mac-summary.txt) et [mesures individuelles du lot](https://github.com/TarbleFR/RewindBox/actions/runs/45860873210).
+
+Le candidat a été écarté. Les 13 740 comparaisons initiales de chaque variante incluent 3 933 recouvrements visibles dans l’espace d’adressage. Deux vues distinctes des mêmes pages ajoutent un cas important. Quand les surfaces sont décalées d’une ligne, une écriture peut modifier la prochaine ligne à lire. Sur Linux, chacune des trois entrées publiques donne 40 résultats incorrects sur 140 avec la copie groupée et zéro avec la boucle initiale. L’oracle copie chaque ligne à partir du contenu laissé par les écritures précédentes. [Résultats des alias](alias-mappings.txt).
+
+Pour reproduire les comparaisons CPU et les pixels sur un arbre 0449 ou 0450, lancer `python3 run.py ARBRE DOSSIER`. La reconstruction du candidat, les deux témoins et les exécutables restent dans DOSSIER. Les durées sont propres à la machine qui exécute le test.

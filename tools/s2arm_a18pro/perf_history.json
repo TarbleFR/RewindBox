@@ -4829,7 +4829,8 @@
     "Four WidenSession shader-slot mask variants made heavily bound synthetic scans cheaper but increased the median for one bound slot per stage. See drafts/widen-mask (13 randomized triplets in each of five cases per series).",
     "Prioritizing unseen stage coverage among equally urgent recorded pipeline rows increased modeled cumulative draw stalls in 28/144 scenarios with unchanged startup caps. No live policy change. See pipeline/warm-order.md.",
     "Four GPU texture GOBs per group: 36 triplets with same-width A/A, 64 dispatches per sample; all five paired intervals include zero vs both controls. Keep production width one.",
-    "Direct lane-wise comparison of effective UBO caps on stable cache hits: +13.53% and +10.82% CPU time across binary orders on Linux. Preserve all invalidation semantics."
+    "Direct lane-wise comparison of effective UBO caps on stable cache hits: +13.53% and +10.82% CPU time across binary orders on Linux. Preserve all invalidation semantics.",
+    "Bulk copy across virtually disjoint intervals changed results for two views of the same backing storage in three public texture functions. Keep the row-order semantics."
   ],
   "remaining_bottlenecks": [
     "Presentation queue scheduling, native frame pacing and actual displayed content",
@@ -4849,7 +4850,7 @@
     "consecutive_rejections_after_0448_instrumentation": 5,
     "counter_note": "A measurement-only patch does not reset the performance rejection count. The four slot masks and one scheduler model are independent candidates. Superseded incorrect matrix trial is tracked while its repaired candidate is under comparison.",
     "consecutive_rejections_at_0449": 0,
-    "consecutive_rejections_after_0449": 2
+    "consecutive_rejections_after_0449": 3
   },
   "device_metrics": {
     "native_fps": null,

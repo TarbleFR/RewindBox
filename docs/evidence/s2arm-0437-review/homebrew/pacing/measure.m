@@ -50,7 +50,7 @@ static BOOL verifySurfaces(id<MTLCommandQueue> queue, NSArray<id<MTLTexture>> *s
 }
 
 static BOOL batch(id<MTLDevice> dev, id<MTLCommandQueue> queue, id<MTLRenderPipelineState> pipeline,
-                  NSArray<id<MTLTexture>> *surfaces, id<MTLBuffer> readback, int limit, int pair, FILE *out) {
+                  NSArray<id<MTLTexture>> *surfaces, id<MTLBuffer> readback, int limit, int pair, FILE *out, BOOL hostReport) {
     id<MTLCommandBuffer> active[Slots] = {};
     dispatch_group_t callbacks = dispatch_group_create();
     Sample samples[Frames] = {};
@@ -100,7 +100,8 @@ static BOOL batch(id<MTLDevice> dev, id<MTLCommandQueue> queue, id<MTLRenderPipe
         if (!s->completed || !isfinite(s->start) || !isfinite(s->afterWait) || !isfinite(s->committed) ||
             !isfinite(s->callback) || !isfinite(s->gpuStart) || !isfinite(s->gpuEnd) || !isfinite(s->encodeCpu) ||
             s->afterWait < s->start || s->committed < s->afterWait || s->callback < s->afterWait ||
-            s->gpuStart <= 0 || s->gpuEnd <= s->gpuStart || s->encodeCpu < 0) {
+            s->gpuStart < 0 || s->gpuEnd < s->gpuStart ||
+            (!hostReport && (s->gpuStart == 0 || s->gpuEnd == s->gpuStart)) || s->encodeCpu < 0) {
             fprintf(stderr,"Invalid time pair=%d limit=%d frame=%d completed=%d host=%.9f/%.9f/%.9f/%.9f gpu=%.9f/%.9f cpu=%.9f\n",
                 pair,limit,i,s->completed,s->start,s->afterWait,s->committed,s->callback,s->gpuStart,s->gpuEnd,s->encodeCpu);
             return NO;
@@ -115,7 +116,8 @@ static BOOL batch(id<MTLDevice> dev, id<MTLCommandQueue> queue, id<MTLRenderPipe
 
 int main(int argc, char **argv) {
     @autoreleasepool {
-        if (argc != 4) return 2;
+        BOOL hostReport = argc == 5 && strcmp(argv[4], "--host-report") == 0;
+        if (argc != 4 && !hostReport) return 2;
         id<MTLDevice> dev = MTLCreateSystemDefaultDevice();
         if (!dev) return 77;
         NSError *error = nil;
@@ -156,7 +158,7 @@ int main(int argc, char **argv) {
         for (int pair = 0; pair <= Pairs && ok; pair++) {
             for (int j = 0; j < 2 && ok; j++) @autoreleasepool {
                 int limit = ((pair+j)&1) ? 3 : 1;
-                ok = batch(dev,queue,pipeline,surfaces,readback,limit,pair,output);
+                ok = batch(dev,queue,pipeline,surfaces,readback,limit,pair,output,hostReport);
             }
         }
         if (fclose(output)) ok = NO;

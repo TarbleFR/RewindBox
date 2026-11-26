@@ -262,10 +262,14 @@ jobs:
           esac
       - name: Measure CPU and GPU intervals for identical offscreen homebrew frames
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-homebrew-pacing]')
+        env:
+          HOST_REPORT: ${{ contains(github.event.head_commit.message, '[s2arm-pacing-host]') }}
         run: |
           set -euo pipefail
           rc=0
-          python3 docs/evidence/s2arm-0437-review/homebrew/pacing/measure.py proof/pacing-frames.csv | tee proof/pacing-summary.csv || rc=$?
+          args=()
+          if [[ "$HOST_REPORT" == true ]]; then args+=(--host-report); fi
+          python3 docs/evidence/s2arm-0437-review/homebrew/pacing/measure.py proof/pacing-frames.csv "${args[@]}" | tee proof/pacing-summary.csv || rc=$?
           if [[ "$rc" == 77 ]]; then echo 'No Metal device available'; elif [[ "$rc" != 0 ]]; then exit "$rc"; fi
       - name: Compare translated homebrew outputs to independent Vulkan reference bytes
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-homebrew-check]')

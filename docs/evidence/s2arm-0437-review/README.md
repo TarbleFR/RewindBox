@@ -104,3 +104,5 @@ La piste de vidage des tables au changement d’image est retirée de la phase a
 Les candidats modifient les copies de textures et la gestion des métadonnées CPU sans réduire la résolution de rendu, la qualité demandée ou l’horloge invitée. Les nouveaux FPS moteur et générés, le frametime, les pixels du jeu, la RAM réelle, la chauffe et la consommation attendent une mesure sur appareil. Les pistes de soumission à GPU vide, de prélecture des pages de textures, d’encodage des arguments et de compilation en cours de partie restent ouvertes.
 
 Le patch **0450** corrige le placement en mémoire des écritures de régions sur une cible de rendu linéaire. Sur 288 régions portant le flag 0x40 seul, le mauvais adressage touche 208 écritures et leurs relectures avant correction, zéro après. Les 576 cas avec les deux autres configurations demeurent exacts. [Protocole sur les fonctions du moteur](linear-flags/README.md).
+
+La copie contiguë générique des textures linéaires est écartée après la comparaison des octets sur deux vues des mêmes pages. Les durées Mac et Linux ont été conservées, avec le contre-exemple et la reproduction. [Résultats](linear-textures/README.md).

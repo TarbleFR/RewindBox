@@ -44,3 +44,12 @@ def make(extra,suffix):
             subprocess.run([*argv,exe,*(['verify'] if suffix else [])],check=True,stdout=f)
 make(['-g','-fsanitize=address,undefined','-fno-sanitize-recover=all'],'-san')
 make([],'')
+
+# Guest pools may expose two virtual mappings of the same pages.
+if sys.platform.startswith("linux"):
+    alias_exe = out / "alias-mappings"
+    subprocess.run(["clang", "-O2", "-std=c11", "-I", str(tex),
+                    Path(__file__).with_name("alias_mappings.c"), out/"base.o", out/"candidate.o",
+                    nvn/"nvn_tex.c", "-o", alias_exe], check=True)
+    with (out/"alias-mappings.txt").open("w") as stream:
+        subprocess.run([alias_exe], stdout=stream, check=True)
