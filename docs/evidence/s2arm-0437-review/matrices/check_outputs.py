@@ -1,26 +1,55 @@
+"""Compare public results from the reference, the rejected trial and the corrected classifier."""
+import argparse
+import os
 from pathlib import Path
-import argparse,os,shutil,subprocess
-p=argparse.ArgumentParser();p.add_argument("engine",type=Path);p.add_argument("patches",type=Path);p.add_argument("out",type=Path);a=p.parse_args()
-me=Path(__file__).resolve().parent;s0=a.engine/"graphics/widen/WidenRewriter.cs"
-for mode in ["base","all","compatible"]:
- root=a.out/mode;w=root/"graphics/widen";w.mkdir(parents=True,exist_ok=True)
- shutil.copy2(s0,w/s0.name)
- if mode!="base":
-    subprocess.run(["patch","--batch","-p1","-i",str((a.patches/(mode+".patch")).resolve())],cwd=root,check=True)
- shutil.copy2(me/"Review.cs",w/"Review.cs")
- (w/"review.csproj").write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><LangVersion>preview</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks></PropertyGroup></Project>')
- subprocess.run(["dotnet","build","review.csproj","-c","Release","--nologo"],cwd=w,stdout=(root/"build.log").open("w"),check=True)
- for disabled in ["0","1"]:
-  env={**os.environ,"S2A_WIDEN_NOCAM":disabled,"DOTNET_TieredCompilation":"0"}
-  out=subprocess.check_output(["dotnet",str(w.resolve()/"bin/Release/net10.0/review.dll")],env=env,text=True);(root/("nocam-"+disabled+".txt")).write_text(out)
-  print(mode,"nocam",disabled,out.replace("\n"," | ")[:360],flush=True)
+import shutil
+import subprocess
 
-for disabled in ["0","1"]:
-    name=f"nocam-{disabled}.txt"
-    reference=(a.out/"base"/name).read_bytes()
-    if reference != (a.out/"compatible"/name).read_bytes():
-        raise AssertionError(f"compatible differs from reference: {name}")
-    other=(a.out/"all"/name).read_bytes()
-    if other == reference or other.splitlines()[3:] != reference.splitlines()[3:]:
-        raise AssertionError(f"expected a length-only regression in all.patch: {name}")
-print("Both configurations passed differential comparison. The original all.patch fails the length control.")
+from reference import restore_reference
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("engine", type=Path)
+    ap.add_argument("patches", type=Path)
+    ap.add_argument("out", type=Path)
+    args = ap.parse_args()
+    modes = ("base", "all", "compatible")
+    source = args.engine / "graphics/widen/WidenRewriter.cs"
+    project = """<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
+        <LangVersion>preview</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+</Project>"""
+    for mode in modes:
+        root = args.out / mode
+        build = root / "graphics/widen"
+        build.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, build / source.name)
+        restore_reference(root)
+        if mode != "base":
+            with (args.patches / (mode + ".patch")).open("rb") as change:
+                subprocess.run(["patch", "--batch", "-p1"], cwd=root, stdin=change, check=True)
+        shutil.copyfile(Path(__file__).with_name("Review.cs"), build / "Review.cs")
+        (build / "review.csproj").write_text(project)
+        with (root / "build.log").open("w") as log:
+            subprocess.run(["dotnet", "build", "-c", "Release", "--nologo"], cwd=build, stdout=log, check=True)
+        for disabled in ("0", "1"):
+            env = dict(os.environ, S2A_WIDEN_NOCAM=disabled, DOTNET_TieredCompilation="0")
+            fixture = build / "bin/Release/net10.0/review.dll"
+            result = subprocess.check_output(["dotnet", fixture.resolve()], env=env, text=True)
+            (root / f"nocam-{disabled}.txt").write_text(result)
+
+    for disabled in ("0", "1"):
+        name = f"nocam-{disabled}.txt"
+        original, rejected, candidate = ((args.out / label / name).read_bytes() for label in modes)
+        if candidate != original:
+            raise ValueError(f"output mismatch for {name}")
+        if rejected == original or rejected.splitlines()[3:] != original.splitlines()[3:]:
+            raise ValueError(f"failed to reproduce the rejected trial's length error for {name}")
+    print("Corrected candidate matches all outputs for both camera settings. Short inputs reject the original trial.")
+
+
+if __name__ == "__main__":
+    main()

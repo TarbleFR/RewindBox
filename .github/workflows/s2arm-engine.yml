@@ -253,9 +253,14 @@ jobs:
           esac
       - name: Compare matrix recognition before and after NativeAOT compilation
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-widen-matrices]')
+        env:
+          EDGE_ONLY: ${{ contains(github.event.head_commit.message, '[s2arm-widen-edge]') }}
         run: |
           set -euo pipefail
-          python3 docs/evidence/s2arm-0437-review/matrices/replay.py "$RUNNER_TEMP/s2arm" proof/matrices.csv --variants control compatible --pairs 24 --aot osx-arm64
+          flags=()
+          if [[ "$EDGE_ONLY" == true ]]; then flags+=(--modes near-miss --peak-rss "$GITHUB_WORKSPACE/proof/matrix-rss.csv"); fi
+          python3 docs/evidence/s2arm-0437-review/matrices/replay.py "$RUNNER_TEMP/s2arm" proof/matrices.csv --variants control compatible --pairs 24 --aot osx-arm64 "${flags[@]}"
+          if [[ "$EDGE_ONLY" == true ]]; then cat proof/matrix-rss.csv; fi
           cat proof/matrices.csv
       - name: Measure first-use pipeline compilation with synthetic Metal stages
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-pipeline-driver]')

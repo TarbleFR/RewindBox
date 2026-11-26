@@ -9,6 +9,8 @@ import subprocess
 import sys
 import tempfile
 
+from reference import restore_reference
+
 HERE = Path(__file__).resolve().parent
 MODES = ("row", "column", "ortho", "invalid", "mixed", "near-miss")
 
@@ -40,6 +42,7 @@ def main():
             root = Path(scratch) / label
             widen = root / "graphics" / "widen"
             shutil.copytree(args.tree / "graphics" / "widen", widen, ignore=shutil.ignore_patterns("bin", "obj"))
+            restore_reference(root)
             if label not in ("base", "control"):
                 with (HERE / (label + ".patch")).open("rb") as change:
                     subprocess.run(["patch", "-p1"], cwd=root, stdin=change, check=True)

@@ -4807,6 +4807,10 @@
     {
       "patches": "0447",
       "basis": "Platform correctness. Use Metal budget on macOS, retain the existing 512 MiB policy on iOS. No performance claim."
+    },
+    {
+      "patches": "0449",
+      "basis": "Remove redundant row copies and transposes when the widescreen classifier is called. Equivalent outputs, 792 existing checks, 24 NativeAOT triplets each on Linux x86-64 and macOS arm64. See matrices/README.md. Game and iPhone frame times unknown."
     }
   ],
   "rejected_optimizations": [
@@ -4826,7 +4830,7 @@
     "First-use pipeline compilation and residency measured separately from CPU key construction",
     "Shader compilation and translation with legal homebrew workloads"
   ],
-  "next_axis": "Observe the active iPhone SDK builds and measured GPU width A/A confirmation, compare the fixed NativeAOT matrix candidate including all public inputs, and collect the repeated optional UBOLEN results. Further pipeline policies must account for actual draw deadlines and cold-stage costs.",
+  "next_axis": "Track 0448 opt-in SDK compilation and 0449 iOS engine and Mac edge/RSS verification. Characterize effective UBO caps and reject unsafe invalidation. Repeat the GPU dispatch and equal-budget stage-order analysis before accepting any scheduling policy; investigate safe layer rotation under in-flight rendering.",
   "legacy_note": "First 21 entries are original host summaries. Their draft patch numbers describe historical experiments; numbers may differ from integrated engine patches. Cachegrind counters are on x86. The uncalibrated projections were withdrawn. No legacy entry establishes fidelity, A18 Pro frametime, GPU time, energy, RAM or FPS.",
   "initial_reference": "0426",
   "intermediate_reference": "0436 (8be902ac0)",
@@ -4837,7 +4841,8 @@
     "consecutive_rejections_at_0446": 0,
     "consecutive_rejections_after_0447": 4,
     "consecutive_rejections_after_0448_instrumentation": 5,
-    "counter_note": "A measurement-only patch does not reset the performance rejection count. The four slot masks and one scheduler model are independent candidates. Superseded incorrect matrix trial is tracked while its repaired candidate is under comparison."
+    "counter_note": "A measurement-only patch does not reset the performance rejection count. The four slot masks and one scheduler model are independent candidates. Superseded incorrect matrix trial is tracked while its repaired candidate is under comparison.",
+    "consecutive_rejections_at_0449": 0
   },
   "device_metrics": {
     "native_fps": null,

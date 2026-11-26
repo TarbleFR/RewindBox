@@ -87,6 +87,8 @@ Une deuxième série a mesuré les cinq classes avec le même pilote Metal class
 
 Les quatre variantes de sélection des buffers de constantes testées sur Linux accélèrent les cas avec beaucoup de slots liés mais ont chacune une médiane plus élevée dans le cas avec un seul slot lié par étage. Elles restent dans les expériences écartées. [Treize triplets par scénario, sources et limites](drafts/widen-mask/README.md).
 
+Le patch **0449** évite les transpositions redondantes dans la reconnaissance des projections du mode grand écran. Sur 24 triplets NativeAOT macOS arm64, le lot de 131 072 fenêtres mixtes passe de 38,70 à 33,29 ms de temps CPU médian. La contre-expertise compare deux points d’entrée, 17 compteurs, les deux orientations, les exceptions et les cas IEEE. Les FPS et la part de ce chemin dans les jeux restent non mesurés. [Comparaison et reproduction](matrices/README.md).
+
 ## État de reprise
 
 La piste de vidage des tables au changement d’image est retirée de la phase autonome après consultation d’une archive personnelle pendant son exploration. Son code et ses résultats sont exclus. La prochaine comparaison de compilation de pipelines utilise uniquement les shaders générés par le banc.
