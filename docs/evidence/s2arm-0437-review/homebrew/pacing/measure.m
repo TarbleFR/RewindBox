@@ -1,18 +1,19 @@
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 #import <mach/mach.h>
+#include <math.h>
 #include <stdio.h>
 #include <time.h>
 
 enum { Width = 1280, Height = 720, Slots = 3, Frames = 180, Pairs = 12 };
 typedef struct {
-    double start, afterWait, committed, callback, gpuStart, gpuEnd;
+    double start, afterWait, committed, callback, gpuStart, gpuEnd, encodeCpu;
     int completed;
 } Sample;
 
-static double now(void) {
+static double clockSeconds(clockid_t clock) {
     struct timespec t;
-    if (clock_gettime(CLOCK_MONOTONIC, &t)) abort();
+    if (clock_gettime(clock, &t)) abort();
     return t.tv_sec + t.tv_nsec * 1e-9;
 }
 
@@ -54,10 +55,11 @@ static BOOL batch(id<MTLDevice> dev, id<MTLCommandQueue> queue, id<MTLRenderPipe
     for (int i = 0; i < Frames; ++i) @autoreleasepool {
         Sample *s = &samples[i];
         // The same three surfaces are allocated and used in both arms.
-        s->start = now();
+        s->start = clockSeconds(CLOCK_MONOTONIC);
         int index = i % limit;
         [active[index] waitUntilCompleted];
-        s->afterWait = now();
+        s->afterWait = clockSeconds(CLOCK_MONOTONIC);
+        double cpuStart = clockSeconds(CLOCK_THREAD_CPUTIME_ID);
         id<MTLCommandBuffer> cb = [queue commandBuffer];
         MTLRenderPassDescriptor *pass = [MTLRenderPassDescriptor renderPassDescriptor];
         MTLRenderPassColorAttachmentDescriptor *color = pass.colorAttachments[0];
@@ -72,27 +74,32 @@ static BOOL batch(id<MTLDevice> dev, id<MTLCommandQueue> queue, id<MTLRenderPipe
         [encoder endEncoding];
         dispatch_group_enter(callbacks);
         [cb addCompletedHandler:^(id<MTLCommandBuffer> finished) {
-            s->callback = now();
+            s->callback = clockSeconds(CLOCK_MONOTONIC);
             s->gpuStart = finished.GPUStartTime;
             s->gpuEnd = finished.GPUEndTime;
             s->completed = finished.status == MTLCommandBufferStatusCompleted;
             dispatch_group_leave(callbacks);
         }];
         [cb commit];
-        s->committed = now();
+        s->committed = clockSeconds(CLOCK_MONOTONIC);
+        s->encodeCpu = clockSeconds(CLOCK_THREAD_CPUTIME_ID) - cpuStart;
         active[index] = cb;
     }
     // Never return while a handler can still write through its sample pointer.
     dispatch_group_wait(callbacks, DISPATCH_TIME_FOREVER);
     uint64_t footprintAfter = footprint();
+    uint64_t deviceAllocated = dev.currentAllocatedSize;
     if (!success || !verifySurfaces(queue,surfaces,readback)) return NO;
     for (int i = 0; i < Frames; ++i) {
         Sample *s = &samples[i];
-        if (!s->completed || s->callback < s->start || s->gpuStart <= 0 || s->gpuEnd <= s->gpuStart) return NO;
-        if (pair) fprintf(out,"%d,%d,%d,%.9f,%.9f,%.9f,%.9f,%.9f,%.9f,%llu,%llu,%llu\n",
-            pair,limit,i,s->start,s->afterWait,s->committed,s->callback,s->gpuStart,s->gpuEnd,
+        if (!s->completed || !isfinite(s->start) || !isfinite(s->afterWait) || !isfinite(s->committed) ||
+            !isfinite(s->callback) || !isfinite(s->gpuStart) || !isfinite(s->gpuEnd) || !isfinite(s->encodeCpu) ||
+            s->afterWait < s->start || s->committed < s->afterWait || s->callback < s->afterWait ||
+            s->gpuStart <= 0 || s->gpuEnd <= s->gpuStart || s->encodeCpu < 0) return NO;
+        if (pair) fprintf(out,"%d,%d,%d,%.9f,%.9f,%.9f,%.9f,%.9f,%.9f,%.9f,%llu,%llu,%llu\n",
+            pair,limit,i,s->start,s->afterWait,s->committed,s->callback,s->gpuStart,s->gpuEnd,s->encodeCpu,
             (unsigned long long)footprintBefore,(unsigned long long)footprintAfter,
-            (unsigned long long)dev.currentAllocatedSize);
+            (unsigned long long)deviceAllocated);
     }
     return YES;
 }
@@ -134,7 +141,7 @@ int main(int argc, char **argv) {
         if (!queue || !readback) return 1;
         FILE *output = fopen(argv[3],"wx");
         if (!output) return 1;
-        fprintf(output,"pair,limit,frame,start,after_wait,committed,callback,gpu_start,gpu_end,footprint_before,footprint_after,device_allocated\n");
+        fprintf(output,"pair,limit,frame,start,after_wait,committed,callback,gpu_start,gpu_end,encode_cpu_s,footprint_before,footprint_after,device_allocated\n");
         NSLog(@"Offscreen homebrew, %@, %dx%d, %d frames/batch, %d identical textures",dev.name,Width,Height,Frames,Slots);
         BOOL ok = YES;
         for (int pair = 0; pair <= Pairs && ok; pair++) {

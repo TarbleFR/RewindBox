@@ -16,8 +16,14 @@ def summarize(path):
         rows = list(csv.DictReader(stream))
     if len(rows) != 12 * 2 * 180:
         raise ValueError("missing frame samples")
-    print("pair,limit,submission_wait_p50_ms,cpu_encode_commit_p95_ms,gpu_work_p50_ms,gpu_work_p95_ms,"
-          "gpu_end_interval_p99_ms,gpu_intervals_gt_16_67ms,callback_latency_p95_ms,host_completed_per_s,"
+    for row in rows:
+        start, wait, commit, callback, gpu_start, gpu_end, cpu = (
+            float(row[key]) for key in ("start","after_wait","committed","callback","gpu_start","gpu_end","encode_cpu_s"))
+        if (not all(map(math.isfinite,(start,wait,commit,callback,gpu_start,gpu_end,cpu))) or
+                not start <= wait <= commit or callback < wait or not 0 < gpu_start < gpu_end or cpu < 0):
+            raise ValueError(f"invalid timing at pair {row['pair']}, frame {row['frame']}")
+    print("pair,limit,slot_wait_p50_ms,encode_commit_wall_p95_ms,encode_commit_thread_cpu_p95_ms,gpu_work_p50_ms,gpu_work_p95_ms,"
+          "gpu_end_interval_p99_ms,gpu_intervals_gt_16_67ms,slot_wait_start_to_callback_p95_ms,offscreen_completions_per_host_s,"
           "footprint_before,footprint_after,device_allocated")
     for pair in range(1,13):
         for limit in (1,3):
@@ -33,11 +39,15 @@ def summarize(path):
             times = sorted(float(row["gpu_end"]) for row in batch)
             intervals = [1000*(b-a) for a,b in zip(times,times[1:])]
             elapsed = max(float(row["callback"]) for row in batch)-float(batch[0]["start"])
+            if elapsed <= 0:
+                raise ValueError("empty host completion interval")
             result = [pair,limit,median(delta("after_wait","start")),percentile(delta("committed","after_wait"),.95),
+                      percentile([1000*float(row["encode_cpu_s"]) for row in batch],.95),
                       median(delta("gpu_end","gpu_start")),percentile(delta("gpu_end","gpu_start"),.95),
                       percentile(intervals,.99),sum(x>1000/60 for x in intervals),
                       percentile(delta("callback","start"),.95),len(batch)/elapsed,
-                      *(int(batch[0][key]) for key in ("footprint_before","footprint_after","device_allocated"))]
+                      *(int(batch[0][key]) or "" for key in ("footprint_before","footprint_after")),
+                      int(batch[0]["device_allocated"])]
             print(",".join(f"{v:.6f}" if isinstance(v,float) else str(v) for v in result))
 
 

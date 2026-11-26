@@ -20,6 +20,7 @@ name: S2Arm engine (iOS) build check
       - tools/s2arm_prototype/pin.json
       - tools/s2arm_a18pro/pipeline_driver.*
       - docs/evidence/s2arm-0437-review/matrices/replay.py
+      - docs/evidence/s2arm-0437-review/homebrew/pacing/measure.*
       - build-utils/s2arm/engine-pin.json
       - build-utils/s2arm/engine_pin.py
 permissions:
