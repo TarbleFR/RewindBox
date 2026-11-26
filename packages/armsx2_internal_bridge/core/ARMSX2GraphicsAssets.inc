@@ -51,7 +51,8 @@ int get_graphics_assets_json(char* output,size_t capacity) {
     NSString* path=shader_resolve(selected);
     NSError* failure=path && enabled ? [ARMSX2Bridge shaderChainErrorForPreset:path] : nil;
     NSData* encoded=[NSJSONSerialization dataWithJSONObject:@{
-      @"supported":@([ARMSX2Bridge isShaderChainSupported]), @"presets":presets,
+      // The embedded target requires librashader at configure and verifies it after linking.
+      @"supported":@YES, @"presets":presets,
       @"selected":enabled ? selected : @"", @"shaderError":failure.localizedDescription ?: @"",
       @"overlay":[NSNumber numberWithInt:[ARMSX2Bridge getPerGameINIInt:@"EmuCore/GS" key:@"NeoStationOsdPreset" defaultValue:0 forISO:nil]],
       @"packInstalled":@([NSFileManager.defaultManager fileExistsAtPath:
@@ -65,7 +66,6 @@ int get_graphics_assets_json(char* output,size_t capacity) {
 
 int set_shader_preset(const char* raw,char* error,size_t capacity) {
   if (!raw || !has_running_game()) return error_out("Shader selection requires an active ARMSX2 game.",error,capacity);
-  if (![ARMSX2Bridge isShaderChainSupported]) return error_out("This ARMSX2 core has no librashader runtime.",error,capacity);
   NSString* token=[NSString stringWithUTF8String:raw];
   if (!token) return error_out("Invalid shader identity.",error,capacity);
   NSString* path=token.length ? shader_resolve(token) : nil;
