@@ -187,7 +187,7 @@ jobs:
           python3 build-utils/s2arm/engine/prefetch_sources.py "$RUNNER_TEMP/s2arm" \
             "$RUNNER_TEMP/s2arm-build-cache/sources" | tee -a proof/inputs.txt
       - name: Locate the Metal compiler for the iOS framework
-        if: env.TEST_ONLY != 'yes' || (matrix.os == 'macos-26' && (contains(github.event.head_commit.message, '[s2arm-first-draw]') || contains(github.event.head_commit.message, '[s2arm-wide-mem-check]') || contains(github.event.head_commit.message, '[s2arm-global-opt-check]')))
+        if: env.TEST_ONLY != 'yes' || (matrix.os == 'macos-26' && (contains(github.event.head_commit.message, '[s2arm-homebrew-check]') || contains(github.event.head_commit.message, '[s2arm-first-draw]') || contains(github.event.head_commit.message, '[s2arm-wide-mem-check]') || contains(github.event.head_commit.message, '[s2arm-global-opt-check]')))
         run: |
           if ! xcrun --sdk iphoneos metal --version >/dev/null 2>&1; then
             xcodebuild -downloadComponent MetalToolchain
@@ -218,6 +218,17 @@ jobs:
           python3 "$evidence/bounds/compare_ubolen.py" "$RUNNER_TEMP/0441" "$RUNNER_TEMP/s2arm" proof/bounds
           python3 "$evidence/bounds/report.py" proof/bounds/{forward,reverse,control}.tsv | tee proof/bounds/summary.txt
           python3 "$evidence/pipeline/replay.py" "$RUNNER_TEMP/0441" "$RUNNER_TEMP/s2arm" --csv proof/pipeline-keys.csv | tee proof/pipeline-keys.txt
+      - name: Compare translated homebrew outputs to independent Vulkan reference bytes
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-homebrew-check]')
+        run: |
+          set -euo pipefail
+          rc=0
+          python3 docs/evidence/s2arm-0437-review/homebrew/metal_readback.py | tee proof/homebrew-readback.txt || rc=$?
+          case $rc in
+            0) echo "All three Metal outputs match the Vulkan oracle" >> proof/homebrew-readback.txt ;;
+            77) echo "Metal device unavailable on runner" >> proof/homebrew-readback.txt ;;
+            *) exit "$rc" ;;
+          esac
       - name: Measure first-use pipeline compilation with synthetic Metal stages
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-pipeline-driver]')
         run: |
