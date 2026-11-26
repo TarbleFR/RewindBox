@@ -28,15 +28,15 @@ concurrency:
   cancel-in-progress: false
 jobs:
   engine:
-    if: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (contains(github.event.head_commit.message, '[s2arm-engine]') || contains(github.event.head_commit.message, '[s2arm-check-delivery]') || (contains(github.event.head_commit.message, '[s2arm-shader-checks]') || (contains(github.event.head_commit.message, '[s2arm-thermal-checks]') || contains(github.event.head_commit.message, '[s2arm-archive-check]')))))) && !contains(github.event.head_commit.message, '[s2arm-pin ') }}
+    if: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (contains(github.event.head_commit.message, '[s2arm-engine]') || contains(github.event.head_commit.message, '[s2arm-check-delivery]') || (contains(github.event.head_commit.message, '[s2arm-shader-checks]') || (contains(github.event.head_commit.message, '[s2arm-thermal-checks]') || (contains(github.event.head_commit.message, '[s2arm-archive-check]') || contains(github.event.head_commit.message, '[s2arm-gpu-textures]'))))))) && !contains(github.event.head_commit.message, '[s2arm-pin ') }}
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON((contains(github.event.head_commit.message, '[s2arm-check-delivery]') || ((contains(github.event.head_commit.message, '[s2arm-shader-checks]') || (contains(github.event.head_commit.message, '[s2arm-thermal-checks]') || contains(github.event.head_commit.message, '[s2arm-archive-check]'))) && !contains(github.event.head_commit.message, '[s2arm-engine]'))) && '["macos-26"]' || '["macos-26","macos-15"]') }}
+        os: ${{ fromJSON((contains(github.event.head_commit.message, '[s2arm-check-delivery]') || ((contains(github.event.head_commit.message, '[s2arm-shader-checks]') || (contains(github.event.head_commit.message, '[s2arm-thermal-checks]') || (contains(github.event.head_commit.message, '[s2arm-archive-check]') || contains(github.event.head_commit.message, '[s2arm-gpu-textures]')))) && !contains(github.event.head_commit.message, '[s2arm-engine]'))) && '["macos-26"]' || '["macos-26","macos-15"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     env:
-      TEST_ONLY: ${{ (contains(github.event.head_commit.message, '[s2arm-check-delivery]') || ((contains(github.event.head_commit.message, '[s2arm-shader-checks]') || (contains(github.event.head_commit.message, '[s2arm-thermal-checks]') || contains(github.event.head_commit.message, '[s2arm-archive-check]'))) && !contains(github.event.head_commit.message, '[s2arm-engine]'))) && 'yes' || 'no' }}
+      TEST_ONLY: ${{ (contains(github.event.head_commit.message, '[s2arm-check-delivery]') || ((contains(github.event.head_commit.message, '[s2arm-shader-checks]') || (contains(github.event.head_commit.message, '[s2arm-thermal-checks]') || (contains(github.event.head_commit.message, '[s2arm-archive-check]') || contains(github.event.head_commit.message, '[s2arm-gpu-textures]')))) && !contains(github.event.head_commit.message, '[s2arm-engine]'))) && 'yes' || 'no' }}
       FIRST_RACE: ${{ (contains(github.event.head_commit.message, '[s2arm-first-race]') || contains(github.event.head_commit.message, '[s2arm-check-delivery]')) && 'yes' || 'no' }}
       CHECK_DELIVERY: ${{ contains(github.event.head_commit.message, '[s2arm-check-delivery]') && 'yes' || 'no' }}
     steps:
@@ -187,7 +187,7 @@ jobs:
           python3 build-utils/s2arm/engine/prefetch_sources.py "$RUNNER_TEMP/s2arm" \
             "$RUNNER_TEMP/s2arm-build-cache/sources" | tee -a proof/inputs.txt
       - name: Locate the Metal compiler for the iOS framework
-        if: env.TEST_ONLY != 'yes' || (matrix.os == 'macos-26' && (contains(github.event.head_commit.message, '[s2arm-homebrew-check]') || contains(github.event.head_commit.message, '[s2arm-first-draw]') || contains(github.event.head_commit.message, '[s2arm-wide-mem-check]') || contains(github.event.head_commit.message, '[s2arm-global-opt-check]')))
+        if: env.TEST_ONLY != 'yes' || (matrix.os == 'macos-26' && (contains(github.event.head_commit.message, '[s2arm-gpu-textures]') || contains(github.event.head_commit.message, '[s2arm-homebrew-check]') || contains(github.event.head_commit.message, '[s2arm-first-draw]') || contains(github.event.head_commit.message, '[s2arm-wide-mem-check]') || contains(github.event.head_commit.message, '[s2arm-global-opt-check]')))
         run: |
           if ! xcrun --sdk iphoneos metal --version >/dev/null 2>&1; then
             xcodebuild -downloadComponent MetalToolchain
@@ -218,6 +218,17 @@ jobs:
           python3 "$evidence/bounds/compare_ubolen.py" "$RUNNER_TEMP/0441" "$RUNNER_TEMP/s2arm" proof/bounds
           python3 "$evidence/bounds/report.py" proof/bounds/{forward,reverse,control}.tsv | tee proof/bounds/summary.txt
           python3 "$evidence/pipeline/replay.py" "$RUNNER_TEMP/0441" "$RUNNER_TEMP/s2arm" --csv proof/pipeline-keys.csv | tee proof/pipeline-keys.txt
+      - name: Compare launch widths for native Metal texture uploads
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-gpu-textures]')
+        run: |
+          set -euo pipefail
+          rc=0
+          python3 docs/evidence/s2arm-0437-review/gpu-textures/compare.py "$RUNNER_TEMP/s2arm" | tee proof/gpu-texture.txt || rc=$?
+          case $rc in
+            0) echo "CPU reference matches every GPU workload" >> proof/gpu-texture.txt ;;
+            77) echo "Metal device unavailable on runner" >> proof/gpu-texture.txt ;;
+            *) exit "$rc" ;;
+          esac
       - name: Compare translated homebrew outputs to independent Vulkan reference bytes
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-homebrew-check]')
         run: |
