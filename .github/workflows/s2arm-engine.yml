@@ -30,15 +30,15 @@ concurrency:
   cancel-in-progress: false
 jobs:
   engine:
-    if: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (contains(github.event.head_commit.message, '[s2arm-engine]') || contains(github.event.head_commit.message, '[s2arm-check-delivery]') || (contains(github.event.head_commit.message, '[s2arm-shader-checks]') || (contains(github.event.head_commit.message, '[s2arm-thermal-checks]') || (contains(github.event.head_commit.message, '[s2arm-archive-check]') || (contains(github.event.head_commit.message, '[s2arm-gpu-textures]') || (contains(github.event.head_commit.message, '[s2arm-pipeline-driver]') || contains(github.event.head_commit.message, '[s2arm-bounds-clamp]'))))))))) && !contains(github.event.head_commit.message, '[s2arm-pin ') }}
+    if: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (contains(github.event.head_commit.message, '[s2arm-engine]') || contains(github.event.head_commit.message, '[s2arm-check-delivery]') || (contains(github.event.head_commit.message, '[s2arm-shader-checks]') || (contains(github.event.head_commit.message, '[s2arm-thermal-checks]') || (contains(github.event.head_commit.message, '[s2arm-archive-check]') || (contains(github.event.head_commit.message, '[s2arm-gpu-textures]') || (contains(github.event.head_commit.message, '[s2arm-pipeline-driver]') || (contains(github.event.head_commit.message, '[s2arm-bounds-clamp]') || contains(github.event.head_commit.message, '[s2arm-homebrew-pacing]')))))))))) && !contains(github.event.head_commit.message, '[s2arm-pin ') }}
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON((contains(github.event.head_commit.message, '[s2arm-check-delivery]') || ((contains(github.event.head_commit.message, '[s2arm-shader-checks]') || (contains(github.event.head_commit.message, '[s2arm-thermal-checks]') || (contains(github.event.head_commit.message, '[s2arm-archive-check]') || (contains(github.event.head_commit.message, '[s2arm-gpu-textures]') || (contains(github.event.head_commit.message, '[s2arm-pipeline-driver]') || contains(github.event.head_commit.message, '[s2arm-bounds-clamp]')))))) && !contains(github.event.head_commit.message, '[s2arm-engine]'))) && '["macos-26"]' || '["macos-26","macos-15"]') }}
+        os: ${{ fromJSON((contains(github.event.head_commit.message, '[s2arm-check-delivery]') || ((contains(github.event.head_commit.message, '[s2arm-shader-checks]') || (contains(github.event.head_commit.message, '[s2arm-thermal-checks]') || (contains(github.event.head_commit.message, '[s2arm-archive-check]') || (contains(github.event.head_commit.message, '[s2arm-gpu-textures]') || (contains(github.event.head_commit.message, '[s2arm-pipeline-driver]') || (contains(github.event.head_commit.message, '[s2arm-bounds-clamp]') || contains(github.event.head_commit.message, '[s2arm-homebrew-pacing]'))))))) && !contains(github.event.head_commit.message, '[s2arm-engine]'))) && '["macos-26"]' || '["macos-26","macos-15"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     env:
-      TEST_ONLY: ${{ (contains(github.event.head_commit.message, '[s2arm-check-delivery]') || ((contains(github.event.head_commit.message, '[s2arm-shader-checks]') || (contains(github.event.head_commit.message, '[s2arm-thermal-checks]') || (contains(github.event.head_commit.message, '[s2arm-archive-check]') || (contains(github.event.head_commit.message, '[s2arm-gpu-textures]') || (contains(github.event.head_commit.message, '[s2arm-pipeline-driver]') || contains(github.event.head_commit.message, '[s2arm-bounds-clamp]')))))) && !contains(github.event.head_commit.message, '[s2arm-engine]'))) && 'yes' || 'no' }}
+      TEST_ONLY: ${{ (contains(github.event.head_commit.message, '[s2arm-check-delivery]') || ((contains(github.event.head_commit.message, '[s2arm-shader-checks]') || (contains(github.event.head_commit.message, '[s2arm-thermal-checks]') || (contains(github.event.head_commit.message, '[s2arm-archive-check]') || (contains(github.event.head_commit.message, '[s2arm-gpu-textures]') || (contains(github.event.head_commit.message, '[s2arm-pipeline-driver]') || (contains(github.event.head_commit.message, '[s2arm-bounds-clamp]') || contains(github.event.head_commit.message, '[s2arm-homebrew-pacing]'))))))) && !contains(github.event.head_commit.message, '[s2arm-engine]'))) && 'yes' || 'no' }}
       FIRST_RACE: ${{ (contains(github.event.head_commit.message, '[s2arm-first-race]') || contains(github.event.head_commit.message, '[s2arm-check-delivery]')) && 'yes' || 'no' }}
       CHECK_DELIVERY: ${{ contains(github.event.head_commit.message, '[s2arm-check-delivery]') && 'yes' || 'no' }}
     steps:
@@ -245,6 +245,13 @@ jobs:
             77) echo "Metal device unavailable on runner" >> proof/gpu-texture.txt ;;
             *) exit "$rc" ;;
           esac
+      - name: Measure CPU and GPU intervals for identical offscreen homebrew frames
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-homebrew-pacing]')
+        run: |
+          set -euo pipefail
+          rc=0
+          python3 docs/evidence/s2arm-0437-review/homebrew/pacing/measure.py proof/pacing-frames.csv | tee proof/pacing-summary.csv || rc=$?
+          if [[ "$rc" == 77 ]]; then echo 'No Metal device available'; elif [[ "$rc" != 0 ]]; then exit "$rc"; fi
       - name: Compare translated homebrew outputs to independent Vulkan reference bytes
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-homebrew-check]')
         run: |
