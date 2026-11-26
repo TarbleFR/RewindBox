@@ -1,4 +1,4 @@
-# S2Arm : vague 845 (`0418–0421`, déverrouillage pont et leviers universels NVN2)
+# S2Arm : vague 845 (`0418–0424`, déverrouillage pont, leviers universels NVN2 et boucle comparative Zelda + MKW)
 
 26 novembre 2026. Base : [IPA privée 844](rewind844/delivery.json) et [observations iPhone 844](s2arm-844-device.md). À la demande explicite du mainteneur, la vague 845 applique en un seul lot cohérent :
 - la correction des régressions de la 844 (`0418`),
@@ -53,6 +53,22 @@ Quatre goulots prouvés dans le journal MKW 844 (`56,21 M` instructions CPU/imag
 | Modèle `encode_args_` / `rb_args_why_ex` (300 images MKW, 1,13 M encodages) | `384 289` full / `1,96 M` skips | **`161 957` full / `3,43 M` skips** | **−57,9 % full**, **+74,8 % skips**, `+39 121` réutilisations | **`wrong = 0`** + gardes prouvées par mutation (`674` / `1 078` / `111 375`) |
 | `rb_view_scope.h` réel (300 images MKW, 12 437 mouvements) | `97 824` `fast_keep` / `261 919` global | **`242 639` `fast_keep` / `115 086` global** | **`fast_keep ×2,48`**, **−56,1 % lents globaux** | `t_rb_view_scope.c` vert |
 | `alias_orphan_pass` (`100 000` `treg_t` × `4 401` alias, passe vide) | `0,714 ms/passe` | **`0,001 ms/passe`** | **662×** (0 appel ObjC `.parentTexture`) | Parité **EXACT** (0 et 2 candidats) |
+
+### `0424` — Boucle comparative Zelda + MKW (anneau UBO, masques `rb-args`, `txr_keep`, snapshot profondeur, vues virtuelles et backoff workers)
+Cinq goulots supplémentaires mesurés dans les journaux 844 de Zelda (`[rb-args]` `568 092` = `72,1 %` `shader_keeps_none_or_per_draw_table`, `23 886` mises à jour UBO différées / `16 124` lectures partielles, `1 686` textures `line 9789` / `356 ms` `res_commit`, `2 953` snapshots profondeur, `7 642` `RB_VS_WHY_POOL`, `8 531` réveils/s en `thermal 2`) et de Mario Kart World (`175 500` `shader_keeps_none_or_per_draw_table` + `100 299` `handles`, `968` textures `line 9789` / `486,9 ms` `res_commit`, `2 150` vues `tex_fit` créées / `0` reprises du cache) :
+- **`rb_ubo_versions.h`** : plages `opaque` et `transfer` triées et disjointes aux deux extrémités de `spans[]` (0 octet de RAM supplémentaire) avec recherche binaire $O(\log N)$ et rejet boîte englobante $O(1)$, filtre Bloom 64 bits + `[page_min, page_max]`, masque 64 bits `valid_mask` sur `rb_ub_page`, compteur `missing` unique et copie par mots 64 bits.
+- **`rb_args_ubo.h` + `nvn_mtl.m`** : déblocage `sh->rf.pool` et `size_abi` intra-passe (conserve `NVN_RB_SUPPORT`), masques de slots lus/modifiés (`rb_args_masks`, `rb_args_mod`, couverture de tous les slots chevauchés dans `ubd_dirty`) autorisant la réutilisation entière filtrée et la reconstruction partielle par slot sur `OP_BIND_TEX`/`OP_BIND_SAMP`, et correction de la garde inter-passes `rb_safe_xpass` (`!sh->size_abi && !(nvn_stage == 1 && rs_on())`, révélée par le test de mutation `MUT5`).
+- **`nvn_mtl.m` (`txr_keep`, direct depth snapshot, `tex_fit`)** : en 844, `rb_sparse_budget_on() && superseded` bloquait `txr_keep` à `0 kept / 0 taken back` malgré `> 2,3 Go` de marge mémoire ; `0424` réactive `txr_keep` sous `RB_GOV_NORMAL` avec plafond `rb_texture_share(8)` (tout en préservant le relâchement immédiat sous `RB_GOV_WARN`/`RB_GOV_CRITICAL`), débloque le snapshot profondeur exact direct sur Zelda (retrait `rb_course_exact()`) et isole les snapshots temporaires de `tex_fit` dans un anneau de 8 vues `g_fit_snap` sans écraser `r->alt`.
+- **`nvn_mtl.m` (`tex_by_id` `view_vseq`)** : mémorise `nvn_sparse_log_seq(pool)` pour les textures GPU non placement-sparse en pool virtuel afin de conserver la vue tant que les mappings du pool n’ont pas bougé.
+- **`runtime/src/thread.c` (`yield_bo`)** : rampe `run / 4` (plancher `40 µs`) et bascule vers `rb_yield_event_sleep` dès `500 µs` (`500 µs` hors chauffe, `1 000 µs` en `thermal >= 2`, réveil immédiat sur `wake()`) pour les seuls workers secondaires (`!is_main && prio >= 44 && same_poll && g_yb_ystart < 2000000`).
+
+| Banc comparatif local (même machine, avant = 0423 / après = 0424) | Avant (0423) | Après (0424) | Gain mesuré (hôte) | Vérification d’exactitude |
+| --- | ---: | ---: | ---: | --- |
+| `rb_ubo_versions.h` réel, scénario Zelda 300 images (`16 200` lectures, `ok=16 200, fail=0`, 32 fences) | `172,51 ms` (`lookup 149,95 ms`) | **`44,70 ms`** (`lookup 39,85 ms`) | **3,86×** (`capture ×4,74`, `hazard ×3,68`) | Hash `5bd6d37827119af4` **bit-identique** + `t_rb_ubo_versions` vert |
+| `rb_ubo_versions.h` réel, `zelda_64pg` / `mixed_overlap` (300 images) | `76,08 ms` / `52,88 ms` | **`27,42 ms` / `16,31 ms`** | **2,77× / 3,24×** | Hashes `a473efd9207dc90c` & `2ba0672c1af7527e` **bit-identiques** |
+| `rb_args_ubo.h` réel, rejeu Zelda (`350 000` dessins, 72 % `pool`/`size_abi`) | `299 732` full / `2,01 M` lookups | **`75 029` full / `562 k` lookups** | **−75,0 % full**, **−72,0 % lookups**, `+215 731` reuse | **`wrong = 0`**, **5/5 mutations négatives** (`1 354` à `307 181`), `t_rb_args_ubo` vert |
+| `rb_args_ubo.h` réel, rejeu MKW (`350 000` dessins, `handles` + `pool`/`size_abi`) | `240 913` full / `1,81 M` lookups | **`59 008` full / `420 k` lookups** | **−75,5 % full**, **−76,9 % lookups**, `why_h −99,1 %` | **`wrong = 0`**, **5/5 mutations négatives**, `t_rb_args_ubo` vert |
+| Modèle `thread.c` `yield_bo` workers secondaires (Zelda 6w `thermal=2` / MKW 5w `thermal=1` / rafales `<2 ms`) | `4 073` / `2 700` / `4 200` réveils/s | **`1 616` / `1 170` / `1 530` réveils/s** | **−60,3 % / −56,7 % / −63,6 %** | Latence max `≤ 0,5–1 ms` (`0 µs` sur `wake()`), `s2a_test_yield_bo` intact |
 
 ## 2. Pont iOS, réglages Switch 2 et 12 langues
 
