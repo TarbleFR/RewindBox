@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "40132146ce8c73d72946045c69cb5e2b82cf827fba8b5409d2491a084ae3e7b1",
+  "packagedFingerprint": "c71baa90dcad1be741749f3229b5297db477e102ea51716c0eb474810af28347",
   "producers": {
     "engine": {
-      "run": 45672467487,
+      "run": 45801153266,
       "attempt": 1,
-      "artifact": 15052180211,
-      "name": "s2arm-engine-framework-197dd41abeb09ea56d9e1fcff6013c2ae0ebe25a",
-      "bytes": 25650657,
-      "sha256": "09c6229357309786a54476809165cdaa579de103c64c50158227544cc9e38f80",
-      "headSha": "197dd41abeb09ea56d9e1fcff6013c2ae0ebe25a",
+      "artifact": 15107708113,
+      "name": "s2arm-engine-framework-4e36e88cf8d611dde0333b5969bccb0bbfa83d69",
+      "bytes": 25671739,
+      "sha256": "137a518d204fb9e1de962061bb6628c4202ecd42e8d69fe6c57baf0b474cd32d",
+      "headSha": "4e36e88cf8d611dde0333b5969bccb0bbfa83d69",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-25T18:25:49Z",
+      "expiresAt": "2026-12-26T10:41:51Z",
       "members": {
-        "S2ArmEngine.framework.zip": "75071e98a40f71d947ef22755b026368a4ca7cdf977aba3fb599838945294dbd",
-        "NS2Pro.framework.zip": "cfb74eb061a7bad76562bb31ab2b42642371741c43b7440a645a1fb55f6bd9c3"
+        "S2ArmEngine.framework.zip": "0aa609684ac006019bab18881f3c87a001d5098139241333ea2a7cddb4234c60",
+        "NS2Pro.framework.zip": "f8de710fc58cf084e94123f10c52122f2a207090836efdd4b322a4dbefa53711"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "09c6229357309786a54476809165cdaa579de103c64c50158227544cc9e38f80",
+    "engine": "137a518d204fb9e1de962061bb6628c4202ecd42e8d69fe6c57baf0b474cd32d",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "35d7ce78713fd6c5d00c07a19b8c87c3be64fd86989c8c3b074f9b1631ab5229",
-      "bytes": 116600184,
-      "fingerprint": "40132146ce8c73d72946045c69cb5e2b82cf827fba8b5409d2491a084ae3e7b1"
+      "sha256": "8a4a66bfc47812d68aea333f5bc48107a8c750a019b50bef008255786b530821",
+      "bytes": 116635096,
+      "fingerprint": "c71baa90dcad1be741749f3229b5297db477e102ea51716c0eb474810af28347"
     },
     "S2ArmEngine.framework/S2ArmShaderXfp.txt": {
       "sha256": "ba0ccfce318cebdca849cc9071acd8e77f1b968d12855f2ffc7e117a37f37549",
@@ -145,9 +145,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45672467487,
+      "run": 45801153266,
       "attempt": 1,
-      "head_sha": "197dd41abeb09ea56d9e1fcff6013c2ae0ebe25a",
+      "head_sha": "4e36e88cf8d611dde0333b5969bccb0bbfa83d69",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1802,11 +1802,47 @@
         {
           "name": "0417-enable-validated-nvn2-optimizations-by-default-and-fix-dispatch-order-site.patch",
           "sha256": "67554dd78582ace4ef991b364a89a9fcb7fa71e0bd5448062dbf5e4c0e243bda"
+        },
+        {
+          "name": "0418-fix-844-regressions-replay-present-queue-and-m4-compiler.patch",
+          "sha256": "af577747c3fbba555f0464968415bea0be5c2598e73a79832a7fd2c387183736"
+        },
+        {
+          "name": "0419-fluid-pipelines-startup-rebuild-cap-and-nonblocking-play.patch",
+          "sha256": "133b1548850e957776fd8f9597d45a27d98a7ae66142ec983f0addfddbff7b1f"
+        },
+        {
+          "name": "0420-reduce-residency-churn-clear-passes-and-tbdr-traffic.patch",
+          "sha256": "68dacf80deb8f65cfa217ad42f8caeda8c1e52c751c0fd8957d380fc74f3610a"
+        },
+        {
+          "name": "0421-universal-nvn2-performance-levers-fi-shadows-rscale-drs.patch",
+          "sha256": "c458b0da78a0ef7eb7215be73a78a334367f6a1443563ec5d9a3152285efcb88"
+        },
+        {
+          "name": "0422-mkw-fluid-pipelines-and-orphan-pass-fast-path.patch",
+          "sha256": "3f0ca5417b26225ee40f54ddd81affacb0dcb85daea576fac8fad6edc1126eac"
+        },
+        {
+          "name": "0423-mkw-hotpath-dirty-index-args-reuse-view-scope-and-o2.patch",
+          "sha256": "1ee57a6a41228a6c3c8f86048b483da81286e7469465959d1ed985b6f099c8f1"
+        },
+        {
+          "name": "0424-zelda-mkw-ubo-args-masks-txr-reuse-virtual-views-and-yield.patch",
+          "sha256": "363a1e76750e33b35426e544da2fb2b47908f6b1c4df64f6e9b6f2a1ae5c39a8"
+        },
+        {
+          "name": "0425-zelda-mkw-bindless-lc-striped-dirty-scoped-takeover-dsnap-and-cont-memo.patch",
+          "sha256": "c89519a21aaa707e29a080031550a284b857644f6244ded3b6c44920e5cd7245"
+        },
+        {
+          "name": "0426-oprog-per-stage-pending-and-owner-checked-args-reuse.patch",
+          "sha256": "e7bcafcfa8fa5cbdc4113cf012bfd58e7d01af107d8e91fe4d655c87f26d4ba0"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "75071e98a40f71d947ef22755b026368a4ca7cdf977aba3fb599838945294dbd",
-        "NS2Pro.framework.zip": "cfb74eb061a7bad76562bb31ab2b42642371741c43b7440a645a1fb55f6bd9c3"
+        "S2ArmEngine.framework.zip": "0aa609684ac006019bab18881f3c87a001d5098139241333ea2a7cddb4234c60",
+        "NS2Pro.framework.zip": "f8de710fc58cf084e94123f10c52122f2a207090836efdd4b322a4dbefa53711"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
