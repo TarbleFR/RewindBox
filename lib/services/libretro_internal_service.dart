@@ -342,19 +342,24 @@ abstract final class LibretroInternalService {
   /// never starts the JIT helper.
   static Future<int> bundledJitArenaBytes(String coreId) async {
     if (!Platform.isIOS) return 0;
-    final arenas = await (_jitArenas ??= _readJitArenas());
+    final arenas = await (_jitArenas ??= bundledCollectionIdentity.then(jitArenasFromIdentity));
     return arenas[coreId] ?? 0;
   }
 
   static Future<Map<String, int>>? _jitArenas;
 
-  static Future<Map<String, int>> _readJitArenas() async {
+  /// Shared by the JIT configuration and the version display. The identity
+  /// is immutable for the lifetime of this installation.
+  static final Future<Object?> bundledCollectionIdentity = _readCollectionIdentity();
+
+  static Future<Object?> _readCollectionIdentity() async {
+    if (!Platform.isIOS) return null;
     try {
       final file = File(path.join(path.dirname(Platform.resolvedExecutable), 'Libretro-native-identity.json'));
-      return jitArenasFromIdentity(jsonDecode(await file.readAsString()));
+      return jsonDecode(await file.readAsString());
     } catch (error) {
-      _log.i('libretro JIT: core identity unreadable ($error); every core keeps its interpreter');
-      return const <String, int>{};
+      _log.i('libretro: core identity unreadable ($error)');
+      return null;
     }
   }
 

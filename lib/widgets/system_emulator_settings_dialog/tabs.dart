@@ -603,21 +603,42 @@ extension _Tabs on _SystemEmulatorSettingsDialogState {
   }
 
   Widget _buildEmulatorsTab() {
-    final embeddedEngine = _iosEmbeddedEngineName;
+    final embeddedEngine = _iosEmbeddedEngine;
     if (embeddedEngine != null) {
-      final console = _system.folderName.trim().toLowerCase();
+      final console = embeddedEngine.id;
       final wii = console == 'wii';
       return ListView(
         padding: EdgeInsets.all(12.r),
         children: [
-          ListTile(
-            leading: const Icon(Symbols.sports_esports_rounded),
-            title: Text(embeddedEngine),
-            subtitle: Text(EmbeddedEmulatorLocale.integrated(context)),
-            trailing: Icon(
-              Icons.check_circle,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+          FutureBuilder<Map<String, EmbeddedEngineBuild>?>(
+            future: EmbeddedEngineBuildInfo.engines,
+            builder: (context, snapshot) {
+              final builds = snapshot.data;
+              final info = builds?[embeddedEngine.engine.name];
+              final absent = builds != null && info == null;
+              final integrated = EmbeddedEmulatorLocale.integrated(context);
+              final fallbackName = embeddedEngine.engine == ConsoleEngine.dolphin
+                  ? 'DolphiniOS'
+                  : embeddedEngine.application;
+              var subtitle = integrated;
+              if (info != null) {
+                final version = EmbeddedEmulatorLocale.version(context, info.version);
+                subtitle = '$integrated · $version';
+              } else if (absent) {
+                subtitle = ConsoleManagerLocale.text(context, ConsoleManagerLocale.unavailable);
+              }
+              return ListTile(
+                leading: const Icon(Symbols.sports_esports_rounded),
+                title: Text(info?.name ?? fallbackName),
+                subtitle: Text(subtitle),
+                trailing: absent
+                    ? null
+                    : Icon(
+                        Icons.check_circle,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+              );
+            },
           ),
           // Build 442: phone shake on/off and sensitivity of the Wii Remote,
           // the same native preferences as the in-game Controls menu.

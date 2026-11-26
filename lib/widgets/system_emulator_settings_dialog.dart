@@ -6,6 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/l10n/embedded_emulator_locale.dart';
+import 'package:neostation/l10n/console_manager_locale.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/themes/app_themes.dart';
@@ -21,6 +22,8 @@ import '../providers/sqlite_database_provider.dart';
 import '../repositories/system_repository.dart';
 import '../repositories/emulator_repository.dart';
 import '../services/config_service.dart';
+import '../services/console_catalog.dart';
+import '../services/embedded_engine_build_info.dart';
 import '../services/system_info_catalog.dart';
 
 import 'package:neostation/services/logger_service.dart';
@@ -107,24 +110,22 @@ class _SystemEmulatorSettingsDialogState
 
   /// Product identity of the in-process engine that owns this iOS library.
   /// These systems never fall back to the generic RetroArch/standalone list.
-  String? get _iosEmbeddedEngineName {
+  ConsoleEntry? get _iosEmbeddedEngine {
     if (!Platform.isIOS) return null;
-    return switch (_system.folderName.trim().toLowerCase()) {
-      'gc' || 'wii' => 'DolphiniOS',
-      'ps2' => 'ARMSX2',
-      'ps3' => 'RPCS3',
-      'switch' => 'RSwitch',
-      'xbox360' => 'XeniOS',
-      'switch2' => 'S2Arm',
-      _ => null,
-    };
+    final console = ConsoleCatalog.entryForSystem(_system);
+    if (console == null ||
+        !console.hasEmbeddedEngine ||
+        console.engine == ConsoleEngine.libretro) {
+      return null;
+    }
+    return console;
   }
 
   /// iOS systems run by the embedded libretro engine ("Embedded RetroArch",
   /// Build 440): the Emulators tab shows the engine panel instead of the
   /// RetroArch app row. Systems without an embedded core keep that row.
   bool get _isLibretroEngine =>
-      _iosEmbeddedEngineName == null &&
+      _iosEmbeddedEngine == null &&
       LibretroInternalService.handlesSystemModel(_system);
 
   /// Canonical catalog key of the system for the embedded engine.

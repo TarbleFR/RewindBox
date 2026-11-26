@@ -64,6 +64,7 @@ VALIDATION = ROOT / 'build/validation'
 CONTRACT_DIR = ROOT / 'build/standard-delivery/contract'
 CONTRACT_TEST = ('python3', '-B', 'test/standard_delivery_contract_test.py')
 IDENTITY = 'RewindBox-build-identity.json'
+EMULATOR_METADATA = 'EmulatorBuildMetadata.json'
 APP_ROOT = 'Payload/NeoStation.app/'
 TRIGGER = re.compile(r'\[ipa-delivery:(\d{3,4})\]')
 TRIGGER_MARKER = '[ipa-delivery:'
@@ -2661,6 +2662,7 @@ def expected():
 
 
 def embed(app):
+    from emulator_build_metadata import native_engines
     import retained_components as retained
     manifest = ci_manifest()
     info_path = Path(app) / 'Info.plist'
@@ -2680,7 +2682,10 @@ def embed(app):
         producer = native_producer(kind, spec)
         notices[kind] = (producer.embed_notices(spec, app) if producer else
                          retained.embed_native_notices(kind, spec, app))
-    return save('standard-embedded.json', dict(result='embedded', identity=value, legalNotices=notices))
+    # Read the provenance after the retained engines and their notices are in place.
+    engines = native_engines(Path(app), manifest, value, ROOT)
+    (Path(app) / EMULATOR_METADATA).write_text(json.dumps({'engines': engines}, indent=2) + '\n')
+    return save('standard-embedded.json', dict(result='embedded', identity=value, legalNotices=notices, engines=engines))
 
 
 def structure(ipa):
@@ -2758,6 +2763,9 @@ def validate(ipa):
         safe_members(archive)
         root = APP_ROOT
         require(json.loads(archive.read(root + IDENTITY)) == receipt, 'Packaged build identity differs')
+        embedded = json.loads((OUT / 'standard-embedded.json').read_bytes())
+        require(json.loads(archive.read(root + EMULATOR_METADATA)) == {'engines': embedded['engines']},
+                'Packaged emulator metadata differs from the embedded engines')
         info = plistlib.loads(archive.read(root + 'Info.plist'))
         if manifest.get('s2armAsyncPSOTestDefault') is True:
             require(info.get('RBTestAsyncPSODefault') is True, 'Missing requested async PSO test default')

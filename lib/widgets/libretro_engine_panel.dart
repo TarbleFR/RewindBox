@@ -3,12 +3,14 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import '../l10n/app_locale.dart';
+import '../l10n/console_manager_locale.dart';
 import '../l10n/embedded_emulator_locale.dart';
 import '../l10n/libretro_locale.dart';
 import '../screens/libretro/libretro_3ds_system_screen.dart';
 import '../screens/libretro/libretro_bios_checker_screen.dart';
 import '../screens/libretro/libretro_resolution_screen.dart';
 import '../screens/libretro/libretro_skin_manager_screen.dart';
+import '../services/libretro_core_build_info.dart';
 import '../services/libretro_core_catalog.dart';
 import '../services/sfx_service.dart';
 import '../themes/corner_radii.dart';
@@ -40,6 +42,7 @@ class LibretroEngineIdentityTile extends StatelessWidget {
     super.key,
     required this.systemKey,
     this.active = true,
+    this.coreBuilds,
   });
 
   /// Canonical catalog key of the system (`LibretroInternalService.systemKey`).
@@ -51,18 +54,40 @@ class LibretroEngineIdentityTile extends StatelessWidget {
   /// check is shown then, since that game opens the RetroArch app.
   final bool active;
 
-  /// "Embedded in RewindBox · Snes9x", or "Embedded in NeoStation ·
-  /// Genesis Plus GX (default)" when games of the system may choose another
-  /// core. Core names are product names and stay untranslated.
-  static String subtitle(BuildContext context, String systemKey) {
+  /// System playlists supply build metadata for the cores they can run. Games
+  /// keep their separate choice list (their selection may override the default).
+  final Map<String, LibretroCoreBuildInfo>? coreBuilds;
+
+  static String subtitle(
+    BuildContext context,
+    String systemKey, [
+    Map<String, LibretroCoreBuildInfo>? coreBuilds,
+  ]) {
+    if (coreBuilds != null && coreBuilds.isEmpty) {
+      return ConsoleManagerLocale.text(context, ConsoleManagerLocale.unavailable);
+    }
     final integrated = EmbeddedEmulatorLocale.integrated(context);
     final cores = LibretroCoreCatalog.coresFor(systemKey);
-    if (cores.isEmpty) return integrated;
-    final name = cores.first.displayName;
-    final core = cores.length > 1
-        ? LibretroLocale.formatContext(context, 'coreDefault', {'core': name})
-        : name;
-    return '$integrated · $core';
+    final labels = <String>[];
+    for (final (index, core) in cores.indexed) {
+      final build = coreBuilds?[core.id];
+      if (build == null && (index != 0 || coreBuilds != null)) continue;
+      var name = build?.name ?? core.displayName;
+      // Some software and hardware variants report the same library_name.
+      if (build != null &&
+          coreBuilds!.values.where((other) => other.name == build.name).length > 1) {
+        name = core.displayName;
+      }
+      if (index == 0 && cores.length > 1) {
+        name = LibretroLocale.formatContext(context, 'coreDefault', {'core': name});
+      }
+      if (build != null) {
+        final version = EmbeddedEmulatorLocale.version(context, build.version);
+        name = '$name · $version';
+      }
+      labels.add(name);
+    }
+    return labels.isEmpty ? integrated : '$integrated · ${labels.join('\n')}';
   }
 
   @override
@@ -70,8 +95,8 @@ class LibretroEngineIdentityTile extends StatelessWidget {
     return ListTile(
       leading: const Icon(Symbols.sports_esports_rounded),
       title: Text(LibretroLocale.text(context, 'engineName')),
-      subtitle: Text(subtitle(context, systemKey)),
-      trailing: active
+      subtitle: Text(subtitle(context, systemKey, coreBuilds)),
+      trailing: active && (coreBuilds?.isNotEmpty ?? true)
           ? Icon(
               Icons.check_circle,
               color: Theme.of(context).colorScheme.primary,
@@ -141,6 +166,17 @@ class LibretroEngineSettingsPanelState
 
   LibretroConsole? get _console =>
       LibretroCoreCatalog.consoleFor(widget.systemKey);
+
+  late Future<Map<String, LibretroCoreBuildInfo>?> _coreBuilds =
+      LibretroCoreBuildInfo.forSystem(widget.systemKey);
+
+  @override
+  void didUpdateWidget(LibretroEngineSettingsPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.systemKey != widget.systemKey) {
+      _coreBuilds = LibretroCoreBuildInfo.forSystem(widget.systemKey);
+    }
+  }
 
   /// Rows the controller moves through, in display order: skins and the
   /// internal resolution belong to a console, so their rows exist only when
@@ -345,7 +381,14 @@ class LibretroEngineSettingsPanelState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          LibretroEngineIdentityTile(systemKey: widget.systemKey),
+          FutureBuilder<Map<String, LibretroCoreBuildInfo>?>(
+            key: ValueKey(widget.systemKey),
+            future: _coreBuilds,
+            builder: (context, snapshot) => LibretroEngineIdentityTile(
+              systemKey: widget.systemKey,
+              coreBuilds: snapshot.data,
+            ),
+          ),
           SizedBox(height: 6.r),
           for (var index = 0; index < rows.length; index++)
             _buildRow(context, index, rows[index]),

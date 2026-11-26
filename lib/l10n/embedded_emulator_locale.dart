@@ -1,9 +1,11 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter_localization/flutter_localization.dart';
+
+import 'app_locale.dart';
 
 /// Small shared localization surface for emulators compiled into RewindBox.
 ///
-/// Keep emulator product names untranslated; only the embedded-status text is
-/// localized in the same twelve locales exposed by RewindBox.
+/// Product names and build identifiers retain the spelling of the engine.
 abstract final class EmbeddedEmulatorLocale {
   static const Map<String, String> _integrated = <String, String>{
     'en': 'Embedded in RewindBox',
@@ -19,6 +21,11 @@ abstract final class EmbeddedEmulatorLocale {
     'zh': '内置于 RewindBox',
     'zh_Hant': '內建於 RewindBox',
   };
+
+  static String version(BuildContext context, String version) => AppLocale
+      .updateVersion
+      .getString(context)
+      .replaceFirst('{version}', version);
 
   static String integrated(BuildContext context) {
     final locale = Localizations.maybeLocaleOf(context) ?? const Locale('en');

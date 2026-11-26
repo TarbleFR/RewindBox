@@ -52,6 +52,14 @@ class LibretroInternalBridge {
     return cores ?? const <String>[];
   }
 
+  /// A null result means the core is absent. When its collection already
+  /// identifies the release, just check the executable without loading it.
+  static Future<Map<String, String>?> coreBuildInfo(String coreId, {required bool inspectBinary}) =>
+      _channel.invokeMapMethod<String, String>('coreBuildInfo', {
+        'coreId': coreId,
+        'inspectBinary': inspectBinary,
+      });
+
   static Future<Map<String, dynamic>> diagnostics() async =>
       Map<String, dynamic>.from(
         await _channel.invokeMapMethod<String, dynamic>('diagnostics') ??

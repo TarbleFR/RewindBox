@@ -14,9 +14,12 @@
 #import "LibretroSkinCompatibility.h"
 #import "LibretroSkinRenderer.h"
 
+#include <dlfcn.h>
 #include <math.h>
+#include <string.h>
 
 #include "RBDiscHashReader.h"
+#include "libretro.h"
 
 static NSString *const kLibretroChannel = @"neostation/libretro_internal";
 
@@ -161,6 +164,12 @@ static BOOL IsAbsolutePath(NSString *path) {
   return [path hasPrefix:@"/"];
 }
 
+static BOOL ValidCoreIdentifier(NSString *identifier) {
+  NSCharacterSet *invalid =
+      [[NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyz0123456789_"] invertedSet];
+  return identifier.length > 0 && [identifier rangeOfCharacterFromSet:invalid].location == NSNotFound;
+}
+
 /// Refused channel arguments: the code is the launch error Dart already
 /// translates; the message names the argument (technical detail).
 static FlutterError *InvalidArgument(NSString *name) {
@@ -259,6 +268,33 @@ static NSDictionary<NSString *, id> *Failure(NSString *code, NSString *message) 
   return [[self frameworksDirectory] stringByAppendingPathComponent:relative];
 }
 
+/// The libretro ABI permits this static query before retro_init. Copy the
+/// strings while the signed framework is mapped; retain no handle or session.
++ (NSDictionary *)buildInfoForCore:(NSString *)identifier inspectBinary:(BOOL)inspectBinary {
+  if (!ValidCoreIdentifier(identifier)) return nil;
+  NSString *path = [self corePathForIdentifier:identifier];
+  if (![NSFileManager.defaultManager isReadableFileAtPath:path]) return nil;
+  NSMutableDictionary *details = [NSMutableDictionary dictionary];
+  if (!inspectBinary) return details;  // The collection already identifies the release.
+  void *library = dlopen(path.fileSystemRepresentation, RTLD_LAZY | RTLD_LOCAL | RTLD_FIRST);
+  if (!library) return details;  // Installed: the collection identity can supply a fallback.
+  void (*getInfo)(struct retro_system_info *) = dlsym(library, "retro_get_system_info");
+  if (getInfo) {
+    struct retro_system_info info = {0};
+    getInfo(&info);
+    if (info.library_name) {
+      details[@"name"] = [[NSString alloc] initWithBytes:info.library_name length:strlen(info.library_name)
+                                                encoding:NSUTF8StringEncoding];
+    }
+    if (info.library_version) {
+      details[@"version"] = [[NSString alloc] initWithBytes:info.library_version length:strlen(info.library_version)
+                                                   encoding:NSUTF8StringEncoding];
+    }
+  }
+  dlclose(library);
+  return details;
+}
+
 /// NEOSTATION_RA_DISC_READER_V1: the library hashes a game file with
 /// rcheevos and the same .chd/.cso reader as the in-game client, so it shows
 /// what the emulator will recognize. One file at a time, off the main thread;
@@ -312,6 +348,16 @@ static NSDictionary<NSString *, id> *Failure(NSString *code, NSString *message) 
   }
   if ([call.method isEqualToString:@"availableCores"]) {
     result([LibretroInternalBridgePlugin availableCores]);
+    return;
+  }
+  if ([call.method isEqualToString:@"coreBuildInfo"]) {
+    NSDictionary *arguments = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments : @{};
+    NSString *identifier = StringArgument(arguments, @"coreId");
+    BOOL inspectBinary = [arguments[@"inspectBinary"] isEqual:@YES];
+    dispatch_async(LibretroChannelQueue(), ^{
+      NSDictionary *details = [LibretroInternalBridgePlugin buildInfoForCore:identifier inspectBinary:inspectBinary];
+      dispatch_async(dispatch_get_main_queue(), ^{ result(details); });
+    });
     return;
   }
   if ([call.method isEqualToString:@"diagnostics"]) {
@@ -638,9 +684,7 @@ static NSDictionary<NSString *, id> *Failure(NSString *code, NSString *message) 
     return;
   }
   NSString *coreId = StringArgument(arguments, @"coreId");
-  NSCharacterSet *invalid =
-      [[NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyz0123456789_"] invertedSet];
-  if (coreId.length == 0 || [coreId rangeOfCharacterFromSet:invalid].location != NSNotFound) {
+  if (!ValidCoreIdentifier(coreId)) {
     result(Failure(@"LIBRETRO_CORE_MISSING", coreId));
     return;
   }
