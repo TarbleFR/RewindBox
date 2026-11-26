@@ -1,0 +1,31 @@
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -19574,7 +19574,12 @@
+ // Uniform bounds-table entry (vec4 count the shader may read): the binding's length, rounded up to a vec4, at most 4096 (Maxwell constant buffers address 64 KB),
+ //   and at most the whole vec4s actually behind the pointer handed to the GPU this draw (cap, bytes): the widen rewritten copy, the pool buffer's end, or a deferred-update shadow.
+ //   Audit #1646 P1-65: the table used to follow the binding alone, so with a shorter copy / shadow the shader's clamp let it read past it (11-07 census: 112921 widen-copy hits in one run)
+-static inline uint32_t ubolen_vec4_cap(const p_bind_buf *u, uint64_t cap) { uint64_t v = u->addr ? (u->size + 15) / 16 : 0; if (v > 4096) v = 4096; if (v > cap / 16) v = cap / 16; return (uint32_t)v; }
++static inline uint32_t ubolen_vec4_cap(const p_bind_buf *u, uint64_t cap) {
++    uint64_t bytes = u->size + 15;
++    if (bytes > cap) bytes = cap;
++    if (bytes > UINT64_C(65536)) bytes = UINT64_C(65536);
++    return u->addr ? (uint32_t)(bytes >> 4) : 0;
++}
+ static inline uint32_t ubolen_vec4(const p_bind_buf *u) { return ubolen_vec4_cap(u, UINT64_MAX); }
+ typedef struct { int stage; } sbsz_ctx;
+ static uint32_t sbsz_bound(void *ctx, const nvn_rbind *b) {
+@@ -19608,8 +19613,12 @@
+         rb_bounds_misses++;
+         return last[nvn_stage].gpu;
+     }
+-    id<MTLBuffer> ab; size_t o = arena_alloc(sizeof q[0] * (size_t)n, &ab); memcpy((uint8_t *)ab.contents + o, q, sizeof q[0] * (size_t)n);
+-    return ab.gpuAddress + o;
++    // arena_new snapshots both addresses from the same buffer retained by this segment.
++    const size_t length = sizeof q[0] * (size_t)n;
++    id<MTLBuffer> ab;
++    size_t offset = arena_alloc(length, &ab);
++    memcpy(g_cur_arena->cpu + offset, q, length);
++    return g_cur_arena->gpu + offset;
+ }
+ // Binds the table the variant reads to RED_SLOT (fragment or compute; Metal 3's DmTable3 and Metal 4's argument table take it the same way, enc_r_args / enc_c_args): an entry (nvn_se_ent,
+ //   64 bytes) per sampler member at its argument id, filled for each sampler of this draw that needs emulation (nvn_red_entry; a custom border also gets the sampler's transparent black /

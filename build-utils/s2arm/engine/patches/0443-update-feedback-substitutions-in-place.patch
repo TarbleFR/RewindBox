@@ -1,0 +1,47 @@
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -23812,15 +23812,37 @@
+ static void fb_prepare(NvProg *pr) {
+     fb_prepare_(pr);
+     if (!rb_fb_dirty_narrow_on()) return;
+-    rb_fb_subst cur; memset(&cur, 0, sizeof cur);
++
+     if (g_fb_n && g_fb_seq == g_draw_seq) {
+-        cur.n = g_fb_n < RB_FB_SUBST_MAX ? g_fb_n : RB_FB_SUBST_MAX;
+-        for (int q = 0; q < cur.n; q++) { cur.src[q] = (__bridge const void *)g_fb_src[q]; cur.use[q] = (__bridge const void *)g_fb_use[q]; cur.rid[q] = g_fb_rid[q]; }
++        int n = g_fb_n < RB_FB_SUBST_MAX ? g_fb_n : RB_FB_SUBST_MAX;
++        int same = g_rb_fb_prev.n == n;
+         g_rb_fb_draws++;
+-    }
+-    if (rb_fb_dirty_mask(1, &g_rb_fb_prev, &cur) & RB_FB_FRAGMENT_STAGE) { g_args_dirty[1] = 1; rb_args_mod_mark_other(&g_rb_mod[1]); g_rb_fb_marks++; }
+-    else if (cur.n) g_rb_fb_same++;
+-    g_rb_fb_prev = cur;
++        for (int q = 0; q < n; q++) {
++            const void *src = (__bridge const void *)g_fb_src[q];
++            const void *use = (__bridge const void *)g_fb_use[q];
++            uint64_t rid = g_fb_rid[q];
++            if (same && g_rb_fb_prev.src[q] == src && g_rb_fb_prev.use[q] == use &&
++                g_rb_fb_prev.rid[q] == rid) continue;
++            same = 0;
++            g_rb_fb_prev.src[q] = src;
++            g_rb_fb_prev.use[q] = use;
++            g_rb_fb_prev.rid[q] = rid;
++        }
++        if (same) { g_rb_fb_same++; return; }
++        // A shorter substitution stops referring to the discarded entries.
++        for (int q = n; q < g_rb_fb_prev.n; q++) {
++            g_rb_fb_prev.src[q] = NULL;
++            g_rb_fb_prev.use[q] = NULL;
++            g_rb_fb_prev.rid[q] = 0;
++        }
++        g_rb_fb_prev.n = n;
++    } else {
++        if (!g_rb_fb_prev.n) return;
++        memset(&g_rb_fb_prev, 0, sizeof g_rb_fb_prev);
++    }
++    g_args_dirty[1] = 1;
++    rb_args_mod_mark_other(&g_rb_mod[1]);
++    g_rb_fb_marks++;
+ }
+ // ---------- Indirect draws Metal cannot take as they are ----------
+ // Quads and triangle fans (DrawArraysIndirect), and indexed quads / fans / 8-bit indices (DrawElementsIndirect). The {count, instances, first, ...} record is usually written by the GPU earlier

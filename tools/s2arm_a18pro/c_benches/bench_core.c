@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-// Autonomous Apple A18 Pro S2Arm benchmark suite (bench_core.c).
+// Portable S2Arm host benchmark suite (bench_core.c).
 // Exercises REAL S2Arm C sources and rule headers with 100% deterministic,
-// synthetic & homebrew-representative workloads (ZERO user logs or game files).
+// synthetic workloads. No device trace or guest game is required.
 //
 // Compile against any S2Arm source tree:
 //   clang -std=gnu11 -O2 -Wall -Wextra -Werror \
@@ -70,6 +70,22 @@ static inline uint64_t fnv1a_u64(uint64_t h, uint64_t v) {
     return (h ^ v) * 0x100000001b3ull;
 }
 
+// Fixed, nonperiodic texture bytes also distinguish 256-byte and 512-byte offsets.
+static uint32_t next_word(uint32_t *state) {
+    uint32_t x = *state;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    return *state = x;
+}
+
+static void fill_bytes(uint8_t *dst, size_t size, uint32_t seed) {
+    for (size_t i = 0; i < size; i++) {
+        if ((i & 3u) == 0) next_word(&seed);
+        dst[i] = (uint8_t)(seed >> ((i & 3u) * 8));
+    }
+}
+
 // ============================================================================
 // M01: Texture Deswizzle / Swizzle (REAL nvn_deswizzle.c + nvn_tex.c)
 // Tests both Switch 2 (nvn_gob_switch2=1) and Switch 1 (=0) GOB layouts across
@@ -127,23 +143,24 @@ static void run_m01_deswizzle(int verify_only) {
             uint8_t *ref = (uint8_t *)calloc(1, lin_sz + 64);
             uint8_t *rt = (uint8_t *)calloc(1, L.size + 64);
             assert(bl && lin && ref && rt);
-            for (size_t i = 0; i < L.size; i++) bl[i] = (uint8_t)((i * 131u + (unsigned)c * 37u + (unsigned)sw2 * 19u) & 0xffu);
+            fill_bytes(bl, L.size, 0x09567831u + (unsigned)c + (unsigned)sw2 * 4u);
 
             uint64_t expected = naive_deswizzle_hash(&cases[c].d, bl, ref, pitch);
+            assert(nvn_deswizzle(&cases[c].d, 0, 0, bl, lin, pitch) == 0);
+            assert(memcmp(lin, ref, lin_sz) == 0);
+            assert(nvn_swizzle(&cases[c].d, 0, 0, lin, pitch, rt) == 0);
+            memset(lin, 0, lin_sz);
+            assert(nvn_deswizzle(&cases[c].d, 0, 0, rt, lin, pitch) == 0);
+            assert(memcmp(lin, ref, lin_sz) == 0);
             double t0 = now_ms();
             for (int it = 0; it < cases[c].iters; it++) {
                 assert(nvn_deswizzle(&cases[c].d, 0, 0, bl, lin, pitch) == 0);
-                if (it == 0) {
-                    assert(memcmp(lin, ref, lin_sz) == 0);
-                    assert(nvn_swizzle(&cases[c].d, 0, 0, lin, pitch, rt) == 0);
-                    memset(lin, 0, lin_sz);
-                    assert(nvn_deswizzle(&cases[c].d, 0, 0, rt, lin, pitch) == 0);
-                    assert(memcmp(lin, ref, lin_sz) == 0);
-                }
                 total_bytes += (uint64_t)slices * rows * rb;
             }
-            elapsed += (now_ms() - t0);
-            hash = fnv1a_u64(hash, expected);
+            elapsed += now_ms() - t0;
+            uint64_t actual = fnv1a_bytes(0xcbf29ce484222325ull, lin, lin_sz);
+            assert(actual == expected);
+            hash = fnv1a_u64(hash, actual);
             free(bl);
             free(lin);
             free(ref);
@@ -152,7 +169,7 @@ static void run_m01_deswizzle(int verify_only) {
     }
     nvn_gob_switch2 = 1;
     double mb_s = elapsed > 0.0 ? ((double)total_bytes / (1024.0 * 1024.0)) / (elapsed / 1000.0) : 0.0;
-    printf("{\"module\":\"M01_deswizzle\",\"time_ms\":%.4f,\"bytes\":%llu,\"throughput_mbs\":%.2f,\"checksum\":\"%016llx\"}\n",
+    printf("{\"module\":\"M01_deswizzle\",\"time_ms\":%.4f,\"bytes\":%llu,\"throughput_mib_per_s\":%.2f,\"checksum\":\"%016llx\"}\n",
            elapsed, (unsigned long long)total_bytes, mb_s, (unsigned long long)hash);
 }
 
@@ -638,7 +655,7 @@ static void run_m04_args_ubo(int verify_only) {
 
 // ============================================================================
 // M05: TBDR Mid-Pass Cut Bandwidth + 2-Slot LRU Depth Snapshot Cache
-// Synthetic 100-pass open-world frame (MRT G-buffer + shadows + post-FX)
+// Synthetic 10-pass frame (MRT G-buffer + shadows + post-FX)
 // ============================================================================
 static void run_m05_tbdr_pass_cut(int verify_only) {
     const int frames = verify_only ? 10 : 300;
@@ -704,10 +721,10 @@ static void run_m05_tbdr_pass_cut(int verify_only) {
     }
     double elapsed = now_ms() - t0;
     double extra_mb_per_frame = (double)extra_dram_bytes / (1024.0 * 1024.0) / (double)frames;
-    double dsnap_mb_per_frame = (double)dsnap_bytes / (1024.0 * 1024.0) / (double)frames;
-    printf("{\"module\":\"M05_tbdr_pass_cut\",\"time_ms\":%.4f,\"mid_pass_splits\":%llu,\"extra_dram_mb_per_frame\":%.2f,\"dsnap_blits\":%llu,\"dsnap_mb_per_frame\":%.2f,\"checksum\":\"%016llx\"}\n",
+    double modeled_dsnap_mib_per_frame = (double)dsnap_bytes / (1024.0 * 1024.0) / (double)frames;
+    printf("{\"module\":\"M05_tbdr_pass_cut\",\"time_ms\":%.4f,\"mid_pass_splits\":%llu,\"modeled_store_load_mib_per_frame\":%.2f,\"dsnap_blits\":%llu,\"modeled_dsnap_mib_per_frame\":%.2f,\"checksum\":\"%016llx\"}\n",
            elapsed, (unsigned long long)mid_pass_splits, extra_mb_per_frame,
-           (unsigned long long)dsnap_blits, dsnap_mb_per_frame,
+           (unsigned long long)dsnap_blits, modeled_dsnap_mib_per_frame,
            (unsigned long long)(mid_pass_splits ^ dsnap_blits));
 }
 
@@ -718,8 +735,8 @@ static void run_m06_ubo_versions(int verify_only) {
     const int frames = verify_only ? 20 : 180;
     static rb_ub_versions ring;
     memset(&ring, 0, sizeof ring);
-    static uint8_t mem[64 * 4096];
-    for (size_t i = 0; i < sizeof mem; i++) mem[i] = (uint8_t)(i * 73u + 19u);
+    static _Alignas(4096) uint8_t mem[64 * 4096];
+    fill_bytes(mem, sizeof mem, 0x71ac90e5u);
     uint8_t out[4096], have[4096];
     uint64_t ok = 0, hash = 0xcbf29ce484222325ull;
     uint64_t fence = 1;
@@ -742,7 +759,12 @@ static void run_m06_ubo_versions(int verify_only) {
                 memset(have, 0, 512);
                 if (rb_ub_base(&ring, done, cur_f, lo, lo + 512, out, have)) {
                     ok++;
-                    hash = fnv1a_u64(hash, ((uint64_t)out[0] << 8) ^ out[255] ^ out[511]);
+                    if (verify_only) {
+                        hash = fnv1a_bytes(hash, out, 512);
+                        hash = fnv1a_bytes(hash, have, 512);
+                    } else {
+                        hash = fnv1a_u64(hash, ((uint64_t)out[0] << 8) ^ out[255] ^ out[511]);
+                    }
                 }
             }
         }
@@ -759,9 +781,12 @@ static void run_m06_ubo_versions(int verify_only) {
 static void run_m07_dirty_stripes(int verify_only) {
     const int iters = verify_only ? 10000 : 100000;
     const size_t pool_sz = 256u * 4096u; // 1 MiB (> RB_DIRTY_STRIPE_MIN_PAGES -> activates striped tracking!)
-    uint8_t *backing = (uint8_t *)calloc(1, pool_sz);
-    assert(backing != NULL);
+    void *aligned = NULL;
+    assert(posix_memalign(&aligned, nvn_dirty_page_size(), pool_sz) == 0);
+    uint8_t *backing = aligned;
+    memset(backing, 0, pool_sz);
     nvn_dirty_add_range(backing, pool_sz);
+    assert(nvn_dirty_tracked(backing, pool_sz));
     uint64_t stamp = nvn_dirty_now();
     const void *span = NULL;
     uint64_t hash = 0xcbf29ce484222325ull;

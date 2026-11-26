@@ -1,0 +1,15 @@
+forward.tsv intervalle nominal 96.72%
+UBOLEN 18.258 -> 13.854 ms -23.60% [-23.94%, -22.99%]
+SBSZ 47.271 -> 44.141 ms -6.20% [-6.81%, -5.65%]
+UBOLEN cache stable 12.022 -> 11.789 ms -1.71% [-5.84%, -0.29%]
+UBOLEN cache modifié 16.731 -> 15.239 ms -8.07% [-9.09%, -7.30%]
+reverse.tsv intervalle nominal 96.72%
+UBOLEN 18.527 -> 13.613 ms -23.85% [-25.27%, -23.12%]
+SBSZ 46.569 -> 42.594 ms -7.80% [-8.93%, -6.90%]
+UBOLEN cache stable 12.564 -> 11.490 ms -0.82% [-9.60%, +1.45%]
+UBOLEN cache modifié 16.729 -> 16.267 ms -6.83% [-7.52%, -3.77%]
+control.tsv intervalle nominal 96.72%
+UBOLEN 20.379 -> 19.765 ms -2.78% [-5.12%, -1.55%]
+SBSZ 51.579 -> 53.685 ms -0.82% [-2.87%, +1.00%]
+UBOLEN cache stable 13.757 -> 13.781 ms -0.27% [-5.64%, +2.42%]
+UBOLEN cache modifié 18.473 -> 18.484 ms -0.27% [-3.33%, +2.17%]

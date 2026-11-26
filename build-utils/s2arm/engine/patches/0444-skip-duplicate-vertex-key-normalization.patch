@@ -1,0 +1,13 @@
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -15861,7 +15861,9 @@
+     for (int i = 0; i < 8; i++) if (k->cfmt[i] || lmap) { k->blend[i] = S.blend[i]; k->blend[i].adv_mode = k->blend[i].adv_overlap = k->blend[i].adv_premul = k->blend[i].adv_normdst = 0; }
+     const nvn_refl *rf = &vs->rf;
+     for (int v = 0; v < rf->nv; v++) { int a = rf->v[v].nvn; if (a < 16 && a < S.nattr) { k->attr[a] = S.attr[a]; int st = S.attr[a].stream; if (st < 16) k->stream[st] = S.stream[st]; } }
+-    pso_key_norm(k, vs, fs, lmap);
++    // This fresh key contains only reflected inputs and their streams. Serialized
++    // keys still require vertex normalization when they are read back.
++    pso_norm_masks(k, -1, fs && fs->rf.color_known ? fs->rf.color_mask : -1, lmap);
+ }
+ // ---- Parallel precompile: pipelines met for the first time used to be compiled synchronously one by one on the submit thread; 9 misses in a row in one frame = 284 ms (heavy scene on a real device).
+ // Now: on the first pipeline miss in a submission, scan ahead once along the remaining commands (replaying state only, no drawing) and kick all the normal-pass pipelines that will also miss later to the background to compile in parallel;

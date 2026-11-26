@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "2.0",
   "baseline_ref": "0436",
   "runs": [
     {
@@ -7,8 +7,8 @@
       "label": "baseline_0436",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M01_deswizzle": {
           "baseline": {
@@ -54,7 +54,8 @@
                 "DLmw": 575504
               }
             }
-          }
+          },
+          "parity_status": "not compared (baseline only)"
         },
         "M02_hmap": {
           "baseline": {
@@ -99,7 +100,8 @@
                 "DLmw": 7230
               }
             }
-          }
+          },
+          "parity_status": "not compared (baseline only)"
         },
         "M03_pool_vbuf": {
           "baseline": {
@@ -147,7 +149,8 @@
                 "DLmw": 649
               }
             }
-          }
+          },
+          "parity_status": "not compared (baseline only)"
         },
         "M04_args_ubo": {
           "baseline": {
@@ -199,7 +202,8 @@
                 "DLmw": 269
               }
             }
-          }
+          },
+          "parity_status": "not compared (baseline only)"
         },
         "M05_tbdr_pass_cut": {
           "baseline": {
@@ -219,7 +223,8 @@
             "dsnap_blits": 300,
             "dsnap_mb_per_frame": 4.45,
             "checksum": "0000000000001d0c"
-          }
+          },
+          "parity_status": "not compared (baseline only)"
         },
         "M06_ubo_versions": {
           "baseline": {
@@ -236,7 +241,8 @@
             "time_ms": 8.0569,
             "reconstructions": 16200,
             "checksum": "3ae1f3ed97dfdd8d"
-          }
+          },
+          "parity_status": "not compared (baseline only)"
         },
         "M07_dirty_stripes": {
           "baseline": {
@@ -253,7 +259,8 @@
             "time_ms": 1.3769,
             "ops": 100000,
             "checksum": "b91c41e2263cca45"
-          }
+          },
+          "parity_status": "not compared (baseline only)"
         },
         "M08_pso_cold_warm": {
           "baseline": {
@@ -272,7 +279,8 @@
             "corrupt": 0,
             "unbounded": 0,
             "checksum": "7695ac66fc6507d5"
-          }
+          },
+          "parity_status": "not compared (baseline only)"
         },
         "M09_stream_pool_gpu": {
           "baseline": {
@@ -290,7 +298,8 @@
             "ops": 1000000,
             "hits": 250000,
             "checksum": "00000000000c9293"
-          }
+          },
+          "parity_status": "not compared (baseline only)"
         },
         "M10_frame_pacing_fi": {
           "baseline": {
@@ -309,17 +318,19 @@
             "primed": 3000,
             "toggles": 3000,
             "checksum": "c1615b3fc3b98f05"
-          }
+          },
+          "parity_status": "not compared (baseline only)"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T14:42:23.614117+00:00",
       "label": "iter01_0437_deswizzle_gob_tiled",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M01_deswizzle": {
           "baseline": {
@@ -380,25 +391,6 @@
                 "Dw": 53652477,
                 "D1mw": 745739,
                 "DLmw": 205123
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -112434845,
-                "delta_Ir_pct": -34.97,
-                "delta_D1_misses": -976374,
-                "delta_D1_pct": -32.84,
-                "delta_LL_misses": 86,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -18.5063,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -61.1427,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -423,38 +415,21 @@
                 "Dw": 53652481,
                 "D1mw": 745749,
                 "DLmw": 575704
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -112434775,
-                "delta_Ir_pct": -34.97,
-                "delta_D1_misses": -976383,
-                "delta_D1_pct": -32.84,
-                "delta_LL_misses": 188,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -18.4957,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -61.132,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T14:43:55.922296+00:00",
       "label": "iter01b_deswizzle_block_col",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M01_deswizzle": {
           "baseline": {
@@ -515,25 +490,6 @@
                 "Dw": 53649835,
                 "D1mw": 988613,
                 "DLmw": 205160
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -112309114,
-                "delta_Ir_pct": -34.93,
-                "delta_D1_misses": -641461,
-                "delta_D1_pct": -21.58,
-                "delta_LL_misses": 114,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -16.9805,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -59.5692,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -558,38 +514,21 @@
                 "Dw": 53649823,
                 "D1mw": 990812,
                 "DLmw": 578045
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -112309204,
-                "delta_Ir_pct": -34.93,
-                "delta_D1_misses": -638198,
-                "delta_D1_pct": -21.46,
-                "delta_LL_misses": 2525,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -16.7138,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -59.3026,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T14:45:20.214034+00:00",
       "label": "iter01c_deswizzle_unrolled_128b",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M01_deswizzle": {
           "baseline": {
@@ -650,25 +589,6 @@
                 "Dw": 53665203,
                 "D1mw": 745880,
                 "DLmw": 205124
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -112877137,
-                "delta_Ir_pct": -35.11,
-                "delta_D1_misses": -976585,
-                "delta_D1_pct": -32.85,
-                "delta_LL_misses": 87,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -18.5627,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -61.3668,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -693,38 +613,21 @@
                 "Dw": 53665201,
                 "D1mw": 745889,
                 "DLmw": 575714
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -112877181,
-                "delta_Ir_pct": -35.11,
-                "delta_D1_misses": -976553,
-                "delta_D1_pct": -32.84,
-                "delta_LL_misses": 199,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -18.5509,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -61.355,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T14:47:35.527992+00:00",
       "label": "iter02a_hmap_ilp4",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M02_hmap": {
           "baseline": {
@@ -783,25 +686,6 @@
                 "Dw": 1682566,
                 "D1mw": 9458,
                 "DLmw": 7595
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -2635038,
-                "delta_Ir_pct": -11.29,
-                "delta_D1_misses": 1502,
-                "delta_D1_pct": 0.63,
-                "delta_LL_misses": 39,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.3201,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -1.3194,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -826,38 +710,21 @@
                 "Dw": 1682558,
                 "D1mw": 11816,
                 "DLmw": 7595
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -2635158,
-                "delta_Ir_pct": -11.29,
-                "delta_D1_misses": -1968,
-                "delta_D1_pct": -0.5,
-                "delta_LL_misses": 39,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.3358,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -1.335,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T14:48:36.256864+00:00",
       "label": "iter02b_hmap_ilp4_inline_eq",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M02_hmap": {
           "baseline": {
@@ -916,25 +783,6 @@
                 "Dw": 1535011,
                 "D1mw": 9453,
                 "DLmw": 7594
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -483155,
-                "delta_Ir_pct": -2.07,
-                "delta_D1_misses": 1139,
-                "delta_D1_pct": 0.48,
-                "delta_LL_misses": 35,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.0519,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.2351,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -959,38 +807,21 @@
                 "Dw": 1535006,
                 "D1mw": 11796,
                 "DLmw": 7594
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -482998,
-                "delta_Ir_pct": -2.07,
-                "delta_D1_misses": -2170,
-                "delta_D1_pct": -0.55,
-                "delta_LL_misses": 35,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.0668,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.2499,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T14:49:24.042272+00:00",
       "label": "iter02c_hmap_wyhash128",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M02_hmap": {
           "baseline": {
@@ -1049,25 +880,6 @@
                 "Dw": 1937747,
                 "D1mw": 9477,
                 "DLmw": 7581
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -2341987,
-                "delta_Ir_pct": -10.03,
-                "delta_D1_misses": 2010,
-                "delta_D1_pct": 0.85,
-                "delta_LL_misses": 25,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.2825,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -1.1706,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -1092,38 +904,21 @@
                 "Dw": 1937749,
                 "D1mw": 11842,
                 "DLmw": 7581
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -2341748,
-                "delta_Ir_pct": -10.03,
-                "delta_D1_misses": -49,
-                "delta_D1_pct": -0.01,
-                "delta_LL_misses": 25,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.2917,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -1.1797,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T14:52:37.357998+00:00",
       "label": "iter02d_0438_pool_vbuf",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M03_pool_vbuf": {
           "baseline": {
@@ -1188,25 +983,6 @@
                 "Dw": 122548,
                 "D1mw": 666,
                 "DLmw": 652
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -853166,
-                "delta_Ir_pct": -52.58,
-                "delta_D1_misses": 6,
-                "delta_D1_pct": 0.38,
-                "delta_LL_misses": 4,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.1067,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.4302,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -1231,38 +1007,21 @@
                 "Dw": 122549,
                 "D1mw": 701,
                 "DLmw": 652
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -853157,
-                "delta_Ir_pct": -52.58,
-                "delta_D1_misses": -20,
-                "delta_D1_pct": -1.09,
-                "delta_LL_misses": 4,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.1068,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.4304,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T14:59:22.418867+00:00",
       "label": "iter03_0439_args_slot_gens_ubolen",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M04_args_ubo": {
           "baseline": {
@@ -1335,25 +1094,6 @@
                 "Dw": 442488,
                 "D1mw": 290,
                 "DLmw": 275
-              },
-              "a18pro_analytical": {
-                "delta_Ir": 344662,
-                "delta_Ir_pct": 11.7,
-                "delta_D1_misses": 10,
-                "delta_D1_pct": 0.86,
-                "delta_LL_misses": 2,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": 0.0435,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": 0.1742,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -1378,38 +1118,21 @@
                 "Dw": 442491,
                 "D1mw": 309,
                 "DLmw": 275
-              },
-              "a18pro_analytical": {
-                "delta_Ir": 344715,
-                "delta_Ir_pct": 11.7,
-                "delta_D1_misses": 19,
-                "delta_D1_pct": 1.41,
-                "delta_LL_misses": 2,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": 0.0436,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": 0.1743,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T15:01:10.647607+00:00",
       "label": "iter03b_0439_args_compact_summary",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M04_args_ubo": {
           "baseline": {
@@ -1482,25 +1205,6 @@
                 "Dw": 419979,
                 "D1mw": 290,
                 "DLmw": 275
-              },
-              "a18pro_analytical": {
-                "delta_Ir": 69869,
-                "delta_Ir_pct": 2.37,
-                "delta_D1_misses": 9,
-                "delta_D1_pct": 0.77,
-                "delta_LL_misses": 2,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": 0.009,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": 0.0355,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -1525,38 +1229,21 @@
                 "Dw": 419982,
                 "D1mw": 304,
                 "DLmw": 275
-              },
-              "a18pro_analytical": {
-                "delta_Ir": 69908,
-                "delta_Ir_pct": 2.37,
-                "delta_D1_misses": 12,
-                "delta_D1_pct": 0.89,
-                "delta_LL_misses": 2,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": 0.009,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": 0.0356,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T15:02:26.534362+00:00",
       "label": "iter03c_0439_args_single_ubo_fastpath",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M04_args_ubo": {
           "baseline": {
@@ -1629,25 +1316,6 @@
                 "Dw": 418088,
                 "D1mw": 290,
                 "DLmw": 275
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -80559,
-                "delta_Ir_pct": -2.73,
-                "delta_D1_misses": 9,
-                "delta_D1_pct": 0.77,
-                "delta_LL_misses": 2,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.0099,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.0404,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -1672,38 +1340,21 @@
                 "Dw": 418089,
                 "D1mw": 304,
                 "DLmw": 275
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -80531,
-                "delta_Ir_pct": -2.73,
-                "delta_D1_misses": 12,
-                "delta_D1_pct": 0.89,
-                "delta_LL_misses": 2,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.0099,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.0404,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T15:03:47.963303+00:00",
       "label": "iter04_0440_tbdr_pass_cut",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M05_tbdr_pass_cut": {
           "baseline": {
@@ -1768,25 +1419,6 @@
                 "Dw": 16250,
                 "D1mw": 265,
                 "DLmw": 259
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -44577,
-                "delta_Ir_pct": -7.61,
-                "delta_D1_misses": 6,
-                "delta_D1_pct": 0.53,
-                "delta_LL_misses": 0,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.0056,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.0225,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -1811,38 +1443,21 @@
                 "Dw": 16253,
                 "D1mw": 273,
                 "DLmw": 259
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -44541,
-                "delta_Ir_pct": -7.61,
-                "delta_D1_misses": 4,
-                "delta_D1_pct": 0.31,
-                "delta_LL_misses": 0,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.0056,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.0225,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "policy counters without rendering parity"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T15:06:35.310117+00:00",
       "label": "iter05_0441_ubo_versions",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M06_ubo_versions": {
           "baseline": {
@@ -1901,25 +1516,6 @@
                 "Dw": 3557556,
                 "D1mw": 28908,
                 "DLmw": 25258
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -504353,
-                "delta_Ir_pct": -4.2,
-                "delta_D1_misses": -1934,
-                "delta_D1_pct": -5.84,
-                "delta_LL_misses": 0,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.072,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.2633,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -1944,38 +1540,21 @@
                 "Dw": 3557555,
                 "D1mw": 28925,
                 "DLmw": 25258
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -504300,
-                "delta_Ir_pct": -4.2,
-                "delta_D1_misses": -2418,
-                "delta_D1_pct": -6.55,
-                "delta_LL_misses": 0,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.0742,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.2655,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T15:09:08.846346+00:00",
       "label": "iter05b_0441_ubo_versions_hot_cold",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M06_ubo_versions": {
           "baseline": {
@@ -2034,25 +1613,6 @@
                 "Dw": 3393188,
                 "D1mw": 28851,
                 "DLmw": 25259
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -1211716,
-                "delta_Ir_pct": -10.12,
-                "delta_D1_misses": -2002,
-                "delta_D1_pct": -6.04,
-                "delta_LL_misses": 1,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.1611,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.6206,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -2077,38 +1637,21 @@
                 "Dw": 3393185,
                 "D1mw": 28888,
                 "DLmw": 25259
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -1211737,
-                "delta_Ir_pct": -10.12,
-                "delta_D1_misses": -2870,
-                "delta_D1_pct": -7.77,
-                "delta_LL_misses": 1,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.165,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.6245,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T15:09:55.495019+00:00",
       "label": "iter05c_0441_ubo_versions_colocate_valid",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M06_ubo_versions": {
           "baseline": {
@@ -2167,25 +1710,6 @@
                 "Dw": 3393188,
                 "D1mw": 28785,
                 "DLmw": 25259
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -1211672,
-                "delta_Ir_pct": -10.12,
-                "delta_D1_misses": -2129,
-                "delta_D1_pct": -6.42,
-                "delta_LL_misses": 1,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.1617,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.6211,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -2210,38 +1734,21 @@
                 "Dw": 3393189,
                 "D1mw": 28808,
                 "DLmw": 25259
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -1211685,
-                "delta_Ir_pct": -10.12,
-                "delta_D1_misses": -3653,
-                "delta_D1_pct": -9.89,
-                "delta_LL_misses": 1,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.1685,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.628,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T15:11:27.821110+00:00",
       "label": "iter06_0442_dirty_128b_bitmask",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M07_dirty_stripes": {
           "baseline": {
@@ -2300,25 +1807,6 @@
                 "Dw": 313033,
                 "D1mw": 1602,
                 "DLmw": 1569
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -177898,
-                "delta_Ir_pct": -6.39,
-                "delta_D1_misses": 368,
-                "delta_D1_pct": 15.39,
-                "delta_LL_misses": 312,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": 0.0119,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.0555,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -2343,38 +1831,21 @@
                 "Dw": 313026,
                 "D1mw": 1610,
                 "DLmw": 1569
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -177453,
-                "delta_Ir_pct": -6.38,
-                "delta_D1_misses": 323,
-                "delta_D1_pct": 12.25,
-                "delta_LL_misses": 308,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": 0.0114,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.0559,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T15:12:34.296437+00:00",
       "label": "iter06b_0442_dirty_128b_range_compact_stripes",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M07_dirty_stripes": {
           "baseline": {
@@ -2433,25 +1904,6 @@
                 "Dw": 280238,
                 "D1mw": 1346,
                 "DLmw": 1313
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -260230,
-                "delta_Ir_pct": -9.35,
-                "delta_D1_misses": 55,
-                "delta_D1_pct": 2.3,
-                "delta_LL_misses": -2,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.0326,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.1313,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -2476,38 +1928,21 @@
                 "Dw": 280238,
                 "D1mw": 1354,
                 "DLmw": 1313
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -260242,
-                "delta_Ir_pct": -9.35,
-                "delta_D1_misses": 1,
-                "delta_D1_pct": 0.04,
-                "delta_LL_misses": -2,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.0329,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.1316,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T15:13:10.185566+00:00",
       "label": "iter06c_0442_dirty_hot64_pad128",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M07_dirty_stripes": {
           "baseline": {
@@ -2566,25 +2001,6 @@
                 "Dw": 280237,
                 "D1mw": 1344,
                 "DLmw": 1311
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -260264,
-                "delta_Ir_pct": -9.36,
-                "delta_D1_misses": 55,
-                "delta_D1_pct": 2.3,
-                "delta_LL_misses": -2,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.0327,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.1313,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -2609,38 +2025,21 @@
                 "Dw": 280237,
                 "D1mw": 1352,
                 "DLmw": 1311
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -260276,
-                "delta_Ir_pct": -9.36,
-                "delta_D1_misses": 2,
-                "delta_D1_pct": 0.08,
-                "delta_LL_misses": -2,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.0329,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.1316,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T15:14:17.530939+00:00",
       "label": "iter06d_0442_dirty_hot64_compact",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M07_dirty_stripes": {
           "baseline": {
@@ -2699,25 +2098,6 @@
                 "Dw": 272050,
                 "D1mw": 1275,
                 "DLmw": 1245
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -97105,
-                "delta_Ir_pct": -3.49,
-                "delta_D1_misses": -72,
-                "delta_D1_pct": -3.01,
-                "delta_LL_misses": -64,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.0192,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.056,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -2742,38 +2122,21 @@
                 "Dw": 272049,
                 "D1mw": 1288,
                 "DLmw": 1245
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -97762,
-                "delta_Ir_pct": -3.51,
-                "delta_D1_misses": -43,
-                "delta_D1_pct": -1.63,
-                "delta_LL_misses": -64,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.0192,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.0562,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T15:15:28.584581+00:00",
       "label": "iter06e_0442_dirty_blk0_bitmask",
       "runs_per_variant": 9,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M07_dirty_stripes": {
           "baseline": {
@@ -2832,25 +2195,6 @@
                 "Dw": 280237,
                 "D1mw": 1344,
                 "DLmw": 1311
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -570231,
-                "delta_Ir_pct": -20.5,
-                "delta_D1_misses": 55,
-                "delta_D1_pct": 2.3,
-                "delta_LL_misses": -2,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.0716,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.2878,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -2875,38 +2219,21 @@
                 "Dw": 280237,
                 "D1mw": 1352,
                 "DLmw": 1311
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -570272,
-                "delta_Ir_pct": -20.5,
-                "delta_D1_misses": 2,
-                "delta_D1_pct": 0.08,
-                "delta_LL_misses": -2,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -0.0718,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -0.2881,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
         }
-      }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
     },
     {
       "timestamp": "2026-11-26T15:23:54.659689+00:00",
       "label": "iter07_0443_tex_single_pass",
       "runs_per_variant": 7,
       "asan_ubsan_passed": true,
-      "bit_parity_verified": true,
-      "physical_device_status": "UNVERIFIED (host Linux x86-64 + A18 Pro Cachegrind geometry + analytical model)",
+      "bit_parity_verified": null,
+      "physical_device_status": "not measured; projections in original record withdrawn",
       "modules": {
         "M01_deswizzle": {
           "baseline": {
@@ -2967,25 +2294,6 @@
                 "Dw": 53656922,
                 "D1mw": 745705,
                 "DLmw": 205118
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -112199282,
-                "delta_Ir_pct": -34.9,
-                "delta_D1_misses": -976636,
-                "delta_D1_pct": -32.85,
-                "delta_LL_misses": 79,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -18.4786,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -61.0257,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             },
             "sawtooth": {
@@ -3010,34 +2318,1283 @@
                 "Dw": 53656925,
                 "D1mw": 745714,
                 "DLmw": 575700
-              },
-              "a18pro_analytical": {
-                "delta_Ir": -112199276,
-                "delta_Ir_pct": -34.9,
-                "delta_D1_misses": -976617,
-                "delta_D1_pct": -32.85,
-                "delta_LL_misses": 177,
-                "projections_ms_per_bench_unit": {
-                  "p_core_nominal": {
-                    "cpu_delta_ms_est": -18.4683,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  },
-                  "e_core_throttled": {
-                    "cpu_delta_ms_est": -61.0153,
-                    "gpu_bw_delta_ms_est": 0.0,
-                    "uncertainty_note": "±30% analytical model; unverified on physical iPhone"
-                  }
-                }
               }
             }
-          }
+          },
+          "parity_status": "historical short-workload checksum check; timed checksums unverified"
+        }
+      },
+      "review_status": "historical draft run, predates 2026-11-26 harness review; unavailable raw timing pairs and exact source manifest"
+    },
+    {
+      "schema_version": "2.0",
+      "timestamp": "2026-11-26T15:47:20.728351+00:00",
+      "label": "0436_vs_0441_portable_production_dependencies",
+      "host": {
+        "os": "Linux",
+        "arch": "x86_64",
+        "cpu_model": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+        "cpu_affinity": [
+          0
+        ],
+        "kernel": "6.8.0-1070-azure",
+        "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)"
+      },
+      "harness_sha256": {
+        "bench_core.c": "9d1a1489f26e889af7aa263d0dc3ef3e92fcbd844ec3f75b40e31e901c921c21",
+        "bench_suite.py": "e4b882259bbb750eb39be4390b2826fa254bddf294a2710f4ed30a790aab57b7"
+      },
+      "runs_per_variant": 6,
+      "sanitizer_workload": "short (--verify-only), engine environment overrides removed",
+      "timing": "CLOCK_MONOTONIC, milliseconds, same CPU, one warmup per binary, alternating order",
+      "cachegrind": {
+        "version": "valgrind-3.22.0",
+        "configurations": {
+          "large": [
+            "--I1=196608,6,128",
+            "--D1=131072,8,128",
+            "--LL=16777216,16,128"
+          ],
+          "small": [
+            "--I1=131072,4,128",
+            "--D1=65536,4,128",
+            "--LL=4194304,16,128"
+          ]
+        },
+        "scope": "one complete short host process per module and configuration"
+      },
+      "physical_device_status": "not measured",
+      "apple_performance_projection": "not calibrated; no estimate",
+      "order": [
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ]
+      ],
+      "variants": {
+        "baseline": {
+          "inputs_sha256": {
+            "graphics/nvn/gfx/nvn/include/nvn.h": "cd9bb1d2144e809e6afd4d7ba290f902df562db9f8ba88c276de1f8c07acf822",
+            "graphics/nvn/gfx/nvn/nvn_dirty.c": "173dfe8460492e774a293478b6b98655f7891a0816c85302ccff77acfcff0e89",
+            "graphics/nvn/gfx/nvn/nvn_dirty.h": "fac4aac875c9333326d5a056ca35a4c2269978094edcdd17f687de382e91798c",
+            "graphics/nvn/gfx/nvn/nvn_fi_rule.h": "cb1b55c33588c7a7d77956ff623a0e7f0435173150fc078c9ec46802c1a683be",
+            "graphics/nvn/gfx/nvn/nvn_fmt_info.h": "0377b25717f56c47ab2477ca7703a82810f69c6abc810dba59e6916cc5a5080a",
+            "graphics/nvn/gfx/nvn/nvn_hmap.h": "e90d8a1d828177daf0747c6cf52d1b134891ec309f14b7615fc2b3ed00de5583",
+            "graphics/nvn/gfx/nvn/nvn_refl.h": "fc89a715b0e30585a5da4217aaeb79c7c69df594f227c16abcd5c2150b238957",
+            "graphics/nvn/gfx/nvn/nvn_tex.c": "009a8d047ce7ef98a668e233bd4908cb41b7456a8f1a2ba28d95910decf6f6fd",
+            "graphics/nvn/gfx/nvn/nvn_tex.h": "82e005eebc375d852fc1c7765a206ecff1cd353dc6f574a1bb763a6e6258901c",
+            "graphics/nvn/gfx/nvn/rb_args_ubo.h": "4fa84f783d3519873e4f5b1997750905cf19fb2bbc44fbae0b60765d3b3443a8",
+            "graphics/nvn/gfx/nvn/rb_cache_warm_rule.h": "64f13a65e4451a906e733b6deea0b4d3b65bf3319bcfe413c4536ee23eba45dc",
+            "graphics/nvn/gfx/nvn/rb_draw_barriers.h": "39d9a35ed348100e8b07ad412e02e72beaa24a9c245f3125fc9806e017b0f65e",
+            "graphics/nvn/gfx/nvn/rb_dsnap_rule.h": "3734c935a949a81123c432dc49a6c3574b0c6587b6b3a57d77ad6a356e8d04d6",
+            "graphics/nvn/gfx/nvn/rb_fluid_pso_rule.h": "1e27c3ce61f4742183335836a56018e7986527b462c9b7f9fe473d4c78439062",
+            "graphics/nvn/gfx/nvn/rb_rt_cont.h": "5075f48a027a0d0c3450d33ab6ba48b47e2c665ad0df79b52c50adbcdf55a06c",
+            "graphics/nvn/gfx/nvn/rb_thermal_pacing.h": "6a312bde7fa5b719eede392f76050eec4406d2cd012512a849ac91f7e192c4b9",
+            "graphics/nvn/gfx/nvn/rb_treg_cand.h": "86ad72ffb930f5b4fa65af40f5973356e4a9199074eda4a206c5f20f7af6cdc7",
+            "graphics/nvn/gfx/nvn/rb_ubo_versions.h": "8319e31780a15f83fc62fe7977a9ce6cd65657ce506051d2d19e9e93adb9ac50",
+            "graphics/nvn/gfx/nvn/rb_view_scope.h": "70823bb31e390a36cdd8e4848746b7bcdcf1c457542c0d8ff1c69193cf8a89c9",
+            "graphics/nvn/gfx/tex/nvn_deswizzle.c": "fec18e99e09ffef9c1c6d632f8a2706f451ffb5bd5d9bf06a234f6ef849df2bd",
+            "graphics/nvn/gfx/tex/nvn_deswizzle.h": "d467e7b0952a0b6f1b129cc2d49f92af7592dbc6dec77e02fcb234af5af50c78",
+            "graphics/nvn/host/dm.h": "ba5828c6e76c867b2c55ac4b62187013e3c89c05bcefd370873ccd968d5d13ef",
+            "graphics/nvn/host/game_profile.h": "26ef6c5d24014858a8881bae8c813534ba284784afa4a5b48681811fb412b67a",
+            "graphics/nvn/host/game_tsv.h": "fb3c37243b35aac30921445e6f1e49e949fb0522fdb11bc3b656a58a32836fb8",
+            "harness/bench_core.c": "9d1a1489f26e889af7aa263d0dc3ef3e92fcbd844ec3f75b40e31e901c921c21",
+            "runtime/include/rb_heap.h": "a85e608125545fb8c9ce609dadfba2b073b1d05445366ad62ca857b4fa1162f7",
+            "runtime/include/s2a_native.h": "f4e8712ecd3cda237a64143f57f115dbec1f03f0024c810cf964279e0396c4ac",
+            "runtime/src/native.h": "fa5d26b8df742ae943268f9077237dce5b9a31c16cc933acffe3bb4b7e489cd4"
+          },
+          "compile_flags": [
+            "-std=gnu11",
+            "-O2",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-fno-pie"
+          ],
+          "include_paths": [
+            "graphics/nvn/gfx/nvn",
+            "graphics/nvn/gfx/nvn/include",
+            "graphics/nvn/gfx/tex",
+            "runtime/include"
+          ],
+          "link_flags": [
+            "-no-pie",
+            "-lm",
+            "-lpthread"
+          ],
+          "source_set_sha256": "e2b3537f22d9207a4cf6c8d2d6a7fc6c7b359d1887c2bfc25af4267fad734463",
+          "sanitizer_flags": [
+            "-fsanitize=address,undefined",
+            "-fno-sanitize-recover=all",
+            "-fno-omit-frame-pointer"
+          ],
+          "binary_sha256": "b24170a127579f70503ad766ab713d2aaf202c0f954c71c6753c0cd21f277996",
+          "sanitized_binary_sha256": "dca0d43e82b62da5c545bad53591484f73127aa18a3b1bf61c4d79694219b930"
+        },
+        "candidate": {
+          "inputs_sha256": {
+            "graphics/nvn/gfx/nvn/include/nvn.h": "cd9bb1d2144e809e6afd4d7ba290f902df562db9f8ba88c276de1f8c07acf822",
+            "graphics/nvn/gfx/nvn/nvn_dirty.c": "be4324b5089b32b1b027b832ffc4f1686b8cb1d3420acce1130d36752026831b",
+            "graphics/nvn/gfx/nvn/nvn_dirty.h": "fac4aac875c9333326d5a056ca35a4c2269978094edcdd17f687de382e91798c",
+            "graphics/nvn/gfx/nvn/nvn_fi_rule.h": "cb1b55c33588c7a7d77956ff623a0e7f0435173150fc078c9ec46802c1a683be",
+            "graphics/nvn/gfx/nvn/nvn_fmt_info.h": "0377b25717f56c47ab2477ca7703a82810f69c6abc810dba59e6916cc5a5080a",
+            "graphics/nvn/gfx/nvn/nvn_hmap.h": "e90d8a1d828177daf0747c6cf52d1b134891ec309f14b7615fc2b3ed00de5583",
+            "graphics/nvn/gfx/nvn/nvn_refl.h": "fc89a715b0e30585a5da4217aaeb79c7c69df594f227c16abcd5c2150b238957",
+            "graphics/nvn/gfx/nvn/nvn_tex.c": "47e1dea099cb90a1a99f68de411a6ab06413fbf24df77bf990130689f7c75f3f",
+            "graphics/nvn/gfx/nvn/nvn_tex.h": "511f6715cb4fb4196bb370f8effd4ba345288fd71dd6f4e63b02de31e993a58c",
+            "graphics/nvn/gfx/nvn/rb_args_ubo.h": "4fa84f783d3519873e4f5b1997750905cf19fb2bbc44fbae0b60765d3b3443a8",
+            "graphics/nvn/gfx/nvn/rb_cache_warm_rule.h": "64f13a65e4451a906e733b6deea0b4d3b65bf3319bcfe413c4536ee23eba45dc",
+            "graphics/nvn/gfx/nvn/rb_draw_barriers.h": "39d9a35ed348100e8b07ad412e02e72beaa24a9c245f3125fc9806e017b0f65e",
+            "graphics/nvn/gfx/nvn/rb_dsnap_rule.h": "3734c935a949a81123c432dc49a6c3574b0c6587b6b3a57d77ad6a356e8d04d6",
+            "graphics/nvn/gfx/nvn/rb_fluid_pso_rule.h": "1e27c3ce61f4742183335836a56018e7986527b462c9b7f9fe473d4c78439062",
+            "graphics/nvn/gfx/nvn/rb_rt_cont.h": "5075f48a027a0d0c3450d33ab6ba48b47e2c665ad0df79b52c50adbcdf55a06c",
+            "graphics/nvn/gfx/nvn/rb_thermal_pacing.h": "6a312bde7fa5b719eede392f76050eec4406d2cd012512a849ac91f7e192c4b9",
+            "graphics/nvn/gfx/nvn/rb_treg_cand.h": "86ad72ffb930f5b4fa65af40f5973356e4a9199074eda4a206c5f20f7af6cdc7",
+            "graphics/nvn/gfx/nvn/rb_ubo_versions.h": "0a02f3404ed38e0b7c95f648a56bca4ef609f4a3710c9e09d7d1736b8659113e",
+            "graphics/nvn/gfx/nvn/rb_view_scope.h": "70823bb31e390a36cdd8e4848746b7bcdcf1c457542c0d8ff1c69193cf8a89c9",
+            "graphics/nvn/gfx/tex/nvn_deswizzle.c": "1732949afd2627689cdd0b7469d5f031c9e2e59baf2e8ed28f239ead6fc2e923",
+            "graphics/nvn/gfx/tex/nvn_deswizzle.h": "e8691de5bb163efd8d0eb7c9a979904d563bd0c30d979dbee7763e94aa608f3b",
+            "graphics/nvn/host/dm.h": "ba5828c6e76c867b2c55ac4b62187013e3c89c05bcefd370873ccd968d5d13ef",
+            "graphics/nvn/host/game_profile.h": "26ef6c5d24014858a8881bae8c813534ba284784afa4a5b48681811fb412b67a",
+            "graphics/nvn/host/game_tsv.h": "fb3c37243b35aac30921445e6f1e49e949fb0522fdb11bc3b656a58a32836fb8",
+            "harness/bench_core.c": "9d1a1489f26e889af7aa263d0dc3ef3e92fcbd844ec3f75b40e31e901c921c21",
+            "runtime/include/rb_heap.h": "a85e608125545fb8c9ce609dadfba2b073b1d05445366ad62ca857b4fa1162f7",
+            "runtime/include/s2a_native.h": "f4e8712ecd3cda237a64143f57f115dbec1f03f0024c810cf964279e0396c4ac",
+            "runtime/src/native.h": "fa5d26b8df742ae943268f9077237dce5b9a31c16cc933acffe3bb4b7e489cd4"
+          },
+          "compile_flags": [
+            "-std=gnu11",
+            "-O2",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-fno-pie"
+          ],
+          "include_paths": [
+            "graphics/nvn/gfx/nvn",
+            "graphics/nvn/gfx/nvn/include",
+            "graphics/nvn/gfx/tex",
+            "runtime/include"
+          ],
+          "link_flags": [
+            "-no-pie",
+            "-lm",
+            "-lpthread"
+          ],
+          "source_set_sha256": "1f6021178eb4a9260b120b10badc54a864cbdd2e358a74cbf26fb4991cb57a63",
+          "sanitizer_flags": [
+            "-fsanitize=address,undefined",
+            "-fno-sanitize-recover=all",
+            "-fno-omit-frame-pointer"
+          ],
+          "binary_sha256": "a6cc472831fe9258ce0acb1ca34905bfdfb0f2f8b512f9e4a68ec95f85446a18",
+          "sanitized_binary_sha256": "ee5e906e891641cf3b98d34d890c0310c5df79f658bd0fc576cf8fce42e6a88b"
+        }
+      },
+      "modules": {
+        "M01": {
+          "scope": "production texture layout and CPU deswizzle; round-trip and byte reference",
+          "variants": {
+            "baseline": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "6733b78d2852b972",
+              "timed_checksum": "6733b78d2852b972",
+              "raw_ms": [
+                22.7363,
+                21.6148,
+                23.1189,
+                21.7937,
+                22.3873,
+                21.4853
+              ],
+              "workload_counters": {
+                "bytes": 88081152
+              },
+              "median_ms": 22.0905
+            },
+            "candidate": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "6733b78d2852b972",
+              "timed_checksum": "6733b78d2852b972",
+              "raw_ms": [
+                7.9048,
+                7.9958,
+                8.0787,
+                7.2845,
+                7.4108,
+                7.5931
+              ],
+              "workload_counters": {
+                "bytes": 88081152
+              },
+              "median_ms": 7.74895
+            }
+          },
+          "cachegrind": {
+            "large": {
+              "baseline": {
+                "Ir": 531676734,
+                "I1mr": 1055,
+                "ILmr": 1055,
+                "Dr": 67131369,
+                "D1mr": 2477644,
+                "DLmr": 1583,
+                "Dw": 60295644,
+                "D1mw": 1148571,
+                "DLmw": 173414
+              },
+              "candidate": {
+                "Ir": 392753629,
+                "I1mr": 1086,
+                "ILmr": 1086,
+                "Dr": 53455549,
+                "D1mr": 1457395,
+                "DLmr": 1620,
+                "Dw": 54398133,
+                "D1mw": 837943,
+                "DLmw": 173469
+              }
+            },
+            "small": {
+              "baseline": {
+                "Ir": 531676735,
+                "I1mr": 1057,
+                "ILmr": 1057,
+                "Dr": 67131375,
+                "D1mr": 2477840,
+                "DLmr": 714563,
+                "Dw": 60295646,
+                "D1mw": 1148586,
+                "DLmw": 648666
+              },
+              "candidate": {
+                "Ir": 392753570,
+                "I1mr": 1088,
+                "ILmr": 1088,
+                "Dr": 53455534,
+                "D1mr": 1457616,
+                "DLmr": 714591,
+                "Dw": 54398129,
+                "D1mw": 837950,
+                "DLmw": 648860
+              }
+            }
+          },
+          "parity": "matching short and timed workload checksums",
+          "checksums_match": true,
+          "paired_percent_change": [
+            -65.2327,
+            -63.0078,
+            -65.0559,
+            -66.5752,
+            -66.8973,
+            -64.6591
+          ],
+          "paired_median_percent_change": -65.14429999999999
+        },
+        "M02": {
+          "scope": "production hash table; synthetic keys and lookup digest",
+          "variants": {
+            "baseline": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "0000000015f713f0",
+              "timed_checksum": "00000000dba62b60",
+              "raw_ms": [
+                34.2847,
+                35.3667,
+                34.4334,
+                34.5784,
+                33.8517,
+                33.86
+              ],
+              "workload_counters": {
+                "ops": 1400000
+              },
+              "median_ms": 34.359049999999996
+            },
+            "candidate": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "0000000015f713f0",
+              "timed_checksum": "00000000dba62b60",
+              "raw_ms": [
+                35.0672,
+                35.1917,
+                34.5954,
+                34.5487,
+                34.2224,
+                33.6735
+              ],
+              "workload_counters": {
+                "ops": 1400000
+              },
+              "median_ms": 34.57205
+            }
+          },
+          "cachegrind": {
+            "large": {
+              "baseline": {
+                "Ir": 23337868,
+                "I1mr": 1027,
+                "ILmr": 1026,
+                "Dr": 4959669,
+                "D1mr": 227704,
+                "DLmr": 1728,
+                "Dw": 1629211,
+                "D1mw": 9099,
+                "DLmw": 7235
+              },
+              "candidate": {
+                "Ir": 23338124,
+                "I1mr": 1029,
+                "ILmr": 1029,
+                "Dr": 4959729,
+                "D1mr": 228031,
+                "DLmr": 1728,
+                "Dw": 1629252,
+                "D1mw": 9097,
+                "DLmw": 7235
+              }
+            },
+            "small": {
+              "baseline": {
+                "Ir": 23338131,
+                "I1mr": 1033,
+                "ILmr": 1030,
+                "Dr": 4959732,
+                "D1mr": 382936,
+                "DLmr": 1728,
+                "Dw": 1629257,
+                "D1mw": 11471,
+                "DLmw": 7235
+              },
+              "candidate": {
+                "Ir": 23338163,
+                "I1mr": 1034,
+                "ILmr": 1031,
+                "Dr": 4959739,
+                "D1mr": 383061,
+                "DLmr": 1728,
+                "Dw": 1629254,
+                "D1mw": 11456,
+                "DLmw": 7235
+              }
+            }
+          },
+          "parity": "matching short and timed workload checksums",
+          "checksums_match": true,
+          "paired_percent_change": [
+            2.2824,
+            -0.4948,
+            0.4705,
+            -0.0859,
+            1.0951,
+            -0.5508
+          ],
+          "paired_median_percent_change": 0.19229999999999997
+        },
+        "M03": {
+          "scope": "pool/vertex binding model with optional production rule header",
+          "variants": {
+            "baseline": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "11e39f9c12e800a5",
+              "timed_checksum": "5512011205eb7e25",
+              "raw_ms": [
+                1.8335,
+                0.9955,
+                0.9958,
+                1.21,
+                1.4834,
+                0.9768
+              ],
+              "workload_counters": {
+                "draws": 60000,
+                "slot_checks": 960000,
+                "table_writes": 15001,
+                "pc_misses": 4
+              },
+              "median_ms": 1.1029
+            },
+            "candidate": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "11e39f9c12e800a5",
+              "timed_checksum": "5512011205eb7e25",
+              "raw_ms": [
+                0.9717,
+                0.9627,
+                0.969,
+                0.9836,
+                1.7693,
+                0.9589
+              ],
+              "workload_counters": {
+                "draws": 60000,
+                "slot_checks": 960000,
+                "table_writes": 15001,
+                "pc_misses": 4
+              },
+              "median_ms": 0.97035
+            }
+          },
+          "cachegrind": {
+            "large": {
+              "baseline": {
+                "Ir": 1608799,
+                "I1mr": 951,
+                "ILmr": 951,
+                "Dr": 272707,
+                "D1mr": 883,
+                "DLmr": 831,
+                "Dw": 74598,
+                "D1mw": 667,
+                "DLmw": 653
+              },
+              "candidate": {
+                "Ir": 1632571,
+                "I1mr": 945,
+                "ILmr": 945,
+                "Dr": 272662,
+                "D1mr": 878,
+                "DLmr": 827,
+                "Dw": 74589,
+                "D1mw": 667,
+                "DLmw": 653
+              }
+            },
+            "small": {
+              "baseline": {
+                "Ir": 1608551,
+                "I1mr": 945,
+                "ILmr": 944,
+                "Dr": 272652,
+                "D1mr": 1109,
+                "DLmr": 827,
+                "Dw": 74590,
+                "D1mw": 703,
+                "DLmw": 653
+              },
+              "candidate": {
+                "Ir": 1632565,
+                "I1mr": 945,
+                "ILmr": 944,
+                "Dr": 272660,
+                "D1mr": 1105,
+                "DLmr": 827,
+                "Dw": 74589,
+                "D1mw": 704,
+                "DLmw": 653
+              }
+            }
+          },
+          "parity": "matching short and timed workload checksums",
+          "checksums_match": true,
+          "paired_percent_change": [
+            -47.003,
+            -3.2948,
+            -2.6913,
+            -18.7107,
+            19.2733,
+            -1.8325
+          ],
+          "paired_median_percent_change": -2.99305
+        },
+        "M04": {
+          "scope": "argument block model with production rule header; compares all slots to full rebuild",
+          "variants": {
+            "baseline": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "841dff9e40bc4265",
+              "timed_checksum": "7c749894c40bd6a5",
+              "raw_ms": [
+                2.0688,
+                2.0712,
+                2.2825,
+                2.3826,
+                3.1499,
+                2.8501
+              ],
+              "workload_counters": {
+                "reused": 12800,
+                "partial": 6400,
+                "full": 28800,
+                "ubo_lookups": 188800,
+                "tex_lookups": 28800,
+                "len_fill_scans": 35200,
+                "rmu_locks": 4800,
+                "wrong": 0
+              },
+              "median_ms": 2.3325500000000003
+            },
+            "candidate": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "841dff9e40bc4265",
+              "timed_checksum": "7c749894c40bd6a5",
+              "raw_ms": [
+                2.2017,
+                2.1774,
+                2.7278,
+                1.9821,
+                2.4381,
+                2.899
+              ],
+              "workload_counters": {
+                "reused": 12800,
+                "partial": 6400,
+                "full": 28800,
+                "ubo_lookups": 188800,
+                "tex_lookups": 28800,
+                "len_fill_scans": 35200,
+                "rmu_locks": 4800,
+                "wrong": 0
+              },
+              "median_ms": 2.3199
+            }
+          },
+          "cachegrind": {
+            "large": {
+              "baseline": {
+                "Ir": 2939660,
+                "I1mr": 983,
+                "ILmr": 983,
+                "Dr": 646490,
+                "D1mr": 865,
+                "DLmr": 836,
+                "Dw": 376554,
+                "D1mw": 279,
+                "DLmw": 274
+              },
+              "candidate": {
+                "Ir": 2930592,
+                "I1mr": 984,
+                "ILmr": 984,
+                "Dr": 629626,
+                "D1mr": 867,
+                "DLmr": 837,
+                "Dw": 369516,
+                "D1mw": 278,
+                "DLmw": 273
+              }
+            },
+            "small": {
+              "baseline": {
+                "Ir": 2939660,
+                "I1mr": 987,
+                "ILmr": 983,
+                "Dr": 646491,
+                "D1mr": 1035,
+                "DLmr": 836,
+                "Dw": 376553,
+                "D1mw": 294,
+                "DLmw": 274
+              },
+              "candidate": {
+                "Ir": 2930535,
+                "I1mr": 989,
+                "ILmr": 985,
+                "Dr": 629612,
+                "D1mr": 1040,
+                "DLmr": 837,
+                "Dw": 369508,
+                "D1mw": 293,
+                "DLmw": 273
+              }
+            }
+          },
+          "parity": "matching short and timed workload checksums",
+          "checksums_match": true,
+          "paired_percent_change": [
+            6.424,
+            5.1275,
+            19.5093,
+            -16.8094,
+            -22.5975,
+            1.7157
+          ],
+          "paired_median_percent_change": 3.4216
+        },
+        "M05": {
+          "scope": "pass-cut and snapshot decision model; calculated attachment bytes, no GPU",
+          "variants": {
+            "baseline": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "00000000000000fa",
+              "timed_checksum": "0000000000001d0c",
+              "raw_ms": [
+                0.6042,
+                0.631,
+                0.6157,
+                0.6184,
+                0.6206,
+                0.6042
+              ],
+              "workload_counters": {
+                "mid_pass_splits": 7200,
+                "modeled_store_load_mib_per_frame": 1048.0,
+                "dsnap_blits": 300,
+                "modeled_dsnap_mib_per_frame": 4.45
+              },
+              "median_ms": 0.61705
+            },
+            "candidate": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "00000000000000fa",
+              "timed_checksum": "0000000000001d0c",
+              "raw_ms": [
+                0.7205,
+                0.5972,
+                0.597,
+                0.6924,
+                0.6669,
+                1.4977
+              ],
+              "workload_counters": {
+                "mid_pass_splits": 7200,
+                "modeled_store_load_mib_per_frame": 1048.0,
+                "dsnap_blits": 300,
+                "modeled_dsnap_mib_per_frame": 4.45
+              },
+              "median_ms": 0.6796500000000001
+            }
+          },
+          "cachegrind": {
+            "large": {
+              "baseline": {
+                "Ir": 579001,
+                "I1mr": 968,
+                "ILmr": 968,
+                "Dr": 50043,
+                "D1mr": 861,
+                "DLmr": 831,
+                "Dw": 16027,
+                "D1mw": 262,
+                "DLmw": 258
+              },
+              "candidate": {
+                "Ir": 579056,
+                "I1mr": 969,
+                "ILmr": 969,
+                "Dr": 50059,
+                "D1mr": 862,
+                "DLmr": 831,
+                "Dw": 16027,
+                "D1mw": 261,
+                "DLmw": 257
+              }
+            },
+            "small": {
+              "baseline": {
+                "Ir": 579001,
+                "I1mr": 969,
+                "ILmr": 968,
+                "Dr": 50043,
+                "D1mr": 1020,
+                "DLmr": 831,
+                "Dw": 16027,
+                "D1mw": 270,
+                "DLmw": 258
+              },
+              "candidate": {
+                "Ir": 579030,
+                "I1mr": 970,
+                "ILmr": 969,
+                "Dr": 50052,
+                "D1mr": 1027,
+                "DLmr": 831,
+                "Dw": 16026,
+                "D1mw": 269,
+                "DLmw": 257
+              }
+            }
+          },
+          "parity": "policy counters only; no rendering comparison",
+          "checksums_match": true,
+          "paired_percent_change": [
+            19.2486,
+            -5.3566,
+            -3.0372,
+            11.9664,
+            7.4605,
+            147.8815
+          ],
+          "paired_median_percent_change": 9.71345
+        },
+        "M06": {
+          "scope": "production UBO reconstruction; complete byte and coverage digest in short workload",
+          "variants": {
+            "baseline": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "bb004b0c895ba4fa",
+              "timed_checksum": "9b4eb1b2d40b5f12",
+              "raw_ms": [
+                4.0443,
+                4.4924,
+                4.2984,
+                3.955,
+                4.1657,
+                5.7157
+              ],
+              "workload_counters": {
+                "reconstructions": 16200
+              },
+              "median_ms": 4.23205
+            },
+            "candidate": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "bb004b0c895ba4fa",
+              "timed_checksum": "9b4eb1b2d40b5f12",
+              "raw_ms": [
+                3.2292,
+                3.2966,
+                3.6551,
+                3.2401,
+                3.1936,
+                3.2236
+              ],
+              "workload_counters": {
+                "reconstructions": 16200
+              },
+              "median_ms": 3.2346500000000002
+            }
+          },
+          "cachegrind": {
+            "large": {
+              "baseline": {
+                "Ir": 18754434,
+                "I1mr": 993,
+                "ILmr": 993,
+                "Dr": 3101304,
+                "D1mr": 1793,
+                "DLmr": 838,
+                "Dw": 3610729,
+                "D1mw": 31303,
+                "DLmw": 25257
+              },
+              "candidate": {
+                "Ir": 17742832,
+                "I1mr": 990,
+                "ILmr": 990,
+                "Dr": 2732602,
+                "D1mr": 2114,
+                "DLmr": 838,
+                "Dw": 3495116,
+                "D1mw": 28272,
+                "DLmw": 25256
+              }
+            },
+            "small": {
+              "baseline": {
+                "Ir": 18754434,
+                "I1mr": 994,
+                "ILmr": 993,
+                "Dr": 3101304,
+                "D1mr": 2976,
+                "DLmr": 838,
+                "Dw": 3610729,
+                "D1mw": 31314,
+                "DLmw": 25257
+              },
+              "candidate": {
+                "Ir": 17742870,
+                "I1mr": 991,
+                "ILmr": 990,
+                "Dr": 2732619,
+                "D1mr": 3301,
+                "DLmr": 838,
+                "Dw": 3495119,
+                "D1mw": 28312,
+                "DLmw": 25256
+              }
+            }
+          },
+          "parity": "matching short and timed workload checksums",
+          "checksums_match": true,
+          "paired_percent_change": [
+            -20.1543,
+            -26.6183,
+            -14.966,
+            -18.0759,
+            -23.3358,
+            -43.601
+          ],
+          "paired_median_percent_change": -21.74505
+        },
+        "M07": {
+          "scope": "production dirty range lookup; single-thread read path, registered range without writes",
+          "variants": {
+            "baseline": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "64b3749475d55ab2",
+              "timed_checksum": "18d73c77180c05b0",
+              "raw_ms": [
+                1.2601,
+                1.2617,
+                1.2589,
+                1.2732,
+                1.262,
+                1.2637
+              ],
+              "workload_counters": {
+                "ops": 100000
+              },
+              "median_ms": 1.26185
+            },
+            "candidate": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "64b3749475d55ab2",
+              "timed_checksum": "18d73c77180c05b0",
+              "raw_ms": [
+                1.1016,
+                1.1014,
+                1.1241,
+                1.2022,
+                1.1007,
+                1.1117
+              ],
+              "workload_counters": {
+                "ops": 100000
+              },
+              "median_ms": 1.10665
+            }
+          },
+          "cachegrind": {
+            "large": {
+              "baseline": {
+                "Ir": 3678542,
+                "I1mr": 1037,
+                "ILmr": 1037,
+                "Dr": 512934,
+                "D1mr": 1145,
+                "DLmr": 856,
+                "Dw": 1328868,
+                "D1mw": 9547,
+                "DLmw": 9504
+              },
+              "candidate": {
+                "Ir": 3328902,
+                "I1mr": 1030,
+                "ILmr": 1030,
+                "Dr": 482982,
+                "D1mr": 1139,
+                "DLmr": 850,
+                "Dw": 1328861,
+                "D1mw": 9546,
+                "DLmw": 9504
+              }
+            },
+            "small": {
+              "baseline": {
+                "Ir": 3678539,
+                "I1mr": 1040,
+                "ILmr": 1036,
+                "Dr": 512933,
+                "D1mr": 1347,
+                "DLmr": 856,
+                "Dw": 1328868,
+                "D1mw": 9557,
+                "DLmw": 9504
+              },
+              "candidate": {
+                "Ir": 3328902,
+                "I1mr": 1035,
+                "ILmr": 1030,
+                "Dr": 482982,
+                "D1mr": 1351,
+                "DLmr": 850,
+                "Dw": 1328861,
+                "D1mw": 9556,
+                "DLmw": 9504
+              }
+            }
+          },
+          "parity": "matching short and timed workload checksums",
+          "checksums_match": true,
+          "paired_percent_change": [
+            -12.5784,
+            -12.7051,
+            -10.7078,
+            -5.5765,
+            -12.7813,
+            -12.0282
+          ],
+          "paired_median_percent_change": -12.3033
+        },
+        "M08": {
+          "scope": "production pipeline and cache decisions with fixed inputs; no compilation or disk I/O",
+          "variants": {
+            "baseline": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "679bc8d550e86701",
+              "timed_checksum": "7695ac66fc6507d5",
+              "raw_ms": [
+                0.0115,
+                0.0115,
+                0.0115,
+                0.0115,
+                0.0115,
+                0.0115
+              ],
+              "workload_counters": {
+                "ops": 40000,
+                "corrupt": 0,
+                "unbounded": 0
+              },
+              "median_ms": 0.0115
+            },
+            "candidate": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "679bc8d550e86701",
+              "timed_checksum": "7695ac66fc6507d5",
+              "raw_ms": [
+                0.0115,
+                0.0115,
+                0.0115,
+                0.0115,
+                0.0115,
+                0.0115
+              ],
+              "workload_counters": {
+                "ops": 40000,
+                "corrupt": 0,
+                "unbounded": 0
+              },
+              "median_ms": 0.0115
+            }
+          },
+          "cachegrind": {
+            "large": {
+              "baseline": {
+                "Ir": 210993,
+                "I1mr": 934,
+                "ILmr": 934,
+                "Dr": 48774,
+                "D1mr": 854,
+                "DLmr": 825,
+                "Dw": 15407,
+                "D1mw": 259,
+                "DLmw": 255
+              },
+              "candidate": {
+                "Ir": 211019,
+                "I1mr": 935,
+                "ILmr": 935,
+                "Dr": 48783,
+                "D1mr": 855,
+                "DLmr": 825,
+                "Dw": 15406,
+                "D1mw": 259,
+                "DLmw": 255
+              }
+            },
+            "small": {
+              "baseline": {
+                "Ir": 210993,
+                "I1mr": 935,
+                "ILmr": 934,
+                "Dr": 48774,
+                "D1mr": 1013,
+                "DLmr": 825,
+                "Dw": 15407,
+                "D1mw": 267,
+                "DLmw": 255
+              },
+              "candidate": {
+                "Ir": 211039,
+                "I1mr": 937,
+                "ILmr": 936,
+                "Dr": 48788,
+                "D1mr": 1018,
+                "DLmr": 825,
+                "Dw": 15407,
+                "D1mw": 267,
+                "DLmw": 255
+              }
+            }
+          },
+          "parity": "matching short and timed workload checksums",
+          "checksums_match": true,
+          "paired_percent_change": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "paired_median_percent_change": 0.0
+        },
+        "M09": {
+          "scope": "production texture candidate predicates; does not upload textures",
+          "variants": {
+            "baseline": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "000000000000f399",
+              "timed_checksum": "00000000000c9293",
+              "raw_ms": [
+                0.614,
+                0.5892,
+                0.5842,
+                0.6108,
+                0.6162,
+                0.5974
+              ],
+              "workload_counters": {
+                "ops": 1000000,
+                "hits": 250000
+              },
+              "median_ms": 0.6041000000000001
+            },
+            "candidate": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "000000000000f399",
+              "timed_checksum": "00000000000c9293",
+              "raw_ms": [
+                0.5836,
+                0.5907,
+                0.5802,
+                0.6004,
+                0.6267,
+                0.5729
+              ],
+              "workload_counters": {
+                "ops": 1000000,
+                "hits": 250000
+              },
+              "median_ms": 0.5871500000000001
+            }
+          },
+          "cachegrind": {
+            "large": {
+              "baseline": {
+                "Ir": 871809,
+                "I1mr": 936,
+                "ILmr": 936,
+                "Dr": 150001,
+                "D1mr": 976,
+                "DLmr": 826,
+                "Dw": 196576,
+                "D1mw": 1306,
+                "DLmw": 1280
+              },
+              "candidate": {
+                "Ir": 872113,
+                "I1mr": 939,
+                "ILmr": 939,
+                "Dr": 150271,
+                "D1mr": 976,
+                "DLmr": 826,
+                "Dw": 196576,
+                "D1mw": 1305,
+                "DLmw": 1280
+              }
+            },
+            "small": {
+              "baseline": {
+                "Ir": 871820,
+                "I1mr": 938,
+                "ILmr": 937,
+                "Dr": 150003,
+                "D1mr": 1112,
+                "DLmr": 826,
+                "Dw": 196577,
+                "D1mw": 1312,
+                "DLmw": 1280
+              },
+              "candidate": {
+                "Ir": 872075,
+                "I1mr": 938,
+                "ILmr": 937,
+                "Dr": 150260,
+                "D1mr": 1120,
+                "DLmr": 826,
+                "Dw": 196575,
+                "D1mw": 1311,
+                "DLmw": 1280
+              }
+            }
+          },
+          "parity": "matching short and timed workload checksums",
+          "checksums_match": true,
+          "paired_percent_change": [
+            -4.9511,
+            0.2546,
+            -0.6847,
+            -1.7027,
+            1.704,
+            -4.1011
+          ],
+          "paired_median_percent_change": -1.1937
+        },
+        "M10": {
+          "scope": "production interpolation/pacing decision rules; no MetalFX or presented frames",
+          "variants": {
+            "baseline": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "e45b47ffe0532fc7",
+              "timed_checksum": "c1615b3fc3b98f05",
+              "raw_ms": [
+                0.2333,
+                0.2332,
+                0.2332,
+                0.2333,
+                0.2341,
+                0.2332
+              ],
+              "workload_counters": {
+                "frames": 90000,
+                "primed": 3000,
+                "toggles": 3000
+              },
+              "median_ms": 0.23325
+            },
+            "candidate": {
+              "sanitizer_short_workload": "passed",
+              "short_checksum": "e45b47ffe0532fc7",
+              "timed_checksum": "c1615b3fc3b98f05",
+              "raw_ms": [
+                0.2388,
+                0.2388,
+                0.238,
+                0.2388,
+                0.2525,
+                0.2378
+              ],
+              "workload_counters": {
+                "frames": 90000,
+                "primed": 3000,
+                "toggles": 3000
+              },
+              "median_ms": 0.2388
+            }
+          },
+          "cachegrind": {
+            "large": {
+              "baseline": {
+                "Ir": 249563,
+                "I1mr": 931,
+                "ILmr": 931,
+                "Dr": 49669,
+                "D1mr": 850,
+                "DLmr": 821,
+                "Dw": 16306,
+                "D1mw": 259,
+                "DLmw": 255
+              },
+              "candidate": {
+                "Ir": 247794,
+                "I1mr": 932,
+                "ILmr": 932,
+                "Dr": 48778,
+                "D1mr": 852,
+                "DLmr": 822,
+                "Dw": 15406,
+                "D1mw": 259,
+                "DLmw": 255
+              }
+            },
+            "small": {
+              "baseline": {
+                "Ir": 249563,
+                "I1mr": 932,
+                "ILmr": 931,
+                "Dr": 49669,
+                "D1mr": 1007,
+                "DLmr": 821,
+                "Dw": 16306,
+                "D1mw": 267,
+                "DLmw": 255
+              },
+              "candidate": {
+                "Ir": 247774,
+                "I1mr": 933,
+                "ILmr": 932,
+                "Dr": 48773,
+                "D1mr": 1015,
+                "DLmr": 822,
+                "Dw": 15405,
+                "D1mw": 267,
+                "DLmw": 255
+              }
+            }
+          },
+          "parity": "matching short and timed workload checksums",
+          "checksums_match": true,
+          "paired_percent_change": [
+            2.3575,
+            2.4014,
+            2.0583,
+            2.3575,
+            7.8599,
+            1.9726
+          ],
+          "paired_median_percent_change": 2.3575
         }
       }
     }
   ],
-  "accepted_optimizations": [],
-  "rejected_optimizations": [],
-  "remaining_bottlenecks": [],
-  "next_axis": ""
+  "accepted_optimizations": [
+    {
+      "patches": "0437–0440",
+      "basis": "Synthetic CPU byte equivalence plus paired CPU timings for texture transfer, UBO, dirty ranges and mip geometry."
+    },
+    {
+      "patches": "0441",
+      "basis": "Fidelity fix; restored exact FP32 shader source after a reproducible synthetic mismatch."
+    },
+    {
+      "patches": "0442–0444",
+      "basis": "Paired host comparisons with sanitizers and independent references. Results and scripts for bounds, feedback and pipelines in docs/evidence/s2arm-0437-review."
+    }
+  ],
+  "rejected_optimizations": [
+    "Draft address indexing changed alias eviction order and mesh slot ownership.",
+    "Draft argument reuse missed indirect UBO texture metadata changes.",
+    "Unmeasured pass split policy exposure.",
+    "Weaker atomics and growing dirty-range footprint.",
+    "Draft draw-state shortcut omitted projection reset.",
+    "FP16 motion matching changed the selected vector on synthetic blocks.",
+    "Two partial feedback shortcuts slowed changing substitutions.",
+    "Additional blend-state filtering slowed cold/warm pipeline table cases versus 0444."
+  ],
+  "remaining_bottlenecks": [
+    "Metal command queue overlap and last-use ownership on partial interpolation failure",
+    "First-use pipeline compilation and residency measured separately from CPU key construction",
+    "Per-frame cleanup of borrowed GPU resource tables, including memory traffic",
+    "Shader compilation and translation with legal homebrew workloads"
+  ],
+  "next_axis": "Check Frame Generation source lifetime when presentation 2 fails. Compare per-frame table clearing against the best measured version and preserve memory traffic; then measure cold Metal compilation from a synthetic scene.",
+  "legacy_note": "First 21 entries are original host summaries. Their draft patch numbers describe historical experiments; numbers may differ from integrated engine patches. Cachegrind counters are on x86. The uncalibrated projections were withdrawn. No legacy entry establishes fidelity, A18 Pro frametime, GPU time, energy, RAM or FPS.",
+  "initial_reference": "0426",
+  "intermediate_reference": "0436 (8be902ac0)",
+  "review_rule": {
+    "consecutive_rejections_at_0444": 1,
+    "definition": "One completed independent candidate with no measurable reproducible improvement after the most recently accepted change. Inconclusive repeats of the same candidate count once. Blend-state filtering was rejected after 0444.",
+    "audit_after": 20
+  },
+  "device_metrics": {
+    "native_fps": null,
+    "interpolated_fps": null,
+    "frame_time_p95_ms": null,
+    "average_power_W": null,
+    "physical_memory_peak": null
+  }
 }

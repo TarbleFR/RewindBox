@@ -1,6 +1,6 @@
-# S2Arm 0437–0441, contre-expertise et reprise du 26 novembre 2026
+# S2Arm 0437–0444, contre-expertise et reprise du 26 novembre 2026
 
-La référence moteur est 0436 au commit RewindBox `8be902ac0`. L’iPhone a exécuté la 845 en 0426. Le parcours Zelda du premier export atteint 24,0 présentations moteur/s sur 124,83 s. Le parcours filmé de Mario Kart World du second export atteint 49,28 avant capture et 34,42 pendant, avec la génération coupée. Les essais avec génération active contiennent des images interpolées confirmées avant la 844, sur la 844 et sur la 845. Les journaux ne permettent pas de quantifier une éventuelle régression à parcours identique. [Mesures physiques et définitions](../s2arm-0428/README.md)
+La référence de comparaison de cette série est le moteur 0436 au commit RewindBox `8be902ac0`. Les charges sont générées localement. Pour la comparaison avec le point de départ 0426, les résultats du banc d’uniformes figurent dans [les paires supplémentaires](uniform-0426-final.csv).
 
 ## Résultats des sources retenues
 
@@ -33,10 +33,31 @@ Les numéros des expériences antérieures à la reprise sont distincts de la s�
 - **0437 expérimental** formait un pointeur au-delà du dernier bloc à la sortie de certaines boucles. La série active le corrige. Deux noyaux plus compacts ont également été essayés sur les mêmes entrées, puis écartés après comparaison au meilleur intermédiaire.
 - **0438 expérimental** changeait le sous-ensemble évincé quand plus de 16 alias se recouvrent. Sur 17 alias, l’entrée survivante passe de 1 à 9. Une écriture du dessin mesh sur le slot Metal 29 pouvait aussi rester active pour le flux vertex 13 du dessin suivant.
 - **0439 expérimental** pouvait conserver une table de dimensions de texture après changement d’un handle indirect en UBO. Le contrôle existant de réutilisation partielle ne couvre pas toutes ces omissions. La sélection de textures par UBO est un cas de régression à vérifier pour toute future révision.
-- **0440 expérimental** retardait certaines soumissions en cours de passe. Sur une fenêtre de 300 présentations de Zelda 845, 2 418 des 2 584 coupes sont intra-passe. Le chemin concerné décide une coupe quand le compteur de segments GPU en vol est nul. Les seuls comptes de coupes ne suffisent pas pour prévoir le temps d’inactivité GPU ou le coût des stores Metal.
+- **0440 expérimental** retardait certaines soumissions en cours de passe. Le chemin concerné décide une coupe quand le compteur de segments GPU en vol est nul. Les seuls comptes de coupes ne suffisent pas pour prévoir le temps d’inactivité GPU ou le coût des stores Metal.
 - **0441 expérimental** fournit le changement retenu en 0438. **0442 expérimental** augmentait la taille des plages à 128 octets et affaiblissait certains ordres atomiques. La variante 0439 active conserve la représentation et les ordres d’origine. **0443 expérimental** fournit la géométrie de 0440. Son déroulage du contrôle de tuile vide ralentissait le cas où le premier octet est non nul, de 2,53 à 3,26 ms par million de tuiles, et a été retiré.
 - **0444 expérimental** omettait de restaurer viewport et scissor en quittant la projection élargie. Le corps extrait de la fonction produit des commandes différentes. Le correctif de laboratoire et ses traces synthétiques sont décrits dans les [notes de contre-expertise](drafts/notes.md). La propagation de toutes les invalidations dans le véritable encodeur reste à établir.
 
+## Tables de bornes, substitutions et clés des pipelines
+
+Les références sont le point de départ 0426, la série 0436 et les fonctions de 0441 avant chaque modification isolée. Les mesures ci-dessous utilisent Clang sur Linux x86-64. La valeur p95 porte sur un lot de travail CPU. Le coût de compilation Metal, l’image présentée et le délai de présentation sont des mesures distinctes.
+
+| Patch | Charge synthétique et exactitude | Résultat CPU |
+| --- | --- | --- |
+| 0442 | Tables de bornes des uniformes et des buffers de stockage. L’arène conserve déjà l’adresse CPU et GPU de chaque tampon. Vérification de l’adresse et des 256 octets à chaque appel, pour 8 192 appels avec rotations, adresses nulles, limites de capacité et longueurs extrêmes. | Sur 64 paires de 500 000 reconstructions d’uniformes, médiane des différences relatives de −23,6 % face aux fonctions précédentes et de −20,5 % face à 0426. Les ordres de compilation inversés confirment le sens. Le témoin A/A a un biais et le cas cache stable reste indécidable. [Comparaison sur 0441](bounds/results/summary.txt) et [paires sur 0426](bounds/results-0426/forward.tsv). |
+| 0443 | Actualiser en place les substitutions de textures de lecture du fragment. La comparaison couvre les identités source, destination et ressource, les six drapeaux d’invalidation, les compteurs et la sortie du chemin de substitution. Une empreinte porte sur tous les états intermédiaires de 200 000 transitions. | Pour 1 048 576 appels sans substitution, médianes 6,98 / 6,96 / 3,96 ms sur 0426 / 0436 / candidat. Avec quatre substitutions changeantes, 11,94 / 11,96 / 10,80 ms. Deux variantes intermédiaires pénalisaient ce cas. [26 paires par charge](feedback/three-source.csv). |
+| 0444 | La clé créée à zéro contient déjà les seuls attributs et flux lus par le vertex shader. Supprimer le second balayage pour une clé fraîche. Conserver la normalisation des clés persistées. Empreinte fixe sur 65 792 clés de 344 octets, comparaison des recherches, des ratés et des objets retournés. | À cache froid, la médiane du p95 par lot de 256 requêtes CPU est de 0,174 / 0,184 / 0,131 ms sur 0426 / 0436 / candidat. À chaud, 0,141 / 0,134 / 0,093 ms. Le filtrage supplémentaire des copies de mélange est écarté après ralentissement par rapport à 0444. [29 paires par charge](pipeline/three-source.csv) et [variante écartée](pipeline/blend-samples.csv). |
+
+Les sources du banc extraient les fonctions de chaque arbre préparé. Les index de `three-source.csv` correspondent dans l’ordre à 0426, 0436, puis au candidat. Les quatre colonnes d’identité du programme de pipelines et les sept paires de fixtures de commandes NVN sont entièrement synthétiques. Les sept paires buffer, clear, triangle, texture, profondeur, MRT et dispatch ont été régénérées à l’identique avec `CC=clang bash android/tests/replay_fixture/run_test.sh` et le convertisseur de textures du candidat. Cette dernière épreuve vérifie un format et des commandes attendues, sans exécution GPU.
+
+```sh
+python3 bounds/compare_ubolen.py /chemin/0441 /chemin/candidat resultats-bornes
+python3 bounds/report.py resultats-bornes/{forward,reverse,control}.tsv
+python3 feedback/replay.py /chemin/0426 /chemin/0436 /chemin/candidat --csv feedback.csv
+python3 pipeline/replay.py /chemin/0426 /chemin/0436 /chemin/candidat --csv pipeline.csv
+```
+
+Le [référentiel matériel autonome](../../../tools/s2arm_a18pro/referentiel_a18pro_autonome.json) relie chaque caractéristique aux publications d’Apple ou au résultat public identifié. Le [banc Linux](../../../tools/s2arm_a18pro/bench_suite.py) conserve les délais bruts et les compteurs Cachegrind, avec la portée de chaque module. Les paramètres A18 Pro insuffisamment documentés restent inconnus.
+
 ## État de reprise
 
-Les candidats modifient les copies de textures et la gestion des métadonnées CPU sans réduire la résolution de rendu, la qualité demandée ou l’horloge invitée. Les nouveaux FPS moteur et générés, le frametime, les pixels du jeu, la RAM réelle, la chauffe et la consommation attendent une mesure sur appareil. Les observations de la 845 ne démontrent ni 60 FPS stables sur Zelda ni une limite matérielle. Les pistes de soumission à GPU vide, de prélecture des pages de textures, d’encodage des arguments et de compilation en cours de partie restent ouvertes.
+Les candidats modifient les copies de textures et la gestion des métadonnées CPU sans réduire la résolution de rendu, la qualité demandée ou l’horloge invitée. Les nouveaux FPS moteur et générés, le frametime, les pixels du jeu, la RAM réelle, la chauffe et la consommation attendent une mesure sur appareil. Les pistes de soumission à GPU vide, de prélecture des pages de textures, d’encodage des arguments et de compilation en cours de partie restent ouvertes.

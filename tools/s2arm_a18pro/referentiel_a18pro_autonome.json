@@ -1,0 +1,84 @@
+{
+  "schema_version": 2,
+  "target": "iPhone 16 Pro Max · iPhone17,2 · Apple A18 Pro",
+  "reviewed_utc": "2026-11-26",
+  "scope": "Public specifications and a third-party public benchmark. S2Arm inputs are synthetic. Absolute game FPS, energy and sustainable throughput are uncalibrated.",
+  "sources": {
+    "chip": "https://www.apple.com/newsroom/2024/09/apple-debuts-iphone-16-pro-and-iphone-16-pro-max/",
+    "public_device_sample": "https://browser.geekbench.com/v6/cpu/12879581",
+    "gpu_families": "https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf",
+    "memory_modes": "https://developer.apple.com/documentation/metal/choosing-a-resource-storage-mode-for-apple-gpus",
+    "render_passes": "https://developer.apple.com/documentation/metal/tailor-your-apps-for-apple-gpus-and-tile-based-deferred-rendering",
+    "pressure": "https://developer.apple.com/documentation/os/os_proc_available_memory",
+    "thermal": "https://developer.apple.com/documentation/xcode/responding-to-power-notifications",
+    "ml": "https://developer.apple.com/documentation/coreml/mlcomputeunits"
+  },
+  "cpu": {
+    "performance_cores": 2,
+    "efficiency_cores": 4,
+    "source": "chip",
+    "isa_reported_by_public_device_sample": ["AArch64", "NEON", "AES", "SHA1", "SHA2", "NEON-FP16", "NEON-dotprod", "i8mm", "SME-i8i32", "SME-f32f32", "SME2"],
+    "dispatch_constraint": "Check build target and runtime availability before issuing optional instructions. A device report establishes neither OS state-management support in every context nor a throughput.",
+    "public_device_sample": {
+      "software": "Geekbench 6.4.0 for iOS AArch64",
+      "os": "iOS 18.6",
+      "uploaded": "2025-07-16",
+      "single_core_score": 3456,
+      "multi_core_score": 8555,
+      "reported_frequency_ghz": 4.04,
+      "reported_cache_fields": {"L1I_KB": 128, "L1D_KB": 64, "L2_MB": 4},
+      "cache_scope": "The report lists each field once and does not identify its CPU cluster. These values do not establish per-cluster geometries, associativity, latency, cache line size or the system-level cache.",
+      "source": "public_device_sample"
+    }
+  },
+  "memory": {
+    "model": "Shared backing memory, Metal shared/private/memoryless modes have distinct visibility and lifetimes.",
+    "source": "memory_modes",
+    "public_device_sample_reported_gb": 7.45,
+    "capacity_source": "public_device_sample",
+    "system_bandwidth_relative_to_previous_generation_percent": 17,
+    "relative_bandwidth_source": "chip",
+    "sustained_bandwidth_GB_s": null,
+    "allocation_headroom": "iOS process headroom varies. Query os_proc_available_memory where available. Track resource peaks, allocator reuse and process footprint separately.",
+    "headroom_source": "pressure"
+  },
+  "gpu": {
+    "cores": 6,
+    "count_source": "chip",
+    "metal_family": "Apple9",
+    "metal_versions_listed": [3, 4],
+    "family_source": "gpu_families",
+    "renderer": "tile-based deferred rendering",
+    "renderer_source": "render_passes",
+    "constraints": [
+      "Check device support for the specific feature and OS API before choosing a path.",
+      "Count live attachment data across pass boundaries. Logical bytes precede on-chip retention and compression; exact DRAM traffic is unknown.",
+      "Derive SIMD execution width and threadgroup limits from the device and pipeline.",
+      "Test vectorized, FP16 and SIMD changes against bit-exact synthetic results before retaining them."
+    ]
+  },
+  "neural_engine": {
+    "cores": 16,
+    "source": "chip",
+    "execution": "Core ML can allow the OS to select available compute units, including the Neural Engine. There is no established S2Arm draw-to-ANE mapping; benchmark a specific model and output equivalence before assigning any benefit.",
+    "runtime_source": "ml"
+  },
+  "ios": {
+    "thermal_states": ["nominal", "fair", "serious", "critical"],
+    "thermal_source": "thermal",
+    "unknowns": ["power in watts", "clock residency per cluster", "thermal transition timing", "sustainable GPU clock", "shader compiler contention", "dynamic process memory limit"],
+    "proxy_metrics": ["bytes allocated and copied", "peak live resource bytes", "lock acquisitions and waits", "host CPU time", "work queued per submit"],
+    "physical_metrics": {"native_fps": null, "generated_fps": null, "frame_time_ms": null, "gpu_time_ms": null, "power_W": null, "process_footprint_bytes": null}
+  },
+  "analytical_cost_model": {
+    "units": "per fixed synthetic workload, never per game frame unless a frame workload is actually measured",
+    "cpu_compute_s": "dynamic_target_instructions / (effective_target_IPC * effective_target_frequency_Hz)",
+    "stream_lower_bound_s": "required_offchip_bytes / peak_bytes_per_second; valid only with justified bytes and peak",
+    "serial_dependency_cost_s": "sum(disjoint_dependent_events_i * latency_seconds_i)",
+    "overlap": "For a compute stage and a transfer stage with fixed costs and no other delays, the idealized bounds are max(Tcompute,Ttransfer) and Tcompute+Ttransfer. Fences, queue stalls and extra work must be measured separately.",
+    "identifiability": "Host Ir and cache misses refer only to the measured/simulated host ISA and cache configuration. There is no calibrated conversion to A18 Pro instructions or latency. Missing parameters imply an unbounded projection, not a zero cost.",
+    "uncertainty": "Provide both endpoints when sweeping positive input ranges. Scenario endpoints express assumptions, not a statistical confidence interval. Estimate sampling variability separately from paired repetitions.",
+    "calibration_needed": ["dynamic target instruction count or equivalent arm64 counter", "effective per-stage IPC and frequency", "dependent cache misses per level", "driver and command encoder time", "transfer bytes after compression and concurrency"],
+    "physical_fps_estimate": null
+  }
+}

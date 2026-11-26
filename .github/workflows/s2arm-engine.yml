@@ -51,6 +51,7 @@ jobs:
         run: python3 -B test/s2arm_engine_exports_test.py
       - name: Fetch S2Arm at the pinned commit
         env:
+          COMPARE_BINDINGS: ${{ matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-compare-bindings]') }}
           COMPARE_UPLOAD: ${{ contains(github.event.head_commit.message, '[s2arm-compare-upload]') }}
         run: |
           set -euo pipefail
@@ -70,6 +71,11 @@ jobs:
                 0437-*) mkdir -p "$RUNNER_TEMP/0436/graphics/nvn"
                         cp -R "$RUNNER_TEMP/s2arm/graphics/nvn/gfx" "$RUNNER_TEMP/0436/graphics/nvn/" ;;
               esac
+            fi
+            if [[ "$COMPARE_BINDINGS" == true && "$(basename "$patch")" == 0442-* ]]; then
+              nvn=graphics/nvn/gfx/nvn
+              mkdir -p "$RUNNER_TEMP/0441/graphics/nvn/gfx"
+              cp -R "$RUNNER_TEMP/s2arm/$nvn" "$RUNNER_TEMP/0441/graphics/nvn/gfx/"
             fi
             git -C "$RUNNER_TEMP/s2arm" apply --whitespace=nowarn "$GITHUB_WORKSPACE/$patch"
             echo "patch $(basename "$patch") $(shasum -a 256 "$patch" | cut -d' ' -f1)" | tee -a proof/inputs.txt
@@ -203,6 +209,15 @@ jobs:
             77) echo "GPU comparison unavailable on this runner" >> proof/fi-motion.txt ;;
             *) exit "$rc" ;;
           esac
+      - name: Compare bounds writes and feedback bookkeeping on synthetic bindings
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-compare-bindings]')
+        run: |
+          set -euo pipefail
+          evidence=docs/evidence/s2arm-0437-review
+          python3 "$evidence/feedback/replay.py" "$RUNNER_TEMP/0441" "$RUNNER_TEMP/s2arm" --csv proof/feedback.csv | tee proof/feedback.txt
+          python3 "$evidence/bounds/compare_ubolen.py" "$RUNNER_TEMP/0441" "$RUNNER_TEMP/s2arm" proof/bounds
+          python3 "$evidence/bounds/report.py" proof/bounds/{forward,reverse,control}.tsv | tee proof/bounds/summary.txt
+          python3 "$evidence/pipeline/replay.py" "$RUNNER_TEMP/0441" "$RUNNER_TEMP/s2arm" --csv proof/pipeline-keys.csv | tee proof/pipeline-keys.txt
       - name: Verify 64/128-bit wide memory shader translation and Metal execution
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-wide-mem-check]')
         working-directory: ${{ runner.temp }}/s2arm
