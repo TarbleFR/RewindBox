@@ -1,4 +1,4 @@
-# S2Arm : vague 845 (`0418–0425`, déverrouillage pont, leviers universels NVN2 et boucle comparative Zelda + MKW)
+# S2Arm : vague 845 (`0418–0426`, déverrouillage pont, leviers universels NVN2 et boucle comparative Zelda + MKW)
 
 26 novembre 2026. Base : [IPA privée 844](rewind844/delivery.json) et [observations iPhone 844](s2arm-844-device.md). À la demande explicite du mainteneur, la vague 845 applique en un seul lot cohérent :
 - la correction des régressions de la 844 (`0418`),
@@ -86,6 +86,14 @@ Cinq goulots GPU/CPU supplémentaires tirés des journaux 844 de Zelda (`900` cl
 | `rb_rt_cont.h` `rb_cont_reads_rt_memo` (Zelda 300 images × 18 cont. × 20 dessins) | `0` hits (`0,0/img`) / `108 000` walks | **`80 700` hits (`269,0/img`) / `27 300` walks** | **−74,7 % walks+verrous** | `wrong = 0` + mutation négative UBO handle |
 | `rb_dsnap_rule.h` réel (Zelda 300 images, `SET_RT` même profondeur + `COPY_B2B` + 2 vues) | `3 300` copies (`22 659 Mo`) | **`1 200` copies (`8 240 Mo`)** | **−63,6 % copies & coupures** | `wrong = 0`, **6/6 mutations négatives**, `t_rb_dsnap_rule` vert |
 | `rb_view_scope.h` réel (`alias_take_over`, Zelda 233 takeovers × 384 vues) | `0` kept / `89 472` `why_global` | **`53 164` kept / `0` `why_global`** | **−100 % invalidations globales** | `dead_bug = 0` + mutation `lsn == 0` (`rb_serial_local_locked(0)` vs `add++`) |
+
+### 0426 — Changements de programme et blocs d’arguments
+
+La [compilation de 0425](https://github.com/TarbleFR/RewindBox/actions/runs/45798988968) a échoué sur les deux SDK lors de la lecture du champ inexistant `nvn_refl.gmem`. Pour les attachements externes, le moteur consulte désormais les types de liaisons réfléchies `NVN_RB_GMEM` et `NVN_RB_SBUFU`, en complément du masque de tampons de stockage. En cas d’alias possible, il exécute les effacements en attente avant le dessin.
+
+Sur un changement de programme graphique ou de calcul, chaque étage concerné vérifie au prochain encodage si le même shader possède toujours le bloc. Le chemin rapide conserve les invalidations de liaisons et exige les gardes existantes sur la soumission, l’arène, les vues, le retour de rendu et les dépendances par dessin. Les modes `S2A_RB_ARGS_UBO_ONLY=0` et `check` gardent l’invalidation globale sur changement de programme.
+
+Sur le modèle synthétique local (300 × 3 779 opérations, même graine), les encodages complets passent de 629 441 à 536 491 (−14,8 %) avec zéro divergence de version de liaison. Ce modèle représente le cas éligible à la réutilisation et ignore le coût de Metal et la fréquence réelle des gardes. Le temps CPU du modèle n’a pas diminué lors de cette exécution. Le test natif existant `t_rb_dirty_range` a passé. FPS, GPU p50, fidélité du rendu et fluidité des pipelines de 0426 sur iPhone restent non mesurés.
 
 ## 2. Pont iOS, réglages Switch 2 et 12 langues
 

@@ -1,0 +1,85 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -14636,6 +14636,8 @@
+ static rb_args_mod g_rb_mod[6];       // RewindBox (patch 0424): per-stage modified slot masks since last encode
+ static inline void rb_args_cause(int stage, unsigned cause) { g_rb_args_causes[stage] |= (uint8_t)cause; }
+ static inline void rb_args_cause_all(unsigned cause) { for (int st = 0; st < 6; st++) g_rb_args_causes[st] |= (uint8_t)cause; }
++// A program change affects one pipeline. Defer the owner check until that stage actually encodes.
++static uint8_t g_rb_args_prog[6];
+ // A deferred inline update changes what the draws after it read through the uniform bindings it overlaps (they get a shadow): the argument blocks of those stages are encoded again.
+ // Only those: marking every stage made each later draw encode all of its blocks again, which with the updates kept across passes cost about 1.5 ms a frame in Breath of the Wild
+ static uint8_t g_args_dirty[6];
+@@ -18864,6 +18866,17 @@
+ static uint8_t g_args_dirty[6] = {1, 1, 1, 1, 1, 1};
+ static uint64_t g_args_reg_seen, g_args_dirty_seen;
+ static inline void args_dirty_all(void) { memset(g_args_dirty, 1, sizeof g_args_dirty); rb_args_mod_all_other(g_rb_mod); }
++static void rb_args_program_changed(int first, int end) {
++    if (rb_args_ubo_mode() != RB_ARGS_MODE_ON) {
++        args_dirty_all();
++        rb_args_cause_all(RB_ARGS_C_PROGRAM);
++        return;
++    }
++    for (int st = first; st < end; st++) {
++        g_rb_args_prog[st] = 1;
++        rb_args_cause(st, RB_ARGS_C_PROGRAM);
++    }
++}
+ static inline void args_sync_dirty(void) {
+     uint64_t reg = g_reg_gen, dirty = nvn_dirty_now();
+     if (reg != g_args_reg_seen || dirty != g_args_dirty_seen) {
+@@ -19628,6 +19641,17 @@
+         sh->ab_size_sub == g_sub_serial && sh->rb_ab_agen == g_arena_gen &&
+         sh->rb_ab_stage == (uint8_t)nvn_stage && g_rb_args_owner[nvn_stage] == sh &&
+         sh->rb_ab_ser == rb_cur_ser && sh->rb_ab_pkg == g_pkg_epoch;
++    if (g_rb_args_prog[nvn_stage]) {
++        g_rb_args_prog[nvn_stage] = 0;
++        // The cross-pass predicate also verifies owner, stage, arena, submission, view generations
++        // and the absence of per-draw dependencies. Binding marks since the encode still apply.
++        if (rb_safe_xpass && !passdump() && !sh->ab_ub) {
++            g_rb_args_causes[nvn_stage] &= (uint8_t)~RB_ARGS_C_PROGRAM;
++        } else {
++            g_args_dirty[nvn_stage] = RB_ARGS_FULL;
++            rb_args_mod_mark_other(&g_rb_mod[nvn_stage]);
++        }
++    }
+     const int rb_masked_reuse = g_args_dirty[nvn_stage] && rb_args_ubo_mode() == RB_ARGS_MODE_ON &&
+         sh->ab_buf && g_rb_args_owner[nvn_stage] == sh &&
+         sh->ab_size_sub == g_sub_serial && sh->rb_ab_agen == g_arena_gen &&
+@@ -19637,7 +19661,7 @@
+         ((sh->ab_pass == g_pass.serial && nvn_stage != 5) || rb_safe_xpass) &&
+         !(sh->rf.drv_read[0] && sh->ab_binst != g_draw_binst) && !(sh->rf.pool && sh->ab_pgen != g_psnap_gen) &&
+         rb_args_can_reuse_masked(&g_rb_mod[nvn_stage], rb_args_shader_masks(sh));
+-    if (rb_masked_reuse || ((!sh->size_exact || sh->ab_size_sub == g_sub_serial) && (!sh->ab_ub || sh->ab_size_sub == g_sub_serial) && !passdump() && !g_args_dirty[nvn_stage] && sh->ab_buf && ((sh->ab_pass == g_pass.serial && nvn_stage != 5) || rb_safe_xpass) && !(sh->rf.drv_read[0] && sh->ab_binst != g_draw_binst) && !(sh->rf.pool && sh->ab_pgen != g_psnap_gen))) {
++    if (rb_masked_reuse || ((!sh->size_exact || sh->ab_size_sub == g_sub_serial) && (!sh->ab_ub || sh->ab_size_sub == g_sub_serial) && !passdump() && !g_args_dirty[nvn_stage] && sh->ab_buf && g_rb_args_owner[nvn_stage] == sh && ((sh->ab_pass == g_pass.serial && nvn_stage != 5) || rb_safe_xpass) && !(sh->rf.drv_read[0] && sh->ab_binst != g_draw_binst) && !(sh->rf.pool && sh->ab_pgen != g_psnap_gen))) {
+         bind_args(en, nvn_stage, metal_vertex, sh->ab_buf, sh->ab_gpu, sh->ab_off, sh->rf.abi);
+         g_stat_args_reuse++;
+         return 1;
+@@ -20498,8 +20522,8 @@
+         // The compute stage has a binding of its own: a compute bind used to replace the one bound program, so a draw after a dispatch found the compute program (or none) and was
+         // dropped, and a dispatch after a graphics bind found no compute shader. Hyrule Warriors: Age of Calamity interleaves them; its movie's NV12 → RGB draw was dropped and the intro played black
+         case OP_BIND_PROGRAM: { p_bind_program bpt_; const p_bind_program *bp_ = bind_program_rec(a, size, &bpt_); const prog_t *bpp = prog_live(bp_);
+-            if ((bp_->stages & 0x20) && bpp != S.cprog) { S.cprog = bpp; args_dirty_all(); rb_args_cause_all(RB_ARGS_C_PROGRAM); }   // RewindBox (patch 0325): rb_args_cause*, for the [rb-args] line
+-            if (bp_->stages & 0x1f) { const prog_t *np = bind_stages(bpp, bp_->stages & 0x1f); if (np != S.prog) { S.prog = np; g_pso_dirty = 1; args_dirty_all(); rb_args_cause_all(RB_ARGS_C_PROGRAM); } }   // RewindBox (patch 0325): rb_args_cause*, for the [rb-args] line
++            if ((bp_->stages & 0x20) && bpp != S.cprog) { S.cprog = bpp; rb_args_program_changed(5, 6); }   // RewindBox (patch 0325/0426): the compute stage alone, decided at its encode (owner)
++            if (bp_->stages & 0x1f) { const prog_t *np = bind_stages(bpp, bp_->stages & 0x1f); if (np != S.prog) { S.prog = np; g_pso_dirty = 1; rb_args_program_changed(0, 5); } }   // RewindBox (patch 0325/0426): the graphics stages alone, decided at their encode (owner)
+             break; }
+         case OP_BIND_STATE: {
+             const p_bind_state *b = a; void *dst = NULL; size_t n = 0;
+@@ -24401,7 +24425,15 @@
+         if (!sh) continue;
+         const int stage = sh->stage;
+         if (!sh->rb_explicit_bindings || stage < 0 || stage >= 6) { unknown = 1; break; }
+-        if (any_ext && (sh->rf.gmem || rb_args_shader_masks(sh)->ssbo)) { unknown = 1; break; }
++        if (any_ext) {
++            // A storage pointer can alias external attachment memory even when it comes from a UBO.
++            if (rb_args_shader_masks(sh)->ssbo) { unknown = 1; break; }
++            for (int i = 0; i < sh->rf.nb; i++) {
++                int kind = sh->rf.b[i].kind;
++                if (kind == NVN_RB_GMEM || kind == NVN_RB_SBUFU) { unknown = 1; break; }
++            }
++            if (unknown) break;
++        }
+         const rb_cont_masks *cm = rb_cont_shader_masks(sh);
+         if (cm->flags & RB_CONT_F_UNKNOWN) { unknown = 1; break; }
+         if (!rb_cont_masks_reads_any(cm)) continue;
