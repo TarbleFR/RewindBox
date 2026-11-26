@@ -1,0 +1,17 @@
+# Disposition des écritures HLE sur un render target linéaire
+
+Dans le chemin WriteTexels, write_region_bl acceptait les textures dont seul le bit 0x40 était présent et plaçait les blocs de la région aux coordonnées du format tuilé. Les fonctions de disposition des textures stockent pourtant ces surfaces en lignes. Le correctif 0450 fait refuser à nvn_deswizzle_geom_ex la famille linéaire entière (0x10, 0x40, ou les deux). Le repli CPU traite alors 0x40 comme l’autre texture linéaire.
+
+Les consommateurs de cette fonction spécialisée et de sa façade nvn_deswizzle_geom sont les deux encodeurs GPU de dé-tuilage, le déplacement CPU tuilé (après le dispatch linéaire), les tiles sparse (les deux flags sont déjà écartés) et write_region_bl. Aucun de ces appelants dans l’arbre n'utilise cette fonction pour interroger uniquement les dimensions d’une surface linéaire. Les fonctions générales nvn_tex_layout et nvn_tex_level_geom_of conservent leurs réponses.
+
+Pour la 2D à un niveau et une couche, la région utilise l’adresse de début de texture t->mem, déjà égale à l’adresse du pool plus son offset dans le constructeur NVN. La vue temporaire utilise le pas utile du niveau en blocs. L’index de départ vaut la ligne de blocs de y multipliée par ce pas, plus la colonne de blocs de x multipliée par la taille du bloc. Lors de la copie finale, move_linear utilise le vrai pas du pool. Une écriture de niveau entier remplit directement le temporaire. Une région partielle préserve les octets environnants par une lecture préalable du niveau. Les octets de remplissage en fin de ligne demeurent intacts. Les valeurs de row et img du client sont indépendantes du pas du stockage.
+
+Le banc extrait les vrais corps C de write_region_bl, write_texels, read_texels et la branche sur mémoire CPU de nvn_be_read_texels. Le suivi de la mémoire et les diagnostics périphériques sont substitués. Les formats, layouts, calculs d’offset, lectures et écritures sont ceux de la source moteur. Un oracle linéaire indépendant vérifie la totalité du pool, le préfixe de 193 ou 384 octets et le suffixe. La vérification compare également la lecture d’une texture écrite par le moteur et, séparément, celle d’un stockage correctement prérempli. Quatre formats (R8, RGBA8, BC1 et ASTC 6×6), six types de région (dont bords, dernière ligne de blocs, dernier bloc partiel et niveau complet), trois pas de stockage, deux pas clients, les deux ordres GOB et trois combinaisons de flags sont exercés.
+
+Sur les 288 entrées 0x40, la référence écrit et relit 208 régions incorrectes. Les deux autres flags passent respectivement leurs 288 entrées. Le correctif passe les 864 entrées, les checks de disposition générale, la comparaison octet par octet sous ASan/UBSan et les deux tests C déjà livrés t_tex (1 354/1 354) et t_tex_layout (26/26). Les tests Metal natifs de présentation ne sont pas exécutés par cette fixture Linux. Le candidat de débit des copies contiguës est indépendant de cette correction fonctionnelle.
+
+```sh
+python3 run.py /chemin/arbre-moteur sortie
+```
+
+La compilation utilise Python 3, Clang, ASan et UBSan. Les fichiers base-probe.txt et fixed-probe.txt conservent les sorties de la comparaison. Le script applique ou retire le patch 0450 dans son répertoire temporaire et conserve les résultats des deux suites existantes. Les coûts de la copie temporaire d’un niveau complet et du transfert ultérieur vers Metal restent à caractériser.

@@ -1,0 +1,21 @@
+--- a/graphics/nvn/gfx/tex/nvn_deswizzle.c
++++ b/graphics/nvn/gfx/tex/nvn_deswizzle.c
+@@ -40,7 +40,7 @@
+                           uint32_t *row_bytes, uint32_t *rows, uint32_t *slices,
+                           uint64_t *base, unsigned *th, unsigned *td, uint32_t *bpb,
+                           uint32_t *level_gobs) {
+-    if (d->target == 5 || d->target == 6 || d->target == 10 || (d->flags & 0x10) || d->samples > 1) return -1;   // MS / BUFFER / LINEAR
++    if (d->target == 5 || d->target == 6 || d->target == 10 || (d->flags & (0x10 | 0x40)) || d->samples > 1) return -1;   // MS / BUFFER / LINEAR
+     if (level >= (d->levels ? d->levels : 1)) return -1;
+     nvn_tex_level_geom g;
+     if (nvn_tex_level_geom_of(d, level, layer != 0, &g) != 0) return -1;
+@@ -281,8 +281,7 @@
+ // One 64 KB tile of a sparse texture's tiled level (2D, one slice). Such a level is laid out with its width padded to whole tiles (nvn_tex.c level_walk), and a tile is one block row of
+ // 128 / block height GOB columns: 64 KB of its own, at the level's start + (ty × tiles across + tx) × 64 KB. So it decodes as a block-linear surface of that size; the part inside the level
+ // goes to dst (block rows of pitch bytes). *wb and *rows: the bytes and block rows written (0 for a tile past the level)
+-//   S2Arm adaptation: this file's nvn_deswizzle_geom refuses LINEAR (0x10) but not LINEAR_RENDER_TARGET (0x40), which move routes to move_linear; upstream's refuses both (0x50).
+-//   A linear texture has no tiles, so both are refused here (-1)
++// Linear textures and linear render targets have no sparse tiles.
+ int nvn_tile_is_zero(const void *tile, size_t n) {
+     const uint8_t *p = (const uint8_t *)tile;
+     size_t i = 0;

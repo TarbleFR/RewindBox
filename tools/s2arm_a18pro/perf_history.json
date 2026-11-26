@@ -4811,6 +4811,10 @@
     {
       "patches": "0449",
       "basis": "Remove redundant row copies and transposes when the widescreen classifier is called. Equivalent outputs, 792 existing checks, 24 NativeAOT triplets each on Linux x86-64 and macOS arm64. See matrices/README.md. Game and iPhone frame times unknown."
+    },
+    {
+      "patches": "0450",
+      "basis": "Correctness of CPU WriteTexels in a linear render target. 208 of 288 0x40 cases failed before and zero after; 576 0x10 and 0x50 controls passed both. No physical FPS claim."
     }
   ],
   "rejected_optimizations": [
@@ -4832,7 +4836,7 @@
     "First-use pipeline compilation and residency measured separately from CPU key construction",
     "Shader compilation and translation with legal homebrew workloads"
   ],
-  "next_axis": "Track 0448 opt-in SDK compilation and 0449 iOS engine and Mac edge/RSS verification. Characterize effective UBO caps and reject unsafe invalidation. Repeat the GPU dispatch and equal-budget stage-order analysis before accepting any scheduling policy; investigate safe layer rotation under in-flight rendering.",
+  "next_axis": "Verify linear texture partial CPU writes and Metal ownership, alias behavior of contiguous copies, Mac timing for effective UBO caps, and offscreen homebrew cadence. Keep 0449 iOS build and Mac memory evidence distinct from physical iPhone results.",
   "legacy_note": "First 21 entries are original host summaries. Their draft patch numbers describe historical experiments; numbers may differ from integrated engine patches. Cachegrind counters are on x86. The uncalibrated projections were withdrawn. No legacy entry establishes fidelity, A18 Pro frametime, GPU time, energy, RAM or FPS.",
   "initial_reference": "0426",
   "intermediate_reference": "0436 (8be902ac0)",
