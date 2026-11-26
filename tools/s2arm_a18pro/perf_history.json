@@ -4803,6 +4803,10 @@
     {
       "patches": "0445–0446",
       "basis": "Presentation output and queue ownership under simulated completion, partial failure and shutdown. See docs/evidence/s2arm-0437-review/present. Correctness fixes; physical FPS unknown."
+    },
+    {
+      "patches": "0447",
+      "basis": "Platform correctness. Use Metal budget on macOS, retain the existing 512 MiB policy on iOS. No performance claim."
     }
   ],
   "rejected_optimizations": [
@@ -4813,14 +4817,15 @@
     "Draft draw-state shortcut omitted projection reset.",
     "FP16 motion matching changed the selected vector on synthetic blocks.",
     "Two partial feedback shortcuts slowed changing substitutions.",
-    "Additional blend-state filtering slowed cold/warm pipeline table cases versus 0444."
+    "Additional blend-state filtering slowed cold/warm pipeline table cases versus 0444.",
+    "Four WidenSession shader-slot mask variants made heavily bound synthetic scans cheaper but increased the median for one bound slot per stage. See drafts/widen-mask (13 randomized triplets in each of five cases per series)."
   ],
   "remaining_bottlenecks": [
     "Presentation queue scheduling, held residency during layer rotation and native frame pacing",
     "First-use pipeline compilation and residency measured separately from CPU key construction",
     "Shader compilation and translation with legal homebrew workloads"
   ],
-  "next_axis": "Measure first-use and repeated Metal pipeline compilation on a new generated shader corpus. Follow the independent legal homebrew replay and audit layer rotation from engine code.",
+  "next_axis": "Collect first-use vertex and fragment costs, then replay alternative pipeline warm orders with equal startup budgets. Confirm GPU launch widths, the optional UBOLEN cache path and matrix recognition trials. Review layer rotation and FI counters before promotion.",
   "legacy_note": "First 21 entries are original host summaries. Their draft patch numbers describe historical experiments; numbers may differ from integrated engine patches. Cachegrind counters are on x86. The uncalibrated projections were withdrawn. No legacy entry establishes fidelity, A18 Pro frametime, GPU time, energy, RAM or FPS.",
   "initial_reference": "0426",
   "intermediate_reference": "0436 (8be902ac0)",
@@ -4828,7 +4833,8 @@
     "consecutive_rejections_at_0444": 1,
     "definition": "One completed independent candidate with no measurable reproducible improvement after the most recently accepted change. Inconclusive repeats of the same candidate count once. Blend-state filtering was rejected after 0444.",
     "audit_after": 20,
-    "consecutive_rejections_at_0446": 0
+    "consecutive_rejections_at_0446": 0,
+    "consecutive_rejections_after_0447": 4
   },
   "device_metrics": {
     "native_fps": null,
@@ -4839,5 +4845,18 @@
   },
   "excluded_experiments": [
     "Per-frame clearing of borrowed resource tables: the exploratory analysis consulted a personal archive in conflict with the autonomous input constraint. All candidate patches, timings and prioritization from that investigation are excluded."
-  ]
+  ],
+  "pipeline_driver": {
+    "source": "docs/evidence/s2arm-0437-review/pipeline/driver-mac.csv",
+    "run": 45856161335,
+    "builder": "classic Metal, Apple Paravirtual device",
+    "pairs": 12,
+    "median_ms": {
+      "fresh": 3.428354,
+      "crossed": 0.039833,
+      "one_fresh_fragment": 1.174708,
+      "repeated": 0.046354
+    },
+    "iphone": null
+  }
 }

@@ -1,0 +1,57 @@
+--- a/graphics/widen/WidenSession.cs
++++ b/graphics/widen/WidenSession.cs
+@@ -157,7 +157,8 @@
+ 
+         // ---------- 直连：着色器常量读法 ----------
+         readonly List<CbufUse[]> _shaders = new() { null };   // 句柄 → 各槽读法（下标 = 槽号，null = 不读）；句柄 0 = 没登记
+-        readonly List<bool> _push = new() { false };
++        const uint ShaderPush = 1u << 31;
++        readonly List<uint> _shaderFlags = new() { 0 };
+         static readonly CbufUse[] s_unknown = MakeUnknown();
+         static CbufUse[] MakeUnknown() { var u = new CbufUse[Slots]; for (int i = 0; i < Slots; i++) u[i] = new CbufUse { Binding = i, Dynamic = true }; return u; }
+ 
+@@ -166,7 +167,10 @@
+         {
+             CbufUse[] u = string.IsNullOrEmpty(useText) ? s_unknown : SpirvCbufUseText.Parse(useText, Slots);
+             if (u == s_unknown) UnknownShaders++;
+-            _shaders.Add(u); _push.Add(push);
++            uint flags = push ? ShaderPush : 0;
++            for (int i = 0; i < Slots; i++)
++                if (u[i] != null) flags |= 1u << i;
++            _shaders.Add(u); _shaderFlags.Add(flags);
+             return _shaders.Count - 1;
+         }
+ 
+@@ -185,10 +189,9 @@
+                 int h = s < shader.Length ? shader[s] : 0;
+                 if (h <= 0 || h >= _shaders.Count) continue;
+                 CbufUse[] uses = _shaders[h];
+-                for (uint m = _bound[s]; m != 0; m &= m - 1)
++                for (uint m = _bound[s] & _shaderFlags[h]; m != 0; m &= m - 1)
+                 {
+                     int slot = System.Numerics.BitOperations.TrailingZeroCount(m);
+-                    if (uses[slot] == null) continue;
+                     ref readonly Bind b = ref _bind[s * Slots + slot];
+                     // 这段在影子里一个命中都没有：判改写 / 界面正交 / 写回原值对它都是空操作、出数必为 0，不进读列表（10-24 直连真机热点：每个读区间被各处反复查影子表）
+                     CbufShadow.Buf sb = b.Buf is { Deleted: false } c && c.Key == b.Key ? c : Frame.Shadow.TryGet(b.Key);
+@@ -210,10 +213,9 @@
+                 int h = s < shader.Length ? shader[s] : 0;
+                 if (h <= 0 || h >= _shaders.Count) continue;
+                 CbufUse[] uses = _shaders[h];
+-                for (uint m = _bound[s]; m != 0; m &= m - 1)
++                for (uint m = _bound[s] & _shaderFlags[h]; m != 0; m &= m - 1)
+                 {
+                     int slot = System.Numerics.BitOperations.TrailingZeroCount(m);
+-                    if (uses[slot] == null) continue;
+                     ref Bind b = ref _bind[s * Slots + slot];
+                     if (sync) unsafe { b.Buf = Frame.OnGuestBound(b.Key, b.Off, new ReadOnlySpan<byte>((void*)b.Ptr, b.Len)); }
+                     _camReads[n++] = new CbufRead(b.Key, b.Off, b.Len, uses[slot]);
+@@ -362,7 +364,7 @@
+                 foreach (ref readonly Tex t in tex) sb.Append($" {t.Id}:{t.W}×{t.H}{(Frame.IsWide(t.Id) || Frame.IsWide(Root(t.Id)) ? "宽" : "")}");
+                 Console.Error.WriteLine($"[宽屏·核心] 诊断 原宽居中：目标 {Frame.Target0}（原宽 {Frame.TargetW0} → {Frame.TargetW1}）视口 {vpX},{vpW}×{MathF.Abs(vpH)}，读区间 {n} 段，采样{(sb.Length > 0 ? sb.ToString() : " 无")}");
+             }
+-            bool pushable = shader.Length > 0 && shader[0] > 0 && shader[0] < _push.Count && _push[shader[0]];
++            bool pushable = shader.Length > 0 && shader[0] > 0 && shader[0] < _shaderFlags.Count && (_shaderFlags[shader[0]] & ShaderPush) != 0;
+             // 写深度的笔不外推（收缩 / 推满 / 原生宽外推都不做，10-31）：它给之后的笔铺几何，顶点挪一点（外推连不推的顶点也乘 1 − NoBandZ）深度就和重画同一几何的笔对不上。
+             //   马车8 选车页：本帧先一笔全屏合成模糊背景（Composited），之后赛车与展台先画深度（不写颜色、不采贴图 → 判成横向无细节层被外推）、再按「深度相等」着色，
+             //   相等比较大片失败，背景从模型里透出蓝色碎点（帧回放：着色遍改深度恒过则碎点全消、剪影不变；去掉这笔外推亦全消）。界面遮罩不写深度（丝之歌暂停页 dw=0），照推

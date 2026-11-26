@@ -79,6 +79,10 @@ Les trois shaders homebrew ou synthétiques ont aussi compilé pour iPhoneOS et 
 
 Le banc de textures soumet le shader réel et compare tout le tampon, padding compris, à l’implémentation d’adressage CPU. Sur cinq charges, 12 paires comparent un, deux, quatre et huit blocs de 512 octets par threadgroup. Les médianes favorisent parfois quatre mais les intervalles appariés incluent zéro. La confirmation garde le shader et les entrées identiques, augmente à 36 paires de 64 transferts et inclut un deuxième témoin de largeur un. Aucun changement de géométrie du moteur n’est retenu à ce stade. [240 relevés GPU de la première série](gpu-textures/macos.csv).
 
+Le constructeur de pipelines Metal classique a mesuré douze premières utilisations pour chaque combinaison sur Mac paravirtualisé. Les médianes sont de 3,428 ms pour deux shaders encore inutilisés dans le processus, 1,175 ms quand seul le fragment est nouveau, 0,040 ms pour une nouvelle combinaison de shaders déjà utilisés et 0,046 ms pour une combinaison répétée. Elles excluent le chargement des bibliothèques. Le cache persistant du pilote au début de la mesure est inconnu. Le nouveau contrôle mesure aussi le premier usage du vertex seul, préalable à une comparaison des ordres de préchauffage à budget égal. [Relevés de compilation](pipeline/driver-mac.csv) et [exécution Apple](https://github.com/TarbleFR/RewindBox/actions/runs/45856161335).
+
+Les quatre variantes de sélection des buffers de constantes testées sur Linux accélèrent les cas avec beaucoup de slots liés mais ont chacune une médiane plus élevée dans le cas avec un seul slot lié par étage. Elles restent dans les expériences écartées. [Treize triplets par scénario, sources et limites](drafts/widen-mask/README.md).
+
 ## État de reprise
 
 La piste de vidage des tables au changement d’image est retirée de la phase autonome après consultation d’une archive personnelle pendant son exploration. Son code et ses résultats sont exclus. La prochaine comparaison de compilation de pipelines utilise uniquement les shaders générés par le banc.

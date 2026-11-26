@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Time fresh, crossed and repeated synthetic stage pairs with S2Arm’s Metal 4 builder or a classic RGBA8 descriptor when Metal 4 is unavailable."""
 import argparse
+import csv
 from pathlib import Path
 import subprocess
 import sys
@@ -51,8 +52,12 @@ def main():
         sys.stderr.write(result.stderr)
         if result.returncode == 0:
             rows = result.stdout.splitlines()
-            if len(rows) != PAIRS * 4 + 1:
-                raise ValueError("incomplete Metal timings")
+            classes = {"fresh", "crossed", "one_fresh", "vertex_fresh", "repeated"}
+            samples = list(csv.DictReader(rows))
+            expected = {(pair, label) for pair in range(PAIRS) for label in classes}
+            observed = {(int(row["pair"]), row["stage_pair"]) for row in samples if float(row["build_ms"]) > 0}
+            if observed != expected or len(samples) != len(expected):
+                raise ValueError("missing, duplicate or invalid Metal timing")
             args.output.write_text(result.stdout)
             print(result.stdout, end="")
         return result.returncode
