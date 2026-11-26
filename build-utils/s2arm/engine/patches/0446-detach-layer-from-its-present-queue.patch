@@ -1,0 +1,11 @@
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -39,7 +39,7 @@
+     link_join();
+     g_prefetched_drawable = nil;
+     if (@available(macOS 26.0, iOS 26.0, *)) {
+-        if (g_present_layer_resident && !g_m3) [g_q4 removeResidencySet:g_present_layer_resident.residencySet];
++        if (g_present_layer_resident && !g_m3) [rb_present_queue() removeResidencySet:g_present_layer_resident.residencySet];
+     }
+     g_present_layer_resident = nil;
+     return 0;

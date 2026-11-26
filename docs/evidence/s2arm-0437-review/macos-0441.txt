@@ -1,0 +1,25 @@
+4912 checks, 4080 regular, 832 sparse (224 full, 240 edge, 368 outside), 151035040 bytes compared
+Geometry sentinel outputs identical
+macOS-26.7.2-arm64-arm-64bit arm64 Apple clang version 21.0.0 (clang-2100.1.1.101)
+texture [60.475, 22.7695] ('08eb6ce6e3840668', 88081152)
+geometry [76.5605, 10.1115] cases=2986 hash=0x397daab639c9862f acc=0x0000003b38eee210
+reference MSL bytes 4789 SHA-256 03af292e2d1c475e837480ccdcc7c14d96a967a37ae67f1dffcaaf01e048888b
+intermediate MSL bytes 4684 SHA-256 c70d3e6fd525aa7423264bec2660f624621326270e1c6ee7ef70514b35a8ca02
+candidate MSL bytes 4789 SHA-256 03af292e2d1c475e837480ccdcc7c14d96a967a37ae67f1dffcaaf01e048888b
+iPhoneOS metal compiled the candidate to AIR.
+Metal device Apple Paravirtual device
+reference.metal all five PSOs ready, match SIMD width=32 max threads/TG=1024
+intermediate.metal all five PSOs ready, match SIMD width=32 max threads/TG=1024
+candidate.metal all five PSOs ready, match SIMD width=32 max threads/TG=1024
+scene=0 level=0 version=1 blocks=9 different vectors=0 SAD=0
+scene=0 level=1 version=1 blocks=120 different vectors=0 SAD=0
+scene=0 level=0 version=2 blocks=9 different vectors=0 SAD=0
+scene=0 level=1 version=2 blocks=120 different vectors=0 SAD=0
+scene=1 level=0 version=1 blocks=9 different vectors=0 SAD=3
+scene=1 level=1 version=1 blocks=120 different vectors=1 SAD=20
+scene=1 level=0 version=2 blocks=9 different vectors=0 SAD=0
+scene=1 level=1 version=2 blocks=120 different vectors=0 SAD=0
+scene=2 level=0 version=1 blocks=9 different vectors=0 SAD=9
+scene=2 level=1 version=1 blocks=120 different vectors=1 SAD=117
+scene=2 level=0 version=2 blocks=9 different vectors=0 SAD=0
+scene=2 level=1 version=2 blocks=120 different vectors=0 SAD=0

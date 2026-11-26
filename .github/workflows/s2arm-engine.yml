@@ -218,6 +218,17 @@ jobs:
           python3 "$evidence/bounds/compare_ubolen.py" "$RUNNER_TEMP/0441" "$RUNNER_TEMP/s2arm" proof/bounds
           python3 "$evidence/bounds/report.py" proof/bounds/{forward,reverse,control}.tsv | tee proof/bounds/summary.txt
           python3 "$evidence/pipeline/replay.py" "$RUNNER_TEMP/0441" "$RUNNER_TEMP/s2arm" --csv proof/pipeline-keys.csv | tee proof/pipeline-keys.txt
+      - name: Measure first-use pipeline compilation with synthetic Metal stages
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-pipeline-driver]')
+        run: |
+          set -euo pipefail
+          rc=0
+          python3 tools/s2arm_a18pro/pipeline_driver.py "$RUNNER_TEMP/s2arm" proof/pipeline-driver.csv | tee proof/pipeline-driver.txt || rc=$?
+          case $rc in
+            0) echo "Metal 4 compiler timings recorded on runner" >> proof/pipeline-driver.txt ;;
+            77) echo "Metal 4 runtime unavailable on runner" >> proof/pipeline-driver.txt ;;
+            *) exit "$rc" ;;
+          esac
       - name: Verify 64/128-bit wide memory shader translation and Metal execution
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-wide-mem-check]')
         working-directory: ${{ runner.temp }}/s2arm

@@ -1,0 +1,1 @@
+capacity=8 peak=8 producer_waits=2 tickets=10

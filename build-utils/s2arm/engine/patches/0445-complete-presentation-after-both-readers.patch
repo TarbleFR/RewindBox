@@ -1,0 +1,127 @@
+--- a/graphics/nvn/gfx/nvn/nvn_present_fi.inc
++++ b/graphics/nvn/gfx/nvn/nvn_present_fi.inc
+@@ -393,9 +393,28 @@
+     enc_end_on(en, YES);
+     return 1;
+ }
++// Each slot either reads the source until its GPU feedback, or skips it before
++// submission. A missing real drawable still leaves the input copy in flight.
++// g_pq_mu protects these entries. Admission limits pending tickets to RB_PRESENT_CAP.
++static uint64_t g_fi_finished_read[2][RB_PRESENT_CAP];
++static void fi_finish_read_locked(uint64_t ticket, int slot) {
++    unsigned index = (unsigned)(ticket % RB_PRESENT_CAP);
++    uint64_t *finished = &g_fi_finished_read[slot - 1][index];
++    if (*finished >= ticket) return;
++    *finished = ticket;
++    if (g_fi_finished_read[2 - slot][index] == ticket) rb_present_complete(ticket);
++}
++static void fi_skip_read(uint64_t ticket, int slot) {
++    pthread_mutex_lock(&g_pq_mu);
++    fi_finish_read_locked(ticket, slot);
++    RB_WAKE_CALL("present.signal", -2, pthread_cond_broadcast(&g_pq_cv));
++    pthread_mutex_unlock(&g_pq_mu);
++}
+ // 在命令槽 s 上编码并提交（dr 非空 = 这次画进画布）。after 在 GPU 做完的回调里调。槽的分配器要等它上一次提交做完才能重用
+ API_AVAILABLE(macos(26.0), ios(26.0))
+-static int fi_commit(NvPresentFI *f, int s, id<CAMetalDrawable> dr, int (^enc)(id cb), void (^after)(int ok, double gpu_ms)) {
++static int fi_commit(NvPresentFI *f, uint64_t ticket, int s, id<CAMetalDrawable> dr, int (^enc)(id cb), void (^after)(int ok, double gpu_ms)) {
++    id o = fb_new();
++    if (!o) return 0;  // A submission without feedback cannot release its slot or ticket.
+     dispatch_semaphore_wait(f->slot_free[s], DISPATCH_TIME_FOREVER);
+     pthread_mutex_lock(&g_fi_enc_mu);
+     // RewindBox (patch 0345): the sampler (g_blit_samp) and the layer's blit pipeline come from present_now's present_pipeline(layer.pixelFormat) call before fi_frame;
+@@ -408,11 +427,17 @@
+     dispatch_semaphore_t fr = f->slot_free[s];
+     // RewindBox (patch 0345 review): counted in g_pq_inflight until the GPU is done, as a classic present: the session stop, the link hand-over and the idle test of
+     //   rb_press_release wait for it (Metal 4 does not keep the textures it reads alive); its errors go to mtl_gpu_cb_error (the GPU's safe stop, the residency report)
+-    id o = fb_new(); fb_add(o, ^(id fbk) { NSError *fe = [fbk error]; int good = !fe;
+-                                if (!good && !mtl_gpu_cb_error(fe, "frame interpolation", (uint64_t)s)) MLOG("【红】 frame interpolation command buffer error (slot %d): %s", s, fe.description.UTF8String);
++    fb_add(o, ^(id fbk) { NSError *fe = [fbk error]; int good = fbk && !fe;
++                                if (fe && !mtl_gpu_cb_error(fe, "frame interpolation", (uint64_t)s)) MLOG("【红】 frame interpolation command buffer error (slot %d): %s", s, fe.description.UTF8String);
+                                 double gs = [fbk GPUStartTime], ge = [fbk GPUEndTime];
+-                                pthread_mutex_lock(&g_pq_mu); g_pq_inflight--; RB_WAKE_CALL("present.signal", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu);
+-                                dispatch_semaphore_signal(fr); if (after) after(good, gs > 0 && ge >= gs ? (ge - gs) * 1000 : -1); });
++                                // Consume per-slot feedback before another encoder can reuse its buffers.
++                                if (after) after(good, gs > 0 && ge >= gs ? (ge - gs) * 1000 : -1);
++                                dispatch_semaphore_signal(fr);
++                                pthread_mutex_lock(&g_pq_mu);
++                                fi_finish_read_locked(ticket, s);
++                                g_pq_inflight--;
++                                RB_WAKE_CALL("present.signal", -2, pthread_cond_broadcast(&g_pq_cv));
++                                pthread_mutex_unlock(&g_pq_mu); });
+     pthread_mutex_lock(&g_pq_mu); g_pq_inflight++; pthread_mutex_unlock(&g_pq_mu);
+     res_commit(); m4_commit_one(cb, o);
+     if (dr) [rb_present_queue() signalDrawable:dr];
+@@ -438,7 +463,7 @@
+     int prime = dm_fi_should_prime(cont, allow, period, fi_all_on(), &f->consec_declined);
+     if (seq > 0 && !allow) f->declined++;
+     else if (seq > 0 && good && !pair) f->unpaired++;
+-    int mid_shown = 0;
++    int mid_shown = 0, input_submitted = 0;
+     if (good) {
+         id<CAMetalDrawable> dm = pair ? [layer nextDrawable] : nil;
+         int use_fx = ((pair && dm) || prime) && !dup && !novt;
+@@ -446,7 +471,7 @@
+         // 补出帧的摆放比例要和真帧一致（#1165：自适应满屏补丁开着时真帧走 present_blit_m4 按 s2a_cpatch_present_aspect 拉满到屏幕画幅，补出帧按输入图 16:9 摆，
+         //   两侧黑边隔一帧一有，看着闪）：有补丁画幅就按它，没有照旧按输入图比例
+         double pa = rb_fi_patch_aspect(); NSUInteger vh = (NSUInteger)f->h, vw = pa > 0 ? (NSUInteger)llround(f->h * pa) : (NSUInteger)f->w;
+-        int ok = fi_commit(f, 1, dm, ^int(id cb) {
++        input_submitted = fi_commit(f, ticket, 1, dm, ^int(id cb) {
+             if (!fi_pass(cb, f->psoCopy, f->tab[0], f->uv[0], src, nil, f->in_tex[k], crop, flip, 0, 0)) return 0;
+             if (fi_mv_mode()) fi_mv_encode(f, cb, k, use_fx, fi_mv_mode() < 0 ? -1.f : 1.f);   // 亮度每帧都缩（下一帧配对要用）；匹配只在要插值时做
+             if (use_fx) {
+@@ -462,27 +487,28 @@
+             int cut_check = use_fx && fi_mv_mode() && f->mvFlag;   // 切镜头时 GPU 上改画这一帧的输入图
+             return fi_pass(cb, cut_check ? f->psoMid : f->psoCopy, f->tab[2], f->uv[2], mid, cut_check ? f->in_tex[k] : nil, dm.texture, NULL, NO, vw, vh);
+         }, use_fx ? ^(int gok, double gms) {
+-            int cut = fi_mv_mode() && f->mvFlag && *(volatile uint32_t *)f->mvFlag.contents;
++            int cut = gok && fi_mv_mode() && f->mvFlag && *(volatile uint32_t *)f->mvFlag.contents;
+             pthread_mutex_lock(&g_pq_mu); if (gok && gms >= 0) { f->gpu_n++; f->gpu_sum += gms; if (gms > f->gpu_max) f->gpu_max = gms; } if (cut) f->cuts++; pthread_mutex_unlock(&g_pq_mu);
+             if (cut) atomic_store(&f->cut_seq, seq); } : nil);
+-        if (ok) {
++        if (input_submitted) {
+             f->last_seq = seq;
+             if (use_fx) { f->last_pair_seq = seq; if (dm) f->made++; }
+             if (dm) { fi_count_on(dm, &g_fi_on_mid); [dm present]; mid_shown = 1; f->shown_mid++; }
+         } else f->last_seq = UINT64_MAX;   // 输入图没写成：下一帧不跟它配对
+     } else f->last_seq = UINT64_MAX;
+     // 真帧（游戏原图直接画进画布）：有补出的帧就隔半个游戏周期再上
++    if (!input_submitted) fi_skip_read(ticket, 1);
+     double half = period > 0 ? period / 2 : 1.0 / 60;
+     id<CAMetalDrawable> dr = [layer nextDrawable];
+-    if (dr && fi_commit(f, 2, dr, ^int(id cb) {
+-            return present_blit_m4(cb, src, dr.texture, crop, f->uv[3], f->tab[3], flip); }, ^(int ok2, double gms) { (void)ok2; (void)gms; fi_ticket_done(ticket); })) {
++    if (dr && fi_commit(f, ticket, 2, dr, ^int(id cb) {
++            return present_blit_m4(cb, src, dr.texture, crop, f->uv[3], f->tab[3], flip); }, nil)) {
+ #if !TARGET_OS_SIMULATOR
+         present_note(dr, ticket); fi_count_on(dr, &g_fi_on_real);
+         if (mid_shown) [dr presentAfterMinimumDuration:half]; else if (period > 0) [dr presentAfterMinimumDuration:period]; else [dr present];   // RewindBox (patch 0345 review): no frame in between: held a period, as the classic path
+ #else
+         [dr present];
+ #endif
+-    } else fi_ticket_done(ticket);
++    } else fi_skip_read(ticket, 2);
+     if (++f->jobs % 300 == 0) {
+         pthread_mutex_lock(&g_pq_mu); uint64_t gn = f->gpu_n, cuts = f->cuts; double gsum = f->gpu_sum, gmax = f->gpu_max; f->gpu_n = 0; f->gpu_sum = f->gpu_max = 0; pthread_mutex_unlock(&g_pq_mu);
+         MLOG("present frame interpolation up to game frame %llu: interpolated %llu (scene cuts shown as the game frame %llu), not interpolated by the rule %llu (60 fps tier or frame late), not paired %llu (previous frame not in the input or no drawable), shown %llu; "
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -29727,7 +29727,17 @@
+         else if (st == 2 && now - t0 >= at + dur) { st = 3; mtl_link_pause(0); MLOG("DM_TEST_LINK_STALL: resuming the display link (frame %llu)", (unsigned long long)atomic_load(&g_cur_frame)); }
+     }
+     pthread_mutex_lock(&g_pq_mu);
+-    if (g_pq_in - g_pq_done >= PQ) { pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_BEGIN(); pthread_mutex_lock(&g_pq_mu); while (g_pq_in - g_pq_done >= PQ && !atomic_load(&g_present_discard)) RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu)); pthread_mutex_unlock(&g_pq_mu); DM_BLOCK_END(); pthread_mutex_lock(&g_pq_mu); }
++    while (g_pq_in - g_pq_done >= PQ && !atomic_load(&g_present_discard)) {
++        pthread_mutex_unlock(&g_pq_mu);
++        DM_BLOCK_BEGIN();
++        pthread_mutex_lock(&g_pq_mu);
++        while (g_pq_in - g_pq_done >= PQ && !atomic_load(&g_present_discard))
++            RB_WAKE_CALL("present.wait", -1, pthread_cond_wait(&g_pq_cv, &g_pq_mu));
++        pthread_mutex_unlock(&g_pq_mu);
++        DM_BLOCK_END();
++        // Another producer may have claimed the available entry during DM_BLOCK_END.
++        pthread_mutex_lock(&g_pq_mu);
++    }
+     if (atomic_load(&g_present_discard)) { pthread_mutex_unlock(&g_pq_mu); return 0; }
+     pq_item *it = &g_pq[g_pq_in % PQ]; *it = (pq_item){*t, period, atomic_load(&g_cur_frame), {0}, CACurrentMediaTime(), ev_val, display_hold};
+     it->render_fence = ev_val ? 0 : nvn_be_last_fence();

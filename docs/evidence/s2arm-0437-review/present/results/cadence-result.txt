@@ -1,0 +1,19 @@
+1412190 decisions; 165632 allowed; zero differences
+identical rb_present_hold.h
+identical nvn_fi_rule.h
+identical S2ArmEngineBridgePlugin.m
+identical S2ArmSettings.m
+identical S2ArmSessionMenu.m
+identical present_itv
+identical present_period
+identical rb_fi_requested
+identical rb_fi_link_start
+identical fi_wanted_for
+identical fi_wanted_now
+identical fi_link_follow
+identical fi_get
+identical fi_job
+identical fi_frame
+identical s2a_rb_guest_set_frame_interp
+identical producer
+identical routing

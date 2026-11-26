@@ -4,6 +4,7 @@ import argparse
 from datetime import datetime, timezone
 import fcntl
 import hashlib
+import itertools
 import json
 import math
 import os
@@ -135,6 +136,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--baseline", type=Path, required=True)
     parser.add_argument("--candidate", type=Path)
+    parser.add_argument("--best", type=Path, help="additional best intermediate revision with the same module interfaces")
     parser.add_argument("--runs", type=int, default=6, help="paired repetitions, alternating AB/BA")
     parser.add_argument("--cpu", type=int, help="allowed Linux CPU index, default first available")
     parser.add_argument("--only", choices=MODULES)
@@ -143,6 +145,8 @@ def main():
     parser.add_argument("--record", action="store_true", help="append complete report to perf_history.json")
     parser.add_argument("--output", type=Path, help="write standalone JSON")
     args = parser.parse_args()
+    if args.best and not args.candidate:
+        parser.error("--best requires --candidate for the three-way comparison")
     if args.runs < 5:
         parser.error("--runs must be at least 5")
     if not hasattr(os, "sched_getaffinity"):
@@ -166,13 +170,15 @@ def main():
                  "clang": subprocess.check_output(["clang","--version"],text=True).splitlines()[0]},
         "harness_sha256": {"bench_core.c":digest(BENCH), "bench_suite.py":digest(Path(__file__))},
         "runs_per_variant": args.runs, "sanitizer_workload": "short (--verify-only), engine environment overrides removed",
-        "timing": "CLOCK_MONOTONIC, milliseconds, same CPU, one warmup per binary, alternating order",
+        "timing": "CLOCK_MONOTONIC, milliseconds, one CPU, one warmup per binary, rotating through all variant orders",
         "cachegrind": {"version": subprocess.check_output(["valgrind","--version"],text=True).strip() if cg_modules else None,
                       "configurations": CACHES if cg_modules else {}, "scope": "one complete short host process per module and configuration"},
         "physical_device_status": "not measured", "apple_performance_projection": "not calibrated; no estimate",
         "order": [], "variants": {}, "modules": {},
     }
     variants = {"baseline": args.baseline}
+    if args.best:
+        variants["best"] = args.best
     if args.candidate:
         variants["candidate"] = args.candidate
     with tempfile.TemporaryDirectory(prefix="s2arm-bench-") as tmp:
@@ -193,10 +199,9 @@ def main():
                     "timed_checksum": row["checksum"], "raw_ms": [],
                     "workload_counters": {k:v for k,v in row.items() if k not in {"module","time_ms","checksum","throughput_mib_per_s"}},
                 }
+        orders = list(itertools.permutations(variants))
         for pair in range(args.runs):
-            order = list(variants)
-            if pair % 2:
-                order.reverse()
+            order = orders[pair % len(orders)]
             report["order"].append(order)
             for tag in order:
                 rows = run(binaries[tag], selected, env, args.only)
@@ -210,16 +215,24 @@ def main():
             for tag,data in entry["variants"].items():
                 data["median_ms"] = median(data["raw_ms"])
             if args.candidate:
-                base, cand = entry["variants"]["baseline"], entry["variants"]["candidate"]
-                same = all(base[k] == cand[k] for k in ["short_checksum","timed_checksum"])
-                if module != "M05" and not same:
-                    raise RuntimeError(f"{module}: baseline/candidate checksum differs")
-                entry["parity"] = ("policy counters only; no rendering comparison" if module=="M05"
+                cand = entry["variants"]["candidate"]
+                comparisons = {}
+                for reference in variants:
+                    if reference == "candidate":
+                        continue
+                    other = entry["variants"][reference]
+                    same = all(other[k] == cand[k] for k in ("short_checksum", "timed_checksum"))
+                    if module != "M05" and not same:
+                        raise RuntimeError(f"{module}: {reference}/candidate checksum differs")
+                    comparison = {"checksums_match": same}
+                    if all(t > 0 for t in other["raw_ms"]):
+                        changes = [round(100 * (c / b - 1), 4) for b, c in zip(other["raw_ms"], cand["raw_ms"])]
+                        comparison.update(paired_percent_change=changes, paired_median_percent_change=median(changes))
+                    comparisons[reference] = comparison
+                entry["comparisons"] = comparisons
+                entry.update(comparisons["baseline"])
+                entry["parity"] = ("policy counters only; no rendering comparison" if module == "M05"
                                    else "matching short and timed workload checksums")
-                entry["checksums_match"] = same
-                if all(t>0 for t in base["raw_ms"]):
-                    entry["paired_percent_change"] = [round(100*(c/b-1),4) for b,c in zip(base["raw_ms"],cand["raw_ms"])]
-                    entry["paired_median_percent_change"] = median(entry["paired_percent_change"])
             else:
                 entry["parity"] = "not compared; baseline only"
             print(module, entry["parity"], {k:v["median_ms"] for k,v in entry["variants"].items()}, flush=True)

@@ -1,4 +1,4 @@
-# S2Arm 0437–0444, contre-expertise et reprise du 26 novembre 2026
+# S2Arm 0437–0446, contre-expertise et reprise du 26 novembre 2026
 
 La référence de comparaison de cette série est le moteur 0436 au commit RewindBox `8be902ac0`. Les charges sont générées localement. Pour la comparaison avec le point de départ 0426, les résultats du banc d’uniformes figurent dans [les paires supplémentaires](uniform-0426-final.csv).
 
@@ -37,6 +37,8 @@ Les numéros des expériences antérieures à la reprise sont distincts de la s�
 - **0441 expérimental** fournit le changement retenu en 0438. **0442 expérimental** augmentait la taille des plages à 128 octets et affaiblissait certains ordres atomiques. La variante 0439 active conserve la représentation et les ordres d’origine. **0443 expérimental** fournit la géométrie de 0440. Son déroulage du contrôle de tuile vide ralentissait le cas où le premier octet est non nul, de 2,53 à 3,26 ms par million de tuiles, et a été retiré.
 - **0444 expérimental** omettait de restaurer viewport et scissor en quittant la projection élargie. Le corps extrait de la fonction produit des commandes différentes. Le correctif de laboratoire et ses traces synthétiques sont décrits dans les [notes de contre-expertise](drafts/notes.md). La propagation de toutes les invalidations dans le véritable encodeur reste à établir.
 
+La série 0441 a compilé pour iOS sur les deux runners macOS. Sur macOS arm64, douze paires donnent **60,475 → 22,770 ms** pour la conversion de textures et **76,561 → 10,112 ms** pour la géométrie. Le compilateur iPhoneOS produit l’AIR du shader embarqué. Le périphérique « Apple Paravirtual device » crée les cinq pipelines dans chaque version et exécute les deux niveaux du calcul de mouvement. Sur trois scènes, la version FP16 change deux vecteurs. Sur 387 blocs, le candidat retrouve chaque vecteur et chaque score FP32. [Résultats du banc](macos-0441.txt) et [compilation 0441](https://github.com/TarbleFR/RewindBox/actions/runs/45851312226).
+
 ## Tables de bornes, substitutions et clés des pipelines
 
 Les références sont le point de départ 0426, la série 0436 et les fonctions de 0441 avant chaque modification isolée. Les mesures ci-dessous utilisent Clang sur Linux x86-64. La valeur p95 porte sur un lot de travail CPU. Le coût de compilation Metal, l’image présentée et le délai de présentation sont des mesures distinctes.
@@ -58,6 +60,15 @@ python3 pipeline/replay.py /chemin/0426 /chemin/0436 /chemin/candidat --csv pipe
 
 Le [référentiel matériel autonome](../../../tools/s2arm_a18pro/referentiel_a18pro_autonome.json) relie chaque caractéristique aux publications d’Apple ou au résultat public identifié. Le [banc Linux](../../../tools/s2arm_a18pro/bench_suite.py) conserve les délais bruts et les compteurs Cachegrind, avec la portée de chaque module. Les paramètres A18 Pro insuffisamment documentés restent inconnus.
 
+## Synchronisation de la présentation et Frame Gen
+
+Les deux manifestes livrés 843 et 844 permettent de reconstruire le code du sélecteur et la trajectoire de présentation. Il prend les mêmes décisions sur **1 412 190 entrées synthétiques**, dont 165 632 admissibles. La 844 peut utiliser une file Metal dédiée. Le code exposait alors un défaut de durée de vie de l’image, même lorsque le sélecteur prenait la bonne décision.
+
+- **0445.** En cas d’échec de la seconde présentation après soumission de la première, le moteur rendait le ticket trop tôt. Chaque lecture soumise conserve désormais la source jusqu’à son propre retour GPU. La file vérifie à nouveau sa capacité quand deux producteurs reprennent le mutex. Sur 1 920 scénarios de l’hôte simulant ces retours, les divergences passent de 681 à zéro. Sur 8 000 tickets, l’ordre de libération et la limite de huit sont respectés. Le banc couvre aussi l’arrêt et l’expiration du délai de vidage. Le lien entre ce défaut et les FPS d’un jeu n’est pas établi. [Source, protocole et données](present/README.md).
+- **0446.** À la fermeture d’une session, le moteur retire le jeu de ressources de la couche de la même file Metal que celle utilisée pour son inscription. Sur cinq séries de 300 sessions, 100 inscriptions par série restaient actives dans le témoin à file dédiée, contre zéro après correction. Le contrôle porte sur le dernier jeu inscrit par session. Les octets résidents chez le pilote et le comportement lors de changements successifs de couche pendant une session restent à établir. [Résultats pour les deux files](present/results/residency.tsv).
+
 ## État de reprise
+
+La piste de vidage des tables au changement d’image est retirée de la phase autonome après consultation d’une archive personnelle pendant son exploration. Son code et ses résultats sont exclus. La prochaine comparaison de compilation de pipelines utilise uniquement les shaders générés par le banc.
 
 Les candidats modifient les copies de textures et la gestion des métadonnées CPU sans réduire la résolution de rendu, la qualité demandée ou l’horloge invitée. Les nouveaux FPS moteur et générés, le frametime, les pixels du jeu, la RAM réelle, la chauffe et la consommation attendent une mesure sur appareil. Les pistes de soumission à GPU vide, de prélecture des pages de textures, d’encodage des arguments et de compilation en cours de partie restent ouvertes.
