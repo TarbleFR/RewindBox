@@ -1,0 +1,3 @@
+ring: 8000 tickets, two readers + duplicate and late old notifications; contiguous releases
+shutdown and stall wait for both readers; shutdown timeout preserves the ticket
+cases=1920 divergent=0 late-feedback-read=0 missing-live-source-on-gpu=0 already-released-while-inflight=0 release-before-submit=0 checksig=b03e3cc1f3edc2e0

@@ -4858,5 +4858,15 @@
       "repeated": 0.046354
     },
     "iphone": null
-  }
+  },
+  "measurement_changes": [
+    {
+      "patch": "0448",
+      "evidence": "docs/evidence/s2arm-0437-review/present/observation/README.md",
+      "diagnostic_checks": 400,
+      "normal_comparisons": 220,
+      "normal_callback_machine_code_identical_on_linux": true,
+      "physical_generated_and_native_fps": null
+    }
+  ]
 }

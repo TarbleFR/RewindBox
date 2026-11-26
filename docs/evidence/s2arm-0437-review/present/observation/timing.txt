@@ -1,0 +1,12 @@
+A median wall=2431.45 CPU=723.37 ns/job
+A2 median wall=2322.83 CPU=727.77 ns/job
+I0 median wall=2718.95 CPU=728.33 ns/job
+I1 median wall=2590.26 CPU=727.80 ns/job
+F0 median wall=2557.28 CPU=734.92 ns/job
+F1 median wall=2739.81 CPU=788.45 ns/job
+A2/A median paired CPU +0.95% (95% bootstrap [-0.15%, +1.90%]); slower 15/24
+I0/A median paired CPU -0.18% (95% bootstrap [-0.65%, +2.76%]); slower 11/24
+I1/I0 median paired CPU -0.10% (95% bootstrap [-1.68%, +1.11%]); slower 11/24
+F0/A median paired CPU +1.78% (95% bootstrap [+0.22%, +3.29%]); slower 18/24
+F1/F0 median paired CPU +7.21% (95% bootstrap [+5.15%, +8.08%]); slower 24/24
+F0/I0 median paired CPU +0.99% (95% bootstrap [+0.20%, +1.97%]); slower 19/24

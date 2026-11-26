@@ -1,0 +1,1 @@
+Six switches: the nondefault macro and build fingerprint toggle only for exact value 1

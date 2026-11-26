@@ -1,0 +1,312 @@
+diff --git a/graphics/nvn/Makefile b/graphics/nvn/Makefile
+--- a/graphics/nvn/Makefile
++++ b/graphics/nvn/Makefile
+@@ -22,10 +22,15 @@
+ # 源 / 头清单戳（11-05 合入运维线：门禁常驻工作树跨批增量编，某批分支删 / 改名一个源文件后，余下源都比库旧、库不重建，
+ #   旧库里留着已删文件的目标文件，引用的宿主符号已不在 → 偶发「Undefined symbols」（nvn_rec_cover 构建失败 12 次，干净重跑就绿）。
+ #   清单变了就改写戳（内容不变不改写，不触发重编），各库依赖它
++# The optional FI observation code is absent from regular engine builds.
++RB_FI_STATS_CFLAGS :=
++ifeq ($(S2A_RB_COMPILE_FI_STATS),1)
++RB_FI_STATS_CFLAGS := -DS2A_RB_COMPILE_FI_STATS=1
++endif
+ SRCSTAMP := $(OUT)/.srclist
+-$(shell mkdir -p $(OUT); [ "$$(cat $(SRCSTAMP) 2>/dev/null)" = '$(sort $(SRCS) $(HDRS))' ] || printf '%s' '$(sort $(SRCS) $(HDRS))' > $(SRCSTAMP))
++$(shell mkdir -p $(OUT); [ "$$(cat $(SRCSTAMP) 2>/dev/null)" = '$(sort $(SRCS) $(HDRS) $(RB_FI_STATS_CFLAGS))' ] || printf '%s' '$(sort $(SRCS) $(HDRS) $(RB_FI_STATS_CFLAGS))' > $(SRCSTAMP))
+ PFX   := -ffile-prefix-map=$(ROOT)=.
+-INC   := -I$(ROOT)/graphics/nvn/gfx/nvn/include -I$(ROOT)/graphics/nvn/host -I$(ROOT)/runtime/include -I$(ROOT)/graphics/nvn/third_party/vulkan-headers/include -I$(OUT)/gen
++INC   := $(RB_FI_STATS_CFLAGS) -I$(ROOT)/graphics/nvn/gfx/nvn/include -I$(ROOT)/graphics/nvn/host -I$(ROOT)/runtime/include -I$(ROOT)/graphics/nvn/third_party/vulkan-headers/include -I$(OUT)/gen
+ WARN  := -Wall -Wno-unused-function -Wno-unguarded-availability-new -Wno-unguarded-availability
+ # RewindBox (patch 0334): the two files the submit thread runs nearly all of its time in are built for speed on iOS, the rest stays -Os. IPA 827, Mario Kart World, race at
+ #   Fair: the submit thread spends 13.5 to 19.5 ms a frame (49 to 81 M instructions, 28.8 to 36.9 k a draw) in nvn_mtl.m and hle_nvn.c at 1.33 to 1.49 GHz, and -Os keeps
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -4643,7 +4643,7 @@
+     LOG("[rb-speed] up to present %llu: game speed %.1f %% (the game time at the intervals it picked per second of wall time; %.1f %% leaving out %u stalls over %d vsyncs), "
+         "guest clock %.3f s a second; %.1f presents a second, at interval 1 / 2 / 3+ %u / %u / %u (%.0f %% at 2); present to present up to 1 / 2 / 3 / more vsyncs %u / %u / %u / %u; "
+         "a present %.2f ms of pacing waits and %.2f ms between them; TIMESTAMP reads %.2f ms a frame (%.2f ms before the hold, %u frames); display link on for %u presents, "
+-        "%.1f ticks a second; frame interpolation %s, %llu interpolated and %llu real frames shown; held by patch 0349 %u; no-lock guard %s",
++        "%.1f ticks a second; frame interpolation %s, %llu midpoint drawables and %llu real frames shown on FI path; held by patch 0349 %u; no-lock guard %s",
+         (unsigned long long)o->presents, 100 * rb_speed_meter_ratio_all(m), 100 * rb_speed_meter_ratio(m), m->stalls, RB_SPEED_CLAMP,
+         wall > 0 ? gs / wall : 0, wall > 0 ? m->presents / wall : 0, m->itv[0], m->itv[1], m->itv[2], 100.0 * m->itv[1] / n, m->hist[0], m->hist[1], m->hist[2], m->hist[3],
+         m->waits_ms / n, m->work_ms / n, m->reads ? m->read_ms / m->reads : 0, m->reads ? m->gpu_ms / m->reads : 0, m->reads, m->linked,
+diff --git a/graphics/nvn/gfx/nvn/nvn_present_fi.inc b/graphics/nvn/gfx/nvn/nvn_present_fi.inc
+--- a/graphics/nvn/gfx/nvn/nvn_present_fi.inc
++++ b/graphics/nvn/gfx/nvn/nvn_present_fi.inc
+@@ -20,6 +20,12 @@
+ // 只走 Metal 4 + 有窗口的出图线程（开着时从启动就不建显示链接）；系统不支持、任何一步建不出来就整段回退到原来的出图，报红一次。
+ // 线程：全部在出图线程上编码（g_fi_enc_mu 护着与出图共用的状态：遍描述、管线缓存、驻留集提交）。
+ // MetalFX 头由 nvn_mtl.m 先包含的 nvn_present_fx.inc 带进来（本文件只在它之后被包含；不在共用文件里再直接包含苹果头，分层规则 R-02）
++#ifndef S2A_RB_COMPILE_FI_STATS
++#define S2A_RB_COMPILE_FI_STATS 0
++#endif
++#if S2A_RB_COMPILE_FI_STATS == 1
++#include "rb_fi_present_stats.h"
++#endif
+ #include "nvn_fi_rule.h"   // 逐帧判定：只补 30 帧档或更低档、跑满的帧（dm_fi_should_interp）
+ 
+ API_AVAILABLE(macos(26.0), ios(26.0))
+@@ -112,7 +118,11 @@
+     return tier;
+ }
+ static int fi_wanted_now(void) {
+-    if (g_fi_state < 0) { g_fi_state = rb_fi_requested() && !g_m3;   // RewindBox (patch 0345): S2A_RB_FI=1 or DM_PRESENT_FI=1 (nvn_mtl.m rb_fi_requested)
++    if (g_fi_state < 0) {
++#if S2A_RB_COMPILE_FI_STATS == 1
++        if (atomic_load(&g_rb_fi_stats_on) < 0) rb_fi_stats_begin_session();
++#endif
++        g_fi_state = rb_fi_requested() && !g_m3;   // RewindBox (patch 0345): S2A_RB_FI=1 or DM_PRESENT_FI=1 (nvn_mtl.m rb_fi_requested)
+         if (g_fi_state) { MLOG("present frame interpolation: on (S2A_RB_FI=1 or DM_PRESENT_FI=1; RewindBox patch 0345, from upstream S2Arm), encoded on the present queue right after the game frame, display link off"); }
+         else MLOG("present frame interpolation: off (%s; RewindBox patch 0345)", g_m3 ? "Metal 3 backend" : "S2A_RB_FI=1 turns it on"); }
+     if (g_fi_state != 1) return 0;
+@@ -356,7 +366,21 @@
+ static pthread_mutex_t g_fi_enc_mu = PTHREAD_MUTEX_INITIALIZER;
+ static inline double rb_fi_patch_aspect(void) { return 0; }   // RewindBox (patch 0345): no community frame-rate patch aspect in this engine (upstream s2a_cpatch_present_aspect)
+ static _Atomic uint64_t g_fi_on_mid, g_fi_on_real;   // 系统回报真的上了屏的次数（presentedTime > 0）：补出的帧 / 真帧
+-__attribute__((weak)) void s2a_hud_mid_frame(void) {}   // runtime/src/hud.c 强定义：浮层把补出的帧算进屏上帧率
++__attribute__((weak)) void s2a_hud_mid_frame(void) {}   // Optional observer. The brief HUD counts guest presents.
++#if S2A_RB_COMPILE_FI_STATS == 1
++static void fi_count_on(id<CAMetalDrawable> d, _Atomic uint64_t *c, uint64_t observation) {
++#if !TARGET_OS_SIMULATOR
++    int mid = c == &g_fi_on_mid;
++    [d addPresentedHandler:^(id<MTLDrawable> x) {
++        double t = x.presentedTime;
++        if (t > 0) { atomic_fetch_add(c, 1); if (mid) s2a_hud_mid_frame(); }
++        if (observation) rb_fi_stats_update(observation, RB_FI_DISPLAY_READY, RB_FI_GPU_ERROR, t);
++    }];
++#else
++    (void)d; (void)c; (void)observation;
++#endif
++}
++#else
+ static void fi_count_on(id<CAMetalDrawable> d, _Atomic uint64_t *c) {
+ #if !TARGET_OS_SIMULATOR
+     int mid = c == &g_fi_on_mid;
+@@ -365,6 +389,7 @@
+     (void)d; (void)c;
+ #endif
+ }
++#endif
+ // 拆账用 DM_PRESENT_FI_DUP=1：不写 YUV 平面、不调模型，每个游戏帧把原图上屏两次（只剩「每秒上屏 60 次 + 屏幕 60 Hz」本身的开销）
+ static int fi_dup(void) { static int v = -1; if (v < 0) v = getenv("DM_PRESENT_FI_DUP") != NULL; return v; }
+ typedef struct { int has, c[4]; } fi_crop;
+@@ -471,6 +496,9 @@
+         // 补出帧的摆放比例要和真帧一致（#1165：自适应满屏补丁开着时真帧走 present_blit_m4 按 s2a_cpatch_present_aspect 拉满到屏幕画幅，补出帧按输入图 16:9 摆，
+         //   两侧黑边隔一帧一有，看着闪）：有补丁画幅就按它，没有照旧按输入图比例
+         double pa = rb_fi_patch_aspect(); NSUInteger vh = (NSUInteger)f->h, vw = pa > 0 ? (NSUInteger)llround(f->h * pa) : (NSUInteger)f->w;
++#if S2A_RB_COMPILE_FI_STATS == 1
++        uint64_t observation = dm ? rb_fi_stats_reserve() : 0;
++#endif
+         input_submitted = fi_commit(f, ticket, 1, dm, ^int(id cb) {
+             if (!fi_pass(cb, f->psoCopy, f->tab[0], f->uv[0], src, nil, f->in_tex[k], crop, flip, 0, 0)) return 0;
+             if (fi_mv_mode()) fi_mv_encode(f, cb, k, use_fx, fi_mv_mode() < 0 ? -1.f : 1.f);   // 亮度每帧都缩（下一帧配对要用）；匹配只在要插值时做
+@@ -486,15 +514,38 @@
+             if (dup) return present_blit_m4(cb, src, dm.texture, crop, f->uv[2], f->tab[2], flip);
+             int cut_check = use_fx && fi_mv_mode() && f->mvFlag;   // 切镜头时 GPU 上改画这一帧的输入图
+             return fi_pass(cb, cut_check ? f->psoMid : f->psoCopy, f->tab[2], f->uv[2], mid, cut_check ? f->in_tex[k] : nil, dm.texture, NULL, NO, vw, vh);
++#if S2A_RB_COMPILE_FI_STATS == 1
++        }, (use_fx || observation) ? ^(int gok, double gms) {
++            int cut = use_fx && gok && fi_mv_mode() && f->mvFlag && *(volatile uint32_t *)f->mvFlag.contents;
++            if (use_fx) {
++                pthread_mutex_lock(&g_pq_mu); if (gok && gms >= 0) { f->gpu_n++; f->gpu_sum += gms; if (gms > f->gpu_max) f->gpu_max = gms; } if (cut) f->cuts++; pthread_mutex_unlock(&g_pq_mu);
++                if (cut) atomic_store(&f->cut_seq, seq);
++            }
++            if (observation) rb_fi_stats_update(observation, RB_FI_GPU_READY,
++                !gok ? RB_FI_GPU_ERROR : dup ? RB_FI_DUP : novt ? RB_FI_PREVIOUS : cut ? RB_FI_CUT : RB_FI_METALFX, 0); } : nil);
++#else
+         }, use_fx ? ^(int gok, double gms) {
+             int cut = gok && fi_mv_mode() && f->mvFlag && *(volatile uint32_t *)f->mvFlag.contents;
+             pthread_mutex_lock(&g_pq_mu); if (gok && gms >= 0) { f->gpu_n++; f->gpu_sum += gms; if (gms > f->gpu_max) f->gpu_max = gms; } if (cut) f->cuts++; pthread_mutex_unlock(&g_pq_mu);
+             if (cut) atomic_store(&f->cut_seq, seq); } : nil);
++#endif
+         if (input_submitted) {
+             f->last_seq = seq;
+             if (use_fx) { f->last_pair_seq = seq; if (dm) f->made++; }
+-            if (dm) { fi_count_on(dm, &g_fi_on_mid); [dm present]; mid_shown = 1; f->shown_mid++; }
+-        } else f->last_seq = UINT64_MAX;   // 输入图没写成：下一帧不跟它配对
++            if (dm) {
++#if S2A_RB_COMPILE_FI_STATS == 1
++                fi_count_on(dm, &g_fi_on_mid, observation);
++#else
++                fi_count_on(dm, &g_fi_on_mid);
++#endif
++                [dm present]; mid_shown = 1; f->shown_mid++;
++            }
++        } else {
++#if S2A_RB_COMPILE_FI_STATS == 1
++            if (observation) rb_fi_stats_update(observation, RB_FI_NOT_SUBMITTED, RB_FI_GPU_ERROR, 0);
++#endif
++            f->last_seq = UINT64_MAX;   // 输入图没写成：下一帧不跟它配对
++        }
+     } else f->last_seq = UINT64_MAX;
+     // 真帧（游戏原图直接画进画布）：有补出的帧就隔半个游戏周期再上
+     if (!input_submitted) fi_skip_read(ticket, 1);
+@@ -503,16 +554,24 @@
+     if (dr && fi_commit(f, ticket, 2, dr, ^int(id cb) {
+             return present_blit_m4(cb, src, dr.texture, crop, f->uv[3], f->tab[3], flip); }, nil)) {
+ #if !TARGET_OS_SIMULATOR
+-        present_note(dr, ticket); fi_count_on(dr, &g_fi_on_real);
++        present_note(dr, ticket);
++#if S2A_RB_COMPILE_FI_STATS == 1
++        fi_count_on(dr, &g_fi_on_real, 0);
++#else
++        fi_count_on(dr, &g_fi_on_real);
++#endif
+         if (mid_shown) [dr presentAfterMinimumDuration:half]; else if (period > 0) [dr presentAfterMinimumDuration:period]; else [dr present];   // RewindBox (patch 0345 review): no frame in between: held a period, as the classic path
+ #else
+         [dr present];
+ #endif
+     } else fi_skip_read(ticket, 2);
+     if (++f->jobs % 300 == 0) {
++#if S2A_RB_COMPILE_FI_STATS == 1
++        rb_fi_stats_report(0);
++#endif
+         pthread_mutex_lock(&g_pq_mu); uint64_t gn = f->gpu_n, cuts = f->cuts; double gsum = f->gpu_sum, gmax = f->gpu_max; f->gpu_n = 0; f->gpu_sum = f->gpu_max = 0; pthread_mutex_unlock(&g_pq_mu);
+-        MLOG("present frame interpolation up to game frame %llu: interpolated %llu (scene cuts shown as the game frame %llu), not interpolated by the rule %llu (60 fps tier or frame late), not paired %llu (previous frame not in the input or no drawable), shown %llu; "
+-             "GPU per interpolation (copy + motion + MetalFX + present, on the present queue) mean %.2f ms, max %.2f ms over %llu; on screen (system reported) interpolated %llu, game frames %llu",
++        MLOG("present frame interpolation up to game frame %llu: MetalFX midpoint submissions %llu (GPU scene-cut flags including priming %llu), not interpolated by the rule %llu (60 fps tier or frame late), not paired %llu (previous frame not in the input or no drawable), midpoint presents requested %llu; "
++             "GPU per interpolation (copy + motion + MetalFX + present, on the present queue) mean %.2f ms, max %.2f ms over %llu; on screen (system reported) midpoint drawables %llu, game drawables on FI path %llu",
+              (unsigned long long)f->jobs, (unsigned long long)f->made, (unsigned long long)cuts, (unsigned long long)f->declined, (unsigned long long)f->unpaired, (unsigned long long)f->shown_mid,
+              gn ? gsum / (double)gn : 0, gmax, (unsigned long long)gn, (unsigned long long)atomic_load(&g_fi_on_mid), (unsigned long long)atomic_load(&g_fi_on_real));
+     }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -109,6 +109,9 @@
+     rb_sub_open(2);   // RewindBox (patch 0071): no idle release by the pressure handler from here to the next session's first submission end (it waits for one under way; nvn_mtl.m rb_press_release)
+     int e = session_wait_backend(); if (e) { MLOG("【红】重启：Metal 工作仍持有旧会话 (%d)", e); return e; }
+     if (rb_hash_drain()) return -ETIMEDOUT;
++#if S2A_RB_COMPILE_FI_STATS == 1
++    rb_fi_stats_report(1);
++#endif
+     if (rb_park_compat()) {
+         // Guest/encode and upload producers are already retired by session_wait_backend.
+         dispatch_group_t reads = dispatch_group_create();
+@@ -404,6 +407,9 @@
+     return 0;
+ }
+ void nvn_be_begin_session(void) {
++#if S2A_RB_COMPILE_FI_STATS == 1
++    rb_fi_stats_begin_session();
++#endif
+     atomic_store(&rb_vertex_entry_mode,-1);
+     atomic_store(&rb_vertex_entry_cuts,0); atomic_store(&rb_vertex_entry_fallbacks,0);
+     atomic_store(&g_rb_known_initialized,0);
+diff --git a/graphics/nvn/gfx/nvn/rb_fi_present_stats.h b/graphics/nvn/gfx/nvn/rb_fi_present_stats.h
+new file mode 100644
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_fi_present_stats.h
+@@ -0,0 +1,112 @@
++// Opt-in diagnostics. One fixed-size table covers delayed Metal callbacks.
++// Each observation ID identifies one drawable across slot reuse and session changes.
++#ifndef RB_FI_PRESENT_STATS_H
++#define RB_FI_PRESENT_STATS_H
++
++#include <math.h>
++#include <stdint.h>
++#include <stdlib.h>
++#include <string.h>
++#include <time.h>
++
++enum rb_fi_content { RB_FI_METALFX, RB_FI_DUP, RB_FI_PREVIOUS, RB_FI_CUT, RB_FI_GPU_ERROR, RB_FI_CONTENT_COUNT };
++enum { RB_FI_NOT_SUBMITTED = 0, RB_FI_GPU_READY = 1, RB_FI_DISPLAY_READY = 2, RB_FI_OBSERVATIONS = 64 };
++typedef struct {
++    uint64_t id;
++    unsigned events;
++    enum rb_fi_content content;
++    double display_s;
++} rb_fi_observation;
++typedef struct {
++    uint64_t registered, pending, overwritten, failed_submit, discarded, invalid_time, shown[RB_FI_CONTENT_COUNT];
++    double first_display_s, last_display_s;
++} rb_fi_counts;
++static pthread_mutex_t g_rb_fi_stats_lock = PTHREAD_MUTEX_INITIALIZER;
++static _Atomic int g_rb_fi_stats_on = -1;
++static uint64_t g_rb_fi_stats_generation, g_rb_fi_stats_serial, g_rb_fi_stats_start_ns;
++static rb_fi_observation *g_rb_fi_observations;
++static rb_fi_counts g_rb_fi_counts;
++
++static uint64_t rb_fi_stats_clock_ns(void) {
++    struct timespec t;
++    if (clock_gettime(CLOCK_MONOTONIC, &t)) return 0;
++    return (uint64_t)t.tv_sec * 1000000000ull + t.tv_nsec;
++}
++static void rb_fi_stats_begin_session(void) {
++    const char *v = getenv("S2A_RB_FI_PRESENT_STATS");
++    int on = v && !strcmp(v, "1");
++    if (!on && atomic_load(&g_rb_fi_stats_on) <= 0) {
++        atomic_store(&g_rb_fi_stats_on, 0);
++        return;
++    }
++    pthread_mutex_lock(&g_rb_fi_stats_lock);
++    free(g_rb_fi_observations);
++    g_rb_fi_observations = on ? calloc(RB_FI_OBSERVATIONS, sizeof(*g_rb_fi_observations)) : NULL;
++    if (on && !g_rb_fi_observations) { MLOG("[rb-fi-present-v1] unavailable: capture allocation failed"); on = 0; }
++    g_rb_fi_counts = (rb_fi_counts){0};
++    g_rb_fi_stats_start_ns = on ? rb_fi_stats_clock_ns() : 0;
++    ++g_rb_fi_stats_generation;
++    atomic_store(&g_rb_fi_stats_on, on);
++    pthread_mutex_unlock(&g_rb_fi_stats_lock);
++}
++static inline uint64_t rb_fi_stats_reserve(void) {
++    if (atomic_load_explicit(&g_rb_fi_stats_on, memory_order_relaxed) <= 0) return 0;
++    pthread_mutex_lock(&g_rb_fi_stats_lock);
++    uint64_t id = 0;
++    if (g_rb_fi_observations) {
++        id = ++g_rb_fi_stats_serial;
++        rb_fi_observation *o = &g_rb_fi_observations[id % RB_FI_OBSERVATIONS];
++        if (o->id) g_rb_fi_counts.overwritten++;
++        else g_rb_fi_counts.pending++;
++        g_rb_fi_counts.registered++;
++        *o = (rb_fi_observation){.id = id};
++    }
++    pthread_mutex_unlock(&g_rb_fi_stats_lock);
++    return id;
++}
++static void rb_fi_stats_update(uint64_t id, unsigned event, enum rb_fi_content content, double display_s) {
++    pthread_mutex_lock(&g_rb_fi_stats_lock);
++    rb_fi_observation *o = g_rb_fi_observations ? &g_rb_fi_observations[id % RB_FI_OBSERVATIONS] : NULL;
++    if (o && o->id == id && !(o->events & event)) {
++        if (event == RB_FI_NOT_SUBMITTED) {
++            g_rb_fi_counts.failed_submit++; o->id = 0; g_rb_fi_counts.pending--;
++        } else {
++            if (event == RB_FI_GPU_READY) o->content = content;
++            else o->display_s = display_s;
++            o->events |= event;
++            if (o->events == (RB_FI_GPU_READY | RB_FI_DISPLAY_READY)) {
++                if (!isfinite(o->display_s)) g_rb_fi_counts.invalid_time++;
++                else if (o->display_s > 0) {
++                    g_rb_fi_counts.shown[o->content]++;
++                    if (!g_rb_fi_counts.first_display_s || o->display_s < g_rb_fi_counts.first_display_s) g_rb_fi_counts.first_display_s = o->display_s;
++                    if (o->display_s > g_rb_fi_counts.last_display_s) g_rb_fi_counts.last_display_s = o->display_s;
++                } else g_rb_fi_counts.discarded++;
++                o->id = 0; g_rb_fi_counts.pending--;
++            }
++        }
++    }
++    pthread_mutex_unlock(&g_rb_fi_stats_lock);
++}
++static void rb_fi_stats_report(int final) {
++    if (atomic_load_explicit(&g_rb_fi_stats_on, memory_order_relaxed) <= 0) return;
++    pthread_mutex_lock(&g_rb_fi_stats_lock);
++    rb_fi_counts counts = g_rb_fi_counts;
++    uint64_t gen = g_rb_fi_stats_generation, now = rb_fi_stats_clock_ns();
++    uint64_t wall_ns = g_rb_fi_stats_start_ns && now >= g_rb_fi_stats_start_ns ? now - g_rb_fi_stats_start_ns : 0;
++    if (final) {
++        atomic_store(&g_rb_fi_stats_on, 0);
++        free(g_rb_fi_observations); g_rb_fi_observations = NULL;
++    }
++    pthread_mutex_unlock(&g_rb_fi_stats_lock);
++    MLOG("[rb-fi-present-v1] session=%llu final=%d wall_ns=%llu classification_complete=%d registered=%llu pending=%llu overwritten=%llu failed_submit=%llu discarded=%llu invalid_time=%llu "
++         "displayed_metalfx=%llu displayed_duplicate=%llu displayed_previous=%llu displayed_cut=%llu displayed_unknown_gpu_error=%llu "
++         "first_midpoint_presented_s=%.9f last_midpoint_presented_s=%.9f confirmed_midpoint_span_s=%.9f",
++         (unsigned long long)gen, final, (unsigned long long)wall_ns,
++         !counts.pending && !counts.overwritten && !counts.invalid_time && !counts.shown[RB_FI_GPU_ERROR],
++         (unsigned long long)counts.registered, (unsigned long long)counts.pending,
++         (unsigned long long)counts.overwritten, (unsigned long long)counts.failed_submit, (unsigned long long)counts.discarded, (unsigned long long)counts.invalid_time,
++         (unsigned long long)counts.shown[RB_FI_METALFX], (unsigned long long)counts.shown[RB_FI_DUP],
++         (unsigned long long)counts.shown[RB_FI_PREVIOUS], (unsigned long long)counts.shown[RB_FI_CUT],
++         (unsigned long long)counts.shown[RB_FI_GPU_ERROR], counts.first_display_s, counts.last_display_s, counts.last_display_s - counts.first_display_s);
++}
++#endif

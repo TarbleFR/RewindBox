@@ -1,0 +1,1 @@
+Both constructed formats yielded 150 midpoint drawables, 15 midpoint/s and 300 original drawables; independent guest-clock rate 60 when supplied

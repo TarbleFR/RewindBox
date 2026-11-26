@@ -30,8 +30,9 @@ PATTERNS = (
      "draws_skipped_shlib draws_skipped_pso submit_msl_blocked_count submit_msl_blocked_ms shared_wait_ms"),
     (r"same-pass feedback sampling up to frame (\d+): .*?④ snapshot (\d+) \(([\d.]+) MB copied\)",
      "snapshots snapshot_mib"),
-    (r"\[rb-speed\] up to present (\d+): game speed ([\d.]+) %.*?; ([\d.]+) presents a second, at interval 1 / 2 / 3\+ (\d+) / (\d+) / (\d+).*?frame interpolation (on|off), (\d+) interpolated and (\d+) real frames shown",
-     "game_speed_pct engine_fps interval1 interval2 interval3plus fi generated_shown real_shown_by_fi"),
+    (r"\[rb-speed\] up to present (\d+): .*?guest clock ([\d.]+) s a second", "guest_seconds_per_wall_second"),
+    (r"\[rb-speed\] up to present (\d+): game speed ([\d.]+) %.*?; ([\d.]+) presents a second, at interval 1 / 2 / 3\+ (\d+) / (\d+) / (\d+).*?frame interpolation (on|off), (\d+) (?:interpolated|midpoint drawables) and (\d+) real frames shown",
+     "game_speed_pct engine_fps interval1 interval2 interval3plus fi midpoint_drawables_shown real_shown_by_fi"),
 )
 
 
@@ -106,7 +107,7 @@ def main():
     parser.add_argument("members", nargs="+")
     args = parser.parse_args()
     fields = [field for _, names in PATTERNS for field in names.split()]
-    writer = csv.DictWriter(sys.stdout, ["log", "end_present", *fields, "generated_fps_approx", *LONG_FIELDS, *WAIT_FIELDS, *VM_FIELDS], lineterminator="\n")
+    writer = csv.DictWriter(sys.stdout, ["log", "end_present", *fields, "midpoint_fps_approx", "guest_presents_per_guest_s_approx", *LONG_FIELDS, *WAIT_FIELDS, *VM_FIELDS], lineterminator="\n")
     writer.writeheader()
     with ZipFile(args.archive) as archive:
         for member in args.members:
@@ -129,7 +130,10 @@ def main():
                 count = sum(int(row[x]) for x in ("interval1", "interval2", "interval3plus"))
                 if count != 300:
                     continue
-                row["generated_fps_approx"] = round(int(row["generated_shown"]) * float(row["engine_fps"]) / count, 2)
+                row["midpoint_fps_approx"] = round(int(row["midpoint_drawables_shown"]) * float(row["engine_fps"]) / count, 2)
+                guest_time = float(row.get("guest_seconds_per_wall_second", 0))
+                if guest_time > 0:
+                    row["guest_presents_per_guest_s_approx"] = round(float(row["engine_fps"]) / guest_time, 2)
                 if long_by_window:
                     row.update(zip(LONG_FIELDS, long_by_window.get(frame, [0] * len(LONG_FIELDS)), strict=True))
                 if frame in wait_by_window:

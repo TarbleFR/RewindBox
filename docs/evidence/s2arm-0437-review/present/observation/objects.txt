@@ -1,0 +1,4 @@
+ELF .text: reference == ordinary, 8558 bytes, SHA256 bbbdb4a9c628ea69984442e7e21975861d7020dfe2b1787fc0fb9d99220e13b8
+LLVM IR: reference == ordinary, 156051 bytes, SHA256 078933042a901d19841c3d7546a864cc7c320a66c1dd55bfcfbf92f530a66044
+relocations for .text: reference == ordinary, 28247 bytes, SHA256 0bcb1789c3151e596f415857545b68b1bcfa86a92634950e9b24cd2c68dd9eec
+Diagnostic .text: 13182 bytes, SHA256 80bc93b48feca62e559f79643ba7972dfc37ece928880a5723ace23b51c03530; diagnostic symbols absent from ordinary object

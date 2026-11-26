@@ -591,6 +591,18 @@ jobs:
             cp "$f" "$out/nxaot-publish-$(basename "$(dirname "$f")").log"
           done
           exit $status
+      - name: Compile the opt-in FI observer for the iPhone SDK
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-fi-observer]')
+        working-directory: ${{ runner.temp }}/s2arm
+        env:
+          S2A_DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
+        run: |
+          set -euo pipefail
+          make -C graphics/nvn ios OUT="$RUNNER_TEMP/fi-diagnostics" S2A_RB_COMPILE_FI_STATS=1
+          archive="$RUNNER_TEMP/fi-diagnostics/ios/libnvn.a"
+          test -s "$archive"
+          xcrun strings "$archive" > "$RUNNER_TEMP/fi-diagnostic-strings"
+          grep -F '[rb-fi-present-v1]' "$RUNNER_TEMP/fi-diagnostic-strings" > "$GITHUB_WORKSPACE/proof/fi-diagnostic-format.txt"
       - name: Compare proven tile stores on identical Metal captures
         if: contains(github.event.head_commit.message, '[s2arm-zelda-check]')
         working-directory: ${{ runner.temp }}/s2arm
