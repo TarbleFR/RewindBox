@@ -1,0 +1,413 @@
+From 20c2431f126f44b97993c57ab2189bd6937feff7 Mon Sep 17 00:00:00 2001
+From: Tarble FR <f9wynyv9qy@privaterelay.appleid.com>
+Date: Thu, 26 Nov 2026 13:46:19 +0000
+Subject: [PATCH] patch-0435
+
+---
+ graphics/nvn/gfx/nvn/nvn_mtl.m            | 25 +++++--
+ graphics/nvn/gfx/nvn/nvn_session.inc      |  1 +
+ graphics/nvn/gfx/nvn/rb_cache_warm_rule.h | 89 +++++++++++++++++++++++
+ graphics/nvn/gfx/nvn/rb_registration.inc  | 74 ++++++++++++++++---
+ graphics/nvn/gfx/nvn/rb_stage_disk.inc    | 42 +++++++++--
+ 5 files changed, 209 insertions(+), 22 deletions(-)
+ create mode 100644 graphics/nvn/gfx/nvn/rb_cache_warm_rule.h
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 08e9ed3..430a172 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -15907,7 +15907,7 @@ static uint64_t g_pp_submit_mark, g_pp_kicked, g_pp_taken, g_pp_dropped;   // Wh
+ //   Now the lookahead's guesses (pso_predict_rest) wait in the table and compile on S2A_RB_PSO_LANES lanes (default 2) in the order they were kicked, and a pipeline a draw needs
+ //   (the draw at hand's kick, a first-use skip, or pso_pend_take reaching a guess no lane has started) starts at once at user-interactive QoS beside the lanes, never behind them.
+ //   The build is the same (par_render on the same descriptor). S2A_RB_PSO_LANES=0: every kick on the global queue at once, as before
+-static struct { id d; NSString *pkey; NvShader *typed_fs; uint32_t typed_need; uint64_t seq; int run, guess, live; } g_ppq[PSO_PEND_MAX];   // a kicked slot's build: d set = waiting for a lane; run = started; guess = kicked by the lookahead (g_pp_mu)
++static struct { id d; NSString *pkey, *shex; NvShader *typed_fs; uint32_t typed_need; uint64_t seq; int run, guess, live; } g_ppq[PSO_PEND_MAX];   // a kicked slot's build: d set = waiting for a lane; shex set (patch 0435) = real observed draw recipe to persist on completion; run = started; guess = kicked by the lookahead (g_pp_mu)
+ // A pending payload is a ready Metal descriptor or a captured key. Both are
+ // retained and transferred by the same queue and required-draw takeover.
+ @interface RBLookRecipe : NSObject {
+@@ -15956,10 +15956,16 @@ static void ppq_build(int slot, id payload, NSString *requestedKey) {   // a lan
+         b0=bp_now(); ps=par_render(d,pkey,&e);
+     }
+     uint64_t b1=bp_now();
++    NSString *shex=nil;
+     pthread_mutex_lock(&g_pp_mu); g_pp[slot].ps = ps; g_pp[slot].error = rb_async_pso() ? e : nil;
+     g_pp[slot].rb_way=rb_par_last_way; g_pp[slot].rb_began=b0; g_pp[slot].rb_build_ns=b0 ? b1-b0 : 0; g_pp[slot].rb_compile_ns=rb_par_last_compile_ns;   // RewindBox (patch 0313)
++    shex = g_ppq[slot].shex; g_ppq[slot].shex = nil;
+     g_pp[slot].worker = NULL;
+     g_pp[slot].done = 1; RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_pp_cv)); pthread_mutex_unlock(&g_pp_mu);
++    // RewindBox (patch 0435): persist real observed draw recipes as soon as background
++    // compilation succeeds (including lookahead guesses promoted mid-compile), so
++    // fluid-deferred pipelines are prewarmed on the next launch even if never redrawn.
++    if (ps && shex) @autoreleasepool { pso_user_record("R\t%s\n", shex.UTF8String); }
+ }
+ static int ppq_waiting(int i) { return i >= 0 && pp_used(i) && !g_pp[i].done && !g_ppq[i].run && g_ppq[i].d; }   // caller holds g_pp_mu
+ // Leave the descriptor in its slot until the selected worker actually starts.
+@@ -16018,7 +16024,7 @@ static int ppq_hurry_locked(int at) {
+     if (!ppq_waiting(at) || ppq_start_locked(at)) return 1;
+     // The two observed workers and their bounded backlog are occupied. Do not
+     // wait on an unclaimed optional slot which the thermal governor can cancel.
+-    g_ppq[at].d=nil; g_ppq[at].pkey=nil; g_ppq[at].typed_fs=nil;
++    g_ppq[at].d=nil; g_ppq[at].pkey=nil; g_ppq[at].shex=nil; g_ppq[at].typed_fs=nil;
+     pp_release(at);
+     RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_pp_cv));
+     return 0;
+@@ -16035,7 +16041,7 @@ static void ppq_lane(void) {   // a lane: the oldest waiting build, until none i
+             // rebuild from its own descriptor; teardown must not wait on a
+             // queued guess after the last lane exits.
+             for (int i=0; i<PSO_PEND_MAX; i++) if (ppq_waiting(i)) {
+-                g_ppq[i].d=nil; g_ppq[i].pkey=nil; g_ppq[i].typed_fs=nil;
++                g_ppq[i].d=nil; g_ppq[i].pkey=nil; g_ppq[i].shex=nil; g_ppq[i].typed_fs=nil;
+                 pp_release(i);
+             }
+             RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_pp_cv));
+@@ -16110,6 +16116,13 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs, int now)
+     pso_key copy;
+     const pso_key *live;
+     if (rb_pso_probe(k, &copy, &live) || !pso_pair_ok(vs, fs, 0)) return;
++    NSString *obs_shex = nil;
++    if (now && vs && vs->key[0] && (!fs || fs->key[0])) {
++        pso_skey rsk; char rhex[sizeof rsk * 2 + 1];
++        pso_skey_from(k, vs, fs, 0, NULL, &rsk);
++        pso_skey_hex(&rsk, rhex);
++        obs_shex = @(rhex);
++    }
+     pthread_mutex_lock(&g_pp_mu);
+     int at = pso_pend_find_live(live), slot = -1;
+     if (at < 0) for (int i = 0; i < PSO_PEND_MAX; i++) if (!pp_used(i)) { slot = i; break; }
+@@ -16118,6 +16131,7 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs, int now)
+     //   compiled, and building the same descriptor again took 0.0 ms (M5 Max, 24 pipelines, 11-02 microbenchmark), and its records are written when a draw builds it
+     if (at < 0 && slot < 0) for (int i = 0; i < PSO_PEND_MAX; i++) if (pp_used(i) && g_pp[i].done) { slot = i; g_pp[i].ps = nil; g_pp_dropped++; break; }
+     if (at < 0 && slot >= 0) { g_pp[slot].k = *live; g_pp[slot].ps = nil; g_pp[slot].error = nil; g_pp[slot].done = 0; g_pp[slot].late = 0; g_pp[slot].stuck = 0; pp_claim(slot); }
++    if (at >= 0 && obs_shex && !g_ppq[at].shex && !g_pp[at].done) g_ppq[at].shex = obs_shex;
+     if (at>=0 && now==RB_PSO_REQUIRED) ppq_demand_locked(at);
+     if (at>=0 && now==RB_PSO_SAME_PASS) {
+         // Keep any earlier queue owner intact if we cannot promote it.
+@@ -16137,10 +16151,10 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs, int now)
+     if (lanes) {   // RewindBox (patch 0069): the build waits in the table for a lane, or starts at once for the draw at hand
+         pthread_mutex_lock(&g_pp_mu);
+         g_ppq[slot].typed_fs = typed ? fs : nil; g_ppq[slot].typed_need = typed;
+-        g_ppq[slot].d = d; g_ppq[slot].pkey = pkey; g_ppq[slot].run = 0; g_ppq[slot].live = 0; g_ppq[slot].guess = !now; g_ppq[slot].seq = ++g_ppq_seq;
++        g_ppq[slot].d = d; g_ppq[slot].pkey = pkey; g_ppq[slot].shex = obs_shex; g_ppq[slot].run = 0; g_ppq[slot].live = 0; g_ppq[slot].guess = !now; g_ppq[slot].seq = ++g_ppq_seq;
+         if (now || observed) {
+             if (!(now==RB_PSO_REQUIRED && rb_live_lane() ? ppq_schedule_locked(slot,YES) : ppq_start_locked(slot))) {
+-                g_ppq[slot].d = nil; g_ppq[slot].pkey = nil; g_ppq[slot].typed_fs = nil;
++                g_ppq[slot].d = nil; g_ppq[slot].pkey = nil; g_ppq[slot].shex = nil; g_ppq[slot].typed_fs = nil;
+                 pp_release(slot);
+             } else if (now==RB_PSO_SAME_PASS)
+                 atomic_fetch_add_explicit(&g_rb_pass_ahead,1,memory_order_relaxed);
+@@ -16149,6 +16163,7 @@ static void pso_pend_kick(const pso_key *k, NvShader *vs, NvShader *fs, int now)
+     }
+     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+         NSError *e = nil; id<MTLRenderPipelineState> ps = par_render(d, pkey, &e);
++        if (ps && obs_shex) pso_user_record("R\t%s\n", obs_shex.UTF8String);
+         pthread_mutex_lock(&g_pp_mu); g_pp[slot].ps = ps; g_pp[slot].error = rb_async_pso() ? e : nil; g_pp[slot].done = 1; RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_pp_cv)); pthread_mutex_unlock(&g_pp_mu);
+     });
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 95bb117..f49f773 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -56,6 +56,7 @@ static int session_wait_backend(void) {
+     if (g_rb_disk_q) dispatch_group_async(prefetch_done,g_rb_disk_q,^{});
+     if (g_rb_bind_q) dispatch_group_async(prefetch_done,g_rb_bind_q,^{});
+     if (g_rb_registration_q) dispatch_group_async(prefetch_done,g_rb_registration_q,^{});
++    if (g_rb_xlate_q) dispatch_group_async(prefetch_done,g_rb_xlate_q,^{});
+     if (g_rb_export_q) dispatch_group_async(prefetch_done,g_rb_export_q,^{});
+     if (g_rb_startup_q) dispatch_group_async(prefetch_done,g_rb_startup_q,^{});
+     os_unfair_lock_unlock(&g_shpre_mu);
+diff --git a/graphics/nvn/gfx/nvn/rb_cache_warm_rule.h b/graphics/nvn/gfx/nvn/rb_cache_warm_rule.h
+new file mode 100644
+index 0000000..9c17413
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_cache_warm_rule.h
+@@ -0,0 +1,89 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0435): universal cold/warm shader & pipeline cache coherence rules
++// shared by rb_stage_disk.inc and rb_registration.inc.
++//
++// Addresses two universal Switch 2 cache-warming stalls measured on IPA 845 (A18 Pro):
++//   1. [rb-shader-disk] required thermalState == Nominal (0) and worker 1 (refused under
++//      RB_SPEC_ONE at Fair), stranding 1,425 translated disk stages on Zelda and 1,593 on MKW
++//      once the device reached Fair (~15 s into play).
++//   2. [rb-bind-ahead] used a fixed RB_REGISTRATION_TRICKLE=16 cap even after startup prewarm
++//      completed, deferring 8,771 newly discovered gameplay shaders (causing 596-2,870 ms
++//      synchronous submit_guest_msl translation stalls on first pass into new tracks/biomes).
++//
++// Invariants preserved:
++//   - Startup prewarm & boot bursts (warm_running != 0 or frame < 60): exact patch 0311
++//     trickle=16 / 8 MiB behavior (never starves cold prewarm or breaks unit tests).
++//   - Serious/Critical thermal (thermal >= 2) or low memory (mem_low != 0): disk prewarm
++//     parks and bind-ahead falls back to minimal trickle=16 / no burst translation.
++//   - Burst CPU translation lane (s2a.nvn2.xlate) never invokes MTLCompilerService; it only
++//     translates NVN2 -> MSL+JSON to disk and yields to active submit-thread waits (g_fu_waiting).
++#pragma once
++#include <stdint.h>
++#include <stddef.h>
++
++enum {
++    RB_REG_TRICKLE_BOOT = 16,
++    RB_REG_TRICKLE_FAIR = 32,
++    RB_REG_TRICKLE_NOMINAL = 48,
++    RB_REG_BYTES_BOOT = 8u << 20,
++    RB_REG_BYTES_FAIR = 12u << 20,
++    RB_REG_BYTES_NOMINAL = 16u << 20,
++    RB_REG_XLATE_MAX = 128,
++    RB_REG_XLATE_BYTES = 16u << 20,
++    RB_REG_LIVE_MIN_FRAME = 60,
++    RB_DISK_FAIR_MIN_ROOM_MB = 1536,
++};
++
++// Decide whether rb_stage_disk may request a speculative lease now, and on which worker
++// (1 at Nominal to match existing behavior; 0 at Fair when startup prewarm and observed
++// first-use workers are idle and memory headroom >= 1536 MiB).
++static inline int rb_disk_warm_admit(int thermal, int listed, int warm_running,
++                                     int observed_busy, int fu_waiting, int mem_low,
++                                     uint64_t room_bytes, int gov_ok, int *worker_out) {
++    if (worker_out) *worker_out = 1;
++    if (!gov_ok || mem_low) return 0;
++    if (thermal <= 0) {
++        if (listed && observed_busy) return 0;
++        if (worker_out) *worker_out = 1;
++        return 1;
++    }
++    if (thermal == 1) {
++        if (observed_busy || fu_waiting || warm_running) return 0;
++        if (room_bytes != UINT64_MAX && room_bytes < ((uint64_t)RB_DISK_FAIR_MIN_ROOM_MB << 20))
++            return 0;
++        if (worker_out) *worker_out = 0;
++        return 1;
++    }
++    return 0;
++}
++
++// Adaptive bind-ahead trickle and CPU-only burst translation policy.
++// Only expands past boot trickle=16 during live gameplay after startup prewarm has finished.
++static inline void rb_reg_policy(int warm_running, uint64_t cur_frame, int thermal, int mem_low,
++                                 unsigned *trickle_out, size_t *byte_limit_out,
++                                 int *xlate_burst_ok_out) {
++    if (warm_running || cur_frame < RB_REG_LIVE_MIN_FRAME || thermal >= 2 || mem_low) {
++        *trickle_out = RB_REG_TRICKLE_BOOT;
++        *byte_limit_out = RB_REG_BYTES_BOOT;
++        *xlate_burst_ok_out = 0;
++        return;
++    }
++    if (thermal <= 0) {
++        *trickle_out = RB_REG_TRICKLE_NOMINAL;
++        *byte_limit_out = RB_REG_BYTES_NOMINAL;
++    } else {
++        *trickle_out = RB_REG_TRICKLE_FAIR;
++        *byte_limit_out = RB_REG_BYTES_FAIR;
++    }
++    *xlate_burst_ok_out = 1;
++}
++
++// 1 = admit a burst-overflow untranslated stage to the CPU-only NVN2->MSL translation queue.
++static inline int rb_reg_xlate_admit(int xlate_burst_ok, int already_translated,
++                                     int in_xlate_flight, unsigned xlate_waiting,
++                                     size_t bytes, size_t xlate_bytes) {
++    if (!xlate_burst_ok || already_translated || in_xlate_flight) return 0;
++    if (xlate_waiting >= RB_REG_XLATE_MAX) return 0;
++    if (xlate_bytes > RB_REG_XLATE_BYTES || bytes > RB_REG_XLATE_BYTES - xlate_bytes) return 0;
++    return 1;
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_registration.inc b/graphics/nvn/gfx/nvn/rb_registration.inc
+index 3970cfe..309f4a8 100644
+--- a/graphics/nvn/gfx/nvn/rb_registration.inc
++++ b/graphics/nvn/gfx/nvn/rb_registration.inc
+@@ -5,13 +5,17 @@
+ extern int dm_shader_prepare_registration(const char *,const uint8_t *,uint32_t,
+                                           const uint8_t *,uint32_t) __attribute__((weak_import));
+ #include "rb_registration_plan.h"
++#include "rb_cache_warm_rule.h"
+ #include <dirent.h>
+ static dispatch_queue_t g_rb_registration_q;
++static dispatch_queue_t g_rb_xlate_q;              // RewindBox (patch 0435): CPU-only NVN2->MSL burst translation lane
+ static NSMutableSet<NSString *> *g_rb_registering; // protected by g_shpre_mu
++static NSMutableSet<NSString *> *g_rb_xlating;     // protected by g_shpre_mu
+ static rb_reg_known g_rb_registered;               // protected by g_shpre_mu
+-static size_t g_rb_registration_bytes;
+-static _Atomic unsigned g_rb_registration_count;
++static size_t g_rb_registration_bytes, g_rb_xlate_bytes;
++static _Atomic unsigned g_rb_registration_count, g_rb_xlate_count;
+ static _Atomic uint64_t g_rb_registration_queued, g_rb_registration_loaded, g_rb_registration_msl;
++static _Atomic uint64_t g_rb_xlate_queued, g_rb_xlate_done;
+ static _Atomic int g_rb_register_option;
+ // RewindBox (patch 0306): a course load registers programs faster than the
+ // lane builds them, and a refusal was not counted.
+@@ -73,6 +77,7 @@ static void rb_registration_reset(void) {   // the session is stopped: no regist
+     pthread_mutex_unlock(&g_rb_translated_mu);
+     atomic_store(&g_rb_registration_dropped, 0); atomic_store(&g_rb_registration_known, 0);
+     atomic_store(&g_rb_registration_deferred, 0);
++    atomic_store(&g_rb_xlate_queued, 0); atomic_store(&g_rb_xlate_done, 0);
+ }
+ 
+ static BOOL rb_read_stage_header(const NVNshaderData *sd, uint8_t ctl[NVN2_CTL_COPY],
+@@ -97,7 +102,14 @@ static void rb_register_shader(const NVNshaderData *sd, int depth) {
+     uint32_t nctl, ncode;
+     if (!rb_read_stage_header(sd, control, &nctl, &ncode) || !rb_addr_mapped(sd->data, ncode)) return;
+     if (atomic_load(&g_shpre_stopping)) return;
+-    const size_t bytes = (size_t)nctl + ncode, limit = 8u << 20;
++    const size_t bytes = (size_t)nctl + ncode;
++    unsigned trickle = RB_REGISTRATION_TRICKLE;
++    size_t limit = 8u << 20;
++    int xlate_burst_ok = 0;
++    rb_reg_policy(atomic_load_explicit(&g_warm_running, memory_order_relaxed),
++                  atomic_load_explicit(&g_cur_frame, memory_order_relaxed),
++                  (int)NSProcessInfo.processInfo.thermalState, rb_mem_low(),
++                  &trickle, &limit, &xlate_burst_ok);
+     // The identity comes first: it tells a stage the lane has already served.
+     // The copy is one stage, 8 MiB at most, per registering game thread.
+     NSData *snapshot = rb_stage_snapshot(sd, control, nctl, ncode);
+@@ -118,7 +130,7 @@ static void rb_register_shader(const NVNshaderData *sd, int depth) {
+     if (loaded) rb_reg_known_add(&g_rb_registered,settled_id);
+     int verdict = rb_reg_verdict(loaded || rb_reg_known_has(&g_rb_registered,settled_id),
+                                  [g_rb_registering containsObject:identity],
+-                                 g_rb_registration_count,RB_REGISTRATION_TRICKLE,
++                                 g_rb_registration_count,trickle,
+                                  bytes,g_rb_registration_bytes,limit);
+     if (verdict != RB_REG_ADMIT) {
+         unsigned waiting = g_rb_registration_count;
+@@ -126,7 +138,48 @@ static void rb_register_shader(const NVNshaderData *sd, int depth) {
+         if (verdict == RB_REG_KNOWN) atomic_fetch_add(&g_rb_registration_known,1);
+         else if (verdict == RB_REG_BURST) {
+             if (rb_registered_translated(digest)) atomic_fetch_add(&g_rb_registration_known,1);
+-            else atomic_fetch_add(&g_rb_registration_deferred,1);
++            else if (xlate_burst_ok && dm_shader_prepare_registration) {
++                // RewindBox (patch 0435): translate untranslated live-gameplay burst stages
++                // to MSL+JSON on disk on a dedicated UTILITY CPU queue without calling
++                // MTLCompilerService, preventing synchronous submit_guest_msl stalls on first pass.
++                int queued_xlate = 0;
++                os_unfair_lock_lock(&g_shpre_mu);
++                if (!atomic_load(&g_shpre_stopping) &&
++                    rb_reg_xlate_admit(xlate_burst_ok, 0, [g_rb_xlating containsObject:key],
++                                       g_rb_xlate_count, bytes, g_rb_xlate_bytes)) {
++                    g_rb_xlate_bytes += bytes; ++g_rb_xlate_count;
++                    if (!g_rb_xlate_q) {
++                        g_rb_xlate_q = dispatch_queue_create("s2a.nvn2.xlate",
++                            dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,QOS_CLASS_UTILITY,0));
++                        g_rb_xlating = [NSMutableSet set];
++                    }
++                    [g_rb_xlating addObject:key];
++                    atomic_fetch_add(&g_rb_xlate_queued, 1);
++                    queued_xlate = 1;
++                    uint64_t xid = rb_reg_identity(digest, 0);
++                    dispatch_async(g_rb_xlate_q, ^{ @autoreleasepool {
++                        if (fu_yield_on() && atomic_load(&g_fu_waiting)) fu_yield_wait();
++                        if (!nvn_be_stopping()) {
++                            const uint8_t *ctl = snapshot.bytes, *code = ctl + nctl;
++                            shmap_load_metadata();
++                            if ((!shmap_stage(key) || !mtl_shlib_has(key.UTF8String)) &&
++                                dm_shader_prepare_registration(key.UTF8String, ctl, nctl, code, ncode)) {
++                                pthread_mutex_lock(&g_rb_translated_mu);
++                                rb_reg_known_add(&g_rb_translated, xid);
++                                pthread_mutex_unlock(&g_rb_translated_mu);
++                                atomic_fetch_add(&g_rb_xlate_done, 1);
++                            }
++                        }
++                        os_unfair_lock_lock(&g_shpre_mu);
++                        [g_rb_xlating removeObject:key];
++                        g_rb_xlate_bytes -= bytes;
++                        --g_rb_xlate_count;
++                        os_unfair_lock_unlock(&g_shpre_mu);
++                    }});
++                }
++                os_unfair_lock_unlock(&g_shpre_mu);
++                if (!queued_xlate) atomic_fetch_add(&g_rb_registration_deferred,1);
++            } else atomic_fetch_add(&g_rb_registration_deferred,1);
+         } else if (verdict == RB_REG_FULL) {
+             uint64_t dropped = atomic_fetch_add(&g_rb_registration_dropped,1) + 1;
+             if (!(dropped & (dropped-1))) MLOG("[rb-bind-ahead] dropped=%llu waiting=%u stage_bytes=%zu",
+@@ -191,15 +244,16 @@ static void rb_register_shader(const NVNshaderData *sd, int depth) {
+ }
+ // Every 300 frames when a count moved: what the lane did with the registrations.
+ static void rb_registration_report(uint64_t frame) {
+-    static uint64_t last[4];
+-    const uint64_t now[4] = {atomic_load(&g_rb_registration_queued), atomic_load(&g_rb_registration_known),
+-                             atomic_load(&g_rb_registration_deferred), atomic_load(&g_rb_registration_dropped)};
++    static uint64_t last[6];
++    const uint64_t now[6] = {atomic_load(&g_rb_registration_queued), atomic_load(&g_rb_registration_known),
++                             atomic_load(&g_rb_registration_deferred), atomic_load(&g_rb_registration_dropped),
++                             atomic_load(&g_rb_xlate_queued), atomic_load(&g_rb_xlate_done)};
+     if (!memcmp(now,last,sizeof now)) return;
+     memcpy(last,now,sizeof now);
+-    MLOG("[rb-bind-ahead] frame=%llu registered=%llu variants_built=%llu msl_compiles=%llu known=%llu deferred=%llu dropped=%llu",
++    MLOG("[rb-bind-ahead] frame=%llu registered=%llu variants_built=%llu msl_compiles=%llu known=%llu deferred=%llu dropped=%llu xlate_queued=%llu xlate_done=%llu",
+          (unsigned long long)frame,(unsigned long long)now[0],(unsigned long long)atomic_load(&g_rb_registration_loaded),
+          (unsigned long long)atomic_load(&g_rb_registration_msl),(unsigned long long)now[1],(unsigned long long)now[2],
+-         (unsigned long long)now[3]);
++         (unsigned long long)now[3],(unsigned long long)now[4],(unsigned long long)now[5]);
+ }
+ 
+ void nvn_be_registered_stages(const prog_t *program) {
+diff --git a/graphics/nvn/gfx/nvn/rb_stage_disk.inc b/graphics/nvn/gfx/nvn/rb_stage_disk.inc
+index 7ff72f2..e22735a 100644
+--- a/graphics/nvn/gfx/nvn/rb_stage_disk.inc
++++ b/graphics/nvn/gfx/nvn/rb_stage_disk.inc
+@@ -2,6 +2,7 @@
+ // The optional disk scan belongs to the session. request_stop closes admission
+ // under g_shpre_mu, wakes the governor, and the session drain joins this queue.
+ #include "rb_unlisted_stages.h"
++#include "rb_cache_warm_rule.h"
+ static dispatch_queue_t g_rb_disk_q;
+ static _Atomic uint64_t g_rb_disk_unlisted, g_rb_disk_loaded, g_rb_disk_invalid;
+ static _Atomic uint64_t g_rb_disk_listed, g_rb_disk_listed_built, g_rb_disk_listed_reused, g_rb_disk_listed_invalid;
+@@ -47,6 +48,19 @@ static enum rb_disk_stage_result rb_disk_warm_stage(NSString *root, NSString *ke
+     if (!shader_load_depth(key,host[stage],0,stage_depth_moded(host[stage]) && depth,&built,NULL)) return RB_DISK_INVALID;
+     return built ? RB_DISK_BUILT : RB_DISK_REUSED;
+ }
++// RewindBox (patch 0435): check g_shcache before reserving a speculative lease so already-
++// resident stages consume zero leases or thermal budget (both listed and unlisted keys).
++static BOOL rb_disk_stage_cached(NSString *key) {
++    if (!atomic_load_explicit(&g_shmap_ready, memory_order_acquire) || key.length < 16) return NO;
++    int known = stage_of(shmap_stage([key substringToIndex:16]));
++    if (known < 0) return NO;
++    int depth = atomic_load(&g_depth_zero);
++    NSString *identity = shader_identity(key, known, 0, stage_depth_moded(known) && depth);
++    os_unfair_lock_lock(&g_shader_lock);
++    BOOL ready = g_shcache[identity] != nil;
++    os_unfair_lock_unlock(&g_shader_lock);
++    return ready;
++}
+ // The listed tail can contain thousands of entries. Let queued first uses finish
+ // before reserving another optional build, even when the device is still cool.
+ static int rb_disk_observed_busy(void) {
+@@ -99,15 +113,29 @@ static void rb_disk_launch(NSArray<WarmTask *> *tasks, BOOL prime) {
+         for (NSUInteger i = 0; i < keys.count; ++i) { @autoreleasepool {
+             NSString *key = keys[i];
+             BOOL listed = i >= orphans;
+-            // Worker one never receives a ONE/low-power admission. Use the
+-            // governor's condition wakeups, including synchronous teardown.
+-            int lease = 0;
++            if (rb_disk_stage_cached(key)) {
++                atomic_fetch_add(listed ? &g_rb_disk_listed_reused : &g_rb_disk_loaded, 1);
++                continue;
++            }
++            // RewindBox (patch 0435): at Nominal, use worker 1 as before; at Fair, borrow
++            // worker 0 only when startup prewarm, first-use waits and observed workers are
++            // idle and memory headroom >= 1536 MiB (unblocks 1,425+ stranded disk stages).
++            int lease = 0, worker = 1;
+             while (!nvn_be_stopping() && !dm_gfx_session_stopping()) {
+                 uint64_t ticket = atomic_load(&g_spec_gate.epoch);
+-                if ((!listed || !rb_disk_observed_busy()) &&
+-                    NSProcessInfo.processInfo.thermalState == NSProcessInfoThermalStateNominal &&
+-                    (!rb_gov_on() || rb_gov_quota(RB_GOV_PREFETCH)) && rb_spec_take(1,&lease)) break;
+-                rb_spec_park_worker(ticket,1);
++                int th = (int)NSProcessInfo.processInfo.thermalState;
++                int warm_run = atomic_load_explicit(&g_warm_running, memory_order_relaxed);
++                int fu_wait = atomic_load_explicit(&g_fu_waiting, memory_order_relaxed);
++                int gov_ok = !rb_gov_on() || rb_gov_quota(RB_GOV_PREFETCH);
++#if TARGET_OS_IPHONE
++                uint64_t room = rb_gov_on() ? atomic_load_explicit(&rb_gov_room, memory_order_relaxed) : rb_ios_headroom();
++#else
++                uint64_t room = UINT64_MAX;
++#endif
++                if (rb_disk_warm_admit(th, listed ? 1 : 0, warm_run, rb_disk_observed_busy(),
++                                       fu_wait, rb_mem_low(), room, gov_ok, &worker) &&
++                    rb_spec_take(worker, &lease)) break;
++                rb_spec_park_worker(ticket, worker);
+             }
+             if (!lease || nvn_be_stopping() || dm_gfx_session_stopping()) { rb_spec_done(&lease); break; }
+             enum rb_disk_stage_result result = rb_disk_warm_stage(root,key,listed);
+-- 
+2.56.0
+

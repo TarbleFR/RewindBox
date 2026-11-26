@@ -1,0 +1,148 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_fi_rule.h b/graphics/nvn/gfx/nvn/nvn_fi_rule.h
+index 65054e8..8be7949 100644
+--- a/graphics/nvn/gfx/nvn/nvn_fi_rule.h
++++ b/graphics/nvn/gfx/nvn/nvn_fi_rule.h
+@@ -51,3 +51,42 @@ static inline int dm_fi_adaptive_should_interp(const dm_fi_adaptive *st, double
+     if (eff_period) *eff_period = ep;
+     return gap > 0 && gap <= ep * 1.50;
+ }
++// RewindBox (patch 0432): bound history-priming MetalFX passes during sustained
++// GPU overloads. In IPA 845 (MKW), fi_job ran full motion-vector + MetalFX passes
++// (10.6-16.2 ms on g_q4) on every late declined frame (115-336 of 300 frames),
++// creating a self-reinforcing GPU stall spiral. Allow priming only on an isolated
++// single late frame in a 30-Hz tier; from the second consecutive declined frame
++// onward (or in adaptive mode), skip MetalFX so the GPU recovers immediately and
++// shouldResetHistory resets cleanly on the next on-pace pair.
++static inline int dm_fi_should_prime(int cont, int allow, double declared_period,
++                                     int fi_all, unsigned *consec_declined) {
++    if (allow || !cont) {
++        if (consec_declined) *consec_declined = 0;
++        return 0;
++    }
++    unsigned n = consec_declined ? ++(*consec_declined) : 1u;
++    if (fi_all && !dm_fi_tier(declared_period)) return 0;
++    return dm_fi_tier(declared_period) && n == 1u;
++}
++// RewindBox (patch 0432): DisplayLink handoff hysteresis for games that flicker
++// between present intervals 1 and 2 (MKW 845 logged 25+ display-link attach/detach
++// stalls per 900 frames). Manual off or community patch disables immediately via reset.
++typedef struct {
++    int active;
++    unsigned on_run, off_run;
++} dm_fi_link_hyst;
++static inline void dm_fi_link_hyst_reset(dm_fi_link_hyst *h) {
++    if (!h) return;
++    h->active = 0; h->on_run = 0; h->off_run = 0;
++}
++static inline int dm_fi_link_hyst_step(dm_fi_link_hyst *h, int want_tier) {
++    if (!h) return want_tier != 0;
++    if (want_tier) {
++        h->off_run = 0;
++        if (!h->active && ++h->on_run >= 2u) h->active = 1;
++    } else {
++        h->on_run = 0;
++        if (h->active && ++h->off_run >= 4u) h->active = 0;
++    }
++    return h->active;
++}
+diff --git a/graphics/nvn/gfx/nvn/nvn_present_fi.inc b/graphics/nvn/gfx/nvn/nvn_present_fi.inc
+index 0d3f12a..9235e53 100644
+--- a/graphics/nvn/gfx/nvn/nvn_present_fi.inc
++++ b/graphics/nvn/gfx/nvn/nvn_present_fi.inc
+@@ -34,6 +34,7 @@ API_AVAILABLE(macos(26.0), ios(26.0))
+     id alloc[3], cb[3];   // Metal 4 分配器 / 命令缓冲（MTL4 棘轮：用 id，经 nvn_mtl.m 的 m4_* 包装）
+     dispatch_semaphore_t slot_free[3];
+     uint64_t last_seq, last_pair_seq, jobs;
++    unsigned consec_declined;   // RewindBox (patch 0432): consecutive declined frames (bounds history priming)
+     uint64_t made, shown_mid, declined, last_in_ns, made_win0;   // declined：按规则不补的帧（60 帧档 / 跑不满），原图直接上屏
+     uint64_t unpaired, gpu_n, cuts; double gpu_sum, gpu_max; _Atomic uint64_t cut_seq;   // cuts / cut_seq：判成切镜头的次数 / 最近一次的帧号（完成回调里写；下一次插值据此重置历史）   // unpaired：上一帧没进输入图 / 没取到画布，这一帧只当下一帧的前一帧；gpu_*：插值那一槽（缩拷 + 运动矢量 + MetalFX + 画进画布）的 GPU 时间，完成回调里在 g_pq_mu 下累计（每 300 帧一行）
+ }
+@@ -60,6 +61,7 @@ static void fi_inflight_add(int d) { pthread_mutex_lock(&g_pq_mu); g_fi_inflight
+ static _Atomic int g_fi_live = 1;
+ static _Atomic int g_fi_all = -1;   // RewindBox (patch 0421): 1 = adaptive mode for all games (S2A_RB_FI_ALL=1 or mode 2)
+ static dm_fi_adaptive g_fi_adapt;
++static dm_fi_link_hyst g_fi_link_hyst;   // RewindBox (patch 0432): avoids DisplayLink attach/detach thrashing
+ static uint64_t g_fi_adapt_last_ns;
+ static int fi_all_on(void) {
+     int v = atomic_load_explicit(&g_fi_all, memory_order_relaxed);
+@@ -99,8 +101,10 @@ static int fi_wanted_for(double fp) {
+         } else {
+             tier = dm_fi_tier(fp);
+         }
++        tier = dm_fi_link_hyst_step(&g_fi_link_hyst, tier);
+     } else {
+         dm_fi_adaptive_reset(&g_fi_adapt);
++        dm_fi_link_hyst_reset(&g_fi_link_hyst);
+         g_fi_adapt_last_ns = 0;
+     }
+     if (g_fi_state == 1) fi_link_follow(tier);
+@@ -175,33 +179,37 @@ API_AVAILABLE(macos(26.0), ios(26.0))
+ static int fi_mv_setup(NvPresentFI *f) {
+     static const char *msl =
+         "#include <metal_stdlib>\nusing namespace metal;\n"
+-        "kernel void down(texture2d<float, access::read> src [[texture(0)]], texture2d<float, access::write> dst [[texture(1)]], uint2 g [[thread_position_in_grid]]) {\n"
+-        "  if (g.x >= dst.get_width() || g.y >= dst.get_height()) return; float s = 0;\n"
+-        "  for (uint y = 0; y < 4; y++) for (uint x = 0; x < 4; x++) { float3 c = src.read(uint2(g.x * 4 + x, g.y * 4 + y)).rgb; s += dot(c, float3(0.299, 0.587, 0.114)); }\n"
+-        "  dst.write(float4(s / 16, 0, 0, 0), g); }\n"
+-        "kernel void down2(texture2d<float, access::read> src [[texture(0)]], texture2d<float, access::write> dst [[texture(1)]], uint2 g [[thread_position_in_grid]]) {\n"
+-        "  if (g.x >= dst.get_width() || g.y >= dst.get_height()) return; float s = 0;\n"
+-        "  for (uint y = 0; y < 4; y++) for (uint x = 0; x < 4; x++) s += src.read(min(uint2(g.x * 4 + x, g.y * 4 + y), uint2(src.get_width() - 1, src.get_height() - 1))).r;\n"
+-        "  dst.write(float4(s / 16, 0, 0, 0), g); }\n"
+-        // gm：块数 x / y、这一层每像素折原图几像素 L、预测网格每格几块；pred / pn：上一层的矢量（原图像素）与网格尺寸，pn.x = 0 没有预测
+-        "kernel void match(texture2d<float, access::read> cur [[texture(0)]], texture2d<float, access::read> prev [[texture(1)]], device float2* out [[buffer(0)]], constant uint4& gm [[buffer(1)]],\n"
++        "kernel void down(texture2d<half, access::read> src [[texture(0)]], texture2d<half, access::write> dst [[texture(1)]], uint2 g [[thread_position_in_grid]]) {\n"
++        "  if (g.x >= dst.get_width() || g.y >= dst.get_height()) return; half s = 0.0h;\n"
++        "  for (uint y = 0; y < 4; y++) for (uint x = 0; x < 4; x++) { half3 c = src.read(uint2(g.x * 4 + x, g.y * 4 + y)).rgb; s += dot(c, half3(0.299h, 0.587h, 0.114h)); }\n"
++        "  dst.write(half4(s * (1.0h / 16.0h), 0, 0, 0), g); }\n"
++        "kernel void down2(texture2d<half, access::read> src [[texture(0)]], texture2d<half, access::write> dst [[texture(1)]], uint2 g [[thread_position_in_grid]]) {\n"
++        "  if (g.x >= dst.get_width() || g.y >= dst.get_height()) return; half s = 0.0h;\n"
++        "  uint2 lim = uint2(src.get_width() - 1, src.get_height() - 1);\n"
++        "  for (uint y = 0; y < 4; y++) for (uint x = 0; x < 4; x++) s += src.read(min(uint2(g.x * 4 + x, g.y * 4 + y), lim)).r;\n"
++        "  dst.write(half4(s * (1.0h / 16.0h), 0, 0, 0), g); }\n"
++        // RewindBox (patch 0432): native FP16 (half) luma tiles halve threadgroup memory (6.4 -> 3.2 KiB/TG)
++        // for higher A18 Pro SIMD occupancy and parallel SIMD reduction for zero-displacement SAD.
++        "kernel void match(texture2d<half, access::read> cur [[texture(0)]], texture2d<half, access::read> prev [[texture(1)]], device float2* out [[buffer(0)]], constant uint4& gm [[buffer(1)]],\n"
+         "                  device const float2* pred [[buffer(2)]], constant uint2& pn [[buffer(3)]], device float* bs [[buffer(4)]],\n"
+         "                  uint2 b [[threadgroup_position_in_grid]], uint2 t [[thread_position_in_threadgroup]], uint li [[thread_index_in_threadgroup]], uint sl [[thread_index_in_simdgroup]], uint sg [[simdgroup_index_in_threadgroup]]) {\n"
+-        "  threadgroup float blk[64]; threadgroup float win[40 * 40]; threadgroup uint part[32]; threadgroup float zp[64];\n"
++        "  threadgroup half blk[64]; threadgroup half win[40 * 40]; threadgroup uint part[32]; threadgroup float zp_sg[2];\n"
+         "  int W = cur.get_width(), H = cur.get_height(); int2 o = int2(b) * 8; int L = int(gm.z);\n"
+-        "  int2 pq = int2(0); if (pn.x) { uint2 pb = min(b / gm.w, pn - 1); pq = int2(round(pred[pb.y * pn.x + pb.x] / float(L))); }   // 上一层矢量折到这一层像素：搜索窗以它为中心\n"
+-        "  if (li < 64) { int2 p = clamp(o + int2(li % 8, li / 8), int2(0), int2(W - 1, H - 1)); blk[li] = cur.read(uint2(p)).r; zp[li] = abs(blk[li] - prev.read(uint2(p)).r); }\n"
++        "  int2 pq = int2(0); if (pn.x) { uint2 pb = min(b / gm.w, pn - 1); pq = int2(round(pred[pb.y * pn.x + pb.x] / float(L))); }\n"
++        "  if (li < 64) { int2 p = clamp(o + int2(li & 7, li >> 3), int2(0), int2(W - 1, H - 1)); half cv = cur.read(uint2(p)).r; blk[li] = cv; float z = simd_sum(abs(float(cv) - float(prev.read(uint2(p)).r))); if (sl == 0) zp_sg[sg] = z; }\n"
+         "  for (uint k = li; k < 1600; k += 1024) { int2 q = clamp(o + pq + int2(int(k % 40) - 16, int(k / 40) - 16), int2(0), int2(W - 1, H - 1)); win[k] = prev.read(uint2(q)).r; }\n"
+         "  threadgroup_barrier(mem_flags::mem_threadgroup);\n"
+-        "  float sad = 0; for (int y = 0; y < 8; y++) for (int x = 0; x < 8; x++) sad += abs(blk[y * 8 + x] - win[(int(t.y) + y) * 40 + int(t.x) + x]);\n"
+-        "  uint key = (as_type<uint>(sad) & ~0x3FFu) | li;   // 正浮点按位序即数值序：低 10 位换成线程号，取最小同时带出位移\n"
++        "  half sad_h = 0.0h; int wy = int(t.y) * 40 + int(t.x);\n"
++        "  for (int y = 0; y < 8; y++) { int b0 = y * 8, w0 = wy + y * 40; for (int x = 0; x < 8; x++) sad_h += abs(blk[b0 + x] - win[w0 + x]); }\n"
++        "  float sad = float(sad_h);\n"
++        "  uint key = (as_type<uint>(sad) & ~0x3FFu) | li;\n"
+         "  key = simd_min(key); if (sl == 0) part[sg] = key;\n"
+         "  threadgroup_barrier(mem_flags::mem_threadgroup);\n"
+         "  if (sg == 0) { uint k2 = simd_min(sl < 32 ? part[sl] : 0xFFFFFFFFu);\n"
+-        "    if (sl == 0) { uint bi = k2 & 0x3FFu; float best = as_type<float>(k2 & ~0x3FFu); int2 bd = pq + int2(int(bi % 32) - 16, int(bi / 32) - 16);\n"
+-        "      float zsad = 0; for (int i = 0; i < 64; i++) zsad += zp[i];   // 零位移的差（搜索窗不一定含零位移）\n"
+-        "      if (zsad <= best * 1.02 + 0.05) bd = int2(0);   // 不动或平坦处偏向零位移，免得乱跳\n"
+-        "      out[b.y * gm.x + b.x] = float2(bd * L); bs[b.y * gm.x + b.x] = min(best, zsad) / 64; } } }\n"
++        "    if (sl == 0) { uint bi = k2 & 0x3FFu; float best = as_type<float>(k2 & ~0x3FFu); int2 bd = pq + int2(int(bi & 31) - 16, int(bi >> 5) - 16);\n"
++        "      float zsad = zp_sg[0] + zp_sg[1];\n"
++        "      if (zsad <= best * 1.02f + 0.05f) bd = int2(0);\n"
++        "      out[b.y * gm.x + b.x] = float2(bd * L); bs[b.y * gm.x + b.x] = min(best, zsad) * (1.0f / 64.0f); } } }\n"
+         // 切镜头：粗层每块对准后的平均亮度差再取整帧平均，超过阈值写 1（一个线程组，块数不多）
+         "kernel void cut(device const float* bs [[buffer(0)]], constant uint4& gm [[buffer(1)]], constant float& th [[buffer(2)]], device uint* flag [[buffer(3)]], uint li [[thread_index_in_threadgroup]]) {\n"
+         "  threadgroup float acc[256]; float s = 0; uint n = gm.x * gm.y; for (uint i = li; i < n; i += 256) s += bs[i]; acc[li] = s;\n"
+@@ -429,9 +437,9 @@ static void fi_job(NvPresentFI *f, CAMetalLayer *layer, id<MTLTexture> src, fi_c
+                  f->last_seq = UINT64_MAX; fi_ticket_done(ticket); fi_inflight_add(-1); return; }
+     int cont = good && seq > 0 && f->last_seq == seq - 1;   // 上一帧也写进了输入图（k ^ 1）
+     int pair = cont && allow;
+-    // 30 帧档里按规则不补的帧（来晚了）照样编码插值、不上屏：MetalFX 的历史要逐对连续。断一对时下一对只能重置历史，重置后输出的就是这一帧原图（白算一次、屏上重复一帧）；
+-    //   接着上一对的旧历史不重置又会偏向前一帧（t_fi_link ⑤ 第 3 遍：竖条中心 435、前一帧原位全亮）。这一帧原先省下的插值挪到这里，下一对照常补；60 帧档不补也不编码
+-    int prime = cont && !allow && (dm_fi_tier(period) || fi_all_on());
++    // RewindBox (patch 0432): allow history priming only on an isolated single late frame;
++    // consecutive declined frames skip MetalFX so the GPU exits overload instead of spiraling.
++    int prime = dm_fi_should_prime(cont, allow, period, fi_all_on(), &f->consec_declined);
+     if (seq > 0 && !allow) f->declined++;
+     else if (seq > 0 && good && !pair) f->unpaired++;
+     int mid_shown = 0;

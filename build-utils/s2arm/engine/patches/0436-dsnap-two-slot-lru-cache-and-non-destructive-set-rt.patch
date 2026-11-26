@@ -1,0 +1,335 @@
+From 45d8193d22c759a9e9777e788b5c9dde5d49b3c8 Mon Sep 17 00:00:00 2001
+From: Tarble FR <f9wynyv9qy@privaterelay.appleid.com>
+Date: Thu, 26 Nov 2026 13:49:34 +0000
+Subject: [PATCH] patch-0436
+
+---
+ graphics/nvn/gfx/nvn/nvn_mtl.m       | 138 ++++++++++++++++++---------
+ graphics/nvn/gfx/nvn/rb_dsnap_rule.h |  97 +++++++++++++++++++
+ 2 files changed, 190 insertions(+), 45 deletions(-)
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 430a172..878dc2c 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -23383,17 +23383,20 @@ static void fb_report(uint64_t frame) {   // every 300 frames: hits per layer an
+ // #387 the depth snapshot of the pass's own depth attachment, kept while that depth stays unchanged: draws after the first that sample it read the same copy (one copy and
+ //   one pass break for a run of halo draws instead of one per draw). It goes stale when the depth or stencil may change: a draw writing depth or stencil to it, a depth / stencil
+ //   clear, a render-target change, a copy or buffer clear (storage may alias) and a new submission. Own storage: fb_snap_shape's slots are reused in place by other copies
+-static struct {
+-    uint64_t ser, lo, hi;
+-    __unsafe_unretained id<MTLTexture> base;
+-    __strong id<MTLTexture> snap;
+-    NSUInteger tl, ts, nl;
+-    struct { __unsafe_unretained id<MTLTexture> src; __strong id<MTLTexture> use; } v[2];
+-    unsigned v_next;
+-    uint8_t depth_valid, stencil_valid;
+-} g_dsnap;   // RewindBox (patch 0314/0425): separate depth/stencil validity, backing range and 2-view cache on snap
+ #include "rb_dsnap_rule.h"
+ _Static_assert(RB_DSNAP_OP_KEEP == NVN_STENCIL_OP_KEEP, "rb_dsnap_rule.h KEEP");
++// RewindBox (patch 0314/0425/0436): 2-slot LRU depth snapshot cache with per-slot depth/stencil
++// validity, backing range, ser_mut coherence, and 2-view cache per snapshot.
++static struct {
++    rb_dsnap_slot m[RB_DSNAP_SLOTS];
++    __strong id<MTLTexture> snap[RB_DSNAP_SLOTS];
++    __unsafe_unretained id<MTLTexture> use;   // last bound snapshot view (kept for t_nvn_feedback_snapshot.m)
++    struct { __unsafe_unretained id<MTLTexture> src; __strong id<MTLTexture> use; } v[RB_DSNAP_SLOTS][2];
++    unsigned v_next[RB_DSNAP_SLOTS];
++    uint64_t tick;
++    int after_d, after_s;
++    uint64_t after_ser, after_lo, after_size;
++} g_dsnap;
+ static int rb_dsnap_strict(void) { static int v = -1; if (v < 0) v = getenv("DM_NVN_DSNAP_STRICT") != NULL; return v; }
+ static int rb_dsnap_pf_is_stencil(MTLPixelFormat vf) {
+     return vf == MTLPixelFormatStencil8 || vf == MTLPixelFormatX32_Stencil8
+@@ -23402,21 +23405,40 @@ static int rb_dsnap_pf_is_stencil(MTLPixelFormat vf) {
+ #endif
+         ;
+ }
+-static void dsnap_stale(void) { g_dsnap.depth_valid = 0; g_dsnap.stencil_valid = 0; }
++static inline uint64_t rb_dsnap_ser_mut(void) {
++    return atomic_load_explicit(&g_ser_gen, memory_order_relaxed) -
++           atomic_load_explicit(&g_rb_ser_add, memory_order_relaxed);
++}
++static void dsnap_flush_after(void) {
++    if (g_dsnap.after_d || g_dsnap.after_s) {
++        rb_dsnap_cache_stale_tex(g_dsnap.m, g_dsnap.after_ser, g_dsnap.after_lo, g_dsnap.after_size,
++                                 g_dsnap.after_d, g_dsnap.after_s);
++        g_dsnap.after_d = 0; g_dsnap.after_s = 0;
++    }
++}
++static void dsnap_stale(void) {
++    g_dsnap.after_d = 0; g_dsnap.after_s = 0;
++    rb_dsnap_cache_stale_all(g_dsnap.m);
++}
+ static void dsnap_stale_range(uint64_t dst, uint64_t size) {
+-    if ((g_dsnap.depth_valid || g_dsnap.stencil_valid) && rb_dsnap_range_overlaps(g_dsnap.lo, g_dsnap.hi, dst, size))
+-        dsnap_stale();
++    dsnap_flush_after();
++    rb_dsnap_cache_stale_range(g_dsnap.m, dst, size);
+ }
+-static void dsnap_stale_tex(const tex_t *t) {
+-    if (!(g_dsnap.depth_valid || g_dsnap.stencil_valid)) return;
+-    if (rb_dsnap_tex_stales(g_dsnap.ser, g_dsnap.lo, g_dsnap.hi, t ? t->serial : 0, t && t->mem ? (uint64_t)(uintptr_t)t->mem : 0, t ? t->L.size : 0))
+-        dsnap_stale();
++static void dsnap_stale_tex_planes(const tex_t *t, int depth_wrote, int stencil_wrote) {
++    dsnap_flush_after();
++    rb_dsnap_cache_stale_tex(g_dsnap.m, t ? t->serial : 0,
++                             t && t->mem ? (uint64_t)(uintptr_t)t->mem : 0,
++                             t ? t->L.size : 0, depth_wrote, stencil_wrote);
+ }
++static void dsnap_stale_tex(const tex_t *t) { dsnap_stale_tex_planes(t, 1, 1); }
+ static void dsnap_stale_set_rt(const p_set_rt *r) {
+-    if (!(g_dsnap.depth_valid || g_dsnap.stencil_valid)) return;
+-    const int same_dv = R.has_rt && R.rt.has_dview == r->has_dview && (!r->has_dview || !memcmp(&R.rt.dview, &r->dview, sizeof r->dview));
+-    if (rb_dsnap_set_rt_stales(g_dsnap.ser, R.has_rt && R.rt.depth ? R.rt.depth->serial : 0, r->depth ? r->depth->serial : 0, same_dv))
+-        dsnap_stale();
++    dsnap_flush_after();
++    if (rb_dsnap_strict()) { dsnap_stale(); return; }
++    // Keep unchanged depth snapshots alive across color-only passes and alternating depth
++    // attachments; only invalidate slots whose memory range aliases a newly bound color RT.
++    for (int k = 0; k < r->n && k < 8; k++) {
++        if (r->color[k]) dsnap_stale_tex(r->color[k]);
++    }
+ }
+ // RewindBox (patch 0057): the storage is one of a few kept by shape, the least recently used one giving way to a new shape. It was one texture, made again whenever the shape
+ //   asked differed from the last one's, and Mario Kart World samples three depth attachments of its own passes in a frame (1248x700, 624x350 and 312x175 on IPA 762, a dozen
+@@ -23506,20 +23528,36 @@ static void rb_reuse_session_reset(void) {
+     rb_fit_snap_reset();   // RewindBox (patch 0424)
+     snp_pool_t *sp[2] = {&g_snp_depth, &g_snp_color};
+     for (int k = 0; k < 2; k++) { while (sp[k]->n) { int i = --sp[k]->n; res_remove(sp[k]->t[i]); sp[k]->t[i] = nil; } sp[k]->held = 0; }
+-    dsnap_stale(); g_dsnap.snap = nil; g_dsnap.v[0].src = nil; g_dsnap.v[0].use = nil; g_dsnap.v[1].src = nil; g_dsnap.v[1].use = nil;
++    dsnap_stale();
++    g_dsnap.use = nil;
++    for (int di = 0; di < RB_DSNAP_SLOTS; di++) {
++        g_dsnap.snap[di] = nil;
++        g_dsnap.v[di][0].src = nil; g_dsnap.v[di][0].use = nil;
++        g_dsnap.v[di][1].src = nil; g_dsnap.v[di][1].use = nil;
++        g_dsnap.m[di] = (rb_dsnap_slot){0};
++    }
+ }
+ static void fb_prepare_(NvProg *pr) {   // RewindBox (patch 0324): the body; fb_prepare (below) follows it with the fragment stage's mark
+     g_draw_seq++; g_fb_n = 0; g_fbt.on = 0; g_fbt.fn = nil; g_fb_want_load = 0;
+     fsig_tex_reset();   // RewindBox (patch 0067): the textures this draw samples are noted from here (fsig_tex_note)
+     {   // a draw that may write depth / stencil changes what the copy holds: stale before it (its own sampling copies the depth as it is) and after it (its writes land after its reads)
+-        static int after_d, after_s;
+-        if (after_d) { dsnap_stale(); after_d = 0; after_s = 0; }
+-        else if (after_s) { g_dsnap.stencil_valid = 0; after_s = 0; }
+-        // RewindBox (patch 0314/0425): a stencil write stales stencil_valid only (keeping depth_valid for depth views), and counts only when an op is not KEEP
++        dsnap_flush_after();
++        // RewindBox (patch 0314/0425/0436): scope depth/stencil write invalidation to the bound R.rt.depth
++        // (and any aliased backing range) so other unchanged depth snapshots in g_dsnap[2] stay valid.
+         const int strict = rb_dsnap_strict();
+         const rb_dsnap_draw dd = {S.ds.dt, S.ds.dw, S.ds.st, S.st_wmask[0], S.st_wmask[1], {S.ds.fail_f, S.ds.zfail_f, S.ds.zpass_f, S.ds.fail_b, S.ds.zfail_b, S.ds.zpass_b}};
+-        if (rb_dsnap_stales(&dd, strict, 0)) { dsnap_stale(); after_d = 1; }
+-        else if (rb_dsnap_stencil_writes(&dd, strict)) { g_dsnap.stencil_valid = 0; after_s = 1; } }
++        if (R.rt.depth) {
++            const uint64_t dser = R.rt.depth->serial;
++            const uint64_t dlo = R.rt.depth->mem ? (uint64_t)(uintptr_t)R.rt.depth->mem : 0;
++            const uint64_t dsz = R.rt.depth->L.size;
++            if (rb_dsnap_stales(&dd, strict, 0)) {
++                rb_dsnap_cache_stale_tex(g_dsnap.m, dser, dlo, dsz, 1, 1);
++                g_dsnap.after_d = 1; g_dsnap.after_s = 1; g_dsnap.after_ser = dser; g_dsnap.after_lo = dlo; g_dsnap.after_size = dsz;
++            } else if (rb_dsnap_stencil_writes(&dd, strict)) {
++                rb_dsnap_cache_stale_tex(g_dsnap.m, dser, dlo, dsz, 0, 1);
++                g_dsnap.after_d = 0; g_dsnap.after_s = 1; g_dsnap.after_ser = dser; g_dsnap.after_lo = dlo; g_dsnap.after_size = dsz;
++            }
++        } }
+     if (!g_enc) memset(g_fb_dirty, 0, sizeof g_fb_dirty);   // no pass open: the last one ended and its writes are in memory (g_fb_dirty is only reset when a pass opens; a stale 1 sent the first self-sampling draw of the next pass to ④)
+     if (g_fbc.forcing) { g_fbt.on = 1; memcpy(g_fbt.fx, g_fbc.fx, sizeof g_fbt.fx); g_fbt.fbmask = g_fbc.fbmask; memcpy(g_fbt.lmap, g_fbc.lmap, 8); g_fbt.fn = g_fbc.fn; return; }   // 双画检查的第二遍：强制 ⑤
+     if (g_fb_rebind) { if (!rb_fb_dirty_narrow_on()) args_dirty_all(); g_fb_rebind = 0; }   // the previous draw had a substituted binding: re-encode with the original bindings this time. RewindBox (patch 0324): by fb_prepare, the fragment stage, when the substitution changed
+@@ -23558,13 +23596,15 @@ static void fb_prepare_(NvProg *pr) {   // RewindBox (patch 0324): the body; fb_
+             if (t.textureType != MTLTextureType2D || t.sampleCount != 1 || base.parentTexture) { RED_ONCE(179, "same-pass depth sampling: the sampled view cannot be copied whole (type %lu samples %lu, shader %s); left as is", (unsigned long)t.textureType, (unsigned long)t.sampleCount, fs->key); continue; }
+             NSUInteger nl = t.mipmapLevelCount;
+             const int want_st = rb_dsnap_pf_is_stencil(t.pixelFormat);
+-            const int snap_ok = (want_st ? g_dsnap.stencil_valid : g_dsnap.depth_valid) && g_dsnap.ser == ser &&
+-                g_dsnap.base == base && g_dsnap.snap != nil && g_dsnap.tl == tl && g_dsnap.ts == ts && g_dsnap.nl == nl;
+-            if (snap_ok) {   // RewindBox (patch 0425): same unchanged depth subresource (even through a different view / stencil view): reuse g_dsnap.snap without copying
++            const uint64_t cur_ser_mut = rb_dsnap_ser_mut();
++            const int dslot = rb_dsnap_cache_find(g_dsnap.m, ser, (uintptr_t)(__bridge const void *)base,
++                                                  (uint32_t)tl, (uint32_t)ts, (uint32_t)nl,
++                                                  want_st, cur_ser_mut, ++g_dsnap.tick);
++            if (dslot >= 0 && g_dsnap.snap[dslot] != nil) {   // RewindBox (patch 0425/0436): reuse valid slot without copying
+                 id<MTLTexture> use = nil;
+-                for (int vi = 0; vi < 2; vi++) if (g_dsnap.v[vi].src == t && g_dsnap.v[vi].use) { use = g_dsnap.v[vi].use; break; }
++                for (int vi = 0; vi < 2; vi++) if (g_dsnap.v[dslot][vi].src == t && g_dsnap.v[dslot][vi].use) { use = g_dsnap.v[dslot][vi].use; break; }
+                 if (!use) {
+-                    id<MTLTexture> snap = g_dsnap.snap;
++                    id<MTLTexture> snap = g_dsnap.snap[dslot];
+                     if (rb_fb_direct_snap_on() && t.pixelFormat == snap.pixelFormat &&
+                         t.width == snap.width && t.height == snap.height && nl == snap.mipmapLevelCount) {
+                         MTLTextureSwizzleChannels sw = t.swizzle;
+@@ -23577,13 +23617,14 @@ static void fb_prepare_(NvProg *pr) {   // RewindBox (patch 0324): the body; fb_
+                     }
+                     if (!use) use = fb_narrow_view(snap, t, MTLTextureType2D, 0, nl, 0, 1);
+                     if (use) {
+-                        unsigned slot = g_dsnap.v_next++ & 1u;
+-                        if (g_dsnap.v[slot].use && g_dsnap.v[slot].use != use) defer_obj_unref(g_dsnap.v[slot].use);
+-                        g_dsnap.v[slot].src = t; g_dsnap.v[slot].use = use;
++                        unsigned slot = g_dsnap.v_next[dslot]++ & 1u;
++                        if (g_dsnap.v[dslot][slot].use && g_dsnap.v[dslot][slot].use != use) defer_obj_unref(g_dsnap.v[dslot][slot].use);
++                        g_dsnap.v[dslot][slot].src = t; g_dsnap.v[dslot][slot].use = use;
+                     }
+                 }
+                 if (use) {
+                     if (g_fb_use[g_fb_n] && g_fb_use[g_fb_n] != use) defer_obj_unref(g_fb_use[g_fb_n]);
++                    g_dsnap.use = use;
+                     g_fb_src[g_fb_n] = t; g_fb_use[g_fb_n] = use; g_fb_rid[g_fb_n] = use.gpuResourceID._impl; g_fb_n++; g_fb_hits++; g_fb_depth_reuse++;
+                     continue;
+                 }
+@@ -23615,14 +23656,19 @@ static void fb_prepare_(NvProg *pr) {   // RewindBox (patch 0324): the body; fb_
+             if (!use) { RED_ONCE(180, "same-pass depth sampling: cannot create the snapshot view (format %lu); left as is", (unsigned long)t.pixelFormat); continue; }
+             if (g_fb_use[g_fb_n] && g_fb_use[g_fb_n] != use) defer_obj_unref(g_fb_use[g_fb_n]);
+             g_fb_src[g_fb_n] = t; g_fb_use[g_fb_n] = use; g_fb_rid[g_fb_n] = use.gpuResourceID._impl; g_fb_n++; g_fb_hits++; g_fb_count++; g_fb_depth++;
+-            g_dsnap.ser = ser;
+-            g_dsnap.lo = R.rt.depth && R.rt.depth->mem && R.rt.depth->L.size ? (uint64_t)(uintptr_t)R.rt.depth->mem : 0;
+-            g_dsnap.hi = g_dsnap.lo ? g_dsnap.lo + R.rt.depth->L.size : 0;
+-            g_dsnap.base = base; g_dsnap.snap = snap; g_dsnap.tl = tl; g_dsnap.ts = ts; g_dsnap.nl = nl;
+-            if (g_dsnap.v[0].use && g_dsnap.v[0].use != use) defer_obj_unref(g_dsnap.v[0].use);
+-            if (g_dsnap.v[1].use) defer_obj_unref(g_dsnap.v[1].use);
+-            g_dsnap.v[0].src = t; g_dsnap.v[0].use = use; g_dsnap.v[1].src = nil; g_dsnap.v[1].use = nil; g_dsnap.v_next = 1;
+-            g_dsnap.depth_valid = 1; g_dsnap.stencil_valid = 1;
++            const int dst_slot = rb_dsnap_cache_pick(g_dsnap.m, ser, (uintptr_t)(__bridge const void *)base,
++                                                     (uint32_t)tl, (uint32_t)ts, (uint32_t)nl);
++            const uint64_t dlo = R.rt.depth && R.rt.depth->mem && R.rt.depth->L.size ? (uint64_t)(uintptr_t)R.rt.depth->mem : 0;
++            const uint64_t dhi = dlo ? dlo + R.rt.depth->L.size : 0;
++            g_dsnap.snap[dst_slot] = snap;
++            rb_dsnap_cache_publish(g_dsnap.m, dst_slot, ser, dlo, dhi,
++                                   (uintptr_t)(__bridge const void *)base, (uintptr_t)(__bridge const void *)snap,
++                                   (uint32_t)tl, (uint32_t)ts, (uint32_t)nl, rb_dsnap_ser_mut(), ++g_dsnap.tick);
++            if (g_dsnap.v[dst_slot][0].use && g_dsnap.v[dst_slot][0].use != use) defer_obj_unref(g_dsnap.v[dst_slot][0].use);
++            if (g_dsnap.v[dst_slot][1].use) defer_obj_unref(g_dsnap.v[dst_slot][1].use);
++            g_dsnap.v[dst_slot][0].src = t; g_dsnap.v[dst_slot][0].use = use;
++            g_dsnap.v[dst_slot][1].src = nil; g_dsnap.v[dst_slot][1].use = nil; g_dsnap.v_next[dst_slot] = 1;
++            g_dsnap.use = use;
+             if (g_fb_depth == 1 || g_fb_depth == 100 || g_fb_depth % 100000 == 0) MLOG("same-pass depth sampling: draw %llu (shader %s) samples its pass's depth attachment ser=%llu (%lux%lu format %lu); the pass ends and it reads a copy (%llu so far)",
+                 (unsigned long long)g_draw_seq, fs->key, (unsigned long long)ser, (unsigned long)base.width, (unsigned long)base.height, (unsigned long)base.pixelFormat, (unsigned long long)g_fb_depth);
+             PD("N %llu same-pass depth sampling: depth attachment ser=%llu sampled at slot %d; the pass ends and this draw reads a copy", g_stat_pass, (unsigned long long)ser, b->reg);
+@@ -27427,7 +27473,7 @@ void nvn_be_exec(const uint8_t *p) {
+                     fsig_cond(!known ? 2 : g_rc_skip ? 1 : 0, rc->addr);   // RewindBox (patch 0064); RewindBox (patch 0067): rc->addr
+                     PD("E %llu conditional render %s addr=%#llx values %llu / %llu%s%s", g_stat_pass, rc->mode ? "draw if not equal" : "draw if equal", (unsigned long long)rc->addr, (unsigned long long)x, (unsigned long long)y, known ? "" : " (unknown, drawn)", g_rc_skip ? " → not drawn" : ""); }
+                 break; }
+-            case OP_WAIT_SYNC: { g_rb_last_guest_dispatch=0; if (!g_m3 && producer_cover_on()) main_barrier_reset(); const sync_t *s; memcpy(&s, a, 8); void *ev; uint64_t v;   // another queue's fence: the queue waits for it before this submission commits (hle_nvn.c WaitSync)
++            case OP_WAIT_SYNC: { g_rb_last_guest_dispatch=0; dsnap_stale(); if (!g_m3 && producer_cover_on()) main_barrier_reset(); const sync_t *s; memcpy(&s, a, 8); void *ev; uint64_t v;   // another queue's fence: the queue waits for it before this submission commits (hle_nvn.c WaitSync)
+                 if (s && sync_ext(s, &ev, &v)) queue_wait_event(ev, v);
+                 g_pkg_epoch++;   // what the other queue wrote before its fence is visible after the wait: packaged textures are checked again
+                 PD("Y wait_sync cmd=%p sync=%p", p, (const void *)s); break; }
+@@ -27509,7 +27555,9 @@ void nvn_be_exec(const uint8_t *p) {
+             }
+             case OP_CLEAR_DS: {
+                 const p_clear_ds *c = a;
+-                if (c->depth_mask || rb_dsnap_strict()) dsnap_stale(); else if (c->stencil_mask & 0xff) g_dsnap.stencil_valid = 0;
++                if (rb_dsnap_strict()) dsnap_stale();
++                else if (R.rt.depth && (c->depth_mask || (c->stencil_mask & 0xff)))
++                    dsnap_stale_tex_planes(R.rt.depth, c->depth_mask != 0, (c->stencil_mask & 0xff) != 0);
+                 if (g_rc_skip) { PD("c %llu depth-stencil clear skipped by conditional rendering", g_stat_pass); fsig_cond_skip(0); break; }   // RewindBox (patch 0064): fsig_cond_skip
+                 if (g_rt_merged) rb_rp_end_at(__func__, __LINE__);
+                 // Load-action clears cannot express a partial rectangle or a
+diff --git a/graphics/nvn/gfx/nvn/rb_dsnap_rule.h b/graphics/nvn/gfx/nvn/rb_dsnap_rule.h
+index 8a1006f..13b6127 100644
+--- a/graphics/nvn/gfx/nvn/rb_dsnap_rule.h
++++ b/graphics/nvn/gfx/nvn/rb_dsnap_rule.h
+@@ -38,3 +38,100 @@ static inline int rb_dsnap_set_rt_stales(uint64_t d_ser, uint64_t cur_ser, uint6
+     if (!d_ser || cur_ser != d_ser || new_ser != d_ser || !same_dview) return 1;
+     return 0;
+ }
++
++// RewindBox (patch 0436): 2-slot LRU depth snapshot metadata cache.
++// Keeps up to 2 unchanged depth attachments' snapshots valid across color-only passes and
++// alternating depth attachments (e.g. main 1280x720 depth + half-res/shadow depth in Zelda/MKW),
++// invalidating only the slot whose serial/memory range is written, cleared, copied, or whose
++// backing texture storage mutated (ser_mut), and invalidating any peer slot aliasing the same
++// backing Metal snapshot texture from dsnap_storage().
++enum { RB_DSNAP_SLOTS = 2 };
++
++typedef struct {
++    uint64_t ser, lo, hi, ser_mut, tick;
++    uintptr_t base, snap;
++    uint32_t tl, ts, nl;
++    uint8_t depth_valid, stencil_valid;
++} rb_dsnap_slot;
++
++static inline int rb_dsnap_cache_find(rb_dsnap_slot slots[RB_DSNAP_SLOTS],
++                                      uint64_t ser, uintptr_t base, uint32_t tl, uint32_t ts, uint32_t nl,
++                                      int want_st, uint64_t cur_ser_mut, uint64_t tick) {
++    for (int i = 0; i < RB_DSNAP_SLOTS; i++) {
++        rb_dsnap_slot *s = &slots[i];
++        const int valid = want_st ? s->stencil_valid : s->depth_valid;
++        if (valid && s->ser == ser && s->base == base && s->snap != 0 &&
++            s->tl == tl && s->ts == ts && s->nl == nl && s->ser_mut == cur_ser_mut) {
++            s->tick = tick;
++            return i;
++        }
++    }
++    return -1;
++}
++
++static inline int rb_dsnap_cache_pick(const rb_dsnap_slot slots[RB_DSNAP_SLOTS],
++                                      uint64_t ser, uintptr_t base, uint32_t tl, uint32_t ts, uint32_t nl) {
++    for (int i = 0; i < RB_DSNAP_SLOTS; i++) {
++        if (slots[i].ser == ser && slots[i].base == base &&
++            slots[i].tl == tl && slots[i].ts == ts && slots[i].nl == nl)
++            return i;
++    }
++    for (int i = 0; i < RB_DSNAP_SLOTS; i++) {
++        if (!slots[i].depth_valid && !slots[i].stencil_valid) return i;
++    }
++    return slots[0].tick <= slots[1].tick ? 0 : 1;
++}
++
++static inline void rb_dsnap_cache_publish(rb_dsnap_slot slots[RB_DSNAP_SLOTS], int idx,
++                                          uint64_t ser, uint64_t lo, uint64_t hi,
++                                          uintptr_t base, uintptr_t snap,
++                                          uint32_t tl, uint32_t ts, uint32_t nl,
++                                          uint64_t cur_ser_mut, uint64_t tick) {
++    // If dsnap_storage() handed out the same backing MTLTexture as another live slot
++    // (two depth buffers of identical shape), invalidate that peer slot before overwriting snap.
++    for (int j = 0; j < RB_DSNAP_SLOTS; j++) {
++        if (j != idx && slots[j].snap == snap) {
++            slots[j].depth_valid = 0;
++            slots[j].stencil_valid = 0;
++        }
++    }
++    rb_dsnap_slot *s = &slots[idx];
++    s->ser = ser; s->lo = lo; s->hi = hi; s->ser_mut = cur_ser_mut; s->tick = tick;
++    s->base = base; s->snap = snap; s->tl = tl; s->ts = ts; s->nl = nl;
++    s->depth_valid = 1; s->stencil_valid = 1;
++}
++
++static inline void rb_dsnap_cache_stale_all(rb_dsnap_slot slots[RB_DSNAP_SLOTS]) {
++    for (int i = 0; i < RB_DSNAP_SLOTS; i++) {
++        slots[i].depth_valid = 0;
++        slots[i].stencil_valid = 0;
++    }
++}
++
++static inline void rb_dsnap_cache_stale_range(rb_dsnap_slot slots[RB_DSNAP_SLOTS],
++                                              uint64_t dst, uint64_t size) {
++    for (int i = 0; i < RB_DSNAP_SLOTS; i++) {
++        if ((slots[i].depth_valid || slots[i].stencil_valid) &&
++            rb_dsnap_range_overlaps(slots[i].lo, slots[i].hi, dst, size)) {
++            slots[i].depth_valid = 0;
++            slots[i].stencil_valid = 0;
++        }
++    }
++}
++
++static inline void rb_dsnap_cache_stale_tex(rb_dsnap_slot slots[RB_DSNAP_SLOTS],
++                                            uint64_t t_ser, uint64_t t_lo, uint64_t t_size,
++                                            int depth_wrote, int stencil_wrote) {
++    if (!depth_wrote && !stencil_wrote) return;
++    for (int i = 0; i < RB_DSNAP_SLOTS; i++) {
++        if (!(slots[i].depth_valid || slots[i].stencil_valid)) continue;
++        if (rb_dsnap_tex_stales(slots[i].ser, slots[i].lo, slots[i].hi, t_ser, t_lo, t_size)) {
++            if (depth_wrote) {
++                slots[i].depth_valid = 0;
++                slots[i].stencil_valid = 0;
++            } else if (stencil_wrote) {
++                slots[i].stencil_valid = 0;
++            }
++        }
++    }
++}
+-- 
+2.56.0
+

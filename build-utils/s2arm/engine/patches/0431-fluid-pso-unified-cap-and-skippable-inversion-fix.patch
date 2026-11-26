@@ -1,0 +1,200 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 8bbd877..89c6c74 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -16257,37 +16257,49 @@ static void rb_long_wait_note(int at, uint64_t w0, uint64_t w1, int required, in
+          (unsigned long long)n, (unsigned long long)atomic_load(&g_cur_frame), (w1 - w0) / 1e6, required ? "required" : may_skip ? "skippable" : "not skippable", way,
+          g_pp[at].rb_build_ns / 1e6, g_pp[at].rb_compile_ns / 1e6, began < 0 ? -began : began, began < 0 ? "before" : "after");
+ }
++#include "rb_fluid_pso_rule.h"
+ static id<MTLRenderPipelineState> pso_pend_take_ex(const pso_key *k, int *timed_out, int may_skip, int storage_writes) {   // Called by the submit thread: if it is in the table, wait for it to finish compiling and take it; otherwise return nil. *timed_out: 1 = past its own limit (late), 2 = the frame's budget ran out
+     g_async_render_built=0; g_async_render_error=nil;
+-    const int fluid_cap = !may_skip && !storage_writes && !rb_ref_profile_on() && rb_fluid_pso_on();
+-    const int required = !fluid_cap && (rb_course_exact() || (!may_skip && (rb_async_pso() ||
+-        (rb_observed_workers_on() && rb_first_draw_on()))));
++    const int lw = may_skip && g_rb_lw_take;   // RewindBox (patch 0069): a draw formerly skipped at once: its frame's own allowance caps it, not the budget (rb_late_left_ms)
+     pthread_mutex_lock(&g_pp_mu);
+     // may_skip = 0 (skip_safe: a draw whose target keeps content across frames, or one a shader writes storage in): no limit and no budget, it waits until the pipeline is compiled.
+     //   Super Mario Odyssey's Mac cold start (10-27): the system compiler was slow, the frame budget skipped 2048 draws in 4 frames, among them the temporal anti-aliasing / exposure
+     //   chain whose output feeds the next frame, and the 3D picture stayed black for the whole run; first_skip_ok never let those draws be skipped, these limits did
+-    int at = pso_pend_find(k), blk = 0, ms = may_skip ? pso_wait_ms() : (fluid_cap ? rb_fluid_pso_ms() : pso_unsafe_wait_ms()); id<MTLRenderPipelineState> ps = nil; *timed_out = 0;
+-    if (!may_skip || rb_pso_wait_boost_on()) ppq_demand_locked(at);
++    int at = pso_pend_find(k), blk = 0; id<MTLRenderPipelineState> ps = nil; *timed_out = 0;
++    const rb_fluid_pso_in fin = {
++        .fluid_on = rb_fluid_pso_on(),
++        .ref_profile = rb_ref_profile_on(),
++        .may_skip = may_skip,
++        .storage_writes = storage_writes,
++        .course_exact = rb_course_exact(),
++        .async_pso = rb_async_pso(),
++        .observed_first = rb_observed_workers_on() && rb_first_draw_on(),
++        .fluid_ms = rb_fluid_pso_ms(),
++        .fluid_left_ms = rb_fluid_budget_left_ms(),
++        .pso_wait_ms = pso_wait_ms(),
++        .pso_unsafe_ms = pso_unsafe_wait_ms(),
++        .late_wait = lw,
++        .late_left_ms = lw ? rb_late_left_ms() : INT64_MAX,
++        .frame_left_ms = may_skip && !lw ? pso_budget_left_ms() : INT64_MAX,
++        .done = at >= 0 && g_pp[at].done,
++    };
++    const rb_fluid_pso_out fp = rb_fluid_pso_decide(&fin);
++    const int fluid_cap = fp.fluid_cap, required = fp.required;
++    int ms = fp.wait_ms;
++    if (fp.demand_boost || rb_pso_wait_boost_on()) ppq_demand_locked(at);
+     if (!ppq_hurry_locked(at)) at = -1;
+     if (may_skip && at >= 0 && g_pp[at].late && !g_pp[at].done) { pthread_mutex_unlock(&g_pp_mu); *timed_out = 1; return nil; }   // waited its limit once already: every later draw with it skips at once until it is done
+     // A draw that cannot be skipped waited the whole unsafe cap for it once: the compiler service is stuck on it, and every later draw with it, safe or not, skips at once until it is done.
+     //   Splatoon 3 (10-27 PSB, t0100c2500fc20000_1027065706_2): three such draws in a row each waited 10 s for the same pipeline (Hoian_UBER fragment fc88b546d13b4a9f), 31 s at frame 47
+     if (!required && at >= 0 && g_pp[at].stuck && !g_pp[at].done) { pthread_mutex_unlock(&g_pp_mu); *timed_out = 1; return nil; }
+-    if (fluid_cap && at >= 0 && !g_pp[at].done) {
+-        int64_t fleft = rb_fluid_budget_left_ms();
+-        if (fleft <= 0) {
+-            pthread_mutex_unlock(&g_pp_mu); *timed_out = 2;
++    if (at >= 0 && !g_pp[at].done && fp.immediate_defer) {
++        pthread_mutex_unlock(&g_pp_mu); *timed_out = 2;
++        if (fluid_cap) {
+             uint64_t dn = atomic_fetch_add_explicit(&g_rb_fluid_defers, 1, memory_order_relaxed) + 1;
+             if (dn <= 4 || !(dn & (dn - 1))) MLOG("[rb-fluid-pso] deferred=%llu frame=%llu cap_ms=%d (frame budget)", (unsigned long long)dn, (unsigned long long)atomic_load(&g_cur_frame), rb_fluid_pso_ms());
+-            return nil;
+-        }
+-        if (fleft < ms) ms = (int)fleft;
+-    }
+-    int lw = may_skip && g_rb_lw_take;   // RewindBox (patch 0069): a draw formerly skipped at once: its frame's own allowance caps it, not the budget (rb_late_left_ms)
+-    if (may_skip && at >= 0 && !g_pp[at].done) {   // the frame's budget caps this wait (a wait cut short by it does not make the pipeline late: a later frame waits for it again)
+-        int64_t left = lw ? rb_late_left_ms() : pso_budget_left_ms(); int cut = 0;   // RewindBox (patch 0069): lw
+-        if (left < (ms ? ms : INT64_MAX)) { cut = 1; ms = (int)left; }
+-        if (cut && !ms) { pthread_mutex_unlock(&g_pp_mu); *timed_out = 2; if (lw) rb_late_skip_note(); else pso_budget_skip_note(); return nil; }   // RewindBox (patch 0069): rb_late_skip_note
++        } else if (lw) rb_late_skip_note();
++        else pso_budget_skip_note();
++        return nil;
+     }
+     if (at >= 0) { blk = !g_pp[at].done; if (blk) DM_BLOCK_BEGIN(); uint64_t w0 = bp_now();
+         pthread_override_t boost=blk ? rb_pso_boost(g_pp[at].worker) : NULL;
+@@ -16653,7 +16665,7 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+     if (settled) { e=g_async_render_error; g_async_render_error=nil; }
+     g_rb_lw_take = 0;   // RewindBox (patch 0069)
+     fu_take = bp_now() - fu_t0;
+-    if (!ps && !pp_late && may_skip && !g_pso_lmap && !ms_fn && !g_pso_fsfn && !pso_budget_left_ms()) { rb_fu_end(); pso_budget_skip_note(); if (rb_pso_mode()) rb_async_note(RB_ASYNC_SKIP); g_first_skipped = 1; PSO_WHY("no pipeline wait budget left this frame"); return nil; }   // not queued (table full / refused) and no budget left: no synchronous build either
++    if (!ps && !pp_late && !g_pso_lmap && !ms_fn && !g_pso_fsfn && rb_fluid_pso_skip_sync(rb_fluid_pso_on(), rb_ref_profile_on(), may_skip, storage_writes, rb_fluid_budget_left_ms(), pso_budget_left_ms())) { rb_fu_end(); pso_budget_skip_note(); if (rb_pso_mode()) rb_async_note(RB_ASYNC_SKIP); g_first_skipped = 1; PSO_WHY("no pipeline wait budget left this frame"); return nil; }   // not queued (table full / refused) and no budget left: no synchronous build either
+     if (pp_late) {   // still compiling past the limit (pso_wait_ms): skip this draw, keep the compile queued; a synchronous build here would queue behind the same compiler service
+         rb_fu_end();
+         { static unsigned n; if (pp_late == 1 && n++ < 8) MLOG("【红】 pipeline still compiling in the background after %d ms (vertex %s fragment %s): draw skipped so the frame goes on (%llu so far)", pso_wait_ms(), vs->key, fs ? fs->key : "-", (unsigned long long)g_pp_timeouts); }
+diff --git a/graphics/nvn/gfx/nvn/rb_fluid_pso_rule.h b/graphics/nvn/gfx/nvn/rb_fluid_pso_rule.h
+new file mode 100644
+index 0000000..e52e435
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_fluid_pso_rule.h
+@@ -0,0 +1,113 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0431): unified Fluid Pipelines wait/defer decision for
++// pso_pend_take_ex and pso_get_vs (nvn_mtl.m).
++//
++// IPA 845 (Mario Kart World, iPhone A18 Pro): 4 logged first-use waits of
++// 466.0, 535.1, 1226.1 and 2202.5 ms (plus 184.3 ms on filmed frame 7954) were
++// all skippable draws with storage_writes=0 while Fluid Pipelines (cap_ms=6)
++// was active. In patch 0419, fluid_cap required !may_skip, which flipped
++// !fluid_cap to 1 on skippable draws and forced required=1 under
++// rb_course_exact(), bypassing every timeout and blocking the submit thread
++// until compilation completed.
++//
++// Invariants preserved:
++//   - Strict mode (fluid_on == 0) or reference capture (ref_profile == 1):
++//     identical behavior to 0430.
++//   - Shaders writing storage buffers / images (storage_writes == 1) when not
++//     may_skip: never deferred by Fluid Pipelines (required preserved).
++//   - Fluid mode active (fluid_on && !ref_profile): every skippable draw and
++//     every non-storage-writing draw is never marked required, uses a single
++//     unified per-draw / per-frame fluid budget (cap = 2 * fluid_ms), and
++//     defers instead of falling back to synchronous compilation when the
++//     pending table cannot accept it and the frame fluid budget is exhausted.
++#pragma once
++#include <stdint.h>
++
++typedef struct {
++    int fluid_on;           // rb_fluid_pso_on()
++    int ref_profile;        // rb_ref_profile_on()
++    int may_skip;           // draw is skip-safe / skippable
++    int storage_writes;     // shader_writes(vs) || shader_writes(fs)
++    int course_exact;       // rb_course_exact()
++    int async_pso;          // rb_async_pso()
++    int observed_first;     // rb_observed_workers_on() && rb_first_draw_on()
++    int fluid_ms;           // rb_fluid_pso_ms() (default 6..12)
++    int64_t fluid_left_ms;  // rb_fluid_budget_left_ms()
++    int pso_wait_ms;        // DM_NVN_PSO_WAIT_MS (default 2000)
++    int pso_unsafe_ms;      // DM_NVN_PSO_UNSAFE_WAIT_MS (default 10000)
++    int late_wait;          // may_skip && g_rb_lw_take
++    int64_t late_left_ms;   // rb_late_left_ms()
++    int64_t frame_left_ms;  // pso_budget_left_ms() (INT64_MAX if none)
++    int done;               // pending slot already finished (1 = take without waiting)
++} rb_fluid_pso_in;
++
++typedef struct {
++    int fluid_active;       // 1 = Fluid Pipelines governs this draw
++    int fluid_cap;          // 1 = wait is bounded by the unified fluid budget
++    int required;           // 1 = unbounded wait until done or session stop
++    int immediate_defer;    // 1 = frame budget already spent -> return nil (timed_out = 2)
++    int wait_ms;            // effective timedwait cap in ms (0 = unbounded if !required)
++    int demand_boost;       // 1 = boost pending compile via ppq_demand_locked
++} rb_fluid_pso_out;
++
++static inline rb_fluid_pso_out rb_fluid_pso_decide(const rb_fluid_pso_in *in) {
++    rb_fluid_pso_out o = {0};
++    const int fluid_active = in->fluid_on && !in->ref_profile;
++    const int fluid_eligible = fluid_active && (in->may_skip || !in->storage_writes);
++    o.fluid_active = fluid_active;
++    o.fluid_cap = fluid_eligible;
++    o.required = !fluid_eligible &&
++        (in->course_exact || (!in->may_skip && (in->async_pso || in->observed_first)));
++    o.demand_boost = !in->may_skip || fluid_eligible;
++
++    if (in->done) {
++        o.wait_ms = 0;
++        return o;
++    }
++
++    if (fluid_eligible) {
++        if (in->fluid_left_ms <= 0) {
++            o.immediate_defer = 1;
++            o.wait_ms = 0;
++            return o;
++        }
++        int ms = in->fluid_ms > 0 ? in->fluid_ms : 1;
++        if (in->fluid_left_ms < ms) ms = (int)in->fluid_left_ms;
++        // Preserve late-wait 0 ms skip semantics (S2A_RB_LATE_BUDGET_MS=0 in fluid mode).
++        if (in->late_wait && in->late_left_ms <= 0) {
++            o.immediate_defer = 1;
++            o.wait_ms = 0;
++            return o;
++        }
++        if (in->late_wait && in->late_left_ms < ms) ms = (int)in->late_left_ms;
++        o.wait_ms = ms;
++        return o;
++    }
++
++    // Legacy / strict / storage-writing path: exact 0430 semantics.
++    int ms = in->may_skip ? in->pso_wait_ms : in->pso_unsafe_ms;
++    if (in->may_skip) {
++        int64_t left = in->late_wait ? in->late_left_ms : in->frame_left_ms;
++        int64_t cap = ms ? (int64_t)ms : INT64_MAX;
++        if (left < cap) {
++            if (left <= 0) {
++                o.immediate_defer = 1;
++                o.wait_ms = 0;
++                return o;
++            }
++            ms = (int)left;
++        }
++    }
++    o.wait_ms = ms;
++    return o;
++}
++
++// 1 = when pending queue could not hold the pipeline (ps == nil, !pp_late),
++// defer instead of running a synchronous compile on the submit thread.
++static inline int rb_fluid_pso_skip_sync(int fluid_on, int ref_profile,
++                                         int may_skip, int storage_writes,
++                                         int64_t fluid_left_ms, int64_t pso_left_ms) {
++    if (fluid_on && !ref_profile && (may_skip || !storage_writes))
++        return fluid_left_ms <= 0;
++    return may_skip && pso_left_ms <= 0;
++}

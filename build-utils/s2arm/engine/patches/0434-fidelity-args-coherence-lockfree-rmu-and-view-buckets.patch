@@ -1,0 +1,523 @@
+From 3c00fc08b3ec80d40d4a67d4d39acccb628c00b2 Mon Sep 17 00:00:00 2001
+From: Tarble FR <f9wynyv9qy@privaterelay.appleid.com>
+Date: Thu, 26 Nov 2026 13:42:28 +0000
+Subject: [PATCH] patch-0434
+
+---
+ graphics/nvn/gfx/nvn/nvn_mtl.m           | 146 ++++++++++++++++-------
+ graphics/nvn/gfx/nvn/rb_args_ubo.h       |  33 +++++
+ graphics/nvn/gfx/nvn/rb_fluid_pso_rule.h |  12 +-
+ graphics/nvn/gfx/nvn/rb_view_epoch.h     |   2 +-
+ 4 files changed, 144 insertions(+), 49 deletions(-)
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index ba184f1..08e9ed3 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -5244,8 +5244,9 @@ static int rb_look_bounded(void) {
+     return nvn2 && rb_pacing_setting(&g_look_budget_option,"S2A_RB_LOOK_BUDGET");
+ }
+ static _Atomic uint64_t g_ser_gen = 1;
+-// RewindBox (patch 0073): the moves of g_ser_gen that only added a live serial no table held (tex_put), counted under g_smu; a texture ID's view survives those (tex_by_id, rb_view_keep_on)
+-static uint64_t g_rb_ser_add = 1;
++// RewindBox (patch 0073/0434): the moves of g_ser_gen that only added a live serial no table held (tex_put), counted under g_smu (atomic mirror for lock-free ser_mut reads)
++static _Atomic uint64_t g_rb_ser_add = 1;
++static int rb_bcal_active(void);   // RewindBox (patch 0434): defined with g_bcal_n
+ #include "rb_view_epoch.h"
+ static rb_view_epoch g_view_epoch;   // g_smu
+ static uint64_t g_rb_view_kept, g_rb_view_slow;
+@@ -5625,12 +5626,13 @@ static void alias_take_over(const alias_key *nk) {
+             if (alias_recent(own) || !alias_overwritten(&k, k.off, k.off + (int64_t)kl.size, last)) continue; }
+         ks[n++] = k;
+     }
+-    uint64_t lser[64]; int lsn = 0, lser_ovf = 0, ghost_hit = 0;   // RewindBox (patch 0425): track exact evicted serials for scoped view invalidation
++    uint64_t lser[64]; int lsn = 0, lser_ovf = 0, ghost_hit = 0, twin_hit = 0;   // RewindBox (patch 0425/0434): track exact evicted serials; twin parents force global invalidation
+     for (uint32_t j = 0; j < n; j++) {
+         void *old = nvn_hm_del(&g_alias, &ks[j]);
+         if (!old) continue;
+         nvn_hm_del(&g_alias_seen, &ks[j]); nvn_hm_del(&g_alias_wrote, &ks[j]);
+         id o = CFBridgingRelease(old);
++        if (objc_getAssociatedObject(o, &g_twin_parent_key)) twin_hit = 1;
+         if (g_alias_set) CFSetRemoveValue(g_alias_set, (__bridge const void *)o);
+         uint64_t dsk[TXR_SERS]; int dn = 0, superseded = 0;   // RewindBox (patch 0071): live serials whose views wait with it while it is kept for reuse (txr_keep)
+         for (uint32_t i = 0; i < g_by_serial.cap; i++) if (g_by_serial.vals[i] == (__bridge void *)o) {   // live objects over overwritten storage: their next use makes the texture anew (tex_mtl_)
+@@ -5645,7 +5647,7 @@ static void alias_take_over(const alias_key *nk) {
+         else if ((rb_sparse_budget_on() && (atomic_load(&rb_gov_plan) & 3u) >= (superseded ? RB_GOV_WARN : RB_GOV_CRITICAL)) || !txr_keep(o, &ks[j], dsk, dn)) { alias_dead_add(dsk, dn); defer_obj_release(o); }   // RewindBox (patch 0071): kept for reuse, else released as before
+     }
+     if (n) {
+-        if (rb_view_scope_on() && !lser_ovf && !ghost_hit) {
++        if (rb_view_scope_on() && !lser_ovf && !ghost_hit && !twin_hit && !rb_bcal_active()) {
+             if (lsn) { for (int k = 0; k < lsn; k++) rb_serial_local_locked(lser[k]); }
+             else rb_serial_local_locked(0);   // unreferenced alias only: RB_VS_SCOPED still invalidates finalized (!RB_VS_LIVE) views
+         } else g_ser_gen++;
+@@ -5942,7 +5944,7 @@ static void tex_put(uint64_t k, id o) {   // serials from 2^62 up are external t
+             ghost_trim(rb_mem_low() ? NGHOST_SMALL : NGHOST, 64); }
+     }
+     int rb_add = !old && m == &g_by_serial && !hm_get_id(&g_ghost, &k) && !hm_get_id(&g_ghost_active, &k);   // RewindBox (patch 0073): a serial no table held: every other serial resolves as before
+-    hm_put_id(m, &k, o); g_ser_gen++; if (rb_add) g_rb_ser_add++; else g_rb_put_other++;   // RewindBox (patch 0320): g_rb_put_other, a count only (the texture-ID view line): a put over a held or finalized serial stays an unclassified move, after which every view resolves again; IPA 827 does not say how many of its 700 to 1,570 resolutions a frame came from these. S2A_RB_VIEW_SCOPE=0: as before
++    hm_put_id(m, &k, o); g_ser_gen++; if (rb_add) atomic_fetch_add_explicit(&g_rb_ser_add, 1, memory_order_relaxed); else g_rb_put_other++;   // RewindBox (patch 0320/0434): atomic g_rb_ser_add; a put over a held or finalized serial stays an unclassified move
+     if (m == &g_ghost && (active || (g_cb && on_sub_thread()))) hm_put_id(&g_ghost_active, &k, o);
+     pthread_mutex_unlock(&g_smu);
+ }
+@@ -6393,7 +6395,7 @@ static id<MTLTexture> tex_upgrade(const tex_t *t, id<MTLTexture> asked, MTLTextu
+             void *old = g_alias.vals[i]; g_alias.vals[i] = (void *)CFBridgingRetain(upgraded); CFRelease(old); shared = 1;
+         }
+         if (shared) { CFSetRemoveValue(g_alias_set, (__bridge const void *)base); CFSetAddValue(g_alias_set, (__bridge const void *)upgraded); }
+-        if (rb_view_scope_on() && !lser_ovf) {
++        if (rb_view_scope_on() && !lser_ovf && !objc_getAssociatedObject(base, &g_twin_parent_key) && !rb_bcal_active()) {
+             if (lsn) { for (int k = 0; k < lsn; k++) rb_serial_local_locked(lser[k]); }
+             else rb_serial_local_locked(t->serial);
+         } else g_ser_gen++;
+@@ -8714,6 +8716,7 @@ typedef struct bcal_e {
+ typedef struct { const void *dst; uint64_t lgen[16]; } bcal_s;   // 一张 BC 贴图已同步到的各层代数：目标 Metal 贴图变了（整张重新上传）就从头来
+ static nvn_hmap g_bcal = {.klen = 8}, g_bcal_sync = {.klen = 8}, g_bcal_seen = {.klen = 8};   // 存储地址 → bcal_e *；BC 贴图序号 → bcal_s *；解析过 BC 贴图的存储地址 → 它的内存池（都在 g_bcal_mu 下）
+ static pthread_mutex_t g_bcal_mu = PTHREAD_MUTEX_INITIALIZER; static _Atomic uint64_t g_bcal_n, g_bcal_gen, g_bcal_cgen; static uint64_t g_bcal_copies; static bcal_e *g_bcal_free;
++static int rb_bcal_active(void) { return atomic_load_explicit(&g_bcal_n, memory_order_relaxed) != 0; }
+ static bcal_e *_Atomic g_bcal_wc[BCAL_C];          // 存储地址 → 记账（正向缓存；以 key 核对）
+ static _Atomic uint64_t g_bcal_neg[BCAL_C], g_bcal_seen_c[BCAL_C];   // 「这里没记账」：地址 | 建账代数 << 48（建了新账就整体失效）；「登记过」：地址
+ static int g_bcal_off;   // 单测负对照：关掉同步
+@@ -10775,7 +10778,7 @@ static int rb_swap_storage_locked(id<MTLTexture> base, id<MTLTexture> w) {
+             if (hit && m < 3) { uint64_t sk = 0; memcpy(&sk, ms[m]->keys + (size_t)i * ms[m]->klen, sizeof sk); if (lsn < 64) lser[lsn++] = sk; else lser_ovf = 1; }
+         }
+     if (g_alias_set && CFSetContainsValue(g_alias_set, (__bridge const void *)base)) { CFSetRemoveValue(g_alias_set, (__bridge const void *)base); CFSetAddValue(g_alias_set, (__bridge const void *)w); }
+-    if (rb_view_scope_on() && !lser_ovf) {
++    if (rb_view_scope_on() && !lser_ovf && !objc_getAssociatedObject(base, &g_twin_parent_key) && !rb_bcal_active()) {
+         if (lsn) { for (int k = 0; k < lsn; k++) rb_serial_local_locked(lser[k]); }
+         else rb_serial_local_locked(0);
+     } else g_ser_gen++;
+@@ -11636,7 +11639,7 @@ static void shmap_load_once(void) {
+     uint8_t tess_dom_red;   // hull：哪些域已判定没有可用的核并报过红（位 = 域编码 0–2，位 3 = 未定义的域值 3；tess_hull_pso）
+     // RewindBox (patch 0325): what a rebuild in part needs of the block below (encode_args_): its bytes in the frame scratch and that scratch's generation, the serial table's
+     //   generation and the check period taken before its walk, the stage it was built for; rb_ab_keeps: 0 not looked at yet, 1 no binding of the shader is kept in a partial rebuild, 2 some are
+-    const uint8_t *rb_ab_cpu; uint64_t rb_ab_agen, rb_ab_ser, rb_ab_pkg; uint8_t rb_ab_stage, rb_ab_keeps, rb_ab_had_fb, rb_ab_had_ubd;
++    const uint8_t *rb_ab_cpu; uint64_t rb_ab_agen, rb_ab_ser, rb_ab_pkg, rb_ab_mem_gen; uint8_t rb_ab_stage, rb_ab_keeps, rb_ab_had_fb, rb_ab_had_ubd;
+     rb_args_masks rb_masks;   // RewindBox (patch 0424): slots read by this shader (masked reuse & per-slot partial rebuild)
+     rb_cont_masks rb_cmasks;  // RewindBox (patch 0425): handle sources read by rb_cont_reads_rt / lc_sampled
+     // The argument buffer encoded last time
+@@ -13987,7 +13990,7 @@ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+     if (rb_view_keep_on()) {
+         pthread_mutex_lock(&g_smu);
+         sg = g_ser_gen;
+-        sa = g_rb_ser_add;
++        sa = atomic_load_explicit(&g_rb_ser_add, memory_order_relaxed);
+         local = g_view_epoch.writes;
+         latest = g_view_epoch.bucket[rb_view_bucket(rp->t.serial)];
+         if (rb_scope) rb_live = rp->t.serial >= (1ull << 62) || nvn_hm_get(&g_tex_live, &rp->t.serial) != NULL;   // RewindBox (patch 0320)
+@@ -16289,7 +16292,7 @@ static void rb_long_wait_note(int at, uint64_t w0, uint64_t w1, int required, in
+          g_pp[at].rb_build_ns / 1e6, g_pp[at].rb_compile_ns / 1e6, began < 0 ? -began : began, began < 0 ? "before" : "after");
+ }
+ #include "rb_fluid_pso_rule.h"
+-static id<MTLRenderPipelineState> pso_pend_take_ex(const pso_key *k, int *timed_out, int may_skip, int storage_writes) {   // Called by the submit thread: if it is in the table, wait for it to finish compiling and take it; otherwise return nil. *timed_out: 1 = past its own limit (late), 2 = the frame's budget ran out
++static id<MTLRenderPipelineState> pso_pend_take_ex(const pso_key *k, int *timed_out, int may_skip, int storage_writes, int persistent_rt) {   // Called by the submit thread: if it is in the table, wait for it to finish compiling and take it; otherwise return nil. *timed_out: 1 = past its own limit (late), 2 = the frame's budget ran out
+     g_async_render_built=0; g_async_render_error=nil;
+     const int lw = may_skip && g_rb_lw_take;   // RewindBox (patch 0069): a draw formerly skipped at once: its frame's own allowance caps it, not the budget (rb_late_left_ms)
+     pthread_mutex_lock(&g_pp_mu);
+@@ -16302,6 +16305,7 @@ static id<MTLRenderPipelineState> pso_pend_take_ex(const pso_key *k, int *timed_
+         .ref_profile = rb_ref_profile_on(),
+         .may_skip = may_skip,
+         .storage_writes = storage_writes,
++        .persistent_rt = persistent_rt,
+         .course_exact = rb_course_exact(),
+         .async_pso = rb_async_pso(),
+         .observed_first = rb_observed_workers_on() && rb_first_draw_on(),
+@@ -16367,7 +16371,7 @@ static id<MTLRenderPipelineState> pso_pend_take_ex(const pso_key *k, int *timed_
+     return ps;
+ }
+ static id<MTLRenderPipelineState> pso_pend_take(const pso_key *k, int *timed_out, int may_skip) {
+-    return pso_pend_take_ex(k, timed_out, may_skip, 1);
++    return pso_pend_take_ex(k, timed_out, may_skip, 1, 1);
+ }
+ static int rb_render_pending_ready(const pso_key *k) {
+     pthread_mutex_lock(&g_pp_mu);
+@@ -16500,12 +16504,18 @@ static int rb_pso_draw_inert(NvProg *pr, NvShader *vs) {
+         if (R.rt.color[i] && ((S.chmask.mask >> (4*i)) & 15u)) return 0;
+     return 1;
+ }
++// RewindBox (patch 0434): 1 when any bound attachment is persistent (!rt_fresh_now) or
++// not drawn steadily across frames (!rt_seen_steady: one-shot baked cubemaps, IBL probes,
++// foliage impostors, LUTs). Fluid Pipelines must never skip draws to such targets.
++static int rb_rt_has_persistent(void) {
++    for (int i = 0; i < R.rt.n; i++) if (R.rt.color[i] && (!rt_fresh_now(R.rt.color[i]) || !rt_seen_steady(R.rt.color[i]))) return 1;
++    if (R.rt.depth && (!rt_fresh_now(R.rt.depth) || !rt_seen_steady(R.rt.depth))) return 1;
++    return 0;
++}
+ static int skip_safe(NvShader *vs, NvShader *fs) {
+     if (shader_writes(vs) || shader_writes(fs)) return 0;
+     if (over_prepass()) return 0;   // RewindBox (patch 0046)
+-    for (int i = 0; i < R.rt.n; i++) if (R.rt.color[i] && (!rt_fresh_now(R.rt.color[i]) || !rt_seen_steady(R.rt.color[i]))) return 0;
+-    if (R.rt.depth && (!rt_fresh_now(R.rt.depth) || !rt_seen_steady(R.rt.depth))) return 0;
+-    return 1;
++    return !rb_rt_has_persistent();
+ }
+ // RewindBox (patch 0069): a skippable first use was skipped at once even in a frame that was long already, where waiting a little more costs less than the missing object. IPA 765:
+ //   the only skipped draws of the session were in such frames (frame 806, 3,481.8 ms: 30 draws; frame 3121: 1). Once S2A_RB_LATE_WAIT_MS (default 100) have passed since the last
+@@ -16677,7 +16687,9 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+     RBPSOWait rb_wait __attribute__((cleanup(rb_wait_end)))=rb_wait_begin();
+     const int fluid_mode = rb_fluid_pso_on() && !rb_ref_profile_on();
+     const int storage_writes = shader_writes(vs) || shader_writes(fs);
+-    int pp_late = 0, may_skip = (!exact || (fluid_mode && !storage_writes)) && skip_safe(vs, fs);
++    const int persistent_rt = rb_rt_has_persistent();
++    const int fluid_safe = fluid_mode && !storage_writes && !persistent_rt;
++    int pp_late = 0, may_skip = (!exact || fluid_safe) && skip_safe(vs, fs);
+     // Not queued: compile it in the background too and wait the same bounded time, instead of compiling here with no limit (the same compiler service, the same queue).
+     //   The first miss of a submission kicks the later misses of the submission out to compile beside it (pso_predict_rest) before this draw waits: since 93dc5957e (10-26) the wait
+     //   came first and took the pipeline, so the lookahead below never ran and every first use of a scene compiled one after another (Super Mario Party, census 11-02, frame 30722:
+@@ -16685,18 +16697,18 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+     BOOL earlyYield=rb_live_lane();
+     if (earlyYield) atomic_fetch_add(&g_fu_waiting,1);
+     if (!g_pso_lmap && !ms_fn && !g_pso_fsfn) {
+-        pso_pend_kick(&k, vs, fs, may_skip ? 1 : RB_PSO_REQUIRED);   // nothing when already queued (an earlier lookahead) or refused (table full: compiled here below); RewindBox (patch 0069): started at once, or hurried when the lookahead queued it
++        pso_pend_kick(&k, vs, fs, (may_skip || fluid_safe) ? 1 : RB_PSO_REQUIRED);   // nothing when already queued (an earlier lookahead) or refused (table full: compiled here below); RewindBox (patch 0069/0434)
+         rb_look_at_miss(!g_pso_lmap && !g_pso_fsfn && !ms_fn ? &k : NULL);   // RewindBox (patch 0085): the submission's first miss as before, or again once libraries were loaded since its last lookahead
+     }
+     if (!earlyYield) atomic_fetch_add(&g_fu_waiting,1);
+     int fu_busy0 = atomic_load(&g_warm_busy); uint64_t fu_t0 = bp_now(), fu_take = 0, fu_build = 0;
+     const int take_pending=!g_pso_lmap && !ms_fn;
+-    ps = take_pending ? pso_pend_take_ex(&k, &pp_late, may_skip, storage_writes) : nil;
++    ps = take_pending ? pso_pend_take_ex(&k, &pp_late, may_skip, storage_writes, persistent_rt) : nil;
+     const int settled=async && take_pending && g_async_render_built;
+     if (settled) { e=g_async_render_error; g_async_render_error=nil; }
+     g_rb_lw_take = 0;   // RewindBox (patch 0069)
+     fu_take = bp_now() - fu_t0;
+-    if (!ps && !pp_late && !g_pso_lmap && !ms_fn && !g_pso_fsfn && rb_fluid_pso_skip_sync(rb_fluid_pso_on(), rb_ref_profile_on(), may_skip, storage_writes, rb_fluid_budget_left_ms(), pso_budget_left_ms())) { rb_fu_end(); pso_budget_skip_note(); if (rb_pso_mode()) rb_async_note(RB_ASYNC_SKIP); g_first_skipped = 1; PSO_WHY("no pipeline wait budget left this frame"); return nil; }   // not queued (table full / refused) and no budget left: no synchronous build either
++    if (!ps && !pp_late && !g_pso_lmap && !ms_fn && !g_pso_fsfn && rb_fluid_pso_skip_sync(rb_fluid_pso_on(), rb_ref_profile_on(), may_skip, storage_writes, persistent_rt, rb_fluid_budget_left_ms(), pso_budget_left_ms())) { rb_fu_end(); pso_budget_skip_note(); if (rb_pso_mode()) rb_async_note(RB_ASYNC_SKIP); g_first_skipped = 1; PSO_WHY("no pipeline wait budget left this frame"); return nil; }   // not queued (table full / refused) and no budget left: no synchronous build either
+     if (pp_late) {   // still compiling past the limit (pso_wait_ms): skip this draw, keep the compile queued; a synchronous build here would queue behind the same compiler service
+         rb_fu_end();
+         { static unsigned n; if (pp_late == 1 && n++ < 8) MLOG("【红】 pipeline still compiling in the background after %d ms (vertex %s fragment %s): draw skipped so the frame goes on (%llu so far)", pso_wait_ms(), vs->key, fs ? fs->key : "-", (unsigned long long)g_pp_timeouts); }
+@@ -18785,7 +18797,7 @@ static void pool_seen_scan(void) {
+     const uint32_t *w = (const uint32_t *)g_seen_buf.contents; unsigned words = MIN((unsigned)g_ntreg / 32 + 1, (unsigned)POOL_SEEN_WORDS);
+     uint64_t dg = nvn_dirty_now(), sg = 0, sa = 0;
+     pthread_mutex_lock(&g_smu);
+-    sg = g_ser_gen; sa = g_rb_ser_add;
++    sg = atomic_load_explicit(&g_ser_gen, memory_order_relaxed); sa = atomic_load_explicit(&g_rb_ser_add, memory_order_relaxed);
+     pthread_mutex_unlock(&g_smu);
+     uint64_t ser_mut = sg - sa;
+     int sparse_recheck = 0;
+@@ -19671,16 +19683,21 @@ static void rb_args_report(void) {   // once per submission, from its first rebu
+          mode == RB_ARGS_MODE_CHECK ? "; the partial ones were made in full and compared" : mode == RB_ARGS_MODE_ON ? "; a partial rebuild runs no P1-20 probe and no fresh-read note on the entries it keeps" : "");
+     last = frame - frame % 300; clean0 = g_rb_args_clean; checked0 = g_rb_args_checked; reuse0 = g_stat_args_reuse;
+ }
+-static const rb_args_masks *rb_args_shader_masks(__unsafe_unretained NvShader *sh) {   // RewindBox (patch 0424): slots read by this shader, built once
++static const rb_args_masks *rb_args_shader_masks(__unsafe_unretained NvShader *sh) {   // RewindBox (patch 0424/0434): slots & safety/rmu facts read by this shader, built once
+     if (__builtin_expect(!sh->rb_masks.built, 0)) {
+         rb_args_masks m; memset(&m, 0, sizeof m);
++        if (sh->rf.has_unb) m.has_unb = 1;
+         for (int i = 0; i < sh->rf.nb; i++) {
+             const nvn_rbind *b = &sh->rf.b[i];
++            if (b->rw) m.has_rw = 1;
+             switch (b->kind) {
+                 case NVN_RB_CBUF: case NVN_RB_UBOP:
+                     if (b->reg < 16) m.ubo |= (uint16_t)(1u << b->reg); else m.ubo = 0xffff;
+                     break;
+                 case NVN_RB_TEXU: case NVN_RB_SAMPU: case NVN_RB_IMGU: case NVN_RB_TBUFU: case NVN_RB_SBUFU:
++                    m.has_ubo_handles = 1;
++                    if (b->kind == NVN_RB_IMGU) m.has_img = 1;
++                    if (b->kind != NVN_RB_SBUFU) { m.needs_rmu = 1; m.needs_rmu_partial = 1; }
+                     if (b->reg < 16) m.ubo |= (uint16_t)(1u << b->reg); else m.ubo = 0xffff;
+                     if (b->pair) { if (b->pair_reg < 16) m.ubo |= (uint16_t)(1u << b->pair_reg); else m.ubo = 0xffff; }
+                     break;
+@@ -19698,16 +19715,38 @@ static const rb_args_masks *rb_args_shader_masks(__unsafe_unretained NvShader *s
+                     if (sh->rf.drv_read[2]) { m.dyn_tex = 1; m.dyn_samp = 1; m.has_img = 1; }
+                     break;
+                 case NVN_RB_TEX: case NVN_RB_SAMPT: case NVN_RB_TBUF:
++                    m.needs_rmu = 1;
++                    if (b->kind == NVN_RB_TEX && b->unb) { m.has_unb = 1; m.needs_rmu_partial = 1; }
++                    if (!rb_args_kept(b->kind, b->f1d, b->dtt)) m.needs_rmu_partial = 1;
+                     if (b->reg < 256) m.tex[b->reg >> 6] |= UINT64_C(1) << (b->reg & 63); else m.dyn_tex = 1;
+                     break;
+                 case NVN_RB_SAMP:
++                    m.needs_rmu = 1;
+                     if (b->reg < 128) m.samp[b->reg >> 6] |= UINT64_C(1) << (b->reg & 63); else m.dyn_samp = 1;
+                     break;
+-                case NVN_RB_TEXD: case NVN_RB_TEXA: m.dyn_tex = 1; break;
+-                case NVN_RB_SAMPD: case NVN_RB_SAMPA: m.dyn_samp = 1; break;
+-                case NVN_RB_UVX: case NVN_RB_LB: m.dyn_tex = 1; m.dyn_samp = 1; break;
+-                case NVN_RB_IMG: case NVN_RB_IMGA: case NVN_RB_SAMPI: m.has_img = 1; break;
+-                default: break;
++                case NVN_RB_SAMPI:
++                    m.has_img = 1; m.needs_rmu = 1;
++                    break;
++                case NVN_RB_TEXD: case NVN_RB_TEXA: m.dyn_tex = 1; m.needs_rmu = 1; m.needs_rmu_partial = 1; break;
++                case NVN_RB_SAMPD: case NVN_RB_SAMPA: m.dyn_samp = 1; m.needs_rmu = 1; m.needs_rmu_partial = 1; break;
++                case NVN_RB_UVX: case NVN_RB_LB: m.dyn_tex = 1; m.dyn_samp = 1; m.needs_rmu = 1; m.needs_rmu_partial = 1; break;
++                case NVN_RB_IMG: case NVN_RB_IMGA:
++                    m.has_img = 1; m.needs_rmu = 1; m.needs_rmu_partial = 1;
++                    if (b->kind == NVN_RB_IMGA) m.has_rw = 1;
++                    break;
++                case NVN_RB_TEXP: case NVN_RB_SAMPP:
++                    m.needs_rmu = 1; m.needs_rmu_partial = 1;
++                    break;
++                case NVN_RB_GEOMETRY: m.has_geo = 1; break;
++                case NVN_RB_GMEM: case NVN_RB_GMEML:
++                    m.has_gmem = 1;
++                    if (b->kind == NVN_RB_GMEML) m.has_rw = 1;
++                    break;
++                case NVN_RB_C1: case NVN_RB_SUPPORT: case NVN_RB_UBOLEN: case NVN_RB_PUSH:
++                    break;
++                default:
++                    m.has_rw = 1; m.needs_rmu = 1; m.needs_rmu_partial = 1;
++                    break;
+             }
+         }
+         m.built = 1;
+@@ -19739,17 +19778,22 @@ static int rb_args_decide(__unsafe_unretained NvShader *sh, int nvn_stage, int s
+         g.causes = (uint8_t)(g_rb_args_causes[nvn_stage] | (nvn_stage == 1 && g_fb_n && g_fb_seq == g_draw_seq ? RB_ARGS_C_FEEDBACK : 0));
+         g.walk_all = passdump() || rb_passdiag_on() || g_res_check_on || g_td_frame >= 0 || g_wd > 0 || g_fold_any || (rs_on() && rs_retain_on());
+         g.same_pass = sh->ab_pass == g_pass.serial; g.same_sub = sh->ab_size_sub == g_sub_serial; g.same_arena = sh->rb_ab_agen == g_arena_gen; g.same_stage = sh->rb_ab_stage == nvn_stage;
+-        // RewindBox (patch 0424): sh->rf.pool (TEXP/SAMPP/DRV2) is never kept and always re-walks;
+-        // same-pass size_abi with only uniform/SSBO changes keeps its identical NVN_RB_SUPPORT pointer.
+-        size_abi_ok = size_abi && g.same_pass && !sh->ab_ub && (g.dirty == RB_ARGS_CLEAN || g.dirty == RB_ARGS_UNIFORM);
++        // RewindBox (patch 0424/0434): sh->rf.pool (TEXP/SAMPP/DRV2) is never kept and always re-walks;
++        // same-pass size_abi with only uniform/SSBO changes keeps its identical NVN_RB_SUPPORT pointer,
++        // unless UBO-embedded handles (TEXU/IMGU) or unnorm texture bits could alter texture sizes/flags.
++        size_abi_ok = size_abi && g.same_pass && !sh->ab_ub && !masks->has_ubo_handles && !masks->has_unb &&
++            (g.dirty == RB_ARGS_CLEAN || g.dirty == RB_ARGS_UNIFORM);
+         g.per_draw = (uint8_t)(sh->ab_ub || (size_abi && !size_abi_ok));
+         g.kept = (uint8_t)rb_args_shader_keeps(sh);
+         g.have = sh->ab_buf != nil && sh->rb_ab_cpu != NULL;
+-        g.same_views = sh->rb_ab_ser == *ser0 && sh->rb_ab_pkg == *pkg0;
++        g.same_views = !masks->needs_rmu || (sh->rb_ab_ser == *ser0 && sh->rb_ab_pkg == *pkg0);
+         g.owner = g_rb_args_owner[nvn_stage] == sh;
+     }
+-    const int cross_pass_ok = !size_abi && !sh->rb_ab_had_fb && !sh->rb_shadow_n && !(g.causes & RB_ARGS_C_FEEDBACK) && !(nvn_stage == 1 && g_fb_n && g_fb_seq == g_draw_seq);
+-    const int allow_handle_partial = !g_rb_mod[nvn_stage].other && !size_abi && !sh->ab_ub && !masks->dyn_tex && !masks->dyn_samp;
++    const int cross_pass_ok = !size_abi && !sh->rb_ab_had_fb && !sh->rb_shadow_n &&
++        !masks->has_rw && !masks->has_geo && !masks->has_gmem &&
++        (!masks->has_ubo_handles || sh->rb_ab_mem_gen == g_rb_cont_mem_gen) &&
++        !(g.causes & RB_ARGS_C_FEEDBACK) && !(nvn_stage == 1 && g_fb_n && g_fb_seq == g_draw_seq);
++    const int allow_handle_partial = !g_rb_mod[nvn_stage].other && !size_abi && !sh->ab_ub && !masks->has_unb && !masks->dyn_tex && !masks->dyn_samp;
+     const int why = rb_args_why_v2(&g, 1, cross_pass_ok, allow_handle_partial);
+     if (why == RB_ARGS_PARTIAL) {
+         if (g.dirty != RB_ARGS_CLEAN && g.dirty != RB_ARGS_UNIFORM) *handle_partial_out = 1;
+@@ -19782,14 +19826,17 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+     // Exact ABI2 reuses on the same conditions as every program (its table follows the bound views, which mark args dirty, and the pass attachments, keyed by
+     //   pass serial), plus one of its own: its support copy lives in this submission's arena (ab_size_sub). 10-31 iPhone A/B: excluding it cost +6–13% instructions per draw
+     const uint64_t rb_cur_ser = atomic_load_explicit(&g_ser_gen, memory_order_relaxed);
++    const rb_args_masks *const rb_masks = rb_args_shader_masks(sh);
+     const int rb_fb_now = (nvn_stage == 1 && g_fb_n && g_fb_seq == g_draw_seq);
+-    const int rb_safe_xpass = !sh->rb_ab_had_fb && !sh->rb_ab_had_ubd && !sh->rb_shadow_n && !g_nubd &&
++    const int rb_views_ok = !rb_masks->needs_rmu || (sh->rb_ab_ser == rb_cur_ser && sh->rb_ab_pkg == g_pkg_epoch);
++    const int rb_whole_ok = rb_args_whole_reuse_safe(nvn_stage, rb_masks, sh->rb_ab_mem_gen, g_rb_cont_mem_gen,
++        sh->ab_ub, sh->rb_shadow_n, sh->rb_ab_had_ubd, g_nubd);
++    const int rb_safe_xpass = rb_whole_ok && rb_views_ok && !sh->rb_ab_had_fb &&
+         !sh->size_abi && !(nvn_stage == 1 && rs_on()) &&
+         !rb_fb_now && !rb_passdiag_on() && !g_res_check_on &&
+         g_td_frame < 0 && g_wd <= 0 && !g_fold_any && !(rs_on() && rs_retain_on()) &&
+         sh->ab_size_sub == g_sub_serial && sh->rb_ab_agen == g_arena_gen &&
+-        sh->rb_ab_stage == (uint8_t)nvn_stage && g_rb_args_owner[nvn_stage] == sh &&
+-        sh->rb_ab_ser == rb_cur_ser && sh->rb_ab_pkg == g_pkg_epoch;
++        sh->rb_ab_stage == (uint8_t)nvn_stage && g_rb_args_owner[nvn_stage] == sh;
+     if (g_rb_args_prog[nvn_stage]) {
+         g_rb_args_prog[nvn_stage] = 0;
+         // The cross-pass predicate also verifies owner, stage, arena, submission, view generations
+@@ -19802,14 +19849,15 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+         }
+     }
+     const int rb_masked_reuse = g_args_dirty[nvn_stage] && rb_args_ubo_mode() == RB_ARGS_MODE_ON &&
++        rb_whole_ok && rb_views_ok &&
+         sh->ab_buf && g_rb_args_owner[nvn_stage] == sh &&
+         sh->ab_size_sub == g_sub_serial && sh->rb_ab_agen == g_arena_gen &&
+-        sh->rb_ab_stage == (uint8_t)nvn_stage && sh->rb_ab_ser == rb_cur_ser && sh->rb_ab_pkg == g_pkg_epoch &&
++        sh->rb_ab_stage == (uint8_t)nvn_stage &&
+         !sh->rb_ab_had_fb && !rb_fb_now && !passdump() && !rb_passdiag_on() && !g_res_check_on &&
+         g_td_frame < 0 && g_wd <= 0 && !g_fold_any && !(rs_on() && rs_retain_on()) &&
+-        ((sh->ab_pass == g_pass.serial && nvn_stage != 5) || rb_safe_xpass) &&
++        (sh->ab_pass == g_pass.serial || rb_safe_xpass) &&
+         !(sh->rf.drv_read[0] && sh->ab_binst != g_draw_binst) && !(sh->rf.pool && sh->ab_pgen != g_psnap_gen) &&
+-        rb_args_can_reuse_masked(&g_rb_mod[nvn_stage], rb_args_shader_masks(sh));
++        rb_args_can_reuse_masked(&g_rb_mod[nvn_stage], rb_masks);
+     if (rb_masked_reuse || ((!sh->size_exact || sh->ab_size_sub == g_sub_serial) && (!sh->ab_ub || sh->ab_size_sub == g_sub_serial) && !passdump() && !g_args_dirty[nvn_stage] && sh->ab_buf && g_rb_args_owner[nvn_stage] == sh && ((sh->ab_pass == g_pass.serial && nvn_stage != 5) || rb_safe_xpass) && !(sh->rf.drv_read[0] && sh->ab_binst != g_draw_binst) && !(sh->rf.pool && sh->ab_pgen != g_psnap_gen))) {
+         bind_args(en, nvn_stage, metal_vertex, sh->ab_buf, sh->ab_gpu, sh->ab_off, sh->rf.abi);
+         g_stat_args_reuse++;
+@@ -19835,7 +19883,8 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+     static uint64_t bl_pass[6]; static int bl_all = -1; if (bl_all < 0) bl_all = getenv("DM_NVN_PASSDUMP_ALL") != NULL;   // Record on every new encode (otherwise only the first time per pass per stage)
+     int bl = passdump() && (bl_all || g_kd_force || cap_all() || bl_pass[nvn_stage] != g_stat_pass);   // RewindBox (patch 0048): cap_all
+     if (bl) { bl_pass[nvn_stage] = g_stat_pass; PD("K %llu st%d key=%s nb=%d", g_stat_pass, nvn_stage, sh->key[0] ? sh->key : sh->builtin ? sh->builtin : "?", sh->rf.nb); cap_key_note(sh->key); }   // RewindBox (patch 0051): cap_key_note
+-    pthread_mutex_lock(&g_rmu);   // The texture / sampler registration tables may be being grown or rewritten by the game thread
++    const int rb_need_rmu = rb_args_needs_rmu_lock(rb_masks, rb_part, rb_handle_partial);   // RewindBox (patch 0434): skip g_rmu when no executed binding touches texture/sampler/pool tables
++    if (rb_need_rmu) pthread_mutex_lock(&g_rmu);   // The texture / sampler registration tables may be being grown or rewritten by the game thread
+     for (int i = 0; i < sh->rf.nb; i++) {
+         const nvn_rbind *b = &sh->rf.b[i];
+         if (rb_part && rb_args_kept_slot(b->kind, b->f1d, b->dtt, b->reg, rb_slot_mod)) continue;   // RewindBox (patch 0325/0424): keep untouched texture/sampler entries from previous block
+@@ -20124,7 +20173,7 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+         } else RED_ONCE(46, "binding kind %d not implemented", b->kind);
+     }
+     #undef USE
+-    pthread_mutex_unlock(&g_rmu);
++    if (rb_need_rmu) pthread_mutex_unlock(&g_rmu);
+     if (ul_aid >= 0) slots[ul_aid] = len_fill(sh, nvn_stage, NVN_RB_UBOLEN, ubcap);
+     if (p65_ul && g_rb_audit_live) p65_count(sh, nvn_stage, p65_hit, p65_k, p65_reg, p65_tb, p65_av);   // RewindBox (patch 0322): in the frames probed
+     int ub_on = (ubw[0] | ubw[1] | ubw[2]) != 0;
+@@ -20153,8 +20202,8 @@ static int encode_args_(id<MTLCommandEncoder> en, NvShader *sh, int nvn_stage, i
+     memcpy(g_cur_arena->cpu + off, slots, arg_len);
+     bind_args(en, nvn_stage, metal_vertex, ab, g_cur_arena->gpu + off, off, sh->rf.abi);
+     sh->ab_buf = ab; sh->ab_gpu = g_cur_arena->gpu + off; sh->ab_off = off; sh->ab_pass = g_pass.serial; sh->ab_binst = g_draw_binst; sh->ab_size_sub = g_sub_serial; sh->ab_pgen = g_psnap_gen; sh->ab_ub = (uint8_t)ub_on; g_args_dirty[nvn_stage] = 0;
+-    // RewindBox (patch 0325): what the next rebuild in part needs of this block, and whose encode cleared the stage's mark
+-    sh->rb_ab_cpu = g_cur_arena->cpu + off; sh->rb_ab_agen = g_arena_gen; sh->rb_ab_ser = rb_ser0; sh->rb_ab_pkg = rb_pkg0; sh->rb_ab_stage = (uint8_t)nvn_stage;
++    // RewindBox (patch 0325/0434): what the next rebuild in part needs of this block, and whose encode cleared the stage's mark
++    sh->rb_ab_cpu = g_cur_arena->cpu + off; sh->rb_ab_agen = g_arena_gen; sh->rb_ab_ser = rb_ser0; sh->rb_ab_pkg = rb_pkg0; sh->rb_ab_mem_gen = g_rb_cont_mem_gen; sh->rb_ab_stage = (uint8_t)nvn_stage;
+     sh->rb_ab_had_fb = (uint8_t)(nvn_stage == 1 && g_fb_n && g_fb_seq == g_draw_seq); sh->rb_ab_had_ubd = (uint8_t)(g_nubd != 0);
+     g_rb_args_owner[nvn_stage] = sh; g_rb_args_causes[nvn_stage] = 0; rb_args_mod_clear(&g_rb_mod[nvn_stage]);
+     g_stat_args_enc++;
+@@ -21368,7 +21417,7 @@ static const rb_cont_masks *rb_cont_shader_masks(__unsafe_unretained NvShader *s
+     return &sh->rb_cmasks;
+ }
+ static struct {
+-    uint64_t pass, reg_gen, pool_gen, mem_gen, dirty_now;
++    uint64_t pass, reg_gen, ser_mut, pool_gen, mem_gen, dirty_now;
+     uint64_t tex_gen[5], img_gen[5], ubo_gen[5][16];
+     __unsafe_unretained NvProg *pr;
+ } g_rb_cont_memo;
+@@ -21395,10 +21444,12 @@ static int rb_cont_reads_rt_memo(NvProg *pr, int *unknown) {
+     if (!any_unk && !any_reads) { g_rb_cont_memo_hits++; return 0; }   // shader stages read zero textures/images
+     if (any_unk) { g_rb_cont_memo.pr = nil; return rb_cont_reads_rt(pr, unknown); }
+     const uint64_t reg_gen = atomic_load_explicit(&g_reg_gen, memory_order_relaxed);
++    const uint64_t ser_mut = atomic_load_explicit(&g_ser_gen, memory_order_relaxed) - atomic_load_explicit(&g_rb_ser_add, memory_order_relaxed);
+     const uint64_t pool_gen = g_rb_cont_pool_gen, mem_gen = g_rb_cont_mem_gen;
+     const uint64_t dirty_now = any_ubo ? nvn_dirty_now() : 0;
+     if (g_rb_cont_memo.pr == pr && g_rb_cont_memo.pass == g_pass.serial &&
+-        g_rb_cont_memo.reg_gen == reg_gen && (!any_ubo || (g_rb_cont_memo.pool_gen == pool_gen &&
++        g_rb_cont_memo.reg_gen == reg_gen && g_rb_cont_memo.ser_mut == ser_mut &&
++        (!any_ubo || (g_rb_cont_memo.pool_gen == pool_gen &&
+         g_rb_cont_memo.mem_gen == mem_gen && g_rb_cont_memo.dirty_now == dirty_now))) {
+         int same = 1;
+         for (int st = 0; st < 5 && same; st++) {
+@@ -21420,7 +21471,8 @@ static int rb_cont_reads_rt_memo(NvProg *pr, int *unknown) {
+     if (r) { g_rb_cont_memo.pr = nil; }
+     else {
+         g_rb_cont_memo.pr = pr; g_rb_cont_memo.pass = g_pass.serial;
+-        g_rb_cont_memo.reg_gen = reg_gen; g_rb_cont_memo.pool_gen = pool_gen;
++        g_rb_cont_memo.reg_gen = reg_gen; g_rb_cont_memo.ser_mut = ser_mut;
++        g_rb_cont_memo.pool_gen = pool_gen;
+         g_rb_cont_memo.mem_gen = mem_gen; g_rb_cont_memo.dirty_now = dirty_now;
+         for (int st = 0; st < 5; st++) {
+             __unsafe_unretained NvShader *sh = pr->sh[st];
+@@ -24522,6 +24574,10 @@ static int rb_clear_combine_run(const lc_group *groups, int start, int count) {
+             g_rb_clear_expected = NULL;
+             if (encoder) {
+                 rb_rp_end_at(__func__, __LINE__); g_lc_landed++;
++                for (int k = start; k < start + taken; ++k) {
++                    for (int ci = 0; ci < groups[k].rt.n; ++ci) rt_seen_mark(groups[k].rt.color[ci]);
++                    rt_seen_mark(groups[k].rt.depth);
++                }
+                 atomic_fetch_add_explicit(&g_rb_clear_saved, (uint64_t)(taken - 1), memory_order_relaxed);
+                 return taken;
+             }
+@@ -29825,7 +29881,7 @@ void nvn_be_view_scope_stats(uint64_t v[21]) {
+     v[4] = g_rb_vs_why[RB_VS_WHY_GLOBAL]; v[5] = g_rb_vs_why[RB_VS_WHY_OWN]; v[6] = g_rb_vs_why[RB_VS_WHY_WRITTEN]; v[7] = g_rb_vs_why[RB_VS_WHY_UNVOUCHED]; v[8] = g_rb_vs_why[RB_VS_WHY_BC];
+     v[9] = g_rb_vs_why[RB_VS_WHY_DEAD]; v[10] = g_rb_vs_why[RB_VS_WHY_OFFTHREAD]; v[11] = g_rb_vs_why[RB_VS_WHY_POOL]; v[12] = g_rb_vs_why[RB_VS_WHY_SPARSE]; v[13] = g_rb_vs_why[RB_VS_WHY_OTHER];
+     pthread_mutex_lock(&g_smu);
+-    v[14] = g_ser_gen - 1; v[15] = g_rb_ser_add - 1; v[16] = g_view_epoch.writes; v[17] = g_rb_ser_final; v[18] = g_rb_put_other;   // both counts start at 1
++    v[14] = g_ser_gen - 1; v[15] = atomic_load_explicit(&g_rb_ser_add, memory_order_relaxed) - 1; v[16] = g_view_epoch.writes; v[17] = g_rb_ser_final; v[18] = g_rb_put_other;   // both counts start at 1
+     pthread_mutex_unlock(&g_smu);
+     v[19] = (uint64_t)rb_view_scope_on(); v[20] = (uint64_t)rb_view_range_on();
+ }
+diff --git a/graphics/nvn/gfx/nvn/rb_args_ubo.h b/graphics/nvn/gfx/nvn/rb_args_ubo.h
+index f161dee..54a59e4 100644
+--- a/graphics/nvn/gfx/nvn/rb_args_ubo.h
++++ b/graphics/nvn/gfx/nvn/rb_args_ubo.h
+@@ -131,6 +131,14 @@ typedef struct {
+     uint8_t dyn_tex;      // 1 = reads texture slots dynamically (TEXD / TEXA / DRV2 / UVX / LB)
+     uint8_t dyn_samp;     // 1 = reads sampler slots dynamically (SAMPD / SAMPA / DRV2 / UVX / LB)
+     uint8_t has_img;      // 1 = reads/writes image slots (IMG / IMGA / SAMPI)
++    // RewindBox (patch 0434): structural fidelity & lock-free encode_args_ fast-path guards.
++    uint8_t has_ubo_handles;    // 1 = reads texture/sampler/image/buffer handles from UBO memory (*U)
++    uint8_t has_rw;             // 1 = any binding with rw != 0 (IMG/IMGU/SBUFP/SBUFU/GMEM) or IMGA/GMEML
++    uint8_t has_geo;            // 1 = reads NVN_RB_GEOMETRY buffers
++    uint8_t has_gmem;           // 1 = reads NVN_RB_GMEM / NVN_RB_GMEML
++    uint8_t has_unb;            // 1 = any TEX binding has unb != 0 (per-draw unnorm support bits)
++    uint8_t needs_rmu;          // 1 = full walk touches g_rmu-protected texture/sampler/pool tables
++    uint8_t needs_rmu_partial;  // 1 = UBO/SSBO-only partial walk still has an unkept g_rmu binding
+ } rb_args_masks;
+ 
+ typedef struct {
+@@ -234,3 +242,28 @@ static inline int rb_args_why_v2(const rb_args_gate *g, int allow_compute, int c
+     if (!g->owner) return RB_ARGS_WHY_OWNER;
+     return RB_ARGS_PARTIAL;
+ }
++
++
++// RewindBox (patch 0434): whole-block reuse safety predicate (cross-pass and masked reuse).
++// Excludes compute (stage 5: dispatch() resets g_c0_dim_buf=nil and updates g_dispatch_dim
++// in c0+0x200), writable storage/image bindings (must note GPU writes), geometry/gmem
++// bindings, stale UBO-embedded handles after in-place buffer mutation (mem_gen), and
++// per-draw unnorm / shadow / deferred-update state.
++static inline int rb_args_whole_reuse_safe(int stage, const rb_args_masks *m,
++                                           uint64_t ab_mem_gen, uint64_t cur_mem_gen,
++                                           int ab_ub, int shadow_n, int had_ubd, int nubd) {
++    if (stage == 5 || !m || !m->built) return 0;
++    if (m->has_rw || m->has_geo || m->has_gmem) return 0;
++    if (m->has_ubo_handles && ab_mem_gen != cur_mem_gen) return 0;
++    if (ab_ub || shadow_n || had_ubd || nubd) return 0;
++    return 1;
++}
++
++// RewindBox (patch 0434): 1 when encode_args_ loop must acquire g_rmu; 0 when no
++// executed binding touches g_treg / g_sreg / g_srid / pool tables (eliminates mutex
++// acquisitions on texture-less vertex shaders and UBO-only partial rebuilds).
++static inline int rb_args_needs_rmu_lock(const rb_args_masks *m, int is_partial, int handle_partial) {
++    if (!m || !m->built) return 1;
++    if (is_partial) return handle_partial || m->needs_rmu_partial;
++    return m->needs_rmu;
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_fluid_pso_rule.h b/graphics/nvn/gfx/nvn/rb_fluid_pso_rule.h
+index e52e435..2c0e0e5 100644
+--- a/graphics/nvn/gfx/nvn/rb_fluid_pso_rule.h
++++ b/graphics/nvn/gfx/nvn/rb_fluid_pso_rule.h
+@@ -28,6 +28,7 @@ typedef struct {
+     int ref_profile;        // rb_ref_profile_on()
+     int may_skip;           // draw is skip-safe / skippable
+     int storage_writes;     // shader_writes(vs) || shader_writes(fs)
++    int persistent_rt;      // RewindBox (patch 0434): any bound RT is !rt_fresh_now || !rt_seen_steady (TAA, cubemap, IBL, impostor, LUT)
+     int course_exact;       // rb_course_exact()
+     int async_pso;          // rb_async_pso()
+     int observed_first;     // rb_observed_workers_on() && rb_first_draw_on()
+@@ -53,7 +54,11 @@ typedef struct {
+ static inline rb_fluid_pso_out rb_fluid_pso_decide(const rb_fluid_pso_in *in) {
+     rb_fluid_pso_out o = {0};
+     const int fluid_active = in->fluid_on && !in->ref_profile;
+-    const int fluid_eligible = fluid_active && (in->may_skip || !in->storage_writes);
++    // RewindBox (patch 0434): never skip storage-writing draws or persistent / non-steady
++    // render targets (one-shot baked cubemaps, IBL probes, impostors, TAA, LUTs). Fresh
++    // steady targets self-heal on the next frame, even across over_prepass() draws.
++    const int must_not_skip = in->storage_writes || in->persistent_rt;
++    const int fluid_eligible = fluid_active && !must_not_skip;
+     o.fluid_active = fluid_active;
+     o.fluid_cap = fluid_eligible;
+     o.required = !fluid_eligible &&
+@@ -84,7 +89,7 @@ static inline rb_fluid_pso_out rb_fluid_pso_decide(const rb_fluid_pso_in *in) {
+         return o;
+     }
+ 
+-    // Legacy / strict / storage-writing path: exact 0430 semantics.
++    // Legacy / strict / storage-writing / persistent-RT path: exact 0430 semantics.
+     int ms = in->may_skip ? in->pso_wait_ms : in->pso_unsafe_ms;
+     if (in->may_skip) {
+         int64_t left = in->late_wait ? in->late_left_ms : in->frame_left_ms;
+@@ -106,8 +111,9 @@ static inline rb_fluid_pso_out rb_fluid_pso_decide(const rb_fluid_pso_in *in) {
+ // defer instead of running a synchronous compile on the submit thread.
+ static inline int rb_fluid_pso_skip_sync(int fluid_on, int ref_profile,
+                                          int may_skip, int storage_writes,
++                                         int persistent_rt,
+                                          int64_t fluid_left_ms, int64_t pso_left_ms) {
+-    if (fluid_on && !ref_profile && (may_skip || !storage_writes))
++    if (fluid_on && !ref_profile && !storage_writes && !persistent_rt)
+         return fluid_left_ms <= 0;
+     return may_skip && pso_left_ms <= 0;
+ }
+diff --git a/graphics/nvn/gfx/nvn/rb_view_epoch.h b/graphics/nvn/gfx/nvn/rb_view_epoch.h
+index 1f16671..e7f4267 100644
+--- a/graphics/nvn/gfx/nvn/rb_view_epoch.h
++++ b/graphics/nvn/gfx/nvn/rb_view_epoch.h
+@@ -3,7 +3,7 @@
+ 
+ #include <stdint.h>
+ 
+-enum { RB_VIEW_BUCKETS = 1024 };
++enum { RB_VIEW_BUCKETS = 4096 };
+ typedef struct {
+     uint64_t writes;
+     uint64_t bucket[RB_VIEW_BUCKETS];
+-- 
+2.56.0
+

@@ -1,0 +1,574 @@
+From a1dc6a4704529ab0e377fa3ca1b4d03f7b8f1179 Mon Sep 17 00:00:00 2001
+From: Tarble FR <f9wynyv9qy@privaterelay.appleid.com>
+Date: Thu, 26 Nov 2026 13:18:20 +0000
+Subject: [PATCH] patch-0433
+
+---
+ graphics/nvn/gfx/nvn/nvn_mtl.m            | 220 +++++++++++++++++++---
+ graphics/nvn/gfx/nvn/rb_texture_ahead.inc |  14 +-
+ graphics/nvn/gfx/nvn/rb_treg_cand.h       | 125 ++++++++++++
+ 3 files changed, 331 insertions(+), 28 deletions(-)
+ create mode 100644 graphics/nvn/gfx/nvn/rb_treg_cand.h
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 89c6c74..ba184f1 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -10001,6 +10001,7 @@ static unsigned g_rb_raster_clear_mask;
+ static void rb_wake_emit(const char *row) { MLOG("%s", row); }
+ static _Atomic int g_rb_pool_scan_ahead = -1;
+ static _Atomic uint64_t g_rb_pool_ahead_batches, g_rb_pool_ahead_tex, g_rb_pool_ahead_pages;
++static _Atomic uint64_t g_rb_sub_ahead_batches, g_rb_sub_ahead_tex, g_rb_sub_ahead_pages;
+ static int rb_pool_scan_ahead_on(void) {
+     int x = atomic_load_explicit(&g_rb_pool_scan_ahead, memory_order_relaxed);
+     if (x < 0) {
+@@ -10014,11 +10015,16 @@ static int rb_pool_scan_ahead_on(void) {
+ }
+ static void rb_pool_ahead_report(unsigned long long frame) {
+     uint64_t b = atomic_load_explicit(&g_rb_pool_ahead_batches, memory_order_relaxed);
+-    if (!b) return;
+-    MLOG("[rb-pool-ahead] cumulative frame=%llu batches=%llu textures=%llu absent_pages=%llu",
++    uint64_t sb = atomic_load_explicit(&g_rb_sub_ahead_batches, memory_order_relaxed);
++    if (!b && !sb) return;
++    if (b) MLOG("[rb-pool-ahead] cumulative frame=%llu batches=%llu textures=%llu absent_pages=%llu",
+          frame, (unsigned long long)b,
+          (unsigned long long)atomic_load_explicit(&g_rb_pool_ahead_tex, memory_order_relaxed),
+          (unsigned long long)atomic_load_explicit(&g_rb_pool_ahead_pages, memory_order_relaxed));
++    if (sb) MLOG("[rb-sub-ahead] cumulative frame=%llu batches=%llu textures=%llu absent_pages=%llu",
++         frame, (unsigned long long)sb,
++         (unsigned long long)atomic_load_explicit(&g_rb_sub_ahead_tex, memory_order_relaxed),
++         (unsigned long long)atomic_load_explicit(&g_rb_sub_ahead_pages, memory_order_relaxed));
+ }
+ static void rb_compile_origin_report(const char *tag, unsigned long long frame);
+ void nvn_be_mem_stat(unsigned long long frame, unsigned long long rss_mb);
+@@ -13461,6 +13467,21 @@ static void treg_ser_unlink(int id_) {
+ // Lock-free copy of texture ID → serial (the replay hot path only needs the serial: store lookahead index, binding set of the clear-only hoist): texture IDs are 20 bits, fixed 1M entries (BSS, only touched pages are used),
+ // release write at registration, relaxed atomic read on the reader side, without entering g_rmu (the former h_ser locked and unlocked on every lookup, thousands of times per frame in the camp)
+ static _Atomic uint64_t g_tser[1 << 20];
++#include "rb_treg_cand.h"
++_Static_assert(RB_TREG_CAND_EXCL_FLAGS == (NVN_TEXTURE_FLAGS_DISPLAY | NVN_TEXTURE_FLAGS_VIDEO_DECODE | NVN_TEXTURE_FLAGS_SPARSE),
++               "rb_treg_cand.h texture exclusion flags");
++static rb_treg_cand_set g_rb_treg_cand;
++static _Atomic int g_rb_sub_ahead = -1;
++static int rb_sub_ahead_on(void) {
++    int x = atomic_load_explicit(&g_rb_sub_ahead, memory_order_relaxed);
++    if (x < 0) {
++        x = rb_sub_ahead_switch(getenv("S2A_RB_SUB_AHEAD"));
++        int was = -1;
++        if (atomic_compare_exchange_strong(&g_rb_sub_ahead, &was, x))
++            MLOG("[rb-sub-ahead] submission batched MADV_WILLNEED pre-scan %s (S2A_RB_SUB_AHEAD; patch 0433)", x ? "on" : "off");
++    }
++    return x;
++}
+ static samp_par *g_sreg; static uint8_t *g_sreg_ok; static void **g_sview; static uint64_t *g_srid; static int g_nsreg; static uint64_t g_samp_rereg;   // g_sview: sampler ID → MTLSamplerState (retained)
+ static void **g_sbview; static uint64_t *g_sbrid;   // 2 per sampler ID: the same sampler with a transparent black / opaque white border (samp_border_rid; the custom border emulation)
+ // RewindBox (patch 0352): the bindings patch 0073 left asking their texture for its type and format read them from the texture ID's record too when the texture is the
+@@ -13714,7 +13735,7 @@ static void treg_drop_pool_views(const void *pool) {
+     int gate = rs_registration_begin();
+     vc_drop_pool(pool);
+     for (int i = 0; i < g_ntreg; i++)
+-        if (g_treg[i].ok && (const void *)g_treg[i].t.pool == pool) { treg_drop_views(&g_treg[i]); g_treg[i].gone = 1; pool_dirty(0, i); }   // nothing may make its texture until the ID is registered again (pool_tex_obj)
++        if (g_treg[i].ok && (const void *)g_treg[i].t.pool == pool) { treg_drop_views(&g_treg[i]); g_treg[i].gone = 1; rb_treg_cand_clear_id(&g_rb_treg_cand, (uint32_t)i); pool_dirty(0, i); }   // nothing may make its texture until the ID is registered again (pool_tex_obj)
+     rs_registration_end(gate);
+ }
+ // Texture ID 0 with nothing registered there: the zero handle a slot holds until the game binds it (a shader declares the slot, the game never binds it). Hardware reads the
+@@ -13742,6 +13763,7 @@ void nvn_be_unreg_tex_range(int base, int n) {
+     int end = base + n < g_ntreg ? base + n : g_ntreg, any = 0;
+     for (int id_ = base; id_ < end; id_++) { treg_t *rr = &g_treg[id_]; if (!rr->ok && !rr->view && !rr->alt && !rr->ar && !rr->im) continue;
+         treg_drop_views(rr); if (rr->ok) treg_ser_unlink(id_); rr->ok = 0; rr->tt1 = rr->gone = 0; pool_seen_clear(id_); pool_dirty(0, id_); any = 1;
++        rb_treg_cand_clear_id(&g_rb_treg_cand, (uint32_t)id_);
+         if (id_ < (1 << 20)) atomic_store_explicit(&g_tser[id_], 0, memory_order_release); }
+     if (any) g_reg_gen++;
+     rs_registration_end(gate);
+@@ -13757,6 +13779,7 @@ void nvn_be_reg_tex(int tid, const tex_t *t, const view_t *v) {
+     uint64_t null_reads = 0; if (!id_ && t && !g_tid0_reg) { g_tid0_reg = 1; null_reads = g_stat_tex_null; }   // ID 0 holds a texture from now on (tex_by_id)
+     treg_t *rr = &g_treg[id_];
+     int same = t && rr->ok && rr->has_v == (v != NULL) && !memcmp(&rr->t, t, sizeof *t) && (!v || !memcmp(&rr->v, v, sizeof *v));
++    int was_gone = rr->gone;
+     if (rr->gone) { rr->gone = 0; g_reg_gen++; pool_dirty(0, id_); }   // registered again (pool storage made anew), even with the same data
+     if (!same) {
+         g_reg_gen++; pool_seen_clear(id_); pool_dirty(0, id_); rr->tt1 = 0;
+@@ -13766,6 +13789,13 @@ void nvn_be_reg_tex(int tid, const tex_t *t, const view_t *v) {
+         if (rr->ok) { rb_descriptor_expose(t); treg_ser_link(id_); }
+         if (id_ < (1 << 20)) atomic_store_explicit(&g_tser[id_], t ? t->serial : 0, memory_order_release);
+     }
++    if (!same || was_gone) {
++        if (t && rb_treg_cand_eligible(t->has_layout, t->mem != NULL, t->L.size, t->d.flags,
++                                       t->pool && (t->pool->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL), RB_WN_MAX))
++            rb_treg_cand_set_id(&g_rb_treg_cand, (uint32_t)id_);
++        else
++            rb_treg_cand_clear_id(&g_rb_treg_cand, (uint32_t)id_);
++    }
+     rs_registration_end(gate);
+     if (!same && t) rb_pf_post(t);   // RewindBox (patch 0070): its storage asked ahead of its first upload, off this thread (rb_pf_post)
+     if (!same && t) rb_bl_registered(t);   // RewindBox (patch 0329): the frame of a packaged texture's registration, which its first upload is measured from (rb_bind_lane.inc; outside the registration lock). S2A_RB_BIND_LANE=0: nothing kept
+@@ -14009,7 +14039,7 @@ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+     t_rb_vs_clean = 0;   // RewindBox (patch 0320): tex_mtl below names this texture's serial there when it walked its pages and found them clean (rb_view_scope_stamp)
+     if (v) {   // The serial table or guest memory has changed: check whether the base texture was re-uploaded and replaced; if so the view is invalidated
+         id<MTLTexture> cur = resolved = tex_mtl(&rp->t);
+-        if ((cur || !txr_on()) && (cur == v || v.parentTexture == cur)) { rp->view_ser = sg; rp->view_sa = sa; rp->view_local = local; rp->view_dirty = dg; rp->view_ep = g_pkg_epoch; rb_view_scope_stamp(rp, rb_on, rb_wq); g_rb_view_same++; treg_sp_note(tid, rp, cur, spq); rp->view_vseq = rp->view_sp ? TREG_SP_UNSEEN : vseq0; return v; }   // RewindBox (patch 0031/0073/0424)
++        if ((cur || !txr_on()) && (cur == v || v.parentTexture == cur)) { rp->view_ser = sg; rp->view_sa = sa; rp->view_local = local; rp->view_dirty = dg; rp->view_ep = g_pkg_epoch; rb_view_scope_stamp(rp, rb_on, rb_wq); g_rb_view_same++; treg_sp_note(tid, rp, cur, spq); rp->view_vseq = rp->view_sp ? TREG_SP_UNSEEN : vseq0; rb_treg_cand_clear_id(&g_rb_treg_cand, (uint32_t)tid); return v; }   // RewindBox (patch 0031/0073/0424/0433)
+         g_rb_view_changed++;
+         if (rb_vmeta_forget(rb_view_meta_on(), rp->view, &rp->view_tt, &rp->view_pf)) rb_vmeta_bump(g_rb_vmeta, RB_VMETA_DROP);   // RewindBox (patch 0352): a new view below writes its own
+         defer_obj_unref(v); CFRelease(rp->view); rp->view = rp->view_parent = rp->view_root = NULL; rp->alt_source_rid = rp->view_rid = 0; rp->view_vseq = TREG_SP_UNSEEN; v = nil;
+@@ -14097,6 +14127,7 @@ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+     rb_view_scope_stamp(rp, rb_on, rb_wq);   // RewindBox (patch 0320): as at the kept view above (rb_wq is 0 for an ID that had no view: its first look records none). S2A_RB_VIEW_SCOPE=0: as before
+     treg_sp_note(tid, rp, base, spq);   // RewindBox (patch 0031): a placement sparse base follows its pool's mappings (treg_sp_fresh)
+     rp->view_vseq = rp->view_sp ? TREG_SP_UNSEEN : vseq0;   // RewindBox (patch 0424)
++    rb_treg_cand_clear_id(&g_rb_treg_cand, (uint32_t)tid);   // RewindBox (patch 0433): view resolved, no longer an unloaded bind-hint candidate
+     return v;
+ }
+ // Hot-path object fetch: if the table entry is valid, return the table-held pointer directly (without ARC retain / autorelease), otherwise take the slow path to build / validate. Caller holds g_rmu.
+@@ -18614,7 +18645,7 @@ static uint64_t pool_seen_gpu(void) {
+ typedef struct { uint32_t n, cap; uint32_t e[]; } pin_list;
+ static pthread_mutex_t g_pin_mu = PTHREAD_MUTEX_INITIALIZER;
+ static nvn_hmap g_pin = {.klen = 8}, g_pin_ret = {.klen = 8};
+-static void **g_pin_new; static uint32_t g_pin_nnew, g_pin_cnew;   // retired while pinned since the last pool_gpu
++static void **g_pin_new; static uint32_t g_pin_nnew, g_pin_cnew; static _Atomic uint32_t g_pin_nnew_a;   // retired while pinned since the last pool_gpu (RewindBox patch 0433: atomic mirror for lock-free empty check)
+ static int pool_pin_keys(void *o, void *k[4]) {   // the allocations a table entry naming o keeps (always the same for the same object: a view's parent and buffer never change)
+     int n = 0; k[n++] = o;
+     id x = (__bridge id)o;
+@@ -18649,6 +18680,7 @@ static int pool_pin_retire(void *r) {   // res_remove (g_res_mu held): 1 = pinne
+         nvn_hm_put(&g_pin_ret, &r, (void *)1);
+         if (g_pin_nnew == g_pin_cnew) { uint32_t c = g_pin_cnew ? g_pin_cnew * 2 : 64; void **g = realloc(g_pin_new, c * sizeof *g); if (!g) MDIE("pool pins: out of memory"); g_pin_new = g; g_pin_cnew = c; }
+         g_pin_new[g_pin_nnew++] = r;
++        atomic_store_explicit(&g_pin_nnew_a, g_pin_nnew, memory_order_release);
+     }
+     pthread_mutex_unlock(&g_pin_mu);
+     return pinned;
+@@ -18722,7 +18754,8 @@ static void pool_dirty(int samp, int id_) { if (atomic_load_explicit(&g_ptab_any
+ // g_seen_todo) and put into the tables. The IDs shaders read are looked up again when a texture changed somewhere (g_ser_gen: storage swapped or taken over, a shared texture replaced
+ // while its old one stays alive elsewhere, a target first written) or guest memory did (a CPU-written texture is checked against guest writes only when it is looked up, tex_by_id
+ // view_pkg): what nothing retires or registers still reaches what shaders read within a submission. Shaders read a few hundred of the tens of thousands of IDs
+-static uint64_t g_seen_dirty = ~0ull, g_seen_ser = ~0ull;
++static uint64_t g_seen_dirty = ~0ull, g_seen_ser = ~0ull, g_seen_ser_mut = ~0ull;
++static int g_pool_ntreg_seen = -1, g_pool_nsreg_seen = -1, g_pool_last_ti[2] = {-1, -1};   // RewindBox (patch 0433): O(1) pool_gpu fast-path caches
+ static uint64_t g_seen_vgen, g_seen_spframe, g_seen_sp_rechecks;   // RewindBox (patch 0031): g_sub_vgen at the last scan that compared it; frame of the last TREG_SP_RELOOK recheck; scans a sparse mapping alone sent to the recheck (log line). Reset with the session
+ // RewindBox (patch 0397): issue batched MADV_WILLNEED hints across all textures about to be uploaded synchronously
+ //   by pool_seen_scan / pool_left_scan (when >= 2 textures qualify), overlapping kernel flash page-ins with CPU deswizzle.
+@@ -18750,16 +18783,25 @@ static void pool_seen_scan(void) {
+     g_seen_sub = g_sub_serial;
+     pool_walk_frame();
+     const uint32_t *w = (const uint32_t *)g_seen_buf.contents; unsigned words = MIN((unsigned)g_ntreg / 32 + 1, (unsigned)POOL_SEEN_WORDS);
+-    uint64_t dg = nvn_dirty_now(), sg = g_ser_gen; int recheck = dg != g_seen_dirty || sg != g_seen_ser; g_seen_dirty = dg; g_seen_ser = sg;
++    uint64_t dg = nvn_dirty_now(), sg = 0, sa = 0;
++    pthread_mutex_lock(&g_smu);
++    sg = g_ser_gen; sa = g_rb_ser_add;
++    pthread_mutex_unlock(&g_smu);
++    uint64_t ser_mut = sg - sa;
++    int sparse_recheck = 0;
+     // RewindBox (patch 0031): a sparse mapping (any pool, nvn_sparse_gen) also looks the IDs shaders read up again once an ID view holds a placement sparse texture: the IDs a pool table
+     //   names reach tex_fast_rid only here, and a mapping moves neither generation above (treg_sp_fresh then sends a flagged one down the slow path, which follows it). The generation is
+     //   the one this submission began with (g_sub_vgen), not the current one: an ID found current earlier in this check period is kept by treg_sp_fresh, so a mapping made since is
+     //   looked up again in the next submission's scan, when the period has changed. And once every TREG_SP_RELOOK frames, for the 60-frame re-look (treg_sp_fresh)
+     if (g_treg_sp_any) { uint64_t vg = g_sub_vgen, f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
+         if (vg != g_seen_vgen) { g_seen_vgen = vg;
+-            if (!recheck && g_seen_sp_rechecks++ < 4) MLOG("RewindBox: pool tables: the texture IDs shaders read are looked up again after a sparse mapping (%llu so far)", (unsigned long long)g_seen_sp_rechecks);
+-            recheck = 1; }
+-        if (f - g_seen_spframe >= TREG_SP_RELOOK) { g_seen_spframe = f; recheck = 1; } }
++            if (dg == g_seen_dirty && ser_mut == g_seen_ser_mut && g_seen_sp_rechecks++ < 4) MLOG("RewindBox: pool tables: the texture IDs shaders read are looked up again after a sparse mapping (%llu so far)", (unsigned long long)g_seen_sp_rechecks);
++            sparse_recheck = 1; }
++        if (f - g_seen_spframe >= TREG_SP_RELOOK) { g_seen_spframe = f; sparse_recheck = 1; } }
++    // RewindBox (patch 0433): pure texture additions (g_rb_ser_add) cannot alter already-resolved serials in g_seen_done;
++    //   when only guest dirty writes moved (RB_POOL_RECHECK_PKG_ONLY), skip resolved pure-GPU targets (!view_pkg && view).
++    int recheck_mode = rb_pool_seen_recheck_mode(ser_mut, g_seen_ser_mut, dg, g_seen_dirty, sparse_recheck);
++    g_seen_dirty = dg; g_seen_ser = sg; g_seen_ser_mut = ser_mut;
+     if (rb_pool_scan_ahead_on() && rb_wn_on() && s2a_guest_fd() >= 0 && g_walk_req < POOL_REQ_BYTES) {
+         int ahead[RB_POOL_AHEAD_MAX], nahead = 0;
+         uint64_t est = g_walk_req;
+@@ -18788,9 +18830,12 @@ static void pool_seen_scan(void) {
+             g_seen_todo[i] &= ~(1u << b);
+             pool_tex_update(id_, 0); g_pool_upd_seen++;
+         }
+-        if (recheck) for (uint32_t bits = g_seen_done[i] & ~g_seen_todo[i]; bits; bits &= bits - 1) {
++        if (recheck_mode != RB_POOL_RECHECK_NONE) for (uint32_t bits = g_seen_done[i] & ~g_seen_todo[i]; bits; bits &= bits - 1) {
+             int id_ = (int)i * 32 + __builtin_ctz(bits);
+-            if (id_ < g_ntreg && g_treg[id_].ok) { pool_tex_update(id_, 0); g_pool_upd_seen++; }
++            if (id_ < g_ntreg && g_treg[id_].ok) {
++                if (recheck_mode == RB_POOL_RECHECK_PKG_ONLY && g_treg[id_].view && !g_treg[id_].view_pkg) continue;
++                pool_tex_update(id_, 0); g_pool_upd_seen++;
++            }
+         }
+     }
+ }
+@@ -18840,6 +18885,8 @@ static void pool_tab_drop(int ti) {   // a key pushed out by a sixteenth other:
+     pool_tab *t = &g_ptab[ti]; if (!t->used) return;
+     for (uint32_t i = 0; i < t->n; i++) if (t->obj[i]) pool_ent_put(ti, i, NULL, 0);
+     defer_obj_release(t->buf); t->buf = nil; free(t->obj); t->obj = NULL; t->used = 0; g_psnap_gen++;
++    if (g_pool_last_ti[0] == ti) g_pool_last_ti[0] = -1;
++    if (g_pool_last_ti[1] == ti) g_pool_last_ti[1] = -1;
+ }
+ static int pool_tab_new(int samp, int dtt, int dpf, int base) {   // the one whole walk a key gets. -1: no memory
+     int ti = -1; for (int k = 0; k < POOL_TABS && ti < 0; k++) if (!g_ptab[k].used) ti = k;
+@@ -18868,6 +18915,8 @@ static int pool_tab_new(int samp, int dtt, int dpf, int base) {   // the one who
+         if (o) { pool_ent_put(ti, (uint32_t)i, o, rid); real++; }
+     }
+     g_psnap_gen++;
++    g_pool_ntreg_seen = -1; g_pool_nsreg_seen = -1;
++    g_pool_last_ti[samp != 0] = ti;
+     static mach_timebase_info_data_t tb; if (!tb.denom) mach_timebase_info(&tb);
+     double ms = (double)(mach_absolute_time() - t0) * tb.numer / tb.denom / 1e6; g_pool_walk_ms += ms;
+     MLOG("pool for handles traced to no slot: %s pool (texture type %d, class %d) at base %d, %d IDs of which %d hold %s and %d left out by the budget, walked once in %.2f ms (table %d)",
+@@ -18876,31 +18925,59 @@ static int pool_tab_new(int samp, int dtt, int dpf, int base) {   // the one who
+ }
+ // Everything that changed since the last call, then the table of this key (made on its first ask)
+ static uint64_t pool_gpu(int samp, int dtt, int dpf, int base, __unsafe_unretained id<MTLBuffer> *out) {
++    // RewindBox (patch 0433): O(1) lock-free, clock-free fast path when nothing in the pool tables moved since the previous call
++    //   (Zelda IPA 845: 6,569,984 calls / ~1,000 per frame spent 2,108 ms cumulative taking mach_absolute_time() twice and locking g_pin_mu on empty g_pin_nnew).
++    const int ptab_any = atomic_load_explicit(&g_ptab_any, memory_order_relaxed);
++    const uint32_t pin_nnew = ptab_any ? atomic_load_explicit(&g_pin_nnew_a, memory_order_acquire) : 0u;
++    if (rb_pool_gpu_fast_ok(ptab_any, g_ntreg == g_pool_ntreg_seen, g_nsreg == g_pool_nsreg_seen,
++                            pin_nnew, g_pdirty[0].n, g_pdirty[1].n,
++                            !g_seen_buf || g_seen_sub == g_sub_serial,
++                            !g_pleft.n || g_left_frame == atomic_load_explicit(&g_cur_frame, memory_order_relaxed),
++                            g_pool_calls + 1)) {
++        const int sk = samp != 0;
++        int ti = g_pool_last_ti[sk];
++        if (ti >= 0 && g_ptab[ti].used && g_ptab[ti].samp == samp && g_ptab[ti].dtt == dtt && g_ptab[ti].dpf == dpf && g_ptab[ti].base == base) {
++            g_pool_calls++; *out = g_ptab[ti].buf; return g_ptab[ti].gpu;
++        }
++        for (int k = 0; k < POOL_TABS; k++) {
++            const pool_tab *t = &g_ptab[k];
++            if (t->used && t->samp == samp && t->dtt == dtt && t->dpf == dpf && t->base == base) {
++                g_pool_last_ti[sk] = k; g_pool_calls++; *out = t->buf; return t->gpu;
++            }
++        }
++    }
+     static mach_timebase_info_data_t tb; if (!tb.denom) mach_timebase_info(&tb);
+     uint64_t t0 = mach_absolute_time(); g_pool_calls++;
+-    if (atomic_load_explicit(&g_ptab_any, memory_order_relaxed)) {
+-        for (int k = 0; k < POOL_TABS; k++) if (g_ptab[k].used) { int n = (g_ptab[k].samp ? g_nsreg : g_ntreg) - g_ptab[k].base; if (n > (int)g_ptab[k].n) pool_tab_put_n(&g_ptab[k], (uint32_t)n); }
++    if (ptab_any) {
++        if (g_ntreg != g_pool_ntreg_seen || g_nsreg != g_pool_nsreg_seen) {
++            for (int k = 0; k < POOL_TABS; k++) if (g_ptab[k].used) { int n = (g_ptab[k].samp ? g_nsreg : g_ntreg) - g_ptab[k].base; if (n > (int)g_ptab[k].n) pool_tab_put_n(&g_ptab[k], (uint32_t)n); }
++            g_pool_ntreg_seen = g_ntreg; g_pool_nsreg_seen = g_nsreg;
++        }
+         // retired while pinned: their entries are looked up again (the lookup finds what replaced them), which unpins them
+-        pthread_mutex_lock(&g_pin_mu); uint32_t nr = g_pin_nnew; void **rs = nr ? malloc(nr * sizeof *rs) : NULL; if (rs) memcpy(rs, g_pin_new, nr * sizeof *rs); else nr = 0; g_pin_nnew = 0; pthread_mutex_unlock(&g_pin_mu);
+-        for (uint32_t j = 0; j < nr; j++) {
+-            pthread_mutex_lock(&g_pin_mu); pin_list *l = nvn_hm_get(&g_pin, &rs[j]); uint32_t m = l ? l->n : 0; uint32_t *codes = m ? malloc(m * 4) : NULL; if (codes) memcpy(codes, l->e, m * 4); else m = 0; pthread_mutex_unlock(&g_pin_mu);
+-            for (uint32_t q = 0; q < m; q++) { const pool_tab *t = &g_ptab[codes[q] >> 20]; uint32_t i = codes[q] & 0xfffff; if (!t->used || i >= t->n) continue;
+-                g_pool_upd_ret++; if (t->samp) pool_samp_update(t->base + (int)i); else pool_tex_update(t->base + (int)i, pool_room()); }
+-            free(codes);
+-        }
+-        free(rs);
++        if (atomic_load_explicit(&g_pin_nnew_a, memory_order_acquire)) {
++            pthread_mutex_lock(&g_pin_mu); uint32_t nr = g_pin_nnew; void **rs = nr ? malloc(nr * sizeof *rs) : NULL; if (rs) memcpy(rs, g_pin_new, nr * sizeof *rs); else nr = 0; g_pin_nnew = 0; atomic_store_explicit(&g_pin_nnew_a, 0, memory_order_release); pthread_mutex_unlock(&g_pin_mu);
++            for (uint32_t j = 0; j < nr; j++) {
++                pthread_mutex_lock(&g_pin_mu); pin_list *l = nvn_hm_get(&g_pin, &rs[j]); uint32_t m = l ? l->n : 0; uint32_t *codes = m ? malloc(m * 4) : NULL; if (codes) memcpy(codes, l->e, m * 4); else m = 0; pthread_mutex_unlock(&g_pin_mu);
++                for (uint32_t q = 0; q < m; q++) { const pool_tab *t = &g_ptab[codes[q] >> 20]; uint32_t i = codes[q] & 0xfffff; if (!t->used || i >= t->n) continue;
++                    g_pool_upd_ret++; if (t->samp) pool_samp_update(t->base + (int)i); else pool_tex_update(t->base + (int)i, pool_room()); }
++                free(codes);
++            }
++            free(rs);
++        }
+         for (int s = 0; s < 2; s++) if (g_pdirty[s].n) {
+-            uint32_t m = g_pdirty[s].n; uint32_t *ids = malloc(m * sizeof *ids); if (!ids) break;
++            uint32_t m = g_pdirty[s].n, stack_ids[64];
++            uint32_t *ids = m <= 64 ? stack_ids : malloc(m * sizeof *ids); if (!ids) break;
+             memcpy(ids, g_pdirty[s].list, m * sizeof *ids); pool_dset_clear(&g_pdirty[s]);
+             uint64_t room = s ? 0 : pool_room();
+             for (uint32_t j = 0; j < m; j++) { g_pool_upd_dirty++; if (s) pool_samp_update((int)ids[j]); else if (pool_tex_update((int)ids[j], room)) pool_dset_add(&g_pleft, (int)ids[j]); }
+-            free(ids);
++            if (ids != stack_ids) free(ids);
+         }
+         pool_seen_scan();
+         pool_left_scan();
+     }
+     int ti = -1; for (int k = 0; k < POOL_TABS && ti < 0; k++) { const pool_tab *t = &g_ptab[k]; if (t->used && t->samp == samp && t->dtt == dtt && t->dpf == dpf && t->base == base) ti = k; }
+     if (ti < 0) ti = pool_tab_new(samp, dtt, dpf, base);
++    if (ti >= 0) g_pool_last_ti[samp != 0] = ti;
+     g_pool_ms += (double)(mach_absolute_time() - t0) * tb.numer / tb.denom / 1e6;
+     if (!(g_pool_calls & 0x3fff)) {   // how the tables stand: whole walks, buffers, entries looked up again by cause, time in all
+         unsigned nseen = 0; uint64_t bseen = 0; for (int id_ = 1; id_ < g_ntreg; id_++) if (g_treg[id_].ok && pool_seen(id_)) { nseen++; bseen += pool_tex_size(&g_treg[id_].t); }
+@@ -18918,11 +18995,14 @@ static void pool_session_reset(void) {
+     pthread_mutex_lock(&g_pin_mu);
+     for (uint32_t i = 0; i < g_pin.cap; i++) if (g_pin.vals[i]) free(g_pin.vals[i]);
+     nvn_hm_clear(&g_pin, NULL); nvn_hm_clear(&g_pin_ret, NULL); g_pin_nnew = 0;
++    atomic_store_explicit(&g_pin_nnew_a, 0, memory_order_release);
+     pthread_mutex_unlock(&g_pin_mu);
+     atomic_store(&g_ptab_any, 0);
++    g_pool_ntreg_seen = -1; g_pool_nsreg_seen = -1; g_pool_last_ti[0] = -1; g_pool_last_ti[1] = -1;
+     for (int s = 0; s < 2; s++) pool_dset_clear(&g_pdirty[s]);
+     pool_dset_clear(&g_pleft);
+     memset(g_seen_done, 0, sizeof g_seen_done); memset(g_seen_todo, 0, sizeof g_seen_todo); g_seen_sub = ~0ull;
++    g_seen_dirty = ~0ull; g_seen_ser = ~0ull; g_seen_ser_mut = ~0ull;
+     g_seen_vgen = g_seen_spframe = g_seen_sp_rechecks = 0; g_sub_vgen = 0; g_treg_sp_any = 0; g_treg_sp_ids = g_treg_sp_moved = g_treg_sp_off = g_treg_sp_twin = 0;   // RewindBox (patch 0031, check C6): with the session
+     if (g_seen_buf) memset(g_seen_buf.contents, 0, POOL_SEEN_WORDS * 4);
+     g_psnap_gen++;
+@@ -27105,10 +27185,102 @@ static void clear_ds_tri(const p_clear_ds *c) {
+        (unsigned long)sc.x, (unsigned long)sc.y, (unsigned long)sc.width, (unsigned long)sc.height);
+ }
+ 
++// RewindBox (patch 0433): bounded read-only pre-scan at top-level submission entry. When >= 2 unloaded
++//   packaged textures are bound in this command buffer, batch their MADV_WILLNEED hints before replay begins
++//   so the kernel overlaps NVMe/APFS page-ins with CPU deswizzle (zero extra RAM; these exact textures are
++//   about to upload synchronously in this submission). Steady-state cost: 1 relaxed atomic load when < 2.
++static void rb_sub_ahead_prescan(const uint8_t *p) {
++    if (!p || rb_treg_cand_count(&g_rb_treg_cand) < 2) return;
++    if (!rb_sub_ahead_on() || !rb_pool_scan_ahead_on() || !rb_wn_on() || s2a_guest_fd() < 0 || rb_mem_low()) return;
++    uint32_t dedup[RB_SUB_AHEAD_HASH] = {0}, tids[RB_SUB_AHEAD_MAX_TEX];
++    int ntid = 0;
++    const uint8_t *ret[RB_SUB_AHEAD_MAX_DEPTH];
++    int ret_n = 0;
++    const uint8_t *cur = p;
++    for (int ops = 0; ops < RB_SUB_AHEAD_MAX_OPS && ntid < RB_SUB_AHEAD_MAX_TEX; ops++) {
++        op_hdr h; memcpy(&h, cur, sizeof h);
++        if (rec_bad(h)) break;
++        const void *a = cur + 8;
++        if (h.op == OP_END) {
++            if (!ret_n) break;
++            cur = ret[--ret_n];
++            continue;
++        }
++        if (h.op == OP_JUMP) { memcpy(&cur, a, 8); if (!cur) break; continue; }
++        if (h.op == OP_CALL) {
++            if (ret_n >= RB_SUB_AHEAD_MAX_DEPTH) { cur += h.size; continue; }
++            uint64_t t = 0; memcpy(&t, a, 8);
++            if (!t) break;
++            ret[ret_n++] = cur + h.size;
++            cur = (const uint8_t *)t;
++            continue;
++        }
++        if (h.op == OP_MULTI_DRAW) break;
++        if (h.op == OP_BIND_TEX || h.op == OP_BIND_TEX1) {
++            p_bind_handles t1; const p_bind_handles *b = bind_rec(h.op, a, &t1);
++            if (b->n > 0 && b->n <= 32) {
++                if (!b->defer) {
++                    for (int k = 0; k < b->n && ntid < RB_SUB_AHEAD_MAX_TEX; k++) {
++                        uint32_t tid = (uint32_t)(b->h[k] & 0xfffffu);
++                        if (tid && rb_treg_cand_test(&g_rb_treg_cand, tid))
++                            rb_sub_ahead_dedup_add(dedup, tids, &ntid, tid);
++                    }
++                } else if (b->src) {
++                    p_bind_pool_bases bases; memcpy(&bases, b->h + b->n, sizeof bases);
++                    const uint64_t *src = (const uint64_t *)(uintptr_t)b->src;
++                    for (int k = 0; k < b->n && ntid < RB_SUB_AHEAD_MAX_TEX; k++) {
++                        uint32_t tid = (uint32_t)((src[k] & 0xfffffu) + (uint32_t)bases.tbase);
++                        if (tid && tid < (uint32_t)RB_TREG_CAND_CAP && rb_treg_cand_test(&g_rb_treg_cand, tid))
++                            rb_sub_ahead_dedup_add(dedup, tids, &ntid, tid);
++                    }
++                }
++            }
++        }
++        cur += h.size;
++    }
++    if (ntid < 2) return;
++    struct { const void *mem; uint64_t size; } spans[RB_SUB_AHEAD_MAX_TEX];
++    int nspans = 0;
++    uint64_t total_bytes = 0;
++    pthread_mutex_lock(&g_rmu);
++    for (int i = 0; i < ntid; i++) {
++        uint32_t id_ = tids[i];
++        if (id_ >= (uint32_t)g_ntreg) { rb_treg_cand_clear_id(&g_rb_treg_cand, id_); continue; }
++        const treg_t *r = &g_treg[id_];
++        if (!r->ok || r->gone || r->view) { rb_treg_cand_clear_id(&g_rb_treg_cand, id_); continue; }
++        const tex_t *t = &r->t;
++        if (!rb_treg_cand_eligible(t->has_layout, t->mem != NULL, t->L.size, t->d.flags,
++                                   t->pool && (t->pool->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL), RB_WN_MAX)) {
++            rb_treg_cand_clear_id(&g_rb_treg_cand, id_);
++            continue;
++        }
++        if (tex_get(t->serial)) { rb_treg_cand_clear_id(&g_rb_treg_cand, id_); continue; }
++        if (t->L.size > RB_SUB_AHEAD_MAX_BYTES - total_bytes) break;
++        spans[nspans].mem = t->mem;
++        spans[nspans].size = t->L.size;
++        nspans++;
++        total_bytes += t->L.size;
++    }
++    pthread_mutex_unlock(&g_rmu);
++    if (nspans < 2) return;
++    uint64_t pages = 0;
++    int advised = 0;
++    for (int i = 0; i < nspans; i++) {
++        uint64_t pg = rb_wn_(spans[i].mem, spans[i].size, NULL, NULL, 0, 0);
++        if (pg != RB_WN_NONE) { advised++; pages += pg; }
++    }
++    if (advised) {
++        atomic_fetch_add_explicit(&g_rb_sub_ahead_batches, 1, memory_order_relaxed);
++        atomic_fetch_add_explicit(&g_rb_sub_ahead_tex, (uint64_t)advised, memory_order_relaxed);
++        atomic_fetch_add_explicit(&g_rb_sub_ahead_pages, pages, memory_order_relaxed);
++    }
++}
++
+ static void xq_unwind_push(const uint8_t *p);   // nvn_xqueue.inc
+ void nvn_be_exec(const uint8_t *p) {
+     rb_tile_session_begin();
+     static int inited; if (!inited) { inited = 1; state_reset(); }
++    if (!g_ret_n) rb_sub_ahead_prescan(p);   // RewindBox (patch 0433)
+     static int dump_all = -1; if (dump_all < 0) dump_all = getenv("DM_NVN_PASSDUMP_ALL") != NULL;
+     int trace = dump_all && passdump();   // Normal mode does not check the frame range per operation; the full command position is only used for the designated diagnostic frames
+     unsigned discard_suffix = 0;
+diff --git a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+index e9efa01..fef24dc 100644
+--- a/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
++++ b/graphics/nvn/gfx/nvn/rb_texture_ahead.inc
+@@ -115,10 +115,14 @@ static void rb_bl_page_run(uint32_t id_, uint64_t serial, uint64_t posted_frame)
+             if (id_ < (unsigned)g_ntreg) {
+                 const treg_t *r = &g_treg[id_];
+                 const tex_t *t = &r->t;
+-                if (r->ok && !r->gone && t->serial == serial && t->has_layout && t->mem && !t->d.flags && t->L.size &&
+-                    nvn_hm_get(&g_tex_live, &serial) && !nvn_hm_get(&g_by_serial, &serial)) {
+-                    mem = t->mem;
+-                    bytes = t->L.size;
++                if (r->ok && !r->gone && t->serial == serial) {
++                    if (t->has_layout && t->mem && !t->d.flags && t->L.size &&
++                        nvn_hm_get(&g_tex_live, &serial) && !nvn_hm_get(&g_by_serial, &serial)) {
++                        mem = t->mem;
++                        bytes = t->L.size;
++                    } else if (r->view || !t->has_layout || nvn_hm_get(&g_by_serial, &serial)) {
++                        rb_treg_cand_clear_id(&g_rb_treg_cand, id_);
++                    }
+                 }
+             }
+             pthread_mutex_unlock(&g_smu);
+@@ -155,6 +159,7 @@ static void rb_bl_page_run(uint32_t id_, uint64_t serial, uint64_t posted_frame)
+ //   A mark is one per texture ID modulo RB_BL_MARKS: two IDs that far apart share one and may be posted again, within the frame's posts.
+ static void rb_bl_record(uint32_t id_) {
+     if (id_ >= (1u << 20)) return;
++    if (!rb_treg_cand_test(&g_rb_treg_cand, id_)) return;   // RewindBox (patch 0433): skip non-packaged or already-resolved IDs lock-free before marks/dispatch_async
+     uint64_t serial = atomic_load_explicit(&g_tser[id_], memory_order_acquire);
+     _Atomic uint32_t *mark = &rb_bl_marks[id_ % RB_BL_MARKS];
+     uint32_t tag = rb_bl_tag(serial);
+@@ -353,6 +358,7 @@ void nvn_be_advance_texture(void) {
+ static void rb_tx_reset(void) {
+     if (rb_gov_on()) rb_ra_sweep(atomic_load(&g_cur_frame),YES);
+     rb_bl_reset();   // RewindBox (patch 0329): the texture-bind lane's marks, counts and registration frames go with the session (the feedback tables were cleared just above)
++    rb_treg_cand_reset(&g_rb_treg_cand);   // RewindBox (patch 0433)
+     // The page queue has already drained with the other window readers.
+     g_tx_page.post_frame = g_tx_page.work_frame = g_tx_page.work_bytes = 0;
+     g_tx_page.pending = g_tx_page.posted = 0;
+diff --git a/graphics/nvn/gfx/nvn/rb_treg_cand.h b/graphics/nvn/gfx/nvn/rb_treg_cand.h
+new file mode 100644
+index 0000000..5590358
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_treg_cand.h
+@@ -0,0 +1,125 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0433): lock-free packaged-texture candidate bitset for recorded bind hints and
++//   submission-level batched MADV_WILLNEED pre-scan, plus O(1) pool_gpu fast-path and
++//   mutation-scoped pool_seen_scan predicates. Pure C: host-testable without Metal.
++//   IPA 845 (iPhone A18 Pro):
++//   - Zelda (0400486024DEC000): rb-bind-lane posted 12,882 dispatch_async hints/300f with looked=0
++//     and busy=718 contending on g_rmu because rb_bl_record could not tell render targets or
++//     already-uploaded textures from unloaded packaged textures; pool_gpu ran 6,569,984 times
++//     (~1,000/frame, 2,108 ms cumulative CPU), taking mach_absolute_time() twice and locking
++//     g_pin_mu on every call even when g_pin_nnew == 0, while pool_seen_scan re-walked all
++//     g_seen_done entries (341,860 updates) on pure texture additions (g_ser_gen vs g_rb_ser_add).
++//   - Mario Kart World (0400C3F00006E000): F6090 (175 textures, 1,230 absent pages = 109.4 ms CPU)
++//     and F7746 (136 textures, 3,363 absent pages = 110.6 ms CPU) serialized flash page-ins one
++//     texture at a time during replay while thermal >= 2 held back rb-bind-lane.
++//   S2A_RB_SUB_AHEAD=0 disables the submission pre-scan (the bind-lane filter and pool_gpu fast
++//   path stay active and are behavior-preserving).
++#pragma once
++#include <stdatomic.h>
++#include <stdint.h>
++#include <string.h>
++
++enum {
++    RB_TREG_CAND_CAP = 1u << 20,
++    RB_TREG_CAND_WORDS = RB_TREG_CAND_CAP >> 6,
++    RB_TREG_CAND_EXCL_FLAGS = 0x1u | 0x2u | 0x40u, /* DISPLAY(0x1) | VIDEO_DECODE(0x2) | SPARSE(0x40) — static-asserted in nvn_mtl.m */
++    RB_SUB_AHEAD_MAX_OPS = 2048,
++    RB_SUB_AHEAD_MAX_TEX = 128,
++    RB_SUB_AHEAD_HASH = 256,
++    RB_SUB_AHEAD_MAX_DEPTH = 4
++};
++#define RB_SUB_AHEAD_MAX_BYTES (UINT64_C(64) << 20)
++
++typedef struct {
++    _Atomic uint64_t bits[RB_TREG_CAND_WORDS];
++    _Atomic uint32_t count;
++} rb_treg_cand_set;
++
++static inline int rb_sub_ahead_switch(const char *env) {
++    return !(env && !strcmp(env, "0"));
++}
++
++static inline int rb_treg_cand_eligible(int has_layout, int has_mem, uint64_t size,
++                                        uint32_t tex_flags, int is_virtual_pool, uint64_t max_bytes) {
++    return has_layout && has_mem && size > 0 && size <= max_bytes &&
++           !is_virtual_pool && !(tex_flags & (uint32_t)RB_TREG_CAND_EXCL_FLAGS);
++}
++
++static inline void rb_treg_cand_set_id(rb_treg_cand_set *s, uint32_t id_) {
++    if (id_ >= (uint32_t)RB_TREG_CAND_CAP) return;
++    uint64_t mask = UINT64_C(1) << (id_ & 63u);
++    uint64_t prev = atomic_fetch_or_explicit(&s->bits[id_ >> 6], mask, memory_order_release);
++    if (!(prev & mask)) atomic_fetch_add_explicit(&s->count, 1u, memory_order_relaxed);
++}
++
++static inline void rb_treg_cand_clear_id(rb_treg_cand_set *s, uint32_t id_) {
++    if (id_ >= (uint32_t)RB_TREG_CAND_CAP) return;
++    uint64_t mask = UINT64_C(1) << (id_ & 63u);
++    uint64_t cur = atomic_load_explicit(&s->bits[id_ >> 6], memory_order_relaxed);
++    if (!(cur & mask)) return;
++    uint64_t prev = atomic_fetch_and_explicit(&s->bits[id_ >> 6], ~mask, memory_order_relaxed);
++    if (prev & mask) atomic_fetch_sub_explicit(&s->count, 1u, memory_order_relaxed);
++}
++
++static inline int rb_treg_cand_test(const rb_treg_cand_set *s, uint32_t id_) {
++    if (id_ >= (uint32_t)RB_TREG_CAND_CAP) return 0;
++    return (int)((atomic_load_explicit(&s->bits[id_ >> 6], memory_order_acquire) >> (id_ & 63u)) & 1u);
++}
++
++static inline uint32_t rb_treg_cand_count(const rb_treg_cand_set *s) {
++    return atomic_load_explicit(&s->count, memory_order_relaxed);
++}
++
++static inline void rb_treg_cand_reset(rb_treg_cand_set *s) {
++    for (unsigned i = 0; i < (unsigned)RB_TREG_CAND_WORDS; i++) {
++        if (atomic_load_explicit(&s->bits[i], memory_order_relaxed))
++            atomic_store_explicit(&s->bits[i], 0, memory_order_relaxed);
++    }
++    atomic_store_explicit(&s->count, 0u, memory_order_release);
++}
++
++/* Open-addressed stack dedup set for submission pre-scan (stores tid + 1; 0 = empty). */
++static inline int rb_sub_ahead_dedup_add(uint32_t table[RB_SUB_AHEAD_HASH], uint32_t out[RB_SUB_AHEAD_MAX_TEX],
++                                         int *nout, uint32_t tid) {
++    if (*nout >= (int)RB_SUB_AHEAD_MAX_TEX) return 0;
++    uint32_t key = tid + 1u;
++    uint32_t slot = (tid * UINT32_C(2654435761)) & ((uint32_t)RB_SUB_AHEAD_HASH - 1u);
++    for (unsigned probe = 0; probe < (unsigned)RB_SUB_AHEAD_HASH; probe++) {
++        uint32_t cur = table[slot];
++        if (cur == key) return 0;
++        if (!cur) {
++            table[slot] = key;
++            out[(*nout)++] = tid;
++            return 1;
++        }
++        slot = (slot + 1u) & ((uint32_t)RB_SUB_AHEAD_HASH - 1u);
++    }
++    return 0;
++}
++
++/* pool_seen_scan recheck classification:
++ * - RB_POOL_RECHECK_NONE: neither serial mutations nor sparse mappings nor guest dirty writes moved.
++ * - RB_POOL_RECHECK_PKG_ONLY: only guest dirty writes moved -> only CPU-written (view_pkg) or unresolved (!view) IDs need recheck.
++ * - RB_POOL_RECHECK_ALL: a non-addition serial mutation or sparse mapping occurred -> recheck all seen IDs. */
++enum {
++    RB_POOL_RECHECK_NONE = 0,
++    RB_POOL_RECHECK_PKG_ONLY = 1,
++    RB_POOL_RECHECK_ALL = 2
++};
++
++static inline int rb_pool_seen_recheck_mode(uint64_t ser_mut, uint64_t seen_ser_mut,
++                                            uint64_t dirty, uint64_t seen_dirty,
++                                            int sparse_recheck) {
++    if (ser_mut != seen_ser_mut || sparse_recheck) return RB_POOL_RECHECK_ALL;
++    if (dirty != seen_dirty) return RB_POOL_RECHECK_PKG_ONLY;
++    return RB_POOL_RECHECK_NONE;
++}
++
++/* O(1) pool_gpu fast-path guard: all slow-path conditions are known clean and this call is not a log boundary. */
++static inline int rb_pool_gpu_fast_ok(int ptab_any, int ntreg_same, int nsreg_same,
++                                      uint32_t pin_nnew, uint32_t dirty0, uint32_t dirty1,
++                                      int seen_up_to_date, int left_up_to_date,
++                                      uint64_t next_calls) {
++    return ptab_any && ntreg_same && nsreg_same && !pin_nnew && !dirty0 && !dirty1 &&
++           seen_up_to_date && left_up_to_date && ((next_calls & 0x3fffu) != 0);
++}
+-- 
+2.56.0
+
