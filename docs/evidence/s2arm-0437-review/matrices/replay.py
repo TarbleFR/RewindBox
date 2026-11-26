@@ -10,7 +10,7 @@ import sys
 import tempfile
 
 HERE = Path(__file__).resolve().parent
-MODES = ("row", "column", "ortho", "invalid", "mixed")
+MODES = ("row", "column", "ortho", "invalid", "mixed", "near-miss")
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -20,7 +20,11 @@ def main():
     parser.add_argument("--variants", nargs="+", default=["direct", "lazy", "ortho", "all"])
     parser.add_argument("--pairs", type=int, default=16)
     parser.add_argument("--aot", help="publish NativeAOT for this runtime identifier")
+    parser.add_argument("--modes", choices=MODES, nargs="+", default=MODES)
+    parser.add_argument("--peak-rss", type=Path, help="separate 24-triplet NativeAOT memory check")
     args = parser.parse_args()
+    if args.peak_rss and (not args.aot or set(args.variants) != {"control","compatible"}):
+        parser.error("--peak-rss requires --aot and the two variants control compatible")
     prefix = [] if args.cpu is None else ["taskset", "-c", str(args.cpu)]
     env = dict(os.environ, DOTNET_TieredCompilation="0")
     rng = random.Random(44220)
@@ -60,7 +64,7 @@ def main():
             writer = csv.writer(output)
             writer.writerow(("pair","mode","variant","ms","hash","allocated","thread_cpu_ms"))
             for pair in range(1, args.pairs + 1):
-                modes = rng.sample(MODES, len(MODES))
+                modes = rng.sample(args.modes, len(args.modes))
                 for label in rng.sample(list(programs),len(programs)):
                     rows = subprocess.check_output([*programs[label], *modes], env=env, text=True).splitlines()
                     for mode, line in zip(modes, rows[len(modes):], strict=True):
@@ -69,6 +73,14 @@ def main():
                             raise ValueError((line, mode, label))
                         writer.writerow((pair,name,label,ms,checksum,alloc,cpu))
                     output.flush()
+
+        if args.peak_rss:
+            rss_root = Path(scratch) / "rss"
+            rss_root.mkdir()
+            for label, command in programs.items():
+                (rss_root / label).symlink_to(command[-1])
+            (rss_root / clock.name).symlink_to(clock)
+            subprocess.run([*prefix, sys.executable, HERE / "rss.py", rss_root, args.peak_rss], check=True)
 
 if __name__ == "__main__":
     main()

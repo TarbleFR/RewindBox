@@ -1,0 +1,25 @@
+short[False]=System.IndexOutOfRangeException, out=0
+short[True]=System.IndexOutOfRangeException, out=0
+lengths 024934F270C70F714CB0812FC11D0064BA6F0A8562B26F00CF32347F10B33D7F
+timed invalid shape gate: 0/1024
+near-miss shape gate/classifier rejection: 1024/1024 of 1024
+ortho flags 3872830E2422360617EB6D6E3808747D7CAA70941099D28A8E1FCD2AB617F15B
+window 6479A4478CEB33912BE19DA7D2B97A347A70AA1D9D5EF26A589ECD4A2DF6FE51
+window positive=ColumnMajor,InverseProjection,Projection,ViewProjection
+bulk 241291FAFA696923DDAF3B706A899D9D4DDE0740551346051D4E16277357586E
+bulk positive=ByDepth,CameraPair,ColumnMajor,InverseProjection,Projection,Scanned,ScannedBytes,ViewProjection
+dual matches=InverseProjection/InverseProjection,Projection/Projection,Projection/ViewProjection,ViewProjection/Projection,ViewProjection/ViewProjection
+stats=AspectPair,ByDepth,CameraPair,ColumnMajor,InverseProjection,Ortho,Ortho2D,PixelRay,PixelStep,Projection,Scanned,ScannedBytes,ScreenSize,UiOrtho,UiOrthoWide,ViewProjection,WideProjection
+
+short[False]=System.IndexOutOfRangeException, out=0
+short[True]=System.IndexOutOfRangeException, out=0
+lengths 024934F270C70F714CB0812FC11D0064BA6F0A8562B26F00CF32347F10B33D7F
+timed invalid shape gate: 0/1024
+near-miss shape gate/classifier rejection: 1024/1024 of 1024
+ortho flags 3872830E2422360617EB6D6E3808747D7CAA70941099D28A8E1FCD2AB617F15B
+window B9752E5384339751908735A7CBDCFD2E7380020ED432B84F654E3D2D0E0EA612
+window positive=
+bulk 03ADBB7D7FDE6B440B8E352424033CF82C7C134E58F71A098A4DE161C3488DD8
+bulk positive=CameraPair,Scanned,ScannedBytes
+dual matches=InverseProjection/InverseProjection,Projection/Projection,Projection/ViewProjection,ViewProjection/Projection,ViewProjection/ViewProjection
+stats=AspectPair,ByDepth,CameraPair,ColumnMajor,InverseProjection,Ortho,Ortho2D,PixelRay,PixelStep,Projection,Scanned,ScannedBytes,ScreenSize,UiOrtho,UiOrthoWide,ViewProjection,WideProjection

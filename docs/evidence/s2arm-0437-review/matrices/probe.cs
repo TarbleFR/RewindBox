@@ -19,6 +19,8 @@ class Program {
             case 3: m[1]=0.03f; m[15]=1; m[14]=1; break;
             case 4: m[14]=-1; m[5]=x*2.16f; break;
             case 5: for(int j=0;j<16;j++) m[j]=MathF.Sin(i*17+j*53); break;
+            // Pass the fast shape filter but fail both orientations of the full classifier.
+            case 6: m[5]=x*(16f/9f)*1.015f; m[10]=-.25f; m[11]=.07f; m[14]=-1f; break;
         }
         return m;
     }
@@ -29,7 +31,7 @@ class Program {
         float[] special={0f,-0f,0.00001f,-0.00001f,float.NaN,float.NegativeInfinity,float.PositiveInfinity,float.Epsilon,1.001f,1,-1};
         var matrices=new float[verify?8192:1024][];
         for(int i=0;i<matrices.Length;i++) {
-            var m=Matrix(i, mode switch {"row"=>0,"column"=>1,"ortho"=>2,"invalid"=>5,_=>i%6});
+            var m=Matrix(i, mode switch {"row"=>0,"column"=>1,"ortho"=>2,"invalid"=>5,"near-miss"=>6,_=>i%6});
             if(verify && i>=192 && (i%3!=0)) m[(i/12)%16]=special[(i/192)%special.Length];
             matrices[i]=m;
         }
