@@ -1,0 +1,34 @@
+{
+  "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge": {
+    "__LINKEDIT": {
+      "before": {
+        "size": 562352,
+        "sha256": "56ca269c0d61a1522ae54a9d387cac08f82aa486da190690d642f89d3c198955"
+      },
+      "after": {
+        "size": 562352,
+        "sha256": "4c0b7f02b859f013db3c06f72eb1e091bd61fe75bfd9ed7bd147801e3fcda6e6"
+      }
+    },
+    "__TEXT,__objc_stubs": {
+      "before": {
+        "size": 39424,
+        "sha256": "0bbbdd5d19d7127ef10703e20d07face50e6b5a6bd6a704e9903a90f993ebfac"
+      },
+      "after": {
+        "size": 39424,
+        "sha256": "8b8b80c5f9dd8ad4c1a9876da71534338057feb949986815521fb3cf23e137b1"
+      }
+    },
+    "__TEXT,__stubs": {
+      "before": {
+        "size": 4872,
+        "sha256": "518186070aa10ddfed819a1c81283f89927bd9e0ccb096b04406472da06b8e96"
+      },
+      "after": {
+        "size": 4872,
+        "sha256": "25471458e90d33cbd45248742f916b64366105bbcdd8d898e4bc77c906912200"
+      }
+    }
+  }
+}
