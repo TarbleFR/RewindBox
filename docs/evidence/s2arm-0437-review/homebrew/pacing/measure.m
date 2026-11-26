@@ -28,7 +28,7 @@ static BOOL verifySurfaces(id<MTLCommandQueue> queue, NSArray<id<MTLTexture>> *s
     const NSUInteger bytes = Width * Height * 4;
     id<MTLCommandBuffer> cb = [queue commandBuffer];
     id<MTLBlitCommandEncoder> blit = [cb blitCommandEncoder];
-    if (!cb || !blit) return NO;
+    if (!cb || !blit) { fprintf(stderr,"Readback encoder unavailable\n"); return NO; }
     for (NSUInteger i = 0; i < surfaces.count; ++i) {
         [blit copyFromTexture:surfaces[i] sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0,0,0)
             sourceSize:MTLSizeMake(Width,Height,1) toBuffer:readback destinationOffset:bytes*i
@@ -37,11 +37,15 @@ static BOOL verifySurfaces(id<MTLCommandQueue> queue, NSArray<id<MTLTexture>> *s
     [blit endEncoding];
     [cb commit];
     [cb waitUntilCompleted];
-    if (cb.status != MTLCommandBufferStatusCompleted) return NO;
+    if (cb.status != MTLCommandBufferStatusCompleted) { NSLog(@"Readback GPU error %@",cb.error); return NO; }
     const uint8_t expected[] = {64,128,191,255};
     const uint8_t *actual = readback.contents;
     for (NSUInteger i = 0; i < surfaces.count * bytes; i += 4)
-        if (memcmp(actual + i, expected, 4) != 0) return NO;
+        if (memcmp(actual + i, expected, 4) != 0) {
+            fprintf(stderr,"Surface %zu pixel %zu expected RGBA 64 128 191 255, got %u %u %u %u\n",
+                (size_t)(i/bytes),(size_t)(i%bytes/4),actual[i],actual[i+1],actual[i+2],actual[i+3]);
+            return NO;
+        }
     return YES;
 }
 
@@ -68,7 +72,7 @@ static BOOL batch(id<MTLDevice> dev, id<MTLCommandQueue> queue, id<MTLRenderPipe
         color.clearColor = MTLClearColorMake(0,0,0,0);
         color.storeAction = MTLStoreActionStore;
         id<MTLRenderCommandEncoder> encoder = [cb renderCommandEncoderWithDescriptor:pass];
-        if (!cb || !encoder) { success = NO; break; }
+        if (!cb || !encoder) { fprintf(stderr,"Missing frame encoder %d\n",i); success = NO; break; }
         [encoder setRenderPipelineState:pipeline];
         [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
         [encoder endEncoding];
@@ -78,6 +82,7 @@ static BOOL batch(id<MTLDevice> dev, id<MTLCommandQueue> queue, id<MTLRenderPipe
             s->gpuStart = finished.GPUStartTime;
             s->gpuEnd = finished.GPUEndTime;
             s->completed = finished.status == MTLCommandBufferStatusCompleted;
+            if (!s->completed) NSLog(@"Frame GPU error %@",finished.error);
             dispatch_group_leave(callbacks);
         }];
         [cb commit];
@@ -95,7 +100,11 @@ static BOOL batch(id<MTLDevice> dev, id<MTLCommandQueue> queue, id<MTLRenderPipe
         if (!s->completed || !isfinite(s->start) || !isfinite(s->afterWait) || !isfinite(s->committed) ||
             !isfinite(s->callback) || !isfinite(s->gpuStart) || !isfinite(s->gpuEnd) || !isfinite(s->encodeCpu) ||
             s->afterWait < s->start || s->committed < s->afterWait || s->callback < s->afterWait ||
-            s->gpuStart <= 0 || s->gpuEnd <= s->gpuStart || s->encodeCpu < 0) return NO;
+            s->gpuStart <= 0 || s->gpuEnd <= s->gpuStart || s->encodeCpu < 0) {
+            fprintf(stderr,"Invalid time pair=%d limit=%d frame=%d completed=%d host=%.9f/%.9f/%.9f/%.9f gpu=%.9f/%.9f cpu=%.9f\n",
+                pair,limit,i,s->completed,s->start,s->afterWait,s->committed,s->callback,s->gpuStart,s->gpuEnd,s->encodeCpu);
+            return NO;
+        }
         if (pair) fprintf(out,"%d,%d,%d,%.9f,%.9f,%.9f,%.9f,%.9f,%.9f,%.9f,%llu,%llu,%llu\n",
             pair,limit,i,s->start,s->afterWait,s->committed,s->callback,s->gpuStart,s->gpuEnd,s->encodeCpu,
             (unsigned long long)footprintBefore,(unsigned long long)footprintAfter,

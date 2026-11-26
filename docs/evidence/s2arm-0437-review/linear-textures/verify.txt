@@ -1,0 +1,1 @@
+valid_cases=13740 cross_row_overlap=3933 functions=3 variants=3 invalid_cases=8
