@@ -1,0 +1,29 @@
+--- a/graphics/nvn/gfx/nvn/rb_ubo_versions.h
++++ b/graphics/nvn/gfx/nvn/rb_ubo_versions.h
+@@ -337,6 +337,10 @@
+     uint64_t lo_page = lo / RB_UB_PAGE;
+     uint64_t hi_page = (hi - 1) / RB_UB_PAGE;
+     uint64_t single_bit = lo_page == hi_page ? rb_ub_page_bloom_bit(rb_ub_page_hash(lo_page)) : 0;
++    // For a single page, the requested slice of each 64-byte word is fixed
++    // across fences. Once supplied by newer writes, older versions cannot
++    // contribute to that slice. The per-byte hazard checks still run first.
++    uint64_t filled_words = 0;
+     for (uint64_t fence = latest; fence > done && missing; --fence) {
+         rb_ub_frame *f = &ring->frames[fence % RB_UB_FRAMES];
+         if (f->fence != fence) { if (why) *why = RB_UB_FAIL_WRAP; return 0; }
+@@ -357,6 +361,7 @@
+                 unsigned end = offset + (unsigned)n;
+                 unsigned w0 = offset >> 6, w1 = (end - 1) >> 6;
+                 uint64_t wm = p->valid_mask & ((~UINT64_C(0) >> (63 - (w1 - w0))) << w0);
++                wm &= ~filled_words;
+                 while (wm) {
+                     unsigned w = (unsigned)__builtin_ctzll(wm);
+                     wm &= wm - 1;
+@@ -368,6 +373,7 @@
+                     if (!m) continue;
+                     size_t word_base = (size_t)(w << 6);
+                     if (m == slice) {
++                        if (single_bit) filled_words |= UINT64_C(1) << w;
+                         size_t off_in_lo = (size_t)(pos - lo) + (word_base + b_lo - offset);
+                         unsigned b = b_lo;
+                         while (b + 7 <= b_hi) {
