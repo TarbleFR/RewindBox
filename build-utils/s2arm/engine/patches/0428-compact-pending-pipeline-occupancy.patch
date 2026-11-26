@@ -1,0 +1,257 @@
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -15850,7 +15850,18 @@
+ static unsigned g_async_frame_probes;
+ static int g_async_early;
+ #define PSO_PEND_MAX 384
+-static struct { pso_key k; id<MTLRenderPipelineState> ps; NSError *error; int used, done, late, stuck; uint8_t rb_way; uint64_t rb_began, rb_build_ns, rb_compile_ns; pthread_t worker; } g_pp[PSO_PEND_MAX];   // rb_*: RewindBox (patch 0313), set by ppq_build with done   // late: the submit thread already waited its limit for it once (pso_pend_take); stuck: a draw that cannot be skipped waited the unsafe cap for it
++// The pending table has one occupancy bit per slot, protected by g_pp_mu.
++static uint64_t g_pp_used[(PSO_PEND_MAX + 63) / 64];
++static inline int pp_used(unsigned slot) {
++    return (int)((g_pp_used[slot / 64] >> (slot % 64)) & 1);
++}
++static inline void pp_claim(unsigned slot) {
++    g_pp_used[slot / 64] |= UINT64_C(1) << (slot % 64);
++}
++static inline void pp_release(unsigned slot) {
++    g_pp_used[slot / 64] &= ~(UINT64_C(1) << (slot % 64));
++}
++static struct { pso_key k; id<MTLRenderPipelineState> ps; NSError *error; int done, late, stuck; uint8_t rb_way; uint64_t rb_began, rb_build_ns, rb_compile_ns; pthread_t worker; } g_pp[PSO_PEND_MAX];   // rb_*: RewindBox (patch 0313), set by ppq_build with done   // late: the submit thread already waited its limit for it once (pso_pend_take); stuck: a draw that cannot be skipped waited the unsafe cap for it
+ static pthread_mutex_t g_pp_mu = PTHREAD_MUTEX_INITIALIZER; static pthread_cond_t g_pp_cv = PTHREAD_COND_INITIALIZER;
+ static uint64_t g_pp_submit_mark, g_pp_kicked, g_pp_taken, g_pp_dropped;   // Whether this submission has already been predicted (by submission serial); cumulative kicked / taken / dropped untaken (pso_pend_kick) counts
+ // RewindBox (patch 0069): every pipeline kicked to the background went to the global queue at once, without bound, and a draw that needed its own waited for it behind the others
+@@ -15913,7 +15924,7 @@
+     g_pp[slot].worker = NULL;
+     g_pp[slot].done = 1; RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_pp_cv)); pthread_mutex_unlock(&g_pp_mu);
+ }
+-static int ppq_waiting(int i) { return i >= 0 && g_pp[i].used && !g_pp[i].done && !g_ppq[i].run && g_ppq[i].d; }   // caller holds g_pp_mu
++static int ppq_waiting(int i) { return i >= 0 && pp_used(i) && !g_pp[i].done && !g_ppq[i].run && g_ppq[i].d; }   // caller holds g_pp_mu
+ // Leave the descriptor in its slot until the selected worker actually starts.
+ // A required draw can therefore supersede a queued same-key observed task.
+ // The monotonically increasing ticket also protects slot reuse after a take.
+@@ -15923,7 +15934,7 @@
+     uint64_t ticket=++g_ppq_seq;
+     dispatch_block_t build=^{
+         pthread_mutex_lock(&g_pp_mu);
+-        if (g_ppq[at].seq!=ticket || !g_pp[at].used || !g_ppq[at].d) {
++        if (g_ppq[at].seq!=ticket || !pp_used(at) || !g_ppq[at].d) {
+             pthread_mutex_unlock(&g_pp_mu);
+             return;
+         }
+@@ -15947,7 +15958,7 @@
+     return 1;
+ }
+ static void ppq_demand_locked(int at) {
+-    if (at>=0 && g_pp[at].used && !g_pp[at].done && g_ppq[at].d && !g_ppq[at].live && rb_live_lane())
++    if (at>=0 && pp_used(at) && !g_pp[at].done && g_ppq[at].d && !g_ppq[at].live && rb_live_lane())
+         ppq_schedule_locked(at,YES);
+ }
+ static int ppq_start_locked(int at) {   // caller holds g_pp_mu: slot at's build starts now, beside the lanes
+@@ -15971,7 +15982,7 @@
+     // The two observed workers and their bounded backlog are occupied. Do not
+     // wait on an unclaimed optional slot which the thermal governor can cancel.
+     g_ppq[at].d=nil; g_ppq[at].pkey=nil; g_ppq[at].typed_fs=nil;
+-    g_pp[at].used=0;
++    pp_release(at);
+     RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_pp_cv));
+     return 0;
+ }   // caller holds g_pp_mu: a draw needs this guess now
+@@ -15988,7 +15999,7 @@
+             // queued guess after the last lane exits.
+             for (int i=0; i<PSO_PEND_MAX; i++) if (ppq_waiting(i)) {
+                 g_ppq[i].d=nil; g_ppq[i].pkey=nil; g_ppq[i].typed_fs=nil;
+-                g_pp[i].used=0;
++                pp_release(i);
+             }
+             RB_WAKE_CALL("backend.broadcast", -2, pthread_cond_broadcast(&g_pp_cv));
+             break;
+@@ -16022,8 +16033,12 @@
+ }
+ static int pso_pend_find_live(const pso_key *live)
+ {
+-    for (int i = 0; i < PSO_PEND_MAX; i++)
+-        if (g_pp[i].used && !memcmp(&g_pp[i].k, live, sizeof *live)) return i;
++    for (unsigned w = 0; w < sizeof g_pp_used / sizeof *g_pp_used; w++) {
++        for (uint64_t occupied = g_pp_used[w]; occupied; occupied &= occupied - 1) {
++            unsigned slot = w * 64 + (unsigned)__builtin_ctzll(occupied);
++            if (!memcmp(&g_pp[slot].k, live, sizeof *live)) return (int)slot;
++        }
++    }
+     return -1;
+ }
+ static int pso_pend_find(const pso_key *key)
+@@ -16043,12 +16058,12 @@
+     if (rb_pso_probe(k, &copy, &live) || !pso_pair_ok(vs, fs, 0)) return;
+     pthread_mutex_lock(&g_pp_mu);
+     int at = pso_pend_find_live(live), slot = -1;
+-    if (at < 0) for (int i = 0; i < PSO_PEND_MAX; i++) if (!g_pp[i].used) { slot = i; break; }
++    if (at < 0) for (int i = 0; i < PSO_PEND_MAX; i++) if (!pp_used(i)) { slot = i; break; }
+     // Full: reuse a slot whose compile is done but which no draw took. Only a draw's own wait frees a slot, and the lookahead also kicks the attach modes a pass may not use, so
+     //   those stayed for the whole run and a full table sent every later first use back to a synchronous build. Dropped, it costs nothing later: Metal keeps what this process
+     //   compiled, and building the same descriptor again took 0.0 ms (M5 Max, 24 pipelines, 11-02 microbenchmark), and its records are written when a draw builds it
+-    if (at < 0 && slot < 0) for (int i = 0; i < PSO_PEND_MAX; i++) if (g_pp[i].used && g_pp[i].done) { slot = i; g_pp[i].ps = nil; g_pp_dropped++; break; }
+-    if (at < 0 && slot >= 0) { g_pp[slot].k = *live; g_pp[slot].ps = nil; g_pp[slot].error = nil; g_pp[slot].done = 0; g_pp[slot].late = 0; g_pp[slot].stuck = 0; g_pp[slot].used = 1; }
++    if (at < 0 && slot < 0) for (int i = 0; i < PSO_PEND_MAX; i++) if (pp_used(i) && g_pp[i].done) { slot = i; g_pp[i].ps = nil; g_pp_dropped++; break; }
++    if (at < 0 && slot >= 0) { g_pp[slot].k = *live; g_pp[slot].ps = nil; g_pp[slot].error = nil; g_pp[slot].done = 0; g_pp[slot].late = 0; g_pp[slot].stuck = 0; pp_claim(slot); }
+     if (at>=0 && now==RB_PSO_REQUIRED) ppq_demand_locked(at);
+     if (at>=0 && now==RB_PSO_SAME_PASS) {
+         // Keep any earlier queue owner intact if we cannot promote it.
+@@ -16072,7 +16087,7 @@
+         if (now || observed) {
+             if (!(now==RB_PSO_REQUIRED && rb_live_lane() ? ppq_schedule_locked(slot,YES) : ppq_start_locked(slot))) {
+                 g_ppq[slot].d = nil; g_ppq[slot].pkey = nil; g_ppq[slot].typed_fs = nil;
+-                g_pp[slot].used = 0;
++                pp_release(slot);
+             } else if (now==RB_PSO_SAME_PASS)
+                 atomic_fetch_add_explicit(&g_rb_pass_ahead,1,memory_order_relaxed);
+         } else ppq_pump_locked();
+@@ -16273,7 +16288,7 @@
+         if (blk) rb_long_wait_note(at, w0, bp_now(), required, may_skip);   // RewindBox (patch 0313): caller holds g_pp_mu
+         if (g_pp[at].done) {
+             ps=g_pp[at].ps; g_async_render_built=1; g_async_render_error=g_pp[at].error;
+-            g_pp[at].ps=nil; g_pp[at].error=nil; g_pp[at].used=0;
++            g_pp[at].ps=nil; g_pp[at].error=nil; pp_release(at);
+         }
+         else if (required && dm_gfx_session_stopping()) *timed_out=1;
+         else if (fluid_cap) {
+@@ -20819,9 +20834,9 @@
+     if (found<0) {
+         int finished=-1;
+         for (int i=0;i<PSO_PEND_MAX;i++) {
+-            if (g_pp[i].used && !g_pp[i].done) active++;
+-            if (!g_pp[i].used && slot<0) slot=i;
+-            if (g_pp[i].used && g_pp[i].done && finished<0) finished=i;
++            if (pp_used(i) && !g_pp[i].done) active++;
++            if (!pp_used(i) && slot<0) slot=i;
++            if (pp_used(i) && g_pp[i].done && finished<0) finished=i;
+         }
+         // Full: reuse a finished prediction no draw took, as pso_pend_kick does.
+         if (slot<0 && finished>=0 && active<rb_look_cap() && bp_now()<g_look_budget.deadline) {
+@@ -20831,7 +20846,7 @@
+         if (slot>=0 && active<rb_look_cap() && bp_now()<g_look_budget.deadline) {
+             g_pp[slot].k=*live;
+             g_pp[slot].done=g_pp[slot].late=g_pp[slot].stuck=0;
+-            g_pp[slot].used=1;
++            pp_claim(slot);
+             RBLookRecipe *recipe=[RBLookRecipe new];
+             recipe->key=*key; recipe->vertex=vs; recipe->fragment=fs;
+             g_ppq[slot]=(typeof(g_ppq[0])){.d=recipe,.seq=++g_ppq_seq,.guess=!same_pass};
+@@ -21019,7 +21034,7 @@
+     }
+     g_look = 0;
+     (void)df; (void)sf;
+-    int busy = 0; pthread_mutex_lock(&g_pp_mu); for (int i = 0; i < PSO_PEND_MAX; i++) busy += g_pp[i].used && !g_pp[i].done; pthread_mutex_unlock(&g_pp_mu);
++    int busy = 0; pthread_mutex_lock(&g_pp_mu); for (int i = 0; i < PSO_PEND_MAX; i++) busy += pp_used(i) && !g_pp[i].done; pthread_mutex_unlock(&g_pp_mu);
+     int cap = rb_look_cap(), i = 0;   // RewindBox (patch 0081): RB_LOOK_AHEAD with the lanes, else PSO_AHEAD
+     for (; i < na && busy < cap; i++) { uint64_t k0 = g_pp_kicked; int past = busy >= PSO_AHEAD; pso_pend_kick(&qa[i].k, (__bridge NvShader *)qa[i].vs, (__bridge NvShader *)qa[i].fs, 0);   // RewindBox (patch 0069): 0, a guess: on the lanes
+         if (g_pp_kicked != k0) { busy++; if (past) rb_look_past_note(); } }   // RewindBox (patch 0081): past, handed where the former cap stopped
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -82,7 +82,7 @@
+     }
+     pthread_mutex_lock(&g_pp_mu);
+     for (;;) {
+-        int busy = 0; for (int i = 0; i < PSO_PEND_MAX; i++) busy |= g_pp[i].used && !g_pp[i].done;
++        int busy = 0; for (int i = 0; i < PSO_PEND_MAX; i++) busy |= pp_used(i) && !g_pp[i].done;
+         if (!busy) break;
+         if (RB_WAKE_CALL("session.timed", s2a_rb_wake_absolute(&dl), pthread_cond_timedwait(&g_pp_cv, &g_pp_mu, &dl)) == ETIMEDOUT) { pthread_mutex_unlock(&g_pp_mu); return -ETIMEDOUT; }
+     }
+@@ -239,7 +239,7 @@
+     memset(g_rt_sticky, 0, sizeof g_rt_sticky); g_rt_sticky_n = 0;   // RewindBox (patch 0049): storage drawn into belongs to this session's guest memory (rt_sticky_add)
+     os_unfair_lock_lock(&g_ds_pfv_mu); memset(g_ds_pfv_sticky, 0, sizeof g_ds_pfv_sticky); g_ds_pfv_sticky_n = 0; os_unfair_lock_unlock(&g_ds_pfv_mu);   // RewindBox (patch 0399)
+     g_rt_history_frame = 0; g_rt_history_valid = 0;
+-    for (int i = 0; i < PSO_PEND_MAX; i++) { g_pp[i].ps = nil; g_pp[i].error = nil; g_pp[i].used = g_pp[i].done = g_pp[i].late = 0; }
++    for (int i = 0; i < PSO_PEND_MAX; i++) { g_pp[i].ps = nil; g_pp[i].error = nil; pp_release(i); g_pp[i].done = g_pp[i].late = 0; }
+     g_geo_program = nil; g_pso_fsfn = nil; g_pso_lmap = NULL;
+     atomic_store(&g_rb_first_recovery_option,0); atomic_store(&g_rb_first_draw_option,0); g_rb_first_ro=nil; g_rb_first_indexed=NULL;
+     g_rb_first_snap=g_rb_first_live=NULL; memset(g_rb_first_refused,0,sizeof g_rb_first_refused);
+--- a/graphics/nvn/tests/t_nvn_pso_lookahead.m
++++ b/graphics/nvn/tests/t_nvn_pso_lookahead.m
+@@ -62,7 +62,7 @@
+         // ④ 后台已有 PSO_AHEAD 条在编：往前看不再踢（只踢手头这条），后面那笔留到它自己画时再踢
+         //   RewindBox (patch 0081): the cap is rb_look_cap(): RB_LOOK_AHEAD with the lanes, PSO_AHEAD with S2A_RB_LOOK_WIDE=0 or S2A_RB_PSO_LANES=0
+         pthread_mutex_lock(&g_pp_mu);
+-        for (int i = 0; i < rb_look_cap(); i++) { int s_ = PSO_PEND_MAX - 1 - i; memset(&g_pp[s_].k, 0, sizeof g_pp[s_].k); memcpy(&g_pp[s_].k, &s_, sizeof s_); g_pp[s_].ps = nil; g_pp[s_].done = 0; g_pp[s_].late = 0; g_pp[s_].stuck = 0; g_pp[s_].used = 1; }
++        for (int i = 0; i < rb_look_cap(); i++) { int s_ = PSO_PEND_MAX - 1 - i; memset(&g_pp[s_].k, 0, sizeof g_pp[s_].k); memcpy(&g_pp[s_].k, &s_, sizeof s_); g_pp[s_].ps = nil; g_pp[s_].done = 0; g_pp[s_].late = 0; g_pp[s_].stuck = 0; pp_claim(s_); }
+         pthread_mutex_unlock(&g_pp_mu);
+         NvShader *fx = shader(lib, @"fa", "1111111111111111_b", 1), *fy = shader(lib, @"fb", "2222222222222222_b", 1);
+         NvProg *px = [NvProg new]; px->sh[0] = vs; px->sh[1] = fx; NvProg *py = [NvProg new]; py->sh[0] = vs; py->sh[1] = fy;
+@@ -71,21 +71,21 @@
+         g_sub_serial++; kick0 = g_pp_kicked; ps = pso_get_(px, nil);
+         VERIFY(ps && pso_pend_state(&ky) == 0 && g_pp_kicked - kick0 == 1, "④ 已有 %d 条在编：只踢手头这条（踢出 %llu）、后面那笔不踢（状态 %d）", rb_look_cap(), (unsigned long long)(g_pp_kicked - kick0), pso_pend_state(&ky));
+         S.prog = NULL; g_exec_next = NULL;
+-        pthread_mutex_lock(&g_pp_mu); for (int i = 0; i < PSO_PEND_MAX; i++) g_pp[i].used = 0; pthread_mutex_unlock(&g_pp_mu);
++        pthread_mutex_lock(&g_pp_mu); for (int i = 0; i < PSO_PEND_MAX; i++) pp_release(i); pthread_mutex_unlock(&g_pp_mu);
+ 
+         // ③ 表满：全是编完没人取的 → 回收一格
+         pthread_mutex_lock(&g_pp_mu);
+-        for (int i = 0; i < PSO_PEND_MAX; i++) { memset(&g_pp[i].k, 0, sizeof g_pp[i].k); memcpy(&g_pp[i].k, &i, sizeof i); g_pp[i].ps = nil; g_pp[i].done = 1; g_pp[i].late = 0; g_pp[i].stuck = 0; g_pp[i].used = 1; }
++        for (int i = 0; i < PSO_PEND_MAX; i++) { memset(&g_pp[i].k, 0, sizeof g_pp[i].k); memcpy(&g_pp[i].k, &i, sizeof i); g_pp[i].ps = nil; g_pp[i].done = 1; g_pp[i].late = 0; g_pp[i].stuck = 0; pp_claim(i); }
+         pthread_mutex_unlock(&g_pp_mu);
+         NvShader *fc = shader(lib, @"fb", "eeeeeeeeeeeeeeee_b", 1); pso_key kc; pso_key_fill(&kc, vs, fc, g_pass.cfmt, 0, 0, 1, 0);
+         uint64_t d0 = g_pp_dropped; pso_pend_kick(&kc, vs, fc, 0);   // RewindBox (patch 0069): now = 0, a background guess as before
+         VERIFY(pso_pend_state(&kc) != 0 && g_pp_dropped == d0 + 1, "③ 表满、都编完没人取：腾出一格给新管线（回收 +%llu，新管线状态 %d）", (unsigned long long)(g_pp_dropped - d0), pso_pend_state(&kc));
+         { int t = 0; id got = pso_pend_take(&kc, &t, 0); VERIFY(got && !t, "③ 新管线编完能取到"); }
+-        pthread_mutex_lock(&g_pp_mu); for (int i = 0; i < PSO_PEND_MAX; i++) { g_pp[i].done = 0; g_pp[i].used = 1; } pthread_mutex_unlock(&g_pp_mu);
++        pthread_mutex_lock(&g_pp_mu); for (int i = 0; i < PSO_PEND_MAX; i++) { g_pp[i].done = 0; pp_claim(i); } pthread_mutex_unlock(&g_pp_mu);
+         NvShader *fd2 = shader(lib, @"fa", "ffffffffffffffff_b", 1); pso_key kd; pso_key_fill(&kd, vs, fd2, g_pass.cfmt, 0, 0, 1, 0);
+         d0 = g_pp_dropped; pso_pend_kick(&kd, vs, fd2, 0);   // RewindBox (patch 0069): now = 0
+         VERIFY(pso_pend_state(&kd) == 0 && g_pp_dropped == d0, "③ 表满、全在编：拒（新管线不进表，调用方现建），不回收在编的");
+-        pthread_mutex_lock(&g_pp_mu); for (int i = 0; i < PSO_PEND_MAX; i++) g_pp[i].used = 0; pthread_mutex_unlock(&g_pp_mu);
++        pthread_mutex_lock(&g_pp_mu); for (int i = 0; i < PSO_PEND_MAX; i++) pp_release(i); pthread_mutex_unlock(&g_pp_mu);
+ 
+         {   // ⑤ 前瞻不升级共享贴图
+             static uint8_t *mem; REQUIRE(!posix_memalign((void **)&mem, 65536, 1 << 20)); memset(mem, 0, 1 << 20);
+@@ -115,7 +115,7 @@
+             VERIFY(t1m && (t1m.usage & MTLTextureUsageShaderWrite) && g_pfv_upgrades == up0 + 1, "⑤ 真正解析图像对象时才升级（写权限 %d，升级 +%llu，期望 1）",
+                    t1m ? !!(t1m.usage & MTLTextureUsageShaderWrite) : -1, (unsigned long long)(g_pfv_upgrades - up0));
+             uint64_t f = nvn_be_sub_commit(); REQUIRE(nvn_be_wait(f, 10000000000ull)); REQUIRE(!mtl_last_commit_error());
+-            pthread_mutex_lock(&g_pp_mu); for (int i = 0; i < PSO_PEND_MAX; i++) g_pp[i].used = 0; pthread_mutex_unlock(&g_pp_mu);
++            pthread_mutex_lock(&g_pp_mu); for (int i = 0; i < PSO_PEND_MAX; i++) pp_release(i); pthread_mutex_unlock(&g_pp_mu);
+         }
+ 
+         unlink(user); unlink(map);
+--- a/graphics/nvn/tests/t_nvn_smg3_stall.m
++++ b/graphics/nvn/tests/t_nvn_smg3_stall.m
+@@ -39,7 +39,7 @@
+         VERIFY(zc && zc.textureType == MTLTextureTypeCube && zc.pixelFormat == MTLPixelFormatRGBA32Uint, "③ 2D 进 uint 立方体槽：零立方体按声明的 uint 类（PR #490，原先恒 float）");
+ 
+         pso_key k; memset(&k, 0x5a, sizeof k);
+-        pthread_mutex_lock(&g_pp_mu); g_pp[0].k = k; g_pp[0].ps = nil; g_pp[0].done = 0; g_pp[0].late = 0; g_pp[0].used = 1; pthread_mutex_unlock(&g_pp_mu);
++        pthread_mutex_lock(&g_pp_mu); g_pp[0].k = k; g_pp[0].ps = nil; g_pp[0].done = 0; g_pp[0].late = 0; pp_claim(0); pthread_mutex_unlock(&g_pp_mu);
+         int late = 0; uint64_t t0 = bp_now(); id ps = pso_pend_take(&k, &late, 1); double ms = (bp_now() - t0) / 1e6;
+         VERIFY(!ps && late && ms >= 140 && ms < 1000, "② 没编完：约 150 ms 返回并标超时（实得 %.0f ms、超时 %d）", ms, late);
+         late = 0; t0 = bp_now(); ps = pso_pend_take(&k, &late, 1); ms = (bp_now() - t0) / 1e6;
+@@ -50,12 +50,12 @@
+         id<MTLRenderPipelineState> real = [g_dev newRenderPipelineStateWithDescriptor:pd error:nil]; REQUIRE(real);
+         pthread_mutex_lock(&g_pp_mu); g_pp[0].ps = real; g_pp[0].done = 1; pthread_cond_broadcast(&g_pp_cv); pthread_mutex_unlock(&g_pp_mu);
+         late = 0; ps = pso_pend_take(&k, &late, 1);
+-        VERIFY(ps == real && !late && !g_pp[0].used, "② 编完后取到那份管线、表项释放");
++        VERIFY(ps == real && !late && !pp_used(0), "② 编完后取到那份管线、表项释放");
+ 
+         // ④ 每帧等待预算（斯普拉遁3 第二局：一帧里几十条各等 1–2 秒、都没过单条上限，整帧 66.9 秒）：预算 100 ms、单条上限 2000 ms，两条都没编完
+         setenv("DM_NVN_PSO_FRAME_MS", "100", 1); g_pso_frame_ms = -1;
+         pso_key k2, k3; memset(&k2, 0x21, sizeof k2); memset(&k3, 0x33, sizeof k3);
+-        pthread_mutex_lock(&g_pp_mu); g_pp[1].k = k2; g_pp[1].ps = nil; g_pp[1].done = 0; g_pp[1].late = 0; g_pp[1].used = 1; g_pp[2].k = k3; g_pp[2].ps = nil; g_pp[2].done = 0; g_pp[2].late = 0; g_pp[2].used = 1; pthread_mutex_unlock(&g_pp_mu);
++        pthread_mutex_lock(&g_pp_mu); g_pp[1].k = k2; g_pp[1].ps = nil; g_pp[1].done = 0; g_pp[1].late = 0; pp_claim(1); g_pp[2].k = k3; g_pp[2].ps = nil; g_pp[2].done = 0; g_pp[2].late = 0; pp_claim(2); pthread_mutex_unlock(&g_pp_mu);
+         atomic_fetch_add(&g_cur_frame, 1);
+         late = 0; t0 = bp_now(); ps = pso_pend_take(&k2, &late, 1); ms = (bp_now() - t0) / 1e6;
+         VERIFY(!ps && late == 2 && ms >= 90 && ms < 600 && !g_pp[1].late, "④ 本帧第一条：等满预算约 100 ms 返回、记「预算跳过」不记超时（实得 %.0f ms、类 %d）", ms, late);
+@@ -69,7 +69,7 @@
+         //    仍等到编完拿到管线；后台 400 ms 后才编完（> 单条上限 150 ms、> 帧预算 100 ms）→ 等待 ≥ 350 ms、拿到 real、不标超时
+         setenv("DM_NVN_PSO_WAIT_MS", "150", 1);
+         pso_key k4; memset(&k4, 0x44, sizeof k4);
+-        pthread_mutex_lock(&g_pp_mu); g_pp[3].k = k4; g_pp[3].ps = nil; g_pp[3].done = 0; g_pp[3].late = 1; g_pp[3].used = 1; pthread_mutex_unlock(&g_pp_mu);
++        pthread_mutex_lock(&g_pp_mu); g_pp[3].k = k4; g_pp[3].ps = nil; g_pp[3].done = 0; g_pp[3].late = 1; pp_claim(3); pthread_mutex_unlock(&g_pp_mu);
+         late = 0; ps = pso_pend_take(&k3, &late, 1);   // 先把本帧预算用尽
+         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 400 * (int64_t)NSEC_PER_MSEC), dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+             pthread_mutex_lock(&g_pp_mu); g_pp[3].ps = real; g_pp[3].done = 1; pthread_cond_broadcast(&g_pp_cv); pthread_mutex_unlock(&g_pp_mu); });
+@@ -78,7 +78,7 @@
+         // ⑥ 不能跳的绘制也有上限兜底（DM_NVN_PSO_UNSAFE_WAIT_MS，缺省 10000）：上限 300 ms、管线一直不编完 → 约 300 ms 返回、标超时（类 1）并记该管线 late（之后照超时处理），调用方跳过并报红
+         setenv("DM_NVN_PSO_UNSAFE_WAIT_MS", "300", 1); g_pso_unsafe_ms = -1; atomic_fetch_add(&g_cur_frame, 1);
+         pso_key k5; memset(&k5, 0x55, sizeof k5);
+-        pthread_mutex_lock(&g_pp_mu); g_pp[4].k = k5; g_pp[4].ps = nil; g_pp[4].done = 0; g_pp[4].late = 0; g_pp[4].used = 1; pthread_mutex_unlock(&g_pp_mu);
++        pthread_mutex_lock(&g_pp_mu); g_pp[4].k = k5; g_pp[4].ps = nil; g_pp[4].done = 0; g_pp[4].late = 0; pp_claim(4); pthread_mutex_unlock(&g_pp_mu);
+         late = 0; t0 = bp_now(); ps = pso_pend_take(&k5, &late, 0); ms = (bp_now() - t0) / 1e6;
+         VERIFY(!ps && late == 1 && g_pp[4].late && ms >= 280 && ms < 1500, "⑥ 不能跳的绘制等满上限 300 ms 仍没编完：返回、标超时并记 late（实得 %.0f ms、类 %d）", ms, late);
+         // ⑥b 同一管线等满过不安全上限（编译服务卡在它上面）：之后不能跳的绘制也立即跳过、不再各等 300 ms（斯普拉遁3 10-27 PSB：同一管线连等 3 次 10 秒 = 31 秒停帧）；编完后照常取到

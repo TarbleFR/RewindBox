@@ -1,0 +1,37 @@
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -8616,9 +8616,31 @@
+ static void gpw_clear(uint64_t lo, uint64_t n) {   // this backend's GPU wrote guest memory [lo, lo + n) (buffer copy / fill / update, transform feedback, texture→buffer copy)
+     if (!n || !atomic_load_explicit(&g_gpw_nblk, memory_order_relaxed)) return;
+     pthread_mutex_lock(&g_gpw_mu);
+-    for (uint64_t g = lo >> 9, ge = (lo + n + 511) >> 9; g < ge; g++) {
+-        uint64_t k = g >> 9; if (!nvn_hm_get(&g_gpw, &k)) { g = (k << 9) + 511; continue; }
+-        gpw_unmark(g);
++    // Keep the same GOB rounding and generation delta as individual unmarks.
++    uint64_t first = lo >> 9;
++    uint64_t last = (lo + MIN(n - 1, UINT64_MAX - lo)) >> 9;
++    for (uint64_t k = first >> 9; k <= last >> 9; k++) {
++        gpw_blk *block = nvn_hm_get(&g_gpw, &k);
++        if (!block) continue;
++        unsigned begin = k == first >> 9 ? (unsigned)(first & 511) : 0;
++        unsigned end = k == last >> 9 ? (unsigned)(last & 511) : 511;
++        unsigned removed = 0;
++        for (unsigned w = begin >> 6; w <= end >> 6; w++) {
++            uint64_t mask = UINT64_MAX;
++            if (w == begin >> 6) mask <<= begin & 63;
++            if (w == end >> 6) mask &= UINT64_MAX >> (63 - (end & 63));
++            removed += (unsigned)__builtin_popcountll(block->bits[w] & mask);
++            block->bits[w] &= ~mask;
++        }
++        if (!removed) continue;
++        g_gpw_gen += removed;
++        uint64_t remaining = 0;
++        for (unsigned w = 0; w < 8; w++) remaining |= block->bits[w];
++        if (!remaining) {
++            nvn_hm_del(&g_gpw, &k);
++            free(block);
++            atomic_fetch_sub(&g_gpw_nblk, 1);
++        }
+     }
+     pthread_mutex_unlock(&g_gpw_mu);
+ }
