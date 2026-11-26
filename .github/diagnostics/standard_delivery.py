@@ -547,8 +547,22 @@ def manifest_errors(value):
     for key, spec in value['components'].items():
         if spec.get('mode') == 'pinned-engine':
             errors.extend(engine_spec_errors(key, spec, value))
-    for key in ('dolphin', 'armsx2'):
-        check(value['components'].get(key, {}).get('mode') == 'retain', f'components.{key} must be retained')
+    check(value['components'].get('dolphin', {}).get('mode') == 'retain', 'components.dolphin must be retained')
+    armsx2 = value['components'].get('armsx2', {})
+    if armsx2.get('origin', {}).get('workflow') == '.github/workflows/armsx2-core.yml':
+        import armsx2_core_component as component
+        mode = armsx2.get('mode')
+        check(mode in ('retain', 'replace') and armsx2.get('image') == component.IMAGE and
+              tuple(armsx2.get('inputs', ())) == component.INPUTS and
+              HEX40.fullmatch(str(armsx2.get('upstreamRevision'))) and
+              HEX64.fullmatch(str(armsx2.get('payloadFingerprint'))), 'Invalid ARMSX2 producer pin')
+        replaced = value['images'].get('replaced', {}).get('armsx2')
+        retained_images = value['images'].get('retained', {}).get('armsx2', [])
+        check((mode == 'replace' and replaced == component.IMAGE and not retained_images) or
+              (mode == 'retain' and replaced is None and retained_images == [component.IMAGE]),
+              'ARMSX2 image policy differs from the component mode')
+    else:
+        check(armsx2.get('mode') == 'retain', 'The legacy ARMSX2 component must be retained')
     for key in ('libretro', 'melonx-dependencies'):
         check(value['components'].get(key, {}).get('mode') == 'retain-archive', f'components.{key} must be a retained archive')
     check(isinstance(value['components'].get('libretro', {}).get('jitHelper', False), bool),
@@ -2448,11 +2462,27 @@ def melonx_operation(operation):
     return save('standard-melonx-evidence.json', melonx.engine_evidence())
 
 
+def native_producer(kind, spec):
+    if kind == 'armsx2' and spec.get('origin', {}).get('workflow') == '.github/workflows/armsx2-core.yml':
+        import armsx2_core_component
+        return armsx2_core_component
+    return None
+
+
+def native_origin(kind, spec):
+    import retained_components as retained
+    producer = native_producer(kind, spec)
+    return producer.authenticate(spec) if producer else retained.native_origin(kind, spec)
+
+
 def native_operation(kind, install=True):
     import retained_components as retained
     manifest = ci_manifest()
     suffix = '' if install else '-authenticated'
-    return save(f'standard-{kind}{suffix}.json', retained.install_native(kind, manifest['components'][kind], install))
+    spec = manifest['components'][kind]
+    producer = native_producer(kind, spec)
+    result = producer.install(spec, install) if producer else retained.install_native(kind, spec, install)
+    return save(f'standard-{kind}{suffix}.json', result)
 
 
 def archive_operation(kind):
@@ -2601,7 +2631,7 @@ def expected():
     natives = {}
     for kind in retained.NATIVES:
         value = json.loads((OUT / f'standard-{kind}.json').read_bytes())
-        origin = retained.native_origin(kind, manifest['components'][kind])
+        origin = native_origin(kind, manifest['components'][kind])
         require(all(value.get(key) == origin[key] for key in origin if key != 'expiresAt'),
                 'Retained Core differs from its authenticated original producer: ' + kind)
         natives[kind] = value
@@ -2644,7 +2674,12 @@ def embed(app):
         info_path.write_bytes(plistlib.dumps(info, fmt=fmt, sort_keys=False))
     value = expected()
     (Path(app) / IDENTITY).write_text(json.dumps(value, indent=2) + '\n')
-    notices = {kind: retained.embed_native_notices(kind, manifest['components'][kind], app) for kind in retained.NATIVES}
+    notices = {}
+    for kind in retained.NATIVES:
+        spec = manifest['components'][kind]
+        producer = native_producer(kind, spec)
+        notices[kind] = (producer.embed_notices(spec, app) if producer else
+                         retained.embed_native_notices(kind, spec, app))
     return save('standard-embedded.json', dict(result='embedded', identity=value, legalNotices=notices))
 
 
@@ -2754,7 +2789,7 @@ def validate(ipa):
             image = macho(raw)
             require(payload_fingerprint(raw) == receipt['components'][kind]['payloadFingerprint'] ==
                     spec['payloadFingerprint'] and image['codeSignature'] is True,
-                    'Signed native Core differs from its retained payload: ' + kind)
+                    'Signed native Core differs from its pinned payload: ' + kind)
             exports = set(image['definedSymbols'])
             require(producers608.DOLPHIN_EXPORTS <= exports if kind == 'dolphin' else exports == {'_NeoARMSX2_GetAPI'},
                     'Packaged native exports differ: ' + kind)
@@ -2956,7 +2991,13 @@ def freeze(build, dry_run=False, repo=None, root=None):
     replaced = {}
     for component, image in images['replaced'].items():
         replaced[image] = (pin['core'].get('payloadFingerprint') if component == 'rpcs3' else
-                           melonx_pin['packagedFingerprint'] if component == 'melonx' else None)
+                           melonx_pin['packagedFingerprint'] if component == 'melonx' else
+                           draft['components']['armsx2']['payloadFingerprint'] if component == 'armsx2' else None)
+    armsx2 = draft['components']['armsx2']
+    if native_producer('armsx2', armsx2):
+        matches_base = armsx2['payloadFingerprint'] == base_images_value.get(armsx2['image'])
+        if matches_base != (armsx2['mode'] == 'retain'):
+            blockers.append('ARMSX2 pinned payload must match the base only in retain mode')
     retained_images = {}
     for component, patterns in images['retained'].items():
         for name in expand_image_patterns(patterns, names):
@@ -3457,7 +3498,7 @@ def api_checks(manifest, strict):
     for key in engine_components(manifest):
         checks['engine-' + key] = lambda key=key: engine_authenticate(key, manifest)
     for kind in retained.NATIVES:
-        checks[kind] = lambda kind=kind: retained.native_origin(kind, manifest['components'][kind])
+        checks[kind] = lambda kind=kind: native_origin(kind, manifest['components'][kind])
     for kind in retained.ARCHIVES:
         checks[kind] = lambda kind=kind: retained.archive_origin(kind, manifest['components'][kind])
     for group in TEST_GROUPS:

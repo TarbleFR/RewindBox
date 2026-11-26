@@ -62,11 +62,14 @@ jobs:
           submodules: recursive
           persist-credentials: false
       - name: Export exact host sources
+        if: env.ARMSX2_BUILD_ONLY != 'true'
         run: |
           mkdir -p "$RUNNER_TEMP/armsx2-host-source"
           git archive HEAD | gzip > "$RUNNER_TEMP/armsx2-host-source/neostation.tar.gz"
           printf 'host=%s\narmsx2=%s\n' "$GITHUB_SHA" '${{ steps.source.outputs.revision }}' > "$RUNNER_TEMP/armsx2-host-source/identity.txt"
-      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
+      - name: Upload host source snapshot for the full verification job
+        if: env.ARMSX2_BUILD_ONLY != 'true'
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: ARMSX2-host-source-${{ github.sha }}
           path: ${{ runner.temp }}/armsx2-host-source/

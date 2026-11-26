@@ -510,6 +510,14 @@ class Components(unittest.TestCase):
         for kind in retained.NATIVES:
             spec, pin = components[kind], delivered609.REUSED_ARTIFACTS[kind]
             origin = spec['origin']
+            producer = sd.native_producer(kind, spec)
+            if producer:
+                self.assertEqual(origin['workflow'], producer.WORKFLOW)
+                self.assertEqual(tuple(spec['inputs']), producer.INPUTS)
+                self.assertEqual(REPO.tree_of(origin['source']), origin['tree'])
+                self.assertEqual(json.loads(REPO.show(origin['source'], 'build-utils/armsx2/source.json'))['revision'],
+                                 spec['upstreamRevision'])
+                continue
             self.assertEqual((origin['job'], origin['artifact'], origin['bytes'], origin['sha256']),
                              (pin['job'], pin['artifact'], pin['bytes'], pin['sha256']))
             self.assertEqual(origin['jobName'], producers608.JOBS[kind])
@@ -520,8 +528,11 @@ class Components(unittest.TestCase):
             self.assertEqual(sha((ROOT / spec['consumedBy']['receipt']).read_bytes()), spec['consumedBy']['sha256'])
             self.assertTrue(retained.same_definition_as_producers608(kind))
         self.assertEqual(components['dolphin']['upstreamRevision'], producers608.DOLPHIN_SOURCE)
-        self.assertEqual(components['armsx2']['upstreamRevision'],
-                         json.loads((ROOT / 'build-utils/armsx2/source.json').read_bytes())['revision'])
+        armsx2 = components['armsx2']
+        tree = effective_of_head()
+        reader = sd.EffectiveReader(REPO, tree['effective'])
+        self.assertEqual(armsx2['upstreamRevision'],
+                         json.loads(reader.read('build-utils/armsx2/source.json'))['revision'])
         for kind in retained.ARCHIVES:
             origin, pin = components[kind]['origin'], delivered609.RETAINED_ARCHIVES[kind]
             collection = source_collections.collection(components[kind]) if kind == 'libretro' else None
