@@ -255,7 +255,7 @@ jobs:
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-widen-matrices]')
         run: |
           set -euo pipefail
-          python3 docs/evidence/s2arm-0437-review/matrices/replay.py "$RUNNER_TEMP/s2arm" proof/matrices.csv --variants control all --aot osx-arm64
+          python3 docs/evidence/s2arm-0437-review/matrices/replay.py "$RUNNER_TEMP/s2arm" proof/matrices.csv --variants control compatible --pairs 24 --aot osx-arm64
           cat proof/matrices.csv
       - name: Measure first-use pipeline compilation with synthetic Metal stages
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-pipeline-driver]')

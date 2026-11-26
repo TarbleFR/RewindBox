@@ -6,6 +6,7 @@ from pathlib import Path
 import random
 import shutil
 import subprocess
+import sys
 import tempfile
 
 HERE = Path(__file__).resolve().parent
@@ -24,6 +25,11 @@ def main():
     env = dict(os.environ, DOTNET_TieredCompilation="0")
     rng = random.Random(44220)
     with tempfile.TemporaryDirectory() as scratch:
+        suffix = ".dylib" if sys.platform == "darwin" else ".so"
+        clock = Path(scratch) / ("libs2arm_bench_clock" + suffix)
+        subprocess.run(["cc", "-shared", "-fPIC", "-O2", HERE / "threadclock.c", "-o", clock], check=True)
+        libpath = "DYLD_LIBRARY_PATH" if sys.platform == "darwin" else "LD_LIBRARY_PATH"
+        env[libpath] = os.pathsep.join(filter(None, (scratch, env.get(libpath))))
         programs = {}
         reference = None
         for label in ("base", *args.variants):
@@ -52,16 +58,16 @@ def main():
         seen = {}
         with args.csv.open("x", newline="") as output:
             writer = csv.writer(output)
-            writer.writerow(("pair","mode","variant","ms","hash","allocated"))
+            writer.writerow(("pair","mode","variant","ms","hash","allocated","thread_cpu_ms"))
             for pair in range(1, args.pairs + 1):
                 modes = rng.sample(MODES, len(MODES))
                 for label in rng.sample(list(programs),len(programs)):
                     rows = subprocess.check_output([*programs[label], *modes], env=env, text=True).splitlines()
                     for mode, line in zip(modes, rows[len(modes):], strict=True):
-                        name,ms,checksum,alloc = line.split(",")
+                        name,ms,checksum,alloc,cpu = line.split(",")
                         if name != mode or seen.setdefault(name,(checksum,alloc)) != (checksum,alloc):
                             raise ValueError((line, mode, label))
-                        writer.writerow((pair,name,label,ms,checksum,alloc))
+                        writer.writerow((pair,name,label,ms,checksum,alloc,cpu))
                     output.flush()
 
 if __name__ == "__main__":

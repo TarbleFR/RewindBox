@@ -5,6 +5,8 @@ using System.Runtime.InteropServices;
 using S2Arm.Gfx.Widen;
 class Program {
     const int Trials=131072;
+    [DllImport("s2arm_bench_clock", EntryPoint="thread_nanoseconds")]
+    static extern ulong ThreadNanoseconds();
     static ulong Add(ulong h, long n) => unchecked((h ^ (ulong)n) * 1099511628211UL);
     static float[] Matrix(int i, int type) {
         var m = new float[16];
@@ -34,6 +36,7 @@ class Program {
         var dst=new float[16]; ulong h=1469598103934665603UL;
         bool timed=!verify;
         long alloc=GC.GetAllocatedBytesForCurrentThread(), start=Stopwatch.GetTimestamp();
+        ulong cpuStart=ThreadNanoseconds();
         for(int i=0;i<(verify?matrices.Length:Trials);i++) {
             var m=matrices[i & (matrices.Length-1)];
             if(verify) {
@@ -54,9 +57,10 @@ class Program {
                 foreach(float f in dst) h=Add(h,BitConverter.SingleToInt32Bits(f));
             }
         }
+        double cpuMs=(ThreadNanoseconds()-cpuStart)/1_000_000.0;
         double ms=Stopwatch.GetElapsedTime(start).TotalMilliseconds;
         long delta=GC.GetAllocatedBytesForCurrentThread()-alloc;
-        if(timed) Console.WriteLine(FormattableString.Invariant($"{mode},{ms:F6},{h:x16},{delta}"));
+        if(timed) Console.WriteLine(FormattableString.Invariant($"{mode},{ms:F6},{h:x16},{delta},{cpuMs:F6}"));
         return h;
     }
     static void Main(string[] args) {
