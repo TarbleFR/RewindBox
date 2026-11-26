@@ -87,6 +87,8 @@ Une deuxième série a mesuré les cinq classes avec le même pilote Metal class
 
 Les quatre variantes de sélection des buffers de constantes testées sur Linux accélèrent les cas avec beaucoup de slots liés mais ont chacune une médiane plus élevée dans le cas avec un seul slot lié par étage. Elles restent dans les expériences écartées. [Treize triplets par scénario, sources et limites](drafts/widen-mask/README.md).
 
+La compilation iPhone du moteur ordinaire et de la bibliothèque NVN avec observation FI active a réussi avec le SDK Apple sur le runner macOS 26. Le format de diagnostic a aussi été retrouvé dans la bibliothèque dédiée. [Compilation iPhoneOS](https://github.com/TarbleFR/RewindBox/actions/runs/45857941999).
+
 Le patch **0449** évite les transpositions redondantes dans la reconnaissance des projections du mode grand écran. Sur 24 triplets NativeAOT macOS arm64, le lot de 131 072 fenêtres mixtes passe de 38,70 à 33,29 ms de temps CPU médian. La contre-expertise compare deux points d’entrée, 17 compteurs, les deux orientations, les exceptions et les cas IEEE. Les FPS et la part de ce chemin dans les jeux restent non mesurés. [Comparaison et reproduction](matrices/README.md).
 
 La confirmation des transferts GPU a comparé quatre blocs par groupe au témoin d’un bloc et à une seconde exécution du même témoin. Sur les cinq configurations, les intervalles appariés recouvrent zéro, aussi bien face au premier qu’au second témoin. Les 540 lots de 64 dispatchs ont tous produit les octets attendus. Le moteur conserve un bloc par groupe. [Données Apple](gpu-textures/macos-confirm.csv) et [exécution](https://github.com/TarbleFR/RewindBox/actions/runs/45855847861).

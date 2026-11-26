@@ -14,3 +14,5 @@ Chacun des douze profils temporels est constitué de cinq créations de vrais pi
 Le pire surcoût modélisé est de 6,25 ms sur l’ensemble des premiers dessins. Le départage proposé est écarté. Les durées de construction sur le Mac sont mesurées. L’attente dans le jeu, la consommation et les FPS iPhone restent inconnus.
 
 Pour reproduire les 288 lignes, exécuter `python3 replay_warm_order.py ARBRE stages-mac.csv nouveau.csv` depuis ce dossier. [Mesures du pilote](stages-mac.csv) et [résultats du modèle](order-model.csv).
+
+Le second runner reconstruit les mêmes cinq classes de shaders et fournit douze nouveaux profils. Le même calendrier simulé gagne dans 30 scénarios, en perd 24 et donne 90 égalités. Le départage par nombre de shaders nouveaux reste écarté. [Coûts répétés](stages-repeat-mac.csv) et [calendriers répétés](order-model-repeat.csv).
