@@ -468,7 +468,7 @@ index 0000000..5590358
 +enum {
 +    RB_TREG_CAND_CAP = 1u << 20,
 +    RB_TREG_CAND_WORDS = RB_TREG_CAND_CAP >> 6,
-+    RB_TREG_CAND_EXCL_FLAGS = 0x1u | 0x2u | 0x40u, /* DISPLAY(0x1) | VIDEO_DECODE(0x2) | SPARSE(0x40) — static-asserted in nvn_mtl.m */
++    RB_TREG_CAND_EXCL_FLAGS = 0x1u | 0x2u | 0x20u, /* DISPLAY(0x1) | VIDEO_DECODE(0x2) | SPARSE(0x20) — static-asserted in nvn_mtl.m */
 +    RB_SUB_AHEAD_MAX_OPS = 2048,
 +    RB_SUB_AHEAD_MAX_TEX = 128,
 +    RB_SUB_AHEAD_HASH = 256,
