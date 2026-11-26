@@ -18,6 +18,8 @@ name: S2Arm engine (iOS) build check
       - build-utils/s2arm/engine/**
       - build-utils/embed_legal_bundle.py
       - tools/s2arm_prototype/pin.json
+      - tools/s2arm_a18pro/pipeline_driver.*
+      - docs/evidence/s2arm-0437-review/matrices/replay.py
       - build-utils/s2arm/engine-pin.json
       - build-utils/s2arm/engine_pin.py
 permissions:
@@ -249,6 +251,12 @@ jobs:
             77) echo "Metal device unavailable on runner" >> proof/homebrew-readback.txt ;;
             *) exit "$rc" ;;
           esac
+      - name: Compare matrix recognition before and after NativeAOT compilation
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-widen-matrices]')
+        run: |
+          set -euo pipefail
+          python3 docs/evidence/s2arm-0437-review/matrices/replay.py "$RUNNER_TEMP/s2arm" proof/matrices.csv --variants control all --aot osx-arm64
+          cat proof/matrices.csv
       - name: Measure first-use pipeline compilation with synthetic Metal stages
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-pipeline-driver]')
         run: |

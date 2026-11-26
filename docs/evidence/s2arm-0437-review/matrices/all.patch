@@ -1,0 +1,53 @@
+--- a/graphics/widen/WidenRewriter.cs
++++ b/graphics/widen/WidenRewriter.cs
+@@ -454,15 +454,12 @@
+         ///（保持原行为：10-21 丝之歌界面用这种投影，改写它会让界面移位，门禁中间区 517134 → 518382）。界面常用的带 −1 / +1 偏移的不对称正交、骨骼 / 世界矩阵都不在这里。</summary>
+         void NoteSymOrtho(ReadOnlySpan<float> m)
+         {
+-            for (int c = 0; c < 2; c++)
+-            {
+-                bool col = c == 1;
+-                Span<float> a = stackalloc float[16];
+-                for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++) a[i * 4 + j] = col ? m[j * 4 + i] : m[i * 4 + j];
+-                if (Z(a[12]) && Z(a[13]) && Z(a[14]) && MathF.Abs(a[15] - 1) < 1e-4f && Z(a[1]) && Z(a[2]) && Z(a[3]) && Z(a[4]) && Z(a[6]) && Z(a[7])
+-                    && Z(a[8]) && Z(a[9]) && !Z(a[10]) && a[0] > 1e-6f && Near(MathF.Abs(a[5]) / a[0], SrcAspect, AspectTol))
+-                { NoteOrthoCamera(a[0], MathF.Abs(a[5])); return; }
+-            }
++            // Both storage orders require the same zero off-diagonal entries,
++            // except that the depth translation may occupy either [11] or [14].
++            if (Z(m[12]) && Z(m[13]) && (Z(m[14]) || Z(m[11])) && MathF.Abs(m[15] - 1) < 1e-4f
++                && Z(m[1]) && Z(m[2]) && Z(m[3]) && Z(m[4]) && Z(m[6]) && Z(m[7]) && Z(m[8]) && Z(m[9])
++                && !Z(m[10]) && m[0] > 1e-6f && Near(MathF.Abs(m[5]) / m[0], SrcAspect, AspectTol))
++                NoteOrthoCamera(m[0], MathF.Abs(m[5]));
+         }
+ 
+         void NoteOrthoCamera(float x, float y)
+@@ -820,18 +817,21 @@
+         }
+         static bool MatchEither(ReadOnlySpan<float> m, out WidenKind kind, out bool col)
+         {
+-            bool r = Match(m, false, out WidenKind kr), c = Match(m, true, out WidenKind kc);
+-            if (r && (kr != WidenKind.ViewProjection || !c || kc == WidenKind.ViewProjection)) { kind = kr; col = false; return true; }
+-            kind = kc; col = true; return c;
++            bool row = Match(m, false, out WidenKind rowKind);
++            if (row && rowKind != WidenKind.ViewProjection) { kind = rowKind; col = false; return true; }
++            bool column = Match(m, true, out WidenKind columnKind);
++            if (row && (!column || columnKind == WidenKind.ViewProjection)) { kind = rowKind; col = false; return true; }
++            kind = columnKind; col = true; return column;
+         }
+ 
+         /// <summary>按数学形状判 4×4 矩阵种类。col = 列存（元素 (i,j) 在 m[j*4+i]）。</summary>
+         public static bool Match(ReadOnlySpan<float> m, bool col, out WidenKind kind)
+         {
+-            kind = default;
+-            Span<float> a = stackalloc float[16];   // 统一成行存：a[i*4+j] = 元素 (i,j)
+-            for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++) a[i * 4 + j] = col ? m[j * 4 + i] : m[i * 4 + j];
+-            return MatchRows(a, out kind);
++            if (!col) return MatchRows(m[..16], out kind);
++            Span<float> transposed = stackalloc float[16];
++            for (int i = 0; i < 4; i++)
++                for (int j = 0; j < 4; j++) transposed[i * 4 + j] = m[j * 4 + i];
++            return MatchRows(transposed, out kind);
+         }
+ 
+         static bool MatchRows(ReadOnlySpan<float> a, out WidenKind kind) => MatchRowsAt(a, SrcAspect, out kind);

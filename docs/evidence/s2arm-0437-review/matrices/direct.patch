@@ -1,0 +1,18 @@
+--- a/graphics/widen/WidenRewriter.cs
++++ b/graphics/widen/WidenRewriter.cs
+@@ -828,10 +828,11 @@
+         /// <summary>按数学形状判 4×4 矩阵种类。col = 列存（元素 (i,j) 在 m[j*4+i]）。</summary>
+         public static bool Match(ReadOnlySpan<float> m, bool col, out WidenKind kind)
+         {
+-            kind = default;
+-            Span<float> a = stackalloc float[16];   // 统一成行存：a[i*4+j] = 元素 (i,j)
+-            for (int i = 0; i < 4; i++) for (int j = 0; j < 4; j++) a[i * 4 + j] = col ? m[j * 4 + i] : m[i * 4 + j];
+-            return MatchRows(a, out kind);
++            if (!col) return MatchRows(m[..16], out kind);
++            Span<float> transposed = stackalloc float[16];
++            for (int i = 0; i < 4; i++)
++                for (int j = 0; j < 4; j++) transposed[i * 4 + j] = m[j * 4 + i];
++            return MatchRows(transposed, out kind);
+         }
+ 
+         static bool MatchRows(ReadOnlySpan<float> a, out WidenKind kind) => MatchRowsAt(a, SrcAspect, out kind);

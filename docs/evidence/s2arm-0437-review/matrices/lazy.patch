@@ -1,0 +1,17 @@
+--- a/graphics/widen/WidenRewriter.cs
++++ b/graphics/widen/WidenRewriter.cs
+@@ -820,9 +820,11 @@
+         }
+         static bool MatchEither(ReadOnlySpan<float> m, out WidenKind kind, out bool col)
+         {
+-            bool r = Match(m, false, out WidenKind kr), c = Match(m, true, out WidenKind kc);
+-            if (r && (kr != WidenKind.ViewProjection || !c || kc == WidenKind.ViewProjection)) { kind = kr; col = false; return true; }
+-            kind = kc; col = true; return c;
++            bool row = Match(m, false, out WidenKind rowKind);
++            if (row && rowKind != WidenKind.ViewProjection) { kind = rowKind; col = false; return true; }
++            bool column = Match(m, true, out WidenKind columnKind);
++            if (row && (!column || columnKind == WidenKind.ViewProjection)) { kind = rowKind; col = false; return true; }
++            kind = columnKind; col = true; return column;
+         }
+ 
+         /// <summary>按数学形状判 4×4 矩阵种类。col = 列存（元素 (i,j) 在 m[j*4+i]）。</summary>
