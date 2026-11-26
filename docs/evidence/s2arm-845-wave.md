@@ -1,4 +1,4 @@
-# S2Arm : vague 845 (`0418–0424`, déverrouillage pont, leviers universels NVN2 et boucle comparative Zelda + MKW)
+# S2Arm : vague 845 (`0418–0425`, déverrouillage pont, leviers universels NVN2 et boucle comparative Zelda + MKW)
 
 26 novembre 2026. Base : [IPA privée 844](rewind844/delivery.json) et [observations iPhone 844](s2arm-844-device.md). À la demande explicite du mainteneur, la vague 845 applique en un seul lot cohérent :
 - la correction des régressions de la 844 (`0418`),
@@ -69,6 +69,23 @@ Cinq goulots supplémentaires mesurés dans les journaux 844 de Zelda (`[rb-args
 | `rb_args_ubo.h` réel, rejeu Zelda (`350 000` dessins, 72 % `pool`/`size_abi`) | `299 732` full / `2,01 M` lookups | **`75 029` full / `562 k` lookups** | **−75,0 % full**, **−72,0 % lookups**, `+215 731` reuse | **`wrong = 0`**, **5/5 mutations négatives** (`1 354` à `307 181`), `t_rb_args_ubo` vert |
 | `rb_args_ubo.h` réel, rejeu MKW (`350 000` dessins, `handles` + `pool`/`size_abi`) | `240 913` full / `1,81 M` lookups | **`59 008` full / `420 k` lookups** | **−75,5 % full**, **−76,9 % lookups**, `why_h −99,1 %` | **`wrong = 0`**, **5/5 mutations négatives**, `t_rb_args_ubo` vert |
 | Modèle `thread.c` `yield_bo` workers secondaires (Zelda 6w `thermal=2` / MKW 5w `thermal=1` / rafales `<2 ms`) | `4 073` / `2 700` / `4 200` réveils/s | **`1 616` / `1 170` / `1 530` réveils/s** | **−60,3 % / −56,7 % / −63,6 %** | Latence max `≤ 0,5–1 ms` (`0 µs` sur `wake()`), `s2a_test_yield_bo` intact |
+
+### `0425` — Boucle comparative tour 3 (clears paresseux bindless, bandes `nvn_dirty`, takeover scopé, `g_dsnap` sélectif, mémo de continuation)
+Cinq goulots GPU/CPU supplémentaires tirés des journaux 844 de Zelda (`900` clears autonomes, `75 577` `unclassified table move` depuis `233` événements, `2 696–2 953` snapshots profondeur / `1 150,7 Mo`, `0,0` hit/image `rt_cont_memo`) et de Mario Kart World (`2 976` clears autonomes, `36 017–44 339` `their pool written`, `37 125` `unclassified table move`) :
+- **`nvn_mtl.m` + `rb_rt_cont.h` (`lc_sampled_mask` / `lc_take`)** : résout les handles bindless (`TEXU`/`TBUFU`/`IMGU`/`TEXA`/`TEXD`) via `rb_cont_binding_class` + `rb_cont_hit_mask` sous un verrou `g_rmu` unique afin de replier chaque clear non échantillonné dans `loadAction = Clear` (repli conservateur sur `!rb_explicit_bindings`, `TEXP`, `TEXD > 128` ou cible externe + `gmem`/`ssbo`).
+- **`nvn_dirty.c` (64 bandes `wseq` + `wbusy` par pool `≥ 128` pages)** : élimine les fausses invalidations inter-textures dans les grands pools partagés (`≥ 2 Mio` sur iOS 16 Kio) sans modifier les petits pools (`t_rb_dirty_range.c` intact et vert).
+- **`nvn_mtl.m` (`alias_take_over`, `tex_upgrade`, `cpu_unc_drop`, `rb_swap_storage_locked`)** : passe de `g_ser_gen++` global non classifié à `rb_serial_local_locked` sur les sériaux réellement évincés/modifiés (et `rb_serial_local_locked(0)` quand seuls des alias non référencés partent, préservant `RB_VS_WHY_DEAD` sur les vues GPU finalisées).
+- **`rb_dsnap_rule.h` + `nvn_mtl.m` (`g_dsnap`)** : garde `g_dsnap` valide sur `OP_SET_RT` même profondeur/vue, sur `OP_CLEAR_BUF`/`OP_COPY_*`/`OP_CLEAR_TEX` sans recouvrement ni même sérial, et sépare `depth_valid`/`stencil_valid` + cache 2 vues sur `g_dsnap.snap` (invalidation explicite ajoutée sur `OP_DISPATCH`).
+- **`rb_rt_cont.h` + `nvn_mtl.m` (`rb_cont_reads_rt_memo`)** : mémo par générations (`rb_cont_masks`, `g_rb_cont_ubo_gen`/`tex_gen`/`img_gen`/`pool_gen`/`mem_gen`) + sortie $O(1)$ sans verrou si aucun stage ne lit de texture/image.
+
+| Banc comparatif local (même machine, avant = 0424 / après = 0425) | Avant (0424) | Après (0425) | Gain mesuré (hôte) | Vérification d’exactitude |
+| --- | ---: | ---: | ---: | --- |
+| `nvn_dirty.c` réel (pool 32 Mio × 250 textures × 300 images, vraies fautes `SIGSEGV`) | `0` kept / `75 000` lents (`8 165 µs`) | **`72 600` kept / `2 400` lents (`5 976 µs`)** | **−96,8 % lents**, **−26,8 % temps** | `actual_dirty = 600`, `missed_dirty = 0`, `t_rb_dirty_range` vert |
+| `nvn_dirty.c` réel concurrent (400 000 lectures sur bande propre pendant fautes continues) | `266 006` kept / `133 994` lents | **`400 000` kept / `0` lent** | **100 % conservés** (`−100 %` faux lents) | `race_missed = 0` |
+| `rb_rt_cont.h` `lc_sampled_mask` / `lc_take` (300 images × 10 groupes bindless) | `0` pris / `6 000` clears autonomes | **`5 100` pris / `900` autonomes** | **−85,0 % passes clear-only** | **4/4 mutations négatives** (`TEXU`, alias `mem`, `TEXP`, `external+gmem`) |
+| `rb_rt_cont.h` `rb_cont_reads_rt_memo` (Zelda 300 images × 18 cont. × 20 dessins) | `0` hits (`0,0/img`) / `108 000` walks | **`80 700` hits (`269,0/img`) / `27 300` walks** | **−74,7 % walks+verrous** | `wrong = 0` + mutation négative UBO handle |
+| `rb_dsnap_rule.h` réel (Zelda 300 images, `SET_RT` même profondeur + `COPY_B2B` + 2 vues) | `3 300` copies (`22 659 Mo`) | **`1 200` copies (`8 240 Mo`)** | **−63,6 % copies & coupures** | `wrong = 0`, **6/6 mutations négatives**, `t_rb_dsnap_rule` vert |
+| `rb_view_scope.h` réel (`alias_take_over`, Zelda 233 takeovers × 384 vues) | `0` kept / `89 472` `why_global` | **`53 164` kept / `0` `why_global`** | **−100 % invalidations globales** | `dead_bug = 0` + mutation `lsn == 0` (`rb_serial_local_locked(0)` vs `add++`) |
 
 ## 2. Pont iOS, réglages Switch 2 et 12 langues
 
