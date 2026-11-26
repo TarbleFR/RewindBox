@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Time fresh, crossed and repeated synthetic stage pairs with S2Arm's Metal 4 PSO builder."""
+"""Time fresh, crossed and repeated synthetic stage pairs with S2Arm’s Metal 4 builder or a classic RGBA8 descriptor when Metal 4 is unavailable."""
 import argparse
 from pathlib import Path
 import subprocess
@@ -23,7 +23,7 @@ def shaders(index):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("tree", type=Path)
-    ap.add_argument("output", type=Path, help="raw CSV for a Metal 4 device")
+    ap.add_argument("output", type=Path, help="raw CSV for the available Metal builder")
     args = ap.parse_args()
     builder = args.tree.resolve() / "graphics/metal/tools/psobench/pairbench.m"
     if not builder.is_file():
