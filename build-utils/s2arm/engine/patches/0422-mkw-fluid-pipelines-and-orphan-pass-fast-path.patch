@@ -1,0 +1,277 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index a774b80..bc40243 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -2542,6 +2542,8 @@ static int g_rb_observing = 1;
+ static _Atomic int g_course_capture, g_course_exact;
+ static int rb_course_enabled(void);
+ static int rb_course_exact(void) { return atomic_load_explicit(&g_course_exact,memory_order_relaxed) && rb_course_enabled(); }
++static int rb_fluid_pso_on(void);
++static int rb_ref_profile_on(void) { const char *e = getenv("S2A_RB_PREPARE_PROFILE"); return e && *e; }
+ // Metal completion wakes the caller immediately. A timed wake also observes a stop request.
+ static void rb_compile_wait(pthread_cond_t *cv, pthread_mutex_t *mu) {
+     const struct timespec slice={0,100000000};
+@@ -5665,6 +5667,7 @@ static int alias_orph_cand(uint32_t i, CFSetRef held, alias_key *k) {   // calle
+ //   as unreferenced, and that ID's next read made it anew over storage whose GPU-drawn content no longer existed anywhere (it reads as zero). The caller holds g_rmu (taken
+ //   before g_smu, as everywhere) and g_smu. S2A_RB_ORPHAN_ID_HELD=0: as before
+ static pthread_mutex_t g_rmu;
++static CFMutableSetRef rb_alias_held_ids_for(CFSetRef cands);
+ static CFMutableSetRef rb_alias_held_ids(void);
+ static _Atomic uint64_t g_rb_orph_id_held;   // orphan candidates kept because a registered texture ID still reads them
+ static int rb_orph_id_held_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_ORPHAN_ID_HELD"); v = !(e && !strcmp(e, "0")); } return v; }
+@@ -5721,10 +5724,43 @@ static void alias_orphan_pass(void) {
+     typedef struct { alias_key k; const uint8_t *mem; uint64_t size; } cand_t;
+     const uint64_t rb_t0 = bp_now();   // RewindBox (patch 0350): the pass's three steps, timed
+     const int ids_on = rb_orph_id_held_on();   // RewindBox (patch 0312): the registered IDs' views, under g_rmu taken before g_smu
++    // RewindBox (patch 0422): fast pre-check under g_smu alone. When g_alias holds no unreferenced
++    // non-recent candidates (common in MKW races), skip locking g_rmu and scanning g_treg entirely.
++    if (ids_on) {
++        pthread_mutex_lock(&g_smu);
++        CFMutableSetRef h0 = alias_held();
++        int any_cand = 0;
++        for (uint32_t i = 0; i < g_alias.cap; i++) {
++            alias_key k0;
++            if (alias_orph_cand(i, h0, &k0)) { any_cand = 1; break; }
++        }
++        CFRelease(h0);
++        if (!any_cand) {
++            int64_t d = 0 - g_orph_noted;
++            if (g_orph_lv && d) g_orph_noted = 0;
++            pthread_mutex_unlock(&g_smu);
++            if (g_orph_lv && d) g_orph_lv->note(g_orph_lv_me, d);
++            const uint64_t rb_t3 = bp_now(), pass = ++g_rb_orph_passes;
++            if (pass <= 4 || rb_t3 - rb_t0 >= 2000000ull)
++                MLOG("RewindBox (patch 0350): unreferenced-texture pass %llu: %.2f ms with the tables locked (0 never GPU-written released, 0 GPU-written checked), 0.00 ms checking them (fast empty), 0.00 ms releasing 0 of them",
++                     (unsigned long long)pass, (rb_t3 - rb_t0) / 1e6);
++            return;
++        }
++        pthread_mutex_unlock(&g_smu);
++    }
+     if (ids_on) pthread_mutex_lock(&g_rmu);
+     pthread_mutex_lock(&g_smu);
+-    CFMutableSetRef held = alias_held(), ids = ids_on ? rb_alias_held_ids() : NULL;
+-    if (ids_on) pthread_mutex_unlock(&g_rmu);
++    CFMutableSetRef held = alias_held(), ids = NULL;
++    if (ids_on) {
++        CFMutableSetRef cset = CFSetCreateMutable(NULL, 0, NULL);
++        for (uint32_t i = 0; i < g_alias.cap; i++) {
++            alias_key k0;
++            if (alias_orph_cand(i, held, &k0)) CFSetAddValue(cset, g_alias.vals[i]);
++        }
++        if (CFSetGetCount(cset)) ids = rb_alias_held_ids_for(cset);
++        CFRelease(cset);
++        pthread_mutex_unlock(&g_rmu);
++    }
+     uint32_t nc = 0, nw = 0; alias_key *cache = g_alias.n ? malloc(g_alias.n * sizeof *cache) : NULL; cand_t *wr = g_alias.n ? malloc(g_alias.n * sizeof *wr) : NULL;
+     int64_t wbytes = 0;
+     for (uint32_t i = 0; cache && wr && i < g_alias.cap; i++) { alias_key k;
+@@ -5748,8 +5784,17 @@ static void alias_orphan_pass(void) {
+     }
+     const uint64_t rb_t2 = bp_now();   // RewindBox (patch 0350)
+     if (nr) { if (ids_on) pthread_mutex_lock(&g_rmu);
+-        pthread_mutex_lock(&g_smu); CFMutableSetRef h2 = alias_held(), i2 = ids_on ? rb_alias_held_ids() : NULL;
+-        if (ids_on) pthread_mutex_unlock(&g_rmu);
++        pthread_mutex_lock(&g_smu); CFMutableSetRef h2 = alias_held(), i2 = NULL;
++        if (ids_on) {
++            CFMutableSetRef cset2 = CFSetCreateMutable(NULL, (CFIndex)nr, NULL);
++            for (uint32_t j = 0; j < nr; j++) {
++                void *v = nvn_hm_get(&g_alias, &wr[j].k);
++                if (v && !CFSetContainsValue(h2, v)) CFSetAddValue(cset2, v);
++            }
++            if (CFSetGetCount(cset2)) i2 = rb_alias_held_ids_for(cset2);
++            CFRelease(cset2);
++            pthread_mutex_unlock(&g_rmu);
++        }
+         for (uint32_t j = 0; j < nr; j++) { void *v = nvn_hm_get(&g_alias, &wr[j].k); uint64_t seen = (uint64_t)(uintptr_t)nvn_hm_get(&g_alias_seen, &wr[j].k);
+             if (!v || CFSetContainsValue(h2, v) || alias_recent(seen)) continue;   // taken up again meanwhile
+             if (i2 && CFSetContainsValue(i2, v)) { atomic_fetch_add_explicit(&g_rb_orph_id_held, 1, memory_order_relaxed); continue; }   // RewindBox (patch 0312): a registered ID still reads it
+@@ -13259,28 +13304,43 @@ typedef struct { tex_t t; int ok; view_t v; int has_v; void *view; uint64_t alt_
+                  uint64_t view_sa, view_local;                                          // RewindBox (patch 0073): g_rb_ser_add with view_ser (0: not taken)
+                  const void *view_span; uint64_t view_wq, view_bcq; uint8_t view_sub;   // RewindBox (patch 0320): view_wq: its pool's write count (nvn_dirty_range_writes through view_span) taken before the look that walked its pages and found them clean, 0 = none; view_bcq: rb_bcal_quiet at its last resolution, 0 = not quiet; view_sub: that resolution ran on the submit thread. All three written at each resolution (rb_view_scope_stamp)
+                  uint64_t view_sp_seq, view_sp_ep, view_sp_frame; uint8_t view_sp;   // RewindBox (patch 0031): view_sp: the view's base is a placement sparse texture (treg_sp_note); view_sp_seq: its pool's mapping log count (nvn_sparse_log_seq) taken before the look that validated the view; view_sp_ep: the check period (g_pkg_epoch) it was last found current in; TREG_SP_UNSEEN: no look on record; view_sp_frame: g_cur_frame at that look (TREG_SP_RELOOK). Read only while view is set
+-                 void *alt, *alt_of; uint64_t alt_rid; uint8_t alt_type;   // alt: compatible view used when the shader's declared type differs from view (tex_fit), alt_of = the view it was built from
+-                 void *ar, *ar_of; uint64_t ar_rid;                         // ar: the alpha-from-red view for the profile's alpha_from_red shaders (tex_alpha_red), ar_of = the view it was built from
+-                 void *im, *im_of; uint64_t im_rid;                         // im: the view an image slot reads in the shader's pixel class (img_fit), im_of = the view it was built from
++                 void *view_parent, *view_root;                              // RewindBox (patch 0422): immutable parentTexture / root base cached when view is set (zero ObjC sends in orphan pass)
++                 void *alt, *alt_of, *alt_root; uint64_t alt_rid; uint8_t alt_type;   // alt: compatible view used when the shader's declared type differs from view (tex_fit), alt_of = the view it was built from
++                 void *ar, *ar_of, *ar_root; uint64_t ar_rid;                         // ar: the alpha-from-red view for the profile's alpha_from_red shaders (tex_alpha_red), ar_of = the view it was built from
++                 void *im, *im_of, *im_root; uint64_t im_rid;                         // im: the view an image slot reads in the shader's pixel class (img_fit), im_of = the view it was built from
+                  uint8_t tt1, gone;   // tt1: Metal texture type + 1 a pool walk found here (0 = not looked; pool_gpu skips the ID in tables of another type); gone: its memory pool was finalized (treg_drop_pool_views), until registered again
+                  int ser_next, ser_prev; } treg_t;   // the other IDs registered with the same texture serial (g_treg_ser), as ID + 1, 0 = none
+ static treg_t *g_treg; static int g_ntreg;
+-// RewindBox (patch 0312): what the registered texture IDs read (alias_held's partner): each live registration's view and the views made from it for another type, alpha from
+-//   red or an image class, with the textures they were made from (a view's parent, up to its base). Caller holds g_rmu and g_smu
+-static CFMutableSetRef rb_alias_held_ids(void) {
++static inline void *rb_tex_root(id<MTLTexture> t, void **parent_out) {
++    id<MTLTexture> p = t ? t.parentTexture : nil;
++    if (parent_out) *parent_out = (__bridge void *)p;
++    if (!p) return NULL;
++    for (id<MTLTexture> q = p.parentTexture; q; q = q.parentTexture) p = q;
++    return (__bridge void *)p;
++}
++// RewindBox (patch 0312 / 0422): what the registered texture IDs read (alias_held's partner),
++//   using cached immutable parent/root pointers so the scan makes zero ObjC sends and, when
++//   cands != NULL, populates only candidate matches instead of allocating a full-table set.
++static CFMutableSetRef rb_alias_held_ids_for(CFSetRef cands) {
+     CFMutableSetRef held = CFSetCreateMutable(NULL, 0, NULL);
+     for (int i = 0; i < g_ntreg; i++) {
+         const treg_t *r = &g_treg[i];
+         if (!r->ok || r->gone) continue;
+-        void *vs[4] = {r->view, r->alt, r->ar, r->im};
+-        for (int j = 0; j < 4; j++) {
+-            if (!vs[j]) continue;
+-            CFSetAddValue(held, vs[j]);
+-            for (id<MTLTexture> p = ((__bridge id<MTLTexture>)vs[j]).parentTexture; p; p = p.parentTexture) CFSetAddValue(held, (__bridge const void *)p);
++        if (r->view) {
++            if (!cands || CFSetContainsValue(cands, r->view)) CFSetAddValue(held, r->view);
++            if (r->view_parent && (!cands || CFSetContainsValue(cands, r->view_parent))) CFSetAddValue(held, r->view_parent);
++            if (r->view_root && r->view_root != r->view_parent && (!cands || CFSetContainsValue(cands, r->view_root))) CFSetAddValue(held, r->view_root);
++        }
++        if (__builtin_expect(r->alt || r->ar || r->im, 0)) {
++            void *ex[9] = {r->alt, r->alt_of, r->alt_root, r->ar, r->ar_of, r->ar_root, r->im, r->im_of, r->im_root};
++            for (int j = 0; j < 9; j++) {
++                if (ex[j] && (!cands || CFSetContainsValue(cands, ex[j]))) CFSetAddValue(held, ex[j]);
++            }
+         }
+     }
+     return held;
+ }
++static CFMutableSetRef rb_alias_held_ids(void) { return rb_alias_held_ids_for(NULL); }
+ // RewindBox (patch 0070): for each texture tex[q] (NULL: not asked), the texture IDs that hold it: as their view, the views made from it for another type, alpha from red or an image
+ //   class (alt, ar, im: a view kept after its ID's view was made anew holds the base it was made from), or as the parent of one of those. For the resident top (res_top: "; ..."
+ //   into o[q]). One walk of the IDs for all of them, at most four pointer compares and one parentTexture per view held; takes g_rmu only if free (res_top may run under it)
+@@ -13364,12 +13424,12 @@ static inline MTLTextureType rb_vmeta_tt(__unsafe_unretained id<MTLTexture> t, i
+ static inline MTLPixelFormat rb_vmeta_pf(__unsafe_unretained id<MTLTexture> t, int tid) { return rb_vmeta_rec(t, tid, 0) ? (MTLPixelFormat)g_treg[tid].view_pf : t.pixelFormat; }
+ // Memory pool Finalize: for texture IDs whose registered texture lives on this pool, drop the cached MTLTexture (view or base texture). The cache used to be released only when the ID was registered again,
+ // so a linear texture built directly on a pool kept the whole pool buffer alive (6 to 17 finalized 16 MB pool buffers stayed alive in Engage's title demo). If the ID is still used, the next lookup rebuilds it on the slow path
+-static void treg_drop_ar(treg_t *r) { if (r->ar) { defer_obj_unref((__bridge id)r->ar); CFRelease(r->ar); r->ar = r->ar_of = NULL; r->ar_rid = 0; }
+-                                     if (r->im) { defer_obj_unref((__bridge id)r->im); CFRelease(r->im); r->im = r->im_of = NULL; r->im_rid = 0; } }   // and the image class view (img_fit)
++static void treg_drop_ar(treg_t *r) { if (r->ar) { defer_obj_unref((__bridge id)r->ar); CFRelease(r->ar); r->ar = r->ar_of = r->ar_root = NULL; r->ar_rid = 0; }
++                                     if (r->im) { defer_obj_unref((__bridge id)r->im); CFRelease(r->im); r->im = r->im_of = r->im_root = NULL; r->im_rid = 0; } }   // and the image class view (img_fit)
+ static void treg_drop_views(treg_t *r) {   // every view the ID caches (view, alt, ar, im): each retains its base texture
+     if (rb_vmeta_forget(rb_view_meta_on(), r->view, &r->view_tt, &r->view_pf)) rb_vmeta_bump(g_rb_vmeta, RB_VMETA_DROP);   // RewindBox (patch 0352): the view's type and format go with it
+-    if (r->view) { defer_obj_unref((__bridge id)r->view); CFRelease(r->view); r->view = NULL; r->alt_source_rid = r->view_rid = 0; r->view_sp = 0; }   // RewindBox (patch 0031): view_sp with it
+-    if (r->alt) { defer_obj_unref((__bridge id)r->alt); CFRelease(r->alt); r->alt = r->alt_of = NULL; r->alt_rid = 0; }
++    if (r->view) { defer_obj_unref((__bridge id)r->view); CFRelease(r->view); r->view = r->view_parent = r->view_root = NULL; r->alt_source_rid = r->view_rid = 0; r->view_sp = 0; }   // RewindBox (patch 0031): view_sp with it
++    if (r->alt) { defer_obj_unref((__bridge id)r->alt); CFRelease(r->alt); r->alt = r->alt_of = r->alt_root = NULL; r->alt_rid = 0; }
+     treg_drop_ar(r);
+ }
+ // Texture views by texture serial and view parameters, beside the per-ID view: KTGL (Age of Calamity) registers a texture into the next ID of a ring before every bind (about 21,000
+@@ -13883,7 +13943,7 @@ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+         if ((cur || !txr_on()) && (cur == v || v.parentTexture == cur)) { rp->view_ser = sg; rp->view_sa = sa; rp->view_local = local; rp->view_dirty = dg; rp->view_ep = g_pkg_epoch; rb_view_scope_stamp(rp, rb_on, rb_wq); g_rb_view_same++; treg_sp_note(tid, rp, cur, spq); return v; }   // RewindBox (patch 0031): treg_sp_note; (patch 0073): view_sa; RewindBox (patch 0073): cur, nil is no match (a root view's object may serve another texture now, patch 0071's txr_take; S2A_RB_TEX_REUSE=0 as before)
+         g_rb_view_changed++;
+         if (rb_vmeta_forget(rb_view_meta_on(), rp->view, &rp->view_tt, &rp->view_pf)) rb_vmeta_bump(g_rb_vmeta, RB_VMETA_DROP);   // RewindBox (patch 0352): a new view below writes its own
+-        defer_obj_unref(v); CFRelease(rp->view); rp->view = NULL; rp->alt_source_rid = rp->view_rid = 0; v = nil;
++        defer_obj_unref(v); CFRelease(rp->view); rp->view = rp->view_parent = rp->view_root = NULL; rp->alt_source_rid = rp->view_rid = 0; v = nil;
+     }
+     treg_t r = *rp;
+     id<MTLTexture> base = resolved ?: tex_mtl(&rp->t);
+@@ -13963,7 +14023,7 @@ static id<MTLTexture> tex_by_id(int tid) {   // Caller holds g_rmu
+             else vc_put(rp->t.serial, rp->t.pool, &k, v);
+         }
+     }
+-    rp->view = (void *)CFBridgingRetain(v); rp->view_rid = v.gpuResourceID._impl; rp->view_pf = (uint32_t)v.pixelFormat; rp->view_tt = (uint8_t)v.textureType; rp->view_ser = sg; rp->view_dirty = dg; rp->view_ep = g_pkg_epoch;
++    rp->view = (void *)CFBridgingRetain(v); rp->view_root = rb_tex_root(v, &rp->view_parent); rp->view_rid = v.gpuResourceID._impl; rp->view_pf = (uint32_t)v.pixelFormat; rp->view_tt = (uint8_t)v.textureType; rp->view_ser = sg; rp->view_dirty = dg; rp->view_ep = g_pkg_epoch;
+     rp->view_sa = rb_separate_stencil ? 0 : sa; rp->view_local = local;
+     rb_view_scope_stamp(rp, rb_on, rb_wq);   // RewindBox (patch 0320): as at the kept view above (rb_wq is 0 for an ID that had no view: its first look records none). S2A_RB_VIEW_SCOPE=0: as before
+     treg_sp_note(tid, rp, base, spq);   // RewindBox (patch 0031): a placement sparse base follows its pool's mappings (treg_sp_fresh)
+@@ -14025,7 +14085,7 @@ static id<MTLTexture> tex_fit(int tid, id<MTLTexture> t, MTLTextureType want, in
+         id<MTLTexture> z = dummy_tex((int)want, dpf); *rid = g_dummy_tex_rid[want & 15][dpf & 3]; return z; }   // of the declared class (a uint cube sampler got a float zero cube, PR #490)
+     if (!ns || !r) return nil;   // no view bridges it: the caller reports it (tex_mis_note)
+     if (r->alt && r->alt_of == (__bridge void *)t && r->alt_type == (uint8_t)want) { *rid = r->alt_rid; return (__bridge id<MTLTexture>)r->alt; }
+-    if (r->alt) { defer_obj_unref((__bridge id)r->alt); CFRelease(r->alt); r->alt = r->alt_of = NULL; r->alt_rid = 0; }
++    if (r->alt) { defer_obj_unref((__bridge id)r->alt); CFRelease(r->alt); r->alt = r->alt_of = r->alt_root = NULL; r->alt_rid = 0; }
+     // A view's level / slice ranges are relative to its source texture, so a view of t would start at t's own level 0 / layer 0: build it from t's parent at the offset t stands at
+     // (a mip- or layer-offset view read through a type-compatible view would otherwise take the parent's first levels and layers). l0 / s0 are 0 and base is t when t is not a view
+     id<MTLTexture> base = t.parentTexture ? t.parentTexture : t;
+@@ -14042,7 +14102,7 @@ static id<MTLTexture> tex_fit(int tid, id<MTLTexture> t, MTLTextureType want, in
+         v = [base newTextureViewWithPixelFormat:t.pixelFormat textureType:want levels:NSMakeRange(l0, t.mipmapLevelCount) slices:NSMakeRange(s0, ns) swizzle:t.swizzle];
+         if (!v) { RED_ONCE(77, "cannot create a type-compatible texture view: %lu → %lu (texture ID %d)", (unsigned long)have, (unsigned long)want, tid); return nil; }
+         g_fit_made++; if (fc) vc_store(r->t.serial, r->t.pool, &fk, v); }
+-    r->alt = (void *)CFBridgingRetain(v); r->alt_of = (__bridge void *)t; r->alt_type = (uint8_t)want; r->alt_rid = v.gpuResourceID._impl;
++    r->alt = (void *)CFBridgingRetain(v); r->alt_of = (__bridge void *)t; r->alt_root = rb_tex_root(v, NULL); r->alt_type = (uint8_t)want; r->alt_rid = v.gpuResourceID._impl;
+     r->alt_source_rid = registered ? r->view_rid : 0;
+     *rid = r->alt_rid; return v;
+ }
+@@ -14100,7 +14160,7 @@ static id<MTLTexture> tex_alpha_red(int tid, id<MTLTexture> t, uint64_t *rid) {
+                                                    swizzle:MTLTextureSwizzleChannelsMake(MTLTextureSwizzleRed, MTLTextureSwizzleZero, MTLTextureSwizzleZero, MTLTextureSwizzleRed)];
+     if (!v) { RED_ONCE(82, "cannot create the alpha-from-red view (texture ID %d format %lu)", tid, (unsigned long)pf); return nil; }
+     { static int once; if (!once++) MLOG("single-channel texture alpha from red: first case texture ID %d %lux%lu", tid, (unsigned long)t.width, (unsigned long)t.height); }
+-    r->ar = (void *)CFBridgingRetain(v); r->ar_of = (__bridge void *)t; r->ar_rid = v.gpuResourceID._impl;
++    r->ar = (void *)CFBridgingRetain(v); r->ar_of = (__bridge void *)t; r->ar_root = rb_tex_root(v, NULL); r->ar_rid = v.gpuResourceID._impl;
+     *rid = r->ar_rid; return v;
+ }
+ // Pixel class of a Metal format as a shader's texture type sees it (NVN_DPF_*): the Uint / Sint formats, everything else reads as float
+@@ -14160,13 +14220,13 @@ static id<MTLTexture> img_fit(int tid, id<MTLTexture> t, int dpf, uint64_t *rid)
+         return nil; }
+     treg_t *r = &g_treg[tid];
+     if (r->im && r->im_of == (__bridge void *)t && ((__bridge id<MTLTexture>)r->im).pixelFormat == pf) { *rid = r->im_rid; return (__bridge id<MTLTexture>)r->im; }
+-    if (r->im) { defer_obj_unref((__bridge id)r->im); CFRelease(r->im); r->im = r->im_of = NULL; r->im_rid = 0; }
++    if (r->im) { defer_obj_unref((__bridge id)r->im); CFRelease(r->im); r->im = r->im_of = r->im_root = NULL; r->im_rid = 0; }
+     NSUInteger l0 = t.parentTexture ? t.parentRelativeLevel : 0, s0 = t.parentTexture ? t.parentRelativeSlice : 0;
+     NSUInteger ns = t.textureType == MTLTextureType3D ? 1 : t.arrayLength * (t.textureType == MTLTextureTypeCube || t.textureType == MTLTextureTypeCubeArray ? 6 : 1);
+     id<MTLTexture> v = [base newTextureViewWithPixelFormat:pf textureType:t.textureType levels:NSMakeRange(l0, t.mipmapLevelCount) slices:NSMakeRange(s0, ns)];
+     if (!v) { RED_ONCE(107, "cannot create the image view of class %s (texture ID %d, Metal format %lu)", u ? "uint" : "int", tid, (unsigned long)t.pixelFormat); return nil; }
+     { static int once; if (cls && !once++) MLOG("image read in another class than its texture: first case texture ID %d Metal format %lu → %lu", tid, (unsigned long)t.pixelFormat, (unsigned long)pf); }
+-    r->im = (void *)CFBridgingRetain(v); r->im_of = (__bridge void *)t; r->im_rid = v.gpuResourceID._impl;
++    r->im = (void *)CFBridgingRetain(v); r->im_of = (__bridge void *)t; r->im_root = rb_tex_root(v, NULL); r->im_rid = v.gpuResourceID._impl;
+     *rid = r->im_rid; return v;
+ }
+ // A 32-bit integer texture in a texture slot the shader declares float (upstream (MIT) f08387336): a shader with no type answer declares float, as only the host knows the texture's format, and
+@@ -14189,13 +14249,13 @@ static id<MTLTexture> tex_float_fit(int tid, id<MTLTexture> t, uint64_t *rid) {
+         return nil; }
+     treg_t *r = &g_treg[tid];
+     if (r->im && r->im_of == (__bridge void *)t && ((__bridge id<MTLTexture>)r->im).pixelFormat == pf) { *rid = r->im_rid; return (__bridge id<MTLTexture>)r->im; }
+-    if (r->im) { defer_obj_unref((__bridge id)r->im); CFRelease(r->im); r->im = r->im_of = NULL; r->im_rid = 0; }
++    if (r->im) { defer_obj_unref((__bridge id)r->im); CFRelease(r->im); r->im = r->im_of = r->im_root = NULL; r->im_rid = 0; }
+     NSUInteger l0 = t.parentTexture ? t.parentRelativeLevel : 0, s0 = t.parentTexture ? t.parentRelativeSlice : 0;
+     NSUInteger ns = t.textureType == MTLTextureType3D ? 1 : t.arrayLength * (t.textureType == MTLTextureTypeCube || t.textureType == MTLTextureTypeCubeArray ? 6 : 1);
+     id<MTLTexture> v = [base newTextureViewWithPixelFormat:pf textureType:t.textureType levels:NSMakeRange(l0, t.mipmapLevelCount) slices:NSMakeRange(s0, ns) swizzle:t.swizzle];
+     if (!v) { RED_ONCE(103, "cannot create the float view of an integer texture (texture ID %d, Metal format %lu)", tid, (unsigned long)t.pixelFormat); return nil; }
+     { static int once; if (!once++) MLOG("integer texture sampled as float: first case texture ID %d Metal format %lu read through format %lu", tid, (unsigned long)t.pixelFormat, (unsigned long)pf); }
+-    r->im = (void *)CFBridgingRetain(v); r->im_of = (__bridge void *)t; r->im_rid = v.gpuResourceID._impl;
++    r->im = (void *)CFBridgingRetain(v); r->im_of = (__bridge void *)t; r->im_root = rb_tex_root(v, NULL); r->im_rid = v.gpuResourceID._impl;
+     *rid = r->im_rid; return v;
+ }
+ // Only bindings with actual native atomic calls lose texture compression. Do
+@@ -15473,7 +15533,8 @@ static int vp_request(const prog_t *p, NvShader *vs, uint32_t miss, int observed
+     uint8_t md[8] = {0}; int at = -1; uint64_t t0 = bp_now();
+     const prog_t *gp = (const prog_t *)vp_pick_prog(p, vp_bst_at, 5, vs->key, md, vp_stage_of_at, NULL, &at);
+     if (at < 0) { static unsigned n; if (!n++ || !(n & (n - 1))) MLOG("顶点补齐变体：%s 在绘制 program 与 5 个按阶段绑定的 program 里都没有有效控制段（%u 次）", vs->key, n); }
+-    if (!observed && (se_sync() || rb_course_exact() || rb_async_pso() ||
++    const int vp_exact = rb_course_exact() && (!rb_fluid_pso_on() || rb_ref_profile_on());
++    if (!observed && (se_sync() || vp_exact || rb_async_pso() ||
+         (rb_first_draw_on() && rb_observed_workers_on()))) { char why[300] = ""; id<MTLFunction> f = vp_build(vs, md, at < 0 ? 0 : gp->sd[at].data, at < 0 ? NULL : gp->sd[at].control, want, why, sizeof why); vp_done(vs, f, want, why, t0, "同步现编"); return f != nil; }
+     uint64_t code = 0; const void *ctl = NULL; void *snap = at < 0 ? NULL : dm_shader_snap(gp->sd[at].data, gp->sd[at].control, &code, &ctl); uint64_t key; memcpy(&key, md, 8);
+     if (observed && !snap) {
+@@ -16057,7 +16118,7 @@ static void rb_long_wait_note(int at, uint64_t w0, uint64_t w1, int required, in
+ }
+ static id<MTLRenderPipelineState> pso_pend_take_ex(const pso_key *k, int *timed_out, int may_skip, int storage_writes) {   // Called by the submit thread: if it is in the table, wait for it to finish compiling and take it; otherwise return nil. *timed_out: 1 = past its own limit (late), 2 = the frame's budget ran out
+     g_async_render_built=0; g_async_render_error=nil;
+-    const int fluid_cap = !may_skip && !storage_writes && !rb_course_exact() && rb_fluid_pso_on();
++    const int fluid_cap = !may_skip && !storage_writes && !rb_ref_profile_on() && rb_fluid_pso_on();
+     const int required = !fluid_cap && (rb_course_exact() || (!may_skip && (rb_async_pso() ||
+         (rb_observed_workers_on() && rb_first_draw_on()))));
+     pthread_mutex_lock(&g_pp_mu);
+@@ -16430,7 +16491,7 @@ static __unsafe_unretained id<MTLRenderPipelineState> pso_get_vs(NvProg *pr, NvS
+     id<MTLRenderPipelineState> ps;
+     NSError *e = nil; uint64_t bt = bp_now();
+     RBPSOWait rb_wait __attribute__((cleanup(rb_wait_end)))=rb_wait_begin();
+-    const int fluid_mode = rb_fluid_pso_on() && !rb_course_exact();
++    const int fluid_mode = rb_fluid_pso_on() && !rb_ref_profile_on();
+     const int storage_writes = shader_writes(vs) || shader_writes(fs);
+     int pp_late = 0, may_skip = (!exact || (fluid_mode && !storage_writes)) && skip_safe(vs, fs);
+     // Not queued: compile it in the background too and wait the same bounded time, instead of compiling here with no limit (the same compiler service, the same queue).
+@@ -19131,9 +19192,10 @@ static int se_want(const prog_t *p, NvShader *sh, int nvn_stage) {
+     if (__atomic_compare_exchange_n(&sh->se_st, &st, SE_BUSY, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+         uint64_t t0 = bp_now(); id<MTLFunction> f = se_packed(sh);
+         if (f && fold && !sh->se_fold) { f = nil; sh->se_fold = 0; }   // the package's variant predates folded textures: made here instead
+-        if (f) se_done(sh, f, "", t0, "包内"); else se_kick(p, sh, fold || rb_course_exact());   // folded: no stand-in, made here (se_fold_wait)
++        const int se_exact = rb_course_exact() && (!rb_fluid_pso_on() || rb_ref_profile_on());
++        if (f) se_done(sh, f, "", t0, "包内"); else se_kick(p, sh, fold || se_exact);   // folded: no stand-in, made here (se_fold_wait)
+     }
+-    if ((fold || rb_course_exact()) && !se_fn(sh, fc)) se_fold_wait(p, sh);   // being made elsewhere: wait for it
++    if ((fold || (rb_course_exact() && (!rb_fluid_pso_on() || rb_ref_profile_on()))) && !se_fn(sh, fc)) se_fold_wait(p, sh);   // being made elsewhere: wait for it
+     if (!se_fn(sh, fc)) return 0;
+     if (fold && sh->se_fold && nvn_stage >= 0 && nvn_stage < 6) g_fold_sh[nvn_stage] = sh;
+     else if (fold) RED_ONCE(140, "shader %s reads a folded linear texture, but its sampler-emulation variant cannot (made before format 4): the texture reads 0", sh->key);
