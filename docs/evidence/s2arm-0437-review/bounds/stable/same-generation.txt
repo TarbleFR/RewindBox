@@ -1,0 +1,4 @@
+which=0 hits=1824 misses=224 hits_in_previous_arena=1557
+0	8	0	1.77064
+which=1 hits=1824 misses=224 hits_in_previous_arena=1557
+0	8	1	1.03042

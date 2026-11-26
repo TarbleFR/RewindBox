@@ -1,0 +1,12 @@
+extended, swap=False, status=0, expected=success
+coverage mode 0 hits 0 misses 0
+coverage mode 1 hits 0 misses 0
+coverage mode 2 hits 2034 misses 14
+coverage mode 3 hits 60 misses 1988
+coverage mode 4 hits 684 misses 1364
+coverage mode 5 hits 534 misses 1514
+coverage mode 6 hits 1712 misses 336
+coverage mode 7 hits 2034 misses 14
+extended, swap=True, status=-6, expected=failure
+original, swap=False, status=0, expected=success
+original, swap=True, status=0, expected=success
