@@ -60,7 +60,11 @@ jobs:
           commit=$(python3 -c "import json;print(json.load(open('tools/s2arm_prototype/pin.json'))['s2arm']['commit'])")
           repository=$(python3 -c "import json;print(json.load(open('tools/s2arm_prototype/pin.json'))['s2arm']['repository'])")
           git init -q "$RUNNER_TEMP/s2arm"
-          git -C "$RUNNER_TEMP/s2arm" fetch -q --depth 1 "$repository" "$commit"
+          for attempt in 1 2 3; do
+            if git -C "$RUNNER_TEMP/s2arm" fetch -q --depth 1 "$repository" "$commit"; then break; fi
+            if [[ "$attempt" == 3 ]]; then exit 1; fi
+            sleep "$((attempt * 3))"
+          done
           git -C "$RUNNER_TEMP/s2arm" checkout -q FETCH_HEAD
           test "$(git -C "$RUNNER_TEMP/s2arm" rev-parse HEAD)" = "$commit"
           mkdir -p proof
