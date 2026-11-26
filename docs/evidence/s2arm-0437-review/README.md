@@ -1,4 +1,4 @@
-# S2Arm 0437–0446, contre-expertise et reprise du 26 novembre 2026
+# S2Arm 0437–0447, contre-expertise et reprise du 26 novembre 2026
 
 La référence de comparaison de cette série est le moteur 0436 au commit RewindBox `8be902ac0`. Les charges sont générées localement. Pour la comparaison avec le point de départ 0426, les résultats du banc d’uniformes figurent dans [les paires supplémentaires](uniform-0426-final.csv).
 
@@ -60,6 +60,8 @@ python3 pipeline/replay.py /chemin/0426 /chemin/0436 /chemin/candidat --csv pipe
 
 Le [référentiel matériel autonome](../../../tools/s2arm_a18pro/referentiel_a18pro_autonome.json) relie chaque caractéristique aux publications d’Apple ou au résultat public identifié. Le [banc Linux](../../../tools/s2arm_a18pro/bench_suite.py) conserve les délais bruts et les compteurs Cachegrind, avec la portée de chaque module. Les paramètres A18 Pro insuffisamment documentés restent inconnus.
 
+Sur Mac arm64, la médiane du p95 du lot CPU de 256 recherches passe de **0,244 à 0,206 ms à froid et de 0,193 à 0,158 ms à chaud**. La charge de feedback à quatre substitutions changeantes est sensiblement neutre (19,77 / 20,03 ms). Les reconstructions UBOLEN ordinaires s’améliorent dans les deux dispositions de code. Pour le cache facultatif stable, la disposition inversée donne un ralentissement et le témoin A/A est dispersé. Ce résultat motive une deuxième comparaison sur un autre runner. [Sorties Mac 0444](macos-0444.txt) et [compilation](https://github.com/TarbleFR/RewindBox/actions/runs/45852944537).
+
 ## Synchronisation de la présentation et Frame Gen
 
 Les deux manifestes livrés 843 et 844 permettent de reconstruire le code du sélecteur et la trajectoire de présentation. Il prend les mêmes décisions sur **1 412 190 entrées synthétiques**, dont 165 632 admissibles. La 844 peut utiliser une file Metal dédiée. Le code exposait alors un défaut de durée de vie de l’image, même lorsque le sélecteur prenait la bonne décision.
@@ -70,6 +72,12 @@ Les deux manifestes livrés 843 et 844 permettent de reconstruire le code du sé
 ## Rendu d’un homebrew public
 
 Le fragment du triangle de switchbrew `deko_basic` est compilé avec devkitPro/uam et traduit par S2Arm à partir du bytecode Maxwell. Sur Linux, Vulkan logiciel restitue les mêmes 4 096 pixels que le GLSL compilé indépendamment. Le second fragment synthétique restitue ses 4 096 pixels et le calcul de copie retrouve 64 mots. Cinq passages avec l’entrée figée après échauffement retrouvent les mêmes 25 empreintes. La médiane de 0,795 s couvre le lancement de toute la chaîne d’outils Linux. La recette fournit le shader libre, sa provenance, les commandes et les références binaires. [Reproduction et licences](homebrew/README.md).
+
+## Contrôle des plateformes et coût des transferts GPU
+
+Les trois shaders homebrew ou synthétiques ont aussi compilé pour iPhoneOS et ont chacun produit **six résultats Metal** identiques à l’oracle Vulkan sur le périphérique paravirtualisé du Mac. Un contrôle adjacent a détecté deux erreurs de compilation. Le témoin d’archive 793 tentait de compiler un test dédié à une interface ajoutée depuis. La correction laisse ses vérifications historiques actives et exécute le contrôle de cette interface sur l’implémentation courante. Le patch **0447** garde la limite de 512 Mio sur iOS et évalue sur Mac le budget Metal avant de créer une texture de stencil auxiliaire. [Sorties de lecture retour](homebrew/metal-results.txt) et [vérification ayant détecté les deux erreurs](https://github.com/TarbleFR/RewindBox/actions/runs/45854512345).
+
+Le banc de textures soumet le shader réel et compare tout le tampon, padding compris, à l’implémentation d’adressage CPU. Sur cinq charges, 12 paires comparent un, deux, quatre et huit blocs de 512 octets par threadgroup. Les médianes favorisent parfois quatre mais les intervalles appariés incluent zéro. La confirmation garde le shader et les entrées identiques, augmente à 36 paires de 64 transferts et inclut un deuxième témoin de largeur un. Aucun changement de géométrie du moteur n’est retenu à ce stade. [240 relevés GPU de la première série](gpu-textures/macos.csv).
 
 ## État de reprise
 

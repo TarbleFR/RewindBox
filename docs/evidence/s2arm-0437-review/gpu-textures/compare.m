@@ -10,7 +10,7 @@ typedef struct {
 } Params;
 
 static int compare(id<MTLDevice> dev, id<MTLCommandQueue> queue, id<MTLComputePipelineState> pso,
-                   const char *name, Params p) {
+                   const char *name, Params p, BOOL confirm) {
     const unsigned cols = (p.row_bytes + 63) / 64, lines = (p.rows + 7) / 8;
     const unsigned bh = 1u << p.th, bd = 1u << p.td;
     const unsigned blocks_y = (lines + bh - 1) / bh, blocks_z = (p.slices + bd - 1) / bd;
@@ -33,11 +33,18 @@ static int compare(id<MTLDevice> dev, id<MTLCommandQueue> queue, id<MTLComputePi
                 uint64_t off = nvn_bl_offset(x,y,z,p.gobs_x*64,p.rows,p.th,p.td);
                 oracle[p.dst_off + ((uint64_t)z*p.rows+y)*p.pitch+x] = input[p.src_off+p.base+off];
             }
-    const unsigned passes = 12;
-    for (unsigned pair = 0; pair <= 12; pair++) {
-        for (unsigned j = 0; j < 4; j++) {
+    const unsigned passes = confirm ? 64 : 12, pairs = confirm ? 36 : 12;
+    static const uint8_t orders[][3] = {{0,1,2},{0,2,1},{1,0,2},{1,2,0},{2,0,1},{2,1,0}};
+    static const char *const arms[] = {"baseline", "four", "control"};
+    for (unsigned pair = 0; pair <= pairs; pair++) {
+        for (unsigned j = 0; j < (confirm ? 3u : 4u); j++) {
             // Four rotations and their reversals balance positions across groups.
             unsigned k = ((pair & 4 ? 3-j : j) + pair) % 4, gobs = 1u << k;
+            unsigned arm = 0;
+            if (confirm) {
+                arm = orders[pair % 6][j];
+                gobs = arm == 1 ? 4 : 1;
+            }
             memset(dst.contents,0xa7,dst_size);
             id<MTLCommandBuffer> cb = [queue commandBuffer];
             id<MTLComputeCommandEncoder> enc = [cb computeCommandEncoder];
@@ -55,7 +62,9 @@ static int compare(id<MTLDevice> dev, id<MTLCommandQueue> queue, id<MTLComputePi
             if (pair) {
                 double ms = (cb.GPUStartTime > 0 && cb.GPUEndTime > cb.GPUStartTime)
                     ? (cb.GPUEndTime - cb.GPUStartTime) * 1000 : 0;
-                printf("GPU_TEXTURE,%s,%u,%u,%u,%u,%.6f\n",name,pair,gobs,passes,p.row_bytes*p.rows*p.slices,ms);
+                if (confirm)
+                    printf("GPU_CONFIRM,%s,%u,%s,%u,%u,%.6f\n",name,pair,arms[arm],passes,p.row_bytes*p.rows*p.slices,ms);
+                else printf("GPU_TEXTURE,%s,%u,%u,%u,%u,%.6f\n",name,pair,gobs,passes,p.row_bytes*p.rows*p.slices,ms);
             }
         }
     }
@@ -63,7 +72,8 @@ static int compare(id<MTLDevice> dev, id<MTLCommandQueue> queue, id<MTLComputePi
 }
 
 int main(int argc, char **argv) {
-    if (argc != 2) return 2;
+    if (argc != 2 && argc != 3) return 2;
+    BOOL confirm = argc == 3 && !strcmp(argv[2],"--confirm");
     @autoreleasepool {
         id<MTLDevice> dev = MTLCreateSystemDefaultDevice();
         if (!dev || !dev.hasUnifiedMemory) return 77;
@@ -76,7 +86,7 @@ int main(int argc, char **argv) {
         if (!pso) { NSLog(@"PSO: %@",err); return 1; }
         if (pso.maxTotalThreadsPerThreadgroup < 256) return 77;
         id<MTLCommandQueue> queue = [dev newCommandQueue];
-        fprintf(stderr,"Texture GPU device: %s, SIMD lanes %zu. Times cover one batch of 12 resident-buffer dispatches.\n",
+        fprintf(stderr,"Texture GPU device: %s, SIMD lanes %zu. Times cover a complete batch of resident-buffer dispatches.\n",
                 dev.name.UTF8String,(size_t)pso.threadExecutionWidth);
         if (!queue) return 1;
         const struct { const char *name; Params p; } cases[] = {
@@ -87,7 +97,7 @@ int main(int argc, char **argv) {
             {"small", {0,0,0,128,96,7,1,0,0,2,0}}
         };
         for (unsigned i = 0; i < sizeof(cases)/sizeof(*cases); i++) {
-            int status = compare(dev,queue,pso,cases[i].name,cases[i].p);
+            int status = compare(dev,queue,pso,cases[i].name,cases[i].p,confirm);
             if (status) return status;
         }
     }

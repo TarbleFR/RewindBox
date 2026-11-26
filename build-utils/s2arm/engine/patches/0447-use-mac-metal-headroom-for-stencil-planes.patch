@@ -1,0 +1,19 @@
+--- a/graphics/nvn/gfx/nvn/rb_stencil_plane.inc
++++ b/graphics/nvn/gfx/nvn/rb_stencil_plane.inc
+@@ -46,7 +46,15 @@
+     if (!base.width || !base.height || base.width>4096 || base.height>4096) return nil;
+     NSUInteger row=(base.width+255)&~(NSUInteger)255, size=row*base.height;
+     uint64_t bytes=(uint64_t)size+(uint64_t)base.width*base.height;
+-    if (bytes>RB_STENCIL_BYTES || !rb_metal_working_room() || rb_ios_headroom()<(512ull<<20)) return nil;
++    if (bytes>RB_STENCIL_BYTES || !rb_metal_working_room()) return nil;
++#if TARGET_OS_IPHONE
++    if (rb_ios_headroom() < 512 * RB_WS_MIB) return nil;
++#else
++    // The process-headroom API is iOS-only. On Mac use the Metal device's
++    // recommended working set and current allocations before making a plane.
++    uint64_t room = rb_ws_room(g_dev.recommendedMaxWorkingSetSize, rb_device_allocated_bytes(g_dev), UINT64_MAX);
++    if (room < 512 * RB_WS_MIB) return nil;
++#endif
+     pthread_mutex_lock(&g_rb_stencil_mu);
+     RBStencilPlane *p=nil; unsigned slot=0;
+     for (unsigned i=0;i<RB_STENCIL_SLOTS;i++) {

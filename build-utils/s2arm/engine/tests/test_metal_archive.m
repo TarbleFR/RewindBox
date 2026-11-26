@@ -434,7 +434,6 @@ static void test_scoped_archive(const char *directory) {
     REQUIRE([[NSFileManager defaultManager] fileExistsAtPath:[scopedA stringByAppendingPathComponent:@"batches.tsv"]]);
     printf("scoped archive strict legacy hit, promotion, reopen and title/build isolation passed\n");
 }
-#endif
 // Exercise the real archive serializer's optional error parameter and file/index
 // transaction with a protocol-shaped archive. No Metal GPU support is required.
 @interface RBErrorNilArchive : NSObject { @public BOOL reject, saw_nil; unsigned calls; }
@@ -479,10 +478,11 @@ static void test_error_nil(void) {
     printf("PASS real archive serializer transaction: %u checks, error capture on/off, refusal, cleanup, same-object retry, rename and index\n",checks);
 #undef NIL_CHECK
 }
+#endif
 int main(int argc, char **argv) { @autoreleasepool {
-    if (argc==2 && !strcmp(argv[1],"--error-nil")) { test_error_nil(); return 0; }
     if (argc == 2 && !strcmp(argv[1], "--probe")) return MTLCreateSystemDefaultDevice() ? 0 : 77;
 #ifndef RB_ARCHIVE_TEST_793_CONTROL
+    if (argc==2 && !strcmp(argv[1],"--error-nil")) { test_error_nil(); return 0; }
     if (argc == 5 && !strcmp(argv[1],"--live-render") &&
         (!strcmp(argv[4],"cold") || !strcmp(argv[4],"warm"))) {
         test_live_render_archive(argv[2],atoi(argv[3]),!strcmp(argv[4],"warm"));

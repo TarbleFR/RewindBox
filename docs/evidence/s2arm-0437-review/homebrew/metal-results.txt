@@ -1,0 +1,7 @@
+All three MSL programs compiled to AIR for iPhoneOS.
+Apple Paravirtual device
+vk_43f00c746efd088f: 6 exact Metal readbacks of 256 bytes
+Apple Paravirtual device
+vk_d450c0bd06ebc4b8: 6 exact Metal readbacks of 16384 bytes
+Apple Paravirtual device
+vk_3a9009006b053baf: 6 exact Metal readbacks of 16384 bytes

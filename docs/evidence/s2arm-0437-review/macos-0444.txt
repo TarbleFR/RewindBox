@@ -1,0 +1,35 @@
+empty 0441 7.5915 ms
+empty candidate 7.3840 ms
+burst 0441 5.6405 ms
+burst candidate 5.1035 ms
+same 0441 21.6165 ms
+same candidate 21.1320 ms
+varies 0441 19.7670 ms
+varies candidate 20.0285 ms
+stale 0441 13.3800 ms
+stale candidate 9.8925 ms
+forward.tsv intervalle nominal 96.72%
+UBOLEN 25.960 -> 18.026 ms -32.80% [-39.58%, -25.33%]
+SBSZ 80.959 -> 74.461 ms -6.88% [-10.70%, -2.97%]
+UBOLEN cache stable 13.399 -> 14.902 ms +4.19% [-3.21%, +20.40%]
+UBOLEN cache modifié 18.553 -> 18.558 ms +1.58% [-8.53%, +8.26%]
+reverse.tsv intervalle nominal 96.72%
+UBOLEN 25.078 -> 18.147 ms -29.62% [-33.14%, -24.17%]
+SBSZ 83.646 -> 75.278 ms -9.20% [-12.55%, -6.83%]
+UBOLEN cache stable 13.212 -> 15.063 ms +13.75% [+3.07%, +23.02%]
+UBOLEN cache modifié 18.540 -> 18.559 ms -2.53% [-9.14%, +8.07%]
+control.tsv intervalle nominal 96.72%
+UBOLEN 26.469 -> 24.949 ms -3.58% [-12.66%, +3.07%]
+SBSZ 82.812 -> 87.293 ms +3.16% [-0.44%, +6.42%]
+UBOLEN cache stable 15.192 -> 13.629 ms -8.67% [-19.13%, +7.07%]
+UBOLEN cache modifié 19.414 -> 18.341 ms -6.41% [-11.52%, -0.23%]
+mixed 0441 median total / median batch p50 / median batch p95 (ms) 11.583000 0.018000 0.078000
+mixed candidate median total / median batch p50 / median batch p95 (ms) 5.829000 0.010000 0.041000
+sparse 0441 median total / median batch p50 / median batch p95 (ms) 6.139000 0.011000 0.038000
+sparse candidate median total / median batch p50 / median batch p95 (ms) 3.402000 0.007000 0.022000
+merged 0441 median total / median batch p50 / median batch p95 (ms) 8.161000 0.012000 0.045000
+merged candidate median total / median batch p50 / median batch p95 (ms) 2.982000 0.005000 0.011000
+cold 0441 median total / median batch p50 / median batch p95 (ms) 53.115000 0.095000 0.244000
+cold candidate median total / median batch p50 / median batch p95 (ms) 48.891000 0.082000 0.206000
+warm 0441 median total / median batch p50 / median batch p95 (ms) 38.420000 0.069000 0.193000
+warm candidate median total / median batch p50 / median batch p95 (ms) 34.502000 0.057000 0.158000

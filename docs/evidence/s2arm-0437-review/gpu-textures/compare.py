@@ -9,8 +9,8 @@ import tempfile
 
 
 def main():
-    if len(sys.argv) != 2:
-        raise SystemExit("usage: compare.py PREPARED_S2ARM_TREE")
+    if len(sys.argv) not in (2, 3) or (len(sys.argv) == 3 and sys.argv[2] != "--confirm"):
+        raise SystemExit("usage: compare.py PREPARED_S2ARM_TREE [--confirm]")
     gfx = Path(sys.argv[1]).resolve() / "graphics/nvn/gfx"
     source = (gfx / "tex/nvn_deswizzle_gpu.m").read_text()
     literal = source.split("static const char *const k_nvn_deswz_msl =",1)[1].split('"}\\n";',1)
@@ -38,7 +38,7 @@ def main():
             obj.append(output)
         subprocess.run(["xcrun","--sdk","macosx","clang",*cflags,"-fobjc-arc",Path(__file__).with_suffix(".m"),
                         *obj,"-framework","Metal","-framework","Foundation","-o",exe],check=True)
-        return subprocess.run([exe,msl]).returncode
+        return subprocess.run([exe,msl,*sys.argv[2:]]).returncode
 
 
 if __name__ == "__main__":

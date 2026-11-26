@@ -51,7 +51,7 @@ jobs:
         run: python3 -B test/s2arm_engine_exports_test.py
       - name: Fetch S2Arm at the pinned commit
         env:
-          COMPARE_BINDINGS: ${{ matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-compare-bindings]') }}
+          COMPARE_BINDINGS: ${{ matrix.os == 'macos-26' && (contains(github.event.head_commit.message, '[s2arm-compare-bindings]') || contains(github.event.head_commit.message, '[s2arm-bounds-repeat]')) }}
           COMPARE_UPLOAD: ${{ contains(github.event.head_commit.message, '[s2arm-compare-upload]') }}
         run: |
           set -euo pipefail
@@ -215,15 +215,24 @@ jobs:
           set -euo pipefail
           evidence=docs/evidence/s2arm-0437-review
           python3 "$evidence/feedback/replay.py" "$RUNNER_TEMP/0441" "$RUNNER_TEMP/s2arm" --csv proof/feedback.csv | tee proof/feedback.txt
+          python3 "$evidence/pipeline/replay.py" "$RUNNER_TEMP/0441" "$RUNNER_TEMP/s2arm" --csv proof/pipeline-keys.csv | tee proof/pipeline-keys.txt
+      - name: Compare arena bounds writes and cached lookups
+        if: matrix.os == 'macos-26' && (contains(github.event.head_commit.message, '[s2arm-compare-bindings]') || contains(github.event.head_commit.message, '[s2arm-bounds-repeat]'))
+        run: |
+          set -euo pipefail
+          evidence=docs/evidence/s2arm-0437-review
           python3 "$evidence/bounds/compare_ubolen.py" "$RUNNER_TEMP/0441" "$RUNNER_TEMP/s2arm" proof/bounds
           python3 "$evidence/bounds/report.py" proof/bounds/{forward,reverse,control}.tsv | tee proof/bounds/summary.txt
-          python3 "$evidence/pipeline/replay.py" "$RUNNER_TEMP/0441" "$RUNNER_TEMP/s2arm" --csv proof/pipeline-keys.csv | tee proof/pipeline-keys.txt
       - name: Compare launch widths for native Metal texture uploads
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-gpu-textures]')
+        env:
+          CONFIRM: ${{ contains(github.event.head_commit.message, '[s2arm-texture-confirm]') }}
         run: |
           set -euo pipefail
           rc=0
-          python3 docs/evidence/s2arm-0437-review/gpu-textures/compare.py "$RUNNER_TEMP/s2arm" | tee proof/gpu-texture.txt || rc=$?
+          args=()
+          if [[ "$CONFIRM" == true ]]; then args+=(--confirm); fi
+          python3 docs/evidence/s2arm-0437-review/gpu-textures/compare.py "$RUNNER_TEMP/s2arm" "${args[@]}" | tee proof/gpu-texture.txt || rc=$?
           case $rc in
             0) echo "CPU reference matches every GPU workload" >> proof/gpu-texture.txt ;;
             77) echo "Metal device unavailable on runner" >> proof/gpu-texture.txt ;;
