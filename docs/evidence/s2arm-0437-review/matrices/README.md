@@ -9,3 +9,5 @@ Avec .NET 10 JIT sur Linux x86-64 et 16 séries appariées, la médiane du lot d
 `python3 replay.py ARBRE résultats.csv --cpu 1` reproduit la comparaison JIT sous Linux. `python3 replay.py ARBRE résultats-natifs.csv --variants control all --aot osx-arm64` compile et compare les exécutables natifs sur Mac avec .NET 10.
 
 La contre-expertise a identifié une différence d’exception de la première variante pour les entrées publiques de taille inférieure à 16. Cette variante a été écartée. La variante `compatible.patch` rétablit la remise à zéro du paramètre de sortie et l’exception attendue avant l’accès direct. Les nouvelles comparaisons relèvent séparément le temps mural et le temps CPU du thread. La bibliothèque auxiliaire utilise l’horloge POSIX du thread sur les deux plateformes.
+
+Sur Mac arm64, la première variante écartée a réduit la médiane des écarts appariés de 34,3 % pour les projections en lignes et de 15,6 % pour les entrées mixtes. Cette série mesure le coût de reconnaissance avec NativeAOT sur l’hôte. Le défaut sur les matrices tronquées empêche de la retenir. [Relevés initiaux](initial-mac.csv).

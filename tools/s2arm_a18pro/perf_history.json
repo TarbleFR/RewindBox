@@ -4818,14 +4818,15 @@
     "FP16 motion matching changed the selected vector on synthetic blocks.",
     "Two partial feedback shortcuts slowed changing substitutions.",
     "Additional blend-state filtering slowed cold/warm pipeline table cases versus 0444.",
-    "Four WidenSession shader-slot mask variants made heavily bound synthetic scans cheaper but increased the median for one bound slot per stage. See drafts/widen-mask (13 randomized triplets in each of five cases per series)."
+    "Four WidenSession shader-slot mask variants made heavily bound synthetic scans cheaper but increased the median for one bound slot per stage. See drafts/widen-mask (13 randomized triplets in each of five cases per series).",
+    "Prioritizing unseen stage coverage among equally urgent recorded pipeline rows increased modeled cumulative draw stalls in 28/144 scenarios with unchanged startup caps. No live policy change. See pipeline/warm-order.md."
   ],
   "remaining_bottlenecks": [
     "Presentation queue scheduling, held residency during layer rotation and native frame pacing",
     "First-use pipeline compilation and residency measured separately from CPU key construction",
     "Shader compilation and translation with legal homebrew workloads"
   ],
-  "next_axis": "Collect first-use vertex and fragment costs, then replay alternative pipeline warm orders with equal startup budgets. Confirm GPU launch widths, the optional UBOLEN cache path and matrix recognition trials. Review layer rotation and FI counters before promotion.",
+  "next_axis": "Observe the active iPhone SDK builds and measured GPU width A/A confirmation, compare the fixed NativeAOT matrix candidate including all public inputs, and collect the repeated optional UBOLEN results. Further pipeline policies must account for actual draw deadlines and cold-stage costs.",
   "legacy_note": "First 21 entries are original host summaries. Their draft patch numbers describe historical experiments; numbers may differ from integrated engine patches. Cachegrind counters are on x86. The uncalibrated projections were withdrawn. No legacy entry establishes fidelity, A18 Pro frametime, GPU time, energy, RAM or FPS.",
   "initial_reference": "0426",
   "intermediate_reference": "0436 (8be902ac0)",
@@ -4834,7 +4835,9 @@
     "definition": "One completed independent candidate with no measurable reproducible improvement after the most recently accepted change. Inconclusive repeats of the same candidate count once. Blend-state filtering was rejected after 0444.",
     "audit_after": 20,
     "consecutive_rejections_at_0446": 0,
-    "consecutive_rejections_after_0447": 4
+    "consecutive_rejections_after_0447": 4,
+    "consecutive_rejections_after_0448_instrumentation": 5,
+    "counter_note": "A measurement-only patch does not reset the performance rejection count. The four slot masks and one scheduler model are independent candidates. Superseded incorrect matrix trial is tracked while its repaired candidate is under comparison."
   },
   "device_metrics": {
     "native_fps": null,
