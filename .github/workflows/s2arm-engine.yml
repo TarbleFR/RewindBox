@@ -197,6 +197,20 @@ jobs:
             "$source_tree/graphics/nvn/tests/t_dsh_stats.c" -o "$RUNNER_TEMP/t_dsh_stats"
           "$RUNNER_TEMP/t_dsh_stats" --rb-stage-recovery
           sh build-utils/s2arm/engine/tests/test_metal_archive.sh "$source_tree"
+      - name: Verify event-driven archive admission and strict reopen
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-energy-checks]')
+        run: |
+          set -euo pipefail
+          engine="$RUNNER_TEMP/s2arm"
+          xcrun --sdk macosx clang -std=gnu11 -O1 -fobjc-arc -fblocks \
+            -mmacosx-version-min=13.0 -Werror=implicit-function-declaration \
+            -I"$engine/graphics/nvn/gfx/nvn" -I"$engine/graphics/nvn/tests" -I"$engine/runtime/include" \
+            build-utils/s2arm/engine/tests/test_metal_archive.m -framework Foundation -framework Metal \
+            -o "$RUNNER_TEMP/energy-archive"
+          for admission in poll signal fallback close race; do
+            directory="$(mktemp -d)"
+            "$RUNNER_TEMP/energy-archive" --admission-event "$directory" "$admission"
+          done
       - name: Measure gaps across concurrent submissions and presentation
         if: matrix.os == 'macos-26' && env.FIRST_RACE == 'yes'
         run: |

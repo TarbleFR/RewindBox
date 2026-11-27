@@ -1,0 +1,228 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 739dff6..98dda07 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -7515,6 +7515,7 @@ static uint64_t rb_pa_queue_limit(void) {
+ //   pass and the archive writer use the same run/one/hold tiers. Resume on one lane during thermal recovery.
+ //   S2A_RB_SPEC_GOVERN=0 restores the previous pace.
+ #include "rb_energy_predict.h"
++#include "rb_probe_policy.h"
+ static rb_spec_gate g_spec_gate = RB_SPEC_GATE_INITIALIZER;
+ int nvn_be_stopping(void);
+ static _Atomic uint64_t g_spec_sampled, g_spec_changes, g_spec_parks, g_spec_parked_ns;
+@@ -7522,6 +7523,8 @@ static _Atomic int g_spec_why;
+ static _Atomic uint64_t g_spec_last_hot;
+ static const char *const k_spec_why[] = {"no reason", "the fair thermal state", "Low Power Mode", "the serious or critical thermal state", "little memory left before the process limit", "thermal recovery", "sustained fixed-probe slowdown"};
+ static _Atomic uint64_t g_rb_probe_generation;
++static _Atomic uint64_t g_probe_ns;  // last valid GPU duration
++static _Atomic uint64_t g_rb_probe_interval_ns;
+ static _Atomic int g_rb_energy_mode;
+ static pthread_mutex_t g_rb_energy_mu = PTHREAD_MUTEX_INITIALIZER;
+ static rb_energy_guard g_rb_energy_guard;
+@@ -7531,7 +7534,10 @@ static int g_rb_energy_last_applied;  // g_rb_energy_mu
+ static struct {
+     uint64_t generation, submitted_ns, frame, duration_ns;
+ } g_rb_energy_sample;  // g_rb_energy_mu
+-enum { RB_ENERGY_CAP = 1, RB_ENERGY_DIAG = 2, RB_ENERGY_PREDICT = 4, RB_ENERGY_PREDICT_DIAG = 8 };
++enum {
++    RB_ENERGY_CAP = 1, RB_ENERGY_DIAG = 2, RB_ENERGY_PREDICT = 4,
++    RB_ENERGY_PREDICT_DIAG = 8, RB_ENERGY_ADAPT_PROBE = 16
++};
+ #define RB_ENERGY_V2 (RB_ENERGY_PREDICT | RB_ENERGY_PREDICT_DIAG)
+
+ static int rb_energy_mode(void) {
+@@ -7540,10 +7546,12 @@ static int rb_energy_mode(void) {
+     if (!mode && g_dev && nvn2_on() && getenv("S2A_RB_DIRECT_GAME_ID")) {
+         const char *guard = getenv("S2A_RB_ENERGY_SPEC_GUARD"), *diag = getenv("S2A_RB_ENERGY_DIAG");
+         const char *predict = getenv("S2A_RB_ENERGY_PREDICT"), *trace = getenv("S2A_RB_ENERGY_PREDICT_DIAG");
++        const char *adapt = getenv("S2A_RB_ENERGY_ADAPT_PROBE");
+         mode = (guard && !strcmp(guard, "1") ? RB_ENERGY_CAP : 0) |
+                (diag && !strcmp(diag, "1") ? RB_ENERGY_DIAG : 0) |
+                (predict && !strcmp(predict, "1") ? RB_ENERGY_PREDICT : 0) |
+-               (trace && !strcmp(trace, "1") ? RB_ENERGY_PREDICT_DIAG : 0);
++               (trace && !strcmp(trace, "1") ? RB_ENERGY_PREDICT_DIAG : 0) |
++               (adapt && !strcmp(adapt, "1") ? RB_ENERGY_ADAPT_PROBE : 0);
+         atomic_store_explicit(&g_rb_energy_mode, mode ? mode : -1, memory_order_relaxed);
+     }
+     return mode > 0 ? mode : 0;
+@@ -7551,12 +7559,17 @@ static int rb_energy_mode(void) {
+     return 0;
+ #endif
+ }
+-static void rb_energy_observe(uint64_t generation, uint64_t frame, uint64_t duration, uint64_t submitted) {
+-    if (!submitted) return;
++static int rb_energy_observe(uint64_t generation, uint64_t frame, uint64_t duration, uint64_t submitted,
++                             int publish_duration) {
++    if (!submitted) return 0;
+     pthread_mutex_lock(&g_rb_energy_mu);
+-    if (generation == atomic_load(&g_rb_probe_generation))
++    int valid = generation == atomic_load(&g_rb_probe_generation);
++    if (valid) {
+         g_rb_energy_sample = (typeof(g_rb_energy_sample)){generation, submitted, frame, duration};
++        if (publish_duration) atomic_store(&g_probe_ns, duration);
++    }
+     pthread_mutex_unlock(&g_rb_energy_mu);
++    return valid;
+ }
+ static int rb_energy_optional_plan(uint64_t now, int nominal, int eligible, int mode) {
+     pthread_mutex_lock(&g_rb_energy_mu);
+@@ -7621,6 +7634,11 @@ static unsigned rb_energy_prediction_plan(uint64_t now, int thermal, int low, in
+     int fresh = rb_energy_predict_update(predictor, now, observed, duration, work, eligible);
+     rb_energy_predictor snapshot = *predictor;
+     pthread_mutex_unlock(&g_rb_energy_mu);
++    if (mode & RB_ENERGY_ADAPT_PROBE) {
++        int investigating = snapshot.state == RB_ENERGY_WATCH || snapshot.state == RB_ENERGY_PREVENT;
++        uint64_t period = rb_probe_adapt_period(eligible, snapshot.reference_ns != 0, investigating);
++        atomic_store_explicit(&g_rb_probe_interval_ns, period, memory_order_relaxed);
++    }
+     unsigned limit = rb_energy_predict_limit(&snapshot);
+     unsigned applied = (mode & RB_ENERGY_PREDICT) ? limit : 0;
+     if ((mode & RB_ENERGY_PREDICT_DIAG) && (fresh || old_state != snapshot.state)) {
+@@ -7717,6 +7735,10 @@ static int rb_spec_level(void) {
+         int energy = rb_energy_mode(), governed = strict || rb_spec_on();
+         unsigned prediction_limit = energy & RB_ENERGY_V2 ?
+             rb_energy_prediction_plan(now, th, low, why, governed, energy) : 0;
++        if ((energy & RB_ENERGY_ADAPT_PROBE) && !(energy & RB_ENERGY_V2)) {
++            int active = governed && th == 0 && !low && why == RB_SPEC_CLEAR;
++            atomic_store_explicit(&g_rb_probe_interval_ns, rb_probe_adapt_period(active, 0, 0), memory_order_relaxed);
++        }
+         if (!(energy & RB_ENERGY_PREDICT) && (energy & (RB_ENERGY_CAP | RB_ENERGY_DIAG)) &&
+             rb_energy_optional_plan(now, th == 0 && !low, governed && why == RB_SPEC_CLEAR, energy))
+             why = RB_SPEC_GPU_PRESSURE;
+@@ -30820,9 +30842,8 @@ void nvn_be_present_wait_taken(double period) {
+ //   for the same passes at the same draw count (frames 3727-3731: render 10-11 ms; 4604-4608: 25-28 ms) and the log could not tell a lower GPU clock or contention from more work.
+ //   The same small compute dispatch (16,384 threads of 4,096 dependent FMAs, about 0.1 ms) runs on a command queue of its own each time; the call returns the previous one's GPU time
+ //   and starts the next. The kernel is built once on a utility queue. None while the GPU is stopped, the app is not active or presents are discarded. S2A_RB_GPU_PROBE=0: none
+-#include "rb_probe_policy.h"
+ static _Atomic int g_rb_gpu_probe_mode=-1, g_rb_probe_every=-2;
+-static _Atomic uint64_t g_rb_probe_last_frame=UINT64_MAX;
++static _Atomic uint64_t g_rb_probe_last_frame=UINT64_MAX, g_rb_probe_next_ns;
+ static int rb_gpu_probe(void) {
+     int v=atomic_load_explicit(&g_rb_gpu_probe_mode,memory_order_relaxed);
+     if (v<0) { const char *e=getenv("S2A_RB_GPU_PROBE"); v=!(e && !strcmp(e,"0")); atomic_store(&g_rb_gpu_probe_mode,v); }
+@@ -30834,7 +30855,6 @@ static int rb_probe_every(void) {
+     return v;
+ }
+ static _Atomic int g_probe_state, g_probe_busy;   // state: 0 not made, 1 being made, 2 ready, -1 failed; busy: a probe in flight
+-static _Atomic uint64_t g_probe_ns;   // the last probe's GPU time (0 = none yet)
+ static __strong id<MTLComputePipelineState> g_probe_pso; static __strong id<MTLCommandQueue> g_probe_q; static __strong id<MTLBuffer> g_probe_buf;
+ static double rb_gpu_probe_sample(uint64_t frame) {
+     if (!rb_gpu_probe() || !g_dev) return -1;
+@@ -30856,7 +30876,11 @@ static double rb_gpu_probe_sample(uint64_t frame) {
+         });
+     } else if (st == 2 && !mtl_gpu_halted() && dm_focus_now() == 1 && !atomic_load(&g_present_discard) && !atomic_exchange(&g_probe_busy, 1)) @autoreleasepool {   // the game's present thread never drains its implicit pool (see g_sub_pool): the command buffer, encoder and handler go with this one
+         uint64_t generation=atomic_load(&g_rb_probe_generation), scheduled=now_ns();
+-        uint64_t energy_submitted = atomic_load_explicit(&g_rb_energy_mode, memory_order_relaxed) > 0 ? bp_now() : 0;
++        int energy = atomic_load_explicit(&g_rb_energy_mode, memory_order_relaxed);
++        int advanced = energy > 0 && (energy & (RB_ENERGY_V2 | RB_ENERGY_ADAPT_PROBE));
++        int trace = advanced && (energy & (RB_ENERGY_PREDICT_DIAG | RB_ENERGY_DIAG));
++        uint64_t energy_submitted = energy > 0 && !advanced ? bp_now() : 0;
++        uint64_t probe_cpu = trace ? clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) : 0;
+         id<MTLCommandBuffer> cb = [g_probe_q commandBuffer];
+         id<MTLComputeCommandEncoder> e = [cb computeCommandEncoder];
+         if (!e) {
+@@ -30866,13 +30890,31 @@ static double rb_gpu_probe_sample(uint64_t frame) {
+         }
+         [e setComputePipelineState:g_probe_pso]; [e setBuffer:g_probe_buf offset:0 atIndex:0];
+         [e dispatchThreadgroups:MTLSizeMake(256, 1, 1) threadsPerThreadgroup:MTLSizeMake(64, 1, 1)]; [e endEncoding];
++        if (advanced) energy_submitted = bp_now();
++        double issued = trace ? CACurrentMediaTime() : 0;
++        uint64_t encode_cpu = trace ? clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - probe_cpu : 0;
+         [cb addCompletedHandler:^(id<MTLCommandBuffer> c) {
+-            if (c.status == MTLCommandBufferStatusCompleted && c.GPUEndTime > c.GPUStartTime && generation==atomic_load(&g_rb_probe_generation)) {
+-                uint64_t elapsed=(uint64_t)((c.GPUEndTime-c.GPUStartTime)*1e9);
+-                atomic_store(&g_probe_ns,elapsed);
+-                rb_energy_observe(generation, frame, elapsed, energy_submitted);
+-                if (rb_probe_every()>0) MLOG("[rb-gpu-probe] frame=%llu scheduled_ns=%llu completed_ns=%llu gpu_ns=%llu every=%d fixed_work=16384x4096-fma units=duration-not-MHz",
+-                    (unsigned long long)frame,(unsigned long long)scheduled,(unsigned long long)now_ns(),(unsigned long long)elapsed,rb_probe_every());
++            if (c.status == MTLCommandBufferStatusCompleted && generation == atomic_load(&g_rb_probe_generation)) {
++                double start = c.GPUStartTime, end = c.GPUEndTime;
++                double span_ns = (end - start) * 1e9;
++                if (advanced) {
++                    // A valid command buffer can still report unavailable timestamps.
++                    if (start > 0 && end <= CACurrentMediaTime() + 0.001 &&
++                        span_ns >= RB_ENERGY_PROBE_MIN_NS && span_ns <= RB_ENERGY_PROBE_MAX_NS &&
++                        rb_energy_observe(generation, frame, (uint64_t)span_ns, energy_submitted, 1) && trace) {
++                        int64_t queue = start >= issued ? (int64_t)((start - issued) * 1e9) : -1;
++                        MLOG("[RB-ENERGY-PROBE] observed_ns=%llu completed_ns=%llu frame=%llu gpu_ns=%llu enqueue_to_gpu_ns=%lld encode_cpu_ns=%llu",
++                             (unsigned long long)energy_submitted, (unsigned long long)bp_now(),
++                             (unsigned long long)frame, (unsigned long long)span_ns,
++                             (long long)queue, (unsigned long long)encode_cpu);
++                    }
++                } else if (end > start) {
++                    uint64_t elapsed = (uint64_t)span_ns;
++                    atomic_store(&g_probe_ns, elapsed);
++                    rb_energy_observe(generation, frame, elapsed, energy_submitted, 0);
++                    if (rb_probe_every()>0) MLOG("[rb-gpu-probe] frame=%llu scheduled_ns=%llu completed_ns=%llu gpu_ns=%llu every=%d fixed_work=16384x4096-fma units=duration-not-MHz",
++                        (unsigned long long)frame,(unsigned long long)scheduled,(unsigned long long)now_ns(),(unsigned long long)elapsed,rb_probe_every());
++                }
+             }
+             atomic_store(&g_probe_busy, 0); }];
+         if (!cb_put(cb)) atomic_store(&g_probe_busy, 0);
+@@ -30881,11 +30923,22 @@ static double rb_gpu_probe_sample(uint64_t frame) {
+ }
+ static void rb_gpu_probe_frame(uint64_t frame) {
+     int every=rb_probe_every(); uint64_t previous=atomic_load(&g_rb_probe_last_frame);
+-    if (rb_probe_due(every,frame,previous) && atomic_compare_exchange_strong(&g_rb_probe_last_frame,&previous,frame)) (void)rb_gpu_probe_sample(frame);
++    if (rb_probe_due(every,frame,previous) && atomic_compare_exchange_strong(&g_rb_probe_last_frame,&previous,frame)) {
++        (void)rb_gpu_probe_sample(frame);
++    } else if (every < 0 && (rb_energy_mode() & RB_ENERGY_ADAPT_PROBE) && rb_gpu_probe()) {
++        uint64_t now = bp_now(), next = atomic_load_explicit(&g_rb_probe_next_ns, memory_order_relaxed);
++        if (!rb_probe_adapt_due(now, next, frame) || mtl_gpu_halted() || dm_focus_now() != 1 ||
++            atomic_load(&g_present_discard)) return;
++        uint64_t interval = atomic_load_explicit(&g_rb_probe_interval_ns, memory_order_relaxed);
++        if (!interval) interval = RB_PROBE_ADAPT_WARM_NS;
++        if (atomic_compare_exchange_strong(&g_rb_probe_next_ns, &next, now + interval))
++            (void)rb_gpu_probe_sample(frame);
++    }
+ }
+ double nvn_be_gpu_probe_ms(void) {
+     if (!rb_gpu_probe() || rb_probe_every()==0) return -1;
+-    if (rb_probe_every()<0) return rb_gpu_probe_sample(atomic_load(&g_cur_frame));
++    if (rb_probe_every()<0 && !(rb_energy_mode() & RB_ENERGY_ADAPT_PROBE))
++        return rb_gpu_probe_sample(atomic_load(&g_cur_frame));
+     uint64_t ns=atomic_load(&g_probe_ns); return ns ? ns/1e6 : -1;
+ }
+ void nvn_be_stats(uint64_t *passes, uint64_t *draws) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index d014570..2214273 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -450,9 +450,12 @@ void nvn_be_begin_session(void) {
+     atomic_store(&g_rb_dispatch_game,-1); g_rb_last_guest_dispatch=0; g_rb_dispatch_bits=0;
+     atomic_store(&g_rb_dispatch_kept,0); atomic_store(&g_rb_dispatch_saved,0);
+     atomic_store(&g_rb_gpu_probe_mode,-1); atomic_store(&g_rb_probe_every,-2);
+-    atomic_store(&g_rb_probe_last_frame,UINT64_MAX); atomic_fetch_add(&g_rb_probe_generation,1);
+-    atomic_store(&g_probe_ns,0);
++    atomic_store(&g_rb_probe_last_frame,UINT64_MAX);
++    atomic_store(&g_rb_probe_next_ns, 0);
++    atomic_store(&g_rb_probe_interval_ns, 0);
+     pthread_mutex_lock(&g_rb_energy_mu);
++    atomic_fetch_add(&g_rb_probe_generation,1);
++    atomic_store(&g_probe_ns,0);
+     g_rb_energy_guard = (rb_energy_guard){0};
+     g_rb_energy_predictor = (rb_energy_predictor){0};
+     for (unsigned i = 0; i < 2; i++) {
+diff --git a/graphics/nvn/gfx/nvn/rb_probe_policy.h b/graphics/nvn/gfx/nvn/rb_probe_policy.h
+index 7f6af16..52abf90 100644
+--- a/graphics/nvn/gfx/nvn/rb_probe_policy.h
++++ b/graphics/nvn/gfx/nvn/rb_probe_policy.h
+@@ -12,3 +12,18 @@ static inline int rb_probe_every_parse(const char *s) {
+ static inline int rb_probe_due(int every,uint64_t frame,uint64_t previous) {
+     return every>0 && frame!=(uint64_t)-1 && frame!=previous && !(frame%(unsigned)every);
+ }
++
++#define RB_PROBE_ADAPT_WARM_NS UINT64_C(3000000000)
++#define RB_PROBE_ADAPT_CALM_NS UINT64_C(5000000000)
++#define RB_PROBE_ADAPT_WATCH_NS UINT64_C(2000000000)
++#define RB_PROBE_ADAPT_OS_NS UINT64_C(8000000000)
++
++static inline uint64_t rb_probe_adapt_period(int eligible, int calibrated, int investigating) {
++    if (!eligible) return RB_PROBE_ADAPT_OS_NS;
++    if (investigating) return RB_PROBE_ADAPT_WATCH_NS;
++    return calibrated ? RB_PROBE_ADAPT_CALM_NS : RB_PROBE_ADAPT_WARM_NS;
++}
++
++static inline int rb_probe_adapt_due(uint64_t now, uint64_t next, uint64_t frame) {
++    return frame >= 8 && frame != UINT64_MAX && now && now >= next;
++}

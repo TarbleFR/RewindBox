@@ -1,0 +1,366 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 5a24ebc..739dff6 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -7514,7 +7514,7 @@ static uint64_t rb_pa_queue_limit(void) {
+ //   never waits for this governor. Every background prewarm row (including a promoted one), the retranslation
+ //   pass and the archive writer use the same run/one/hold tiers. Resume on one lane during thermal recovery.
+ //   S2A_RB_SPEC_GOVERN=0 restores the previous pace.
+-#include "rb_energy_guard.h"
++#include "rb_energy_predict.h"
+ static rb_spec_gate g_spec_gate = RB_SPEC_GATE_INITIALIZER;
+ int nvn_be_stopping(void);
+ static _Atomic uint64_t g_spec_sampled, g_spec_changes, g_spec_parks, g_spec_parked_ns;
+@@ -7525,19 +7525,25 @@ static _Atomic uint64_t g_rb_probe_generation;
+ static _Atomic int g_rb_energy_mode;
+ static pthread_mutex_t g_rb_energy_mu = PTHREAD_MUTEX_INITIALIZER;
+ static rb_energy_guard g_rb_energy_guard;
++static rb_energy_predictor g_rb_energy_predictor;
++static _Atomic uint64_t g_rb_energy_admitted[2], g_rb_energy_attempts[2];
+ static int g_rb_energy_last_applied;  // g_rb_energy_mu
+ static struct {
+     uint64_t generation, submitted_ns, frame, duration_ns;
+ } g_rb_energy_sample;  // g_rb_energy_mu
+-enum { RB_ENERGY_CAP = 1, RB_ENERGY_DIAG = 2 };
++enum { RB_ENERGY_CAP = 1, RB_ENERGY_DIAG = 2, RB_ENERGY_PREDICT = 4, RB_ENERGY_PREDICT_DIAG = 8 };
++#define RB_ENERGY_V2 (RB_ENERGY_PREDICT | RB_ENERGY_PREDICT_DIAG)
+
+ static int rb_energy_mode(void) {
+ #if TARGET_OS_IOS && !TARGET_OS_SIMULATOR && !TARGET_OS_MACCATALYST
+     int mode = atomic_load_explicit(&g_rb_energy_mode, memory_order_relaxed);
+     if (!mode && g_dev && nvn2_on() && getenv("S2A_RB_DIRECT_GAME_ID")) {
+         const char *guard = getenv("S2A_RB_ENERGY_SPEC_GUARD"), *diag = getenv("S2A_RB_ENERGY_DIAG");
++        const char *predict = getenv("S2A_RB_ENERGY_PREDICT"), *trace = getenv("S2A_RB_ENERGY_PREDICT_DIAG");
+         mode = (guard && !strcmp(guard, "1") ? RB_ENERGY_CAP : 0) |
+-               (diag && !strcmp(diag, "1") ? RB_ENERGY_DIAG : 0);
++               (diag && !strcmp(diag, "1") ? RB_ENERGY_DIAG : 0) |
++               (predict && !strcmp(predict, "1") ? RB_ENERGY_PREDICT : 0) |
++               (trace && !strcmp(trace, "1") ? RB_ENERGY_PREDICT_DIAG : 0);
+         atomic_store_explicit(&g_rb_energy_mode, mode ? mode : -1, memory_order_relaxed);
+     }
+     return mode > 0 ? mode : 0;
+@@ -7587,6 +7593,53 @@ static int rb_energy_optional_plan(uint64_t now, int nominal, int eligible, int
+              workload == RB_ENERGY_WORK_LIGHT ? "light" : workload == RB_ENERGY_WORK_BUSY ? "busy" : "unknown");
+     return applied;
+ }
++static unsigned rb_energy_prediction_plan(uint64_t now, int thermal, int low, int why, int enabled, int mode) {
++    int eligible = enabled && thermal == 0 && !low && why == RB_SPEC_CLEAR;
++    pthread_mutex_lock(&g_rb_energy_mu);
++    rb_energy_predictor *predictor = &g_rb_energy_predictor;
++    uint64_t observed = g_rb_energy_sample.generation == atomic_load(&g_rb_probe_generation) ?
++                        g_rb_energy_sample.submitted_ns : 0;
++    uint64_t frame = g_rb_energy_sample.frame, duration = g_rb_energy_sample.duration_ns;
++    uint64_t gpu_ns = 0;
++    unsigned busy = 0, light = 0, valid = 0;
++    if (observed > predictor->seen_ns && observed <= now && now - observed <= RB_ENERGY_PRED_AGE_NS &&
++        frame >= 8 && atomic_load(&g_cur_frame) - frame <= GRING - 8) {
++        for (unsigned i = 4; i <= 8; i++) {
++            uint64_t start, end;
++            double ms = nvn_be_gpu_ms(frame - i);
++            // Empty, partial and invalid timestamp slots do not vote "light".
++            if (ms > 0.0 && nvn_be_gpu_span(frame - i, &start, &end) && end > start) {
++                gpu_ns += (uint64_t)(ms * 1e6);
++                valid++;
++                if (ms >= 10.0) busy++;
++                else light++;
++            }
++        }
++    }
++    int work = busy >= 3 ? RB_ENERGY_WORK_BUSY : light >= 3 ? RB_ENERGY_WORK_LIGHT : RB_ENERGY_WORK_UNKNOWN;
++    int old_state = predictor->state;
++    int fresh = rb_energy_predict_update(predictor, now, observed, duration, work, eligible);
++    rb_energy_predictor snapshot = *predictor;
++    pthread_mutex_unlock(&g_rb_energy_mu);
++    unsigned limit = rb_energy_predict_limit(&snapshot);
++    unsigned applied = (mode & RB_ENERGY_PREDICT) ? limit : 0;
++    if ((mode & RB_ENERGY_PREDICT_DIAG) && (fresh || old_state != snapshot.state)) {
++        static const char *const states[] = {"normal", "watch", "prevent", "slow", "recover"};
++        MLOG("[RB-ENERGY-V2] t_ns=%llu observed_ns=%llu frame=%llu probe_ns=%llu reference_ns=%llu "
++             "ratio_milli=%u trend_milli_s=%d gpu_recent_ns=%llu gpu_valid=%u workload=%d thermal=%d lpm=%d "
++             "eligible=%d state=%s candidate_limit=%u applied_limit=%u optional_attempts=%llu optional_admitted=%llu "
++             "foreground_attempts=%llu foreground_admitted=%llu",
++             (unsigned long long)now, (unsigned long long)(fresh ? observed : 0), (unsigned long long)frame,
++             (unsigned long long)(fresh ? duration : 0), (unsigned long long)snapshot.reference_ns,
++             snapshot.ratio_permille, snapshot.trend_permille_s, (unsigned long long)gpu_ns, valid, work,
++             thermal, low, eligible, states[snapshot.state], limit, applied,
++             (unsigned long long)atomic_load_explicit(&g_rb_energy_attempts[0], memory_order_relaxed),
++             (unsigned long long)atomic_load_explicit(&g_rb_energy_admitted[0], memory_order_relaxed),
++             (unsigned long long)atomic_load_explicit(&g_rb_energy_attempts[1], memory_order_relaxed),
++             (unsigned long long)atomic_load_explicit(&g_rb_energy_admitted[1], memory_order_relaxed));
++    }
++    return applied;
++}
+ static int rb_spec_on(void) {
+     static _Atomic int v = -1; int x = atomic_load_explicit(&v, memory_order_relaxed);
+     if (x < 0) { const char *e = getenv("S2A_RB_SPEC_GOVERN"); x = !(e && !strcmp(e, "0")); int was = -1;
+@@ -7661,17 +7714,19 @@ static int rb_spec_level(void) {
+             why = RB_SPEC_LOW_MEMORY;
+         if (why == RB_SPEC_HOT) atomic_store_explicit(&g_spec_last_hot, now, memory_order_relaxed);
+         why = rb_spec_recovery(why, now, atomic_load_explicit(&g_spec_last_hot, memory_order_relaxed));
+-        int energy = rb_energy_mode();
+-        if (energy && rb_energy_optional_plan(now, th == 0 && !low,
+-            (strict || rb_spec_on()) && why == RB_SPEC_CLEAR, energy))
++        int energy = rb_energy_mode(), governed = strict || rb_spec_on();
++        unsigned prediction_limit = energy & RB_ENERGY_V2 ?
++            rb_energy_prediction_plan(now, th, low, why, governed, energy) : 0;
++        if (!(energy & RB_ENERGY_PREDICT) && (energy & (RB_ENERGY_CAP | RB_ENERGY_DIAG)) &&
++            rb_energy_optional_plan(now, th == 0 && !low, governed && why == RB_SPEC_CLEAR, energy))
+             why = RB_SPEC_GPU_PRESSURE;
+         int level = rb_spec_thermal_tier(why, th, strict);
+         atomic_store_explicit(&g_spec_why, why, memory_order_relaxed);
+         int startupFloor = RB_FLOOR_NONE;
+         if (rb_spec_nominal_startup(th, av)) startupFloor = RB_FLOOR_NOMINAL;
+         else if (adaptive && th == 1 && why == RB_SPEC_FAIR && !low) startupFloor = RB_FLOOR_HOT_TIER;
+-        int was = rb_spec_publish_plan_mode(&g_spec_gate, level, strict ? 2 : 0, startupFloor,
+-                                            why == RB_SPEC_GPU_PRESSURE);
++        int was = rb_spec_publish_energy_plan(&g_spec_gate, level, strict ? 2 : 0, startupFloor,
++                                             why == RB_SPEC_GPU_PRESSURE, prediction_limit);
+         if (strict) {
+             atomic_store_explicit(&g_spec_published, now, memory_order_release);
+             static unsigned lastStartup; // rb_kart_sample_mu
+@@ -7708,6 +7763,12 @@ static int rb_spec_take_for(int worker, int startup, int *lease) {
+     RB_SPEC_TEST_RESERVATION(-1);
+ #endif
+     *lease = rb_spec_admit_startup(&g_spec_gate, worker, startup);
++    int energy = atomic_load_explicit(&g_rb_energy_mode, memory_order_relaxed);
++    if (energy > 0 && (energy & RB_ENERGY_PREDICT_DIAG)) {
++        unsigned required = startup == RB_LEASE_FOREGROUND;
++        atomic_fetch_add_explicit(&g_rb_energy_attempts[required], 1, memory_order_relaxed);
++        if (*lease) atomic_fetch_add_explicit(&g_rb_energy_admitted[required], 1, memory_order_relaxed);
++    }
+ #ifdef RB_SPEC_TEST_RESERVATION
+     RB_SPEC_TEST_RESERVATION(*lease);
+ #endif
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 039558d..d014570 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -454,6 +454,11 @@ void nvn_be_begin_session(void) {
+     atomic_store(&g_probe_ns,0);
+     pthread_mutex_lock(&g_rb_energy_mu);
+     g_rb_energy_guard = (rb_energy_guard){0};
++    g_rb_energy_predictor = (rb_energy_predictor){0};
++    for (unsigned i = 0; i < 2; i++) {
++        atomic_store_explicit(&g_rb_energy_admitted[i], 0, memory_order_relaxed);
++        atomic_store_explicit(&g_rb_energy_attempts[i], 0, memory_order_relaxed);
++    }
+     g_rb_energy_last_applied = 0;
+     g_rb_energy_sample = (typeof(g_rb_energy_sample)){0};
+     atomic_store(&g_rb_energy_mode,0);
+diff --git a/graphics/nvn/gfx/nvn/rb_energy_predict.h b/graphics/nvn/gfx/nvn/rb_energy_predict.h
+new file mode 100644
+index 0000000..603f9b8
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_energy_predict.h
+@@ -0,0 +1,148 @@
++// SPDX-License-Identifier: Apache-2.0
++// Copyright 2026 S2Arm contributors
++#pragma once
++#include "rb_energy_guard.h"
++
++#define RB_ENERGY_PRED_AGE_NS UINT64_C(2000000000)
++#define RB_ENERGY_PRED_GAP_NS UINT64_C(10000000000)
++#define RB_ENERGY_PRED_SPACING_NS UINT64_C(1000000000)
++#define RB_ENERGY_PRED_SUSTAIN_NS UINT64_C(4000000000)
++#define RB_ENERGY_PRED_PREVENT_NS UINT64_C(6000000000)
++#define RB_ENERGY_PRED_RECOVER_NS UINT64_C(4000000000)
++
++enum {
++    RB_ENERGY_NORMAL, RB_ENERGY_WATCH, RB_ENERGY_PREVENT,
++    RB_ENERGY_SLOW, RB_ENERGY_RECOVER
++};
++
++typedef struct {
++    uint64_t seen_ns, last_ns, busy_since_ns, state_ns;
++    uint64_t reference_ns, calibration_min_ns, calibration_max_ns, calibration_sum_ns;
++    unsigned calibration_count, rises, slow, light, calm;
++    unsigned ratio_permille;
++    int trend_permille_s, state;
++} rb_energy_predictor;
++
++static inline void rb_energy_predict_clear(rb_energy_predictor *s) {
++    uint64_t seen = s->seen_ns, reference = s->reference_ns;
++    *s = (rb_energy_predictor){.seen_ns = seen, .reference_ns = reference};
++}
++
++static inline void rb_energy_predict_state(rb_energy_predictor *s, int state, uint64_t now) {
++    if (s->state != state) {
++        s->state = state;
++        s->state_ns = now;
++    }
++}
++
++// Confirm a lower envelope with three agreeing busy observations.
++// A warm launch can establish a relative envelope, never a known cold clock.
++static inline int rb_energy_predict_calibrate(rb_energy_predictor *s, uint64_t duration) {
++    if (s->reference_ns && duration * 10 >= s->reference_ns * 9) {
++        s->calibration_count = 0;
++        return 0;
++    }
++    uint64_t lo = s->calibration_min_ns < duration ? s->calibration_min_ns : duration;
++    uint64_t hi = s->calibration_max_ns > duration ? s->calibration_max_ns : duration;
++    if (!s->calibration_count || hi * 100 > lo * 115) {
++        s->calibration_min_ns = s->calibration_max_ns = s->calibration_sum_ns = duration;
++        s->calibration_count = 1;
++        return 0;
++    }
++    s->calibration_min_ns = lo;
++    s->calibration_max_ns = hi;
++    s->calibration_sum_ns += duration;
++    if (++s->calibration_count < 3) return 0;
++    s->reference_ns = s->calibration_sum_ns / 3;
++    s->calibration_count = 0;
++    return 1;
++}
++
++static inline unsigned rb_energy_predict_limit(const rb_energy_predictor *s) {
++    if (s->state == RB_ENERGY_PREVENT || s->state == RB_ENERGY_SLOW) return 1;
++    return s->state == RB_ENERGY_RECOVER ? 2u : 0u;
++}
++
++static inline void rb_energy_predict_expire(rb_energy_predictor *s, uint64_t now, int eligible) {
++    if (!eligible || (s->last_ns && (now < s->last_ns || now - s->last_ns > RB_ENERGY_PRED_GAP_NS))) {
++        rb_energy_predict_clear(s);
++    } else if (s->state == RB_ENERGY_PREVENT && now >= s->state_ns && now - s->state_ns >= RB_ENERGY_PRED_PREVENT_NS) {
++        s->calm = s->rises = 0;
++        rb_energy_predict_state(s, RB_ENERGY_RECOVER, now);
++    } else if (s->state == RB_ENERGY_RECOVER && now >= s->state_ns && now - s->state_ns >= RB_ENERGY_PRED_RECOVER_NS) {
++        s->calm = s->rises = 0;
++        rb_energy_predict_state(s, RB_ENERGY_NORMAL, now);
++    }
++}
++
++// A slope is evaluated only across independently submitted, corroborated
++// probes. Missing workload, absence of a probe and OS restrictions are unknown.
++static inline int rb_energy_predict_update(rb_energy_predictor *s, uint64_t now, uint64_t submitted,
++                                           uint64_t duration, int work, int eligible) {
++    rb_energy_predict_expire(s, now, eligible);
++    if (!submitted || submitted <= s->seen_ns || submitted > now) return 0;
++    s->seen_ns = submitted;
++    if (!eligible || now - submitted > RB_ENERGY_PRED_AGE_NS ||
++        !rb_energy_probe_valid(duration) ||
++        (s->last_ns && submitted - s->last_ns < RB_ENERGY_PRED_SPACING_NS)) return 0;
++
++    if (work != RB_ENERGY_WORK_BUSY) {
++        s->busy_since_ns = 0;
++        s->calibration_count = s->rises = s->slow = s->calm = 0;
++        s->trend_permille_s = 0;
++        if (work == RB_ENERGY_WORK_LIGHT) {
++            s->last_ns = submitted;
++            s->ratio_permille = 0;
++            if (s->light < 2) ++s->light;
++            if (s->light == 2 || s->state == RB_ENERGY_WATCH)
++                rb_energy_predict_state(s, RB_ENERGY_NORMAL, now);
++        } else {
++            s->light = 0;
++            s->ratio_permille = 0;
++        }
++        return 1;
++    }
++
++    s->light = 0;
++    if (!s->busy_since_ns) s->busy_since_ns = submitted;
++    int recalibrated = rb_energy_predict_calibrate(s, duration);
++    unsigned previous_ratio = s->ratio_permille;
++    uint64_t previous_ns = s->last_ns;
++    s->last_ns = submitted;
++    if (recalibrated) {
++        s->rises = s->slow = s->calm = 0;
++        rb_energy_predict_state(s, RB_ENERGY_NORMAL, now);
++        previous_ratio = 0;
++    }
++    s->ratio_permille = s->reference_ns ? (unsigned)(duration * 1000 / s->reference_ns) : 0;
++    s->trend_permille_s = previous_ratio && previous_ns ?
++        (int)(((int64_t)s->ratio_permille - previous_ratio) * INT64_C(1000000000) /
++              (int64_t)(submitted - previous_ns)) : 0;
++    if (!s->ratio_permille) return 1;
++
++    if (s->ratio_permille >= 1600) {
++        if (s->slow < 2) ++s->slow;
++    } else s->slow = 0;
++    if (s->ratio_permille <= 1150) {
++        if (s->calm < 2) ++s->calm;
++    } else s->calm = 0;
++
++    if (s->ratio_permille >= 1100 && s->trend_permille_s >= 25) {
++        if (s->rises < 2) ++s->rises;
++    } else s->rises = 0;
++
++    if (s->slow == 2) {
++        rb_energy_predict_state(s, RB_ENERGY_SLOW, now);
++    } else if (s->state == RB_ENERGY_SLOW) {
++        if (s->ratio_permille <= 1250) rb_energy_predict_state(s, RB_ENERGY_RECOVER, now);
++    } else if (s->state == RB_ENERGY_PREVENT || s->state == RB_ENERGY_RECOVER) {
++        if (s->calm == 2)
++            rb_energy_predict_state(s, s->state == RB_ENERGY_PREVENT ? RB_ENERGY_RECOVER : RB_ENERGY_NORMAL, now);
++    } else if (s->rises == 2 && s->ratio_permille >= 1200 && s->ratio_permille < 1600 &&
++               submitted - s->busy_since_ns >= RB_ENERGY_PRED_SUSTAIN_NS) {
++        rb_energy_predict_state(s, RB_ENERGY_PREVENT, now);
++    } else {
++        rb_energy_predict_state(s, s->rises ? RB_ENERGY_WATCH : RB_ENERGY_NORMAL, now);
++    }
++    return 1;
++}
+diff --git a/graphics/nvn/gfx/nvn/rb_spec_gate.h b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+index d96edf7..3887e90 100644
+--- a/graphics/nvn/gfx/nvn/rb_spec_gate.h
++++ b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+@@ -88,8 +88,9 @@ typedef struct {
+     int startup_floor;
+     int energy_one;  // Optional budget only. Foreground keeps RUN admission.
+     unsigned active;  // protected by mutex, including leases granted in RUN
++    unsigned prediction_limit;  // 0 means the OS plan alone admits optional work
+ } rb_spec_gate;
+-#define RB_SPEC_GATE_INITIALIZER { PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, PTHREAD_COND_INITIALIZER, 0, RB_SPEC_RUN, 0, 0, 0, 0 }
++#define RB_SPEC_GATE_INITIALIZER { PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER, PTHREAD_COND_INITIALIZER, 0, RB_SPEC_RUN, 0, 0, 0, 0, 0 }
+ static inline void rb_spec_signal_locked(rb_spec_gate *gate) {
+     atomic_fetch_add(&gate->epoch, 1);
+     RB_SPEC_DIAG("spec.signal", -2, pthread_cond_broadcast(&gate->changed));
+@@ -109,18 +110,24 @@ static inline void rb_spec_notify_sensor(rb_spec_gate *gate, _Atomic uint64_t *s
+     RB_SPEC_DIAG("spec.signal", -2, pthread_cond_signal(&gate->primary));
+     pthread_mutex_unlock(&gate->mutex);
+ }
+-static inline int rb_spec_publish_plan_mode(rb_spec_gate *gate, int level, unsigned limit,
+-                                            int startup_floor, int energy_one) {
++static inline int rb_spec_publish_energy_plan(rb_spec_gate *gate, int level, unsigned limit,
++                                              int startup_floor, int energy_one, unsigned prediction_limit) {
+     pthread_mutex_lock(&gate->mutex);
+     int old = atomic_exchange(&gate->level, level);
+     if (level != old || gate->limit != limit || gate->startup_floor != startup_floor ||
+-        gate->energy_one != energy_one) rb_spec_signal_locked(gate);
++        gate->energy_one != energy_one || gate->prediction_limit != prediction_limit)
++        rb_spec_signal_locked(gate);
+     gate->startup_floor = startup_floor;
+     gate->energy_one = energy_one;
+     gate->limit = limit;
++    gate->prediction_limit = prediction_limit;
+     pthread_mutex_unlock(&gate->mutex);
+     return old;
+ }
++static inline int rb_spec_publish_plan_mode(rb_spec_gate *gate, int level, unsigned limit,
++                                            int startup_floor, int energy_one) {
++    return rb_spec_publish_energy_plan(gate, level, limit, startup_floor, energy_one, 0);
++}
+ static inline int rb_spec_publish_plan(rb_spec_gate *gate, int level, unsigned limit, int startup_floor) {
+     return rb_spec_publish_plan_mode(gate, level, limit, startup_floor, 0);
+ }
+@@ -143,6 +150,8 @@ static inline int rb_spec_admit_startup(rb_spec_gate *gate, int worker, int star
+     int floor = gate->startup_floor && eligible && worker == 0 && level == RB_SPEC_HOLD;
+     int granted = (floor || rb_spec_worker_allowed(level, worker)) && (level == RB_SPEC_RUN || !gate->active) &&
+                   (!limit || gate->active < limit);
++    if (granted && startup != RB_LEASE_FOREGROUND && gate->prediction_limit &&
++        gate->active >= gate->prediction_limit) granted = 0;
+     if (granted) gate->active++;
+     pthread_mutex_unlock(&gate->mutex);
+     return granted;
+@@ -164,7 +173,9 @@ static inline void rb_spec_release_mode(rb_spec_gate *gate, int *lease, int coal
+     *lease = 0;
+     unsigned before = gate->active--;
+     int level = atomic_load(&gate->level);
+-    if (gate->limit && level == RB_SPEC_RUN) {
++    if (gate->prediction_limit && before == gate->prediction_limit && level == RB_SPEC_RUN) {
++        rb_spec_signal_locked(gate);
++    } else if (gate->limit && level == RB_SPEC_RUN) {
+         // Only a full-to-available transition unblocks a worker. Hot-tier
+         // startup rows can have four slots while regular rows have two.
+         if (!coalesce || before == gate->limit || (gate->limit == 2 && before == RB_SPEC_HOT_TIER_LIMIT))

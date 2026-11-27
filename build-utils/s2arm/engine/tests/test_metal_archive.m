@@ -67,8 +67,14 @@ static NSString *fixture_seed_key;
 #define RB_PAR_SUBMIT_THREAD() fixture_submit
 #define RB_PAR_PREOPEN() fixture_preopen
 #ifndef RB_ARCHIVE_TEST_793_CONTROL
-static int injected_archive_thermal = -1;
-#define RB_PAR_WRITE_MODE() rb_archive_write_mode(injected_archive_thermal >= 0, injected_archive_thermal, (1024ull << 20) + 1)
+static _Atomic int injected_archive_thermal = -1;
+static int fixture_energy_scope;
+static int rb_energy_scope(void) { return fixture_energy_scope; }
+static int fixture_archive_mode(void) {
+    int thermal = atomic_load(&injected_archive_thermal);
+    return rb_archive_write_mode(thermal >= 0, thermal, (1024ull << 20) + 1);
+}
+#define RB_PAR_WRITE_MODE() fixture_archive_mode()
 #endif
 #include "pso_archive.h"
 #include "rb_archive_relaunch.inc"
@@ -479,7 +485,84 @@ static void test_error_nil(void) {
 #undef NIL_CHECK
 }
 #endif
+#ifndef RB_ARCHIVE_TEST_793_CONTROL
+static void test_archive_admission_event(const char *directory, const char *mode) {
+    int poll = !strcmp(mode, "poll"), signal = !strcmp(mode, "signal");
+    int fallback = !strcmp(mode, "fallback"), close = !strcmp(mode, "close"), race = !strcmp(mode, "race");
+    REQUIRE(poll || signal || fallback || close || race);
+    REQUIRE(!setenv("S2A_RB_ARCHIVE_EVENT_WAKE", poll ? "0" : "1", 1));
+    REQUIRE(!setenv("S2A_RB_ARCHIVE_EVENT_DIAG", "1", 1));
+    fixture_energy_scope = 1;
+    g_dev = MTLCreateSystemDefaultDevice(); REQUIRE(g_dev);
+    NSString *path = [@(directory) stringByAppendingPathComponent:@"pso_user.tsv"];
+    REQUIRE(!setenv("DM_PSO_USER", path.fileSystemRepresentation, 1));
+    par_open_dir(); REQUIRE(g_par_on);
+    MTLComputePipelineDescriptor *desc = [MTLComputePipelineDescriptor new];
+    NSError *error = nil;
+    id<MTLLibrary> lib = [g_dev newLibraryWithSource:@"#include <metal_stdlib>\nusing namespace metal;\n"
+        "kernel void admission(device uint *b [[buffer(0)]]) { *b=42; }" options:nil error:&error];
+    REQUIRE(lib);
+    desc.computeFunction = [lib newFunctionWithName:@"admission"];
+    REQUIRE([g_dev newComputePipelineStateWithDescriptor:desc options:0 reflection:nil error:&error]);
+    NSString *key = [@"c" stringByAppendingString:par_hash("admission", 9)];
+
+    if (race) {
+        // Publish the opening after the refused check and before the writer parks.
+        // No event callback was enqueued, so arming must replay that epoch.
+        pthread_mutex_lock(&g_par_mu);
+        g_par_todo = [NSMutableArray arrayWithObject:@[key, desc]];
+        g_par_pending_keys = [NSMutableSet setWithObject:key];
+        g_par_writer = 1;
+        par_admission_config_locked();
+        uint64_t epoch = atomic_load(&g_par_admission_epoch);
+        atomic_store(&injected_archive_thermal, 2);
+        rb_archive_notify_admission();
+        par_admission_retry_locked(epoch, 0, PAR_ADM_POLL_NS);
+    } else {
+        atomic_store(&injected_archive_thermal, 3);
+        par_note(key, desc);
+        uint64_t until = bp_now() + UINT64_C(10000000000);
+        for (;;) {
+            pthread_mutex_lock(&g_par_mu);
+            int parked = g_par_wait_due || g_par_timer;
+            pthread_mutex_unlock(&g_par_mu);
+            if (parked) break;
+            REQUIRE(bp_now() < until);
+            usleep(1000);
+        }
+        if (poll || signal) usleep(3200000);
+        atomic_store(&injected_archive_thermal, 2);  // the dedicated persistent lane can run at Serious
+        if (signal) rb_archive_notify_admission();
+        if (close) par_begin_close();
+    }
+    struct timespec deadline;
+    clock_gettime(CLOCK_REALTIME, &deadline);
+    deadline.tv_sec += 20;
+    REQUIRE(!par_wait_idle(&deadline));
+    REQUIRE(atomic_load(&g_par_written) == 1 && !atomic_load(&g_par_write_failed));
+    REQUIRE(!g_par_todo.count && !g_par_pending_keys.count && !g_par_wait_due && !g_par_timer);
+    if (poll) REQUIRE(g_par_admission_stats.wake[PAR_WAKE_LEGACY] >= 4);
+    if (race) REQUIRE(g_par_admission_stats.wake[PAR_WAKE_EVENT] == 1);
+    if (fallback) REQUIRE(g_par_admission_stats.wake[PAR_WAKE_FALLBACK] == 1);
+    if (close) REQUIRE(g_par_admission_stats.wake[PAR_WAKE_CLOSE] == 1);
+    if (signal) REQUIRE(g_par_admission_stats.wake[PAR_WAKE_EVENT] == 1 &&
+                        g_par_admission_stats.wake[PAR_WAKE_FALLBACK] < 4);
+    id<MTLBinaryArchive> archive = par_archive_for(key); REQUIRE(archive);
+    desc.binaryArchives = @[archive];
+    REQUIRE([g_dev newComputePipelineStateWithDescriptor:desc options:MTLPipelineOptionFailOnBinaryArchiveMiss
+                                               reflection:nil error:&error]);
+    par_admission_report_and_reset();
+    printf("PASS archive admission %s and strict reopen\n", mode);
+}
+#endif
+
 int main(int argc, char **argv) { @autoreleasepool {
+#ifndef RB_ARCHIVE_TEST_793_CONTROL
+    if (argc == 4 && !strcmp(argv[1], "--admission-event")) {
+        test_archive_admission_event(argv[2], argv[3]);
+        return 0;
+    }
+#endif
     if (argc == 2 && !strcmp(argv[1], "--probe")) return MTLCreateSystemDefaultDevice() ? 0 : 77;
 #ifndef RB_ARCHIVE_TEST_793_CONTROL
     if (argc==2 && !strcmp(argv[1],"--error-nil")) { test_error_nil(); return 0; }

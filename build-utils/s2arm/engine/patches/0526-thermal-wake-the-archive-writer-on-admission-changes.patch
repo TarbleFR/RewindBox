@@ -1,0 +1,331 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 98dda07..e44a2d7 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -7672,10 +7672,12 @@ static uint64_t rb_spec_min_free(void) {
+ static pthread_mutex_t rb_kart_sample_mu = PTHREAD_MUTEX_INITIALIZER;
+ static _Atomic uint64_t g_spec_published;  // Set after publishing the complete plan.
+ static _Atomic int g_spec_snapshot_option, g_spec_event_option;
++static void rb_archive_notify_admission(void);
+ static void rb_spec_sensor_change(int thermal) {
+     if (atomic_load_explicit(&g_spec_event_option, memory_order_relaxed) == 2)
+         rb_spec_notify_sensor(&g_spec_gate, &g_spec_sampled);
+     else if (thermal) atomic_store(&g_spec_sampled, 0);
++    rb_archive_notify_admission();
+ }
+ static int rb_spec_level(void) {
+     int adaptive = rb_thermal_pacing();
+@@ -7747,8 +7749,11 @@ static int rb_spec_level(void) {
+         int startupFloor = RB_FLOOR_NONE;
+         if (rb_spec_nominal_startup(th, av)) startupFloor = RB_FLOOR_NOMINAL;
+         else if (adaptive && th == 1 && why == RB_SPEC_FAIR && !low) startupFloor = RB_FLOOR_HOT_TIER;
++        uint64_t plan_ticket = atomic_load_explicit(&g_spec_gate.epoch, memory_order_relaxed);
+         int was = rb_spec_publish_energy_plan(&g_spec_gate, level, strict ? 2 : 0, startupFloor,
+                                              why == RB_SPEC_GPU_PRESSURE, prediction_limit);
++        if (plan_ticket != atomic_load_explicit(&g_spec_gate.epoch, memory_order_relaxed))
++            rb_archive_notify_admission();
+         if (strict) {
+             atomic_store_explicit(&g_spec_published, now, memory_order_release);
+             static unsigned lastStartup; // rb_kart_sample_mu
+@@ -7806,8 +7811,9 @@ int rb_kart_try_worker(int *lease) {
+ }
+ static _Atomic int g_spec_wake_option;
+ void rb_spec_done(int *lease) {
+-    if (*lease)
+-        rb_spec_release_mode(&g_spec_gate, lease, rb_pacing_setting(&g_spec_wake_option, "S2A_RB_SPEC_COALESCE_WAKE"));
++    if (*lease && rb_spec_release_mode(&g_spec_gate, lease,
++            rb_pacing_setting(&g_spec_wake_option, "S2A_RB_SPEC_COALESCE_WAKE")))
++        rb_archive_notify_admission();
+ }
+ int rb_spec_take_optional(void) {
+     for (;;) {
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 2214273..d5b2231 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -520,6 +520,7 @@ void nvn_be_begin_session(void) {
+         memset(&g_wp_ring, 0, sizeof g_wp_ring);
+         pthread_mutex_unlock(&g_wp_mu);
+     }
++    par_admission_report_and_reset();
+     atomic_store(&g_par_close_until, 0);
+     os_unfair_lock_lock(&g_shpre_mu);
+     rb_observed_begin(&g_observed);
+diff --git a/graphics/nvn/gfx/nvn/pso_archive.h b/graphics/nvn/gfx/nvn/pso_archive.h
+index d802f7e..8b70cd3 100644
+--- a/graphics/nvn/gfx/nvn/pso_archive.h
++++ b/graphics/nvn/gfx/nvn/pso_archive.h
+@@ -719,6 +719,87 @@ static int g_rb_archive_has_warm;
+ static uint64_t g_par_ticket, g_par_timer;
+ static void par_writer(void);
+
++enum { PAR_ADM_EVENT = 1, PAR_ADM_DIAG = 2 };
++enum { PAR_WAKE_EVENT, PAR_WAKE_FALLBACK, PAR_WAKE_CLOSE, PAR_WAKE_LEGACY };
++#define PAR_ADM_POLL_NS UINT64_C(250000000)
++#define PAR_ADM_FALLBACK_NS UINT64_C(1500000000)
++// Both sources are process-owned. Only the writer's session owns a wait.
++// The signal path takes no archive lock, including when the writer itself
++// discovers a new plan while holding g_par_mu.
++static dispatch_source_t g_par_admission_signal, g_par_admission_fallback;
++static _Atomic int g_par_admission_listening, g_par_admission_waiting;
++static _Atomic uint64_t g_par_admission_epoch;
++// All fields below are protected by g_par_mu.
++static int g_par_admission_mode = -1;
++static uint64_t g_par_wait_due, g_par_wait_epoch, g_par_wait_started;
++static struct {
++    uint64_t denied, cpu_ns, wait_ns, max_wait_ns, started_ns, written_at_start, last_write_ns;
++    uint64_t wake[4];
++} g_par_admission_stats;
++
++static void rb_archive_notify_admission(void) {
++    if (!atomic_load_explicit(&g_par_admission_listening, memory_order_acquire)) return;
++    atomic_fetch_add(&g_par_admission_epoch, 1);
++    if (atomic_load(&g_par_admission_waiting)) dispatch_source_merge_data(g_par_admission_signal, 1);
++}
++
++static void par_admission_end_locked(unsigned reason, uint64_t now) {
++    if (g_par_wait_started) {
++        uint64_t waited = now - g_par_wait_started;
++        g_par_admission_stats.wait_ns += waited;
++        if (waited > g_par_admission_stats.max_wait_ns) g_par_admission_stats.max_wait_ns = waited;
++        g_par_admission_stats.wake[reason]++;
++        g_par_wait_started = 0;
++    }
++    if (!g_par_wait_due) return;
++    g_par_wait_due = 0;
++    atomic_store(&g_par_admission_waiting, 0);
++    dispatch_source_set_timer(g_par_admission_fallback, DISPATCH_TIME_FOREVER, DISPATCH_TIME_FOREVER, 0);
++}
++
++static void par_admission_wake(unsigned reason) {
++    pthread_mutex_lock(&g_par_mu);
++    uint64_t now = bp_now();
++    int owns = g_par_wait_due && (reason == PAR_WAKE_EVENT ?
++        atomic_load(&g_par_admission_epoch) != g_par_wait_epoch : now >= g_par_wait_due);
++    if (owns) par_admission_end_locked(reason, now);
++    pthread_mutex_unlock(&g_par_mu);
++    if (owns) par_writer();
++}
++
++static void par_admission_config_locked(void) {
++    if (g_par_admission_mode >= 0) return;
++    g_par_admission_mode = 0;
++    if (!nvn_rb_thermal_scope()) return;
++    const char *on = getenv("S2A_RB_ARCHIVE_EVENT_WAKE");
++    const char *diag = getenv("S2A_RB_ARCHIVE_EVENT_DIAG");
++    if (diag && !strcmp(diag, "1")) {
++        g_par_admission_mode |= PAR_ADM_DIAG;
++        g_par_admission_stats.started_ns = bp_now();
++        g_par_admission_stats.written_at_start = atomic_load(&g_par_written);
++    }
++    if (!on || strcmp(on, "1")) return;
++    if (!g_par_admission_signal) {
++        dispatch_queue_t q = s2a_qos_global(S2A_QOS_IO_BG);
++        dispatch_source_t signal = dispatch_source_create(DISPATCH_SOURCE_TYPE_DATA_ADD, 0, 0, q);
++        dispatch_source_t fallback = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, q);
++        if (!signal || !fallback) return;  // retain the bounded legacy timer
++        g_par_admission_signal = signal;
++        g_par_admission_fallback = fallback;
++        dispatch_source_set_event_handler(signal, ^{ par_admission_wake(PAR_WAKE_EVENT); });
++        dispatch_source_set_event_handler(fallback, ^{ par_admission_wake(PAR_WAKE_FALLBACK); });
++        dispatch_source_set_timer(fallback, DISPATCH_TIME_FOREVER, DISPATCH_TIME_FOREVER, 0);
++        dispatch_activate(signal);
++        dispatch_activate(fallback);
++    }
++    g_par_admission_mode |= PAR_ADM_EVENT;
++    atomic_store_explicit(&g_par_admission_listening, 1, memory_order_release);
++}
++
++static void par_admission_cpu_locked(uint64_t start) {
++    if (start) g_par_admission_stats.cpu_ns += clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start;
++}
++
+ // Called with g_par_mu held. The current writer transfers ownership to exactly
+ // one timer. Stop can take it back immediately, invalidating the old callback.
+ static void par_schedule_locked(uint64_t ns) {
+@@ -728,20 +809,67 @@ static void par_schedule_locked(uint64_t ns) {
+     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)ns), s2a_qos_global(S2A_QOS_IO_BG), ^{
+         pthread_mutex_lock(&g_par_mu);
+         int owns = g_par_timer == ticket;
+-        if (owns) g_par_timer = 0;
++        if (owns) {
++            g_par_timer = 0;
++            if (g_par_wait_started) par_admission_end_locked(PAR_WAKE_LEGACY, bp_now());
++        }
+         pthread_mutex_unlock(&g_par_mu);
+         if (owns) par_writer();
+     });
+ }
++// The epoch is captured before asking for admission. An event between the
++// refusal and arming the wait is replayed. A lost/unavailable sensor event
++// still leaves one bounded check. Close and I/O retry keep their own policy.
++static void par_admission_retry_locked(uint64_t epoch, uint64_t until, uint64_t legacy_ns) {
++    uint64_t now = bp_now();
++    if (g_par_admission_mode & PAR_ADM_DIAG) {
++        g_par_admission_stats.denied++;
++        g_par_wait_started = now;
++    }
++    if (!(g_par_admission_mode & PAR_ADM_EVENT) || until) {
++        par_schedule_locked(legacy_ns);
++        return;
++    }
++    g_par_wait_epoch = epoch;
++    g_par_wait_due = now + PAR_ADM_FALLBACK_NS;
++    dispatch_source_set_timer(g_par_admission_fallback, dispatch_time(DISPATCH_TIME_NOW, PAR_ADM_FALLBACK_NS),
++                              DISPATCH_TIME_FOREVER, 20000000);
++    atomic_store(&g_par_admission_waiting, 1);
++    if (atomic_load(&g_par_admission_epoch) != epoch) dispatch_source_merge_data(g_par_admission_signal, 1);
++    pthread_mutex_unlock(&g_par_mu);
++}
+ static void par_begin_close(void) {
+     pthread_mutex_lock(&g_par_mu);
+     int first = !atomic_load(&g_par_close_until);
+     if (first) atomic_store(&g_par_close_until, bp_now() + 1500000000ull);
+-    int wake = first && g_par_timer != 0;
+-    if (wake) g_par_timer = 0;
++    int wake = first && (g_par_timer || g_par_wait_due);
++    if (wake) {
++        g_par_timer = 0;
++        par_admission_end_locked(PAR_WAKE_CLOSE, bp_now());
++    }
+     pthread_mutex_unlock(&g_par_mu);
+     if (wake) dispatch_async(s2a_qos_global(S2A_QOS_IO_BG), ^{ par_writer(); });
+ }
++static void par_admission_report_and_reset(void) {
++    pthread_mutex_lock(&g_par_mu);
++    typeof(g_par_admission_stats) stats = g_par_admission_stats;
++    int mode = g_par_admission_mode;
++    g_par_admission_mode = -1;
++    g_par_admission_stats = (typeof(g_par_admission_stats)){0};
++    atomic_store_explicit(&g_par_admission_listening, 0, memory_order_release);
++    pthread_mutex_unlock(&g_par_mu);
++    if (mode < 0 || !(mode & PAR_ADM_DIAG)) return;
++    MLOG("[RB-ARCHIVE-ADMISSION] event=%d writer_wall_ns=%llu writer_cpu_ns=%llu denied=%llu "
++         "wait_ns=%llu max_wait_ns=%llu signal_wake=%llu fallback_wake=%llu close_wake=%llu legacy_wake=%llu "
++         "persisted=%llu last_persist_offset_ns=%llu",
++         !!(mode & PAR_ADM_EVENT), (unsigned long long)(bp_now() - stats.started_ns),
++         (unsigned long long)stats.cpu_ns, (unsigned long long)stats.denied,
++         (unsigned long long)stats.wait_ns, (unsigned long long)stats.max_wait_ns,
++         (unsigned long long)stats.wake[PAR_WAKE_EVENT], (unsigned long long)stats.wake[PAR_WAKE_FALLBACK],
++         (unsigned long long)stats.wake[PAR_WAKE_CLOSE], (unsigned long long)stats.wake[PAR_WAKE_LEGACY],
++         (unsigned long long)(atomic_load(&g_par_written) - stats.written_at_start),
++         (unsigned long long)(stats.last_write_ns ? stats.last_write_ns - stats.started_ns : 0));
++}
+ static int par_wait_idle(const struct timespec *deadline) {
+     if (RB_PAR_PREOPEN() && dispatch_group_wait(rb_archive_jobs(), dispatch_walltime(deadline, 0)))
+         return -ETIMEDOUT;
+@@ -784,18 +912,26 @@ static BOOL par_retry_serialization(RBArchiveSerialization *r) {
+     return YES;
+ }
+ static void par_writer(void) { @autoreleasepool {
++    uint64_t writer_cpu = 0;
+     for (;;) @autoreleasepool {
+         pthread_mutex_lock(&g_par_mu);
++        par_admission_config_locked();
++        if (!writer_cpu && (g_par_admission_mode & PAR_ADM_DIAG))
++            writer_cpu = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID);
++        uint64_t epoch = atomic_load(&g_par_admission_epoch);
++        uint64_t writes = writer_cpu ? atomic_load(&g_par_written) : 0;
+         RBArchiveSerialization *retry = g_par_retry;
+         if (retry) {
+             pthread_mutex_unlock(&g_par_mu);
+             BOOL finished = par_retry_serialization(retry);
+             pthread_mutex_lock(&g_par_mu);
+             if (finished) {
++                if (writer_cpu && atomic_load(&g_par_written) != writes) g_par_admission_stats.last_write_ns = bp_now();
+                 for (NSString *key in retry->keys) [g_par_pending_keys removeObject:key];
+                 g_par_retry = nil;
+             } else {
+-                par_schedule_locked(250000000ull);
++                par_admission_cpu_locked(writer_cpu);
++                par_admission_retry_locked(epoch, atomic_load(&g_par_close_until), PAR_ADM_POLL_NS);
+                 return;
+             }
+             pthread_mutex_unlock(&g_par_mu);
+@@ -816,7 +952,8 @@ static void par_writer(void) { @autoreleasepool {
+         NSUInteger n = MIN(g_par_todo.count, (NSUInteger)(single ? 1 : PAR_BATCH));
+         uint64_t serial = 0, delays = 0, priority_delays = 0;
+         if (n && (mode == RB_ARCHIVE_PAUSE || (mode == RB_ARCHIVE_LEGACY && !deadline && !rb_spec_may(0)))) {
+-            par_schedule_locked(250000000ull);
++            par_admission_cpu_locked(writer_cpu);
++            par_admission_retry_locked(epoch, deadline, PAR_ADM_POLL_NS);
+             return;
+         }
+         if (n && !deadline && g_rb_archive_coalesce && (g_rb_archive_batch32 || !g_rb_archive_has_warm)) {
+@@ -830,6 +967,7 @@ static void par_writer(void) { @autoreleasepool {
+                 delay = window - age;
+             if (delay) {
+                 g_rb_archive_delays++;
++                par_admission_cpu_locked(writer_cpu);
+                 par_schedule_locked(delay);
+                 return;
+             }
+@@ -845,6 +983,7 @@ static void par_writer(void) { @autoreleasepool {
+             else if (g_rb_archive_batch32 && n == PAR_BATCH)
+                 g_rb_archive_first = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
+         } else {
++            par_admission_cpu_locked(writer_cpu);
+             g_par_writer = 0;
+             pthread_cond_broadcast(&g_par_idle);
+         }
+@@ -855,6 +994,7 @@ static void par_writer(void) { @autoreleasepool {
+                  (unsigned long long)serial, (unsigned long)n, (unsigned long long)delays, (unsigned long long)priority_delays);
+         NSUInteger consumed = par_write_batch_try(batch, &retry);
+         pthread_mutex_lock(&g_par_mu);
++        if (writer_cpu && atomic_load(&g_par_written) != writes) g_par_admission_stats.last_write_ns = bp_now();
+         for (NSUInteger i = 0; i < consumed; ++i) [g_par_pending_keys removeObject:batch[i][0]];
+         if (consumed < n) {
+             NSRange tail = NSMakeRange(consumed, n - consumed);
+@@ -868,10 +1008,12 @@ static void par_writer(void) { @autoreleasepool {
+         if (consumed < n) g_rb_archive_has_warm |= had_warm;
+         if (retry || !consumed) {
+             deadline = atomic_load(&g_par_close_until);
+-            uint64_t now = bp_now(), delay = retry ? 100000000ull : 250000000ull;
++            uint64_t now = bp_now(), delay = retry ? 100000000ull : PAR_ADM_POLL_NS;
+             if (!par_close_expired(deadline, RB_PAR_WRITE_MODE())) {
+                 if (deadline && now < deadline && deadline - now < delay) delay = deadline - now;
+-                par_schedule_locked(delay);
++                par_admission_cpu_locked(writer_cpu);
++                if (retry) par_schedule_locked(delay);
++                else par_admission_retry_locked(epoch, deadline, delay);
+                 return;
+             }
+         }
+diff --git a/graphics/nvn/gfx/nvn/rb_spec_gate.h b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+index 3887e90..e2087f1 100644
+--- a/graphics/nvn/gfx/nvn/rb_spec_gate.h
++++ b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+@@ -167,25 +167,29 @@ static inline int rb_spec_extend_batch(rb_spec_gate *gate) {
+     pthread_mutex_unlock(&gate->mutex);
+     return granted;
+ }
+-static inline void rb_spec_release_mode(rb_spec_gate *gate, int *lease, int coalesce) {
+-    if (!*lease) return;
++static inline int rb_spec_release_mode(rb_spec_gate *gate, int *lease, int coalesce) {
++    if (!*lease) return 0;
+     pthread_mutex_lock(&gate->mutex);
+     *lease = 0;
+     unsigned before = gate->active--;
+     int level = atomic_load(&gate->level);
++    int available = 0;
+     if (gate->prediction_limit && before == gate->prediction_limit && level == RB_SPEC_RUN) {
+         rb_spec_signal_locked(gate);
++        available = 1;
+     } else if (gate->limit && level == RB_SPEC_RUN) {
+         // Only a full-to-available transition unblocks a worker. Hot-tier
+         // startup rows can have four slots while regular rows have two.
+-        if (!coalesce || before == gate->limit || (gate->limit == 2 && before == RB_SPEC_HOT_TIER_LIMIT))
+-            rb_spec_signal_locked(gate);
++        available = before == gate->limit || (gate->limit == 2 && before == RB_SPEC_HOT_TIER_LIMIT);
++        if (!coalesce || available) rb_spec_signal_locked(gate);
+     } else if ((!gate->active && (level == RB_SPEC_ONE || gate->startup_floor)) ||
+                (gate->energy_one && before == gate->limit)) {
+         atomic_fetch_add(&gate->epoch, 1);
+         RB_SPEC_DIAG("spec.signal", -2, pthread_cond_signal(&gate->primary));
++        available = 1;
+     }
+     pthread_mutex_unlock(&gate->mutex);
++    return available;
+ }
+ static inline void rb_spec_release(rb_spec_gate *gate, int *lease) {
+     rb_spec_release_mode(gate, lease, 0);

@@ -922,3 +922,12 @@ Un mot de 64 bits par fichier réunit la position et la longueur du chemin. La l
 ### 0518–0523 — ombres NVN2 et copies de profondeur
 
 0518 corrige la comptabilité logique D16 et D32S8 et ajoute `S2A_RB_SHADOW_TRACE=1`. 0519 teste la réutilisation de snapshots après effacement d’un niveau ou d’une couche disjointe avec `S2A_RB_SHADOW_MIP_CACHE=1`. 0520 protège la lecture de profondeur dans les passes sans couleur, avec retour témoin via `S2A_RB_SHADOW_DEPTH_FEEDBACK=0`. 0521 ajoute le contrôle différentiel des profondeurs et du stencil. 0522 exclut les passes ayant des producteurs non classés de la réutilisation. 0523 adapte le banc au GPU virtuel Apple. [Protocole et preuves](../../../docs/evidence/s2arm-shadows/README.md).
+
+### 0524–0527 — Endurance GPU et archives
+
+- **0524** ajoute l’admission facultative anticipée à la politique existante, en opt-in `S2A_RB_ENERGY_PREDICT=1`. Simulation sans effet sur les admissions avec `S2A_RB_ENERGY_PREDICT_DIAG=1` seul.
+- **0525** espace les sondes en temps monotone et distingue leur attente, leur exécution et le coût CPU. Opt-in `S2A_RB_ENERGY_ADAPT_PROBE=1`.
+- **0526** évite les réessais d’archives à 250 ms en attente d’admission, avec réveil sur disponibilité et secours borné. Opt-in `S2A_RB_ARCHIVE_EVENT_WAKE=1`. `S2A_RB_ARCHIVE_EVENT_DIAG=1` relève les deux bras.
+- **0527** complète les gardes de fraîcheur, protège le premier PSO et couvre les deux backends directs.
+
+[Audit, mesures et réception](../../../docs/evidence/s2arm-thermal-0524-0527.md).
