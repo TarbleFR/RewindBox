@@ -1,0 +1,160 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index baef3a9..703436a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -20952,19 +20952,37 @@ static int wd_geom_cb(void) {
+     static uint64_t nlog; if (nlog++ < 32) MLOG("S2Arm widen geometry: vs %s draw %d vertices x%d instances: NDC x [%.3f, %.3f] -> %s", vs->key, n, inst < 1 ? 1 : inst, lo, hi, r ? "covers the canvas (shrink ok)" : "part of the canvas (no shrink)");
+     return r;
+ }
++// RewindBox (patch 0471): positions from the vertex shader's own table (json pos_const, Dsh.cs) when it has no position attribute: a draw of vertices first..first+n-1 of one
++//   instance from base 0, not indexed, indirect, multi-draw or transform-feedback counted, with the widescreen push off (it moves x and y). S2A_RB_COVER_CONST=0: no table
++static int rb_cover_const_on(void) {
++    static int v = -1;
++    if (v < 0) { const char *e = getenv("S2A_RB_COVER_CONST"); v = !(e && !strcmp(e, "0"));
++        MLOG("RewindBox: covering first draws proven from vertex shaders' position tables: %s (S2A_RB_COVER_CONST%s)", v ? "on" : "off", v ? "=0 turns it off" : "=0"); }
++    return v;
++}
++static uint64_t g_rb_cov_const;   // first draws whose positions came from a position table (the cover test then decides)
++static int rb_cover_const(const NvShader *vs, const p_draw *dw, const p_draw_idx *di, int n) {
++    return vs->rf.pos_attr < 0 && vs->rf.pos_const_n >= 3 && dw && !di && !dw->ind && !dw->mdi_cnt && !dw->tfc && dw->first >= 0 &&
++           dw->first + n <= vs->rf.pos_const_n && dw->instances <= 1 && dw->base_instance == 0 && g_wd <= 0 && rb_cover_const_on();
++}
+ static int first_draw_covers(int i, id<MTLTexture> t, NSUInteger level) {
+     const p_draw *dw = g_fd_dw; const p_draw_idx *di = g_fd_di;
+     int n = dw ? dw->count : di->count, prim = dw ? dw->prim : di->prim;
+     __unsafe_unretained NvProg *pr = S.prog ? prog_get(S.prog) : nil; if (!pr) return g_fd_why = 1, 0;
+     NvShader *vs = pr->sh[0], *fs = pr->sh[1];
+-    if (!vs || !fs || vs->rf.pos_attr < 0 || fs->rf.may_discard || fs->rf.writes_smask || !(fs->rf.color_mask >> i & 1)) return g_fd_why = 2, 0;
++    const int by_table = vs && n >= 3 && n <= 64 && rb_cover_const(vs, dw, di, n);   // RewindBox (patch 0471)
++    if (!vs || !fs || (vs->rf.pos_attr < 0 && !by_table) || fs->rf.may_discard || fs->rf.writes_smask || !(fs->rf.color_mask >> i & 1)) return g_fd_why = 2, 0;
+     if (!t || t.sampleCount != 1 || t.textureType == MTLTextureType3D) return g_fd_why = 3, 0;
+     if ((S.color.blend_en >> i & 1) || ((S.chmask.mask >> (4 * i)) & 0xf) != 0xf || S.ms.a2c || S.poly.mode != NVN_POLYGON_MODE_FILL) return g_fd_why = 4, 0;
+     if (R.rt.depth && ((S.ds.dt && S.ds.df != NVN_DEPTH_FUNC_ALWAYS) || S.ds.st)) return g_fd_why = 5, 0;
+     if (n < 3 || n > 64) return g_fd_why = 6, 0;
+-    float P[64][4]; int why = attr_read(vs->rf.pos_attr, dw, di, P);
++    float P[64][4];
++    if (by_table) { for (int k = 0; k < n; k++) memcpy(P[k], vs->rf.pos_const[dw->first + k], sizeof P[k]); g_rb_cov_const++; }   // RewindBox (patch 0471)
++    else {
++    int why = attr_read(vs->rf.pos_attr, dw, di, P);
+     if (why) return g_fd_why = why, 0;
+     if (vs->rf.pos_w1) for (int k = 0; k < n; k++) P[k][3] = 1.0f;   // Position w is the constant 1 (the attribute's .w is not taken)
++    }
+     int sc[4] = {R.sc.x, R.sc.y, R.sc.w, R.sc.h}; float vp[4] = {S.vp[0][0], S.vp[0][1], S.vp[0][2], S.vp[0][3]};
+     g_fd_why = 11;
+     NSUInteger cw, ch; rs_canvas(t, level, &cw, &ch);   // S2Arm internal resolution: the viewport / scissor are canvas units, so is the target here (= the storage when not scaled)
+diff --git a/graphics/nvn/gfx/nvn/nvn_refl.h b/graphics/nvn/gfx/nvn/nvn_refl.h
+index a13e95b..1f7ba59 100644
+--- a/graphics/nvn/gfx/nvn/nvn_refl.h
++++ b/graphics/nvn/gfx/nvn/nvn_refl.h
+@@ -97,6 +97,7 @@ typedef struct {
+     // For the fully-covering-first-draw proof (dmsh_build.py raster_facts; missing field = not provable): vertex - position xyz taken as-is from attribute pos_attr (-1 = no), w is the constant 1 (pos_w1) or taken from the same attribute's .w;
+     // fragment - may discard, writes sample_mask, bitmap of the color numbers written
+     int8_t pos_attr; uint8_t pos_w1, may_discard, writes_smask, color_mask, color_known;   // color_known: the color list was recorded at packaging (color_mask can be trusted)
++    float pos_const[6][4]; uint8_t pos_const_n;   // RewindBox (patch 0471): json pos_const, a vertex shader without inputs: gl_Position of vertex indices 0..n-1, instance 0 (Dsh.cs)
+     // Merge B step 2 (readable-tile version <key>_bf, dmsh_fetch.py): fragment - nfc redirectable samples (the i-th: texture slot fc_reg, interpolated output fc_locn),
+     // bitmap fc_mixed of texture slots with mixed use (these slots must not be redirected to read the tile), nfo outputs (each with color number fo_color); vertex - .xy of interpolated output locn is taken as-is from attribute uv_attr[locn] (-1 = no)
+     uint8_t nfc, fc_reg[32], fc_locn[32], nfo, fo_color[4]; uint64_t fc_mixed[4]; int8_t uv_attr[32];   // fc_mixed: a bit per texture slot 0-255 (slots 128+ are separate texture binds, NVN_SEPTEX_SLOT0)
+diff --git a/graphics/nvn/gfx/nvn/nvn_refl.m b/graphics/nvn/gfx/nvn/nvn_refl.m
+index 3d42d11..f642cfe 100644
+--- a/graphics/nvn/gfx/nvn/nvn_refl.m
++++ b/graphics/nvn/gfx/nvn/nvn_refl.m
+@@ -3,6 +3,7 @@
+ #import <Metal/Metal.h>
+ #include <stdio.h>
+ #include <string.h>
++#include <math.h>   // RewindBox (patch 0471): isfinite (pos_const)
+ 
+ // Dummy texture type: same prefix rules as the original dummy_tex (an unbound texture slot reads 0 per D3D semantics)
+ static void dummy_kind(NSString *t, uint8_t *tt, uint8_t *pf) {
+@@ -185,6 +186,13 @@ int nvn_refl_from_json(NSDictionary *j, nvn_refl *o, char *err, int errlen) {
+             if (w) o->user_in = bits; else o->user_out = bits; o->has_user |= (uint8_t)(1u << w); }
+         NSDictionary *ra = j[@"raster"];
+         o->pos_attr = -1; o->may_discard = 1; o->writes_smask = 1;
++        NSArray *pcs = j[@"pos_const"];   // RewindBox (patch 0471): positions of a vertex shader without inputs, by vertex index (Dsh.cs); anything malformed: no table
++        if ([pcs isKindOfClass:[NSArray class]] && pcs.count >= 3 && pcs.count <= 6) {
++            int ok = 1;
++            for (NSUInteger v = 0; v < pcs.count && ok; v++) { NSArray *p = pcs[v]; ok = [p isKindOfClass:[NSArray class]] && p.count == 4;
++                for (NSUInteger c = 0; c < 4 && ok; c++) { ok = [p[c] isKindOfClass:[NSNumber class]] && isfinite([p[c] doubleValue]); if (ok) o->pos_const[v][c] = [p[c] floatValue]; } }
++            o->pos_const_n = ok ? (uint8_t)pcs.count : 0;
++        }
+         if ([ra isKindOfClass:[NSDictionary class]]) {
+             if (ra[@"pos_attr"]) { int pa = [ra[@"pos_attr"] intValue]; o->pos_attr = (int8_t)(pa >= 0 && pa < 16 ? pa : -1); o->pos_w1 = [ra[@"pos_w"] isEqual:@"one"]; }
+             if (ra[@"discard"]) o->may_discard = [ra[@"discard"] intValue] != 0;
+diff --git a/graphics/tools/direct/dsh/Dsh.cs b/graphics/tools/direct/dsh/Dsh.cs
+index 13f09cc..af8b1ac 100644
+--- a/graphics/tools/direct/dsh/Dsh.cs
++++ b/graphics/tools/direct/dsh/Dsh.cs
+@@ -511,6 +511,23 @@ namespace S2A.Dsh
+                     var pu = new List<object>();
+                     if (res["cbufs"] is JsonArray cbs) foreach (var c in cbs) { int b = (int)c["binding"], sl = (int)c["slot"]; if (sl >= 3 && sl <= 16) pu.Add(new List<object> { (long)b, (long)(sl - 3) }); else if (sl == 1) pu.Add(new List<object> { (long)b, -1L }); }   // −1 = 这支着色器自带的常量段 c1（json c1，宿主 rf.c1）
+                     refl["pos_ubo"] = pu;
++                    // RewindBox (patch 0471): a vertex shader with no vertex input whose position is a function of the vertex index alone (the full-screen triangle or quad of post
++                    //   effects): its positions for vertex indices 0..5, instance 0, evaluated once here. The host proves from them that a first draw covers its colour target, as it
++                    //   does from a position attribute (nvn_mtl.m first_draw_covers), and the pass opens without loading that target. A read of a constant or an attribute, an unknown
++                    //   branch or the step limit ends the table there; fewer than 3 vertices: no table. S2A_RB_COVER_CONST=0 on the host ignores it
++                    if (refl["vertex_inputs"] is List<object> vin && vin.Count == 0)
++                    {
++                        var pc = new List<object>(); var env = new ConstPosEnv();
++                        for (uint v = 0; v < 6; v++)
++                        {
++                            env.Vid = v; env.Read = false;
++                            if (!posSlice.EvalPosition(env, out float px, out float py, out float pz, out float pw) || env.Read ||
++                                !float.IsFinite(px) || !float.IsFinite(py) || !float.IsFinite(pz) || !float.IsFinite(pw)) break;
++                            pc.Add(new List<object> { PosNum(px), PosNum(py), PosNum(pz), PosNum(pw) });
++                        }
++                        if (pc.Count >= 3) refl["pos_const"] = pc;
++                        static PyNum PosNum(float f) => new(((double)f).ToString("R", CultureInfo.InvariantCulture));   // exact: a float widened to double prints back to the same float
++                    }
+                 }
+                 if (stage == "ps" && j["early_z"] is JsonNode ez) refl["early_z"] = (bool)ez;
+                 if (stage == "ps" && res["uses_frag_coord"] is JsonNode ufc && (bool)ufc) refl["frag_coord"] = true;   // 宽屏：读片元坐标（同 dmsh_build.py，宿主按它写 render_scale[0]）
+@@ -2931,3 +2948,12 @@ namespace S2A.Dsh
+         }
+     }
+ }
++
++// RewindBox (patch 0471): what a vertex shader without inputs may read while its position table is evaluated at build time (Dsh pos_const): the vertex index, instance 0, nothing else
++sealed class ConstPosEnv : S2Arm.Gfx.Widen.IPosEnv
++{
++    public uint Vid; public bool Read;
++    public bool Attr(int location, int lane, out uint bits) { bits = 0; Read = true; return false; }
++    public uint Builtin(uint builtIn) => builtIn is 42 or 5 ? Vid : 0;   // VertexIndex / VertexId; the instance and the bases are 0 (the host uses the table for one instance, base 0)
++    public bool Ubo(int binding, int byteOffset, out uint bits) { bits = 0; Read = true; return false; }
++}
+diff --git a/graphics/widen/shader/SpirvPosSlice.cs b/graphics/widen/shader/SpirvPosSlice.cs
+index 29b6867..abbdc9c 100644
+--- a/graphics/widen/shader/SpirvPosSlice.cs
++++ b/graphics/widen/shader/SpirvPosSlice.cs
+@@ -263,12 +263,19 @@ namespace S2Arm.Gfx.Widen
+         public bool Eval(IPosEnv env, out float x, out float w)
+         {
+             x = 0; w = 1;
+-            try { return EvalCore(env, out x, out w); }
++            try { return EvalCore(env, out x, out _, out _, out w, false); }
+             finally { ReturnAll(); }
+         }
+-        bool EvalCore(IPosEnv env, out float x, out float w)
++        /// <summary>RewindBox (patch 0471): the whole gl_Position of one vertex; false when any of x, y, z, w depends on an unknown value (reason in LastFail).</summary>
++        public bool EvalPosition(IPosEnv env, out float x, out float y, out float z, out float w)
+         {
+-            x = 0; w = 1;
++            x = y = z = 0; w = 1;
++            try { return EvalCore(env, out x, out y, out z, out w, true); }
++            finally { ReturnAll(); }
++        }
++        bool EvalCore(IPosEnv env, out float x, out float y, out float z, out float w, bool all)
++        {
++            x = y = z = 0; w = 1;
+             St st = _st; st.Env = env; st.Mem.Clear(); st.Unk.Clear(); st.Steps = 0; st.Fail = null;
+             foreach (var kv in _vars) if (kv.Value.Sc is ScPrivate or ScOutput) st.Mem[kv.Key] = RentZero(Flat(Pointee(kv.Value.Ptr)));
+             Call(st, _fns[_entry], FrameAt(0), 0);
+@@ -285,7 +292,9 @@ namespace S2Arm.Gfx.Widen
+                 uint[] mem = st.Mem[kv.Key];
+                 if (baseOff + 3 >= mem.Length) { LastFail = "位置输出越界"; return false; }
+                 if (st.Unk.Contains((kv.Key, baseOff)) || st.Unk.Contains((kv.Key, baseOff + 3))) { LastFail = "位置依赖未知值"; return false; }
++                if (all && (st.Unk.Contains((kv.Key, baseOff + 1)) || st.Unk.Contains((kv.Key, baseOff + 2)))) { LastFail = "位置依赖未知值"; return false; }   // RewindBox (patch 0471): y and z as well
+                 x = BitConverter.UInt32BitsToSingle(mem[baseOff]); w = BitConverter.UInt32BitsToSingle(mem[baseOff + 3]);
++                y = BitConverter.UInt32BitsToSingle(mem[baseOff + 1]); z = BitConverter.UInt32BitsToSingle(mem[baseOff + 2]);
+                 return true;
+             }
+             LastFail = "没有位置输出"; return false;

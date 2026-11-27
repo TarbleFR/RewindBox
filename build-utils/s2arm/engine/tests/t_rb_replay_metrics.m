@@ -201,17 +201,20 @@ static NSString *const kMSL = @"#include <metal_stdlib>\nusing namespace metal;\
 "  return float4(a.l.read(c).rgb + a.b.read(c / 4).rgb * 0.5, 1); }\n"
 "fragment float4 fs_ui(constant PA &a [[buffer(0)]]) { return a.col[0]; }\n";
 static id<MTLLibrary> lib;
-static NvShader *shader(NSString *fn, int stage, NSArray *bindings, NSArray *colors) {
+static NvShader *shader_pc(NSString *fn, int stage, NSArray *bindings, NSArray *colors, NSArray *pos_const) {
     NvShader *s = [NvShader new]; s->stage = stage; s->fn = [lib newFunctionWithName:fn]; REQUIRE(s->fn);
     NSMutableDictionary *j = [@{ @"route": @"B", @"bindings": bindings ?: @[] } mutableCopy];
+    if (pos_const) j[@"pos_const"] = pos_const;   // as Dsh.cs writes it for a vertex shader without inputs (patch 0471)
     if (colors) j[@"raster"] = @{ @"colors": colors, @"discard": @0, @"sample_mask": @0 };
     if (stage == 5) j[@"threadgroup_size"] = @[@64, @1, @1];
     char e[256]; REQUIRE(!nvn_refl_from_json(j, &s->rf, e, sizeof e));
     if (bindings.count) { s->ae = [s->fn newArgumentEncoderWithBufferIndex:0]; REQUIRE(s->ae); s->arg_len = s->ae.encodedLength; }
     s->rf.has_user = stage == 0 ? 1 : stage == 1 ? 2 : 0;
+    s->rb_explicit_bindings = 1;   // as the engine's loader sets it from a reflection's binding list (nvn_mtl.m): every binding is declared
     snprintf(s->key, sizeof s->key, "%016llx_b", (unsigned long long)(0x5eed000000000000ull + (uint64_t)[fn hash] % 0xffffffffffull));
     return s;
 }
+static NvShader *shader(NSString *fn, int stage, NSArray *bindings, NSArray *colors) { return shader_pc(fn, stage, bindings, colors, nil); }
 static void program(prog_t *p, NvShader *vs, NvShader *fs, NvShader *cs) {
     NvProg *g = [NvProg new]; g->sh[0] = vs; g->sh[1] = fs; g->sh[5] = cs; g->smask = (vs ? 1 : 0) | (fs ? 2 : 0) | (cs ? 32 : 0);
     *p = (prog_t){.magic = MAGIC('P', 'R', 'O', 'G'), .serial = nvn_new_serial()}; serial_put(p->serial, g);
@@ -320,7 +323,7 @@ int main(int argc, char **argv) { @autoreleasepool {
     { float *c = ubo_cpu(B_CS); c[0] = 0.5f; c[1] = 0.25f; c[2] = 1; c[3] = 1; }
     NSError *err = nil; lib = [g_dev newLibraryWithSource:kMSL options:nil error:&err]; if (!lib) { fprintf(stderr, "MSL: %s\n", err.localizedDescription.UTF8String); return 2; }
     NSArray *cb0 = @[ @{ @"kind": @"cbuf", @"reg": @0, @"arg_id": @0 } ];
-    NvShader *vs_obj = shader(@"vs_obj", 0, cb0, nil), *vs_full = shader(@"vs_full", 0, nil, nil);
+    NvShader *vs_obj = shader(@"vs_obj", 0, cb0, nil), *vs_full = shader_pc(@"vs_full", 0, nil, nil, @[ @[@-1, @-1, @0, @1], @[@3, @-1, @0, @1], @[@-1, @3, @0, @1] ]);
     program(&p_depth, vs_obj, shader(@"fs_none", 1, nil, @[]), nil);
     for (int k = 0; k < 4; k++) program(&p_mrt[k], vs_obj, shader([NSString stringWithFormat:@"fs_mrt%d", k], 1, cb0, @[@0, @1]), nil);
     program(&p_cs, nil, nil, shader(@"cs_fill", 5, @[ @{ @"kind": @"cbuf", @"reg": @0, @"arg_id": @0 }, @{ @"kind": @"sbuf", @"reg": @0, @"arg_id": @1, @"rw": @YES } ], nil));
