@@ -1,5 +1,5 @@
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 384814a..7609ecd 100644
+index 384814a..b1a504f 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -599,11 +599,15 @@ static void big_tex_res(id<MTLAllocation> r, int line) {   // RewindBox (patch 0
@@ -18,7 +18,29 @@ index 384814a..7609ecd 100644
      if (big_tex_on()) big_tex_res(r, line);   // first time into the residency set only
      { int k = 0; while (k < RS_SITES - 1 && g_rs_site[k].line && g_rs_site[k].line != line) k++; g_rs_site[k].line = line; g_rs_site[k].n++; g_rs_site[k].bytes += r.allocatedSize; }
      [g_res addAllocation:(id<MTLAllocation>)r];
-@@ -14784,8 +14788,12 @@ static void arena_seg_done(uint64_t sf) {
+@@ -1009,15 +1013,18 @@ void mtl_init(void) {
+     rd.initialCapacity = 4096;
+     NSError *re = nil;
+     g_res = [g_dev newResidencySetWithDescriptor:rd error:&re];
+-    if (!g_res) MDIE("failed to create the MTLResidencySet");
+-    [g_q addResidencySet:g_res];
++#ifndef S2A_NO_RESIDENCY_SET
++#define S2A_NO_RESIDENCY_SET() MDIE("failed to create the MTLResidencySet")   // RewindBox (patch 0469): a replay-metrics test on a GPU without residency sets tracks resources per encoder instead
++#endif
++    if (!g_res) S2A_NO_RESIDENCY_SET();
++    if (g_res) [g_q addResidencySet:g_res];   // RewindBox (patch 0469): always set in the engine (no residency set stops above)
+     { void crash_set_wait_dump(void (*fn)(void)); void mtl_wait_state_dump(void); crash_set_wait_dump(mtl_wait_state_dump); }
+     if (g_m3) {
+         // The same residency set on an old queue (macOS 15 / iOS 18 on). Not made here: the Metal 4 queue, the three allocator rotations (main, upload, present), the argument tables
+         // (bindings are D3-3 #279), the present argument table and UV buffers (present_encode binds directly)
+         g_q3 = [g_dev newCommandQueue];
+         if (!g_q3) MDIE("failed to create the Metal 3 MTLCommandQueue");
+-        [g_q3 addResidencySet:g_res];
++        if (g_res) [g_q3 addResidencySet:g_res];   // RewindBox (patch 0469)
+         g_fence3 = [g_dev newFence];
+         NSError *te = nil;   // the argument tables as DmTable3 (#279 D3-3; tab_new)
+         g_vt = tab_new(31, 1, 0, &te); g_ft = tab_new(31, 1, 0, &te); g_ct = tab_new(31, 1, 0, &te); g_up_ct = tab_new(31, 1, 0, &te); g_ot = tab_new(31, 1, 0, &te); g_present_args = tab_new(1, 1, 1, &te);
+@@ -14784,8 +14791,12 @@ static void arena_seg_done(uint64_t sf) {
  }
  // RewindBox (upstream S2Arm 9ca83e5b1): buf is __strong. An unqualified id * out-parameter is __autoreleasing under ARC, which put the arena buffer in the autorelease
  //   pool at every call, a few per draw (upstream: autorelease 2.63% -> 1.73% of replay time). Every caller passes a strong local

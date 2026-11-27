@@ -17,6 +17,9 @@ static uint64_t rbm_arena_calls, rbm_arena_bytes, rbm_res_adds;
 #define S2A_REC_EXEC_HOOK(r) rbm_exec((const void *)(r))
 #define S2A_ARENA_HOOK(n) (rbm_arena_calls++, rbm_arena_bytes += (n))
 #define S2A_RES_HOOK() (rbm_res_adds++)
+// A GPU without residency sets (the Mac runner's paravirtual device): every allocation the engine makes resident is declared on each encoder instead (rbm_track)
+static int rbm_tracked;
+#define S2A_NO_RESIDENCY_SET() (rbm_tracked = 1, fprintf(stderr, "replay metrics: no residency set on this GPU, resources declared per encoder\n"))
 #include "nvn_mtl.m"
 #include "nvn_protos.h"
 
@@ -72,8 +75,23 @@ static uint64_t rbm_state(void) {
     for (int s = 0; s < 5; s++) { h = rbm_mix(h, rbm_s.buf[s]); for (int i = 0; i < 32; i++) { h = rbm_mix(h, rbm_s.tex[s][i]); h = rbm_mix(h, rbm_s.smp[s][i]); } }
     return h;
 }
+// Without a residency set: the encode thread's open encoder declares every resident allocation before its first call (a residency stand-in, not counted in the metrics)
+static void rbm_track(void) {
+    static __unsafe_unretained id last;
+    if (!rbm_tracked || !g_rx_enc || g_rx_enc == last) return;
+    last = g_rx_enc;
+    pthread_mutex_lock(&g_res_mu); NSArray *all = g_res_objects.allObjects; pthread_mutex_unlock(&g_res_mu);
+    NSUInteger n = all.count; if (!n) return;
+    __unsafe_unretained id<MTLResource> *v = (__unsafe_unretained id<MTLResource> *)calloc(n, sizeof *v); NSUInteger k = 0;
+    for (id o in all) if ([o conformsToProtocol:@protocol(MTLResource)]) v[k++] = o;
+    const MTLResourceUsage u = MTLResourceUsageRead | MTLResourceUsageWrite;
+    if ([g_rx_enc conformsToProtocol:@protocol(MTLRenderCommandEncoder)]) [(id<MTLRenderCommandEncoder>)g_rx_enc useResources:v count:k usage:u stages:MTLRenderStageVertex | MTLRenderStageFragment];
+    else if ([g_rx_enc conformsToProtocol:@protocol(MTLComputeCommandEncoder)]) [(id<MTLComputeCommandEncoder>)g_rx_enc useResources:v count:k usage:u];
+    free(v);
+}
 static void rbm_exec(const void *rp) {
     const rec_t *r = rp; const uint64_t *a = r->a; if (r->op < RBM_OPS) rbm_exec_n[r->op]++;
+    rbm_track();
     switch (r->op) {
     case RO_RE_BEGIN: memset(&rbm_s, 0, sizeof rbm_s); rbm_pass_begin(rec_id(a[0])); break;   // a new encoder starts with no state
     case RO_CE_BEGIN: case RO_CE_BEGIN_D: case RO_CB_BLIT: memset(&rbm_s, 0, sizeof rbm_s); break;
